@@ -106,8 +106,8 @@ PAGES = {
     "/enso-forecasts.html": dict(kind="page", topic="outlooks", tier=2, prio=29, models=["Multi-model"], horizon="Seasons",
                                  region=["Tropical Pacific"], variable=["SST"]),
     # "/cities/verify.html" paused 2026-09-27
-    "/aifs-verify.html": dict(kind="page", topic="research", tier=1, prio=23, models=["AIFS", "AIFS-ENS", "ERA5"], horizon="Days 1–15",
-                              region=["Northern Hemisphere"], thumb="assets/verify/tt_compare_d05.webp", variable=["Height", "Temperature"]),
+    "/aifs-verify.html": dict(kind="stage", file="aifs-verify.html", topic="research", title="AIFS single versus member 0", tier=1,
+                              prio=23, models=["AIFS", "AIFS-ENS", "ERA5"], horizon="Days 1–15", region=["Northern Hemisphere"]),
     "/topics/": dict(kind="page", topic="research", tier=1, prio=26, models=[], horizon=None, region=[]),
     "/research.html": dict(kind="page", topic="research", tier=1, prio=27, models=[], horizon=None, region=[]),
     "/catalog.html": dict(kind="page", topic="tools", tier=1, prio=28, models=[], horizon=None, region=[]),
@@ -334,12 +334,16 @@ def stage_items(href: str, cfg: dict) -> list:
             if p["kind"] == "dom" and p.get("domId"):
                 m0 = re.search(rf'id="{re.escape(p["domId"])}"', html)
                 if m0:
-                    nxt = re.search(r'<div class="card\b', html[m0.end():])
+                    nxt = re.search(r'<div class="card[ "]', html[m0.end():])   # the next card, not a card-head
                     chunk = html[m0.start(): m0.end() + (nxt.start() if nxt else 20000)]
                     elem = text_of(chunk)
                     img = re.search(r'<img[^>]+(?:data-src|src)="([^"]+\.(?:webp|png|jpg))[^"]*"', chunk)
                     if thumb is None and img and not img.group(1).startswith("data:"):
                         thumb = thumb_key(img.group(1), False)
+                    fr = re.search(r'<iframe[^>]+(?:data-src|src)="(sst_anim\.html\?[^"]+)"', chunk)
+                    if thumb is None and fr:
+                        src = frame_source(H.unescape(fr.group(1)), path.parent)
+                        thumb = thumb_key(*src) if src else None
             opts_text = " ".join(v[0] for v in variants)
             shows = " ".join([p["label"], g["label"], p.get("sub", ""), p.get("cap", ""), opts_text])
             blob = shows + " " + (about or elem)[:1500]
@@ -594,6 +598,9 @@ def build(index_path: str | None = None) -> dict:
                 raise SystemExit(f"private name in a variant: {it['id']} {v[0]!r}")
     # only figures something still points at
     used = {it["thumb"] for it in uniq} | {v[2] for it in uniq for v in it["variants"]}
+    for it in uniq:                                  # a mounted card that shows a figure is a figure
+        if it["kind"] == "chart" and it["thumb"]:
+            it["kind"] = "fig"
     for it in uniq:                                  # a product whose default figure is not out yet: kind says so
         if it["thumb"] == "" and it["kind"] == "fig":
             it["kind"] = "pending"
