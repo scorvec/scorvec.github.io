@@ -44,7 +44,7 @@ PRODUCTS = [
         ("/cities/", "City temperature forecasts",
          "Forecast highs and lows for 234 US cities from 892 stations, the consensus alongside NBM, ECMWF, AIFS, GFS, GEFS, GDPS and GEPS, day by day for two weeks.",
          "Four times daily"),
-    ]),
+    ], "Short/medium range"),
     ("Subseasonal and seasonal", "From weeks two to five out to the coming seasons", [
         ("Weeks 2–5", [
             ("/subseasonal.html", "GEPS extended ensemble",
@@ -65,28 +65,50 @@ PRODUCTS = [
              "Every member of seven centres' seasonal models for Niño-3.4, with percentile fans and a record of how past forecasts did.",
              "Monthly"),
         ]),
+    ], "Subseasonal/seasonal"),
+    ("Climate drivers", "The modes: ENSO, the MJO and the QBO, as they stand now", [
+        ("/enso.html", "El Niño monitor",
+         "Daily ONI and RONI, Niño-region sea surface temperatures, the subsurface, winds and convection, with SST anomaly maps and animation.",
+         "Daily"),
+        ("/mjo.html", "MJO forecast",
+         "Real-time multivariate MJO index from the ECMWF AIFS ensemble, with the observed phase-space track, an ENSO-removed version, and what each phase has meant for temperature and rain.",
+         "Twice daily"),
+        ("/qbo/", "QBO tracker",
+         "Equatorial stratospheric winds at 10 to 100 hPa from radiosondes, 1950 to the present.",
+         "Weekly"),
     ]),
-    ("Climate drivers", "ENSO, the MJO, the QBO, the stratosphere and the jets, as they stand now", [
-        ("Tropics", [
-            ("/enso.html", "El Niño monitor",
-             "Daily ONI and RONI, Niño-region sea surface temperatures, the subsurface, winds and convection, with SST anomaly maps and animation.",
-             "Daily"),
-            ("/mjo.html", "MJO forecast",
-             "Real-time multivariate MJO index from the ECMWF AIFS ensemble, with the observed phase-space track, an ENSO-removed version, and what each phase has meant for temperature and rain.",
-             "Twice daily"),
-            ("/qbo/", "QBO tracker",
-             "Equatorial stratospheric winds at 10 to 100 hPa from radiosondes, 1950 to the present.",
-             "Weekly"),
-        ]),
-        ("Circulation", [
+    # (user, same day: "The jets, aam and stratosphere stuff should not really be under 'climate drivers' either")
+    # A "#" item under its own page is a sub-item: indented in the menu, left off the homepage rows.
+    ("Atmospheric circulation", "The stratosphere and the troposphere's jets, waves and overturning cells", [
+        ("Stratosphere", [
             ("/stratosphere.html", "Stratosphere and polar vortex",
              "Will the vortex weaken? AIFS, GEPS and GEFS 60°N winds, heat flux and wave driving, potential vorticity, the Brewer–Dobson circulation, and every sudden warming since 1980 with what followed.",
              "Twice daily"),
+            ("/stratosphere.html#heatflux", "Eddy heat flux",
+             "100 hPa poleward heat flux, the wave activity going up into the vortex, from AIFS-ENS, GEPS and GEFS.",
+             "Twice daily"),
+            ("/stratosphere.html#pv", "Potential vorticity",
+             "GEOS FP Ertel PV on the 475 and 850 K surfaces.",
+             "Daily"),
+            ("/stratosphere.html#bdc", "Brewer–Dobson circulation",
+             "Tropical upwelling and the residual circulation from GEOS FP and MERRA-2.",
+             "Daily"),
+        ]),
+        ("Troposphere", [
             ("/circulation.html", "Jets, Walker and Hadley cells",
              "Wave activity flux, the dynamic tropopause, angular momentum and mountain torques, and the Hadley and Walker cells from the AIFS ensemble.",
              "Daily"),
+            ("/circulation.html#waf", "Wave activity flux",
+             "Takaya–Nakamura wave activity flux at 250 hPa, the ensemble's quasi-stationary wave trains.",
+             "Daily"),
+            ("/circulation.html#aam", "Angular momentum and torques",
+             "Global atmospheric angular momentum and the mountain and friction torques that change it.",
+             "Daily"),
+            ("/circulation.html#dt", "Dynamic tropopause",
+             "The 2-PVU surface and PV on the 330 and 350 K isentropes from the AIFS ensemble.",
+             "Daily"),
         ]),
-    ]),
+    ], "Circulation"),
     ("Studies and verification", "What the record and the models say, and how the forecasts score", [
         ("Studies", [
             ("/enso.html#imp_reg", "ENSO impacts on the Americas",
@@ -107,7 +129,7 @@ PRODUCTS = [
              "The two ECMWF AIFS configurations compared as deterministic models against radiosondes and ERA5, with the ensemble member spectrally matched to the single model and the ensemble mean for reference.",
              "Every 00Z and 12Z run"),
         ]),
-    ]),
+    ], "Studies/verification"),
     ("Tools", "Explore the data yourself", [
         ("/catalog.html", "Every plot on the site",
          "One searchable sheet of every figure and loop, filterable by topic, model, forecast range and region, each linked to its exact view.",
@@ -267,25 +289,29 @@ def header_html(page: str, skin: str) -> str:
            '<span class="sh-find-t">Find a plot</span><kbd>Ctrl K</kbd></button>',
            '    <button class="sh-toggle" type="button" aria-expanded="false" aria-controls="sh-menu">Menu</button>',
            '    <nav class="sh-nav" id="sh-menu" aria-label="Site">\n      <ul class="sh-list">']
-    for n, (title, _blurb, items) in enumerate(PRODUCTS):
+    for n, (title, _blurb, items, *short) in enumerate(PRODUCTS):
+        # the header's short label on the one-line desktop row, the full title in the phone / compact menu
+        label = (f'<span class="sh-lf">{title}</span><span class="sh-ls">{short[0]}</span>') if short else title
         in_group = any(it[0] == page for it in group_items(items))
         mid = f"sh-g{n}"
         columns = bool(items) and isinstance(items[0][1], list)
         out.append('        <li class="sh-item sh-has-menu">')
         out.append(f'          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="{mid}"'
-                   f'{" aria-current=page" if in_group else ""}>{title}</button>')
+                   f'{" aria-current=page" if in_group else ""}>{label}</button>')
         if columns:
             out.append(f'          <div class="sh-menu sh-menu--cols" id="{mid}">')
             for sub, its in items:
                 out.append(f'            <div>\n              <h3>{sub}</h3>\n              <ul>')
-                for href, label, *_ in its:
-                    out.append(f'                <li><a href="{href}"{_current(href, page)}>{label}</a></li>')
+                pages_here = {h for h, *_ in its if "#" not in h}
+                for href, text, *_ in its:
+                    cls = ' class="sh-subitem"' if "#" in href and href.split("#")[0] in pages_here else ""
+                    out.append(f'                <li{cls}><a href="{href}"{_current(href, page)}>{text}</a></li>')
                 out.append('              </ul>\n            </div>')
             out.append('          </div>\n        </li>')
         else:
             out.append(f'          <div class="sh-menu sh-menu--list" id="{mid}">\n            <ul>')
-            for href, label, *_ in items:
-                out.append(f'              <li><a href="{href}"{_current(href, page)}>{label}</a></li>')
+            for href, text, *_ in items:
+                out.append(f'              <li><a href="{href}"{_current(href, page)}>{text}</a></li>')
             out.append('            </ul>\n          </div>\n        </li>')
     for href, label in PRIMARY:
         out.append(f'        <li class="sh-item"><a class="sh-link" href="{href}"{_current(href, page)}>{label}</a></li>')
@@ -311,10 +337,15 @@ def homepage_rows() -> str:
     same classes as the hand-written rows it replaced (.group / .rows / .sub / .row / .what / .when), so the
     homepage CSS and its freshness script (status.json keyed by href) work unchanged."""
     out = ["<!-- hp:start -->"]
-    for title, blurb, items in PRODUCTS:
+    for title, blurb, items, *_ in PRODUCTS:
         out.append(f'    <div class="group">\n      <h3>{title}<small>{blurb}</small></h3>\n      <ul class="rows">')
         cols = bool(items) and isinstance(items[0][1], list)
-        for sub, its in (items if cols else [(None, items)]):
+        # a menu sub-item (a "#" link under its own page) is covered by its page's row
+        colrows = [(sub, [it for it in its if not ("#" in it[0] and it[0].split("#")[0] in {h for h, *_ in its if "#" not in h})])
+                   for sub, its in (items if cols else [(None, items)])]
+        if cols and all(len(r) <= 1 for _, r in colrows):
+            colrows = [(None, [it for _, r in colrows for it in r])]   # one row per column: no subheadings, one grid
+        for sub, its in colrows:
             if sub:
                 out.append(f'        <li class="sub">{sub}</li>')
             for href, label, what, when in its:

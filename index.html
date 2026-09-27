@@ -363,7 +363,7 @@
     <nav class="sh-nav" id="sh-menu" aria-label="Site">
       <ul class="sh-list">
         <li class="sh-item sh-has-menu">
-          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g0">Short and medium range</button>
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g0"><span class="sh-lf">Short and medium range</span><span class="sh-ls">Short/medium range</span></button>
           <div class="sh-menu sh-menu--list" id="sh-g0">
             <ul>
               <li><a href="/snowbands.html">Snow-band diagnostics</a></li>
@@ -374,7 +374,7 @@
           </div>
         </li>
         <li class="sh-item sh-has-menu">
-          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g1">Subseasonal and seasonal</button>
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g1"><span class="sh-lf">Subseasonal and seasonal</span><span class="sh-ls">Subseasonal/seasonal</span></button>
           <div class="sh-menu sh-menu--cols" id="sh-g1">
             <div>
               <h3>Weeks 2–5</h3>
@@ -395,27 +395,40 @@
         </li>
         <li class="sh-item sh-has-menu">
           <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g2">Climate drivers</button>
-          <div class="sh-menu sh-menu--cols" id="sh-g2">
+          <div class="sh-menu sh-menu--list" id="sh-g2">
+            <ul>
+              <li><a href="/enso.html">El Niño monitor</a></li>
+              <li><a href="/mjo.html">MJO forecast</a></li>
+              <li><a href="/qbo/">QBO tracker</a></li>
+            </ul>
+          </div>
+        </li>
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g3"><span class="sh-lf">Atmospheric circulation</span><span class="sh-ls">Circulation</span></button>
+          <div class="sh-menu sh-menu--cols" id="sh-g3">
             <div>
-              <h3>Tropics</h3>
+              <h3>Stratosphere</h3>
               <ul>
-                <li><a href="/enso.html">El Niño monitor</a></li>
-                <li><a href="/mjo.html">MJO forecast</a></li>
-                <li><a href="/qbo/">QBO tracker</a></li>
+                <li><a href="/stratosphere.html">Stratosphere and polar vortex</a></li>
+                <li class="sh-subitem"><a href="/stratosphere.html#heatflux">Eddy heat flux</a></li>
+                <li class="sh-subitem"><a href="/stratosphere.html#pv">Potential vorticity</a></li>
+                <li class="sh-subitem"><a href="/stratosphere.html#bdc">Brewer–Dobson circulation</a></li>
               </ul>
             </div>
             <div>
-              <h3>Circulation</h3>
+              <h3>Troposphere</h3>
               <ul>
-                <li><a href="/stratosphere.html">Stratosphere and polar vortex</a></li>
                 <li><a href="/circulation.html">Jets, Walker and Hadley cells</a></li>
+                <li class="sh-subitem"><a href="/circulation.html#waf">Wave activity flux</a></li>
+                <li class="sh-subitem"><a href="/circulation.html#aam">Angular momentum and torques</a></li>
+                <li class="sh-subitem"><a href="/circulation.html#dt">Dynamic tropopause</a></li>
               </ul>
             </div>
           </div>
         </li>
         <li class="sh-item sh-has-menu">
-          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g3">Studies and verification</button>
-          <div class="sh-menu sh-menu--cols" id="sh-g3">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g4"><span class="sh-lf">Studies and verification</span><span class="sh-ls">Studies/verification</span></button>
+          <div class="sh-menu sh-menu--cols" id="sh-g4">
             <div>
               <h3>Studies</h3>
               <ul>
@@ -434,8 +447,8 @@
           </div>
         </li>
         <li class="sh-item sh-has-menu">
-          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g4">Tools</button>
-          <div class="sh-menu sh-menu--list" id="sh-g4">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g5">Tools</button>
+          <div class="sh-menu sh-menu--list" id="sh-g5">
             <ul>
               <li><a href="/catalog.html">Every plot on the site</a></li>
               <li><a href="/skewt/">Sounding explorer</a></li>
@@ -539,13 +552,17 @@
     </div>
 
     <div class="group">
-      <h3>Climate drivers<small>ENSO, the MJO, the QBO, the stratosphere and the jets, as they stand now</small></h3>
+      <h3>Climate drivers<small>The modes: ENSO, the MJO and the QBO, as they stand now</small></h3>
       <ul class="rows">
-        <li class="sub">Tropics</li>
         <li class="row"><a href="/enso.html">El Niño monitor</a><span class="what">Daily ONI and RONI, Niño-region sea surface temperatures, the subsurface, winds and convection, with SST anomaly maps and animation.</span><span class="when">Daily</span></li>
         <li class="row"><a href="/mjo.html">MJO forecast</a><span class="what">Real-time multivariate MJO index from the ECMWF AIFS ensemble, with the observed phase-space track, an ENSO-removed version, and what each phase has meant for temperature and rain.</span><span class="when">Twice daily</span></li>
         <li class="row"><a href="/qbo/">QBO tracker</a><span class="what">Equatorial stratospheric winds at 10 to 100 hPa from radiosondes, 1950 to the present.</span><span class="when">Weekly</span></li>
-        <li class="sub">Circulation</li>
+      </ul>
+    </div>
+
+    <div class="group">
+      <h3>Atmospheric circulation<small>The stratosphere and the troposphere's jets, waves and overturning cells</small></h3>
+      <ul class="rows">
         <li class="row"><a href="/stratosphere.html">Stratosphere and polar vortex</a><span class="what">Will the vortex weaken? AIFS, GEPS and GEFS 60°N winds, heat flux and wave driving, potential vorticity, the Brewer–Dobson circulation, and every sudden warming since 1980 with what followed.</span><span class="when">Twice daily</span></li>
         <li class="row"><a href="/circulation.html">Jets, Walker and Hadley cells</a><span class="what">Wave activity flux, the dynamic tropopause, angular momentum and mountain torques, and the Hadley and Walker cells from the AIFS ensemble.</span><span class="when">Daily</span></li>
       </ul>
