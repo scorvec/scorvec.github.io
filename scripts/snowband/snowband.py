@@ -99,7 +99,12 @@ MODELS = {
     "rdps": dict(label="RDPS", leads=list(range(3, 85, 3)), cycles=(0, 6, 12, 18)),
 }
 # a model's grids in order of preference; a region is drawn from the first that covers >= COVER of it
-SOURCES = {"hrrr": ["hrrr"], "rrfs": ["rrfs3", "rrfs13"], "rdps": ["rdps"]}
+# RRFS v1 is ONE 3 km North American run; NCEP interpolates it to a 3 km CONUS grid and a 13 km North American grid.
+# The diagnostics are smoothed to 18 km anyway, so they come from the 13 km output (covers all five regions, ~48 MB a
+# lead); the model's own bands are drawn from the 3 km CONUS reflectivity wherever that grid covers the region.
+SOURCES = {"hrrr": ["hrrr"], "rrfs": ["rrfs13"], "rdps": ["rdps"]}
+BANDS_SRC = {"rrfs": "rrfs3"}
+NOMADS_BUDGET = 220                                  # requests per RRFS cycle: ~6 a lead x 28 leads + probes
 SRC_DX = {"hrrr": 3.0, "rrfs3": 3.0, "rrfs13": 13.0, "rdps": 10.0}
 SRC_LABEL = {"hrrr": "HRRR", "rrfs3": "RRFS", "rrfs13": "RRFS 13 km", "rdps": "RDPS"}
 COVER = 0.80
@@ -145,6 +150,10 @@ class Missing(RuntimeError):
     """The file or message does not exist (yet)."""
 
 
+class MultiRangeRefused(RuntimeError):
+    """The server ignored a multi-range request (HTTP 200); the body was not read."""
+
+
 class ShortRead(RuntimeError):
     """A body that is not a whole GRIB message of the requested length, even after a retry (an object still being
     written): the cycle is treated as still publishing."""
@@ -180,14 +189,101 @@ class Fetcher:
         with self._lock:
             self._strikes += 1
             strikes = self._strikes
-            self._paused_until = time.monotonic() + 90.0
-        print(f"  {self.name}: throttled ({why}), strike {strikes}", flush=True)
+            self._paused_until = time.monotonic() + 300.0
+        print(f"  {self.name}: refused ({why}), strike {strikes}", flush=True)
         if strikes >= 2:
             raise Throttled(f"{self.name}: {why}")
-        time.sleep(90.0)
+        time.sleep(300.0)                                # one retry after ~5 min (a later request often gets through)
+
+    budget = None                                        # requests left this cycle (NOMADS), None = unlimited
+    multi_ok = True
+
+    def _spend(self):
+        if self.budget is not None:
+            if self.budget <= 0:
+                raise Throttled(f"{self.name}: request budget for this cycle spent")
+            self.budget -= 1
+
+    def get_multi(self, url, runs, tries=3):
+        """Several byte ranges of one file in ONE request (multipart/byteranges) -> [bytes per run]. A server that
+        ignores the ranges answers 200 with the whole file: the connection is closed unread and MultiRangeRefused
+        raised, so a 500 MB file is never pulled by accident."""
+        if len(runs) == 1:
+            return [self.get(url, runs[0])]
+        hdr = "bytes=" + ",".join(f"{a}-{b if b >= 0 else ''}" for a, b in runs)
+        for k in range(tries):
+            self._spend()
+            self._pace()
+            try:
+                r = urllib.request.urlopen(urllib.request.Request(url, headers={**UA, "Range": hdr}), timeout=240)
+            except urllib.error.HTTPError as e:
+                self.nreq += 1
+                if e.code == 404:
+                    raise Missing(url) from None
+                if e.code in (403, 429) and self.throttle_host:
+                    self._throttled(f"HTTP {e.code}")
+                    continue
+                if k == tries - 1:
+                    raise
+                time.sleep(10 * (k + 1))
+                continue
+            except Exception:                                     # noqa: BLE001
+                if k == tries - 1:
+                    raise
+                time.sleep(10 * (k + 1))
+                continue
+            self.nreq += 1
+            ctype = r.headers.get("Content-Type", "")
+            if r.status == 200 and "html" not in ctype:
+                r.close()
+                raise MultiRangeRefused(url)
+            body = r.read()
+            r.close()
+            self.nbytes += len(body)
+            parts = {}
+            if "multipart/byteranges" in ctype:
+                bnd = re.search(r'boundary="?([^";]+)"?', ctype).group(1).encode()
+                pos = 0
+                while True:
+                    i = body.find(b"--" + bnd, pos)
+                    if i < 0 or body[i + len(bnd) + 2: i + len(bnd) + 4] == b"--":
+                        break
+                    h_end = body.find(b"\r\n\r\n", i)
+                    m = re.search(rb"Content-Range:\s*bytes\s+(\d+)-(\d+)/", body[i:h_end], re.I)
+                    if not m:
+                        break
+                    a0, b0 = int(m.group(1)), int(m.group(2))
+                    parts[a0] = (b0, body[h_end + 4: h_end + 4 + b0 - a0 + 1])
+                    pos = h_end + 4 + b0 - a0 + 1
+            elif r.status == 206:
+                m = re.search(r"bytes\s+(\d+)-(\d+)/", r.headers.get("Content-Range", ""))
+                if m:                                              # the server merged everything into one range
+                    a0 = int(m.group(1))
+                    for a, b in runs:
+                        e_ = b if b >= 0 else int(m.group(2))
+                        parts[a] = (e_, body[a - a0: e_ - a0 + 1])
+            out, bad = [], False
+            for a, b in runs:
+                got = parts.get(a)
+                ok = got is not None and got[1][:4] == b"GRIB" and got[1][-4:] == b"7777" and (b < 0 or got[0] == b) \
+                    and (b < 0 or len(got[1]) == b - a + 1)
+                bad |= not ok
+                out.append(got[1] if got else b"")
+            if not bad:
+                return out
+            head = body[:512].lower()
+            if b"<html" in head or b"rate limit" in head:
+                if self.throttle_host:
+                    self._throttled("HTML body instead of data")
+                    continue
+            if k == tries - 1:
+                raise ShortRead(f"{self.name}: incomplete multi-range answer ({len(parts)}/{len(runs)} parts) from {url}")
+            time.sleep(5 * (k + 1))
+        raise RuntimeError(f"{self.name}: gave up on {url}")
 
     def get(self, url, rng=None, kind="grib", tries=3, missing=(404,)):
         for k in range(tries):
+            self._spend()
             self._pace()
             h = dict(UA)
             if rng:
@@ -200,7 +296,7 @@ class Fetcher:
             except urllib.error.HTTPError as e:
                 self.nreq += 1
                 if e.code in missing:
-                    raise Missing(url) from None
+                    raise Missing(f"HTTP {e.code}: {url}") from None
                 if e.code in (403, 429) and self.throttle_host:
                     self._throttled(f"HTTP {e.code}")
                     continue
@@ -294,9 +390,23 @@ def fetch_messages(fetch, url, wanted):
         s, e, msgs = r
         buf = fetch.get(url, (s, e))
         return [(key, buf[a - s: (b - s + 1) if b >= 0 else None]) for a, b, key in msgs]
+    results = None
+    if fetch.throttle_host and len(runs) > 1 and fetch.multi_ok:
+        # NOMADS: every wanted message of the file in ONE request (multipart/byteranges) - ~2 requests per file with the .idx
+        try:
+            bufs = fetch.get_multi(url, [(r[0], r[1]) for r in runs])
+            results = [[(key, buf[a - r[0]: (b - r[0] + 1) if b >= 0 else None]) for a, b, key in r[2]] for r, buf in zip(runs, bufs)]
+        except MultiRangeRefused:
+            fetch.multi_ok = False                       # one range per request from now on, inside the same budget
+            print(f"  {fetch.name}: multi-range refused; single ranges within the budget", flush=True)
+    if results is None and fetch.throttle_host:
+        results = [one(r) for r in runs]
+    elif results is None:
+        with ThreadPoolExecutor(fetch.workers) as ex:
+            results = list(ex.map(one, runs))
     out, grid = {}, None
-    with ThreadPoolExecutor(fetch.workers) as ex:
-        for pieces in ex.map(one, runs):
+    if True:
+        for pieces in results:
             for key, piece in pieces:
                 if grid is None:
                     out[key], grid = decode(piece, want_grid=True)
@@ -617,6 +727,7 @@ def newest_cycle(model, now=None, skip=()):
     now = now or dt.datetime.utcnow()
     f = fetcher(model)
     last = MODELS[model]["leads"][-1]
+    n403, tried = [0], 0
     for back in range(0, 31):
         if (now - dt.timedelta(hours=back)).strftime("%Y%m%d%H") in skip:
             continue
@@ -624,6 +735,7 @@ def newest_cycle(model, now=None, skip=()):
         if t.hour not in MODELS[model]["cycles"]:
             continue
         date, cyc = t.strftime("%Y%m%d"), t.hour
+        tried += 1
         try:
             if model == "hrrr":
                 f.get(f"{hrrr_base(date, cyc)}.wrfprsf{last:02d}.grib2.idx", kind="idx")
@@ -631,14 +743,20 @@ def newest_cycle(model, now=None, skip=()):
             elif model == "rrfs":
                 # NOMADS answers a cycle directory that does not exist yet with 403, not 404 (checked 2026-09-27): while
                 # probing that means "not published", not throttling. Both grids must be complete.
-                for src in SOURCES["rrfs"]:
-                    for kind in ("prslev", "2dfld"):
+                for src, kind in (("rrfs13", "prslev"), ("rrfs3", "2dfld")):
+                    try:
                         f.get(f"{rrfs_base(date, cyc)}.{rrfs_file(src, kind, last)}.idx", kind="idx", missing=(403, 404))
+                    except Missing as e:
+                        n403[0] += str(e).startswith("HTTP 403")
+                        raise
             else:
                 f.get(rdps_url(date, cyc, last, "AirTemp", "IsbL-0450"))
             return date, cyc
         except Missing:
             continue
+    if model == "rrfs" and tried and n403[0] >= tried:
+        # every cycle of the last 30 h "missing" is not NOMADS being late - it is NOMADS refusing this runner
+        raise Throttled("NOMADS RRFS: every probe refused")
     return None
 
 
@@ -1024,6 +1142,8 @@ def run_model(model, site: Path, status, force, procs, publish, prune):
     old = load_json(mf, {"regions": {}})
     st = status["models"].setdefault(model, {})
     now = dt.datetime.utcnow()
+    if model == "rrfs":
+        fetcher(model).budget = NOMADS_BUDGET
     nc = newest_cycle(model, now)
     if nc is None:
         st.update(state="error", note="no complete cycle found in the last 30 h", checked=now.strftime("%Y-%m-%dT%H:%MZ"))
@@ -1044,6 +1164,7 @@ def run_model(model, site: Path, status, force, procs, publish, prune):
 def _run_cycle(model, nc, anim, mf, old, st, now, force, procs, publish, prune, note=""):
     date, cyc = nc
     cycle = f"{date}{cyc:02d}"
+    st["attempted"] = cycle
     if not force and not st.get("forced") and st.get("cycle") == cycle and st.get("state") in ("rendered", "nosnow"):
         print(f"{model}: {cycle} already done ({st.get('state')})", flush=True)
         return
@@ -1062,6 +1183,8 @@ def _run_cycle(model, nc, anim, mf, old, st, now, force, procs, publish, prune, 
     print(f"{model} {cycle}: grids {st['sources']}; gate {st['gate']} -> {todo or 'nothing'}", flush=True)
     old_dirs = set(old.get("regions", {}))
     if not todo:
+        for k in ("detail", "failed_at"):
+            st.pop(k, None)
         st.update(state="nosnow", rendered=[], note=note, seconds=round(time.time() - t0),
                   mb=round((f.nbytes - b0) / 1e6), requests=f.nreq - r0)
         prune.extend(f"assets/snowband/anim/{d}" for d in sorted(old_dirs))
@@ -1082,15 +1205,26 @@ def _run_cycle(model, nc, anim, mf, old, st, now, force, procs, publish, prune, 
                 shutil.rmtree(dd)
             tmpdirs[(p, r)] = dd
     frames = {k: [] for k in tmpdirs}
+    bsrc, bcover = BANDS_SRC.get(model), {}
     for i, lead in enumerate(leads):
         tl = time.time()
         Ls = {src: lead_fields(src, date, cyc, lead, sfc=sfc[src].pop(lead)) for src in need}
+        bands = None
+        if bsrc:                                         # the model's own reflectivity at full resolution where it exists
+            R3, S3, _, g3 = read_surface(bsrc, date, cyc, lead)
+            gb = Grid(g3, SRC_DX[bsrc])
+            if not bcover:
+                bcover = {r: gb.coverage(REGIONS[r][1]) >= COVER for r in todo}
+            bands = dict(latf=gb.lat, lonf=gb.lon, refc=gb.crop(R3), snow=gb.crop(S3))
         valid = init + dt.timedelta(hours=lead)
         tasks = []
         for r in todo:
             meta = dict(model_label=SRC_LABEL[assign[r]], init=init, lead=lead, region=r, file=f"F{i:02d}.webp",
                         test_label=TEST_LABEL[0] if force else "")
-            tasks.append((region_payload(Ls[assign[r]], r), meta, LIVE_PRODUCTS, {p: str(tmpdirs[(p, r)]) for p in LIVE_PRODUCTS}))
+            L_ = Ls[assign[r]]
+            if bands and bcover.get(r):
+                L_ = {**L_, **bands}
+            tasks.append((region_payload(L_, r), meta, LIVE_PRODUCTS, {p: str(tmpdirs[(p, r)]) for p in LIVE_PRODUCTS}))
             for p in LIVE_PRODUCTS:
                 frames[(p, r)].append({"idx": i, "file": f"F{i:02d}.webp", "date": valid.strftime("%Y-%m-%d"),
                                        "label": f"f{lead:02d} · {valid:%a %d %b %HZ}"})
@@ -1102,6 +1236,10 @@ def _run_cycle(model, nc, anim, mf, old, st, now, force, procs, publish, prune, 
     mf.write_text(json.dumps({"ver": int(time.time()), "selectorLabel": "Region", "regions": regions}))
     publish.extend(f"assets/snowband/anim/{d}" for d in sorted(regions))
     prune.extend(f"assets/snowband/anim/{d}" for d in sorted(old_dirs - set(regions)))
+    for k in ("detail", "failed_at"):
+        st.pop(k, None)
+    if bsrc:
+        st["bands_3km"] = [r for r in todo if bcover.get(r)]
     st.update(state="rendered", rendered=todo, note=note, seconds=round(time.time() - t0),
               mb=round((f.nbytes - b0) / 1e6), requests=f.nreq - r0,
               leads=[f"f{x:02d}" for x in leads])
@@ -1141,16 +1279,27 @@ def cmd_run(a):
             sp.write_text(json.dumps(status, indent=1))
         print(f"out of season - idle until {status['season']['next_start']}; pruning {len(prune)} loop(s)")
     else:
+        import copy
         for m in a.models.split(","):
+            snap = copy.deepcopy(status["models"].get(m, {}))
             try:
                 run_model(m, site, status, a.force, a.procs, publish, prune)
-            except Throttled as e:
-                status["models"].setdefault(m, {}).update(state="error", note=f"NOMADS rate limit; skipped this cycle ({e})",
-                                                          checked=now.strftime("%Y-%m-%dT%H:%MZ"))
-                print(f"{m}: {e}", flush=True)
             except Exception as e:                                     # noqa: BLE001
-                status["models"].setdefault(m, {}).update(state="error", note=f"{type(e).__name__}: {str(e)[:200]}",
-                                                          checked=now.strftime("%Y-%m-%dT%H:%MZ"))
+                # Never a raw error on the page: keep the last good cycle, say in words what happened, and put the
+                # technical detail in the log and in `detail` (not displayed).
+                import traceback
+                traceback.print_exc()
+                tried = status["models"].get(m, {}).get("attempted", "")
+                st = status["models"][m] = snap
+                M, hh = MODELS[m]["label"], (tried[8:10] + "Z " if tried else "")
+                why = "blocked by NOMADS" if isinstance(e, Throttled) else "could not be read"
+                if snap.get("state") in ("rendered", "nosnow") and snap.get("cycle"):
+                    c = snap["cycle"]
+                    st["note"] = (f"{M} {hh}{why}; showing the {c[8:10]}Z run of "
+                                  f"{dt.datetime.strptime(c, '%Y%m%d%H'):%-d %b}")
+                else:
+                    st.update(state="error", note=f"{M} {hh}{why}; the next run is tried automatically")
+                st.update(detail=f"{type(e).__name__}: {str(e)[:300]}", failed_at=now.strftime("%Y-%m-%dT%H:%MZ"))
                 print(f"{m}: FAILED {type(e).__name__}: {e}", flush=True)
         status["updated"] = now.strftime("%Y-%m-%dT%H:%MZ")
         sp.write_text(json.dumps(status, indent=1))

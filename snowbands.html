@@ -163,8 +163,10 @@
   regions: <b>Northeast and Mid-Atlantic</b> (Virginia to Maine), <b>Atlantic Canada</b>, <b>Ontario and Quebec</b>,
   the <b>Midwest</b> (the Great Lakes to the central Plains) and the <b>Rockies</b> (the Wasatch to the High Plains). A
   model is offered for a region only where its grid covers at least 80&nbsp;% of it: the HRRR covers every region but
-  Atlantic Canada (it reaches under a third of it); the RRFS&rsquo;s 3&nbsp;km grid covers the same four, and its
-  13&nbsp;km North American run fills in Atlantic Canada; the RDPS covers all five.</p>
+  Atlantic Canada (it reaches under a third of it); the RRFS is drawn everywhere, its diagnostics from NCEP&rsquo;s
+  13&nbsp;km North American output of its 3&nbsp;km run (the fields are smoothed to 18&nbsp;km in any case) and its own
+  bands from the 3&nbsp;km grid wherever that reaches, which is every region but Atlantic Canada; the RDPS covers all five.
+  If a run cannot be fetched, the page keeps the last one that could and says so.</p>
 <p class="chart-sources">NOAA/NCEP HRRR (AWS, byte-ranged) &middot; NOAA/NCEP RRFS v1.0 (NOMADS) &middot; ECCC RDPS 10&nbsp;km (MSC Datamart) &middot; Nicosia, D. J., and R. H. Grumm, 1999, Wea. Forecasting 14, 346&ndash;368 &middot; Novak, D. R., L. F. Bosart, D. Keyser and J. S. Waldstreicher, 2004, Wea. Forecasting 19, 993&ndash;1010</p>
 </template>
 <template id="about-fg">
@@ -303,8 +305,8 @@
     }
     if (md.state === "nosnow") return "<b>No snow in any region</b> in the latest " + M + " run (" + cyc(md.cycle) + "), so no loops were drawn."
       + "<span class=\"when\">Checked " + when(md.checked) + ". The next cycle is checked automatically.</span>";
-    if (md.state === "error") return "<b>The latest " + M + " run could not be processed</b> (" + (md.note || "unknown error") + ")."
-      + "<span class=\"when\">Checked " + when(md.checked) + "; the loop returns with the next cycle.</span>";
+    if (md.state === "error") return "<b>" + M + " is not available right now.</b> " + (md.note ? md.note + "." : "")
+      + "<span class=\"when\">Tried " + when(md.failed_at || md.checked) + ".</span>";
     if (md.state === "idle") return idleText();
     return "<b>" + M + " has not been processed yet.</b>";
   }
@@ -318,7 +320,7 @@
       var nt = md.note ? " (" + md.note + ")" : "";
       if (md.state === "rendered") return M + (ST.forced ? ": drawn for " : ": snow in ") + (md.rendered || []).map(function (x) { return REGIONS[x]; }).join(", ") + nt;
       if (md.state === "nosnow") return M + ": no snow in any region" + nt;
-      if (md.state === "error") return M + ": not processed (" + (md.note || "error") + ")";
+      if (md.state === "error") return "<b>" + MODELS[m] + "</b>: " + (md.note || "not available right now");
       return "<b>" + MODELS[m] + "</b>: waiting for its first run";
     });
     el.innerHTML = (ST.forced ? "<b>" + (ST.test_label || "Test render") + ".</b> A forced run: the season and snow gates were bypassed, so every region is drawn whatever falls. " : "") + "Latest runs &mdash; "
@@ -349,7 +351,9 @@
       about: "about-" + p,
       cap: function (a, b) {
         var md = ST && ST.models && ST.models[a];
-        var grid = md && md.sources && md.sources[b] === "rrfs13" ? " RRFS 3 km does not cover this region, so this is its 13 km North American run." : "";
+        var grid = a !== "rrfs" ? "" : ((md && (md.bands_3km || []).indexOf(b) >= 0)
+          ? " RRFS diagnostics come from its 13 km North American output; its own bands are drawn from the 3 km grid."
+          : " RRFS diagnostics and bands both come from its 13 km North American output here: the 3 km grid does not reach this region.");
         var run = md && md.state === "rendered" ? " " + MODELS[a] + " " + cyc(md.cycle) + " run, " + (md.leads || []).join(" ").replace(/^(\S+).* (\S+)$/, "$1 to $2") + " every 3 hours." : "";
         return CAP[p] + run + grid;
       }
