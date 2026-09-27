@@ -41,9 +41,8 @@ PRODUCTS = [
         ("/ecape.html", "Entraining CAPE",
          "Gridded ECAPE over the continental US from the 3 km HRRR, hourly to 18 hours and 3-hourly to 48.",
          "Four times daily"),
-        ("/cities/", "City temperature forecasts",
-         "Forecast highs and lows for 234 US cities from 892 stations, the consensus alongside NBM, ECMWF, AIFS, GFS, GEFS, GDPS and GEPS, day by day for two weeks.",
-         "Four times daily"),
+        # /cities/ (city temperature forecasts) PAUSED 2026-09-27 (user: "Turn off the city forecast and verification
+        # page for now"); restore this row and the verification row from git history.
     ], "Short/medium range"),
     ("Subseasonal and seasonal", "From weeks two to five out to the coming seasons", [
         ("Weeks 2–5", [
@@ -122,9 +121,7 @@ PRODUCTS = [
              "As written"),
         ]),
         ("Verification", [
-            ("/cities/verify.html", "City forecast verification",
-             "Every model and the consensus scored against observed highs and lows at 896 stations: error by lead day, CRPS, quantiles and per-station bias.",
-             "Four times daily"),
+            # /cities/verify.html paused 2026-09-27 with the city forecasts (see above)
             ("/aifs-verify.html", "AIFS single versus member 0",
              "The two ECMWF AIFS configurations compared as deterministic models against radiosondes and ERA5, with the ensemble member spectrally matched to the single model and the ensemble mean for reference.",
              "Every 00Z and 12Z run"),

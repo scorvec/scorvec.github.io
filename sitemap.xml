@@ -102,18 +102,6 @@
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://scorvec.com/cities/</loc>
-    <lastmod>2026-09-06</lastmod>
-    <changefreq>daily</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>https://scorvec.com/cities/verify.html</loc>
-    <lastmod>2026-09-06</lastmod>
-    <changefreq>daily</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
     <loc>https://scorvec.com/about.html</loc>
     <lastmod>2026-09-27</lastmod>
     <changefreq>monthly</changefreq>

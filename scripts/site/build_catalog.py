@@ -100,14 +100,12 @@ PAGES = {
                      region=["North America", "Pacific"], thumb="assets/ar/ar_now.webp", variable=["Moisture transport"]),
     "/ecape.html": dict(kind="page", topic="weather", tier=0, prio=7, models=["HRRR"], horizon="Days 1–15", region=["North America"],
                         thumb_ecape=True, variable=["Instability"]),
-    "/cities/": dict(kind="page", topic="weather", tier=0, prio=8, models=["Consensus", "NBM", "AIFS", "GEFS", "GEPS"],
-                     horizon="Days 1–15", region=["North America"], variable=["Temperature"]),
+    # "/cities/" paused 2026-09-27 (city forecasts turned off); restore from git history
     "/qbo/": dict(kind="page", topic="drivers", tier=0, prio=9, models=["Radiosondes"], horizon="Observed", region=["Tropics"],
                   thumb="assets/qbo/qbo_section.webp", variable=["Stratosphere", "Wind"]),
     "/enso-forecasts.html": dict(kind="page", topic="outlooks", tier=2, prio=29, models=["Multi-model"], horizon="Seasons",
                                  region=["Tropical Pacific"], variable=["SST"]),
-    "/cities/verify.html": dict(kind="page", topic="research", tier=1, prio=22, models=["Consensus", "NBM", "AIFS"],
-                                horizon="Days 1–15", region=["North America"], variable=["Temperature"]),
+    # "/cities/verify.html" paused 2026-09-27
     "/aifs-verify.html": dict(kind="page", topic="research", tier=1, prio=23, models=["AIFS", "AIFS-ENS", "ERA5"], horizon="Days 1–15",
                               region=["Northern Hemisphere"], thumb="assets/verify/tt_compare_d05.webp", variable=["Height", "Temperature"]),
     "/topics/": dict(kind="page", topic="research", tier=1, prio=26, models=[], horizon=None, region=[]),

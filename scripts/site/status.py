@@ -36,7 +36,6 @@ PRODUCTS = {
     "/qbo/":                 (168, {"path": "qbo/qbo.json"}),
     "/climate.html":         (744, {"json": "assets/climate/anim/data/meta.json", "field": "generated"}),
     "/ar.html":              (12,  {"path": "assets/ar/ar_monitor.json"}),
-    "/cities/":              (6,   {"path": "cities/data/cities.json"}),
     "/ecape.html":           (6,   {"path": "assets/ecape/anim/index.json"}),
     "/mjo.html":             (12,  {"path": "assets/mjo/rmm_manifest.json"}),
     "/circulation.html":     (24,  {"path": "assets/sst/aam.webp"}),
@@ -46,7 +45,6 @@ PRODUCTS = {
     "/enso-forecasts.html":  (744, {"path": "assets/sst/data/enso_forecast.json"}),
     "/seasonal.html":        (744, {"path": "assets/sst/data/c3s_indices.json"}),
     "/sfs.html":             (744, {"path": "assets/sfs/data/sfs_indices.json"}),
-    "/cities/verify.html":   (6,   {"path": "cities/data/verify.json"}),
     "/aifs-verify.html":     (12,  {"path": "assets/verify/aifs_scores_v2.json"}),
 }
 
