@@ -183,17 +183,26 @@
     occasionally publishes a day with missing passes, and one such day at the end of the record
     would otherwise become the observed MJO's latest point.</p>
     <h2>The stratosphere</h2>
-    <p><b>The stratosphere uses ERA5, not the hindcast — because it has to.</b> Everything
-    else on this page is de-drifted against the GEPS8 reforecast, which is the better
-    reference. That archive cannot serve the vortex: it carries <code>ua</code>/<code>va</code>
-    at 100, 200 and 850&nbsp;hPa only, <code>zg</code> at 200 and 500 only, and <b>no
-    pressure-level temperature at all</b>. There is no 10&nbsp;hPa anything in it. So the
-    stratospheric anomalies are taken against ERA5 instead, and the model bias that the
-    reforecast would have removed is measured rather than assumed: GEPS analysis against
-    ERA5 on the same day runs &minus;26&nbsp;m at 10&nbsp;hPa globally and +0.5&nbsp;m over
-    the polar cap, with temperature within 0.5&nbsp;K &mdash; small enough to leave alone,
-    and stated here so it is not mistaken for signal. (100&nbsp;hPa <i>zonal wind</i> is the
-    one stratospheric field the hindcast could de-drift, and is a candidate for later.)</p>
+    <p><b>The stratosphere is de-drifted with a second reforecast.</b> Everything else on this
+    page is de-drifted against the GEPS8 hindcast, and that archive cannot serve the vortex: it
+    carries <code>ua</code>/<code>va</code> at 100, 200 and 850&nbsp;hPa only, <code>zg</code> at
+    200 and 500 only, and <b>no pressure-level temperature at all</b> &mdash; nothing at
+    10&nbsp;hPa. So the stratospheric anomalies are taken against <b>ERA5</b> (the 1991&ndash;2020
+    day-of-year climatology, moved along its significant trend to the valid date), and the model&rsquo;s
+    drift is removed with a different set of runs: the <b>GEPS reforecasts in the ECMWF S2S
+    archive</b> (ECCC, control + 3 perturbed members, every year 2001&ndash;2020, started Mondays and
+    Thursdays, with 10 and 100&nbsp;hPa fields). For each start date the drift is the reforecasts&rsquo;
+    mean minus ERA5 on the same valid dates, by latitude and lead (a zonal mean, 80 runs per
+    lead); start dates within 8 days of the forecast&rsquo;s day of year are pooled. The correction
+    is not small. At day 1 the reforecasts and ERA5 agree to 0.1&nbsp;K over the 10&nbsp;hPa polar
+    cap, and then the model warms the cap by 1.6&nbsp;K at day 10, 3&nbsp;K at day 15 and 7&nbsp;K
+    at day 35 (late-September starts), with u(60&deg;N) at 10&nbsp;hPa falling 4&ndash;6&nbsp;m/s
+    behind: left in, a raw 10&nbsp;hPa map would show a warming in weeks 3&ndash;5 that is only the
+    model&rsquo;s drift. The same reforecasts correct u(60&deg;N) and the cap temperature in the
+    vortex diagnostics. Height anomalies additionally have the hemispheric mean removed (the QBO
+    and the warming troposphere move the whole surface, and that is not the vortex). A hemisphere
+    with no fetched start date within 8 days falls back to the uncorrected view, with 10&nbsp;hPa
+    drawn as absolute fields. The S2S data are licensed for non-commercial research.</p>
     <p>ERA5 was also checked against <b>MERRA-2</b>, the reference the site&rsquo;s existing
     vortex monitor uses, so the two are not silently disagreeing: over 2,156 matching days
     they differ by 0.13&nbsp;m/s in u(60&deg;N) at 10&nbsp;hPa (r&nbsp;0.999), 0.11&nbsp;K in

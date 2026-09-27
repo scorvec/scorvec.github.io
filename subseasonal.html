@@ -202,8 +202,8 @@
     lead-dependent GEPS8 hindcast climatology (2001&ndash;2020, read at the init day-of-year), which
     removes the model's drift and its mean bias together; the reference is then moved to
     1991&ndash;2020 by the observed ERA5 shift between the two periods, with no model in that step.
-    The stratosphere, which the hindcast does not cover, is taken against ERA5 with the model bias
-    measured rather than assumed. Teleconnection probabilities, tercile maps and the MJO score are
+    The stratosphere, which that hindcast does not cover, is taken against ERA5 and de-drifted with
+    the GEPS reforecasts in the ECMWF S2S archive. Teleconnection probabilities, tercile maps and the MJO score are
     calibrated on the same hindcast, and the skill masks hatch wherever its anomaly correlation
     falls below 0.25. <a href="/subseasonal-method.html">Read the full method &rarr;</a></p>
   </section>
@@ -284,8 +284,8 @@ var P = {
   vloop: {label: "Polar vortex \u2014 daily loop",
         a: {label:"", items:[["all","10 and 100 hPa"]]},
         frame: function () { return "sst_anim.html?base=assets/geps/anim&manifest=geps_strat_manifest.json&embed=1"; },
-        ratio: function () { return "1139/610"; },
-        cap: function () { return "Analysis to day 35, both hemispheres and levels."; }}
+        ratio: function () { return "1189/555"; },
+        cap: function () { return "Temperature anomaly, total wind and height anomaly at 10 and 100 hPa, analysis to day 35, both hemispheres. Anomalies against ERA5 1991\u20132020 with the model\u2019s drift removed using GEPS reforecasts."; }}
 };
 var MASKABLE = ["t2m","pr","zg500","mslp"];   // fields with a hindcast skill file
 var TELE_IDS = [["board","All indices (board)"],["ao","AO \u2014 Arctic Oscillation"],["nao","NAO \u2014 North Atlantic Oscillation"],
