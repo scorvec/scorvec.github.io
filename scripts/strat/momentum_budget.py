@@ -304,7 +304,7 @@ def _merge_part(d):
     return True
 
 
-def fetch_stream(which, days=100, audit_every=0):
+def fetch_stream(which, days=100, audit_every=0, oldest_first=False):
     """LAPTOP backfill as two parallel streams (state / tendencies), each sequential on its own OPeNDAP connection;
     whichever finishes a day second merges the two halves into the day record."""
     url = ASSIM_NP if which == "state" else ASSIM_UDT
@@ -315,6 +315,8 @@ def fetch_stream(which, days=100, audit_every=0):
     newest = min((last_state - pd.Timedelta(days=1)).normalize(), (last_udt - pd.Timedelta(hours=22.5)).normalize())
     PART.mkdir(parents=True, exist_ok=True)
     targets = [newest - pd.Timedelta(days=k) for k in range(days)]
+    if oldest_first:                          # a second stream of the same kind, working in from the other end
+        targets = targets[::-1]
     for i, d in enumerate(targets):
         if (TAIL / f"{d:%Y%m%d}.npz").exists() or (PART / f"{which}_{d:%Y%m%d}.npz").exists():
             _merge_part(d); continue
@@ -870,10 +872,10 @@ def fig_upwelling(up, fup, days, fc, R, stats, path):
     import matplotlib.pyplot as plt
     t_last = days.max()
     fcd = fc["days"][fc["days"] > t_last] if fc is not None else pd.DatetimeIndex([])
-    t0 = days.min() + pd.Timedelta(days=WIN - 1); t1 = (fcd.max() if len(fcd) else t_last) + pd.Timedelta(days=1)
-    fig = plt.figure(figsize=(12.4, 8.9), dpi=130)
-    gs = fig.add_gridspec(2, 2, width_ratios=[3.1, 1.25], hspace=0.36, wspace=0.16, left=0.066, right=0.985, top=0.87, bottom=0.22)
     minp = int(0.8 * WIN)
+    t0 = days.min() + pd.Timedelta(days=minp - 1); t1 = (fcd.max() if len(fcd) else t_last) + pd.Timedelta(days=1)
+    fig = plt.figure(figsize=(12.4, 9.2), dpi=130)
+    gs = fig.add_gridspec(2, 2, width_ratios=[3.1, 1.25], hspace=0.36, wspace=0.16, left=0.066, right=0.985, top=0.87, bottom=0.235)
     for row, L in enumerate(UP_LEVS):
         ax = fig.add_subplot(gs[row, 0]); _style(ax)
         df = up[L]
@@ -893,8 +895,8 @@ def fig_upwelling(up, fup, days, fc, R, stats, path):
         ax.set_ylabel("mm s⁻¹", fontsize=9.5, color=INK)
         ax.set_title(f"{L} hPa, trailing {WIN}-day means", loc="left", fontsize=11.5, fontweight="bold", color=INK)
         if row == 0 and len(fcd):
-            ax.text(t_last + pd.Timedelta(hours=30), 0.975, "forecast:\nresolved only", transform=ax.get_xaxis_transform(),
-                    fontsize=8.3, color=MUTED, va="top")
+            ax.text(t_last + pd.Timedelta(hours=30), 0.03, "forecast: resolved only", transform=ax.get_xaxis_transform(),
+                    fontsize=8.3, color=MUTED, va="bottom")
         # the last-30-day split against MERRA-2
         bx = fig.add_subplot(gs[row, 1]); _style(bx); bx.grid(axis="x", visible=False)
         st = stats[f"{L}"]
@@ -911,20 +913,22 @@ def fig_upwelling(up, fup, days, fc, R, stats, path):
         bx.set_xlabel("mm s⁻¹", fontsize=9, color=INK)
         bx.set_title(f"Last {WIN} days", loc="left", fontsize=11, fontweight="bold", color=INK)
     fig.legend(*fig.axes[0].get_legend_handles_labels(), fontsize=8.8, frameon=False, ncol=4, loc="lower left",
-               bbox_to_anchor=(0.06, 0.1), handlelength=2.4, columnspacing=1.6)
+               bbox_to_anchor=(0.06, 0.115), handlelength=2.4, columnspacing=1.6)
     fig.suptitle(f"GEOS FP · What drives the tropical upwelling · downward control, analyses to {t_last:%b %-d}",
                  x=0.066, y=0.975, ha="left", fontsize=15, fontweight="bold", color=INK)
     fig.text(0.066, 0.925, "Mean residual vertical velocity w̄* between the turnaround latitudes, split by the zonal force that "
              "drives it (each part integrated down from the top)", fontsize=10, color=MUTED, va="top")
     t70 = stats["70"]["tests"]
     def sig(t):
-        return f"p {t['p']:.2f}, " + ("significant" if t["significant_5pct"] else "not significant")
+        pp = f"p {t['p']:.3f}" if t["p"] < 0.1 else f"p {t['p']:.2f}"
+        return pp + (", significant at 5 %" if t["significant_5pct"] else ", not significant")
     foot = ("Right: bars = GEOS FP, last 30 days; ◇ = MERRA-2 normal put on the GEOS FP scale by the 2018–19 same-day difference; "
             "line = its 10–90 % range for a 30-day mean.\n"
             f"70 hPa against the normal: resolved {t70['ep']['anomaly']:+.3f} mm/s ({sig(t70['ep'])}), gravity waves "
             f"{t70['gw']['anomaly']:+.3f} ({sig(t70['gw'])}), increment {t70['an']['anomaly']:+.3f} ({sig(t70['an'])}).\n"
             "Normals: resolved and gravity-wave parts from MERRA-2 GMI (00Z every 10th day, 1991–2019), the increment from MERRA-2 "
-            "monthly tendencies 2005–2024; turnaround latitudes fixed by day of year from MERRA-2.")
+            "monthly tendencies 2005–2024.\nTurnaround latitudes fixed by day of year from the MERRA-2 mean circulation. "
+            "The forecast has no drag or increment: only its resolved part is drawn.")
     fig.text(0.066, 0.012, foot, fontsize=8.5, color=MUTED, va="bottom", linespacing=1.45)
     _save(fig, path)
 
@@ -1031,9 +1035,9 @@ def fig_sections(sec, lat, path):
     cb.ax.tick_params(labelsize=8.5, colors=INK); cb.outline.set_visible(False)
     cb.set_label("m s⁻¹ per day (negative = westward force: decelerates westerlies)", fontsize=9.5, color=INK)
     d0, d1 = sec["window"]
-    fig.suptitle(f"GEOS FP · Where the forces act · {WIN}-day mean {d0:%b %-d} – {d1:%b %-d %Y}", x=0.058, y=0.975, ha="left",
+    fig.suptitle(f"GEOS FP · Where the forces act · {sec['epd']['n']}-day mean {d0:%b %-d} – {d1:%b %-d %Y}", x=0.058, y=0.975, ha="left",
                  fontsize=15, fontweight="bold", color=INK)
-    fig.text(0.058, 0.925, "Top: the 30-day mean (shaded) with the MERRA-2 normal for the same days on the GEOS FP scale (contours). "
+    fig.text(0.058, 0.925, "Top: the mean (shaded) with the MERRA-2 normal for the same days on the GEOS FP scale (contours). "
              "Bottom: the difference, shaded only where significant.", fontsize=10, color=MUTED, va="top")
     foot = ("Test per point: z against MERRA-2's year-to-year spread of 30-day means (never less than GEOS FP's own sampling noise) "
             "plus the errors of the normal and of the 2018–19 adjustment;\n"
@@ -1136,11 +1140,12 @@ def main() -> int:
     ap.add_argument("--date")
     ap.add_argument("--audit-every", type=int, default=0)
     ap.add_argument("--out")
+    ap.add_argument("--oldest-first", action="store_true")
     a = ap.parse_args()
     if a.cmd == "tail":
         fetch_tail(a.days, audit_every=a.audit_every)
     elif a.cmd.startswith("stream-"):
-        fetch_stream(a.cmd.split("-")[1], a.days, a.audit_every)
+        fetch_stream(a.cmd.split("-")[1], a.days, a.audit_every, a.oldest_first)
     elif a.cmd == "day":
         dsn = B.open_ds(ASSIM_NP, True); dsu = B.open_ds(ASSIM_UDT, True)
         build_day(dsn, dsu, pd.Timestamp(a.date), audit=True)
