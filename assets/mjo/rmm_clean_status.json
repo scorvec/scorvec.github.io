@@ -1,0 +1,1 @@
+{"dn34": 0.94, "forecast": {"amp_mean": 0.77, "amp_max": 1.0, "speed": -5.3, "phase_start": 1, "phase_end": 7, "days": 15}, "coherent_mjo_forecast": false, "romi": {"date": "2026-09-23", "amp": 0.92, "phase": 5, "active_60d": 0.07, "amp_60d": 0.61, "speed_60d": 3.6}, "tail_60d": {"amp": 0.98, "active": 0.37, "speed": 0.4}, "init": "2026-09-27 00Z", "updated": "2026-09-27 17:18Z"}

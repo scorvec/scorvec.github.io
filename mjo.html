@@ -60,15 +60,6 @@
   .meta { color: var(--muted); font-size: 0.8rem; margin-top: 2.5rem;
           border-top: 1px solid var(--rule); padding-top: 1rem; }
   .empty { color: var(--muted); padding: 3rem 0; text-align: center; }
-  .mi-ctl { display: flex; flex-wrap: wrap; gap: 0.6rem 1.2rem; margin: 0.4rem 0 1rem; font-size: 0.9rem; }
-  .mi-ctl label { display: flex; flex-direction: column; gap: 0.2rem; color: var(--muted); }
-  .mi-ctl select { font: inherit; color: var(--ink); padding: 0.3rem 0.4rem; border: 1px solid var(--rule);
-                   border-radius: 4px; background: #fff; max-width: 100%; }
-  .mi-embed { aspect-ratio: 1056 / 900; }
-  .mi-about { margin-top: 1rem; color: var(--ink); max-width: 80ch; }
-  .mi-about summary { cursor: pointer; color: var(--accent); }
-  .mi-about p { margin: 0.6rem 0; font-size: 0.92rem; }
-  .chart-sources { color: var(--muted); font-size: 0.82rem; }
   a { color: var(--accent); }
 </style>
 <script data-goatcounter="https://scorvec.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
@@ -152,6 +143,32 @@
   <iframe class="anim-embed" src="sst_anim.html?embed=1&amp;base=assets&amp;manifest=mjo/rmm_manifest.json&amp;region=mjo" title="AIFS-ENS RMM forecast — successive runs animation" loading="lazy"></iframe>
 
 
+  <h2>MJO with the El Ni&ntilde;o signal removed</h2>
+  <p class="lede lede--wide">Since 2014 the standard RMM no longer removes ENSO; in a strong El Ni&ntilde;o its standing
+  convection projects onto phases 7&ndash;8 and masquerades as a stalled MJO. This is the same AIFS-ENS forecast
+  (wind-only), observed track and IFS overlay with the part tied to the Ni&ntilde;o-3.4 change removed. Latest init:
+  <strong>2026-09-27 00Z</strong>.</p>
+  <p class="lede lede--wide"><b>No coherent MJO in the ENSO-removed forecast:</b> ensemble-mean amplitude 0.8 (max 1.0) and a phase speed of -5.3&deg;/day, where a real MJO moves at about +7&deg;/day. NOAA&rsquo;s OLR-based ROMI on 2026-09-23: amplitude 0.92 (phase 5); over the last 60 days 7&nbsp;% of days reached amplitude 1. Correction applied: &Delta;Ni&ntilde;o-3.4 = +0.94&nbsp;K.</p>
+  <iframe class="anim-embed" src="sst_anim.html?embed=1&amp;base=assets&amp;manifest=mjo/rmmclean_manifest.json&amp;region=mjo"
+    title="ENSO-removed wind-only RMM — successive runs animation" loading="lazy"></iframe>
+  <details style="margin-top:1rem;max-width:80ch;font-size:0.92rem"><summary style="cursor:pointer;color:var(--accent)">How the El Ni&ntilde;o signal is removed</summary>
+  <p>Wheeler &amp; Hendon (2004) removed two things before projecting onto the MJO patterns: the part of each day&rsquo;s
+  anomaly linearly related to ENSO, then the mean of the previous 120 days. The Bureau of Meteorology did both until the
+  end of 2013; since 2014 it removes only the 120-day mean, as this page&rsquo;s raw index does. While an El Ni&ntilde;o is
+  growing, the 120-day mean trails the warming, so the leftover projects onto the MJO phases.</p>
+  <p>Here the leftover is taken out directly: the wind-only RMM minus &Delta;N34&nbsp;&times;&nbsp;c, where &Delta;N34 is
+  Ni&ntilde;o-3.4 (NOAA OISST, 31-day mean) minus its mean over the same 120-day window, and c is the regression of the
+  120-day-filtered 850 and 200&nbsp;hPa equatorial winds on &Delta;N34, longitude by longitude, projected onto the MJO
+  patterns. It is fitted on ERA5 (ARCO) 2003&ndash;2024 with ERSST&nbsp;v6 Ni&ntilde;o-3.4 (BoM used its own SST index,
+  SST1). Against BoM&rsquo;s ENSO-removed RMM (2003&ndash;2013, 3,899 days) the cleaned wind-only index correlates 0.96/0.96 (RMM1/RMM2), against 0.94/0.96 before, and its correlation with the Ni&ntilde;o-3.4 change falls from -0.21 to -0.01. While an El Ni&ntilde;o grows, it lowers the share of &ldquo;active&rdquo; days: JAS 2015 0.33 &rarr; 0.29; JAS 2023 0.38 &rarr; 0.29; JAS 2009 0.42 &rarr; 0.49. The forecast holds Ni&ntilde;o-3.4 at its latest value, since ENSO changes little in 15 days.</p>
+  <p>The correction is linear, so it removes part of a growing El Ni&ntilde;o&rsquo;s projection, not all of it. The
+  status line therefore also quotes NOAA&rsquo;s OLR-based real-time OMI (ROMI), which removes the previous 40 days and
+  so is far less sensitive to slow signals: an independent check on whether a real MJO is present.
+  Wind-only (no precipitation channel), and no 12Z cycle offset correction, unlike the raw diagram above.</p>
+  <p class="meta" style="margin-top:0.6rem;padding-top:0.6rem">Data: ECMWF AIFS-ENS and IFS-ENS open data (CC&nbsp;BY&nbsp;4.0);
+  ERA5 (Copernicus C3S, ARCO); NOAA OISST v2.1 and ERSST v6 (NOAA NCEI / PSL); ROMI (NOAA PSL / CPC OLR);
+  Bureau of Meteorology RMM for validation.</p>
+
   <p class="lede lede--wide" style="margin-top:1.4rem">Real-time Multivariate MJO (RMM) phase-space forecast from the
   ECMWF <strong>AIFS-ENS</strong> ensemble (51 members to day 15), following
   Wheeler &amp; Hendon (2004). Full three-channel projection: U850/U200 plus a
@@ -163,72 +180,10 @@
   Amplitude is the radial distance (rings at 1, 2, 3).
   Observed track is recent ERA5/AIFS analysis (wind-only, verified within a few
   degrees of the official BoM RMM phase).</p>
-  <p class="meta">Updated 2026-09-27 17:13Z · Auto-generated from the AIFS-ENS open-data
+  <p class="meta">Updated 2026-09-27 17:18Z · Auto-generated from the AIFS-ENS open-data
   feed. Methodology: NOAA CPC / Wheeler &amp; Hendon (2004), EOFs from NOAA OLR +
   NCEP wind with the 120-day low-frequency filter removed; pseudo-OLR from
   &minus;standardized daily precip vs an ERA5 1991&ndash;2020 band climatology.</p>
-
-  <section class="mi" id="mjo-impacts">
-  <h2>MJO impacts by phase and month</h2>
-  <p class="lede lede--wide">What each MJO phase has meant for temperature, rainfall and the 500&nbsp;hPa flow, month by
-  month: the observed record next to 11 CMIP6 models whose MJO passes a realism screen. Only
-  statistically significant cells are coloured; blank means no significant signal.</p>
-  <div class="mi-ctl">
-    <label>Field <select id="mi-f"><option value="tas_na">2 m temperature · North America</option><option value="tas_sa">2 m temperature · South America</option><option value="pr_na">Precipitation (mm/day) · North America</option><option value="pr_sa">Precipitation (mm/day) · South America</option><option value="prpct_na">Precipitation (% of normal) · North America</option><option value="prpct_sa">Precipitation (% of normal) · South America</option><option value="z500_nh">500 hPa height · Northern Hemisphere</option></select></label>
-    <label>Data <select id="mi-d"><option value="obs">Observed</option><option value="cmip6">CMIP6</option></select></label>
-    <label>Month <select id="mi-m"><option value="01">January</option><option value="02">February</option><option value="03">March</option><option value="04">April</option><option value="05">May</option><option value="06">June</option><option value="07">July</option><option value="08">August</option><option value="09">September</option><option value="10">October</option><option value="11">November</option><option value="12">December</option></select></label>
-    <label>Lag <select id="mi-l"><option value="10">10 days after the phase</option><option value="0">Same day</option></select></label>
-    <label>View <select id="mi-v"><option value="loop">One phase at a time</option><option value="strip">All eight phases</option></select></label>
-  </div>
-  <iframe class="anim-embed mi-embed" id="mi-frame" title="MJO impact composites" loading="lazy"></iframe>
-  <details class="mi-about"><summary>How this is built</summary>
-  <p><b>MJO index.</b> Observed: the Bureau of Meteorology&rsquo;s RMM (Wheeler &amp; Hendon 2004), 1979&ndash;2024.
-  CMIP6: the same RMM computed from each run&rsquo;s own daily OLR and 850/250&nbsp;hPa zonal wind (the CMIP6 daily
-  archive has no 200&nbsp;hPa), 15&deg;S&ndash;15&deg;N means, the run&rsquo;s own seasonal cycle and previous
-  120-day mean removed, projected on the observed W&amp;H EOFs. <b>Both indices are then band-passed to
-  20&ndash;100&nbsp;days and renormalised.</b> BoM removes the ENSO signal only up to 2013; after that a strong El
-  Ni&ntilde;o&rsquo;s standing pattern projects on RMM as slow &ldquo;phase 6&ndash;8&rdquo; days (DJF 2015/16 was
-  &ldquo;active&rdquo; on 89&nbsp;% of days), and the CMIP6 index would carry the same artefact. A linear Ni&ntilde;o-3.4
-  regression removed almost none of it, so the band-pass is used for both datasets alike. Check, DJF share of active days after the filter: strong El Ni&ntilde;o winters 0.69 (n&nbsp;4; 0.70 before), neutral 0.62 (n&nbsp;13); the difference is not significant (Mann&ndash;Whitney p&nbsp;0.69). A day counts when the
-  amplitude is at least 1; the
-  composite is the mean anomaly on the same day or 10&nbsp;days later, over those days in the chosen month and its two
-  neighbours (a centred three-month window, so &ldquo;January&rdquo; uses December&ndash;February days: it triples the
-  observed sample). Anomalies are from each dataset&rsquo;s own seasonal cycle and linear trend. Checks: the same machinery on ERA5 winds reproduces BoM&rsquo;s RMM1/RMM2 at r&nbsp;0.94/0.96 (wind-only, 1991-2020); substituting 250 for 200&nbsp;hPa keeps the phase on 90&nbsp;% of active days (r&nbsp;0.99/0.99).</p>
-  <p><b>Model screen</b> (fixed before looking at any composite): east/west power ratio of 10&deg;S&ndash;10&deg;N rain
-  (wavenumbers 1&ndash;3, 30&ndash;96&nbsp;days, November&ndash;April) &ge;&nbsp;2.0
-  and eastward propagation (lag-regression pattern against GPCP) r&nbsp;&ge;&nbsp;0.8;
-  GPCP itself gives E/W&nbsp;2.5. Used: CNRM-ESM2-1 (E/W 3.2, r 0.85), CNRM-CM6-1 (E/W 3.2, r 0.85), CAMS-CSM1-0 (E/W 2.7, r 0.91), CESM2 (E/W 2.5, r 0.91), MPI-ESM1-2-HR (E/W 2.8, r 0.81), GFDL-CM4 (E/W 2.3, r 0.95), EC-Earth3-CC (E/W 2.3, r 0.95), CESM2-FV2 (E/W 2.2, r 0.93), EC-Earth3 (E/W 2.1, r 0.95), IITM-ESM (E/W 2.3, r 0.84), BCC-ESM1 (E/W 2.2, r 0.82).
-  Passed but left out as a near-duplicate of a family member: CNRM-CM6-1-HR, EC-Earth3-Veg, EC-Earth3-Veg-LR, CESM2-WACCM. 
-  Failed: EC-Earth3-AerChem (E/W 1.9, r 0.94), MPI-ESM1-2-LR (E/W 2.3, r 0.75), MPI-ESM-1-2-HAM (E/W 2.3, r 0.69), TaiESM1 (E/W 1.7, r 0.90), KACE-1-0-G (E/W 1.6, r 0.85), CMCC-ESM2 (E/W 1.5, r 0.90), AWI-ESM-1-1-LR (E/W 1.8, r 0.78), HadGEM3-GC31-MM (E/W 1.6, r 0.87), IPSL-CM5A2-INCA (E/W 1.7, r 0.76), ACCESS-ESM1-5 (E/W 1.4, r 0.84), CMCC-CM2-HR4 (E/W 1.4, r 0.87), CMCC-CM2-SR5 (E/W 1.4, r 0.89), IPSL-CM6A-LR (E/W 1.4, r 0.85), ACCESS-CM2 (E/W 1.3, r 0.86), BCC-CSM2-MR (E/W 1.5, r 0.74), HadGEM3-GC31-LL (E/W 1.2, r 0.88), UKESM1-0-LL (E/W 1.1, r 0.85), CanESM5 (E/W 0.9, r 0.76), INM-CM5-0 (E/W 1.0, r 0.67), INM-CM4-8 (E/W 0.8, r 0.68). 18 historical members in all (up to two per model), 1979&ndash;2014; the 500&nbsp;hPa composites use each model&rsquo;s first member.</p>
-  <p><b>Tests.</b> CMIP6: each model&rsquo;s composite (members pooled; at least 30 active days), across-model
-  one-sample t-test with a Benjamini&ndash;Hochberg false-discovery rate of 10&nbsp;% over the map, and at least
-  80&nbsp;% of the models agreeing on the sign. Observed: an MJO passage lasts days and daily anomalies are
-  correlated, so the unit is the event (a run of consecutive active days in one phase): an event-block bootstrap of the
-  composite, the same 10&nbsp;% false-discovery rate, and only phase-months with at least 8 events are tested.</p>
-  <p class="chart-sources">CMIP6 historical daily fields via the Pangeo cloud archive (anonymous GCS) &middot; ERA5
-  2&nbsp;m temperature and 500&nbsp;hPa height (Copernicus C3S, 1979&ndash;2024) &middot; GPCP 1DD v1.3 daily
-  precipitation (NOAA NCEI CDR, 1997&ndash;2024) &middot; RMM index: Australian Bureau of Meteorology &middot;
-  static product, redrawn only when the analysis changes.</p>
-  </details>
-  </section>
-  <script>
-  (function () {
-    var ids = ["mi-f", "mi-d", "mi-m", "mi-l", "mi-v"], el = {};
-    ids.forEach(function (k) { el[k] = document.getElementById(k); });
-    var h = (location.hash.indexOf("#mi/") === 0) ? location.hash.slice(4).split("/") : null;
-    if (h && h.length === 5) { ids.forEach(function (k, i) { if (h[i]) el[k].value = h[i]; }); }
-    else { el["mi-m"].value = ("0" + (new Date().getMonth() + 1)).slice(-2); }
-    function go(push) {
-      var f = el["mi-f"].value, d = el["mi-d"].value, mo = el["mi-m"].value, l = ("0" + el["mi-l"].value).slice(-2);
-      var rid = "mi_" + f + "_" + d + "_m" + mo + "_l" + l + (el["mi-v"].value === "strip" ? "_s" : "");
-      document.getElementById("mi-frame").src = "sst_anim.html?embed=1&base=assets/mjo/impacts/anim&manifest=mjo_impacts_manifest.json&region="
-        + rid + "&regions=" + rid;
-      if (push) history.replaceState(null, "", "#mi/" + ids.map(function (k) { return el[k].value; }).join("/"));
-    }
-    ids.forEach(function (k) { el[k].addEventListener("change", function () { go(true); }); });
-    go(false);
-  })();
-  </script>
 </main>
 <script>
   // Size the animator iframe to its exact content height (plot + slider) so the slider is
