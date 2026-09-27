@@ -396,11 +396,11 @@
       ["fg", "Frontogenesis", "700 hPa, with deformation"], ["epv", "EPV* and CSI", "750–500 hPa, saturated"],
       ["dgz", "Lift in the DGZ", "−12 to −18 °C"], ["bands", "The model's own bands", "reflectivity and type"]] }];
     var cases = caseList();
-    if (cases.length) groups.push({ label: "Case study", ico: "❄", items: [["case", "Case study", cases.length > 1 ? cases.length + " events against the radar" : cases[0].label.split(",")[0]]] });
+    if (cases.length) groups.push({ label: "Case study", ico: "❄", items: [["case", "Against the radar", cases.length > 1 ? cases.length + " documented events" : cases[0].label.split(",")[0]]] });
     var products = { ov: live("ov", "Overview"), ing: live("ing", "Band ingredients"), fg: live("fg", "Frontogenesis and deformation"),
       epv: live("epv", "EPV* and CSI"), dgz: live("dgz", "Lift in the dendritic growth zone"), bands: live("bands", "The model's own bands") };
     if (cases.length) products["case"] = {
-      label: "Case study",
+      label: "Against the radar",
       a: function () { return { label: "Case", items: caseList().map(function (c) { return [c.id, c.label.split(",")[0]]; }) }; },
       b: { label: "View", items: CASE_VIEWS },
       frame: function (a, b) {
