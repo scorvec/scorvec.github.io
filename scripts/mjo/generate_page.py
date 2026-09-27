@@ -254,7 +254,7 @@ def main():
     clean, impacts = clean_section(), impacts_section()
     # "Jump to" line (2026-09-27): the two sections below the forecast were being missed entirely
     jumps = [f'<a href="#{i}">{t}</a>' for i, t, sec in (("mjo-clean", "ENSO-removed index", clean),
-                                                         ("mjo-impacts", "Impacts by phase and month", impacts)) if sec]
+                                                         ("mjo-impacts", "Impacts by phase and season", impacts)) if sec]
     jump = f'  <p class="jump">Jump to: {" &middot; ".join(jumps)}</p>\n' if jumps else ""
 
     html = f"""<!DOCTYPE html>
