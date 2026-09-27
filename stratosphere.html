@@ -201,20 +201,30 @@
         updated daily once the 00Z forecast is posted</p>
 </template>
 <template id="about-wave1">
-<p>The <b>zonal wavenumber-1 component</b> of geopotential height, <b>100&nbsp;hPa beside
-        500&nbsp;hPa</b> for one hemisphere at a time &mdash; the <b>Hemisphere</b> selector switches
-        between them, and the loop opens on whichever one currently carries the larger wave. The two
-        levels share a frame because that is the comparison that carries the physics:
-        <b>100&nbsp;hPa</b> is what the vortex feels, <b>500&nbsp;hPa</b> is the tropospheric source,
-        and a ridge that <b>leans westward with height</b> is actively driving the vortex while one
-        sitting over the same longitude at both levels is not. Each level keeps its own colourbar
-        &mdash; wave amplitude grows with height, so a shared scale would flatten the lower one.
-        Because only k&nbsp;=&nbsp;1 is retained the field is an anomaly by construction: red is a
-        ridge, blue a trough, the zonal mean already removed. Thin contours are the <b>full</b>
-        height field; values inside the deadband are left white. The map is the <b>ensemble
-        mean</b> &mdash; the part of the wave the forecast agrees on, which is the only part whose
-        phase is worth reading.</p>
-<p class="chart-sources">ECMWF AIFS-ENS <b>ensemble mean</b> (open data, CC&nbsp;BY&nbsp;4.0), 100 and 500&nbsp;hPa, analysis to day&nbsp;15 &middot; zonal wavenumber-1 Fourier component of geopotential height &middot; superposition index vs ERA5 1991&ndash;2020 (WeatherBench2) &middot; polar stereographic &middot; updated each 00/12Z cycle</p>
+<p>The <b>zonal wavenumber-1 component</b> of geopotential height at three levels, bottom-up from left to right:
+        <b>500&nbsp;hPa</b> (the tropospheric source), <b>100&nbsp;hPa</b> (where wave driving reaches the vortex)
+        and <b>10&nbsp;hPa</b> (the vortex itself), for one hemisphere at a time. The loop opens on whichever
+        hemisphere carries the larger wave. Red is a ridge and blue a trough, relative to the zonal mean; thin
+        contours are the full height field. Each level has its own colour scale, because wave amplitude grows
+        with height.</p>
+<p><b>Reading it.</b> The filled <b>&#9650;</b> on the dashed 60&deg; circle marks this map&rsquo;s wave-1 ridge and
+        the open <b>&#9651;</b> where the 1991&ndash;2020 normal puts it on this date. Each panel quotes the wave&rsquo;s
+        amplitude at 55&ndash;65&deg;, its size against the normal standing wave (<b>&times; normal</b>; amplified at
+        &ge;&nbsp;1.25&times;, weak at &le;&nbsp;0.75&times;) and how far its ridge sits from the normal ridge. The line
+        under the maps gives the ridge longitude at each level and how it moves with height. A ridge that shifts
+        <b>west</b> going up is carrying wave activity upward into the vortex (the positive eddy heat flux in the
+        next item); one stacked over the same longitude is not. At 10&nbsp;hPa the normal standing wave is too
+        small to compare against in early autumn and summer, and the panel says so.</p>
+<p><b>Agreement.</b> The map is the <b>ensemble mean</b> of 25 members. Dots mark where fewer than 80&nbsp;% of the
+        members agree on the sign of the wave there, and each panel quotes the members&rsquo; phase agreement
+        (1&nbsp;= every member has its ridge at the same longitude). A long-lead map with low agreement is an average of
+        different waves, so its phase should not be read. The analysis frame is the control.</p>
+<p class="chart-sources">ECMWF AIFS-ENS, 25 perturbed members (open data, CC&nbsp;BY&nbsp;4.0), 500, 100 and 10&nbsp;hPa,
+        analysis to day&nbsp;15 &middot; zonal wavenumber-1 Fourier component of geopotential height &middot; normal
+        standing wave: ERA5 1991&ndash;2020 (WeatherBench2 for 500/100&nbsp;hPa, ERA5 ARCO for 10&nbsp;hPa) &middot;
+        polar stereographic &middot; updated each 00/12Z cycle. Corrected 2026-09-27: the wave&rsquo;s phase against the
+        normal had been read 180&deg; off, because the forecast and normal grids start at different longitudes; the
+        amplitude ratio was never affected.</p>
 </template>
 <template id="about-bdc">
 <p>The <b>Brewer–Dobson circulation</b> is the slow overturning of the stratosphere: air rises through the tropical
@@ -331,7 +341,8 @@ window.STAGE = {
   epflux: {label: "E–P flux and wave driving", frame: function () { return "sst_anim.html?embed=1&manifest=epflux_manifest.json&region=epflux"; }, about: "about-epflux", cap: function () { return "Eliassen–Palm flux for wavenumbers 1–3 and its divergence, per-member fluxes averaged."; }},
   wave1: {label: "Stationary wave-1", a: {label: "Hemisphere", items: [["wave1_nh","Northern"],["wave1_sh","Southern"]]},
           frame: function (a) { return "sst_anim.html?embed=1&manifest=wave1_maps_manifest.json&region=" + a; }, about: "about-wave1",
-          cap: function () { return "The wave-1 component of geopotential at 100 and 500 hPa, the forcing behind the wave driving above."; }},
+          ratio: function () { return "1716/759"; },
+          cap: function () { return "Wave-1 of geopotential at 500, 100 and 10 hPa, with its ridge against the normal and whether it leans west with height, i.e. is propagating up into the vortex."; }},
   bdc: {label: "Brewer–Dobson circulation", a: {label: "View", items: [["up","Tropical upwelling"],["sec","Residual streamfunction"]]},
           img: function (a) { return "assets/sst/bdc_dc_" + (a === "sec" ? "section" : "upwelling") + ".webp"; }, bust: "hourly", about: "about-bdc", fit: false,
           cap: function (a) { return a === "sec" ? "The residual (Brewer–Dobson) streamfunction by downward control, 30-day mean; shading only where the anomaly from MERRA-2 is significant (FDR 10 %)."

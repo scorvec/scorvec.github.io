@@ -77,11 +77,56 @@ def smooth_doy(c: np.ndarray, nharm: int = NHARM) -> np.ndarray:
     return np.fft.ifft(keep)
 
 
+STRAT_CLIM = HERE / "data" / "strat_clim_1991-2020.nc"
+
+
+def add_10hpa() -> int:
+    """nh10 / sh10 from the ERA5 10/100 hPa day-of-year climatology (fetch_strat_clim.py), appended to the file.
+
+    WeatherBench2's 13 levels stop at 50 hPa, so 10 hPa cannot come from the source above (2026-09-27, the wave-1
+    maps gained a 10 hPa panel). strat_clim_1991-2020.nc holds the day-of-year MEAN height field (ARCO ERA5, 00Z,
+    every 5th day, +/-7-day window, 1 deg); k=1 is linear, so the k=1 coefficient of the mean field is the mean
+    complex coefficient, as above. The 73 sampled days are interpolated periodically onto 366 and smoothed to the same
+    3 harmonics. 100 hPa is recomputed the same way purely as a check against the WB2 series already in the file."""
+    c = xr.open_dataset(STRAT_CLIM)
+    old = xr.open_dataset(OUT).load(); old.close()
+    out = {k: ("doy", old[k].values) for k in old.data_vars}
+    for lev in (10, 100):
+        zl = c["Z"].sel(level=lev)
+        for hemi, lo, hi in (("nh", BAND[0], BAND[1]), ("sh", -BAND[1], -BAND[0])):
+            sub = zl.where((zl.lat >= lo) & (zl.lat <= hi), drop=True).load()
+            cc = band_coeff(sub.transpose("doy", "lat", "lon"), "lat", "lon")
+            d0 = sub.doy.values.astype(float)
+            xs = np.concatenate([d0 - 366, d0, d0 + 366])
+            full = (np.interp(np.arange(1, 367), xs, np.tile(cc.real, 3))
+                    + 1j * np.interp(np.arange(1, 367), xs, np.tile(cc.imag, 3)))
+            sm = smooth_doy(full)
+            if lev == 10:
+                out[f"{hemi}10_re"] = ("doy", sm.real.astype("float32"))
+                out[f"{hemi}10_im"] = ("doy", sm.imag.astype("float32"))
+                print(f"   10 hPa {hemi.upper()}: amplitude {np.abs(sm).min():.0f}..{np.abs(sm).max():.0f} gpm", flush=True)
+            else:
+                ref = old[f"{hemi}100_re"].values + 1j * old[f"{hemi}100_im"].values
+                dph = np.degrees(np.angle(sm * np.conj(ref)))
+                win = np.abs(ref) > 0.25 * np.abs(ref).max()
+                print(f"   check 100 hPa {hemi.upper()}: amplitude ratio (strat_clim / WB2) median "
+                      f"{np.median(np.abs(sm)[win] / np.abs(ref)[win]):.2f}, phase difference median "
+                      f"{np.median(np.abs(dph[win])):.0f} deg where the standing wave exists", flush=True)
+    d = xr.Dataset(out, coords={"doy": np.arange(1, 367)}, attrs=dict(old.attrs))
+    d.attrs["source_10hPa"] = "ERA5 (ARCO) 1991-2020 day-of-year mean, 00Z every 5th day +/-7 d, via fetch_strat_clim.py"
+    d.to_netcdf(OUT, encoding={k: {"zlib": True, "complevel": 6} for k in out})
+    print(f"  wrote {OUT.relative_to(REPO)} with {sorted(out)}")
+    return 0
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--y0", type=int, default=1991)
     ap.add_argument("--y1", type=int, default=2020)
+    ap.add_argument("--add-10hpa", action="store_true", help="append nh10/sh10 from the ERA5 strat climatology")
     a = ap.parse_args()
+    if a.add_10hpa:
+        return add_10hpa()
 
     print(f"  opening WeatherBench2 ERA5 ({a.y0}-{a.y1}, 00Z, {LEVELS} hPa)", flush=True)
     ds = xr.open_zarr(WB2, storage_options={"token": "anon"})
