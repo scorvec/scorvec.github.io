@@ -1,7 +1,8 @@
-name: MJO impacts by phase and month (static CMIP6 reference)
+name: MJO impacts by phase and season (static CMIP6 reference)
 
-# The "MJO impacts by phase and month" section of mjo.html: observed (BoM RMM with ERA5 t2m / z500 and GPCP rain) and
-# CMIP6 composites for RMM phases 1-8 x calendar month, same day and 10 days later. STATIC product: the analysis runs
+# The "MJO impacts by phase and season" section of mjo.html: CMIP6 composites for RMM phases 1-8 x season (DJF, MAM,
+# JJA, SON, NDJFM, single months), days -2..+2 and +8..+12, with the observed record (BoM RMM with ERA5 t2m / z500 and
+# GPCP rain) for comparison. STATIC product: the analysis runs
 # once on the laptop (scripts/mjo/src/cmip6_mjo_extract.py streams the Pangeo CMIP6 daily stores, mjo_obs_prepare.py
 # the observations, mjo_impacts.py screens the models and builds the composites and tests) and commits one small
 # reference; this job only draws it. Frames (8 phases per selection + an all-phase strip) go to the frames branch, the

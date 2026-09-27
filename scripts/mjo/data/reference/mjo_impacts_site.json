@@ -24,23 +24,120 @@
   "z500_nh"
  ],
  "robust_frac": {
-  "tas_na": 0.098,
-  "tas_sa": 0.166,
-  "pr_na": 0.051,
-  "prpct_na": 0.054,
-  "pr_sa": 0.087,
-  "prpct_sa": 0.093,
-  "z500_nh": 0.192
+  "tas_na": 0.126,
+  "tas_sa": 0.156,
+  "pr_na": 0.054,
+  "prpct_na": 0.056,
+  "pr_sa": 0.092,
+  "prpct_sa": 0.078,
+  "z500_nh": 0.208
  },
  "obs_sig_frac": {
-  "tas_na": 0.011,
-  "tas_sa": 0.036,
-  "pr_na": 0.038,
-  "prpct_na": 0.027,
-  "pr_sa": 0.062,
-  "prpct_sa": 0.042,
-  "z500_nh": 0.1
+  "tas_na": 0.044,
+  "tas_sa": 0.104,
+  "pr_na": 0.042,
+  "prpct_na": 0.035,
+  "pr_sa": 0.074,
+  "prpct_sa": 0.057,
+  "z500_nh": 0.139
  },
+ "robust_frac_seasons": {
+  "tas_na": 0.179,
+  "tas_sa": 0.251,
+  "pr_na": 0.082,
+  "prpct_na": 0.086,
+  "pr_sa": 0.138,
+  "prpct_sa": 0.137,
+  "z500_nh": 0.297
+ },
+ "robust_frac_seasons_agree80": {
+  "tas_na": 0.159,
+  "tas_sa": 0.227,
+  "pr_na": 0.077,
+  "prpct_na": 0.081,
+  "pr_sa": 0.127,
+  "prpct_sa": 0.127,
+  "z500_nh": 0.247
+ },
+ "obs_sig_frac_seasons": {
+  "tas_na": 0.041,
+  "tas_sa": 0.133,
+  "pr_na": 0.023,
+  "prpct_na": 0.021,
+  "pr_sa": 0.064,
+  "prpct_sa": 0.054,
+  "z500_nh": 0.186
+ },
+ "periods": [
+  [
+   "djf",
+   "DJF"
+  ],
+  [
+   "mam",
+   "MAM"
+  ],
+  [
+   "jja",
+   "JJA"
+  ],
+  [
+   "son",
+   "SON"
+  ],
+  [
+   "ndjfm",
+   "NDJFM"
+  ],
+  [
+   "m01",
+   "January"
+  ],
+  [
+   "m02",
+   "February"
+  ],
+  [
+   "m03",
+   "March"
+  ],
+  [
+   "m04",
+   "April"
+  ],
+  [
+   "m05",
+   "May"
+  ],
+  [
+   "m06",
+   "June"
+  ],
+  [
+   "m07",
+   "July"
+  ],
+  [
+   "m08",
+   "August"
+  ],
+  [
+   "m09",
+   "September"
+  ],
+  [
+   "m10",
+   "October"
+  ],
+  [
+   "m11",
+   "November"
+  ],
+  [
+   "m12",
+   "December"
+  ]
+ ],
  "models_used": {
   "tas_na": [
    "BCC-ESM1",
@@ -134,168 +231,203 @@
  },
  "teleconnection_djf_lag10": {
   "BCC-ESM1": {
-   "djf_lag10_pattern_r": 0.343,
-   "amp_ratio": 1.15
+   "djf_lag10_pattern_r": 0.408,
+   "amp_ratio": 1.33
   },
   "CESM2": {
-   "djf_lag10_pattern_r": 0.292,
-   "amp_ratio": 1.17
+   "djf_lag10_pattern_r": 0.406,
+   "amp_ratio": 0.99
   },
   "CESM2-FV2": {
-   "djf_lag10_pattern_r": 0.199,
-   "amp_ratio": 1.09
+   "djf_lag10_pattern_r": 0.492,
+   "amp_ratio": 1.03
   },
   "CNRM-CM6-1": {
-   "djf_lag10_pattern_r": 0.316,
-   "amp_ratio": 1.12
+   "djf_lag10_pattern_r": 0.327,
+   "amp_ratio": 1.06
   },
   "CNRM-ESM2-1": {
-   "djf_lag10_pattern_r": 0.201,
-   "amp_ratio": 1.14
+   "djf_lag10_pattern_r": 0.322,
+   "amp_ratio": 1.01
   },
   "EC-Earth3": {
-   "djf_lag10_pattern_r": 0.297,
-   "amp_ratio": 1.27
+   "djf_lag10_pattern_r": 0.401,
+   "amp_ratio": 1.29
   },
   "GFDL-CM4": {
-   "djf_lag10_pattern_r": 0.31,
-   "amp_ratio": 1.11
+   "djf_lag10_pattern_r": 0.378,
+   "amp_ratio": 1.05
   },
   "IITM-ESM": {
-   "djf_lag10_pattern_r": 0.326,
-   "amp_ratio": 1.16
+   "djf_lag10_pattern_r": 0.416,
+   "amp_ratio": 1.07
   },
   "MPI-ESM1-2-HR": {
-   "djf_lag10_pattern_r": 0.231,
-   "amp_ratio": 1.29
+   "djf_lag10_pattern_r": 0.193,
+   "amp_ratio": 1.21
   }
  },
  "cmip6_vs_obs": {
   "tas_na": {
-   "pattern_r_lag10_median": 0.288,
-   "pattern_r_lag10_by_month": [
-    0.287,
-    0.467,
-    0.573,
-    0.434,
-    0.258,
-    0.22,
-    0.248,
-    0.327,
-    0.307,
-    0.153,
-    0.08,
-    0.246
-   ],
-   "amp_ratio_lag10_median": 0.42
+   "pattern_r_lag10_median_seasons": 0.358,
+   "pattern_r_lag10_by_period": {
+    "djf": 0.531,
+    "mam": 0.359,
+    "jja": 0.365,
+    "son": 0.127,
+    "ndjfm": 0.601,
+    "m01": 0.251,
+    "m02": 0.444,
+    "m03": 0.32,
+    "m04": 0.3,
+    "m05": 0.339,
+    "m06": 0.346,
+    "m07": 0.393,
+    "m08": 0.458,
+    "m09": 0.261,
+    "m10": 0.136,
+    "m11": 0.294,
+    "m12": 0.25
+   },
+   "amp_ratio_lag10_median_seasons": 0.42
   },
   "tas_sa": {
-   "pattern_r_lag10_median": 0.505,
-   "pattern_r_lag10_by_month": [
-    0.524,
-    0.537,
-    0.471,
-    0.49,
-    0.512,
-    0.538,
-    0.432,
-    0.375,
-    0.189,
-    0.339,
-    0.496,
-    0.509
-   ],
-   "amp_ratio_lag10_median": 0.52
+   "pattern_r_lag10_median_seasons": 0.537,
+   "pattern_r_lag10_by_period": {
+    "djf": 0.539,
+    "mam": 0.54,
+    "jja": 0.437,
+    "son": 0.553,
+    "ndjfm": 0.647,
+    "m01": 0.27,
+    "m02": 0.352,
+    "m03": 0.395,
+    "m04": 0.218,
+    "m05": 0.214,
+    "m06": 0.349,
+    "m07": 0.029,
+    "m08": 0.221,
+    "m09": 0.269,
+    "m10": 0.373,
+    "m11": 0.408,
+    "m12": 0.377
+   },
+   "amp_ratio_lag10_median_seasons": 0.51
   },
   "pr_na": {
-   "pattern_r_lag10_median": 0.207,
-   "pattern_r_lag10_by_month": [
-    0.103,
-    0.077,
-    0.134,
-    0.114,
-    0.143,
-    0.187,
-    0.236,
-    0.318,
-    0.316,
-    0.254,
-    0.193,
-    0.141
-   ],
-   "amp_ratio_lag10_median": 0.38
+   "pattern_r_lag10_median_seasons": 0.223,
+   "pattern_r_lag10_by_period": {
+    "djf": 0.106,
+    "mam": 0.15,
+    "jja": 0.355,
+    "son": 0.232,
+    "ndjfm": 0.184,
+    "m01": 0.103,
+    "m02": 0.108,
+    "m03": 0.192,
+    "m04": 0.075,
+    "m05": 0.198,
+    "m06": 0.285,
+    "m07": 0.266,
+    "m08": 0.238,
+    "m09": 0.229,
+    "m10": 0.162,
+    "m11": 0.135,
+    "m12": 0.092
+   },
+   "amp_ratio_lag10_median_seasons": 0.43
   },
   "prpct_na": {
-   "pattern_r_lag10_median": 0.201,
-   "pattern_r_lag10_by_month": [
-    0.172,
-    0.11,
-    0.175,
-    0.136,
-    0.173,
-    0.206,
-    0.227,
-    0.289,
-    0.249,
-    0.246,
-    0.17,
-    0.173
-   ],
-   "amp_ratio_lag10_median": 0.33
+   "pattern_r_lag10_median_seasons": 0.236,
+   "pattern_r_lag10_by_period": {
+    "djf": 0.114,
+    "mam": 0.182,
+    "jja": 0.351,
+    "son": 0.21,
+    "ndjfm": 0.225,
+    "m01": 0.193,
+    "m02": 0.128,
+    "m03": 0.336,
+    "m04": 0.118,
+    "m05": 0.194,
+    "m06": 0.249,
+    "m07": 0.229,
+    "m08": 0.206,
+    "m09": 0.149,
+    "m10": 0.129,
+    "m11": 0.101,
+    "m12": 0.134
+   },
+   "amp_ratio_lag10_median_seasons": 0.35
   },
   "pr_sa": {
-   "pattern_r_lag10_median": 0.25,
-   "pattern_r_lag10_by_month": [
-    0.281,
-    0.247,
-    0.264,
-    0.258,
-    0.194,
-    0.176,
-    0.213,
-    0.227,
-    0.263,
-    0.254,
-    0.331,
-    0.292
-   ],
-   "amp_ratio_lag10_median": 0.42
+   "pattern_r_lag10_median_seasons": 0.3,
+   "pattern_r_lag10_by_period": {
+    "djf": 0.285,
+    "mam": 0.258,
+    "jja": 0.273,
+    "son": 0.34,
+    "ndjfm": 0.366,
+    "m01": 0.212,
+    "m02": 0.226,
+    "m03": 0.197,
+    "m04": 0.138,
+    "m05": 0.124,
+    "m06": 0.076,
+    "m07": 0.168,
+    "m08": 0.181,
+    "m09": 0.173,
+    "m10": 0.238,
+    "m11": 0.264,
+    "m12": 0.125
+   },
+   "amp_ratio_lag10_median_seasons": 0.45
   },
   "prpct_sa": {
-   "pattern_r_lag10_median": 0.239,
-   "pattern_r_lag10_by_month": [
-    0.291,
-    0.213,
-    0.197,
-    0.143,
-    0.178,
-    0.148,
-    0.227,
-    0.278,
-    0.241,
-    0.319,
-    0.418,
-    0.361
-   ],
-   "amp_ratio_lag10_median": 0.46
+   "pattern_r_lag10_median_seasons": 0.296,
+   "pattern_r_lag10_by_period": {
+    "djf": 0.26,
+    "mam": 0.222,
+    "jja": 0.347,
+    "son": 0.448,
+    "ndjfm": 0.333,
+    "m01": 0.234,
+    "m02": 0.119,
+    "m03": 0.198,
+    "m04": 0.141,
+    "m05": 0.167,
+    "m06": 0.165,
+    "m07": 0.183,
+    "m08": 0.231,
+    "m09": 0.116,
+    "m10": 0.226,
+    "m11": 0.308,
+    "m12": 0.172
+   },
+   "amp_ratio_lag10_median_seasons": 0.49
   },
   "z500_nh": {
-   "pattern_r_lag10_median": 0.355,
-   "pattern_r_lag10_by_month": [
-    0.473,
-    0.474,
-    0.557,
-    0.461,
-    0.369,
-    0.385,
-    0.261,
-    0.239,
-    0.222,
-    0.19,
-    0.201,
-    0.402
-   ],
-   "amp_ratio_lag10_median": 0.53
+   "pattern_r_lag10_median_seasons": 0.392,
+   "pattern_r_lag10_by_period": {
+    "djf": 0.582,
+    "mam": 0.465,
+    "jja": 0.268,
+    "son": 0.316,
+    "ndjfm": 0.697,
+    "m01": 0.454,
+    "m02": 0.398,
+    "m03": 0.443,
+    "m04": 0.347,
+    "m05": 0.092,
+    "m06": 0.158,
+    "m07": 0.336,
+    "m08": 0.144,
+    "m09": 0.103,
+    "m10": 0.088,
+    "m11": 0.386,
+    "m12": 0.325
+   },
+   "amp_ratio_lag10_median_seasons": 0.54
   }
  },
  "screen": [
@@ -615,8 +747,561 @@
   ]
  },
  "members_note": "18 historical members in all (up to two per model), 1979&ndash;2014; the 500&nbsp;hPa composites use each model&rsquo;s first member.",
- "window_note": "each month is the centred three-month window (the month and its neighbours)",
+ "period_note": "seasons DJF/MAM/JJA/SON, extended winter NDJFM, and single calendar months",
  "index_note": "RMM1/RMM2 band-passed 20-100 d and renormalised, observed (BoM, 1979-2024) and CMIP6 alike",
+ "field_filter": {
+  "highpass_days": 120,
+  "edge_days_dropped": 60,
+  "knot_years": 12,
+  "harmonics": 3,
+  "knots": {
+   "tas_na": 5,
+   "tas_sa": 5,
+   "z500_nh": 5,
+   "pr_na": 3,
+   "pr_sa": 3
+  }
+ },
+ "detrendcheck": {
+  "obs | central US tas": {
+   "v1": {
+    "var_frac_gt120d": 0.1042,
+    "DJF_trend_per_decade": -0.0026,
+    "DJF_trend_se": 0.1929,
+    "DJF_last_minus_first_decade": 0.5224,
+    "JJA_trend_per_decade": -0.0556,
+    "JJA_trend_se": 0.1272
+   },
+   "steps 1+2": {
+    "var_frac_gt120d": 0.0945,
+    "DJF_trend_per_decade": -0.1427,
+    "DJF_trend_se": 0.1914,
+    "DJF_last_minus_first_decade": -0.3013,
+    "JJA_trend_per_decade": 0.028,
+    "JJA_trend_se": 0.1218
+   },
+   "final": {
+    "var_frac_gt120d": 0.0004,
+    "DJF_trend_per_decade": -0.0756,
+    "DJF_trend_se": 0.0399,
+    "DJF_last_minus_first_decade": -0.2092,
+    "JJA_trend_per_decade": 0.0284,
+    "JJA_trend_se": 0.0297
+   }
+  },
+  "CESM2 (2 members) | central US tas": {
+   "v1": {
+    "var_frac_gt120d": 0.1612,
+    "DJF_trend_per_decade": -0.2081,
+    "DJF_trend_se": 0.3538,
+    "DJF_last_minus_first_decade": -0.135,
+    "JJA_trend_per_decade": 0.1527,
+    "JJA_trend_se": 0.1965
+   },
+   "steps 1+2": {
+    "var_frac_gt120d": 0.1529,
+    "DJF_trend_per_decade": -0.4042,
+    "DJF_trend_se": 0.3552,
+    "DJF_last_minus_first_decade": -0.6187,
+    "JJA_trend_per_decade": 0.0197,
+    "JJA_trend_se": 0.1838
+   },
+   "final": {
+    "var_frac_gt120d": 0.0006,
+    "DJF_trend_per_decade": -0.0314,
+    "DJF_trend_se": 0.0521,
+    "DJF_last_minus_first_decade": -0.0751,
+    "JJA_trend_per_decade": 0.0711,
+    "JJA_trend_se": 0.0426
+   }
+  },
+  "MPI-ESM1-2-HR (2 members) | central US tas": {
+   "v1": {
+    "var_frac_gt120d": 0.1372,
+    "DJF_trend_per_decade": -0.3066,
+    "DJF_trend_se": 0.2969,
+    "DJF_last_minus_first_decade": -1.1628,
+    "JJA_trend_per_decade": 0.1476,
+    "JJA_trend_se": 0.267
+   },
+   "steps 1+2": {
+    "var_frac_gt120d": 0.1393,
+    "DJF_trend_per_decade": -0.2747,
+    "DJF_trend_se": 0.3028,
+    "DJF_last_minus_first_decade": -1.0932,
+    "JJA_trend_per_decade": 0.003,
+    "JJA_trend_se": 0.2696
+   },
+   "final": {
+    "var_frac_gt120d": 0.0,
+    "DJF_trend_per_decade": -0.0357,
+    "DJF_trend_se": 0.0659,
+    "DJF_last_minus_first_decade": -0.1258,
+    "JJA_trend_per_decade": -0.0048,
+    "JJA_trend_se": 0.0463
+   }
+  },
+  "CNRM-CM6-1 (2 members) | central US tas": {
+   "v1": {
+    "var_frac_gt120d": 0.1909,
+    "DJF_trend_per_decade": -0.1172,
+    "DJF_trend_se": 0.543,
+    "DJF_last_minus_first_decade": -0.5948,
+    "JJA_trend_per_decade": 0.0141,
+    "JJA_trend_se": 0.1892
+   },
+   "steps 1+2": {
+    "var_frac_gt120d": 0.1901,
+    "DJF_trend_per_decade": -0.265,
+    "DJF_trend_se": 0.5361,
+    "DJF_last_minus_first_decade": -0.9772,
+    "JJA_trend_per_decade": 0.0254,
+    "JJA_trend_se": 0.1938
+   },
+   "final": {
+    "var_frac_gt120d": 0.0001,
+    "DJF_trend_per_decade": -0.095,
+    "DJF_trend_se": 0.0788,
+    "DJF_last_minus_first_decade": -0.3692,
+    "JJA_trend_per_decade": 0.0126,
+    "JJA_trend_se": 0.0365
+   }
+  },
+  "obs | Alaska tas": {
+   "v1": {
+    "var_frac_gt120d": 0.1456,
+    "DJF_trend_per_decade": -0.0652,
+    "DJF_trend_se": 0.2597,
+    "DJF_last_minus_first_decade": -0.2487,
+    "JJA_trend_per_decade": -0.0987,
+    "JJA_trend_se": 0.1085
+   },
+   "steps 1+2": {
+    "var_frac_gt120d": 0.1353,
+    "DJF_trend_per_decade": 0.0855,
+    "DJF_trend_se": 0.2584,
+    "DJF_last_minus_first_decade": 0.3623,
+    "JJA_trend_per_decade": -0.0321,
+    "JJA_trend_se": 0.1044
+   },
+   "final": {
+    "var_frac_gt120d": 0.0009,
+    "DJF_trend_per_decade": 0.1707,
+    "DJF_trend_se": 0.083,
+    "DJF_last_minus_first_decade": 0.4474,
+    "JJA_trend_per_decade": -0.036,
+    "JJA_trend_se": 0.0307
+   }
+  },
+  "CESM2 (2 members) | Alaska tas": {
+   "v1": {
+    "var_frac_gt120d": 0.1541,
+    "DJF_trend_per_decade": -0.5038,
+    "DJF_trend_se": 0.5803,
+    "DJF_last_minus_first_decade": -2.3335,
+    "JJA_trend_per_decade": 0.4672,
+    "JJA_trend_se": 0.1691
+   },
+   "steps 1+2": {
+    "var_frac_gt120d": 0.1489,
+    "DJF_trend_per_decade": -0.0729,
+    "DJF_trend_se": 0.5783,
+    "DJF_last_minus_first_decade": -1.2608,
+    "JJA_trend_per_decade": 0.1725,
+    "JJA_trend_se": 0.1708
+   },
+   "final": {
+    "var_frac_gt120d": 0.0002,
+    "DJF_trend_per_decade": -0.0821,
+    "DJF_trend_se": 0.1108,
+    "DJF_last_minus_first_decade": -0.2335,
+    "JJA_trend_per_decade": -0.0185,
+    "JJA_trend_se": 0.0449
+   }
+  },
+  "MPI-ESM1-2-HR (2 members) | Alaska tas": {
+   "v1": {
+    "var_frac_gt120d": 0.1346,
+    "DJF_trend_per_decade": 0.3053,
+    "DJF_trend_se": 0.4291,
+    "DJF_last_minus_first_decade": 1.0388,
+    "JJA_trend_per_decade": -0.1024,
+    "JJA_trend_se": 0.1852
+   },
+   "steps 1+2": {
+    "var_frac_gt120d": 0.133,
+    "DJF_trend_per_decade": 0.2672,
+    "DJF_trend_se": 0.4355,
+    "DJF_last_minus_first_decade": 0.9314,
+    "JJA_trend_per_decade": 0.0745,
+    "JJA_trend_se": 0.1854
+   },
+   "final": {
+    "var_frac_gt120d": 0.0005,
+    "DJF_trend_per_decade": 0.0893,
+    "DJF_trend_se": 0.0916,
+    "DJF_last_minus_first_decade": 0.143,
+    "JJA_trend_per_decade": -0.0158,
+    "JJA_trend_se": 0.0553
+   }
+  },
+  "CNRM-CM6-1 (2 members) | Alaska tas": {
+   "v1": {
+    "var_frac_gt120d": 0.1699,
+    "DJF_trend_per_decade": 0.1845,
+    "DJF_trend_se": 0.537,
+    "DJF_last_minus_first_decade": 0.9752,
+    "JJA_trend_per_decade": -0.1371,
+    "JJA_trend_se": 0.1241
+   },
+   "steps 1+2": {
+    "var_frac_gt120d": 0.1646,
+    "DJF_trend_per_decade": 0.456,
+    "DJF_trend_se": 0.5432,
+    "DJF_last_minus_first_decade": 1.6579,
+    "JJA_trend_per_decade": -0.1897,
+    "JJA_trend_se": 0.1274
+   },
+   "final": {
+    "var_frac_gt120d": 0.0,
+    "DJF_trend_per_decade": 0.1688,
+    "DJF_trend_se": 0.1161,
+    "DJF_last_minus_first_decade": 0.4128,
+    "JJA_trend_per_decade": 0.0391,
+    "JJA_trend_se": 0.0543
+   }
+  },
+  "obs | Colombia pr": {
+   "v1": {
+    "var_frac_gt120d": 0.0208,
+    "DJF_trend_per_decade": -0.1083,
+    "DJF_trend_se": 0.2116,
+    "DJF_last_minus_first_decade": -0.0811,
+    "JJA_trend_per_decade": -0.0257,
+    "JJA_trend_se": 0.182
+   },
+   "steps 1+2": {
+    "var_frac_gt120d": 0.0191,
+    "DJF_trend_per_decade": -0.1069,
+    "DJF_trend_se": 0.211,
+    "DJF_last_minus_first_decade": -0.0812,
+    "JJA_trend_per_decade": -0.0552,
+    "JJA_trend_se": 0.182
+   },
+   "final": {
+    "var_frac_gt120d": 0.0,
+    "DJF_trend_per_decade": -0.1138,
+    "DJF_trend_se": 0.0946,
+    "DJF_last_minus_first_decade": -0.1067,
+    "JJA_trend_per_decade": -0.0592,
+    "JJA_trend_se": 0.0617
+   }
+  },
+  "CESM2 (2 members) | Colombia pr": {
+   "v1": {
+    "var_frac_gt120d": 0.0536,
+    "DJF_trend_per_decade": -0.1999,
+    "DJF_trend_se": 0.1317,
+    "DJF_last_minus_first_decade": -0.5173,
+    "JJA_trend_per_decade": -0.1927,
+    "JJA_trend_se": 0.2534
+   },
+   "steps 1+2": {
+    "var_frac_gt120d": 0.0506,
+    "DJF_trend_per_decade": -0.0807,
+    "DJF_trend_se": 0.1276,
+    "DJF_last_minus_first_decade": -0.2219,
+    "JJA_trend_per_decade": -0.0617,
+    "JJA_trend_se": 0.2425
+   },
+   "final": {
+    "var_frac_gt120d": 0.0,
+    "DJF_trend_per_decade": 0.0048,
+    "DJF_trend_se": 0.0544,
+    "DJF_last_minus_first_decade": -0.0087,
+    "JJA_trend_per_decade": -0.0332,
+    "JJA_trend_se": 0.0781
+   }
+  },
+  "MPI-ESM1-2-HR (2 members) | Colombia pr": {
+   "v1": {
+    "var_frac_gt120d": 0.0755,
+    "DJF_trend_per_decade": -0.0696,
+    "DJF_trend_se": 0.1568,
+    "DJF_last_minus_first_decade": -0.1503,
+    "JJA_trend_per_decade": 0.0653,
+    "JJA_trend_se": 0.1687
+   },
+   "steps 1+2": {
+    "var_frac_gt120d": 0.0721,
+    "DJF_trend_per_decade": -0.1085,
+    "DJF_trend_se": 0.1471,
+    "DJF_last_minus_first_decade": -0.2375,
+    "JJA_trend_per_decade": 0.0891,
+    "JJA_trend_se": 0.1699
+   },
+   "final": {
+    "var_frac_gt120d": 0.0001,
+    "DJF_trend_per_decade": -0.009,
+    "DJF_trend_se": 0.0493,
+    "DJF_last_minus_first_decade": -0.0272,
+    "JJA_trend_per_decade": -0.0449,
+    "JJA_trend_se": 0.0518
+   }
+  },
+  "CNRM-CM6-1 (2 members) | Colombia pr": {
+   "v1": {
+    "var_frac_gt120d": 0.0618,
+    "DJF_trend_per_decade": -0.0644,
+    "DJF_trend_se": 0.2594,
+    "DJF_last_minus_first_decade": -0.0687,
+    "JJA_trend_per_decade": -0.2217,
+    "JJA_trend_se": 0.3088
+   },
+   "steps 1+2": {
+    "var_frac_gt120d": 0.0605,
+    "DJF_trend_per_decade": -0.0159,
+    "DJF_trend_se": 0.2591,
+    "DJF_last_minus_first_decade": 0.0534,
+    "JJA_trend_per_decade": 0.167,
+    "JJA_trend_se": 0.299
+   },
+   "final": {
+    "var_frac_gt120d": 0.0,
+    "DJF_trend_per_decade": -0.0533,
+    "DJF_trend_se": 0.0772,
+    "DJF_last_minus_first_decade": -0.2432,
+    "JJA_trend_per_decade": 0.0211,
+    "JJA_trend_se": 0.084
+   }
+  },
+  "obs | SE Brazil pr": {
+   "v1": {
+    "var_frac_gt120d": 0.0268,
+    "DJF_trend_per_decade": -0.5765,
+    "DJF_trend_se": 0.3778,
+    "DJF_last_minus_first_decade": -1.2188,
+    "JJA_trend_per_decade": 0.1899,
+    "JJA_trend_se": 0.0947
+   },
+   "steps 1+2": {
+    "var_frac_gt120d": 0.0246,
+    "DJF_trend_per_decade": 0.0163,
+    "DJF_trend_se": 0.3777,
+    "DJF_last_minus_first_decade": -0.2109,
+    "JJA_trend_per_decade": 0.0581,
+    "JJA_trend_se": 0.0906
+   },
+   "final": {
+    "var_frac_gt120d": 0.0001,
+    "DJF_trend_per_decade": -0.0245,
+    "DJF_trend_se": 0.0912,
+    "DJF_last_minus_first_decade": -0.0584,
+    "JJA_trend_per_decade": 0.0529,
+    "JJA_trend_se": 0.0528
+   }
+  },
+  "CESM2 (2 members) | SE Brazil pr": {
+   "v1": {
+    "var_frac_gt120d": 0.0538,
+    "DJF_trend_per_decade": -0.0607,
+    "DJF_trend_se": 0.348,
+    "DJF_last_minus_first_decade": 0.3517,
+    "JJA_trend_per_decade": 0.0124,
+    "JJA_trend_se": 0.0195
+   },
+   "steps 1+2": {
+    "var_frac_gt120d": 0.0532,
+    "DJF_trend_per_decade": 0.0989,
+    "DJF_trend_se": 0.3481,
+    "DJF_last_minus_first_decade": 0.7513,
+    "JJA_trend_per_decade": 0.0439,
+    "JJA_trend_se": 0.0194
+   },
+   "final": {
+    "var_frac_gt120d": 0.0,
+    "DJF_trend_per_decade": -0.0146,
+    "DJF_trend_se": 0.0946,
+    "DJF_last_minus_first_decade": 0.0755,
+    "JJA_trend_per_decade": -0.0143,
+    "JJA_trend_se": 0.0321
+   }
+  },
+  "MPI-ESM1-2-HR (2 members) | SE Brazil pr": {
+   "v1": {
+    "var_frac_gt120d": 0.0502,
+    "DJF_trend_per_decade": 0.0171,
+    "DJF_trend_se": 0.2959,
+    "DJF_last_minus_first_decade": -0.2051,
+    "JJA_trend_per_decade": -0.115,
+    "JJA_trend_se": 0.0802
+   },
+   "steps 1+2": {
+    "var_frac_gt120d": 0.0473,
+    "DJF_trend_per_decade": 0.063,
+    "DJF_trend_se": 0.2922,
+    "DJF_last_minus_first_decade": -0.089,
+    "JJA_trend_per_decade": -0.1,
+    "JJA_trend_se": 0.0795
+   },
+   "final": {
+    "var_frac_gt120d": 0.0,
+    "DJF_trend_per_decade": -0.0843,
+    "DJF_trend_se": 0.06,
+    "DJF_last_minus_first_decade": -0.2922,
+    "JJA_trend_per_decade": -0.0771,
+    "JJA_trend_se": 0.0327
+   }
+  },
+  "CNRM-CM6-1 (2 members) | SE Brazil pr": {
+   "v1": {
+    "var_frac_gt120d": 0.0602,
+    "DJF_trend_per_decade": 0.2496,
+    "DJF_trend_se": 0.2326,
+    "DJF_last_minus_first_decade": 0.5074,
+    "JJA_trend_per_decade": -0.0903,
+    "JJA_trend_se": 0.0242
+   },
+   "steps 1+2": {
+    "var_frac_gt120d": 0.0605,
+    "DJF_trend_per_decade": 0.132,
+    "DJF_trend_se": 0.2323,
+    "DJF_last_minus_first_decade": 0.2183,
+    "JJA_trend_per_decade": 0.0265,
+    "JJA_trend_se": 0.0242
+   },
+   "final": {
+    "var_frac_gt120d": 0.0,
+    "DJF_trend_per_decade": -0.0116,
+    "DJF_trend_se": 0.0522,
+    "DJF_last_minus_first_decade": -0.0562,
+    "JJA_trend_per_decade": -0.0116,
+    "JJA_trend_se": 0.0179
+   }
+  },
+  "obs | Arctic z500": {
+   "v1": {
+    "var_frac_gt120d": 0.1717,
+    "DJF_trend_per_decade": 4.7447,
+    "DJF_trend_se": 5.6732,
+    "DJF_last_minus_first_decade": -8.1778,
+    "JJA_trend_per_decade": 1.179,
+    "JJA_trend_se": 3.947
+   },
+   "steps 1+2": {
+    "var_frac_gt120d": 0.1537,
+    "DJF_trend_per_decade": 0.7657,
+    "DJF_trend_se": 5.4669,
+    "DJF_last_minus_first_decade": -13.6152,
+    "JJA_trend_per_decade": 0.5814,
+    "JJA_trend_se": 3.9362
+   },
+   "final": {
+    "var_frac_gt120d": 0.0,
+    "DJF_trend_per_decade": 0.6431,
+    "DJF_trend_se": 1.2356,
+    "DJF_last_minus_first_decade": -0.3756,
+    "JJA_trend_per_decade": 0.5968,
+    "JJA_trend_se": 0.9812
+   }
+  },
+  "CESM2 (1 member) | Arctic z500": {
+   "v1": {
+    "var_frac_gt120d": 0.2274,
+    "DJF_trend_per_decade": -1.0774,
+    "DJF_trend_se": 9.3853,
+    "DJF_last_minus_first_decade": -2.4667,
+    "JJA_trend_per_decade": -0.0619,
+    "JJA_trend_se": 5.7531
+   },
+   "steps 1+2": {
+    "var_frac_gt120d": 0.2166,
+    "DJF_trend_per_decade": 4.569,
+    "DJF_trend_se": 9.368,
+    "DJF_last_minus_first_decade": 11.5958,
+    "JJA_trend_per_decade": -0.0429,
+    "JJA_trend_se": 5.7077
+   },
+   "final": {
+    "var_frac_gt120d": 0.0001,
+    "DJF_trend_per_decade": 1.6584,
+    "DJF_trend_se": 1.8759,
+    "DJF_last_minus_first_decade": 5.0102,
+    "JJA_trend_per_decade": -0.0991,
+    "JJA_trend_se": 1.328
+   }
+  },
+  "MPI-ESM1-2-HR (1 member) | Arctic z500": {
+   "v1": {
+    "var_frac_gt120d": 0.1391,
+    "DJF_trend_per_decade": -5.3305,
+    "DJF_trend_se": 6.9815,
+    "DJF_last_minus_first_decade": -11.4888,
+    "JJA_trend_per_decade": -1.2409,
+    "JJA_trend_se": 4.0462
+   },
+   "steps 1+2": {
+    "var_frac_gt120d": 0.1242,
+    "DJF_trend_per_decade": 1.7051,
+    "DJF_trend_se": 6.3304,
+    "DJF_last_minus_first_decade": 6.3016,
+    "JJA_trend_per_decade": -0.5158,
+    "JJA_trend_se": 3.9446
+   },
+   "final": {
+    "var_frac_gt120d": 0.0007,
+    "DJF_trend_per_decade": 2.116,
+    "DJF_trend_se": 1.3335,
+    "DJF_last_minus_first_decade": 5.4602,
+    "JJA_trend_per_decade": -0.9471,
+    "JJA_trend_se": 1.1784
+   }
+  },
+  "CNRM-CM6-1 (1 member) | Arctic z500": {
+   "v1": {
+    "var_frac_gt120d": 0.1896,
+    "DJF_trend_per_decade": -0.5096,
+    "DJF_trend_se": 9.3031,
+    "DJF_last_minus_first_decade": -14.7809,
+    "JJA_trend_per_decade": 3.7249,
+    "JJA_trend_se": 4.3153
+   },
+   "steps 1+2": {
+    "var_frac_gt120d": 0.1763,
+    "DJF_trend_per_decade": 0.3854,
+    "DJF_trend_se": 9.2718,
+    "DJF_last_minus_first_decade": -12.0165,
+    "JJA_trend_per_decade": -0.2372,
+    "JJA_trend_se": 4.2277
+   },
+   "final": {
+    "var_frac_gt120d": 0.0,
+    "DJF_trend_per_decade": -2.1192,
+    "DJF_trend_se": 1.2933,
+    "DJF_last_minus_first_decade": -4.5371,
+    "JJA_trend_per_decade": -0.0549,
+    "JJA_trend_se": 1.1944
+   }
+  }
+ },
+ "lag_windows": {
+  "0": [
+   -2,
+   2
+  ],
+  "10": [
+   8,
+   12
+  ]
+ },
+ "tests": {
+  "agree": 0.6667,
+  "alpha": 0.1,
+  "min_models": 5,
+  "min_days": 30,
+  "min_events": 8,
+  "boot": 2000
+ },
  "ensocheck": {
   "method": "RMM1/RMM2 band-passed 20-100 d (whole record) and renormalised",
   "obs": {
