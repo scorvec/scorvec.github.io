@@ -341,7 +341,10 @@ def dcpp_arm(model, exp):
         z = np.load(f)
         for var in ("zg", "psl", "tas", "pr"):
             if var in z.files:
-                D = _seasonal_fields_any(z[var].astype("float64"), [str(m) for m in z[f"{var}_months"]], "DJF")
+                x = z[var].astype("float64")
+                if var == "psl":                                  # two HadGEM3 files carry unmasked fill values (1e11-1e12 Pa)
+                    x[(x > 1.2e5) | (x < 8e4)] = np.nan
+                D = _seasonal_fields_any(x, [str(m) for m in z[f"{var}_months"]], "DJF")
                 out[var] += [D[y] for y in sorted(D)]
         if "ts" in z.files:
             q = z["ts"].astype("float64")
@@ -369,16 +372,22 @@ def dcpp():
             for var in ("zg", "psl", "tas", "pr"):
                 if var not in P or var not in N:
                     continue
-                d = 0.5 * (P[var].mean(0) - N[var].mean(0))
-                _, p = stats.ttest_ind(P[var], N[var], axis=0, equal_var=False)
+                d = 0.5 * (np.nanmean(P[var], 0) - np.nanmean(N[var], 0))
+                _, p = stats.ttest_ind(P[var], N[var], axis=0, equal_var=False, nan_policy="omit")
+                p = np.asarray(p)
                 sg = E.fdr(p)
                 maps[f"dcpp|{model}|{tag}|{var}|mm"] = d; maps[f"dcpp|{model}|{tag}|{var}|sig"] = sg
                 e = dict(sig_frac=round(float(sg[LAT >= 20].mean() if var in ("zg", "psl") else sg.mean()), 3))
                 if var in ("zg", "psl"):
                     al = float(boxmean(d, AL_BOX))
-                    e.update(AL_box=round(al, 2), min=round(float(d[LAT >= 20].min()), 1), max=round(float(d[LAT >= 20].max()), 1))
+                    ap, an = boxmean(P[var], AL_BOX), boxmean(N[var], AL_BOX)          # per winter
+                    se = 0.5 * float(np.sqrt(np.nanvar(ap, ddof=1) / np.isfinite(ap).sum() + np.nanvar(an, ddof=1) / np.isfinite(an).sum()))
+                    e.update(AL_box=round(al, 2), AL_box_ci95=[round(al - 1.96 * se, 2), round(al + 1.96 * se, 2)],
+                             AL_box_p=round(float(stats.ttest_ind(ap, an, equal_var=False, nan_policy="omit")[1]), 3),
+                             min=round(float(np.nanmin(d[LAT >= 20])), 1), max=round(float(np.nanmax(d[LAT >= 20])), 1))
                     if dpdo:
                         e["AL_box_per_pdo_sd"] = round(al / dpdo, 2)
+                        e["AL_box_per_pdo_sd_ci95"] = [round(x / dpdo, 1) for x in e["AL_box_ci95"]]
                         e["AL_box_per_K_npc"] = round(al / ent["imposed_npc_K"], 2)
                 ent[var] = e
             res[f"{model}|{tag}"] = ent
