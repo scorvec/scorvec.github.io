@@ -1,0 +1,183 @@
+name: Upper stratosphere (GEFS, GFS, GEOS FP, GDPS)
+
+# The stratosphere page's "Upper stratosphere" item (2026-09-27; user: "let's add GDPS, GEFS, GFS and GEOS-FP (allow the
+# user to toggle between and compare the upper stratosphere)"): u(60) and polar-cap T from 100 to 1 hPa, time series,
+# height-time sections and 5/1 hPa polar maps, per model and all four together (scripts/strat/upperstrat_data.py fetches,
+# scripts/strat/upperstrat.py renders). ~15-20 minutes a run.
+#
+# Data timing for a 00Z cycle, measured 2026-09-27: GDPS on the MSC Datamart ~04:10 UTC, GFS f384 on S3 ~05:20, GEFS f840
+# on S3 ~09:05, GEOS FP forecast on NCCS late (not there by 06:35; bdc.yml waits until 12:30 for the same reason). So the
+# first slot is 13:10, after bdc.yml has finished with NCCS; the 19:10 slot is the retry, and it exits at once when the
+# day's cycle is already published with all four models.
+#
+# Sources: NOAA data from the AWS S3 open-data buckets (never NOMADS); GDPS from the dated Datamart tree, which keeps
+# ~30 days; GEOS FP by OPeNDAP, read sequentially (parallel reads have returned silently corrupt slices before). No
+# ECMWF data. Each model is its own step, wrapped so that one upstream outage leaves the other three on the page.
+
+on:
+  schedule:
+    - cron: "10 13 * * *"
+    - cron: "10 19 * * *"
+  workflow_dispatch:
+    inputs:
+      date:
+        description: 'Cycle date YYYYMMDD, 00Z (blank = newest with GFS f384 on S3)'
+        default: ''
+      force:
+        description: 'Re-render even when this cycle is already published with all four models'
+        default: 'false'
+
+permissions:
+  contents: write
+  actions: write
+
+concurrency:
+  group: upperstrat
+  cancel-in-progress: false
+
+# Frame store (Cloudflare R2, S3 API). Absent secrets leave these empty and the publisher falls back to the orphan
+# `frames` branch - see scripts/lib/frames_env.sh.
+env:
+  FRAMES_S3_BUCKET: ${{ secrets.FRAMES_S3_BUCKET }}
+  FRAMES_S3_ENDPOINT: ${{ secrets.FRAMES_S3_ENDPOINT }}
+  FRAMES_S3_REGION: ${{ secrets.FRAMES_S3_REGION }}
+  FRAMES_S3_ACL: ${{ secrets.FRAMES_S3_ACL }}
+  AWS_ACCESS_KEY_ID: ${{ secrets.FRAMES_S3_ACCESS_KEY_ID }}
+  AWS_SECRET_ACCESS_KEY: ${{ secrets.FRAMES_S3_SECRET_ACCESS_KEY }}
+
+jobs:
+  upperstrat:
+    runs-on: ubuntu-latest
+    timeout-minutes: 75
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          sparse-checkout: |
+            scripts/strat/upperstrat.py
+            scripts/strat/upperstrat_data.py
+            scripts/strat/geos_pv.py
+            scripts/strat/reference/upperstrat_clim.nc
+            scripts/strat/reference/upperstrat_tail_seed.json
+            scripts/lib
+            assets/sst/anim/upperstrat_maps_manifest.json
+            assets/sst/data/upperstrat.json
+            assets/sst/data/upperstrat_tail.json
+          sparse-checkout-cone-mode: false
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+      # pinned as in requirements-sst.txt: matplotlib 3.11 breaks cartopy GeoAxes on CI (2026-08-25), cartopy 0.26
+      # collapses some extents (2026-09-18)
+      - run: pip install --quiet numpy scipy pandas xarray netCDF4 eccodes matplotlib==3.10.9 cartopy==0.25.0
+
+      # netCDF's DAP client has no transfer timeout by default, so one stalled NCCS read would hold the job to its limit;
+      # libcurl timeouts make it raise instead (the reader retries), and `timeout` below bounds each command outright
+      - name: DAP client timeouts
+        run: printf 'HTTP.TIMEOUT=240\nHTTP.CONNECTTIMEOUT=60\n' | tee ~/.dodsrc > ~/.ncrc
+
+      - name: Cycle
+        id: cyc
+        run: |
+          set -euo pipefail
+          D="${{ github.event.inputs.date }}"
+          if [ -z "$D" ]; then D=$(python scripts/strat/upperstrat_data.py latest || true); fi
+          if ! echo "$D" | grep -qE '^[0-9]{8}$'; then echo "::error::no GFS 00Z f384 on S3 in the last 3 days"; exit 1; fi
+          PREV=$(date -u -d "${D:0:4}-${D:4:2}-${D:6:2} - 1 day" +%Y%m%d)
+          echo "date=$D" >> "$GITHUB_OUTPUT"; echo "prev=$PREV" >> "$GITHUB_OUTPUT"
+          # the retry slot has nothing to do when this cycle is already on the page with every model
+          SKIP=0
+          if [ "${{ github.event.inputs.force }}" != "true" ] && [ -f assets/sst/data/upperstrat.json ]; then
+            SKIP=$(python -c "
+          import json,sys
+          d=json.load(open('assets/sst/data/upperstrat.json'))['models']; w='${D:0:4}-${D:4:2}-${D:6:2} 00Z'
+          print(1 if all(m in d and d[m]['init']==w for m in ('gefs','gfs','geos','gdps')) else 0)")
+          fi
+          echo "skip=$SKIP" >> "$GITHUB_OUTPUT"
+          echo "cycle $D 00Z (fallback $PREV); already published: $SKIP"
+
+      - name: GEOS FP analysis tail
+        if: steps.cyc.outputs.skip != '1'
+        run: |
+          timeout 900 python scripts/strat/upperstrat_data.py tail --days 5 --keep 120 --seed-too \
+            --out assets/sst/data/upperstrat_tail.json || echo "::warning::GEOS FP analysis tail failed; the figures keep the older tail"
+
+      - name: GFS
+        if: steps.cyc.outputs.skip != '1'
+        run: |
+          python scripts/strat/upperstrat_data.py fetch --model gfs --date ${{ steps.cyc.outputs.date }} \
+            || echo "::warning::GFS fetch failed"
+
+      - name: GDPS
+        if: steps.cyc.outputs.skip != '1'
+        run: |
+          python scripts/strat/upperstrat_data.py fetch --model gdps --date ${{ steps.cyc.outputs.date }} \
+            || python scripts/strat/upperstrat_data.py fetch --model gdps --date ${{ steps.cyc.outputs.prev }} \
+            || echo "::warning::GDPS fetch failed"
+
+      - name: GEOS FP forecast
+        if: steps.cyc.outputs.skip != '1'
+        run: |
+          timeout 1200 python scripts/strat/upperstrat_data.py fetch --model geos --date ${{ steps.cyc.outputs.date }} \
+            || timeout 1200 python scripts/strat/upperstrat_data.py fetch --model geos --date ${{ steps.cyc.outputs.prev }} \
+            || echo "::warning::GEOS FP fetch failed"
+
+      # A full 35-day run is preferred: today's, else yesterday's (seen 2026-09-27: the 00Z extended range was only partly
+      # uploaded, control to f384); only when neither is complete is today's run used, cut where it ends.
+      - name: GEFS
+        if: steps.cyc.outputs.skip != '1'
+        timeout-minutes: 45
+        run: |
+          python scripts/strat/upperstrat_data.py fetch --model gefs --date ${{ steps.cyc.outputs.date }} --procs 8 --require-full \
+            || python scripts/strat/upperstrat_data.py fetch --model gefs --date ${{ steps.cyc.outputs.prev }} --procs 8 --require-full \
+            || python scripts/strat/upperstrat_data.py fetch --model gefs --date ${{ steps.cyc.outputs.date }} --procs 8 \
+            || echo "::warning::GEFS fetch failed"
+
+      - name: Render
+        id: render
+        if: steps.cyc.outputs.skip != '1'
+        run: |
+          ls -la scripts/strat/data/upperstrat/ || true
+          python scripts/strat/upperstrat.py --data scripts/strat/data/upperstrat --out assets/sst
+          echo "ok=1" >> "$GITHUB_OUTPUT"
+          ls -la assets/sst/upperstrat_*.webp
+
+      # The publisher swaps in only directories that rendered; a model that failed leaves its old frames (and its
+      # manifest entry, which upperstrat.py keeps) in place rather than blanking them.
+      - name: Publish the map frames
+        if: steps.render.outputs.ok == '1'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          DIRS=""
+          for m in gefs gfs geos gdps all; do for h in nh sh; do DIRS="$DIRS assets/sst/anim/upperstrat_${m}_${h}"; done; done
+          scripts/lib/publish_frames_ci.sh $DIRS
+
+      - name: Commit & push
+        if: steps.render.outputs.ok == '1'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          # Never rebase (project rule 2026-09-09): snapshot the outputs, then on each attempt reset to a fresh
+          # origin/main, lay the snapshot back on and commit - the sst.yml / strat.yml pattern.
+          SNAP=$(mktemp -d)
+          ls assets/sst/upperstrat_*.webp assets/sst/data/upperstrat.json assets/sst/data/upperstrat_tail.json \
+             assets/sst/anim/upperstrat_maps_manifest.json 2>/dev/null > "$SNAP/list" || true
+          tar cf "$SNAP/outs.tar" -T "$SNAP/list"
+          echo "snapshot: $(wc -l < "$SNAP/list") files"
+          for i in 1 2 3 4 5; do
+            if ! timeout 120 git fetch origin main; then echo "fetch $i failed"; sleep 5; continue; fi
+            git reset -q --hard origin/main
+            tar xf "$SNAP/outs.tar"
+            while read -r f; do git add -f "$f"; done < "$SNAP/list"
+            if git diff --staged --quiet; then echo "no changes"; exit 0; fi
+            git commit -q -m "upperstrat: GEFS/GFS/GEOS FP/GDPS upper stratosphere $(date -u +%Y-%m-%dT%H:%MZ)"
+            if timeout 180 git push origin HEAD:main; then echo "pushed (attempt $i)"; exit 0; fi
+            echo "push $i rejected; resyncing"; sleep 5
+          done
+          echo "push failed after retries"; exit 1
+
+      - name: Deploy the site
+        if: steps.render.outputs.ok == '1'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh workflow run pages.yml --repo "$GITHUB_REPOSITORY" || echo "pages dispatch failed; the dispatcher will catch it"

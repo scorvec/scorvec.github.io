@@ -122,6 +122,9 @@ scripts/strat/*
 !scripts/strat/forecast_drip.py
 !scripts/strat/geosfp_cap.py
 !scripts/strat/build_drip_ref.py
+!scripts/strat/upperstrat.py
+!scripts/strat/upperstrat_data.py
+!scripts/strat/build_upperstrat_clim.py
 # The MERRA-2 reference cache (282 KB) that replaces the 690 MB laptop-only
 # archive for nh_vortex on a runner. The directory itself must be re-included
 # first - git will not descend into an excluded directory to find the file.

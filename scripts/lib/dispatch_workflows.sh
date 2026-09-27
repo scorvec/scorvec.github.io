@@ -117,6 +117,10 @@ snowband.yml|20:50|
 # firings, so today's arrows and PV frames sat waiting. Same slots as bdc.yml's crons (GEOS FP 00Z is up by then).
 bdc.yml|12:30|
 bdc.yml|18:30|
+# Upper stratosphere to 1 hPa, GEFS/GFS/GEOS FP/GDPS (upperstrat.yml, 2026-09-27): the same slots as its crons, after
+# bdc.yml has finished with NCCS; the second slot exits in about a minute when the cycle is already published.
+upperstrat.yml|13:10|
+upperstrat.yml|19:10|
 # GEFS extended (gefs.yml): the same four slots as its crons; a run with no new day-35 cycle exits in ~2 min.
 gefs.yml|04:40|
 gefs.yml|06:40|
