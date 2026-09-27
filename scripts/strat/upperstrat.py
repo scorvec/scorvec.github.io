@@ -347,7 +347,9 @@ def section_panel(ax_u, ax_t, M, m, tail, clim, hemi, tail_days, show_y=True, cm
             ax.plot([1.0, 1.012], [(-np.log(L) + np.log(100)) / (np.log(100) - np.log(1))] * 2, transform=ax.transAxes,
                     color=INK, lw=1.0, clip_on=False)
         ndays = xs[-1] - x0
-        ax.xaxis.set_major_locator(mdates.DayLocator(interval=7 if ndays > 30 else (5 if ndays > 18 else 3)))
+        # ~4 labels a panel: in the four-model compare the 10-day panels are narrow, and 3-day ticks ran the
+        # last label of one panel into the first of the next ("Oct 7Sep 17")
+        ax.xaxis.set_major_locator(mdates.DayLocator(interval=max(3, int(round(ndays / 4.0)))))
         ax.xaxis.set_major_formatter(mdates.DateFormatter("%b %-d"))
         for s in ("top", "right"):
             ax.spines[s].set_visible(False)
@@ -362,7 +364,7 @@ def render_sec(M, tail, clim, which, hemi, path):
     if which == "all":
         fig = plt.figure(figsize=(15.0, 8.6), dpi=110)
         wr = [TAIL_SEC_ALL + int(M[m]["days"][-1]) for m in models]
-        gs = fig.add_gridspec(2, len(models), width_ratios=wr, hspace=0.26, wspace=0.07, left=0.045, right=0.915,
+        gs = fig.add_gridspec(2, len(models), width_ratios=wr, hspace=0.26, wspace=0.12, left=0.045, right=0.915,
                               top=0.845, bottom=0.07)
         for k, m in enumerate(models):
             au, at = fig.add_subplot(gs[0, k]), fig.add_subplot(gs[1, k])
