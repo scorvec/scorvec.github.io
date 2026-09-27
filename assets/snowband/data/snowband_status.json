@@ -2,76 +2,43 @@
  "models": {
   "hrrr": {
    "cycle": "2026092706",
-   "checked": "2026-09-27T12:16Z",
+   "checked": "2026-09-27T13:05Z",
    "regions": [
-    "ne",
-    "nec",
-    "ma",
-    "gl",
+    "nema",
+    "onq",
     "mw",
-    "pl",
-    "fr",
-    "on"
+    "rk"
    ],
    "gate": {
-    "ne": 0.0,
-    "nec": 0.0,
-    "ma": 0.0,
-    "gl": 0.0,
+    "nema": 0.0,
+    "onq": 0.0,
     "mw": 0.0,
-    "pl": 0.0,
-    "fr": 0.0005,
-    "on": 0.0
-   },
-   "forced": true,
-   "state": "error",
-   "note": "error: unpack requires a buffer of 3280 bytes"
-  },
-  "rrfs": {
-   "state": "error",
-   "note": "NOMADS rate limit; skipped this cycle (NOMADS RRFS: HTTP 403)",
-   "checked": "2026-09-27T12:16Z"
-  },
-  "rdps": {
-   "cycle": "2026092700",
-   "checked": "2026-09-27T12:18Z",
-   "regions": [
-    "ne",
-    "nec",
-    "ma",
-    "gl",
-    "mw",
-    "pl",
-    "fr",
-    "on"
-   ],
-   "gate": {
-    "ne": 0.0,
-    "nec": 0.0,
-    "ma": 0.0,
-    "gl": 0.0,
-    "mw": 0.0,
-    "pl": 0.0,
-    "fr": 0.0002,
-    "on": 0.0
+    "rk": 0.0032
    },
    "forced": true,
    "state": "rendered",
-   "rendered": [
-    "ne",
-    "nec",
-    "ma",
-    "gl",
-    "mw",
-    "pl",
-    "fr",
-    "on"
-   ],
    "note": "",
-   "seconds": 403,
-   "mb": 580,
-   "requests": 944,
+   "sources": {
+    "nema": "hrrr",
+    "onq": "hrrr",
+    "mw": "hrrr",
+    "rk": "hrrr"
+   },
+   "coverage": {
+    "hrrr:nema": 1.005,
+    "hrrr:atl": 0.293,
+    "hrrr:onq": 0.973,
+    "hrrr:mw": 1.01,
+    "hrrr:rk": 1.004
+   },
+   "rendered": [
+    "nema"
+   ],
+   "seconds": 246,
+   "mb": 1443,
+   "requests": 799,
    "leads": [
+    "f01",
     "f03",
     "f06",
     "f09",
@@ -89,6 +56,151 @@
     "f45",
     "f48"
    ]
+  },
+  "rrfs": {
+   "state": "rendered",
+   "note": "",
+   "checked": "2026-09-27T13:09Z",
+   "cycle": "2026092706",
+   "regions": [
+    "nema",
+    "atl",
+    "onq",
+    "mw",
+    "rk"
+   ],
+   "sources": {
+    "nema": "rrfs3",
+    "atl": "rrfs13",
+    "onq": "rrfs3",
+    "mw": "rrfs3",
+    "rk": "rrfs3"
+   },
+   "coverage": {
+    "rrfs3:nema": 1.005,
+    "rrfs3:atl": 0.293,
+    "rrfs3:onq": 0.973,
+    "rrfs3:mw": 1.01,
+    "rrfs3:rk": 1.004,
+    "rrfs13:atl": 1.171
+   },
+   "gate": {
+    "nema": 0.0,
+    "atl": 0.0,
+    "onq": 0.0,
+    "mw": 0.0,
+    "rk": 0.0047
+   },
+   "forced": true,
+   "rendered": [
+    "nema",
+    "atl"
+   ],
+   "seconds": 2740,
+   "mb": 4208,
+   "requests": 2296,
+   "leads": [
+    "f03",
+    "f06",
+    "f09",
+    "f12",
+    "f15",
+    "f18",
+    "f21",
+    "f24",
+    "f27",
+    "f30",
+    "f33",
+    "f36",
+    "f39",
+    "f42",
+    "f45",
+    "f48",
+    "f51",
+    "f54",
+    "f57",
+    "f60",
+    "f63",
+    "f66",
+    "f69",
+    "f72",
+    "f75",
+    "f78",
+    "f81",
+    "f84"
+   ]
+  },
+  "rdps": {
+   "cycle": "2026092706",
+   "checked": "2026-09-27T13:55Z",
+   "regions": [
+    "nema",
+    "atl",
+    "onq",
+    "mw",
+    "rk"
+   ],
+   "gate": {
+    "nema": 0.0,
+    "atl": 0.0,
+    "onq": 0.0,
+    "mw": 0.0,
+    "rk": 0.0005
+   },
+   "forced": true,
+   "state": "rendered",
+   "rendered": [
+    "nema",
+    "atl"
+   ],
+   "note": "",
+   "seconds": 867,
+   "mb": 1018,
+   "requests": 1652,
+   "leads": [
+    "f03",
+    "f06",
+    "f09",
+    "f12",
+    "f15",
+    "f18",
+    "f21",
+    "f24",
+    "f27",
+    "f30",
+    "f33",
+    "f36",
+    "f39",
+    "f42",
+    "f45",
+    "f48",
+    "f51",
+    "f54",
+    "f57",
+    "f60",
+    "f63",
+    "f66",
+    "f69",
+    "f72",
+    "f75",
+    "f78",
+    "f81",
+    "f84"
+   ],
+   "sources": {
+    "nema": "rdps",
+    "atl": "rdps",
+    "onq": "rdps",
+    "mw": "rdps",
+    "rk": "rdps"
+   },
+   "coverage": {
+    "rdps:nema": 1.028,
+    "rdps:atl": 0.998,
+    "rdps:onq": 1.009,
+    "rdps:mw": 1.033,
+    "rdps:rk": 1.035
+   }
   }
  },
  "season": {
@@ -97,5 +209,6 @@
   "next_start": "2026-11-01"
  },
  "forced": true,
- "updated": "2026-09-27T12:16Z"
+ "updated": "2026-09-27T13:05Z",
+ "test_label": "Test run on the 27 Sep nor'easter (rain)"
 }
