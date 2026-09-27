@@ -302,7 +302,7 @@ def drip(D, E, s, out):
                f"Standardised 65–90°N geopotential height anomaly, mean of {n} events; day 0 = "
                f"{'the first easterly day at 60°N, 10 hPa' if s != 'sv' else 'the 10 hPa annular index first crossing +1.5'}. "
                f"Red = high cap heights (weak vortex, negative AO), blue = low. {SIG_NOTE}; grey = not significant. {SRC}.")
-    ax = fig.add_axes([0.07, 0.36, 0.84, below - 0.42])
+    ax = fig.add_axes([0.07, 0.36, 0.84, below - 0.365])
     ax.set_facecolor("#eceef1")
     lv = np.arange(-2.4, 2.41, 0.3)
     mm = np.where(sig, m, np.nan)
@@ -318,7 +318,7 @@ def drip(D, E, s, out):
     ax.set_ylabel("pressure, hPa", fontsize=10, color=INK)
     ax.set_xlim(lag[0], lag[-1]); ax.tick_params(labelbottom=False)
     style(ax); ax.grid(False)
-    cax = fig.add_axes([0.925, 0.36, 0.012, below - 0.42])
+    cax = fig.add_axes([0.925, 0.36, 0.012, below - 0.365])
     cb = fig.colorbar(cf, cax=cax); cb.set_label("standard deviations", fontsize=9); cb.ax.tick_params(labelsize=8)
     A, base = ao_rows(D, E, s)
     sm, mean, lo, hi, bs, sg = ao_sig(A, base)
@@ -410,7 +410,7 @@ def drip_u(R, src, s, out):
     below = fig_header(fig, title,
                f"Zonal-mean wind at 60°N, standardised, sign flipped so a weaker vortex is red, as in the polar-cap height charts; "
                f"{who}; day 0 = {d0}. {test}; grey = not significant.")
-    ax = fig.add_axes([0.07, 0.36, 0.84, below - 0.42])
+    ax = fig.add_axes([0.07, 0.36, 0.84, below - 0.365])
     ax.set_facecolor("#eceef1")
     lv = np.arange(-2.4, 2.41, 0.3)
     cf = ax.contourf(lag, p, np.where(sig, m, np.nan), levels=lv, cmap="RdBu_r", extend="both")
@@ -426,7 +426,7 @@ def drip_u(R, src, s, out):
     ax.set_ylabel("pressure, hPa", fontsize=10, color=INK)
     ax.set_xlim(lag[0], lag[-1]); ax.tick_params(labelbottom=False)
     style(ax); ax.grid(False)
-    cax = fig.add_axes([0.925, 0.36, 0.012, below - 0.42])
+    cax = fig.add_axes([0.925, 0.36, 0.012, below - 0.365])
     cb = fig.colorbar(cf, cax=cax); cb.set_label("standard deviations (−u′)", fontsize=9); cb.ax.tick_params(labelsize=8)
     col = WARM if s != "sv" else COOL
     ax2 = fig.add_axes([0.07, 0.08, 0.84, 0.23])
