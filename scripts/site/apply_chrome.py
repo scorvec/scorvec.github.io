@@ -111,7 +111,7 @@ PRODUCTS = [
     ("Studies and verification", "What the record and the models say, and how the forecasts score", [
         ("Studies", [
             ("/enso.html#imp_reg", "ENSO impacts on the Americas",
-             "Thousands of El Niño and La Niña events in 16 CMIP6 models against the observed record: regressions, composites, super and east-based El Niños, 500 hPa wave trains, and what the PDO does once ENSO is removed. Significant results only.",
+             "Thousands of El Niño and La Niña events in 16 CMIP6 models against the observed record: regressions, composites, super and east-based El Niños, 500 hPa wave trains, and why the PDO mostly follows the atmosphere rather than driving it. Significant results only.",
              "Static"),
             ("/stratosphere.html#shwinters", "Stratosphere history",
              "Every northern winter and sudden warming since 1980 in MERRA-2, with 15,000 more from nine CMIP6 models: the dripping-paint composites and what usually follows at the surface.",
