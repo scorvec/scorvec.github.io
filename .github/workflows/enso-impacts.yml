@@ -1,0 +1,77 @@
+name: ENSO impacts on the Americas (static CMIP6 reference)
+
+# The "Impacts on the Americas" items on enso.html: CMIP6 and observed ENSO regression maps,
+# event-class composites, super El Nino lifecycle, asymmetry, observed-vs-models and the
+# regional table. STATIC products (user 2026-09-25: "the best type of stuff for this site are
+# things that don't need to be updated every day"). The analysis runs once on the laptop
+# (scripts/sst/cmip6_enso_impacts.py over 429 CMIP6 members, then scripts/sst/cmip6_enso_site.py),
+# which commits a 1.5 MB reference; this job only draws it. It runs when the renderer or the
+# reference changes, or on dispatch - never on a schedule.
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - scripts/sst/enso_impacts_render.py
+      - scripts/sst/reference/enso_impacts_site.npz
+      - scripts/sst/reference/enso_impacts_site.json
+      - .github/workflows/enso-impacts.yml
+
+env:
+  MPLBACKEND: Agg
+
+permissions:
+  contents: write
+  actions: write
+
+concurrency:
+  group: enso-impacts
+  cancel-in-progress: false
+
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+      - uses: actions/cache@v6
+        with:
+          path: ~/.cache/pip
+          key: pip-sst-${{ runner.os }}-${{ hashFiles('scripts/sst/requirements-sst.txt') }}
+          restore-keys: |
+            pip-sst-${{ runner.os }}-
+      - name: Install
+        run: pip install -r scripts/sst/requirements-sst.txt
+      - name: Render the ENSO impact figures
+        env:
+          SST_SITE_ROOT: ${{ github.workspace }}
+        run: python scripts/sst/enso_impacts_render.py
+      - name: Commit & push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          # snapshot + clean resync each attempt (tao-subsurface.yml / sst.yml pattern)
+          SNAP=$(mktemp -d)
+          git add -A assets/sst/enso_imp_*.webp assets/sst/data/enso_impacts.json 2>/dev/null || true
+          git diff --staged --name-only -z | tar cf "$SNAP/outs.tar" --null -T - 2>/dev/null || true
+          git reset -q
+          for i in 1 2 3 4 5; do
+            if ! timeout 120 git fetch origin main; then echo "fetch $i failed"; sleep 5; continue; fi
+            git reset --hard origin/main
+            tar xf "$SNAP/outs.tar" 2>/dev/null || true
+            git add -A assets/sst/enso_imp_*.webp assets/sst/data/enso_impacts.json
+            if git diff --staged --quiet; then echo "No changes; skipping commit."; exit 0; fi
+            git commit -q -m "enso impacts: render $(date -u +%Y-%m-%dT%H:%MZ)"
+            if timeout 180 git push; then echo "Pushed on attempt $i."; exit 0; fi
+            echo "Push $i rejected; resyncing and retrying…"
+            sleep 5
+          done
+          exit 1
+      - name: Deploy the site
+        if: success()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh workflow run pages.yml --repo "$GITHUB_REPOSITORY" || echo "pages dispatch failed; the dispatcher will catch it"
