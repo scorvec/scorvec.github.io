@@ -119,6 +119,9 @@ scripts/strat/*
 !scripts/strat/build_cmip6_drip.py
 !scripts/strat/build_cmip6_follow.py
 !scripts/strat/cmip6_follow_extract.py
+!scripts/strat/forecast_drip.py
+!scripts/strat/geosfp_cap.py
+!scripts/strat/build_drip_ref.py
 # The MERRA-2 reference cache (282 KB) that replaces the 690 MB laptop-only
 # archive for nh_vortex on a runner. The directory itself must be re-included
 # first - git will not descend into an excluded directory to find the file.
@@ -131,6 +134,10 @@ scripts/strat/*
 !scripts/strat/reference/strat_history_events.json
 !scripts/strat/reference/cmip6_drip.nc
 !scripts/strat/reference/cmip6_follow.nc
+!scripts/strat/reference/drip_std.json
+!scripts/strat/reference/geosfp_cap_offset.json
+!scripts/strat/reference/geosfp_cap_seed.json
+!scripts/strat/reference/aifs_capdrift.json
 
 # removed-project local archive (ERCOT page + C3S winter analysis, restorable)
 local_archive/

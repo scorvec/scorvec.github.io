@@ -319,6 +319,9 @@ var P = {
         a: {label:"Hemisphere", items:[["nh","Northern"],["sh","Southern"]]},
         img: function (a) { return "assets/gefs/gefs_strat_" + a + "_series.webp"; },
         cap: function () { return "u(60°) at 10 and 100 hPa, polar-cap T and height. Every member corrected for GEFS’s drift with lead against its own 2000–2019 reforecast — which reaches 10 hPa, unlike GEPS’s — then referenced to ERA5 1991–2020; ensemble spread, 14-day GEFS analysis tail, previous run’s mean dashed on the common days."; }},
+  drip: {label: "Polar vortex \u2014 dripping paint",
+        img: function () { return "assets/gefs/gefs_drip.webp"; },
+        cap: function () { return "Standardised polar-cap height from 1000 to 10 hPa: 60 days observed (GEOS FP), then the GEFS ensemble mean with its reforecast drift removed; hatched levels are not drift-corrected. The same scale as the history drips on the stratosphere page."; }},
   vloop: {label: "Polar vortex — daily loop",
         a: {label:"", items:[["all","10 and 100 hPa"]]},
         frame: function () { return "sst_anim.html?base=assets/gefs/anim&manifest=gefs_strat_manifest.json&embed=1"; },
@@ -335,7 +338,7 @@ var TELE_IDS = [["board","All indices (board)"],["ao","AO — Arctic Oscillation
 var GROUPS = [["Maps", "\u{1F5FA}", [["weekly","Weekly means","weeks 1–5, nine fields"],["probs","Weekly terciles","temperature and precipitation"],["change","Change vs previous run","this run minus the last"],["daily","Daily animation","nine fields, day by day"],["drift","Drift correction","operational vs reforecast"]]],
               ["Patterns", "⚙", [["telecon","Teleconnections","AO, NAO, PNA, EPO …"],["regimes","Weather regimes","Euro-Atlantic, N. America"],["clusters","500 hPa scenarios","ensemble clusters by week"]]],
               ["Tropics", "\u{1F30A}", [["mjo","MJO","RMM plume, propagation, skill"]]],
-              ["Stratosphere", "❄", [["vortex","Polar vortex diagnostics","u(60°), cap T and Z"],["vloop","Polar vortex loop","10 and 100 hPa, daily"]]]];
+              ["Stratosphere", "❄", [["vortex","Polar vortex diagnostics","u(60°), cap T and Z"],["vloop","Polar vortex loop","10 and 100 hPa, daily"],["drip","Dripping paint","polar cap, ground to 10 hPa"]]]];
 var ORDER = []; GROUPS.forEach(function (g) { g[2].forEach(function (p) { ORDER.push(p[0]); }); });
 // header chips and the footer date from the run's own metadata
 fetch("assets/gefs/data/gefs.json", {cache: "no-cache"}).then(function (r) { return r.json(); }).then(function (m) {

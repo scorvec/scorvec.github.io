@@ -91,6 +91,15 @@ jobs:
         run: |
           python scripts/strat/heatflux100_ext.py --model gefs --date "${{ steps.run.outputs.date }}" --out-dir assets/gefs \
             || echo "::warning::GEFS heat flux failed"
+      # the forecast dripping paint (forecast_drip.py): polar-cap height 1000-10 hPa, GEOS FP tail + GEFS days 1-35,
+      # drift removed at 10/100/500 hPa from the v2 reforecast climatology (the same cache as gefs_live)
+      - name: Forecast dripping paint
+        if: steps.run.outputs.new == '1'
+        env:
+          GEFS_CLIM_CACHE: /tmp/gefs_work/clim
+        run: |
+          python scripts/strat/forecast_drip.py --model gefs --date "${{ steps.run.outputs.date }}" --out-dir assets/gefs \
+            || echo "::warning::GEFS dripping paint failed"
       - name: Teleconnections, weather regimes, 500 hPa scenarios
         if: steps.run.outputs.new == '1'
         env:

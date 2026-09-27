@@ -159,6 +159,19 @@ jobs:
             --out-dir assets/sst \
             || echo "::warning::heatflux100 failed; keeping the previous figure"
 
+      # Forecast dripping paint: polar-cap height 1000-10 hPa, GEOS FP tail (bdc.yml keeps
+      # assets/sst/data/geosfp_cap_history.json) + AIFS-ENS control and 10 members to day 15,
+      # drift measured against GEOS FP (reference/aifs_capdrift.json). ~1.7 GB. Google mirror only.
+      - name: Forecast dripping paint
+        env:
+          ECMWF_SOURCES: google
+          ECMWF_MULTISOURCE: "0"
+        run: |
+          python scripts/strat/forecast_drip.py --model aifs \
+            --date "${{ needs.cycle.outputs.date }}" --time "${{ needs.cycle.outputs.time }}" \
+            --out-dir assets/sst \
+            || echo "::warning::forecast_drip failed; keeping the previous figure"
+
       # 25 perturbed members of u and v at 10/100 hPa every 12 h (~1.9 GB) for the
       # ensemble-mean maps (member 0 until 2026-09-26). Google mirror only.
       - name: Vortex winds, 10 and 100 hPa
@@ -219,6 +232,7 @@ jobs:
           set -euo pipefail
           : > /tmp/light.list
           for p in assets/sst/vortex_10.webp assets/sst/heatflux100_nh.webp assets/sst/heatflux100_sh.webp assets/sst/data/heatflux100.json assets/sst/data/heatflux100_history.json \
+                   assets/sst/aifs_drip.webp assets/sst/data/aifs_drip.json \
                    assets/sst/anim/wave1_nh assets/sst/anim/wave1_sh \
                    assets/sst/anim/vortex_10 assets/sst/anim/vortex_100 \
                    assets/sst/anim/wave1_maps_manifest.json \
@@ -411,9 +425,12 @@ jobs:
         run: |
           git config user.name "Shawn Corvec"
           git config user.email "shawncorvec@hotmail.com"
-          git add assets/sst/nh_vortex.webp assets/sst/vortex_10.webp \
-                  assets/sst/heatflux100_nh.webp assets/sst/heatflux100_sh.webp assets/sst/data/heatflux100.json assets/sst/data/heatflux100_history.json \
-                  assets/sst/anim/*_manifest.json 2>/dev/null || true
+          # one path at a time: `git add a b c` adds NOTHING when any one of them is missing (a product that failed)
+          for f in assets/sst/nh_vortex.webp assets/sst/vortex_10.webp \
+                   assets/sst/heatflux100_nh.webp assets/sst/heatflux100_sh.webp assets/sst/data/heatflux100.json assets/sst/data/heatflux100_history.json \
+                   assets/sst/aifs_drip.webp assets/sst/data/aifs_drip.json assets/sst/anim/*_manifest.json; do
+            if [ -e "$f" ]; then git add "$f"; fi
+          done
           if git diff --staged --quiet; then echo "no changes"; exit 0; fi
           git commit -m "data update: $(date -u +%Y-%m-%dT%H:%MZ)"
           for i in 1 2 3 4 5; do

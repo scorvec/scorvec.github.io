@@ -315,6 +315,9 @@ var P = {
         a: {label:"Hemisphere", items:[["nh","Northern"],["sh","Southern"]]},
         img: function (a) { return "assets/geps/strat_" + a + "_series.webp"; },
         cap: function () { return "u(60\u00B0) at 10 and 100 hPa, polar-cap T and height. Ensemble spread, 14-day analysis tail, previous run\u2019s mean dashed on the common days."; }},
+  drip: {label: "Polar vortex \u2014 dripping paint",
+        img: function () { return "assets/geps/geps_drip.webp"; },
+        cap: function () { return "Standardised polar-cap height from 1000 to 10 hPa: 60 days observed (GEOS FP), then the GEPS ensemble mean with its reforecast drift removed; hatched levels are not drift-corrected. The same scale as the history drips on the stratosphere page."; }},
   vloop: {label: "Polar vortex \u2014 daily loop",
         a: {label:"", items:[["all","10 and 100 hPa"]]},
         frame: function () { return "sst_anim.html?base=assets/geps/anim&manifest=geps_strat_manifest.json&embed=1"; },
@@ -331,7 +334,7 @@ var TELE_IDS = [["board","All indices (board)"],["ao","AO \u2014 Arctic Oscillat
 var GROUPS = [["Maps", "\u{1F5FA}", [["weekly","Weekly means","weeks 1\u20135, nine fields"],["probs","Weekly terciles","temperature and precipitation"],["change","Change vs previous run","this run minus the last"],["daily","Daily animation","eight fields, day by day"]]],
               ["Patterns", "\u2699", [["telecon","Teleconnections","AO, NAO, PNA, EPO \u2026"],["regimes","Weather regimes","Euro-Atlantic, N. America"],["clusters","500 hPa scenarios","ensemble clusters by week"]]],
               ["Tropics", "\u{1F30A}", [["mjo","MJO","RMM plume, propagation, skill"]]],
-              ["Stratosphere", "\u2744", [["vortex","Polar vortex diagnostics","u(60\u00B0), cap T and Z"],["vloop","Polar vortex loop","10 and 100 hPa, daily"]]]];
+              ["Stratosphere", "\u2744", [["vortex","Polar vortex diagnostics","u(60\u00B0), cap T and Z"],["vloop","Polar vortex loop","10 and 100 hPa, daily"],["drip","Dripping paint","polar cap, ground to 10 hPa"]]]];
 var ORDER = []; GROUPS.forEach(function (g) { g[2].forEach(function (p) { ORDER.push(p[0]); }); });
 var sel = {p: "weekly", a: null, b: null, c: null};
 var $ = function (id) { return document.getElementById(id); };

@@ -281,6 +281,39 @@ reanalyses' own correction to the momentum budget, is left out.</p>
 GMAO) &middot; test: z-test of the 30-day mean against MERRA-2's day-to-day and year-to-year variance plus the errors of the normal
 and of the GEOS FP offset; section shaded only where the false-discovery rate is below 10&nbsp;% &middot; updated daily</p>
 </template>
+<template id="about-fdrip">
+<p>The <b>dripping-paint</b> view of the forecasts: the polar-cap (65&ndash;90&deg;N) geopotential height at eleven
+        levels from 1000 to 10&nbsp;hPa, standardised exactly as in the MERRA-2 history drips (anomaly from a 4-harmonic
+        seasonal cycle and linear trend, divided by the seasonal standard deviation), so a forecast can be read against
+        the historical composites. Red is a high cap: a warm, weak vortex, and near the ground a negative Arctic
+        Oscillation. Left of the line are the <b>last 60 days observed</b> in GEOS FP analyses; right of it the
+        <b>ensemble mean</b> of the forecast.</p>
+<p><b>Drift is removed before anything is drawn.</b> Extended-range models slide towards their own climate with lead,
+        and in the stratosphere that slide is large: in its reforecasts GEPS raises the 10&nbsp;hPa cap by about 200&nbsp;m
+        by day 35, and GEFS by about 170&nbsp;m. Left in, that drift would paint a warming that is only the model. So
+        each model's anomaly is taken after subtracting its measured systematic difference from the MERRA-2 reference at
+        that lead:</p>
+<ul>
+<li><b>GEPS</b>: from the GEPS reforecasts in the ECMWF S2S archive (2001&ndash;2020, control + 3 members, start dates
+        within 8 days of the forecast's day of year). 10 and 100&nbsp;hPa are corrected; the other levels are added as
+        their reforecasts arrive from the archive.</li>
+<li><b>GEFS</b>: from the GEFS v2 reforecast daily climatology (2000&ndash;2019), which holds 10, 100 and 500&nbsp;hPa.</li>
+<li><b>AIFS-ENS</b>: no reforecast exists, so its control's cap forecasts from 25 recent cycles are verified against
+        the GEOS FP analyses and the mean error at each level and lead is removed where it is significant (more than
+        twice its standard error). It is small for the first week and rises to +15 to +45&nbsp;m by days 10&ndash;15.</li>
+</ul>
+<p>Levels where a model's drift has not been measured are <b>hatched</b>: there only the model's offset from the
+        GEOS FP analysis over its first day is removed, so read them with caution, especially at long lead. The
+        1000&nbsp;hPa cap needs that offset most: models extrapolate heights below the ground, while GEOS FP and MERRA-2
+        leave those points out (and on some summer days the observed value is undefined), so GEPS and GEFS read about
+        30&ndash;40&nbsp;m low at the start (AIFS-ENS 11&nbsp;m) by definition alone. The lower panel shows the 1000&nbsp;hPa cap (a proxy for the Arctic Oscillation; high = negative
+        AO) and the share of members with the 100&nbsp;hPa cap at least one standard deviation high, the level that couples
+        to the troposphere.</p>
+<p class="chart-sources">ECCC GEPS (MSC Datamart), NOAA GEFS (AWS Open Data), ECMWF AIFS-ENS open data (CC&nbsp;BY&nbsp;4.0)
+        &middot; observed: NASA GMAO GEOS FP analyses (NCCS OPeNDAP), the measured GEOS FP&ndash;MERRA-2 offset removed &middot;
+        scale: MERRA-2 1980&ndash;2026 (NASA GMAO) &middot; drift: ECMWF S2S GEPS reforecasts (non-commercial research licence), GEFS v2
+        reforecast &middot; updated with each GEPS extended run, each GEFS 00Z run and each AIFS-ENS 00/12Z cycle</p>
+</template>
 <template id="about-heatflux">
 <p><a href="/topics/eddy-heat-flux.html">The explainer</a>: what the 100 hPa eddy heat flux measures, the equations and how to read the chart.</p>
 <p>The wave-1 maps show how large the planetary wave is and where its ridge sits; they do not show
@@ -363,7 +396,7 @@ and of the GEOS FP offset; section shaded only where the false-discovery rate is
 <script>
 window.STAGE = {
   groups: [
-  {label: "Stratosphere", ico: "\u2744", items: [["vortex","Polar vortex diagnostics","u(60°N), polar-cap height"],["vwinds","Vortex winds","10 and 100 hPa, both hemispheres"],["pv","Potential vorticity","GEOS FP, 475 and 850 K"],["epflux","E–P flux","wave driving, k = 1–3"],["wave1","Stationary wave-1","100 and 500 hPa"],["heatflux","Eddy heat flux","100 hPa [v′T′], is it going up?"],["bdc","Brewer–Dobson circulation","tropical upwelling, downward control"]]},
+  {label: "Stratosphere", ico: "\u2744", items: [["vortex","Polar vortex diagnostics","u(60°N), polar-cap height"],["vwinds","Vortex winds","10 and 100 hPa, both hemispheres"],["pv","Potential vorticity","GEOS FP, 475 and 850 K"],["epflux","E–P flux","wave driving, k = 1–3"],["wave1","Stationary wave-1","100 and 500 hPa"],["heatflux","Eddy heat flux","100 hPa [v′T′], is it going up?"],["fdrip","Forecast dripping paint","GEPS, GEFS, AIFS-ENS: is it reaching down?"],["bdc","Brewer–Dobson circulation","tropical upwelling, downward control"]]},
   {label: "Stratosphere history", ico: "\u231B", items: [["shwinters","Every winter since 1980","pick any winter, compare"],["shssw","Sudden warmings since 1980","timeline, catalogue, vortex shapes"],["shdrip","Dripping paint","how an event reaches the surface"],["shfollow","What usually follows","AO, NAO, temperature, by region; CMIP6"]]}
 ],
   products: {
@@ -384,6 +417,11 @@ window.STAGE = {
           img: function (a) { return "assets/sst/bdc_dc_" + (a === "sec" ? "section" : "upwelling") + ".webp"; }, bust: "hourly", about: "about-bdc", fit: false,
           cap: function (a) { return a === "sec" ? "The residual (Brewer–Dobson) streamfunction by downward control, 30-day mean; shading only where the anomaly from MERRA-2 is significant (FDR 10 %)."
                                                  : "Upward mass flux through 70 and 100 hPa between the turnaround latitudes, trailing 30-day mean: GEOS FP analyses and 10-day forecast against the MERRA-2 range."; }},
+  fdrip: {label: "Forecast dripping paint", a: {label: "Model", items: [["geps","GEPS, days 1–35"],["gefs","GEFS, days 1–35"],["aifs","AIFS-ENS, days 1–15"]]},
+          img: function (a) { return a === "gefs" ? "assets/gefs/gefs_drip.webp" : a === "aifs" ? "assets/sst/aifs_drip.webp" : "assets/geps/geps_drip.webp"; },
+          bust: "hourly", about: "about-fdrip", fit: false,
+          cap: function (a) { return "Standardised polar-cap height from 1000 to 10 hPa: the last 60 days observed (GEOS FP), then the "
+                                     + (a === "gefs" ? "GEFS" : a === "aifs" ? "AIFS-ENS" : "GEPS") + " ensemble mean with the model's drift removed where it has been measured; hatched levels are not drift-corrected. Same scale as the history drips."; }},
   heatflux: {label: "100 hPa eddy heat flux", a: {label: "Hemisphere", items: [["nh","Northern"],["sh","Southern"]]},
           b: {label: "Model", items: [["aifs","AIFS-ENS, days 1–15"],["geps","GEPS, days 1–35"],["gefs","GEFS, days 1–35"]]},
           img: function (a, b) { var h = a === "sh" ? "sh" : "nh";

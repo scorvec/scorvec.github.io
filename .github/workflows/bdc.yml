@@ -34,6 +34,7 @@ jobs:
           sparse-checkout: |
             scripts/strat/bdc_dc.py
             scripts/strat/geos_pv.py
+            scripts/strat/geosfp_cap.py
             scripts/lib
             assets/sst/anim/geos_pv_manifest.json
             assets/sst/data
@@ -49,6 +50,13 @@ jobs:
         run: |
           if python scripts/strat/geos_pv.py --out assets/sst; then echo "ok=1" >> "$GITHUB_OUTPUT"
           else echo "::warning::GEOS FP PV failed; keeping the previous loop"; fi
+      # the observed tail of the forecast dripping paint (forecast_drip.py, read by gefs.yml, strat.yml and the laptop
+      # GEPS run): GEOS FP polar-cap height at 11 levels, daily mean of 00/06/12/18Z, the last 10 days refreshed
+      - name: GEOS FP polar-cap height tail
+        if: ${{ !cancelled() }}
+        run: |
+          python scripts/strat/geosfp_cap.py tail --days 10 --keep 120 --procs 3 \
+            --out assets/sst/data/geosfp_cap_history.json || echo "::warning::GEOS FP cap tail failed"
       - name: Publish the PV frames (frames branch)
         if: steps.pv.outputs.ok == '1'
         env:
@@ -89,7 +97,7 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           SNAP=$(mktemp -d)
-          OUTS="assets/sst/bdc_dc_upwelling.webp assets/sst/bdc_dc_section.webp assets/sst/data/bdc_dc.json assets/sst/anim/geos_pv_manifest.json assets/sst/data/geos_pv.json"
+          OUTS="assets/sst/bdc_dc_upwelling.webp assets/sst/bdc_dc_section.webp assets/sst/data/bdc_dc.json assets/sst/anim/geos_pv_manifest.json assets/sst/data/geos_pv.json assets/sst/data/geosfp_cap_history.json"
           for f in $OUTS; do [ -f "$f" ] && git add -f "$f"; done
           git diff --staged --name-only -z | tar cf "$SNAP/outs.tar" --null -T - 2>/dev/null || true
           git reset -q
