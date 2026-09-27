@@ -129,6 +129,33 @@ def main() -> None:
     Path(args.out_dir).mkdir(parents=True, exist_ok=True)
     out_png = Path(args.out_dir) / f"rmm_{args.date}_{args.time}z.png"
     plot_rmm(rmm, obs=obs, out_path=out_png, ifs=rmm_ifs)
+
+    # 4b. ENSO-removed wind-only RMM (src/enso_rmm.py): same members, observed tail and IFS overlay, minus the
+    #     part linearly related to the Nino-3.4 change over the filter window. Best-effort: a failure here never
+    #     touches the raw product above.
+    try:
+        import enso_rmm
+        n34 = enso_rmm.n34_smoothed()
+        if n34 is None:
+            raise FileNotFoundError("assets/sst/data/enso_daily.json")
+        c = enso_rmm.load_c()
+        dn = enso_rmm.delta_n34(n34, init, mean120.get("window_end"))
+        if not np.isfinite(dn):
+            raise ValueError("Nino-3.4 series too short for the 120-day window")
+        rc = enso_rmm.clean_forecast(rmm, dn, c, "AIFS")
+        ic = enso_rmm.clean_forecast(rmm_ifs, dn, c, "IFS") if rmm_ifs is not None else None
+        oc = enso_rmm.clean_obs(obs, n34, c)
+        d0 = f"{args.date[:4]}-{args.date[4:6]}-{args.date[6:8]} {args.time}Z"
+        plot_rmm(rc, obs=oc, ifs=ic, out_path=Path(args.out_dir) / f"rmmclean_{args.date}_{args.time}z.png",
+                 title=f"ENSO removed: wind-only RMM{' (AIFS vs IFS)' if ic is not None else ' (AIFS)'}  —  Init: {d0}")
+        st = enso_rmm.diagnose(rc, oc, dn, enso_rmm.romi_status())
+        st.update(init=d0, updated=pd.Timestamp.utcnow().strftime("%Y-%m-%d %H:%MZ"))
+        (Path(args.out_dir) / "rmm_clean_status.json").write_text(__import__("json").dumps(st))
+        print(f"ENSO-removed RMM: dN34 {dn:+.2f} K, forecast amp {st['forecast']['amp_mean']}, "
+              f"speed {st['forecast']['speed']} deg/day, coherent={st['coherent_mjo_forecast']}")
+    except Exception as e:                                        # noqa: BLE001
+        print(f"::warning::ENSO-removed RMM skipped ({repr(e)[:120]})")
+
     miss = Path(str(out_png) + ".missing")
     if rmm_ifs is None:
         miss.write_text("ifs\n")

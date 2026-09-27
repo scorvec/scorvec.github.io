@@ -13,6 +13,10 @@ import re
 from datetime import datetime, timezone
 from pathlib import Path
 
+import sys as _sys
+_sys.path.insert(0, str(Path(__file__).resolve().parent))
+from clean_section import clean_section   # noqa: E402  the ENSO-removed RMM block (2026-09-27)
+
 ASSETS = Path("assets/mjo")
 OUT = Path("mjo.html")
 MANIFEST = ASSETS / "rmm_manifest.json"
@@ -148,6 +152,7 @@ def main():
 <main>
   <h1>MJO forecast from the AIFS ensemble</h1>
   {body}
+{clean_section()}
   <p class="lede lede--wide" style="margin-top:1.4rem">Real-time Multivariate MJO (RMM) phase-space forecast from the
   ECMWF <strong>AIFS-ENS</strong> ensemble (51 members to day 15), following
   Wheeler &amp; Hendon (2004). Full three-channel projection: U850/U200 plus a

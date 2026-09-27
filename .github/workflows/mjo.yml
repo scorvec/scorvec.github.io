@@ -189,8 +189,14 @@ jobs:
           mkdir -p assets/mjo
           cp "scripts/mjo/plots/rmm_${{ needs.check.outputs.compact }}.png" \
              "assets/mjo/rmm_${{ needs.check.outputs.compact }}.png"
-          # keep the most recent 60 archived plots
+          # the ENSO-removed wind-only RMM (src/enso_rmm.py) and its status line, when that best-effort stage ran
+          if [ -f "scripts/mjo/plots/rmmclean_${{ needs.check.outputs.compact }}.png" ]; then
+            cp "scripts/mjo/plots/rmmclean_${{ needs.check.outputs.compact }}.png" assets/mjo/
+            cp scripts/mjo/plots/rmm_clean_status.json assets/mjo/ || true
+          fi
+          # keep the most recent 60 archived plots of each
           ls -t assets/mjo/rmm_*z.png 2>/dev/null | tail -n +61 | xargs -r rm
+          ls -t assets/mjo/rmmclean_*z.png 2>/dev/null | tail -n +61 | xargs -r rm
 
       - name: Regenerate MJO page
         run: python scripts/mjo/generate_page.py
@@ -209,6 +215,7 @@ jobs:
             git reset --hard origin/main
             tar xf "$SNAP/outs.tar"
             ls -t assets/mjo/rmm_*z.png 2>/dev/null | tail -n +61 | xargs -r rm
+            ls -t assets/mjo/rmmclean_*z.png 2>/dev/null | tail -n +61 | xargs -r rm
             git add $OUT
             if git diff --staged --quiet; then echo "No changes."; exit 0; fi
             git commit -m "data update: ${{ needs.check.outputs.compact }}"

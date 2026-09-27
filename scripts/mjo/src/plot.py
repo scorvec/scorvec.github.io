@@ -98,6 +98,7 @@ def plot_rmm(
     obs: xr.Dataset | None = None,
     out_path: Path | None = None,
     ifs: xr.Dataset | None = None,
+    title: str | None = None,
 ) -> plt.Figure:
     date  = rmm.attrs.get("init_date", "")
     rtime = rmm.attrs.get("init_time", "00")
@@ -115,7 +116,7 @@ def plot_rmm(
     name = rmm.attrs.get("model_label", "AIFS")
     ttl = f"{name} vs IFS Ensemble RMM" if ifs is not None else f"{name} Ensemble RMM"
     ax.set_title(
-        f"{ttl}  —  Init: {date[:4]}-{date[4:6]}-{date[6:8]} {rtime}Z",
+        title or f"{ttl}  —  Init: {date[:4]}-{date[4:6]}-{date[6:8]} {rtime}Z",
         fontsize=13, fontweight="bold",
     )
 
