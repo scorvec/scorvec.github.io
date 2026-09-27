@@ -415,7 +415,8 @@
     var sc = document.createElement("script"); sc.src = "/assets/stage.js"; document.body.appendChild(sc);
   }
   function getJSON(u) {
-    return fetch(u + "?v=" + new Date().toISOString().slice(0, 13)).then(function (r) { return r.ok ? r.json() : null; }).catch(function () { return null; });
+    // per-load key: an hour-keyed URL let the browser keep a status from before a run for up to ten minutes
+    return fetch(u + "?v=" + Date.now(), { cache: "no-store" }).then(function (r) { return r.ok ? r.json() : null; }).catch(function () { return null; });
   }
   Promise.all([getJSON("assets/snowband/data/snowband_status.json"), getJSON("assets/snowband/anim/snowband_hrrr_manifest.json"),
     getJSON("assets/snowband/anim/snowband_rrfs_manifest.json"), getJSON("assets/snowband/anim/snowband_rdps_manifest.json"),
