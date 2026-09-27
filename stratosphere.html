@@ -37,7 +37,7 @@
     <nav class="sh-nav" id="sh-menu" aria-label="Site">
       <ul class="sh-list">
         <li class="sh-item sh-has-menu">
-          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g0">Short and medium range</button>
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g0">Weather</button>
           <div class="sh-menu sh-menu--list" id="sh-g0">
             <ul>
               <li><a href="/snowbands.html">Snow-band diagnostics</a></li>
@@ -48,32 +48,13 @@
           </div>
         </li>
         <li class="sh-item sh-has-menu">
-          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g1">Subseasonal and seasonal</button>
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g1" aria-current="page">Climate drivers</button>
           <div class="sh-menu sh-menu--cols" id="sh-g1">
-            <div>
-              <h3>Weeks 2–5</h3>
-              <ul>
-                <li><a href="/subseasonal.html">GEPS extended ensemble</a></li>
-                <li><a href="/gefs.html">GEFS extended ensemble</a></li>
-              </ul>
-            </div>
-            <div>
-              <h3>Seasons</h3>
-              <ul>
-                <li><a href="/seasonal.html">Eight C3S seasonal models</a></li>
-                <li><a href="/sfs.html">NOAA SFS seasonal</a></li>
-                <li><a href="/enso-forecasts.html">ENSO forecasts</a></li>
-              </ul>
-            </div>
-          </div>
-        </li>
-        <li class="sh-item sh-has-menu">
-          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g2" aria-current="page">Climate drivers</button>
-          <div class="sh-menu sh-menu--cols" id="sh-g2">
             <div>
               <h3>Tropics</h3>
               <ul>
                 <li><a href="/enso.html">El Niño monitor</a></li>
+                <li><a href="/enso-forecasts.html">ENSO forecasts</a></li>
                 <li><a href="/mjo.html">MJO forecast</a></li>
                 <li><a href="/qbo/">QBO tracker</a></li>
               </ul>
@@ -88,7 +69,26 @@
           </div>
         </li>
         <li class="sh-item sh-has-menu">
-          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g3">Studies and verification</button>
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g2">Outlooks</button>
+          <div class="sh-menu sh-menu--cols" id="sh-g2">
+            <div>
+              <h3>Weeks 1–5</h3>
+              <ul>
+                <li><a href="/subseasonal.html">GEPS weeks 1–5</a></li>
+                <li><a href="/gefs.html">GEFS weeks 1–5</a></li>
+              </ul>
+            </div>
+            <div>
+              <h3>Seasons</h3>
+              <ul>
+                <li><a href="/seasonal.html">Eight C3S seasonal models</a></li>
+                <li><a href="/sfs.html">NOAA SFS seasonal</a></li>
+              </ul>
+            </div>
+          </div>
+        </li>
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g3">Research</button>
           <div class="sh-menu sh-menu--cols" id="sh-g3">
             <div>
               <h3>Studies</h3>
@@ -96,6 +96,7 @@
                 <li><a href="/enso.html#imp_reg">ENSO impacts on the Americas</a></li>
                 <li><a href="/stratosphere.html#shwinters">Stratosphere history</a></li>
                 <li><a href="/topics/">Explainers</a></li>
+                <li><a href="/research.html">Publications</a></li>
               </ul>
             </div>
             <div>
@@ -118,20 +119,8 @@
             </ul>
           </div>
         </li>
+        <li class="sh-item"><a class="sh-link" href="/resume.html">Resume</a></li>
         <li class="sh-item sh-item--special"><a class="sh-special" href="/midterms/">2026 Midterms</a></li>
-        <li class="sh-item sh-has-menu sh-item--me">
-          <button class="sh-link sh-menubtn sh-me" type="button" aria-expanded="false" aria-controls="sh-me">About</button>
-          <div class="sh-menu sh-menu--list sh-menu--me" id="sh-me">
-            <ul>
-              <li><a href="/about.html">About me</a></li>
-              <li><a href="/resume.html">Resume</a></li>
-              <li><a href="/research.html">Publications</a></li>
-              <li class="sh-me-ext"><a href="https://github.com/scorvec">GitHub</a></li>
-              <li><a href="https://scholar.google.com/citations?user=EYLRCJIAAAAJ&amp;hl=en">Google Scholar</a></li>
-              <li><a href="https://www.linkedin.com/in/shawn-corvec-35895b231/">LinkedIn</a></li>
-            </ul>
-          </div>
-        </li>
       </ul>
     </nav>
   </div>
@@ -411,7 +400,7 @@ window.STAGE = {
   {label: "Stratosphere history", ico: "\u231B", items: [["shwinters","Every winter since 1980","pick any winter, compare"],["shssw","Sudden warmings since 1980","timeline, catalogue, vortex shapes"],["shdrip","Dripping paint","how an event reaches the surface"],["shfollow","What usually follows","AO, NAO, temperature, by region; CMIP6"]]}
 ],
   products: {
-  vortex: {label: "Northern polar vortex", img: function () { return "assets/sst/nh_vortex.webp?v=122a7d5c582c"; }, about: "about-vortex", fit: false,
+  vortex: {label: "Northern polar vortex", img: function () { return "assets/sst/nh_vortex.webp?v=1ce18e72d15d"; }, about: "about-vortex", fit: false,
           cap: function () { return "Zonal-mean wind at 60°N at 10 and 100 hPa and the 100 hPa polar-cap height, members against the MERRA-2 percentile bands."; }},
   vwinds: {label: "Vortex winds", a: {label: "Level", items: [["vortex_10","10 hPa"],["vortex_100","100 hPa"]]},
           frame: function (a) { return "sst_anim.html?embed=1&manifest=vortex_winds_manifest.json&region=" + a; }, about: "about-vwinds",
@@ -445,12 +434,12 @@ window.STAGE = {
           cap: function () { return "Every northern winter in MERRA-2, October to May, against the 1980–2026 range. Hover a line to name the winter; pick one to draw it in black."; }},
   shssw: {label: "Sudden warmings since 1980", a: {label: "View", items: [["timeline","Timeline"],["table","Catalogue"],["gallery","Vortex at each warming"]]},
           dom: function (a) { return a === "table" ? "dom-shssw" : null; }, fit: false,
-          img: function (a) { return "assets/sst/strat_hist_" + (a === "gallery" ? "gallery" : "timeline") + ".webp?v=122a7d5c582c"; }, about: "about-shssw",
+          img: function (a) { return "assets/sst/strat_hist_" + (a === "gallery" ? "gallery" : "timeline") + ".webp?v=1ce18e72d15d"; }, about: "about-shssw",
           cap: function (a) { return a === "timeline" ? "Every major sudden warming (Charlton–Polvani, MERRA-2) and strong-vortex event, winter by winter, with ENSO and the QBO." : a === "table" ? "The catalogue: when, how deep, what shape, and what the Arctic Oscillation did before and after." : "What the 10 hPa vortex looked like at each warming: two pieces for a split, one pushed off the pole for a displacement."; }},
   shdrip: {label: "Dripping paint", a: {label: "Events", items: [["ssw_all","All SSWs"],["ssw_deep","Deep"],["ssw_shallow","Shallow"],["ssw_split","Splits"],["ssw_disp","Displacements"],["sv","Strong vortex"]]},
           b: function (a) { return {label: "Data", items: (a === "ssw_split" || a === "ssw_disp") ? [["m2z","MERRA-2 polar-cap height"]]
                                     : [["m2z","MERRA-2 polar-cap height"],["m2u","MERRA-2 u(60°N)"],["cmip6","CMIP6 u(60°N), 9 models"]]}; },
-          img: function (a, b) { return "assets/sst/strat_hist_drip_" + (b === "m2u" || b === "cmip6" ? b + "_" : "") + a + ".webp?v=122a7d5c582c"; }, fit: false, about: "about-shdrip",
+          img: function (a, b) { return "assets/sst/strat_hist_drip_" + (b === "m2u" || b === "cmip6" ? b + "_" : "") + a + ".webp?v=1ce18e72d15d"; }, fit: false, about: "about-shdrip",
           cap: function (a, b) {
             if (b === "cmip6") return "Zonal-mean wind at 60°N from the ground to 1 hPa around " + (a === "sv" ? "strong-vortex events" : "sudden warmings") + " in 9 CMIP6 models (25,444 model-years), sign flipped so a weak vortex is red, with 700 hPa u(60°N) below. Shaded only where the models robustly agree.";
             if (b === "m2u") return "MERRA-2 drawn the way the CMIP6 chart is, events defined in wind terms as for the models: u(60°N) from the ground to 1 hPa, sign flipped, with 700 hPa u(60°N) below.";
@@ -461,7 +450,7 @@ window.STAGE = {
                                     ? [["ssw_all","All SSWs"],["ssw_deep","Deep"],["ssw_shallow","Shallow"],["sv","Strong vortex"]]
                                     : [["ssw_all","All SSWs"],["ssw_deep","Deep"],["ssw_shallow","Shallow"],["ssw_split","Splits"],["ssw_disp","Displacements"],["sv","Strong vortex"]]} : null; },
           img: function (a, b, c) { var m = b === "cmip6" ? "cmip6_" : "", w = a === "map2" ? "d31_60" : "d1_30";
-                                    return "assets/sst/strat_hist_" + ((a === "map" || a === "map2") ? "follows_" + m + c + "_" + w : a + (b === "cmip6" ? "_cmip6" : "")) + ".webp?v=122a7d5c582c"; },
+                                    return "assets/sst/strat_hist_" + ((a === "map" || a === "map2") ? "follows_" + m + c + "_" + w : a + (b === "cmip6" ? "_cmip6" : "")) + ".webp?v=1ce18e72d15d"; },
           fit: false, about: "about-shfollow",
           cap: function (a, b) {
             var cm = b === "cmip6";
@@ -610,7 +599,7 @@ window.STAGE = {
     b.addEventListener("click", function () { st.h = b.dataset.shh; document.querySelectorAll("#dom-shwinters .pill[data-shh]").forEach(function (o) { o.classList.toggle("on", o === b); }); draw(); });
   });
   $("shw-pick").addEventListener("change", function () { st.pick = this.value; draw(); });
-  fetch("assets/sst/data/strat_history.json?v=122a7d5c582c").then(function (r) { return r.json(); }).then(function (j) {
+  fetch("assets/sst/data/strat_history.json?v=1ce18e72d15d").then(function (r) { return r.json(); }).then(function (j) {
     J = j;
     var sel = $("shw-pick");
     J.winters.slice().reverse().forEach(function (w) { var o = document.createElement("option"); o.value = w.winter; o.textContent = w.winter; sel.appendChild(o); });
@@ -656,27 +645,18 @@ window.STAGE = {
 <!-- sf:start -->
 <footer class="sf">
   <div class="sf-in">
-    <div class="sf-group">
-      <p class="sf-h" role="heading" aria-level="2">This site</p>
-      <ul>
-        <li><a href="/">Home</a></li>
-        <li><a href="/catalog.html">Every plot</a></li>
-        <li><a href="/topics/">Explainers</a></li>
-        <li><a href="/stats.html">Visitor stats</a></li>
-      </ul>
-      <p class="sf-disclaimer">This site is under constant development. Nothing here is checked before publication and there is no expectation of accuracy, completeness or availability; do not rely on it for decisions. Built from open data; sources are credited on each page.</p>
-    </div>
-    <div class="sf-group sf-group--me">
-      <p class="sf-h" role="heading" aria-level="2">Shawn Corvec</p>
-      <ul>
-        <li><a href="/about.html">About</a></li>
-        <li><a href="/resume.html">Resume</a></li>
-        <li><a href="/research.html">Publications</a></li>
-        <li><a href="https://github.com/scorvec" rel="noopener">GitHub</a></li>
-        <li><a href="https://www.linkedin.com/in/shawn-corvec-35895b231/" rel="noopener">LinkedIn</a></li>
-        <li><a href="https://scholar.google.com/citations?user=EYLRCJIAAAAJ&amp;hl=en" rel="noopener">Google Scholar</a></li>
-      </ul>
-    </div>
+    <ul>
+      <li><a href="/">Home</a></li>
+      <li><a href="/#products">Products</a></li>
+      <li><a href="/research.html">Research</a></li>
+      <li><a href="/resume.html">Resume</a></li>
+      <li><a href="https://github.com/scorvec" rel="noopener">GitHub</a></li>
+      <li><a href="https://www.linkedin.com/in/shawn-corvec-35895b231/" rel="noopener">LinkedIn</a></li>
+      <li><a href="https://scholar.google.com/citations?user=EYLRCJIAAAAJ&amp;hl=en" rel="noopener">Google Scholar</a></li>
+      <li><a href="/stats.html">Visitor stats</a></li>
+    </ul>
+    <p>Shawn Corvec. Built from open data; sources are credited on each page.</p>
+    <p class="sf-disclaimer">This site is under constant development. Nothing here is checked before publication and there is no expectation of accuracy, completeness or availability; do not rely on it for decisions.</p>
   </div>
 </footer>
 <!-- sf:end -->
