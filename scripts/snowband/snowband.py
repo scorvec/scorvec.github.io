@@ -1035,7 +1035,8 @@ def figure(prod, P, meta, out):
         keys, ncol, nrow, pw = [prod], 1, 1, 9.4
     ph = pw / r
     multi = ncol > 1
-    top, cbh, gap, side = (0.70 if multi else 1.12), (0.62 if prod != "ing" else 0.44), (0.34 if multi else 0.06), 0.12
+    two = (not multi) or prod == "radar"                 # title and valid time on two lines (the radar title is long)
+    top, cbh, gap, side = (0.92 if multi and two else 1.12 if two else 0.70), (0.62 if prod != "ing" else 0.44), (0.34 if multi else 0.06), 0.12
     figw = ncol * pw + (ncol + 1) * side
     figh = top + nrow * (gap + ph + cbh)
     fig = plt.figure(figsize=(figw, figh))
@@ -1065,7 +1066,7 @@ def figure(prod, P, meta, out):
             pos = ax.get_position()
             fig.text(pos.x0 + pos.width / 2, pos.y0 - fy(0.2), lab, ha="center", va="center", fontsize=8.6, color="#333")
     when = f"init {init:%Y-%m-%d %HZ} · f{lead:02d} valid {valid:%a %d %b %Y %HZ}"
-    if multi:
+    if not two:
         fig.suptitle(f"{meta['model_label']} {LONG[prod]} · {when} · {REGION_ALL[meta['region']][0]}", fontsize=14,
                      fontweight="bold", y=1 - fy(0.07), va="top")
     else:
@@ -1077,7 +1078,7 @@ def figure(prod, P, meta, out):
                                       "is set up for banding, not where a band will form, and says nothing about rain or snow.")
     if meta.get("test_label"):
         note = f"{meta['test_label']}. " + note
-    fig.text(0.5, 1 - fy(0.43 if multi else 0.70), "\n".join(textwrap.wrap(note, int(figw / 0.066))), ha="center", va="top",
+    fig.text(0.5, 1 - fy(0.70 if two else 0.43), "\n".join(textwrap.wrap(note, int(figw / 0.066))), ha="center", va="top",
              fontsize=8.4, color=MUTED, linespacing=1.25)
     out.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(out, dpi=100 if ncol == 1 else 90, facecolor="white", pil_kwargs={"quality": 80, "method": 6})
