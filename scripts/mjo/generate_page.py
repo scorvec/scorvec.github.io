@@ -62,6 +62,110 @@ def write_manifest(items):
     MANIFEST.write_text(json.dumps(manifest))
 
 
+IMPACTS_REF = Path("scripts/mjo/data/reference/mjo_impacts_site.json")
+
+
+def impacts_section():
+    """'MJO impacts by phase and month' (2026-09-27): CMIP6 and observed composites drawn by
+    scripts/mjo/src/mjo_impacts_render.py (mjo-impacts.yml) from the committed reference. Empty until it exists."""
+    if not IMPACTS_REF.exists():
+        return ""
+    m = json.loads(IMPACTS_REF.read_text())
+    scr = m.get("screen", [])
+    passed = [r for r in scr if r.get("pass") and r["model"] in m.get("models", [])]
+    failed = [r for r in scr if not r.get("pass") and not r["model"].startswith("OBS")]
+    fam = [r for r in scr if r.get("pass") and r["model"] not in m.get("models", []) and not r["model"].startswith("OBS")]
+    obs = next((r for r in scr if r["model"].startswith("OBS")), {})
+    def row(r):
+        return f"{r['model']} (E/W {r['ew']:.1f}, r {r['prop_r']:.2f})"
+    v = m.get("validation", {})
+    val = ""
+    if v:
+        e, u = v.get("era5_windonly_vs_bom", {}), v.get("u250_for_u200", {})
+        val = (f" Checks: the same machinery on ERA5 winds reproduces BoM&rsquo;s RMM1/RMM2 at r&nbsp;{e.get('r_rmm1', 0):.2f}/"
+               f"{e.get('r_rmm2', 0):.2f} (wind-only, {e.get('years', '')}); substituting 250 for 200&nbsp;hPa keeps the "
+               f"phase on {100 * u.get('same_phase', 0):.0f}&nbsp;% of active days (r&nbsp;{u.get('r_rmm1', 0):.2f}/{u.get('r_rmm2', 0):.2f}).")
+    ens = ""
+    ec = m.get("ensocheck", {}).get("obs", {}).get("all", {})
+    if ec.get("strong El Nino") and ec.get("neutral"):
+        se, ne = ec["strong El Nino"], ec["neutral"]
+        pv = m.get("ensocheck", {}).get("obs_mwu_strong_vs_neutral_fixed_p")
+        ens = (f" Check, DJF share of active days after the filter: strong El Ni&ntilde;o winters {se['active_fixed']:.2f} "
+               f"(n&nbsp;{se['n']}; {se['active_raw']:.2f} before), neutral {ne['active_fixed']:.2f} (n&nbsp;{ne['n']})"
+               + (f"; the difference is not significant (Mann&ndash;Whitney p&nbsp;{pv:.2f})." if pv is not None and pv >= 0.05
+                  else f" (Mann&ndash;Whitney p&nbsp;{pv:.2f})." if pv is not None else "."))
+    opts_f = "".join(f'<option value="{k}">{lab}</option>' for k, lab in [
+        ("tas_na", "2 m temperature · North America"), ("tas_sa", "2 m temperature · South America"),
+        ("pr_na", "Precipitation (mm/day) · North America"), ("pr_sa", "Precipitation (mm/day) · South America"),
+        ("prpct_na", "Precipitation (% of normal) · North America"), ("prpct_sa", "Precipitation (% of normal) · South America"),
+        ("z500_nh", "500 hPa height · Northern Hemisphere")])
+    months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October",
+              "November", "December"]
+    opts_m = "".join(f'<option value="{i + 1:02d}">{n}</option>' for i, n in enumerate(months))
+    return f"""
+  <section class="mi" id="mjo-impacts">
+  <h2>MJO impacts by phase and month</h2>
+  <p class="lede lede--wide">What each MJO phase has meant for temperature, rainfall and the 500&nbsp;hPa flow, month by
+  month: the observed record next to {len(m.get('models', []))} CMIP6 models whose MJO passes a realism screen. Only
+  statistically significant cells are coloured; blank means no significant signal.</p>
+  <div class="mi-ctl">
+    <label>Field <select id="mi-f">{opts_f}</select></label>
+    <label>Data <select id="mi-d"><option value="obs">Observed</option><option value="cmip6">CMIP6</option></select></label>
+    <label>Month <select id="mi-m">{opts_m}</select></label>
+    <label>Lag <select id="mi-l"><option value="10">10 days after the phase</option><option value="0">Same day</option></select></label>
+    <label>View <select id="mi-v"><option value="loop">One phase at a time</option><option value="strip">All eight phases</option></select></label>
+  </div>
+  <iframe class="anim-embed mi-embed" id="mi-frame" title="MJO impact composites" loading="lazy"></iframe>
+  <details class="mi-about"><summary>How this is built</summary>
+  <p><b>MJO index.</b> Observed: the Bureau of Meteorology&rsquo;s RMM (Wheeler &amp; Hendon 2004), 1979&ndash;2024.
+  CMIP6: the same RMM computed from each run&rsquo;s own daily OLR and 850/250&nbsp;hPa zonal wind (the CMIP6 daily
+  archive has no 200&nbsp;hPa), 15&deg;S&ndash;15&deg;N means, the run&rsquo;s own seasonal cycle and previous
+  120-day mean removed, projected on the observed W&amp;H EOFs. <b>Both indices are then band-passed to
+  20&ndash;100&nbsp;days and renormalised.</b> BoM removes the ENSO signal only up to 2013; after that a strong El
+  Ni&ntilde;o&rsquo;s standing pattern projects on RMM as slow &ldquo;phase 6&ndash;8&rdquo; days (DJF 2015/16 was
+  &ldquo;active&rdquo; on 89&nbsp;% of days), and the CMIP6 index would carry the same artefact. A linear Ni&ntilde;o-3.4
+  regression removed almost none of it, so the band-pass is used for both datasets alike.{ens} A day counts when the
+  amplitude is at least 1; the
+  composite is the mean anomaly on the same day or 10&nbsp;days later, over those days in the chosen month and its two
+  neighbours (a centred three-month window, so &ldquo;January&rdquo; uses December&ndash;February days: it triples the
+  observed sample). Anomalies are from each dataset&rsquo;s own seasonal cycle and linear trend.{val}</p>
+  <p><b>Model screen</b> (fixed before looking at any composite): east/west power ratio of 10&deg;S&ndash;10&deg;N rain
+  (wavenumbers 1&ndash;3, 30&ndash;96&nbsp;days, November&ndash;April) &ge;&nbsp;{m.get('thresholds', {}).get('ew', 2.0)}
+  and eastward propagation (lag-regression pattern against GPCP) r&nbsp;&ge;&nbsp;{m.get('thresholds', {}).get('prop_r', 0.8)};
+  GPCP itself gives E/W&nbsp;{obs.get('ew', float('nan')):.1f}. Used: {', '.join(row(r) for r in passed) or 'none'}.
+  {('Passed but left out as a near-duplicate of a family member: ' + ', '.join(r['model'] for r in fam) + '. ') if fam else ''}
+  Failed: {', '.join(row(r) for r in failed) or 'none'}. {m.get('members_note', '')}</p>
+  <p><b>Tests.</b> CMIP6: each model&rsquo;s composite (members pooled; at least 30 active days), across-model
+  one-sample t-test with a Benjamini&ndash;Hochberg false-discovery rate of 10&nbsp;% over the map, and at least
+  80&nbsp;% of the models agreeing on the sign. Observed: an MJO passage lasts days and daily anomalies are
+  correlated, so the unit is the event (a run of consecutive active days in one phase): an event-block bootstrap of the
+  composite, the same 10&nbsp;% false-discovery rate, and only phase-months with at least 8 events are tested.</p>
+  <p class="chart-sources">CMIP6 historical daily fields via the Pangeo cloud archive (anonymous GCS) &middot; ERA5
+  2&nbsp;m temperature and 500&nbsp;hPa height (Copernicus C3S, 1979&ndash;2024) &middot; GPCP 1DD v1.3 daily
+  precipitation (NOAA NCEI CDR, 1997&ndash;2024) &middot; RMM index: Australian Bureau of Meteorology &middot;
+  static product, redrawn only when the analysis changes.</p>
+  </details>
+  </section>
+  <script>
+  (function () {{
+    var ids = ["mi-f", "mi-d", "mi-m", "mi-l", "mi-v"], el = {{}};
+    ids.forEach(function (k) {{ el[k] = document.getElementById(k); }});
+    var h = (location.hash.indexOf("#mi/") === 0) ? location.hash.slice(4).split("/") : null;
+    if (h && h.length === 5) {{ ids.forEach(function (k, i) {{ if (h[i]) el[k].value = h[i]; }}); }}
+    else {{ el["mi-m"].value = ("0" + (new Date().getMonth() + 1)).slice(-2); }}
+    function go(push) {{
+      var f = el["mi-f"].value, d = el["mi-d"].value, mo = el["mi-m"].value, l = ("0" + el["mi-l"].value).slice(-2);
+      var rid = "mi_" + f + "_" + d + "_m" + mo + "_l" + l + (el["mi-v"].value === "strip" ? "_s" : "");
+      document.getElementById("mi-frame").src = "sst_anim.html?embed=1&base=assets/mjo/impacts/anim&manifest=mjo_impacts_manifest.json&region="
+        + rid + "&regions=" + rid;
+      if (push) history.replaceState(null, "", "#mi/" + ids.map(function (k) {{ return el[k].value; }}).join("/"));
+    }}
+    ids.forEach(function (k) {{ el[k].addEventListener("change", function () {{ go(true); }}); }});
+    go(false);
+  }})();
+  </script>"""
+
+
 def main():
     items = discover()
     updated = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%MZ")
@@ -141,6 +245,15 @@ def main():
   .meta {{ color: var(--muted); font-size: 0.8rem; margin-top: 2.5rem;
           border-top: 1px solid var(--rule); padding-top: 1rem; }}
   .empty {{ color: var(--muted); padding: 3rem 0; text-align: center; }}
+  .mi-ctl {{ display: flex; flex-wrap: wrap; gap: 0.6rem 1.2rem; margin: 0.4rem 0 1rem; font-size: 0.9rem; }}
+  .mi-ctl label {{ display: flex; flex-direction: column; gap: 0.2rem; color: var(--muted); }}
+  .mi-ctl select {{ font: inherit; color: var(--ink); padding: 0.3rem 0.4rem; border: 1px solid var(--rule);
+                   border-radius: 4px; background: #fff; max-width: 100%; }}
+  .mi-embed {{ aspect-ratio: 1056 / 900; }}
+  .mi-about {{ margin-top: 1rem; color: var(--ink); max-width: 80ch; }}
+  .mi-about summary {{ cursor: pointer; color: var(--accent); }}
+  .mi-about p {{ margin: 0.6rem 0; font-size: 0.92rem; }}
+  .chart-sources {{ color: var(--muted); font-size: 0.82rem; }}
   a {{ color: var(--accent); }}
 </style>
 <script data-goatcounter="https://scorvec.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
@@ -168,6 +281,7 @@ def main():
   feed. Methodology: NOAA CPC / Wheeler &amp; Hendon (2004), EOFs from NOAA OLR +
   NCEP wind with the 120-day low-frequency filter removed; pseudo-OLR from
   &minus;standardized daily precip vs an ERA5 1991&ndash;2020 band climatology.</p>
+{impacts_section()}
 </main>
 <script>
   // Size the animator iframe to its exact content height (plot + slider) so the slider is

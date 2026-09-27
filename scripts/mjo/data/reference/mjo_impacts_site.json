@@ -1,0 +1,894 @@
+{
+ "models": [
+  "BCC-ESM1",
+  "CAMS-CSM1-0",
+  "CESM2",
+  "CESM2-FV2",
+  "CNRM-CM6-1",
+  "CNRM-ESM2-1",
+  "EC-Earth3",
+  "EC-Earth3-CC",
+  "GFDL-CM4",
+  "IITM-ESM",
+  "MPI-ESM1-2-HR"
+ ],
+ "lags": [
+  0,
+  10
+ ],
+ "fields": [
+  "tas_na",
+  "tas_sa",
+  "pr_na",
+  "pr_sa",
+  "z500_nh"
+ ],
+ "robust_frac": {
+  "tas_na": 0.098,
+  "tas_sa": 0.166,
+  "pr_na": 0.051,
+  "prpct_na": 0.054,
+  "pr_sa": 0.087,
+  "prpct_sa": 0.093,
+  "z500_nh": 0.192
+ },
+ "obs_sig_frac": {
+  "tas_na": 0.011,
+  "tas_sa": 0.036,
+  "pr_na": 0.038,
+  "prpct_na": 0.027,
+  "pr_sa": 0.062,
+  "prpct_sa": 0.042,
+  "z500_nh": 0.1
+ },
+ "models_used": {
+  "tas_na": [
+   "BCC-ESM1",
+   "CAMS-CSM1-0",
+   "CESM2",
+   "CESM2-FV2",
+   "CNRM-CM6-1",
+   "CNRM-ESM2-1",
+   "EC-Earth3",
+   "EC-Earth3-CC",
+   "GFDL-CM4",
+   "IITM-ESM",
+   "MPI-ESM1-2-HR"
+  ],
+  "tas_sa": [
+   "BCC-ESM1",
+   "CAMS-CSM1-0",
+   "CESM2",
+   "CESM2-FV2",
+   "CNRM-CM6-1",
+   "CNRM-ESM2-1",
+   "EC-Earth3",
+   "EC-Earth3-CC",
+   "GFDL-CM4",
+   "IITM-ESM",
+   "MPI-ESM1-2-HR"
+  ],
+  "pr_na": [
+   "BCC-ESM1",
+   "CAMS-CSM1-0",
+   "CESM2",
+   "CESM2-FV2",
+   "CNRM-CM6-1",
+   "CNRM-ESM2-1",
+   "EC-Earth3",
+   "EC-Earth3-CC",
+   "GFDL-CM4",
+   "IITM-ESM",
+   "MPI-ESM1-2-HR"
+  ],
+  "prpct_na": [
+   "BCC-ESM1",
+   "CAMS-CSM1-0",
+   "CESM2",
+   "CESM2-FV2",
+   "CNRM-CM6-1",
+   "CNRM-ESM2-1",
+   "EC-Earth3",
+   "EC-Earth3-CC",
+   "GFDL-CM4",
+   "IITM-ESM",
+   "MPI-ESM1-2-HR"
+  ],
+  "pr_sa": [
+   "BCC-ESM1",
+   "CAMS-CSM1-0",
+   "CESM2",
+   "CESM2-FV2",
+   "CNRM-CM6-1",
+   "CNRM-ESM2-1",
+   "EC-Earth3",
+   "EC-Earth3-CC",
+   "GFDL-CM4",
+   "IITM-ESM",
+   "MPI-ESM1-2-HR"
+  ],
+  "prpct_sa": [
+   "BCC-ESM1",
+   "CAMS-CSM1-0",
+   "CESM2",
+   "CESM2-FV2",
+   "CNRM-CM6-1",
+   "CNRM-ESM2-1",
+   "EC-Earth3",
+   "EC-Earth3-CC",
+   "GFDL-CM4",
+   "IITM-ESM",
+   "MPI-ESM1-2-HR"
+  ],
+  "z500_nh": [
+   "BCC-ESM1",
+   "CESM2",
+   "CESM2-FV2",
+   "CNRM-CM6-1",
+   "CNRM-ESM2-1",
+   "EC-Earth3",
+   "GFDL-CM4",
+   "IITM-ESM",
+   "MPI-ESM1-2-HR"
+  ]
+ },
+ "teleconnection_djf_lag10": {
+  "BCC-ESM1": {
+   "djf_lag10_pattern_r": 0.343,
+   "amp_ratio": 1.15
+  },
+  "CESM2": {
+   "djf_lag10_pattern_r": 0.292,
+   "amp_ratio": 1.17
+  },
+  "CESM2-FV2": {
+   "djf_lag10_pattern_r": 0.199,
+   "amp_ratio": 1.09
+  },
+  "CNRM-CM6-1": {
+   "djf_lag10_pattern_r": 0.316,
+   "amp_ratio": 1.12
+  },
+  "CNRM-ESM2-1": {
+   "djf_lag10_pattern_r": 0.201,
+   "amp_ratio": 1.14
+  },
+  "EC-Earth3": {
+   "djf_lag10_pattern_r": 0.297,
+   "amp_ratio": 1.27
+  },
+  "GFDL-CM4": {
+   "djf_lag10_pattern_r": 0.31,
+   "amp_ratio": 1.11
+  },
+  "IITM-ESM": {
+   "djf_lag10_pattern_r": 0.326,
+   "amp_ratio": 1.16
+  },
+  "MPI-ESM1-2-HR": {
+   "djf_lag10_pattern_r": 0.231,
+   "amp_ratio": 1.29
+  }
+ },
+ "cmip6_vs_obs": {
+  "tas_na": {
+   "pattern_r_lag10_median": 0.288,
+   "pattern_r_lag10_by_month": [
+    0.287,
+    0.467,
+    0.573,
+    0.434,
+    0.258,
+    0.22,
+    0.248,
+    0.327,
+    0.307,
+    0.153,
+    0.08,
+    0.246
+   ],
+   "amp_ratio_lag10_median": 0.42
+  },
+  "tas_sa": {
+   "pattern_r_lag10_median": 0.505,
+   "pattern_r_lag10_by_month": [
+    0.524,
+    0.537,
+    0.471,
+    0.49,
+    0.512,
+    0.538,
+    0.432,
+    0.375,
+    0.189,
+    0.339,
+    0.496,
+    0.509
+   ],
+   "amp_ratio_lag10_median": 0.52
+  },
+  "pr_na": {
+   "pattern_r_lag10_median": 0.207,
+   "pattern_r_lag10_by_month": [
+    0.103,
+    0.077,
+    0.134,
+    0.114,
+    0.143,
+    0.187,
+    0.236,
+    0.318,
+    0.316,
+    0.254,
+    0.193,
+    0.141
+   ],
+   "amp_ratio_lag10_median": 0.38
+  },
+  "prpct_na": {
+   "pattern_r_lag10_median": 0.201,
+   "pattern_r_lag10_by_month": [
+    0.172,
+    0.11,
+    0.175,
+    0.136,
+    0.173,
+    0.206,
+    0.227,
+    0.289,
+    0.249,
+    0.246,
+    0.17,
+    0.173
+   ],
+   "amp_ratio_lag10_median": 0.33
+  },
+  "pr_sa": {
+   "pattern_r_lag10_median": 0.25,
+   "pattern_r_lag10_by_month": [
+    0.281,
+    0.247,
+    0.264,
+    0.258,
+    0.194,
+    0.176,
+    0.213,
+    0.227,
+    0.263,
+    0.254,
+    0.331,
+    0.292
+   ],
+   "amp_ratio_lag10_median": 0.42
+  },
+  "prpct_sa": {
+   "pattern_r_lag10_median": 0.239,
+   "pattern_r_lag10_by_month": [
+    0.291,
+    0.213,
+    0.197,
+    0.143,
+    0.178,
+    0.148,
+    0.227,
+    0.278,
+    0.241,
+    0.319,
+    0.418,
+    0.361
+   ],
+   "amp_ratio_lag10_median": 0.46
+  },
+  "z500_nh": {
+   "pattern_r_lag10_median": 0.355,
+   "pattern_r_lag10_by_month": [
+    0.473,
+    0.474,
+    0.557,
+    0.461,
+    0.369,
+    0.385,
+    0.261,
+    0.239,
+    0.222,
+    0.19,
+    0.201,
+    0.402
+   ],
+   "amp_ratio_lag10_median": 0.53
+  }
+ },
+ "screen": [
+  {
+   "model": "CNRM-ESM2-1",
+   "member": "r1i1p1f2",
+   "ew": 3.24,
+   "prop_r": 0.854,
+   "pass": true
+  },
+  {
+   "model": "CNRM-CM6-1",
+   "member": "r1i1p1f2",
+   "ew": 3.17,
+   "prop_r": 0.847,
+   "pass": true
+  },
+  {
+   "model": "CAMS-CSM1-0",
+   "member": "r2i1p1f1",
+   "ew": 2.74,
+   "prop_r": 0.912,
+   "pass": true
+  },
+  {
+   "model": "CESM2",
+   "member": "r1i1p1f1",
+   "ew": 2.48,
+   "prop_r": 0.914,
+   "pass": true
+  },
+  {
+   "model": "MPI-ESM1-2-HR",
+   "member": "r1i1p1f1",
+   "ew": 2.78,
+   "prop_r": 0.815,
+   "pass": true
+  },
+  {
+   "model": "CNRM-CM6-1-HR",
+   "member": "r1i1p1f2",
+   "ew": 2.52,
+   "prop_r": 0.896,
+   "pass": true
+  },
+  {
+   "model": "GFDL-CM4",
+   "member": "r1i1p1f1",
+   "ew": 2.31,
+   "prop_r": 0.949,
+   "pass": true
+  },
+  {
+   "model": "EC-Earth3-CC",
+   "member": "r1i1p1f1",
+   "ew": 2.27,
+   "prop_r": 0.949,
+   "pass": true
+  },
+  {
+   "model": "CESM2-FV2",
+   "member": "r1i1p1f1",
+   "ew": 2.22,
+   "prop_r": 0.928,
+   "pass": true
+  },
+  {
+   "model": "EC-Earth3",
+   "member": "r1i1p1f1",
+   "ew": 2.1,
+   "prop_r": 0.947,
+   "pass": true
+  },
+  {
+   "model": "EC-Earth3-Veg",
+   "member": "r4i1p1f1",
+   "ew": 2.06,
+   "prop_r": 0.94,
+   "pass": true
+  },
+  {
+   "model": "IITM-ESM",
+   "member": "r1i1p1f1",
+   "ew": 2.27,
+   "prop_r": 0.836,
+   "pass": true
+  },
+  {
+   "model": "EC-Earth3-Veg-LR",
+   "member": "r1i1p1f1",
+   "ew": 2.0,
+   "prop_r": 0.931,
+   "pass": true
+  },
+  {
+   "model": "CESM2-WACCM",
+   "member": "r1i1p1f1",
+   "ew": 2.04,
+   "prop_r": 0.912,
+   "pass": true
+  },
+  {
+   "model": "BCC-ESM1",
+   "member": "r1i1p1f1",
+   "ew": 2.21,
+   "prop_r": 0.824,
+   "pass": true
+  },
+  {
+   "model": "EC-Earth3-AerChem",
+   "member": "r1i1p1f1",
+   "ew": 1.9,
+   "prop_r": 0.937,
+   "pass": false
+  },
+  {
+   "model": "MPI-ESM1-2-LR",
+   "member": "r1i1p1f1",
+   "ew": 2.31,
+   "prop_r": 0.75,
+   "pass": false
+  },
+  {
+   "model": "MPI-ESM-1-2-HAM",
+   "member": "r1i1p1f1",
+   "ew": 2.29,
+   "prop_r": 0.693,
+   "pass": false
+  },
+  {
+   "model": "TaiESM1",
+   "member": "r1i1p1f1",
+   "ew": 1.72,
+   "prop_r": 0.897,
+   "pass": false
+  },
+  {
+   "model": "KACE-1-0-G",
+   "member": "r1i1p1f1",
+   "ew": 1.61,
+   "prop_r": 0.85,
+   "pass": false
+  },
+  {
+   "model": "CMCC-ESM2",
+   "member": "r1i1p1f1",
+   "ew": 1.52,
+   "prop_r": 0.897,
+   "pass": false
+  },
+  {
+   "model": "AWI-ESM-1-1-LR",
+   "member": "r1i1p1f1",
+   "ew": 1.75,
+   "prop_r": 0.779,
+   "pass": false
+  },
+  {
+   "model": "HadGEM3-GC31-MM",
+   "member": "r1i1p1f3",
+   "ew": 1.55,
+   "prop_r": 0.872,
+   "pass": false
+  },
+  {
+   "model": "IPSL-CM5A2-INCA",
+   "member": "r1i1p1f1",
+   "ew": 1.7,
+   "prop_r": 0.763,
+   "pass": false
+  },
+  {
+   "model": "ACCESS-ESM1-5",
+   "member": "r1i1p1f1",
+   "ew": 1.45,
+   "prop_r": 0.837,
+   "pass": false
+  },
+  {
+   "model": "CMCC-CM2-HR4",
+   "member": "r1i1p1f1",
+   "ew": 1.4,
+   "prop_r": 0.866,
+   "pass": false
+  },
+  {
+   "model": "CMCC-CM2-SR5",
+   "member": "r1i1p1f1",
+   "ew": 1.35,
+   "prop_r": 0.891,
+   "pass": false
+  },
+  {
+   "model": "IPSL-CM6A-LR",
+   "member": "r1i1p1f1",
+   "ew": 1.41,
+   "prop_r": 0.851,
+   "pass": false
+  },
+  {
+   "model": "ACCESS-CM2",
+   "member": "r1i1p1f1",
+   "ew": 1.32,
+   "prop_r": 0.859,
+   "pass": false
+  },
+  {
+   "model": "BCC-CSM2-MR",
+   "member": "r2i1p1f1",
+   "ew": 1.46,
+   "prop_r": 0.745,
+   "pass": false
+  },
+  {
+   "model": "HadGEM3-GC31-LL",
+   "member": "r1i1p1f3",
+   "ew": 1.21,
+   "prop_r": 0.878,
+   "pass": false
+  },
+  {
+   "model": "UKESM1-0-LL",
+   "member": "r1i1p1f2",
+   "ew": 1.12,
+   "prop_r": 0.855,
+   "pass": false
+  },
+  {
+   "model": "CanESM5",
+   "member": "r1i1p1f1",
+   "ew": 0.91,
+   "prop_r": 0.759,
+   "pass": false
+  },
+  {
+   "model": "INM-CM5-0",
+   "member": "r1i1p1f1",
+   "ew": 0.97,
+   "prop_r": 0.669,
+   "pass": false
+  },
+  {
+   "model": "INM-CM4-8",
+   "member": "r1i1p1f1",
+   "ew": 0.85,
+   "prop_r": 0.683,
+   "pass": false
+  },
+  {
+   "model": "OBS (GPCP)",
+   "member": "",
+   "ew": 2.48,
+   "prop_r": 1.0,
+   "pass": true
+  }
+ ],
+ "thresholds": {
+  "ew": 2.0,
+  "prop_r": 0.8
+ },
+ "validation": {
+  "era5_windonly_vs_bom": {
+   "r_rmm1": 0.945,
+   "r_rmm2": 0.957,
+   "same_phase": 0.803,
+   "within_one": 0.999,
+   "years": "1991-2020"
+  },
+  "u250_for_u200": {
+   "r_rmm1": 0.993,
+   "r_rmm2": 0.986,
+   "same_phase": 0.902,
+   "amp_ratio": 0.995,
+   "years": "2014-2018, 00Z, wind-only"
+  }
+ },
+ "members": {
+  "BCC-ESM1": [
+   "r1i1p1f1",
+   "r2i1p1f1"
+  ],
+  "CAMS-CSM1-0": [
+   "r2i1p1f1"
+  ],
+  "CESM2": [
+   "r1i1p1f1",
+   "r2i1p1f1"
+  ],
+  "CESM2-FV2": [
+   "r1i1p1f1",
+   "r2i1p1f1"
+  ],
+  "CNRM-CM6-1": [
+   "r1i1p1f2",
+   "r2i1p1f2"
+  ],
+  "CNRM-ESM2-1": [
+   "r1i1p1f2",
+   "r2i1p1f2"
+  ],
+  "EC-Earth3": [
+   "r1i1p1f1",
+   "r4i1p1f1"
+  ],
+  "EC-Earth3-CC": [
+   "r1i1p1f1"
+  ],
+  "GFDL-CM4": [
+   "r1i1p1f1"
+  ],
+  "IITM-ESM": [
+   "r1i1p1f1"
+  ],
+  "MPI-ESM1-2-HR": [
+   "r1i1p1f1",
+   "r2i1p1f1"
+  ]
+ },
+ "members_note": "18 historical members in all (up to two per model), 1979&ndash;2014; the 500&nbsp;hPa composites use each model&rsquo;s first member.",
+ "window_note": "each month is the centred three-month window (the month and its neighbours)",
+ "index_note": "RMM1/RMM2 band-passed 20-100 d and renormalised, observed (BoM, 1979-2024) and CMIP6 alike",
+ "ensocheck": {
+  "method": "RMM1/RMM2 band-passed 20-100 d (whole record) and renormalised",
+  "obs": {
+   "1979-2013": {
+    "strong El Nino": {
+     "n": 3,
+     "active_raw": 0.64,
+     "active_fixed": 0.63
+    },
+    "El Nino": {
+     "n": 8,
+     "active_raw": 0.58,
+     "active_fixed": 0.57
+    },
+    "neutral": {
+     "n": 11,
+     "active_raw": 0.69,
+     "active_fixed": 0.66
+    },
+    "La Nina": {
+     "n": 12,
+     "active_raw": 0.63,
+     "active_fixed": 0.56
+    }
+   },
+   "2014-2024": {
+    "strong El Nino": {
+     "n": 1,
+     "active_raw": 0.89,
+     "active_fixed": 0.87
+    },
+    "El Nino": {
+     "n": 3,
+     "active_raw": 0.74,
+     "active_fixed": 0.73
+    },
+    "neutral": {
+     "n": 2,
+     "active_raw": 0.6,
+     "active_fixed": 0.43
+    },
+    "La Nina": {
+     "n": 4,
+     "active_raw": 0.76,
+     "active_fixed": 0.62
+    }
+   },
+   "all": {
+    "strong El Nino": {
+     "n": 4,
+     "active_raw": 0.7,
+     "active_fixed": 0.69
+    },
+    "El Nino": {
+     "n": 11,
+     "active_raw": 0.62,
+     "active_fixed": 0.61
+    },
+    "neutral": {
+     "n": 13,
+     "active_raw": 0.67,
+     "active_fixed": 0.62
+    },
+    "La Nina": {
+     "n": 16,
+     "active_raw": 0.66,
+     "active_fixed": 0.57
+    }
+   }
+  },
+  "obs_by_season": {
+   "2015/16": {
+    "raw": 0.89,
+    "fixed": 0.87
+   }
+  },
+  "obs_mwu_strong_vs_neutral_fixed_p": 0.692,
+  "cmip6": {
+   "BCC-ESM1": {
+    "strong El Nino": {
+     "n": 1,
+     "active": 0.47
+    },
+    "El Nino": {
+     "n": 21,
+     "active": 0.63
+    },
+    "neutral": {
+     "n": 30,
+     "active": 0.59
+    },
+    "La Nina": {
+     "n": 18,
+     "active": 0.61
+    }
+   },
+   "CAMS-CSM1-0": {
+    "strong El Nino": {
+     "n": 7,
+     "active": 0.75
+    },
+    "El Nino": {
+     "n": 4,
+     "active": 0.87
+    },
+    "neutral": {
+     "n": 13,
+     "active": 0.64
+    },
+    "La Nina": {
+     "n": 11,
+     "active": 0.57
+    }
+   },
+   "CESM2": {
+    "strong El Nino": {
+     "n": 15,
+     "active": 0.63
+    },
+    "El Nino": {
+     "n": 13,
+     "active": 0.57
+    },
+    "neutral": {
+     "n": 9,
+     "active": 0.65
+    },
+    "La Nina": {
+     "n": 33,
+     "active": 0.65
+    }
+   },
+   "CESM2-FV2": {
+    "strong El Nino": {
+     "n": 17,
+     "active": 0.68
+    },
+    "El Nino": {
+     "n": 12,
+     "active": 0.69
+    },
+    "neutral": {
+     "n": 15,
+     "active": 0.52
+    },
+    "La Nina": {
+     "n": 26,
+     "active": 0.51
+    }
+   },
+   "CNRM-CM6-1": {
+    "strong El Nino": {
+     "n": 4,
+     "active": 0.73
+    },
+    "El Nino": {
+     "n": 18,
+     "active": 0.65
+    },
+    "neutral": {
+     "n": 28,
+     "active": 0.7
+    },
+    "La Nina": {
+     "n": 20,
+     "active": 0.69
+    }
+   },
+   "CNRM-ESM2-1": {
+    "strong El Nino": {
+     "n": 4,
+     "active": 0.7
+    },
+    "El Nino": {
+     "n": 21,
+     "active": 0.65
+    },
+    "neutral": {
+     "n": 28,
+     "active": 0.67
+    },
+    "La Nina": {
+     "n": 17,
+     "active": 0.73
+    }
+   },
+   "EC-Earth3": {
+    "strong El Nino": {
+     "n": 5,
+     "active": 0.69
+    },
+    "El Nino": {
+     "n": 16,
+     "active": 0.62
+    },
+    "neutral": {
+     "n": 24,
+     "active": 0.65
+    },
+    "La Nina": {
+     "n": 25,
+     "active": 0.56
+    }
+   },
+   "EC-Earth3-CC": {
+    "strong El Nino": {
+     "n": 7,
+     "active": 0.85
+    },
+    "El Nino": {
+     "n": 4,
+     "active": 0.56
+    },
+    "neutral": {
+     "n": 14,
+     "active": 0.59
+    },
+    "La Nina": {
+     "n": 10,
+     "active": 0.53
+    }
+   },
+   "GFDL-CM4": {
+    "strong El Nino": {
+     "n": 4,
+     "active": 0.55
+    },
+    "El Nino": {
+     "n": 8,
+     "active": 0.64
+    },
+    "neutral": {
+     "n": 12,
+     "active": 0.64
+    },
+    "La Nina": {
+     "n": 11,
+     "active": 0.65
+    }
+   },
+   "IITM-ESM": {
+    "El Nino": {
+     "n": 13,
+     "active": 0.65
+    },
+    "neutral": {
+     "n": 11,
+     "active": 0.73
+    },
+    "La Nina": {
+     "n": 11,
+     "active": 0.6
+    }
+   },
+   "MPI-ESM1-2-HR": {
+    "strong El Nino": {
+     "n": 2,
+     "active": 0.5
+    },
+    "El Nino": {
+     "n": 20,
+     "active": 0.68
+    },
+    "neutral": {
+     "n": 25,
+     "active": 0.7
+    },
+    "La Nina": {
+     "n": 23,
+     "active": 0.63
+    }
+   }
+  }
+ }
+}

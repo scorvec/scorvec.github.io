@@ -153,6 +153,7 @@ scripts/lib/frames.log
 # com.scorvec.frames, every 15 min). The *_manifest.json files stay tracked, so
 # the viewers still fetch them same-origin.
 assets/*/anim/**/*.webp
+assets/mjo/impacts/anim/**/*.webp
 # EXCEPT the dirs built only by GitHub workflows. The frames branch has a
 # SINGLE publisher (the laptop) because several producers force-pushing one
 # orphan branch would clobber each other — so these must stay on main for the
