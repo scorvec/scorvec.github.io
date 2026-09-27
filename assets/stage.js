@@ -9,7 +9,8 @@
      (the vetted explanatory text and sources, collapsed); bust:"hourly" appends an hour cache key.
      gated:true (dom) -> the block's own script shows/hides it and a hidden one leaves the rail;
      ownHash:true (dom) -> the block keeps its own state after "#id/" in the hash and the stage leaves it.
-   STAGE.aliases maps old ids to products; STAGE.related = false drops the related-plots strip.
+   STAGE.aliases maps old ids to products; STAGE.related = false drops the related-plots strip; STAGE.onRender(sel)
+   runs after each render.
    Selection lives in the hash (#product/a/b/c); ← → step the deepest option row, ↑ ↓ the product. */
 (function () {
   "use strict";
@@ -134,6 +135,8 @@
       im.onload = fitStage; im.onclick = function () { var lb = $("lightbox"); lb.querySelector("img").src = im.src; lb.classList.add("on"); };
     }
     $("cap").innerHTML = p.cap ? p.cap(sel.a, sel.b, sel.c) : "";
+    // a page's own extras that follow the selection (the GEPS/GEFS number tables)
+    if (S.onRender) { try { S.onRender({ p: sel.p, a: sel.a, b: sel.b, c: sel.c }); } catch (e) {} }
     var ab = $("about"); ab.innerHTML = "";
     var aboutId = typeof p.about === "function" ? p.about(sel.a, sel.b, sel.c) : p.about;
     if (aboutId && $(aboutId)) {
