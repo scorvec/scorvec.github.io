@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
-"""Draw the MJO impact composites (mjo.html, "MJO impacts by phase and month") from the committed reference
+"""Draw the MJO impact composites (mjo.html, "MJO impacts by phase and season") from the committed reference
 scripts/mjo/data/reference/mjo_impacts_site.npz (built on the laptop by mjo_impacts.py). Runs in Actions
 (.github/workflows/mjo-impacts.yml); frames go to the frames branch, the manifest to main.
 
-One animator region per (field, data, month, lag): 8 frames = RMM phases 1-8; plus a one-frame "all eight phases"
-strip for the same selection. Only significant cells are shaded (the reference carries NaN elsewhere).
+One animator region per (field, data, period, lag): 8 frames = RMM phases 1-8; plus a one-frame "all eight phases"
+strip for the same selection. Periods = the seasons DJF/MAM/JJA/SON, the extended winter NDJFM and single months (the
+reference's "periods"); lags are windows (days -2..+2, +8..+12). Only significant cells are shaded (the reference
+carries NaN elsewhere).
 
     python scripts/mjo/src/mjo_impacts_render.py [--procs 4] [--only tas_na]
 """
@@ -22,8 +24,6 @@ import numpy as np
 ROOT = Path(os.environ.get("SITE_ROOT", Path(__file__).resolve().parents[3]))
 REF = ROOT / "scripts" / "mjo" / "data" / "reference"
 ANIM = ROOT / "assets" / "mjo" / "impacts" / "anim"      # one directory for publish_frames_ci.sh; base must end in /anim
-MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October",
-          "November", "December"]
 PHASE_WHERE = {1: "W. Hemisphere & Africa", 2: "Indian Ocean", 3: "Indian Ocean", 4: "Maritime Continent",
                5: "Maritime Continent", 6: "Western Pacific", 7: "Western Pacific", 8: "W. Hemisphere & Africa"}
 FIELD = {
@@ -52,8 +52,24 @@ def _ref():
     return z, meta
 
 
-def rid(name, data, m, lag, strip=False):
-    return f"mi_{name}_{data}_m{m:02d}_l{lag:02d}" + ("_s" if strip else "")
+def rid(name, data, per, lag, strip=False):
+    return f"mi_{name}_{data}_{per}_l{lag:02d}" + ("_s" if strip else "")
+
+
+def period_label(meta, m):
+    k, lab = meta["periods"][m]
+    return {"ndjfm": "Nov–Mar"}.get(k, lab)
+
+
+def lag_label(meta, lag):
+    a, b = meta.get("lag_windows", {}).get(str(lag), (lag, lag))
+    f = lambda v: f"+{v}" if v > 0 else ("−" + str(-v) if v < 0 else "0")   # noqa: E731
+    return f"days {f(a)} to {f(b)}" if a != b else f"day {f(a)}"
+
+
+def _agree_text(meta):
+    a = meta.get("tests", {}).get("agree", 0.8)
+    return "2/3" if abs(a - 2 / 3) < 0.01 else f"{100 * a:.0f} %"
 
 
 def _note(z, meta, name, data, li, p, m):
@@ -66,7 +82,7 @@ def _note(z, meta, name, data, li, p, m):
     nm = int(z[f"cmip6_{name}_nmod"][li, p, m])
     tested = nm >= 5
     return tested, (f"mean of {nm} CMIP6 models, 1979–2014 · shaded only where robust: across-model t-test, "
-                    f"false-discovery rate 10 % over the map, and ≥ 80 % of the models agree on the sign")
+                    f"false-discovery rate 10 % over the map, and ≥ {_agree_text(meta)} of the models agree on the sign")
 
 
 def _draw(ax, fig, lat, lon, F, spec, crs):
@@ -103,7 +119,8 @@ def render_one(job):
     A = z[f"{data}_{name}"][li].astype(np.float32)                        # (phase, month, cells)
     proj = ccrs.PlateCarree(central_longitude=180 if g == "nh" else 0)
     crs = ccrs.PlateCarree()
-    out = ANIM / rid(name, data, m + 1, lag); out.mkdir(parents=True, exist_ok=True)
+    per = meta["periods"][m][0]; plab = period_label(meta, m); llab = lag_label(meta, lag)
+    out = ANIM / rid(name, data, per, lag); out.mkdir(parents=True, exist_ok=True)
     for f in out.glob("F*.webp"):
         f.unlink()
     frames = []
@@ -125,7 +142,7 @@ def render_one(job):
         elif not np.isfinite(F).any():
             ax.text(0.5, 0.5, "No significant signal", transform=ax.transAxes, ha="center", va="center", fontsize=12,
                     color=MUTED, bbox=dict(fc="white", ec="none", alpha=0.85))
-        fig.text(0.15 / W, 1 - 0.1 / H, f"{DATA[data]} · MJO phase {p + 1} ({PHASE_WHERE[p + 1]}) · {MONTHS[m]} · day +{lag}",
+        fig.text(0.15 / W, 1 - 0.1 / H, f"{DATA[data]} · MJO phase {p + 1} ({PHASE_WHERE[p + 1]}) · {plab} · {llab}",
                  fontsize=12.5, fontweight="bold", va="top")
         fig.text(0.15 / W, 1 - 0.38 / H, f"{spec['var'].capitalize()} anomaly · " + note, fontsize=8.2, color=MUTED, va="top",
                  wrap=True)
@@ -138,7 +155,7 @@ def render_one(job):
         plt.close(fig)
         frames.append({"idx": p, "file": fp.name, "date": f"p{p + 1}", "label": f"Phase {p + 1} · {PHASE_WHERE[p + 1]}"})
     # strip: all eight phases, grid shaped by the map aspect
-    so = ANIM / rid(name, data, m + 1, lag, strip=True); so.mkdir(parents=True, exist_ok=True)
+    so = ANIM / rid(name, data, per, lag, strip=True); so.mkdir(parents=True, exist_ok=True)
     cols, rows = (2, 4) if g == "nh" else (4, 2)
     pw = {"na": 3.6, "sa": 2.6, "nh": 5.6}[g]; ph_ = pw / asp; gap = 0.32
     SW = cols * pw + (cols - 1) * 0.1 + 0.2; SH = rows * (ph_ + gap) + 0.72 + 0.85
@@ -158,7 +175,7 @@ def render_one(job):
     _, note = _note(z, meta, name, data, li, 0, m)
     if data == "obs":
         note = note.split(" · ", 1)[0] + " · MJO events (BoM RMM, amplitude ≥ 1) · " + note.split(" · ")[-1]
-    fig.text(0.1 / SW, 1 - 0.08 / SH, f"{DATA[data]} · {MONTHS[m]} · day +{lag}: {spec['var']} anomaly by MJO phase",
+    fig.text(0.1 / SW, 1 - 0.08 / SH, f"{DATA[data]} · {plab} · {llab}: {spec['var']} anomaly by MJO phase",
              fontsize=13, fontweight="bold", va="top")
     fig.text(0.1 / SW, 1 - 0.4 / SH, note, fontsize=8.2, color=MUTED, va="top")
     cax = fig.add_axes([0.3, 0.42 / SH, 0.4, 0.13 / SH])
@@ -183,7 +200,7 @@ def main() -> int:
     if a.only:
         names = [n for n in names if n in a.only.split(",")]
     jobs = [(n, d, m, li, lag) for n in names for d in DATA if f"{d}_{n}" in z.files
-            for m in range(12) for li, lag in enumerate(lags)]
+            for m in range(len(meta["periods"])) for li, lag in enumerate(lags)]
     t0 = time.time()
     # Natural Earth is downloaded on first use: fetch it HERE, once, before the pool, or the workers race to write
     # the same shapefiles and read each other's half-written copies (struct.error on the first Actions run).
@@ -193,14 +210,16 @@ def main() -> int:
     regions = {}
     with ProcessPoolExecutor(a.procs) as ex:
         for name, data, m, lag, frames in ex.map(render_one, jobs, chunksize=4):
-            lab = f"{DATA[data]} · {FIELD[name]['var']} ({FIELD[name]['grid'].upper()}) · {MONTHS[m]} · day +{lag}"
-            regions[rid(name, data, m + 1, lag)] = {"label": lab, "n_frames": 8, "frames": frames}
-            regions[rid(name, data, m + 1, lag, True)] = {"label": lab + " · all phases", "n_frames": 1,
+            lab = (f"{DATA[data]} · {FIELD[name]['var']} ({FIELD[name]['grid'].upper()}) · {period_label(meta, m)} · "
+                   f"{lag_label(meta, lag)}")
+            per = meta["periods"][m][0]
+            regions[rid(name, data, per, lag)] = {"label": lab, "n_frames": 8, "frames": frames}
+            regions[rid(name, data, per, lag, True)] = {"label": lab + " · all phases", "n_frames": 1,
                                                           "frames": [{"idx": 0, "file": "F01.webp", "date": "strip",
                                                                       "label": "All eight phases"}]}
     ANIM.mkdir(parents=True, exist_ok=True)
     man = {"ver": int(time.time()), "selectorLabel": "Selection", "regions": regions,
-           "default": rid("tas_na", "cmip6", 1, lags[-1], True)}
+           "default": rid("tas_na", "cmip6", "djf", lags[-1], True)}
     (ANIM / "mjo_impacts_manifest.json").write_text(json.dumps(man))
     print(f"{len(jobs)} selections, {len(regions)} regions in {time.time() - t0:.0f} s")
     return 0

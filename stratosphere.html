@@ -32,7 +32,7 @@
 <header class="sh" id="site-header">
   <div class="sh-in">
     <a class="sh-brand" href="/">Shawn Corvec</a>
-    <button class="sh-find" type="button" aria-haspopup="dialog" aria-keyshortcuts="Control+K Meta+K" title="Find a plot (Ctrl K)"><svg viewBox="0 0 20 20" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true" focusable="false"><circle cx="8.5" cy="8.5" r="5.5" style="fill:none;stroke:currentColor"/><path d="M12.6 12.6 17 17" style="fill:none;stroke:currentColor"/></svg><span class="sh-find-t">Find a plot</span><kbd>Ctrl K</kbd></button>
+    <button class="sh-find" type="button" aria-haspopup="dialog" aria-keyshortcuts="Control+K Meta+K" title="Find a plot (Ctrl K)"><svg viewBox="0 0 20 20" aria-hidden="true" focusable="false"><circle cx="8.5" cy="8.5" r="5.5"/><path d="M12.6 12.6 17 17"/></svg><span class="sh-find-t">Find a plot</span><kbd>Ctrl K</kbd></button>
     <button class="sh-toggle" type="button" aria-expanded="false" aria-controls="sh-menu">Menu</button>
     <nav class="sh-nav" id="sh-menu" aria-label="Site">
       <ul class="sh-list">
@@ -154,7 +154,7 @@
       <p class="cap" id="cap"></p>
       <div id="about"></div>
       <p class="hint"><span class="kbd">&larr;</span> <span class="kbd">&rarr;</span> step through the options &middot; <span class="kbd">&uarr;</span> <span class="kbd">&darr;</span> change figure &middot; click a still to enlarge</p>
-      <div class="chart-card-footer"><span class="chart-sources">ECMWF AIFS-ENS open data (CC BY 4.0) &middot; ECCC GEPS &middot; NOAA GEFS &middot; NASA GMAO GEOS FP and MERRA-2 &middot; NCEP/NCAR Reanalysis 1 (NOAA PSL) &middot; ERA5 (Copernicus C3S) &middot; updated each 00/12Z cycle</span><span class="chart-updated">OISST 2026-09-25</span></div>
+      <div class="chart-card-footer"><span class="chart-sources">ECMWF AIFS-ENS open data (CC BY 4.0) &middot; ECCC GEPS &middot; NOAA GEFS &middot; NASA GMAO GEOS FP and MERRA-2 &middot; NCEP/NCAR Reanalysis 1 (NOAA PSL) &middot; ERA5 (Copernicus C3S) &middot; updated each 00/12Z cycle</span><span class="chart-updated">OISST 2026-09-26</span></div>
     </section>
   </div>
   <div class="lightbox" id="lightbox"><img alt=""></div>
@@ -411,7 +411,7 @@ window.STAGE = {
   {label: "Stratosphere history", ico: "\u231B", items: [["shwinters","Every winter since 1980","pick any winter, compare"],["shssw","Sudden warmings since 1980","timeline, catalogue, vortex shapes"],["shdrip","Dripping paint","how an event reaches the surface"],["shfollow","What usually follows","AO, NAO, temperature, by region; CMIP6"]]}
 ],
   products: {
-  vortex: {label: "Northern polar vortex", img: function () { return "assets/sst/nh_vortex.webp?v=985b7076fde6"; }, about: "about-vortex", fit: false,
+  vortex: {label: "Northern polar vortex", img: function () { return "assets/sst/nh_vortex.webp?v=122a7d5c582c"; }, about: "about-vortex", fit: false,
           cap: function () { return "Zonal-mean wind at 60°N at 10 and 100 hPa and the 100 hPa polar-cap height, members against the MERRA-2 percentile bands."; }},
   vwinds: {label: "Vortex winds", a: {label: "Level", items: [["vortex_10","10 hPa"],["vortex_100","100 hPa"]]},
           frame: function (a) { return "sst_anim.html?embed=1&manifest=vortex_winds_manifest.json&region=" + a; }, about: "about-vwinds",
@@ -445,12 +445,12 @@ window.STAGE = {
           cap: function () { return "Every northern winter in MERRA-2, October to May, against the 1980–2026 range. Hover a line to name the winter; pick one to draw it in black."; }},
   shssw: {label: "Sudden warmings since 1980", a: {label: "View", items: [["timeline","Timeline"],["table","Catalogue"],["gallery","Vortex at each warming"]]},
           dom: function (a) { return a === "table" ? "dom-shssw" : null; }, fit: false,
-          img: function (a) { return "assets/sst/strat_hist_" + (a === "gallery" ? "gallery" : "timeline") + ".webp?v=985b7076fde6"; }, about: "about-shssw",
+          img: function (a) { return "assets/sst/strat_hist_" + (a === "gallery" ? "gallery" : "timeline") + ".webp?v=122a7d5c582c"; }, about: "about-shssw",
           cap: function (a) { return a === "timeline" ? "Every major sudden warming (Charlton–Polvani, MERRA-2) and strong-vortex event, winter by winter, with ENSO and the QBO." : a === "table" ? "The catalogue: when, how deep, what shape, and what the Arctic Oscillation did before and after." : "What the 10 hPa vortex looked like at each warming: two pieces for a split, one pushed off the pole for a displacement."; }},
   shdrip: {label: "Dripping paint", a: {label: "Events", items: [["ssw_all","All SSWs"],["ssw_deep","Deep"],["ssw_shallow","Shallow"],["ssw_split","Splits"],["ssw_disp","Displacements"],["sv","Strong vortex"]]},
           b: function (a) { return {label: "Data", items: (a === "ssw_split" || a === "ssw_disp") ? [["m2z","MERRA-2 polar-cap height"]]
                                     : [["m2z","MERRA-2 polar-cap height"],["m2u","MERRA-2 u(60°N)"],["cmip6","CMIP6 u(60°N), 9 models"]]}; },
-          img: function (a, b) { return "assets/sst/strat_hist_drip_" + (b === "m2u" || b === "cmip6" ? b + "_" : "") + a + ".webp?v=985b7076fde6"; }, fit: false, about: "about-shdrip",
+          img: function (a, b) { return "assets/sst/strat_hist_drip_" + (b === "m2u" || b === "cmip6" ? b + "_" : "") + a + ".webp?v=122a7d5c582c"; }, fit: false, about: "about-shdrip",
           cap: function (a, b) {
             if (b === "cmip6") return "Zonal-mean wind at 60°N from the ground to 1 hPa around " + (a === "sv" ? "strong-vortex events" : "sudden warmings") + " in 9 CMIP6 models (25,444 model-years), sign flipped so a weak vortex is red, with 700 hPa u(60°N) below. Shaded only where the models robustly agree.";
             if (b === "m2u") return "MERRA-2 drawn the way the CMIP6 chart is, events defined in wind terms as for the models: u(60°N) from the ground to 1 hPa, sign flipped, with 700 hPa u(60°N) below.";
@@ -461,7 +461,7 @@ window.STAGE = {
                                     ? [["ssw_all","All SSWs"],["ssw_deep","Deep"],["ssw_shallow","Shallow"],["sv","Strong vortex"]]
                                     : [["ssw_all","All SSWs"],["ssw_deep","Deep"],["ssw_shallow","Shallow"],["ssw_split","Splits"],["ssw_disp","Displacements"],["sv","Strong vortex"]]} : null; },
           img: function (a, b, c) { var m = b === "cmip6" ? "cmip6_" : "", w = a === "map2" ? "d31_60" : "d1_30";
-                                    return "assets/sst/strat_hist_" + ((a === "map" || a === "map2") ? "follows_" + m + c + "_" + w : a + (b === "cmip6" ? "_cmip6" : "")) + ".webp?v=985b7076fde6"; },
+                                    return "assets/sst/strat_hist_" + ((a === "map" || a === "map2") ? "follows_" + m + c + "_" + w : a + (b === "cmip6" ? "_cmip6" : "")) + ".webp?v=122a7d5c582c"; },
           fit: false, about: "about-shfollow",
           cap: function (a, b) {
             var cm = b === "cmip6";
@@ -610,7 +610,7 @@ window.STAGE = {
     b.addEventListener("click", function () { st.h = b.dataset.shh; document.querySelectorAll("#dom-shwinters .pill[data-shh]").forEach(function (o) { o.classList.toggle("on", o === b); }); draw(); });
   });
   $("shw-pick").addEventListener("change", function () { st.pick = this.value; draw(); });
-  fetch("assets/sst/data/strat_history.json?v=985b7076fde6").then(function (r) { return r.json(); }).then(function (j) {
+  fetch("assets/sst/data/strat_history.json?v=122a7d5c582c").then(function (r) { return r.json(); }).then(function (j) {
     J = j;
     var sel = $("shw-pick");
     J.winters.slice().reverse().forEach(function (w) { var o = document.createElement("option"); o.value = w.winter; o.textContent = w.winter; sel.appendChild(o); });
