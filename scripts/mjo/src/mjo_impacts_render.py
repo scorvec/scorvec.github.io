@@ -200,7 +200,7 @@ def main() -> int:
                                                                       "label": "All eight phases"}]}
     ANIM.mkdir(parents=True, exist_ok=True)
     man = {"ver": int(time.time()), "selectorLabel": "Selection", "regions": regions,
-           "default": rid("tas_na", "obs", 1, lags[-1])}
+           "default": rid("tas_na", "cmip6", 1, lags[-1], True)}
     (ANIM / "mjo_impacts_manifest.json").write_text(json.dumps(man))
     print(f"{len(jobs)} selections, {len(regions)} regions in {time.time() - t0:.0f} s")
     return 0

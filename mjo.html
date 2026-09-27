@@ -65,6 +65,9 @@
   .mi-ctl select { font: inherit; color: var(--ink); padding: 0.3rem 0.4rem; border: 1px solid var(--rule);
                    border-radius: 4px; background: #fff; max-width: 100%; }
   .mi-embed { aspect-ratio: 1056 / 900; }
+  .mi-embed + .mi-embed { margin-top: 0.8rem; }
+  .mi-embed[hidden] { display: none; }
+  .mi-ctl select:disabled { color: var(--muted); background: transparent; }
   .mi-about { margin-top: 1rem; color: var(--ink); max-width: 80ch; }
   .mi-about summary { cursor: pointer; color: var(--accent); }
   .mi-about p { margin: 0.6rem 0; font-size: 0.92rem; }
@@ -229,29 +232,32 @@
   Amplitude is the radial distance (rings at 1, 2, 3).
   Observed track is recent ERA5/AIFS analysis (wind-only, verified within a few
   degrees of the official BoM RMM phase).</p>
-  <p class="meta">Updated 2026-09-27 17:47Z · Auto-generated from the AIFS-ENS open-data
+  <p class="meta">Updated 2026-09-27 18:05Z · Auto-generated from the AIFS-ENS open-data
   feed. Methodology: NOAA CPC / Wheeler &amp; Hendon (2004), EOFs from NOAA OLR +
   NCEP wind with the 120-day low-frequency filter removed; pseudo-OLR from
   &minus;standardized daily precip vs an ERA5 1991&ndash;2020 band climatology.</p>
 
   <section class="mi" id="mjo-impacts">
-  <h2>MJO impacts by phase and month</h2>
-  <p class="lede lede--wide">What each MJO phase has meant for temperature, rainfall and the 500&nbsp;hPa flow, month by
-  month: the observed record next to 11 CMIP6 models whose MJO passes a realism screen. Only
-  statistically significant cells are coloured; blank means no significant signal.</p>
+  <h2>MJO impacts by phase and month: 11 CMIP6 models (18 members, 1979&ndash;2014), with the observed record for comparison</h2>
+  <p class="lede lede--wide">What each MJO phase does to temperature, rainfall and the 500&nbsp;hPa flow, month by
+  month, in 11 CMIP6 models whose MJO passes a realism screen: a cell is coloured only where the models agree
+  (significant across models and at least 80&nbsp;% on the same sign). The observed record (1979&ndash;2024) is there
+  for comparison; &ldquo;CMIP6 above observed&rdquo; stacks the two for the same field, month and lag. Blank means no
+  significant signal.</p>
   <div class="mi-ctl">
     <label>Field <select id="mi-f"><option value="tas_na">2 m temperature · North America</option><option value="tas_sa">2 m temperature · South America</option><option value="pr_na">Precipitation (mm/day) · North America</option><option value="pr_sa">Precipitation (mm/day) · South America</option><option value="prpct_na">Precipitation (% of normal) · North America</option><option value="prpct_sa">Precipitation (% of normal) · South America</option><option value="z500_nh">500 hPa height · Northern Hemisphere</option></select></label>
-    <label>Data <select id="mi-d"><option value="obs">Observed</option><option value="cmip6">CMIP6</option></select></label>
+    <label>Data <select id="mi-d"><option value="cmip6">CMIP6 (11 models)</option><option value="obs">Observed (for comparison)</option></select></label>
     <label>Month <select id="mi-m"><option value="01">January</option><option value="02">February</option><option value="03">March</option><option value="04">April</option><option value="05">May</option><option value="06">June</option><option value="07">July</option><option value="08">August</option><option value="09">September</option><option value="10">October</option><option value="11">November</option><option value="12">December</option></select></label>
     <label>Lag <select id="mi-l"><option value="10">10 days after the phase</option><option value="0">Same day</option></select></label>
-    <label>View <select id="mi-v"><option value="loop">One phase at a time</option><option value="strip">All eight phases</option></select></label>
+    <label>View <select id="mi-v"><option value="strip">All eight phases</option><option value="loop">One phase at a time</option><option value="compare">CMIP6 above observed (all phases)</option></select></label>
   </div>
   <iframe class="anim-embed mi-embed" id="mi-frame" title="MJO impact composites" loading="lazy"></iframe>
+  <iframe class="anim-embed mi-embed" id="mi-frame2" title="MJO impact composites, observed" loading="lazy" hidden></iframe>
   <details class="mi-about"><summary>How this is built</summary>
-  <p><b>MJO index.</b> Observed: the Bureau of Meteorology&rsquo;s RMM (Wheeler &amp; Hendon 2004), 1979&ndash;2024.
-  CMIP6: the same RMM computed from each run&rsquo;s own daily OLR and 850/250&nbsp;hPa zonal wind (the CMIP6 daily
-  archive has no 200&nbsp;hPa), 15&deg;S&ndash;15&deg;N means, the run&rsquo;s own seasonal cycle and previous
-  120-day mean removed, projected on the observed W&amp;H EOFs. <b>Both indices are then band-passed to
+  <p><b>MJO index.</b> CMIP6: the Wheeler &amp; Hendon (2004) RMM computed from each historical run&rsquo;s own daily
+  OLR and 850/250&nbsp;hPa zonal wind (the CMIP6 daily archive has no 200&nbsp;hPa), 15&deg;S&ndash;15&deg;N means, the
+  run&rsquo;s own seasonal cycle and previous 120-day mean removed, projected on the observed W&amp;H EOFs. Observed,
+  for comparison: the Bureau of Meteorology&rsquo;s RMM, 1979&ndash;2024. <b>Both indices are then band-passed to
   20&ndash;100&nbsp;days and renormalised.</b> BoM removes the ENSO signal only up to 2013; after that a strong El
   Ni&ntilde;o&rsquo;s standing pattern projects on RMM as slow &ldquo;phase 6&ndash;8&rdquo; days (DJF 2015/16 was
   &ldquo;active&rdquo; on 89&nbsp;% of days), and the CMIP6 index would carry the same artefact. A linear Ni&ntilde;o-3.4
@@ -281,14 +287,28 @@
   (function () {
     var ids = ["mi-f", "mi-d", "mi-m", "mi-l", "mi-v"], el = {};
     ids.forEach(function (k) { el[k] = document.getElementById(k); });
-    var h = (location.hash.indexOf("#mi/") === 0) ? location.hash.slice(4).split("/") : null;
-    if (h && h.length === 5) { ids.forEach(function (k, i) { if (h[i]) el[k].value = h[i]; }); }
-    else { el["mi-m"].value = ("0" + (new Date().getMonth() + 1)).slice(-2); }
+    // default = #mi/tas_na/cmip6/01/10/strip; a hash value that is not an option is ignored
+    var def = ["tas_na", "cmip6", "01", "10", "strip"];
+    var h = (location.hash.indexOf("#mi/") === 0) ? location.hash.slice(4).split("/") : [];
+    ids.forEach(function (k, i) {
+      var v = h[i], ok = v && [].some.call(el[k].options, function (o) { return o.value === v; });
+      el[k].value = ok ? v : def[i];
+    });
+    var fr1 = document.getElementById("mi-frame"), fr2 = document.getElementById("mi-frame2");
+    function src(rid) {
+      return "sst_anim.html?embed=1&base=assets/mjo/impacts/anim&manifest=mjo_impacts_manifest.json&region="
+        + rid + "&regions=" + rid + "&start=0";
+    }
     function go(push) {
       var f = el["mi-f"].value, d = el["mi-d"].value, mo = el["mi-m"].value, l = ("0" + el["mi-l"].value).slice(-2);
-      var rid = "mi_" + f + "_" + d + "_m" + mo + "_l" + l + (el["mi-v"].value === "strip" ? "_s" : "");
-      document.getElementById("mi-frame").src = "sst_anim.html?embed=1&base=assets/mjo/impacts/anim&manifest=mjo_impacts_manifest.json&region="
-        + rid + "&regions=" + rid + "&start=0";
+      var v = el["mi-v"].value, stem = "mi_" + f + "_", tail = "_m" + mo + "_l" + l;
+      el["mi-d"].disabled = (v === "compare");
+      if (v === "compare") {
+        fr1.src = src(stem + "cmip6" + tail + "_s"); fr2.src = src(stem + "obs" + tail + "_s"); fr2.hidden = false;
+      } else {
+        fr1.src = src(stem + d + tail + (v === "strip" ? "_s" : ""));
+        if (!fr2.hidden) { fr2.hidden = true; fr2.removeAttribute("src"); }
+      }
       if (push) history.replaceState(null, "", "#mi/" + ids.map(function (k) { return el[k].value; }).join("/"));
     }
     ids.forEach(function (k) { el[k].addEventListener("change", function () { go(true); }); });
