@@ -29,7 +29,7 @@ on:
         type: boolean
         default: false
       case:
-        description: "Render a case study instead, e.g. hrrr01:2020121613-2020121706 (HRRR f01 each hour) or hrrr:2020121612"
+        description: "Render a case study instead: hrrr01:2020121613-2020121706 (HRRR f01 each hour) or hrrr:2020121612, optionally @region (e.g. @nec)"
         required: false
         default: ""
       models:
@@ -41,7 +41,7 @@ on:
         required: false
         default: ""
       label:
-        description: "Forced runs: the label on every frame and on the page, e.g. Test run on the 27 Sep nor'easter (rain)"
+        description: "Forced runs: the label on every frame and the page (e.g. Test run on the 27 Sep nor'easter (rain)); case runs: the case's name"
         required: false
         default: ""
 
@@ -96,7 +96,7 @@ jobs:
         run: |
           mkdir -p "$RUNNER_TEMP/sb"
           if [ "$MODE" = "case" ]; then
-            python scripts/snowband/snowband.py case --spec "$CASE" --site . --procs 4 --lists "$RUNNER_TEMP/sb"
+            python scripts/snowband/snowband.py case --spec "$CASE" --label "$LABEL" --site . --procs 4 --lists "$RUNNER_TEMP/sb"
           elif [ "$FORCE" = "true" ]; then
             python scripts/snowband/snowband.py run --models "$MODELS" --force --regions "$REGIONS" --label "$LABEL" \
               --site . --procs 4 --lists "$RUNNER_TEMP/sb"

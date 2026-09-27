@@ -227,6 +227,14 @@
   would miss. Placement errors of 50&ndash;100&nbsp;km apply to the overlap as much as to any single field.</p>
 <p class="chart-sources">thresholds: frontogenesis 4&nbsp;K/100&nbsp;km/3&nbsp;h, EPV* 0.25&nbsp;PVU, DGZ lift 10&nbsp;&micro;b/s &middot; Novak, D. R., et al., 2004, Wea. Forecasting 19, 993&ndash;1010 &middot; Schultz, D. M., and P. N. Schumacher, 1999, Mon. Wea. Rev. 127, 2709&ndash;2732</p>
 </template>
+<template id="about-case-generic">
+<p>A case study: every diagnostic from the HRRR&rsquo;s one-hour forecast of each hourly cycle (f01, the first hour with
+  usable vertical motion), beside the NEXRAD base-reflectivity mosaic at the same hour. With almost no forecast error in the
+  large-scale pattern, it shows whether the diagnosed band axis lines up with the bands the radar actually saw. Rain and
+  snow alike: frontogenesis, deformation and EPV* do not depend on precipitation type, and the dendritic-zone panel shows
+  lift through the &minus;12 to &minus;18&nbsp;&deg;C layer aloft whatever reaches the ground.</p>
+<p class="chart-sources">NOAA/NCEP HRRR (AWS) &middot; NEXRAD base-reflectivity mosaic n0q, Iowa Environmental Mesonet</p>
+</template>
 <template id="about-case">
 <p>The page between seasons, and a check on the method: every diagnostic on a documented band, with the NEXRAD mosaic
   at the same hour. The <b>16&ndash;17 December 2020</b> nor&rsquo;easter put a nearly stationary band over the Southern
@@ -343,32 +351,38 @@
   }
   var CASE_VIEWS = [["ov", "Overview"], ["radar", "Against NEXRAD"], ["ing", "Band ingredients"], ["fg", "Frontogenesis"],
     ["epv", "EPV* and CSI"], ["dgz", "Lift in the DGZ"], ["bands", "HRRR's own bands"]];
+  function caseList() {   // every rendered case, the Binghamton showcase first
+    var cs = (ST && ST.cases) || {};
+    return Object.keys(cs).sort(function (x, y) { return (cs[x].about === "binghamton" ? -1 : 0) - (cs[y].about === "binghamton" ? -1 : 0) || (x < y ? 1 : -1); })
+      .map(function (k) { var c = cs[k]; return { id: k, label: c.label || c.spec, about: c.about, when: "" }; });
+  }
+  function caseOf(id) { var l = caseList(); for (var i = 0; i < l.length; i++) if (l[i].id === id) return l[i]; return null; }
   function start() {
     window.STAGE = {
       groups: [
         { label: "Latest runs", ico: "❄", items: [["ov", "Overview", "the four diagnostics"], ["ing", "Band ingredients", "where they overlap"],
           ["fg", "Frontogenesis", "700 hPa, with deformation"], ["epv", "EPV* and CSI", "750–500 hPa, saturated"],
           ["dgz", "Lift in the DGZ", "−12 to −18 °C"], ["bands", "The model's own bands", "reflectivity and type"]] },
-        { label: "Case study", ico: "❄", items: [["case", "Case study", ST && ST.case ? ST.case.label.split(",")[0] : "a documented band against the radar"]] }
+        { label: "Case study", ico: "❄", items: [["case", "Case study", caseList().length > 1 ? caseList().length + " events against the radar" : (caseList()[0] ? caseList()[0].label.split(",")[0] : "a documented band against the radar")]] }
       ],
       products: {
         ov: live("ov", "Overview"), ing: live("ing", "Band ingredients"), fg: live("fg", "Frontogenesis and deformation"),
         epv: live("epv", "EPV* and CSI"), dgz: live("dgz", "Lift in the dendritic growth zone"), bands: live("bands", "The model's own bands"),
         "case": {
           label: "Case study",
-          a: { label: "View", items: CASE_VIEWS },
-          dom: function () {
-            if (ST && ST.case) return null;
+          a: function () { return { label: "Case", items: caseList().map(function (c) { return [c.id, c.label.split(",")[0] + (c.when ? ", " + c.when : "")]; }) }; },
+          b: { label: "View", items: CASE_VIEWS },
+          dom: function (a) {
+            if (caseList().length) return null;
             var el = document.getElementById("sb-msg"); el.innerHTML = "<b>No case study has been rendered yet.</b>"; return "sb-msg";
           },
-          frame: function (a) {
-            return "sst_anim.html?embed=1&base=assets/snowband/anim&manifest=snowband_case_manifest.json&region=case_" + a + "&regions=case_" + a + "&start=0";
+          frame: function (a, b) {
+            var id = "case_" + a + "_" + b;
+            return "sst_anim.html?embed=1&base=assets/snowband/anim&manifest=snowband_case_manifest.json&region=" + id + "&regions=" + id + "&start=0";
           },
-          ratio: function (a) { return a === "ov" || a === "radar" ? "1166/1150" : "964/860"; },
-          about: "about-case",
-          cap: function () {
-            return ST && ST.case ? ST.case.label + ". Step through the hours with the loop controls." : "";
-          }
+          ratio: function (a, b) { return b === "ov" || b === "radar" ? "1166/1150" : "964/860"; },
+          about: function (a) { var c = caseOf(a); return c && c.about === "binghamton" ? "about-case" : "about-case-generic"; },
+          cap: function (a) { var c = caseOf(a); return c ? c.label + ". Step through the hours with the loop controls." : ""; }
         }
       }
     };

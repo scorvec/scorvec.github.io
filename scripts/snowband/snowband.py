@@ -109,9 +109,9 @@ PRODUCTS = {"ov": "Overview", "fg": "Frontogenesis and deformation", "epv": "EPV
             "bands": "The model's own bands", "ing": "Band ingredients", "radar": "Against NEXRAD"}
 LIVE_PRODUCTS = ["ov", "fg", "epv", "dgz", "bands", "ing"]
 CASES = {
-    "hrrr01:2020121613-2020121706": dict(region="ne", mark=(42.21, -75.98, "Binghamton"),
+    "hrrr01:2020121613-2020121706": dict(region="ne", mark=(42.21, -75.98, "Binghamton"), about="binghamton",
                                          label="Binghamton band, 16–17 December 2020 (40.2 in), HRRR f01 each hour"),
-    "hrrr:2020121612": dict(region="ne", mark=(42.21, -75.98, "Binghamton"),
+    "hrrr:2020121612": dict(region="ne", mark=(42.21, -75.98, "Binghamton"), about="binghamton",
                             label="Binghamton band, 16–17 December 2020 (40.2 in), the HRRR 12Z run of the 16th"),
     "hrrr01:2022012906-2022012923": dict(region="nec", mark=(42.36, -71.06, "Boston"),
                                          label="New England blizzard, 29 January 2022, HRRR f01 each hour"),
@@ -1098,11 +1098,14 @@ def write_lists(a, publish, prune):
 def cmd_case(a):
     site = Path(a.site).resolve()
     spec = a.spec
-    info = CASES.get(spec, {})
-    region = a.region or info.get("region", "ne")
-    m = re.match(r"^(hrrr01|hrrr):(\d{10})(?:-(\d{10}))?$", spec)
+    info = CASES.get(spec.split("@")[0], {})
+    region = a.region or (spec.split("@")[1] if "@" in spec else info.get("region", "ne"))
+    if region not in REGIONS:
+        raise SystemExit(f"unknown region {region}")
+    m = re.match(r"^(hrrr01|hrrr):(\d{10})(?:-(\d{10}))?(?:@([a-z]+))?$", spec)
     if not m:
-        raise SystemExit("spec: hrrr:YYYYMMDDHH (one run, f01-f18) or hrrr01:YYYYMMDDHH-YYYYMMDDHH (f01 of each cycle)")
+        raise SystemExit("spec: hrrr:YYYYMMDDHH (one run, f01-f18) or hrrr01:YYYYMMDDHH-YYYYMMDDHH (f01 of each cycle), "
+                         "optionally @region")
     kind, t0 = m.group(1), dt.datetime.strptime(m.group(2), "%Y%m%d%H")
     if kind == "hrrr":
         steps = [(t0, L) for L in range(1, 19)]
@@ -1114,7 +1117,8 @@ def cmd_case(a):
             t += dt.timedelta(hours=1)
     anim = site / "assets" / "snowband" / "anim"
     prods = LIVE_PRODUCTS + ["radar"]
-    dirs = {p: anim / f"case_{p}" for p in prods}
+    cid = "c" + m.group(2)                              # one case per start hour; several live side by side
+    dirs = {p: anim / f"case_{cid}_{p}" for p in prods}
     for d in dirs.values():
         if d.exists():
             shutil.rmtree(d)
@@ -1134,19 +1138,24 @@ def cmd_case(a):
                               "label": f"{valid:%d %b %HZ} · init {init:%HZ} f{lead:02d}"})
         print(f"  case step {i + 1}/{len(steps)}: {init:%Y-%m-%d %HZ} f{lead:02d}", flush=True)
     render_all(tasks, a.procs)
-    regions = {f"case_{p}": {"label": PRODUCTS[p], "frames": frames[p]} for p in prods}
-    (anim / "snowband_case_manifest.json").write_text(json.dumps({"ver": int(time.time()), "selectorLabel": "View",
-                                                                  "regions": regions}))
+    mfp = anim / "snowband_case_manifest.json"
+    man = load_json(mfp, {"regions": {}})
+    # keep the other cases; drop this case's old loops and any pre-2026-09-27 single-case loops (case_{product})
+    legacy = [k for k in man.get("regions", {}) if not re.match(r"^case_c\d{10}_", k)]
+    keep = {k: v for k, v in man.get("regions", {}).items() if k not in legacy and not k.startswith(f"case_{cid}_")}
+    keep.update({f"case_{cid}_{p}": {"label": PRODUCTS[p], "frames": frames[p]} for p in prods})
+    mfp.write_text(json.dumps({"ver": int(time.time()), "selectorLabel": "View", "regions": keep}))
     sp = site / "assets" / "snowband" / "data" / "snowband_status.json"
     sp.parent.mkdir(parents=True, exist_ok=True)
     status = load_json(sp, {"models": {}})
-    status["case"] = dict(spec=spec, region=region, label=info.get("label", spec),
-                          rendered=dt.datetime.utcnow().strftime("%Y-%m-%dT%H:%MZ"), frames=len(steps),
-                          mb=round(f.nbytes / 1e6), seconds=round(time.time() - t_start))
+    status.pop("case", None)
+    status.setdefault("cases", {})[cid] = dict(
+        spec=spec, region=region, label=a.label or info.get("label", spec), rendered=dt.datetime.utcnow().strftime("%Y-%m-%dT%H:%MZ"),
+        frames=len(steps), mb=round(f.nbytes / 1e6), seconds=round(time.time() - t_start), about=info.get("about", "generic"))
     sp.write_text(json.dumps(status, indent=1))
     print(f"case {spec}: {len(steps)} steps x {len(prods)} products, {f.nbytes / 1e6:.0f} MB in {f.nreq} requests, "
           f"{time.time() - t_start:.0f} s", flush=True)
-    write_lists(a, [f"assets/snowband/anim/case_{p}" for p in prods], [])
+    write_lists(a, [f"assets/snowband/anim/case_{cid}_{p}" for p in prods], [f"assets/snowband/anim/{k}" for k in legacy])
 
 
 def main() -> int:
@@ -1161,6 +1170,7 @@ def main() -> int:
     c = sub.add_parser("case")
     c.add_argument("--spec", required=True)
     c.add_argument("--region")
+    c.add_argument("--label", default="", help="the case's name on the page (default: the CASES entry, else the spec)")
     for p in (r, c):
         p.add_argument("--site", default=str(REPO))
         p.add_argument("--procs", type=int, default=min(4, os.cpu_count() or 1))
