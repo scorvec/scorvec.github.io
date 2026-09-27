@@ -214,7 +214,6 @@ PAGES = [
     dict(path="midterms/index.html", mode="after-body", footer=True),   # 2026 midterm forecast (published from ~/midterms, weekly)
     dict(path="midterms/about.html", mode="after-body", footer=True),   # how the midterm forecast works + sources
     dict(path="midterms/polls.html", mode="after-body", footer=True),   # every poll in the midterm forecast and its weight
-    dict(path="midterms/earlyvote.html", mode="after-body", footer=True),   # early vote tracker (official state files + UF Election Lab)
     dict(path="cities/index.html", mode="nav"),
     dict(path="cities/verify.html", mode="nav"),
     # the 404 body is a centring flexbox: stack it so the header spans the top and the message centres below

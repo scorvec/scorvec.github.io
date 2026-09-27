@@ -122,8 +122,6 @@ gefs.yml|04:40|
 gefs.yml|06:40|
 gefs.yml|09:40|
 gefs.yml|13:40|
-# Early vote tracker (2026-09-27): backs up earlyvote.yml's 14:30 UTC cron.
-earlyvote.yml|14:40|
 aam.yml|09:20|
 aam.yml|21:20|
 ar.yml|09:05|
