@@ -70,6 +70,10 @@
   .colophon p + p { margin-top: 0.7rem; }
   .colophon b { color: var(--ink); font-weight: 500; }
   @media (max-width: 768px) { nav { padding: 1rem 1.5rem; } main { padding: 1.5rem 1rem 3rem; max-width: 100%; } }
+  /* the stage viewer (assets/stage.css) on this page's palette; a mounted card drops its own frame */
+  :root { --surface: #ffffff; --edge: #d9d5cc; --ink2: #444; }
+  .ss-layout { margin-top: 1rem; }
+  .stage > .card { border: 0; margin: 0; border-radius: 0; }
 </style>
 <script data-goatcounter="https://scorvec.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
 <script src="https://cdn.plot.ly/plotly-2.35.2.min.js" charset="utf-8"></script>
@@ -77,6 +81,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400&family=Schibsted+Grotesk:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/stage.css">
 <link rel="stylesheet" href="/assets/site.css">
 <script src="/assets/site.js" defer></script>
 <script src="/assets/rail.js" defer></script>
@@ -214,7 +219,23 @@
   Member&nbsp;0 as published and the <b>ensemble mean</b> are shown as references; the ensemble mean averages 26 runs,
   so it is not a single model run.</p>
   <div class="verdict" id="verdict"></div>
-  <div class="card">
+  <!-- One card at a time on the shared stage viewer (assets/stage.js), 2026-09-27 (navigation phase 2). The cards
+       mount whole with their own controls; deep links #diff #scores #spectra #loop #z500 #t2m (none existed). -->
+  <div class="ss-layout">
+    <aside class="ss-rail" id="rail" aria-label="Figures"></aside>
+    <section class="ss-main">
+      <div class="crumb"><div class="path" id="crumb"></div>
+        <div class="nav"><button type="button" id="prevBtn" title="previous (←)">&larr; prev</button><button type="button" id="nextBtn" title="next (→)">next &rarr;</button></div></div>
+      <div class="opts"><div class="controls" id="opts-a"></div><div class="controls" id="opts-b"></div><div class="controls" id="opts-c"></div></div>
+      <div class="stage" id="stage"></div>
+      <p class="cap" id="cap"></p>
+      <div id="about"></div>
+      <p class="hint"><span class="kbd">&uarr;</span> <span class="kbd">&darr;</span> change figure &middot; each card keeps its own controls</p>
+    </section>
+  </div>
+  <div class="lightbox" id="lightbox"><img alt=""></div>
+  <div class="dom-holder">
+    <div class="card" id="diff">
     <div class="card-head">
       <h2>Difference from the single, with 95&nbsp;% intervals</h2>
       <p>Each line is the mean of <b>(model &minus; AIFS single)</b> over the same runs for all three comparisons; the shading is a 95&nbsp;%
@@ -235,7 +256,7 @@
     <div class="empty" id="diffEmpty" style="display:none">Not enough paired runs yet (at least 20 per lead).</div>
     <div class="card-foot" id="diffNote"></div>
   </div>
-  <div class="card">
+  <div class="card" id="scores">
     <div class="card-head">
       <h2>Scores by lead</h2>
       <p>Mean over the same verified runs for every line; the shading is &plusmn;1 standard error, descriptive only. Whether two lines differ
@@ -256,7 +277,7 @@
     <div class="empty" id="scoreEmpty">Collecting &mdash; every 00Z and 12Z run is archived and verified as its radiosondes and ERA5 arrive.</div>
     <div class="card-foot" id="scoreNote">no verified runs yet</div>
   </div>
-  <div class="card">
+  <div class="card" id="spectra">
     <div class="card-head">
       <h2>Power spectra by lead &mdash; the blurring, and the matching</h2>
       <p>Spherical-harmonic power of each model's global field against total wavenumber, averaged over the archived
@@ -273,7 +294,7 @@
     <div class="empty" id="specEmpty">no spectra yet</div>
     <div class="card-foot" id="specNote"></div>
   </div>
-  <div class="card">
+  <div class="card" id="loop">
     <div class="card-head">
       <h2>Side-by-side forecast loop &mdash; MSLP &middot; 1000&ndash;500 thickness &middot; 6-h precipitation</h2>
       <p>Every 6 hours through the run, refreshed each 00Z/12Z cycle. Watch the single's precipitation smear into
@@ -282,7 +303,7 @@
     <iframe class="anim-embed" data-src="sst_anim.html?embed=1&amp;manifest=aifs_compare_manifest.json&amp;region=aifs_compare" title="AIFS single vs member 0, North America loop"></iframe>
     <div class="card-foot">ECMWF AIFS &amp; AIFS-ENS open data (CC BY 4.0) &middot; North America &middot; 61 frames per run</div>
   </div>
-  <div class="card">
+  <div class="card" id="z500">
     <div class="card-head">
       <h2>500 hPa height anomaly &mdash; Northern Hemisphere loop</h2>
       <p>Shading is the height anomaly against the 1991&ndash;2020 day-of-year climatology (ridges warm, troughs
@@ -291,7 +312,7 @@
     <iframe class="anim-embed" style="aspect-ratio: 1460 / 760" data-src="sst_anim.html?embed=1&amp;manifest=aifs_z500_manifest.json&amp;region=aifs_z500" title="AIFS single vs member 0, 500 hPa height loop"></iframe>
     <div class="card-foot">anomaly shading + height contours, 6-hourly to hour 360 &middot; climatology: ERA5 via WeatherBench2</div>
   </div>
-  <div class="card">
+  <div class="card" id="t2m">
     <div class="card-head">
       <h2>2 m temperature anomaly &mdash; North America loop</h2>
       <p>Shading is the 2 m temperature anomaly against the 1991&ndash;2020 day-of-year climatology; grey contours are
@@ -300,6 +321,18 @@
     <iframe class="anim-embed" data-src="sst_anim.html?embed=1&amp;manifest=aifs_t2m_manifest.json&amp;region=aifs_t2m" title="AIFS single vs member 0, 2 m temperature anomaly loop"></iframe>
     <div class="card-foot">climatology: ERA5 via WeatherBench2 &middot; a radiosonde cannot verify 2 m temperature, so its scores above are against ERA5</div>
   </div>
+  </div>
+<script>
+window.STAGE = { groups: [{"label": "Scores", "items": [["diff", "Difference from the single", "95 % intervals, paired bootstrap"], ["scores", "Scores by lead", "RMSE, ACC, bias, activity"], ["spectra", "Power spectra by lead", "the blurring and the matching"]]}, {"label": "Loops", "items": [["loop", "Side-by-side forecast loop", "MSLP, thickness, 6-h precipitation"], ["z500", "500 hPa height anomaly", "Northern Hemisphere loop"], ["t2m", "2 m temperature anomaly", "North America loop"]]}],
+  products: {
+    diff: { label: "Difference from the single", dom: function () { return "diff"; } },
+    scores: { label: "Scores by lead", dom: function () { return "scores"; } },
+    spectra: { label: "Power spectra by lead", dom: function () { return "spectra"; } },
+    loop: { label: "Side-by-side forecast loop", dom: function () { return "loop"; } },
+    z500: { label: "500 hPa height anomaly", dom: function () { return "z500"; } },
+    t2m: { label: "2 m temperature anomaly", dom: function () { return "t2m"; } }
+  } };
+</script>
   <div class="colophon">
     <h3>Method</h3>
     <p><b>Why the matching.</b> The AIFS single minimises squared error, so as its forecast loses predictability it
@@ -604,5 +637,6 @@ addEventListener("message", function (e) {
   </div>
 </footer>
 <!-- sf:end -->
+<script src="/assets/stage.js" defer></script>
 </body>
 </html>

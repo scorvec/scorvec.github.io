@@ -18,6 +18,9 @@
     --accent-light: #e8eef5; --rule: #e4e2dc;
     --serif: 'Lora', Georgia, serif; --sans: 'Inter', sans-serif;
   }
+  /* the stage viewer's variables on this page's palette (assets/stage.css reads them) */
+  :root { --surface: #ffffff; --edge: #d9d5cc; --ink2: #444; --rule: #e6e3dc; --accent-light: rgba(44, 74, 114, 0.08); }
+  .ss-layout { margin-top: 1.2rem; }
   @media (min-width: 768px) { html { font-size: 110%; } }
   body { background: var(--bg); color: var(--ink); font-family: var(--sans);
          -webkit-font-smoothing: antialiased; display: flex; flex-direction: column;
@@ -78,6 +81,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400&family=Schibsted+Grotesk:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/assets/site.css">
+<link rel="stylesheet" href="/assets/stage.css">
 <script src="/assets/site.js" defer></script>
 <script src="/assets/rail.js" defer></script>
 </head>
@@ -206,15 +210,24 @@
   <h1>Entraining CAPE over CONUS</h1>
   <p class="lede">CAPE assumes an updraft that never mixes with its surroundings &mdash; a sealed parcel rising through the environment untouched. Real updrafts entrain, and they lose buoyancy doing it. <b>ECAPE</b> (Peters et al. 2023) is the version that accounts for the mixing, derived from the storm-relative wind and shear as well as the thermodynamic profile. These maps run it on <b>every column of the HRRR 3&nbsp;km native-level grid</b> &mdash; 1,905,141 soundings per cycle &mdash; across the full 48-hour forecast, using <a href="https://github.com/keltonhalbert/SHARPlib">SHARPlib</a>, the same code the <a href="skewt/">Skew-T explorer</a> runs in your browser. A point on these maps and a click in the sounding tool come from the same routine, not merely the same library.</p>
 
-  <div class="chart-card">
-    <div class="chart-card-header">
-      <h2>48-hour forecast loop</h2>
-      <p>The full extended run, hourly through F18 and 3-hourly to F48. Use the buttons to switch between the two ECAPE fields and the two ratio fields; scrub or play to watch the entrainment environment evolve through the diurnal cycle. Each frame is labelled with its lead and valid time. Only the 00/06/12/18&nbsp;UTC cycles run this far &mdash; the loop is always from the newest extended cycle that has started publishing, and fills in as later leads arrive.</p>
-    </div>
-    <div id="run-picker" class="run-picker" hidden><span class="run-label">Run</span></div>
-    <iframe id="ecape-anim" class="anim-embed" title="HRRR ECAPE 48-hour forecast animation" loading="lazy"></iframe>
-    <div class="chart-card-footer">NOAA HRRR wrfnat (AWS Open Data) &middot; lowest 42 of 50 hybrid levels &middot; SHARPlib &middot; 1,905,141 columns per frame</div>
+  <!-- One loop at a time on the shared stage viewer (assets/stage.js), 2026-09-27 (navigation phase 2). The spec is
+       built from assets/ecape/anim/index.json (the retained cycles, newest first), then stage.js is loaded.
+       Deep links #ecape_mu|ecape_ml|ratio_mu[/<cycle>]; the page had no anchors before. -->
+  <div class="ss-layout">
+    <aside class="ss-rail" id="rail" aria-label="Figures"></aside>
+    <section class="ss-main">
+      <div class="crumb"><div class="path" id="crumb"></div>
+        <div class="nav"><button type="button" id="prevBtn" title="previous (←)">&larr; prev</button><button type="button" id="nextBtn" title="next (→)">next &rarr;</button></div></div>
+      <div class="opts"><div class="controls" id="opts-a"></div><div class="controls" id="opts-b"></div><div class="controls" id="opts-c"></div></div>
+      <div class="stage" id="stage"></div>
+      <p class="cap" id="cap"></p>
+      <div id="about"></div>
+      <p class="hint"><span class="kbd">&larr;</span> <span class="kbd">&rarr;</span> step through the options &middot; <span class="kbd">&uarr;</span> <span class="kbd">&darr;</span> change figure &middot; click a still to enlarge</p>
+      <div class="chart-card-footer" style="padding:0 1.2rem 0.9rem">NOAA HRRR wrfnat (AWS Open Data) &middot; lowest 42 of 50 hybrid levels &middot; SHARPlib &middot; 1,905,141 columns per frame</div>
+    </section>
   </div>
+  <div class="lightbox" id="lightbox"><img alt=""></div>
+<template id="about-ecape"><p>The full extended run, hourly through F18 and 3-hourly to F48. Use the buttons to switch between the two ECAPE fields and the two ratio fields; scrub or play to watch the entrainment environment evolve through the diurnal cycle. Each frame is labelled with its lead and valid time. Only the 00/06/12/18&nbsp;UTC cycles run this far &mdash; the loop is always from the newest extended cycle that has started publishing, and fills in as later leads arrive.</p><p class="chart-sources">NOAA HRRR wrfnat (AWS Open Data) &middot; lowest 42 of 50 hybrid levels &middot; SHARPlib &middot; 1,905,141 columns per frame</p></template>
 
   <div class="colophon">
     <h3>What ECAPE is</h3>
@@ -250,71 +263,33 @@
   </div>
 </main>
 <script>
-  // Size the animation iframe to the embedded content's exact height (image +
-  // controls). WITHOUT this the iframe keeps the hardcoded aspect-ratio box,
-  // which on a phone is a few hundred pixels tall - and sst_anim.html sets
-  // body.embed{overflow:hidden}, so the controls were clipped straight out of
-  // view. On mobile that left the animator looking absent, buttons and all.
-  // enso-atmosphere.html and mjo.html have carried this listener for months;
-  // this page never got it.
-  addEventListener('message', function (e) {
-    var d = e.data; if (!d || d.type !== 'sstAnimHeight') return;
-    var fr = document.querySelectorAll('iframe.anim-embed');
-    for (var i = 0; i < fr.length; i++) {
-      if (fr[i].contentWindow === e.source) {
-        fr[i].style.height = d.h + 'px';
-        fr[i].style.aspectRatio = 'auto';
-        fr[i].style.maxHeight = 'none';
-        // d.w = the width the frame actually renders at when it is height-capped
-        // (portrait/square loops); pin the iframe to it so it hugs the picture and
-        // centres. 0 = the frame fills the width, no pin.
-        fr[i].style.maxWidth = d.w ? d.w + 'px' : '';
-      }
-    }
-  });
-  // A pinned width must be released when the window grows, or the loop could
-  // never re-expand; the animator re-measures and re-posts as soon as it widens.
-  addEventListener('resize', function () {
-    var fr = document.querySelectorAll('iframe.anim-embed');
-    for (var i = 0; i < fr.length; i++) fr[i].style.maxWidth = '';
-  });
-</script>
-<script>
-  // Run picker. The archive keeps a few days of cycles as
-  // assets/ecape/anim/<cycle>/<field>/, one manifest each, listed newest-first
-  // in index.json - so the buttons are built from data rather than baked into
-  // this page, and a cycle dropped by retention disappears on its own.
+  // The stage spec, from the cycle index: one product per field, the retained runs as its option row.
   (function () {
-    var host = document.getElementById('run-picker');
-    var frame = document.getElementById('ecape-anim');
-    if (!host || !frame) return;
-    function load(m) {
-      frame.src = 'sst_anim.html?embed=1&base=assets/ecape/anim&manifest=' + m;
+    var FIELDS = [["ecape_mu", "ECAPE, most-unstable parcel", "J kg\u207b\u00b9, 48 h"],
+                  ["ecape_ml", "ECAPE, mixed-layer parcel", "J kg\u207b\u00b9, 48 h"],
+                  ["ratio_mu", "ECAPE / CAPE ratio", "most-unstable, 48 h"]];
+    var CAPS = { ecape_mu: "Entraining CAPE for the most-unstable parcel on every HRRR 3 km column, hourly to F18 and 3-hourly to F48.",
+                 ecape_ml: "Entraining CAPE for the mixed-layer parcel on every HRRR 3 km column, hourly to F18 and 3-hourly to F48.",
+                 ratio_mu: "ECAPE as a fraction of CAPE for the most-unstable parcel; above 1 where storm-relative inflow outweighs the mixing. Masked below 100 J kg\u207b\u00b9 of CAPE." };
+    function start(cycles) {
+      var runs = { label: "Run", items: cycles.map(function (c) {
+        var t = c.init.split(" "), dt = new Date(t[0] + "T00:00:00Z");
+        return [c.cycle, dt.getUTCDate() + " " + ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][dt.getUTCMonth()] + " " + t[1]];
+      }) };
+      var man = {}; cycles.forEach(function (c) { man[c.cycle] = c.manifest; });
+      var products = {};
+      FIELDS.forEach(function (f) {
+        products[f[0]] = { label: f[1], a: runs, about: "about-ecape",
+          frame: function (a) { var r = a + "/" + f[0]; return "sst_anim.html?embed=1&base=assets/ecape/anim&manifest=" + man[a] + "&region=" + r + "&regions=" + r; },
+          ratio: function () { return "1200/820"; },
+          cap: function () { return CAPS[f[0]]; } };
+      });
+      window.STAGE = { groups: [{ label: "48-hour forecast loop", items: FIELDS }], products: products };
+      var sc = document.createElement("script"); sc.src = "/assets/stage.js"; document.body.appendChild(sc);
     }
-    fetch('assets/ecape/anim/index.json?v=' + Date.now())
-      .then(function (r) { return r.ok ? r.json() : null; })
-      .then(function (d) {
-        if (!d || !d.cycles || !d.cycles.length) { load('ecape_manifest.json'); return; }
-        d.cycles.forEach(function (c, i) {
-          var b = document.createElement('button');
-          // "30 Aug 12Z" reads faster than a 10-digit cycle string.
-          var t = c.init.split(' ');
-          var dt = new Date(t[0] + 'T00:00:00Z');
-          b.textContent = dt.getUTCDate() + ' ' +
-            ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][dt.getUTCMonth()] +
-            ' ' + t[1];
-          if (i === 0) b.className = 'on';
-          b.onclick = function () {
-            host.querySelectorAll('button').forEach(function (x) { x.classList.remove('on'); });
-            b.classList.add('on');
-            load(c.manifest);
-          };
-          host.appendChild(b);
-        });
-        host.hidden = false;
-        load(d.cycles[0].manifest);
-      })
-      .catch(function () { load('ecape_manifest.json'); });
+    fetch("assets/ecape/anim/index.json?v=" + Date.now()).then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (d) { start(d && d.cycles && d.cycles.length ? d.cycles : []); })
+      .catch(function () { start([]); });
   })();
 </script>
 <!-- sf:start -->

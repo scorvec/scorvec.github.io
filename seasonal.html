@@ -16,6 +16,7 @@
 <meta name="twitter:description" content="Eight C3S seasonal systems from seven centres: anomaly maps and tercile probabilities for every model and their multi-model mean, with the member-level ECMWF SEAS5 outlook alongside.">
 <link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;1,400&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/assets/outlook.css">
+<link rel="stylesheet" href="/assets/stage.css">
 <style>
   .idx-note { font-size: 0.8rem; color: var(--ink2); margin: 0.2rem 0 0.6rem; min-height: 1.2em; }
   .map-grid { display: grid; gap: 1rem; }
@@ -179,7 +180,7 @@
 <!-- sh:end -->
 <script src="https://cdn.jsdelivr.net/npm/plotly.js-cartesian-dist-min@2.35.2/plotly-cartesian.min.js"></script>
 <script src="/assets/outlook-charts.js"></script>
-<main data-rail=".card">
+<main>
   <header>
     <div class="eyebrow">Monthly, from the Copernicus C3S multi-system seasonal ensemble, <span id="issueLabel">latest issue</span></div>
     <h1>C3S seasonal models</h1>
@@ -192,9 +193,24 @@
       <div class="chip"><div class="l">Loading forecast feed&hellip;</div><div class="v neut">&mdash;</div></div>
     </div>
   </header>
-
-
-  <!-- ── EVERY MODEL: ANOMALY MAPS ────────────────────────────────────────── -->
+  <!-- One card at a time on the shared stage viewer (assets/stage.js), 2026-09-27 (navigation phase 2); it replaces
+       rail.js. Every card keeps its own controls and its id, so the old deep links (#c3sMapCard, #changeCard,
+       #ni-o-3-4-every-member ...) are the product ids unchanged. Cards whose data is missing hide themselves
+       (gated products) and drop out of the rail. -->
+  <div class="ss-layout">
+    <aside class="ss-rail" id="rail" aria-label="Figures"></aside>
+    <section class="ss-main">
+      <div class="crumb"><div class="path" id="crumb"></div>
+        <div class="nav"><button type="button" id="prevBtn" title="previous (←)">&larr; prev</button><button type="button" id="nextBtn" title="next (→)">next &rarr;</button></div></div>
+      <div class="opts"><div class="controls" id="opts-a"></div><div class="controls" id="opts-b"></div><div class="controls" id="opts-c"></div></div>
+      <div class="stage" id="stage"></div>
+      <p class="cap" id="cap"></p>
+      <div id="about"></div>
+      <p class="hint"><span class="kbd">&uarr;</span> <span class="kbd">&darr;</span> change figure &middot; each figure keeps its own controls</p>
+    </section>
+  </div>
+  <div class="lightbox" id="lightbox"><img alt=""></div>
+  <div class="dom-holder">
   <div class="card" id="c3sMapCard" data-label="Anomaly maps" data-group="Every model">
     <h2>Anomaly maps &mdash; one system at a time, or their mean</h2>
     <p class="note">Each system&rsquo;s <b>ensemble-mean anomaly</b>, taken by C3S against that system&rsquo;s own
@@ -212,8 +228,6 @@
       <span class="chart-updated" id="c3sMapUpdated">&mdash;</span>
     </div>
   </div>
-
-  <!-- ── EVERY MODEL: TERCILES ────────────────────────────────────────────── -->
   <div class="card" id="c3sTercCard" data-label="Tercile probabilities" data-group="Every model">
     <h2>Tercile probabilities &mdash; how firmly, not just which way</h2>
     <p class="note">Each system&rsquo;s live members counted against <b>its own 1993&ndash;2016 hindcast distribution at
@@ -232,8 +246,6 @@
       <span class="chart-updated" id="c3sTercUpdated">&mdash;</span>
     </div>
   </div>
-
-  <!-- ── EVERY MODEL: OCEAN INDICES ───────────────────────────────────────── -->
   <div class="card" id="c3sIdxCard" data-label="Ocean indices" data-group="Every model">
     <h2>Ocean indices &mdash; every system on one axis</h2>
     <p class="note">The same boxes and the same PDO projection the SEAS5 card below uses, applied to each
@@ -249,8 +261,6 @@
       <span class="chart-updated" id="c3sIdxUpdated">&mdash;</span>
     </div>
   </div>
-
-  <!-- ── EVERY MODEL: POPULATION-WEIGHTED MONTHLY TEMPERATURE ─────────────── -->
   <div class="card" id="c3sPopCard" data-label="Population-weighted, monthly" data-group="Every model">
     <h2>Population-weighted temperature &mdash; monthly means, every system</h2>
     <p class="note">How warm the month is <b>for the people who feel it</b>: every member weighted by population on the
@@ -274,8 +284,6 @@
       <span class="chart-updated" id="c3sPopUpdated">&mdash;</span>
     </div>
   </div>
-
-  <!-- ── EVERY MODEL: DAILY POPULATION-WEIGHTED DISTRIBUTION ──────────────── -->
   <div class="card" id="c3sDayCard" data-label="Population-weighted, daily" data-group="Every model">
     <h2>Population-weighted temperature &mdash; the daily distribution, every system</h2>
     <p class="note">Every member, <b>every day</b>, population-weighted into one national number and pooled by month:
@@ -300,9 +308,7 @@
       <span class="chart-updated" id="c3sDayUpdated">&mdash;</span>
     </div>
   </div>
-
-  <!-- ── EVERY MODEL: NIÑO-3.4 PLUME ──────────────────────────────────────── -->
-  <div class="card" data-label="Ni&ntilde;o-3.4, every member" data-group="Every model">
+  <div class="card" id="ni-o-3-4-every-member" data-label="Ni&ntilde;o-3.4, every member" data-group="Every model">
     <h2>Ni&ntilde;o-3.4 &mdash; every member of every system</h2>
     <p class="note">The same feed the <a href="enso-forecasts.html">ENSO forecasts page</a> draws, kept here so the maps
     and the index sit together: the Ni&ntilde;o-3.4 box is small enough that the full ensemble is cheap to hold, which is
@@ -315,9 +321,7 @@
       <span class="chart-updated" id="c3sPlumeUpdated">&mdash;</span>
     </div>
   </div>
-
-  <!-- ── ENSO INDICES ─────────────────────────────────────────────────────── -->
-  <div class="card" data-label="ENSO indices" data-group="SEAS5 &middot; ENSO &amp; oceans">
+  <div class="card" id="enso-indices" data-label="ENSO indices" data-group="SEAS5 &middot; ENSO &amp; oceans">
     <h2>ENSO indices &mdash; this issue against the last three</h2>
     <p class="note">The shaded fan is <b>this issue</b> (P10&ndash;P90 and P25&ndash;P75 of the 51 members) with its
     mean in sienna; the coloured lines are the ensemble means of the <b>previous issues</b>, oldest
@@ -340,9 +344,7 @@
       <span class="chart-updated" id="ensoUpdated">&mdash;</span>
     </div>
   </div>
-
-  <!-- ── OTHER INDICES ────────────────────────────────────────────────────── -->
-  <div class="card" data-label="PDO, AMO, IOD, Atlantic Niño" data-group="SEAS5 &middot; ENSO &amp; oceans">
+  <div class="card" id="pdo-amo-iod-atlantic-ni-o" data-label="PDO, AMO, IOD, Atlantic Niño" data-group="SEAS5 &middot; ENSO &amp; oceans">
     <h2>PDO, AMO, Indian Ocean Dipole, Atlantic Ni&ntilde;o</h2>
     <p class="note">Same fields, same treatment. The <b>PDO</b> is the projection of each member&rsquo;s
     North Pacific anomaly onto the ERSST EOF pattern the daily monitor uses, with the global
@@ -359,8 +361,6 @@
       <span class="chart-updated" id="otherUpdated">&mdash;</span>
     </div>
   </div>
-
-  <!-- ── CHANGE SINCE THE PREVIOUS ISSUE ──────────────────────────────────── -->
   <div class="card" id="changeCard" data-label="Maps and changes" data-group="SEAS5 &middot; Maps">
     <h2>Maps: anomaly, and what changed since the <span class="prevName">previous</span> issue</h2>
     <p class="note">One map at a time, most of the world on a plate carr&eacute;e grid. <b>Anomaly</b> is this
@@ -396,9 +396,7 @@
       <span class="chart-updated" id="changeUpdated">&mdash;</span>
     </div>
   </div>
-
-  <!-- ── TERCILES ─────────────────────────────────────────────────────────── -->
-  <div class="card" data-label="Calibrated terciles" data-group="SEAS5 &middot; Maps">
+  <div class="card" id="calibrated-terciles" data-label="Calibrated terciles" data-group="SEAS5 &middot; Maps">
     <h2>Calibrated terciles</h2>
     <p class="note">For each grid point, season and lead, the tercile boundaries come from SEAS5&rsquo;s
     <b>own hindcast</b> &mdash; 24 years &times; 25 members, 600 seasonal means &mdash; and the 51
@@ -423,8 +421,6 @@
       <span class="chart-updated" id="mapUpdated">&mdash;</span>
     </div>
   </div>
-
-  <!-- ── TELECONNECTIONS ──────────────────────────────────────────────────── -->
   <div class="card" id="teleCard" data-label="Teleconnection indices" data-group="SEAS5 &middot; Teleconnections &amp; stratosphere">
     <h2>Teleconnection indices, member by member</h2>
     <p class="note">The CPC patterns &mdash; NAO, PNA, AO, the East Atlantic, West Pacific and the rest &mdash;
@@ -448,8 +444,6 @@
       <span class="chart-updated" id="teleUpdated">&mdash;</span>
     </div>
   </div>
-
-  <!-- ── STRATOSPHERE INDICES ─────────────────────────────────────────────── -->
   <div class="card" id="stratCard" data-label="Vortex, QBO, annular mode" data-group="SEAS5 &middot; Teleconnections &amp; stratosphere">
     <h2>Vortex, QBO and annular mode</h2>
     <p class="note">The zonal-mean 10&nbsp;hPa wind at 60&deg;N is the standard vortex-strength measure
@@ -470,8 +464,6 @@
       <span class="chart-updated" id="stratUpdated">&mdash;</span>
     </div>
   </div>
-
-  <!-- ── POPULATION-WEIGHTED TEMPERATURE ──────────────────────────────────── -->
   <div class="card" id="popCard" data-label="Population-weighted, daily" data-group="SEAS5 &middot; Impacts">
     <h2>Population-weighted temperature: the forecast for each month, against normal and record</h2>
     <p class="note">For the United States and Brazil, each member&rsquo;s 6-hourly 2 m temperature is weighted by where
@@ -491,7 +483,6 @@
       <span class="chart-updated" id="popUpdated">&mdash;</span>
     </div>
   </div>
-
   <div class="card" id="xdaysCard" hidden data-label="Threshold days" data-group="SEAS5 &middot; Impacts">
     <h2>Threshold days: cold and hot days over the United States and Brazil</h2>
     <p class="note">From every member&rsquo;s daily extremes (6-hourly SEAS5 output, the &ldquo;in the last 24 hours&rdquo;
@@ -514,7 +505,6 @@
       <span class="chart-updated" id="xdUpdated">&mdash;</span>
     </div>
   </div>
-
   <div class="card" id="runsCard" hidden data-label="Cold-snap risk" data-group="SEAS5 &middot; Impacts">
     <h2>Cold-snap risk: runs of extreme days across the whole winter</h2>
     <p class="note">The convex risk in one number: for every member and 1&deg; cell, the daily-mean temperature (the mean of
@@ -535,7 +525,6 @@
       <span class="chart-updated" id="rnUpdated">&mdash;</span>
     </div>
   </div>
-
   <div class="card" id="windCard" hidden data-label="Wind events" data-group="SEAS5 &middot; Impacts">
     <h2>Wind events: southerly surges and windy days over the United States</h2>
     <p class="note">From every member&rsquo;s 6-hourly 10 m wind on 1&deg; cells: days whose <b>daily-mean southerly component</b> reaches
@@ -553,7 +542,6 @@
       <span class="chart-updated" id="wdUpdated">&mdash;</span>
     </div>
   </div>
-
   <div class="card" id="snowCard" hidden data-label="Snowfall" data-group="SEAS5 &middot; Impacts">
     <h2>Snowfall: big days and monthly totals over North America</h2>
     <p class="note">Every member&rsquo;s daily snowfall from SEAS5&rsquo;s accumulated snowfall field (daily steps, 51 members,
@@ -571,7 +559,6 @@
       <span class="chart-updated" id="snUpdated">&mdash;</span>
     </div>
   </div>
-
   <div class="card" id="pmeCard" data-label="P &minus; E by region" data-group="SEAS5 &middot; Impacts">
     <h2>Precipitation minus evaporation by region: Brazil</h2>
     <p class="note">The drought-relevant water balance, month by month. For each region, every member&rsquo;s monthly
@@ -588,8 +575,6 @@
       <span class="chart-updated" id="pmeUpdated">&mdash;</span>
     </div>
   </div>
-
-  <!-- ── NORMALS: ANOMALY AND TERCILE MAPS VS OBSERVED REFERENCES ─────────── -->
   <div class="card" id="normCard" data-label="Against observed normals" data-group="SEAS5 &middot; Maps">
     <h2>Anomalies and terciles against observed normals, monthly and seasonal</h2>
     <p class="note">The default terciles above are relative to the model&rsquo;s own 1993&ndash;2016 hindcast,
@@ -611,9 +596,7 @@
       <span class="chart-updated" id="normUpdated">&mdash;</span>
     </div>
   </div>
-
-  <!-- ── STRATOSPHERE ─────────────────────────────────────────────────────── -->
-  <div class="card" data-label="Polar stratosphere" data-group="SEAS5 &middot; Teleconnections &amp; stratosphere">
+  <div class="card" id="polar-stratosphere" data-label="Polar stratosphere" data-group="SEAS5 &middot; Teleconnections &amp; stratosphere">
     <h2>Polar stratosphere &mdash; cap-mean heights</h2>
     <p class="note">The 60&ndash;90&deg; polar-cap mean geopotential height at 100, 50 and 10&nbsp;hPa, as an
     anomaly against the hindcast&rsquo;s <b>linear trend</b> at each lead, extrapolated to the forecast
@@ -629,6 +612,21 @@
       <span class="chart-sources">ECMWF SEAS5 geopotential, 2&deg; grid, cosine-weighted 60&ndash;90&deg; cap mean &middot; anomalies vs the 1993&ndash;2016 hindcast&rsquo;s linear trend at the valid year</span>
       <span class="chart-updated" id="polarUpdated">&mdash;</span>
     </div>
+  </div>
+  <div class="card" id="aboutCard" data-label="About this page" data-group="About">
+    <h2>What this page reads, and how</h2>
+    <p class="note" style="max-width:80ch;font-size:0.9rem;line-height:1.65">ECMWF&rsquo;s seasonal system, read in full and checked against observations: the ENSO
+    indices from the coastal Ni&ntilde;o-1+2 to the central-Pacific Ni&ntilde;o-4, each against the
+    previous three issues; the Pacific, Atlantic and Indian Ocean indices from the same fields;
+    what changed since last month; the CPC teleconnection patterns and the stratosphere, each
+    with the model&rsquo;s own hindcast skill; anomaly and tercile maps against the hindcast and
+    against observed normals; and the forecast for population-weighted temperature in the United
+    States and Brazil set against normals and records. Model drift is removed everywhere by
+    anomalising each member against SEAS5&rsquo;s own 1993&ndash;2016 hindcast for the same start
+    month and lead. The other seven systems are on this page too, in the maps and tercile cards above; what stays
+    ECMWF-only here is the member-level work, because SEAS5 is the ensemble held locally.</p>
+    <div class="chart-card-footer"><span class="chart-sources">ECMWF SEAS5 via the Copernicus Climate Data Store</span><span class="chart-updated">built by scripts/sst/seas5_outlook.py</span></div>
+  </div>
   </div>
 
   <div class="colophon">
@@ -646,22 +644,34 @@
     <p>Method: indices are cosine-weighted box means; anomalies are member minus hindcast mean at the same lead (member minus the hindcast&rsquo;s linear trend for geopotential heights, which carry the warming signal). Relative Ni&ntilde;o-3.4 follows the CPC/ECMWF construction used elsewhere on this site; the Trans-Ni&ntilde;o index is Trenberth &amp; Stepaniak (2001), standardised by the hindcast spread. Terciles against the hindcast use the 33.3rd and 66.7th percentiles of the 600 hindcast samples per grid point; against observed references the members are first bias-corrected (member &minus; hindcast mean + ERA5 1993&ndash;2016 mean, multiplicatively for rain and sunshine) and the bounds are &plusmn;0.43&sigma; of the observed 1991&ndash;2020 spread around the reference (detrended for the trend reference; empirical percentiles for rain and sunshine). Standardised anomalies divide the ensemble-mean anomaly by the reference&rsquo;s year-to-year standard deviation. Skill is the correlation of the 24 hindcast years&rsquo; ensemble mean with ERA5 at the valid month. Teleconnection phase probabilities are calibrated by regressing the observed monthly index (ERA5, same projection) on the hindcast ensemble mean over those 24 years for each calendar month and lead, and reading the ±0.5&sigma; tail areas of a Gaussian centred on the regression prediction with the residual spread &mdash; an in-sample fit at n&nbsp;=&nbsp;24, so the quoted r is slightly optimistic; below r&nbsp;=&nbsp;0.25 the probabilities are treated as climatology. The AO, EPO, WPO and SOI, which have no built-in standardisation, are expressed in ERA5&rsquo;s 1991&ndash;2020 standard deviation for the calendar month, applied identically to model and observations. Built by <code>scripts/sst/seas5_outlook.py</code> and its companions; the JSON behind the charts: <a href="assets/sst/data/seas5_outlook.json">seas5_outlook.json</a>, <a href="assets/sst/data/seas5_tele.json">seas5_tele.json</a>, <a href="assets/sst/data/seas5_popT.json">seas5_popT.json</a>, <a href="assets/sst/data/seas5_pme_regions.json">seas5_pme_regions.json</a>, <a href="assets/sst/data/seas5_normals.json">seas5_normals.json</a>.</p>
     <p>Contains modified Copernicus Climate Change Service information 2026. Neither the European Commission nor ECMWF is responsible for any use of this information.</p>
   </div>
-
-  <div class="card" id="aboutCard" data-label="About this page" data-group="About">
-    <h2>What this page reads, and how</h2>
-    <p class="note" style="max-width:80ch;font-size:0.9rem;line-height:1.65">ECMWF&rsquo;s seasonal system, read in full and checked against observations: the ENSO
-    indices from the coastal Ni&ntilde;o-1+2 to the central-Pacific Ni&ntilde;o-4, each against the
-    previous three issues; the Pacific, Atlantic and Indian Ocean indices from the same fields;
-    what changed since last month; the CPC teleconnection patterns and the stratosphere, each
-    with the model&rsquo;s own hindcast skill; anomaly and tercile maps against the hindcast and
-    against observed normals; and the forecast for population-weighted temperature in the United
-    States and Brazil set against normals and records. Model drift is removed everywhere by
-    anomalising each member against SEAS5&rsquo;s own 1993&ndash;2016 hindcast for the same start
-    month and lead. The other seven systems are on this page too, in the maps and tercile cards above; what stays
-    ECMWF-only here is the member-level work, because SEAS5 is the ensemble held locally.</p>
-    <div class="chart-card-footer"><span class="chart-sources">ECMWF SEAS5 via the Copernicus Climate Data Store</span><span class="chart-updated">built by scripts/sst/seas5_outlook.py</span></div>
-  </div>
-
+<script>
+window.STAGE = {
+  groups: [{"label": "Every model", "items": [["c3sMapCard", "Anomaly maps", ""], ["c3sTercCard", "Tercile probabilities", ""], ["c3sIdxCard", "Ocean indices", ""], ["c3sPopCard", "Population-weighted, monthly", ""], ["c3sDayCard", "Population-weighted, daily", ""], ["ni-o-3-4-every-member", "Niño-3.4, every member", ""]]}, {"label": "SEAS5 · ENSO & oceans", "items": [["enso-indices", "ENSO indices", ""], ["pdo-amo-iod-atlantic-ni-o", "PDO, AMO, IOD, Atlantic Niño", ""]]}, {"label": "SEAS5 · Maps", "items": [["changeCard", "Maps and changes", ""], ["calibrated-terciles", "Calibrated terciles", ""], ["normCard", "Against observed normals", ""]]}, {"label": "SEAS5 · Teleconnections & stratosphere", "items": [["teleCard", "Teleconnection indices", ""], ["stratCard", "Vortex, QBO, annular mode", ""], ["polar-stratosphere", "Polar stratosphere", ""]]}, {"label": "SEAS5 · Impacts", "items": [["popCard", "Population-weighted, daily", ""], ["xdaysCard", "Threshold days", ""], ["runsCard", "Cold-snap risk", ""], ["windCard", "Wind events", ""], ["snowCard", "Snowfall", ""], ["pmeCard", "P − E by region", ""]]}, {"label": "About", "items": [["aboutCard", "About this page", ""]]}],
+  products: {
+    "c3sMapCard": { label: "Anomaly maps", gated: true, dom: function () { return "c3sMapCard"; } },
+    "c3sTercCard": { label: "Tercile probabilities", gated: true, dom: function () { return "c3sTercCard"; } },
+    "c3sIdxCard": { label: "Ocean indices", gated: true, dom: function () { return "c3sIdxCard"; } },
+    "c3sPopCard": { label: "Population-weighted, monthly", gated: true, dom: function () { return "c3sPopCard"; } },
+    "c3sDayCard": { label: "Population-weighted, daily", gated: true, dom: function () { return "c3sDayCard"; } },
+    "ni-o-3-4-every-member": { label: "Niño-3.4, every member", gated: true, dom: function () { return "ni-o-3-4-every-member"; } },
+    "enso-indices": { label: "ENSO indices", gated: true, dom: function () { return "enso-indices"; } },
+    "pdo-amo-iod-atlantic-ni-o": { label: "PDO, AMO, IOD, Atlantic Niño", gated: true, dom: function () { return "pdo-amo-iod-atlantic-ni-o"; } },
+    "changeCard": { label: "Maps and changes", gated: true, dom: function () { return "changeCard"; } },
+    "calibrated-terciles": { label: "Calibrated terciles", gated: true, dom: function () { return "calibrated-terciles"; } },
+    "teleCard": { label: "Teleconnection indices", gated: true, dom: function () { return "teleCard"; } },
+    "stratCard": { label: "Vortex, QBO, annular mode", gated: true, dom: function () { return "stratCard"; } },
+    "popCard": { label: "Population-weighted, daily", gated: true, dom: function () { return "popCard"; } },
+    "xdaysCard": { label: "Threshold days", gated: true, dom: function () { return "xdaysCard"; } },
+    "runsCard": { label: "Cold-snap risk", gated: true, dom: function () { return "runsCard"; } },
+    "windCard": { label: "Wind events", gated: true, dom: function () { return "windCard"; } },
+    "snowCard": { label: "Snowfall", gated: true, dom: function () { return "snowCard"; } },
+    "pmeCard": { label: "P − E by region", gated: true, dom: function () { return "pmeCard"; } },
+    "normCard": { label: "Against observed normals", gated: true, dom: function () { return "normCard"; } },
+    "polar-stratosphere": { label: "Polar stratosphere", gated: true, dom: function () { return "polar-stratosphere"; } },
+    "aboutCard": { label: "About this page", gated: true, dom: function () { return "aboutCard"; } }
+  }
+};
+</script>
 </main>
 
 <script>
@@ -1645,5 +1655,6 @@
   </div>
 </footer>
 <!-- sf:end -->
+<script src="/assets/stage.js" defer></script>
 </body>
 </html>

@@ -85,11 +85,11 @@ PAGES = {
     "/snowbands.html": dict(kind="stage", file="snowbands.html", topic="weather", title="Snow-band diagnostics",
                             tier=0 if snow_season() else 2, prio=5 if snow_season() else 40,
                             models=["HRRR", "RRFS", "RDPS"], horizon="Days 1–15", region=["North America"]),
-    "/subseasonal.html": dict(kind="geps", file="subseasonal.html", topic="outlooks", title="GEPS weeks 1–5", tier=0, prio=3,
+    "/subseasonal.html": dict(kind="stage", file="subseasonal.html", topic="outlooks", title="GEPS weeks 1–5", tier=0, prio=3,
                               models=["GEPS"], horizon="Weeks 1–5", region=["North America"], own_models=True),
-    "/gefs.html": dict(kind="geps", file="gefs.html", topic="outlooks", title="GEFS weeks 1–5", tier=0, prio=3,
+    "/gefs.html": dict(kind="stage", file="gefs.html", topic="outlooks", title="GEFS weeks 1–5", tier=0, prio=3,
                        models=["GEFS"], horizon="Weeks 1–5", region=["North America"], own_models=True),
-    "/seasonal.html": dict(kind="rail", file="seasonal.html", topic="outlooks", title="Eight C3S seasonal models", tier=2, prio=30,
+    "/seasonal.html": dict(kind="stage", file="seasonal.html", topic="outlooks", title="Eight C3S seasonal models", tier=2, prio=30,
                            models=["C3S", "SEAS5"], horizon="Seasons", region=["Global"]),
     "/sfs.html": dict(kind="stage", file="sfs.html", topic="outlooks", title="NOAA SFS seasonal", tier=2, prio=31,
                       models=["SFS"], horizon="Seasons", region=["Global"]),
@@ -98,16 +98,16 @@ PAGES = {
                       thumb_manifest=("assets/mjo", "rmm_manifest.json", "mjo", "last"), variable=["Convection"]),
     "/ar.html": dict(kind="stage", file="ar.html", topic="weather", title="Atmospheric rivers", tier=0, prio=6,
                      models=["AIFS-ENS"], horizon="Days 1–15", region=["North America", "Pacific"]),
-    "/ecape.html": dict(kind="page", topic="weather", tier=0, prio=7, models=["HRRR"], horizon="Days 1–15", region=["North America"],
-                        thumb_ecape=True, variable=["Instability"]),
+    "/ecape.html": dict(kind="stage", file="ecape.html", topic="weather", title="Entraining CAPE", tier=0, prio=7,
+                        models=["HRRR"], horizon="Days 1–15", region=["North America"], no_variants=True),
     # "/cities/" paused 2026-09-27 (city forecasts turned off); restore from git history
     "/qbo/": dict(kind="stage", file="qbo/index.html", topic="drivers", title="QBO tracker", tier=0, prio=9,
                   models=["Radiosondes"], horizon="Observed", region=["Tropics"]),
     "/enso-forecasts.html": dict(kind="page", topic="outlooks", tier=2, prio=29, models=["Multi-model"], horizon="Seasons",
                                  region=["Tropical Pacific"], variable=["SST"]),
     # "/cities/verify.html" paused 2026-09-27
-    "/aifs-verify.html": dict(kind="page", topic="research", tier=1, prio=23, models=["AIFS", "AIFS-ENS", "ERA5"], horizon="Days 1–15",
-                              region=["Northern Hemisphere"], thumb="assets/verify/tt_compare_d05.webp", variable=["Height", "Temperature"]),
+    "/aifs-verify.html": dict(kind="stage", file="aifs-verify.html", topic="research", title="AIFS single versus member 0", tier=1,
+                              prio=23, models=["AIFS", "AIFS-ENS", "ERA5"], horizon="Days 1–15", region=["Northern Hemisphere"]),
     "/topics/": dict(kind="page", topic="research", tier=1, prio=26, models=[], horizon=None, region=[]),
     "/research.html": dict(kind="page", topic="research", tier=1, prio=27, models=[], horizon=None, region=[]),
     "/catalog.html": dict(kind="page", topic="tools", tier=1, prio=28, models=[], horizon=None, region=[]),
@@ -294,7 +294,7 @@ def stage_items(href: str, cfg: dict) -> list:
         gcfg = cfg.get("groups", {}).get(g["label"], {})
         for pid, _lbl, *_ in g["items"]:
             p = spec["products"].get(pid)
-            if not p:
+            if not p or text_of(p.get("label") or "") == "About this page":
                 continue
             about = tpl.get(p.get("about") or "", "")
             figs = p.get("figBy", {})
@@ -315,6 +315,8 @@ def stage_items(href: str, cfg: dict) -> list:
                             k = fig_key(figs.get(f"{js(av)}|{js(bv)}|{js(cv)}"), path.parent)
                             variants.append([" · ".join(text_of(str(x)) for x in labs),
                                              "#" + "/".join([pid] + [str(x) for x in parts]), k])
+            if cfg.get("no_variants"):                   # options that only rotate (dated runs): not worth indexing
+                variants = []
             if len(variants) > 80:                       # huge option grids: keep the first axis and the defaults
                 seen, keep = set(), []
                 for v in variants:
@@ -326,9 +328,25 @@ def stage_items(href: str, cfg: dict) -> list:
             thumb = fig_key(figs.get("|".join(d)), path.parent)
             if thumb is None and p["kind"] == "img" and p.get("img"):
                 thumb = thumb_key(p["img"], False) or ""
+            # a mounted block (a whole card with its own controls): its text describes it, and its first still, if it
+            # has one, is its figure
+            elem = ""
+            if p["kind"] == "dom" and p.get("domId"):
+                m0 = re.search(rf'id="{re.escape(p["domId"])}"', html)
+                if m0:
+                    nxt = re.search(r'<div class="card[ "]', html[m0.end():])   # the next card, not a card-head
+                    chunk = html[m0.start(): m0.end() + (nxt.start() if nxt else 20000)]
+                    elem = text_of(chunk)
+                    img = re.search(r'<img[^>]+(?:data-src|src)="([^"]+\.(?:webp|png|jpg))[^"]*"', chunk)
+                    if thumb is None and img and not img.group(1).startswith("data:"):
+                        thumb = thumb_key(img.group(1), False)
+                    fr = re.search(r'<iframe[^>]+(?:data-src|src)="(sst_anim\.html\?[^"]+)"', chunk)
+                    if thumb is None and fr:
+                        src = frame_source(H.unescape(fr.group(1)), path.parent)
+                        thumb = thumb_key(*src) if src else None
             opts_text = " ".join(v[0] for v in variants)
             shows = " ".join([p["label"], g["label"], p.get("sub", ""), p.get("cap", ""), opts_text])
-            blob = shows + " " + about[:1500]
+            blob = shows + " " + (about or elem)[:1500]
             items.append(dict(
                 id=f"{href}#{pid}", page=href, page_title=cfg["title"], group=text_of(g["label"]),
                 label=text_of(p["label"]), sub=text_of(p.get("sub", "")), url=f"{href}#{pid}",
@@ -336,7 +354,7 @@ def stage_items(href: str, cfg: dict) -> list:
                 models=tags(MODEL_RX, shows, gcfg.get("models", cfg["models"]), cfg.get("own_models", False)),
                 regions=regions_of(shows, gcfg.get("region", cfg["region"])),
                 variables=tags(VAR_RX, blob), thumb=thumb, cap=text_of(p.get("cap", ""))[:240],
-                kw=public(about)[:600], variants=variants, live=True,
+                kw=public(about or elem)[:600], variants=variants, live=True,
                 tier=gcfg.get("tier", cfg["tier"]), prio=gcfg.get("prio", cfg["prio"]),
                 kind="chart" if p["kind"] == "dom" else "fig"))
     return items
@@ -580,6 +598,9 @@ def build(index_path: str | None = None) -> dict:
                 raise SystemExit(f"private name in a variant: {it['id']} {v[0]!r}")
     # only figures something still points at
     used = {it["thumb"] for it in uniq} | {v[2] for it in uniq for v in it["variants"]}
+    for it in uniq:                                  # a mounted card that shows a figure is a figure
+        if it["kind"] == "chart" and it["thumb"]:
+            it["kind"] = "fig"
     for it in uniq:                                  # a product whose default figure is not out yet: kind says so
         if it["thumb"] == "" and it["kind"] == "fig":
             it["kind"] = "pending"

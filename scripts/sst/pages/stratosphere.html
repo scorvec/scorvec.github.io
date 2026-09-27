@@ -173,7 +173,7 @@ $$\frac{\partial\bar u}{\partial t} \;=\; \hat f\,\bar v^{*} \;-\; \bar w^{*}\fr
         publishes only the total); and the <b>analysis increment</b>, the push the data assimilation gives the model to
         keep it on the observations. The residual is what is left over: numerical damping and the sampling error of the
         eddy fluxes. A negative term pushes westward and slows a westerly vortex.</p>
-<p><b>The figure.</b> Every term averaged over 55&ndash;65&deg; at 10&nbsp;hPa (1 and 50&nbsp;hPa as options), as
+<p><b>The vortex view.</b> Every term averaged over 55&ndash;65&deg; at 10&nbsp;hPa (1 and 50&nbsp;hPa as options), as
         trailing 7-day means or daily values; the legend gives each term's mean over the last 30 days. Above it, the vortex
         wind itself against the MERRA-2 normal and its 10&ndash;90&nbsp;% range of single days; below it, the resolved-wave
         term by zonal wavenumber against its MERRA-2 normal. Each day is the mean of eight 3-hourly analyses (00&ndash;24Z)
@@ -199,10 +199,33 @@ $$\frac{\partial\bar u}{\partial t} \;=\; \hat f\,\bar v^{*} \;-\; \bar w^{*}\fr
         1.5 against 1.1 at 1&nbsp;hPa; at 60&deg;N it matches the drag at 10&nbsp;hPa and is three times it at
         1&nbsp;hPa. Only in the tropics at 10&nbsp;hPa does the drag dominate (0.35 against 0.04). Part of the forcing the
         model's own physics does not supply is supplied by the observations.</p>
+<p id="mb-upwelling"><b>Tropical upwelling.</b> The mean residual vertical velocity $\bar w^{*}$ between the subtropical
+        turnaround latitudes (where the residual circulation turns from rising to sinking, fixed by day of year from the
+        MERRA-2 mean circulation, as in the Brewer&ndash;Dobson item) at 70 and 100&nbsp;hPa, split by <b>downward
+        control</b> (Haynes et al. 1991): each force, divided by $\hat f$ and integrated down from the top, drives its
+        own share of the upwelling. The parts are the resolved waves, the gravity-wave drag, the analysis increment, the
+        non-steady part (the wind's own change, $-\partial\bar u/\partial t$) and &ldquo;other&rdquo; (vertical advection
+        and the residual). By construction they add up to the upwelling implied by the analysed $\bar v^{*}$; the
+        $\bar w^{*}$ computed straight from the analysed vertical velocity is an independent check. Over 28&nbsp;August&ndash;26&nbsp;September 2026 the two agreed: 0.185 against
+        0.184&nbsp;mm/s at 70&nbsp;hPa (daily correlation 0.79) and 0.218 against 0.188 at 100&nbsp;hPa. Over the same days the
+        increment drove three times as much of the 70&nbsp;hPa upwelling as the gravity-wave drag did (0.031 against
+        0.011&nbsp;mm/s), against 0.193 for the resolved waves. Lines are
+        trailing 30-day means. On the right, the last 30 days against MERRA-2: each normal is put on the GEOS FP scale by
+        the 2018&ndash;19 same-day difference (at 70&nbsp;hPa resolved &minus;0.016, gravity waves &minus;0.018, increment
+        &minus;0.010&nbsp;mm/s) and tested with a z-test against MERRA-2's year-to-year spread of 30-day means plus the
+        errors of the normal and of that difference; the footer says which parts are significant. 0.2&nbsp;mm/s is about
+        17&nbsp;m a day.</p>
+<p><b>Where the forces act.</b> Latitude&ndash;height sections from 100 to 1&nbsp;hPa of the resolved-wave drag, the
+        gravity-wave drag and the increment, averaged over the last 30 days, with the MERRA-2 normal for the same days as
+        contours. Below each, the difference from that normal, shaded only where it passes a z-test at a false-discovery
+        rate of 10&nbsp;% (Wilks 2016) and exceeds 0.25&nbsp;m/s per day. GEOS FP's gravity-wave drag is weaker than
+        MERRA-2's (about 0.6 of it at 60&deg;N, 10&nbsp;hPa on the 2018&ndash;19 same days), so it is compared with MERRA-2's
+        scaled by that measured ratio, point by point; the increment normal is MERRA-2's own monthly increment,
+        2005&ndash;2024.</p>
 <p><b>The forecast.</b> GEOS FP's forecast files carry no wind tendencies, so after the forecast line only the resolved
         terms (Coriolis, vertical advection, resolved waves by wavenumber) and the forecast change of the wind are drawn.
         Nothing is drawn for the gravity-wave drag or the increment: the gap between the forecast change and the
-        resolved terms is not a drag forecast.</p>
+        resolved terms is not a drag forecast. The upwelling forecast is the resolved part alone.</p>
 <p><b>Normals.</b> MERRA-2 (the GMI replay, 00Z every 10th day, 1991&ndash;2019). They are shown for reading, not
         tested here: the resolved-wave normal comes from single 00Z analyses, which scatter by 0.5 (60&deg;N) to
         3.5&nbsp;m/s per day (60&deg;S) about the daily mean at 10&nbsp;hPa, and on 38 same days of 2018&ndash;19 GEOS FP
@@ -353,7 +376,7 @@ $$\frac{\partial\bar u}{\partial t} \;=\; \hat f\,\bar v^{*} \;-\; \bar w^{*}\fr
 <script>
 window.STAGE = {
   groups: [
-  {label: "Stratosphere", ico: "\u2744", items: [["vortex","Polar vortex diagnostics","u(60°N), polar-cap height"],["upperstrat","Upper stratosphere","GEFS, GFS, GEOS FP, GDPS up to 1 hPa"],["vwinds","Vortex winds","10 and 100 hPa, both hemispheres"],["pv","Potential vorticity","GEOS FP, 475 and 850 K"],["epflux","E–P flux","wave driving, k = 1–3"],["wave1","Stationary wave-1","100 and 500 hPa"],["heatflux","Eddy heat flux","100 hPa [v′T′], is it going up?"],["fdrip","Forecast dripping paint","GEPS, GEFS, AIFS-ENS: is it reaching down?"],["bdc","Brewer–Dobson circulation","tropical upwelling, downward control"],["mbudget","Momentum budget","what is driving the vortex"]]},
+  {label: "Stratosphere", ico: "\u2744", items: [["vortex","Polar vortex diagnostics","u(60°N), polar-cap height"],["upperstrat","Upper stratosphere","GEFS, GFS, GEOS FP, GDPS up to 1 hPa"],["vwinds","Vortex winds","10 and 100 hPa, both hemispheres"],["pv","Potential vorticity","GEOS FP, 475 and 850 K"],["epflux","E–P flux","wave driving, k = 1–3"],["wave1","Stationary wave-1","100 and 500 hPa"],["heatflux","Eddy heat flux","100 hPa [v′T′], is it going up?"],["fdrip","Forecast dripping paint","GEPS, GEFS, AIFS-ENS: is it reaching down?"],["bdc","Brewer–Dobson circulation","tropical upwelling, downward control"],["mbudget","Momentum budget","what drives the vortex and the upwelling"]]},
   {label: "Stratosphere history", ico: "\u231B", items: [["shwinters","Every winter since 1980","pick any winter, compare"],["shssw","Sudden warmings since 1980","timeline, catalogue, vortex shapes"],["shdrip","Dripping paint","how an event reaches the surface"],["shfollow","What usually follows","AO, NAO, temperature, by region; CMIP6"],["shtiming","Who moves first","waves, vortex, tropical upwelling"],["shqbo","The QBO and the vortex","observed and CMIP6"],["shenso","El Niño and sudden warmings","CMIP6, 25,000 winters"],["shseason","This winter's odds","QBO and ENSO, model-based"]]}
 ],
   products: {
@@ -387,7 +410,7 @@ window.STAGE = {
           img: function (a) { return "assets/sst/bdc_dc_" + (a === "sec" ? "section" : "upwelling") + ".webp"; }, bust: "hourly", about: "about-bdc", fit: false,
           cap: function (a) { return a === "sec" ? "The residual (Brewer–Dobson) streamfunction by downward control, 30-day mean; shading only where the anomaly from MERRA-2 is significant (FDR 10 %)."
                                                  : "Upward mass flux through 70 and 100 hPa between the turnaround latitudes, trailing 30-day mean: GEOS FP analyses and 10-day forecast against the MERRA-2 range."; }},
-  mbudget: {label: "Momentum budget (GEOS FP)", a: {label: "View", items: [["vnh","Northern vortex"],["vsh","Southern vortex"]]},
+  mbudget: {label: "Momentum budget (GEOS FP)", a: {label: "View", items: [["vnh","Northern vortex"],["vsh","Southern vortex"],["up","Tropical upwelling"],["sec","Where the forces act"]]},
           b: function (a) { return (a === "vnh" || a === "vsh") ? {label: "Level", items: [["10","10 hPa"],["1","1 hPa"],["50","50 hPa"]]} : null; },
           c: function (a) { return (a === "vnh" || a === "vsh") ? {label: "Smoothing", items: [["s7","7-day mean"],["d1","Daily"]]} : null; },
           img: function (a, b, c) { if (a === "up") return "assets/sst/mbudget_upwelling.webp"; if (a === "sec") return "assets/sst/mbudget_sections.webp";
