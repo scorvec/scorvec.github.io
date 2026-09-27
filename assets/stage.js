@@ -15,7 +15,7 @@
   var ORDER = []; GROUPS.forEach(function (g) { g.items.forEach(function (p) { ORDER.push(p[0]); }); });
   var sel = { p: ORDER[0], a: null, b: null, c: null };
   var $ = function (id) { return document.getElementById(id); };
-  var mounted = null, mountedHome = null, pinMax = 0;
+  var mounted = null, mountedHome = null, pinMax = 0, wanted = null;
 
   function buildRail() {
     var host = $("rail"); host.innerHTML = "";
@@ -148,7 +148,8 @@
     titled = true;
     fitStage();
     var h = "#" + [sel.p, sel.a, sel.b, sel.c].filter(function (x) { return x; }).join("/");
-    if (location.hash !== h) history.replaceState(null, "", h);
+    if (wanted && Date.now() > wanted.until) wanted = null;
+    if (location.hash !== h && !wanted) history.replaceState(null, "", h);   // a link still waiting keeps its hash
     related();
     window.dispatchEvent(new Event("resize"));
   }
@@ -258,11 +259,19 @@
   // watch the gated blocks: a card that shows or hides itself updates the rail, and leaves the stage if it hid
   var gatedEls = ORDER.filter(function (id) { return P[id].gated && P[id].dom; }).map(function (id) { return $(P[id].dom()); }).filter(Boolean);
   if (gatedEls.length && window.MutationObserver) {
-    var mo = new MutationObserver(function () { syncRail(); if (!available(sel.p)) render(); });
+    var mo = new MutationObserver(function () {
+      syncRail();
+      // a deep link to a gated card that was still loading its data when the page opened: show it once it appears
+      if (wanted && Date.now() <= wanted.until && available(wanted.p)) { sel = { p: wanted.p, a: wanted.a, b: wanted.b, c: wanted.c }; wanted = null; render(); return; }
+      if (!available(sel.p)) render();
+    });
     gatedEls.forEach(function (el) { mo.observe(el, { attributes: true, attributeFilter: ["hidden"] }); });
   }
   syncRail();
   var h = hashParts();
-  if (h[0] && P[h[0]]) sel = { p: h[0], a: h[1] || null, b: h[2] || null, c: h[3] || null };
+  if (h[0] && P[h[0]]) {
+    sel = { p: h[0], a: h[1] || null, b: h[2] || null, c: h[3] || null };
+    if (!available(h[0])) wanted = { p: h[0], a: sel.a, b: sel.b, c: sel.c, until: Date.now() + 12000 };
+  }
   render();
 })();

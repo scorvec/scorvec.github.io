@@ -89,7 +89,7 @@ PAGES = {
                               models=["GEPS"], horizon="Weeks 1–5", region=["North America"], own_models=True),
     "/gefs.html": dict(kind="geps", file="gefs.html", topic="outlooks", title="GEFS weeks 1–5", tier=0, prio=3,
                        models=["GEFS"], horizon="Weeks 1–5", region=["North America"], own_models=True),
-    "/seasonal.html": dict(kind="rail", file="seasonal.html", topic="outlooks", title="Eight C3S seasonal models", tier=2, prio=30,
+    "/seasonal.html": dict(kind="stage", file="seasonal.html", topic="outlooks", title="Eight C3S seasonal models", tier=2, prio=30,
                            models=["C3S", "SEAS5"], horizon="Seasons", region=["Global"]),
     "/sfs.html": dict(kind="stage", file="sfs.html", topic="outlooks", title="NOAA SFS seasonal", tier=2, prio=31,
                       models=["SFS"], horizon="Seasons", region=["Global"]),
@@ -294,7 +294,7 @@ def stage_items(href: str, cfg: dict) -> list:
         gcfg = cfg.get("groups", {}).get(g["label"], {})
         for pid, _lbl, *_ in g["items"]:
             p = spec["products"].get(pid)
-            if not p:
+            if not p or text_of(p.get("label") or "") == "About this page":
                 continue
             about = tpl.get(p.get("about") or "", "")
             figs = p.get("figBy", {})
@@ -326,9 +326,21 @@ def stage_items(href: str, cfg: dict) -> list:
             thumb = fig_key(figs.get("|".join(d)), path.parent)
             if thumb is None and p["kind"] == "img" and p.get("img"):
                 thumb = thumb_key(p["img"], False) or ""
+            # a mounted block (a whole card with its own controls): its text describes it, and its first still, if it
+            # has one, is its figure
+            elem = ""
+            if p["kind"] == "dom" and p.get("domId"):
+                m0 = re.search(rf'id="{re.escape(p["domId"])}"', html)
+                if m0:
+                    nxt = re.search(r'<div class="card\b', html[m0.end():])
+                    chunk = html[m0.start(): m0.end() + (nxt.start() if nxt else 20000)]
+                    elem = text_of(chunk)
+                    img = re.search(r'<img[^>]+(?:data-src|src)="([^"]+\.(?:webp|png|jpg))[^"]*"', chunk)
+                    if thumb is None and img and not img.group(1).startswith("data:"):
+                        thumb = thumb_key(img.group(1), False)
             opts_text = " ".join(v[0] for v in variants)
             shows = " ".join([p["label"], g["label"], p.get("sub", ""), p.get("cap", ""), opts_text])
-            blob = shows + " " + about[:1500]
+            blob = shows + " " + (about or elem)[:1500]
             items.append(dict(
                 id=f"{href}#{pid}", page=href, page_title=cfg["title"], group=text_of(g["label"]),
                 label=text_of(p["label"]), sub=text_of(p.get("sub", "")), url=f"{href}#{pid}",
@@ -336,7 +348,7 @@ def stage_items(href: str, cfg: dict) -> list:
                 models=tags(MODEL_RX, shows, gcfg.get("models", cfg["models"]), cfg.get("own_models", False)),
                 regions=regions_of(shows, gcfg.get("region", cfg["region"])),
                 variables=tags(VAR_RX, blob), thumb=thumb, cap=text_of(p.get("cap", ""))[:240],
-                kw=public(about)[:600], variants=variants, live=True,
+                kw=public(about or elem)[:600], variants=variants, live=True,
                 tier=gcfg.get("tier", cfg["tier"]), prio=gcfg.get("prio", cfg["prio"]),
                 kind="chart" if p["kind"] == "dom" else "fig"))
     return items

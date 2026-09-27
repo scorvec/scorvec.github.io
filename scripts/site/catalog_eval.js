@@ -15,6 +15,10 @@ const path = require("path");
 const vm = require("vm");
 
 const PAGE = path.resolve(process.argv[2]);
+// a page's own data scripts run too (they fetch the repo's JSON and draw into the stubs); anything they throw
+// later, inside a promise, must not take the evaluation down with it
+process.on("unhandledRejection", () => {});
+process.on("uncaughtException", () => {});
 const ROOT = path.resolve(__dirname, "..", "..");
 const html = fs.readFileSync(PAGE, "utf8");
 // Pages that build their spec after fetching status/manifests (snowbands.html) get the repo's own files:
@@ -145,6 +149,7 @@ for (const g of groups) {
       label: p.label || it[1], rail: it[1], sub: it[2] || "", group: g.label,
       a: A, bBy, cBy, figBy, def: [a0, b0, c0],
       kind, img: kind === "img" ? call(p.img, a0, b0, c0) : null, frame: kind === "frame" ? call(p.frame, a0, b0, c0) : null,
+      domId: kind === "dom" ? call(p.dom, a0, b0, c0) : null,
       cap: call(p.cap, a0, b0, c0) || "", about: call(p.about, a0, b0, c0) || (typeof p.about === "string" ? p.about : null),
     };
   }
