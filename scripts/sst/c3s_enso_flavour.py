@@ -675,8 +675,8 @@ def hindcast_test(month: int, obs: dict, eof: dict, mon: pd.DataFrame, seas: dic
                        beta_C=round(_beta(allC, np.concatenate([soC[s] - keep[k]["sC"][s] for k in keep])), 3),
                        beta_E_loyo_range=[round(min(betas["E"]), 3), round(max(betas["E"]), 3)],
                        beta_C_loyo_range=[round(min(betas["C"]), 3), round(max(betas["C"]), 3)],
-                       sq=np.mean([sq[k] for k in keep], 0))
-    out["damped"] = {s: {q: v for q, v in d.items() if q != "sq"} for s, d in damp.items()}
+                       sq=np.mean([sq[k] for k in keep], 0), sq_models=sq)
+    out["damped"] = {s: {q: v for q, v in d.items() if q not in ("sq", "sq_models")} for s, d in damp.items()}
     # the same pooled persistence by monthly lead, for the month-by-month strips
     allE = np.concatenate([keep[k]["e1E"] for k in keep]); allC = np.concatenate([keep[k]["e1C"] for k in keep])
     out["damped_lead"] = {str(L + 1): dict(beta_E=round(_beta(allE, np.concatenate([keep[k]["eE"][:, L] for k in keep])), 3),
@@ -702,6 +702,19 @@ def hindcast_test(month: int, obs: dict, eof: dict, mon: pd.DataFrame, seas: dic
                                      rmse_B_damped=round(float(np.sqrt(dmp.mean())), 3), p_damped=float(f"{w_dmp.pvalue:.2g}"),
                                      fm_better_years=int((fm < raw).sum()), reg_better_years=int((reg < raw).sum()),
                                      damped_better_years=int((dmp < raw).sum()), n_years=len(years))
+    # robustness: the same test with each model left out in turn (is one model carrying the result?)
+    for s in SEASONS:
+        worst = None
+        for drop in labs:
+            rest = [k for k in labs if k != drop]
+            raw_ = np.mean([out["models"][k]["season"][s]["sq_raw_B"] for k in rest], 0)
+            dmp_ = np.mean([damp[s]["sq_models"][k] for k in rest], 0)
+            pv = float(stats.wilcoxon(raw_, dmp_).pvalue)
+            row_ = dict(without=drop, p=float(f"{pv:.2g}"), rmse_B_raw=round(float(np.sqrt(raw_.mean())), 3),
+                        rmse_B_damped=round(float(np.sqrt(dmp_.mean())), 3))
+            if worst is None or pv > worst["p"]:
+                worst = row_
+        out["multi_model"][s]["leave_one_model_out_worst"] = worst
     for k in labs:
         for s in SEASONS:
             for q in ("sq_raw_B", "sq_fm_B", "sq_reg_B"):
@@ -766,6 +779,15 @@ def hindcast_block(hc: dict, peak: str | None) -> dict:
            f"Out of sample it changes the multi-model error in E − C in {SEASON_WORDS[sp]} from {mm[sp]['rmse_B_raw']:.2f} to "
            f"{mm[sp]['rmse_B_damped']:.2f} (Wilcoxon over years, p {fmt_p(mm[sp]['p_damped'])})"
            + ("." if headline == "fm" else ", which is not enough to make it the headline.")
+           + (lambda w: "" if not w else
+              (f" The gain does not rest on one model: leaving any one out, p stays at or below {w['p']:.2g}." if w["p"] < 0.05 else
+               f" Most of that gain comes from {w['without']}, whose first-month error is large and persists: without it the "
+               f"error goes from {w['rmse_B_raw']:.2f} to {w['rmse_B_damped']:.2f}, which is not significant (p = {w['p']:.2g})."))(
+               mm[sp].get("leave_one_model_out_worst"))
+           + (f" In 1997, the strongest east-based event in the hindcast period, the models' average for Oct–Dec had "
+              f"E {y97['OND']['models']['E']:+.1f} and C {y97['OND']['models']['C']:+.1f} against an observed "
+              f"E {y97['OND']['obs']['E']:+.1f} and C {y97['OND']['obs']['C']:+.1f}: far too central, the same direction as this year's first-month error."
+              if y97.get("OND") else "")
            + ("" if reg_ok else f" A regression calibration of E and C on the hindcasts does not beat the forecast as issued "
                                 f"({mm[sp]['rmse_B_reg']:.2f} in {SEASON_WORDS[sp]})."))
     return dict(start_month=hc["month"], years=[hc["years"][0], hc["years"][-1]], n_years=len(hc["years"]), models=labs,
@@ -1110,9 +1132,24 @@ def main() -> int:
     ap.add_argument("--fetch-only", action="store_true")
     ap.add_argument("--fetch-hindcast", action="store_true",
                     help="fetch the 1993–2016 hindcast strips for the issue's start month, one system at a time")
+    ap.add_argument("--hindcast-only", action="store_true",
+                    help="run the hindcast test on the cached strips (>= 5 systems) and write the reference, nothing else")
     ap.add_argument("--out", default=str(OUT))
     a = ap.parse_args()
     issue = a.issue or json.loads(FC_JSON.read_text())["issue"].replace("-", "")
+    if a.hindcast_only:
+        month = int(issue[4:6])
+        have = [m for m in MODELS if hindcast_path(m[0], m[1], month).exists()]
+        if len(have) < 5:
+            raise SystemExit(f"only {len(have)} hindcast strips for start month {month:02d}")
+        MODELS[:] = have
+        obs = load_obs(); eof = fit_eofs(obs)
+        hc = hindcast_test(month, obs, eof, obs_indices(obs, eof), obs_seasons(obs, eof))
+        hindcast_ref_path(month).write_text(json.dumps(_clean(hc), separators=(",", ":"), ensure_ascii=False))
+        blk = hindcast_block(_clean(hc), peak_season(FC_JSON))
+        print(f"hindcast test, {len(hc['models'])} systems -> {hindcast_ref_path(month).name}; headline {blk['headline']}")
+        print(blk["text"])
+        return 0
     if a.fetch_hindcast:
         got = [fetch_hindcast(c, s, int(issue[4:6])) for c, s, _l, _c in MODELS]
         print(f"{sum(g is not None for g in got)}/{len(MODELS)} hindcast strips cached for start month {issue[4:6]}")

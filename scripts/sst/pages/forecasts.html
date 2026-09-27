@@ -675,7 +675,7 @@
     var cls = S.klass, v = S.verdict;
     var share = Math.round(100 * S.frac[cls]);
     if (v === cls) return "<b>" + cap(CLS_WORD[cls]) + "</b>: " + share + "% of members, " + S.n_models_in_class + " of " + S.models +
-      " models; centre near " + lonLab(S.mmm.lon);
+      " models" + (state.view === "raw" ? "; centre near " + lonLab(S.mmm.lon) : "");
     if (v.indexOf("lean-") === 0) return "<b>Leaning " + CLS_WORD[v.slice(5)] + "</b>, not decisively (" + share + "% of members)";
     if (cls !== "basin" && S.frac[cls] >= 0.5) return "<b>Mostly " + CLS_WORD[cls] + "</b> (" + share + "% of members), but the models are divided and the lean is not significant";
     return "<b>The models disagree</b> on east versus central";
@@ -697,7 +697,7 @@
     var fl = D.fl && D.fl.issue === D.fc.issue ? D.fl : null, ss = state.season;
     var S = fl && fl.summary && fl.summary[ss], P = fl && fl.previous && fl.previous.seasons && fl.previous.seasons[ss];
     if (S && P) {
-      t += "; the east-based share of members in " + SEASON_SHORT[ss] + " went from " + Math.round(100 * P.frac.east) + "% to " + Math.round(100 * S.frac.east) + "%";
+      t += "; the east-based share of members as issued, " + SEASON_SHORT[ss] + ", went from " + Math.round(100 * P.frac.east) + "% to " + Math.round(100 * S.frac.east) + "%";
     }
     return { prevIssue: prev.issue, text: t + "." };
   }
@@ -981,7 +981,7 @@
                           : " Holding each model&rsquo;s first-month error constant at every lead puts ") + Math.round(100 * other.frac.east) + "% of members in the east-based class" +
             (other.verdict === other.klass ? " (a significant call, t-test p " + (other.ttest.p < 0.001 ? "< 0.001" : "= " + other.ttest.p) + ")" : "") +
             (fmWeighted() ? "; in the hindcasts, " + hindcastPhrase(s) + "." : "; that assumes the error persists, which " + hindcastPhrase(s) + ".")
-          : " The forecast as issued has " + Math.round(100 * other.frac.east) + "% of members east-based.";
+          : " The forecast as issued has " + Math.round(100 * other.frac.east) + "% of members east-based; in the hindcasts, " + hindcastPhrase(s) + ".";
       }
       detail.push("<b>" + drift + "</b>" + otherTxt);
     }
