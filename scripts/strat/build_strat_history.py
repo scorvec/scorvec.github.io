@@ -39,6 +39,7 @@ u(60N,10hPa) is filled from NCEP R1 (r 0.998, winter bias +0.75 m/s) plus the ME
 surrounding 30 days; everything else is interpolated in time. The filled days are flagged in the file.
 
     python scripts/strat/build_strat_history.py
+    python scripts/strat/build_strat_history.py --add-nao     # append the daily NAO to the existing reference only
 """
 from __future__ import annotations
 
@@ -134,8 +135,18 @@ def standardise(y: np.ndarray, t: pd.DatetimeIndex, step=False):
 
 
 def load_ao() -> pd.Series:
+    return load_cpc_daily(TD / "cpc_daily_ao.txt")
+
+
+def load_nao() -> pd.Series:
+    """CPC daily NAO (norm.daily.nao.index.b500101.current.ascii); same layout and fused missing flags as the AO file
+    (2006-10-26 and 2007-01-26 read "26-99.000")."""
+    return load_cpc_daily(TD / "cpc_daily_nao.txt")
+
+
+def load_cpc_daily(path) -> pd.Series:
     rows = {}                                   # missing days are fused to the day field ("30-99.000"): regex, not split
-    for line in open(TD / "cpc_daily_ao.txt"):
+    for line in open(path):
         m = re.match(r"\s*(\d{4})\s+(\d{1,2})\s+(\d{1,2})\s*(-?\d+\.\d+)", line)
         if m and float(m.group(4)) > -90:
             rows[pd.Timestamp(int(m.group(1)), int(m.group(2)), int(m.group(3)))] = float(m.group(4))
@@ -311,6 +322,63 @@ def land_mask(lat, lon):
     return m
 
 
+# ------------------------------------------------------------------ daily index around events (AO, NAO)
+def index_rows(ser: pd.Series, dates_by_set: dict, end="2026-06-30"):
+    """Event paths of a daily index on LAGS and the calendar-matched baseline (the same days in every OTHER year,
+    1980-2025, averaged) - exactly the AO computation in main(), as a function so the NAO can reuse it. Also the
+    baseline SHARE below zero of the 7-day running mean on those days (the null for "% of events negative": the NAO's
+    winter mean is not zero, so 50 % is the wrong reference)."""
+    s_all = ser.reindex(pd.date_range("1979-01-01", end))
+    idx = pd.DatetimeIndex(s_all.index)
+    pos = {x: i for i, x in enumerate(idx)}
+    sm = s_all.rolling(7, center=True, min_periods=4).mean()
+    ev, base, bneg = {}, {}, {}
+    for s, dates in dates_by_set.items():
+        rows = []
+        for c in dates:
+            i = pos.get(c)
+            rows.append([s_all.values[i + L] if (i is not None and 0 <= i + L < len(idx)) else np.nan for L in LAGS])
+        ev[s] = np.array(rows, float)
+        b, bn = [], []
+        for c in dates:
+            ys = [y for y in range(1980, 2026) if y != c.year]
+            days = [pd.DatetimeIndex([c.replace(year=y) + pd.Timedelta(days=int(L)) for L in LAGS])
+                    for y in ys if not (c.month == 2 and c.day == 29)]
+            b.append(np.nanmean([s_all.reindex(d).values for d in days], 0))
+            v = np.array([sm.reindex(d).values for d in days])
+            bn.append(np.nanmean(np.where(np.isfinite(v), v < 0, np.nan), 0))
+        base[s] = np.nanmean(b, 0)
+        bneg[s] = np.nanmean(bn, 0)
+    return ev, base, bneg
+
+
+def add_nao():
+    """Append the daily NAO around the reference's own events to strat_history.nc (no full rebuild): nao_ssw, nao_sv,
+    nao_base_ssw, nao_base_sv, on the same axes as the AO arrays. Checks that index_rows reproduces the stored AO."""
+    D = xr.open_dataset(OUT_NC).load(); D.close()
+    sets = {"ssw_all": [pd.Timestamp(str(x)) for x in D.ssw_used.values], "sv": [pd.Timestamp(str(x)) for x in D.sv.values]}
+    ev_ao, base_ao, bneg_ao = index_rows(load_ao(), sets)
+    d_ao = max(float(np.nanmax(np.abs(ev_ao["ssw_all"] - D.ao_ssw.values))), float(np.nanmax(np.abs(base_ao["sv"] - D.ao_base_sv.values))))
+    print(f"  AO reproduced by index_rows: max difference {d_ao:.2e}")
+    assert d_ao < 1e-4
+    D["ao_base_pneg_ssw"] = ("lag", bneg_ao["ssw_all"].astype("float32"))
+    D["ao_base_pneg_sv"] = ("lag", bneg_ao["sv"].astype("float32"))
+    ev, base, bneg = index_rows(load_nao(), sets)
+    D["nao_base_pneg_ssw"] = ("lag", bneg["ssw_all"].astype("float32"))
+    D["nao_base_pneg_sv"] = ("lag", bneg["sv"].astype("float32"))
+    print(f"  baseline share below zero, days 1-30: AO {np.nanmean(bneg_ao['ssw_all'][(LAGS >= 1) & (LAGS <= 30)]):.2f}, "
+          f"NAO {np.nanmean(bneg['ssw_all'][(LAGS >= 1) & (LAGS <= 30)]):.2f} (after SSW dates)")
+    D["nao_ssw"] = (("ssw_used", "lag"), ev["ssw_all"].astype("float32"))
+    D["nao_sv"] = (("sv", "lag"), ev["sv"].astype("float32"))
+    D["nao_base_ssw"] = ("lag", base["ssw_all"].astype("float32"))
+    D["nao_base_sv"] = ("lag", base["sv"].astype("float32"))
+    D.attrs["source"] = D.attrs.get("source", "") + "; CPC daily NAO"
+    tmp = OUT_NC.with_suffix(".tmp.nc")
+    D.to_netcdf(tmp, encoding={v: {"zlib": True, "complevel": 5} for v in D.data_vars})
+    tmp.replace(OUT_NC)
+    print(f"  added the daily NAO to {OUT_NC.name}: {len(sets['ssw_all'])} SSWs, {len(sets['sv'])} strong-vortex events")
+
+
 # ------------------------------------------------------------------ main
 def main():
     d = load_m2()
@@ -475,6 +543,9 @@ def main():
                                     for y in ys if not (c.month == 2 and c.day == 29)], 0))
         base[s] = np.nanmean(rows, 0)
 
+    nao_ev, nao_base, nao_bneg = index_rows(load_nao(), {k: sets[k] for k in ("ssw_all", "sv")})
+    _, _, ao_bneg = index_rows(ao, {k: sets[k] for k in ("ssw_all", "sv")})
+
     # surface
     print("ERA5 anomalies ...")
     T = era5_anoms("t2m", SURF_LAT[0])
@@ -520,6 +591,10 @@ def main():
          "drip_mean": (("set", "lag", "lev"), drip_m), "drip_t": (("set", "lag", "lev"), drip_t),
          "ao_ssw": (("ssw_used", "lag"), ao_ev["ssw_all"].astype("float32")), "ao_sv": (("sv", "lag"), ao_ev["sv"].astype("float32")),
          "ao_base_ssw": ("lag", base["ssw_all"].astype("float32")), "ao_base_sv": ("lag", base["sv"].astype("float32")),
+         "nao_ssw": (("ssw_used", "lag"), nao_ev["ssw_all"].astype("float32")), "nao_sv": (("sv", "lag"), nao_ev["sv"].astype("float32")),
+         "nao_base_ssw": ("lag", nao_base["ssw_all"].astype("float32")), "nao_base_sv": ("lag", nao_base["sv"].astype("float32")),
+         "ao_base_pneg_ssw": ("lag", ao_bneg["ssw_all"].astype("float32")), "ao_base_pneg_sv": ("lag", ao_bneg["sv"].astype("float32")),
+         "nao_base_pneg_ssw": ("lag", nao_bneg["ssw_all"].astype("float32")), "nao_base_pneg_sv": ("lag", nao_bneg["sv"].astype("float32")),
          "t2m_mean": (("set", "window", "lat", "lon"), np.stack([[surf[(s, w)][0] for w in SURF_WIN] for s in SETS]).astype("float32")),
          "t2m_t": (("set", "window", "lat", "lon"), np.stack([[surf[(s, w)][1] for w in SURF_WIN] for s in SETS]).astype("float32")),
          "z500_mean": (("set", "window", "lat", "lon"), np.stack([[surf[(s, w)][2] for w in SURF_WIN] for s in SETS]).astype("float32")),
@@ -546,4 +621,5 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    import sys
+    add_nao() if "--add-nao" in sys.argv else main()

@@ -17,6 +17,7 @@ on:
       - scripts/strat/reference/strat_history.nc
       - scripts/strat/reference/strat_history_events.json
       - scripts/strat/reference/cmip6_drip.nc
+      - scripts/strat/reference/cmip6_follow.nc
       - .github/workflows/strat-history.yml
 
 env:

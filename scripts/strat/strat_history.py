@@ -14,6 +14,9 @@ Outputs (assets/sst/):
   strat_hist_follows_<set>_<win>.webp  ERA5 2 m temperature and 500 hPa height after each kind of event
   strat_hist_ao.webp                 the Arctic Oscillation after SSWs and strong-vortex events
   strat_hist_regions.webp            how often each region ran cold after each kind of event
+  strat_hist_nao.webp                the NAO after SSWs and strong-vortex events (CPC daily NAO)
+  strat_hist_{follows_cmip6_<set>_<win>,ao_cmip6,nao_cmip6,regions_cmip6}.webp  the same questions in 9 CMIP6 models
+                                     (reference/cmip6_follow.nc from build_cmip6_follow.py)
   strat_hist_rates.webp              SSW odds by ENSO, QBO and the solar cycle (sunspot number)
 
     python scripts/strat/strat_history.py [--out-root .]
@@ -217,15 +220,19 @@ def gallery(D, E, out):
 
 
 # ---------------------------------------------------------------- dripping paint
-def ao_rows(D, E, s):
+IDX_NAME = {"ao": ("Arctic Oscillation", "AO", "CPC daily AO"), "nao": ("North Atlantic Oscillation", "NAO", "CPC daily NAO")}
+
+
+def ao_rows(D, E, s, ix="ao"):
+    """Event paths and the calendar-matched baseline of a daily index (ix = "ao" or "nao") for one event set."""
     dates = list(D.ssw_used.values) if s != "sv" else None
     if s == "sv":
-        return D.ao_sv.values, D.ao_base_sv.values
+        return D[f"{ix}_sv"].values, D[f"{ix}_base_sv"].values
     keep = {"ssw_all": lambda e: True, "ssw_deep": lambda e: e["depth"] == "deep", "ssw_shallow": lambda e: e["depth"] == "shallow",
             "ssw_split": lambda e: e["type"] == "split", "ssw_disp": lambda e: e["type"] == "displacement"}[s]
     ok = {e["date"] for e in E["ssw"] if not e.get("marginal") and keep(e)}
-    idx = [i for i, d in enumerate(dates) if d in ok]
-    return D.ao_ssw.values[idx], D.ao_base_ssw.values
+    rows = [i for i, d in enumerate(dates) if d in ok]
+    return D[f"{ix}_ssw"].values[rows], D[f"{ix}_base_ssw"].values
 
 
 SIG_NOTE = "Coloured only where significant: t-test across events, false-discovery rate 10 % over the whole chart (Wilks 2016, about 5 % overall)"
@@ -260,21 +267,22 @@ def ao_sig(A, base, win=7):
 _WT = {}
 
 
-def window_tests(D, E):
-    """AO mean over days 1-30 and 31-60 minus the same calendar days in other years, per event set: one-sample t-test,
-    Benjamini-Hochberg at 10 % over all 12 (set, window) tests. Cached; {(set, win): (mean, p, significant)}."""
-    if _WT:
-        return _WT
+def window_tests(D, E, ix="ao"):
+    """Index (AO or NAO) mean over days 1-30 and 31-60 minus the same calendar days in other years, per event set:
+    one-sample t-test, Benjamini-Hochberg at 10 % over the index's 12 (set, window) tests. Cached per index;
+    {(set, win): (mean, p, significant)}."""
+    if ix in _WT:
+        return _WT[ix]
     from scipy import stats
     lag = D.lag.values; keys, vals = [], []
     for s in SET_LABEL:
-        A, base = ao_rows(D, E, s)
+        A, base = ao_rows(D, E, s, ix)
         for w, (a, b) in (("d1_30", (1, 30)), ("d31_60", (31, 60))):
             k = (lag >= a) & (lag <= b); x = np.nanmean(A[:, k], 1) - np.nanmean(base[k])
             keys.append((s, w)); vals.append((float(x.mean()), float(stats.ttest_1samp(x, 0).pvalue)))
     sig = fdr([v[1] for v in vals])
-    _WT.update({k: (v[0], v[1], bool(g)) for k, v, g in zip(keys, vals, sig)})
-    return _WT
+    _WT[ix] = {k: (v[0], v[1], bool(g)) for k, v, g in zip(keys, vals, sig)}
+    return _WT[ix]
 
 
 def wt_text(D, E, s):
@@ -506,27 +514,35 @@ def follows_map(D, E, s, w, out):
     return int(sig.sum()), int(zsig.sum())
 
 
-def ao_figure(D, E, out):
+def ao_figure(D, E, out, ix="ao"):
+    name, short, src = IDX_NAME[ix]
     from scipy import stats
     fig = plt.figure(figsize=(13.4, 7.8), dpi=125)
-    below = fig_header(fig, "The Arctic Oscillation after sudden warmings and strong-vortex events",
-               f"CPC daily AO, 7-day running mean, around {E['sets']['ssw_all']} SSWs and {E['sets']['sv']} strong-vortex events "
+    below = fig_header(fig, f"The {name} after sudden warmings and strong-vortex events",
+               f"{src}, 7-day running mean, around {E['sets']['ssw_all']} SSWs and {E['sets']['sv']} strong-vortex events "
                f"(MERRA-2 dates, 1980–2026). Lines are solid on days where the mean differs from the same calendar days in other years "
                f"(t-test, false-discovery rate 10 % across days), dotted where it does not; shading = 95 % interval of the mean. "
                f"30-day means are the more powerful test (box). "
-               f"Lower panel: share of events with a negative AO, solid where a binomial test against 50 % is significant.")
+               f"Thin lines: the same calendar days in other years. Lower panel: share of events with a negative {short}, solid where "
+               f"a binomial test against that share in other years (thin line) is significant.")
     lag = D.lag.values
-    ax = fig.add_axes([0.07, 0.42, 0.9, below - 0.47])
+    ax = fig.add_axes([0.07, 0.42, 0.9, below - 0.445])
     ax2 = fig.add_axes([0.07, 0.08, 0.9, 0.27])
     for s, col, lab in (("ssw_all", WARM, "after SSWs"), ("sv", COOL, "after strong-vortex events")):
-        A, base = ao_rows(D, E, s)
+        A, base = ao_rows(D, E, s, ix)
         sm, mean, lo, hi, bs, sg = ao_sig(A, base)
         ax.fill_between(lag, lo, hi, color=col, alpha=0.14, lw=0)
         draw_sig_line(ax, lag, mean, sg, col, f"mean {lab} (n={len(sm)})")
+        ax.plot(lag, bs, color=col, lw=0.8, alpha=0.5)
+        # the null for "% negative" is the share on the same calendar days in other years (the NAO's winter mean is not
+        # zero: ~30 % of those days are negative); references built before it was stored fall back to 50 %
+        key = f"{ix}_base_pneg_{'sv' if s == 'sv' else 'ssw'}"
+        p0 = np.clip(D[key].values.astype(float), 0.01, 0.99) if key in D else np.full(len(lag), 0.5)
         k = np.isfinite(sm).sum(0); neg = (sm < 0).sum(0)
-        pb = np.array([stats.binomtest(int(a), int(b), 0.5).pvalue if b else np.nan for a, b in zip(neg, k)])
+        pb = np.array([stats.binomtest(int(a), int(b), float(q)).pvalue if b else np.nan for a, b, q in zip(neg, k, p0)])
         draw_sig_line(ax2, lag, 100 * neg / np.maximum(k, 1), fdr(pb), col, lab, lw=2.4)
-    W = window_tests(D, E)
+        ax2.plot(lag, 100 * p0, color=col, lw=0.8, alpha=0.5)
+    W = window_tests(D, E, ix)
     rows = [f"{'30-day means vs other years':<30s}{'days 1–30':>16s}{'days 31–60':>16s}"]
     for s_ in SET_LABEL:
         cell = lambda w: (f"{W[(s_, w)][0]:+.2f}" + (" *" if W[(s_, w)][2] else "  n.s.")).rjust(16)
@@ -534,12 +550,12 @@ def ao_figure(D, E, out):
     ax.text(0.995, 0.97, "\n".join(rows) + "\n* significant (t-test, false-discovery rate 10 % over the 12 tests)", transform=ax.transAxes,
             ha="right", va="top", fontsize=8.2, family="monospace", color=INK, bbox=dict(facecolor="white", edgecolor="#c9ccd1", pad=4))
     ax.axhline(0, color="#555", lw=0.8); ax.axvline(0, color=INK, lw=1)
-    ax.set_xlim(-40, 90); ax.set_ylim(-1.8, 1.8); ax.set_ylabel("AO, 7-day mean", fontsize=10, color=INK)
+    ax.set_xlim(-40, 90); ax.set_ylim(-1.8, 1.8); ax.set_ylabel(f"{short}, 7-day mean", fontsize=10, color=INK)
     ax.tick_params(labelbottom=False); style(ax); ax.legend(frameon=False, fontsize=9, loc="lower left")
-    ax2.axhline(50, color=INK, lw=1, ls="--"); ax2.axvline(0, color=INK, lw=1)
-    ax2.set_xlim(-40, 90); ax2.set_ylim(0, 100); ax2.set_ylabel("% of events AO < 0", fontsize=10, color=INK)
+    ax2.axvline(0, color=INK, lw=1)
+    ax2.set_xlim(-40, 90); ax2.set_ylim(0, 100); ax2.set_ylabel(f"% of events {short} < 0", fontsize=10, color=INK)
     ax2.set_xlabel("days from the event", fontsize=10, color=INK); style(ax2)
-    ax2.text(-39, 52, "50 %: a coin flip", ha="left", va="bottom", fontsize=8.5, color=MUTED)
+    ax2.text(-39, 2, "thin lines: the share on the same calendar days in other years", ha="left", va="bottom", fontsize=8.5, color=MUTED)
     save(fig, out)
 
 
@@ -584,6 +600,244 @@ def regions_figure(E, out):
     return {f"{w}|{r}|{s_}": round(float(cells[(w, r, s_)].mean()), 2) for (w, r, s_), v in sig.items() if v}
 
 
+# ---------------------------------------------------------------- "What usually follows" in CMIP6 (build_cmip6_follow.py)
+REF_FOLLOW = HERE / "reference" / "cmip6_follow.nc"
+F_SETS = ["ssw_all", "ssw_deep", "ssw_shallow", "sv"]
+F_TEST = ("across-model t-test, false-discovery rate 10 % over {what}, and at least 80 % of the models agree on the sign")
+
+
+def with_pole(f, lat):
+    """Append a 90N row (the zonal mean of the northernmost row): the 2.5-degree box centres stop at 88.75N."""
+    top = np.nanmean(f[-1:], 1, keepdims=True) if np.isfinite(f[-1]).any() else np.full((1, 1), np.nan)
+    return np.vstack([f, np.repeat(top, f.shape[1], 1)]), np.append(lat, 90.0)
+
+
+def f_meta(F):
+    return int(F.sizes["model"]), int(F.years.sum()), int(F.members.sum())
+
+
+def follows_map_cmip6(F, s, w, out, lim):
+    import cartopy.crs as ccrs
+    import cartopy.feature as cfeature
+    lat, lon = F.lat.values, F.lon.values
+    m, sig, _, _ = robust(F.tas.sel(set=s, window=w).values)
+    pm, psig, _, _ = robust(F.psl.sel(set=s, window=w).values)
+    nev = int(F.n.sel(set=s).sum()); nm, yrs, _ = f_meta(F)
+    fig = plt.figure(figsize=(10.4, 11.2), dpi=120)
+    below = fig_header(fig, f"2 m temperature, {WIN_LABEL[w]} after {nev:,} {SET_LABEL[s]} in CMIP6",
+               f"Mean of the {nm} CMIP6 models' composites, models weighted equally ({yrs:,} model-years). Monthly anomalies from each "
+               f"run's own running climatology; the window is overlap-weighted over calendar months (each day carries its month's "
+               f"anomaly), so it is smoother than the ERA5 version. Contours: sea-level pressure anomaly every 0.5 hPa (dashed "
+               f"negative), in place of ERA5's 500 hPa height. Shaded and contoured only where robust: "
+               + F_TEST.format(what="the map") + "; blank = not robust. North America at the bottom.", x=0.05)
+    ax = polar_axes(fig, [0.03, 0.1, 0.94, below - 0.105], lat0=20, central=-80)
+    pc = ccrs.PlateCarree()
+    lv = np.round(np.arange(-lim, lim + 1e-9, lim / 7), 3)
+    mc, la = with_pole(np.where(sig, m, np.nan), lat)
+    mc, lc = cyclic(mc, lon)
+    cf = ax.contourf(lc, la, mc, levels=lv, cmap="RdBu_r", extend="both", transform=pc)
+    if psig.any():
+        zc, _ = with_pole(np.where(psig, pm, np.nan), lat)
+        zc, _ = cyclic(zc, lon)
+        zl = [x for x in np.arange(-6, 6.01, 0.5) if abs(x) > 1e-9]
+        cs = ax.contour(lc, la, zc, levels=zl, colors=INK, linewidths=0.9, transform=pc)
+        ax.clabel(cs, fmt="%g", fontsize=7)
+    ax.add_feature(cfeature.COASTLINE.with_scale("110m"), lw=0.6, edgecolor="#333")
+    ax.gridlines(lw=0.4, color="#999", ylocs=[30, 45, 60, 75], xlocs=np.arange(-180, 181, 45))
+    if not sig.any():
+        ax.text(0.5, 0.5, "No robust temperature signal", transform=ax.transAxes, ha="center", va="center", fontsize=15,
+                color=INK, bbox=dict(facecolor="white", edgecolor="#9aa3ad", boxstyle="round,pad=0.5"))
+    cax = fig.add_axes([0.2, 0.065, 0.6, 0.013])
+    cb = fig.colorbar(cf, cax=cax, orientation="horizontal"); cb.ax.tick_params(labelsize=8)
+    cb.ax.set_title("2 m temperature anomaly, K (robust cells only)", fontsize=9, color=INK, pad=3)
+    fig.text(0.05, 0.018, f"{int(sig.sum())} of {sig.size} grid cells (2.5°) robust for temperature, {int(psig.sum())} for sea-level pressure.",
+             fontsize=8.8, color=MUTED)
+    save(fig, out)
+    return int(sig.sum()), int(psig.sum())
+
+
+_FT = {}
+
+
+def f_ix_tests(F, index, what="pneg"):
+    """Per index: the 8 (set, window) cells tested across models - the mean (what="mean") or the share of events below
+    zero minus each model's normal share (what="pneg") - BH-FDR 10 % over the 8, AND >= 80 % sign agreement.
+    {(set, win): (multi-model value, p, robust, agreement, n models, normal share)}"""
+    key = (index, what)
+    if key in _FT:
+        return _FT[key]
+    from scipy import stats
+    keys, vals = [], []
+    for s in F_SETS:
+        for w in ("d1_30", "d31_60"):
+            mean = F.ix_mean.sel(set=s, window=w, index=index).values.astype(float)
+            pneg = F.ix_pneg.sel(set=s, window=w, index=index).values.astype(float)
+            base = F.ix_base_pneg.sel(window=w, index=index).values.astype(float)
+            x = mean if what == "mean" else pneg - base
+            x = x[np.isfinite(x)]
+            same = max((x > 0).sum(), (x < 0).sum()) / len(x)
+            val = float(x.mean()) if what == "mean" else float(np.nanmean(pneg))
+            keys.append((s, w)); vals.append((val, float(stats.ttest_1samp(x, 0).pvalue), same, len(x), float(np.nanmean(base))))
+    sig = fdr([v[1] for v in vals])
+    _FT[key] = {k: (v[0], v[1], bool(g and v[2] >= 0.8), float(v[2]), int(v[3]), v[4]) for k, v, g in zip(keys, vals, sig)}
+    return _FT[key]
+
+
+def ao_cmip6(F, out):
+    nm, yrs, _ = f_meta(F)
+    fig = plt.figure(figsize=(13.4, 7.8), dpi=125)
+    below = fig_header(fig, f"The annular mode after sudden warmings and strong-vortex events in {nm} CMIP6 models",
+               f"There is no daily surface pressure in this sample, so the daily Arctic Oscillation is stood in for by the zonal-mean "
+               f"wind at 60°N, 700 hPa, standardised (weaker westerlies ≈ negative AO), 7-day running mean; {int(F.n.sel(set='ssw_all').sum()):,} "
+               f"SSWs and {int(F.n.sel(set='sv').sum()):,} strong-vortex events, {yrs:,} model-years. Lines: mean of the models' "
+               f"composites, solid where robust (" + F_TEST.format(what="the days") + "); band = range across the models. Lower panel: "
+               f"share of events below zero, solid where it differs robustly from each model's normal share for those calendar days "
+               f"(thin line). Box: 30-day means, with the monthly sea-level-pressure annular mode as a cross-check.")
+    lag = F.lag.values
+    ax = fig.add_axes([0.07, 0.42, 0.9, below - 0.44])
+    ax2 = fig.add_axes([0.07, 0.08, 0.9, 0.27])
+    for s, col, lab in (("ssw_all", WARM, "after SSWs"), ("sv", COOL, "after strong-vortex events")):
+        X = F.u700_path.sel(set=s).values.astype(float)
+        mean, sg, _, _ = robust(X)
+        ax.fill_between(lag, np.nanmin(X, 0), np.nanmax(X, 0), color=col, alpha=0.13, lw=0)
+        draw_sig_line(ax, lag, mean, sg, col, f"mean of the models {lab} (n={int(F.n.sel(set=s).sum()):,})")
+        P = F.u700_pneg.sel(set=s).values.astype(float); Bn = F.u700_base_pneg.sel(set=s).values.astype(float)
+        _, sgp, _, _ = robust(P - Bn)
+        draw_sig_line(ax2, lag, 100 * np.nanmean(P, 0), sgp, col, lab, lw=2.4)
+        ax2.plot(lag, 100 * np.nanmean(Bn, 0), color=col, lw=0.8, alpha=0.5)
+    rows = [f"{'30-day means':<16s}{'u′ 700 hPa (daily)':>26s}{'SLP annular mode (monthly)':>30s}",
+            f"{'':<16s}{'d1–30':>13s}{'d31–60':>13s}{'d1–30':>15s}{'d31–60':>15s}"]
+    Tu, Tn = f_ix_tests(F, "u700", "mean"), f_ix_tests(F, "nam", "mean")
+    for s_ in F_SETS:
+        cell = lambda T, w, width: (f"{T[(s_, w)][0]:+.2f}" + (" *" if T[(s_, w)][2] else " n.s.")).rjust(width)
+        rows.append(f"{SET_SHORT[s_]:<16s}{cell(Tu, 'd1_30', 13)}{cell(Tu, 'd31_60', 13)}{cell(Tn, 'd1_30', 15)}{cell(Tn, 'd31_60', 15)}")
+    ax.text(0.995, 0.97, "\n".join(rows) + "\n* robust (across-model t-test, false-discovery rate 10 % over each index's 8 cells,\n"
+            "  ≥ 80 % of models agree); n.s. = not robust. Units: standard deviations.", transform=ax.transAxes,
+            ha="right", va="top", fontsize=8.0, family="monospace", color=INK, bbox=dict(facecolor="white", edgecolor="#c9ccd1", pad=4))
+    ax.axhline(0, color="#555", lw=0.8); ax.axvline(0, color=INK, lw=1)
+    ax.set_xlim(-40, 90); ax.set_ylim(-0.9, 0.9); ax.set_ylabel("u′ 700 hPa, 7-day mean (σ)", fontsize=10, color=INK)
+    ax.tick_params(labelbottom=False); style(ax); ax.legend(frameon=False, fontsize=9, loc="lower left")
+    ax2.axhline(50, color=INK, lw=0.6, ls=":"); ax2.axvline(0, color=INK, lw=1)
+    ax2.set_xlim(-40, 90); ax2.set_ylim(25, 75); ax2.set_ylabel("% of events below zero", fontsize=10, color=INK)
+    ax2.set_xlabel("days from the event", fontsize=10, color=INK); style(ax2)
+    ax2.text(-39, 26.5, "thin lines: the models' normal share for the same calendar days", ha="left", va="bottom", fontsize=8.5, color=MUTED)
+    save(fig, out)
+
+
+def nao_cmip6(F, out):
+    nm, yrs, _ = f_meta(F)
+    import re as _re
+    r = _re.search(r'"r_cpc_djfm": ([0-9.]+)', F.attrs.get("nao", ""))
+    rtxt = f" (ERA5 projected the same way correlates {float(r.group(1)):.2f} with CPC's monthly NAO in Dec–Mar, 1991–2020)" if r else ""
+    Tm, Tp = f_ix_tests(F, "nao", "mean"), f_ix_tests(F, "nao", "pneg")
+    fig = plt.figure(figsize=(13.4, 7.8), dpi=125)
+    below = fig_header(fig, f"The North Atlantic Oscillation after sudden warmings and strong-vortex events in {nm} CMIP6 models",
+               f"A monthly index (there is no daily pressure in this sample): each run's sea-level-pressure anomaly over 20–80°N, "
+               f"90°W–40°E projected on ERA5's NAO pattern for that calendar month (leading EOF of 1991–2020 monthly SLP){rtxt}, "
+               f"standardised per model and month; a window's value is overlap-weighted over calendar months. Dots: each model; "
+               f"bars: the mean of the models, coloured where robust (" + F_TEST.format(what="the 8 cells of each panel") +
+               "), grey and marked n.s. where not.")
+    top = fig.add_axes([0.07, 0.47, 0.9, below - 0.49])
+    bot = fig.add_axes([0.07, 0.08, 0.9, 0.3])
+    xs, labels = [], []
+    k = 0
+    for s in F_SETS:
+        for w in ("d1_30", "d31_60"):
+            xs.append(k); labels.append(f"{SET_SHORT[s]}\n{WIN_LABEL[w]}"); k += 1
+        k += 0.6
+    col = {"ssw_all": WARM, "ssw_deep": WARM, "ssw_shallow": WARM, "sv": COOL}
+    i = 0
+    for s in F_SETS:
+        for w in ("d1_30", "d31_60"):
+            x = xs[i]; i += 1
+            v = F.ix_mean.sel(set=s, window=w, index="nao").values.astype(float)
+            mean, _, rob = Tm[(s, w)][:3]
+            top.bar(x, mean, 0.7, color=col[s] if rob else "#d5d8dc", alpha=0.85 if rob else 1.0, zorder=2)
+            top.scatter(np.full(len(v), x) + np.linspace(-0.22, 0.22, len(v)), v, s=14, color=INK, alpha=0.55, zorder=3, lw=0)
+            edge = (max(mean, np.nanmax(v)) + 0.05) if mean >= 0 else (min(mean, np.nanmin(v)) - 0.05)      # clear of the dots
+            top.text(x, edge, f"{mean:+.2f}" if rob else "n.s.", ha="center",
+                     va="bottom" if mean >= 0 else "top", fontsize=8.6, color=INK if rob else MUTED, fontweight="bold" if rob else "normal")
+            pn = F.ix_pneg.sel(set=s, window=w, index="nao").values.astype(float)
+            bs = F.ix_base_pneg.sel(window=w, index="nao").values.astype(float)
+            d = 100 * (pn - bs); dm = float(np.nanmean(d)); robp = Tp[(s, w)][2]
+            bot.bar(x, dm, 0.7, color=col[s] if robp else "#d5d8dc", alpha=0.85 if robp else 1.0, zorder=2)
+            bot.scatter(np.full(len(d), x) + np.linspace(-0.22, 0.22, len(d)), d, s=14, color=INK, alpha=0.55, zorder=3, lw=0)
+            edge = (max(dm, np.nanmax(d)) + 1.5) if dm >= 0 else (min(dm, np.nanmin(d)) - 1.5)
+            bot.text(x, edge, f"{100 * Tp[(s, w)][0]:.0f}% vs {100 * Tp[(s, w)][5]:.0f}% normally" if robp else "n.s.",
+                     ha="center", va="bottom" if dm >= 0 else "top", fontsize=8.2, color=INK if robp else MUTED)
+    for a, lab in ((top, "NAO, standard deviations"), (bot, "events with NAO < 0,\npoints above normal")):
+        a.axhline(0, color="#555", lw=0.8); style(a); a.set_ylabel(lab, fontsize=9.5, color=INK); a.set_xlim(-0.8, xs[-1] + 0.8)
+        a.grid(axis="x", visible=False)
+    top.set_xticks(xs); top.set_xticklabels([]); bot.set_xticks(xs); bot.set_xticklabels(labels, fontsize=8.6)
+    v = F.ix_mean.sel(index="nao").values
+    top.set_ylim(min(-0.3, 1.3 * float(np.nanmin(v))), max(0.3, 1.3 * float(np.nanmax(v))))
+    dl = 100 * (F.ix_pneg.sel(index="nao").values - F.ix_base_pneg.sel(index="nao").values[None])
+    bot.set_ylim(min(-10.0, 1.3 * float(np.nanmin(dl))), max(10.0, 1.3 * float(np.nanmax(dl))))
+    save(fig, out)
+
+
+def regions_cmip6(F, out):
+    R = list(F.region.values)
+    Ws = ("d1_30", "d31_60")
+    nm, yrs, _ = f_meta(F)
+    X = np.array([[[F.ix_pneg.sel(set=s, window=w, index=f"reg_{r}").values - F.ix_base_pneg.sel(window=w, index=f"reg_{r}").values
+                    for s in F_SETS] for r in R] for w in Ws], float)                     # (win, region, set, model)
+    X = np.moveaxis(X, -1, 0)                                                            # (model, win, region, set)
+    _, sig, _, _ = robust(X)
+    fig = plt.figure(figsize=(13.4, 6.8), dpi=125)
+    below = fig_header(fig, f"Did it turn cold? Regional 2 m temperature after each kind of event, {nm} CMIP6 models",
+               f"Land-weighted box means of monthly anomalies (each run's own running climatology; windows overlap-weighted over calendar "
+               f"months), {yrs:,} model-years. A cell shows the mean anomaly and the share of events colder than normal only where "
+               f"that share differs robustly from the model's own normal chance of a cold window (under each region): "
+               + F_TEST.format(what="all 48 cells") + ". n.s. = not robust.")
+    for k, w in enumerate(Ws):
+        ax = fig.add_axes([0.13 + k * 0.44, 0.06, 0.4, below - 0.2])
+        M = np.array([[float(np.nanmean(F.ix_mean.sel(set=s, window=w, index=f"reg_{r}").values)) if sig[k, i, j] else np.nan
+                       for j, s in enumerate(F_SETS)] for i, r in enumerate(R)])
+        ax.imshow(np.ma.masked_invalid(M), cmap="RdBu_r", vmin=-1.2, vmax=1.2, aspect="auto")
+        ax.set_facecolor("#f4f5f7")
+        for i, r in enumerate(R):
+            for j, s_ in enumerate(F_SETS):
+                if sig[k, i, j]:
+                    v = float(np.nanmean(F.ix_mean.sel(set=s_, window=w, index=f"reg_{r}").values))
+                    pc = 100 * float(np.nanmean(F.ix_pneg.sel(set=s_, window=w, index=f"reg_{r}").values))
+                    ax.text(j, i, f"{v:+.2f} K\n{pc:.0f}% cold", ha="center", va="center", fontsize=8.8,
+                            color="white" if abs(v) > 0.8 else INK, linespacing=1.2, fontweight="bold")
+                else:
+                    ax.text(j, i, "n.s.", ha="center", va="center", fontsize=8.5, color="#8a8f96")
+        ax.set_xticks(range(len(F_SETS)))
+        ax.set_xticklabels([f"{SET_SHORT[s_]}\n(n={int(F.n.sel(set=s_).sum()):,})" for s_ in F_SETS], fontsize=8.6)
+        ax.xaxis.tick_top()
+        ax.set_yticks(range(len(R)))
+        ax.set_yticklabels([f"{r}\n{100 * float(np.nanmean(F.ix_base_pneg.sel(window=w, index=f'reg_{r}').values)):.0f}% normally"
+                            for r in R] if k == 0 else [], fontsize=8.8)
+        ax.set_title(WIN_LABEL[w] + " after", fontsize=11, fontweight="bold", color=INK, pad=34)
+        for sp in ax.spines.values():
+            sp.set_visible(False)
+        ax.tick_params(length=0)
+    save(fig, out)
+    return {f"{w}|{r}|{s_}": round(float(np.nanmean(F.ix_mean.sel(set=s_, window=w, index=f"reg_{r}").values)), 2)
+            for k, w in enumerate(Ws) for i, r in enumerate(R) for j, s_ in enumerate(F_SETS) if sig[k, i, j]}
+
+
+def render_follow_cmip6(A, summary):
+    F = xr.open_dataset(REF_FOLLOW).load()
+    ms = []
+    for s in F_SETS:
+        for w in ("d1_30", "d31_60"):
+            m, sig, _, _ = robust(F.tas.sel(set=s, window=w).values)
+            if sig.any():
+                ms.append(np.nanpercentile(np.abs(m[sig]), 99))
+    lim = float(np.ceil(max(ms + [0.35]) / 0.35) * 0.35) if ms else 1.4       # one colour scale for every CMIP6 map
+    summary["cmip6_maps"] = {f"{s}|{w}": follows_map_cmip6(F, s, w, A / f"strat_hist_follows_cmip6_{s}_{w}.webp", lim)
+                             for s in F_SETS for w in ("d1_30", "d31_60")}
+    ao_cmip6(F, A / "strat_hist_ao_cmip6.webp")
+    nao_cmip6(F, A / "strat_hist_nao_cmip6.webp")
+    summary["cmip6_regions"] = regions_cmip6(F, A / "strat_hist_regions_cmip6.webp")
+    summary["cmip6_index"] = {f"{ix}|{what}|{k[0]}|{k[1]}": [round(v[0], 3), round(v[1], 5), v[2], round(v[3], 2)]
+                              for ix in ("u700", "nam", "nao") for what in ("mean", "pneg") for k, v in f_ix_tests(F, ix, what).items()}
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--out-root", default=str(REPO))
@@ -604,8 +858,13 @@ def main():
         R = xr.open_dataset(REF_DRIP).load()
         summary["drip_u"] = {f"{src}|{s}": drip_u(R, src, s, A / f"strat_hist_drip_{src}_{s}.webp") for src in U_SRC for s in U_SETS}
     ao_figure(D, E, A / "strat_hist_ao.webp")
+    if REF_FOLLOW.exists():                                 # CMIP6 "What usually follows" (build_cmip6_follow.py)
+        render_follow_cmip6(A, summary)
     summary["regions"] = regions_figure(E, A / "strat_hist_regions.webp")
     summary["windows"] = {f"{k[0]}|{k[1]}": [round(v[0], 2), round(v[1], 4), v[2]] for k, v in window_tests(D, E).items()}
+    if "nao_ssw" in D:                                      # CPC daily NAO around the same events (build_strat_history --add-nao)
+        ao_figure(D, E, A / "strat_hist_nao.webp", ix="nao")
+        summary["windows_nao"] = {f"{k[0]}|{k[1]}": [round(v[0], 2), round(v[1], 4), v[2]] for k, v in window_tests(D, E, "nao").items()}
     print(json.dumps(summary, indent=1))
 
 
