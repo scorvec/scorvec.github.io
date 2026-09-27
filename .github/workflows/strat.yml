@@ -48,6 +48,11 @@ on:
 # Frame store (Cloudflare R2, S3 API). Absent secrets leave these empty and the
 # publishers fall back to the orphan `frames` branch - see scripts/lib/frames_env.sh.
 env:
+  # ECMWF open data from the Google Cloud mirror ONLY (user rule 2026-09-06), for every job and step: the
+  # shared store rotates google/aws/azure/ecmwf unless ECMWF_SOURCES is set, and the wave-1, cycle-probe,
+  # ens_cycle and E-P flux steps had no pin (found 2026-09-27).
+  ECMWF_SOURCES: google
+  ECMWF_MULTISOURCE: "0"
   FRAMES_S3_BUCKET: ${{ secrets.FRAMES_S3_BUCKET }}
   FRAMES_S3_ENDPOINT: ${{ secrets.FRAMES_S3_ENDPOINT }}
   FRAMES_S3_REGION: ${{ secrets.FRAMES_S3_REGION }}
@@ -432,10 +437,21 @@ jobs:
             if [ -e "$f" ]; then git add "$f"; fi
           done
           if git diff --staged --quiet; then echo "no changes"; exit 0; fi
-          git commit -m "data update: $(date -u +%Y-%m-%dT%H:%MZ)"
+          # Never rebase (project rule 2026-09-09): snapshot the staged outputs, then on each attempt reset to a
+          # fresh origin/main, lay the snapshot back on and commit - the sst.yml / mjo.yml pattern.
+          SNAP=$(mktemp -d)
+          git diff --staged --name-only -z | tar cf "$SNAP/outs.tar" --null -T -
+          FILES=$(git diff --staged --name-only)
+          git reset -q
+          MSG="data update: $(date -u +%Y-%m-%dT%H:%MZ)"
           for i in 1 2 3 4 5; do
-            if timeout 120 git pull --rebase --autostash -X theirs origin main && timeout 180 git push; then echo "pushed (attempt $i)"; exit 0; fi
-            git rebase --abort 2>/dev/null || true   # a timed-out pull can strand a half-done rebase
-            sleep 5
+            if ! timeout 120 git fetch origin main; then echo "fetch $i failed"; sleep 5; continue; fi
+            git reset -q --hard origin/main
+            tar xf "$SNAP/outs.tar"
+            for f in $FILES; do git add "$f"; done
+            if git diff --staged --quiet; then echo "no changes after resync"; exit 0; fi
+            git commit -q -m "$MSG"
+            if timeout 180 git push origin HEAD:main; then echo "pushed (attempt $i)"; exit 0; fi
+            echo "push $i rejected; resyncing"; sleep 5
           done
           echo "push failed after retries"; exit 1
