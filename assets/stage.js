@@ -16,6 +16,7 @@
   "use strict";
   var S = window.STAGE; if (!S) return;
   var P = S.products, GROUPS = S.groups;
+  var AL = S.aliases || {};              // old product ids -> live ones, so old deep links land on a view
   var ORDER = []; GROUPS.forEach(function (g) { g.items.forEach(function (p) { ORDER.push(p[0]); }); });
   var sel = { p: ORDER[0], a: null, b: null, c: null };
   var $ = function (id) { return document.getElementById(id); };
@@ -184,8 +185,12 @@
   function fillRelated() {
     if (!relWanted) return;
     if (!relCat) { window.SiteFind.load().then(function (c) { relCat = c; fillRelated(); }, function () {}); return; }
-    var here = pagePath(), me = null;
-    relCat.items.forEach(function (it) { if (it.page === here && it.id === here + "#" + sel.p) me = it; });
+    // the catalogue entry for this figure: its own id, an old id that aliases to it, or failing both the page itself
+    var here = pagePath(), me = null, ids = {};
+    ids[here + "#" + sel.p] = 1;
+    Object.keys(AL).forEach(function (k) { if (AL[k] === sel.p) ids[here + "#" + k] = 1; });
+    relCat.items.forEach(function (it) { if (it.page === here && ids[it.id]) me = it; });
+    if (!me) relCat.items.forEach(function (it) { if (!me && it.id === here) me = it; });
     if (!me) { relBox.hidden = true; return; }
     var set = function (a) { var o = {}; (a || []).forEach(function (x) { o[x] = 1; }); return o; };
     var V = set(me.variables), R = set(me.regions), M = set(me.models);
@@ -259,8 +264,6 @@
       f.style.maxWidth = (!wide && sw >= 700 && pinMax > sw * 0.5 && pinMax < sw * 0.98) ? pinMax + "px" : "";
     }
   });
-  // window.STAGE.aliases maps retired product ids to a live one, so old deep links land on a view instead of the default
-  var AL = window.STAGE.aliases || {};
   function hashParts() { var h = location.hash.replace(/^#/, "").split("/"); return (h[0] && !P[h[0]] && AL[h[0]]) ? [AL[h[0]]] : h; }
   addEventListener("hashchange", function () { var h = hashParts(); if (h[0] && P[h[0]]) { sel = { p: h[0], a: h[1] || null, b: h[2] || null, c: h[3] || null }; render(); } });
   buildRail();
