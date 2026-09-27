@@ -848,9 +848,9 @@
     var obsMonths = [], obsVals = [];
     if (state.hist) {
       obsMonths = state.hist.months;
-      var src = key === "rnino" ? (state.hist.series.roni || state.hist.series.oni)
-                                : state.hist.series.oni;
-      obsVals = (src.anom || src).slice();
+      // never ONI under a RONI label: no RONI series -> no observed overlay
+      var src = key === "rnino" ? state.hist.series.roni : state.hist.series.oni;
+      obsVals = src ? (src.anom || src).slice() : obsMonths.map(function () { return null; });
     }
     var obsAt = {};
     obsMonths.forEach(function (ym, i) { obsAt[ym] = obsVals[i]; });
@@ -934,7 +934,8 @@
     var MONS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun",
                 "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
     var histKey = state.histIdx || "oni";
-    var src = H.series[histKey] || H.series.oni;
+    if (!H.series[histKey]) histKey = "oni";   // the RONI pill is hidden when the feed lacks it
+    var src = H.series[histKey];
     var oniArr = src.anom || src;
     var byYear = {};                      // year -> [12] oni
     H.months.forEach(function (ym, i) {
@@ -1138,17 +1139,22 @@
   });
 
   Promise.all([
-    fetch("assets/sst/data/enso_forecast.json?v=122a7d5c582c").then(function (r) {
+    fetch("assets/sst/data/enso_forecast.json?v=1ce18e72d15d").then(function (r) {
       if (!r.ok) throw 0; return r.json(); }),
-    fetch("assets/sst/data/nino_history.json?v=122a7d5c582c").then(function (r) {
+    fetch("assets/sst/data/nino_history.json?v=1ce18e72d15d").then(function (r) {
       return r.ok ? r.json() : null; }).catch(function () { return null; }),
-    fetch("assets/sst/data/enso_daily.json?v=122a7d5c582c").then(function (r) {
+    fetch("assets/sst/data/enso_daily.json?v=1ce18e72d15d").then(function (r) {
       return r.ok ? r.json() : null; }).catch(function () { return null; }),
-    fetch("assets/sst/data/c3s_evolution.json?v=122a7d5c582c").then(function (r) {
+    fetch("assets/sst/data/c3s_evolution.json?v=1ce18e72d15d").then(function (r) {
       return r.ok ? r.json() : null; }).catch(function () { return null; }),
   ]).then(function (res) {
     state.fc = res[0]; state.hist = res[1]; state.dailyFeed = res[2];
     state.evo = res[3];
+    if (state.hist && !state.hist.series.roni) {
+      // a data update without RONI: hide the pill rather than relabel ONI
+      document.querySelectorAll('.pill[data-hidx="roni"]').forEach(function (b) { b.style.display = "none"; });
+      state.histIdx = "oni";
+    }
     buildChips();
     drawPlume();
     if (state.evo) drawEvo();
