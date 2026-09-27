@@ -61,15 +61,16 @@ def clean_section() -> str:
                 f"{k.replace(' (growth)', '')} {x['raw']['active']:.2f} &rarr; {x['clean_f']['active']:.2f}" for k, x in gr) + "."
     d, h, _ = items[-1]
     return f"""
+  <section id="mjo-clean" style="max-width:min(100%, calc((88vh - 70px) * 1259 / 1140));margin:2.5rem auto 0">
   <h2>MJO with the El Ni&ntilde;o signal removed</h2>
-  <p class="sub" style="max-width:80ch;margin:0.4rem 0 0.8rem">Since 2014 the standard RMM no longer removes ENSO; in a strong El Ni&ntilde;o its standing
+  <p style="color:var(--muted);font-size:0.95rem;line-height:1.55;margin:0.4rem 0 0.8rem">Since 2014 the standard RMM no longer removes ENSO; in a strong El Ni&ntilde;o its standing
   convection projects onto phases 7&ndash;8 and masquerades as a stalled MJO. This is the same AIFS-ENS forecast
   (wind-only), observed track and IFS overlay with the part tied to the Ni&ntilde;o-3.4 change removed. Latest init:
   <strong>{_label(d, h)}</strong>.</p>
-  {f'<p class="sub" style="max-width:80ch;margin:0 0 1rem">{status}</p>' if status else ''}
+  {f'<p style="font-size:0.95rem;line-height:1.55;margin:0 0 1rem">{status}</p>' if status else ''}
   <iframe class="anim-embed" src="sst_anim.html?embed=1&amp;base=assets&amp;manifest=mjo/rmmclean_manifest.json&amp;region=mjo"
     title="ENSO-removed wind-only RMM — successive runs animation" loading="lazy"></iframe>
-  <details style="margin-top:1rem;max-width:80ch;font-size:0.92rem"><summary style="cursor:pointer;color:var(--accent)">How the El Ni&ntilde;o signal is removed</summary>
+  <details style="margin-top:1rem;font-size:0.92rem"><summary style="cursor:pointer;color:var(--accent)">How the El Ni&ntilde;o signal is removed</summary>
   <p>Wheeler &amp; Hendon (2004) removed two things before projecting onto the MJO patterns: the part of each day&rsquo;s
   anomaly linearly related to ENSO, then the mean of the previous 120 days. The Bureau of Meteorology did both until the
   end of 2013; since 2014 it removes only the 120-day mean, as this page&rsquo;s raw index does. While an El Ni&ntilde;o is
@@ -87,4 +88,5 @@ def clean_section() -> str:
   ERA5 (Copernicus C3S, ARCO); NOAA OISST v2.1 and ERSST v6 (NOAA NCEI / PSL); ROMI (NOAA PSL / CPC OLR);
   Bureau of Meteorology RMM for validation.</p>
   </details>
+  </section>
 """

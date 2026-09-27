@@ -186,15 +186,16 @@
   <iframe class="anim-embed" src="sst_anim.html?embed=1&amp;base=assets&amp;manifest=mjo/rmm_manifest.json&amp;region=mjo" title="AIFS-ENS RMM forecast — successive runs animation" loading="lazy"></iframe>
 
 
+  <section id="mjo-clean" style="max-width:min(100%, calc((88vh - 70px) * 1259 / 1140));margin:2.5rem auto 0">
   <h2>MJO with the El Ni&ntilde;o signal removed</h2>
-  <p class="sub" style="max-width:80ch;margin:0.4rem 0 0.8rem">Since 2014 the standard RMM no longer removes ENSO; in a strong El Ni&ntilde;o its standing
+  <p style="color:var(--muted);font-size:0.95rem;line-height:1.55;margin:0.4rem 0 0.8rem">Since 2014 the standard RMM no longer removes ENSO; in a strong El Ni&ntilde;o its standing
   convection projects onto phases 7&ndash;8 and masquerades as a stalled MJO. This is the same AIFS-ENS forecast
   (wind-only), observed track and IFS overlay with the part tied to the Ni&ntilde;o-3.4 change removed. Latest init:
   <strong>2026-09-27 00Z</strong>.</p>
-  <p class="sub" style="max-width:80ch;margin:0 0 1rem"><b>No coherent MJO in the ENSO-removed forecast:</b> ensemble-mean amplitude 0.8 (max 1.0) and a phase speed of -5.3&deg;/day, where a real MJO moves at about +7&deg;/day. NOAA&rsquo;s OLR-based ROMI on 2026-09-23: amplitude 0.92 (phase 5); over the last 60 days 7&nbsp;% of days reached amplitude 1. Correction applied: &Delta;Ni&ntilde;o-3.4 = +0.94&nbsp;K.</p>
+  <p style="font-size:0.95rem;line-height:1.55;margin:0 0 1rem"><b>No coherent MJO in the ENSO-removed forecast:</b> ensemble-mean amplitude 0.8 (max 1.0) and a phase speed of -5.3&deg;/day, where a real MJO moves at about +7&deg;/day. NOAA&rsquo;s OLR-based ROMI on 2026-09-23: amplitude 0.92 (phase 5); over the last 60 days 7&nbsp;% of days reached amplitude 1. Correction applied: &Delta;Ni&ntilde;o-3.4 = +0.94&nbsp;K.</p>
   <iframe class="anim-embed" src="sst_anim.html?embed=1&amp;base=assets&amp;manifest=mjo/rmmclean_manifest.json&amp;region=mjo"
     title="ENSO-removed wind-only RMM — successive runs animation" loading="lazy"></iframe>
-  <details style="margin-top:1rem;max-width:80ch;font-size:0.92rem"><summary style="cursor:pointer;color:var(--accent)">How the El Ni&ntilde;o signal is removed</summary>
+  <details style="margin-top:1rem;font-size:0.92rem"><summary style="cursor:pointer;color:var(--accent)">How the El Ni&ntilde;o signal is removed</summary>
   <p>Wheeler &amp; Hendon (2004) removed two things before projecting onto the MJO patterns: the part of each day&rsquo;s
   anomaly linearly related to ENSO, then the mean of the previous 120 days. The Bureau of Meteorology did both until the
   end of 2013; since 2014 it removes only the 120-day mean, as this page&rsquo;s raw index does. While an El Ni&ntilde;o is
@@ -212,6 +213,7 @@
   ERA5 (Copernicus C3S, ARCO); NOAA OISST v2.1 and ERSST v6 (NOAA NCEI / PSL); ROMI (NOAA PSL / CPC OLR);
   Bureau of Meteorology RMM for validation.</p>
   </details>
+  </section>
 
   <p class="lede lede--wide" style="margin-top:1.4rem">Real-time Multivariate MJO (RMM) phase-space forecast from the
   ECMWF <strong>AIFS-ENS</strong> ensemble (51 members to day 15), following
