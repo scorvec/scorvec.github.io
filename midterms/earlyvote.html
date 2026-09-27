@@ -1,0 +1,191 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>2026 Midterms: Early Vote Tracker</title><meta name="description" content="Early votes cast for the 3 November 2026 midterms, from official state files where available and the UF Election Lab elsewhere, against 2022 at the same point.">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;600;700&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap">
+<style>
+:root{--ink:#1b1d22;--muted:#6f6b64;--rule:#e3e1db;--bg:#fcfcfa;--d:#1f5fbf;--r:#a32215;--o:#6f6b64}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 "Source Sans 3",-apple-system,Helvetica,Arial,sans-serif}
+.pw{max-width:1180px;margin:0 auto;padding:18px 20px 60px}
+.pw h1{font:600 30px/1.2 "Source Serif 4",Georgia,serif;margin:0 0 4px}
+.pw h2{font:600 21px/1.3 "Source Serif 4",Georgia,serif;margin:28px 0 6px}
+.pw a{color:var(--d)}
+.back{font-size:15px}
+.dim{color:var(--muted)}
+.lede{font-size:17px;max-width:820px}
+.note{border:1px solid var(--rule);border-left:4px solid #b8a36a;background:#fff;border-radius:8px;padding:10px 14px;font-size:15px;max-width:900px;margin:14px 0}
+.status{border:1px solid var(--rule);background:#fff;border-radius:8px;padding:12px 16px;font-size:16px;margin:14px 0}
+.tw{overflow-x:auto;border:1px solid var(--rule);border-radius:10px;background:#fff}
+table{border-collapse:collapse;width:100%;font-size:15px;font-variant-numeric:tabular-nums}
+th,td{padding:7px 10px;border-bottom:1px solid var(--rule);text-align:right;white-space:nowrap}
+th{font-weight:600;color:var(--muted);font-size:13.5px;background:#f6f5f1;position:sticky;top:0}
+td:first-child,th:first-child{text-align:left}
+tr:last-child td{border-bottom:0}
+.bar{display:inline-flex;height:10px;width:110px;border-radius:2px;overflow:hidden;vertical-align:middle;margin-right:6px;background:#eee}
+.bar i{display:block;height:100%}
+.pD{background:var(--d)}.pR{background:var(--r)}.pO{background:#b9b5ac}
+.up{color:#0c6b46}.dn{color:var(--r)}
+.src{font-size:14px;color:var(--muted);max-width:900px}
+small{color:var(--muted)}
+</style>
+<link rel="stylesheet" href="/assets/site.css">
+<script src="/assets/site.js" defer></script>
+<script src="/assets/rail.js" defer></script>
+</head><body>
+<!-- sh:start -->
+<header class="sh" id="site-header">
+  <div class="sh-in">
+    <a class="sh-brand" href="/">Shawn Corvec</a>
+    <button class="sh-toggle" type="button" aria-expanded="false" aria-controls="sh-menu">Menu</button>
+    <nav class="sh-nav" id="sh-menu" aria-label="Site">
+      <ul class="sh-list">
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g0">Observations</button>
+          <div class="sh-menu sh-menu--list" id="sh-g0">
+            <ul>
+              <li><a href="/enso.html">El Niño monitor</a></li>
+              <li><a href="/skewt/">Sounding explorer</a></li>
+              <li><a href="/asos5.html">Five-minute airport observations</a></li>
+              <li><a href="/qbo/">QBO tracker</a></li>
+              <li><a href="/climate.html">US climate trends</a></li>
+            </ul>
+          </div>
+        </li>
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g1">Model forecasts</button>
+          <div class="sh-menu sh-menu--cols" id="sh-g1">
+            <div>
+              <h3>Days 1–15</h3>
+              <ul>
+                <li><a href="/ar.html">Atmospheric rivers</a></li>
+                <li><a href="/cities/">City temperature forecasts</a></li>
+                <li><a href="/ecape.html">Entraining CAPE</a></li>
+                <li><a href="/mjo.html">MJO forecast</a></li>
+                <li><a href="/circulation.html">Global circulation and jets</a></li>
+                <li><a href="/stratosphere.html">Stratosphere and polar vortex</a></li>
+                <li><a href="/snowbands.html">Snow-band diagnostics</a></li>
+              </ul>
+            </div>
+            <div>
+              <h3>Beyond two weeks</h3>
+              <ul>
+                <li><a href="/subseasonal.html">Subseasonal outlook (GEPS, weeks 1–5)</a></li>
+                <li><a href="/gefs.html">Subseasonal outlook (GEFS, weeks 1–5)</a></li>
+                <li><a href="/enso-forecasts.html">ENSO forecasts (seven centres)</a></li>
+                <li><a href="/seasonal.html">Seasonal outlook (eight C3S models)</a></li>
+                <li><a href="/sfs.html">Seasonal outlook (NOAA SFS)</a></li>
+              </ul>
+            </div>
+          </div>
+        </li>
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g2">Model verification</button>
+          <div class="sh-menu sh-menu--list" id="sh-g2">
+            <ul>
+              <li><a href="/cities/verify.html">City temperature forecast verification</a></li>
+              <li><a href="/aifs-verify.html">AIFS single versus member 0</a></li>
+            </ul>
+          </div>
+        </li>
+        <li class="sh-item"><a class="sh-link" href="/topics/">Explainers</a></li>
+        <li class="sh-item"><a class="sh-link" href="/research.html">Research</a></li>
+        <li class="sh-item"><a class="sh-link" href="/resume.html">Resume</a></li>
+        <li class="sh-item sh-item--special"><a class="sh-special" href="/midterms/" aria-current="page">2026 Midterms</a></li>
+      </ul>
+    </nav>
+  </div>
+</header>
+<!-- sh:end -->
+<main class="pw">
+<p class="back"><a href="./">Back to the forecast</a> &nbsp;·&nbsp; <a href="polls.html">Every poll and its weight</a> &nbsp;·&nbsp; <a href="about.html">How the forecast works</a></p>
+<h1>Early vote tracker</h1>
+<p class="lede dim">Ballots already cast for the 3 November 2026 election. Official state election-office files come first; the UF Election Lab covers the other states. Updated once a day.</p>
+<div class="status" id="status">loading…</div>
+<div class="note"><b>Turnout tracking, not a forecast.</b> None of this feeds the forecast. Who votes early says little about who wins: in 2022 the early vote leaned Democratic and the Election Day vote leaned Republican in many states. Party figures are voters' <i>registration</i>, not their vote, and states count and report differently, so compare a state with itself over time, not with other states.</div>
+
+<h2>States with official data</h2>
+<p class="dim" id="offlede">From the state election office's own files, set against 2022 at the same number of days before Election Day.</p>
+<div class="tw"><table id="off"></table></div>
+<p class="src" id="offsrc"></p>
+
+<h2>Other states (UF Election Lab)</h2>
+<p class="dim">Figures from Michael McDonald's UF Election Lab tracker, shown exactly as published: its licence allows no derived statistics. Each state links to its UF page.</p>
+<div class="tw"><table id="uf"></table></div>
+<p class="src" id="ufsrc"></p>
+
+<h2>Sources</h2>
+<p class="src" id="sources"></p>
+</main>
+<script>
+const fmt = n => (n == null ? '–' : Number(n).toLocaleString('en-US'));
+const pct = (a, b) => (b ? (100 * a / b) : null);
+const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;'}[c]));
+const dstr = s => { if (!s) return '–'; const d = new Date(s.length > 10 ? s : s + 'T12:00:00Z'); return d.toLocaleDateString('en-US', {month: 'short', day: 'numeric', timeZone: 'UTC'}); };
+function partyBar(p) {
+  const t = (p.dem || 0) + (p.rep || 0) + (p.oth || 0); if (!t) return '–';
+  const d = 100 * (p.dem || 0) / t, r = 100 * (p.rep || 0) / t, o = 100 - d - r;
+  return `<span class="bar" title="Dem ${d.toFixed(0)}%, Rep ${r.toFixed(0)}%, other ${o.toFixed(0)}%"><i class="pD" style="width:${d}%"></i><i class="pR" style="width:${r}%"></i><i class="pO" style="width:${o}%"></i></span>D ${d.toFixed(0)} · R ${r.toFixed(0)} · oth ${o.toFixed(0)}`;
+}
+fetch('data/earlyvote.json', {cache: 'no-store'}).then(r => r.json()).then(D => {
+  const off = D.official || [], uf = D.uf || [];
+  const offVotes = off.reduce((a, s) => a + (s.total || 0), 0);
+  const ufVoting = uf.filter(s => (s.voted_all || 0) > 0);
+  const ufReq = uf.filter(s => (s.request_all || 0) > 0);
+  const st = document.getElementById('status');
+  if (!offVotes && !ufVoting.length) {
+    st.innerHTML = `<b>No states have reported early votes yet</b> <span class="dim">(sources checked ${dstr(D.generated)})</span>. ${D.days_to_election} days to Election Day.`;
+  } else {
+    st.innerHTML = `<b>${fmt(offVotes)}</b> ballots returned in the ${off.length} states with official data`
+      + (ufVoting.length ? `; the UF Election Lab lists votes in <b>${ufVoting.length}</b> more state${ufVoting.length > 1 ? 's' : ''}` : '')
+      + (ufReq.length ? ` and ballot requests in <b>${ufReq.length}</b>` : '')
+      + `. <span class="dim">${D.days_to_election} days to Election Day · checked ${dstr(D.generated)}</span>`;
+  }
+  // official
+  let h = '<tr><th>State</th><th>Data as of</th><th>Mail returned</th><th>In person</th><th>Total</th><th>2022, same point</th><th>Change</th><th>Party registration, 2026</th><th>Party registration, 2022 same point</th><th>Ballots requested</th></tr>';
+  for (const s of off) {
+    const b = s.baseline_2022 || {};
+    const ch = b.total ? (s.total / b.total - 1) * 100 : null;
+    h += `<tr><td><b>${esc(s.name)}</b>${s.stale ? ' <small>(yesterday\'s file; today\'s failed)</small>' : ''}</td><td>${dstr(s.asof)}</td><td>${fmt(s.mail_returned)}</td><td>${s.state === 'PA' ? '<small>none in PA</small>' : fmt(s.in_person)}</td><td><b>${fmt(s.total)}</b></td>`
+      + `<td>${b.total != null ? fmt(b.total) + ` <small>${dstr(b.date_2022)}</small>` : '–'}</td>`
+      + `<td>${ch == null ? '–' : `<span class="${ch >= 0 ? 'up' : 'dn'}">${ch >= 0 ? '+' : ''}${ch.toFixed(0)}%</span>`}</td>`
+      + `<td>${partyBar(s.party || {})}</td><td>${b.party ? partyBar(b.party) : '–'}</td><td>${fmt(s.requested)}</td></tr>`;
+  }
+  document.getElementById('off').innerHTML = off.length ? h : '<tr><td>No official files read yet.</td></tr>';
+  const sw = off.map(s => `${esc(s.name)}: <a href="${esc(s.source_url)}">${esc(s.source_name)}</a>, file of ${esc(s.file_time)}; ${esc(s.party_basis)}`
+    + (s.baseline_2022 ? `; 2022 = ${fmt(s.baseline_2022.total)} by ${dstr(s.baseline_2022.date_2022)} 2022, ${s.baseline_2022.days_before} days out (final ${fmt(s.baseline_2022.final_total)})` : '')
+    + (s.uf_crosscheck && s.uf_crosscheck.voted_all ? `; UF Election Lab lists ${fmt(s.uf_crosscheck.voted_all)} (update ${esc(s.uf_crosscheck.last_update)})` : '')).join('. ');
+  const pend = D.official_pending && D.official_pending.TX ? ` Texas: the Secretary of State's early-voting rosters will be read once it lists the 2026 general (${esc(D.official_pending.TX)}); until then Texas comes from UF.` : '';
+  document.getElementById('offsrc').innerHTML = sw + '.' + pend;
+  // UF
+  const rows = uf.filter(s => (s.voted_all || 0) > 0 || (s.request_all || 0) > 0).sort((a, b) => (b.voted_all || 0) - (a.voted_all || 0) || (b.request_all || 0) - (a.request_all || 0));
+  let u = '<tr><th>State</th><th>UF update</th><th>Requested</th><th>Mail returned</th><th>In person</th><th>Total early vote</th><th>Dem</th><th>Rep</th><th>None / other</th><th>2022 total turnout</th></tr>';
+  for (const s of rows) {
+    u += `<tr><td><a href="${esc(s.uf_url)}">${esc(s.name)}</a></td><td>${esc(s.last_update || '–')}</td><td>${fmt(s.request_all)}</td><td>${fmt(s.accept_all)}</td><td>${fmt(s.inperson_all)}</td><td><b>${fmt(s.voted_all)}</b></td><td>${fmt(s.voted_dem)}</td><td>${fmt(s.voted_rep)}</td><td>${fmt(s.voted_none)}</td><td>${fmt(s.turn_2022)}</td></tr>`;
+  }
+  document.getElementById('uf').innerHTML = rows.length ? u : '<tr><td>No other state has reported early votes to the UF Election Lab yet.</td></tr>';
+  document.getElementById('ufsrc').innerHTML = `Early vote data for these states: Michael McDonald, University of Florida Election Lab, <a href="https://election.lab.ufl.edu/early-vote/2026-early-voting/">2026 Early Voting</a>, licensed <a href="https://creativecommons.org/licenses/by-nc-nd/4.0/">CC BY-NC-ND 4.0</a>; zeros mean the state has not reported. ${D.uf_error ? 'Today\'s UF download failed; the previous copy is shown.' : ''}`;
+  const blocked = Object.entries(D.blocked_official || {}).map(([k, v]) => `${k} (${esc(v)})`).join(', ');
+  document.getElementById('sources').innerHTML = `Official files: NC State Board of Elections (dl.ncsbe.gov, daily aggregate counts); Pennsylvania Department of State via data.pa.gov (public domain; queried as counts, never individual records). `
+    + `States whose official data could not be read automatically come from UF instead: ${blocked}. No voter-level record is stored or shown. `
+    + `2022 comparisons are this site's calculation from the same states' 2022 files. Page data: <a href="data/earlyvote.json">earlyvote.json</a>, updated ${dstr(D.generated)}.`;
+}).catch(e => { document.getElementById('status').textContent = 'The early-vote data could not be loaded.'; });
+</script>
+<!-- sf:start -->
+<footer class="sf">
+  <div class="sf-in">
+    <ul>
+      <li><a href="/">Home</a></li>
+      <li><a href="/#products">Products</a></li>
+      <li><a href="/research.html">Research</a></li>
+      <li><a href="/resume.html">Resume</a></li>
+      <li><a href="https://github.com/scorvec" rel="noopener">GitHub</a></li>
+      <li><a href="https://www.linkedin.com/in/shawn-corvec-35895b231/" rel="noopener">LinkedIn</a></li>
+      <li><a href="https://scholar.google.com/citations?user=EYLRCJIAAAAJ&amp;hl=en" rel="noopener">Google Scholar</a></li>
+      <li><a href="/stats.html">Visitor stats</a></li>
+    </ul>
+    <p>Shawn Corvec. Built from open data; sources are credited on each page.</p>
+    <p class="sf-disclaimer">This site is under constant development. Nothing here is checked before publication and there is no expectation of accuracy, completeness or availability; do not rely on it for decisions.</p>
+  </div>
+</footer>
+<!-- sf:end -->
+</body></html>
