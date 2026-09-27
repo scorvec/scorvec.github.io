@@ -194,11 +194,13 @@ def impacts_section():
     ids.forEach(function (k) {{ el[k] = document.getElementById(k); }});
     // default = #mi/tas_na/cmip6/djf/10/strip; a hash value that is not an option is ignored
     var def = ["tas_na", "cmip6", "djf", "10", "strip"];
-    var h = (location.hash.indexOf("#mi/") === 0) ? location.hash.slice(4).split("/") : [];
-    ids.forEach(function (k, i) {{
-      var v = h[i], ok = v && [].some.call(el[k].options, function (o) {{ return o.value === v; }});
-      el[k].value = ok ? v : def[i];
-    }});
+    function apply(h) {{
+      ids.forEach(function (k, i) {{
+        var v = h[i], ok = v && [].some.call(el[k].options, function (o) {{ return o.value === v; }});
+        el[k].value = ok ? v : def[i];
+      }});
+    }}
+    apply((location.hash.indexOf("#mi/") === 0) ? location.hash.slice(4).split("/") : []);
     var fr1 = document.getElementById("mi-frame"), fr2 = document.getElementById("mi-frame2");
     function src(rid) {{
       return "sst_anim.html?embed=1&base=assets/mjo/impacts/anim&manifest=mjo_impacts_manifest.json&region="
@@ -222,7 +224,7 @@ def impacts_section():
     addEventListener("hashchange", function () {{
       var h2 = (location.hash.indexOf("#mi/") === 0) ? location.hash.slice(4).split("/") : null;
       if (!h2 || h2.length !== 5) return;
-      ids.forEach(function (k, i) {{ if (h2[i]) el[k].value = h2[i]; }});
+      apply(h2);                                 // same validation as on load: stale values fall back to the defaults
       go(false);
       document.getElementById("mjo-impacts").scrollIntoView({{ block: "start" }});
     }});
