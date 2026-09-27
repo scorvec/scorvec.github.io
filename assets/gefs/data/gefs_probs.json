@@ -1,6 +1,6 @@
 {
- "cycle": "20260925",
- "init": "2026-09-25 00Z",
+ "cycle": "20260926",
+ "init": "2026-09-26 00Z",
  "members": 31,
  "skill_min": 0.25,
  "terciles": "2016-2025 observed weekly anomaly",
@@ -9,114 +9,114 @@
   "t2m": [
    {
     "week": 1,
-    "valid": "2026-09-25/2026-10-01",
+    "valid": "2026-09-26/2026-10-02",
     "skill_r_median": 0.827,
     "share_skilful": 0.993,
     "most_likely_cal": {
-     "below": 0.325,
-     "near": 0.288,
-     "above": 0.388
+     "below": 0.308,
+     "near": 0.309,
+     "above": 0.383
     }
    },
    {
     "week": 2,
-    "valid": "2026-10-02/2026-10-08",
+    "valid": "2026-10-03/2026-10-09",
     "skill_r_median": 0.538,
     "share_skilful": 0.979,
     "most_likely_cal": {
-     "below": 0.306,
+     "below": 0.33,
      "near": 0.225,
-     "above": 0.469
+     "above": 0.445
     }
    },
    {
     "week": 3,
-    "valid": "2026-10-09/2026-10-15",
+    "valid": "2026-10-10/2026-10-16",
     "skill_r_median": 0.297,
     "share_skilful": 0.61,
     "most_likely_cal": {
-     "below": 0.312,
-     "near": 0.145,
-     "above": 0.543
+     "below": 0.336,
+     "near": 0.142,
+     "above": 0.522
     }
    },
    {
     "week": 4,
-    "valid": "2026-10-16/2026-10-22",
+    "valid": "2026-10-17/2026-10-23",
     "skill_r_median": 0.213,
     "share_skilful": 0.424,
     "most_likely_cal": {
-     "below": 0.319,
-     "near": 0.149,
-     "above": 0.532
+     "below": 0.339,
+     "near": 0.134,
+     "above": 0.527
     }
    },
    {
     "week": 5,
-    "valid": "2026-10-23/2026-10-29",
+    "valid": "2026-10-24/2026-10-30",
     "skill_r_median": 0.191,
     "share_skilful": 0.379,
     "most_likely_cal": {
-     "below": 0.329,
-     "near": 0.164,
-     "above": 0.507
+     "below": 0.343,
+     "near": 0.159,
+     "above": 0.498
     }
    }
   ],
   "pr": [
    {
     "week": 1,
-    "valid": "2026-09-25/2026-10-01",
+    "valid": "2026-09-26/2026-10-02",
     "skill_r_median": 0.444,
     "share_skilful": 0.66,
     "most_likely_cal": {
-     "below": 0.381,
-     "near": 0.291,
-     "above": 0.328
+     "below": 0.382,
+     "near": 0.289,
+     "above": 0.329
     }
    },
    {
     "week": 2,
-    "valid": "2026-10-02/2026-10-08",
+    "valid": "2026-10-03/2026-10-09",
     "skill_r_median": 0.161,
     "share_skilful": 0.277,
     "most_likely_cal": {
      "below": 0.427,
-     "near": 0.254,
-     "above": 0.319
+     "near": 0.255,
+     "above": 0.318
     }
    },
    {
     "week": 3,
-    "valid": "2026-10-09/2026-10-15",
+    "valid": "2026-10-10/2026-10-16",
     "skill_r_median": 0.06,
     "share_skilful": 0.029,
     "most_likely_cal": {
-     "below": 0.406,
+     "below": 0.393,
      "near": 0.24,
-     "above": 0.354
+     "above": 0.367
     }
    },
    {
     "week": 4,
-    "valid": "2026-10-16/2026-10-22",
+    "valid": "2026-10-17/2026-10-23",
     "skill_r_median": 0.026,
     "share_skilful": 0.013,
     "most_likely_cal": {
-     "below": 0.305,
-     "near": 0.371,
-     "above": 0.323
+     "below": 0.289,
+     "near": 0.374,
+     "above": 0.337
     }
    },
    {
     "week": 5,
-    "valid": "2026-10-23/2026-10-29",
+    "valid": "2026-10-24/2026-10-30",
     "skill_r_median": 0.029,
     "share_skilful": 0.01,
     "most_likely_cal": {
-     "below": 0.287,
-     "near": 0.374,
-     "above": 0.339
+     "below": 0.258,
+     "near": 0.367,
+     "above": 0.375
     }
    }
   ]
