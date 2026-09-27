@@ -178,9 +178,12 @@
       f.style.maxWidth = (!wide && sw >= 700 && pinMax > sw * 0.5 && pinMax < sw * 0.98) ? pinMax + "px" : "";
     }
   });
-  addEventListener("hashchange", function () { var h = location.hash.replace(/^#/, "").split("/"); if (h[0] && P[h[0]]) { sel = { p: h[0], a: h[1] || null, b: h[2] || null, c: h[3] || null }; render(); } });
+  // window.STAGE.aliases maps retired product ids to a live one, so old deep links land on a view instead of the default
+  var AL = window.STAGE.aliases || {};
+  function hashParts() { var h = location.hash.replace(/^#/, "").split("/"); return (h[0] && !P[h[0]] && AL[h[0]]) ? [AL[h[0]]] : h; }
+  addEventListener("hashchange", function () { var h = hashParts(); if (h[0] && P[h[0]]) { sel = { p: h[0], a: h[1] || null, b: h[2] || null, c: h[3] || null }; render(); } });
   buildRail();
-  var h = location.hash.replace(/^#/, "").split("/");
+  var h = hashParts();
   if (h[0] && P[h[0]]) sel = { p: h[0], a: h[1] || null, b: h[2] || null, c: h[3] || null };
   render();
 })();

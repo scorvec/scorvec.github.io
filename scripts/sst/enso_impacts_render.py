@@ -29,6 +29,11 @@ SITE = Path(os.environ.get("SST_SITE_ROOT", HERE.parents[1]))
 OUT = SITE / "assets" / "sst"
 
 MUTED = "#6f6b64"
+# The PDO views (same-season regressions on the ENSO-free / raw PDO, the phase split and its interaction, the "how much
+# is ENSO" table) are WITHDRAWN from the site (2026-09-27, user: "I would remove the PDO maps for now until we have done a
+# full causality analysis"): a same-season regression mostly shows the atmosphere driving the SST. The code and reference
+# stay; ENSO_IMPACTS_PDO=1 draws them again.
+PDO_VIEWS = os.environ.get("ENSO_IMPACTS_PDO") == "1"
 SEASONS = ("DJF", "MAM", "JJA", "SON")
 SNAME = {"DJF": "December–February", "MAM": "March–May", "JJA": "June–August", "SON": "September–November"}
 VNAME = {"tas": "temperature", "pr": "precipitation"}
@@ -432,22 +437,23 @@ def render_z500(made, index):
             f"Same-strength events: Niño-3.4 {e['x_a']:+.2f} K (east, E > C) vs {e['x_b']:+.2f} K (central) · {e['n_a']:,} vs "
             f"{e['n_b']:,} events, {e['models']} models · {100 * e['sig_frac']:.0f} % of 20–90°N robust",
             MOD_T + " Events matched in Niño-3.4 bins (0.5–1, 1–1.5, 1.5–2, ≥ 2 K).", note="No significant difference")
-        for nm in ("free", "raw"):
+        for nm in (("free", "raw") if PDO_VIEWS else ()):
             for src in ("cmip6", "obs"):
                 key = f"cmip6|{nm}|{s}" if src == "cmip6" else f"obs|{nm}|{s}"; f, sg = get(key); e = M.get(key, {})
                 who = "CMIP6" if src == "cmip6" else "ERA5"
-                ttl = f"{who} · {s} 500 hPa height and the " + ("PDO without ENSO" if nm == "free" else "raw PDO index")
-                sub = (("Partial regression on the ENSO-free PDO with same-season Niño-3.4 alongside, per 1 sd" if nm == "free"
+                ttl = (f"{who} · {s} 500 hPa height co-varying with the same-season " + ("ENSO-free PDO" if nm == "free" else "PDO index")
+                       + " (mostly the atmosphere driving the SST, not the PDO's effect)")
+                sub = (("Partial regression on the ENSO-free PDO, Niño-3.4 alongside, per 1 sd" if nm == "free"
                         else "Simple regression on the PDO index, ENSO left in, per 1 sd") + " · "
                        + (f"{e['models']} models" if src == "cmip6" else f"{e['n']} seasons, {e['span'][0]}–{e['span'][1]}")
                        + f" · {100 * e['sig_frac']:.0f} % of 20–90°N " + ("robust" if src == "cmip6" else "significant"))
                 out(f"enso_imp_pdo_z500_{s}_{nm}_{src}", key, f, sg, s, "reg", "gpm per standard deviation", ttl, sub,
                     MOD_T if src == "cmip6" else OBS_T, note="No significant signal")
-        for nm, lab in (("en", "El Niño"), ("ln", "La Niña"), ("int", "El Niño")):
+        for nm, lab in ((("en", "El Niño"), ("ln", "La Niña"), ("int", "El Niño")) if PDO_VIEWS else ()):
             key = f"cmip6|cmp|{s}|{'en_pdo' if nm == 'en' else 'ln_pdo' if nm == 'ln' else 'int'}"; f, sg = get(key); e = M.get(key, {})
-            ttl = (f"CMIP6 · {s} 500 hPa height: {lab} under +PDO minus −PDO" if nm != "int"
-                   else f"CMIP6 · {s} 500 hPa height: does a +PDO amplify El Niño?")
-            sub = ((f"{lab} seasons with the ENSO-free PDO ≥ +0.5 sd minus ≤ −0.5 sd, Niño-3.4 matched ({e['x_a']:+.2f} vs "
+            ttl = (f"CMIP6 · {s} 500 hPa height: {lab} with a same-winter +PDO minus −PDO (co-variability)" if nm != "int"
+                   else f"CMIP6 · {s} 500 hPa height: El Niño × same-winter PDO interaction")
+            sub = ((f"{lab} seasons with the same season's ENSO-free PDO ≥ +0.5 sd minus ≤ −0.5 sd, Niño-3.4 matched ({e['x_a']:+.2f} vs "
                     f"{e['x_b']:+.2f} K) · {e['n_a']:,} vs {e['n_b']:,} events" if nm != "int"
                     else "(El Niño, +PDO − −PDO) − (neutral, +PDO − −PDO), per model")
                    + f" · {e['models']} models · {100 * e['sig_frac']:.0f} % of 20–90°N robust")
@@ -585,7 +591,7 @@ def render_modes(made, index):
                          "Fewer than 5 models have both kinds of event at matched strength.", note_empty="Not tested")
             rec(name, key)
             # PDO: without ENSO (partial on N34 + ENSO-free PDO) and raw
-            for nm in ("free", "raw"):
+            for nm in (("free", "raw") if PDO_VIEWS else ()):
                 for src in ("cmip6", "obs"):
                     key = f"pdo|{v}|{s}|{nm}|{src}"; f, sg = get(key); e = M.get(key, {})
                     if f is None:
@@ -593,14 +599,14 @@ def render_modes(made, index):
                     name = f"enso_imp_pdo_{v}_{s}_{nm}_{src}"
                     who = "CMIP6" if src == "cmip6" else OBSNAME[v]
                     if nm == "free":
-                        title = f"{who} · {s} {VNAME[v]} and the PDO without ENSO"
-                        sub = ("Partial regression on the ENSO-free PDO with same-season Niño-3.4 fitted alongside, per 1 sd · "
+                        title = f"{who} · {s} {VNAME[v]} co-varying with the same-season ENSO-free PDO"
+                        sub = ("Co-variability: mostly the atmosphere driving the sst, not the pdo's effect · partial regression on the ENSO-free PDO, Niño-3.4 alongside, per 1 sd · "
                                + (f"{e['models']} models, {e['members']} members, 1950–2014" if src == "cmip6"
                                   else f"{e['n']} seasons, {e['span'][0]}–{e['span'][1]}")
                                + f" · {100 * e['land_sig']:.0f} % of land " + ("robust" if src == "cmip6" else "significant"))
                     else:
-                        title = f"{who} · {s} {VNAME[v]} and the raw PDO index"
-                        sub = ("Simple regression on the PDO index, ENSO left in, per 1 sd · "
+                        title = f"{who} · {s} {VNAME[v]} co-varying with the same-season PDO index"
+                        sub = ("Co-variability: mostly the atmosphere driving the sst, not the pdo's effect · simple regression on the PDO index, ENSO left in, per 1 sd · "
                                + (f"{e['models']} models, {e['members']} members, 1950–2014" if src == "cmip6"
                                   else f"NCEI PDO, {e['n']} seasons, {e['span'][0]}–{e['span'][1]}")
                                + f" · {100 * e['land_sig']:.0f} % of land " + ("robust" if src == "cmip6" else "significant"))
@@ -612,27 +618,28 @@ def render_modes(made, index):
                              note_empty="No significant signal")
                     rec(name, key)
             # El Nino / La Nina by ENSO-free PDO phase, matched strength; and the interaction
-            for nm, lab, sub0 in (("en", "El Niño", "El Niño seasons with the ENSO-free PDO ≥ +0.5 sd minus those ≤ −0.5 sd"),
-                                  ("ln", "La Niña", "La Niña seasons with the ENSO-free PDO ≥ +0.5 sd minus those ≤ −0.5 sd"),
-                                  ("int", "El Niño", "What a +PDO adds to El Niño beyond its own neutral-year effect")):
+            for nm, lab, sub0 in () if not PDO_VIEWS else (("en", "El Niño", "Co-variability, not a PDO effect: El Niño seasons with the same season's ENSO-free PDO ≥ +0.5 sd minus ≤ −0.5 sd"),
+                                  ("ln", "La Niña", "Co-variability, not a PDO effect: La Niña seasons with the same season's ENSO-free PDO ≥ +0.5 sd minus ≤ −0.5 sd"),
+                                  ("int", "El Niño", "El Niño's same-winter PDO difference minus the neutral-winter one (co-variability)")):
                 key = f"cmp|{v}|{s}|{nm}"; f, sg = get(key); e = M.get(key, {})
                 name = f"enso_imp_pdoph_{v}_{s}_{nm}"
-                ttl = (f"CMIP6 · {s} {VNAME[v]}: {lab} under +PDO minus −PDO" if nm != "int"
-                       else f"CMIP6 · {s} {VNAME[v]}: does a +PDO amplify El Niño?")
+                ttl = (f"CMIP6 · {s} {VNAME[v]}: {lab} with a same-winter +PDO minus −PDO" if nm != "int"
+                       else f"CMIP6 · {s} {VNAME[v]}: El Niño × same-winter PDO interaction")
                 if f is None:
                     draw_map(OUT / f"{name}.webp", np.full((len(lat), len(lon)), np.nan), np.zeros((len(lat), len(lon)), bool),
                              lat, lon, LEV[f"comp_{v}"], cmap, UNIT[f"comp_{v}"], ttl, sub0, "Fewer than 5 models qualify.",
                              note_empty="Not tested"); rec(name, key); continue
                 sub = sub0 + (f" · Niño-3.4 matched ({e['x_a']:+.2f} vs {e['x_b']:+.2f} K) · {e['n_a']:,} vs {e['n_b']:,} events, "
                               f"{e['models']} models" if "n_a" in e else f" · {e['models']} models")
-                foot = (CMIP_TEST + " PDO phase from the ENSO-free PDO, so El Niño itself does not decide the phase; events "
-                        "matched in |Niño-3.4| bins." + (" Interaction = (El Niño, +PDO − −PDO) − (neutral, +PDO − −PDO), per model."
+                foot = (CMIP_TEST + " PDO phase from the SAME season's ENSO-free PDO, which that season's atmosphere largely "
+                        "builds, so this is co-variability, not the PDO's effect; events matched in |Niño-3.4| bins." + (" Interaction = (El Niño, +PDO − −PDO) − (neutral, +PDO − −PDO), per model."
                                                          if nm == "int" else "") + dry_txt)
                 draw_map(OUT / f"{name}.webp", f, sg, lat, lon, LEV[f"comp_{v}"], cmap, UNIT[f"comp_{v}"], ttl, sub, foot, dry=dry,
                          note_empty="No significant difference")
                 rec(name, key)
     place_fig(z, meta, made, index)
-    share_fig(meta, made, index)
+    if PDO_VIEWS:
+        share_fig(meta, made, index)
 
 
 def place_fig(z, meta, made, index):
@@ -703,9 +710,9 @@ def share_fig(meta, made, index):
     rows = [(v, s) for v in ("tas", "pr") for s in SEASONS]
     fig = plt.figure(figsize=(9.6, 1.6 + 0.3 * len(rows) + 0.62))
     H = fig.get_size_inches()[1]
-    fig.text(0.02, 1 - 0.14 / H, "How much of the PDO's impact over the Americas is ENSO?", fontsize=12.5, fontweight="bold", va="top")
-    fig.text(0.02, 1 - 0.46 / H, "CMIP6 regressions on the raw PDO against the same on the ENSO-free PDO, over land, 16 models",
-             fontsize=8.6, color="#3d3a36", va="top")
+    fig.text(0.02, 1 - 0.14 / H, "How much of what co-varies with the PDO over the Americas is ENSO?", fontsize=12.5, fontweight="bold", va="top")
+    fig.text(0.02, 1 - 0.46 / H, "CMIP6 same-season regressions on the raw PDO against the same on the ENSO-free PDO, over land, 16 models "
+             "(co-variability: mostly the atmosphere driving the SST, not the PDO's effect)", fontsize=8.6, color="#3d3a36", va="top")
     hdr = ["", "robust land,\nraw PDO", "robust land,\nENSO-free", "robust land,\nwith N34 fitted", "pattern r,\nraw vs free",
            "variance kept\nwithout ENSO", "model range\nof that share"]
     xs = [0.02, 0.2, 0.33, 0.46, 0.6, 0.73, 0.87]
