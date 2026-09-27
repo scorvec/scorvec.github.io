@@ -162,6 +162,14 @@ def impacts_section():
     }}
     ids.forEach(function (k) {{ el[k].addEventListener("change", function () {{ go(true); }}); }});
     go(false);
+    // a link to another view of this page (the site finder, a pasted #mi/... link) arrives as a hashchange
+    addEventListener("hashchange", function () {{
+      var h2 = (location.hash.indexOf("#mi/") === 0) ? location.hash.slice(4).split("/") : null;
+      if (!h2 || h2.length !== 5) return;
+      ids.forEach(function (k, i) {{ if (h2[i]) el[k].value = h2[i]; }});
+      go(false);
+      document.getElementById("mjo-impacts").scrollIntoView({{ block: "start" }});
+    }});
   }})();
   </script>"""
 
@@ -184,6 +192,12 @@ def main():
                 'title="AIFS-ENS RMM forecast — successive runs animation" loading="lazy"></iframe>\n')
     else:
         body = '<p class="empty">No forecasts yet — the first scheduled run will populate this page.</p>'
+
+    clean, impacts = clean_section(), impacts_section()
+    # "Jump to" line (2026-09-27): the two sections below the forecast were being missed entirely
+    jumps = [f'<a href="#{i}">{t}</a>' for i, t, sec in (("mjo-clean", "ENSO-removed index", clean),
+                                                         ("mjo-impacts", "Impacts by phase and month", impacts)) if sec]
+    jump = f'  <p class="jump">Jump to: {" &middot; ".join(jumps)}</p>\n' if jumps else ""
 
     html = f"""<!DOCTYPE html>
 <html lang="en">
@@ -255,6 +269,8 @@ def main():
   .mi-about p {{ margin: 0.6rem 0; font-size: 0.92rem; }}
   .chart-sources {{ color: var(--muted); font-size: 0.82rem; }}
   a {{ color: var(--accent); }}
+  main > p.jump {{ text-align: center; color: var(--muted); font-size: 0.95rem; margin: -0.1rem 0 1.1rem; }}
+  #mjo-clean, #mjo-impacts {{ scroll-margin-top: 84px; }}
 </style>
 <script data-goatcounter="https://scorvec.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
 <link rel="stylesheet" href="/assets/lightbox.css">
@@ -264,8 +280,8 @@ def main():
 {NAV}
 <main>
   <h1>MJO forecast from the AIFS ensemble</h1>
-  {body}
-{clean_section()}
+{jump}  {body}
+{clean}
   <p class="lede lede--wide" style="margin-top:1.4rem">Real-time Multivariate MJO (RMM) phase-space forecast from the
   ECMWF <strong>AIFS-ENS</strong> ensemble (51 members to day 15), following
   Wheeler &amp; Hendon (2004). Full three-channel projection: U850/U200 plus a
@@ -281,7 +297,7 @@ def main():
   feed. Methodology: NOAA CPC / Wheeler &amp; Hendon (2004), EOFs from NOAA OLR +
   NCEP wind with the 120-day low-frequency filter removed; pseudo-OLR from
   &minus;standardized daily precip vs an ERA5 1991&ndash;2020 band climatology.</p>
-{impacts_section()}
+{impacts}
 </main>
 <script>
   // Size the animator iframe to its exact content height (plot + slider) so the slider is
@@ -300,6 +316,23 @@ def main():
     var fr = document.querySelectorAll('iframe.anim-embed');
     for (var i = 0; i < fr.length; i++) fr[i].style.maxWidth = '';
   }});
+  // #mi/... (an impacts view) and #mjo-clean land on their section. The page used to open at the top: the
+  // animator iframes above size themselves after load (sstAnimHeight), which moves everything below them, so
+  // the section is followed for a few seconds - until the reader scrolls.
+  (function () {{
+    var h = location.hash, id = h.indexOf("#mi/") === 0 || h === "#mjo-impacts" ? "mjo-impacts"
+      : h.indexOf("#mjo-clean") === 0 ? "mjo-clean" : null;
+    var el = id && document.getElementById(id);
+    if (!el) return;
+    var stop = false, n = 0;
+    ["wheel", "touchstart", "keydown", "mousedown"].forEach(function (ev) {{
+      addEventListener(ev, function () {{ stop = true; }}, {{ once: true, passive: true }});
+    }});
+    function go() {{ if (!stop) el.scrollIntoView({{ block: "start" }}); }}
+    go();
+    var t = setInterval(function () {{ go(); if (++n >= 16) clearInterval(t); }}, 250);
+    addEventListener("load", go);
+  }})();
 </script>
 </body>
 </html>

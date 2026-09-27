@@ -18,7 +18,7 @@
   :root {
     --bg: #fcfcfa; --ink: #29321f; --muted: #6f6b64; --rule: #e3e1da; --panel: #ffffff; --accent: #274b7a;
     --accent-soft: rgba(39, 75, 122, 0.08);
-    --t-weather: #e6edf4; --t-drivers: #f1ebe0; --t-outlooks: #e5eee6; --t-research: #ede8f0; --t-tools: #ecebe6;
+    --t-weather: #e3ebf3; --t-drivers: #f1e9dc; --t-outlooks: #e2ede4; --t-research: #ebe5ef; --t-tools: #eae9e3;
   }
   *, *::before, *::after { box-sizing: border-box; }
   body { margin: 0; background: var(--bg); color: var(--ink); }
@@ -32,7 +32,7 @@
   .cf-q { display: flex; align-items: center; gap: 0.6rem; max-width: 40rem; margin: 0 auto 0.7rem;
           border: 1px solid var(--rule); border-radius: 999px; background: var(--panel); padding: 0.45rem 0.6rem 0.45rem 1rem; }
   .cf-q:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
-  .cf-q svg { width: 1.1rem; height: 1.1rem; flex: none; fill: none; stroke: var(--accent); stroke-width: 1.8; stroke-linecap: round; }
+  .cf-q svg { width: 1.1rem; height: 1.1rem; flex: none; }
   .cf-q input { flex: 1; min-width: 0; font: inherit; font-size: 1.05rem; color: var(--ink); background: transparent; border: 0; outline: 0; padding: 0.15rem 0; }
   .cf-q input::-webkit-search-cancel-button { display: none; }
   .cf-q input::placeholder { color: var(--muted); opacity: 1; }
@@ -48,36 +48,47 @@
   .chip[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: #fff; }
   .chip[aria-pressed="true"] small { color: rgba(255, 255, 255, 0.8); }
   .chip:disabled { opacity: 0.4; cursor: default; border-color: var(--rule); color: var(--ink); }
-  .chip:focus-visible, .cf-q button:focus-visible, .ct:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-  .cf-sum { display: flex; justify-content: space-between; align-items: baseline; gap: 1rem; margin-top: 0.55rem; font-size: 0.92rem; color: var(--muted); }
-  .cf-sum button { font: inherit; font-size: 0.92rem; color: var(--accent); background: none; border: 0; padding: 0; cursor: pointer; text-decoration: underline; text-underline-offset: 0.16em; }
-  .cf-sum button[hidden] { display: none; }
+  .chip:focus-visible, .cf-q button:focus-visible, .ct:focus-visible, .sort button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .cf-sum { display: flex; justify-content: space-between; align-items: center; gap: 0.6rem 1rem; flex-wrap: wrap; margin-top: 0.7rem; font-size: 0.92rem; color: var(--muted); }
+  .cf-sum .reset { font: inherit; font-size: 0.92rem; color: var(--accent); background: none; border: 0; padding: 0; cursor: pointer; text-decoration: underline; text-underline-offset: 0.16em; }
+  .cf-sum .reset[hidden] { display: none; }
+  .sort { display: inline-flex; border: 1px solid var(--rule); border-radius: 999px; padding: 2px; background: var(--panel); }
+  .sort button { font: inherit; font-size: 0.9rem; color: var(--muted); background: none; border: 0; border-radius: 999px; padding: 0.2rem 0.8rem; cursor: pointer; }
+  .sort button[aria-pressed="true"] { background: var(--ink); color: #fff; }
+  .sort[hidden] { display: none; }
 
   /* the sheet */
   .cs { margin-top: 2.2rem; }
   .cs > header { display: flex; align-items: baseline; gap: 0.9rem; flex-wrap: wrap; margin: 0 0 1rem; padding-bottom: 0.45rem; border-bottom: 1px solid var(--rule); }
   .cs > header h2 { margin: 0; }
   .cs > header p { margin: 0; color: var(--muted); font-size: 0.95rem; }
-  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(15.5rem, 1fr)); gap: 1.7rem 1.3rem; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(15.5rem, 1fr)); gap: 1.7rem 1.3rem; align-items: start; }
   .ct { display: block; color: inherit; text-decoration: none; min-width: 0; }
-  .ct-th { position: relative; aspect-ratio: 4 / 3; display: flex; align-items: center; justify-content: center; overflow: hidden;
-           background: var(--panel); border: 1px solid var(--rule); border-radius: 6px; transition: border-color 0.15s, box-shadow 0.15s; }
-  .ct-th img { display: block; width: 100%; height: 100%; object-fit: contain; opacity: 0; transition: opacity 0.25s; }
+  /* every card has a tile of the same size: the figure, or a designed text tile - never an empty box */
+  .ct-th { position: relative; aspect-ratio: 4 / 3; overflow: hidden; background: var(--panel);
+           border: 1px solid var(--rule); border-radius: 6px; transition: border-color 0.15s, box-shadow 0.15s; }
+  .ct-th img { position: absolute; inset: 0; display: block; width: 100%; height: 100%; object-fit: contain; padding: 4px; opacity: 0; transition: opacity 0.25s; }
   .ct-th img.on { opacity: 1; }
   .ct-th .loop { position: absolute; left: 0.45rem; bottom: 0.45rem; font-size: 0.9rem; line-height: 1; padding: 0.22rem 0.45rem;
-                 border-radius: 4px; background: rgba(255, 255, 255, 0.9); color: var(--ink); border: 1px solid var(--rule); }
+                 border-radius: 4px; background: rgba(255, 255, 255, 0.92); color: var(--ink); border: 1px solid var(--rule); }
   .ct:hover .ct-th { border-color: var(--accent); box-shadow: 0 8px 22px -14px rgba(20, 30, 45, 0.45); }
-  .ct-tile { position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: flex-end; padding: 0.9rem 1rem; text-align: left; }
-  .ct-tile b { font-family: var(--f-serif); font-weight: 500; font-size: 1.25rem; line-height: 1.2; color: var(--ink); }
-  .ct-tile i { font-style: normal; font-size: 0.9rem; color: var(--muted); margin-top: 0.3rem; }
-  .t-weather .ct-tile { background: var(--t-weather); } .t-drivers .ct-tile { background: var(--t-drivers); }
-  .t-outlooks .ct-tile { background: var(--t-outlooks); } .t-research .ct-tile { background: var(--t-research); }
-  .t-tools .ct-tile { background: var(--t-tools); }
+  .ct-tile { position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: space-between; gap: 0.5rem;
+             padding: 0.9rem 1rem 1rem; text-align: left; background-color: var(--tint, var(--t-tools));
+             background-image: repeating-linear-gradient(135deg, rgba(40, 50, 30, 0.045) 0 1px, transparent 1px 10px); }
+  .ct-tile i { font-style: normal; font-size: 0.9rem; color: var(--muted); }
+  .ct-tile b { font-family: var(--f-serif); font-weight: 500; font-size: 1.3rem; line-height: 1.2; color: var(--ink);
+               display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+  .ct-tile span { font-size: 0.9rem; line-height: 1.4; color: var(--muted); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .t-weather { --tint: var(--t-weather); } .t-drivers { --tint: var(--t-drivers); } .t-outlooks { --tint: var(--t-outlooks); }
+  .t-research { --tint: var(--t-research); } .t-tools { --tint: var(--t-tools); }
   .ct-l { display: block; margin-top: 0.55rem; font-size: 1.02rem; font-weight: 600; line-height: 1.3; }
   .ct:hover .ct-l { color: var(--accent); }
+  .ct-l .v { color: var(--accent); font-weight: 500; }
   .ct-l mark { background: none; color: inherit; text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 0.2em;
                text-decoration-color: color-mix(in srgb, var(--accent) 60%, transparent); }
   .ct-m { display: block; font-size: 0.9rem; line-height: 1.4; color: var(--muted); margin-top: 0.1rem; }
+  .ct-m .age { color: #3f6b3a; }
+  .ct-m .age.late { color: #9a3412; }
   .none { padding: 3rem 0; text-align: center; color: var(--muted); }
   .none button { font: inherit; color: var(--accent); background: none; border: 0; cursor: pointer; text-decoration: underline; }
   @media (max-width: 700px) {
@@ -90,9 +101,9 @@
     .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1.2rem 0.8rem; }
     .ct-l { font-size: 0.95rem; }
     .ct-m + .ct-m { display: none; }
-    .ct-tile { padding: 0.6rem 0.7rem; }
+    .ct-tile { padding: 0.6rem 0.7rem 0.7rem; }
     .ct-tile b { font-size: 1.02rem; }
-    .ct-tile i { display: none; }
+    .ct-tile span { display: none; }
   }
   @media (prefers-reduced-motion: reduce) { .ct-th img { transition: none; } }
 </style>
@@ -108,7 +119,7 @@
 <header class="sh" id="site-header">
   <div class="sh-in">
     <a class="sh-brand" href="/">Shawn Corvec</a>
-    <button class="sh-find" type="button" aria-haspopup="dialog" aria-keyshortcuts="Control+K Meta+K" title="Find a plot (Ctrl K)"><svg viewBox="0 0 20 20" aria-hidden="true" focusable="false"><circle cx="8.5" cy="8.5" r="5.5"/><path d="M12.6 12.6 17 17"/></svg><span class="sh-find-t">Find a plot</span><kbd>Ctrl K</kbd></button>
+    <button class="sh-find" type="button" aria-haspopup="dialog" aria-keyshortcuts="Control+K Meta+K" title="Find a plot (Ctrl K)"><svg viewBox="0 0 20 20" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true" focusable="false"><circle cx="8.5" cy="8.5" r="5.5" style="fill:none;stroke:currentColor"/><path d="M12.6 12.6 17 17" style="fill:none;stroke:currentColor"/></svg><span class="sh-find-t">Find a plot</span><kbd>Ctrl K</kbd></button>
     <button class="sh-toggle" type="button" aria-expanded="false" aria-controls="sh-menu">Menu</button>
     <nav class="sh-nav" id="sh-menu" aria-label="Site">
       <ul class="sh-list">
@@ -207,13 +218,19 @@
   <p class="lede" id="lede">Every figure and animation on the site in one sheet, gathered from the pages themselves and rebuilt whenever one changes. Each card opens the exact view. Filter below, or press <kbd>Ctrl K</kbd> on any page to search from anywhere.</p>
 
   <form class="cf" id="cf" role="search" onsubmit="return false">
-    <label class="cf-q"><svg viewBox="0 0 20 20" aria-hidden="true" focusable="false"><circle cx="8.5" cy="8.5" r="5.5"/><path d="M12.6 12.6 17 17"/></svg>
+    <label class="cf-q"><svg viewBox="0 0 20 20" width="18" height="18" fill="none" stroke="#274b7a" stroke-width="1.8" stroke-linecap="round" aria-hidden="true" focusable="false"><circle cx="8.5" cy="8.5" r="5.5" style="fill:none"/><path d="M12.6 12.6 17 17" style="fill:none"/></svg>
       <span class="vh">Filter the plots</span>
       <input id="q" type="search" autocomplete="off" spellcheck="false" placeholder="Filter: a model, a variable, a region, a page…">
       <button type="button" id="qx" hidden>Clear</button>
     </label>
     <div class="cf-rows" id="facets"></div>
-    <div class="cf-sum"><span id="sum" aria-live="polite">Loading the index…</span><button type="button" id="reset" hidden>Clear all filters</button></div>
+    <div class="cf-sum">
+      <span id="sum" aria-live="polite">Loading the index…</span>
+      <button type="button" class="reset" id="reset" hidden>Clear all filters</button>
+      <span class="sort" role="group" aria-label="Order">
+        <button type="button" data-sort="latest" aria-pressed="true">Live first</button><button type="button" data-sort="page" aria-pressed="false">By page</button>
+      </span>
+    </div>
   </form>
 
   <div id="sheet"></div>
@@ -224,6 +241,7 @@ document.addEventListener('DOMContentLoaded', function () {
   var F = window.SiteFind;
   var sheet = document.getElementById('sheet'), facetsEl = document.getElementById('facets');
   var qEl = document.getElementById('q'), qx = document.getElementById('qx'), sum = document.getElementById('sum'), reset = document.getElementById('reset');
+  var sortEl = document.querySelector('.sort');
   if (!F) { sum.textContent = 'The index could not be loaded.'; return; }
   var MAC = /Mac|iPhone|iPad|iPod/.test(navigator.platform || navigator.userAgent || '');
   var TOUCH = window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
@@ -236,25 +254,39 @@ document.addEventListener('DOMContentLoaded', function () {
     { key: 'model', label: 'Model', get: function (it) { return it.models || []; } },
     { key: 'region', label: 'Region', get: function (it) { return it.regions || []; } },
   ];
-  var state = { q: '', topic: '', range: '', model: '', region: '' };
+  var state = { q: '', topic: '', range: '', model: '', region: '', sort: '' };
   try {
     var sp = new URLSearchParams(location.search);
     Object.keys(state).forEach(function (k) { state[k] = sp.get(k) || ''; });
   } catch (e) {}
   qEl.value = state.q;
 
-  F.load().then(start, function () {
+  // freshness per page, from the deploy's /status.json (the homepage's "updated 3 h ago"); optional
+  var status = {};
+  var stP = fetch('/status.json', { cache: 'no-cache' }).then(function (r) { return r.ok ? r.json() : {}; })
+    .then(function (s) { status = (s && s.products) || {}; }, function () {});
+
+  Promise.all([F.load(), stP]).then(function (res) { start(res[0]); }, function () {
     sum.textContent = 'The index could not be loaded. Try again in a minute; every page is also in the menus above.';
   });
+
+  function age(page) {
+    var p = status[page]; if (!p) return null;
+    var h = (Date.now() - Date.parse(p.updated)) / 3.6e6;
+    if (!(h >= 0)) return null;
+    return { h: h, late: p.every_h ? h > 2 * p.every_h + 6 : false,
+             text: 'updated ' + (h < 1.5 ? Math.max(1, Math.round(h * 60)) + ' min ago' : h < 48 ? Math.round(h) + ' h ago' : Math.round(h / 24) + ' days ago') };
+  }
 
   function start(cat) {
     var items = cat.items.filter(function (it) { return it.page !== '/catalog.html'; }), topics = cat.topics, tl = {};
     topics.forEach(function (t) { tl[t.id] = t; });
+    items.forEach(function (it, i) { it._order = i; it._age = age(it.page); });
     var pages = {}; items.forEach(function (it) { pages[it.page] = 1; });
     var nv = items.reduce(function (s, it) { return s + Math.max(1, (it.variants || []).length); }, 0);
-    document.getElementById('lede').firstChild.nodeValue =
-      items.length + ' plots on ' + Object.keys(pages).length + ' pages, ' + nv + ' views counting every option, gathered from the pages themselves and rebuilt whenever one changes. Each card opens the exact view. Filter below, or press ';
     var lede = document.getElementById('lede');
+    lede.firstChild.nodeValue =
+      items.length + ' plots on ' + Object.keys(pages).length + ' pages, ' + nv + ' views counting every option, gathered from the pages themselves and rebuilt whenever one changes. Each card opens the exact view, live forecasts first. Filter below, or press ';
     lede.lastChild.nodeValue = ' on any page to search from anywhere.';
     if (TOUCH) {                                   // no keyboard: point at the header's search button instead
       lede.innerHTML = F.esc(lede.firstChild.nodeValue.replace(/, or press $/, '.')) + ' The search button in the header does the same from any page.';
@@ -279,36 +311,57 @@ document.addEventListener('DOMContentLoaded', function () {
         }).join('') + '</div>';
     }).join('');
 
-    // one card per item, built once and re-shelved on every filter change (images load once)
+    // one card per item, built once and re-shelved on every change; its tile is repainted only when the figure it
+    // should show changes (a search that lands on an option shows that option's own figure)
     var io = 'IntersectionObserver' in window ? new IntersectionObserver(function (es) {
       es.forEach(function (e) { if (e.isIntersecting) { io.unobserve(e.target); paint(e.target); } });
-    }, { rootMargin: '400px 0px' }) : null;
+    }, { rootMargin: '500px 0px' }) : null;
     var cards = {};
     items.forEach(function (it) {
       var a = document.createElement('a');
       a.className = 'ct t-' + it.topic;
       a.href = it.url;
       var nvi = (it.variants || []).length;
-      var meta = (it.group ? it.page_title + ' · ' + it.group : (tl[it.topic] ? tl[it.topic].label : ''));
+      var meta = it.group ? it.page_title + ' · ' + it.group : (tl[it.topic] ? tl[it.topic].label : '');
       var tags = [it.horizon].concat((it.models || []).slice(0, 3)).filter(Boolean).join(', ');
-      a.innerHTML = '<div class="ct-th">' + (it.thumb ? '' : '<div class="ct-tile"><b>' + F.esc(it.label) + '</b><i>' + (it.group ? 'Interactive chart' : 'Opens the page') + '</i></div>') + '</div>' +
-        '<span class="ct-l">' + F.esc(it.label) + '</span>' +
-        '<span class="ct-m">' + F.esc(meta) + '</span>' +
+      a.innerHTML = '<div class="ct-th"></div><span class="ct-l"></span>' +
+        '<span class="ct-m">' + F.esc(meta) + (it._age ? ' · <span class="age' + (it._age.late ? ' late' : '') + '">' + it._age.text + '</span>' : '') + '</span>' +
         '<span class="ct-m">' + F.esc(tags) + (nvi > 1 ? ' · ' + nvi + ' views' : '') + '</span>';
-      a.addEventListener('click', function () { F.remember(it, null); });
-      a._it = it;
+      a.addEventListener('click', function () { F.remember(it, a._variant || null); });
+      a._it = it; a._fig = undefined;
       cards[it.id] = a;
-      if (it.thumb) { if (io) io.observe(a); else paint(a); }
     });
+    function tile(it, note) {
+      return '<div class="ct-tile"><i>' + F.esc(note) + '</i><div><b>' + F.esc(it.label) + '</b>' +
+        (it.cap || it.sub ? '<span>' + F.esc(it.cap || it.sub) + '</span>' : '') + '</div></div>';
+    }
+    function setFig(a, key) {
+      if (a._fig === key) return;
+      a._fig = key;
+      var box = a.querySelector('.ct-th');
+      if (!key) { box.innerHTML = tile(a._it, F.tileNote(a._it, key).replace(/ \u2014 opens on the page$/, '')); return; }
+      // until the figure arrives the tile stands in, so no card is ever an empty box
+      box.innerHTML = tile(a._it, 'Loading…');
+      a._painted = false;
+      if (io) { io.unobserve(a); io.observe(a); } else paint(a);
+    }
     function paint(a) {
-      var it = a._it, box = a.querySelector('.ct-th'), im = new Image();
+      if (a._painted || !a._fig) return;
+      a._painted = true;
+      var key = a._fig, box = a.querySelector('.ct-th'), im = new Image();
       im.alt = ''; im.decoding = 'async';
-      im.onload = function () { im.classList.add('on'); };
+      im.onload = function () {
+        if (a._fig !== key) return;
+        im.classList.add('on');
+        var t = box.querySelector('.ct-tile'); if (t) t.remove();
+      };
       box.appendChild(im);
-      if (it.thumb.frame) { var tag = document.createElement('span'); tag.className = 'loop'; tag.textContent = 'Loop'; box.appendChild(tag); }
-      F.thumbInto(im, it.thumb, function () {
+      var rec = cat.thumbs && cat.thumbs[key];
+      if (rec && rec.f) { var tag = document.createElement('span'); tag.className = 'loop'; tag.textContent = 'Loop'; box.appendChild(tag); }
+      F.thumbInto(im, key, function () {
+        if (a._fig !== key) return;
         im.remove();
-        box.insertAdjacentHTML('afterbegin', '<div class="ct-tile"><b>' + F.esc(it.label) + '</b><i>Opens on the page</i></div>');
+        var t = box.querySelector('.ct-tile i'); if (t) t.textContent = 'Opens on the page';
       });
     }
 
@@ -321,7 +374,12 @@ document.addEventListener('DOMContentLoaded', function () {
       state[f] = state[f] === v ? '' : v;
       render();
     });
-    function clearAll() { Object.keys(state).forEach(function (k) { state[k] = ''; }); qEl.value = ''; render(); }
+    sortEl.addEventListener('click', function (e) {
+      var b = e.target.closest('button'); if (!b) return;
+      state.sort = b.dataset.sort === 'page' ? 'page' : '';
+      render();
+    });
+    function clearAll() { ['q', 'topic', 'range', 'model', 'region'].forEach(function (k) { state[k] = ''; }); qEl.value = ''; render(); }
     reset.addEventListener('click', clearAll);
 
     function passes(it, skip) {
@@ -332,8 +390,17 @@ document.addEventListener('DOMContentLoaded', function () {
       }
       return true;
     }
+    // "Live first": live forecasts, then research, history and tools, then seasonal and out-of-season products;
+    // inside a tier a page that has stopped updating drops to the end, then the site's own priority, then page order
+    function liveOrder(a, b) {
+      var A = a.item, B = b.item;
+      return (A.tier || 0) - (B.tier || 0) || ((A._age && A._age.late) ? 1 : 0) - ((B._age && B._age.late) ? 1 : 0) ||
+             (A.prio || 0) - (B.prio || 0) || A._order - B._order;
+    }
+    var pageOrder = {};
+    (cat.pages || []).forEach(function (p, i) { if (!(p.href in pageOrder)) pageOrder[p.href] = i; });
     function render() {
-      var ranked = F.search(state.q, items);            // every item, in page order, when the query is empty
+      var ranked = F.search(state.q, items);            // every item, in index order, when the query is empty
       var shown = ranked.filter(function (r) { return passes(r.item); });
       // facet counts under the other filters (and the text), so a chip never leads to an empty sheet
       var textOk = {}; ranked.forEach(function (r) { textOk[r.item.id] = 1; });
@@ -345,19 +412,32 @@ document.addEventListener('DOMContentLoaded', function () {
         b.disabled = !n && !on;
         b.querySelector('small').textContent = n;
       });
+      sortEl.querySelectorAll('button').forEach(function (b) {
+        b.setAttribute('aria-pressed', (b.dataset.sort === 'page') === (state.sort === 'page') ? 'true' : 'false');
+      });
+      sortEl.hidden = !!state.q.trim();
       sheet.innerHTML = '';
       if (!shown.length) {
         sheet.innerHTML = '<p class="none">No plot matches these filters. <button type="button">Clear all filters</button></p>';
         sheet.querySelector('button').addEventListener('click', clearAll);
       } else if (state.q.trim()) {
         sheet.appendChild(section('Best matches', shown.length + ' for “' + state.q.trim() + '”', shown));
+      } else if (state.sort === 'page') {
+        var byPage = {}, order = [];
+        shown.forEach(function (r) { var p = r.item.page; if (!byPage[p]) { byPage[p] = []; order.push(p); } byPage[p].push(r); });
+        order.sort(function (a, b) { return (a in pageOrder ? pageOrder[a] : 999) - (b in pageOrder ? pageOrder[b] : 999); });
+        order.forEach(function (p) {
+          var rs = byPage[p], it = rs[0].item, ag = it._age;
+          sheet.appendChild(section(it.group ? it.page_title : it.label, (tl[it.topic] ? tl[it.topic].label : '') + (ag ? ' · ' + ag.text : ''), rs));
+        });
       } else {
-        topics.forEach(function (t) {
-          var rs = shown.filter(function (r) { return r.item.topic === t.id; });
-          if (rs.length) sheet.appendChild(section(t.label, t.blurb, rs));
+        shown.sort(liveOrder);
+        (cat.tiers || ['Live', 'Research', 'Seasonal']).forEach(function (label, t) {
+          var rs = shown.filter(function (r) { return (r.item.tier || 0) === t; });
+          if (rs.length) sheet.appendChild(section(label, '', rs));
         });
       }
-      var active = Object.keys(state).some(function (k) { return state[k]; });
+      var active = ['q', 'topic', 'range', 'model', 'region'].some(function (k) { return state[k]; });
       sum.textContent = active ? 'Showing ' + shown.length + ' of ' + items.length + ' plots' : items.length + ' plots';
       reset.hidden = !active; qx.hidden = !state.q;
       try {
@@ -369,13 +449,15 @@ document.addEventListener('DOMContentLoaded', function () {
     }
     function section(title, blurb, rs) {
       var s = document.createElement('section'); s.className = 'cs';
-      s.innerHTML = '<header><h2>' + F.esc(title) + '</h2><p>' + F.esc(blurb) + '</p></header><div class="grid"></div>';
+      s.innerHTML = '<header><h2>' + F.esc(title) + '</h2>' + (blurb ? '<p>' + F.esc(blurb) + '</p>' : '') + '</header><div class="grid"></div>';
       var g = s.querySelector('.grid');
       rs.forEach(function (r) {
         var a = cards[r.item.id];
+        a._variant = r.variant || null;
         a.href = r.variant ? r.item.page + r.variant[1] : r.item.url;
         a.querySelector('.ct-l').innerHTML = F.highlight(r.item.label, state.q) +
-          (r.variant ? ' <span style="color:var(--accent)">› ' + F.highlight(r.variant[0], state.q) + '</span>' : '');
+          (r.variant ? ' <span class="v">› ' + F.highlight(r.variant[0], state.q) + '</span>' : '');
+        setFig(a, F.figOf(r));
         g.appendChild(a);
       });
       return s;
@@ -384,6 +466,7 @@ document.addEventListener('DOMContentLoaded', function () {
   }
 });
 </script>
+
 <!-- sf:start -->
 <footer class="sf">
   <div class="sf-in">

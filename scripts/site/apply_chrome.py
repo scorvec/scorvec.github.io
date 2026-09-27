@@ -247,8 +247,13 @@ def header_html(page: str, skin: str) -> str:
            # the finder (2026-09-27): a search palette over every plot on the site, opened here or with Ctrl/Cmd-K;
            # the behaviour is in assets/site.js, the index in assets/site/catalog.json (scripts/site/build_catalog.py)
            '    <button class="sh-find" type="button" aria-haspopup="dialog" aria-keyshortcuts="Control+K Meta+K" '
-           'title="Find a plot (Ctrl K)"><svg viewBox="0 0 20 20" aria-hidden="true" focusable="false"><circle cx="8.5" cy="8.5" r="5.5"/>'
-           '<path d="M12.6 12.6 17 17"/></svg><span class="sh-find-t">Find a plot</span><kbd>Ctrl K</kbd></button>',
+           # the icon carries its own size and drawing attributes (inline style on the shapes outranks page CSS): a page
+           # whose stylesheet styles bare svg/circle, or a stale cached site.css, drew it as a large black disc
+           'title="Find a plot (Ctrl K)"><svg viewBox="0 0 20 20" width="18" height="18" fill="none" stroke="currentColor" '
+           'stroke-width="1.8" stroke-linecap="round" aria-hidden="true" focusable="false">'
+           '<circle cx="8.5" cy="8.5" r="5.5" style="fill:none;stroke:currentColor"/>'
+           '<path d="M12.6 12.6 17 17" style="fill:none;stroke:currentColor"/></svg>'
+           '<span class="sh-find-t">Find a plot</span><kbd>Ctrl K</kbd></button>',
            '    <button class="sh-toggle" type="button" aria-expanded="false" aria-controls="sh-menu">Menu</button>',
            '    <nav class="sh-nav" id="sh-menu" aria-label="Site">\n      <ul class="sh-list">']
     for n, (title, _blurb, items) in enumerate(PRODUCTS):

@@ -10,9 +10,15 @@ themselves so it never goes stale:
   rail pages (<main data-rail>)  ->  every .card with its data-label / data-group / id (rail.js makes the same ids);
   single-figure pages  ->  one entry each, described from the chrome's PRODUCTS table.
 Each product gets exactly ONE topic (the page's, with group-level overrides such as the ENSO page's CMIP6 impacts
-under Research), tags for the filters (model, range, region, variable), search keywords from its About text, a
-thumbnail (a figure URL, or the first frame of a loop on the frames branch), and deep links for its option
-combinations (#product/a/b/c, the stage viewer's own hash format).
+under Research), tags for the filters (model, range, region, variable), search keywords from its About text, deep
+links for its option combinations (#product/a/b/c, the stage viewer's own hash format) and, for the product and for
+EVERY option combination, the figure that combination shows: a key into the `thumbs` table, whose entries name the
+source (a file on main, or the first frame of a loop on the frames branch) and, once scripts/site/build_thumbs.py has
+made it, a ~360 px WebP thumbnail on the frames branch (assets/site/thumbs/).
+
+Default order (the catalogue's "Latest first"): `tier` 0 = live forecasts updated daily or more, 1 = research,
+history, verification and tools, 2 = monthly seasonal outlooks and anything out of season (the snow bands outside
+November to mid-April); `prio` orders pages inside a tier. The page adds freshness from /status.json.
 
 Privacy: only the pages listed below are read, and any keyword text naming the private boards is dropped;
 the build fails if a private name reaches a label.
@@ -25,11 +31,13 @@ from __future__ import annotations
 import argparse
 import datetime as dt
 import fnmatch
+import hashlib
 import html as H
 import json
 import re
 import subprocess
 import sys
+import urllib.request
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
@@ -39,6 +47,8 @@ import apply_chrome as A                                                       #
 
 OUT = REPO / "assets" / "site" / "catalog.json"
 EVAL = Path(__file__).resolve().parent / "catalog_eval.js"
+THUMB_DIR = "assets/site/thumbs"                       # on the frames branch
+THUMB_INDEX_URL = "https://raw.githubusercontent.com/scorvec/scorvec.github.io/frames/" + THUMB_DIR + "/index.json"
 
 TOPICS = [
     ("weather", "Weather", "The next two weeks, from single storms to the cities"),
@@ -48,54 +58,72 @@ TOPICS = [
     ("tools", "Tools", "Explore the data yourself"),
 ]
 HORIZONS = ["Observed", "Days 1–15", "Weeks 1–5", "Seasons", "Climate record"]
+TIERS = ["Live forecasts and monitors", "Research, history and tools", "Seasonal and out of season"]
 
-# page -> kind, topic, default tags; `groups` overrides the topic/range for a rail group on that page
+
+def snow_season(today: dt.date | None = None) -> bool:
+    """The snow-band products run November to mid-April (snowband.yml); outside that they are case studies."""
+    d = today or dt.date.today()
+    return d.month in (11, 12, 1, 2, 3) or (d.month == 4 and d.day <= 15)
+
+
+# page -> kind, topic, default tags, tier/prio; `groups` overrides them for one rail group on that page.
+# `region` is the page's default region, used only when a product's own label, options and caption name none.
 PAGES = {
-    "/enso.html": dict(kind="stage", file="enso.html", topic="drivers", title="El Niño monitor",
+    "/enso.html": dict(kind="stage", file="enso.html", topic="drivers", title="El Niño monitor", tier=0, prio=0,
                        models=["OISST"], horizon="Observed", region=["Tropical Pacific"],
-                       groups={"Impacts on the Americas": dict(topic="research", horizon="Climate record", models=["CMIP6", "ERA5"])}),
-    "/circulation.html": dict(kind="stage", file="circulation.html", topic="drivers", title="Jets, Walker and Hadley cells",
-                              models=["AIFS-ENS"], horizon="Days 1–15", region=["Global"]),
+                       groups={"Impacts on the Americas": dict(topic="research", horizon="Climate record", models=["CMIP6", "ERA5"],
+                                                               region=["North America", "South America"], tier=1, prio=20)}),
     "/stratosphere.html": dict(kind="stage", file="stratosphere.html", topic="drivers", title="Stratosphere and polar vortex",
-                               models=["AIFS-ENS"], horizon="Days 1–15", region=["Northern Hemisphere"],
-                               groups={"Stratosphere history": dict(topic="research", horizon="Climate record", models=["MERRA-2"])}),
+                               tier=0, prio=1, models=["AIFS-ENS"], horizon="Days 1–15", region=["Northern Hemisphere"],
+                               groups={"Stratosphere history": dict(topic="research", horizon="Climate record", models=["MERRA-2"],
+                                                                    tier=1, prio=21)}),
+    "/circulation.html": dict(kind="stage", file="circulation.html", topic="drivers", title="Jets, Walker and Hadley cells",
+                              tier=0, prio=4, models=["AIFS-ENS"], horizon="Days 1–15", region=["Global"]),
     "/snowbands.html": dict(kind="stage", file="snowbands.html", topic="weather", title="Snow-band diagnostics",
+                            tier=0 if snow_season() else 2, prio=5 if snow_season() else 40,
                             models=["HRRR", "RRFS", "RDPS"], horizon="Days 1–15", region=["North America"]),
-    "/subseasonal.html": dict(kind="geps", file="subseasonal.html", topic="outlooks", title="GEPS weeks 1–5",
+    "/subseasonal.html": dict(kind="geps", file="subseasonal.html", topic="outlooks", title="GEPS weeks 1–5", tier=0, prio=3,
                               models=["GEPS"], horizon="Weeks 1–5", region=["North America"], own_models=True),
-    "/gefs.html": dict(kind="geps", file="gefs.html", topic="outlooks", title="GEFS weeks 1–5",
+    "/gefs.html": dict(kind="geps", file="gefs.html", topic="outlooks", title="GEFS weeks 1–5", tier=0, prio=3,
                        models=["GEFS"], horizon="Weeks 1–5", region=["North America"], own_models=True),
-    "/seasonal.html": dict(kind="rail", file="seasonal.html", topic="outlooks", title="Eight C3S seasonal models",
+    "/seasonal.html": dict(kind="rail", file="seasonal.html", topic="outlooks", title="Eight C3S seasonal models", tier=2, prio=30,
                            models=["C3S", "SEAS5"], horizon="Seasons", region=["Global"]),
-    "/sfs.html": dict(kind="rail", file="sfs.html", topic="outlooks", title="NOAA SFS seasonal",
+    "/sfs.html": dict(kind="rail", file="sfs.html", topic="outlooks", title="NOAA SFS seasonal", tier=2, prio=31,
                       models=["SFS"], horizon="Seasons", region=["Global"]),
     # single-figure / app pages: one entry each (label and description from the chrome's PRODUCTS table)
-    "/ar.html": dict(kind="page", topic="weather", models=["AIFS-ENS"], horizon="Days 1–15", region=["North America", "Pacific"],
-                     thumb="assets/ar/ar_now.webp", variable=["Moisture transport"]),
-    "/ecape.html": dict(kind="page", topic="weather", models=["HRRR"], horizon="Days 1–15", region=["North America"], variable=["Instability"]),
-    "/cities/": dict(kind="page", topic="weather", models=["Consensus", "NBM", "AIFS", "GEFS", "GEPS"], horizon="Days 1–15",
-                     region=["North America"], variable=["Temperature"]),
-    "/enso-forecasts.html": dict(kind="page", topic="drivers", models=["Multi-model"], horizon="Seasons", region=["Tropical Pacific"], variable=["SST"]),
-    "/mjo.html": dict(kind="page", topic="drivers", models=["AIFS-ENS"], horizon="Days 1–15", region=["Tropics"],
+    "/mjo.html": dict(kind="page", topic="drivers", tier=0, prio=2, models=["AIFS-ENS"], horizon="Days 1–15", region=["Tropics"],
                       thumb_manifest=("assets/mjo", "rmm_manifest.json", "mjo", "last"), variable=["Convection"]),
-    "/qbo/": dict(kind="page", topic="drivers", models=["Radiosondes"], horizon="Observed", region=["Tropics"],
+    "/ar.html": dict(kind="page", topic="weather", tier=0, prio=6, models=["AIFS-ENS"], horizon="Days 1–15",
+                     region=["North America", "Pacific"], thumb="assets/ar/ar_now.webp", variable=["Moisture transport"]),
+    "/ecape.html": dict(kind="page", topic="weather", tier=0, prio=7, models=["HRRR"], horizon="Days 1–15", region=["North America"],
+                        thumb_ecape=True, variable=["Instability"]),
+    "/cities/": dict(kind="page", topic="weather", tier=0, prio=8, models=["Consensus", "NBM", "AIFS", "GEFS", "GEPS"],
+                     horizon="Days 1–15", region=["North America"], variable=["Temperature"]),
+    "/qbo/": dict(kind="page", topic="drivers", tier=0, prio=9, models=["Radiosondes"], horizon="Observed", region=["Tropics"],
                   thumb="assets/qbo/qbo_section.webp", variable=["Stratosphere", "Wind"]),
-    "/cities/verify.html": dict(kind="page", topic="research", models=["Consensus", "NBM", "AIFS"], horizon="Days 1–15",
-                                region=["North America"], variable=["Temperature"]),
-    "/aifs-verify.html": dict(kind="page", topic="research", models=["AIFS", "AIFS-ENS", "ERA5"], horizon="Days 1–15",
+    "/enso-forecasts.html": dict(kind="page", topic="drivers", tier=2, prio=29, models=["Multi-model"], horizon="Seasons",
+                                 region=["Tropical Pacific"], variable=["SST"]),
+    "/cities/verify.html": dict(kind="page", topic="research", tier=1, prio=22, models=["Consensus", "NBM", "AIFS"],
+                                horizon="Days 1–15", region=["North America"], variable=["Temperature"]),
+    "/aifs-verify.html": dict(kind="page", topic="research", tier=1, prio=23, models=["AIFS", "AIFS-ENS", "ERA5"], horizon="Days 1–15",
                               region=["Northern Hemisphere"], thumb="assets/verify/tt_compare_d05.webp", variable=["Height", "Temperature"]),
-    "/topics/": dict(kind="page", topic="research", models=[], horizon=None, region=[]),
-    "/research.html": dict(kind="page", topic="research", models=[], horizon=None, region=[]),
-    "/catalog.html": dict(kind="page", topic="tools", models=[], horizon=None, region=[]),
-    "/skewt/": dict(kind="page", topic="tools", models=["Radiosondes"], horizon="Observed", region=["Global"], variable=["Soundings"]),
-    "/asos5.html": dict(kind="page", topic="tools", models=["ASOS"], horizon="Observed", region=["North America"], variable=["Temperature"]),
-    "/climate.html": dict(kind="page", topic="tools", models=["nClimDiv", "PRISM"], horizon="Climate record", region=["North America"],
-                          variable=["Temperature", "Precipitation"]),
+    "/topics/": dict(kind="page", topic="research", tier=1, prio=26, models=[], horizon=None, region=[]),
+    "/research.html": dict(kind="page", topic="research", tier=1, prio=27, models=[], horizon=None, region=[]),
+    "/catalog.html": dict(kind="page", topic="tools", tier=1, prio=28, models=[], horizon=None, region=[]),
+    "/skewt/": dict(kind="page", topic="tools", tier=1, prio=24, models=["Radiosondes"], horizon="Observed", region=["Global"],
+                    thumb="skewt/og-card.png", variable=["Soundings"]),
+    "/asos5.html": dict(kind="page", topic="tools", tier=1, prio=25, models=["ASOS"], horizon="Observed", region=["North America"],
+                        variable=["Temperature"]),
+    "/climate.html": dict(kind="page", topic="tools", tier=1, prio=25, models=["nClimDiv", "PRISM"], horizon="Climate record",
+                          region=["North America"], variable=["Temperature", "Precipitation"]),
 }
 
-# tag vocabularies, matched against a product's label, group, caption, option labels and About text
+# tag vocabularies. Models and regions are read from what a product SHOWS - its label, group, option labels and
+# caption - never from the About prose, which names other models and regions to compare or explain ("unlike GEPS's",
+# "the Niño-3.4 box"); read from the prose, "Tropical Pacific" had landed on 55 of 125 plots and "Global" on 50.
 MODEL_RX = [
-    ("AIFS-ENS", r"\bAIFS[- ]ENS\b|\bAIFS ensemble\b"), ("AIFS", r"\bAIFS single\b|\bAIFS\b(?![- ]ENS)"),
+    ("AIFS-ENS", r"\bAIFS[- ]ENS\b|\bAIFS ensemble\b"), ("AIFS", r"\bAIFS single\b|\bAIFS\b(?![- ](?:ENS|[Ee]nsemble))"),
     ("IFS", r"\bIFS\b"), ("GEPS", r"\bGEPS\b"), ("GEFS", r"\bGEFS\b"), ("GDPS", r"\bGDPS\b"), ("GFS", r"\bGFS\b"),
     ("HRRR", r"\bHRRR\b"), ("RRFS", r"\bRRFS\b"), ("RDPS", r"\bRDPS\b"), ("GEOS FP", r"\bGEOS[ -]FP\b"),
     ("MERRA-2", r"\bMERRA-?2\b"), ("ERA5", r"\bERA5\b"), ("CMIP6", r"\bCMIP6\b"), ("SEAS5", r"\bSEAS5\b"),
@@ -103,12 +131,14 @@ MODEL_RX = [
     ("GOES", r"\bGOES\b|\bGMGSI\b"), ("IMERG", r"\bIMERG\b"), ("TAO", r"\bTAO\b"), ("CPC", r"\bCPC\b"),
 ]
 REGION_RX = [
-    ("North America", r"North America|\bUS\b|United States|CONUS|Canada|West Coast|Alaska|Great Lakes"),
-    ("South America", r"South America|Amazon|Andes"), ("Europe", r"\bEurope"), ("Tropics", r"\btropic|equator"),
-    ("Tropical Pacific", r"Ni[nñ]o|equatorial Pacific|Tropical Pacific|Kiribati|Tarawa|TAO"),
-    ("Pacific", r"\bPacific\b"), ("Atlantic", r"\bAtlantic\b"),
-    ("Northern Hemisphere", r"Northern Hemisphere|\bNH\b|Arctic|polar cap|60 ?°N"),
-    ("Southern Hemisphere", r"Southern Hemisphere|\bSH\b|Antarctic"), ("Global", r"\bglobal\b|\bGlobal\b|whole globe"),
+    ("North America", r"North America|\bUS\b|United States|CONUS|Canada|West Coast|Alaska|Great Lakes|Northeast|Mid-Atlantic|Midwest|Rockies"),
+    ("South America", r"South America|Amazon|Andes|\bBrazil"), ("Europe", r"\bEurope|Euro-Atlantic"),
+    ("Tropics", r"\btropics\b|\btropical belt|\bequator|\bMJO\b"),
+    ("Tropical Pacific", r"Ni[nñ]o[- ]?[1-4]|equatorial Pacific|Tropical Pacific|Kiribati|Tarawa|\bTAO\b|warm pool|cold tongue"),
+    ("Pacific", r"North Pacific|\bPacific jet|Pacific basin"), ("Atlantic", r"\bAtlantic\b"),
+    ("Northern Hemisphere", r"Northern Hemisphere|\bNH\b|\bArctic|polar cap|\bNorthern\b|polar vortex"),
+    ("Southern Hemisphere", r"Southern Hemisphere|\bSH\b|Antarctic|\bSouthern\b"),
+    ("Global", r"\bglobal map|\bGlobal\b(?! mean)|whole globe|\bworld"),
 ]
 VAR_RX = [
     ("Temperature", r"temperature|\bt2m\b|2 m\b|\bT850\b|warm|cold"), ("Precipitation", r"precipitation|rainfall|\brain\b|\bpr\b"),
@@ -134,7 +164,7 @@ THUMBS = {
 # compare ("unlike GEPS's"), so they are not tagged from the text there
 SYSTEMS = {"AIFS-ENS", "AIFS", "IFS", "GEPS", "GEFS", "GDPS", "GFS", "HRRR", "RRFS", "RDPS", "SEAS5", "C3S", "SFS"}
 # private boards and products that must never reach the public index (labels are checked; keyword text is filtered)
-PRIVATE = re.compile(r"gat[uú]n|colombia|brazil|brasil|hydro board|/hydro/|\bXM\b|\bONS\b|pjm|nyiso|\boil\b|refin", re.I)
+PRIVATE = re.compile(r"gat[uú]n|colombia|brazil|brasil|hydro board|/hydro/|\bXM\b|\bONS\b|pjm|nyiso|\boil\b|refin|early.?vote", re.I)
 
 
 def run_eval(path: Path) -> dict:
@@ -169,8 +199,58 @@ def tags(rx, text, base=(), own=False):
     return out
 
 
-def thumb_from_frame(url: str, page_dir: Path):
-    """sst_anim embed URL -> the first frame of that loop: {frame: rel} on the frames branch, {src: rel} elsewhere."""
+def regions_of(text: str, default) -> list:
+    """The regions a product's own label, options and caption name; the page default only when they name none."""
+    found = tags(REGION_RX, text)
+    return found or list(default)
+
+
+_TRACKED = None
+
+
+def tracked() -> set:
+    """Every file git tracks under assets/ and skewt/: the catalogue workflow checks out only the pages and the JSON
+    (sparse), so a figure's existence is read from the index, not the disk."""
+    global _TRACKED
+    if _TRACKED is None:
+        try:
+            out = subprocess.run(["git", "-C", str(REPO), "ls-files", "-z", "assets", "skewt"],
+                                 capture_output=True, text=True, check=True).stdout
+            _TRACKED = set(out.split("\0")) - {""}
+        except (OSError, subprocess.CalledProcessError):
+            _TRACKED = set()
+    return _TRACKED
+
+
+def exists(rel: str) -> bool:
+    return rel in tracked() or (REPO / rel).exists()
+
+
+# ── the figure table: one entry per distinct source, keyed by a short hash of it ─────────────────────────────────
+THUMB_TABLE: dict = {}
+
+
+def thumb_key(rel: str, frames: bool) -> str | None:
+    """Register a figure (a repo path on main, or a frame on the frames branch) and return its key."""
+    if not rel:
+        return None
+    rel = rel.split("?")[0].split("#")[0].lstrip("/")
+    if not re.search(r"\.(webp|png|jpe?g|gif)$", rel, re.I):
+        return None
+    if not frames and not exists(rel):
+        return None
+    k = hashlib.sha1(("f:" if frames else "m:").encode() + rel.encode()).hexdigest()[:10]
+    THUMB_TABLE.setdefault(k, {"s": rel, **({"f": 1} if frames else {})})
+    return k
+
+
+def thumb_name(rel: str) -> str:
+    """The thumbnail's id: stable per source path. It lives at assets/site/thumbs/<id>.webp on the frames branch."""
+    return hashlib.sha1(rel.encode()).hexdigest()[:12]
+
+
+def frame_source(url: str, page_dir: Path):
+    """sst_anim embed URL -> (rel, on_frames_branch) for the first frame of that loop."""
     u = urlparse(url)
     q = {k: v[0] for k, v in parse_qs(u.query).items()}
     base = q.get("base", "assets/sst/anim")
@@ -183,9 +263,25 @@ def thumb_from_frame(url: str, page_dir: Path):
     R = M.get("regions", {}).get(region)
     if not R or not R.get("frames"):
         return None
-    f = R["frames"][0]["file"]
+    # a forecast loop (F00, F01 ...) opens on its first frame; an observed loop (dated frames) on its newest, which is
+    # also the one frame certain to still be on the branch (older ones are pruned as the loop rolls)
+    fr = R["frames"]
+    f = fr[0]["file"] if re.match(r"F\d+\.", fr[0]["file"]) else fr[-1]["file"]
     rel = f"{base}/{region}/{f}"
-    return {"frame": rel} if (base.endswith("/anim") and "//" not in base) else {"src": rel}
+    return rel, (base.endswith("/anim") and "//" not in base)
+
+
+def fig_key(fig: dict | None, page_dir: Path) -> str | None:
+    """None: the view is drawn in the browser (no figure); "": it names a figure that is not on the site yet (a new
+    product before its first run); else the figure's key."""
+    if not fig:
+        return None
+    if fig.get("img"):
+        return thumb_key(fig["img"], False) or ""
+    if fig.get("frame"):
+        src = frame_source(fig["frame"], page_dir)
+        return (thumb_key(*src) if src else None) or ""
+    return None
 
 
 def stage_items(href: str, cfg: dict) -> list:
@@ -193,6 +289,7 @@ def stage_items(href: str, cfg: dict) -> list:
     html = path.read_text()
     spec = run_eval(path)
     tpl = templates(html)
+    js = lambda x: "null" if x is None else str(x)                       # JS object-key stringification
     items = []
     for g in spec["groups"]:
         gcfg = cfg.get("groups", {}).get(g["label"], {})
@@ -201,11 +298,11 @@ def stage_items(href: str, cfg: dict) -> list:
             if not p:
                 continue
             about = tpl.get(p.get("about") or "", "")
-            # option combinations -> deep links (the stage viewer's #product/a/b/c)
+            figs = p.get("figBy", {})
+            # option combinations -> deep links (the stage viewer's #product/a/b/c) and each one's own figure
             variants = []
             A_ = p.get("a")
             a_items = A_["items"] if A_ else [[None, None]]
-            js = lambda x: "null" if x is None else str(x)          # JS object-key stringification
             for av, al in a_items:
                 B = p["bBy"].get(js(av))
                 b_items = B["items"] if B else [[None, None]]
@@ -216,29 +313,33 @@ def stage_items(href: str, cfg: dict) -> list:
                         parts = [x for x in (av, bv, cv) if x is not None]
                         labs = [x for x in (al, bl, cl) if x]
                         if labs:
-                            variants.append([" · ".join(text_of(str(x)) for x in labs), "#" + "/".join([pid] + [str(x) for x in parts])])
+                            k = fig_key(figs.get(f"{js(av)}|{js(bv)}|{js(cv)}"), path.parent)
+                            variants.append([" · ".join(text_of(str(x)) for x in labs),
+                                             "#" + "/".join([pid] + [str(x) for x in parts]), k])
             if len(variants) > 80:                       # huge option grids: keep the first axis and the defaults
                 seen, keep = set(), []
                 for v in variants:
-                    k = v[0].split(" · ")[0]
-                    if k not in seen:
-                        seen.add(k); keep.append(v)
+                    first = v[0].split(" · ")[0]
+                    if first not in seen:
+                        seen.add(first); keep.append(v)
                 variants = keep[:80]
-            thumb = None
-            if p["kind"] == "img" and p.get("img"):
-                thumb = {"src": p["img"].lstrip("/")}
-            elif p["kind"] == "frame" and p.get("frame"):
-                thumb = thumb_from_frame(p["frame"], path.parent)
+            d = [js(x) for x in p.get("def", [None, None, None])]
+            thumb = fig_key(figs.get("|".join(d)), path.parent)
+            if thumb is None and p["kind"] == "img" and p.get("img"):
+                thumb = thumb_key(p["img"], False) or ""
             opts_text = " ".join(v[0] for v in variants)
-            blob = " ".join([p["label"], g["label"], p.get("sub", ""), p.get("cap", ""), opts_text, about[:1500]])
+            shows = " ".join([p["label"], g["label"], p.get("sub", ""), p.get("cap", ""), opts_text])
+            blob = shows + " " + about[:1500]
             items.append(dict(
                 id=f"{href}#{pid}", page=href, page_title=cfg["title"], group=text_of(g["label"]),
                 label=text_of(p["label"]), sub=text_of(p.get("sub", "")), url=f"{href}#{pid}",
                 topic=gcfg.get("topic", cfg["topic"]), horizon=gcfg.get("horizon", cfg["horizon"]),
-                models=tags(MODEL_RX, blob, gcfg.get("models", cfg["models"]), cfg.get("own_models", False)),
-                regions=tags(REGION_RX, blob, cfg["region"]) if not gcfg.get("region") else gcfg["region"],
+                models=tags(MODEL_RX, shows, gcfg.get("models", cfg["models"]), cfg.get("own_models", False)),
+                regions=regions_of(shows, gcfg.get("region", cfg["region"])),
                 variables=tags(VAR_RX, blob), thumb=thumb, cap=text_of(p.get("cap", ""))[:240],
-                kw=public(about)[:600], variants=variants, live=True))
+                kw=public(about)[:600], variants=variants, live=True,
+                tier=gcfg.get("tier", cfg["tier"]), prio=gcfg.get("prio", cfg["prio"]),
+                kind="chart" if p["kind"] == "dom" else "fig"))
     return items
 
 
@@ -264,14 +365,99 @@ def rail_items(href: str, cfg: dict) -> list:
             pid += "-2"
         used.add(pid)
         img = re.search(r'<img[^>]+(?:data-src|src)="([^"]+\.(?:webp|png|jpg))[^"]*"', chunk)
-        thumb = {"src": img.group(1).lstrip("/")} if img and not img.group(1).startswith("data:") else None
+        thumb = thumb_key(img.group(1), False) if img and not img.group(1).startswith("data:") else None
         about = text_of(chunk)
-        blob = " ".join([label, attr("data-group"), about[:1500]])
+        head = text_of((re.search(r"<h[23][^>]*>(.*?)</h[23]>", chunk, re.S) or [None, ""])[1])
+        shows = " ".join([label, attr("data-group"), head])
         items.append(dict(
             id=f"{href}#{pid}", page=href, page_title=cfg["title"], group=attr("data-group") or "Figures",
             label=label, sub="", url=f"{href}#{pid}", topic=cfg["topic"], horizon=cfg["horizon"],
-            models=tags(MODEL_RX, blob, cfg["models"]), regions=tags(REGION_RX, blob, cfg["region"]),
-            variables=tags(VAR_RX, blob), thumb=thumb, cap="", kw=public(about)[:600], variants=[], live=True))
+            models=tags(MODEL_RX, shows, cfg["models"]), regions=regions_of(shows, cfg["region"]),
+            variables=tags(VAR_RX, label + " " + about[:1500]), thumb=thumb, cap="", kw=public(about)[:600], variants=[],
+            live=True, tier=cfg["tier"], prio=cfg["prio"], kind="fig" if thumb else "chart"))
+    return items
+
+
+def ecape_thumb():
+    """ECAPE: a mid-afternoon frame of the newest cycle's default field (its frames are on the frames branch)."""
+    try:
+        idx = json.loads((REPO / "assets/ecape/anim/index.json").read_text())
+        M = json.loads((REPO / "assets/ecape/anim" / idx["cycles"][0]["manifest"]).read_text())
+        region = M.get("default") or next(iter(M["regions"]))
+        fr = M["regions"][region]["frames"]
+        return thumb_key(f"assets/ecape/anim/{region}/{fr[min(9, len(fr) - 1)]['file']}", True)
+    except Exception:
+        return None
+
+
+def mjo_items() -> list:
+    """mjo.html's two sections below the forecast (2026-09-27; the user could not find the impacts): the ENSO-removed
+    index, and the impacts composites with a deep link and a figure for every selector combination (field x data x
+    month x lag x view, the page's own #mi/f/d/mm/l/v hash), the current month first as on the page."""
+    path = REPO / "mjo.html"
+    try:
+        html = path.read_text()
+    except OSError:
+        return []
+    items = []
+    sec = re.search(r'<section id="mjo-clean".*?</section>', html, re.S)
+    if sec:
+        body = sec.group(0)
+        head = text_of((re.search(r"<h2>(.*?)</h2>", body, re.S) or [None, "MJO with the El Niño signal removed"])[1])
+        lead = text_of((re.search(r"</h2>\s*<p[^>]*>(.*?)</p>", body, re.S) or [None, ""])[1])
+        thumb = None
+        try:
+            M = json.loads((REPO / "assets/mjo/rmmclean_manifest.json").read_text())
+            thumb = thumb_key(f"assets/mjo/{M['regions']['mjo']['frames'][-1]['file']}", False) or ""
+        except Exception:
+            pass
+        shows = " ".join([head, lead])
+        items.append(dict(
+            id="/mjo.html#mjo-clean", page="/mjo.html", page_title="MJO forecast", group="ENSO-removed index", label=head,
+            sub="ENSO-removed RMM, wind-only", url="/mjo.html#mjo-clean", topic="drivers", horizon="Days 1–15",
+            models=tags(MODEL_RX, shows, ["AIFS-ENS"]), regions=["Tropics"], variables=["Convection", "Wind"], thumb=thumb,
+            cap=lead[:240], kw=public(text_of(body))[:600], variants=[], live=True, tier=0, prio=2, kind="fig"))
+    sec = re.search(r'<section class="mi" id="mjo-impacts">.*?</section>', html, re.S)
+    if sec:
+        body = sec.group(0)
+        def opts(sid):
+            m = re.search(rf'<select id="{sid}">(.*?)</select>', body, re.S)
+            return [(v, text_of(l)) for v, l in re.findall(r'<option value="([^"]*)">(.*?)</option>', m.group(1))] if m else []
+        F, D, Mo, L, V = (opts(x) for x in ("mi-f", "mi-d", "mi-m", "mi-l", "mi-v"))
+        cur = f"{dt.date.today().month:02d}"
+        Mo = sorted(Mo, key=lambda o: (int(o[0]) - int(cur)) % 12)          # this month first, as the page opens
+        lag_l = {"10": "+10 days", "0": "same day"}
+        view_l = {"loop": "phase by phase", "strip": "all eight phases"}
+        try:
+            MI = json.loads((REPO / "assets/mjo/impacts/anim/mjo_impacts_manifest.json").read_text())["regions"]
+        except Exception:
+            MI = {}
+        def key_of(f, d, mo, l, v):
+            rid = f"mi_{f}_{d}_m{mo}_l{int(l):02d}" + ("_s" if v == "strip" else "")
+            R = MI.get(rid)
+            if not R or not R.get("frames"):
+                return ""
+            return thumb_key(f"assets/mjo/impacts/anim/{rid}/{R['frames'][0]['file']}", True) or ""
+        variants = []
+        for f, fl in F:
+            for d, dl in D:
+                for mo, ml in Mo:
+                    for l, _ll in L:
+                        for v, _vl in V:
+                            variants.append([f"{fl} · {dl} · {ml} · {lag_l.get(l, l)} · {view_l.get(v, v)}",
+                                             f"#mi/{f}/{d}/{mo}/{l}/{v}", key_of(f, d, mo, l, v)])
+        head = text_of((re.search(r"<h2>(.*?)</h2>", body, re.S) or [None, "MJO impacts by phase and month"])[1])
+        lead = text_of((re.search(r'<p class="lede[^"]*">(.*?)</p>', body, re.S) or [None, ""])[1])
+        default = variants[0] if variants else None
+        shows = " ".join([head, lead, " ".join(fl for _, fl in F), " ".join(dl for _, dl in D)])
+        items.append(dict(
+            id="/mjo.html#mjo-impacts", page="/mjo.html", page_title="MJO forecast", group="Impacts by phase and month",
+            label=head, sub="Composites by MJO phase, month and lag: observed and CMIP6",
+            url="/mjo.html" + (default[1] if default else "#mjo-impacts"), topic="research", horizon="Climate record",
+            models=tags(MODEL_RX, shows, ["CMIP6", "ERA5"]), regions=regions_of(shows, ["North America"]),
+            variables=tags(VAR_RX, shows + " convection MJO"), thumb=default[2] if default else "",
+            cap=lead[:240], kw=public("MJO composites by phase. " + text_of(body))[:600], variants=variants, live=True,
+            tier=1, prio=19, kind="fig"))
     return items
 
 
@@ -285,69 +471,83 @@ def page_items() -> list:
                 continue
             thumb = None
             if cfg.get("thumb"):
-                thumb = {"src": cfg["thumb"]}
+                thumb = thumb_key(cfg["thumb"], False)
+            elif cfg.get("thumb_ecape"):
+                thumb = ecape_thumb()
             elif cfg.get("thumb_manifest"):
                 base, man, region, which = cfg["thumb_manifest"]
                 try:
                     M = json.loads((REPO / base / man).read_text())
                     fr = M["regions"][region]["frames"]
-                    thumb = {"src": f"{base}/{fr[-1 if which == 'last' else 0]['file']}"}
+                    thumb = thumb_key(f"{base}/{fr[-1 if which == 'last' else 0]['file']}", False)
                 except Exception:
                     thumb = None
             blob = " ".join([label, what])
             items.append(dict(
                 id=href, page=href, page_title=label, group="", label=label, sub="", url=href, topic=cfg["topic"],
-                horizon=cfg.get("horizon"), models=tags(MODEL_RX, blob, cfg["models"]), regions=tags(REGION_RX, blob, cfg["region"]),
-                variables=tags(VAR_RX, blob, cfg.get("variable", [])), thumb=thumb, cap=what, kw=public(what), variants=[], live=False))
+                horizon=cfg.get("horizon"), models=tags(MODEL_RX, blob, cfg["models"]), regions=list(cfg["region"]),
+                variables=tags(VAR_RX, blob, cfg.get("variable", [])), thumb=thumb, cap=what, kw=public(what), variants=[],
+                live=False, tier=cfg["tier"], prio=cfg["prio"], kind="page"))
     return items
-
-
-_TRACKED = None
-
-
-def tracked() -> set:
-    """Every file git tracks under assets/: the catalogue workflow checks out only the pages and the JSON (sparse), so a
-    figure's existence is read from the index, not the disk."""
-    global _TRACKED
-    if _TRACKED is None:
-        try:
-            out = subprocess.run(["git", "-C", str(REPO), "ls-files", "-z", "assets"], capture_output=True, text=True, check=True).stdout
-            _TRACKED = set(out.split("\0")) - {""}
-        except (OSError, subprocess.CalledProcessError):
-            _TRACKED = set()
-    return _TRACKED
 
 
 def resolve_thumb(spec):
     if isinstance(spec, tuple) and spec[0] == "manifest":
         _, base, man = spec
-        return thumb_from_frame(f"sst_anim.html?base={base}&manifest={man}", REPO)
+        src = frame_source(f"sst_anim.html?base={base}&manifest={man}", REPO)
+        return thumb_key(*src) if src else None
     for pat in spec.split("|"):
         if "*" in pat:
             hits = sorted({str(p.relative_to(REPO)) for p in REPO.glob(pat)} | {f for f in tracked() if fnmatch.fnmatchcase(f, pat)})
         else:
-            hits = [pat] if (pat in tracked() or (REPO / pat).exists()) else []
+            hits = [pat] if exists(pat) else []
         if hits:
-            return {"src": hits[0]}
+            return thumb_key(hits[0], False)
     return None
 
 
-def build() -> dict:
+def thumb_index(path: str | None) -> dict:
+    """What build_thumbs.py has made: {source key string: {t, sig}}, from a local file or the frames branch."""
+    try:
+        if path:
+            return json.loads(Path(path).read_text())
+        with urllib.request.urlopen(THUMB_INDEX_URL + "?t=" + dt.datetime.now().strftime("%Y%m%d%H%M"), timeout=20) as r:
+            return json.loads(r.read())
+    except Exception as e:
+        print(f"  no thumbnail index ({e.__class__.__name__}); cards fall back to the full figures")
+        return {}
+
+
+def attach_thumbs(index: dict) -> int:
+    n = 0
+    for k, rec in THUMB_TABLE.items():
+        hit = index.get(("f:" if rec.get("f") else "m:") + rec["s"])
+        if hit and hit.get("t"):
+            rec["t"] = hit["t"]
+            n += 1
+    return n
+
+
+def build(index_path: str | None = None) -> dict:
+    THUMB_TABLE.clear()
     items = []
     for href, cfg in PAGES.items():
         if cfg["kind"] == "stage":
             items += stage_items(href, cfg)
         elif cfg["kind"] == "geps":
-            items += stage_items(href, cfg)
-            for it in items:
-                if it["page"] == href:
-                    it["live"] = False                  # GEPS/GEFS pages read the hash only on load
+            got = stage_items(href, cfg)
+            for it in got:
+                it["live"] = False                          # GEPS/GEFS pages read the hash only on load
+            items += got
         elif cfg["kind"] == "rail":
             items += rail_items(href, cfg)
     items += page_items()
+    items += mjo_items()
     for it in items:
         if not it["thumb"] and it["id"] in THUMBS:
             it["thumb"] = resolve_thumb(THUMBS[it["id"]])
+            if it["thumb"] and it["kind"] == "chart":
+                it["kind"] = "fig"
     # every product exactly once
     seen = set()
     uniq = []
@@ -362,6 +562,15 @@ def build() -> dict:
         for v in it["variants"]:
             if PRIVATE.search(v[0]):
                 raise SystemExit(f"private name in a variant: {it['id']} {v[0]!r}")
+    # only figures something still points at
+    used = {it["thumb"] for it in uniq} | {v[2] for it in uniq for v in it["variants"]}
+    for it in uniq:                                  # a product whose default figure is not out yet: kind says so
+        if it["thumb"] == "" and it["kind"] == "fig":
+            it["kind"] = "pending"
+    for k in list(THUMB_TABLE):
+        if k not in used:
+            del THUMB_TABLE[k]
+    n_t = attach_thumbs(thumb_index(index_path))
     counts = {t: sum(1 for i in uniq if i["topic"] == t) for t, _, _ in TOPICS}
     # the menus' pages in menu order, for the finder's opening list (a site map in the palette)
     tid = {l: t for t, l, _ in TOPICS}
@@ -370,11 +579,14 @@ def build() -> dict:
     for pg in pages:
         if PRIVATE.search(pg["label"] + " " + pg["what"]):
             raise SystemExit(f"private name in a menu page: {pg['href']}")
+    print(f"  {len(THUMB_TABLE)} distinct figures, {n_t} with a thumbnail on the frames branch")
     return {
         "generated": dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%dT%H:%MZ"),
         "topics": [dict(id=t, label=l, blurb=b, n=counts[t]) for t, l, b in TOPICS],
         "horizons": HORIZONS,
+        "tiers": TIERS,
         "pages": pages,
+        "thumbs": THUMB_TABLE,
         "items": uniq,
     }
 
@@ -382,10 +594,14 @@ def build() -> dict:
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--check", action="store_true")
+    ap.add_argument("--thumb-index", help="a local index.json from build_thumbs.py (default: the frames branch copy)")
     a = ap.parse_args()
-    cat = build()
+    cat = build(a.thumb_index)
     n = len(cat["items"]); nv = sum(len(i["variants"]) for i in cat["items"]); nt = sum(1 for i in cat["items"] if i["thumb"])
-    print(f"{n} products, {nv} option views, {nt} with thumbnails; by topic " +
+    pend = [i["id"] for i in cat["items"] if i["thumb"] == ""] + [f"{i['id']}{v[1]}" for i in cat["items"] for v in i["variants"] if v[2] == ""]
+    if pend:
+        print(f"  {len(pend)} view(s) name a figure not on the site yet: " + ", ".join(pend[:6]) + (" ..." if len(pend) > 6 else ""))
+    print(f"{n} products, {nv} option views, {nt} with a figure; by topic " +
           ", ".join(f"{t['label']} {t['n']}" for t in cat["topics"]))
     if a.check:
         return 0

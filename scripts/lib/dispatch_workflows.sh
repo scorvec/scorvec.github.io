@@ -122,6 +122,10 @@ gefs.yml|04:40|
 gefs.yml|06:40|
 gefs.yml|09:40|
 gefs.yml|13:40|
+# Plot catalogue (catalog.yml, 2026-09-27): the finder index plus the thumbnails of every figure that changed; a
+# dispatch redraws thumbnails, a push only rebuilds the index. Twice a day keeps the thumbnails under ~12 h old.
+catalog.yml|07:05|
+catalog.yml|19:05|
 aam.yml|09:20|
 aam.yml|21:20|
 ar.yml|09:05|

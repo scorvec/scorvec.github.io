@@ -518,9 +518,20 @@ html.fp-lock { overflow: hidden; }
   background: var(--c-panel); border: 1px solid var(--c-rule); border-radius: 8px;
 }
 .fp-th img { display: block; width: 100%; height: 100%; object-fit: contain; }
-.fp-tile { padding: 1.2rem; text-align: center; }
-.fp-tile span { display: block; font-family: var(--f-serif); font-size: 1.4rem; line-height: 1.25; color: var(--c-ink); }
-.fp-tile small { display: block; margin-top: 0.35rem; font-size: 0.9rem; color: var(--c-muted); }
+/* a figure that is drawn in the browser (or a page with no single figure) gets a designed tile, never an empty box:
+   the topic's tint, a fine hatch, what it is, and its name */
+.fp-tile {
+  align-self: stretch; width: 100%; display: flex; flex-direction: column; justify-content: space-between; gap: 0.6rem;
+  padding: 1.1rem 1.25rem 1.2rem; text-align: left; color: var(--c-ink);
+  background-color: var(--tint, #ecebe6);
+  background-image: repeating-linear-gradient(135deg, rgba(40, 50, 30, 0.045) 0 1px, transparent 1px 10px);
+}
+.fp-tile em { font-style: normal; font-size: 0.9rem; color: var(--c-muted); }
+.fp-tile span { display: block; font-family: var(--f-serif); font-size: 1.5rem; line-height: 1.2; }
+.fp-tile small { display: block; font-size: 0.9rem; color: var(--c-muted); }
+.fp-tile.t-weather { --tint: #e3ebf3; } .fp-tile.t-drivers { --tint: #f1e9dc; } .fp-tile.t-outlooks { --tint: #e2ede4; }
+.fp-tile.t-research { --tint: #ebe5ef; } .fp-tile.t-tools { --tint: #eae9e3; }
+.fp--dark .fp-tile { --tint: #20202f; background-image: repeating-linear-gradient(135deg, rgba(255, 255, 255, 0.04) 0 1px, transparent 1px 10px); }
 .fp-pt { margin: 0.95rem 0 0.15rem; font-family: var(--f-serif); font-size: 1.32rem; font-weight: 500; line-height: 1.25; color: var(--c-ink); text-align: left; }
 .fp-pt span { color: var(--c-accent); }
 .fp-pm { margin: 0; font-size: 0.92rem; color: var(--c-muted); }
