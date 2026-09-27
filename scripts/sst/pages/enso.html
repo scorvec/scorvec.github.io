@@ -362,6 +362,82 @@
         test, so there is no rainfall table.</p>
 <p class="chart-sources">CMIP6 historical runs, 1950&ndash;2014, via the Pangeo archive on Google Cloud: ACCESS-ESM1-5, CanESM5, CESM2, CNRM-CM6-1, CNRM-ESM2-1, EC-Earth3, GISS-E2-1-G, GISS-E2-1-H, INM-CM5-0, IPSL-CM6A-LR, MIROC6, MIROC-ES2L, MPI-ESM1-2-HR, MPI-ESM1-2-LR, MRI-ESM2-0, NorCPM1 (429 members) &middot; ERA5 2&nbsp;m temperature (Copernicus C3S), 1960&ndash;2026 &middot; GPCP v2.3 monthly precipitation (NOAA NCEI), 1980&ndash;2026 &middot; CPC Oceanic Ni&ntilde;o Index &middot; all on a 2.5&deg; grid, 60&deg;S&ndash;75&deg;N, 170&ndash;30&deg;W &middot; static reference, redrawn only when the analysis changes</p>
 </template>
+<template id="about-imp_ec">
+<p><b>East-based and central-Pacific El Ni&ntilde;os are not the same event.</b> Takahashi et al. (2011) showed that the
+        first two patterns of tropical Pacific sea-surface temperature (EOFs over 10&deg;S&ndash;10&deg;N, 140&deg;E&ndash;80&deg;W)
+        combine into two physically distinct indices: <b>E = (PC1 &minus; PC2)/&radic;2</b>, warming centred on the far eastern
+        Pacific and the coast of Peru, and <b>C = (PC1 + PC2)/&radic;2</b>, warming centred near the dateline. Here each CMIP6
+        member gets its own EOFs from its own monthly sea-surface temperature (own climatology and quadratic trend removed; the
+        second pattern matches the observed one at a median pattern correlation of 0.83), and the signs are fixed against the
+        observed ERSST v6 patterns. The indices are in standard deviations of the monthly index.</p>
+<p><b>Views.</b> <i>East</i> and <i>Central</i>: the season&rsquo;s temperature or rainfall regressed on E and C together, so each
+        map is one pattern with the other held fixed. <i>East minus central</i>: El Ni&ntilde;o seasons with E &gt; C minus those
+        with C &ge; E, matched in Ni&ntilde;o-3.4 strength (bins 0.5&ndash;1, 1&ndash;1.5, 1.5&ndash;2 and &ge; 2&nbsp;K, each
+        weighted by its smaller class), so the difference is the kind of event, not its size. Kug et al.&rsquo;s (2009) test
+        (standardised Ni&ntilde;o-3 against Ni&ntilde;o-4) gives the same difference maps to a pattern correlation of 0.96&ndash;0.99.
+        <i>Where events fall</i>: the models&rsquo; El Ni&ntilde;os and the observed ones on E and C.</p>
+<p><b>What the models agree on</b> (December&ndash;February, matched strength, regional means robust by the same test):
+        an east-based El Ni&ntilde;o is <b>cooler over the southern and eastern US</b> than a central one of the same size
+        (US Southwest &minus;0.23&nbsp;K, Gulf Coast &minus;0.24, Southeast &minus;0.25, Ohio Valley &minus;0.28), <b>colder
+        in Alaska</b> (&minus;0.36) and <b>warmer over Quebec and Labrador</b> (+0.45); it is <b>drier in the US Southwest</b>
+        (&minus;8&nbsp;%) and wetter on the Peru/Ecuador coast (+9&nbsp;%). Per standard deviation, the central index warms
+        Alaska (+0.8&nbsp;K) and wets Mexico and the Southwest; the eastern index cools the Gulf Coast and warms Quebec.
+        In the models 70&nbsp;% of super El Ni&ntilde;os (Ni&ntilde;o-3.4 &ge; 2&nbsp;K in winter) are east-based, against
+        38&nbsp;% of all El Ni&ntilde;os.</p>
+<p><b>Observed.</b> 1982/83 and 1997/98 were strongly east-based (E +3.6 and +3.8, C about +0.5); 2015/16 was mixed
+        (E and C both +1.8); 2009/10 was central. <b>Summer 2026 is east-based</b>: June&ndash;August E +2.3, C +1.2, the
+        largest summer E since 1997 (+3.3), and August alone E +3.1. With no detrending (a 1991&ndash;2020 base) the numbers
+        move to E +2.5, C +1.6: the placement does not depend on the trend. The observed record has 5 east-based and 17
+        central El Ni&ntilde;o winters since 1960 &mdash; too few east-based ones to test the difference directly, so the
+        observed side is the E/C regression. A CMIP6 map is shaded only where it is <i>robust</i>: an across-model t-test (each of the 16 models counts once) passes a Benjamini&ndash;Hochberg false-discovery rate of 10&nbsp;% over the map <i>and</i> at least 80&nbsp;% of the models agree on the sign. Observed maps are shaded where the regression coefficient&rsquo;s t-test passes the same false-discovery rate. Blank = not significant.</p>
+<p class="chart-sources">CMIP6 historical runs, 1950&ndash;2014, 16 models, 429 members, via the Pangeo archive on Google Cloud (Amon <code>ts</code>, <code>tas</code>, <code>pr</code>) &middot; ERSST v6 (NOAA NCEI) &middot; NCEI PDO index &middot; ERA5 2&nbsp;m temperature (Copernicus C3S), 1960&ndash;2026 &middot; GPCP v2.3 precipitation (NOAA NCEI), 1980&ndash;2026 &middot; CPC ONI &middot; static reference, redrawn only when the analysis changes</p>
+</template>
+<template id="about-imp_pdo">
+<p><b>The PDO is partly ENSO.</b> The Pacific Decadal Oscillation index (Mantua et al. 1997) is the leading pattern of North
+        Pacific (20&ndash;70&deg;N) sea-surface temperature once the global-mean anomaly is removed. Newman et al. (2016) showed that
+        much of it is ENSO reddened by the ocean&rsquo;s memory: PDO(t) = a&middot;PDO(t&minus;1) + b&middot;Ni&ntilde;o-3.4(t)
+        + noise. Here that model is fitted for every member; the <b>ENSO part</b> is the same recursion driven by Ni&ntilde;o-3.4
+        alone, and the <b>ENSO-free PDO</b> is what is left, standardised. Across the 429 members a = 0.88 (0.81&ndash;0.91)
+        and the reddened ENSO carries 33&nbsp;% of the monthly PDO variance (11&ndash;66&nbsp;%); observed, 0.84 and 22&nbsp;%.
+        As a check, removing Ni&ntilde;o-3.4 at lags of 0&ndash;12 months instead gives an ENSO-free index correlated 0.98 with
+        this one and the same maps (pattern r &ge; 0.98).</p>
+<p><b>Views.</b> <i>Without ENSO</i>: the season regressed on the ENSO-free PDO with same-season Ni&ntilde;o-3.4 fitted alongside,
+        per standard deviation. <i>Raw PDO</i>: the usual regression on the PDO index, ENSO left in. <i>How much is ENSO</i>:
+        the two compared over land.</p>
+<p><b>Results.</b> The ENSO-free PDO keeps a robust winter temperature signal in the models: per standard deviation
+        Alaska +0.9&nbsp;K, Pacific Northwest +0.5, northern Plains +0.4, California +0.3, and the Gulf Coast, Southeast and
+        Ohio Valley about &minus;0.3. It keeps the raw pattern&rsquo;s shape (pattern r 0.79&ndash;0.90 for temperature) but
+        a third to a half of its variance. <b>Rainfall is different: the raw PDO&rsquo;s winter rainfall signal is mostly
+        ENSO</b> &mdash; without it, 14&nbsp;% of the variance is left, the Southeast US wet signal (+6&nbsp;% per standard
+        deviation raw) disappears, and only small robust signals remain (Great Lakes and northern Plains about &minus;2&nbsp;%,
+        Venezuela &minus;3&nbsp;%). South America keeps almost no ENSO-free PDO temperature signal. Observed, the ENSO-free
+        PDO&rsquo;s winter temperature regression passes its test over 21&nbsp;% of the land and its rainfall regression
+        nowhere.</p>
+<p><b>This winter.</b> The ENSO-free PDO was &minus;1.8 standard deviations in July 2026 (NCEI PDO &minus;2.0) &mdash;
+        strongly negative while El Ni&ntilde;o grows. A CMIP6 map is shaded only where it is <i>robust</i>: an across-model t-test (each of the 16 models counts once) passes a Benjamini&ndash;Hochberg false-discovery rate of 10&nbsp;% over the map <i>and</i> at least 80&nbsp;% of the models agree on the sign. Observed maps are shaded where the regression coefficient&rsquo;s t-test passes the same false-discovery rate. Blank = not significant.</p>
+<p class="chart-sources">CMIP6 historical runs, 1950&ndash;2014, 16 models, 429 members, via the Pangeo archive on Google Cloud (Amon <code>ts</code>, <code>tas</code>, <code>pr</code>) &middot; ERSST v6 (NOAA NCEI) &middot; NCEI PDO index &middot; ERA5 2&nbsp;m temperature (Copernicus C3S), 1960&ndash;2026 &middot; GPCP v2.3 precipitation (NOAA NCEI), 1980&ndash;2026 &middot; CPC ONI &middot; static reference, redrawn only when the analysis changes</p>
+</template>
+<template id="about-imp_pdoph">
+<p><b>Does a positive PDO amplify El Ni&ntilde;o?</b> CMIP6 El Ni&ntilde;o (and La Ni&ntilde;a) seasons are split by the
+        <b>ENSO-free</b> PDO &mdash; &ge; +0.5 standard deviations against &le; &minus;0.5 &mdash; so that El Ni&ntilde;o
+        itself, which pushes the raw PDO positive, does not decide the phase; the two groups are matched in Ni&ntilde;o-3.4
+        strength (their mean indices differ by 0.02&nbsp;K in winter). <i>+PDO minus &minus;PDO</i> is the difference
+        between them. <i>Does +PDO amplify El Ni&ntilde;o?</i> subtracts the same difference in neutral seasons: what the PDO
+        does to El Ni&ntilde;o beyond what it does to any winter.</p>
+<p><b>Answer: it shifts El Ni&ntilde;o winters, it does not amplify them.</b> An El Ni&ntilde;o winter under a positive PDO
+        is much warmer in Alaska (+1.8&nbsp;K), the Pacific Northwest (+1.1) and the northern Plains (+0.8) and cooler in the
+        Southeast (&minus;0.6) and Ohio Valley (&minus;0.4) than one of the same strength under a negative PDO &mdash; but a
+        neutral winter shifts by the same amounts (+1.9, +1.0, +0.8, &minus;0.7, &minus;0.7). The interaction passes the test
+        over 3&nbsp;% of the land in winter, in the US Southwest and on the Gulf Coast (about +0.2&nbsp;K, the PDO&rsquo;s
+        cooling there slightly weaker in El Ni&ntilde;o); in spring over 12&nbsp;% of the land, again mainly the Gulf Coast
+        (+0.15&nbsp;K); in summer and autumn over no land grid point. For rainfall the PDO phase changes
+        El Ni&ntilde;o winters robustly only over the Great Lakes (&minus;4&nbsp;%). The PDO and ENSO add.</p>
+<p><b>This winter:</b> with an ENSO-free PDO near &minus;1.8, the models&rsquo; additive picture is an El Ni&ntilde;o winter
+        colder than usual for El Ni&ntilde;o over Alaska and the Northwest and milder over the Southeast. The observed record
+        has 6 El Ni&ntilde;o winters under a positive and 5 under a negative ENSO-free PDO since 1960 &mdash; too few to test.
+        A CMIP6 map is shaded only where it is <i>robust</i>: an across-model t-test (each of the 16 models counts once) passes a Benjamini&ndash;Hochberg false-discovery rate of 10&nbsp;% over the map <i>and</i> at least 80&nbsp;% of the models agree on the sign. Observed maps are shaded where the regression coefficient&rsquo;s t-test passes the same false-discovery rate. Blank = not significant.</p>
+<p class="chart-sources">CMIP6 historical runs, 1950&ndash;2014, 16 models, 429 members, via the Pangeo archive on Google Cloud (Amon <code>ts</code>, <code>tas</code>, <code>pr</code>) &middot; ERSST v6 (NOAA NCEI) &middot; NCEI PDO index &middot; ERA5 2&nbsp;m temperature (Copernicus C3S), 1960&ndash;2026 &middot; GPCP v2.3 precipitation (NOAA NCEI), 1980&ndash;2026 &middot; CPC ONI &middot; static reference, redrawn only when the analysis changes</p>
+</template>
 <template id="about-imp_regions">
 <p>Land-weighted means over 20 regions (land fraction from Natural Earth &times; cos&nbsp;latitude), for each class minus
         neutral seasons: the five CMIP6 classes and the observed El Ni&ntilde;o and La Ni&ntilde;a. A CMIP6 value is printed only
@@ -385,7 +461,7 @@ window.STAGE = {
   {label: "Convection & waves", ico: "\u{1F30A}", items: [["olr","OLR Hovmöller","synthetic, equatorial"],["waves","Wave decomposition","Kelvin, Rossby, MJO bands"],["trackers","Kelvin and Rossby trackers","along the equator"],["kelvin","Kelvin wave tracker, AIFS-ENS","map + 15-day forecast"]]},
   {label: "Atmospheric response", ico: "\u{1F32C}", items: [["soi","Southern Oscillation Index","hourly, forecast, equatorial"],["soirec","SOI against the record","daily, since 1887"],["soi_seas","Seasonal SOI outlook","SEAS5, SOI and Equatorial SOI"],["mei","MEI.v2 nowcast","daily, analogs, history"],["ascat","ASCAT wind map","scatterometer, daily"],["eqwind","Zonal wind Hovmöller","equatorial strip, 90 days"],["wwb","Westerly wind bursts","Tarawa monitor, past onsets"],["wind10","10 m wind forecast","AIFS-ENS and IFS-ENS, to day 15"]]},
   {label: "Subsurface", ico: "\u{1F30A}", items: [["subtemp","Temperature section","TAO/TRITON, raw and detrended"],["hc","Heat content vs analogs","0–300 m, 1997 · 2015 · 2023"],["okelvin","Ocean Kelvin waves","sea level, arrival dates"],["xsec","Cross-section vs analogs","same week of each event"],["cur_map","Surface currents","tropical Pacific"],["cur_sec","Undercurrent section","zonal current with depth"],["cur_hov","Current Hovmöller","equatorial strip"]]},
-  {label: "Impacts on the Americas", ico: "\u{1F30E}", items: [["imp_reg","Regression on Niño-3.4","CMIP6 and observed, per K"],["imp_comp","Composites by event class","CMIP6, El Niño to strong La Niña"],["imp_obs","Observed composites","ERA5 and GPCP"],["imp_super","Super El Niño","lifecycle, beyond linear, by month"],["imp_asym","Asymmetry","what does not flip sign"],["imp_ovm","Observed vs the models","where the real world differs"],["imp_regions","By region","20 regions, significant values only"]]}
+  {label: "Impacts on the Americas", ico: "\u{1F30E}", items: [["imp_reg","Regression on Niño-3.4","CMIP6 and observed, per K"],["imp_comp","Composites by event class","CMIP6, El Niño to strong La Niña"],["imp_obs","Observed composites","ERA5 and GPCP"],["imp_super","Super El Niño","lifecycle, beyond linear, by month"],["imp_asym","Asymmetry","what does not flip sign"],["imp_ovm","Observed vs the models","where the real world differs"],["imp_regions","By region","20 regions, significant values only"],["imp_ec","East-based vs central","Takahashi E and C, 2026 placed"],["imp_pdo","PDO without ENSO","reddened ENSO removed"],["imp_pdoph","El Niño by PDO phase","does +PDO amplify it?"]]}
 ],
   products: {
   sstmaps: {label: "SST anomaly maps", a: {label: "Field", items: [["anomaly","Anomaly"],["absolute","Absolute SST"],["relative","Global mean removed"],["tropical_rel","Tropics, tropical mean removed"]]},
@@ -484,6 +560,26 @@ window.STAGE = {
           about: "about-imp_ovm", fit: false,
           cap: function (a) { return a === "map" ? "The three observed super El Niños, shown only where they fall outside the spread of the CMIP6 models."
                                                   : "Every season, class and region where the observed temperature response falls outside the models' spread."; }},
+  imp_ec: {label: "East-based vs central-Pacific El Niño", a: {label: "View", items: [["E","East (E), CMIP6"],["C","Central (C), CMIP6"],["Eo","East, observed"],["Co","Central, observed"],["diff","East minus central"],["place","Where events fall"]]},
+          b: function (a) { return a === "place" ? null : IMP_V; }, c: function (a) { return a === "place" ? null : IMP_S; },
+          img: function (a, b, c) { if (a === "place") return "assets/sst/enso_imp_ec_place.webp?v=__CACHE__";
+                                    if (a === "diff") return "assets/sst/enso_imp_ec_" + b + "_" + c + "_diff.webp?v=__CACHE__";
+                                    return "assets/sst/enso_imp_ec_" + b + "_" + c + "_" + a.charAt(0) + "_" + (a.length > 1 ? "obs" : "cmip6") + ".webp?v=__CACHE__"; },
+          about: "about-imp_ec", fit: false,
+          cap: function (a, b, c) { return a === "place" ? "CMIP6 and observed El Niños on Takahashi's east-based (E) and central-Pacific (C) indices, with summer 2026."
+                                  : a === "diff" ? c + " " + IMP_VN[b] + ": east-based minus central-Pacific El Niños of the same Niño-3.4 strength, CMIP6, shaded only where robust."
+                                  : c + " " + IMP_VN[b] + " per standard deviation of the " + (a.charAt(0) === "E" ? "east-based (E)" : "central-Pacific (C)") + " index, the other held fixed, " + (a.length > 1 ? "observed" : "CMIP6") + ", shaded only where significant."; }},
+  imp_pdo: {label: "The PDO without ENSO", a: {label: "View", items: [["free","Without ENSO, CMIP6"],["freeo","Without ENSO, observed"],["raw","Raw PDO, CMIP6"],["rawo","Raw PDO, observed"],["share","How much is ENSO"]]},
+          b: function (a) { return a === "share" ? null : IMP_V; }, c: function (a) { return a === "share" ? null : IMP_S; },
+          img: function (a, b, c) { return a === "share" ? "assets/sst/enso_imp_pdo_share.webp?v=__CACHE__"
+                                  : "assets/sst/enso_imp_pdo_" + b + "_" + c + "_" + a.replace("o", "") + "_" + (a.slice(-1) === "o" ? "obs" : "cmip6") + ".webp?v=__CACHE__"; },
+          about: "about-imp_pdo", fit: false,
+          cap: function (a, b, c) { return a === "share" ? "How much of the PDO's impact over the Americas is ENSO: raw against ENSO-free PDO regressions, CMIP6."
+                                  : c + " " + IMP_VN[b] + " per standard deviation of the " + (a.indexOf("free") === 0 ? "ENSO-free PDO, Niño-3.4 fitted alongside" : "raw PDO index") + ", " + (a.slice(-1) === "o" ? "observed" : "CMIP6") + ", shaded only where significant."; }},
+  imp_pdoph: {label: "El Niño and La Niña by PDO phase", a: {label: "View", items: [["en","El Niño, +PDO minus −PDO"],["ln","La Niña, +PDO minus −PDO"],["int","Does +PDO amplify El Niño?"]]}, b: IMP_V, c: IMP_S,
+          img: function (a, b, c) { return "assets/sst/enso_imp_pdoph_" + b + "_" + c + "_" + a + ".webp?v=__CACHE__"; }, about: "about-imp_pdoph", fit: false,
+          cap: function (a, b, c) { return a === "int" ? c + " " + IMP_VN[b] + ": what a positive PDO adds to El Niño beyond what it adds to a neutral season, CMIP6, shaded only where robust."
+                                  : c + " " + IMP_VN[b] + ": " + (a === "en" ? "El Niño" : "La Niña") + " seasons of the same strength under a positive minus a negative ENSO-free PDO, CMIP6, shaded only where robust."; }},
   imp_regions: {label: "ENSO impacts by region", a: IMP_V, b: IMP_S,
           img: function (a, b) { return "assets/sst/enso_imp_regions_" + a + "_" + b + ".webp?v=__CACHE__"; }, about: "about-imp_regions", fit: false,
           cap: function (a, b) { return b + " " + IMP_VN[a] + " for 20 regions of the Americas, CMIP6 and observed; values printed only where significant."; }}

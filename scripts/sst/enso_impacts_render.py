@@ -270,6 +270,8 @@ def main() -> int:
                  extent=[-165, -52, 14, 72])
         rec(name, key)
     table_figs(meta, made, index)
+    if (REF / "enso_modes_site.npz").exists():
+        render_modes(made, index)
     import datetime as dt
     index["made"] = dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%dT%H:%MZ")
     index["models"], index["members"] = nmod, nmem
@@ -277,6 +279,210 @@ def main() -> int:
     (OUT / "data" / "enso_impacts.json").write_text(json.dumps(index, separators=(",", ":")))
     print(f"{len(made)} figures -> {OUT}/enso_imp_*.webp")
     return 0
+
+
+def render_modes(made, index):
+    """East-based vs central El Nino (Takahashi E and C), the PDO without ENSO, and El Nino / La Nina by PDO phase, from
+    reference/enso_modes_site.{npz,json} (cmip6_enso_modes.py --site)."""
+    z = np.load(REF / "enso_modes_site.npz")
+    meta = json.loads((REF / "enso_modes_site.json").read_text())
+    M = meta["maps"]; lat, lon = z["lat"], z["lon"]
+
+    def get(key):
+        return (z[key + "|f"], z[key + "|s"]) if key + "|f" in z else (None, None)
+
+    def rec(name, key, extra=None):
+        e = dict(M.get(key, {})); e.update(extra or {}); index["maps"][name] = e; made.append(name)
+
+    per = {"tas": "K per standard deviation", "pr": "% of normal per standard deviation"}
+    for v in ("tas", "pr"):
+        cmap = "RdBu_r" if v == "tas" else "BrBG"
+        dry = np.zeros((len(lat), len(lon)), bool) if v == "pr" else None
+        dry_txt = " Hatched: normal under 0.3 mm/day, not scored." if v == "pr" else ""
+        for s in SEASONS:
+            # E and C, joint (partial) regression
+            for nm, lab in (("E", "east-based (E)"), ("C", "central-Pacific (C)")):
+                for src in ("cmip6", "obs"):
+                    key = f"ec|{v}|{s}|{nm}|{src}"; f, sg = get(key); e = M.get(key, {})
+                    if f is None:
+                        continue
+                    name = f"enso_imp_ec_{v}_{s}_{nm}_{src}"
+                    if src == "cmip6":
+                        title = f"CMIP6 · {s} {VNAME[v]} and the {lab} ENSO index"
+                        sub = (f"Partial regression on Takahashi's E and C together, per 1 sd of {nm} · {e['models']} models, "
+                               f"{e['members']} members, 1950–2014 · {100 * e['land_sig']:.0f} % of land robust")
+                        foot = (CMIP_TEST + " E and C from each member's own tropical Pacific EOFs (Takahashi et al. 2011), "
+                                "fitted jointly so each map is that pattern with the other held fixed." + dry_txt)
+                    else:
+                        title = f"{OBSNAME[v]} · {s} {VNAME[v]} and the {lab} ENSO index"
+                        sub = (f"Partial regression on observed E and C together (ERSST v6), per 1 sd of {nm} · {e['n']} seasons, "
+                               f"{e['span'][0]}–{e['span'][1]} · {100 * e['land_sig']:.0f} % of land significant")
+                        foot = ("Shaded only where the coefficient is significant: t-test per grid point, Benjamini–Hochberg FDR "
+                                "10 % over the map; blank = not significant." + dry_txt)
+                    draw_map(OUT / f"{name}.webp", f, sg, lat, lon, LEV[f"reg_{v}"], cmap, per[v], title, sub, foot, dry=dry)
+                    rec(name, key)
+            # EP minus CP at matched Nino-3.4 strength
+            key = f"cmp|{v}|{s}|diff"; f, sg = get(key); e = M.get(key, {})
+            name = f"enso_imp_ec_{v}_{s}_diff"
+            if f is not None:
+                draw_map(OUT / f"{name}.webp", f, sg, lat, lon, LEV[f"comp_{v}"], cmap, UNIT[f"comp_{v}"],
+                         f"CMIP6 · {s} {VNAME[v]}: east-based minus central-Pacific El Niño",
+                         f"Same-strength events: Niño-3.4 {e['x_a']:+.2f} K (east, E > C) vs {e['x_b']:+.2f} K (central) · "
+                         f"{e['n_a']:,} vs {e['n_b']:,} events, {e['models']} models",
+                         CMIP_TEST + " Events matched in Niño-3.4 bins (0.5–1, 1–1.5, 1.5–2, ≥ 2 K), each bin weighted by its "
+                         "smaller class, so the difference is the type of event, not its size." + dry_txt, dry=dry)
+            else:
+                draw_map(OUT / f"{name}.webp", np.full((len(lat), len(lon)), np.nan), np.zeros((len(lat), len(lon)), bool),
+                         lat, lon, LEV[f"comp_{v}"], cmap, UNIT[f"comp_{v}"],
+                         f"CMIP6 · {s} {VNAME[v]}: east-based minus central-Pacific El Niño", "Too few matched events",
+                         "Fewer than 5 models have both kinds of event at matched strength.", note_empty="Not tested")
+            rec(name, key)
+            # PDO: without ENSO (partial on N34 + ENSO-free PDO) and raw
+            for nm in ("free", "raw"):
+                for src in ("cmip6", "obs"):
+                    key = f"pdo|{v}|{s}|{nm}|{src}"; f, sg = get(key); e = M.get(key, {})
+                    if f is None:
+                        continue
+                    name = f"enso_imp_pdo_{v}_{s}_{nm}_{src}"
+                    who = "CMIP6" if src == "cmip6" else OBSNAME[v]
+                    if nm == "free":
+                        title = f"{who} · {s} {VNAME[v]} and the PDO without ENSO"
+                        sub = ("Partial regression on the ENSO-free PDO with same-season Niño-3.4 fitted alongside, per 1 sd · "
+                               + (f"{e['models']} models, {e['members']} members, 1950–2014" if src == "cmip6"
+                                  else f"{e['n']} seasons, {e['span'][0]}–{e['span'][1]}")
+                               + f" · {100 * e['land_sig']:.0f} % of land " + ("robust" if src == "cmip6" else "significant"))
+                    else:
+                        title = f"{who} · {s} {VNAME[v]} and the raw PDO index"
+                        sub = ("Simple regression on the PDO index, ENSO left in, per 1 sd · "
+                               + (f"{e['models']} models, {e['members']} members, 1950–2014" if src == "cmip6"
+                                  else f"NCEI PDO, {e['n']} seasons, {e['span'][0]}–{e['span'][1]}")
+                               + f" · {100 * e['land_sig']:.0f} % of land " + ("robust" if src == "cmip6" else "significant"))
+                    foot = ((CMIP_TEST if src == "cmip6" else "Shaded only where the coefficient is significant: t-test per grid "
+                             "point, Benjamini–Hochberg FDR 10 % over the map; blank = not significant.")
+                            + (" ENSO-free PDO = the PDO minus its reddened-ENSO part (Newman et al. 2016): PDO(t) = a·PDO(t−1) + "
+                               "b·N34(t), fitted, then driven by Niño-3.4 alone and subtracted." if nm == "free" else "") + dry_txt)
+                    draw_map(OUT / f"{name}.webp", f, sg, lat, lon, LEV[f"reg_{v}"], cmap, per[v], title, sub, foot, dry=dry,
+                             note_empty="No significant signal")
+                    rec(name, key)
+            # El Nino / La Nina by ENSO-free PDO phase, matched strength; and the interaction
+            for nm, lab, sub0 in (("en", "El Niño", "El Niño seasons with the ENSO-free PDO ≥ +0.5 sd minus those ≤ −0.5 sd"),
+                                  ("ln", "La Niña", "La Niña seasons with the ENSO-free PDO ≥ +0.5 sd minus those ≤ −0.5 sd"),
+                                  ("int", "El Niño", "What a +PDO adds to El Niño beyond its own neutral-year effect")):
+                key = f"cmp|{v}|{s}|{nm}"; f, sg = get(key); e = M.get(key, {})
+                name = f"enso_imp_pdoph_{v}_{s}_{nm}"
+                ttl = (f"CMIP6 · {s} {VNAME[v]}: {lab} under +PDO minus −PDO" if nm != "int"
+                       else f"CMIP6 · {s} {VNAME[v]}: does a +PDO amplify El Niño?")
+                if f is None:
+                    draw_map(OUT / f"{name}.webp", np.full((len(lat), len(lon)), np.nan), np.zeros((len(lat), len(lon)), bool),
+                             lat, lon, LEV[f"comp_{v}"], cmap, UNIT[f"comp_{v}"], ttl, sub0, "Fewer than 5 models qualify.",
+                             note_empty="Not tested"); rec(name, key); continue
+                sub = sub0 + (f" · Niño-3.4 matched ({e['x_a']:+.2f} vs {e['x_b']:+.2f} K) · {e['n_a']:,} vs {e['n_b']:,} events, "
+                              f"{e['models']} models" if "n_a" in e else f" · {e['models']} models")
+                foot = (CMIP_TEST + " PDO phase from the ENSO-free PDO, so El Niño itself does not decide the phase; events "
+                        "matched in |Niño-3.4| bins." + (" Interaction = (El Niño, +PDO − −PDO) − (neutral, +PDO − −PDO), per model."
+                                                         if nm == "int" else "") + dry_txt)
+                draw_map(OUT / f"{name}.webp", f, sg, lat, lon, LEV[f"comp_{v}"], cmap, UNIT[f"comp_{v}"], ttl, sub, foot, dry=dry,
+                         note_empty="No significant difference")
+                rec(name, key)
+    place_fig(z, meta, made, index)
+    share_fig(meta, made, index)
+
+
+def place_fig(z, meta, made, index):
+    """Where El Nino events sit on Takahashi's E and C: models (density) against the observed events, DJF and the JJA
+    before, with 2026."""
+    plt = _plt()
+    djf, jja = z["djf_events"], z["jja_before"]
+    od, oj = meta["obs_djf"], meta["obs_jja"]; pl = meta["placement"]
+    fig = plt.figure(figsize=(11.2, 6.3))
+    for k, (arr, obs, ttl, key) in enumerate(((djf, od, "December–February: El Niño peaks", "DJF"),
+                                              (jja, oj, "June–August before the peak", "JJA"))):
+        ax = fig.add_axes([0.06 + k * 0.49, 0.19, 0.41, 0.62])
+        from matplotlib.colors import ListedColormap
+        light = ListedColormap(plt.get_cmap("Greys")(np.linspace(0.08, 0.45, 256)))
+        ax.hexbin(arr[:, 1], arr[:, 0], gridsize=45, extent=(-2, 4, -2, 5.5), cmap=light, mincnt=3, bins="log", linewidths=0)
+        sup = (arr[:, 2] >= 2.0) if key == "DJF" else (arr[:, 3] >= 2.0)
+        H2, xe, ye = np.histogram2d(arr[sup, 1], arr[sup, 0], bins=[np.linspace(-2, 4, 31), np.linspace(-2, 5.5, 38)])
+        from scipy.ndimage import gaussian_filter
+        H2 = gaussian_filter(H2, 1.0).T
+        lv = np.quantile(H2[H2 > 0], [0.55, 0.8, 0.93]) if (H2 > 0).any() else []
+        if len(lv):
+            ax.contour(0.5 * (xe[1:] + xe[:-1]), 0.5 * (ye[1:] + ye[:-1]), H2, levels=np.unique(lv), colors="#c0561a",
+                       linewidths=[0.8, 1.1, 1.5][: len(np.unique(lv))])
+        ax.plot([], [], color="#c0561a", lw=1.1, label="CMIP6 super El Niños" + (" (DJF ≥ 2 K)" if key == "DJF" else ", the summer before"))
+        ax.scatter([], [], marker="h", s=60, c="#bbb", label="all CMIP6 El Niños" + ("" if key == "DJF" else ", the summer before"))
+        ax.plot([-2, 4], [-2, 4], color="#6f6b64", lw=0.8, ls="--")
+        ax.text(3.9, 3.5, "E = C", color=MUTED, fontsize=8, ha="right", va="top", rotation=0)
+        ax.text(-1.85, 5.3, "east-based", color="#333", fontsize=9, va="top"); ax.text(3.9, -1.85, "central-Pacific", color="#333", fontsize=9, ha="right")
+        yrs = [y for y in obs if (obs[y]["n34"] >= 0.5 if key == "DJF" else int(y) in (1972, 1982, 1987, 1991, 1994, 1997, 2002, 2004, 2009, 2015, 2023, 2026))]
+        hi = {"DJF": {"1983": "1982/83", "1998": "1997/98", "2016": "2015/16", "2010": "2009/10", "2024": "2023/24"},
+              "JJA": {"1982": "1982", "1997": "1997", "2015": "2015", "2023": "2023", "2026": "2026"}}[key]
+        for y in yrs:
+            o = obs[y]
+            if y == "2026":
+                ax.scatter(o["C"], o["E"], s=170, marker="*", c="#c0392b", edgecolors="white", linewidths=0.8, zorder=6)
+                ax.annotate("2026", (o["C"], o["E"]), xytext=(8, 4), textcoords="offset points", fontsize=10, fontweight="bold", color="#c0392b")
+            else:
+                big = y in hi
+                ax.scatter(o["C"], o["E"], s=34 if big else 14, c="#1f4e79" if big else "#7f95ad", edgecolors="white", linewidths=0.5, zorder=5)
+                if big:
+                    ax.annotate(hi[y], (o["C"], o["E"]), xytext=(6, -3), textcoords="offset points", fontsize=8.6, color="#1f4e79",
+                                zorder=7, bbox=dict(boxstyle="round,pad=0.12", fc="white", ec="none", alpha=0.8))
+        ax.set_xlim(-2, 4); ax.set_ylim(-2, 5.5)
+        ax.set_xlabel("C, central-Pacific index (sd)", fontsize=9); ax.set_ylabel("E, eastern-Pacific index (sd)", fontsize=9)
+        ax.set_title(ttl, fontsize=10.5, fontweight="bold", loc="left")
+        ax.tick_params(labelsize=8); ax.grid(lw=0.3, color="#ddd")
+        ax.legend(loc="upper right", fontsize=7.6, frameon=True, framealpha=0.9, edgecolor="none")
+    fig.text(0.02, 0.975, "Where El Niño events fall on the east-based and central-Pacific indices", fontsize=13, fontweight="bold", va="top")
+    fig.text(0.02, 0.928, (f"Grey: {pl['n_djf']:,} CMIP6 El Niño winters (log density) and the summers before them; orange: the "
+                           f"{pl['n_super']:,} super El Niños; blue: observed (ERSST v6); star: summer 2026.\n"
+                           f"{100 * pl['ep_share_super']:.0f} % of the models' super El Niños are east-based (E > C), "
+                           f"{100 * pl['ep_share_strong']:.0f} % of their strong ones and {100 * pl['ep_share_all']:.0f} % of all "
+                           "their El Niños."), fontsize=8.8, color="#3d3a36", va="top", linespacing=1.35)
+    fig.text(0.02, 0.03, ("Takahashi et al. (2011): E = (PC1 − PC2)/√2 and C = (PC1 + PC2)/√2 from the first two EOFs of tropical "
+                          "Pacific SST (10°S–10°N, 140°E–80°W), each dataset its own EOFs, in standard deviations of the monthly index. "
+                          "Observed: ERSST v6, linear trend 1950–2025 removed per grid point and extrapolated for 2026. Descriptive: no "
+                          "test is implied by the positions."), fontsize=7.2, color=MUTED, va="bottom", wrap=True)
+    name = "enso_imp_ec_place"
+    fig.savefig(OUT / f"{name}.webp", dpi=110, facecolor="white", pil_kwargs={"quality": 86, "method": 6}); plt.close(fig)
+    made.append(name); index["maps"][name] = {"placement": pl}
+
+
+def share_fig(meta, made, index):
+    """How much of the raw PDO's impact is ENSO: per season and variable, robust land share raw vs ENSO-free, their
+    pattern correlation and the variance ratio over land."""
+    plt = _plt()
+    sh = meta["pdo_share"]; q = meta["quality"]; o = meta["obs_ref"]
+    rows = [(v, s) for v in ("tas", "pr") for s in SEASONS]
+    fig = plt.figure(figsize=(9.6, 1.6 + 0.3 * len(rows) + 0.62))
+    H = fig.get_size_inches()[1]
+    fig.text(0.02, 1 - 0.14 / H, "How much of the PDO's impact over the Americas is ENSO?", fontsize=12.5, fontweight="bold", va="top")
+    fig.text(0.02, 1 - 0.46 / H, "CMIP6 regressions on the raw PDO against the same on the ENSO-free PDO, over land, 16 models",
+             fontsize=8.6, color="#3d3a36", va="top")
+    hdr = ["", "robust land,\nraw PDO", "robust land,\nENSO-free", "robust land,\nwith N34 fitted", "pattern r,\nraw vs free",
+           "variance kept\nwithout ENSO", "model range\nof that share"]
+    xs = [0.02, 0.2, 0.33, 0.46, 0.6, 0.73, 0.87]
+    y0 = 1 - 0.85 / H
+    for x, h in zip(xs, hdr):
+        fig.text(x, y0, h, fontsize=8, fontweight="bold", va="top", linespacing=1.1)
+    for i, (v, s) in enumerate(rows):
+        d = sh[f"{v}|{s}"]; y = y0 - (0.55 + 0.3 * i) / H
+        vals = [f"{s} {VNAME[v]}", f"{100 * d['raw_land_robust']:.0f} %", f"{100 * d['free_land_robust']:.0f} %",
+                f"{100 * d['partial_land_robust']:.0f} %", f"{d['pattern_r']:+.2f}", f"{100 * d['var_share']:.0f} %",
+                f"{100 * d['model_var_share'][1]:.0f}–{100 * d['model_var_share'][2]:.0f} %"]
+        for x, t in zip(xs, vals):
+            fig.text(x, y, t, fontsize=8.6, va="top")
+    fig.text(0.02, 0.02,
+             (f"ENSO-free PDO = PDO minus its reddened-ENSO part, PDO(t) = a·PDO(t−1) + b·N34(t) (Newman et al. 2016); across the "
+              f"429 members a = {q['a'][1]:.2f} ({q['a'][0]:.2f}–{q['a'][2]:.2f}, 10–90 %), and the reddened ENSO explains "
+              f"{100 * q['r2'][1]:.0f} % of the monthly PDO variance ({100 * q['r2'][0]:.0f}–{100 * q['r2'][2]:.0f} %); observed "
+              f"(NCEI PDO, ERSST v6 Niño-3.4, 1950–2026) a = {o['a']:.2f}, {100 * o['r2']:.0f} %. The lag 0–12 month regression "
+              f"of the PDO on Niño-3.4 gives an ENSO-free index correlated {q['r_free_lag'][1]:.2f} with this one. 'Robust' = "
+              "across-model t-test FDR 10 % and ≥ 80 % sign agreement. 'Variance kept' = the ENSO-free map's land variance as a "
+              "share of the raw map's (per 1 sd of each index): the rest was ENSO."), fontsize=7.1, color=MUTED, va="bottom", wrap=True)
+    name = "enso_imp_pdo_share"
+    fig.savefig(OUT / f"{name}.webp", dpi=110, facecolor="white", pil_kwargs={"quality": 86, "method": 6}); plt.close(fig)
+    made.append(name); index["maps"][name] = {"share": sh}
 
 
 def table_figs(meta, made, index):

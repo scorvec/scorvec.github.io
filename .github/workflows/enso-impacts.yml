@@ -2,10 +2,11 @@ name: ENSO impacts on the Americas (static CMIP6 reference)
 
 # The "Impacts on the Americas" items on enso.html: CMIP6 and observed ENSO regression maps,
 # event-class composites, super El Nino lifecycle, asymmetry, observed-vs-models and the
-# regional table. STATIC products (user 2026-09-25: "the best type of stuff for this site are
+# regional table, east-based vs central (Takahashi E/C), the PDO without ENSO and El Nino by PDO phase. STATIC products (user 2026-09-25: "the best type of stuff for this site are
 # things that don't need to be updated every day"). The analysis runs once on the laptop
-# (scripts/sst/cmip6_enso_impacts.py over 429 CMIP6 members, then scripts/sst/cmip6_enso_site.py),
-# which commits a 1.5 MB reference; this job only draws it. It runs when the renderer or the
+# (scripts/sst/cmip6_enso_impacts.py over 429 CMIP6 members, then scripts/sst/cmip6_enso_site.py; and
+# cmip6_pacific_ts_extract.py + cmip6_enso_modes.py [--site] for the E/C and PDO views), which commits two
+# small references; this job only draws them. It runs when the renderer or the
 # reference changes, or on dispatch - never on a schedule.
 on:
   workflow_dispatch:
@@ -15,6 +16,8 @@ on:
       - scripts/sst/enso_impacts_render.py
       - scripts/sst/reference/enso_impacts_site.npz
       - scripts/sst/reference/enso_impacts_site.json
+      - scripts/sst/reference/enso_modes_site.npz
+      - scripts/sst/reference/enso_modes_site.json
       - .github/workflows/enso-impacts.yml
 
 env:
