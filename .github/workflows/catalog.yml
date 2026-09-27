@@ -5,9 +5,16 @@ name: Plot catalogue (finder index)
 # specs run in node with the DOM stubbed (scripts/site/catalog_eval.js) - so the index follows every page change.
 # The laptop's pre-push hook keeps assets/** off laptop pushes, so the index is built and committed here.
 #
+# Thumbnails: scripts/site/build_thumbs.py draws a ~360 px WebP of every figure the index names (each option view's
+# own figure, and a loop's first or newest frame) into assets/site/thumbs/ on the FRAMES branch, like the loop
+# frames, so the daily churn stays out of main's history. It is incremental (index.json on the branch records each
+# source's git blob id / ETag) and runs on the schedule and on dispatch (the laptop dispatcher fires it twice a day);
+# a push or a page workflow only rebuilds the index, pointing at whatever thumbnails the branch already has. Without
+# a thumbnail a card loads the full figure, so nothing is ever missing, only heavier.
+#
 # Triggers: a push that touches a page, a page partial or the builder (laptop pushes); the end of each workflow that
-# regenerates a page (their GITHUB_TOKEN pushes raise no push event, but workflow_run still fires); a daily cron for
-# the dated thumbnails (the MJO chart, the monthly SEAS5 maps); dispatch. It commits only when the index changed.
+# regenerates a page (their GITHUB_TOKEN pushes raise no push event, but workflow_run still fires); the schedule;
+# dispatch. It commits only when the index changed.
 
 on:
   push:
@@ -32,6 +39,7 @@ on:
     types: [completed]
   schedule:
     - cron: "35 6 * * *"
+    - cron: "35 18 * * *"
   workflow_dispatch:
 
 permissions:
@@ -46,20 +54,45 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 30
+    env:
+      THUMBS: ${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' }}
     steps:
-      # the pages and the JSON only (~12 MB); figure existence is read from the git index (build_catalog.tracked)
+      # the pages, the JSON and the frames tooling only (~12 MB); figure existence and blob ids come from the git
+      # index (build_catalog.tracked, build_thumbs.blob_ids), the figures themselves from raw.githubusercontent
       - uses: actions/checkout@v7
         with:
           sparse-checkout-cone-mode: false
           sparse-checkout: |
             /*.html
             /scripts/site/
+            /scripts/lib/
             /assets/**/*.json
+      - uses: actions/setup-python@v7
+        if: env.THUMBS == 'true'
+        with:
+          python-version: "3.12"
+      - name: Pillow
+        if: env.THUMBS == 'true'
+        run: python -m pip install -q pillow
       - name: Build the catalogue
         run: |
           node --version
           python3 scripts/site/build_catalog.py
+      - name: Thumbnails
+        if: env.THUMBS == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          cp assets/site/catalog.json "$RUNNER_TEMP/catalog_before.json"
+          python scripts/site/build_thumbs.py --prune-out "$RUNNER_TEMP/prune.txt" | tee "$RUNNER_TEMP/thumbs.log"
+          if grep -q "THUMBS_CHANGED=1" "$RUNNER_TEMP/thumbs.log"; then
+            # merge the new thumbnails into the branch copy (+dir) and drop the ones nothing points at any more
+            if ! PRUNE="$(cat "$RUNNER_TEMP/prune.txt")" scripts/lib/publish_frames_ci.sh +assets/site/thumbs; then
+              echo "::warning::thumbnail publish failed; the index keeps the thumbnails the branch already had"
+              cp "$RUNNER_TEMP/catalog_before.json" assets/site/catalog.json
+            fi
+          fi
       - name: Commit & push
         run: |
           git config user.name "github-actions[bot]"

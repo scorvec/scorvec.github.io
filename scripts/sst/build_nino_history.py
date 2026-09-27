@@ -172,9 +172,13 @@ def main() -> int:
             [sc.get(t.month, 1.0) for t in df.index], index=df.index)
         roni = rel.rolling(3, center=True, min_periods=2).mean()
     except Exception as e:                                # noqa: BLE001
-        print(f"tropical-mean/RONI unavailable ({repr(e)[:80]}); "
-              "writing history without roni", file=sys.stderr)
-        roni = None
+        # The grid is only the FALLBACK side of RONI; CPC's official table below
+        # covers every month since 1950, so an empty series still fills from it.
+        # (2026-09-26: a PSL 502 here dropped RONI from the history entirely and
+        # the forecasts page drew ONI under the RONI label.)
+        print(f"tropical-mean/RONI fallback unavailable ({repr(e)[:80]}); "
+              "RONI from CPC's official table only", file=sys.stderr)
+        roni = pd.Series(np.nan, index=df.index)
 
     # ── CPC's OWN published values take precedence over the table-derived pair ──
     # ersst5.nino.mth.91-20.ascii FROZE on 5 Aug 2026 with content through
@@ -225,9 +229,8 @@ def main() -> int:
         "nino34": {"abs": col("n34"), "anom": col("n34a")},
         "oni":    {"anom": [round(float(v), 2) if pd.notna(v) else None for v in oni.values]},
     }
-    if roni is not None:
-        series["roni"] = {"anom": [round(float(v), 2) if pd.notna(v) else None
-                                   for v in roni.values]}
+    series["roni"] = {"anom": [round(float(v), 2) if pd.notna(v) else None
+                               for v in roni.values]}
 
     # Months CPC has published that the frozen table cannot reach. The regional
     # series have no official counterpart, so they stay null there.
@@ -241,9 +244,14 @@ def main() -> int:
         i = len(months) - 1
         if m in off_oni:
             series["oni"]["anom"][i] = round(float(off_oni[m]), 2)
-        if "roni" in series and m in off_roni:
+        if m in off_roni:
             series["roni"]["anom"][i] = round(float(off_roni[m]), 2)
     official_through = max(official_months) if official_months else None
+    if not any(v is not None for v in series["roni"]["anom"][-24:]):
+        # neither the grid nor CPC's table gave RONI: keep the previous JSON
+        # (the workflow step falls back to it) rather than publish without it
+        print("no RONI from either source; not writing", file=sys.stderr)
+        return 1
 
     events = build_events(oni)
     # Current developing event: align to its onset-year's climatological Dec peak so the

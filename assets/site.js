@@ -247,19 +247,40 @@
     }
     location.href = url;
   }
-  // a stable thumbnail loader: a figure on main, or the first frame of a loop on the frames branch
-  function thumbInto(im, th, onFail) {
-    im.onerror = null;
-    if (th.src) {
-      im.onerror = function () { onFail && onFail(); };
-      im.src = '/' + th.src;
-      return;
-    }
-    if (typeof window.frameLoad === 'function') { window.frameLoad(im, th.frame, '', '/' + th.frame, onFail); return; }
-    var first = window.frameHostIsMirror && window.frameHostIsMirror() ? MIRROR : RAW;
-    var tries = [first + th.frame, (first === RAW ? MIRROR : RAW) + th.frame], k = 0;
+  // Figures. An item's `thumb` and each option view's third element are keys into cat.thumbs, one entry per distinct
+  // figure: s = the source (a file on main, or with f=1 a loop frame on the frames branch), t = its ~360 px thumbnail
+  // on the frames branch (build_thumbs.py) once one exists. Loaders walk thumbnail -> figure, RAW -> jsDelivr.
+  function figRec(key) {
+    if (!key) return null;
+    if (typeof key === 'object') return key.src ? { s: key.src } : key.frame ? { s: key.frame, f: 1 } : null;   // older index
+    return cat && cat.thumbs ? cat.thumbs[key] || null : null;
+  }
+  function figUrls(rec, full) {
+    var first = window.frameHostIsMirror && window.frameHostIsMirror() ? MIRROR : RAW, second = first === RAW ? MIRROR : RAW;
+    var out = [];
+    var t = rec.t ? 'assets/site/thumbs/' + rec.t + '.webp' : null;
+    if (t && !full) out.push(first + t, second + t);
+    if (rec.f) out.push(first + rec.s, second + rec.s);
+    else out.push('/' + rec.s);
+    return out;
+  }
+  // thumbInto(im, key, onFail, full): the thumbnail (or, with full, the figure itself) into <img> im
+  function thumbInto(im, key, onFail, full) {
+    var rec = figRec(key);
+    if (!rec) { if (onFail) onFail(); return; }
+    var tries = figUrls(rec, full), k = 0;
     im.onerror = function () { k++; if (k < tries.length) im.src = tries[k]; else if (onFail) onFail(); };
     im.src = tries[0];
+  }
+  // the figure a result shows: the matched option's own (null when that option draws in the browser), else the default
+  // (null: drawn in the browser; '': a figure not published yet)
+  function figOf(r) {
+    var k = r.variant ? r.variant[2] : r.item.thumb;
+    return k === undefined ? null : k;
+  }
+  function tileNote(it, key) {
+    if (key === '') return 'Not published yet \u2014 opens on the page';
+    return it.kind === 'page' || it._isPage ? 'Opens the page' : 'Drawn in the browser \u2014 opens on the page';
   }
   var RECENT = 'siteFindRecent';
   function remember(it, variant) {
@@ -273,7 +294,7 @@
     try { return JSON.parse(localStorage.getItem(RECENT) || '[]'); } catch (e) { return []; }
   }
 
-  window.SiteFind = { load: load, search: search, highlight: highlight, thumbInto: thumbInto, norm: norm, esc: esc, remember: remember };
+  window.SiteFind = { load: load, search: search, highlight: highlight, thumbInto: thumbInto, figOf: figOf, tileNote: tileNote, norm: norm, esc: esc, remember: remember };
 
   // -- the palette --
   var root = null, input, list, prev, live, rows = [], active = -1, lastFocus = null, q = '', prevT = 0;
@@ -297,7 +318,8 @@
       '<div class="fp-scrim" data-close></div>' +
       '<div class="fp-box" role="dialog" aria-modal="true" aria-label="Find a plot">' +
         '<div class="fp-top">' +
-          '<svg class="fp-ico" viewBox="0 0 20 20" aria-hidden="true" focusable="false"><circle cx="8.5" cy="8.5" r="5.5"/><path d="M12.6 12.6 17 17"/></svg>' +
+          '<svg class="fp-ico" viewBox="0 0 20 20" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true" focusable="false">' +
+            '<circle cx="8.5" cy="8.5" r="5.5" style="fill:none"/><path d="M12.6 12.6 17 17" style="fill:none"/></svg>' +
           '<input class="fp-in" type="text" role="combobox" aria-expanded="true" aria-controls="fp-list" aria-autocomplete="list" ' +
             'autocomplete="off" autocapitalize="off" spellcheck="false" enterkeyhint="go" placeholder="Search every plot: model, variable, region\u2026">' +
           '<button class="fp-x" type="button" data-close><span class="fp-x-t">Cancel</span><kbd>Esc</kbd></button>' +
@@ -430,15 +452,19 @@
     prevT = setTimeout(function () { preview(rows[i]); }, 60);
   }
 
-  // the preview pane: the figure itself, what it is, and its other views
+  // the preview pane: the figure itself (the selected option's own), what it is, and its other views
+  function tileHTML(it, note) {
+    return '<div class="fp-tile t-' + esc(it.topic || '') + '"><em>' + esc(note) + '</em><span>' + esc(it.label) + '</span>' +
+      '<small>' + esc(it.group ? it.page_title : (it._meta || it._topic || '')) + '</small></div>';
+  }
   function preview(r) {
     if (!prev || prev.offsetParent === null) return;
     if (!r) { prev.innerHTML = ''; return; }
-    var it = r.item;
+    var it = r.item, key = figOf(r);
     var tags = [it.horizon].concat((it.models || []).slice(0, 4)).filter(Boolean);
     var vs = (it.variants || []).slice(0, 14);
     prev.innerHTML =
-      '<div class="fp-th"><div class="fp-tile"><span>' + esc(it.label) + '</span><small>' + (it.thumb ? 'Loading\u2026' : 'Interactive \u2014 opens on the page') + '</small></div></div>' +
+      '<div class="fp-th">' + (key ? '' : tileHTML(it, tileNote(it, key))) + '</div>' +
       '<h3 class="fp-pt">' + esc(it.label) + (r.variant ? ' <span>\u203a ' + esc(r.variant[0]) + '</span>' : '') + '</h3>' +
       '<p class="fp-pm">' + (it.group ? esc(it.page_title) + ' \u00b7 ' + esc(it.group) : esc([it._topic].concat(r.meta || it._meta || it.horizon || []).join(' \u00b7 '))) + '</p>' +
       (tags.length ? '<p class="fp-tags">' + tags.map(function (t) { return '<span>' + esc(t) + '</span>'; }).join('') + '</p>' : '') +
@@ -447,13 +473,18 @@
         var idx = it.variants.indexOf(v);
         return '<a href="' + esc(it.page + v[1]) + '" data-v="' + idx + '"' + (r.variant && r.variant[1] === v[1] ? ' aria-current="true"' : '') + '>' + esc(v[0]) + '</a>';
       }).join('') + (it.variants.length > vs.length ? '<span class="fp-more">+ ' + (it.variants.length - vs.length) + ' more on the page</span>' : '') + '</div>' : '');
-    if (it.thumb) {
-      var box = prev.querySelector('.fp-th'), im = new Image();
-      im.alt = '';
-      im.decoding = 'async';
-      im.onload = function () { if (rows[active] === r) { box.innerHTML = ''; box.appendChild(im); } };
-      thumbInto(im, it.thumb, function () { var s = box.querySelector('small'); if (s) s.textContent = 'Opens on the page'; });
-    }
+    if (!key) return;
+    var box = prev.querySelector('.fp-th'), im = new Image(), big = new Image();
+    im.alt = ''; big.alt = '';
+    var current = function () { return rows[active] === r; };
+    im.onload = function () {
+      if (!current()) return;
+      box.innerHTML = ''; box.appendChild(im);
+      // then the full figure, sharp at the pane's size, swapped in once it has arrived
+      big.onload = function () { if (current() && im.parentNode === box) box.replaceChild(big, im); };
+      thumbInto(big, key, null, true);
+    };
+    thumbInto(im, key, function () { if (current()) box.innerHTML = tileHTML(it, 'Opens on the page'); });
   }
 
   function open() {

@@ -115,13 +115,27 @@ for (const g of groups) {
     const A = opt(p.a);
     const a0 = A ? A.items[0][0] : null;
     // second and third axes may depend on earlier choices: record them for EVERY a value (small lists)
-    const bBy = {}, cBy = {};
+    // and the figure each combination shows (img path or sst_anim embed URL), so a search that lands on an option
+    // previews that option's own figure, not the default's
+    const bBy = {}, cBy = {}, figBy = {};
+    const fig = (a, b, c) => {
+      const d = p.dom ? call(p.dom, a, b, c) : null;
+      if (d) return null;
+      const f = p.frame ? call(p.frame, a, b, c) : null;
+      if (f) return { frame: String(f) };
+      const i = p.img ? call(p.img, a, b, c) : null;
+      return i ? { img: String(i) } : null;
+    };
     for (const [av] of (A ? A.items : [[null]])) {
       const B = opt(p.b, av);
       if (B) bBy[av] = B;
       for (const [bv] of (B ? B.items : [[null]])) {
         const C = opt(p.c, av, bv);
         if (C) cBy[av + "|" + bv] = C;
+        for (const [cv] of (C ? C.items : [[null]])) {
+          const g = fig(av, bv, cv);
+          if (g) figBy[av + "|" + bv + "|" + cv] = g;
+        }
       }
     }
     const B0 = bBy[a0] || null, b0 = B0 ? B0.items[0][0] : null;
@@ -129,7 +143,7 @@ for (const g of groups) {
     const kind = p.dom && call(p.dom, a0, b0, c0) ? "dom" : p.frame && call(p.frame, a0, b0, c0) ? "frame" : p.img ? "img" : (p.dom ? "dom" : "none");
     out[id] = {
       label: p.label || it[1], rail: it[1], sub: it[2] || "", group: g.label,
-      a: A, bBy, cBy, def: [a0, b0, c0],
+      a: A, bBy, cBy, figBy, def: [a0, b0, c0],
       kind, img: kind === "img" ? call(p.img, a0, b0, c0) : null, frame: kind === "frame" ? call(p.frame, a0, b0, c0) : null,
       cap: call(p.cap, a0, b0, c0) || "", about: call(p.about, a0, b0, c0) || (typeof p.about === "string" ? p.about : null),
     };
