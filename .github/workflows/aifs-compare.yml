@@ -88,7 +88,16 @@ jobs:
           mkdir -p assets/verify
           python scripts/verify/aifs_station_verify.py --collect \
             --date "${{ steps.cyc.outputs.date }}" --time "${{ steps.cyc.outputs.time }}" \
-            || echo "verification collect failed; continuing"
+            || echo "::warning::verification collect failed; continuing"
+          # the four cycles before this one: archive any that a failed run missed, and complete any that lack the
+          # matched / ensemble-mean series (a failed perturbed-member fetch, or an archive from the old code);
+          # a complete archive returns at once
+          for back in 12 24 36 48; do
+            prev=$(date -u -d "${{ steps.cyc.outputs.date }} ${{ steps.cyc.outputs.time }}:00 ${back} hours ago" +%Y%m%d%H)
+            python scripts/verify/aifs_station_verify.py --collect --date "${prev:0:8}" --time "${prev:8:2}" \
+              || echo "::warning::${prev} could not be completed"
+            rm -rf scripts/ecmwf/cache/${prev}z 2>/dev/null || true
+          done
           python scripts/verify/aifs_station_verify.py --verify || echo "verification scoring failed; continuing"
           rm -rf scripts/verify/data/uw_cache
 

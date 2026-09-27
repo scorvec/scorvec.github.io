@@ -559,10 +559,39 @@ def _scores(f, o, fa=None, oa=None, w=None):
     return rec
 
 
+def match_check(stems):
+    """How well the filter did, per var:lead, over the runs that carry BOTH spectra: the ratio of the mean matched
+    member-0 spectrum to the mean single spectrum at l = 1..LMAX_T, and the published member 0's for scale."""
+    acc = {}
+    for stem in stems:
+        try:
+            d = np.load(ST_ARCHIVE / f"{stem}.npz", allow_pickle=False)
+        except Exception:                                   # noqa: BLE001
+            continue
+        for var in VARS:
+            for lead in LEADS:
+                ks = [f"spec_{m}_{var}_{lead}" for m in ("single", "matched", "control")]
+                if all(k in d.files for k in ks):
+                    a = acc.setdefault((var, lead), [np.zeros(LMAX_T), np.zeros(LMAX_T), np.zeros(LMAX_T), 0])
+                    for i, k in enumerate(ks):
+                        a[i] += d[k][1:LMAX_T + 1].astype(float)
+                    a[3] += 1
+    out = {}
+    for (var, lead), (s_, m_, c_, n) in acc.items():
+        r = m_ / s_; rc = c_ / s_
+        out[f"{var}_{lead}"] = {"n": n, "ratio": [round(float(x), 4) for x in r],
+                                "median": round(float(np.median(r)), 4), "max_dev": round(float(np.max(np.abs(r - 1))), 4),
+                                "raw_median": round(float(np.median(rc)), 4)}
+    return out
+
+
 def paired_diffs(recs, B=2000, block=4, seed=20260927):
     """Per truth:var:region, comparison model and metric: the mean over runs of (other - single) at each lead,
     with a 95 % moving-block bootstrap interval. Runs are paired (same init) and taken in time order; blocks of
-    4 consecutive runs (2 days of 00Z + 12Z) carry the serial correlation between neighbouring runs."""
+    4 consecutive runs (2 days of 00Z + 12Z) carry the serial correlation between neighbouring runs.
+    All three comparisons at a lead use the SAME runs - those where the single, the matched and the published
+    member 0 all verified (and the ensemble mean, wherever it exists) - so the curves can be compared with each
+    other; the raw member 0 has a longer history than the matched series, and mixing samples would not."""
     by = {}
     for r in recs:
         by.setdefault((r["truth"], r["var"], r["region"], r["lead"], r["model"]), {})[r["init"]] = r
@@ -576,7 +605,12 @@ def paired_diffs(recs, B=2000, block=4, seed=20260927):
                 rows = []
                 for L in LEADS:
                     a = by.get((tr, var, reg, L, "single"), {}); b = by.get((tr, var, reg, L, other), {})
-                    inits = sorted(i for i in a if i in b and a[i].get(metric) is not None and b[i].get(metric) is not None)
+                    sets = [by.get((tr, var, reg, L, m), {}) for m in ("single", "matched", "control")]
+                    ens = by.get((tr, var, reg, L, "ensmean"), {})
+                    common = {i for i in sets[0] if all(i in x and x[i].get(metric) is not None for x in sets)}
+                    if len(common & set(ens)) >= 20:
+                        common &= set(ens)
+                    inits = sorted(i for i in common if i in b and b[i].get(metric) is not None)
                     n = len(inits)
                     if n < 20:
                         continue
@@ -713,7 +747,8 @@ def verify() -> int:
                     recs.append(dict(init=arch.stem, lead=lead, var=var, model=mkey,
                                      truth=method, region="nh", **sc)); n_new += 1
                     done.add((arch.stem, lead, var, mkey, method, "nh"))
-    if n_new:
+    stale = SCORES.exists() and "match_check" not in json.loads(SCORES.read_text())
+    if n_new or stale:                                    # stale: written by the code before 2026-09-27
         SCORES.parent.mkdir(parents=True, exist_ok=True)
         SCORES.write_text(json.dumps(
             {"generated": pd.Timestamp.now("UTC").strftime("%Y-%m-%d %H:%M UTC"),
@@ -733,7 +768,9 @@ def verify() -> int:
                                      "95 % percentile interval; significant = interval excludes 0",
                            "sign": "other minus single"},
              "lmax_t": LMAX_T, "leads": LEADS,
-             "records": recs, "spectra": spectra, "diffs": paired_diffs(recs)}, separators=(",", ":")))
+             "records": recs, "spectra": spectra, "diffs": paired_diffs(recs),
+             "match_check": match_check([p.stem for p in sorted(ST_ARCHIVE.glob("*.npz"))[-KEEP_CYCLES:]])},
+            separators=(",", ":")))
         print(f"scores: +{n_new} records → {len(recs)} total; spectra keys {len(spectra)}")
     else:
         print("no newly verifiable cycles")

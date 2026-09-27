@@ -217,7 +217,7 @@
   <div class="card">
     <div class="card-head">
       <h2>Difference from the single, with 95&nbsp;% intervals</h2>
-      <p>Each line is the mean over paired runs of <b>(model &minus; AIFS single)</b>; the shading is a 95&nbsp;%
+      <p>Each line is the mean of <b>(model &minus; AIFS single)</b> over the same runs for all three comparisons; the shading is a 95&nbsp;%
       paired moving-block bootstrap interval (blocks of four consecutive runs, two days, to allow for correlation
       between neighbouring runs; 2,000 resamples). Filled markers: the interval excludes zero, a significant
       difference. Open markers: no significant difference. For RMSE, above zero means worse than the single; for
@@ -238,7 +238,7 @@
   <div class="card">
     <div class="card-head">
       <h2>Scores by lead</h2>
-      <p>Mean over verified runs; the shading is &plusmn;1 standard error, descriptive only. Whether two lines differ
+      <p>Mean over the same verified runs for every line; the shading is &plusmn;1 standard error, descriptive only. Whether two lines differ
       significantly is tested in the panel above. Station anomalies are against each station's <b>own</b>
       day-of-year median from its full radiosonde record; ERA5 anomalies against the ERA5 1991&ndash;2020
       climatology. The <b>activity ratio</b> is std(forecast anomaly) / std(observed anomaly): a model can buy RMSE
@@ -310,7 +310,10 @@
     are the two models' mean power spectra at the same lead over the <b>previous 40 runs</b> (a 5-degree running
     mean of the ratio; the global mean, l&nbsp;=&nbsp;0, is left alone). The filter uses only past forecasts, never
     the verifying data, so it is a transformation the forecaster could apply in real time. It only removes power
-    (f&nbsp;&le;&nbsp;1). The spectra panel shows how closely the filtered member&nbsp;0 reproduces the single.</p>
+    (f&nbsp;&le;&nbsp;1). The spectra panel shows how closely the filtered member&nbsp;0 reproduces the single. The
+    filter matches the <i>average</i> spectrum; it cannot copy the single's flow-dependent damping (smoothing more
+    where the flow is less predictable), so part of what remains may still be hedging done well rather than a
+    better-placed forecast.</p>
     <p><b>Same scale.</b> Every 0.25&deg; global field is expanded in spherical harmonics (pyshtools) and all series
     are truncated at T120 (about 1.5&deg;) before scoring, so no model is judged at scales it does not share with
     the others. A 1.5&deg; block mean, which this page used until September 2026, still passed much of the
@@ -410,6 +413,9 @@
   function drawScores() {
     var D = state.D; if (!D) return;
     var R = D.records.filter(function (r) { return r.truth === state.truth && r.var === state.var && r.region === region(); });
+    // one sample for every line: the runs (per lead) where the matched series verified, once it has any
+    var hasM = {}; R.forEach(function (r) { if (r.model === "matched") hasM[r.init + ":" + r.lead] = 1; });
+    if (Object.keys(hasM).length) R = R.filter(function (r) { return hasM[r.init + ":" + r.lead]; });
     var grid = document.getElementById("scoreGrid"), empty = document.getElementById("scoreEmpty");
     if (!R.length) { grid.style.display = "none"; empty.style.display = ""; empty.textContent = "no verified runs yet for this combination"; return; }
     grid.style.display = ""; empty.style.display = "none";
@@ -419,11 +425,10 @@
     panel("c-bias", "Bias, forecast − observed (" + UNIT[state.var] + ")", "bias", R, u, 0);
     panel("c-act", "Activity ratio (1 = observed variance)", "act", R, "", 1);
     var inits = {}; R.forEach(function (r) { if (r.model === "single") inits[r.init] = 1; });
-    var matched = {}; R.forEach(function (r) { if (r.model === "matched") matched[r.init] = 1; });
     var nst = R.filter(function (r) { return r.lead === 24 && r.model === "single"; }).map(function (r) { return r.n; });
     var meanN = nst.length ? Math.round(nst.reduce(function (s, v) { return s + v; }, 0) / nst.length) : null;
     document.getElementById("scoreNote").textContent =
-      Object.keys(inits).length + " verified runs (" + Object.keys(matched).length + " with the matched and ensemble-mean series) · " +
+      Object.keys(inits).length + " verified runs, the same runs for every line · " +
       (state.truth === "raob" ? (meanN + " stations per lead · truth: radiosondes (explorer mirror)") : "truth: ERA5, NH 20–80°N, 1.5°") +
       " · all series truncated at T" + D.lmax_t + " · updated " + D.generated;
   }
@@ -512,7 +517,11 @@
     lay.margin.t = 18;
     Plotly.react(el, traces, lay, { displayModeBar: false, responsive: true });
     var nm = ks.matched ? ks.matched.n : 0, match = "";
-    if (ks.matched) {
+    var mc = (D.match_check || {})[state.specVar + "_" + state.specLead];
+    if (mc) {
+      match = " · matched member 0 / single over the same " + mc.n + " runs, l 1–" + D.lmax_t + ": median " + mc.median.toFixed(3) +
+              ", largest departure " + (100 * mc.max_dev).toFixed(1) + " % (member 0 as published: median " + mc.raw_median.toFixed(2) + ")";
+    } else if (ks.matched) {
       var r = ks.matched.mean.slice(1, D.lmax_t + 1).map(function (v, i) { return v / ks.single.mean[i + 1]; });
       var dev = r.map(function (x) { return Math.abs(x - 1); }); var mx = Math.max.apply(null, dev);
       var med = r.slice().sort(function (a, b) { return a - b; })[Math.floor(r.length / 2)];
