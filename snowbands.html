@@ -315,8 +315,9 @@
     if (idle()) { el.innerHTML = idleText(); return; }
     var parts = Object.keys(MODELS).map(function (m) {
       var md = (ST.models || {})[m] || {}, M = "<b>" + MODELS[m] + "</b> " + cyc(md.cycle);
-      if (md.state === "rendered") return M + (ST.forced ? ": drawn for " : ": snow in ") + (md.rendered || []).map(function (x) { return REGIONS[x]; }).join(", ");
-      if (md.state === "nosnow") return M + ": no snow in any region";
+      var nt = md.note ? " (" + md.note + ")" : "";
+      if (md.state === "rendered") return M + (ST.forced ? ": drawn for " : ": snow in ") + (md.rendered || []).map(function (x) { return REGIONS[x]; }).join(", ") + nt;
+      if (md.state === "nosnow") return M + ": no snow in any region" + nt;
       if (md.state === "error") return M + ": not processed (" + (md.note || "error") + ")";
       return "<b>" + MODELS[m] + "</b>: waiting for its first run";
     });

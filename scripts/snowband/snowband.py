@@ -145,6 +145,11 @@ class Missing(RuntimeError):
     """The file or message does not exist (yet)."""
 
 
+class ShortRead(RuntimeError):
+    """A body that is not a whole GRIB message of the requested length, even after a retry (an object still being
+    written): the cycle is treated as still publishing."""
+
+
 # ── transport ────────────────────────────────────────────────────────────────────────────────────────────────────────
 class Fetcher:
     """HTTP GET (optionally ranged) with content validation.
@@ -224,7 +229,8 @@ class Fetcher:
                     continue
                 raise Missing(f"HTML instead of data: {url}")
             if k == tries - 1:
-                raise RuntimeError(f"{self.name}: invalid {kind} body ({len(body)} B) from {url}")
+                raise ShortRead(f"{self.name}: invalid {kind} body ({len(body)} B, wanted "
+                                f"{(rng[1] - rng[0] + 1) if rng and rng[1] >= 0 else '?'}) from {url}")
             time.sleep(5 * (k + 1))
         raise RuntimeError(f"{self.name}: gave up on {url}")
 
@@ -606,12 +612,14 @@ def next_season_start(day: dt.date):
     return dt.date(y, *SEASON[0])
 
 
-def newest_cycle(model, now=None):
+def newest_cycle(model, now=None, skip=()):
     """Newest cycle whose LAST lead is published (so the loop is complete), walking back up to 30 h."""
     now = now or dt.datetime.utcnow()
     f = fetcher(model)
     last = MODELS[model]["leads"][-1]
     for back in range(0, 31):
+        if (now - dt.timedelta(hours=back)).strftime("%Y%m%d%H") in skip:
+            continue
         t = now - dt.timedelta(hours=back)
         if t.hour not in MODELS[model]["cycles"]:
             continue
@@ -1003,7 +1011,10 @@ def render_all(tasks, procs):
         for t in tasks:
             render_task(t)
         return
-    with ProcessPoolExecutor(procs) as ex:
+    # "spawn", not fork: the parent has run fetch threads and eccodes by now, and forking a process in that state is
+    # the classic way to inherit a half-held lock or a corrupt allocator (coordinator 2026-09-27, after the exit-134s)
+    import multiprocessing as mp
+    with ProcessPoolExecutor(procs, mp_context=mp.get_context("spawn")) as ex:
         list(ex.map(render_task, tasks))
 
 
@@ -1017,6 +1028,20 @@ def run_model(model, site: Path, status, force, procs, publish, prune):
     if nc is None:
         st.update(state="error", note="no complete cycle found in the last 30 h", checked=now.strftime("%Y-%m-%dT%H:%MZ"))
         return
+    try:
+        _run_cycle(model, nc, anim, mf, old, st, now, force, procs, publish, prune, note="")
+    except (Missing, ShortRead) as e:
+        # the newest cycle's files are listed but not all there yet (objects written progressively): fall back once
+        # to the previous full-length cycle and say so, rather than show an error
+        print(f"{model} {nc[0]}{nc[1]:02d}: still publishing ({e}); falling back", flush=True)
+        prev = newest_cycle(model, now, skip={f"{nc[0]}{nc[1]:02d}"})
+        if prev is None:
+            raise
+        note = (f"{MODELS[model]['label']} {nc[1]:02d}Z is still publishing; showing the {prev[1]:02d}Z run")
+        _run_cycle(model, prev, anim, mf, old, st, now, force, procs, publish, prune, note=note)
+
+
+def _run_cycle(model, nc, anim, mf, old, st, now, force, procs, publish, prune, note=""):
     date, cyc = nc
     cycle = f"{date}{cyc:02d}"
     if not force and not st.get("forced") and st.get("cycle") == cycle and st.get("state") in ("rendered", "nosnow"):
@@ -1037,7 +1062,7 @@ def run_model(model, site: Path, status, force, procs, publish, prune):
     print(f"{model} {cycle}: grids {st['sources']}; gate {st['gate']} -> {todo or 'nothing'}", flush=True)
     old_dirs = set(old.get("regions", {}))
     if not todo:
-        st.update(state="nosnow", rendered=[], note="", seconds=round(time.time() - t0),
+        st.update(state="nosnow", rendered=[], note=note, seconds=round(time.time() - t0),
                   mb=round((f.nbytes - b0) / 1e6), requests=f.nreq - r0)
         prune.extend(f"assets/snowband/anim/{d}" for d in sorted(old_dirs))
         mf.parent.mkdir(parents=True, exist_ok=True)
@@ -1077,7 +1102,7 @@ def run_model(model, site: Path, status, force, procs, publish, prune):
     mf.write_text(json.dumps({"ver": int(time.time()), "selectorLabel": "Region", "regions": regions}))
     publish.extend(f"assets/snowband/anim/{d}" for d in sorted(regions))
     prune.extend(f"assets/snowband/anim/{d}" for d in sorted(old_dirs - set(regions)))
-    st.update(state="rendered", rendered=todo, note="", seconds=round(time.time() - t0),
+    st.update(state="rendered", rendered=todo, note=note, seconds=round(time.time() - t0),
               mb=round((f.nbytes - b0) / 1e6), requests=f.nreq - r0,
               leads=[f"f{x:02d}" for x in leads])
     print(f"{model} {cycle}: {len(regions)} loops, {st['mb']} MB in {st['requests']} requests, {st['seconds']} s", flush=True)
