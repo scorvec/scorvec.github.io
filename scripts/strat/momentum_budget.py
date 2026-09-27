@@ -1166,8 +1166,9 @@ def main() -> int:
         with tarfile.open(dest, "w:gz") as tf:
             for f in sorted(f for f in TAIL.glob("*.npz") if re.fullmatch(r"\d{8}\.npz", f.name)):
                 tf.add(f, arcname=f"tail/{f.name}")
-            for f in sorted(FCST.glob("*_00.npz"))[-1:]:
-                tf.add(f, arcname=f"fcst/{f.name}")
+            for f in sorted(FCST.glob("*_00.npz"))[-1:]:          # only a current forecast (a stale one would linger)
+                if pd.Timestamp(f.stem[:8]) >= pd.Timestamp.utcnow().tz_localize(None).normalize() - pd.Timedelta(days=1):
+                    tf.add(f, arcname=f"fcst/{f.name}")
         log(f"seed: {dest} ({dest.stat().st_size / 1e6:.1f} MB)")
     return 0
 
