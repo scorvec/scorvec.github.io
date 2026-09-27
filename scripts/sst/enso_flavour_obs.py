@@ -40,6 +40,7 @@ HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 import oisst9120 as O                                                      # noqa: E402
 import c3s_enso_flavour as F                                               # noqa: E402
+from enso_models import EXCLUDE_SYSTEMS, EXCLUDE_NOTE                      # noqa: E402
 
 SITE_ROOT = Path(os.environ["SST_SITE_ROOT"]).resolve() if os.environ.get("SST_SITE_ROOT") else HERE.parents[1]
 DATA = SITE_ROOT / "assets" / "sst" / "data"
@@ -47,6 +48,7 @@ OUT = DATA / "enso_flavour_obs.json"
 FL_JSON = DATA / "enso_flavour.json"
 DAILY_JSON = DATA / "enso_daily.json"
 N_MONTHS = 4          # complete months before the current one
+N_WEEKS = 6           # weekly means, the newest ending on the newest day
 MIN_DAYS = 10         # a month needs this many days to stand in for the first-month check
 
 
@@ -113,7 +115,29 @@ def _fill_row(x2: np.ndarray, valid: np.ndarray) -> np.ndarray:
     return x2
 
 
-def observed(today: pd.Timestamp) -> list[dict]:
+def _window(an, sel, lat, lon, grid, eof, final_through) -> dict:
+    """Mean anomaly over the days `sel`, projected: E, C, centre, boxes, profile, dates."""
+    t = pd.DatetimeIndex(an["time"].values)
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", RuntimeWarning)                # land cells: all-NaN by design
+        f = np.nanmean(an.values[sel], axis=0)
+    f2 = _fill_row(_to_ersst_cells(f, lat, lon, grid["lat"], grid["lon"]), eof["valid"])
+    E, C = F.project(f2[None], eof)
+    bx = F.box_means(f[None], lat, lon)                                  # the boxes at full resolution
+    centre = F.warming_centre(f2[None], grid["lat"], grid["lon"])[0]
+    days = t[sel]
+    prelim = int((days > pd.Timestamp(final_through)).sum()) if final_through else None
+    return dict(days=int(len(sel)), first=str(days[0].date()), last=str(days[-1].date()), preliminary_days=prelim,
+                E=round(float(E[0]), 2), C=round(float(C[0]), 2),
+                lon=None if not np.isfinite(centre) else round(float(centre), 1),
+                **{k: round(float(v[0]), 2) for k, v in bx.items()},
+                prof=[None if not np.isfinite(v) else round(float(v), 2)
+                      for v in F.eq_profile(f2, grid["lat"], grid["lon"], grid["lon"])])
+
+
+def observed(today: pd.Timestamp) -> tuple[list[dict], list[dict]]:
+    """(months, weeks): the last N_MONTHS complete months and the month so far, and N_WEEKS 7-day
+    means ending on the newest day (days after NCEI's final_through are preliminary)."""
     grid, eof = F.load_eof_reference()
     months = _month_keys(today)
     an = _daily_anoms(months)
@@ -127,26 +151,26 @@ def observed(today: pd.Timestamp) -> list[dict]:
         sel = np.where(t.strftime("%Y-%m") == m)[0]
         if not sel.size:
             continue
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore", RuntimeWarning)            # land cells: all-NaN by design
-            f = np.nanmean(an.values[sel], axis=0)
-        f2 = _fill_row(_to_ersst_cells(f, lat, lon, grid["lat"], grid["lon"]), eof["valid"])
-        E, C = F.project(f2[None], eof)
-        bx = F.box_means(f[None], lat, lon)                              # the boxes at full resolution
-        centre = F.warming_centre(f2[None], grid["lat"], grid["lon"])[0]
-        days = t[sel]
+        w = _window(an, sel, lat, lon, grid, eof, final_through)
         ndays = pd.Period(m).days_in_month
-        prelim = int((days > pd.Timestamp(final_through)).sum()) if final_through else None
-        out.append(dict(month=m, days=int(len(sel)), days_in_month=int(ndays), complete=bool(len(sel) >= ndays),
-                        first=str(days[0].date()), last=str(days[-1].date()), preliminary_days=prelim,
-                        E=round(float(E[0]), 2), C=round(float(C[0]), 2),
-                        lon=None if not np.isfinite(centre) else round(float(centre), 1),
-                        **{k: round(float(v[0]), 2) for k, v in bx.items()},
-                        prof=[None if not np.isfinite(v) else round(float(v), 2)
-                              for v in F.eq_profile(f2, grid["lat"], grid["lon"], grid["lon"])]))
-        print(f"  OISST {m} ({len(sel)}/{ndays} d): E {E[0]:+.2f} C {C[0]:+.2f} centre {F._lonlab(centre)} "
-              f"N1+2 {bx['n12'][0]:+.2f} N4 {bx['n4'][0]:+.2f}", flush=True)
-    return out
+        out.append(dict(month=m, days_in_month=int(ndays), complete=bool(w["days"] >= ndays), **w))
+        print(f"  OISST {m} ({w['days']}/{ndays} d): E {w['E']:+.2f} C {w['C']:+.2f} centre {F._lonlab(w['lon'])} "
+              f"N1+2 {w['n12']:+.2f} N4 {w['n4']:+.2f}", flush=True)
+    weeks = []
+    end = t.max()
+    for k in range(N_WEEKS - 1, -1, -1):
+        hi = end - pd.Timedelta(days=7 * k)
+        lo = hi - pd.Timedelta(days=6)
+        sel = np.where((t >= lo) & (t <= hi))[0]
+        if len(sel) < 5:
+            continue
+        w = _window(an, sel, lat, lon, grid, eof, final_through)
+        w["mid"] = str((lo + pd.Timedelta(days=3)).date())
+        w["preliminary"] = bool(w["preliminary_days"])
+        weeks.append(w)
+        print(f"  OISST week {w['first']}..{w['last']}: E {w['E']:+.2f} C {w['C']:+.2f} centre {F._lonlab(w['lon'])}"
+              + (" (preliminary)" if w["preliminary"] else ""), flush=True)
+    return out, weeks
 
 
 def first_month(fl: dict, obs: list[dict]) -> dict | None:
@@ -226,22 +250,82 @@ def corrected(fl: dict, chk: dict) -> tuple[dict, dict]:
     return out, offs
 
 
+def keep_models(fl: dict) -> dict:
+    """fl with the excluded systems removed (the laptop JSON may predate the exclusion)."""
+    fl = dict(fl)
+    fl["models"] = {k: v for k, v in fl["models"].items() if k not in EXCLUDE_SYSTEMS}
+    return fl
+
+
+def _events(fl: dict, s: str) -> pd.DataFrame:
+    return pd.DataFrame([dict(label=e["label"], kind=e["kind"], E=e[s]["E"], C=e[s]["C"])
+                         for e in fl["events"] if e.get(s) and e[s].get("E") is not None])
+
+
+def _res(fl: dict, shift=None, drop=None) -> dict:
+    """season members per model as season_summary wants them; `shift` {model: {season: {E, C}}}."""
+    res = {}
+    for k, m in fl["models"].items():
+        if k == drop:
+            continue
+        seas = {}
+        for s, v in m["season"].items():
+            o = (shift or {}).get(k, {}).get(s, {"E": 0.0, "C": 0.0})
+            seas[s] = {"E": np.asarray(v["E"], float) + o["E"], "C": np.asarray(v["C"], float) + o["C"],
+                       "lon": np.asarray(v["lon"], float)}
+            for q in ("n12", "n3", "n34", "n4"):
+                seas[s][q] = np.full(len(v["E"]), np.nan)
+        res[k] = ({"season": seas}, m["color"])
+    return res
+
+
+def summaries(fl: dict, shift=None, drop=None) -> dict:
+    out = {}
+    for s in fl["seasons"]:
+        S = F.season_summary(_res(fl, shift, drop), s, _events(fl, s))
+        if S:
+            # the box means come from the laptop build (members carry none): model by model, and their average
+            lap = (fl.get("summary") or {}).get(s) or {}
+            for k, mm in S["model_means"].items():
+                src = (lap.get("model_means") or {}).get(k, {})
+                for q in ("n12", "n3", "n34", "n4"):
+                    mm[q] = src.get(q)
+            for q in ("n12", "n3", "n34", "n4"):
+                vals = [mm[q] for mm in S["model_means"].values() if mm.get(q) is not None]
+                S["mmm"][q] = round(float(np.mean(vals)), 2) if vals else None
+        out[s] = S
+    return out
+
+
+def lomo(fl: dict, shift=None) -> dict:
+    """The verdict with each model left out in turn, per season: class, verdict, east share, p."""
+    out = {}
+    for k in fl["models"]:
+        ss = summaries(fl, shift, drop=k)
+        out[k] = {s: (dict(verdict=S["verdict"], klass=S["klass"], east=S["frac"]["east"], p=S["ttest"]["p"])
+                      if S else None) for s, S in ss.items()}
+    return out
+
+
 def main() -> int:
     today = pd.Timestamp.now("UTC").tz_localize(None).normalize()
-    obs = observed(today)
+    obs, weeks = observed(today)
     doc = {"generated": pd.Timestamp.now("UTC").strftime("%Y-%m-%d %H:%M UTC"),
            "source": "NOAA OISST v2.1 daily, anomalies vs 1991–2020 (oisst9120), averaged into the 2° ERSST cells "
                      "and projected on the same E/C patterns as the forecast page",
            "final_through": json.loads(DAILY_JSON.read_text()).get("final_through") if DAILY_JSON.exists() else None,
-           "months": obs}
+           "months": obs, "weeks": weeks,
+           "excluded": sorted(EXCLUDE_SYSTEMS), "excluded_note": EXCLUDE_NOTE}
     if FL_JSON.exists():
-        fl = json.loads(FL_JSON.read_text())
+        fl = keep_models(json.loads(FL_JSON.read_text()))
+        doc["issue"] = fl["issue"]
+        doc["raw"] = {"summary": F._clean(summaries(fl)), "leave_one_out": F._clean(lomo(fl))}
         chk = first_month(fl, obs)
         if chk:
-            doc["issue"] = fl["issue"]
             doc["first_month"] = chk
             summ, offs = corrected(fl, chk)
-            doc["corrected"] = {"offsets": offs, "summary": F._clean(summ)}
+            doc["corrected"] = {"offsets": offs, "summary": F._clean(summaries(fl, offs["season"])),
+                                "leave_one_out": F._clean(lomo(fl, offs["season"]))}
             ref = F.hindcast_ref_path(int(fl["issue"][5:7]))
             if ref.exists():                   # the hindcast verdict rides along daily; only the reference needs pushing
                 doc["hindcast"] = F._clean(F.hindcast_block(json.loads(ref.read_text()), F.peak_season(F.FC_JSON)))

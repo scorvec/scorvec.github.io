@@ -54,7 +54,12 @@ import xarray as xr
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
-from c3s_nino34 import MODELS, MERGE, _client          # one model registry, one CDS client  # noqa: E402
+from c3s_nino34 import MODELS as _ALL_MODELS, MERGE, _client   # one model registry, one CDS client  # noqa: E402
+from enso_models import EXCLUDE_SYSTEMS, EXCLUDE_NOTE                                        # noqa: E402
+
+# the systems the page leaves out are neither fetched nor tested (a merged system by its merged label)
+_EXCL_PARTS = {p for m, parts in MERGE.items() if m in EXCLUDE_SYSTEMS for p in parts}
+MODELS = [m for m in _ALL_MODELS if m[2] not in EXCLUDE_SYSTEMS and m[2] not in _EXCL_PARTS]
 
 SITE_ROOT = Path(os.environ["SST_SITE_ROOT"]).resolve() if os.environ.get("SST_SITE_ROOT") else HERE.parents[1]
 ASSETS = SITE_ROOT / "assets" / "sst"
@@ -704,7 +709,7 @@ def hindcast_test(month: int, obs: dict, eof: dict, mon: pd.DataFrame, seas: dic
                                      damped_better_years=int((dmp < raw).sum()), n_years=len(years))
     # robustness: the same test with each model left out in turn (is one model carrying the result?)
     for s in SEASONS:
-        worst = None
+        worst, rows_ = None, []
         for drop in labs:
             rest = [k for k in labs if k != drop]
             raw_ = np.mean([out["models"][k]["season"][s]["sq_raw_B"] for k in rest], 0)
@@ -712,9 +717,11 @@ def hindcast_test(month: int, obs: dict, eof: dict, mon: pd.DataFrame, seas: dic
             pv = float(stats.wilcoxon(raw_, dmp_).pvalue)
             row_ = dict(without=drop, p=float(f"{pv:.2g}"), rmse_B_raw=round(float(np.sqrt(raw_.mean())), 3),
                         rmse_B_damped=round(float(np.sqrt(dmp_.mean())), 3))
+            rows_.append(row_)
             if worst is None or pv > worst["p"]:
                 worst = row_
         out["multi_model"][s]["leave_one_model_out_worst"] = worst
+        out["multi_model"][s]["leave_one_model_out"] = rows_
     for k in labs:
         for s in SEASONS:
             for q in ("sq_raw_B", "sq_fm_B", "sq_reg_B"):
@@ -761,7 +768,8 @@ def hindcast_block(hc: dict, peak: str | None) -> dict:
     no_worse = all(mm[s]["rmse_B_damped"] <= mm[s]["rmse_B_raw"] for s in mm)
     reg_ok = bool(peak and mm[peak]["p_reg"] < 0.05 and mm[peak]["rmse_B_reg"] < mm[peak]["rmse_B_raw"]
                   and all(mm[s]["rmse_B_reg"] <= mm[s]["rmse_B_raw"] for s in mm))
-    headline = "fm" if (ok_peak and no_worse) else "raw"
+    rule_met = bool(ok_peak and no_worse)
+    headline = None            # 2026-09-27, site owner: the page leads with the observations; both views are equal toggles
     y97 = {}
     if "1997" in hc["observed"]["OND"]:
         for s in ("OND", "DJF"):
@@ -772,27 +780,33 @@ def hindcast_block(hc: dict, peak: str | None) -> dict:
                                   C=round(float(np.mean([hc["models"][k]["first_month_err"]["1997"]["C"] for k in labs])), 2))
     fmt_p = lambda v: "< 0.001" if v < 0.001 else f"= {v:.2g}"                      # noqa: E731
     sp = peak or "OND"
-    txt = (f"Tested on the models' own September hindcasts, {hc['years'][0]}–{hc['years'][-1]} ({len(hc['years'])} years, "
-           f"{len(labs)} systems): a model's first-month error in C carries forward almost fully for three months "
-           f"(pooled persistence {dmp['OND']['beta_C']:.2f} in Oct–Dec, {dmp['DJF']['beta_C']:.2f} in Dec–Feb), its error in E "
-           f"less so ({dmp['OND']['beta_E']:.2f}, {dmp['DJF']['beta_E']:.2f}); the correction here applies those weights. "
+    mname = pd.Timestamp(2000, int(hc["month"]), 1).strftime("%B")
+    seas_order = [q for q in ("SON", "OND", "NDJ", "DJF") if q in dmp]
+    persist = ", ".join(f"{dmp[q]['beta_C']:.2f} in {SEASON_WORDS[q]}" for q in seas_order)
+    persistE = ", ".join(f"{dmp[q]['beta_E']:.2f}" for q in seas_order)
+    sig = mm[sp]["p_damped"] < 0.05
+    w = mm[sp].get("leave_one_model_out_worst")
+    txt = (f"Tested on the models' own {mname} hindcasts, {hc['years'][0]}–{hc['years'][-1]} ({len(hc['years'])} years, "
+           f"{len(labs)} systems: {', '.join(labs)}): the share of a model's first-month error in C that is still there later "
+           f"(pooled, fitted with each year left out) is {persist}; in E it is {persistE}. The correction applies those weights. "
            f"Out of sample it changes the multi-model error in E − C in {SEASON_WORDS[sp]} from {mm[sp]['rmse_B_raw']:.2f} to "
-           f"{mm[sp]['rmse_B_damped']:.2f} (Wilcoxon over years, p {fmt_p(mm[sp]['p_damped'])})"
-           + ("." if headline == "fm" else ", which is not enough to make it the headline.")
-           + (lambda w: "" if not w else
-              (f" The gain does not rest on one model: leaving any one out, p stays at or below {w['p']:.2g}." if w["p"] < 0.05 else
-               f" Most of that gain comes from {w['without']}, whose first-month error is large and persists: without it the "
-               f"error goes from {w['rmse_B_raw']:.2f} to {w['rmse_B_damped']:.2f}, which is not significant (p = {w['p']:.2g})."))(
-               mm[sp].get("leave_one_model_out_worst"))
-           + (f" In 1997, the strongest east-based event in the hindcast period, the models' average for Oct–Dec had "
-              f"E {y97['OND']['models']['E']:+.1f} and C {y97['OND']['models']['C']:+.1f} against an observed "
-              f"E {y97['OND']['obs']['E']:+.1f} and C {y97['OND']['obs']['C']:+.1f}: far too central, the same direction as this year's first-month error."
-              if y97.get("OND") else "")
-           + ("" if reg_ok else f" A regression calibration of E and C on the hindcasts does not beat the forecast as issued "
-                                f"({mm[sp]['rmse_B_reg']:.2f} in {SEASON_WORDS[sp]})."))
+           f"{mm[sp]['rmse_B_damped']:.2f}, which is {'' if sig else 'not '}statistically significant "
+           f"(Wilcoxon over years, p {fmt_p(mm[sp]['p_damped'])}).")
+    if sig and w:
+        txt += (f" Leaving any one model out, it stays significant (largest p {w['p']:.2g})." if w["p"] < 0.05 else
+                f" It rests on {w['without']}: without it the change is {w['rmse_B_raw']:.2f} to {w['rmse_B_damped']:.2f}, "
+                f"p = {w['p']:.2g}.")
+    if y97.get("OND"):
+        txt += (f" In 1997, the strongest east-based event in the hindcast period, the models' average for Oct–Dec had "
+                f"E {y97['OND']['models']['E']:+.1f} and C {y97['OND']['models']['C']:+.1f} against an observed "
+                f"E {y97['OND']['obs']['E']:+.1f} and C {y97['OND']['obs']['C']:+.1f}: too central, the same direction as this "
+                f"year's first-month error.")
+    if not reg_ok:
+        txt += (f" A regression calibration of E and C on the hindcasts does not beat the forecast as issued "
+                f"({mm[sp]['rmse_B_reg']:.2f} in {SEASON_WORDS[sp]}).")
     return dict(start_month=hc["month"], years=[hc["years"][0], hc["years"][-1]], n_years=len(hc["years"]), models=labs,
                 multi_model=mm, damped=dmp, damped_lead=hc["damped_lead"], persistence=pers, year_1997=y97,
-                peak_season=peak, headline=headline, regression_ok=reg_ok, text=txt,
+                peak_season=peak, headline=headline, rule_met=rule_met, regression_ok=reg_ok, text=txt,
                 rule="first-month-corrected leads only if, in the hindcasts, it lowers the multi-model E − C error at the "
                      "peak season with p < 0.05 (Wilcoxon over years) and raises it in no season")
 
@@ -805,7 +819,7 @@ def peak_season(fc_json: Path) -> str | None:
     if not fc_json.exists():
         return None
     F_ = json.loads(fc_json.read_text())
-    labs = list(F_["models"])
+    labs = [k for k in F_["models"] if k not in EXCLUDE_SYSTEMS]
     mm = np.mean([[np.mean(x) for x in F_["models"][k]["n34"]] for k in labs], 0)
     vm = F_["valid_months"]
     best, bs = -99, None
@@ -934,6 +948,7 @@ def build(issue: str, prev_issue: str | None) -> dict:
     res = collect(issue, obs, eof)
     if len(res) < 3:
         raise SystemExit(f"only {len(res)} systems for {issue}")
+    print(f"  systems: {', '.join(res)} (left out: {', '.join(sorted(EXCLUDE_SYSTEMS))})", flush=True)
     # the sanity check against the plume: same product, same members, same box
     chk = {}
     if FC_JSON.exists():
@@ -1078,6 +1093,7 @@ def build(issue: str, prev_issue: str | None) -> dict:
         },
         "events": events,
         "profiles": profiles,
+        "excluded": sorted(EXCLUDE_SYSTEMS), "excluded_note": EXCLUDE_NOTE,
         "hindcast": hc_doc,
         "summary": summaries,
         "previous": prev,
@@ -1140,7 +1156,7 @@ def main() -> int:
     if a.hindcast_only:
         month = int(issue[4:6])
         have = [m for m in MODELS if hindcast_path(m[0], m[1], month).exists()]
-        if len(have) < 5:
+        if len(have) < 4:
             raise SystemExit(f"only {len(have)} hindcast strips for start month {month:02d}")
         MODELS[:] = have
         obs = load_obs(); eof = fit_eofs(obs)

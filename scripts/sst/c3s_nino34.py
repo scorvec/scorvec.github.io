@@ -83,7 +83,7 @@ MAXLEAD = 6
 CLIM_YEARS = [str(y) for y in range(1993, 2017)]  # C3S common hindcast period
 N34_LAT, N34_LON = (-5, 5), (-170, -120)          # Niño-3.4 in −180..180 longitude
 TROP_LAT = (-20, 20)                              # tropical mean, all longitudes
-QUORUM = 5                                        # models needed to accept an issue month
+QUORUM = 4                                        # models needed to accept an issue month (5 systems since DWD and BoM were left out, 2026-09-27)
 
 # (centre, system, label, colour) — C3S centres with current Niño-3.4 data on the
 # CDS. CMCC (35) and JMA have no recent data as of 2026-07 and are omitted; add
@@ -290,9 +290,13 @@ MERGE = {"ECCC CanSIPSv3": ("ECCC GEM5-NEMO", "ECCC CanESM5")}
 
 
 def collect(ym):
-    """{label → (member_dict, colour)} for every model with data at this issue."""
+    """{label → (member_dict, colour)} for every model with data at this issue, less the systems in
+    enso_models.EXCLUDE_SYSTEMS (not even fetched)."""
+    from enso_models import EXCLUDE_SYSTEMS
     out = {}
     for centre, system, label, colour in MODELS:
+        if label in EXCLUDE_SYSTEMS:
+            continue
         r = model_members(centre, system, ym)
         if r is None:
             print(f"  {label:16s} unavailable — skipped", flush=True)
@@ -303,6 +307,10 @@ def collect(ym):
         print(f"  {label:16s} {r['n34'][1].size:>3d} mem · "
               f"Niño-3.4 {n[0]:+.2f}→{n[-1]:+.2f}  rNiño-3.4 {rn[0]:+.2f}→{rn[-1]:+.2f}", flush=True)
     for merged, parts in MERGE.items():
+        if merged in EXCLUDE_SYSTEMS:
+            for p in parts:
+                out.pop(p, None)
+            continue
         have = [p for p in parts if p in out]
         if len(have) < 2:
             if have:                      # one component alone: keep it, labelled as-is

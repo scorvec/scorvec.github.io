@@ -82,6 +82,15 @@ def assemble(page: dict) -> str:
     return head + nav + body + foot
 
 
+def enso_exclude_json() -> str:
+    """The systems the ENSO forecasts page leaves out (enso_models.py, the one list), as a JSON array."""
+    import json
+    import sys
+    sys.path.insert(0, str(HERE))
+    from enso_models import EXCLUDE_SYSTEMS
+    return json.dumps(sorted(EXCLUDE_SYSTEMS), ensure_ascii=False)
+
+
 def render_all(tokens: dict, site_root, only: list[str] | None = None) -> list[Path]:
     """Write every page into site_root, stamping the non-TAO data tokens.
     `tokens` = {cache, sst_day, roni_month} (pre-formatted strings).
@@ -100,6 +109,7 @@ def render_all(tokens: dict, site_root, only: list[str] | None = None) -> list[P
         for tok, key in (("__CACHE__", "cache"), ("__SST_DAY__", "sst_day"), ("__RONI_MONTH__", "roni_month")):
             if key in tokens:
                 html = html.replace(tok, tokens[key])
+        html = html.replace("__ENSO_EXCLUDE__", enso_exclude_json())
         out = site_root / page["out"]
         out.write_text(html, encoding="utf-8")
         written.append(out)
