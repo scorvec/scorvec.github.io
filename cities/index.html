@@ -13,59 +13,93 @@
 <header class="sh" id="site-header">
   <div class="sh-in">
     <a class="sh-brand" href="/">Shawn Corvec</a>
+    <button class="sh-find" type="button" aria-haspopup="dialog" aria-keyshortcuts="Control+K Meta+K" title="Find a plot (Ctrl K)"><svg viewBox="0 0 20 20" aria-hidden="true" focusable="false"><circle cx="8.5" cy="8.5" r="5.5"/><path d="M12.6 12.6 17 17"/></svg><span class="sh-find-t">Find a plot</span><kbd>Ctrl K</kbd></button>
     <button class="sh-toggle" type="button" aria-expanded="false" aria-controls="sh-menu">Menu</button>
     <nav class="sh-nav" id="sh-menu" aria-label="Site">
       <ul class="sh-list">
         <li class="sh-item sh-has-menu">
-          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g0">Observations</button>
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g0" aria-current="page">Weather</button>
           <div class="sh-menu sh-menu--list" id="sh-g0">
             <ul>
-              <li><a href="/enso.html">El Niño monitor</a></li>
+              <li><a href="/snowbands.html">Snow-band diagnostics</a></li>
+              <li><a href="/ar.html">Atmospheric rivers</a></li>
+              <li><a href="/ecape.html">Entraining CAPE</a></li>
+              <li><a href="/cities/" aria-current="page">City temperature forecasts</a></li>
+            </ul>
+          </div>
+        </li>
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g1">Climate drivers</button>
+          <div class="sh-menu sh-menu--cols" id="sh-g1">
+            <div>
+              <h3>Tropics</h3>
+              <ul>
+                <li><a href="/enso.html">El Niño monitor</a></li>
+                <li><a href="/enso-forecasts.html">ENSO forecasts</a></li>
+                <li><a href="/mjo.html">MJO forecast</a></li>
+                <li><a href="/qbo/">QBO tracker</a></li>
+              </ul>
+            </div>
+            <div>
+              <h3>Circulation</h3>
+              <ul>
+                <li><a href="/stratosphere.html">Stratosphere and polar vortex</a></li>
+                <li><a href="/circulation.html">Jets, Walker and Hadley cells</a></li>
+              </ul>
+            </div>
+          </div>
+        </li>
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g2">Outlooks</button>
+          <div class="sh-menu sh-menu--cols" id="sh-g2">
+            <div>
+              <h3>Weeks 1–5</h3>
+              <ul>
+                <li><a href="/subseasonal.html">GEPS weeks 1–5</a></li>
+                <li><a href="/gefs.html">GEFS weeks 1–5</a></li>
+              </ul>
+            </div>
+            <div>
+              <h3>Seasons</h3>
+              <ul>
+                <li><a href="/seasonal.html">Eight C3S seasonal models</a></li>
+                <li><a href="/sfs.html">NOAA SFS seasonal</a></li>
+              </ul>
+            </div>
+          </div>
+        </li>
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g3">Research</button>
+          <div class="sh-menu sh-menu--cols" id="sh-g3">
+            <div>
+              <h3>Studies</h3>
+              <ul>
+                <li><a href="/enso.html#imp_reg">ENSO impacts on the Americas</a></li>
+                <li><a href="/stratosphere.html#shwinters">Stratosphere history</a></li>
+                <li><a href="/topics/">Explainers</a></li>
+                <li><a href="/research.html">Publications</a></li>
+              </ul>
+            </div>
+            <div>
+              <h3>Verification</h3>
+              <ul>
+                <li><a href="/cities/verify.html">City forecast verification</a></li>
+                <li><a href="/aifs-verify.html">AIFS single versus member 0</a></li>
+              </ul>
+            </div>
+          </div>
+        </li>
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g4">Tools</button>
+          <div class="sh-menu sh-menu--list" id="sh-g4">
+            <ul>
+              <li><a href="/catalog.html">Every plot on the site</a></li>
               <li><a href="/skewt/">Sounding explorer</a></li>
               <li><a href="/asos5.html">Five-minute airport observations</a></li>
-              <li><a href="/qbo/">QBO tracker</a></li>
               <li><a href="/climate.html">US climate trends</a></li>
             </ul>
           </div>
         </li>
-        <li class="sh-item sh-has-menu">
-          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g1" aria-current="page">Model forecasts</button>
-          <div class="sh-menu sh-menu--cols" id="sh-g1">
-            <div>
-              <h3>Days 1–15</h3>
-              <ul>
-                <li><a href="/ar.html">Atmospheric rivers</a></li>
-                <li><a href="/cities/" aria-current="page">City temperature forecasts</a></li>
-                <li><a href="/ecape.html">Entraining CAPE</a></li>
-                <li><a href="/mjo.html">MJO forecast</a></li>
-                <li><a href="/circulation.html">Global circulation and jets</a></li>
-                <li><a href="/stratosphere.html">Stratosphere and polar vortex</a></li>
-                <li><a href="/snowbands.html">Snow-band diagnostics</a></li>
-              </ul>
-            </div>
-            <div>
-              <h3>Beyond two weeks</h3>
-              <ul>
-                <li><a href="/subseasonal.html">Subseasonal outlook (GEPS, weeks 1–5)</a></li>
-                <li><a href="/gefs.html">Subseasonal outlook (GEFS, weeks 1–5)</a></li>
-                <li><a href="/enso-forecasts.html">ENSO forecasts (seven centres)</a></li>
-                <li><a href="/seasonal.html">Seasonal outlook (eight C3S models)</a></li>
-                <li><a href="/sfs.html">Seasonal outlook (NOAA SFS)</a></li>
-              </ul>
-            </div>
-          </div>
-        </li>
-        <li class="sh-item sh-has-menu">
-          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g2">Model verification</button>
-          <div class="sh-menu sh-menu--list" id="sh-g2">
-            <ul>
-              <li><a href="/cities/verify.html">City temperature forecast verification</a></li>
-              <li><a href="/aifs-verify.html">AIFS single versus member 0</a></li>
-            </ul>
-          </div>
-        </li>
-        <li class="sh-item"><a class="sh-link" href="/topics/">Explainers</a></li>
-        <li class="sh-item"><a class="sh-link" href="/research.html">Research</a></li>
         <li class="sh-item"><a class="sh-link" href="/resume.html">Resume</a></li>
         <li class="sh-item sh-item--special"><a class="sh-special" href="/midterms/">2026 Midterms</a></li>
       </ul>

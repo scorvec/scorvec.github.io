@@ -337,59 +337,93 @@
 <header class="sh sh--overlay" id="site-header">
   <div class="sh-in">
     <a class="sh-brand" href="/">Shawn Corvec</a>
+    <button class="sh-find" type="button" aria-haspopup="dialog" aria-keyshortcuts="Control+K Meta+K" title="Find a plot (Ctrl K)"><svg viewBox="0 0 20 20" aria-hidden="true" focusable="false"><circle cx="8.5" cy="8.5" r="5.5"/><path d="M12.6 12.6 17 17"/></svg><span class="sh-find-t">Find a plot</span><kbd>Ctrl K</kbd></button>
     <button class="sh-toggle" type="button" aria-expanded="false" aria-controls="sh-menu">Menu</button>
     <nav class="sh-nav" id="sh-menu" aria-label="Site">
       <ul class="sh-list">
         <li class="sh-item sh-has-menu">
-          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g0">Observations</button>
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g0">Weather</button>
           <div class="sh-menu sh-menu--list" id="sh-g0">
             <ul>
-              <li><a href="/enso.html">El Niño monitor</a></li>
+              <li><a href="/snowbands.html">Snow-band diagnostics</a></li>
+              <li><a href="/ar.html">Atmospheric rivers</a></li>
+              <li><a href="/ecape.html">Entraining CAPE</a></li>
+              <li><a href="/cities/">City temperature forecasts</a></li>
+            </ul>
+          </div>
+        </li>
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g1">Climate drivers</button>
+          <div class="sh-menu sh-menu--cols" id="sh-g1">
+            <div>
+              <h3>Tropics</h3>
+              <ul>
+                <li><a href="/enso.html">El Niño monitor</a></li>
+                <li><a href="/enso-forecasts.html">ENSO forecasts</a></li>
+                <li><a href="/mjo.html">MJO forecast</a></li>
+                <li><a href="/qbo/">QBO tracker</a></li>
+              </ul>
+            </div>
+            <div>
+              <h3>Circulation</h3>
+              <ul>
+                <li><a href="/stratosphere.html">Stratosphere and polar vortex</a></li>
+                <li><a href="/circulation.html">Jets, Walker and Hadley cells</a></li>
+              </ul>
+            </div>
+          </div>
+        </li>
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g2">Outlooks</button>
+          <div class="sh-menu sh-menu--cols" id="sh-g2">
+            <div>
+              <h3>Weeks 1–5</h3>
+              <ul>
+                <li><a href="/subseasonal.html">GEPS weeks 1–5</a></li>
+                <li><a href="/gefs.html">GEFS weeks 1–5</a></li>
+              </ul>
+            </div>
+            <div>
+              <h3>Seasons</h3>
+              <ul>
+                <li><a href="/seasonal.html">Eight C3S seasonal models</a></li>
+                <li><a href="/sfs.html">NOAA SFS seasonal</a></li>
+              </ul>
+            </div>
+          </div>
+        </li>
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g3">Research</button>
+          <div class="sh-menu sh-menu--cols" id="sh-g3">
+            <div>
+              <h3>Studies</h3>
+              <ul>
+                <li><a href="/enso.html#imp_reg">ENSO impacts on the Americas</a></li>
+                <li><a href="/stratosphere.html#shwinters">Stratosphere history</a></li>
+                <li><a href="/topics/">Explainers</a></li>
+                <li><a href="/research.html">Publications</a></li>
+              </ul>
+            </div>
+            <div>
+              <h3>Verification</h3>
+              <ul>
+                <li><a href="/cities/verify.html">City forecast verification</a></li>
+                <li><a href="/aifs-verify.html">AIFS single versus member 0</a></li>
+              </ul>
+            </div>
+          </div>
+        </li>
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g4">Tools</button>
+          <div class="sh-menu sh-menu--list" id="sh-g4">
+            <ul>
+              <li><a href="/catalog.html">Every plot on the site</a></li>
               <li><a href="/skewt/">Sounding explorer</a></li>
               <li><a href="/asos5.html">Five-minute airport observations</a></li>
-              <li><a href="/qbo/">QBO tracker</a></li>
               <li><a href="/climate.html">US climate trends</a></li>
             </ul>
           </div>
         </li>
-        <li class="sh-item sh-has-menu">
-          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g1">Model forecasts</button>
-          <div class="sh-menu sh-menu--cols" id="sh-g1">
-            <div>
-              <h3>Days 1–15</h3>
-              <ul>
-                <li><a href="/ar.html">Atmospheric rivers</a></li>
-                <li><a href="/cities/">City temperature forecasts</a></li>
-                <li><a href="/ecape.html">Entraining CAPE</a></li>
-                <li><a href="/mjo.html">MJO forecast</a></li>
-                <li><a href="/circulation.html">Global circulation and jets</a></li>
-                <li><a href="/stratosphere.html">Stratosphere and polar vortex</a></li>
-                <li><a href="/snowbands.html">Snow-band diagnostics</a></li>
-              </ul>
-            </div>
-            <div>
-              <h3>Beyond two weeks</h3>
-              <ul>
-                <li><a href="/subseasonal.html">Subseasonal outlook (GEPS, weeks 1–5)</a></li>
-                <li><a href="/gefs.html">Subseasonal outlook (GEFS, weeks 1–5)</a></li>
-                <li><a href="/enso-forecasts.html">ENSO forecasts (seven centres)</a></li>
-                <li><a href="/seasonal.html">Seasonal outlook (eight C3S models)</a></li>
-                <li><a href="/sfs.html">Seasonal outlook (NOAA SFS)</a></li>
-              </ul>
-            </div>
-          </div>
-        </li>
-        <li class="sh-item sh-has-menu">
-          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g2">Model verification</button>
-          <div class="sh-menu sh-menu--list" id="sh-g2">
-            <ul>
-              <li><a href="/cities/verify.html">City temperature forecast verification</a></li>
-              <li><a href="/aifs-verify.html">AIFS single versus member 0</a></li>
-            </ul>
-          </div>
-        </li>
-        <li class="sh-item"><a class="sh-link" href="/topics/">Explainers</a></li>
-        <li class="sh-item"><a class="sh-link" href="/research.html">Research</a></li>
         <li class="sh-item"><a class="sh-link" href="/resume.html">Resume</a></li>
         <li class="sh-item sh-item--special"><a class="sh-special" href="/midterms/">2026 Midterms</a></li>
       </ul>
@@ -432,44 +466,69 @@
       <p class="disclaimer"><strong>A note on reliability.</strong> This site is under constant development. Products change without notice, pipelines break, and nothing here is checked before it is published. There should be no expectation of accuracy, completeness or availability, and nothing on this site should be relied on for decisions of any kind.</p>
     </div>
 
+
+    <!-- hp:start -->
     <div class="group">
-      <h3>Observations<small>What the instruments say, as it comes in</small></h3>
+      <h3>Weather<small>The next two weeks, from single storms to the cities</small></h3>
       <ul class="rows">
-        <li class="row"><a href="/enso.html">El Niño monitor</a><span class="what">Daily ONI and RONI, Niño-region sea surface temperatures, and SST anomaly maps and animation.</span><span class="when">Daily</span></li>
+        <li class="row"><a href="/snowbands.html">Snow-band diagnostics</a><span class="what">Where HRRR, RRFS and RDPS set up mesoscale snow bands: 700 hPa frontogenesis and deformation, EPV* and slantwise instability, lift through the dendritic growth zone, the model's own bands and where the ingredients overlap. November to mid-April, with case studies against the radar.</span><span class="when">Every run in season</span></li>
+        <li class="row"><a href="/ar.html">Atmospheric rivers</a><span class="what">Integrated vapour transport from the 51-member AIFS ensemble: probability of AR conditions at each 12-hourly step, a West Coast landfall tool and Ralph-scale category odds at named locations.</span><span class="when">Twice daily</span></li>
+        <li class="row"><a href="/ecape.html">Entraining CAPE</a><span class="what">Gridded ECAPE over the continental US from the 3 km HRRR, hourly to 18 hours and 3-hourly to 48.</span><span class="when">Four times daily</span></li>
+        <li class="row"><a href="/cities/">City temperature forecasts</a><span class="what">Forecast highs and lows for 234 US cities from 892 stations, the consensus alongside NBM, ECMWF, AIFS, GFS, GEFS, GDPS and GEPS, day by day for two weeks.</span><span class="when">Four times daily</span></li>
+      </ul>
+    </div>
+
+    <div class="group">
+      <h3>Climate drivers<small>ENSO, the MJO, the QBO, the stratosphere and the jets</small></h3>
+      <ul class="rows">
+        <li class="sub">Tropics</li>
+        <li class="row"><a href="/enso.html">El Niño monitor</a><span class="what">Daily ONI and RONI, Niño-region sea surface temperatures, the subsurface, winds and convection, with SST anomaly maps and animation.</span><span class="when">Daily</span></li>
+        <li class="row"><a href="/enso-forecasts.html">ENSO forecasts</a><span class="what">Every member of seven centres' seasonal models for Niño-3.4, with percentile fans and a record of how past forecasts did.</span><span class="when">Monthly</span></li>
+        <li class="row"><a href="/mjo.html">MJO forecast</a><span class="what">Real-time multivariate MJO index from the ECMWF AIFS ensemble, with the observed phase-space track.</span><span class="when">Twice daily</span></li>
+        <li class="row"><a href="/qbo/">QBO tracker</a><span class="what">Equatorial stratospheric winds at 10 to 100 hPa from radiosondes, 1950 to the present.</span><span class="when">Weekly</span></li>
+        <li class="sub">Circulation</li>
+        <li class="row"><a href="/stratosphere.html">Stratosphere and polar vortex</a><span class="what">Will the vortex weaken? AIFS, GEPS and GEFS 60°N winds, heat flux and wave driving, potential vorticity, the Brewer–Dobson circulation, and every sudden warming since 1980 with what followed.</span><span class="when">Twice daily</span></li>
+        <li class="row"><a href="/circulation.html">Jets, Walker and Hadley cells</a><span class="what">Wave activity flux, the dynamic tropopause, angular momentum and mountain torques, and the Hadley and Walker cells from the AIFS ensemble.</span><span class="when">Daily</span></li>
+      </ul>
+    </div>
+
+    <div class="group">
+      <h3>Outlooks<small>From weeks two to five out to the coming seasons</small></h3>
+      <ul class="rows">
+        <li class="sub">Weeks 1–5</li>
+        <li class="row"><a href="/subseasonal.html">GEPS weeks 1–5</a><span class="what">Environment Canada's extended ensemble for the Americas, the tropics and the polar vortex: weekly anomalies against its own reforecast, terciles, teleconnections, regimes and change since the previous run.</span><span class="when">Mondays and Thursdays</span></li>
+        <li class="row"><a href="/gefs.html">GEFS weeks 1–5</a><span class="what">NOAA's GEFS extended ensemble in the same layout: weekly anomalies against its own reforecast, the change since a week earlier, and a drift-corrected polar vortex.</span><span class="when">Daily</span></li>
+        <li class="sub">Seasons</li>
+        <li class="row"><a href="/seasonal.html">Eight C3S seasonal models</a><span class="what">Eight seasonal systems from seven centres: anomaly maps and tercile probabilities for every model and their mean, plus the member-level ECMWF SEAS5 outlook: indices, teleconnections, the stratosphere and impacts.</span><span class="when">Monthly</span></li>
+        <li class="row"><a href="/sfs.html">NOAA SFS seasonal</a><span class="what">Maps from NOAA's new Seasonal Forecast System, 31 members, for the months ahead.</span><span class="when">Monthly</span></li>
+      </ul>
+    </div>
+
+    <div class="group">
+      <h3>Research<small>What the record and the models say, and how the forecasts score</small></h3>
+      <ul class="rows">
+        <li class="sub">Studies</li>
+        <li class="row"><a href="/enso.html#imp_reg">ENSO impacts on the Americas</a><span class="what">Thousands of El Niño and La Niña events in 16 CMIP6 models against the observed record: regressions, composites, super and east-based El Niños, 500 hPa wave trains, and what the PDO does once ENSO is removed. Significant results only.</span><span class="when">Static</span></li>
+        <li class="row"><a href="/stratosphere.html#shwinters">Stratosphere history</a><span class="what">Every northern winter and sudden warming since 1980 in MERRA-2, with 15,000 more from nine CMIP6 models: the dripping-paint composites and what usually follows at the surface.</span><span class="when">Static</span></li>
+        <li class="row"><a href="/topics/">Explainers</a><span class="what">How to read the products: the equations and the physics behind each diagnostic.</span><span class="when">As written</span></li>
+        <li class="row"><a href="/research.html">Publications</a><span class="what">Papers and presentations.</span><span class="when">As published</span></li>
+        <li class="sub">Verification</li>
+        <li class="row"><a href="/cities/verify.html">City forecast verification</a><span class="what">Every model and the consensus scored against observed highs and lows at 896 stations: error by lead day, CRPS, quantiles and per-station bias.</span><span class="when">Four times daily</span></li>
+        <li class="row"><a href="/aifs-verify.html">AIFS single versus member 0</a><span class="what">The two ECMWF AIFS configurations compared as deterministic models against radiosondes and ERA5, with the ensemble member spectrally matched to the single model and the ensemble mean for reference.</span><span class="when">Every 00Z and 12Z run</span></li>
+      </ul>
+    </div>
+
+    <div class="group">
+      <h3>Tools<small>Explore the data yourself</small></h3>
+      <ul class="rows">
+        <li class="row"><a href="/catalog.html">Every plot on the site</a><span class="what">One searchable sheet of every figure and loop, filterable by topic, model, forecast range and region, each linked to its exact view.</span><span class="when">Rebuilt with the pages</span></li>
         <li class="row"><a href="/skewt/">Sounding explorer</a><span class="what">Real-time and archived radiosondes worldwide, drawn and analysed in the browser, with launch history and record rings.</span><span class="when">Hourly mirror</span></li>
         <li class="row"><a href="/asos5.html">Five-minute airport observations</a><span class="what">Temperature at major US airports every five minutes from ASOS, with running daily highs and lows.</span><span class="when">Live</span></li>
-        <li class="row"><a href="/qbo/">QBO tracker</a><span class="what">Equatorial stratospheric winds at 10 to 100 hPa from radiosondes, 1950 to the present.</span><span class="when">Weekly</span></li>
         <li class="row"><a href="/climate.html">US climate trends</a><span class="what">Every US county and calendar month since 1895: temperature, precipitation and degree-day trends per decade with significance, the 1991–2020 normal and what normal is now.</span><span class="when">Monthly</span></li>
       </ul>
     </div>
 
-    <div class="group">
-      <h3>Model forecasts<small>From the next two weeks to the coming seasons</small></h3>
-      <ul class="rows">
-        <li class="sub">Days 1–15</li>
-        <li class="row"><a href="/ar.html">Atmospheric rivers</a><span class="what">Integrated vapour transport from the 51-member AIFS ensemble: probability of AR conditions at each 12-hourly step, a West Coast landfall tool and Ralph-scale category odds at named locations.</span><span class="when">Twice daily</span></li>
-        <li class="row"><a href="/cities/">City temperature forecasts</a><span class="what">Forecast highs and lows for 234 US cities from 892 stations, the consensus alongside NBM, ECMWF, AIFS, GFS, GEFS, GDPS and GEPS, day by day for two weeks.</span><span class="when">Four times daily</span></li>
-        <li class="row"><a href="/ecape.html">Entraining CAPE</a><span class="what">Gridded ECAPE over the continental US from the 3 km HRRR, hourly to 18 hours and 3-hourly to 48.</span><span class="when">Four times daily</span></li>
-        <li class="row"><a href="/mjo.html">MJO forecast</a><span class="what">Real-time multivariate MJO index from the ECMWF AIFS ensemble, with the observed phase-space track.</span><span class="when">Twice daily</span></li>
-        <li class="row"><a href="/circulation.html">Global circulation and jets</a><span class="what">Wave activity flux, the dynamic tropopause, angular momentum and mountain torques, and the Hadley and Walker cells from the AIFS ensemble.</span><span class="when">Daily</span></li>
-        <li class="row"><a href="/stratosphere.html">Stratosphere and polar vortex</a><span class="what">Will the vortex weaken? Every AIFS member's 60°N winds, E–P flux and 100 hPa heat flux, with every sudden warming since 1980 and what followed.</span><span class="when">Twice daily</span></li>
-        <li class="row"><a href="/snowbands.html">Snow-band diagnostics</a><span class="what">Where HRRR, RRFS and RDPS set up mesoscale snow bands: 700 hPa frontogenesis and deformation, EPV* and slantwise instability, lift through the dendritic growth zone, the model's own bands and where the ingredients overlap. November to mid-April, with a case study against the radar.</span><span class="when">Every run in season</span></li>
-        <li class="sub">Beyond two weeks</li>
-        <li class="row"><a href="/subseasonal.html">Subseasonal outlook (GEPS, weeks 1–5)</a><span class="what">GEPS weeks 1 to 5 for the Americas, the tropics and the polar vortex, with change since the previous run.</span><span class="when">Mondays and Thursdays</span></li>
-        <li class="row"><a href="/gefs.html">Subseasonal outlook (GEFS, weeks 1–5)</a><span class="what">NOAA's GEFS extended ensemble in the same layout: weekly anomalies against its own reforecast, the change since a week earlier, and a bias-corrected polar vortex.</span><span class="when">Daily</span></li>
-        <li class="row"><a href="/enso-forecasts.html">ENSO forecasts (seven centres)</a><span class="what">Every member of seven centres' seasonal models for Niño-3.4, with percentile fans and a record of how past forecasts did.</span><span class="when">Monthly</span></li>
-        <li class="row"><a href="/seasonal.html">Seasonal outlook (eight C3S models)</a><span class="what">Eight seasonal systems from seven centres: anomaly maps and tercile probabilities for every model and their mean, plus the member-level ECMWF SEAS5 outlook — indices, teleconnections, the stratosphere and impacts.</span><span class="when">Monthly</span></li>
-        <li class="row"><a href="/sfs.html">Seasonal outlook (NOAA SFS)</a><span class="what">Maps from NOAA's new Seasonal Forecast System, 31 members, for the months ahead.</span><span class="when">Monthly</span></li>
-      </ul>
-    </div>
-
-    <div class="group">
-      <h3>Model verification<small>How the models are doing against observations</small></h3>
-      <ul class="rows">
-        <li class="row"><a href="/cities/verify.html">City temperature forecast verification</a><span class="what">Every model and the consensus scored against observed highs and lows at 896 stations: error by lead day, CRPS, quantiles and per-station bias.</span><span class="when">Four times daily</span></li>
-        <li class="row"><a href="/aifs-verify.html">AIFS single versus member 0</a><span class="what">Live verification of the two ECMWF AIFS configurations against radiosondes and ERA5, run by run.</span><span class="when">Every 00Z and 12Z run</span></li>
-      </ul>
-    </div>
+    <!-- hp:end -->
 
   </section>
 

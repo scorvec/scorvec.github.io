@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Every plot on the site &middot; Shawn Corvec</title>
+<meta name="description" content="A searchable contact sheet of every figure and animation on scorvec.com: filter by topic, model, forecast range and region, and jump straight to the exact view.">
+<link rel="canonical" href="https://scorvec.com/catalog.html">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Every plot on the site">
+<meta property="og:description" content="Every figure and animation on scorvec.com in one searchable sheet, each linked to its exact view.">
+<meta property="og:url" content="https://scorvec.com/catalog.html">
+<!-- The catalogue page (2026-09-27, the topic redesign). The index is assets/site/catalog.json, built from the pages
+     themselves by scripts/site/build_catalog.py (catalog.yml); the search is the header finder's own (window.SiteFind in
+     assets/site.js), so this page and Ctrl/Cmd-K always agree. -->
+<script src="/assets/frames_root.js"></script>
+<style>
+  :root {
+    --bg: #fcfcfa; --ink: #29321f; --muted: #6f6b64; --rule: #e3e1da; --panel: #ffffff; --accent: #274b7a;
+    --accent-soft: rgba(39, 75, 122, 0.08);
+    --t-weather: #e6edf4; --t-drivers: #f1ebe0; --t-outlooks: #e5eee6; --t-research: #ede8f0; --t-tools: #ecebe6;
+  }
+  *, *::before, *::after { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); }
+  main { max-width: min(94vw, 1800px); margin: 0 auto; padding: 1.6rem clamp(1rem, 3vw, 2.5rem) 3rem; }
+  h1 { margin: 0.6rem 0 0.4rem; }
+  main > .lede { max-width: 64ch; }
+  .vh { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+  /* the filter bar: sticky under the site header */
+  .cf { position: sticky; top: 64px; z-index: 20; margin: 1.2rem 0 0.4rem; padding: 0.8rem 0 0.7rem;
+        background: color-mix(in srgb, var(--bg) 94%, transparent); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
+        border-bottom: 1px solid var(--rule); }
+  .cf-q { display: flex; align-items: center; gap: 0.6rem; max-width: 40rem; margin: 0 auto 0.7rem;
+          border: 1px solid var(--rule); border-radius: 999px; background: var(--panel); padding: 0.45rem 0.6rem 0.45rem 1rem; }
+  .cf-q:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+  .cf-q svg { width: 1.1rem; height: 1.1rem; flex: none; fill: none; stroke: var(--accent); stroke-width: 1.8; stroke-linecap: round; }
+  .cf-q input { flex: 1; min-width: 0; font: inherit; font-size: 1.05rem; color: var(--ink); background: transparent; border: 0; outline: 0; padding: 0.15rem 0; }
+  .cf-q input::-webkit-search-cancel-button { display: none; }
+  .cf-q input::placeholder { color: var(--muted); opacity: 1; }
+  .cf-q button { font: inherit; font-size: 0.9rem; color: var(--muted); background: none; border: 0; cursor: pointer; padding: 0.15rem 0.4rem; }
+  .cf-q button:hover { color: var(--accent); }
+  .cf-rows { display: grid; gap: 0.35rem; }
+  .cf-row { display: flex; align-items: baseline; gap: 0.35rem 0.4rem; flex-wrap: wrap; }
+  .cf-row > span { flex: none; width: 4.4rem; font-size: 0.9rem; font-weight: 600; color: var(--muted); }
+  .chip { font: inherit; font-size: 0.92rem; line-height: 1.2; padding: 0.24rem 0.7rem; border-radius: 999px; cursor: pointer;
+          color: var(--ink); background: transparent; border: 1px solid var(--rule); white-space: nowrap; }
+  .chip small { font-size: 0.9em; color: var(--muted); margin-left: 0.2rem; font-variant-numeric: tabular-nums; }
+  .chip:hover { border-color: var(--accent); color: var(--accent); }
+  .chip[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .chip[aria-pressed="true"] small { color: rgba(255, 255, 255, 0.8); }
+  .chip:disabled { opacity: 0.4; cursor: default; border-color: var(--rule); color: var(--ink); }
+  .chip:focus-visible, .cf-q button:focus-visible, .ct:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .cf-sum { display: flex; justify-content: space-between; align-items: baseline; gap: 1rem; margin-top: 0.55rem; font-size: 0.92rem; color: var(--muted); }
+  .cf-sum button { font: inherit; font-size: 0.92rem; color: var(--accent); background: none; border: 0; padding: 0; cursor: pointer; text-decoration: underline; text-underline-offset: 0.16em; }
+  .cf-sum button[hidden] { display: none; }
+
+  /* the sheet */
+  .cs { margin-top: 2.2rem; }
+  .cs > header { display: flex; align-items: baseline; gap: 0.9rem; flex-wrap: wrap; margin: 0 0 1rem; padding-bottom: 0.45rem; border-bottom: 1px solid var(--rule); }
+  .cs > header h2 { margin: 0; }
+  .cs > header p { margin: 0; color: var(--muted); font-size: 0.95rem; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(15.5rem, 1fr)); gap: 1.7rem 1.3rem; }
+  .ct { display: block; color: inherit; text-decoration: none; min-width: 0; }
+  .ct-th { position: relative; aspect-ratio: 4 / 3; display: flex; align-items: center; justify-content: center; overflow: hidden;
+           background: var(--panel); border: 1px solid var(--rule); border-radius: 6px; transition: border-color 0.15s, box-shadow 0.15s; }
+  .ct-th img { display: block; width: 100%; height: 100%; object-fit: contain; opacity: 0; transition: opacity 0.25s; }
+  .ct-th img.on { opacity: 1; }
+  .ct-th .loop { position: absolute; left: 0.45rem; bottom: 0.45rem; font-size: 0.9rem; line-height: 1; padding: 0.22rem 0.45rem;
+                 border-radius: 4px; background: rgba(255, 255, 255, 0.9); color: var(--ink); border: 1px solid var(--rule); }
+  .ct:hover .ct-th { border-color: var(--accent); box-shadow: 0 8px 22px -14px rgba(20, 30, 45, 0.45); }
+  .ct-tile { position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: flex-end; padding: 0.9rem 1rem; text-align: left; }
+  .ct-tile b { font-family: var(--f-serif); font-weight: 500; font-size: 1.25rem; line-height: 1.2; color: var(--ink); }
+  .ct-tile i { font-style: normal; font-size: 0.9rem; color: var(--muted); margin-top: 0.3rem; }
+  .t-weather .ct-tile { background: var(--t-weather); } .t-drivers .ct-tile { background: var(--t-drivers); }
+  .t-outlooks .ct-tile { background: var(--t-outlooks); } .t-research .ct-tile { background: var(--t-research); }
+  .t-tools .ct-tile { background: var(--t-tools); }
+  .ct-l { display: block; margin-top: 0.55rem; font-size: 1.02rem; font-weight: 600; line-height: 1.3; }
+  .ct:hover .ct-l { color: var(--accent); }
+  .ct-l mark { background: none; color: inherit; text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 0.2em;
+               text-decoration-color: color-mix(in srgb, var(--accent) 60%, transparent); }
+  .ct-m { display: block; font-size: 0.9rem; line-height: 1.4; color: var(--muted); margin-top: 0.1rem; }
+  .none { padding: 3rem 0; text-align: center; color: var(--muted); }
+  .none button { font: inherit; color: var(--accent); background: none; border: 0; cursor: pointer; text-decoration: underline; }
+  @media (max-width: 700px) {
+    main { padding-top: 1rem; }
+    .cf { position: static; padding: 0.6rem 0 0.5rem; }      /* sticky would hold half a phone screen */
+    .cf-rows { gap: 0.25rem; }
+    .cf-row { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; padding-bottom: 0.1rem; }
+    .cf-row::-webkit-scrollbar { display: none; }
+    .cf-row > span { width: auto; margin-right: 0.2rem; }
+    .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1.2rem 0.8rem; }
+    .ct-l { font-size: 0.95rem; }
+    .ct-m + .ct-m { display: none; }
+    .ct-tile { padding: 0.6rem 0.7rem; }
+    .ct-tile b { font-size: 1.02rem; }
+    .ct-tile i { display: none; }
+  }
+  @media (prefers-reduced-motion: reduce) { .ct-th img { transition: none; } }
+</style>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,500;0,8..60,600;1,8..60,400&family=Source+Sans+3:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/site.css">
+<script src="/assets/site.js" defer></script>
+<script src="/assets/rail.js" defer></script>
+</head>
+<body>
+<!-- sh:start -->
+<header class="sh" id="site-header">
+  <div class="sh-in">
+    <a class="sh-brand" href="/">Shawn Corvec</a>
+    <button class="sh-find" type="button" aria-haspopup="dialog" aria-keyshortcuts="Control+K Meta+K" title="Find a plot (Ctrl K)"><svg viewBox="0 0 20 20" aria-hidden="true" focusable="false"><circle cx="8.5" cy="8.5" r="5.5"/><path d="M12.6 12.6 17 17"/></svg><span class="sh-find-t">Find a plot</span><kbd>Ctrl K</kbd></button>
+    <button class="sh-toggle" type="button" aria-expanded="false" aria-controls="sh-menu">Menu</button>
+    <nav class="sh-nav" id="sh-menu" aria-label="Site">
+      <ul class="sh-list">
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g0">Weather</button>
+          <div class="sh-menu sh-menu--list" id="sh-g0">
+            <ul>
+              <li><a href="/snowbands.html">Snow-band diagnostics</a></li>
+              <li><a href="/ar.html">Atmospheric rivers</a></li>
+              <li><a href="/ecape.html">Entraining CAPE</a></li>
+              <li><a href="/cities/">City temperature forecasts</a></li>
+            </ul>
+          </div>
+        </li>
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g1">Climate drivers</button>
+          <div class="sh-menu sh-menu--cols" id="sh-g1">
+            <div>
+              <h3>Tropics</h3>
+              <ul>
+                <li><a href="/enso.html">El Niño monitor</a></li>
+                <li><a href="/enso-forecasts.html">ENSO forecasts</a></li>
+                <li><a href="/mjo.html">MJO forecast</a></li>
+                <li><a href="/qbo/">QBO tracker</a></li>
+              </ul>
+            </div>
+            <div>
+              <h3>Circulation</h3>
+              <ul>
+                <li><a href="/stratosphere.html">Stratosphere and polar vortex</a></li>
+                <li><a href="/circulation.html">Jets, Walker and Hadley cells</a></li>
+              </ul>
+            </div>
+          </div>
+        </li>
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g2">Outlooks</button>
+          <div class="sh-menu sh-menu--cols" id="sh-g2">
+            <div>
+              <h3>Weeks 1–5</h3>
+              <ul>
+                <li><a href="/subseasonal.html">GEPS weeks 1–5</a></li>
+                <li><a href="/gefs.html">GEFS weeks 1–5</a></li>
+              </ul>
+            </div>
+            <div>
+              <h3>Seasons</h3>
+              <ul>
+                <li><a href="/seasonal.html">Eight C3S seasonal models</a></li>
+                <li><a href="/sfs.html">NOAA SFS seasonal</a></li>
+              </ul>
+            </div>
+          </div>
+        </li>
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g3">Research</button>
+          <div class="sh-menu sh-menu--cols" id="sh-g3">
+            <div>
+              <h3>Studies</h3>
+              <ul>
+                <li><a href="/enso.html#imp_reg">ENSO impacts on the Americas</a></li>
+                <li><a href="/stratosphere.html#shwinters">Stratosphere history</a></li>
+                <li><a href="/topics/">Explainers</a></li>
+                <li><a href="/research.html">Publications</a></li>
+              </ul>
+            </div>
+            <div>
+              <h3>Verification</h3>
+              <ul>
+                <li><a href="/cities/verify.html">City forecast verification</a></li>
+                <li><a href="/aifs-verify.html">AIFS single versus member 0</a></li>
+              </ul>
+            </div>
+          </div>
+        </li>
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g4" aria-current="page">Tools</button>
+          <div class="sh-menu sh-menu--list" id="sh-g4">
+            <ul>
+              <li><a href="/catalog.html" aria-current="page">Every plot on the site</a></li>
+              <li><a href="/skewt/">Sounding explorer</a></li>
+              <li><a href="/asos5.html">Five-minute airport observations</a></li>
+              <li><a href="/climate.html">US climate trends</a></li>
+            </ul>
+          </div>
+        </li>
+        <li class="sh-item"><a class="sh-link" href="/resume.html">Resume</a></li>
+        <li class="sh-item sh-item--special"><a class="sh-special" href="/midterms/">2026 Midterms</a></li>
+      </ul>
+    </nav>
+  </div>
+</header>
+<!-- sh:end -->
+<main>
+  <h1>Every plot on the site</h1>
+  <p class="lede" id="lede">Every figure and animation on the site in one sheet, gathered from the pages themselves and rebuilt whenever one changes. Each card opens the exact view. Filter below, or press <kbd>Ctrl K</kbd> on any page to search from anywhere.</p>
+
+  <form class="cf" id="cf" role="search" onsubmit="return false">
+    <label class="cf-q"><svg viewBox="0 0 20 20" aria-hidden="true" focusable="false"><circle cx="8.5" cy="8.5" r="5.5"/><path d="M12.6 12.6 17 17"/></svg>
+      <span class="vh">Filter the plots</span>
+      <input id="q" type="search" autocomplete="off" spellcheck="false" placeholder="Filter: a model, a variable, a region, a page…">
+      <button type="button" id="qx" hidden>Clear</button>
+    </label>
+    <div class="cf-rows" id="facets"></div>
+    <div class="cf-sum"><span id="sum" aria-live="polite">Loading the index…</span><button type="button" id="reset" hidden>Clear all filters</button></div>
+  </form>
+
+  <div id="sheet"></div>
+  <noscript><p class="none">The catalogue needs JavaScript. Every page is in the menus at the top.</p></noscript>
+</main>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  var F = window.SiteFind;
+  var sheet = document.getElementById('sheet'), facetsEl = document.getElementById('facets');
+  var qEl = document.getElementById('q'), qx = document.getElementById('qx'), sum = document.getElementById('sum'), reset = document.getElementById('reset');
+  if (!F) { sum.textContent = 'The index could not be loaded.'; return; }
+  var MAC = /Mac|iPhone|iPad|iPod/.test(navigator.platform || navigator.userAgent || '');
+  var kb = document.querySelector('#lede kbd'); if (kb) kb.textContent = MAC ? '⌘K' : 'Ctrl K';
+
+  // facets: key in the URL, label, how to read an item's values
+  var FACETS = [
+    { key: 'topic', label: 'Topic', get: function (it) { return [it.topic]; } },
+    { key: 'range', label: 'Range', get: function (it) { return it.horizon ? [it.horizon] : []; } },
+    { key: 'model', label: 'Model', get: function (it) { return it.models || []; } },
+    { key: 'region', label: 'Region', get: function (it) { return it.regions || []; } },
+  ];
+  var state = { q: '', topic: '', range: '', model: '', region: '' };
+  try {
+    var sp = new URLSearchParams(location.search);
+    Object.keys(state).forEach(function (k) { state[k] = sp.get(k) || ''; });
+  } catch (e) {}
+  qEl.value = state.q;
+
+  F.load().then(start, function () {
+    sum.textContent = 'The index could not be loaded. Try again in a minute; every page is also in the menus above.';
+  });
+
+  function start(cat) {
+    var items = cat.items.filter(function (it) { return it.page !== '/catalog.html'; }), topics = cat.topics, tl = {};
+    topics.forEach(function (t) { tl[t.id] = t; });
+    var pages = {}; items.forEach(function (it) { pages[it.page] = 1; });
+    var nv = items.reduce(function (s, it) { return s + Math.max(1, (it.variants || []).length); }, 0);
+    document.getElementById('lede').firstChild.nodeValue =
+      items.length + ' plots on ' + Object.keys(pages).length + ' pages, ' + nv + ' views counting every option, gathered from the pages themselves and rebuilt whenever one changes. Each card opens the exact view. Filter below, or press ';
+    var lede = document.getElementById('lede');
+    lede.lastChild.nodeValue = ' on any page to search from anywhere.';
+
+    // the values each facet offers, most used first (models and regions), in the site's order otherwise
+    var values = {};
+    FACETS.forEach(function (f) {
+      var n = {};
+      items.forEach(function (it) { f.get(it).forEach(function (v) { n[v] = (n[v] || 0) + 1; }); });
+      var keys = Object.keys(n);
+      if (f.key === 'topic') keys = topics.map(function (t) { return t.id; }).filter(function (k) { return n[k]; });
+      else if (f.key === 'range') keys = cat.horizons.filter(function (h) { return n[h]; });
+      else keys = keys.filter(function (k) { return n[k] >= 2; }).sort(function (a, b) { return n[b] - n[a] || a.localeCompare(b); });
+      values[f.key] = keys;
+    });
+    facetsEl.innerHTML = FACETS.map(function (f) {
+      return '<div class="cf-row" role="group" aria-label="' + f.label + '"><span>' + f.label + '</span>' +
+        values[f.key].map(function (v) {
+          var lab = f.key === 'topic' ? tl[v].label : v;
+          return '<button type="button" class="chip" data-f="' + f.key + '" data-v="' + F.esc(v) + '" aria-pressed="false">' + F.esc(lab) + '<small></small></button>';
+        }).join('') + '</div>';
+    }).join('');
+
+    // one card per item, built once and re-shelved on every filter change (images load once)
+    var io = 'IntersectionObserver' in window ? new IntersectionObserver(function (es) {
+      es.forEach(function (e) { if (e.isIntersecting) { io.unobserve(e.target); paint(e.target); } });
+    }, { rootMargin: '400px 0px' }) : null;
+    var cards = {};
+    items.forEach(function (it) {
+      var a = document.createElement('a');
+      a.className = 'ct t-' + it.topic;
+      a.href = it.url;
+      var nvi = (it.variants || []).length;
+      var meta = (it.group ? it.page_title + ' · ' + it.group : (tl[it.topic] ? tl[it.topic].label : ''));
+      var tags = [it.horizon].concat((it.models || []).slice(0, 3)).filter(Boolean).join(', ');
+      a.innerHTML = '<div class="ct-th">' + (it.thumb ? '' : '<div class="ct-tile"><b>' + F.esc(it.label) + '</b><i>' + (it.group ? 'Interactive chart' : 'Opens the page') + '</i></div>') + '</div>' +
+        '<span class="ct-l">' + F.esc(it.label) + '</span>' +
+        '<span class="ct-m">' + F.esc(meta) + '</span>' +
+        '<span class="ct-m">' + F.esc(tags) + (nvi > 1 ? ' · ' + nvi + ' views' : '') + '</span>';
+      a.addEventListener('click', function () { F.remember(it, null); });
+      a._it = it;
+      cards[it.id] = a;
+      if (it.thumb) { if (io) io.observe(a); else paint(a); }
+    });
+    function paint(a) {
+      var it = a._it, box = a.querySelector('.ct-th'), im = new Image();
+      im.alt = ''; im.decoding = 'async';
+      im.onload = function () { im.classList.add('on'); };
+      box.appendChild(im);
+      if (it.thumb.frame) { var tag = document.createElement('span'); tag.className = 'loop'; tag.textContent = 'Loop'; box.appendChild(tag); }
+      F.thumbInto(im, it.thumb, function () {
+        im.remove();
+        box.insertAdjacentHTML('afterbegin', '<div class="ct-tile"><b>' + F.esc(it.label) + '</b><i>Opens on the page</i></div>');
+      });
+    }
+
+    var qT = 0;
+    qEl.addEventListener('input', function () { clearTimeout(qT); qT = setTimeout(function () { state.q = qEl.value; render(); }, 90); });
+    qx.addEventListener('click', function () { qEl.value = ''; state.q = ''; render(); qEl.focus(); });
+    facetsEl.addEventListener('click', function (e) {
+      var b = e.target.closest('.chip'); if (!b || b.disabled) return;
+      var f = b.dataset.f, v = b.dataset.v;
+      state[f] = state[f] === v ? '' : v;
+      render();
+    });
+    function clearAll() { Object.keys(state).forEach(function (k) { state[k] = ''; }); qEl.value = ''; render(); }
+    reset.addEventListener('click', clearAll);
+
+    function passes(it, skip) {
+      for (var i = 0; i < FACETS.length; i++) {
+        var f = FACETS[i];
+        if (f.key === skip || !state[f.key]) continue;
+        if (f.get(it).indexOf(state[f.key]) < 0) return false;
+      }
+      return true;
+    }
+    function render() {
+      var ranked = F.search(state.q, items);            // every item, in page order, when the query is empty
+      var shown = ranked.filter(function (r) { return passes(r.item); });
+      // facet counts under the other filters (and the text), so a chip never leads to an empty sheet
+      var textOk = {}; ranked.forEach(function (r) { textOk[r.item.id] = 1; });
+      facetsEl.querySelectorAll('.chip').forEach(function (b) {
+        var f = FACETS.filter(function (x) { return x.key === b.dataset.f; })[0], v = b.dataset.v;
+        var n = items.filter(function (it) { return textOk[it.id] && passes(it, f.key) && f.get(it).indexOf(v) >= 0; }).length;
+        var on = state[f.key] === v;
+        b.setAttribute('aria-pressed', on ? 'true' : 'false');
+        b.disabled = !n && !on;
+        b.querySelector('small').textContent = n;
+      });
+      sheet.innerHTML = '';
+      if (!shown.length) {
+        sheet.innerHTML = '<p class="none">No plot matches these filters. <button type="button">Clear all filters</button></p>';
+        sheet.querySelector('button').addEventListener('click', clearAll);
+      } else if (state.q.trim()) {
+        sheet.appendChild(section('Best matches', shown.length + ' for “' + state.q.trim() + '”', shown));
+      } else {
+        topics.forEach(function (t) {
+          var rs = shown.filter(function (r) { return r.item.topic === t.id; });
+          if (rs.length) sheet.appendChild(section(t.label, t.blurb, rs));
+        });
+      }
+      var active = Object.keys(state).some(function (k) { return state[k]; });
+      sum.textContent = active ? 'Showing ' + shown.length + ' of ' + items.length + ' plots' : items.length + ' plots';
+      reset.hidden = !active; qx.hidden = !state.q;
+      try {
+        var sp = new URLSearchParams();
+        Object.keys(state).forEach(function (k) { if (state[k]) sp.set(k, state[k]); });
+        var s = sp.toString();
+        history.replaceState(null, '', location.pathname + (s ? '?' + s : '') + location.hash);
+      } catch (e) {}
+    }
+    function section(title, blurb, rs) {
+      var s = document.createElement('section'); s.className = 'cs';
+      s.innerHTML = '<header><h2>' + F.esc(title) + '</h2><p>' + F.esc(blurb) + '</p></header><div class="grid"></div>';
+      var g = s.querySelector('.grid');
+      rs.forEach(function (r) {
+        var a = cards[r.item.id];
+        a.href = r.variant ? r.item.page + r.variant[1] : r.item.url;
+        a.querySelector('.ct-l').innerHTML = F.highlight(r.item.label, state.q) +
+          (r.variant ? ' <span style="color:var(--accent)">› ' + F.highlight(r.variant[0], state.q) + '</span>' : '');
+        g.appendChild(a);
+      });
+      return s;
+    }
+    render();
+  }
+});
+</script>
+<!-- sf:start -->
+<footer class="sf">
+  <div class="sf-in">
+    <ul>
+      <li><a href="/">Home</a></li>
+      <li><a href="/#products">Products</a></li>
+      <li><a href="/research.html">Research</a></li>
+      <li><a href="/resume.html">Resume</a></li>
+      <li><a href="https://github.com/scorvec" rel="noopener">GitHub</a></li>
+      <li><a href="https://www.linkedin.com/in/shawn-corvec-35895b231/" rel="noopener">LinkedIn</a></li>
+      <li><a href="https://scholar.google.com/citations?user=EYLRCJIAAAAJ&amp;hl=en" rel="noopener">Google Scholar</a></li>
+      <li><a href="/stats.html">Visitor stats</a></li>
+    </ul>
+    <p>Shawn Corvec. Built from open data; sources are credited on each page.</p>
+    <p class="sf-disclaimer">This site is under constant development. Nothing here is checked before publication and there is no expectation of accuracy, completeness or availability; do not rely on it for decisions.</p>
+  </div>
+</footer>
+<!-- sf:end -->
+</body>
+</html>

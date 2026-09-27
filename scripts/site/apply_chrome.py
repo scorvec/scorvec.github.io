@@ -21,37 +21,105 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parents[2]
 
 # ── the navigation, as data ──────────────────────────────────────────────────
+# BY TOPIC since 2026-09-27 (user: "another site navigation redesign as it is getting quite large ... reorganize
+# things and change the interface for finding certain plots"; chose topic menus + a ⌘K finder + a catalogue).
+# A page lives under its topic whatever model it comes from. Items are (href, label, what, when): the menus use
+# the first two, the homepage rows (between <!-- hp:start --> and <!-- hp:end --> in index.html) all four.
+# A group's items may be a flat list or a list of (subtitle, items) columns.
 PRODUCTS = [
-    # Three groups (user, 2026-09-06): what is measured, what the models say, how the models score.
-    # A group's items may be a flat list or a list of (subtitle, items) columns.
-    ("Observations", "What the instruments say, as it comes in", [
-        ("/enso.html", "El Niño monitor"),
-        ("/skewt/", "Sounding explorer"),
-        ("/asos5.html", "Five-minute airport observations"),
-        ("/qbo/", "QBO tracker"),
-        ("/climate.html", "US climate trends"),
+    ("Weather", "The next two weeks, from single storms to the cities", [
+        ("/snowbands.html", "Snow-band diagnostics",
+         "Where HRRR, RRFS and RDPS set up mesoscale snow bands: 700 hPa frontogenesis and deformation, EPV* and slantwise instability, lift through the dendritic growth zone, the model's own bands and where the ingredients overlap. November to mid-April, with case studies against the radar.",
+         "Every run in season"),
+        ("/ar.html", "Atmospheric rivers",
+         "Integrated vapour transport from the 51-member AIFS ensemble: probability of AR conditions at each 12-hourly step, a West Coast landfall tool and Ralph-scale category odds at named locations.",
+         "Twice daily"),
+        ("/ecape.html", "Entraining CAPE",
+         "Gridded ECAPE over the continental US from the 3 km HRRR, hourly to 18 hours and 3-hourly to 48.",
+         "Four times daily"),
+        ("/cities/", "City temperature forecasts",
+         "Forecast highs and lows for 234 US cities from 892 stations, the consensus alongside NBM, ECMWF, AIFS, GFS, GEFS, GDPS and GEPS, day by day for two weeks.",
+         "Four times daily"),
     ]),
-    ("Model forecasts", "From the next two weeks to the coming seasons", [
-        ("Days 1–15", [
-            ("/ar.html", "Atmospheric rivers"),
-            ("/cities/", "City temperature forecasts"),
-            ("/ecape.html", "Entraining CAPE"),
-            ("/mjo.html", "MJO forecast"),
-            ("/circulation.html", "Global circulation and jets"),
-            ("/stratosphere.html", "Stratosphere and polar vortex"),
-            ("/snowbands.html", "Snow-band diagnostics"),
+    ("Climate drivers", "ENSO, the MJO, the QBO, the stratosphere and the jets", [
+        ("Tropics", [
+            ("/enso.html", "El Niño monitor",
+             "Daily ONI and RONI, Niño-region sea surface temperatures, the subsurface, winds and convection, with SST anomaly maps and animation.",
+             "Daily"),
+            ("/enso-forecasts.html", "ENSO forecasts",
+             "Every member of seven centres' seasonal models for Niño-3.4, with percentile fans and a record of how past forecasts did.",
+             "Monthly"),
+            ("/mjo.html", "MJO forecast",
+             "Real-time multivariate MJO index from the ECMWF AIFS ensemble, with the observed phase-space track.",
+             "Twice daily"),
+            ("/qbo/", "QBO tracker",
+             "Equatorial stratospheric winds at 10 to 100 hPa from radiosondes, 1950 to the present.",
+             "Weekly"),
         ]),
-        ("Beyond two weeks", [
-            ("/subseasonal.html", "Subseasonal outlook (GEPS, weeks 1–5)"),
-            ("/gefs.html", "Subseasonal outlook (GEFS, weeks 1–5)"),
-            ("/enso-forecasts.html", "ENSO forecasts (seven centres)"),
-            ("/seasonal.html", "Seasonal outlook (eight C3S models)"),
-            ("/sfs.html", "Seasonal outlook (NOAA SFS)"),
+        ("Circulation", [
+            ("/stratosphere.html", "Stratosphere and polar vortex",
+             "Will the vortex weaken? AIFS, GEPS and GEFS 60°N winds, heat flux and wave driving, potential vorticity, the Brewer–Dobson circulation, and every sudden warming since 1980 with what followed.",
+             "Twice daily"),
+            ("/circulation.html", "Jets, Walker and Hadley cells",
+             "Wave activity flux, the dynamic tropopause, angular momentum and mountain torques, and the Hadley and Walker cells from the AIFS ensemble.",
+             "Daily"),
         ]),
     ]),
-    ("Model verification", "How the models are doing against observations", [
-        ("/cities/verify.html", "City temperature forecast verification"),
-        ("/aifs-verify.html", "AIFS single versus member 0"),
+    ("Outlooks", "From weeks two to five out to the coming seasons", [
+        ("Weeks 1–5", [
+            ("/subseasonal.html", "GEPS weeks 1–5",
+             "Environment Canada's extended ensemble for the Americas, the tropics and the polar vortex: weekly anomalies against its own reforecast, terciles, teleconnections, regimes and change since the previous run.",
+             "Mondays and Thursdays"),
+            ("/gefs.html", "GEFS weeks 1–5",
+             "NOAA's GEFS extended ensemble in the same layout: weekly anomalies against its own reforecast, the change since a week earlier, and a drift-corrected polar vortex.",
+             "Daily"),
+        ]),
+        ("Seasons", [
+            ("/seasonal.html", "Eight C3S seasonal models",
+             "Eight seasonal systems from seven centres: anomaly maps and tercile probabilities for every model and their mean, plus the member-level ECMWF SEAS5 outlook: indices, teleconnections, the stratosphere and impacts.",
+             "Monthly"),
+            ("/sfs.html", "NOAA SFS seasonal",
+             "Maps from NOAA's new Seasonal Forecast System, 31 members, for the months ahead.",
+             "Monthly"),
+        ]),
+    ]),
+    ("Research", "What the record and the models say, and how the forecasts score", [
+        ("Studies", [
+            ("/enso.html#imp_reg", "ENSO impacts on the Americas",
+             "Thousands of El Niño and La Niña events in 16 CMIP6 models against the observed record: regressions, composites, super and east-based El Niños, 500 hPa wave trains, and what the PDO does once ENSO is removed. Significant results only.",
+             "Static"),
+            ("/stratosphere.html#shwinters", "Stratosphere history",
+             "Every northern winter and sudden warming since 1980 in MERRA-2, with 15,000 more from nine CMIP6 models: the dripping-paint composites and what usually follows at the surface.",
+             "Static"),
+            ("/topics/", "Explainers",
+             "How to read the products: the equations and the physics behind each diagnostic.",
+             "As written"),
+            ("/research.html", "Publications",
+             "Papers and presentations.",
+             "As published"),
+        ]),
+        ("Verification", [
+            ("/cities/verify.html", "City forecast verification",
+             "Every model and the consensus scored against observed highs and lows at 896 stations: error by lead day, CRPS, quantiles and per-station bias.",
+             "Four times daily"),
+            ("/aifs-verify.html", "AIFS single versus member 0",
+             "The two ECMWF AIFS configurations compared as deterministic models against radiosondes and ERA5, with the ensemble member spectrally matched to the single model and the ensemble mean for reference.",
+             "Every 00Z and 12Z run"),
+        ]),
+    ]),
+    ("Tools", "Explore the data yourself", [
+        ("/catalog.html", "Every plot on the site",
+         "One searchable sheet of every figure and loop, filterable by topic, model, forecast range and region, each linked to its exact view.",
+         "Rebuilt with the pages"),
+        ("/skewt/", "Sounding explorer",
+         "Real-time and archived radiosondes worldwide, drawn and analysed in the browser, with launch history and record rings.",
+         "Hourly mirror"),
+        ("/asos5.html", "Five-minute airport observations",
+         "Temperature at major US airports every five minutes from ASOS, with running daily highs and lows.",
+         "Live"),
+        ("/climate.html", "US climate trends",
+         "Every US county and calendar month since 1895: temperature, precipitation and degree-day trends per decade with significance, the 1991–2020 normal and what normal is now.",
+         "Monthly"),
     ]),
 ]
 
@@ -62,7 +130,8 @@ def group_items(items):
         return [it for _, sub in items for it in sub]
     return list(items)
 
-PRIMARY = [("/topics/", "Explainers"), ("/research.html", "Research"), ("/resume.html", "Resume")]   # Explainers 2026-09-26
+# Explainers and Research moved into the Research menu with the topic redesign (2026-09-27).
+PRIMARY = [("/resume.html", "Resume")]
 # A highlighted button, apart from the menus, on every page (2026-09-23, user: "put this on my site as a special button").
 SPECIAL = ("/midterms/", "2026 Midterms")
 
@@ -118,6 +187,7 @@ PAGES = [
     dict(path="sfs.html", mode="nav"),
     dict(path="ar.html", mode="after-body"),
     dict(path="snowbands.html", mode="after-body"),                # snow-band diagnostics (scripts/snowband, snowband.yml), stage viewer
+    dict(path="catalog.html", mode="after-body"),                  # every plot on the site (scripts/site/build_catalog.py)
     dict(path="climate.html", mode="after-body"),
     dict(path="research.html", mode="nav", fixes=[
         ("padding: 7.5rem 2rem 5rem;", "padding: 2.5rem 2rem 5rem;"),
@@ -175,10 +245,15 @@ def header_html(page: str, skin: str) -> str:
     cls = "sh" + (f" sh--{skin}" if skin else "")
     out = [f'<!-- sh:start -->\n<header class="{cls}" id="site-header">\n  <div class="sh-in">',
            '    <a class="sh-brand" href="/">Shawn Corvec</a>',
+           # the finder (2026-09-27): a search palette over every plot on the site, opened here or with Ctrl/Cmd-K;
+           # the behaviour is in assets/site.js, the index in assets/site/catalog.json (scripts/site/build_catalog.py)
+           '    <button class="sh-find" type="button" aria-haspopup="dialog" aria-keyshortcuts="Control+K Meta+K" '
+           'title="Find a plot (Ctrl K)"><svg viewBox="0 0 20 20" aria-hidden="true" focusable="false"><circle cx="8.5" cy="8.5" r="5.5"/>'
+           '<path d="M12.6 12.6 17 17"/></svg><span class="sh-find-t">Find a plot</span><kbd>Ctrl K</kbd></button>',
            '    <button class="sh-toggle" type="button" aria-expanded="false" aria-controls="sh-menu">Menu</button>',
            '    <nav class="sh-nav" id="sh-menu" aria-label="Site">\n      <ul class="sh-list">']
     for n, (title, _blurb, items) in enumerate(PRODUCTS):
-        in_group = any(h == page for h, _ in group_items(items))
+        in_group = any(it[0] == page for it in group_items(items))
         mid = f"sh-g{n}"
         columns = bool(items) and isinstance(items[0][1], list)
         out.append('        <li class="sh-item sh-has-menu">')
@@ -188,13 +263,13 @@ def header_html(page: str, skin: str) -> str:
             out.append(f'          <div class="sh-menu sh-menu--cols" id="{mid}">')
             for sub, its in items:
                 out.append(f'            <div>\n              <h3>{sub}</h3>\n              <ul>')
-                for href, label in its:
+                for href, label, *_ in its:
                     out.append(f'                <li><a href="{href}"{_current(href, page)}>{label}</a></li>')
                 out.append('              </ul>\n            </div>')
             out.append('          </div>\n        </li>')
         else:
             out.append(f'          <div class="sh-menu sh-menu--list" id="{mid}">\n            <ul>')
-            for href, label in items:
+            for href, label, *_ in items:
                 out.append(f'              <li><a href="{href}"{_current(href, page)}>{label}</a></li>')
             out.append('            </ul>\n          </div>\n        </li>')
     for href, label in PRIMARY:
@@ -204,6 +279,45 @@ def header_html(page: str, skin: str) -> str:
         out.append(f'        <li class="sh-item sh-item--special"><a class="sh-special" href="{href}"{cur}>{label}</a></li>')
     out.append('      </ul>\n    </nav>\n  </div>\n</header>')
     return "\n".join(out).replace(' aria-current=page', ' aria-current="page"')
+
+
+def homepage_rows() -> str:
+    """The homepage product list (index.html, between <!-- hp:start --> and <!-- hp:end -->), from PRODUCTS: the
+    same classes as the hand-written rows it replaced (.group / .rows / .sub / .row / .what / .when), so the
+    homepage CSS and its freshness script (status.json keyed by href) work unchanged."""
+    out = ["<!-- hp:start -->"]
+    for title, blurb, items in PRODUCTS:
+        out.append(f'    <div class="group">\n      <h3>{title}<small>{blurb}</small></h3>\n      <ul class="rows">')
+        cols = bool(items) and isinstance(items[0][1], list)
+        for sub, its in (items if cols else [(None, items)]):
+            if sub:
+                out.append(f'        <li class="sub">{sub}</li>')
+            for href, label, what, when in its:
+                out.append(f'        <li class="row"><a href="{href}">{label}</a><span class="what">{what}</span>'
+                           f'<span class="when">{when}</span></li>')
+        out.append("      </ul>\n    </div>\n")
+    out.append("    <!-- hp:end -->")
+    return "\n".join(out)
+
+
+def stamp_homepage(check: bool = False) -> int:
+    p = REPO / "index.html"
+    html = p.read_text()
+    if "<!-- hp:start -->" not in html:
+        # first run: replace the hand-written groups between the index head and the end of the section
+        m = re.search(r'(<section class="index" id="products">.*?</div>\s*\n)(\s*<div class="group">.*?)(\s*</section>)', html, re.S)
+        if not m:
+            raise SystemExit("index.html: product groups not found")
+        html2 = html[:m.start(2)] + "\n    " + homepage_rows() + html[m.end(2):]
+    else:
+        html2 = re.sub(r"<!-- hp:start -->.*?<!-- hp:end -->", lambda _: homepage_rows(), html, count=1, flags=re.S)
+    if html2 == html:
+        return 0
+    if check:
+        print("out of date: index.html (product rows)")
+    else:
+        p.write_text(html2); print("stamped index.html product rows")
+    return 1
 
 
 SECTION_TABS = False
@@ -340,7 +454,7 @@ def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--check", action="store_true", help="report pages that would change; write nothing")
     args = ap.parse_args()
-    changed = stamp_all(check=args.check)
+    changed = stamp_all(check=args.check) + stamp_homepage(check=args.check)
     if args.check:
         return 1 if changed else 0
     print(f"{changed} page(s) written")

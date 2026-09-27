@@ -1,0 +1,88 @@
+name: Plot catalogue (finder index)
+
+# assets/site/catalog.json: every plot on the site, for the header finder (Ctrl/Cmd-K, assets/site.js) and
+# catalog.html (2026-09-27, the topic redesign). scripts/site/build_catalog.py reads the pages themselves - the stage
+# specs run in node with the DOM stubbed (scripts/site/catalog_eval.js) - so the index follows every page change.
+# The laptop's pre-push hook keeps assets/** off laptop pushes, so the index is built and committed here.
+#
+# Triggers: a push that touches a page, a page partial or the builder (laptop pushes); the end of each workflow that
+# regenerates a page (their GITHUB_TOKEN pushes raise no push event, but workflow_run still fires); a daily cron for
+# the dated thumbnails (the MJO chart, the monthly SEAS5 maps); dispatch. It commits only when the index changed.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "*.html"
+      - "**/*.html"
+      - "scripts/sst/pages/**"
+      - "scripts/site/**"
+      - ".github/workflows/catalog.yml"
+  workflow_run:
+    workflows:
+      - "SST anomalies & RONI (El Niño monitor)"
+      - "MJO RMM (AIFS-ENS)"
+      - "Stratosphere (vortex, wave-1, E-P flux)"
+      - "Stratosphere history (static MERRA-2 reference)"
+      - "ENSO impacts on the Americas (static CMIP6 reference)"
+      - "MJO impacts by phase and month (static CMIP6 reference)"
+      - "GEFS extended outlook"
+      - "Snow-band diagnostics"
+      - "NOAA SFS seasonal outlook (monthly)"
+    types: [completed]
+  schedule:
+    - cron: "35 6 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: write
+
+# only the newest index matters; a queued run supersedes an older one
+concurrency:
+  group: catalog
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      # the pages and the JSON only (~12 MB); figure existence is read from the git index (build_catalog.tracked)
+      - uses: actions/checkout@v7
+        with:
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            /*.html
+            /scripts/site/
+            /assets/**/*.json
+      - name: Build the catalogue
+        run: |
+          node --version
+          python3 scripts/site/build_catalog.py
+      - name: Commit & push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          # snapshot + clean resync each attempt (mjo.yml / sst.yml pattern)
+          SNAP=$(mktemp -d)
+          git add -A assets/site/catalog.json 2>/dev/null || true
+          git diff --staged --name-only -z | tar cf "$SNAP/outs.tar" --null -T - 2>/dev/null || true
+          git reset -q
+          for i in 1 2 3 4 5; do
+            if ! timeout 120 git fetch origin main; then echo "fetch $i failed"; sleep 5; continue; fi
+            git reset --hard origin/main
+            tar xf "$SNAP/outs.tar" 2>/dev/null || true
+            git add -A assets/site/catalog.json
+            if git diff --staged --quiet; then echo "No changes; skipping commit."; echo "PUSHED=0" >> "$GITHUB_ENV"; exit 0; fi
+            git commit -q -m "catalogue: plot index $(date -u +%Y-%m-%dT%H:%MZ)"
+            if timeout 180 git push; then echo "Pushed on attempt $i."; echo "PUSHED=1" >> "$GITHUB_ENV"; exit 0; fi
+            echo "Push $i rejected; resyncing and retrying…"
+            sleep 5
+          done
+          exit 1
+      - name: Deploy the site
+        if: success() && env.PUSHED == '1'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh workflow run pages.yml --repo "$GITHUB_REPOSITORY" || echo "::warning::pages dispatch failed; the dispatcher will catch it"
