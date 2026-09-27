@@ -91,7 +91,7 @@ PAGES = {
                        models=["GEFS"], horizon="Weeks 1–5", region=["North America"], own_models=True),
     "/seasonal.html": dict(kind="rail", file="seasonal.html", topic="outlooks", title="Eight C3S seasonal models", tier=2, prio=30,
                            models=["C3S", "SEAS5"], horizon="Seasons", region=["Global"]),
-    "/sfs.html": dict(kind="rail", file="sfs.html", topic="outlooks", title="NOAA SFS seasonal", tier=2, prio=31,
+    "/sfs.html": dict(kind="stage", file="sfs.html", topic="outlooks", title="NOAA SFS seasonal", tier=2, prio=31,
                       models=["SFS"], horizon="Seasons", region=["Global"]),
     # single-figure / app pages: one entry each (label and description from the chrome's PRODUCTS table)
     "/mjo.html": dict(kind="page", topic="drivers", tier=0, prio=2, models=["AIFS-ENS"], horizon="Days 1–15", region=["Tropics"],
@@ -158,7 +158,6 @@ THUMBS = {
     "/seasonal.html#xdaysCard": "assets/sst/seas5_xdays_us_tn_0_*.webp",
     "/seasonal.html#snowCard": "assets/sst/seas5_snowtot_pct_*.webp",
     "/seasonal.html#windCard": "assets/sst/seas5_wind_vanom_*.webp",
-    "/sfs.html#monthly-anomaly-maps": ("manifest", "assets/sfs/anim", "sfs_t2m_manifest.json"),
 }
 # forecast systems: on a page that is one system's own product (own_models=True) the captions name the others only to
 # compare ("unlike GEPS's"), so they are not tagged from the text there

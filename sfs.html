@@ -28,6 +28,7 @@
 </script>
 <link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;1,400&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/assets/outlook.css">
+<link rel="stylesheet" href="/assets/stage.css">
 <style>
   /* sfs.html — page-specific rules only. Cards, pills, chips, decks and footers
      come from /assets/outlook.css, shared with seas5.html. */
@@ -181,7 +182,7 @@
   </div>
 </header>
 <!-- sh:end -->
-<main data-rail=".card">
+<main>
   <header>
     <div class="eyebrow">Monthly, from the NOAA SFS beta (UFS coupled, 31 members), <span id="issueLabel">latest issue</span></div>
     <h1>SFS beta seasonal outlook</h1>
@@ -191,10 +192,25 @@
     </div>
   </header>
 
-  <!-- ── NIÑO-3.4 PLUME ──────────────────────────────────────────────────── -->
-  <div class="card" data-label="Niño-3.4 plume" data-group="Seasonal · 12 monthly leads">
-    <h2>Ni&ntilde;o-3.4 &mdash; all 31 members</h2>
-    <p class="note">31 members against the model&rsquo;s own reforecast: fan = member 10&ndash;90% and 25&ndash;75%, sienna = ensemble mean, black = observed (ERSSTv5), blue dashes = the C3S seven-model mean for the same issue.</p>
+  <!-- One figure at a time on the shared stage viewer (assets/stage.js), 2026-09-27 (navigation phase 2); it replaces
+       the rail.js cards. Deep links #plume #indices #maps/<field>; the rail's old ids (#ni-o-3-4-plume,
+       #climate-indices, #monthly-anomaly-maps, #aboutCard) are aliases. -->
+  <div class="ss-layout">
+    <aside class="ss-rail" id="rail" aria-label="Figures"></aside>
+    <section class="ss-main">
+      <div class="crumb"><div class="path" id="crumb"></div>
+        <div class="nav"><button type="button" id="prevBtn" title="previous (←)">&larr; prev</button><button type="button" id="nextBtn" title="next (→)">next &rarr;</button></div></div>
+      <div class="opts"><div class="controls" id="opts-a"></div><div class="controls" id="opts-b"></div><div class="controls" id="opts-c"></div></div>
+      <div class="stage" id="stage"></div>
+      <p class="cap" id="cap"></p>
+      <div id="about"></div>
+      <p class="hint"><span class="kbd">&larr;</span> <span class="kbd">&rarr;</span> step through the options &middot; <span class="kbd">&uarr;</span> <span class="kbd">&darr;</span> change figure &middot; click a still to enlarge</p>
+    </section>
+  </div>
+  <div class="lightbox" id="lightbox"><img alt=""></div>
+  <div class="dom-holder">
+    <div id="dom-plume" hidden>
+<p class="note">31 members against the model&rsquo;s own reforecast: fan = member 10&ndash;90% and 25&ndash;75%, sienna = ensemble mean, black = observed (ERSSTv5), blue dashes = the C3S seven-model mean for the same issue.</p>
     <div class="controls">
       <button class="pill on" data-idx="n34">Ni&ntilde;o-3.4 (&rarr; ONI)</button>
       <button class="pill" data-idx="roni">RONI</button>
@@ -213,12 +229,9 @@
       &middot; observed: ERSSTv5, 1991&ndash;2020</span>
       <span class="chart-updated" id="plume-updated">&mdash;</span>
     </div>
-  </div>
-
-  <!-- ── DERIVED INDICES ─────────────────────────────────────────────────── -->
-  <div class="card" data-label="Climate indices" data-group="Seasonal · 12 monthly leads">
-    <h2>Derived climate indices &mdash; member spread</h2>
-    <p class="note">IOD, South Atlantic dipole, the Ni&ntilde;o flavours and a reforecast-EOF PDO, per member, in &sigma;. Fan and mean as on the plume.</p>
+    </div>
+    <div id="dom-indices" hidden>
+<p class="note">IOD, South Atlantic dipole, the Ni&ntilde;o flavours and a reforecast-EOF PDO, per member, in &sigma;. Fan and mean as on the plume.</p>
     <div class="controls" id="idxPills"></div>
     <div id="idxChart" class="plot" style="height:460px"></div>
     <div class="chart-card-footer">
@@ -228,123 +241,50 @@
       110&deg;E&ndash;100&deg;W, 30 yrs &times; 11 members &times; 10 leads pooled)</span>
       <span class="chart-updated" id="idx-updated">&mdash;</span>
     </div>
+    </div>
   </div>
-
-  <!-- ── MONTHLY ANOMALY MAPS (deck) ─────────────────────────────────────── -->
-  <div class="card plot-deck" data-deck="sfs-monthly" data-label="Monthly anomaly maps" data-group="Seasonal · 12 monthly leads">
-    <h2>Monthly anomaly maps &mdash; step through every lead</h2>
-    <p class="note">One frame per forecast month against the model&rsquo;s own reforecast, fixed colour scale, in the loop player.</p>
-    <div class="deck-head">
-      <span class="deck-title">Field</span>
-      <span class="deck-hint">8 loops in this panel &middot; only the one you pick is loaded</span>
-    </div>
-    <div class="deck-tabs">
-      <button class="on">SST</button>
-      <button>2 m temperature</button>
-      <button>Precipitation</button>
-      <button>500 hPa height</button>
-      <button>MSLP</button>
-      <button>850 hPa wind</button>
-      <button>200 hPa wind</button>
-      <button>200 hPa &chi;</button>
-    </div>
-    <div class="deck-panel">
-      <div class="img-label">Sea-surface temperature anomaly, monthly means</div>
-      <iframe class="anim-embed sfs-month"
-        src="loop.html?base=assets/sfs/anim/&amp;manifest=sfs_sst_manifest.json&amp;region=sfs_sst&amp;autoplay=0"
-        title="SFS monthly SST anomaly loop" loading="lazy"></iframe>
-    </div>
-    <div class="deck-panel" hidden>
-      <div class="img-label">2 m temperature anomaly, monthly means</div>
-      <iframe class="anim-embed sfs-month"
-        data-src="loop.html?base=assets/sfs/anim/&amp;manifest=sfs_t2m_manifest.json&amp;region=sfs_t2m&amp;autoplay=0"
-        title="SFS monthly 2m temperature anomaly loop" loading="lazy"></iframe>
-    </div>
-    <div class="deck-panel" hidden>
-      <div class="img-label">Precipitation anomaly, monthly means</div>
-      <iframe class="anim-embed sfs-month"
-        data-src="loop.html?base=assets/sfs/anim/&amp;manifest=sfs_precip_manifest.json&amp;region=sfs_precip&amp;autoplay=0"
-        title="SFS monthly precipitation anomaly loop" loading="lazy"></iframe>
-    </div>
-    <div class="deck-panel" hidden>
-      <div class="img-label">500 hPa height anomaly, monthly means</div>
-      <iframe class="anim-embed sfs-month"
-        data-src="loop.html?base=assets/sfs/anim/&amp;manifest=sfs_z500_manifest.json&amp;region=sfs_z500&amp;autoplay=0"
-        title="SFS monthly 500 hPa height anomaly loop" loading="lazy"></iframe>
-    </div>
-    <div class="deck-panel" hidden>
-      <div class="img-label">Mean sea-level pressure anomaly, monthly means</div>
-      <iframe class="anim-embed sfs-month"
-        data-src="loop.html?base=assets/sfs/anim/&amp;manifest=sfs_mslp_manifest.json&amp;region=sfs_mslp&amp;autoplay=0"
-        title="SFS monthly MSLP anomaly loop" loading="lazy"></iframe>
-    </div>
-    <div class="deck-panel" hidden>
-      <div class="img-label">850 hPa wind anomaly, monthly means</div>
-      <iframe class="anim-embed sfs-month"
-        data-src="loop.html?base=assets/sfs/anim/&amp;manifest=sfs_wind850_manifest.json&amp;region=sfs_wind850&amp;autoplay=0"
-        title="SFS monthly 850 hPa wind anomaly loop" loading="lazy"></iframe>
-    </div>
-    <div class="deck-panel" hidden>
-      <div class="img-label">200 hPa wind anomaly, monthly means</div>
-      <iframe class="anim-embed sfs-month"
-        data-src="loop.html?base=assets/sfs/anim/&amp;manifest=sfs_wind200_manifest.json&amp;region=sfs_wind200&amp;autoplay=0"
-        title="SFS monthly 200 hPa wind anomaly loop" loading="lazy"></iframe>
-    </div>
-    <div class="deck-panel" hidden>
-      <div class="img-label">200 hPa velocity potential (&chi;) anomaly, monthly means</div>
-      <iframe class="anim-embed sfs-month"
-        data-src="loop.html?base=assets/sfs/anim/&amp;manifest=sfs_chi200_manifest.json&amp;region=sfs_chi200&amp;autoplay=0"
-        title="SFS monthly 200 hPa velocity potential anomaly loop" loading="lazy"></iframe>
-    </div>
-    <div class="chart-card-footer">
+<template id="about-sfs"><p class="note" style="max-width:80ch;font-size:0.9rem;line-height:1.65">NOAA's next-generation Seasonal Forecast System &mdash; the UFS-based successor to CFSv2, running in near-real-time beta since March 2026 with open zarr output. Every month: 31 members, 12 monthly leads. Anomalies are computed against the <b>model's own 1991&ndash;2020 reforecast</b> for the same init month and lead (11 members &times; 30 years), so drift and bias are removed the same way the C3S models are handled on the <a href="enso-forecasts.html">ENSO forecasts page</a>. The ECMWF system gets the same treatment on the <a href="seasonal.html">C3S seasonal models page</a>.</p>
+    <h3 class="method-head">Method</h3>
+    <ul class="method-list">
+      <li><b>Ni&ntilde;o-3.4.</b> Monthly index from all 31 members; fan = member 10&ndash;90% and 25&ndash;75%, sienna line = ensemble mean, observed ERSSTv5 leads in, <b style="color:var(--cool)">blue dashes</b> = the C3S seven-model mean from the same issue month. The 3-month toggle gives the ONI convention.</li>
+      <li><b>Derived indices.</b> IOD (Saji DMI), the South Atlantic Subtropical Dipole (SW&nbsp;&minus;&nbsp;NE), the Ni&ntilde;o flavors, and a PDO from North Pacific SST anomalies (global mean removed) projected onto the model's own reforecast EOF1, in reforecast-&sigma; units; same fan and mean.</li>
+      <li><b>Monthly anomaly maps.</b> One frame per forecast month against the reforecast for the same init month and lead; fixed color scale across leads.</li>
+    </ul>
+    <div class="chart-card-footer"><span class="chart-sources">NOAA SFS beta on NODD (open zarr) &middot; own 1991&ndash;2020 reforecast &middot; ERSSTv5, BoM RMM, C3S</span><span class="chart-updated">built by scripts/sfs/*.py</span></div></template>
+<template id="about-maps"><p>One frame per forecast month against the model&rsquo;s own reforecast, fixed colour scale, in the loop player.</p><div class="chart-card-footer">
       <span class="chart-sources">SFS beta ocn_monthly / atm_monthly zarr (1&deg;), 31-member mean
       &middot; anomalies vs own reforecast 1991&ndash;2020 per init month &amp; lead &middot; fixed colour scale across leads</span>
       <span class="chart-updated" id="monthly-updated">&mdash;</span>
-    </div>
-  </div>
-
-  <script>
-  // Animator iframes post their rendered height once loaded; pin each to it.
-  addEventListener("message", function (e) {
-    var d = e.data; if (!d || d.type !== "sstAnimHeight") return;
-    var fr = document.querySelectorAll("iframe.anim-embed");
-    for (var i = 0; i < fr.length; i++) {
-      if (fr[i].contentWindow === e.source) {
-        fr[i].style.height = d.h + "px";
-        fr[i].style.aspectRatio = "auto";
-        // outlook.css caps the pre-JS placeholder at 92vh; the animator's real
-        // height (a wide loop at full width runs past that) must not be clipped
-        fr[i].style.maxHeight = "none";
-      }
-    }
-  });
-  // Plot decks (same pattern as the ENSO pages): one delegated listener; panels
-  // other than the first keep their iframe src in data-src until first opened,
-  // so a deck costs exactly one animator load on page open.
-  (function () {
-    function reveal(panel) {
-      var f = panel.querySelectorAll("iframe[data-src], img[data-src]");
-      for (var i = 0; i < f.length; i++) {
-        var el = f[i], d = el.getAttribute("data-src");
-        if (d) { el.setAttribute("src", d); el.removeAttribute("data-src"); }
-      }
-    }
-    document.addEventListener("click", function (e) {
-      var b = e.target.closest ? e.target.closest(".plot-deck .deck-tabs button") : null;
-      if (!b) return;
-      var deck = b.closest(".plot-deck");
-      var tabs = deck.querySelectorAll(".deck-tabs button");
-      var panels = deck.querySelectorAll(".deck-panel");
-      var i = Array.prototype.indexOf.call(tabs, b);
-      for (var k = 0; k < panels.length; k++) {
-        if (k === i) { panels[k].hidden = false; reveal(panels[k]); }
-        else panels[k].hidden = true;
-        tabs[k].classList.toggle("on", k === i);
-      }
-    });
-  })();
-  </script>
-
+    </div><p class="note" style="max-width:80ch;font-size:0.9rem;line-height:1.65">NOAA's next-generation Seasonal Forecast System &mdash; the UFS-based successor to CFSv2, running in near-real-time beta since March 2026 with open zarr output. Every month: 31 members, 12 monthly leads. Anomalies are computed against the <b>model's own 1991&ndash;2020 reforecast</b> for the same init month and lead (11 members &times; 30 years), so drift and bias are removed the same way the C3S models are handled on the <a href="enso-forecasts.html">ENSO forecasts page</a>. The ECMWF system gets the same treatment on the <a href="seasonal.html">C3S seasonal models page</a>.</p>
+    <h3 class="method-head">Method</h3>
+    <ul class="method-list">
+      <li><b>Ni&ntilde;o-3.4.</b> Monthly index from all 31 members; fan = member 10&ndash;90% and 25&ndash;75%, sienna line = ensemble mean, observed ERSSTv5 leads in, <b style="color:var(--cool)">blue dashes</b> = the C3S seven-model mean from the same issue month. The 3-month toggle gives the ONI convention.</li>
+      <li><b>Derived indices.</b> IOD (Saji DMI), the South Atlantic Subtropical Dipole (SW&nbsp;&minus;&nbsp;NE), the Ni&ntilde;o flavors, and a PDO from North Pacific SST anomalies (global mean removed) projected onto the model's own reforecast EOF1, in reforecast-&sigma; units; same fan and mean.</li>
+      <li><b>Monthly anomaly maps.</b> One frame per forecast month against the reforecast for the same init month and lead; fixed color scale across leads.</li>
+    </ul>
+    <div class="chart-card-footer"><span class="chart-sources">NOAA SFS beta on NODD (open zarr) &middot; own 1991&ndash;2020 reforecast &middot; ERSSTv5, BoM RMM, C3S</span><span class="chart-updated">built by scripts/sfs/*.py</span></div></template>
+<script>
+window.STAGE = {
+  groups: [
+    { label: "Seasonal · 12 monthly leads", items: [["plume", "Niño-3.4 plume", "all 31 members"],
+                                                  ["indices", "Climate indices", "IOD, SASD, Niño flavours, PDO"],
+                                                  ["maps", "Monthly anomaly maps", "eight fields, every lead"]] }
+  ],
+  aliases: { "ni-o-3-4-plume": "plume", "climate-indices": "indices", "monthly-anomaly-maps": "maps", "aboutCard": "plume" },
+  products: {
+    plume: { label: "Niño-3.4 — all 31 members", dom: function () { return "dom-plume"; }, about: "about-sfs",
+             cap: function () { return ""; } },
+    indices: { label: "Derived climate indices — member spread", dom: function () { return "dom-indices"; }, about: "about-sfs",
+               cap: function () { return ""; } },
+    maps: { label: "Monthly anomaly maps",
+            a: { label: "Field", items: [["sfs_sst", "SST"], ["sfs_t2m", "2 m temperature"], ["sfs_precip", "Precipitation"], ["sfs_z500", "500 hPa height"], ["sfs_mslp", "MSLP"], ["sfs_wind850", "850 hPa wind"], ["sfs_wind200", "200 hPa wind"], ["sfs_chi200", "200 hPa χ"]] },
+            frame: function (a) { return "loop.html?base=assets/sfs/anim&manifest=" + a + "_manifest.json&region=" + a + "&autoplay=0"; },
+            ratio: function () { return "1440/860"; },
+            cap: function (a) { return ({"sfs_sst": "Sea-surface temperature anomaly, monthly means", "sfs_t2m": "2 m temperature anomaly, monthly means", "sfs_precip": "Precipitation anomaly, monthly means", "sfs_z500": "500 hPa height anomaly, monthly means", "sfs_mslp": "Mean sea-level pressure anomaly, monthly means", "sfs_wind850": "850 hPa wind anomaly, monthly means", "sfs_wind200": "200 hPa wind anomaly, monthly means", "sfs_chi200": "200 hPa velocity potential (χ) anomaly, monthly means"})[a] + " against the model\u2019s own 1991\u20132020 reforecast, one frame per forecast month, fixed colour scale."; },
+            about: "about-maps" }
+  }
+};
+</script>
   <div class="colophon">
     <h3>About this page</h3>
     <p><b>Looking for SFS model plots?</b> This page is an independent visualization
@@ -363,19 +303,6 @@
     Data Dissemination, <code>noaa-oar-sfsdev-pds</code> on AWS.</p>
     <p>SFS beta data: NOAA/OAR via NODD (public domain) &middot; C3S overlay: Copernicus
     Climate Change Service &middot; observed indices: NOAA CPC ERSSTv5, BoM RMM.</p>
-  </div>
-
-  <!-- ── ABOUT ──────────────────────────────────────────────────────────── -->
-  <div class="card" id="aboutCard" data-label="About this page" data-group="About">
-    <h2>What this page reads, and how each figure is built</h2>
-    <p class="note" style="max-width:80ch;font-size:0.9rem;line-height:1.65">NOAA's next-generation Seasonal Forecast System &mdash; the UFS-based successor to CFSv2, running in near-real-time beta since March 2026 with open zarr output. Every month: 31 members, 12 monthly leads. Anomalies are computed against the <b>model's own 1991&ndash;2020 reforecast</b> for the same init month and lead (11 members &times; 30 years), so drift and bias are removed the same way the C3S models are handled on the <a href="enso-forecasts.html">ENSO forecasts page</a>. The ECMWF system gets the same treatment on the <a href="seasonal.html">C3S seasonal models page</a>.</p>
-    <h3 class="method-head">Method</h3>
-    <ul class="method-list">
-      <li><b>Ni&ntilde;o-3.4.</b> Monthly index from all 31 members; fan = member 10&ndash;90% and 25&ndash;75%, sienna line = ensemble mean, observed ERSSTv5 leads in, <b style="color:var(--cool)">blue dashes</b> = the C3S seven-model mean from the same issue month. The 3-month toggle gives the ONI convention.</li>
-      <li><b>Derived indices.</b> IOD (Saji DMI), the South Atlantic Subtropical Dipole (SW&nbsp;&minus;&nbsp;NE), the Ni&ntilde;o flavors, and a PDO from North Pacific SST anomalies (global mean removed) projected onto the model's own reforecast EOF1, in reforecast-&sigma; units; same fan and mean.</li>
-      <li><b>Monthly anomaly maps.</b> One frame per forecast month against the reforecast for the same init month and lead; fixed color scale across leads.</li>
-    </ul>
-    <div class="chart-card-footer"><span class="chart-sources">NOAA SFS beta on NODD (open zarr) &middot; own 1991&ndash;2020 reforecast &middot; ERSSTv5, BoM RMM, C3S</span><span class="chart-updated">built by scripts/sfs/*.py</span></div>
   </div>
 
 </main>
@@ -603,5 +530,6 @@
   </div>
 </footer>
 <!-- sf:end -->
+<script src="/assets/stage.js" defer></script>
 </body>
 </html>
