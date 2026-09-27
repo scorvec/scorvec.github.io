@@ -87,33 +87,47 @@ GATE_FRAC, GATE_DBZ, GATE_MMH = 0.02, 20.0, 1.0
 ING = dict(fg=4.0, epv=0.25, lift=10.0)          # band-ingredient thresholds
 
 LEVS = [950, 925, 900, 875, 850, 825, 800, 775, 750, 725, 700, 675, 650, 625, 600, 575, 550, 525, 500, 475, 450]
+# RRFS: 25 hPa through the frontal/DGZ core (800-500), 50 hPa outside - 17 levels keep 28 leads of NOMADS under ~60 req/min
+LEVS_RRFS = [950, 900, 850, 800, 775, 750, 725, 700, 675, 650, 625, 600, 575, 550, 525, 500, 450]
 LEVS_RDPS = [950, 925, 900, 875, 850, 800, 750, 700, 650, 600, 550, 500, 450]
+# Full forecast range of every model (user 2026-09-27: "For all 3 models please show the full forecast period"), every
+# 3 h. A cycle counts only when its LAST lead is published, so the short cycles (HRRR off-hours to 18 h, RDPS 06/18Z to
+# 54 h) are never picked and the newest full-range run is.
 MODELS = {
-    "hrrr": dict(label="HRRR", leads=[1, 3, 6, 9, 12, 15, 18, 21, 24], cycles=(0, 6, 12, 18), dx=3.0),
-    "rrfs": dict(label="RRFS", leads=list(range(3, 49, 3)), cycles=(0, 12), dx=3.0),
-    "rdps": dict(label="RDPS", leads=list(range(3, 49, 3)), cycles=(0, 12), dx=10.0),
+    "hrrr": dict(label="HRRR", leads=[1] + list(range(3, 49, 3)), cycles=(0, 6, 12, 18)),
+    "rrfs": dict(label="RRFS", leads=list(range(3, 85, 3)), cycles=(0, 6, 12, 18)),
+    "rdps": dict(label="RDPS", leads=list(range(3, 85, 3)), cycles=(0, 6, 12, 18)),
 }
-# (label, [lon0, lon1, lat0, lat1]); a region is offered for a model only where its grid covers >= 97 % of the box
+# a model's grids in order of preference; a region is drawn from the first that covers >= COVER of it
+SOURCES = {"hrrr": ["hrrr"], "rrfs": ["rrfs3", "rrfs13"], "rdps": ["rdps"]}
+SRC_DX = {"hrrr": 3.0, "rrfs3": 3.0, "rrfs13": 13.0, "rdps": 10.0}
+SRC_LABEL = {"hrrr": "HRRR", "rrfs3": "RRFS", "rrfs13": "RRFS 13 km", "rdps": "RDPS"}
+COVER = 0.80
+# The five live regions (user 2026-09-27: "just have northeast/mid-atlantic, atlantic canada, ontario/quebec, midwest,
+# rockies"). (label, [lon0, lon1, lat0, lat1])
 REGIONS = {
-    "ne": ("Interior Northeast", [-81.0, -71.0, 39.8, 45.6]),
-    "nec": ("New England and the coast", [-75.5, -66.5, 40.2, 47.5]),
-    "ma": ("Mid-Atlantic", [-84.0, -72.5, 35.5, 41.8]),
-    "gl": ("Great Lakes", [-93.0, -76.0, 40.0, 48.5]),
-    "mw": ("Upper Midwest", [-101.0, -86.0, 40.0, 49.5]),
-    "pl": ("Central Plains", [-104.0, -90.0, 34.0, 43.5]),
-    "fr": ("Front Range and High Plains", [-109.5, -100.0, 36.5, 43.5]),
-    "on": ("Southern Ontario and Quebec", [-84.5, -69.0, 42.0, 49.5]),
+    "nema": ("Northeast and Mid-Atlantic", [-83.5, -66.5, 36.0, 47.6]),
+    "atl": ("Atlantic Canada", [-69.5, -52.0, 43.0, 52.0]),
+    "onq": ("Ontario and Quebec", [-84.5, -63.5, 41.8, 50.5]),
+    "mw": ("Midwest", [-104.0, -80.0, 35.5, 49.5]),
+    "rk": ("Rockies", [-114.5, -99.5, 35.5, 45.8]),
 }
-MASTER = [-113.0, -63.0, 31.0, 53.0]             # union of the regions + margin: everything is cropped to this first
+# tighter boxes for case studies only
+CASE_REGIONS = {
+    "sny": ("Southern Tier of New York", [-81.0, -71.0, 39.8, 45.6]),
+    "sne": ("Southern New England", [-75.5, -66.5, 40.2, 47.5]),
+}
+REGION_ALL = {**REGIONS, **CASE_REGIONS}
+MASTER = [-117.0, -49.0, 32.5, 55.0]             # union of the regions + margin: everything is cropped to this first
 PRODUCTS = {"ov": "Overview", "fg": "Frontogenesis and deformation", "epv": "EPV* and CSI", "dgz": "Lift in the DGZ",
             "bands": "The model's own bands", "ing": "Band ingredients", "radar": "Against NEXRAD"}
 LIVE_PRODUCTS = ["ov", "fg", "epv", "dgz", "bands", "ing"]
 CASES = {
-    "hrrr01:2020121613-2020121706": dict(region="ne", mark=(42.21, -75.98, "Binghamton"), about="binghamton",
+    "hrrr01:2020121613-2020121706": dict(region="sny", mark=(42.21, -75.98, "Binghamton"), about="binghamton",
                                          label="Binghamton band, 16–17 December 2020 (40.2 in), HRRR f01 each hour"),
-    "hrrr:2020121612": dict(region="ne", mark=(42.21, -75.98, "Binghamton"), about="binghamton",
+    "hrrr:2020121612": dict(region="sny", mark=(42.21, -75.98, "Binghamton"), about="binghamton",
                             label="Binghamton band, 16–17 December 2020 (40.2 in), the HRRR 12Z run of the 16th"),
-    "hrrr01:2022012906-2022012923": dict(region="nec", mark=(42.36, -71.06, "Boston"),
+    "hrrr01:2022012906-2022012923": dict(region="sne", mark=(42.36, -71.06, "Boston"),
                                          label="New England blizzard, 29 January 2022, HRRR f01 each hour"),
 }
 
@@ -228,7 +242,8 @@ def idx_entries(fetch, url):
 def spans(entries, wanted):
     """Contiguous runs of WANTED messages -> [(start, end, [(start, end, key)])]. Only adjacent wanted messages are
     merged, so nothing unwanted is downloaded (single-message ranges, fewer requests where the file allows)."""
-    sel = [(s, e, (v, l)) for s, e, v, l, _ in entries if (v, l) in wanted]
+    norm = lambda l: "entire atmosphere" if l.startswith("entire atmosphere") else l      # noqa: E731
+    sel = [(s, e, (v, norm(l))) for s, e, v, l, _ in entries if (v, norm(l)) in wanted]
     sel.sort()
     runs = []
     for s, e, key in sel:
@@ -288,12 +303,13 @@ def fetch_messages(fetch, url, wanted):
 FETCHERS = {}
 
 
-def fetcher(model):
-    if model not in FETCHERS:
-        FETCHERS[model] = {"hrrr": lambda: Fetcher("S3 HRRR", 16),
-                           "rrfs": lambda: Fetcher("NOMADS RRFS", 6, interval=1.0, throttle_host=True),
-                           "rdps": lambda: Fetcher("MSC Datamart", 8, interval=0.05)}[model]()
-    return FETCHERS[model]
+def fetcher(src):
+    host = {"hrrr": "hrrr", "rrfs3": "rrfs", "rrfs13": "rrfs", "rrfs": "rrfs", "rdps": "rdps"}[src]
+    if host not in FETCHERS:                      # the two RRFS grids share ONE NOMADS budget
+        FETCHERS[host] = {"hrrr": lambda: Fetcher("S3 HRRR", 16),
+                          "rrfs": lambda: Fetcher("NOMADS RRFS", 6, interval=1.1, throttle_host=True),   # < 60 requests/min
+                          "rdps": lambda: Fetcher("MSC Datamart", 8, interval=0.05)}[host]()
+    return FETCHERS[host]
 
 
 def hrrr_base(date, cyc):
@@ -304,25 +320,25 @@ def rrfs_base(date, cyc):
     return f"https://nomads.ncep.noaa.gov/pub/data/nccf/com/rrfs/v1.0/rrfs.{date}/{cyc:02d}/rrfs.t{cyc:02d}z"
 
 
+def rrfs_file(src, kind, lead):
+    """kind prslev|2dfld; rrfs3 = the 3 km CONUS grid, rrfs13 = the 13 km North American grid."""
+    return f"{kind}.3km.f{lead:03d}.conus.grib2" if src == "rrfs3" else f"{kind}.13km.f{lead:03d}.na.grib2"
+
+
 def rdps_url(date, cyc, lead, var, lev):
     return (f"https://dd.weather.gc.ca/{date}/WXO-DD/model_rdps/10km/{cyc:02d}/{lead:03d}/"
             f"{date}T{cyc:02d}Z_MSC_RDPS_{var}_{lev}_RLatLon0.09_PT{lead:03d}H.grib2")
 
 
-RL_RRFS = "entire atmosphere (considered as a single layer)"
-
-
-def read_surface(model, date, cyc, lead):
+def read_surface(src, date, cyc, lead):
     """The cheap part: (reflectivity or 1-h precip, snow mask 0/1, surface pressure Pa) + grid."""
-    f = fetcher(model)
-    if model == "hrrr":
-        raw, grid = fetch_messages(f, f"{hrrr_base(date, cyc)}.wrfsfcf{lead:02d}.grib2",
-                                   [("REFC", "entire atmosphere"), ("CSNOW", "surface"), ("PRES", "surface")])
-        return raw[("REFC", "entire atmosphere")], raw[("CSNOW", "surface")], raw[("PRES", "surface")], grid
-    if model == "rrfs":
-        raw, grid = fetch_messages(f, f"{rrfs_base(date, cyc)}.2dfld.3km.f{lead:03d}.conus.grib2",
-                                   [("REFC", RL_RRFS), ("CSNOW", "surface"), ("PRES", "surface")])
-        return raw[("REFC", RL_RRFS)], raw[("CSNOW", "surface")], raw[("PRES", "surface")], grid
+    f = fetcher(src)
+    want = [("REFC", "entire atmosphere"), ("CSNOW", "surface"), ("PRES", "surface")]
+    if src in ("hrrr", "rrfs3", "rrfs13"):
+        url = (f"{hrrr_base(date, cyc)}.wrfsfcf{lead:02d}.grib2" if src == "hrrr"
+               else f"{rrfs_base(date, cyc)}.{rrfs_file(src, '2dfld', lead)}")
+        raw, grid = fetch_messages(f, url, want)
+        return raw[want[0]], raw[want[1]], raw[want[2]], grid
     out, grid = {}, None
     for var, lev in (("PrecipType-Instant", "Sfc"), ("Precip-Accum1h", "Sfc"), ("Pressure", "Sfc")):
         buf = f.get(rdps_url(date, cyc, lead, var, lev))
@@ -333,23 +349,24 @@ def read_surface(model, date, cyc, lead):
     return out["Precip-Accum1h"], (np.round(out["PrecipType-Instant"]) == 5).astype("float32"), out["Pressure"], grid
 
 
-def read_levels(model, date, cyc, lead):
+def read_levels(src, date, cyc, lead):
     """T, u, v, omega, q on the pressure levels + z700 -> {name: [nlev, nj, ni]} and the level list (hPa)."""
-    f = fetcher(model)
-    if model in ("hrrr", "rrfs"):
-        wv = "VVEL" if model == "hrrr" else "DZDT"
-        wanted = [(v, f"{p} mb") for p in LEVS for v in ("TMP", "UGRD", "VGRD", wv, "SPFH")] + [("HGT", "700 mb")]
-        url = (f"{hrrr_base(date, cyc)}.wrfprsf{lead:02d}.grib2" if model == "hrrr"
-               else f"{rrfs_base(date, cyc)}.prslev.3km.f{lead:03d}.conus.grib2")
+    f = fetcher(src)
+    if src in ("hrrr", "rrfs3", "rrfs13"):
+        levs = LEVS if src == "hrrr" else LEVS_RRFS
+        wv = "VVEL" if src == "hrrr" else "DZDT"
+        wanted = [(v, f"{p} mb") for p in levs for v in ("TMP", "UGRD", "VGRD", wv, "SPFH")] + [("HGT", "700 mb")]
+        url = (f"{hrrr_base(date, cyc)}.wrfprsf{lead:02d}.grib2" if src == "hrrr"
+               else f"{rrfs_base(date, cyc)}.{rrfs_file(src, 'prslev', lead)}")
         raw, grid = fetch_messages(f, url, wanted)
-        st = lambda v: np.stack([raw[(v, f"{p} mb")] for p in LEVS])            # noqa: E731
+        st = lambda v: np.stack([raw[(v, f"{p} mb")] for p in levs])            # noqa: E731
         col = dict(T=st("TMP"), u=st("UGRD"), v=st("VGRD"), q=st("SPFH"), z700=raw[("HGT", "700 mb")])
         w = st(wv)
-        if model == "rrfs":                                                    # DZDT (m/s) -> omega (Pa/s)
-            p = np.array(LEVS, float)[:, None, None] * 100.0
+        if src != "hrrr":                                                      # DZDT (m/s) -> omega (Pa/s)
+            p = np.array(levs, float)[:, None, None] * 100.0
             w = -p / (RD * col["T"] * (1 + 0.608 * col["q"])) * G * w
         col["w"] = w
-        return col, list(LEVS), grid
+        return col, list(levs), grid
     names = [(v, p) for v in ("AirTemp", "WindU", "WindV", "SpecificHumidity") for p in LEVS_RDPS]
     names += [("VerticalVelocity", p) for p in (850, 700, 500)] + [("GeopotentialHeight", 700)]
 
@@ -553,13 +570,13 @@ def interp_p(a, p, x):
 
 
 # ── one lead: fetch, smooth, diagnose ───────────────────────────────────────────────────────────────────────────────
-def lead_fields(model, date, cyc, lead, sfc=None):
+def lead_fields(src, date, cyc, lead, sfc=None):
     """Everything the renderers need for one lead: 12 km diagnostics + native reflectivity/snow on MASTER."""
     if sfc is None:
-        sfc = read_surface(model, date, cyc, lead)
+        sfc = read_surface(src, date, cyc, lead)
     R, S, PS, g0 = sfc
-    col, levs, g = read_levels(model, date, cyc, lead)
-    gr = Grid(g, MODELS[model]["dx"])
+    col, levs, g = read_levels(src, date, cyc, lead)
+    gr = Grid(g, SRC_DX[src])
     u, v = gr.winds(col["u"], col["v"])
     sm = dict(T=gr.smooth12(col["T"]), q=gr.smooth12(col["q"]), w=gr.smooth12(col["w"]), z700=gr.smooth12(col["z700"]),
               u=_smooth_cropped(gr, u), v=_smooth_cropped(gr, v))
@@ -605,9 +622,10 @@ def newest_cycle(model, now=None):
                 f.get(f"{hrrr_base(date, cyc)}.wrfsfcf{last:02d}.grib2.idx", kind="idx")
             elif model == "rrfs":
                 # NOMADS answers a cycle directory that does not exist yet with 403, not 404 (checked 2026-09-27): while
-                # probing that means "not published", not throttling
-                f.get(f"{rrfs_base(date, cyc)}.prslev.3km.f{last:03d}.conus.grib2.idx", kind="idx", missing=(403, 404))
-                f.get(f"{rrfs_base(date, cyc)}.2dfld.3km.f{last:03d}.conus.grib2.idx", kind="idx", missing=(403, 404))
+                # probing that means "not published", not throttling. Both grids must be complete.
+                for src in SOURCES["rrfs"]:
+                    for kind in ("prslev", "2dfld"):
+                        f.get(f"{rrfs_base(date, cyc)}.{rrfs_file(src, kind, last)}.idx", kind="idx", missing=(403, 404))
             else:
                 f.get(rdps_url(date, cyc, last, "AirTemp", "IsbL-0450"))
             return date, cyc
@@ -616,24 +634,45 @@ def newest_cycle(model, now=None):
     return None
 
 
-def gate(model, date, cyc, regions_all):
-    """The cheap pre-check: max over leads of the fraction of each region with model snow and >= 20 dBZ (RDPS: >= 1 mm/h).
-    Returns ({region: fraction}, {lead: surface tuple}, covered regions)."""
-    sfc, frac, covered = {}, {}, None
+def assign_regions(model, date, cyc, lead0):
+    """region -> the first of the model's grids that covers >= COVER of it (HRRR: its CONUS grid; RRFS: 3 km CONUS, else
+    the 13 km North American grid; RDPS: everything). Returns the assignment, the first lead's surface fields per grid
+    that was read, and the coverage table."""
+    assign, first, cover = {}, {}, {}
+    for src in SOURCES[model]:
+        todo = [r for r in REGIONS if r not in assign]
+        if not todo:
+            break
+        sfc = read_surface(src, date, cyc, lead0)
+        gr = Grid(sfc[3], SRC_DX[src])
+        first[src] = sfc
+        for r in todo:
+            cv = gr.coverage(REGIONS[r][1])
+            cover[f"{src}:{r}"] = round(float(cv), 3)
+            if cv >= COVER:
+                assign[r] = src
+    return assign, first, cover
+
+
+def gate(model, date, cyc, assign, first, leads):
+    """The cheap pre-check over the WHOLE forecast: max over leads of the fraction of each region with model snow and
+    >= 20 dBZ (RDPS: >= 1 mm/h). Returns ({region: fraction}, {grid: {lead: surface tuple}})."""
     thr = GATE_MMH if model == "rdps" else GATE_DBZ
-    for lead in (ONLY_LEADS or MODELS[model]["leads"]):
-        R, S, PS, g = read_surface(model, date, cyc, lead)
-        sfc[lead] = (R, S, PS, g)
-        gr = Grid(g, MODELS[model]["dx"])
-        if covered is None:
-            covered = [r for r in regions_all if gr.coverage(REGIONS[r][1]) >= 0.97]
-        Rc, Sc = gr.crop(R), gr.crop(S)
-        hit = (Sc >= 0.5) & (Rc >= thr)
-        for r in covered:
-            lo0, lo1, la0, la1 = REGIONS[r][1]
-            m = (gr.lon >= lo0) & (gr.lon <= lo1) & (gr.lat >= la0) & (gr.lat <= la1)
-            frac[r] = max(frac.get(r, 0.0), float(hit[m].mean()))
-    return frac, sfc, covered
+    frac, sfc = {}, {}
+    for src in sorted(set(assign.values())):
+        regs = [r for r, x in assign.items() if x == src]
+        sfc[src] = {}
+        for lead in leads:
+            S_ = first[src] if lead == leads[0] and src in first else read_surface(src, date, cyc, lead)
+            sfc[src][lead] = S_
+            R, S, PS, g = S_
+            gr = Grid(g, SRC_DX[src])
+            hit = (gr.crop(S) >= 0.5) & (np.nan_to_num(gr.crop(R)) >= thr)
+            for r in regs:
+                lo0, lo1, la0, la1 = REGIONS[r][1]
+                m = (gr.lon >= lo0) & (gr.lon <= lo1) & (gr.lat >= la0) & (gr.lat <= la1)
+                frac[r] = max(frac.get(r, 0.0), float(hit[m].mean()) if m.any() else 0.0)
+    return frac, sfc
 
 
 # ── rendering ───────────────────────────────────────────────────────────────────────────────────────────────────────
@@ -652,7 +691,7 @@ def _features():
 
 def region_payload(L, region, extra=None):
     """Crop one lead's fields to a region (+ margin) - small enough to ship to a render worker."""
-    lo0, lo1, la0, la1 = REGIONS[region][1]
+    lo0, lo1, la0, la1 = REGION_ALL[region][1]
     mg = 1.2
 
     def box(lat, lon):
@@ -852,7 +891,7 @@ def figure(prod, P, meta, out):
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
-    ext = REGIONS[meta["region"]][1]
+    ext = REGION_ALL[meta["region"]][1]
     c = Ctx(P, ext, meta.get("marks", []), meta["model_label"])
     r = _aspect(ext, c.proj)
     init, lead = meta["init"], meta["lead"]
@@ -901,10 +940,10 @@ def figure(prod, P, meta, out):
             fig.text(pos.x0 + pos.width / 2, pos.y0 - fy(0.2), lab, ha="center", va="center", fontsize=8.6, color="#333")
     when = f"init {init:%Y-%m-%d %HZ} · f{lead:02d} valid {valid:%a %d %b %Y %HZ}"
     if multi:
-        fig.suptitle(f"{meta['model_label']} {LONG[prod]} · {when} · {REGIONS[meta['region']][0]}", fontsize=14,
+        fig.suptitle(f"{meta['model_label']} {LONG[prod]} · {when} · {REGION_ALL[meta['region']][0]}", fontsize=14,
                      fontweight="bold", y=1 - fy(0.07), va="top")
     else:
-        fig.suptitle(f"{meta['model_label']} {LONG[prod]} · {REGIONS[meta['region']][0]}", fontsize=13.5, fontweight="bold",
+        fig.suptitle(f"{meta['model_label']} {LONG[prod]} · {REGION_ALL[meta['region']][0]}", fontsize=13.5, fontweight="bold",
                      y=1 - fy(0.06), va="top")
         fig.text(0.5, 1 - fy(0.40), when, ha="center", va="top", fontsize=11, fontweight="bold", color="#222")
     import textwrap
@@ -986,13 +1025,16 @@ def run_model(model, site: Path, status, force, procs, publish, prune):
     t0 = time.time()
     f = fetcher(model)
     r0, b0 = f.nreq, f.nbytes
-    frac, sfc, covered = gate(model, date, cyc, list(REGIONS))
+    leads = [x for x in MODELS[model]["leads"] if not ONLY_LEADS or x in ONLY_LEADS]
+    assign, first, cover = assign_regions(model, date, cyc, leads[0])
+    covered = [r for r in REGIONS if r in assign]
+    frac, sfc = gate(model, date, cyc, assign, first, leads)
     todo = covered if force else [r for r in covered if frac.get(r, 0.0) >= GATE_FRAC]
     if ONLY_REGIONS:
         todo = [r for r in todo if r in ONLY_REGIONS]
-    st.update(cycle=cycle, checked=now.strftime("%Y-%m-%dT%H:%MZ"), regions=covered,
-              gate={r: round(frac.get(r, 0.0), 4) for r in covered}, forced=bool(force))
-    print(f"{model} {cycle}: gate {st['gate']} -> {todo or 'nothing'}", flush=True)
+    st.update(cycle=cycle, checked=now.strftime("%Y-%m-%dT%H:%MZ"), regions=covered, sources={r: assign[r] for r in covered},
+              coverage=cover, gate={r: round(frac.get(r, 0.0), 4) for r in covered}, forced=bool(force))
+    print(f"{model} {cycle}: grids {st['sources']}; gate {st['gate']} -> {todo or 'nothing'}", flush=True)
     old_dirs = set(old.get("regions", {}))
     if not todo:
         st.update(state="nosnow", rendered=[], note="", seconds=round(time.time() - t0),
@@ -1002,7 +1044,10 @@ def run_model(model, site: Path, status, force, procs, publish, prune):
         mf.write_text(json.dumps({"ver": int(time.time()), "selectorLabel": "Region", "regions": {}}))
         return
     init = dt.datetime.strptime(cycle, "%Y%m%d%H")
-    leads = [x for x in MODELS[model]["leads"] if x in sfc]
+    need = sorted({assign[r] for r in todo})
+    for src in list(sfc):                              # surface fields of grids no region needs: free them now
+        if src not in need:
+            del sfc[src]
     tmpdirs = {}
     for r in todo:
         for p in LIVE_PRODUCTS:
@@ -1014,13 +1059,13 @@ def run_model(model, site: Path, status, force, procs, publish, prune):
     frames = {k: [] for k in tmpdirs}
     for i, lead in enumerate(leads):
         tl = time.time()
-        L = lead_fields(model, date, cyc, lead, sfc=sfc.pop(lead))
+        Ls = {src: lead_fields(src, date, cyc, lead, sfc=sfc[src].pop(lead)) for src in need}
         valid = init + dt.timedelta(hours=lead)
         tasks = []
         for r in todo:
-            meta = dict(model_label=MODELS[model]["label"], init=init, lead=lead, region=r, file=f"F{i:02d}.webp",
+            meta = dict(model_label=SRC_LABEL[assign[r]], init=init, lead=lead, region=r, file=f"F{i:02d}.webp",
                         test_label=TEST_LABEL[0] if force else "")
-            tasks.append((region_payload(L, r), meta, LIVE_PRODUCTS, {p: str(tmpdirs[(p, r)]) for p in LIVE_PRODUCTS}))
+            tasks.append((region_payload(Ls[assign[r]], r), meta, LIVE_PRODUCTS, {p: str(tmpdirs[(p, r)]) for p in LIVE_PRODUCTS}))
             for p in LIVE_PRODUCTS:
                 frames[(p, r)].append({"idx": i, "file": f"F{i:02d}.webp", "date": valid.strftime("%Y-%m-%d"),
                                        "label": f"f{lead:02d} · {valid:%a %d %b %HZ}"})
@@ -1028,7 +1073,7 @@ def run_model(model, site: Path, status, force, procs, publish, prune):
         print(f"  {model} f{lead:02d}: {time.time() - tl:.0f} s ({len(tasks) * len(LIVE_PRODUCTS)} frames)", flush=True)
     regions = {}
     for (p, r), fr in frames.items():
-        regions[f"{model}_{p}_{r}"] = {"label": f"{MODELS[model]['label']} {PRODUCTS[p]} · {REGIONS[r][0]}", "frames": fr}
+        regions[f"{model}_{p}_{r}"] = {"label": f"{SRC_LABEL[assign[r]]} {PRODUCTS[p]} · {REGIONS[r][0]}", "frames": fr}
     mf.write_text(json.dumps({"ver": int(time.time()), "selectorLabel": "Region", "regions": regions}))
     publish.extend(f"assets/snowband/anim/{d}" for d in sorted(regions))
     prune.extend(f"assets/snowband/anim/{d}" for d in sorted(old_dirs - set(regions)))
@@ -1100,7 +1145,7 @@ def cmd_case(a):
     spec = a.spec
     info = CASES.get(spec.split("@")[0], {})
     region = a.region or (spec.split("@")[1] if "@" in spec else info.get("region", "ne"))
-    if region not in REGIONS:
+    if region not in REGION_ALL:
         raise SystemExit(f"unknown region {region}")
     m = re.match(r"^(hrrr01|hrrr):(\d{10})(?:-(\d{10}))?(?:@([a-z]+))?$", spec)
     if not m:
@@ -1130,7 +1175,7 @@ def cmd_case(a):
     for i, (init, lead) in enumerate(steps):
         L = lead_fields("hrrr", init.strftime("%Y%m%d"), init.hour, lead)
         valid = init + dt.timedelta(hours=lead)
-        nx = nexrad(valid, REGIONS[region][1])
+        nx = nexrad(valid, REGION_ALL[region][1])
         meta = dict(model_label="HRRR", init=init, lead=lead, region=region, file=f"F{i:02d}.webp", marks=marks)
         tasks.append((region_payload(L, region, {"nexrad": nx}), meta, prods, {p: str(dirs[p]) for p in prods}))
         for p in prods:
@@ -1188,4 +1233,10 @@ def main() -> int:
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    rc = main()
+    # Leave without interpreter teardown: on the runner a library destructor (eccodes / GEOS under cartopy) aborted with
+    # "double free or corruption" AFTER all the work was written (exit 134, 2026-09-27), which failed the step and kept
+    # a finished render from being published. Everything this script produces is already on disk here.
+    sys.stdout.flush()
+    sys.stderr.flush()
+    os._exit(rc or 0)

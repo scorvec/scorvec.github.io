@@ -145,7 +145,7 @@
   &minus;12 to &minus;18&nbsp;&deg;C layer. Bottom right: the model&rsquo;s own precipitation and type.</p>
 <p><b>How it is computed.</b> Every field is smoothed with a Gaussian filter (&sigma;&nbsp;=&nbsp;18&nbsp;km) on the
   model&rsquo;s own grid before any derivative, and the diagnostics are evaluated on a 12&nbsp;km grid (10&nbsp;km for
-  RDPS). Frontogenesis and EPV are second-order in the wind and temperature; on a raw 3&nbsp;km grid they are dominated by
+  RDPS, 13&nbsp;km for the RRFS&rsquo;s North American run). Frontogenesis and EPV are second-order in the wind and temperature; on a raw 3&nbsp;km grid they are dominated by
   convective-scale noise, and the band-forcing circulation lives at the scale the smoothing keeps. Derivatives are taken
   on the native grid with grid-relative winds and the true grid spacing. Levels within 25&nbsp;hPa of the ground are
   masked (700&nbsp;hPa is underground over the Rockies).</p>
@@ -156,9 +156,15 @@
   (850, 700, 500 and 250&nbsp;hPa), so its dendritic-zone lift is interpolated from three; it publishes no reflectivity,
   so its own bands are shown as 1-hour precipitation. The HRRR&rsquo;s analysis hour carries no usable vertical motion,
   so its loops start at f01.</p>
-<p><b>When it runs.</b> 1&nbsp;November to 15&nbsp;April. HRRR 00, 06, 12 and 18Z to 24&nbsp;hours; RRFS and RDPS 00
-  and 12Z to 48&nbsp;hours; every 3&nbsp;hours of forecast. A cheap check comes first: only regions where the model has
-  snow at 20&nbsp;dBZ or more (RDPS: 1&nbsp;mm/h) over at least 2&nbsp;% of their area at some hour are drawn.</p>
+<p><b>When it runs, and where.</b> 1&nbsp;November to 15&nbsp;April, every model to the end of its forecast, every
+  3&nbsp;hours: the HRRR&rsquo;s 00, 06, 12 and 18Z runs to 48&nbsp;hours, the RRFS to 84&nbsp;hours and the RDPS to
+  84&nbsp;hours, each time the newest full-length run. A cheap check over the whole forecast comes first: a region is drawn
+  only if the model has snow at 20&nbsp;dBZ or more (RDPS: 1&nbsp;mm/h) over at least 2&nbsp;% of it at some hour. Five
+  regions: <b>Northeast and Mid-Atlantic</b> (Virginia to Maine), <b>Atlantic Canada</b>, <b>Ontario and Quebec</b>,
+  the <b>Midwest</b> (the Great Lakes to the central Plains) and the <b>Rockies</b> (the Wasatch to the High Plains). A
+  model is offered for a region only where its grid covers at least 80&nbsp;% of it: the HRRR covers every region but
+  Atlantic Canada (it reaches under a third of it); the RRFS&rsquo;s 3&nbsp;km grid covers the same four, and its
+  13&nbsp;km North American run fills in Atlantic Canada; the RDPS covers all five.</p>
 <p class="chart-sources">NOAA/NCEP HRRR (AWS, byte-ranged) &middot; NOAA/NCEP RRFS v1.0 (NOMADS) &middot; ECCC RDPS 10&nbsp;km (MSC Datamart) &middot; Nicosia, D. J., and R. H. Grumm, 1999, Wea. Forecasting 14, 346&ndash;368 &middot; Novak, D. R., L. F. Bosart, D. Keyser and J. S. Waldstreicher, 2004, Wea. Forecasting 19, 993&ndash;1010</p>
 </template>
 <template id="about-fg">
@@ -254,11 +260,9 @@
 (function () {
   "use strict";
   var MODELS = { hrrr: "HRRR", rrfs: "RRFS", rdps: "RDPS" };
-  var MODEL_ITEMS = [["hrrr", "HRRR · 3 km, 24 h"], ["rrfs", "RRFS · 3 km, 48 h"], ["rdps", "RDPS · 10 km, 48 h"]];
-  var REGIONS = { ne: "Interior Northeast", nec: "New England and coast", ma: "Mid-Atlantic", gl: "Great Lakes",
-    mw: "Upper Midwest", pl: "Central Plains", fr: "Front Range and High Plains", on: "Southern Ontario and Quebec" };
-  var DEFAULT_REGIONS = { hrrr: ["ne", "nec", "ma", "gl", "mw", "pl", "fr"], rrfs: ["ne", "nec", "ma", "gl", "mw", "pl", "fr"],
-    rdps: ["ne", "nec", "ma", "gl", "mw", "pl", "fr", "on"] };
+  var MODEL_ITEMS = [["hrrr", "HRRR · 3 km, 48 h"], ["rrfs", "RRFS · 3 km, 84 h"], ["rdps", "RDPS · 10 km, 84 h"]];
+  var REGIONS = { nema: "Northeast and Mid-Atlantic", atl: "Atlantic Canada", onq: "Ontario and Quebec", mw: "Midwest", rk: "Rockies" };
+  var DEFAULT_REGIONS = { hrrr: ["nema", "onq", "mw", "rk"], rrfs: ["nema", "atl", "onq", "mw", "rk"], rdps: ["nema", "atl", "onq", "mw", "rk"] };
   var ST = null;
   var DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"], MON = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
   function cyc(c) {   // "2026092712" -> "12Z Sun 27 Sep"
@@ -344,8 +348,9 @@
       about: "about-" + p,
       cap: function (a, b) {
         var md = ST && ST.models && ST.models[a];
+        var grid = md && md.sources && md.sources[b] === "rrfs13" ? " RRFS 3 km does not cover this region, so this is its 13 km North American run." : "";
         var run = md && md.state === "rendered" ? " " + MODELS[a] + " " + cyc(md.cycle) + " run, " + (md.leads || []).join(" ").replace(/^(\S+).* (\S+)$/, "$1 to $2") + " every 3 hours." : "";
-        return CAP[p] + run;
+        return CAP[p] + run + grid;
       }
     };
   }

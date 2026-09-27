@@ -56,7 +56,7 @@ concurrency:
 jobs:
   snowband:
     runs-on: ubuntu-latest
-    timeout-minutes: 100
+    timeout-minutes: 150      # a forced run of all three models to their full ranges: ~70 min (RRFS ~40 of it, NOMADS-paced)
     steps:
       - uses: actions/checkout@v7
         with:
