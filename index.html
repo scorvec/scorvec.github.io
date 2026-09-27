@@ -646,7 +646,9 @@
       }
       let mmm = null;
       if (F && F.models) {
-        const models = Object.values(F.models), nL = F.valid_months.length;
+        // DWD GCFS2 and BoM ACCESS-S2 are left out, as on the ENSO forecasts page (site owner's decision 2026-09-27)
+        const EXCL = /^(DWD|BoM)\b/;
+        const models = Object.entries(F.models).filter(([k]) => !EXCL.test(k)).map(([, v]) => v), nL = F.valid_months.length;
         mmm = [...Array(nL).keys()].map(l => models.reduce((a, m) => a + m.n34[l].reduce((x, y) => x + y, 0) / m.n34[l].length, 0) / models.length);
         let best = -1;
         for (let l = 0; l + 2 < nL; l++) { const v = (mmm[l] + mmm[l + 1] + mmm[l + 2]) / 3; if (best < 0 || v > (mmm[best] + mmm[best + 1] + mmm[best + 2]) / 3) best = l; }
