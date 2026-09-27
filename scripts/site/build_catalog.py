@@ -96,8 +96,8 @@ PAGES = {
     # single-figure / app pages: one entry each (label and description from the chrome's PRODUCTS table)
     "/mjo.html": dict(kind="page", topic="drivers", tier=0, prio=2, models=["AIFS-ENS"], horizon="Days 1–15", region=["Tropics"],
                       thumb_manifest=("assets/mjo", "rmm_manifest.json", "mjo", "last"), variable=["Convection"]),
-    "/ar.html": dict(kind="page", topic="weather", tier=0, prio=6, models=["AIFS-ENS"], horizon="Days 1–15",
-                     region=["North America", "Pacific"], thumb="assets/ar/ar_now.webp", variable=["Moisture transport"]),
+    "/ar.html": dict(kind="stage", file="ar.html", topic="weather", title="Atmospheric rivers", tier=0, prio=6,
+                     models=["AIFS-ENS"], horizon="Days 1–15", region=["North America", "Pacific"]),
     "/ecape.html": dict(kind="page", topic="weather", tier=0, prio=7, models=["HRRR"], horizon="Days 1–15", region=["North America"],
                         thumb_ecape=True, variable=["Instability"]),
     # "/cities/" paused 2026-09-27 (city forecasts turned off); restore from git history
