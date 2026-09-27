@@ -66,7 +66,7 @@ IMPACTS_REF = Path("scripts/mjo/data/reference/mjo_impacts_site.json")
 
 
 def impacts_section():
-    """'MJO impacts by phase and month' (2026-09-27): CMIP6 and observed composites drawn by
+    """'MJO impacts by phase and season' (2026-09-27): CMIP6 and observed composites drawn by
     scripts/mjo/src/mjo_impacts_render.py (mjo-impacts.yml) from the committed reference. Empty until it exists.
     CMIP6 leads (user, 2026-09-27: "the MJO composites should come from the CMIP6 runs"); the observed record is the
     comparison, and the "compare" view stacks the two all-phase strips of the same field / month / lag."""
@@ -103,22 +103,43 @@ def impacts_section():
         ("z500_nh", "500 hPa height · Northern Hemisphere")])
     n_mod = len(m.get("models", []))
     n_mem = sum(len(v) for v in m.get("members", {}).values())
-    months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October",
-              "November", "December"]
-    opts_m = "".join(f'<option value="{i + 1:02d}">{n}</option>' for i, n in enumerate(months))
+    per = m.get("periods", [])
+    ismon = lambda k: k[:1] == "m" and k[1:].isdigit()                     # noqa: E731
+    seas = [(k, "Nov&ndash;Mar (NDJFM)" if k == "ndjfm" else lab) for k, lab in per if not ismon(k)]
+    mons = [(k, lab) for k, lab in per if ismon(k)]
+    opts_m = (f'<optgroup label="Seasons">{"".join(f"<option value={k!r}>{lab}</option>" for k, lab in seas)}</optgroup>'
+              + (f'<optgroup label="Single months (a third of the sample)">'
+                 f'{"".join(f"<option value={k!r}>{lab}</option>" for k, lab in mons)}</optgroup>' if mons else ""))
+    lw = m.get("lag_windows", {"0": [-2, 2], "10": [8, 12]})
+    sg = lambda v: f"+{v}" if v > 0 else (f"&minus;{-v}" if v < 0 else "0")   # noqa: E731
+    ag = m.get("tests", {}).get("agree", 0.8)
+    agree = "two-thirds" if abs(ag - 2 / 3) < 0.01 else f"{100 * ag:.0f}&nbsp;%"
+    ff = m.get("field_filter", {}); kn = ff.get("knots", {})
+    dchk = ""
+    dc = m.get("detrendcheck", {})
+    if dc:
+        v1 = [r["v1"]["var_frac_gt120d"] for r in dc.values()]; fin = [r["final"]["var_frac_gt120d"] for r in dc.values()]
+        z = [abs(r["final"].get(f"{s_}_trend_per_decade", 0.0)) / max(r["final"].get(f"{s_}_trend_se", 1e-9), 1e-9)
+             for r in dc.values() for s_ in ("DJF", "JJA") if f"{s_}_trend_se" in r["final"]]
+        dchk = (f" Check on {len(dc)} test series (central US and Alaska temperature, Colombia and south-east Brazil "
+                f"rain, Arctic 500&nbsp;hPa height; observed and three models): the share of variance at periods over "
+                f"120&nbsp;days falls from {100 * min(v1):.0f}&ndash;{100 * max(v1):.0f}&nbsp;% to at most "
+                f"{100 * max(fin):.1f}&nbsp;%, and the trends of the DJF and JJA seasonal means are within about two "
+                f"standard errors of zero ({sum(v > 2 for v in z)} of {len(z)} beyond two, largest {max(z):.1f}, as chance "
+                f"allows).")
     return f"""
   <section class="mi" id="mjo-impacts">
-  <h2>MJO impacts by phase and month: {n_mod} CMIP6 models ({n_mem} members, 1979&ndash;2014), with the observed record for comparison</h2>
-  <p class="lede lede--wide">What each MJO phase does to temperature, rainfall and the 500&nbsp;hPa flow, month by
-  month, in {n_mod} CMIP6 models whose MJO passes a realism screen: a cell is coloured only where the models agree
-  (significant across models and at least 80&nbsp;% on the same sign). The observed record (1979&ndash;2024) is there
-  for comparison; &ldquo;CMIP6 above observed&rdquo; stacks the two for the same field, month and lag. Blank means no
-  significant signal.</p>
+  <h2>MJO impacts by phase and season: {n_mod} CMIP6 models ({n_mem} members, 1979&ndash;2014), with the observed record for comparison</h2>
+  <p class="lede lede--wide">What each MJO phase does to temperature, rainfall and the 500&nbsp;hPa flow, season by
+  season, in {n_mod} CMIP6 models whose MJO passes a realism screen: a cell is coloured only where the models agree
+  (significant across models and at least {agree} on the same sign). The observed record (1979&ndash;2024) is there
+  for comparison; &ldquo;CMIP6 above observed&rdquo; stacks the two for the same field, season and lag. ENSO and the
+  forced trend are removed from the index and from the fields. Blank means no significant signal.</p>
   <div class="mi-ctl">
     <label>Field <select id="mi-f">{opts_f}</select></label>
     <label>Data <select id="mi-d"><option value="cmip6">CMIP6 ({n_mod} models)</option><option value="obs">Observed (for comparison)</option></select></label>
-    <label>Month <select id="mi-m">{opts_m}</select></label>
-    <label>Lag <select id="mi-l"><option value="10">10 days after the phase</option><option value="0">Same day</option></select></label>
+    <label>Season <select id="mi-m">{opts_m}</select></label>
+    <label>Lag <select id="mi-l"><option value="10">Days {sg(lw['10'][0])} to {sg(lw['10'][1])} after the phase</option><option value="0">Same days ({sg(lw['0'][0])} to {sg(lw['0'][1])})</option></select></label>
     <label>View <select id="mi-v"><option value="strip">All eight phases</option><option value="loop">One phase at a time</option><option value="compare">CMIP6 above observed (all phases)</option></select></label>
   </div>
   <iframe class="anim-embed mi-embed" id="mi-frame" title="MJO impact composites" loading="lazy"></iframe>
@@ -131,11 +152,24 @@ def impacts_section():
   20&ndash;100&nbsp;days and renormalised.</b> BoM removes the ENSO signal only up to 2013; after that a strong El
   Ni&ntilde;o&rsquo;s standing pattern projects on RMM as slow &ldquo;phase 6&ndash;8&rdquo; days (DJF 2015/16 was
   &ldquo;active&rdquo; on 89&nbsp;% of days), and the CMIP6 index would carry the same artefact. A linear Ni&ntilde;o-3.4
-  regression removed almost none of it, so the band-pass is used for both datasets alike.{ens} A day counts when the
-  amplitude is at least 1; the
-  composite is the mean anomaly on the same day or 10&nbsp;days later, over those days in the chosen month and its two
-  neighbours (a centred three-month window, so &ldquo;January&rdquo; uses December&ndash;February days: it triples the
-  observed sample). Anomalies are from each dataset&rsquo;s own seasonal cycle and linear trend.{val}</p>
+  regression removed almost none of it, so the band-pass is used for both datasets alike.{ens}{val}</p>
+  <p><b>Impact fields</b> (2&nbsp;m temperature, precipitation, 500&nbsp;hPa height), per grid cell and per dataset, in
+  three steps. (1) A seasonal cycle that is allowed to change: the mean and three annual harmonics, each with a
+  coefficient that varies smoothly in time (a natural cubic spline with knots about every {ff.get('knot_years', 12)}
+  years: 4 over the 36 model years, {kn.get('tas_na', 5)} over ERA5 1979&ndash;2024, {kn.get('pr_na', 3)} over GPCP
+  1997&ndash;2024), so, for example, the Arctic&rsquo;s faster winter warming is not left in the anomalies. (2) The same
+  regression&rsquo;s time-varying mean is the forced trend, smooth and nonlinear rather than a straight line. A model
+  with two members is fitted on both together, that is on its ensemble mean, so the forced part is the model&rsquo;s and
+  not one member&rsquo;s decade of weather; the daily ensemble mean is not subtracted, because with two members it holds
+  half of each member&rsquo;s own MJO. (3) A high-pass at {ff.get('highpass_days', 120)}&nbsp;days: every Fourier
+  component with a longer period is removed from what is left, which takes out ENSO and the rest of the interannual
+  variability the same way the index filter does; the first and last {ff.get('edge_days_dropped', 60)} days of each
+  record are dropped. (A 121-day running mean was tried first and left too much: a running mean cuts off gradually and
+  still passes 78&nbsp;% of a 150-day and 17&nbsp;% of a one-year oscillation.){dchk}</p>
+  <p><b>Composites.</b> A day counts when the MJO amplitude is at least 1. For every such day in the chosen season (DJF,
+  MAM, JJA, SON, or November&ndash;March for a larger winter sample; single months have a third of the sample) the
+  anomaly is averaged over days {sg(lw['0'][0])} to {sg(lw['0'][1])} (&ldquo;same days&rdquo;) or {sg(lw['10'][0])}
+  to {sg(lw['10'][1])} after it, and the composite is the mean over those days.</p>
   <p><b>Model screen</b> (fixed before looking at any composite): east/west power ratio of 10&deg;S&ndash;10&deg;N rain
   (wavenumbers 1&ndash;3, 30&ndash;96&nbsp;days, November&ndash;April) &ge;&nbsp;{m.get('thresholds', {}).get('ew', 2.0)}
   and eastward propagation (lag-regression pattern against GPCP) r&nbsp;&ge;&nbsp;{m.get('thresholds', {}).get('prop_r', 0.8)};
@@ -144,9 +178,10 @@ def impacts_section():
   Failed: {', '.join(row(r) for r in failed) or 'none'}. {m.get('members_note', '')}</p>
   <p><b>Tests.</b> CMIP6: each model&rsquo;s composite (members pooled; at least 30 active days), across-model
   one-sample t-test with a Benjamini&ndash;Hochberg false-discovery rate of 10&nbsp;% over the map, and at least
-  80&nbsp;% of the models agreeing on the sign. Observed: an MJO passage lasts days and daily anomalies are
-  correlated, so the unit is the event (a run of consecutive active days in one phase): an event-block bootstrap of the
-  composite, the same 10&nbsp;% false-discovery rate, and only phase-months with at least 8 events are tested.</p>
+  {agree} of the models agreeing on the sign. Observed: an MJO passage lasts days and daily anomalies are
+  correlated, so the unit is the event (a run of consecutive active days in one phase), resampled with the whole lag
+  window of every one of its days: an event-block bootstrap (2,000 resamples), the same 10&nbsp;% false-discovery rate,
+  and only phase-seasons with at least 8 events are tested.</p>
   <p class="chart-sources">CMIP6 historical daily fields via the Pangeo cloud archive (anonymous GCS) &middot; ERA5
   2&nbsp;m temperature and 500&nbsp;hPa height (Copernicus C3S, 1979&ndash;2024) &middot; GPCP 1DD v1.3 daily
   precipitation (NOAA NCEI CDR, 1997&ndash;2024) &middot; RMM index: Australian Bureau of Meteorology &middot;
@@ -157,8 +192,8 @@ def impacts_section():
   (function () {{
     var ids = ["mi-f", "mi-d", "mi-m", "mi-l", "mi-v"], el = {{}};
     ids.forEach(function (k) {{ el[k] = document.getElementById(k); }});
-    // default = #mi/tas_na/cmip6/01/10/strip; a hash value that is not an option is ignored
-    var def = ["tas_na", "cmip6", "01", "10", "strip"];
+    // default = #mi/tas_na/cmip6/djf/10/strip; a hash value that is not an option is ignored
+    var def = ["tas_na", "cmip6", "djf", "10", "strip"];
     var h = (location.hash.indexOf("#mi/") === 0) ? location.hash.slice(4).split("/") : [];
     ids.forEach(function (k, i) {{
       var v = h[i], ok = v && [].some.call(el[k].options, function (o) {{ return o.value === v; }});
@@ -171,7 +206,7 @@ def impacts_section():
     }}
     function go(push) {{
       var f = el["mi-f"].value, d = el["mi-d"].value, mo = el["mi-m"].value, l = ("0" + el["mi-l"].value).slice(-2);
-      var v = el["mi-v"].value, stem = "mi_" + f + "_", tail = "_m" + mo + "_l" + l;
+      var v = el["mi-v"].value, stem = "mi_" + f + "_", tail = "_" + mo + "_l" + l;
       el["mi-d"].disabled = (v === "compare");
       if (v === "compare") {{
         fr1.src = src(stem + "cmip6" + tail + "_s"); fr2.src = src(stem + "obs" + tail + "_s"); fr2.hidden = false;
