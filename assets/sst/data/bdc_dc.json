@@ -1,11 +1,11 @@
 {
- "cycle": "20260926_00",
- "made": "2026-09-27T06:42Z",
+ "cycle": "20260927_00",
+ "made": "2026-09-27T11:30Z",
  "units": "1e9 kg/s",
  "method": "downward control: psi* = -(2 pi a cos phi / g) * int_top^p (div F / (a cos phi) + X) / fhat dp",
  "gwd_source": {
   "analysis": "GEOS FP assim tavg3_3d_udt_Nv DUDTGWD, calendar-day mean of 4 windows",
-  "forecast": "mean of the last 5 analysis days (5 on file), held fixed"
+  "forecast": "mean of the last 5 analysis days (4 on file), held fixed"
  },
  "climatology": {
   "source": "MERRA-2 GMI replay (merra2_gmi inst3_3d_met_Np + tavg24_3d_dad_Np), 00Z every 10th day",
@@ -90,15 +90,15 @@
    "analysis_mean": 5.27,
    "merra2_normal_same_days": 5.44,
    "share_inside_merra2_10_90": 0.68,
-   "forecast_day0": 8.21,
-   "analysis_same_day": 8.14,
+   "forecast_day0": 6.77,
+   "analysis_same_day": null,
    "merra2_q10_q50_q90_day0": [
-    1.61,
-    5.61,
-    11.07
+    1.65,
+    5.66,
+    11.11
    ],
-   "forecast_d1_10_mean": 6.47,
-   "merra2_normal_d1_10": 6.32,
+   "forecast_d1_10_mean": 7.99,
+   "merra2_normal_d1_10": 6.37,
    "ep_part_mean": 4.95,
    "gw_part_mean": 0.32,
    "ana_increment_would_add": 0.99
@@ -108,15 +108,15 @@
    "analysis_mean": 8.17,
    "merra2_normal_same_days": 8.2,
    "share_inside_merra2_10_90": 0.75,
-   "forecast_day0": 11.56,
-   "analysis_same_day": 11.48,
+   "forecast_day0": 10.63,
+   "analysis_same_day": null,
    "merra2_q10_q50_q90_day0": [
-    4.29,
-    8.35,
-    14.88
+    4.36,
+    8.41,
+    14.93
    ],
-   "forecast_d1_10_mean": 8.78,
-   "merra2_normal_d1_10": 9.34,
+   "forecast_d1_10_mean": 10.83,
+   "merra2_normal_d1_10": 9.4,
    "ep_part_mean": 7.59,
    "gw_part_mean": 0.58,
    "ana_increment_would_add": 1.59
@@ -934,71 +934,71 @@
   }
  },
  "forecast": {
-  "2026-09-26": {
-   "F70": 8.21,
-   "F70_ep": 7.71,
-   "F70_gw": 0.5,
-   "F100": 11.56
-  },
   "2026-09-27": {
-   "F70": 7.39,
-   "F70_ep": 6.88,
-   "F70_gw": 0.5,
-   "F100": 10.22
+   "F70": 6.77,
+   "F70_ep": 6.23,
+   "F70_gw": 0.54,
+   "F100": 10.63
   },
   "2026-09-28": {
-   "F70": 10.85,
-   "F70_ep": 10.33,
-   "F70_gw": 0.52,
-   "F100": 8.44
+   "F70": 11.24,
+   "F70_ep": 10.69,
+   "F70_gw": 0.54,
+   "F100": 8.66
   },
   "2026-09-29": {
-   "F70": 12.29,
-   "F70_ep": 11.78,
-   "F70_gw": 0.51,
-   "F100": 14.39
+   "F70": 13.56,
+   "F70_ep": 13.01,
+   "F70_gw": 0.54,
+   "F100": 15.49
   },
   "2026-09-30": {
-   "F70": 6.36,
-   "F70_ep": 5.86,
-   "F70_gw": 0.5,
-   "F100": 11.3
+   "F70": 5.38,
+   "F70_ep": 4.85,
+   "F70_gw": 0.53,
+   "F100": 10.13
   },
   "2026-10-01": {
-   "F70": 1.92,
-   "F70_ep": 1.42,
-   "F70_gw": 0.5,
-   "F100": 4.95
+   "F70": -0.32,
+   "F70_ep": -0.84,
+   "F70_gw": 0.52,
+   "F100": 1.9
   },
   "2026-10-02": {
-   "F70": -1.36,
-   "F70_ep": -1.86,
-   "F70_gw": 0.5,
-   "F100": -0.27
+   "F70": 1.01,
+   "F70_ep": 0.48,
+   "F70_gw": 0.53,
+   "F100": 1.94
   },
   "2026-10-03": {
-   "F70": 2.84,
-   "F70_ep": 2.35,
-   "F70_gw": 0.49,
-   "F100": 5.27
+   "F70": 6.54,
+   "F70_ep": 6.01,
+   "F70_gw": 0.52,
+   "F100": 9.67
   },
   "2026-10-04": {
-   "F70": 1.43,
-   "F70_ep": 0.94,
-   "F70_gw": 0.49,
-   "F100": 4.93
+   "F70": 3.42,
+   "F70_ep": 2.9,
+   "F70_gw": 0.52,
+   "F100": 9.24
   },
   "2026-10-05": {
-   "F70": 9.22,
-   "F70_ep": 8.72,
-   "F70_gw": 0.5,
-   "F100": 12.22
+   "F70": 9.34,
+   "F70_ep": 8.82,
+   "F70_gw": 0.52,
+   "F100": 11.71
   },
   "2026-10-06": {
-   "F70": 13.74,
-   "F70_ep": 13.25,
-   "F70_gw": 0.49,
-   "F100": 16.35
+   "F70": 17.86,
+   "F70_ep": 17.35,
+   "F70_gw": 0.51,
+   "F100": 20.55
+  },
+  "2026-10-07": {
+   "F70": 11.92,
+   "F70_ep": 11.39,
+   "F70_gw": 0.53,
+   "F100": 18.97
   }
  },
  "series_30d": {
@@ -1543,21 +1543,21 @@
     "p90": 7.44
    },
    "2026-09-27": {
-    "geosfp_30d": 7.48,
+    "geosfp_30d": 7.46,
     "forecast": true,
     "normal": 6.12,
     "p10": 4.75,
     "p90": 7.48
    },
    "2026-09-28": {
-    "geosfp_30d": 7.73,
+    "geosfp_30d": 7.72,
     "forecast": true,
     "normal": 6.16,
     "p10": 4.8,
     "p90": 7.52
    },
    "2026-09-29": {
-    "geosfp_30d": 8.08,
+    "geosfp_30d": 8.12,
     "forecast": true,
     "normal": 6.21,
     "p10": 4.84,
@@ -1571,46 +1571,53 @@
     "p90": 7.62
    },
    "2026-10-01": {
-    "geosfp_30d": 8.22,
+    "geosfp_30d": 8.14,
     "forecast": true,
     "normal": 6.3,
     "p10": 4.94,
     "p90": 7.66
    },
    "2026-10-02": {
-    "geosfp_30d": 7.81,
+    "geosfp_30d": 7.82,
     "forecast": true,
     "normal": 6.35,
     "p10": 4.98,
     "p90": 7.71
    },
    "2026-10-03": {
-    "geosfp_30d": 7.48,
+    "geosfp_30d": 7.61,
     "forecast": true,
     "normal": 6.39,
     "p10": 5.03,
     "p90": 7.75
    },
    "2026-10-04": {
-    "geosfp_30d": 7.25,
+    "geosfp_30d": 7.45,
     "forecast": true,
     "normal": 6.44,
     "p10": 5.08,
     "p90": 7.8
    },
    "2026-10-05": {
-    "geosfp_30d": 7.41,
+    "geosfp_30d": 7.61,
     "forecast": true,
     "normal": 6.49,
     "p10": 5.13,
     "p90": 7.85
    },
    "2026-10-06": {
-    "geosfp_30d": 7.72,
+    "geosfp_30d": 8.06,
     "forecast": true,
     "normal": 6.54,
     "p10": 5.18,
     "p90": 7.9
+   },
+   "2026-10-07": {
+    "geosfp_30d": 8.32,
+    "forecast": true,
+    "normal": 6.59,
+    "p10": 5.23,
+    "p90": 7.94
    }
   },
   "F100": {
@@ -2154,76 +2161,83 @@
     "p90": 10.64
    },
    "2026-09-27": {
-    "geosfp_30d": 9.58,
+    "geosfp_30d": 9.6,
     "forecast": true,
     "normal": 9.07,
     "p10": 7.43,
     "p90": 10.7
    },
    "2026-09-28": {
-    "geosfp_30d": 9.7,
+    "geosfp_30d": 9.73,
     "forecast": true,
     "normal": 9.13,
     "p10": 7.5,
     "p90": 10.76
    },
    "2026-09-29": {
-    "geosfp_30d": 10.07,
+    "geosfp_30d": 10.13,
     "forecast": true,
     "normal": 9.19,
     "p10": 7.56,
     "p90": 10.82
    },
    "2026-09-30": {
-    "geosfp_30d": 10.43,
+    "geosfp_30d": 10.45,
     "forecast": true,
     "normal": 9.25,
     "p10": 7.62,
     "p90": 10.88
    },
    "2026-10-01": {
-    "geosfp_30d": 10.43,
+    "geosfp_30d": 10.35,
     "forecast": true,
     "normal": 9.31,
     "p10": 7.69,
     "p90": 10.94
    },
    "2026-10-02": {
-    "geosfp_30d": 10.06,
+    "geosfp_30d": 10.05,
     "forecast": true,
     "normal": 9.37,
     "p10": 7.75,
     "p90": 10.99
    },
    "2026-10-03": {
-    "geosfp_30d": 9.69,
+    "geosfp_30d": 9.83,
     "forecast": true,
     "normal": 9.43,
     "p10": 7.81,
     "p90": 11.05
    },
    "2026-10-04": {
-    "geosfp_30d": 9.49,
+    "geosfp_30d": 9.77,
     "forecast": true,
     "normal": 9.49,
     "p10": 7.87,
     "p90": 11.11
    },
    "2026-10-05": {
-    "geosfp_30d": 9.66,
+    "geosfp_30d": 9.92,
     "forecast": true,
     "normal": 9.55,
     "p10": 7.94,
     "p90": 11.17
    },
    "2026-10-06": {
-    "geosfp_30d": 9.98,
+    "geosfp_30d": 10.38,
     "forecast": true,
     "normal": 9.61,
     "p10": 8.0,
     "p90": 11.23
+   },
+   "2026-10-07": {
+    "geosfp_30d": 10.81,
+    "forecast": true,
+    "normal": 9.68,
+    "p10": 8.06,
+    "p90": 11.29
    }
   }
  },
- "runtime_s": 107
+ "runtime_s": 253
 }
