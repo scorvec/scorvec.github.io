@@ -46,9 +46,16 @@ cycle through the shared ECMWF store, Google mirror), plus the control at step 0
 Opened with dask one step at a time so the 25-member mean never holds more than
 one step's members in memory.
 
+IFS-ENS (2026-09-27, user: "We also add in the ifs-ens for all strat products"): --model ifs draws the mean of ALL 50
+IFS-ENS perturbed members from the shared IFS-ENS u/v file (ifs_ens.py: 10 and 100 hPa, 12-hourly, Google Cloud mirror
+only) into vortex_ifs_10/ and vortex_ifs_100/, same scales. Open data has no IFS control at pressure levels, so its
+analysis frame is the IFS HRES step 0, the analysis the ensemble starts from. No still for IFS: the page shows the loop.
+
 Usage:
-  python vortex_winds.py --date 20260829 --time 12 --out assets/sst/vortex_winds.webp
-  python vortex_winds.py --step 120        # a forecast hour rather than analysis
+  python vortex_winds.py --date 20260829 --time 12 --out-dir assets/sst --anim-dir assets/sst/anim \
+      --manifest assets/sst/anim/vortex_winds_manifest.json
+  python vortex_winds.py --model ifs --date 20260927 --time 00 --anim-dir assets/sst/anim \
+      --manifest assets/sst/anim/vortex_winds_ifs_manifest.json
 """
 from __future__ import annotations
 
@@ -184,6 +191,32 @@ def fetch(date: str, time: str, members: int = MEMBERS):
     return out, source
 
 
+def fetch_ifs(date: str, time: str):
+    """IFS-ENS: u and v at both levels, every 12 h step, the forecast steps as the mean of ALL 50 perturbed members
+    (the shared IFS-ENS file) and step 0 from the IFS HRES analysis (no ensemble control on open data)."""
+    import ifs_ens as IE
+    if not IE.published(date, time):
+        raise SystemExit(f"IFS-ENS {date} {time}Z is not on the Google mirror yet")
+    cyc = IE.E.Cycle(date, time)
+    uv = IE.ensure(cyc, IE.spec_uv())
+    ana = IE.hres_analysis(cyc, ("u", "v"), LEVELS)
+    out = {}
+    for lev in LEVELS:
+        pair = []
+        for sh in ("u", "v"):
+            a = _with_step(_mean_field(ana, sh, lev), 0)
+            f = _mean_field(uv, sh, lev)
+            f = f.isel(step=np.flatnonzero(IE.step_hours(f) > 0))
+            f = f.drop_vars([c for c in f.coords if c not in ("step", "latitude", "longitude")])
+            pair.append(xr.concat([a, f], dim="step"))
+        out[lev] = tuple(pair)
+    return out, f"ensemble mean of {IE.MEMBERS} members"
+
+
+MODEL = {"aifs": "AIFS-ENS", "ifs": "IFS-ENS"}
+PREFIX = {"aifs": "vortex", "ifs": "vortex_ifs"}          # frame directories / manifest regions
+
+
 def circular_boundary(ax):
     """Clip a polar panel to a circle.
 
@@ -270,7 +303,7 @@ def panel(ax, u, v, lev, hemi):
     return cf
 
 
-def render(uv, lev, date, time, step_h, out_path: Path, source: str = "control"):
+def render(uv, lev, date, time, step_h, out_path: Path, source: str = "control", model: str = "aifs"):
     """ONE level, both hemispheres, side by side.
 
     Unstacked for the same reason wave1_maps was: 10 and 100 hPa shared a 2x2
@@ -299,9 +332,12 @@ def render(uv, lev, date, time, step_h, out_path: Path, source: str = "control")
     tag = f"F{step_h:03d}" if step_h else "analysis"
     fig.suptitle(f"Stratospheric vortex winds — {lev} hPa",
                  fontsize=15, fontweight="bold", x=0.02, ha="left", y=0.975)
-    what = "control (the analysis)" if step_h == 0 else source
+    if step_h == 0 and model == "ifs":
+        what = "ECMWF IFS HRES analysis, the state IFS-ENS starts from (open data has no IFS-ENS control)"
+    else:
+        what = f"ECMWF {MODEL[model]} " + ("control (the analysis)" if step_h == 0 else source)
     fig.text(0.02, 0.925,
-             f"ECMWF AIFS-ENS {what} · {date[:4]}-{date[4:6]}-{date[6:]} {time}Z {tag} · "
+             f"{what} · {date[:4]}-{date[4:6]}-{date[6:]} {time}Z {tag} · "
              f"valid {valid:%a %d %b %HZ}\n"
              f"{'speed' if step_h == 0 else 'speed of the mean wind'} shaded, "
              f"{'streamlines' if step_h == 0 else 'its streamlines'} over · red: u = 0 (vortex edge) · "
@@ -320,7 +356,7 @@ def render(uv, lev, date, time, step_h, out_path: Path, source: str = "control")
     return out_path
 
 
-def build_loop(full, date, time, anim_root: Path, manifest: Path, source: str = "control") -> int:
+def build_loop(full, date, time, anim_root: Path, manifest: Path, source: str = "control", model: str = "aifs") -> int:
     """One frame per 12 h step PER LEVEL, and a manifest with a level selector.
 
     anim_root is the animation ROOT (assets/sst/anim); this writes
@@ -330,7 +366,7 @@ def build_loop(full, date, time, anim_root: Path, manifest: Path, source: str = 
     init = pd.Timestamp(f"{date}T{time}:00")
     regions = {}
     for lev in LEVELS:
-        d = anim_root / f"vortex_{lev}"
+        d = anim_root / f"{PREFIX[model]}_{lev}"
         d.mkdir(parents=True, exist_ok=True)
         for old in d.glob("F*.webp"):
             old.unlink()
@@ -338,18 +374,18 @@ def build_loop(full, date, time, anim_root: Path, manifest: Path, source: str = 
         for i, step_h in enumerate(STEPS_12H):
             u, v = full[lev]
             render((at_step(u, step_h), at_step(v, step_h)), lev, date, time,
-                   step_h, d / f"F{i:02d}.webp", source)
+                   step_h, d / f"F{i:02d}.webp", source, model)
             valid = init + pd.Timedelta(hours=step_h)
             frames.append({"idx": i, "file": f"F{i:02d}.webp",
                            "date": f"{valid:%Y-%m-%d}",
                            "label": f"F{step_h:03d} · valid {valid:%a %d %b %HZ}"})
             print(f"    {lev} hPa  F{step_h:03d}", flush=True)
-        regions[f"vortex_{lev}"] = {
-            "label": f"Vortex winds — {lev} hPa, both hemispheres, ensemble mean",
+        regions[f"{PREFIX[model]}_{lev}"] = {
+            "label": f"Vortex winds — {lev} hPa, both hemispheres, {MODEL[model]} ensemble mean",
             "n_frames": len(frames), "frames": frames}
         print(f"  {lev} hPa: {len(frames)} frames -> {d}")
     man = {"ver": f"{date}{time}", "days": len(STEPS_12H),
-           "selectorLabel": "Level", "default": "vortex_10",
+           "selectorLabel": "Level", "default": f"{PREFIX[model]}_10",
            "regions": regions}
     manifest.parent.mkdir(parents=True, exist_ok=True)
     manifest.write_text(json.dumps(man))
@@ -366,8 +402,14 @@ def main(argv=None) -> int:
                     help="the still is written here as vortex_10.webp")
     ap.add_argument("--anim-dir", help="frames ROOT; vortex_10/ and vortex_100/ go under it")
     ap.add_argument("--manifest", help="animator manifest path")
+    ap.add_argument("--model", choices=("aifs", "ifs"), default="aifs")
     a = ap.parse_args(argv)
 
+    if a.model == "ifs":
+        if not (a.anim_dir and a.manifest):
+            ap.error("--model ifs needs --anim-dir and --manifest (the loop is the IFS product; there is no still)")
+        full, source = fetch_ifs(a.date, a.time)
+        return build_loop(full, a.date, a.time, Path(a.anim_dir), Path(a.manifest), source, "ifs")
     full, source = fetch(a.date, a.time)
     # ONE still, at STILL_LEVEL - the loop carries both levels as regions and
     # the animator switches between them, so a second still would just be an

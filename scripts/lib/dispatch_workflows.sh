@@ -75,6 +75,10 @@ ecape.yml|13:20|-f publish=true
 ecape.yml|19:20|-f publish=true
 strat.yml|07:35|-f publish=true
 strat.yml|19:35|-f publish=true
+# IFS-ENS stratosphere products + nh_vortex (strat-ifs.yml, 2026-09-27): IFS-ENS day 15 reaches the Google mirror
+# ~08:50Z / 20:55Z, so these run 90 min after the AIFS slots; the cycle job waits up to 45 min more if it is late.
+strat-ifs.yml|09:05|-f publish=true
+strat-ifs.yml|21:05|-f publish=true
 gdps-charts.yml|06:20|-f cycle=00
 gdps-charts.yml|18:20|-f cycle=12
 soi-hourly.yml|*:12|

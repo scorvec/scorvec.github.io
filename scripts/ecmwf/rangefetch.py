@@ -23,6 +23,7 @@ from __future__ import annotations
 import argparse
 import io
 import json
+import os
 import time
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
@@ -43,8 +44,14 @@ MIRRORS = {
     "google": "https://storage.googleapis.com/ecmwf-open-data",
 }
 TIMEOUT = (10, 90)          # (connect, read) — nothing hangs for hours, ever
-MAX_GAP = 3 * 1024 * 1024   # merge ranges separated by < 3 MB
-WORKERS = 16                # empirical single-IP ceiling ~32; leave headroom
+# merge ranges separated by < 3 MB. ECMWF_RANGE_GAP_MB overrides it for a job that
+# reads IFS-ENS `-enfo-ef` files: their ~8,500 messages per step are in arrival
+# order, so a 50-member selection is a scatter of 0.3-0.7 MB messages and a 3 MB
+# gap fetches ~2x the wanted bytes (measured 2026-09-27: gh at 11 levels, 222 MB
+# wanted, 440 MB on the wire); at 0.5 MB the waste is ~1 %.
+MAX_GAP = int(float(os.environ.get("ECMWF_RANGE_GAP_MB", "3")) * 1024 * 1024)
+WORKERS = int(os.environ.get("ECMWF_RANGE_WORKERS", "16"))
+                            # empirical single-IP ceiling ~32; leave headroom
                             # for OTHER processes sharing this IP (pipeline,
                             # benchmarks). Adaptive: throttle responses shrink
                             # effective concurrency for the rest of the batch.

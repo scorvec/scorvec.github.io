@@ -134,6 +134,7 @@ scripts/strat/*
 !scripts/strat/age_of_air.py
 !scripts/strat/fetch_mls_h2o.py
 !scripts/strat/tape_recorder.py
+!scripts/strat/ifs_ens.py
 # The MERRA-2 reference cache (282 KB) that replaces the 690 MB laptop-only
 # archive for nh_vortex on a runner. The directory itself must be re-included
 # first - git will not descend into an excluded directory to find the file.

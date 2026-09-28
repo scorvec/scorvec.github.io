@@ -21,6 +21,10 @@ Model drift - never shown as signal:
   AIFS-ENS no reforecast exists, so the control's cap forecasts from recent 00Z cycles are verified against the GEOS FP
            analyses (plus the GEOS FP - MERRA-2 offset) and the mean error per level and lead is removed
            (--measure-aifs-drift -> reference/aifs_capdrift.json).
+  IFS-ENS  no open reforecast either (ECMWF's are not open data), and no control at pressure levels on open data, so
+           the same verification is made with the mean of all 50 perturbed members over the same cycles
+           (--measure-drift ifs -> reference/ifs_capdrift.json). 50 members, 0.25 deg, day 15, from the shared
+           IFS-ENS file (ifs_ens.py, Google Cloud mirror only).
   At any level without a measured drift, only the model's offset from GEOS FP at the analysis and day 1 is removed and
   the level is HATCHED. The 1000 hPa cap needs that offset most: models extrapolate heights below ground where GEOS FP
   and MERRA-2 leave those points out (in summer whole rows near the pole are underground and the observed 1000 hPa cap
@@ -31,6 +35,8 @@ negative AO) and the share of members with the 100 hPa cap >= +1 sd.
     python forecast_drip.py --model geps --date 20260924 --out-dir assets/geps
     python forecast_drip.py --model gefs --date 20260926 --out-dir assets/gefs
     python forecast_drip.py --model aifs --date 20260927 --time 00 --out-dir assets/sst
+    python forecast_drip.py --model ifs --date 20260927 --time 00 --out-dir assets/sst
+    python forecast_drip.py --measure-drift ifs          # laptop, once: -> reference/ifs_capdrift.json
 """
 from __future__ import annotations
 
@@ -186,6 +192,41 @@ def aifs(date: str, time: str, members: int = 10):
     return np.concatenate(parts, axis=0), steps
 
 
+def _caps_members(path, short: str, levs, scale: float = 1.0):
+    """(member, step, level) 65-90N cap heights from one multi-member, multi-level GRIB, one level at a time."""
+    import xarray as xr
+    arr = None
+    steps = None
+    for ki, lev in enumerate(levs):
+        ds = xr.open_dataset(path, engine="cfgrib", backend_kwargs=dict(
+            filter_by_keys={"shortName": short, "level": int(lev)}, indexpath=""))
+        z = ds[short] if short in ds else ds[list(ds.data_vars)[0]]
+        z = z.expand_dims("number") if "number" not in z.dims else z
+        z = z.expand_dims("step") if "step" not in z.dims else z
+        z = z.sel(latitude=z.latitude[z.latitude >= 65])
+        lat = z.latitude.values
+        w = np.cos(np.deg2rad(lat))
+        cap = ((z.mean("longitude") * xr.DataArray(w, dims="latitude", coords={"latitude": lat})).sum("latitude")
+               / w.sum() * scale).transpose("number", "step").values
+        if arr is None:
+            steps = (z.step.values / np.timedelta64(1, "h")).astype(int)
+            arr = np.full((cap.shape[0], cap.shape[1], len(levs)), np.nan)
+        arr[:, :, ki] = cap
+        ds.close()
+    return arr, steps
+
+
+def ifs(date: str, time: str):
+    """(member, lead, level) cap heights for all 50 IFS-ENS perturbed members (no control exists at pressure levels
+    on open data), daily 0..360 h, from the shared IFS-ENS gh file (ifs_ens.py; gh is already geopotential metres)."""
+    import ifs_ens as IE
+    if not IE.published(date, time):
+        raise SystemExit(f"IFS-ENS {date} {time}Z is not on the Google mirror yet")
+    path = IE.ensure(IE.E.Cycle(date, time), IE.spec_gh())
+    C, steps = _caps_members(path, "gh", [int(x) for x in LEVELS])
+    return C, [int(s) for s in steps]
+
+
 # ----------------------------------------------------------------------------------------------------------- drift
 def drift_geps(init: pd.Timestamp, leads, halfwin=8):
     """{level: drift array over leads} and the list of levels corrected; lead 0 takes the day-1 value."""
@@ -240,36 +281,55 @@ def drift_gefs(init: pd.Timestamp, leads, ref: Ref):
 
 
 AIFS_DRIFT = HERE / "reference" / "aifs_capdrift.json"
+IFS_DRIFT = HERE / "reference" / "ifs_capdrift.json"
+DRIFT_FILE = {"aifs": AIFS_DRIFT, "ifs": IFS_DRIFT}
 
 
 def measure_aifs_drift(history: Path, cycles: int = 25, every: int = 3, steps=(0, 72, 168, 240, 360)) -> int:
-    """No AIFS reforecast exists, so measure its drift on recent cycles: the CONTROL's cap forecast at each step minus
-    the GEOS FP analysis cap at the valid date (both raw), averaged over past 00Z cycles whose day 15 has verified.
-    Adding the GEOS FP - MERRA-2 offset puts it on the MERRA-2 scale like the other models' drifts.
-    -> reference/aifs_capdrift.json"""
+    return measure_drift("aifs", history, cycles, every, steps)
+
+
+def measure_drift(model: str, history: Path, cycles: int = 25, every: int = 3, steps=(0, 72, 168, 240, 360)) -> int:
+    """No reforecast exists for AIFS-ENS, nor an open one for IFS-ENS, so measure the drift on recent cycles: the cap
+    forecast at each step minus the GEOS FP analysis cap at the valid date (both raw), averaged over past 00Z cycles
+    whose day 15 has verified. Adding the GEOS FP - MERRA-2 offset puts it on the MERRA-2 scale like the other models'
+    drifts.
+      aifs  the CONTROL                                  -> reference/aifs_capdrift.json
+      ifs   the mean of all 50 perturbed members (open data has no IFS control at pressure levels; the member mean's
+            error has the same expectation as any member's)  -> reference/ifs_capdrift.json
+    The IFS cycle files (~1.1 GB each) are deleted as soon as they are reduced."""
     sys.path.insert(0, str(REPO / "scripts" / "ecmwf"))
     import store as E
-    import xarray as xr
     H = FP.load_history(history)
     last = H.index.max() - pd.Timedelta(days=15)
     inits = [d for d in pd.date_range(H.index.min(), last, freq=f"{every}D")][-cycles:]
     rows = {s: [] for s in steps}
+    levs = tuple(int(x) for x in LEVELS)
     for d in inits:
+        cyc = E.Cycle(f"{d:%Y%m%d}", "00")
         try:
-            path = E.ensure(E.Cycle(f"{d:%Y%m%d}", "00"), E.Spec("aifs-ens", "cf", "z", "pl", tuple(int(x) for x in LEVELS), tuple(steps)))
+            if model == "ifs":
+                import ifs_ens as IE
+                spec = E.Spec("ifs", "pf", "gh", "pl", levs, tuple(steps))
+                path = IE.ensure(cyc, spec)
+                C, _ = _caps_members(path, "gh", levs)
+                cap_ls = np.nanmean(C, axis=0).T                                  # (level, step): member mean
+                path.unlink(missing_ok=True); path.with_suffix(path.suffix + ".json").unlink(missing_ok=True)
+            else:
+                path = E.ensure(cyc, E.Spec("aifs-ens", "cf", "z", "pl", levs, tuple(steps)))
+                C, _ = _caps_members(path, "z", levs, 1.0 / G)
+                cap_ls = C[0].T
         except Exception as e:                                                   # noqa: BLE001
             print(f"  {d:%Y-%m-%d}: {str(e)[:60]}"); continue
-        for lev in LEVELS:
-            ds = xr.open_dataset(path, engine="cfgrib", backend_kwargs=dict(filter_by_keys={"shortName": "z", "level": int(lev)}, indexpath=""))
-            z = ds["z"].sel(latitude=ds.latitude[ds.latitude >= 65]) / G
-            w = np.cos(np.deg2rad(z.latitude.values))
-            cap = (z.mean("longitude").values * w).sum(-1) / w.sum()
+        for ki, lev in enumerate(LEVELS):
             for si, s_ in enumerate(steps):
                 v = d + pd.Timedelta(hours=s_)
                 if v in H.index and np.isfinite(H.loc[v, lev]):
-                    rows[s_].append((lev, float(cap[si] - H.loc[v, lev] + FP.offset_at(pd.DatetimeIndex([v]))[0, LEVELS.index(lev)])))
+                    rows[s_].append((lev, float(cap_ls[ki, si] - H.loc[v, lev] + FP.offset_at(pd.DatetimeIndex([v]))[0, LEVELS.index(lev)])))
         print(f"  {d:%Y-%m-%d} done", flush=True)
-    out = {"method": "AIFS-ENS control cap height minus GEOS FP analysis cap at the valid date, plus the GEOS FP - MERRA-2 "
+    what = ("AIFS-ENS control" if model == "aifs"
+            else "IFS-ENS mean of the 50 perturbed members (open data has no IFS control at pressure levels)")
+    out = {"method": f"{what}: cap height minus GEOS FP analysis cap at the valid date, plus the GEOS FP - MERRA-2 "
                      "offset (so on the MERRA-2 scale); mean over past 00Z cycles", "cycles": [f"{d:%Y-%m-%d}" for d in inits],
            "step_h": list(steps), "levels": {}}
     for lev in LEVELS:
@@ -280,16 +340,19 @@ def measure_aifs_drift(history: Path, cycles: int = 25, every: int = 3, steps=(0
             se.append(round(float(v.std(ddof=1) / np.sqrt(len(v))), 1) if len(v) > 2 else None)
         out["levels"][str(lev)] = {"drift": m, "se": se, "n": int(len([x for L, x in rows[steps[-1]] if L == lev]))}
         print(f"  {lev:6.0f} hPa: " + "  ".join(f"+{s_//24}d {mm:+.0f}±{ss:.0f}" for s_, mm, ss in zip(steps, m, se) if mm is not None and ss is not None))
-    AIFS_DRIFT.write_text(json.dumps(out, indent=1))
+    DRIFT_FILE[model].write_text(json.dumps(out, indent=1))
     return 0
 
 
-def drift_aifs(init, leads, ref, tail_z_raw):
-    """Measured drift (measure_aifs_drift): applied at a level only where it is significant at some lead (|mean| >
-    2 se); interpolated linearly in lead between the measured steps."""
-    if not AIFS_DRIFT.exists():
-        return {}, "no AIFS drift measurement (uncorrected)"
-    j = json.loads(AIFS_DRIFT.read_text())
+def drift_aifs(init, leads, ref, tail_z_raw, model: str = "aifs"):
+    """Measured drift (measure_drift): applied at a level only where it is significant at some lead (|mean| >
+    2 se); interpolated linearly in lead between the measured steps. Levels where it is not significant are left
+    uncorrected and hatched."""
+    f = DRIFT_FILE[model]
+    name = {"aifs": "AIFS", "ifs": "IFS-ENS"}[model]
+    if not f.exists():
+        return {}, f"no {name} drift measurement (uncorrected)"
+    j = json.loads(f.read_text())
     st = np.array(j["step_h"], float)
     out = {}
     for lev in LEVELS:
@@ -300,11 +363,12 @@ def drift_aifs(init, leads, ref, tail_z_raw):
         if not (np.abs(m) > 2 * se).any():
             continue
         out[lev] = np.interp(np.array(leads, float), st, m)
-    return out, f"AIFS control vs GEOS FP analyses, {len(j['cycles'])} cycles {j['cycles'][0]}..{j['cycles'][-1]}"
+    who = "AIFS control" if model == "aifs" else "IFS-ENS 50-member mean"
+    return out, f"{who} vs GEOS FP analyses, {len(j['cycles'])} cycles {j['cycles'][0]}..{j['cycles'][-1]}"
 
 
 # ---------------------------------------------------------------------------------------------------------- figure
-def render(model, init, leads, Zf, corrected, tail_days, Zt, frac100, out: Path, note: str, nmem: int):
+def render(model, init, leads, Zf, corrected, tail_days, Zt, frac100, out: Path, note: str, nmem: int, hour: str = "00"):
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
@@ -314,8 +378,8 @@ def render(model, init, leads, Zf, corrected, tail_days, Zt, frac100, out: Path,
     Z = np.vstack([Zt, np.nanmean(Zf, 0)])                                     # (time, level)
     p = np.array(LEVELS)
     fig = plt.figure(figsize=(13.4, 8.9), dpi=120)
-    name = {"geps": "GEPS", "gefs": "GEFS", "aifs": "AIFS-ENS"}[model]
-    fig.text(0.07, 0.975, f"{name} · dripping paint: polar-cap height, observed and forecast, init {init:%d %b %Y} 00Z",
+    name = {"geps": "GEPS", "gefs": "GEFS", "aifs": "AIFS-ENS", "ifs": "IFS-ENS"}[model]
+    fig.text(0.07, 0.975, f"{name} · dripping paint: polar-cap height, observed and forecast, init {init:%d %b %Y} {hour}Z",
              ha="left", va="top", fontsize=15, fontweight="bold", color=INK)
     fig.text(0.07, 0.935, f"Standardised 65–90°N geopotential height (MERRA-2 1980–2026 scale, as the history drips). Left of "
              f"the line: GEOS FP analyses (offset to MERRA-2 removed). Right: ensemble mean of {nmem} members, model drift "
@@ -368,7 +432,8 @@ def render(model, init, leads, Zf, corrected, tail_days, Zt, frac100, out: Path,
             a.spines[s].set_visible(False)
     fig.text(0.07, 0.012, "Sources: " + {"geps": "ECCC GEPS (MSC Datamart); drift: ECMWF S2S GEPS reforecasts (non-commercial research licence)",
                                          "gefs": "NOAA GEFS (AWS Open Data); drift: GEFS v2 reforecast climatology",
-                                         "aifs": "ECMWF AIFS-ENS open data (CC BY 4.0)"}[model]
+                                         "aifs": "ECMWF AIFS-ENS open data (CC BY 4.0)",
+                                         "ifs": "ECMWF IFS-ENS open data (CC BY 4.0), 50 perturbed members, 0.25°, Google Cloud mirror"}[model]
              + " · GEOS FP (NASA GMAO) · MERRA-2 scale (NASA GMAO)", fontsize=8.2, color=MUTED)
     out.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(out, dpi=120, facecolor="white", pil_kwargs={"quality": 88, "method": 6})
@@ -384,16 +449,19 @@ def _js(a, nd):
 
 def main() -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--model", required=True, choices=("geps", "gefs", "aifs"))
-    ap.add_argument("--date", required=True); ap.add_argument("--time", default="00")
-    ap.add_argument("--out-dir", required=True)
+    ap.add_argument("--model", choices=("geps", "gefs", "aifs", "ifs"))
+    ap.add_argument("--date"); ap.add_argument("--time", default="00")
+    ap.add_argument("--out-dir")
     ap.add_argument("--history", default=str(REPO / "assets" / "sst" / "data" / "geosfp_cap_history.json"))
     ap.add_argument("--cache", help="npz of the reduced member caps (reused if present)")
     ap.add_argument("--fetch-only", action="store_true")
     ap.add_argument("--measure-aifs-drift", action="store_true")
+    ap.add_argument("--measure-drift", choices=("aifs", "ifs"))
     a = ap.parse_args()
-    if a.measure_aifs_drift:
-        return measure_aifs_drift(Path(a.history))
+    if a.measure_aifs_drift or a.measure_drift:
+        return measure_drift(a.measure_drift or "aifs", Path(a.history))
+    if not a.model or not a.date or not a.out_dir:
+        ap.error("--model, --date and --out-dir are required")
     init = pd.Timestamp(f"{a.date[:4]}-{a.date[4:6]}-{a.date[6:8]}")
     ref = Ref()
     cache = Path(a.cache) if a.cache else None
@@ -401,14 +469,15 @@ def main() -> int:
         z = np.load(cache); C, leads = z["C"], [int(x) for x in z["leads"]]
     else:
         C, leads = {"geps": lambda: geps(a.date), "gefs": lambda: gefs(a.date),
-                    "aifs": lambda: aifs(a.date, a.time)}[a.model]()
+                    "aifs": lambda: aifs(a.date, a.time), "ifs": lambda: ifs(a.date, a.time)}[a.model]()
         if cache:
             np.savez_compressed(cache, C=C, leads=np.array(leads))
     if a.fetch_only:
         print(f"  fetched {C.shape} -> {cache}")
         return 0
     dr, note = {"geps": lambda: drift_geps(init, leads), "gefs": lambda: drift_gefs(init, leads, ref),
-                "aifs": lambda: drift_aifs(init, leads, ref, None)}[a.model]()
+                "aifs": lambda: drift_aifs(init, leads, ref, None),
+                "ifs": lambda: drift_aifs(init, leads, ref, None, "ifs")}[a.model]()
     C = C[np.isfinite(C[:, 1:, :]).all(axis=(1, 2))]
     # observed tail first: it also measures each model's ANALYSIS offset from GEOS FP (hence from MERRA-2), which is
     # removed at the levels whose drift has not been measured. The 1000 hPa cap is the case that needs it: models
@@ -447,9 +516,10 @@ def main() -> int:
     Zt = np.column_stack([(raw[:, k] - ref.mean(H.index, L)) / ref.sd(H.index, L) for k, L in enumerate(LEVELS)])
     frac100 = np.nanmean(Zf[:, :, LEVELS.index(100.0)] >= 1.0, 0)
     corrected = set(dr) - set(offsets)
-    name = {"geps": "GEPS", "gefs": "GEFS", "aifs": "AIFS-ENS"}[a.model]
+    name = {"geps": "GEPS", "gefs": "GEFS", "aifs": "AIFS-ENS", "ifs": "IFS-ENS"}[a.model]
     out = Path(a.out_dir); out = out if out.is_absolute() else REPO / out
-    render(a.model, init, leads_f, Zf, corrected, H.index, Zt, frac100, out / f"{a.model}_drip.webp", note, C.shape[0])
+    render(a.model, init, leads_f, Zf, corrected, H.index, Zt, frac100, out / f"{a.model}_drip.webp", note, C.shape[0],
+           hour=f"{int(a.time):02d}")
     mean = np.nanmean(Zf, 0)
     doc = {"model": name, "init": f"{init:%Y-%m-%d} {a.time}Z", "members": int(C.shape[0]), "levels": LEVELS,
            "corrected_levels": sorted(corrected), "drift_source": note,

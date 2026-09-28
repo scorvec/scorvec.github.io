@@ -12,16 +12,29 @@ assets/sst/anim/epflux/F##.webp (+ epflux_manifest.json)
     frames, matplotlib re-renders any frame Julia drops.
     assets/strat/epflux.webp is a copy of the analysis frame.
 
+assets/sst/anim/epflux_ifs/F##.webp (+ epflux_ifs_manifest.json), --model ifs
+    The same loop from ALL 50 IFS-ENS perturbed members (2026-09-27, user: "We also add in the ifs-ens for all strat
+    products"). u, v and t at the 14 levels are ~1.4 GB a step for 50 members, ~23 GB a cycle, so they are NOT
+    cached: each step is byte-ranged from the Google Cloud mirror (rangefetch, under the shared request budget),
+    decoded in memory, reduced to the per-member quadratics and dropped, a few steps in parallel. Open data has no
+    IFS control at pressure levels, so step 0 is the members' initial states. Runs in strat-ifs.yml.
+
+Fixed 2026-09-27: _band13 filtered along axis 1, which for the (member, lat, lon) blocks of the ensemble version is
+LATITUDE, not longitude - so the "k = 1-3 eddies" were meridional modes 1-3 of the whole field, zonal mean included,
+and a flow with no eddies at all produced a large u'v' and v'theta'. It now filters the last (longitude) axis.
+
 Removed 2026-08-30: the QBO strip loop (assets/sst/anim/qbo_strip/) and the
 wave_channel section. The strip rendered 16 frames and a manifest every cycle
 but no page ever referenced it, and wave_channel had already lost its code -
 only the docstring still advertised it.
 
     python scripts/strat/qbo_duct.py
+    python scripts/strat/qbo_duct.py --model ifs --date 20260927 --time 00
 """
 from __future__ import annotations
 import glob
 import json
+import os
 import shutil
 import sys
 import time
@@ -75,11 +88,23 @@ def latest_cycle():
 
 
 def _band13(f):
-    """Zonal wavenumbers 1..KMAX of f(lat, lon)."""
-    F = np.fft.rfft(f, axis=1)
-    F[:, 0] = 0.0
-    F[:, KMAX + 1:] = 0.0
-    return np.fft.irfft(F, n=f.shape[1], axis=1)
+    """Zonal wavenumbers 1..KMAX of f(..., lat, lon): the LAST axis is longitude, whatever leads it (a member axis in
+    the ensemble blocks). It was axis=1 until 2026-09-27, which on (member, lat, lon) is latitude."""
+    F = np.fft.rfft(f, axis=-1)
+    F[..., 0] = 0.0
+    F[..., KMAX + 1:] = 0.0
+    return np.fft.irfft(F, n=f.shape[-1], axis=-1)
+
+
+def _quadratics(u, v, t, lev):
+    """Per-member eddy quadratics for one (level, step), members averaged: [n, [u'v'], [v'th'], [th], [u]] by lat."""
+    th = t * (1000.0 / lev) ** 0.2854
+    up, vp, thp = _band13(u), _band13(v), _band13(th)
+    return [len(u),
+            (up * vp).mean(axis=-1).mean(axis=0),
+            (vp * thp).mean(axis=-1).mean(axis=0),
+            th.mean(axis=-1).mean(axis=0),
+            u.mean(axis=-1).mean(axis=0)]
 
 
 def _open_lev(path, short, lev):
@@ -95,7 +120,6 @@ def compute_epflux_ensemble(paths, lat, steps):
     average per-member fluxes, never take the flux of the ensemble mean
     (averaging damps the waves with lead time). Memory stays at one
     (member, lat, lon) block. Returns {step: (levs, p_pa, U, force)}."""
-    KAPPA = 0.2854
     acc = {}          # (step, lev) -> [n, uv, vth, th, ub]
     levs_seen = set()
     for lev in sorted(ecmwf.LEVELS_AAM):
@@ -105,7 +129,6 @@ def compute_epflux_ensemble(paths, lat, steps):
             print(f"  epflux: level {lev} unavailable ({str(e)[:50]})", flush=True)
             continue
         levs_seen.add(lev)
-        fac = (1000.0 / lev) ** KAPPA
         for si, sh in enumerate(steps):
             def at_step(da):
                 d = da
@@ -121,17 +144,14 @@ def compute_epflux_ensemble(paths, lat, steps):
                 print(f"  epflux: lev {lev} step {sh} skipped ({str(e)[:50]})", flush=True)
                 continue
             n = min(len(u), len(v), len(t))
-            u, v, t = u[:n], v[:n], t[:n]
-            th = t * fac
-            up, vp, thp = _band13(u), _band13(v), _band13(th)
-            acc[(sh, lev)] = [n,
-                              (up * vp).mean(axis=-1).mean(axis=0),
-                              (vp * thp).mean(axis=-1).mean(axis=0),
-                              th.mean(axis=-1).mean(axis=0),
-                              u.mean(axis=-1).mean(axis=0)]
+            acc[(sh, lev)] = _quadratics(u[:n], v[:n], t[:n], lev)
         for da in das.values():
             da.close()
+    return _finish(acc, levs_seen, lat, steps)
 
+
+def _finish(acc, levs_seen, lat, steps):
+    """Accumulated quadratics -> {step: (levs, p_pa, U, force, Fphi, Fp, th_prof)}, member count."""
     A = 6.371e6
     OMEGA = 7.292e-5
     latr = np.deg2rad(lat)
@@ -195,6 +215,76 @@ def cd_ceiling_excess(U, lat, levs, th_prof, k=1, Hs=7000.0):
     return out
 
 
+IFS_LEVELS = tuple(ecmwf.LEVELS_AAM)                  # 10..1000 hPa, all 14 on IFS open data
+IFS_LON_STRIDE = 4    # 0.25 -> 1 deg in longitude before the FFT: k = 1-3 alias only from k ~ 357-363, which is nil
+
+
+def _ifs_step(job):
+    """One IFS-ENS step: byte-range u, v, t at the 14 levels for the 50 perturbed members from the Google mirror
+    (rangefetch, under the shared request budget), decode in memory, return {lev: quadratics} and the latitudes.
+    Nothing is written to disk; the ~1.4 GB of messages is dropped when the step is reduced."""
+    import eccodes
+    import rangefetch as rf
+    date, time_, sh = job
+    t0 = time.time()
+    idx = rf.fetch_index(date, time_, "ifs", sh, "ef", sources=["google"])
+    want = sorted(rf.select(idx, param=["u", "v", "t"], levelist=list(IFS_LEVELS), type="pf"),
+                  key=lambda e: e["_offset"])
+    blob = rf.fetch_ranges(rf.path_for(date, time_, "ifs", sh, "ef") + ".grib2", rf.coalesce(want),
+                           sources=["google"])
+    t1 = time.time()
+    where, pos = {}, 0                                    # fetch_ranges returns the messages in offset order
+    for e in want:
+        where.setdefault(int(e["levelist"]), {}).setdefault(e["param"], []).append((pos, e["_length"]))
+        pos += e["_length"]
+    if pos != len(blob):
+        raise RuntimeError(f"step {sh}: {len(blob)} bytes for {pos} indexed")
+    lat = None
+    out = {}
+    for lev in IFS_LEVELS:
+        f = {}
+        for par in ("u", "v", "t"):
+            rows = []
+            for o, n in where.get(lev, {}).get(par, []):
+                gid = eccodes.codes_new_from_message(bytes(blob[o:o + n]))
+                try:
+                    nj, ni = eccodes.codes_get(gid, "Nj"), eccodes.codes_get(gid, "Ni")
+                    if lat is None:
+                        la0 = eccodes.codes_get(gid, "latitudeOfFirstGridPointInDegrees")
+                        la1 = eccodes.codes_get(gid, "latitudeOfLastGridPointInDegrees")
+                        lat = np.linspace(la0, la1, nj)
+                    rows.append(eccodes.codes_get_values(gid).reshape(nj, ni)[:, ::IFS_LON_STRIDE])
+                finally:
+                    eccodes.codes_release(gid)
+            f[par] = np.stack(rows) if rows else None
+        if any(x is None for x in f.values()):
+            continue
+        n = min(len(f["u"]), len(f["v"]), len(f["t"]))
+        out[lev] = _quadratics(f["u"][:n], f["v"][:n], f["t"][:n], lev)
+    del blob
+    print(f"  IFS-ENS epflux step {sh:3d}: {pos / 1e6:,.0f} MB in {t1 - t0:.0f} s, reduced in {time.time() - t1:.0f} s "
+          f"({len(out)} levels, {out[next(iter(out))][0] if out else 0} members)", flush=True)
+    return sh, lat, out
+
+
+def compute_epflux_ifs(date, time_, steps, workers=None):
+    """The IFS-ENS counterpart of compute_epflux_ensemble, streamed (see _ifs_step)."""
+    from concurrent.futures import ProcessPoolExecutor
+    workers = workers or int(os.environ.get("EPFLUX_IFS_WORKERS", "3"))
+    acc, levs_seen, lat = {}, set(), None
+    with ProcessPoolExecutor(max_workers=workers) as ex:
+        for sh, la, per in ex.map(_ifs_step, [(date, time_, s) for s in steps]):
+            if la is not None and lat is None:
+                lat = la
+            for lev, q in per.items():
+                acc[(sh, lev)] = q
+                levs_seen.add(lev)
+    if lat is None:
+        raise SystemExit("IFS-ENS epflux: no step decoded")
+    by_step, nmem = _finish(acc, levs_seen, lat, steps)
+    return by_step, nmem, lat
+
+
 EP_STAGING = HERE / "data" / ".epflux_staging"
 JULIA_SCRIPT = REPO / "scripts" / "julia" / "mjo_render.jl"
 
@@ -239,13 +329,26 @@ def epflux_loop(u_full, u_rmm, tag, base):
             filter_by_keys={"shortName": "v", "level": 500}, indexpath="")) as ds:
         lat = ds.latitude.values
 
-    outdir = REPO / "assets" / "sst" / "anim" / "epflux"
-    outdir.mkdir(parents=True, exist_ok=True)
-    EP_STAGING.mkdir(parents=True, exist_ok=True)
-    for f in EP_STAGING.glob("*"):
-        f.unlink()
-
     by_step, nmem = compute_epflux_ensemble(paths, lat, S)
+    render_epflux(by_step, nmem, lat, S, base, "aifs")
+
+
+MODEL = {"aifs": "AIFS-ENS", "ifs": "IFS-ENS"}
+SOURCE = {"aifs": "ECMWF AIFS-ENS open data (CC BY 4.0)",
+          "ifs": "ECMWF IFS-ENS open data (CC BY 4.0), 50 perturbed members, Google Cloud mirror"}
+
+
+def render_epflux(by_step, nmem, lat, S, base, model="aifs"):
+    """Frames + manifest for one model's loop: assets/sst/anim/epflux[_ifs]/ and epflux[_ifs]_manifest.json."""
+    import subprocess
+    from PIL import Image
+    region = "epflux" if model == "aifs" else f"epflux_{model}"
+    staging = EP_STAGING if model == "aifs" else HERE / "data" / f".{region}_staging"
+    outdir = REPO / "assets" / "sst" / "anim" / region
+    outdir.mkdir(parents=True, exist_ok=True)
+    staging.mkdir(parents=True, exist_ok=True)
+    for f in staging.glob("*"):
+        f.unlink()
     per_step = [(s, by_step[s]) for s in S if s in by_step]
     levs0, p0, _, force0, _, _, _ = per_step[0][1]
     strat = levs0 <= 300
@@ -281,8 +384,8 @@ def epflux_loop(u_full, u_rmm, tag, base):
         meta = dict(
             out_png=fid + ".png", figsize=[12.0, 7.0],
             title=(f"E\u2013P flux & wave driving (wavenumbers 1\u20133) \u2014 "
-                   f"AIFS-ENS ensemble ({nmem} members) \u00b7 day {s // 24} \u00b7 valid {valid:%a %b %d %HZ}"),
-            footer="ECMWF AIFS-ENS open data (CC BY 4.0) \u00b7 QG E\u2013P flux, k=1\u20133 \u00b7 shading: \u2207\u00b7F as zonal force (m/s/day) \u00b7 dashed magenta: \u016b = U_c, the wave-1 Charney\u2013Drazin ceiling (l = 2/a) \u00b7 poleward of 82\u00b0 masked",
+                   f"{MODEL[model]} ensemble ({nmem} members) \u00b7 day {s // 24} \u00b7 valid {valid:%a %b %d %HZ}"),
+            footer=f"{SOURCE[model]} \u00b7 QG E\u2013P flux, k=1\u20133 \u00b7 shading: \u2207\u00b7F as zonal force (m/s/day) \u00b7 dashed magenta: \u016b = U_c, the wave-1 Charney\u2013Drazin ceiling (l = 2/a) \u00b7 poleward of 82\u00b0 masked",
             xlabel="latitude", ylabel="pressure (hPa)",
             ylog=True, yreversed=True,
             xlim=[float(lat.min()), float(lat.max())], ylim=[1000.0, 10.0],
@@ -299,21 +402,21 @@ def epflux_loop(u_full, u_rmm, tag, base):
                       dict(npz="cdlid", levels=[0.0], color="#c2185b", width=1.7, dash=True)],
             arrows=dict(x="qx", y="qy", u="qu", v="qv", scale=1.0),
             texts=[], frame_id=fid)
-        np.savez_compressed(EP_STAGING / f"{fid}.npz",
+        np.savez_compressed(staging / f"{fid}.npz",
                             **{k: np.asarray(v, np.float64) for k, v in arrays.items()})
         frames_meta.append(meta)
         frames.append({"idx": idx, "file": f"{fid}.webp",
                        "date": f"{valid:%Y-%m-%d}",
                        "label": f"day {s // 24} \u00b7 {valid:%b %d}"})
 
-    spec = dict(staging=str(EP_STAGING), frames=frames_meta)
-    (EP_STAGING / "spec.json").write_text(json.dumps(spec))
+    spec = dict(staging=str(staging), frames=frames_meta)
+    (staging / "spec.json").write_text(json.dumps(spec))
     ok = False
     if shutil.which("julia"):
         try:
             r = subprocess.run(
                 ["julia", "--project=" + str(JULIA_SCRIPT.parent),
-                 str(JULIA_SCRIPT), str(EP_STAGING / "spec.json")],
+                 str(JULIA_SCRIPT), str(staging / "spec.json")],
                 capture_output=True, text=True, timeout=1800)
             ok = r.returncode == 0 and "JULIA RENDER DONE" in r.stdout
             if not ok:
@@ -324,19 +427,22 @@ def epflux_loop(u_full, u_rmm, tag, base):
     n_jl = 0
     for meta, (s, fields) in zip(frames_meta, per_step):
         fid = meta["frame_id"]
-        png = EP_STAGING / f"{fid}.png"
+        png = staging / f"{fid}.png"
         out = outdir / f"{fid}.webp"
         if ok and png.exists():
             Image.open(png).convert("RGB").save(out, quality=84, method=6)
             png.unlink()
             n_jl += 1
         else:
-            _epflux_frame_mpl(meta, fields, lat, out)
+            _epflux_frame_mpl(meta, fields, lat, out, staging)
     man = {"ver": int(time.time()), "days": len(frames),
-           "regions": {"epflux": {
-               "label": "E\u2013P flux & wave driving (k=1\u20133) \u2014 AIFS-ENS ensemble",
+           "regions": {region: {
+               "label": f"E\u2013P flux & wave driving (k=1\u20133) \u2014 {MODEL[model]} ensemble",
                "n_frames": len(frames), "frames": frames}}}
-    (REPO / "assets" / "sst" / "anim" / "epflux_manifest.json").write_text(json.dumps(man))
+    (REPO / "assets" / "sst" / "anim" / f"{region}_manifest.json").write_text(json.dumps(man))
+    if model != "aifs":
+        print(f"wrote {len(frames)} {region} frames ({n_jl} via julia) + manifest")
+        return
     # assets/strat/ is gitignored (the local page), so on a fresh runner the
     # directory does not exist and copy2 raised FileNotFoundError AFTER all 16
     # frames had already rendered - the loop was fine, the still was not.
@@ -345,10 +451,10 @@ def epflux_loop(u_full, u_rmm, tag, base):
     print(f"wrote {len(frames)} epflux frames ({n_jl} via julia) + manifest")
 
 
-def _epflux_frame_mpl(meta, fields, lat, out):
+def _epflux_frame_mpl(meta, fields, lat, out, staging=EP_STAGING):
     """Matplotlib fallback for a single staged frame (same spec/arrays)."""
     levs, p_pa, U, force, Fphi, Fp, th_prof = fields
-    z = np.load(EP_STAGING / f"{meta['frame_id']}.npz")
+    z = np.load(staging / f"{meta['frame_id']}.npz")
     fig, ax = plt.subplots(figsize=meta["figsize"])
     f = meta["fill"]
     cf = ax.contourf(z["lat"], z["lev"], z["force"], levels=f["levels"],
@@ -387,9 +493,25 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--epflux-only", action="store_true", help=argparse.SUPPRESS)
     ap.add_argument("--strip-only", action="store_true", help=argparse.SUPPRESS)
+    ap.add_argument("--model", choices=("aifs", "ifs"), default="aifs")
+    ap.add_argument("--date"); ap.add_argument("--time")
     args = ap.parse_args()
     if args.strip_only:
         print("--strip-only: the QBO strip was removed; nothing to do")
+        return
+    if args.model == "ifs":
+        sys.path.insert(0, str(HERE))
+        import ifs_ens as IE
+        if not (args.date and args.time):
+            ap.error("--model ifs needs --date and --time")
+        if not IE.published(args.date, args.time):
+            raise SystemExit(f"IFS-ENS {args.date} {args.time}Z is not on the Google mirror yet")
+        base = pd.Timestamp(f"{args.date[:4]}-{args.date[4:6]}-{args.date[6:8]} {args.time}:00")
+        S = tuple(ecmwf.STEPS)
+        t0 = time.time()
+        by_step, nmem, lat = compute_epflux_ifs(args.date, args.time, S)
+        print(f"  IFS-ENS epflux: {len(by_step)} steps, {nmem} members, {time.time() - t0:.0f} s", flush=True)
+        render_epflux(by_step, nmem, lat, S, base, "ifs")
         return
     u_full, u_rmm, tag = latest_cycle()
     base = pd.Timestamp(f"{tag[:4]}-{tag[4:6]}-{tag[6:8]} {tag[8:10]}:00")

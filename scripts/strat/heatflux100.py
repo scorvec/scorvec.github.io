@@ -167,7 +167,8 @@ def render(hemi, north, valid, mem, ctrl, lat, hov, obs, clim, init, n_mem, out,
         ax.plot(valid, mem["tot"][k], color=C_MEM, lw=0.6, alpha=0.7, label="members" if k == 0 else None)
     if obs is not None:
         ax.plot(obs.index, obs["tot"], color=C_OBS, lw=1.8, label="analysed (AIFS control, step 0)")
-    ax.plot(valid, ctrl["tot"], color=C_CTRL, lw=1.3, ls=(0, (4, 2)), label="control")
+    if ctrl is not None:                                  # IFS-ENS has no control at 100 hPa on open data
+        ax.plot(valid, ctrl["tot"], color=C_CTRL, lw=1.3, ls=(0, (4, 2)), label="control")
     ax.plot(valid, mem["tot"].mean(0), color=C_MEAN, lw=2.6, label="ensemble mean")
     ax.axvline(init, color="#9aa3ad", lw=0.9, ls=":"); ax.axhline(0, color="#9aa3ad", lw=0.7)
     ax.set_ylabel("[v′T′], K m s⁻¹", fontsize=10, color=INK)

@@ -22,11 +22,14 @@ Models (probed 2026-08-28; all four publish u AND height at 10 and 100 hPa):
   geps  GEPS      20 members, 0.5 deg, day 16. One `allmbrs` GRIB per
                   variable/level/step (~2.4 MB UGRD, ~1.3 MB HGT) -> ~98 MB/cycle.
   gdps  GDPS      deterministic, 0.15 deg, day 10 -> ~31 MB/cycle.
-  ifs   IFS-ENS   50 pf, 0.25 deg, day 15. There is NO control at these levels --
-                  open data publishes only type=pf for u/gh at 10 and 100 hPa, so
-                  "cheap control-only IFS" is not an option. 89 MB per step for all
-                  50 members = 28.5 MB per member per cycle (1.44 GB for the full
-                  ensemble), so IFS is OFF by default: pass --ifs-members N.
+  ifs   IFS-ENS   all 50 perturbed members, 0.25 deg, day 15 (2026-09-27, user: "5 ifs-ens
+                  members is not enough for the stratosphere plots"). There is NO control
+                  at these levels - open data publishes only type=pf at pressure levels.
+                  Read from the shared IFS-ENS files (ifs_ens.py: u at 10/100 hPa and gh
+                  at 100 hPa, fetched once a cycle for every stratosphere product, Google
+                  Cloud mirror only). IFS day 15 reaches the mirror ~08:50Z / 20:55Z, so
+                  this figure renders in strat-ifs.yml (09:05 / 21:05), not strat.yml; a
+                  cycle the mirror does not have yet drops IFS with a message.
 
 DETRENDING (the reason the reference is built the way it is)
 ------------------------------------------------------------
@@ -53,9 +56,9 @@ _consistency() verifies on every run that mixing the two reanalyses is legitimat
 (measured 2026-08-28 over 94 overlapping days: u60 at 10 hPa -0.17 m/s r 0.997,
 cap height +0.30 m r 1.000 -- negligible, so no offset is applied).
 
-    python scripts/strat/nh_vortex.py                     # aifs+geps+gdps
+    python scripts/strat/nh_vortex.py                     # all four models, IFS at 50 members
     python scripts/strat/nh_vortex.py --models aifs,geps  # no downloads beyond GEPS
-    python scripts/strat/nh_vortex.py --ifs-members 10    # opt into IFS spread
+    python scripts/strat/nh_vortex.py --cycle 2026092700  # a named cycle (no ens_cycle cache needed)
 """
 from __future__ import annotations
 
@@ -143,17 +146,41 @@ def _fetch(url, dest):
 
 
 # ── model loaders: each returns {"u10","u100","zcap"} of DataFrames ─────────
+def _store():
+    import sys
+    sys.path.insert(0, str(REPO / "scripts" / "ecmwf"))
+    import store as ecmwf
+    return ecmwf
+
+
 def load_aifs(cdir, base):
     pf = glob.glob(f"{cdir}/aifs-ens/pf_u_10-*.grib2")
     cf = glob.glob(f"{cdir}/aifs-ens/cf_u_10-*.grib2")
     if not (pf and cf):
-        return None
+        # No ens_cycle cache (strat-ifs.yml runs without it): pull just u at 10/100 hPa, the 25 perturbed members
+        # the cache would have held plus the control, through the shared store (~0.6 GB, Google mirror).
+        try:
+            ecmwf = _store()
+            cyc = ecmwf.Cycle(f"{base:%Y%m%d}", f"{base:%H}")
+            pf = [ecmwf.ensure(cyc, ecmwf.Spec("aifs-ens", "pf", "u", "pl", (10, 100), tuple(ecmwf.STEPS),
+                                               AIFS_Z_MEMBERS))]
+            cf = [ecmwf.ensure(cyc, ecmwf.Spec("aifs-ens", "cf", "u", "pl", (10, 100), tuple(ecmwf.STEPS)))]
+        except Exception as e:                                 # noqa: BLE001
+            print(f"  AIFS-ENS u unavailable ({type(e).__name__}: {str(e)[:80]})", flush=True)
+            return None
     out = {}
     for lev, key in ((10, "u10"), (100, "u100")):
         d = _frame(_grib(pf[0], shortName="u", level=lev)["u"], zonal_at, base)
         d["cf"] = _frame(_grib(cf[0], shortName="u", level=lev)["u"], zonal_at, base)[0]
         out[key] = d
     zf = glob.glob(f"{cdir}/aifs-ens/cf_z_10-*.grib2")
+    if not zf:
+        try:
+            ecmwf = _store()
+            zf = [ecmwf.ensure(ecmwf.Cycle(f"{base:%Y%m%d}", f"{base:%H}"),
+                               ecmwf.Spec("aifs-ens", "cf", "z", "pl", (100,), tuple(ecmwf.STEPS)))]
+        except Exception as e:                                 # noqa: BLE001
+            print(f"  AIFS-ENS control z100 unavailable ({type(e).__name__}: {str(e)[:80]})", flush=True)
     zc = (_frame(_grib(zf[0], shortName="z", level=100)["z"], cap_mean, base, 1.0 / G)
           if zf else None)
     # The height used to be control-only on the belief that open data carries no
@@ -228,60 +255,42 @@ def load_gdps(date, cyc, leads):
 
 
 def load_ifs(date, cyc, leads, members):
-    """IFS-ENS via the repo's byte-ranged fetcher.
+    """IFS-ENS, all 50 perturbed members (or the first `members`), from the shared IFS-ENS files.
 
-    NOT ecmwf.opendata's Client.download(): with param/levelist set it still
-    pulled the whole step file -- one call landed a 2.76 GB GRIB for a single
-    field. rangefetch parses the .index and requests only the matching message
-    byte ranges, which is what the AAM/RMM tasks already use.
+    ifs_ens.py stocks u/v at 10/100 hPa (12-hourly) and gh at the 11 drip levels (daily) ONCE a cycle for every
+    stratosphere product; this reads u at 10/100 and gh at 100 hPa out of them at the daily steps. Google Cloud
+    mirror only: the old direct range fetch here rotated google/aws/azure/ecmwf, and at strat.yml's 19:35 slot, with
+    IFS 12Z not yet on Google, it quietly pulled from the other mirrors (11 minutes for 125 MB on 2026-09-27).
     """
     import sys
-    sys.path.insert(0, str(REPO / "scripts" / "ecmwf"))
+    sys.path.insert(0, str(HERE))
     try:
-        import rangefetch as rf
-    except ImportError:
-        print("    rangefetch unavailable; skipping IFS", flush=True)
+        import ifs_ens as IE
+    except Exception as e:                                    # noqa: BLE001
+        print(f"    ifs_ens unavailable ({e}); skipping IFS", flush=True)
         return None
-    if not members:
-        print("    IFS skipped: open data has no control (type=cf) for u/gh at 10/100 hPa, "
-              "so members are the only option — pass --ifs-members N (~28.5 MB each)",
+    if not IE.published(date, cyc):
+        print(f"::warning::IFS-ENS {date} {cyc}Z is not on the Google mirror yet; the figure goes without it",
               flush=True)
         return None
-    kind = "ef"          # NOT cf/pf: those object names 404 for IFS enfo
-    typ = "pf"
-    nums = list(range(1, members + 1))
+    cycle = IE.E.Cycle(date, cyc)
+    try:
+        uv = IE.ensure(cycle, IE.spec_uv())
+        gh = IE.ensure(cycle, IE.spec_gh())
+    except Exception as e:                                    # noqa: BLE001
+        print(f"::warning::IFS-ENS shared files unavailable ({type(e).__name__}: {str(e)[:100]}); skipping IFS",
+              flush=True)
+        return None
     base = pd.Timestamp(f"{date} {cyc}:00")
-    out, mb = {}, 0
-    for param, lev, key in (("u", 10, "u10"), ("u", 100, "u100"), ("gh", 100, "zcap")):
-        red = cap_mean if key == "zcap" else zonal_at
-        rows = {}
-        for L in leads:
-            tgt = DL / f"ifs_{date}{cyc}_{param}{lev}_{typ}{members or ''}_{L:03d}.grib2"
-            if not tgt.exists():
-                try:
-                    idx = rf.fetch_index(date, cyc, "ifs", int(L), kind, stream="enfo")
-                    idx = [e for e in idx if e.get("type") == typ]
-                    want = rf.select(idx, param=param, levelist=[lev], numbers=nums)
-                    if not want:
-                        continue
-                    blob = rf.fetch_ranges(
-                        rf.path_for(date, cyc, "ifs", int(L), kind, stream="enfo") + ".grib2",
-                        rf.coalesce(want))
-                    tgt.parent.mkdir(parents=True, exist_ok=True)
-                    tgt.write_bytes(blob)
-                except Exception as e:                        # noqa: BLE001
-                    print(f"    IFS {param}{lev} +{L}h: {str(e)[:60]}", flush=True)
-                    continue
-            mb += tgt.stat().st_size / 1e6
-            try:
-                rows[base + pd.Timedelta(hours=L)] = np.atleast_1d(
-                    np.asarray(red(_first(_grib(tgt))).values)).ravel()
-            except Exception as e:                            # noqa: BLE001
-                print(f"    IFS {param}{lev} +{L}h unreadable: {str(e)[:50]}", flush=True)
-        if not rows:
-            return None
-        out[key] = pd.DataFrame.from_dict(rows, orient="index").sort_index()
-    print(f"    IFS transferred {mb:.0f} MB ({typ}{members or ''})", flush=True)
+    out = {}
+    for key, path, short, lev, red in (("u10", uv, "u", 10, zonal_at), ("u100", uv, "u", 100, zonal_at),
+                                       ("zcap", gh, "gh", 100, cap_mean)):
+        da = IE.open_field(path, short, lev)
+        da = da.isel(step=np.flatnonzero(np.isin(IE.step_hours(da), leads)))
+        if members and "number" in da.dims and members < da.sizes["number"]:
+            da = da.isel(number=slice(0, members))
+        out[key] = _frame(da, red, base)
+    print(f"    IFS-ENS: {out['u10'].shape[1]} members from the shared files", flush=True)
     return out
 
 
@@ -473,7 +482,8 @@ def draw_model(ax, df, key, sub=None):
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--models", default="aifs,geps,gdps,ifs")
-    ap.add_argument("--ifs-members", type=int, default=0)
+    ap.add_argument("--ifs-members", type=int, default=50,
+                    help="IFS-ENS perturbed members (all 50 by default; there is no control)")
     ap.add_argument("--cycle")
     ap.add_argument("--out", default=str(OUT))
     a = ap.parse_args()
@@ -493,6 +503,11 @@ def main() -> int:
             t = Path(d).name
             cdir, base = Path(d), pd.Timestamp(f"{t[:4]}-{t[4:6]}-{t[6:8]} {t[8:10]}:00")
             break
+    if base is None and a.cycle:
+        # No ens_cycle cache for this cycle (strat-ifs.yml): load_aifs pulls what it needs through the store.
+        t = a.cycle.lower().rstrip("z")
+        cdir, base = CACHE / f"{t}z", pd.Timestamp(f"{t[:4]}-{t[4:6]}-{t[6:8]} {t[8:10]}:00")
+        print(f"no ens_cycle cache for {t}; AIFS-ENS winds come through the shared store", flush=True)
     if base is None:
         print("no AIFS-ENS cycle in the cache to anchor on"); return 1
     date, cyc = f"{base:%Y%m%d}", f"{base:%H}"
@@ -589,9 +604,10 @@ def main() -> int:
     fig.text(0.5, 0.004,
              "Zonal-mean zonal wind at 60°N and the 65–90°N polar-cap height. Shading is each ensemble's 10th–90th member "
              "percentile, the solid line its mean; dashed = deterministic or control-only.\n"
-             "AIFS-ENS and IFS-ENS to day 15, GEPS to day 16, GDPS to day 10. Reference: MERRA-2 1980–2026 day-of-year "
-             "percentiles; the height climatology is detrended to the current year (+18.7 m/decade), the winds are not "
-             "(<0.25 m/s/decade). Vertical line = analysis time.",
+             "AIFS-ENS (25 members + control) and IFS-ENS (all 50 perturbed members; open data has no IFS control at these "
+             "levels) to day 15, GEPS to day 16, GDPS to day 10.\n"
+             "Reference: MERRA-2 1980–2026 day-of-year percentiles; the height climatology is detrended to the current "
+             "year (+18.7 m/decade), the winds are not (<0.25 m/s/decade). Vertical line = analysis time.",
              ha="center", va="bottom", fontsize=8, color="#6f6b64", linespacing=1.5)
     fig.autofmt_xdate()
     fig.tight_layout(rect=(0, 0.026, 1, 0.985))

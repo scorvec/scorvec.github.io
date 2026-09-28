@@ -27,9 +27,15 @@ Shading is symmetric about zero with a per-level scale. Wave amplitude grows
 with height, so 100 and 500 hPa cannot share one; NH and SH DO share a scale at
 each level, so the hemispheres stay comparable.
 
+IFS-ENS (2026-09-27, user: "We also add in the ifs-ens for all strat products"): --model ifs maps the mean of ALL 50
+IFS-ENS perturbed members from the shared IFS-ENS gh file (ifs_ens.py, Google Cloud mirror only) into wave1_ifs_nh/ and
+wave1_ifs_sh/. Open data has no IFS control at pressure levels, so its analysis frame is the IFS HRES step 0 - the
+analysis the ensemble starts from.
+
 Usage:
-  python wave1_maps.py --date 20260829 --time 12 --out assets/sst/wave1_maps.webp
-  python wave1_maps.py --step 120
+  python wave1_maps.py --date 20260829 --time 12 --anim-dir assets/sst/anim --manifest assets/sst/anim/wave1_maps_manifest.json
+  python wave1_maps.py --model ifs --date 20260927 --time 00 --anim-dir assets/sst/anim \
+      --manifest assets/sst/anim/wave1_maps_ifs_manifest.json
 """
 from __future__ import annotations
 
@@ -84,7 +90,12 @@ FULL_CI = {10: 160.0, 100: 120.0, 500: 60.0}
 CMAP = "RdBu_r"
 
 
-def open_level(path, lev: int):
+MODEL = {"aifs": "AIFS-ENS", "ifs": "IFS-ENS"}
+# Region/directory prefix per model: the AIFS loop keeps its original wave1_nh/, wave1_sh/.
+PREFIX = {"aifs": "wave1", "ifs": "wave1_ifs"}
+
+
+def open_level(path, lev: int, short: str = "z"):
     """The whole forecast for one level, step dimension intact.
 
     Opened once per level rather than once per (level, step): the animation
@@ -92,8 +103,10 @@ def open_level(path, lev: int):
     16 times.
     """
     ds = xr.open_dataset(path, engine="cfgrib", backend_kwargs=dict(
-        filter_by_keys={"shortName": "z", "level": lev}, indexpath=""))
-    da = ds["z"] if "z" in ds else ds[list(ds.data_vars)[0]]
+        filter_by_keys={"shortName": short, "level": lev}, indexpath=""))
+    da = ds[short] if short in ds else ds[list(ds.data_vars)[0]]
+    # z is geopotential (m2 s-2), gh already geopotential metres; split() converts by this factor.
+    da.attrs["gpm_per_unit"] = 1.0 if short == "gh" else 1.0 / G
     # Perturbed files carry a member dimension; the ensemble MEAN is what is
     # plotted, so collapse it here and everything downstream is unchanged.
     #
@@ -102,7 +115,9 @@ def open_level(path, lev: int):
     # wave-1. It is simply the cheaper order.
     # (2026-09-27) The members are KEPT now: the maps stipple where they disagree on the wave's sign and quote their
     # phase agreement. Subsampled to 1 deg first - k=1 needs nothing finer - so members x steps x levels stays small.
-    return da.isel(latitude=slice(None, None, 4), longitude=slice(None, None, 4))
+    out = da.isel(latitude=slice(None, None, 4), longitude=slice(None, None, 4))
+    out.attrs["gpm_per_unit"] = da.attrs["gpm_per_unit"]
+    return out
 
 
 def at_step(da, step_h: int):
@@ -142,6 +157,22 @@ def fetch(date: str, time: str, members: int = MEMBERS):
         path = ecmwf.ensure(cyc, ecmwf.Spec("aifs-ens", "cf", "z", "pl",
                                             LEVELS, tuple(ecmwf.STEPS)))
         return {lev: open_level(path, lev) for lev in LEVELS}, "control"
+
+
+def fetch_ifs(date: str, time: str):
+    """IFS-ENS: ALL 50 perturbed members of gh at 500/100/10 hPa from the shared IFS-ENS file (ifs_ens.py)."""
+    import ifs_ens as IE
+    if not IE.published(date, time):
+        raise SystemExit(f"IFS-ENS {date} {time}Z is not on the Google mirror yet")
+    path = IE.ensure(IE.E.Cycle(date, time), IE.spec_gh())
+    return {lev: open_level(path, lev, "gh") for lev in LEVELS}, f"ensemble mean ({IE.MEMBERS} members)"
+
+
+def fetch_analysis_ifs(date: str, time: str):
+    """IFS has no control at pressure levels on open data; the HRES step 0 is the analysis the ensemble starts from."""
+    import ifs_ens as IE
+    path = IE.hres_analysis(IE.E.Cycle(date, time), ("gh",), LEVELS)
+    return {lev: open_level(path, lev, "gh") for lev in LEVELS}
 
 
 def fetch_analysis(date: str, time: str):
@@ -291,10 +322,11 @@ def circular_boundary(ax):
 
 def split(z):
     """(ensemble-mean field, member fields or None) in gpm. The analysis frame is the control: no members."""
+    k = z.attrs.get("gpm_per_unit", 1.0 / G)
     if "number" in z.dims:
-        m = z.transpose("number", "latitude", "longitude").values / G
+        m = z.transpose("number", "latitude", "longitude").values * k
         return m.mean(0), m
-    return z.values / G, None
+    return z.values * k, None
 
 
 def panel(ax, z, lev, hemi, valid=None):
@@ -391,7 +423,7 @@ def tilt_sentence(infos) -> str:
     return (f"Ridge longitude at 55–65°: {ridges}\nShift with height: {'; '.join(shifts)} — {verdict}")
 
 
-def render(levels_at_step, hemi, date, time, step_h, out_path: Path, source="ensemble mean"):
+def render(levels_at_step, hemi, date, time, step_h, out_path: Path, source="ensemble mean", model="aifs"):
     """ONE hemisphere, three levels bottom-up, left to right: 500 hPa (the tropospheric source), 100 hPa (where wave
     driving reaches the vortex) and 10 hPa (the vortex itself). The comparison that carries the physics is between
     levels - a ridge that moves WEST with height is carrying wave activity up - so the ridge longitudes and the shift
@@ -414,7 +446,7 @@ def render(levels_at_step, hemi, date, time, step_h, out_path: Path, source="ens
         cb.set_label(f"{lev} hPa wave-1: height above (+) / below (−) the zonal mean, gpm", fontsize=8, labelpad=1)
     full = "Northern Hemisphere" if hemi == "NH" else "Southern Hemisphere"
     tag = f"F{step_h:03d}" if step_h else "analysis"
-    fig.text(left, 0.975, f"ECMWF AIFS-ENS · planetary wave-1 from the troposphere to the vortex — {full}",
+    fig.text(left, 0.975, f"ECMWF {MODEL[model]} · planetary wave-1 from the troposphere to the vortex — {full}",
              fontsize=15, fontweight="bold", ha="left", va="top")
     fig.text(left, 0.925, f"{source} · {date[:4]}-{date[4:6]}-{date[6:]} {time}Z {tag} · valid {valid:%a %d %b %HZ} · "
              "shaded: zonal wavenumber-1 of geopotential height · grey contours: full height field",
@@ -447,7 +479,7 @@ def active_hemisphere(full) -> str:
 
 
 def build_loop(full, date, time, anim_root: Path, manifest: Path,
-               source="ensemble mean", default_hemi="NH") -> int:
+               source="ensemble mean", default_hemi="NH", model="aifs") -> int:
     """One frame per step PER HEMISPHERE, and a manifest the animator switches on.
 
     anim_root is the animation ROOT (assets/sst/anim); this writes wave1_nh/
@@ -460,10 +492,12 @@ def build_loop(full, date, time, anim_root: Path, manifest: Path,
     # mean, so the loop starts from the state the forecast was launched from
     # rather than from a smoothed version of it.
     steps = [0] + [h for h in ecmwf.STEPS if h > 0]
-    ana = fetch_analysis(date, time)
+    ana = fetch_analysis_ifs(date, time) if model == "ifs" else fetch_analysis(date, time)
+    ana_label = ("IFS HRES analysis, the state IFS-ENS starts from (no IFS-ENS control on open data)"
+                 if model == "ifs" else "control (analysis)")
     regions = {}
     for hemi in ("NH", "SH"):
-        key = f"wave1_{hemi.lower()}"
+        key = f"{PREFIX[model]}_{hemi.lower()}"
         d = anim_root / key
         d.mkdir(parents=True, exist_ok=True)
         for old in d.glob("F*.webp"):
@@ -472,11 +506,11 @@ def build_loop(full, date, time, anim_root: Path, manifest: Path,
         for i, step_h in enumerate(steps):
             if step_h == 0:
                 fields = {lev: at_step(ana[lev], 0) for lev in LEVELS}
-                src = "control (analysis)"
+                src = ana_label
             else:
                 fields = {lev: at_step(full[lev], step_h) for lev in LEVELS}
                 src = source
-            render(fields, hemi, date, time, step_h, d / f"F{i:02d}.webp", src)
+            render(fields, hemi, date, time, step_h, d / f"F{i:02d}.webp", src, model)
             valid = init + pd.Timedelta(hours=step_h)
             lab = (f"analysis · {valid:%a %d %b %HZ}" if step_h == 0
                    else f"F{step_h:03d} · valid {valid:%a %d %b %HZ}")
@@ -485,12 +519,12 @@ def build_loop(full, date, time, anim_root: Path, manifest: Path,
             print(f"    {hemi}  {'analysis' if step_h == 0 else f'F{step_h:03d}'}", flush=True)
         regions[key] = {
             "label": ("Northern" if hemi == "NH" else "Southern")
-                     + " Hemisphere — wave-1 at 500, 100 and 10 hPa",
+                     + " Hemisphere — wave-1 at 500, 100 and 10 hPa" + (", IFS-ENS" if model == "ifs" else ""),
             "n_frames": len(frames), "frames": frames}
         print(f"  {hemi}: {len(frames)} frames -> {d}")
     man = {"ver": f"{date}{time}", "days": len(steps),
            "selectorLabel": "Hemisphere",
-           "default": f"wave1_{default_hemi.lower()}",
+           "default": f"{PREFIX[model]}_{default_hemi.lower()}",
            "regions": regions}
     manifest.parent.mkdir(parents=True, exist_ok=True)
     manifest.write_text(json.dumps(man))
@@ -506,10 +540,11 @@ def main(argv=None) -> int:
     ap.add_argument("--hemi", choices=["NH", "SH", "auto"], default="auto",
                     help="hemisphere for the still (default: whichever is active)")
     ap.add_argument("--members", type=int, default=MEMBERS)
+    ap.add_argument("--model", choices=("aifs", "ifs"), default="aifs")
     ap.add_argument("--anim-dir", help="frames ROOT; wave1_nh/ and wave1_sh/ go under it")
     ap.add_argument("--manifest", help="animator manifest path")
     a = ap.parse_args(argv)
-    full, source = fetch(a.date, a.time, a.members)
+    full, source = fetch_ifs(a.date, a.time) if a.model == "ifs" else fetch(a.date, a.time, a.members)
     hemi = active_hemisphere(full) if a.hemi == "auto" else a.hemi
     print(f"  leading hemisphere: {hemi}", flush=True)
     # No still. It duplicated the loop's first frame, and on the page it was the
@@ -518,7 +553,7 @@ def main(argv=None) -> int:
         print("  nothing to do: --anim-dir and --manifest are required "
               "(the loop is the product; there is no still)")
         return 2
-    build_loop(full, a.date, a.time, Path(a.anim_dir), Path(a.manifest), source, hemi)
+    build_loop(full, a.date, a.time, Path(a.anim_dir), Path(a.manifest), source, hemi, a.model)
     return 0
 
 
