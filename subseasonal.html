@@ -276,11 +276,17 @@ var P = {
                          : "Regression of the monthly field on each index (m or hPa per +1 sd), NCEP/NCAR R1 1991\u20132020, with the correlation of this reproduction against CPC\u2019s own index."); }},
   regimes: {label: "Weather regimes \u2014 Euro-Atlantic & North America", fit: false,
         a: {label:"Sector", items:[["ea","Euro-Atlantic"],["na","North America / Pacific"]]},
-        b: {label:"View", items:[["fc","Forecast"],["centroids","Regime patterns"]]},
-        img: function (a,b) { return b==="fc" ? "assets/geps/geps_regimes_" + a + "_fc.webp" : "assets/geps/geps_regimes_" + a + ".webp"; },
-        cap: function (a,b) { return b==="fc"
-          ? "Each member-day assigned to the nearest of four k-means regimes (or to none when its pattern correlation is below 0.25): the fraction of members in each regime by day, the observed regime from GEPS analyses, the previous run\u2019s boundaries dashed, and the 2001\u20132020 hindcast hit rate by lead against persistence and climatology."
-          : "The four cold-season and four warm-season regimes: k-means on 5-day-mean 500 hPa anomalies, NCEP/NCAR R1 1991\u20132020, named by inspection. Frequencies are the share of days in the base period."; }},
+        b: {label:"View", items:[["multi","Multi-model forecast"],["fc","GEPS forecast"],["centroids","Regime patterns"],["impacts","What each regime brings"]]},
+        c: function (a,b) { return b==="impacts" ? {label:"Season", items:[["cold","Oct\u2013Mar set"],["warm","Apr\u2013Sep set"]]} : null; },
+        img: function (a,b,c) { return b==="multi" ? "assets/regimes/regimes_" + a + "_combined.webp"
+                                   : (b==="fc" ? "assets/geps/geps_regimes_" + a + "_fc.webp"
+                                   : (b==="impacts" ? "assets/geps/regimes_impacts_" + a + "_" + (c || "cold") + ".webp"
+                                                    : "assets/geps/geps_regimes_" + a + ".webp")); },
+        cap: function (a,b) { return b==="multi"
+          ? "GEPS (21 members, days 1\u201335), GEFS (31, days 1\u201335), AIFS-ENS (26) and IFS-ENS (50, days 1\u201315), each run\u2019s members assigned to the regime of each day\u2019s season, then averaged with equal weight per model over the models that cover each date. The strip under the chart shows each model\u2019s most likely regime by day, and the heat-grid gives the model range and how many models agree on the top regime each week. Hatched weeks: neither the GEPS nor the GEFS hindcast beats persistence or climatology significantly (year-block bootstrap, 95%). A model whose newest run is too old is left out and named in the footnote. Updated daily; built in Actions."
+          : (b==="fc" ? "Share of the 21 GEPS members in each regime by day (each day classified with its own season\u2019s regime set; \u201Cno regime\u201D grey at the bottom), the last 14 observed days (GEPS analyses) running into the forecast, the previous run as a thin outline, the weekly probabilities as a heat-grid (outlined: the most likely regime; hatched: weeks where the 2001\u20132020 GEPS8 hindcast hit rate is not significantly above persistence or climatology), and that hit rate by lead with its 95% interval."
+          : (b==="impacts" ? "ERA5 1991\u20132020 composites of 2 m temperature and precipitation over the days NCEP/NCAR R1 was in each regime (anomalies against the day-of-year normal, each season\u2019s linear trend removed), with the regime\u2019s 500 hPa pattern as contours. Colour is shown only where the composite is significant: a t-test on regime-episode means, false discovery rate held at 10% over the map (Benjamini\u2013Hochberg, Wilks 2016); white means no significant difference from normal."
+                           : "The four cold-season (Oct\u2013Mar) and four warm-season (Apr\u2013Sep) regimes: k-means on 5-day-mean 500 hPa anomalies, NCEP/NCAR R1 1991\u20132020, named by inspection, with the share of days in each regime by calendar month. Frame colours pair cold and warm regimes whose patterns correlate \u2265 0.6; the forecasts keep those colours across the October and April switch.")); }},
   clusters: {label: "500 hPa scenarios \u2014 ensemble clusters by week", fit: false,
         a: {label:"Sector", items:[["ea","Euro-Atlantic"],["na","North America / Pacific"]]},
         img: function (a) { return "assets/geps/geps_clusters_" + a + ".webp"; },

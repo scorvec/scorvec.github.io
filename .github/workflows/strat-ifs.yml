@@ -183,6 +183,14 @@ jobs:
           echo "---- wave1_maps"; tail -25 /tmp/wave1.log
           echo "---- vortex_winds"; tail -25 /tmp/vwinds.log
 
+      # Weather regimes from the 50 IFS-ENS members of the shared gh file (no fetch of its own; 00Z cycles only) ->
+      # assets/regimes/data, read by the multi-model regime view (regimes.yml).
+      - name: Weather regimes (IFS-ENS members)
+        if: env.READY == 'true'
+        run: |
+          python scripts/regimes/regimes_ecmwf.py --model ifs --date "$D" --time "$T" \
+            || echo "::warning::IFS-ENS regimes failed"
+
       # Red when something that should have rendered did not (every render above is `|| ::warning::`, so a green step
       # proves nothing). Publishing still runs under always().
       - name: What was produced
@@ -211,6 +219,7 @@ jobs:
           for p in assets/sst/nh_vortex.webp \
                    assets/sst/ifs_heatflux100_nh.webp assets/sst/ifs_heatflux100_sh.webp assets/sst/data/ifs_heatflux100.json \
                    assets/sst/ifs_drip.webp assets/sst/data/ifs_drip.json \
+                   assets/regimes/data/regimes_members_ifs.json assets/regimes/data/regimes_drift_ifs.json \
                    assets/sst/anim/wave1_ifs_nh assets/sst/anim/wave1_ifs_sh assets/sst/anim/wave1_maps_ifs_manifest.json \
                    assets/sst/anim/vortex_ifs_10 assets/sst/anim/vortex_ifs_100 assets/sst/anim/vortex_winds_ifs_manifest.json; do
             [ -e "$p" ] && echo "$p" >> /tmp/maps.list
@@ -350,6 +359,7 @@ jobs:
                    assets/sst/ifs_drip.webp assets/sst/data/ifs_drip.json \
                    assets/sst/anim/wave1_maps_ifs_manifest.json assets/sst/anim/vortex_winds_ifs_manifest.json \
                    assets/sst/anim/epflux_ifs_manifest.json \
+                   assets/regimes/data/regimes_members_ifs.json assets/regimes/data/regimes_drift_ifs.json \
                    assets/sst/qbo_zeroline_*.webp assets/sst/data/qbo_zeroline.json assets/sst/data/qbo_zeroline_ifs.json; do
             if [ -e "$f" ]; then git add "$f"; fi
           done

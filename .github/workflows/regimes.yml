@@ -1,0 +1,89 @@
+name: Weather regimes (multi-model)
+
+# The multi-model weather-regime view on subseasonal.html (2026-09-28): scripts/regimes/regimes_combined.py reads the
+# per-model member files the producers commit and draws assets/regimes/regimes_{ea,na}_combined.webp. Light: numpy +
+# matplotlib, ~2 min, no downloads. The producers:
+#   GEPS      ~/data_archive/geps_subx/run_geps.sh (laptop, Mon/Thu) -> assets/geps/regimes_members.json; dispatches this
+#   GEFS      gefs.yml (daily)                    -> assets/gefs/data/gefs_regimes_members.json; dispatches this
+#   AIFS-ENS  strat.yml light job (00Z cycles)    -> assets/regimes/data/regimes_members_aifs.json
+#   IFS-ENS   strat-ifs.yml maps job (00Z cycles) -> assets/regimes/data/regimes_members_ifs.json
+# It runs when any producer's workflow completes, plus two backstop slots; it exits early when no input changed.
+# A model whose newest run is too old is left out and the figure says so.
+
+on:
+  workflow_run:
+    workflows:
+      - "GEFS extended outlook"
+      - "Stratosphere — 07Z"
+      - "Stratosphere — 19Z"
+      - "Stratosphere IFS-ENS — 09Z"
+      - "Stratosphere IFS-ENS — 21Z"
+      - "Stratosphere (vortex, wave-1, E-P flux)"
+      - "Stratosphere, IFS-ENS (vortex, heat flux, wave-1, winds, drip, E-P flux)"
+    types: [completed]
+  schedule:
+    - cron: "50 11 * * *"
+    - cron: "50 23 * * *"
+  workflow_dispatch:
+    inputs:
+      force:
+        description: "redraw even if no input changed"
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+  actions: write
+
+concurrency:
+  group: regimes
+  cancel-in-progress: false
+
+jobs:
+  combined:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          sparse-checkout: |
+            scripts/regimes
+            assets/regimes
+            assets/geps/regimes_members.json
+            assets/gefs/data/gefs_regimes_members.json
+          sparse-checkout-cone-mode: false
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+      - run: pip install --quiet numpy matplotlib
+      - name: Multi-model regime view
+        id: run
+        run: |
+          python scripts/regimes/regimes_combined.py ${{ inputs.force && '--force' || '' }} | tee /tmp/regimes.log
+      # snapshot + clean resync each attempt (mjo.yml / gefs.yml pattern); never rebase
+      - name: Commit & push
+        id: commit
+        run: |
+          git config user.name "Shawn Corvec"
+          git config user.email "26825570+scorvec@users.noreply.github.com"
+          git add -A assets/regimes 2>/dev/null || true
+          if git diff --staged --quiet; then echo "no changes"; echo "pushed=0" >> "$GITHUB_OUTPUT"; exit 0; fi
+          SNAP=$(mktemp -d)
+          git diff --staged --name-only -z | tar cf "$SNAP/outs.tar" --null -T -
+          git reset -q
+          for i in 1 2 3 4 5; do
+            if ! timeout 120 git fetch origin main; then echo "fetch $i failed"; sleep 5; continue; fi
+            git reset -q --hard origin/main
+            tar xf "$SNAP/outs.tar"
+            git add -A assets/regimes
+            if git diff --staged --quiet; then echo "no changes after resync"; echo "pushed=0" >> "$GITHUB_OUTPUT"; exit 0; fi
+            git commit -q -m "regimes: multi-model view $(date -u +%Y-%m-%dT%H:%MZ)"
+            if timeout 180 git push origin HEAD:main; then echo "pushed (attempt $i)"; echo "pushed=1" >> "$GITHUB_OUTPUT"; exit 0; fi
+            echo "push $i rejected; resyncing"; sleep 5
+          done
+          echo "push failed after retries"; exit 1
+      - name: Deploy the site
+        if: steps.commit.outputs.pushed == '1'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh workflow run pages.yml --repo "$GITHUB_REPOSITORY" || echo "pages dispatch failed; the dispatcher will catch it"

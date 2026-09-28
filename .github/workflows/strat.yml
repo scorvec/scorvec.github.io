@@ -180,6 +180,15 @@ jobs:
             --out-dir assets/sst \
             || echo "::warning::forecast_drip failed; keeping the previous figure"
 
+      # Weather regimes from the AIFS-ENS 500 hPa members the two steps above already cached (wave1_maps' 25 perturbed
+      # members + forecast_drip's control): no fetch of its own. 00Z cycles only (a 12Z cycle is a no-op). ->
+      # assets/regimes/data, read by the multi-model regime view (regimes.yml).
+      - name: Weather regimes (AIFS-ENS members)
+        run: |
+          python scripts/regimes/regimes_ecmwf.py --model aifs \
+            --date "${{ needs.cycle.outputs.date }}" --time "${{ needs.cycle.outputs.time }}" \
+            || echo "::warning::AIFS-ENS regimes failed"
+
       # 25 perturbed members of u and v at 10/100 hPa every 12 h (~1.9 GB) for the
       # ensemble-mean maps (member 0 until 2026-09-26). Google mirror only.
       - name: Vortex winds, 10 and 100 hPa
@@ -241,6 +250,7 @@ jobs:
           : > /tmp/light.list
           for p in assets/sst/vortex_10.webp assets/sst/heatflux100_nh.webp assets/sst/heatflux100_sh.webp assets/sst/data/heatflux100.json assets/sst/data/heatflux100_history.json \
                    assets/sst/aifs_drip.webp assets/sst/data/aifs_drip.json \
+                   assets/regimes/data/regimes_members_aifs.json assets/regimes/data/regimes_drift_aifs.json \
                    assets/sst/anim/wave1_nh assets/sst/anim/wave1_sh \
                    assets/sst/anim/vortex_10 assets/sst/anim/vortex_100 \
                    assets/sst/anim/wave1_maps_manifest.json \
@@ -431,6 +441,7 @@ jobs:
           for f in assets/sst/vortex_10.webp \
                    assets/sst/heatflux100_nh.webp assets/sst/heatflux100_sh.webp assets/sst/data/heatflux100.json assets/sst/data/heatflux100_history.json \
                    assets/sst/aifs_drip.webp assets/sst/data/aifs_drip.json assets/sst/anim/*_manifest.json \
+                   assets/regimes/data/regimes_members_aifs.json assets/regimes/data/regimes_drift_aifs.json \
                    assets/sst/qbo_zeroline_*.webp assets/sst/data/qbo_zeroline.json assets/sst/data/qbo_zeroline_aifs.json; do
             if [ -e "$f" ]; then git add "$f"; fi
           done

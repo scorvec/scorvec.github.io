@@ -37,6 +37,7 @@ jobs:
         with:
           sparse-checkout: |
             scripts/gefs
+            scripts/regimes
             scripts/lib
             assets/gefs
             scripts/strat
@@ -143,4 +144,8 @@ jobs:
         if: success() && steps.run.outputs.new == '1'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh workflow run pages.yml --repo "$GITHUB_REPOSITORY" || echo "pages dispatch failed; the dispatcher will catch it"
+        run: |
+          gh workflow run pages.yml --repo "$GITHUB_REPOSITORY" || echo "pages dispatch failed; the dispatcher will catch it"
+          # the multi-model regime view reads gefs_regimes_members.json
+          gh workflow run regimes.yml --repo "$GITHUB_REPOSITORY" || echo "::warning::regimes dispatch failed"
+
