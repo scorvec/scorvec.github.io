@@ -66,6 +66,7 @@ jobs:
       - name: Publish frames to the orphan branch
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          FRAMES_PUBLISH: delta     # first workflow on the delta push + server-side orphan (2026-09-28)
         run: scripts/lib/publish_frames_ci.sh assets/sst/anim/pacsat assets/sst/anim/samsat
 
       - name: Commit & push
