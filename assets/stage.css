@@ -74,17 +74,85 @@
   .stage { padding: 0.5rem 1.2rem 0.4rem; min-height: 260px; }
   .ss-rail { top: 3.6rem; }
 }
+/* ── Phones and narrow windows (2026-09-27, user: "too many buttons to pick here and it is hard to toggle between
+   images on mobile"). One compact bar replaces the rail's pills: previous / "Choose a plot: <current>" / next, sticky
+   under the site header; the list opens in a sheet (stage.js openSheet). The crumb and the keyboard hint go; option
+   rows become one sideways-scrolling line each. Tap targets are at least 44 px. ── */
+.ss-pick, .ss-sheet, .ss-more { display: none; }
+.ss-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 @media (max-width: 1000px) {
-  .ss-layout { grid-template-columns: 1fr; }
-  .ss-rail { position: static; max-height: none; display: flex; flex-wrap: wrap; gap: 0.2rem 1rem; padding: 0.5rem 0.6rem; }
-  .rail-group { display: flex; flex-wrap: wrap; align-items: center; gap: 0.25rem; margin: 0.2rem 0; }
-  .rail-title { width: 100%; }
-  .rail-title { width: 100%; padding: 0.25rem 0.2rem; }
-  .rail-title .car, .rail-title .n { display: none; }
-  .rail-group:not(.open) button[data-p] { display: flex; }               /* phones: every group open, pills */
-  .rail-group button[data-p] { width: auto; border: 1.5px solid var(--accent); border-radius: 999px; padding: 0.3rem 0.75rem; font-size: 0.8rem; }
-  .rail-group button[data-p].on { background: var(--accent); color: #fff; }
-  .rail-group button small, .rail-group button .ico { display: none; }
+  .ss-layout { grid-template-columns: 1fr; gap: 0.6rem; }
+  .ss-rail { position: sticky; top: 64px; z-index: 30; max-height: none; overflow: visible; padding: 6px;
+             background: color-mix(in srgb, var(--surface, #fff) 94%, transparent); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); }
+  .ss-rail .rail-group { display: none; }
+  .ss-pick { display: flex; align-items: stretch; gap: 6px; }
+  .ss-pick-step { flex: none; width: 44px; min-height: 48px; font: 400 1.6rem/1 var(--sans, sans-serif); color: var(--accent);
+                  background: var(--accent-light); border: 1.5px solid var(--accent); border-radius: 8px; cursor: pointer; }
+  .ss-pick-btn { flex: 1; min-width: 0; min-height: 48px; display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-rows: auto auto;
+                 align-items: center; column-gap: 0.5rem; text-align: left; padding: 0.3rem 0.75rem; cursor: pointer;
+                 font-family: var(--sans, sans-serif); color: var(--ink); background: var(--surface, #fff); border: 1.5px solid var(--edge, #c9c5bb); border-radius: 8px; }
+  .ss-pick-k { grid-column: 1; font-size: 0.72rem; font-weight: 600; color: var(--muted); }
+  .ss-pick-t { grid-column: 1; font-size: 0.95rem; font-weight: 600; line-height: 1.25; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .ss-pick-n { grid-column: 2; grid-row: 1 / span 2; font-size: 0.78rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .ss-pick-n::after { content: " \25BE"; color: var(--accent); }
+  .ss-pick-step:focus-visible, .ss-pick-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .ss-main .crumb, .ss-main .hint { display: none; }
+  .stage { padding: 0.6rem 0.7rem 0.4rem; min-height: 0; }
+  .ss-main .cap { margin: 0.5rem 0.8rem 0; }
+  .ss-main .about { margin: 0.6rem 0.8rem 0.4rem; }
+  .ss-related { margin: 0.4rem 0.8rem 0.8rem; }
+  /* option rows: one line each, scrolled sideways, the selected option kept in view (stage.js settleRow) */
+  .opts { padding: 0.5rem 0.7rem 0; }
+  .ss-main .controls { position: relative; flex-wrap: nowrap; overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: none;
+                       gap: 0.35rem; padding-bottom: 2px; }
+  .ss-main .controls::-webkit-scrollbar { display: none; }
+  .ss-main .controls > * { flex: none; }
+  .ss-main .controls.more-r { -webkit-mask-image: linear-gradient(to right, #000 85%, transparent); mask-image: linear-gradient(to right, #000 85%, transparent); }
+  .ss-main .controls.more-l { -webkit-mask-image: linear-gradient(to left, #000 85%, transparent); mask-image: linear-gradient(to left, #000 85%, transparent); }
+  .ss-main .controls.more-l.more-r { -webkit-mask-image: linear-gradient(to right, transparent, #000 12%, #000 88%, transparent); mask-image: linear-gradient(to right, transparent, #000 12%, #000 88%, transparent); }
+  .opts .seg-label { min-width: 0; margin-right: 0.1rem; }
+  .opts .pill { min-height: 44px; white-space: nowrap; }
+  /* the headline chips above the stage: one sideways line (outlook.css makes them a two-column grid on phones,
+     nine chips = 790 px), so the figure is not pushed below the fold */
+  .page-header .chips, main > header .chips { display: flex; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none;
+                                             justify-content: flex-start; gap: 0.45rem; }
+  .page-header .chips::-webkit-scrollbar, main > header .chips::-webkit-scrollbar { display: none; }
+  .page-header .chips > *, main > header .chips > * { flex: none; min-width: 0; max-width: 72vw; }
+  /* figure first: the title, then the picker and the figure, then everything else that used to sit above them
+     (introduction, headline chips, notes). The page-header / header box is flattened so its parts can be ordered. */
+  .ss-host { display: flex; flex-direction: column; }
+  .ss-host > *, .ss-host > .page-header > *, .ss-host > header > * { order: 3; }
+  .ss-host > .page-header, .ss-host > header { display: contents; }
+  .ss-host > h1, .ss-host > .kicker, .ss-host > .eyebrow,
+  .ss-host > .page-header > h1, .ss-host > .page-header > .eyebrow,
+  .ss-host > header > h1, .ss-host > header > .eyebrow { order: 1; }
+  .ss-host > .ss-layout { order: 2; margin: 0.2rem 0 1.2rem; }
+  .ss-host .ss-more { align-self: flex-start; }
+  /* the introduction, cut to three lines with a More button (stage.js clampIntro) */
+  .ss-clamp:not(.ss-open) { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+  .ss-more { display: inline-block; min-height: 44px; margin: -0.3rem 0 0.4rem; padding: 0 0.2rem; font: 600 0.9rem var(--sans, sans-serif);
+             color: var(--accent); background: none; border: 0; cursor: pointer; text-decoration: underline; text-underline-offset: 0.18em; }
+  .ss-more:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  /* the sheet: a grouped list over the page, closed on a pick, Escape or the backdrop */
+  .ss-sheet:not([hidden]) { display: block; position: fixed; inset: 0; z-index: 3000; }
+  .ss-sheet-scrim { position: absolute; inset: 0; background: rgba(20, 18, 14, 0.45); }
+  .ss-sheet-box { position: absolute; left: 0; right: 0; bottom: 0; max-height: 86vh; max-height: 86dvh; display: flex; flex-direction: column;
+                  background: var(--surface, #fff); color: var(--ink); border-radius: 14px 14px 0 0; box-shadow: 0 -12px 40px rgba(0, 0, 0, 0.25);
+                  padding-bottom: env(safe-area-inset-bottom); animation: ss-up 0.18s ease-out; }
+  .ss-sheet-top { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: 0.6rem 0.6rem 0.5rem 1.1rem; border-bottom: 1px solid var(--rule); }
+  .ss-sheet-top h2 { margin: 0; font: 600 1.05rem var(--sans, sans-serif); color: var(--ink); text-align: left; }
+  .ss-sheet-x { min-height: 44px; min-width: 64px; font: 600 0.95rem var(--sans, sans-serif); color: var(--accent); background: none; border: 0; cursor: pointer; }
+  .ss-sheet-list { overflow-y: auto; overscroll-behavior: contain; padding: 0.3rem 0 0.8rem; }
+  .ss-sheet-list h3 { margin: 0; padding: 0.8rem 1.1rem 0.3rem; font: 600 0.85rem var(--sans, sans-serif); color: var(--muted); text-align: left; }
+  .ss-sheet-list button { display: block; width: 100%; min-height: 48px; text-align: left; padding: 0.55rem 1.1rem 0.55rem 1.3rem; cursor: pointer;
+                          font: 500 1rem/1.3 var(--sans, sans-serif); color: var(--ink); background: none; border: 0; border-left: 3px solid transparent; }
+  .ss-sheet-list button small { display: block; font-weight: 400; font-size: 0.85rem; color: var(--muted); }
+  .ss-sheet-list button[aria-current="true"] { background: var(--accent-light); border-left-color: var(--accent); color: var(--accent); font-weight: 600; }
+  .ss-sheet-list button:focus-visible, .ss-sheet-x:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+  html.ss-lock { overflow: hidden; }
+}
+@keyframes ss-up { from { transform: translateY(24px); opacity: 0.4; } }
+@media (prefers-reduced-motion: reduce) { .ss-sheet-box { animation: none; } }
 }
 /* The option pills, for stage pages that do not load outlook.css (navigation phase 2: qbo, ar …). Same look as
    outlook.css's .pill; scoped to the option rows so outlook.css pages are unaffected. */

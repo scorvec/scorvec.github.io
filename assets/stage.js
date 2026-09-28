@@ -34,11 +34,145 @@
       g.items.forEach(function (p) {
         var b = document.createElement("button"); b.type = "button"; b.dataset.p = p[0];
         b.innerHTML = (g.ico ? '<span class="ico">' + g.ico + '</span>' : "") + '<span>' + p[1] + (p[2] ? '<small>' + p[2] + '</small>' : "") + '</span>';
-        b.onclick = function () { sel = { p: p[0], a: null, b: null, c: null }; render(); };
+        b.onclick = function () { choose(p[0]); };
         d.appendChild(b);
       });
       host.appendChild(d);
     });
+    buildPicker(host);
+  }
+  // Pick a product. A new figure is a new history entry (back returns to the previous one); option
+  // changes within a figure only replace the entry.
+  var pushNext = false;
+  function choose(id) { if (!P[id]) return; sel = { p: id, a: null, b: null, c: null }; pushNext = true; render(); }
+
+  // ── Phones and narrow windows (2026-09-27, user: "too many buttons to pick here and it is hard to toggle
+  // between images on mobile"). Below 1000 px the rail's wall of pills gives way to one compact bar: previous /
+  // "Choose a plot: <current>" / next, which opens a grouped list in a sheet. The figure sits right under it,
+  // and a clear horizontal swipe on the figure steps to the previous / next plot. ──
+  var pick = null, sheet = null, sheetReturn = null, live = null;
+  function narrow() { return window.matchMedia && window.matchMedia("(max-width: 1000px)").matches; }
+  function buildPicker(host) {
+    pick = document.createElement("div"); pick.className = "ss-pick";
+    pick.innerHTML =
+      '<button type="button" class="ss-pick-step" data-d="-1" aria-label="Previous plot"><span aria-hidden="true">\u2039</span></button>' +
+      '<button type="button" class="ss-pick-btn" aria-haspopup="dialog" aria-expanded="false">' +
+        '<span class="ss-pick-k">Choose a plot</span><span class="ss-pick-t"></span><span class="ss-pick-n"></span></button>' +
+      '<button type="button" class="ss-pick-step" data-d="1" aria-label="Next plot"><span aria-hidden="true">\u203a</span></button>' +
+      '<span class="ss-sr" aria-live="polite"></span>';
+    host.insertBefore(pick, host.firstChild);
+    live = pick.querySelector(".ss-sr");
+    pick.querySelector(".ss-pick-btn").onclick = openSheet;
+    Array.prototype.forEach.call(pick.querySelectorAll(".ss-pick-step"), function (b) {
+      b.onclick = function () { stepProduct(+b.dataset.d); };
+    });
+  }
+  function availableOrder() { return ORDER.filter(available); }
+  function updatePicker(g) {
+    if (!pick) return;
+    var av = availableOrder(), i = av.indexOf(sel.p);
+    pick.querySelector(".ss-pick-t").textContent = g[1];
+    pick.querySelector(".ss-pick-n").textContent = (i + 1) + " / " + av.length;
+    pick.querySelector(".ss-pick-btn").setAttribute("aria-label", "Choose a plot. Showing " + g[1] + ", " + (i + 1) + " of " + av.length + ", in " + g[0]);
+  }
+  function buildSheet() {
+    sheet = document.createElement("div"); sheet.className = "ss-sheet"; sheet.hidden = true;
+    sheet.innerHTML = '<div class="ss-sheet-scrim" data-close></div>' +
+      '<div class="ss-sheet-box" role="dialog" aria-modal="true" aria-labelledby="ss-sheet-h">' +
+      '<div class="ss-sheet-top"><h2 id="ss-sheet-h">Choose a plot</h2><button type="button" class="ss-sheet-x" data-close>Close</button></div>' +
+      '<div class="ss-sheet-list"></div></div>';
+    document.body.appendChild(sheet);
+    sheet.addEventListener("click", function (e) {
+      if (e.target.closest("[data-close]")) { closeSheet(); return; }
+      var b = e.target.closest("button[data-p]"); if (b) { closeSheet(); choose(b.dataset.p); }
+    });
+    sheet.addEventListener("keydown", function (e) {
+      if (e.key === "Escape") { e.preventDefault(); closeSheet(); return; }
+      if (e.key === "Tab") {                                   // keep focus inside the sheet
+        var f = Array.prototype.slice.call(sheet.querySelectorAll("button:not([hidden])"));
+        var i = f.indexOf(document.activeElement); e.preventDefault();
+        f[(i + (e.shiftKey ? -1 : 1) + f.length) % f.length].focus();
+      }
+      if (e.key === "ArrowDown" || e.key === "ArrowUp") {      // move through the list
+        var items = Array.prototype.slice.call(sheet.querySelectorAll(".ss-sheet-list button"));
+        var k = items.indexOf(document.activeElement); if (k < 0) return;
+        e.preventDefault(); items[Math.max(0, Math.min(items.length - 1, k + (e.key === "ArrowDown" ? 1 : -1)))].focus();
+      }
+    });
+  }
+  // Figure first on narrow screens: the long introduction above the stage (the page-header's .sub, notes, a lede)
+  // is cut to a few lines with a "More" button, so the plot is on the first screen. Wide screens are unchanged.
+  function clampIntro() {
+    var lay = document.querySelector(".ss-layout"); if (!lay) return;
+    // the layout's container reorders on narrow screens (stage.css .ss-host): title, then the picker and the
+    // figure, then the introduction, the headline chips and the rest
+    lay.parentElement.classList.add("ss-host");
+    var sel2 = ".page-header > .sub, .page-header > .chipnote, main > header > .sub, main > .lede, main > p.lede, .wrap > .page-header .lede";
+    Array.prototype.forEach.call(document.querySelectorAll(sel2), function (el, i) {
+      if (!(el.compareDocumentPosition(lay) & Node.DOCUMENT_POSITION_FOLLOWING) || el.classList.contains("ss-clamp")) return;
+      el.classList.add("ss-clamp"); if (!el.id) el.id = "ss-intro-" + i;
+      var b = document.createElement("button"); b.type = "button"; b.className = "ss-more";
+      b.setAttribute("aria-expanded", "false"); b.setAttribute("aria-controls", el.id); b.textContent = "More";
+      b.onclick = function () { var o = el.classList.toggle("ss-open"); b.setAttribute("aria-expanded", o ? "true" : "false"); b.textContent = o ? "Less" : "More"; };
+      el.parentNode.insertBefore(b, el.nextSibling);
+    });
+  }
+  function openSheet() {
+    if (!sheet) buildSheet();
+    var list = sheet.querySelector(".ss-sheet-list"), html = "";
+    GROUPS.forEach(function (g) {
+      var its = g.items.filter(function (p) { return available(p[0]); }); if (!its.length) return;
+      html += '<h3>' + (g.ico ? '<span aria-hidden="true">' + g.ico + '</span> ' : "") + g.label + '</h3>';
+      its.forEach(function (p) {
+        html += '<button type="button" data-p="' + p[0] + '"' + (p[0] === sel.p ? ' aria-current="true"' : "") + '>' +
+          '<span>' + p[1] + '</span>' + (p[2] ? '<small>' + p[2] + '</small>' : "") + '</button>';
+      });
+    });
+    list.innerHTML = html;
+    sheetReturn = pick.querySelector(".ss-pick-btn");   // focus goes back to the picker (iOS does not focus a tapped button)
+    sheet.hidden = false; document.documentElement.classList.add("ss-lock");
+    pick.querySelector(".ss-pick-btn").setAttribute("aria-expanded", "true");
+    var cur = list.querySelector('[aria-current="true"]') || list.querySelector("button");
+    if (cur) { cur.scrollIntoView({ block: "center" }); cur.focus({ preventScroll: true }); }
+  }
+  function closeSheet() {
+    if (!sheet || sheet.hidden) return;
+    sheet.hidden = true; document.documentElement.classList.remove("ss-lock");
+    pick.querySelector(".ss-pick-btn").setAttribute("aria-expanded", "false");
+    if (sheetReturn && sheetReturn.focus) sheetReturn.focus({ preventScroll: true });
+  }
+  // A clear horizontal swipe on the figure steps the plot. Vertical scrolling and pinch-zoom are left alone:
+  // one finger only, mostly sideways (|dx| > 2|dy|), far enough (60 px) and quick (< 700 ms), and never on
+  // something that scrolls sideways or pans by itself (option rows, wide tables, Plotly charts, sliders).
+  function swipeable(t, root) {
+    for (var el = t; el && el !== root; el = el.parentElement) {
+      if (el.matches && el.matches("input, select, textarea, .js-plotly-plot, .controls, [data-noswipe]")) return false;
+      if (el.scrollWidth > el.clientWidth + 2) { var ox = getComputedStyle(el).overflowX; if (ox === "auto" || ox === "scroll") return false; }
+    }
+    return true;
+  }
+  function wireSwipe() {
+    var st = $("stage"), t0 = null;
+    st.addEventListener("touchstart", function (e) {
+      t0 = (e.touches.length === 1 && swipeable(e.target, st)) ? { x: e.touches[0].clientX, y: e.touches[0].clientY, t: Date.now() } : null;
+    }, { passive: true });
+    st.addEventListener("touchmove", function (e) { if (e.touches.length > 1) t0 = null; }, { passive: true });
+    st.addEventListener("touchend", function (e) {
+      if (!t0 || !e.changedTouches.length) return;
+      var dx = e.changedTouches[0].clientX - t0.x, dy = e.changedTouches[0].clientY - t0.y, dt = Date.now() - t0.t; t0 = null;
+      if (Math.abs(dx) > 60 && Math.abs(dx) > 2 * Math.abs(dy) && dt < 700) stepProduct(dx < 0 ? 1 : -1);
+    }, { passive: true });
+  }
+  // keep the selected option in view in a row that scrolls sideways, and show which edges have more
+  function settleRow(host) {
+    var on = host.querySelector(".pill.on");
+    if (on && host.scrollWidth > host.clientWidth) host.scrollLeft = Math.max(0, on.offsetLeft - (host.clientWidth - on.offsetWidth) / 2);
+    edges(host);
+  }
+  function edges(host) {
+    var more = host.scrollWidth > host.clientWidth + 2;
+    host.classList.toggle("more-l", more && host.scrollLeft > 2);
+    host.classList.toggle("more-r", more && host.scrollLeft + host.clientWidth < host.scrollWidth - 2);
   }
   function buttons(host, group, key) {
     host.innerHTML = "";
@@ -51,6 +185,8 @@
       b.onclick = function () { sel[key] = it[0]; render(); };
       host.appendChild(b);
     });
+    if (!host._edges) { host._edges = true; host.addEventListener("scroll", function () { edges(host); }, { passive: true }); }
+    setTimeout(function () { settleRow(host); }, 0);
     return sel[key];
   }
   // SIZING (reworked 2026-09-09 after "the images are showing up way too small and not fitting
@@ -153,12 +289,17 @@
     // own <title> rather than the first product's.
     if (titled) document.title = g[1] + " · " + PAGE_NAME + " · Shawn Corvec";
     titled = true;
+    updatePicker(g);
+    if (pushNext && live) live.textContent = g[1];
     fitStage();
     var h = "#" + [sel.p, sel.a, sel.b, sel.c].filter(function (x) { return x; }).join("/");
     if (wanted && Date.now() > wanted.until) wanted = null;
     // ownHash: a mounted block that keeps its own state in the hash after the product id (mjo.html's #mi/f/d/m/l/v)
     var own = p.ownHash && location.hash.indexOf("#" + sel.p + "/") === 0;
-    if (location.hash !== h && !wanted && !own) history.replaceState(null, "", h);   // a link still waiting keeps its hash
+    if (location.hash !== h && !wanted && !own) {                                   // a link still waiting keeps its hash
+      if (pushNext) history.pushState(null, "", h); else history.replaceState(null, "", h);
+    }
+    pushNext = false;
     related();
     window.dispatchEvent(new Event("resize"));
   }
@@ -224,7 +365,7 @@
   function step(dir) { var bs = lastRow(); if (!bs) return stepProduct(dir); var i = -1; for (var k = 0; k < bs.length; k++) if (bs[k].classList.contains("on")) i = k; bs[(i + dir + bs.length) % bs.length].click(); }
   function stepProduct(dir) {
     var i = ORDER.indexOf(sel.p);
-    for (var k = 1; k <= ORDER.length; k++) { var q = ORDER[(i + dir * k + ORDER.length * k) % ORDER.length]; if (available(q)) { sel = { p: q, a: null, b: null, c: null }; break; } }
+    for (var k = 1; k <= ORDER.length; k++) { var q = ORDER[(i + dir * k + ORDER.length * k) % ORDER.length]; if (available(q)) { choose(q); return; } }
     render();
   }
   function syncRail() {
@@ -237,6 +378,7 @@
   $("prevBtn").onclick = function () { step(-1); }; $("nextBtn").onclick = function () { step(1); };
   addEventListener("keydown", function (e) {
     if (e.target && /INPUT|SELECT|TEXTAREA/.test(e.target.tagName)) return;
+    if (sheet && !sheet.hidden) return;
     if (e.key === "ArrowRight") { step(1); e.preventDefault(); } else if (e.key === "ArrowLeft") { step(-1); e.preventDefault(); }
     else if (e.key === "ArrowDown") { stepProduct(1); e.preventDefault(); } else if (e.key === "ArrowUp") { stepProduct(-1); e.preventDefault(); }
     else if (e.key === "Escape") { $("lightbox").classList.remove("on"); }
@@ -265,8 +407,17 @@
     }
   });
   function hashParts() { var h = location.hash.replace(/^#/, "").split("/"); return (h[0] && !P[h[0]] && AL[h[0]]) ? [AL[h[0]]] : h; }
-  addEventListener("hashchange", function () { var h = hashParts(); if (h[0] && P[h[0]]) { sel = { p: h[0], a: h[1] || null, b: h[2] || null, c: h[3] || null }; render(); } });
+  function follow() {
+    var h = hashParts(); if (!(h[0] && P[h[0]])) return;
+    var n = { p: h[0], a: h[1] || null, b: h[2] || null, c: h[3] || null };
+    if (n.p === sel.p && n.a === sel.a && n.b === sel.b && n.c === sel.c) return;
+    sel = n; closeSheet(); render();
+  }
+  addEventListener("hashchange", follow);
+  addEventListener("popstate", follow);
   buildRail();
+  wireSwipe();
+  clampIntro();
   // watch the gated blocks: a card that shows or hides itself updates the rail, and leaves the stage if it hid
   var gatedEls = ORDER.filter(function (id) { return P[id].gated && P[id].dom; }).map(function (id) { return $(P[id].dom()); }).filter(Boolean);
   if (gatedEls.length && window.MutationObserver) {
