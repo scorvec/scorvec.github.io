@@ -77,6 +77,8 @@ jobs:
         if: env.THUMBS == 'true'
         run: python -m pip install -q pillow
       - name: Build the catalogue
+        env:
+          CATALOG_PRIVATE_RE: ${{ secrets.CATALOG_PRIVATE_RE }}
         run: |
           node --version
           python3 scripts/site/build_catalog.py
@@ -84,6 +86,7 @@ jobs:
         if: env.THUMBS == 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CATALOG_PRIVATE_RE: ${{ secrets.CATALOG_PRIVATE_RE }}
         run: |
           cp assets/site/catalog.json "$RUNNER_TEMP/catalog_before.json"
           python scripts/site/build_thumbs.py --prune-out "$RUNNER_TEMP/prune.txt" | tee "$RUNNER_TEMP/thumbs.log"

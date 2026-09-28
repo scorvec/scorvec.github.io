@@ -95,7 +95,7 @@ echo "building cycle $COMPACT …"
 commit_push () {            # $1 = message; commits staged changes (if any) + pushes with retry
   if git diff --staged --quiet; then echo "  ($1: nothing to commit)"; return 0; fi
   git_lock || return 1     # serialise vs the other site pipelines (sst/synoptic/ens)
-  git -c user.name="Shawn Corvec" -c user.email="scorvec@outlook.com" commit -m "$1"
+  git -c user.name="Shawn Corvec" -c user.email="26825570+scorvec@users.noreply.github.com" commit -m "$1"
   for i in 1 2 3 4 5; do
     if git pull --rebase --autostash -X theirs origin main && git push; then echo "  pushed: $1 (attempt $i)"; git_unlock; return 0; fi
     git_rebase_rescue   # finish the rebase past frame-count conflicts, else abort clean
@@ -110,7 +110,7 @@ publish () {                # $1 = message; $2.. = paths — ATOMIC stage+commit
   local p                   # commit or groups cross-stage each other's files.
   for p in "$@"; do [ -e "$p" ] && git add "$p"; done
   if git diff --staged --quiet; then echo "  ($msg: nothing to commit)"; git_unlock; return 0; fi
-  git -c user.name="Shawn Corvec" -c user.email="scorvec@outlook.com" commit -m "$msg"
+  git -c user.name="Shawn Corvec" -c user.email="26825570+scorvec@users.noreply.github.com" commit -m "$msg"
   local i
   for i in 1 2 3 4 5; do
     if git pull --rebase --autostash -X theirs origin main && git push; then echo "  pushed: $msg (attempt $i)"; git_unlock; return 0; fi

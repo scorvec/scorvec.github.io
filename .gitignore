@@ -216,3 +216,4 @@ scripts/mjo/data/sla_raw/
 # product freshness, generated at deploy time by scripts/site/status.py (pages.yml)
 /status.json
 assets/gefs/anim/runs/
+scripts/site/.private_terms

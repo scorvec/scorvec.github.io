@@ -56,7 +56,7 @@ fi
 # Publish: only the SEAS5 outputs. A concurrent CI data commit just shifts our base.
 ( cd "$SITE" && git add assets/sst/seas5_*.webp assets/sst/data/seas5_*.json \
   && { git diff --staged --quiet && echo "  no change to publish" && exit 0; \
-       git -c user.name="Shawn Corvec" -c user.email="scorvec@outlook.com" \
+       git -c user.name="Shawn Corvec" -c user.email="26825570+scorvec@users.noreply.github.com" \
            commit -q -m "data update: SEAS5 ${ISSUE:0:4}-${ISSUE:4:2} issue" \
        && git pull -q --rebase --autostash origin main && git push -q origin HEAD:main \
        && echo "  published $ISSUE"; } ) >> "$LOG" 2>&1 \

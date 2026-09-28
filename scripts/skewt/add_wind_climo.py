@@ -56,7 +56,7 @@ def main() -> int:
             return 1
         subprocess.run(["git", "-C", str(wt), "add", "-A"], check=True)
         subprocess.run(["git", "-C", str(wt), "-c", "user.name=Shawn Corvec",
-                        "-c", "user.email=scorvec@outlook.com", "commit", "-q",
+                        "-c", "user.email=26825570+scorvec@users.noreply.github.com", "commit", "-q",
                         "-m", f"Climatology: add 850/250 hPa wind speed ({merged} stations)"],
                        check=True)
         subprocess.run(["git", "-C", str(wt), "push", "-f", "origin",

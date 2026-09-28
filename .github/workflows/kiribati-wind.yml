@@ -28,7 +28,7 @@ jobs:
       - name: Commit & push
         run: |
           git config user.name "Shawn Corvec"
-          git config user.email "shawncorvec@hotmail.com"
+          git config user.email "26825570+scorvec@users.noreply.github.com"
           git add assets/sst/kiribati_wind.webp assets/sst/kiribati_wind.json scripts/sst/metar/kiribati_wind.csv
           if git diff --staged --quiet; then echo "no changes"; exit 0; fi
           git commit -m "data update: $(date -u +%Y-%m-%dT%H:%MZ)"

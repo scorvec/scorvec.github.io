@@ -344,7 +344,7 @@ jobs:
       - name: Commit & push
         run: |
           git config user.name "Shawn Corvec"
-          git config user.email "shawncorvec@hotmail.com"
+          git config user.email "26825570+scorvec@users.noreply.github.com"
           for f in assets/sst/nh_vortex.webp \
                    assets/sst/ifs_heatflux100_nh.webp assets/sst/ifs_heatflux100_sh.webp assets/sst/data/ifs_heatflux100.json \
                    assets/sst/ifs_drip.webp assets/sst/data/ifs_drip.json \

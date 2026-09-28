@@ -166,7 +166,20 @@ THUMBS = {
 # compare ("unlike GEPS's"), so they are not tagged from the text there
 SYSTEMS = {"AIFS-ENS", "AIFS", "IFS", "GEPS", "GEFS", "GDPS", "GFS", "HRRR", "RRFS", "RDPS", "SEAS5", "C3S", "SFS"}
 # private boards and products that must never reach the public index (labels are checked; keyword text is filtered)
-PRIVATE = re.compile(r"gat[uú]n|colombia|brazil|brasil|hydro board|/hydro/|\bXM\b|\bONS\b|pjm|nyiso|\boil\b|refin|early.?vote", re.I)
+def _private_pattern() -> "re.Pattern":
+    """The names of private boards and products, which must never reach the public index. They are kept out of this
+    public file: Actions passes them in the CATALOG_PRIVATE_RE secret, a laptop reads the untracked
+    scripts/site/.private_terms. With neither, the build stops rather than publish an unfiltered index."""
+    pat = os.environ.get("CATALOG_PRIVATE_RE", "").strip()
+    f = Path(__file__).with_name(".private_terms")
+    if not pat and f.exists():
+        pat = f.read_text().strip()
+    if not pat:
+        raise SystemExit("build_catalog: no private-name filter (set CATALOG_PRIVATE_RE or scripts/site/.private_terms)")
+    return re.compile(pat, re.I)
+
+
+PRIVATE = _private_pattern()
 
 
 def run_eval(path: Path) -> dict:

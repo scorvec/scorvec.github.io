@@ -132,7 +132,7 @@ done
 
 cd "$TMP/f"
 git config user.name "Shawn Corvec"
-git config user.email "shawncorvec@hotmail.com"
+git config user.email "26825570+scorvec@users.noreply.github.com"
 git checkout -q --orphan fresh
 git add -A
 if git diff --cached --quiet; then echo "  no frame changes"; return 0; fi

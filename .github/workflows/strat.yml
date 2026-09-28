@@ -426,7 +426,7 @@ jobs:
       - name: Commit & push
         run: |
           git config user.name "Shawn Corvec"
-          git config user.email "shawncorvec@hotmail.com"
+          git config user.email "26825570+scorvec@users.noreply.github.com"
           # one path at a time: `git add a b c` adds NOTHING when any one of them is missing (a product that failed)
           for f in assets/sst/vortex_10.webp \
                    assets/sst/heatflux100_nh.webp assets/sst/heatflux100_sh.webp assets/sst/data/heatflux100.json assets/sst/data/heatflux100_history.json \

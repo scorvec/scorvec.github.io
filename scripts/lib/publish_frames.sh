@@ -170,7 +170,7 @@ REMOTE="$(git config --get remote.origin.url)"
   cd "$TMP" || exit 1
   git init -q -b "$BRANCH"
   git add -A
-  git -c user.name="Shawn Corvec" -c user.email="scorvec@outlook.com" \
+  git -c user.name="Shawn Corvec" -c user.email="26825570+scorvec@users.noreply.github.com" \
       commit -q -m "animation frames $(date -u +%FT%H:%MZ)"
 
   # GUARD (2026-09-04). This is a FORCE push of a whole tree, so anything that

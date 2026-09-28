@@ -147,7 +147,7 @@ DAY=$("$PY" -c "import json; print(json.load(open('assets/sst/manifest.json'))['
 source "$REPO/scripts/lib/gitlock.sh"
 trap 'git_unlock; rm -rf "$LOCK" 2>/dev/null' EXIT   # both cleanups (this trap replaces the lock-only one above)
 git_lock || { echo "git lock busy; leaving as a local commit for the next run"; exit 0; }
-git -c user.name="Shawn Corvec" -c user.email="scorvec@outlook.com" \
+git -c user.name="Shawn Corvec" -c user.email="26825570+scorvec@users.noreply.github.com" \
     commit -m "data update: $(date -u +%FT%H:%MZ)"
 for i in 1 2 3 4 5; do
   if git pull --rebase --autostash -X theirs origin main && git push; then echo "pushed (attempt $i)"; git_unlock; exit 0; fi

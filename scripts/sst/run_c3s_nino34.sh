@@ -159,7 +159,7 @@ fi
 source "$REPO/scripts/lib/gitlock.sh"
 trap 'git_unlock; rm -rf "$LOCK" 2>/dev/null' EXIT
 git_lock || { echo "git lock busy; leaving as a local commit for the next run"; exit 0; }
-git -c user.name="Shawn Corvec" -c user.email="scorvec@outlook.com" \
+git -c user.name="Shawn Corvec" -c user.email="26825570+scorvec@users.noreply.github.com" \
     commit -m "data update: "
 for i in 1 2 3 4 5; do
   if git pull --rebase --autostash -X theirs && git push; then

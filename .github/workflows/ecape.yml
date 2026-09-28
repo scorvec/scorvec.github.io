@@ -174,7 +174,7 @@ jobs:
               python scripts/ecape/build_manifest.py assets/ecape/anim --cycle "$CYCLE" || true
               scripts/lib/publish_frames_ci.sh "assets/ecape/anim/$CYCLE" || true
               git add "assets/ecape/anim/ecape_$CYCLE.json" assets/ecape/anim/index.json 2>/dev/null || true
-              git -c user.name="Shawn Corvec" -c user.email="shawncorvec@hotmail.com" \
+              git -c user.name="Shawn Corvec" -c user.email="26825570+scorvec@users.noreply.github.com" \
                   commit -q -m "ecape: partial loop $CYCLE (F00-F18)" 2>/dev/null || true
               # Retry, and SAY why on failure. The first version pushed once with
               # both streams sent to /dev/null: on 2026-08-30 it lost a race with
@@ -268,7 +268,7 @@ jobs:
           rm -f "$TMP/f/assets/ecape/anim/ecape_manifest.json"
           cd "$TMP/f"
           git config user.name "Shawn Corvec"
-          git config user.email "shawncorvec@hotmail.com"
+          git config user.email "26825570+scorvec@users.noreply.github.com"
           git checkout -q --orphan fresh
           git add -A
           if git diff --cached --quiet; then echo "no frame changes"; exit 0; fi
@@ -280,7 +280,7 @@ jobs:
         if: ${{ (github.event_name == 'schedule' || github.event.inputs.publish == 'true') && steps.cyc.outputs.skip != 'true' }}
         run: |
           git config user.name "Shawn Corvec"
-          git config user.email "shawncorvec@hotmail.com"
+          git config user.email "26825570+scorvec@users.noreply.github.com"
           # Only the manifest - never the frame webp, and no stills any more.
           git add "assets/ecape/anim/ecape_${{ steps.cyc.outputs.cycle }}.json" assets/ecape/anim/index.json
           if git diff --staged --quiet; then echo "no changes"; exit 0; fi
