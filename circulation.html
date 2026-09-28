@@ -310,7 +310,7 @@ window.STAGE = {
   {label: "Overturning & jets", ico: "\u{1F30D}", items: [["hadley","Hadley cells","meridional streamfunction"],["walker","Walker circulation","loop, by basin, weekly departure"],["jets","Subtropical jets","strength and position"],["pacjet","North Pacific jet","extension, shift, torque"]]}
 ],
   products: {
-  gillrain: {label: "Rain-forced circulation (Gill model)", img: function () { return "assets/sst/gill_rain.webp?v=6455ce08d927"; }, fit: false,
+  gillrain: {label: "Rain-forced circulation (Gill model)", img: function () { return "assets/sst/gill_rain.webp?v=202609282324"; }, fit: false,
           about: "about-gillrain", cap: function () { return "How much of the tropical upper-level circulation the rain itself explains: the Gill (1980) model forced by the observed rain of the last four weeks (IMERG Late) and by the AIFS-ENS forecast rain of weeks 1 and 2, against the observed and forecast 200 hPa velocity potential."; }},
   mslp: {label: "MSLP and 10 m wind", frame: function () { return "sst_anim.html?embed=1&manifest=mslp_wind_manifest.json&region=mslp_wind"; }, about: "about-mslp", cap: function () { return "Ensemble-mean sea-level pressure and 10 m wind, days 0–15."; }},
   gdps_ir: {label: "GDPS simulated infrared", frame: function () { return "sst_anim.html?embed=1&manifest=gdps_ir_manifest.json&region=gdps_ir"; }, about: "about-gdps_ir", cap: function () { return "Forecast top-of-atmosphere brightness temperature from the GDPS, read like a satellite loop."; }},
