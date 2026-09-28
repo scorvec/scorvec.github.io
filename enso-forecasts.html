@@ -696,6 +696,12 @@
     .ef-seg button, .ef-tog { padding: 0.4rem 0.62rem; }
     .ef-controls { gap: 0.55rem 1rem; }
   }
+  /* the stage viewer (assets/stage.css): the mounted question drops its own section frame */
+  .ef .ss-layout { margin: 1.4rem 0 1.6rem; }
+  .ef .stage > .ef-sec, .ef .stage > .ef-brief { margin: 0; border: 0; }
+  .ef .stage > .ef-sec { padding: 0; }
+  .ef .stage > .ef-sec > h2, .ef .stage > .ef-brief > h2 { margin-top: 0; }
+  .ef .ss-main .hint a { color: var(--accent); }
 </style>
 <main class="ef">
   <header>
@@ -703,6 +709,24 @@
     <p class="sub" id="ef-sub">What seven seasonal forecast systems expect from El Ni&ntilde;o and La Ni&ntilde;a over the next six months, member by member. Updated each month.</p>
   </header>
 
+  <!-- One question at a time on the shared stage viewer (assets/stage.js), 2026-09-27 (navigation phase 2): the brief
+       is the first product and the default view, the four questions follow, each mounting whole with its own
+       controls; the method stays below. The old section anchors #brief #plume #flavour #changes #history are the
+       product ids. -->
+  <div class="ss-layout">
+    <aside class="ss-rail" id="rail" aria-label="Questions"></aside>
+    <section class="ss-main">
+      <div class="crumb"><div class="path" id="crumb"></div>
+        <div class="nav"><button type="button" id="prevBtn" title="previous (←)">&larr; prev</button><button type="button" id="nextBtn" title="next (→)">next &rarr;</button></div></div>
+      <div class="opts"><div class="controls" id="opts-a"></div><div class="controls" id="opts-b"></div><div class="controls" id="opts-c"></div></div>
+      <div class="stage" id="stage"></div>
+      <p class="cap" id="cap"></p>
+      <div id="about"></div>
+      <p class="hint"><span class="kbd">&uarr;</span> <span class="kbd">&darr;</span> change question &middot; each keeps its own controls &middot; <a href="#method" onclick="document.getElementById('method').open = true">method and sources</a></p>
+    </section>
+  </div>
+  <div class="lightbox" id="lightbox"><img alt=""></div>
+  <div class="dom-holder">
   <!-- ── THE ANSWER ─────────────────────────────────────────────────────── -->
   <section class="ef-brief" id="brief" aria-labelledby="brief-h">
     <h2 id="brief-h">The outlook in brief</h2>
@@ -724,15 +748,6 @@
       <figcaption class="ef-cap" id="ef-eq-cap"></figcaption>
     </figure>
   </section>
-
-  <nav class="ef-jump" aria-label="On this page">
-    <span>On this page:</span>
-    <a href="#plume">How strong</a>
-    <a href="#flavour">How east-based</a>
-    <a href="#changes">How the forecast changed</a>
-    <a href="#history">Past El Ni&ntilde;os</a>
-    <a href="#method">Method and sources</a>
-  </nav>
 
   <!-- ── 1. THE PLUME ──────────────────────────────────────────────────── -->
   <section class="ef-sec" id="plume" aria-labelledby="plume-h">
@@ -872,6 +887,24 @@
     <div class="ef-foot"><span>NOAA CPC&rsquo;s published ONI and RONI; months after CPC&rsquo;s latest value are estimated from NOAA OISST and marked provisional.</span><span id="hist-updated"></span></div>
   </section>
 
+  </div>
+<script>
+window.STAGE = {
+  groups: [{ label: "The forecast", items: [["brief", "The outlook in brief", "the odds, the facts, the equator"],
+                                            ["plume", "How strong will it get?", "every model and the member fan"],
+                                            ["flavour", "How east-based will it be?", "the E and C indices"],
+                                            ["changes", "How has the forecast changed?", "issue by issue"],
+                                            ["history", "Compared with past El Niños", "every year since 1970"]] }],
+  products: {
+    brief:   { label: "The outlook in brief", dom: function () { return "brief"; } },
+    plume:   { label: "How strong will it get?", dom: function () { return "plume"; } },
+    flavour: { label: "How east-based will it be?", dom: function () { return "flavour"; } },
+    changes: { label: "How has the forecast changed?", dom: function () { return "changes"; } },
+    history: { label: "How does it compare with past El Niños?", dom: function () { return "history"; } }
+  }
+};
+</script>
+
   <!-- ── 5. METHOD ─────────────────────────────────────────────────────── -->
   <details class="ef-method" id="method">
     <summary>Method and sources</summary>
@@ -955,6 +988,8 @@
     </div>
   </details>
 </main>
+<link rel="stylesheet" href="/assets/stage.css">
+<script src="/assets/stage.js" defer></script>
 
 <script>
 (function () {

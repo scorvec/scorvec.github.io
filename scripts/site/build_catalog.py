@@ -105,8 +105,8 @@ PAGES = {
     # "/cities/" paused 2026-09-27 (city forecasts turned off); restore from git history
     "/qbo/": dict(kind="stage", file="qbo/index.html", topic="drivers", title="QBO tracker", tier=0, prio=9,
                   models=["Radiosondes"], horizon="Observed", region=["Tropics"]),
-    "/enso-forecasts.html": dict(kind="page", topic="outlooks", tier=2, prio=29, models=["Multi-model"], horizon="Seasons",
-                                 region=["Tropical Pacific"], variable=["SST"]),
+    "/enso-forecasts.html": dict(kind="stage", file="enso-forecasts.html", topic="outlooks", title="ENSO forecasts", tier=2, prio=29,
+                                 models=["C3S", "Multi-model"], horizon="Seasons", region=["Tropical Pacific"]),
     # "/cities/verify.html" paused 2026-09-27
     "/aifs-verify.html": dict(kind="stage", file="aifs-verify.html", topic="research", title="AIFS single versus member 0", tier=1,
                               prio=23, models=["AIFS", "AIFS-ENS", "ERA5"], horizon="Days 1–15", region=["Northern Hemisphere"]),
@@ -160,6 +160,7 @@ THUMBS = {
     "/seasonal.html#xdaysCard": "assets/sst/seas5_xdays_us_tn_0_*.webp",
     "/seasonal.html#snowCard": "assets/sst/seas5_snowtot_pct_*.webp",
     "/seasonal.html#windCard": "assets/sst/seas5_wind_vanom_*.webp",
+    "/enso-forecasts.html#plume": "assets/sst/c3s_nino34.webp",
 }
 # forecast systems: on a page that is one system's own product (own_models=True) the captions name the others only to
 # compare ("unlike GEPS's"), so they are not tagged from the text there
@@ -285,6 +286,18 @@ def fig_key(fig: dict | None, page_dir: Path) -> str | None:
     return None
 
 
+def element_html(html: str, start: int, tag: str) -> str:
+    """The element that opens at `start`, through its matching close tag (nested same-name tags counted)."""
+    depth, pos = 0, start
+    rx = re.compile(rf"<(/?){tag}\b[^>]*>", re.I)
+    for m in rx.finditer(html, start):
+        depth += -1 if m.group(1) else 1
+        if depth == 0:
+            return html[start:m.end()]
+        pos = m.end()
+    return html[start:start + 20000]
+
+
 def stage_items(href: str, cfg: dict) -> list:
     path = REPO / cfg["file"]
     html = path.read_text()
@@ -334,10 +347,9 @@ def stage_items(href: str, cfg: dict) -> list:
             # has one, is its figure
             elem = ""
             if p["kind"] == "dom" and p.get("domId"):
-                m0 = re.search(rf'id="{re.escape(p["domId"])}"', html)
+                m0 = re.search(rf'<(\w+)[^>]*\bid="{re.escape(p["domId"])}"', html)
                 if m0:
-                    nxt = re.search(r'<div class="card[ "]', html[m0.end():])   # the next card, not a card-head
-                    chunk = html[m0.start(): m0.end() + (nxt.start() if nxt else 20000)]
+                    chunk = element_html(html, m0.start(), m0.group(1))
                     elem = text_of(chunk)
                     img = re.search(r'<img[^>]+(?:data-src|src)="([^"]+\.(?:webp|png|jpg))[^"]*"', chunk)
                     if thumb is None and img and not img.group(1).startswith("data:"):

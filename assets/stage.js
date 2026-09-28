@@ -20,7 +20,11 @@
   var ORDER = []; GROUPS.forEach(function (g) { g.items.forEach(function (p) { ORDER.push(p[0]); }); });
   var sel = { p: ORDER[0], a: null, b: null, c: null };
   var $ = function (id) { return document.getElementById(id); };
-  var mounted = null, mountedHome = null, pinMax = 0, wanted = null;
+  var mounted = null, mountedHome = null, pinMax = 0, wanted = null, deferHash = null;
+  addEventListener("load", function () {
+    if (deferHash && !location.hash) history.replaceState(null, "", deferHash);
+    deferHash = null;
+  });
 
   function buildRail() {
     var host = $("rail"); host.innerHTML = "";
@@ -297,7 +301,12 @@
     // ownHash: a mounted block that keeps its own state in the hash after the product id (mjo.html's #mi/f/d/m/l/v)
     var own = p.ownHash && location.hash.indexOf("#" + sel.p + "/") === 0;
     if (location.hash !== h && !wanted && !own) {                                   // a link still waiting keeps its hash
-      if (pushNext) history.pushState(null, "", h); else history.replaceState(null, "", h);
+      if (pushNext) history.pushState(null, "", h);
+      // A page opened without a hash gets its hash only once it has loaded: the browser scrolls to the URL's fragment
+      // when loading finishes, and a product whose id is also an element id (a mounted card) pulled the page down
+      // to the figure, past the title and the picker.
+      else if (!location.hash && document.readyState !== "complete") deferHash = h;
+      else history.replaceState(null, "", h);
     }
     pushNext = false;
     related();
