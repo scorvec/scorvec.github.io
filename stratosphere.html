@@ -165,7 +165,7 @@
       <p class="cap" id="cap"></p>
       <div id="about"></div>
       <p class="hint"><span class="kbd">&larr;</span> <span class="kbd">&rarr;</span> step through the options &middot; <span class="kbd">&uarr;</span> <span class="kbd">&darr;</span> change figure &middot; click a still to enlarge</p>
-      <div class="chart-card-footer"><span class="chart-sources">ECMWF AIFS-ENS open data (CC BY 4.0) &middot; ECCC GEPS and GDPS &middot; NOAA GEFS and GFS &middot; NASA GMAO GEOS FP and MERRA-2 &middot; NCEP/NCAR Reanalysis 1 (NOAA PSL) &middot; ERA5 (Copernicus C3S) &middot; updated each 00/12Z cycle</span><span class="chart-updated">OISST 2026-09-26</span></div>
+      <div class="chart-card-footer"><span class="chart-sources">ECMWF AIFS-ENS and IFS-ENS open data (CC BY 4.0) &middot; ECCC GEPS and GDPS &middot; NOAA GEFS and GFS &middot; NASA GMAO GEOS FP and MERRA-2 &middot; NCEP/NCAR Reanalysis 1 (NOAA PSL) &middot; ERA5 (Copernicus C3S) &middot; updated each 00/12Z cycle</span><span class="chart-updated">OISST 2026-09-26</span></div>
     </section>
   </div>
   <div class="lightbox" id="lightbox"><img alt=""></div>
@@ -203,11 +203,11 @@
   </div>
 <template id="about-vortex">
 <p><a href="/topics/sudden-stratospheric-warming.html">The explainer</a>: what sudden stratospheric warmings measures, the equations and how to read the chart.</p>
-<p>The stratospheric vortex is the slow variable that sets the odds for the surface weeks later, so it is worth watching before it moves. <b>Top</b>: the zonal-mean zonal wind at <b>10&nbsp;hPa, 60&deg;N</b> &mdash; the standard sudden-stratospheric-warming diagnostic. A reversal to <i>easterly</i> here in winter is a major SSW (the original WMO definition also asked for a reversed 60&ndash;90&deg; temperature gradient), which is why the zero line is drawn heavy and the member fraction crossing it is called out. <b>Middle</b>: the same wind at <b>100&nbsp;hPa</b>. Anomalies that reach this far down are the ones with a path to the troposphere &mdash; a 10&nbsp;hPa event that never appears at 100&nbsp;hPa usually never reaches the surface. <b>Bottom</b>: the <b>100&nbsp;hPa polar-cap (65&ndash;90&deg;N) height anomaly</b>, positive for a weak or displaced vortex; this is the field that actually leads the AO/NAO response. Each model&rsquo;s band is its members&rsquo; 10th&ndash;90th percentile and the solid line their mean; dashed lines are deterministic runs. The AIFS-ENS polar-cap height uses the same 25 perturbed members plus the control as the winds.</p>
-<p class="chart-sources">ECMWF AIFS-ENS zonal wind and geopotential at 10/100&nbsp;hPa (open data, CC BY 4.0) &middot; reference: MERRA-2 1980&ndash;2026 day-of-year 10th&ndash;90th percentiles (NASA GMAO) &middot; analysis tail: ERA5 &middot; updated daily</p>
+<p>The stratospheric vortex is the slow variable that sets the odds for the surface weeks later, so it is worth watching before it moves. <b>Top</b>: the zonal-mean zonal wind at <b>10&nbsp;hPa, 60&deg;N</b> &mdash; the standard sudden-stratospheric-warming diagnostic. A reversal to <i>easterly</i> here in winter is a major SSW (the original WMO definition also asked for a reversed 60&ndash;90&deg; temperature gradient), which is why the zero line is drawn heavy and the member fraction crossing it is called out. <b>Middle</b>: the same wind at <b>100&nbsp;hPa</b>. Anomalies that reach this far down are the ones with a path to the troposphere &mdash; a 10&nbsp;hPa event that never appears at 100&nbsp;hPa usually never reaches the surface. <b>Bottom</b>: the <b>100&nbsp;hPa polar-cap (65&ndash;90&deg;N) height anomaly</b>, positive for a weak or displaced vortex; this is the field that actually leads the AO/NAO response. Each model&rsquo;s band is its members&rsquo; 10th&ndash;90th percentile and the solid line their mean; dashed lines are deterministic runs. The AIFS-ENS polar-cap height uses the same 25 perturbed members plus the control as the winds. <b>IFS-ENS</b> is drawn with <b>all 50</b> of its perturbed members; ECMWF&rsquo;s open data carries no IFS-ENS control at these levels. The chart is drawn about 90 minutes after the AIFS products (around 09:30 and 21:30&nbsp;UTC), once IFS-ENS day&nbsp;15 is on the mirror.</p>
+<p class="chart-sources">ECMWF AIFS-ENS zonal wind and geopotential at 10/100&nbsp;hPa (open data, CC BY 4.0) &middot; ECMWF IFS-ENS, all 50 perturbed members, 0.25&deg; (open data, CC&nbsp;BY&nbsp;4.0, from the Google Cloud mirror), zonal wind and geopotential height at 10/100&nbsp;hPa &middot; ECCC GEPS (20 members + control) and GDPS &middot; reference: MERRA-2 1980&ndash;2026 day-of-year 10th&ndash;90th percentiles (NASA GMAO) &middot; analysis tail: ERA5 &middot; updated daily</p>
 </template>
 <template id="about-upperstrat">
-<p>The stratosphere does not stop at 10&nbsp;hPa. Its top, the <b>stratopause</b> near 1&nbsp;hPa (about 48&nbsp;km), is where the polar vortex usually changes first: a sudden warming generally shows up there as a warming and a slackening of the westerlies days before it reaches 10&nbsp;hPa, and it then works its way down, the way the <a href="#fdrip">dripping-paint</a> charts show lower down. The spring <b>final warming</b> that ends the southern vortex (September&ndash;November) also comes down from the top. Most forecast products on this site stop at 10&nbsp;hPa; four models publish higher, and this item puts them side by side.</p>
+<p>The stratosphere does not stop at 10&nbsp;hPa. Its top, the <b>stratopause</b> near 1&nbsp;hPa (about 48&nbsp;km), is where the polar vortex usually changes first: a sudden warming generally shows up there as a warming and a slackening of the westerlies days before it reaches 10&nbsp;hPa, and it then works its way down, the way the <a href="#fdrip">dripping-paint</a> charts show lower down. The spring <b>final warming</b> that ends the southern vortex (September&ndash;November) also comes down from the top. Most forecast products on this site stop at 10&nbsp;hPa; four models publish higher, and this item puts them side by side. ECMWF&rsquo;s AIFS-ENS and IFS-ENS cannot join them: their open data stops at 10&nbsp;hPa.</p>
 <p><b>Time series</b>: the zonal-mean zonal wind at <b>60&deg;</b> (the latitude of the sudden-warming criterion, reversal to easterly at 10&nbsp;hPa) and the <b>polar-cap temperature</b> (the cos-weighted mean of the zonal-mean temperature over 60&ndash;90&deg;) at 1, 5 and 10&nbsp;hPa. GEFS shows its 31 members as a 10&ndash;90&nbsp;% band with the ensemble mean and the control; the other three are single deterministic runs. Each model runs to its own range (GEFS 35 days, GFS 16, GEOS FP and GDPS 10) on a common axis, so switching models keeps the dates in place. <b>Height&ndash;time</b>: the same two quantities from 100 up to 1&nbsp;hPa against time, the wind raw with its zero line in black and the temperature as an anomaly, with the last 30 days of analyses to the left of the black line; the colour scales are fixed, identical for every model. <b>Polar maps</b>: geopotential height (contours, dam) over temperature at 5 and 1&nbsp;hPa, analysis to day 10, one colour scale per run shared by every model and frame. &ldquo;Compare all&rdquo; overlays the four models on the time series and tiles them on the sections and maps.</p>
 <p><b>Model tops, and where the plots stop.</b> Nothing above 1&nbsp;hPa is drawn for any model. GEFS and GDPS publish nothing higher, and the top layers of every model are a damping (&ldquo;sponge&rdquo;) layer where the winds are relaxed artificially, so the levels nearest a model&rsquo;s lid are its least trustworthy. GEFS (version&nbsp;12, 64 layers) is the one to read with the most caution at 1&nbsp;hPa: that is its top published level and its lid is not far above it. GDPS (the GEM model) has its lid at 0.1&nbsp;hPa but ECCC publishes only 1, 5, 10, 20, 30, 50 and 100&nbsp;hPa in the stratosphere, so its section is interpolated across wider gaps (the ticks on the right edge of each section mark the levels a model actually provides). GFS (127 layers) reaches about 80&nbsp;km and GEOS FP (72 layers) 0.01&nbsp;hPa, so 1&nbsp;hPa is well inside both.</p>
 <p><b>Raw output, not drift-corrected.</b> Models drift toward their own climate with lead time, and the drift is largest near their tops. No correction is applied here: the GEFS reforecast carries wind and temperature at 1, 2, 3, 5 and 10&nbsp;hPa, so a GEFS correction is possible but not yet built, and the other three have no reforecast with these levels. What is measured is where each model <b>starts</b>: every time-series panel prints its day-0 value minus the GEOS FP 00Z analysis of the same day (for GEFS, the control). On the first run (27 September 2026) the four analyses agreed to within 0.7&nbsp;m/s and 1.3&nbsp;K at 10 and 5&nbsp;hPa but differed by up to 2.6&nbsp;m/s and 5&nbsp;K at 1&nbsp;hPa (GFS, GEFS and GDPS all 2&ndash;5&nbsp;K warmer on the polar caps than GEOS FP), where the observations constraining an analysis are thinnest: a difference between two models at 1&nbsp;hPa is partly a difference in where they began. The temperature anomalies on the sections carry the same offsets.</p>
@@ -224,16 +224,21 @@
         vortex there to draw. Both hemispheres share the colour scale, so they are directly
         comparable.</p>
 <p>Every forecast frame is the <b>ensemble mean</b> of 25 AIFS-ENS members (the analysis frame is the control, which is the analysis). The mean shows the part of the flow the members agree on. It is also smoother and weaker than any one member wherever they disagree, so a split that only a few members carry appears here as a stretched, slackened vortex rather than two centres. The eddy heat flux chart shows how far the members spread in wave-2, the component that splits the vortex.</p>
-<p class="chart-sources">ECMWF AIFS-ENS, mean of 25 perturbed members; analysis frame from the control (open data, CC&nbsp;BY&nbsp;4.0) &middot; 10&nbsp;hPa speed of the mean wind shaded, streamlines overlaid, red contour u&nbsp;=&nbsp;0 &middot; fixed colour scale &middot; analysis plus 12-hourly steps to day&nbsp;15 &middot; updated each 00/12Z cycle</p>
+<p>The <b>IFS-ENS</b> version is the mean of all <b>50</b> of its perturbed members, on the same fixed colour scales. Its open data has no ensemble control at these levels, so its analysis frame is the IFS HRES analysis, the state the ensemble is started from.</p>
+<p class="chart-sources">ECMWF AIFS-ENS, mean of 25 perturbed members; analysis frame from the control (open data, CC&nbsp;BY&nbsp;4.0) &middot; ECMWF IFS-ENS, all 50 perturbed members, 0.25&deg; (open data, CC&nbsp;BY&nbsp;4.0, from the Google Cloud mirror), mean of the 50; analysis frame from IFS HRES &middot; 10&nbsp;hPa speed of the mean wind shaded, streamlines overlaid, red contour u&nbsp;=&nbsp;0 &middot; fixed colour scale &middot; analysis plus 12-hourly steps to day&nbsp;15 &middot; updated each 00/12Z cycle</p>
 </template>
 <template id="about-epflux">
 <p><a href="/topics/ep-flux.html">The explainer</a>: what the E–P flux and its divergence measures, the equations and how to read the chart.</p>
 <p>Where the torque budget shows how the Earth exchanges angular momentum with the
         atmosphere at the surface, the <b>Eliassen&ndash;Palm flux</b> shows how the waves
         redistribute it internally &mdash; the same quasi-geostrophic diagnostic used to
-        diagnose sudden stratospheric warmings, computed live from AIFS-ENS and stepped
-        through the full 15-day forecast.</p>
-<p class="chart-sources">ECMWF AIFS-ENS ensemble &mdash; member 0 + 25 perturbed members, per-member fluxes averaged (open data, CC&nbsp;BY&nbsp;4.0), 14 levels, day 0&ndash;15 &middot; QG E&ndash;P flux, wavenumbers 1&ndash;3, global-mean static stability &middot; poleward of 82&deg; masked &middot; rendered in Julia (CairoMakie) &middot; updated each 00/12Z cycle</p>
+        diagnose sudden stratospheric warmings, computed live from AIFS-ENS and IFS-ENS and stepped
+        through the full 15-day forecast. The IFS-ENS version uses all <b>50</b> perturbed members (its open data
+        has no control at these levels), each member&rsquo;s flux computed and then averaged, as for AIFS-ENS.</p>
+<p><b>Corrected 2026-09-27.</b> The wavenumber-1&ndash;3 filter of the ensemble version had been applied along
+        latitude instead of longitude, so the plotted &ldquo;eddy&rdquo; fluxes and their divergence mixed in the zonal-mean
+        flow&rsquo;s own structure. Frames drawn before this date should not be used.</p>
+<p class="chart-sources">ECMWF AIFS-ENS ensemble &mdash; member 0 + 25 perturbed members, per-member fluxes averaged (open data, CC&nbsp;BY&nbsp;4.0), 14 levels, day 0&ndash;15 &middot; ECMWF IFS-ENS, all 50 perturbed members, 0.25&deg; (open data, CC&nbsp;BY&nbsp;4.0, from the Google Cloud mirror), per-member fluxes averaged, the same 14 levels &middot; QG E&ndash;P flux, wavenumbers 1&ndash;3, global-mean static stability &middot; poleward of 82&deg; masked &middot; rendered in Julia (CairoMakie) &middot; updated each 00/12Z cycle</p>
 </template>
 <template id="about-pv">
 <p><b>Potential vorticity</b> on a surface of constant potential temperature (an <b>isentrope</b>) is the
@@ -282,9 +287,11 @@
 <p><b>Agreement.</b> The map is the <b>ensemble mean</b> of 25 members. Dots mark where fewer than 80&nbsp;% of the
         members agree on the sign of the wave there, and each panel quotes the members&rsquo; phase agreement
         (1&nbsp;= every member has its ridge at the same longitude). A long-lead map with low agreement is an average of
-        different waves, so its phase should not be read. The analysis frame is the control.</p>
+        different waves, so its phase should not be read. The analysis frame is the control. The <b>IFS-ENS</b> maps
+        average all <b>50</b> of its perturbed members; with no ensemble control on open data, their analysis frame is
+        the IFS HRES analysis.</p>
 <p class="chart-sources">ECMWF AIFS-ENS, 25 perturbed members (open data, CC&nbsp;BY&nbsp;4.0), 500, 100 and 10&nbsp;hPa,
-        analysis to day&nbsp;15 &middot; zonal wavenumber-1 Fourier component of geopotential height &middot; normal
+        analysis to day&nbsp;15 &middot; ECMWF IFS-ENS, all 50 perturbed members, 0.25&deg; (open data, CC&nbsp;BY&nbsp;4.0, from the Google Cloud mirror), the same levels and steps &middot; zonal wavenumber-1 Fourier component of geopotential height &middot; normal
         standing wave: ERA5 1991&ndash;2020 (WeatherBench2 for 500/100&nbsp;hPa, ERA5 ARCO for 10&nbsp;hPa) &middot;
         polar stereographic &middot; updated each 00/12Z cycle. Corrected 2026-09-27: the wave&rsquo;s phase against the
         normal had been read 180&deg; off, because the forecast and normal grids start at different longitudes; the
@@ -519,6 +526,13 @@ $$\frac{\partial\bar u}{\partial t} \;=\; \hat f\,\bar v^{*} \;-\; \bar w^{*}\fr
 <li><b>AIFS-ENS</b>: no reforecast exists, so its control's cap forecasts from 25 recent cycles are verified against
         the GEOS FP analyses and the mean error at each level and lead is removed where it is significant (more than
         twice its standard error). It is small for the first week and rises to +15 to +45&nbsp;m by days 10&ndash;15.</li>
+<li><b>IFS-ENS</b> (all 50 perturbed members): no open reforecast either, and no control at these levels on open data,
+        so the mean of the 50 members on the same 25 cycles is verified the same way and removed where significant (at
+        every level). In the stratosphere it drifts the other way from AIFS-ENS: the 10&nbsp;hPa cap falls from 23&nbsp;m
+        above the analysis at the start to 53&nbsp;&plusmn;&nbsp;2&nbsp;m below by day&nbsp;7 and 104&nbsp;&plusmn;&nbsp;4&nbsp;m
+        below by day&nbsp;15 (50&nbsp;hPa &minus;33&nbsp;m, 100&nbsp;hPa &minus;14&nbsp;m), a vortex that grows too cold and
+        too strong; from 250 to 925&nbsp;hPa it rises by 13&ndash;23&nbsp;m by day&nbsp;15, as AIFS-ENS does. Both drifts come
+        from 00Z cycles between 30 June and 10 September 2026; a winter drift may differ.</li>
 </ul>
 <p>Levels where a model's drift has not been measured are <b>hatched</b>: there only the model's offset from the
         GEOS FP analysis over its first day is removed, so read them with caution, especially at long lead. The
@@ -527,10 +541,11 @@ $$\frac{\partial\bar u}{\partial t} \;=\; \hat f\,\bar v^{*} \;-\; \bar w^{*}\fr
         30&ndash;40&nbsp;m low at the start (AIFS-ENS 11&nbsp;m) by definition alone. The lower panel shows the 1000&nbsp;hPa cap (a proxy for the Arctic Oscillation; high = negative
         AO) and the share of members with the 100&nbsp;hPa cap at least one standard deviation high, the level that couples
         to the troposphere.</p>
-<p class="chart-sources">ECCC GEPS (MSC Datamart), NOAA GEFS (AWS Open Data), ECMWF AIFS-ENS open data (CC&nbsp;BY&nbsp;4.0)
+<p class="chart-sources">ECCC GEPS (MSC Datamart), NOAA GEFS (AWS Open Data), ECMWF AIFS-ENS open data (CC&nbsp;BY&nbsp;4.0),
+        ECMWF IFS-ENS open data, all 50 perturbed members, 0.25&deg; (CC&nbsp;BY&nbsp;4.0, Google Cloud mirror)
         &middot; observed: NASA GMAO GEOS FP analyses (NCCS OPeNDAP), the measured GEOS FP&ndash;MERRA-2 offset removed &middot;
         scale: MERRA-2 1980&ndash;2026 (NASA GMAO) &middot; drift: ECMWF S2S GEPS reforecasts (non-commercial research licence), GEFS v2
-        reforecast &middot; updated with each GEPS extended run, each GEFS 00Z run and each AIFS-ENS 00/12Z cycle</p>
+        reforecast &middot; updated with each GEPS extended run, each GEFS 00Z run and each AIFS-ENS and IFS-ENS 00/12Z cycle</p>
 </template>
 <template id="about-heatflux">
 <p><a href="/topics/eddy-heat-flux.html">The explainer</a>: what the 100 hPa eddy heat flux measures, the equations and how to read the chart.</p>
@@ -554,7 +569,11 @@ $$\frac{\partial\bar u}{\partial t} \;=\; \hat f\,\bar v^{*} \;-\; \bar w^{*}\fr
         progressively too weak with lead (about 4&ndash;6&nbsp;m/s by day 35), GEFS drifts with lead as well (the drift
         the GEFS page removes from its own products), and a systematic flux error could sit behind either. Read week 3 onward as the model&rsquo;s tendency, not a calibrated
         probability. The 40-day mean at the end of a 35-day forecast is almost all forecast.</p>
+<p>The <b>IFS-ENS</b> version uses all <b>50</b> of its perturbed members to day 15, taken to 0.5&deg; like GEPS and
+        GEFS (wavenumbers 1&ndash;72 need nothing finer). Its open data has no control at 100&nbsp;hPa, so there is no
+        control line.</p>
 <p class="chart-sources">ECMWF AIFS-ENS, 25 perturbed members + control, v and T at 100&nbsp;hPa, daily to day 15 (open data, CC&nbsp;BY&nbsp;4.0)
+        &middot; ECMWF IFS-ENS, all 50 perturbed members, 0.25&deg; (open data, CC&nbsp;BY&nbsp;4.0, from the Google Cloud mirror), v and T at 100&nbsp;hPa, daily to day 15
         &middot; ECCC GEPS 00Z extended run, 20 perturbed members + control, 0.5&deg;, days 1&ndash;35 (MSC Datamart)
         &middot; NOAA GEFS 00Z, 30 perturbed members + control, 0.5&deg;, days 1&ndash;35 (NOAA Open Data Dissemination, AWS) &middot; zonal wavenumbers 1&ndash;72 to match the climatology&rsquo;s resolution &middot; climatology: NCEP/NCAR Reanalysis&nbsp;1 (NOAA PSL), 1991&ndash;2020, &plusmn;15-day window &middot; analysed tail: the AIFS control&rsquo;s step-0 fields, 00 and 12&nbsp;UTC averaged (PSL&rsquo;s R1 stopped in March 2026) &middot; updated each AIFS-ENS 00/12Z cycle, each GEPS extended run and each GEFS 00Z run</p>
 </template>
@@ -647,11 +666,11 @@ $$\frac{\partial\bar u}{\partial t} \;=\; \hat f\,\bar v^{*} \;-\; \bar w^{*}\fr
 <script>
 window.STAGE = {
   groups: [
-  {label: "Stratosphere", ico: "\u2744", items: [["vortex","Polar vortex diagnostics","u(60°N), polar-cap height"],["upperstrat","Upper stratosphere","GEFS, GFS, GEOS FP, GDPS up to 1 hPa"],["vwinds","Vortex winds","10 and 100 hPa, both hemispheres"],["pv","Potential vorticity","GEOS FP, 475 and 850 K"],["epflux","E–P flux","wave driving, k = 1–3"],["wave1","Stationary wave-1","100 and 500 hPa"],["heatflux","Eddy heat flux","100 hPa [v′T′], is it going up?"],["fdrip","Forecast dripping paint","GEPS, GEFS, AIFS-ENS: is it reaching down?"],["bdc","Brewer–Dobson circulation","tropical upwelling, downward control"],["aoa","Age of stratospheric air","MERRA-2 GMI, 1980–2019"],["tape","Water-vapour tape recorder","Aura MLS + GEOS FP, how fast air rises"],["mbudget","Momentum budget","what drives the vortex and the upwelling"]]},
+  {label: "Stratosphere", ico: "\u2744", items: [["vortex","Polar vortex diagnostics","u(60°N), polar-cap height"],["upperstrat","Upper stratosphere","GEFS, GFS, GEOS FP, GDPS up to 1 hPa"],["vwinds","Vortex winds","10 and 100 hPa, both hemispheres"],["pv","Potential vorticity","GEOS FP, 475 and 850 K"],["epflux","E–P flux","wave driving, k = 1–3"],["wave1","Stationary wave-1","100 and 500 hPa"],["heatflux","Eddy heat flux","100 hPa [v′T′], is it going up?"],["fdrip","Forecast dripping paint","GEPS, GEFS, AIFS-ENS, IFS-ENS: is it reaching down?"],["bdc","Brewer–Dobson circulation","tropical upwelling, downward control"],["aoa","Age of stratospheric air","MERRA-2 GMI, 1980–2019"],["tape","Water-vapour tape recorder","Aura MLS + GEOS FP, how fast air rises"],["mbudget","Momentum budget","what drives the vortex and the upwelling"]]},
   {label: "Stratosphere history", ico: "\u231B", items: [["shwinters","Every winter since 1980","pick any winter, compare"],["shssw","Sudden warmings since 1980","timeline, catalogue, vortex shapes"],["shdrip","Dripping paint","how an event reaches the surface"],["shfollow","What usually follows","AO, NAO, temperature, by region; CMIP6"],["shtiming","Who moves first","waves, vortex, tropical upwelling"],["shqbo","The QBO and the vortex","observed and CMIP6"],["shenso","El Niño and sudden warmings","CMIP6, 25,000 winters"],["shseason","This winter's odds","QBO and ENSO, model-based"],["shmbudget","Momentum budget of past warmings","every term, 24 warmings"]]}
 ],
   products: {
-  vortex: {label: "Northern polar vortex", img: function () { return "assets/sst/nh_vortex.webp?v=f1f706b33adf"; }, about: "about-vortex", fit: false,
+  vortex: {label: "Northern polar vortex", img: function () { return "assets/sst/nh_vortex.webp?v=ae9af89b0e99"; }, about: "about-vortex", fit: false,
           cap: function () { return "Zonal-mean wind at 60°N at 10 and 100 hPa and the 100 hPa polar-cap height, members against the MERRA-2 percentile bands."; }},
   upperstrat: {label: "Upper stratosphere (GEFS, GFS, GEOS FP, GDPS)",
           a: {label: "Model", items: [["gefs","GEFS, 35 days"],["gfs","GFS, 16 days"],["geos","GEOS FP, 10 days"],["gdps","GDPS, 10 days"],["all","Compare all"]]},
@@ -667,14 +686,23 @@ window.STAGE = {
             if (c === "sec") return "Zonal-mean wind at 60°" + h + " and the polar-cap temperature anomaly from 100 up to 1 hPa: GEOS FP analyses, then " + (a === "all" ? "each model to its own range, on one colour scale" : m + (a === "gefs" ? " ensemble mean" : "")) + ". A warming that starts at the top shows as red coming down.";
             return "Zonal-mean wind at 60°" + h + " and polar-cap temperature at 1, 5 and 10 hPa: GEOS FP analyses, then " + (a === "all" ? "every model overlaid" : m) + ", against the MERRA-2 range. Raw output; each panel prints the day-0 offset from the GEOS FP analysis."; }},
   vwinds: {label: "Vortex winds", a: {label: "Level", items: [["vortex_10","10 hPa"],["vortex_100","100 hPa"]]},
-          frame: function (a) { return "sst_anim.html?embed=1&manifest=vortex_winds_manifest.json&region=" + a; }, about: "about-vwinds",
-          cap: function (a) { return "Ensemble-mean wind speed and streamlines at " + (a === "vortex_10" ? "10" : "100") + " hPa, both hemispheres; the red contour is u = 0."; }},
+          b: {label: "Model", items: [["aifs","AIFS-ENS"],["ifs","IFS-ENS"]]},
+          frame: function (a, b) { var lev = a === "vortex_100" ? "100" : "10";
+                                   return b === "ifs" ? "sst_anim.html?embed=1&manifest=vortex_winds_ifs_manifest.json&region=vortex_ifs_" + lev
+                                                      : "sst_anim.html?embed=1&manifest=vortex_winds_manifest.json&region=vortex_" + lev; }, about: "about-vwinds",
+          cap: function (a, b) { return (b === "ifs" ? "IFS-ENS (50 members)" : "AIFS-ENS (25 members)") + " ensemble-mean wind speed and streamlines at " + (a === "vortex_100" ? "100" : "10") + " hPa, both hemispheres; the red contour is u = 0."; }},
   pv: {label: "Potential vorticity (GEOS FP)", a: {label: "Hemisphere", items: [["geos_pv_nh","Northern"],["geos_pv_sh","Southern"]]},
           frame: function (a) { return "sst_anim.html?embed=1&manifest=geos_pv_manifest.json&region=" + a; }, ratio: function () { return "924/572"; }, about: "about-pv",
           cap: function (a) { return "Ertel potential vorticity on the 475 K (lower stratosphere) and 850 K (about 10 hPa) surfaces, GEOS FP analysis and 10-day forecast; the red line is the vortex edge." + (a === "geos_pv_sh" ? " Southern values are sign-flipped so the vortex reads positive." : ""); }},
-  epflux: {label: "E–P flux and wave driving", frame: function () { return "sst_anim.html?embed=1&manifest=epflux_manifest.json&region=epflux"; }, about: "about-epflux", cap: function () { return "Eliassen–Palm flux for wavenumbers 1–3 and its divergence, per-member fluxes averaged."; }},
+  epflux: {label: "E–P flux and wave driving", a: {label: "Model", items: [["aifs","AIFS-ENS"],["ifs","IFS-ENS"]]},
+          frame: function (a) { return a === "ifs" ? "sst_anim.html?embed=1&manifest=epflux_ifs_manifest.json&region=epflux_ifs"
+                                                   : "sst_anim.html?embed=1&manifest=epflux_manifest.json&region=epflux"; }, about: "about-epflux",
+          cap: function (a) { return "Eliassen–Palm flux for wavenumbers 1–3 and its divergence, per-member fluxes averaged over the " + (a === "ifs" ? "50 IFS-ENS" : "26 AIFS-ENS") + " members."; }},
   wave1: {label: "Stationary wave-1", a: {label: "Hemisphere", items: [["wave1_nh","Northern"],["wave1_sh","Southern"]]},
-          frame: function (a) { return "sst_anim.html?embed=1&manifest=wave1_maps_manifest.json&region=" + a; }, about: "about-wave1",
+          b: {label: "Model", items: [["aifs","AIFS-ENS"],["ifs","IFS-ENS"]]},
+          frame: function (a, b) { var h = a === "wave1_sh" ? "sh" : "nh";
+                                   return b === "ifs" ? "sst_anim.html?embed=1&manifest=wave1_maps_ifs_manifest.json&region=wave1_ifs_" + h
+                                                      : "sst_anim.html?embed=1&manifest=wave1_maps_manifest.json&region=wave1_" + h; }, about: "about-wave1",
           ratio: function () { return "1716/759"; },
           cap: function () { return "Wave-1 of geopotential at 500, 100 and 10 hPa, with its ridge against the normal and whether it leans west with height, i.e. is propagating up into the vortex."; }},
   bdc: {label: "Brewer–Dobson circulation", a: {label: "View", items: [["up","Tropical upwelling"],["sec","Residual streamfunction"]]},
@@ -684,7 +712,7 @@ window.STAGE = {
   aoa: {label: "Age of stratospheric air (MERRA-2 GMI)", a: {label: "View", items: [["clim","Climatology"],["cycle","Seasonal cycle"],["trend","Trend"],["enso","ENSO"],["qbo","QBO"]]},
           b: function (a) { return a === "clim" ? {label: "Season", items: [["ann","Annual"],["djf","DJF"],["mam","MAM"],["jja","JJA"],["son","SON"]]}
                                  : a === "trend" ? {label: "Period", items: [["all","1980–2019"],["p04","2004–2019"]]} : null; },
-          img: function (a, b) { return "assets/sst/aoa_" + (a === "clim" ? "clim_" + (b || "ann") : a === "trend" ? (b === "p04" ? "trend04" : "trend") : a) + ".webp?v=f1f706b33adf"; },
+          img: function (a, b) { return "assets/sst/aoa_" + (a === "clim" ? "clim_" + (b || "ann") : a === "trend" ? (b === "p04" ? "trend04" : "trend") : a) + ".webp?v=ae9af89b0e99"; },
           fit: false, about: "about-aoa",
           cap: function (a) {
             if (a === "clim") return "Mean age of air – the average time since the air was last at the ground – zonal mean from the MERRA-2 GMI replay, 1980–2019.";
@@ -711,29 +739,29 @@ window.STAGE = {
             if (a === "up") return "Tropical upwelling at 70 and 100 hPa split by downward control into the parts driven by resolved waves, gravity-wave drag and the analysis increment, with the non-steady part and the directly analysed w̄*; the bars compare the last 30 days with MERRA-2. GEOS FP analyses; the forecast carries the resolved part only.";
             if (a === "sec") return "Where each force acts: 30-day mean resolved-wave driving, gravity-wave drag and analysis increment from GEOS FP, with the MERRA-2 normal as contours; the anomaly is shaded only where significant (false-discovery rate 10 %).";
             return "What is speeding up or slowing the " + (a === "vsh" ? "southern" : "northern") + " vortex at " + (b || "10") + " hPa (55–65°" + (a === "vsh" ? "S" : "N") + "): the observed change in the wind and every term of the transformed-Eulerian-mean budget, GEOS FP analyses to yesterday, then the 10-day forecast with the resolved terms only."; }},
-  fdrip: {label: "Forecast dripping paint", a: {label: "Model", items: [["geps","GEPS, days 1–35"],["gefs","GEFS, days 1–35"],["aifs","AIFS-ENS, days 1–15"]]},
-          img: function (a) { return a === "gefs" ? "assets/gefs/gefs_drip.webp" : a === "aifs" ? "assets/sst/aifs_drip.webp" : "assets/geps/geps_drip.webp"; },
+  fdrip: {label: "Forecast dripping paint", a: {label: "Model", items: [["geps","GEPS, days 1–35"],["gefs","GEFS, days 1–35"],["aifs","AIFS-ENS, days 1–15"],["ifs","IFS-ENS, days 1–15"]]},
+          img: function (a) { return a === "gefs" ? "assets/gefs/gefs_drip.webp" : a === "aifs" ? "assets/sst/aifs_drip.webp" : a === "ifs" ? "assets/sst/ifs_drip.webp" : "assets/geps/geps_drip.webp"; },
           bust: "hourly", about: "about-fdrip", fit: false,
           cap: function (a) { return "Standardised polar-cap height from 1000 to 10 hPa: the last 60 days observed (GEOS FP), then the "
-                                     + (a === "gefs" ? "GEFS" : a === "aifs" ? "AIFS-ENS" : "GEPS") + " ensemble mean with the model's drift removed where it has been measured; hatched levels are not drift-corrected. Same scale as the history drips."; }},
+                                     + (a === "gefs" ? "GEFS" : a === "aifs" ? "AIFS-ENS" : a === "ifs" ? "IFS-ENS (50 members)" : "GEPS") + " ensemble mean with the model's drift removed where it has been measured; hatched levels are not drift-corrected. Same scale as the history drips."; }},
   heatflux: {label: "100 hPa eddy heat flux", a: {label: "Hemisphere", items: [["nh","Northern"],["sh","Southern"]]},
-          b: {label: "Model", items: [["aifs","AIFS-ENS, days 1–15"],["geps","GEPS, days 1–35"],["gefs","GEFS, days 1–35"]]},
+          b: {label: "Model", items: [["aifs","AIFS-ENS, days 1–15"],["ifs","IFS-ENS, days 1–15"],["geps","GEPS, days 1–35"],["gefs","GEFS, days 1–35"]]},
           img: function (a, b) { var h = a === "sh" ? "sh" : "nh";
                                  return b === "geps" ? "assets/geps/geps_heatflux100_" + h + ".webp" : b === "gefs" ? "assets/gefs/gefs_heatflux100_" + h + ".webp"
-                                      : "assets/sst/heatflux100_" + h + ".webp"; }, bust: "hourly", about: "about-heatflux", fit: false,
+                                      : b === "ifs" ? "assets/sst/ifs_heatflux100_" + h + ".webp" : "assets/sst/heatflux100_" + h + ".webp"; }, bust: "hourly", about: "about-heatflux", fit: false,
           cap: function (a, b) { return "Poleward eddy heat flux at 100 hPa, 45–75°" + (a === "sh" ? "S" : "N") + ", total and its wave-1 and wave-2 parts: the upward wave-activity flux into the stratosphere, "
-                                        + (b === "geps" ? "GEPS extended run (Mon/Thu, 21 members) to day 35" : b === "gefs" ? "GEFS (31 members) to day 35" : "AIFS-ENS (51 members) to day 15")
+                                        + (b === "geps" ? "GEPS extended run (Mon/Thu, 21 members) to day 35" : b === "gefs" ? "GEFS (31 members) to day 35" : b === "ifs" ? "IFS-ENS (50 members) to day 15" : "AIFS-ENS (25 members + control) to day 15")
                                         + ", members against the 1991–2020 climatology."; }},
   shwinters: {label: "Every winter since 1980", dom: function () { return "dom-shwinters"; }, about: "about-shwinters",
           cap: function () { return "Every northern winter in MERRA-2, October to May, against the 1980–2026 range. Hover a line to name the winter; pick one to draw it in black."; }},
   shssw: {label: "Sudden warmings since 1980", a: {label: "View", items: [["timeline","Timeline"],["table","Catalogue"],["gallery","Vortex at each warming"]]},
           dom: function (a) { return a === "table" ? "dom-shssw" : null; }, fit: false,
-          img: function (a) { return "assets/sst/strat_hist_" + (a === "gallery" ? "gallery" : "timeline") + ".webp?v=f1f706b33adf"; }, about: "about-shssw",
+          img: function (a) { return "assets/sst/strat_hist_" + (a === "gallery" ? "gallery" : "timeline") + ".webp?v=ae9af89b0e99"; }, about: "about-shssw",
           cap: function (a) { return a === "timeline" ? "Every major sudden warming (Charlton–Polvani, MERRA-2) and strong-vortex event, winter by winter, with ENSO and the QBO." : a === "table" ? "The catalogue: when, how deep, what shape, and what the Arctic Oscillation did before and after." : "What the 10 hPa vortex looked like at each warming: two pieces for a split, one pushed off the pole for a displacement."; }},
   shdrip: {label: "Dripping paint", a: {label: "Events", items: [["ssw_all","All SSWs"],["ssw_deep","Deep"],["ssw_shallow","Shallow"],["ssw_split","Splits"],["ssw_disp","Displacements"],["sv","Strong vortex"]]},
           b: function (a) { return {label: "Data", items: (a === "ssw_split" || a === "ssw_disp") ? [["m2z","MERRA-2 polar-cap height"]]
                                     : [["m2z","MERRA-2 polar-cap height"],["m2u","MERRA-2 u(60°N)"],["cmip6","CMIP6 u(60°N), 9 models"]]}; },
-          img: function (a, b) { return "assets/sst/strat_hist_drip_" + (b === "m2u" || b === "cmip6" ? b + "_" : "") + a + ".webp?v=f1f706b33adf"; }, fit: false, about: "about-shdrip",
+          img: function (a, b) { return "assets/sst/strat_hist_drip_" + (b === "m2u" || b === "cmip6" ? b + "_" : "") + a + ".webp?v=ae9af89b0e99"; }, fit: false, about: "about-shdrip",
           cap: function (a, b) {
             if (b === "cmip6") return "Zonal-mean wind at 60°N from the ground to 1 hPa around " + (a === "sv" ? "strong-vortex events" : "sudden warmings") + " in 9 CMIP6 models (25,444 model-years), sign flipped so a weak vortex is red, with 700 hPa u(60°N) below. Shaded only where the models robustly agree.";
             if (b === "m2u") return "MERRA-2 drawn the way the CMIP6 chart is, events defined in wind terms as for the models: u(60°N) from the ground to 1 hPa, sign flipped, with 700 hPa u(60°N) below.";
@@ -744,7 +772,7 @@ window.STAGE = {
                                     ? [["ssw_all","All SSWs"],["ssw_deep","Deep"],["ssw_shallow","Shallow"],["sv","Strong vortex"]]
                                     : [["ssw_all","All SSWs"],["ssw_deep","Deep"],["ssw_shallow","Shallow"],["ssw_split","Splits"],["ssw_disp","Displacements"],["sv","Strong vortex"]]} : null; },
           img: function (a, b, c) { var m = b === "cmip6" ? "cmip6_" : "", w = a === "map2" ? "d31_60" : "d1_30";
-                                    return "assets/sst/strat_hist_" + ((a === "map" || a === "map2") ? "follows_" + m + c + "_" + w : a + (b === "cmip6" ? "_cmip6" : "")) + ".webp?v=f1f706b33adf"; },
+                                    return "assets/sst/strat_hist_" + ((a === "map" || a === "map2") ? "follows_" + m + c + "_" + w : a + (b === "cmip6" ? "_cmip6" : "")) + ".webp?v=ae9af89b0e99"; },
           fit: false, about: "about-shfollow",
           cap: function (a, b) {
             var cm = b === "cmip6";
@@ -756,17 +784,17 @@ window.STAGE = {
                                        : "The North Atlantic Oscillation (CPC daily index) after sudden warmings and after strong-vortex events, and how often it went negative against the same days in other years.";
             return cm ? "Six land regions in 9 CMIP6 models: how often each kind of event was followed by a cold window, printed only where that differs robustly from the model's normal."
                       : "Six land regions: how often each kind of event was followed by a cold month, printed only where that differs significantly from normal."; }},
-  shtiming: {label: "Who moves first around a sudden warming", img: function () { return "assets/sst/ssw_timing.webp?v=f1f706b33adf"; }, fit: false, about: "about-shtiming",
+  shtiming: {label: "Who moves first around a sudden warming", img: function () { return "assets/sst/ssw_timing.webp?v=ae9af89b0e99"; }, fit: false, about: "about-shtiming",
           cap: function () { return "Heat flux, vortex, polar cap and the tropical lower stratosphere around the 28 MERRA-2 warmings: colour only where the composite differs significantly from other winters."; }},
-  shqbo: {label: "The QBO and the polar vortex", img: function () { return "assets/sst/ssw_qbo.webp?v=f1f706b33adf"; }, fit: false, about: "about-shqbo",
+  shqbo: {label: "The QBO and the polar vortex", img: function () { return "assets/sst/ssw_qbo.webp?v=ae9af89b0e99"; }, fit: false, about: "about-shqbo",
           cap: function () { return "The October–November QBO and the winter vortex, observed since 1958 (significant levels in colour), and the share of winters with a warming by QBO phase in five CMIP6 models."; }},
-  shenso: {label: "El Niño and sudden warmings (CMIP6)", img: function () { return "assets/sst/ssw_enso.webp?v=f1f706b33adf"; }, fit: false, about: "about-shenso",
+  shenso: {label: "El Niño and sudden warmings (CMIP6)", img: function () { return "assets/sst/ssw_enso.webp?v=ae9af89b0e99"; }, fit: false, about: "about-shenso",
           cap: function () { return "The share of winters with a sudden warming by December–February Niño-3.4 in nine CMIP6 models, and the month of the warming by ENSO class; observed winters for reference, not significant."; }},
   shseason: {label: "This winter's odds (model-based)", img: function () { return "assets/sst/ssw_odds.webp"; }, bust: "hourly", fit: false, about: "about-shseason",
           cap: function () { return "This winter's QBO and ENSO on the tested relations: the share of CMIP6 winters with a warming in that state, the vortex the observed QBO relation expects, and the observed look-alike winters."; }},
   shmbudget: {label: "Momentum budget of past warmings (MERRA-2)", a: {label: "Level", items: [["10","10 hPa"],["50","50 hPa"],["1","1 hPa"]]},
           b: {label: "Events", items: [["all","All 24 warmings"],["strong","Deepest third"]]},
-          img: function (a, b) { return "assets/sst/ssw_mbudget_" + (a || "10") + "_" + (b || "all") + ".webp?v=f1f706b33adf"; }, fit: false, about: "about-shmbudget",
+          img: function (a, b) { return "assets/sst/ssw_mbudget_" + (a || "10") + "_" + (b || "all") + ".webp?v=ae9af89b0e99"; }, fit: false, about: "about-shmbudget",
           cap: function (a, b) { return "Every term of the live momentum budget, composited over " + (b === "strong" ? "the deepest third of the" : "all") + " sudden warmings of 1980–2019 at 55–65°N, " + (a || "10") + " hPa: departures from the same days in other winters, coloured where significant."; }}
 }
 };
@@ -905,7 +933,7 @@ window.STAGE = {
     b.addEventListener("click", function () { st.h = b.dataset.shh; document.querySelectorAll("#dom-shwinters .pill[data-shh]").forEach(function (o) { o.classList.toggle("on", o === b); }); draw(); });
   });
   $("shw-pick").addEventListener("change", function () { st.pick = this.value; draw(); });
-  fetch("assets/sst/data/strat_history.json?v=f1f706b33adf").then(function (r) { return r.json(); }).then(function (j) {
+  fetch("assets/sst/data/strat_history.json?v=ae9af89b0e99").then(function (r) { return r.json(); }).then(function (j) {
     J = j;
     var sel = $("shw-pick");
     J.winters.slice().reverse().forEach(function (w) { var o = document.createElement("option"); o.value = w.winter; o.textContent = w.winter; sel.appendChild(o); });
