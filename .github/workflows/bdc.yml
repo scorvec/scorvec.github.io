@@ -48,6 +48,7 @@ jobs:
             scripts/strat/momentum_budget.py
             scripts/strat/reference/mbudget_clim.npz
             scripts/strat/tape_recorder.py
+            scripts/strat/fetch_mls_h2o.py
             scripts/strat/reference/tape_mls.npz
             scripts/strat/reference/tape_geosfp_seed.npz
             assets/sst/tape_*.webp
