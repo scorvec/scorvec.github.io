@@ -106,13 +106,22 @@ def corr_test(x, y):
 
 
 def partial_test(x, y, covs):
-    """Partial correlation of x with y given covs; Freedman-Lane permutation (x residuals permuted); bootstrap CI;
-    and the nested-OLS F-test p for adding x to covs."""
+    """Partial correlation of x with y given covs; Freedman-Lane permutation p (the reduced-model residuals of y
+    given covs are permuted, added back to the fitted values and re-residualised); bootstrap CI; and the nested-OLS
+    F-test p for adding x to covs. Mirrors quantmet.stats.partial_corr_test. (Until 2026-09-28 this permuted the x
+    residuals - Kennedy's method, mislabelled Freedman-Lane; Kennedy is anti-conservative with covariates.)"""
     x, y = np.asarray(x, float), np.asarray(y, float)
-    rx, ry = resid(x, covs), resid(y, covs)
+    Zd = np.column_stack([np.ones(len(y))] + [np.asarray(c, float) for c in covs])
+    Hz = Zd @ np.linalg.pinv(Zd)                                              # hat matrix of the reduced model
+    rx = x - Hz @ x
+    yfit = Hz @ y
+    ry = y - yfit
     r = pearson(rx, ry)
-    perm = np.array([pearson(RNG.permutation(rx), ry) for _ in range(NB)])
-    p = (np.sum(np.abs(perm) >= abs(r)) + 1) / (NB + 1)
+    perm = np.empty(NB)
+    for b in range(NB):
+        ys = yfit + RNG.permutation(ry)
+        perm[b] = pearson(rx, ys - Hz @ ys)
+    p = (np.sum(np.abs(perm) >= abs(r) - 1e-12) + 1) / (NB + 1)
     n = len(x); bs = []
     for _ in range(NB):
         i = RNG.integers(0, n, n)
