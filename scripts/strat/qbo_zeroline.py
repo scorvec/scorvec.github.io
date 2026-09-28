@@ -107,6 +107,9 @@ def to_grid(u, lat, grid=LAT):
 # --------------------------------------------------------------------------------------------------------- forecast ---
 def forecast(model, npz=None, out_dir=REPO / "assets" / "sst" / "data"):
     npz = Path(npz or HERE / "data" / f"zmu_members_{model}.npz")
+    if not npz.exists():
+        raise SystemExit(f"{npz.name}: not written this run (qbo_duct.py found no {MODEL[model]} cycle); "
+                         f"the figure keeps the analysis and any recent forecast JSON")
     d = np.load(npz)
     init = pd.Timestamp(str(d["init"]))
     steps = [int(s) for s in d["steps"]]
@@ -211,7 +214,7 @@ def render(out_dir=REPO / "assets" / "sst", data_dir=None, tail_dir=None, days_b
         if p.exists():
             fc[m] = json.loads(p.read_text())
     # the forecasts must be recent to be drawn: a stale JSON (a model that has not run for days) is dropped
-    now = pd.Timestamp.utcnow().tz_localize(None).normalize()
+    now = pd.Timestamp.now("UTC").tz_localize(None).normalize()
     for m in list(fc):
         if pd.Timestamp(fc[m]["init"][:10]) < now - pd.Timedelta(days=3):
             print(f"  {MODEL[m]} forecast {fc[m]['init']} is stale; not drawn", flush=True); fc.pop(m)
