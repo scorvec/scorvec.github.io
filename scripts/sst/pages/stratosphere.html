@@ -161,6 +161,117 @@ reanalyses' own correction to the momentum budget, is left out.</p>
 GMAO) &middot; test: z-test of the 30-day mean against MERRA-2's day-to-day and year-to-year variance plus the errors of the normal
 and of the GEOS FP offset; section shaded only where the false-discovery rate is below 10&nbsp;% &middot; updated daily</p>
 </template>
+<template id="about-aoa">
+<p>The <b>age of stratospheric air</b> is how long ago, on average, the air at a place was last at the ground. Air enters
+        the stratosphere through the cold tropical tropopause, is lifted by the tropical branch of the Brewer&ndash;Dobson
+        circulation, spreads poleward and sinks at high latitudes, while breaking waves mix old air back toward the tropics.
+        Age therefore grows with height and toward the poles. It sums up the whole circulation in one number &mdash; a faster
+        overturning makes younger air &mdash; and it is the quantity on which models and observations disagree
+        (Waugh and Hall 2002).</p>
+<p><b>The data.</b> The MERRA-2 GMI replay (NASA GMAO): the GMI stratosphere&ndash;troposphere chemistry model driven by
+        the MERRA-2 reanalysis winds and temperatures, 1980&ndash;2019, carrying a <b>clock tracer</b> released at the
+        surface. Its mixing-ratio deficit is the mean age in days. Monthly means from NCCS, zonal means of 72 longitudes,
+        2&deg; latitude, 250&ndash;0.1&nbsp;hPa. The age is referenced to the <em>surface</em>; balloon and aircraft
+        estimates are usually referenced to the tropical tropopause, about 0.3 years later.</p>
+<p><b>Magnitudes.</b> Annual mean at 50&nbsp;hPa (~20.5&nbsp;km): 1.7 years over the equator (10&deg;S&ndash;10&deg;N),
+        3.7 years at 35&ndash;55&deg; in both hemispheres, 4.4&ndash;4.6 years over the poles; at 10&nbsp;hPa (~31&nbsp;km)
+        4.4&ndash;4.6 years at mid-latitudes. Observations: about 1 year over the equator at 20&nbsp;km from ER-2 aircraft
+        CO<sub>2</sub> (tropopause-referenced), 4&ndash;5 years at high latitudes, and 5&nbsp;&plusmn;&nbsp;0.5 years in the
+        mid-latitude middle stratosphere (Andrews et al. 2001; Waugh and Hall 2002). GMI sits at the young end of that
+        range aloft and a little old over the equator at 20&nbsp;km, as most models and reanalysis-driven transport do.</p>
+<p><b>Record checks.</b> No spin-up: the global-mean age anomaly at every level from 100 to 1&nbsp;hPa is flat through
+        1980&ndash;1982 (slope &lt;&nbsp;0.05 years per year), so no years are dropped. What the record does show is a decline
+        of about 0.5 years in the middle and upper stratosphere between the early 1990s and 2003, after which it is flat.
+        The same drop appears in MERRA-2-driven age in other transport models (Chabrillat et al. 2018, a decrease of
+        0.8 years 1989&ndash;2015 at northern mid-latitudes, mostly before 2000). It coincides with changes in what
+        MERRA-2 assimilates &mdash; a new production stream from January 1992, AMSU radiances from 1998, Aura MLS
+        temperatures from 2004 &mdash; so it cannot be read as a clean climate trend. The step across each stream start
+        (12 months after minus 12 before) is at most 0.2 years.</p>
+<p><b>Trend.</b> Over 1980&ndash;2019 the age decreases almost everywhere (1,502 of 1,547 cells significant), by
+        0.17&nbsp;&plusmn;&nbsp;0.05 years per decade at 30&ndash;50&deg;N, 30&ndash;5&nbsp;hPa &mdash; the latitudes and
+        heights of the balloon record of Engel et al. (2017), which found <b>+0.15&nbsp;&plusmn;&nbsp;0.18 years per
+        decade</b> for 1975&ndash;2016, not significant. This is the known disagreement: chemistry&ndash;climate models
+        simulate air getting younger as greenhouse warming speeds the circulation, and the balloon record does not confirm
+        it. Here the decline is the 1990s step; over <b>2004&ndash;2019</b> the balloon box shows no significant trend
+        (+0.02&nbsp;&plusmn;&nbsp;0.09). Of the 105 cells (of 1,547) with a significant 2004&ndash;2019 trend, 85 show air
+        getting <em>older</em>, by up to 0.16 years per decade, mostly in the northern extratropical lower stratosphere;
+        20 show a tiny decline (under 0.03 years per decade) in the southern subtropical lowermost stratosphere.</p>
+<p><b>ENSO.</b> El Ni&ntilde;o makes the tropical lower-stratosphere air younger, as a faster Brewer&ndash;Dobson ascent
+        should: &minus;0.26 months per +1&nbsp;&deg;C of the relative Ni&ntilde;o-3.4 index at 70&nbsp;hPa
+        (p&nbsp;=&nbsp;0.002) and &minus;0.35 at 50&nbsp;hPa (p&nbsp;=&nbsp;0.001), with the index one month earlier. The
+        sign is the same at every lag from 0 to 8 months and significant at lags 0&ndash;2 and 7&ndash;8. Across the section
+        99 cells from 20&deg;S to 22&deg;N and 200&ndash;30&nbsp;hPa are significantly younger, and 101 cells in the
+        mid-latitude lowermost stratosphere (85&ndash;200&nbsp;hPa) significantly older. The effect is small: a strong
+        El Ni&ntilde;o of +2&nbsp;&deg;C takes about half a month off air that is about ten months old at 70&nbsp;hPa.</p>
+<p><b>QBO.</b> The quasi-biennial oscillation's secondary circulation sinks at the equator under westerly shear and
+        rises in the subtropics. With westerlies at 50&nbsp;hPa the equatorial air at 50&nbsp;hPa is older by 0.52 months
+        per standard deviation (7.5&nbsp;m/s; p&nbsp;&lt;&nbsp;10<sup>&minus;9</sup>), and 446 of 1,547 cells respond
+        significantly to the 50&nbsp;hPa index, 166 to the 30&nbsp;hPa index.</p>
+<p><b>Statistics.</b> Monthly anomalies from the monthly climatology are regressed on a linear trend, the relative
+        Ni&ntilde;o-3.4 index (CPC RONI, lag chosen as the one with the largest |t| at 70&nbsp;hPa over the equator; the
+        neighbouring lags are shown) and the CPC 30 and 50&nbsp;hPa equatorial wind indices together, with AR(1) errors
+        (Prais&ndash;Winsten; the age anomalies are strongly persistent, lag-1 autocorrelation ~0.86, so ordinary least
+        squares would overstate significance several-fold). El Chich&oacute;n (April 1982&ndash;March 1984) and Pinatubo
+        (June 1991&ndash;December 1993) are left out: their warming coincided with El Ni&ntilde;o. Every map is shaded only
+        where a two-sided t-test passes a false-discovery rate of 10&nbsp;% over the whole section (Benjamini&ndash;Hochberg;
+        Wilks 2016). The seasonal-cycle panel tests each month against the annual mean over the 40 years.</p>
+<p class="chart-sources">NASA GMAO MERRA-2 GMI replay, <code>tavgM_3d_dac_Np</code> <code>aoadays</code> (NCCS OPeNDAP)
+        &middot; CPC RONI and QBO indices &middot; Engel et al. 2017, <i>ACP</i> 17, 6825 &middot; Chabrillat et al. 2018,
+        <i>ACP</i> 18, 14715 &middot; Waugh and Hall 2002, <i>Rev. Geophys.</i> 40 &middot; static reference, built once
+        from the 1980&ndash;2019 record</p>
+</template>
+<template id="about-tape">
+<p>Air enters the stratosphere through the cold tropical tropopause, which freeze-dries it to the water-vapour
+        saturation of its coldest point. That cold point is coldest in northern winter and warmest in northern summer, so
+        the air entering carries an annual cycle of water vapour &mdash; about 3&nbsp;ppmv in February, 5 in September at
+        100&nbsp;hPa &mdash; and the slow tropical ascent of the Brewer&ndash;Dobson circulation lifts it like a signal
+        written on a rising tape: the <b>tape recorder</b> (Mote et al. 1996). The slope of its dry and moist bands is the
+        ascent speed; the value at 100&ndash;70&nbsp;hPa is the entry value the cold point has just set.</p>
+<p><b>The data.</b> The long record is <b>Aura MLS</b> version 6 (ML2H2O v006, NASA JPL / GES DISC), the reference for
+        stratospheric water vapour: 10&deg;S&ndash;10&deg;N daily means of the profiles that pass the v6 data-quality
+        screening (status, quality, convergence, precision), August 2004 on, 7,344 good days. MLS is reached with an
+        Earthdata login, which the site's GitHub Actions do not hold, so the MLS record is built on the laptop and
+        committed; it currently ends on the last MLS day marked on the figures. Two limits: since May 2024 MLS's
+        190-GHz radiometer, which measures water, has run about one week a month to save its life, and about four days a
+        month since early 2026, so the recent record is monthly snapshots (the tape-recorder section fills the gaps of up
+        to seven weeks by interpolation, marked in its strip); and the radiometer is ageing: a drift against frost-point
+        balloon sondes remains after the v5/v6 correction (MLS v6 data-quality document).</p>
+<p><b>GEOS FP after the last MLS day.</b> The newest weeks come from the GEOS FP analyses (NASA GMAO, one 12Z analysis a
+        day, updated twice daily). GEOS FP does <b>not</b> assimilate stratospheric water vapour, and it shows: after the
+        January 2022 Hunga eruption, which injected about 150&nbsp;Tg of water, MLS measured +1.0 to +1.4&nbsp;ppmv at
+        30&ndash;10&nbsp;hPa over the tropics in 2022&ndash;2023 while GEOS FP stayed at its old values (&minus;0.1), a gap
+        of about 20&nbsp;%. Its water at 100&nbsp;hPa does follow MLS (month-to-month anomaly correlation 0.82 in
+        2018&ndash;2021, 0.92 since 2024) because the entry value is set by the <em>analysed</em> temperatures; from
+        70&nbsp;hPa up it does not (r from &minus;0.35 to +0.55 by level and period). So GEOS FP is used only after the last MLS day, shifted
+        onto the MLS scale by the mean difference over the 60 days before it. That offset was chosen by a hindcast of 87
+        MLS months since 2019; a monthly mean predicted that way is off by 0.17&nbsp;ppmv (rms) at 100&nbsp;hPa and
+        0.40 at 70&nbsp;hPa, and that error is added to every test that uses GEOS FP.</p>
+<p><b>Entry value.</b> The last 30 days are tested against the MLS 2005&ndash;2021 normal for the same dates (years
+        before Hunga), with the year-to-year spread of 30-day means plus the GEOS FP error. At 100&nbsp;hPa the water
+        tracks GEOS FP's analysed 100&nbsp;hPa temperature: monthly anomalies correlate at r&nbsp;=&nbsp;0.85,
+        +0.36&nbsp;ppmv per kelvin (p&nbsp;&lt;&nbsp;0.001, autocorrelation-adjusted; the temperature anomaly is against
+        GEOS FP's own 2018&ndash;2025 years).</p>
+<p><b>Ascent speed.</b> At each MLS level an annual harmonic is fitted over a calendar year; the time of the moist
+        maximum rises with height, and the speed is the height gained per day (log-pressure height, scale height 7&nbsp;km,
+        the coordinate of the residual w*). The 100&nbsp;hPa level is left out: MLS's ~3&nbsp;km vertical resolution
+        smears the entry level. Over 2005&ndash;2021 the band rises at 0.27&nbsp;mm/s at 68&nbsp;hPa, slows to
+        0.23&nbsp;mm/s near 46&nbsp;hPa and speeds up to 0.34&nbsp;mm/s at 26&nbsp;hPa &mdash; 83&ndash;46&nbsp;hPa
+        averages 0.26&nbsp;&plusmn;&nbsp;0.05&nbsp;mm/s (single years), 46&ndash;26&nbsp;hPa 0.27&nbsp;&plusmn;&nbsp;0.03,
+        about 45 days per kilometre. Those match the published MLS and SWOOSH estimates (Brehon et al. 2026:
+        0.21&ndash;0.33&nbsp;mm/s, slowest near 50&nbsp;hPa). The latest 12 months are compared with the single years by
+        a z-test with a bootstrap over calendar months (the duty-cycled data come in monthly bursts).</p>
+<p><b>Against w*.</b> The tape moves with the residual vertical velocity plus vertical mixing into the tropical pipe,
+        so it runs a little faster than w*. The site's Brewer&ndash;Dobson product gives, by downward control, a
+        MERRA-2 w* of 0.22&nbsp;mm/s at 70&nbsp;hPa and 0.23 at 50&nbsp;hPa (annual means 1991&ndash;2009, averaged between
+        the turnaround latitudes, about &plusmn;25&ndash;35&deg;): the MLS tape is about 20&nbsp;% faster at 70&nbsp;hPa and within
+        10&nbsp;% at 50&nbsp;hPa. The figure also marks GEOS FP's w* over the last 30 days, by downward control (on the MERRA-2
+        scale) and from its analysed &omega;*. GEOS FP's own tape recorder (2018&ndash;2025) rises at 0.29&ndash;0.35&nbsp;mm/s
+        between 50 and 30&nbsp;hPa, 10&ndash;20&nbsp;% faster than MLS's.</p>
+<p class="chart-sources">Aura MLS v6 H<sub>2</sub>O (NASA JPL, GES DISC; Earthdata) &middot; NASA GMAO GEOS FP
+        <code>inst3_3d_asm_Np</code> (NCCS OPeNDAP) &middot; MERRA-2 GMI replay (downward-control w*) &middot; Mote et al.
+        1996, <i>JGR</i> 101, 3989 &middot; Brehon et al. 2026, <i>ACP</i> 26, 3743 &middot; updated twice daily with the
+        Brewer&ndash;Dobson product; the MLS record is extended when it is rebuilt on the laptop</p>
+</template>
 <template id="about-mbudget">
 <p>The <b>zonal momentum budget</b> says, term by term, what is speeding up or slowing down the stratospheric
         westerlies. It is written in the transformed Eulerian mean (TEM) form of Andrews, Holton and Leovy (1987), in
@@ -386,7 +497,7 @@ $$\frac{\partial\bar u}{\partial t} \;=\; \hat f\,\bar v^{*} \;-\; \bar w^{*}\fr
 <script>
 window.STAGE = {
   groups: [
-  {label: "Stratosphere", ico: "\u2744", items: [["vortex","Polar vortex diagnostics","u(60°N), polar-cap height"],["upperstrat","Upper stratosphere","GEFS, GFS, GEOS FP, GDPS up to 1 hPa"],["vwinds","Vortex winds","10 and 100 hPa, both hemispheres"],["pv","Potential vorticity","GEOS FP, 475 and 850 K"],["epflux","E–P flux","wave driving, k = 1–3"],["wave1","Stationary wave-1","100 and 500 hPa"],["heatflux","Eddy heat flux","100 hPa [v′T′], is it going up?"],["fdrip","Forecast dripping paint","GEPS, GEFS, AIFS-ENS: is it reaching down?"],["bdc","Brewer–Dobson circulation","tropical upwelling, downward control"],["mbudget","Momentum budget","what drives the vortex and the upwelling"]]},
+  {label: "Stratosphere", ico: "\u2744", items: [["vortex","Polar vortex diagnostics","u(60°N), polar-cap height"],["upperstrat","Upper stratosphere","GEFS, GFS, GEOS FP, GDPS up to 1 hPa"],["vwinds","Vortex winds","10 and 100 hPa, both hemispheres"],["pv","Potential vorticity","GEOS FP, 475 and 850 K"],["epflux","E–P flux","wave driving, k = 1–3"],["wave1","Stationary wave-1","100 and 500 hPa"],["heatflux","Eddy heat flux","100 hPa [v′T′], is it going up?"],["fdrip","Forecast dripping paint","GEPS, GEFS, AIFS-ENS: is it reaching down?"],["bdc","Brewer–Dobson circulation","tropical upwelling, downward control"],["aoa","Age of stratospheric air","MERRA-2 GMI, 1980–2019"],["tape","Water-vapour tape recorder","Aura MLS + GEOS FP, how fast air rises"],["mbudget","Momentum budget","what drives the vortex and the upwelling"]]},
   {label: "Stratosphere history", ico: "\u231B", items: [["shwinters","Every winter since 1980","pick any winter, compare"],["shssw","Sudden warmings since 1980","timeline, catalogue, vortex shapes"],["shdrip","Dripping paint","how an event reaches the surface"],["shfollow","What usually follows","AO, NAO, temperature, by region; CMIP6"],["shtiming","Who moves first","waves, vortex, tropical upwelling"],["shqbo","The QBO and the vortex","observed and CMIP6"],["shenso","El Niño and sudden warmings","CMIP6, 25,000 winters"],["shseason","This winter's odds","QBO and ENSO, model-based"],["shmbudget","Momentum budget of past warmings","every term, 24 warmings"]]}
 ],
   products: {
@@ -420,6 +531,26 @@ window.STAGE = {
           img: function (a) { return "assets/sst/bdc_dc_" + (a === "sec" ? "section" : "upwelling") + ".webp"; }, bust: "hourly", about: "about-bdc", fit: false,
           cap: function (a) { return a === "sec" ? "The residual (Brewer–Dobson) streamfunction by downward control, 30-day mean; shading only where the anomaly from MERRA-2 is significant (FDR 10 %)."
                                                  : "Upward mass flux through 70 and 100 hPa between the turnaround latitudes, trailing 30-day mean: GEOS FP analyses and 10-day forecast against the MERRA-2 range."; }},
+  aoa: {label: "Age of stratospheric air (MERRA-2 GMI)", a: {label: "View", items: [["clim","Climatology"],["cycle","Seasonal cycle"],["trend","Trend"],["enso","ENSO"],["qbo","QBO"]]},
+          b: function (a) { return a === "clim" ? {label: "Season", items: [["ann","Annual"],["djf","DJF"],["mam","MAM"],["jja","JJA"],["son","SON"]]}
+                                 : a === "trend" ? {label: "Period", items: [["all","1980–2019"],["p04","2004–2019"]]} : null; },
+          img: function (a, b) { return "assets/sst/aoa_" + (a === "clim" ? "clim_" + (b || "ann") : a === "trend" ? (b === "p04" ? "trend04" : "trend") : a) + ".webp?v=__CACHE__"; },
+          fit: false, about: "about-aoa",
+          cap: function (a) {
+            if (a === "clim") return "Mean age of air – the average time since the air was last at the ground – zonal mean from the MERRA-2 GMI replay, 1980–2019.";
+            if (a === "cycle") return "The seasonal cycle of mean age at 50 hPa: five latitude bands, and each month's departure from the annual mean where it is significant.";
+            if (a === "trend") return "Linear trend in mean age, shaded only where significant (false-discovery rate 10 %), beside the 30–50°N box of the balloon record. Most of the 40-year decline is one drop in the 1990s.";
+            if (a === "enso") return "Mean age per +1 °C of the relative Niño-3.4 index: El Niño makes the tropical lower-stratosphere air younger. Significant cells only.";
+            return "Mean age per standard deviation of westerly equatorial wind at 50 and at 30 hPa. Significant cells only."; }},
+  tape: {label: "Water-vapour tape recorder (Aura MLS + GEOS FP)", a: {label: "View", items: [["sec","Tape recorder"],["anom","Anomaly"],["entry","Entry value"],["ascent","Ascent speed vs w*"],["record","MLS record since 2004"]]},
+          img: function (a) { return "assets/sst/tape_" + ({sec: "section", anom: "anom", entry: "entry", ascent: "ascent", record: "record"})[a] + ".webp"; },
+          bust: "hourly", about: "about-tape", fit: false,
+          cap: function (a) {
+            if (a === "sec") return "Tropical (10°S–10°N) water vapour minus its mean over the three years shown, 100 to 10 hPa: the yearly bands rising from the tropopause. Aura MLS, then GEOS FP after the last MLS day.";
+            if (a === "anom") return "The same section with the seasonal cycle removed: what differs from a normal year, including the water the 2022 Hunga eruption put in the stratosphere.";
+            if (a === "entry") return "Water vapour entering the stratosphere at 100 and 70 hPa against the MLS 2005–2021 normal, with a significance test on the last 30 days, and GEOS FP's 100 hPa temperature.";
+            if (a === "ascent") return "How fast the bands rise, from MLS, against the Brewer–Dobson w* of MERRA-2 and of GEOS FP.";
+            return "The whole Aura MLS record, 2004 to now, as monthly anomalies from 100 to 3 hPa."; }},
   mbudget: {label: "Momentum budget (GEOS FP)", a: {label: "View", items: [["vnh","Northern vortex"],["vsh","Southern vortex"],["up","Tropical upwelling"],["sec","Where the forces act"]]},
           b: function (a) { return (a === "vnh" || a === "vsh") ? {label: "Level", items: [["10","10 hPa"],["1","1 hPa"],["50","50 hPa"]]} : null; },
           c: function (a) { return (a === "vnh" || a === "vsh") ? {label: "Smoothing", items: [["s7","7-day mean"],["d1","Daily"]]} : null; },
