@@ -57,7 +57,7 @@
   .seg button + button { border-left: 1px solid var(--rule); }
   .seg button.on { background: var(--accent); color: #fff; }
   .seg button:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
-  .legend { display: inline-flex; gap: 1rem; font-size: 0.74rem; color: var(--muted); margin-left: auto; }
+  .legend { display: inline-flex; flex-wrap: wrap; gap: 0.3rem 1rem; font-size: 0.74rem; color: var(--muted); margin-left: auto; }
   .legend i { display: inline-block; width: 18px; height: 3px; vertical-align: middle; margin-right: 5px; border-radius: 2px; }
   .grid4 { display: grid; grid-template-columns: 1fr 1fr; }
   .grid4 > div { height: 300px; }
@@ -251,6 +251,7 @@
       <span class="seg" id="regionSeg" title="radiosonde scores only">
         <button data-r="nh" class="on">NH 20&ndash;80&deg;N</button><button data-r="glb">global</button>
       </span>
+      <span class="legend"><span><i style="background:none;height:0;border-top:2px solid var(--control)"></i>member 0, matched</span><span><i style="background:none;height:0;border-top:2px dashed var(--raw)"></i>member 0, as published</span><span><i style="background:none;height:0;border-top:2px dotted var(--ensmean)"></i>ensemble mean</span></span>
     </div>
     <div class="grid4" id="diffGrid"><div id="d-rmse"></div><div id="d-acc"></div></div>
     <div class="empty" id="diffEmpty" style="display:none">Not enough paired runs yet (at least 20 per lead).</div>
@@ -269,7 +270,7 @@
       <span class="seg" id="showSeg" title="reference series">
         <button data-s="ctl" class="on">member 0 as published</button><button data-s="ens" class="on">ensemble mean</button>
       </span>
-      <span class="legend"><span><i style="background:var(--single)"></i>AIFS single</span><span><i style="background:var(--control)"></i>member 0, matched</span><span><i style="background:var(--raw)"></i>member 0, as published</span><span><i style="background:var(--ensmean)"></i>ensemble mean</span></span>
+      <span class="legend"><span><i style="background:none;height:0;border-top:2px solid var(--single)"></i>AIFS single</span><span><i style="background:none;height:0;border-top:2px solid var(--control)"></i>member 0, matched</span><span><i style="background:none;height:0;border-top:2px dashed var(--raw)"></i>member 0, as published</span><span><i style="background:none;height:0;border-top:2px dotted var(--ensmean)"></i>ensemble mean</span></span>
     </div>
     <div class="grid4" id="scoreGrid">
       <div id="c-rmse"></div><div id="c-acc"></div><div id="c-bias"></div><div id="c-act"></div>
@@ -289,6 +290,7 @@
       <span class="seg" id="specVar"><button data-v="z500" class="on">z500</button><button data-v="t850">850 hPa T</button><button data-v="msl">MSLP</button><button data-v="t2m">2 m temperature</button></span>
       <span class="seg" id="specLead"><button data-l="24">day 1</button><button data-l="120" class="on">day 5</button><button data-l="240">day 10</button></span>
       <span class="seg" id="specMode"><button data-m="abs" class="on">power</button><button data-m="ratio">ratio to the single</button></span>
+      <span class="legend"><span><i style="background:none;height:0;border-top:2px solid var(--single)"></i>AIFS single</span><span><i style="background:none;height:0;border-top:2px solid var(--control)"></i>member 0, matched</span><span><i style="background:none;height:0;border-top:2px dashed var(--raw)"></i>member 0, as published</span><span><i style="background:none;height:0;border-top:2px dotted var(--ensmean)"></i>ensemble mean</span></span>
     </div>
     <div id="c-spec" style="height:400px"></div>
     <div class="empty" id="specEmpty">no spectra yet</div>
