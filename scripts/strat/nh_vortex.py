@@ -610,7 +610,7 @@ def main() -> int:
              "year (+18.7 m/decade), the winds are not (<0.25 m/s/decade). Vertical line = analysis time.",
              ha="center", va="bottom", fontsize=8, color="#6f6b64", linespacing=1.5)
     fig.autofmt_xdate()
-    fig.tight_layout(rect=(0, 0.026, 1, 0.985))
+    fig.tight_layout(rect=(0, 0.05, 1, 0.985))                  # three footer lines under rotated dates
     Path(a.out).parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(a.out, dpi=112, facecolor="white", bbox_inches="tight",
                 pil_kwargs={"quality": 88, "method": 6})

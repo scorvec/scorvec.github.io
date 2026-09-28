@@ -127,12 +127,15 @@ jobs:
       - name: Python dependencies
         run: pip install -r scripts/mjo/requirements-mjo.txt
 
-      # The shared files are ~8 GB and the runner starts with ~14 GB free; the preinstalled SDKs we never use give back
-      # ~25 GB more, so a fat cycle cannot fill the disk halfway through a render.
+      # The shared files are ~8 GB. The runner image of 2026-09-20 had ~100 GB free, but older images had ~14, so the
+      # preinstalled SDKs are removed (1-2 min) only when under 25 GB is free.
       - name: Free disk
         run: |
           touch /tmp/t0                                   # stamp: the checkout's copies are older than this
-          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL || true
+          free=$(df -BG --output=avail / | tail -1 | tr -dc 0-9)
+          if [ "${free:-0}" -lt 25 ]; then
+            sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL || true
+          fi
           df -h / | tail -1
 
       - name: Shared IFS-ENS fetch (Google mirror only)

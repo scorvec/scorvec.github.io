@@ -335,7 +335,7 @@ def epflux_loop(u_full, u_rmm, tag, base):
 
 MODEL = {"aifs": "AIFS-ENS", "ifs": "IFS-ENS"}
 SOURCE = {"aifs": "ECMWF AIFS-ENS open data (CC BY 4.0)",
-          "ifs": "ECMWF IFS-ENS open data (CC BY 4.0), 50 perturbed members, Google Cloud mirror"}
+          "ifs": "ECMWF IFS-ENS open data (CC BY 4.0), 50 members"}      # longer overflows the frame footer
 
 
 def render_epflux(by_step, nmem, lat, S, base, model="aifs"):
