@@ -105,7 +105,16 @@ jobs:
           # the 06:55Z run resolved 2026083000 because the 06Z analysis was not
           # up yet, spent 72 min re-rendering an identical loop and committed
           # "no changes". Skipping costs one file read.
-          PUB=$(python -c "import json;print(json.load(open('assets/ecape/anim/index.json'))['latest'] or '')" 2>/dev/null || echo "")
+          # Read main's CURRENT index, not the checkout's: a run queued behind another in the
+          # `ecape` group checks out the commit it was queued at. On 2026-09-28 the 13Z slot,
+          # queued at 20:07Z, resolved 2026092818 at 20:24Z - one minute after the 19Z run had
+          # published it - re-rendered it, and its F18 progressive publish swapped the complete
+          # 29-frame cycle for F00-F18 before the run failed (restored by hand at 23:5xZ).
+          IDX=assets/ecape/anim/index.json
+          if timeout 60 git fetch -q --depth 1 origin main && git show FETCH_HEAD:$IDX > /tmp/ecape_index.json 2>/dev/null; then
+            IDX=/tmp/ecape_index.json
+          else echo "::warning::could not read main's current index; using the checkout's"; fi
+          PUB=$(python -c "import json,sys;print(json.load(open(sys.argv[1]))['latest'] or '')" "$IDX" 2>/dev/null || echo "")
           if [ -n "$PUB" ] && [ "$PUB" = "$C" ] && [ -z "${{ github.event.inputs.cycle }}" ]; then
             echo "cycle $C is already the published one (manifest ver=$PUB) - nothing to do"
             echo "skip=true" >> "$GITHUB_OUTPUT"
@@ -172,7 +181,10 @@ jobs:
             if [ "$f" = "18" ] && [ "${DO_PUBLISH:-0}" = "1" ]; then
               echo "::group::progressive publish at F18"
               python scripts/ecape/build_manifest.py assets/ecape/anim --cycle "$CYCLE" || true
-              scripts/lib/publish_frames_ci.sh "assets/ecape/anim/$CYCLE" || true
+              # MERGE (+dir), never swap: a partial loop must only ADD frames. A swap here
+              # deleted F21-F48 of a cycle another run had already published complete
+              # (2026-09-28 21:06Z). The final publish below swaps, after the frame count check.
+              scripts/lib/publish_frames_ci.sh "+assets/ecape/anim/$CYCLE" || true
               git add "assets/ecape/anim/ecape_$CYCLE.json" assets/ecape/anim/index.json 2>/dev/null || true
               git -c user.name="Shawn Corvec" -c user.email="26825570+scorvec@users.noreply.github.com" \
                   commit -q -m "ecape: partial loop $CYCLE (F00-F18)" 2>/dev/null || true
@@ -248,33 +260,13 @@ jobs:
         if: ${{ (github.event_name == 'schedule' || github.event.inputs.publish == 'true') && steps.cyc.outputs.skip != 'true' }}
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          set -euo pipefail
-          # The frames branch also carries sst/cptec/brazil/sfs frames. Force-
-          # pushing only our tree would DELETE them, so clone the existing branch,
-          # swap in just assets/ecape/anim, and re-orphan the combined result.
-          TMP=$(mktemp -d)
-          URL="https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
-          if git clone --depth 1 --branch frames --single-branch -q "$URL" "$TMP/f"; then
-            echo "  cloned existing frames branch ($(du -sh "$TMP/f" | cut -f1))"
-          else
-            echo "  no frames branch yet - creating one"
-            mkdir -p "$TMP/f" && git -C "$TMP/f" init -q && git -C "$TMP/f" remote add origin "$URL"
-          fi
-          rm -rf "$TMP/f/assets/ecape/anim"
-          mkdir -p "$TMP/f/assets/ecape"
-          cp -r assets/ecape/anim "$TMP/f/assets/ecape/"
-          # The manifest belongs on main (same-origin fetch), not here.
-          rm -f "$TMP/f/assets/ecape/anim/ecape_manifest.json"
-          cd "$TMP/f"
-          git config user.name "Shawn Corvec"
-          git config user.email "26825570+scorvec@users.noreply.github.com"
-          git checkout -q --orphan fresh
-          git add -A
-          if git diff --cached --quiet; then echo "no frame changes"; exit 0; fi
-          git commit -q -m "animation frames $(date -u +%Y-%m-%dT%H:%MZ)"
-          git push --force -q origin fresh:frames
-          echo "  pushed $(find assets -name '*.webp' | wc -l) frames"
+        # The frames branch carries every other product's frames too. This used to be an inline
+        # clone-swap-reorphan with a plain --force push (no lease) of a PARENTLESS commit, which
+        # re-sent the whole 2 GB branch each time; the shared publisher swaps in just
+        # assets/ecape/anim (retention already applied in the workspace above), pushes only the
+        # delta under a lease and re-orphans server-side (2026-09-28). It drops *_manifest.json,
+        # which belongs on main; index.json and ecape_<cycle>.json ride along as before.
+        run: scripts/lib/publish_frames_ci.sh assets/ecape/anim
 
       - name: Commit the manifest to main
         if: ${{ (github.event_name == 'schedule' || github.event.inputs.publish == 'true') && steps.cyc.outputs.skip != 'true' }}

@@ -11,8 +11,8 @@
 # off main on 2026-08-30. Six copies of a routine whose failure mode is
 # "silently delete every other product's frames" is not a thing to maintain.
 #
-# THE RULE THIS ENCODES: the branch is ONE PARENTLESS COMMIT, so whatever is
-# not in the tree we publish is deleted. A job must therefore clone
+# THE RULE THIS ENCODES: the branch is force-pushed as ONE PARENTLESS COMMIT,
+# so whatever is not in the tree we push is deleted. A job must therefore clone
 # what is already there and replace only its own subdirectories. Force-pushing
 # just your own tree wipes everyone else's frames - which is exactly what
 # happened to wave1_maps and vortex_winds earlier that day.
@@ -37,7 +37,6 @@ BRANCH="${FRAMES_BRANCH:-frames}"
 # the branch (FRAMES_BRANCH != off) the branch is published as well, so the two
 # stay in step until the cutover commit flips assets/frames_root.js.
 . "$(dirname "$0")/frames_env.sh"
-. "$FRAMES_LIB/frames_reorphan.sh"
 if frames_store_ready; then
   [ $# -gt 0 ] && "$FRAMES_PY" "$FRAMES_LIB/frames_store.py" sync "$@"
   [ -n "${PRUNE:-}" ] && "$FRAMES_PY" "$FRAMES_LIB/frames_store.py" prune ${PRUNE}
@@ -83,6 +82,12 @@ publish_once() {
 cd "$ORIG_PWD" || return 1                 # a retry starts from the workspace again
 TMP=$(mktemp -d)
 trap 'rm -rf "$TMP"' RETURN
+# --depth 1 IS LOAD-BEARING (measured 2026-09-28). The commit pushed below has no
+# parent, and git negotiates a push by commit ancestry, so from a full repository
+# it re-sends EVERY object on the branch (2.24 GB for a one-file change) - past
+# GitHub's 2 GiB pack limit that fails outright, which is what stopped the laptop's
+# GEPS publisher. From a SHALLOW clone git marks the boundary commit's whole tree as
+# already present, so the same push is ~400 bytes. Never deepen or unshallow this.
 if git clone --depth 1 --branch "$BRANCH" --single-branch -q "$URL" "$TMP/f"; then
   echo "  cloned $BRANCH ($(du -sh "$TMP/f" | cut -f1))"
   BASE=$(git -C "$TMP/f" rev-parse HEAD)
@@ -134,36 +139,18 @@ done
 cd "$TMP/f"
 git config user.name "Shawn Corvec"
 git config user.email "26825570+scorvec@users.noreply.github.com"
-# DELTA PUSH, THEN A SERVER-SIDE ORPHAN (2026-09-28). The commit is made ON TOP
-# of the tip we cloned, not as a fresh orphan: git negotiates by commit, and a
-# parentless commit shares no ancestry with the remote, so it made git re-send
-# the whole branch (2.2 GB for a one-file change) until GitHub's 2 GiB pack limit
-# refused every publish. With parent = BASE only our new objects travel (497 bytes
-# for the same change). frames_reorphan.sh then swaps the branch for a parentless
-# commit with the same tree through the API, so no history accumulates.
-# ROLLOUT: FRAMES_PUBLISH=delta opts a workflow in; the legacy orphan force-push
-# stays the default until the delta path has been verified on one workflow.
-DELTA=0
-[ -n "$BASE" ] && [ "${FRAMES_PUBLISH:-legacy}" = "delta" ] && DELTA=1
-[ "$DELTA" = 1 ] || git checkout -q --orphan fresh
+git checkout -q --orphan fresh
 git add -A
 if git diff --cached --quiet; then echo "  no frame changes"; return 0; fi
-git commit -q -m "animation frames $(date -u +%Y-%m-%dT%H:%MZ)"
-NEW=$(git rev-parse HEAD)
+MSG="animation frames"; [ "$BRANCH" = frames ] || MSG="$BRANCH update"
+git commit -q -m "$MSG $(date -u +%Y-%m-%dT%H:%MZ)"
 git config http.postBuffer 524288000
-if [ "$DELTA" = 1 ]; then
-  echo "  sending $(git rev-list --objects "$NEW" --not "$BASE" | wc -l | tr -d ' ') new object(s) on top of ${BASE:0:9}"
-  # A plain (fast-forward) push IS the lease: if the branch moved since we
-  # cloned, our commit is no longer a fast-forward and GitHub refuses it.
-  git push -q origin "HEAD:refs/heads/$BRANCH" || return 75
-  rrc=0; frames_reorphan "$NEW" "$BRANCH" "$GITHUB_REPOSITORY" || rrc=$?
-  [ "$rrc" -eq 75 ] && return 75      # 1 = left parented: correct, just not squashed
-elif [ -n "$BASE" ]; then
-  git push -q --force-with-lease="$BRANCH:$BASE" origin "HEAD:refs/heads/$BRANCH" || return 75
+if [ -n "$BASE" ]; then
+  git push -q --force-with-lease="$BRANCH:$BASE" origin "fresh:$BRANCH" || return 75
 else
-  git push -q --force origin "HEAD:refs/heads/$BRANCH" || return 75
+  git push -q --force origin "fresh:$BRANCH" || return 75
 fi
-echo "  published $(git ls-tree -r --name-only "$NEW" | grep -c '\.webp$' || true) frames total to $BRANCH"
+echo "  pushed $(find assets -name '*.webp' | wc -l | tr -d ' ') frames total to $BRANCH"
 return 0
 }
 for attempt in 1 2 3 4 5; do

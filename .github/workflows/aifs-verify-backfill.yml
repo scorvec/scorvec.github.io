@@ -7,7 +7,7 @@ name: AIFS verification backfill
 #
 # Radiosonde truth exists from 2026-07-10 (the explorer's day bundles); ERA5
 # truth for everything. Runs SEQUENTIALLY in one job on purpose: the archive
-# directory is published to the frames branch as a whole, so parallel chunks
+# directory is published to the verify-data branch as a whole, so parallel chunks
 # would overwrite each other's cycles. ~1.5 min per cycle: 110 cycles ≈ 3 h.
 on:
   workflow_dispatch:
@@ -60,11 +60,15 @@ jobs:
       - name: Install Python dependencies
         run: pip install -r scripts/mjo/requirements-mjo.txt
 
-      - name: Seed verification state from the frames branch
+      # The verification state lives on its own orphan branch `verify-data` since 2026-09-28 (it was 785 MB of
+      # the frames branch, which every loop publisher clones); same scripts, FRAMES_BRANCH picks the branch.
+      - name: Seed verification state from the verify-data branch
+        env:
+          FRAMES_BRANCH: verify-data
         run: scripts/lib/fetch_frames_ci.sh scripts/verify/data/clim scripts/verify/data/truth scripts/verify/data/truth_st scripts/verify/data/st_archive
 
       # The ERA5 t850 climatology (build_t850_clim.py, laptop, 2026-09-27) arrives as a release asset once;
-      # the publish step below merges it into the frames branch, where aifs-compare.yml seeds it from.
+      # the publish step below merges it into the verify-data branch, where aifs-compare.yml seeds it from.
       - name: t850 climatology
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -119,9 +123,10 @@ jobs:
           python scripts/verify/aifs_station_verify.py --verify $MF || echo "::warning::scoring hit an error; partial scores kept"
           rm -rf scripts/verify/data/uw_cache
 
-      - name: Publish verification state to the frames branch
+      - name: Publish verification state to the verify-data branch
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          FRAMES_BRANCH: verify-data
         run: scripts/lib/publish_frames_ci.sh +scripts/verify/data/clim +scripts/verify/data/truth +scripts/verify/data/truth_st +scripts/verify/data/st_archive
 
       - name: Commit & push the scores

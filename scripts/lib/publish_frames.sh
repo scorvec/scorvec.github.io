@@ -18,7 +18,7 @@
 set -uo pipefail
 
 REPO="$(cd "$(dirname "$0")/../.." && pwd)"
-BRANCH="frames"
+BRANCH="${FRAMES_BRANCH:-frames}"               # override only for a scratch test (e.g. frames-test)
 # every animation frame dir on the site. cptec/brazil/sfs are smaller than
 # sst but churn the same way, and keeping ONE branch for all of them means
 # the viewers need a single frame root rather than a per-product mapping.
@@ -76,6 +76,8 @@ if frames_store_ready; then
   fi
   [ "${FRAMES_BRANCH:-frames}" = "off" ] && { echo "published to the frames store"; exit 0; }
 fi
+
+[ "$BRANCH" = "off" ] && { echo "FRAMES_BRANCH=off but no frames store configured - nothing published"; exit 0; }
 
 FP="$(fingerprint)"
 if [ "${1:-}" != "--force" ] && [ -f "$STAMP" ] && [ "$(cat "$STAMP")" = "$FP" ]; then
@@ -166,12 +168,38 @@ if git rev-parse -q --verify "origin/$BRANCH" >/dev/null; then
 fi
 
 REMOTE="$(git config --get remote.origin.url)"
+# HOW THE COMMIT IS MADE AND PUSHED (2026-09-28). This used to `git init` a fresh
+# repository in $TMP and force-push from there. The branch is one PARENTLESS commit
+# and git negotiates a push by commit ancestry, so from any full repository - fresh
+# or not - the push re-sent every object on the branch: 2.24 GB for a one-file
+# change. Past GitHub's 2 GiB pack limit every push failed ("pack exceeds maximum
+# allowed size") and the GEPS loops stopped publishing for a day (~40 failures).
+# The CI publishers never hit it only because they push from a --depth 1 clone:
+# in a SHALLOW repository git treats the boundary commit's whole tree as present
+# and sends only the new objects.
+# So: (1) build the tree and the parentless commit in THIS repository's object
+# store (a scratch index, $TMP as the work tree), where origin/$BRANCH was just
+# fetched; (2) push it from a throwaway bare repository that borrows this object
+# store (objects/info/alternates) and is marked shallow at origin/$BRANCH, with
+# --force-with-lease against that same tip. Same bytes as a CI push (~400 bytes
+# for a one-file change), an atomic lease, still one parentless commit, and no
+# hooks in the throwaway repository - exactly as the old `git init` had none.
+# DRY=1 builds and checks the commit and reports what would be sent, without pushing.
+BASE=$(git rev-parse -q --verify "origin/$BRANCH^{commit}" 2>/dev/null || true)
 (
+  GD="$(git rev-parse --absolute-git-dir)"
+  OBJ="$(git rev-parse --path-format=absolute --git-path objects)"   # the common store, also from a worktree
+  export GIT_DIR="$GD" GIT_WORK_TREE="$TMP" GIT_INDEX_FILE="$TMP.index"
   cd "$TMP" || exit 1
-  git init -q -b "$BRANCH"
-  git add -A
-  git -c user.name="Shawn Corvec" -c user.email="26825570+scorvec@users.noreply.github.com" \
-      commit -q -m "animation frames $(date -u +%FT%H:%MZ)"
+  git -c gc.auto=0 add -A -f . || exit 1        # -f: this repo's ignore rules must not drop frames
+  tree=$(git write-tree) || exit 1
+  rm -f "$GIT_INDEX_FILE"
+  unset GIT_WORK_TREE GIT_INDEX_FILE
+  if [ -n "$BASE" ] && [ "$tree" = "$(git rev-parse "$BASE^{tree}")" ]; then
+    echo "  tree identical to origin/$BRANCH - nothing to publish"; exit 5
+  fi
+  commit=$(git -c user.name="Shawn Corvec" -c user.email="26825570+scorvec@users.noreply.github.com" \
+           commit-tree "$tree" -m "animation frames $(date -u +%FT%H:%MZ)") || exit 1
 
   # GUARD (2026-09-04). This is a FORCE push of a whole tree, so anything that
   # is stale in $TMP silently replaces the CI's copy. It has bitten twice: the
@@ -180,24 +208,44 @@ REMOTE="$(git config --get remote.origin.url)"
   # tree must be byte-identical to the branch we fetched; if it is not, the
   # branch moved under us - skip and let the next tick rebuild from a fresh
   # fetch. Never force-push a tree you did not just derive from the branch.
+  # (The lease below then guarantees the branch is STILL that tip when we land.)
   own=$(IFS='|'; echo "${DIRS[*]}")
-  ours=$(git ls-tree -r HEAD --format='%(objectname) %(path)' \
+  ours=$(git ls-tree -r "$commit" --format='%(objectname) %(path)' \
          | grep -vE "^[0-9a-f]+ ($own)/" | sort)
-  theirs=$(git -C "$REPO" ls-tree -r "origin/$BRANCH" --format='%(objectname) %(path)' \
+  theirs=$(git ls-tree -r "origin/$BRANCH" --format='%(objectname) %(path)' \
            | grep -vE "^[0-9a-f]+ ($own)/" | sort)
   if [ "$ours" != "$theirs" ]; then
     echo "  GUARD: tree outside ${DIRS[*]} differs from origin/$BRANCH - not pushing"
     diff <(printf '%s\n' "$theirs") <(printf '%s\n' "$ours") | head -8
     exit 3
   fi
+  if [ -n "$BASE" ]; then
+    echo "  commit ${commit:0:9} (no parent): $(git diff --name-only "$BASE" "$commit" | wc -l | tr -d ' ') file(s) differ from origin/$BRANCH ${BASE:0:9}"
+  fi
+  [ "${DRY:-0}" = "1" ] && { echo "  DRY=1: not pushing"; exit 0; }
 
-  git config http.postBuffer 524288000
-  git config http.version HTTP/1.1
-  git push -q --force "$REMOTE" "$BRANCH:$BRANCH"
+  PR="$TMP.push"
+  rm -rf "$PR"
+  unset GIT_DIR            # MUST go: with GIT_DIR exported, `git -C "$PR"` still pushes from THIS
+                           # (full) repository and re-sends the whole branch (found in the scratch test)
+  git init -q --bare "$PR" || exit 1
+  echo "$OBJ" > "$PR/objects/info/alternates"
+  if [ -n "$BASE" ]; then
+    echo "$BASE" > "$PR/shallow"
+    git -C "$PR" -c gc.auto=0 push -q --force-with-lease="refs/heads/$BRANCH:$BASE" \
+        "$REMOTE" "$commit:refs/heads/$BRANCH"
+  else
+    git -C "$PR" -c gc.auto=0 push -q --force "$REMOTE" "$commit:refs/heads/$BRANCH"
+  fi
+  prc=$?
+  rm -rf "$PR"
+  [ "$prc" = "0" ] || exit 1
 )
 rc=$?
 [ "$rc" = "3" ] && { echo "frames push skipped (branch moved); next tick retries"; exit 0; }
-[ "$rc" = "0" ] || { echo "frames push FAILED"; exit 1; }
+[ "$rc" = "5" ] && { [ "${DRY:-0}" = "1" ] || echo "$FP" > "$STAMP"; exit 0; }
+[ "$rc" = "0" ] || { echo "frames push FAILED (a 'stale info' rejection means the branch moved: next tick retries)"; exit 1; }
+[ "${DRY:-0}" = "1" ] && exit 0                    # a dry run leaves the stamp alone
 
 echo "$FP" > "$STAMP"
 echo "published $n frames to '$BRANCH'"
