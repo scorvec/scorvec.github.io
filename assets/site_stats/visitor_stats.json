@@ -1,8 +1,8 @@
 {
  "updated": "2026-09-28",
- "total_30d": 345,
+ "total_30d": 348,
  "countries_30d": 3,
- "total_all": 860,
+ "total_all": 863,
  "countries_all": 10,
  "top_pages_30d": [
   {
@@ -26,12 +26,12 @@
    "count": 25
   },
   {
-   "path": "/enso-atmosphere.html",
+   "path": "/sfs.html",
    "count": 23
   },
   {
-   "path": "/sfs.html",
-   "count": 22
+   "path": "/enso-atmosphere.html",
+   "count": 23
   },
   {
    "path": "/ecape.html",
