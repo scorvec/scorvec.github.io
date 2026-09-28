@@ -942,7 +942,7 @@
       <h3>The static figure</h3>
       <p>The same forecast as a four-panel image (Ni&ntilde;o-3.4 and relative Ni&ntilde;o-3.4, monthly and
       three-month), for saving or sharing:</p>
-      <a href="assets/sst/c3s_nino34.webp?v=f08583ca3b68"><img src="assets/sst/c3s_nino34.webp?v=f08583ca3b68" loading="lazy" alt="Static four-panel C3S multi-model ENSO forecast figure" width="1512" height="1164"></a>
+      <a href="assets/sst/c3s_nino34.webp?v=35910c3888d4"><img src="assets/sst/c3s_nino34.webp?v=35910c3888d4" loading="lazy" alt="Static four-panel C3S multi-model ENSO forecast figure" width="1512" height="1164"></a>
       <h3>Sources</h3>
       <ul>
         <li>Copernicus Climate Change Service (C3S) seasonal forecast single-level data, monthly means and anomalies. Contains modified Copernicus Climate Change Service information 2026.</li>
@@ -1284,7 +1284,9 @@
     var d = b - a, word = Math.abs(d) < 0.05 ? "unchanged" : d > 0 ? "up " + Math.abs(d).toFixed(1) + " °C" : "down " + Math.abs(d).toFixed(1) + " °C";
     var t = "The " + seasonWords(peakYm) + " ONI forecast is <b>" + word + "</b> (" + sgn(a, 1) + " → " + sgn(b, 1) + " °C)";
     var fl = D.fl && D.fl.issue === D.fc.issue ? D.fl : null, ss = state.season;
-    var S = fl && fl.summary && fl.summary[ss], P = fl && fl.previous && fl.previous.seasons && fl.previous.seasons[ss];
+    // only when the laptop file was built on the same set of systems as the page shows
+    var sameSet = fl && fl.excluded && fl.excluded.slice().sort().join("|") === excluded().slice().sort().join("|");
+    var S = sameSet && fl.summary && fl.summary[ss], P = sameSet && fl.previous && fl.previous.seasons && fl.previous.seasons[ss];
     if (S && P) {
       t += "; the east-based share of members as issued, " + SEASON_SHORT[ss] + ", went from " + Math.round(100 * P.frac.east) + "% to " + Math.round(100 * S.frac.east) + "%";
     }
@@ -2110,13 +2112,13 @@
     return optional ? p.catch(function () { return null; }) : p;
   }
   Promise.all([
-    get("assets/sst/data/enso_forecast.json?v=f08583ca3b68"),
-    get("assets/sst/data/nino_history.json?v=f08583ca3b68", true),
-    get("assets/sst/data/enso_daily.json?v=f08583ca3b68", true),
-    get("assets/sst/data/c3s_evolution.json?v=f08583ca3b68", true),
-    get("assets/sst/data/enso_flavour.json?v=f08583ca3b68", true),
-    get("assets/sst/data/cpc_official.json?v=f08583ca3b68", true),
-    get("assets/sst/data/enso_flavour_obs.json?v=f08583ca3b68", true),
+    get("assets/sst/data/enso_forecast.json?v=35910c3888d4"),
+    get("assets/sst/data/nino_history.json?v=35910c3888d4", true),
+    get("assets/sst/data/enso_daily.json?v=35910c3888d4", true),
+    get("assets/sst/data/c3s_evolution.json?v=35910c3888d4", true),
+    get("assets/sst/data/enso_flavour.json?v=35910c3888d4", true),
+    get("assets/sst/data/cpc_official.json?v=35910c3888d4", true),
+    get("assets/sst/data/enso_flavour_obs.json?v=35910c3888d4", true),
   ]).then(function (res) {
     D.fc = res[0]; D.hist = res[1]; D.daily = res[2]; D.evo = res[3]; D.fl = res[4]; D.cpc = res[5]; D.flo = res[6];
     if (!roniSeries()) {
