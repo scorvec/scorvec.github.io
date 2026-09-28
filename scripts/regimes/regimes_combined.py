@@ -129,19 +129,22 @@ def main() -> int:
             P = np.nanmean(stack, 0)
         nmod = np.isfinite(stack[:, 0]).sum(0)
         P[:, nmod == 0] = np.nan
-        # observed tail: GEFS analyses, else GEPS's
-        obs = None
+        # observed tail: GEFS analyses, days GEFS lacks (its newest run is a day older) filled from GEPS analyses
+        obs, src = {}, []
         for key in ("gefs", "geps"):
             j = next((j for k, j in used if k == key), None)
-            if j and "observed" in j["sectors"][sk]:
-                o = j["sectors"][sk]["observed"]
-                od = [RC.parse_date(t) for t in o["t"]]
-                keep = [i for i, d in enumerate(od) if d < d0]
-                if keep:
-                    od = [od[i] for i in keep]
-                    fam = RC.family_of_labels(ref, sk, np.array(o["lab"])[keep][:, None], od)[:, 0]
-                    obs = (od, fam, {"gefs": "GEFS", "geps": "GEPS"}[key])
-                    break
+            if not j or "observed" not in j["sectors"][sk]:
+                continue
+            o = j["sectors"][sk]["observed"]
+            od = [RC.parse_date(t) for t in o["t"]]
+            fam = RC.family_of_labels(ref, sk, np.array(o["lab"])[:, None], od)[:, 0]
+            n0 = len(obs)
+            for d, f in zip(od, fam):
+                if d < d0 and d not in obs and f >= 0:
+                    obs[d] = int(f)
+            if len(obs) > n0:
+                src.append({"gefs": "GEFS", "geps": "GEPS"}[key])
+        obs = (sorted(obs), [obs[d] for d in sorted(obs)], " / ".join(src)) if obs else None
         prev = None
         if prev_issue and sk in hist.get(prev_issue, {}):
             h = hist[prev_issue][sk]
