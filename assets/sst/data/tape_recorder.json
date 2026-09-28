@@ -1,5 +1,5 @@
 {
- "made": "2026-09-28T17:02Z",
+ "made": "2026-09-28T19:01Z",
  "last_mls_day": "2026-09-17",
  "last_geosfp_day": "2026-09-27",
  "band": "10S-10N",
@@ -537,13 +537,13 @@
     "2026-09-28"
    ]
   },
-  "geosfp_direct_70": 0.184,
-  "geosfp_dc_70": 0.185,
-  "geosfp_direct_100": 0.188,
-  "geosfp_dc_100": 0.218,
+  "geosfp_direct_70": 0.185,
+  "geosfp_dc_70": 0.191,
+  "geosfp_direct_100": 0.199,
+  "geosfp_dc_100": 0.224,
   "geosfp_window": [
-   "2026-06-19",
-   "2026-09-26"
+   "2026-06-20",
+   "2026-09-27"
   ]
  },
  "entry": {
