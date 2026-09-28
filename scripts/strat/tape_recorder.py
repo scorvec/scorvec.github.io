@@ -70,7 +70,7 @@ def open_fp(recent=False):
                 raise RuntimeError(f"garbled time axis {tt[0]}..{tt[-1]}")  # seen while the server rewrites the axis
             if recent:
                 last = pd.Timestamp(ds.time.values[-1])
-                if last < pd.Timestamp.utcnow().tz_localize(None) - pd.Timedelta(days=3):
+                if last < pd.Timestamp.now(tz="UTC").tz_localize(None) - pd.Timedelta(days=3):
                     raise RuntimeError(f"time axis ends {last}")
             return ds
         except Exception as e:                                                        # noqa: BLE001
@@ -765,8 +765,9 @@ def fig_entry(mls, fpq_adj, fpt, clim_at, t0, last_mls, fp_end, stats, tstats, p
     fig = plt.figure(figsize=(12.6, 7.4), dpi=130)
     top = _head(fig, "Aura MLS + GEOS FP · Water vapour entering the stratosphere · 10°S–10°N",
                 "The entry value is set by the coldest point of the tropical tropopause: colder air holds less water. "
-                "MLS measured days (dots) and their 30-day means, GEOS FP on the MLS scale after the last MLS day, against "
-                "the MLS 2005–2021 normal and its 10–90 % range of 30-day means; bottom, GEOS FP's 100 hPa temperature.")
+                "MLS measured days (dots) and their 30-day means, GEOS FP on the MLS scale after the last MLS day (and on "
+                "the days without MLS inside the tested 30 days), against the MLS 2005–2021 normal and its 10–90 % range of "
+                "30-day means; bottom, GEOS FP's 100 hPa temperature.")
     gs = fig.add_gridspec(3, 1, height_ratios=[1, 1, 0.75], hspace=0.5, left=0.065, right=0.975, top=top - 0.075, bottom=0.14)
     days = pd.date_range(t0, fp_end)
     for i, L in enumerate((100.0, 70.0)):
@@ -810,7 +811,8 @@ def fig_entry(mls, fpq_adj, fpt, clim_at, t0, last_mls, fp_end, stats, tstats, p
     ax.set_title("GEOS FP 100 hPa temperature anomaly, 15-day running mean (its own 2018–2025 normal)", loc="left", fontsize=11,
                  fontweight="bold", color=INK)
     _wrap(fig, tstats["text"] + " Significance: z-test of the 30-day mean against the MLS year-to-year spread of 30-day means "
-               "for the same dates (2005–2021) plus, for GEOS FP, the scatter of its offset from MLS.", 0.012)
+               "for the same dates (2005–2021) plus, for the GEOS FP days, its hindcast error on the MLS scale "
+               f"({tstats['rmse100']:.2f} ppmv at 100 hPa, {tstats['rmse70']:.2f} at 70 hPa, rms of monthly means).", 0.012)
     _save(fig, path)
 
 
@@ -966,9 +968,9 @@ def render(mls, fpq, fpt, out):
              f"r = {r_:.2f}, {slope:+.2f} ppmv per K ({'significant' if p_r < 0.05 else 'not significant'}, "
              f"{'p < 0.001' if p_r < 0.001 else f'p = {p_r:.3f}'}, "
              f"autocorrelation-adjusted). Last 30 days of GEOS FP: {t30:+.2f} K.")
-    fig_entry(m2, fadj, fpt, clim2, t0, last_mls, fp_end, estats, {"series": ta_d, "text": ttext}, out / "tape_entry.webp",
+    fig_entry(m2, fadj, fpt, clim2, t0, last_mls, fp_end, estats, {"series": ta_d, "text": ttext, "rmse100": sd30[100.0], "rmse70": sd30[70.0]}, out / "tape_entry.webp",
               sd_doy)
-    js = {"made": pd.Timestamp.utcnow().strftime("%Y-%m-%dT%H:%MZ"), "last_mls_day": f"{last_mls:%Y-%m-%d}",
+    js = {"made": pd.Timestamp.now(tz="UTC").strftime("%Y-%m-%dT%H:%MZ"), "last_mls_day": f"{last_mls:%Y-%m-%d}",
           "last_geosfp_day": f"{fp_end:%Y-%m-%d}", "band": "10S-10N", "clim_years": list(CLIM_YEARS),
           "mls_version": "ML2H2O v006 (v6.0x)", "geosfp_vs_mls": val,
           "ascent_levels_hPa": ASC_LEVS, "ascent_clim_mm_s": [round(float(x), 3) for x in clim_w],
