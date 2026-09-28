@@ -97,14 +97,40 @@ def _band13(f):
 
 
 def _quadratics(u, v, t, lev):
-    """Per-member eddy quadratics for one (level, step), members averaged: [n, [u'v'], [v'th'], [th], [u]] by lat."""
+    """Per-member eddy quadratics for one (level, step), members averaged: [n, [u'v'], [v'th'], [th], [u]] by lat,
+    plus, at the ZMU_LEVELS only, the PER-MEMBER zonal-mean u (member, lat) for the QBO zero-line tracker
+    (qbo_zeroline.py; the same fields, so no extra download)."""
     th = t * (1000.0 / lev) ** 0.2854
     up, vp, thp = _band13(u), _band13(v), _band13(th)
     return [len(u),
             (up * vp).mean(axis=-1).mean(axis=0),
             (vp * thp).mean(axis=-1).mean(axis=0),
             th.mean(axis=-1).mean(axis=0),
-            u.mean(axis=-1).mean(axis=0)]
+            u.mean(axis=-1).mean(axis=0),
+            u.mean(axis=-1).astype(np.float32) if lev in ZMU_LEVELS else None]
+
+
+ZMU_LEVELS = (10, 50, 100)
+LAST_ACC = {}                                         # (step, lev) -> quadratics of the last compute, for save_zmu
+
+
+def save_zmu(acc, lat, steps, model, base):
+    """Per-member zonal-mean u at ZMU_LEVELS -> data/zmu_members_<model>.npz for qbo_zeroline.py (best effort)."""
+    try:
+        arrs = {}
+        for lev in ZMU_LEVELS:
+            rows = [acc[(sh, lev)][5] if (sh, lev) in acc and len(acc[(sh, lev)]) > 5 else None for sh in steps]
+            if any(r is None for r in rows):
+                continue
+            n = min(len(r) for r in rows)
+            arrs[f"u{lev}"] = np.stack([r[:n] for r in rows])          # (step, member, lat)
+        if not arrs:
+            print("  zmu: nothing to save", flush=True); return
+        out = HERE / "data" / f"zmu_members_{model}.npz"; out.parent.mkdir(parents=True, exist_ok=True)
+        np.savez_compressed(out, lat=np.asarray(lat, float), steps=np.asarray(steps, int), init=str(base)[:16], **arrs)
+        print(f"  zmu: {out.name} {sorted(arrs)} {next(iter(arrs.values())).shape}", flush=True)
+    except Exception as e:                                                   # noqa: BLE001
+        print(f"  zmu: not saved ({str(e)[:80]})", flush=True)
 
 
 def _open_lev(path, short, lev):
@@ -147,6 +173,7 @@ def compute_epflux_ensemble(paths, lat, steps):
             acc[(sh, lev)] = _quadratics(u[:n], v[:n], t[:n], lev)
         for da in das.values():
             da.close()
+    LAST_ACC.clear(); LAST_ACC.update(acc)
     return _finish(acc, levs_seen, lat, steps)
 
 
@@ -281,6 +308,7 @@ def compute_epflux_ifs(date, time_, steps, workers=None):
                 levs_seen.add(lev)
     if lat is None:
         raise SystemExit("IFS-ENS epflux: no step decoded")
+    LAST_ACC.clear(); LAST_ACC.update(acc)
     by_step, nmem = _finish(acc, levs_seen, lat, steps)
     return by_step, nmem, lat
 
@@ -330,6 +358,7 @@ def epflux_loop(u_full, u_rmm, tag, base):
         lat = ds.latitude.values
 
     by_step, nmem = compute_epflux_ensemble(paths, lat, S)
+    save_zmu(LAST_ACC, lat, S, "aifs", base)
     render_epflux(by_step, nmem, lat, S, base, "aifs")
 
 
@@ -511,6 +540,7 @@ def main():
         t0 = time.time()
         by_step, nmem, lat = compute_epflux_ifs(args.date, args.time, S)
         print(f"  IFS-ENS epflux: {len(by_step)} steps, {nmem} members, {time.time() - t0:.0f} s", flush=True)
+        save_zmu(LAST_ACC, lat, S, "ifs", base)
         render_epflux(by_step, nmem, lat, S, base, "ifs")
         return
     u_full, u_rmm, tag = latest_cycle()

@@ -135,6 +135,9 @@ scripts/strat/*
 !scripts/strat/fetch_mls_h2o.py
 !scripts/strat/tape_recorder.py
 !scripts/strat/ifs_ens.py
+!scripts/strat/qbo_zeroline.py
+!scripts/strat/build_qbo_zeroline.py
+!scripts/strat/fetch_m2_zmu.py
 # The MERRA-2 reference cache (282 KB) that replaces the 690 MB laptop-only
 # archive for nh_vortex on a runner. The directory itself must be re-included
 # first - git will not descend into an excluded directory to find the file.
@@ -157,6 +160,8 @@ scripts/strat/*
 !scripts/strat/reference/age_of_air.nc
 !scripts/strat/reference/tape_mls.npz
 !scripts/strat/reference/tape_geosfp_seed.npz
+!scripts/strat/reference/qbo_zeroline_ref.nc
+!scripts/strat/reference/qbo_zeroline_test.json
 
 # removed-project local archive (ERCOT page + C3S winter analysis, restorable)
 local_archive/

@@ -10,6 +10,7 @@ name: Stratosphere, IFS-ENS (vortex, heat flux, wave-1, winds, drip, E-P flux)
 #   wave1_maps.py         -> assets/sst/anim/wave1_ifs_{nh,sh}/         + wave1_maps_ifs_manifest.json
 #   vortex_winds.py       -> assets/sst/anim/vortex_ifs_{10,100}/       + vortex_winds_ifs_manifest.json
 #   qbo_duct.py           -> assets/sst/anim/epflux_ifs/                + epflux_ifs_manifest.json
+#   qbo_zeroline.py       -> assets/sst/qbo_zeroline_*.webp re-rendered with IFS-ENS + data/qbo_zeroline_ifs.json
 # The upper-stratosphere item cannot have IFS: its open data stops at 10 hPa.
 #
 # WHY A SEPARATE WORKFLOW. IFS-ENS day 15 reaches the Google mirror at ~08:50Z and ~20:55Z (object times, 00/12Z
@@ -265,6 +266,16 @@ jobs:
             || echo "::warning::IFS E-P flux loop failed; keeping the previous frames"
           echo "  wall time $(( $(date +%s) - start )) s"
 
+      # QBO zero-wind line: qbo_duct's streamed IFS-ENS fields leave the per-member zonal-mean u at 50/10 hPa in
+      # data/zmu_members_ifs.npz (no extra download); the AIFS-ENS half is read from main (strat.yml wrote it).
+      - name: QBO zero-wind line
+        run: |
+          scripts/lib/fetch_frames_ci.sh assets/sst/anim/bdc_tail || true
+          python scripts/strat/qbo_zeroline.py forecast --model ifs \
+            || echo "::warning::zero-line IFS-ENS forecast failed; the figure keeps the analysis"
+          python scripts/strat/qbo_zeroline.py render \
+            || echo "::warning::zero-line render failed; keeping the previous figures"
+
       - name: What was produced
         if: always()
         run: |
@@ -277,7 +288,9 @@ jobs:
         run: |
           set -euo pipefail
           : > /tmp/ep.list
-          for p in assets/sst/anim/epflux_ifs assets/sst/anim/epflux_ifs_manifest.json; do
+          for p in assets/sst/anim/epflux_ifs assets/sst/anim/epflux_ifs_manifest.json \
+                   assets/sst/qbo_zeroline_70.webp assets/sst/qbo_zeroline_50.webp assets/sst/qbo_zeroline_30.webp \
+                   assets/sst/qbo_zeroline_10.webp assets/sst/data/qbo_zeroline.json assets/sst/data/qbo_zeroline_ifs.json; do
             [ -e "$p" ] && echo "$p" >> /tmp/ep.list
           done
           if [ ! -s /tmp/ep.list ]; then : > /tmp/strat-ifs-epflux.tgz; exit 0; fi
@@ -336,7 +349,8 @@ jobs:
                    assets/sst/ifs_heatflux100_nh.webp assets/sst/ifs_heatflux100_sh.webp assets/sst/data/ifs_heatflux100.json \
                    assets/sst/ifs_drip.webp assets/sst/data/ifs_drip.json \
                    assets/sst/anim/wave1_maps_ifs_manifest.json assets/sst/anim/vortex_winds_ifs_manifest.json \
-                   assets/sst/anim/epflux_ifs_manifest.json; do
+                   assets/sst/anim/epflux_ifs_manifest.json \
+                   assets/sst/qbo_zeroline_*.webp assets/sst/data/qbo_zeroline.json assets/sst/data/qbo_zeroline_ifs.json; do
             if [ -e "$f" ]; then git add "$f"; fi
           done
           if git diff --staged --quiet; then echo "no changes"; exit 0; fi
