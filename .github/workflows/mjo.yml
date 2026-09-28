@@ -374,7 +374,7 @@ jobs:
           EARTHDATA_USERNAME: ${{ secrets.EARTHDATA_USERNAME }}
           EARTHDATA_PASSWORD: ${{ secrets.EARTHDATA_PASSWORD }}
         run: |
-          pip install --quiet earthaccess || true
+          pip install --quiet earthaccess h5py || true
           python scripts/sst/gill_rain.py --date "${{ needs.check.outputs.date }}" --time "${{ needs.check.outputs.time }}" \
             || echo "::warning::gill_rain failed; keeping the previous figure"
 

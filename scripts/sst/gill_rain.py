@@ -387,7 +387,7 @@ def main() -> int:
     an = chi_anom(h.sel(level=200).values.astype("float64"), tch, clim)
     # observed rain up to the last full day both records cover
     last_chi_day = (tch[-1] - pd.Timedelta(hours=12)).normalize().date()   # a day needs its 00Z and 12Z analyses
-    today = pd.Timestamp.utcnow().date()
+    today = pd.Timestamp.now("UTC").date()
     rain = update_rain(today - timedelta(days=7 * NWEEKS + 12), min(today - timedelta(days=1), last_chi_day))
     tr = pd.DatetimeIndex(rain.time.values)
     last = min(tr[-1].date(), last_chi_day)
