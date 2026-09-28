@@ -331,7 +331,7 @@ jobs:
       # and the WAF dir waf_basic_history.nc (0-h control u/v/ψ for the low-passed basic state);
       # seed both so the appends have a past.
       - name: Seed the Walker and WAF frame dirs and their analysis histories from the frames branch
-        run: scripts/lib/fetch_frames_ci.sh assets/sst/anim/walker assets/sst/anim/waf || true
+        run: scripts/lib/fetch_frames_ci.sh assets/sst/anim/walker assets/sst/anim/waf assets/sst/anim/gillrain || true
 
       - name: Walker + MMSF cross-sections
         timeout-minutes: 15
@@ -360,6 +360,24 @@ jobs:
             --hov ../../assets/sst/kelvin_hov.webp --json ../../assets/sst/data/kelvin_tracker.json \
             || echo "::warning::Kelvin tracker failed; keeping the previous figures"
 
+      # The Gill (1980) model forced by the observed (IMERG Late) and forecast (AIFS-ENS) tropical rain, against the
+      # observed chi200: reads the chi history walker.py just appended, the AIFS-ENS tp and u/v 200 the RMM pull and
+      # wind200_vpot already put in the store cache (no new ECMWF download), and a 1-degree IMERG Late cache that rides
+      # the frames branch in assets/sst/anim/gillrain (seeded above; a cold cache costs ~2 min of GES DISC OPeNDAP).
+      # Best-effort: without Earthdata, or on any failure, the previous figure stays up.
+      - name: Rain-forced circulation (Gill model vs observed chi200)
+        timeout-minutes: 15
+        env:
+          SST_SITE_ROOT: ${{ github.workspace }}
+          ECMWF_SOURCES: google
+          ECMWF_MULTISOURCE: "0"
+          EARTHDATA_USERNAME: ${{ secrets.EARTHDATA_USERNAME }}
+          EARTHDATA_PASSWORD: ${{ secrets.EARTHDATA_PASSWORD }}
+        run: |
+          pip install --quiet earthaccess || true
+          python scripts/sst/gill_rain.py --date "${{ needs.check.outputs.date }}" --time "${{ needs.check.outputs.time }}" \
+            || echo "::warning::gill_rain failed; keeping the previous figure"
+
       - name: Hadley intensity + edge series
         working-directory: scripts/mjo
         run: |
@@ -381,7 +399,7 @@ jobs:
         run: |
           CB=$(date -u +%Y%m%d%H%M)
           perl -0pi -e "s/((?:eq_wind_hovmoller|soi_forecast|eqsoi_forecast|soi_history)\.webp)\?v=\w+/\${1}?v=$CB/g" enso.html circulation.html
-          perl -0pi -e "s/((?:mmsf_anom|walker_anom|hadley_timeseries)\.webp)\?v=\w+/\${1}?v=$CB/g" circulation.html
+          perl -0pi -e "s/((?:mmsf_anom|walker_anom|hadley_timeseries|gill_rain)\.webp)\?v=\w+/\${1}?v=$CB/g" circulation.html
           perl -0pi -e "s/((?:kelvin_hov|ocean_kelvin)\.webp)\?v=\w+/\${1}?v=$CB/g" enso.html
 
       # The loop frames are gitignored on main; without this they never leave
@@ -391,7 +409,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           scripts/lib/publish_frames_ci.sh assets/sst/anim/wind200 assets/sst/anim/waf assets/sst/anim/mslp_wind \
-            assets/sst/anim/walker assets/sst/anim/mmsf assets/sst/anim/kelvin assets/sst/anim/okelvin
+            assets/sst/anim/walker assets/sst/anim/mmsf assets/sst/anim/kelvin assets/sst/anim/okelvin assets/sst/anim/gillrain
 
       - name: Commit & push (generated outputs)
         run: |
@@ -416,6 +434,7 @@ jobs:
                assets/sst/hadley_timeseries.webp assets/sst/data/hadley_timeseries.json \
                assets/sst/anim/kelvin_manifest.json assets/sst/kelvin_hov.webp assets/sst/data/kelvin_tracker.json \
                assets/sst/anim/okelvin_manifest.json assets/sst/ocean_kelvin.webp assets/sst/data/ocean_kelvin.json \
+               assets/sst/gill_rain.webp assets/sst/data/gill_rain.json \
                scripts/mjo/data/reference/eq_u10_analysis_history.nc"
           SNAP=$(mktemp -d)
           tar cf "$SNAP/outs.tar" --ignore-failed-read $OUT 2>/dev/null || true

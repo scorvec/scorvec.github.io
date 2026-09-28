@@ -31,12 +31,24 @@ def gill_response(Q: np.ndarray, lat=LAT2, lon=LON2, eps=EPS):
     north/south walls, damping raised in a sponge poleward of 24°). A time-stepped version was
     unstable — the explicit Coriolis term grows at high |y| — and a direct solve is exact anyway.
     A weak 4th-order smoothing term suppresses the 2Δx checkerboard the collocated grid admits."""
-    import scipy.sparse as sp
     import scipy.sparse.linalg as spla
+    A, walls = gill_matrix(lat, lon, eps)
+    ny, nx = Q.shape; N = ny * nx
+    b = _gill_rhs(Q, walls)
+    sol = spla.spsolve(A, b)
+    u = sol[:N].reshape(ny, nx); v = sol[N:2 * N].reshape(ny, nx); p = sol[2 * N:].reshape(ny, nx)
+    return u, v, p
+
+
+def gill_matrix(lat=LAT2, lon=LON2, eps=EPS):
+    """The sparse operator of gill_response (CSC) and the wall-row indices, built once so many heating
+    fields can share one factorisation (gill_solver)."""
+    import scipy.sparse as sp
+    lat = np.asarray(lat, float); lon = np.asarray(lon, float)
     y = np.deg2rad(lat) * A_EARTH / L_GILL
     x = np.deg2rad(lon) * A_EARTH / L_GILL
     dx = x[1] - x[0]; dy = y[1] - y[0]
-    ny, nx = Q.shape; N = ny * nx
+    ny, nx = lat.size, lon.size; N = ny * nx
     damp = eps + 0.6 * np.clip((np.abs(lat) - 24.0) / 6.0, 0, 1)
     idx = np.arange(N).reshape(ny, nx)
     # x-derivative, periodic
@@ -54,15 +66,46 @@ def gill_response(Q: np.ndarray, lat=LAT2, lon=LON2, eps=EPS):
     A = sp.bmat([[Ed + S, -Yd, Dx],
                  [Yd, Ed + S, Dy],
                  [Dx, Dy, Ed + S]], format="lil")
-    b = np.concatenate([np.zeros(N), np.zeros(N), -np.nan_to_num(Q).ravel()])
     # walls: v = 0 on the first and last latitude rows
-    for j in (0, ny - 1):
-        for i in range(nx):
-            r = N + idx[j, i]
-            A.rows[r] = [r]; A.data[r] = [1.0]; b[r] = 0.0
-    sol = spla.spsolve(A.tocsc(), b)
-    u = sol[:N].reshape(ny, nx); v = sol[N:2 * N].reshape(ny, nx); p = sol[2 * N:].reshape(ny, nx)
-    return u, v, p
+    walls = [N + idx[j, i] for j in (0, ny - 1) for i in range(nx)]
+    for r in walls:
+        A.rows[r] = [r]; A.data[r] = [1.0]
+    return A.tocsc(), walls
+
+
+def _gill_rhs(Q: np.ndarray, walls) -> np.ndarray:
+    N = Q.size
+    b = np.concatenate([np.zeros(N), np.zeros(N), -np.nan_to_num(Q).ravel()])
+    b[walls] = 0.0
+    return b
+
+
+def gill_solver(lat=LAT2, lon=LON2, eps=EPS):
+    """A factorised gill_response: returns solve(Q) -> (u, v, p), identical to gill_response(Q, lat, lon, eps)
+    but one LU factorisation serves every heating field (hundreds of weekly fields in a calibration)."""
+    import scipy.sparse.linalg as spla
+    A, walls = gill_matrix(lat, lon, eps)
+    lu = spla.splu(A)
+    ny, nx = len(lat), len(lon); N = ny * nx
+
+    def solve(Q: np.ndarray):
+        sol = lu.solve(_gill_rhs(Q, walls))
+        return sol[:N].reshape(ny, nx), sol[N:2 * N].reshape(ny, nx), sol[2 * N:].reshape(ny, nx)
+    return solve
+
+
+# Latent heat released per unit rain: L_v × 1 kg m⁻² day⁻¹ = 2.5e6 J / 86400 s ≈ 28.9 W m⁻² (column mean).
+LV_WM2_PER_MMDAY = 2.5e6 / 86400.0
+
+
+def heating_from_precip(p_anom: np.ndarray, lat=LAT2, full=18.0, zero=22.0):
+    """Column latent heating (W m⁻²) from a rainfall ANOMALY (mm/day) on the Gill grid: 1 mm/day ≈ 28.9 W m⁻²,
+    confined to the deep tropics with a linear taper from `full` to `zero` degrees (poleward of ~20° rain is
+    mostly frontal and the equatorial β-plane does not apply). No SST mask: rain is the heating itself, so a
+    dry anomaly is a cooling anomaly. Projection on the first baroclinic mode and the conversion to Gill units
+    are absorbed by the calibrated scale factor of the consumer (gill_rain.py)."""
+    latw = np.clip((zero - np.abs(np.asarray(lat, float))) / (zero - full), 0, 1)[:, None]
+    return LV_WM2_PER_MMDAY * np.nan_to_num(p_anom) * latw
 
 
 def _periodic_laplacian(n: int):
