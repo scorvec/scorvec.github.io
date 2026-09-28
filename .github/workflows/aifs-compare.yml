@@ -98,7 +98,13 @@ jobs:
               || echo "::warning::${prev} could not be completed"
             rm -rf scripts/ecmwf/cache/${prev}z 2>/dev/null || true
           done
-          python scripts/verify/aifs_station_verify.py --verify || echo "verification scoring failed; continuing"
+          # score on top of main's CURRENT file as well as the checkout's: a run queued behind the backfill
+          # checks out the commit it was dispatched at, hours old (2026-09-28: it dropped the backfill's ERA5 scores)
+          MF=""
+          if timeout 120 git fetch -q --depth 1 origin main && git show FETCH_HEAD:assets/verify/aifs_scores_v2.json > /tmp/main_scores.json; then
+            MF="--merge-from /tmp/main_scores.json"
+          else echo "::warning::could not read main's scores; scoring on the checkout's copy only"; fi
+          python scripts/verify/aifs_station_verify.py --verify $MF || echo "::warning::verification scoring failed; continuing"
           rm -rf scripts/verify/data/uw_cache
 
       - name: AIFS comparison loops

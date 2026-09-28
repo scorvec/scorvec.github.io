@@ -24,6 +24,9 @@ on:
       budget:
         description: 'minutes of archiving before stopping to score and publish (re-dispatch to continue)'
         default: '270'
+      merge_commit:
+        description: 'optional: a commit whose aifs_scores_v2.json records are merged in (recovery)'
+        default: ''
 
 permissions:
   contents: write
@@ -102,7 +105,18 @@ jobs:
       - name: Score everything that has truth
         timeout-minutes: 45
         run: |
-          python scripts/verify/aifs_station_verify.py --verify || echo "::warning::scoring hit an error; partial scores kept"
+          # union with main's CURRENT scores (see aifs-compare.yml) and, for a recovery, an older commit's
+          MF=""
+          if timeout 120 git fetch -q --depth 1 origin main && git show FETCH_HEAD:assets/verify/aifs_scores_v2.json > /tmp/main_scores.json; then
+            MF="--merge-from /tmp/main_scores.json"
+          else echo "::warning::could not read main's scores; scoring on the checkout's copy only"; fi
+          MC="${{ github.event.inputs.merge_commit }}"
+          if [ -n "$MC" ]; then
+            if timeout 120 git fetch -q --depth 1 origin "$MC" && git show FETCH_HEAD:assets/verify/aifs_scores_v2.json > /tmp/extra_scores.json; then
+              MF="$MF --merge-from /tmp/extra_scores.json"
+            else echo "::warning::could not read the scores at $MC"; fi
+          fi
+          python scripts/verify/aifs_station_verify.py --verify $MF || echo "::warning::scoring hit an error; partial scores kept"
           rm -rf scripts/verify/data/uw_cache
 
       - name: Publish verification state to the frames branch

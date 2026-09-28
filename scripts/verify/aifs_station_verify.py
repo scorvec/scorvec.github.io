@@ -629,7 +629,33 @@ def paired_diffs(recs, B=2000, block=4, seed=20260927):
     return out
 
 
-def verify() -> int:
+def merge_records(recs, paths):
+    """Union other score files into `recs` by (init, lead, var, model, truth, region). A record already held is
+    kept, unless the other copy carries an anomaly correlation this one lacks (an ERA5 t850 record rescored after
+    the t850 climatology arrived). Why (2026-09-28): a verification run scores on top of the JSON in its checkout,
+    which is the commit it was DISPATCHED at; queued behind a three-hour backfill it started from a copy three
+    hours old and its commit replaced the backfill's, dropping ERA5 scores whose grids had since been stripped.
+    Merging main's current file at scoring time makes the order of the two runs irrelevant."""
+    idx = {(r["init"], r["lead"], r["var"], r["model"], r["truth"], r["region"]): i for i, r in enumerate(recs)}
+    added = upgraded = 0
+    for path in paths:
+        try:
+            other = json.loads(Path(path).read_text()).get("records", [])
+        except Exception as e:                              # noqa: BLE001
+            print(f"  merge: {path} unreadable ({str(e)[:60]})", flush=True)
+            continue
+        for r in other:
+            k = (r["init"], r["lead"], r["var"], r["model"], r["truth"], r["region"])
+            if k not in idx:
+                idx[k] = len(recs); recs.append(r); added += 1
+            elif "acc" in r and "acc" not in recs[idx[k]]:
+                recs[idx[k]] = r; upgraded += 1
+    if paths:
+        print(f"  merge: +{added} records, {upgraded} upgraded with anomaly correlation", flush=True)
+    return added + upgraded
+
+
+def verify(merge_from=()) -> int:
     clim = load_clim()
     lat, lon = grid_1p5()
     band = (lat >= 20) & (lat <= 80)
@@ -639,6 +665,7 @@ def verify() -> int:
     if SCORES.exists():
         old = json.loads(SCORES.read_text())
         recs = old.get("records", []); spectra = old.get("spectra", {})
+    n_merged = merge_records(recs, list(merge_from))
     if "t850" in clim:
         # ERA5 t850 had no climatology until 2026-09-27: its records carry RMSE/bias only. Drop those whose
         # archive holds the 1.5° grids again (new or upgraded cycles) so they are rescored with anomaly correlation.
@@ -748,7 +775,7 @@ def verify() -> int:
                                      truth=method, region="nh", **sc)); n_new += 1
                     done.add((arch.stem, lead, var, mkey, method, "nh"))
     stale = SCORES.exists() and "match_check" not in json.loads(SCORES.read_text())
-    if n_new or stale:                                    # stale: written by the code before 2026-09-27
+    if n_new or n_merged or stale:                        # stale: written by the code before 2026-09-27
         SCORES.parent.mkdir(parents=True, exist_ok=True)
         SCORES.write_text(json.dumps(
             {"generated": pd.Timestamp.now("UTC").strftime("%Y-%m-%d %H:%M UTC"),
@@ -798,14 +825,16 @@ def main():
     ap.add_argument("--verify", action="store_true")
     ap.add_argument("--date", default=pd.Timestamp.utcnow().strftime("%Y%m%d"))
     ap.add_argument("--time", default="00", choices=("00", "12"))
+    ap.add_argument("--merge-from", action="append", default=[],
+                    help="another scores JSON whose records are unioned in before scoring (repeatable)")
     a = ap.parse_args()
     ok = True
     if a.collect:
         ok = collect(a.date, a.time)
     if a.verify:
-        verify()
+        verify(a.merge_from)
     if not (a.collect or a.verify):
-        ok = collect(a.date, a.time); verify()
+        ok = collect(a.date, a.time); verify(a.merge_from)
     return 0 if ok else 1
 
 
