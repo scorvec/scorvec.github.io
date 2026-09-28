@@ -240,6 +240,70 @@
         flow&rsquo;s own structure. Frames drawn before this date should not be used.</p>
 <p class="chart-sources">ECMWF AIFS-ENS ensemble &mdash; member 0 + 25 perturbed members, per-member fluxes averaged (open data, CC&nbsp;BY&nbsp;4.0), 14 levels, day 0&ndash;15 &middot; ECMWF IFS-ENS, all 50 perturbed members, 0.25&deg; (open data, CC&nbsp;BY&nbsp;4.0, from the Google Cloud mirror), per-member fluxes averaged, the same 14 levels &middot; QG E&ndash;P flux, wavenumbers 1&ndash;3, global-mean static stability &middot; poleward of 82&deg; masked &middot; rendered in Julia (CairoMakie) &middot; updated each 00/12Z cycle</p>
 </template>
+<template id="about-qbozl">
+<p>Holton and Tan (1980) proposed that the <b>quasi-biennial oscillation</b> reaches the polar vortex through a
+        critical line. Planetary waves coming up and equatorward from the winter midlatitudes cannot cross the
+        latitude where the zonal-mean wind [u] turns easterly. With easterly QBO winds in the lower stratosphere that
+        line sits in the winter subtropics, the waveguide is narrower, and more wave activity is steered toward the
+        vortex. This item tracks <b>where that line is</b>, day by day, at 70, 50, 30 and 10&nbsp;hPa. The
+        <a href="#shqbo">QBO and the vortex</a> item in the history group shows the equatorial wind itself.</p>
+<p><b>The index.</b> [u] is smoothed along latitude (Gaussian, &sigma;&nbsp;2&deg;). The scan starts at the
+        strongest westerlies between 25 and 45&deg;N and moves toward the equator. The zero line is the first crossing
+        whose easterly region beyond it reaches at least 1&nbsp;m/s. Shallower dips are stepped over, because a
+        &minus;0.3&nbsp;m/s wobble is within analysis noise. When there are no northern westerlies to start from, the
+        index is undefined; at 50&nbsp;hPa that is most of June to August. When no crossing qualifies before
+        45&deg;S, the day is marked with a triangle. The line is broken where it jumps by more than 8&deg; in a day:
+        that is a switch between two crossings, not motion. The grey band is the MERRA-2 1980&ndash;2025 spread of
+        the index for the date. The bottom panels are the mean [u] of past winters, split by the sign of the
+        Singapore 50&nbsp;hPa wind in October&ndash;November, with this year&rsquo;s analysed line laid over them.</p>
+<p><b>Checks.</b> On the 46 years of MERRA-2 daily data, the 50&nbsp;hPa index never goes undefined or censored
+        in October&ndash;March. Its median change from one day to the next is 0.3&deg;. On 1.3&nbsp;% of days it
+        jumps by more than 10&deg;, when a shallow subtropical easterly band crosses the 1&nbsp;m/s depth threshold.
+        Varying the smoothing (0 or 4&deg;) or the depth threshold (0 or 2&nbsp;m/s) moves October&ndash;November days
+        by less than 1&deg; on 94&ndash;99&nbsp;% of days. The live analysis is GEOS FP at 00&nbsp;UTC. On the 82
+        days it overlaps MERRA-2 (12 June to 1 September 2026), its [u] between 30&deg;S and 30&deg;N differs by
+        1.0&ndash;1.9&nbsp;m/s RMS, and its zero-line latitude differs by a median 0.3&ndash;0.4&deg; at 70 and
+        50&nbsp;hPa. No offset is applied. The forecasts compute the index <b>per member</b> (AIFS-ENS control +
+        25 members, IFS-ENS 50 members) and show the median and 10&ndash;90&nbsp;% range. The forecast shading is
+        the AIFS-ENS ensemble-mean [u].</p>
+<p><b>Does it predict the winter vortex? No, not significantly, so this is a diagnostic.</b> We tested it on the
+        46 winters 1980/81&ndash;2025/26. The outcome was the December&ndash;February zonal-mean wind at 60&deg;N,
+        10&nbsp;hPa (MERRA-2), plus whether the winter had a major sudden warming. The rival predictor was the
+        Singapore 50&nbsp;hPa wind in October&ndash;November. Intervals are 95&nbsp;% bootstrap, over winters, and
+        p-values come from 10,000 permutations.</p>
+<ul>
+<li><b>Singapore 50&nbsp;hPa</b>: r&nbsp;+0.39 [+0.13, +0.61], p&nbsp;0.008. It is still +0.40 (p&nbsp;0.007)
+        with CPC&rsquo;s DJF RONI held fixed. MERRA-2&rsquo;s own equatorial 50&nbsp;hPa wind gives +0.40
+        (p&nbsp;0.006). This is significant.</li>
+<li><b>The zero line at 50&nbsp;hPa</b> (from the October&ndash;November mean profile, the version chosen before
+        the test): r&nbsp;+0.17 [&minus;0.06, +0.39], p&nbsp;0.34. Beyond Singapore and ENSO its partial r is +0.20
+        [&minus;0.19, +0.39], p&nbsp;0.20. Neither is significant. The reason is plain in the data: in autumn
+        the 50&nbsp;hPa zero line hardly moves with the QBO (r&nbsp;&minus;0.06 with Singapore). It sat between 24
+        and 29.5&deg;N in 45 of the 46 autumns, bounded by a subtropical easterly band that is present in both
+        phases. The exception was 1997.</li>
+<li><b>All eight versions</b> (70, 50, 30 and 10&nbsp;hPa, each taken from the mean profile or as a mean of daily
+        values): none is significant on its own (smallest p&nbsp;0.08). None adds to Singapore and ENSO (smallest
+        p&nbsp;0.12, and none passes a 10&nbsp;% false-discovery rate). Varying the rule changes nothing either.
+        One of five variants, a 4&nbsp;m/s depth threshold, reached p&nbsp;0.02 on its own, but that does not
+        survive the 13 versions tried, and it adds nothing beyond Singapore (p&nbsp;0.18).</li>
+<li><b>Sudden warmings</b> (24 of the 46 winters): no version separates warming winters from the rest
+        (area under the ROC curve 0.39&ndash;0.66, p&nbsp;&ge;&nbsp;0.06). Singapore 50&nbsp;hPa does not either,
+        in this sample (0.59, p&nbsp;0.29).</li>
+</ul>
+<p>The null is consistent with <b>Garfinkel et al. (2012)</b>. In their model experiments the QBO acted on the
+        vortex less through the position of the critical line than through its <b>secondary (meridional)
+        circulation</b>, which changes the subtropical and polar-vortex-edge winds in the lower and upper
+        stratosphere and with them where the waves go. So read this chart for where the waves can and cannot go
+        this autumn, not as a forecast of the vortex. For that, the equatorial wind itself is the better
+        (significant) predictor.</p>
+<p class="chart-sources">NASA GMAO MERRA-2 (M2I3NPASM; daily means of the 0/6/12/18Z analyses, zonal mean of 144
+        longitudes, 50&deg;S&ndash;50&deg;N, Earthdata Cloud OPeNDAP), 1980 &ndash; 1 September 2026 &middot; NASA GMAO GEOS FP
+        assimilation, 00Z (NCCS OPeNDAP; the Brewer&ndash;Dobson product&rsquo;s daily cache) &middot; ECMWF AIFS-ENS
+        control + 25 members and IFS-ENS 50 members, u at 50 and 10&nbsp;hPa to day 15 (open data, CC&nbsp;BY&nbsp;4.0,
+        Google Cloud mirror) &middot; KIT / FU Berlin QBO (Singapore) &middot; CPC RONI &middot; MERRA-2
+        u(60&deg;N, 10&nbsp;hPa) and the sudden-warming catalogue of the history group &middot; reference built
+        2026-09-28, redrawn with each AIFS-ENS and IFS-ENS cycle</p>
+</template>
 <template id="about-pv">
 <p><b>Potential vorticity</b> on a surface of constant potential temperature (an <b>isentrope</b>) is the
         clearest single picture of the polar vortex. Away from heating and friction, air keeps both its potential
@@ -666,7 +730,7 @@ $$\frac{\partial\bar u}{\partial t} \;=\; \hat f\,\bar v^{*} \;-\; \bar w^{*}\fr
 <script>
 window.STAGE = {
   groups: [
-  {label: "Stratosphere", ico: "\u2744", items: [["vortex","Polar vortex diagnostics","u(60°N), polar-cap height"],["upperstrat","Upper stratosphere","GEFS, GFS, GEOS FP, GDPS up to 1 hPa"],["vwinds","Vortex winds","10 and 100 hPa, both hemispheres"],["pv","Potential vorticity","GEOS FP, 475 and 850 K"],["epflux","E–P flux","wave driving, k = 1–3"],["wave1","Stationary wave-1","100 and 500 hPa"],["heatflux","Eddy heat flux","100 hPa [v′T′], is it going up?"],["fdrip","Forecast dripping paint","GEPS, GEFS, AIFS-ENS, IFS-ENS: is it reaching down?"],["bdc","Brewer–Dobson circulation","tropical upwelling, downward control"],["aoa","Age of stratospheric air","MERRA-2 GMI, 1980–2019"],["tape","Water-vapour tape recorder","Aura MLS + GEOS FP, how fast air rises"],["mbudget","Momentum budget","what drives the vortex and the upwelling"]]},
+  {label: "Stratosphere", ico: "\u2744", items: [["vortex","Polar vortex diagnostics","u(60°N), polar-cap height"],["upperstrat","Upper stratosphere","GEFS, GFS, GEOS FP, GDPS up to 1 hPa"],["vwinds","Vortex winds","10 and 100 hPa, both hemispheres"],["pv","Potential vorticity","GEOS FP, 475 and 850 K"],["epflux","E–P flux","wave driving, k = 1–3"],["qbozl","QBO zero-wind line","where the waves meet easterlies, 70–10 hPa"],["wave1","Stationary wave-1","100 and 500 hPa"],["heatflux","Eddy heat flux","100 hPa [v′T′], is it going up?"],["fdrip","Forecast dripping paint","GEPS, GEFS, AIFS-ENS, IFS-ENS: is it reaching down?"],["bdc","Brewer–Dobson circulation","tropical upwelling, downward control"],["aoa","Age of stratospheric air","MERRA-2 GMI, 1980–2019"],["tape","Water-vapour tape recorder","Aura MLS + GEOS FP, how fast air rises"],["mbudget","Momentum budget","what drives the vortex and the upwelling"]]},
   {label: "Stratosphere history", ico: "\u231B", items: [["shwinters","Every winter since 1980","pick any winter, compare"],["shssw","Sudden warmings since 1980","timeline, catalogue, vortex shapes"],["shdrip","Dripping paint","how an event reaches the surface"],["shfollow","What usually follows","AO, NAO, temperature, by region; CMIP6"],["shtiming","Who moves first","waves, vortex, tropical upwelling"],["shqbo","The QBO and the vortex","observed and CMIP6"],["shenso","El Niño and sudden warmings","CMIP6, 25,000 winters"],["shseason","This winter's odds","QBO and ENSO, model-based"],["shmbudget","Momentum budget of past warmings","every term, 24 warmings"]]}
 ],
   products: {
@@ -698,6 +762,11 @@ window.STAGE = {
           frame: function (a) { return a === "ifs" ? "sst_anim.html?embed=1&manifest=epflux_ifs_manifest.json&region=epflux_ifs"
                                                    : "sst_anim.html?embed=1&manifest=epflux_manifest.json&region=epflux"; }, about: "about-epflux",
           cap: function (a) { return "Eliassen–Palm flux for wavenumbers 1–3 and its divergence, per-member fluxes averaged over the " + (a === "ifs" ? "50 IFS-ENS" : "26 AIFS-ENS") + " members."; }},
+  qbozl: {label: "QBO zero-wind line", a: {label: "Level", items: [["50","50 hPa"],["70","70 hPa"],["30","30 hPa"],["10","10 hPa"]]},
+          img: function (a) { return "assets/sst/qbo_zeroline_" + a + ".webp"; }, bust: "hourly", about: "about-qbozl", fit: false,
+          cap: function (a) { return "Latitude of the northern zero-wind line at " + a + " hPa: the last five months of MERRA-2 and GEOS FP analyses"
+                                     + (a === "50" || a === "10" ? " and the AIFS-ENS and IFS-ENS forecasts to day 15" : " (no forecast: ECMWF open data stops at 50 and 10 hPa here)")
+                                     + ", against the MERRA-2 climatology and the easterly- and westerly-QBO winters. A diagnostic, not a forecast of the vortex."; }},
   wave1: {label: "Stationary wave-1", a: {label: "Hemisphere", items: [["wave1_nh","Northern"],["wave1_sh","Southern"]]},
           b: {label: "Model", items: [["aifs","AIFS-ENS"],["ifs","IFS-ENS"]]},
           frame: function (a, b) { var h = a === "wave1_sh" ? "sh" : "nh";

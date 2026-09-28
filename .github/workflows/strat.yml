@@ -7,6 +7,7 @@ name: Stratosphere (vortex, wave-1, E-P flux)
 #   vortex_winds.py   -> assets/sst/vortex_10.webp         still (loop covers 100)
 #                     -> assets/sst/anim/vortex_{10,100}/  31-step 12-hourly loop
 #   qbo_duct.py       -> assets/sst/anim/epflux/          E-P flux loop
+#   qbo_zeroline.py   -> assets/sst/qbo_zeroline_{70,50,30,10}.webp + data/qbo_zeroline{,_aifs}.json   (heavy job)
 #
 # IFS-ENS (all 50 members) and nh_vortex live in strat-ifs.yml (09:05/21:05) since 2026-09-27: IFS day 15 reaches
 # the Google mirror ~08:50Z/20:55Z, after these slots, and nh_vortex carries all four models in one figure.
@@ -315,6 +316,18 @@ jobs:
           python scripts/strat/qbo_duct.py \
             || echo "::warning::E-P flux loop failed; keeping the previous frames"
 
+      # QBO zero-wind line (2026-09-28): the per-member zonal-mean u at 50/10 hPa that qbo_duct just computed
+      # (data/zmu_members_aifs.npz - no extra download), the GEOS FP analysis tail from the BDC product's cache on the
+      # frames branch (read-only here; bdc.yml owns it), the committed MERRA-2 reference. The IFS-ENS half is added by
+      # strat-ifs.yml, which re-renders the same figures with both models.
+      - name: QBO zero-wind line
+        run: |
+          scripts/lib/fetch_frames_ci.sh assets/sst/anim/bdc_tail || true
+          python scripts/strat/qbo_zeroline.py forecast --model aifs \
+            || echo "::warning::zero-line AIFS-ENS forecast failed; the figure keeps the analysis"
+          python scripts/strat/qbo_zeroline.py render \
+            || echo "::warning::zero-line render failed; keeping the previous figures"
+
       - name: What was produced
         if: always()
         run: |
@@ -334,7 +347,9 @@ jobs:
           set -euo pipefail
           : > /tmp/heavy.list
           for p in assets/sst/anim/epflux \
-                   assets/sst/anim/epflux_manifest.json; do
+                   assets/sst/anim/epflux_manifest.json \
+                   assets/sst/qbo_zeroline_70.webp assets/sst/qbo_zeroline_50.webp assets/sst/qbo_zeroline_30.webp \
+                   assets/sst/qbo_zeroline_10.webp assets/sst/data/qbo_zeroline.json assets/sst/data/qbo_zeroline_aifs.json; do
             [ -e "$p" ] && echo "$p" >> /tmp/heavy.list
           done
           if [ ! -s /tmp/heavy.list ]; then
@@ -415,7 +430,8 @@ jobs:
           # one path at a time: `git add a b c` adds NOTHING when any one of them is missing (a product that failed)
           for f in assets/sst/vortex_10.webp \
                    assets/sst/heatflux100_nh.webp assets/sst/heatflux100_sh.webp assets/sst/data/heatflux100.json assets/sst/data/heatflux100_history.json \
-                   assets/sst/aifs_drip.webp assets/sst/data/aifs_drip.json assets/sst/anim/*_manifest.json; do
+                   assets/sst/aifs_drip.webp assets/sst/data/aifs_drip.json assets/sst/anim/*_manifest.json \
+                   assets/sst/qbo_zeroline_*.webp assets/sst/data/qbo_zeroline.json assets/sst/data/qbo_zeroline_aifs.json; do
             if [ -e "$f" ]; then git add "$f"; fi
           done
           if git diff --staged --quiet; then echo "no changes"; exit 0; fi
