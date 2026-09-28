@@ -85,22 +85,43 @@ def streamfunction_psi(u2d: xr.DataArray, v2d: xr.DataArray, lmax: int = LMAX):
     return g.data, np.array(g.lats()), np.array(g.lons())
 
 
+def _dlon(f: np.ndarray, lonr: np.ndarray) -> np.ndarray:
+    """Centred λ-derivative that wraps around the globe. The extended DH2 grid is
+    closed (last column = 360° = the first), so the difference is taken on the open
+    circle and the seam column re-appended; np.gradient's one-sided difference at
+    0°/360° put a first-order error and a spurious divergence along the seam."""
+    closed = np.isclose(np.rad2deg(lonr[-1] - lonr[0]), 360.0)
+    g = f[..., :-1] if closed else f
+    d = (np.roll(g, -1, axis=-1) - np.roll(g, 1, axis=-1)) / (2.0 * (lonr[1] - lonr[0]))
+    return np.concatenate([d, d[..., :1]], axis=-1) if closed else d
+
+
 def tn01_flux(psi_a: np.ndarray, U: np.ndarray, V: np.ndarray,
               lat: np.ndarray, lon: np.ndarray):
     """Horizontal TN01 W = (Wx, Wy) from ψ′ and the basic state, all on one grid.
-    Spherical derivatives: ∂x = (a cosφ)⁻¹∂λ, ∂y = a⁻¹∂φ. Masked outside the
-    westerly waveguide."""
+    Written in the angle derivatives exactly as TN01 eq. 38 (λ lon, φ lat):
+        Wx ∝ U/(a²cos²φ)(ψ_λ² − ψψ_λλ) + V/(a²cosφ)(ψ_λψ_φ − ψψ_λφ)
+        Wy ∝ U/(a²cosφ)(ψ_λψ_φ − ψψ_λφ) + V/a²(ψ_φ² − ψψ_φφ)
+    The cross term uses the plain ψ_λφ. (Until 2026-09-28 it was ∂y of
+    ψ_x = ψ_λ/(a cosφ), which adds ψ_λ tanφ/a² — a term oscillating at twice the
+    wavenumber that broke phase independence by ~tanφ/(2n), 5-10 % of the cross
+    term for synoptic waves at 45°.) λ-derivatives are periodic. Mirrors
+    quantmet.waf.tn01_flux. Masked outside the westerly waveguide."""
     latr = np.deg2rad(lat); lonr = np.deg2rad(lon)
     cosp = np.clip(np.cos(latr), 1e-3, None)[:, None]
-    px = np.gradient(psi_a, lonr, axis=1) / (A * cosp)
-    py = np.gradient(psi_a, latr, axis=0) / A
-    pxx = np.gradient(px, lonr, axis=1) / (A * cosp)
-    pxy = np.gradient(px, latr, axis=0) / A
-    pyy = np.gradient(py, latr, axis=0) / A
+    a2 = A * A
+    pl = _dlon(psi_a, lonr)
+    pp = np.gradient(psi_a, latr, axis=0)
+    pll = _dlon(pl, lonr)
+    plp = np.gradient(pl, latr, axis=0)
+    ppp = np.gradient(pp, latr, axis=0)
     spd = np.hypot(U, V)
     pref = PHAT * cosp / (2.0 * np.maximum(spd, 1e-6))
-    wx = pref * (U * (px ** 2 - psi_a * pxx) + V * (px * py - psi_a * pxy))
-    wy = pref * (U * (px * py - psi_a * pxy) + V * (py ** 2 - psi_a * pyy))
+    xx = pl * pl - psi_a * pll
+    xy = pl * pp - psi_a * plp
+    yy = pp * pp - psi_a * ppp
+    wx = pref * (U * xx / (a2 * cosp ** 2) + V * xy / (a2 * cosp))
+    wy = pref * (U * xy / (a2 * cosp) + V * yy / a2)
     bad = (spd < UMIN) | (np.abs(lat)[:, None] < LATMIN)
     wx[bad] = np.nan; wy[bad] = np.nan
     # flux divergence ∇·W: NEGATIVE (convergence) marks where wave activity
@@ -108,8 +129,7 @@ def tn01_flux(psi_a: np.ndarray, U: np.ndarray, V: np.ndarray,
     # to planetary/synoptic scales (l ≤ LFILT): second derivatives of the flux
     # carry gridscale ripple that a light gaussian cannot tame.
     wx0 = np.nan_to_num(wx); wy0 = np.nan_to_num(wy)
-    divw = (np.gradient(wx0, lonr, axis=1) / (A * cosp)
-            + np.gradient(wy0 * cosp, latr, axis=0) / (A * cosp))
+    divw = (_dlon(wx0, lonr) + np.gradient(wy0 * cosp, latr, axis=0)) / (A * cosp)
     g = pysh.SHGrid.from_array(divw, grid="DH")
     clm = g.expand()
     clm.coeffs[:, LFILT + 1:, :] = 0.0
