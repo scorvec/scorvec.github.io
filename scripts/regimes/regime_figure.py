@@ -97,7 +97,7 @@ def render(out: Path, ref: RC.Ref, sk: str, init, P, *, title: str, subtitle: st
     subtitle = textwrap.fill(subtitle, 128)
     h_title, h_leg, h_main = 0.8 + 0.2 * subtitle.count("\n") + 0.15, 0.3 * n_leg_rows + (0.3 if minor_note else 0.0) + 0.3, 3.35
     h_agree = (0.34 + 0.27 * n_mod) if n_mod else 0.0
-    h_bottom = 0.62 + 0.42 * len(present)
+    h_bottom = 0.62 + 0.42 * len(present) + (0.2 if n_mod else 0.0)
     h_foot = (0.25 + 0.155 * (len(footer) // 170 + 1)) if footer else 0.15
     H = h_title + h_leg + h_main + h_agree + (0.3 if n_mod else 0) + 0.5 + h_bottom + h_foot
     fig = plt.figure(figsize=(W, H))
@@ -231,7 +231,7 @@ def render(out: Path, ref: RC.Ref, sk: str, init, P, *, title: str, subtitle: st
     rows = [f for f in present if f != F] + [F]
     nW = len(wk)
     axg.set_xlim(0, nW)
-    axg.set_ylim(len(rows) + 1.25, 0)
+    axg.set_ylim(len(rows) + (1.75 if wk_models else 1.25), 0)
     axg.axis("off")
     sig = {}
     for s in skills or []:
@@ -269,13 +269,13 @@ def render(out: Path, ref: RC.Ref, sk: str, init, P, *, title: str, subtitle: st
         foot = ("skill ✓" if skilful else "n.s.") if ok is not None else "no hindcast"
         if wk_models:
             tops = [int(np.argmax(m[c]["p"])) for m in wk_models if c < len(m) and m[c]["w0"] == w["w0"]]
-            foot += f" · {sum(t == best for t in tops)}/{len(tops)} agree"
-        axg.text(c + 0.5, len(rows) + 1.12, foot, ha="center", va="center", fontsize=FONT - 2,
-                 color=RC.INK if skilful else RC.MUTED)
+            foot += f"\n{sum(t == best for t in tops)}/{len(tops)} agree"
+        axg.text(c + 0.5, len(rows) + 1.08, foot, ha="center", va="top", fontsize=FONT - 2,
+                 color=RC.INK if skilful else RC.MUTED, linespacing=1.15)
     for r, f in enumerate(rows):
         axg.text(-0.08, r + 1.5, names[f], ha="right", va="center", fontsize=FONT - 0.5, color=RC.INK, wrap=True)
-    axg.text(-0.08, 0.5, "Weekly regime\nprobability" + ("\n(small: model range)" if wk_models else ""),
-             ha="right", va="center", fontsize=FONT - 0.5, color=RC.INK, fontweight="bold")
+    axg.text(-0.08, 0.95, "Weekly regime\nprobability" + ("\n(small: model range)" if wk_models else ""),
+             ha="right", va="bottom", fontsize=FONT - 0.5, color=RC.INK, fontweight="bold")
 
     # ── hindcast skill strip ──────────────────────────────────────────────────────────────────────────────────────
     axs = fig.add_axes([0.605, y0 + 0.32 / H, R_ - 0.605, hh - 0.62 / H])
