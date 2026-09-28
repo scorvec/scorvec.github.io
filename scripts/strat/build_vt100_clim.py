@@ -5,7 +5,9 @@ NCEP/NCAR R1 daily v and T at 100 hPa (PSL OPeNDAP, read SEQUENTIALLY: parallel
 reads of that server return zeros without raising), 1991-2020. Per day and
 hemisphere: the zonal-mean flux [v'T'] averaged 45-75 deg with cos(lat) weights,
 for all waves and for zonal wavenumbers 1 and 2 (the k-th contribution is
-2 Re(V_k conj(T_k)) / N^2, which sums to the total over k >= 1). The SH series is
+2 Re(V_k conj(T_k)) / N^2 for 0 < k < N/2 and half that at the Nyquist k = N/2, so the
+sum over k >= 1 is exactly the zonal-mean covariance; until 2026-09-28 the Nyquist term
+was doubled, and caches without the `nyquist` attribute are refetched). The SH series is
 sign-flipped so POSITIVE IS POLEWARD in both hemispheres.
 
 Day-of-year statistics use a +/-15-day window: mean, sd, p10, p90 of the daily
@@ -37,6 +39,8 @@ def band_flux(v: np.ndarray, T: np.ndarray, lat: np.ndarray) -> dict:
     n = v.shape[-1]
     V = np.fft.rfft(v, axis=-1); Tt = np.fft.rfft(T, axis=-1)
     per_k = 2.0 * np.real(V * np.conj(Tt)) / n ** 2           # (time, lat, k); k=0 is the mean part
+    if n % 2 == 0:
+        per_k[..., -1] /= 2.0                                  # k = n/2 (Nyquist, k=72 on R1's 144 points) counts once
     w = np.cos(np.deg2rad(lat)); w = w / w.sum()
     return {"tot": (per_k[..., 1:].sum(-1) * w).sum(-1),
             "k1": (per_k[..., 1] * w).sum(-1), "k2": (per_k[..., 2] * w).sum(-1)}
@@ -45,7 +49,10 @@ def band_flux(v: np.ndarray, T: np.ndarray, lat: np.ndarray) -> dict:
 def year_series(y: int) -> xr.Dataset:
     p = CACHE / f"vt100_{y}.nc"
     if p.exists():
-        return xr.open_dataset(p).load()
+        ds = xr.open_dataset(p).load()
+        if ds.attrs.get("nyquist") == "once":
+            return ds
+        print(f"  {y}: cache predates the Nyquist fix - refetching", flush=True)
     out = {}
     for hemi, sl, sign in (("nh", slice(75, 45), 1.0), ("sh", slice(-45, -75), -1.0)):
         v = xr.open_dataset(f"{PSL}/vwnd.{y}.nc")["vwnd"].sel(level=100, lat=sl).compute()
@@ -58,7 +65,7 @@ def year_series(y: int) -> xr.Dataset:
         for k in KEYS:
             out[f"{hemi}_{k}"] = ("time", sign * f[k])
         t = pd.DatetimeIndex(v.time.values).normalize()
-    ds = xr.Dataset(out, coords={"time": t})
+    ds = xr.Dataset(out, coords={"time": t}, attrs={"nyquist": "once"})
     CACHE.mkdir(parents=True, exist_ok=True)
     ds.to_netcdf(p)
     return ds

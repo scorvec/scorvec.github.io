@@ -87,6 +87,8 @@ def fluxes(v, t):
     n = a.shape[-1]
     V = np.fft.rfft(a, axis=-1)[..., :K_MAX + 1]; T = np.fft.rfft(b, axis=-1)[..., :K_MAX + 1]
     per_k = 2.0 * np.real(V * np.conj(T)) / n ** 2
+    if n % 2 == 0 and K_MAX >= n // 2:
+        per_k[..., n // 2] /= 2.0          # Nyquist counts once (a no-op on the 0.25/0.5 deg grids: k=72 < n/2)
     return v.latitude.values, {"tot": per_k[..., 1:].sum(-1), "k1": per_k[..., 1], "k2": per_k[..., 2]}
 
 
