@@ -839,9 +839,56 @@ def live(budget_min=8.0, out=None):
     except Exception as e:                                                            # noqa: BLE001
         log(f"GEOS FP update failed ({str(e)[:120]}); drawing from what is cached")
     fpq, fpt = load_fp(tail)
-    mls_tail = None
+    mls_tail = update_mls_tail(budget_days=45)
     mls = load_mls(mls_tail)
     return render(mls, fpq, fpt, out)
+
+
+MLS_TAIL_JSON = REPO / "assets" / "sst" / "data" / "tape_mls_tail.json"
+
+
+def update_mls_tail(budget_days=45):
+    """New Aura MLS days after the committed reference, kept as a small committed JSON tail so each Actions run only
+    fetches what is new. Runs only with EARTHDATA_USERNAME/_PASSWORD (repo secrets); otherwise returns the tail as it is.
+    `checked_through` records the last day asked for, so days with the 190-GHz radiometer off (n = 0) are not re-fetched."""
+    tail = json.loads(MLS_TAIL_JSON.read_text()) if MLS_TAIL_JSON.exists() else None
+    if not (os.environ.get("EARTHDATA_USERNAME") and os.environ.get("EARTHDATA_PASSWORD")):
+        return tail
+    try:
+        sys.path.insert(0, str(Path(__file__).resolve().parent))
+        import fetch_mls_h2o as FM
+        ref = np.load(MLS_REF)
+        ref_p = ref["p"].astype(float)
+        last_ref = pd.Timestamp(str(int(ref["date"].max()))).date()
+        tail = tail or {"p": [float(x) for x in ref_p], "days": {}, "checked_through": None}
+        seen = [last_ref] + [date.fromisoformat(d) for d in tail["days"]]
+        if tail.get("checked_through"):
+            seen.append(date.fromisoformat(tail["checked_through"]))
+        d0, d1 = max(seen) + timedelta(days=1), date.today() - timedelta(days=1)
+        if d0 > d1:
+            return tail
+        d1 = min(d1, d0 + timedelta(days=budget_days - 1))
+        FM.run(d0, d1)
+        for f in sorted(FM.OUT.glob("*.npz")):
+            d = date(int(f.stem[:4]), int(f.stem[4:6]), int(f.stem[6:]))
+            if not (d0 <= d <= d1):
+                continue
+            z = np.load(f)
+            if int(z["n"]) <= 0:
+                continue
+            zp = z["p"].astype(float); zh = z["h2o"].astype(float)
+            k = zp <= P_MLS_KEEP
+            if k.sum() != len(ref_p) or not np.allclose(zp[k], ref_p, rtol=1e-3):
+                log(f"MLS {d}: levels differ from the reference; skipped")
+                continue
+            tail["days"][d.isoformat()] = [round(float(x), 4) for x in zh[k]]
+        tail["checked_through"] = d1.isoformat()
+        MLS_TAIL_JSON.parent.mkdir(parents=True, exist_ok=True)
+        MLS_TAIL_JSON.write_text(json.dumps(tail, separators=(",", ":")))
+        log(f"MLS tail: checked {d0}..{d1}; {len(tail['days'])} good days after the reference")
+    except Exception as e:                                                            # noqa: BLE001
+        log(f"MLS update failed ({str(e)[:120]}); drawing from the committed record")
+    return tail
 
 
 def render(mls, fpq, fpt, out):

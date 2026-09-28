@@ -111,7 +111,14 @@ jobs:
       - name: Water-vapour tape recorder (Aura MLS + GEOS FP)
         if: ${{ !cancelled() }}
         timeout-minutes: 15
-        run: python scripts/strat/tape_recorder.py live || echo "::warning::tape recorder failed; keeping the previous figures"
+        env:
+          # Aura MLS top-up (GES DISC, earthaccess): runs only when these repo secrets exist; without them the
+          # committed MLS record plus the GEOS FP tail are drawn, as before.
+          EARTHDATA_USERNAME: ${{ secrets.EARTHDATA_USERNAME }}
+          EARTHDATA_PASSWORD: ${{ secrets.EARTHDATA_PASSWORD }}
+        run: |
+          if [ -n "$EARTHDATA_USERNAME" ]; then pip install --quiet earthaccess h5py || true; fi
+          python scripts/strat/tape_recorder.py live || echo "::warning::tape recorder failed; keeping the previous figures"
       - name: Momentum budget (GEOS FP)
         id: mb
         if: ${{ !cancelled() }}
@@ -159,7 +166,7 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           SNAP=$(mktemp -d)
-          OUTS="assets/sst/bdc_dc_upwelling.webp assets/sst/bdc_dc_section.webp assets/sst/data/bdc_dc.json assets/sst/anim/geos_pv_manifest.json assets/sst/data/geos_pv.json assets/sst/data/geosfp_cap_history.json assets/sst/data/mbudget.json assets/sst/data/tape_recorder.json assets/sst/data/tape_geosfp_tail.json $(ls assets/sst/mbudget_*.webp assets/sst/tape_*.webp 2>/dev/null | tr '\n' ' ')"
+          OUTS="assets/sst/bdc_dc_upwelling.webp assets/sst/bdc_dc_section.webp assets/sst/data/bdc_dc.json assets/sst/anim/geos_pv_manifest.json assets/sst/data/geos_pv.json assets/sst/data/geosfp_cap_history.json assets/sst/data/mbudget.json assets/sst/data/tape_recorder.json assets/sst/data/tape_geosfp_tail.json assets/sst/data/tape_mls_tail.json $(ls assets/sst/mbudget_*.webp assets/sst/tape_*.webp 2>/dev/null | tr '\n' ' ')"
           for f in $OUTS; do [ -f "$f" ] && git add -f "$f"; done
           git diff --staged --name-only -z | tar cf "$SNAP/outs.tar" --null -T - 2>/dev/null || true
           git reset -q
