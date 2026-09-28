@@ -975,7 +975,7 @@ window.STAGE = {
       <h3>The static figure</h3>
       <p>The same forecast as a four-panel image (Ni&ntilde;o-3.4 and relative Ni&ntilde;o-3.4, monthly and
       three-month), for saving or sharing:</p>
-      <a href="assets/sst/c3s_nino34.webp?v=c37cd0d4da9b"><img src="assets/sst/c3s_nino34.webp?v=c37cd0d4da9b" loading="lazy" alt="Static four-panel C3S multi-model ENSO forecast figure" width="1512" height="1164"></a>
+      <a href="assets/sst/c3s_nino34.webp?v=6455ce08d927"><img src="assets/sst/c3s_nino34.webp?v=6455ce08d927" loading="lazy" alt="Static four-panel C3S multi-model ENSO forecast figure" width="1512" height="1164"></a>
       <h3>Sources</h3>
       <ul>
         <li>Copernicus Climate Change Service (C3S) seasonal forecast single-level data, monthly means and anomalies. Contains modified Copernicus Climate Change Service information 2026.</li>
@@ -2148,13 +2148,13 @@ window.STAGE = {
     return optional ? p.catch(function () { return null; }) : p;
   }
   Promise.all([
-    get("assets/sst/data/enso_forecast.json?v=c37cd0d4da9b"),
-    get("assets/sst/data/nino_history.json?v=c37cd0d4da9b", true),
-    get("assets/sst/data/enso_daily.json?v=c37cd0d4da9b", true),
-    get("assets/sst/data/c3s_evolution.json?v=c37cd0d4da9b", true),
-    get("assets/sst/data/enso_flavour.json?v=c37cd0d4da9b", true),
-    get("assets/sst/data/cpc_official.json?v=c37cd0d4da9b", true),
-    get("assets/sst/data/enso_flavour_obs.json?v=c37cd0d4da9b", true),
+    get("assets/sst/data/enso_forecast.json?v=6455ce08d927"),
+    get("assets/sst/data/nino_history.json?v=6455ce08d927", true),
+    get("assets/sst/data/enso_daily.json?v=6455ce08d927", true),
+    get("assets/sst/data/c3s_evolution.json?v=6455ce08d927", true),
+    get("assets/sst/data/enso_flavour.json?v=6455ce08d927", true),
+    get("assets/sst/data/cpc_official.json?v=6455ce08d927", true),
+    get("assets/sst/data/enso_flavour_obs.json?v=6455ce08d927", true),
   ]).then(function (res) {
     D.fc = res[0]; D.hist = res[1]; D.daily = res[2]; D.evo = res[3]; D.fl = res[4]; D.cpc = res[5]; D.flo = res[6];
     if (!roniSeries()) {
