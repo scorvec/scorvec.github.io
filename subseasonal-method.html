@@ -378,13 +378,33 @@
     warm-season sets are named by inspection and say so. Each of the 21 members&rsquo; de-drifted
     500&nbsp;hPa anomaly is smoothed the same way and assigned to the nearest centroid, or to
     &ldquo;no regime&rdquo; when its pattern correlation with every centroid is below 0.25, as in
-    the ECMWF product; the member fraction is the regime probability. The set for the init
-    month&rsquo;s season is held for the whole forecast so a plume crossing the October or April
-    boundary is not reclassified mid-way. The hindcast hit rate below the plume is the share of
-    2001&ndash;2020 starts within &plusmn;45 days of the date whose ensemble-mean regime matched the
-    observed one, against persistence of the initial regime and the most common regime. On raw
-    k-means of height anomalies alone the value is modest, and the hit rate shows it: what earns
-    the panel its place is the member fractions with that skill curve beside them.</p>
+    the ECMWF product; the member fraction is the regime probability. <b>Every valid day is classified
+    with the set of its own season</b> (October&ndash;March cold, April&ndash;September warm, the halves the
+    sets were built on) &mdash; the forecast, the observed tail and the hindcast alike. A soft blend across
+    the boundary was considered and rejected: every training day belonged to exactly one set, so a blend has no
+    counterpart in the regimes&rsquo; own definition. What carries across the switch is colour: a cold and a warm
+    regime whose patterns correlate at 0.6 or more are drawn as one &ldquo;family&rdquo; (all four Euro-Atlantic
+    pairs, r 0.66&ndash;0.89; Pacific trough, Pacific ridge and Greenland high in North America; the cold Alaskan
+    ridge and the warm Hudson Bay ridge have no counterpart and keep colours of their own).</p>
+    <p><b>Regime skill.</b> The hit rate beside the forecast is the share of hindcast starts within
+    &plusmn;45 days of the date whose ensemble-mean regime matched the observed (NCEP/NCAR R1) one on the valid
+    day, with a 95% interval from a bootstrap over hindcast <i>years</i> (starts in one season share weather, so
+    they are not independent), against two baselines: persistence of the pattern observed over the three days
+    before day 1, and always forecasting the most common regime. A week of the weekly grid is marked skilful only
+    when the bootstrap interval of [hit rate &minus; the better baseline] lies above zero; otherwise it is hatched.
+    For late September both the GEPS8 (4,660 starts) and the GEFSv12 (1,043) hindcasts beat both baselines in
+    weeks 1 and 2 and in neither of weeks 3&ndash;5.</p>
+    <p><b>Multi-model view.</b> GEPS (21 members, days 1&ndash;35), GEFS (31, days 1&ndash;35) and, for days
+    1&ndash;15, AIFS-ENS (26) and IFS-ENS (50), from 500&nbsp;hPa fields the site already fetches. GEPS and GEFS
+    are de-drifted with their hindcasts; AIFS-ENS and IFS-ENS have no open reforecast, so they are taken against
+    ERA5 1991&ndash;2020 and their lead-dependent drift is measured on their own verified runs as they accrue. The
+    combined probability is the equal-weight mean over the models covering each date: skill weighting would
+    need hindcasts of all four, and the two that have them have overlapping 95% intervals at 99% of month
+    &times; lead &times; sector combinations.</p>
+    <p><b>What each regime brings.</b> ERA5 1991&ndash;2020 composites of 2&nbsp;m temperature and
+    precipitation over the days R1 was in each regime, with each season&rsquo;s linear trend removed, tested on
+    regime <i>episodes</i> (one mean per run of consecutive days) with a t-test and the false discovery rate held
+    at 10% over the map (Benjamini&ndash;Hochberg; Wilks 2016). Only significant areas are coloured.</p>
     <p><b>Ensemble scenarios.</b> Distinct from the regimes: no fixed centroids. Each week the 21
     members&rsquo; weekly-mean 500&nbsp;hPa anomalies over a sector are clustered by k-means with
     k&nbsp;=&nbsp;2, 3 and 4, and the number of scenarios is chosen, not fixed: each k is tested
