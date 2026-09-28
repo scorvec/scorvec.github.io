@@ -15,6 +15,10 @@ name: Brewer-Dobson upwelling (downward control)
 # cycle ~10-13 min (81 three-hourly steps), so the 12:30 run still ends before upperstrat.yml's 13:10 NCCS slot and the
 # 18:30 run finds the cycle already cached. Its analysis cache (one ~180 KB npz a day, pruned at 150 days) and the newest
 # forecast live on the frames branch; a cold cache is seeded from release mbudget-ref-v1 (the laptop backfill).
+# Same source once more: the stratosphere page's WATER-VAPOUR TAPE RECORDER (scripts/strat/tape_recorder.py, 2026-09-27):
+# the Aura MLS record (committed reference, built on the laptop with Earthdata login) extended past the last MLS day with
+# GEOS FP's 10S-10N water vapour, one 12Z analysis a day (~5 s each; the new days go to assets/sst/data/
+# tape_geosfp_tail.json on main). It runs before the momentum budget and never holds it up.
 
 on:
   schedule:
@@ -43,6 +47,10 @@ jobs:
             scripts/strat/geosfp_cap.py
             scripts/strat/momentum_budget.py
             scripts/strat/reference/mbudget_clim.npz
+            scripts/strat/tape_recorder.py
+            scripts/strat/reference/tape_mls.npz
+            scripts/strat/reference/tape_geosfp_seed.npz
+            assets/sst/tape_*.webp
             scripts/lib
             assets/sst/anim/geos_pv_manifest.json
             assets/sst/data
@@ -100,6 +108,10 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PRUNE: ${{ steps.live.outputs.prune }}
         run: scripts/lib/publish_frames_ci.sh +assets/sst/anim/bdc_tail
+      - name: Water-vapour tape recorder (Aura MLS + GEOS FP)
+        if: ${{ !cancelled() }}
+        timeout-minutes: 15
+        run: python scripts/strat/tape_recorder.py live || echo "::warning::tape recorder failed; keeping the previous figures"
       - name: Momentum budget (GEOS FP)
         id: mb
         if: ${{ !cancelled() }}
@@ -147,7 +159,7 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           SNAP=$(mktemp -d)
-          OUTS="assets/sst/bdc_dc_upwelling.webp assets/sst/bdc_dc_section.webp assets/sst/data/bdc_dc.json assets/sst/anim/geos_pv_manifest.json assets/sst/data/geos_pv.json assets/sst/data/geosfp_cap_history.json assets/sst/data/mbudget.json $(ls assets/sst/mbudget_*.webp 2>/dev/null | tr '\n' ' ')"
+          OUTS="assets/sst/bdc_dc_upwelling.webp assets/sst/bdc_dc_section.webp assets/sst/data/bdc_dc.json assets/sst/anim/geos_pv_manifest.json assets/sst/data/geos_pv.json assets/sst/data/geosfp_cap_history.json assets/sst/data/mbudget.json assets/sst/data/tape_recorder.json assets/sst/data/tape_geosfp_tail.json $(ls assets/sst/mbudget_*.webp assets/sst/tape_*.webp 2>/dev/null | tr '\n' ' ')"
           for f in $OUTS; do [ -f "$f" ] && git add -f "$f"; done
           git diff --staged --name-only -z | tar cf "$SNAP/outs.tar" --null -T - 2>/dev/null || true
           git reset -q
@@ -157,7 +169,7 @@ jobs:
             tar xf "$SNAP/outs.tar" 2>/dev/null || true
             for f in $OUTS; do [ -f "$f" ] && git add -f "$f"; done
             if git diff --staged --quiet; then echo "No changes; skipping commit."; exit 0; fi
-            git commit -q -m "bdc: Brewer-Dobson upwelling + GEOS FP PV + momentum budget $(date -u +%Y-%m-%dT%H:%MZ)"
+            git commit -q -m "bdc: Brewer-Dobson upwelling + GEOS FP PV + momentum budget + tape recorder $(date -u +%Y-%m-%dT%H:%MZ)"
             if timeout 180 git push; then echo "Pushed on attempt $i."; exit 0; fi
             sleep 5
           done
