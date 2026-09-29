@@ -266,7 +266,7 @@ def two_panel(model, nmem, spd, pcore, axis_mean, axis_norm, freq_norm, title, s
     import matplotlib.patheffects as pe
     from matplotlib.colors import BoundaryNorm, ListedColormap
     plt = _mpl()
-    W, H, rects = _geom(2)
+    W, H, rects = _geom(2, top=1.42)
     fig = plt.figure(figsize=(W, H))
     lon, lat = PC.WORK_LON, PC.WORK_LAT
     cmap = ListedColormap(SPD_COL); cmap.set_over("#4a1060")
@@ -332,7 +332,7 @@ def render_weeks(model, init, valid, U, V, ref, dlabel, anim_dir, manifest, out_
         for d in range(NDAY):
             ms = spd[:, d].mean(0); pc = core[:, d].mean(0)
             axis_norm = ref.axis_clim.sel(doy=min(valid[d].dayofyear, 366)).values
-            title = f"North Pacific jet, day {d} (valid {valid[d]:%a %-d %b} 00Z) — {LABEL[model]} {nmem} members, init {init:%Y-%m-%d %HZ}"
+            title = f"North Pacific jet, day {d} (valid {valid[d]:%a %-d %b %HZ}) — {LABEL[model]} {nmem} members, init {init:%Y-%m-%d %HZ}"
             sub = (f"250 hPa, {dlabel if d else 'day 0 (the initial state)'}. Top: ensemble-mean wind speed, isotachs, the mean "
                    "jet axis (magenta) and the ERA5 normal axis (dashed). Bottom: share of members with a ≥ 50 m/s core.")
             fp = anim_dir / f"F{d:02d}.webp"
@@ -439,7 +439,9 @@ def render_phase(model, init, valid, pcs, ref, month, dlabel, out, other=None):
         return {"in_season": False, "basis_month": month}
     W, H = 13.4, 7.6
     fig = plt.figure(figsize=(W, H))
-    ax = fig.add_axes([0.045, 0.085, 0.43 * H / W * 13.4 / 7.6 * 0.95, 0.76])
+    W, H = 13.4, 8.2
+    fig.set_size_inches(W, H)
+    ax = fig.add_axes([0.05, 0.19, 0.64 * H / W, 0.64])
     lim = float(np.clip(np.nanpercentile(np.abs(pcs), 99) + 0.4, 2.5, 4.5))
     th = np.linspace(0, 2 * np.pi, 200)
     ax.fill(np.cos(th), np.sin(th), color="#f2f2f2", zorder=0)
@@ -471,11 +473,11 @@ def render_phase(model, init, valid, pcs, ref, month, dlabel, out, other=None):
     ax.set_xlim(-lim, lim); ax.set_ylim(-lim, lim); ax.set_aspect("equal")
     ax.axhline(0, color="#ccc", lw=0.6, zorder=0); ax.axvline(0, color="#ccc", lw=0.6, zorder=0)
     ax.set_xlabel("PC1 (σ): + extended, − retracted", fontsize=10.5); ax.set_ylabel("PC2 (σ): + poleward, − equatorward", fontsize=10.5)
-    ax.legend(loc="lower left", fontsize=8.4, framealpha=0.92, edgecolor="none")
+    ax.legend(loc="upper center", bbox_to_anchor=(0.5, -0.1), ncol=3, fontsize=8.4, frameon=False, columnspacing=1.2)
     ax.tick_params(labelsize=9.5)
     # phase odds by day
     ph = PC.phase_of(pcs[..., 0], pcs[..., 1])                            # (m, day)
-    axp = fig.add_axes([0.57, 0.55, 0.41, 0.28])
+    axp = fig.add_axes([0.57, 0.56, 0.41, 0.26])
     bottom = np.zeros(NDAY)
     odds = {}
     for k, name in [(-1, "neutral")] + list(enumerate(PC.PHASES)):
@@ -492,7 +494,7 @@ def render_phase(model, init, valid, pcs, ref, month, dlabel, out, other=None):
     for s_ in ("top", "right"):
         axp.spines[s_].set_visible(False)
     # skill strip
-    axs = fig.add_axes([0.57, 0.085, 0.41, 0.3])
+    axs = fig.add_axes([0.57, 0.1, 0.41, 0.3])
     sk = json.loads(F_SKILL.read_text()) if F_SKILL.exists() else None
     mm = (sk or {}).get("models", {}).get(model, {})
     blk = mm.get("season") or mm.get("all")
