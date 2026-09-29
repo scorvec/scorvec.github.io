@@ -254,49 +254,20 @@ def retrieve_parallel(req: dict, target: str, members=None, workers: int = None)
     return _robust_chunked(req, target, parallel=True, members=members, workers=workers)
 
 
-def _retrieve_probe(req: dict, target: str) -> None:
-    """Single-shot probe (no watchdog/retry), used by latest_run."""
-    last = None
-    for src in SOURCES:
-        try:
-            _single(req, target, src); return
-        except Exception as e:                              # noqa: BLE001
-            last = e
-    raise last if last is not None else RuntimeError("probe failed")
-
-
 def latest_run() -> tuple[str, str]:
-    """Return (date, time) for the most recent available AIFS-ENS run.
+    """(date, time) of the newest AIFS-ENS cycle that is COMPLETELY on the Google mirror.
 
-    The ecmwf-opendata client prints an attribution banner / progress to stdout
-    on each retrieve; we suppress stdout during the probe so callers that parse
-    this function's output get only what *they* print.
+    Delegates to the shared resolver (scripts/ecmwf/cycles.py): day 15 of both the perturbed members and the
+    control indexed, and every step's GRIB uploaded, falling back up to two cycles. Until 2026-09-28 this probed
+    one message of step 6, which is up ~55 min before the cycle is, so a run dispatched early in the upload window
+    took a cycle whose later steps were 404 (strat.yml, 17:59Z on 2026-09-28). Logs its choice to stderr only, so
+    callers that parse stdout are unaffected; raises RuntimeError when no cycle in the window is ready.
     """
-    import contextlib
-    import datetime
-    import tempfile
-    today_utc = datetime.datetime.now(datetime.timezone.utc).date()
-    for offset in range(0, 4):
-        for run_time in ("12", "00"):
-            date = today_utc - datetime.timedelta(days=offset)
-            date_str = date.strftime("%Y%m%d")
-            try:
-                with tempfile.NamedTemporaryFile(suffix=".grib2", delete=True) as tmp, \
-                        open(os.devnull, "w") as _dn, \
-                        contextlib.redirect_stdout(_dn):
-                    # Probe a PERTURBED member (pf #50), not the control: ECMWF publishes the
-                    # control before the 50 perturbed members, so a cf-only probe can call a
-                    # cycle "available" while the ensemble the RMM actually needs is still
-                    # landing — and the full 50-member download then fails. Requiring a pf
-                    # member to be present makes the runner wait (next hourly poll) for a
-                    # delayed/incrementally-published cycle instead of failing on partial data.
-                    _retrieve_probe(dict(model="aifs-ens", date=date_str, time=int(run_time),
-                                         stream="enfo", type="pf", number=50, levtype="pl",
-                                         levelist=[850], param="u", step=6), tmp.name)
-                return date_str, run_time
-            except Exception:
-                continue
-    raise RuntimeError("Could not find a recent available AIFS-ENS run (checked last 4 days)")
+    import cycles
+    try:
+        return cycles.resolve(cycles.AIFS_ENS, what="AIFS-ENS")
+    except cycles.CycleUnavailable as e:
+        raise RuntimeError(str(e)) from e
 
 
 def download(date: str, time: str, out_dir: Path) -> None:

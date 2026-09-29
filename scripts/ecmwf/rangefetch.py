@@ -226,18 +226,17 @@ def fetch(date: str, hh: str, model: str, step: int, *, param=None,
 
 def cycle_complete(date: str, hh: str, model: str = "aifs-ens",
                    last_step: int = 360, kind: str = "pf") -> bool:
-    """Publication sentinel: the LAST step's .index exists on some mirror →
-    the cycle is fully disseminated; safe to start bulk fetching."""
-    rel = path_for(date, hh, model, last_step, kind) + ".index"
-    for src in ("aws", "azure", "ecmwf"):
-        try:
-            budget.acquire(src)
-            r = requests.head(f"{MIRRORS[src]}/{rel}", timeout=(5, 15))
-            if r.status_code == 200:
-                return True
-        except Exception:                                  # noqa: BLE001
-            continue
-    return False
+    """Publication sentinel: the cycle is COMPLETELY on the Google mirror for this model/file type (day-15 index and
+    GRIB, every step uploaded) - see cycles.is_ready. Until 2026-09-28 this HEADed the day-15 index on aws / azure /
+    data.ecmwf.int, against the Google-only rule, and an index alone does not mean the GRIBs are there."""
+    import cycles
+    if model == "ifs" and kind in ("cf", "pf"):
+        need = cycles.Need("ifs", "ef", step=last_step, every=cycles.IFS_STEPS)
+    elif model == "aifs-single":
+        need = cycles.Need("aifs-single", "fc", "oper", step=last_step)
+    else:
+        need = cycles.Need(model, kind, step=last_step)
+    return cycles.is_ready(date, hh, (need,))[0]
 
 
 def _bench():
