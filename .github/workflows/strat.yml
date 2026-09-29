@@ -56,9 +56,10 @@ on:
 # Frame store (Cloudflare R2, S3 API). Absent secrets leave these empty and the
 # publishers fall back to the orphan `frames` branch - see scripts/lib/frames_env.sh.
 env:
-  # ECMWF open data from the Google Cloud mirror ONLY (user rule 2026-09-06), for every job and step: the
-  # shared store rotates google/aws/azure/ecmwf unless ECMWF_SOURCES is set, and the wave-1, cycle-probe,
-  # ens_cycle and E-P flux steps had no pin (found 2026-09-27).
+  # ECMWF open data from the Google Cloud mirror ONLY (user rule 2026-09-06), for every job and step. Belt and
+  # braces since 2026-09-29, when the shared store's code default became Google-only (it used to rotate
+  # google/aws/azure/ecmwf unless ECMWF_SOURCES was set, and the wave-1, cycle-probe, ens_cycle and E-P flux
+  # steps had no pin - found 2026-09-27).
   ECMWF_SOURCES: google
   ECMWF_MULTISOURCE: "0"
   FRAMES_S3_BUCKET: ${{ secrets.FRAMES_S3_BUCKET }}

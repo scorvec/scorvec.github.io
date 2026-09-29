@@ -28,6 +28,11 @@ concurrency:
   group: aam
   cancel-in-progress: false
 
+# ECMWF open data from the Google Cloud mirror ONLY (user rule 2026-09-06). The shared store's code default is
+# Google-only since 2026-09-29 and it ignores any other mirror name; this is belt and braces.
+env:
+  ECMWF_SOURCES: google
+
 jobs:
   build:
     runs-on: ubuntu-latest

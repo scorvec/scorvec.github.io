@@ -66,13 +66,11 @@ fi
 WATCHDOG=$!
 trap 'kill "$WATCHDOG" 2>/dev/null; git_unlock' EXIT
 
-# Auto-rotate the ECMWF mirrors for this run (round-robin + demote whichever threw 503s
-# last run), unless ECMWF_SOURCES is set explicitly. Self-steers away from a throttling
-# mirror without manual intervention.
-if [ -z "${ECMWF_SOURCES:-}" ]; then
-  export ECMWF_SOURCES="$("$PY" -c "import sys; sys.path.insert(0,'$REPO/scripts/ecmwf'); import store; print(store.next_mirror_order())" 2>/dev/null)"
-  echo "mirrors this run: ${ECMWF_SOURCES:-<default>}"
-fi
+# ECMWF open data from the Google Cloud mirror ONLY (user rule 2026-09-06). The store's code
+# default is Google-only and it ignores any other name; this export is belt and braces. (Until
+# 2026-09-29 this block exported store.next_mirror_order(), a rotation over google/aws/azure/ecmwf.)
+export ECMWF_SOURCES=google
+echo "ECMWF mirror this run: google (only)"
 
 read -r DATE TIME < <("$PY" -c \
   "import sys; sys.path.insert(0,'src'); from download_aifs import latest_run; d,t=latest_run(); print(d,t)" \
