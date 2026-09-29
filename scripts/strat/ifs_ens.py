@@ -35,11 +35,11 @@ import sys
 import time
 from pathlib import Path
 
-import requests
 
 HERE = Path(__file__).resolve().parent
 REPO = HERE.parents[1]
 sys.path.insert(0, str(REPO / "scripts" / "ecmwf"))
+import cycles as C                                                       # noqa: E402
 import rangefetch as rf                                                  # noqa: E402
 import store as E                                                        # noqa: E402
 
@@ -64,55 +64,25 @@ def spec_t100() -> E.Spec:
     return E.Spec("ifs", "pf", "t", "pl", (100,), STEPS)
 
 
-def _index_url(date: str, time_: str, step: int, stream: str = "enfo", kind: str = "ef") -> str:
-    return f"{rf.MIRRORS['google']}/{rf.path_for(date, time_, 'ifs', step, kind, stream=stream)}.index"
-
-
 def published(date: str, time_: str, step: int = 360) -> bool:
-    """True when the step's .index is on the Google mirror. Day 15 is the last thing ECMWF disseminates, so it gates
-    the whole cycle."""
-    try:
-        r = requests.head(_index_url(date, time_, step), timeout=(5, 20))
-        return r.status_code == 200
-    except Exception:                                                    # noqa: BLE001
-        return False
-
-
-def _aifs_published(date: str, time_: str) -> bool:
-    try:
-        r = requests.head(f"{rf.MIRRORS['google']}/{rf.path_for(date, time_, 'aifs-ens', 360, 'pf')}.index",
-                          timeout=(5, 20))
-        return r.status_code == 200
-    except Exception:                                                    # noqa: BLE001
-        return False
+    """True when IFS-ENS is COMPLETELY on the Google mirror to `step`: that step's index and GRIB, and every step up to
+    it uploaded (the shared rule, scripts/ecmwf/cycles.py). Day 15 is the last thing ECMWF disseminates."""
+    return C.is_ready(date, time_, (C.Need("ifs", "ef", step=step, every=C.IFS_STEPS),))[0]
 
 
 def expected_cycle(now: dt.datetime | None = None) -> tuple[str, str]:
-    """The cycle the stratosphere page is on: the newest 00/12Z whose AIFS-ENS day 15 is on the Google mirror (IFS
-    trails it by about two hours). Falls back to the newest nominal cycle at least 9 h old."""
-    now = now or dt.datetime.now(dt.timezone.utc).replace(tzinfo=None)
-    c = now.replace(minute=0, second=0, microsecond=0, hour=12 if now.hour >= 12 else 0)
-    for _ in range(4):
-        if _aifs_published(f"{c:%Y%m%d}", f"{c:%H}"):
-            return f"{c:%Y%m%d}", f"{c:%H}"
-        c -= dt.timedelta(hours=12)
-    c = now - dt.timedelta(hours=9)
-    c = c.replace(minute=0, second=0, microsecond=0, hour=12 if c.hour >= 12 else 0)
-    return f"{c:%Y%m%d}", f"{c:%H}"
+    """The cycle the stratosphere page is on: the newest 00/12Z whose AIFS-ENS is completely on the Google mirror -
+    the SAME rule, through the same helper, that strat.yml resolves its cycle with, so both halves of the page share
+    one initialisation (IFS trails AIFS by about two hours). No clock fallback since 2026-09-28: when no cycle within
+    two of the newest is ready this raises cycles.CycleUnavailable and the cycle job fails visibly."""
+    return C.resolve(C.AIFS_ENS, now=now, what="the stratosphere page (AIFS-ENS)")
 
 
 def resolve(date: str | None, time_: str | None, wait_min: float = 0.0) -> tuple[str, str, bool]:
-    """(date, hour, ready). Waits up to wait_min for the day-15 index; never looks anywhere but Google."""
+    """(date, hour, ready). Waits up to wait_min for IFS-ENS day 15 to be complete; never looks anywhere but Google."""
     if not date or not time_:
         date, time_ = expected_cycle()
-    deadline = time.monotonic() + 60.0 * wait_min
-    while True:
-        if published(date, time_):
-            return date, time_, True
-        if time.monotonic() >= deadline:
-            return date, time_, False
-        print(f"  IFS-ENS {date} {time_}Z day 15 not on the Google mirror yet; waiting", flush=True)
-        time.sleep(60)
+    return date, time_, C.wait_ready(date, time_, C.IFS_ENS, wait_min)
 
 
 def _set_env():
@@ -190,7 +160,11 @@ def main() -> int:
     ap.add_argument("--github-output", action="store_true")
     a = ap.parse_args()
     if a.cmd == "resolve":
-        d, t, ok = resolve(a.date, a.time, a.wait_min)
+        try:
+            d, t, ok = resolve(a.date, a.time, a.wait_min)
+        except C.CycleUnavailable as e:
+            print(f"::error::{e}", flush=True)
+            return 1
         print(f"cycle {d} {t}Z: IFS-ENS {'on the Google mirror' if ok else 'NOT on the Google mirror'}", flush=True)
         if a.github_output and os.environ.get("GITHUB_OUTPUT"):
             with open(os.environ["GITHUB_OUTPUT"], "a") as fh:

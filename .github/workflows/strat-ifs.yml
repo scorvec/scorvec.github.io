@@ -66,7 +66,8 @@ concurrency:
 
 jobs:
   # ---------------------------------------------------------------- cycle ---
-  # The cycle strat.yml is on (newest 00/12Z with AIFS-ENS day 15 on Google), then up to 45 min for IFS day 15 there.
+  # The cycle strat.yml is on - the newest 00/12Z whose AIFS-ENS is completely on Google, by the same shared rule
+  # (scripts/ecmwf/cycles.py) strat.yml's cycle job uses - then up to 45 min for IFS-ENS to be complete there too.
   cycle:
     runs-on: ubuntu-latest
     timeout-minutes: 55

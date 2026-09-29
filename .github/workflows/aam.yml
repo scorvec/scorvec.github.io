@@ -62,15 +62,14 @@ jobs:
           set -euo pipefail
           D="${{ github.event.inputs.date }}"; T="${{ github.event.inputs.time }}"
           if [ -z "$D" ] || [ -z "$T" ]; then
-            # newer ecmwf-opendata writes a progress bar to stdout with no trailing
-            # newline, so the value goes through a file, not stdout.
-            python -c "from download_aifs import latest_run; d,t=latest_run(); open('/tmp/cyc','w').write(f'{d} {t}')" \
-              >/dev/null 2>/tmp/probe.err || true
+            # Availability, not the clock (2026-09-28): the shared resolver takes the newest cycle whose every step
+            # is on the Google mirror (scripts/ecmwf/cycles.py) and logs why it passed over a newer one.
+            python ../../ecmwf/cycles.py --profile aifs-ens --out /tmp/cyc || true
             D=$(awk '{print $1}' /tmp/cyc 2>/dev/null || true)
             T=$(awk '{print $2}' /tmp/cyc 2>/dev/null || true)
           fi
           if ! echo "$D" | grep -qE '^[0-9]{8}$' || ! echo "$T" | grep -qE '^(00|12)$'; then
-            echo "ERROR: bad cycle (D='$D' T='$T')" >&2; tail -40 /tmp/probe.err >&2 || true; exit 1
+            echo "ERROR: no ready cycle (D='$D' T='$T') - see the resolver's lines above" >&2; exit 1
           fi
           echo "date=$D" >> "$GITHUB_OUTPUT"; echo "time=$T" >> "$GITHUB_OUTPUT"
           echo "cycle: $D ${T}Z"

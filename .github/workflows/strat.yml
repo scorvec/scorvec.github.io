@@ -25,7 +25,11 @@ name: Stratosphere (vortex, wave-1, E-P flux)
 #
 # The cycle is resolved ONCE, in its own job, and passed to both. Resolving it
 # per-job would let a cycle published between them put the two halves of the
-# page on different initialisations.
+# page on different initialisations. It is chosen by AVAILABILITY, not the
+# clock (2026-09-28): scripts/ecmwf/cycles.py takes the newest cycle whose
+# every AIFS-ENS step (pf and cf, to day 15) is on the Google mirror, falling
+# back up to two cycles. strat-ifs.yml resolves with the same rule, so both
+# workflows land on the same initialisation.
 #
 # Publishing is likewise a SINGLE job. Both the frames push and the commit to
 # main are force-push / rebase operations on shared refs: two render jobs
@@ -90,9 +94,9 @@ jobs:
           restore-keys: |
             pip-mjo-${{ runner.os }}-
 
-      # The full requirements, not just ecmwf-opendata: download_aifs imports
-      # the shared store module at module scope, so a targeted install would
-      # break on its transitive imports. ~1 min against the pip cache.
+      # The resolver (scripts/ecmwf/cycles.py) needs only requests; the full set
+      # is installed anyway so a manual `latest_run` probe here still imports.
+      # ~1 min against the pip cache.
       - name: Python dependencies
         run: pip install -r scripts/mjo/requirements-mjo.txt
 
@@ -103,16 +107,14 @@ jobs:
           set -euo pipefail
           D="${{ github.event.inputs.date }}"; T="${{ github.event.inputs.time }}"
           if [ -z "$D" ] || [ -z "$T" ]; then
-            # Written to a file, not stdout: newer ecmwf-opendata emits a progress
-            # bar with no trailing newline and corrupts stdout parsing (same trick
-            # mjo.yml uses).
-            python -c "from download_aifs import latest_run; d,t=latest_run(); open('/tmp/cyc','w').write(f'{d} {t}')" \
-              >/dev/null 2>/tmp/probe.err || true
+            # Availability, not the clock (2026-09-28): the shared resolver takes the newest cycle whose every step
+            # is on the Google mirror (scripts/ecmwf/cycles.py) and logs why it passed over a newer one.
+            python ../../ecmwf/cycles.py --profile aifs-ens --out /tmp/cyc || true
             D=$(awk '{print $1}' /tmp/cyc 2>/dev/null || true)
             T=$(awk '{print $2}' /tmp/cyc 2>/dev/null || true)
           fi
           if ! echo "$D" | grep -qE '^[0-9]{8}$' || ! echo "$T" | grep -qE '^(00|12)$'; then
-            echo "ERROR: bad cycle (D='$D' T='$T')" >&2; tail -40 /tmp/probe.err >&2 || true; exit 1
+            echo "ERROR: no ready cycle (D='$D' T='$T') - see the resolver's lines above" >&2; exit 1
           fi
           echo "date=$D" >> "$GITHUB_OUTPUT"; echo "time=$T" >> "$GITHUB_OUTPUT"
           echo "cycle: $D ${T}Z"
