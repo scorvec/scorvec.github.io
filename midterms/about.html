@@ -199,7 +199,7 @@ a:focus-visible{outline:2px solid var(--d);outline-offset:2px}
 const $=s=>document.querySelector(s);const mg=v=>(v>=0?'D+':'R+')+Math.abs(v).toFixed(1);const sg=v=>(v>=0?'+':'')+(+v).toFixed(1);
 fetch('data/model.json').then(r=>r.json()).then(D=>{const H=D.house,P=D.polls;
  $('#sslope').textContent=D.senate.nat_slope;if(D.governor)$('#gslope').textContent=`about ${(+D.governor.slope).toFixed(2)} points`;
- $('#agg').innerHTML=`Published generic-ballot averages: ${D.generic.filter(a=>!/^average$/i.test(a.source)).map(a=>`${a.source} ${mg(a.margin)}`).join('; ')}. Our poll trend: <b>${P?mg(P.generic_now):'?'}</b>${P&&P.bias?`, adjusted ${sg(P.bias)} for self-reported turnout`:''}, giving a model environment of <b>${mg(H.E_now)}</b> (the slider starts at the nearest half point, ${mg(H.E0)}).`;
+ $('#agg').innerHTML=`Published generic-ballot averages: ${D.generic.filter(a=>!/^average$/i.test(a.source)).map(a=>`${a.source} ${mg(a.margin)}`).join('; ')}. Our poll trend: <b>${P?mg(P.generic_now):'?'}</b>${P&&P.bias?`, adjusted ${sg(P.bias)} for self-reported turnout`:''}, giving a model environment of <b>${mg(H.E_now)}</b> (the slider starts there; its half-point steps are centred on today's value).`;
  if(P){const g=P.generic_diag;
   $('#pnote').innerHTML=`Generic ballot today <b>${mg(g.now)}</b>; 30 days ago ${mg(g['30d_ago'])}, 60 days ${mg(g['60d_ago'])}, 90 days ${mg(g['90d_ago'])}. ${P.n_generic} polls through ${P.last_generic}. Over the last 30 days the raw average moved ${sg(g.raw_change_30d)}, and ${sg(g.adj_change_30d)} after removing changes in which pollsters were in the field.`;
   const sh=[['Democrats',g.dem_30d,g.dem_30d_ago],['Republicans',g.rep_30d,g.rep_30d_ago],['Undecided or other',g.und_30d,g.und_30d_ago]];
