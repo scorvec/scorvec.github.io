@@ -614,6 +614,40 @@
       <span class="chart-updated" id="polarUpdated">&mdash;</span>
     </div>
   </div>
+  <div class="card" id="regimeCard" hidden data-label="Weather regimes" data-group="SEAS5 &middot; Teleconnections &amp; stratosphere">
+    <h2>Weather regimes: how often each circulation pattern occurs, against SEAS5&rsquo;s own climate</h2>
+    <p class="note">The four winter weather regimes of the <a href="subseasonal.html">subseasonal pages</a> &mdash; the same
+    k-means clusters of 5-day-mean 500&nbsp;hPa anomalies (NCEP/NCAR R1 1991&ndash;2020), for North America and the
+    Pacific and for the Euro-Atlantic sector &mdash; counted day by day in every SEAS5 member. Each member-day is read
+    against SEAS5&rsquo;s <b>own</b> climate at the same start and lead (its whole 1981&ndash;2016 hindcast, 25 members, 36 years), so
+    the model&rsquo;s own bias in how often it produces each regime cancels, and the height trend is taken out first so
+    warming does not masquerade as ridging. A dot is the forecast&rsquo;s departure from that climate in percentage
+    points of days, with the 90&nbsp;% range from resampling the members. <b>A shift is coloured only where it is
+    meaningful</b>: the hindcast, one year held out at a time, must show that SEAS5&rsquo;s predicted regime shifts
+    correlate with what ERA5 then observed (significant after a false-discovery correction across every cell, green
+    columns), and the member range must clear zero. Everything else is grey, and a hatched column is one where the
+    hindcast has shown no skill. Black diamonds are what strong El Ni&ntilde;o winters actually did (ERA5 1959&ndash;2025,
+    1982 and 1991 left out for El Chich&oacute;n and Pinatubo; hollow where that composite is not significant); open circles
+    are SEAS5&rsquo;s own hindcasts of the same winters.</p>
+    <div class="controls" id="rgSector"></div>
+    <div class="idx-note" id="rgSummary"></div>
+    <div class="map-grid" id="rgFig"></div>
+    <p class="note" style="margin-top:0.8rem"><b>Hindcast skill</b>: correlation, over the 36 hindcast years, of SEAS5&rsquo;s
+    predicted frequency anomaly (each year held out of the model climate) with the observed one, with its 90&nbsp;% bootstrap
+    interval; printed only where it passes the false-discovery test (q&nbsp;=&nbsp;0.10), &ldquo;n.s.&rdquo; elsewhere.
+    RPC is the ratio of predictable components: above 1 the forecast is more skilful than its own spread implies, i.e. its
+    shifts are too small &mdash; the seasonal &ldquo;signal-to-noise paradox&rdquo;.</p>
+    <div style="overflow-x:auto"><table class="chg" id="rgTable" style="max-width:none"></table></div>
+    <p class="note" style="margin-top:0.8rem"><b>El Ni&ntilde;o winters in the hindcast</b> (<span id="rgNinoYears"></span>):
+    the frequency shift SEAS5 predicted in those winters and the shift ERA5 observed, in percentage points, each against
+    random sets of the same number of hindcast years; a number is printed only where it passes the false-discovery test.</p>
+    <div style="overflow-x:auto"><table class="chg" id="rgNino" style="max-width:none"></table></div>
+    <p class="note" id="rgTests"></p>
+    <div class="chart-card-footer">
+      <span class="chart-sources">ECMWF SEAS5 500 hPa height, 12-hourly, 51 members, 2.5&deg; &middot; model climate: the 1981&ndash;2016 hindcast (25 members) &middot; regimes: NCEP/NCAR R1 1991&ndash;2020 &middot; observed: ERA5</span>
+      <span class="chart-updated" id="rgUpdated">&mdash;</span>
+    </div>
+  </div>
   <div class="card" id="aboutCard" data-label="About this page" data-group="About">
     <h2>What this page reads, and how</h2>
     <p class="note" style="max-width:80ch;font-size:0.9rem;line-height:1.65">ECMWF&rsquo;s seasonal system, read in full and checked against observations: the ENSO
@@ -642,12 +676,12 @@
     means weight every SYSTEM equally, never every member, so a 124-member ensemble does not speak for the group.</p>
     <p>Forecast: ECMWF SEAS5 (C3S <code>originating_centre=ecmwf</code>, <code>system=51</code>), 51 members, monthly means for lead months 1&ndash;6 and the 6-hourly 2 m temperature, from the Copernicus Climate Data Store; hindcast: the same system&rsquo;s 1993&ndash;2016 re-forecasts, 25 members, for the same start month, and likewise for the previous issue. Sea-surface temperature, 500 and 1000 hPa height, sea-level pressure and stratospheric winds on a 2&deg; grid; 2 m temperature, precipitation, evaporation, 10 m wind, solar radiation and 500 hPa height on a 1&deg; grid over the Americas; geopotential at 10, 50 and 100 hPa poleward of 60&deg; in each hemisphere.</p>
     <p>Observations: ERA5 from a local archive (daily 1.5&deg; fields, 1959 or 1991 to the present depending on the field), monthly-meaned for normals, trends, records and skill; CPC ERSSTv5 for the observed Ni&ntilde;o indices. Teleconnection projectors are the CPC-style regression patterns built for the GEPS page on NCEP/NCAR R1 (1991&ndash;2020). Population weights: geonames places of 15,000 or more people.</p>
-    <p>Method: indices are cosine-weighted box means; anomalies are member minus hindcast mean at the same lead (member minus the hindcast&rsquo;s linear trend for geopotential heights, which carry the warming signal). Relative Ni&ntilde;o-3.4 follows the CPC/ECMWF construction used elsewhere on this site; the Trans-Ni&ntilde;o index is Trenberth &amp; Stepaniak (2001), standardised by the hindcast spread. Terciles against the hindcast use the 33.3rd and 66.7th percentiles of the 600 hindcast samples per grid point; against observed references the members are first bias-corrected (member &minus; hindcast mean + ERA5 1993&ndash;2016 mean, multiplicatively for rain and sunshine) and the bounds are &plusmn;0.43&sigma; of the observed 1991&ndash;2020 spread around the reference (detrended for the trend reference; empirical percentiles for rain and sunshine). Standardised anomalies divide the ensemble-mean anomaly by the reference&rsquo;s year-to-year standard deviation. Skill is the correlation of the 24 hindcast years&rsquo; ensemble mean with ERA5 at the valid month. Teleconnection phase probabilities are calibrated by regressing the observed monthly index (ERA5, same projection) on the hindcast ensemble mean over those 24 years for each calendar month and lead, and reading the ±0.5&sigma; tail areas of a Gaussian centred on the regression prediction with the residual spread &mdash; an in-sample fit at n&nbsp;=&nbsp;24, so the quoted r is slightly optimistic; below r&nbsp;=&nbsp;0.25 the probabilities are treated as climatology. The AO, EPO, WPO and SOI, which have no built-in standardisation, are expressed in ERA5&rsquo;s 1991&ndash;2020 standard deviation for the calendar month, applied identically to model and observations. Built by <code>scripts/sst/seas5_outlook.py</code> and its companions; the JSON behind the charts: <a href="assets/sst/data/seas5_outlook.json">seas5_outlook.json</a>, <a href="assets/sst/data/seas5_tele.json">seas5_tele.json</a>, <a href="assets/sst/data/seas5_popT.json">seas5_popT.json</a>, <a href="assets/sst/data/seas5_pme_regions.json">seas5_pme_regions.json</a>, <a href="assets/sst/data/seas5_normals.json">seas5_normals.json</a>.</p>
+    <p>Method: indices are cosine-weighted box means; anomalies are member minus hindcast mean at the same lead (member minus the hindcast&rsquo;s linear trend for geopotential heights, which carry the warming signal). Relative Ni&ntilde;o-3.4 follows the CPC/ECMWF construction used elsewhere on this site; the Trans-Ni&ntilde;o index is Trenberth &amp; Stepaniak (2001), standardised by the hindcast spread. Terciles against the hindcast use the 33.3rd and 66.7th percentiles of the 600 hindcast samples per grid point; against observed references the members are first bias-corrected (member &minus; hindcast mean + ERA5 1993&ndash;2016 mean, multiplicatively for rain and sunshine) and the bounds are &plusmn;0.43&sigma; of the observed 1991&ndash;2020 spread around the reference (detrended for the trend reference; empirical percentiles for rain and sunshine). Standardised anomalies divide the ensemble-mean anomaly by the reference&rsquo;s year-to-year standard deviation. Skill is the correlation of the 24 hindcast years&rsquo; ensemble mean with ERA5 at the valid month. Teleconnection phase probabilities are calibrated by regressing the observed monthly index (ERA5, same projection) on the hindcast ensemble mean over those 24 years for each calendar month and lead, and reading the ±0.5&sigma; tail areas of a Gaussian centred on the regression prediction with the residual spread &mdash; an in-sample fit at n&nbsp;=&nbsp;24, so the quoted r is slightly optimistic; below r&nbsp;=&nbsp;0.25 the probabilities are treated as climatology. The AO, EPO, WPO and SOI, which have no built-in standardisation, are expressed in ERA5&rsquo;s 1991&ndash;2020 standard deviation for the calendar month, applied identically to model and observations. Built by <code>scripts/sst/seas5_outlook.py</code> and its companions; the JSON behind the charts: <a href="assets/sst/data/seas5_outlook.json">seas5_outlook.json</a>, <a href="assets/sst/data/seas5_tele.json">seas5_tele.json</a>, <a href="assets/sst/data/seas5_popT.json">seas5_popT.json</a>, <a href="assets/sst/data/seas5_pme_regions.json">seas5_pme_regions.json</a>, <a href="assets/sst/data/seas5_normals.json">seas5_normals.json</a>, <a href="assets/sst/data/seas5_regimes.json">seas5_regimes.json</a>.</p>
     <p>Contains modified Copernicus Climate Change Service information 2026. Neither the European Commission nor ECMWF is responsible for any use of this information.</p>
   </div>
 <script>
 window.STAGE = {
-  groups: [{"label": "Every model", "items": [["c3sMapCard", "Anomaly maps", ""], ["c3sTercCard", "Tercile probabilities", ""], ["c3sIdxCard", "Ocean indices", ""], ["c3sPopCard", "Population-weighted, monthly", ""], ["c3sDayCard", "Population-weighted, daily", ""], ["ni-o-3-4-every-member", "Niño-3.4, every member", ""]]}, {"label": "SEAS5 · ENSO & oceans", "items": [["enso-indices", "ENSO indices", ""], ["pdo-amo-iod-atlantic-ni-o", "PDO, AMO, IOD, Atlantic Niño", ""]]}, {"label": "SEAS5 · Maps", "items": [["changeCard", "Maps and changes", ""], ["calibrated-terciles", "Calibrated terciles", ""], ["normCard", "Against observed normals", ""]]}, {"label": "SEAS5 · Teleconnections & stratosphere", "items": [["teleCard", "Teleconnection indices", ""], ["stratCard", "Vortex, QBO, annular mode", ""], ["polar-stratosphere", "Polar stratosphere", ""]]}, {"label": "SEAS5 · Impacts", "items": [["popCard", "Population-weighted, daily", ""], ["xdaysCard", "Threshold days", ""], ["runsCard", "Cold-snap risk", ""], ["windCard", "Wind events", ""], ["snowCard", "Snowfall", ""], ["pmeCard", "P − E by region", ""]]}, {"label": "About", "items": [["aboutCard", "About this page", ""]]}],
+  groups: [{"label": "Every model", "items": [["c3sMapCard", "Anomaly maps", ""], ["c3sTercCard", "Tercile probabilities", ""], ["c3sIdxCard", "Ocean indices", ""], ["c3sPopCard", "Population-weighted, monthly", ""], ["c3sDayCard", "Population-weighted, daily", ""], ["ni-o-3-4-every-member", "Niño-3.4, every member", ""]]}, {"label": "SEAS5 · ENSO & oceans", "items": [["enso-indices", "ENSO indices", ""], ["pdo-amo-iod-atlantic-ni-o", "PDO, AMO, IOD, Atlantic Niño", ""]]}, {"label": "SEAS5 · Maps", "items": [["changeCard", "Maps and changes", ""], ["calibrated-terciles", "Calibrated terciles", ""], ["normCard", "Against observed normals", ""]]}, {"label": "SEAS5 · Teleconnections & stratosphere", "items": [["teleCard", "Teleconnection indices", ""], ["stratCard", "Vortex, QBO, annular mode", ""], ["polar-stratosphere", "Polar stratosphere", ""], ["regimeCard", "Weather regimes", ""]]}, {"label": "SEAS5 · Impacts", "items": [["popCard", "Population-weighted, daily", ""], ["xdaysCard", "Threshold days", ""], ["runsCard", "Cold-snap risk", ""], ["windCard", "Wind events", ""], ["snowCard", "Snowfall", ""], ["pmeCard", "P − E by region", ""]]}, {"label": "About", "items": [["aboutCard", "About this page", ""]]}],
   products: {
     "c3sMapCard": { label: "Anomaly maps", gated: true, dom: function () { return "c3sMapCard"; } },
     "c3sTercCard": { label: "Tercile probabilities", gated: true, dom: function () { return "c3sTercCard"; } },
@@ -669,6 +703,7 @@ window.STAGE = {
     "pmeCard": { label: "P − E by region", gated: true, dom: function () { return "pmeCard"; } },
     "normCard": { label: "Against observed normals", gated: true, dom: function () { return "normCard"; } },
     "polar-stratosphere": { label: "Polar stratosphere", gated: true, dom: function () { return "polar-stratosphere"; } },
+    "regimeCard": { label: "Weather regimes", gated: true, dom: function () { return "regimeCard"; } },
     "aboutCard": { label: "About this page", gated: true, dom: function () { return "aboutCard"; } }
   }
 };
@@ -1626,6 +1661,65 @@ window.STAGE = {
     }
     draw();
   }).catch(function () { var c = document.getElementById("c3sDayCard"); if (c) c.hidden = true; });
+})();
+</script>
+
+<script>
+/* SEAS5 weather-regime frequencies vs SEAS5's own climate (scripts/sst/seas5_regimes.py, 2026-09-28). */
+(function () {
+  var sel = "na";
+  fetch("assets/sst/data/seas5_regimes.json?v=" + Date.now()).then(function (r) { return r.ok ? r.json() : null; }).then(function (J) {
+    if (!J || !J.sectors) return;
+    var card = document.getElementById("regimeCard");
+    function esc(t) { return String(t).replace(/&/g, "&amp;").replace(/</g, "&lt;"); }
+    function draw() {
+      var S = J.sectors[sel];
+      var host = document.getElementById("rgSector"); host.innerHTML = "";
+      ["na", "ea"].forEach(function (k) {
+        if (!J.sectors[k]) return;
+        var b = document.createElement("button"); b.className = "pill" + (k === sel ? " on" : "");
+        b.textContent = J.sectors[k].label; b.onclick = function () { sel = k; draw(); }; host.appendChild(b);
+      });
+      document.getElementById("rgSummary").innerHTML = (J.summary[sel] || []).map(function (l) { return "<p>" + esc(l) + "</p>"; }).join("");
+      document.getElementById("rgFig").innerHTML = '<figure><img loading="lazy" src="assets/sst/seas5_regimes_' + sel + '.webp?v=' +
+        encodeURIComponent(J.generated) + '" alt="SEAS5 ' + esc(J.issue_label) + ' start: weather-regime frequency against SEAS5 climate, ' + esc(S.label) + '"></figure>';
+      var tg = S.targets.filter(function (t) { return t.set === J.main_set; });
+      var names = S.names[J.main_set];
+      var h = "<tr><th>Regime</th>" + tg.map(function (t) { return "<th>" + esc(t.label) + "</th>"; }).join("") + "</tr>";
+      for (var k = 0; k < names.length; k++) {
+        h += "<tr><td>" + (k + 1) + ". " + esc(names[k]) + "</td>";
+        tg.forEach(function (t) {
+          var r = t.regimes[k], s = r.skill;
+          if (s.fdr) h += '<td title="p ' + s.p + '"><b>' + s.r.toFixed(2) + "</b> <span style=\"color:var(--muted)\">(" + s.r_lo.toFixed(2) + " to " + s.r_hi.toFixed(2) + ")" + (s.rpc != null ? " &middot; RPC " + s.rpc.toFixed(1) : "") + "</span></td>";
+          else h += '<td class="flat">n.s.</td>';
+        });
+        h += "</tr>";
+      }
+      document.getElementById("rgTable").innerHTML = h;
+      var seas = S.targets.filter(function (t) { return t.set === J.main_set && t.kind === "season"; });
+      var g = "<tr><th>Regime</th>" + seas.map(function (t) { return "<th>" + esc(t.label) + "</th>"; }).join("") + "</tr>";
+      for (var k2 = 0; k2 < names.length; k2++) {
+        g += "<tr><td>" + (k2 + 1) + ". " + esc(names[k2]) + "</td>";
+        seas.forEach(function (t) {
+          var c = (t.regimes[k2].enso_hindcast || {}).el_nino;
+          if (!c) { g += '<td class="flat">&mdash;</td>'; return; }
+          var pp = c.fdr_pred ? (c.pred > 0 ? "+" : "") + c.pred.toFixed(0) : "n.s.";
+          var oo = c.fdr_obs ? (c.obs > 0 ? "+" : "") + c.obs.toFixed(0) : "n.s.";
+          g += "<td>SEAS5 " + pp + " &middot; obs " + oo + "</td>";
+        });
+        g += "</tr>";
+      }
+      document.getElementById("rgNino").innerHTML = g;
+      document.getElementById("rgNinoYears").textContent = ((J.enso || {}).hindcast_years || {}).el_nino ? J.enso.hindcast_years.el_nino.join(", ") : "";
+      var T = J.tests || {};
+      document.getElementById("rgTests").textContent = T.skill ? ("Tests this issue, each family corrected for false discoveries at q = 0.10: " +
+        T.skill.n + " skill correlations (" + T.skill.fdr_significant + " significant), " + T.enso_hindcast.n + " El Niño / La Niña hindcast composites (" +
+        T.enso_hindcast.fdr_significant + "), " + T.observed_strong_el_nino.n + " observed strong-El Niño composites (" + T.observed_strong_el_nino.fdr_significant + ").") : "";
+      document.getElementById("rgUpdated").textContent = J.issue_label + " start \u00b7 built " + J.generated;
+    }
+    draw();
+    card.hidden = false;
+  }).catch(function () {});
 })();
 </script>
 

@@ -37,6 +37,10 @@ fi
 "$PY" seas5_era5.py >> "$LOG" 2>&1 || echo "  ERA5 reference pull incomplete (normals/skill degrade gracefully)" >> "$LOG"   # cached; a no-op after the first run
 "$PY" seas5_tele.py --issue "$ISSUE" >> "$LOG" 2>&1 || echo "  teleconnections FAILED" >> "$LOG"
 "$PY" seas5_normals.py --issue "$ISSUE" >> "$LOG" 2>&1 || echo "  normals FAILED" >> "$LOG"
+# weather-regime frequencies vs SEAS5's own climate (500 hPa, 2.5 deg sectors; the hindcast of a new start month is
+# twelve sequential CDS requests for 1981-2016, ~1.6 GB, cached after the first run)
+"$PY" seas5_regimes_fetch.py all --issue "$ISSUE" >> "$LOG" 2>&1 || echo "  regimes fetch incomplete" >> "$LOG"
+"$PY" seas5_regimes.py --issue "$ISSUE" >> "$LOG" 2>&1 || echo "  regimes FAILED (main products still publish)" >> "$LOG"
 # population-weighted temperature distributions from the 6-hourly members (US, Brazil); best-effort
 "$PY" seas5_popT.py all --issue "$ISSUE" >> "$LOG" 2>&1 || echo "  popT FAILED (main products still publish)" >> "$LOG"
 # threshold days (US cold days, Brazil hot days) from the daily extremes; CPC normals are cached after the first run
@@ -58,7 +62,7 @@ fi
   && { git diff --staged --quiet && echo "  no change to publish" && exit 0; \
        git -c user.name="Shawn Corvec" -c user.email="26825570+scorvec@users.noreply.github.com" \
            commit -q -m "data update: SEAS5 ${ISSUE:0:4}-${ISSUE:4:2} issue" \
-       && git pull -q --rebase --autostash origin main && git push -q origin HEAD:main \
+       && git pull -q --no-rebase --autostash origin main && git push -q origin HEAD:main \
        && echo "  published $ISSUE"; } ) >> "$LOG" 2>&1 \
   || echo "  (publish FAILED — commit assets/sst/seas5_* by hand)" >> "$LOG"
 tail -3 "$LOG"
