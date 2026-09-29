@@ -90,15 +90,15 @@ def to_1deg(p: np.ndarray) -> np.ndarray:
 
 def fetch_day(url: str, tries: int = 4) -> np.ndarray | None:
     """One day, validated: tropical mean 1.5–6 mm/day, ≥ 95 % valid cells, max < 1000 mm/day."""
-    import io
-    import h5py
-    s = session()
+    import netCDF4                          # not h5py: two HDF5 libraries in one process (h5py's + netCDF4's wheels)
+    s = session()                           # abort with "double free or corruption" at exit on the Actions runner
     for k in range(tries):
         try:
             r = s.get(url + ".nc4?" + QUERY, timeout=120)
             r.raise_for_status()
-            with h5py.File(io.BytesIO(r.content), "r") as f:
-                a = f["precipitation"][0].astype("float32")                      # (lon, lat)
+            with netCDF4.Dataset("imerg.nc4", mode="r", memory=r.content) as f:
+                v = f.variables["precipitation"]; v.set_auto_maskandscale(False)
+                a = np.asarray(v[0]).astype("float32")                            # (lon, lat)
             if a.shape != (3600, 600):
                 raise ValueError(f"shape {a.shape}")
             g = to_1deg(a)
