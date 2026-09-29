@@ -221,7 +221,7 @@ tbody tr{cursor:pointer}tbody tr:hover{background:#f3f2ee}
  <div><span class="upd" id="upd">loading…</span> &nbsp;<a href="polls.html">Every poll and its weight</a> &nbsp;<a href="about.html">How the forecast works</a></div></header>
 
 <section class="mt-mood" aria-label="National mood and outcomes">
- <p class="q">National mood simulation: <output id="Ev" for="E">…</output><button class="mt-reset" id="reset" type="button">Back to today's polls</button></p>
+ <p class="q">National mood: <output id="Ev" for="E">…</output><button class="mt-reset" id="reset" type="button">Back to today's polls</button></p>
  <p class="qs" id="Evs"></p>
  <div class="mt-bar"><input type="range" id="E" min="-10" max="14" step="0.5" aria-label="National mood: Democratic lead in the generic ballot, points">
   <span class="mt-tick" id="tick0">Even</span><span class="mt-tick today" id="tickT">Today's polls</span></div>
@@ -358,11 +358,10 @@ function tipAt(e,h){const t=$('#tip');t.style.display='block';t.style.left=(e.cl
 
 function render(){const H=D.house;E=+$('#E').value;gi=H.grid.reduce((b,x,i)=>Math.abs(x-E)<Math.abs(H.grid[b]-E)?i:b,0);E=H.grid[gi];
  $('#Ev').textContent=Math.abs(E)<0.05?'Even':(E>0?`Democrats +${E.toFixed(1)}`:`Republicans +${Math.abs(E).toFixed(1)}`);
- $('#Evs').textContent='20,000 simulated elections centred on '+(Math.abs(E)<0.05?'an evenly split national vote for the House':
-   `voters nationwide preferring ${E>0?'Democratic':'Republican'} House candidates by ${Math.abs(E).toFixed(1)} points`)+
-   ', each with its own national polling miss, typically about ±4 points.'+
-   (Math.abs(E-H.E0)<1e-6?" This is where today's polls put it.":" Today's polls put it at "+(H.E0>=0?'Democrats +':'Republicans +')+Math.abs(H.E0).toFixed(1)+'.')+
-   ' Drag the bar to simulate a better or worse year for either party.';document.documentElement.style.setProperty('--ev',E>=0?'#0b3d91':'#a32215');
+ {const P=D.polls,mg1=v=>Math.abs(v)<0.05?'even':(v>0?'Democrats +':'Republicans +')+Math.abs(v).toFixed(1),at=Math.abs(E-H.E0)<1e-6;
+  $('#Evs').innerHTML=(at?`The national mood is our estimate of how the country would vote for the House <b>right now</b>: the generic-ballot polling average${P?` (${mg1(P.generic_now)}, after correcting for each pollster's lean)`:''}${P&&P.bias?`, minus ${Math.abs(P.bias).toFixed(1)} for voters who overstate how likely they are to turn out`:''}, which gives <b>${mg1(H.E0)}</b>. `
+   :`Today's polls put the national mood at ${mg1(H.E0)}; this shows what changes if it were really <b>${mg1(E)}</b> instead. `)+
+   `It is a starting point, not an assumed result: each of the 20,000 simulated elections lets the actual national vote land away from it, typically within about ±4 points, because polls miss and opinion moves before November. Every race then gets its own error on top.`+(at?' Drag the bar to see the chances if the mood today were better or worse for either party.':'')}document.documentElement.style.setProperty('--ev',E>=0?'#0b3d91':'#a32215');
  $('#reset').style.visibility=Math.abs(E-H.E0)<1e-6?'hidden':'visible';
  const k=H.keys?H.keys[gi]:E.toFixed(1),hd=H.dist[k],sd=D.senate.dist[k],gd=D.governor?D.governor.dist[k]:null,jt=D.senate.joint?D.senate.joint[k]:null;
  $('#oH').textContent=pct(hd.p_maj);$('#oHs').textContent=`${hd.mean.toFixed(0)} seats expected (${hd.p10}–${hd.p90}); 218 needed`;
