@@ -120,6 +120,13 @@ if git rev-parse -q --verify "origin/$BRANCH" >/dev/null; then
   # The branch is one orphan commit, so every file on it shares this date.
   # Local frames OLDER than it are stale leftovers, not a fresh render.
   branch_epoch=$(git log -1 --format=%ct "origin/$BRANCH" 2>/dev/null || echo 0)
+  # The staleness clock is THIS publisher's last successful publish, when known
+  # ($STAMP.at). DIRS are laptop-only, so the branch's copy of them is exactly as old
+  # as that publish. The branch commit date is the wrong clock: every CI loop moves
+  # it, so frames that failed to publish for 12 h (2026-09-28: the 2 GiB pack limit)
+  # became "stale" and the branch kept the Sep 24 GEPS under the Sep 28 manifest.
+  ref_epoch=$(cat "$STAMP.at" 2>/dev/null || echo "$branch_epoch")
+  case "$ref_epoch" in ''|*[!0-9]*) ref_epoch=$branch_epoch ;; esac
   for d in "${DIRS[@]}"; do
     # every immediate subdirectory of an anim root on the branch
     for sub in $(git ls-tree --name-only "origin/$BRANCH" "$d/" 2>/dev/null); do
@@ -138,10 +145,10 @@ if git rev-parse -q --verify "origin/$BRANCH" >/dev/null; then
         # reject frames this machine had rendered perfectly well an hour before
         # some unrelated runner pushed. Everything here renders at least daily,
         # so "more than 12 h older than the branch" is staleness, not lag.
-        if [ "$newest" -ge $(( branch_epoch - 43200 )) ]; then
+        if [ "$newest" -ge $(( ref_epoch - 43200 )) ]; then
           continue                                    # freshly rendered here: ours wins
         fi
-        age_h=$(( (branch_epoch - newest) / 3600 ))
+        age_h=$(( (ref_epoch - newest) / 3600 ))
         echo "  $name: local copy is ${age_h}h stale - keeping the branch's"
       fi
       case " $PRUNE " in *" $name "*)
@@ -243,9 +250,10 @@ BASE=$(git rev-parse -q --verify "origin/$BRANCH^{commit}" 2>/dev/null || true)
 )
 rc=$?
 [ "$rc" = "3" ] && { echo "frames push skipped (branch moved); next tick retries"; exit 0; }
-[ "$rc" = "5" ] && { [ "${DRY:-0}" = "1" ] || echo "$FP" > "$STAMP"; exit 0; }
+[ "$rc" = "5" ] && { [ "${DRY:-0}" = "1" ] || { echo "$FP" > "$STAMP"; date +%s > "$STAMP.at"; }; exit 0; }
 [ "$rc" = "0" ] || { echo "frames push FAILED (a 'stale info' rejection means the branch moved: next tick retries)"; exit 1; }
 [ "${DRY:-0}" = "1" ] && exit 0                    # a dry run leaves the stamp alone
 
 echo "$FP" > "$STAMP"
+date +%s > "$STAMP.at"
 echo "published $n frames to '$BRANCH'"
