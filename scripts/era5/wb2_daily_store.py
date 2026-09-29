@@ -14,6 +14,7 @@ Per-variable yearly files:
   u200 / v200  daily-mean 200 hPa wind (m/s)
   zplev geopotential height at all 13 WB2 levels (time, level, lat, lon; m)
   slp   mean sea-level pressure, daily mean (hPa)
+  u250 / v250  daily-mean 250 hPa wind (m/s)
 
 Sources: WB2 ERA5 1.5° 6-hourly (1959-2023), ARCO 0.25° subsampled ::6 for the
 tail (2023->present). Resumable: complete (var, year) files are skipped, so
@@ -41,7 +42,7 @@ WB2 = ("gs://weatherbench2/datasets/era5/"
 ARCO = "gs://gcp-public-data-arco-era5/ar/full_37-1h-0p25deg-chunk-1.zarr-v3"
 G = 9.80665
 
-VARS = ("z500", "t2m", "prcp", "u200", "v200", "u850", "v850", "zplev", "slp")
+VARS = ("z500", "t2m", "prcp", "u200", "v200", "u850", "v850", "zplev", "slp", "u250", "v250")
 LEVS13 = [50, 100, 150, 200, 250, 300, 400, 500, 600, 700, 850, 925, 1000]
 
 
@@ -75,6 +76,10 @@ def open_fields(source):
         "u850": ds["u_component_of_wind"].sel(level=850),
         "v850": ds["v_component_of_wind"].sel(level=850),
         "zplev": ds["geopotential"].sel(level=LEVS13) / G,
+        # 250 hPa added 2026-09-28 for the North Pacific jet product (Winters et al. 2019 define the
+        # jet phases at 250 hPa, and the ECMWF open-data members the site already fetches include it).
+        "u250": ds["u_component_of_wind"].sel(level=250),
+        "v250": ds["v_component_of_wind"].sel(level=250),
         "slp": ds["mean_sea_level_pressure"] / 100.0,
     }
     out = {k: (v if k == "zplev" else v.drop_vars("level", errors="ignore"))

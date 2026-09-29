@@ -268,7 +268,11 @@ jobs:
       - name: Python dependencies
         run: pip install -r scripts/mjo/requirements-mjo.txt
 
+      # PACJET_IFS_DIR: the stream also leaves the 250 hPa u/v sector of every member for the North Pacific jet below
+      # (no extra download).
       - name: E-P flux loop (IFS-ENS, streamed)
+        env:
+          PACJET_IFS_DIR: /tmp/pacjet_ifs
         run: |
           start=$(date +%s)
           python scripts/strat/qbo_duct.py --model ifs \
@@ -286,6 +290,12 @@ jobs:
           python scripts/strat/qbo_zeroline.py render \
             || echo "::warning::zero-line render failed; keeping the previous figures"
 
+      - name: North Pacific jet (IFS-ENS)
+        run: |
+          python scripts/mjo/src/pacjet.py --model ifs --ifs-dir /tmp/pacjet_ifs \
+            --date "${{ needs.cycle.outputs.date }}" --time "${{ needs.cycle.outputs.time }}" \
+            || echo "::warning::North Pacific jet (IFS-ENS) failed; keeping the previous figures"
+
       - name: What was produced
         if: always()
         run: |
@@ -299,6 +309,9 @@ jobs:
           set -euo pipefail
           : > /tmp/ep.list
           for p in assets/sst/anim/epflux_ifs assets/sst/anim/epflux_ifs_manifest.json \
+                   assets/sst/anim/pacjet_ifs assets/sst/anim/pacjet_ifs_manifest.json \
+                   assets/sst/pacjet_ifs_wk1.webp assets/sst/pacjet_ifs_wk2.webp assets/sst/pacjet_ifs_axis.webp \
+                   assets/sst/pacjet_ifs_phase.webp assets/sst/data/pacjet_ifs.json \
                    assets/sst/qbo_zeroline_70.webp assets/sst/qbo_zeroline_50.webp assets/sst/qbo_zeroline_30.webp \
                    assets/sst/qbo_zeroline_10.webp assets/sst/data/qbo_zeroline.json assets/sst/data/qbo_zeroline_ifs.json; do
             [ -e "$p" ] && echo "$p" >> /tmp/ep.list
@@ -347,7 +360,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           scripts/lib/publish_frames_ci.sh assets/sst/anim/wave1_ifs_nh assets/sst/anim/wave1_ifs_sh \
-            assets/sst/anim/vortex_ifs_10 assets/sst/anim/vortex_ifs_100 assets/sst/anim/epflux_ifs
+            assets/sst/anim/vortex_ifs_10 assets/sst/anim/vortex_ifs_100 assets/sst/anim/epflux_ifs assets/sst/anim/pacjet_ifs
 
       # Stills, data and manifests to main. Never rebase (project rule 2026-09-09): snapshot, reset to a fresh
       # origin/main each attempt, lay the snapshot back on, commit, push.
@@ -360,6 +373,7 @@ jobs:
                    assets/sst/ifs_drip.webp assets/sst/data/ifs_drip.json \
                    assets/sst/anim/wave1_maps_ifs_manifest.json assets/sst/anim/vortex_winds_ifs_manifest.json \
                    assets/sst/anim/epflux_ifs_manifest.json \
+                   assets/sst/anim/pacjet_ifs_manifest.json assets/sst/pacjet_ifs_*.webp assets/sst/data/pacjet_ifs.json \
                    assets/regimes/data/regimes_members_ifs.json assets/regimes/data/regimes_drift_ifs.json \
                    assets/sst/qbo_zeroline_*.webp assets/sst/data/qbo_zeroline.json assets/sst/data/qbo_zeroline_ifs.json; do
             if [ -e "$f" ]; then git add "$f"; fi

@@ -262,32 +262,58 @@ def _ifs_step(job):
     t1 = time.time()
     where, pos = {}, 0                                    # fetch_ranges returns the messages in offset order
     for e in want:
-        where.setdefault(int(e["levelist"]), {}).setdefault(e["param"], []).append((pos, e["_length"]))
+        where.setdefault(int(e["levelist"]), {}).setdefault(e["param"], []).append((int(e["number"]), pos, e["_length"]))
         pos += e["_length"]
     if pos != len(blob):
         raise RuntimeError(f"step {sh}: {len(blob)} bytes for {pos} indexed")
-    lat = None
+    # The ef files are in ARRIVAL order and the member order differs between parameters (measured 2026-09-28: u and v
+    # at 250 hPa part at the 12th message, t follows a different order altogether), so rows are keyed by member number
+    # and stacked in number order. Until 2026-09-28 they were stacked in file order, pairing u, v and t of DIFFERENT
+    # members in the quadratics (u'v', v'T') of some members.
+    jet = os.environ.get("PACJET_IFS_DIR")                # the North Pacific jet product reads 250 hPa u/v from this stream
+    lat = lon = sl = None
     out = {}
     for lev in IFS_LEVELS:
         f = {}
+        keep = {}
         for par in ("u", "v", "t"):
-            rows = []
-            for o, n in where.get(lev, {}).get(par, []):
+            rows = {}
+            for num, o, n in where.get(lev, {}).get(par, []):
                 gid = eccodes.codes_new_from_message(bytes(blob[o:o + n]))
                 try:
                     nj, ni = eccodes.codes_get(gid, "Nj"), eccodes.codes_get(gid, "Ni")
                     if lat is None:
                         la0 = eccodes.codes_get(gid, "latitudeOfFirstGridPointInDegrees")
                         la1 = eccodes.codes_get(gid, "latitudeOfLastGridPointInDegrees")
+                        lo0 = eccodes.codes_get(gid, "longitudeOfFirstGridPointInDegrees")
                         lat = np.linspace(la0, la1, nj)
-                    rows.append(eccodes.codes_get_values(gid).reshape(nj, ni)[:, ::IFS_LON_STRIDE])
+                        lon = (lo0 + (360.0 / ni) * np.arange(ni)) % 360
+                    full = eccodes.codes_get_values(gid).reshape(nj, ni)
+                    if jet and lev == 250 and par in ("u", "v"):
+                        if sl is None:                    # crop to the jet sector at once (50 global fields are 0.4 GB)
+                            sys.path.insert(0, str(REPO / "scripts" / "mjo" / "src"))
+                            import pacjet_core as PJ
+                            sl = PJ.native_slices(lat, lon)
+                        keep.setdefault(par, {})[num] = full[np.ix_(sl[0], sl[1])].astype("float32")
+                    rows[num] = full[:, ::IFS_LON_STRIDE]
                 finally:
                     eccodes.codes_release(gid)
-            f[par] = np.stack(rows) if rows else None
-        if any(x is None for x in f.values()):
+            f[par] = rows
+        common = sorted(set(f["u"]) & set(f["v"]) & set(f["t"]))
+        if not common:
             continue
-        n = min(len(f["u"]), len(f["v"]), len(f["t"]))
-        out[lev] = _quadratics(f["u"][:n], f["v"][:n], f["t"][:n], lev)
+        out[lev] = _quadratics(np.stack([f["u"][k] for k in common]), np.stack([f["v"][k] for k in common]),
+                               np.stack([f["t"][k] for k in common]), lev)
+        if keep and set(keep) == {"u", "v"}:
+            both = sorted(set(keep["u"]) & set(keep["v"]))
+            try:
+                ii, jj = np.arange(sl[0].size), np.arange(sl[1].size)
+                Path(jet).mkdir(parents=True, exist_ok=True)
+                np.savez(Path(jet) / f"step_{sh:03d}.npz", members=np.array(both),
+                         u=PJ.to_work(np.stack([keep["u"][k] for k in both]), ii, jj).astype("float16"),
+                         v=PJ.to_work(np.stack([keep["v"][k] for k in both]), ii, jj).astype("float16"))
+            except Exception as e:                        # noqa: BLE001 - the jet dump must never cost the E-P flux
+                print(f"  pacjet dump step {sh} failed: {str(e)[:100]}", flush=True)
     del blob
     print(f"  IFS-ENS epflux step {sh:3d}: {pos / 1e6:,.0f} MB in {t1 - t0:.0f} s, reduced in {time.time() - t1:.0f} s "
           f"({len(out)} levels, {out[next(iter(out))][0] if out else 0} members)", flush=True)

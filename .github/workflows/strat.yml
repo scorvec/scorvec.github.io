@@ -8,6 +8,7 @@ name: Stratosphere (vortex, wave-1, E-P flux)
 #                     -> assets/sst/anim/vortex_{10,100}/  31-step 12-hourly loop
 #   qbo_duct.py       -> assets/sst/anim/epflux/          E-P flux loop
 #   qbo_zeroline.py   -> assets/sst/qbo_zeroline_{70,50,30,10}.webp + data/qbo_zeroline{,_aifs}.json   (heavy job)
+#   pacjet.py         -> assets/sst/pacjet_aifs_*.webp, pacjet_torque.webp, anim/pacjet_aifs/  (heavy job; circulation.html)
 #
 # IFS-ENS (all 50 members) and nh_vortex live in strat-ifs.yml (09:05/21:05) since 2026-09-27: IFS day 15 reaches
 # the Google mirror ~08:50Z/20:55Z, after these slots, and nh_vortex carries all four models in one figure.
@@ -340,6 +341,16 @@ jobs:
           python scripts/strat/qbo_zeroline.py render \
             || echo "::warning::zero-line render failed; keeping the previous figures"
 
+      # North Pacific jet (moved from aam.yml 2026-09-28): 250 hPa u from the AAM pull above and v from the E-P flux
+      # step's fetch (control + 25 members) - no extra download. Maps, loop, jet axis, phase diagram, the torque
+      # research view (which reads the committed torque_ranges.json from aam.yml) and the phase-impact figures (drawn
+      # from the committed ERA5 composites in scripts/mjo/data/reference/pacjet_impacts.npz).
+      - name: North Pacific jet (AIFS-ENS)
+        run: |
+          python scripts/mjo/src/pacjet.py --model aifs \
+            --date "${{ needs.cycle.outputs.date }}" --time "${{ needs.cycle.outputs.time }}" \
+            || echo "::warning::North Pacific jet (AIFS-ENS) failed; keeping the previous figures"
+
       - name: What was produced
         if: always()
         run: |
@@ -360,6 +371,11 @@ jobs:
           : > /tmp/heavy.list
           for p in assets/sst/anim/epflux \
                    assets/sst/anim/epflux_manifest.json \
+                   assets/sst/anim/pacjet_aifs assets/sst/anim/pacjet_aifs_manifest.json \
+                   assets/sst/pacjet_aifs_wk1.webp assets/sst/pacjet_aifs_wk2.webp assets/sst/pacjet_aifs_axis.webp \
+                   assets/sst/pacjet_aifs_phase.webp assets/sst/pacjet_torque.webp \
+                   assets/sst/pacjet_impacts_lag0.webp assets/sst/pacjet_impacts_lag3_7.webp \
+                   assets/sst/data/pacjet_aifs.json assets/sst/data/pacjet_analysis.json \
                    assets/sst/qbo_zeroline_70.webp assets/sst/qbo_zeroline_50.webp assets/sst/qbo_zeroline_30.webp \
                    assets/sst/qbo_zeroline_10.webp assets/sst/data/qbo_zeroline.json assets/sst/data/qbo_zeroline_aifs.json; do
             [ -e "$p" ] && echo "$p" >> /tmp/heavy.list
@@ -432,7 +448,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           scripts/lib/publish_frames_ci.sh assets/sst/anim/epflux assets/sst/anim/wave1_nh \
-            assets/sst/anim/wave1_sh assets/sst/anim/vortex_10 assets/sst/anim/vortex_100
+            assets/sst/anim/wave1_sh assets/sst/anim/vortex_10 assets/sst/anim/vortex_100 assets/sst/anim/pacjet_aifs
 
       # Only the static figures and the manifests are committed to main.
       - name: Commit & push
@@ -444,7 +460,9 @@ jobs:
                    assets/sst/heatflux100_nh.webp assets/sst/heatflux100_sh.webp assets/sst/data/heatflux100.json assets/sst/data/heatflux100_history.json \
                    assets/sst/aifs_drip.webp assets/sst/data/aifs_drip.json assets/sst/anim/*_manifest.json \
                    assets/regimes/data/regimes_members_aifs.json assets/regimes/data/regimes_drift_aifs.json \
-                   assets/sst/qbo_zeroline_*.webp assets/sst/data/qbo_zeroline.json assets/sst/data/qbo_zeroline_aifs.json; do
+                   assets/sst/qbo_zeroline_*.webp assets/sst/data/qbo_zeroline.json assets/sst/data/qbo_zeroline_aifs.json \
+                   assets/sst/pacjet_aifs_*.webp assets/sst/pacjet_torque.webp assets/sst/pacjet_impacts_*.webp \
+                   assets/sst/data/pacjet_aifs.json assets/sst/data/pacjet_analysis.json; do
             if [ -e "$f" ]; then git add "$f"; fi
           done
           if git diff --staged --quiet; then echo "no changes"; exit 0; fi
