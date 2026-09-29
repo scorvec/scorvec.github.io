@@ -6,7 +6,8 @@ pipeline (MJO AAM / torque / Hovmöller / SOI / RMM, the ensembles page, …). R
 per-script bespoke downloaders.
 
 Guarantees:
-  • source fallback        AWS → Azure → ECMWF portal, rotated per retry
+  • Google Cloud mirror ONLY  never AWS / Azure / data.ecmwf.int, not even as a fallback;
+                                a step Google lacks leaves the cycle partial for the next run
   • per-step chunked + resume   a stall re-fetches one step (~200 MB), not the whole pull;
                                 completed step-parts persist → a failed run resumes
   • atomic canonical writes     stage → verify message count → os.replace; a partial GRIB
@@ -38,110 +39,33 @@ except ImportError:
 # ── config ──────────────────────────────────────────────────────────────────────
 CACHE = Path(os.environ.get("ECMWF_CACHE",
                             str(Path(__file__).resolve().parent / "cache")))
-# Mirror pool: google/aws/azure/ecmwf. google RE-ADDED 2026-07-26: benchmarks put it at
-# 30-55 MB/s vs aws ~10 / ecmwf ~3.5 — by far the fastest when it has the file. It still
-# syncs the newest cycle with some lag (a 404 there is normal early in a cycle), but the
-# per-range mirror rotation makes that a ~0.1 s fall-through, not a failure.
-#
-# ORDERING: next_mirror_order() prefers measured speed (an EMA of MB/s per mirror,
-# accumulated from every completed fetch — see _note_speed) with unmeasured mirrors
-# probed first; with no measurements yet it falls back to the old round-robin. Any
-# mirror that threw 503s last run is demoted to the end. The runner calls
-# next_mirror_order() and exports ECMWF_SOURCES; an explicit ECMWF_SOURCES env always
-# wins (manual override). Module import is read-only (uses the last order) so
-# non-download importers (dashboard, consumers) don't advance the rotation.
-_BASE_MIRRORS = ["google", "aws", "azure", "ecmwf"]
-_ROT_STATE = Path(__file__).resolve().parent / ".mirror_rotation.json"
-_ROT_LOCK = threading.Lock()
+# Mirror: the GOOGLE CLOUD MIRROR ONLY (user rule 2026-09-06; the code default since 2026-09-29).
+# ECMWF open data is never fetched from AWS, Azure or data.ecmwf.int - not by default, not as a
+# per-step fallback, not through an env override: rangefetch.MIRRORS holds only Google, so no other
+# host can even be built into a URL, and there is deliberately no opt-in. A step Google has not
+# replicated yet leaves the cycle partial (NotPublished, or an incomplete file that is never
+# published to the cache) and the next run retries. Retrying GOOGLE itself - the throttle back-off,
+# the cooldown re-probes, the whole-spec resume passes below - is fine and unchanged.
+# (Until 2026-09-29 the default pool was google/aws/azure/ecmwf with a speed-ranked rotation,
+# next_mirror_order(), and _fetch_v2 fell through to the other three on a Google 404 or throttle.)
+ALLOWED_SOURCES = ("google",)
+_BASE_MIRRORS = list(ALLOWED_SOURCES)
 
 
-def _read_rot() -> tuple[list, set]:
-    try:
-        st = json.loads(_ROT_STATE.read_text())
-        order = [m for m in st.get("order", []) if m in _BASE_MIRRORS]
-        order += [m for m in _BASE_MIRRORS if m not in order]   # pick up newly-added mirrors
-        return order, set(st.get("throttled", []))
-    except Exception:                                           # noqa: BLE001
-        return list(_BASE_MIRRORS), set()
+def google_only(raw) -> list:
+    """Mirror list from an ECMWF_SOURCES-style value (comma string or list), restricted to Google.
+    A non-Google name is DROPPED with a loud warning - a stale env from before 2026-09-29 must not
+    break a run, and must not reach another host either. Never returns an empty list."""
+    names = raw.split(",") if isinstance(raw, str) else list(raw or [])
+    names = [str(s).strip() for s in names if str(s).strip()]
+    bad = [s for s in names if s not in ALLOWED_SOURCES]
+    if bad:
+        print(f"!! ECMWF_SOURCES names non-Google mirror(s) {','.join(bad)}: IGNORED - ECMWF open data "
+              f"comes from the Google Cloud mirror only", file=sys.stderr, flush=True)
+    return [s for s in names if s in ALLOWED_SOURCES] or list(ALLOWED_SOURCES)
 
 
-def _read_speed() -> dict:
-    try:
-        return {m: float(v) for m, v in
-                json.loads(_ROT_STATE.read_text()).get("speed", {}).items()}
-    except Exception:                                           # noqa: BLE001
-        return {}
-
-
-def _note_speed(src: str, mbps: float) -> None:
-    """Fold a completed fetch's throughput into the per-mirror speed EMA that
-    next_mirror_order() sorts by. `src` is the sidecar label ("v2:google",
-    "aws+azure", …) — attribution to the first/named mirror(s) is approximate
-    but converges over many fetches."""
-    names = [s for s in src.replace("v2:", "").split("+") if s in _BASE_MIRRORS]
-    if not names or mbps <= 0:
-        return
-    try:
-        with _ROT_LOCK:
-            st = json.loads(_ROT_STATE.read_text()) if _ROT_STATE.exists() else {}
-            sp = st.setdefault("speed", {})
-            for n in names:
-                sp[n] = round(0.7 * float(sp.get(n, mbps)) + 0.3 * mbps, 2)
-            _ROT_STATE.write_text(json.dumps(st))
-    except Exception:                                           # noqa: BLE001
-        pass
-
-
-def next_mirror_order() -> str:
-    """Order mirrors for this run: measured-fastest first (speed EMA from completed
-    fetches), unmeasured mirrors ahead of measured ones so a new mirror gets probed;
-    round-robin fallback while no speeds exist. Mirrors that threw 503s last run are
-    demoted to the end. Resets the throttle flags. Returns the comma-joined order for
-    ECMWF_SOURCES. The RUNNER calls this once per pipeline run."""
-    order, bad = _read_rot()
-    speed = _read_speed()
-    if speed:
-        # unmeasured mirrors get an optimistic prior (90% of the best) so they're
-        # probed ahead of known-slow mirrors but never ahead of the known-fastest
-        prior = 0.9 * max(speed.values())
-        order = sorted(order, key=lambda m: -speed.get(m, prior))
-    else:
-        order = order[1:] + order[:1]                           # round-robin
-    # google is PINNED first (user policy 2026-07-26: always favor the google
-    # mirror — it benchmarks 3-15x faster); the speed order applies to the rest.
-    # A throttled google still demotes below for the run (next clause).
-    if "google" in order:
-        order = ["google"] + [m for m in order if m != "google"]
-    order = [m for m in order if m not in bad] + [m for m in order if m in bad]  # demote throttled
-    try:
-        with _ROT_LOCK:
-            st = json.loads(_ROT_STATE.read_text()) if _ROT_STATE.exists() else {}
-            st.update(order=order, throttled=[])
-            _ROT_STATE.write_text(json.dumps(st))
-    except Exception:                                           # noqa: BLE001
-        pass
-    return ",".join(order)
-
-
-def _note_throttle_src(src: str) -> None:
-    """Record that `src` threw a 503 this run → next run's rotation demotes it."""
-    if not src or src not in _BASE_MIRRORS:
-        return
-    try:
-        with _ROT_LOCK:
-            st = json.loads(_ROT_STATE.read_text()) if _ROT_STATE.exists() else \
-                {"order": list(_BASE_MIRRORS), "throttled": []}
-            t = st.setdefault("throttled", [])
-            if src not in t:
-                t.append(src); _ROT_STATE.write_text(json.dumps(st))
-    except Exception:                                           # noqa: BLE001
-        pass
-
-
-if os.environ.get("ECMWF_SOURCES"):
-    SOURCES = os.environ["ECMWF_SOURCES"].split(",")           # explicit override wins
-else:
-    SOURCES, _ = _read_rot()                                   # read-only: last order (no advance)
+SOURCES = google_only(os.environ.get("ECMWF_SOURCES"))
 MULTISOURCE = os.environ.get("ECMWF_MULTISOURCE", "1") != "0"   # spread steps across mirrors
 WORKERS = int(os.environ.get("ECMWF_DL_WORKERS", "1"))      # parallel member streams (pf)
                                                             # 1 by default: fewer concurrent
@@ -415,6 +339,8 @@ def _clean(target: str) -> None:
 
 
 def _single(req: dict, target: str, src: str) -> None:
+    if src not in ALLOWED_SOURCES:                         # hard stop: Google Cloud mirror only
+        raise RuntimeError(f"refusing ECMWF source {src!r}: Google Cloud mirror only")
     with _SEM.get(src, contextlib.nullcontext()):          # cap in-flight retrieves / mirror
         Client(source=src).retrieve(target=target, **req)
 
@@ -513,7 +439,6 @@ def _robust(req: dict, target: str, parallel: bool, members, expected: int, star
         if _is_throttle(err):                              # 503/SlowDown
             if _budget is not None:
                 _budget.penalize(src)                      # slow every process down together
-            _note_throttle_src(src)                        # demote this mirror NEXT run too
             with _THROTTLE_LOCK:                           # …and cool it down (exponential per consecutive 503)
                 wait = _cooldown_for(src)
                 _THROTTLED_UNTIL[src] = time.time() + wait
@@ -654,10 +579,12 @@ def _to_req(cycle: Cycle, spec: Spec) -> dict:
 
 
 class NotPublished(RuntimeError):
-    """The cycle/spec is not (yet) on the open-data mirrors.
+    """The cycle/spec is not (yet) on the Google Cloud mirror.
 
     Raised by ensure() when the range fetcher finds a step's .index missing on
-    two or more mirrors with no mirror serving it. Terminal for this process:
+    the Google mirror (a 404; it used to take two of four mirrors agreeing).
+    Google-only since 2026-09-29: this is the "leave the cycle partial, retry
+    on the next run" verdict - no other mirror is asked. Terminal for this process:
     the legacy client path used to take over here and rotate six times per
     step through the same 404s (~3 min a step, 33 min for a 15-step IFS file,
     then a second 33 min when the next product asked for the SAME file) —
@@ -694,8 +621,9 @@ def _fetch_v2(cycle: Cycle, spec: Spec, target: str) -> str | None:
         import rangefetch as rf
     except Exception:                                      # noqa: BLE001
         return None
-    srcs = [s for s in (os.environ.get("ECMWF_SOURCES") or ",".join(_BASE_MIRRORS)).split(",")
-            if s in rf.MIRRORS] or list(_BASE_MIRRORS)
+    srcs = [s for s in google_only(SOURCES) if s in rf.MIRRORS]   # Google only, never a fallback host
+    if not srcs:
+        raise RuntimeError("rangefetch has no Google mirror configured")
     levl = list(spec.levelist) if spec.levtype == "pl" else None
     nums = spec.members()
     stats: dict = {}
@@ -723,7 +651,7 @@ def _fetch_v2(cycle: Cycle, spec: Spec, target: str) -> str | None:
         if isinstance(e, getattr(rf, "IndexUnavailable", ())) and e.not_found \
                 and os.environ.get("ECMWF_NOTFOUND_TERMINAL", "1") != "0":
             st = " ".join(f"{k}:{v}" for k, v in sorted(e.statuses.items()))
-            raise NotPublished(f"{spec.model}/{spec.filename}: not on the mirrors "
+            raise NotPublished(f"{spec.model}/{spec.filename}: not on the Google mirror "
                                f"({st}) — cycle {cycle.tag} not published yet") from e
         print(f"  fetch-v2 failed ({str(e)[:90]}) — falling back to client path",
               flush=True)
@@ -792,7 +720,6 @@ def ensure(cycle: Cycle, spec: Spec) -> Path:
         secs = time.time() - t0
         _sidecar(stage, got, src, secs=secs)
         mbps = os.path.getsize(stage) / 1048576 / secs if secs > 0 else 0.0
-        _note_speed(src or "", mbps)
         os.replace(stage.with_suffix(stage.suffix + ".json"), p.with_suffix(p.suffix + ".json"))
         os.replace(stage, p)                               # atomic publish
         print(f"  ECMWF {cycle.tag} {spec.model}/{spec.filename}: ✓ {got} msgs via {src} "

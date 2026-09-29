@@ -8,12 +8,12 @@ a pipeline and a benchmark can no longer stack up into a burst that
 draws 429/503 SlowDowns; the reactive shedding in the fetchers remains
 as the second line of defence.
 
-Model: sliding-window rate caps, one global ("*") plus per-mirror.
+Model: sliding-window rate caps, one global ("*") plus per-mirror. The
+only mirror is Google (Google Cloud mirror only, user rule 2026-09-06;
+the AWS/Azure/data.ecmwf.int entries were dropped 2026-09-29).
 Defaults are deliberately below the observed throttle threshold:
-  global  ECMWF_RPS       20 req/s  (window-averaged)
-  aws     ECMWF_RPS_AWS   14 req/s
-  azure   ECMWF_RPS_AZURE 14 req/s
-  ecmwf   ECMWF_RPS_ECMWF  6 req/s  (data.ecmwf.int is the frailest)
+  global  ECMWF_RPS        20 req/s  (window-averaged)
+  google  ECMWF_RPS_GOOGLE 14 req/s
 A 429/503 anywhere calls penalize(host): that host's cap halves for
 PENALTY_S seconds (stacking down to a floor), written into the shared
 state so every process slows down together.
@@ -23,9 +23,9 @@ Fail-open by design: if the state file is unusable the caller proceeds
 unmetered — the limiter must never wedge a pipeline.
 
     from budget import acquire, penalize
-    acquire("aws")            # blocks (bounded) until a token is free
+    acquire("google")         # blocks (bounded) until a token is free
     ...
-    penalize("aws")           # server said slow down
+    penalize("google")        # server said slow down
 """
 from __future__ import annotations
 
@@ -44,13 +44,11 @@ PENALTY_S = 45.0                # halved-cap duration after a throttle signal
 FLOOR_FRAC = 0.25               # penalties never cut below this fraction
 MAX_WAIT_S = 180.0              # bound the block; then fail-open
 
-_DEFAULTS = {"*": 20.0, "aws": 14.0, "azure": 14.0, "ecmwf": 6.0, "google": 14.0}
+_DEFAULTS = {"*": 20.0, "google": 14.0}
 
 
 def _rps(host: str) -> float:
-    env = {"*": "ECMWF_RPS", "aws": "ECMWF_RPS_AWS",
-           "azure": "ECMWF_RPS_AZURE", "ecmwf": "ECMWF_RPS_ECMWF",
-           "google": "ECMWF_RPS_GOOGLE"}
+    env = {"*": "ECMWF_RPS", "google": "ECMWF_RPS_GOOGLE"}
     return float(os.environ.get(env.get(host, ""), _DEFAULTS.get(host, 10.0)))
 
 

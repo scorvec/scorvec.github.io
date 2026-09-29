@@ -8,9 +8,8 @@ requests under a 500-connection portal cap), this module:
   2. selects the wanted messages (param / levelist / member),
   3. sorts by offset and COALESCES entries whose gaps are < `max_gap`
      into a handful of large ranges,
-  4. fetches those ranges in parallel with hard timeouts, preferring the
-     S3 mirror (no connection-count regime), rotating mirrors per-range
-     on failure,
+  4. fetches those ranges in parallel with hard timeouts from the Google
+     Cloud mirror ONLY (user rule 2026-09-06), retrying each range there,
   5. reassembles the exact message bytes into one GRIB2 payload.
 
 A 700-message AAM slice becomes ~a dozen fat range-GETs instead of 700
@@ -37,12 +36,22 @@ except ImportError:                                        # ad-hoc callers off-
     import sys as _sys; _sys.path.insert(0, str(_P(__file__).resolve().parent))
     import budget
 
+# The Google Cloud mirror is the ONLY host (user rule 2026-09-06, enforced in code 2026-09-29): no
+# AWS, Azure or data.ecmwf.int, not even as a per-step fallback. The other hosts were deleted from
+# this table so that no code path can build a URL to them; asking for one raises (see _google).
 MIRRORS = {
-    "aws": "https://ecmwf-forecasts.s3.eu-central-1.amazonaws.com",
-    "azure": "https://ai4edataeuwest.blob.core.windows.net/ecmwf",
-    "ecmwf": "https://data.ecmwf.int/forecasts",
     "google": "https://storage.googleapis.com/ecmwf-open-data",
 }
+
+
+def _google(sources) -> list[str]:
+    """The mirror list to use: Google only. None/empty means Google; naming any other mirror is a
+    programming error against the Google-only rule and raises instead of silently reaching it."""
+    srcs = [s for s in (sources or ["google"]) if s]
+    bad = [s for s in srcs if s not in MIRRORS]
+    if bad:
+        raise ValueError(f"ECMWF mirror(s) {bad} refused: Google Cloud mirror only")
+    return list(dict.fromkeys(srcs))
 TIMEOUT = (10, 90)          # (connect, read) — nothing hangs for hours, ever
 # merge ranges separated by < 3 MB. ECMWF_RANGE_GAP_MB overrides it for a job that
 # reads IFS-ENS `-enfo-ef` files: their ~8,500 messages per step are in arrival
@@ -74,11 +83,11 @@ def path_for(date: str, hh: str, model: str, step: int, kind: str = "pf",
 
 
 class IndexUnavailable(RuntimeError):
-    """The step's .index could not be fetched from any mirror.
+    """The step's .index could not be fetched from the Google mirror.
 
     `not_found` is True when the failure looks like PUBLICATION rather than
-    transport: no mirror returned 200 and at least two distinct mirrors said
-    404. That is the "cycle not disseminated yet" signature (2026-09-06, IFS-ENS
+    transport: no 200, and a 404 from every mirror asked (only Google since
+    2026-09-29; it used to take two of the four agreeing). That is the "cycle not disseminated yet" signature (2026-09-06, IFS-ENS
     00Z at 07:47Z: google 404, azure 404, aws 503, data.ecmwf.int stalled). The
     caller should treat it as terminal for this run instead of falling back to a
     slower path that will re-discover the same absence one step at a time.
@@ -96,8 +105,10 @@ def fetch_index(date: str, hh: str, model: str, step: int, kind: str = "pf",
     rel = path_for(date, hh, model, step, kind, stream=stream) + ".index"
     last_err = None
     statuses: dict = {}                                    # mirror -> last HTTP status seen
+    srcs = _google(sources)
+    need404 = min(2, len(srcs))                            # 404 on every mirror asked (Google alone: 1)
     for attempt in range(3):
-        for src in sources or ["google", "aws", "azure", "ecmwf"]:
+        for src in srcs:
             try:
                 budget.acquire(src)
                 r = requests.get(f"{MIRRORS[src]}/{rel}", timeout=TIMEOUT)
@@ -113,11 +124,11 @@ def fetch_index(date: str, hh: str, model: str, step: int, kind: str = "pf",
         # Two mirrors agreeing the object does not exist is publication, not a
         # blip: stop probing after the first pass rather than sleeping through
         # two more rounds of 404s.
-        if sum(1 for c in statuses.values() if c == 404) >= 2:
+        if sum(1 for c in statuses.values() if c == 404) >= need404:
             break
     n404 = sum(1 for c in statuses.values() if c == 404)
     raise IndexUnavailable(f"index unavailable for {rel}: {last_err}",
-                           not_found=(n404 >= 2 and 200 not in statuses.values()),
+                           not_found=(n404 >= need404 and 200 not in statuses.values()),
                            statuses=statuses)
 
 
@@ -157,9 +168,9 @@ def coalesce(entries: list[dict], max_gap: int = MAX_GAP) -> list[tuple[int, int
 def fetch_ranges(rel_grib: str, ranges, sources: list[str] | None = None,
                  workers: int = WORKERS, stats: dict | None = None) -> bytes:
     """Parallel ranged GETs; returns wanted message bytes concatenated in
-    offset order. Rotates mirrors per-range on failure. If `stats` is given,
-    bytes served are accumulated per mirror (for speed attribution)."""
-    sources = sources or ["google", "aws", "azure", "ecmwf"]
+    offset order. Retries each range on the Google mirror (the only one). If
+    `stats` is given, bytes served are accumulated per mirror."""
+    sources = _google(sources)
     import threading
     gate = threading.Semaphore(workers)          # shrinks on throttle signals
     shrink_lock = threading.Lock()
@@ -197,7 +208,7 @@ def fetch_ranges(rel_grib: str, ranges, sources: list[str] | None = None,
                         time.sleep(1.0 + 2.0 * attempt)
                 except Exception as e:                         # noqa: BLE001
                     last = e
-        raise RuntimeError(f"range {start}-{end} failed on all mirrors: {last}")
+        raise RuntimeError(f"range {start}-{end} failed on the Google mirror: {last}")
 
     def gated(rng):
         with gate:
