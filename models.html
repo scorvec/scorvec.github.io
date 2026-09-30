@@ -229,6 +229,7 @@
     <div class="seg" id="models" role="group" aria-label="Model"></div>
     <label class="runsel">Run <select id="run" aria-label="Model run"></select></label>
     <label class="chk" title="Show the previous run at the same valid time"><input type="checkbox" id="prev"> Previous run</label>
+    <label class="chk" id="farmsL" hidden title="US wind projects (USGS Wind Turbine Database) or large-scale solar plants (USGS Solar PV Database), sized by capacity"><input type="checkbox" id="farms" checked> <span id="farmsT">Wind farms</span></label>
     <div class="seg mv-fields" id="fields" role="group" aria-label="Field"></div>
   </div>
 
@@ -265,6 +266,7 @@
       <tr><td>Incoming shortwave</td><td>Downward shortwave at the surface, instantaneous at the valid time</td><td>As HRRR (instantaneous)</td><td>Mean over the hour ending at the valid time (the difference of the model's accumulated flux)</td></tr>
     </table></div>
     <h2>Runs and timing</h2>
+    <p>Wind and solar plants (shown on the 80&nbsp;m wind and shortwave maps; at national scale only the larger ones): the <a href="https://energy.usgs.gov/uswtdb/">U.S. Wind Turbine Database</a> v8.3 (USGS, LBNL and ACP; turbines grouped into projects) and the <a href="https://energy.usgs.gov/uspvdb/">U.S. Large-Scale Solar PV Database</a> v4.0 (USGS and LBNL), both public domain. Circles and squares scale with capacity; hover for name, capacity and year.</p>
     <p>HRRR: every hourly run to 18&nbsp;h, and the 00, 06, 12 and 18&nbsp;UTC runs to 48&nbsp;h. RRFS&nbsp;v1: the 00, 06, 12 and 18&nbsp;UTC runs to 84&nbsp;h (its other hourly runs write only 15-minute surface files to 18&nbsp;h and are not shown). RDPS: 00, 06, 12 and 18&nbsp;UTC to 84&nbsp;h. Every forecast hour is shown. The newest run of each model is kept with the one before it (for HRRR also the newest 48-hour run), so <i>Previous run</i> shows how the forecast for the same hour changed. A run appears once its last forecast hour is published; GitHub runs the jobs, so expect the newest HRRR about 1&frac12;&ndash;2&frac12; hours after its start time.</p>
     <h2>How the page works</h2>
     <p>Nothing on this page is a picture. Each field and hour is shipped as the model's own numbers, rounded to 256 levels (0.625&nbsp;K for infrared, 0.5&nbsp;&deg;F for temperature and dewpoint, 0.4&nbsp;m/s for wind, 5&nbsp;W&nbsp;m<sup>&minus;2</sup> for shortwave, and 2&ndash;3&nbsp;% steps on logarithmic scales for ceiling, visibility and smoke) on the native model grid, and your browser colours, projects and reads it: zooming shows the model's grid cells, and the hover value is the stored one, within those steps. Maps are drawn on the HRRR's Lambert conformal projection for all three models, so switching model keeps the view. Boundaries: Natural Earth; US states and counties: US Census via us-atlas.</p>
@@ -728,7 +730,9 @@
   var interacting = false, settleT = 0, snap = null, snapC = document.createElement("canvas");
   function beginInteract() { interacting = true; clearTimeout(settleT); }
   function settleSoon(ms) { clearTimeout(settleT); settleT = setTimeout(function () { interacting = false; render(); }, ms || 140); }
+  function syncFarmsUI() { var k = farmKind(); $("farmsL").hidden = !k; if (k) $("farmsT").textContent = k === "wind" ? "Wind farms" : "Solar farms"; }
   function drawOverlay() {
+    syncFarmsUI();
     var ctx = ovc.getContext("2d");
     if (interacting && snap && view) {
       var k = snap.s / view.s;
@@ -763,11 +767,51 @@
     });
     ctx.globalAlpha = 1;
     if (st.field === "wind80" && drawn && drawn.e && drawn.e.dec && drawn.field === "wind80") drawBarbs(ctx, drawn);
+    drawFarms(ctx);
     if (snapC.width !== ovc.width || snapC.height !== ovc.height) { snapC.width = ovc.width; snapC.height = ovc.height; }
     var sc = snapC.getContext("2d"); sc.setTransform(1, 0, 0, 1, 0, 0); sc.clearRect(0, 0, snapC.width, snapC.height); sc.drawImage(ovc, 0, 0);
     snap = { cx: view.cx, cy: view.cy, s: view.s };
   }
 
+  // Wind and solar plant locations on the 80 m wind and shortwave maps (2026-09-30, user request). One static file,
+  // fetched the first time either field is shown: USGS/LBNL/ACP US Wind Turbine Database (turbines grouped into
+  // projects) and the USGS US Large-Scale Solar PV Database, both public domain. Circles scale with capacity.
+  var FARMS = null, farmsP = null;
+  function farmKind() { return st.field === "wind80" ? "wind" : st.field === "sw" ? "solar" : null; }
+  function loadFarms() {
+    if (farmsP) return; farmsP = fetch("data/models_farms.json").then(function (r) { return r.json(); }).then(function (d) {
+      ["wind", "solar"].forEach(function (k) { d[k].forEach(function (a) { var q = P.fwd(a[0], a[1]); a.x = q[0]; a.y = q[1]; }); });
+      FARMS = d; render(); }).catch(function () { farmsP = null; });
+  }
+  function farmsOn() { var k = farmKind(); return k && $("farms").checked ? k : null; }
+  // declutter: at national scale only the larger plants (6,600 solar sites would bury the map); all of them from ~1.2 km/px
+  function farmMin() { var kpp = view.s / 1000; return kpp > 3.5 ? 50 : kpp > 2 ? 20 : kpp > 1.2 ? 5 : 0; }
+  function farmR(mw) { return Math.max(2, Math.min(9, 1.6 + Math.sqrt(mw || 1) / 3.2)); }
+  function drawFarms(ctx) {
+    var k = farmsOn(); if (!k) return; if (!FARMS) { loadFarms(); return; }
+    var L = FARMS[k], x0 = view.cx - W / 2 * view.s, x1 = view.cx + W / 2 * view.s, y0 = view.cy - H / 2 * view.s, y1 = view.cy + H / 2 * view.s;
+    ctx.lineWidth = 1; ctx.fillStyle = k === "wind" ? "rgba(255,255,255,0.9)" : "rgba(25,25,25,0.85)"; ctx.strokeStyle = k === "wind" ? "rgba(15,15,15,0.9)" : "rgba(255,255,255,0.9)";
+    var minMW = farmMin();
+    for (var i = 0; i < L.length; i++) {
+      var a = L[i]; if (a.x < x0 || a.x > x1 || a.y < y0 || a.y > y1 || (a[2] || 0) < minMW) continue;
+      var px = W / 2 + (a.x - view.cx) / view.s, py = H / 2 - (a.y - view.cy) / view.s, r = farmR(a[2]);
+      ctx.beginPath();
+      if (k === "wind") ctx.arc(px, py, r, 0, 6.2832);
+      else ctx.rect(px - r * 0.85, py - r * 0.85, r * 1.7, r * 1.7);
+      ctx.fill(); ctx.stroke();
+    }
+  }
+  function nearestFarm(px, py) {
+    var k = farmsOn(); if (!k || !FARMS) return null;
+    var best = null, bd = 1e9, minMW = farmMin();
+    FARMS[k].forEach(function (a) {
+      var dx = W / 2 + (a.x - view.cx) / view.s - px, dy = H / 2 - (a.y - view.cy) / view.s - py, d = dx * dx + dy * dy;
+      if ((a[2] || 0) < minMW) return; var r = farmR(a[2]) + 3; if (d < r * r && d < bd) { bd = d; best = a; } });
+    if (!best) return null;
+    var esc = function (t) { return String(t).replace(/[&<>]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]; }); };
+    return "<br><b>" + esc(best[3]) + "</b> · " + (best[2] != null ? best[2] + " MW" + (k === "solar" ? " AC" : "") : "capacity n/a") +
+      (best[4] ? " · " + best[4] : "") + (k === "wind" ? " · " + best[5] + " turbines" + (best[6] ? " · offshore" : "") : (best[5] ? " · with battery" : ""));
+  }
   function sample(d, px, py) {                          // -> code(s) at a CSS pixel of the drawn frame, or null
     var xy = toXY(px, py), ij = gridIJ(d.g, xy[0], xy[1]);
     var i = Math.floor(ij[0] + 0.5), j = Math.floor(ij[1] + 0.5);
@@ -943,6 +987,7 @@
   $("run").onchange = function () { var old = cycleObj(st.model, st.ci), vt = Date.parse(old.init) + st.hour * 3600e3; st.ci = +this.value;
     var c = cycleObj(st.model, st.ci); st.hour = Math.max(0, Math.min(c.length, Math.round((vt - Date.parse(c.init)) / 3600e3))); setButtons(); onChange(); };
   $("prev").onchange = function () { st.prev = this.checked; onChange(); };
+  $("farms").onchange = function () { render(); };
   document.addEventListener("keydown", function (e) {
     if (e.target && /INPUT|SELECT|TEXTAREA/.test(e.target.tagName) && e.target.type !== "range") return;
     if (e.key === "ArrowRight") { step(1); e.preventDefault(); } else if (e.key === "ArrowLeft") { step(-1); e.preventDefault(); }
@@ -1030,7 +1075,7 @@
       else txt = fd.fmt(val);
     }
     tip.innerHTML = "<span class=\"v\">" + txt + "</span><br><span class=\"ll\">" + Math.abs(ll[1]).toFixed(2) + "°" + (ll[1] >= 0 ? "N" : "S") + " " +
-      Math.abs(ll[0]).toFixed(2) + "°" + (ll[0] >= 0 ? "E" : "W") + "</span>";
+      Math.abs(ll[0]).toFixed(2) + "°" + (ll[0] >= 0 ? "E" : "W") + "</span>" + (nearestFarm(px, py) || "");
     tip.style.display = "block";
     var tw = tip.offsetWidth, th = tip.offsetHeight;
     tip.style.left = Math.min(px, W - tw - 16) + "px"; tip.style.top = Math.min(py, H - th - 16) + "px";
