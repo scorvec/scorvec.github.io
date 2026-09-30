@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Short-Range Models &mdash; HRRR, RRFS and RDPS at Full Resolution &middot; Shawn Corvec</title>
-<meta name="description" content="Every run of the HRRR, RRFS and RDPS drawn in your browser at the model's native resolution: simulated infrared satellite, cloud ceiling, visibility, 2 m temperature and dewpoint, vertically integrated smoke, 80 m wind and incoming shortwave, with zoom, hover values and run-to-run comparison.">
+<meta name="description" content="The newest HRRR, RRFS and RDPS runs drawn in your browser at the model's native resolution: simulated infrared satellite, simulated radar with precipitation type, cloud ceiling, visibility, 2 m temperature and dewpoint, vertically integrated smoke, 80 m wind and incoming shortwave, with contours, zoom and hover values.">
 <link rel="canonical" href="https://scorvec.com/models.html">
 <meta property="og:type" content="website">
 <meta property="og:title" content="Short-range models: HRRR, RRFS and RDPS at full resolution">
@@ -47,6 +47,7 @@
   .mv-fields { flex: 1 1 100%; }
   .runsel { display: inline-flex; align-items: center; gap: 0.4rem; font-size: 0.92rem; color: var(--ink2); }
   .runsel select { font: inherit; font-size: 0.92rem; padding: 0.3rem 0.4rem; border: 1px solid var(--rule); border-radius: 6px; background: var(--panel); color: var(--ink); }
+  .chk[hidden] { display: none; }
   .chk { display: inline-flex; align-items: center; gap: 0.35rem; font-size: 0.92rem; color: var(--ink2); cursor: pointer; user-select: none; }
 
   .mv-map { position: relative; width: 100%; height: clamp(340px, calc(100vh - 290px), 880px); background: var(--map); border: 1px solid var(--rule);
@@ -221,14 +222,14 @@
 </header>
 <!-- sh:end -->
 <main class="mv">
-  <p class="kicker">Every run &middot; HRRR hourly, RRFS and RDPS four times a day &middot; <a href="/ecape.html" style="color:inherit">ECAPE</a> &middot; <a href="/snowbands.html" style="color:inherit">snow bands</a></p>
+  <p class="kicker">Newest run &middot; HRRR, RRFS and RDPS four times a day &middot; <a href="/ecape.html" style="color:inherit">ECAPE</a> &middot; <a href="/snowbands.html" style="color:inherit">snow bands</a></p>
   <h1>Short-range models</h1>
-  <p class="mv-lede">The HRRR, RRFS and RDPS drawn in your browser at each model's own grid spacing (3&nbsp;km, 3&nbsp;km and 10&nbsp;km): simulated infrared, cloud ceiling, visibility, 2&nbsp;m temperature and dewpoint, vertically integrated smoke, 80&nbsp;m wind and incoming shortwave. Scroll or pinch to zoom, drag to pan, and hover (or tap) for the model's value.</p>
+  <p class="mv-lede">The HRRR, RRFS and RDPS drawn in your browser at each model's own grid spacing (3&nbsp;km, 3&nbsp;km and 10&nbsp;km): simulated infrared, simulated radar with precipitation type and isobars, cloud ceiling, visibility, 2&nbsp;m temperature and dewpoint, vertically integrated smoke, 80&nbsp;m wind and incoming shortwave, with labelled contours. Scroll or pinch to zoom, drag to pan, and hover (or tap) for the model's value.</p>
 
   <div class="mv-bar">
     <div class="seg" id="models" role="group" aria-label="Model"></div>
-    <label class="runsel">Run <select id="run" aria-label="Model run"></select></label>
-    <label class="chk" title="Show the previous run at the same valid time"><input type="checkbox" id="prev"> Previous run</label>
+    <label class="runsel">Run <select id="run" aria-label="Model run"></select><span id="runT"></span></label>
+    <label class="chk" id="contL" hidden title="Labelled contours drawn from the same data (isotherms, flight-category thresholds, isobars)"><input type="checkbox" id="cont" checked> Contours</label>
     <label class="chk" id="farmsL" hidden title="US wind projects (USGS Wind Turbine Database) or large-scale solar plants (USGS Solar PV Database), sized by capacity"><input type="checkbox" id="farms" checked> <span id="farmsT">Wind farms</span></label>
     <div class="seg mv-fields" id="fields" role="group" aria-label="Field"></div>
   </div>
@@ -258,6 +259,7 @@
     <div class="tbl"><table>
       <tr><th>Field</th><th>HRRR (NOAA, 3 km)</th><th>RRFS (NOAA, 3 km)</th><th>RDPS (ECCC, 10 km)</th></tr>
       <tr><td>Simulated IR</td><td>Brightness temperature a GOES-East 10.3&nbsp;&micro;m imager would see (UPP field SBT124)</td><td>GOES-16 ABI band 13, 10.3&nbsp;&micro;m (SBTA1613)</td><td>No simulated band exists in the RDPS output. Shown instead: the <b>OLR-derived brightness temperature</b>, T<sub>b</sub>&nbsp;=&nbsp;(OLR/&sigma;)<sup>&frac14;</sup>, from the instantaneous outgoing longwave radiation at the top of the atmosphere. It is a proxy for IR, not a satellite band: it integrates the whole longwave spectrum, so clear skies read 20&ndash;30&nbsp;K colder than a window channel, while cloud tops come out close.</td></tr>
+      <tr><td>Radar + precipitation type</td><td>Simulated reflectivity 1&nbsp;km above ground, coloured by the categorical precipitation type at the surface (freezing rain &gt; sleet &gt; snow &gt; rain; rain and snow together shown as mix); isobars from MSLP (MAPS reduction) every 2&nbsp;hPa</td><td>As HRRR; isobars from MSLP (MSLET reduction)</td><td>No simulated reflectivity exists. Shown instead: the <b>precipitation rate</b> (mm/h) coloured by the model's precipitation type, on the radar colour scale; isobars from MSLP</td></tr>
       <tr><td>Cloud ceiling</td><td>Height of the lowest broken or overcast layer above the ground (the model's ceiling height minus the terrain)</td><td>As HRRR</td><td class="na">Not in the RDPS output</td></tr>
       <tr><td>Visibility</td><td>Surface visibility; above 10&nbsp;mi shown as &ldquo;10+&rdquo;, as a METAR reports it</td><td>As HRRR</td><td class="na">Not in the RDPS output</td></tr>
       <tr><td>2&nbsp;m temperature, dewpoint</td><td colspan="3">In &deg;F, stored to 0.5&nbsp;&deg;F</td></tr>
@@ -267,9 +269,9 @@
     </table></div>
     <h2>Runs and timing</h2>
     <p>Wind and solar plants (shown on the 80&nbsp;m wind and shortwave maps; at national scale only the larger ones): the <a href="https://energy.usgs.gov/uswtdb/">U.S. Wind Turbine Database</a> v8.3 (USGS, LBNL and ACP; turbines grouped into projects) and the <a href="https://energy.usgs.gov/uspvdb/">U.S. Large-Scale Solar PV Database</a> v4.0 (USGS and LBNL), both public domain. Circles and squares scale with capacity; hover for name, capacity and year.</p>
-    <p>HRRR: every hourly run to 18&nbsp;h, and the 00, 06, 12 and 18&nbsp;UTC runs to 48&nbsp;h. RRFS&nbsp;v1: the 00, 06, 12 and 18&nbsp;UTC runs to 84&nbsp;h (its other hourly runs write only 15-minute surface files to 18&nbsp;h and are not shown). RDPS: 00, 06, 12 and 18&nbsp;UTC to 84&nbsp;h. Every forecast hour is shown. The newest run of each model is kept with the one before it (for HRRR also the newest 48-hour run), so <i>Previous run</i> shows how the forecast for the same hour changed. A run appears once its last forecast hour is published; GitHub runs the jobs, so expect the newest HRRR about 1&frac12;&ndash;2&frac12; hours after its start time.</p>
+    <p>HRRR: the 00, 06, 12 and 18&nbsp;UTC runs, every hour to 48&nbsp;h (the hourly runs that stop at 18&nbsp;h are not shown). RRFS&nbsp;v1: the 00, 06, 12 and 18&nbsp;UTC runs to 84&nbsp;h, every hour to 36&nbsp;h and every 3&nbsp;hours after (its other hourly runs write only 15-minute surface files to 18&nbsp;h and are not shown). RDPS: 00, 06, 12 and 18&nbsp;UTC, every hour to 84&nbsp;h. Only the newest run of each model is kept. A run appears once its last forecast hour is published; GitHub runs the jobs, so expect it about 2&ndash;3 hours after its start time for the HRRR and 4&ndash;5 hours for the RRFS and RDPS.</p>
     <h2>How the page works</h2>
-    <p>Nothing on this page is a picture. Each field and hour is shipped as the model's own numbers, rounded to 256 levels (0.625&nbsp;K for infrared, 0.5&nbsp;&deg;F for temperature and dewpoint, 0.4&nbsp;m/s for wind, 5&nbsp;W&nbsp;m<sup>&minus;2</sup> for shortwave, and 2&ndash;3&nbsp;% steps on logarithmic scales for ceiling, visibility and smoke) on the native model grid, and your browser colours, projects and reads it: zooming shows the model's grid cells, and the hover value is the stored one, within those steps. Maps are drawn on the HRRR's Lambert conformal projection for all three models, so switching model keeps the view. Boundaries: Natural Earth; US states and counties: US Census via us-atlas.</p>
+    <p>Nothing on this page is a picture. Each field and hour is shipped as the model's own numbers, rounded to 256 levels (0.625&nbsp;K for infrared, 0.5&nbsp;&deg;F for temperature and dewpoint, 0.4&nbsp;m/s for wind, 5&nbsp;W&nbsp;m<sup>&minus;2</sup> for shortwave, and 2&ndash;3&nbsp;% steps on logarithmic scales for ceiling, visibility and smoke) on the native model grid, and your browser colours, projects, contours and reads it: zooming shows the model's grid cells, and the hover value is the stored one, within those steps. Maps are drawn on the HRRR's Lambert conformal projection for all three models, so switching model keeps the view. Contours (every 10&nbsp;&deg;F with the freezing line in blue; dewpoint every 10&nbsp;&deg;F with 60 and 70 emphasised; ceiling 500/1,000/3,000&nbsp;ft; visibility 1/3/5&nbsp;mi; 80&nbsp;m wind 10/15/20&nbsp;m/s; isobars every 2&nbsp;hPa on the radar map) are traced in your browser from the same numbers after a light smoothing, so they show the pattern, not every 3&nbsp;km wiggle. Boundaries: Natural Earth; US states and counties: US Census via us-atlas.</p>
     <p>Related: <a href="/ecape.html">entraining CAPE from the HRRR</a> and <a href="/snowbands.html">snow-band diagnostics from the HRRR, RRFS and RDPS</a>. Data: NOAA HRRR and RRFS (AWS open data; NOMADS for the RRFS), ECCC RDPS and RAQDPS-FireWork (MSC Datamart). Model output as published, uncorrected.</p>
   </section>
 </main>
@@ -324,17 +326,36 @@
           ticks: [0, 100, 200, 400, 600, 800, 1000],
           fmt: function (v) { return Math.round(v) + " W/m²"; } }
   };
-  var FIELD_ORDER = ["ir", "ceil", "vis", "t2m", "td2m", "smoke", "wind80", "sw"];
+  // simulated reflectivity (1 km AGL) coloured by precipitation type; RDPS: precipitation rate (manifest enc "rate2")
+  FIELDS.refl = { label: "Radar + type", enc: "refl2", unit: "dBZ" };
+  FIELDS.mslp = { label: "MSLP", enc: "lin", off: 940, step: 0.5, unit: "hPa" };        // overlay only (isobars)
+  var PT_NAMES = ["no surface type", "rain", "snow", "freezing rain", "sleet", "rain/snow mix"];
+  // radar-style ramps per type, stops in dBZ
+  var PT_RAMPS = [
+    null,
+    [S(5, "#a6e3a0"), S(15, "#4cc24f"), S(25, "#1c992c"), S(32, "#0e6e1e"), S(35, "#f2e23a"), S(42, "#f2a12a"), S(48, "#e2381f"), S(55, "#ae1229"), S(62, "#d433d4"), S(72, "#f5dcf5")],
+    [S(5, "#cfe9fb"), S(15, "#8cc3f0"), S(25, "#4b8fe0"), S(33, "#1f5cc2"), S(40, "#12398c"), S(52, "#241766")],
+    [S(5, "#f9d3e5"), S(15, "#f09fc6"), S(25, "#e0639f"), S(35, "#c02b7b"), S(48, "#7e0e4a")],
+    [S(5, "#fde3bd"), S(15, "#f8bb72"), S(25, "#ef8c35"), S(35, "#d45f16"), S(48, "#8f3406")],
+    [S(5, "#e6d3f7"), S(15, "#c09ae8"), S(25, "#9660d2"), S(35, "#6c35b0"), S(48, "#40157a")]];
+  PT_RAMPS[0] = PT_RAMPS[1];                   // echo with no surface type flag: drawn as rain, hover says so
+  function rateEq(mmh) { return 10 * Math.log10(200 * Math.pow(Math.max(mmh, 1e-6), 1.6)); }   // colour index only (Marshall-Palmer)
+  var FIELD_ORDER = ["ir", "refl", "ceil", "vis", "t2m", "td2m", "smoke", "wind80", "sw"];
+  function encOf(f, fm) { return (fm && fm.enc) || FIELDS[f].enc; }
+  function chOf(f) { return f === "wind80" || f === "refl" || f === "mslp" ? 2 : 1; }
   var NOTES = {
-    rdps: { ir: "<b>RDPS has no simulated satellite band.</b> Shown: the OLR-derived brightness temperature (proxy for IR), T<sub>b</sub> = (OLR/σ)<sup>¼</sup> from the instantaneous outgoing longwave at the top of the atmosphere. Cloud tops come out close to a 10.3 µm image; clear skies read 20–30 K colder than one, because OLR includes the water-vapour bands.",
+    rdps: { refl: "<b>RDPS has no simulated reflectivity.</b> Shown: the model's <b>precipitation rate</b> (mm/h, instantaneous) coloured by its precipitation type, on the radar colour scale (colours placed with the Marshall–Palmer Z–R relation, so 1 mm/h looks like light rain on radar; it is a rate, not dBZ). Isobars: MSLP every 2 hPa.",
+            ir: "<b>RDPS has no simulated satellite band.</b> Shown: the OLR-derived brightness temperature (proxy for IR), T<sub>b</sub> = (OLR/σ)<sup>¼</sup> from the instantaneous outgoing longwave at the top of the atmosphere. Cloud tops come out close to a 10.3 µm image; clear skies read 20–30 K colder than one, because OLR includes the water-vapour bands.",
             sw: "RDPS shortwave is the <b>mean over the hour ending at the valid time</b> (difference of the accumulated flux), not an instantaneous value as for HRRR and RRFS.",
             smoke: "Smoke over the RDPS domain comes from ECCC's RAQDPS-FireWork air-quality model: column-integrated wildfire-smoke PM2.5. It runs at 00 and 12 UTC to 72 h, so its hours end before the RDPS's." },
-    hrrr: { ir: "HRRR simulated brightness temperature for the GOES-East 10.3 µm window band (UPP field SBT124), computed with the CRTM from the model's clouds and water vapour.",
+    hrrr: { refl: "HRRR simulated reflectivity 1 km above ground (what the lowest radar scans see, and the level the precipitation type describes; composite reflectivity would paint elevated echo in surface-type colours), coloured by the model's categorical precipitation type at the surface: priority freezing rain &gt; sleet &gt; snow &gt; rain, rain and snow together = mix; echo with no type flag is drawn as rain. Isobars: MSLP (MAPS reduction, MSLMA) every 2 hPa.",
+            ir: "HRRR simulated brightness temperature for the GOES-East 10.3 µm window band (UPP field SBT124), computed with the CRTM from the model's clouds and water vapour.",
             ceil: "Height above ground of the lowest broken-or-overcast layer. Colours follow the aviation flight categories: magenta LIFR (&lt; 500 ft), red IFR (500–999), blue MVFR (1,000–3,000), green VFR; no shading = no ceiling.",
             vis: "Colours follow the aviation flight categories: magenta &lt; 1 mi, red 1–3, blue 3–5, green 5–10; no shading = 10 mi or more.",
             smoke: "HRRR-Smoke vertically integrated smoke (column mass density), from satellite-detected fires and the model's plume rise and transport.",
             sw: "Downward shortwave radiation at the surface, instantaneous at the valid time." },
     rrfs: { ir: "RRFS simulated GOES-16 ABI band 13 (10.3 µm) brightness temperature.",
+            refl: "RRFS simulated reflectivity 1 km above ground, coloured by the model's precipitation type at the surface (priority freezing rain &gt; sleet &gt; snow &gt; rain; rain and snow together = mix). Isobars: MSLP (NCEP's MSLET reduction) every 2 hPa.",
             smoke: "RRFS-SD smoke: the column mass density of the smoke (organic particulate) tracer." }
   };
   NOTES.rrfs.ceil = NOTES.hrrr.ceil; NOTES.rrfs.vis = NOTES.hrrr.vis; NOTES.rrfs.sw = NOTES.hrrr.sw;
@@ -442,8 +463,22 @@
     return s[3] <= 0.01 ? null : s;
   }
   // 256-entry colour table for a frame: code -> RGBA (premultiplied by the shader)
-  function buildLut(name, q) {
-    var fd = FIELDS[name], lut = new Uint8Array(256 * 4);
+  function reflValue(enc, c) { return enc === "rate2" ? Math.exp(Math.log(0.1) + (c - 1) / 253 * Math.log(1000)) : c * 0.5; }
+  function reflColour(enc, c, t) {
+    if (c === 0 || c === 255) return null;
+    var dbz = enc === "rate2" ? rateEq(reflValue(enc, c)) : reflValue(enc, c);
+    if (dbz < 5) return null;
+    return interp(PT_RAMPS[Math.min(t, 5)], dbz);
+  }
+  function buildLut(name, q, enc) {
+    var fd = FIELDS[name], lut = new Uint8Array(256 * 4 * 6);
+    if (name === "refl") {
+      for (var t = 0; t < 6; t++) for (var c0 = 0; c0 < 256; c0++) {
+        var cl = reflColour(enc, c0, t), o = 4 * (t * 256 + c0);
+        if (cl) { lut[o] = cl[0]; lut[o + 1] = cl[1]; lut[o + 2] = cl[2]; lut[o + 3] = 255; }
+      }
+      return lut;
+    }
     for (var c = 0; c < 256; c++) {
       var v;
       if (fd.enc === "lin2") v = c > 254 ? null : c / 254 * fd.smax;
@@ -456,19 +491,26 @@
 
   // ── state ──────────────────────────────────────────────────────────────────────────────────────────────────────
   var man = {};                                   // model -> manifest
-  var st = { model: "hrrr", ci: 0, field: "ir", hour: 0, prev: false, playing: false };
+  var st = { model: "hrrr", ci: 0, field: "ir", hour: 0, playing: false };
   var view = null;                                // {cx, cy, s: metres per CSS px}
   var $ = function (id) { return document.getElementById(id); };
   var mapEl = $("map"), glc = $("gl"), ovc = $("ov"), tip = $("tip");
 
   function cycleObj(model, ci) { var m = man[model]; return m && m.cycles && m.cycles[ci]; }
-  function currentCycle() {
-    var c = cycleObj(st.model, st.ci);
-    if (!st.prev || !c) return { c: c, hour: st.hour };
-    var p = cycleObj(st.model, st.ci + 1);
-    if (!p) return { c: null, hour: st.hour, why: "No previous run is kept for this one." };
-    var dh = Math.round((Date.parse(c.init) - Date.parse(p.init)) / 3600e3);
-    return { c: p, hour: st.hour + dh, prevOf: c };
+  function currentCycle() { return { c: cycleObj(st.model, st.ci), hour: st.hour }; }
+  // the forecast hours a run carries (RRFS: hourly to 36 h, then 3-hourly); older manifests: the union of the fields' hours
+  function hoursOf(c) {
+    if (!c) return [0];
+    if (!c._hours) {
+      var set = {}; Object.keys(c.fields).forEach(function (f) { if (f !== "mslp") c.fields[f].hours.forEach(function (h) { set[h] = 1; }); });
+      c._hours = c.hours || Object.keys(set).map(Number).sort(function (a, b) { return a - b; });
+    }
+    return c._hours;
+  }
+  function nearestHour(c, h) {
+    var hs = hoursOf(c), best = hs[0];
+    hs.forEach(function (x) { if (Math.abs(x - h) < Math.abs(best - h)) best = x; });
+    return best;
   }
   function relPath(model, c, field, h) { return "assets/models/data/" + model + "/" + c.cycle + "/" + field + "/" + ("00" + h).slice(-3) + ".webp"; }
 
@@ -498,10 +540,174 @@
   }
 
   // ── decoding off the main thread: WebP -> the R (and G) channel as bytes ────────────────────────────────────────
-  var WORKER_SRC = "self.onmessage=async function(e){var d=e.data;try{var b=await createImageBitmap(new Blob([d.buf],{type:'image/webp'}),{colorSpaceConversion:'none',premultiplyAlpha:'none'});" +
-    "var c=new OffscreenCanvas(b.width,b.height),g=c.getContext('2d',{willReadFrequently:true});g.drawImage(b,0,0);var px=g.getImageData(0,0,b.width,b.height).data,n=b.width*b.height,o=new Uint8Array(n*d.ch),k;" +
-    "if(d.ch===1){for(k=0;k<n;k++)o[k]=px[4*k];}else{for(k=0;k<n;k++){o[2*k]=px[4*k];o[2*k+1]=px[4*k+1];}}self.postMessage({id:d.id,w:b.width,h:b.height,data:o},[o.buffer]);}" +
-    "catch(err){self.postMessage({id:d.id,err:String(err)});}};";
+  // One worker source, built from a real function: decoding (WebP -> the R, G channels) and contouring.
+  function workerMain() {
+    function decodeMsg(d) {
+      return createImageBitmap(new Blob([d.buf], { type: "image/webp" }), { colorSpaceConversion: "none", premultiplyAlpha: "none" }).then(function (b) {
+        var c = new OffscreenCanvas(b.width, b.height), g = c.getContext("2d", { willReadFrequently: true }); g.drawImage(b, 0, 0);
+        var px = g.getImageData(0, 0, b.width, b.height).data, n = b.width * b.height, o = new Uint8Array(n * d.ch), k;
+        if (d.ch === 1) for (k = 0; k < n; k++) o[k] = px[4 * k];
+        else for (k = 0; k < n; k++) { o[2 * k] = px[4 * k]; o[2 * k + 1] = px[4 * k + 1]; }
+        self.postMessage({ id: d.id, w: b.width, h: b.height, data: o }, [o.buffer]);
+      });
+    }
+    function blur(f, W, H, r) {                       // box blur, radius r, separable running sums, edges clamped
+      if (r < 1) return f;
+      var t = new Float32Array(W * H), x, y, s, k, n = 2 * r + 1, row, W1 = W - 1, H1 = H - 1;
+      for (y = 0; y < H; y++) {
+        row = y * W; s = 0;
+        for (k = -r; k <= r; k++) s += f[row + (k < 0 ? 0 : k > W1 ? W1 : k)];
+        for (x = 0; x < W; x++) {
+          t[row + x] = s / n;
+          var xa = x + r + 1, xb = x - r;
+          s += f[row + (xa > W1 ? W1 : xa)] - f[row + (xb < 0 ? 0 : xb)];
+        }
+      }
+      for (x = 0; x < W; x++) {
+        s = 0;
+        for (k = -r; k <= r; k++) s += t[(k < 0 ? 0 : k > H1 ? H1 : k) * W + x];
+        for (y = 0; y < H; y++) {
+          f[y * W + x] = s / n;
+          var ya = y + r + 1, yb = y - r;
+          s += t[(ya > H1 ? H1 : ya) * W + x] - t[(yb < 0 ? 0 : yb) * W + x];
+        }
+      }
+      return f;
+    }
+    var W2g = 0;
+    function E(S, e, x, y, lv, tl, tr, bl, br) {          // push one crossing: edge key, x, y (T=0 B=1 L=2 R=3)
+      if (e === 0) S.push(2 * (y * W2g + x), x + (lv - tl) / (tr - tl), y);
+      else if (e === 1) S.push(2 * ((y + 1) * W2g + x), x + (lv - bl) / (br - bl), y + 1);
+      else if (e === 2) S.push(2 * (y * W2g + x) + 1, x, y + (lv - tl) / (bl - tl));
+      else S.push(2 * (y * W2g + x + 1) + 1, x + 1, y + (lv - tr) / (br - tr));
+    }
+    function contourMsg(d) {
+      // block-average the frame to D x D cells first (a 3 km grid contours at 6 km), then blur at that resolution:
+      // four times less work than blurring the native grid, and the same amount of smoothing
+      var t0 = performance.now(), W = d.w, H = d.h, a = d.data, D = d.dec || 1;
+      var k, W2 = D === 1 ? W : Math.floor(W / D), H2 = D === 1 ? H : Math.floor(H / D), g = new Float32Array(W2 * H2), gb = null, lut = d.lut, inv = 1 / (D * D);
+      var off = d.speed ? d.speed[0] : 0, stp = d.speed ? d.speed[1] : 0;
+      var n2 = W2 * H2, vv2;
+      if (d.speed) {                                        // wind speed from the (u, v) codes; 255 = missing
+        var sp = new Float32Array(256); for (k = 0; k < 256; k++) sp[k] = off + k * stp;
+        for (var yy = 0; yy < H2; yy++) for (var xx = 0; xx < W2; xx++) {
+          var acc = 0, bad = false;
+          for (var by = 0; by < D; by++) { var rr = (yy * D + by) * W + xx * D;
+            for (var bx = 0; bx < D; bx++) { var k0 = 2 * (rr + bx), cu = a[k0]; if (cu === 255) bad = true; else { var uu = sp[cu], vv = sp[a[k0 + 1]]; acc += Math.sqrt(uu * uu + vv * vv); } } }
+          g[yy * W2 + xx] = acc * inv; if (bad) (gb || (gb = new Uint8Array(n2)))[yy * W2 + xx] = 1;
+        }
+      } else if (D === 2) {                                 // the common case, unrolled: 2 x 2 block means through the LUT
+        for (var y2 = 0; y2 < H2; y2++) { var r0 = 2 * y2 * W, r1 = r0 + W, o2 = y2 * W2;
+          for (var x2 = 0; x2 < W2; x2++) { var c2 = 2 * x2;
+            vv2 = lut[a[r0 + c2]] + lut[a[r0 + c2 + 1]] + lut[a[r1 + c2]] + lut[a[r1 + c2 + 1]];
+            if (vv2 !== vv2) { g[o2 + x2] = 0; (gb || (gb = new Uint8Array(n2)))[o2 + x2] = 1; } else g[o2 + x2] = vv2 * 0.25; } }
+      } else {
+        var st2 = d.stride || 1;
+        for (k = 0; k < n2; k++) { vv2 = lut[a[k * st2]]; if (vv2 !== vv2) { g[k] = 0; (gb || (gb = new Uint8Array(n2)))[k] = 1; } else g[k] = vv2; }
+      }
+      var tp = [performance.now() - t0];
+      blur(g, W2, H2, d.rad); if (d.rad2) blur(g, W2, H2, d.rad2);
+      tp.push(performance.now() - t0);
+      var ctrOff = (D - 1) / 2; W2g = W2;                            // a block's centre in native grid units
+      var L = d.levels, NL = L.length, segs = [], k, q;
+      for (var q = 0; q < NL; q++) segs.push([]);
+      // bin[k] = how many levels are <= the value at node k; a cell is crossed by levels bin(min) .. bin(max)-1 only,
+      // so the (usual) cell that no contour crosses costs four byte compares
+      var bin = new Uint8Array(W2 * H2);
+      for (k = 0; k < W2 * H2; k++) { var gv = g[k], lo2 = 0, hi2 = NL; while (lo2 < hi2) { var md = (lo2 + hi2) >> 1; if (L[md] <= gv) lo2 = md + 1; else hi2 = md; } bin[k] = lo2; }
+      for (var y = 0; y < H2 - 1; y++) for (var x = 0; x < W2 - 1; x++) {
+        var i0 = y * W2 + x, b0 = bin[i0], b1 = bin[i0 + 1], b2 = bin[i0 + W2], b3 = bin[i0 + W2 + 1];
+        if (b0 === b1 && b0 === b2 && b0 === b3) continue;
+        if (gb && (gb[i0] | gb[i0 + 1] | gb[i0 + W2] | gb[i0 + W2 + 1])) continue;
+        var tl = g[i0], tr = g[i0 + 1], bl = g[i0 + W2], br = g[i0 + W2 + 1];
+        var qa = Math.min(b0, b1, b2, b3), qb = Math.max(b0, b1, b2, b3);
+        for (q = qa; q < qb; q++) {
+          var lv = L[q];
+          var c = (tl >= lv ? 8 : 0) | (tr >= lv ? 4 : 0) | (br >= lv ? 2 : 0) | (bl >= lv ? 1 : 0), S = segs[q];
+          switch (c) {
+            case 1: case 14: E(S, 2, x, y, lv, tl, tr, bl, br); E(S, 1, x, y, lv, tl, tr, bl, br); break;
+            case 2: case 13: E(S, 1, x, y, lv, tl, tr, bl, br); E(S, 3, x, y, lv, tl, tr, bl, br); break;
+            case 3: case 12: E(S, 2, x, y, lv, tl, tr, bl, br); E(S, 3, x, y, lv, tl, tr, bl, br); break;
+            case 4: case 11: E(S, 0, x, y, lv, tl, tr, bl, br); E(S, 3, x, y, lv, tl, tr, bl, br); break;
+            case 6: case 9: E(S, 0, x, y, lv, tl, tr, bl, br); E(S, 1, x, y, lv, tl, tr, bl, br); break;
+            case 7: case 8: E(S, 2, x, y, lv, tl, tr, bl, br); E(S, 0, x, y, lv, tl, tr, bl, br); break;
+            case 5: case 10:
+              var ctr = (tl + tr + bl + br) / 4 >= lv;
+              if ((c === 5) === ctr) { E(S, 2, x, y, lv, tl, tr, bl, br); E(S, 0, x, y, lv, tl, tr, bl, br); E(S, 1, x, y, lv, tl, tr, bl, br); E(S, 3, x, y, lv, tl, tr, bl, br); }
+              else { E(S, 0, x, y, lv, tl, tr, bl, br); E(S, 3, x, y, lv, tl, tr, bl, br); E(S, 2, x, y, lv, tl, tr, bl, br); E(S, 1, x, y, lv, tl, tr, bl, br); }
+              break;
+          }
+        }
+      }
+      tp.push(performance.now() - t0);
+      // chain segments (6 numbers each: key, x, y for both ends) into polylines through shared edge keys
+      var out = [], total = 0;
+      for (q = 0; q < NL; q++) {
+        var S2 = segs[q], ns = S2.length / 6; if (!ns) continue;
+        var first = new Map(), second = new Map(), used = new Uint8Array(ns);
+        for (k = 0; k < ns; k++) for (var e = 0; e < 2; e++) { var key = S2[6 * k + 3 * e]; if (first.has(key)) second.set(key, k); else first.set(key, k); }
+        var other = function (key, not) { var f1 = first.get(key); if (f1 !== undefined && f1 !== not && !used[f1]) return f1; var f2 = second.get(key); return f2 !== undefined && f2 !== not && !used[f2] ? f2 : -1; };
+        for (k = 0; k < ns; k++) {
+          if (used[k]) continue; used[k] = 1;
+          var fx = [S2[6 * k + 1], S2[6 * k + 4]], fy = [S2[6 * k + 2], S2[6 * k + 5]], bxs = [], bys = [];
+          var endKey = S2[6 * k + 3], cur = k;
+          for (;;) { var nx = other(endKey, cur); if (nx < 0) break; used[nx] = 1; var o6 = 6 * nx, sd = S2[o6] === endKey ? 3 : 0;
+            fx.push(S2[o6 + sd + 1]); fy.push(S2[o6 + sd + 2]); endKey = S2[o6 + sd]; cur = nx; }
+          endKey = S2[6 * k]; cur = k;
+          for (;;) { var nb = other(endKey, cur); if (nb < 0) break; used[nb] = 1; var b6 = 6 * nb, sb = S2[b6] === endKey ? 3 : 0;
+            bxs.push(S2[b6 + sb + 1]); bys.push(S2[b6 + sb + 2]); endKey = S2[b6 + sb]; cur = nb; }
+          var np = fx.length + bxs.length; if (np < d.minPts) continue;
+          var arr = new Float32Array(np * 2), m2 = 0;
+          for (var m = bxs.length - 1; m >= 0; m--, m2++) { arr[2 * m2] = bxs[m] * D + ctrOff; arr[2 * m2 + 1] = (H - 1) - (bys[m] * D + ctrOff); }
+          for (m = 0; m < fx.length; m++, m2++) { arr[2 * m2] = fx[m] * D + ctrOff; arr[2 * m2 + 1] = (H - 1) - (fy[m] * D + ctrOff); }
+          out.push({ lv: q, pts: arr }); total += np;
+        }
+      }
+      tp.push(performance.now() - t0);
+      // highs and lows: the extreme of a (2R+1)^2 window that stands out from the window mean by at least d.ext[1]
+      var ext = [];
+      if (d.ext) {
+        // H/L centres, found once per frame in grid space on a more strongly smoothed copy (d.ext = [search radius in
+        // cells ~400 km, prominence hPa, extra blur radius in cells]): a centre must be the extreme of the whole disc of
+        // that radius, stand out from the ring at that radius by the prominence, lie a radius inside the domain, and not
+        // sit on high terrain (G channel = surface pressure below 850 hPa, where the sea-level reduction invents centres);
+        // then the strongest wins and weaker ones of the same kind within the radius are dropped.
+        var Rw = d.ext[0], prom = d.ext[1], ge = blur(blur(Float32Array.from(g), W2, H2, d.ext[2]), W2, H2, d.ext[2]), cand = [];
+        var ringN = 32, ring = [];
+        for (k = 0; k < ringN; k++) ring.push([Math.round(Rw * Math.cos(2 * Math.PI * k / ringN)), Math.round(Rw * Math.sin(2 * Math.PI * k / ringN))]);
+        for (y = Rw; y < H2 - Rw; y++) for (x = Rw; x < W2 - Rw; x++) {
+          var i1 = y * W2 + x, z1 = ge[i1];
+          if ((gb && gb[i1]) || (d.emask && a[2 * i1 + 1])) continue;
+          var up = z1 >= ge[i1 - 1] && z1 >= ge[i1 + 1] && z1 >= ge[i1 - W2] && z1 >= ge[i1 + W2] && z1 > ge[i1 - W2 - 1] && z1 > ge[i1 + W2 + 1];
+          var dn = z1 <= ge[i1 - 1] && z1 <= ge[i1 + 1] && z1 <= ge[i1 - W2] && z1 <= ge[i1 + W2] && z1 < ge[i1 - W2 - 1] && z1 < ge[i1 + W2 + 1];
+          if (!up && !dn) continue;
+          var rs = 0; for (k = 0; k < ringN; k++) rs += ge[(y + ring[k][1]) * W2 + x + ring[k][0]];
+          var pr = up ? z1 - rs / ringN : rs / ringN - z1;
+          if (pr < prom) continue;
+          var ok = true, R2 = Rw * Rw;
+          for (var yy3 = -Rw; yy3 <= Rw && ok; yy3++) for (var xx3 = -Rw; xx3 <= Rw; xx3++) {
+            if (xx3 * xx3 + yy3 * yy3 > R2) continue;
+            var z3 = ge[(y + yy3) * W2 + x + xx3]; if (up ? z3 > z1 : z3 < z1) { ok = false; break; } }
+          if (ok) cand.push([up ? 1 : -1, x, y, pr, g[i1]]);
+        }
+        cand.sort(function (p1, p2) { return p2[3] - p1[3]; });
+        var kept = [];
+        cand.forEach(function (c3) {
+          for (var q3 = 0; q3 < kept.length; q3++) { var o3 = kept[q3]; if (o3[0] === c3[0] && (o3[1] - c3[1]) * (o3[1] - c3[1]) + (o3[2] - c3[2]) * (o3[2] - c3[2]) < Rw * Rw) return; }
+          kept.push(c3);
+        });
+        kept.forEach(function (c3) { ext.push(c3[0], c3[1] * D + ctrOff, (H - 1) - (c3[2] * D + ctrOff), c3[4]); });
+      }
+      var bufs = out.map(function (o) { return o.pts.buffer; });
+      self.postMessage({ id: d.id, lines: out, ext: ext, ms: performance.now() - t0, npts: total, tp: tp }, bufs);
+    }
+    self.onmessage = function (e) {
+      var d = e.data;
+      try { if (d.op === "contour") contourMsg(d); else decodeMsg(d).catch(function (err) { self.postMessage({ id: d.id, err: String(err) }); }); }
+      catch (err) { self.postMessage({ id: d.id, err: String(err) }); }
+    };
+  }
+  var WORKER_SRC = "(" + workerMain.toString() + ")();";
   var workers = [], wcb = {}, wid = 0, wnext = 0;
   try {
     if (typeof OffscreenCanvas === "function" && typeof Worker === "function") {
@@ -529,6 +735,14 @@
       var id = ++wid;
       wcb[id] = function (d) { if (d.err) { decodeMain(buf, ch).then(res, rej); } else res(d); };
       workers[wnext++ % workers.length].postMessage({ id: id, buf: buf, ch: ch });   // not transferred: the bytes stay cached
+    });
+  }
+  function workerCall(msg) {                              // contouring: in a worker when there is one, else here (same code)
+    return new Promise(function (res, rej) {
+      if (!workers.length) { rej(new Error("no worker")); return; }
+      var id = ++wid; msg.id = id;
+      wcb[id] = function (d) { if (d.err) rej(new Error(d.err)); else res(d); };
+      workers[wnext++ % workers.length].postMessage(msg);
     });
   }
 
@@ -567,7 +781,7 @@
     if (e.dec) return e;
     if (e.decP || e.fail) return null;
     if (!e.bytes) { if (!e.bytesP) { queue.unshift([model, c, field, h]); pump(); } return null; }
-    e.decP = decode(e.bytes, FIELDS[field].enc === "lin2" ? 2 : 1).then(function (d) {
+    e.decP = decode(e.bytes, chOf(field)).then(function (d) {
       e.dec = d; e.decP = null;
       var ds = Array.from(frames.values()).filter(function (x) { return x.dec; }).sort(function (a, b) { return a.used - b.used; });
       for (var i = 0; i < ds.length - DEC_MAX; i++) { ds[i].dec = null; if (ds[i].tex) { gl.deleteTexture(ds[i].tex); ds[i].tex = null; } }
@@ -600,9 +814,11 @@
     " int i=int(floor(fi+0.5)),j=int(floor(fj+0.5));",
     " if(i<0||j<0||i>=uN.x||j>=uN.y)discard;",
     " vec4 t2=texelFetch(uData,ivec2(i,uN.y-1-j),0);float code;",
+    " int row=0;",
     " if(uMode==0){code=floor(t2.r*255.+0.5);}",
+    " else if(uMode==2){code=floor(t2.r*255.+0.5);if(code<0.5)discard;row=int(floor(t2.g*255.+0.5));if(row>5)row=0;}",
     " else{float cu=floor(t2.r*255.+0.5),cv=floor(t2.g*255.+0.5);if(cu>254.5)discard;float u=uW.x+cu*uW.y,v=uW.x+cv*uW.y;code=min(254.,floor(sqrt(u*u+v*v)/uW.z*254.+0.5));}",
-    " vec4 c=texelFetch(uLut,ivec2(int(code),0),0);if(c.a<0.004)discard;o=vec4(c.rgb*c.a,c.a);",
+    " vec4 c=texelFetch(uLut,ivec2(int(code),row),0);if(c.a<0.004)discard;o=vec4(c.rgb*c.a,c.a);",
     "}"].join("\n");
   function initGL() {
     if (!gl) return false;
@@ -690,7 +906,6 @@
     var msg = "";
     var na = NA[st.model] && NA[st.model][st.field];
     if (na) msg = na;
-    else if (cc.why) msg = cc.why;
     else if (!fm) msg = FIELDS[st.field].label + " is missing from this run.";
     else if (fm.hours.indexOf(cc.hour) < 0) msg = FIELDS[st.field].label + " is not available at +" + cc.hour + " h in this run" +
       (fm.hours.length ? " (it covers +" + fm.hours[0] + " to +" + fm.hours[fm.hours.length - 1] + " h)." : ".");
@@ -705,21 +920,22 @@
     if (drawn && drawn.e === e) q = drawn.q;
     var g = prepGrid(c.grids[fm.grid]);
     if (gl) {
-      var ch = fd.enc === "lin2" ? 2 : 1;
+      var ch = chOf(st.field), enc = encOf(st.field, fm);
       gl.viewport(0, 0, glc.width, glc.height); gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT);
       gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, texOf(e, ch));
-      var lk = st.field + "|" + (q ? q.join(",") : "");
+      var lk = st.field + "|" + enc + "|" + (q ? q.join(",") : "");
       if (lk !== lutKey) { gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, lutTex);
-        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, 256, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, buildLut(st.field, q)); lutKey = lk; }
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, 256, 6, 0, gl.RGBA, gl.UNSIGNED_BYTE, buildLut(st.field, q, enc)); lutKey = lk; }
       gl.uniform2f(loc.uC, view.cx, view.cy); gl.uniform1f(loc.uS, view.s / DPR); gl.uniform2f(loc.uWH, glc.width, glc.height);
       gl.uniform4f(loc.uP, P.n, P.RF, P.rho0, P.lon0);
       gl.uniform2i(loc.uN, g.nx, g.ny);
       if (g.type === "lcc") { gl.uniform1i(loc.uType, 0); gl.uniform4f(loc.uL, g._x1, g._y1, g.dx, g.dy); }
       else { gl.uniform1i(loc.uType, 1); gl.uniform4f(loc.uR1, g.splat, g.splon, g.lo1, g.la1); gl.uniform4f(loc.uR2, g.di, g.dj, g.i0 || 0, g.j0 || 0); }
-      gl.uniform1i(loc.uMode, ch === 2 ? 1 : 0); gl.uniform3f(loc.uW, fd.off || 0, fd.step || 1, fd.smax || 1);
+      gl.uniform1i(loc.uMode, st.field === "refl" ? 2 : ch === 2 ? 1 : 0); gl.uniform3f(loc.uW, fd.off || 0, fd.step || 1, fd.smax || 1);
       gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
     }
-    drawn = { e: e, g: g, field: st.field, model: st.model, q: q, c: c, hour: cc.hour };
+    drawn = { e: e, g: g, field: st.field, model: st.model, q: q, c: c, hour: cc.hour, enc: encOf(st.field, fm) };
+    ensureContours(drawn);
     drawOverlay();
     schedule();
   }
@@ -766,6 +982,7 @@
       ctx.stroke();
     });
     ctx.globalAlpha = 1;
+    drawContours(ctx);
     if (st.field === "wind80" && drawn && drawn.e && drawn.e.dec && drawn.field === "wind80") drawBarbs(ctx, drawn);
     drawFarms(ctx);
     if (snapC.width !== ovc.width || snapC.height !== ovc.height) { snapC.width = ovc.width; snapC.height = ovc.height; }
@@ -812,12 +1029,144 @@
     return "<br><b>" + esc(best[3]) + "</b> · " + (best[2] != null ? best[2] + " MW" + (k === "solar" ? " AC" : "") : "capacity n/a") +
       (best[4] ? " · " + best[4] : "") + (k === "wind" ? " · " + best[5] + " turbines" + (best[6] ? " · offshore" : "") : (best[5] ? " · with battery" : ""));
   }
+  // ── contours (2026-09-30, user: "add contours to some maps like temp and dewpoint to delineate thresholds") ────────
+  // Marching squares in the worker on the frame already decoded for the map (no extra files except the small MSLP grid for
+  // the isobars on the radar map), after a light box blur so 3 km noise does not make ragged lines; lines cached per
+  // frame in display metres, labelled along the line with a halo, drawn on the overlay (so they ride the gesture bitmap).
+  function range(a, b, d) { var r = []; for (var v = a; v <= b + 1e-9; v += d) r.push(v); return r; }
+  function logLut(fd, lo, hiNone, loZero) {                        // code -> log(value) for the log-encoded fields
+    var L = new Float32Array(256);
+    for (var c = 0; c < 256; c++) { var v = c === 255 ? hiNone : c === 0 ? loZero : valueOf(fd, c, null); L[c] = Math.log(v); }
+    return L;
+  }
+  function contourSpec(field, model, q) {
+    var fine = model !== "rdps";                                   // 3 km grids: blur harder and contour every 2nd point
+    var base = { rad: 1, rad2: 1, dec: fine ? 2 : 1, minPts: 8 };
+    function linLut() { var L = new Float32Array(256); for (var c = 0; c < 256; c++) L[c] = c === 255 ? NaN : q[0] + c * q[1]; return L; }
+    if (field === "t2m") { var lv = range(-60, 130, 10).concat([32]).sort(function (a, b) { return a - b; });
+      return Object.assign(base, { lut: linLut(), levels: lv, values: lv, fmt: function (v) { return v + "°"; },
+        style: function (v) { return v === 32 ? ["#1640c8", 2.4] : ["rgba(20,22,20,0.8)", 0.9]; } }); }
+    if (field === "td2m") { var lv2 = range(-40, 90, 10);
+      return Object.assign(base, { lut: linLut(), levels: lv2, values: lv2, fmt: function (v) { return v + "°"; },
+        style: function (v) { return v === 60 || v === 70 ? ["rgba(10,40,20,0.95)", 2.1] : ["rgba(20,22,20,0.8)", 0.9]; } }); }
+    if (field === "ceil") { var cv = [500, 1000, 3000];
+      // ceiling and visibility are threshold fields: traced on the RAW grid (no blur, full resolution) in the same log space the
+      // colours use, so each line sits exactly on the fill's category break; "no ceiling" / "10+ mi" count as above every level
+      return Object.assign(base, { rad: 0, rad2: 0, dec: 1, minPts: 4, lut: logLut(FIELDS.ceil, 1e5, 1e5, 30), levels: cv.map(Math.log), values: cv,
+        fmt: function (v) { return v.toLocaleString("en-US") + " ft"; }, style: function () { return ["rgba(15,15,15,0.9)", 1.3]; } }); }
+    if (field === "vis") { var vv = [1, 3, 5];
+      return Object.assign(base, { rad: 0, rad2: 0, dec: 1, minPts: 4, lut: logLut(FIELDS.vis, 10, 10, 0.02), levels: vv.map(Math.log), values: vv,
+        fmt: function (v) { return v + " mi"; }, style: function () { return ["rgba(15,15,15,0.9)", 1.3]; } }); }
+    if (field === "wind80") { var wv = [10, 15, 20];
+      return Object.assign(base, { speed: [FIELDS.wind80.off, FIELDS.wind80.step], levels: wv, values: wv,
+        fmt: function (v) { return v + " m/s"; }, style: function () { return ["rgba(15,15,15,0.85)", 1.2]; } }); }
+    if (field === "refl") { var pv = range(940, 1066, 2), L2 = new Float32Array(256);
+      for (var c = 0; c < 256; c++) L2[c] = c === 255 ? NaN : 940 + 0.5 * c;
+      return { rad: 1, rad2: 1, dec: 1, minPts: 4, lut: L2, levels: pv, values: pv, src: "mslp", stride: 2, emask: true, extKm: [400, 2.0, 60],
+        fmt: function (v) { return String(v); }, style: function () { return ["rgba(20,20,20,0.85)", 1.0]; } };
+    }
+    return null;
+  }
+  var CONT = new Map(), contBusy = {};
+  function contoursOn() { return !!contourSpec(st.field, st.model, [0, 1]) && $("cont").checked; }
+  function ensureContours(d) {
+    if (!contoursOn() || !d) return;
+    var fm = d.c.fields[d.field]; if (!fm) return;
+    var spec0 = contourSpec(d.field, d.model, [0, 1]);
+    var srcField = spec0.src || d.field, sfm = d.c.fields[srcField];
+    if (!sfm || sfm.hours.indexOf(d.hour) < 0) return;
+    var key = d.model + "/" + d.c.cycle + "/" + d.field + "/" + d.hour;
+    if (CONT.has(key) || contBusy[key]) return;
+    var e = srcField === d.field ? d.e : decoded(d.model, d.c, srcField, d.hour);
+    if (!e || !e.dec) return;
+    var q = sfm.q ? sfm.q[sfm.hours.indexOf(d.hour)] : null;
+    var spec = contourSpec(d.field, d.model, q), g = prepGrid(d.c.grids[sfm.grid]);
+    contBusy[key] = 1;
+    var cellKm = g.type === "lcc" ? g.dx / 1000 : g.di * 111.2, ext = null;
+    if (spec.extKm) ext = [Math.max(4, Math.round(spec.extKm[0] / cellKm)), spec.extKm[1], Math.max(1, Math.round(spec.extKm[2] / cellKm))];
+    workerCall({ op: "contour", w: e.dec.w, h: e.dec.h, data: e.dec.data, lut: spec.lut, speed: spec.speed, levels: spec.levels,
+                 rad: spec.rad, rad2: spec.rad2, dec: spec.dec, minPts: spec.minPts, ext: ext, stride: spec.stride, emask: spec.emask }).then(function (r) {
+      var lines = r.lines.map(function (o) {
+        var n = o.pts.length / 2, xy = new Float64Array(o.pts.length), bb = [1e20, -1e20, 1e20, -1e20];
+        for (var k = 0; k < n; k++) {
+          var p = gridXY(g, o.pts[2 * k], o.pts[2 * k + 1]); xy[2 * k] = p[0]; xy[2 * k + 1] = p[1];
+          if (p[0] < bb[0]) bb[0] = p[0]; if (p[0] > bb[1]) bb[1] = p[0]; if (p[1] < bb[2]) bb[2] = p[1]; if (p[1] > bb[3]) bb[3] = p[1];
+        }
+        return { v: spec.values[o.lv], xy: xy, bb: bb };
+      });
+      var ext = [];
+      for (var k = 0; k < r.ext.length; k += 4) { var p = gridXY(g, r.ext[k + 1], r.ext[k + 2]); ext.push([r.ext[k], p[0], p[1], r.ext[k + 3]]); }
+      CONT.set(key, { lines: lines, ext: ext, spec: spec, ms: r.ms, npts: r.npts });
+      window.MV_contourMs = (window.MV_contourMs || []).concat([[key, Math.round(r.ms), r.npts, (r.tp || []).map(Math.round)]]).slice(-50);
+      if (CONT.size > 60) CONT.delete(CONT.keys().next().value);
+      delete contBusy[key]; render();
+    }, function () { delete contBusy[key]; });
+  }
+  function gridXY(g, i, j) {
+    if (g.type === "lcc") return [g._x1 + i * g.dx, g._y1 + j * g.dy];
+    var ll = ijLL(g, i, j); return P.fwd(ll[0], ll[1]);
+  }
+  function drawContours(ctx) {
+    if (!contoursOn() || !drawn) return;
+    var key = drawn.model + "/" + drawn.c.cycle + "/" + drawn.field + "/" + drawn.hour, C = CONT.get(key);
+    if (!C) { ensureContours(drawn); return; }
+    var x0 = view.cx - W / 2 * view.s, x1 = view.cx + W / 2 * view.s, y0 = view.cy - H / 2 * view.s, y1 = view.cy + H / 2 * view.s;
+    var boxes = [], GAP = W < 640 ? 170 : 240;
+    ctx.lineJoin = "round"; ctx.lineCap = "round";
+    var screen = [];
+    C.lines.forEach(function (L) {
+      if (L.bb[1] < x0 || L.bb[0] > x1 || L.bb[3] < y0 || L.bb[2] > y1) return;
+      var a = L.xy, sp = new Float32Array(a.length);
+      for (var k = 0; k < a.length; k += 2) { sp[k] = W / 2 + (a[k] - view.cx) / view.s; sp[k + 1] = H / 2 - (a[k + 1] - view.cy) / view.s; }
+      screen.push([L, sp]);
+    });
+    [0, 1].forEach(function (pass) {                               // halo first, then the line
+      screen.forEach(function (x) {
+        var sty = C.spec.style(x[0].v), sp = x[1];
+        ctx.strokeStyle = pass ? sty[0] : "rgba(255,255,255,0.55)"; ctx.lineWidth = pass ? sty[1] : sty[1] + 1.8;
+        ctx.beginPath(); ctx.moveTo(sp[0], sp[1]);
+        for (var k = 2; k < sp.length; k += 2) ctx.lineTo(sp[k], sp[k + 1]);
+        ctx.stroke();
+      });
+    });
+    ctx.font = "600 11.5px 'Source Sans 3', Arial, sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    screen.forEach(function (x) {
+      var L = x[0], sp = x[1], txt = C.spec.fmt(L.v), tw = ctx.measureText(txt).width + 6, sty = C.spec.style(L.v);
+      var acc = GAP * 0.45;
+      for (var k = 2; k < sp.length; k += 2) {
+        var dx = sp[k] - sp[k - 2], dy = sp[k + 1] - sp[k - 1]; acc += Math.sqrt(dx * dx + dy * dy);
+        if (acc < GAP) continue;
+        var cx = sp[k], cy = sp[k + 1];
+        if (cx < tw || cx > W - tw || cy < 12 || cy > H - 12) continue;
+        var ka = Math.max(0, k - 6), kb = Math.min(sp.length - 2, k + 6), ang = Math.atan2(sp[kb + 1] - sp[ka + 1], sp[kb] - sp[ka]);
+        if (ang > Math.PI / 2) ang -= Math.PI; if (ang < -Math.PI / 2) ang += Math.PI;
+        var r = Math.max(tw, 16) / 2 + 2, hit = false;
+        for (var b = 0; b < boxes.length; b++) { var bx = boxes[b]; if (Math.abs(bx[0] - cx) < bx[2] + r && Math.abs(bx[1] - cy) < 9 + r * Math.abs(Math.sin(ang)) + 4) { hit = true; break; } }
+        if (hit) continue;
+        boxes.push([cx, cy, r]); acc = 0;
+        ctx.save(); ctx.translate(cx, cy); ctx.rotate(ang);
+        ctx.lineWidth = 3.2; ctx.strokeStyle = "rgba(255,255,255,0.92)"; ctx.strokeText(txt, 0, 0);
+        ctx.fillStyle = sty[0].indexOf("rgba") === 0 ? "#141614" : sty[0]; ctx.fillText(txt, 0, 0);
+        ctx.restore();
+      }
+    });
+    if (C.ext.length) {
+      ctx.textAlign = "center";
+      C.ext.forEach(function (x) {
+        if (x[1] < x0 || x[1] > x1 || x[2] < y0 || x[2] > y1) return;
+        var px = W / 2 + (x[1] - view.cx) / view.s, py = H / 2 - (x[2] - view.cy) / view.s, hi = x[0] > 0;
+        ctx.font = "700 20px 'Source Sans 3', Arial, sans-serif"; ctx.lineWidth = 3.5; ctx.strokeStyle = "rgba(255,255,255,0.95)";
+        ctx.strokeText(hi ? "H" : "L", px, py); ctx.fillStyle = hi ? "#1c3fa8" : "#b0171f"; ctx.fillText(hi ? "H" : "L", px, py);
+        ctx.font = "600 11px 'Source Sans 3', Arial, sans-serif"; ctx.lineWidth = 3; ctx.strokeText(Math.round(x[3]), px, py + 15); ctx.fillText(Math.round(x[3]), px, py + 15);
+      });
+    }
+  }
   function sample(d, px, py) {                          // -> code(s) at a CSS pixel of the drawn frame, or null
     var xy = toXY(px, py), ij = gridIJ(d.g, xy[0], xy[1]);
     var i = Math.floor(ij[0] + 0.5), j = Math.floor(ij[1] + 0.5);
     if (i < 0 || j < 0 || i >= d.g.nx || j >= d.g.ny) return null;
     var idx = (d.g.ny - 1 - j) * d.g.nx + i, a = d.e.dec.data;
-    return FIELDS[d.field].enc === "lin2" ? [a[2 * idx], a[2 * idx + 1], xy] : [a[idx], null, xy];
+    return chOf(d.field) === 2 ? [a[2 * idx], a[2 * idx + 1], xy] : [a[idx], null, xy];
   }
   function drawBarbs(ctx, d) {
     var fd = FIELDS.wind80, sp = W < 640 ? 34 : 40, L = 17;
@@ -848,7 +1197,28 @@
   }
 
   // ── legend ─────────────────────────────────────────────────────────────────────────────────────────────────────
+  function drawLegendRefl() {
+    var cv = $("leg"), dpr = Math.min(window.devicePixelRatio || 1, 2); cv.style.height = "110px";
+    var r = cv.getBoundingClientRect(); cv.width = Math.round(r.width * dpr); cv.height = Math.round(110 * dpr);
+    var ctx = cv.getContext("2d"); ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, r.width, 110);
+    var rate = st.model === "rdps", lab = 92, x0 = 6 + lab, x1 = r.width - 6, lo = 5, hi = 72, bh = 11;
+    function xOf(dbz) { return x0 + (dbz - lo) / (hi - lo) * (x1 - x0); }
+    ctx.font = "12px 'Source Sans 3', Arial, sans-serif"; ctx.textBaseline = "middle"; ctx.textAlign = "right";
+    [1, 2, 3, 4, 5].forEach(function (t, row) {
+      var y = 2 + row * (bh + 3);
+      for (var px = x0; px < x1; px++) { var c = interp(PT_RAMPS[t], lo + (px - x0) / (x1 - x0) * (hi - lo));
+        ctx.fillStyle = "rgb(" + Math.round(c[0]) + "," + Math.round(c[1]) + "," + Math.round(c[2]) + ")"; ctx.fillRect(px, y, 1.2, bh); }
+      ctx.fillStyle = "#3d4540"; ctx.fillText(PT_NAMES[t].replace(/^./, function (a) { return a.toUpperCase(); }), x0 - 6, y + bh / 2);
+    });
+    var yT = 2 + 5 * (bh + 3); ctx.textAlign = "center"; ctx.textBaseline = "top"; ctx.fillStyle = "#3d4540";
+    var ticks = rate ? [0.1, 0.5, 1, 2.5, 5, 10, 25, 50] : [10, 20, 30, 40, 50, 60, 70];
+    ticks.forEach(function (tv) { var x = xOf(rate ? rateEq(tv) : tv); if (x < x0 || x > x1) return; ctx.fillRect(x - 0.5, yT, 1, 4); ctx.fillText(String(tv), x, yT + 5); });
+    ctx.textAlign = "right"; ctx.fillStyle = "#5c6b73";
+    ctx.textBaseline = "top"; ctx.fillText(rate ? "precipitation rate, mm/h (not reflectivity) · isobars every 2 hPa" : "dBZ, 1 km above ground · isobars every 2 hPa", x1, yT + 20);
+  }
   function drawLegend() {
+    if (st.field === "refl") { drawLegendRefl(); return; }
+    $("leg").style.height = "46px";
     var cv = $("leg"), r = cv.getBoundingClientRect(), dpr = Math.min(window.devicePixelRatio || 1, 2);
     cv.width = Math.round(r.width * dpr); cv.height = Math.round(46 * dpr);
     var ctx = cv.getContext("2d"); ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, r.width, 46);
@@ -883,7 +1253,7 @@
   }
 
   // ── UI ─────────────────────────────────────────────────────────────────────────────────────────────────────────
-  function labelOf(model, f) { return model === "rdps" && f === "ir" ? "IR proxy (OLR)" : FIELDS[f].label; }
+  function labelOf(model, f) { return model === "rdps" && f === "ir" ? "IR proxy (OLR)" : model === "rdps" && f === "refl" ? "Precip rate + type" : FIELDS[f].label; }
   function fmtTime(ms) {
     var d = new Date(ms);
     var utc = d.toLocaleString("en-US", { timeZone: "UTC", weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", hour12: false }) + " UTC";
@@ -896,7 +1266,7 @@
     var src = cc.c || c, h = cc.hour;
     var vt = Date.parse(c.init) + st.hour * 3600e3, t = fmtTime(vt);
     var init = src.init.replace(/T(\d\d):00Z/, " $1Z").slice(5).replace("-", "/");
-    $("badge").innerHTML = "<b>" + MODELS[st.model] + "</b> " + (st.model === "rdps" && st.field === "ir" ? "OLR-derived brightness temperature (proxy for IR)" : FIELDS[st.field].label) + " · run " + init + " +" + h + " h" + (st.prev ? " <i>(previous run)</i>" : "");
+    $("badge").innerHTML = "<b>" + MODELS[st.model] + "</b> " + (st.model === "rdps" && st.field === "ir" ? "OLR-derived brightness temperature (proxy for IR)" : labelOf(st.model, st.field)) + " · run " + init + " +" + h + " h";
     $("valid").innerHTML = "Valid <b>" + t[0] + "</b> <span class=\"loc\">· " + t[1] + "</span>";
   }
   function setButtons() {
@@ -924,10 +1294,12 @@
       o.textContent = c.init.slice(5, 10).replace("-", "/") + " " + c.init.slice(11, 13) + "Z (to +" + c.length + " h)";
       if (i === st.ci) o.selected = true; rs.appendChild(o);
     });
-    var hasPrev = !!cycleObj(st.model, st.ci + 1);
-    $("prev").disabled = !hasPrev; if (!hasPrev) { $("prev").checked = false; st.prev = false; }
-    var slider = $("hour"), c0 = cycleObj(st.model, st.ci);
-    slider.max = c0 ? c0.length : 18; slider.value = st.hour;
+    // one run per model is kept (user 2026-09-30): the picker only appears if a manifest ever holds more
+    var nC = ((m && m.cycles) || []).length, c0 = cycleObj(st.model, st.ci);
+    rs.hidden = nC < 2;
+    $("runT").textContent = nC < 2 && c0 ? c0.init.slice(5, 10).replace("-", "/") + " " + c0.init.slice(11, 13) + "Z, to +" + c0.length + " h" : "";
+    var slider = $("hour");
+    slider.max = Math.max(0, hoursOf(c0).length - 1); slider.value = Math.max(0, hoursOf(c0).indexOf(st.hour));
   }
   function selectModel(m) {
     tip.style.display = "none";
@@ -936,11 +1308,12 @@
     st.model = m; st.ci = 0;
     if (NA[m] && NA[m][st.field]) st.field = "ir";
     var c = cycleObj(m, 0);
-    st.hour = Math.max(0, Math.min(c.length, Math.round((oldValid - Date.parse(c.init)) / 3600e3)));
+    st.hour = nearestHour(c, Math.round((oldValid - Date.parse(c.init)) / 3600e3));
     setButtons(); onChange();
   }
   function onChange() {
-    var slider = $("hour"); slider.value = st.hour;
+    var slider = $("hour"); slider.value = Math.max(0, hoursOf(cycleObj(st.model, st.ci)).indexOf(st.hour));
+    $("contL").hidden = !contourSpec(st.field, st.model, [0, 1]);
     var n = (NOTES[st.model] && NOTES[st.model][st.field]) || "";
     var fm = cycleObj(st.model, st.ci) && cycleObj(st.model, st.ci).fields[st.field];
     if (fm && fm.from) n += (n ? " " : "") + "This run's smoke: " + fm.from + ".";
@@ -961,6 +1334,11 @@
       if (d <= 3 && i0 - d >= 0) list.push([st.model, c, st.field, hs[i0 - d]]);
     }
     for (var d2 = 4; i0 - d2 >= 0; d2++) list.push([st.model, c, st.field, hs[i0 - d2]]);
+    if (st.field === "refl" && $("cont").checked && c.fields.mslp) {       // the isobars' small grid rides along
+      var ms = c.fields.mslp.hours, out = [];
+      list.forEach(function (a) { if (ms.indexOf(a[3]) >= 0) out.push(a, [st.model, c, "mslp", a[3]]); else out.push(a); });
+      list = out;
+    }
     want(list);
     // decode the next two ahead of the play head
     for (var k = 1; k <= 2 && i0 + k < hs.length; k++) decoded(st.model, c, st.field, hs[i0 + k]);
@@ -971,22 +1349,23 @@
     if (playT) return;
     playT = setTimeout(function () {
       playT = 0; if (!st.playing) return;
-      var c = cycleObj(st.model, st.ci), cc = currentCycle();
-      var next = st.hour + 1 > c.length ? 0 : st.hour + 1;
-      var fm = cc.c && cc.c.fields[st.field];
+      var c = cycleObj(st.model, st.ci), hs = hoursOf(c), ix = hs.indexOf(st.hour);
+      var next = hs[(ix + 1) % hs.length];
+      var fm = c && c.fields[st.field];
       var ready = true;
-      if (fm) { var e = frames.get(fkey(st.model, cc.c, st.field, next + (cc.hour - st.hour))); ready = !!(e && e.dec) || !!(e && e.fail) || fm.hours.indexOf(next + (cc.hour - st.hour)) < 0; }
+      if (fm) { var e = frames.get(fkey(st.model, c, st.field, next)); ready = !!(e && e.dec) || !!(e && e.fail) || fm.hours.indexOf(next) < 0; }
       if (ready) { st.hour = next; onChange(); } else { prefetch(); schedule(); }
     }, 260);
   }
-  function step(dh) { var c = cycleObj(st.model, st.ci); if (!c) return; st.hour = Math.max(0, Math.min(c.length, st.hour + dh)); onChange(); }
-  $("hour").addEventListener("input", function () { st.hour = +this.value; onChange(); });
+  function step(dh) { var c = cycleObj(st.model, st.ci); if (!c) return; var hs = hoursOf(c), ix = hs.indexOf(st.hour);
+    st.hour = hs[Math.max(0, Math.min(hs.length - 1, ix + dh))]; onChange(); }
+  $("hour").addEventListener("input", function () { var hs = hoursOf(cycleObj(st.model, st.ci)); st.hour = hs[+this.value] || 0; onChange(); });
   $("back").onclick = function () { step(-1); };
   $("fwd").onclick = function () { step(1); };
   $("play").onclick = function () { st.playing = !st.playing; this.innerHTML = st.playing ? "&#10074;&#10074;" : "&#9654;"; this.setAttribute("aria-label", st.playing ? "Pause" : "Play"); render(); };
   $("run").onchange = function () { var old = cycleObj(st.model, st.ci), vt = Date.parse(old.init) + st.hour * 3600e3; st.ci = +this.value;
-    var c = cycleObj(st.model, st.ci); st.hour = Math.max(0, Math.min(c.length, Math.round((vt - Date.parse(c.init)) / 3600e3))); setButtons(); onChange(); };
-  $("prev").onchange = function () { st.prev = this.checked; onChange(); };
+    var c = cycleObj(st.model, st.ci); st.hour = nearestHour(c, Math.round((vt - Date.parse(c.init)) / 3600e3)); setButtons(); onChange(); };
+  $("cont").onchange = function () { prefetch(); render(); };
   $("farms").onchange = function () { render(); };
   document.addEventListener("keydown", function (e) {
     if (e.target && /INPUT|SELECT|TEXTAREA/.test(e.target.tagName) && e.target.type !== "range") return;
@@ -1059,7 +1438,11 @@
     if (!s) { tip.style.display = "none"; return; }
     var fd = FIELDS[drawn.field], txt;
     var ll = P.inv(s[2][0], s[2][1]);
-    if (fd.enc === "lin2") {
+    if (drawn.field === "refl") {
+      if (s[0] === 0 || s[0] === 255) txt = drawn.enc === "rate2" ? "no precipitation" : "no echo (below 5 dBZ)";
+      else { var rv = reflValue(drawn.enc, s[0]);
+        txt = (drawn.enc === "rate2" ? (rv < 1 ? rv.toFixed(2) : rv.toFixed(1)) + " mm/h" : rv.toFixed(1) + " dBZ") + " · " + PT_NAMES[Math.min(s[1], 5)]; }
+    } else if (fd.enc === "lin2") {
       if (s[0] === 255) txt = "no data";
       else { var u = fd.off + s[0] * fd.step, v = fd.off + s[1] * fd.step, sp = Math.sqrt(u * u + v * v);
         var dir = (Math.atan2(-u, -v) / D2R + 360) % 360;
@@ -1093,7 +1476,7 @@
     return p.length >= 3 && p[2] !== "";
   }
 
-  window.MV = { st: st, man: man, frames: frames, get view() { return view; }, get drawn() { return drawn; }, P: P, gridIJ: gridIJ };   // for testing from the console
+  window.MV = { st: st, man: man, frames: frames, CONT: CONT, get view() { return view; }, get drawn() { return drawn; }, P: P, gridIJ: gridIJ };   // for testing from the console
   // ── start ──────────────────────────────────────────────────────────────────────────────────────────────────────
   var glOk = false;
   try { glOk = initGL(); } catch (e) { console.error(e); }
@@ -1111,8 +1494,8 @@
     var c = cycleObj(st.model, st.ci);
     if (!c) { $("msg").textContent = "No model run has been published yet."; return; }
     if (NA[st.model] && NA[st.model][st.field]) st.field = "ir";
-    if (!hadHour) st.hour = Math.max(0, Math.min(c.length, Math.round((Date.now() - Date.parse(c.init)) / 3600e3)));
-    st.hour = Math.min(st.hour, c.length);
+    if (!hadHour) st.hour = Math.round((Date.now() - Date.parse(c.init)) / 3600e3);
+    st.hour = nearestHour(c, st.hour);
     setButtons();
     resize();
     fit(prepGrid(c.grids.main));

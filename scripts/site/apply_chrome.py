@@ -33,8 +33,8 @@ REPO = Path(__file__).resolve().parents[2]
 PRODUCTS = [
     ("Short and medium range", "Days 1 to 15: storms, hazards and the temperature forecast", [
         ("/models.html", "Short-range models",
-         "Every HRRR, RRFS and RDPS run at the model's own resolution, drawn in your browser: simulated infrared, cloud ceiling, visibility, temperature, dewpoint, smoke, 80 m wind and incoming shortwave, with zoom, hover values and the previous run.",
-         "HRRR hourly, RRFS and RDPS four times daily"),
+         "The newest HRRR, RRFS and RDPS runs at the model's own resolution, drawn in your browser: simulated infrared, radar with precipitation type and isobars, cloud ceiling, visibility, temperature, dewpoint, smoke, 80 m wind and incoming shortwave, with contours, zoom and hover values.",
+         "Four times daily"),
         ("/snowbands.html", "Snow-band diagnostics",
          "Where HRRR, RRFS and RDPS set up mesoscale snow bands: 700 hPa frontogenesis and deformation, EPV* and slantwise instability, lift through the dendritic growth zone, the model's own bands and where the ingredients overlap. November to mid-April, with case studies against the radar.",
          "Every run in season"),

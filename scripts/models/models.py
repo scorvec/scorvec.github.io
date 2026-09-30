@@ -21,7 +21,8 @@ Encoding (codes 0-254 data, 255 = missing / "none"); the page holds the same tab
   sw      W m-2, linear 5 W m-2 steps
   refl    HRRR/RRFS: R = dBZ / 0.5 at 1 km AGL (0 = below 5 dBZ), G = precipitation type (see ptype_flags);
           RDPS: R = precipitation rate, log 0.1-100 mm/h, G = type (RDPS_PTYPE); manifest enc refl2 / rate2
-  mslp    hPa, 940 + 0.5 * code, on every SUB-th grid point (grid "sub" in the manifest)
+  mslp    hPa, 940 + 0.5 * code in R, G = 1 where the surface pressure is below 850 hPa (terrain above ~1,500 m, where
+          the sea-level reduction makes fake highs and lows - the page places no H/L there), on every SUB-th grid point
 Every file is written with its image row 0 at the NORTH (grid row j = ny - 1 - image row).
 
 Sources (site rules: NOAA from the AWS open-data buckets byte-ranged via the .idx; RRFS v1 from NOMADS by the user's
@@ -87,10 +88,10 @@ FIELDS = {
     "smoke": dict(enc="log", lo=0.1, hi=3000.0),
     "wind80": dict(enc="lin2", off=-50.8, step=0.4),
     "sw": dict(enc="lin", off=0.0, step=5.0),
-    "refl": dict(enc="refl2"),
+    "refl": dict(enc="refl2"),       # HRRR/RRFS: dBZ in R, precipitation type in G; RDPS: precipitation rate ("rate2")
     # mean-sea-level pressure, overlay only (isobars on the reflectivity map, user 2026-09-30): 0.5 hPa from 940 hPa, stored
     # on every SUB-th grid point (12 km HRRR/RRFS, 20 km RDPS) - smooth, and the isobars are smoothed further anyway
-    "mslp": dict(enc="lin", off=940.0, step=0.5),       # HRRR/RRFS: dBZ in R, precipitation type in G; RDPS: precipitation rate ("rate2")
+    "mslp": dict(enc="lin", off=940.0, step=0.5),
 }
 ORDER = ["ir", "refl", "ceil", "vis", "t2m", "td2m", "smoke", "wind80", "sw", "mslp"]
 SUB = {"hrrr": 4, "rrfs": 4, "rdps": 2}
@@ -146,7 +147,10 @@ def ptype_flags(ra, sn, fz, ip):
 def encode(name, x):
     """-> (uint8 image array, row 0 north; per-frame params or None)"""
     f = FIELDS[name]
-    if f["enc"] == "lin":
+    if name == "mslp":                                             # ("mslp", hPa, high-terrain mask): R = pressure, G = 1 where
+        c = np.dstack([q_lin(x[1], f["off"], f["step"]), x[2], np.zeros(x[2].shape, np.uint8)])   # surface p < 850 hPa
+        p = None
+    elif f["enc"] == "lin":
         c, p = q_lin(x, f["off"], f["step"]), None
     elif f["enc"] == "log":
         c, p = q_log(x, f["lo"], f["hi"]), None
@@ -202,18 +206,18 @@ PT = {"refd": r"^REFD:1000 m above ground:", "crain": r"^CRAIN:surface:(anl|\d+ 
       "cicep": r"^CICEP:surface:(anl|\d+ hour fcst)"}
 IDX_WANT = {   # field -> regex on "VAR:LEVEL:TIME[:extra]" of a wgrib2 .idx line
     # MSLP: HRRR MSLMA (MAPS reduction, the only MSLP in wrfsfc); RRFS MSLET (NCEP's chart reduction; no PRMSL in 2dfld)
-    "hrrr": {"mslp": r"^MSLMA:mean sea level:", "ir": r"^SBT124:top of atmosphere:", "ceilh": r"^HGT:cloud ceiling:", "zsfc": r"^HGT:surface:",
+    "hrrr": {"mslp": r"^MSLMA:mean sea level:", "psfc": r"^PRES:surface:", "ir": r"^SBT124:top of atmosphere:", "ceilh": r"^HGT:cloud ceiling:", "zsfc": r"^HGT:surface:",
              "vis": r"^VIS:surface:", "t2m": r"^TMP:2 m above ground:", "td2m": r"^DPT:2 m above ground:",
              "smoke": r"^COLMD:entire atmosphere", "u80": r"^UGRD:80 m above ground:",
              "v80": r"^VGRD:80 m above ground:", "sw": r"^DSWRF:surface:(anl|\d+ hour fcst):?$", **PT},
-    "rrfs": {"mslp": r"^MSLET:mean sea level:", "ir": r"^SBTA1613:top of atmosphere:", "ceilh": r"^HGT:cloud ceiling:", "zsfc": r"^HGT:surface:",
+    "rrfs": {"mslp": r"^MSLET:mean sea level:", "psfc": r"^PRES:surface:", "ir": r"^SBTA1613:top of atmosphere:", "ceilh": r"^HGT:cloud ceiling:", "zsfc": r"^HGT:surface:",
              "vis": r"^VIS:surface:", "t2m": r"^TMP:2 m above ground:", "td2m": r"^DPT:2 m above ground:",
              "smoke": r"^COLMD:entire atmosphere.*Particulate organic matter dry", "u80": r"^UGRD:80 m above ground:",
              "v80": r"^VGRD:80 m above ground:", "sw": r"^DSWRF:surface:(anl|\d+ hour fcst):?$", **PT},
 }
 RDPS_VARS = {"ir": "UpwardLongwaveRadiationFlux_NTAtm", "t2m": "AirTemp_AGL-2m", "td2m": "DewPoint_AGL-2m",
              "u80": "WindU_AGL-80m", "v80": "WindV_AGL-80m", "swacc": "DownwardShortwaveRadiationFlux-Accum_Sfc",
-             "prate": "PrecipRate_Sfc", "ptype": "PrecipType-Instant_Sfc", "mslp": "Pressure_MSL"}
+             "prate": "PrecipRate_Sfc", "ptype": "PrecipType-Instant_Sfc", "mslp": "Pressure_MSL", "psfc": "Pressure_Sfc"}
 RDPS_BOX = (-172.0, -45.0, 17.0, 80.0)      # crop of the RDPS grid (lon0, lon1, lat0, lat1): North America
 
 
@@ -390,9 +394,10 @@ def process_hour(model, lead, blobs, outdir):
             phys["wind80"] = to_earth(u, v, alpha) if _CTX.get("grid_rel") else (u, v)
         if "sw" in blobs:
             phys["sw"] = dec(blobs["sw"])
-        if "mslp" in blobs:
+        if "mslp" in blobs and "psfc" in blobs:
             F = _CTX["sub"]
-            phys["mslp"] = dec(blobs["mslp"])[::F, ::F] / 100.0
+            ps = dec(blobs["psfc"])[::F, ::F]
+            phys["mslp"] = ("mslp", dec(blobs["mslp"])[::F, ::F] / 100.0, (ps < 85000.0).astype(np.uint8))
         if all(k in blobs for k in ("refd", "crain", "csnow", "cfrzr", "cicep")):
             phys["refl"] = ("refl", dec(blobs["refd"]), ptype_flags(*(dec(blobs[k]) for k in ("crain", "csnow", "cfrzr", "cicep"))))
     else:
@@ -411,10 +416,12 @@ def process_hour(model, lead, blobs, outdir):
             phys["sw"] = np.maximum(a1 - a0, 0.0) / 3600.0
         if "smoke" in blobs:
             phys["smoke"] = dec(blobs["smoke"]) * 1e6
-        if "mslp" in blobs:
+        if "mslp" in blobs and "psfc" in blobs:
             F = _CTX["sub"]
             v = dec(blobs["mslp"], crop)
-            phys["mslp"] = (v / 100.0 if np.nanmean(v) > 5000 else v)[::F, ::F]
+            ps = dec(blobs["psfc"], crop)
+            ps = ps if np.nanmean(ps) > 5000 else ps * 100.0
+            phys["mslp"] = ("mslp", (v / 100.0 if np.nanmean(v) > 5000 else v)[::F, ::F], (ps[::F, ::F] < 85000.0).astype(np.uint8))
         if "prate" in blobs and "ptype" in blobs:
             code = np.rint(np.nan_to_num(dec(blobs["ptype"], crop), nan=6)).astype(int)
             t = np.zeros(code.shape, np.uint8)
