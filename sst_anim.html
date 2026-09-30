@@ -243,7 +243,8 @@ document.addEventListener("framehost", ev => {
       n = document.createElement("div"); n.id = "hostnote"; n.className = "hostnote";
       document.querySelector(".frame-wrap").insertAdjacentElement("afterend", n);
     }
-    const base = "Frames via the cdn.jsdelivr.net mirror: raw.githubusercontent.com is unreachable on this network, so loops can lag a few hours.";
+    const why = d.why ? " [" + d.why + ", " + Math.round(performance.now()) + " ms after load]" : "";
+    const base = "Frames via the cdn.jsdelivr.net mirror: raw.githubusercontent.com is unreachable on this network, so loops can lag a few hours." + why;
     n.textContent = base;
     // say HOW stale: jsDelivr exposes `age` (seconds its cache has held the copy)
     const probe = () => {
