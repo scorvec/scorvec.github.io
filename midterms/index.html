@@ -68,6 +68,10 @@ path.sp{stroke:#fff;stroke-width:.8;cursor:pointer}path.sp.none{fill:#eceae4;cur
 .mt-race .pp{display:flex;justify-content:space-between;font-weight:600;font-variant-numeric:tabular-nums}
 .mt-race dl{display:grid;grid-template-columns:auto 1fr;gap:3px 12px;margin:12px 0 0;font-size:14.5px}
 .mt-race dt{color:var(--muted)}.mt-race dd{margin:0;font-variant-numeric:tabular-nums}
+.mt-race .trend{margin:12px 0 0;padding-top:10px;border-top:1px solid var(--rule)}
+.mt-race .trend h4{font-size:14px;font-weight:600;margin:0 0 4px}
+.rtc{width:100%;height:auto;display:block;overflow:visible;touch-action:pan-y}.rtc text{font-size:11px;fill:#6f6b64}.rtc .ax line,.rtc .ax path{stroke:#d8d6cf}.rtc .grid line{stroke:#eeece6}.rtc text.ev{font-weight:700;font-size:12px}
+.mt-out .spark{display:flex;align-items:center;gap:6px;margin-top:5px;font-size:12px;color:var(--muted)}.mt-out .spark svg{width:92px;height:22px;flex:none;overflow:visible;touch-action:pan-y}
 /* tables */
 table{border-collapse:collapse;width:100%;font-size:14.5px}
 th,td{padding:5px 6px;border-bottom:1px solid var(--rule);text-align:left}
@@ -229,8 +233,8 @@ tbody tr{cursor:pointer}tbody tr:hover{background:#f3f2ee}
  <div class="mt-ends"><span>Republicans +10</span><span>Democrats +14</span></div>
  <p class="mt-cap">Across the 20,000 simulated elections at this setting:</p>
  <div class="mt-out">
-  <div><b id="oH">–</b><span>chance Democrats win the House</span><small id="oHs"></small></div>
-  <div><b id="oS">–</b><span>chance Democrats control the Senate</span><small id="oSs"></small></div>
+  <div><b id="oH">–</b><span>chance Democrats win the House</span><small id="oHs"></small><span class="spark" id="spH"></span></div>
+  <div><b id="oS">–</b><span>chance Democrats control the Senate</span><small id="oSs"></small><span class="spark" id="spS"></span></div>
   <div><b id="oB">–</b><span>chance Democrats win both</span><small id="oBs"></small></div>
   <div><b id="oG">–</b><span>Democratic governors, of 50</span><small id="oGs"></small></div>
  </div>
@@ -298,7 +302,8 @@ const pvi=v=>v==null?'':(v>=0?'D+':'R+')+Math.abs(v);
 const pc=p=>`<td class="n pd" style="color:${p>=.5?'#0b3d91':'#a32215'}">${pct(p)}</td>`;
 const who=s=>/^none|new seat/i.test(s.member||'')||!s.member?'New seat':s.open?`Open seat (${s.member} not running)`:s.member;
 const pollTxt=r=>r.n_polls?`${r.n_polls} poll${r.n_polls>1?'s':''}, average ${mg(r.poll_margin)}`:'no polls';
-fetch('data/model.json').then(r=>r.json()).then(j=>{D=j;init()});
+fetch('data/model.json').then(r=>r.json()).then(j=>{D=j;init();if(RH)histReady()});
+let RH=null;fetch('data/race_history.json').then(r=>r.ok?r.json():null).then(j=>{RH=j;if(D&&RH)histReady()}).catch(()=>{});
 
 function init(){const H=D.house;
  const d=new Date(D.asof+'T12:00:00');$('#upd').textContent='Updated '+d.toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'});
@@ -314,7 +319,7 @@ function init(){const H=D.house;
 function preselect(){const near=a=>a.slice().sort((x,y)=>Math.abs(x.p[gi]-.5)-Math.abs(y.p[gi]-.5))[0];
  SEL.house=near(D.house.seats).seat;const s=near(D.senate.races);SEL.senate=s.state+(s.special?'|sp':'');if(D.governor)SEL.gov=near(D.governor.races).state;for(const k of ['house','senate','gov'])if(SEL[k])panel(k)}
 
-function tab(p){$$('.mt-tabs button').forEach(b=>b.setAttribute('aria-selected',b.dataset.p===p));$$('.mt-pane').forEach(x=>x.classList.toggle('on',x.id==='p-'+p));history.replaceState(null,'','#'+p)}
+function tab(p){$$('.mt-tabs button').forEach(b=>b.setAttribute('aria-selected',b.dataset.p===p));$$('.mt-pane').forEach(x=>x.classList.toggle('on',x.id==='p-'+p));history.replaceState(null,'','#'+p);if(RH&&D&&gi!=null){const k=p==='gov'?'gov':p;if(SEL[k])panel(k)}}   // hidden panels drew their chart at a guessed width
 
 const NAMES={AL:'Alabama',AK:'Alaska',AZ:'Arizona',AR:'Arkansas',CA:'California',CO:'Colorado',CT:'Connecticut',DE:'Delaware',FL:'Florida',GA:'Georgia',HI:'Hawaii',ID:'Idaho',IL:'Illinois',IN:'Indiana',IA:'Iowa',KS:'Kansas',KY:'Kentucky',LA:'Louisiana',ME:'Maine',MD:'Maryland',MA:'Massachusetts',MI:'Michigan',MN:'Minnesota',MS:'Mississippi',MO:'Missouri',MT:'Montana',NE:'Nebraska',NV:'Nevada',NH:'New Hampshire',NJ:'New Jersey',NM:'New Mexico',NY:'New York',NC:'North Carolina',ND:'North Dakota',OH:'Ohio',OK:'Oklahoma',OR:'Oregon',PA:'Pennsylvania',RI:'Rhode Island',SC:'South Carolina',SD:'South Dakota',TN:'Tennessee',TX:'Texas',UT:'Utah',VT:'Vermont',VA:'Virginia',WA:'Washington',WV:'West Virginia',WI:'Wisconsin',WY:'Wyoming'};
 function find(v){v=(v||'').trim();if(!v)return;const H=D.house;
@@ -330,11 +335,55 @@ function pick(sec,key){SEL[sec]=key;$$(sec==='house'?'path.t':`#${sec==='senate'
 function panel(sec){const el=$('#race-'+sec);const key=SEL[sec];if(!key)return;
  if(sec==='house'){const s=D.house.seats.find(x=>x.seat===key);if(!s)return;const p=s.p[gi],m=s.mu+(E-D.house.E_now);
   el.innerHTML=`<h3>${s.seat}</h3><p class="who">${who(s)}${s.open?'':(s.inc>0?' · Democratic incumbent':s.inc<0?' · Republican incumbent':'')}</p>${bar(p,'Democrat','Republican')}
-  <dl><dt>Expected margin</dt><dd>${mg(m)}</dd><dt>Partisan lean</dt><dd>${pvi(s.cook_pvi)} (Cook PVI)</dd><dt>Polls</dt><dd>${pollTxt(s)}${s.n_polls?` · <a href="polls.html#house:${s.seat}">see them</a>`:''}</dd>${s.rating!=null?`<dt>Race raters</dt><dd>${pct(s.rating)} Democratic</dd>`:''}${s.money_d!=null?`<dt>Raised by June 30</dt><dd>D $${(s.money_d/1e6).toFixed(1)}M · R $${(s.money_r/1e6).toFixed(1)}M</dd>`:''}</dl>`;return}
+  <dl><dt>Expected margin</dt><dd>${mg(m)}</dd><dt>Partisan lean</dt><dd>${pvi(s.cook_pvi)} (Cook PVI)</dd><dt>Polls</dt><dd>${pollTxt(s)}${s.n_polls?` · <a href="polls.html#house:${s.seat}">see them</a>`:''}</dd>${s.rating!=null?`<dt>Race raters</dt><dd>${pct(s.rating)} Democratic</dd>`:''}${s.money_d!=null?`<dt>Raised by June 30</dt><dd>D $${(s.money_d/1e6).toFixed(1)}M · R $${(s.money_r/1e6).toFixed(1)}M</dd>`:''}</dl>`;trend(el,'house',s.seat,'Democrat');return}
  const S=sec==='senate'?D.senate:D.governor,[st,sp]=String(key).split('|');const r=S.races.find(x=>x.state===st&&(!!x.special)===(sp==='sp'))||S.races.find(x=>x.state===st);if(!r)return;
  const slope=sec==='senate'?S.nat_slope:S.slope,m=r.mu+(E-S.E_now)*slope,p=r.p[gi],ind=r.dem_party&&r.dem_party!=='D';
  el.innerHTML=`<h3>${NAMES[r.state]||r.state} ${sec==='senate'?'Senate':'Governor'}${r.special?' (special)':''}</h3><p class="who">${r.dem||'?'} (${r.dem_party||'D'}) v ${r.rep||'?'} (R)${r.inc?'':' · open seat'}</p>${bar(p,ind?'Independent':'Democrat','Republican')}
-  <dl><dt>Expected margin</dt><dd>${mg(m)}</dd>${r.cook_pvi!=null?`<dt>Partisan lean</dt><dd>${pvi(r.cook_pvi)} (Cook PVI)</dd>`:''}<dt>Polls</dt><dd>${pollTxt(r)}${r.n_polls?` · <a href="polls.html#${sec==='senate'?'senate':'governor'}:${r.state}">see them</a>`:''}</dd>${r.cook?`<dt>Cook rating</dt><dd>${r.cook}</dd>`:''}</dl>${r.prior_note?`<p class="mt-note">${r.prior_note}</p>`:''}`}
+  <dl><dt>Expected margin</dt><dd>${mg(m)}</dd>${r.cook_pvi!=null?`<dt>Partisan lean</dt><dd>${pvi(r.cook_pvi)} (Cook PVI)</dd>`:''}<dt>Polls</dt><dd>${pollTxt(r)}${r.n_polls?` · <a href="polls.html#${sec==='senate'?'senate':'governor'}:${r.state}">see them</a>`:''}</dd>${r.cook?`<dt>Cook rating</dt><dd>${r.cook}</dd>`:''}</dl>${r.prior_note?`<p class="mt-note">${r.prior_note}</p>`:''}`;trend(el,sec,r.state+(r.special?'|sp':''),ind?'Independent':'Democrat')}
+// Chance of winning over time (race_history.json, midterms/race_history.py): one as-issued point per day since the
+// daily archive began; independent of the slider. Days that modelled a different challenger party are left out.
+const fmtD=d3.timeFormat('%b %-d');
+function trend(el,sec,key,dn){if(!RH||!RH[sec])return;const T=RH[sec][key];if(!T)return;
+ const cps=T[2]||null,cur=cps?cps.filter(Boolean).pop():'D';
+ const all=RH.dates.map((d,i)=>({d:new Date(d+'T12:00:00'),p:T[0][i]==null?null:T[0][i]/1000,m:T[1][i],cp:cps?cps[i]:'D'})).filter(x=>x.p!=null);
+ const pts=all.filter(x=>x.cp===cur);if(!pts.length)return;const dropped=all.length-pts.length;
+ const box=document.createElement('div');box.className='trend';
+ const t0=new Date(RH.start+'T12:00:00'),first=pts[0].d,one=pts.length===1;
+ box.innerHTML=`<h4>Chance of winning over time</h4><svg class="rtc" role="img" aria-label="${dn} and Republican chance of winning by day, ${fmtD(first)} to ${fmtD(pts[pts.length-1].d)}"></svg>`+
+  `<p class="mt-note">One point per day, as each day's forecast was issued (at that day's national mood, not the slider's). The daily archive begins 16 Sep 2026${first>t0?`; this race's from ${fmtD(first)}`:''}.${one?' Only one day so far.':''}${dropped?` Earlier days, which modelled a ${cur==='I'?'Democratic':'different'} challenger, are left out.`:''}</p>`;
+ el.appendChild(box);
+ const W=Math.max(220,Math.round(box.getBoundingClientRect().width)||300),Hh=140,m={l:38,r:40,t:10,b:22},svg=d3.select(box.querySelector('svg')).attr('viewBox',`0 0 ${W} ${Hh}`);   // drawn at the panel's own pixel width so the labels stay 11 px
+ const last=pts[pts.length-1].d,x1=new Date(Math.max(+last,+t0+6*864e5));
+ const xs=d3.scaleTime().domain([t0,x1]).range([m.l,W-m.r]),ys=d3.scaleLinear().domain([0,1]).range([Hh-m.b,m.t]);
+ svg.append('g').attr('class','grid').selectAll('line').data([0,.25,.5,.75,1]).join('line').attr('x1',m.l).attr('x2',W-m.r).attr('y1',ys).attr('y2',ys);
+ svg.append('line').attr('x1',m.l).attr('x2',W-m.r).attr('y1',ys(.5)).attr('y2',ys(.5)).attr('stroke','#9a978e').attr('stroke-dasharray','3,3');
+ svg.append('g').attr('class','ax').attr('transform',`translate(0,${Hh-m.b})`).call(d3.axisBottom(xs).ticks(d3.timeDay.every(7)).tickFormat(fmtD).tickSizeOuter(0));
+ svg.append('g').attr('class','ax').attr('transform',`translate(${m.l},0)`).call(d3.axisLeft(ys).tickValues([0,.5,1]).tickFormat(v=>(100*v)+'%').tickSizeOuter(0));
+ const S=[{f:p=>p,c:'#1f5fbf',t:'#0b3d91',n:dn},{f:p=>1-p,c:'#b3261e',t:'#a32215',n:'Republican'}];
+ S.forEach(o=>{if(!one)svg.append('path').attr('d',d3.line().x(p=>xs(p.d)).y(p=>ys(o.f(p.p)))(pts)).attr('fill','none').attr('stroke',o.c).attr('stroke-width',2.2);
+  svg.append('g').selectAll('circle').data(pts).join('circle').attr('cx',p=>xs(p.d)).attr('cy',p=>ys(o.f(p.p))).attr('r',one?3.5:(pts.length>30?0:2)).attr('fill',o.c)});
+ {const pl=pts[pts.length-1],yd=ys(pl.p),yr=ys(1-pl.p);let a=yd,b=yr;if(Math.abs(a-b)<13){const mid=(a+b)/2,s=a<=b?-1:1;a=mid+s*6.5;b=mid-s*6.5}
+  svg.append('text').attr('class','ev').attr('x',xs(pl.d)+6).attr('y',a+4).style('fill','#0b3d91').text(pct(pl.p));
+  svg.append('text').attr('class','ev').attr('x',xs(pl.d)+6).attr('y',b+4).style('fill','#a32215').text(pct(1-pl.p))}
+ const g=svg.append('g').style('display','none');g.append('line').attr('y1',m.t).attr('y2',Hh-m.b).attr('stroke','#9a978e');
+ const cd=g.append('circle').attr('r',3.5).attr('fill','#1f5fbf'),cr=g.append('circle').attr('r',3.5).attr('fill','#b3261e');
+ const mv=e=>{const[mx]=d3.pointer(e);const i=d3.bisector(p=>p.d).center(pts,xs.invert(mx)),p=pts[i];g.style('display',null).attr('transform',`translate(${xs(p.d)},0)`);cd.attr('cy',ys(p.p));cr.attr('cy',ys(1-p.p));
+  tipAt(e,`<b>${fmtD(p.d)}</b><br>${dn} ${pct(p.p)}<br>Republican ${pct(1-p.p)}${p.m!=null?`<br>Expected ${mg(p.m)}`:''}`)},
+  out=()=>{g.style('display','none');$('#tip').style.display='none'};
+ svg.append('rect').attr('x',m.l).attr('y',m.t).attr('width',W-m.l-m.r+30).attr('height',Hh-m.t-m.b).attr('fill','transparent').on('pointermove',mv).on('pointerdown',mv).on('pointerleave',out)}
+// National chances as issued each day, under the House and Senate boxes (the boxes themselves follow the slider).
+let rsz;addEventListener('resize',()=>{clearTimeout(rsz);rsz=setTimeout(()=>{if(RH&&D)for(const k of ['house','senate','gov'])if(SEL[k])panel(k)},200)});
+function histReady(){for(const k of ['house','senate','gov'])if(SEL[k])panel(k);spark('#spH',RH.nat.h,'Democrats win the House');spark('#spS',RH.nat.s,'Democrats control the Senate')}
+function spark(sel,v,name){const el=$(sel);if(!el||!v)return;const pts=RH.dates.map((d,i)=>({d:new Date(d+'T12:00:00'),p:v[i]==null?null:v[i]/1000})).filter(x=>x.p!=null);if(pts.length<2)return;
+ el.innerHTML=`<svg viewBox="0 0 92 22" aria-label="${name}, as issued each day since ${fmtD(pts[0].d)}"></svg><span>as issued since ${fmtD(pts[0].d)}</span>`;
+ const svg=d3.select(el.querySelector('svg')),xs=d3.scaleTime().domain(d3.extent(pts,p=>p.d)).range([2,90]);let[lo,hi]=d3.extent(pts,p=>p.p);const c=(lo+hi)/2,h=Math.max(hi-lo,.2)/2;
+ const ys=d3.scaleLinear().domain([Math.max(0,c-h),Math.min(1,c+h)]).range([20,2]);
+ if(ys.domain()[0]<.5&&ys.domain()[1]>.5)svg.append('line').attr('x1',2).attr('x2',90).attr('y1',ys(.5)).attr('y2',ys(.5)).attr('stroke','#c9c6bd').attr('stroke-dasharray','2,2');
+ svg.append('path').attr('d',d3.line().x(p=>xs(p.d)).y(p=>ys(p.p))(pts)).attr('fill','none').attr('stroke','#1f5fbf').attr('stroke-width',1.6);
+ const pl=pts[pts.length-1];svg.append('circle').attr('cx',xs(pl.d)).attr('cy',ys(pl.p)).attr('r',2.2).attr('fill','#1f5fbf');
+ const dot=svg.append('circle').attr('r',2.6).attr('fill','#0b3d91').style('display','none');
+ svg.append('rect').attr('width',92).attr('height',22).attr('fill','transparent').on('pointermove pointerdown',e=>{const[mx]=d3.pointer(e);const p=pts[d3.bisector(q=>q.d).center(pts,xs.invert(mx))];dot.style('display',null).attr('cx',xs(p.d)).attr('cy',ys(p.p));tipAt(e,`<b>${fmtD(p.d)}</b><br>${name}: ${pct(p.p)}<br><span style="opacity:.8">as issued that day${sel==='#spS'&&p.d<new Date('2026-09-26T00:00:00')?' (51+ seats; control by the tie rule counted from Sep 26)':''}</span>`)})
+  .on('pointerleave',()=>{dot.style('display','none');$('#tip').style.display='none'})}
 function bar(p,a,b){return `<div class="pp"><span style="color:var(--dd)">${a} ${pct(p)}</span><span style="color:var(--rd)">${pct(1-p)} ${b}</span></div><div class="pbar" role="img" aria-label="${a} ${pct(p)}, ${b} ${pct(1-p)}"><i style="width:${100*p}%"></i><i style="width:${100*(1-p)}%"></i></div>`}
 
 function buildMaps(){fetch('data/districts_2026.topo.json').then(r=>r.json()).then(topo=>{
