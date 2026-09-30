@@ -19,18 +19,23 @@ Encoding (codes 0-254 data, 255 = missing / "none"); the page holds the same tab
   smoke   mg m-2 column smoke, log from 0.1 to 3,000; 0 = below 0.1
   wind80  m/s, EARTH-relative u in R and v in G, -50.8 + 0.4 * code (the page draws speed, arrows and hover values)
   sw      W m-2, linear 5 W m-2 steps
+  refl    HRRR/RRFS: R = dBZ / 0.5 at 1 km AGL (0 = below 5 dBZ), G = precipitation type (see ptype_flags);
+          RDPS: R = precipitation rate, log 0.1-100 mm/h, G = type (RDPS_PTYPE); manifest enc refl2 / rate2
+  mslp    hPa, 940 + 0.5 * code, on every SUB-th grid point (grid "sub" in the manifest)
 Every file is written with its image row 0 at the NORTH (grid row j = ny - 1 - image row).
 
 Sources (site rules: NOAA from the AWS open-data buckets byte-ranged via the .idx; RRFS v1 from NOMADS by the user's
 decision 2026-09-27 - there is no real-time S3 copy - gently: one .idx + ONE multi-range request per file; ECCC
 from the MSC Datamart):
-  hrrr   noaa-hrrr-bdp-pds  hrrr.tHHz.wrfsfcfFF.grib2. Hourly cycles to f18, 00/06/12/18Z to f48.
+  hrrr   noaa-hrrr-bdp-pds  hrrr.tHHz.wrfsfcfFF.grib2. 00/06/12/18Z to f48 only (the hourly 18-h runs were dropped by
+         the user 2026-09-30).
          IR = SBT124 (the GOES-East 10.3 um window band as UPP labels it; SBT114 is the GOES-West copy - verified by
          the limb darkening: SBT124 - SBT114 is +11 K at 70W and -1.4 K at 120W). Ceiling = HGT at "cloud ceiling"
          (geopotential metres ABOVE SEA LEVEL - it never falls below the terrain) minus HGT at the surface.
          Smoke = COLMD (column mass density of smoke). DSWRF is instantaneous.
   rrfs   nomads .../rrfs/v1.0/rrfs.YYYYMMDD/HH/rrfs.tHHz.2dfld.3km.fFFF.conus.grib2 (the HRRR grid, identically).
-         00/06/12/18Z to f84; the other hours only write sub-hourly 2-D files to f15-18 (not used).
+         00/06/12/18Z to f84, published hourly to f36 then 3-hourly (storage, user 2026-09-30); the other hours only write
+         sub-hourly 2-D files to f15-18 (not used).
          IR = SBTA1613 (GOES-16 ABI band 13, 10.3 um). Ceiling as HRRR. Smoke = COLMD of "particulate organic matter
          dry" (RRFS-SD's smoke tracer). DSWRF instantaneous (the file also has a 1-h mean).
   rdps   dd.weather.gc.ca/{date}/WXO-DD/model_rdps/10km/HH/FFF/, 00/06/12/18Z to f84.
@@ -82,8 +87,13 @@ FIELDS = {
     "smoke": dict(enc="log", lo=0.1, hi=3000.0),
     "wind80": dict(enc="lin2", off=-50.8, step=0.4),
     "sw": dict(enc="lin", off=0.0, step=5.0),
+    "refl": dict(enc="refl2"),
+    # mean-sea-level pressure, overlay only (isobars on the reflectivity map, user 2026-09-30): 0.5 hPa from 940 hPa, stored
+    # on every SUB-th grid point (12 km HRRR/RRFS, 20 km RDPS) - smooth, and the isobars are smoothed further anyway
+    "mslp": dict(enc="lin", off=940.0, step=0.5),       # HRRR/RRFS: dBZ in R, precipitation type in G; RDPS: precipitation rate ("rate2")
 }
-ORDER = ["ir", "ceil", "vis", "t2m", "td2m", "smoke", "wind80", "sw"]
+ORDER = ["ir", "refl", "ceil", "vis", "t2m", "td2m", "smoke", "wind80", "sw", "mslp"]
+SUB = {"hrrr": 4, "rrfs": 4, "rdps": 2}
 
 
 def q_lin(x, off, step):
@@ -113,6 +123,26 @@ def q_linf(x):
     return q_lin(x, lo, step), [lo, step]
 
 
+# precipitation type code (G channel of "refl"): 0 no type flag, 1 rain, 2 snow, 3 freezing rain, 4 ice pellets (sleet),
+# 5 rain-snow mix. HRRR/RRFS categorical flags can overlap; priority FZRA > IP > SN > RA, except that RA and SN together
+# (and nothing else) is "mix". RDPS codes (PrecipType-Instant, measured 2026-09-30 against 2 m / 850 hPa temperature -
+# the Datamart does NOT follow GRIB table 4.201 literally): 1 rain (T2 16 C), 2 rain-snow mix (T2 +2 C, T850 -4.5 C),
+# 3 freezing rain (T2 -1 C, T850 0 C), 4 ice pellets (T2 -0.7 C), 5 snow (T2 -3 C), 6 no precipitation.
+RDPS_PTYPE = {1: 1, 2: 5, 3: 3, 4: 4, 5: 2}
+REFL_MIN = 5.0                        # dBZ below this -> code 0 (no echo); also clears the type, so empty sky compresses
+RATE_LO, RATE_HI = 0.1, 100.0         # RDPS precipitation rate, mm/h, log scale
+
+
+def ptype_flags(ra, sn, fz, ip):
+    t = np.zeros(ra.shape, np.uint8)
+    t[ra > 0.5] = 1
+    t[sn > 0.5] = 2
+    t[(ra > 0.5) & (sn > 0.5)] = 5
+    t[ip > 0.5] = 4
+    t[fz > 0.5] = 3
+    return t
+
+
 def encode(name, x):
     """-> (uint8 image array, row 0 north; per-frame params or None)"""
     f = FIELDS[name]
@@ -122,6 +152,17 @@ def encode(name, x):
         c, p = q_log(x, f["lo"], f["hi"]), None
     elif f["enc"] == "linf":
         c, p = q_linf(x)
+    elif f["enc"] == "refl2" and x[0] == "refl":                   # ("refl", dBZ, type)
+        dbz, t = x[1], x[2]
+        r = np.where(np.isfinite(dbz) & (dbz >= REFL_MIN), np.clip(np.rint(dbz / 0.5), 1, 254), 0).astype(np.uint8)
+        c = np.dstack([r, np.where(r > 0, t, 0).astype(np.uint8), np.zeros(r.shape, np.uint8)])
+        p = None
+    elif f["enc"] == "refl2":                                      # ("rate", mm/h, type): RDPS
+        rate, t = x[1], x[2]
+        r = q_log(rate, RATE_LO, RATE_HI)
+        r = np.where((r == 255) | (t == 0), 0, r).astype(np.uint8)
+        c = np.dstack([r, np.where(r > 0, t, 0).astype(np.uint8), np.zeros(r.shape, np.uint8)])
+        p = None
     else:                                                           # lin2: (u, v)
         u, v = x
         c = np.dstack([q_lin(u, f["off"], f["step"]), q_lin(v, f["off"], f["step"]), np.zeros(u.shape, np.uint8)])
@@ -137,30 +178,42 @@ def webp(arr):
 
 
 # ── models ──────────────────────────────────────────────────────────────────────────────────────────────────────────
-def hrrr_len(cyc):
-    return 48 if cyc % 6 == 0 else 18
+def leads_of(model, cyc):
+    """Forecast hours published. RRFS: hourly to 36 h, 3-hourly to 84 h (user 2026-09-30, storage); others hourly."""
+    n = MODELS[model]["length"](cyc)
+    if model == "rrfs":
+        return list(range(0, 37)) + list(range(39, n + 1, 3))
+    return list(range(0, n + 1))
 
 
 MODELS = {
-    "hrrr": dict(label="HRRR", every=1, length=hrrr_len, lag_h=(1, 30),
+    # user 2026-09-30: "For the HRRR runs, only show the runs that have data out to 48 hours" - 00/06/12/18Z only
+    "hrrr": dict(label="HRRR", every=6, length=lambda c: 48, lag_h=(1, 30),
                  source="NOAA HRRR v4 (AWS open data, noaa-hrrr-bdp-pds)"),
     "rrfs": dict(label="RRFS", every=6, length=lambda c: 84, lag_h=(3, 40),
                  source="NOAA RRFS v1.0 (NOMADS; no real-time S3 copy exists)"),
     "rdps": dict(label="RDPS", every=6, length=lambda c: 84, lag_h=(3, 40),
                  source="ECCC RDPS 10 km and RAQDPS-FireWork (MSC Datamart)"),
 }
+# simulated reflectivity 1 km above ground (what a radar's lowest scans see and what the precipitation type describes; the
+# composite REFC would paint elevated echo and bright bands in ptype colours) + the instantaneous categorical types
+PT = {"refd": r"^REFD:1000 m above ground:", "crain": r"^CRAIN:surface:(anl|\d+ hour fcst)",
+      "csnow": r"^CSNOW:surface:(anl|\d+ hour fcst)", "cfrzr": r"^CFRZR:surface:(anl|\d+ hour fcst)",
+      "cicep": r"^CICEP:surface:(anl|\d+ hour fcst)"}
 IDX_WANT = {   # field -> regex on "VAR:LEVEL:TIME[:extra]" of a wgrib2 .idx line
-    "hrrr": {"ir": r"^SBT124:top of atmosphere:", "ceilh": r"^HGT:cloud ceiling:", "zsfc": r"^HGT:surface:",
+    # MSLP: HRRR MSLMA (MAPS reduction, the only MSLP in wrfsfc); RRFS MSLET (NCEP's chart reduction; no PRMSL in 2dfld)
+    "hrrr": {"mslp": r"^MSLMA:mean sea level:", "ir": r"^SBT124:top of atmosphere:", "ceilh": r"^HGT:cloud ceiling:", "zsfc": r"^HGT:surface:",
              "vis": r"^VIS:surface:", "t2m": r"^TMP:2 m above ground:", "td2m": r"^DPT:2 m above ground:",
              "smoke": r"^COLMD:entire atmosphere", "u80": r"^UGRD:80 m above ground:",
-             "v80": r"^VGRD:80 m above ground:", "sw": r"^DSWRF:surface:(anl|\d+ hour fcst):?$"},
-    "rrfs": {"ir": r"^SBTA1613:top of atmosphere:", "ceilh": r"^HGT:cloud ceiling:", "zsfc": r"^HGT:surface:",
+             "v80": r"^VGRD:80 m above ground:", "sw": r"^DSWRF:surface:(anl|\d+ hour fcst):?$", **PT},
+    "rrfs": {"mslp": r"^MSLET:mean sea level:", "ir": r"^SBTA1613:top of atmosphere:", "ceilh": r"^HGT:cloud ceiling:", "zsfc": r"^HGT:surface:",
              "vis": r"^VIS:surface:", "t2m": r"^TMP:2 m above ground:", "td2m": r"^DPT:2 m above ground:",
              "smoke": r"^COLMD:entire atmosphere.*Particulate organic matter dry", "u80": r"^UGRD:80 m above ground:",
-             "v80": r"^VGRD:80 m above ground:", "sw": r"^DSWRF:surface:(anl|\d+ hour fcst):?$"},
+             "v80": r"^VGRD:80 m above ground:", "sw": r"^DSWRF:surface:(anl|\d+ hour fcst):?$", **PT},
 }
 RDPS_VARS = {"ir": "UpwardLongwaveRadiationFlux_NTAtm", "t2m": "AirTemp_AGL-2m", "td2m": "DewPoint_AGL-2m",
-             "u80": "WindU_AGL-80m", "v80": "WindV_AGL-80m", "swacc": "DownwardShortwaveRadiationFlux-Accum_Sfc"}
+             "u80": "WindU_AGL-80m", "v80": "WindV_AGL-80m", "swacc": "DownwardShortwaveRadiationFlux-Accum_Sfc",
+             "prate": "PrecipRate_Sfc", "ptype": "PrecipType-Instant_Sfc", "mslp": "Pressure_MSL"}
 RDPS_BOX = (-172.0, -45.0, 17.0, 80.0)      # crop of the RDPS grid (lon0, lon1, lat0, lat1): North America
 
 
@@ -337,6 +390,11 @@ def process_hour(model, lead, blobs, outdir):
             phys["wind80"] = to_earth(u, v, alpha) if _CTX.get("grid_rel") else (u, v)
         if "sw" in blobs:
             phys["sw"] = dec(blobs["sw"])
+        if "mslp" in blobs:
+            F = _CTX["sub"]
+            phys["mslp"] = dec(blobs["mslp"])[::F, ::F] / 100.0
+        if all(k in blobs for k in ("refd", "crain", "csnow", "cfrzr", "cicep")):
+            phys["refl"] = ("refl", dec(blobs["refd"]), ptype_flags(*(dec(blobs[k]) for k in ("crain", "csnow", "cfrzr", "cicep"))))
     else:
         if "ir" in blobs:
             olr = dec(blobs["ir"], crop)
@@ -353,6 +411,16 @@ def process_hour(model, lead, blobs, outdir):
             phys["sw"] = np.maximum(a1 - a0, 0.0) / 3600.0
         if "smoke" in blobs:
             phys["smoke"] = dec(blobs["smoke"]) * 1e6
+        if "mslp" in blobs:
+            F = _CTX["sub"]
+            v = dec(blobs["mslp"], crop)
+            phys["mslp"] = (v / 100.0 if np.nanmean(v) > 5000 else v)[::F, ::F]
+        if "prate" in blobs and "ptype" in blobs:
+            code = np.rint(np.nan_to_num(dec(blobs["ptype"], crop), nan=6)).astype(int)
+            t = np.zeros(code.shape, np.uint8)
+            for k, v in RDPS_PTYPE.items():
+                t[code == k] = v
+            phys["refl"] = ("rate", dec(blobs["prate"], crop) * 3600.0, t)          # kg m-2 s-1 -> mm/h
     meta, nbytes = {}, 0
     for name, x in phys.items():
         arr, p = encode(name, x)
@@ -433,15 +501,12 @@ def load_manifest(path, model):
 
 
 def retain(cycles, model):
-    """Newest first. Keep the two newest cycles; for HRRR also the newest 48-h run (an hourly cycle only reaches 18 h),
-    so days 1-2 are always on the page. KEEP_<MODEL> overrides the count."""
-    keep_n = int(os.environ.get(f"KEEP_{model.upper()}", "2"))
+    """Newest first. Keep only the newest cycle (user 2026-09-30, storage: "options 3 + 4"); KEEP_<MODEL> overrides.
+    HRRR runs that are not 00/06/12/18Z (the retired 18-h hourly runs) are always dropped."""
+    keep_n = int(os.environ.get(f"KEEP_{model.upper()}", "1"))
     cycles = sorted(cycles, key=lambda c: c["cycle"], reverse=True)
-    keep = cycles[:keep_n]
-    if model == "hrrr":
-        ext = [c for c in cycles if int(c["cycle"][8:10]) % 6 == 0]
-        if ext and ext[0] not in keep:
-            keep.append(ext[0])
+    ok = [c for c in cycles if model != "hrrr" or int(c["cycle"][8:10]) % 6 == 0]
+    keep = ok[:keep_n]
     return keep, [c for c in cycles if c not in keep]
 
 
@@ -470,17 +535,6 @@ def cmd_plan(a):
                 break
         if picked:
             todo.append((model, picked.strftime("%Y%m%d%H")))
-        if model == "hrrr":
-            newest_ext = max([c["cycle"] for c in man.get("cycles", []) if int(c["cycle"][8:10]) % 6 == 0], default="")
-            for c in cands:
-                if c.hour % 6:
-                    continue
-                key = c.strftime("%Y%m%d%H")
-                if key <= newest_ext or (picked and key == picked.strftime("%Y%m%d%H")):
-                    break
-                if complete(model, c):
-                    todo.append((model, key))
-                    break
     for model, key in todo:
         print(f"{model} {key}")
 
@@ -490,7 +544,7 @@ def cmd_run(a):
     cyc_dt = dt.datetime.strptime(key, "%Y%m%d%H")
     date, cyc = key[:8], cyc_dt.hour
     n = MODELS[model]["length"](cyc)
-    leads = list(range(0, n + 1))
+    leads = leads_of(model, cyc)
     site = Path(a.site)
     outdir = site / DATA / model / key
     if outdir.exists():
@@ -526,6 +580,14 @@ def cmd_run(a):
         except Exception as e:                                  # noqa: BLE001
             print(f"  RAQDPS {r_dt:%Y%m%d%H}: {e} - no smoke layer for this cycle")
         del lat, lon
+    ctx["sub"] = F = SUB[model]
+    g = dict(grids["main"])
+    if g["type"] == "lcc":
+        g.update(dx=g["dx"] * F, dy=g["dy"] * F)
+    else:
+        g.update(di=g["di"] * F, dj=g["dj"] * F, i0=g.get("i0", 0) / F, j0=g.get("j0", 0) / F)
+    g.update(nx=-(-g["nx"] // F), ny=-(-g["ny"] // F))
+    grids["sub"] = g
     print(f"{model} {key}: {len(leads)} hours, grid {grids['main']['nx']} x {grids['main']['ny']}, "
           f"setup {time.time() - t_start:.1f}s", flush=True)
 
@@ -564,15 +626,18 @@ def cmd_run(a):
         hrs = sorted(per_field[name])
         if not hrs:
             continue
-        e = dict(hours=hrs, grid="raq" if (model == "rdps" and name == "smoke") else "main")
+        e = dict(hours=hrs, grid="raq" if (model == "rdps" and name == "smoke") else "sub" if name == "mslp" else "main")
         if FIELDS[name]["enc"] == "linf":
             e["q"] = [per_field[name][h] for h in hrs]
+        if name == "refl":
+            e["enc"] = "rate2" if model == "rdps" else "refl2"
         fields[name] = e
     if model == "rdps" and "smoke" in fields:
         r_dt, off = raq_for(cyc_dt)
         fields["smoke"]["from"] = f"RAQDPS-FireWork {r_dt:%Y-%m-%d %H}Z"
     wall = time.time() - t_start
     entry = dict(cycle=key, init=cyc_dt.strftime("%Y-%m-%dT%H:00Z"), length=n, fields=fields, grids=grids,
+                 hours=sorted({h for e in fields.values() for h in e["hours"]}),
                  missing_hours=failed, bytes=total_bytes, fetch=fetch_stats, wall_s=round(wall, 1),
                  made=dt.datetime.utcnow().strftime("%Y-%m-%dT%H:%MZ"))
     # the run may not publish a cycle that lost hours in the middle (a partial run would be kept for two cycles)

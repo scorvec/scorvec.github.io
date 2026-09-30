@@ -118,9 +118,16 @@ snowband.yml|14:50|
 snowband.yml|17:30|
 snowband.yml|20:50|
 # Short-range model viewer (models.html, 2026-09-30): one caller per model so each slot is satisfied only by its own
-# model's run. HRRR every hour (a new hourly run reaches f18 ~1 h 20 after its start); RRFS and RDPS every 3 h (their
+# model's run. HRRR 00/06/12/18Z only (f48 up ~1 h 50 after the start: slots +2 h 10, retry +3 h 10); RRFS and RDPS every 3 h (their
 # 00/06/12/18Z runs complete ~4-5 h and ~3.5-4 h after the start). A firing with no new complete cycle exits in ~1 min.
-models-hrrr.yml|*:50|
+models-hrrr.yml|02:10|
+models-hrrr.yml|03:10|
+models-hrrr.yml|08:10|
+models-hrrr.yml|09:10|
+models-hrrr.yml|14:10|
+models-hrrr.yml|15:10|
+models-hrrr.yml|20:10|
+models-hrrr.yml|21:10|
 models-rrfs.yml|*/3:40|
 models-rdps.yml|*/3:10|
 # Brewer-Dobson downward control + GEOS FP PV loop (2026-09-27): cron-only until now, and Actions honours ~31 % of
