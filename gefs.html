@@ -329,6 +329,11 @@ var GROUPS = [["Maps", "\u{1F5FA}", [["weekly","Weekly means","weeks 1–5, nine
 // before, now also followed on hashchange (the finder's same-page jumps); the tables follow the selection.
 var sel = { p: null, a: null, b: null, c: null };
 var $ = function (id) { return document.getElementById(id); };
+// header chips and the footer date from the run's own metadata (dropped in the 2026-09-27 stage move; restored 2026-09-30)
+fetch("assets/gefs/data/gefs.json", {cache: "no-cache"}).then(function (r) { return r.json(); }).then(function (m) {
+  var set = function (id, t) { var e = document.getElementById(id); if (e && t != null) e.textContent = t; };
+  set("g-cycle", m.init); set("g-valid", m.valid); set("g-members", m.members); set("g-updated", "init " + m.init);
+}).catch(function () {});
 window.STAGE = {
   groups: GROUPS.map(function (g) { return { label: g[0], ico: g[1], items: g[2] }; }),
   products: P,

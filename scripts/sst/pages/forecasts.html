@@ -4,7 +4,7 @@
      Page-scoped: every rule is under main.ef so nothing leaks into the shared
      head. Type and colour come from the site layer (Source Serif 4 for titles,
      Source Sans 3 for text, the sienna accent, muted #6f6b64 minimum). */
-  main.ef { max-width: 1180px; }
+  main.ef { max-width: min(94vw, 2000px); }
   main.ef > header { margin-bottom: 0.4rem; }
   main.ef > header .sub { max-width: 60ch; color: var(--ink2); font-size: 1.02rem; }
   .ef h2 { font-family: var(--f-serif, var(--serif)); font-weight: 500; font-size: clamp(1.4rem, 1.15rem + 0.7vw, 1.8rem);
