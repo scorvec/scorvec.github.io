@@ -32,6 +32,9 @@ REPO = Path(__file__).resolve().parents[2]
 # topic labels (scripts/site/build_catalog.py TOPICS) - rename both together.
 PRODUCTS = [
     ("Short and medium range", "Days 1 to 15: storms, hazards and the temperature forecast", [
+        ("/models.html", "Short-range models",
+         "Every HRRR, RRFS and RDPS run at the model's own resolution, drawn in your browser: simulated infrared, cloud ceiling, visibility, temperature, dewpoint, smoke, 80 m wind and incoming shortwave, with zoom, hover values and the previous run.",
+         "HRRR hourly, RRFS and RDPS four times daily"),
         ("/snowbands.html", "Snow-band diagnostics",
          "Where HRRR, RRFS and RDPS set up mesoscale snow bands: 700 hPa frontogenesis and deformation, EPV* and slantwise instability, lift through the dendritic growth zone, the model's own bands and where the ingredients overlap. November to mid-April, with case studies against the radar.",
          "Every run in season"),
@@ -218,6 +221,7 @@ PAGES = [
     ]),
     dict(path="sfs.html", mode="nav"),
     dict(path="ar.html", mode="after-body"),
+    dict(path="models.html", mode="after-body"),                   # short-range model viewer (scripts/models, models*.yml), WebGL data page
     dict(path="snowbands.html", mode="after-body"),                # snow-band diagnostics (scripts/snowband, snowband.yml), stage viewer
     dict(path="catalog.html", mode="after-body"),
     dict(path="about.html", mode="after-body"),                    # the person: bio, resume, publications, profiles                  # every plot on the site (scripts/site/build_catalog.py)

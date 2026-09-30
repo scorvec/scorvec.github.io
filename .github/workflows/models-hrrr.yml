@@ -1,0 +1,20 @@
+name: Short-range models — HRRR
+
+# Schedule-only caller for models.yml (models.html): hourly at :50 - the newest hourly run has reached f18 by then.
+# The laptop dispatcher (scripts/lib/dispatch_workflows.sh) fires the same slots; a firing with no new complete cycle
+# exits in about a minute, so double firings cost nothing.
+on:
+  schedule:
+  - cron: '50 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: write
+
+jobs:
+  run:
+    uses: ./.github/workflows/models.yml
+    with:
+      model: hrrr
+    secrets: inherit

@@ -1,0 +1,1081 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Short-Range Models &mdash; HRRR, RRFS and RDPS at Full Resolution &middot; Shawn Corvec</title>
+<meta name="description" content="Every run of the HRRR, RRFS and RDPS drawn in your browser at the model's native resolution: simulated infrared satellite, cloud ceiling, visibility, 2 m temperature and dewpoint, vertically integrated smoke, 80 m wind and incoming shortwave, with zoom, hover values and run-to-run comparison.">
+<link rel="canonical" href="https://scorvec.com/models.html">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Short-range models: HRRR, RRFS and RDPS at full resolution">
+<meta property="og:description" content="Simulated IR, ceiling, visibility, temperature, dewpoint, smoke, 80 m wind and shortwave from every HRRR, RRFS and RDPS run, drawn at native resolution with hover values.">
+<meta property="og:url" content="https://scorvec.com/models.html">
+<meta property="og:site_name" content="Shawn Corvec &mdash; Weather &amp; Climate Monitors">
+<meta name="twitter:card" content="summary">
+<script data-goatcounter="https://scorvec.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
+<link rel="preconnect" href="https://raw.githubusercontent.com" crossorigin>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,500;0,8..60,600;1,8..60,400&family=Source+Sans+3:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/site.css">
+<script src="/assets/site.js" defer></script>
+<script src="/assets/rail.js" defer></script>
+<script src="/assets/frames_root.js"></script>
+<style>
+  /* models.html (2026-09-30): the page draws the data itself - scripts/models/models.py ships one 8-bit lossless WebP
+     per field and hour on the model's native grid, and the WebGL code below colours, projects and reads it. */
+  :root { --bg: #f5f6f3; --panel: #ffffff; --ink: #1f261c; --ink2: #3d4540; --muted: #5c6b73; --rule: #dfe3dc;
+          --accent: #274b7a; --accent-soft: rgba(39, 75, 122, 0.09); --map: #e9ebe6;
+          --serif: 'Source Serif 4', Georgia, serif; --sans: 'Source Sans 3', 'Helvetica Neue', Arial, sans-serif; }
+  *, *::before, *::after { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--sans); line-height: 1.5; }
+  main.mv { max-width: min(96vw, 1800px); margin: 0 auto; padding: 1.2rem clamp(0.5rem, 2vw, 1.5rem) 3rem; }
+  .kicker { font-size: 0.8rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); margin: 0.2rem 0 0; }
+  h1 { font-family: var(--serif); font-weight: 500; font-size: clamp(1.6rem, 3.2vw, 2.3rem); line-height: 1.15; margin: 0.25rem 0 0.4rem; }
+  h2 { font-family: var(--serif); font-weight: 500; font-size: 1.3rem; margin: 1.8rem 0 0.5rem; }
+  .mv-lede { color: var(--ink2); max-width: 70rem; margin: 0 0 0.9rem; font-size: 1rem; }
+  .mv-lede a, .mv-about a { color: var(--accent); }
+
+  .mv-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 0.45rem 0.9rem; margin: 0 0 0.55rem; }
+  .seg { display: inline-flex; flex-wrap: wrap; border: 1px solid var(--rule); border-radius: 7px; background: var(--panel); overflow: hidden; }
+  .seg button { font: inherit; font-size: 0.92rem; border: 0; border-right: 1px solid var(--rule); background: transparent; color: var(--ink2);
+                padding: 0.38rem 0.72rem; cursor: pointer; white-space: nowrap; }
+  .seg button:last-child { border-right: 0; }
+  .seg button[aria-pressed="true"] { background: var(--accent); color: #fff; }
+  .seg button:disabled { color: #8a8f8a; cursor: not-allowed; background: repeating-linear-gradient(135deg, transparent 0 5px, rgba(0,0,0,0.035) 5px 10px); }
+  .seg button:not(:disabled):not([aria-pressed="true"]):hover { background: var(--accent-soft); }
+  .mv-fields { flex: 1 1 100%; }
+  .runsel { display: inline-flex; align-items: center; gap: 0.4rem; font-size: 0.92rem; color: var(--ink2); }
+  .runsel select { font: inherit; font-size: 0.92rem; padding: 0.3rem 0.4rem; border: 1px solid var(--rule); border-radius: 6px; background: var(--panel); color: var(--ink); }
+  .chk { display: inline-flex; align-items: center; gap: 0.35rem; font-size: 0.92rem; color: var(--ink2); cursor: pointer; user-select: none; }
+
+  .mv-map { position: relative; width: 100%; height: clamp(340px, calc(100vh - 290px), 880px); background: var(--map); border: 1px solid var(--rule);
+            border-radius: 8px; overflow: hidden; touch-action: none; cursor: grab; }
+  .mv-map.drag { cursor: grabbing; }
+  .mv-map canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+  .mv-zoom { position: absolute; right: 8px; top: 8px; display: flex; flex-direction: column; gap: 4px; z-index: 3; }
+  .mv-zoom button { width: 34px; height: 34px; font: 600 1.1rem var(--sans); border: 1px solid var(--rule); border-radius: 6px;
+                    background: rgba(255,255,255,0.92); color: var(--ink); cursor: pointer; }
+  .mv-zoom button.txt { font-size: 0.7rem; }
+  .mv-badge { position: absolute; left: 8px; top: 8px; z-index: 3; background: rgba(255,255,255,0.93); border: 1px solid var(--rule); border-radius: 6px;
+              padding: 0.28rem 0.55rem; font-size: 0.86rem; color: var(--ink); max-width: calc(100% - 60px); pointer-events: none; }
+  .mv-badge b { font-weight: 600; }
+  .mv-load { position: absolute; left: 8px; bottom: 8px; z-index: 3; background: rgba(255,255,255,0.93); border: 1px solid var(--rule); border-radius: 6px;
+             padding: 0.2rem 0.5rem; font-size: 0.82rem; color: var(--ink2); pointer-events: none; }
+  .mv-load:empty { display: none; }
+  .mv-msg { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 2; max-width: min(34rem, 90%); text-align: center;
+            background: rgba(255,255,255,0.96); border: 1.5px dashed #b9beb6; border-radius: 8px; padding: 1.1rem 1.3rem; font-size: 0.97rem; color: var(--ink2); }
+  .mv-msg:empty { display: none; }
+  .mv-tip { position: absolute; z-index: 4; pointer-events: none; background: rgba(20, 24, 22, 0.9); color: #fff; font-size: 0.84rem; line-height: 1.35;
+            padding: 0.3rem 0.5rem; border-radius: 5px; white-space: nowrap; transform: translate(12px, 12px); display: none; }
+  .mv-tip .v { font-weight: 600; font-size: 0.95rem; }
+  .mv-tip .ll { color: #cfd6cf; }
+
+  .mv-time { display: flex; align-items: center; gap: 0.5rem; margin: 0.55rem 0 0.2rem; flex-wrap: wrap; }
+  .mv-time button { font: inherit; font-size: 0.95rem; min-width: 2.3rem; height: 2.1rem; border: 1px solid var(--rule); border-radius: 6px; background: var(--panel);
+                    color: var(--ink); cursor: pointer; }
+  .mv-time input[type=range] { flex: 1 1 14rem; min-width: 10rem; accent-color: var(--accent); height: 2rem; }
+  .mv-valid { font-size: 0.95rem; color: var(--ink); min-width: 15rem; }
+  .mv-valid .loc { color: var(--muted); }
+  .mv-legend { margin: 0.3rem 0 0; }
+  .mv-legend canvas { width: 100%; height: 46px; display: block; }
+  .mv-note { margin: 0.5rem 0 0; padding: 0.55rem 0.8rem; background: var(--panel); border: 1px solid var(--rule); border-left: 4px solid var(--accent);
+             border-radius: 4px; font-size: 0.93rem; color: var(--ink2); max-width: 80rem; }
+  .mv-note:empty { display: none; }
+  .mv-note b { color: var(--ink); font-weight: 600; }
+  .mv-about { max-width: 80rem; color: var(--ink2); font-size: 0.97rem; }
+  .mv-about table { border-collapse: collapse; width: 100%; font-size: 0.9rem; margin: 0.4rem 0 0.8rem; background: var(--panel); }
+  .mv-about th, .mv-about td { border: 1px solid var(--rule); padding: 0.35rem 0.5rem; text-align: left; vertical-align: top; }
+  .mv-about th { background: #eef1ec; font-weight: 600; color: var(--ink); }
+  .mv-about td.na { color: #6f6b64; font-style: italic; }
+  .mv-about .tbl { overflow-x: auto; }
+  .mv-runs { font-size: 0.88rem; color: var(--muted); margin: 0.2rem 0 0; }
+  @media (max-width: 640px) {
+    .seg button { padding: 0.36rem 0.55rem; font-size: 0.88rem; }
+    .mv-map { height: min(62vh, 560px); }
+    .mv-valid { min-width: 0; flex: 1 1 100%; font-size: 0.9rem; }
+  }
+</style>
+</head>
+<body>
+<!-- sh:start -->
+<header class="sh" id="site-header">
+  <div class="sh-in">
+    <a class="sh-brand" href="/">Shawn Corvec</a>
+    <button class="sh-find" type="button" aria-haspopup="dialog" aria-keyshortcuts="Control+K Meta+K" title="Find a plot (Ctrl K)"><svg viewBox="0 0 20 20" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true" focusable="false"><circle cx="8.5" cy="8.5" r="5.5" style="fill:none;stroke:currentColor"/><path d="M12.6 12.6 17 17" style="fill:none;stroke:currentColor"/></svg><span class="sh-find-t">Find a plot</span><kbd>Ctrl K</kbd></button>
+    <button class="sh-toggle" type="button" aria-expanded="false" aria-controls="sh-menu">Menu</button>
+    <nav class="sh-nav" id="sh-menu" aria-label="Site">
+      <ul class="sh-list">
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g0" aria-current="page"><span class="sh-lf">Short and medium range</span><span class="sh-ls">Short/medium range</span></button>
+          <div class="sh-menu sh-menu--list" id="sh-g0">
+            <ul>
+              <li><a href="/models.html" aria-current="page">Short-range models</a></li>
+              <li><a href="/snowbands.html">Snow-band diagnostics</a></li>
+              <li><a href="/ar.html">Atmospheric rivers</a></li>
+              <li><a href="/ecape.html">Entraining CAPE</a></li>
+            </ul>
+          </div>
+        </li>
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g1"><span class="sh-lf">Subseasonal and seasonal</span><span class="sh-ls">Subseasonal/seasonal</span></button>
+          <div class="sh-menu sh-menu--cols" id="sh-g1">
+            <div>
+              <h3>Weeks 2–5</h3>
+              <ul>
+                <li><a href="/subseasonal.html">GEPS extended ensemble</a></li>
+                <li><a href="/gefs.html">GEFS extended ensemble</a></li>
+              </ul>
+            </div>
+            <div>
+              <h3>Seasons</h3>
+              <ul>
+                <li><a href="/seasonal.html">Eight C3S seasonal models</a></li>
+                <li><a href="/sfs.html">NOAA SFS seasonal</a></li>
+                <li><a href="/enso-forecasts.html">ENSO forecasts</a></li>
+              </ul>
+            </div>
+          </div>
+        </li>
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g2">Climate drivers</button>
+          <div class="sh-menu sh-menu--list" id="sh-g2">
+            <ul>
+              <li><a href="/enso.html">El Niño monitor</a></li>
+              <li><a href="/mjo.html">MJO forecast</a></li>
+              <li><a href="/qbo/">QBO tracker</a></li>
+            </ul>
+          </div>
+        </li>
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g3"><span class="sh-lf">Atmospheric circulation</span><span class="sh-ls">Circulation</span></button>
+          <div class="sh-menu sh-menu--cols" id="sh-g3">
+            <div>
+              <h3>Stratosphere</h3>
+              <ul>
+                <li><a href="/stratosphere.html">Stratosphere and polar vortex</a></li>
+                <li class="sh-subitem"><a href="/stratosphere.html#heatflux">Eddy heat flux</a></li>
+                <li class="sh-subitem"><a href="/stratosphere.html#pv">Potential vorticity</a></li>
+                <li class="sh-subitem"><a href="/stratosphere.html#bdc">Brewer–Dobson circulation</a></li>
+              </ul>
+            </div>
+            <div>
+              <h3>Troposphere</h3>
+              <ul>
+                <li><a href="/circulation.html">Jets, Walker and Hadley cells</a></li>
+                <li class="sh-subitem"><a href="/circulation.html#gillrain">Rain-forced circulation (Gill model)</a></li>
+                <li class="sh-subitem"><a href="/circulation.html#waf">Wave activity flux</a></li>
+                <li class="sh-subitem"><a href="/circulation.html#aam">Angular momentum and torques</a></li>
+                <li class="sh-subitem"><a href="/circulation.html#dt">Dynamic tropopause</a></li>
+              </ul>
+            </div>
+          </div>
+        </li>
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g4"><span class="sh-lf">Studies and verification</span><span class="sh-ls">Studies/verification</span></button>
+          <div class="sh-menu sh-menu--cols" id="sh-g4">
+            <div>
+              <h3>Studies</h3>
+              <ul>
+                <li><a href="/enso.html#imp_reg">ENSO impacts on the Americas</a></li>
+                <li><a href="/stratosphere.html#shwinters">Stratosphere history</a></li>
+                <li><a href="/topics/">Explainers</a></li>
+              </ul>
+            </div>
+            <div>
+              <h3>Verification</h3>
+              <ul>
+                <li><a href="/aifs-verify.html">AIFS single versus member 0</a></li>
+              </ul>
+            </div>
+          </div>
+        </li>
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g5">Tools</button>
+          <div class="sh-menu sh-menu--list" id="sh-g5">
+            <ul>
+              <li><a href="/catalog.html">Every plot on the site</a></li>
+              <li><a href="/skewt/">Sounding explorer</a></li>
+              <li><a href="/asos5.html">Five-minute airport observations</a></li>
+              <li><a href="/climate.html">US climate trends</a></li>
+            </ul>
+          </div>
+        </li>
+        <li class="sh-item sh-item--special"><a class="sh-special" href="/midterms/">2026 Midterms</a></li>
+        <li class="sh-item sh-has-menu sh-item--me">
+          <button class="sh-link sh-menubtn sh-me" type="button" aria-expanded="false" aria-controls="sh-me">About</button>
+          <div class="sh-menu sh-menu--list sh-menu--me" id="sh-me">
+            <ul>
+              <li><a href="/about.html">About me</a></li>
+              <li><a href="/resume.html">Resume</a></li>
+              <li><a href="/research.html">Publications</a></li>
+              <li class="sh-me-ext"><a href="https://github.com/scorvec">GitHub</a></li>
+              <li><a href="https://scholar.google.com/citations?user=EYLRCJIAAAAJ&amp;hl=en">Google Scholar</a></li>
+              <li><a href="https://www.linkedin.com/in/shawn-corvec-35895b231/">LinkedIn</a></li>
+            </ul>
+          </div>
+        </li>
+      </ul>
+    </nav>
+  </div>
+</header>
+<!-- sh:end -->
+<main class="mv">
+  <p class="kicker">Every run &middot; HRRR hourly, RRFS and RDPS four times a day &middot; <a href="/ecape.html" style="color:inherit">ECAPE</a> &middot; <a href="/snowbands.html" style="color:inherit">snow bands</a></p>
+  <h1>Short-range models</h1>
+  <p class="mv-lede">The HRRR, RRFS and RDPS drawn in your browser at each model's own grid spacing (3&nbsp;km, 3&nbsp;km and 10&nbsp;km): simulated infrared, cloud ceiling, visibility, 2&nbsp;m temperature and dewpoint, vertically integrated smoke, 80&nbsp;m wind and incoming shortwave. Scroll or pinch to zoom, drag to pan, and hover (or tap) for the model's value.</p>
+
+  <div class="mv-bar">
+    <div class="seg" id="models" role="group" aria-label="Model"></div>
+    <label class="runsel">Run <select id="run" aria-label="Model run"></select></label>
+    <label class="chk" title="Show the previous run at the same valid time"><input type="checkbox" id="prev"> Previous run</label>
+    <div class="seg mv-fields" id="fields" role="group" aria-label="Field"></div>
+  </div>
+
+  <div class="mv-map" id="map" aria-label="Model map. Scroll or pinch to zoom, drag to pan.">
+    <canvas id="gl"></canvas>
+    <canvas id="ov"></canvas>
+    <div class="mv-badge" id="badge"></div>
+    <div class="mv-zoom"><button type="button" id="zin" aria-label="Zoom in">+</button><button type="button" id="zout" aria-label="Zoom out">&minus;</button><button type="button" class="txt" id="zfit" aria-label="Reset view">fit</button></div>
+    <div class="mv-msg" id="msg"></div>
+    <div class="mv-load" id="load"></div>
+    <div class="mv-tip" id="tip"></div>
+  </div>
+  <div class="mv-time">
+    <button type="button" id="play" aria-label="Play">&#9654;</button>
+    <button type="button" id="back" aria-label="Previous hour">&lsaquo;</button>
+    <input type="range" id="hour" min="0" max="18" value="0" aria-label="Forecast hour">
+    <button type="button" id="fwd" aria-label="Next hour">&rsaquo;</button>
+    <span class="mv-valid" id="valid"></span>
+  </div>
+  <div class="mv-legend"><canvas id="leg" aria-label="Colour scale"></canvas></div>
+  <p class="mv-note" id="note"></p>
+  <p class="mv-runs" id="runs"></p>
+
+  <section class="mv-about">
+    <h2>What each field is, model by model</h2>
+    <div class="tbl"><table>
+      <tr><th>Field</th><th>HRRR (NOAA, 3 km)</th><th>RRFS (NOAA, 3 km)</th><th>RDPS (ECCC, 10 km)</th></tr>
+      <tr><td>Simulated IR</td><td>Brightness temperature a GOES-East 10.3&nbsp;&micro;m imager would see (UPP field SBT124)</td><td>GOES-16 ABI band 13, 10.3&nbsp;&micro;m (SBTA1613)</td><td>No simulated band exists in the RDPS output. Shown instead: the <b>OLR-derived brightness temperature</b>, T<sub>b</sub>&nbsp;=&nbsp;(OLR/&sigma;)<sup>&frac14;</sup>, from the instantaneous outgoing longwave radiation at the top of the atmosphere. It is a proxy for IR, not a satellite band: it integrates the whole longwave spectrum, so clear skies read 20&ndash;30&nbsp;K colder than a window channel, while cloud tops come out close.</td></tr>
+      <tr><td>Cloud ceiling</td><td>Height of the lowest broken or overcast layer above the ground (the model's ceiling height minus the terrain)</td><td>As HRRR</td><td class="na">Not in the RDPS output</td></tr>
+      <tr><td>Visibility</td><td>Surface visibility; above 10&nbsp;mi shown as &ldquo;10+&rdquo;, as a METAR reports it</td><td>As HRRR</td><td class="na">Not in the RDPS output</td></tr>
+      <tr><td>2&nbsp;m temperature, dewpoint</td><td colspan="3">In &deg;F, stored to 0.5&nbsp;&deg;F</td></tr>
+      <tr><td>Smoke</td><td>Vertically integrated smoke (column mass density, COLMD), mg&nbsp;m<sup>&minus;2</sup></td><td>RRFS-SD column smoke (organic particulate matter, COLMD), mg&nbsp;m<sup>&minus;2</sup></td><td>From ECCC's <b>RAQDPS-FireWork</b> air-quality run (wildfire-smoke PM2.5 column), 00 and 12&nbsp;UTC to 72&nbsp;h; a 06 or 18&nbsp;UTC RDPS run shows the FireWork run 6&nbsp;h older, matched on valid time</td></tr>
+      <tr><td>80&nbsp;m wind</td><td colspan="3">Speed shaded, wind barbs in knots (half barb 5, full 10, pennant 50), from the model's u and v at 80&nbsp;m above ground</td></tr>
+      <tr><td>Incoming shortwave</td><td>Downward shortwave at the surface, instantaneous at the valid time</td><td>As HRRR (instantaneous)</td><td>Mean over the hour ending at the valid time (the difference of the model's accumulated flux)</td></tr>
+    </table></div>
+    <h2>Runs and timing</h2>
+    <p>HRRR: every hourly run to 18&nbsp;h, and the 00, 06, 12 and 18&nbsp;UTC runs to 48&nbsp;h. RRFS&nbsp;v1: the 00, 06, 12 and 18&nbsp;UTC runs to 84&nbsp;h (its other hourly runs write only 15-minute surface files to 18&nbsp;h and are not shown). RDPS: 00, 06, 12 and 18&nbsp;UTC to 84&nbsp;h. Every forecast hour is shown. The newest run of each model is kept with the one before it (for HRRR also the newest 48-hour run), so <i>Previous run</i> shows how the forecast for the same hour changed. A run appears once its last forecast hour is published; GitHub runs the jobs, so expect the newest HRRR about 1&frac12;&ndash;2&frac12; hours after its start time.</p>
+    <h2>How the page works</h2>
+    <p>Nothing on this page is a picture. Each field and hour is shipped as the model's own numbers, rounded to 256 levels (0.625&nbsp;K for infrared, 0.5&nbsp;&deg;F for temperature and dewpoint, 0.4&nbsp;m/s for wind, 5&nbsp;W&nbsp;m<sup>&minus;2</sup> for shortwave, and 2&ndash;3&nbsp;% steps on logarithmic scales for ceiling, visibility and smoke) on the native model grid, and your browser colours, projects and reads it: zooming shows the model's grid cells, and the hover value is the stored one, within those steps. Maps are drawn on the HRRR's Lambert conformal projection for all three models, so switching model keeps the view. Boundaries: Natural Earth; US states and counties: US Census via us-atlas.</p>
+    <p>Related: <a href="/ecape.html">entraining CAPE from the HRRR</a> and <a href="/snowbands.html">snow-band diagnostics from the HRRR, RRFS and RDPS</a>. Data: NOAA HRRR and RRFS (AWS open data; NOMADS for the RRFS), ECCC RDPS and RAQDPS-FireWork (MSC Datamart). Model output as published, uncorrected.</p>
+  </section>
+</main>
+
+<script>
+(function () {
+  "use strict";
+  // ── configuration ─────────────────────────────────────────────────────────────────────────────────────────────
+  var LOCAL = /[?&]local=1/.test(location.search);                    // testing: data from this origin
+  var MIRROR = "https://cdn.jsdelivr.net/gh/scorvec/scorvec.github.io@";
+  var D2R = Math.PI / 180;
+  var MODELS = { hrrr: "HRRR", rrfs: "RRFS", rdps: "RDPS" };
+  var MODEL_ORDER = ["hrrr", "rrfs", "rdps"];
+  // colour stops: [value in display units, "#rrggbb", alpha]
+  function S(v, c, a) { return [v, parseInt(c.slice(1, 3), 16), parseInt(c.slice(3, 5), 16), parseInt(c.slice(5, 7), 16), a == null ? 1 : a]; }
+  var FIELDS = {
+    ir: { label: "Simulated IR", enc: "lin", off: 170, step: 0.625, unit: "°C",
+          disp: function (k) { return k - 273.15; }, lines: "rgba(255,226,110,0.9)",
+          stops: [S(45, "#0c0c0c"), S(20, "#3b3b3b"), S(0, "#727272"), S(-20, "#b1b1b1"), S(-30, "#e2e2e2"), S(-31, "#a6dcf2"),
+                  S(-40, "#3f92d2"), S(-48, "#1f58a6"), S(-50, "#2aa047"), S(-58, "#9fd23a"), S(-62, "#f2e23a"), S(-67, "#f39a2b"),
+                  S(-72, "#d7301f"), S(-78, "#8b0a36"), S(-84, "#e8b8ec"), S(-95, "#ffffff")],
+          ticks: [40, 20, 0, -20, -30, -40, -50, -60, -70, -80],
+          fmt: function (v, k) { return v.toFixed(1) + " °C  (" + k.toFixed(1) + " K)"; } },
+    ceil: { label: "Cloud ceiling", enc: "log", lo: 50, hi: 50000, unit: "ft",
+            ticks: [100, 200, 500, 1000, 2000, 3000, 5000, 12000, 30000],
+            fmt: function (v) { return v < 1000 ? Math.round(v / 10) * 10 + " ft" : Math.round(v / 100) * 100 + " ft"; } },
+    vis: { label: "Visibility", enc: "log", lo: 0.03, hi: 10, unit: "mi", ticks: [0.1, 0.25, 0.5, 1, 2, 3, 5, 10],
+           fmt: function (v) { return (v < 1 ? v.toFixed(2) : v < 3 ? v.toFixed(1) : v.toFixed(1)) + " mi"; } },
+    t2m: { label: "Temperature", enc: "linf", unit: "°F",
+           stops: [S(-40, "#f2e8f6"), S(-25, "#c9a6db"), S(-10, "#8058b2"), S(0, "#433c9c"), S(10, "#2f5cb1"), S(20, "#3b82c4"),
+                   S(32, "#7cb7dc"), S(40, "#b4def0"), S(50, "#e6f4cd"), S(60, "#fdf0a6"), S(70, "#fdcf79"), S(80, "#f89d51"),
+                   S(90, "#e96838"), S(100, "#c93226"), S(110, "#91122a"), S(125, "#55082a")],
+           ticks: [-20, 0, 20, 32, 40, 50, 60, 70, 80, 90, 100, 110],
+           fmt: function (v) { return v.toFixed(1) + " °F  (" + ((v - 32) / 1.8).toFixed(1) + " °C)"; } },
+    td2m: { label: "Dewpoint", enc: "linf", unit: "°F",
+            stops: [S(-30, "#4d3b29"), S(0, "#7b5e3d"), S(20, "#a8875a"), S(30, "#c9ae84"), S(40, "#e4d8b3"), S(45, "#d8e8bf"),
+                    S(50, "#abd8a2"), S(55, "#70c07e"), S(60, "#3aa05d"), S(65, "#1f7f4a"), S(70, "#1b6f7a"), S(75, "#245199"), S(82, "#4a2f8a")],
+            ticks: [0, 20, 30, 40, 50, 55, 60, 65, 70, 75, 80],
+            fmt: function (v) { return v.toFixed(1) + " °F  (" + ((v - 32) / 1.8).toFixed(1) + " °C)"; } },
+    smoke: { label: "Smoke", enc: "log", lo: 0.1, hi: 3000, unit: "mg/m²",
+             stops: [S(2, "#cfcabc", 0), S(4, "#d6ccad", 0.55), S(10, "#dcb97c", 0.8), S(20, "#d6934f", 0.9), S(50, "#bf6233"),
+                     S(100, "#96402e"), S(200, "#652c3c"), S(500, "#3d1f42"), S(1500, "#1b0f22")],
+             ticks: [4, 10, 20, 50, 100, 200, 500, 1000],
+             fmt: function (v) { return (v < 10 ? v.toFixed(1) : Math.round(v)) + " mg/m²"; } },
+    wind80: { label: "80 m wind", enc: "lin2", off: -50.8, step: 0.4, unit: "m/s", smax: 40,
+              stops: [S(0, "#f6f6f4"), S(3, "#d3e4f1"), S(6, "#9cc5e3"), S(9, "#5c9fcd"), S(12, "#3f9b6a"), S(15, "#8cc24a"),
+                      S(18, "#e6d93a"), S(21, "#f8a93a"), S(25, "#e4552f"), S(30, "#a8124f"), S(40, "#4a0f6a")],
+              ticks: [0, 5, 10, 15, 20, 25, 30, 35, 40] },
+    sw: { label: "Shortwave", enc: "lin", off: 0, step: 5, unit: "W/m²", lines: "rgba(255,255,255,0.75)",
+          stops: [S(0, "#16101f"), S(50, "#2e1a4a"), S(150, "#5b2270"), S(300, "#983068"), S(450, "#d14c4f"), S(600, "#ef7f3a"),
+                  S(750, "#f8b440"), S(900, "#fbe06a"), S(1050, "#fffbd0")],
+          ticks: [0, 100, 200, 400, 600, 800, 1000],
+          fmt: function (v) { return Math.round(v) + " W/m²"; } }
+  };
+  var FIELD_ORDER = ["ir", "ceil", "vis", "t2m", "td2m", "smoke", "wind80", "sw"];
+  var NOTES = {
+    rdps: { ir: "<b>RDPS has no simulated satellite band.</b> Shown: the OLR-derived brightness temperature (proxy for IR), T<sub>b</sub> = (OLR/σ)<sup>¼</sup> from the instantaneous outgoing longwave at the top of the atmosphere. Cloud tops come out close to a 10.3 µm image; clear skies read 20–30 K colder than one, because OLR includes the water-vapour bands.",
+            sw: "RDPS shortwave is the <b>mean over the hour ending at the valid time</b> (difference of the accumulated flux), not an instantaneous value as for HRRR and RRFS.",
+            smoke: "Smoke over the RDPS domain comes from ECCC's RAQDPS-FireWork air-quality model: column-integrated wildfire-smoke PM2.5. It runs at 00 and 12 UTC to 72 h, so its hours end before the RDPS's." },
+    hrrr: { ir: "HRRR simulated brightness temperature for the GOES-East 10.3 µm window band (UPP field SBT124), computed with the CRTM from the model's clouds and water vapour.",
+            ceil: "Height above ground of the lowest broken-or-overcast layer. Colours follow the aviation flight categories: magenta LIFR (&lt; 500 ft), red IFR (500–999), blue MVFR (1,000–3,000), green VFR; no shading = no ceiling.",
+            vis: "Colours follow the aviation flight categories: magenta &lt; 1 mi, red 1–3, blue 3–5, green 5–10; no shading = 10 mi or more.",
+            smoke: "HRRR-Smoke vertically integrated smoke (column mass density), from satellite-detected fires and the model's plume rise and transport.",
+            sw: "Downward shortwave radiation at the surface, instantaneous at the valid time." },
+    rrfs: { ir: "RRFS simulated GOES-16 ABI band 13 (10.3 µm) brightness temperature.",
+            smoke: "RRFS-SD smoke: the column mass density of the smoke (organic particulate) tracer." }
+  };
+  NOTES.rrfs.ceil = NOTES.hrrr.ceil; NOTES.rrfs.vis = NOTES.hrrr.vis; NOTES.rrfs.sw = NOTES.hrrr.sw;
+  var NA = { rdps: { ceil: "The RDPS output has no cloud ceiling.", vis: "The RDPS output has no visibility." } };
+
+  // ── display projection: the HRRR's Lambert conformal (tangent at 38.5 N, 97.5 W, sphere 6371229 m) ────────────────
+  var P = (function () {
+    var R = 6371229, phi = 38.5 * D2R, lon0 = -97.5 * D2R;
+    var n = Math.sin(phi), t = Math.tan(Math.PI / 4 + phi / 2);
+    var F = Math.cos(phi) * Math.pow(t, n) / n, RF = R * F, rho0 = RF / Math.pow(t, n);
+    return { n: n, RF: RF, rho0: rho0, lon0: lon0,
+      fwd: function (lon, lat) {
+        var rho = RF / Math.pow(Math.tan(Math.PI / 4 + lat * D2R / 2), n);
+        var d = lon * D2R - lon0; d = Math.atan2(Math.sin(d), Math.cos(d));
+        var th = n * d;
+        return [rho * Math.sin(th), rho0 - rho * Math.cos(th)];
+      },
+      inv: function (x, y) {
+        var dy = rho0 - y, rho = Math.sign(n) * Math.sqrt(x * x + dy * dy), th = Math.atan2(x, dy);
+        return [(lon0 + th / n) / D2R, (2 * Math.atan(Math.pow(RF / rho, 1 / n)) - Math.PI / 2) / D2R];
+      } };
+  })();
+
+  // grid index (fractional) of a display point, identical to the shader
+  function gridIJ(g, x, y) {
+    if (g.type === "lcc") return [(x - g._x1) / g.dx, (y - g._y1) / g.dy];
+    var ll = P.inv(x, y), lon = ll[0] * D2R, lat = ll[1] * D2R;
+    var lo = lon - g.splon * D2R, cx = Math.cos(lat) * Math.cos(lo), cy = Math.cos(lat) * Math.sin(lo), cz = Math.sin(lat);
+    var th = (90 + g.splat) * D2R, xr = Math.cos(th) * cx + Math.sin(th) * cz, zr = -Math.sin(th) * cx + Math.cos(th) * cz;
+    var lr = Math.atan2(cy, xr) / D2R, pr = Math.asin(zr) / D2R;
+    var di = ((lr - g.lo1) % 360 + 540) % 360 - 180;
+    return [di / g.di - (g.i0 || 0), (pr - g.la1) / g.dj - (g.j0 || 0)];
+  }
+  function prepGrid(g) {
+    if (g._ok) return g;
+    if (g.type === "lcc") {
+      if (Math.abs(g.lat1 - 38.5) > 1e-6 || Math.abs(g.lon0 + 97.5) > 1e-6) console.warn("grid not on the display projection", g);
+      var p = P.fwd(g.lo1, g.la1); g._x1 = p[0]; g._y1 = p[1];
+    }
+    // bounding box in display metres from the grid's edge (used by "fit")
+    var xs = [], ys = [], k, N = 40;
+    function add(i, j) { var ll = ijLL(g, i, j), q = P.fwd(ll[0], ll[1]); xs.push(q[0]); ys.push(q[1]); }
+    for (k = 0; k <= N; k++) { add(k / N * (g.nx - 1), 0); add(k / N * (g.nx - 1), g.ny - 1); add(0, k / N * (g.ny - 1)); add(g.nx - 1, k / N * (g.ny - 1)); }
+    g._bb = [Math.min.apply(0, xs), Math.max.apply(0, xs), Math.min.apply(0, ys), Math.max.apply(0, ys)];
+    g._ok = true;
+    return g;
+  }
+  function ijLL(g, i, j) {                                       // grid index -> lon/lat
+    if (g.type === "lcc") return P.inv(g._x1 + i * g.dx, g._y1 + j * g.dy);
+    var lr = (g.lo1 + (i + (g.i0 || 0)) * g.di) * D2R, pr = (g.la1 + (j + (g.j0 || 0)) * g.dj) * D2R;
+    var xr = Math.cos(pr) * Math.cos(lr), yr = Math.cos(pr) * Math.sin(lr), zr = Math.sin(pr);
+    var th = (90 + g.splat) * D2R, cx = Math.cos(th) * xr - Math.sin(th) * zr, cz = Math.sin(th) * xr + Math.cos(th) * zr;
+    return [(Math.atan2(yr, cx) / D2R + g.splon + 540) % 360 - 180, Math.asin(cz) / D2R];
+  }
+
+  // ── decoding: code -> physical value in display units ───────────────────────────────────────────────────────────
+  function valueOf(fd, code, q) {
+    if (code === 255) return null;
+    if (fd.enc === "lin") { var k = fd.off + code * fd.step; return fd.disp ? fd.disp(k) : k; }
+    if (fd.enc === "linf") return q[0] + code * q[1];
+    if (fd.enc === "log") { if (code === 0) return -1; return Math.exp(Math.log(fd.lo) + (code - 1) / 253 * (Math.log(fd.hi) - Math.log(fd.lo))); }
+    return null;
+  }
+  function interp(stops, v) {
+    if (v <= stops[0][0] && stops[0][0] <= stops[stops.length - 1][0]) return stops[0].slice(1);
+    var asc = stops[0][0] <= stops[stops.length - 1][0];
+    for (var i = 1; i < stops.length; i++) {
+      var a = stops[i - 1], b = stops[i];
+      var inside = asc ? v <= b[0] : v >= b[0];
+      if (inside) {
+        var t = (v - a[0]) / (b[0] - a[0]); if (!isFinite(t)) t = 0; t = Math.max(0, Math.min(1, t));
+        return [a[1] + t * (b[1] - a[1]), a[2] + t * (b[2] - a[2]), a[3] + t * (b[3] - a[3]), a[4] + t * (b[4] - a[4])];
+      }
+    }
+    return stops[stops.length - 1].slice(1);
+  }
+  // aviation flight categories, with lightness running within each band
+  function catColour(v, cuts) {
+    var bands = [["#5a1460", "#c24fc4"], ["#a3161b", "#ec5b4b"], ["#1a4aa6", "#76a6ea"], ["#23793a", "#c6e6b6"]];
+    for (var b = 0; b < 4; b++) {
+      var lo = b ? cuts[b - 1] : cuts[0] / 10, hi = cuts[b];
+      if (v < hi || b === 3) {
+        var t = Math.max(0, Math.min(1, (Math.log(Math.max(v, 1e-6)) - Math.log(lo)) / (Math.log(hi) - Math.log(lo))));
+        var c0 = bands[b][0], c1 = bands[b][1], r = [];
+        for (var k = 0; k < 3; k++) { var p0 = parseInt(c0.slice(1 + 2 * k, 3 + 2 * k), 16), p1 = parseInt(c1.slice(1 + 2 * k, 3 + 2 * k), 16); r.push(p0 + t * (p1 - p0)); }
+        return r;
+      }
+    }
+  }
+  function colourOf(name, v) {                                 // -> [r, g, b, a(0..1)] or null (transparent)
+    var fd = FIELDS[name];
+    if (v === null) return null;
+    if (name === "ceil") {
+      if (v < 0) v = 40;
+      if (v >= 12000) { var tt = Math.min(1, (Math.log(v) - Math.log(12000)) / (Math.log(50000) - Math.log(12000))); return [198 + 40 * tt, 230 + 16 * tt, 188 + 50 * tt, 1 - 0.55 * tt]; }
+      var c = catColour(v, [500, 1000, 3000, 12000]); return [c[0], c[1], c[2], 1];
+    }
+    if (name === "vis") {
+      if (v < 0) v = 0.02;
+      if (v >= 9.99) return null;
+      var c2 = catColour(v, [1, 3, 5, 10]); return [c2[0], c2[1], c2[2], 1];
+    }
+    if (name === "smoke" && (v < 2)) return null;
+    var s = interp(fd.stops, v);
+    return s[3] <= 0.01 ? null : s;
+  }
+  // 256-entry colour table for a frame: code -> RGBA (premultiplied by the shader)
+  function buildLut(name, q) {
+    var fd = FIELDS[name], lut = new Uint8Array(256 * 4);
+    for (var c = 0; c < 256; c++) {
+      var v;
+      if (fd.enc === "lin2") v = c > 254 ? null : c / 254 * fd.smax;
+      else v = valueOf(fd, c, q);
+      var col = colourOf(name, v);
+      if (col) { lut[4 * c] = col[0]; lut[4 * c + 1] = col[1]; lut[4 * c + 2] = col[2]; lut[4 * c + 3] = Math.round(255 * col[3]); }
+    }
+    return lut;
+  }
+
+  // ── state ──────────────────────────────────────────────────────────────────────────────────────────────────────
+  var man = {};                                   // model -> manifest
+  var st = { model: "hrrr", ci: 0, field: "ir", hour: 0, prev: false, playing: false };
+  var view = null;                                // {cx, cy, s: metres per CSS px}
+  var $ = function (id) { return document.getElementById(id); };
+  var mapEl = $("map"), glc = $("gl"), ovc = $("ov"), tip = $("tip");
+
+  function cycleObj(model, ci) { var m = man[model]; return m && m.cycles && m.cycles[ci]; }
+  function currentCycle() {
+    var c = cycleObj(st.model, st.ci);
+    if (!st.prev || !c) return { c: c, hour: st.hour };
+    var p = cycleObj(st.model, st.ci + 1);
+    if (!p) return { c: null, hour: st.hour, why: "No previous run is kept for this one." };
+    var dh = Math.round((Date.parse(c.init) - Date.parse(p.init)) / 3600e3);
+    return { c: p, hour: st.hour + dh, prevOf: c };
+  }
+  function relPath(model, c, field, h) { return "assets/models/data/" + model + "/" + c.cycle + "/" + field + "/" + ("00" + h).slice(-3) + ".webp"; }
+
+  // ── data transport: raw.githubusercontent -> jsDelivr (pinned to the frames commit) ; same host logic as frameLoad ──
+  var rawOk = false;
+  function fetchT(url, ms) {
+    var ctrl = typeof AbortController === "function" ? new AbortController() : null;
+    var t = ctrl && setTimeout(function () { ctrl.abort(); }, ms);
+    return fetch(url, ctrl ? { signal: ctrl.signal } : {}).then(function (r) { if (t) clearTimeout(t); return r; },
+                                                              function (e) { if (t) clearTimeout(t); throw e; });
+  }
+  function getBytes(rel, sha) {
+    var raw = window.FRAME_ROOT_RAW || "https://raw.githubusercontent.com/scorvec/scorvec.github.io/frames/";
+    var mir = MIRROR + (sha || "frames") + "/";
+    var hosts = LOCAL ? ["/"] : (window.frameHostIsMirror && window.frameHostIsMirror() ? [mir, raw] : [raw, mir]);
+    var k = 0;
+    function next() {
+      if (k >= hosts.length) return Promise.reject(new Error("unavailable"));
+      var h = hosts[k++];
+      return fetchT(h + rel, h === raw && !rawOk ? 7000 : 30000).then(function (r) {
+        if (!r.ok) return next();
+        if (h === raw) rawOk = true;
+        return r.arrayBuffer();
+      }, next);
+    }
+    return next();
+  }
+
+  // ── decoding off the main thread: WebP -> the R (and G) channel as bytes ────────────────────────────────────────
+  var WORKER_SRC = "self.onmessage=async function(e){var d=e.data;try{var b=await createImageBitmap(new Blob([d.buf],{type:'image/webp'}),{colorSpaceConversion:'none',premultiplyAlpha:'none'});" +
+    "var c=new OffscreenCanvas(b.width,b.height),g=c.getContext('2d',{willReadFrequently:true});g.drawImage(b,0,0);var px=g.getImageData(0,0,b.width,b.height).data,n=b.width*b.height,o=new Uint8Array(n*d.ch),k;" +
+    "if(d.ch===1){for(k=0;k<n;k++)o[k]=px[4*k];}else{for(k=0;k<n;k++){o[2*k]=px[4*k];o[2*k+1]=px[4*k+1];}}self.postMessage({id:d.id,w:b.width,h:b.height,data:o},[o.buffer]);}" +
+    "catch(err){self.postMessage({id:d.id,err:String(err)});}};";
+  var workers = [], wcb = {}, wid = 0, wnext = 0;
+  try {
+    if (typeof OffscreenCanvas === "function" && typeof Worker === "function") {
+      var wurl = URL.createObjectURL(new Blob([WORKER_SRC], { type: "text/javascript" }));
+      for (var wi = 0; wi < Math.min(3, Math.max(1, (navigator.hardwareConcurrency || 2) - 1)); wi++) {
+        var w = new Worker(wurl);
+        w.onmessage = function (e) { var cb = wcb[e.data.id]; delete wcb[e.data.id]; if (cb) cb(e.data); };
+        workers.push(w);
+      }
+    }
+  } catch (e) { workers = []; }
+  function decodeMain(buf, ch) {
+    return createImageBitmap(new Blob([buf], { type: "image/webp" }), { colorSpaceConversion: "none", premultiplyAlpha: "none" }).then(function (b) {
+      var c = document.createElement("canvas"); c.width = b.width; c.height = b.height;
+      var g = c.getContext("2d", { willReadFrequently: true }); g.drawImage(b, 0, 0);
+      var px = g.getImageData(0, 0, b.width, b.height).data, n = b.width * b.height, o = new Uint8Array(n * ch);
+      if (ch === 1) for (var k = 0; k < n; k++) o[k] = px[4 * k];
+      else for (var k2 = 0; k2 < n; k2++) { o[2 * k2] = px[4 * k2]; o[2 * k2 + 1] = px[4 * k2 + 1]; }
+      return { w: b.width, h: b.height, data: o };
+    });
+  }
+  function decode(buf, ch) {
+    if (!workers.length) return decodeMain(buf, ch);
+    return new Promise(function (res, rej) {
+      var id = ++wid;
+      wcb[id] = function (d) { if (d.err) { decodeMain(buf, ch).then(res, rej); } else res(d); };
+      workers[wnext++ % workers.length].postMessage({ id: id, buf: buf, ch: ch });   // not transferred: the bytes stay cached
+    });
+  }
+
+  // ── frame cache: bytes (all fetched), decoded frames (LRU) ───────────────────────────────────────────────────────
+  var frames = new Map();           // key -> {bytes, bytesP, dec, decP, tex, used}
+  var DEC_MAX = 18, TEX_MAX = 8, BYTES_MAX = 400;
+  var inflight = 0, MAXF = 6, queue = [];
+  function fkey(model, c, field, h) { return model + "/" + c.cycle + "/" + field + "/" + h; }
+  function entry(k) { var e = frames.get(k); if (!e) { e = { used: 0 }; frames.set(k, e); } return e; }
+  function want(list) {                                     // list of [model, cycle, field, hour], highest priority first
+    queue = list.filter(function (a) { var e = frames.get(fkey(a[0], a[1], a[2], a[3])); return !(e && (e.bytes || e.bytesP || e.fail)); });
+    pump();
+  }
+  function pump() {
+    while (inflight < MAXF && queue.length) {
+      var a = queue.shift();
+      var k = fkey(a[0], a[1], a[2], a[3]), e = entry(k);
+      if (e.bytes || e.bytesP) continue;
+      inflight++;
+      e.bytesP = getBytes(relPath(a[0], a[1], a[2], a[3]), a[1].sha).then(function (e) { return function (buf) {
+        e.bytes = buf; e.bytesP = null; inflight--; pump(); trimBytes(); render(); return buf; }; }(e),
+        function (e) { return function (err) { e.bytesP = null; e.fail = true; inflight--; pump(); render(); throw err; }; }(e));
+      e.bytesP.catch(function () {});
+    }
+    updLoad();
+  }
+  function trimBytes() {
+    if (frames.size <= BYTES_MAX) return;
+    var arr = Array.from(frames.entries()).filter(function (x) { return x[1].bytes; }).sort(function (a, b) { return a[1].used - b[1].used; });
+    for (var i = 0; i < arr.length - BYTES_MAX; i++) { var e = arr[i][1]; if (e.tex) { gl.deleteTexture(e.tex); } frames.delete(arr[i][0]); }
+  }
+  var useClock = 0;
+  function decoded(model, c, field, h) {                 // -> entry with .dec, or null (and kicks off the work)
+    var k = fkey(model, c, field, h), e = entry(k);
+    e.used = ++useClock;
+    if (e.dec) return e;
+    if (e.decP || e.fail) return null;
+    if (!e.bytes) { if (!e.bytesP) { queue.unshift([model, c, field, h]); pump(); } return null; }
+    e.decP = decode(e.bytes, FIELDS[field].enc === "lin2" ? 2 : 1).then(function (d) {
+      e.dec = d; e.decP = null;
+      var ds = Array.from(frames.values()).filter(function (x) { return x.dec; }).sort(function (a, b) { return a.used - b.used; });
+      for (var i = 0; i < ds.length - DEC_MAX; i++) { ds[i].dec = null; if (ds[i].tex) { gl.deleteTexture(ds[i].tex); ds[i].tex = null; } }
+      render();
+    }, function () { e.decP = null; e.fail = true; render(); });
+    return null;
+  }
+  function updLoad() {
+    var n = 0; frames.forEach(function (e) { if (e.bytesP) n++; });
+    $("load").textContent = n ? "Loading " + (n + queue.length) + " frame" + (n + queue.length > 1 ? "s" : "") + "…" : "";
+  }
+
+  // ── WebGL ──────────────────────────────────────────────────────────────────────────────────────────────────────
+  var gl = glc.getContext("webgl2", { premultipliedAlpha: true, antialias: false, preserveDrawingBuffer: false });
+  var prog, loc = {}, lutTex, lutKey = "";
+  var VS = "#version 300 es\nin vec2 p;void main(){gl_Position=vec4(p,0.,1.);}";
+  var FS = [
+    "#version 300 es", "precision highp float;precision highp int;precision highp sampler2D;",
+    "uniform sampler2D uData;uniform sampler2D uLut;uniform vec2 uC;uniform float uS;uniform vec2 uWH;",
+    "uniform int uType;uniform vec4 uL;uniform vec4 uR1;uniform vec4 uR2;uniform ivec2 uN;uniform int uMode;uniform vec3 uW;uniform vec4 uP;",
+    "out vec4 o;",
+    "void main(){",
+    " vec2 xy=uC+(gl_FragCoord.xy-0.5*uWH)*uS; float fi,fj;",
+    " if(uType==0){fi=(xy.x-uL.x)/uL.z;fj=(xy.y-uL.y)/uL.w;}",
+    " else{float dy=uP.z-xy.y;float rho=sign(uP.x)*sqrt(xy.x*xy.x+dy*dy);float th=atan(xy.x,dy);",
+    "  float lon=uP.w+th/uP.x;float lat=2.*atan(pow(uP.y/rho,1./uP.x))-1.5707963267948966;",
+    "  float lo=lon-radians(uR1.y);float cx=cos(lat)*cos(lo),cy=cos(lat)*sin(lo),cz=sin(lat);float t=radians(90.+uR1.x);",
+    "  float xr=cos(t)*cx+sin(t)*cz,zr=-sin(t)*cx+cos(t)*cz;float lr=degrees(atan(cy,xr)),pr=degrees(asin(clamp(zr,-1.,1.)));",
+    "  float di=mod(lr-uR1.z+540.,360.)-180.;fi=di/uR2.x-uR2.z;fj=(pr-uR1.w)/uR2.y-uR2.w;}",
+    " int i=int(floor(fi+0.5)),j=int(floor(fj+0.5));",
+    " if(i<0||j<0||i>=uN.x||j>=uN.y)discard;",
+    " vec4 t2=texelFetch(uData,ivec2(i,uN.y-1-j),0);float code;",
+    " if(uMode==0){code=floor(t2.r*255.+0.5);}",
+    " else{float cu=floor(t2.r*255.+0.5),cv=floor(t2.g*255.+0.5);if(cu>254.5)discard;float u=uW.x+cu*uW.y,v=uW.x+cv*uW.y;code=min(254.,floor(sqrt(u*u+v*v)/uW.z*254.+0.5));}",
+    " vec4 c=texelFetch(uLut,ivec2(int(code),0),0);if(c.a<0.004)discard;o=vec4(c.rgb*c.a,c.a);",
+    "}"].join("\n");
+  function initGL() {
+    if (!gl) return false;
+    function sh(type, src) { var s = gl.createShader(type); gl.shaderSource(s, src); gl.compileShader(s);
+      if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(s)); return s; }
+    prog = gl.createProgram();
+    gl.attachShader(prog, sh(gl.VERTEX_SHADER, VS)); gl.attachShader(prog, sh(gl.FRAGMENT_SHADER, FS)); gl.linkProgram(prog);
+    if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(prog));
+    gl.useProgram(prog);
+    ["uData", "uLut", "uC", "uS", "uWH", "uType", "uL", "uR1", "uR2", "uN", "uMode", "uW", "uP"].forEach(function (n) { loc[n] = gl.getUniformLocation(prog, n); });
+    var b = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, b);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW);
+    var ap = gl.getAttribLocation(prog, "p"); gl.enableVertexAttribArray(ap); gl.vertexAttribPointer(ap, 2, gl.FLOAT, false, 0, 0);
+    gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
+    lutTex = gl.createTexture(); gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, lutTex);
+    [gl.TEXTURE_MIN_FILTER, gl.TEXTURE_MAG_FILTER].forEach(function (p) { gl.texParameteri(gl.TEXTURE_2D, p, gl.NEAREST); });
+    gl.uniform1i(loc.uData, 0); gl.uniform1i(loc.uLut, 1);
+    gl.enable(gl.BLEND); gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
+    return true;
+  }
+  function texOf(e, ch) {
+    if (e.tex) return e.tex;
+    var t = gl.createTexture(); gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, t);
+    [gl.TEXTURE_MIN_FILTER, gl.TEXTURE_MAG_FILTER].forEach(function (p) { gl.texParameteri(gl.TEXTURE_2D, p, gl.NEAREST); });
+    [gl.TEXTURE_WRAP_S, gl.TEXTURE_WRAP_T].forEach(function (p) { gl.texParameteri(gl.TEXTURE_2D, p, gl.CLAMP_TO_EDGE); });
+    if (ch === 1) gl.texImage2D(gl.TEXTURE_2D, 0, gl.R8, e.dec.w, e.dec.h, 0, gl.RED, gl.UNSIGNED_BYTE, e.dec.data);
+    else gl.texImage2D(gl.TEXTURE_2D, 0, gl.RG8, e.dec.w, e.dec.h, 0, gl.RG, gl.UNSIGNED_BYTE, e.dec.data);
+    e.tex = t;
+    var ts = Array.from(frames.values()).filter(function (x) { return x.tex; }).sort(function (a, b) { return a.used - b.used; });
+    for (var i = 0; i < ts.length - TEX_MAX; i++) { if (ts[i] !== e) { gl.deleteTexture(ts[i].tex); ts[i].tex = null; } }
+    return t;
+  }
+
+  // ── boundaries ─────────────────────────────────────────────────────────────────────────────────────────────────
+  var geo = {};                                     // layer -> {pts: Float64Array (x,y pairs, NaN breaks), bb: [...] per line, starts}
+  var GEO_STYLE = { coast: [1.1, 1], lakes: [0.9, 0.9], countries: [1.5, 1], provinces: [1.0, 0.85], states: [1.0, 0.9], counties: [0.5, 0.55] };
+  function loadGeo(url) {
+    return fetch(url).then(function (r) { return r.ok ? r.json() : null; }).then(function (d) {
+      if (!d) return;
+      Object.keys(d.layers).forEach(function (name) {
+        var L = d.layers[name], q = L.q, lines = [], bbs = [];
+        L.lines.forEach(function (ln) {
+          var x = ln[0], y = ln[1], n = ln.length / 2, a = new Float64Array(ln.length), bb = [1e20, -1e20, 1e20, -1e20];
+          for (var k = 0; k < n; k++) {
+            if (k) { x += ln[2 * k]; y += ln[2 * k + 1]; }
+            var p = P.fwd(x / q, y / q); a[2 * k] = p[0]; a[2 * k + 1] = p[1];
+            if (p[0] < bb[0]) bb[0] = p[0]; if (p[0] > bb[1]) bb[1] = p[0]; if (p[1] < bb[2]) bb[2] = p[1]; if (p[1] > bb[3]) bb[3] = p[1];
+          }
+          lines.push(a); bbs.push(bb);
+        });
+        geo[name] = { lines: lines, bbs: bbs, maxKmPerPx: L.maxKmPerPx };
+      });
+      drawOverlay();
+    }).catch(function () {});
+  }
+
+  // ── view ───────────────────────────────────────────────────────────────────────────────────────────────────────
+  var W = 0, H = 0, DPR = 1;
+  function resize() {
+    var r = mapEl.getBoundingClientRect();
+    DPR = Math.min(window.devicePixelRatio || 1, 2);
+    W = r.width; H = r.height;
+    [glc, ovc].forEach(function (c) { c.width = Math.round(W * DPR); c.height = Math.round(H * DPR); });
+    drawLegend();
+    render();
+  }
+  function fit(g) {
+    var bb = g._bb, pad = 0.02;
+    view = { cx: (bb[0] + bb[1]) / 2, cy: (bb[2] + bb[3]) / 2, s: Math.max((bb[1] - bb[0]) / W, (bb[3] - bb[2]) / H) * (1 + pad) };
+    if (st.model === "rdps") view = { cx: -300000, cy: 1300000, s: Math.max(7600000 / W, 5200000 / H) };   // North America, not the whole rotated grid
+  }
+  function toXY(px, py) { return [view.cx + (px - W / 2) * view.s, view.cy - (py - H / 2) * view.s]; }
+  function toPx(x, y) { return [W / 2 + (x - view.cx) / view.s, H / 2 - (y - view.cy) / view.s]; }
+  function clampView() { view.s = Math.max(40, Math.min(view.s, 30000)); }
+
+  // ── drawing ────────────────────────────────────────────────────────────────────────────────────────────────────
+  var drawn = null;                                     // what is on screen: {key, e, g, field, q}
+  var raf = 0;
+  function render() { if (!raf) raf = requestAnimationFrame(function () { raf = 0; draw(); }); }
+  function draw() {
+    var cc = currentCycle(), c = cc.c, fd = FIELDS[st.field];
+    updateBadge(cc);
+    if (!c || !view) { drawOverlay(); return; }
+    var fm = c.fields[st.field];
+    var msg = "";
+    var na = NA[st.model] && NA[st.model][st.field];
+    if (na) msg = na;
+    else if (cc.why) msg = cc.why;
+    else if (!fm) msg = FIELDS[st.field].label + " is missing from this run.";
+    else if (fm.hours.indexOf(cc.hour) < 0) msg = FIELDS[st.field].label + " is not available at +" + cc.hour + " h in this run" +
+      (fm.hours.length ? " (it covers +" + fm.hours[0] + " to +" + fm.hours[fm.hours.length - 1] + " h)." : ".");
+    $("msg").textContent = msg;
+    if (msg) { if (gl) { gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT); } drawn = null; drawOverlay(); schedule(); return; }
+    var e = decoded(st.model, c, st.field, cc.hour);
+    if (!e && drawn && drawn.field === st.field && drawn.model === st.model) { e = drawn.e; }      // hold the last frame while the next decodes
+    else if (!e) { drawn = null; if (gl) { gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT); } drawOverlay(); schedule(); return; }
+    if (!e.dec) { drawOverlay(); schedule(); return; }
+    var hidx = fm.hours.indexOf(cc.hour);
+    var q = fm.q ? fm.q[hidx] : null;
+    if (drawn && drawn.e === e) q = drawn.q;
+    var g = prepGrid(c.grids[fm.grid]);
+    if (gl) {
+      var ch = fd.enc === "lin2" ? 2 : 1;
+      gl.viewport(0, 0, glc.width, glc.height); gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT);
+      gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, texOf(e, ch));
+      var lk = st.field + "|" + (q ? q.join(",") : "");
+      if (lk !== lutKey) { gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, lutTex);
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, 256, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, buildLut(st.field, q)); lutKey = lk; }
+      gl.uniform2f(loc.uC, view.cx, view.cy); gl.uniform1f(loc.uS, view.s / DPR); gl.uniform2f(loc.uWH, glc.width, glc.height);
+      gl.uniform4f(loc.uP, P.n, P.RF, P.rho0, P.lon0);
+      gl.uniform2i(loc.uN, g.nx, g.ny);
+      if (g.type === "lcc") { gl.uniform1i(loc.uType, 0); gl.uniform4f(loc.uL, g._x1, g._y1, g.dx, g.dy); }
+      else { gl.uniform1i(loc.uType, 1); gl.uniform4f(loc.uR1, g.splat, g.splon, g.lo1, g.la1); gl.uniform4f(loc.uR2, g.di, g.dj, g.i0 || 0, g.j0 || 0); }
+      gl.uniform1i(loc.uMode, ch === 2 ? 1 : 0); gl.uniform3f(loc.uW, fd.off || 0, fd.step || 1, fd.smax || 1);
+      gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+    }
+    drawn = { e: e, g: g, field: st.field, model: st.model, q: q, c: c, hour: cc.hour };
+    drawOverlay();
+    schedule();
+  }
+
+  function drawOverlay() {
+    var ctx = ovc.getContext("2d");
+    ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, ovc.width, ovc.height);
+    if (!view) return;
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+    var col = (FIELDS[st.field].lines) || "rgba(28,30,28,0.78)";
+    var kpp = view.s / 1000;
+    var x0 = view.cx - W / 2 * view.s, x1 = view.cx + W / 2 * view.s, y0 = view.cy - H / 2 * view.s, y1 = view.cy + H / 2 * view.s;
+    ["counties", "lakes", "coast", "provinces", "states", "countries"].forEach(function (name) {
+      var L = geo[name]; if (!L) return;
+      if (L.maxKmPerPx && kpp > L.maxKmPerPx) return;
+      var sty = GEO_STYLE[name];
+      ctx.strokeStyle = col; ctx.globalAlpha = sty[1]; ctx.lineWidth = sty[0]; ctx.lineJoin = "round";
+      ctx.beginPath();
+      for (var i = 0; i < L.lines.length; i++) {
+        var bb = L.bbs[i]; if (bb[1] < x0 || bb[0] > x1 || bb[3] < y0 || bb[2] > y1) continue;
+        var a = L.lines[i], px = W / 2 + (a[0] - view.cx) / view.s, py = H / 2 - (a[1] - view.cy) / view.s;
+        ctx.moveTo(px, py);
+        for (var k = 2; k < a.length; k += 2) {
+          var nx = W / 2 + (a[k] - view.cx) / view.s, ny = H / 2 - (a[k + 1] - view.cy) / view.s;
+          if (Math.abs(nx - px) + Math.abs(ny - py) < 0.6 && k < a.length - 2) continue;       // sub-pixel steps
+          ctx.lineTo(nx, ny); px = nx; py = ny;
+        }
+      }
+      ctx.stroke();
+    });
+    ctx.globalAlpha = 1;
+    if (st.field === "wind80" && drawn && drawn.e && drawn.e.dec && drawn.field === "wind80") drawBarbs(ctx, drawn);
+  }
+
+  function sample(d, px, py) {                          // -> code(s) at a CSS pixel of the drawn frame, or null
+    var xy = toXY(px, py), ij = gridIJ(d.g, xy[0], xy[1]);
+    var i = Math.floor(ij[0] + 0.5), j = Math.floor(ij[1] + 0.5);
+    if (i < 0 || j < 0 || i >= d.g.nx || j >= d.g.ny) return null;
+    var idx = (d.g.ny - 1 - j) * d.g.nx + i, a = d.e.dec.data;
+    return FIELDS[d.field].enc === "lin2" ? [a[2 * idx], a[2 * idx + 1], xy] : [a[idx], null, xy];
+  }
+  function drawBarbs(ctx, d) {
+    var fd = FIELDS.wind80, sp = W < 640 ? 34 : 40, L = 17;
+    ctx.strokeStyle = "rgba(18,20,18,0.85)"; ctx.fillStyle = "rgba(18,20,18,0.85)"; ctx.lineWidth = 1.1; ctx.globalAlpha = 1;
+    for (var py = sp / 2; py < H; py += sp) for (var px = sp / 2; px < W; px += sp) {
+      var s = sample(d, px, py); if (!s || s[0] === 255) continue;
+      var u = fd.off + s[0] * fd.step, v = fd.off + s[1] * fd.step;
+      var ll = P.inv(s[2][0], s[2][1]);
+      var d0 = ll[0] * D2R - P.lon0; d0 = Math.atan2(Math.sin(d0), Math.cos(d0));
+      var th = P.n * d0, su = u * Math.cos(th) - v * Math.sin(th), sv = u * Math.sin(th) + v * Math.cos(th);   // earth -> map frame
+      var kt = Math.sqrt(u * u + v * v) * 1.943844;
+      barb(ctx, px, py, su, sv, kt, L);
+    }
+  }
+  function barb(ctx, x, y, su, sv, kt, L) {
+    var m = Math.sqrt(su * su + sv * sv);
+    if (kt < 2.5 || m === 0) { ctx.beginPath(); ctx.arc(x, y, 2.4, 0, 2 * Math.PI); ctx.stroke(); return; }
+    var dx = -su / m, dy = sv / m;                     // staff points upwind, canvas y down
+    var rx = -dy, ry = dx;                             // feathers to the left of the staff in canvas coordinates = right of it on the map (NH convention)
+    var ex = x + dx * L, ey = y + dy * L;
+    ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(ex, ey);
+    var n = Math.round(kt / 5) * 5, pos = 0, fl = L * 0.55, gap = L * 0.17;
+    while (n >= 50) { var bx = ex - dx * pos, by = ey - dy * pos;
+      ctx.moveTo(bx, by); ctx.lineTo(bx + rx * fl + dx * 0, by + ry * fl); ctx.lineTo(bx - dx * gap * 1.2, by - dy * gap * 1.2); ctx.fill(); pos += gap * 1.6; n -= 50; }
+    while (n >= 10) { var fx = ex - dx * pos, fy = ey - dy * pos; ctx.moveTo(fx, fy); ctx.lineTo(fx + rx * fl + dx * fl * 0.35, fy + ry * fl + dy * fl * 0.35); pos += gap; n -= 10; }
+    if (n >= 5) { if (pos === 0) pos = gap; var hx = ex - dx * pos, hy = ey - dy * pos; ctx.moveTo(hx, hy); ctx.lineTo(hx + rx * fl * 0.5 + dx * fl * 0.18, hy + ry * fl * 0.5 + dy * fl * 0.18); }
+    ctx.stroke();
+  }
+
+  // ── legend ─────────────────────────────────────────────────────────────────────────────────────────────────────
+  function drawLegend() {
+    var cv = $("leg"), r = cv.getBoundingClientRect(), dpr = Math.min(window.devicePixelRatio || 1, 2);
+    cv.width = Math.round(r.width * dpr); cv.height = Math.round(46 * dpr);
+    var ctx = cv.getContext("2d"); ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, r.width, 46);
+    var name = st.field, fd = FIELDS[name], w = r.width, x0 = 6, x1 = w - 6, bh = 14, y = 4;
+    var lo, hi, logx = fd.enc === "log";
+    if (name === "ir") { lo = 45; hi = -95; } else if (name === "t2m") { lo = -40; hi = 120; } else if (name === "td2m") { lo = -20; hi = 82; }
+    else if (name === "ceil") { lo = 50; hi = 30000; } else if (name === "vis") { lo = 0.05; hi = 10; } else if (name === "smoke") { lo = 2; hi = 1500; }
+    else if (name === "wind80") { lo = 0; hi = 40; } else { lo = 0; hi = 1050; }
+    function xOf(v) { var t = logx ? (Math.log(v) - Math.log(lo)) / (Math.log(hi) - Math.log(lo)) : (v - lo) / (hi - lo); return x0 + t * (x1 - x0); }
+    ctx.fillStyle = "#e9ebe6"; ctx.fillRect(x0, y, x1 - x0, bh);
+    for (var px = x0; px < x1; px++) {
+      var t = (px - x0) / (x1 - x0), v = logx ? Math.exp(Math.log(lo) + t * (Math.log(hi) - Math.log(lo))) : lo + t * (hi - lo);
+      var c = colourOf(name, v);
+      if (c) { ctx.fillStyle = "rgba(" + Math.round(c[0]) + "," + Math.round(c[1]) + "," + Math.round(c[2]) + "," + c[3] + ")"; ctx.fillRect(px, y, 1.2, bh); }
+    }
+    ctx.strokeStyle = "#8c918b"; ctx.lineWidth = 1; ctx.strokeRect(x0 + 0.5, y + 0.5, x1 - x0 - 1, bh - 1);
+    ctx.fillStyle = "#3d4540"; ctx.font = "12px 'Source Sans 3', Arial, sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "top";
+    var last = -1e9;
+    fd.ticks.forEach(function (tv) {
+      var x = xOf(tv); if (x < x0 - 1 || x > x1 + 1) return;
+      ctx.fillRect(x - 0.5, y + bh, 1, 4);
+      var lab = (name === "ceil" && tv >= 1000) ? (tv / 1000) + "k" : String(tv).replace("-", "−");
+      if (Math.abs(x - last) < 26) return;
+      ctx.fillText(lab, Math.min(Math.max(x, x0 + 8), x1 - 8), y + bh + 5); last = x;
+    });
+    ctx.textAlign = "right"; ctx.fillStyle = "#5c6b73"; ctx.font = "12px 'Source Sans 3', Arial, sans-serif";
+    var unitLabel = { ir: "°C", ceil: "feet above ground  (no shading: no ceiling)", vis: "miles  (no shading: 10+ mi)", t2m: "°F", td2m: "°F",
+                      smoke: "mg per m², vertically integrated", wind80: "m/s at 80 m (barbs in knots)", sw: "W per m²" }[name];
+    if (st.model === "rdps" && name === "ir") unitLabel = "°C, OLR-derived brightness temperature (proxy for IR)";
+    if (st.model === "rdps" && name === "sw") unitLabel = "W per m², mean over the previous hour";
+    ctx.fillText(unitLabel, x1, y + bh + 20);
+  }
+
+  // ── UI ─────────────────────────────────────────────────────────────────────────────────────────────────────────
+  function labelOf(model, f) { return model === "rdps" && f === "ir" ? "IR proxy (OLR)" : FIELDS[f].label; }
+  function fmtTime(ms) {
+    var d = new Date(ms);
+    var utc = d.toLocaleString("en-US", { timeZone: "UTC", weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", hour12: false }) + " UTC";
+    var loc2 = d.toLocaleString("en-US", { weekday: "short", hour: "numeric", timeZoneName: "short" });
+    return [utc, loc2];
+  }
+  function updateBadge(cc) {
+    var c = cycleObj(st.model, st.ci);
+    if (!c) { $("badge").innerHTML = "<b>" + MODELS[st.model] + "</b> · no run published yet"; $("valid").textContent = ""; return; }
+    var src = cc.c || c, h = cc.hour;
+    var vt = Date.parse(c.init) + st.hour * 3600e3, t = fmtTime(vt);
+    var init = src.init.replace(/T(\d\d):00Z/, " $1Z").slice(5).replace("-", "/");
+    $("badge").innerHTML = "<b>" + MODELS[st.model] + "</b> " + (st.model === "rdps" && st.field === "ir" ? "OLR-derived brightness temperature (proxy for IR)" : FIELDS[st.field].label) + " · run " + init + " +" + h + " h" + (st.prev ? " <i>(previous run)</i>" : "");
+    $("valid").innerHTML = "Valid <b>" + t[0] + "</b> <span class=\"loc\">· " + t[1] + "</span>";
+  }
+  function setButtons() {
+    var mb = $("models"); mb.innerHTML = "";
+    MODEL_ORDER.forEach(function (m) {
+      var b = document.createElement("button"); b.type = "button"; b.textContent = MODELS[m];
+      b.setAttribute("aria-pressed", String(m === st.model));
+      if (!man[m] || !man[m].cycles || !man[m].cycles.length) { b.disabled = true; b.title = "No run published yet"; }
+      b.onclick = function () { selectModel(m); };
+      mb.appendChild(b);
+    });
+    var fb = $("fields"); fb.innerHTML = "";
+    FIELD_ORDER.forEach(function (f) {
+      var b = document.createElement("button"); b.type = "button"; b.textContent = labelOf(st.model, f);
+      b.setAttribute("aria-pressed", String(f === st.field));
+      var na = NA[st.model] && NA[st.model][f];
+      if (na) { b.disabled = true; b.title = na; }
+      b.onclick = function () { st.field = f; setButtons(); onChange(); };
+      fb.appendChild(b);
+    });
+    var rs = $("run"); rs.innerHTML = "";
+    var m = man[st.model];
+    ((m && m.cycles) || []).forEach(function (c, i) {
+      var o = document.createElement("option"); o.value = i;
+      o.textContent = c.init.slice(5, 10).replace("-", "/") + " " + c.init.slice(11, 13) + "Z (to +" + c.length + " h)";
+      if (i === st.ci) o.selected = true; rs.appendChild(o);
+    });
+    var hasPrev = !!cycleObj(st.model, st.ci + 1);
+    $("prev").disabled = !hasPrev; if (!hasPrev) { $("prev").checked = false; st.prev = false; }
+    var slider = $("hour"), c0 = cycleObj(st.model, st.ci);
+    slider.max = c0 ? c0.length : 18; slider.value = st.hour;
+  }
+  function selectModel(m) {
+    tip.style.display = "none";
+    if (!man[m] || !man[m].cycles || !man[m].cycles.length) return;
+    var oldValid = cycleObj(st.model, st.ci) ? Date.parse(cycleObj(st.model, st.ci).init) + st.hour * 3600e3 : Date.now();
+    st.model = m; st.ci = 0;
+    if (NA[m] && NA[m][st.field]) st.field = "ir";
+    var c = cycleObj(m, 0);
+    st.hour = Math.max(0, Math.min(c.length, Math.round((oldValid - Date.parse(c.init)) / 3600e3)));
+    setButtons(); onChange();
+  }
+  function onChange() {
+    var slider = $("hour"); slider.value = st.hour;
+    var n = (NOTES[st.model] && NOTES[st.model][st.field]) || "";
+    var fm = cycleObj(st.model, st.ci) && cycleObj(st.model, st.ci).fields[st.field];
+    if (fm && fm.from) n += (n ? " " : "") + "This run's smoke: " + fm.from + ".";
+    $("note").innerHTML = n;
+    drawLegend();
+    prefetch();
+    writeHash();
+    render();
+  }
+  function prefetch() {
+    var cc = currentCycle(), c = cc.c; if (!c) return;
+    var fm = c.fields[st.field]; if (!fm) return;
+    var list = [], hs = fm.hours, i0 = hs.indexOf(cc.hour);
+    if (i0 < 0) i0 = 0;
+    list.push([st.model, c, st.field, hs[i0]]);
+    for (var d = 1; d < hs.length; d++) {
+      if (i0 + d < hs.length) list.push([st.model, c, st.field, hs[i0 + d]]);
+      if (d <= 3 && i0 - d >= 0) list.push([st.model, c, st.field, hs[i0 - d]]);
+    }
+    for (var d2 = 4; i0 - d2 >= 0; d2++) list.push([st.model, c, st.field, hs[i0 - d2]]);
+    want(list);
+    // decode the next two ahead of the play head
+    for (var k = 1; k <= 2 && i0 + k < hs.length; k++) decoded(st.model, c, st.field, hs[i0 + k]);
+  }
+  var playT = 0;
+  function schedule() {
+    if (!st.playing) return;
+    if (playT) return;
+    playT = setTimeout(function () {
+      playT = 0; if (!st.playing) return;
+      var c = cycleObj(st.model, st.ci), cc = currentCycle();
+      var next = st.hour + 1 > c.length ? 0 : st.hour + 1;
+      var fm = cc.c && cc.c.fields[st.field];
+      var ready = true;
+      if (fm) { var e = frames.get(fkey(st.model, cc.c, st.field, next + (cc.hour - st.hour))); ready = !!(e && e.dec) || !!(e && e.fail) || fm.hours.indexOf(next + (cc.hour - st.hour)) < 0; }
+      if (ready) { st.hour = next; onChange(); } else { prefetch(); schedule(); }
+    }, 260);
+  }
+  function step(dh) { var c = cycleObj(st.model, st.ci); if (!c) return; st.hour = Math.max(0, Math.min(c.length, st.hour + dh)); onChange(); }
+  $("hour").addEventListener("input", function () { st.hour = +this.value; onChange(); });
+  $("back").onclick = function () { step(-1); };
+  $("fwd").onclick = function () { step(1); };
+  $("play").onclick = function () { st.playing = !st.playing; this.innerHTML = st.playing ? "&#10074;&#10074;" : "&#9654;"; this.setAttribute("aria-label", st.playing ? "Pause" : "Play"); render(); };
+  $("run").onchange = function () { var old = cycleObj(st.model, st.ci), vt = Date.parse(old.init) + st.hour * 3600e3; st.ci = +this.value;
+    var c = cycleObj(st.model, st.ci); st.hour = Math.max(0, Math.min(c.length, Math.round((vt - Date.parse(c.init)) / 3600e3))); setButtons(); onChange(); };
+  $("prev").onchange = function () { st.prev = this.checked; onChange(); };
+  document.addEventListener("keydown", function (e) {
+    if (e.target && /INPUT|SELECT|TEXTAREA/.test(e.target.tagName) && e.target.type !== "range") return;
+    if (e.key === "ArrowRight") { step(1); e.preventDefault(); } else if (e.key === "ArrowLeft") { step(-1); e.preventDefault(); }
+  });
+
+  // zoom / pan / hover
+  function zoomAt(px, py, f) {
+    var a = toXY(px, py); view.s *= f; clampView();
+    var b = toXY(px, py); view.cx += a[0] - b[0]; view.cy += a[1] - b[1]; render();
+  }
+  mapEl.addEventListener("wheel", function (e) { if (!view) return; e.preventDefault(); var r = mapEl.getBoundingClientRect();
+    zoomAt(e.clientX - r.left, e.clientY - r.top, Math.exp(e.deltaY * (e.deltaMode ? 0.05 : 0.0016))); }, { passive: false });
+  $("zin").onclick = function () { zoomAt(W / 2, H / 2, 0.6); };
+  $("zout").onclick = function () { zoomAt(W / 2, H / 2, 1 / 0.6); };
+  $("zfit").onclick = function () { var c = cycleObj(st.model, st.ci); if (c) { fit(prepGrid(c.grids.main)); render(); } };
+  var ptrs = new Map(), pinch = null, moved = false;
+  mapEl.addEventListener("pointerdown", function (e) {
+    if (e.target.closest("button")) return;
+    mapEl.setPointerCapture(e.pointerId); ptrs.set(e.pointerId, [e.clientX, e.clientY]); moved = false;
+    if (ptrs.size === 2) { var p = Array.from(ptrs.values()); pinch = { d: Math.hypot(p[0][0] - p[1][0], p[0][1] - p[1][1]), s: view.s }; }
+    mapEl.classList.add("drag");
+  });
+  mapEl.addEventListener("pointermove", function (e) {
+    var r = mapEl.getBoundingClientRect(), px = e.clientX - r.left, py = e.clientY - r.top;
+    if (ptrs.has(e.pointerId) && view) {
+      var old = ptrs.get(e.pointerId); ptrs.set(e.pointerId, [e.clientX, e.clientY]);
+      if (ptrs.size === 2 && pinch) {
+        var p = Array.from(ptrs.values()), d = Math.hypot(p[0][0] - p[1][0], p[0][1] - p[1][1]);
+        var mx = (p[0][0] + p[1][0]) / 2 - r.left, my = (p[0][1] + p[1][1]) / 2 - r.top;
+        var a = toXY(mx, my); view.s = pinch.s * pinch.d / Math.max(d, 1); clampView(); var b = toXY(mx, my);
+        view.cx += a[0] - b[0]; view.cy += a[1] - b[1];
+        view.cx -= (e.clientX - old[0]) * view.s / 2; view.cy += (e.clientY - old[1]) * view.s / 2;
+        moved = true; render(); return;
+      }
+      if (Math.abs(e.clientX - old[0]) + Math.abs(e.clientY - old[1]) > 0) {
+        view.cx -= (e.clientX - old[0]) * view.s; view.cy += (e.clientY - old[1]) * view.s; if (Math.hypot(e.clientX - old[0], e.clientY - old[1]) > 1) moved = true; render();
+      }
+      if (e.pointerType !== "mouse") return;
+    }
+    if (e.pointerType === "mouse") hover(px, py);
+  });
+  function endPtr(e) {
+    var r = mapEl.getBoundingClientRect();
+    if (ptrs.has(e.pointerId) && !moved && e.pointerType !== "mouse") hover(e.clientX - r.left, e.clientY - r.top, true);
+    ptrs.delete(e.pointerId); if (ptrs.size < 2) pinch = null; if (!ptrs.size) mapEl.classList.remove("drag");
+  }
+  mapEl.addEventListener("pointerup", endPtr); mapEl.addEventListener("pointercancel", endPtr);
+  mapEl.addEventListener("pointerleave", function (e) { if (e.pointerType === "mouse") tip.style.display = "none"; });
+  mapEl.addEventListener("dblclick", function (e) { var r = mapEl.getBoundingClientRect(); zoomAt(e.clientX - r.left, e.clientY - r.top, 0.5); });
+  function hover(px, py, sticky) {
+    if (!drawn || !drawn.e || !drawn.e.dec) { tip.style.display = "none"; return; }
+    var s = sample(drawn, px, py);
+    if (!s) { tip.style.display = "none"; return; }
+    var fd = FIELDS[drawn.field], txt;
+    var ll = P.inv(s[2][0], s[2][1]);
+    if (fd.enc === "lin2") {
+      if (s[0] === 255) txt = "no data";
+      else { var u = fd.off + s[0] * fd.step, v = fd.off + s[1] * fd.step, sp = Math.sqrt(u * u + v * v);
+        var dir = (Math.atan2(-u, -v) / D2R + 360) % 360;
+        txt = sp.toFixed(1) + " m/s · " + Math.round(sp * 2.236936) + " mph · " + Math.round(sp * 1.943844) + " kt<br>from " + Math.round(dir) + "°"; }
+    } else {
+      var val = valueOf(fd, s[0], drawn.q);
+      if (val === null) txt = drawn.field === "ceil" ? "no ceiling" : "no data";
+      else if (drawn.field === "ceil" && s[0] === 0) txt = "below 50 ft";
+      else if (drawn.field === "vis" && s[0] === 254) txt = "10+ mi";
+      else if (drawn.field === "vis" && s[0] === 0) txt = "below 0.03 mi";
+      else if (drawn.field === "smoke" && s[0] === 0) txt = "below 0.1 mg/m²";
+      else if (drawn.field === "ir") txt = fd.fmt(val, val + 273.15);
+      else txt = fd.fmt(val);
+    }
+    tip.innerHTML = "<span class=\"v\">" + txt + "</span><br><span class=\"ll\">" + Math.abs(ll[1]).toFixed(2) + "°" + (ll[1] >= 0 ? "N" : "S") + " " +
+      Math.abs(ll[0]).toFixed(2) + "°" + (ll[0] >= 0 ? "E" : "W") + "</span>";
+    tip.style.display = "block";
+    var tw = tip.offsetWidth, th = tip.offsetHeight;
+    tip.style.left = Math.min(px, W - tw - 16) + "px"; tip.style.top = Math.min(py, H - th - 16) + "px";
+    if (sticky) { clearTimeout(tip._t); tip._t = setTimeout(function () { tip.style.display = "none"; }, 4000); }
+  }
+
+  // ── URL hash: #model/field/+hour ───────────────────────────────────────────────────────────────────────────────
+  function writeHash() { try { history.replaceState(null, "", "#" + st.model + "/" + st.field + "/" + st.hour + (st.ci ? "/r" + st.ci : "")); } catch (e) {} }
+  function readHash() {
+    var p = location.hash.replace("#", "").split("/");
+    if (MODELS[p[0]]) st.model = p[0];
+    if (FIELDS[p[1]]) st.field = p[1];
+    if (p[2] !== undefined && /^\d+$/.test(p[2])) st.hour = +p[2];
+    if (p[3] && /^r\d$/.test(p[3])) st.ci = +p[3].slice(1);
+    return p.length >= 3 && p[2] !== "";
+  }
+
+  window.MV = { st: st, man: man, frames: frames, get view() { return view; }, get drawn() { return drawn; }, P: P, gridIJ: gridIJ };   // for testing from the console
+  // ── start ──────────────────────────────────────────────────────────────────────────────────────────────────────
+  var glOk = false;
+  try { glOk = initGL(); } catch (e) { console.error(e); }
+  if (!glOk) $("msg").textContent = "This page needs WebGL 2, which this browser does not provide.";
+  var bust = "?v=" + Math.floor(Date.now() / 60000);
+  var hadHour = readHash();
+  var GEO = "/assets/models/geo.json";
+  loadGeo(GEO);
+  Promise.all(MODEL_ORDER.map(function (m) {
+    return fetch("/assets/models/" + m + ".json" + bust).then(function (r) { return r.ok ? r.json() : null; }).catch(function () { return null; })
+      .then(function (d) { if (d && d.cycles) d.cycles.sort(function (a, b) { return a.cycle < b.cycle ? 1 : -1; }); man[m] = d; });
+  })).then(function () {
+    if (!cycleObj(st.model, 0)) { var alt = MODEL_ORDER.filter(function (m) { return cycleObj(m, 0); })[0]; if (alt) st.model = alt; }
+    if (!cycleObj(st.model, st.ci)) st.ci = 0;
+    var c = cycleObj(st.model, st.ci);
+    if (!c) { $("msg").textContent = "No model run has been published yet."; return; }
+    if (NA[st.model] && NA[st.model][st.field]) st.field = "ir";
+    if (!hadHour) st.hour = Math.max(0, Math.min(c.length, Math.round((Date.now() - Date.parse(c.init)) / 3600e3)));
+    st.hour = Math.min(st.hour, c.length);
+    setButtons();
+    resize();
+    fit(prepGrid(c.grids.main));
+    onChange();
+    var runs = MODEL_ORDER.filter(function (m) { return man[m]; }).map(function (m) {
+      return MODELS[m] + ": " + man[m].cycles.map(function (x) { return x.init.slice(5, 10).replace("-", "/") + " " + x.init.slice(11, 13) + "Z"; }).join(", ");
+    });
+    $("runs").textContent = "Runs on the page — " + runs.join(" · ") + ".";
+    setTimeout(function () { loadGeo(GEO.replace(".json", "_counties.json")); }, 1200);   // counties after the first frame
+  });
+  if (typeof ResizeObserver === "function") new ResizeObserver(function () { if (view) { var s = view.s; resize(); view.s = s; render(); } }).observe(mapEl);
+  else window.addEventListener("resize", resize);
+})();
+</script>
+<!-- sf:start -->
+<footer class="sf">
+  <div class="sf-in">
+    <div class="sf-group">
+      <p class="sf-h" role="heading" aria-level="2">This site</p>
+      <ul>
+        <li><a href="/">Home</a></li>
+        <li><a href="/catalog.html">Every plot</a></li>
+        <li><a href="/topics/">Explainers</a></li>
+        <li><a href="/stats.html">Visitor stats</a></li>
+      </ul>
+      <p class="sf-disclaimer">This site is under constant development. Nothing here is checked before publication and there is no expectation of accuracy, completeness or availability; do not rely on it for decisions. Built from open data; sources are credited on each page.</p>
+    </div>
+    <div class="sf-group sf-group--me">
+      <p class="sf-h" role="heading" aria-level="2">Shawn Corvec</p>
+      <ul>
+        <li><a href="/about.html">About</a></li>
+        <li><a href="/resume.html">Resume</a></li>
+        <li><a href="/research.html">Publications</a></li>
+        <li><a href="https://github.com/scorvec" rel="noopener">GitHub</a></li>
+        <li><a href="https://www.linkedin.com/in/shawn-corvec-35895b231/" rel="noopener">LinkedIn</a></li>
+        <li><a href="https://scholar.google.com/citations?user=EYLRCJIAAAAJ&amp;hl=en" rel="noopener">Google Scholar</a></li>
+      </ul>
+    </div>
+  </div>
+</footer>
+<!-- sf:end -->
+</body>
+</html>

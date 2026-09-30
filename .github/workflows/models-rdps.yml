@@ -1,0 +1,20 @@
+name: Short-range models — RDPS
+
+# Schedule-only caller for models.yml (models.html): every 3 h at :10 - RDPS runs 00/06/12/18Z to f84, ~3.5-4 h after its start; RAQDPS-FireWork 00/12Z.
+# The laptop dispatcher (scripts/lib/dispatch_workflows.sh) fires the same slots; a firing with no new complete cycle
+# exits in about a minute, so double firings cost nothing.
+on:
+  schedule:
+  - cron: '10 */3 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: write
+
+jobs:
+  run:
+    uses: ./.github/workflows/models.yml
+    with:
+      model: rdps
+    secrets: inherit
