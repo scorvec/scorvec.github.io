@@ -599,7 +599,8 @@ def cmd_run(a):
     if a.lists:
         L = Path(a.lists)
         L.mkdir(parents=True, exist_ok=True)
-        (L / "publish.txt").write_text(f"{DATA}/{model}/{key}\n")
+        # a cycle older than everything retention keeps (a forced re-run of an old cycle) is not published at all
+        (L / "publish.txt").write_text("" if any(c["cycle"] == key for c in drop) else f"{DATA}/{model}/{key}\n")
         (L / "prune.txt").write_text("".join(f"{DATA}/{model}/{c['cycle']}\n" for c in drop))
         (L / "cycle.json").write_text(json.dumps(entry))
     print(f"manifest: keep {[c['cycle'] for c in keep]}, drop {[c['cycle'] for c in drop]}")

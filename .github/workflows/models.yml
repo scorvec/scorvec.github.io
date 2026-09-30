@@ -93,6 +93,7 @@ jobs:
             L="$RUNNER_TEMP/lists_$cyc"
             python scripts/models/models.py run --model "$m" --cycle "$cyc" --site . --procs 4 --lists "$L"
             PR=$(tr '\n' ' ' < "$L/prune.txt")
+            if [ ! -s "$L/publish.txt" ] && [ -z "${PR// /}" ]; then echo "::warning::$m $cyc is older than every retained cycle - not published"; continue; fi
             SHA=$(SRC=. PRUNE="$PR" scripts/models/publish_data.sh $(cat "$L/publish.txt") | tail -1)
             echo "frames commit $SHA (pruned: ${PR:-nothing})"
             python scripts/models/models.py stamp --manifest "assets/models/$m.json" --cycle "$cyc" --sha "$SHA"
