@@ -722,8 +722,21 @@
     schedule();
   }
 
+  // While the map is being dragged or zoomed the vector lines (thousands of county/coast points, plus barbs) are
+  // not re-stroked every frame: the last full overlay is kept as a bitmap and only moved and scaled, and the lines
+  // are redrawn properly once the gesture settles (2026-09-30, user: panning and zooming "a bit clunky").
+  var interacting = false, settleT = 0, snap = null, snapC = document.createElement("canvas");
+  function beginInteract() { interacting = true; clearTimeout(settleT); }
+  function settleSoon(ms) { clearTimeout(settleT); settleT = setTimeout(function () { interacting = false; render(); }, ms || 140); }
   function drawOverlay() {
     var ctx = ovc.getContext("2d");
+    if (interacting && snap && view) {
+      var k = snap.s / view.s;
+      ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, ovc.width, ovc.height);
+      ctx.setTransform(k, 0, 0, k, DPR * (W / 2 * (1 - k) + (snap.cx - view.cx) / view.s), DPR * (H / 2 * (1 - k) - (snap.cy - view.cy) / view.s));
+      ctx.drawImage(snapC, 0, 0);
+      return;
+    }
     ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, ovc.width, ovc.height);
     if (!view) return;
     ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
@@ -750,6 +763,9 @@
     });
     ctx.globalAlpha = 1;
     if (st.field === "wind80" && drawn && drawn.e && drawn.e.dec && drawn.field === "wind80") drawBarbs(ctx, drawn);
+    if (snapC.width !== ovc.width || snapC.height !== ovc.height) { snapC.width = ovc.width; snapC.height = ovc.height; }
+    var sc = snapC.getContext("2d"); sc.setTransform(1, 0, 0, 1, 0, 0); sc.clearRect(0, 0, snapC.width, snapC.height); sc.drawImage(ovc, 0, 0);
+    snap = { cx: view.cx, cy: view.cy, s: view.s };
   }
 
   function sample(d, px, py) {                          // -> code(s) at a CSS pixel of the drawn frame, or null
@@ -938,14 +954,15 @@
     var b = toXY(px, py); view.cx += a[0] - b[0]; view.cy += a[1] - b[1]; render();
   }
   mapEl.addEventListener("wheel", function (e) { if (!view) return; e.preventDefault(); var r = mapEl.getBoundingClientRect();
-    zoomAt(e.clientX - r.left, e.clientY - r.top, Math.exp(e.deltaY * (e.deltaMode ? 0.05 : 0.0016))); }, { passive: false });
+    beginInteract(); zoomAt(e.clientX - r.left, e.clientY - r.top, Math.exp(e.deltaY * (e.deltaMode ? 0.05 : 0.0016))); settleSoon(160); }, { passive: false });
   $("zin").onclick = function () { zoomAt(W / 2, H / 2, 0.6); };
   $("zout").onclick = function () { zoomAt(W / 2, H / 2, 1 / 0.6); };
   $("zfit").onclick = function () { var c = cycleObj(st.model, st.ci); if (c) { fit(prepGrid(c.grids.main)); render(); } };
-  var ptrs = new Map(), pinch = null, moved = false;
+  var ptrs = new Map(), pinch = null, moved = false, vel = [0, 0, 0], glide = 0;
   mapEl.addEventListener("pointerdown", function (e) {
     if (e.target.closest("button")) return;
     mapEl.setPointerCapture(e.pointerId); ptrs.set(e.pointerId, [e.clientX, e.clientY]); moved = false;
+    cancelAnimationFrame(glide); vel = [0, 0, performance.now()]; beginInteract();
     if (ptrs.size === 2) { var p = Array.from(ptrs.values()); pinch = { d: Math.hypot(p[0][0] - p[1][0], p[0][1] - p[1][1]), s: view.s }; }
     mapEl.classList.add("drag");
   });
@@ -962,7 +979,9 @@
         moved = true; render(); return;
       }
       if (Math.abs(e.clientX - old[0]) + Math.abs(e.clientY - old[1]) > 0) {
-        view.cx -= (e.clientX - old[0]) * view.s; view.cy += (e.clientY - old[1]) * view.s; if (Math.hypot(e.clientX - old[0], e.clientY - old[1]) > 1) moved = true; render();
+        view.cx -= (e.clientX - old[0]) * view.s; view.cy += (e.clientY - old[1]) * view.s; if (Math.hypot(e.clientX - old[0], e.clientY - old[1]) > 1) moved = true;
+        var now = performance.now(), dt = Math.max(now - vel[2], 1), a8 = Math.min(dt / 40, 1);   // smoothed px/ms for the glide
+        vel = [vel[0] * (1 - a8) + (e.clientX - old[0]) / dt * a8, vel[1] * (1 - a8) + (e.clientY - old[1]) / dt * a8, now]; render();
       }
       if (e.pointerType !== "mouse") return;
     }
@@ -971,7 +990,20 @@
   function endPtr(e) {
     var r = mapEl.getBoundingClientRect();
     if (ptrs.has(e.pointerId) && !moved && e.pointerType !== "mouse") hover(e.clientX - r.left, e.clientY - r.top, true);
+    var wasPan = ptrs.size === 1 && !pinch && moved;
     ptrs.delete(e.pointerId); if (ptrs.size < 2) pinch = null; if (!ptrs.size) mapEl.classList.remove("drag");
+    if (ptrs.size) return;
+    // a flick keeps the map moving briefly (decaying glide), then the lines are redrawn in full
+    if (wasPan && performance.now() - vel[2] < 80 && Math.hypot(vel[0], vel[1]) > 0.15) {
+      var last = performance.now();
+      var step_ = function (t) {
+        var dt = Math.min(t - last, 40); last = t; var f = Math.pow(0.94, dt / 16.7);
+        vel[0] *= f; vel[1] *= f;
+        view.cx -= vel[0] * dt * view.s; view.cy += vel[1] * dt * view.s; draw();
+        if (Math.hypot(vel[0], vel[1]) > 0.02) glide = requestAnimationFrame(step_); else settleSoon(60);
+      };
+      glide = requestAnimationFrame(step_);
+    } else settleSoon(60);
   }
   mapEl.addEventListener("pointerup", endPtr); mapEl.addEventListener("pointercancel", endPtr);
   mapEl.addEventListener("pointerleave", function (e) { if (e.pointerType === "mouse") tip.style.display = "none"; });
