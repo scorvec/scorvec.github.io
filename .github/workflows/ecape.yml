@@ -1,38 +1,27 @@
 name: HRRR ECAPE (CONUS)
 
-# Gridded entraining CAPE (Peters et al. 2023) over the HRRR CONUS domain, as a
-# full 48 h forecast loop from one of the extended cycles.
+# Gridded entraining CAPE (Peters et al. 2023) on every column of the HRRR CONUS domain for one extended (00/06/12/18Z)
+# run, hourly to F18 and 3-hourly to F48, shipped as DATA for the short-range model viewer (models.html, HRRR ->
+# "ECAPE / CAPE"): ecape_mu, ecape_ml, mucape, mlcape per hour as lossless 8-bit WebP (scripts/ecape/to_models.py).
 #
-# Only 00/06/12/18Z run past F18 - a 13Z cycle 404s on F24 - so the driver
-# resolves ONE extended cycle up front (probing F48, whose tail publishes well
-# after the analysis) and pins every forecast hour to it. Re-resolving per hour
-# could straddle two model runs midway through a loop.
+# HISTORY. Until 2026-09-30 this job also rendered matplotlib/cartopy frames for ecape.html (render_ecape.py,
+# build_manifest.py, assets/ecape/anim on the frames branch + manifests on main). The user retired that page once the
+# same grids were live on models.html ("and then we can retire the old page"); ecape.html is now a redirect, the
+# render scripts are kept in scripts/ecape but no longer run, and the "Retire" step below removes the old frames and
+# manifests once.
 #
-# Cost per cycle, measured rather than assumed:
-#   per forecast hour   ~397 MB download, ~2.3 GB scratch, ~100 s kernel on
-#                       2 cores (199 s CPU for 1,905,141 columns), ~5 s render
-#   29 frames           ~11.5 GB pulled, ~52 min wall (fetch overlaps compute)
-# Scratch is deleted between hours, so disk never holds more than one.
+# Cost per cycle (runner, 2 cores): ~397 MB wrfnat download and ~100 s of kernel per forecast hour, 29 hours;
+# ~1.5 MB of WebP per hour (4 fields) -> ~43 MB per cycle on the frames branch.
 #
-# Frames go to the orphan `frames` branch, never to main: 29 frames x 4 fields
-# is ~29 MB per cycle, and committing that to main is exactly the churn that
-# forced the 2026-08-28 history collapse. The manifest (small JSON) stays on
-# main so the animator fetches it same-origin.
-# THE OPERATIONAL PATH, as of 2026-08-29. Runs here rather than on the laptop so
-# the laptop's cores stay free (it is routinely running WRF under mpirun -np 18,
-# which was taking ECAPE from ~17 min to ~45). Measured on a runner: 135 s per
-# frame on 4 threads, ~70 min for the 29-frame loop - slower than the laptop's
-# ~7 min, but it costs nothing that matters and nobody waits on it.
+# Only 00/06/12/18Z run past F18, so the driver resolves ONE extended cycle up front (its F00) and FOLLOWS the model:
+# each hour waits up to 40 min for its own file.
 #
-# Scheduled just after each extended cycle's analysis lands. Only 00/06/12/18Z
-# run to F48, and HRRR writes a run out over ~1.5-2 h one forecast hour at a
-# time, so the driver resolves the cycle on F00 and then FOLLOWS the model:
-# each hour waits up to 40 min for its own file. The compute rides along behind
-# the model instead of idling until F48 is up and then starting.
+# The models job (models.yml) and this job publish the same HRRR cycle in either order: field directories only (never
+# the cycle directory), PRUNE_OLDER for anything older than every cycle the viewer keeps, and the manifest merged on
+# main's CURRENT copy with scripts/models/manifest_merge.py (this job owns hrrr.json["ecape"], models.yml the rest).
 #
-# GitHub honours only a fraction of this repo's cron firings and delivers them
-# hours late (see the throttling note in the repo history), so treat this as
-# "whenever it fires" - a missed cycle costs freshness, never data.
+# GitHub honours only a fraction of this repo's cron firings, so the laptop dispatcher fires the same slots
+# (scripts/lib/dispatch_workflows.sh, -f publish=true); a firing with nothing new exits in about a minute.
 on:
   workflow_call:
   workflow_dispatch:
@@ -41,14 +30,13 @@ on:
         description: 'Forecast hours (space-separated). Default: hourly to 18, 3-hourly to 48'
         default: ''
       cycle:
-        description: 'Cycle as YYYYMMDDHH (blank = newest extended run with F48 up)'
+        description: 'Cycle as YYYYMMDDHH (blank = newest extended run with F00 up)'
         default: ''
       publish:
-        description: 'Publish to the site (false = render + upload artifacts only)'
+        description: 'Publish to the site (false = compute + encode only)'
         default: 'false'
 
-# Frame store (Cloudflare R2, S3 API). Absent secrets leave these empty and the
-# publishers fall back to the orphan `frames` branch - see scripts/lib/frames_env.sh.
+# Frame store (Cloudflare R2, S3 API) for the one-time retire step; absent secrets fall back to the frames branch.
 env:
   FRAMES_S3_BUCKET: ${{ secrets.FRAMES_S3_BUCKET }}
   FRAMES_S3_ENDPOINT: ${{ secrets.FRAMES_S3_ENDPOINT }}
@@ -59,7 +47,7 @@ env:
 
 permissions:
   contents: write
-  actions: write          # dispatch pages.yml after the models-viewer manifest lands (GITHUB_TOKEN pushes trigger nothing)
+  actions: write          # dispatch pages.yml after the manifest lands (GITHUB_TOKEN pushes trigger nothing)
 
 concurrency:
   group: ecape
@@ -69,6 +57,8 @@ jobs:
   build:
     runs-on: ubuntu-latest
     timeout-minutes: 240
+    env:
+      DO_PUBLISH: ${{ (github.event_name == 'schedule' || github.event.inputs.publish == 'true') && '1' || '0' }}
     steps:
       - uses: actions/checkout@v7
 
@@ -79,10 +69,9 @@ jobs:
       - name: System libs
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y --no-install-recommends \
-            libeccodes0 libgeos-dev libproj-dev proj-bin
+          sudo apt-get install -y --no-install-recommends libeccodes0
 
-      - run: pip install --quiet numpy matplotlib cartopy==0.25.0 eccodes pillow
+      - run: pip install --quiet numpy eccodes pillow
 
       - name: Build the SHARPlib kernel
         run: |
@@ -95,224 +84,74 @@ jobs:
           set -euo pipefail
           C="${{ github.event.inputs.cycle || '' }}"
           if [ -z "$C" ]; then
-            # Probe F00, not F48: --extended-only already restricts to the 00/06/12/18Z
-            # runs, so this picks the newest extended cycle whose ANALYSIS is up
-            # and the loop then follows the model as later hours publish.
             C=$(python scripts/ecape/fetch_hrrr.py --print-cycle --extended-only --probe-fxx 0)
           fi
           echo "cycle=$C" >> "$GITHUB_OUTPUT"
           echo "resolved cycle: $C"
-          # Already published? Then there is nothing to do. Measured 2026-08-30:
-          # the 06:55Z run resolved 2026083000 because the 06Z analysis was not
-          # up yet, spent 72 min re-rendering an identical loop and committed
-          # "no changes". Skipping costs one file read.
-          # Read main's CURRENT index, not the checkout's: a run queued behind another in the
-          # `ecape` group checks out the commit it was queued at. On 2026-09-28 the 13Z slot,
-          # queued at 20:07Z, resolved 2026092818 at 20:24Z - one minute after the 19Z run had
-          # published it - re-rendered it, and its F18 progressive publish swapped the complete
-          # 29-frame cycle for F00-F18 before the run failed (restored by hand at 23:5xZ).
-          IDX=assets/ecape/anim/index.json
-          if timeout 60 git fetch -q --depth 1 origin main && git show FETCH_HEAD:$IDX > /tmp/ecape_index.json 2>/dev/null; then
-            IDX=/tmp/ecape_index.json
-          else echo "::warning::could not read main's current index; using the checkout's"; fi
-          PUB=$(python -c "import json,sys;print(json.load(open(sys.argv[1]))['latest'] or '')" "$IDX" 2>/dev/null || echo "")
-          if [ -n "$PUB" ] && [ "$PUB" = "$C" ] && [ -z "${{ github.event.inputs.cycle }}" ]; then
-            echo "cycle $C is already the published one (manifest ver=$PUB) - nothing to do"
-            echo "skip=true" >> "$GITHUB_OUTPUT"
+          # Already published, or older than the run the viewer shows? Then there is nothing to do. Read main's CURRENT
+          # manifest, not the checkout's (a run queued behind another checks out the commit it was queued at).
+          if timeout 60 git fetch -q --depth 1 origin main && git show FETCH_HEAD:assets/models/hrrr.json > /tmp/mv.json 2>/dev/null; then :; else echo '{}' > /tmp/mv.json; fi
+          WHY=$(python - "$C" <<'PY'
+          import json, sys
+          c = sys.argv[1]; m = json.load(open("/tmp/mv.json"))
+          cyc = [x["cycle"] for x in m.get("cycles", [])]
+          if c in (m.get("ecape") or {}): print("published")
+          elif cyc and c < max(cyc): print("older than the viewer's run " + max(cyc))
+          PY
+          )
+          if [ -n "$WHY" ] && [ -z "${{ github.event.inputs.cycle }}" ]; then
+            echo "cycle $C: $WHY - nothing to do"; echo "skip=true" >> "$GITHUB_OUTPUT"
           else
             echo "skip=false" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Compute and render the loop
+      - name: Compute and encode
         if: ${{ steps.cyc.outputs.skip != 'true' }}
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          DO_PUBLISH: ${{ (github.event_name == 'schedule' || github.event.inputs.publish == 'true') && '1' || '0' }}
         run: |
           set -euo pipefail
           CYCLE="${{ steps.cyc.outputs.cycle }}"
           FXX="${{ github.event.inputs.fxx }}"
-          if [ -z "$FXX" ]; then
-            # Hourly where it matters, 3-hourly out to 48 - the extra detail past
-            # day 1 is not worth 20 more forecast hours of runtime.
-            FXX="$(seq 0 1 18) $(seq 21 3 48)"
-          fi
-          # A previous cycle's frames MUST go: the manifest is built by globbing
-          # this tree, so a leftover F45 from an older run would be published with
-          # the new cycle's valid time.
-          # ARCHIVE: frames are cycle-scoped (assets/ecape/anim/<cycle>/...) so
-          # several runs sit side by side and the page can offer a run picker.
-          # Only THIS cycle's directory is cleared - a leftover frame from an
-          # earlier attempt at the SAME cycle would otherwise be published with
-          # the new valid times, which is what the old wholesale rm guarded.
-          rm -rf "assets/ecape/anim/$CYCLE" "assets/models/data/hrrr/$CYCLE"
-          mkdir -p "assets/ecape/anim/$CYCLE"
-          # seq emits NEWLINES and `read -a` stops at the first one, so this
-          # silently produced a single-element array and rendered only F00 while
-          # reporting success. Normalise whitespace to spaces before splitting.
+          [ -n "$FXX" ] || FXX="$(seq 0 1 18) $(seq 21 3 48)"
+          D="assets/models/data/hrrr/$CYCLE"
+          rm -rf "$D"
+          # seq emits NEWLINES and `read -a` stops at the first one: normalise whitespace first.
           read -r -a HOURS <<< "$(printf '%s' "$FXX" | tr '\n\t' '  ')"
-          fetch_one() {   # $1 = forecast hour
-            python scripts/ecape/fetch_hrrr.py \
-              --date "${CYCLE:0:8}" --hour "${CYCLE:8:2}" --fxx "$1" \
+          fetch_one() {
+            python scripts/ecape/fetch_hrrr.py --date "${CYCLE:0:8}" --hour "${CYCLE:8:2}" --fxx "$1" \
               --out "$RUNNER_TEMP/hrrr_f$1" --quiet --wait-minutes 40
           }
-          # The kernel is ~96 s on two cores and the fetch is ~30 s, and they
-          # need nothing from each other - so pull hour N+1 while hour N is
-          # computing. Costs one extra 2.3 GB scratch on disk (~4.6 GB of ~14 GB)
-          # and takes roughly 14 min off a 29-frame run.
+          # pull hour N+1 while hour N computes (~4.6 GB of ~14 GB scratch)
           fetch_one "${HOURS[0]}"
           for i in "${!HOURS[@]}"; do
-            f="${HOURS[$i]}"
-            nxt="${HOURS[$((i+1))]:-}"
+            f="${HOURS[$i]}"; nxt="${HOURS[$((i+1))]:-}"
             if [ -n "$nxt" ]; then fetch_one "$nxt" & BG=$!; else BG=""; fi
             echo "::group::F$f"
             STEM="$RUNNER_TEMP/hrrr_f$f"
             ./scripts/ecape/ecape_grid "$STEM"
-            python scripts/ecape/render_ecape.py "$STEM" --anim-root "assets/ecape/anim/$CYCLE"
-            # The same grids in the models-viewer format (models.html, HRRR -> ECAPE): 4 lossless 8-bit WebP per hour,
-            # ~1.5 MB. Best-effort - it must never cost the ECAPE page a frame.
-            python scripts/ecape/to_models.py encode "$STEM" --out "assets/models/data/hrrr/$CYCLE" \
-              || echo "::warning::F$f: models-viewer encode failed"
+            python scripts/ecape/to_models.py encode "$STEM" --out "$D"
             rm -f "$STEM.f32" "${STEM}_ecape.f32" "$STEM.json" "${STEM}_ecape.json"
-            df -h "$RUNNER_TEMP" | tail -1
             echo "::endgroup::"
-            # A failed prefetch must fail the run, not silently skip an hour.
-            if [ -n "$BG" ]; then wait "$BG"; fi
-            # RENDER AS THEY COME IN. Publish once the hourly block is done, so
-            # the first 19 frames reach the site ~25 min in rather than after the
-            # whole 48 h run. Costs one extra branch clone against a loop that
-            # otherwise shows nothing for over an hour. Everything here is
-            # best-effort: a partial publish must never fail the run.
-            if [ "$f" = "18" ] && [ "${DO_PUBLISH:-0}" = "1" ]; then
-              echo "::group::progressive publish at F18"
-              python scripts/ecape/build_manifest.py assets/ecape/anim --cycle "$CYCLE" || true
-              # MERGE (+dir), never swap: a partial loop must only ADD frames. A swap here
-              # deleted F21-F48 of a cycle another run had already published complete
-              # (2026-09-28 21:06Z). The final publish below swaps, after the frame count check.
-              scripts/lib/publish_frames_ci.sh "+assets/ecape/anim/$CYCLE" || true
-              git add "assets/ecape/anim/ecape_$CYCLE.json" assets/ecape/anim/index.json 2>/dev/null || true
-              git -c user.name="Shawn Corvec" -c user.email="26825570+scorvec@users.noreply.github.com" \
-                  commit -q -m "ecape: partial loop $CYCLE (F00-F18)" 2>/dev/null || true
-              # Retry, and SAY why on failure. The first version pushed once with
-              # both streams sent to /dev/null: on 2026-08-30 it lost a race with
-              # another workflow's data-update commit, printed "(partial push
-              # skipped)" and left index.json off main while its frames were
-              # already on the branch - a half-published cycle with no diagnostic.
-              # The final publish step has always retried five times; this one
-              # simply had not been given the same treatment.
-              pushed=0
-              for i in 1 2 3; do
-                if timeout 120 git pull --rebase --autostash -X theirs origin main \
-                   && timeout 180 git push; then
-                  echo "  partial manifest pushed (attempt $i)"; pushed=1; break
-                fi
-                git rebase --abort 2>/dev/null || true
-                echo "  partial push attempt $i failed; retrying"
-                sleep 5
-              done
-              [ "$pushed" = "1" ] || echo "::warning::partial manifest not pushed - the F18 frames are on the branch but index.json is not on main yet; the final publish will carry it"
-              echo "::endgroup::"
-            fi
+            if [ -n "$BG" ]; then wait "$BG"; fi      # a failed prefetch fails the run, never skips an hour
           done
-          # Same guard as run_local_ecape.sh. Without it a run that loses a
-          # forecast hour still publishes, force-pushing a short loop over the
-          # good one on the frames branch and committing a matching manifest.
-          # The local first run proved a partial set publishes happily and exits
-          # 0 - the frame count is the only thing that catches it.
-          want=${#HOURS[@]}
-          # [ -d ] first: under `set -euo pipefail` a find over a MISSING
-          # directory exits non-zero and pipefail + set -e kill the step
-          # instantly - which would skip the very ::error:: below that this
-          # guard exists to print. A field that produced nothing at all is
-          # exactly the case it most needs to report.
-          count_frames() {
-            [ -d "$1" ] || { echo 0; return 0; }
-            find "$1" -name 'F*.webp' 2>/dev/null | wc -l | tr -d ' '
-          }
-          for fld in ecape_ml ecape_mu ratio_mu; do
-            got=$(count_frames "assets/ecape/anim/$CYCLE/$fld")
-            if [ "$got" -ne "$want" ]; then
-              echo "::error::$fld has $got frames, expected $want — refusing to publish a partial loop"
-              exit 1
-            fi
+          # never publish a partial cycle: every field must have every hour
+          for fld in ecape_mu ecape_ml mucape mlcape; do
+            got=$(find "$D/$fld" -name '*.webp' 2>/dev/null | wc -l | tr -d ' ')
+            if [ "$got" -ne "${#HOURS[@]}" ]; then echo "::error::$fld has $got hours, expected ${#HOURS[@]} - not publishing"; exit 1; fi
           done
-          echo "frame count verified: $want per field across 3 fields"
-          # Bring the rest of the archive into the workspace so index.json lists
-          # every retained cycle, not just this one. EXCLUDE leaves this run's
-          # own directory alone.
-          EXCLUDE="$CYCLE" scripts/lib/fetch_frames_ci.sh assets/ecape/anim || true
-          # RETENTION: keep the newest KEEP cycles. Dropped from the workspace
-          # AND recorded for PRUNE, because publishing only ever REPLACES what it
-          # is handed - without an explicit prune the archive grows forever.
-          KEEP=12                      # 4 runs/day -> about 3 days
-          PRUNE_LIST=""
-          for old in $(ls -1d assets/ecape/anim/[0-9]* 2>/dev/null | sort -r | tail -n +$((KEEP + 1))); do
-            PRUNE_LIST="$PRUNE_LIST $old"
-            rm -rf "$old"
-            rm -f "assets/ecape/anim/ecape_$(basename "$old").json"
-            echo "  retention: dropped $(basename "$old")"
-          done
-          echo "PRUNE_LIST=$PRUNE_LIST" >> "$GITHUB_ENV"
-          python scripts/ecape/build_manifest.py assets/ecape/anim --cycle "$CYCLE"
-          # No stills: the page's static panels were removed on 2026-08-30. They
-          # duplicated the loop's F00 frame, and on mobile they were the ONLY
-          # thing visible - the animator's iframe kept its hardcoded aspect
-          # ratio there and clipped its own controls - so they read as the whole
-          # product rather than a fallback.
-          du -sh "assets/ecape/anim/$CYCLE"
+          echo "verified: ${#HOURS[@]} hours x 4 fields, $(du -sk "$D" | cut -f1) KB"
 
-      - name: Publish frames to the orphan branch
-        if: ${{ (github.event_name == 'schedule' || github.event.inputs.publish == 'true') && steps.cyc.outputs.skip != 'true' }}
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        # The frames branch carries every other product's frames too. This used to be an inline
-        # clone-swap-reorphan with a plain --force push (no lease) of a PARENTLESS commit, which
-        # re-sent the whole 2 GB branch each time; the shared publisher swaps in just
-        # assets/ecape/anim (retention already applied in the workspace above), pushes only the
-        # delta under a lease and re-orphans server-side (2026-09-28). It drops *_manifest.json,
-        # which belongs on main; index.json and ecape_<cycle>.json ride along as before.
-        run: scripts/lib/publish_frames_ci.sh assets/ecape/anim
-
-      - name: Commit the manifest to main
-        if: ${{ (github.event_name == 'schedule' || github.event.inputs.publish == 'true') && steps.cyc.outputs.skip != 'true' }}
-        run: |
-          git config user.name "Shawn Corvec"
-          git config user.email "26825570+scorvec@users.noreply.github.com"
-          # Only the manifest - never the frame webp, and no stills any more.
-          git add "assets/ecape/anim/ecape_${{ steps.cyc.outputs.cycle }}.json" assets/ecape/anim/index.json
-          if git diff --staged --quiet; then echo "no changes"; exit 0; fi
-          git commit -m "data update: $(date -u +%Y-%m-%dT%H:%MZ)"
-          for i in 1 2 3 4 5; do
-            if timeout 120 git pull --rebase --autostash -X theirs origin main && timeout 180 git push; then echo "pushed (attempt $i)"; exit 0; fi
-            git rebase --abort 2>/dev/null || true   # a timed-out pull can strand a half-done rebase
-            sleep 5
-          done
-          echo "push failed after retries"; exit 1
-
-      # models.html shows the HRRR's newest 00/06/12/18Z run with these ECAPE/CAPE grids as one more field. The models job
-      # (models.yml) and this job publish the same cycle in either order, so: field directories only (never the cycle
-      # directory), PRUNE_OLDER for anything older than every cycle the viewer keeps, and the manifest merged on main's
-      # CURRENT copy with scripts/models/manifest_merge.py (this job owns hrrr.json["ecape"], models.yml the rest).
-      # Best-effort: a failure here leaves the ECAPE page untouched.
       - name: Publish to the models viewer
-        if: ${{ (github.event_name == 'schedule' || github.event.inputs.publish == 'true') && steps.cyc.outputs.skip != 'true' }}
-        continue-on-error: true
+        if: ${{ env.DO_PUBLISH == '1' && steps.cyc.outputs.skip != 'true' }}
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CYCLE: ${{ steps.cyc.outputs.cycle }}
         run: |
           set -euo pipefail
           D="assets/models/data/hrrr/$CYCLE"
-          want=$(find "assets/ecape/anim/$CYCLE/ecape_mu" -name 'F*.webp' | wc -l | tr -d ' ')
-          for f in ecape_mu ecape_ml mucape mlcape; do
-            n=$(find "$D/$f" -name '*.webp' 2>/dev/null | wc -l | tr -d ' ')
-            if [ "$n" -ne "$want" ]; then echo "::warning::$f has $n hours, the loop $want - not publishing ECAPE to the models viewer"; exit 0; fi
-          done
-          echo "models-format ECAPE: $want hours x 4 fields, $(du -sk "$D" | cut -f1) KB"
           if timeout 60 git fetch -q --depth 1 origin main && git show FETCH_HEAD:assets/models/hrrr.json > "$RUNNER_TEMP/mv_base.json" 2>/dev/null; then :; else echo '{}' > "$RUNNER_TEMP/mv_base.json"; fi
           # the viewer keeps only its newest HRRR run: ECAPE for an OLDER cycle has nowhere to go
           read -r NEWEST FLOOR < <(python -c "import json,sys;c=[x['cycle'] for x in json.load(open(sys.argv[1])).get('cycles',[])];print(max(c) if c else '-', min(c+[sys.argv[2]]))" "$RUNNER_TEMP/mv_base.json" "$CYCLE")
-          if [ "$NEWEST" != "-" ] && [[ "$CYCLE" < "$NEWEST" ]]; then echo "::notice::the viewer already shows $NEWEST; ECAPE $CYCLE not published there"; exit 0; fi
+          if [ "$NEWEST" != "-" ] && [[ "$CYCLE" < "$NEWEST" ]]; then echo "::notice::the viewer already shows $NEWEST; ECAPE $CYCLE not published"; exit 0; fi
           SHA=$(SRC=. PRUNE_OLDER="assets/models/data/hrrr:$FLOOR" scripts/models/publish_data.sh "$D/ecape_mu" "$D/ecape_ml" "$D/mucape" "$D/mlcape" | tail -1)
           echo "frames commit $SHA"
           python scripts/ecape/to_models.py entry --cycle "$CYCLE" --site . --sha "$SHA" --out "$RUNNER_TEMP/ecape_entry.json"
@@ -334,15 +173,30 @@ jobs:
             fi
             sleep 7
           done
-          echo "::warning::models-viewer manifest not pushed - the ECAPE frames are on the branch, the page will not list them"
+          echo "::error::models-viewer manifest not pushed after 5 attempts"; exit 1
 
-      - name: Upload rendered loop (dry runs, and as a record of published ones)
-        if: always()
-        uses: actions/upload-artifact@v7
-        with:
-          name: ecape-${{ steps.cyc.outputs.cycle }}
-          path: |
-            assets/ecape/anim/ecape_manifest.json
-            assets/ecape/anim/ratio_mu
-          if-no-files-found: warn
-          retention-days: 7
+      # ONE-TIME (idempotent): the retired ecape.html's frames (assets/ecape/anim on the frames branch) and manifests
+      # (assets/ecape/ on main). Nothing else reads them (grep, 2026-09-30). A no-op once both are gone.
+      - name: Retire the old ECAPE page's data
+        if: ${{ env.DO_PUBLISH == '1' }}
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          if gh api "repos/$GITHUB_REPOSITORY/contents/assets/ecape?ref=frames" > /dev/null 2>&1; then
+            echo "removing assets/ecape from the frames branch"
+            PRUNE="assets/ecape" scripts/lib/publish_frames_ci.sh
+          else echo "frames branch: no assets/ecape"; fi
+          W="$RUNNER_TEMP/retire_wt"
+          for i in 1 2 3; do
+            rm -rf "$W"; git worktree prune
+            timeout 120 git fetch -q origin main || { sleep 5; continue; }
+            git worktree add -q --detach "$W" FETCH_HEAD
+            [ -d "$W/assets/ecape" ] || { echo "main: no assets/ecape"; exit 0; }
+            git -C "$W" rm -r -q assets/ecape
+            git -C "$W" -c user.name="Shawn Corvec" -c user.email="26825570+scorvec@users.noreply.github.com" commit -q -m "ecape: remove the retired page's manifests (ecape.html redirects to models.html)"
+            if timeout 180 git -C "$W" push -q origin HEAD:main; then echo "main: assets/ecape removed"; exit 0; fi
+            sleep 7
+          done
+          echo "::warning::could not remove assets/ecape from main"
