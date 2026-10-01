@@ -45,6 +45,8 @@
   .seg button:disabled { color: #8a8f8a; cursor: not-allowed; background: repeating-linear-gradient(135deg, transparent 0 5px, rgba(0,0,0,0.035) 5px 10px); }
   .seg button:not(:disabled):not([aria-pressed="true"]):hover { background: var(--accent-soft); }
   .mv-fields { flex: 1 1 100%; }
+  .mv-acc { display: flex; flex-wrap: wrap; gap: 0.45rem 0.9rem; align-items: center; flex: 1 1 100%; }
+  .mv-acc[hidden] { display: none; }
   .runsel { display: inline-flex; align-items: center; gap: 0.4rem; font-size: 0.92rem; color: var(--ink2); }
   .runsel select { font: inherit; font-size: 0.92rem; padding: 0.3rem 0.4rem; border: 1px solid var(--rule); border-radius: 6px; background: var(--panel); color: var(--ink); }
   .chk[hidden] { display: none; }
@@ -230,8 +232,13 @@
     <div class="seg" id="models" role="group" aria-label="Model"></div>
     <label class="runsel">Run <select id="run" aria-label="Model run"></select><span id="runT"></span></label>
     <label class="chk" id="contL" hidden title="Labelled contours drawn from the same data (isotherms, flight-category thresholds, isobars)"><input type="checkbox" id="cont" checked> Contours</label>
+    <label class="chk" title="Airports with scheduled service in the US and Canada (OurAirports); hover or tap one for the model's value there"><input type="checkbox" id="sta" checked> Airports</label>
     <label class="chk" id="farmsL" hidden title="US wind projects (USGS Wind Turbine Database) or large-scale solar plants (USGS Solar PV Database), sized by capacity"><input type="checkbox" id="farms" checked> <span id="farmsT">Wind farms</span></label>
     <div class="seg mv-fields" id="fields" role="group" aria-label="Field"></div>
+    <div class="mv-acc" id="accBar" hidden>
+      <div class="seg" id="accType" role="group" aria-label="Precipitation type"></div>
+      <label class="runsel">Window <select id="accWin" aria-label="Accumulation window"></select></label>
+    </div>
   </div>
 
   <div class="mv-map" id="map" aria-label="Model map. Scroll or pinch to zoom, drag to pan.">
@@ -260,6 +267,7 @@
       <tr><th>Field</th><th>HRRR (NOAA, 3 km)</th><th>RRFS (NOAA, 3 km)</th><th>RDPS (ECCC, 10 km)</th></tr>
       <tr><td>Simulated IR</td><td>Brightness temperature a GOES-East 10.3&nbsp;&micro;m imager would see (UPP field SBT124)</td><td>GOES-16 ABI band 13, 10.3&nbsp;&micro;m (SBTA1613)</td><td>No simulated band exists in the RDPS output. Shown instead: the <b>OLR-derived brightness temperature</b>, T<sub>b</sub>&nbsp;=&nbsp;(OLR/&sigma;)<sup>&frac14;</sup>, from the instantaneous outgoing longwave radiation at the top of the atmosphere. It is a proxy for IR, not a satellite band: it integrates the whole longwave spectrum, so clear skies read 20&ndash;30&nbsp;K colder than a window channel, while cloud tops come out close.</td></tr>
       <tr><td>Radar + precipitation type</td><td>Simulated reflectivity 1&nbsp;km above ground, coloured by the categorical precipitation type at the surface (freezing rain &gt; sleet &gt; snow &gt; rain; rain and snow together shown as mix); isobars from MSLP (MAPS reduction) every 2&nbsp;hPa</td><td>As HRRR; isobars from MSLP (MSLET reduction)</td><td>No simulated reflectivity exists. Shown instead: the <b>precipitation rate</b> (mm/h) coloured by the model's precipitation type, on the radar colour scale; isobars from MSLP</td></tr>
+      <tr><td>Precipitation accumulation</td><td>Total (APCP); snow = the HRRR's own snowfall (ASNOW, variable density); freezing rain = the model's accumulated freezing rain (FRZR, liquid equivalent, not ice accretion); sleet = APCP accumulated in hours whose precipitation type is sleet (liquid equivalent)</td><td>As HRRR (sleet 3-hourly past 36&nbsp;h)</td><td>Total; snow = <b>10:1</b> from the accumulated snow water equivalent (not a model snowfall); freezing rain and sleet = the model's own liquid-equivalent accumulations</td></tr>
       <tr><td>Cloud ceiling</td><td>Height of the lowest broken or overcast layer above the ground (the model's ceiling height minus the terrain)</td><td>As HRRR</td><td class="na">Not in the RDPS output</td></tr>
       <tr><td>Visibility</td><td>Surface visibility; above 10&nbsp;mi shown as &ldquo;10+&rdquo;, as a METAR reports it</td><td>As HRRR</td><td class="na">Not in the RDPS output</td></tr>
       <tr><td>2&nbsp;m temperature, dewpoint</td><td colspan="3">In &deg;F, stored to 0.5&nbsp;&deg;F</td></tr>
@@ -268,6 +276,7 @@
       <tr><td>Incoming shortwave</td><td>Downward shortwave at the surface, instantaneous at the valid time</td><td>As HRRR (instantaneous)</td><td>Mean over the hour ending at the valid time (the difference of the model's accumulated flux)</td></tr>
     </table></div>
     <h2>Runs and timing</h2>
+    <p>Airports: large and medium airports with scheduled service in the US and Canada from <a href="https://ourairports.com/data/">OurAirports</a> (public domain); the large hubs show at national scale and the rest as you zoom in. Hover or tap one for the model's value there.</p>
     <p>Wind and solar plants (shown on the 80&nbsp;m wind and shortwave maps; at national scale only the larger ones): the <a href="https://energy.usgs.gov/uswtdb/">U.S. Wind Turbine Database</a> v8.3 (USGS, LBNL and ACP; turbines grouped into projects) and the <a href="https://energy.usgs.gov/uspvdb/">U.S. Large-Scale Solar PV Database</a> v4.0 (USGS and LBNL), both public domain. Circles and squares scale with capacity; hover for name, capacity and year.</p>
     <p>HRRR: the 00, 06, 12 and 18&nbsp;UTC runs, every hour to 48&nbsp;h (the hourly runs that stop at 18&nbsp;h are not shown). RRFS&nbsp;v1: the 00, 06, 12 and 18&nbsp;UTC runs to 84&nbsp;h, every hour to 36&nbsp;h and every 3&nbsp;hours after (its other hourly runs write only 15-minute surface files to 18&nbsp;h and are not shown). RDPS: 00, 06, 12 and 18&nbsp;UTC, every hour to 84&nbsp;h. Only the newest run of each model is kept. A run appears once its last forecast hour is published; GitHub runs the jobs, so expect it about 2&ndash;3 hours after its start time for the HRRR and 4&ndash;5 hours for the RRFS and RDPS.</p>
     <h2>How the page works</h2>
@@ -340,9 +349,26 @@
     [S(5, "#e6d3f7"), S(15, "#c09ae8"), S(25, "#9660d2"), S(35, "#6c35b0"), S(48, "#40157a")]];
   PT_RAMPS[0] = PT_RAMPS[1];                   // echo with no surface type flag: drawn as rain, hover says so
   function rateEq(mmh) { return 10 * Math.log10(200 * Math.pow(Math.max(mmh, 1e-6), 1.6)); }   // colour index only (Marshall-Palmer)
-  var FIELD_ORDER = ["ir", "refl", "ceil", "vis", "t2m", "td2m", "smoke", "wind80", "sw"];
+  // precipitation accumulation (2026-09-30, user: "add precip accumulation plots (and have a selector for the various ptypes)"):
+  // the files hold the total since the run started (16-bit, 0.01 in / snow 0.1 in); the page subtracts two hours for the
+  // window and bins the result on a square-root scale into the 8-bit code the shader colours (vmax per type)
+  var ACC_TYPES = {
+    apcp: { label: "Total", vmax: 20, unitLabel: "inches of liquid", ticks: [0.01, 0.1, 0.25, 0.5, 1, 2, 3, 5, 10], lo: 0.01, hi: 15, levels: [0.5, 1, 2],
+            stops: [S(0.01, "#d6f0c4", 0.9), S(0.1, "#9bd685"), S(0.25, "#4cb24a"), S(0.5, "#1e873a"), S(0.75, "#2c72b8"), S(1, "#1d409f"),
+                    S(1.5, "#7a4fb7"), S(2, "#ae3bb0"), S(3, "#d42a3b"), S(4, "#ef6a25"), S(5, "#f8a62c"), S(7, "#fbe46c"), S(10, "#fff6cf"), S(15, "#ffffff")] },
+    asnow: { label: "Snow", vmax: 100, unitLabel: "inches of snow", ticks: [0.1, 1, 2, 4, 6, 8, 12, 18, 24, 36], lo: 0.1, hi: 48, levels: [1, 6, 12],
+             stops: [S(0.1, "#e2effc", 0.9), S(1, "#a9cdf2"), S(2, "#6fa8e6"), S(3, "#3d7fd4"), S(4, "#2152b0"), S(6, "#1d2f8f"), S(8, "#5a2a96"),
+                     S(12, "#9a3fb0"), S(18, "#cf62c6"), S(24, "#f29ad8"), S(36, "#f9d2ea"), S(48, "#b07040")] },
+    afzra: { label: "Freezing rain", vmax: 5, unitLabel: "inches of liquid falling as freezing rain", ticks: [0.01, 0.05, 0.1, 0.25, 0.5, 1], lo: 0.01, hi: 1.5, levels: [0.1, 0.25, 0.5],
+             stops: [S(0.01, "#fbd8e8", 0.9), S(0.05, "#f4a6c8"), S(0.1, "#e872a8"), S(0.25, "#d23d86"), S(0.5, "#a51e66"), S(1, "#6a0d44")] },
+    aip: { label: "Sleet", vmax: 5, unitLabel: "inches of liquid falling as sleet", ticks: [0.01, 0.05, 0.1, 0.25, 0.5, 1], lo: 0.01, hi: 1.5, levels: [0.25, 0.5, 1],
+           stops: [S(0.01, "#fde6c8", 0.9), S(0.05, "#f9c27e"), S(0.1, "#f39a45"), S(0.25, "#d9681c"), S(0.5, "#a8460c"), S(1, "#6e2a04")] } };
+  var ACC_ORDER = ["apcp", "asnow", "afzra", "aip"], ACC_WINS = [0, 1, 3, 6, 12, 24, 48];
+  FIELDS.acc = { label: "Precip accumulation", enc: "accd", unit: "in" };
+  var FIELD_ORDER = ["ir", "refl", "ceil", "vis", "t2m", "td2m", "smoke", "wind80", "sw", "acc"];
   function encOf(f, fm) { return (fm && fm.enc) || FIELDS[f].enc; }
-  function chOf(f) { return f === "wind80" || f === "refl" || f === "mslp" ? 2 : 1; }
+  function accValue(type, c) { var vm = ACC_TYPES[type].vmax, t = c / 254; return vm * t * t; }
+  function chOf(f) { return f === "wind80" || f === "refl" || f === "mslp" || !!ACC_TYPES[f] ? 2 : 1; }
   var NOTES = {
     rdps: { refl: "<b>RDPS has no simulated reflectivity.</b> Shown: the model's <b>precipitation rate</b> (mm/h, instantaneous) coloured by its precipitation type, on the radar colour scale (colours placed with the Marshall–Palmer Z–R relation, so 1 mm/h looks like light rain on radar; it is a rate, not dBZ). Isobars: MSLP every 2 hPa.",
             ir: "<b>RDPS has no simulated satellite band.</b> Shown: the OLR-derived brightness temperature (proxy for IR), T<sub>b</sub> = (OLR/σ)<sup>¼</sup> from the instantaneous outgoing longwave at the top of the atmosphere. Cloud tops come out close to a 10.3 µm image; clear skies read 20–30 K colder than one, because OLR includes the water-vapour bands.",
@@ -448,6 +474,7 @@
   function colourOf(name, v) {                                 // -> [r, g, b, a(0..1)] or null (transparent)
     var fd = FIELDS[name];
     if (v === null) return null;
+    if (name === "acc") { var at = ACC_TYPES[st.acc.type]; if (v < at.lo) return null; return interp(at.stops, v); }
     if (name === "ceil") {
       if (v < 0) v = 40;
       if (v >= 12000) { var tt = Math.min(1, (Math.log(v) - Math.log(12000)) / (Math.log(50000) - Math.log(12000))); return [198 + 40 * tt, 230 + 16 * tt, 188 + 50 * tt, 1 - 0.55 * tt]; }
@@ -482,6 +509,7 @@
     for (var c = 0; c < 256; c++) {
       var v;
       if (fd.enc === "lin2") v = c > 254 ? null : c / 254 * fd.smax;
+      else if (name === "acc") v = c === 0 ? null : accValue(st.acc.type, c);
       else v = valueOf(fd, c, q);
       var col = colourOf(name, v);
       if (col) { lut[4 * c] = col[0]; lut[4 * c + 1] = col[1]; lut[4 * c + 2] = col[2]; lut[4 * c + 3] = Math.round(255 * col[3]); }
@@ -491,7 +519,7 @@
 
   // ── state ──────────────────────────────────────────────────────────────────────────────────────────────────────
   var man = {};                                   // model -> manifest
-  var st = { model: "hrrr", ci: 0, field: "ir", hour: 0, playing: false };
+  var st = { model: "hrrr", ci: 0, field: "ir", hour: 0, playing: false, acc: { type: "apcp", win: 0 } };
   var view = null;                                // {cx, cy, s: metres per CSS px}
   var $ = function (id) { return document.getElementById(id); };
   var mapEl = $("map"), glc = $("gl"), ovc = $("ov"), tip = $("tip");
@@ -898,32 +926,61 @@
   var drawn = null;                                     // what is on screen: {key, e, g, field, q}
   var raf = 0;
   function render() { if (!raf) raf = requestAnimationFrame(function () { raf = 0; draw(); }); }
+  // the accumulation shown = total(h) - total(start): start = h - window, snapped DOWN to an hour the run carries (RRFS is
+  // 3-hourly past 36 h), and the start of the run when the window reaches back past it. -> {e, fm, label} or {msg}
+  var ACCF = new Map();
+  function accFrame(model, c, hour) {
+    var type = st.acc.type, fm = c.fields[type];
+    if (!fm) return { msg: "Precipitation accumulation is not in this run yet." };
+    if (fm.hours.indexOf(hour) < 0) return { msg: ACC_TYPES[type].label + " accumulation is not available at +" + hour + " h in this run." };
+    var start = 0;
+    if (st.acc.win) { var want = hour - st.acc.win; start = 0; fm.hours.forEach(function (x) { if (x <= want && x > start) start = x; }); if (want <= 0) start = 0; }
+    var key = model + "/" + c.cycle + "/" + type + "/" + hour + "/" + start;
+    var label = start === 0 ? "since the start of the run (0 to +" + hour + " h)" : "+" + start + " to +" + hour + " h";
+    var have = ACCF.get(key); if (have) { have.used = ++useClock; return { e: have, fm: fm, label: label, start: start, key: key }; }
+    var e1 = decoded(model, c, type, hour), e0 = start ? decoded(model, c, type, start) : null;
+    if (!e1 || !e1.dec || (start && (!e0 || !e0.dec))) return { wait: true, fm: fm, label: label };
+    var a1 = e1.dec.data, a0 = e0 ? e0.dec.data : null, n = e1.dec.w * e1.dec.h, out = new Uint8Array(n), u = fm.unit, vm = ACC_TYPES[type].vmax;
+    var exact = new Float32Array(n);
+    for (var k = 0; k < n; k++) {
+      var v = (a1[2 * k] * 256 + a1[2 * k + 1]) - (a0 ? a0[2 * k] * 256 + a0[2 * k + 1] : 0);
+      if (v <= 0) continue;
+      var vi = v * u; exact[k] = vi;
+      var cd = Math.round(254 * Math.sqrt(vi / vm)); out[k] = cd < 1 ? 1 : cd > 254 ? 254 : cd;
+    }
+    var ent = { dec: { w: e1.dec.w, h: e1.dec.h, data: out }, exact: exact, used: ++useClock };
+    ACCF.set(key, ent);
+    if (ACCF.size > 10) { var old = ACCF.keys().next().value, oe = ACCF.get(old); if (oe.tex && gl) gl.deleteTexture(oe.tex); ACCF.delete(old); }
+    return { e: ent, fm: fm, label: label, start: start, key: key };
+  }
   function draw() {
     var cc = currentCycle(), c = cc.c, fd = FIELDS[st.field];
     updateBadge(cc);
     if (!c || !view) { drawOverlay(); return; }
-    var fm = c.fields[st.field];
+    var fm = c.fields[st.field], acc = null;
     var msg = "";
     var na = NA[st.model] && NA[st.model][st.field];
+    if (st.field === "acc") { acc = accFrame(st.model, c, cc.hour); fm = acc.fm || null; if (acc.msg) na = acc.msg; }
     if (na) msg = na;
     else if (!fm) msg = FIELDS[st.field].label + " is missing from this run.";
     else if (fm.hours.indexOf(cc.hour) < 0) msg = FIELDS[st.field].label + " is not available at +" + cc.hour + " h in this run" +
       (fm.hours.length ? " (it covers +" + fm.hours[0] + " to +" + fm.hours[fm.hours.length - 1] + " h)." : ".");
     $("msg").textContent = msg;
     if (msg) { if (gl) { gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT); } drawn = null; drawOverlay(); schedule(); return; }
-    var e = decoded(st.model, c, st.field, cc.hour);
+    var e = acc ? (acc.e || null) : decoded(st.model, c, st.field, cc.hour);
     if (!e && drawn && drawn.field === st.field && drawn.model === st.model) { e = drawn.e; }      // hold the last frame while the next decodes
     else if (!e) { drawn = null; if (gl) { gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT); } drawOverlay(); schedule(); return; }
     if (!e.dec) { drawOverlay(); schedule(); return; }
     var hidx = fm.hours.indexOf(cc.hour);
-    var q = fm.q ? fm.q[hidx] : null;
+    var q = fm.q && !acc ? fm.q[hidx] : null;
     if (drawn && drawn.e === e) q = drawn.q;
     var g = prepGrid(c.grids[fm.grid]);
     if (gl) {
       var ch = chOf(st.field), enc = encOf(st.field, fm);
       gl.viewport(0, 0, glc.width, glc.height); gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT);
       gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, texOf(e, ch));
-      var lk = st.field + "|" + enc + "|" + (q ? q.join(",") : "");
+      if (acc) { ch = 1; enc = "accd"; }
+      var lk = st.field + "|" + enc + "|" + (q ? q.join(",") : "") + "|" + (acc ? st.acc.type : "");
       if (lk !== lutKey) { gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, lutTex);
         gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, 256, 6, 0, gl.RGBA, gl.UNSIGNED_BYTE, buildLut(st.field, q, enc)); lutKey = lk; }
       gl.uniform2f(loc.uC, view.cx, view.cy); gl.uniform1f(loc.uS, view.s / DPR); gl.uniform2f(loc.uWH, glc.width, glc.height);
@@ -934,7 +991,8 @@
       gl.uniform1i(loc.uMode, st.field === "refl" ? 2 : ch === 2 ? 1 : 0); gl.uniform3f(loc.uW, fd.off || 0, fd.step || 1, fd.smax || 1);
       gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
     }
-    drawn = { e: e, g: g, field: st.field, model: st.model, q: q, c: c, hour: cc.hour, enc: encOf(st.field, fm) };
+    drawn = { e: e, g: g, field: st.field, model: st.model, q: q, c: c, hour: cc.hour, enc: acc ? "accd" : encOf(st.field, fm),
+              ckey: acc ? "acc/" + (acc.key || "") : null, accLabel: acc ? acc.label : null, accType: acc ? st.acc.type : null };
     ensureContours(drawn);
     drawOverlay();
     schedule();
@@ -985,6 +1043,7 @@
     drawContours(ctx);
     if (st.field === "wind80" && drawn && drawn.e && drawn.e.dec && drawn.field === "wind80") drawBarbs(ctx, drawn);
     drawFarms(ctx);
+    drawAirports(ctx);
     if (snapC.width !== ovc.width || snapC.height !== ovc.height) { snapC.width = ovc.width; snapC.height = ovc.height; }
     var sc = snapC.getContext("2d"); sc.setTransform(1, 0, 0, 1, 0, 0); sc.clearRect(0, 0, snapC.width, snapC.height); sc.drawImage(ovc, 0, 0);
     snap = { cx: view.cx, cy: view.cy, s: view.s };
@@ -1060,6 +1119,11 @@
     if (field === "wind80") { var wv = [10, 15, 20];
       return Object.assign(base, { speed: [FIELDS.wind80.off, FIELDS.wind80.step], levels: wv, values: wv,
         fmt: function (v) { return v + " m/s"; }, style: function () { return ["rgba(15,15,15,0.85)", 1.2]; } }); }
+    if (field === "acc") { var at = ACC_TYPES[st.acc.type], La = new Float32Array(256);
+      for (var ca = 0; ca < 256; ca++) La[ca] = ca === 0 ? 0 : accValue(st.acc.type, ca);
+      // a 5 x 5 box only: accumulations at 3 km are speckled by convection, and unsmoothed lines would trace every cell
+      return { rad: 2, rad2: 0, dec: 1, minPts: 30, lut: La, levels: at.levels, values: at.levels,
+        fmt: function (v) { return v + (st.acc.type === "asnow" ? "″" : " in"); }, style: function () { return ["rgba(15,15,15,0.9)", 1.2]; } }; }
     if (field === "refl") { var pv = range(940, 1066, 2), L2 = new Float32Array(256);
       for (var c = 0; c < 256; c++) L2[c] = c === 255 ? NaN : 940 + 0.5 * c;
       return { rad: 1, rad2: 1, dec: 1, minPts: 4, lut: L2, levels: pv, values: pv, src: "mslp", stride: 2, emask: true, extKm: [400, 2.0, 60],
@@ -1071,15 +1135,15 @@
   function contoursOn() { return !!contourSpec(st.field, st.model, [0, 1]) && $("cont").checked; }
   function ensureContours(d) {
     if (!contoursOn() || !d) return;
-    var fm = d.c.fields[d.field]; if (!fm) return;
+    var fm = d.field === "acc" ? d.c.fields[d.accType] : d.c.fields[d.field]; if (!fm) return;
     var spec0 = contourSpec(d.field, d.model, [0, 1]);
-    var srcField = spec0.src || d.field, sfm = d.c.fields[srcField];
+    var srcField = spec0.src || d.field, sfm = d.field === "acc" ? fm : d.c.fields[srcField];
     if (!sfm || sfm.hours.indexOf(d.hour) < 0) return;
-    var key = d.model + "/" + d.c.cycle + "/" + d.field + "/" + d.hour;
+    var key = d.ckey || d.model + "/" + d.c.cycle + "/" + d.field + "/" + d.hour;
     if (CONT.has(key) || contBusy[key]) return;
     var e = srcField === d.field ? d.e : decoded(d.model, d.c, srcField, d.hour);
     if (!e || !e.dec) return;
-    var q = sfm.q ? sfm.q[sfm.hours.indexOf(d.hour)] : null;
+    var q = sfm.q && d.field !== "acc" ? sfm.q[sfm.hours.indexOf(d.hour)] : null;
     var spec = contourSpec(d.field, d.model, q), g = prepGrid(d.c.grids[sfm.grid]);
     contBusy[key] = 1;
     var cellKm = g.type === "lcc" ? g.dx / 1000 : g.di * 111.2, ext = null;
@@ -1108,7 +1172,7 @@
   }
   function drawContours(ctx) {
     if (!contoursOn() || !drawn) return;
-    var key = drawn.model + "/" + drawn.c.cycle + "/" + drawn.field + "/" + drawn.hour, C = CONT.get(key);
+    var key = drawn.ckey || drawn.model + "/" + drawn.c.cycle + "/" + drawn.field + "/" + drawn.hour, C = CONT.get(key);
     if (!C) { ensureContours(drawn); return; }
     var x0 = view.cx - W / 2 * view.s, x1 = view.cx + W / 2 * view.s, y0 = view.cy - H / 2 * view.s, y1 = view.cy + H / 2 * view.s;
     var boxes = [], GAP = W < 640 ? 170 : 240;
@@ -1161,6 +1225,51 @@
       });
     }
   }
+  // ── airports (2026-09-30, user: "add some airport stations with markers on the map (US and Canada)") ──────────────
+  // OurAirports large/medium airports with scheduled service and an ICAO code (data/models_airports.json, built by
+  // scripts/models/build_airports.py). Large hubs at national scale, every airport from ~2.2 km/px; labels placed
+  // greedily right/left/above/below and dropped (marker kept) where they would collide.
+  var APTS = null, aptsP = null, aptShown = [];
+  function loadApts() {
+    if (aptsP) return;
+    aptsP = fetch("data/models_airports.json").then(function (r) { return r.json(); }).then(function (d) {
+      d.airports.forEach(function (a) { var q = P.fwd(a[0], a[1]); a.x = q[0]; a.y = q[1]; }); APTS = d.airports; render();
+    }).catch(function () { aptsP = null; });
+  }
+  function drawAirports(ctx) {
+    aptShown = [];
+    if (!$("sta").checked) return;
+    if (!APTS) { loadApts(); return; }
+    var kpp = view.s / 1000, maxTier = kpp > 2.2 ? 1 : 2, boxes = [];
+    ctx.font = "600 11px 'Source Sans 3', Arial, sans-serif"; ctx.textBaseline = "middle";
+    APTS.forEach(function (a) {
+      if (a[4] > maxTier) return;
+      var px = W / 2 + (a.x - view.cx) / view.s, py = H / 2 - (a.y - view.cy) / view.s;
+      if (px < -20 || px > W + 20 || py < -20 || py > H + 20) return;
+      aptShown.push([px, py, a]);
+      ctx.beginPath(); ctx.moveTo(px, py - 4); ctx.lineTo(px + 4, py); ctx.lineTo(px, py + 4); ctx.lineTo(px - 4, py); ctx.closePath();   // diamond
+      ctx.fillStyle = "#ffffff"; ctx.fill(); ctx.lineWidth = 1.4; ctx.strokeStyle = "#1a1a1a"; ctx.stroke();
+      var tw = ctx.measureText(a[2]).width, spots = [[px + 7, py, "left"], [px - 7, py, "right"], [px, py - 11, "center"], [px, py + 11, "center"]];
+      for (var k = 0; k < spots.length; k++) {
+        var sx = spots[k][0], sy = spots[k][1], al = spots[k][2];
+        var x0 = al === "left" ? sx : al === "right" ? sx - tw : sx - tw / 2, b = [x0 - 2, sy - 7, x0 + tw + 2, sy + 7];
+        var hit = false;
+        for (var m = 0; m < boxes.length; m++) { var o = boxes[m]; if (b[0] < o[2] && b[2] > o[0] && b[1] < o[3] && b[3] > o[1]) { hit = true; break; } }
+        if (hit) continue;
+        boxes.push(b); ctx.textAlign = al;
+        ctx.lineWidth = 3; ctx.strokeStyle = "rgba(255,255,255,0.92)"; ctx.strokeText(a[2], sx, sy);
+        ctx.fillStyle = "#141614"; ctx.fillText(a[2], sx, sy);
+        break;
+      }
+      boxes.push([px - 5, py - 5, px + 5, py + 5]);
+    });
+  }
+  function nearestApt(px, py) {
+    var best = null, bd = 81;
+    aptShown.forEach(function (x) { var d = (x[0] - px) * (x[0] - px) + (x[1] - py) * (x[1] - py); if (d < bd) { bd = d; best = x; } });
+    return best;
+  }
+  function MV_ij(d, px, py) { var xy = toXY(px, py); return gridIJ(d.g, xy[0], xy[1]); }
   function sample(d, px, py) {                          // -> code(s) at a CSS pixel of the drawn frame, or null
     var xy = toXY(px, py), ij = gridIJ(d.g, xy[0], xy[1]);
     var i = Math.floor(ij[0] + 0.5), j = Math.floor(ij[1] + 0.5);
@@ -1218,6 +1327,9 @@
   }
   function drawLegend() {
     if (st.field === "refl") { drawLegendRefl(); return; }
+    if (st.field === "acc") {
+      var at = ACC_TYPES[st.acc.type]; FIELDS.acc.ticks = at.ticks; FIELDS.acc.enc = "log"; FIELDS.acc._lo = at.lo; FIELDS.acc._hi = at.hi;
+    }
     $("leg").style.height = "46px";
     var cv = $("leg"), r = cv.getBoundingClientRect(), dpr = Math.min(window.devicePixelRatio || 1, 2);
     cv.width = Math.round(r.width * dpr); cv.height = Math.round(46 * dpr);
@@ -1226,7 +1338,7 @@
     var lo, hi, logx = fd.enc === "log";
     if (name === "ir") { lo = 45; hi = -95; } else if (name === "t2m") { lo = -40; hi = 120; } else if (name === "td2m") { lo = -20; hi = 82; }
     else if (name === "ceil") { lo = 50; hi = 30000; } else if (name === "vis") { lo = 0.05; hi = 10; } else if (name === "smoke") { lo = 2; hi = 1500; }
-    else if (name === "wind80") { lo = 0; hi = 40; } else { lo = 0; hi = 1050; }
+    else if (name === "wind80") { lo = 0; hi = 40; } else if (name === "acc") { lo = fd._lo; hi = fd._hi; } else { lo = 0; hi = 1050; }
     function xOf(v) { var t = logx ? (Math.log(v) - Math.log(lo)) / (Math.log(hi) - Math.log(lo)) : (v - lo) / (hi - lo); return x0 + t * (x1 - x0); }
     ctx.fillStyle = "#e9ebe6"; ctx.fillRect(x0, y, x1 - x0, bh);
     for (var px = x0; px < x1; px++) {
@@ -1247,6 +1359,7 @@
     ctx.textAlign = "right"; ctx.fillStyle = "#5c6b73"; ctx.font = "12px 'Source Sans 3', Arial, sans-serif";
     var unitLabel = { ir: "°C", ceil: "feet above ground  (no shading: no ceiling)", vis: "miles  (no shading: 10+ mi)", t2m: "°F", td2m: "°F",
                       smoke: "mg per m², vertically integrated", wind80: "m/s at 80 m (barbs in knots)", sw: "W per m²" }[name];
+    if (name === "acc") unitLabel = ACC_TYPES[st.acc.type].unitLabel;
     if (st.model === "rdps" && name === "ir") unitLabel = "°C, OLR-derived brightness temperature (proxy for IR)";
     if (st.model === "rdps" && name === "sw") unitLabel = "W per m², mean over the previous hour";
     ctx.fillText(unitLabel, x1, y + bh + 20);
@@ -1266,7 +1379,7 @@
     var src = cc.c || c, h = cc.hour;
     var vt = Date.parse(c.init) + st.hour * 3600e3, t = fmtTime(vt);
     var init = src.init.replace(/T(\d\d):00Z/, " $1Z").slice(5).replace("-", "/");
-    $("badge").innerHTML = "<b>" + MODELS[st.model] + "</b> " + (st.model === "rdps" && st.field === "ir" ? "OLR-derived brightness temperature (proxy for IR)" : labelOf(st.model, st.field)) + " · run " + init + " +" + h + " h";
+    $("badge").innerHTML = "<b>" + MODELS[st.model] + "</b> " + (st.model === "rdps" && st.field === "ir" ? "OLR-derived brightness temperature (proxy for IR)" : labelOf(st.model, st.field)) + " · run " + init + " +" + h + " h" + (st.field === "acc" ? " · " + ACC_TYPES[st.acc.type].label.toLowerCase() + (drawn && drawn.accLabel ? ", " + drawn.accLabel : "") : "");
     $("valid").innerHTML = "Valid <b>" + t[0] + "</b> <span class=\"loc\">· " + t[1] + "</span>";
   }
   function setButtons() {
@@ -1278,6 +1391,17 @@
       b.onclick = function () { selectModel(m); };
       mb.appendChild(b);
     });
+    var ab = $("accType"); ab.innerHTML = "";
+    ACC_ORDER.forEach(function (t) {
+      var b = document.createElement("button"); b.type = "button"; b.textContent = ACC_TYPES[t].label;
+      b.setAttribute("aria-pressed", String(t === st.acc.type));
+      b.onclick = function () { st.acc.type = t; setButtons(); onChange(); };
+      ab.appendChild(b);
+    });
+    var aw = $("accWin");
+    if (!aw.options.length) ACC_WINS.forEach(function (w) { var o = document.createElement("option"); o.value = w; o.textContent = w ? "last " + w + " h" : "since the run started"; aw.appendChild(o); });
+    aw.value = String(st.acc.win);
+    $("accBar").hidden = st.field !== "acc";
     var fb = $("fields"); fb.innerHTML = "";
     FIELD_ORDER.forEach(function (f) {
       var b = document.createElement("button"); b.type = "button"; b.textContent = labelOf(st.model, f);
@@ -1315,7 +1439,8 @@
     var slider = $("hour"); slider.value = Math.max(0, hoursOf(cycleObj(st.model, st.ci)).indexOf(st.hour));
     $("contL").hidden = !contourSpec(st.field, st.model, [0, 1]);
     var n = (NOTES[st.model] && NOTES[st.model][st.field]) || "";
-    var fm = cycleObj(st.model, st.ci) && cycleObj(st.model, st.ci).fields[st.field];
+    var fm = cycleObj(st.model, st.ci) && cycleObj(st.model, st.ci).fields[st.field === "acc" ? st.acc.type : st.field];
+    if (st.field === "acc" && fm && fm.method) n = "<b>" + ACC_TYPES[st.acc.type].label + "</b>: " + fm.method + ". Pick a window to see the amount that falls in it; the accumulation is the model's own, not a radar estimate.";
     if (fm && fm.from) n += (n ? " " : "") + "This run's smoke: " + fm.from + ".";
     $("note").innerHTML = n;
     drawLegend();
@@ -1325,15 +1450,18 @@
   }
   function prefetch() {
     var cc = currentCycle(), c = cc.c; if (!c) return;
-    var fm = c.fields[st.field]; if (!fm) return;
+    var pf = st.field === "acc" ? st.acc.type : st.field;
+    var fm = c.fields[pf]; if (!fm) return;
     var list = [], hs = fm.hours, i0 = hs.indexOf(cc.hour);
     if (i0 < 0) i0 = 0;
-    list.push([st.model, c, st.field, hs[i0]]);
+    list.push([st.model, c, pf, hs[i0]]);
+    if (st.field === "acc" && st.acc.win) {                        // the window's start frame next
+      var want0 = cc.hour - st.acc.win, s0 = 0; hs.forEach(function (x) { if (x <= want0 && x > s0) s0 = x; }); if (s0) list.push([st.model, c, pf, s0]); }
     for (var d = 1; d < hs.length; d++) {
-      if (i0 + d < hs.length) list.push([st.model, c, st.field, hs[i0 + d]]);
-      if (d <= 3 && i0 - d >= 0) list.push([st.model, c, st.field, hs[i0 - d]]);
+      if (i0 + d < hs.length) list.push([st.model, c, pf, hs[i0 + d]]);
+      if (d <= 3 && i0 - d >= 0) list.push([st.model, c, pf, hs[i0 - d]]);
     }
-    for (var d2 = 4; i0 - d2 >= 0; d2++) list.push([st.model, c, st.field, hs[i0 - d2]]);
+    for (var d2 = 4; i0 - d2 >= 0; d2++) list.push([st.model, c, pf, hs[i0 - d2]]);
     if (st.field === "refl" && $("cont").checked && c.fields.mslp) {       // the isobars' small grid rides along
       var ms = c.fields.mslp.hours, out = [];
       list.forEach(function (a) { if (ms.indexOf(a[3]) >= 0) out.push(a, [st.model, c, "mslp", a[3]]); else out.push(a); });
@@ -1341,7 +1469,7 @@
     }
     want(list);
     // decode the next two ahead of the play head
-    for (var k = 1; k <= 2 && i0 + k < hs.length; k++) decoded(st.model, c, st.field, hs[i0 + k]);
+    for (var k = 1; k <= 2 && i0 + k < hs.length; k++) decoded(st.model, c, pf, hs[i0 + k]);
   }
   var playT = 0;
   function schedule() {
@@ -1353,7 +1481,8 @@
       var next = hs[(ix + 1) % hs.length];
       var fm = c && c.fields[st.field];
       var ready = true;
-      if (fm) { var e = frames.get(fkey(st.model, c, st.field, next)); ready = !!(e && e.dec) || !!(e && e.fail) || fm.hours.indexOf(next) < 0; }
+      if (st.field === "acc") fm = c && c.fields[st.acc.type];
+      if (fm) { var e = frames.get(fkey(st.model, c, st.field === "acc" ? st.acc.type : st.field, next)); ready = !!(e && e.dec) || !!(e && e.fail) || fm.hours.indexOf(next) < 0; }
       if (ready) { st.hour = next; onChange(); } else { prefetch(); schedule(); }
     }, 260);
   }
@@ -1366,6 +1495,8 @@
   $("run").onchange = function () { var old = cycleObj(st.model, st.ci), vt = Date.parse(old.init) + st.hour * 3600e3; st.ci = +this.value;
     var c = cycleObj(st.model, st.ci); st.hour = nearestHour(c, Math.round((vt - Date.parse(c.init)) / 3600e3)); setButtons(); onChange(); };
   $("cont").onchange = function () { prefetch(); render(); };
+  $("accWin").onchange = function () { st.acc.win = +this.value; onChange(); };
+  $("sta").onchange = function () { render(); };
   $("farms").onchange = function () { render(); };
   document.addEventListener("keydown", function (e) {
     if (e.target && /INPUT|SELECT|TEXTAREA/.test(e.target.tagName) && e.target.type !== "range") return;
@@ -1434,11 +1565,19 @@
   mapEl.addEventListener("dblclick", function (e) { var r = mapEl.getBoundingClientRect(); zoomAt(e.clientX - r.left, e.clientY - r.top, 0.5); });
   function hover(px, py, sticky) {
     if (!drawn || !drawn.e || !drawn.e.dec) { tip.style.display = "none"; return; }
+    var apt = nearestApt(px, py), aptHead = "";
+    if (apt) { px = apt[0]; py = apt[1];
+      aptHead = "<b>" + apt[2][2] + "</b> " + String(apt[2][3]).replace(/[&<>]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]; }) + "<br>"; }
     var s = sample(drawn, px, py);
     if (!s) { tip.style.display = "none"; return; }
     var fd = FIELDS[drawn.field], txt;
     var ll = P.inv(s[2][0], s[2][1]);
-    if (drawn.field === "refl") {
+    if (drawn.field === "acc") {
+      var idx = (drawn.g.ny - 1 - Math.floor(MV_ij(drawn, px, py)[1] + 0.5)) * drawn.g.nx + Math.floor(MV_ij(drawn, px, py)[0] + 0.5);
+      var av = drawn.e.exact ? drawn.e.exact[idx] : 0;
+      txt = (drawn.accType === "asnow" ? av.toFixed(1) + " in of snow" : av.toFixed(2) + " in" + (drawn.accType === "apcp" ? "" : " (liquid)")) +
+            "<br><span class=\"ll\">" + drawn.accLabel + "</span>";
+    } else if (drawn.field === "refl") {
       if (s[0] === 0 || s[0] === 255) txt = drawn.enc === "rate2" ? "no precipitation" : "no echo (below 5 dBZ)";
       else { var rv = reflValue(drawn.enc, s[0]);
         txt = (drawn.enc === "rate2" ? (rv < 1 ? rv.toFixed(2) : rv.toFixed(1)) + " mm/h" : rv.toFixed(1) + " dBZ") + " · " + PT_NAMES[Math.min(s[1], 5)]; }
@@ -1457,7 +1596,7 @@
       else if (drawn.field === "ir") txt = fd.fmt(val, val + 273.15);
       else txt = fd.fmt(val);
     }
-    tip.innerHTML = "<span class=\"v\">" + txt + "</span><br><span class=\"ll\">" + Math.abs(ll[1]).toFixed(2) + "°" + (ll[1] >= 0 ? "N" : "S") + " " +
+    tip.innerHTML = aptHead + "<span class=\"v\">" + (apt ? labelOf(drawn.model, drawn.field) + " " : "") + txt + "</span><br><span class=\"ll\">" + Math.abs(ll[1]).toFixed(2) + "°" + (ll[1] >= 0 ? "N" : "S") + " " +
       Math.abs(ll[0]).toFixed(2) + "°" + (ll[0] >= 0 ? "E" : "W") + "</span>" + (nearestFarm(px, py) || "");
     tip.style.display = "block";
     var tw = tip.offsetWidth, th = tip.offsetHeight;
@@ -1466,13 +1605,16 @@
   }
 
   // ── URL hash: #model/field/+hour ───────────────────────────────────────────────────────────────────────────────
-  function writeHash() { try { history.replaceState(null, "", "#" + st.model + "/" + st.field + "/" + st.hour + (st.ci ? "/r" + st.ci : "")); } catch (e) {} }
+  function writeHash() { try { history.replaceState(null, "", "#" + st.model + "/" + st.field + "/" + st.hour + (st.ci ? "/r" + st.ci : "") +
+    (st.field === "acc" ? "/" + st.acc.type + "-" + st.acc.win : "")); } catch (e) {} }
   function readHash() {
     var p = location.hash.replace("#", "").split("/");
     if (MODELS[p[0]]) st.model = p[0];
     if (FIELDS[p[1]]) st.field = p[1];
     if (p[2] !== undefined && /^\d+$/.test(p[2])) st.hour = +p[2];
     if (p[3] && /^r\d$/.test(p[3])) st.ci = +p[3].slice(1);
+    var am = (p[3] && /^[a-z]+-\d+$/.test(p[3]) ? p[3] : p[4] || "").match(/^([a-z]+)-(\d+)$/);
+    if (am && ACC_TYPES[am[1]]) { st.acc.type = am[1]; st.acc.win = +am[2]; }
     return p.length >= 3 && p[2] !== "";
   }
 

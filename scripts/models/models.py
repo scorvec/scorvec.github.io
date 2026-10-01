@@ -21,6 +21,7 @@ Encoding (codes 0-254 data, 255 = missing / "none"); the page holds the same tab
   sw      W m-2, linear 5 W m-2 steps
   refl    HRRR/RRFS: R = dBZ / 0.5 at 1 km AGL (0 = below 5 dBZ), G = precipitation type (see ptype_flags);
           RDPS: R = precipitation rate, log 0.1-100 mm/h, G = type (RDPS_PTYPE); manifest enc refl2 / rate2
+  apcp, asnow, afzra, aip   accumulation since the run started, 16-bit (R high byte, G low byte) in 0.01 in (snow 0.1 in)
   mslp    hPa, 940 + 0.5 * code in R, G = 1 where the surface pressure is below 850 hPa (terrain above ~1,500 m, where
           the sea-level reduction makes fake highs and lows - the page places no H/L there), on every SUB-th grid point
 Every file is written with its image row 0 at the NORTH (grid row j = ny - 1 - image row).
@@ -92,8 +93,24 @@ FIELDS = {
     # mean-sea-level pressure, overlay only (isobars on the reflectivity map, user 2026-09-30): 0.5 hPa from 940 hPa, stored
     # on every SUB-th grid point (12 km HRRR/RRFS, 20 km RDPS) - smooth, and the isobars are smoothed further anyway
     "mslp": dict(enc="lin", off=940.0, step=0.5),
+    # precipitation accumulated SINCE THE RUN STARTED (the page differences two hours for any window): 16-bit, R = high
+    # byte, G = low byte, in `unit` inches (liquid 0.01 in, to 655 in; snow 0.1 in). 0.001 in cost twice the bytes (the
+    # low byte wraps every 0.26 in and turns to noise) for a precision no QPF product quotes
+    "apcp": dict(enc="acc16", unit=0.01),      # total precipitation, liquid equivalent
+    "asnow": dict(enc="acc16", unit=0.1),      # snowfall (HRRR/RRFS: the model's ASNOW; RDPS: 10:1 from its snow water)
+    "afzra": dict(enc="acc16", unit=0.01),     # freezing rain, liquid equivalent (model's own FRZR / FreezingRain-Accum)
+    "aip": dict(enc="acc16", unit=0.01),       # sleet, liquid equivalent (HRRR/RRFS: APCP while the sleet type is on; RDPS: IcePellets-Accum)
 }
-ORDER = ["ir", "refl", "ceil", "vis", "t2m", "td2m", "smoke", "wind80", "sw", "mslp"]
+ACC_METHOD = {
+    "hrrr": dict(apcp="APCP", asnow="ASNOW, the HRRR's own snowfall (variable snow density)",
+                 afzra="FRZR, the model's accumulated freezing rain (liquid equivalent, not ice accretion)",
+                 aip="APCP accumulated in hours whose precipitation type is sleet (priority FZRA > IP > SN > RA; liquid equivalent)"),
+    "rrfs": dict(apcp="APCP", asnow="ASNOW, the RRFS's own snowfall", afzra="FRZR, the model's accumulated freezing rain (liquid equivalent)",
+                 aip="APCP accumulated in periods whose precipitation type is sleet (priority FZRA > IP > SN > RA; liquid equivalent; 3-hourly past 36 h)"),
+    "rdps": dict(apcp="Precip-Accum", asnow="10:1 from the RDPS's accumulated snow water equivalent (not a model snowfall)",
+                 afzra="FreezingRain-Accum (liquid equivalent)", aip="IcePellets-Accum (liquid equivalent)"),
+}
+ORDER = ["ir", "refl", "ceil", "vis", "t2m", "td2m", "smoke", "wind80", "sw", "mslp", "apcp", "asnow", "afzra", "aip"]
 SUB = {"hrrr": 4, "rrfs": 4, "rdps": 2}
 
 
@@ -147,6 +164,10 @@ def ptype_flags(ra, sn, fz, ip):
 def encode(name, x):
     """-> (uint8 image array, row 0 north; per-frame params or None)"""
     f = FIELDS[name]
+    if f["enc"] == "acc16":
+        v = np.clip(np.rint(np.nan_to_num(x, nan=0.0) / f["unit"]), 0, 65535).astype(np.uint16)
+        c = np.dstack([(v >> 8).astype(np.uint8), (v & 255).astype(np.uint8), np.zeros(v.shape, np.uint8)])
+        return c[::-1], None
     if name == "mslp":                                             # ("mslp", hPa, high-terrain mask): R = pressure, G = 1 where
         c = np.dstack([q_lin(x[1], f["off"], f["step"]), x[2], np.zeros(x[2].shape, np.uint8)])   # surface p < 850 hPa
         p = None
@@ -204,20 +225,24 @@ MODELS = {
 PT = {"refd": r"^REFD:1000 m above ground:", "crain": r"^CRAIN:surface:(anl|\d+ hour fcst)",
       "csnow": r"^CSNOW:surface:(anl|\d+ hour fcst)", "cfrzr": r"^CFRZR:surface:(anl|\d+ hour fcst)",
       "cicep": r"^CICEP:surface:(anl|\d+ hour fcst)"}
+# run-total accumulations; the HRRR writes 24 and 48 h as "0-1 day acc" / "0-2 day acc"
+ACC = {"apcp": r"^APCP:surface:0-\d+ (hour|day) acc", "asnow": r"^ASNOW:surface:0-\d+ (hour|day) acc",
+       "frzr": r"^FRZR:surface:0-\d+ (hour|day) acc"}
 IDX_WANT = {   # field -> regex on "VAR:LEVEL:TIME[:extra]" of a wgrib2 .idx line
     # MSLP: HRRR MSLMA (MAPS reduction, the only MSLP in wrfsfc); RRFS MSLET (NCEP's chart reduction; no PRMSL in 2dfld)
     "hrrr": {"mslp": r"^MSLMA:mean sea level:", "psfc": r"^PRES:surface:", "ir": r"^SBT124:top of atmosphere:", "ceilh": r"^HGT:cloud ceiling:", "zsfc": r"^HGT:surface:",
              "vis": r"^VIS:surface:", "t2m": r"^TMP:2 m above ground:", "td2m": r"^DPT:2 m above ground:",
              "smoke": r"^COLMD:entire atmosphere", "u80": r"^UGRD:80 m above ground:",
-             "v80": r"^VGRD:80 m above ground:", "sw": r"^DSWRF:surface:(anl|\d+ hour fcst):?$", **PT},
+             "v80": r"^VGRD:80 m above ground:", "sw": r"^DSWRF:surface:(anl|\d+ hour fcst):?$", **PT, **ACC},
     "rrfs": {"mslp": r"^MSLET:mean sea level:", "psfc": r"^PRES:surface:", "ir": r"^SBTA1613:top of atmosphere:", "ceilh": r"^HGT:cloud ceiling:", "zsfc": r"^HGT:surface:",
              "vis": r"^VIS:surface:", "t2m": r"^TMP:2 m above ground:", "td2m": r"^DPT:2 m above ground:",
              "smoke": r"^COLMD:entire atmosphere.*Particulate organic matter dry", "u80": r"^UGRD:80 m above ground:",
-             "v80": r"^VGRD:80 m above ground:", "sw": r"^DSWRF:surface:(anl|\d+ hour fcst):?$", **PT},
+             "v80": r"^VGRD:80 m above ground:", "sw": r"^DSWRF:surface:(anl|\d+ hour fcst):?$", **PT, **ACC},
 }
 RDPS_VARS = {"ir": "UpwardLongwaveRadiationFlux_NTAtm", "t2m": "AirTemp_AGL-2m", "td2m": "DewPoint_AGL-2m",
              "u80": "WindU_AGL-80m", "v80": "WindV_AGL-80m", "swacc": "DownwardShortwaveRadiationFlux-Accum_Sfc",
-             "prate": "PrecipRate_Sfc", "ptype": "PrecipType-Instant_Sfc", "mslp": "Pressure_MSL", "psfc": "Pressure_Sfc"}
+             "prate": "PrecipRate_Sfc", "ptype": "PrecipType-Instant_Sfc", "mslp": "Pressure_MSL", "psfc": "Pressure_Sfc",
+             "apcp": "Precip-Accum_Sfc", "swe": "Snow-Accum_Sfc", "frzr": "FreezingRain-Accum_Sfc", "ipacc": "IcePellets-Accum_Sfc"}
 RDPS_BOX = (-172.0, -45.0, 17.0, 80.0)      # crop of the RDPS grid (lon0, lon1, lat0, lat1): North America
 
 
@@ -274,6 +299,8 @@ def idx_lines(f, url):
         end = int(rows[i + 1][1]) - 1 if i + 1 < len(rows) else -1
         out.append((int(p[1]), end, ":".join(p[3:])))
     return out
+
+
 
 
 def fetch_idx_fields(model, url, want):
@@ -398,8 +425,19 @@ def process_hour(model, lead, blobs, outdir):
             F = _CTX["sub"]
             ps = dec(blobs["psfc"])[::F, ::F]
             phys["mslp"] = ("mslp", dec(blobs["mslp"])[::F, ::F] / 100.0, (ps < 85000.0).astype(np.uint8))
+        pt = None
         if all(k in blobs for k in ("refd", "crain", "csnow", "cfrzr", "cicep")):
-            phys["refl"] = ("refl", dec(blobs["refd"]), ptype_flags(*(dec(blobs[k]) for k in ("crain", "csnow", "cfrzr", "cicep"))))
+            pt = ptype_flags(*(dec(blobs[k]) for k in ("crain", "csnow", "cfrzr", "cicep")))
+            phys["refl"] = ("refl", dec(blobs["refd"]), pt)
+        mm = 1 / 25.4
+        apcp = dec(blobs["apcp"]) if "apcp" in blobs else np.zeros(_CTX["zsfc"].shape, np.float32)
+        phys["apcp"] = apcp * mm
+        phys["asnow"] = dec(blobs["asnow"]) * 39.3701 if "asnow" in blobs else np.zeros_like(apcp)     # m of snow -> in
+        phys["afzra"] = dec(blobs["frzr"]) * mm if "frzr" in blobs else np.zeros_like(apcp)
+        # sleet: needs the previous processed hour, so the cumulative APCP and the sleet flag go to a side file for the
+        # sequential pass in cmd_run
+        np.savez(Path(outdir) / f"_seq_{lead:03d}.npz", apcp=apcp.astype(np.float32),
+                 ip=(pt == 4).astype(np.uint8) if pt is not None else np.zeros(apcp.shape, np.uint8))
     else:
         if "ir" in blobs:
             olr = dec(blobs["ir"], crop)
@@ -422,6 +460,18 @@ def process_hour(model, lead, blobs, outdir):
             ps = dec(blobs["psfc"], crop)
             ps = ps if np.nanmean(ps) > 5000 else ps * 100.0
             phys["mslp"] = ("mslp", (v / 100.0 if np.nanmean(v) > 5000 else v)[::F, ::F], (ps[::F, ::F] < 85000.0).astype(np.uint8))
+        mm = 1 / 25.4
+        acc = {"apcp": "apcp", "afzra": "frzr", "aip": "ipacc"}
+        shape = None
+        for name, key in acc.items():
+            if key in blobs:
+                phys[name] = np.maximum(dec(blobs[key], crop), 0) * mm
+                shape = phys[name].shape
+        if "swe" in blobs:
+            phys["asnow"] = np.maximum(dec(blobs["swe"], crop), 0) * mm * 10.0       # 10:1, labelled so on the page
+        if lead == 0 and shape is None and alpha is not None:                          # f00: nothing has fallen yet
+            for name in ("apcp", "asnow", "afzra", "aip"):
+                phys[name] = np.zeros(alpha.shape, np.float32)
         if "prate" in blobs and "ptype" in blobs:
             code = np.rint(np.nan_to_num(dec(blobs["ptype"], crop), nan=6)).astype(int)
             t = np.zeros(code.shape, np.uint8)
@@ -444,7 +494,7 @@ def process_hour(model, lead, blobs, outdir):
 def fetch_hour(model, date, cyc, lead, cyc_dt):
     """-> {key: bytes} for one forecast hour (keys as in IDX_WANT / RDPS_VARS)."""
     if model in ("hrrr", "rrfs"):
-        want = {k: v for k, v in IDX_WANT[model].items() if k != "zsfc"}
+        want = {k: v for k, v in IDX_WANT[model].items() if k != "zsfc" and not (lead == 0 and k in ACC)}   # f00 has no accumulations
         return fetch_idx_fields(model, file_url(model, date, cyc, lead), want)
     f = fetcher("rdps")
     names = dict(RDPS_VARS)
@@ -627,6 +677,25 @@ def cmd_run(a):
             total_bytes += nb
             for name, p in meta.items():
                 per_field[name][lead] = p
+    # sequential pass: sleet accumulation = APCP fallen between consecutive processed hours while the sleet type is on
+    seq = sorted(outdir.glob("_seq_*.npz"))
+    if seq:
+        cum, prev = None, None
+        for fpath in seq:
+            lead = int(fpath.stem[5:])
+            z = np.load(fpath)
+            ap, ip = z["apcp"], z["ip"]
+            if cum is None:
+                cum, prev = np.zeros(ap.shape, np.float64), np.zeros(ap.shape, np.float32)
+            cum += np.maximum(ap - prev, 0) * ip / 25.4
+            prev = ap
+            arr, _ = encode("aip", cum)
+            b = webp(arr)
+            (outdir / "aip").mkdir(exist_ok=True)
+            (outdir / "aip" / f"{lead:03d}.webp").write_bytes(b)
+            total_bytes += len(b)
+            per_field["aip"][lead] = None
+            fpath.unlink()
     fetch_stats = dict(requests=sum(f.nreq for f in _FETCH.values()), mb=round(sum(f.nbytes for f in _FETCH.values()) / 1e6, 1))
     fields = {}
     for name in ORDER:
@@ -638,6 +707,8 @@ def cmd_run(a):
             e["q"] = [per_field[name][h] for h in hrs]
         if name == "refl":
             e["enc"] = "rate2" if model == "rdps" else "refl2"
+        if FIELDS[name]["enc"] == "acc16":
+            e.update(enc="acc16", unit=FIELDS[name]["unit"], method=ACC_METHOD[model][name])
         fields[name] = e
     if model == "rdps" and "smoke" in fields:
         r_dt, off = raq_for(cyc_dt)
