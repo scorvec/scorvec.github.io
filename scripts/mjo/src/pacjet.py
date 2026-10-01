@@ -100,8 +100,14 @@ def load_aifs(date, time_):
     cyc = E.Cycle(date, time_); S = tuple(E.STEPS); L14 = tuple(E.LEVELS_AAM)
     files = {"u": [E.path(cyc, E.Spec("aifs-ens", "cf", "u", "pl", E.LEVELS_AAM_REST, S)),
                    E.path(cyc, E.Spec("aifs-ens", "pf", "u", "pl", E.LEVELS_AAM_REST, S, E.AAM_PF_MEMBERS))],
-             "v": [E.path(cyc, E.Spec("aifs-ens", "cf", "v", "pl", L14, S)),
-                   E.path(cyc, E.Spec("aifs-ens", "pf", "v", "pl", L14, S, E.AAM_PF_MEMBERS))]}
+             # v at 250 hPa alone, ensured by qbo_duct.py --model aifs since the E-P flux loop (whose 14-level v this
+             # used to read) was retired 2026-09-30; the 14-level file is still taken if a cache holds it
+             "v": [E.path(cyc, E.Spec("aifs-ens", "cf", "v", "pl", (PC.LEVEL,), S)),
+                   E.path(cyc, E.Spec("aifs-ens", "pf", "v", "pl", (PC.LEVEL,), S, E.AAM_PF_MEMBERS))]}
+    for i, alt in enumerate((E.Spec("aifs-ens", "cf", "v", "pl", L14, S),
+                             E.Spec("aifs-ens", "pf", "v", "pl", L14, S, E.AAM_PF_MEMBERS))):
+        if not files["v"][i].exists() and E.path(cyc, alt).exists():
+            files["v"][i] = E.path(cyc, alt)
     fields, li = {}, None
     for par, paths in files.items():
         got = {}

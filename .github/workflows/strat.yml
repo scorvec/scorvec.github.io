@@ -1,4 +1,4 @@
-name: Stratosphere (vortex, wave-1, E-P flux)
+name: Stratosphere (vortex, wave-1, E-P flux from GEFS)
 
 # The stratospheric products that appear on stratosphere.html, moved off the
 # laptop on 2026-08-29 and split into parallel jobs on 2026-08-30:
@@ -6,9 +6,16 @@ name: Stratosphere (vortex, wave-1, E-P flux)
 #   wave1_maps.py     -> assets/sst/anim/wave1_{nh,sh}/    loop only, no still
 #   vortex_winds.py   -> assets/sst/vortex_10.webp         still (loop covers 100)
 #                     -> assets/sst/anim/vortex_{10,100}/  31-step 12-hourly loop
-#   qbo_duct.py       -> assets/sst/anim/epflux/          E-P flux loop
+#   qbo_duct.py --model gefs -> assets/sst/anim/epflux_gefs/   E-P flux loop from the NOAA GEFS ensemble (epflux job)
+#   qbo_duct.py --model aifs -> scripts/strat/data/zmu_members_aifs.npz (zero line) + v250 for pacjet (heavy job)
 #   qbo_zeroline.py   -> assets/sst/qbo_zeroline_{70,50,30,10}.webp + data/qbo_zeroline{,_aifs}.json   (heavy job)
 #   pacjet.py         -> assets/sst/pacjet_aifs_*.webp, pacjet_torque.webp, anim/pacjet_aifs/  (heavy job; circulation.html)
+#
+# E-P FLUX FROM GEFS (2026-09-30, user: "switch models to one with more levels in the stratosphere"): GEFS carries
+# u/v/T at 31 levels up to 1 hPa (ECMWF open data has nothing between 10 and 50 hPa). The AIFS-ENS and IFS-ENS E-P
+# flux loops (epflux, epflux_ifs) are retired; their frames are pruned from the frames branch below. GEFS is byte-
+# ranged from NOAA's S3 bucket only (never NOMADS); its 00Z/12Z day 15 is on S3 by ~06:30Z/18:30Z, before these slots,
+# and the epflux job uses the same cycle as the AIFS-ENS products (falling back up to 24 h if GEFS is not complete).
 #
 # IFS-ENS (all 50 members) and nh_vortex live in strat-ifs.yml (09:05/21:05) since 2026-09-27: IFS day 15 reaches
 # the Google mirror ~08:50Z/20:55Z, after these slots, and nh_vortex carries all four models in one figure.
@@ -16,7 +23,7 @@ name: Stratosphere (vortex, wave-1, E-P flux)
 # WHY FOUR JOBS. As one job this took ~70 min, and 23 of those were ens_cycle
 # populating a 10 GB shared cache that only HALF the products read:
 #
-#   qbo_duct                  GLOBS the cache       -> needs ens_cycle
+#   qbo_duct --model aifs     reads the cached u    -> needs ens_cycle
 #   wave1_maps, vortex_winds  call ecmwf.ensure     -> fetch their own, few hundred MB
 #
 # So the light pair no longer waits on a fetch it never touches, and the two
@@ -277,11 +284,9 @@ jobs:
           retention-days: 7
 
   # ------------------------------------------------ heavy: needs the cache ---
-  # qbo_duct globs cf_u_10-*; it READS the cache rather than fetching, so
-  # ens_cycle is not optional here. Without it the first run logged "no AIFS-ENS
-  # cycle ... in the cache", produced nothing, and still exited green.
-  # (nh_vortex moved to strat-ifs.yml on 2026-09-27.)
-  # Budget: populate ~5 + E-P flux ~30 (10 of it fetching v/t).
+  # The zero-line step reads the u files ens_cycle cached, so ens_cycle is not optional here.
+  # (nh_vortex moved to strat-ifs.yml on 2026-09-27; the AIFS-ENS E-P flux was retired 2026-09-30.)
+  # Budget: populate ~5, zonal-mean u + v250 ~3, pacjet ~10.
   heavy:
     needs: cycle
     runs-on: ubuntu-latest
@@ -325,10 +330,13 @@ jobs:
             || echo "::warning::ens_cycle had issues; downstream uses whatever cached"
           du -sh ../ecmwf/cache 2>/dev/null || true
 
-      - name: E-P flux loop
+      # Per-member zonal-mean u at 10/50/100 hPa from the cached u files (the E-P flux loop that used to leave it
+      # was retired 2026-09-30) -> data/zmu_members_aifs.npz, and v at 250 hPa (control + 25) for the jet below.
+      - name: Zonal-mean u (zero line) and v250 (jet), AIFS-ENS
         run: |
-          python scripts/strat/qbo_duct.py \
-            || echo "::warning::E-P flux loop failed; keeping the previous frames"
+          python scripts/strat/qbo_duct.py --model aifs \
+            --date "${{ needs.cycle.outputs.date }}" --time "${{ needs.cycle.outputs.time }}" \
+            || echo "::warning::AIFS-ENS zonal-mean u failed; the zero line keeps the analysis"
 
       # QBO zero-wind line (2026-09-28): the per-member zonal-mean u at 50/10 hPa that qbo_duct just computed
       # (data/zmu_members_aifs.npz - no extra download), the GEOS FP analysis tail from the BDC product's cache on the
@@ -342,8 +350,8 @@ jobs:
           python scripts/strat/qbo_zeroline.py render \
             || echo "::warning::zero-line render failed; keeping the previous figures"
 
-      # North Pacific jet (moved from aam.yml 2026-09-28): 250 hPa u from the AAM pull above and v from the E-P flux
-      # step's fetch (control + 25 members) - no extra download. Maps, loop, jet axis, phase diagram, the torque
+      # North Pacific jet (moved from aam.yml 2026-09-28): 250 hPa u from the AAM pull above and v from the zonal-mean
+      # u step's 250 hPa fetch (control + 25 members). Maps, loop, jet axis, phase diagram, the torque
       # research view (which reads the committed torque_ranges.json from aam.yml) and the phase-impact figures (drawn
       # from the committed ERA5 composites in scripts/mjo/data/reference/pacjet_impacts.npz).
       - name: North Pacific jet (AIFS-ENS)
@@ -356,9 +364,10 @@ jobs:
         if: always()
         run: |
           bad=0
-          n=$(ls assets/sst/anim/epflux/*.webp 2>/dev/null | wc -l | tr -d ' ')
-          printf '  %-38s %s frames\n' assets/sst/anim/epflux "$n"
-          [ "$n" -eq 0 ] && bad=$((bad + 1))
+          for f in scripts/strat/data/zmu_members_aifs.npz assets/sst/data/pacjet_aifs.json; do
+            if [ -f "$f" ]; then printf '  %-38s %s\n' "$f" "$(du -h "$f" | cut -f1)"
+            else printf '  %-38s MISSING\n' "$f"; bad=$((bad + 1)); fi
+          done
           if [ "$bad" -gt 0 ]; then
             echo "::error::$bad heavy product(s) produced nothing - see the warnings above"
             exit 1
@@ -370,9 +379,7 @@ jobs:
         run: |
           set -euo pipefail
           : > /tmp/heavy.list
-          for p in assets/sst/anim/epflux \
-                   assets/sst/anim/epflux_manifest.json \
-                   assets/sst/anim/pacjet_aifs assets/sst/anim/pacjet_aifs_manifest.json \
+          for p in assets/sst/anim/pacjet_aifs assets/sst/anim/pacjet_aifs_manifest.json \
                    assets/sst/pacjet_aifs_wk1.webp assets/sst/pacjet_aifs_wk2.webp assets/sst/pacjet_aifs_axis.webp \
                    assets/sst/pacjet_aifs_phase.webp assets/sst/pacjet_torque.webp \
                    assets/sst/pacjet_impacts_lag0.webp assets/sst/pacjet_impacts_lag3_7.webp \
@@ -396,13 +403,78 @@ jobs:
           if-no-files-found: warn
           retention-days: 7
 
+  # -------------------------------------------- epflux: GEFS, self-fetching ---
+  # E-P flux loop from the NOAA GEFS ensemble (control + 30), u/v/T at all 31 levels 1000-1 hPa, days 0-15 daily:
+  # 93 messages per member-step byte-ranged from the pgrb2a/pgrb2b .idx on S3 (~8 GB a cycle), decoded and reduced to
+  # per-member eddy quadratics in 4 processes, never written to disk. Independent of the ECMWF cache.
+  epflux:
+    needs: cycle
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      MPLBACKEND: Agg
+      EPFLUX_GEFS_PROCS: "4"
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+      - uses: actions/cache@v6
+        with:
+          path: ~/.cache/pip
+          key: pip-mjo-${{ runner.os }}-${{ hashFiles('scripts/mjo/requirements-mjo.txt') }}
+          restore-keys: |
+            pip-mjo-${{ runner.os }}-
+      - name: System libs
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends libeccodes0
+      - name: Python dependencies
+        run: pip install -r scripts/mjo/requirements-mjo.txt
+
+      - name: E-P flux loop (GEFS)
+        run: |
+          start=$(date +%s)
+          python scripts/strat/qbo_duct.py --model gefs \
+            --date "${{ needs.cycle.outputs.date }}" --time "${{ needs.cycle.outputs.time }}" \
+            || echo "::warning::GEFS E-P flux loop failed; keeping the previous frames"
+          echo "  wall time $(( $(date +%s) - start )) s"
+
+      - name: What was produced
+        if: always()
+        run: |
+          n=$(ls assets/sst/anim/epflux_gefs/*.webp 2>/dev/null | wc -l | tr -d ' ')
+          printf '  %-38s %s frames\n' assets/sst/anim/epflux_gefs "$n"
+          [ "$n" -eq 0 ] && { echo "::error::the GEFS E-P flux loop produced nothing"; exit 1; } || true
+
+      - name: Pack the outputs
+        if: always()
+        run: |
+          set -euo pipefail
+          : > /tmp/ep.list
+          for p in assets/sst/anim/epflux_gefs assets/sst/anim/epflux_gefs_manifest.json; do
+            [ -e "$p" ] && echo "$p" >> /tmp/ep.list
+          done
+          if [ ! -s /tmp/ep.list ]; then : > /tmp/strat-epflux.tgz; exit 0; fi
+          tar -czf /tmp/strat-epflux.tgz -T /tmp/ep.list
+          echo "  packed $(tar -tzf /tmp/strat-epflux.tgz | grep -c '\.webp$') webp"
+
+      - name: Hand off to publish
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: strat-epflux
+          path: /tmp/strat-epflux.tgz
+          if-no-files-found: warn
+          retention-days: 7
+
   # -------------------------------------------------------------- publish ---
   # always(): one render job failing must not strip the other's output from the
   # site. Whatever arrived in the artifacts is published; a product that did not
   # render simply is not in them, and both steps below leave its existing copy
   # alone.
   publish:
-    needs: [cycle, light, heavy]
+    needs: [cycle, light, heavy, epflux]
     if: ${{ always() && (github.event_name == 'schedule' || github.event.inputs.publish == 'true') }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -435,7 +507,7 @@ jobs:
             if [ -f "$f" ]; then printf '  %-38s %s\n' "$f" "$(du -h "$f" | cut -f1)"
             else printf '  %-38s (not produced this run)\n' "$f"; fi
           done
-          for d in assets/sst/anim/epflux assets/sst/anim/wave1_nh assets/sst/anim/wave1_sh assets/sst/anim/vortex_10 assets/sst/anim/vortex_100; do
+          for d in assets/sst/anim/epflux_gefs assets/sst/anim/wave1_nh assets/sst/anim/wave1_sh assets/sst/anim/vortex_10 assets/sst/anim/vortex_100; do
             printf '  %-38s %s frames\n' "$d" "$(ls "$d"/*.webp 2>/dev/null | wc -l | tr -d ' ')"
           done
 
@@ -444,11 +516,13 @@ jobs:
       # on the laptop - which is exactly what happened while this step was
       # missing. The shared publisher swaps in only the directories that
       # rendered; an empty one is left alone rather than blanked.
+      # PRUNE: the AIFS-ENS / IFS-ENS E-P flux loops retired 2026-09-30 (idempotent; also in retired_frames.txt).
       - name: Publish loop frames
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PRUNE: assets/sst/anim/epflux assets/sst/anim/epflux_ifs
         run: |
-          scripts/lib/publish_frames_ci.sh assets/sst/anim/epflux assets/sst/anim/wave1_nh \
+          scripts/lib/publish_frames_ci.sh assets/sst/anim/epflux_gefs assets/sst/anim/wave1_nh \
             assets/sst/anim/wave1_sh assets/sst/anim/vortex_10 assets/sst/anim/vortex_100 assets/sst/anim/pacjet_aifs
 
       # Only the static figures and the manifests are committed to main.
@@ -466,12 +540,15 @@ jobs:
                    assets/sst/data/pacjet_aifs.json assets/sst/data/pacjet_analysis.json; do
             if [ -e "$f" ]; then git add "$f"; fi
           done
+          # the retired AIFS-ENS / IFS-ENS E-P flux manifests (2026-09-30) leave main with the next commit
+          RETIRED="assets/sst/anim/epflux_manifest.json assets/sst/anim/epflux_ifs_manifest.json"
+          git rm -q --cached --ignore-unmatch $RETIRED
           if git diff --staged --quiet; then echo "no changes"; exit 0; fi
           # Never rebase (project rule 2026-09-09): snapshot the staged outputs, then on each attempt reset to a
           # fresh origin/main, lay the snapshot back on and commit - the sst.yml / mjo.yml pattern.
           SNAP=$(mktemp -d)
-          git diff --staged --name-only -z | tar cf "$SNAP/outs.tar" --null -T -
-          FILES=$(git diff --staged --name-only)
+          git diff --staged --name-only --diff-filter=d -z | tar cf "$SNAP/outs.tar" --null -T -
+          FILES=$(git diff --staged --name-only --diff-filter=d)
           git reset -q
           MSG="data update: $(date -u +%Y-%m-%dT%H:%MZ)"
           for i in 1 2 3 4 5; do
@@ -479,6 +556,7 @@ jobs:
             git reset -q --hard origin/main
             tar xf "$SNAP/outs.tar"
             for f in $FILES; do git add "$f"; done
+            git rm -q --ignore-unmatch $RETIRED
             if git diff --staged --quiet; then echo "no changes after resync"; exit 0; fi
             git commit -q -m "$MSG"
             if timeout 180 git push origin HEAD:main; then echo "pushed (attempt $i)"; exit 0; fi

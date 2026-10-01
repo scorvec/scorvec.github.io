@@ -51,7 +51,7 @@ PAGES = [
          title="Stratosphere and the Polar Vortex &mdash; SSW Forecast, E&ndash;P Flux, Heat Flux and "
                "Every Sudden Warming Since 1980 &middot; Shawn Corvec",
          desc="Daily AIFS-ENS polar vortex forecast (60N zonal wind at 10 and 100 hPa, polar-cap height), "
-              "E-P flux and wave driving, stationary wave-1 and the 100 hPa eddy heat flux, with a MERRA-2 "
+              "GEFS E-P flux and wave driving to 1 hPa, stationary wave-1 and the 100 hPa eddy heat flux, with a MERRA-2 "
               "catalogue of every major sudden stratospheric warming since 1980 and what followed at the surface.",
          canonical="https://scorvec.com/stratosphere.html"),
 ]

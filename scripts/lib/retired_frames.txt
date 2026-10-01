@@ -19,3 +19,8 @@ assets/sst/anim/vortex_winds
 # the per-LEVEL directories have nothing pointing at them.
 assets/sst/anim/wave1_100
 assets/sst/anim/wave1_500
+
+# Retired 2026-09-30 (user: "switch models to one with more levels in the stratosphere"): the AIFS-ENS and IFS-ENS
+# E-P flux loops, replaced by the GEFS loop (assets/sst/anim/epflux_gefs). strat.yml also prunes them directly.
+assets/sst/anim/epflux
+assets/sst/anim/epflux_ifs

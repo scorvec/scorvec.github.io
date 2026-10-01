@@ -46,7 +46,7 @@ TOPICS = [
              "transformed Eulerian mean"],
         title="E–P flux and E–P flux divergence: explainer and live forecast",
         desc="What the Eliassen–Palm (E–P) flux and its divergence measure, how to read an E–P cross-section, and a live "
-             "15-day AIFS-ENS forecast of E–P flux and wave driving of the zonal-mean flow.",
+             "15-day GEFS ensemble forecast of E–P flux and wave driving of the zonal-mean flow, up to 1 hPa.",
         body=r"""
 <p>The <b>Eliassen–Palm (E–P) flux</b> is a vector in the latitude–height plane that shows where atmospheric waves
 carry their activity, and its <b>divergence</b> is the force those waves exert on the zonal-mean westerlies. It is the
@@ -80,13 +80,14 @@ The same wave drag, integrated, drives the Brewer–Dobson circulation.</li>
 
 <h2>The live forecast</h2>
 <p>The loop below is the E–P flux for zonal wavenumbers 1–3 and its divergence, computed from every member of the
-ECMWF AIFS ensemble (the control and 25 perturbed members, 14 pressure levels) and stepped through the 15-day forecast.
-The flux is quadratic in the wave amplitude, so it is computed for each member and then averaged; the flux of the
-ensemble-mean fields would fade with lead time as the members' wave phases drift apart. The quasi-geostrophic form is
-used with a global-mean static stability, and latitudes poleward of 82° are masked. It is recomputed every 00 and
+NOAA GEFS ensemble (the control and 30 perturbed members, 31 pressure levels from 1000 up to 1 hPa) and stepped through
+the 15-day forecast. The flux is quadratic in the wave amplitude, so it is computed for each member and then averaged;
+the flux of the ensemble-mean fields would fade with lead time as the members' wave phases drift apart. The
+quasi-geostrophic form is used with a global-mean static stability and vertical derivatives in ln p; the 1–2 hPa layer,
+where the derivative is one-sided, is hatched, and latitudes poleward of 82° are masked. It is recomputed every 00 and
 12 UTC cycle.</p>
 """,
-        figures=[loop("epflux_manifest.json", "epflux", "E–P flux and wave driving, wavenumbers 1–3, AIFS-ENS 15-day forecast")],
+        figures=[loop("epflux_gefs_manifest.json", "epflux_gefs", "E–P flux and wave driving, wavenumbers 1–3, GEFS 15-day forecast")],
         live=("/stratosphere.html#epflux", "Open the E–P flux product on the stratosphere page"),
         related=["eddy-heat-flux", "sudden-stratospheric-warming", "wave-activity-flux", "mountain-torque"],
         refs=[

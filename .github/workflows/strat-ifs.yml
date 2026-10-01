@@ -1,4 +1,4 @@
-name: Stratosphere, IFS-ENS (vortex, heat flux, wave-1, winds, drip, E-P flux)
+name: Stratosphere, IFS-ENS (vortex, heat flux, wave-1, winds, drip, zero line, jet)
 
 # ECMWF IFS-ENS at FULL membership (all 50 perturbed members; open data has no IFS control at pressure levels) in
 # every stratosphere product that its open data can feed (2026-09-27, user: "5 ifs-ens members is not enough for the
@@ -9,7 +9,7 @@ name: Stratosphere, IFS-ENS (vortex, heat flux, wave-1, winds, drip, E-P flux)
 #   forecast_drip.py      -> assets/sst/ifs_drip.webp                  + data/ifs_drip.json (drift: reference/ifs_capdrift.json)
 #   wave1_maps.py         -> assets/sst/anim/wave1_ifs_{nh,sh}/         + wave1_maps_ifs_manifest.json
 #   vortex_winds.py       -> assets/sst/anim/vortex_ifs_{10,100}/       + vortex_winds_ifs_manifest.json
-#   qbo_duct.py           -> assets/sst/anim/epflux_ifs/                + epflux_ifs_manifest.json
+#   qbo_duct.py --model ifs -> scripts/strat/data/zmu_members_ifs.npz (zero line) + the 250 hPa jet sector (pacjet)
 #   qbo_zeroline.py       -> assets/sst/qbo_zeroline_*.webp re-rendered with IFS-ENS + data/qbo_zeroline_ifs.json
 # The upper-stratosphere item cannot have IFS: its open data stops at 10 hPa.
 #
@@ -25,7 +25,9 @@ name: Stratosphere, IFS-ENS (vortex, heat flux, wave-1, winds, drip, E-P flux)
 # Google mirror in every request. A cycle the mirror does not have is skipped with a warning - never fetched elsewhere.
 #   maps    ONE shared fetch into the store's cache (ifs_ens.py fetch): gh at 11 levels daily (~3.5 GB), u/v at
 #           10/100 hPa 12-hourly (~4.0 GB), t at 100 hPa daily (~0.5 GB); every render reads those files.
-#   epflux  u, v, t at all 14 levels are ~23 GB a cycle, so they are streamed a step at a time and never cached.
+#   zmu     u at 10/50/250 hPa and v at 250 hPa, streamed a step at a time and never cached (~2 GB a cycle). Until
+#           2026-09-30 this job streamed u, v, t at all 14 levels (~23 GB) for the IFS-ENS E-P flux loop, which is
+#           RETIRED (user decision: the E-P flux now comes from GEFS, which has levels between 10 and 50 hPa; strat.yml).
 # The ef files hold ~8,500 messages per step in arrival order, so a 50-member selection is a scatter of 0.3-0.7 MB
 # ranges: ECMWF_RANGE_GAP_MB=0.5 keeps the wasted bytes near 1 % (a 3 MB gap doubled them), and the request budget is
 # raised to 60/s for Google on these runners (default 14/s, set for AWS/Azure throttling; Google does not throttle,
@@ -238,14 +240,14 @@ jobs:
           if-no-files-found: warn
           retention-days: 7
 
-  # --------------------------------------------------------------- epflux ---
-  # u, v, t at 14 levels for 50 members is ~1.4 GB a step: streamed step by step (3 at a time), reduced in memory,
-  # never written to disk. ~20 min.
-  epflux:
+  # ------------------------------------------------------------------ zmu ---
+  # u at 10/50/250 and v at 250 hPa for 50 members, ~130 MB a step: streamed step by step (3 at a time), reduced to
+  # the per-member zonal-mean u in memory; the 250 hPa jet sector is left in /tmp/pacjet_ifs.
+  zmu:
     needs: cycle
     if: needs.cycle.outputs.ready == 'true'
     runs-on: ubuntu-latest
-    timeout-minutes: 75
+    timeout-minutes: 45
     env:
       MPLBACKEND: Agg
       EPFLUX_IFS_WORKERS: "3"
@@ -268,16 +270,15 @@ jobs:
       - name: Python dependencies
         run: pip install -r scripts/mjo/requirements-mjo.txt
 
-      # PACJET_IFS_DIR: the stream also leaves the 250 hPa u/v sector of every member for the North Pacific jet below
-      # (no extra download).
-      - name: E-P flux loop (IFS-ENS, streamed)
+      # PACJET_IFS_DIR: the stream also leaves the 250 hPa u/v sector of every member for the North Pacific jet below.
+      - name: Zonal-mean u and the 250 hPa jet sector (IFS-ENS, streamed)
         env:
           PACJET_IFS_DIR: /tmp/pacjet_ifs
         run: |
           start=$(date +%s)
           python scripts/strat/qbo_duct.py --model ifs \
             --date "${{ needs.cycle.outputs.date }}" --time "${{ needs.cycle.outputs.time }}" \
-            || echo "::warning::IFS E-P flux loop failed; keeping the previous frames"
+            || echo "::warning::IFS-ENS zonal-mean u stream failed"
           echo "  wall time $(( $(date +%s) - start )) s"
 
       # QBO zero-wind line: qbo_duct's streamed IFS-ENS fields leave the per-member zonal-mean u at 50/10 hPa in
@@ -299,38 +300,40 @@ jobs:
       - name: What was produced
         if: always()
         run: |
-          n=$(ls assets/sst/anim/epflux_ifs/*.webp 2>/dev/null | wc -l | tr -d ' ')
-          printf '  %-40s %s frames\n' assets/sst/anim/epflux_ifs "$n"
-          [ "$n" -eq 0 ] && { echo "::error::the IFS E-P flux loop produced nothing"; exit 1; } || true
+          bad=0
+          for f in scripts/strat/data/zmu_members_ifs.npz assets/sst/data/qbo_zeroline_ifs.json assets/sst/data/pacjet_ifs.json; do
+            if [ -f "$f" ]; then printf '  %-40s %s\n' "$f" "$(du -h "$f" | cut -f1)"
+            else printf '  %-40s MISSING\n' "$f"; bad=$((bad + 1)); fi
+          done
+          [ "$bad" -gt 0 ] && { echo "::error::$bad IFS zero-line/jet output(s) missing"; exit 1; } || true
 
       - name: Pack the outputs
         if: always()
         run: |
           set -euo pipefail
           : > /tmp/ep.list
-          for p in assets/sst/anim/epflux_ifs assets/sst/anim/epflux_ifs_manifest.json \
-                   assets/sst/anim/pacjet_ifs assets/sst/anim/pacjet_ifs_manifest.json \
+          for p in assets/sst/anim/pacjet_ifs assets/sst/anim/pacjet_ifs_manifest.json \
                    assets/sst/pacjet_ifs_wk1.webp assets/sst/pacjet_ifs_wk2.webp assets/sst/pacjet_ifs_axis.webp \
                    assets/sst/pacjet_ifs_phase.webp assets/sst/data/pacjet_ifs.json \
                    assets/sst/qbo_zeroline_70.webp assets/sst/qbo_zeroline_50.webp assets/sst/qbo_zeroline_30.webp \
                    assets/sst/qbo_zeroline_10.webp assets/sst/data/qbo_zeroline.json assets/sst/data/qbo_zeroline_ifs.json; do
             [ -e "$p" ] && echo "$p" >> /tmp/ep.list
           done
-          if [ ! -s /tmp/ep.list ]; then : > /tmp/strat-ifs-epflux.tgz; exit 0; fi
-          tar -czf /tmp/strat-ifs-epflux.tgz -T /tmp/ep.list
+          if [ ! -s /tmp/ep.list ]; then : > /tmp/strat-ifs-zmu.tgz; exit 0; fi
+          tar -czf /tmp/strat-ifs-zmu.tgz -T /tmp/ep.list
 
       - name: Hand off to publish
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: strat-ifs-epflux
-          path: /tmp/strat-ifs-epflux.tgz
+          name: strat-ifs-zmu
+          path: /tmp/strat-ifs-zmu.tgz
           if-no-files-found: warn
           retention-days: 7
 
   # -------------------------------------------------------------- publish ---
   publish:
-    needs: [cycle, maps, epflux]
+    needs: [cycle, maps, zmu]
     if: ${{ always() && (github.event_name == 'schedule' || github.event.inputs.publish == 'true') }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -360,7 +363,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           scripts/lib/publish_frames_ci.sh assets/sst/anim/wave1_ifs_nh assets/sst/anim/wave1_ifs_sh \
-            assets/sst/anim/vortex_ifs_10 assets/sst/anim/vortex_ifs_100 assets/sst/anim/epflux_ifs assets/sst/anim/pacjet_ifs
+            assets/sst/anim/vortex_ifs_10 assets/sst/anim/vortex_ifs_100 assets/sst/anim/pacjet_ifs
 
       # Stills, data and manifests to main. Never rebase (project rule 2026-09-09): snapshot, reset to a fresh
       # origin/main each attempt, lay the snapshot back on, commit, push.
@@ -372,7 +375,6 @@ jobs:
                    assets/sst/ifs_heatflux100_nh.webp assets/sst/ifs_heatflux100_sh.webp assets/sst/data/ifs_heatflux100.json \
                    assets/sst/ifs_drip.webp assets/sst/data/ifs_drip.json \
                    assets/sst/anim/wave1_maps_ifs_manifest.json assets/sst/anim/vortex_winds_ifs_manifest.json \
-                   assets/sst/anim/epflux_ifs_manifest.json \
                    assets/sst/anim/pacjet_ifs_manifest.json assets/sst/pacjet_ifs_*.webp assets/sst/data/pacjet_ifs.json \
                    assets/regimes/data/regimes_members_ifs.json assets/regimes/data/regimes_drift_ifs.json \
                    assets/sst/qbo_zeroline_*.webp assets/sst/data/qbo_zeroline.json assets/sst/data/qbo_zeroline_ifs.json; do
