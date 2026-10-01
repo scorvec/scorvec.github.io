@@ -39,6 +39,15 @@ import time
 from pathlib import Path
 
 import numpy as np
+# pyproj BEFORE anything that can load eccodes (fixes the "double free or corruption (!prev)" abort at exit, 2026-10-01).
+# The eccodes wheel loads its libraries through findlibs, which preloads the eckitlib wheel - with its OWN libproj and
+# libsqlite3 - with RTLD_GLOBAL. Any pyproj loaded after that resolves PROJ/sqlite symbols into eckit's copy: "pyproj
+# unable to set PROJ database path", then the PROJ context is freed by the wrong library at teardown (abort 134, or a
+# segfault inside cartopy). eccodes arrives both directly (_read_grib) and behind every xr.open_dataset, whose engine
+# discovery imports the cfgrib backend. Python extensions load RTLD_NOW, so importing pyproj first binds every symbol of
+# its extensions and its libproj to its own copies before eckit's global ones exist. Reproduced on ubuntu-latest:
+# open_dataset -> pyproj.CRS(4326) raises "no database context" and aborts; pyproj first -> clean exit 0.
+import pyproj  # noqa: F401,E402  (load-order guard, see above)
 import pandas as pd
 import xarray as xr
 
@@ -154,7 +163,8 @@ def drift_correction(model, init):
     zero = np.zeros((NDAY - 1, PC.WORK_LAT.size, PC.WORK_LON.size), "float32")
     if not F_DRIFT.exists():
         return zero, "no drift correction (not yet measured)", {}
-    ds = xr.open_dataset(F_DRIFT)
+    with xr.open_dataset(F_DRIFT) as ds_:
+        ds = ds_.load()
     key = f"corr_all_{model}"
     if key not in ds:
         return zero, "no drift correction (accruing)", {}
@@ -641,7 +651,8 @@ def main() -> int:
     out_dir = Path(a.out_dir)
     global HIST
     HIST = out_dir / "data" / "pacjet_analysis.json"
-    ref = xr.open_dataset(F_REF).load()
+    with xr.open_dataset(F_REF) as ds_:
+        ref = ds_.load()
     init = pd.Timestamp(f"{a.date}T{a.time}:00")
     valid = pd.DatetimeIndex([init + pd.Timedelta(days=d) for d in range(NDAY)])
     mem, U, V = load_aifs(a.date, a.time) if a.model == "aifs" else load_ifs(a.ifs_dir)
