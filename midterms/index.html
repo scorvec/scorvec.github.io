@@ -340,26 +340,32 @@ function panel(sec){const el=$('#race-'+sec);const key=SEL[sec];if(!key)return;
  const slope=sec==='senate'?S.nat_slope:S.slope,m=r.mu+(E-S.E_now)*slope,p=r.p[gi],ind=r.dem_party&&r.dem_party!=='D';
  el.innerHTML=`<h3>${NAMES[r.state]||r.state} ${sec==='senate'?'Senate':'Governor'}${r.special?' (special)':''}</h3><p class="who">${r.dem||'?'} (${r.dem_party||'D'}) v ${r.rep||'?'} (R)${r.inc?'':' · open seat'}</p>${bar(p,ind?'Independent':'Democrat','Republican')}
   <dl><dt>Expected margin</dt><dd>${mg(m)}</dd>${r.cook_pvi!=null?`<dt>Partisan lean</dt><dd>${pvi(r.cook_pvi)} (Cook PVI)</dd>`:''}<dt>Polls</dt><dd>${pollTxt(r)}${r.n_polls?` · <a href="polls.html#${sec==='senate'?'senate':'governor'}:${r.state}">see them</a>`:''}</dd>${r.cook?`<dt>Cook rating</dt><dd>${r.cook}</dd>`:''}</dl>${r.prior_note?`<p class="mt-note">${r.prior_note}</p>`:''}`;trend(el,sec,r.state+(r.special?'|sp':''),ind?'Independent':'Democrat')}
-// Chance of winning over time (race_history.json, midterms/race_history.py): one as-issued point per day since the
-// daily archive began; independent of the slider. Days that modelled a different challenger party are left out.
-const fmtD=d3.timeFormat('%b %-d');
+// Chance of winning over time (race_history.json, midterms/race_history.py + backfill.py): the CURRENT model reconstructed
+// as of each past date with only the polls released by then (weekly to June, daily after), then each day's own run; the
+// faint dashed line is what the board showed at the time (since 16 Sep). Independent of the slider. Days that modelled a
+// different challenger party are left out.
+const fmtD=d3.timeFormat('%b %-d'),fmtDY=d3.timeFormat('%b %-d, %Y');
+function rhPts(B,T,cur){if(!B||!T)return[];const cps=T[2]||null;return B.dates.map((d,i)=>({d:new Date(d+'T12:00:00'),p:T[0][i]==null?null:T[0][i]/1000,m:T[1][i],cp:cps?cps[i]:'D',src:B.src?B.src[i]:'i'})).filter(x=>x.p!=null&&(!cur||x.cp===cur))}
+function rhNote(){const M=RH.method||{},r=M.reconstructed_from;if(!r)return'One point per day, as each day’s forecast was issued.';
+ return `Reconstructed with the current model, using only polls released by each date (weekly from ${fmtDY(new Date(r+'T12:00:00'))}, daily from ${fmtD(new Date((M.weekly_until||r)+'T12:00:00'))}${M.appended_as_issued_from?`; each day’s own forecast from ${fmtD(new Date(M.appended_as_issued_from+'T12:00:00'))}`:''}). Nominees are today’s throughout, so before a primary the line shows the eventual matchup.`}
 function trend(el,sec,key,dn){if(!RH||!RH[sec])return;const T=RH[sec][key];if(!T)return;
  const cps=T[2]||null,cur=cps?cps.filter(Boolean).pop():'D';
- const all=RH.dates.map((d,i)=>({d:new Date(d+'T12:00:00'),p:T[0][i]==null?null:T[0][i]/1000,m:T[1][i],cp:cps?cps[i]:'D'})).filter(x=>x.p!=null);
- const pts=all.filter(x=>x.cp===cur);if(!pts.length)return;const dropped=all.length-pts.length;
+ const all=rhPts(RH,T,null),pts=all.filter(x=>x.cp===cur);if(!pts.length)return;const dropped=all.length-pts.length;
+ const IB=RH.issued,ipts=IB&&IB[sec]?rhPts(IB,IB[sec][key],cur):[],iby=new Map(ipts.map(q=>[+q.d,q]));
  const box=document.createElement('div');box.className='trend';
  const t0=new Date(RH.start+'T12:00:00'),first=pts[0].d,one=pts.length===1;
- box.innerHTML=`<h4>Chance of winning over time</h4><svg class="rtc" role="img" aria-label="${dn} and Republican chance of winning by day, ${fmtD(first)} to ${fmtD(pts[pts.length-1].d)}"></svg>`+
-  `<p class="mt-note">One point per day, as each day's forecast was issued (at that day's national mood, not the slider's). The daily archive begins 16 Sep 2026${first>t0?`; this race's from ${fmtD(first)}`:''}.${one?' Only one day so far.':''}${dropped?` Earlier days, which modelled a ${cur==='I'?'Democratic':'different'} challenger, are left out.`:''}</p>`;
+ box.innerHTML=`<h4>Chance of winning over time</h4><svg class="rtc" role="img" aria-label="${dn} and Republican chance of winning, reconstructed, ${fmtD(first)} to ${fmtD(pts[pts.length-1].d)}"></svg>`+
+  `<p class="mt-note">${rhNote()} At each day’s national mood, not the slider’s.${ipts.length>1?' Faint dashed lines: as issued on this page at the time, under the methodology of the day.':''}${first>t0?` This race from ${fmtD(first)}.`:''}${one?' Only one day so far.':''}${dropped?` Days that modelled a ${cur==='I'?'Democratic':'different'} challenger are left out.`:''}</p>`;
  el.appendChild(box);
  const W=Math.max(220,Math.round(box.getBoundingClientRect().width)||300),Hh=140,m={l:38,r:40,t:10,b:22},svg=d3.select(box.querySelector('svg')).attr('viewBox',`0 0 ${W} ${Hh}`);   // drawn at the panel's own pixel width so the labels stay 11 px
- const last=pts[pts.length-1].d,x1=new Date(Math.max(+last,+t0+6*864e5));
+ const last=pts[pts.length-1].d,x1=new Date(Math.max(+last,+t0+6*864e5)),long=(x1-t0)>70*864e5;
  const xs=d3.scaleTime().domain([t0,x1]).range([m.l,W-m.r]),ys=d3.scaleLinear().domain([0,1]).range([Hh-m.b,m.t]);
  svg.append('g').attr('class','grid').selectAll('line').data([0,.25,.5,.75,1]).join('line').attr('x1',m.l).attr('x2',W-m.r).attr('y1',ys).attr('y2',ys);
  svg.append('line').attr('x1',m.l).attr('x2',W-m.r).attr('y1',ys(.5)).attr('y2',ys(.5)).attr('stroke','#9a978e').attr('stroke-dasharray','3,3');
- svg.append('g').attr('class','ax').attr('transform',`translate(0,${Hh-m.b})`).call(d3.axisBottom(xs).ticks(d3.timeDay.every(7)).tickFormat(fmtD).tickSizeOuter(0));
+ svg.append('g').attr('class','ax').attr('transform',`translate(0,${Hh-m.b})`).call(d3.axisBottom(xs).ticks(long?d3.timeMonth.every(W<420?2:1):d3.timeDay.every(7)).tickFormat(long?d3.timeFormat('%b'):fmtD).tickSizeOuter(0));
  svg.append('g').attr('class','ax').attr('transform',`translate(${m.l},0)`).call(d3.axisLeft(ys).tickValues([0,.5,1]).tickFormat(v=>(100*v)+'%').tickSizeOuter(0));
  const S=[{f:p=>p,c:'#1f5fbf',t:'#0b3d91',n:dn},{f:p=>1-p,c:'#b3261e',t:'#a32215',n:'Republican'}];
+ if(ipts.length>1)S.forEach(o=>svg.append('path').attr('d',d3.line().x(p=>xs(p.d)).y(p=>ys(o.f(p.p)))(ipts)).attr('fill','none').attr('stroke',o.c).attr('stroke-opacity',.45).attr('stroke-width',1.3).attr('stroke-dasharray','3,2'));
  S.forEach(o=>{if(!one)svg.append('path').attr('d',d3.line().x(p=>xs(p.d)).y(p=>ys(o.f(p.p)))(pts)).attr('fill','none').attr('stroke',o.c).attr('stroke-width',2.2);
   svg.append('g').selectAll('circle').data(pts).join('circle').attr('cx',p=>xs(p.d)).attr('cy',p=>ys(o.f(p.p))).attr('r',one?3.5:(pts.length>30?0:2)).attr('fill',o.c)});
  {const pl=pts[pts.length-1],yd=ys(pl.p),yr=ys(1-pl.p);let a=yd,b=yr;if(Math.abs(a-b)<13){const mid=(a+b)/2,s=a<=b?-1:1;a=mid+s*6.5;b=mid-s*6.5}
@@ -367,22 +373,26 @@ function trend(el,sec,key,dn){if(!RH||!RH[sec])return;const T=RH[sec][key];if(!T
   svg.append('text').attr('class','ev').attr('x',xs(pl.d)+6).attr('y',b+4).style('fill','#a32215').text(pct(1-pl.p))}
  const g=svg.append('g').style('display','none');g.append('line').attr('y1',m.t).attr('y2',Hh-m.b).attr('stroke','#9a978e');
  const cd=g.append('circle').attr('r',3.5).attr('fill','#1f5fbf'),cr=g.append('circle').attr('r',3.5).attr('fill','#b3261e');
- const mv=e=>{const[mx]=d3.pointer(e);const i=d3.bisector(p=>p.d).center(pts,xs.invert(mx)),p=pts[i];g.style('display',null).attr('transform',`translate(${xs(p.d)},0)`);cd.attr('cy',ys(p.p));cr.attr('cy',ys(1-p.p));
-  tipAt(e,`<b>${fmtD(p.d)}</b><br>${dn} ${pct(p.p)}<br>Republican ${pct(1-p.p)}${p.m!=null?`<br>Expected ${mg(p.m)}`:''}`)},
+ const mv=e=>{const[mx]=d3.pointer(e);const i=d3.bisector(p=>p.d).center(pts,xs.invert(mx)),p=pts[i],q=iby.get(+p.d);g.style('display',null).attr('transform',`translate(${xs(p.d)},0)`);cd.attr('cy',ys(p.p));cr.attr('cy',ys(1-p.p));
+  tipAt(e,`<b>${fmtD(p.d)}</b> <span style="opacity:.8">${p.src==='r'?'reconstructed':'as issued'}</span><br>${dn} ${pct(p.p)}<br>Republican ${pct(1-p.p)}${p.m!=null?`<br>Expected ${mg(p.m)}`:''}${q&&p.src==='r'?`<br><span style="opacity:.8">As issued that day: ${dn} ${pct(q.p)}</span>`:''}`)},
   out=()=>{g.style('display','none');$('#tip').style.display='none'};
  svg.append('rect').attr('x',m.l).attr('y',m.t).attr('width',W-m.l-m.r+30).attr('height',Hh-m.t-m.b).attr('fill','transparent').on('pointermove',mv).on('pointerdown',mv).on('pointerleave',out)}
-// National chances as issued each day, under the House and Senate boxes (the boxes themselves follow the slider).
+// National chances over time under the House and Senate boxes (the boxes themselves follow the slider): the reconstruction,
+// with the as-issued values faint.
 let rsz;addEventListener('resize',()=>{clearTimeout(rsz);rsz=setTimeout(()=>{if(RH&&D)for(const k of ['house','senate','gov'])if(SEL[k])panel(k)},200)});
-function histReady(){for(const k of ['house','senate','gov'])if(SEL[k])panel(k);spark('#spH',RH.nat.h,'Democrats win the House');spark('#spS',RH.nat.s,'Democrats control the Senate')}
-function spark(sel,v,name){const el=$(sel);if(!el||!v)return;const pts=RH.dates.map((d,i)=>({d:new Date(d+'T12:00:00'),p:v[i]==null?null:v[i]/1000})).filter(x=>x.p!=null);if(pts.length<2)return;
- el.innerHTML=`<svg viewBox="0 0 92 22" aria-label="${name}, as issued each day since ${fmtD(pts[0].d)}"></svg><span>as issued since ${fmtD(pts[0].d)}</span>`;
- const svg=d3.select(el.querySelector('svg')),xs=d3.scaleTime().domain(d3.extent(pts,p=>p.d)).range([2,90]);let[lo,hi]=d3.extent(pts,p=>p.p);const c=(lo+hi)/2,h=Math.max(hi-lo,.2)/2;
+function histReady(){for(const k of ['house','senate','gov'])if(SEL[k])panel(k);spark('#spH','h','Democrats win the House');spark('#spS','s','Democrats control the Senate')}
+function spark(sel,k,name){const el=$(sel),v=RH.nat&&RH.nat[k];if(!el||!v)return;const pts=RH.dates.map((d,i)=>({d:new Date(d+'T12:00:00'),p:v[i]==null?null:v[i]/1000,src:RH.src?RH.src[i]:'i'})).filter(x=>x.p!=null);if(pts.length<2)return;
+ const IB=RH.issued,iv=IB&&IB.nat&&IB.nat[k],ipts=iv?IB.dates.map((d,i)=>({d:new Date(d+'T12:00:00'),p:iv[i]==null?null:iv[i]/1000})).filter(x=>x.p!=null):[],iby=new Map(ipts.map(q=>[+q.d,q])),rec=!!(RH.method&&RH.method.reconstructed_from);
+ el.innerHTML=`<svg viewBox="0 0 92 22" aria-label="${name}, ${rec?'reconstructed':'as issued'} since ${fmtD(pts[0].d)}"></svg><span>${rec?'reconstructed':'as issued'} since ${fmtD(pts[0].d)}</span>`;
+ const svg=d3.select(el.querySelector('svg')),xs=d3.scaleTime().domain(d3.extent(pts,p=>p.d)).range([2,90]);let[lo,hi]=d3.extent(pts.concat(ipts),p=>p.p);const c=(lo+hi)/2,h=Math.max(hi-lo,.2)/2;
  const ys=d3.scaleLinear().domain([Math.max(0,c-h),Math.min(1,c+h)]).range([20,2]);
  if(ys.domain()[0]<.5&&ys.domain()[1]>.5)svg.append('line').attr('x1',2).attr('x2',90).attr('y1',ys(.5)).attr('y2',ys(.5)).attr('stroke','#c9c6bd').attr('stroke-dasharray','2,2');
+ if(ipts.length>1)svg.append('path').attr('d',d3.line().x(p=>xs(p.d)).y(p=>ys(p.p))(ipts)).attr('fill','none').attr('stroke','#1f5fbf').attr('stroke-opacity',.4).attr('stroke-width',1.1).attr('stroke-dasharray','2,1.5');
  svg.append('path').attr('d',d3.line().x(p=>xs(p.d)).y(p=>ys(p.p))(pts)).attr('fill','none').attr('stroke','#1f5fbf').attr('stroke-width',1.6);
  const pl=pts[pts.length-1];svg.append('circle').attr('cx',xs(pl.d)).attr('cy',ys(pl.p)).attr('r',2.2).attr('fill','#1f5fbf');
  const dot=svg.append('circle').attr('r',2.6).attr('fill','#0b3d91').style('display','none');
- svg.append('rect').attr('width',92).attr('height',22).attr('fill','transparent').on('pointermove pointerdown',e=>{const[mx]=d3.pointer(e);const p=pts[d3.bisector(q=>q.d).center(pts,xs.invert(mx))];dot.style('display',null).attr('cx',xs(p.d)).attr('cy',ys(p.p));tipAt(e,`<b>${fmtD(p.d)}</b><br>${name}: ${pct(p.p)}<br><span style="opacity:.8">as issued that day${sel==='#spS'&&p.d<new Date('2026-09-26T00:00:00')?' (51+ seats; control by the tie rule counted from Sep 26)':''}</span>`)})
+ svg.append('rect').attr('width',92).attr('height',22).attr('fill','transparent').on('pointermove pointerdown',e=>{const[mx]=d3.pointer(e);const p=pts[d3.bisector(q=>q.d).center(pts,xs.invert(mx))],q=iby.get(+p.d);dot.style('display',null).attr('cx',xs(p.d)).attr('cy',ys(p.p));
+  tipAt(e,`<b>${fmtD(p.d)}</b><br>${name}: ${pct(p.p)}<br><span style="opacity:.8">${p.src==='r'?'reconstructed with the current model, using only polls released by that date':'as issued that day'}${q&&p.src==='r'?`<br>as issued that day: ${pct(q.p)}${k==='s'&&p.d<new Date('2026-09-26T00:00:00')?' (51+ seats)':''}`:''}</span>`)})
   .on('pointerleave',()=>{dot.style('display','none');$('#tip').style.display='none'})}
 function bar(p,a,b){return `<div class="pp"><span style="color:var(--dd)">${a} ${pct(p)}</span><span style="color:var(--rd)">${pct(1-p)} ${b}</span></div><div class="pbar" role="img" aria-label="${a} ${pct(p)}, ${b} ${pct(1-p)}"><i style="width:${100*p}%"></i><i style="width:${100*(1-p)}%"></i></div>`}
 
