@@ -97,6 +97,7 @@
     .seg button { padding: 0.36rem 0.55rem; font-size: 0.88rem; }
     .mv-map { height: min(62vh, 560px); }
     .mv-valid { min-width: 0; flex: 1 1 100%; font-size: 0.9rem; }
+    .mv-time input[type=range] { flex: 1 1 5rem; min-width: 5rem; }
   }
 </style>
 </head>
@@ -1121,8 +1122,8 @@
         fmt: function (v) { return v + " m/s"; }, style: function () { return ["rgba(15,15,15,0.85)", 1.2]; } }); }
     if (field === "acc") { var at = ACC_TYPES[st.acc.type], La = new Float32Array(256);
       for (var ca = 0; ca < 256; ca++) La[ca] = ca === 0 ? 0 : accValue(st.acc.type, ca);
-      // a 5 x 5 box only: accumulations at 3 km are speckled by convection, and unsmoothed lines would trace every cell
-      return { rad: 2, rad2: 0, dec: 1, minPts: 30, lut: La, levels: at.levels, values: at.levels,
+      // accumulations at 3 km are speckled by convection: 6 km blocks + ~15 km smoothing, so the lines give the pattern (the fill keeps every cell)
+      return { rad: 2, rad2: 1, dec: 2, minPts: 12, lut: La, levels: at.levels, values: at.levels,
         fmt: function (v) { return v + (st.acc.type === "asnow" ? "″" : " in"); }, style: function () { return ["rgba(15,15,15,0.9)", 1.2]; } }; }
     if (field === "refl") { var pv = range(940, 1066, 2), L2 = new Float32Array(256);
       for (var c = 0; c < 256; c++) L2[c] = c === 255 ? NaN : 940 + 0.5 * c;
