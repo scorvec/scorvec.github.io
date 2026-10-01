@@ -121,7 +121,7 @@ float entrainment_cape(const float pressure[], const float height[],
 ECAPE is **usually below CAPE**, and the gap between them is physically meaningful — it is the buoyancy
 the atmosphere promises but entrainment takes away. The analytic form (Peters et al. 2023) also carries a
 storm-relative inflow term and is not clamped here, so in strongly sheared, vigorous-inflow environments
-the ratio can exceed 1 (see ecape.html and methodology.html).
+the ratio can exceed 1 (see methodology.html; gridded HRRR ECAPE is on models.html, HRRR → ECAPE / CAPE).
 
 ### The flavors
 

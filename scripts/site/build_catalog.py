@@ -100,11 +100,10 @@ PAGES = {
     "/mjo.html": dict(kind="page", topic="drivers", tier=0, prio=2, models=["AIFS-ENS"], horizon="Days 1–15", region=["Tropics"],
                       thumb_manifest=("assets/mjo", "rmm_manifest.json", "mjo", "last"), variable=["Convection"]),
     "/models.html": dict(kind="page", topic="weather", tier=0, prio=4, models=["HRRR", "RRFS", "RDPS"], horizon="Days 1–15",
-                         region=["North America"], variable=["Temperature", "Wind", "Convection"]),
+                         region=["North America"], variable=["Temperature", "Wind", "Convection", "Precipitation"]),
     "/ar.html": dict(kind="stage", file="ar.html", topic="weather", title="Atmospheric rivers", tier=0, prio=6,
                      models=["AIFS-ENS"], horizon="Days 1–15", region=["North America", "Pacific"]),
-    "/ecape.html": dict(kind="stage", file="ecape.html", topic="weather", title="Entraining CAPE", tier=0, prio=7,
-                        models=["HRRR"], horizon="Days 1–15", region=["North America"], no_variants=True),
+    # "/ecape.html" retired 2026-09-30: its ECAPE grids are a field of /models.html
     # "/cities/" paused 2026-09-27 (city forecasts turned off); restore from git history
     "/qbo/": dict(kind="stage", file="qbo/index.html", topic="drivers", title="QBO tracker", tier=0, prio=9,
                   models=["Radiosondes"], horizon="Observed", region=["Tropics"]),
@@ -425,18 +424,6 @@ def rail_items(href: str, cfg: dict) -> list:
     return items
 
 
-def ecape_thumb():
-    """ECAPE: a mid-afternoon frame of the newest cycle's default field (its frames are on the frames branch)."""
-    try:
-        idx = json.loads((REPO / "assets/ecape/anim/index.json").read_text())
-        M = json.loads((REPO / "assets/ecape/anim" / idx["cycles"][0]["manifest"]).read_text())
-        region = M.get("default") or next(iter(M["regions"]))
-        fr = M["regions"][region]["frames"]
-        return thumb_key(f"assets/ecape/anim/{region}/{fr[min(9, len(fr) - 1)]['file']}", True)
-    except Exception:
-        return None
-
-
 def mjo_items() -> list:
     """mjo.html's two sections below the forecast (2026-09-27; the user could not find the impacts): the ENSO-removed
     index, and the impacts composites with a deep link and a figure for every selector combination (field x data x
@@ -529,8 +516,6 @@ def page_items() -> list:
             thumb = None
             if cfg.get("thumb"):
                 thumb = thumb_key(cfg["thumb"], False)
-            elif cfg.get("thumb_ecape"):
-                thumb = ecape_thumb()
             elif cfg.get("thumb_manifest"):
                 base, man, region, which = cfg["thumb_manifest"]
                 try:

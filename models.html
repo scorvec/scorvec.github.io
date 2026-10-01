@@ -139,10 +139,9 @@
           <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g0" aria-current="page"><span class="sh-lf">Short and medium range</span><span class="sh-ls">Short/medium range</span></button>
           <div class="sh-menu sh-menu--list" id="sh-g0">
             <ul>
-              <li><a href="/models.html" aria-current="page">Short-range models</a></li>
+              <li><a href="/models.html" aria-current="page">Short-range model maps</a></li>
               <li><a href="/snowbands.html">Snow-band diagnostics</a></li>
               <li><a href="/ar.html">Atmospheric rivers</a></li>
-              <li><a href="/ecape.html">Entraining CAPE</a></li>
             </ul>
           </div>
         </li>
@@ -1610,7 +1609,7 @@
       n = "<b>" + sub1.label + "</b>: " + sub1.long + ". " + (sub1.kind === "ratio"
         ? "How much of the CAPE an updraft of realistic width keeps once it mixes with its surroundings; low values mean dry air aloft or weak storm-relative inflow eat the buoyancy, values above 1 mean the inflow's kinetic energy more than pays for the mixing. "
         : sub1.files[0].indexOf("ecape") === 0 ? "CAPE an updraft of finite width actually gets once it entrains environmental air (Peters et al. 2023), from the thermodynamic profile and the storm-relative wind. " : "The textbook, undiluted CAPE of the same parcel, for comparison with ECAPE. ") +
-        "Computed with SHARPlib on every column of the HRRR's native levels (1.9 million soundings per hour), hourly to +18 h and 3-hourly to +48 h; stored to within ±√(J/kg)/2.8 (±4 J/kg at 100, ±11 at 1,000, ±20 at 3,000). The same grids drawn as images: <a href=\"/ecape.html\">entraining CAPE page</a>.";
+        "Computed with SHARPlib on every column of the HRRR's native levels (1.9 million soundings per hour), hourly to +18 h and 3-hourly to +48 h; stored to within ±√(J/kg)/2.8 (±4 J/kg at 100, ±11 at 1,000, ±20 at 3,000).";
     }
     $("note").innerHTML = n;
     drawLegend();

@@ -32,8 +32,8 @@ REPO = Path(__file__).resolve().parents[2]
 # topic labels (scripts/site/build_catalog.py TOPICS) - rename both together.
 PRODUCTS = [
     ("Short and medium range", "Days 1 to 15: storms, hazards and the temperature forecast", [
-        ("/models.html", "Short-range models",
-         "The newest HRRR, RRFS and RDPS runs at the model's own resolution, drawn in your browser: simulated infrared, radar with precipitation type and isobars, cloud ceiling, visibility, temperature, dewpoint, smoke, 80 m wind and incoming shortwave, with contours, zoom and hover values.",
+        ("/models.html", "Short-range model maps",
+         "Zoomable maps of the newest HRRR, RRFS and RDPS runs for aviation, severe and winter weather and renewables: radar with precipitation type, accumulation, ceiling, visibility, temperature, dewpoint, wind, HRRR entraining CAPE (ECAPE), smoke and sunshine, with contours and hover values.",
          "Four times daily"),
         ("/snowbands.html", "Snow-band diagnostics",
          "Where HRRR, RRFS and RDPS set up mesoscale snow bands: 700 hPa frontogenesis and deformation, EPV* and slantwise instability, lift through the dendritic growth zone, the model's own bands and where the ingredients overlap. November to mid-April, with case studies against the radar.",
@@ -41,9 +41,8 @@ PRODUCTS = [
         ("/ar.html", "Atmospheric rivers",
          "Integrated vapour transport from the 51-member AIFS ensemble: probability of AR conditions at each 12-hourly step, a West Coast landfall tool and Ralph-scale category odds at named locations.",
          "Twice daily"),
-        ("/ecape.html", "Entraining CAPE",
-         "Gridded ECAPE over the continental US from the 3 km HRRR, hourly to 18 hours and 3-hourly to 48.",
-         "Four times daily"),
+        # /ecape.html RETIRED 2026-09-30 (user: "then we can retire the old page"): the same HRRR ECAPE grids are a field
+        # of /models.html; ecape.html is a redirect stub.
         # /cities/ (city temperature forecasts) PAUSED 2026-09-27 (user: "Turn off the city forecast and verification
         # page for now"); restore this row and the verification row from git history.
     ], "Short/medium range"),
@@ -207,10 +206,7 @@ PAGES = [
     dict(path="gefs.html", mode="site-header"),                    # GEFS extended page (scripts/gefs, gefs.yml), GEPS layout
     dict(path="subseasonal-method.html", mode="site-header"),      # methodology note split out of subseasonal.html; linked from there only, not in PRODUCTS
     dict(path="mjo.html", mode="nav"),
-    dict(path="ecape.html", mode="nav", fixes=[
-        ("padding: 7.5rem 2.5rem 5rem;", "padding: 2.5rem 2.5rem 5rem;"),
-        ("main { padding: 6.5rem 1.2rem 3rem; }", "main { padding: 1.5rem 1.2rem 3rem; }"),
-    ]),
+    # ecape.html: retired 2026-09-30, now a redirect stub to models.html#hrrr/ecape (no chrome)
     dict(path="aifs-verify.html", mode="nav", fixes=[
         ("padding: 7.2rem 2.5rem 5rem;", "padding: 2.5rem 2.5rem 5rem;"),
         ("main { padding: 6.3rem 1rem 3rem; max-width: 100%; }", "main { padding: 1.5rem 1rem 3rem; max-width: 100%; }"),
