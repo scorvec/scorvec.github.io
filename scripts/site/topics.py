@@ -83,7 +83,8 @@ The same wave drag, integrated, drives the Brewer–Dobson circulation.</li>
 NOAA GEFS ensemble (the control and 30 perturbed members, 31 pressure levels from 1000 up to 1 hPa) and stepped through
 the 15-day forecast. The flux is quadratic in the wave amplitude, so it is computed for each member and then averaged;
 the flux of the ensemble-mean fields would fade with lead time as the members' wave phases drift apart. The
-quasi-geostrophic form is used with a global-mean static stability and vertical derivatives in ln p; the 1–2 hPa layer,
+quasi-geostrophic form is used with the zonal-mean static stability and vertical derivatives in ln p; levels below
+the ground on more than 10% of a latitude circle are masked (grey); the 1–2 hPa layer,
 where the derivative is one-sided, is hatched, and latitudes poleward of 82° are masked. It is recomputed every 00 and
 12 UTC cycle.</p>
 """,

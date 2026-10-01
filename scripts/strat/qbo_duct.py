@@ -14,9 +14,24 @@ assets/sst/anim/epflux_gefs/F##.webp (+ epflux_gefs_manifest.json)
     Measured 2026-09-30: 93 messages, ~17 MB per member-step, ~8.4 GB per cycle for 31 members x 16 daily steps.
 
 THE MATHS (quasi-geostrophic, pressure coordinates; Edmon, Hoskins and McIntyre 1980; Andrews, Holton and Leovy 1987)
-    F_phi = -a cos(phi) [u'v']             F_p = a cos(phi) f [v'theta'] / theta_p
+    F_phi = -a cos(phi) [u'v']             F_p = a cos(phi) f [v'theta'] / [theta]_p
     div F = 1/(a cos phi) d(F_phi cos phi)/d phi + dF_p/dp,      zonal force = div F / (a cos phi)  (m/s/day)
-  * theta_p is the global-mean (cos-weighted) static stability, a profile in p only.
+  * [theta]_p is the ZONAL-MEAN static stability (phi, p) since 2026-10-01 (EPFLUX_THETA_P=global restores the global
+    mean, a profile in p only). Reason: above the polar tropopause (250-300 hPa poleward of ~70 deg) the global mean
+    carries TROPOSPHERIC stability, 3-4x too small, which inflated F_p and its p-derivative there; and against the GEOS FP
+    analysis budget (momentum_budget.py, primitive-equation EP divergence, 2026-09-26 daily mean, 100-2 hPa, 40-80 deg)
+    the pattern correlation rose SH 0.83 -> 0.87, NH 0.69 -> 0.81.
+  * Below ground: GEFS fills levels under the surface by extrapolation. PRES:surface (pgrb2a, ~0.25 MB per member-step)
+    gives each member's share of below-ground longitudes per (lat, level); where the member mean exceeds BG_FRAC = 0.10
+    the eddy fluxes are NaN before any derivative (so the level just above, whose centred difference would reach into
+    extrapolated data, goes too) and the region is drawn grey: Antarctica (plateau 600-750 hPa), Greenland, the Andes,
+    Tibet.
+  * Poles: no extra smoothing. The divergence is not singular (u'v' -> 0 at the pole and the merid. term reduces to
+    -(1/(a cos^2)) d(cos^2 [u'v'])/dphi); against GEOS FP the 75-82 deg band means agree in the stratosphere (e.g. SH
+    1-2 hPa 75-82S +5..+10 GEFS vs +12..+17 GEOS FP m/s/day). Large day-0 values at the polar tropopause are a single
+    near-deterministic snapshot of a high-latitude trough (k1-3 [u'v'] ~ -150 m2/s2 at 75-78N 250 hPa on 2026-10-01
+    12Z); by day 5 the member average brings them to a few m/s/day. Mask stays at 82 deg; smoothing is NaN-aware and the
+    polar rows are blanked BEFORE it, so nothing leaks in from the pole.
   * Eddies are zonal wavenumbers 1-3 (FFT along longitude), or all wavenumbers with --waves all.
   * Ensemble: the flux is quadratic in the eddies, so the per-member quadratics are averaged; the flux of the
     ensemble mean would fade with lead as the members decorrelate.
@@ -104,11 +119,28 @@ def _quadratics(u, v, t, lev):
             u.mean(axis=-1).mean(axis=0)]
 
 
+def _nan_smooth_lat(f, sigma_pts):
+    """Gaussian along latitude that ignores NaN (normalised convolution); NaN stays NaN."""
+    ok = np.isfinite(f)
+    num = ndi.gaussian_filter1d(np.where(ok, f, 0.0), sigma_pts, axis=1, mode="nearest")
+    den = ndi.gaussian_filter1d(ok.astype(float), sigma_pts, axis=1, mode="nearest")
+    with np.errstate(invalid="ignore", divide="ignore"):
+        out = num / den
+    out[~ok] = np.nan
+    return out
+
+
+BG_FRAC = 0.10           # a (lat, level) is below ground when more than this share of its longitudes is
+THETA_P = os.environ.get("EPFLUX_THETA_P", "zonal")       # "zonal" (local [theta]_p, default since 2026-10-01) | "global"
+
+
 def _finish(acc, levs_seen, lat, steps):
-    """Accumulated quadratics -> {step: (levs, p_pa, U, force, Fphi, Fp, th_prof)}, member count.
+    """Accumulated quadratics -> {step: (levs, p_pa, U, force, Fphi, Fp, th_prof, below)}, member count.
 
     Levels ascend in pressure (top first). Vertical derivatives in ln p on the actual coordinate; latitude-only
-    smoothing in degrees; the top level is one-sided (hatched by the renderer)."""
+    smoothing in degrees (NaN-aware); the top level is one-sided (hatched by the renderer). Where the ensemble-mean
+    share of below-ground longitudes exceeds BG_FRAC the eddy fluxes are set to NaN before any derivative, so the
+    mask also blanks the level just above (its centred difference would reach into extrapolated data)."""
     latr = np.deg2rad(lat)
     cosp = np.cos(latr)[None, :]
     f_cor = 2 * OMEGA * np.sin(latr)[None, :]
@@ -123,21 +155,29 @@ def _finish(acc, levs_seen, lat, steps):
         VTH = np.stack([acc[(sh, l)][2] for l in levs])
         TH = np.stack([acc[(sh, l)][3] for l in levs])
         U = np.stack([acc[(sh, l)][4] for l in levs])
+        below = (np.stack([acc[(sh, l)][5] for l in levs]) if len(acc[(sh, levs[0])]) > 5
+                 else np.zeros_like(U))
         nmem = acc[(sh, levs[0])][0]
         p = levs * 100.0
         lnp = np.log(p)
         th_prof = (TH * w[None, :]).sum(axis=1) / w.sum()
-        dthdp = (np.gradient(th_prof, lnp) / p)[:, None]          # theta_p = (1/p) dtheta/dln p
+        if THETA_P == "zonal":
+            dthdp = np.gradient(TH, lnp, axis=0) / p[:, None]
+        else:
+            dthdp = (np.gradient(th_prof, lnp) / p)[:, None]       # theta_p = (1/p) dtheta/dln p
         dthdp = np.where(dthdp > -5e-5, -5e-5, dthdp)              # never neutral or unstable
+        bg = below > BG_FRAC
+        UV = np.where(bg, np.nan, UV)
+        VTH = np.where(bg, np.nan, VTH)
         Fphi = -A * cosp * UV
         Fp = A * cosp * f_cor * VTH / dthdp
         cosp_safe = np.clip(cosp, np.cos(np.deg2rad(85.0)), None)
         dFphi = np.gradient(Fphi * cosp, latr, axis=1) / (A * cosp_safe)
         dFp = np.gradient(Fp, lnp, axis=0) / p[:, None]           # dF_p/dp = (1/p) dF_p/dln p
         force = (dFphi + dFp) / (A * cosp_safe) * 86400.0
-        force = ndi.gaussian_filter1d(force, SMOOTH_DEG / dlat, axis=1, mode="nearest")
-        force[:, np.abs(lat) > POLE_MASK] = np.nan
-        out[sh] = (levs, p[:, None], U, force, Fphi, Fp, th_prof)
+        force[:, np.abs(lat) > POLE_MASK] = np.nan                 # before smoothing: nothing leaks in from the pole
+        force = _nan_smooth_lat(force, SMOOTH_DEG / dlat)
+        out[sh] = (levs, p[:, None], U, force, Fphi, Fp, th_prof, below)
     return out, nmem
 
 
@@ -197,14 +237,17 @@ def gefs_url(date, hh, mem, kind, h):
 
 
 def _gefs_index(url):
-    """[(start, end, var, level hPa)] for u/v/T on isobaric levels; end -1 = to EOF."""
+    """[(start, end, var, level hPa)] for u/v/T on isobaric levels, plus (.., "PRES", "sfc") for surface pressure;
+    end -1 = to EOF."""
     lines = [l.split(":") for l in _get(url + ".idx").decode().splitlines() if l.strip()]
     out = []
     for i, p in enumerate(lines):
         m = _MB.match(p[4])
+        end = int(lines[i + 1][1]) - 1 if i + 1 < len(lines) else -1
         if p[3] in ("UGRD", "VGRD", "TMP") and m:
-            end = int(lines[i + 1][1]) - 1 if i + 1 < len(lines) else -1
             out.append((int(p[1]), end, p[3], float(m.group(1))))
+        elif p[3] == "PRES" and p[4] == "surface":          # pgrb2a: for the below-ground mask
+            out.append((int(p[1]), end, "PRES", "sfc"))
     return out
 
 
@@ -252,9 +295,13 @@ def _gefs_job(job):
                         lat = np.linspace(90.0, -90.0, nj)
                     fields.setdefault(lev, {})[var] = v
     out = {}
+    ps = fields.get("sfc", {}).get("PRES")
     for lev, d in fields.items():
-        if len(d) == 3:
-            out[lev] = _quadratics(d["UGRD"][None], d["VGRD"][None], d["TMP"][None], lev)
+        if lev != "sfc" and len(d) == 3:
+            q = _quadratics(d["UGRD"][None], d["VGRD"][None], d["TMP"][None], lev)
+            # share of longitudes where this level is below this member's ground (GEFS extrapolates there)
+            q.append((ps < lev * 100.0).mean(axis=-1) if ps is not None else np.zeros(d["UGRD"].shape[0]))
+            out[lev] = q
     return h, mem, lat, out, nbytes
 
 
@@ -303,9 +350,9 @@ def compute_epflux_gefs(date, hh, steps, procs=None, members=None):
                 lat = la
             nbytes += nb
             for lev, q in per.items():
-                s = sums.setdefault((h, lev), [0, 0.0, 0.0, 0.0, 0.0])
+                s = sums.setdefault((h, lev), [0, 0.0, 0.0, 0.0, 0.0, 0.0])
                 s[0] += 1
-                for i in range(1, 5):
+                for i in range(1, 6):
                     s[i] = s[i] + q[i]
                 levs_seen.add(lev)
             done_by_step[h] = done_by_step.get(h, 0) + 1
@@ -349,7 +396,8 @@ def edmon_arrows(Fphi, Fp, levs, lat, xspan_deg=180.0):
 
 def render_frame(fields, lat, out, title, footer, xlim=(-90.0, 90.0)):
     from matplotlib.colors import BoundaryNorm
-    levs, p_pa, U, force, Fphi, Fp, th_prof = fields
+    levs, p_pa, U, force, Fphi, Fp, th_prof = fields[:7]
+    below = fields[7] if len(fields) > 7 else np.zeros_like(U)
     fig = plt.figure(figsize=(12.0, 7.0))
     ax = fig.add_axes([0.065, 0.115, 0.80, 0.79])
     cax = fig.add_axes([0.885, 0.115, 0.017, 0.79])
@@ -357,7 +405,12 @@ def render_frame(fields, lat, out, title, footer, xlim=(-90.0, 90.0)):
     norm = BoundaryNorm(FILL_LEVELS, cmap.N, extend="both")
     cf = ax.contourf(lat, levs, force, levels=FILL_LEVELS, cmap=cmap, norm=norm, extend="both")
     ul = [l for l in range(-150, 151, 10) if l]
+    # grey: below ground, plus the levels just above it that the mask blanked through the centred differences
+    bgm = (below > BG_FRAC) | (np.isnan(force) & (levs >= 500)[:, None] & (np.abs(lat) <= POLE_MASK)[None, :])
     U = np.where(np.abs(lat)[None, :] > 86.0, np.nan, U)           # no contour squiggles at the pole rows
+    U = np.where(bgm, np.nan, U)
+    if bgm.any():                                                    # below ground (GEFS surface pressure)
+        ax.contourf(lat, levs, bgm.astype(float), levels=[0.5, 1.5], colors=["#c9c9c9"], zorder=2)
     ax.contour(lat, levs, U, levels=ul, colors="#404040", linewidths=0.6)
     ax.contour(lat, levs, U, levels=[0.0], colors="#000000", linewidths=1.8)
     cd = cd_ceiling_excess(U, lat, levs, th_prof)
@@ -438,7 +491,7 @@ def render_epflux(by_step, nmem, lat, S, base, model="gefs", waves="1-3"):
         title = (f"GEFS ensemble ({nmem} members) · E–P flux & wave driving, {wtxt} · "
                  f"day {s // 24} · valid {valid:%a %b %d %HZ}")
         footer = (f"NOAA GEFS 0.5\u00b0 (public domain), init {base:%Y-%m-%d %HZ}, 31 levels 1000\u20131 hPa, per-member "
-                  "fluxes averaged \u00b7 QG E\u2013P flux, global-mean static stability, \u2202/\u2202p in ln p\n"
+                  "fluxes averaged \u00b7 QG E\u2013P flux, zonal-mean static stability, \u2202/\u2202p in ln p, grey: below ground\n"
                   "arrows: Edmon et al. (1980) log-p scaling \u00d7 1000 hPa/p, one fixed scale (red = capped) \u00b7 "
                   "dashed magenta: \u016b = U_c (wave-1 Charney\u2013Drazin) \u00b7 hatched: one-sided at 1 hPa "
                   "\u00b7 >82\u00b0 masked")

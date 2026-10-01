@@ -244,12 +244,24 @@
         levels, GEFS and AIFS-ENS agree: on the 30 September analysis their [v&prime;&theta;&prime;] at 40&ndash;80&deg;
         correlates at 0.98&ndash;1.00 with amplitudes within 10&nbsp;%.</p>
 <p><b>How it is computed.</b> F<sub>&phi;</sub>&nbsp;=&nbsp;&minus;a&nbsp;cos&phi;&nbsp;[u&prime;v&prime;] and
-        F<sub>p</sub>&nbsp;=&nbsp;a&nbsp;cos&phi;&nbsp;f&nbsp;[v&prime;&theta;&prime;]/&theta;<sub>p</sub>, with a
-        global-mean static stability &theta;<sub>p</sub>; the eddies are zonal wavenumbers 1&ndash;3. Vertical
+        F<sub>p</sub>&nbsp;=&nbsp;a&nbsp;cos&phi;&nbsp;f&nbsp;[v&prime;&theta;&prime;]/[&theta;]<sub>p</sub>, with the
+        zonal-mean static stability [&theta;]<sub>p</sub> at each latitude and level; the eddies are zonal wavenumbers 1&ndash;3. Vertical
         derivatives are taken in ln&nbsp;p on the actual levels; the divergence is smoothed along latitude only
         (2.5&deg;), never across levels. The shading is the divergence as a force on the zonal-mean wind
         (purple: waves decelerating the westerlies). At the top level, 1&nbsp;hPa, the derivative is one-sided, so
         the 1&ndash;2&nbsp;hPa layer is hatched. Latitudes poleward of 82&deg; are masked.</p>
+<p><b>Checked 1 October 2026.</b> Grey marks levels that lie <b>below the ground</b> on more than 10&nbsp;% of a
+        latitude circle (Antarctica, Greenland, the Andes, Tibet), from each member&rsquo;s surface pressure: the model
+        fills those levels by extrapolation, and the fluxes there were producing saturated bands near the surface.
+        Since the same day the static stability is the zonal mean rather than one global profile, which had
+        under-stated the stability above the polar tropopause. On 26 September the stratospheric pattern
+        (100&ndash;2&nbsp;hPa, 40&ndash;80&deg;) matched the GEOS-FP analysis momentum budget at a pattern correlation
+        of 0.87 in the south and 0.81 in the north. The many purple areas are real: in southern spring the planetary
+        waves drag on the westerlies over most of the extratropical stratosphere. In the MERRA-2 climatology for late
+        September, 80&nbsp;% of that region is convergent; in the GEOS-FP analysis of 26 September, 47&nbsp;%;
+        in the GEFS loop, 50&nbsp;%. Single frames near the poles can be large because a strong high-latitude trough
+        is a real wave-1 eddy: on 1 October the AIFS-ENS analysis has the same [u&prime;v&prime;], about
+        &minus;160&nbsp;m&sup2;/s&sup2; at 75&ndash;78&deg;N and 250&nbsp;hPa.</p>
 <p><b>The arrows</b> use the Edmon, Hoskins and McIntyre (1980) display scaling written for a logarithmic pressure
         axis (Jucker 2021), multiplied by 1000&nbsp;hPa/p so the stratosphere is legible. The factor leaves every
         direction exact but grows with height, so compare arrow lengths along a level, and read the convergence from
@@ -259,7 +271,7 @@
         velocity: wave 1 propagates upward only where 0&nbsp;&lt;&nbsp;&#363;&nbsp;&lt;&nbsp;U<sub>c</sub>.</p>
 <p class="chart-sources">NOAA GEFS (Global Ensemble Forecast System), control + 30 perturbed members, 0.5&deg;, u, v and
         T at 31 levels 1000&ndash;1&nbsp;hPa from NOAA&rsquo;s open data on AWS (noaa-gefs-pds; public domain) &middot;
-        per-member fluxes averaged &middot; QG E&ndash;P flux, wavenumbers 1&ndash;3, global-mean static stability
+        per-member fluxes averaged &middot; QG E&ndash;P flux, wavenumbers 1&ndash;3, zonal-mean static stability, below-ground levels masked from surface pressure
         &middot; analysis plus daily steps to day&nbsp;15 &middot; updated each 00/12Z cycle</p>
 </template>
 <template id="about-qbozl">
