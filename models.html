@@ -3,12 +3,12 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Short-Range Models &mdash; HRRR, RRFS and RDPS at Full Resolution &middot; Shawn Corvec</title>
-<meta name="description" content="The newest HRRR, RRFS and RDPS runs drawn in your browser at the model's native resolution: simulated infrared satellite, simulated radar with precipitation type, cloud ceiling, visibility, 2 m temperature and dewpoint, vertically integrated smoke, 80 m wind and incoming shortwave, with contours, zoom and hover values.">
+<title>Short-Range Model Maps: HRRR, RRFS and RDPS &middot; Shawn Corvec</title>
+<meta name="description" content="Zoomable maps of the newest HRRR, RRFS and RDPS forecasts for aviation, severe weather, winter weather and renewables: radar and precipitation type, accumulation, cloud ceiling, visibility, temperature, dewpoint, wind, ECAPE and CAPE, smoke and sunshine. Updated four times a day; hover anywhere for the model's value.">
 <link rel="canonical" href="https://scorvec.com/models.html">
 <meta property="og:type" content="website">
-<meta property="og:title" content="Short-range models: HRRR, RRFS and RDPS at full resolution">
-<meta property="og:description" content="Simulated IR, ceiling, visibility, temperature, dewpoint, smoke, 80 m wind and shortwave from every HRRR, RRFS and RDPS run, drawn at native resolution with hover values.">
+<meta property="og:title" content="Short-range model maps: HRRR, RRFS and RDPS">
+<meta property="og:description" content="Zoomable maps of the newest HRRR, RRFS and RDPS runs: radar and precipitation type, clouds and visibility, temperature, wind, ECAPE, smoke and sunshine, with hover values.">
 <meta property="og:url" content="https://scorvec.com/models.html">
 <meta property="og:site_name" content="Shawn Corvec &mdash; Weather &amp; Climate Monitors">
 <meta name="twitter:card" content="summary">
@@ -44,7 +44,17 @@
   .seg button[aria-pressed="true"] { background: var(--accent); color: #fff; }
   .seg button:disabled { color: #8a8f8a; cursor: not-allowed; background: repeating-linear-gradient(135deg, transparent 0 5px, rgba(0,0,0,0.035) 5px 10px); }
   .seg button:not(:disabled):not([aria-pressed="true"]):hover { background: var(--accent-soft); }
-  .mv-fields { flex: 1 1 100%; }
+  .mv-fields { flex: 1 1 100%; display: flex; flex-wrap: wrap; gap: 0.35rem 0.8rem; align-items: flex-end; }
+  .mv-grp { display: flex; flex-direction: column; gap: 0.15rem; }
+  .mv-grp > span { font-size: 0.74rem; letter-spacing: 0.05em; text-transform: uppercase; color: var(--muted); padding-left: 2px; }
+  .seg button small { font-size: 0.78em; opacity: 0.8; margin-left: 0.25em; }
+  .runsel.mv-fsel { display: none; }
+  .mv-row { display: flex; flex-wrap: wrap; align-items: center; gap: 0.45rem 0.9rem; flex: 1 1 100%; }
+  .mv-show { display: flex; flex-wrap: wrap; align-items: center; gap: 0.3rem 1rem; margin: 0.35rem 0 0; font-size: 0.92rem; color: var(--ink2); }
+  .mv-show > b { font-weight: 600; color: var(--ink); }
+  .mv-keys { margin-left: auto; font-size: 0.82rem; color: var(--muted); }
+  .mv-keys kbd { font: inherit; font-size: 0.78rem; border: 1px solid var(--rule); border-bottom-width: 2px; border-radius: 4px; padding: 0 0.3em; background: var(--panel); }
+  .mv-legT { margin: 0.1rem 0 0; font-size: 0.85rem; color: var(--muted); }
   .mv-acc { display: flex; flex-wrap: wrap; gap: 0.45rem 0.9rem; align-items: center; flex: 1 1 100%; }
   .mv-acc[hidden] { display: none; }
   .runsel { display: inline-flex; align-items: center; gap: 0.4rem; font-size: 0.92rem; color: var(--ink2); }
@@ -52,7 +62,7 @@
   .chk[hidden] { display: none; }
   .chk { display: inline-flex; align-items: center; gap: 0.35rem; font-size: 0.92rem; color: var(--ink2); cursor: pointer; user-select: none; }
 
-  .mv-map { position: relative; width: 100%; height: clamp(340px, calc(100vh - 290px), 880px); background: var(--map); border: 1px solid var(--rule);
+  .mv-map { position: relative; width: 100%; height: clamp(340px, calc(100vh - 230px), 880px); background: var(--map); border: 1px solid var(--rule);
             border-radius: 8px; overflow: hidden; touch-action: none; cursor: grab; }
   .mv-map.drag { cursor: grabbing; }
   .mv-map canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
@@ -78,15 +88,19 @@
   .mv-time button { font: inherit; font-size: 0.95rem; min-width: 2.3rem; height: 2.1rem; border: 1px solid var(--rule); border-radius: 6px; background: var(--panel);
                     color: var(--ink); cursor: pointer; }
   .mv-time input[type=range] { flex: 1 1 14rem; min-width: 10rem; accent-color: var(--accent); height: 2rem; }
-  .mv-valid { font-size: 0.95rem; color: var(--ink); min-width: 15rem; }
-  .mv-valid .loc { color: var(--muted); }
+  .mv-valid { font-size: 0.95rem; color: var(--ink); min-width: 15rem; line-height: 1.3; }
+  .mv-valid .vt { font-size: 1.12rem; font-weight: 600; }
+  .mv-valid .loc { color: var(--ink2); }
+  .mv-valid .fh { display: inline-block; margin-left: 0.35rem; padding: 0 0.4rem; border-radius: 4px; background: var(--accent-soft); color: var(--accent); font-weight: 600; font-size: 0.9rem; }
   .mv-legend { margin: 0.3rem 0 0; }
-  .mv-legend canvas { width: 100%; height: 46px; display: block; }
+  .mv-legend canvas { width: 100%; height: 38px; display: block; }
   .mv-note { margin: 0.5rem 0 0; padding: 0.55rem 0.8rem; background: var(--panel); border: 1px solid var(--rule); border-left: 4px solid var(--accent);
              border-radius: 4px; font-size: 0.93rem; color: var(--ink2); max-width: 80rem; }
   .mv-note:empty { display: none; }
   .mv-note b { color: var(--ink); font-weight: 600; }
-  .mv-about { max-width: 80rem; color: var(--ink2); font-size: 0.97rem; }
+  .mv-about { max-width: 80rem; color: var(--ink2); font-size: 0.97rem; margin-top: 1.4rem; border-top: 1px solid var(--rule); padding-top: 0.6rem; }
+  .mv-about > summary { cursor: pointer; font-family: var(--serif); font-size: 1.25rem; color: var(--ink); padding: 0.3rem 0; }
+  .mv-about h2 { font-size: 1.12rem; margin: 1.1rem 0 0.4rem; }
   .mv-about table { border-collapse: collapse; width: 100%; font-size: 0.9rem; margin: 0.4rem 0 0.8rem; background: var(--panel); }
   .mv-about th, .mv-about td { border: 1px solid var(--rule); padding: 0.35rem 0.5rem; text-align: left; vertical-align: top; }
   .mv-about th { background: #eef1ec; font-weight: 600; color: var(--ink); }
@@ -94,10 +108,21 @@
   .mv-about .tbl { overflow-x: auto; }
   .mv-runs { font-size: 0.88rem; color: var(--muted); margin: 0.2rem 0 0; }
   @media (max-width: 640px) {
+    main.mv { padding-top: 0.6rem; }
+    h1 { font-size: 1.45rem; margin: 0.1rem 0 0.25rem; }
+    .mv-lede { font-size: 0.93rem; margin-bottom: 0.6rem; }
     .seg button { padding: 0.36rem 0.55rem; font-size: 0.88rem; }
-    .mv-map { height: min(62vh, 560px); }
-    .mv-valid { min-width: 0; flex: 1 1 100%; font-size: 0.9rem; }
+    .mv-fields { display: none; }
+    .runsel.mv-fsel { display: inline-flex; flex: 1 1 12rem; }
+    .mv-fsel select { flex: 1 1 auto; min-width: 0; }
+    .mv-map { height: clamp(300px, calc(100svh - 215px), 640px); }
+    .mv-time { position: sticky; bottom: 0; z-index: 5; background: var(--bg); margin: 0; padding: 0.35rem 0 0.25rem; }
+    .mv-valid { min-width: 0; flex: 1 1 100%; font-size: 0.88rem; order: -1; }
+    .mv-valid .vt { font-size: 1rem; }
     .mv-time input[type=range] { flex: 1 1 5rem; min-width: 5rem; }
+    .mv-keys { display: none; }
+    .kicker { display: none; }
+    .mv-badge { font-size: 0.78rem; padding: 0.2rem 0.45rem; }
   }
 </style>
 </head>
@@ -225,17 +250,17 @@
 </header>
 <!-- sh:end -->
 <main class="mv">
-  <p class="kicker">Newest run &middot; HRRR, RRFS and RDPS four times a day &middot; <a href="/ecape.html" style="color:inherit">ECAPE</a> &middot; <a href="/snowbands.html" style="color:inherit">snow bands</a></p>
-  <h1>Short-range models</h1>
-  <p class="mv-lede">The HRRR, RRFS and RDPS drawn in your browser at each model's own grid spacing (3&nbsp;km, 3&nbsp;km and 10&nbsp;km): simulated infrared, simulated radar with precipitation type and isobars, cloud ceiling, visibility, 2&nbsp;m temperature and dewpoint, vertically integrated smoke, 80&nbsp;m wind and incoming shortwave, with labelled contours. Scroll or pinch to zoom, drag to pan, and hover (or tap) for the model's value.</p>
+  <p class="kicker">Newest run of each model &middot; updated four times a day</p>
+  <h1>Short-range model maps</h1>
+  <p class="mv-lede">Zoomable maps of the newest HRRR, RRFS and RDPS forecasts, out to two to three and a half days, for aviation, severe and winter weather, and wind and solar power. Pick a map, scrub through the hours, and hover or tap anywhere for the model's value.</p>
 
   <div class="mv-bar">
-    <div class="seg" id="models" role="group" aria-label="Model"></div>
-    <label class="runsel">Run <select id="run" aria-label="Model run"></select><span id="runT"></span></label>
-    <label class="chk" id="contL" hidden title="Labelled contours drawn from the same data (isotherms, flight-category thresholds, isobars)"><input type="checkbox" id="cont" checked> Contours</label>
-    <label class="chk" title="Airports with scheduled service in the US and Canada (OurAirports); hover or tap one for the model's value there"><input type="checkbox" id="sta" checked> Airports</label>
-    <label class="chk" id="farmsL" hidden title="US wind projects (USGS Wind Turbine Database) or large-scale solar plants (USGS Solar PV Database), sized by capacity"><input type="checkbox" id="farms" checked> <span id="farmsT">Wind farms</span></label>
-    <div class="seg mv-fields" id="fields" role="group" aria-label="Field"></div>
+    <div class="mv-row">
+      <div class="seg" id="models" role="group" aria-label="Model"></div>
+      <label class="runsel">Run <select id="run" aria-label="Model run"></select><span id="runT"></span></label>
+      <label class="runsel mv-fsel">Map <select id="fieldSel" aria-label="Map"></select></label>
+    </div>
+    <div class="mv-fields" id="fields" role="group" aria-label="Map"></div>
     <div class="mv-acc" id="accBar" hidden>
       <div class="seg" id="accType" role="group" aria-label="Precipitation type"></div>
       <label class="runsel">Window <select id="accWin" aria-label="Accumulation window"></select></label>
@@ -257,14 +282,21 @@
     <button type="button" id="back" aria-label="Previous hour">&lsaquo;</button>
     <input type="range" id="hour" min="0" max="18" value="0" aria-label="Forecast hour">
     <button type="button" id="fwd" aria-label="Next hour">&rsaquo;</button>
-    <span class="mv-valid" id="valid"></span>
+    <span class="mv-valid" id="valid" aria-live="polite"></span>
   </div>
-  <div class="mv-legend"><canvas id="leg" aria-label="Colour scale"></canvas></div>
+  <div class="mv-legend"><canvas id="leg" aria-label="Colour scale"></canvas><p class="mv-legT" id="legT"></p></div>
+  <div class="mv-show"><b>Show</b>
+    <label class="chk" id="contL" hidden title="Labelled contours drawn from the same data (isotherms, flight-category thresholds, isobars, CAPE)"><input type="checkbox" id="cont" checked> Contours</label>
+    <label class="chk" title="Airports with scheduled service in the US and Canada (OurAirports); hover or tap one for the model's value there"><input type="checkbox" id="sta" checked> Airports</label>
+    <label class="chk" id="farmsL" hidden title="US wind projects (USGS Wind Turbine Database) or large-scale solar plants (USGS Solar PV Database), sized by capacity"><input type="checkbox" id="farms" checked> <span id="farmsT">Wind farms</span></label>
+    <span class="mv-keys">Keys: <kbd>&larr;</kbd> <kbd>&rarr;</kbd> change hour &middot; <kbd>Space</kbd> play or pause &middot; scroll to zoom, drag to pan</span>
+  </div>
   <p class="mv-note" id="note"></p>
-  <p class="mv-runs" id="runs"></p>
 
-  <section class="mv-about">
-    <h2>What each field is, model by model</h2>
+  <details class="mv-about">
+    <summary>About these maps: fields, models, timing and methods</summary>
+    <p class="mv-runs" id="runs"></p>
+    <h2>What each map is, model by model</h2>
     <div class="tbl"><table>
       <tr><th>Field</th><th>HRRR (NOAA, 3 km)</th><th>RRFS (NOAA, 3 km)</th><th>RDPS (ECCC, 10 km)</th></tr>
       <tr><td>Simulated IR</td><td>Brightness temperature a GOES-East 10.3&nbsp;&micro;m imager would see (UPP field SBT124)</td><td>GOES-16 ABI band 13, 10.3&nbsp;&micro;m (SBTA1613)</td><td>No simulated band exists in the RDPS output. Shown instead: the <b>OLR-derived brightness temperature</b>, T<sub>b</sub>&nbsp;=&nbsp;(OLR/&sigma;)<sup>&frac14;</sup>, from the instantaneous outgoing longwave radiation at the top of the atmosphere. It is a proxy for IR, not a satellite band: it integrates the whole longwave spectrum, so clear skies read 20&ndash;30&nbsp;K colder than a window channel, while cloud tops come out close.</td></tr>
@@ -275,6 +307,7 @@
       <tr><td>2&nbsp;m temperature, dewpoint</td><td colspan="3">In &deg;F, stored to 0.5&nbsp;&deg;F</td></tr>
       <tr><td>Smoke</td><td>Vertically integrated smoke (column mass density, COLMD), mg&nbsp;m<sup>&minus;2</sup></td><td>RRFS-SD column smoke (organic particulate matter, COLMD), mg&nbsp;m<sup>&minus;2</sup></td><td>From ECCC's <b>RAQDPS-FireWork</b> air-quality run (wildfire-smoke PM2.5 column), 00 and 12&nbsp;UTC to 72&nbsp;h; a 06 or 18&nbsp;UTC RDPS run shows the FireWork run 6&nbsp;h older, matched on valid time</td></tr>
       <tr><td>80&nbsp;m wind</td><td colspan="3">Speed shaded, wind barbs in knots (half barb 5, full 10, pennant 50), from the model's u and v at 80&nbsp;m above ground</td></tr>
+      <tr><td>ECAPE and CAPE</td><td>Entraining CAPE (Peters et al. 2023) and the undiluted CAPE for the most-unstable and mixed-layer parcels, computed with SHARPlib on every column of the HRRR's native levels, hourly to 18&nbsp;h and every 3 hours to 48&nbsp;h; the ECAPE/CAPE ratio is shown where CAPE exceeds 100&nbsp;J/kg</td><td class="na" colspan="2">Computed for the HRRR only</td></tr>
       <tr><td>Incoming shortwave</td><td>Downward shortwave at the surface, instantaneous at the valid time</td><td>As HRRR (instantaneous)</td><td>Mean over the hour ending at the valid time (the difference of the model's accumulated flux)</td></tr>
     </table></div>
     <h2>Runs and timing</h2>
@@ -282,9 +315,9 @@
     <p>Wind and solar plants (shown on the 80&nbsp;m wind and shortwave maps; at national scale only the larger ones): the <a href="https://energy.usgs.gov/uswtdb/">U.S. Wind Turbine Database</a> v8.3 (USGS, LBNL and ACP; turbines grouped into projects) and the <a href="https://energy.usgs.gov/uspvdb/">U.S. Large-Scale Solar PV Database</a> v4.0 (USGS and LBNL), both public domain. Circles and squares scale with capacity; hover for name, capacity and year.</p>
     <p>HRRR: the 00, 06, 12 and 18&nbsp;UTC runs, every hour to 48&nbsp;h (the hourly runs that stop at 18&nbsp;h are not shown). RRFS&nbsp;v1: the 00, 06, 12 and 18&nbsp;UTC runs to 84&nbsp;h, every hour to 36&nbsp;h and every 3&nbsp;hours after (its other hourly runs write only 15-minute surface files to 18&nbsp;h and are not shown). RDPS: 00, 06, 12 and 18&nbsp;UTC, every hour to 84&nbsp;h. Only the newest run of each model is kept. A run appears once its last forecast hour is published; GitHub runs the jobs, so expect it about 2&ndash;3 hours after its start time for the HRRR and 4&ndash;5 hours for the RRFS and RDPS.</p>
     <h2>How the page works</h2>
-    <p>Nothing on this page is a picture. Each field and hour is shipped as the model's own numbers, rounded to 256 levels (0.625&nbsp;K for infrared, 0.5&nbsp;&deg;F for temperature and dewpoint, 0.4&nbsp;m/s for wind, 5&nbsp;W&nbsp;m<sup>&minus;2</sup> for shortwave, and 2&ndash;3&nbsp;% steps on logarithmic scales for ceiling, visibility and smoke) on the native model grid, and your browser colours, projects, contours and reads it: zooming shows the model's grid cells, and the hover value is the stored one, within those steps. Maps are drawn on the HRRR's Lambert conformal projection for all three models, so switching model keeps the view. Contours (every 10&nbsp;&deg;F with the freezing line in blue; dewpoint every 10&nbsp;&deg;F with 60 and 70 emphasised; ceiling 500/1,000/3,000&nbsp;ft; visibility 1/3/5&nbsp;mi; 80&nbsp;m wind 10/15/20&nbsp;m/s; isobars every 2&nbsp;hPa on the radar map) are traced in your browser from the same numbers after a light smoothing, so they show the pattern, not every 3&nbsp;km wiggle. Boundaries: Natural Earth; US states and counties: US Census via us-atlas.</p>
+    <p>Nothing on this page is a picture. Each field and hour is shipped as the model's own numbers, rounded to 256 levels (0.625&nbsp;K for infrared, 0.5&nbsp;&deg;F for temperature and dewpoint, 0.4&nbsp;m/s for wind, 5&nbsp;W&nbsp;m<sup>&minus;2</sup> for shortwave, 2&ndash;3&nbsp;% steps on logarithmic scales for ceiling, visibility and smoke, and a square-root scale for ECAPE and CAPE: within &plusmn;4&nbsp;J/kg at 100, &plusmn;11 at 1,000 and &plusmn;20 at 3,000) on the native model grid, and your browser colours, projects, contours and reads it: zooming shows the model's grid cells, and the hover value is the stored one, within those steps. Maps are drawn on the HRRR's Lambert conformal projection for all three models, so switching model keeps the view. Contours (every 10&nbsp;&deg;F with the freezing line in blue; dewpoint every 10&nbsp;&deg;F with 60 and 70 emphasised; ceiling 500/1,000/3,000&nbsp;ft; visibility 1/3/5&nbsp;mi; 80&nbsp;m wind 10/15/20&nbsp;m/s; isobars every 2&nbsp;hPa on the radar map) are traced in your browser from the same numbers after a light smoothing, so they show the pattern, not every 3&nbsp;km wiggle. Boundaries: Natural Earth; US states and counties: US Census via us-atlas.</p>
     <p>Related: <a href="/ecape.html">entraining CAPE from the HRRR</a> and <a href="/snowbands.html">snow-band diagnostics from the HRRR, RRFS and RDPS</a>. Data: NOAA HRRR and RRFS (AWS open data; NOMADS for the RRFS), ECCC RDPS and RAQDPS-FireWork (MSC Datamart). Model output as published, uncorrected.</p>
-  </section>
+  </details>
 </main>
 
 <script>
@@ -366,7 +399,7 @@
     aip: { label: "Sleet", vmax: 5, unitLabel: "inches of liquid falling as sleet", ticks: [0.01, 0.05, 0.1, 0.25, 0.5, 1], lo: 0.01, hi: 1.5, levels: [0.25, 0.5, 1],
            stops: [S(0.01, "#fde6c8", 0.9), S(0.05, "#f9c27e"), S(0.1, "#f39a45"), S(0.25, "#d9681c"), S(0.5, "#a8460c"), S(1, "#6e2a04")] } };
   var ACC_ORDER = ["apcp", "asnow", "afzra", "aip"], ACC_WINS = [0, 1, 3, 6, 12, 24, 48];
-  FIELDS.acc = { label: "Precip accumulation", enc: "accd", unit: "in" };
+  FIELDS.acc = { label: "Accumulation", enc: "accd", unit: "in" };
   // ECAPE (2026-09-30, user: "put the ecape plots into the short-term models interface as well"): HRRR only, computed by the
   // ECAPE job (scripts/ecape/to_models.py) from the same runs; files ecape_mu / ecape_ml / mucape / mlcape, code = round(K*sqrt(J/kg)),
   // listed in hrrr.json["ecape"][cycle] and joined to the cycle on load. The ratio is divided here (masked where CAPE <= 100 J/kg,
@@ -389,8 +422,12 @@
     var h = colors[i]; return [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16), 1];
   }
   function capeOf(c, k) { return c === 255 ? null : (c / k) * (c / k); }
-  FIELDS.ecape = { label: "ECAPE", enc: "sqrt", unit: "J/kg" };
-  var FIELD_ORDER = ["ir", "refl", "ceil", "vis", "t2m", "td2m", "smoke", "wind80", "sw", "acc", "ecape"];
+  FIELDS.ecape = { label: "ECAPE / CAPE", enc: "sqrt", unit: "J/kg" };
+  // the field picker, grouped by what people use the maps for (2026-09-30 redesign); units shown on the buttons
+  var FIELD_GROUPS = [["Clouds & visibility", ["ir", "ceil", "vis"]], ["Surface", ["t2m", "td2m", "wind80"]], ["Precipitation", ["refl", "acc"]],
+                      ["Severe", ["ecape"]], ["Air quality & energy", ["smoke", "sw"]]];
+  var FIELD_ORDER = [].concat.apply([], FIELD_GROUPS.map(function (g) { return g[1]; }));
+  var FIELD_UNIT = { ir: "°C", ceil: "ft", vis: "mi", t2m: "°F", td2m: "°F", wind80: "m/s", refl: "dBZ", acc: "in", ecape: "J/kg", smoke: "mg/m²", sw: "W/m²" };
   function encOf(f, fm) { return (fm && fm.enc) || FIELDS[f].enc; }
   function accValue(type, c) { var vm = ACC_TYPES[type].vmax, t = c / 254; return vm * t * t; }
   function chOf(f) { return f === "wind80" || f === "refl" || f === "mslp" || !!ACC_TYPES[f] ? 2 : 1; }
@@ -860,7 +897,7 @@
   }
   function updLoad() {
     var n = 0; frames.forEach(function (e) { if (e.bytesP) n++; });
-    $("load").textContent = n ? "Loading " + (n + queue.length) + " frame" + (n + queue.length > 1 ? "s" : "") + "…" : "";
+    $("load").textContent = n ? "Loading " + (n + queue.length) + " map" + (n + queue.length > 1 ? "s" : "") + "…" : "";
   }
 
   // ── WebGL ──────────────────────────────────────────────────────────────────────────────────────────────────────
@@ -1039,6 +1076,10 @@
     $("msg").textContent = msg;
     if (msg) { if (gl) { gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT); } drawn = null; drawOverlay(); schedule(); return; }
     var e = acc ? (acc.e || null) : ec ? (ec.e || null) : decoded(st.model, c, st.field, cc.hour);
+    if (!e && fileFields().some(function (f) { var x = frames.get(fkey(st.model, c, f, cc.hour)); return x && x.fail; })) {
+      $("msg").textContent = "This map could not be downloaded. It may still be publishing, or the connection dropped; try another hour, or reload in a minute.";
+      if (gl) { gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT); } drawn = null; drawOverlay(); schedule(); return;
+    }
     if (!e && drawn && drawn.field === st.field && drawn.model === st.model && (!ec || drawn.ecSub === st.ec)) { e = drawn.e; }      // hold the last frame while the next decodes
     else if (!e) { drawn = null; if (gl) { gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT); } drawOverlay(); schedule(); return; }
     if (!e.dec) { drawOverlay(); schedule(); return; }
@@ -1392,10 +1433,10 @@
 
   // ── legend ─────────────────────────────────────────────────────────────────────────────────────────────────────
   function drawLegendRefl() {
-    var cv = $("leg"), dpr = Math.min(window.devicePixelRatio || 1, 2); cv.style.height = "110px";
-    var r = cv.getBoundingClientRect(); cv.width = Math.round(r.width * dpr); cv.height = Math.round(110 * dpr);
-    var ctx = cv.getContext("2d"); ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, r.width, 110);
-    var rate = st.model === "rdps", lab = 92, x0 = 6 + lab, x1 = r.width - 6, lo = 5, hi = 72, bh = 11;
+    var cv = $("leg"), dpr = Math.min(window.devicePixelRatio || 1, 2); cv.style.height = "92px";
+    var r = cv.getBoundingClientRect(); cv.width = Math.round(r.width * dpr); cv.height = Math.round(92 * dpr);
+    var ctx = cv.getContext("2d"); ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, r.width, 92);
+    var rate = st.model === "rdps", lab = r.width < 500 ? 78 : 92, x0 = 6 + lab, x1 = r.width - 6, lo = 5, hi = 72, bh = 11;
     function xOf(dbz) { return x0 + (dbz - lo) / (hi - lo) * (x1 - x0); }
     ctx.font = "12px 'Source Sans 3', Arial, sans-serif"; ctx.textBaseline = "middle"; ctx.textAlign = "right";
     [1, 2, 3, 4, 5].forEach(function (t, row) {
@@ -1407,14 +1448,13 @@
     var yT = 2 + 5 * (bh + 3); ctx.textAlign = "center"; ctx.textBaseline = "top"; ctx.fillStyle = "#3d4540";
     var ticks = rate ? [0.1, 0.5, 1, 2.5, 5, 10, 25, 50] : [10, 20, 30, 40, 50, 60, 70];
     ticks.forEach(function (tv) { var x = xOf(rate ? rateEq(tv) : tv); if (x < x0 || x > x1) return; ctx.fillRect(x - 0.5, yT, 1, 4); ctx.fillText(String(tv), x, yT + 5); });
-    ctx.textAlign = "right"; ctx.fillStyle = "#5c6b73";
-    ctx.textBaseline = "top"; ctx.fillText(rate ? "precipitation rate, mm/h (not reflectivity) · isobars every 2 hPa" : "dBZ, 1 km above ground · isobars every 2 hPa", x1, yT + 20);
+    $("legT").textContent = rate ? "Precipitation rate, mm/h (not reflectivity), coloured by type · isobars every 2 hPa" : "Simulated reflectivity, dBZ, 1 km above ground, coloured by precipitation type at the surface · isobars every 2 hPa";
   }
   function drawLegendSteps() {                                    // stepped colour bar, one equal box per class (as the old ECAPE maps)
     var ratio = EC_SUBS[st.ec].kind === "ratio", L = ratio ? RATIO_LEVELS : CAPE_LEVELS.slice(1), C = ratio ? RATIO_COLORS : CAPE_COLORS.slice(1);
-    var cv = $("leg"), dpr = Math.min(window.devicePixelRatio || 1, 2); cv.style.height = "46px";
-    var r = cv.getBoundingClientRect(); cv.width = Math.round(r.width * dpr); cv.height = Math.round(46 * dpr);
-    var ctx = cv.getContext("2d"); ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, r.width, 46);
+    var cv = $("leg"), dpr = Math.min(window.devicePixelRatio || 1, 2); cv.style.height = "38px";
+    var r = cv.getBoundingClientRect(); cv.width = Math.round(r.width * dpr); cv.height = Math.round(38 * dpr);
+    var ctx = cv.getContext("2d"); ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, r.width, 38);
     var x0 = 6, x1 = r.width - 6, bh = 14, y = 4, n = C.length, bw = (x1 - x0) / n;
     for (var i = 0; i < n; i++) { ctx.fillStyle = C[i]; ctx.fillRect(x0 + i * bw, y, Math.ceil(bw), bh); }
     ctx.strokeStyle = "#8c918b"; ctx.lineWidth = 1; ctx.strokeRect(x0 + 0.5, y + 0.5, x1 - x0 - 1, bh - 1);
@@ -1425,9 +1465,8 @@
       var lab = ratio ? String(L[i]) : L[i] >= 1000 ? (L[i] / 1000) + "k" : String(L[i]);
       if (x - last < 24) continue; ctx.fillText(lab, Math.min(Math.max(x, x0 + 8), x1 - 8), y + bh + 5); last = x;
     }
-    ctx.textAlign = "right"; ctx.fillStyle = "#5c6b73";
-    ctx.fillText(ratio ? "ECAPE / CAPE (fraction of CAPE an entraining updraft keeps; above 1: storm-relative inflow outweighs the mixing) · blank where CAPE ≤ 100 J/kg"
-                       : "J/kg  (blank below 100 J/kg) · contours 1,000 / 2,000 / 3,000", x1, y + bh + 20);
+    $("legT").textContent = ratio ? "ECAPE / CAPE: the fraction of CAPE an entraining updraft keeps (above 1: storm-relative inflow outweighs the mixing) · blank where CAPE is 100 J/kg or less · contours 0.5 and 1"
+                                  : "J/kg (blank below 100 J/kg) · contours 1,000, 2,000 and 3,000 J/kg";
   }
   function drawLegend() {
     if (st.field === "refl") { drawLegendRefl(); return; }
@@ -1435,10 +1474,10 @@
     if (st.field === "acc") {
       var at = ACC_TYPES[st.acc.type]; FIELDS.acc.ticks = at.ticks; FIELDS.acc.enc = "log"; FIELDS.acc._lo = at.lo; FIELDS.acc._hi = at.hi;
     }
-    $("leg").style.height = "46px";
+    $("leg").style.height = "38px";
     var cv = $("leg"), r = cv.getBoundingClientRect(), dpr = Math.min(window.devicePixelRatio || 1, 2);
-    cv.width = Math.round(r.width * dpr); cv.height = Math.round(46 * dpr);
-    var ctx = cv.getContext("2d"); ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, r.width, 46);
+    cv.width = Math.round(r.width * dpr); cv.height = Math.round(38 * dpr);
+    var ctx = cv.getContext("2d"); ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, r.width, 38);
     var name = st.field, fd = FIELDS[name], w = r.width, x0 = 6, x1 = w - 6, bh = 14, y = 4;
     var lo, hi, logx = fd.enc === "log";
     if (name === "ir") { lo = 45; hi = -95; } else if (name === "t2m") { lo = -40; hi = 120; } else if (name === "td2m") { lo = -20; hi = 82; }
@@ -1461,21 +1500,22 @@
       if (Math.abs(x - last) < 26) return;
       ctx.fillText(lab, Math.min(Math.max(x, x0 + 8), x1 - 8), y + bh + 5); last = x;
     });
-    ctx.textAlign = "right"; ctx.fillStyle = "#5c6b73"; ctx.font = "12px 'Source Sans 3', Arial, sans-serif";
-    var unitLabel = { ir: "°C", ceil: "feet above ground  (no shading: no ceiling)", vis: "miles  (no shading: 10+ mi)", t2m: "°F", td2m: "°F",
-                      smoke: "mg per m², vertically integrated", wind80: "m/s at 80 m (barbs in knots)", sw: "W per m²" }[name];
+    var unitLabel = { ir: "Brightness temperature, °C (cold, high cloud tops in colour)", ceil: "Cloud ceiling, feet above ground, in flight-category colours (no shading: no ceiling)",
+                      vis: "Visibility, miles, in flight-category colours (no shading: 10 mi or more)", t2m: "Temperature 2 m above ground, °F (blue line: freezing)", td2m: "Dewpoint 2 m above ground, °F",
+                      smoke: "Smoke, mg per m², vertically integrated", wind80: "Wind speed 80 m above ground, m/s (barbs in knots)", sw: "Incoming sunshine (shortwave) at the surface, W per m²" }[name];
     if (name === "acc") unitLabel = ACC_TYPES[st.acc.type].unitLabel;
     if (st.model === "rdps" && name === "ir") unitLabel = "°C, OLR-derived brightness temperature (proxy for IR)";
     if (st.model === "rdps" && name === "sw") unitLabel = "W per m², mean over the previous hour";
-    ctx.fillText(unitLabel, x1, y + bh + 20);
+    $("legT").textContent = unitLabel;
   }
 
   // ── UI ─────────────────────────────────────────────────────────────────────────────────────────────────────────
   function labelOf(model, f) { return model === "rdps" && f === "ir" ? "IR proxy (OLR)" : model === "rdps" && f === "refl" ? "Precip rate + type" : FIELDS[f].label; }
   function fmtTime(ms) {
     var d = new Date(ms);
-    var utc = d.toLocaleString("en-US", { timeZone: "UTC", weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", hour12: false }) + " UTC";
-    var loc2 = d.toLocaleString("en-US", { weekday: "short", hour: "numeric", timeZoneName: "short" });
+    var utc = d.toLocaleString("en-US", { timeZone: "UTC", weekday: "short", day: "numeric", month: "short" }) + ", " +
+      d.toLocaleString("en-US", { timeZone: "UTC", hour: "2-digit", minute: "2-digit", hour12: false }) + " UTC";
+    var loc2 = d.toLocaleString("en-US", { weekday: "short", hour: "numeric", minute: "2-digit", timeZoneName: "short" });
     return [utc, loc2];
   }
   function updateBadge(cc) {
@@ -1486,7 +1526,7 @@
     var init = src.init.replace(/T(\d\d):00Z/, " $1Z").slice(5).replace("-", "/");
     $("badge").innerHTML = "<b>" + MODELS[st.model] + "</b> " + (st.model === "rdps" && st.field === "ir" ? "OLR-derived brightness temperature (proxy for IR)" : labelOf(st.model, st.field)) + " · run " + init + " +" + h + " h" + (st.field === "acc" ? " · " + ACC_TYPES[st.acc.type].label.toLowerCase() + (drawn && drawn.accLabel ? ", " + drawn.accLabel : "") : "") +
       (st.field === "ecape" ? " · " + EC_SUBS[st.ec].long : "");
-    $("valid").innerHTML = "Valid <b>" + t[0] + "</b> <span class=\"loc\">· " + t[1] + "</span>";
+    $("valid").innerHTML = "<span class=\"vt\">" + t[0] + "</span> <span class=\"loc\">· " + t[1] + " your time</span><span class=\"fh\">+" + h + " h</span>";
   }
   function setButtons() {
     var mb = $("models"); mb.innerHTML = "";
@@ -1516,15 +1556,24 @@
       eb.appendChild(b);
     });
     $("ecBar").hidden = st.field !== "ecape";
-    var fb = $("fields"); fb.innerHTML = "";
-    FIELD_ORDER.forEach(function (f) {
-      var b = document.createElement("button"); b.type = "button"; b.textContent = labelOf(st.model, f);
-      b.setAttribute("aria-pressed", String(f === st.field));
-      var na = NA[st.model] && NA[st.model][f];
-      if (na) { b.disabled = true; b.title = na; }
-      b.onclick = function () { st.field = f; var c1 = cycleObj(st.model, st.ci); if (c1) st.hour = nearestHour(c1, st.hour); setButtons(); onChange(); };
-      fb.appendChild(b);
+    var fb = $("fields"), fs = $("fieldSel"); fb.innerHTML = ""; fs.innerHTML = "";
+    function pick(f) { st.field = f; var c1 = cycleObj(st.model, st.ci); if (c1) st.hour = nearestHour(c1, st.hour); setButtons(); onChange(); }
+    FIELD_GROUPS.forEach(function (grp) {
+      var wrap = document.createElement("div"), cap = document.createElement("span"), seg = document.createElement("div"), og = document.createElement("optgroup");
+      wrap.className = "mv-grp"; cap.textContent = grp[0]; seg.className = "seg"; seg.setAttribute("role", "group"); seg.setAttribute("aria-label", grp[0]); og.label = grp[0];
+      grp[1].forEach(function (f) {
+        var b = document.createElement("button"); b.type = "button"; b.textContent = labelOf(st.model, f);
+        var u = document.createElement("small"); u.textContent = FIELD_UNIT[f]; b.appendChild(u);
+        b.setAttribute("aria-pressed", String(f === st.field));
+        var na = NA[st.model] && NA[st.model][f], o = document.createElement("option");
+        o.value = f; o.textContent = labelOf(st.model, f) + " (" + FIELD_UNIT[f] + ")" + (na ? " - not in this model" : ""); o.selected = f === st.field; o.disabled = !!na; og.appendChild(o);
+        if (na) { b.disabled = true; b.title = na; }
+        b.onclick = function () { pick(f); };
+        seg.appendChild(b);
+      });
+      wrap.appendChild(cap); wrap.appendChild(seg); fb.appendChild(wrap); fs.appendChild(og);
     });
+    fs.onchange = function () { pick(this.value); };
     var rs = $("run"); rs.innerHTML = "";
     var m = man[st.model];
     ((m && m.cycles) || []).forEach(function (c, i) {
@@ -1613,7 +1662,8 @@
   $("hour").addEventListener("input", function () { var hs = uiHours(cycleObj(st.model, st.ci)); st.hour = hs[+this.value] || 0; onChange(); });
   $("back").onclick = function () { step(-1); };
   $("fwd").onclick = function () { step(1); };
-  $("play").onclick = function () { st.playing = !st.playing; this.innerHTML = st.playing ? "&#10074;&#10074;" : "&#9654;"; this.setAttribute("aria-label", st.playing ? "Pause" : "Play"); render(); };
+  function togglePlay() { var b = $("play"); st.playing = !st.playing; b.innerHTML = st.playing ? "&#10074;&#10074;" : "&#9654;"; b.setAttribute("aria-label", st.playing ? "Pause" : "Play"); render(); }
+  $("play").onclick = togglePlay;
   $("run").onchange = function () { var old = cycleObj(st.model, st.ci), vt = Date.parse(old.init) + st.hour * 3600e3; st.ci = +this.value;
     var c = cycleObj(st.model, st.ci); st.hour = nearestHour(c, Math.round((vt - Date.parse(c.init)) / 3600e3)); setButtons(); onChange(); };
   $("cont").onchange = function () { prefetch(); render(); };
@@ -1623,6 +1673,7 @@
   document.addEventListener("keydown", function (e) {
     if (e.target && /INPUT|SELECT|TEXTAREA/.test(e.target.tagName) && e.target.type !== "range") return;
     if (e.key === "ArrowRight") { step(1); e.preventDefault(); } else if (e.key === "ArrowLeft") { step(-1); e.preventDefault(); }
+    else if ((e.key === " " || e.key === "Spacebar") && !(e.target && /^(BUTTON|A|SUMMARY)$/.test(e.target.tagName)) && !e.ctrlKey && !e.metaKey) { togglePlay(); e.preventDefault(); }
   });
 
   // zoom / pan / hover
@@ -1758,6 +1809,7 @@
   if (!glOk) $("msg").textContent = "This page needs WebGL 2, which this browser does not provide.";
   var bust = "?v=" + Math.floor(Date.now() / 60000);
   var hadHour = readHash();
+  if (glOk) $("msg").textContent = "Loading the newest runs…";
   var GEO = "/assets/models/geo.json";
   loadGeo(GEO);
   Promise.all(MODEL_ORDER.map(function (m) {
@@ -1771,7 +1823,8 @@
     if (!cycleObj(st.model, 0)) { var alt = MODEL_ORDER.filter(function (m) { return cycleObj(m, 0); })[0]; if (alt) st.model = alt; }
     if (!cycleObj(st.model, st.ci)) st.ci = 0;
     var c = cycleObj(st.model, st.ci);
-    if (!c) { $("msg").textContent = "No model run has been published yet."; return; }
+    if (!c) { $("msg").textContent = MODEL_ORDER.some(function (m) { return man[m]; }) ? "No model run has been published yet." : "The list of model runs could not be loaded. Check your connection and reload the page."; return; }
+    $("msg").textContent = "";
     if (NA[st.model] && NA[st.model][st.field]) st.field = "ir";
     if (!hadHour) st.hour = Math.round((Date.now() - Date.parse(c.init)) / 3600e3);
     st.hour = nearestHour(c, st.hour);
@@ -1782,7 +1835,7 @@
     var runs = MODEL_ORDER.filter(function (m) { return man[m]; }).map(function (m) {
       return MODELS[m] + ": " + man[m].cycles.map(function (x) { return x.init.slice(5, 10).replace("-", "/") + " " + x.init.slice(11, 13) + "Z"; }).join(", ");
     });
-    $("runs").textContent = "Runs on the page — " + runs.join(" · ") + ".";
+    $("runs").textContent = "Runs on the page now: " + runs.join(" · ") + ".";
     setTimeout(function () { loadGeo(GEO.replace(".json", "_counties.json")); }, 1200);   // counties after the first frame
   });
   if (typeof ResizeObserver === "function") new ResizeObserver(function () { if (view) { var s = view.s; resize(); view.s = s; render(); } }).observe(mapEl);
