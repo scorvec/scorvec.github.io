@@ -7,7 +7,8 @@ FU Berlin/KIT QBO, CPC ONI, and 25,300 winters of 9 stratosphere-resolving CMIP6
 file, scripts/strat/reference/ssw_precursors.json. ssw_precursors.py draws it in Actions (ssw-precursors.yml), and
 re-draws the seasonal card when the QBO or ENSO inputs change. Only tested results go in; each block carries its test.
 
-    python scripts/strat/build_ssw_precursors.py
+    python scripts/strat/build_ssw_precursors.py            # everything
+    python scripts/strat/build_ssw_precursors.py --timing-only   # only the who-moves-first block (2026-09-30 test)
 """
 from __future__ import annotations
 
@@ -49,30 +50,21 @@ def share_ci(x, B=2000):
     return [r3(np.percentile(bs, 2.5)), r3(np.percentile(bs, 97.5))]
 
 
+def timing_block():
+    import sys
+    sys.path.insert(0, str(HERE / "research"))
+    from s6_timing_ref import timing_block as tb                             # noqa: E402
+    return tb()
+
+
 def main():
     out = {"built": pd.Timestamp.now().strftime("%Y-%m-%d"),
            "source": "~/research/ssw_tropical_precursors (report 2026-09-27)"}
     # ---------------- 1. who moves first (MERRA-2 / ERA5, 28 events) ----------------
-    t = J("p8_bdc_timing.json")["M2"]
-    lags = np.array(t["lags"]); keep = (lags >= -60) & (lags <= 30)
-    series = {}
-    for key, lab, src in (("vT100|base", "100 hPa eddy heat flux, 45–75°N", "MERRA-2"),
-                          ("u10|base", "Zonal wind at 60°N, 10 hPa", "MERRA-2"),
-                          ("Tcap10|base", "Polar-cap temperature, 10 hPa (65–90°N)", "MERRA-2"),
-                          ("dTtr_e5|base", "Tropical cooling rate, 100–50 hPa layer, 0–15°N", "ERA5"),
-                          ("Ttr_e5|base", "Tropical temperature, 100–50 hPa layer, 0–15°N", "ERA5")):
-        s = t["series"][key]
-        series[key.split("|")[0]] = {"label": lab, "source": src, "comp": [r3(v) for v in np.array(s["comp"])[keep]],
-                                     "p": [r3(v) for v in np.array(s["p"])[keep]], "onset": s["onset"], "peak": s["peak"]}
-    ev = json.loads((HERE / "reference" / "strat_history_events.json").read_text())
-    out["timing"] = {"lags": lags[keep].tolist(), "n_events": t["n_events"], "series": series,
-                     "events": [e["date"] for e in ev["ssw"] if not e["marginal"]],
-                     "test": "composite minus season-matched random dates (same calendar day +-10 d, another winter, 3,000 draws); "
-                             "anomalies standardised and taken relative to each event's own day -90..-61 mean; drawn in colour "
-                             "where p < 0.05; onset = first lag of a run of >= 5 days with p < 0.05",
-                     "granger": "trailing 10-day tropical cooling rate given vortex, vortex change, 10- and 30-day heat flux and QBO: "
-                                "odds ratio 0.99 (p 0.94) for an onset within 1-30 d, 1.00 (0.99) 10-30 d, 1.10 (0.53) 10-40 d, "
-                                "1.17 (0.25) 20-50 d; winter-permutation test"}
+    # Rebuilt 2026-09-30 against ELIGIBLE comparison dates with an FDR mask (research/s6_timing_ref.py; study report
+    # ~/strat_reports/ssw_precursors_2026-09-30.pdf). The 2026-09-27 version (p8_bdc_timing.json, any-date null,
+    # p < 0.05 per lag) drew a "strong vortex" and a "warm tropical layer" that do not survive that test.
+    out["timing"] = timing_block()
     # ---------------- 2. the QBO and the vortex ----------------
     W = pd.read_csv(STUDY / "winters_qbo.csv")
     Wv = pd.read_csv(STUDY / "winters_enso.csv")[["winter", "oni"]]
@@ -183,4 +175,12 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    import sys
+    if "--timing-only" in sys.argv:                      # replace only the timing block of the committed reference
+        R = json.loads(OUT.read_text())
+        R["timing"] = timing_block()
+        R["timing_rebuilt"] = pd.Timestamp.now().strftime("%Y-%m-%d")
+        OUT.write_text(json.dumps(R, separators=(",", ":")))
+        print(f"wrote {OUT} (timing block only)")
+    else:
+        main()

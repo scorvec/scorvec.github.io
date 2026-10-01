@@ -85,18 +85,22 @@ def fig_timing(R, out):
     cols = [C["hf"], C["u"], C["cap"], C["cool"], C["tt"]]
     fig = plt.figure(figsize=(13.4, 9.2), dpi=125)
     top = fig_header(fig, "Who moves first around a sudden warming",
-                     f"Composite of the {T['n_events']} major warmings on MERRA-2, 1981–2026, in standard deviations, each event measured from its own "
-                     "level 60–90 days before. Colour where the composite differs from season-matched random dates (p < 0.05), grey where it does not; "
-                     "the dashed line is the first day of a significant run of five or more. The planetary waves come first, the vortex breaks, and the "
-                     "tropical lower stratosphere cools (upwelling speeds up) in step with the wave pulse, not before it.")
-    gs = fig.add_gridspec(len(order), 1, left=0.07, right=0.975, top=top - 0.02, bottom=0.095, hspace=0.42)
+                     f"Composite of the {T['n_events']} major warmings on MERRA-2, 1981–2026, in standard deviations, each event "
+                     "measured from its own level 60–90 days before and compared with dates that had the same westerly history. "
+                     "Colour where the difference is significant (false discovery rate 10 % over lags); grey where it is not. The "
+                     "planetary-wave heat flux rises about two weeks before the central date, the vortex weakens and the tropical lower "
+                     "stratosphere cools in step with it. Before that, neither the vortex nor the tropics differ significantly from "
+                     "comparable dates: the vortex is not anomalously strong beforehand (it is weak 2–3 months before, then recovers to "
+                     "normal), and on all winter days neither its strength nor its structure predicts a warming three to six weeks ahead.")
+    gs = fig.add_gridspec(len(order), 1, left=0.07, right=0.975, top=top - 0.02, bottom=0.115, hspace=0.42)
     axs = []
     for i, (k, col) in enumerate(zip(order, cols)):
         s = T["series"][k]; c = np.array(s["comp"], float); p = np.array(s["p"], float)
         ax = fig.add_subplot(gs[i], sharex=axs[0] if axs else None); axs.append(ax)
         ax.axhline(0, color="#9aa3ad", lw=0.8); ax.axvline(0, color="#9aa3ad", lw=0.9, ls=":")
         ax.plot(lags, c, color=NS, lw=1.6)
-        ax.plot(lags, np.where(p < 0.05, c, np.nan), color=col, lw=2.6)
+        sig = np.array(s["sig"], bool) if "sig" in s else (p < 0.05)     # FDR mask since 2026-09-30
+        ax.plot(lags, np.where(sig, c, np.nan), color=col, lw=2.6)
         if s["onset"] is not None and s["onset"] >= lags[0]:
             ax.axvline(s["onset"], color=col, lw=1.1, ls="--")
             ax.annotate(f"onset day {s['onset']:+d}", (s["onset"], 0), xytext=(-5, -3), textcoords="offset points",
@@ -109,7 +113,8 @@ def fig_timing(R, out):
     axs[-1].set_xlabel("days from the central date (first easterly day at 60°N, 10 hPa)", fontsize=9.5, color=INK)
     axs[-1].set_xlim(lags[0], lags[-1])
     footer(fig, "Cooling rate = 10-day change of the 100–50 hPa layer temperature (negative = cooling = faster upwelling). Heat flux, wind and "
-                "polar cap: MERRA-2 daily means (NASA GMAO); tropics: ERA5 heights (C3S). Static reference, built from the 2026 warming study.")
+                "polar cap: MERRA-2 daily means (NASA GMAO), wind gap-filled from NCEP R1; tropics: ERA5 heights (C3S). The brief warming of the "
+                "tropical layer near day −42 passes the test but is a five-day stretch that predicts nothing. Static reference, rebuilt 2026-09-30.")
     save(fig, out)
 
 
