@@ -59,6 +59,7 @@ env:
 
 permissions:
   contents: write
+  actions: write          # dispatch pages.yml after the models-viewer manifest lands (GITHUB_TOKEN pushes trigger nothing)
 
 concurrency:
   group: ecape
@@ -81,7 +82,7 @@ jobs:
           sudo apt-get install -y --no-install-recommends \
             libeccodes0 libgeos-dev libproj-dev proj-bin
 
-      - run: pip install --quiet numpy matplotlib cartopy==0.25.0 eccodes
+      - run: pip install --quiet numpy matplotlib cartopy==0.25.0 eccodes pillow
 
       - name: Build the SHARPlib kernel
         run: |
@@ -144,7 +145,7 @@ jobs:
           # Only THIS cycle's directory is cleared - a leftover frame from an
           # earlier attempt at the SAME cycle would otherwise be published with
           # the new valid times, which is what the old wholesale rm guarded.
-          rm -rf "assets/ecape/anim/$CYCLE"
+          rm -rf "assets/ecape/anim/$CYCLE" "assets/models/data/hrrr/$CYCLE"
           mkdir -p "assets/ecape/anim/$CYCLE"
           # seq emits NEWLINES and `read -a` stops at the first one, so this
           # silently produced a single-element array and rendered only F00 while
@@ -168,6 +169,10 @@ jobs:
             STEM="$RUNNER_TEMP/hrrr_f$f"
             ./scripts/ecape/ecape_grid "$STEM"
             python scripts/ecape/render_ecape.py "$STEM" --anim-root "assets/ecape/anim/$CYCLE"
+            # The same grids in the models-viewer format (models.html, HRRR -> ECAPE): 4 lossless 8-bit WebP per hour,
+            # ~1.5 MB. Best-effort - it must never cost the ECAPE page a frame.
+            python scripts/ecape/to_models.py encode "$STEM" --out "assets/models/data/hrrr/$CYCLE" \
+              || echo "::warning::F$f: models-viewer encode failed"
             rm -f "$STEM.f32" "${STEM}_ecape.f32" "$STEM.json" "${STEM}_ecape.json"
             df -h "$RUNNER_TEMP" | tail -1
             echo "::endgroup::"
@@ -283,6 +288,53 @@ jobs:
             sleep 5
           done
           echo "push failed after retries"; exit 1
+
+      # models.html shows the HRRR's newest 00/06/12/18Z run with these ECAPE/CAPE grids as one more field. The models job
+      # (models.yml) and this job publish the same cycle in either order, so: field directories only (never the cycle
+      # directory), PRUNE_OLDER for anything older than every cycle the viewer keeps, and the manifest merged on main's
+      # CURRENT copy with scripts/models/manifest_merge.py (this job owns hrrr.json["ecape"], models.yml the rest).
+      # Best-effort: a failure here leaves the ECAPE page untouched.
+      - name: Publish to the models viewer
+        if: ${{ (github.event_name == 'schedule' || github.event.inputs.publish == 'true') && steps.cyc.outputs.skip != 'true' }}
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CYCLE: ${{ steps.cyc.outputs.cycle }}
+        run: |
+          set -euo pipefail
+          D="assets/models/data/hrrr/$CYCLE"
+          want=$(find "assets/ecape/anim/$CYCLE/ecape_mu" -name 'F*.webp' | wc -l | tr -d ' ')
+          for f in ecape_mu ecape_ml mucape mlcape; do
+            n=$(find "$D/$f" -name '*.webp' 2>/dev/null | wc -l | tr -d ' ')
+            if [ "$n" -ne "$want" ]; then echo "::warning::$f has $n hours, the loop $want - not publishing ECAPE to the models viewer"; exit 0; fi
+          done
+          echo "models-format ECAPE: $want hours x 4 fields, $(du -sk "$D" | cut -f1) KB"
+          if timeout 60 git fetch -q --depth 1 origin main && git show FETCH_HEAD:assets/models/hrrr.json > "$RUNNER_TEMP/mv_base.json" 2>/dev/null; then :; else echo '{}' > "$RUNNER_TEMP/mv_base.json"; fi
+          # the viewer keeps only its newest HRRR run: ECAPE for an OLDER cycle has nowhere to go
+          read -r NEWEST FLOOR < <(python -c "import json,sys;c=[x['cycle'] for x in json.load(open(sys.argv[1])).get('cycles',[])];print(max(c) if c else '-', min(c+[sys.argv[2]]))" "$RUNNER_TEMP/mv_base.json" "$CYCLE")
+          if [ "$NEWEST" != "-" ] && [[ "$CYCLE" < "$NEWEST" ]]; then echo "::notice::the viewer already shows $NEWEST; ECAPE $CYCLE not published there"; exit 0; fi
+          SHA=$(SRC=. PRUNE_OLDER="assets/models/data/hrrr:$FLOOR" scripts/models/publish_data.sh "$D/ecape_mu" "$D/ecape_ml" "$D/mucape" "$D/mlcape" | tail -1)
+          echo "frames commit $SHA"
+          python scripts/ecape/to_models.py entry --cycle "$CYCLE" --site . --sha "$SHA" --out "$RUNNER_TEMP/ecape_entry.json"
+          # commit from a separate worktree on main's tip, re-merged on every attempt (never a rebase of a stale copy)
+          W="$RUNNER_TEMP/mv_wt"
+          for i in 1 2 3 4 5; do
+            rm -rf "$W"; git worktree prune
+            if ! timeout 120 git fetch -q origin main; then sleep 5; continue; fi
+            git worktree add -q --detach "$W" FETCH_HEAD
+            git -C "$W" show HEAD:assets/models/hrrr.json > "$RUNNER_TEMP/mv_base.json" 2>/dev/null || echo '{}' > "$RUNNER_TEMP/mv_base.json"
+            python scripts/models/manifest_merge.py --part ecape --ours "$RUNNER_TEMP/ecape_entry.json" --base "$RUNNER_TEMP/mv_base.json" --out "$W/assets/models/hrrr.json"
+            git -C "$W" add -f assets/models/hrrr.json
+            if git -C "$W" diff --cached --quiet; then echo "manifest unchanged"; exit 0; fi
+            git -C "$W" -c user.name="Shawn Corvec" -c user.email="26825570+scorvec@users.noreply.github.com" commit -q -m "models: hrrr ECAPE $CYCLE"
+            if timeout 180 git -C "$W" push -q origin HEAD:main; then
+              echo "manifest pushed (attempt $i)"
+              gh workflow run pages.yml --repo "$GITHUB_REPOSITORY" || echo "::warning::pages dispatch failed; the next push deploys it"
+              exit 0
+            fi
+            sleep 7
+          done
+          echo "::warning::models-viewer manifest not pushed - the ECAPE frames are on the branch, the page will not list them"
 
       - name: Upload rendered loop (dry runs, and as a record of published ones)
         if: always()

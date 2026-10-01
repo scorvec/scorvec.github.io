@@ -74,6 +74,7 @@ import numpy as np
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE.parent / "snowband"))
 import snowband as sb                                   # noqa: E402  the shared, validated transport (S3 / NOMADS / Datamart)
+from manifest_merge import prune_ecape                 # noqa: E402  hrrr.json is shared with the ECAPE job
 
 UA = {"User-Agent": "scorvec-models/1.0 (+https://scorvec.com/models.html)"}
 SIGMA = 5.670374419e-8
@@ -737,14 +738,23 @@ def cmd_run(a):
     keep, drop = retain(cycles, model)
     man.update(model=model, label=MODELS[model]["label"], source=MODELS[model]["source"], cycles=keep,
                updated=entry["made"])
+    # the ECAPE job's section (hrrr only; scripts/models/manifest_merge.py): entries older than every kept cycle go, and
+    # their directories with them
+    ec_drop = prune_ecape(man) if man.get("ecape") else []
     mpath.parent.mkdir(parents=True, exist_ok=True)
     mpath.write_text(json.dumps(man, separators=(",", ":")))
     if a.lists:
         L = Path(a.lists)
         L.mkdir(parents=True, exist_ok=True)
         # a cycle older than everything retention keeps (a forced re-run of an old cycle) is not published at all
-        (L / "publish.txt").write_text("" if any(c["cycle"] == key for c in drop) else f"{DATA}/{model}/{key}\n")
-        (L / "prune.txt").write_text("".join(f"{DATA}/{model}/{c['cycle']}\n" for c in drop))
+        # one line per FIELD directory, not the cycle directory: publish_data.sh replaces what it is handed, and the ECAPE
+        # job may already have put ecape_mu/ ... mlcape/ into this cycle's directory (it must survive this publish)
+        (L / "publish.txt").write_text("" if any(c["cycle"] == key for c in drop) else
+                                       "".join(f"{DATA}/{model}/{key}/{name}\n" for name in fields))
+        (L / "prune.txt").write_text("".join(f"{DATA}/{model}/{c}\n" for c in sorted({c['cycle'] for c in drop} | set(ec_drop))))
+        # PRUNE_OLDER floor: any cycle directory older than every kept cycle is garbage (an orphan from a run whose
+        # manifest commit failed, or ECAPE for a cycle this job never published)
+        (L / "floor.txt").write_text(f"{DATA}/{model}:{min(c['cycle'] for c in keep)}\n" if keep else "")
         (L / "cycle.json").write_text(json.dumps(entry))
     print(f"manifest: keep {[c['cycle'] for c in keep]}, drop {[c['cycle'] for c in drop]}")
 

@@ -22,7 +22,10 @@ set -euo pipefail
 BRANCH="${FRAMES_BRANCH:-frames}"
 SRC="$(cd "${SRC:-.}" && pwd)"
 URL="${FRAMES_URL:-https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git}"
-[ $# -gt 0 ] || [ -n "${PRUNE:-}" ] || { echo "usage: $0 <dir> ... (or PRUNE=...)" >&2; exit 2; }
+# PRUNE_OLDER="<dir>:<name> ...": also remove every child of <dir> whose name sorts before <name>, evaluated against the
+# branch as it is at push time (models.yml / ecape.yml: assets/models/data/hrrr:<oldest kept cycle>). Cycles only ever
+# move forward, so this is safe against a concurrent publisher, and it collects orphans no manifest remembers.
+[ $# -gt 0 ] || [ -n "${PRUNE:-}" ] || [ -n "${PRUNE_OLDER:-}" ] || { echo "usage: $0 <dir> ... (or PRUNE=... / PRUNE_OLDER=...)" >&2; exit 2; }
 for d in "$@"; do
   case "$d" in assets/models/*) ;; *) echo "refusing $d: this publisher only writes assets/models/" >&2; exit 2 ;; esac
   n=$(find "$SRC/$d" -type f 2>/dev/null | wc -l | tr -d ' ')
@@ -30,6 +33,10 @@ for d in "$@"; do
 done
 for p in ${PRUNE:-}; do
   case "$p" in assets/models/data/*) ;; *) echo "refusing to prune $p" >&2; exit 2 ;; esac
+done
+for p in ${PRUNE_OLDER:-}; do
+  case "${p%%:*}" in assets/models/data/*) ;; *) echo "refusing to prune under ${p%%:*}" >&2; exit 2 ;; esac
+  [[ "${p##*:}" =~ ^[0-9]{10}$ ]] || { echo "refusing PRUNE_OLDER $p: the floor must be a YYYYMMDDHH cycle" >&2; exit 2; }
 done
 
 publish_once() {
@@ -41,6 +48,13 @@ publish_once() {
   export GIT_INDEX_FILE="$TMP/index"
   git read-tree HEAD
   for p in ${PRUNE:-} "$@"; do git rm -r -q --cached --ignore-unmatch -- "$p" >&2; done
+  local spec d n
+  for spec in ${PRUNE_OLDER:-}; do
+    d="${spec%%:*}"
+    for n in $(git ls-tree --name-only "HEAD:$d" 2>/dev/null); do
+      if [[ "$n" =~ ^[0-9]{10}$ && "$n" < "${spec##*:}" ]]; then echo "  prune (older than ${spec##*:}): $d/$n" >&2; git rm -r -q --cached -- "$d/$n" >&2; fi
+    done
+  done
   for d in "$@"; do git --work-tree="$SRC" add -f -- "$d" >&2; done
   local TREE; TREE=$(git write-tree --missing-ok)
   # guard: outside assets/models the new tree must equal the one we read

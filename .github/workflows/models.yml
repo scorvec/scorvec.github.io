@@ -94,7 +94,9 @@ jobs:
             python scripts/models/models.py run --model "$m" --cycle "$cyc" --site . --procs 4 --lists "$L"
             PR=$(tr '\n' ' ' < "$L/prune.txt")
             if [ ! -s "$L/publish.txt" ] && [ -z "${PR// /}" ]; then echo "::warning::$m $cyc is older than every retained cycle - not published"; continue; fi
-            SHA=$(SRC=. PRUNE="$PR" scripts/models/publish_data.sh $(cat "$L/publish.txt") | tail -1)
+            # field directories, not the cycle directory (ecape.yml writes ecape_mu/... into the same HRRR cycle), and a
+            # PRUNE_OLDER floor that collects any cycle directory older than everything kept
+            SHA=$(SRC=. PRUNE="$PR" PRUNE_OLDER="$(cat "$L/floor.txt" 2>/dev/null)" scripts/models/publish_data.sh $(cat "$L/publish.txt") | tail -1)
             echo "frames commit $SHA (pruned: ${PR:-nothing})"
             python scripts/models/models.py stamp --manifest "assets/models/$m.json" --cycle "$cyc" --sha "$SHA"
             rm -rf "assets/models/data/$m/$cyc"          # the data is on the frames branch now; keep the runner disk free
@@ -112,11 +114,16 @@ jobs:
           outs() { ls "assets/models/$MODEL.json" assets/models/geo.json assets/models/geo_counties.json 2>/dev/null; }
           for f in $(outs); do git add -f "$f"; done
           git diff --staged --name-only -z | tar cf "$SNAP/outs.tar" --null -T - 2>/dev/null || true
+          cp "assets/models/$MODEL.json" "$SNAP/ours.json"
           git reset -q
           for i in 1 2 3 4 5; do
             if ! timeout 120 git fetch origin main; then echo "fetch $i failed"; sleep 5; continue; fi
             git reset -q --hard origin/main
             tar xf "$SNAP/outs.tar" 2>/dev/null || true
+            # hrrr.json is shared with ecape.yml: keep OUR cycles and main's CURRENT "ecape" section (scripts/models/
+            # manifest_merge.py), re-read on every attempt, so whichever job pushes second never overwrites the other
+            git show "origin/main:assets/models/$MODEL.json" > "$SNAP/base.json" 2>/dev/null || rm -f "$SNAP/base.json"
+            python scripts/models/manifest_merge.py --part cycles --ours "$SNAP/ours.json" --base "$SNAP/base.json" --out "assets/models/$MODEL.json"
             for f in $(outs); do git add -f "$f"; done
             if git diff --staged --quiet; then echo "No changes; skipping commit."; exit 0; fi
             git commit -q -m "models: $MODEL $(date -u +%Y-%m-%dT%H:%MZ)"
