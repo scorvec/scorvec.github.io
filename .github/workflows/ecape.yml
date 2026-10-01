@@ -139,6 +139,10 @@ jobs:
             if [ "$got" -ne "${#HOURS[@]}" ]; then echo "::error::$fld has $got hours, expected ${#HOURS[@]} - not publishing"; exit 1; fi
           done
           echo "verified: ${#HOURS[@]} hours x 4 fields, $(du -sk "$D" | cut -f1) KB"
+          # meteogram series at the map's airports and the tracker cities (nearest cell, read back from the WebP files
+          # above; scripts/models/points.py format) - optional: the maps publish without it
+          python scripts/ecape/to_models.py points --cycle "$CYCLE" --out "$D" --manifest /tmp/mv.json \
+            || { rm -f "$D/points_ecape.json"; echo "::warning::ECAPE point series not written"; }
 
       - name: Publish to the models viewer
         if: ${{ env.DO_PUBLISH == '1' && steps.cyc.outputs.skip != 'true' }}
@@ -152,7 +156,8 @@ jobs:
           # the viewer keeps only its newest HRRR run: ECAPE for an OLDER cycle has nowhere to go
           read -r NEWEST FLOOR < <(python -c "import json,sys;c=[x['cycle'] for x in json.load(open(sys.argv[1])).get('cycles',[])];print(max(c) if c else '-', min(c+[sys.argv[2]]))" "$RUNNER_TEMP/mv_base.json" "$CYCLE")
           if [ "$NEWEST" != "-" ] && [[ "$CYCLE" < "$NEWEST" ]]; then echo "::notice::the viewer already shows $NEWEST; ECAPE $CYCLE not published"; exit 0; fi
-          SHA=$(SRC=. PRUNE_OLDER="assets/models/data/hrrr:$FLOOR" scripts/models/publish_data.sh "$D/ecape_mu" "$D/ecape_ml" "$D/mucape" "$D/mlcape" | tail -1)
+          EXTRA=""; [ -s "$D/points_ecape.json" ] && EXTRA="$D/points_ecape.json"
+          SHA=$(SRC=. PRUNE_OLDER="assets/models/data/hrrr:$FLOOR" scripts/models/publish_data.sh "$D/ecape_mu" "$D/ecape_ml" "$D/mucape" "$D/mlcape" $EXTRA | tail -1)
           echo "frames commit $SHA"
           python scripts/ecape/to_models.py entry --cycle "$CYCLE" --site . --sha "$SHA" --out "$RUNNER_TEMP/ecape_entry.json"
           # commit from a separate worktree on main's tip, re-merged on every attempt (never a rebase of a stale copy)

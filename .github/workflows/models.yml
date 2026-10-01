@@ -47,11 +47,16 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         with:
+          # non-cone patterns so the two static point lists (data/models_airports.json, data/models_cities.json - the
+          # meteogram points) come without the rest of data/
+          sparse-checkout-cone-mode: false
           sparse-checkout: |
-            scripts/models
-            scripts/snowband
-            scripts/lib
-            assets/models
+            /scripts/models/
+            /scripts/snowband/
+            /scripts/lib/
+            /assets/models/
+            /data/models_airports.json
+            /data/models_cities.json
       - uses: actions/setup-python@v7
         with:
           python-version: "3.11"

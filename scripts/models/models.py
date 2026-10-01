@@ -75,6 +75,8 @@ HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE.parent / "snowband"))
 import snowband as sb                                   # noqa: E402  the shared, validated transport (S3 / NOMADS / Datamart)
 from manifest_merge import prune_ecape                 # noqa: E402  hrrr.json is shared with the ECAPE job
+import points as PTS                                    # noqa: E402  meteogram point series (points.json)
+import degdays as DDM                                   # noqa: E402  region degree days (dd.json)
 
 UA = {"User-Agent": "scorvec-models/1.0 (+https://scorvec.com/models.html)"}
 SIGMA = 5.670374419e-8
@@ -403,6 +405,7 @@ def process_hour(model, lead, blobs, outdir):
     crop = _CTX.get("crop")
     alpha = _CTX.get("alpha")
     phys = {}
+    mfull = None
     if model in ("hrrr", "rrfs"):
         if "ir" in blobs:
             phys["ir"] = dec(blobs["ir"])
@@ -425,7 +428,8 @@ def process_hour(model, lead, blobs, outdir):
         if "mslp" in blobs and "psfc" in blobs:
             F = _CTX["sub"]
             ps = dec(blobs["psfc"])[::F, ::F]
-            phys["mslp"] = ("mslp", dec(blobs["mslp"])[::F, ::F] / 100.0, (ps < 85000.0).astype(np.uint8))
+            mfull = dec(blobs["mslp"]) / 100.0
+            phys["mslp"] = ("mslp", mfull[::F, ::F], (ps < 85000.0).astype(np.uint8))
         pt = None
         if all(k in blobs for k in ("refd", "crain", "csnow", "cfrzr", "cicep")):
             pt = ptype_flags(*(dec(blobs[k]) for k in ("crain", "csnow", "cfrzr", "cicep")))
@@ -460,7 +464,8 @@ def process_hour(model, lead, blobs, outdir):
             v = dec(blobs["mslp"], crop)
             ps = dec(blobs["psfc"], crop)
             ps = ps if np.nanmean(ps) > 5000 else ps * 100.0
-            phys["mslp"] = ("mslp", (v / 100.0 if np.nanmean(v) > 5000 else v)[::F, ::F], (ps[::F, ::F] < 85000.0).astype(np.uint8))
+            mfull = v / 100.0 if np.nanmean(v) > 5000 else v
+            phys["mslp"] = ("mslp", mfull[::F, ::F], (ps[::F, ::F] < 85000.0).astype(np.uint8))
         mm = 1 / 25.4
         acc = {"apcp": "apcp", "afzra": "frzr", "aip": "ipacc"}
         shape = None
@@ -479,6 +484,15 @@ def process_hour(model, lead, blobs, outdir):
             for k, v in RDPS_PTYPE.items():
                 t[code == k] = v
             phys["refl"] = ("rate", dec(blobs["prate"], crop) * 3600.0, t)          # kg m-2 s-1 -> mm/h
+    pts = {}
+    try:                                        # meteogram points + county temperatures: never fail the maps for them
+        if _CTX.get("ps") is not None:
+            pts = sample_points(model, phys, mfull, _CTX["ps"], _CTX.get("rs"))
+        if _CTX.get("cs") is not None and "t2m" in phys:
+            pts["_county_t"] = _CTX["cs"].bilinear(phys["t2m"])
+    except Exception as e:                      # noqa: BLE001
+        print(f"  f{lead:03d}: point sampling failed: {e!r}", flush=True)
+        pts = {}
     meta, nbytes = {}, 0
     for name, x in phys.items():
         arr, p = encode(name, x)
@@ -488,7 +502,46 @@ def process_hour(model, lead, blobs, outdir):
         (d / f"{lead:03d}.webp").write_bytes(b)
         nbytes += len(b)
         meta[name] = p
-    return lead, meta, nbytes, time.time() - t0
+    return lead, meta, nbytes, time.time() - t0, pts
+
+
+def sample_points(model, phys, mfull, ps, rs=None):
+    """One forecast hour at every meteogram point (points.py SPEC): bilinear for continuous fields, nearest cell for
+    ceiling, visibility, reflectivity / rate and precipitation type. -> {name: float32 (npoints,)}, NaN = missing."""
+    out = {}
+
+    def near(a):
+        v = ps.nearest(a).astype(np.float32)
+        v[~ps.inside] = np.nan
+        return v
+    for k in ("t2m", "td2m", "sw", "apcp", "asnow", "afzra", "aip"):
+        if k in phys:
+            out[k] = ps.bilinear(phys[k])
+    if "wind80" in phys:
+        u, v = (ps.bilinear(c) for c in phys["wind80"])
+        out["ws80"] = np.hypot(u, v)
+        out["wd80"] = np.mod(270.0 - np.degrees(np.arctan2(v, u)), 360.0)
+    if "ceil" in phys:
+        out["ceil"] = near(phys["ceil"])
+    if "vis" in phys:
+        out["vis"] = np.minimum(near(phys["vis"]), 10.0)       # 10 = 10 mi or more (the map's and a METAR's ceiling)
+    if "refl" in phys:
+        kind, val, t = phys["refl"]
+        if kind == "refl":
+            d = near(val)
+            out["refl"] = np.where(d >= REFL_MIN, d, np.nan)
+        else:
+            r = near(val)
+            out["prate"] = np.where(np.isfinite(r) & (r < 0.05), 0.0, r)
+        tt = near(t)
+        out["ptype"] = tt
+    if "smoke" in phys:
+        smp = rs if model == "rdps" else ps               # RDPS smoke is on the RAQDPS grid
+        if smp is not None:
+            out["smoke"] = smp.bilinear(phys["smoke"])
+    if mfull is not None:
+        out["mslp"] = ps.bilinear(mfull)
+    return out
 
 
 # ── fetch plans ─────────────────────────────────────────────────────────────────────────────────────────────────────
@@ -603,6 +656,8 @@ def cmd_run(a):
     date, cyc = key[:8], cyc_dt.hour
     n = MODELS[model]["length"](cyc)
     leads = leads_of(model, cyc)
+    if os.environ.get("MV_LEADS"):                              # testing only: a subset of the hours
+        leads = [int(x) for x in os.environ["MV_LEADS"].split(",")]
     site = Path(a.site)
     outdir = site / DATA / model / key
     if outdir.exists():
@@ -646,11 +701,27 @@ def cmd_run(a):
         g.update(di=g["di"] * F, dj=g["dj"] * F, i0=g.get("i0", 0) / F, j0=g.get("j0", 0) / F)
     g.update(nx=-(-g["nx"] // F), ny=-(-g["ny"] // F))
     grids["sub"] = g
+    # meteogram points (airports + the degree-day tracker's cities) and the degree-day counties, located on the grid
+    # once; the workers sample them while each hour's fields are in memory (points.py, degdays.py)
+    pt_ids = []
+    try:
+        pt_ids, plat, plon = PTS.load_points()
+        ctx["ps"] = PTS.Sampler(grids["main"], plat, plon)
+        if "raq" in grids:
+            ctx["rs"] = PTS.Sampler(grids["raq"], plat, plon)
+        clat, clon, _ = DDM.county_points()
+        ctx["cs"] = PTS.Sampler(grids["main"], clat, clon)
+        print(f"  points: {int(ctx['ps'].inside.sum())} of {len(pt_ids)} on the grid; degree-day counties "
+              f"{int(ctx['cs'].inside.sum())} of {len(clat)}", flush=True)
+    except Exception as e:                                      # noqa: BLE001
+        print(f"::warning::{model} {key}: no point series this run ({e!r})", flush=True)
+        ctx.pop("ps", None), ctx.pop("rs", None), ctx.pop("cs", None)
     print(f"{model} {key}: {len(leads)} hours, grid {grids['main']['nx']} x {grids['main']['ny']}, "
           f"setup {time.time() - t_start:.1f}s", flush=True)
 
     # fetch (threads; NOMADS paced inside the Fetcher) -> decode/quantise/encode (processes)
     per_field = {k: {} for k in ORDER}
+    samples = {}                                                # lead -> {point field: values}
     total_bytes, failed = 0, []
     t_fetch = 0.0
     hour_workers = 1 if model == "rrfs" else (4 if model == "hrrr" else 3)
@@ -674,7 +745,8 @@ def cmd_run(a):
                 continue
             futs.append(pool.submit(process_hour, model, lead, blobs, str(outdir)))
         for fu in as_completed(futs):
-            lead, meta, nb, secs = fu.result()
+            lead, meta, nb, secs, pts = fu.result()
+            samples[lead] = pts
             total_bytes += nb
             for name, p in meta.items():
                 per_field[name][lead] = p
@@ -696,6 +768,8 @@ def cmd_run(a):
             (outdir / "aip" / f"{lead:03d}.webp").write_bytes(b)
             total_bytes += len(b)
             per_field["aip"][lead] = None
+            if ctx.get("ps") is not None:
+                samples.setdefault(lead, {})["aip"] = ctx["ps"].bilinear(cum)
             fpath.unlink()
     fetch_stats = dict(requests=sum(f.nreq for f in _FETCH.values()), mb=round(sum(f.nbytes for f in _FETCH.values()) / 1e6, 1))
     fields = {}
@@ -714,11 +788,15 @@ def cmd_run(a):
     if model == "rdps" and "smoke" in fields:
         r_dt, off = raq_for(cyc_dt)
         fields["smoke"]["from"] = f"RAQDPS-FireWork {r_dt:%Y-%m-%d %H}Z"
+    hours_all = sorted({h for e in fields.values() for h in e["hours"]})
+    extra_files = write_points(model, key, cyc_dt, hours_all, pt_ids, samples, outdir) if ctx.get("ps") is not None else {}
+    total_bytes += sum(v["bytes"] for v in extra_files.values())
     wall = time.time() - t_start
     entry = dict(cycle=key, init=cyc_dt.strftime("%Y-%m-%dT%H:00Z"), length=n, fields=fields, grids=grids,
                  hours=sorted({h for e in fields.values() for h in e["hours"]}),
                  missing_hours=failed, bytes=total_bytes, fetch=fetch_stats, wall_s=round(wall, 1),
                  made=dt.datetime.utcnow().strftime("%Y-%m-%dT%H:%MZ"))
+    entry.update(extra_files)                                   # "points": {...}, "dd": {...}
     # the run may not publish a cycle that lost hours in the middle (a partial run would be kept for two cycles)
     ok = not failed or failed == [0]
     print(f"{model} {key}: {total_bytes / 1e6:.1f} MB in {sum(len(f['hours']) for f in fields.values())} files, "
@@ -750,13 +828,56 @@ def cmd_run(a):
         # one line per FIELD directory, not the cycle directory: publish_data.sh replaces what it is handed, and the ECAPE
         # job may already have put ecape_mu/ ... mlcape/ into this cycle's directory (it must survive this publish)
         (L / "publish.txt").write_text("" if any(c["cycle"] == key for c in drop) else
-                                       "".join(f"{DATA}/{model}/{key}/{name}\n" for name in fields))
+                                       "".join(f"{DATA}/{model}/{key}/{name}\n" for name in fields)
+                                       + "".join(f"{DATA}/{model}/{key}/{v['file']}\n" for v in extra_files.values()))
         (L / "prune.txt").write_text("".join(f"{DATA}/{model}/{c}\n" for c in sorted({c['cycle'] for c in drop} | set(ec_drop))))
         # PRUNE_OLDER floor: any cycle directory older than every kept cycle is garbage (an orphan from a run whose
         # manifest commit failed, or ECAPE for a cycle this job never published)
         (L / "floor.txt").write_text(f"{DATA}/{model}:{min(c['cycle'] for c in keep)}\n" if keep else "")
         (L / "cycle.json").write_text(json.dumps(entry))
     print(f"manifest: keep {[c['cycle'] for c in keep]}, drop {[c['cycle'] for c in drop]}")
+
+
+def write_points(model, key, cyc_dt, hours, ids, samples, outdir):
+    """points.json (meteograms) and dd.json (region degree days) from the per-hour samples. -> manifest entries."""
+    t0 = time.time()
+    out = {}
+    try:
+        names = sorted({n for s in samples.values() for n in s if not n.startswith("_")})
+        series = {n: np.full((len(ids), len(hours)), np.nan, np.float32) for n in names}
+        for j, h in enumerate(hours):
+            for n, v in samples.get(h, {}).items():
+                if n in series:
+                    series[n][:, j] = v
+        if model in ("hrrr", "rrfs") and 0 in hours:            # f00 has no accumulation messages: nothing has fallen
+            for n in ("apcp", "asnow", "afzra", "aip"):
+                if n in series:
+                    series[n][:, 0] = np.where(np.isfinite(series["t2m"][:, 0]), 0.0, np.nan) if "t2m" in series else 0.0
+        doc = PTS.build(model, key, hours, ids, series,
+                       extra=dict(init=cyc_dt.strftime("%Y-%m-%dT%H:00Z"),
+                                  ptype_codes={"0": "none", "1": "rain", "2": "snow", "3": "freezing rain", "4": "sleet",
+                                               "5": "rain-snow mix"}))
+        b = PTS.dumps(doc).encode()
+        (Path(outdir) / "points.json").write_bytes(b)
+        out["points"] = dict(file="points.json", bytes=len(b), n=len(doc["ids"]), fields=list(doc["fields"]))
+        ct = [samples.get(h, {}).get("_county_t") for h in hours]
+        if any(c is not None for c in ct):
+            nc = next(c for c in ct if c is not None).size
+            T = np.stack([c if c is not None else np.full(nc, np.nan, np.float32) for c in ct], axis=1)
+            dd = DDM.compute(model, key, hours, T)
+            b2 = json.dumps(dd, separators=(",", ":")).encode()
+            (Path(outdir) / "dd.json").write_bytes(b2)
+            out["dd"] = dict(file="dd.json", bytes=len(b2), regions=list(dd["regions"]),
+                             days=max((len(r["dates"]) for r in dd["regions"].values()), default=0))
+        import gzip
+        print(f"  points.json {len(b) / 1e3:.0f} KB ({len(gzip.compress(b, 6)) / 1e3:.0f} KB gzipped), "
+              f"{len(doc['ids'])} points x {len(hours)} h x {len(doc['fields'])} fields; "
+              f"dd.json {out.get('dd', {}).get('bytes', 0) / 1e3:.0f} KB; {time.time() - t0:.1f}s", flush=True)
+    except Exception as e:                                      # noqa: BLE001
+        import traceback
+        traceback.print_exc()
+        print(f"::warning::{model} {key}: point / degree-day files not written ({e!r})", flush=True)
+    return out
 
 
 def cmd_stamp(a):

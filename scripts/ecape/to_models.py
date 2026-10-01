@@ -15,6 +15,7 @@ on HRRR 2026093018 f03: 1.50 MB per hour for the four fields; the 16-bit 1 J/kg 
 grids (masked where CAPE <= 100 J/kg, as render_ecape.py did).
 
     python scripts/ecape/to_models.py encode <stem> --out assets/models/data/hrrr/2026093018
+    python scripts/ecape/to_models.py points --cycle 2026093018 --out assets/models/data/hrrr/2026093018
     python scripts/ecape/to_models.py entry --cycle 2026093018 --site . --out /tmp/ecape_entry.json [--sha SHA]
 """
 from __future__ import annotations
@@ -87,6 +88,45 @@ def cmd_encode(a):
     return 0
 
 
+def cmd_points(a):
+    """ECAPE / CAPE meteogram series at every map airport and tracker city, NEAREST cell, read back from the WebP files
+    this job just wrote (lossless, so the values are exactly the published codes) -> <out>/points_ecape.json, in the
+    format of scripts/models/points.py (values in J/kg, rounded to 1 J/kg from the sqrt code)."""
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "models"))
+    import points as PTS                                       # noqa: E402
+    from PIL import Image
+    out = Path(a.out)
+    grid = PTS.HRRR_GRID
+    if a.manifest and Path(a.manifest).exists():
+        try:
+            grid = json.loads(Path(a.manifest).read_text())["cycles"][0]["grids"]["main"]
+        except Exception:                                       # noqa: BLE001
+            pass
+    ids, lat, lon = PTS.load_points()
+    smp = PTS.Sampler(grid, lat, lon)
+    hours = sorted({int(p.stem) for f in FIELDS for p in (out / f).glob("*.webp")})
+    series = {}
+    for name in FIELDS:
+        arr = np.full((len(ids), len(hours)), np.nan, np.float32)
+        for j, h in enumerate(hours):
+            p = out / name / f"{h:03d}.webp"
+            if not p.exists():
+                continue
+            c = np.asarray(Image.open(p))
+            c = (c if c.ndim == 2 else c[..., 0])[::-1]           # file row 0 is north; the grid's row 0 is south
+            v = decode_cape(smp.nearest(c)).astype(np.float32)
+            v[~smp.inside] = np.nan
+            arr[:, j] = v
+        series[name] = arr
+    doc = PTS.build("hrrr", a.cycle, hours, ids, series, extra=dict(method=METHOD))
+    b = PTS.dumps(doc).encode()
+    (out / "points_ecape.json").write_bytes(b)
+    import gzip
+    print(f"  points_ecape.json: {len(doc['ids'])} points x {len(hours)} h, {len(b) / 1e3:.0f} KB "
+          f"({len(gzip.compress(b, 6)) / 1e3:.0f} KB gzipped)")
+    return 0
+
+
 def cmd_entry(a):
     root = Path(a.site) / "assets/models/data/hrrr" / a.cycle
     fields, nbytes = {}, 0
@@ -105,6 +145,10 @@ def cmd_entry(a):
     hours = sorted({h for f in fields.values() for h in f["hours"]})
     entry = dict(cycle=a.cycle, fields=fields, hours=hours, bytes=nbytes, method=METHOD,
                  made=dt.datetime.utcnow().strftime("%Y-%m-%dT%H:%MZ"))
+    pf = root / "points_ecape.json"
+    if pf.exists():                                           # meteogram series (cmd_points), on the same frames commit
+        entry["points"] = dict(file="points_ecape.json", bytes=pf.stat().st_size, **({"sha": a.sha} if a.sha else {}))
+        entry["bytes"] = nbytes + pf.stat().st_size
     Path(a.out).write_text(json.dumps({"ecape": {a.cycle: entry}}, separators=(",", ":")))
     print(f"ECAPE entry {a.cycle}: {len(fields)} fields x {len(hours)} hours, {nbytes / 1e6:.1f} MB")
     return 0
@@ -117,13 +161,17 @@ def main():
     p.add_argument("stem")
     p.add_argument("--out", required=True)
     p.add_argument("--check", action="store_true", help="verify the lossless round trip and the error bound")
+    p = sub.add_parser("points")
+    p.add_argument("--cycle", required=True)
+    p.add_argument("--out", required=True, help="the cycle directory holding ecape_mu/ ... mlcape/")
+    p.add_argument("--manifest", default="", help="hrrr.json, for the grid (default: the HRRR grid constant)")
     p = sub.add_parser("entry")
     p.add_argument("--cycle", required=True)
     p.add_argument("--site", default=".")
     p.add_argument("--sha", default="")
     p.add_argument("--out", required=True)
     a = ap.parse_args()
-    return {"encode": cmd_encode, "entry": cmd_entry}[a.cmd](a)
+    return {"encode": cmd_encode, "points": cmd_points, "entry": cmd_entry}[a.cmd](a)
 
 
 if __name__ == "__main__":
