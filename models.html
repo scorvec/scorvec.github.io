@@ -30,48 +30,52 @@
   *, *::before, *::after { box-sizing: border-box; }
   body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--sans); line-height: 1.5; }
   main.mv { max-width: min(96vw, 1800px); margin: 0 auto; padding: 1.2rem clamp(0.5rem, 2vw, 1.5rem) 3rem; }
-  .kicker { font-size: 0.8rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); margin: 0.2rem 0 0; }
+  .kicker { font-size: 0.88rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); margin: 0.2rem 0 0; }
   h1 { font-family: var(--serif); font-weight: 500; font-size: clamp(1.6rem, 3.2vw, 2.3rem); line-height: 1.15; margin: 0.25rem 0 0.4rem; }
   h2 { font-family: var(--serif); font-weight: 500; font-size: 1.3rem; margin: 1.8rem 0 0.5rem; }
-  .mv-lede { color: var(--ink2); max-width: 70rem; margin: 0 0 0.9rem; font-size: 1rem; }
+  .mv-lede { color: var(--ink2); max-width: 70rem; margin: 0 0 0.9rem; font-size: 1.1rem; }
   .mv-lede a, .mv-about a { color: var(--accent); }
 
   .mv-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 0.45rem 0.9rem; margin: 0 0 0.55rem; }
   .seg { display: inline-flex; flex-wrap: wrap; border: 1px solid var(--rule); border-radius: 7px; background: var(--panel); overflow: hidden; }
-  .seg button { font: inherit; font-size: 0.92rem; border: 0; border-right: 1px solid var(--rule); background: transparent; color: var(--ink2);
-                padding: 0.38rem 0.72rem; cursor: pointer; white-space: nowrap; }
+  .seg button { font: inherit; font-size: 1.02rem; border: 0; border-right: 1px solid var(--rule); background: transparent; color: var(--ink2);
+                padding: 0.46rem 0.85rem; cursor: pointer; white-space: nowrap; }
   .seg button:last-child { border-right: 0; }
   .seg button[aria-pressed="true"] { background: var(--accent); color: #fff; }
   .seg button:disabled { color: #8a8f8a; cursor: not-allowed; background: repeating-linear-gradient(135deg, transparent 0 5px, rgba(0,0,0,0.035) 5px 10px); }
   .seg button:not(:disabled):not([aria-pressed="true"]):hover { background: var(--accent-soft); }
   .mv-fields { flex: 1 1 100%; display: flex; flex-wrap: wrap; gap: 0.35rem 0.8rem; align-items: flex-end; }
   .mv-grp { display: flex; flex-direction: column; gap: 0.15rem; }
-  .mv-grp > span { font-size: 0.74rem; letter-spacing: 0.05em; text-transform: uppercase; color: var(--muted); padding-left: 2px; }
+  .mv-grp > span { font-size: 0.82rem; letter-spacing: 0.05em; text-transform: uppercase; color: var(--muted); padding-left: 2px; }
   .seg button small { font-size: 0.78em; opacity: 0.8; margin-left: 0.25em; }
   .runsel.mv-fsel { display: none; }
   .mv-row { display: flex; flex-wrap: wrap; align-items: center; gap: 0.45rem 0.9rem; flex: 1 1 100%; }
-  .mv-show { display: flex; flex-wrap: wrap; align-items: center; gap: 0.3rem 1rem; margin: 0.35rem 0 0; font-size: 0.92rem; color: var(--ink2); }
+  .mv-show { display: flex; flex-wrap: wrap; align-items: center; gap: 0.3rem 1.1rem; margin: 0.35rem 0 0; font-size: 1.02rem; color: var(--ink2); }
   .mv-show > b { font-weight: 600; color: var(--ink); }
-  .mv-keys { margin-left: auto; font-size: 0.82rem; color: var(--muted); }
+  .mv-keys { margin-left: auto; font-size: 0.92rem; color: var(--muted); }
   .mv-keys kbd { font: inherit; font-size: 0.78rem; border: 1px solid var(--rule); border-bottom-width: 2px; border-radius: 4px; padding: 0 0.3em; background: var(--panel); }
-  .mv-legT { margin: 0.1rem 0 0; font-size: 0.85rem; color: var(--muted); }
+  .mv-legT { margin: 0.1rem 0 0; font-size: 0.97rem; color: var(--muted); }
   .mv-acc { display: flex; flex-wrap: wrap; gap: 0.45rem 0.9rem; align-items: center; flex: 1 1 100%; }
   .mv-acc[hidden] { display: none; }
-  .runsel { display: inline-flex; align-items: center; gap: 0.4rem; font-size: 0.92rem; color: var(--ink2); }
-  .runsel select { font: inherit; font-size: 0.92rem; padding: 0.3rem 0.4rem; border: 1px solid var(--rule); border-radius: 6px; background: var(--panel); color: var(--ink); }
+  .runsel { display: inline-flex; align-items: center; gap: 0.4rem; font-size: 1.02rem; color: var(--ink2); }
+  .runsel select { font: inherit; font-size: 1.02rem; padding: 0.38rem 0.5rem; border: 1px solid var(--rule); border-radius: 6px; background: var(--panel); color: var(--ink); }
   .chk[hidden] { display: none; }
-  .chk { display: inline-flex; align-items: center; gap: 0.35rem; font-size: 0.92rem; color: var(--ink2); cursor: pointer; user-select: none; }
+  .chk { display: inline-flex; align-items: center; gap: 0.4rem; font-size: 1.02rem; color: var(--ink2); cursor: pointer; user-select: none; }
 
   .mv-map { position: relative; width: 100%; height: clamp(340px, calc(100vh - 230px), 880px); background: var(--map); border: 1px solid var(--rule);
             border-radius: 8px; overflow: hidden; touch-action: none; cursor: grab; }
   .mv-map.drag { cursor: grabbing; }
   .mv-map canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+  /* the line overlay is moved by the compositor during a gesture (CSS transform, no canvas redraw); the label canvas is
+     hidden while the map moves and redrawn once it settles */
+  .mv-map canvas#ov { transform-origin: 0 0; will-change: transform; }
+  .mv-map canvas#lab { pointer-events: none; }
   .mv-zoom { position: absolute; right: 8px; top: 8px; display: flex; flex-direction: column; gap: 4px; z-index: 3; }
-  .mv-zoom button { width: 34px; height: 34px; font: 600 1.1rem var(--sans); border: 1px solid var(--rule); border-radius: 6px;
+  .mv-zoom button { width: 40px; height: 40px; font: 600 1.3rem var(--sans); border: 1px solid var(--rule); border-radius: 6px;
                     background: rgba(255,255,255,0.92); color: var(--ink); cursor: pointer; }
-  .mv-zoom button.txt { font-size: 0.7rem; }
+  .mv-zoom button.txt { font-size: 0.82rem; }
   .mv-badge { position: absolute; left: 8px; top: 8px; z-index: 3; background: rgba(255,255,255,0.93); border: 1px solid var(--rule); border-radius: 6px;
-              padding: 0.28rem 0.55rem; font-size: 0.86rem; color: var(--ink); max-width: calc(100% - 60px); pointer-events: none; }
+              padding: 0.3rem 0.6rem; font-size: 0.95rem; color: var(--ink); max-width: calc(100% - 60px); pointer-events: none; }
   .mv-badge b { font-weight: 600; }
   .mv-load { position: absolute; left: 8px; bottom: 8px; z-index: 3; background: rgba(255,255,255,0.93); border: 1px solid var(--rule); border-radius: 6px;
              padding: 0.2rem 0.5rem; font-size: 0.82rem; color: var(--ink2); pointer-events: none; }
@@ -85,23 +89,23 @@
   .mv-tip .ll { color: #cfd6cf; }
 
   .mv-time { display: flex; align-items: center; gap: 0.5rem; margin: 0.55rem 0 0.2rem; flex-wrap: wrap; }
-  .mv-time button { font: inherit; font-size: 0.95rem; min-width: 2.3rem; height: 2.1rem; border: 1px solid var(--rule); border-radius: 6px; background: var(--panel);
+  .mv-time button { font: inherit; font-size: 1.1rem; min-width: 2.7rem; height: 2.5rem; border: 1px solid var(--rule); border-radius: 6px; background: var(--panel);
                     color: var(--ink); cursor: pointer; }
   .mv-time input[type=range] { flex: 1 1 14rem; min-width: 10rem; accent-color: var(--accent); height: 2rem; }
-  .mv-valid { font-size: 0.95rem; color: var(--ink); min-width: 15rem; line-height: 1.3; }
-  .mv-valid .vt { font-size: 1.12rem; font-weight: 600; }
+  .mv-valid { font-size: 1.05rem; color: var(--ink); min-width: 15rem; line-height: 1.3; }
+  .mv-valid .vt { font-size: 1.22rem; font-weight: 600; }
   .mv-valid .loc { color: var(--ink2); }
   .mv-valid .fh { display: inline-block; margin-left: 0.35rem; padding: 0 0.4rem; border-radius: 4px; background: var(--accent-soft); color: var(--accent); font-weight: 600; font-size: 0.9rem; }
   .mv-legend { margin: 0.3rem 0 0; }
   .mv-legend canvas { width: 100%; height: 38px; display: block; }
   .mv-note { margin: 0.5rem 0 0; padding: 0.55rem 0.8rem; background: var(--panel); border: 1px solid var(--rule); border-left: 4px solid var(--accent);
-             border-radius: 4px; font-size: 0.93rem; color: var(--ink2); max-width: 80rem; }
+             border-radius: 4px; font-size: 1.02rem; color: var(--ink2); max-width: 80rem; }
   .mv-note:empty { display: none; }
   .mv-note b { color: var(--ink); font-weight: 600; }
-  .mv-about { max-width: 80rem; color: var(--ink2); font-size: 0.97rem; margin-top: 1.4rem; border-top: 1px solid var(--rule); padding-top: 0.6rem; }
+  .mv-about { max-width: 80rem; color: var(--ink2); font-size: 1.04rem; margin-top: 1.4rem; border-top: 1px solid var(--rule); padding-top: 0.6rem; }
   .mv-about > summary { cursor: pointer; font-family: var(--serif); font-size: 1.25rem; color: var(--ink); padding: 0.3rem 0; }
   .mv-about h2 { font-size: 1.12rem; margin: 1.1rem 0 0.4rem; }
-  .mv-about table { border-collapse: collapse; width: 100%; font-size: 0.9rem; margin: 0.4rem 0 0.8rem; background: var(--panel); }
+  .mv-about table { border-collapse: collapse; width: 100%; font-size: 0.98rem; margin: 0.4rem 0 0.8rem; background: var(--panel); }
   .mv-about th, .mv-about td { border: 1px solid var(--rule); padding: 0.35rem 0.5rem; text-align: left; vertical-align: top; }
   .mv-about th { background: #eef1ec; font-weight: 600; color: var(--ink); }
   .mv-about td.na { color: #6f6b64; font-style: italic; }
@@ -110,19 +114,19 @@
   @media (max-width: 640px) {
     main.mv { padding-top: 0.6rem; }
     h1 { font-size: 1.45rem; margin: 0.1rem 0 0.25rem; }
-    .mv-lede { font-size: 0.93rem; margin-bottom: 0.6rem; }
-    .seg button { padding: 0.36rem 0.55rem; font-size: 0.88rem; }
+    .mv-lede { font-size: 1rem; margin-bottom: 0.6rem; }
+    .seg button { padding: 0.42rem 0.62rem; font-size: 0.98rem; }
     .mv-fields { display: none; }
     .runsel.mv-fsel { display: inline-flex; flex: 1 1 12rem; }
     .mv-fsel select { flex: 1 1 auto; min-width: 0; }
     .mv-map { height: clamp(300px, calc(100svh - 215px), 640px); }
     .mv-time { position: sticky; bottom: 0; z-index: 5; background: var(--bg); margin: 0; padding: 0.35rem 0 0.25rem; }
-    .mv-valid { min-width: 0; flex: 1 1 100%; font-size: 0.88rem; order: -1; }
-    .mv-valid .vt { font-size: 1rem; }
+    .mv-valid { min-width: 0; flex: 1 1 100%; font-size: 0.95rem; order: -1; }
+    .mv-valid .vt { font-size: 1.08rem; }
     .mv-time input[type=range] { flex: 1 1 5rem; min-width: 5rem; }
     .mv-keys { display: none; }
     .kicker { display: none; }
-    .mv-badge { font-size: 0.78rem; padding: 0.2rem 0.45rem; }
+    .mv-badge { font-size: 0.86rem; padding: 0.22rem 0.5rem; }
   }
 </style>
 </head>
@@ -270,6 +274,7 @@
   <div class="mv-map" id="map" aria-label="Model map. Scroll or pinch to zoom, drag to pan.">
     <canvas id="gl"></canvas>
     <canvas id="ov"></canvas>
+    <canvas id="lab"></canvas>
     <div class="mv-badge" id="badge"></div>
     <div class="mv-zoom"><button type="button" id="zin" aria-label="Zoom in">+</button><button type="button" id="zout" aria-label="Zoom out">&minus;</button><button type="button" class="txt" id="zfit" aria-label="Reset view">fit</button></div>
     <div class="mv-msg" id="msg"></div>
@@ -344,10 +349,14 @@
     vis: { label: "Visibility", enc: "log", lo: 0.03, hi: 10, unit: "mi", ticks: [0.1, 0.25, 0.5, 1, 2, 3, 5, 10],
            fmt: function (v) { return (v < 1 ? v.toFixed(2) : v < 3 ? v.toFixed(1) : v.toFixed(1)) + " mi"; } },
     t2m: { label: "Temperature", enc: "linf", unit: "°F",
-           stops: [S(-40, "#f2e8f6"), S(-25, "#c9a6db"), S(-10, "#8058b2"), S(0, "#433c9c"), S(10, "#2f5cb1"), S(20, "#3b82c4"),
-                   S(32, "#7cb7dc"), S(40, "#b4def0"), S(50, "#e6f4cd"), S(60, "#fdf0a6"), S(70, "#fdcf79"), S(80, "#f89d51"),
-                   S(90, "#e96838"), S(100, "#c93226"), S(110, "#91122a"), S(125, "#55082a")],
-           ticks: [-20, 0, 20, 32, 40, 50, 60, 70, 80, 90, 100, 110],
+           // higher-contrast ramp (2026-10-01, user: the old one was "a bit too weak ... hard to distinguish differences";
+           // "above 100/105 should be screaming red", "above 110 purple"): a hue change every 10 F through the common
+           // range, saturated red from 100 F and a hard step to purple at 110 F
+           stops: [S(-40, "#f3eef6"), S(-30, "#dcc4e8"), S(-20, "#b98fd6"), S(-10, "#8a55bd"), S(0, "#5c2fa3"), S(10, "#2f3fae"),
+                   S(20, "#2a6fd6"), S(32, "#5cb8ef"), S(40, "#3cb8a8"), S(50, "#4aaa45"), S(60, "#a6cf3c"), S(65, "#ecdf3a"),
+                   S(70, "#f8c23a"), S(75, "#f7a031"), S(80, "#f07f2a"), S(90, "#e44f22"), S(97, "#d92a1f"), S(100, "#ff1414"),
+                   S(109.9, "#d6001c"), S(110, "#a32bc4"), S(118, "#76169f"), S(125, "#4b0a6e")],
+           ticks: [-20, 0, 20, 32, 40, 50, 60, 70, 80, 90, 100, 110, 120],
            fmt: function (v) { return v.toFixed(1) + " °F  (" + ((v - 32) / 1.8).toFixed(1) + " °C)"; } },
     td2m: { label: "Dewpoint", enc: "linf", unit: "°F",
             stops: [S(-30, "#4d3b29"), S(0, "#7b5e3d"), S(20, "#a8875a"), S(30, "#c9ae84"), S(40, "#e4d8b3"), S(45, "#d8e8bf"),
@@ -588,7 +597,7 @@
   var st = { model: "hrrr", ci: 0, field: "ir", hour: 0, playing: false, acc: { type: "apcp", win: 0 }, ec: "ecape_mu" };
   var view = null;                                // {cx, cy, s: metres per CSS px}
   var $ = function (id) { return document.getElementById(id); };
-  var mapEl = $("map"), glc = $("gl"), ovc = $("ov"), tip = $("tip");
+  var mapEl = $("map"), glc = $("gl"), ovc = $("ov"), labc = $("lab"), tip = $("tip");
 
   function cycleObj(model, ci) { var m = man[model]; return m && m.cycles && m.cycles[ci]; }
   function currentCycle() { return { c: cycleObj(st.model, st.ci), hour: st.hour }; }
@@ -612,17 +621,37 @@
     hs.forEach(function (x) { if (Math.abs(x - h) < Math.abs(best - h)) best = x; });
     return best;
   }
-  function relPath(model, c, field, h) { return "assets/models/data/" + model + "/" + c.cycle + "/" + field + "/" + ("00" + h).slice(-3) + ".webp"; }
+  // lo = the half-resolution copy (every 2nd point of the native grid, <fff>_lo.webp, manifest field "lo" names its grid)
+  function relPath(model, c, field, h, lo) { return "assets/models/data/" + model + "/" + c.cycle + "/" + field + "/" + ("00" + h).slice(-3) + (lo ? "_lo" : "") + ".webp"; }
 
   // ── data transport: raw.githubusercontent -> jsDelivr (pinned to the frames commit) ; same host logic as frameLoad ──
-  var rawOk = false;
-  function fetchT(url, ms) {
+  // A file's path names its run (model/cycle/field/hour), so its bytes never change: they are kept in Cache Storage and
+  // read back from there on a later visit without asking the network (raw.githubusercontent only allows a 5-minute
+  // browser cache, and jsDelivr's immutable copy is slow the first time a file is asked for). Old runs are pruned on load.
+  var rawOk = false, CACHE_NAME = "mv-frames-v1", CACHE_HOST = "https://mv-frames.invalid/";
+  var cacheP = null;
+  function frameCache() {
+    if (!cacheP) cacheP = (typeof caches === "object" && caches && window.isSecureContext && (!LOCAL || /[?&]cache=1/.test(location.search)) ? caches.open(CACHE_NAME) : Promise.reject(new Error("no cache")))
+      .catch(function () { return null; });
+    return cacheP;
+  }
+  function pruneCache() {                                   // drop cached files of runs no manifest lists any more
+    var live = {};
+    MODEL_ORDER.forEach(function (m) { ((man[m] && man[m].cycles) || []).forEach(function (c) { live[m + "/" + c.cycle] = 1; }); });
+    frameCache().then(function (cc) {
+      if (!cc) return;
+      return cc.keys().then(function (ks) { ks.forEach(function (rq) {
+        var m = rq.url.match(/data\/(\w+)\/(\d{10})\//); if (m && !live[m[1] + "/" + m[2]]) cc.delete(rq); }); });
+    }).catch(function () {});
+  }
+  function fetchT(url, ms, prio) {
     var ctrl = typeof AbortController === "function" ? new AbortController() : null;
     var t = ctrl && setTimeout(function () { ctrl.abort(); }, ms);
-    return fetch(url, ctrl ? { signal: ctrl.signal } : {}).then(function (r) { if (t) clearTimeout(t); return r; },
-                                                              function (e) { if (t) clearTimeout(t); throw e; });
+    var opt = ctrl ? { signal: ctrl.signal } : {}; if (prio) opt.priority = prio;
+    return fetch(url, opt).then(function (r) { if (t) clearTimeout(t); return r; },
+                                function (e) { if (t) clearTimeout(t); throw e; });
   }
-  function getBytes(rel, sha) {
+  function getBytes(rel, sha, prio) {
     var raw = window.FRAME_ROOT_RAW || "https://raw.githubusercontent.com/scorvec/scorvec.github.io/frames/";
     var mir = MIRROR + (sha || "frames") + "/";
     var hosts = LOCAL ? ["/"] : (window.frameHostIsMirror && window.frameHostIsMirror() ? [mir, raw] : [raw, mir]);
@@ -630,13 +659,19 @@
     function next() {
       if (k >= hosts.length) return Promise.reject(new Error("unavailable"));
       var h = hosts[k++];
-      return fetchT(h + rel, h === raw && !rawOk ? 7000 : 30000).then(function (r) {
+      return fetchT(h + rel, h === raw && !rawOk ? 7000 : 30000, prio).then(function (r) {
         if (!r.ok) return next();
         if (h === raw) rawOk = true;
-        return r.arrayBuffer();
+        var th = performance.now();                         // headers in: the body time measures bandwidth, not latency
+        return r.arrayBuffer().then(function (buf) {
+          buf._tb = performance.now() - th;
+          frameCache().then(function (cc) { if (cc) cc.put(CACHE_HOST + rel, new Response(buf.slice(0), { headers: { "Content-Type": "image/webp" } })).catch(function () {}); });
+          return buf;
+        });
       }, next);
     }
-    return next();
+    return frameCache().then(function (cc) { return cc ? cc.match(CACHE_HOST + rel) : null; }).catch(function () { return null; })
+      .then(function (hit) { return hit ? hit.arrayBuffer().then(function (b) { b._cached = true; return b; }) : next(); });
   }
 
   // ── decoding off the main thread: WebP -> the R (and G) channel as bytes ────────────────────────────────────────
@@ -807,11 +842,67 @@
     }
     self.onmessage = function (e) {
       var d = e.data;
-      try { if (d.op === "contour") contourMsg(d); else decodeMsg(d).catch(function (err) { self.postMessage({ id: d.id, err: String(err) }); }); }
+      try {
+        if (d.op === "contour") contourMsg(d);
+        else if (d.op === "geo") fetch(d.url).then(function (r) { if (!r.ok) throw new Error("http " + r.status); return r.json(); }).then(function (j) {
+          var L = geoProcess(j, d.P, d.tols), bufs = [];
+          L.forEach(function (x) { x.lods.forEach(function (o) { bufs.push(o.xy.buffer, o.off.buffer); }); });
+          self.postMessage({ id: d.id, layers: L }, bufs);
+        }).catch(function (err) { self.postMessage({ id: d.id, err: String(err) }); });
+        else decodeMsg(d).catch(function (err) { self.postMessage({ id: d.id, err: String(err) }); });
+      }
       catch (err) { self.postMessage({ id: d.id, err: String(err) }); }
     };
   }
-  var WORKER_SRC = "(" + workerMain.toString() + ")();";
+  // Boundaries: unpack the delta-coded lon/lat lines, project them to the display projection (km) and simplify each layer
+  // once per tolerance (Douglas-Peucker; the overlay picks the coarsest one within ~0.6 device px). Runs in a worker.
+  function simplifyLine(xy, a, b, tol, out) {               // points a..b-1 of xy -> out (array of numbers)
+    var m = b - a; if (m < 2) return;
+    var keep = new Uint8Array(m), st = [0, m - 1], t2 = tol * tol; keep[0] = keep[m - 1] = 1;
+    while (st.length) {
+      var j = st.pop(), i = st.pop(), x0 = xy[2 * (a + i)], y0 = xy[2 * (a + i) + 1], dx = xy[2 * (a + j)] - x0, dy = xy[2 * (a + j) + 1] - y0;
+      var L2 = dx * dx + dy * dy, best = -1, bd = t2;
+      for (var k = i + 1; k < j; k++) {
+        var px = xy[2 * (a + k)] - x0, py = xy[2 * (a + k) + 1] - y0, d;
+        if (L2 > 0) { var cr = px * dy - py * dx; d = cr * cr / L2; var tt = (px * dx + py * dy) / L2; if (tt < 0) d = px * px + py * py; else if (tt > 1) { var ex = px - dx, ey = py - dy; d = ex * ex + ey * ey; } }
+        else d = px * px + py * py;
+        if (d > bd) { bd = d; best = k; }
+      }
+      if (best > 0) { keep[best] = 1; st.push(i, best, best, j); }
+    }
+    for (var q = 0; q < m; q++) if (keep[q]) out.push(xy[2 * (a + q)], xy[2 * (a + q) + 1]);
+  }
+  function geoProcess(d, Pp, tols) {
+    var n = Pp[0], RF = Pp[1], rho0 = Pp[2], lon0 = Pp[3], D = Math.PI / 180, res = [];
+    Object.keys(d.layers).forEach(function (name) {
+      var L = d.layers[name], q = L.q, np = 0, li, k;
+      L.lines.forEach(function (ln) { np += ln.length / 2; });
+      var xy = new Float64Array(np * 2), off = new Int32Array(L.lines.length + 1), p = 0;
+      for (li = 0; li < L.lines.length; li++) {
+        var ln = L.lines[li], x = ln[0], y = ln[1], m = ln.length / 2; off[li] = p;
+        for (k = 0; k < m; k++) {
+          if (k) { x += ln[2 * k]; y += ln[2 * k + 1]; }
+          var rho = RF / Math.pow(Math.tan(Math.PI / 4 + y / q * D / 2), n), dl = x / q * D - lon0; dl = Math.atan2(Math.sin(dl), Math.cos(dl));
+          xy[2 * p] = rho * Math.sin(n * dl) / 1000; xy[2 * p + 1] = (rho0 - rho * Math.cos(n * dl)) / 1000; p++;
+        }
+      }
+      off[L.lines.length] = p;
+      var lods = [{ tol: 0, xy: Float32Array.from(xy), off: off }];
+      tols.forEach(function (t) {
+        var o = [], of = [0];
+        for (li = 0; li < L.lines.length; li++) {
+          var a = off[li], b = off[li + 1], x0 = 1e9, x1 = -1e9, y0 = 1e9, y1 = -1e9;
+          for (k = a; k < b; k++) { var X = xy[2 * k], Y = xy[2 * k + 1]; if (X < x0) x0 = X; if (X > x1) x1 = X; if (Y < y0) y0 = Y; if (Y > y1) y1 = Y; }
+          if (x1 - x0 < t && y1 - y0 < t) continue;                  // smaller than the tolerance: invisible at this scale
+          simplifyLine(xy, a, b, t, o); of.push(o.length / 2);
+        }
+        lods.push({ tol: t, xy: Float32Array.from(o), off: Int32Array.from(of) });
+      });
+      res.push({ name: name, maxKmPerPx: L.maxKmPerPx, lods: lods });
+    });
+    return res;
+  }
+  var WORKER_SRC = simplifyLine.toString() + "\n" + geoProcess.toString() + "\n(" + workerMain.toString() + ")();";
   var workers = [], wcb = {}, wid = 0, wnext = 0;
   try {
     if (typeof OffscreenCanvas === "function" && typeof Worker === "function") {
@@ -851,25 +942,47 @@
   }
 
   // ── frame cache: bytes (all fetched), decoded frames (LRU) ───────────────────────────────────────────────────────
-  var frames = new Map();           // key -> {bytes, bytesP, dec, decP, tex, used}
+  // Requests are queued; the frame on screen is "urgent" and goes first. While it is loading (and always on a slow
+  // connection) at most one or two other files are in flight, so a slow line is not split six ways before the first map.
+  var frames = new Map();           // key -> {bytes, bytesP, dec, decP, tex, used, lo}
   var DEC_MAX = 18, TEX_MAX = 8, BYTES_MAX = 400;
-  var inflight = 0, MAXF = 6, queue = [];
-  function fkey(model, c, field, h) { return model + "/" + c.cycle + "/" + field + "/" + h; }
+  var inflight = 0, urgentIn = 0, queue = [];
+  // network estimate: bytes per ms over the files that came from the network (EMA), scaled by how many were in flight
+  var NET = { bw: 0, n: 0 };
+  function netSlow() {
+    var cn = navigator.connection;
+    if (cn && (cn.saveData || /(^|-)2g$|^3g$/.test(cn.effectiveType || ""))) return true;
+    if (NET.n) return NET.bw < 800;                          // < ~6.5 Mbit/s
+    return !!(cn && cn.downlink && cn.downlink < 8);
+  }
+  function fkey(model, c, field, h, lo) { return model + "/" + c.cycle + "/" + field + "/" + h + (lo ? "~lo" : ""); }
   function entry(k) { var e = frames.get(k); if (!e) { e = { used: 0 }; frames.set(k, e); } return e; }
-  function want(list) {                                     // list of [model, cycle, field, hour], highest priority first
-    queue = list.filter(function (a) { var e = frames.get(fkey(a[0], a[1], a[2], a[3])); return !(e && (e.bytes || e.bytesP || e.fail)); });
+  function want(list, nUrgent) {                            // list of [model, cycle, field, hour, lo], highest priority first
+    queue = list.filter(function (a) { var e = frames.get(fkey(a[0], a[1], a[2], a[3], a[4])); return !(e && (e.bytes || e.bytesP || e.fail)); })
+      .map(function (a, i) { return a.slice(0, 5).concat([i < (nUrgent || 0)]); });
     pump();
   }
   function pump() {
-    while (inflight < MAXF && queue.length) {
-      var a = queue.shift();
-      var k = fkey(a[0], a[1], a[2], a[3]), e = entry(k);
-      if (e.bytes || e.bytesP) continue;
-      inflight++;
+    var slow = netSlow();
+    while (queue.length) {
+      var a = queue[0], urgent = !!a[5];
+      if (!urgent && urgentIn && (slow || !NET.n)) break;       // the frame on screen first
+      if (inflight >= (slow ? 2 : 6) + (urgent ? 2 : 0)) break;
+      queue.shift();
+      var k = fkey(a[0], a[1], a[2], a[3], a[4]), e = entry(k);
+      if (e.bytes || e.bytesP || e.fail) continue;
+      inflight++; if (urgent) urgentIn++;
+      e.lo = !!a[4];
       var fmP = a[1].fields && a[1].fields[a[2]];           // ECAPE files sit in the ECAPE job's frames commit
-      e.bytesP = getBytes(relPath(a[0], a[1], a[2], a[3]), (fmP && fmP.sha) || a[1].sha).then(function (e) { return function (buf) {
-        e.bytes = buf; e.bytesP = null; inflight--; pump(); trimBytes(); render(); return buf; }; }(e),
-        function (e) { return function (err) { e.bytesP = null; e.fail = true; inflight--; pump(); render(); throw err; }; }(e));
+      var t0 = performance.now(), conc = inflight;
+      e.bytesP = getBytes(relPath(a[0], a[1], a[2], a[3], a[4]), (fmP && fmP.sha) || a[1].sha, urgent ? "high" : "low").then(function (e, urgent, t0, conc) { return function (buf) {
+        e.bytes = buf; e.bytesP = null; inflight--; if (urgent) urgentIn--;
+        if (e.wantDec && !e.dec && !e.decP) startDec(e);         // asked for while it was downloading (hover's native file)
+        var dt = Math.max(buf._tb, 4);                       // a big file in under 4 ms: a very fast line (or local)
+        if (!buf._cached && buf.byteLength > 60000) {
+          var r = buf.byteLength / dt * Math.max(1, (conc + inflight + 1) / 2); NET.bw = NET.n ? 0.6 * NET.bw + 0.4 * r : r; NET.n++; }
+        pump(); trimBytes(); render(); return buf; }; }(e, urgent, t0, conc),
+        function (e, urgent) { return function (err) { e.bytesP = null; e.fail = true; inflight--; if (urgent) urgentIn--; pump(); render(); throw err; }; }(e, urgent));
       e.bytesP.catch(function () {});
     }
     updLoad();
@@ -880,19 +993,34 @@
     for (var i = 0; i < arr.length - BYTES_MAX; i++) { var e = arr[i][1]; if (e.tex) { gl.deleteTexture(e.tex); } frames.delete(arr[i][0]); }
   }
   var useClock = 0;
-  function decoded(model, c, field, h) {                 // -> entry with .dec, or null (and kicks off the work)
-    var k = fkey(model, c, field, h), e = entry(k);
-    e.used = ++useClock;
+  function peek(model, c, field, h, lo) { var e = frames.get(fkey(model, c, field, h, lo)); return e && e.dec ? e : null; }
+  function decoded(model, c, field, h, lo) {             // -> entry with .dec, or null (and kicks off the work)
+    var k = fkey(model, c, field, h, lo), e = entry(k);
+    e.used = ++useClock; e.lo = !!lo;
     if (e.dec) return e;
     if (e.decP || e.fail) return null;
-    if (!e.bytes) { if (!e.bytesP) { queue.unshift([model, c, field, h]); pump(); } return null; }
-    e.decP = decode(e.bytes, chOf(field)).then(function (d) {
+    e.ch = chOf(field);
+    if (!e.bytes) { e.wantDec = true; if (!e.bytesP) { queue.unshift([model, c, field, h, !!lo, true]); pump(); } return null; }
+    startDec(e);
+    return null;
+  }
+  function startDec(e) {                                  // bytes -> decoded grid (worker); render when done
+    e.wantDec = false;
+    e.decP = decode(e.bytes, e.ch).then(function (d) {
       e.dec = d; e.decP = null;
       var ds = Array.from(frames.values()).filter(function (x) { return x.dec; }).sort(function (a, b) { return a.used - b.used; });
       for (var i = 0; i < ds.length - DEC_MAX; i++) { ds[i].dec = null; if (ds[i].tex) { gl.deleteTexture(ds[i].tex); ds[i].tex = null; } }
       render();
+      if (e.lo === false && drawn && drawn.e && drawn.e.lo && tip.style.display === "block" && lastHover) hover(lastHover[0], lastHover[1]);   // the native value has arrived
     }, function () { e.decP = null; e.fail = true; render(); });
-    return null;
+  }
+  // resolution: the half-resolution file while a half-resolution cell is at most 1.5 device pixels on screen (a
+  // national view on a 1x-1.25x screen), the native one closer in. Native frames already decoded are always used.
+  function loOK(c, field) {
+    var fm = c && c.fields[field], g = fm && fm.lo && c.grids[fm.lo];
+    if (!g || !view) return false;
+    var cell = g.type === "lcc" ? g.dx : g.di * 111200;
+    return cell / (view.s / DPR) <= 1.5;
   }
   function updLoad() {
     var n = 0; frames.forEach(function (e) { if (e.bytesP) n++; });
@@ -958,35 +1086,84 @@
   }
 
   // ── boundaries ─────────────────────────────────────────────────────────────────────────────────────────────────
-  var geo = {};                                     // layer -> {pts: Float64Array (x,y pairs, NaN breaks), bb: [...] per line, starts}
+  // geo[layer] = {lods: [{tol (km), xy (Float32, km on the display projection), off (line starts), tiles}], maxKmPerPx}.
+  // Each level of detail is cut into ~400 km tiles of Path2D, built the first time that level is drawn; a redraw strokes
+  // the tiles in view with one canvas transform instead of re-projecting and re-issuing every point.
+  var geo = {};
   var GEO_STYLE = { coast: [1.1, 1], lakes: [0.9, 0.9], countries: [1.5, 1], provinces: [1.0, 0.85], states: [1.0, 0.9], counties: [0.5, 0.55] };
+  var GEO_TOLS = [0.1, 0.3, 0.9, 2.7];                       // km
   function loadGeo(url) {
-    return fetch(url).then(function (r) { return r.ok ? r.json() : null; }).then(function (d) {
-      if (!d) return;
-      Object.keys(d.layers).forEach(function (name) {
-        var L = d.layers[name], q = L.q, lines = [], bbs = [];
-        L.lines.forEach(function (ln) {
-          var x = ln[0], y = ln[1], n = ln.length / 2, a = new Float64Array(ln.length), bb = [1e20, -1e20, 1e20, -1e20];
-          for (var k = 0; k < n; k++) {
-            if (k) { x += ln[2 * k]; y += ln[2 * k + 1]; }
-            var p = P.fwd(x / q, y / q); a[2 * k] = p[0]; a[2 * k + 1] = p[1];
-            if (p[0] < bb[0]) bb[0] = p[0]; if (p[0] > bb[1]) bb[1] = p[0]; if (p[1] < bb[2]) bb[2] = p[1]; if (p[1] > bb[3]) bb[3] = p[1];
-          }
-          lines.push(a); bbs.push(bb);
-        });
-        geo[name] = { lines: lines, bbs: bbs, maxKmPerPx: L.maxKmPerPx };
-      });
+    var abs = new URL(url, location.href).href, Pp = [P.n, P.RF, P.rho0, P.lon0];
+    var job = workers.length ? workerCall({ op: "geo", url: abs, P: Pp, tols: GEO_TOLS }).then(function (r) { return r.layers; })
+      : fetch(abs).then(function (r) { return r.ok ? r.json() : null; }).then(function (d) { return d ? geoProcess(d, Pp, GEO_TOLS) : []; });
+    return job.then(function (L) {
+      L.forEach(function (x) { geo[x.name] = { lods: x.lods, maxKmPerPx: x.maxKmPerPx }; });
       drawOverlay();
-    }).catch(function () {});
+      // build the other levels' tiles in idle time, so the first redraw at a new zoom does not pay for it
+      var todo = []; L.forEach(function (x) { geo[x.name].lods.forEach(function (o) { todo.push(o); }); });
+      var idle = window.requestIdleCallback || function (f) { return setTimeout(function () { f({ timeRemaining: function () { return 8; } }); }, 50); };
+      (function step(dl) { while (todo.length && dl.timeRemaining() > 4) { var o = todo.shift(); if (!o.tiles) o.tiles = buildTiles(o.xy, o.off, 400); } if (todo.length) idle(step); })({ timeRemaining: function () { return 0; } });
+    }).catch(function (e) { console.warn("boundaries", e); });
+  }
+  // lines (xy in km, off = start of each line, in points) -> tiles [{bb: [x0, x1, y0, y1], path}]; long lines are cut
+  // into pieces of <= 200 points so a coastline does not make one tile span the continent
+  function buildTiles(xy, off, cellKm) {
+    var cells = new Map(), li, k, a, b;
+    for (li = 0; li + 1 < off.length; li++) {
+      for (a = off[li]; a < off[li + 1] - 1; a = b - 1) {
+        b = Math.min(off[li + 1], a + 200);
+        var x0 = 1e9, x1 = -1e9, y0 = 1e9, y1 = -1e9;
+        for (k = a; k < b; k++) { var X = xy[2 * k], Y = xy[2 * k + 1]; if (X < x0) x0 = X; if (X > x1) x1 = X; if (Y < y0) y0 = Y; if (Y > y1) y1 = Y; }
+        var key = Math.floor((x0 + x1) / 2 / cellKm) + "," + Math.floor((y0 + y1) / 2 / cellKm), t = cells.get(key);
+        if (!t) { t = { bb: [x0, x1, y0, y1], path: new Path2D() }; cells.set(key, t); }
+        else { if (x0 < t.bb[0]) t.bb[0] = x0; if (x1 > t.bb[1]) t.bb[1] = x1; if (y0 < t.bb[2]) t.bb[2] = y0; if (y1 > t.bb[3]) t.bb[3] = y1; }
+        t.path.moveTo(xy[2 * a], xy[2 * a + 1]);
+        for (k = a + 1; k < b; k++) t.path.lineTo(xy[2 * k], xy[2 * k + 1]);
+      }
+    }
+    return Array.from(cells.values());
+  }
+  function geoLod(L) {                                     // the coarsest level within ~0.6 device px
+    var tmax = 0.6 * view.s / 1000 / DPR, best = L.lods[0];
+    L.lods.forEach(function (o) { if (o.tol <= tmax && o.tol >= best.tol) best = o; });
+    if (!best.tiles) best.tiles = buildTiles(best.xy, best.off, 400);
+    return best;
+  }
+  // canvas transform for km coordinates on the display projection; line widths are then given in km (w CSS px = w*s/1000)
+  function kmTransform(ctx) { var k = DPR * 1000 / view.s; ctx.setTransform(k, 0, 0, -k, DPR * W / 2 - k * view.cx / 1000, DPR * H / 2 + k * view.cy / 1000); }
+  function strokeTiles(ctx, tiles, x0, x1, y0, y1) {
+    for (var i = 0; i < tiles.length; i++) { var bb = tiles[i].bb; if (bb[1] < x0 || bb[0] > x1 || bb[3] < y0 || bb[2] > y1) continue; ctx.stroke(tiles[i].path); }
   }
 
   // ── view ───────────────────────────────────────────────────────────────────────────────────────────────────────
   var W = 0, H = 0, DPR = 1;
+  // ── adaptive quality (2026-10-01, user: panning and zooming "slow and clunky" on a low-powered Windows laptop) ──────
+  // Frame intervals while the map moves and the time of each full overlay redraw are measured. When the gesture frames
+  // run slower than ~38 fps (median of the last 40), or the redraws take more than ~45 ms, the page steps down a level:
+  // fewer device pixels for both canvases, counties only closer in, fewer airport labels, sparser barbs. After 20 s at a
+  // lower level with frames at the display rate it tries one level up again; if that is slow too it stays down for the
+  // visit. A fast machine never leaves level 0, which is the page as it was.
+  var Q = { lvl: 0, dpr: [2, 1.25, 1], county: [1, 0.55, 0.32], barb: [1, 1.35, 1.7], gest: [], settle: [], fast: [], changed: 0, sticky: false, trial: false, log: [] };
+  (function () { var hc = navigator.hardwareConcurrency || 8, dm = navigator.deviceMemory || 8; if (hc <= 4 || dm <= 4) Q.lvl = 1; })();
+  if (/[?&]q=(\d)/.test(location.search)) { Q.lvl = Math.min(2, +RegExp.$1); Q.pinned = true; }       // testing: pin a level
+  function med(a) { if (!a.length) return 0; var b = a.slice().sort(function (x, y) { return x - y; }); return b[b.length >> 1]; }
+  function qualityCheck() {                               // at the end of a gesture
+    // gesture frames are display-locked (16.7 / 33.3 ms at 60 Hz), so the share of slow ones says more than the median
+    var now = performance.now(), g = Q.gest.slice(-40), slowF = g.length >= 24 ? g.filter(function (x) { return x > 25; }).length / g.length : -1;
+    var sm = Q.settle.length >= 3 ? med(Q.settle.slice(-5)) : 0, to = Q.lvl;
+    if ((slowF > 0.3 || sm > 45) && Q.lvl < 2 && !Q.pinned) { to = Q.lvl + 1; if (Q.trial) Q.sticky = true; Q.trial = false; }
+    else if (Q.lvl > 0 && !Q.sticky && !Q.pinned && slowF >= 0 && slowF < 0.08 && (!sm || sm < 25) && now - Q.changed > 20000) { to = Q.lvl - 1; Q.trial = true; }
+    if (to === Q.lvl) return;
+    Q.log.push([Math.round(now), Q.lvl, to, Math.round(slowF * 100), Math.round(sm)]);
+    Q.lvl = to; Q.changed = now; Q.gest = []; Q.settle = [];
+    var s = view && view.s; resize(); if (s) view.s = s;
+  }
   function resize() {
     var r = mapEl.getBoundingClientRect();
-    DPR = Math.min(window.devicePixelRatio || 1, 2);
+    DPR = Math.min(window.devicePixelRatio || 1, Q.dpr[Q.lvl]);
     W = r.width; H = r.height;
-    [glc, ovc].forEach(function (c) { c.width = Math.round(W * DPR); c.height = Math.round(H * DPR); });
+    [glc, ovc, labc].forEach(function (c) { c.width = Math.round(W * DPR); c.height = Math.round(H * DPR); });
+    ovView = null;
     drawLegend();
     render();
   }
@@ -1006,16 +1183,17 @@
   // the accumulation shown = total(h) - total(start): start = h - window, snapped DOWN to an hour the run carries (RRFS is
   // 3-hourly past 36 h), and the start of the run when the window reaches back past it. -> {e, fm, label} or {msg}
   var ACCF = new Map();
-  function accFrame(model, c, hour) {
+  function accFrame(model, c, hour, lo) {
     var type = st.acc.type, fm = c.fields[type];
     if (!fm) return { msg: "Precipitation accumulation is not in this run yet." };
     if (fm.hours.indexOf(hour) < 0) return { msg: ACC_TYPES[type].label + " accumulation is not available at +" + hour + " h in this run." };
+    lo = !!(lo && fm.lo);
     var start = 0;
     if (st.acc.win) { var want = hour - st.acc.win; start = 0; fm.hours.forEach(function (x) { if (x <= want && x > start) start = x; }); if (want <= 0) start = 0; }
     var key = model + "/" + c.cycle + "/" + type + "/" + hour + "/" + start;
     var label = start === 0 ? "since the start of the run (0 to +" + hour + " h)" : "+" + start + " to +" + hour + " h";
-    var have = ACCF.get(key); if (have) { have.used = ++useClock; return { e: have, fm: fm, label: label, start: start, key: key }; }
-    var e1 = decoded(model, c, type, hour), e0 = start ? decoded(model, c, type, start) : null;
+    var have = ACCF.get(key + (lo ? "~lo" : "")); if (have) { have.used = ++useClock; return { e: have, fm: fm, label: label, start: start, key: key }; }
+    var e1 = decoded(model, c, type, hour, lo), e0 = start ? decoded(model, c, type, start, lo) : null;
     if (!e1 || !e1.dec || (start && (!e0 || !e0.dec))) return { wait: true, fm: fm, label: label };
     var a1 = e1.dec.data, a0 = e0 ? e0.dec.data : null, n = e1.dec.w * e1.dec.h, out = new Uint8Array(n), u = fm.unit, vm = ACC_TYPES[type].vmax;
     var exact = new Float32Array(n);
@@ -1025,8 +1203,8 @@
       var vi = v * u; exact[k] = vi;
       var cd = Math.round(254 * Math.sqrt(vi / vm)); out[k] = cd < 1 ? 1 : cd > 254 ? 254 : cd;
     }
-    var ent = { dec: { w: e1.dec.w, h: e1.dec.h, data: out }, exact: exact, used: ++useClock };
-    ACCF.set(key, ent);
+    var ent = { dec: { w: e1.dec.w, h: e1.dec.h, data: out }, exact: exact, used: ++useClock, lo: lo };
+    ACCF.set(key + (lo ? "~lo" : ""), ent);
     if (ACCF.size > 10) { var old = ACCF.keys().next().value, oe = ACCF.get(old); if (oe.tex && gl) gl.deleteTexture(oe.tex); ACCF.delete(old); }
     return { e: ent, fm: fm, label: label, start: start, key: key };
   }
@@ -1059,37 +1237,66 @@
     if (ECF.size > 8) { var old = ECF.keys().next().value, oe = ECF.get(old); if (oe.tex && gl) gl.deleteTexture(oe.tex); ECF.delete(old); }
     return { e: ent, fm: fm, key: key };
   }
+  // the frame of a plain field: the resolution the zoom wants, else the other one if it is already decoded (the native
+  // one while the half-resolution one loads, or the half-resolution one while the native one loads after zooming in)
+  function plainFrame(model, c, field, h) {
+    var lo = loOK(c, field), e = peek(model, c, field, h, lo) || decoded(model, c, field, h, lo);
+    return e || peek(model, c, field, h, !lo);
+  }
+  // Cheap frame while the map is being dragged or zoomed (2026-10-01): the same texture and colour table with new view
+  // uniforms, and the line overlay moved by the compositor. No badge, lookups, contours, prefetch or DOM writes.
+  var lastFast = 0;
+  function fastFrame() {
+    var e = drawn && drawn.e;
+    if (!gl || !view || !e || !e.tex || drawn.msg) return false;
+    var t0 = performance.now();
+    gl.viewport(0, 0, glc.width, glc.height); gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT);
+    gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, e.tex);
+    gl.uniform2f(loc.uC, view.cx, view.cy); gl.uniform1f(loc.uS, view.s / DPR); gl.uniform2f(loc.uWH, glc.width, glc.height);
+    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+    moveOverlay();
+    var t1 = performance.now();
+    if (lastFast && t0 - lastFast < 250) Q.gest.push(t0 - lastFast);
+    if (Q.gest.length > 120) Q.gest.splice(0, 60);
+    Q.fast.push(t1 - t0); if (Q.fast.length > 120) Q.fast.splice(0, 60);
+    lastFast = t0;
+    return true;
+  }
   function draw() {
+    if (interacting) gestDraws++;
+    if (interacting && fastFrame()) return;
     var cc = currentCycle(), c = cc.c, fd = FIELDS[st.field];
     updateBadge(cc);
     if (!c || !view) { drawOverlay(); return; }
     var fm = c.fields[st.field], acc = null, ec = null;
     var msg = "";
     var na = NA[st.model] && NA[st.model][st.field];
-    if (st.field === "acc") { acc = accFrame(st.model, c, cc.hour); fm = acc.fm || null; if (acc.msg) na = acc.msg; }
+    if (st.field === "acc") { acc = accFrame(st.model, c, cc.hour, loOK(c, st.acc.type)); fm = acc.fm || null; if (acc.msg) na = acc.msg; }
     if (st.field === "ecape") { ec = ecFrame(st.model, c, cc.hour); fm = ec.fm || null; if (ec.msg) na = ec.msg; }
     if (na) msg = na;
     else if (!fm) msg = FIELDS[st.field].label + " is missing from this run.";
     else if (fm.hours.indexOf(cc.hour) < 0) msg = FIELDS[st.field].label + " is not available at +" + cc.hour + " h in this run" +
       (fm.hours.length ? " (it covers +" + fm.hours[0] + " to +" + fm.hours[fm.hours.length - 1] + " h)." : ".");
-    $("msg").textContent = msg;
+    if ($("msg").textContent !== msg) $("msg").textContent = msg;
     if (msg) { if (gl) { gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT); } drawn = null; drawOverlay(); schedule(); return; }
-    var e = acc ? (acc.e || null) : ec ? (ec.e || null) : decoded(st.model, c, st.field, cc.hour);
-    if (!e && fileFields().some(function (f) { var x = frames.get(fkey(st.model, c, f, cc.hour)); return x && x.fail; })) {
+    var e = acc ? (acc.e || null) : ec ? (ec.e || null) : plainFrame(st.model, c, st.field, cc.hour);
+    if (!e && fileFields().some(function (f) { var lo = loOK(c, f), x = frames.get(fkey(st.model, c, f, cc.hour, lo)); return x && x.fail; })) {
       $("msg").textContent = "This map could not be downloaded. It may still be publishing, or the connection dropped; try another hour, or reload in a minute.";
       if (gl) { gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT); } drawn = null; drawOverlay(); schedule(); return;
     }
-    if (!e && drawn && drawn.field === st.field && drawn.model === st.model && (!ec || drawn.ecSub === st.ec)) { e = drawn.e; }      // hold the last frame while the next decodes
+    var hold = false;
+    if (!e && drawn && drawn.field === st.field && drawn.model === st.model && (!ec || drawn.ecSub === st.ec)) { e = drawn.e; hold = true; }      // hold the last frame while the next decodes
     else if (!e) { drawn = null; if (gl) { gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT); } drawOverlay(); schedule(); return; }
     if (!e.dec) { drawOverlay(); schedule(); return; }
     var hidx = fm.hours.indexOf(cc.hour);
     var q = fm.q && !acc ? fm.q[hidx] : ec ? (fm.k || 2.8) : null;
     if (drawn && drawn.e === e) q = drawn.q;
-    var g = prepGrid(c.grids[fm.grid]);
+    var gfm = acc ? c.fields[st.acc.type] : fm;
+    var g = hold ? drawn.g : prepGrid(c.grids[e.lo && gfm.lo ? gfm.lo : gfm.grid]);
     if (gl) {
       var ch = chOf(st.field), enc = encOf(st.field, fm);
       gl.viewport(0, 0, glc.width, glc.height); gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT);
-      gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, texOf(e, ch));
+      gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, texOf(e, acc || ec ? 1 : ch));
       if (acc) { ch = 1; enc = "accd"; }
       if (ec) { ch = 1; enc = EC_SUBS[st.ec].kind === "ratio" ? "ratio" : "sqrt"; }
       var lk = st.field + "|" + enc + "|" + (q && q.join ? q.join(",") : q || "") + "|" + (acc ? st.acc.type : ec ? st.ec : "");
@@ -1105,61 +1312,70 @@
     }
     drawn = { e: e, g: g, field: st.field, model: st.model, q: q, c: c, hour: cc.hour, enc: acc ? "accd" : encOf(st.field, fm), fm: fm,
               ckey: acc ? "acc/" + (acc.key || "") : ec ? "ec/" + (ec.key || "") : null, accLabel: acc ? acc.label : null, accType: acc ? st.acc.type : null,
-              ecSub: ec ? st.ec : null };
+              ecSub: ec ? st.ec : null, start: acc ? acc.start : 0 };
     ensureContours(drawn);
     drawOverlay();
     schedule();
   }
 
-  // While the map is being dragged or zoomed the vector lines (thousands of county/coast points, plus barbs) are
-  // not re-stroked every frame: the last full overlay is kept as a bitmap and only moved and scaled, and the lines
-  // are redrawn properly once the gesture settles (2026-09-30, user: panning and zooming "a bit clunky").
-  var interacting = false, settleT = 0, snap = null, snapC = document.createElement("canvas");
-  function beginInteract() { interacting = true; clearTimeout(settleT); }
-  function settleSoon(ms) { clearTimeout(settleT); settleT = setTimeout(function () { interacting = false; render(); }, ms || 140); }
-  function syncFarmsUI() { var k = farmKind(); $("farmsL").hidden = !k; if (k) $("farmsT").textContent = k === "wind" ? "Wind farms" : "Solar farms"; }
+  // While the map is being dragged or zoomed the overlay is not redrawn: the line canvas (boundaries, contour lines,
+  // barbs) is moved and scaled by a CSS transform, the label canvas (contour labels, H/L, airports, plants) is hidden,
+  // and both are redrawn once the gesture settles - lines in that frame, labels in the next, so neither frame is long
+  // (2026-09-30, user: panning and zooming "a bit clunky"; CSS transform and hidden labels 2026-10-01).
+  var interacting = false, settleT = 0, ovView = null, labT = 0, ovMoved = false;
+  var gestDraws = 0;
+  function beginInteract() {
+    if (!interacting) { interacting = true; lastFast = 0; gestDraws = 0; }
+    clearTimeout(settleT);
+  }
+  function settleSoon(ms) { clearTimeout(settleT); settleT = setTimeout(function () {
+    interacting = false; lastFast = 0;
+    if (!gestDraws && ovView && view && ovView.cx === view.cx && ovView.cy === view.cy && ovView.s === view.s) return;   // a click: nothing moved
+    qualityCheck(); render(); }, ms || 140); }
+  function syncFarmsUI() { var k = farmKind(), L = $("farmsL"); if (L.hidden !== !k) L.hidden = !k; if (k) { var t = k === "wind" ? "Wind farms" : "Solar farms"; if ($("farmsT").textContent !== t) $("farmsT").textContent = t; } }
+  function moveOverlay() {
+    if (!ovView) return;
+    var k = ovView.s / view.s, tx = W / 2 * (1 - k) + (ovView.cx - view.cx) / view.s, ty = H / 2 * (1 - k) - (ovView.cy - view.cy) / view.s;
+    ovc.style.transform = "matrix(" + k + ",0,0," + k + "," + tx + "," + ty + ")"; ovMoved = true;
+    if (labc.style.visibility !== "hidden") { labc.style.visibility = "hidden"; tip.style.display = "none"; }
+  }
   function drawOverlay() {
+    if (interacting && ovView && view) { moveOverlay(); return; }
+    var t0 = performance.now();
     syncFarmsUI();
     var ctx = ovc.getContext("2d");
-    if (interacting && snap && view) {
-      var k = snap.s / view.s;
-      ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, ovc.width, ovc.height);
-      ctx.setTransform(k, 0, 0, k, DPR * (W / 2 * (1 - k) + (snap.cx - view.cx) / view.s), DPR * (H / 2 * (1 - k) - (snap.cy - view.cy) / view.s));
-      ctx.drawImage(snapC, 0, 0);
-      return;
-    }
+    if (ovMoved) { ovc.style.transform = ""; ovMoved = false; }
     ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, ovc.width, ovc.height);
-    if (!view) return;
-    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+    if (!view) { ovView = null; return; }
     var col = (FIELDS[st.field].lines) || "rgba(28,30,28,0.78)";
     var kpp = view.s / 1000;
-    var x0 = view.cx - W / 2 * view.s, x1 = view.cx + W / 2 * view.s, y0 = view.cy - H / 2 * view.s, y1 = view.cy + H / 2 * view.s;
+    var x0 = (view.cx - W / 2 * view.s) / 1000, x1 = (view.cx + W / 2 * view.s) / 1000, y0 = (view.cy - H / 2 * view.s) / 1000, y1 = (view.cy + H / 2 * view.s) / 1000;
+    kmTransform(ctx); ctx.lineJoin = "round"; ctx.strokeStyle = col;
     ["counties", "lakes", "coast", "provinces", "states", "countries"].forEach(function (name) {
       var L = geo[name]; if (!L) return;
-      if (L.maxKmPerPx && kpp > L.maxKmPerPx) return;
+      if (L.maxKmPerPx && kpp > L.maxKmPerPx * Q.county[Q.lvl]) return;
       var sty = GEO_STYLE[name];
-      ctx.strokeStyle = col; ctx.globalAlpha = sty[1]; ctx.lineWidth = sty[0]; ctx.lineJoin = "round";
-      ctx.beginPath();
-      for (var i = 0; i < L.lines.length; i++) {
-        var bb = L.bbs[i]; if (bb[1] < x0 || bb[0] > x1 || bb[3] < y0 || bb[2] > y1) continue;
-        var a = L.lines[i], px = W / 2 + (a[0] - view.cx) / view.s, py = H / 2 - (a[1] - view.cy) / view.s;
-        ctx.moveTo(px, py);
-        for (var k = 2; k < a.length; k += 2) {
-          var nx = W / 2 + (a[k] - view.cx) / view.s, ny = H / 2 - (a[k + 1] - view.cy) / view.s;
-          if (Math.abs(nx - px) + Math.abs(ny - py) < 0.6 && k < a.length - 2) continue;       // sub-pixel steps
-          ctx.lineTo(nx, ny); px = nx; py = ny;
-        }
-      }
-      ctx.stroke();
+      ctx.globalAlpha = sty[1]; ctx.lineWidth = sty[0] * kpp;
+      strokeTiles(ctx, geoLod(L).tiles, x0, x1, y0, y1);
     });
     ctx.globalAlpha = 1;
-    drawContours(ctx);
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+    drawContourLines(ctx, x0, x1, y0, y1);
     if (st.field === "wind80" && drawn && drawn.e && drawn.e.dec && drawn.field === "wind80") drawBarbs(ctx, drawn);
+    ovView = { cx: view.cx, cy: view.cy, s: view.s };
+    var t1 = performance.now();
+    cancelAnimationFrame(labT);
+    labT = requestAnimationFrame(function () { labT = 0; var t2 = performance.now(); drawLabels(); Q.settle.push(t1 - t0 + performance.now() - t2); if (Q.settle.length > 30) Q.settle.splice(0, 15); });
+  }
+  function drawLabels() {
+    var ctx = labc.getContext("2d");
+    ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, labc.width, labc.height);
+    if (!view || interacting) return;
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+    drawContourLabels(ctx);
     drawFarms(ctx);
     drawAirports(ctx);
-    if (snapC.width !== ovc.width || snapC.height !== ovc.height) { snapC.width = ovc.width; snapC.height = ovc.height; }
-    var sc = snapC.getContext("2d"); sc.setTransform(1, 0, 0, 1, 0, 0); sc.clearRect(0, 0, snapC.width, snapC.height); sc.drawImage(ovc, 0, 0);
-    snap = { cx: view.cx, cy: view.cy, s: view.s };
+    labc.style.visibility = "";
   }
 
   // Wind and solar plant locations on the 80 m wind and shortwave maps (2026-09-30, user request). One static file,
@@ -1259,17 +1475,21 @@
     var spec0 = contourSpec(d.field, d.model, [0, 1]);
     var srcField = spec0.src || d.field, sfm = d.field === "acc" || d.field === "ecape" ? fm : d.c.fields[srcField];
     if (!sfm || sfm.hours.indexOf(d.hour) < 0) return;
+    // one set of lines per frame whatever resolution is on screen: the first one traced is kept (from the half-resolution
+    // grid the 2 x 2 block average becomes every 2nd point, the same 6 km lattice), so zooming does not redraw the lines
     var key = d.ckey || d.model + "/" + d.c.cycle + "/" + d.field + "/" + d.hour;
     if (CONT.has(key) || contBusy[key]) return;
     var e = srcField === d.field ? d.e : decoded(d.model, d.c, srcField, d.hour);
     if (!e || !e.dec) return;
     var q = sfm.q && d.field !== "acc" ? sfm.q[sfm.hours.indexOf(d.hour)] : d.field === "ecape" ? (fm.k || 2.8) : null;
-    var spec = contourSpec(d.field, d.model, q), g = prepGrid(d.c.grids[sfm.grid]);
+    var spec = contourSpec(d.field, d.model, q), g = srcField === d.field ? d.g : prepGrid(d.c.grids[sfm.grid]);
+    var dec = spec.dec;
+    if (srcField === d.field && e.lo) dec = Math.max(1, Math.round(dec / 2));
     contBusy[key] = 1;
     var cellKm = g.type === "lcc" ? g.dx / 1000 : g.di * 111.2, ext = null;
     if (spec.extKm) ext = [Math.max(4, Math.round(spec.extKm[0] / cellKm)), spec.extKm[1], Math.max(1, Math.round(spec.extKm[2] / cellKm))];
     workerCall({ op: "contour", w: e.dec.w, h: e.dec.h, data: e.dec.data, lut: spec.lut, speed: spec.speed, levels: spec.levels,
-                 rad: spec.rad, rad2: spec.rad2, dec: spec.dec, minPts: spec.minPts, ext: ext, stride: spec.stride, emask: spec.emask, nblur: spec.nblur }).then(function (r) {
+                 rad: spec.rad, rad2: spec.rad2, dec: dec, minPts: spec.minPts, ext: ext, stride: spec.stride, emask: spec.emask, nblur: spec.nblur }).then(function (r) {
       var lines = r.lines.map(function (o) {
         var n = o.pts.length / 2, xy = new Float64Array(o.pts.length), bb = [1e20, -1e20, 1e20, -1e20];
         for (var k = 0; k < n; k++) {
@@ -1290,39 +1510,54 @@
     if (g.type === "lcc") return [g._x1 + i * g.dx, g._y1 + j * g.dy];
     var ll = ijLL(g, i, j); return P.fwd(ll[0], ll[1]);
   }
-  function drawContours(ctx) {
-    if (!contoursOn() || !drawn) return;
+  function contNow() {
+    if (!contoursOn() || !drawn) return null;
     var key = drawn.ckey || drawn.model + "/" + drawn.c.cycle + "/" + drawn.field + "/" + drawn.hour, C = CONT.get(key);
-    if (!C) { ensureContours(drawn); return; }
-    var x0 = view.cx - W / 2 * view.s, x1 = view.cx + W / 2 * view.s, y0 = view.cy - H / 2 * view.s, y1 = view.cy + H / 2 * view.s;
-    var boxes = [], GAP = W < 640 ? 170 : 240;
-    ctx.lineJoin = "round"; ctx.lineCap = "round";
-    var screen = [];
-    C.lines.forEach(function (L) {
-      if (L.bb[1] < x0 || L.bb[0] > x1 || L.bb[3] < y0 || L.bb[2] > y1) return;
-      var a = L.xy, sp = new Float32Array(a.length);
-      for (var k = 0; k < a.length; k += 2) { sp[k] = W / 2 + (a[k] - view.cx) / view.s; sp[k + 1] = H / 2 - (a[k + 1] - view.cy) / view.s; }
-      screen.push([L, sp]);
-    });
+    if (!C) ensureContours(drawn);
+    return C || null;
+  }
+  // contour lines: one tiled Path2D per level, built once per frame (km), stroked with the canvas transform
+  function drawContourLines(ctx, x0, x1, y0, y1) {
+    var C = contNow(); if (!C) return;
+    if (!C.groups) {
+      var by = new Map();
+      C.lines.forEach(function (L) { var gp = by.get(L.v); if (!gp) by.set(L.v, gp = []); gp.push(L); });
+      C.groups = [];
+      by.forEach(function (ls, v) {
+        var np = 0; ls.forEach(function (L) { np += L.xy.length / 2; });
+        var xy = new Float32Array(np * 2), off = new Int32Array(ls.length + 1), p = 0;
+        ls.forEach(function (L, i) { off[i] = p; for (var k = 0; k < L.xy.length; k++) xy[2 * p + k] = L.xy[k] / 1000; p += L.xy.length / 2; });
+        off[ls.length] = p;
+        C.groups.push({ v: v, sty: C.spec.style(v), tiles: buildTiles(xy, off, 400) });
+      });
+    }
+    var kpp = view.s / 1000;
+    kmTransform(ctx); ctx.lineJoin = "round"; ctx.lineCap = "round";
     [0, 1].forEach(function (pass) {                               // halo first, then the line
-      screen.forEach(function (x) {
-        var sty = C.spec.style(x[0].v), sp = x[1];
-        ctx.strokeStyle = pass ? sty[0] : "rgba(255,255,255,0.55)"; ctx.lineWidth = pass ? sty[1] : sty[1] + 1.8;
-        ctx.beginPath(); ctx.moveTo(sp[0], sp[1]);
-        for (var k = 2; k < sp.length; k += 2) ctx.lineTo(sp[k], sp[k + 1]);
-        ctx.stroke();
+      C.groups.forEach(function (gp) {
+        ctx.strokeStyle = pass ? gp.sty[0] : "rgba(255,255,255,0.55)"; ctx.lineWidth = (pass ? gp.sty[1] : gp.sty[1] + 1.8) * kpp;
+        strokeTiles(ctx, gp.tiles, x0, x1, y0, y1);
       });
     });
-    ctx.font = "600 11.5px 'Source Sans 3', Arial, sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
-    screen.forEach(function (x) {
-      var L = x[0], sp = x[1], txt = C.spec.fmt(L.v), tw = ctx.measureText(txt).width + 6, sty = C.spec.style(L.v);
-      var acc = GAP * 0.45;
-      for (var k = 2; k < sp.length; k += 2) {
-        var dx = sp[k] - sp[k - 2], dy = sp[k + 1] - sp[k - 1]; acc += Math.sqrt(dx * dx + dy * dy);
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  }
+  var TW = new Map();                                              // text widths, per font + text
+  function textW(ctx, font, txt) { var k = font + "|" + txt, w = TW.get(k); if (w === undefined) { w = ctx.measureText(txt).width; TW.set(k, w); } return w; }
+  function drawContourLabels(ctx) {
+    var C = contNow(); if (!C) return;
+    var x0 = view.cx - W / 2 * view.s, x1 = view.cx + W / 2 * view.s, y0 = view.cy - H / 2 * view.s, y1 = view.cy + H / 2 * view.s;
+    var boxes = [], GAP = W < 640 ? 170 : 240, FONT = "600 11.5px 'Source Sans 3', Arial, sans-serif";
+    ctx.font = FONT; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    C.lines.forEach(function (L) {
+      if (L.bb[1] < x0 || L.bb[0] > x1 || L.bb[3] < y0 || L.bb[2] > y1) return;
+      var a = L.xy, n = a.length, txt = C.spec.fmt(L.v), tw = textW(ctx, FONT, txt) + 6, sty = C.spec.style(L.v);
+      var acc = GAP * 0.45, px = W / 2 + (a[0] - view.cx) / view.s, py = H / 2 - (a[1] - view.cy) / view.s;
+      for (var k = 2; k < n; k += 2) {
+        var cx = W / 2 + (a[k] - view.cx) / view.s, cy = H / 2 - (a[k + 1] - view.cy) / view.s, dx = cx - px, dy = cy - py;
+        px = cx; py = cy; acc += Math.sqrt(dx * dx + dy * dy);
         if (acc < GAP) continue;
-        var cx = sp[k], cy = sp[k + 1];
         if (cx < tw || cx > W - tw || cy < 12 || cy > H - 12) continue;
-        var ka = Math.max(0, k - 6), kb = Math.min(sp.length - 2, k + 6), ang = Math.atan2(sp[kb + 1] - sp[ka + 1], sp[kb] - sp[ka]);
+        var ka = Math.max(0, k - 6), kb = Math.min(n - 2, k + 6), ang = Math.atan2(-(a[kb + 1] - a[ka + 1]), a[kb] - a[ka]);
         if (ang > Math.PI / 2) ang -= Math.PI; if (ang < -Math.PI / 2) ang += Math.PI;
         var r = Math.max(tw, 16) / 2 + 2, hit = false;
         for (var b = 0; b < boxes.length; b++) { var bx = boxes[b]; if (Math.abs(bx[0] - cx) < bx[2] + r && Math.abs(bx[1] - cy) < 9 + r * Math.abs(Math.sin(ang)) + 4) { hit = true; break; } }
@@ -1356,32 +1591,52 @@
       d.airports.forEach(function (a) { var q = P.fwd(a[0], a[1]); a.x = q[0]; a.y = q[1]; }); APTS = d.airports; render();
     }).catch(function () { aptsP = null; });
   }
+  // labels: collision boxes in a 48 px hash grid; text widths cached. Lower quality levels label the hubs only at
+  // national scale and the medium airports only closer in (markers stay).
   function drawAirports(ctx) {
     aptShown = [];
     if (!$("sta").checked) return;
     if (!APTS) { loadApts(); return; }
-    var kpp = view.s / 1000, maxTier = kpp > 2.2 ? 1 : 2, boxes = [];
-    ctx.font = "600 11px 'Source Sans 3', Arial, sans-serif"; ctx.textBaseline = "middle";
-    APTS.forEach(function (a) {
-      if (a[4] > maxTier) return;
+    var kpp = view.s / 1000, maxTier = kpp > 2.2 ? 1 : 2, labTier = [2, kpp > 1.2 ? 1 : 2, kpp > 0.7 ? 1 : 2][Q.lvl];
+    var FONT = "600 11px 'Source Sans 3', Arial, sans-serif", G = 48, grid = new Map();
+    function hits(b) {
+      for (var gx = Math.floor(b[0] / G); gx <= Math.floor(b[2] / G); gx++) for (var gy = Math.floor(b[1] / G); gy <= Math.floor(b[3] / G); gy++) {
+        var L = grid.get(gx * 4096 + gy); if (!L) continue;
+        for (var m = 0; m < L.length; m++) { var o = L[m]; if (b[0] < o[2] && b[2] > o[0] && b[1] < o[3] && b[3] > o[1]) return true; } }
+      return false;
+    }
+    function add(b) {
+      for (var gx = Math.floor(b[0] / G); gx <= Math.floor(b[2] / G); gx++) for (var gy = Math.floor(b[1] / G); gy <= Math.floor(b[3] / G); gy++) {
+        var k = gx * 4096 + gy, L = grid.get(k); if (!L) grid.set(k, L = []); L.push(b); }
+    }
+    ctx.font = FONT; ctx.textBaseline = "middle";
+    var vis = [];
+    for (var i = 0; i < APTS.length; i++) {
+      var a = APTS[i]; if (a[4] > maxTier) continue;
       var px = W / 2 + (a.x - view.cx) / view.s, py = H / 2 - (a.y - view.cy) / view.s;
-      if (px < -20 || px > W + 20 || py < -20 || py > H + 20) return;
-      aptShown.push([px, py, a]);
-      ctx.beginPath(); ctx.moveTo(px, py - 4); ctx.lineTo(px + 4, py); ctx.lineTo(px, py + 4); ctx.lineTo(px - 4, py); ctx.closePath();   // diamond
-      ctx.fillStyle = "#ffffff"; ctx.fill(); ctx.lineWidth = 1.4; ctx.strokeStyle = "#1a1a1a"; ctx.stroke();
-      var tw = ctx.measureText(a[2]).width, spots = [[px + 7, py, "left"], [px - 7, py, "right"], [px, py - 11, "center"], [px, py + 11, "center"]];
-      for (var k = 0; k < spots.length; k++) {
-        var sx = spots[k][0], sy = spots[k][1], al = spots[k][2];
-        var x0 = al === "left" ? sx : al === "right" ? sx - tw : sx - tw / 2, b = [x0 - 2, sy - 7, x0 + tw + 2, sy + 7];
-        var hit = false;
-        for (var m = 0; m < boxes.length; m++) { var o = boxes[m]; if (b[0] < o[2] && b[2] > o[0] && b[1] < o[3] && b[3] > o[1]) { hit = true; break; } }
-        if (hit) continue;
-        boxes.push(b); ctx.textAlign = al;
-        ctx.lineWidth = 3; ctx.strokeStyle = "rgba(255,255,255,0.92)"; ctx.strokeText(a[2], sx, sy);
-        ctx.fillStyle = "#141614"; ctx.fillText(a[2], sx, sy);
-        break;
+      if (px < -20 || px > W + 20 || py < -20 || py > H + 20) continue;
+      vis.push([px, py, a]);
+    }
+    // markers in one path
+    ctx.beginPath();
+    vis.forEach(function (v) { var px = v[0], py = v[1]; ctx.moveTo(px, py - 4); ctx.lineTo(px + 4, py); ctx.lineTo(px, py + 4); ctx.lineTo(px - 4, py); ctx.closePath(); });
+    ctx.fillStyle = "#ffffff"; ctx.fill(); ctx.lineWidth = 1.4; ctx.strokeStyle = "#1a1a1a"; ctx.stroke();
+    ctx.lineWidth = 3; ctx.strokeStyle = "rgba(255,255,255,0.92)"; ctx.fillStyle = "#141614";
+    vis.forEach(function (v) {
+      var px = v[0], py = v[1], a = v[2];
+      aptShown.push(v);
+      if (a[4] <= labTier) {
+        var tw = a.tw || (a.tw = textW(ctx, FONT, a[2])), spots = [[px + 7, py, "left"], [px - 7, py, "right"], [px, py - 11, "center"], [px, py + 11, "center"]];
+        for (var k = 0; k < spots.length; k++) {
+          var sx = spots[k][0], sy = spots[k][1], al = spots[k][2];
+          var x0 = al === "left" ? sx : al === "right" ? sx - tw : sx - tw / 2, b = [x0 - 2, sy - 7, x0 + tw + 2, sy + 7];
+          if (hits(b)) continue;
+          add(b); ctx.textAlign = al;
+          ctx.strokeText(a[2], sx, sy); ctx.fillText(a[2], sx, sy);
+          break;
+        }
       }
-      boxes.push([px - 5, py - 5, px + 5, py + 5]);
+      add([px - 5, py - 5, px + 5, py + 5]);
     });
   }
   function nearestApt(px, py) {
@@ -1398,7 +1653,7 @@
     return chOf(d.field) === 2 ? [a[2 * idx], a[2 * idx + 1], xy] : [a[idx], null, xy];
   }
   function drawBarbs(ctx, d) {
-    var fd = FIELDS.wind80, sp = W < 640 ? 34 : 40, L = 17;
+    var fd = FIELDS.wind80, sp = Math.round((W < 640 ? 34 : 40) * Q.barb[Q.lvl]), L = 17;
     ctx.strokeStyle = "rgba(18,20,18,0.85)"; ctx.fillStyle = "rgba(18,20,18,0.85)"; ctx.lineWidth = 1.1; ctx.globalAlpha = 1;
     for (var py = sp / 2; py < H; py += sp) for (var px = sp / 2; px < W; px += sp) {
       var s = sample(d, px, py); if (!s || s[0] === 255) continue;
@@ -1432,7 +1687,7 @@
     var ctx = cv.getContext("2d"); ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, r.width, 92);
     var rate = st.model === "rdps", lab = r.width < 500 ? 78 : 92, x0 = 6 + lab, x1 = r.width - 6, lo = 5, hi = 72, bh = 11;
     function xOf(dbz) { return x0 + (dbz - lo) / (hi - lo) * (x1 - x0); }
-    ctx.font = "12px 'Source Sans 3', Arial, sans-serif"; ctx.textBaseline = "middle"; ctx.textAlign = "right";
+    ctx.font = "13.5px 'Source Sans 3', Arial, sans-serif"; ctx.textBaseline = "middle"; ctx.textAlign = "right";
     [1, 2, 3, 4, 5].forEach(function (t, row) {
       var y = 2 + row * (bh + 3);
       for (var px = x0; px < x1; px++) { var c = interp(PT_RAMPS[t], lo + (px - x0) / (x1 - x0) * (hi - lo));
@@ -1452,7 +1707,7 @@
     var x0 = 6, x1 = r.width - 6, bh = 14, y = 4, n = C.length, bw = (x1 - x0) / n;
     for (var i = 0; i < n; i++) { ctx.fillStyle = C[i]; ctx.fillRect(x0 + i * bw, y, Math.ceil(bw), bh); }
     ctx.strokeStyle = "#8c918b"; ctx.lineWidth = 1; ctx.strokeRect(x0 + 0.5, y + 0.5, x1 - x0 - 1, bh - 1);
-    ctx.fillStyle = "#3d4540"; ctx.font = "12px 'Source Sans 3', Arial, sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "top";
+    ctx.fillStyle = "#3d4540"; ctx.font = "13.5px 'Source Sans 3', Arial, sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "top";
     var last = -1e9;
     for (i = 0; i < L.length; i++) {
       var x = x0 + i * bw; ctx.fillRect(x - 0.5, y + bh, 1, 4);
@@ -1474,7 +1729,7 @@
     var ctx = cv.getContext("2d"); ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, r.width, 38);
     var name = st.field, fd = FIELDS[name], w = r.width, x0 = 6, x1 = w - 6, bh = 14, y = 4;
     var lo, hi, logx = fd.enc === "log";
-    if (name === "ir") { lo = 45; hi = -95; } else if (name === "t2m") { lo = -40; hi = 120; } else if (name === "td2m") { lo = -20; hi = 82; }
+    if (name === "ir") { lo = 45; hi = -95; } else if (name === "t2m") { lo = -40; hi = 125; } else if (name === "td2m") { lo = -20; hi = 82; }
     else if (name === "ceil") { lo = 50; hi = 30000; } else if (name === "vis") { lo = 0.05; hi = 10; } else if (name === "smoke") { lo = 2; hi = 1500; }
     else if (name === "wind80") { lo = 0; hi = 40; } else if (name === "acc") { lo = fd._lo; hi = fd._hi; } else { lo = 0; hi = 1050; }
     function xOf(v) { var t = logx ? (Math.log(v) - Math.log(lo)) / (Math.log(hi) - Math.log(lo)) : (v - lo) / (hi - lo); return x0 + t * (x1 - x0); }
@@ -1485,7 +1740,7 @@
       if (c) { ctx.fillStyle = "rgba(" + Math.round(c[0]) + "," + Math.round(c[1]) + "," + Math.round(c[2]) + "," + c[3] + ")"; ctx.fillRect(px, y, 1.2, bh); }
     }
     ctx.strokeStyle = "#8c918b"; ctx.lineWidth = 1; ctx.strokeRect(x0 + 0.5, y + 0.5, x1 - x0 - 1, bh - 1);
-    ctx.fillStyle = "#3d4540"; ctx.font = "12px 'Source Sans 3', Arial, sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "top";
+    ctx.fillStyle = "#3d4540"; ctx.font = "13.5px 'Source Sans 3', Arial, sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "top";
     var last = -1e9;
     fd.ticks.forEach(function (tv) {
       var x = xOf(tv); if (x < x0 - 1 || x > x1 + 1) return;
@@ -1612,30 +1867,42 @@
     writeHash();
     render();
   }
+  // Prefetch: on a fast connection every hour of the field, nearest first (play and scrubbing never wait); on a slow
+  // one (measured, or the browser says so) only the next three hours and the previous one, then the same hour of the
+  // neighbouring maps, two files at a time, so a slow line is not flooded with hours nobody looks at.
   function prefetch() {
     var cc = currentCycle(), c = cc.c; if (!c) return;
     var pfs = fileFields(), pf = pfs[0];
     if (st.field === "ecape" && st.model !== "hrrr") return;
     var fm = c.fields[pf]; if (!fm) return;
-    var list = [], hs = fm.hours, i0 = hs.indexOf(cc.hour);
+    var slow = netSlow(), lo = loOK(c, pf);
+    var list = [], hs = fm.hours, i0 = hs.indexOf(cc.hour), nU = 1;
     if (i0 < 0) i0 = 0;
-    list.push([st.model, c, pf, hs[i0]]);
+    list.push([st.model, c, pf, hs[i0], lo]);
     if (st.field === "acc" && st.acc.win) {                        // the window's start frame next
-      var want0 = cc.hour - st.acc.win, s0 = 0; hs.forEach(function (x) { if (x <= want0 && x > s0) s0 = x; }); if (s0) list.push([st.model, c, pf, s0]); }
-    for (var d = 1; d < hs.length; d++) {
-      if (i0 + d < hs.length) list.push([st.model, c, pf, hs[i0 + d]]);
-      if (d <= 3 && i0 - d >= 0) list.push([st.model, c, pf, hs[i0 - d]]);
+      var want0 = cc.hour - st.acc.win, s0 = 0; hs.forEach(function (x) { if (x <= want0 && x > s0) s0 = x; }); if (s0) { list.push([st.model, c, pf, s0, lo]); nU++; } }
+    var ahead = slow ? (st.playing ? 6 : 3) : hs.length, back = slow ? 1 : 3;
+    for (var d = 1; d < hs.length && d <= Math.max(ahead, back); d++) {
+      if (d <= ahead && i0 + d < hs.length) list.push([st.model, c, pf, hs[i0 + d], lo]);
+      if (d <= back && i0 - d >= 0) list.push([st.model, c, pf, hs[i0 - d], lo]);
     }
-    for (var d2 = 4; i0 - d2 >= 0; d2++) list.push([st.model, c, pf, hs[i0 - d2]]);
+    if (!slow) for (var d2 = 4; i0 - d2 >= 0; d2++) list.push([st.model, c, pf, hs[i0 - d2], lo]);
     if (st.field === "refl" && $("cont").checked && c.fields.mslp) {       // the isobars' small grid rides along
       var ms = c.fields.mslp.hours, out = [];
-      list.forEach(function (a) { if (ms.indexOf(a[3]) >= 0) out.push(a, [st.model, c, "mslp", a[3]]); else out.push(a); });
+      list.forEach(function (a, i) { if (ms.indexOf(a[3]) >= 0) { out.push(a, [st.model, c, "mslp", a[3], false]); if (i < nU) nU++; } else out.push(a); });
       list = out;
     }
-    if (pfs.length > 1) { var out2 = []; list.forEach(function (a) { pfs.forEach(function (f) { if (c.fields[f]) out2.push([a[0], a[1], f, a[3]]); }); }); list = out2; }
-    want(list);
+    if (pfs.length > 1) { var out2 = []; list.forEach(function (a) { pfs.forEach(function (f) { if (c.fields[f]) out2.push([a[0], a[1], f, a[3], false]); }); }); list = out2; nU *= pfs.length; }
+    if (slow && !st.playing) {                                    // the same hour of the maps either side of this one
+      var fi = FIELD_ORDER.indexOf(st.field);
+      [fi + 1, fi - 1].forEach(function (j) {
+        var f = FIELD_ORDER[j]; if (!f || f === "ecape" || (NA[st.model] && NA[st.model][f])) return;
+        var file = f === "acc" ? st.acc.type : f; if (c.fields[file] && c.fields[file].hours.indexOf(cc.hour) >= 0) list.push([st.model, c, file, cc.hour, loOK(c, file)]);
+      });
+    }
+    want(list, nU);
     // decode the next two ahead of the play head
-    for (var k = 1; k <= 2 && i0 + k < hs.length; k++) pfs.forEach(function (f) { if (c.fields[f]) decoded(st.model, c, f, hs[i0 + k]); });
+    for (var k = 1; k <= 2 && i0 + k < hs.length; k++) pfs.forEach(function (f) { if (c.fields[f]) decoded(st.model, c, f, hs[i0 + k], f === pf && lo); });
   }
   var playT = 0;
   function schedule() {
@@ -1647,7 +1914,8 @@
       var next = hs[(ix + 1) % hs.length];
       var ready = !c || fileFields().every(function (pf) {
         var fm = c.fields[pf]; if (!fm) return true;
-        var e = frames.get(fkey(st.model, c, pf, next)); return !!(e && e.dec) || !!(e && e.fail) || fm.hours.indexOf(next) < 0; });
+        var lo = loOK(c, pf), e = frames.get(fkey(st.model, c, pf, next, lo)) || frames.get(fkey(st.model, c, pf, next, !lo));
+        return !!(e && e.dec) || !!(e && e.fail) || fm.hours.indexOf(next) < 0; });
       if (ready) { st.hour = next; onChange(); } else { prefetch(); schedule(); }
     }, 260);
   }
@@ -1671,20 +1939,52 @@
   });
 
   // zoom / pan / hover
-  function zoomAt(px, py, f) {
+  // Smooth zoom (2026-10-01): wheel notches, trackpad pinches (ctrlKey wheel), the buttons and double-click all set a
+  // TARGET scale; each frame eases the scale toward it in log space (time constant ~45 ms, so a notch lands in about
+  // 130 ms) while the point under the cursor stays put. Deltas that arrive mid-animation add to the target.
+  var zA = null;
+  function zoomBy(px, py, f, tau) {
+    if (!view) return;
+    var w = toXY(px, py);
+    if (!zA) zA = { target: view.s, raf: 0 };
+    zA.target = Math.max(40, Math.min(30000, zA.target * f)); zA.px = px; zA.py = py; zA.wx = w[0]; zA.wy = w[1]; zA.tau = tau || 45;
+    beginInteract();
+    if (!zA.raf) { zA.last = performance.now(); zA.raf = requestAnimationFrame(zStep); }
+  }
+  function zStep(t) {
+    var z = zA; if (!z) return;
+    var dt = Math.max(1, Math.min(t - z.last, 50)); z.last = t;
+    var ls = Math.log(view.s), lt = Math.log(z.target), nl = ls + (lt - ls) * (1 - Math.exp(-dt / z.tau));
+    if (Math.abs(lt - nl) < 0.003) nl = lt;
+    view.s = Math.exp(nl); view.cx = z.wx - (z.px - W / 2) * view.s; view.cy = z.wy + (z.py - H / 2) * view.s;
+    draw();
+    if (nl !== lt) z.raf = requestAnimationFrame(zStep); else { zA = null; settleSoon(120); }
+  }
+  function zoomAt(px, py, f) {                                  // immediate (pinch)
     var a = toXY(px, py); view.s *= f; clampView();
     var b = toXY(px, py); view.cx += a[0] - b[0]; view.cy += a[1] - b[1]; render();
   }
-  mapEl.addEventListener("wheel", function (e) { if (!view) return; e.preventDefault(); var r = mapEl.getBoundingClientRect();
-    beginInteract(); zoomAt(e.clientX - r.left, e.clientY - r.top, Math.exp(e.deltaY * (e.deltaMode ? 0.05 : 0.0016))); settleSoon(160); }, { passive: false });
-  $("zin").onclick = function () { zoomAt(W / 2, H / 2, 0.6); };
-  $("zout").onclick = function () { zoomAt(W / 2, H / 2, 1 / 0.6); };
-  $("zfit").onclick = function () { var c = cycleObj(st.model, st.ci); if (c) { fit(prepGrid(c.grids.main)); render(); } };
+  mapEl.addEventListener("wheel", function (e) {
+    if (!view) return; e.preventDefault(); var r = mapEl.getBoundingClientRect();
+    var dy = e.deltaY * (e.deltaMode === 1 ? 33 : e.deltaMode === 2 ? 400 : 1);       // lines / pages -> pixels
+    var k = e.ctrlKey ? 0.01 : 0.0016;                                                 // trackpad pinch arrives as ctrl+wheel with small deltas
+    dy = Math.max(-300, Math.min(300, dy));
+    zoomBy(e.clientX - r.left, e.clientY - r.top, Math.exp(dy * k), Math.abs(dy) >= 40 ? 45 : 30);
+  }, { passive: false });
+  // Safari's trackpad pinch (gesture events, no ctrl+wheel)
+  var gS = 0;
+  mapEl.addEventListener("gesturestart", function (e) { e.preventDefault(); gS = view ? view.s : 0; beginInteract(); });
+  mapEl.addEventListener("gesturechange", function (e) { e.preventDefault(); if (!view || !gS) return; var r = mapEl.getBoundingClientRect();
+    zoomAt(e.clientX - r.left, e.clientY - r.top, gS / e.scale / view.s); });
+  mapEl.addEventListener("gestureend", function (e) { e.preventDefault(); settleSoon(120); });
+  $("zin").onclick = function () { zoomBy(W / 2, H / 2, 0.6, 45); };
+  $("zout").onclick = function () { zoomBy(W / 2, H / 2, 1 / 0.6, 45); };
+  $("zfit").onclick = function () { var c = cycleObj(st.model, st.ci); if (c) { zA = null; fit(prepGrid(c.grids.main)); render(); } };
   var ptrs = new Map(), pinch = null, moved = false, vel = [0, 0, 0], glide = 0;
   mapEl.addEventListener("pointerdown", function (e) {
     if (e.target.closest("button")) return;
     mapEl.setPointerCapture(e.pointerId); ptrs.set(e.pointerId, [e.clientX, e.clientY]); moved = false;
-    cancelAnimationFrame(glide); vel = [0, 0, performance.now()]; beginInteract();
+    cancelAnimationFrame(glide); if (zA) { cancelAnimationFrame(zA.raf); zA = null; } vel = [0, 0, performance.now()]; beginInteract();
     if (ptrs.size === 2) { var p = Array.from(ptrs.values()); pinch = { d: Math.hypot(p[0][0] - p[1][0], p[0][1] - p[1][1]), s: view.s }; }
     mapEl.classList.add("drag");
   });
@@ -1705,9 +2005,9 @@
         var now = performance.now(), dt = Math.max(now - vel[2], 1), a8 = Math.min(dt / 40, 1);   // smoothed px/ms for the glide
         vel = [vel[0] * (1 - a8) + (e.clientX - old[0]) / dt * a8, vel[1] * (1 - a8) + (e.clientY - old[1]) / dt * a8, now]; render();
       }
-      if (e.pointerType !== "mouse") return;
+      return;                                               // no hover lookups while dragging
     }
-    if (e.pointerType === "mouse") hover(px, py);
+    if (e.pointerType === "mouse" && !interacting) hover(px, py);
   });
   function endPtr(e) {
     var r = mapEl.getBoundingClientRect();
@@ -1729,51 +2029,63 @@
   }
   mapEl.addEventListener("pointerup", endPtr); mapEl.addEventListener("pointercancel", endPtr);
   mapEl.addEventListener("pointerleave", function (e) { if (e.pointerType === "mouse") tip.style.display = "none"; });
-  mapEl.addEventListener("dblclick", function (e) { var r = mapEl.getBoundingClientRect(); zoomAt(e.clientX - r.left, e.clientY - r.top, 0.5); });
+  mapEl.addEventListener("dblclick", function (e) { var r = mapEl.getBoundingClientRect(); zoomBy(e.clientX - r.left, e.clientY - r.top, 0.5, 45); });
+  // hover reads the NATIVE grid even when the half-resolution one is on screen: the first hover asks for the native file
+  // (the half-resolution value is shown until it has arrived)
+  function hoverSrc() {
+    var d = drawn; if (!d || !d.e || !d.e.lo) return d;
+    var c = d.c, full = null, g = null;
+    if (d.field === "acc") { var r = accFrame(d.model, c, d.hour, false); if (r.e && !r.e.lo) full = r.e; g = c.grids[c.fields[d.accType].grid]; }
+    else if (d.field !== "ecape") { full = peek(d.model, c, d.field, d.hour, false); if (!full) decoded(d.model, c, d.field, d.hour, false); g = c.grids[d.fm.grid]; }
+    return full ? Object.assign({}, d, { e: full, g: prepGrid(g) }) : d;
+  }
+  var lastHover = null;
   function hover(px, py, sticky) {
-    if (!drawn || !drawn.e || !drawn.e.dec) { tip.style.display = "none"; return; }
+    lastHover = sticky ? null : [px, py];
+    var d = hoverSrc();
+    if (!d || !d.e || !d.e.dec) { tip.style.display = "none"; return; }
     var apt = nearestApt(px, py), aptHead = "";
     if (apt) { px = apt[0]; py = apt[1];
       aptHead = "<b>" + apt[2][2] + "</b> " + String(apt[2][3]).replace(/[&<>]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]; }) + "<br>"; }
-    var s = sample(drawn, px, py);
+    var s = sample(d, px, py);
     if (!s) { tip.style.display = "none"; return; }
-    var fd = FIELDS[drawn.field], txt;
+    var fd = FIELDS[d.field], txt;
     var ll = P.inv(s[2][0], s[2][1]);
-    if (drawn.field === "acc") {
-      var idx = (drawn.g.ny - 1 - Math.floor(MV_ij(drawn, px, py)[1] + 0.5)) * drawn.g.nx + Math.floor(MV_ij(drawn, px, py)[0] + 0.5);
-      var av = drawn.e.exact ? drawn.e.exact[idx] : 0;
-      txt = (drawn.accType === "asnow" ? av.toFixed(1) + " in of snow" : av.toFixed(2) + " in" + (drawn.accType === "apcp" ? "" : " (liquid)")) +
-            "<br><span class=\"ll\">" + drawn.accLabel + "</span>";
-    } else if (drawn.field === "ecape") {
-      var sub = EC_SUBS[drawn.ecSub], Kc = drawn.fm.k || 2.8, ij2 = MV_ij(drawn, px, py);
-      var ix = (drawn.g.ny - 1 - Math.floor(ij2[1] + 0.5)) * drawn.g.nx + Math.floor(ij2[0] + 0.5);
+    if (d.field === "acc") {
+      var idx = (d.g.ny - 1 - Math.floor(MV_ij(d, px, py)[1] + 0.5)) * d.g.nx + Math.floor(MV_ij(d, px, py)[0] + 0.5);
+      var av = d.e.exact ? d.e.exact[idx] : 0;
+      txt = (d.accType === "asnow" ? av.toFixed(1) + " in of snow" : av.toFixed(2) + " in" + (d.accType === "apcp" ? "" : " (liquid)")) +
+            "<br><span class=\"ll\">" + d.accLabel + "</span>";
+    } else if (d.field === "ecape") {
+      var sub = EC_SUBS[d.ecSub], Kc = d.fm.k || 2.8, ij2 = MV_ij(d, px, py);
+      var ix = (d.g.ny - 1 - Math.floor(ij2[1] + 0.5)) * d.g.nx + Math.floor(ij2[0] + 0.5);
       var J = function (v) { return Math.round(v).toLocaleString("en-US") + " J/kg"; };
       if (sub.kind === "cape") { var cv0 = capeOf(s[0], Kc); txt = cv0 === null ? "no data" : J(cv0); }
       else {
-        var ev = capeOf(drawn.e.a[ix], Kc), cv = capeOf(drawn.e.b[ix], Kc), pn = sub.files[1] === "mucape" ? "MU" : "ML";
+        var ev = capeOf(d.e.a[ix], Kc), cv = capeOf(d.e.b[ix], Kc), pn = sub.files[1] === "mucape" ? "MU" : "ML";
         txt = ev === null || cv === null ? "no data" : !(cv > 100) ? "not shown: " + pn + " CAPE " + J(cv) + " (ratio masked below 100 J/kg)"
           : (ev / cv).toFixed(2) + "<br><span class=\"ll\">ECAPE " + J(ev) + " / CAPE " + J(cv) + "</span>";
       }
-    } else if (drawn.field === "refl") {
-      if (s[0] === 0 || s[0] === 255) txt = drawn.enc === "rate2" ? "no precipitation" : "no echo (below 5 dBZ)";
-      else { var rv = reflValue(drawn.enc, s[0]);
-        txt = (drawn.enc === "rate2" ? (rv < 1 ? rv.toFixed(2) : rv.toFixed(1)) + " mm/h" : rv.toFixed(1) + " dBZ") + " · " + PT_NAMES[Math.min(s[1], 5)]; }
+    } else if (d.field === "refl") {
+      if (s[0] === 0 || s[0] === 255) txt = d.enc === "rate2" ? "no precipitation" : "no echo (below 5 dBZ)";
+      else { var rv = reflValue(d.enc, s[0]);
+        txt = (d.enc === "rate2" ? (rv < 1 ? rv.toFixed(2) : rv.toFixed(1)) + " mm/h" : rv.toFixed(1) + " dBZ") + " · " + PT_NAMES[Math.min(s[1], 5)]; }
     } else if (fd.enc === "lin2") {
       if (s[0] === 255) txt = "no data";
       else { var u = fd.off + s[0] * fd.step, v = fd.off + s[1] * fd.step, sp = Math.sqrt(u * u + v * v);
         var dir = (Math.atan2(-u, -v) / D2R + 360) % 360;
         txt = sp.toFixed(1) + " m/s · " + Math.round(sp * 2.236936) + " mph · " + Math.round(sp * 1.943844) + " kt<br>from " + Math.round(dir) + "°"; }
     } else {
-      var val = valueOf(fd, s[0], drawn.q);
-      if (val === null) txt = drawn.field === "ceil" ? "no ceiling" : "no data";
-      else if (drawn.field === "ceil" && s[0] === 0) txt = "below 50 ft";
-      else if (drawn.field === "vis" && s[0] === 254) txt = "10+ mi";
-      else if (drawn.field === "vis" && s[0] === 0) txt = "below 0.03 mi";
-      else if (drawn.field === "smoke" && s[0] === 0) txt = "below 0.1 mg/m²";
-      else if (drawn.field === "ir") txt = fd.fmt(val, val + 273.15);
+      var val = valueOf(fd, s[0], d.q);
+      if (val === null) txt = d.field === "ceil" ? "no ceiling" : "no data";
+      else if (d.field === "ceil" && s[0] === 0) txt = "below 50 ft";
+      else if (d.field === "vis" && s[0] === 254) txt = "10+ mi";
+      else if (d.field === "vis" && s[0] === 0) txt = "below 0.03 mi";
+      else if (d.field === "smoke" && s[0] === 0) txt = "below 0.1 mg/m²";
+      else if (d.field === "ir") txt = fd.fmt(val, val + 273.15);
       else txt = fd.fmt(val);
     }
-    tip.innerHTML = aptHead + "<span class=\"v\">" + (apt ? (drawn.field === "ecape" ? EC_SUBS[drawn.ecSub].label : labelOf(drawn.model, drawn.field)) + " " : "") + txt + "</span><br><span class=\"ll\">" + Math.abs(ll[1]).toFixed(2) + "°" + (ll[1] >= 0 ? "N" : "S") + " " +
+    tip.innerHTML = aptHead + "<span class=\"v\">" + (apt ? (d.field === "ecape" ? EC_SUBS[d.ecSub].label : labelOf(d.model, d.field)) + " " : "") + txt + "</span><br><span class=\"ll\">" + Math.abs(ll[1]).toFixed(2) + "°" + (ll[1] >= 0 ? "N" : "S") + " " +
       Math.abs(ll[0]).toFixed(2) + "°" + (ll[0] >= 0 ? "E" : "W") + "</span>" + (nearestFarm(px, py) || "");
     tip.style.display = "block";
     var tw = tip.offsetWidth, th = tip.offsetHeight;
@@ -1796,7 +2108,12 @@
     return p.length >= 3 && p[2] !== "";
   }
 
-  window.MV = { st: st, man: man, frames: frames, CONT: CONT, get view() { return view; }, get drawn() { return drawn; }, P: P, gridIJ: gridIJ };   // for testing from the console
+  window.MV = { st: st, man: man, frames: frames, CONT: CONT, get view() { return view; }, get drawn() { return drawn; }, P: P, gridIJ: gridIJ,   // for testing from the console
+    Q: Q, NET: NET, geo: geo,
+    perf: { summary: function () { var r = function (x) { return Math.round(x * 10) / 10; };
+      var gs = Q.gest.slice(-40);
+      return { lvl: Q.lvl, dpr: DPR, gestMed: r(med(Q.gest)), gestN: Q.gest.length, gestSlowPct: gs.length ? Math.round(100 * gs.filter(function (x) { return x > 25; }).length / gs.length) : null, fastMed: r(med(Q.fast)), settleMed: r(med(Q.settle)), settleMax: r(Math.max.apply(0, Q.settle.concat([0]))),
+               settleN: Q.settle.length, log: Q.log, netBytesPerMs: r(NET.bw), netN: NET.n, slow: netSlow(), lo: !!(drawn && drawn.e && drawn.e.lo) }; } } };
   // ── start ──────────────────────────────────────────────────────────────────────────────────────────────────────
   var glOk = false;
   try { glOk = initGL(); } catch (e) { console.error(e); }
@@ -1830,6 +2147,7 @@
       return MODELS[m] + ": " + man[m].cycles.map(function (x) { return x.init.slice(5, 10).replace("-", "/") + " " + x.init.slice(11, 13) + "Z"; }).join(", ");
     });
     $("runs").textContent = "Runs on the page now: " + runs.join(" · ") + ".";
+    setTimeout(pruneCache, 4000);
     setTimeout(function () { loadGeo(GEO.replace(".json", "_counties.json")); }, 1200);   // counties after the first frame
   });
   if (typeof ResizeObserver === "function") new ResizeObserver(function () { if (view) { var s = view.s; resize(); view.s = s; render(); } }).observe(mapEl);

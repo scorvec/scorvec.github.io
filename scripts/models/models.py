@@ -115,6 +115,19 @@ ACC_METHOD = {
 }
 ORDER = ["ir", "refl", "ceil", "vis", "t2m", "td2m", "smoke", "wind80", "sw", "mslp", "apcp", "asnow", "afzra", "aip"]
 SUB = {"hrrr": 4, "rrfs": 4, "rdps": 2}
+# Half-resolution copies for zoomed-out views (2026-10-01, user: the page was slow on a low-powered laptop on a slow
+# line): <fff>_lo.webp = every 2nd point of the native grid (plain decimation, so every encoding - 16-bit accumulations,
+# precipitation-type flags, the 255 mask - keeps its meaning; grid j = 0, the southern row, is kept), listed as
+# fields[f]["lo"] = "lo" with grids["lo"]. The page uses them while a half-resolution cell is <= 1.5 device pixels.
+# 3 km models only: on the 10 km RDPS grid the page would never pick them. Measured on 2026100118 HRRR: lo/full bytes
+# 0.28-0.36 per field, +33 % on the cycle.
+LO = {"hrrr": 2, "rrfs": 2}
+LO_SKIP = {"mslp"}
+
+
+def decimate(arr, f):
+    """stored image (row 0 north) -> every f-th grid point, keeping grid row 0 (the last stored row)"""
+    return np.ascontiguousarray(arr[::-1][::f, ::f][::-1])
 
 
 def q_lin(x, off, step):
@@ -494,6 +507,7 @@ def process_hour(model, lead, blobs, outdir):
         print(f"  f{lead:03d}: point sampling failed: {e!r}", flush=True)
         pts = {}
     meta, nbytes = {}, 0
+    lo = LO.get(model)
     for name, x in phys.items():
         arr, p = encode(name, x)
         b = webp(arr)
@@ -501,6 +515,10 @@ def process_hour(model, lead, blobs, outdir):
         d.mkdir(parents=True, exist_ok=True)
         (d / f"{lead:03d}.webp").write_bytes(b)
         nbytes += len(b)
+        if lo and name not in LO_SKIP:
+            bl = webp(decimate(arr, lo))
+            (d / f"{lead:03d}_lo.webp").write_bytes(bl)
+            nbytes += len(bl)
         meta[name] = p
     return lead, meta, nbytes, time.time() - t0, pts
 
@@ -701,6 +719,14 @@ def cmd_run(a):
         g.update(di=g["di"] * F, dj=g["dj"] * F, i0=g.get("i0", 0) / F, j0=g.get("j0", 0) / F)
     g.update(nx=-(-g["nx"] // F), ny=-(-g["ny"] // F))
     grids["sub"] = g
+    if LO.get(model):                                          # the half-resolution copies' grid
+        F2, g2 = LO[model], dict(grids["main"])
+        if g2["type"] == "lcc":
+            g2.update(dx=g2["dx"] * F2, dy=g2["dy"] * F2)
+        else:
+            g2.update(di=g2["di"] * F2, dj=g2["dj"] * F2, i0=g2.get("i0", 0) / F2, j0=g2.get("j0", 0) / F2)
+        g2.update(nx=-(-g2["nx"] // F2), ny=-(-g2["ny"] // F2))
+        grids["lo"] = g2
     # meteogram points (airports + the degree-day tracker's cities) and the degree-day counties, located on the grid
     # once; the workers sample them while each hour's fields are in memory (points.py, degdays.py)
     pt_ids = []
@@ -767,6 +793,10 @@ def cmd_run(a):
             (outdir / "aip").mkdir(exist_ok=True)
             (outdir / "aip" / f"{lead:03d}.webp").write_bytes(b)
             total_bytes += len(b)
+            if LO.get(model):
+                bl = webp(decimate(arr, LO[model]))
+                (outdir / "aip" / f"{lead:03d}_lo.webp").write_bytes(bl)
+                total_bytes += len(bl)
             per_field["aip"][lead] = None
             if ctx.get("ps") is not None:
                 samples.setdefault(lead, {})["aip"] = ctx["ps"].bilinear(cum)
@@ -784,6 +814,8 @@ def cmd_run(a):
             e["enc"] = "rate2" if model == "rdps" else "refl2"
         if FIELDS[name]["enc"] == "acc16":
             e.update(enc="acc16", unit=FIELDS[name]["unit"], method=ACC_METHOD[model][name])
+        if LO.get(model) and name not in LO_SKIP and e["grid"] == "main":
+            e["lo"] = "lo"
         fields[name] = e
     if model == "rdps" and "smoke" in fields:
         r_dt, off = raq_for(cyc_dt)
@@ -804,7 +836,9 @@ def cmd_run(a):
           f"missing hours {failed}", flush=True)
     for name, e in fields.items():
         sz = sum((outdir / name / f"{h:03d}.webp").stat().st_size for h in e["hours"])
-        print(f"  {name:7s} {len(e['hours']):3d} h  {sz / 1e6:7.1f} MB  ({sz / len(e['hours']) / 1e3:.0f} KB/h)")
+        szl = sum((outdir / name / f"{h:03d}_lo.webp").stat().st_size for h in e["hours"]) if e.get("lo") else 0
+        print(f"  {name:7s} {len(e['hours']):3d} h  {sz / 1e6:7.1f} MB  ({sz / len(e['hours']) / 1e3:.0f} KB/h)"
+              + (f"  + lo {szl / 1e6:.1f} MB ({szl / max(sz, 1) * 100:.0f} %)" if szl else ""))
     if not ok:
         print(f"::error::{model} {key}: hours {failed} failed - not publishing a partial cycle")
         sys.exit(1)
