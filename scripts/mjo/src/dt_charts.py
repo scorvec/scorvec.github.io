@@ -26,6 +26,7 @@ import xarray as xr
 sys.path.insert(0, str(Path(__file__).parent))
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "ecmwf"))
 import store as ecmwf                                                   # noqa: E402
+import tc_jet as TC                                                     # noqa: E402
 
 LEVS = (700, 600, 500, 400, 300, 250, 200, 150, 100)
 STEPS = tuple(range(0, 241, 12))
@@ -61,6 +62,9 @@ def load(cyc):
         da = xr.open_dataset(p, engine="cfgrib", backend_kwargs={"indexpath": ""})[par]
         if "number" in da.dims:
             da = da.squeeze("number", drop=True)
+        if par in ("u", "v"):                                            # GLOBAL 300-200 hPa layer mean: the
+            out[par + "_layer"] = (da.sel(isobaricInhPa=[300, 250, 200]).mean("isobaricInhPa")   # divergence inversion
+                                   .transpose("step", "latitude", "longitude").astype("float32"))  # needs the sphere
         da = da.sortby("latitude").sel(latitude=slice(LAT0, 90.0)).sel(isobaricInhPa=list(LEVS))
         out[par] = da.transpose("step", "isobaricInhPa", "latitude", "longitude").astype("float32")
     return out
@@ -222,7 +226,7 @@ def _decorate(ax, polar, title):
     ax.set_title(title, fontsize=10.5 if not polar else 9.6, loc="left", fontweight="bold")
 
 
-def _draw(ax, lat, lon, field, pcont, u, v, kind, polar, title):
+def _draw(ax, lat, lon, field, pcont, u, v, kind, polar, title, adv=None, storms=(), h=0):
     """kind 'dt': θ shading + DT pressure contours; 'pv': PV shading + 2-PVU line. Arrows: wind on that surface."""
     import cartopy.crs as ccrs
     (dcm, dnorm), (pcm, pnorm) = _cmaps()
@@ -246,8 +250,43 @@ def _draw(ax, lat, lon, field, pcont, u, v, kind, polar, title):
         thin = np.maximum(1, np.round(1 / np.cos(np.deg2rad(np.clip(qla_, 0, 80))))).astype(int)
         qu = np.where((np.arange(qu.shape[1])[None, :] % thin[:, None]) == 0, qu, np.nan)
     ax.quiver(qlo, qla, qu, qv, transform=ccrs.PlateCarree(), scale=1100 if polar else 1500, width=0.0022 if polar else 0.0015, color="#111", alpha=0.8)
+    if adv is not None and np.isfinite(adv).any():
+        A_ = _coarse(adv) if polar else adv
+        cs = ax.contour(X, Y, A_, levels=ADV_LEV, colors=ADV_COL, linewidths=[2.2, 1.5], linestyles="solid", zorder=7)
+        for c in (cs.collections if hasattr(cs, "collections") else [cs]):
+            c.set_path_effects([pe.Stroke(linewidth=3.6, foreground="#000"), pe.Normal()])
+    _storms(ax, storms, h, polar)
     _decorate(ax, polar, title)
     return cf
+
+
+ADV_LEV = [-2.0, -1.0]                                                    # PVU/day, outflow PV advection contours
+ADV_COL = "#ff3df2"
+import matplotlib.patheffects as pe                                      # noqa: E402
+
+
+def _storms(ax, storms, h, polar):
+    """Tropical cyclones in the control at lead h: past track solid, the rest dashed, a dot sized by strength."""
+    import cartopy.crs as ccrs
+    halo = [pe.Stroke(linewidth=3.2, foreground="#000"), pe.Normal()]
+    for s in storms:
+        pos = TC.at(s, h)
+        if pos is None or pos[0] <= 0:
+            continue
+        past = s["steps"] <= h
+        lo_u = np.rad2deg(np.unwrap(np.deg2rad(s["lon"])))
+        ax.plot(lo_u[past], s["lat"][past], color="#fff", lw=1.6, transform=ccrs.Geodetic(), zorder=8, path_effects=halo)
+        ax.plot(lo_u[~past | (s["steps"] == h)], s["lat"][~past | (s["steps"] == h)], color="#fff", lw=1.1, ls=(0, (3, 2)),
+                transform=ccrs.Geodetic(), zorder=8, path_effects=halo)
+        k = np.where(s["steps"] == h)[0][0]
+        w = s["wind"][k]
+        strong = np.isfinite(w) and w >= 33
+        ax.scatter([pos[1]], [pos[0]], s=120 if strong else 70, c="#e8000b" if strong else "#ff9f1c", edgecolors="#fff",
+                   linewidths=1.6, transform=ccrs.PlateCarree(), zorder=9)
+        lab = TC.label(s) + (f" {s['pmsl'][k]:.0f} hPa" if np.isfinite(s["pmsl"][k]) else "")
+        ax.text(pos[1], pos[0], "  " + lab, transform=ccrs.PlateCarree(), fontsize=8.6 if polar else 9.6, fontweight="bold",
+                color="#fff", va="center", zorder=10, path_effects=[pe.Stroke(linewidth=2.6, foreground="#000"), pe.Normal()],
+                clip_on=True)
 
 
 def main() -> int:
@@ -275,11 +314,38 @@ def main() -> int:
         for old in p.glob("F*.webp"):
             old.unlink()
     entries = {k: [] for k in dirs}
+    # tropical cyclones in the same control run (ECMWF's tracker on AIFS-ENS) + the outflow-jet metric
+    storms = []
+    try:
+        fp = TC.fetch(a.date, int(a.time), Path(__file__).resolve().parents[2] / "ecmwf" / "cache" / "tc")
+        storms = TC.nh_storms(TC.decode(fp)) if fp else []
+    except Exception as e:                                               # never let the tracks take the maps down
+        print(f"  TC tracks unavailable ({e}); maps drawn without storms", flush=True)
+    print(f"  {len(storms)} NH tropical cyclones in the control: {', '.join(TC.label(x) for x in storms) or 'none'}", flush=True)
+    idx = {x["id"]: {} for x in storms}
+    v250 = []
     for k, h in enumerate(steps):
         if a.max_steps and k >= a.max_steps:
             break
         T, U, V = d["t"].isel(step=k).values, d["u"].isel(step=k).values, d["v"].isel(step=k).values
         pv, th = pv_step(T, U, V, p_pa, lat, lon)
+        v250.append(V[LEVS.index(250)])
+        adv_show = None
+        try:
+            uc, vc = TC.irrotational(d["u_layer"].isel(step=k), d["v_layer"].isel(step=k), lat, lon)
+            adv = TC.pv_advection(uc, vc, pv[[LEVS.index(300), LEVS.index(250), LEVS.index(200)]].mean(0), lat, lon)
+            adv[lat > 85] = np.nan                                       # the pole row's PV is singular
+            near = np.zeros(adv.shape, bool)
+            for x in storms:
+                pos = TC.at(x, int(h))
+                if pos is None or pos[0] <= 0:
+                    continue
+                idx[x["id"]][int(h)] = TC.disc_index(adv, lat, lon, *pos)
+                near |= TC.within(lat, lon, *pos, 1500.0)
+            if near.any():
+                adv_show = np.where(near, adv, np.nan)
+        except Exception as e:
+            print(f"  outflow PV advection failed at +{h} h ({e})", flush=True)
         dt = dynamic_tropopause(pv, th, U, V, p_pa)
         isos = {th_: on_isentrope(pv, th, U, V, th_) for th_ in THETAS}
         valid = init + pd.Timedelta(hours=int(h)); lab = ("analysis" if h == 0 else f"+{h} h") + f" · {valid:%a %d %b %HZ}"
@@ -288,21 +354,24 @@ def main() -> int:
             for f, flab in FIELDS:
                 if f == "dt":
                     fld, pc, uu, vv, kind = dt["theta"], dt["p"], dt["u"], dt["v"], "dt"
-                    blab = ("θ on 2 PVU (K) · black: DT pressure 200–500 hPa · arrows: DT wind · DT above 100 hPa: θ at 100 hPa" if polar else
-                            "θ on the 2-PVU surface (K) · blue/purple = low θ (troughs) · red = high θ (ridges) · black: DT pressure 200–500 hPa · arrows: DT wind · DT above 100 hPa: θ at 100 hPa")
+                    blab = "θ on 2 PVU (K) · black: DT pressure 200–500 hPa · arrows: DT wind · tropics: θ at 100 hPa"
                     ttl = f"Dynamic tropopause θ (2 PVU) · {R['label']} — AIFS-ENS member 0, init {init:%d %b %HZ} · {lab}"
                 else:
                     iso = isos[330.0 if f == "dt_pv330" else 350.0]; th_ = 330 if f == "dt_pv330" else 350
                     fld, pc, uu, vv, kind = iso["pv"], None, iso["u"], iso["v"], "pv"
                     blab = f"PV on {th_} K (PVU) · black line: 2 PVU (the dynamic tropopause on this surface) · arrows: wind on {th_} K"
                     ttl = f"PV on {th_} K · {R['label']} — AIFS-ENS member 0, init {init:%d %b %HZ} · {lab}"
+                av = adv_show if kind == "dt" else None
                 if polar:
-                    fig, ax, cax = _frame(); la_, lo_ = lat, lon; arrs = (fld, pc, uu, vv)
+                    fig, ax, cax = _frame(); la_, lo_ = lat, lon; arrs = (fld, pc, uu, vv, av)
                 else:
                     fig, ax, cax = _frame_region(rg)
-                    la_, lo_, arrs = _subset(rg, lat, lon, fld, pc if pc is not None else fld, uu, vv)
+                    la_, lo_, arrs = _subset(rg, lat, lon, fld, pc if pc is not None else fld, uu, vv, av if av is not None else fld)
                     if pc is None: arrs[1] = None
-                cf = _draw(ax, la_, lo_, arrs[0], arrs[1], arrs[2], arrs[3], kind, polar, ttl)
+                    if av is None: arrs[4] = None
+                cf = _draw(ax, la_, lo_, arrs[0], arrs[1], arrs[2], arrs[3], kind, polar, ttl, adv=arrs[4], storms=storms, h=int(h))
+                if kind == "dt" and storms:
+                    blab += " · white: storm tracks · magenta: outflow PV advection −1/−2 PVU/day"
                 _bar(fig, cf, cax, blab)
                 kk = key(f, rg); fp = dirs[kk] / f"F{k:02d}.webp"
                 fig.savefig(fp, dpi=100, facecolor="white", pil_kwargs={"quality": 82, "method": 6}); plt.close(fig)
@@ -313,6 +382,11 @@ def main() -> int:
             "regions": {key(f, rg): {"label": f"{flab} · {R['label']}", "frames": entries[key(f, rg)]}
                         for f, flab in FIELDS for rg, R in REGIONS.items()}}
     Path(a.manifest).parent.mkdir(parents=True, exist_ok=True); Path(a.manifest).write_text(json.dumps(mani))
+    try:
+        TC.render_card(storms, idx, np.array(v250), lat, lon, steps[:len(v250)], init,
+                       anim.parent / "tcjet.webp", anim.parent / "data" / "tcjet.json")
+    except Exception as e:
+        print(f"  TC-jet card failed ({e})", flush=True)
     print(f"wrote {len(entries['dt'])} frames × {len(entries)} loops, {a.manifest} in {(time.time() - t0) / 60:.1f} min", flush=True)
     return 0
 

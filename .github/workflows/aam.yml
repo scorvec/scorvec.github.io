@@ -163,7 +163,7 @@ jobs:
                assets/sst/anim/aam_zonal_manifest.json assets/sst/anim/torque_manifest.json assets/sst/anim/jets_manifest.json \
                assets/sst/torque_timeseries.webp assets/sst/torque_ranges.webp assets/sst/jets.webp \
                assets/sst/data/torque_ranges.json \
-               assets/sst/anim/dt_manifest.json \
+               assets/sst/anim/dt_manifest.json assets/sst/tcjet.webp assets/sst/data/tcjet.json \
                scripts/mjo/data/reference/aam_history.nc scripts/mjo/data/reference/aam_forecast_archive.nc \
                scripts/mjo/data/reference/aam_latband_history.nc"
           SNAP=$(mktemp -d)
