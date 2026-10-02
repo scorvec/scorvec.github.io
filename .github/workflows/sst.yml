@@ -164,14 +164,16 @@ jobs:
             --out scripts/sst/data/tao_eq_recent.nc \
             --ascii scripts/sst/data/tao_eq_recent.ascii
 
+      # tao_subsurface.py exits 0 with skip=true when PMEL answers 502/503/504 (maintenance): that is NOT a fetch
+      # (2026-10-02: the build ran on a missing file and the failure stopped the OISST/RONI commit)
       - name: Build equatorial subsurface cross-section + animation
-        if: steps.tao.outcome == 'success'
+        if: steps.tao.outcome == 'success' && steps.tao.outputs.skip != 'true'
         run: python scripts/sst/sst_subsurface.py
 
       - name: Note skipped subsurface refresh
-        if: steps.tao.outcome != 'success'
+        if: steps.tao.outcome != 'success' || steps.tao.outputs.skip == 'true'
         run: |
-          echo "::warning::TAO DISDEL fetch failed; subsurface left to tao-subsurface.yml"
+          echo "::warning::TAO DISDEL fetch failed or PMEL in maintenance; subsurface left to tao-subsurface.yml"
           # sst-roni re-rendered the pages with a __TAO_DAY__ placeholder that only sst_subsurface.py fills: keep the
           # committed subsurface page (tao-subsurface.yml's) rather than ship the raw token
           for f in $(grep -l "__TAO_DAY__" enso*.html sst.html circulation.html 2>/dev/null); do
