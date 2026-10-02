@@ -477,7 +477,7 @@ BY_SLUG = {t["slug"]: t for t in TOPICS}
 STYLE = """
 <style>
   body { background: var(--c-bg, #f5f6f3); color: var(--c-ink, #29321f); margin: 0; }
-  .topic { max-width: 46rem; margin: 0 auto; padding: 2rem 1.25rem 3.5rem; }
+  .topic { max-width: min(70rem, 100%); margin: 0 auto; padding: 2rem 1.25rem 3.5rem; }
   .topic .crumbs { font-size: 0.92rem; color: var(--c-muted, #5c6b73); margin-bottom: 1.2rem; }
   .topic .crumbs a { color: inherit; }
   .topic h1 { text-align: left; margin: 0 0 0.4rem; }
@@ -488,7 +488,7 @@ STYLE = """
   .topic li { margin: 0.45rem 0; }
   .topic a { color: var(--c-accent, #274b7a); text-underline-offset: 0.2em; }
   .topic .katex-display { overflow-x: auto; overflow-y: hidden; padding: 0.2rem 0; }
-  .figs { max-width: 64rem; margin: 1.6rem auto 0; padding: 0 1.25rem; }
+  .figs { max-width: min(88rem, 100%); margin: 1.6rem auto 0; padding: 0 1.25rem; }
   .figs figure { margin: 0 0 2rem; }
   .figs img { display: block; width: 100%; height: auto; border: 1px solid var(--c-rule, #dfe3dc); background: #fff; }
   .figs iframe { display: block; width: 100%; aspect-ratio: 16 / 10; border: 1px solid var(--c-rule, #dfe3dc); background: #fff; }

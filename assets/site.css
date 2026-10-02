@@ -318,7 +318,7 @@ html h1, html h2 {
 html h1 { font-size: clamp(2rem, 1.4rem + 1.6vw, 2.7rem); margin-bottom: 0.35em; }
 html h2 { font-size: clamp(1.4rem, 1.15rem + 0.6vw, 1.75rem); font-weight: 500; }
 html h3 { font-family: var(--f-sans); font-size: 1.12rem; font-weight: 600; line-height: 1.3; }
-html .lede, html .intro { font-size: 1.15rem; line-height: 1.55; max-width: 70ch; }
+html .lede, html .intro { font-size: 1.15rem; line-height: 1.55; max-width: 100ch; }
 html .note, html .hint, html .sub, html .cap, html .when, html .meta,
 html .chart-sources, html .chart-updated, html small, html figcaption { font-size: 0.9rem; line-height: 1.5; }
 html table, html th, html td, html select, html input, html button { font-family: var(--f-sans); }
@@ -349,7 +349,7 @@ html body > header:not(.sh) > :is(.lede, .sub), html main > header:not(.sh) > :i
    derive from the page's own text colour so dark pages get the same treatment. */
 html main > .lede, html .wrap > .lede, html body > header:not(.sh) > .lede, html main > header:not(.sh) > .lede {
   text-align: left;
-  max-width: 76ch;
+  max-width: 100ch;
   margin: 0.9rem auto 1.4rem;
   padding: 1rem 1.3rem;
   border: 1px solid color-mix(in srgb, currentColor 14%, transparent);
