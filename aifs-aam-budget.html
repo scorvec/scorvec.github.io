@@ -3,14 +3,14 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Does an AI weather model conserve angular momentum? · Shawn Corvec</title>
-<meta name="description" content="A budget test of ECMWF's AIFS-ENS against the physics-based IFS-ENS: does each forecast's change in atmospheric angular momentum match the mountain and friction torques in the same forecast? Winter 2025–26, 30 cycles, days 1–15.">
+<title>Do AI weather models conserve angular momentum, mass, water and energy? · Shawn Corvec</title>
+<meta name="description" content="Budget tests of ECMWF's AIFS-ENS against the physics-based IFS-ENS: does each forecast's change in atmospheric angular momentum match its own torques, and does it keep the atmosphere's dry mass, water and energy? Winter 2025–26, 30 cycles, days 1–15.">
 <link rel="canonical" href="https://scorvec.com/aifs-aam-budget.html">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <meta name="author" content="Shawn Corvec">
 <meta property="og:type" content="article">
-<meta property="og:title" content="Does an AI weather model conserve angular momentum?">
-<meta property="og:description" content="A budget test of ECMWF's AIFS-ENS against the physics-based IFS-ENS: does each forecast's change in atmospheric angular momentum match the mountain and friction torques in the same forecast? Winter 2025–26, 30 cycles, days 1–15.">
+<meta property="og:title" content="Do AI weather models conserve angular momentum, mass, water and energy?">
+<meta property="og:description" content="Budget tests of ECMWF's AIFS-ENS against the physics-based IFS-ENS: does each forecast's change in atmospheric angular momentum match its own torques, and does it keep the atmosphere's dry mass, water and energy? Winter 2025–26, 30 cycles, days 1–15.">
 <meta property="og:url" content="https://scorvec.com/aifs-aam-budget.html">
 <meta property="og:image" content="https://scorvec.com/studies/aifs-aam-budget/closure_global.webp">
 <meta property="og:site_name" content="Shawn Corvec">
@@ -19,20 +19,20 @@
 {
  "@context": "https://schema.org",
  "@type": "ScholarlyArticle",
- "headline": "Does an AI weather model conserve angular momentum?",
- "name": "Does an AI weather model conserve angular momentum?",
- "description": "A budget test of ECMWF's AIFS-ENS against the physics-based IFS-ENS: does each forecast's change in atmospheric angular momentum match the mountain and friction torques in the same forecast? Winter 2025–26, 30 cycles, days 1–15.",
+ "headline": "Do AI weather models conserve angular momentum, mass, water and energy?",
+ "name": "Do AI weather models conserve angular momentum, mass, water and energy?",
+ "description": "Budget tests of ECMWF's AIFS-ENS against the physics-based IFS-ENS: does each forecast's change in atmospheric angular momentum match its own torques, and does it keep the atmosphere's dry mass, water and energy? Winter 2025–26, 30 cycles, days 1–15.",
  "url": "https://scorvec.com/aifs-aam-budget.html",
  "inLanguage": "en",
  "datePublished": "2026-10-01",
- "dateModified": "2026-10-01",
+ "dateModified": "2026-10-02",
  "author": {
   "@id": "https://scorvec.com/#person"
  },
  "image": [
   "https://scorvec.com/studies/aifs-aam-budget/closure_global.webp"
  ],
- "keywords": "AIFS, AIFS-ENS, IFS, angular momentum budget, mountain torque, friction torque, machine learning weather prediction, conservation"
+ "keywords": "AIFS, AIFS-ENS, IFS, angular momentum budget, mass conservation, water budget, energy conservation, mountain torque, friction torque, machine learning weather prediction"
 }
 </script>
 <script data-goatcounter="https://scorvec.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
@@ -209,10 +209,10 @@
 <main>
 
 <article class="study">
-  <p class="crumbs"><a href="/">Home</a> › Studies › Angular momentum budget</p>
-  <h1>Does an AI weather model conserve angular momentum?</h1>
-  <p class="dek">A budget test of ECMWF's data-driven ensemble (AIFS-ENS) against its physics-based ensemble (IFS-ENS), with ERA5
-  as the reference. Winter 2025–26, 30 forecast cycles, days 1–15.</p>
+  <p class="crumbs"><a href="/">Home</a> › Studies › AINWP and conservation</p>
+  <h1>Do AI weather models conserve angular momentum, mass, water and energy?</h1>
+  <p class="dek">Budget tests of ECMWF's data-driven ensemble (AIFS-ENS) against its physics-based ensemble (IFS-ENS), with ERA5
+  as the reference: angular momentum first, then dry-air mass, water and energy. Winter 2025–26, 30 forecast cycles, days 1–15.</p>
 
   <section class="lede">
   <h2>The short answer</h2>
@@ -230,6 +230,7 @@
     as close to ERA5 as IFS-ENS's, and its 500 hPa height error is statistically the same. The
     inconsistency matters for anything that reads the <i>mechanism</i>: torque-based angular momentum forecasts and
     attributing a jet change to a mountain torque. It matters most past day 10.</li>
+    <li><b>Mass, water and energy</b> (AIFS-ENS gains dry air (+18 Pa of global-mean pressure by day 15, IFS-ENS +1 Pa), with runs scattering 24 Pa against IFS's 3; it rains 0.26 mm a day (9%) less than IFS-ENS at every lead; and both models lose column energy against their own analyses, AIFS-ENS slightly faster. AIFS publishes no evaporation or net fluxes, so the water and energy budgets cannot be closed directly.) <a href="#conservation">Details below</a>.</li>
   </ul>
   </section>
 
@@ -368,6 +369,69 @@
   reanalysis: total torques about 10 Hadley too low for the observed change, which is the same sign and size as the
   excess here.</p>
 
+
+  <h2 id="conservation">Beyond angular momentum: mass, water and energy</h2>
+  <p>The same 30 cycles and the same runs were tested against three more conservation laws, using every relevant field the open
+  data publish: surface pressure and total column water for each run every 24 hours, precipitation, downward surface radiation,
+  and temperature, humidity and geopotential on the 13 pressure levels. AIFS outputs far fewer fields than the IFS: no evaporation,
+  no net or top-of-atmosphere radiation and no turbulent heat fluxes, so the water and energy budgets cannot be closed from the
+  fluxes the way the angular momentum budget can. What can be tested is how the stored quantities drift.</p>
+
+  <h3>Mass: the dry air should never change</h3>
+  <p>Without sources of dry air, the weight of the dry atmosphere, the global-mean surface pressure minus the weight of its water,
+  is fixed. IFS imposes this with a global mass fixer: its total surface pressure stays within 0.1 Pa, and its dry air changes only
+  as its column water does (+1.4 Pa by day 15). AIFS has no such constraint.</p>
+  <ul>
+    <li><b>AIFS-ENS gains dry air</b>: +18.0 (95% interval +8.1 to +26.9) Pa by day 15. Against IFS-ENS on the same cycles the difference is
+    +16.6 (95% interval +6.3 to +25.9) Pa at day 15. It is significant on days 1, 2, 12, 13, 14, 15
+    and <span class="ns">n.s.</span> on the others (day 10: +8.4 Pa). 16 Pa of global-mean pressure is about
+    8&nbsp;×&nbsp;10<sup>14</sup> kg of air, 0.016% of the atmosphere.</li>
+    <li><b>AIFS single loses dry air</b> late in the forecast: -13.5 (95% interval -26.8 to -0.8) Pa by day 15, significantly below IFS-ENS only on days 14, 15.</li>
+    <li><b>The scatter is the larger problem.</b> By day 15 the run-to-run spread of the change is 24 Pa for AIFS-ENS
+    and 30 Pa for AIFS single, against 3 Pa for IFS-ENS. This is the mass drift that drives the
+    extra scatter in the angular momentum budget above.</li>
+  </ul>
+  <figure id="fig10"><a href="/studies/aifs-aam-budget/cons_mass.webp" class="zoom"><img src="/studies/aifs-aam-budget/cons_mass.webp" alt="Change of global-mean surface pressure and of dry-air pressure since the start of the forecast, and its run-to-run spread, for AIFS-ENS, IFS-ENS and AIFS single" loading="lazy"></a><figcaption><b>Figure 10.</b> Change in total air (left) and dry air (middle, surface pressure minus the weight of the column water) since the start of each forecast, and the spread of the dry-air change across runs (right).</figcaption></figure>
+
+  <h3>Water: what falls must evaporate or come out of the column</h3>
+  <p>Globally, the change in column water equals evaporation minus precipitation. Neither AIFS nor the open IFS data publish
+  evaporation, so the budget cannot be closed: the evaporation a run would need is whatever balances its own rain and column
+  water. What the data do show:</p>
+  <ul>
+    <li><b>AIFS-ENS rains less</b>: 2.75 mm a day globally at day 10 against IFS-ENS's 3.01, a difference of
+    -0.26 (95% interval -0.28 to -0.24) mm a day, significant at every lead from day 1. AIFS single sits between them
+    (2.92).</li>
+    <li><b>Column water is steady.</b> After the first day, every model's global column water changes by less than 0.05 mm a day, so
+    each run's evaporation must nearly equal its precipitation, and AIFS-ENS is therefore implying about 9% less evaporation than
+    IFS-ENS. On day 1 AIFS-ENS loses 0.13 mm of column water, a spin-down from its initial state that IFS does not show.</li>
+    <li>Against each model's own analysis at day 15, column water is -0.27 kg m<sup>−2</sup> (AIFS-ENS),
+    -0.24 (IFS-ENS) and -0.11 (AIFS single): all three dry the atmosphere slightly, by about 1%.</li>
+  </ul>
+  <figure id="fig11"><a href="/studies/aifs-aam-budget/cons_water.webp" class="zoom"><img src="/studies/aifs-aam-budget/cons_water.webp" alt="Global precipitation, change in column water and implied evaporation by lead day for AIFS-ENS, IFS-ENS and AIFS single" loading="lazy"></a><figcaption><b>Figure 11.</b> The global water budget by lead day: precipitation (left), change in column water (middle) and the evaporation they imply (right).</figcaption></figure>
+
+  <h3>Energy: drift against the analysis</h3>
+  <p>The total energy of the column, $\int (c_pT + \Phi + Lq)\,dp/g$, changes only through radiation and surface fluxes, which AIFS does not
+  publish. The test that remains is drift: compare each control run with its own model's analysis at the valid time, possible at days 3, 6,
+  9, 12 and 15 because a new cycle starts every third day. The analysis is not a conservation law, so this measures how far each model
+  wanders from the observed energy state, not a budget residual.</p>
+  <ul>
+    <li><b>All three lose energy.</b> By day 15 the loss averages -2.3 W m<sup>−2</sup> for AIFS-ENS, -1.8 for
+    IFS-ENS and -3.5 for AIFS single over the 15 days, mostly as cooling (enthalpy -1.4,
+    -1.2 and -2.4). A cooling drift of this size is a known IFS behaviour, so the physics model
+    is no reference of perfection here.</li>
+    <li><b>AIFS-ENS drifts slightly faster than IFS-ENS</b>: -0.52 (95% interval -1.20 to -0.02) W m<sup>−2</sup> at day 15, significant at 4 of the
+    5 tested leads. <b>AIFS single drifts faster</b>: -1.74 (95% interval -2.41 to -0.95) W m<sup>−2</sup>.</li>
+    <li>AIFS-ENS's downward solar radiation at the surface is 3.1 W m<sup>−2</sup> lower than IFS-ENS's at every
+    lead (significant); its downward thermal radiation is the same within 0.5 W m<sup>−2</sup>. Without net or top-of-atmosphere radiation,
+    this cannot be tied to the energy drift.</li>
+  </ul>
+  <figure id="fig12"><a href="/studies/aifs-aam-budget/cons_energy.webp" class="zoom"><img src="/studies/aifs-aam-budget/cons_energy.webp" alt="Column energy change against the verifying analysis at days 3 to 15, its components at day 15, and downward surface solar radiation by lead" loading="lazy"></a><figcaption><b>Figure 12.</b> Column energy against each model's own analysis (left), by component at day 15 (middle), and downward solar radiation at the surface (right).</figcaption></figure>
+  <p><b>What could not be tested.</b> The water budget needs evaporation, and the energy budget needs net radiation at the top and bottom of
+  the atmosphere and the turbulent heat fluxes; none of these is in the AIFS open data. Kinetic energy (about 0.05% of the total) and
+  the levels above 50 hPa are left out of the column energy. The mass and water results use the published total column water, which
+  includes cloud water and ice.</p>
+
+
   <h2>References</h2>
   <ol class="refs">
     <li>Huang, H.-P., P. D. Sardeshmukh and K. M. Weickmann, 1999: The balance of global angular momentum in a long-term atmospheric data set. <i>J. Geophys. Res.</i>, 104, 2031–2040. <a href="https://doi.org/10.1029/1998JD200068">doi:10.1029/1998JD200068</a></li>
@@ -387,8 +451,9 @@
   <a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a>, fetched from ECMWF's Google Cloud mirror. Reference:
   ERA5 (Hersbach et al., 2020), Copernicus Climate Change Service (C3S) / ECMWF, via the ARCO-ERA5 store on Google Cloud;
   contains modified Copernicus Climate Change Service information 2026. Neither ECMWF nor the European Commission is
-  responsible for any use of this information. About 128 GB of forecast fields and 95 GB of ERA5 were read for this study.</p>
-  <p class="byline">By <a href="/about.html">Shawn Corvec</a>, meteorologist. Published 1 October 2026. A static study: it is not updated.</p>
+  responsible for any use of this information. About 128 GB of forecast fields and 95 GB of ERA5 were read for the angular
+  momentum study, and a further 28 GB of forecast fields for the mass, water and energy extension.</p>
+  <p class="byline">By <a href="/about.html">Shawn Corvec</a>, meteorologist. Published 1 October 2026; mass, water and energy added 2 October 2026. A static study: it is not updated.</p>
 </article>
 
 </main>
