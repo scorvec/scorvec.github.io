@@ -24,6 +24,8 @@ A_EARTH = 6.371e6
 URL = "https://storage.googleapis.com/ecmwf-open-data/{d}/{h:02d}z/aifs-ens/0p25/enfo/{d}{h:02d}0000-360h-enfo-tf.bufr"
 MISSING = -1e99
 R_KM = 500.0
+MIDLAT = 25.0          # a storm is drawn on the packet Hovmöller only once it is this far north
+PACKET_SPEED = 25.0    # deg longitude per day: typical Rossby wave-packet (group) speed, the dotted guide
 
 
 def fetch(date: str, hour: int, cache: Path) -> Path | None:
@@ -217,7 +219,7 @@ def render_card(storms, idx, v250, lat, lon, steps, init, out_png: Path, out_jso
     out_png.parent.mkdir(parents=True, exist_ok=True); out_json.parent.mkdir(parents=True, exist_ok=True)
     days = np.asarray(steps, float) / 24.0
     fig = plt.figure(figsize=(12.6, 11.2))
-    gs = fig.add_gridspec(2, 1, height_ratios=[1.0, 1.9], hspace=0.30, left=0.07, right=0.97, top=0.93, bottom=0.07)
+    gs = fig.add_gridspec(2, 1, height_ratios=[1.0, 1.9], hspace=0.34, left=0.07, right=0.97, top=0.93, bottom=0.095)
     ax1, ax2 = fig.add_subplot(gs[0]), fig.add_subplot(gs[1])
     fig.suptitle(f"Tropical cyclones and the jet — AIFS-ENS control, init {init:%d %b %Y %HZ}", fontsize=14, fontweight="bold",
                  x=0.07, ha="left")
@@ -240,41 +242,66 @@ def render_card(storms, idx, v250, lat, lon, steps, init, out_png: Path, out_jso
     else:
         ax1.text(0.5, 0.5, "No tropical storms in the Northern Hemisphere in the control run", transform=ax1.transAxes,
                  ha="center", va="center", fontsize=12, color="#6f6b64")
-    # Hovmöller of v250 averaged over the band, longitude starting at lon0
+    # Wave-packet Hovmöller (redesigned 2026-10-02, user: the v250 Hovmöller was "confusing"): the ENVELOPE of the 250 hPa
+    # meridional wind (Zimin et al. 2003: zonal wavenumbers 4-15, Hilbert transform along each latitude circle), averaged
+    # over the band. A Rossby wave packet is one bright streak instead of alternating red/blue stripes; a storm appears
+    # only once it reaches the mid-latitudes (>= MIDLAT N), with a star at recurvature and a dotted guide at a typical
+    # packet speed, so a packet the storm launches reads as a streak starting at the star.
+    env = packet_envelope(v250, lon)
     j = (lat >= band[0]) & (lat <= band[1])
     w = np.cos(np.deg2rad(lat[j]))
-    hov = (v250[:, j, :] * w[None, :, None]).sum(1) / w.sum()
+    hov = (env[:, j, :] * w[None, :, None]).sum(1) / w.sum()
     lon_s = (lon - lon0) % 360 + lon0
     o = np.argsort(lon_s)
-    cf = ax2.contourf(lon_s[o], days, hov[:, o], levels=np.arange(-32, 33, 4), cmap="RdBu_r", extend="both")
+    from matplotlib.colors import LinearSegmentedColormap
+    cmap = LinearSegmentedColormap.from_list("pk", ["#ffffff", "#fde9b6", "#fbbf5e", "#f08a2c", "#d4501f", "#9e2117", "#5c0d17"])
+    cf = ax2.contourf(lon_s[o], days, hov[:, o], levels=np.arange(0, 41, 4), cmap=cmap, extend="max")
     ax2.set_ylim(days[-1], 0)
     tick = np.arange(lon0, lon0 + 361, 30)
     ax2.set_xticks(tick); ax2.set_xticklabels([f"{int(((t + 180) % 360) - 180)}°" for t in tick])
     ax2.set_xlim(lon0, lon0 + 360)
+    shown = 0
     for i, s in enumerate(storms):
         c = COLS[i % len(COLS)]
-        m = (s["steps"] <= days[-1] * 24) & (s["lat"] > 0)
+        m = (s["steps"] <= days[-1] * 24) & (s["lat"] >= MIDLAT)
         if not m.any():
             continue
+        shown += 1
         ls = (s["lon"][m] - lon0) % 360 + lon0
         tt = s["steps"][m] / 24.0
-        brk = np.where(np.abs(np.diff(ls)) > 180)[0] + 1                # crossing the diagram's seam: break the line
+        brk = np.where(np.abs(np.diff(ls)) > 180)[0] + 1
         ls_p, tt_p = np.insert(ls, brk, np.nan), np.insert(tt, brk, np.nan)
-        ax2.plot(ls_p, tt_p, color=c, lw=3.0)
-        ax2.plot(ls_p, tt_p, color="#fff", lw=1.0)
-        ax2.annotate(label(s), (ls[0], tt[0]), xytext=(5, -4), textcoords="offset points", color=c, fontsize=9.5,
-                     fontweight="bold", va="top", ha="left",
-                     path_effects=[pe.Stroke(linewidth=2.4, foreground="#fff"), pe.Normal()])
+        ax2.plot(ls_p, tt_p, color="#111", lw=4.2, solid_capstyle="round")
+        ax2.plot(ls_p, tt_p, color=c, lw=2.6, solid_capstyle="round")
+        ax2.annotate(label(s), (ls[0], tt[0]), xytext=(-6, 0), textcoords="offset points", color=c, fontsize=10,
+                     fontweight="bold", va="center", ha="right",
+                     path_effects=[pe.Stroke(linewidth=2.6, foreground="#fff"), pe.Normal()])
         r = rec[s["id"]]
+        k0 = None
         if r is not None and r <= days[-1] * 24:
-            k = np.where(s["steps"][m] == r)[0]
-            if len(k):
-                ax2.plot(ls[k[0]], r / 24, marker="*", ms=19, color=c, mec="#000", mew=0.8, zorder=6)
-    ax2.set_ylabel("forecast day"); ax2.set_xlabel("longitude")
-    ax2.set_title(f"250 hPa meridional wind, {band[0]:.0f}–{band[1]:.0f}°N mean (m/s): red = southerly, blue = northerly. "
-                  "A packet launched by a storm's outflow tilts down and to the right.", fontsize=10.5, loc="left")
-    cb = fig.colorbar(cf, ax=ax2, orientation="horizontal", fraction=0.04, pad=0.08)
-    cb.set_label("v250 (m/s)")
+            kk = np.where(s["steps"] == r)[0]
+            if len(kk):
+                k0 = kk[0]
+        if k0 is None:                                    # no recurvature in range: guide from where it reaches mid-latitudes
+            k0 = np.where(m)[0][0]
+        x0 = (s["lon"][k0] - lon0) % 360 + lon0; t0 = s["steps"][k0] / 24.0
+        tg = np.linspace(t0, days[-1], 30); xg = x0 + PACKET_SPEED * (tg - t0)
+        ok = xg <= lon0 + 360
+        ax2.plot(xg[ok], tg[ok], ls=(0, (1.5, 2.5)), color="#222", lw=1.4)
+        if r is not None and r <= days[-1] * 24 and len(np.where(s["steps"] == r)[0]):
+            ax2.plot(x0, t0, marker="*", ms=19, color=c, mec="#000", mew=0.8, zorder=6)
+    if not shown:
+        ax2.text(0.5, 0.04, f"No storm reaches {MIDLAT:.0f}°N in the control run within day {days[-1]:.0f}",
+                 transform=ax2.transAxes, ha="center", fontsize=11, color="#444",
+                 bbox=dict(boxstyle="round", fc="#fff", ec="#bbb"))
+    ax2.set_ylabel("forecast day  (time runs down)"); ax2.set_xlabel("longitude  (east is to the right)")
+    ax2.set_title(f"Wave packets along the jet: strength of the 250 hPa trough/ridge pattern, {band[0]:.0f}–{band[1]:.0f}°N (m/s)\n"
+                  f"Bright streaks = packets of strong troughs and ridges, moving east as they slant down. Coloured lines: storms once north "
+                  f"of {MIDLAT:.0f}°N, ★ recurvature,\n"
+                  f"dotted: where a packet the storm starts would be at a typical {PACKET_SPEED:.0f}° longitude per day",
+                  fontsize=10.2, loc="left")
+    cb = fig.colorbar(cf, ax=ax2, orientation="horizontal", fraction=0.04, pad=0.09)
+    cb.set_label("wave-packet amplitude: envelope of the 250 hPa north–south wind, zonal wavenumbers 4–15 (m/s)")
     fig.text(0.07, 0.012, "Tracks: ECMWF tropical-cyclone tracker on AIFS-ENS (open data, CC BY 4.0), control member. "
              "Metric after Archambault et al. (2013, 2015, Mon. Wea. Rev.).\n"
              "Index = area mean of the negative part of −v_χ·∇PV (sign flipped), irrotational wind from the 300–200 hPa layer (T106), PV smoothed 1°. "
@@ -290,3 +317,13 @@ def render_card(storms, idx, v250, lat, lon, steps, init, out_png: Path, out_jso
                      for s in storms]}
     out_json.write_text(json.dumps(js))
     print(f"  wrote {out_png} and {out_json}", flush=True)
+
+
+def packet_envelope(v, lon, kmin=4, kmax=15):
+    """Envelope of the meridional wind along each latitude circle (Zimin et al. 2003, MWR 131): keep zonal wavenumbers
+    kmin..kmax, build the analytic signal (positive wavenumbers doubled) and take its modulus. v: (..., lon)."""
+    F = np.fft.fft(np.nan_to_num(v), axis=-1)
+    n = v.shape[-1]
+    Z = np.zeros_like(F)
+    Z[..., kmin:kmax + 1] = 2.0 * F[..., kmin:kmax + 1]
+    return np.abs(np.fft.ifft(Z, axis=-1))
