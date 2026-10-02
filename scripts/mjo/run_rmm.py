@@ -87,7 +87,12 @@ def main() -> None:
     leads = rmm["lead_day"].values
     cycle_debias.record(args.date, args.time,
                         leads, rmm["rmm1"].mean("member").values,
-                        rmm["rmm2"].mean("member").values)
+                        rmm["rmm2"].mean("member").values,
+                        rmm1_wind=rmm["rmm1_wind"].mean("member").values,
+                        rmm2_wind=rmm["rmm2_wind"].mean("member").values)
+    # the analysis point that extends the observed history must stay RAW (lead 0 of the control)
+    cf0_raw = (float(rmm.sel(member="cf").isel(lead_day=0)["rmm1_wind"]),
+               float(rmm.sel(member="cf").isel(lead_day=0)["rmm2_wind"]))
     off1, off2 = cycle_debias.offset_for(args.date, args.time, leads)
     if np.any(off1) or np.any(off2):
         rmm["rmm1"] = rmm["rmm1"] - xr.DataArray(off1, dims=["lead_day"])
@@ -97,6 +102,16 @@ def main() -> None:
             f"{float(np.hypot(off1, off2).max()):.2f} RMM units")
         print(f"12Z cycle de-bias applied (day-14 offset "
               f"({off1[-1]:+.2f}, {off2[-1]:+.2f}))")
+    # the wind-only channels (the ENSO-removed product plots these) carry their own 12Z offset; until 2026-10-02 they
+    # were never corrected, so that product wiped back and forth by ~1 RMM unit at day 14 (user: "severe windshield
+    # wiper effect on the mjo plots between 00z and 12z cycles")
+    w1, w2 = cycle_debias.offset_for(args.date, args.time, leads, keys=("rmm1_wind", "rmm2_wind"))
+    if np.any(w1) or np.any(w2):
+        rmm["rmm1_wind"] = rmm["rmm1_wind"] - xr.DataArray(w1, dims=["lead_day"])
+        rmm["rmm2_wind"] = rmm["rmm2_wind"] - xr.DataArray(w2, dims=["lead_day"])
+        print(f"12Z cycle de-bias applied to the wind-only RMM (day-14 offset ({w1[-1]:+.2f}, {w2[-1]:+.2f}))")
+    elif int(args.time) == 12:
+        print("::warning::12Z wind-only RMM NOT de-biased yet (wind channels still warming up in ensmean_history)")
 
     rmm_path = Path("data/aifs") / f"rmm_{args.date}_{args.time}z.nc"
     rmm.to_netcdf(rmm_path)
@@ -121,8 +136,7 @@ def main() -> None:
     # 3. Extend the observed history with today's AIFS analysis (member 0, earliest
     #    lead). lead_day 0 if step 0 was downloaded, else the first forecast day —
     #    .isel keeps this robust to the daily-vs-6-hourly step choice.
-    cf0 = rmm.sel(member="cf").isel(lead_day=0)
-    archive_truth.append_truth(init, float(cf0["rmm1_wind"]), float(cf0["rmm2_wind"]))
+    archive_truth.append_truth(init, *cf0_raw)
     obs = archive_truth.load_truth(days=120)      # 12-hourly points → same ~60-day window
 
     # 4. Plot

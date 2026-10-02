@@ -30,33 +30,42 @@ import pandas as pd
 
 ARCHIVE = Path("data/reference/ensmean_history.json")
 MAX_RUNS = 120     # cap the committed file (~2 months of 2 cycles/day)
-N_PAIRS = 15       # trailing 00Z/12Z pairs used for the offset estimate
+N_PAIRS = 7        # trailing 00Z/12Z pairs used for the offset estimate (15 until 2026-10-02: the offset has grown
+                   # from ~0.4 to ~1.1 RMM units at day 14 since July, and a shorter window tracks it better -
+                   # replayed on the archive, day-10/14 residual 0.31/0.33 -> 0.27/0.31)
 INDEX_V = 2        # RMM definition version (2 = full WH04 with precip pseudo-OLR,
                    # 2026-08-16); entries from another version are never paired —
                    # mixing definitions would bake the definition change into the
                    # 12Z offset estimate
 MIN_PAIRS = 3      # below this, apply no correction (archive still warming up)
+MIN_PAIRS_WIND = 1 # the wind-only channels were first archived 2026-10-02; their raw offset (~1 RMM unit at day 14)
+                   # is several times the pair-to-pair scatter (~0.2), so even one pair removes most of it
 
 
 def _init_ts(key: str) -> pd.Timestamp:
     return pd.Timestamp(f"{key[:4]}-{key[4:6]}-{key[6:8]}T{key[9:11]}:00")
 
 
-def record(date: str, time: str, leads, rmm1, rmm2, path: Path = ARCHIVE) -> None:
-    """Archive one run's RAW ensemble-mean trajectory (idempotent per cycle)."""
+def record(date: str, time: str, leads, rmm1, rmm2, path: Path = ARCHIVE, rmm1_wind=None, rmm2_wind=None) -> None:
+    """Archive one run's RAW ensemble-mean trajectory (idempotent per cycle). The wind-only channels (used by the
+    ENSO-removed product) are archived too since 2026-10-02 - they carry their own, different 12Z offset."""
     hist = json.loads(path.read_text()) if path.exists() else {}
-    hist[f"{date}_{time}z"] = {
+    ent = {
         "v": INDEX_V,
         "leads": [round(float(x), 3) for x in leads],
         "rmm1": [round(float(x), 4) for x in rmm1],
         "rmm2": [round(float(x), 4) for x in rmm2],
     }
+    if rmm1_wind is not None and rmm2_wind is not None:
+        ent["rmm1_wind"] = [round(float(x), 4) for x in rmm1_wind]
+        ent["rmm2_wind"] = [round(float(x), 4) for x in rmm2_wind]
+    hist[f"{date}_{time}z"] = ent
     keep = sorted(hist, key=_init_ts)[-MAX_RUNS:]
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps({k: hist[k] for k in keep}))
 
 
-def offset_for(date: str, time: str, leads, path: Path = ARCHIVE
+def offset_for(date: str, time: str, leads, path: Path = ARCHIVE, keys=("rmm1", "rmm2")
                ) -> tuple[np.ndarray, np.ndarray]:
     """(offset_rmm1, offset_rmm2) to SUBTRACT from a run at the given leads.
 
@@ -87,6 +96,8 @@ def offset_for(date: str, time: str, leads, path: Path = ARCHIVE
         b, a = hist[key], hist[mate]
         if b.get("v") != INDEX_V or a.get("v") != INDEX_V:
             continue                   # never pair across RMM definitions
+        if any(k not in b or k not in a for k in keys):
+            continue                   # runs archived before this channel was
         a_by_valid = {_init_ts(mate) + pd.Timedelta(days=ld): i
                       for i, ld in enumerate(a["leads"])}
         matched = False
@@ -96,10 +107,10 @@ def offset_for(date: str, time: str, leads, path: Path = ARCHIVE
             if j is None:
                 continue
             diffs.setdefault(round(ld, 3), []).append(
-                (b["rmm1"][i] - a["rmm1"][j], b["rmm2"][i] - a["rmm2"][j]))
+                (b[keys[0]][i] - a[keys[0]][j], b[keys[1]][i] - a[keys[1]][j]))
             matched = True
         n_used += matched
-    if n_used < MIN_PAIRS:
+    if n_used < (MIN_PAIRS_WIND if keys[0].endswith("_wind") else MIN_PAIRS):
         return zero
 
     grid = np.array(sorted(diffs))
