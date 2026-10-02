@@ -146,6 +146,13 @@ jobs:
             --out-dir ../../assets/sst \
             || echo "::warning::TC ensemble products failed; continuing"
 
+      - name: Cyclone phase space (Hart 2003; AIFS-ENS control, z 925-300 hPa)
+        working-directory: scripts/mjo
+        run: |
+          python src/tc_phase.py --date "${{ steps.cyc.outputs.date }}" --time "${{ steps.cyc.outputs.time }}" \
+            --out ../../assets/sst/tcphase.webp --json ../../assets/sst/data/tcphase.json \
+            || echo "::warning::cyclone phase space failed; continuing"
+
       # The North Pacific jet moved to strat.yml / strat-ifs.yml on 2026-09-28 (it needs 250 hPa v, which only the
       # stratosphere jobs fetch); it still reads the torque_ranges.json written above, from main.
 
@@ -175,6 +182,7 @@ jobs:
                assets/sst/data/torque_ranges.json \
                assets/sst/anim/dt_manifest.json assets/sst/tcjet.webp assets/sst/data/tcjet.json \
                assets/sst/tcens_tracks.webp assets/sst/tcens_impact.webp assets/sst/tcens_impact_2.webp assets/sst/data/tcens.json \
+               assets/sst/tcphase.webp assets/sst/data/tcphase.json \
                scripts/mjo/data/reference/aam_history.nc scripts/mjo/data/reference/aam_forecast_archive.nc \
                scripts/mjo/data/reference/aam_latband_history.nc"
           SNAP=$(mktemp -d)
