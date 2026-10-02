@@ -311,6 +311,16 @@ jobs:
             if ! timeout 120 git fetch origin main; then echo "fetch $i failed"; sleep 5; continue; fi
             git reset --hard origin/main
             tar xf "$SNAP/outs.tar" 2>/dev/null || true
+            # 2026-10-02: a run started before a page edit restored its stale render over it (circulation.html lost the
+            # stage-picker fix and the new TC text at 23:27). A page whose templates or whose own file changed on main
+            # since this run checked out keeps MAIN's version; the next run re-renders it from the new templates.
+            TPL_CHANGED=$(git diff --name-only "$GITHUB_SHA" origin/main -- scripts/sst/pages scripts/sst/partials scripts/sst/enso_site.py scripts/site/apply_chrome.py | head -1)
+            for f in enso.html circulation.html stratosphere.html sst.html enso-*.html; do
+              [ -e "$f" ] || continue
+              if [ -n "$TPL_CHANGED" ] || ! git diff --quiet "$GITHUB_SHA" origin/main -- "$f"; then
+                git checkout origin/main -- "$f" 2>/dev/null && echo "::notice::kept main's $f (changed on main during this run)"
+              fi
+            done
             git add -A enso.html circulation.html stratosphere.html sst.html enso-*.html assets/sst/
             if git diff --staged --quiet; then echo "No changes; skipping commit."; exit 0; fi
             git commit -q -m "data update: ${DAY}"
