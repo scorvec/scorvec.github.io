@@ -1307,6 +1307,7 @@ Promise.all([
 ]).then(([stns, man, anom]) => {
   entries = (man && man.entries) || {};
   anomalies = anom || {};
+  rwBadgeCount();
   feedsLoadedAt = Date.now();
   if (!man)
     feedBanner("⚠ The live data feed is unreachable from this network (all hosts " +
@@ -1474,6 +1475,14 @@ function rwWhen(r) {
   if (!r.dt) return "";
   const hh = r.dt.slice(5, 10).replace("-", "/") + " " + r.dt.slice(11, 13) + "Z";
   return isFinite(r.age) ? `${hh} · ${r.age < 1 ? "<1" : Math.round(r.age)} h ago` : hh;
+}
+// the count on the map's Records button: stations that set a record (date or all-time) within the last 48 h
+function rwBadgeCount() {
+  const el = document.getElementById("rw-n"); if (!el) return;
+  const n = Object.values(anomalies).filter(d => rwAgeH(d.dt) <= 48 && d.flags.some(f => f.rec)).length;
+  el.textContent = n; el.hidden = !n;
+  const b = document.getElementById("anom-toggle");
+  if (b) b.setAttribute("aria-label", `Records${n ? ` — ${n} station${n > 1 ? "s" : ""} set a record` : ""}`);
 }
 function buildAnomPanel() {
   const rows = rwRows(), all = Object.values(anomalies);
@@ -1780,7 +1789,7 @@ document.getElementById("anom-toggle").addEventListener("click", async () => {
   if (Date.now() - feedsLoadedAt > 10 * 60e3) {
     try {
       const r = await ghFetch("skewt-data", "anomalies.json", Date.now());
-      if (r.ok) anomalies = await r.json();
+      if (r.ok) { anomalies = await r.json(); rwBadgeCount(); }
       const m = await ghFetch("skewt-data", "manifest.json", Date.now());
       if (m.ok) {
         const man = await m.json();

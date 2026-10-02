@@ -231,6 +231,25 @@
     .rw-filters button { min-height: 40px; padding: 7px 10px; }
   }
   #export-btn, #share-btn, #climo-btn, #anom-toggle { white-space: nowrap; }
+  /* the Records button (2026-10-02, user: "more prominent ... a big shiny button") */
+  .controls .rw-btn { margin-left: auto; position: relative; overflow: hidden; display: inline-flex; align-items: center; gap: 9px;
+    font: 700 1.08rem var(--sans); letter-spacing: 0.02em; color: #2a1600; padding: 10px 22px 10px 18px; min-height: 46px;
+    border: 1px solid #ffd27a; border-radius: 999px; cursor: pointer;
+    background: linear-gradient(180deg, #ffe7a3 0%, #ffbf3c 45%, #f08a1c 100%);
+    box-shadow: 0 0 0 1px rgba(255,170,60,0.35), 0 4px 18px rgba(255,150,40,0.45), inset 0 1px 0 rgba(255,255,255,0.75);
+    text-shadow: 0 1px 0 rgba(255,255,255,0.45); transition: transform .12s, box-shadow .12s; }
+  .controls .rw-btn:hover { transform: translateY(-1px); border-color: #fff0c2;
+    box-shadow: 0 0 0 1px rgba(255,190,90,0.55), 0 6px 26px rgba(255,150,40,0.65), inset 0 1px 0 rgba(255,255,255,0.85); }
+  .controls .rw-btn:active { transform: translateY(1px); }
+  .controls .rw-btn::after { content: ""; position: absolute; top: 0; bottom: 0; left: -60%; width: 40%; pointer-events: none;
+    background: linear-gradient(100deg, transparent, rgba(255,255,255,0.65), transparent); transform: skewX(-20deg);
+    animation: rw-shine 3.6s ease-in-out infinite; }
+  @keyframes rw-shine { 0%, 62% { left: -60%; } 100% { left: 130%; } }
+  .rw-btn .rw-ic { font-size: 1.3em; line-height: 1; color: #b3001b; text-shadow: 0 0 6px rgba(255,255,255,0.8); }
+  .rw-btn .rw-n { font: 800 0.86rem var(--sans); color: #fff; background: #c4161c; border-radius: 999px; padding: 2px 8px;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.35); text-shadow: none; }
+  @media (prefers-reduced-motion: reduce) { .controls .rw-btn::after { animation: none; display: none; } }
+  @media (max-width: 700px) { .controls .rw-btn { font-size: 1rem; padding: 8px 16px 8px 13px; min-height: 42px; } }
   .maplegend .leg-chip { display: none; }        /* desktop: always full card */
   @media (max-width: 700px) {
     /* mobile default = collapsed chip; .expanded shows the full card */
@@ -556,7 +575,7 @@
     <span><i class="ring" style="border-color:rgba(255,150,110,0.85)"></i>top / bottom 5 % for the date</span>
     <label><input type="checkbox" id="show-closed-top">show closed</label>
   </span>
-  <button id="anom-toggle" title="the most anomalous soundings right now, ranked against each station's own record">Extreme today</button>
+  <button id="anom-toggle" class="rw-btn" title="today's record-breaking and most extreme soundings, each ranked against its own station's archive"><span class="rw-ic" aria-hidden="true">★</span><span class="rw-lb">Records</span><span class="rw-n" id="rw-n" hidden></span></button>
 </div>
 <div class="mapwrap"><div id="map"></div></div>
 
@@ -742,6 +761,6 @@
   </div>
 </div>
 <script src="sharplib.js?v=92a2fd08"></script>
-<script src="app.js?v=a378758e"></script>
+<script src="app.js?v=c658289e"></script>
 </body>
 </html>
