@@ -18,10 +18,11 @@ Usage:
 """
 from __future__ import annotations
 
-import argparse
+import argparse, os
 import re
 import sys
 import urllib.parse
+import urllib.error
 import urllib.request
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -159,7 +160,20 @@ def main() -> int:
     start = (datetime.strptime(args.start, "%Y%m%d") if args.start
              else end - timedelta(days=args.days))
 
-    ascii_path = deliver(start, end, Path(args.ascii))
+    try:
+        ascii_path = deliver(start, end, Path(args.ascii))
+    except urllib.error.HTTPError as e:
+        # NOAA PMEL takes the DISDEL server down for maintenance (503 "Maintenance in Progress", seen for a day on
+        # 2026-10-01). That is not our failure: skip this refresh, keep the published products, and tell the workflow
+        # to skip its later steps instead of failing (and emailing) every two hours until PMEL is back.
+        if e.code in (502, 503, 504):
+            print(f"::warning::TAO/PMEL unavailable (HTTP {e.code}: {e.reason}); skipping this refresh", flush=True)
+            out = os.environ.get("GITHUB_OUTPUT")
+            if out:
+                with open(out, "a") as f:
+                    f.write("skip=true\n")
+            return 0
+        raise
     ds = parse(ascii_path)
     Path(args.out).parent.mkdir(parents=True, exist_ok=True)
     ds.to_netcdf(args.out)

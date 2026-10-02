@@ -55,17 +55,21 @@ jobs:
       - name: Seed existing frames
         run: scripts/lib/fetch_frames_ci.sh scripts/sst/data/cmems assets/sst/anim/equatorial assets/sst/anim/equatorial_dt
       - name: Fetch TAO equatorial subsurface temperature (recent 120 days)
+        id: tao
         run: |
           python scripts/sst/tao_subsurface.py --days 120 \
             --out scripts/sst/data/tao_eq_recent.nc \
             --ascii scripts/sst/data/tao_eq_recent.ascii
       - name: Build equatorial subsurface cross-section + animation
+        if: steps.tao.outputs.skip != 'true'
         run: python scripts/sst/sst_subsurface.py
       - name: Publish frames to the orphan branch
+        if: steps.tao.outputs.skip != 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: scripts/lib/publish_frames_ci.sh scripts/sst/data/cmems scripts/mjo/data/reference_big assets/sst/anim/equatorial assets/sst/anim/equatorial_dt
       - name: Commit & push
+        if: steps.tao.outputs.skip != 'true'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
@@ -88,7 +92,7 @@ jobs:
           done
           exit 1
       - name: Deploy the site
-        if: success()
+        if: success() && steps.tao.outputs.skip != 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: gh workflow run pages.yml --repo "$GITHUB_REPOSITORY" || echo "pages dispatch failed; the dispatcher will catch it"
