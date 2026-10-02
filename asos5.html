@@ -6,131 +6,99 @@
 <link rel="canonical" href="https://scorvec.com/asos5.html">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>US Airport 5-Minute Observations &middot; Shawn Corvec</title>
-<meta name="description" content="Live 5-minute ASOS temperature observations for major US airports from official NWS/MADIS sources, with running daily max/min.">
-<link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;1,400&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
-<script src="https://cdn.plot.ly/plotly-2.35.2.min.js" charset="utf-8"></script>
-<style>
-  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-  :root {
-    --bg: #fafaf8;
-    --ink: #1c1c1a;
-    --muted: #6f6b64;
-    --accent: #2c4a72;
-    --accent-light: #e8eef5;
-    --rule: #e4e2dc;
-    --hot: #b3372f;
-    --cold: #2c5f8a;
-    --serif: 'Lora', Georgia, serif;
-    --sans: 'Inter', sans-serif;
-  }
-  html { font-size: 17.5px; }
-  body {
-    background: var(--bg); color: var(--ink); font-family: var(--sans);
-    -webkit-font-smoothing: antialiased;
-  }
-  .site-header {
-    position: fixed; top: 0; left: 0; right: 0; z-index: 10;
-    background: rgba(250,250,248,0.95);
-    backdrop-filter: blur(8px);
-    border-bottom: 1px solid var(--rule);
-  }
-  nav { display: flex; justify-content: space-between; align-items: center; padding: 1.2rem 3rem; }
-  .nav-name { font-family: var(--serif); font-weight: 400; font-size: 1rem; text-decoration: none; color: var(--ink); }
-  .nav-links { display: flex; gap: 2rem; list-style: none; }
-  .nav-links a { font-size: 0.82rem; letter-spacing: 0.04em; text-decoration: none; color: var(--muted); transition: color 0.2s; }
-  .nav-links a:hover { color: var(--ink); }
-
-  main { max-width: min(94vw, 2000px); margin: 0 auto; padding: 2rem 2rem 3rem; }
-  h1 { font-family: var(--serif); font-weight: 400; font-size: 1.65rem; }
-  .sub { color: var(--muted); font-size: 0.82rem; margin-top: 0.35rem; line-height: 1.55; }
-  .sub b { color: var(--ink); font-weight: 500; }
-  #stale {
-    display: none; margin-top: 0.6rem; padding: 0.45rem 0.8rem;
-    background: #fdf3e4; border: 1px solid #ecd9b0; border-radius: 6px;
-    font-size: 0.8rem; color: #7a5c1e;
-  }
-
-  .controls {
-    display: flex; flex-wrap: wrap; gap: 0.9rem; align-items: center;
-    margin: 1.3rem 0 1.1rem;
-  }
-  .seg { display: inline-flex; border: 1px solid var(--rule); border-radius: 7px; overflow: hidden; background: #fff; }
-  /* a segmented strip wider than the screen scrolls sideways; the shadows (painted under the
-     transparent buttons, attached to the scroll content) only show at an edge that has more. */
-  .seg { max-width: 100%; overflow-x: auto; overflow-y: hidden; scrollbar-width: thin;
-    background:
-      linear-gradient(to right, #fff 30%, rgba(255,255,255,0)),
-      linear-gradient(to right, rgba(255,255,255,0), #fff 70%) 100% 0,
-      radial-gradient(farthest-side at 0 50%, rgba(0,0,0,.25), rgba(0,0,0,0)),
-      radial-gradient(farthest-side at 100% 50%, rgba(0,0,0,.25), rgba(0,0,0,0)) 100% 0;
-    background-repeat: no-repeat; background-size: 40px 100%, 40px 100%, 14px 100%, 14px 100%;
-    background-attachment: local, local, scroll, scroll; }
-  .seg button { white-space: nowrap; }
-  .seg button {
-    border: 0; background: transparent; padding: 0.38rem 0.85rem;
-    font: 500 0.78rem var(--sans); color: var(--muted); cursor: pointer;
-  }
-  .seg button.on { background: var(--accent); color: #fff; }
-  .ctl-note { font-size: 0.75rem; color: var(--muted); }
-
-  .cards {
-    display: grid; gap: 0.7rem;
-    grid-template-columns: repeat(auto-fill, minmax(168px, 1fr));
-  }
-  .card {
-    background: #fff; border: 1px solid var(--rule); border-radius: 9px;
-    padding: 0.7rem 0.8rem 0.65rem; cursor: pointer;
-    transition: border-color 0.15s, box-shadow 0.15s, opacity 0.15s;
-  }
-  .card:hover { border-color: var(--accent); }
-  .card.sel { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-light); }
-  .card.dim { opacity: 0.38; }
-  .card .row1 { display: flex; justify-content: space-between; align-items: baseline; flex-wrap: wrap; gap: 0.15rem 0.4rem; }
-  .card .sid { font-weight: 600; font-size: 0.92rem; }
-  .card .sid::before {
-    content: ""; display: inline-block; width: 0.55em; height: 0.55em;
-    border-radius: 50%; background: var(--dot, #999); margin-right: 0.42em;
-  }
-  .card .badge {
-    font-size: 0.7rem; letter-spacing: 0.05em; color: var(--muted);
-    border: 1px solid var(--rule); border-radius: 4px; padding: 0.08rem 0.3rem;
-    white-space: nowrap; flex-shrink: 0;   /* whole chips wrap; never "5-\nmin" */
-  }
-  .card .badge.hourly { color: #a05a1e; border-color: #e5c9a8; background: #fdf6ec; }
-  .card .name { font-size: 0.72rem; color: var(--muted); margin-top: 0.1rem;
-    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .card .now { font-family: var(--serif); font-size: 1.5rem; margin: 0.3rem 0 0.05rem; }
-  .card .now small { font-size: 0.7rem; color: var(--muted); font-family: var(--sans); margin-left: 0.3rem; }
-  .card .mm { display: block; margin-top: 0.25rem; font-size: 0.74rem; }
-  .card .mm .mmrow { display: grid; grid-template-columns: 2.6em 1fr 1fr;
-                     gap: 0.25rem; align-items: baseline; white-space: nowrap; }
-  .card .mm .mmrow.yday { margin-top: 0.1rem; opacity: 0.9; }
-  .card .mm .mmtag { color: var(--muted); font-weight: 500; font-size: 0.92em; }
-  .card .mm .mmsrc { color: var(--muted); font-weight: 400; font-size: 0.9em; }
-  .card .mm .hi { color: var(--hot); font-weight: 600; }
-  .card .mm .lo { color: var(--cold); font-weight: 600; }
-  .card .mm span small { color: var(--muted); font-weight: 400; margin-left: 0.22em; font-size: 0.85em; }
-
-  #chart { margin-top: 1.4rem; background: #fff; border: 1px solid var(--rule); border-radius: 10px; padding: 0.4rem; }
-  footer.note { margin-top: 1.1rem; font-size: 0.72rem; color: var(--muted); line-height: 1.6; }
-  footer.note a { color: var(--accent); }
-  @media (max-width: 640px) {
-    nav { padding: 1rem 1.2rem; }
-    main { padding: 1.2rem 0.8rem 2rem; }
-  }
-@media (max-width: 480px) {
-  nav { flex-wrap: wrap; gap: 0.5rem; padding: 0.85rem 1.1rem; }
-  .nav-links { gap: 1rem; flex-wrap: wrap; }
-  .nav-links a { font-size: 0.78rem; }
-}
-</style>
-<script data-goatcounter="https://scorvec.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
+<meta name="description" content="Live 5-minute ASOS observations for 22 major US airports: temperature, dewpoint, wind speed and direction, visibility, ceiling and weather, with running daily max/min and official METAR remarks.">
+<link rel="preconnect" href="https://mesonet.agron.iastate.edu" crossorigin>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400&family=Schibsted+Grotesk:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/assets/site.css">
 <script src="/assets/site.js" defer></script>
 <script src="/assets/rail.js" defer></script>
+<script data-goatcounter="https://scorvec.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
+<style>
+  :root {
+    --bg: #f7f7f4; --panel: #ffffff; --ink: #1d211b; --muted: #5f6660; --rule: #dfe2dc;
+    --accent: #274b7a; --accent-soft: #e6edf6; --hot: #b3372f; --cold: #2c5f8a; --gust: #a05a12; --speci: #d0681e;
+  }
+  body { background: var(--bg); color: var(--ink); }
+  main.ao { max-width: min(96vw, 1900px); margin: 0 auto; padding: 1.4rem 1.2rem 3rem; font-family: var(--f-sans, sans-serif); }
+  main.ao h1 { font-family: var(--f-serif, serif); font-weight: 400; font-size: 1.9rem; text-align: center; margin: 0.4rem 0 0; }
+  .ao-lede { max-width: 82ch; margin: 0.9rem auto 1rem; padding: 0.9rem 1.2rem; font-size: 1.05rem; line-height: 1.55;
+    border: 1px solid var(--rule); background: #fbfbf8; border-radius: 8px; }
+  .ao-lede b { font-weight: 600; }
+  .ao-stale { max-width: 82ch; margin: 0 auto 0.8rem; padding: 0.5rem 0.9rem; background: #fdf3e4; border: 1px solid #ecd9b0;
+    border-radius: 6px; font-size: 0.95rem; color: #6e5218; }
+
+  .ao-bar { display: flex; flex-wrap: wrap; gap: 0.6rem 0.8rem; align-items: center; justify-content: center; margin: 1rem 0 0.4rem; }
+  .ao-seg { display: inline-flex; border: 1px solid #c9cec6; border-radius: 9px; overflow: hidden; background: var(--panel); max-width: 100%; overflow-x: auto; }
+  .ao-seg[hidden] { display: none; }
+  .ao-seg button { border: 0; background: transparent; padding: 0.62rem 1.05rem; min-height: 44px; font: 600 1.02rem var(--f-sans, sans-serif);
+    color: #3d4540; cursor: pointer; white-space: nowrap; }
+  .ao-seg button + button { border-left: 1px solid #e3e6e0; }
+  .ao-seg button.on { background: var(--accent); color: #fff; }
+  .ao-seg button:focus-visible { outline: 3px solid #7aa7e0; outline-offset: -3px; }
+  .ao-hint { text-align: center; font-size: 0.92rem; color: var(--muted); margin: 0.3rem 0 1rem; }
+
+  .ao-cards { display: grid; gap: 0.6rem; grid-template-columns: repeat(auto-fill, minmax(176px, 1fr)); }
+  .ao-card { text-align: left; font: inherit; color: inherit; background: var(--panel); border: 1px solid var(--rule); border-radius: 10px;
+    padding: 0.65rem 0.75rem 0.6rem; cursor: pointer; transition: border-color .12s, opacity .12s; min-width: 0; }
+  .ao-card:hover { border-color: var(--accent); }
+  .ao-card:focus-visible { outline: 3px solid #7aa7e0; outline-offset: 1px; }
+  .ao-card.sel { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-soft); }
+  .ao-card.dim { opacity: 0.42; }
+  .ao-card .r1 { display: flex; justify-content: space-between; align-items: center; gap: 0.3rem; }
+  .ao-card .sid { font-weight: 700; font-size: 1.02rem; display: inline-flex; align-items: center; gap: 0.4em; }
+  .ao-card .sid i { width: 0.62em; height: 0.62em; border-radius: 50%; background: var(--dot); display: inline-block; }
+  .ao-card .bd { font-size: 0.72rem; color: var(--muted); border: 1px solid var(--rule); border-radius: 4px; padding: 0.05rem 0.3rem; white-space: nowrap; }
+  .ao-card .bd.hr { color: #8a4d17; border-color: #e5c9a8; background: #fdf6ec; }
+  .ao-card .bd.sp { color: #8a4d17; border-color: #f0c9a3; background: #fdf0e3; }
+  .ao-card .nm { font-size: 0.8rem; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 0.05rem; }
+  .ao-card .now { font-family: var(--f-serif, serif); font-size: 1.6rem; line-height: 1.15; margin: 0.3rem 0 0.1rem; display: flex; align-items: center; gap: 0.35rem; flex-wrap: wrap; }
+  .ao-card .now small { font-family: var(--f-sans, sans-serif); font-size: 0.78rem; color: var(--muted); }
+  .ao-card .now .g { font-family: var(--f-sans, sans-serif); font-size: 0.85rem; color: var(--gust); font-weight: 600; }
+  .ao-card .ln { font-size: 0.86rem; line-height: 1.45; display: grid; grid-template-columns: 2.7em 1fr 1fr; gap: 0.2rem; white-space: nowrap; }
+  .ao-card .ln.one { grid-template-columns: 1fr; white-space: normal; }
+  .ao-card .tg { color: var(--muted); }
+  .ao-card .hi { color: var(--hot); font-weight: 600; }
+  .ao-card .lo { color: var(--cold); font-weight: 600; }
+  .ao-card .gu { color: var(--gust); font-weight: 600; }
+  .ao-card .mu { color: var(--muted); }
+  .ao-card svg { flex: none; }
+
+  .ao-detail { margin: 1rem 0 0; background: var(--panel); border: 1px solid var(--rule); border-radius: 10px; padding: 0.9rem 1rem;
+    display: flex; gap: 1.2rem; flex-wrap: wrap; align-items: flex-start; }
+  .ao-detail[hidden] { display: none; }
+  .ao-detail canvas { flex: none; }
+  .ao-detail .tx { flex: 1 1 320px; font-size: 0.98rem; line-height: 1.55; }
+  .ao-detail h3 { font-family: var(--f-serif, serif); font-weight: 500; font-size: 1.2rem; margin: 0 0 0.3rem; }
+  .ao-detail ul { margin: 0.2rem 0 0; padding-left: 1.1rem; }
+
+  .ao-chart { position: relative; margin-top: 1rem; background: var(--panel); border: 1px solid var(--rule); border-radius: 10px; padding: 0.7rem 0.6rem 0.4rem; }
+  .ao-ctitle { font-family: var(--f-serif, serif); font-weight: 500; font-size: 1.2rem; margin: 0 0 0.1rem 0.4rem; }
+  .ao-ckey { font-size: 0.9rem; color: var(--muted); margin: 0 0 0.4rem 0.4rem; }
+  .ao-panel { position: relative; height: min(58vh, 560px); min-height: 300px; touch-action: pan-y; }
+  .ao-panel--dir { height: min(30vh, 280px); min-height: 190px; margin-top: 0.3rem; }
+  .ao-panel[hidden] { display: none; }
+  .ao-panel canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+  .ao-ov { cursor: crosshair; }
+  .ao-tip { position: absolute; z-index: 5; pointer-events: none; background: rgba(255,255,255,0.97); border: 1px solid #c9cec6; border-radius: 7px;
+    padding: 0.4rem 0.6rem; font-size: 0.9rem; line-height: 1.4; box-shadow: 0 2px 10px rgba(0,0,0,0.08); max-width: 340px; }
+  .ao-tip[hidden] { display: none; }
+  .ao-tip code { font-size: 0.8rem; white-space: pre-wrap; word-break: break-all; }
+
+  .ao-note { max-width: 96ch; margin: 1.4rem auto 0; font-size: 0.9rem; color: var(--muted); line-height: 1.6; }
+  .ao-note p + p { margin-top: 0.6rem; }
+  .ao-note a { color: var(--accent); }
+  .ao-note b { color: var(--ink); font-weight: 600; }
+  @media (max-width: 640px) {
+    main.ao { padding: 1rem 0.6rem 2rem; }
+    main.ao h1 { font-size: 1.5rem; }
+    .ao-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .ao-seg button { padding: 0.55rem 0.7rem; font-size: 0.95rem; }
+    .ao-card .now { font-size: 1.35rem; }
+    .ao-panel { height: 52vh; }
+  }
+</style>
 </head>
 <body>
 
@@ -257,1114 +225,781 @@
 </header>
 <!-- sh:end -->
 
-<main>
+<main class="ao">
   <h1>US airport five-minute observations</h1>
-  <p class="sub" id="subline">Loading&hellip;</p>
-  <div id="stale"></div>
+  <p class="ao-lede" id="subline">Loading live observations&hellip;</p>
+  <div id="stale" class="ao-stale" hidden></div>
 
-  <div class="controls">
-    <span class="seg" id="unitSeg">
-      <button data-u="F" class="on">&deg;F</button><button data-u="C">&deg;C</button>
-    </span>
-    <span class="seg" id="varSeg">
-      <button data-v="t" class="on">Temperature</button><button data-v="d">Dewpoint</button><button data-v="v">Visibility</button><button data-v="c">Ceiling</button><button data-v="w">Present Wx</button><button data-v="k">Wind</button>
-    </span>
-    <span class="seg" id="wuSeg" style="display:none">
+  <div class="ao-bar" role="toolbar" aria-label="Chart options">
+    <div class="ao-seg" id="varSeg" role="group" aria-label="Variable">
+      <button data-v="t" class="on">Temperature</button><button data-v="d">Dewpoint</button><button data-v="k">Wind</button><button data-v="v">Visibility</button><button data-v="c">Ceiling</button><button data-v="w">Weather</button>
+    </div>
+    <div class="ao-seg" id="unitSeg" role="group" aria-label="Units">
+      <button data-u="F" class="on">&deg;F &middot; mi</button><button data-u="C">&deg;C &middot; km</button>
+    </div>
+    <div class="ao-seg" id="wuSeg" role="group" aria-label="Wind units" hidden>
       <button data-w="kt" class="on">kt</button><button data-w="mph">mph</button><button data-w="kmh">km/h</button>
-    </span>
-    <span class="seg" id="allSeg">
-      <button data-a="all" class="on">All stations</button><button data-a="none">None</button>
-    </span>
-    <span class="ctl-note">Click a card to isolate a station (adds dashed max/min reference lines over the shown window) &middot; times are each station&rsquo;s local clock</span>
+    </div>
+    <div class="ao-seg" id="spanSeg" role="group" aria-label="Time span">
+      <button data-h="36" class="on">36 h</button><button data-h="24">24 h</button><button data-h="12">12 h</button><button data-h="6">6 h</button><button data-h="3">3 h</button>
+    </div>
   </div>
+  <p class="ao-hint">Tap a card to isolate a station (Esc or tap again to clear) &middot; drag across the chart to zoom, double-click to reset &middot; times are each station&rsquo;s local clock</p>
 
-  <div class="cards" id="cards"></div>
-  <div id="chart" style="height:560px"></div>
+  <div class="ao-cards" id="cards"></div>
 
-  <footer class="note">
-    Live source: Iowa State's <a href="https://mesonet.agron.iastate.edu/request/asos/1min.phtml">IEM</a> observation
-    history, fetched in your browser every 2 minutes &mdash; every 5-minute ASOS row the station transmitted (with the
-    0.1&nbsp;&deg;C T-group parsed from the raw report) plus every METAR/SPECI. The
-    <a href="https://api.weather.gov/">NWS API</a> is the fallback when IEM cannot serve a station. As a precision
-    overlay, the <a href="https://madis-data.ncep.noaa.gov/">NOAA/NWS MADIS</a> HFMETAR 5-minute feed is layered in
-    where the background mirror has it. <b>Today's</b> max/min are the absolute extremes since local midnight: the
-    sampled observations merged with the official METAR <b>6-hour</b> groups (<code>1sTTT</code>/<code>2sTTT</code>)
-    when those exceed the samples; an extreme that comes from a group shows its time window rather than a minute.
-    <b>Yesterday's</b> row is the official 24-hour climate day (<code>4snTxTxTxsnTnTnTn</code>). When a station is
-    isolated, dashed lines mark its max/min over the shown window, raised to any 6-hour or 24-hour group extreme that
-    catches a peak between samples, and tagged by source. Obviously bad values are dropped.
+  <section class="ao-detail" id="detail" hidden></section>
+
+  <section class="ao-chart">
+    <h2 class="ao-ctitle" id="ctitle"></h2>
+    <p class="ao-ckey" id="ckey"></p>
+    <div class="ao-panel" id="p1"><canvas class="ao-cv"></canvas><canvas class="ao-ov"></canvas></div>
+    <div class="ao-panel ao-panel--dir" id="p2" hidden><canvas class="ao-cv"></canvas><canvas class="ao-ov"></canvas></div>
+    <div class="ao-tip" id="tip" hidden></div>
+  </section>
+
+  <footer class="ao-note">
+    <p><b>Sources.</b> Live: Iowa State&rsquo;s <a href="https://mesonet.agron.iastate.edu/request/asos/1min.phtml">IEM</a>
+    observation history, fetched in your browser every 2 minutes &mdash; every 5-minute ASOS row the station transmitted
+    plus every METAR and SPECI. The 5-minute rows carry temperature and dewpoint in <b>whole degrees Celsius</b> (hence the
+    1.8&nbsp;&deg;F steps in the &deg;F traces); the hourly METARs and SPECIs carry tenths, and the cards use them whenever one
+    is as recent as the latest 5-minute row. The
+    <a href="https://api.weather.gov/">NWS API</a> is the fallback when IEM cannot serve a station, and the
+    <a href="https://madis-data.ncep.noaa.gov/">NOAA/NWS MADIS</a> 5-minute feed is layered in where the background mirror has
+    it. The 5-minute feed reaches the public networks about 10&ndash;15 minutes after the observation; nothing public is faster.
+    Yesterday&rsquo;s data are kept in your browser, so a return visit only fetches today.</p>
+    <p><b>Max/min.</b> Today&rsquo;s are the extremes since local midnight: the samples merged with the official METAR
+    6-hour groups (<code>1sTTT</code>/<code>2sTTT</code>) where those are more extreme. Yesterday&rsquo;s row is the
+    official 24-hour climate day (<code>4snTxTxTxsnTnTnTn</code>).</p>
+    <p><b>Wind.</b> Direction is where the wind blows <i>from</i>, in degrees true. Arrows on the cards point the way the air
+    is moving; barbs follow the usual convention (pennant 50&nbsp;kt, full barb 10, half barb 5, always in knots).
+    <i>Veering</i> = turning clockwise (e.g. south to west), <i>backing</i> = counter-clockwise; the change is measured
+    between the 30-minute vector mean now and 1 and 3 hours earlier, and only when the wind is at least 5&nbsp;kt at both times.
+    &ldquo;Peak wind&rdquo; is the official METAR remark (<code>PK WND dddff/hhmm</code>, the highest instantaneous wind
+    since the previous hourly report, at least 26&nbsp;kt); &ldquo;wind shift&rdquo; is the <code>WSHFT</code> remark (a
+    change of 45&deg; or more in under 15 minutes with sustained wind of 10&nbsp;kt or more; <code>FROPA</code> = a front
+    passed). <code>dddVddd</code> variable-direction ranges are drawn as bars on the direction panel.</p>
   </footer>
 </main>
 
 <script>
+/* asos5 v3 (2026-10-02, user: "as fast and responsive as possible ... add info about wind direction").
+   No chart library: one canvas per panel for the data, a second one on top for the crosshair, so hover never
+   redraws the lines. Stations render as their data arrive; yesterday's processed data is kept in localStorage
+   (it never changes), so a return visit fetches only today. Time-zone offsets are computed once per station-hour
+   instead of building an Intl formatter for every point. */
 (function () {
   "use strict";
-
-  var COLORS = ["#1f77b4","#d62728","#2ca02c","#9467bd","#8c564b","#e377c2",
-                "#7f7f7f","#bcbd22","#17becf","#ff7f0e","#3b5b92","#a0522d",
-                "#2e8b74","#c44f9e","#5c6b1e","#e05c5c","#4f9ed9","#8f6bd0",
-                "#3aa76d","#d98f2b","#b05c85","#6b7f4f"];
-
+  var COLORS = ["#1f77b4","#d62728","#2ca02c","#9467bd","#8c564b","#e377c2","#7f7f7f","#bcbd22","#17becf","#ff7f0e","#3b5b92",
+                "#a0522d","#2e8b74","#c44f9e","#5c6b1e","#e05c5c","#4f9ed9","#8f6bd0","#3aa76d","#d98f2b","#b05c85","#6b7f4f"];
   var STATIONS = [
-    { id: "KBOS", name: "Boston Logan Intl",            tz: "America/New_York" },
-    { id: "KLGA", name: "New York LaGuardia",           tz: "America/New_York" },
-    { id: "KNYC", name: "New York Central Park",        tz: "America/New_York" },
-    { id: "KEWR", name: "Newark Liberty Intl",          tz: "America/New_York" },
-    { id: "KJFK", name: "New York JFK Intl",            tz: "America/New_York" },
-    { id: "KPHL", name: "Philadelphia Intl",            tz: "America/New_York" },
-    { id: "KBWI", name: "Baltimore/Washington Intl",    tz: "America/New_York" },
-    { id: "KDCA", name: "Washington Reagan National",   tz: "America/New_York" },
-    { id: "KRIC", name: "Richmond Intl",                tz: "America/New_York" },
-    { id: "KDFW", name: "Dallas-Fort Worth Intl",       tz: "America/Chicago" },
-    { id: "KIAH", name: "Houston Bush Intercontinental",tz: "America/Chicago" },
-    { id: "KORD", name: "Chicago O'Hare Intl",          tz: "America/Chicago" },
-    { id: "KATL", name: "Atlanta Hartsfield-Jackson",   tz: "America/New_York" },
-    { id: "KCLT", name: "Charlotte Douglas Intl",       tz: "America/New_York" },
-    { id: "KRDU", name: "Raleigh-Durham Intl",          tz: "America/New_York" },
-    { id: "KMSP", name: "Minneapolis-St Paul Intl",     tz: "America/Chicago" },
-    { id: "KPHX", name: "Phoenix Sky Harbor Intl",      tz: "America/Phoenix" },
-    { id: "KLAS", name: "Las Vegas Harry Reid Intl",    tz: "America/Los_Angeles" },
-    { id: "KLAX", name: "Los Angeles Intl",             tz: "America/Los_Angeles" },
-    { id: "KBUR", name: "Burbank Hollywood",            tz: "America/Los_Angeles" },
-    { id: "KSEA", name: "Seattle-Tacoma Intl",          tz: "America/Los_Angeles" },
-    { id: "KPDX", name: "Portland Intl",                tz: "America/Los_Angeles" }
-  ];
+    ["KBOS","Boston Logan Intl","America/New_York","MA_ASOS"], ["KLGA","New York LaGuardia","America/New_York","NY_ASOS"],
+    ["KNYC","New York Central Park","America/New_York","NY_ASOS"], ["KEWR","Newark Liberty Intl","America/New_York","NJ_ASOS"],
+    ["KJFK","New York JFK Intl","America/New_York","NY_ASOS"], ["KPHL","Philadelphia Intl","America/New_York","PA_ASOS"],
+    ["KBWI","Baltimore/Washington Intl","America/New_York","MD_ASOS"], ["KDCA","Washington Reagan National","America/New_York","VA_ASOS"],
+    ["KRIC","Richmond Intl","America/New_York","VA_ASOS"], ["KDFW","Dallas-Fort Worth Intl","America/Chicago","TX_ASOS"],
+    ["KIAH","Houston Bush Intercontinental","America/Chicago","TX_ASOS"], ["KORD","Chicago O'Hare Intl","America/Chicago","IL_ASOS"],
+    ["KATL","Atlanta Hartsfield-Jackson","America/New_York","GA_ASOS"], ["KCLT","Charlotte Douglas Intl","America/New_York","NC_ASOS"],
+    ["KRDU","Raleigh-Durham Intl","America/New_York","NC_ASOS"], ["KMSP","Minneapolis-St Paul Intl","America/Chicago","MN_ASOS"],
+    ["KPHX","Phoenix Sky Harbor Intl","America/Phoenix","AZ_ASOS"], ["KLAS","Las Vegas Harry Reid Intl","America/Los_Angeles","NV_ASOS"],
+    ["KLAX","Los Angeles Intl","America/Los_Angeles","CA_ASOS"], ["KBUR","Burbank Hollywood","America/Los_Angeles","CA_ASOS"],
+    ["KSEA","Seattle-Tacoma Intl","America/Los_Angeles","WA_ASOS"], ["KPDX","Portland Intl","America/Los_Angeles","OR_ASOS"]
+  ].map(function (a, i) { return { id: a[0], name: a[1], tz: a[2], net: a[3], i: i, color: COLORS[i % COLORS.length] }; });
 
-  // Two data layers, merged in the browser:
-  //   live   — the official NWS API (api.weather.gov), fetched client-side on load.
-  //            It serves 5-minute obs for 13 of these stations and hourly for
-  //            KJFK/KNYC, is CORS-open, and is always current — so the page never
-  //            goes stale regardless of any server job.
-  //   branch — the MADIS 0.1 °C 5-minute feed the (best-effort) Action pushes to the
-  //            asos5-data branch; used only to refine precision where it overlaps.
-  // `live` alone fully drives the page; `branch` is a bonus when it's fresh.
-  var state = { unit: "F", vr: "t", wu: "kt", iso: null, data: null, currents: {},
-                live: {}, branch: null, liveOK: false, liveSrc: {} };
+  // obs record = array: [epoch, tC, dC, dir, spdKt, visMi, ceilFt, wx, gustKt, isReport, varLo, varHi, isVRB]
+  var E = 0, T = 1, D = 2, DIR = 3, SPD = 4, VIS = 5, CIG = 6, WX = 7, GST = 8, REP = 9, VLO = 10, VHI = 11, VRB = 12;
+  var WINDOW_MAX_H = 36;
+  var state = { unit: "F", vr: "t", wu: "kt", iso: null, spanH: 36, zoom: null, live: {}, branch: null, src: {}, data: null, failed: 0, cached: false };
 
-  // Display window: show the last WINDOW_H hours so today can be compared against
-  // yesterday. Kept separate from each station's local midnight (m0), which still
-  // anchors the running daily max/min (those stay "today only").
-  var WINDOW_H = 36;
-  function windowStart() { return Math.floor(Date.now() / 1000) - WINDOW_H * 3600; }
-
-  // epoch (s) of local midnight today in a station's zone
-  function localMidnightEpoch(tz) {
-    var now = new Date(), p = {};
-    new Intl.DateTimeFormat("en-US", { timeZone: tz, year: "numeric", month: "2-digit",
-      day: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false })
-      .formatToParts(now).forEach(function (x) { p[x.type] = x.value; });
-    if (p.hour === "24") p.hour = "00";
-    var localNowAsUTC = Date.UTC(+p.year, +p.month - 1, +p.day, +p.hour, +p.minute, +p.second);
-    var offsetMs = localNowAsUTC - now.getTime();                 // tz ahead of UTC
-    var midnightAsUTC = Date.UTC(+p.year, +p.month - 1, +p.day, 0, 0, 0);
-    return Math.floor((midnightAsUTC - offsetMs) / 1000);
+  // ---------------------------------------------------------------- time (cheap)
+  var fmtCache = {}, offCache = {};
+  function tzOff(tz, e) {                       // seconds to ADD to UTC epoch for local wall time (cached per hour)
+    var k = tz + "|" + Math.floor(e / 3600), v = offCache[k];
+    if (v !== undefined) return v;
+    var f = fmtCache[tz] || (fmtCache[tz] = new Intl.DateTimeFormat("en-US", { timeZone: tz, hourCycle: "h23",
+      year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit" }));
+    var p = {}; f.formatToParts(new Date(e * 1000)).forEach(function (x) { p[x.type] = x.value; });
+    v = (Date.UTC(+p.year, +p.month - 1, +p.day, +p.hour % 24, +p.minute, +p.second) / 1000) - e;
+    v = Math.round(v / 60) * 60;
+    offCache[k] = v; return v;
   }
+  function lx(e, tz) { return e + tzOff(tz, e); }                          // "local clock as if UTC" seconds
+  var DOW = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"], MON = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+  function hm(x) { var d = new Date(x * 1000), h = d.getUTCHours(), m = d.getUTCMinutes();
+    return (h % 12 || 12) + ":" + (m < 10 ? "0" : "") + m + " " + (h < 12 ? "AM" : "PM"); }
+  function hShort(x) { var d = new Date(x * 1000), h = d.getUTCHours(), m = d.getUTCMinutes();
+    return (h % 12 || 12) + (m ? ":" + (m < 10 ? "0" : "") + m : "") + (h < 12 ? "a" : "p"); }
+  function md(x) { var d = new Date(x * 1000); return MON[d.getUTCMonth()] + " " + d.getUTCDate(); }
+  function ymd(x) { return new Date(x * 1000).toISOString().slice(0, 10); }
+  function localMidnight(tz, e) { var l = lx(e, tz); return e - (l - Math.floor(l / 86400) * 86400); }   // epoch of local 00:00
+  function nowS() { return Math.floor(Date.now() / 1000); }
 
-  // one api.weather.gov observation →
-  // [epoch, tempC, dewC, wdirDeg, wspdKt, visMi, ceilFt, wx]
-  function awgToObs(pr) {
-    var t = pr.temperature && pr.temperature.value;
-    if (t == null) return null;
-    var d = pr.dewpoint && pr.dewpoint.value;
-    var wd = pr.windDirection && pr.windDirection.value;
-    var ws = pr.windSpeed && pr.windSpeed.value;                  // km/h
-    var vis = pr.visibility && pr.visibility.value;               // m
-    var ceil = null;
-    (pr.cloudLayers || []).forEach(function (L) {
-      var amt = L.amount || "", b = L.base && L.base.value;       // m AGL
-      if ((amt === "BKN" || amt === "OVC" || amt === "VV") && b != null) {
-        var ft = Math.round(b * 3.28084 / 100) * 100;
-        ceil = ceil == null ? ft : Math.min(ceil, ft);
-      }
-    });
-    var wx = (pr.presentWeather || []).map(function (w) { return w.rawString || ""; })
-             .join(" ").trim() || null;
-    var gust = pr.windGust && pr.windGust.value;                  // km/h
-    return [Math.floor(new Date(pr.timestamp).getTime() / 1000),
-            Math.round(t * 100) / 100,
-            d == null ? null : Math.round(d * 100) / 100,
-            wd == null ? null : Math.round(wd),
-            ws == null ? null : Math.round(ws * 0.539957 * 10) / 10,
-            vis == null ? null : Math.round(vis / 1609.344 * 100) / 100,
-            ceil, wx,
-            gust == null ? null : Math.round(gust * 0.539957 * 10) / 10];
-  }
-
-  // official 6-hour max/min temp groups (1sTTT / 2sTTT) from a METAR remark
-  function parseSixHr(raw, epoch) {
-    if (!raw || raw.indexOf(" RMK ") < 0) return null;
-    var rmk = raw.split(" RMK ")[1];
-    var mx = rmk.match(/(?:^|\s)1([01])(\d{3})(?=\s|$)/);
-    var mn = rmk.match(/(?:^|\s)2([01])(\d{3})(?=\s|$)/);
-    if (!mx && !mn) return null;
-    var end = Math.round(epoch / 21600) * 21600;                  // snap to 00/06/12/18Z
-    var val = function (m) { return m ? (m[1] === "1" ? -1 : 1) * (+m[2]) / 10 : null; };
-    return [end, val(mx), val(mn)];
-  }
-
-  // official 24-hour max/min temp group (4snTxTxTxsnTnTnTn) from a METAR remark — the
-  // daily-summary report (~06Z at most US stations). Returns {max,min,e} in °C, or null.
-  function parseDayMaxMin(raw, epoch) {
-    if (!raw || raw.indexOf(" RMK ") < 0) return null;
-    var m = raw.split(" RMK ")[1].match(/(?:^|\s)4([01]\d{3})([01]\d{3})(?=\s|$)/);
-    if (!m) return null;
-    var val = function (s) { return (s[0] === "1" ? -1 : 1) * (+s.slice(1)) / 10; };
-    return { max: val(m[1]), min: val(m[2]), e: epoch };
-  }
-
-  // Max/min over the SHOWN window ([w0, latest]) for the isolated-station
-  // reference lines — so they always bound the visible curve (no line ever below
-  // the plotted max / above the plotted min). Starts from the plotted samples and
-  // is raised to any in-window 6-hour group extreme and the official 24-h summary
-  // value (which catch a true peak between samples). Uses the full displayed span,
-  // not a rolling 24 h, so a peak near the chart edge isn't dropped. Per-extreme
-  // provenance in maxsrc/minsrc ("obs" | "6hr" | "24hr"); °C, or null.
-  function dayFromShown(obs, sixhr, official, w0) {
-    // maxt/mint record WHEN each extreme happened (epochs are UTC; rendering
-    // converts to the station's local clock): {e} = exact sample epoch,
-    // {win: [start, end]} = the 6-h or 24-h group window that contains it.
-    var mx = null, mn = null, ms = "", ns = "", E = w0, earliest = null,
-        mxt = null, mnt = null;
-    (obs || []).forEach(function (o) {
-      if (o[1] == null || o[0] < w0) return;
-      if (mx == null || o[1] > mx) { mx = o[1]; ms = "obs"; mxt = { e: o[0] }; }
-      if (mn == null || o[1] < mn) { mn = o[1]; ns = "obs"; mnt = { e: o[0] }; }
-      if (o[0] > E) E = o[0];
-      if (earliest == null || o[0] < earliest) earliest = o[0];
-    });
-    (sixhr || []).forEach(function (g) {
-      if (g[0] <= w0) return;                            // 6-h group ends within the window
-      if (g[1] != null && (mx == null || g[1] > mx)) { mx = g[1]; ms = "6hr"; mxt = { win: [g[0] - 21600, g[0]] }; }
-      if (g[2] != null && (mn == null || g[2] < mn)) { mn = g[2]; ns = "6hr"; mnt = { win: [g[0] - 21600, g[0]] }; }
-      if (g[0] > E) E = g[0];
-      var s = g[0] - 6 * 3600; if (earliest == null || s < earliest) earliest = s;
-    });
-    if (official) {                                      // official 24-h daily max/min (yesterday, in-window)
-      if (official.max != null && (mx == null || official.max > mx)) { mx = official.max; ms = "24hr"; mxt = { win: [official.e - 86400, official.e] }; }
-      if (official.min != null && (mn == null || official.min < mn)) { mn = official.min; ns = "24hr"; mnt = { win: [official.e - 86400, official.e] }; }
-    }
-    if (mx == null || mn == null) return null;
-    return { max: mx, min: mn, maxsrc: ms, minsrc: ns, maxt: mxt, mint: mnt,
-             e: E, span_h: Math.round((E - earliest) / 3600) };
-  }
-
-  // absolute daily max/min from merged samples + 6-hr groups fully within today
-  function computeAbs(obs, sixhr, m0) {
-    var hi = null, lo = null;
-    obs.forEach(function (o) {
-      if (o[1] == null || o[0] < m0) return;
-      if (!hi || o[1] > hi.v) hi = { v: o[1], e: o[0], src: "obs", win: null };
-      if (!lo || o[1] < lo.v) lo = { v: o[1], e: o[0], src: "obs", win: null };
-    });
-    sixhr.forEach(function (g) {
-      var end = g[0], gmax = g[1], gmin = g[2], start = end - 6 * 3600;
-      if (start < m0) return;                                     // straddles midnight → samples cover it
-      var win = [start, end];
-      if (gmax != null && (!hi || gmax > hi.v + 0.05)) hi = { v: gmax, e: null, src: "6hr", win: win };
-      if (gmin != null && (!lo || gmin < lo.v - 0.05)) lo = { v: gmin, e: null, src: "6hr", win: win };
-    });
-    if (!hi || !lo) return null;
-    return { maxC: hi.v, max_e: hi.e, max_src: hi.src, max_win: hi.win,
-             minC: lo.v, min_e: lo.e, min_src: lo.src, min_win: lo.win };
-  }
-
-  // merge branch (precise) + live (fresh) for one station into a render-ready record
-  function mergeStation(meta, branchSt, live) {
-    var m0 = localMidnightEpoch(meta.tz), w0 = windowStart(), byMin = {}, cadence = 60;
-    if (branchSt && branchSt.obs)
-      branchSt.obs.forEach(function (o) { if (o[0] >= w0) byMin[Math.round(o[0] / 60)] = o; });
-    if (branchSt) cadence = branchSt.cadence_min;
-    if (live && live.obs) {
-      // The badge must describe the MERGED trace. Taking the live cadence
-      // unconditionally made a station read "hourly" as soon as the
-      // api.weather.gov fetch landed, even when the branch had already supplied
-      // a full day of 5-minute obs - the label contradicted the curve under it.
-      // Finer of the two wins.
-      cadence = (branchSt && branchSt.cadence_min)
-                ? Math.min(branchSt.cadence_min, live.cadence_min)
-                : live.cadence_min;
-      live.obs.forEach(function (o) { if (o[0] < w0) return; var k = Math.round(o[0] / 60); if (byMin[k] == null) byMin[k] = o; });
-    }
-    // Official METAR/SPECI reports ARE observations — and IEM delivers them
-    // 20-50 min before the 5-min feeds catch up, so fold their parsed
-    // values into the stream wherever no ob exists for that minute. This
-    // keeps the "current" reading, the trace end, and today's extremes on
-    // the freshest real data (a storm's SPECI temperature crash shows up
-    // immediately, not half an hour later).
-    var repList = ((live && live.reports) || []).slice();
-    (state.currents[meta.id] || []).forEach(function (cur) {
-      if (!repList.some(function (r) { return Math.abs(r.e - cur.e) < 90; }))
-        repList.push({ e: cur.e, raw: cur.raw, type: cur.type });
-    });
-    repList.sort(function (a, b) { return a.e - b.e; });
-    repList.forEach(function (r) {
-      if (r.e < w0) return;
-      var k = Math.round(r.e / 60);
-      if (byMin[k] != null) return;
-      var mv = metarVals(r.raw);
-      if (mv.t == null && mv.wspd == null && mv.vis == null) return;
-      // index 9 marks a record synthesised from a METAR/SPECI rather than
-      // sampled from the 5-minute feed. Shape is otherwise unchanged, so
-      // nothing downstream cares; the card uses it to show a real 5-minute
-      // value as "now" instead of whichever METAR happened to land last.
-      byMin[k] = [r.e, mv.t, mv.d, mv.wdir, mv.wspd, mv.vis, mv.ceil, mv.wx,
-                  mv.gust, 1];
-    });
-    var obs = Object.keys(byMin).map(function (k) { return byMin[k]; })
-                    .sort(function (a, b) { return a[0] - b[0]; });
-    var groups = {};
-    if (branchSt && branchSt.sixhr) branchSt.sixhr.forEach(function (g) { groups[g[0]] = g; });
-    if (live && live.sixhr) live.sixhr.forEach(function (g) { if (groups[g[0]] == null) groups[g[0]] = g; });
-    var sixhr = Object.keys(groups).map(function (k) { return groups[k]; })
-                      .sort(function (a, b) { return a[0] - b[0]; });
-    var official = null;                                          // newest official 24-h summary (4-group), if any
-    [branchSt && branchSt.daymm, live && live.daymm].forEach(function (d) {
-      if (d && (!official || d.e > official.e)) official = d;
-    });
-    // reference lines = max/min over the shown window, folding in the official
-    // group so they bound the visible curve for every station.
-    var daymm = dayFromShown(obs, sixhr, official, w0);
-    var dp = localParts(m0 + 7200, meta.tz);
-    var reports = repList;
-    // `official` is the raw 24-h climate-day group; `daymm` below is the merged
-    // window extreme. The card shows BOTH now, so the raw one has to survive the
-    // merge instead of being folded away into a single number.
-    return { id: meta.id, name: meta.name, tz: meta.tz, cadence_min: cadence,
-             official: official,
-             day_local: dp.year + "-" + dp.month + "-" + dp.day,
-             obs: obs, sixhr: sixhr, daymm: daymm, abs: computeAbs(obs, sixhr, m0),
-             reports: reports };
-  }
-
-  // Parse the values a report diamond needs straight from the raw METAR.
-  // Returns {t, d (degC), wdir, wspd, gust (kt), vis (mi), ceil (ft), wx}.
+  // ---------------------------------------------------------------- METAR parsing
+  function sgn(s) { return (s[0] === "1" ? -1 : 1) * (+s.slice(1)) / 10; }
   function metarVals(raw) {
-    var o = { t: null, d: null, wdir: null, wspd: null, gust: null,
-              vis: null, ceil: null, wx: null };
+    var o = { t: null, d: null, dir: null, spd: null, gst: null, vis: null, cig: null, wx: null, vlo: null, vhi: null, vrb: false };
     if (!raw) return o;
-    var body = raw.split(" RMK ")[0];
-    var m = raw.match(/\bT([01]\d{3})([01]\d{3})\b/);          // RMK T-group, 0.1 C
-    if (m) {
-      o.t = (m[1][0] === "1" ? -1 : 1) * (+m[1].slice(1)) / 10;
-      o.d = (m[2][0] === "1" ? -1 : 1) * (+m[2].slice(1)) / 10;
-    } else if ((m = body.match(/ (M?\d{2})\/(M?\d{2})?[ ]/))) {  // NN/NN group
-      o.t = +m[1].replace("M", "-");
-      if (m[2]) o.d = +m[2].replace("M", "-");
+    var cut = raw.indexOf(" RMK "), body = cut >= 0 ? raw.slice(0, cut) : raw, m;
+    if ((m = raw.match(/\bT([01]\d{3})([01]\d{3})?\b/))) { o.t = sgn(m[1]); if (m[2]) o.d = sgn(m[2]); }   // 'T0180' alone happens (KORD)
+    if ((m = body.match(/ (M?\d{2})\/(M?\d{2})? /))) {
+      if (o.t == null) o.t = +m[1].replace("M", "-");
+      if (o.d == null && m[2]) o.d = +m[2].replace("M", "-");
     }
-    if ((m = body.match(/\b(\d{3}|VRB)(\d{2,3})(?:G(\d{2,3}))?KT\b/))) {
-      o.wdir = m[1] === "VRB" ? null : +m[1];
-      o.wspd = +m[2];
-      if (m[3]) o.gust = +m[3];
-    }
+    if ((m = body.match(/\b(\d{3}|VRB|\/{3})(\d{2,3}|\/\/)(?:G(\d{2,3}))?KT\b/))) {
+      if (m[1] === "VRB") o.vrb = true; else if (m[1] !== "///") o.dir = +m[1];
+      if (m[2] !== "//") o.spd = +m[2];
+      if (m[3]) o.gst = +m[3];
+      if (o.spd === 0 && o.dir === 0) o.dir = null;          // 00000KT = calm
+    } else if ((m = body.match(/\/{5}G(\d{2,3})KT/))) o.gst = +m[1];
+    if ((m = body.match(/\b(\d{3})V(\d{3})\b/))) { o.vlo = +m[1]; o.vhi = +m[2]; }
     if (/\bP6SM\b/.test(body)) o.vis = 10;
-    else if ((m = body.match(/\b(?:(\d{1,2}) )?(\d)\/(\d{1,2})SM\b/))) {
-      o.vis = (+(m[1] || 0)) + (+m[2]) / (+m[3]);
-    } else if ((m = body.match(/\b(\d{1,2})SM\b/))) {
-      o.vis = +m[1];
-    }
-    var ce = null;
-    body.replace(/\b(BKN|OVC|VV)(\d{3})/g, function (_, cov, hh) {
-      var ft = +hh * 100;
-      if (ce == null || ft < ce) ce = ft;
-      return _;
-    });
-    o.ceil = ce;
-    var toks = body.split(/\s+/).filter(function (tk) {
-      return /^(\+|-|VC)?(TS|SH|FZ|RA|SN|DZ|BR|FG|HZ|FU|SQ|GR|GS|PL|IC|UP|SA|DU|PO|VA)+$/.test(tk);
-    });
-    o.wx = toks.length ? toks.join(" ") : null;
+    else if ((m = body.match(/\b(?:(\d{1,2}) )?(\d)\/(\d{1,2})SM\b/))) o.vis = (+(m[1] || 0)) + (+m[2]) / (+m[3]);
+    else if ((m = body.match(/\b(\d{1,2})SM\b/))) o.vis = +m[1];
+    body.replace(/\b(BKN|OVC|VV)(\d{3})/g, function (_, c, h) { var ft = +h * 100; if (o.cig == null || ft < o.cig) o.cig = ft; return _; });
+    var wx = body.split(/\s+/).filter(function (tk) { return /^(\+|-|VC)?(TS|SH|FZ|RA|SN|DZ|BR|FG|HZ|FU|SQ|GR|GS|PL|IC|UP|SA|DU|PO|VA)+$/.test(tk); });
+    o.wx = wx.length ? wx.join(" ") : null;
     return o;
   }
+  function parseSixHr(raw, e) {
+    var i = raw.indexOf(" RMK "); if (i < 0) return null;
+    var r = raw.slice(i), mx = r.match(/\s1([01]\d{3})(?=\s|$)/), mn = r.match(/\s2([01]\d{3})(?=\s|$)/);
+    if (!mx && !mn) return null;
+    return [Math.round(e / 21600) * 21600, mx ? sgn(mx[1]) : null, mn ? sgn(mn[1]) : null];
+  }
+  function parseDay(raw, e) {
+    var i = raw.indexOf(" RMK "); if (i < 0) return null;
+    var m = raw.slice(i).match(/\s4([01]\d{3})([01]\d{3})(?=\s|$)/);
+    return m ? { max: sgn(m[1]), min: sgn(m[2]), e: e } : null;
+  }
+  function parseWindRemarks(raw, e) {       // PK WND dddff(f)/(hh)mm and WSHFT (hh)mm [FROPA]; times UTC
+    var i = raw.indexOf(" RMK "); if (i < 0) return null;
+    var r = raw.slice(i), out = {}, m, at = function (hh, mm) {
+      var d = new Date(e * 1000), h = hh != null ? +hh : d.getUTCHours();
+      var t = Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate(), h, +mm) / 1000;
+      if (t > e + 300) t -= hh != null ? 86400 : 3600;      // the time is before the report
+      return t;
+    };
+    if ((m = r.match(/PK WND (\d{3})(\d{2,3})\/(\d{2})?(\d{2})\b/))) out.pk = { dir: +m[1], kt: +m[2], e: at(m[3], m[4]) };
+    if ((m = r.match(/WSHFT (\d{2})?(\d{2})( FROPA)?\b/))) out.ws = { e: at(m[1], m[2]), fropa: !!m[3] };
+    return (out.pk || out.ws) ? out : null;
+  }
+  function repType(e) { return Math.floor(e / 60) % 60 >= 50 ? "METAR" : "SPECI"; }
 
-  function repType(epoch) {
-    var mm = Math.floor(epoch / 60) % 60;
-    return mm >= 50 ? "METAR" : "SPECI";
+  // ---------------------------------------------------------------- one IEM day -> pack
+  function rowToObs(d, isRep) {
+    var e = Math.floor(Date.parse(d.utc_valid) / 1000), mv = metarVals(d.raw), f2c = function (f) { return Math.round((f - 32) * 500 / 9) / 100; };
+    var t = mv.t != null ? mv.t : (d.tmpf != null ? f2c(d.tmpf) : null);
+    var dw = mv.d != null ? mv.d : (d.dwpf != null ? f2c(d.dwpf) : null);
+    var spd = mv.spd != null ? mv.spd : (d.sknt != null ? Math.round(d.sknt) : null);
+    var dir = mv.dir != null ? mv.dir : (!mv.vrb && d.drct != null && spd ? Math.round(d.drct) : null);
+    var gst = mv.gst != null ? mv.gst : (d.gust != null ? Math.round(d.gust) : null);
+    var vis = mv.vis != null ? mv.vis : (d.vsby != null ? d.vsby : null);
+    if (t == null && spd == null && vis == null && gst == null) return null;
+    return [e, t, dw, dir, spd, vis, mv.cig, mv.wx, gst, isRep ? 1 : 0, mv.vlo, mv.vhi, mv.vrb ? 1 : 0];
   }
-
-  var IEM_NET = { KBOS: "MA_ASOS", KLGA: "NY_ASOS", KNYC: "NY_ASOS", KJFK: "NY_ASOS",
-                  KEWR: "NJ_ASOS", KPHL: "PA_ASOS", KBWI: "MD_ASOS", KDCA: "VA_ASOS",
-                  KRIC: "VA_ASOS", KDFW: "TX_ASOS", KIAH: "TX_ASOS", KORD: "IL_ASOS",
-                  KATL: "GA_ASOS", KCLT: "NC_ASOS", KRDU: "NC_ASOS", KMSP: "MN_ASOS",
-                  KPHX: "AZ_ASOS", KLAS: "NV_ASOS", KLAX: "CA_ASOS", KBUR: "CA_ASOS",
-                  KSEA: "WA_ASOS", KPDX: "OR_ASOS" };
-
-  // ── The live layer ────────────────────────────────────────────────────
-  // IEM's obhistory (CORS-open) is the primary source since 2026-09-02. It
-  // carries EVERY row the station transmitted today: the 5-minute rows
-  // (" AUTO ", MADISHF) with the raw text - so the 0.1 °C T-group is there -
-  // plus every METAR/SPECI, and it lands ~10 min ahead of api.weather.gov.
-  // That fixes two things the NWS API could not:
-  //   * the headline lagged 20-25 min (api.weather.gov's 5-min rows are late);
-  //   * "yest: not in yet" all day on eastern stations - api.weather.gov only
-  //     attaches rawMessage to about a third of the hourly METARs, so the ~05Z
-  //     report that carries the 24-hour 4-group was usually missing. IEM has
-  //     every METAR raw.
-  // Today is refetched every 2 min; yesterday is fetched once per station and
-  // kept until the local date rolls over. api.weather.gov is the fallback for
-  // a station IEM cannot serve.
-  var IEM_NET = { KBOS: "MA_ASOS", KLGA: "NY_ASOS", KNYC: "NY_ASOS", KJFK: "NY_ASOS",
-                  KEWR: "NJ_ASOS", KPHL: "PA_ASOS", KBWI: "MD_ASOS", KDCA: "VA_ASOS",
-                  KRIC: "VA_ASOS", KDFW: "TX_ASOS", KIAH: "TX_ASOS", KORD: "IL_ASOS",
-                  KATL: "GA_ASOS", KCLT: "NC_ASOS", KRDU: "NC_ASOS", KMSP: "MN_ASOS",
-                  KPHX: "AZ_ASOS", KLAS: "NV_ASOS", KLAX: "CA_ASOS", KBUR: "CA_ASOS",
-                  KSEA: "WA_ASOS", KPDX: "OR_ASOS" };
-  var iemDays = {};                       // id -> { date: rows } (yesterday cached, today refreshed)
-
-  function iemURL(s, dateStr) {
-    var sid3 = s.id === "KNYC" ? "NYC" : s.id.slice(1);
-    return "https://mesonet.agron.iastate.edu/api/1/obhistory.json?network=" +
-           IEM_NET[s.id] + "&station=" + sid3 + "&date=" + dateStr;
-  }
-  function localDateStr(epoch, tz) {
-    var o = localParts(epoch, tz);
-    return o.year + "-" + o.month + "-" + o.day;
-  }
-  function fetchIEMDay(s, dateStr) {
-    return fetch(iemURL(s, dateStr), { cache: "no-store" })
-      .then(function (r) { if (!r.ok) throw 0; return r.json(); })
-      .then(function (j) { return (j.data || []).filter(function (d) { return d.raw && d.utc_valid; }); });
-  }
-  // one obhistory row -> our obs record (see awgToObs for the shape). The raw
-  // report is the authority: the T-group gives 0.1 °C where the row's tmpf is
-  // a rounded °F (and is null on the 5-minute rows anyway).
-  function iemRowToObs(d, isReport) {
-    var e = Math.floor(new Date(d.utc_valid).getTime() / 1000);
-    var mv = metarVals(d.raw);
-    var t = mv.t, dew = mv.d;
-    if (t == null && d.tmpf != null) t = Math.round((d.tmpf - 32) * 5 / 9 * 100) / 100;
-    if (dew == null && d.dwpf != null) dew = Math.round((d.dwpf - 32) * 5 / 9 * 100) / 100;
-    if (t == null && mv.wspd == null && mv.vis == null) return null;
-    var wdir = mv.wdir != null ? mv.wdir : (d.drct != null ? Math.round(d.drct) : null);
-    var wspd = mv.wspd != null ? mv.wspd : (d.sknt != null ? Math.round(d.sknt * 10) / 10 : null);
-    var gust = mv.gust != null ? mv.gust : (d.gust != null ? Math.round(d.gust * 10) / 10 : null);
-    var vis = mv.vis != null ? mv.vis : (d.vsby != null ? Math.round(d.vsby * 100) / 100 : null);
-    var rec = [e, t, dew, wdir, wspd, vis, mv.ceil, mv.wx, gust];
-    if (isReport) rec.push(1);
-    return rec;
-  }
-  function buildIEMStation(s, rows) {
-    var w0 = windowStart(), obs = [], groups = {}, daymm = null, reports = [], nAuto = 0;
-    var seen = {};
+  function packDay(rows) {
+    var obs = [], reports = [], six = {}, day = null, wr = [], nAuto = 0, seen = {};
     rows.forEach(function (d) {
-      var e = Math.floor(new Date(d.utc_valid).getTime() / 1000);
-      if (e < w0 || seen[e]) return;
-      seen[e] = 1;
-      var auto = / AUTO /.test(d.raw);
-      // At attended/augmented towers the TRANSMITTED reports are the non-AUTO
-      // rows; a fully automated site (KNYC) has only AUTO rows, and there the
-      // :50s routine METARs are the reports.
-      var isReport = !auto || (new Date(d.utc_valid).getUTCMinutes() >= 50 && / MADISHF/.test(d.raw) === false);
-      if (auto) nAuto++;
-      var o = iemRowToObs(d, isReport);
-      if (o) obs.push(o);
-      if (isReport) reports.push({ e: e, raw: d.raw, type: repType(e) });
-      var g = parseSixHr(d.raw, e);
-      if (g) groups[g[0]] = g;
-      var dm = parseDayMaxMin(d.raw, e);
-      if (dm && (!daymm || dm.e > daymm.e)) daymm = dm;
+      if (!d.raw || !d.utc_valid) return;
+      var e = Math.floor(Date.parse(d.utc_valid) / 1000); if (seen[e]) return; seen[e] = 1;
+      var auto = d.raw.indexOf(" AUTO ") > 0, hf = d.raw.indexOf("MADISHF") > 0;
+      var isRep = !hf;                                       // MADISHF = the 5-minute feed; everything else was transmitted
+      if (auto && hf) nAuto++;
+      var o = rowToObs(d, isRep); if (o) obs.push(o);
+      if (isRep) {
+        reports.push({ e: e, raw: d.raw, type: repType(e) });
+        var g = parseSixHr(d.raw, e); if (g) six[g[0]] = g;
+        var dm = parseDay(d.raw, e); if (dm && (!day || dm.e > day.e)) day = dm;
+        var w = parseWindRemarks(d.raw, e); if (w) wr.push(w);
+      }
     });
     obs.sort(function (a, b) { return a[0] - b[0]; });
     reports.sort(function (a, b) { return a.e - b.e; });
-    return { obs: obs, cadence_min: nAuto >= 6 ? 5 : 60,
-             sixhr: Object.keys(groups).map(function (k) { return groups[k]; }),
-             daymm: daymm, reports: reports.slice(-60), src: "iem" };
-  }
-  function fetchIEM() {
-    var nowE = Math.floor(Date.now() / 1000);
-    return Promise.all(STATIONS.map(function (s) {
-      if (!IEM_NET[s.id]) return Promise.resolve();
-      var today = localDateStr(nowE, s.tz), yday = localDateStr(nowE - 86400, s.tz);
-      var cache = iemDays[s.id] = iemDays[s.id] || {};
-      Object.keys(cache).forEach(function (k) { if (k !== today && k !== yday) delete cache[k]; });
-      var pY = cache[yday] ? Promise.resolve(cache[yday]) : fetchIEMDay(s, yday);
-      var pT = fetchIEMDay(s, today);
-      return Promise.all([pY.catch(function () { return null; }), pT.catch(function () { return null; })])
-        .then(function (r) {
-          if (r[0]) cache[yday] = r[0];                    // yesterday never changes
-          if (!r[1] && !r[0]) throw 0;                     // nothing at all: fallback
-          var rows = (r[0] || []).concat(r[1] || []);
-          state.live[s.id] = buildIEMStation(s, rows);
-          state.liveSrc[s.id] = "iem";
-        })
-        .catch(function () { return fetchNWS(s); });
-    })).then(function () { state.liveOK = Object.keys(state.live).length > 0; rebuild(); });
+    return { obs: obs, reports: reports, six: Object.keys(six).map(function (k) { return six[k]; }), day: day, wr: wr, nAuto: nAuto };
   }
 
-  // api.weather.gov fallback for one station (the pre-2026-09-02 primary)
-  function fetchNWS(s) {
-    var w0 = windowStart();
-    var start = new Date(w0 * 1000).toISOString();
-    var url = "https://api.weather.gov/stations/" + s.id +
-              "/observations?start=" + encodeURIComponent(start) + "&limit=500";  // NWS API hard cap; 500 5-min obs ≈ 42 h covers the 36 h window
-    return fetch(url, { cache: "no-store" })
-      .then(function (r) { if (!r.ok) throw 0; return r.json(); })
-      .then(function (j) {
-        var obs = [], groups = {}, daymm = null, reports = [];
-        (j.features || []).forEach(function (f) {
-          var pr = f.properties, o = awgToObs(pr);
-          if (o && o[0] >= w0) obs.push(o);
-          if (pr.rawMessage) {
-            var ep = Math.floor(new Date(pr.timestamp).getTime() / 1000);
-            reports.push({ e: ep, raw: pr.rawMessage });
-            var g = parseSixHr(pr.rawMessage, ep);
-            if (g) groups[g[0]] = g;
-            var dm = parseDayMaxMin(pr.rawMessage, ep);           // ~06Z daily 24-h max/min
-            if (dm && (!daymm || dm.e > daymm.e)) daymm = dm;     // keep the most recent
-          }
-        });
-        obs.sort(function (a, b) { return a[0] - b[0]; });
-        // US ASOS routine METARs always go out in the :50s of the hour; a
-        // report at any other minute is a SPECI.
-        reports.forEach(function (r) { r.type = repType(r.e); });
-        reports.sort(function (a, b) { return a.e - b.e; });
-        var gaps = [];
-        for (var k = Math.max(1, obs.length - 13); k < obs.length; k++)
-          gaps.push((obs[k][0] - obs[k - 1][0]) / 60);
-        gaps.sort(function (a, b) { return a - b; });
-        var cad = gaps.length ? gaps[Math.floor(gaps.length / 2)] : 60;
-        state.live[s.id] = { obs: obs, cadence_min: cad <= 8 ? 5 : 60,
-                             sixhr: Object.keys(groups).map(function (k) { return groups[k]; }),
-                             daymm: daymm, reports: reports, src: "nws" };
-        state.liveSrc[s.id] = "nws";
-      })
-      .catch(function () { /* keep any prior live[id]; branch still covers it */ });
+  // ---------------------------------------------------------------- fetching
+  var LS_KEY = "asos5.v3.";
+  function lsGet(k) { try { var s = localStorage.getItem(LS_KEY + k); return s ? JSON.parse(s) : null; } catch (e) { return null; } }
+  function lsSet(k, v) { try { localStorage.setItem(LS_KEY + k, JSON.stringify(v)); } catch (e) { /* quota or blocked: fine */ } }
+  function lsPrune(keep) {
+    try { for (var i = localStorage.length - 1; i >= 0; i--) { var k = localStorage.key(i);
+      if (k && k.indexOf(LS_KEY) === 0 && keep.indexOf(k.slice(LS_KEY.length)) < 0) localStorage.removeItem(k); } } catch (e) {}
   }
-
-  // rebuild state.data by merging the two layers for all stations
-  function rebuild() {
-    var branchById = {};
-    if (state.branch && state.branch.stations)
-      state.branch.stations.forEach(function (s) { branchById[s.id] = s; });
-    state.data = { stations: STATIONS.map(function (s) {
-      return mergeStation(s, branchById[s.id], state.live[s.id]);
-    }) };
-    render();
+  var dayPacks = {};                                   // id -> {date: pack}
+  function iemURL(s, date) {
+    return "https://mesonet.agron.iastate.edu/api/1/obhistory.json?network=" + s.net + "&station=" +
+      (s.id === "KNYC" ? "NYC" : s.id.slice(1)) + "&date=" + date;
   }
-
-  function cToUnit(c) { return state.unit === "F" ? c * 9 / 5 + 32 : c; }
-  function fmtT(c) { return c == null ? "&ndash;" : cToUnit(c).toFixed(1) + "&deg;" + state.unit; }
-
-  // view registry: obs-array index + labels per data-v code
-  var VIDX = { t: 1, d: 2, v: 5, c: 6, w: 7, k: 4 };
-  var VLABEL = { t: "Temperature", d: "Dewpoint", v: "Visibility",
-                 c: "Cloud ceiling", w: "Present weather", k: "Wind" };
-  var WU_FACTOR = { kt: 1, mph: 1.15078, kmh: 1.852 };
-  var WU_LABEL = { kt: "kt", mph: "mph", kmh: "km/h" };
-  function wToUnit(kt) { return kt * WU_FACTOR[state.wu]; }
-  function fmtW(kt) {
-    return kt == null ? "&ndash;" : Math.round(wToUnit(kt)) + " " + WU_LABEL[state.wu];
+  function fetchDay(s, date, fresh) {
+    return fetch(iemURL(s, date), fresh ? { cache: "no-store" } : {})
+      .then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); })
+      .then(function (j) { return packDay(j.data || []); });
   }
-  var DIR16 = ["N","NNE","NE","ENE","E","ESE","SE","SSE",
-               "S","SSW","SW","WSW","W","WNW","NW","NNW"];
-  function dirName(deg) {
-    return deg == null ? "" : DIR16[Math.round(deg / 22.5) % 16];
-  }
-  // WMO wind barb, inline SVG. Staff tail points toward the direction the
-  // wind comes FROM; pennant = 50 kt, full barb = 10, half = 5 (barbs are
-  // always in KNOTS by convention, whatever the display unit). Calm = circle.
-  function windBarb(dirDeg, spdKt, px) {
-    px = px || 30;
-    if (spdKt == null) return "";
-    var kt = Math.round(spdKt / 5) * 5;
-    var head = '<svg width="' + px + '" height="' + px + '" viewBox="-14 -14 28 28"' +
-      ' style="vertical-align:middle" role="img">';
-    if (kt < 5 || dirDeg == null) {
-      return head + '<circle r="4.5" fill="none" stroke="#333" stroke-width="1.6"/></svg>';
-    }
-    var e = [], y = -11;                        // tail at top, station at (0,11)
-    e.push('<line x1="0" y1="11" x2="0" y2="-11"/>');
-    var n50 = Math.floor(kt / 50), rem = kt - n50 * 50;
-    var n10 = Math.floor(rem / 10), n5 = (rem % 10) >= 5 ? 1 : 0;
-    for (var i = 0; i < n50; i++) {
-      e.push('<polygon points="0,' + y + ' 8,' + (y + 1.5) + ' 0,' + (y + 4) + '"/>');
-      y += 5;
-    }
-    for (i = 0; i < n10; i++) {
-      e.push('<line x1="0" y1="' + y + '" x2="8" y2="' + (y - 3) + '"/>');
-      y += 3;
-    }
-    if (n5) {
-      if (kt < 10) y += 3;                      // lone half barb sits off the tail tip
-      e.push('<line x1="0" y1="' + y + '" x2="4.5" y2="' + (y - 1.8) + '"/>');
-    }
-    return head + '<g stroke="#333" stroke-width="1.5" fill="#333" ' +
-      'transform="rotate(' + (dirDeg % 360) + ')">' + e.join("") + "</g></svg>";
-  }
-  function visToUnit(mi) { return state.unit === "F" ? mi : mi * 1.609344; }
-  function visUnit() { return state.unit === "F" ? "mi" : "km"; }
-  function fmtVis(mi) {
-    return mi == null ? "&ndash;" : visToUnit(mi).toFixed(1) + " " + visUnit();
-  }
-  function ceilToUnit(ft) { return state.unit === "F" ? ft : ft * 0.3048; }
-  function ceilUnit() { return state.unit === "F" ? "ft" : "m"; }
-  function fmtCeil(ft) {
-    return ft == null ? "no ceiling"
-      : Math.round(ceilToUnit(ft)).toLocaleString() + " " + ceilUnit();
-  }
-  // present-weather lanes, benign (bottom) → severe (top); a report maps to
-  // its most significant phenomenon
-  var WX_LANES = ["Haze/smoke", "Mist", "Fog", "Drizzle", "Rain",
-                  "Snow/ice", "Freezing", "T-storm"];
-  function wxLane(s) {
-    if (!s) return -1;
-    if (/TS/.test(s)) return 7;
-    if (/FZ/.test(s)) return 6;
-    if (/SN|SG|IC|PL|GS|GR/.test(s)) return 5;
-    if (/RA|SH|UP/.test(s)) return 4;
-    if (/DZ/.test(s)) return 3;
-    if (/FG/.test(s)) return 2;
-    if (/BR/.test(s)) return 1;
-    if (/HZ|FU|DU|SA|VA|PO|SQ/.test(s)) return 0;
-    return -1;
-  }
-
-  // epoch seconds -> parts in a station's local zone
-  function localParts(epoch, tz) {
-    var d = new Date(epoch * 1000);
-    var p = new Intl.DateTimeFormat("en-US", {
-      timeZone: tz, year: "numeric", month: "2-digit", day: "2-digit",
-      hour: "2-digit", minute: "2-digit", hour12: false
-    }).formatToParts(d);
-    var o = {};
-    p.forEach(function (x) { o[x.type] = x.value; });
-    if (o.hour === "24") o.hour = "00";
-    return o;
-  }
-  function localISO(epoch, tz) {
-    var o = localParts(epoch, tz);
-    return o.year + "-" + o.month + "-" + o.day + " " + o.hour + ":" + o.minute;
-  }
-  function localHM(epoch, tz) {
-    var o = localParts(epoch, tz);
-    var h = +o.hour, ap = h >= 12 ? "PM" : "AM";
-    h = h % 12 || 12;
-    return h + ":" + o.minute + " " + ap;
-  }
-  function localHCompact(epoch, tz) {
-    var o = localParts(epoch, tz);
-    var h = +o.hour, ap = h >= 12 ? "PM" : "AM";
-    h = h % 12 || 12;
-    return h + (o.minute !== "00" ? ":" + o.minute : "") + ap;
-  }
-  function winLabel(win, tz) {
-    return localHCompact(win[0], tz) + "–" + localHCompact(win[1], tz);
-  }
-  function extLabel(x, tz) {  // time of a displayed extreme: exact, or its 6-h window
-    return x.e != null ? localHM(x.e, tz) : winLabel(x.win, tz) + " (6-hr)";
-  }
-  function localMD(epoch, tz) {  // "Jul 17" on the station's local calendar
-    return new Intl.DateTimeFormat("en-US", { timeZone: tz, month: "short",
-      day: "numeric" }).format(new Date(epoch * 1000));
-  }
-  // Local date (+ time or window) an extreme occurred. Epochs are UTC; Intl
-  // does the tz conversion, so a 03Z sample correctly labels as the PREVIOUS
-  // local date on US stations. 6-h windows are dated by their local start;
-  // the official 24-h group by the local day it covers (window midpoint).
-  function extDateLabel(t, tz) {
-    if (!t) return "";
-    if (t.e != null) return localMD(t.e, tz) + " " + localHM(t.e, tz);
-    if (!t.win) return "";
-    if (t.win[1] - t.win[0] >= 22 * 3600)
-      return localMD((t.win[0] + t.win[1]) / 2, tz);
-    return localMD(t.win[0], tz) + " " + winLabel(t.win, tz);
-  }
-
-  // series for the active view: {x:[], y:[], hov:[]} — y is display-ready.
-  // t/d: skip missing values (connect across gaps, as before).
-  // v/c: keep nulls so the line BREAKS where the value is missing (for
-  //      ceiling a null means "no ceiling", and a gap reads correctly).
-  // w:   markers on category lanes; reports with no weather are skipped.
-  function series(st) {
-    var vr = state.vr, xi = VIDX[vr], out = { x: [], y: [], hov: [], epochs: [] };
-    if (vr === "k") {
-      out.g = []; out.dir = [];
-      st.obs.forEach(function (o) {
-        if (o[4] == null) return;
-        out.epochs.push(o[0]);
-        out.x.push(localISO(o[0], st.tz));
-        out.y.push(wToUnit(o[4]));
-        out.g.push(o[8] == null ? null : wToUnit(o[8]));
-        out.dir.push(o[3]);
-        out.hov.push((o[3] == null ? "" : Math.round(o[3]) + "° (" + dirName(o[3]) + ") ")
-                     + Math.round(wToUnit(o[4])) + " " + WU_LABEL[state.wu]
-                     + (o[8] != null ? " G " + Math.round(wToUnit(o[8])) : ""));
-      });
-      return out;
-    }
-    st.obs.forEach(function (o) {
-      var v = o[xi] === undefined ? null : o[xi];
-      if (vr === "w") {
-        var lane = wxLane(v);
-        if (lane < 0) return;
-        out.epochs.push(o[0]);
-        out.x.push(localISO(o[0], st.tz)); out.y.push(lane); out.hov.push(v);
-        return;
-      }
-      if (vr === "t" || vr === "d") {
-        if (v == null) return;
-        out.epochs.push(o[0]);
-        out.x.push(localISO(o[0], st.tz));
-        out.y.push(cToUnit(v));
-        out.hov.push(o[3] != null && o[4] != null
-          ? "wind " + Math.round(o[3]) + "&deg; @ " + Math.round(o[4]) + " kt" : "");
-        return;
-      }
-      // v / c — always push, null y = gap; hover carries the wx string
-      out.epochs.push(o[0]);
-      out.x.push(localISO(o[0], st.tz));
-      out.y.push(v == null ? null : (vr === "v" ? visToUnit(v) : ceilToUnit(v)));
-      out.hov.push(o[7] || "");
+  function combine(a, b) {                            // yesterday pack + today pack
+    var out = { obs: [], reports: [], six: [], day: null, wr: [], nAuto: 0 };
+    [a, b].forEach(function (p) {
+      if (!p) return;
+      out.obs = out.obs.concat(p.obs); out.reports = out.reports.concat(p.reports); out.six = out.six.concat(p.six);
+      out.wr = out.wr.concat(p.wr || []); out.nAuto += p.nAuto;
+      if (p.day && (!out.day || p.day.e > out.day.e)) out.day = p.day;
     });
     return out;
   }
+  function loadStation(s) {
+    var n = nowS(), today = ymd(lx(n, s.tz)), yday = ymd(lx(n - 86400, s.tz));
+    var mem = dayPacks[s.id] = dayPacks[s.id] || {};
+    Object.keys(mem).forEach(function (k) { if (k !== today && k !== yday) delete mem[k]; });
+    var pY = mem[yday] ? Promise.resolve(mem[yday])
+      : (function () { var c = lsGet(s.id + "." + yday); if (c) { mem[yday] = c; return Promise.resolve(c); }
+          return fetchDay(s, yday, false).then(function (p) { mem[yday] = p; lsSet(s.id + "." + yday, p); return p; }); })();
+    var pT = fetchDay(s, today, true).then(function (p) { mem[today] = p; return p; });
+    return Promise.all([pY.catch(function () { return null; }), pT.catch(function () { return null; })]).then(function (r) {
+      if (!r[0] && !r[1]) throw new Error("iem");
+      var p = combine(r[0], r[1]); p.src = "iem"; p.cad = p.nAuto >= 6 ? 5 : 60;
+      state.live[s.id] = p; state.src[s.id] = "iem";
+      if (r[1]) lsSet("today." + s.id, { d: today, p: r[1] });
+    }).catch(function () { return fetchNWS(s); });
+  }
+  function fetchNWS(s) {
+    var w0 = nowS() - WINDOW_MAX_H * 3600;
+    return fetch("https://api.weather.gov/stations/" + s.id + "/observations?start=" + encodeURIComponent(new Date(w0 * 1000).toISOString()) + "&limit=500", { cache: "no-store" })
+      .then(function (r) { if (!r.ok) throw 0; return r.json(); })
+      .then(function (j) {
+        var rows = (j.features || []).map(function (f) { var p = f.properties;
+          return { utc_valid: p.timestamp, raw: p.rawMessage || "", tmpf: p.temperature && p.temperature.value != null ? p.temperature.value * 1.8 + 32 : null,
+                   dwpf: p.dewpoint && p.dewpoint.value != null ? p.dewpoint.value * 1.8 + 32 : null,
+                   drct: p.windDirection && p.windDirection.value, sknt: p.windSpeed && p.windSpeed.value != null ? p.windSpeed.value * 0.539957 : null,
+                   gust: p.windGust && p.windGust.value != null ? p.windGust.value * 0.539957 : null,
+                   vsby: p.visibility && p.visibility.value != null ? p.visibility.value / 1609.344 : null, nws: 1 }; });
+        // rows without a raw message are 5-minute samples: give them a marker so packDay treats them as the feed
+        rows.forEach(function (r) { if (!r.raw) r.raw = s.id + " AUTO MADISHF"; });
+        var p = packDay(rows); p.src = "nws"; p.cad = p.nAuto >= 6 ? 5 : 60;
+        state.live[s.id] = p; state.src[s.id] = "nws";
+      })
+      .catch(function () { state.failed++; });
+  }
+  var BRANCH_URL = "https://raw.githubusercontent.com/scorvec/scorvec.github.io/asos5-data/asos5_latest.json";
+  function fetchBranch() {
+    fetch(BRANCH_URL + "?ts=" + Date.now(), { cache: "no-store" }).then(function (r) { if (!r.ok) throw 0; return r.json(); })
+      .then(function (j) { if (j && j.stations) { state.branch = {}; j.stations.forEach(function (s) { state.branch[s.id] = s; }); schedule(); } })
+      .catch(function () {});
+  }
+  function refreshAll() {
+    state.failed = 0;
+    var keep = [];
+    STATIONS.forEach(function (s) { var n = nowS(); keep.push(s.id + "." + ymd(lx(n - 86400, s.tz))); keep.push("today." + s.id); });
+    lsPrune(keep);
+    STATIONS.forEach(function (s) { loadStation(s).then(function () { state.cached = false; schedule(); }); });
+  }
 
-  function sampledExtremes(st) {
-    // today only (m0), so the extremes stay "so far today" even though the trace
-    // now reaches back ~36 h to show yesterday.
-    var xi = VIDX[state.vr], m0 = localMidnightEpoch(st.tz), hi = null, lo = null;
-    st.obs.forEach(function (o) {
-      if (o[xi] == null || o[0] < m0) return;
-      if (!hi || o[xi] > hi.v) hi = { v: o[xi], e: o[0] };
-      if (!lo || o[xi] < lo.v) lo = { v: o[xi], e: o[0] };
+  // ---------------------------------------------------------------- merge per station
+  function build(s) {
+    var live = state.live[s.id], br = state.branch && state.branch[s.id], n = nowS(), w0 = n - WINDOW_MAX_H * 3600;
+    if (!live && !br) return null;
+    var byMin = {};
+    if (live) live.obs.forEach(function (o) { if (o[E] >= w0) byMin[Math.round(o[E] / 60)] = o; });
+    if (br && br.obs) br.obs.forEach(function (o) {           // MADIS precision where IEM has no sample that minute
+      if (o[0] < w0) return; var k = Math.round(o[0] / 60), cur = byMin[k];
+      if (!cur) byMin[k] = o.slice(0, 9).concat([0, null, null, 0]);
+      else if (cur[T] == null && o[1] != null) cur[T] = o[1];
     });
+    var obs = Object.keys(byMin).map(function (k) { return byMin[k]; }).sort(function (a, b) { return a[E] - b[E]; });
+    var six = {}; ((live && live.six) || []).concat((br && br.sixhr) || []).forEach(function (g) { if (!six[g[0]]) six[g[0]] = g; });
+    six = Object.keys(six).map(function (k) { return six[k]; }).sort(function (a, b) { return a[0] - b[0]; });
+    var day = (live && live.day) || null; if (br && br.daymm && (!day || br.daymm.e > day.e)) day = br.daymm;
+    var m0 = localMidnight(s.tz, n);
+    var reports = ((live && live.reports) || []).filter(function (r) { return r.e >= w0; });
+    var wr = ((live && live.wr) || []);
+    var cad = live ? live.cad : (br ? br.cadence_min : 60);
+    if (br && br.cadence_min) cad = Math.min(cad, br.cadence_min);
+    return { s: s, obs: obs, six: six, day: day, m0: m0, reports: reports, wr: wr, cad: cad, abs: absExtremes(obs, six, m0) };
+  }
+  function absExtremes(obs, six, m0) {
+    var hi = null, lo = null;
+    obs.forEach(function (o) { if (o[T] == null || o[E] < m0) return;
+      if (!hi || o[T] > hi.v) hi = { v: o[T], e: o[E] }; if (!lo || o[T] < lo.v) lo = { v: o[T], e: o[E] }; });
+    six.forEach(function (g) { var st = g[0] - 21600; if (st < m0) return;
+      if (g[1] != null && (!hi || g[1] > hi.v + 0.05)) hi = { v: g[1], win: [st, g[0]] };
+      if (g[2] != null && (!lo || g[2] < lo.v - 0.05)) lo = { v: g[2], win: [st, g[0]] }; });
     return { hi: hi, lo: lo };
   }
 
-  // what the cards show: for temperature, the absolute max/min (samples merged
-  // with the official METAR 6-hour max/min groups, computed server-side)
-  function displayExtremes(st) {
-    if (state.vr === "t" && st.abs) {
-      return {
-        hi: { v: st.abs.maxC, e: st.abs.max_e, win: st.abs.max_win, src: st.abs.max_src },
-        lo: { v: st.abs.minC, e: st.abs.min_e, win: st.abs.min_win, src: st.abs.min_src }
-      };
-    }
-    return sampledExtremes(st);
+  // ---------------------------------------------------------------- wind maths
+  var DIR16 = ["N","NNE","NE","ENE","E","ESE","SE","SSE","S","SSW","SW","WSW","W","WNW","NW","NNW"];
+  function dirName(d) { return d == null ? "" : DIR16[Math.round(d / 22.5) % 16]; }
+  function vecMean(obs, e0, e1) {            // vector-mean direction (deg) and mean speed over [e0, e1], winds >= 1 kt
+    var u = 0, v = 0, sp = 0, n = 0;
+    obs.forEach(function (o) { if (o[E] < e0 || o[E] > e1 || o[DIR] == null || !o[SPD]) return;
+      var r = o[DIR] * Math.PI / 180; u += o[SPD] * Math.sin(r); v += o[SPD] * Math.cos(r); sp += o[SPD]; n++; });
+    if (!n) return null;
+    var d = (Math.atan2(u, v) * 180 / Math.PI + 360) % 360, steady = Math.hypot(u, v) / sp;
+    return { dir: d, spd: sp / n, n: n, steady: steady };
+  }
+  function angDiff(a, b) { var d = (b - a + 540) % 360 - 180; return d; }        // b - a in (-180, 180]
+  function shiftText(st, hours) {
+    var e1 = st.obs.length ? st.obs[st.obs.length - 1][E] : 0, now = vecMean(st.obs, e1 - 1800, e1), then = vecMean(st.obs, e1 - hours * 3600 - 1800, e1 - hours * 3600);
+    if (!now || !then) return null;
+    if (now.spd < 5 || then.spd < 5) return { txt: "light", d: 0 };
+    var d = angDiff(then.dir, now.dir), a = Math.abs(Math.round(d));
+    if (a < 20) return { txt: "steady", d: d };
+    return { txt: (d > 0 ? "veered " : "backed ") + a + "°", d: d };
+  }
+  // arrow pointing where the air goes (rotate by dir+180); calm = ring
+  function arrowSVG(dir, spd, px, color) {
+    px = px || 26; color = color || "#273036";
+    if (spd == null) return "";
+    if (!spd || dir == null) return '<svg width="' + px + '" height="' + px + '" viewBox="-12 -12 24 24" aria-hidden="true"><circle r="5" fill="none" stroke="' + color + '" stroke-width="1.8"/>' +
+      (spd && dir == null ? '<text y="3.5" text-anchor="middle" font-size="7" fill="' + color + '">V</text>' : "") + "</svg>";
+    return '<svg width="' + px + '" height="' + px + '" viewBox="-12 -12 24 24" aria-hidden="true"><g transform="rotate(' + ((dir + 180) % 360) +
+      ')"><path d="M0 10 L0 -7" stroke="' + color + '" stroke-width="2.2" stroke-linecap="round"/><path d="M-5.5 -3 L0 -10.5 L5.5 -3 Z" fill="' + color + '"/></g></svg>';
   }
 
-  function visibleFlag(i) {
-    if (state.iso === null) return true;
-    return state.iso === i ? true : "legendonly";
+  // ---------------------------------------------------------------- units
+  function cU(c) { return state.unit === "F" ? c * 1.8 + 32 : c; }
+  function fT(c) { return c == null ? "–" : cU(c).toFixed(1) + "°"; }
+  var WUF = { kt: 1, mph: 1.15078, kmh: 1.852 }, WUL = { kt: "kt", mph: "mph", kmh: "km/h" };
+  function wU(k) { return k * WUF[state.wu]; }
+  function fW(k) { return k == null ? "–" : Math.round(wU(k)) + " " + WUL[state.wu]; }
+  function vU(mi) { return state.unit === "F" ? mi : mi * 1.609344; }
+  function fV(mi) { return mi == null ? "–" : (vU(mi) >= 10 ? Math.round(vU(mi)) : vU(mi).toFixed(1)) + (state.unit === "F" ? " mi" : " km"); }
+  function gU(ft) { return state.unit === "F" ? ft : ft * 0.3048; }
+  function fG(ft) { return ft == null ? "none" : Math.round(gU(ft)).toLocaleString() + (state.unit === "F" ? " ft" : " m"); }
+  var LANES = ["Haze/smoke", "Mist", "Fog", "Drizzle", "Rain", "Snow/ice", "Freezing", "T-storm"];
+  function lane(s) {
+    if (!s) return -1; if (/TS/.test(s)) return 7; if (/FZ/.test(s)) return 6; if (/SN|SG|IC|PL|GS|GR/.test(s)) return 5;
+    if (/RA|SH|UP/.test(s)) return 4; if (/DZ/.test(s)) return 3; if (/FG/.test(s)) return 2; if (/BR/.test(s)) return 1;
+    if (/HZ|FU|DU|SA|VA|PO|SQ/.test(s)) return 0; return -1;
   }
 
-  function buildCards() {
+  // ---------------------------------------------------------------- cards
+  var cardEls = [];
+  function initCards() {
     var host = document.getElementById("cards");
-    host.innerHTML = "";
-    state.data.stations.forEach(function (st, i) {
-      var vr = state.vr, xi = VIDX[vr];
-      // latest record with ANY data (v/c/w legitimately report null = clear)
-      // Prefer the newest SAMPLED record (the 5-minute feed); fall back to a
-      // METAR-derived one only when the station has no sampled value, which is
-      // the normal case for the two hourly-only stations. METARs are folded into
-      // the stream because they arrive 20-50 min earlier, but that meant the
-      // headline number on a 5-minute station was often just the last METAR.
-      var lastRec = null, lastAny = null;
-      for (var k = st.obs.length - 1; k >= 0; k--) {
-        var o = st.obs[k], has = (vr === "t" || vr === "d") ? o[xi] != null : true;
-        if (!has) continue;
-        if (lastAny == null) lastAny = o;
-        if (o[9] !== 1) { lastRec = o; break; }
-      }
-      if (lastRec == null) lastRec = lastAny;
-      var nowHtml = "&ndash;", mmHtml = "";
-      if (vr === "t" || vr === "d") {
-        var ex = displayExtremes(st);
-        nowHtml = lastRec ? fmtT(lastRec[xi]) +
-          "<small>" + localHM(lastRec[0], st.tz) + "</small>" : "&ndash;";
-        // TWO rows, because they answer different questions and merging them is
-        // exactly why the official value almost never showed: with 5-minute
-        // sampling today's trace usually catches the true peak first, so the
-        // official 24-h group only won when it happened to be MORE extreme and
-        // the label read "sampled" all day.
-        //   today     - high/low so far on the station's local calendar day
-        //   yesterday - the official 24-h climate day from the METAR 4-group
-        //
-        // The cards are ~150px wide, so the times CANNOT sit inline next to the
-        // values - adding the row label pushed the low clean out of the card.
-        // They move to the row tooltip instead.
-        var offc = st.official;
-        var tTip = "today so far" +
-          (ex.hi ? "  high " + fmtT(ex.hi.v) + " at " + extLabel(ex.hi, st.tz) : "") +
-          (ex.lo ? "  low " + fmtT(ex.lo.v) + " at " + extLabel(ex.lo, st.tz) : "");
-        mmHtml =
-          '<div class="mmrow" title="' + tTip.replace(/"/g, "&quot;") + '">' +
-          '<span class="mmtag">today</span>' +
-          '<span class="hi">&#9650;' + (ex.hi ? fmtT(ex.hi.v) : "&ndash;") + "</span>" +
-          '<span class="lo">&#9660;' + (ex.lo ? fmtT(ex.lo.v) : "&ndash;") + "</span>" +
-          "</div>" +
-          '<div class="mmrow yday" title="Official 24-hour climate day, from the ' +
-          'METAR 4-group (4snTxTxTxsnTnTnTn)">' +
-          '<span class="mmtag">yest</span>' +
-          (offc && (offc.max != null || offc.min != null)
-            ? '<span class="hi">&#9650;' + (offc.max != null ? fmtT(offc.max) : "&ndash;") + "</span>" +
-              '<span class="lo">&#9660;' + (offc.min != null ? fmtT(offc.min) : "&ndash;") + "</span>"
-            : '<span class="mmsrc">not in yet</span>') +
-          "</div>";
-      } else if (vr === "v" || vr === "c") {
-        var fmt = vr === "v" ? fmtVis : fmtCeil;
-        nowHtml = lastRec ? fmt(lastRec[xi]) +
-          "<small>" + localHM(lastRec[0], st.tz) + "</small>" : "&ndash;";
-        // worst (lowest) today
-        var m0 = localMidnightEpoch(st.tz), lo = null;
-        st.obs.forEach(function (o) {
-          if (o[0] < m0 || o[xi] == null) return;
-          if (!lo || o[xi] < lo.v) lo = { v: o[xi], e: o[0] };
-        });
-        mmHtml = '<span class="lo">&#9660; ' + (lo ? fmt(lo.v) : "&ndash;") +
-          (lo ? "<small>" + localHM(lo.e, st.tz) + "</small>"
-              : "<small>today</small>") + "</span>";
-      } else if (vr === "k") {
-        var cur = null;
-        for (var q = st.obs.length - 1; q >= 0; q--) {
-          if (st.obs[q][4] != null) { cur = st.obs[q]; break; }
-        }
-        nowHtml = cur
-          ? windBarb(cur[3], cur[4]) + " " + fmtW(cur[4]) +
-            (cur[8] != null ? ' <span style="font-size:.55em;color:#a05a12;white-space:nowrap">G&nbsp;' +
-              Math.round(wToUnit(cur[8])) + "</span>" : "") +
-            "<small>" + dirName(cur[3]) + " · " + localHM(cur[0], st.tz) + "</small>"
-          : "&ndash;";
-        var m0k = localMidnightEpoch(st.tz), mxS = null, mxG = null;
-        st.obs.forEach(function (o) {
-          if (o[0] < m0k) return;
-          if (o[4] != null && (!mxS || o[4] > mxS.v)) mxS = { v: o[4], e: o[0] };
-          if (o[8] != null && (!mxG || o[8] > mxG.v)) mxG = { v: o[8], e: o[0] };
-        });
-        mmHtml =
-          '<span class="hi">&#9650; ' + (mxS ? fmtW(mxS.v) : "&ndash;") +
-          (mxS ? "<small>" + localHM(mxS.e, st.tz) + "</small>" : "") + "</span>" +
-          '<span class="lo" style="color:#a05a12">G ' + (mxG ? fmtW(mxG.v) : "&mdash;") +
-          (mxG ? "<small>" + localHM(mxG.e, st.tz) + "</small>" : "") + "</span>";
-      } else {                                            // present weather
-        var wxNow = lastRec && lastRec[7] ? lastRec[7] : "none";
-        nowHtml = '<span style="font-size:.72em">' + wxNow + "</span>" +
-          (lastRec ? "<small>" + localHM(lastRec[0], st.tz) + "</small>" : "");
-        var m0w = localMidnightEpoch(st.tz), seen = [];
-        st.obs.forEach(function (o) {
-          if (o[0] < m0w || !o[7]) return;
-          o[7].split(/\s+/).forEach(function (c) {
-            if (c && seen.indexOf(c) < 0) seen.push(c);
-          });
-        });
-        mmHtml = '<span class="lo" style="font-size:.9em">today: ' +
-          (seen.length ? seen.slice(0, 5).join(" ") : "&mdash;") + "</span>";
-      }
-      var el = document.createElement("div");
-      el.className = "card" + (state.iso === i ? " sel" : state.iso !== null ? " dim" : "");
-      el.style.setProperty("--dot", COLORS[i % COLORS.length]);
-      var repBadge = "";
-      if (st.reports && st.reports.length) {
-        var lr = st.reports[st.reports.length - 1];
-        var isSp = lr.type === "SPECI";
-        repBadge = '<span class="badge" title="' +
-          (lr.raw || "").replace(/"/g, "&quot;") + '" style="' +
-          (isSp ? "background:rgba(224,122,42,.15);color:#a05a12;border:1px solid rgba(224,122,42,.4)"
-                : "") + '">' + lr.type.toLowerCase() + " " + localHCompact(lr.e, st.tz) + "</span>";
-      }
-      el.innerHTML =
-        '<div class="row1"><span class="sid">' + st.id + "</span>" +
-        '<span class="badge' + (st.cadence_min > 5 ? " hourly" : "") + '">' +
-        (st.cadence_min > 5 ? "hourly" : "5-min") + "</span>" + repBadge + "</div>" +
-        '<div class="name">' + st.name + "</div>" +
-        '<div class="now">' + nowHtml + "</div>" +
-        '<div class="mm">' + mmHtml + "</div>";
-      el.onclick = function () {
-        state.iso = state.iso === i ? null : i;
-        render();
-      };
-      host.appendChild(el);
+    STATIONS.forEach(function (s) {
+      var b = document.createElement("button"); b.type = "button"; b.className = "ao-card"; b.style.setProperty("--dot", s.color);
+      b.setAttribute("aria-pressed", "false");
+      b.innerHTML = '<div class="r1"><span class="sid"><i></i>' + s.id + '</span><span class="bds"></span></div><div class="nm">' + s.name +
+        '</div><div class="now">–</div><div class="mm"></div>';
+      b.addEventListener("click", function () { state.iso = state.iso === s.i ? null : s.i; state.zoom = null; render(); });
+      host.appendChild(b); cardEls.push(b);
     });
   }
-
-  function buildChart() {
-    var traces = [];
-    var vr = state.vr, vlabel = VLABEL[vr];
-    var isTemp = vr === "t" || vr === "d";
-    state.data.stations.forEach(function (st, i) {
-      var s = series(st), color = COLORS[i % COLORS.length];
-      var hovTpl;
-      if (isTemp) {
-        hovTpl = "<b>" + st.id + "</b> %{x|%-I:%M %p} &middot; %{y:.1f}°" +
-                 state.unit + " %{customdata}<extra></extra>";
-      } else if (vr === "v") {
-        hovTpl = "<b>" + st.id + "</b> %{x|%-I:%M %p} &middot; %{y:.1f} " +
-                 visUnit() + " %{customdata}<extra></extra>";
-      } else if (vr === "c") {
-        hovTpl = "<b>" + st.id + "</b> %{x|%-I:%M %p} &middot; ceiling %{y:,.0f} " +
-                 ceilUnit() + " %{customdata}<extra></extra>";
-      } else {
-        hovTpl = "<b>" + st.id + "</b> %{x|%-I:%M %p} &middot; %{customdata}<extra></extra>";
-      }
-      var marker;
-      if (vr === "k" && state.iso === i) {
-        // direction arrows on the isolated station: point where the wind blows TO
-        marker = { color: color, size: 9, symbol: "arrow",
-                   angle: s.dir.map(function (d) { return d == null ? 0 : (d + 180) % 360; }),
-                   line: { color: "#fff", width: 0.5 } };
-      } else if (vr === "w") {
-        marker = { color: color, size: state.iso === i ? 8 : 5.5 };
-      } else {
-        marker = { color: color, size: state.iso === i ? 4.5 : 3 };
-      }
-      traces.push({
-        x: s.x,
-        y: s.y,
-        customdata: s.hov,
-        name: st.id,
-        legendgroup: st.id,
-        mode: vr === "w" ? "markers" : "lines+markers",
-        line: { color: color, width: state.iso === i ? 2.6 : 1.4,
-                shape: (vr === "v" || vr === "c") ? "hv" : "linear" },
-        marker: marker,
-        connectgaps: false,
-        visible: visibleFlag(i),
-        hovertemplate: hovTpl
-      });
-      if (vr === "k" && s.g && s.g.some(function (g) { return g != null; })) {
-        traces.push({
-          x: s.x, y: s.g, customdata: s.hov,
-          name: st.id + " gusts", legendgroup: st.id, showlegend: false,
-          mode: "markers",
-          marker: { color: color, size: state.iso === i ? 6 : 4, symbol: "cross-thin",
-                    line: { color: color, width: 1.2 } },
-          visible: visibleFlag(i),
-          hovertemplate: "<b>" + st.id + "</b> %{x|%-I:%M %p} &middot; gust %{y:.0f} " +
-            WU_LABEL[state.wu] + "<extra></extra>"
-        });
-      }
-      // Official METAR/SPECI report markers on the isolated station: a
-      // diamond at each transmitted report, orange for SPECI (weather
-      // changed enough to force a special), hover = the raw report.
-      if (state.iso === i && st.reports && st.reports.length) {
-        var rx = [], ry = [], rc = [], rt = [];
-        st.reports.forEach(function (r) {
-          // the diamond's y comes from the RAW REPORT itself, so a fresh
-          // SPECI plots at its true time even past the lagging 5-min trace
-          var mv = metarVals(r.raw);
-          var yv = null;
-          if (vr === "t") yv = mv.t == null ? null : cToUnit(mv.t);
-          else if (vr === "d") yv = mv.d == null ? null : cToUnit(mv.d);
-          else if (vr === "v") yv = mv.vis == null ? null : visToUnit(mv.vis);
-          else if (vr === "c") yv = mv.ceil == null ? null : ceilToUnit(mv.ceil);
-          else if (vr === "k") yv = mv.wspd == null ? null : wToUnit(mv.wspd);
-          else if (vr === "w") { var ln = wxLane(mv.wx); yv = ln < 0 ? null : ln; }
-          if (yv == null) return;
-          rx.push(localISO(r.e, st.tz)); ry.push(yv);
-          rc.push(r.type === "SPECI" ? "#e07a2a" : "#8a8578");
-          var raw = (r.raw || "").slice(0, 120).replace(/(.{60})/g, "$1<br>");
-          rt.push("<b>" + r.type + "</b> " + localHM(r.e, st.tz) + "<br>" + raw);
-        });
-        if (rx.length) {
-          traces.push({
-            x: rx, y: ry, text: rt,
-            name: st.id + " reports", legendgroup: st.id, showlegend: false,
-            mode: "markers",
-            marker: { size: 9, symbol: "diamond-open", color: rc,
-                      line: { width: 1.6 } },
-            visible: visibleFlag(i),
-            hovertemplate: "%{text}<extra></extra>"
-          });
-        }
-      }
-      var ex = isTemp ? sampledExtremes(st) : { hi: null, lo: null };
-      if (ex.hi && ex.lo) {
-        traces.push({
-          x: [localISO(ex.hi.e, st.tz), localISO(ex.lo.e, st.tz)],
-          y: [cToUnit(ex.hi.v), cToUnit(ex.lo.v)],
-          name: st.id + " max/min",
-          legendgroup: st.id,
-          showlegend: false,
-          mode: "markers",
-          text: ["max", "min"],
-          marker: { color: color, size: 9, symbol: ["triangle-up", "triangle-down"],
-                    line: { color: "#fff", width: 1 } },
-          visible: visibleFlag(i),
-          hovertemplate: "<b>" + st.id + "</b> daily %{text} (sampled): %{y:.1f}°" +
-            state.unit + " at %{x|%-I:%M %p}<extra></extra>"
-        });
-      }
-      // official 6-h group extremes that beat the sampled ones: open markers
-      // at the end of their window (exact minute unknown within the window)
-      if (state.vr === "t" && st.abs) {
-        var gx = [], gy = [], gt = [], gs = [];
-        if (st.abs.max_src === "6hr") {
-          gx.push(localISO(st.abs.max_win[1], st.tz)); gy.push(cToUnit(st.abs.maxC));
-          gt.push("max, " + winLabel(st.abs.max_win, st.tz)); gs.push("triangle-up-open");
-        }
-        if (st.abs.min_src === "6hr") {
-          gx.push(localISO(st.abs.min_win[1], st.tz)); gy.push(cToUnit(st.abs.minC));
-          gt.push("min, " + winLabel(st.abs.min_win, st.tz)); gs.push("triangle-down-open");
-        }
-        if (gx.length) {
-          traces.push({
-            x: gx, y: gy, text: gt,
-            name: st.id + " 6-hr",
-            legendgroup: st.id,
-            showlegend: false,
-            mode: "markers",
-            marker: { color: color, size: 10, symbol: gs, line: { width: 2 } },
-            visible: visibleFlag(i),
-            hovertemplate: "<b>" + st.id + "</b> official 6-hr %{text}: %{y:.1f}°" +
-              state.unit + "<extra></extra>"
-          });
-        }
-      }
-    });
-
-    // dotted divider at today's local midnight (yesterday ← | → today), using the
-    // shared local calendar date; positioned on the local-clock-time axis.
-    var refDay = (state.data.stations[0] || {}).day_local;
-    var midX = refDay ? refDay + " 00:00" : null;
-    var shapes = midX ? [{ type: "line", x0: midX, x1: midX, yref: "paper", y0: 0, y1: 1,
-                           layer: "below", line: { color: "#c9a24a", width: 1.2, dash: "dot" } }] : [];
-    var annotations = midX ? [{ x: midX, yref: "paper", y: 1, yanchor: "bottom", xanchor: "center",
-                               text: "midnight", showarrow: false, font: { size: 9.5, color: "#a07a1e" } }] : [];
-    // Max/min-over-the-shown-window reference lines (dashed horizontal), only when
-    // a single station is isolated and in temperature view. Values bound the visible
-    // curve; the source of each extreme (sampled / 6-hr group / official 24-h group)
-    // is tagged, and the span covered is shown.
-    if (state.iso != null && state.iso >= 0 && state.vr === "t") {
-      var iso = state.data.stations[state.iso];
-      if (iso && iso.daymm) {
-        var icol = COLORS[state.iso % COLORS.length];
-        var SRC = { obs: "sampled", "6hr": "6-hr", "24hr": "official" };
-        var sp = iso.daymm.span_h;
-        [["max", iso.daymm.max, iso.daymm.maxsrc, iso.daymm.maxt],
-         ["min", iso.daymm.min, iso.daymm.minsrc, iso.daymm.mint]]
-          .forEach(function (p) {
-          var yv = cToUnit(p[1]);
-          var when = extDateLabel(p[3], iso.tz);
-          shapes.push({ type: "line", xref: "paper", x0: 0, x1: 1, yref: "y", y0: yv, y1: yv,
-                        layer: "below", line: { color: icol, width: 1.3, dash: "dash" } });
-          annotations.push({ xref: "paper", x: 0.006, y: yv, yref: "y", yanchor: "bottom",
-                             xanchor: "left",
-                             text: sp + "-h " + p[0] + " (" + (SRC[p[2]] || "sampled") + ") "
-                                   + yv.toFixed(1) + "°" + state.unit
-                                   + (when ? " · " + when : ""),
-                             showarrow: false, bgcolor: "rgba(255,255,255,0.85)",
-                             font: { size: 14.25, color: "#1c1c1a" } });
-        });
-      }
-    }
-    var layout = {
-      margin: { l: vr === "w" ? 86 : 52, r: 12, t: 28, b: 44 },
-      paper_bgcolor: "rgba(0,0,0,0)",
-      plot_bgcolor: "rgba(0,0,0,0)",
-      font: { family: "Inter, sans-serif", size: 12, color: "#1c1c1a" },
-      xaxis: {
-        title: { text: "Local clock time at each station — last " + WINDOW_H + " hours",
-                 font: { size: 11, color: "#888580" } },
-        gridcolor: "#eeece6", hoverformat: "%a %-I:%M %p",
-        showspikes: true, spikemode: "across", spikethickness: 1, spikecolor: "#c9c6bd", spikedash: "dot"
-      },
-      yaxis: (function () {
-        if (isTemp) return {
-          title: { text: vlabel + " (°" + state.unit + ")", font: { size: 11, color: "#888580" } },
-          gridcolor: "#eeece6", zeroline: false };
-        if (vr === "v") return {
-          title: { text: "Visibility (" + visUnit() + ")", font: { size: 11, color: "#888580" } },
-          gridcolor: "#eeece6", zeroline: false, rangemode: "tozero" };
-        if (vr === "c") return {
-          title: { text: "Cloud ceiling (" + ceilUnit() + " AGL) — gaps = no ceiling",
-                   font: { size: 11, color: "#888580" } },
-          gridcolor: "#eeece6", zeroline: false, rangemode: "tozero" };
-        if (vr === "k") return {
-          title: { text: "Sustained wind / gusts (" + WU_LABEL[state.wu] + ")",
-                   font: { size: 11, color: "#888580" } },
-          gridcolor: "#eeece6", zeroline: false, rangemode: "tozero" };
-        return {
-          tickvals: WX_LANES.map(function (_, k) { return k; }),
-          ticktext: WX_LANES, range: [-0.6, 7.6],
-          gridcolor: "#eeece6", zeroline: false };
-      })(),
-      shapes: shapes,
-      annotations: annotations,
-      hovermode: "closest",
-      hoverlabel: { font: { family: "Inter, sans-serif", size: 12 } },
-      legend: { orientation: "v", x: 1.002, y: 1, font: { size: 11 } },
-      title: {
-        text: vlabel + " — last " + WINDOW_H + " hours (today vs yesterday)" +
-          (isTemp ? " · ▲▼ today's sampled max/min" : "") +
-          (vr === "t" ? " · open ▲▼ official 6-hr extremes where higher/lower" : "") +
-          (vr === "w" ? " · each dot = a report with weather; lane = most significant type" : "") +
-          (vr === "k" ? " · line = sustained, ＋ = gusts (barbs in kt) · isolate a station for direction arrows" : "") +
-          (state.iso != null && state.iso >= 0 ? " · ◇ official reports (orange = SPECI)" : ""),
-        font: { family: "Lora, serif", size: 15 }, x: 0.02
-      }
-    };
-    Plotly.react("chart", traces, layout, { responsive: true, displaylogo: false,
-      modeBarButtonsToRemove: ["lasso2d", "select2d", "autoScale2d"] });
+  // newest record with a value; a transmitted report (0.1 °C) wins over a 5-minute sample (whole °C) within 6 minutes of it
+  function lastWith(obs, idx) {
+    var a = null;
+    for (var k = obs.length - 1; k >= 0; k--) { var o = obs[k]; if (o[idx] == null) continue;
+      if (!a) { a = o; if (o[REP]) return o; continue; }
+      if (a[E] - o[E] > 360) break; if (o[REP]) return o; }
+    return a;
   }
-
-  function buildSub() {
-    var stations = state.data.stations, newest = 0, day = "";
-    stations.forEach(function (st) {
-      if (st.obs.length) { var e = st.obs[st.obs.length - 1][0]; if (e > newest) newest = e; }
-      if (!day && st.day_local) day = st.day_local;
-    });
-    var asof = newest
-      ? new Date(newest * 1000).toLocaleString([], { hour: "numeric", minute: "2-digit", timeZoneName: "short" })
-      : "&mdash;";
-    document.getElementById("subline").innerHTML =
-      "Five-minute ASOS observations for <b>" + stations.length + " US airports</b> over the <b>last " + WINDOW_H +
-      " hours</b>, plotted on each station's local clock so <b>today lines up against yesterday</b>. " +
-      "Today's max/min are the absolute extremes <b>so far today</b> (" + day + "), the sampled trace merged with the official " +
-      "6-hour METAR groups; yesterday's row is the official 24-hour climate day. " +
-      "Latest observation <b>" + asof + "</b> &middot; the 5-minute feed itself reaches the public networks ~10–15 min after " +
-      "the observation &middot; refreshes every 2 min.";
-    var stale = document.getElementById("stale");
-    if (!state.liveOK) {
-      stale.style.display = "block";
-      stale.textContent = "Couldn't reach the live observation feeds — showing the last mirrored MADIS snapshot, which may be delayed.";
+  function peakRemark(st) {
+    var best = null; st.wr.forEach(function (w) { if (w.pk && w.pk.e >= st.m0 && (!best || w.pk.kt > best.kt)) best = w.pk; }); return best;
+  }
+  function shifts(st) { var out = []; st.wr.forEach(function (w) { if (w.ws && w.ws.e >= st.m0 && !out.some(function (x) { return Math.abs(x.e - w.ws.e) < 120; })) out.push(w.ws); }); return out; }
+  function cardHTML(st) {
+    var tz = st.s.tz, vr = state.vr, now = "–", mm = "";
+    if (vr === "t" || vr === "d") {
+      var idx = vr === "t" ? T : D, o = lastWith(st.obs, idx, true);
+      if (o) now = fT(o[idx]) + state.unit + "<small>" + hm(lx(o[E], tz)) + "</small>";
+      var hi, lo;
+      if (vr === "t") { hi = st.abs.hi; lo = st.abs.lo; }
+      else st.obs.forEach(function (q) { if (q[E] < st.m0 || q[D] == null) return; if (!hi || q[D] > hi.v) hi = { v: q[D], e: q[E] }; if (!lo || q[D] < lo.v) lo = { v: q[D], e: q[E] }; });
+      var when = function (x) { return x ? (x.e != null ? hm(lx(x.e, tz)) : hShort(lx(x.win[0], tz)) + "–" + hShort(lx(x.win[1], tz)) + " (6-hr group)") : ""; };
+      mm = '<div class="ln" title="today: high ' + (hi ? fT(hi.v) + " at " + when(hi) : "–") + ", low " + (lo ? fT(lo.v) + " at " + when(lo) : "–") + '"><span class="tg">today</span><span class="hi">▲' +
+        (hi ? fT(hi.v) : "–") + '</span><span class="lo">▼' + (lo ? fT(lo.v) : "–") + "</span></div>";
+      if (vr === "t") mm += '<div class="ln" title="official 24-hour climate day (METAR 4-group)"><span class="tg">yest</span>' +
+        (st.day ? '<span class="hi">▲' + fT(st.day.max) + '</span><span class="lo">▼' + fT(st.day.min) + "</span>" : '<span class="mu">not in yet</span>') + "</div>";
+    } else if (vr === "k") {
+      var w = null;                                  // newest wind with a usable direction (rows like '///18KT' lack one)
+      for (var kk = st.obs.length - 1; kk >= 0; kk--) { var q0 = st.obs[kk];
+        if (q0[SPD] != null && (q0[DIR] != null || q0[VRB] || q0[SPD] === 0)) { w = q0; break; } }
+      if (w) {
+        var vrb = !!w[VRB];
+        now = arrowSVG(w[DIR], w[SPD], 30, st.s.color) + "<span>" + (w[SPD] === 0 ? "calm" : (vrb ? "VRB " : (w[DIR] != null ? Math.round(w[DIR]) + "° " : "")) + fW(w[SPD])) + "</span>" +
+          (w[GST] != null ? '<span class="g">G ' + Math.round(wU(w[GST])) + "</span>" : "") + "<small>" + (w[DIR] != null && w[SPD] ? dirName(w[DIR]) + " · " : "") + hm(lx(w[E], tz)) + "</small>";
+      }
+      var s1 = shiftText(st, 1), s3 = shiftText(st, 3), pk = peakRemark(st), ws = shifts(st);
+      var mxG = null; st.obs.forEach(function (q) { if (q[E] >= st.m0 && q[GST] != null && (!mxG || q[GST] > mxG.v)) mxG = { v: q[GST], e: q[E], dir: q[DIR] }; });
+      mm = '<div class="ln one"><span class="mu">change: 1 h ' + (s1 ? s1.txt : "–") + " · 3 h " + (s3 ? s3.txt : "–") + "</span></div>";
+      if (pk && (!mxG || pk.kt >= mxG.v)) mm += '<div class="ln one"><span class="gu">peak ' + pk.dir + "° " + fW(pk.kt) + "</span> <span class=\"mu\">" + hm(lx(pk.e, tz)) + " (PK WND)</span></div>";
+      else if (mxG) mm += '<div class="ln one"><span class="gu">max gust ' + fW(mxG.v) + "</span> <span class=\"mu\">" + hm(lx(mxG.e, tz)) + "</span></div>";
+      if (ws.length) mm += '<div class="ln one"><span class="mu">wind shift ' + ws.map(function (x) { return hm(lx(x.e, tz)) + (x.fropa ? " (front)" : ""); }).join(", ") + "</span></div>";
+    } else if (vr === "v" || vr === "c") {
+      var ix = vr === "v" ? VIS : CIG, f = vr === "v" ? fV : fG, o2 = null;
+      for (var k = st.obs.length - 1; k >= 0; k--) { if (vr === "c" || st.obs[k][VIS] != null) { o2 = st.obs[k]; if (!o2[REP] || vr === "c") break; } }
+      if (o2) now = f(o2[ix]) + "<small>" + hm(lx(o2[E], tz)) + "</small>";
+      var low = null; st.obs.forEach(function (q) { if (q[E] >= st.m0 && q[ix] != null && (!low || q[ix] < low.v)) low = { v: q[ix], e: q[E] }; });
+      mm = '<div class="ln one"><span class="lo">▼ lowest today ' + (low ? f(low.v) + '</span> <span class="mu">' + hm(lx(low.e, tz)) : "–") + "</span></div>";
     } else {
-      stale.style.display = "none";
+      var o3 = st.obs[st.obs.length - 1];
+      now = '<span style="font-size:.7em">' + (o3 && o3[WX] ? o3[WX] : "none") + "</span>" + (o3 ? "<small>" + hm(lx(o3[E], tz)) + "</small>" : "");
+      var seen = []; st.obs.forEach(function (q) { if (q[E] >= st.m0 && q[WX]) q[WX].split(/\s+/).forEach(function (c) { if (seen.indexOf(c) < 0) seen.push(c); }); });
+      mm = '<div class="ln one"><span class="mu">today: ' + (seen.length ? seen.slice(0, 6).join(" ") : "none") + "</span></div>";
     }
+    var lr = st.reports[st.reports.length - 1];
+    var bd = '<span class="bd' + (st.cad > 5 ? " hr" : "") + '">' + (st.cad > 5 ? "hourly" : "5-min") + "</span>" +
+      (lr ? ' <span class="bd' + (lr.type === "SPECI" ? " sp" : "") + '" title="' + lr.raw.replace(/"/g, "&quot;") + '">' + lr.type.toLowerCase() + " " + hShort(lx(lr.e, tz)) + "</span>" : "");
+    return { bd: bd, now: now, mm: mm };
   }
-
-  function render() {
-    if (!state.data || !state.data.stations) {
-      document.getElementById("subline").textContent = "Loading live observations…";
-      return;
-    }
-    document.getElementById("wuSeg").style.display = state.vr === "k" ? "" : "none";
-    buildSub();
-    buildCards();
-    buildChart();
-  }
-
-  function segWire(id, key, cb) {
-    var seg = document.getElementById(id);
-    seg.addEventListener("click", function (ev) {
-      var b = ev.target.closest("button");
-      if (!b) return;
-      seg.querySelectorAll("button").forEach(function (x) { x.classList.remove("on"); });
-      b.classList.add("on");
-      cb(b.dataset[key]);
+  function renderCards() {
+    STATIONS.forEach(function (s, i) {
+      var el = cardEls[i], st = state.data[i];
+      el.className = "ao-card" + (state.iso === i ? " sel" : (state.iso !== null ? " dim" : ""));
+      el.setAttribute("aria-pressed", state.iso === i ? "true" : "false");
+      if (!st) { el.querySelector(".now").innerHTML = '<small>loading…</small>'; return; }
+      var h = cardHTML(st);
+      el.querySelector(".bds").innerHTML = h.bd; el.querySelector(".now").innerHTML = h.now; el.querySelector(".mm").innerHTML = h.mm;
     });
   }
-  segWire("unitSeg", "u", function (u) { state.unit = u; render(); });
-  segWire("varSeg", "v", function (v) { state.vr = v; render(); });
-  segWire("allSeg", "a", function (a) { state.iso = null; if (a === "none") state.iso = -1; render(); });
-  segWire("wuSeg", "w", function (w) { state.wu = w; render(); });
 
-  // Precision overlay: the MADIS 0.1 °C 5-min feed the Action pushes to the
-  // asos5-data branch (raw.githubusercontent.com serves it CORS-open). Best-effort
-  // — if it's stale or unreachable the live NWS API already fully drives the page.
-  var BRANCH_URL = "https://raw.githubusercontent.com/scorvec/scorvec.github.io/asos5-data/asos5_latest.json";
+  // ---------------------------------------------------------------- chart
+  function Panel(id) {
+    var el = document.getElementById(id);
+    this.el = el; this.cv = el.querySelector(".ao-cv"); this.ov = el.querySelector(".ao-ov");
+    this.ctx = this.cv.getContext("2d"); this.octx = this.ov.getContext("2d"); this.spec = null; this.pts = [];
+  }
+  Panel.prototype.size = function () {
+    var r = this.el.getBoundingClientRect(), dpr = Math.min(window.devicePixelRatio || 1, 2);
+    this.w = r.width; this.h = r.height; this.dpr = dpr;
+    [this.cv, this.ov].forEach(function (c) { c.width = Math.round(r.width * dpr); c.height = Math.round(r.height * dpr); });
+  };
+  function niceStep(span, n) { var raw = span / n, p = Math.pow(10, Math.floor(Math.log10(raw))), f = raw / p;
+    return (f < 1.5 ? 1 : f < 3 ? 2 : f < 7 ? 5 : 10) * p; }
+  Panel.prototype.draw = function (spec) {
+    this.spec = spec; this.size();
+    var c = this.ctx, W = this.w, H = this.h, dpr = this.dpr;
+    c.setTransform(dpr, 0, 0, dpr, 0, 0); c.clearRect(0, 0, W, H);
+    var L = spec.left || 54, R = 12, Tp = 10, B = spec.bottom == null ? 34 : spec.bottom, pw = W - L - R, ph = H - Tp - B;
+    var x0 = spec.xr[0], x1 = spec.xr[1], y0 = spec.yr[0], y1 = spec.yr[1];
+    var sx = function (x) { return L + (x - x0) / (x1 - x0) * pw; }, sy = function (y) { return Tp + (1 - (y - y0) / (y1 - y0)) * ph; };
+    this.sx = sx; this.sy = sy; this.box = [L, Tp, pw, ph]; this.ix = function (px) { return x0 + (px - L) / pw * (x1 - x0); };
+    c.font = "13px " + getComputedStyle(document.body).fontFamily; c.textBaseline = "middle";
+    // y grid
+    c.strokeStyle = "#ecebe5"; c.lineWidth = 1; c.fillStyle = "#5f6660"; c.textAlign = "right";
+    (spec.yticks || []).forEach(function (t) { var y = Math.round(sy(t[0])) + 0.5; c.beginPath(); c.moveTo(L, y); c.lineTo(L + pw, y); c.stroke(); c.fillText(t[1], L - 6, y); });
+    // x grid: hours, local midnights
+    var stepH = [1, 2, 3, 6, 12].filter(function (h) { return pw / ((x1 - x0) / (h * 3600)) >= 64; })[0] || 12;
+    c.textAlign = "center";
+    for (var t = Math.ceil(x0 / (stepH * 3600)) * stepH * 3600; t <= x1; t += stepH * 3600) {
+      var x = Math.round(sx(t)) + 0.5, mid = t % 86400 === 0;
+      c.strokeStyle = mid ? "#c9a24a" : "#ecebe5"; c.setLineDash(mid ? [3, 3] : []); c.beginPath(); c.moveTo(x, Tp); c.lineTo(x, Tp + ph); c.stroke(); c.setLineDash([]);
+      if (B > 0) { c.fillStyle = mid ? "#7a5c1e" : "#5f6660"; var d = new Date(t * 1000);
+        c.fillText(mid ? DOW[d.getUTCDay()] + " " + d.getUTCDate() : hShort(t), x, Tp + ph + 15); }
+    }
+    c.save(); c.beginPath(); c.rect(L, Tp, pw, ph); c.clip();
+    (spec.under || []).forEach(function (f) { f(c, sx, sy); });
+    var pts = this.pts = [];
+    spec.series.forEach(function (S) {
+      var xs = S.x, ys = S.y, n = xs.length; if (!n) return;
+      c.globalAlpha = S.alpha == null ? 1 : S.alpha; c.strokeStyle = S.color; c.fillStyle = S.color; c.lineWidth = S.width || 1.5; c.lineJoin = "round";
+      if (S.mode !== "points") {
+        c.beginPath(); var pen = false, px = 0, py = 0;
+        for (var k = 0; k < n; k++) {
+          var yv = ys[k]; if (yv == null || isNaN(yv)) { pen = false; continue; }
+          var X = sx(xs[k]), Y = sy(yv);
+          if (S.gap && pen && xs[k] - xs[k - 1] > S.gap) pen = false;
+          if (!pen) { c.moveTo(X, Y); pen = true; } else if (S.mode === "step") { c.lineTo(X, py); c.lineTo(X, Y); } else c.lineTo(X, Y);
+          px = X; py = Y;
+        }
+        c.stroke();
+      }
+      var ms = S.marker || 0;
+      if (ms) for (var j = 0; j < n; j++) { var v = ys[j]; if (v == null || isNaN(v)) continue; var X2 = sx(xs[j]), Y2 = sy(v);
+        if (S.glyph === "plus") { c.beginPath(); c.moveTo(X2 - ms, Y2); c.lineTo(X2 + ms, Y2); c.moveTo(X2, Y2 - ms); c.lineTo(X2, Y2 + ms); c.stroke(); }
+        else { c.beginPath(); c.arc(X2, Y2, ms, 0, 6.283); c.fill(); } }
+      c.globalAlpha = 1;
+      if (S.hover !== false) for (var q = 0; q < n; q++) { var v2 = ys[q]; if (v2 == null || isNaN(v2)) continue; pts.push([sx(xs[q]), sy(v2), S, q]); }
+    });
+    (spec.over || []).forEach(function (f) { f(c, sx, sy, pts); });
+    c.restore();
+    c.strokeStyle = "#cfd3cc"; c.strokeRect(L + 0.5, Tp + 0.5, pw, ph);
+    if (spec.ylabel) { c.save(); c.translate(13, Tp + ph / 2); c.rotate(-Math.PI / 2); c.textAlign = "center"; c.fillStyle = "#5f6660"; c.fillText(spec.ylabel, 0, 0); c.restore(); }
+    pts.sort(function (a, b) { return a[0] - b[0]; });
+    this.clearOverlay();
+  };
+  Panel.prototype.clearOverlay = function () { var o = this.octx; o.setTransform(this.dpr, 0, 0, this.dpr, 0, 0); o.clearRect(0, 0, this.w, this.h); };
+  Panel.prototype.nearest = function (px, py) {        // binary search the x-sorted points, then scan +-28 px
+    var p = this.pts, lo = 0, hi = p.length - 1, best = null, bd = 900;
+    if (!p.length) return null;
+    while (lo < hi) { var mid = (lo + hi) >> 1; if (p[mid][0] < px - 28) lo = mid + 1; else hi = mid; }
+    for (var k = lo; k < p.length && p[k][0] <= px + 28; k++) { var dx = p[k][0] - px, dy = p[k][1] - py, d = dx * dx + dy * dy; if (d < bd) { bd = d; best = p[k]; } }
+    return best;
+  };
+  var P1, P2;
 
-  function fetchBranch() {
-    fetch(BRANCH_URL + "?ts=" + Date.now(), { cache: "no-store" })
-      .then(function (r) { if (!r.ok) throw 0; return r.json(); })
-      .then(function (j) { if (j && j.stations) { state.branch = j; rebuild(); } })
-      .catch(function () {});
+  function seriesFor(st, kind) {           // -> {x:[local secs], y:[...], extra}
+    var tz = st.s.tz, xs = [], ys = [], ex = [];
+    st.obs.forEach(function (o) {
+      var X = lx(o[E], tz), y = null;
+      if (kind === "t") y = o[T] == null ? null : cU(o[T]);
+      else if (kind === "d") y = o[D] == null ? null : cU(o[D]);
+      else if (kind === "spd") y = o[SPD] == null ? null : wU(o[SPD]);
+      else if (kind === "gst") y = o[GST] == null ? null : wU(o[GST]);
+      else if (kind === "dir") y = (o[DIR] == null || !o[SPD]) ? null : o[DIR];
+      else if (kind === "v") y = o[VIS] == null ? null : vU(o[VIS]);
+      else if (kind === "c") y = o[CIG] == null ? null : gU(o[CIG]);
+      else if (kind === "w") { var l = lane(o[WX]); y = l < 0 ? null : l; }
+      if ((kind === "t" || kind === "d" || kind === "spd" || kind === "gst" || kind === "dir" || kind === "w") && y == null) return;
+      xs.push(X); ys.push(y); ex.push(o);
+    });
+    return { x: xs, y: ys, o: ex };
   }
 
-  document.getElementById("subline").textContent = "Loading live observations…";
-  fetchIEM();                                  // primary: IEM obhistory (5-min rows + every METAR)
-  fetchBranch();                               // overlay: MADIS 0.1 °C precision when available
-  setInterval(fetchIEM, 2 * 60 * 1000);
-  setInterval(fetchBranch, 5 * 60 * 1000);
-  document.addEventListener("visibilitychange", function () { if (!document.hidden) fetchIEM(); });
+  function renderChart() {
+    var vr = state.vr, data = state.data.filter(Boolean);
+    if (!data.length) return;
+    var xmax = 0; data.forEach(function (st) { if (st.obs.length) xmax = Math.max(xmax, lx(st.obs[st.obs.length - 1][E], st.s.tz)); });
+    var xr = state.zoom || [xmax - state.spanH * 3600, xmax + 300];
+    var isoSt = state.iso != null && state.iso >= 0 ? state.data[state.iso] : null;
+    var series = [], ymin = Infinity, ymax = -Infinity, over = [];
+    var kinds = vr === "k" ? ["spd"] : [vr];
+    data.forEach(function (st) {
+      var faint = isoSt && st !== isoSt, me = isoSt && st === isoSt;
+      kinds.forEach(function (kd) {
+        var S = seriesFor(st, kd);
+        S.color = faint ? "#9aa19c" : st.s.color; S.alpha = faint ? 0.28 : 1; S.width = me ? 2.6 : (faint ? 1 : 1.5); S.st = st; S.kind = kd;
+        S.hover = !faint; S.gap = kd === "v" || kd === "c" ? 3 * 3600 : 2.2 * 3600;
+        if (vr === "v" || vr === "c") S.mode = "step";
+        if (vr === "w") { S.mode = "points"; S.marker = me ? 6 : 4.5; }
+        else S.marker = me ? 2.6 : 0;
+        series.push(S);
+        if (!faint || !isoSt) S.y.forEach(function (y, k) { if (y == null || S.x[k] < xr[0] || S.x[k] > xr[1]) return; if (y < ymin) ymin = y; if (y > ymax) ymax = y; });
+      });
+      if (vr === "k" && !faint) {
+        var G = seriesFor(st, "gst"); G.mode = "points"; G.glyph = "plus"; G.marker = me ? 4 : 3; G.color = st.s.color; G.width = 1.2; G.st = st; G.kind = "gst";
+        series.push(G); G.y.forEach(function (y, k) { if (G.x[k] >= xr[0] && G.x[k] <= xr[1] && y > ymax) ymax = y; });
+      }
+    });
+    if (!isFinite(ymin)) { ymin = 0; ymax = 1; }
+    var yr, yticks = [], ylabel, left = vr === "k" ? 66 : 58;
+    if (vr === "w") { yr = [-0.6, 7.6]; yticks = LANES.map(function (l, k) { return [k, l]; }); left = 96; ylabel = ""; }
+    else {
+      if (vr === "k" || vr === "v" || vr === "c") ymin = 0;
+      if (isoSt && vr === "t" && isoSt.day) { /* keep refs in range */ }
+      var pad = (ymax - ymin) * 0.06 || 1; yr = [ymin - (ymin === 0 ? 0 : pad), ymax + pad];
+      var st_ = niceStep(yr[1] - yr[0], 6); for (var t = Math.ceil(yr[0] / st_) * st_; t <= yr[1]; t += st_) yticks.push([t, (Math.abs(t) >= 1000 ? Math.round(t).toLocaleString() : +t.toFixed(2)) + ""]);
+      ylabel = { t: "Temperature °" + state.unit, d: "Dewpoint °" + state.unit, k: "Wind " + WUL[state.wu] + " (line sustained, + gusts)",
+        v: "Visibility " + (state.unit === "F" ? "mi" : "km"), c: "Ceiling " + (state.unit === "F" ? "ft" : "m") + " AGL (gaps = none)" }[vr];
+    }
+    if (isoSt) over = overlays(isoSt, vr);
+    P1.draw({ xr: xr, yr: yr, yticks: yticks, ylabel: ylabel, left: left, series: series, over: over });
+    // direction panel
+    if (vr === "k") {
+      P2.el.hidden = false;
+      var ds = [];
+      data.forEach(function (st) {
+        var faint = isoSt && st !== isoSt, me = isoSt && st === isoSt;
+        var S = seriesFor(st, "dir"); S.mode = "points"; S.marker = me ? 3.6 : (faint ? 1.6 : 2.4); S.color = faint ? "#9aa19c" : st.s.color; S.alpha = faint ? 0.3 : 0.9;
+        S.hover = !faint; S.st = st; S.kind = "dir"; ds.push(S);
+      });
+      var dunder = [];
+      if (isoSt) dunder.push(function (c, sx, sy) {          // dddVddd variable ranges as bars
+        c.strokeStyle = isoSt.s.color; c.globalAlpha = 0.35; c.lineWidth = 3;
+        isoSt.obs.forEach(function (o) { if (o[VLO] == null) return; var X = sx(lx(o[E], isoSt.s.tz)), a = o[VLO], b = o[VHI];
+          var seg = function (p, q) { c.beginPath(); c.moveTo(X, sy(p)); c.lineTo(X, sy(q)); c.stroke(); };
+          if (b >= a) seg(a, b); else { seg(a, 360); seg(0, b); } });
+        c.globalAlpha = 1;
+      });
+      P2.draw({ xr: xr, yr: [-8, 368], left: left, bottom: 26, ylabel: "Direction (from)", under: dunder,
+        yticks: [[0, "N 0°"], [90, "E 90°"], [180, "S 180°"], [270, "W 270°"], [360, "N 360°"]], series: ds });
+    } else P2.el.hidden = true;
+  }
+
+  function overlays(st, vr) {
+    var tz = st.s.tz, out = [];
+    // official reports as open diamonds (orange = SPECI)
+    out.push(function (c, sx, sy, pts) {
+      st.reports.forEach(function (r) {
+        var mv = metarVals(r.raw), y = null;
+        if (vr === "t") y = mv.t == null ? null : cU(mv.t); else if (vr === "d") y = mv.d == null ? null : cU(mv.d);
+        else if (vr === "k") y = mv.spd == null ? null : wU(mv.spd); else if (vr === "v") y = mv.vis == null ? null : vU(mv.vis);
+        else if (vr === "c") y = mv.cig == null ? null : gU(mv.cig); else { var l = lane(mv.wx); y = l < 0 ? null : l; }
+        if (y == null) return;
+        var X = sx(lx(r.e, tz)), Y = sy(y), z = 5.5;
+        c.strokeStyle = r.type === "SPECI" ? "#d0681e" : "#7d8079"; c.lineWidth = 1.6;
+        c.beginPath(); c.moveTo(X, Y - z); c.lineTo(X + z, Y); c.lineTo(X, Y + z); c.lineTo(X - z, Y); c.closePath(); c.stroke();
+        pts.push([X, Y, { rep: r, st: st }, 0]);
+      });
+    });
+    if (vr === "t") out.push(function (c, sx, sy, pts) {
+      // today's max/min markers (filled = sampled; open at window end = official 6-h group) and window reference lines
+      var tri = function (X, Y, up, fill) { c.beginPath(); if (up) { c.moveTo(X, Y - 7); c.lineTo(X + 6.5, Y + 4.5); c.lineTo(X - 6.5, Y + 4.5); }
+        else { c.moveTo(X, Y + 7); c.lineTo(X + 6.5, Y - 4.5); c.lineTo(X - 6.5, Y - 4.5); } c.closePath(); if (fill) c.fill(); c.stroke(); };
+      c.fillStyle = st.s.color; c.strokeStyle = st.s.color; c.lineWidth = 2;
+      [["hi", true], ["lo", false]].forEach(function (k) { var x = st.abs[k[0]]; if (!x) return;
+        var e = x.e != null ? x.e : x.win[1]; tri(sx(lx(e, tz)), sy(cU(x.v)), k[1], x.e != null);
+        pts.push([sx(lx(e, tz)), sy(cU(x.v)), { ext: k[0], x: x }, 0]); });
+      if (st.day) {
+        c.setLineDash([6, 4]); c.lineWidth = 1.2; c.strokeStyle = st.s.color; c.globalAlpha = 0.7;
+        [st.day.max, st.day.min].forEach(function (v, k) { var Y = sy(cU(v)); c.beginPath(); c.moveTo(0, Y); c.lineTo(4000, Y); c.stroke();
+          c.globalAlpha = 1; c.fillStyle = "#1d211b"; c.textAlign = "left"; c.font = "12.5px " + getComputedStyle(document.body).fontFamily;
+          c.fillText("yesterday " + (k ? "low " : "high ") + fT(v) + state.unit + " (official)", 62, Y + (k ? 10 : -9)); c.globalAlpha = 0.7; });
+        c.setLineDash([]); c.globalAlpha = 1;
+      }
+    });
+    if (vr === "k") out.push(function (c, sx, sy) {
+      // wind barbs along the top, every ~44 px
+      var lastX = -1e9; c.strokeStyle = "#273036"; c.fillStyle = "#273036"; c.lineWidth = 1.3;
+      st.obs.forEach(function (o) { if (o[SPD] == null) return; var X = sx(lx(o[E], tz)); if (X - lastX < 44) return; lastX = X; drawBarb(c, X, 30, o[DIR], o[SPD]); });
+    });
+    return out;
+  }
+  function drawBarb(c, X, Y, dir, kt) {
+    kt = Math.round(kt / 5) * 5;
+    if (kt < 5 || dir == null) { c.beginPath(); c.arc(X, Y, 4, 0, 6.283); c.stroke(); return; }
+    c.save(); c.translate(X, Y); c.rotate(dir * Math.PI / 180);
+    c.beginPath(); c.moveTo(0, 0); c.lineTo(0, -22); c.stroke();
+    var y = -22, n50 = Math.floor(kt / 50), rem = kt - n50 * 50, n10 = Math.floor(rem / 10), n5 = rem % 10 >= 5;
+    for (var i = 0; i < n50; i++) { c.beginPath(); c.moveTo(0, y); c.lineTo(9, y + 2); c.lineTo(0, y + 5); c.closePath(); c.fill(); y += 6; }
+    for (i = 0; i < n10; i++) { c.beginPath(); c.moveTo(0, y); c.lineTo(9, y - 4); c.stroke(); y += 4; }
+    if (n5) { if (kt < 10) y += 4; c.beginPath(); c.moveTo(0, y); c.lineTo(5, y - 2.2); c.stroke(); }
+    c.restore();
+  }
+
+  // ---------------------------------------------------------------- hover + zoom
+  var tip = document.getElementById("tip");
+  function tipFor(hit) {
+    var S = hit[2], q = hit[3];
+    if (S.rep) { var r = S.rep; return "<b>" + S.st.s.id + " " + r.type + "</b> · " + hm(lx(r.e, S.st.s.tz)) + "<br><code>" + r.raw.replace(/</g, "&lt;") + "</code>"; }
+    if (S.ext) { var x = S.x; return "<b>Today's " + (S.ext === "hi" ? "high" : "low") + "</b> " + fT(x.v) + state.unit + (x.e != null ? " (sampled)" : " (official 6-hour group)"); }
+    var st = S.st, o = S.o[q], tz = st.s.tz, when = hm(lx(o[E], tz)) + " " + md(lx(o[E], tz));
+    var head = "<b style=\"color:" + st.s.color + "\">" + st.s.id + "</b> " + when + (o[REP] ? " <span style=\"color:#7d8079\">(report)</span>" : "") + "<br>";
+    var wind = o[SPD] == null ? "" : (o[SPD] === 0 ? "calm" : (o[DIR] != null ? Math.round(o[DIR]) + "° " + dirName(o[DIR]) + " " : (o[VRB] ? "variable " : "")) + fW(o[SPD]) +
+      (o[GST] != null ? " gusting " + fW(o[GST]) : "") + (o[VLO] != null ? " (varying " + o[VLO] + "°–" + o[VHI] + "°)" : ""));
+    var t = o[T] != null ? fT(o[T]) + state.unit : "", d = o[D] != null ? " / dew " + fT(o[D]) + state.unit : "";
+    var extra = [wind, o[VIS] != null ? "vis " + fV(o[VIS]) : "", o[CIG] != null ? "ceiling " + fG(o[CIG]) : "", o[WX] || ""].filter(Boolean).join(" · ");
+    return head + (t + d ? t + d + "<br>" : "") + extra;
+  }
+  function attach(P) {
+    var drag = null;
+    function rel(ev) { var r = P.ov.getBoundingClientRect(); return [ev.clientX - r.left, ev.clientY - r.top]; }
+    function hoverAt(ev) {
+      if (!P.spec) return; var p = rel(ev), o = P.octx;
+      P.clearOverlay(); [P1, P2].forEach(function (Q) { if (Q !== P && Q.spec && !Q.el.hidden) Q.clearOverlay(); });
+      var b = P.box;
+      if (drag) { o.fillStyle = "rgba(39,75,122,0.12)"; o.fillRect(Math.min(drag, p[0]), b[1], Math.abs(p[0] - drag), b[3]); return; }
+      // shared crosshair on both panels
+      [P1, P2].forEach(function (Q) { if (!Q.spec || Q.el.hidden) return; var x = p[0], qo = Q.octx; qo.strokeStyle = "#b8bcb4"; qo.setLineDash([3, 3]);
+        qo.beginPath(); qo.moveTo(x + 0.5, Q.box[1]); qo.lineTo(x + 0.5, Q.box[1] + Q.box[3]); qo.stroke(); qo.setLineDash([]); });
+      var hit = P.nearest(p[0], p[1]);
+      if (!hit) { tip.hidden = true; return; }
+      o.beginPath(); o.arc(hit[0], hit[1], 5, 0, 6.283); o.strokeStyle = "#1d211b"; o.lineWidth = 1.5; o.stroke();
+      tip.innerHTML = tipFor(hit); tip.hidden = false;
+      var host = tip.parentElement.getBoundingClientRect(), pr = P.ov.getBoundingClientRect();
+      var tx = pr.left - host.left + hit[0] + 14, ty = pr.top - host.top + hit[1] + 12;
+      if (tx + tip.offsetWidth > host.width - 6) tx = pr.left - host.left + hit[0] - tip.offsetWidth - 14;
+      tip.style.left = Math.max(4, tx) + "px"; tip.style.top = ty + "px";
+    }
+    P.ov.addEventListener("pointermove", hoverAt);
+    P.ov.addEventListener("pointerleave", function () { tip.hidden = true; P.clearOverlay(); drag = null; });
+    P.ov.addEventListener("pointerdown", function (ev) { if (ev.pointerType === "mouse" && ev.button === 0) drag = rel(ev)[0]; else hoverAt(ev); });
+    P.ov.addEventListener("pointerup", function (ev) {
+      if (drag == null) return; var x2 = rel(ev)[0], a = Math.min(drag, x2), b = Math.max(drag, x2); drag = null;
+      if (b - a > 12) { state.zoom = [P.ix(a), P.ix(b)]; renderChart(); }
+    });
+    P.ov.addEventListener("dblclick", function () { state.zoom = null; renderChart(); });
+  }
+
+  // ---------------------------------------------------------------- isolated-station detail (wind)
+  function renderDetail() {
+    var box = document.getElementById("detail");
+    var st = state.iso != null && state.iso >= 0 ? state.data[state.iso] : null;
+    if (!st || state.vr !== "k") { box.hidden = true; return; }
+    box.hidden = false;
+    var tz = st.s.tz, e1 = st.obs.length ? st.obs[st.obs.length - 1][E] : nowS();
+    var m24 = vecMean(st.obs, e1 - 86400, e1), mT = vecMean(st.obs, st.m0, e1);
+    var pk = peakRemark(st), ws = shifts(st), s1 = shiftText(st, 1), s3 = shiftText(st, 3);
+    var calm = 0, tot = 0; st.obs.forEach(function (o) { if (o[E] < e1 - 86400 || o[SPD] == null) return; tot++; if (o[SPD] < 3) calm++; });
+    var li = [];
+    if (m24) li.push("Last 24 h: prevailing (vector mean) <b>" + Math.round(m24.dir) + "° " + dirName(m24.dir) + "</b>, mean speed " + fW(m24.spd) +
+      ", steadiness " + Math.round(m24.steady * 100) + "% <span class=\"mu\">(100% = always the same direction)</span>");
+    if (mT) li.push("Since midnight: " + Math.round(mT.dir) + "° " + dirName(mT.dir) + ", " + fW(mT.spd));
+    li.push("Change: last hour " + (s1 ? s1.txt : "–") + ", last 3 hours " + (s3 ? s3.txt : "–"));
+    if (tot) li.push("Calm or under 3 kt " + Math.round(calm / tot * 100) + "% of the last 24 h");
+    if (pk) li.push("Peak wind today (METAR remark): <b>" + pk.dir + "° " + dirName(pk.dir) + " " + fW(pk.kt) + "</b> at " + hm(lx(pk.e, tz)));
+    if (ws.length) li.push("Wind shift reported at " + ws.map(function (x) { return hm(lx(x.e, tz)) + (x.fropa ? " (frontal passage)" : ""); }).join(", "));
+    box.innerHTML = '<canvas width="220" height="220" style="width:220px;height:220px" aria-label="Wind rose, last 24 hours"></canvas><div class="tx"><h3>' + st.s.id +
+      " wind, last 24 hours</h3><ul><li>" + li.join("</li><li>") + "</li></ul><p class=\"mu\" style=\"margin-top:.4rem;font-size:.88rem\">Rose: share of observations by the direction the wind came from (16 sectors), " +
+      "shaded by speed (light under 10 kt, mid 10–20, dark over 20).</p></div>";
+    drawRose(box.querySelector("canvas"), st, e1 - 86400, e1);
+  }
+  function drawRose(cv, st, e0, e1) {
+    var dpr = Math.min(window.devicePixelRatio || 1, 2), W = 220; cv.width = W * dpr; cv.height = W * dpr;
+    var c = cv.getContext("2d"); c.setTransform(dpr, 0, 0, dpr, 0, 0);
+    var bins = []; for (var i = 0; i < 16; i++) bins.push([0, 0, 0]);
+    var n = 0; st.obs.forEach(function (o) { if (o[E] < e0 || o[E] > e1 || o[SPD] == null) return; n++; if (o[DIR] == null || o[SPD] < 3) return;
+      var k = Math.round(o[DIR] / 22.5) % 16, cls = o[SPD] < 10 ? 0 : o[SPD] < 20 ? 1 : 2; bins[k][cls]++; });
+    var mx = 0; bins.forEach(function (b) { mx = Math.max(mx, b[0] + b[1] + b[2]); });
+    var cx = W / 2, cy = W / 2, R = 92; c.strokeStyle = "#e3e5df"; c.fillStyle = "#5f6660"; c.font = "12px sans-serif"; c.textAlign = "center"; c.textBaseline = "middle";
+    [0.33, 0.66, 1].forEach(function (f) { c.beginPath(); c.arc(cx, cy, R * f, 0, 6.283); c.stroke(); });
+    [["N", 0], ["E", 90], ["S", 180], ["W", 270]].forEach(function (p) { var a = (p[1] - 90) * Math.PI / 180; c.fillText(p[0], cx + Math.cos(a) * (R + 10), cy + Math.sin(a) * (R + 10)); });
+    if (!mx) return;
+    var cols = ["#a9c4e3", "#4f80b8", "#1d3f6e"];
+    bins.forEach(function (b, k) {
+      var a0 = (k * 22.5 - 90 - 9) * Math.PI / 180, a1 = (k * 22.5 - 90 + 9) * Math.PI / 180, r0 = 0;
+      b.forEach(function (v, j) { if (!v) return; var r1 = r0 + v / mx * R;
+        c.beginPath(); c.arc(cx, cy, r1, a0, a1); c.arc(cx, cy, r0, a1, a0, true); c.closePath(); c.fillStyle = cols[j]; c.fill(); r0 = r1; });
+    });
+    c.fillStyle = "#5f6660"; c.fillText(Math.round(mx / n * 100) + "%", cx + R * 0.7, cy - R * 0.72);
+  }
+
+  // ---------------------------------------------------------------- page text
+  function renderText() {
+    var data = state.data.filter(Boolean), newest = 0;
+    data.forEach(function (st) { if (st.obs.length) newest = Math.max(newest, st.obs[st.obs.length - 1][E]); });
+    var asof = newest ? new Date(newest * 1000).toLocaleTimeString([], { hour: "numeric", minute: "2-digit", timeZoneName: "short" }) : "–";
+    document.getElementById("subline").innerHTML = "Live five-minute ASOS observations from <b>22 major US airports</b>, plotted on each station&rsquo;s " +
+      "local clock so today lines up against yesterday. Cards show the latest reading, today&rsquo;s extremes and, for wind, the direction and how it has turned. " +
+      "Latest observation <b>" + asof + "</b>" + (state.cached ? " (from your last visit; updating&hellip;)" : "") + " &middot; " + data.length + " of 22 stations loaded &middot; refreshes every 2 minutes.";
+    var stale = document.getElementById("stale");
+    if (state.failed >= 6) { stale.hidden = false; stale.textContent = state.failed + " stations could not be reached just now; they will be retried in two minutes."; }
+    else stale.hidden = true;
+    var vr = state.vr, iso = state.iso != null && state.iso >= 0;
+    document.getElementById("ctitle").textContent = { t: "Temperature", d: "Dewpoint", k: "Wind speed, gusts and direction", v: "Visibility", c: "Cloud ceiling", w: "Present weather" }[vr] +
+      " — last " + (state.zoom ? "(zoomed)" : state.spanH + " hours");
+    document.getElementById("ckey").innerHTML = (vr === "k" ? "Top: sustained wind (line) and gusts (+); bottom: the direction the wind blows <i>from</i>, one dot per observation. " : "") +
+      (vr === "w" ? "Each dot is an observation with weather, on the lane of its most significant type. " : "") +
+      (iso ? (vr === "t" ? "▲▼ today’s high and low (open = from the official 6-hour group); dashed = yesterday’s official 24-hour max/min. " : "") +
+        (vr === "k" ? "Barbs along the top; bars on the direction panel = reported variable range. " : "") + "◇ official reports (orange = SPECI)." : "Tap a card to isolate a station for its reports, extremes" + (vr === "k" ? ", wind barbs and a wind rose." : "."));
+  }
+
+  // ---------------------------------------------------------------- render loop
+  var pending = false;
+  function schedule() { if (pending) return; pending = true; requestAnimationFrame(function () { pending = false; render(); }); }
+  function render() {
+    state.data = STATIONS.map(build);
+    document.getElementById("wuSeg").hidden = state.vr !== "k";
+    renderText(); renderCards(); renderDetail(); renderChart();
+  }
+  function seg(id, key, cb) {
+    var el = document.getElementById(id);
+    el.addEventListener("click", function (ev) { var b = ev.target.closest("button"); if (!b) return;
+      el.querySelectorAll("button").forEach(function (x) { x.classList.toggle("on", x === b); x.setAttribute("aria-pressed", x === b ? "true" : "false"); });
+      cb(b.dataset[key]); });
+  }
+  seg("varSeg", "v", function (v) { state.vr = v; state.zoom = null; render(); });
+  seg("unitSeg", "u", function (u) { state.unit = u; render(); });
+  seg("wuSeg", "w", function (w) { state.wu = w; render(); });
+  seg("spanSeg", "h", function (h) { state.spanH = +h; state.zoom = null; renderText(); renderChart(); });
+  document.addEventListener("keydown", function (ev) { if (ev.key === "Escape" && state.iso !== null) { state.iso = null; render(); } });
+  var rz; window.addEventListener("resize", function () { clearTimeout(rz); rz = setTimeout(function () { renderChart(); }, 120); });
+
+  window.__asos5 = state;                       // console inspection
+  P1 = new Panel("p1"); P2 = new Panel("p2"); attach(P1); attach(P2); initCards();
+  // instant first paint from the last visit, then the live refresh
+  STATIONS.forEach(function (s) {
+    var n = nowS(), today = ymd(lx(n, s.tz)), yday = ymd(lx(n - 86400, s.tz)), t = lsGet("today." + s.id), y = lsGet(s.id + "." + yday);
+    var mem = dayPacks[s.id] = {}; if (y) mem[yday] = y;
+    var tp = t && t.d === today ? t.p : (t && t.d === yday ? null : null);
+    if (y || tp) { var p = combine(y, tp); p.src = "cache"; p.cad = p.nAuto >= 6 ? 5 : 60; state.live[s.id] = p; state.cached = true; }
+  });
+  if (state.cached) render(); else { state.data = STATIONS.map(function () { return null; }); renderText(); renderCards(); }
+  refreshAll();
+  setTimeout(fetchBranch, 1500);
+  setInterval(function () { if (!document.hidden) refreshAll(); }, 120000);
+  setInterval(function () { if (!document.hidden) fetchBranch(); }, 300000);
+  document.addEventListener("visibilitychange", function () { if (!document.hidden) refreshAll(); });
 })();
 </script>
 <!-- sf:start -->

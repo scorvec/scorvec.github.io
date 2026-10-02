@@ -214,10 +214,7 @@ PAGES = [
         ("padding: 7.2rem 2.5rem 5rem;", "padding: 2.5rem 2.5rem 5rem;"),
         ("main { padding: 6.3rem 1rem 3rem; max-width: 100%; }", "main { padding: 1.5rem 1rem 3rem; max-width: 100%; }"),
     ]),
-    dict(path="asos5.html", mode="site-header", fixes=[
-        ("padding: 6.2rem 2rem 3rem;", "padding: 2rem 2rem 3rem;"),
-        ("main { padding: 5.4rem 0.8rem 2rem; }", "main { padding: 1.2rem 0.8rem 2rem; }"),
-    ]),
+    dict(path="asos5.html", mode="site-header"),        # v3 (2026-10-02) has no fixed-header padding to undo
     dict(path="sfs.html", mode="nav"),
     dict(path="ar.html", mode="after-body"),
     dict(path="models.html", mode="after-body"),                   # short-range model viewer (scripts/models, models*.yml), WebGL data page
