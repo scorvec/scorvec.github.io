@@ -34,15 +34,16 @@
   nav a.back { font-size: 0.9rem; letter-spacing: 0.05em; color: var(--muted); text-decoration: none; }
   nav a.back:hover { color: var(--accent); }
 
-  .wrap { max-width: 112ch; margin: 0 auto; padding: 2.5rem 1.3rem 5rem; }
-  .eyebrow { font-size: 0.76rem; letter-spacing: 0.16em; text-transform: uppercase;
+  .wrap { font-size: clamp(1.06rem, 0.78rem + 0.5vw, 1.35rem); max-width: 112ch; margin: 0 auto; padding: 2.5rem 1.3rem 5rem; }
+  .wrap .lede { font-size: 1.06em; }   /* beats site.css "html .lede" (rem) */
+  .eyebrow { font-size: 0.76em; letter-spacing: 0.16em; text-transform: uppercase;
              color: var(--accent); margin-bottom: 0.6rem; }
   h1 { font-family: var(--serif); font-weight: 600; font-size: clamp(1.9rem, 4.5vw, 2.7rem);
        line-height: 1.15; text-wrap: balance; margin-bottom: 0.7rem; }
-  .lede { font-size: 1.06rem; color: #c3c3d4; margin-bottom: 1.2rem; }
-  h2 { font-family: var(--serif); font-weight: 600; font-size: 1.5rem; margin: 2.8rem 0 0.8rem;
+  .lede { font-size: 1.06em; color: #c3c3d4; margin-bottom: 1.2rem; }
+  h2 { font-family: var(--serif); font-weight: 600; font-size: 1.5em; margin: 2.8rem 0 0.8rem;
        padding-top: 1.4rem; border-top: 1px solid var(--rule); text-wrap: balance; }
-  h3 { font-family: var(--serif); font-weight: 500; font-size: 1.15rem; margin: 1.7rem 0 0.5rem;
+  h3 { font-family: var(--serif); font-weight: 500; font-size: 1.15em; margin: 1.7rem 0 0.5rem;
        color: #dcdce8; }
   p { margin-bottom: 0.95rem; }
   strong { color: #fff; font-weight: 600; }
@@ -53,16 +54,16 @@
          background: #191926; padding: 1px 5px; border-radius: 4px; color: #b9d9ff; }
 
   .table-wrap { overflow-x: auto; margin: 1rem 0 1.4rem; }
-  table { border-collapse: collapse; width: 100%; font-size: 0.88rem; min-width: 420px; }
+  table { border-collapse: collapse; width: 100%; font-size: 0.88em; min-width: 420px; }
   th, td { text-align: left; padding: 7px 11px; border-bottom: 1px solid var(--rule);
            vertical-align: top; }
-  th { color: var(--muted); font-weight: 600; font-size: 0.78rem;
+  th { color: var(--muted); font-weight: 600; font-size: 0.78em;
        letter-spacing: 0.05em; text-transform: uppercase; }
   td:first-child { white-space: nowrap; }
 
   .callout { background: var(--panel); border-left: 3px solid var(--accent);
              border-radius: 0 8px 8px 0; padding: 0.9rem 1.1rem; margin: 1.3rem 0;
-             font-size: 0.94rem; }
+             font-size: 0.94em; }
   .callout b { color: #fff; }
   footer { max-width: 112ch; margin: 0 auto; padding: 1.5rem 1.3rem 3rem;
            color: var(--muted); font-size: 0.8rem; border-top: 1px solid var(--rule); }
