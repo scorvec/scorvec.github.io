@@ -1104,10 +1104,14 @@ function spcProfile(text) {
     `${tm[2].slice(0, 2)}:00` : "";
   return { prof: o, valid, src: "SPC real-time" };
 }
-async function fetchSPC(wmo) {
+// SPC files a few sites under an id that is not the ICAO minus its K (checked 2026-10-02: Albany is ALB at SPC,
+// KALY at IEM; Key West is KEY at SPC, KEYW at IEM). iem_raob.json now holds the ONLINE IEM code for each WMO
+// number - it used to hold whichever of several historical codes came last (Albany KRME, retired 1955).
+const SPC_ID = { "72518": "ALB", "72201": "KEY" };
+async function fetchSPCRaw(wmo) {
   const icao = iemMap && iemMap[wmo];
   if (!icao || icao[0] !== "K") return null;         // SPC OBS = US sites
-  const id3 = icao.slice(1);
+  const id3 = SPC_ID[wmo] || icao.slice(1);
   for (const s of synopticSlots()) {
     const stamp = String(s.y).slice(2) + p2(s.mo) + p2(s.d) + p2(s.hh);
     try {
@@ -1142,7 +1146,7 @@ function iemProfile(j) {
   return { prof: o, valid: (pr.valid || "").slice(0, 16).replace("T", " "),
            src: "IEM real-time" };
 }
-async function fetchIEM(wmo) {
+async function fetchIEMRaw(wmo) {
   const icao = iemMap && iemMap[wmo];
   if (!icao) return null;
   for (const s of synopticSlots()) {
@@ -1155,6 +1159,24 @@ async function fetchIEM(wmo) {
     } catch (e) { /* older slot */ }
   }
   return null;
+}
+// Real-time fetches are memoised for 5 minutes (2026-10-02): SPC walks back slot by slot (a 404 per missing
+// slot), so a hover prefetch or a re-open would otherwise pay the whole walk again.
+const rtMemo = new Map();
+function memoRT(kind, wmo, fn) {
+  const k = kind + wmo, hit = rtMemo.get(k);
+  if (hit && Date.now() - hit.t < 300000) return hit.p;
+  const pr = fn(wmo).catch(() => null);
+  rtMemo.set(k, { t: Date.now(), p: pr });
+  return pr;
+}
+const fetchSPC = wmo => memoRT("spc", wmo, fetchSPCRaw);
+const fetchIEM = wmo => memoRT("iem", wmo, fetchIEMRaw);
+function prefetchLatest(id) {                 // warm whatever loadSounding() will ask for first
+  if (mode !== "latest" || !id) return;
+  if (iemMap && iemMap[id]) { fetchSPC(id).then(g => g || fetchIEM(id)); return; }
+  const s = entries[id];
+  if (s && s.dt) ghFetch("skewt-data", "soundings/" + id + ".csv", s.dt).catch(() => {});
 }
 const IGRA = "https://www.ncei.noaa.gov/data/integrated-global-radiosonde-archive/access/";
 const UW_ARCHIVE = "https://raw.githubusercontent.com/scorvec/scorvec.github.io/skewt-archive/";
@@ -1240,8 +1262,12 @@ addEventListener("keydown", e => {
   if (typeof climoModal !== "undefined" && !climoModal.hidden) { climoModal.hidden = true; return; }
   closeModal();
 });
-L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
-  { attribution: "&copy; OpenStreetMap", maxZoom: 10 }).addTo(map);
+// dark basemap to match the app (2026-10-02). Esri's Dark Gray Canvas needs no key (CARTO's dark tiles now
+// stamp "API KEY REQUIRED"); the reference layer adds place names above the station dots' pane.
+const ESRI = "https://services.arcgisonline.com/arcgis/rest/services/Canvas/";
+L.tileLayer(ESRI + "World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}",
+  { attribution: "Tiles &copy; Esri &mdash; Esri, HERE, Garmin, &copy; OpenStreetMap contributors", maxZoom: 10 }).addTo(map);
+L.tileLayer(ESRI + "World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}", { maxZoom: 10, opacity: 0.85 }).addTo(map);
 
 const closedLayer = L.layerGroup();          // stations with no data since 2024
 const ACTIVE_YEAR = new Date().getUTCFullYear() - 1;   // "active" = reported within ~a year
@@ -1344,7 +1370,7 @@ Promise.all([
     const off = isOffHour(s.dt);                         // 06Z / 18Z special release
     const m = L.circleMarker([s.la, s.lo], {
       radius: off ? RAD.live + 1 : RAD.live, weight: 1.5,
-      color: off ? "#7a3fa0" : "#1d3a5e",
+      color: off ? "#e3c2ff" : "#cfe3ff",
       fillColor: off ? "#bf5af2" : "#4a7ab5", fillOpacity: 0.95,
     }).addTo(map);
     const arch = ig ? ` · archive ${ig.y0}–${ig.y1}` : "";
@@ -1357,6 +1383,7 @@ Promise.all([
       : "";
     m.bindTooltip(`${s.n || id} (${id}) · latest ${s.dt}Z ` +
       `(${Math.round(ageHours(s.dt))} h ago)${offTip}${arch}${anomTip}`);
+    if (!COARSE) m.on("mouseover", () => prefetchLatest(id));
     m.on("click", () => {
       highlight(m);   // respects the current Latest/Archive mode + chosen date
       selectStation({ gid: byWmo[id], id, n: s.n, e: (igraStations[byWmo[id]] || {}).e || 0 });
@@ -2911,26 +2938,32 @@ function fitCanvas(cv) {                    // backing store = panel size × dpr
   }
   return { W: cv.width, H: cv.height, ctx };
 }
-// The CSS size a plot should draw at. Desktop: both plots are laid out from
-// the space .main offers — the tallest pair of design-aspect rectangles that
-// fits its height AND width — and get explicit CSS sizes so their panels hug
-// them (auto grid columns, centred as a pair). Mobile: the stacked CSS pins
-// each canvas to width 100% at its aspect, so the box itself is right.
+// The CSS size a plot should draw at (v3, 2026-10-02). Desktop: the skew-T fills its panel (the left grid column,
+// full card height) at its design aspect; the hodograph fills the right column's width at its aspect, capped at
+// ~half the card height so the key numbers and tables keep room. Mobile: the stacked CSS pins each canvas to
+// width 100% at its aspect, so the box itself is right.
 function plotBox(cv) {
+  if (!cv || !cv.isConnected || !cv.parentElement) return { w: 0, h: 0 };
   const R = PLOT_ASPECT[cv.id], main = cv.closest(".main");
   if (R && main && !MOBILE_MQ.matches) {
-    const body = main.parentElement, side = body && body.classList.contains("side");
-    // side mode: .main is centred (not stretched), so its own height follows the
-    // plots — measure the body, or a redraw would shrink the plots each pass
-    const availH = (side ? body.clientHeight : main.clientHeight) - 18;
-    // side mode: .main hugs its plots, so the width on offer is the body minus
-    // the tables column (fitLayoutCore sets --tables-w) and the gap between them
-    const availW = side
-      ? body.clientWidth - (parseFloat(body.style.getPropertyValue("--tables-w")) || 320) - SIDE_GAP - 12 - 36
-      : main.clientWidth - 12 - 36;
-    if (availH <= 0 || availW <= 0) return { w: 0, h: 0 };   // modal hidden: leave the size alone
-    const H = Math.min(availH, availW / (PLOT_ASPECT.skewt + PLOT_ASPECT.hodo));
-    const w = Math.floor(H * R), h = Math.floor(H);
+    const panel = cv.parentElement, cs = getComputedStyle(panel);
+    const padX = parseFloat(cs.paddingLeft) + parseFloat(cs.paddingRight) + 2;
+    const padY = parseFloat(cs.paddingTop) + parseFloat(cs.paddingBottom) + 2;
+    let aw = panel.clientWidth - padX, ah;
+    if (cv.id === "hodo") {                 // beside the key-number chips: ~60 % of the column, at most half the card,
+      const rc = cv.closest(".rcol");       // and never so tall that the tables lose their ~250 px
+      // beside the chips when the column is wide enough for both, above them when it is not; the right column
+      // scrolls, so on a short screen the hodograph keeps a usable size and the tables simply come further down
+      const cw = rc ? rc.clientWidth - 4 : 400, narrow = cw < 480, top = cv.closest(".rtop");
+      if (top) top.classList.toggle("narrow", narrow);
+      aw = (narrow ? Math.min(cw, 460) : cw * 0.58) - padX;
+      ah = Math.max(220, Math.min(main.clientHeight * 0.52, 560)) - padY;
+    }
+    else ah = main.clientHeight - padY;
+    if (aw <= 0 || ah <= 0) return { w: 0, h: 0 };          // modal hidden: leave the size alone
+    let w = aw, h = aw / R;
+    if (h > ah) { h = ah; w = ah * R; }
+    w = Math.floor(w); h = Math.floor(h);
     cv.style.width = w + "px"; cv.style.height = h + "px";
     return { w, h };
   }
@@ -3893,6 +3926,33 @@ function fillTables(prof, res) {
            "intensification, ≳25 kt ventilates and tilts the core") : "—"],
   ];
 
+  // ---- key numbers (v3): the handful a forecaster looks at first, above the full tables ----
+  (() => {
+    const num = v => v !== MISSING && isFinite(v);
+    const chip = (label, val, unit, cls, title) =>
+      `<div class="kchip${cls ? " " + cls : ""}"${title ? ` title="${title}"` : ""}><span class="kl">${label}</span>` +
+      `<span class="kv">${val}${unit ? `<small>${unit}</small>` : ""}</span></div>`;
+    const sh6 = num(o[18]) ? Math.hypot(o[18], o[19]) * KT : NaN;
+    const lclML = num(o[7]) ? interpHagl(prof, o[7]) : null;
+    const pt = (() => { try { return precipType(prof); } catch (e) { return null; } })();
+    const cold = isFinite(prof.T[0]) && prof.T[0] - 273.15 < 4;
+    const ks = [];
+    ks.push(chip("MLCAPE / CIN", num(o[5]) ? Math.round(o[5]) : "—", num(o[6]) ? " / " + Math.round(o[6]) : "",
+      o[5] >= 2000 ? "hot" : o[5] >= 1000 ? "warm" : "", "mixed-layer (lowest 100 hPa) parcel CAPE and CIN, J/kg"));
+    ks.push(chip("MUCAPE · ECAPE", num(o[10]) ? Math.round(o[10]) : "—", num(o[42]) ? " · " + Math.round(o[42]) : "",
+      o[10] >= 2500 ? "hot" : o[10] >= 1000 ? "warm" : "", "most-unstable parcel CAPE and entraining CAPE (ECAPE), J/kg"));
+    ks.push(chip("LCL (ML)", lclML === null ? "—" : Math.round(lclML), lclML === null ? "" : "m", lclML !== null && lclML < 1000 && o[5] > 500 ? "warm" : ""));
+    ks.push(chip("Shear 0–6 km", isFinite(sh6) ? Math.round(sh6) : "—", isFinite(sh6) ? "kt" : "", sh6 >= 40 ? "hot" : sh6 >= 30 ? "warm" : ""));
+    ks.push(chip("SRH 0–1 / 0–3", num(o[26]) ? Math.round(o[26]) : "—", num(o[27]) ? " / " + Math.round(o[27]) : "",
+      o[26] >= 200 ? "hot" : o[26] >= 100 ? "warm" : "", "storm-relative helicity, Bunkers right mover, m²/s²"));
+    ks.push(chip("STP / SCP", num(o[33]) ? o[33].toFixed(1) : "—", num(o[32]) ? " / " + o[32].toFixed(1) : "",
+      o[33] >= 1 || o[32] >= 4 ? "hot" : o[32] >= 1 ? "warm" : "", "effective-layer significant tornado and supercell composites"));
+    ks.push(chip("PWAT", num(o[15]) ? o[15].toFixed(1) : "—", num(o[15]) ? "mm" : ""));
+    ks.push(chip("DCAPE", num(o[39]) ? Math.round(o[39]) : "—", num(o[39]) ? "J/kg" : "", o[39] >= 1000 ? "warm" : ""));
+    ks.push(chip("Freezing level", isFinite(fzl) ? (fzl / 1000).toFixed(1) : "—", isFinite(fzl) ? "km AGL" : ""));
+    if (cold && pt && pt.type) ks.push(chip("Precip type", pt.type, "", "", "Bourgouin energy method: what would fall if it precipitated"));
+    document.getElementById("keystrip").innerHTML = ks.join("");
+  })();
   const row = ([k, v]) => `<tr><td>${k}</td><td>${v}</td></tr>`;
   document.getElementById("kin-table").innerHTML = kinem.map(row).join("");
   document.getElementById("kin-table-b").innerHTML = composites.map(row).join("");
@@ -3905,53 +3965,25 @@ function fillTables(prof, res) {
   fitLayout();
 }
 
-// Autoscale the parameter tables into whatever height the plots leave over:
-// step the font down (never below 0.55rem) until nothing scrolls, and let a
-// big monitor keep the full 0.68rem. Runs after every fill and on resize.
-function fitTables(vertical = true) {
-  const wrap = document.querySelector(".tables-wrap");
-  if (!wrap) return;
-  // fits = nothing scrolls vertically AND no table (the 8-column parcels grid
-  // is the wide one) overflows its multi-column column. Side-by-side cards pass
-  // vertical=false: there the column scrolls by design and only width matters,
-  // so the font is never shrunk to 0.55rem just to dodge a scrollbar.
-  const fits = () => (!vertical || wrap.clientHeight >= wrap.scrollHeight - 1) &&
-    [...wrap.querySelectorAll("table.params")].every(t => t.scrollWidth <= t.parentElement.clientWidth + 1);
-  wrap.style.removeProperty("--tbl-fs");             // start from the CSS default
-  if (fits()) return;
-  // floor 0.62rem: below that the tables are unreadable, so they scroll instead
-  for (let fs = 0.66; fs >= 0.615; fs -= 0.03) {
-    wrap.style.setProperty("--tbl-fs", fs + "rem");
-    if (fits()) return;
-  }
-}
-// Size the sounding card. The index tables get at most ~a third of the body
-// (CSS max-height; fitTables shrinks their font to fit, and they scroll only
-// if that fails), the plots take the rest; both plots are height-driven at a
-// fixed aspect, so the width the card NEEDS is known once the plot height is.
-//  1. Tightest card: start wide and only narrow (the tables get taller as the
-//     card narrows, so a chase in both directions would oscillate) until the
-//     card just fits its two plots — nothing letterboxed, no space wasted.
-//  2. If that leaves the tables squeezed into few columns at a reduced font,
-//     widen — up to ~1.5x — to the narrowest width where they fit at (near)
-//     full size, or at least fit at all. The plots don't change: they keep
-//     their height and sit centred with room either side, which is fine on a
-//     wide monitor and a better trade than 10px type.
+// v3 (2026-10-02): the tables keep a readable font and scroll in the right column; nothing shrinks to fit.
+function fitTables() {}
+// Size the sounding card: the skew-T column is as wide as the card height allows at its aspect; the right column
+// (hodograph, key numbers, tables) gets 400-760 px; the card itself is no wider than the two need.
 let inRender = false;                 // render()/redrawCharts() draw right after fitLayout — no double draw
 function fitLayout() {
   const dlg = modal.querySelector(".dialog"), main = modal.querySelector(".main");
-  const wrap = modal.querySelector(".tables-wrap");
-  if (!dlg || !main || !wrap) return;
-  if (MOBILE_MQ.matches || modal.hidden) {
-    dlg.style.width = "";
-    const body = modal.querySelector(".dlg-body");
-    if (body) { body.classList.remove("side"); body.style.removeProperty("--tables-w"); }
-    return;
-  }
-  fitLayoutCore(dlg, main, wrap);
-  // Anything that re-fills the tables (the async 12-h MSE tendency, a unit
-  // toggle) can move the plot boxes; the ResizeObserver only sees .main, so
-  // redraw here whenever a plot's box no longer matches its bitmap.
+  if (!dlg || !main) return;
+  if (MOBILE_MQ.matches || modal.hidden) { dlg.style.width = ""; main.style.gridTemplateColumns = ""; return; }
+  const maxW = Math.floor(window.innerWidth * 0.98), chrome = 32, gap = 12, pad = 20;
+  const H = main.clientHeight;
+  const skW = Math.floor((H - pad) * PLOT_ASPECT.skewt) + pad;
+  let rW = Math.max(400, Math.min(760, maxW - chrome - gap - skW));   // the right column takes the spare width
+  let dW = Math.min(maxW, skW + gap + rW + chrome);
+  if (dW - chrome - gap - skW < 400) rW = Math.max(360, dW - chrome - gap - skW);
+  dlg.style.width = dW + "px";
+  const W = main.clientWidth;
+  rW = Math.min(rW, Math.max(360, W - gap - 280));
+  main.style.gridTemplateColumns = `${W - gap - rW}px ${rW}px`;
   if (inRender || !lastProf || !lastRes) return;
   const sk = document.getElementById("skewt");
   const dpr = Math.min(window.devicePixelRatio || 1, 2);
@@ -3959,76 +3991,6 @@ function fitLayout() {
   if (Math.round(w * dpr) !== sk.width || Math.round(h * dpr) !== sk.height) {
     drawSkewT(lastProf, lastRes); drawHodo(lastProf, lastRes);
   }
-}
-function fitLayoutCore(dlg, main, wrap) {
-  const chromeW = 12 + 2 * 18 + 28 + 2;   // grid gap + panel padding/border + dialog padding/border
-  const ratio = PLOT_ASPECT.skewt + PLOT_ASPECT.hodo;
-  const maxW = Math.floor(window.innerWidth * 0.98), minW = Math.min(980, maxW);
-  const setW = w => { dlg.style.width = w + "px"; };
-  const need = () => Math.round((main.clientHeight - 18) * ratio + chromeW);
-  const tblFont = () => parseFloat(wrap.style.getPropertyValue("--tbl-fs")) || 0.68;
-  const tblFits = () => wrap.clientHeight >= wrap.scrollHeight - 1;
-  // Stacked first (steps 1-2 below), then the side-by-side alternative (step 3)
-  // — whichever gives the plots more height wins.
-  const body = main.parentElement;
-  body.classList.remove("side"); body.style.removeProperty("--tables-w");
-  // 1. tight
-  wrap.style.maxHeight = "";              // back to the CSS cap (step 2 may have locked it)
-  let cur = maxW; setW(cur);
-  const bodyH = body.clientHeight;        // the card body is 96vh minus the header: width-independent
-  for (let i = 0; i < 5; i++) {
-    fitTables();
-    const w = Math.max(minW, Math.min(need(), cur));
-    if (cur - w < 1.5) break;
-    setW(w); cur = w;
-  }
-  fitTables();
-  const tight = cur;
-  const GOOD_FS = 0.66;                 // one fit step below the 0.68rem default
-  if (!(tblFits() && tblFont() >= GOOD_FS)) widenForTables(tight);
-  // 3. side-by-side: plots at (nearly) the full body height, tables in a column
-  //    on the right. Taken when it beats stacking by a clear margin (a 1366x640
-  //    laptop: 264 -> 482px skew-T; a 2304x1188 monitor: 619 -> 1004px).
-  const skc = document.getElementById("skewt");
-  const hStack = plotBox(skc).h;
-  const hSide = Math.floor(Math.min(bodyH - 18, (maxW - chromeW - SIDE_GAP - TBL_MIN_W) / ratio));
-  if (hSide > hStack * 1.12) {
-    const plotsW = Math.round(hSide * ratio) + 12 + 36;              // both panels incl. gap/padding
-    const tblW = Math.max(TBL_MIN_W, Math.min(TBL_MAX_W, maxW - 30 - SIDE_GAP - plotsW));
-    wrap.style.maxHeight = "";
-    body.classList.add("side");
-    body.style.setProperty("--tables-w", tblW + "px");
-    setW(Math.min(maxW, plotsW + SIDE_GAP + tblW + 30));
-    fitTables(false);
-  }
-  return;
-}
-function widenForTables(tight) {
-  const dlg = modal.querySelector(".dialog"), wrap = modal.querySelector(".tables-wrap");
-  const maxW = Math.floor(window.innerWidth * 0.98);
-  const setW = w => { dlg.style.width = w + "px"; };
-  const tblFont = () => parseFloat(wrap.style.getPropertyValue("--tbl-fs")) || 0.68;
-  const tblFits = () => wrap.clientHeight >= wrap.scrollHeight - 1;
-  const GOOD_FS = 0.66;
-  // 2. widen for the tables: the narrowest width where they fit at (near) full
-  //    font; failing that the narrowest where they fit at all; failing THAT
-  //    (short laptop screens) whichever width leaves the least to scroll
-  let best = tight, bestFits = tblFits(), bestOver = wrap.scrollHeight - wrap.clientHeight;
-  // widening must not cost the plots height: hold the tables to what they
-  // have now, so a bigger font has to come from more columns, not more rows
-  wrap.style.maxHeight = wrap.clientHeight + "px";
-  const lim = Math.min(maxW, Math.round(tight * 1.5));
-  let done = false;
-  for (let w = tight; w < lim && !done; ) {
-    w = Math.min(lim, Math.round(w * 1.05));
-    setW(w); fitTables();
-    const fits = tblFits(), fs = tblFont(), over = wrap.scrollHeight - wrap.clientHeight;
-    if (fits && fs >= GOOD_FS) { best = w; done = true; }   // narrowest comfortable width
-    else if (fits ? !bestFits : (!bestFits && over < bestOver - 4)) {
-      best = w; bestFits = fits; bestOver = over;
-    }
-  }
-  setW(best); fitTables();                // (the height lock stays until the next fit)
 }
 document.getElementById("dlg-footer").addEventListener("click",
   e => { if (e.target.tagName !== "A") e.currentTarget.classList.toggle("open"); });
@@ -4046,7 +4008,7 @@ function clearPlot(msg) {
     ctx.fillText(msg || "no data", cv.width / 2, cv.height / 2);
     ctx.textAlign = "left";
   }
-  for (const id of ["pcl-table", "kin-table", "kin-table-b", "kin-table2", "kin-table3", "mse-table", "winter-table", "tropic-table"])
+  for (const id of ["pcl-table", "kin-table", "kin-table-b", "kin-table2", "kin-table3", "mse-table", "winter-table", "tropic-table", "keystrip"])
     document.getElementById(id).innerHTML = "";
   plotTitle = "";
   lastProf = lastRes = null;      // else a resize redraw resurrects the wiped chart
@@ -4114,3 +4076,107 @@ function render(prof) {
   if (false) for (const id of ["pcl-table", "kin-table", "kin-table-b", "kin-table2", "kin-table3", "mse-table", "winter-table"])
     document.getElementById(id).innerHTML = "";
 }
+
+// ---------- station finder + recents (2026-10-02) ----------
+// Type a city, WMO number, ICAO code or country; the list ranks exact codes first, then name starts, then
+// anywhere-in-name, live stations ahead of archive-only ones. Enter or a click opens the station and centres
+// the map on it. The last six stations opened are kept in this browser as one-click chips.
+(function () {
+  const inp = document.getElementById("stn-search"), list = document.getElementById("stn-results");
+  const recEl = document.getElementById("recents");
+  if (!inp || !list) return;
+  let idx = null, hits = [], cur = -1;
+  const norm = t => (t || "").toLowerCase().normalize("NFKD").replace(/[̀-ͯ]/g, "");
+  function build() {
+    const icaoOf = {};
+    if (iemMap) for (const [w, ic] of Object.entries(iemMap)) icaoOf[w] = ic;
+    const seen = new Set(), out = [];
+    for (const s of Object.values(igraStations)) {
+      const c = COUNTRY[(s.gid || "").slice(0, 2)] || "";
+      out.push({ s, id: s.id || "", icao: icaoOf[s.id] || "", n: s.n || s.gid, c, live: !!(s.id && entries[s.id]),
+                 key: norm(`${s.n} ${c} ${s.id || ""} ${icaoOf[s.id] || ""} ${s.gid}`) });
+      if (s.id) seen.add(s.id);
+    }
+    for (const [id, e] of Object.entries(entries)) {
+      if (seen.has(id)) continue;
+      out.push({ s: { id, n: e.n || id, la: e.la, lo: e.lo, e: 0 }, id, icao: icaoOf[id] || "", n: e.n || id, c: "", live: true,
+                 key: norm(`${e.n || ""} ${id} ${icaoOf[id] || ""}`) });
+    }
+    return out;
+  }
+  function search(q) {
+    if (!idx || idx.length < 50) idx = build();
+    q = norm(q.trim()); if (!q) return [];
+    const r = [];
+    for (const x of idx) {
+      let sc = -1;
+      if (x.id === q || norm(x.icao) === q) sc = 100;
+      else if (norm(x.n).startsWith(q)) sc = 60;
+      else if (x.key.split(/[\s,()/-]+/).some(w => w.startsWith(q))) sc = 40;
+      else if (x.key.includes(q)) sc = 20;
+      if (sc < 0) continue;
+      if (x.live) sc += 15;
+      if (x.s.y1 && x.s.y1 < ACTIVE_YEAR) sc -= 10;
+      r.push([sc, x]);
+    }
+    r.sort((a, b) => b[0] - a[0] || a[1].n.localeCompare(b[1].n));
+    return r.slice(0, 12).map(z => z[1]);
+  }
+  function show() {
+    list.innerHTML = hits.map((x, i) => `<li role="option" data-i="${i}" class="${i === cur ? "on" : ""}">${x.n}` +
+      (x.c && !x.n.includes(x.c) ? ` <small>· ${x.c}</small>` : "") +
+      ` <small>· ${[x.id, x.icao].filter(Boolean).join(" / ") || x.s.gid}</small>` +
+      (x.live ? `<span class="lv">live</span>` : (x.s.y0 ? ` <small>· ${x.s.y0}–${x.s.y1}</small>` : "")) + "</li>").join("") ||
+      `<li aria-disabled="true"><small>no station matches</small></li>`;
+    list.hidden = false; inp.setAttribute("aria-expanded", "true");
+  }
+  function hide() { list.hidden = true; inp.setAttribute("aria-expanded", "false"); cur = -1; }
+  function open(x) {
+    hide(); inp.value = ""; inp.blur();
+    const s = x.s, ig = s.gid ? igraStations[s.gid] : null;
+    const la = s.la ?? (ig && ig.la), lo = s.lo ?? (ig && ig.lo);
+    if (isFinite(la) && isFinite(lo)) map.setView([la, lo], Math.max(map.getZoom(), 5));
+    if (!(s.id && entries[s.id]) && mode === "latest" && s.y1 && s.y1 < ACTIVE_YEAR) setMode("archive");
+    selectStation({ gid: s.gid || byWmo[s.id], id: s.id, n: (ig && ig.n) || s.n, e: s.e ?? (ig && ig.e) ?? 0 });
+  }
+  inp.addEventListener("input", () => { hits = search(inp.value); cur = hits.length ? 0 : -1; inp.value.trim() ? show() : hide(); });
+  inp.addEventListener("keydown", e => {
+    if (list.hidden) return;
+    if (e.key === "ArrowDown") { cur = Math.min(hits.length - 1, cur + 1); show(); e.preventDefault(); }
+    else if (e.key === "ArrowUp") { cur = Math.max(0, cur - 1); show(); e.preventDefault(); }
+    else if (e.key === "Enter" && hits[cur]) { open(hits[cur]); e.preventDefault(); }
+    else if (e.key === "Escape") { hide(); e.stopPropagation(); }
+  });
+  list.addEventListener("mousedown", e => { const li = e.target.closest("li[data-i]"); if (li) { e.preventDefault(); open(hits[+li.dataset.i]); } });
+  inp.addEventListener("blur", () => setTimeout(hide, 120));
+  addEventListener("keydown", e => {                 // "/" focuses the finder, as on many map sites
+    if (e.key === "/" && document.activeElement === document.body && modal.hidden) { inp.focus(); e.preventDefault(); }
+  });
+
+  // recents
+  const RK = "skewt.recent.v1";
+  const getR = () => { try { return JSON.parse(localStorage.getItem(RK)) || []; } catch (e) { return []; } };
+  function drawRecents() {
+    const r = getR();
+    recEl.innerHTML = r.length ? `<span class="lbl">Recent</span>` + r.map((x, i) =>
+      `<button type="button" data-i="${i}" title="${(x.n || "").replace(/"/g, "&quot;")}">${(x.n || x.id || x.gid).split(/[(,]/)[0].trim().slice(0, 18)}</button>`).join("") : "";
+  }
+  recEl.addEventListener("click", e => {
+    const b = e.target.closest("button[data-i]"); if (!b) return;
+    const x = getR()[+b.dataset.i]; if (!x) return;
+    const ig = x.gid ? igraStations[x.gid] : null;
+    if (ig && isFinite(ig.la)) map.setView([ig.la, ig.lo], Math.max(map.getZoom(), 5));
+    selectStation({ gid: x.gid, id: x.id, n: x.n, e: x.e || 0 });
+  });
+  const _sel = selectStation;
+  window.selectStation = selectStation = function (s) {
+    _sel(s);
+    try {
+      const r = getR().filter(x => (x.id || x.gid) !== (s.id || s.gid));
+      r.unshift({ id: s.id, gid: s.gid, n: s.n, e: s.e || 0 });
+      localStorage.setItem(RK, JSON.stringify(r.slice(0, 6)));
+    } catch (e) { /* storage blocked: no recents */ }
+    drawRecents();
+  };
+  drawRecents();
+})();
