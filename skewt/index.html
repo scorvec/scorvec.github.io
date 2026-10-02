@@ -171,13 +171,65 @@
   .maplegend { background: rgba(17,17,28,0.94); color: #e8e8f0; padding: 9px 12px;
     border-radius: 8px; border: 1px solid #2e2e48;
     font: 14.5px Inter, sans-serif; line-height: 1.85; }
-  #anom-list { list-style: none; margin: 0; padding: 0; font-size: 0.8rem;
-    columns: 2 320px; column-gap: 24px; }
-  #anom-list li { padding: 7px 6px; border-bottom: 1px solid var(--rule); cursor: pointer;
-    break-inside: avoid; }
-  #anom-list li:hover { background: rgba(255,255,255,0.05); }
-  #anom-list .hi { color: #ff6b55; }
-  #anom-list .lo { color: #6aa7f0; }
+  /* ── record watch v2 (2026-10-02): interactive map + filterable ranked list ─────────────── */
+  .dialog.rw { display: flex; flex-direction: column; width: 98vw; max-width: none; height: 96vh; height: 96svh; max-height: none; padding: 12px 16px 12px; gap: 10px; overflow: hidden; }
+  .rw-head { display: flex; gap: 12px; align-items: flex-start; justify-content: space-between; }
+  .rw-ttl h2 { font-family: var(--serif); font-weight: 600; font-size: clamp(1.25rem, 1rem + 0.8vw, 1.8rem); margin: 0; }
+  .rw-sub { color: var(--muted); font-size: 0.9rem; margin-top: 2px; line-height: 1.4; }
+  .rw-actions { display: flex; gap: 6px; flex: none; }
+  .rw-actions button, .rw-filters button { font: 500 0.88rem var(--sans); color: var(--ink); background: var(--panel);
+    border: 1px solid var(--rule); border-radius: 7px; padding: 7px 12px; cursor: pointer; min-height: 38px; }
+  .rw-filters .seg button { border: 0; border-radius: 0; background: transparent; }
+  .rw-filters .seg button + button { border-left: 1px solid var(--rule); }
+  .rw-filters .seg button.on { background: var(--accent); color: #08222e; }
+  .rw-stats { display: flex; gap: 8px; flex-wrap: wrap; }
+  .rw-stat { background: var(--panel); border: 1px solid var(--rule); border-radius: 9px; padding: 6px 12px; min-width: 120px; }
+  .rw-stat b { display: block; font-size: 1.35rem; font-variant-numeric: tabular-nums; line-height: 1.15; }
+  .rw-stat span { color: var(--muted); font-size: 0.76rem; }
+  .rw-stat.all b { color: #ffd166; } .rw-stat.rec b { color: #ff8a7a; }
+  .rw-filters { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .rw-body { flex: 1 1 0; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) clamp(340px, 34%, 560px); gap: 12px; }
+  .rw-map { position: relative; min-height: 0; border: 1px solid var(--rule); border-radius: 10px; overflow: hidden; }
+  #rw-map { position: absolute; inset: 0; background: #1b1b1f; }
+  .rw-listwrap { min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding-right: 2px; }
+  .rw-count { color: var(--muted); font-size: 0.82rem; margin: 2px 2px 6px; }
+  #anom-list { list-style: none; margin: 0; padding: 0; }
+  #anom-list li.st { background: var(--panel); border: 1px solid var(--rule); border-radius: 9px; padding: 8px 11px 9px;
+    margin-bottom: 7px; cursor: pointer; }
+  #anom-list li.st:hover, #anom-list li.st:focus-visible, #anom-list li.st.hl { border-color: var(--accent); outline: none; }
+  #anom-list .nm { font-weight: 600; font-size: 0.98rem; color: var(--ink); }
+  #anom-list .when { color: var(--muted); font-size: 0.78rem; margin-left: 6px; font-weight: 400; }
+  #anom-list .fl { display: grid; grid-template-columns: minmax(7.5em, auto) auto 1fr; gap: 2px 10px; align-items: center;
+    margin-top: 5px; font-size: 0.86rem; }
+  #anom-list .fl .lab { color: #c8c8dc; }
+  #anom-list .fl .val { font-variant-numeric: tabular-nums; font-weight: 600; white-space: nowrap; }
+  #anom-list .fl .val.hi { color: #ff8a7a; } #anom-list .fl .val.lo { color: #8ec5ff; }
+  #anom-list .badge { display: inline-block; font-size: 0.72rem; font-weight: 700; padding: 1px 6px; border-radius: 4px; margin-right: 6px; white-space: nowrap; }
+  #anom-list .badge.all { background: rgba(255,209,102,0.2); color: #ffd166; border: 1px solid rgba(255,209,102,0.55); }
+  #anom-list .badge.rec { background: rgba(255,120,100,0.18); color: #ffb4a4; border: 1px solid rgba(255,120,100,0.5); }
+  #anom-list .badge.pc { background: rgba(255,255,255,0.06); color: #c8c8dc; border: 1px solid var(--rule); }
+  #anom-list .prev { color: var(--muted); font-size: 0.78rem; white-space: nowrap; }
+  #anom-list .bar { grid-column: 1 / -1; height: 5px; border-radius: 3px; position: relative;
+    background: linear-gradient(90deg, #3b7ddd 0%, #2a2a3f 12%, #2a2a3f 88%, #e0563f 100%); margin: 1px 0 3px; }
+  #anom-list .bar i { position: absolute; top: -3px; width: 3px; height: 11px; border-radius: 2px; background: #fff; transform: translateX(-50%); }
+  .rw-star { color: #ffd166; font-size: 20px; line-height: 20px; text-shadow: 0 0 4px #000, 0 0 2px #000; text-align: center; }
+  .rw-star.lo { color: #8ec5ff; } .rw-star.hi { color: #ff7a5c; } .rw-star.all { color: #ffd166; font-size: 26px; line-height: 26px; }
+  #anom-list li.more { list-style: none; text-align: center; padding: 4px 0 10px; }
+  #anom-list li.more button { font: 600 0.9rem var(--sans); color: var(--ink); background: var(--panel); border: 1px solid var(--accent);
+    border-radius: 8px; padding: 8px 16px; cursor: pointer; }
+  @media (max-height: 700px) and (min-width: 901px) { .rw-sub { display: none; } .rw-stat b { font-size: 1.1rem; } }
+  @media (max-width: 900px) {
+    .dialog.rw { display: flex; height: 96svh; overflow-y: auto; }
+    .rw-body { display: block; flex: none; }
+    .rw-map { height: 48svh; margin-bottom: 10px; }
+    .rw-listwrap { overflow: visible; }
+    .rw-stat { min-width: 0; flex: 1 1 22%; padding: 4px 7px; }
+    .rw-stat b { font-size: 1.02rem; }
+    .rw-stat span { font-size: 0.64rem; line-height: 1.25; display: block; }
+    .rw-sub { font-size: 0.8rem; }
+    .rw-filters .seg { max-width: 100%; overflow-x: auto; }
+    .rw-filters button { min-height: 40px; padding: 7px 10px; }
+  }
   #export-btn, #share-btn, #climo-btn, #anom-toggle { white-space: nowrap; }
   .maplegend .leg-chip { display: none; }        /* desktop: always full card */
   @media (max-width: 700px) {
@@ -509,20 +561,30 @@
 <div class="mapwrap"><div id="map"></div></div>
 
 <div id="anom-modal" class="modal" hidden style="z-index:2100">
-  <div class="dialog" style="height:auto; max-height:94vh; width:min(2000px,97vw); overflow-y:auto">
-    <div class="dlg-head controls">
-      <span class="station">Record watch — today's extremes</span>
-      <button id="anom-save" title="download this map as an image">PNG</button>
-      <button id="anom-close" title="close" style="margin-left:auto">✕</button>
+  <div class="dialog rw" role="dialog" aria-labelledby="rw-title">
+    <div class="rw-head">
+      <div class="rw-ttl"><h2 id="rw-title">Record watch</h2>
+        <p class="rw-sub" id="rw-sub">Today&rsquo;s most unusual soundings, each ranked against its own station&rsquo;s archive.</p></div>
+      <div class="rw-actions">
+        <button id="anom-save" type="button" title="download a labelled map of the records as an image">Download map</button>
+        <button id="anom-close" type="button" title="close (Esc)">✕</button>
+      </div>
     </div>
-    <div class="panel" style="margin-top:6px">
-      <canvas id="anom-canvas" width="1240" height="760" style="width:100%; height:auto"></canvas>
+    <div class="rw-stats" id="rw-stats"></div>
+    <div class="rw-filters" role="toolbar" aria-label="Filters">
+      <span class="seg" id="rw-grp" role="group" aria-label="Variable"><button data-v="all" class="on">All</button><button data-v="t">Temperature</button><button data-v="m">Moisture</button><button data-v="h">Heights</button><button data-v="w">Wind</button><button data-v="i">Instability</button></span>
+      <span class="seg" id="rw-dir" role="group" aria-label="Direction"><button data-v="all" class="on">Both</button><button data-v="high">Warm / high</button><button data-v="low">Cold / low</button></span>
+      <span class="seg" id="rw-kind" role="group" aria-label="Which"><button data-v="all" class="on">All flagged</button><button data-v="rec">Records only</button></span>
+      <span class="seg" id="rw-age" role="group" aria-label="Launched within"><button data-v="24">24 h</button><button data-v="48" class="on">48 h</button><button data-v="999">Any</button></span>
     </div>
-    <div class="panel" style="margin-top:8px">
-      <p style="font-size:0.72rem; color:var(--muted); margin:0 0 8px">ranked vs each station's own
-      day-of-year climatology · click a row to open the sounding</p>
-      <ul id="anom-list"></ul>
+    <div class="rw-body">
+      <div class="rw-map"><div id="rw-map"></div></div>
+      <div class="rw-listwrap">
+        <p class="rw-count" id="rw-count"></p>
+        <ul id="anom-list"></ul>
+      </div>
     </div>
+    <canvas id="anom-canvas" width="1240" height="760" hidden></canvas>
   </div>
 </div>
 
@@ -680,6 +742,6 @@
   </div>
 </div>
 <script src="sharplib.js?v=92a2fd08"></script>
-<script src="app.js?v=8f89fd87"></script>
+<script src="app.js?v=a378758e"></script>
 </body>
 </html>

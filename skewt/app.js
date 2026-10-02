@@ -1424,32 +1424,151 @@ function shareLink() {
 document.getElementById("share-btn").addEventListener("click", shareLink);
 
 // ---- "extreme today": rank the record watch and make it a destination ----
-function buildAnomPanel() {
-  const el = document.getElementById("anom-list");
-  if (!el) return;
-  const ranked = Object.entries(anomalies)
-    .map(([wmo, d]) => ({ wmo, d, top: Math.max(...d.flags.map(f => Math.abs(f.pct - 50))) }))
-    .sort((a, b) => b.top - a.top).slice(0, 12);
-  if (!ranked.length) { el.innerHTML = "<li>nothing unusual right now</li>"; return; }
-  el.innerHTML = ranked.map(({ wmo, d }) => {
-    const name = (entries[wmo] && entries[wmo].n) || (igraStations[byWmo[wmo]] || {}).n || wmo;
-    const f = d.flags[0];
-    return `<li data-wmo="${wmo}"><b>${name}</b><br>` +
-      d.flags.slice(0, 2).map(g =>
-        `<span class="${g.sense === "high" ? "hi" : "lo"}">${g.lab} ${g.v} · ` +
-        `${g.rec ? (g.rec.tier === "all" ? "ALL-TIME REC" : "RECORD") : "P" + g.pct}</span>`
-      ).join(" &nbsp; ") + `</li>`;
-  }).join("");
-  el.querySelectorAll("li[data-wmo]").forEach(li => li.addEventListener("click", () => {
-    const wmo = li.dataset.wmo;
-    // the record modal stacks ABOVE the sounding dialog — close it first,
-    // or the sounding opens invisibly underneath
-    document.getElementById("anom-modal").hidden = true;
-    setMode("latest");
-    selectStation({ gid: byWmo[wmo], id: wmo,
-      n: (entries[wmo] || {}).n, e: (igraStations[byWmo[wmo]] || {}).e || 0 });
-  }));
+// ---- record watch v2 (2026-10-02, user: "revamp the 'extreme today' page"): an interactive map + a filterable,
+// ranked list of every flagged station. A flag = a value outside the station's own 5th-95th percentile for the
+// time of year; rec = a new record for the date window, rec.tier "all" = all-time. The static labelled map
+// (drawRecordMap below) is still drawn, off screen, for the PNG download.
+const RW = { grp: "all", dir: "all", kind: "all", age: 48, map: null, layer: null, marks: {}, limit: 60 };
+const RW_GROUP = { "850t": "t", "700t": "t", "500t": "t", "850td": "m", "700td": "m", pwat: "m",
+                   h500: "h", thick: "h", "850spd": "w", "250spd": "w" };          // everything else: instability
+const RW_UNIT = { "850t": "°C", "700t": "°C", "500t": "°C", "850td": "°C", "700td": "°C", pwat: "mm",
+                  h500: "m", thick: "m", ecape: "J/kg" };
+const rwGroup = k => RW_GROUP[k] || "i";
+const rwAgeH = dt => (Date.now() - Date.parse((dt || "").replace(" ", "T") + "Z")) / 3600e3;
+function rwFlagScore(f) { return (f.rec ? (f.rec.tier === "all" ? 300 : 200) : 0) + Math.abs(f.pct - 50); }
+function rwRows() {
+  const rows = [];
+  for (const [wmo, d] of Object.entries(anomalies)) {
+    const e = entries[wmo] || {}, ig = igraStations[byWmo[wmo]] || {};
+    const la = isFinite(e.la) ? e.la : ig.la, lo = isFinite(e.lo) ? e.lo : ig.lo;
+    if (!isFinite(la) || !isFinite(lo)) continue;
+    const age = rwAgeH(d.dt);
+    if (isFinite(age) && age > RW.age) continue;
+    const flags = d.flags.filter(f => (RW.grp === "all" || rwGroup(f.k) === RW.grp) &&
+      (RW.dir === "all" || f.sense === RW.dir) && (RW.kind === "all" || f.rec))
+      .sort((a, b) => rwFlagScore(b) - rwFlagScore(a));
+    if (!flags.length) continue;
+    let name = (e.n || ig.n || wmo) + "";
+    if (/dtype|Name:/i.test(name)) name = ig.n || wmo;
+    const c = COUNTRY[(byWmo[wmo] || "").slice(0, 2)];
+    rows.push({ wmo, name: name.replace(/[;,]\s*$/, ""), country: c && !name.includes(c) ? c : "", la, lo, dt: d.dt, age, flags,
+                score: rwFlagScore(flags[0]) + 0.01 * flags.length });
+  }
+  return rows.sort((a, b) => b.score - a.score);
 }
+function rwOpen(wmo) {
+  document.getElementById("anom-modal").hidden = true;   // the sounding opens beneath this modal otherwise
+  setMode("latest");
+  selectStation({ gid: byWmo[wmo], id: wmo, n: (entries[wmo] || {}).n, e: (igraStations[byWmo[wmo]] || {}).e || 0 });
+}
+function rwFmt(f) {
+  const v = Math.abs(f.v) >= 100 ? Math.round(f.v) : (+f.v).toFixed(1);
+  return v + (RW_UNIT[f.k] ? " " + RW_UNIT[f.k] : "");
+}
+function rwBadge(f) {
+  if (f.rec) return f.rec.tier === "all" ? `<span class="badge all">ALL-TIME RECORD</span>` : `<span class="badge rec">Record for the date</span>`;
+  const p = f.sense === "high" ? f.pct : 100 - f.pct;
+  return `<span class="badge pc">${f.sense === "high" ? "top" : "bottom"} ${Math.max(1, 100 - p)}%</span>`;
+}
+function rwWhen(r) {
+  if (!r.dt) return "";
+  const hh = r.dt.slice(5, 10).replace("-", "/") + " " + r.dt.slice(11, 13) + "Z";
+  return isFinite(r.age) ? `${hh} · ${r.age < 1 ? "<1" : Math.round(r.age)} h ago` : hh;
+}
+function buildAnomPanel() {
+  const rows = rwRows(), all = Object.values(anomalies);
+  // headline counts are for the WHOLE feed (fresh within the age filter), not the variable filter
+  let nAll = 0, nRec = 0, nSt = 0, newest = "";
+  for (const d of all) {
+    if (rwAgeH(d.dt) > RW.age) continue;
+    nSt++; if (d.dt > newest) newest = d.dt;
+    if (d.flags.some(f => f.rec && f.rec.tier === "all")) nAll++;
+    if (d.flags.some(f => f.rec)) nRec++;
+  }
+  const stat = (n, t, c) => `<div class="rw-stat ${c || ""}"><b>${n}</b><span>${t}</span></div>`;
+  document.getElementById("rw-stats").innerHTML =
+    stat(nAll, "stations with an all-time record", "all") + stat(nRec, "stations with a record for the date", "rec") +
+    stat(nSt, "stations outside their 5th–95th percentile") + stat(newest ? newest.slice(5, 16).replace("-", "/") + "Z" : "—", "newest launch");
+  document.getElementById("rw-sub").innerHTML = "Every sounding on the live map is ranked against its <b>own station's archive</b> " +
+    "for the same time of year (±10 days). Stars are records; dots are values beyond the 5th or 95th percentile. " +
+    "Click any station for its full sounding.";
+  document.getElementById("rw-count").textContent = rows.length
+    ? `${rows.length} station${rows.length > 1 ? "s" : ""} · most extreme first` : "";
+  const el = document.getElementById("anom-list");
+  el.innerHTML = rows.length ? rows.slice(0, RW.limit).map(r => {
+    const fl = r.flags.slice(0, 4).map(f => {
+      const pos = Math.max(0, Math.min(100, f.pct));
+      return `<span class="lab">${f.lab}</span><span class="val ${f.sense === "high" ? "hi" : "lo"}">${rwFmt(f)}</span>` +
+        `<span>${rwBadge(f)}${f.rec ? `<span class="prev">prev ${f.rec.prev}${RW_UNIT[f.k] ? " " + RW_UNIT[f.k] : ""} (${f.rec.y})</span>` : ""}</span>` +
+        `<span class="bar" title="${f.pct}th percentile for the date"><i style="left:${pos}%"></i></span>`;
+    }).join("");
+    return `<li class="st" tabindex="0" data-wmo="${r.wmo}"><div><span class="nm">${r.name}${r.country ? " · " + r.country : ""}</span>` +
+      `<span class="when">${rwWhen(r)}</span></div><div class="fl">${fl}</div></li>`;
+  }).join("") + (rows.length > RW.limit ? `<li class="more"><button type="button" id="rw-more">Show all ${rows.length} stations</button></li>` : "")
+    : `<li style="color:var(--muted);padding:8px">Nothing matches these filters — try "Any" launch time or "All flagged".</li>`;
+  const more = document.getElementById("rw-more");
+  if (more) more.onclick = e => { e.stopPropagation(); RW.limit = 1e9; buildAnomPanel(); };
+  rwDrawMap(rows);
+}
+function rwDrawMap(rows) {
+  if (!RW.map) {
+    RW.map = L.map("rw-map", { worldCopyJump: true, preferCanvas: true, zoomSnap: 0.25 }).setView([25, -40], 2);
+    const ESRI_ = "https://services.arcgisonline.com/arcgis/rest/services/Canvas/";
+    L.tileLayer(ESRI_ + "World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}",
+      { attribution: "Tiles &copy; Esri &mdash; Esri, HERE, Garmin, &copy; OpenStreetMap contributors", maxZoom: 9 }).addTo(RW.map);
+    L.tileLayer(ESRI_ + "World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}", { maxZoom: 9, opacity: 0.8 }).addTo(RW.map);
+    RW.layer = L.layerGroup().addTo(RW.map);
+  }
+  RW.layer.clearLayers(); RW.marks = {};
+  const pts = [];
+  // dots first, stars on top
+  for (const r of rows.slice().reverse()) {
+    const f = r.flags[0], hi = f.sense === "high";
+    const tip = `<b>${r.name}</b>${r.country ? " · " + r.country : ""}<br><span style="opacity:.8">${rwWhen(r)}</span><br>` +
+      r.flags.slice(0, 4).map(g => `${g.lab} <b>${rwFmt(g)}</b> — ${g.rec ? (g.rec.tier === "all" ? "ALL-TIME RECORD" : "record for the date") +
+        ` (prev ${g.rec.prev}, ${g.rec.y})` : (g.sense === "high" ? "top " : "bottom ") + Math.max(1, 100 - (g.sense === "high" ? g.pct : 100 - g.pct)) + "%"}`).join("<br>");
+    let m;
+    if (f.rec) {
+      const cls = f.rec.tier === "all" ? "all" : (hi ? "hi" : "lo"), sz = cls === "all" ? 26 : 20;
+      m = L.marker([r.la, r.lo], { icon: L.divIcon({ className: "", html: `<div class="rw-star ${cls}">★</div>`, iconSize: [sz, sz], iconAnchor: [sz / 2, sz / 2] }),
+                                   riseOnHover: true, zIndexOffset: cls === "all" ? 1000 : 500, keyboard: false });
+    } else {
+      const rad = 3.5 + Math.min(1, Math.abs(f.pct - 50) / 50) * 4;
+      m = L.circleMarker([r.la, r.lo], { radius: rad, weight: 1, color: "#11111c", fillColor: hi ? "#ff7a5c" : "#5aa2ff", fillOpacity: 0.9 });
+    }
+    m.bindTooltip(tip, { direction: "top", offset: [0, -6] });
+    m.on("click", () => rwOpen(r.wmo));
+    m.on("mouseover", () => { const li = document.querySelector(`#anom-list li[data-wmo="${r.wmo}"]`); if (li) li.classList.add("hl"); });
+    m.on("mouseout", () => { const li = document.querySelector(`#anom-list li[data-wmo="${r.wmo}"]`); if (li) li.classList.remove("hl"); });
+    m.addTo(RW.layer); RW.marks[r.wmo] = m; pts.push([r.la, r.lo]);
+  }
+  setTimeout(() => {
+    RW.map.invalidateSize();
+    if (pts.length > 1) RW.map.fitBounds(L.latLngBounds(pts).pad(0.12), { maxZoom: 6 });
+    else if (pts.length === 1) RW.map.setView(pts[0], 5);
+  }, 30);
+}
+(function wireRecordWatch() {
+  const segs = [["rw-grp", "grp"], ["rw-dir", "dir"], ["rw-kind", "kind"], ["rw-age", "age"]];
+  for (const [id, key] of segs) {
+    const el = document.getElementById(id); if (!el) continue;
+    el.addEventListener("click", e => {
+      const b = e.target.closest("button"); if (!b) return;
+      el.querySelectorAll("button").forEach(x => x.classList.toggle("on", x === b));
+      RW[key] = key === "age" ? +b.dataset.v : b.dataset.v; RW.limit = 60;
+      buildAnomPanel();
+    });
+  }
+  const list = document.getElementById("anom-list");
+  if (list) {
+    list.addEventListener("click", e => { const li = e.target.closest("li[data-wmo]"); if (li) rwOpen(li.dataset.wmo); });
+    list.addEventListener("keydown", e => { if (e.key === "Enter") { const li = e.target.closest("li[data-wmo]"); if (li) rwOpen(li.dataset.wmo); } });
+    list.addEventListener("mouseover", e => { const li = e.target.closest("li[data-wmo]"); const m = li && RW.marks[li.dataset.wmo];
+      if (m) m.openTooltip(); });
+    list.addEventListener("mouseout", e => { const li = e.target.closest("li[data-wmo]"); const m = li && RW.marks[li.dataset.wmo];
+      if (m) m.closeTooltip(); });
+  }
+})();
 // ---- the record-watch MAP: a static, labeled snapshot of today's extremes ----
 let coastSegs = null;                        // cached 110m coastline polylines
 async function loadCoast() {
@@ -1470,8 +1589,8 @@ async function drawRecordMap() {
   const cv = document.getElementById("anom-canvas"), ctx = cv.getContext("2d");
   // size the backing store to the dialog's real width so wide monitors get a
   // wide map (canvas CSS is width:100%, so aspect follows these dimensions)
-  const panelW = cv.parentElement ? cv.parentElement.clientWidth - 24 : 0;
-  const W = Math.max(900, Math.min(2200, Math.round(panelW || 1240)));
+  const panelW = Math.min(window.innerWidth * 0.95, 1800);       // off-screen now (PNG only): size from the window
+  const W = Math.max(1100, Math.min(2200, Math.round(panelW || 1240)));
   const H = Math.round(Math.min(820, Math.max(560, W * 0.42)));
   // retina-sharp: DPR-scaled backing store, logical-pixel drawing (like fitCanvas)
   const dpr = Math.min(2, window.devicePixelRatio || 1);
@@ -1672,14 +1791,14 @@ document.getElementById("anom-toggle").addEventListener("click", async () => {
     } catch (e) { /* keep showing what we have */ }
   }
   buildAnomPanel();
-  drawRecordMap();
 });
 document.getElementById("anom-close").addEventListener("click",
   () => document.getElementById("anom-modal").hidden = true);
 document.getElementById("anom-modal").addEventListener("click", e => {
   if (e.target.id === "anom-modal") document.getElementById("anom-modal").hidden = true;
 });
-document.getElementById("anom-save").addEventListener("click", () => {
+document.getElementById("anom-save").addEventListener("click", async () => {
+  await drawRecordMap();                       // the labelled static map, drawn off screen just for the image
   document.getElementById("anom-canvas").toBlob(b => {
     const a = document.createElement("a");
     a.href = URL.createObjectURL(b);
