@@ -33,34 +33,37 @@
   .kicker { font-size: 0.88rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); margin: 0.2rem 0 0; }
   h1 { font-family: var(--serif); font-weight: 500; font-size: clamp(1.6rem, 3.2vw, 2.3rem); line-height: 1.15; margin: 0.25rem 0 0.4rem; }
   h2 { font-family: var(--serif); font-weight: 500; font-size: 1.3rem; margin: 1.8rem 0 0.5rem; }
-  .mv-lede { color: var(--ink2); max-width: 70rem; margin: 0 0 0.9rem; font-size: 1.1rem; }
-  .mv-lede a, .mv-about a { color: var(--accent); }
+  /* the intro sits in the site's lede box (site.css "main > .lede", user 2026-10-01: "turn the text into a text box") */
+  main.mv > .lede { color: var(--ink); font-size: 1.16rem; max-width: 80ch; margin: 0.7rem auto 1.1rem; }
+  .lede a, .mv-about a { color: var(--accent); }
 
   .mv-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 0.45rem 0.9rem; margin: 0 0 0.55rem; }
   .seg { display: inline-flex; flex-wrap: wrap; border: 1px solid var(--rule); border-radius: 7px; background: var(--panel); overflow: hidden; }
-  .seg button { font: inherit; font-size: 1.02rem; border: 0; border-right: 1px solid var(--rule); background: transparent; color: var(--ink2);
-                padding: 0.46rem 0.85rem; cursor: pointer; white-space: nowrap; }
+  /* controls: larger and bolder (user 2026-10-01: "larger still and with a much larger and bolder font") */
+  .seg button { font: inherit; font-size: 1.14rem; font-weight: 600; border: 0; border-right: 1px solid var(--rule); background: transparent; color: var(--ink);
+                padding: 0.62rem 1.05rem; min-height: 46px; cursor: pointer; white-space: nowrap; }
   .seg button:last-child { border-right: 0; }
   .seg button[aria-pressed="true"] { background: var(--accent); color: #fff; }
   .seg button:disabled { color: #8a8f8a; cursor: not-allowed; background: repeating-linear-gradient(135deg, transparent 0 5px, rgba(0,0,0,0.035) 5px 10px); }
   .seg button:not(:disabled):not([aria-pressed="true"]):hover { background: var(--accent-soft); }
   .mv-fields { flex: 1 1 100%; display: flex; flex-wrap: wrap; gap: 0.35rem 0.8rem; align-items: flex-end; }
   .mv-grp { display: flex; flex-direction: column; gap: 0.15rem; }
-  .mv-grp > span { font-size: 0.82rem; letter-spacing: 0.05em; text-transform: uppercase; color: var(--muted); padding-left: 2px; }
+  .mv-grp > span { font-size: 0.86rem; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; color: var(--muted); padding-left: 2px; }
   .seg button small { font-size: 0.78em; opacity: 0.8; margin-left: 0.25em; }
   .runsel.mv-fsel { display: none; }
   .mv-row { display: flex; flex-wrap: wrap; align-items: center; gap: 0.45rem 0.9rem; flex: 1 1 100%; }
-  .mv-show { display: flex; flex-wrap: wrap; align-items: center; gap: 0.3rem 1.1rem; margin: 0.35rem 0 0; font-size: 1.02rem; color: var(--ink2); }
+  .mv-show { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem 1.3rem; margin: 0.45rem 0 0; font-size: 1.12rem; color: var(--ink); }
   .mv-show > b { font-weight: 600; color: var(--ink); }
   .mv-keys { margin-left: auto; font-size: 0.92rem; color: var(--muted); }
   .mv-keys kbd { font: inherit; font-size: 0.78rem; border: 1px solid var(--rule); border-bottom-width: 2px; border-radius: 4px; padding: 0 0.3em; background: var(--panel); }
   .mv-legT { margin: 0.1rem 0 0; font-size: 0.97rem; color: var(--muted); }
   .mv-acc { display: flex; flex-wrap: wrap; gap: 0.45rem 0.9rem; align-items: center; flex: 1 1 100%; }
   .mv-acc[hidden] { display: none; }
-  .runsel { display: inline-flex; align-items: center; gap: 0.4rem; font-size: 1.02rem; color: var(--ink2); }
-  .runsel select { font: inherit; font-size: 1.02rem; padding: 0.38rem 0.5rem; border: 1px solid var(--rule); border-radius: 6px; background: var(--panel); color: var(--ink); }
+  .runsel { display: inline-flex; align-items: center; gap: 0.45rem; font-size: 1.12rem; font-weight: 600; color: var(--ink); }
+  .runsel select { font: inherit; font-size: 1.12rem; font-weight: 600; padding: 0.55rem 0.6rem; min-height: 46px; border: 1px solid var(--rule); border-radius: 6px; background: var(--panel); color: var(--ink); }
   .chk[hidden] { display: none; }
-  .chk { display: inline-flex; align-items: center; gap: 0.4rem; font-size: 1.02rem; color: var(--ink2); cursor: pointer; user-select: none; }
+  .chk { display: inline-flex; align-items: center; gap: 0.5rem; font-size: 1.12rem; font-weight: 600; color: var(--ink); cursor: pointer; user-select: none; min-height: 40px; }
+  .chk input { width: 1.25rem; height: 1.25rem; accent-color: var(--accent); margin: 0; }
 
   .mv-map { position: relative; width: 100%; height: clamp(340px, calc(100vh - 230px), 880px); background: var(--map); border: 1px solid var(--rule);
             border-radius: 8px; overflow: hidden; touch-action: none; cursor: grab; }
@@ -71,9 +74,9 @@
   .mv-map canvas#ov { transform-origin: 0 0; will-change: transform; }
   .mv-map canvas#lab { pointer-events: none; }
   .mv-zoom { position: absolute; right: 8px; top: 8px; display: flex; flex-direction: column; gap: 4px; z-index: 3; }
-  .mv-zoom button { width: 40px; height: 40px; font: 600 1.3rem var(--sans); border: 1px solid var(--rule); border-radius: 6px;
+  .mv-zoom button { width: 48px; height: 48px; font: 700 1.5rem var(--sans); border: 1px solid var(--rule); border-radius: 6px;
                     background: rgba(255,255,255,0.92); color: var(--ink); cursor: pointer; }
-  .mv-zoom button.txt { font-size: 0.82rem; }
+  .mv-zoom button.txt { font-size: 0.98rem; }
   .mv-badge { position: absolute; left: 8px; top: 8px; z-index: 3; background: rgba(255,255,255,0.93); border: 1px solid var(--rule); border-radius: 6px;
               padding: 0.3rem 0.6rem; font-size: 0.95rem; color: var(--ink); max-width: calc(100% - 60px); pointer-events: none; }
   .mv-badge b { font-weight: 600; }
@@ -89,9 +92,9 @@
   .mv-tip .ll { color: #cfd6cf; }
 
   .mv-time { display: flex; align-items: center; gap: 0.5rem; margin: 0.55rem 0 0.2rem; flex-wrap: wrap; }
-  .mv-time button { font: inherit; font-size: 1.1rem; min-width: 2.7rem; height: 2.5rem; border: 1px solid var(--rule); border-radius: 6px; background: var(--panel);
+  .mv-time button { font: inherit; font-size: 1.35rem; font-weight: 700; min-width: 3.3rem; height: 3rem; border: 1px solid var(--rule); border-radius: 6px; background: var(--panel);
                     color: var(--ink); cursor: pointer; }
-  .mv-time input[type=range] { flex: 1 1 14rem; min-width: 10rem; accent-color: var(--accent); height: 2rem; }
+  .mv-time input[type=range] { flex: 1 1 14rem; min-width: 10rem; accent-color: var(--accent); height: 2.6rem; }
   .mv-valid { font-size: 1.05rem; color: var(--ink); min-width: 15rem; line-height: 1.3; }
   .mv-valid .vt { font-size: 1.22rem; font-weight: 600; }
   .mv-valid .loc { color: var(--ink2); }
@@ -111,11 +114,38 @@
   .mv-about td.na { color: #6f6b64; font-style: italic; }
   .mv-about .tbl { overflow-x: auto; }
   .mv-runs { font-size: 0.88rem; color: var(--muted); margin: 0.2rem 0 0; }
+  /* meteogram (click an airport or city) and degree days (2026-10-01): plain canvases, drawn by the page */
+  .mv-mg, .mv-dd { margin: 1rem 0 0; background: var(--panel); border: 1px solid var(--rule); border-radius: 8px; padding: 0.7rem 0.9rem 0.9rem; }
+  .mv-mg[hidden], .mv-dd[hidden] { display: none; }
+  #ddH { height: 150px; }
+  .mv-mgh { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem 0.9rem; }
+  .mv-mgh h2, .mv-dd h2 { margin: 0; font-size: 1.25rem; }
+  .mv-mgh .sub { color: var(--muted); font-size: 0.95rem; }
+  .mv-mgh .x { margin-left: auto; font: inherit; font-size: 0.98rem; border: 1px solid var(--rule); border-radius: 6px; background: var(--panel); padding: 0.3rem 0.75rem; cursor: pointer; }
+  .mv-key { display: inline-flex; flex-wrap: wrap; gap: 0.2rem 0.9rem; font-size: 0.95rem; color: var(--ink2); }
+  .mv-key i { display: inline-block; width: 1.4em; height: 0; border-top: 3px solid; vertical-align: middle; margin-right: 0.3em; }
+  .mv-key label { cursor: pointer; user-select: none; }
+  .mv-mgr { min-height: 2.6em; margin: 0.35rem 0 0.2rem; font-size: 0.93rem; color: var(--ink2); line-height: 1.35; font-variant-numeric: tabular-nums; }
+  .mv-mgr b { color: var(--ink); font-weight: 600; }
+  .mgc { margin: 0.35rem 0 0; }
+  .mgc p { margin: 0; font-size: 0.92rem; color: var(--ink2); }
+  .mgc p small { color: var(--muted); font-size: 0.86rem; margin-left: 0.3em; }
+  .mgc canvas { display: block; width: 100%; touch-action: pan-y; cursor: crosshair; }
+  .mv-ddw { display: flex; flex-wrap: wrap; gap: 0.4rem 0.9rem; align-items: center; margin: 0.4rem 0; }
+  .mv-dd table { border-collapse: collapse; font-size: 0.95rem; font-variant-numeric: tabular-nums; margin: 0.3rem 0 0.4rem; }
+  .mv-dd th, .mv-dd td { border-bottom: 1px solid var(--rule); padding: 0.28rem 0.6rem; text-align: right; white-space: nowrap; }
+  .mv-dd th { font-weight: 600; color: var(--ink); text-align: right; }
+  .mv-dd th:first-child, .mv-dd td:first-child { text-align: left; }
+  .mv-dd td.nrm { color: var(--muted); }
+  .mv-dd .tbl { overflow-x: auto; }
+  .mv-dd .fine { font-size: 0.9rem; color: var(--muted); margin: 0.2rem 0 0; max-width: 80rem; }
   @media (max-width: 640px) {
     main.mv { padding-top: 0.6rem; }
     h1 { font-size: 1.45rem; margin: 0.1rem 0 0.25rem; }
-    .mv-lede { font-size: 1rem; margin-bottom: 0.6rem; }
-    .seg button { padding: 0.42rem 0.62rem; font-size: 0.98rem; }
+    main.mv > .lede { font-size: 1.04rem; padding: 0.75rem 0.9rem; margin: 0.4rem 0 0.8rem; }
+    .seg button { padding: 0.55rem 0.72rem; font-size: 1.06rem; min-height: 46px; }
+    .runsel, .runsel select, .chk { font-size: 1.04rem; }
+    .mv-time button { min-width: 2.9rem; }
     .mv-fields { display: none; }
     .runsel.mv-fsel { display: inline-flex; flex: 1 1 12rem; }
     .mv-fsel select { flex: 1 1 auto; min-width: 0; }
@@ -127,6 +157,8 @@
     .mv-keys { display: none; }
     .kicker { display: none; }
     .mv-badge { font-size: 0.86rem; padding: 0.22rem 0.5rem; }
+    .mv-mg, .mv-dd { padding: 0.55rem 0.55rem 0.7rem; }
+    .mv-dd th, .mv-dd td { padding: 0.25rem 0.4rem; font-size: 0.9rem; }
   }
 </style>
 </head>
@@ -255,7 +287,7 @@
 <main class="mv">
   <p class="kicker">Newest run of each model &middot; updated four times a day</p>
   <h1>Short-range model maps</h1>
-  <p class="mv-lede">Zoomable maps of the newest HRRR, RRFS and RDPS forecasts, out to two to three and a half days, for aviation, severe and winter weather, and wind and solar power. Pick a map, scrub through the hours, and hover or tap anywhere for the model's value.</p>
+  <p class="lede">Zoomable maps of the newest HRRR, RRFS and RDPS forecasts, out to two to three and a half days, for aviation, severe and winter weather, and wind and solar power. Pick a map, scrub through the hours, and hover or tap anywhere for the model's value. <b>Click or tap an airport</b> for its forecast from all three models, compare the HRRR and RRFS with <b>Minus</b>, and find the models' <a href="#dd">degree days</a> below the map.</p>
 
   <div class="mv-bar">
     <div class="mv-row">
@@ -291,11 +323,27 @@
   <div class="mv-legend"><canvas id="leg" aria-label="Colour scale"></canvas><p class="mv-legT" id="legT"></p></div>
   <div class="mv-show"><b>Show</b>
     <label class="chk" id="contL" hidden title="Labelled contours drawn from the same data (isotherms, flight-category thresholds, isobars, CAPE)"><input type="checkbox" id="cont" checked> Contours</label>
-    <label class="chk" title="Airports with scheduled service in the US and Canada (OurAirports); hover or tap one for the model's value there"><input type="checkbox" id="sta" checked> Airports</label>
+    <label class="chk" title="Airports with scheduled service in the US and Canada (OurAirports) and the degree-day cities; hover for the model's value there, click or tap for the forecast meteogram"><input type="checkbox" id="sta" checked> Airports</label>
+    <label class="chk" id="diffL" hidden title="The other 3 km model's value subtracted at the same valid time, on the shared grid (HRRR and RRFS use the identical grid)"><input type="checkbox" id="diff"> <span id="diffT">Difference</span></label>
     <label class="chk" id="farmsL" hidden title="US wind projects (USGS Wind Turbine Database) or large-scale solar plants (USGS Solar PV Database), sized by capacity"><input type="checkbox" id="farms" checked> <span id="farmsT">Wind farms</span></label>
     <span class="mv-keys">Keys: <kbd>&larr;</kbd> <kbd>&rarr;</kbd> change hour &middot; <kbd>Space</kbd> play or pause &middot; scroll to zoom, drag to pan</span>
   </div>
   <p class="mv-note" id="note"></p>
+
+  <section class="mv-mg" id="mg" hidden aria-label="Meteogram">
+    <div class="mv-mgh"><h2 id="mgT"></h2><span class="sub" id="mgS"></span><span class="mv-key" id="mgK"></span><button type="button" class="x" id="mgX">Close</button></div>
+    <div class="mv-mgr" id="mgR"></div>
+    <div id="mgC"></div>
+    <p class="mv-legT" id="mgN"></p>
+  </section>
+
+  <section class="mv-dd" id="dd" hidden aria-label="Degree days">
+    <h2>Degree days from these runs</h2>
+    <div class="mv-ddw"><div class="seg" id="ddR" role="group" aria-label="Region"></div><div class="seg" id="ddQ" role="group" aria-label="Quantity"></div></div>
+    <div class="tbl" id="ddT"></div>
+    <div class="mgc"><p id="ddHT">Hourly 2 m temperature, population-weighted, °F</p><canvas id="ddH" height="150"></canvas></div>
+    <p class="fine" id="ddN"></p>
+  </section>
 
   <details class="mv-about">
     <summary>About these maps: fields, models, timing and methods</summary>
@@ -318,6 +366,10 @@
     <p>Airports: large and medium airports with scheduled service in the US and Canada from <a href="https://ourairports.com/data/">OurAirports</a> (public domain); the large hubs show at national scale and the rest as you zoom in. Hover or tap one for the model's value there.</p>
     <p>Wind and solar plants (shown on the 80&nbsp;m wind and shortwave maps; at national scale only the larger ones): the <a href="https://energy.usgs.gov/uswtdb/">U.S. Wind Turbine Database</a> v8.3 (USGS, LBNL and ACP; turbines grouped into projects) and the <a href="https://energy.usgs.gov/uspvdb/">U.S. Large-Scale Solar PV Database</a> v4.0 (USGS and LBNL), both public domain. Circles and squares scale with capacity; hover for name, capacity and year.</p>
     <p>HRRR: the 00, 06, 12 and 18&nbsp;UTC runs, every hour to 48&nbsp;h (the hourly runs that stop at 18&nbsp;h are not shown). RRFS&nbsp;v1: the 00, 06, 12 and 18&nbsp;UTC runs to 84&nbsp;h, every hour to 36&nbsp;h and every 3&nbsp;hours after (its other hourly runs write only 15-minute surface files to 18&nbsp;h and are not shown). RDPS: 00, 06, 12 and 18&nbsp;UTC, every hour to 84&nbsp;h. Only the newest run of each model is kept. A run appears once its last forecast hour is published; GitHub runs the jobs, so expect it about 2&ndash;3 hours after its start time for the HRRR and 4&ndash;5 hours for the RRFS and RDPS.</p>
+    <h2>Meteograms, degree days and model differences</h2>
+    <p>Click or tap any airport (or one of the degree-day cities such as New York Central Park) for a meteogram from every model's newest run, every forecast hour: temperature and dewpoint, 80&nbsp;m wind with barbs, ceiling and visibility against the flight-category bands, simulated radar and precipitation type, hourly and accumulated precipitation by type, ECAPE and CAPE (HRRR), smoke, sunshine and sea-level pressure, with a line at the current time. The values are read from the model grids when the run is processed: bilinear between the four nearest grid points for smooth fields, the nearest point for ceiling, visibility, reflectivity, precipitation type and CAPE.</p>
+    <p>Degree days: heating and cooling degree days for PJM, NYISO, ISO-NE, ERCOT and MISO (whole-state footprints), taken county by county from the model's hourly 2&nbsp;m temperature at each county's centre of population and then weighted by households heating with utility gas (gas-weighted HDD) or by population; base 65&nbsp;&deg;F, local standard day. Each cell shows the midpoint convention (the average of the day's high and low) and the hourly integral; the normal is the 1991&ndash;2020 expected value on the same two conventions.</p>
+    <p>&ldquo;Minus RRFS&rdquo; / &ldquo;Minus HRRR&rdquo; subtracts the other 3&nbsp;km model at the same valid time; the HRRR and RRFS share an identical grid, so the difference is cell by cell (temperature, dewpoint, 80&nbsp;m wind speed, IR and shortwave).</p>
     <h2>How the page works</h2>
     <p>Nothing on this page is a picture. Each field and hour is shipped as the model's own numbers, rounded to 256 levels (0.625&nbsp;K for infrared, 0.5&nbsp;&deg;F for temperature and dewpoint, 0.4&nbsp;m/s for wind, 5&nbsp;W&nbsp;m<sup>&minus;2</sup> for shortwave, 2&ndash;3&nbsp;% steps on logarithmic scales for ceiling, visibility and smoke, and a square-root scale for ECAPE and CAPE: within &plusmn;4&nbsp;J/kg at 100, &plusmn;11 at 1,000 and &plusmn;20 at 3,000) on the native model grid, and your browser colours, projects, contours and reads it: zooming shows the model's grid cells, and the hover value is the stored one, within those steps. Maps are drawn on the HRRR's Lambert conformal projection for all three models, so switching model keeps the view. Contours (every 10&nbsp;&deg;F with the freezing line in blue; dewpoint every 10&nbsp;&deg;F with 60 and 70 emphasised; 80&nbsp;m wind 10/15/20&nbsp;m/s; isobars every 2&nbsp;hPa on the radar map) are traced in your browser from the same numbers after a light smoothing, so they show the pattern, not every 3&nbsp;km wiggle. Boundaries: Natural Earth; US states and counties: US Census via us-atlas.</p>
     <p>Related: <a href="/ecape.html">entraining CAPE from the HRRR</a> and <a href="/snowbands.html">snow-band diagnostics from the HRRR, RRFS and RDPS</a>. Data: NOAA HRRR and RRFS (AWS open data; NOMADS for the RRFS), ECCC RDPS and RAQDPS-FireWork (MSC Datamart). Model output as published, uncorrected.</p>
@@ -1273,35 +1325,38 @@
     var na = NA[st.model] && NA[st.model][st.field];
     if (st.field === "acc") { acc = accFrame(st.model, c, cc.hour, loOK(c, st.acc.type)); fm = acc.fm || null; if (acc.msg) na = acc.msg; }
     if (st.field === "ecape") { ec = ecFrame(st.model, c, cc.hour); fm = ec.fm || null; if (ec.msg) na = ec.msg; }
+    var df = !na && diffOn() ? diffFrame(st.model, c, st.field, cc.hour) : null;
+    if (df && df.msg) na = df.msg;
     if (na) msg = na;
     else if (!fm) msg = FIELDS[st.field].label + " is missing from this run.";
     else if (fm.hours.indexOf(cc.hour) < 0) msg = FIELDS[st.field].label + " is not available at +" + cc.hour + " h in this run" +
       (fm.hours.length ? " (it covers +" + fm.hours[0] + " to +" + fm.hours[fm.hours.length - 1] + " h)." : ".");
     if ($("msg").textContent !== msg) $("msg").textContent = msg;
     if (msg) { if (gl) { gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT); } drawn = null; drawOverlay(); schedule(); return; }
-    var e = acc ? (acc.e || null) : ec ? (ec.e || null) : plainFrame(st.model, c, st.field, cc.hour);
+    var e = acc ? (acc.e || null) : ec ? (ec.e || null) : df ? (df.e || null) : plainFrame(st.model, c, st.field, cc.hour);
     if (!e && fileFields().some(function (f) { var lo = loOK(c, f), x = frames.get(fkey(st.model, c, f, cc.hour, lo)); return x && x.fail; })) {
       $("msg").textContent = "This map could not be downloaded. It may still be publishing, or the connection dropped; try another hour, or reload in a minute.";
       if (gl) { gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT); } drawn = null; drawOverlay(); schedule(); return;
     }
     var hold = false;
-    if (!e && drawn && drawn.field === st.field && drawn.model === st.model && (!ec || drawn.ecSub === st.ec)) { e = drawn.e; hold = true; }      // hold the last frame while the next decodes
+    if (!e && drawn && drawn.field === st.field && drawn.model === st.model && (!ec || drawn.ecSub === st.ec) && !!drawn.diff === !!df) { e = drawn.e; hold = true; }      // hold the last frame while the next decodes
     else if (!e) { drawn = null; if (gl) { gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT); } drawOverlay(); schedule(); return; }
     if (!e.dec) { drawOverlay(); schedule(); return; }
     var hidx = fm.hours.indexOf(cc.hour);
-    var q = fm.q && !acc ? fm.q[hidx] : ec ? (fm.k || 2.8) : null;
+    var q = fm.q && !acc && !df ? fm.q[hidx] : ec ? (fm.k || 2.8) : null;
     if (drawn && drawn.e === e) q = drawn.q;
     var gfm = acc ? c.fields[st.acc.type] : fm;
     var g = hold ? drawn.g : prepGrid(c.grids[e.lo && gfm.lo ? gfm.lo : gfm.grid]);
     if (gl) {
       var ch = chOf(st.field), enc = encOf(st.field, fm);
       gl.viewport(0, 0, glc.width, glc.height); gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT);
-      gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, texOf(e, acc || ec ? 1 : ch));
+      gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, texOf(e, acc || ec || df ? 1 : ch));
       if (acc) { ch = 1; enc = "accd"; }
+      if (df) { ch = 1; enc = "diff"; }
       if (ec) { ch = 1; enc = EC_SUBS[st.ec].kind === "ratio" ? "ratio" : "sqrt"; }
       var lk = st.field + "|" + enc + "|" + (q && q.join ? q.join(",") : q || "") + "|" + (acc ? st.acc.type : ec ? st.ec : "");
       if (lk !== lutKey) { gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, lutTex);
-        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, 256, 6, 0, gl.RGBA, gl.UNSIGNED_BYTE, buildLut(st.field, q, enc)); lutKey = lk; }
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, 256, 6, 0, gl.RGBA, gl.UNSIGNED_BYTE, df ? diffLut(st.field) : buildLut(st.field, q, enc)); lutKey = lk; }
       gl.uniform2f(loc.uC, view.cx, view.cy); gl.uniform1f(loc.uS, view.s / DPR); gl.uniform2f(loc.uWH, glc.width, glc.height);
       gl.uniform4f(loc.uP, P.n, P.RF, P.rho0, P.lon0);
       gl.uniform2i(loc.uN, g.nx, g.ny);
@@ -1312,7 +1367,7 @@
     }
     drawn = { e: e, g: g, field: st.field, model: st.model, q: q, c: c, hour: cc.hour, enc: acc ? "accd" : encOf(st.field, fm), fm: fm,
               ckey: acc ? "acc/" + (acc.key || "") : ec ? "ec/" + (ec.key || "") : null, accLabel: acc ? acc.label : null, accType: acc ? st.acc.type : null,
-              ecSub: ec ? st.ec : null, start: acc ? acc.start : 0 };
+              ecSub: ec ? st.ec : null, start: acc ? acc.start : 0, diff: df ? df : null };
     ensureContours(drawn);
     drawOverlay();
     schedule();
@@ -1361,7 +1416,7 @@
     ctx.globalAlpha = 1;
     ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
     drawContourLines(ctx, x0, x1, y0, y1);
-    if (st.field === "wind80" && drawn && drawn.e && drawn.e.dec && drawn.field === "wind80") drawBarbs(ctx, drawn);
+    if (st.field === "wind80" && drawn && drawn.e && drawn.e.dec && drawn.field === "wind80" && !drawn.diff) drawBarbs(ctx, drawn);
     ovView = { cx: view.cx, cy: view.cy, s: view.s };
     var t1 = performance.now();
     cancelAnimationFrame(labT);
@@ -1467,7 +1522,7 @@
     return null;
   }
   var CONT = new Map(), contBusy = {};
-  function contoursOn() { return !!contourSpec(st.field, st.model, [0, 1]) && $("cont").checked; }
+  function contoursOn() { return !!contourSpec(st.field, st.model, [0, 1]) && $("cont").checked && !($("diff").checked && diffAvail()); }
   function ensureContours(d) {
     if (!contoursOn() || !d) return;
     var fm = d.field === "acc" ? d.c.fields[d.accType] : d.field === "ecape" ? d.fm : d.c.fields[d.field]; if (!fm) return;
@@ -1589,6 +1644,9 @@
     if (aptsP) return;
     aptsP = fetch("data/models_airports.json").then(function (r) { return r.json(); }).then(function (d) {
       d.airports.forEach(function (a) { var q = P.fwd(a[0], a[1]); a.x = q[0]; a.y = q[1]; }); APTS = d.airports; render();
+      // the degree-day tracker's cities that are not airports (Central Park, downtown Los Angeles, ...): meteogram points too
+      return fetch("data/models_cities.json").then(function (r) { return r.ok ? r.json() : null; }).then(function (cd) {
+        if (!cd) return; cd.cities.forEach(function (a) { var q = P.fwd(a[0], a[1]); a.x = q[0]; a.y = q[1]; a.city = true; APTS.push(a); }); render(); });
     }).catch(function () { aptsP = null; });
   }
   // labels: collision boxes in a 48 px hash grid; text widths cached. Lower quality levels label the hubs only at
@@ -1639,8 +1697,8 @@
       add([px - 5, py - 5, px + 5, py + 5]);
     });
   }
-  function nearestApt(px, py) {
-    var best = null, bd = 81;
+  function nearestApt(px, py, r2) {
+    var best = null, bd = r2 || 81;
     aptShown.forEach(function (x) { var d = (x[0] - px) * (x[0] - px) + (x[1] - py) * (x[1] - py); if (d < bd) { bd = d; best = x; } });
     return best;
   }
@@ -1718,6 +1776,7 @@
                                   : "J/kg (blank below 100 J/kg) · contours 1,000, 2,000 and 3,000 J/kg";
   }
   function drawLegend() {
+    if (diffOn()) { drawLegendDiff(); return; }
     if (st.field === "refl") { drawLegendRefl(); return; }
     if (st.field === "ecape") { drawLegendSteps(); return; }
     if (st.field === "acc") {
@@ -1774,7 +1833,7 @@
     var vt = Date.parse(c.init) + st.hour * 3600e3, t = fmtTime(vt);
     var init = src.init.replace(/T(\d\d):00Z/, " $1Z").slice(5).replace("-", "/");
     $("badge").innerHTML = "<b>" + MODELS[st.model] + "</b> " + (st.model === "rdps" && st.field === "ir" ? "OLR-derived brightness temperature (proxy for IR)" : labelOf(st.model, st.field)) + " · run " + init + " +" + h + " h" + (st.field === "acc" ? " · " + ACC_TYPES[st.acc.type].label.toLowerCase() + (drawn && drawn.accLabel ? ", " + drawn.accLabel : "") : "") +
-      (st.field === "ecape" ? " · " + EC_SUBS[st.ec].long : "");
+      (st.field === "ecape" ? " · " + EC_SUBS[st.ec].long : "") + (diffOn() ? " · <b>minus " + MODELS[diffOther(st.model)] + "</b> at the same valid time" : "");
     $("valid").innerHTML = "<span class=\"vt\">" + t[0] + "</span> <span class=\"loc\">· " + t[1] + " your time</span><span class=\"fh\">+" + h + " h</span>";
   }
   function setButtons() {
@@ -1850,6 +1909,7 @@
   function onChange() {
     var slider = $("hour"), cS = cycleObj(st.model, st.ci); slider.max = Math.max(0, uiHours(cS).length - 1); slider.value = Math.max(0, uiHours(cS).indexOf(st.hour));
     $("contL").hidden = !contourSpec(st.field, st.model, [0, 1]);
+    $("diffL").hidden = !diffAvail(); if (diffAvail()) $("diffT").textContent = "Minus " + MODELS[diffOther(st.model)];
     var n = (NOTES[st.model] && NOTES[st.model][st.field]) || "";
     var fm = cycleObj(st.model, st.ci) && cycleObj(st.model, st.ci).fields[st.field === "acc" ? st.acc.type : st.field];
     if (st.field === "acc" && fm && fm.method) n = "<b>" + ACC_TYPES[st.acc.type].label + "</b>: " + fm.method + ". Pick a window to see the amount that falls in it; the accumulation is the model's own, not a radar estimate.";
@@ -1900,6 +1960,11 @@
         var file = f === "acc" ? st.acc.type : f; if (c.fields[file] && c.fields[file].hours.indexOf(cc.hour) >= 0) list.push([st.model, c, file, cc.hour, loOK(c, file)]);
       });
     }
+    if (diffOn()) {                                                // the other model's frame at the same valid time rides along
+      var o2 = diffOther(st.model), c2 = cycleObj(o2, 0), fm2 = c2.fields[pf], out3 = [];
+      list.forEach(function (a, i) { out3.push(a); var h2 = diffHour(c, c2, a[3]); if (fm2 && a[2] === pf && fm2.hours.indexOf(h2) >= 0) { out3.push([o2, c2, pf, h2, a[4] && !!fm2.lo]); if (i < nU) nU++; } });
+      list = out3;
+    }
     want(list, nU);
     // decode the next two ahead of the play head
     for (var k = 1; k <= 2 && i0 + k < hs.length; k++) pfs.forEach(function (f) { if (c.fields[f]) decoded(st.model, c, f, hs[i0 + k], f === pf && lo); });
@@ -1932,6 +1997,7 @@
   $("accWin").onchange = function () { st.acc.win = +this.value; onChange(); };
   $("sta").onchange = function () { render(); };
   $("farms").onchange = function () { render(); };
+  $("diff").onchange = function () { prefetch(); onChange(); };
   document.addEventListener("keydown", function (e) {
     if (e.target && /INPUT|SELECT|TEXTAREA/.test(e.target.tagName) && e.target.type !== "range") return;
     if (e.key === "ArrowRight") { step(1); e.preventDefault(); } else if (e.key === "ArrowLeft") { step(-1); e.preventDefault(); }
@@ -2012,6 +2078,8 @@
   function endPtr(e) {
     var r = mapEl.getBoundingClientRect();
     if (ptrs.has(e.pointerId) && !moved && e.pointerType !== "mouse") hover(e.clientX - r.left, e.clientY - r.top, true);
+    if (ptrs.has(e.pointerId) && !moved && ptrs.size === 1) {        // a click or tap on an airport or city opens its meteogram
+      var ap0 = nearestApt(e.clientX - r.left, e.clientY - r.top, e.pointerType === "mouse" ? 81 : 196); if (ap0) openMg(ap0[2][2], ap0[2][3]); }
     var wasPan = ptrs.size === 1 && !pinch && moved;
     ptrs.delete(e.pointerId); if (ptrs.size < 2) pinch = null; if (!ptrs.size) mapEl.classList.remove("drag");
     if (ptrs.size) return;
@@ -2033,7 +2101,7 @@
   // hover reads the NATIVE grid even when the half-resolution one is on screen: the first hover asks for the native file
   // (the half-resolution value is shown until it has arrived)
   function hoverSrc() {
-    var d = drawn; if (!d || !d.e || !d.e.lo) return d;
+    var d = drawn; if (!d || !d.e || !d.e.lo || d.diff) return d;
     var c = d.c, full = null, g = null;
     if (d.field === "acc") { var r = accFrame(d.model, c, d.hour, false); if (r.e && !r.e.lo) full = r.e; g = c.grids[c.fields[d.accType].grid]; }
     else if (d.field !== "ecape") { full = peek(d.model, c, d.field, d.hour, false); if (!full) decoded(d.model, c, d.field, d.hour, false); g = c.grids[d.fm.grid]; }
@@ -2051,7 +2119,11 @@
     if (!s) { tip.style.display = "none"; return; }
     var fd = FIELDS[d.field], txt;
     var ll = P.inv(s[2][0], s[2][1]);
-    if (d.field === "acc") {
+    if (d.diff) {
+      var ijd = MV_ij(d, px, py), ixd = (d.g.ny - 1 - Math.floor(ijd[1] + 0.5)) * d.g.nx + Math.floor(ijd[0] + 0.5), sp0 = DIFF_FIELDS[d.field];
+      var dv = d.e.exact[ixd], a1 = d.e.v1[ixd], a2 = d.e.v2[ixd], dg = sp0.step < 1 ? 1 : 0;
+      txt = dv !== dv ? "no data" : (dv > 0 ? "+" : dv < 0 ? "−" : "") + Math.abs(dv).toFixed(dg) + " " + sp0.unit + "<br><span class=\"ll\">" + MODELS[d.model] + " " + a1.toFixed(dg) + " · " + MODELS[d.diff.o] + " " + a2.toFixed(dg) + " (its +" + d.diff.h2 + " h)</span>";
+    } else if (d.field === "acc") {
       var idx = (d.g.ny - 1 - Math.floor(MV_ij(d, px, py)[1] + 0.5)) * d.g.nx + Math.floor(MV_ij(d, px, py)[0] + 0.5);
       var av = d.e.exact ? d.e.exact[idx] : 0;
       txt = (d.accType === "asnow" ? av.toFixed(1) + " in of snow" : av.toFixed(2) + " in" + (d.accType === "apcp" ? "" : " (liquid)")) +
@@ -2093,9 +2165,395 @@
     if (sticky) { clearTimeout(tip._t); tip._t = setTimeout(function () { tip.style.display = "none"; }, 4000); }
   }
 
+  // ── model difference (2026-10-01, user "model-difference toggle"): HRRR minus RRFS (or the reverse) at the same valid
+  // time, worked out here from the two frames the page already decodes - the two models share the identical 3 km grid
+  // (same grid description in both manifests), so it is a cell-by-cell subtraction. 1-byte code 127 + d / step (0 = none).
+  var DIFF_FIELDS = { t2m: { step: 0.25, range: 12, unit: "°F" }, td2m: { step: 0.25, range: 12, unit: "°F" },
+                      wind80: { step: 0.2, range: 8, unit: "m/s" }, ir: { step: 0.5, range: 30, unit: "°C" }, sw: { step: 5, range: 400, unit: "W/m²" } };
+  function diffOther(m) { return m === "hrrr" ? "rrfs" : m === "rrfs" ? "hrrr" : null; }
+  function diffAvail() { var o = diffOther(st.model); return !!(o && DIFF_FIELDS[st.field] && cycleObj(o, 0) && cycleObj(st.model, st.ci)); }
+  function diffOn() { return diffAvail() && $("diff").checked; }
+  var DIFF = new Map();
+  function diffHour(c, c2, hour) { return hour + Math.round((Date.parse(c.init) - Date.parse(c2.init)) / 3600e3); }
+  function fieldVals(fd, field, e, q) {                         // decoded frame -> Float32 values in display units (NaN = none)
+    var a = e.dec.data, n = e.dec.w * e.dec.h, out = new Float32Array(n), L = new Float32Array(256);
+    if (field === "wind80") { for (var k = 0; k < n; k++) { var cu = a[2 * k], cv = a[2 * k + 1]; if (cu === 255) { out[k] = NaN; continue; }
+      var u = fd.off + cu * fd.step, v = fd.off + cv * fd.step; out[k] = Math.sqrt(u * u + v * v); } return out; }
+    for (var c = 0; c < 256; c++) { var x = valueOf(fd, c, q); L[c] = x === null ? NaN : x; }
+    for (k = 0; k < n; k++) out[k] = L[a[k]];
+    return out;
+  }
+  function diffFrame(model, c, field, hour) {
+    var o = diffOther(model), c2 = cycleObj(o, 0), fm = c.fields[field], fm2 = c2 && c2.fields[field], spec = DIFF_FIELDS[field];
+    if (!fm || !fm2) return { msg: FIELDS[field].label + " is not in both runs." };
+    var h2 = diffHour(c, c2, hour);
+    if (fm.hours.indexOf(hour) < 0 || fm2.hours.indexOf(h2) < 0)
+      return { msg: "The " + MODELS[o] + " run (" + c2.init.slice(5, 10).replace("-", "/") + " " + c2.init.slice(11, 13) + "Z) has no " + FIELDS[field].label.toLowerCase() + " at this valid time (its +" + h2 + " h)." };
+    var lo = loOK(c, field) && !!fm2.lo, key = model + "/" + c.cycle + "-" + o + "/" + c2.cycle + "/" + field + "/" + hour + (lo ? "~lo" : "");
+    var have = DIFF.get(key); if (have) { have.used = ++useClock; return { e: have, fm: fm, key: key, h2: h2, o: o }; }
+    var e1 = decoded(model, c, field, hour, lo), e2 = decoded(o, c2, field, h2, lo);
+    if (!e1 || !e1.dec || !e2 || !e2.dec) return { wait: true, fm: fm, h2: h2, o: o };
+    if (e1.dec.w !== e2.dec.w || e1.dec.h !== e2.dec.h) return { msg: "The two runs are not on the same grid." };
+    var fd = FIELDS[field], v1 = fieldVals(fd, field, e1, fm.q && fm.q[fm.hours.indexOf(hour)]), v2 = fieldVals(fd, field, e2, fm2.q && fm2.q[fm2.hours.indexOf(h2)]);
+    var n = v1.length, out = new Uint8Array(n), ex = new Float32Array(n);
+    for (var k = 0; k < n; k++) { var d = v1[k] - v2[k]; ex[k] = d; if (d !== d) continue;
+      var cd = 127 + Math.round(d / spec.step); out[k] = cd < 1 ? 1 : cd > 253 ? 253 : cd; }
+    var ent = { dec: { w: e1.dec.w, h: e1.dec.h, data: out }, exact: ex, v1: v1, v2: v2, used: ++useClock, lo: lo };
+    DIFF.set(key, ent);
+    if (DIFF.size > 6) { var old = DIFF.keys().next().value, oe = DIFF.get(old); if (oe.tex && gl) gl.deleteTexture(oe.tex); DIFF.delete(old); }
+    return { e: ent, fm: fm, key: key, h2: h2, o: o };
+  }
+  function diffColour(d, range) {                               // diverging: blue = this model lower, red = higher
+    var t = Math.max(-1, Math.min(1, d / range));
+    var stops = [[-1, 33, 72, 160, 0.95], [-0.5, 103, 169, 207, 0.85], [-0.12, 209, 229, 240, 0.55], [0, 247, 247, 247, 0.0],
+                 [0.12, 253, 219, 199, 0.55], [0.5, 239, 138, 98, 0.85], [1, 178, 24, 43, 0.95]];
+    return interp(stops, t);
+  }
+  function diffLut(field) {
+    var spec = DIFF_FIELDS[field], lut = new Uint8Array(256 * 4 * 6);
+    for (var c = 1; c < 255; c++) { var col = diffColour((c - 127) * spec.step, spec.range); if (col[3] < 0.01) continue;
+      lut[4 * c] = col[0]; lut[4 * c + 1] = col[1]; lut[4 * c + 2] = col[2]; lut[4 * c + 3] = Math.round(255 * col[3]); }
+    return lut;
+  }
+  function drawLegendDiff() {
+    var spec = DIFF_FIELDS[st.field], cv = $("leg"), dpr = Math.min(window.devicePixelRatio || 1, 2); cv.style.height = "38px";
+    var r = cv.getBoundingClientRect(); cv.width = Math.round(r.width * dpr); cv.height = Math.round(38 * dpr);
+    var ctx = cv.getContext("2d"); ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, r.width, 38);
+    var x0 = 6, x1 = r.width - 6, bh = 14, y = 4;
+    ctx.fillStyle = "#e9ebe6"; ctx.fillRect(x0, y, x1 - x0, bh);
+    for (var px = x0; px < x1; px++) { var c = diffColour(((px - x0) / (x1 - x0) * 2 - 1) * spec.range, spec.range);
+      ctx.fillStyle = "rgba(" + Math.round(c[0]) + "," + Math.round(c[1]) + "," + Math.round(c[2]) + "," + c[3] + ")"; ctx.fillRect(px, y, 1.2, bh); }
+    ctx.strokeStyle = "#8c918b"; ctx.lineWidth = 1; ctx.strokeRect(x0 + 0.5, y + 0.5, x1 - x0 - 1, bh - 1);
+    ctx.fillStyle = "#3d4540"; ctx.font = "13.5px 'Source Sans 3', Arial, sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "top";
+    [-1, -0.5, 0, 0.5, 1].forEach(function (f) { var x = x0 + (f + 1) / 2 * (x1 - x0); ctx.fillRect(x - 0.5, y + bh, 1, 4);
+      ctx.fillText((f > 0 ? "+" : f < 0 ? "−" : "") + Math.abs(f * spec.range), Math.min(Math.max(x, x0 + 10), x1 - 10), y + bh + 5); });
+    var o = diffOther(st.model);
+    $("legT").textContent = MODELS[st.model] + " minus " + MODELS[o] + ", " + FIELDS[st.field].label.toLowerCase() + ", " + spec.unit +
+      " (red: " + MODELS[st.model] + " higher; blue: lower; colours saturate at ±" + spec.range + ") · same valid time, each model's newest run";
+  }
+
+  // ── meteograms (2026-10-01, user: "click an airport or city -> meteogram"): the run's points.json per model (one file
+  // per run, ~200-300 KB gzipped, scripts/models/points.py) - every model, every hour, read once and kept.
+  var MG_COL = { hrrr: "#1f5fa8", rrfs: "#c2394b", rdps: "#23874f" };
+  var MGP = {};                                                  // model/cycle -> Promise(doc | null)
+  function mgFile(model, c, ecape) {
+    var ent = ecape ? c.ecape && c.ecape.points : c.points; if (!ent) return Promise.resolve(null);
+    var key = model + "/" + c.cycle + (ecape ? "/ec" : "");
+    if (!MGP[key]) MGP[key] = getBytes("assets/models/data/" + model + "/" + c.cycle + "/" + ent.file, ent.sha || (ecape ? c.ecape.fields.ecape_mu.sha : c.sha), "high")
+      .then(function (b) { var d = JSON.parse(new TextDecoder().decode(b)); d.idx = {}; d.ids.forEach(function (id, k) { d.idx[id] = k; }); d.t0 = Date.parse(d.init || c.init); return d; })
+      .catch(function () { delete MGP[key]; return null; });
+    return MGP[key];
+  }
+  function mgSeries(doc, f, id) {                                // -> {t: [ms], v: [value | NaN]} or null
+    if (!doc || !doc.fields[f] || doc.idx[id] === undefined) return null;
+    var e = doc.fields[f], n = doc.hours.length, d = e.d[doc.idx[id]], v = new Array(n), prev = null;
+    for (var k = 0; k < n; k++) {
+      var x = d === null ? null : d === 0 ? 0 : d[k];
+      if (x === null) { v[k] = NaN; prev = null; continue; }
+      if (e.delta && prev !== null && d !== 0) x = prev + x;
+      prev = x; v[k] = x * e.scale;
+    }
+    return { t: doc.hours.map(function (h) { return doc.t0 + h * 3600e3; }), v: v };
+  }
+  var MG = { id: null, name: "", docs: {}, ec: null, on: { hrrr: true, rrfs: true, rdps: true }, hov: null };
+  var CITY_EXTRA = null;
+  function openMg(id, name) {
+    MG.id = id; MG.name = name || id; MG.hov = null;
+    $("mg").hidden = false; $("mgT").textContent = id; $("mgS").textContent = name && name !== id ? name : "";
+    $("mgR").textContent = "Loading the forecasts for " + id + "…"; $("mgC").innerHTML = "";
+    writeHash();
+    var jobs = MODEL_ORDER.map(function (m) { var c = cycleObj(m, 0); return c ? mgFile(m, c).then(function (d) { MG.docs[m] = d; }) : null; });
+    var ch = cycleObj("hrrr", 0); if (ch && ch.ecape) jobs.push(mgFile("hrrr", ch, true).then(function (d) { MG.ec = d; }));
+    Promise.all(jobs).then(function () { if (MG.id === id) drawMg(true); });
+    if ($("mg").getBoundingClientRect().top > window.innerHeight * 0.75) setTimeout(function () { $("mg").scrollIntoView({ behavior: "smooth", block: "start" }); }, 60);
+  }
+  $("mgX").onclick = function () { $("mg").hidden = true; MG.id = null; writeHash(); };
+  function mgKey() {
+    var k = $("mgK"); k.innerHTML = "";
+    MODEL_ORDER.forEach(function (m) {
+      var d = MG.docs[m]; if (!d || d.idx[MG.id] === undefined) return;
+      var L = document.createElement("label"), cb = document.createElement("input"), i = document.createElement("i");
+      cb.type = "checkbox"; cb.checked = MG.on[m]; cb.onchange = function () { MG.on[m] = this.checked; drawMg(); };
+      i.style.borderColor = MG_COL[m]; L.appendChild(cb); L.appendChild(i);
+      var c = cycleObj(m, 0); L.appendChild(document.createTextNode(MODELS[m] + " " + c.init.slice(11, 13) + "Z"));
+      k.appendChild(L);
+    });
+  }
+  // the charts: [title, unit note, kind, options]
+  var FLT = [["LIFR", "#c24fc4"], ["IFR", "#ec5b4b"], ["MVFR", "#5b8ee0"], ["VFR", "#7fbf6a"]];
+  function mgCharts() {
+    return [
+      { id: "t", title: "Temperature and dewpoint", note: "°F · solid temperature, dashed dewpoint", h: 170, lines: [["t2m", 1, 2], ["td2m", [5, 4], 1.6]] },
+      { id: "w", title: "Wind 80 m above ground", note: "knots · barbs below, one row per model", h: 150, wind: true },
+      { id: "c", title: "Cloud ceiling", note: "feet above ground, log scale, flight-category bands · top edge = no ceiling", h: 130, log: [100, 20000], top: 20000, lines: [["ceil", 1, 2]],
+        bands: [[100, 500, 0], [500, 1000, 1], [1000, 3000, 2], [3000, 20000, 3]], models: ["hrrr", "rrfs"] },
+      { id: "v", title: "Visibility", note: "miles, log scale, flight-category bands · 10 = 10 mi or more", h: 120, log: [0.1, 10], lines: [["vis", 1, 2]],
+        bands: [[0.1, 1, 0], [1, 3, 1], [3, 5, 2], [5, 10, 3]], models: ["hrrr", "rrfs"] },
+      { id: "r", title: "Radar and precipitation type", note: "simulated reflectivity 1 km above ground (RDPS: precipitation rate), coloured by surface precipitation type", h: 0, strips: true },
+      { id: "p", title: "Hourly precipitation", note: "inches of liquid in the hour (3-hourly where the run is) · bars by type, one bar per model", h: 120, bars: true },
+      { id: "a", title: "Accumulated precipitation since the run started", note: "inches of liquid · solid total, dotted freezing rain, dash-dot sleet", h: 130, lines: [["apcp", 1, 2], ["afzra", [2, 3], 1.8], ["aip", [7, 3, 2, 3], 1.6]] },
+      { id: "s", title: "Snowfall accumulated", note: "inches of snow (HRRR/RRFS: model snowfall; RDPS: 10:1 from its snow water)", h: 110, lines: [["asnow", 1, 2]], skipZero: true },
+      { id: "e", title: "ECAPE and CAPE (HRRR)", note: "J/kg · solid MU ECAPE, dashed ML ECAPE, thin MU and ML CAPE", h: 140, ecape: true, skipZero: true },
+      { id: "k", title: "Smoke", note: "mg per m², vertically integrated", h: 100, lines: [["smoke", 1, 2]], skipZero: true },
+      { id: "sw", title: "Incoming sunshine", note: "W per m² at the surface", h: 100, lines: [["sw", 1, 2]] },
+      { id: "m", title: "Sea-level pressure", note: "hPa", h: 110, lines: [["mslp", 1, 2]] }];
+  }
+  function mgRange() {
+    var t0 = Infinity, t1 = -Infinity;
+    MODEL_ORDER.forEach(function (m) { var d = MG.docs[m]; if (!d || !MG.on[m] || d.idx[MG.id] === undefined) return;
+      t0 = Math.min(t0, d.t0 + d.hours[0] * 3600e3); t1 = Math.max(t1, d.t0 + d.hours[d.hours.length - 1] * 3600e3); });
+    return isFinite(t0) ? [t0, t1] : null;
+  }
+  function mgCanvas(spec, h) {
+    var wrap = document.getElementById("mgc-" + spec.id);
+    if (!wrap) { wrap = document.createElement("div"); wrap.className = "mgc"; wrap.id = "mgc-" + spec.id;
+      wrap.innerHTML = "<p></p><canvas></canvas>"; $("mgC").appendChild(wrap);
+      var cv0 = wrap.querySelector("canvas");
+      var hov = function (e) { var r = cv0.getBoundingClientRect(); MG.hov = MG.x ? MG.x.inv(e.clientX - r.left) : null;   // one redraw per frame
+        if (!MG.raf) MG.raf = requestAnimationFrame(function () { MG.raf = 0; drawMg(); }); };
+      cv0.addEventListener("pointermove", hov); cv0.addEventListener("pointerdown", hov); }
+    wrap.querySelector("p").innerHTML = spec.title + "<small>" + spec.note + "</small>";
+    var cv = wrap.querySelector("canvas"), dpr = Math.min(window.devicePixelRatio || 1, 2), w = $("mgC").clientWidth;
+    cv.style.height = h + "px"; cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr);
+    var ctx = cv.getContext("2d"); ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, w, h);
+    wrap.hidden = false;
+    return { ctx: ctx, w: w, h: h, wrap: wrap };
+  }
+  var MGL = 46, MGR = 10;                                         // plot margins, px
+  function mgFrame(ctx, w, h, X, y, opt) {                        // time grid, y axis, now line
+    var top = 4, bot = h - 16;
+    ctx.font = "12px 'Source Sans 3', Arial, sans-serif"; ctx.fillStyle = "#5c6b73"; ctx.strokeStyle = "#e3e6e0"; ctx.lineWidth = 1;
+    var day0 = new Date(X.t0); day0.setUTCHours(0, 0, 0, 0);
+    for (var t = day0.getTime(); t <= X.t1; t += 6 * 3600e3) {
+      if (t < X.t0) continue; var x = X.f(t), hh = new Date(t).getUTCHours();
+      ctx.strokeStyle = hh === 0 ? "#c9cec6" : "#eceee9"; ctx.beginPath(); ctx.moveTo(x + 0.5, top); ctx.lineTo(x + 0.5, bot); ctx.stroke();
+      ctx.textAlign = "center"; ctx.textBaseline = "top";
+      if (opt.axis) ctx.fillText(hh === 0 ? new Date(t).toLocaleString("en-US", { timeZone: "UTC", weekday: "short", day: "numeric" }) : (w > 520 ? hh + "Z" : ""), x, bot + 2);
+    }
+    if (y) {
+      ctx.textAlign = "right"; ctx.textBaseline = "middle";
+      y.ticks.forEach(function (v) { var yy = y.f(v); if (yy < top - 1 || yy > bot + 1) return;
+        ctx.strokeStyle = "#eceee9"; ctx.beginPath(); ctx.moveTo(MGL, Math.round(yy) + 0.5); ctx.lineTo(w - MGR, Math.round(yy) + 0.5); ctx.stroke();
+        ctx.fillText(y.lab ? y.lab(v) : String(v), MGL - 4, yy); });
+    }
+    var now = Date.now();
+    if (now >= X.t0 && now <= X.t1 && !opt.noNow) { var xn = X.f(now); ctx.strokeStyle = "rgba(200,40,30,0.75)"; ctx.setLineDash([4, 3]); ctx.lineWidth = 1.3;
+      ctx.beginPath(); ctx.moveTo(xn, top); ctx.lineTo(xn, bot); ctx.stroke(); ctx.setLineDash([]);
+      if (opt.axis) { ctx.fillStyle = "rgba(200,40,30,0.9)"; ctx.textAlign = "left"; ctx.textBaseline = "top"; ctx.fillText("now", xn + 3, top); } }
+    if (MG.hov !== null && MG.hov >= X.t0 && MG.hov <= X.t1) { var xh = X.f(MG.hov); ctx.strokeStyle = "rgba(20,24,22,0.55)"; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(xh + 0.5, top); ctx.lineTo(xh + 0.5, bot); ctx.stroke(); }
+    return [top, bot];
+  }
+  function niceTicks(lo, hi, n) {
+    var span = hi - lo || 1, st0 = Math.pow(10, Math.floor(Math.log10(span / n))), err = span / n / st0;
+    var step = st0 * (err >= 7 ? 10 : err >= 3 ? 5 : err >= 1.5 ? 2 : 1), out = [];
+    for (var v = Math.ceil(lo / step) * step; v <= hi + 1e-9; v += step) out.push(Math.round(v * 1e6) / 1e6);
+    return out;
+  }
+  function mgPath(ctx, X, y, s, dash, lw, col) {
+    ctx.strokeStyle = col; ctx.lineWidth = lw; ctx.setLineDash(dash === 1 ? [] : dash); ctx.beginPath();
+    var pen = false;
+    for (var k = 0; k < s.t.length; k++) { var v = s.v[k]; if (v !== v) { pen = false; continue; }
+      var x = X.f(s.t[k]), yy = y.f(v); if (pen) ctx.lineTo(x, yy); else { ctx.moveTo(x, yy); pen = true; } }
+    ctx.stroke(); ctx.setLineDash([]);
+  }
+  function mgModels(spec) { return MODEL_ORDER.filter(function (m) { var d = MG.docs[m]; return d && MG.on[m] && d.idx[MG.id] !== undefined && (!spec.models || spec.models.indexOf(m) >= 0); }); }
+  function ptCol(t, dbz) { var c = interp(PT_RAMPS[Math.min(Math.max(t | 0, 0), 5)], dbz); return "rgb(" + Math.round(c[0]) + "," + Math.round(c[1]) + "," + Math.round(c[2]) + ")"; }
+  function drawMg(first) {
+    if (!MG.id) return;
+    if (first) mgKey();
+    var R = mgRange();
+    if (!R) { $("mgR").textContent = "No model run carries a forecast for " + MG.id + " (outside every model's grid, or the files are not published yet)."; $("mgC").innerHTML = ""; return; }
+    var w = $("mgC").clientWidth, X = { t0: R[0], t1: R[1] };
+    X.f = function (t) { return MGL + (t - X.t0) / (X.t1 - X.t0) * (w - MGL - MGR); };
+    X.inv = function (px) { return X.t0 + (px - MGL) / (w - MGL - MGR) * (X.t1 - X.t0); };
+    MG.x = X;
+    var specs = mgCharts(), last = null;
+    specs.forEach(function (sp) {
+      var ms = mgModels(sp), wrap = document.getElementById("mgc-" + sp.id);
+      var hide = function () { if (wrap) wrap.hidden = true; };
+      if (sp.ecape) {
+        if (!MG.ec || !MG.on.hrrr || MG.ec.idx[MG.id] === undefined) return hide();
+        var S = [["ecape_mu", 1, 2.2], ["ecape_ml", [6, 4], 2], ["mucape", 1, 1], ["mlcape", [2, 3], 1]].map(function (a) { return [mgSeries(MG.ec, a[0], MG.id), a[1], a[2]]; });
+        var mx = 0; S.forEach(function (a) { if (a[0]) a[0].v.forEach(function (v) { if (v > mx) mx = v; }); });
+        if (mx < 50) return hide();
+        var g = mgCanvas(sp, sp.h), y = { ticks: niceTicks(0, mx * 1.08, 4) }; y.f = function (v) { return 4 + (1 - v / (mx * 1.08)) * (sp.h - 20); };
+        mgFrame(g.ctx, g.w, g.h, X, y, {}); S.forEach(function (a) { if (a[0]) mgPath(g.ctx, X, y, a[0], a[1], a[2], MG_COL.hrrr); }); last = g; return;
+      }
+      if (!ms.length) return hide();
+      if (sp.strips) {
+        var rowH = 16, h = ms.length * (rowH + 4) + 20, g2 = mgCanvas(sp, h), ctx = g2.ctx;
+        mgFrame(ctx, g2.w, h, X, null, {});
+        ms.forEach(function (m, r) {
+          var d = MG.docs[m], rf = mgSeries(d, m === "rdps" ? "prate" : "refl", MG.id), pt = mgSeries(d, "ptype", MG.id), y0 = 4 + r * (rowH + 4);
+          ctx.fillStyle = "#f3f4f1"; ctx.fillRect(MGL, y0, g2.w - MGL - MGR, rowH);
+          ctx.fillStyle = MG_COL[m]; ctx.textAlign = "right"; ctx.textBaseline = "middle"; ctx.font = "600 11.5px 'Source Sans 3', Arial, sans-serif"; ctx.fillText(MODELS[m], MGL - 4, y0 + rowH / 2);
+          if (!rf) return;
+          for (var k = 0; k < rf.t.length; k++) {
+            var v = rf.v[k]; if (!(v > 0)) continue;
+            var dbz = m === "rdps" ? rateEq(v) : v; if (dbz < 5) continue;
+            var xa = Math.max(MGL, X.f(rf.t[k] - (k ? (rf.t[k] - rf.t[k - 1]) : 3600e3))), xb = X.f(rf.t[k]);
+            ctx.fillStyle = ptCol(pt ? pt.v[k] : 1, dbz); ctx.fillRect(xa, y0, Math.max(1, xb - xa), rowH);
+          }
+        });
+        last = g2; return;
+      }
+      if (sp.wind) {
+        var rowB = 34, h3 = sp.h + ms.length * rowB + 6, g3 = mgCanvas(sp, h3), c3 = g3.ctx, mx3 = 10;
+        var WS = {}; ms.forEach(function (m) { var s = mgSeries(MG.docs[m], "ws80", MG.id); if (s) { s.v = s.v.map(function (v) { return v * 1.943844; }); WS[m] = s; s.v.forEach(function (v) { if (v > mx3) mx3 = v; }); } });
+        var top3 = mx3 * 1.1, y3 = { ticks: niceTicks(0, top3, 4) }, ph = sp.h - 20; y3.f = function (v) { return 4 + (1 - v / top3) * ph; };
+        mgFrame(c3, g3.w, h3, X, y3, {});
+        ms.forEach(function (m, r) {
+          if (!WS[m]) return; mgPath(c3, X, y3, WS[m], 1, 2, MG_COL[m]);
+          var wd = mgSeries(MG.docs[m], "wd80", MG.id), yb = sp.h + 2 + r * rowB + rowB / 2, lastX = -1e9;
+          c3.strokeStyle = MG_COL[m]; c3.fillStyle = MG_COL[m]; c3.lineWidth = 1.2;
+          c3.font = "600 11.5px 'Source Sans 3', Arial, sans-serif"; c3.textAlign = "right"; c3.textBaseline = "middle"; c3.fillText(MODELS[m], MGL - 4, yb);
+          for (var k = 0; k < WS[m].t.length; k++) {
+            var x = X.f(WS[m].t[k]); if (x - lastX < 24 || x < MGL + 9 || !(WS[m].v[k] >= 0) || !wd) continue; lastX = x;
+            var kt = WS[m].v[k], dr = wd.v[k] * D2R, ms_ = kt / 1.943844;
+            barb(c3, x, yb, -ms_ * Math.sin(dr), -ms_ * Math.cos(dr), kt, 13);
+          }
+        });
+        last = g3; return;
+      }
+      if (sp.bars) {
+        var BAR = [], mx4 = 0;
+        ms.forEach(function (m) {
+          var d = MG.docs[m], ap = mgSeries(d, "apcp", MG.id), fz = mgSeries(d, "afzra", MG.id), ip = mgSeries(d, "aip", MG.id), pt = mgSeries(d, "ptype", MG.id);
+          if (!ap) return;
+          for (var k = 1; k < ap.t.length; k++) {
+            var tot = ap.v[k] - ap.v[k - 1]; if (!(tot > 0.004)) continue;
+            var f = fz ? Math.max(0, fz.v[k] - fz.v[k - 1]) : 0, s = ip ? Math.max(0, ip.v[k] - ip.v[k - 1]) : 0, t = pt ? pt.v[k] : 1;
+            var rest = Math.max(0, tot - f - s);
+            BAR.push([m, ap.t[k - 1], ap.t[k], [[rest, t === 2 ? 2 : t === 5 ? 5 : 1], [s, 4], [f, 3]]]); if (tot > mx4) mx4 = tot;
+          }
+        });
+        if (!BAR.length) { var g5 = mgCanvas(sp, 46); mgFrame(g5.ctx, g5.w, 46, X, null, {}); g5.ctx.fillStyle = "#5c6b73"; g5.ctx.textAlign = "center"; g5.ctx.textBaseline = "middle"; g5.ctx.font = "13px 'Source Sans 3', Arial, sans-serif"; g5.ctx.fillText("no precipitation in any model", g5.w / 2, 18); last = g5; return; }
+        var top4 = Math.max(0.05, mx4 * 1.1), g4 = mgCanvas(sp, sp.h), c4 = g4.ctx, y4 = { ticks: niceTicks(0, top4, 3), lab: function (v) { return v.toFixed(v < 0.1 ? 2 : 1); } };
+        y4.f = function (v) { return 4 + (1 - v / top4) * (sp.h - 20); };
+        mgFrame(c4, g4.w, sp.h, X, y4, {});
+        var nm = ms.length;
+        BAR.forEach(function (b) {
+          var i = ms.indexOf(b[0]), xa = X.f(b[1]), xb = X.f(b[2]), bw = Math.max(1, (xb - xa) / nm), x = xa + i * bw, y = y4.f(0);
+          b[3].forEach(function (part) { if (!(part[0] > 0)) return; var hh = y4.f(0) - y4.f(part[0]); c4.fillStyle = ptCol(part[1], 32); c4.fillRect(x, y - hh, Math.max(1, bw - 0.5), hh); y -= hh; });
+          c4.fillStyle = MG_COL[b[0]]; c4.fillRect(x, y4.f(0) + 1, Math.max(1, bw - 0.5), 2);
+        });
+        last = g4; return;
+      }
+      // line charts
+      var SER = [], lo = Infinity, hi = -Infinity;
+      ms.forEach(function (m) { sp.lines.forEach(function (L) { var s = mgSeries(MG.docs[m], L[0], MG.id); if (!s) return;
+        if (sp.top) s.v = s.v.map(function (v) { return v !== v ? sp.top : Math.max(v, sp.log[0]); });
+        if (sp.log && !sp.top) s.v = s.v.map(function (v) { return v !== v ? v : Math.min(Math.max(v, sp.log[0]), sp.log[1]); });
+        SER.push([m, s, L[1], L[2]]); s.v.forEach(function (v) { if (v === v) { if (v < lo) lo = v; if (v > hi) hi = v; } }); }); });
+      if (!SER.length || (sp.skipZero && !(hi > 0.0049))) return hide();
+      var g6 = mgCanvas(sp, sp.h), c6 = g6.ctx, ph6 = sp.h - 20, y6;
+      if (sp.log) { var L0 = Math.log(sp.log[0]), L1 = Math.log(sp.log[1]); y6 = { ticks: sp.id === "c" ? [100, 500, 1000, 3000, 10000] : [0.25, 1, 3, 5, 10], lab: function (v) { return v >= 1000 ? v / 1000 + "k" : String(v); } };
+        y6.f = function (v) { return 4 + (1 - (Math.log(v) - L0) / (L1 - L0)) * ph6; }; }
+      else { if (sp.id === "a" || sp.id === "s" || sp.id === "k" || sp.id === "sw") lo = 0; var pad = (hi - lo) * 0.08 || 1; var ylo = lo - (lo === 0 ? 0 : pad), yhi = hi + pad;
+        y6 = { ticks: niceTicks(ylo, yhi, 4), lab: sp.id === "a" ? function (v) { return v.toFixed(2); } : null }; y6.f = function (v) { return 4 + (1 - (v - ylo) / (yhi - ylo)) * ph6; }; }
+      if (sp.bands) sp.bands.forEach(function (b) { var ya = y6.f(b[1]), yb2 = y6.f(b[0]); c6.fillStyle = FLT[b[2]][1]; c6.globalAlpha = 0.16; c6.fillRect(MGL, ya, g6.w - MGL - MGR, yb2 - ya); c6.globalAlpha = 1;
+        c6.fillStyle = FLT[b[2]][1]; c6.font = "600 10.5px 'Source Sans 3', Arial, sans-serif"; c6.textAlign = "right"; c6.textBaseline = "middle"; if (yb2 - ya > 11) c6.fillText(FLT[b[2]][0], g6.w - MGR - 3, (ya + yb2) / 2); });
+      mgFrame(c6, g6.w, sp.h, X, y6, {});
+      SER.forEach(function (a) { mgPath(c6, X, y6, a[1], a[2], a[3], MG_COL[a[0]]); });
+      last = g6;
+    });
+    // the time axis, once, under the last chart
+    var ax = mgCanvas({ id: "zx", title: "", note: "" }, 20); $("mgC").appendChild(ax.wrap); ax.wrap.querySelector("p").hidden = true;
+    var keepH = MG.hov; MG.hov = null; mgFrame(ax.ctx, ax.w, 20, X, null, { axis: true, noNow: true }); MG.hov = keepH;
+    // readout at the hovered time (default: now)
+    var tq = MG.hov !== null ? MG.hov : Math.max(R[0], Math.min(R[1], Date.now())), parts = [];
+    MODEL_ORDER.forEach(function (m) {
+      var d = MG.docs[m]; if (!d || !MG.on[m] || d.idx[MG.id] === undefined) return;
+      var hs = d.hours, best = 0; hs.forEach(function (h, k) { if (Math.abs(d.t0 + h * 3600e3 - tq) < Math.abs(d.t0 + hs[best] * 3600e3 - tq)) best = k; });
+      if (Math.abs(d.t0 + hs[best] * 3600e3 - tq) > 3 * 3600e3) return;
+      var g = function (f) { var s = mgSeries(d, f, MG.id); return s ? s.v[best] : NaN; }, out = [];
+      var T = g("t2m"), Td = g("td2m"), ws = g("ws80"), wd = g("wd80");
+      if (T === T) out.push(Math.round(T) + "/" + Math.round(Td) + " °F");
+      if (ws === ws) out.push("wind " + Math.round(wd) + "° " + Math.round(ws * 1.943844) + " kt");
+      var ce = g("ceil"), vi = g("vis"); if (d.fields.ceil) out.push("ceiling " + (ce === ce ? Math.round(ce / 100) * 100 + " ft" : "none") + ", vis " + (vi === vi ? (vi >= 10 ? "10+" : vi.toFixed(1)) + " mi" : "–"));
+      var ap = mgSeries(d, "apcp", MG.id); if (ap && best > 0 && ap.v[best] - ap.v[best - 1] > 0.004) out.push((ap.v[best] - ap.v[best - 1]).toFixed(2) + " in " + PT_NAMES[Math.min(g("ptype") | 0, 5)].replace("no surface type", "precip"));
+      parts.push("<b style=\"color:" + MG_COL[m] + "\">" + MODELS[m] + " +" + hs[best] + " h</b> " + out.join(" · "));
+    });
+    var tl = fmtTime(tq);
+    $("mgR").innerHTML = "<b>" + tl[0] + "</b> <span style=\"color:var(--muted)\">(" + tl[1] + ")</span>" + (MG.hov === null ? " · now; hover or tap a chart for another time" : "") + "<br>" + parts.join("<br>");
+    var miss = MODEL_ORDER.filter(function (m) { var d = MG.docs[m]; return cycleObj(m, 0) && (!d || d.idx[MG.id] === undefined); });
+    $("mgN").textContent = "Values at the model grid point nearest the station (bilinear between the four nearest points for temperature, dewpoint, wind, pressure, sunshine, smoke and precipitation; the nearest point for ceiling, visibility, reflectivity, precipitation type and CAPE). Model output, uncorrected." +
+      (miss.length ? " Not available here: " + miss.map(function (m) { return MODELS[m] + (MG.docs[m] ? " (outside its grid)" : cycleObj(m, 0).points ? " (could not load)" : " (this run has no point file)"); }).join(", ") + "." : "");
+  }
+  var mgRT = 0;
+  window.addEventListener("resize", function () { clearTimeout(mgRT); mgRT = setTimeout(function () { if (MG.id) drawMg(); ddHourly(); }, 150); });
+
+  // ── degree days (2026-10-01): dd.json per run (scripts/models/degdays.py; ddtracker's region and weighting conventions)
+  var DD = { r: "PJM", q: "hdd_gas", docs: {} };
+  var DDQ = { hdd_gas: "HDD, gas-heating weighted", hdd_pop: "HDD, population weighted", cdd_pop: "CDD, population weighted" };
+  function loadDD() {
+    MODEL_ORDER.forEach(function (m) { var c = cycleObj(m, 0); if (!c || !c.dd) return;
+      getBytes("assets/models/data/" + m + "/" + c.cycle + "/" + c.dd.file, c.sha, "low").then(function (b) { DD.docs[m] = JSON.parse(new TextDecoder().decode(b)); drawDD(); }).catch(function () {}); });
+  }
+  function ddButtons() {
+    var regs = []; MODEL_ORDER.forEach(function (m) { var d = DD.docs[m]; if (d) Object.keys(d.regions).forEach(function (r) { if (regs.indexOf(r) < 0) regs.push(r); }); });
+    var rb = $("ddR"); rb.innerHTML = "";
+    regs.forEach(function (r) { var b = document.createElement("button"); b.type = "button"; b.textContent = r === "ISONE" ? "ISO-NE" : r; b.setAttribute("aria-pressed", String(r === DD.r));
+      b.onclick = function () { DD.r = r; drawDD(); }; rb.appendChild(b); });
+    var qb = $("ddQ"); qb.innerHTML = "";
+    Object.keys(DDQ).forEach(function (q) { var b = document.createElement("button"); b.type = "button"; b.textContent = DDQ[q]; b.setAttribute("aria-pressed", String(q === DD.q));
+      b.onclick = function () { DD.q = q; drawDD(); }; qb.appendChild(b); });
+  }
+  function drawDD() {
+    var ms = MODEL_ORDER.filter(function (m) { return DD.docs[m] && DD.docs[m].regions[DD.r]; });
+    if (!ms.length) { $("dd").hidden = true; return; }
+    $("dd").hidden = false; ddButtons();
+    var dates = []; ms.forEach(function (m) { DD.docs[m].regions[DD.r].dates.forEach(function (d) { if (dates.indexOf(d) < 0) dates.push(d); }); }); dates.sort();
+    var f1 = function (v) { return v === null || v === undefined ? "–" : v.toFixed(1); };
+    var h = "<table><tr><th>Local day</th>" + ms.map(function (m) { var c = cycleObj(m, 0); return "<th style=\"color:" + MG_COL[m] + "\">" + MODELS[m] + " " + c.init.slice(11, 13) + "Z</th>"; }).join("") + "<th>Normal</th></tr>";
+    var star = false;
+    dates.forEach(function (d) {
+      var nrm = null, row = "<tr><td>" + new Date(d + "T12:00:00Z").toLocaleString("en-US", { timeZone: "UTC", weekday: "short", month: "short", day: "numeric" }) + "</td>";
+      ms.forEach(function (m) {
+        var R = DD.docs[m].regions[DD.r], i = R.dates.indexOf(d);
+        if (i < 0) { row += "<td>–</td>"; return; }
+        var part = R.n_hours[i] < 24; if (part) star = true;
+        row += "<td title=\"" + R.n_hours[i] + " hours of the local day" + (R.step_h[i] > 1 ? ", " + R.step_h[i] + "-hourly model output interpolated" : "") + "\">" + f1(R[DD.q + "_mid"][i]) + " <span style=\"color:var(--muted)\">/ " + f1(R[DD.q + "_int"][i]) + "</span>" + (part ? "*" : "") + "</td>";
+        if (R.normal && nrm === null) nrm = [R.normal[DD.q + "_mid"][i], R.normal[DD.q + "_int"][i]];
+      });
+      row += "<td class=\"nrm\">" + (nrm ? f1(nrm[0]) + " / " + f1(nrm[1]) : "–") + "</td></tr>";
+      h += row;
+    });
+    $("ddT").innerHTML = h + "</table>";
+    var d0 = DD.docs[ms[0]];
+    $("ddN").innerHTML = "<b>" + DDQ[DD.q] + "</b>, °F-days, base 65 °F, each cell <b>midpoint / hourly integral</b>. Midpoint: 65 minus the average of the day's highest and lowest hourly model temperature, the convention degree days trade on. " +
+      "Hourly integral: the day's average of how far each hour sits below (HDD) or above (CDD) 65, which counts a cool dawn under a warm afternoon; in spring and autumn it runs several times the midpoint. " +
+      "Degree days are taken county by county (Census 2020 centres of population, local standard day) and then weighted - by households heating with utility gas for the gas-weighted HDD, by population otherwise. " +
+      "Regions are whole states: " + Object.keys(d0.states).map(function (r) { return (r === "ISONE" ? "ISO-NE" : r) + " " + d0.states[r].join(" "); }).join("; ") + ". " +
+      (star ? "* partial first day (dawn and afternoon present, some hours missing). " : "") +
+      "Normal: 1991–2020 expected degree days (PRISM) on the same two conventions. Raw model output, no bias correction; the HRRR covers one full local day per run, the RRFS and RDPS three.";
+    ddHourly();
+  }
+  function ddHourly() {
+    var ms = MODEL_ORDER.filter(function (m) { return DD.docs[m] && DD.docs[m].regions[DD.r]; }); if (!ms.length) return;
+    var cv = $("ddH"), dpr = Math.min(window.devicePixelRatio || 1, 2), w = cv.parentNode.clientWidth, h = 150;
+    if (!w) return;
+    cv.style.height = h + "px"; cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr);
+    var ctx = cv.getContext("2d"); ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, w, h);
+    var S = [], t0 = Infinity, t1 = -Infinity, lo = Infinity, hi = -Infinity;
+    ms.forEach(function (m) { var d = DD.docs[m], R = d.regions[DD.r], it = Date.parse(d.init), v = R.hourly[DD.q === "hdd_gas" ? "t_gas" : "t_pop"];
+      var s = { t: d.hours.map(function (x) { return it + x * 3600e3; }), v: v.map(function (x) { return x === null ? NaN : x; }) };
+      S.push([m, s]); t0 = Math.min(t0, s.t[0]); t1 = Math.max(t1, s.t[s.t.length - 1]); s.v.forEach(function (x) { if (x === x) { lo = Math.min(lo, x); hi = Math.max(hi, x); } }); });
+    lo = Math.min(lo, 64); hi = Math.max(hi, 66);
+    var X = { t0: t0, t1: t1 }; X.f = function (t) { return MGL + (t - t0) / (t1 - t0) * (w - MGL - MGR); };
+    var pad = (hi - lo) * 0.08, y = { ticks: niceTicks(lo - pad, hi + pad, 4) }; y.f = function (v) { return 4 + (1 - (v - lo + pad) / (hi - lo + 2 * pad)) * (h - 20); };
+    var keep = MG.hov; MG.hov = null; mgFrame(ctx, w, h, X, y, { axis: true }); MG.hov = keep;
+    ctx.strokeStyle = "rgba(60,60,60,0.6)"; ctx.setLineDash([2, 3]); ctx.beginPath(); ctx.moveTo(MGL, y.f(65)); ctx.lineTo(w - MGR, y.f(65)); ctx.stroke(); ctx.setLineDash([]);
+    ctx.fillStyle = "#5c6b73"; ctx.textAlign = "left"; ctx.textBaseline = "bottom"; ctx.font = "11.5px 'Source Sans 3', Arial, sans-serif"; ctx.fillText("65 °F", MGL + 3, y.f(65) - 1);
+    S.forEach(function (a) { mgPath(ctx, X, y, a[1], 1, 2, MG_COL[a[0]]); });
+    $("ddHT").textContent = "Hourly 2 m temperature, " + (DD.q === "hdd_gas" ? "gas-heating weighted" : "population weighted") + " over the region's counties, °F · " +
+      ms.map(function (m) { return MODELS[m]; }).join(", ") + " in their colours";
+  }
+
   // ── URL hash: #model/field/+hour ───────────────────────────────────────────────────────────────────────────────
   function writeHash() { try { history.replaceState(null, "", "#" + st.model + "/" + st.field + "/" + st.hour + (st.ci ? "/r" + st.ci : "") +
-    (st.field === "acc" ? "/" + st.acc.type + "-" + st.acc.win : "") + (st.field === "ecape" ? "/" + st.ec : "")); } catch (e) {} }
+    (st.field === "acc" ? "/" + st.acc.type + "-" + st.acc.win : "") + (st.field === "ecape" ? "/" + st.ec : "") + (MG.id ? "/@" + MG.id : "")); } catch (e) {} }
   function readHash() {
     var p = location.hash.replace("#", "").split("/");
     if (MODELS[p[0]]) st.model = p[0];
@@ -2105,6 +2563,7 @@
     var am = (p[3] && /^[a-z]+-\d+$/.test(p[3]) ? p[3] : p[4] || "").match(/^([a-z]+)-(\d+)$/);
     if (am && ACC_TYPES[am[1]]) { st.acc.type = am[1]; st.acc.win = +am[2]; }
     [p[3], p[4]].forEach(function (x) { if (x && EC_SUBS[x]) st.ec = x; });
+    p.forEach(function (x) { if (/^@[A-Z0-9]{3,5}$/.test(x)) hashStation = x.slice(1); });
     return p.length >= 3 && p[2] !== "";
   }
 
@@ -2119,6 +2578,7 @@
   try { glOk = initGL(); } catch (e) { console.error(e); }
   if (!glOk) $("msg").textContent = "This page needs WebGL 2, which this browser does not provide.";
   var bust = "?v=" + Math.floor(Date.now() / 60000);
+  var hashStation = null;
   var hadHour = readHash();
   if (glOk) $("msg").textContent = "Loading the newest runs…";
   var GEO = "/assets/models/geo.json";
@@ -2148,6 +2608,9 @@
     });
     $("runs").textContent = "Runs on the page now: " + runs.join(" · ") + ".";
     setTimeout(pruneCache, 4000);
+    loadDD();
+    if (hashStation) { loadApts(); openMg(hashStation, hashStation); (aptsP || Promise.resolve()).then(function () { setTimeout(function () {
+      var a = (APTS || []).filter(function (x) { return x[2] === hashStation; })[0]; if (a && MG.id === hashStation) $("mgS").textContent = a[3]; }, 400); }); }
     setTimeout(function () { loadGeo(GEO.replace(".json", "_counties.json")); }, 1200);   // counties after the first frame
   });
   if (typeof ResizeObserver === "function") new ResizeObserver(function () { if (view) { var s = view.s; resize(); view.s = s; render(); } }).observe(mapEl);
