@@ -42,6 +42,7 @@ MIN_SENS = 20                       # members with a day-3 position needed for t
 SENS_H = 72
 DAYS = (5, 7, 10)
 SECTOR = (100.0, 300.0, 15.0, 75.0)   # lon0, lon1 (0..360), lat0, lat1
+MIN_AREA = 0.02                        # a map row is drawn only if >= 2% of it is significant on some day; below that, a note
 CACHE = Path(__file__).resolve().parents[2] / "ecmwf" / "cache" / "tc"
 
 
@@ -320,75 +321,91 @@ def _sig_area(comp, sens) -> float:
 
 
 def render_impact(s: dict, comp, sens, Z_lat, Z_lon, init, out_png: Path, note: str | None = None):
+    """Layout in inches (2026-10-03, user: "lots of overlapping text"): one plain-language heading per row, short panel titles,
+    and a row with nothing significant collapses to a one-line note instead of an empty block."""
     import cartopy.crs as ccrs
     import cartopy.feature as cfeature
     import matplotlib.pyplot as plt
-    fig = plt.figure(figsize=(17, 10.2))
+    W = 17.0
     ttl = (f"What {_stormlab(s)} does downstream — AIFS-ENS 500 hPa height, init {init:%d %b %Y %HZ}" if s is not None
            else f"Tropical cyclones and the downstream flow — AIFS-ENS, init {init:%d %b %Y %HZ}")
-    fig.suptitle(ttl, fontsize=14, fontweight="bold", x=0.02, ha="left", y=0.995)
     if s is None or (comp is None and sens is None):
-        fig.text(0.5, 0.55, note or "No storm has enough members in each group for a test.", ha="center", fontsize=13,
-                 color="#6f6b64", wrap=True)
+        fig = plt.figure(figsize=(W, 3.0))
+        fig.suptitle(ttl, fontsize=15, fontweight="bold", x=0.02, ha="left", y=0.95)
+        fig.text(0.5, 0.45, note or "No storm has enough members in each group for a test.", ha="center", fontsize=13, color="#6f6b64")
         fig.savefig(out_png, dpi=80, facecolor="white", pil_kwargs={"quality": 85, "method": 6}); plt.close(fig)
         return
+    # rows: (kind, pred, active, heading or note)
+    rows = []
+    if comp is None:
+        rows.append(("comp", None, False, "Recurving vs other members: too few members in one group for a test (needs 8 in each)."))
+    elif max(float(np.mean(x)) for x in comp["sig"]) < MIN_AREA:
+        rows.append(("comp", None, False, f"{comp['kind'][0].capitalize()} vs {comp['kind'][1]} ({comp['n'][0]} vs {comp['n'][1]} members): "
+                     "no significant 500 hPa height difference at days 5, 7 or 10" +
+                     (" (only isolated specks pass)." if comp["sig"].any() else ".")))
+    else:
+        rows.append(("comp", None, True, f"{comp['kind'][0].capitalize()} minus {comp['kind'][1]} ({comp['n'][0]} vs {comp['n'][1]} members): "
+                     "difference in 500 hPa height"))
+    for pred, word in (("lat", "latitude"), ("lon", "longitude")):
+        if sens is None:
+            rows.append(("sens", pred, False, f"Day-3 {word}: too few members tracked at day 3 for a sensitivity test."))
+        elif sens["res"].get(pred) is None:
+            rows.append(("sens", pred, False, f"Day-3 {word}: the members agree on it, nothing to test."))
+        elif max(float(np.mean(x)) for x in sens["res"][pred]["sig"]) < MIN_AREA:
+            rows.append(("sens", pred, False, f"Day-3 {word}: no significant link to 500 hPa height at days 5, 7 or 10" +
+                         (" (only isolated specks pass)." if _row_any(sens, pred) else ".")))
+        else:
+            what = "1° further north" if pred == "lat" else "1° further east"
+            rows.append(("sens", pred, True, f"If the storm is {what} at day 3: change in 500 hPa height (m), across {sens['n']} members"))
+    mw = (W - 0.9) / 3.0
+    mh = mw * (SECTOR[3] - SECTOR[2]) / (SECTOR[1] - SECTOR[0]) * 1.25          # a little taller than plate carrée: easier to read
+    ROW_ON, ROW_OFF, TOP, BOT = 0.45 + 0.3 + mh + 0.75, 0.42, 0.95, 0.7
+    H = TOP + BOT + sum(ROW_ON if a else ROW_OFF for _, _, a, _ in rows)
+    fig = plt.figure(figsize=(W, H))
+    fx = lambda x: x / W
+    fy = lambda y: 1 - y / H                                           # y measured from the top, inches
+    fig.suptitle(ttl, fontsize=15, fontweight="bold", x=0.02, ha="left", y=fy(0.25), va="top")
+    fig.text(0.02, fy(0.58), "Shaded only where significant (Benjamini–Hochberg false-discovery rate 10%). Thin lines: the AIFS-ENS members' tracks.",
+             fontsize=10.5, color="#444", va="top")
     proj = ccrs.PlateCarree(central_longitude=200)
-    rows = [("comp", None), ("sens", "lat"), ("sens", "lon")]
-    lev_d = np.arange(-150, 151, 20); lev_d = lev_d[lev_d != 0]
-    for r, (kind, pred) in enumerate(rows):
+    y = TOP
+    for kind, pred, active, text in rows:
+        if not active:
+            fig.text(0.02, fy(y + 0.12), "• " + text, fontsize=11.5, color="#6f6b64", va="top")
+            y += ROW_OFF
+            continue
+        fig.text(0.02, fy(y + 0.05), text, fontsize=12.5, fontweight="bold", va="top")
+        cf = None
         for c, d in enumerate(DAYS):
-            if kind == "sens" and not _row_any(sens, pred):
-                if c == 0:
-                    msg = ("Too few members tracked at day 3 for a sensitivity test." if sens is None else
-                           f"Day-3 {'latitude' if pred == 'lat' else 'longitude'}: no significant association with z500 at days 5, 7 or 10 "
-                           "(nothing passes FDR 10%)." if sens["res"].get(pred) is not None else
-                           f"Members agree on the day-3 {'latitude' if pred == 'lat' else 'longitude'}: nothing to test.")
-                    fig.text(0.5, 0.70 - r * 0.29 + 0.09, msg, ha="center", fontsize=12, color="#6f6b64")
-                continue
-            if kind == "comp" and (comp is None or not comp["sig"].any()):
-                if c == 0:
-                    msg = ("Too few members in one group for the composite (needs 8 in each)." if comp is None else
-                           f"{comp['kind'][0].capitalize()} vs {comp['kind'][1]} ({comp['n'][0]} vs {comp['n'][1]} members): "
-                           "no significant z500 difference at days 5, 7 or 10 (FDR 10%).")
-                    fig.text(0.5, 0.70 - r * 0.29 + 0.09, msg, ha="center", fontsize=12, color="#6f6b64")
-                continue
-            ax = fig.add_axes([0.02 + c * 0.325, 0.70 - r * 0.29, 0.31, 0.205], projection=proj)
-            ax.set_extent([SECTOR[0], SECTOR[1], SECTOR[2], SECTOR[3]], crs=ccrs.PlateCarree())
+            x0 = 0.3 + c * (mw + 0.15)
+            ax = fig.add_axes([fx(x0), fy(y + 0.75 + mh), fx(mw), mh / H], projection=proj)
+            ax.set_extent([SECTOR[0], SECTOR[1], SECTOR[2], SECTOR[3]], crs=ccrs.PlateCarree()); ax.set_aspect("auto")
             ax.coastlines("50m", lw=0.6, color="#333"); ax.add_feature(cfeature.BORDERS, lw=0.3, edgecolor="#666")
-            t = s["models"]["aifs"]["tracks"]
             if kind == "comp":
-                if comp is None:
-                    ax.text(0.5, 0.5, "too few members in one group", transform=ax.transAxes, ha="center", color="#6f6b64"); continue
                 D = np.where(comp["sig"][c], comp["diff"][c], np.nan)
                 cf = ax.contourf(Z_lon, Z_lat, D, levels=np.arange(-160, 161, 20), cmap="RdBu_r", extend="both", transform=ccrs.PlateCarree())
-                cs = ax.contour(Z_lon, Z_lat, comp["mean"][c], levels=np.arange(5040, 6001, 60), colors="#222", linewidths=0.6, transform=ccrs.PlateCarree())
+                ax.contour(Z_lon, Z_lat, comp["mean"][c], levels=np.arange(5040, 6001, 60), colors="#222", linewidths=0.6, transform=ccrs.PlateCarree())
                 frac = 100 * np.mean(comp["sig"][c])
-                ax.set_title(f"day {d}: {comp['kind'][0]} minus {comp['kind'][1]} ({comp['n'][0]} vs {comp['n'][1]}) · "
-                             f"{frac:.0f}% of area significant", fontsize=9.6, loc="left")
             else:
-                R = None if sens is None else sens["res"].get(pred)
-                if R is None:
-                    ax.text(0.5, 0.5, "members agree on the day-3 " + ("latitude" if pred == "lat" else "longitude") + " (nothing to test)"
-                            if sens is not None else "too few members tracked at day 3", transform=ax.transAxes, ha="center", color="#6f6b64")
-                    continue
+                R = sens["res"][pred]
                 D = np.where(R["sig"][c], R["slope"][c], np.nan)
                 cf = ax.contourf(Z_lon, Z_lat, D, levels=np.arange(-40, 41, 5), cmap="PuOr_r", extend="both", transform=ccrs.PlateCarree())
                 frac = 100 * np.mean(R["sig"][c])
-                what = "1° further north" if pred == "lat" else "1° further east"
-                ax.set_title(f"day {d}: z500 change if the storm is {what} at day 3 (m) · {frac:.0f}% significant", fontsize=9.6, loc="left")
-            for k, tr in t.items():
+            ax.set_title(f"Day {d} · {frac:.0f}% of the map significant", fontsize=11, loc="left", pad=4)
+            for tr in s["models"]["aifs"]["tracks"].values():
                 ax.plot(tr["lon"], tr["lat"], color="#000", lw=0.35, alpha=0.35, transform=ccrs.Geodetic())
-        if kind == "comp" and comp is not None and comp["sig"].any():
-            cb = fig.colorbar(cf, cax=fig.add_axes([0.25, 0.672 - r * 0.29, 0.5, 0.01]), orientation="horizontal")
-            cb.set_label("z500 difference (m), shaded only where significant (Welch t-test, Benjamini–Hochberg FDR 10%) · contours: ensemble-mean z500 every 60 m", fontsize=9)
-        if kind == "sens" and _row_any(sens, pred):
-            cb = fig.colorbar(cf, cax=fig.add_axes([0.25, 0.672 - r * 0.29, 0.5, 0.01]), orientation="horizontal")
+        cax = fig.add_axes([fx(W * 0.25), fy(y + 0.75 + mh + 0.32), fx(W * 0.5), 0.12 / H])
+        cb = fig.colorbar(cf, cax=cax, orientation="horizontal")
+        cb.ax.tick_params(labelsize=9.5)
+        if kind == "comp":
+            cb.set_label("height difference (m) · contours: ensemble-mean 500 hPa height every 60 m", fontsize=10)
+        else:
             sdv = sens["res"][pred]["sd"]
-            cb.set_label(f"m per degree of day-3 {'latitude' if pred == 'lat' else 'longitude'} (member spread {sdv:.1f}°; {sens['n']} members), "
-                         "shaded only where the correlation passes FDR 10%", fontsize=9)
-    fig.text(0.02, 0.008, "Tracks: ECMWF tropical-cyclone tracker on AIFS-ENS (open data, CC BY 4.0). Heights: AIFS-ENS control + 50 members, "
-             "1° means. Sensitivity after Torn & Hakim (2008, Mon. Wea. Rev.). A regression is an association across members, not proof that "
-             "the storm causes the change.", fontsize=8.6, color="#6f6b64")
+            cb.set_label(f"metres per degree (the members' day-3 {'latitude' if pred == 'lat' else 'longitude'} spreads {sdv:.1f}°)", fontsize=10)
+        y += ROW_ON
+    fig.text(0.02, fy(H - 0.2), "Tracks: ECMWF tropical-cyclone tracker on AIFS-ENS (open data, CC BY 4.0). Heights: AIFS-ENS control + 50 members, "
+             "1° means. Composite: Welch t-test.\nSensitivity after Torn & Hakim (2008, MWR). Associations across members, not proof that the storm "
+             "causes the change.", fontsize=9, color="#6f6b64", va="bottom")
     fig.savefig(out_png, dpi=80, facecolor="white", pil_kwargs={"quality": 85, "method": 6}); plt.close(fig)
 
 
