@@ -186,6 +186,16 @@
     .kicker { display: none; }
     .mv-badge { font-size: 0.86rem; padding: 0.22rem 0.5rem; }
     .mv-mg { padding: 0.55rem 0.55rem 0.7rem; }
+    /* phones: the three model tiles side by side and compact, so the charts start on the first screen */
+    .mgr-tiles { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.3rem; }
+    .mgr-tile { padding: 0.3rem 0.4rem; border-left-width: 4px; }
+    .mgr-tile .hd { font-size: 0.92rem; }
+    .mgr-tile .big { font-size: 1.3rem; }
+    .mgr-tile .big small { display: block; margin: 0; font-size: 0.8rem; }
+    .mgr-tile .ln { font-size: 0.78rem; line-height: 1.3; }
+    .mv-mgtop { position: relative; }
+    .mv-mgh { padding-right: 5.6rem; }
+    .mv-mgbtns { position: absolute; top: 0.55rem; right: 0.6rem; }
   }
 </style>
 </head>
@@ -2356,16 +2366,29 @@
       var hov = function (e) { var r = cv0.getBoundingClientRect(); MG.hov = MG.x ? MG.x.inv(e.clientX - r.left) : null;   // one redraw per frame
         if (!MG.raf) MG.raf = requestAnimationFrame(function () { MG.raf = 0; drawMg(); }); };
       cv0.addEventListener("pointermove", hov);
-      cv0.addEventListener("pointerdown", function (e) { hov(e); if (MG.hov !== null) mgSyncMap(MG.hov); }); }
+      // 2026-10-02 (user: meteograms "janky" on a phone): a touch that starts a scroll used to move the map's hour
+      // underneath (a full map redraw + frame fetches mid-scroll). Mouse: sync on press as before; touch/pen: only a
+      // TAP (< 10 px, < 500 ms) syncs the map.
+      var tap = null;
+      cv0.addEventListener("pointerdown", function (e) { hov(e);
+        if (e.pointerType === "mouse") { if (MG.hov !== null) mgSyncMap(MG.hov); }
+        else tap = { x: e.clientX, y: e.clientY, t: e.timeStamp }; });
+      cv0.addEventListener("pointerup", function (e) {
+        if (!tap || e.pointerType === "mouse") return;
+        var ok = Math.hypot(e.clientX - tap.x, e.clientY - tap.y) < 10 && e.timeStamp - tap.t < 500; tap = null;
+        if (ok) { hov(e); if (MG.hov !== null) mgSyncMap(MG.hov); } });
+      cv0.addEventListener("pointercancel", function () { tap = null; }); }
     wrap.querySelector("p").innerHTML = spec.title + "<small>" + spec.note + "</small>";
     var cv = wrap.querySelector("canvas"), dpr = Math.min(window.devicePixelRatio || 1, 2), w = $("mgC").clientWidth;
-    cv.style.height = h + "px"; cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr);
-    var ctx = cv.getContext("2d"); ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, w, h);
+    var W = Math.round(w * dpr), H = Math.round(h * dpr);
+    if (cv.width !== W || cv.height !== H) { cv.style.height = h + "px"; cv.width = W; cv.height = H; }   // reallocating every
+    var ctx = cv.getContext("2d"); ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, w, h);    // hover redraw was jank
     wrap.hidden = false;
     return { ctx: ctx, w: w, h: h, wrap: wrap };
   }
   var MGL = 60, MGR = 12;                                         // plot margins, px
   var MGF = 14;                                                   // axis font, px (set per draw)
+  var MGB = 16;                                                   // bottom margin under each chart, px (set per draw)
   var MGK = 1;                                                    // text/line scale with the panel width (2026-10-02)
   function mgScale() {                                            // chart heights follow the window: taller screens, taller charts
     var phone = window.innerWidth <= 640, cw = ($("mgC") && $("mgC").clientWidth) || 1200;
@@ -2377,14 +2400,18 @@
     return phone ? hf : Math.max(hf, Math.min(2.6, 1.3 * MGK));
   }
   function mgFrame(ctx, w, h, X, y, opt) {                        // time grid, y axis, now line
-    var top = 4, bot = h - (opt.axis ? MGF + 9 : 16);
+    // narrow panels (phones): every chart carries its own time labels - one axis under the last of a dozen charts was
+    // never on screen while scrolling (user 2026-10-02: "x-axis/time labels were missing")
+    var lab = opt.axis || (MG.narrow && !opt.noLab);
+    var top = 4, bot = h - (opt.axis ? MGF + 9 : MGB);
+    var px6 = (X.f(X.t0 + 6 * 3600e3) - X.f(X.t0)), hstep = px6 >= 34 ? 6 : px6 * 2 >= 30 ? 12 : 24;
     ctx.font = MGF + "px 'Source Sans 3', Arial, sans-serif"; ctx.fillStyle = "#5c6b73"; ctx.strokeStyle = "#e3e6e0"; ctx.lineWidth = 1;
     var day0 = new Date(X.t0); day0.setUTCHours(0, 0, 0, 0);
     for (var t = day0.getTime(); t <= X.t1; t += 6 * 3600e3) {
       if (t < X.t0) continue; var x = X.f(t), hh = new Date(t).getUTCHours();
       ctx.strokeStyle = hh === 0 ? "#c9cec6" : "#eceee9"; ctx.beginPath(); ctx.moveTo(x + 0.5, top); ctx.lineTo(x + 0.5, bot); ctx.stroke();
       ctx.textAlign = "center"; ctx.textBaseline = "top";
-      if (opt.axis) ctx.fillText(hh === 0 ? new Date(t).toLocaleString("en-US", { timeZone: "UTC", weekday: "short", day: "numeric" }) : (w > 520 ? hh + "Z" : ""), x, bot + 2);
+      if (lab) ctx.fillText(hh === 0 ? new Date(t).toLocaleString("en-US", { timeZone: "UTC", weekday: "short", day: "numeric" }) : (hh % hstep === 0 ? hh + "Z" : ""), x, bot + 2);
     }
     if (y) {
       ctx.textAlign = "right"; ctx.textBaseline = "middle";
@@ -2444,11 +2471,12 @@
     var R = mgRange();
     if (!R) { $("mgR").textContent = "No model run carries a forecast for " + MG.id + " (outside every model's grid, or the files are not published yet)."; $("mgC").innerHTML = ""; return; }
     var SC = mgScale(), w = $("mgC").clientWidth, X = { t0: R[0], t1: R[1] };
+    MG.narrow = w < 700; MGB = MG.narrow ? MGF + 9 : 16;          // bottom margin: room for time labels when narrow
     X.f = function (t) { return MGL + (t - X.t0) / (X.t1 - X.t0) * (w - MGL - MGR); };
     X.inv = function (px) { return X.t0 + (px - MGL) / (w - MGL - MGR) * (X.t1 - X.t0); };
     MG.x = X;
     var specs = mgCharts(), last = null;
-    specs.forEach(function (sp) { sp.h = Math.round(sp.h * SC); });
+    specs.forEach(function (sp) { sp.h = Math.round(sp.h * SC) + (MGB - 16); });   // labels add height, not take plot
     specs.forEach(function (sp) {
       var ms = mgModels(sp), wrap = document.getElementById("mgc-" + sp.id);
       var hide = function () { if (wrap) wrap.hidden = true; };
@@ -2457,12 +2485,12 @@
         var S = [["ecape_mu", 1, 2.2], ["ecape_ml", [6, 4], 2], ["mucape", 1, 1], ["mlcape", [2, 3], 1]].map(function (a) { return [mgSeries(MG.ec, a[0], MG.id), a[1], a[2]]; });
         var mx = 0; S.forEach(function (a) { if (a[0]) a[0].v.forEach(function (v) { if (v > mx) mx = v; }); });
         if (mx < 50) return hide();
-        var g = mgCanvas(sp, sp.h), y = { ticks: niceTicks(0, mx * 1.08, 4) }; y.f = function (v) { return 4 + (1 - v / (mx * 1.08)) * (sp.h - 20); };
+        var g = mgCanvas(sp, sp.h), y = { ticks: niceTicks(0, mx * 1.08, 4) }; y.f = function (v) { return 4 + (1 - v / (mx * 1.08)) * (sp.h - MGB - 4); };
         mgFrame(g.ctx, g.w, g.h, X, y, {}); S.forEach(function (a) { if (a[0]) mgPath(g.ctx, X, y, a[0], a[1], a[2], MG_COL.hrrr); }); last = g; return;
       }
       if (!ms.length) return hide();
       if (sp.strips) {
-        var rowH = Math.round(17 * SC), h = ms.length * (rowH + 5) + 22, g2 = mgCanvas(sp, h), ctx = g2.ctx;
+        var rowH = Math.round(17 * SC), h = ms.length * (rowH + 5) + MGB + 6, g2 = mgCanvas(sp, h), ctx = g2.ctx;
         mgFrame(ctx, g2.w, h, X, null, {});
         ms.forEach(function (m, r) {
           var d = MG.docs[m], rf = mgSeries(d, m === "rdps" ? "prate" : "refl", MG.id), pt = mgTypes(d, MG.id), y0 = 4 + r * (rowH + 5);
@@ -2479,9 +2507,9 @@
         last = g2; return;
       }
       if (sp.wind) {
-        var rowB = Math.round(30 * SC), h3 = sp.h + ms.length * rowB + 6, g3 = mgCanvas(sp, h3), c3 = g3.ctx, mx3 = 10;
+        var rowB = Math.round(30 * SC), h3 = sp.h + ms.length * rowB + 6 + (MG.narrow ? MGB : 0), g3 = mgCanvas(sp, h3), c3 = g3.ctx, mx3 = 10;
         var WS = {}; ms.forEach(function (m) { var s = mgSeries(MG.docs[m], "ws80", MG.id); if (s) { s.v = s.v.map(function (v) { return v * 1.943844; }); WS[m] = s; s.v.forEach(function (v) { if (v > mx3) mx3 = v; }); } });
-        var top3 = mx3 * 1.1, y3 = { ticks: niceTicks(0, top3, 4) }, ph = sp.h - 20; y3.f = function (v) { return 4 + (1 - v / top3) * ph; };
+        var top3 = mx3 * 1.1, y3 = { ticks: niceTicks(0, top3, 4) }, ph = sp.h - MGB - 4; y3.f = function (v) { return 4 + (1 - v / top3) * ph; };
         mgFrame(c3, g3.w, h3, X, y3, {});
         ms.forEach(function (m, r) {
           if (!WS[m]) return; mgPath(c3, X, y3, WS[m], 1, 2, MG_COL[m]);
@@ -2510,7 +2538,7 @@
         });
         if (!BAR.length) { var g5 = mgCanvas(sp, 46); mgFrame(g5.ctx, g5.w, 46, X, null, {}); g5.ctx.fillStyle = "#5c6b73"; g5.ctx.textAlign = "center"; g5.ctx.textBaseline = "middle"; g5.ctx.font = MGF + "px 'Source Sans 3', Arial, sans-serif"; g5.ctx.fillText("no precipitation in any model", g5.w / 2, 18); last = g5; return; }
         var top4 = Math.max(0.05, mx4 * 1.1), g4 = mgCanvas(sp, sp.h), c4 = g4.ctx, y4 = { ticks: niceTicks(0, top4, 3), lab: function (v) { return v.toFixed(v < 0.1 ? 2 : 1); } };
-        y4.f = function (v) { return 4 + (1 - v / top4) * (sp.h - 20); };
+        y4.f = function (v) { return 4 + (1 - v / top4) * (sp.h - MGB - 4); };
         mgFrame(c4, g4.w, sp.h, X, y4, {});
         var nm = ms.length;
         BAR.forEach(function (b) {
@@ -2527,7 +2555,7 @@
         if (sp.log && !sp.top) s.v = s.v.map(function (v) { return v !== v ? v : Math.min(Math.max(v, sp.log[0]), sp.log[1]); });
         SER.push([m, s, L[1], L[2]]); s.v.forEach(function (v) { if (v === v) { if (v < lo) lo = v; if (v > hi) hi = v; } }); }); });
       if (!SER.length || (sp.skipZero && !(hi > 0.0049))) return hide();
-      var g6 = mgCanvas(sp, sp.h), c6 = g6.ctx, ph6 = sp.h - 20, y6;
+      var g6 = mgCanvas(sp, sp.h), c6 = g6.ctx, ph6 = sp.h - MGB - 4, y6;
       if (sp.log) { var L0 = Math.log(sp.log[0]), L1 = Math.log(sp.log[1]); y6 = { ticks: sp.id === "c" ? [100, 500, 1000, 3000, 10000] : [0.25, 1, 3, 5, 10], lab: function (v) { return v >= 1000 ? v / 1000 + "k" : String(v); } };
         y6.f = function (v) { return 4 + (1 - (Math.log(v) - L0) / (L1 - L0)) * ph6; }; }
       else { if (sp.id === "a" || sp.id === "s" || sp.id === "k" || sp.id === "sw") lo = 0; var pad = (hi - lo) * 0.08 || 1; var ylo = lo - (lo === 0 ? 0 : pad), yhi = hi + pad;
@@ -2541,6 +2569,7 @@
     // the time axis, once, under the last chart
     var ax = mgCanvas({ id: "zx", title: "", note: "" }, 26); $("mgC").appendChild(ax.wrap); ax.wrap.querySelector("p").hidden = true;
     var keepH = MG.hov; MG.hov = null; mgFrame(ax.ctx, ax.w, 26, X, null, { axis: true, noNow: true }); MG.hov = keepH;
+    ax.wrap.hidden = !!MG.narrow;                                 // narrow: every chart has its own labels already
     // readout at the hovered time (default: now)
     var tq = MG.hov !== null ? MG.hov : Math.max(R[0], Math.min(R[1], Date.now())), parts = [];
     MODEL_ORDER.forEach(function (m) {
@@ -2566,7 +2595,16 @@
       (miss.length ? " Not available here: " + miss.map(function (m) { return MODELS[m] + (MG.docs[m] ? " (outside its grid)" : cycleObj(m, 0).points ? " (could not load)" : " (this run has no point file)"); }).join(", ") + "." : "");
   }
   var mgRT = 0;
-  window.addEventListener("resize", function () { clearTimeout(mgRT); mgRT = setTimeout(function () { if (MG.id) drawMg(); }, 150); });
+  var mgLastW = 0, mgLastH = 0;
+  window.addEventListener("resize", function () { clearTimeout(mgRT); mgRT = setTimeout(function () {
+    var phone = window.innerWidth <= 640;                         // phones: the URL bar showing/hiding changes only the height
+    if (!MG.id || (window.innerWidth === mgLastW && (phone || window.innerHeight === mgLastH))) return;
+    mgLastW = window.innerWidth; mgLastH = window.innerHeight; drawMg(); }, 150); });
+  // and when the chart column itself changes width (rotation, full-window toggle, an embedding frame): the window
+  // resize event alone missed some of these
+  if (typeof ResizeObserver === "function") { var mgCW = 0;
+    new ResizeObserver(function () { var cw = $("mgC").clientWidth; if (!cw || cw === mgCW) return; var first = !mgCW; mgCW = cw;
+      if (!first && MG.id) { clearTimeout(mgRT); mgRT = setTimeout(drawMg, 120); } }).observe($("mgC")); }
 
   // ── URL hash: #model/field/+hour ───────────────────────────────────────────────────────────────────────────────
   function writeHash() { try { history.replaceState(null, "", "#" + st.model + "/" + st.field + "/" + st.hour + (st.ci ? "/r" + st.ci : "") +
