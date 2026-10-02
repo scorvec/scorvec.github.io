@@ -114,22 +114,57 @@
   .mv-about td.na { color: #6f6b64; font-style: italic; }
   .mv-about .tbl { overflow-x: auto; }
   .mv-runs { font-size: 0.88rem; color: var(--muted); margin: 0.2rem 0 0; }
-  /* meteogram (click an airport or city) (2026-10-01): plain canvases, drawn by the page */
-  .mv-mg { margin: 1rem 0 0; background: var(--panel); border: 1px solid var(--rule); border-radius: 8px; padding: 0.7rem 0.9rem 0.9rem; }
+  /* meteogram (click an airport or city) (2026-10-01): plain canvases, drawn by the page.
+     2026-10-02 (user: "plots too small and font too small ... take up more of the browser's window"): a DOCK - a panel
+     fixed to the right two thirds of the window, full height, with the map still live on the left (click another airport
+     to switch, click a chart to send the map to that hour); "Full window" takes the whole width; phones always full. */
+  .mv-mg { position: fixed; top: 0; right: 0; bottom: 0; width: min(1320px, 70vw); z-index: 1300; margin: 0;
+           background: var(--panel); border-left: 1px solid var(--rule); box-shadow: -16px 0 44px rgba(20, 24, 22, 0.2);
+           display: flex; flex-direction: column; }
+  .mv-mg.full { width: 100vw; border-left: 0; }
   .mv-mg[hidden] { display: none; }
-  .mv-mgh { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem 0.9rem; }
-  .mv-mgh h2 h2 { margin: 0; font-size: 1.25rem; }
-  .mv-mgh .sub { color: var(--muted); font-size: 0.95rem; }
-  .mv-mgh .x { margin-left: auto; font: inherit; font-size: 0.98rem; border: 1px solid var(--rule); border-radius: 6px; background: var(--panel); padding: 0.3rem 0.75rem; cursor: pointer; }
-  .mv-key { display: inline-flex; flex-wrap: wrap; gap: 0.2rem 0.9rem; font-size: 0.95rem; color: var(--ink2); }
-  .mv-key i { display: inline-block; width: 1.4em; height: 0; border-top: 3px solid; vertical-align: middle; margin-right: 0.3em; }
+  .mv-mgtop { flex: none; padding: 0.75rem 1.3rem 0.65rem; border-bottom: 1px solid var(--rule); background: var(--panel); }
+  .mv-mgbody { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 0.3rem 1.3rem 1.5rem; }
+  .mv-mgh { display: flex; flex-wrap: wrap; align-items: center; gap: 0.45rem 1rem; }
+  .mv-mgh h2 { margin: 0; font-size: 1.75rem; line-height: 1.1; }
+  .mv-mgh .sub { color: var(--ink2); font-size: 1.1rem; }
+  .mv-mgbtns { margin-left: auto; display: inline-flex; gap: 0.5rem; }
+  .mv-mgh .x { font: inherit; font-size: 1.05rem; font-weight: 600; border: 1px solid #c3c8c0; border-radius: 7px; background: var(--panel);
+               padding: 0.45rem 0.95rem; min-height: 44px; cursor: pointer; color: var(--ink); }
+  .mv-mgh .x:hover { border-color: var(--accent); }
+  .mv-mgh .x kbd { font: 600 0.78rem 'Source Sans 3', sans-serif; color: var(--muted); border: 1px solid var(--rule); border-radius: 4px; padding: 0 0.3rem; margin-left: 0.3rem; }
+  .mv-key { display: inline-flex; flex-wrap: wrap; gap: 0.3rem 1.1rem; font-size: 1.08rem; color: var(--ink2); }
+  .mv-key i { display: inline-block; width: 1.6em; height: 0; border-top: 4px solid; vertical-align: middle; margin-right: 0.35em; }
   .mv-key label { cursor: pointer; user-select: none; }
-  .mv-mgr { min-height: 2.6em; margin: 0.35rem 0 0.2rem; font-size: 0.93rem; color: var(--ink2); line-height: 1.35; font-variant-numeric: tabular-nums; }
-  .mv-mgr b { color: var(--ink); font-weight: 600; }
-  .mgc { margin: 0.35rem 0 0; }
-  .mgc p { margin: 0; font-size: 0.92rem; color: var(--ink2); }
-  .mgc p small { color: var(--muted); font-size: 0.86rem; margin-left: 0.3em; }
+  .mv-key input { width: 1.05em; height: 1.05em; vertical-align: -0.12em; margin-right: 0.3em; }
+  .mv-mgr { margin: 0.55rem 0 0; font-variant-numeric: tabular-nums; }
+  .mgr-when { font-size: 1.12rem; color: var(--ink); }
+  .mgr-when span { color: var(--muted); font-size: 0.98rem; }
+  .mgr-tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(15.5rem, 1fr)); gap: 0.5rem; margin-top: 0.4rem; }
+  .mgr-tile { border: 1px solid var(--rule); border-left: 5px solid var(--c); border-radius: 7px; padding: 0.4rem 0.7rem; background: #fbfcfa; }
+  .mgr-tile .hd { font-weight: 700; color: var(--c); font-size: 1rem; }
+  .mgr-tile .hd span { color: var(--muted); font-weight: 500; margin-left: 0.35rem; }
+  .mgr-tile .big { font-family: var(--serif); font-size: 1.7rem; line-height: 1.15; color: var(--ink); }
+  .mgr-tile .big small { font-family: 'Source Sans 3', sans-serif; font-size: 0.95rem; color: var(--ink2); margin-left: 0.3rem; }
+  .mgr-tile .ln { font-size: 1.02rem; color: var(--ink2); line-height: 1.4; }
+  .mgc { margin: 0.9rem 0 0; }
+  .mgc p { margin: 0 0 0.15rem; font-size: 1.18rem; font-weight: 600; color: var(--ink); }
+  .mgc p small { color: var(--muted); font-size: 0.98rem; font-weight: 400; margin-left: 0.5em; }
   .mgc canvas { display: block; width: 100%; touch-action: pan-y; cursor: crosshair; }
+  #mgN { font-size: 0.98rem; margin-top: 1rem; }
+  @media (max-width: 900px) {
+    .mv-mg { width: 100vw; border-left: 0; }
+    #mgW { display: none; }
+    .mv-mgtop { padding: 0.6rem 0.8rem 0.5rem; }
+    .mv-mgbody { padding: 0.2rem 0.8rem 1.2rem; }
+    .mv-mgh h2 { font-size: 1.45rem; }
+    .mgr-tiles { grid-template-columns: 1fr; }
+    .mgr-tile .big { font-size: 1.4rem; }
+    /* phones: the whole sheet scrolls (a fixed readout of three tiles would leave the charts a sliver) */
+    .mv-mg { overflow-y: auto; overscroll-behavior: contain; display: block; }
+    .mv-mgbody { overflow: visible; }
+    .mgr-tile .ln { font-size: 0.95rem; }
+  }
   @media (max-width: 640px) {
     main.mv { padding-top: 0.6rem; }
     h1 { font-size: 1.45rem; margin: 0.1rem 0 0.25rem; }
@@ -321,11 +356,16 @@
   </div>
   <p class="mv-note" id="note"></p>
 
-  <section class="mv-mg" id="mg" hidden aria-label="Meteogram">
-    <div class="mv-mgh"><h2 id="mgT"></h2><span class="sub" id="mgS"></span><span class="mv-key" id="mgK"></span><button type="button" class="x" id="mgX">Close</button></div>
-    <div class="mv-mgr" id="mgR"></div>
-    <div id="mgC"></div>
-    <p class="mv-legT" id="mgN"></p>
+  <section class="mv-mg" id="mg" hidden role="dialog" aria-label="Forecast meteogram">
+    <div class="mv-mgtop">
+      <div class="mv-mgh"><h2 id="mgT"></h2><span class="sub" id="mgS"></span><span class="mv-key" id="mgK"></span>
+        <span class="mv-mgbtns"><button type="button" class="x" id="mgW" title="Use the whole window (the map stays underneath)">Full window</button><button type="button" class="x" id="mgX">Close<kbd>Esc</kbd></button></span></div>
+      <div class="mv-mgr" id="mgR"></div>
+    </div>
+    <div class="mv-mgbody" id="mgB">
+      <div id="mgC"></div>
+      <p class="mv-legT" id="mgN"></p>
+    </div>
   </section>
 
   <details class="mv-about">
@@ -2247,9 +2287,29 @@
     var jobs = MODEL_ORDER.map(function (m) { var c = cycleObj(m, 0); return c ? mgFile(m, c).then(function (d) { MG.docs[m] = d; }) : null; });
     var ch = cycleObj("hrrr", 0); if (ch && ch.ecape) jobs.push(mgFile("hrrr", ch, true).then(function (d) { MG.ec = d; }));
     Promise.all(jobs).then(function () { if (MG.id === id) drawMg(true); });
-    if ($("mg").getBoundingClientRect().top > window.innerHeight * 0.75) setTimeout(function () { $("mg").scrollIntoView({ behavior: "smooth", block: "start" }); }, 60);
+    $("mgB").scrollTop = 0; $("mg").scrollTop = 0;
   }
-  $("mgX").onclick = function () { $("mg").hidden = true; MG.id = null; writeHash(); };
+  function closeMg() { $("mg").hidden = true; MG.id = null; writeHash(); }
+  $("mgX").onclick = closeMg;
+  $("mgW").onclick = function () { var f = $("mg").classList.toggle("full"); this.textContent = f ? "Dock right" : "Full window";
+    this.title = f ? "Shrink back to the right of the map" : "Use the whole window (the map stays underneath)"; drawMg(); };
+  // while the meteogram is open the keys drive IT: Esc closes, arrows walk the cursor an hour (Shift: 6 hours)
+  document.addEventListener("keydown", function (e) {
+    if ($("mg").hidden || !MG.id || (e.target && /INPUT|SELECT|TEXTAREA/.test(e.target.tagName))) return;
+    if (e.key === "Escape") { closeMg(); e.preventDefault(); e.stopImmediatePropagation(); return; }
+    if ((e.key === "ArrowRight" || e.key === "ArrowLeft") && MG.x) {
+      var dt = (e.shiftKey ? 6 : 1) * 3600e3 * (e.key === "ArrowRight" ? 1 : -1), base = MG.hov !== null ? MG.hov : Math.max(MG.x.t0, Math.min(MG.x.t1, Date.now()));
+      MG.hov = Math.max(MG.x.t0, Math.min(MG.x.t1, Math.round((base + dt) / 3600e3) * 3600e3)); drawMg();
+      e.preventDefault(); e.stopImmediatePropagation();
+    }
+  }, true);
+  // a click (not a hover) on a chart also sends the MAP to that valid time, so the field behind the dock follows
+  function mgSyncMap(t) {
+    var c = cycleObj(st.model, st.ci); if (!c) return;
+    var hs = uiHours(c), want = (t - Date.parse(c.init)) / 3600e3, best = hs[0];
+    hs.forEach(function (h) { if (Math.abs(h - want) < Math.abs(best - want)) best = h; });
+    if (Math.abs(best - want) <= 3 && best !== st.hour) { st.hour = best; onChange(); }
+  }
   function mgKey() {
     var k = $("mgK"); k.innerHTML = "";
     MODEL_ORDER.forEach(function (m) {
@@ -2293,7 +2353,8 @@
       var cv0 = wrap.querySelector("canvas");
       var hov = function (e) { var r = cv0.getBoundingClientRect(); MG.hov = MG.x ? MG.x.inv(e.clientX - r.left) : null;   // one redraw per frame
         if (!MG.raf) MG.raf = requestAnimationFrame(function () { MG.raf = 0; drawMg(); }); };
-      cv0.addEventListener("pointermove", hov); cv0.addEventListener("pointerdown", hov); }
+      cv0.addEventListener("pointermove", hov);
+      cv0.addEventListener("pointerdown", function (e) { hov(e); if (MG.hov !== null) mgSyncMap(MG.hov); }); }
     wrap.querySelector("p").innerHTML = spec.title + "<small>" + spec.note + "</small>";
     var cv = wrap.querySelector("canvas"), dpr = Math.min(window.devicePixelRatio || 1, 2), w = $("mgC").clientWidth;
     cv.style.height = h + "px"; cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr);
@@ -2301,10 +2362,16 @@
     wrap.hidden = false;
     return { ctx: ctx, w: w, h: h, wrap: wrap };
   }
-  var MGL = 46, MGR = 10;                                         // plot margins, px
+  var MGL = 60, MGR = 12;                                         // plot margins, px
+  var MGF = 14;                                                   // axis font, px (13 on phones; set per draw)
+  function mgScale() {                                            // chart heights follow the window: taller screens, taller charts
+    var phone = window.innerWidth <= 640;
+    MGF = phone ? 13 : 14; MGL = phone ? 50 : 60;
+    return phone ? 1.25 : Math.max(1.35, Math.min(2.2, window.innerHeight / 640));
+  }
   function mgFrame(ctx, w, h, X, y, opt) {                        // time grid, y axis, now line
-    var top = 4, bot = h - 16;
-    ctx.font = "12px 'Source Sans 3', Arial, sans-serif"; ctx.fillStyle = "#5c6b73"; ctx.strokeStyle = "#e3e6e0"; ctx.lineWidth = 1;
+    var top = 4, bot = h - (opt.axis ? 22 : 16);
+    ctx.font = MGF + "px 'Source Sans 3', Arial, sans-serif"; ctx.fillStyle = "#5c6b73"; ctx.strokeStyle = "#e3e6e0"; ctx.lineWidth = 1;
     var day0 = new Date(X.t0); day0.setUTCHours(0, 0, 0, 0);
     for (var t = day0.getTime(); t <= X.t1; t += 6 * 3600e3) {
       if (t < X.t0) continue; var x = X.f(t), hh = new Date(t).getUTCHours();
@@ -2340,17 +2407,41 @@
     ctx.stroke(); ctx.setLineDash([]);
   }
   function mgModels(spec) { return MODEL_ORDER.filter(function (m) { var d = MG.docs[m]; return d && MG.on[m] && d.idx[MG.id] !== undefined && (!spec.models || spec.models.indexOf(m) >= 0); }); }
-  function ptCol(t, dbz) { var c = interp(PT_RAMPS[Math.min(Math.max(t | 0, 0), 5)], dbz); return "rgb(" + Math.round(c[0]) + "," + Math.round(c[1]) + "," + Math.round(c[2]) + ")"; }
+  // meteogram colours: type 0 = precipitation the model gave NO surface type (grey, not rain - see mgTypes)
+  var PT_GREY = [S(5, "#e3e5e1"), S(20, "#b9beb7"), S(35, "#8b918a"), S(50, "#5d635d")];
+  function ptCol(t, dbz) { var c = interp((t | 0) === 0 ? PT_GREY : PT_RAMPS[Math.min(Math.max(t | 0, 0), 5)], dbz); return "rgb(" + Math.round(c[0]) + "," + Math.round(c[1]) + "," + Math.round(c[2]) + ")"; }
+  // Effective surface type per hour (2026-10-02, user: "the surface ptype seems off"). The models leave precipitation
+  // UNTYPED in two common cases and the meteogram used to paint both as RAIN: RDPS gives no PrecipType for light rates
+  // (0.1-0.2 mm/h; 1,451 of 5,643 wet station-hours in the 2026-10-02 12Z run, 87 of them below 30 F - green "rain" in the
+  // middle of a snow event, e.g. CYFB +27-28 h at 33 F while 2.4 in of snow accumulates), and HRRR/RRFS echo or
+  // precipitation in hours without a categorical flag. Now an untyped wet hour takes the type of the nearest typed wet
+  // hour of the same model within 3 hours; anything still untyped is drawn grey and read out as "type not given".
+  function mgTypes(doc, id) {
+    var pt = mgSeries(doc, "ptype", id); if (!pt) return null;
+    var rf = mgSeries(doc, doc.fields.prate ? "prate" : "refl", id), ap = mgSeries(doc, "apcp", id), n = pt.t.length, out = new Array(n);
+    var wet = function (k) { return (rf && rf.v[k] > 0) || (ap && k > 0 && ap.v[k] - ap.v[k - 1] > 0.004); };
+    for (var k = 0; k < n; k++) out[k] = pt.v[k] === pt.v[k] ? pt.v[k] | 0 : 0;
+    var fixed = out.slice();
+    for (k = 0; k < n; k++) {
+      if (out[k] > 0 || !wet(k)) continue;
+      var best = 0, bd = 3 * 3600e3 + 1;
+      for (var j = Math.max(0, k - 6); j < Math.min(n, k + 7); j++) {
+        var dt = Math.abs(pt.t[j] - pt.t[k]); if (out[j] > 0 && wet(j) && dt < bd) { bd = dt; best = out[j]; } }
+      fixed[k] = best;
+    }
+    return fixed;
+  }
   function drawMg(first) {
     if (!MG.id) return;
     if (first) mgKey();
     var R = mgRange();
     if (!R) { $("mgR").textContent = "No model run carries a forecast for " + MG.id + " (outside every model's grid, or the files are not published yet)."; $("mgC").innerHTML = ""; return; }
-    var w = $("mgC").clientWidth, X = { t0: R[0], t1: R[1] };
+    var SC = mgScale(), w = $("mgC").clientWidth, X = { t0: R[0], t1: R[1] };
     X.f = function (t) { return MGL + (t - X.t0) / (X.t1 - X.t0) * (w - MGL - MGR); };
     X.inv = function (px) { return X.t0 + (px - MGL) / (w - MGL - MGR) * (X.t1 - X.t0); };
     MG.x = X;
     var specs = mgCharts(), last = null;
+    specs.forEach(function (sp) { sp.h = Math.round(sp.h * SC); });
     specs.forEach(function (sp) {
       var ms = mgModels(sp), wrap = document.getElementById("mgc-" + sp.id);
       var hide = function () { if (wrap) wrap.hidden = true; };
@@ -2364,24 +2455,24 @@
       }
       if (!ms.length) return hide();
       if (sp.strips) {
-        var rowH = 16, h = ms.length * (rowH + 4) + 20, g2 = mgCanvas(sp, h), ctx = g2.ctx;
+        var rowH = Math.round(17 * SC), h = ms.length * (rowH + 5) + 22, g2 = mgCanvas(sp, h), ctx = g2.ctx;
         mgFrame(ctx, g2.w, h, X, null, {});
         ms.forEach(function (m, r) {
-          var d = MG.docs[m], rf = mgSeries(d, m === "rdps" ? "prate" : "refl", MG.id), pt = mgSeries(d, "ptype", MG.id), y0 = 4 + r * (rowH + 4);
+          var d = MG.docs[m], rf = mgSeries(d, m === "rdps" ? "prate" : "refl", MG.id), pt = mgTypes(d, MG.id), y0 = 4 + r * (rowH + 5);
           ctx.fillStyle = "#f3f4f1"; ctx.fillRect(MGL, y0, g2.w - MGL - MGR, rowH);
-          ctx.fillStyle = MG_COL[m]; ctx.textAlign = "right"; ctx.textBaseline = "middle"; ctx.font = "600 11.5px 'Source Sans 3', Arial, sans-serif"; ctx.fillText(MODELS[m], MGL - 4, y0 + rowH / 2);
+          ctx.fillStyle = MG_COL[m]; ctx.textAlign = "right"; ctx.textBaseline = "middle"; ctx.font = "600 " + (MGF - 0.5) + "px 'Source Sans 3', Arial, sans-serif"; ctx.fillText(MODELS[m], MGL - 5, y0 + rowH / 2);
           if (!rf) return;
           for (var k = 0; k < rf.t.length; k++) {
             var v = rf.v[k]; if (!(v > 0)) continue;
             var dbz = m === "rdps" ? rateEq(v) : v; if (dbz < 5) continue;
             var xa = Math.max(MGL, X.f(rf.t[k] - (k ? (rf.t[k] - rf.t[k - 1]) : 3600e3))), xb = X.f(rf.t[k]);
-            ctx.fillStyle = ptCol(pt ? pt.v[k] : 1, dbz); ctx.fillRect(xa, y0, Math.max(1, xb - xa), rowH);
+            ctx.fillStyle = ptCol(pt ? pt[k] : 1, dbz); ctx.fillRect(xa, y0, Math.max(1, xb - xa), rowH);
           }
         });
         last = g2; return;
       }
       if (sp.wind) {
-        var rowB = 34, h3 = sp.h + ms.length * rowB + 6, g3 = mgCanvas(sp, h3), c3 = g3.ctx, mx3 = 10;
+        var rowB = Math.round(30 * SC), h3 = sp.h + ms.length * rowB + 6, g3 = mgCanvas(sp, h3), c3 = g3.ctx, mx3 = 10;
         var WS = {}; ms.forEach(function (m) { var s = mgSeries(MG.docs[m], "ws80", MG.id); if (s) { s.v = s.v.map(function (v) { return v * 1.943844; }); WS[m] = s; s.v.forEach(function (v) { if (v > mx3) mx3 = v; }); } });
         var top3 = mx3 * 1.1, y3 = { ticks: niceTicks(0, top3, 4) }, ph = sp.h - 20; y3.f = function (v) { return 4 + (1 - v / top3) * ph; };
         mgFrame(c3, g3.w, h3, X, y3, {});
@@ -2389,11 +2480,11 @@
           if (!WS[m]) return; mgPath(c3, X, y3, WS[m], 1, 2, MG_COL[m]);
           var wd = mgSeries(MG.docs[m], "wd80", MG.id), yb = sp.h + 2 + r * rowB + rowB / 2, lastX = -1e9;
           c3.strokeStyle = MG_COL[m]; c3.fillStyle = MG_COL[m]; c3.lineWidth = 1.2;
-          c3.font = "600 11.5px 'Source Sans 3', Arial, sans-serif"; c3.textAlign = "right"; c3.textBaseline = "middle"; c3.fillText(MODELS[m], MGL - 4, yb);
+          c3.font = "600 " + (MGF - 0.5) + "px 'Source Sans 3', Arial, sans-serif"; c3.textAlign = "right"; c3.textBaseline = "middle"; c3.fillText(MODELS[m], MGL - 5, yb);
           for (var k = 0; k < WS[m].t.length; k++) {
-            var x = X.f(WS[m].t[k]); if (x - lastX < 24 || x < MGL + 9 || !(WS[m].v[k] >= 0) || !wd) continue; lastX = x;
+            var x = X.f(WS[m].t[k]); if (x - lastX < 30 || x < MGL + 10 || !(WS[m].v[k] >= 0) || !wd) continue; lastX = x;
             var kt = WS[m].v[k], dr = wd.v[k] * D2R, ms_ = kt / 1.943844;
-            barb(c3, x, yb, -ms_ * Math.sin(dr), -ms_ * Math.cos(dr), kt, 13);
+            barb(c3, x, yb, -ms_ * Math.sin(dr), -ms_ * Math.cos(dr), kt, Math.round(11 * SC));
           }
         });
         last = g3; return;
@@ -2401,16 +2492,16 @@
       if (sp.bars) {
         var BAR = [], mx4 = 0;
         ms.forEach(function (m) {
-          var d = MG.docs[m], ap = mgSeries(d, "apcp", MG.id), fz = mgSeries(d, "afzra", MG.id), ip = mgSeries(d, "aip", MG.id), pt = mgSeries(d, "ptype", MG.id);
+          var d = MG.docs[m], ap = mgSeries(d, "apcp", MG.id), fz = mgSeries(d, "afzra", MG.id), ip = mgSeries(d, "aip", MG.id), pt = mgTypes(d, MG.id);
           if (!ap) return;
           for (var k = 1; k < ap.t.length; k++) {
             var tot = ap.v[k] - ap.v[k - 1]; if (!(tot > 0.004)) continue;
-            var f = fz ? Math.max(0, fz.v[k] - fz.v[k - 1]) : 0, s = ip ? Math.max(0, ip.v[k] - ip.v[k - 1]) : 0, t = pt ? pt.v[k] : 1;
+            var f = fz ? Math.max(0, fz.v[k] - fz.v[k - 1]) : 0, s = ip ? Math.max(0, ip.v[k] - ip.v[k - 1]) : 0, t = pt ? pt[k] : 1;
             var rest = Math.max(0, tot - f - s);
-            BAR.push([m, ap.t[k - 1], ap.t[k], [[rest, t === 2 ? 2 : t === 5 ? 5 : 1], [s, 4], [f, 3]]]); if (tot > mx4) mx4 = tot;
+            BAR.push([m, ap.t[k - 1], ap.t[k], [[rest, t === 2 ? 2 : t === 5 ? 5 : t === 0 ? 0 : 1], [s, 4], [f, 3]]]); if (tot > mx4) mx4 = tot;
           }
         });
-        if (!BAR.length) { var g5 = mgCanvas(sp, 46); mgFrame(g5.ctx, g5.w, 46, X, null, {}); g5.ctx.fillStyle = "#5c6b73"; g5.ctx.textAlign = "center"; g5.ctx.textBaseline = "middle"; g5.ctx.font = "13px 'Source Sans 3', Arial, sans-serif"; g5.ctx.fillText("no precipitation in any model", g5.w / 2, 18); last = g5; return; }
+        if (!BAR.length) { var g5 = mgCanvas(sp, 46); mgFrame(g5.ctx, g5.w, 46, X, null, {}); g5.ctx.fillStyle = "#5c6b73"; g5.ctx.textAlign = "center"; g5.ctx.textBaseline = "middle"; g5.ctx.font = MGF + "px 'Source Sans 3', Arial, sans-serif"; g5.ctx.fillText("no precipitation in any model", g5.w / 2, 18); last = g5; return; }
         var top4 = Math.max(0.05, mx4 * 1.1), g4 = mgCanvas(sp, sp.h), c4 = g4.ctx, y4 = { ticks: niceTicks(0, top4, 3), lab: function (v) { return v.toFixed(v < 0.1 ? 2 : 1); } };
         y4.f = function (v) { return 4 + (1 - v / top4) * (sp.h - 20); };
         mgFrame(c4, g4.w, sp.h, X, y4, {});
@@ -2435,32 +2526,36 @@
       else { if (sp.id === "a" || sp.id === "s" || sp.id === "k" || sp.id === "sw") lo = 0; var pad = (hi - lo) * 0.08 || 1; var ylo = lo - (lo === 0 ? 0 : pad), yhi = hi + pad;
         y6 = { ticks: niceTicks(ylo, yhi, 4), lab: sp.id === "a" ? function (v) { return v.toFixed(2); } : null }; y6.f = function (v) { return 4 + (1 - (v - ylo) / (yhi - ylo)) * ph6; }; }
       if (sp.bands) sp.bands.forEach(function (b) { var ya = y6.f(b[1]), yb2 = y6.f(b[0]); c6.fillStyle = FLT[b[2]][1]; c6.globalAlpha = 0.16; c6.fillRect(MGL, ya, g6.w - MGL - MGR, yb2 - ya); c6.globalAlpha = 1;
-        c6.fillStyle = FLT[b[2]][1]; c6.font = "600 10.5px 'Source Sans 3', Arial, sans-serif"; c6.textAlign = "right"; c6.textBaseline = "middle"; if (yb2 - ya > 11) c6.fillText(FLT[b[2]][0], g6.w - MGR - 3, (ya + yb2) / 2); });
+        c6.fillStyle = FLT[b[2]][1]; c6.font = "600 " + (MGF - 1.5) + "px 'Source Sans 3', Arial, sans-serif"; c6.textAlign = "right"; c6.textBaseline = "middle"; if (yb2 - ya > 11) c6.fillText(FLT[b[2]][0], g6.w - MGR - 3, (ya + yb2) / 2); });
       mgFrame(c6, g6.w, sp.h, X, y6, {});
       SER.forEach(function (a) { mgPath(c6, X, y6, a[1], a[2], a[3], MG_COL[a[0]]); });
       last = g6;
     });
     // the time axis, once, under the last chart
-    var ax = mgCanvas({ id: "zx", title: "", note: "" }, 20); $("mgC").appendChild(ax.wrap); ax.wrap.querySelector("p").hidden = true;
-    var keepH = MG.hov; MG.hov = null; mgFrame(ax.ctx, ax.w, 20, X, null, { axis: true, noNow: true }); MG.hov = keepH;
+    var ax = mgCanvas({ id: "zx", title: "", note: "" }, 26); $("mgC").appendChild(ax.wrap); ax.wrap.querySelector("p").hidden = true;
+    var keepH = MG.hov; MG.hov = null; mgFrame(ax.ctx, ax.w, 26, X, null, { axis: true, noNow: true }); MG.hov = keepH;
     // readout at the hovered time (default: now)
     var tq = MG.hov !== null ? MG.hov : Math.max(R[0], Math.min(R[1], Date.now())), parts = [];
     MODEL_ORDER.forEach(function (m) {
       var d = MG.docs[m]; if (!d || !MG.on[m] || d.idx[MG.id] === undefined) return;
       var hs = d.hours, best = 0; hs.forEach(function (h, k) { if (Math.abs(d.t0 + h * 3600e3 - tq) < Math.abs(d.t0 + hs[best] * 3600e3 - tq)) best = k; });
       if (Math.abs(d.t0 + hs[best] * 3600e3 - tq) > 3 * 3600e3) return;
-      var g = function (f) { var s = mgSeries(d, f, MG.id); return s ? s.v[best] : NaN; }, out = [];
-      var T = g("t2m"), Td = g("td2m"), ws = g("ws80"), wd = g("wd80");
-      if (T === T) out.push(Math.round(T) + "/" + Math.round(Td) + " °F");
-      if (ws === ws) out.push("wind " + Math.round(wd) + "° " + Math.round(ws * 1.943844) + " kt");
-      var ce = g("ceil"), vi = g("vis"); if (d.fields.ceil) out.push("ceiling " + (ce === ce ? Math.round(ce / 100) * 100 + " ft" : "none") + ", vis " + (vi === vi ? (vi >= 10 ? "10+" : vi.toFixed(1)) + " mi" : "–"));
-      var ap = mgSeries(d, "apcp", MG.id); if (ap && best > 0 && ap.v[best] - ap.v[best - 1] > 0.004) out.push((ap.v[best] - ap.v[best - 1]).toFixed(2) + " in " + PT_NAMES[Math.min(g("ptype") | 0, 5)].replace("no surface type", "precip"));
-      parts.push("<b style=\"color:" + MG_COL[m] + "\">" + MODELS[m] + " +" + hs[best] + " h</b> " + out.join(" · "));
+      var g = function (f) { var s = mgSeries(d, f, MG.id); return s ? s.v[best] : NaN; }, ln = [];
+      var T = g("t2m"), Td = g("td2m"), ws = g("ws80"), wd = g("wd80"), ty = mgTypes(d, MG.id);
+      var big = T === T ? Math.round(T) + "°<small>dew " + (Td === Td ? Math.round(Td) + "°" : "–") + " F</small>" : "–";
+      if (ws === ws) ln.push("80 m wind " + Math.round(wd) + "° at " + Math.round(ws * 1.943844) + " kt");
+      var ce = g("ceil"), vi = g("vis"); if (d.fields.ceil) ln.push("ceiling " + (ce === ce ? Math.round(ce / 100) * 100 + " ft" : "none") + " · vis " + (vi === vi ? (vi >= 10 ? "10+" : vi.toFixed(1)) + " mi" : "–"));
+      var ap = mgSeries(d, "apcp", MG.id);
+      if (ap && best > 0 && ap.v[best] - ap.v[best - 1] > 0.004) { var tt = ty ? ty[best] : 0;
+        ln.push((ap.v[best] - ap.v[best - 1]).toFixed(2) + " in " + (tt ? PT_NAMES[Math.min(tt, 5)] : "precipitation (type not given)") + " in the " + (best && hs[best] - hs[best - 1] > 1 ? (hs[best] - hs[best - 1]) + " h" : "hour")); }
+      else ln.push("no precipitation");
+      parts.push("<div class=\"mgr-tile\" style=\"--c:" + MG_COL[m] + "\"><div class=\"hd\">" + MODELS[m] + "<span>+" + hs[best] + " h</span></div><div class=\"big\">" + big + "</div><div class=\"ln\">" + ln.join("<br>") + "</div></div>");
     });
     var tl = fmtTime(tq);
-    $("mgR").innerHTML = "<b>" + tl[0] + "</b> <span style=\"color:var(--muted)\">(" + tl[1] + ")</span>" + (MG.hov === null ? " · now; hover or tap a chart for another time" : "") + "<br>" + parts.join("<br>");
+    $("mgR").innerHTML = "<div class=\"mgr-when\"><b>" + tl[0] + "</b> <span>(" + tl[1] + ")" + (MG.hov === null ? " · now · hover, tap or use ← → for another time; click a chart to move the map there" : "") + "</span></div>" +
+      "<div class=\"mgr-tiles\">" + parts.join("") + "</div>";
     var miss = MODEL_ORDER.filter(function (m) { var d = MG.docs[m]; return cycleObj(m, 0) && (!d || d.idx[MG.id] === undefined); });
-    $("mgN").textContent = "Values at the model grid point nearest the station (bilinear between the four nearest points for temperature, dewpoint, wind, pressure, sunshine, smoke and precipitation; the nearest point for ceiling, visibility, reflectivity, precipitation type and CAPE). Model output, uncorrected." +
+    $("mgN").textContent = "Values at the model grid point nearest the station (bilinear between the four nearest points for temperature, dewpoint, wind, pressure, sunshine, smoke and precipitation; the nearest point for ceiling, visibility, reflectivity, precipitation type and CAPE). Model output, uncorrected. Where a model leaves precipitation without a surface type, the nearest typed hour within 3 hours is used; grey = no type given." +
       (miss.length ? " Not available here: " + miss.map(function (m) { return MODELS[m] + (MG.docs[m] ? " (outside its grid)" : cycleObj(m, 0).points ? " (could not load)" : " (this run has no point file)"); }).join(", ") + "." : "");
   }
   var mgRT = 0;
