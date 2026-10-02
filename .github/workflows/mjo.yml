@@ -31,6 +31,11 @@ on:
         type: string
         required: false
         default: 'false'
+      rmm_only:
+        description: 'Rebuild only the RMM plots + MJO page for this cycle (re-plotting a past cycle; skips every map/loop product)'
+        type: string
+        required: false
+        default: 'false'
   workflow_dispatch:
     inputs:
       date:
@@ -43,6 +48,10 @@ on:
         default: ''
       force:
         description: 'Run even if the cycle is already plotted (rebuild every product)'
+        required: false
+        default: 'false'
+      rmm_only:
+        description: 'Rebuild only the RMM plots + MJO page for this cycle (re-plotting a past cycle; skips every map/loop product)'
         required: false
         default: 'false'
 
@@ -227,6 +236,7 @@ jobs:
           exit 1
 
       - name: Fetch remaining ENS cycle (heavy — Hovmöller 10u + SOI msl)
+        if: ${{ inputs.rmm_only != 'true' }}
         timeout-minutes: 20
         continue-on-error: true
         working-directory: scripts/mjo
@@ -236,6 +246,7 @@ jobs:
             || echo "ens_cycle had issues; downstream builds use whatever cached"
 
       - name: Build equatorial 10m-wind Hovmöller (El Niño page)
+        if: ${{ inputs.rmm_only != 'true' }}
         working-directory: scripts/mjo
         run: |
           mkdir -p ../../assets/sst
@@ -249,6 +260,7 @@ jobs:
       # Ocean Kelvin waves: altimetry sea level (NOAA CoastWatch ERDDAP, anonymous) + the equatorial 10 m wind
       # the Hovmöller above just fetched (store cache) + the AIFS 0-h wind history it appends to.
       - name: Ocean Kelvin wave tracker (sea level + equatorial wind)
+        if: ${{ inputs.rmm_only != 'true' }}
         timeout-minutes: 15
         working-directory: scripts/mjo
         env:
@@ -261,6 +273,7 @@ jobs:
             || echo "::warning::Ocean Kelvin tracker failed; keeping the previous figures"
 
       - name: Build SOI forecast (El Niño page)
+        if: ${{ inputs.rmm_only != 'true' }}
         working-directory: scripts/mjo
         run: |
           mkdir -p ../../assets/sst
@@ -272,6 +285,7 @@ jobs:
             || echo "SOI build failed; continuing"
 
       - name: Build the Equatorial SOI (CPC boxes, ensembles' daily forecast)
+        if: ${{ inputs.rmm_only != 'true' }}
         working-directory: scripts/mjo
         run: |
           python src/eqsoi_forecast.py \
@@ -281,6 +295,7 @@ jobs:
             || echo "EQSOI build failed; continuing"
 
       - name: Build 200 hPa velocity potential (El Niño page)
+        if: ${{ inputs.rmm_only != 'true' }}
         working-directory: scripts/mjo
         run: |
           mkdir -p ../../assets/sst/anim/wind200
@@ -294,6 +309,7 @@ jobs:
             || echo "200 hPa velocity potential build failed; continuing"
 
       - name: Build wave-activity flux (same u+v@200, clim is committed)
+        if: ${{ inputs.rmm_only != 'true' }}
         working-directory: scripts/mjo
         run: |
           mkdir -p ../../assets/sst/anim/waf
@@ -316,6 +332,7 @@ jobs:
       # took 30+ min here and the cycle's figures were still uncommitted when
       # the run was cancelled on 2026-09-02).
       - name: MSLP + 10 m wind loops (blend, AIFS-ENS, IFS-ENS)
+        if: ${{ inputs.rmm_only != 'true' }}
         timeout-minutes: 40
         working-directory: scripts/mjo
         run: |
@@ -326,6 +343,7 @@ jobs:
             || echo "MSLP/wind loop failed; continuing"
 
       - name: SOI history
+        if: ${{ inputs.rmm_only != 'true' }}
         working-directory: scripts/mjo
         run: python src/soi_history.py --out ../../assets/sst/soi_history.webp || echo "SOI history failed; continuing"
 
@@ -333,9 +351,11 @@ jobs:
       # and the WAF dir waf_basic_history.nc (0-h control u/v/ψ for the low-passed basic state);
       # seed both so the appends have a past.
       - name: Seed the Walker and WAF frame dirs and their analysis histories from the frames branch
+        if: ${{ inputs.rmm_only != 'true' }}
         run: scripts/lib/fetch_frames_ci.sh assets/sst/anim/walker assets/sst/anim/waf assets/sst/anim/gillrain || true
 
       - name: Walker + MMSF cross-sections
+        if: ${{ inputs.rmm_only != 'true' }}
         timeout-minutes: 15
         working-directory: scripts/mjo
         run: |
@@ -350,6 +370,7 @@ jobs:
       # Kelvin wave tracker: reads the chi history walker.py just appended to and the ensemble-mean
       # u/v@200 wind200_vpot already fetched (store cache), so it downloads nothing new.
       - name: Kelvin wave tracker (200 hPa velocity potential)
+        if: ${{ inputs.rmm_only != 'true' }}
         timeout-minutes: 10
         working-directory: scripts/mjo
         env:
@@ -368,6 +389,7 @@ jobs:
       # the frames branch in assets/sst/anim/gillrain (seeded above; a cold cache costs ~2 min of GES DISC OPeNDAP).
       # Best-effort: without Earthdata, or on any failure, the previous figure stays up.
       - name: Rain-forced circulation (Gill model vs observed chi200)
+        if: ${{ inputs.rmm_only != 'true' }}
         timeout-minutes: 15
         env:
           SST_SITE_ROOT: ${{ github.workspace }}
@@ -381,6 +403,7 @@ jobs:
             || echo "::warning::gill_rain failed; keeping the previous figure"
 
       - name: Hadley intensity + edge series
+        if: ${{ inputs.rmm_only != 'true' }}
         working-directory: scripts/mjo
         run: |
           mkdir -p ../../assets/sst/data
@@ -391,6 +414,7 @@ jobs:
       # arco_uwind_cache.nc is TRACKED so only the new days are read. Was the
       # laptop's com.scorvec.mjo.map120 daily job.
       - name: Refresh the RMM 120-day filter map (ARCO-ERA5)
+        if: ${{ inputs.rmm_only != 'true' }}
         working-directory: scripts/mjo
         run: |
           python src/refresh_map120.py || echo "map120 refresh failed; map left untouched"
@@ -398,6 +422,7 @@ jobs:
       # Cache-bust the static <img>s this run rebuilt (enso.html / circulation.html
       # only re-stamp their own ?v= on the SST build otherwise).
       - name: Cache-bust the rebuilt figures
+        if: ${{ inputs.rmm_only != 'true' }}
         run: |
           CB=$(date -u +%Y%m%d%H%M)
           perl -0pi -e "s/((?:eq_wind_hovmoller|soi_forecast|eqsoi_forecast|soi_history)\.webp)\?v=\w+/\${1}?v=$CB/g" enso.html circulation.html
@@ -407,6 +432,7 @@ jobs:
       # The loop frames are gitignored on main; without this they never leave
       # the runner (the laptop's publish_frames.sh used to carry them).
       - name: Publish loop frames to the frames branch
+        if: ${{ inputs.rmm_only != 'true' }}
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -415,6 +441,7 @@ jobs:
             assets/sst/anim/walker assets/sst/anim/mmsf assets/sst/anim/kelvin assets/sst/anim/okelvin assets/sst/anim/gillrain
 
       - name: Commit & push (generated outputs)
+        if: ${{ inputs.rmm_only != 'true' }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"

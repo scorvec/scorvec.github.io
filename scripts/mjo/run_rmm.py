@@ -137,7 +137,9 @@ def main() -> None:
     #    lead). lead_day 0 if step 0 was downloaded, else the first forecast day —
     #    .isel keeps this robust to the daily-vs-6-hourly step choice.
     archive_truth.append_truth(init, *cf0_raw)
-    obs = archive_truth.load_truth(days=120)      # 12-hourly points → same ~60-day window
+    obs = archive_truth.load_truth(days=None)
+    if obs is not None:                           # a re-plotted past cycle shows only what was observed by its init
+        obs = obs.sel(time=obs["time"] <= np.datetime64(init, "ns")).isel(time=slice(-120, None))   # 12-hourly → ~60 days
 
     # 4. Plot
     Path(args.out_dir).mkdir(parents=True, exist_ok=True)
