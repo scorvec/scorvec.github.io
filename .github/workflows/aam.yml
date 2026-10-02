@@ -139,6 +139,13 @@ jobs:
             --anim-dir ../../assets/sst/anim --manifest ../../assets/sst/anim/dt_manifest.json \
             || echo "dynamic tropopause failed; continuing"
 
+      - name: Tropical-cyclone track ensembles and downstream impact (AIFS-ENS + IFS-ENS tracks, AIFS-ENS z500)
+        working-directory: scripts/mjo
+        run: |
+          python src/tc_ens.py --date "${{ steps.cyc.outputs.date }}" --time "${{ steps.cyc.outputs.time }}" \
+            --out-dir ../../assets/sst \
+            || echo "::warning::TC ensemble products failed; continuing"
+
       # The North Pacific jet moved to strat.yml / strat-ifs.yml on 2026-09-28 (it needs 250 hPa v, which only the
       # stratosphere jobs fetch); it still reads the torque_ranges.json written above, from main.
 
@@ -158,12 +165,16 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           # Snapshot outputs, then commit on a clean sync of origin/main each attempt
           # (same pattern as mjo.yml: losing the build to a rebase is structurally impossible).
-          OUT="circulation.html \
-               assets/sst/aam.webp assets/sst/aam_trend.webp assets/sst/aam_phase.webp \
+          # circulation.html is NOT snapshotted: a run that started before a page push would restore its stale copy over
+          # it (2026-10-02, a 21:34 run wiped the DT region selector and the TC card). The cache-bust is re-applied to
+          # main's current page on every attempt instead.
+          CB=$(date -u +%Y%m%d%H%M)
+          OUT="assets/sst/aam.webp assets/sst/aam_trend.webp assets/sst/aam_phase.webp \
                assets/sst/anim/aam_zonal_manifest.json assets/sst/anim/torque_manifest.json assets/sst/anim/jets_manifest.json \
                assets/sst/torque_timeseries.webp assets/sst/torque_ranges.webp assets/sst/jets.webp \
                assets/sst/data/torque_ranges.json \
                assets/sst/anim/dt_manifest.json assets/sst/tcjet.webp assets/sst/data/tcjet.json \
+               assets/sst/tcens_tracks.webp assets/sst/tcens_impact.webp assets/sst/tcens_impact_2.webp assets/sst/data/tcens.json \
                scripts/mjo/data/reference/aam_history.nc scripts/mjo/data/reference/aam_forecast_archive.nc \
                scripts/mjo/data/reference/aam_latband_history.nc"
           SNAP=$(mktemp -d)
@@ -172,6 +183,8 @@ jobs:
             if ! timeout 120 git fetch origin main; then echo "fetch $i failed"; sleep 5; continue; fi
             git reset --hard origin/main
             tar xf "$SNAP/outs.tar"
+            perl -0pi -e "s/((?:aam|aam_trend|aam_phase|jets|torque_timeseries|torque_ranges)\.webp)\?v=\w+/\${1}?v=$CB/g" circulation.html
+            git add circulation.html
             for f in $OUT; do [ -e "$f" ] && git add "$f"; done
             if git diff --staged --quiet; then echo "No changes; skipping commit."; exit 0; fi
             git commit -m "data update: ${{ steps.cyc.outputs.date }}_${{ steps.cyc.outputs.time }}z (a)"
