@@ -31,7 +31,7 @@ LEVS = (700, 600, 500, 400, 300, 250, 200, 150, 100)
 STEPS = tuple(range(0, 241, 12))
 A_EARTH, OMEGA, G0, KAPPA = 6.371e6, 7.2921e-5, 9.80665, 0.2857
 LAT0 = 0.0                                                               # southern edge of the computation (the regional
-                                                                         # Lambert maps reach ~10N at their corners; tropics: no 2-PVU crossing below 100 hPa = blank)
+                                                                         # Lambert maps reach ~10N at their corners; tropics: no 2-PVU crossing below 100 hPa = 100 hPa values)
 THETAS = (330.0, 350.0)
 CENTRAL_LON = -140.0
 # 2026-10-02 (user: "split it into regions, like npac, north america, etc and maybe change the color scale"): the
@@ -43,15 +43,15 @@ REGIONS = {
     "atl":  dict(label="North Atlantic & Europe", lon=(282, 45), lat=(22, 75), clon=-20, clat=50),
     "asia": dict(label="East Asia", lon=(75, 175), lat=(15, 68), clon=125, clat=42),
 }
-DT_LEV = np.arange(270, 381, 5)
+DT_LEV = np.arange(260, 401, 5)
 # θ on the dynamic tropopause: purple/blue = low θ (troughs, cut-offs, stratospheric air folded down), greens through
 # the middle, yellow-orange-red = high θ (ridges, tropical air). Replaces 'turbo' (garish, no light-dark order).
-DT_ANCH = ["#3b0f4f", "#5d2a8a", "#5b56c0", "#4683d6", "#3fa9df", "#4fc6cd", "#6fd6a8", "#a0e07f", "#d6e76a",
-           "#f6d54c", "#f8ae3d", "#ef8231", "#dc552a", "#bd3029", "#93192b", "#64102a"]
+DT_ANCH = ["#f2c6e6", "#c77fc9", "#8e3fa8", "#5d2a8a", "#3b3f9e", "#3f6fcf", "#3fa9df", "#4fc6cd", "#6fd6a8",
+           "#a0e07f", "#d6e76a", "#f6d54c", "#f8ae3d", "#ef8231", "#dc552a", "#bd3029", "#93192b", "#5a0d24", "#3a0a14"]
 PV_LEV = [0, 0.5, 1, 1.5, 2, 3, 4, 5, 6, 8, 10, 12]
-# PV: near-white tropospheric air, a clear step darker at 2 PVU, stratospheric reservoir in navy-purple
-PV_COLS = ["#ffffff", "#eef4fb", "#d6e6f5", "#b5d1ec", "#6f9fd8", "#4d7fc8", "#3a60b0", "#334594", "#382f7c",
-           "#47236c", "#58185d", "#6a0f4d"]
+# PV: tropospheric air in warm yellow-orange, a hard switch to blue at 2 PVU, stratospheric reservoir in navy-purple
+PV_COLS = ["#fbe9b0", "#f8d27e", "#f2ad57", "#e5803d", "#b9d8ee", "#86b9e3", "#5a96d3", "#3e74c0", "#3654a6",
+           "#3c3a8c", "#4a2675", "#5b1560"]
 
 
 def load(cyc):
@@ -102,8 +102,11 @@ def dynamic_tropopause(pv, th, U, V, p_pa, thr=2.0):
         return a[k0, jj, ii] * (1 - w) + a[k1, jj, ii] * w
     lnp = np.log(p_pa)[:, None, None] * np.ones_like(pv)
     out = {"theta": interp(th), "p": np.exp(interp(lnp)) / 100.0, "u": interp(U), "v": interp(V)}
+    # no 2 PVU below the data top (deep tropics): the tropopause is at or above 100 hPa, so use the 100 hPa values
+    # (a lower bound on its θ) instead of a hole in the map
+    top = {"theta": th[-1], "p": np.full(th.shape[1:], p_pa[-1] / 100.0), "u": U[-1], "v": V[-1]}
     for k in out:
-        out[k] = np.where(never, np.nan, out[k])
+        out[k] = np.where(never, top[k], out[k])
     return out
 
 
@@ -165,12 +168,14 @@ def _frame_region(rg):
 
 def _subset(rg, lat, lon, *fields):
     """Region slice: lat ascending, lon in a contiguous (unwrapped) order; returns lat, lon, fields."""
-    R = REGIONS[rg]; lo0, lo1 = R["lon"]; la0, la1 = R["lat"]
-    # generous margins: a Lambert map shows more than its lat/lon box (wider at the top, lower at the corners)
-    jl = np.where((lat >= la0 - 15) & (lat <= 90))[0][:-1]                   # pole row off
-    off = (lon - lo0 + 30) % 360; span = (lo1 - lo0) % 360 + 60
-    il = np.where(off <= span)[0]; il = il[np.argsort(off[il])]
-    lon_u = lo0 - 30 + off[il]
+    # The whole hemisphere around the map's centre longitude: a Lambert map's top corners reach across the pole to the
+    # far side, and a box-shaped subset left white wedges there. The cone's cut sits at clon+180, so longitudes run
+    # clon-179 .. clon+179 and no cell straddles it.
+    clon = REGIONS[rg]["clon"]
+    jl = np.where((lat >= -10) & (lat < 90))[0]                            # pole row off
+    off = (lon - clon + 180) % 360
+    il = np.where((off >= 1) & (off <= 359))[0]; il = il[np.argsort(off[il])]
+    lon_u = clon - 180 + off[il]
     return lat[jl], lon_u, [f[np.ix_(jl, il)] for f in fields]
 
 
@@ -230,14 +235,11 @@ def _draw(ax, lat, lon, field, pcont, u, v, kind, polar, title):
         qlo, qla, qu, qv = lon[::st], lat[::st], u[::st, ::st], v[::st, ::st]
     X, Y = _projected(ax, lo, la)
     if kind == "dt":
-        # the 2-PVU surface at or above the data top (100 hPa) is the tropics, where theta on it is not resolved:
-        # leave it blank instead of a speckle of saturated red
-        F = np.where(np.asarray(C) < 125, np.nan, F)
         cf = ax.pcolormesh(X, Y, F, cmap=dcm, norm=dnorm, shading="nearest", rasterized=True)
         ax.contour(X, Y, C, levels=[200, 300, 400, 500], colors="k", linewidths=[0.5, 0.7, 0.9, 1.1], alpha=0.55)
     else:
         cf = ax.pcolormesh(X, Y, F, cmap=pcm, norm=pnorm, shading="nearest", rasterized=True)
-        ax.contour(X, Y, F, levels=[2], colors="#e07b00", linewidths=1.7)
+        ax.contour(X, Y, F, levels=[2], colors="k", linewidths=1.5)
     qla_ = np.asarray(qla)
     qu = np.where(qla_[:, None] > 80, np.nan, qu)                       # no arrows near the pole (they pile up there)
     if polar:                                                           # equal-area-ish arrows: thin longitudes by 1/cos(lat)
@@ -286,13 +288,13 @@ def main() -> int:
             for f, flab in FIELDS:
                 if f == "dt":
                     fld, pc, uu, vv, kind = dt["theta"], dt["p"], dt["u"], dt["v"], "dt"
-                    blab = ("θ on 2 PVU (K) · black: DT pressure 200–500 hPa · arrows: DT wind · blank: DT above 125 hPa" if polar else
-                            "θ on the 2-PVU surface (K) · purple/blue = low θ (troughs, stratospheric air) · red = high θ (ridges) · black: DT pressure 200/300/400/500 hPa · arrows: wind on the DT · blank: DT above 125 hPa (tropics, not resolved)")
+                    blab = ("θ on 2 PVU (K) · black: DT pressure 200–500 hPa · arrows: DT wind · DT above 100 hPa: θ at 100 hPa" if polar else
+                            "θ on the 2-PVU surface (K) · blue/purple = low θ (troughs) · red = high θ (ridges) · black: DT pressure 200–500 hPa · arrows: DT wind · DT above 100 hPa: θ at 100 hPa")
                     ttl = f"Dynamic tropopause θ (2 PVU) · {R['label']} — AIFS-ENS member 0, init {init:%d %b %HZ} · {lab}"
                 else:
                     iso = isos[330.0 if f == "dt_pv330" else 350.0]; th_ = 330 if f == "dt_pv330" else 350
                     fld, pc, uu, vv, kind = iso["pv"], None, iso["u"], iso["v"], "pv"
-                    blab = f"PV on {th_} K (PVU) · orange line: 2 PVU (the dynamic tropopause on this surface) · arrows: wind on {th_} K"
+                    blab = f"PV on {th_} K (PVU) · black line: 2 PVU (the dynamic tropopause on this surface) · arrows: wind on {th_} K"
                     ttl = f"PV on {th_} K · {R['label']} — AIFS-ENS member 0, init {init:%d %b %HZ} · {lab}"
                 if polar:
                     fig, ax, cax = _frame(); la_, lo_ = lat, lon; arrs = (fld, pc, uu, vv)
