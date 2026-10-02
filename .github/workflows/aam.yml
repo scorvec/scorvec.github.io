@@ -134,7 +134,7 @@ jobs:
       - name: Dynamic tropopause (member 0)
         working-directory: scripts/mjo
         run: |
-          mkdir -p ../../assets/sst/anim/dt ../../assets/sst/anim/dt_pv330 ../../assets/sst/anim/dt_pv350
+          mkdir -p ../../assets/sst/anim/dt ../../assets/sst/anim/dt_npac ../../assets/sst/anim/dt_na ../../assets/sst/anim/dt_atl ../../assets/sst/anim/dt_asia ../../assets/sst/anim/dt_pv330 ../../assets/sst/anim/dt_pv330_npac ../../assets/sst/anim/dt_pv330_na ../../assets/sst/anim/dt_pv330_atl ../../assets/sst/anim/dt_pv330_asia ../../assets/sst/anim/dt_pv350 ../../assets/sst/anim/dt_pv350_npac ../../assets/sst/anim/dt_pv350_na ../../assets/sst/anim/dt_pv350_atl ../../assets/sst/anim/dt_pv350_asia
           python src/dt_charts.py --date "${{ steps.cyc.outputs.date }}" --time "${{ steps.cyc.outputs.time }}" \
             --anim-dir ../../assets/sst/anim --manifest ../../assets/sst/anim/dt_manifest.json \
             || echo "dynamic tropopause failed; continuing"
@@ -150,7 +150,7 @@ jobs:
       - name: Publish loop frames to the frames branch
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: scripts/lib/publish_frames_ci.sh assets/sst/anim/aam_zonal assets/sst/anim/torque assets/sst/anim/jets assets/sst/anim/dt assets/sst/anim/dt_pv330 assets/sst/anim/dt_pv350
+        run: scripts/lib/publish_frames_ci.sh assets/sst/anim/aam_zonal assets/sst/anim/torque assets/sst/anim/jets assets/sst/anim/dt assets/sst/anim/dt_npac assets/sst/anim/dt_na assets/sst/anim/dt_atl assets/sst/anim/dt_asia assets/sst/anim/dt_pv330 assets/sst/anim/dt_pv330_npac assets/sst/anim/dt_pv330_na assets/sst/anim/dt_pv330_atl assets/sst/anim/dt_pv330_asia assets/sst/anim/dt_pv350 assets/sst/anim/dt_pv350_npac assets/sst/anim/dt_pv350_na assets/sst/anim/dt_pv350_atl assets/sst/anim/dt_pv350_asia
 
       - name: Commit & push
         run: |

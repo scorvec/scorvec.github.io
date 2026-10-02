@@ -6,8 +6,8 @@ From temperature and wind on nine pressure levels (700–100 hPa), 12-hourly to 
   the dynamic tropopause           first crossing of 2 PVU searching upward from 700 hPa; θ, p and the wind
                                    interpolated linearly in PV between the bracketing levels
   isentropic PV                    PV and wind interpolated in θ onto 330 K and 350 K
-Rendered on a North-Pacific-to-Atlantic polar stereographic view (20–90°N) as three loops
-(assets/sst/anim/dt, dt_pv330, dt_pv350 + dt_manifest.json). The static four-panel figure was dropped 2026-09-07 (user).
+Rendered on the hemispheric polar view (loops dt, dt_pv330, dt_pv350) and, since 2026-10-02, four regional Lambert views
+(suffix _npac, _na, _atl, _asia): 15 loops in dt_manifest.json. The static four-panel figure was dropped 2026-09-07 (user).
     python src/dt_charts.py --date 20260906 --time 00 --anim-dir ../../assets/sst/anim \
         --manifest ../../assets/sst/anim/dt_manifest.json
 """
@@ -30,9 +30,28 @@ import store as ecmwf                                                   # noqa: 
 LEVS = (700, 600, 500, 400, 300, 250, 200, 150, 100)
 STEPS = tuple(range(0, 241, 12))
 A_EARTH, OMEGA, G0, KAPPA = 6.371e6, 7.2921e-5, 9.80665, 0.2857
-LAT0 = 15.0                                                              # southern edge of the computation
+LAT0 = 0.0                                                               # southern edge of the computation (the regional
+                                                                         # Lambert maps reach ~10N at their corners; tropics: no 2-PVU crossing below 100 hPa = blank)
 THETAS = (330.0, 350.0)
 CENTRAL_LON = -140.0
+# 2026-10-02 (user: "split it into regions, like npac, north america, etc and maybe change the color scale"): the
+# hemispheric polar view plus four regional Lambert views, every field in each. lon in 0..360, a range may wrap.
+REGIONS = {
+    "nh":   dict(label="Northern Hemisphere"),
+    "npac": dict(label="North Pacific", lon=(115, 250), lat=(17, 72), clon=-178, clat=45),
+    "na":   dict(label="North America", lon=(200, 315), lat=(15, 70), clon=-100, clat=45),
+    "atl":  dict(label="North Atlantic & Europe", lon=(282, 45), lat=(22, 75), clon=-20, clat=50),
+    "asia": dict(label="East Asia", lon=(75, 175), lat=(15, 68), clon=125, clat=42),
+}
+DT_LEV = np.arange(270, 381, 5)
+# θ on the dynamic tropopause: purple/blue = low θ (troughs, cut-offs, stratospheric air folded down), greens through
+# the middle, yellow-orange-red = high θ (ridges, tropical air). Replaces 'turbo' (garish, no light-dark order).
+DT_ANCH = ["#3b0f4f", "#5d2a8a", "#5b56c0", "#4683d6", "#3fa9df", "#4fc6cd", "#6fd6a8", "#a0e07f", "#d6e76a",
+           "#f6d54c", "#f8ae3d", "#ef8231", "#dc552a", "#bd3029", "#93192b", "#64102a"]
+PV_LEV = [0, 0.5, 1, 1.5, 2, 3, 4, 5, 6, 8, 10, 12]
+# PV: near-white tropospheric air, a clear step darker at 2 PVU, stratospheric reservoir in navy-purple
+PV_COLS = ["#ffffff", "#eef4fb", "#d6e6f5", "#b5d1ec", "#6f9fd8", "#4d7fc8", "#3a60b0", "#334594", "#382f7c",
+           "#47236c", "#58185d", "#6a0f4d"]
 
 
 def load(cyc):
@@ -127,6 +146,34 @@ def _frame():
     return fig, ax, cax
 
 
+RG_W, RG_H = 11.8, 7.9
+
+
+def _frame_region(rg):
+    """A wide figure with one regional Lambert map and the colour-bar axes under it."""
+    import cartopy.crs as ccrs
+    import matplotlib.pyplot as plt
+    R = REGIONS[rg]
+    fig = plt.figure(figsize=(RG_W, RG_H))
+    proj = ccrs.LambertConformal(central_longitude=R["clon"], central_latitude=R["clat"], standard_parallels=(30, 60))
+    ax = fig.add_axes([0.012, 0.105, 0.976, 0.845], projection=proj)
+    lo0, lo1 = R["lon"]; span = (lo1 - lo0) % 360
+    ax.set_extent([lo0 - 360 if lo0 > 180 else lo0, (lo0 - 360 if lo0 > 180 else lo0) + span, R["lat"][0], R["lat"][1]], crs=ccrs.PlateCarree())
+    cax = fig.add_axes([0.2, 0.045, 0.6, 0.022])
+    return fig, ax, cax
+
+
+def _subset(rg, lat, lon, *fields):
+    """Region slice: lat ascending, lon in a contiguous (unwrapped) order; returns lat, lon, fields."""
+    R = REGIONS[rg]; lo0, lo1 = R["lon"]; la0, la1 = R["lat"]
+    # generous margins: a Lambert map shows more than its lat/lon box (wider at the top, lower at the corners)
+    jl = np.where((lat >= la0 - 15) & (lat <= 90))[0][:-1]                   # pole row off
+    off = (lon - lo0 + 30) % 360; span = (lo1 - lo0) % 360 + 60
+    il = np.where(off <= span)[0]; il = il[np.argsort(off[il])]
+    lon_u = lo0 - 30 + off[il]
+    return lat[jl], lon_u, [f[np.ix_(jl, il)] for f in fields]
+
+
 def _bar(fig, cf, cax, label):
     cb = fig.colorbar(cf, cax=cax, orientation="horizontal")
     cb.ax.tick_params(labelsize=7.6, pad=1.5)
@@ -153,41 +200,51 @@ def _projected(ax, lo, la):
     return xyz[..., 0], xyz[..., 1]
 
 
-def draw_dt(ax, lat, lon, dt, title):
-    import cartopy.crs as ccrs
-    import cartopy.feature as cfeature
-    from matplotlib.colors import BoundaryNorm
-    import matplotlib.pyplot as plt
-    pc = ccrs.PlateCarree()
-    la, lo = _coarse(lat), _coarse(lon)
-    levels = np.arange(280, 381, 6)
-    X, Y = _projected(ax, lo, la)
-    cmap = plt.get_cmap("turbo", len(levels) + 1)
-    cf = ax.pcolormesh(X, Y, _coarse(dt["theta"]), cmap=cmap, norm=BoundaryNorm(levels, cmap.N, extend="both"), shading="nearest", rasterized=True)
-    ax.contour(X, Y, _coarse(dt["p"]), levels=[200, 300, 400, 500], colors="k", linewidths=[0.5, 0.7, 0.9, 1.1], alpha=0.55)
-    ax.quiver(_coarse(lon, 20)[:-1], _coarse(lat, 20), _coarse(dt["u"], 20)[:, :-1], _coarse(dt["v"], 20)[:, :-1], transform=pc, scale=1100, width=0.0022, color="#111", alpha=0.85)
-    ax.coastlines(resolution="50m", lw=1.0, color="#000", zorder=6); ax.add_feature(cfeature.BORDERS, lw=0.45, edgecolor="#222", zorder=6)
-    ax.gridlines(lw=0.3, color="#6f6b64", alpha=0.6, ylocs=range(20, 90, 20), xlocs=range(-180, 181, 30))
-    ax.set_title(title, fontsize=9.6, loc="left", fontweight="bold")
-    return cf
+def _cmaps():
+    from matplotlib.colors import BoundaryNorm, LinearSegmentedColormap, ListedColormap
+    n = len(DT_LEV) + 1
+    dtc = LinearSegmentedColormap.from_list("dt", DT_ANCH)
+    dcm = ListedColormap([dtc(x) for x in np.linspace(0, 1, n)])
+    pcm = ListedColormap(PV_COLS)                                           # 11 bins + the >12 PVU extension
+    return (dcm, BoundaryNorm(DT_LEV, n, extend="both")), (pcm, BoundaryNorm(PV_LEV, len(PV_COLS), extend="max"))
 
 
-def draw_pv(ax, lat, lon, iso, theta, title):
-    import cartopy.crs as ccrs
+def _decorate(ax, polar, title):
     import cartopy.feature as cfeature
-    from matplotlib.colors import BoundaryNorm
-    import matplotlib.pyplot as plt
-    pc = ccrs.PlateCarree()
-    la, lo = _coarse(lat), _coarse(lon)
-    levels = [0, 0.5, 1, 1.5, 2, 3, 4, 5, 6, 8, 10, 12]
-    X, Y = _projected(ax, lo, la)
-    cmap = plt.get_cmap("PuBuGn", len(levels))
-    cf = ax.pcolormesh(X, Y, _coarse(iso["pv"]), cmap=cmap, norm=BoundaryNorm(levels, cmap.N, extend="max"), shading="nearest", rasterized=True)
-    ax.contour(X, Y, _coarse(iso["pv"]), levels=[2], colors="#7a0c0c", linewidths=1.2)
-    ax.quiver(_coarse(lon, 20)[:-1], _coarse(lat, 20), _coarse(iso["u"], 20)[:, :-1], _coarse(iso["v"], 20)[:, :-1], transform=pc, scale=1100, width=0.0022, color="#111", alpha=0.85)
     ax.coastlines(resolution="50m", lw=1.0, color="#000", zorder=6); ax.add_feature(cfeature.BORDERS, lw=0.45, edgecolor="#222", zorder=6)
-    ax.gridlines(lw=0.3, color="#6f6b64", alpha=0.6, ylocs=range(20, 90, 20), xlocs=range(-180, 181, 30))
-    ax.set_title(title, fontsize=9.6, loc="left", fontweight="bold")
+    if not polar: ax.add_feature(cfeature.STATES.with_scale("50m"), lw=0.25, edgecolor="#444", zorder=6)
+    ax.gridlines(lw=0.3, color="#6f6b64", alpha=0.6, ylocs=range(10, 90, 10 if not polar else 20), xlocs=range(-180, 181, 20 if not polar else 30))
+    ax.set_title(title, fontsize=10.5 if not polar else 9.6, loc="left", fontweight="bold")
+
+
+def _draw(ax, lat, lon, field, pcont, u, v, kind, polar, title):
+    """kind 'dt': θ shading + DT pressure contours; 'pv': PV shading + 2-PVU line. Arrows: wind on that surface."""
+    import cartopy.crs as ccrs
+    (dcm, dnorm), (pcm, pnorm) = _cmaps()
+    if polar:
+        la, lo = _coarse(lat), _coarse(lon); F, C, U_, V_ = _coarse(field), (_coarse(pcont) if pcont is not None else None), u, v
+        qlo, qla, qu, qv = _coarse(lon, 20)[:-1], _coarse(lat, 20), _coarse(u, 20)[:, :-1], _coarse(v, 20)[:, :-1]
+    else:
+        la, lo, F, C = lat, lon, field, pcont
+        st = max(1, int(round(4.5 / abs(lon[1] - lon[0]))))                      # arrows every ~4.5 deg
+        qlo, qla, qu, qv = lon[::st], lat[::st], u[::st, ::st], v[::st, ::st]
+    X, Y = _projected(ax, lo, la)
+    if kind == "dt":
+        # the 2-PVU surface at or above the data top (100 hPa) is the tropics, where theta on it is not resolved:
+        # leave it blank instead of a speckle of saturated red
+        F = np.where(np.asarray(C) < 125, np.nan, F)
+        cf = ax.pcolormesh(X, Y, F, cmap=dcm, norm=dnorm, shading="nearest", rasterized=True)
+        ax.contour(X, Y, C, levels=[200, 300, 400, 500], colors="k", linewidths=[0.5, 0.7, 0.9, 1.1], alpha=0.55)
+    else:
+        cf = ax.pcolormesh(X, Y, F, cmap=pcm, norm=pnorm, shading="nearest", rasterized=True)
+        ax.contour(X, Y, F, levels=[2], colors="#e07b00", linewidths=1.7)
+    qla_ = np.asarray(qla)
+    qu = np.where(qla_[:, None] > 80, np.nan, qu)                       # no arrows near the pole (they pile up there)
+    if polar:                                                           # equal-area-ish arrows: thin longitudes by 1/cos(lat)
+        thin = np.maximum(1, np.round(1 / np.cos(np.deg2rad(np.clip(qla_, 0, 80))))).astype(int)
+        qu = np.where((np.arange(qu.shape[1])[None, :] % thin[:, None]) == 0, qu, np.nan)
+    ax.quiver(qlo, qla, qu, qv, transform=ccrs.PlateCarree(), scale=1100 if polar else 1500, width=0.0022 if polar else 0.0015, color="#111", alpha=0.8)
+    _decorate(ax, polar, title)
     return cf
 
 
@@ -207,42 +264,54 @@ def main() -> int:
     p_pa = np.array(LEVS, float) * 100.0
     steps = (d["t"].step / np.timedelta64(1, "h")).values.astype(int)
     anim = Path(a.anim_dir)
-    dirs = {"dt": anim / "dt", "dt_pv330": anim / "dt_pv330", "dt_pv350": anim / "dt_pv350"}
+    # loop keys: the hemispheric ones keep their old names (dt, dt_pv330, dt_pv350); regions add a suffix
+    FIELDS = (("dt", "θ on 2 PVU"), ("dt_pv330", "PV on 330 K"), ("dt_pv350", "PV on 350 K"))
+    key = lambda f, rg: f if rg == "nh" else f"{f}_{rg}"
+    dirs = {key(f, rg): anim / key(f, rg) for f, _ in FIELDS for rg in REGIONS}
     for p in dirs.values():
         p.mkdir(parents=True, exist_ok=True)
         for old in p.glob("F*.webp"):
             old.unlink()
     entries = {k: [] for k in dirs}
-    keep = {}
     for k, h in enumerate(steps):
         if a.max_steps and k >= a.max_steps:
             break
         T, U, V = d["t"].isel(step=k).values, d["u"].isel(step=k).values, d["v"].isel(step=k).values
         pv, th = pv_step(T, U, V, p_pa, lat, lon)
         dt = dynamic_tropopause(pv, th, U, V, p_pa)
+        isos = {th_: on_isentrope(pv, th, U, V, th_) for th_ in THETAS}
         valid = init + pd.Timedelta(hours=int(h)); lab = ("analysis" if h == 0 else f"+{h} h") + f" · {valid:%a %d %b %HZ}"
-        if h in (0, 48, 96, 144):
-            keep[h] = dt
-        fig, ax, cax = _frame()
-        cf = draw_dt(ax, lat, lon, dt, f"Dynamic tropopause θ (2 PVU) — AIFS-ENS member 0, init {init:%d %b %HZ} · {lab}")
-        _bar(fig, cf, cax, "θ on the 2-PVU surface (K) · black contours: DT pressure 200/300/400/500 hPa · arrows: wind on the DT")
-        fp = dirs["dt"] / f"F{k:02d}.webp"; fig.savefig(fp, dpi=100, facecolor="white", pil_kwargs={"quality": 82, "method": 6}); plt.close(fig)
-        entries["dt"].append({"idx": k, "file": fp.name, "date": valid.strftime("%Y-%m-%d"), "label": lab})
-        for theta, key in zip(THETAS, ("dt_pv330", "dt_pv350")):
-            iso = on_isentrope(pv, th, U, V, theta)
-            fig, ax, cax = _frame()
-            cf = draw_pv(ax, lat, lon, iso, theta, f"PV on {theta:.0f} K — AIFS-ENS member 0, init {init:%d %b %HZ} · {lab}")
-            _bar(fig, cf, cax, f"PV on {theta:.0f} K (PVU) · dark red: 2 PVU (the dynamic tropopause on this surface) · arrows: wind on {theta:.0f} K")
-            fp = dirs[key] / f"F{k:02d}.webp"; fig.savefig(fp, dpi=100, facecolor="white", pil_kwargs={"quality": 82, "method": 6}); plt.close(fig)
-            entries[key].append({"idx": k, "file": fp.name, "date": valid.strftime("%Y-%m-%d"), "label": lab})
+        for rg, R in REGIONS.items():
+            polar = rg == "nh"
+            for f, flab in FIELDS:
+                if f == "dt":
+                    fld, pc, uu, vv, kind = dt["theta"], dt["p"], dt["u"], dt["v"], "dt"
+                    blab = ("θ on 2 PVU (K) · black: DT pressure 200–500 hPa · arrows: DT wind · blank: DT above 125 hPa" if polar else
+                            "θ on the 2-PVU surface (K) · purple/blue = low θ (troughs, stratospheric air) · red = high θ (ridges) · black: DT pressure 200/300/400/500 hPa · arrows: wind on the DT · blank: DT above 125 hPa (tropics, not resolved)")
+                    ttl = f"Dynamic tropopause θ (2 PVU) · {R['label']} — AIFS-ENS member 0, init {init:%d %b %HZ} · {lab}"
+                else:
+                    iso = isos[330.0 if f == "dt_pv330" else 350.0]; th_ = 330 if f == "dt_pv330" else 350
+                    fld, pc, uu, vv, kind = iso["pv"], None, iso["u"], iso["v"], "pv"
+                    blab = f"PV on {th_} K (PVU) · orange line: 2 PVU (the dynamic tropopause on this surface) · arrows: wind on {th_} K"
+                    ttl = f"PV on {th_} K · {R['label']} — AIFS-ENS member 0, init {init:%d %b %HZ} · {lab}"
+                if polar:
+                    fig, ax, cax = _frame(); la_, lo_ = lat, lon; arrs = (fld, pc, uu, vv)
+                else:
+                    fig, ax, cax = _frame_region(rg)
+                    la_, lo_, arrs = _subset(rg, lat, lon, fld, pc if pc is not None else fld, uu, vv)
+                    if pc is None: arrs[1] = None
+                cf = _draw(ax, la_, lo_, arrs[0], arrs[1], arrs[2], arrs[3], kind, polar, ttl)
+                _bar(fig, cf, cax, blab)
+                kk = key(f, rg); fp = dirs[kk] / f"F{k:02d}.webp"
+                fig.savefig(fp, dpi=100, facecolor="white", pil_kwargs={"quality": 82, "method": 6}); plt.close(fig)
+                entries[kk].append({"idx": k, "file": fp.name, "date": valid.strftime("%Y-%m-%d"), "label": lab})
         if k % 5 == 0:
             print(f"    step {h:3d} h done ({time.time() - t0:.0f}s)", flush=True)
     mani = {"ver": int(pd.Timestamp.now().timestamp()), "default": "dt",
-            "regions": {"dt": {"label": "Dynamic tropopause θ (2 PVU)", "frames": entries["dt"]},
-                        "dt_pv330": {"label": "PV on 330 K", "frames": entries["dt_pv330"]},
-                        "dt_pv350": {"label": "PV on 350 K", "frames": entries["dt_pv350"]}}}
+            "regions": {key(f, rg): {"label": f"{flab} · {R['label']}", "frames": entries[key(f, rg)]}
+                        for f, flab in FIELDS for rg, R in REGIONS.items()}}
     Path(a.manifest).parent.mkdir(parents=True, exist_ok=True); Path(a.manifest).write_text(json.dumps(mani))
-    print(f"wrote {len(entries['dt'])} frames × 3 loops, {a.manifest} in {(time.time() - t0) / 60:.1f} min", flush=True)
+    print(f"wrote {len(entries['dt'])} frames × {len(entries)} loops, {a.manifest} in {(time.time() - t0) / 60:.1f} min", flush=True)
     return 0
 
 
