@@ -121,6 +121,9 @@ PRODUCTS = [
             ("/stratosphere.html#shwinters", "Stratosphere history",
              "Every northern winter and sudden warming since 1980 in MERRA-2, with 15,000 more from nine CMIP6 models: the dripping-paint composites and what usually follows at the surface.",
              "Static"),
+            ("/aifs-aam-budget.html", "Does AI conserve angular momentum?",
+             "A budget test of ECMWF's AI ensemble (AIFS-ENS) against its physics ensemble: whether each forecast's change in atmospheric angular momentum matches its own mountain and friction torques. Winter 2025–26, days 1–15.",
+             "Static"),
             ("/topics/", "Explainers",
              "How to read the products: the equations and the physics behind each diagnostic.",
              "As written"),
@@ -220,6 +223,7 @@ PAGES = [
     dict(path="models.html", mode="after-body"),                   # short-range model viewer (scripts/models, models*.yml), WebGL data page
     dict(path="snowbands.html", mode="after-body"),                # snow-band diagnostics (scripts/snowband, snowband.yml), stage viewer
     dict(path="catalog.html", mode="after-body"),
+    dict(path="aifs-aam-budget.html", mode="after-body"),         # static study (2026-10-01), built from ~/aam_budget/scripts/build_page.py
     dict(path="about.html", mode="after-body"),                    # the person: bio, resume, publications, profiles                  # every plot on the site (scripts/site/build_catalog.py)
     dict(path="climate.html", mode="after-body"),
     dict(path="research.html", mode="nav", fixes=[

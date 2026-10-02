@@ -112,6 +112,8 @@ PAGES = {
     # "/cities/verify.html" paused 2026-09-27
     "/aifs-verify.html": dict(kind="stage", file="aifs-verify.html", topic="research", title="AIFS single versus member 0", tier=1,
                               prio=23, models=["AIFS", "AIFS-ENS", "ERA5"], horizon="Days 1–15", region=["Northern Hemisphere"]),
+    "/aifs-aam-budget.html": dict(kind="page", topic="research", tier=1, prio=22, models=["AIFS-ENS", "AIFS", "IFS", "ERA5"],
+                                  horizon="Days 1–15", region=["Global"], thumb="studies/aifs-aam-budget/closure_global.webp"),
     "/topics/": dict(kind="page", topic="research", tier=1, prio=26, models=[], horizon=None, region=[]),
     "/research.html": dict(kind="page", topic="research", tier=1, prio=27, models=[], horizon=None, region=[]),
     "/catalog.html": dict(kind="page", topic="tools", tier=1, prio=28, models=[], horizon=None, region=[]),

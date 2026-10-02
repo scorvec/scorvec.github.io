@@ -145,6 +145,10 @@ closed. ERA5's own terms sum to −4.5 ± 0.7 Hadleys in the annual mean where t
 mountain torque changes with grid spacing. Both errors sit in the mean and cancel in an anomaly. The open forecast
 data carry no gravity-wave stress, so that term stays in the residual between the net torque and the actual change in
 angular momentum.</p>
+<p>A separate study tests whether the forecast's own torques actually account for its change in angular momentum:
+<a href="/aifs-aam-budget.html">does an AI weather model conserve angular momentum?</a> In winter 2025–26 the AIFS
+ensemble's budget held reasonably well to about day 10 and then came apart, while the physics-based IFS ensemble closed
+its budget at every lead.</p>
 """,
         figures=[
             loop("torque_manifest.json", "torque", "Friction and mountain torque-density anomalies, AIFS-ENS days 0–15"),
@@ -200,6 +204,8 @@ levels from 10 to 1000 hPa, which is effectively the whole column. It is shown o
 together with the 15-day forecast. GFZ's ESMGFZ series, computed from ECMWF analyses for the Earth-rotation community,
 is drawn alongside as an independent check. The phase plot follows each hemisphere through AAM anomaly against
 tendency: the hemispheric version of the Global Wind Oscillation.</p>
+<p>Whether the AI forecast's angular momentum changes for the right reasons is tested in a separate study,
+<a href="/aifs-aam-budget.html">does an AI weather model conserve angular momentum?</a></p>
 """,
         figures=[
             img("/assets/sst/aam.webp", "Global and hemispheric relative atmospheric angular momentum: observed and AIFS-ENS 15-day forecast, absolute and anomaly",
