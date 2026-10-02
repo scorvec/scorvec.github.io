@@ -639,7 +639,7 @@ window.STAGE = {
                                                       : "sst_anim.html?embed=1&manifest=vortex_winds_manifest.json&region=vortex_" + lev; }, about: "about-vwinds",
           cap: function (a, b) { return (b === "ifs" ? "IFS-ENS (50 members)" : "AIFS-ENS (25 members)") + " ensemble-mean wind speed and streamlines at " + (a === "vortex_100" ? "100" : "10") + " hPa, both hemispheres; the red contour is u = 0."; }},
   pv: {label: "Potential vorticity (GEOS FP)", a: {label: "Hemisphere", items: [["geos_pv_nh","Northern"],["geos_pv_sh","Southern"]]},
-          frame: function (a) { return "sst_anim.html?embed=1&manifest=geos_pv_manifest.json&region=" + a; }, ratio: function () { return "924/572"; }, about: "about-pv",
+          frame: function (a) { return "sst_anim.html?embed=1&manifest=geos_pv_manifest.json&region=" + a + "&regions=" + a; }, ratio: function () { return "924/572"; }, about: "about-pv",
           cap: function (a) { return "Ertel potential vorticity on the 475 K (lower stratosphere) and 850 K (about 10 hPa) surfaces, GEOS FP analysis and 10-day forecast; the red line is the vortex edge." + (a === "geos_pv_sh" ? " Southern values are sign-flipped so the vortex reads positive." : ""); }},
   epflux: {label: "E–P flux and wave driving", a: {label: "Model", items: [["gefs","GEFS"]]},
           frame: function () { return "sst_anim.html?embed=1&manifest=epflux_gefs_manifest.json&region=epflux_gefs"; }, about: "about-epflux",
