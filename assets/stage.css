@@ -101,17 +101,15 @@
   .ss-main .cap { margin: 0.5rem 0.8rem 0; }
   .ss-main .about { margin: 0.6rem 0.8rem 0.4rem; }
   .ss-related { margin: 0.4rem 0.8rem 0.8rem; }
-  /* option rows: one line each, scrolled sideways, the selected option kept in view (stage.js settleRow) */
+  /* option rows WRAP on phones (2026-10-03, user: the controls "don't work on mobile"): the sideways-scrolling single line
+     hid most options behind a faint edge fade (TC downstream: 3 of 5 views and the Atlantic basin off-screen). The label
+     takes its own line so the pills get the full width. */
   .opts { padding: 0.5rem 0.7rem 0; }
-  .ss-main .controls { position: relative; flex-wrap: nowrap; overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: none;
-                       gap: 0.35rem; padding-bottom: 2px; }
-  .ss-main .controls::-webkit-scrollbar { display: none; }
+  .ss-main .controls { position: relative; flex-wrap: wrap; overflow: visible; gap: 0.35rem 0.35rem; padding-bottom: 2px; }
   .ss-main .controls > * { flex: none; }
-  .ss-main .controls.more-r { -webkit-mask-image: linear-gradient(to right, #000 85%, transparent); mask-image: linear-gradient(to right, #000 85%, transparent); }
-  .ss-main .controls.more-l { -webkit-mask-image: linear-gradient(to left, #000 85%, transparent); mask-image: linear-gradient(to left, #000 85%, transparent); }
-  .ss-main .controls.more-l.more-r { -webkit-mask-image: linear-gradient(to right, transparent, #000 12%, #000 88%, transparent); mask-image: linear-gradient(to right, transparent, #000 12%, #000 88%, transparent); }
-  .opts .seg-label { min-width: 0; margin-right: 0.1rem; }
-  .opts .pill { min-height: 44px; white-space: nowrap; }
+  .ss-main .controls.more-r, .ss-main .controls.more-l { -webkit-mask-image: none; mask-image: none; }
+  .opts .seg-label { min-width: 0; margin-right: 0.1rem; flex: 0 0 100% !important; font-size: 0.82rem; }
+  .opts .pill { min-height: 40px; white-space: nowrap; max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
   /* the headline chips above the stage: one sideways line (outlook.css makes them a two-column grid on phones,
      nine chips = 790 px), so the figure is not pushed below the fold */
   .page-header .chips, main > header .chips { display: flex; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none;
