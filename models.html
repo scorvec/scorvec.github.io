@@ -114,12 +114,11 @@
   .mv-about td.na { color: #6f6b64; font-style: italic; }
   .mv-about .tbl { overflow-x: auto; }
   .mv-runs { font-size: 0.88rem; color: var(--muted); margin: 0.2rem 0 0; }
-  /* meteogram (click an airport or city) and degree days (2026-10-01): plain canvases, drawn by the page */
-  .mv-mg, .mv-dd { margin: 1rem 0 0; background: var(--panel); border: 1px solid var(--rule); border-radius: 8px; padding: 0.7rem 0.9rem 0.9rem; }
-  .mv-mg[hidden], .mv-dd[hidden] { display: none; }
-  #ddH { height: 150px; }
+  /* meteogram (click an airport or city) (2026-10-01): plain canvases, drawn by the page */
+  .mv-mg { margin: 1rem 0 0; background: var(--panel); border: 1px solid var(--rule); border-radius: 8px; padding: 0.7rem 0.9rem 0.9rem; }
+  .mv-mg[hidden] { display: none; }
   .mv-mgh { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem 0.9rem; }
-  .mv-mgh h2, .mv-dd h2 { margin: 0; font-size: 1.25rem; }
+  .mv-mgh h2 h2 { margin: 0; font-size: 1.25rem; }
   .mv-mgh .sub { color: var(--muted); font-size: 0.95rem; }
   .mv-mgh .x { margin-left: auto; font: inherit; font-size: 0.98rem; border: 1px solid var(--rule); border-radius: 6px; background: var(--panel); padding: 0.3rem 0.75rem; cursor: pointer; }
   .mv-key { display: inline-flex; flex-wrap: wrap; gap: 0.2rem 0.9rem; font-size: 0.95rem; color: var(--ink2); }
@@ -131,14 +130,6 @@
   .mgc p { margin: 0; font-size: 0.92rem; color: var(--ink2); }
   .mgc p small { color: var(--muted); font-size: 0.86rem; margin-left: 0.3em; }
   .mgc canvas { display: block; width: 100%; touch-action: pan-y; cursor: crosshair; }
-  .mv-ddw { display: flex; flex-wrap: wrap; gap: 0.4rem 0.9rem; align-items: center; margin: 0.4rem 0; }
-  .mv-dd table { border-collapse: collapse; font-size: 0.95rem; font-variant-numeric: tabular-nums; margin: 0.3rem 0 0.4rem; }
-  .mv-dd th, .mv-dd td { border-bottom: 1px solid var(--rule); padding: 0.28rem 0.6rem; text-align: right; white-space: nowrap; }
-  .mv-dd th { font-weight: 600; color: var(--ink); text-align: right; }
-  .mv-dd th:first-child, .mv-dd td:first-child { text-align: left; }
-  .mv-dd td.nrm { color: var(--muted); }
-  .mv-dd .tbl { overflow-x: auto; }
-  .mv-dd .fine { font-size: 0.9rem; color: var(--muted); margin: 0.2rem 0 0; max-width: 80rem; }
   @media (max-width: 640px) {
     main.mv { padding-top: 0.6rem; }
     h1 { font-size: 1.45rem; margin: 0.1rem 0 0.25rem; }
@@ -157,8 +148,7 @@
     .mv-keys { display: none; }
     .kicker { display: none; }
     .mv-badge { font-size: 0.86rem; padding: 0.22rem 0.5rem; }
-    .mv-mg, .mv-dd { padding: 0.55rem 0.55rem 0.7rem; }
-    .mv-dd th, .mv-dd td { padding: 0.25rem 0.4rem; font-size: 0.9rem; }
+    .mv-mg { padding: 0.55rem 0.55rem 0.7rem; }
   }
 </style>
 </head>
@@ -288,7 +278,7 @@
 <main class="mv">
   <p class="kicker">Newest run of each model &middot; updated four times a day</p>
   <h1>Short-range model maps</h1>
-  <p class="lede">Zoomable maps of the newest HRRR, RRFS and RDPS forecasts, out to two to three and a half days, for aviation, severe and winter weather, and wind and solar power. Pick a map, scrub through the hours, and hover or tap anywhere for the model's value. <b>Click or tap an airport</b> for its forecast from all three models, compare the HRRR and RRFS with <b>Minus</b>, and find the models' <a href="#dd">degree days</a> below the map.</p>
+  <p class="lede">Zoomable maps of the newest HRRR, RRFS and RDPS forecasts, out to two to three and a half days, for aviation, severe and winter weather, and wind and solar power. Pick a map, scrub through the hours, and hover or tap anywhere for the model's value. <b>Click or tap an airport</b> for its forecast from all three models, and compare the HRRR and RRFS with <b>Minus</b>.</p>
 
   <div class="mv-bar">
     <div class="mv-row">
@@ -324,7 +314,7 @@
   <div class="mv-legend"><canvas id="leg" aria-label="Colour scale"></canvas><p class="mv-legT" id="legT"></p></div>
   <div class="mv-show"><b>Show</b>
     <label class="chk" id="contL" hidden title="Labelled contours drawn from the same data (isotherms, flight-category thresholds, isobars, CAPE)"><input type="checkbox" id="cont" checked> Contours</label>
-    <label class="chk" title="Airports with scheduled service in the US and Canada (OurAirports) and the degree-day cities; hover for the model's value there, click or tap for the forecast meteogram"><input type="checkbox" id="sta" checked> Airports</label>
+    <label class="chk" title="Airports with scheduled service in the US and Canada (OurAirports) and a few city centres; hover for the model's value there, click or tap for the forecast meteogram"><input type="checkbox" id="sta" checked> Airports</label>
     <label class="chk" id="diffL" hidden title="The other 3 km model's value subtracted at the same valid time, on the shared grid (HRRR and RRFS use the identical grid)"><input type="checkbox" id="diff"> <span id="diffT">Difference</span></label>
     <label class="chk" id="farmsL" hidden title="US wind projects (USGS Wind Turbine Database) or large-scale solar plants (USGS Solar PV Database), sized by capacity"><input type="checkbox" id="farms" checked> <span id="farmsT">Wind farms</span></label>
     <span class="mv-keys">Keys: <kbd>&larr;</kbd> <kbd>&rarr;</kbd> change hour &middot; <kbd>Space</kbd> play or pause &middot; scroll to zoom, drag to pan</span>
@@ -336,14 +326,6 @@
     <div class="mv-mgr" id="mgR"></div>
     <div id="mgC"></div>
     <p class="mv-legT" id="mgN"></p>
-  </section>
-
-  <section class="mv-dd" id="dd" hidden aria-label="Degree days">
-    <h2>Degree days from these runs</h2>
-    <div class="mv-ddw"><div class="seg" id="ddR" role="group" aria-label="Region"></div><div class="seg" id="ddQ" role="group" aria-label="Quantity"></div></div>
-    <div class="tbl" id="ddT"></div>
-    <div class="mgc"><p id="ddHT">Hourly 2 m temperature, population-weighted, °F</p><canvas id="ddH" height="150"></canvas></div>
-    <p class="fine" id="ddN"></p>
   </section>
 
   <details class="mv-about">
@@ -367,9 +349,8 @@
     <p>Airports: large and medium airports with scheduled service in the US and Canada from <a href="https://ourairports.com/data/">OurAirports</a> (public domain); the large hubs show at national scale and the rest as you zoom in. Hover or tap one for the model's value there.</p>
     <p>Wind and solar plants (shown on the 80&nbsp;m wind and shortwave maps; at national scale only the larger ones): the <a href="https://energy.usgs.gov/uswtdb/">U.S. Wind Turbine Database</a> v8.3 (USGS, LBNL and ACP; turbines grouped into projects) and the <a href="https://energy.usgs.gov/uspvdb/">U.S. Large-Scale Solar PV Database</a> v4.0 (USGS and LBNL), both public domain. Circles and squares scale with capacity; hover for name, capacity and year.</p>
     <p>HRRR: the 00, 06, 12 and 18&nbsp;UTC runs, every hour to 48&nbsp;h (the hourly runs that stop at 18&nbsp;h are not shown). RRFS&nbsp;v1: the 00, 06, 12 and 18&nbsp;UTC runs to 84&nbsp;h, every hour to 36&nbsp;h and every 3&nbsp;hours after (its other hourly runs write only 15-minute surface files to 18&nbsp;h and are not shown). RDPS: 00, 06, 12 and 18&nbsp;UTC, every hour to 84&nbsp;h. Only the newest run of each model is kept. A run appears once its last forecast hour is published; GitHub runs the jobs, so expect it about 2&ndash;3 hours after its start time for the HRRR and 4&ndash;5 hours for the RRFS and RDPS.</p>
-    <h2>Meteograms, degree days and model differences</h2>
-    <p>Click or tap any airport (or one of the degree-day cities such as New York Central Park) for a meteogram from every model's newest run, every forecast hour: temperature and dewpoint, 80&nbsp;m wind with barbs, ceiling and visibility against the flight-category bands, simulated radar and precipitation type, hourly and accumulated precipitation by type, ECAPE and CAPE (HRRR), smoke, sunshine and sea-level pressure, with a line at the current time. The values are read from the model grids when the run is processed: bilinear between the four nearest grid points for smooth fields, the nearest point for ceiling, visibility, reflectivity, precipitation type and CAPE.</p>
-    <p>Degree days: heating and cooling degree days for PJM, NYISO, ISO-NE, ERCOT and MISO (whole-state footprints), taken county by county from the model's hourly 2&nbsp;m temperature at each county's centre of population and then weighted by households heating with utility gas (gas-weighted HDD) or by population; base 65&nbsp;&deg;F, local standard day. Each cell shows the midpoint convention (the average of the day's high and low) and the hourly integral; the normal is the 1991&ndash;2020 expected value on the same two conventions.</p>
+    <h2>Meteograms and model differences</h2>
+    <p>Click or tap any airport (or one of a few city centres such as New York Central Park) for a meteogram from every model's newest run, every forecast hour: temperature and dewpoint, 80&nbsp;m wind with barbs, ceiling and visibility against the flight-category bands, simulated radar and precipitation type, hourly and accumulated precipitation by type, ECAPE and CAPE (HRRR), smoke, sunshine and sea-level pressure, with a line at the current time. The values are read from the model grids when the run is processed: bilinear between the four nearest grid points for smooth fields, the nearest point for ceiling, visibility, reflectivity, precipitation type and CAPE.</p>
     <p>&ldquo;Minus RRFS&rdquo; / &ldquo;Minus HRRR&rdquo; subtracts the other 3&nbsp;km model at the same valid time; the HRRR and RRFS share an identical grid, so the difference is cell by cell (temperature, dewpoint, 80&nbsp;m wind speed, IR and shortwave).</p>
     <h2>How the page works</h2>
     <p>Nothing on this page is a picture. Each field and hour is shipped as the model's own numbers, rounded to 256 levels (0.625&nbsp;K for infrared, 0.5&nbsp;&deg;F for temperature and dewpoint, 0.4&nbsp;m/s for wind, 5&nbsp;W&nbsp;m<sup>&minus;2</sup> for shortwave, 2&ndash;3&nbsp;% steps on logarithmic scales for ceiling, visibility and smoke, and a square-root scale for ECAPE and CAPE: within &plusmn;4&nbsp;J/kg at 100, &plusmn;11 at 1,000 and &plusmn;20 at 3,000) on the native model grid, and your browser colours, projects, contours and reads it: zooming shows the model's grid cells, and the hover value is the stored one, within those steps. Maps are drawn on the HRRR's Lambert conformal projection for all three models, so switching model keeps the view. Contours (every 10&nbsp;&deg;F with the freezing line in blue; dewpoint every 10&nbsp;&deg;F with 60 and 70 emphasised; 80&nbsp;m wind 10/15/20&nbsp;m/s; isobars every 2&nbsp;hPa on the radar map) are traced in your browser from the same numbers after a light smoothing, so they show the pattern, not every 3&nbsp;km wiggle. Boundaries: Natural Earth; US states and counties: US Census via us-atlas.</p>
@@ -1645,7 +1626,7 @@
     if (aptsP) return;
     aptsP = fetch("data/models_airports.json").then(function (r) { return r.json(); }).then(function (d) {
       d.airports.forEach(function (a) { var q = P.fwd(a[0], a[1]); a.x = q[0]; a.y = q[1]; }); APTS = d.airports; render();
-      // the degree-day tracker's cities that are not airports (Central Park, downtown Los Angeles, ...): meteogram points too
+      // a few city centres that are not airports (Central Park, downtown Los Angeles, ...): meteogram points too
       return fetch("data/models_cities.json").then(function (r) { return r.ok ? r.json() : null; }).then(function (cd) {
         if (!cd) return; cd.cities.forEach(function (a) { var q = P.fwd(a[0], a[1]); a.x = q[0]; a.y = q[1]; a.city = true; APTS.push(a); }); render(); });
     }).catch(function () { aptsP = null; });
@@ -2483,74 +2464,7 @@
       (miss.length ? " Not available here: " + miss.map(function (m) { return MODELS[m] + (MG.docs[m] ? " (outside its grid)" : cycleObj(m, 0).points ? " (could not load)" : " (this run has no point file)"); }).join(", ") + "." : "");
   }
   var mgRT = 0;
-  window.addEventListener("resize", function () { clearTimeout(mgRT); mgRT = setTimeout(function () { if (MG.id) drawMg(); ddHourly(); }, 150); });
-
-  // ── degree days (2026-10-01): dd.json per run (scripts/models/degdays.py; ddtracker's region and weighting conventions)
-  var DD = { r: "PJM", q: "hdd_gas", docs: {} };
-  var DDQ = { hdd_gas: "HDD, gas-heating weighted", hdd_pop: "HDD, population weighted", cdd_pop: "CDD, population weighted" };
-  function loadDD() {
-    MODEL_ORDER.forEach(function (m) { var c = cycleObj(m, 0); if (!c || !c.dd) return;
-      getBytes("assets/models/data/" + m + "/" + c.cycle + "/" + c.dd.file, c.sha, "low").then(function (b) { DD.docs[m] = JSON.parse(new TextDecoder().decode(b)); drawDD(); }).catch(function () {}); });
-  }
-  function ddButtons() {
-    var regs = []; MODEL_ORDER.forEach(function (m) { var d = DD.docs[m]; if (d) Object.keys(d.regions).forEach(function (r) { if (regs.indexOf(r) < 0) regs.push(r); }); });
-    var rb = $("ddR"); rb.innerHTML = "";
-    regs.forEach(function (r) { var b = document.createElement("button"); b.type = "button"; b.textContent = r === "ISONE" ? "ISO-NE" : r; b.setAttribute("aria-pressed", String(r === DD.r));
-      b.onclick = function () { DD.r = r; drawDD(); }; rb.appendChild(b); });
-    var qb = $("ddQ"); qb.innerHTML = "";
-    Object.keys(DDQ).forEach(function (q) { var b = document.createElement("button"); b.type = "button"; b.textContent = DDQ[q]; b.setAttribute("aria-pressed", String(q === DD.q));
-      b.onclick = function () { DD.q = q; drawDD(); }; qb.appendChild(b); });
-  }
-  function drawDD() {
-    var ms = MODEL_ORDER.filter(function (m) { return DD.docs[m] && DD.docs[m].regions[DD.r]; });
-    if (!ms.length) { $("dd").hidden = true; return; }
-    $("dd").hidden = false; ddButtons();
-    var dates = []; ms.forEach(function (m) { DD.docs[m].regions[DD.r].dates.forEach(function (d) { if (dates.indexOf(d) < 0) dates.push(d); }); }); dates.sort();
-    var f1 = function (v) { return v === null || v === undefined ? "–" : v.toFixed(1); };
-    var h = "<table><tr><th>Local day</th>" + ms.map(function (m) { var c = cycleObj(m, 0); return "<th style=\"color:" + MG_COL[m] + "\">" + MODELS[m] + " " + c.init.slice(11, 13) + "Z</th>"; }).join("") + "<th>Normal</th></tr>";
-    var star = false;
-    dates.forEach(function (d) {
-      var nrm = null, row = "<tr><td>" + new Date(d + "T12:00:00Z").toLocaleString("en-US", { timeZone: "UTC", weekday: "short", month: "short", day: "numeric" }) + "</td>";
-      ms.forEach(function (m) {
-        var R = DD.docs[m].regions[DD.r], i = R.dates.indexOf(d);
-        if (i < 0) { row += "<td>–</td>"; return; }
-        var part = R.n_hours[i] < 24; if (part) star = true;
-        row += "<td title=\"" + R.n_hours[i] + " hours of the local day" + (R.step_h[i] > 1 ? ", " + R.step_h[i] + "-hourly model output interpolated" : "") + "\">" + f1(R[DD.q + "_mid"][i]) + " <span style=\"color:var(--muted)\">/ " + f1(R[DD.q + "_int"][i]) + "</span>" + (part ? "*" : "") + "</td>";
-        if (R.normal && nrm === null) nrm = [R.normal[DD.q + "_mid"][i], R.normal[DD.q + "_int"][i]];
-      });
-      row += "<td class=\"nrm\">" + (nrm ? f1(nrm[0]) + " / " + f1(nrm[1]) : "–") + "</td></tr>";
-      h += row;
-    });
-    $("ddT").innerHTML = h + "</table>";
-    var d0 = DD.docs[ms[0]];
-    $("ddN").innerHTML = "<b>" + DDQ[DD.q] + "</b>, °F-days, base 65 °F, each cell <b>midpoint / hourly integral</b>. Midpoint: 65 minus the average of the day's highest and lowest hourly model temperature, the convention degree days trade on. " +
-      "Hourly integral: the day's average of how far each hour sits below (HDD) or above (CDD) 65, which counts a cool dawn under a warm afternoon; in spring and autumn it runs several times the midpoint. " +
-      "Degree days are taken county by county (Census 2020 centres of population, local standard day) and then weighted - by households heating with utility gas for the gas-weighted HDD, by population otherwise. " +
-      "Regions are whole states: " + Object.keys(d0.states).map(function (r) { return (r === "ISONE" ? "ISO-NE" : r) + " " + d0.states[r].join(" "); }).join("; ") + ". " +
-      (star ? "* partial first day (dawn and afternoon present, some hours missing). " : "") +
-      "Normal: 1991–2020 expected degree days (PRISM) on the same two conventions. Raw model output, no bias correction; the HRRR covers one full local day per run, the RRFS and RDPS three.";
-    ddHourly();
-  }
-  function ddHourly() {
-    var ms = MODEL_ORDER.filter(function (m) { return DD.docs[m] && DD.docs[m].regions[DD.r]; }); if (!ms.length) return;
-    var cv = $("ddH"), dpr = Math.min(window.devicePixelRatio || 1, 2), w = cv.parentNode.clientWidth, h = 150;
-    if (!w) return;
-    cv.style.height = h + "px"; cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr);
-    var ctx = cv.getContext("2d"); ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, w, h);
-    var S = [], t0 = Infinity, t1 = -Infinity, lo = Infinity, hi = -Infinity;
-    ms.forEach(function (m) { var d = DD.docs[m], R = d.regions[DD.r], it = Date.parse(d.init), v = R.hourly[DD.q === "hdd_gas" ? "t_gas" : "t_pop"];
-      var s = { t: d.hours.map(function (x) { return it + x * 3600e3; }), v: v.map(function (x) { return x === null ? NaN : x; }) };
-      S.push([m, s]); t0 = Math.min(t0, s.t[0]); t1 = Math.max(t1, s.t[s.t.length - 1]); s.v.forEach(function (x) { if (x === x) { lo = Math.min(lo, x); hi = Math.max(hi, x); } }); });
-    lo = Math.min(lo, 64); hi = Math.max(hi, 66);
-    var X = { t0: t0, t1: t1 }; X.f = function (t) { return MGL + (t - t0) / (t1 - t0) * (w - MGL - MGR); };
-    var pad = (hi - lo) * 0.08, y = { ticks: niceTicks(lo - pad, hi + pad, 4) }; y.f = function (v) { return 4 + (1 - (v - lo + pad) / (hi - lo + 2 * pad)) * (h - 20); };
-    var keep = MG.hov; MG.hov = null; mgFrame(ctx, w, h, X, y, { axis: true }); MG.hov = keep;
-    ctx.strokeStyle = "rgba(60,60,60,0.6)"; ctx.setLineDash([2, 3]); ctx.beginPath(); ctx.moveTo(MGL, y.f(65)); ctx.lineTo(w - MGR, y.f(65)); ctx.stroke(); ctx.setLineDash([]);
-    ctx.fillStyle = "#5c6b73"; ctx.textAlign = "left"; ctx.textBaseline = "bottom"; ctx.font = "11.5px 'Source Sans 3', Arial, sans-serif"; ctx.fillText("65 °F", MGL + 3, y.f(65) - 1);
-    S.forEach(function (a) { mgPath(ctx, X, y, a[1], 1, 2, MG_COL[a[0]]); });
-    $("ddHT").textContent = "Hourly 2 m temperature, " + (DD.q === "hdd_gas" ? "gas-heating weighted" : "population weighted") + " over the region's counties, °F · " +
-      ms.map(function (m) { return MODELS[m]; }).join(", ") + " in their colours";
-  }
+  window.addEventListener("resize", function () { clearTimeout(mgRT); mgRT = setTimeout(function () { if (MG.id) drawMg(); }, 150); });
 
   // ── URL hash: #model/field/+hour ───────────────────────────────────────────────────────────────────────────────
   function writeHash() { try { history.replaceState(null, "", "#" + st.model + "/" + st.field + "/" + st.hour + (st.ci ? "/r" + st.ci : "") +
@@ -2609,7 +2523,6 @@
     });
     $("runs").textContent = "Runs on the page now: " + runs.join(" · ") + ".";
     setTimeout(pruneCache, 4000);
-    loadDD();
     if (hashStation) { loadApts(); openMg(hashStation, hashStation); (aptsP || Promise.resolve()).then(function () { setTimeout(function () {
       var a = (APTS || []).filter(function (x) { return x[2] === hashStation; })[0]; if (a && MG.id === hashStation) $("mgS").textContent = a[3]; }, 400); }); }
     setTimeout(function () { loadGeo(GEO.replace(".json", "_counties.json")); }, 1200);   // counties after the first frame

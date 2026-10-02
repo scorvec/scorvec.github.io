@@ -76,7 +76,6 @@ sys.path.insert(0, str(HERE.parent / "snowband"))
 import snowband as sb                                   # noqa: E402  the shared, validated transport (S3 / NOMADS / Datamart)
 from manifest_merge import prune_ecape                 # noqa: E402  hrrr.json is shared with the ECAPE job
 import points as PTS                                    # noqa: E402  meteogram point series (points.json)
-import degdays as DDM                                   # noqa: E402  region degree days (dd.json)
 
 UA = {"User-Agent": "scorvec-models/1.0 (+https://scorvec.com/models.html)"}
 SIGMA = 5.670374419e-8
@@ -501,8 +500,6 @@ def process_hour(model, lead, blobs, outdir):
     try:                                        # meteogram points + county temperatures: never fail the maps for them
         if _CTX.get("ps") is not None:
             pts = sample_points(model, phys, mfull, _CTX["ps"], _CTX.get("rs"))
-        if _CTX.get("cs") is not None and "t2m" in phys:
-            pts["_county_t"] = _CTX["cs"].bilinear(phys["t2m"])
     except Exception as e:                      # noqa: BLE001
         print(f"  f{lead:03d}: point sampling failed: {e!r}", flush=True)
         pts = {}
@@ -728,17 +725,14 @@ def cmd_run(a):
         g2.update(nx=-(-g2["nx"] // F2), ny=-(-g2["ny"] // F2))
         grids["lo"] = g2
     # meteogram points (airports + the degree-day tracker's cities) and the degree-day counties, located on the grid
-    # once; the workers sample them while each hour's fields are in memory (points.py, degdays.py)
+    # once; the workers sample them while each hour's fields are in memory (points.py)
     pt_ids = []
     try:
         pt_ids, plat, plon = PTS.load_points()
         ctx["ps"] = PTS.Sampler(grids["main"], plat, plon)
         if "raq" in grids:
             ctx["rs"] = PTS.Sampler(grids["raq"], plat, plon)
-        clat, clon, _ = DDM.county_points()
-        ctx["cs"] = PTS.Sampler(grids["main"], clat, clon)
-        print(f"  points: {int(ctx['ps'].inside.sum())} of {len(pt_ids)} on the grid; degree-day counties "
-              f"{int(ctx['cs'].inside.sum())} of {len(clat)}", flush=True)
+        print(f"  points: {int(ctx['ps'].inside.sum())} of {len(pt_ids)} on the grid", flush=True)
     except Exception as e:                                      # noqa: BLE001
         print(f"::warning::{model} {key}: no point series this run ({e!r})", flush=True)
         ctx.pop("ps", None), ctx.pop("rs", None), ctx.pop("cs", None)
@@ -873,7 +867,7 @@ def cmd_run(a):
 
 
 def write_points(model, key, cyc_dt, hours, ids, samples, outdir):
-    """points.json (meteograms) and dd.json (region degree days) from the per-hour samples. -> manifest entries."""
+    """points.json (meteograms) from the per-hour samples. -> manifest entries. (Region degree days were removed 2026-10-02, user.)"""
     t0 = time.time()
     out = {}
     try:
@@ -894,19 +888,10 @@ def write_points(model, key, cyc_dt, hours, ids, samples, outdir):
         b = PTS.dumps(doc).encode()
         (Path(outdir) / "points.json").write_bytes(b)
         out["points"] = dict(file="points.json", bytes=len(b), n=len(doc["ids"]), fields=list(doc["fields"]))
-        ct = [samples.get(h, {}).get("_county_t") for h in hours]
-        if any(c is not None for c in ct):
-            nc = next(c for c in ct if c is not None).size
-            T = np.stack([c if c is not None else np.full(nc, np.nan, np.float32) for c in ct], axis=1)
-            dd = DDM.compute(model, key, hours, T)
-            b2 = json.dumps(dd, separators=(",", ":")).encode()
-            (Path(outdir) / "dd.json").write_bytes(b2)
-            out["dd"] = dict(file="dd.json", bytes=len(b2), regions=list(dd["regions"]),
-                             days=max((len(r["dates"]) for r in dd["regions"].values()), default=0))
         import gzip
         print(f"  points.json {len(b) / 1e3:.0f} KB ({len(gzip.compress(b, 6)) / 1e3:.0f} KB gzipped), "
               f"{len(doc['ids'])} points x {len(hours)} h x {len(doc['fields'])} fields; "
-              f"dd.json {out.get('dd', {}).get('bytes', 0) / 1e3:.0f} KB; {time.time() - t0:.1f}s", flush=True)
+              f"{time.time() - t0:.1f}s", flush=True)
     except Exception as e:                                      # noqa: BLE001
         import traceback
         traceback.print_exc()
