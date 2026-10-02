@@ -315,12 +315,13 @@ jobs:
       # the AIFS comparison loops + KE spectra live in aifs-compare.yml (they
       # took 30+ min here and the cycle's figures were still uncommitted when
       # the run was cancelled on 2026-09-02).
-      - name: MSLP + 10 m wind loop
-        timeout-minutes: 12
+      - name: MSLP + 10 m wind loops (blend, AIFS-ENS, IFS-ENS)
+        timeout-minutes: 40
         working-directory: scripts/mjo
         run: |
           mkdir -p ../../assets/sst/anim/mslp_wind
-          python src/mslp_wind_anim.py --date "${{ needs.check.outputs.date }}" --time "${{ needs.check.outputs.time }}" \
+          # waits up to 20 min for IFS-ENS day 15 on the Google mirror (never another mirror); else AIFS-ENS only, said so in the title
+          python src/mslp_wind_anim.py --date "${{ needs.check.outputs.date }}" --time "${{ needs.check.outputs.time }}" --wait-ifs 20 \
             --anim-dir ../../assets/sst/anim/mslp_wind --manifest ../../assets/sst/anim/mslp_wind_manifest.json \
             || echo "MSLP/wind loop failed; continuing"
 
@@ -410,6 +411,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           scripts/lib/publish_frames_ci.sh assets/sst/anim/wind200 assets/sst/anim/waf assets/sst/anim/mslp_wind \
+            assets/sst/anim/mslp_wind_aifs assets/sst/anim/mslp_wind_ifs \
             assets/sst/anim/walker assets/sst/anim/mmsf assets/sst/anim/kelvin assets/sst/anim/okelvin assets/sst/anim/gillrain
 
       - name: Commit & push (generated outputs)

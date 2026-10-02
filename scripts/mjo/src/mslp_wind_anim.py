@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Super-ensemble (AIFS-ENS + IFS-ENS) mean MSLP + 10 m wind map animator — Pacific.
+"""Ensemble-mean MSLP + 10 m wind map animator - Pacific: the AIFS-ENS + IFS-ENS blend and each model alone.
 
 Pressure (mb) is linear and the 10-m wind speed/barbs are drawn from the ensemble-mean
 10u/10v, so we just average the members of each model and combine the two model means
@@ -67,23 +67,37 @@ def _open(paths, short):
     return da.isel(step=np.isin(hrs, DAILY_STEPS))
 
 
-def super_mean(cyc, short, grid_ref=None):
-    """Number-weighted AIFS-ENS + IFS-ENS ensemble mean for one surface field."""
+def model_means(cyc, short):
+    """(AIFS-ENS mean, n_aifs, IFS-ENS mean on the AIFS grid or None, n_ifs) for one surface field. The blend is
+    built by the caller; 2026-10-02 the page shows all three (blend, AIFS-ENS, IFS-ENS) - the old single "super-ensemble"
+    loop silently fell back to AIFS-ENS when IFS day 15 was not on the mirror yet, under a title naming both models."""
     sp = lambda m, t: ecmwf.sfc_path(cyc, m, t, short)
     aifs = _open([sp("aifs-ens", "cf"), sp("aifs-ens", "pf")], short)
-    am, na = aifs.mean("number"), aifs.sizes["number"]
+    am, na = aifs.mean("number").load(), aifs.sizes["number"]
     try:
         ifs = _open([sp("ifs", "pf")], short)
         im, ni = ifs.mean("number"), ifs.sizes["number"]
         im = im.interp(latitude=am.latitude, longitude=am.longitude)
         steps = np.intersect1d(am.step.values, im.step.values)
-        am = am.sel(step=steps); im = im.sel(step=steps)
-        out = (na * am + ni * im.values) / (na + ni)
-        out.attrs["members"] = na + ni
+        return am.sel(step=steps), na, im.sel(step=steps).load(), ni
     except Exception as e:
-        print(f"  IFS {short} unavailable ({repr(e)[:60]}); AIFS-ENS only", flush=True)
-        out = am; out.attrs["members"] = na
-    return out.load()
+        print(f"  IFS {short} unavailable ({repr(e)[:60]})", flush=True)
+        return am, na, None, 0
+
+
+def wait_for_ifs(cyc, minutes):
+    """IFS-ENS day 15 reaches the Google mirror ~08:50/20:55Z, often after this job starts: wait (Google only - never
+    another mirror) up to `minutes`, re-trying the surface batch every 60 s."""
+    import time
+    t_end = time.time() + 60 * minutes
+    while True:
+        try:
+            ecmwf.sfc_path(cyc, "ifs", "pf", "msl"); return True
+        except Exception as e:
+            if time.time() > t_end:
+                print(f"  IFS-ENS still not published after {minutes} min ({repr(e)[:60]}); AIFS-ENS only", flush=True)
+                return False
+            time.sleep(60)
 
 
 def _hl(p2d, lat, lon, ax, proj):
@@ -109,13 +123,40 @@ def main() -> int:
     ap.add_argument("--date", required=True); ap.add_argument("--time", default="00")
     ap.add_argument("--anim-dir", default="assets/sst/anim/mslp_wind")
     ap.add_argument("--manifest", default="assets/sst/anim/mslp_wind_manifest.json")
+    ap.add_argument("--wait-ifs", type=float, default=0, help="minutes to wait for IFS-ENS day 15 on the Google mirror")
     args = ap.parse_args()
     cyc = ecmwf.Cycle(args.date, args.time)
     init = np.datetime64(f"{args.date[:4]}-{args.date[4:6]}-{args.date[6:8]}T{args.time}:00")
 
-    msl = super_mean(cyc, "msl") / 100.0                  # Pa → hPa
-    u10 = super_mean(cyc, "10u"); v10 = super_mean(cyc, "10v")
-    members = int(msl.attrs.get("members", 0))
+    if args.wait_ifs > 0: wait_for_ifs(cyc, args.wait_ifs)
+    F = {k: model_means(cyc, k) for k in ("msl", "10u", "10v")}
+    na, ni = F["msl"][1], F["msl"][3]
+    have_ifs = all(F[k][2] is not None for k in F)
+    variants = []                                          # (region, dir suffix, label for the title, msl, u, v)
+    if have_ifs:
+        bl = {k: (na * F[k][0] + ni * F[k][2].values) / (na + ni) for k in F}
+        variants.append(("mslp_wind", "", f"AIFS-ENS + IFS-ENS ({na} + {ni} members)", bl["msl"], bl["10u"], bl["10v"]))
+    else:
+        variants.append(("mslp_wind", "", f"AIFS-ENS only ({na} members; IFS-ENS not yet published for this run)",
+                         F["msl"][0], F["10u"][0], F["10v"][0]))
+    variants.append(("mslp_wind_aifs", "_aifs", f"AIFS-ENS ({na} members)", F["msl"][0], F["10u"][0], F["10v"][0]))
+    if have_ifs:
+        variants.append(("mslp_wind_ifs", "_ifs", f"IFS-ENS ({ni} members)", F["msl"][2], F["10u"][2], F["10v"][2]))
+    regions = {}
+    for region, suf, who, msl, u10, v10 in variants:
+        msl = msl / 100.0                                  # Pa -> hPa
+        entries = render(args, init, region, who, msl, u10, v10, Path(args.anim_dir + suf))
+        regions[region] = {"label": {"mslp_wind": "Blend (AIFS-ENS + IFS-ENS)", "mslp_wind_aifs": "AIFS-ENS only",
+                                     "mslp_wind_ifs": "IFS-ENS only"}[region], "frames": entries}
+        print(f"  {region}: {len(entries)} frames ({who})", flush=True)
+    mani = {"ver": args.date + args.time, "regions": regions}
+    Path(args.manifest).parent.mkdir(parents=True, exist_ok=True)
+    Path(args.manifest).write_text(json.dumps(mani))
+    print(f"wrote {len(regions)} loops + {args.manifest}", flush=True)
+    return 0
+
+
+def render(args, init, region, who, msl, u10, v10, anim):
     la0, la1 = EXTENT[2], EXTENT[3]; lo0, lo1 = EXTENT[0], EXTENT[1]
     sub = dict(latitude=slice(la0, la1), longitude=slice(lo0, lo1))
     msl = msl.sel(**sub); u10 = u10.sel(**sub); v10 = v10.sel(**sub)
@@ -124,7 +165,8 @@ def main() -> int:
     st = (lat[1] - lat[0]); bstride = max(1, int(round(3.5 / abs(st))))   # barbs ~every 3.5°
 
     proj = ccrs.PlateCarree(central_longitude=180)
-    anim = Path(args.anim_dir); anim.mkdir(parents=True, exist_ok=True)
+    anim.mkdir(parents=True, exist_ok=True)
+    for old in anim.glob("F*.webp"): old.unlink()          # a fresh set per run (a shorter run must not leave stale frames)
     entries = []
     steps_h = (msl.step / np.timedelta64(1, "h")).values.astype(int)
     for k, h in enumerate(steps_h):
@@ -162,20 +204,15 @@ def main() -> int:
         fig.colorbar(cf, cax=cax, orientation="horizontal", extend="both").set_label(
             "10 m wind speed (kt)", fontsize=8)
         cax.tick_params(labelsize=7)
-        ax.set_title(f"Super-ensemble mean MSLP (mb) + 10 m wind  ·  AIFS-ENS + IFS-ENS "
-                     f"({members} members)\ninit {str(init)[:13]}Z  ·  "
+        ax.set_title(f"Ensemble-mean MSLP (mb) + 10 m wind  ·  {who}"
+                     f"\ninit {str(init)[:13]}Z  ·  "
                      f"F{int(h):03d} valid {str(valid)[:13]}Z", fontsize=10, loc="left")
         fp = anim / f"F{k:02d}.webp"
         fig.subplots_adjust(left=0.03, right=0.99, top=0.92, bottom=0.10)
         fig.savefig(fp, dpi=104); plt.close(fig)
         entries.append({"idx": k, "file": fp.name,
                         "date": str(valid)[:10], "label": f"F{int(h):03d} · {str(valid)[:13]}Z"})
-    mani = {"ver": args.date + args.time,
-            "regions": {"mslp_wind": {"label": "Super-ensemble MSLP + 10 m wind", "frames": entries}}}
-    Path(args.manifest).parent.mkdir(parents=True, exist_ok=True)
-    Path(args.manifest).write_text(json.dumps(mani))
-    print(f"wrote {len(entries)} frames + {args.manifest} ({members} members)", flush=True)
-    return 0
+    return entries
 
 
 if __name__ == "__main__":
