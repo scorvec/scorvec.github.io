@@ -116,12 +116,14 @@
   .mv-runs { font-size: 0.88rem; color: var(--muted); margin: 0.2rem 0 0; }
   /* meteogram (click an airport or city) (2026-10-01): plain canvases, drawn by the page.
      2026-10-02 (user: "plots too small and font too small ... take up more of the browser's window"): a DOCK - a panel
-     fixed to the right two thirds of the window, full height, with the map still live on the left (click another airport
+     (centred since the same evening; originally fixed to the right two thirds of the window, full height, with the map still live on the left (click another airport
      to switch, click a chart to send the map to that hour); "Full window" takes the whole width; phones always full. */
-  .mv-mg { position: fixed; top: 0; right: 0; bottom: 0; width: min(1320px, 70vw); z-index: 1300; margin: 0;
-           background: var(--panel); border-left: 1px solid var(--rule); box-shadow: -16px 0 44px rgba(20, 24, 22, 0.2);
-           display: flex; flex-direction: column; }
-  .mv-mg.full { width: 100vw; border-left: 0; }
+  /* 2026-10-02 (user: "have the meteogram window be centered when you open it"): centred on the window, 2 vh from the
+     top and bottom, the map still visible (and clickable) either side on a wide screen */
+  .mv-mg { position: fixed; top: 2vh; bottom: 2vh; left: 50%; transform: translateX(-50%); width: min(1320px, 92vw);
+           z-index: 1300; margin: 0; background: var(--panel); border: 1px solid var(--rule); border-radius: 12px;
+           box-shadow: 0 18px 60px rgba(20, 24, 22, 0.28); overflow: hidden; display: flex; flex-direction: column; }
+  .mv-mg.full { top: 0; bottom: 0; width: 100vw; border: 0; border-radius: 0; }
   .mv-mg[hidden] { display: none; }
   .mv-mgtop { flex: none; padding: 0.75rem 1.3rem 0.65rem; border-bottom: 1px solid var(--rule); background: var(--panel); }
   .mv-mgbody { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 0.3rem 1.3rem 1.5rem; }
@@ -153,7 +155,7 @@
   .mgc canvas { display: block; width: 100%; touch-action: pan-y; cursor: crosshair; }
   #mgN { font-size: 0.98rem; margin-top: 1rem; }
   @media (max-width: 900px) {
-    .mv-mg { width: 100vw; border-left: 0; }
+    .mv-mg { top: 0; bottom: 0; width: 100vw; border: 0; border-radius: 0; }
     #mgW { display: none; }
     .mv-mgtop { padding: 0.6rem 0.8rem 0.5rem; }
     .mv-mgbody { padding: 0.2rem 0.8rem 1.2rem; }
@@ -2291,8 +2293,8 @@
   }
   function closeMg() { $("mg").hidden = true; MG.id = null; writeHash(); }
   $("mgX").onclick = closeMg;
-  $("mgW").onclick = function () { var f = $("mg").classList.toggle("full"); this.textContent = f ? "Dock right" : "Full window";
-    this.title = f ? "Shrink back to the right of the map" : "Use the whole window (the map stays underneath)"; drawMg(); };
+  $("mgW").onclick = function () { var f = $("mg").classList.toggle("full"); this.textContent = f ? "Standard size" : "Full window";
+    this.title = f ? "Back to the centred panel" : "Use the whole window (the map stays underneath)"; drawMg(); };
   // while the meteogram is open the keys drive IT: Esc closes, arrows walk the cursor an hour (Shift: 6 hours)
   document.addEventListener("keydown", function (e) {
     if ($("mg").hidden || !MG.id || (e.target && /INPUT|SELECT|TEXTAREA/.test(e.target.tagName))) return;
