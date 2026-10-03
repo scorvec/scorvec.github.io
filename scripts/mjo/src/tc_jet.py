@@ -25,7 +25,6 @@ URL = "https://storage.googleapis.com/ecmwf-open-data/{d}/{h:02d}z/aifs-ens/0p25
 MISSING = -1e99
 R_KM = 500.0
 MIDLAT = 25.0          # a storm is drawn on the packet Hovmöller only once it is this far north
-PACKET_SPEED = 25.0    # deg longitude per day: typical Rossby wave-packet (group) speed, the dotted guide
 
 
 def fetch(date: str, hour: int, cache: Path) -> Path | None:
@@ -234,7 +233,7 @@ def render_card(storms, idx, v250, lat, lon, steps, init, out_png: Path, out_jso
             ax1.plot([r / 24], [idx[s["id"]][r]], marker="*", ms=17, color=c, mec="#000", mew=0.8, zorder=5)
     ax1.set_xlim(0, days[-1] if len(days) else 10); ax1.set_ylim(bottom=0)
     ax1.set_xlabel("forecast day"); ax1.set_ylabel("PVU per day")
-    ax1.set_title("Outflow meets the jet: negative PV advection by the irrotational wind, 300–200 hPa, within 500 km of the storm"
+    ax1.set_title("Outflow–jet interaction: negative PV advection by the storm's irrotational outflow, 300–200 hPa, within 500 km"
                   "  (★ recurvature)", fontsize=10.5, loc="left")
     ax1.grid(alpha=0.35)
     if storms:
@@ -245,8 +244,9 @@ def render_card(storms, idx, v250, lat, lon, steps, init, out_png: Path, out_jso
     # Wave-packet Hovmöller (redesigned 2026-10-02, user: the v250 Hovmöller was "confusing"): the ENVELOPE of the 250 hPa
     # meridional wind (Zimin et al. 2003: zonal wavenumbers 4-15, Hilbert transform along each latitude circle), averaged
     # over the band. A Rossby wave packet is one bright streak instead of alternating red/blue stripes; a storm appears
-    # only once it reaches the mid-latitudes (>= MIDLAT N), with a star at recurvature and a dotted guide at a typical
-    # packet speed, so a packet the storm launches reads as a streak starting at the star.
+    # only once it reaches the mid-latitudes (>= MIDLAT N), with a star at recurvature. Diagnostic only (2026-10-03, user:
+    # "keep the TC-jet stuff as diagnostic as possible"): the dotted "where a packet the storm starts would be" guides are
+    # gone - the chart shows where the packets and the storms are, not what one does to the other.
     env = packet_envelope(v250, lon)
     j = (lat >= band[0]) & (lat <= band[1])
     w = np.cos(np.deg2rad(lat[j]))
@@ -276,30 +276,18 @@ def render_card(storms, idx, v250, lat, lon, steps, init, out_png: Path, out_jso
         ax2.annotate(label(s), (ls[0], tt[0]), xytext=(-6, 0), textcoords="offset points", color=c, fontsize=10,
                      fontweight="bold", va="center", ha="right",
                      path_effects=[pe.Stroke(linewidth=2.6, foreground="#fff"), pe.Normal()])
-        r = rec[s["id"]]
-        k0 = None
-        if r is not None and r <= days[-1] * 24:
-            kk = np.where(s["steps"] == r)[0]
-            if len(kk):
-                k0 = kk[0]
-        if k0 is None:                                    # no recurvature in range: guide from where it reaches mid-latitudes
-            k0 = np.where(m)[0][0]
-        x0 = (s["lon"][k0] - lon0) % 360 + lon0; t0 = s["steps"][k0] / 24.0
-        tg = np.linspace(t0, days[-1], 30); xg = x0 + PACKET_SPEED * (tg - t0)
-        ok = xg <= lon0 + 360
-        ax2.plot(xg[ok], tg[ok], ls=(0, (1.5, 2.5)), color="#222", lw=1.4)
-        if r is not None and r <= days[-1] * 24 and len(np.where(s["steps"] == r)[0]):
-            ax2.plot(x0, t0, marker="*", ms=19, color=c, mec="#000", mew=0.8, zorder=6)
+        r = rec[s["id"]]                                  # recurvature, if it falls inside the chart
+        kk = np.where(s["steps"] == r)[0] if r is not None and r <= days[-1] * 24 else []
+        if len(kk):
+            ax2.plot((s["lon"][kk[0]] - lon0) % 360 + lon0, r / 24.0, marker="*", ms=19, color=c, mec="#000", mew=0.8, zorder=6)
     if not shown:
         ax2.text(0.5, 0.04, f"No storm reaches {MIDLAT:.0f}°N in the control run within day {days[-1]:.0f}",
                  transform=ax2.transAxes, ha="center", fontsize=11, color="#444",
                  bbox=dict(boxstyle="round", fc="#fff", ec="#bbb"))
     ax2.set_ylabel("forecast day  (time runs down)"); ax2.set_xlabel("longitude  (east is to the right)")
     ax2.set_title(f"Wave packets along the jet: strength of the 250 hPa trough/ridge pattern, {band[0]:.0f}–{band[1]:.0f}°N (m/s)\n"
-                  f"Bright streaks = packets of strong troughs and ridges, moving east as they slant down. Coloured lines: storms once north "
-                  f"of {MIDLAT:.0f}°N, ★ recurvature,\n"
-                  f"dotted: where a packet the storm starts would be at a typical {PACKET_SPEED:.0f}° longitude per day",
-                  fontsize=10.2, loc="left")
+                  f"Bright streaks = packets of strong troughs and ridges, moving east as they slant down. Coloured lines: the storms' "
+                  f"longitudes once north of {MIDLAT:.0f}°N, ★ recurvature", fontsize=10.2, loc="left")
     cb = fig.colorbar(cf, ax=ax2, orientation="horizontal", fraction=0.04, pad=0.09)
     cb.set_label("wave-packet amplitude: envelope of the 250 hPa north–south wind, zonal wavenumbers 4–15 (m/s)")
     fig.text(0.07, 0.012, "Tracks: ECMWF tropical-cyclone tracker on AIFS-ENS (open data, CC BY 4.0), control member. "

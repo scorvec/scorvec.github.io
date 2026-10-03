@@ -139,7 +139,7 @@ jobs:
             --anim-dir ../../assets/sst/anim --manifest ../../assets/sst/anim/dt_manifest.json \
             || echo "dynamic tropopause failed; continuing"
 
-      - name: Tropical-cyclone track ensembles and downstream impact (AIFS-ENS + IFS-ENS tracks, AIFS-ENS z500)
+      - name: Tropical-cyclone track ensembles and depth after transition (AIFS-ENS + IFS-ENS tracks, AIFS-ENS msl)
         working-directory: scripts/mjo
         run: |
           python src/tc_ens.py --date "${{ steps.cyc.outputs.date }}" --time "${{ steps.cyc.outputs.time }}" \
@@ -153,13 +153,9 @@ jobs:
             --out ../../assets/sst/tcphase.webp --json ../../assets/sst/data/tcphase.json \
             || echo "::warning::cyclone phase space failed; continuing"
 
-      # Static reference product (build_tc_downstream.py, laptop, ERA5 1991-2020 + IBTrACS): the renderer only redraws when
-      # the committed reference files change (stamp in assets/sst/data/tcdown_index.json).
-      - name: Historical TC downstream composites (static figures)
-        working-directory: scripts/mjo
-        run: python src/tc_downstream_render.py --out-dir ../../assets/sst || echo "::warning::TC downstream figures failed; continuing"
-
-      - name: Recurvature watch (live storms vs the 1991-2020 record)
+      # The 1991-2020 "what follows a recurving storm" figures (tc_downstream_render.py) were withdrawn 2026-10-03 (user: "keep
+      # the TC-jet stuff as diagnostic as possible"); the reference files and the renderer stay in the repo, unused.
+      - name: Recurvature watch (share of members recurving, diagnostic)
         working-directory: scripts/mjo
         run: python src/tc_alert.py --out-dir ../../assets/sst || echo "::warning::recurvature watch failed; continuing"
 
@@ -191,9 +187,9 @@ jobs:
                assets/sst/torque_timeseries.webp assets/sst/torque_ranges.webp assets/sst/jets.webp \
                assets/sst/data/torque_ranges.json \
                assets/sst/anim/dt_manifest.json assets/sst/tcjet.webp assets/sst/data/tcjet.json \
-               assets/sst/tcens_tracks.webp assets/sst/tcens_impact.webp assets/sst/tcens_impact_2.webp assets/sst/tcens_depth.webp assets/sst/tcens_depth_2.webp assets/sst/data/tcens.json \
+               assets/sst/tcens_tracks.webp assets/sst/tcens_depth.webp assets/sst/tcens_depth_2.webp assets/sst/data/tcens.json \
                assets/sst/tcphase.webp assets/sst/data/tcphase.json \
-               assets/sst/tcdown_*.webp assets/sst/data/tcdown_index.json assets/sst/data/tc_alert.json \
+               assets/sst/data/tc_alert.json \
                scripts/mjo/data/reference/aam_history.nc scripts/mjo/data/reference/aam_forecast_archive.nc \
                scripts/mjo/data/reference/aam_latband_history.nc"
           SNAP=$(mktemp -d)

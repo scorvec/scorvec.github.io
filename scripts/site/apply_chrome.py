@@ -34,7 +34,9 @@ PRODUCTS = [
     # 2026-10-03, user: "reorganize the order and categories of the option on the dropdown menu at the top of the site";
     # chose the THEME-FIRST layout (over a range-first one): Days 1-15 / Tropics / Stratosphere / Weeks to seasons /
     # Studies and verification / Tools. Tropical cyclones and the days 1-15 upper-air loops got their own entries (they had
-    # been reachable only inside circulation.html); the QBO moved to Stratosphere; "Climate drivers" and "Atmospheric
+    # been reachable only inside circulation.html; diagnostic only - the 1991-2020 "what follows a recurving storm" record
+    # was withdrawn the same evening, user: "keep the TC-jet stuff as diagnostic as possible"); the QBO moved to
+    # Stratosphere; "Climate drivers" and "Atmospheric
     # circulation" are gone. The 2026-09-27 rules stand: products only (the person lives in PERSONAL) and never a group
     # called "Weather" or "Research". Group titles are the catalogue's topic labels (build_catalog.TOPICS) - rename both.
     ("Days 1–15", "The next two weeks: storms, hazards and the flow aloft", [
@@ -78,7 +80,7 @@ PRODUCTS = [
         ]),
         ("Tropical cyclones", [
             ("/circulation.html#tcjet", "Tropical cyclones and the jet",
-             "How each storm's outflow pushes on the jet stream, the wave packets it can launch downstream, and a watch when a recurvature looks likely.",
+             "How strongly each storm's outflow meets the jet stream, the wave packets along the jet with the storms' positions, and a watch when a recurvature looks likely.",
              "Daily"),
             ("/circulation.html#tcens", "Tropical cyclone ensembles",
              "Every AIFS and IFS ensemble member's track, the odds and timing of recurvature, and how deep the storm gets once it becomes extratropical.",
@@ -151,9 +153,6 @@ PRODUCTS = [
              "Static"),
             ("/mjo.html#mi", "MJO impacts",
              "What each MJO phase has meant for temperature and rain, season by season, in CMIP6 models and the observed record. Significant results only.",
-             "Static"),
-            ("/circulation.html#tcdown", "Recurving tropical cyclones, 1991–2020",
-             "What followed about 600 recurving tropical cyclones in ERA5: the ridge and trough downstream, and how little of it survives at fixed places.",
              "Static"),
             ("/stratosphere.html#shwinters", "Stratosphere history",
              "Every northern winter and sudden warming since 1980 in MERRA-2, with 15,000 more from nine CMIP6 models: the dripping-paint composites and what usually follows at the surface.",
