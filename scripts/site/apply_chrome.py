@@ -75,8 +75,8 @@ PRODUCTS = [
             ("/mjo.html", "MJO forecast",
              "Real-time multivariate MJO index from the ECMWF AIFS ensemble, with the observed phase-space track, an ENSO-removed version, and what each phase has meant for temperature and rain.",
              "Twice daily"),
-            ("/enso.html#kelvin", "Kelvin waves",
-             "Atmospheric and oceanic Kelvin waves along the equator: the AIFS-ENS tracker, sea level and the zonal wind.",
+            ("/tropical-waves.html", "Tropical waves",
+             "Which equatorial waves are active now (a Wheeler–Kiladis spectrum, observed and forecast), with Kelvin and Rossby wave trackers along the equator and ocean Kelvin waves.",
              "Daily"),
         ]),
         ("Tropical cyclones", [
@@ -241,6 +241,7 @@ PAGES = [
     dict(path="enso.html", mode="after-body", tabs="enso"),
     dict(path="circulation.html", mode="after-body", tabs="enso"),
     dict(path="stratosphere.html", mode="after-body", tabs="enso"),   # split out of circulation.html 2026-09-26
+    dict(path="tropical-waves.html", mode="after-body", tabs="enso"),   # every tropical-wave product, 2026-10-03
     dict(path="subseasonal.html", mode="site-header", fixes=[]),   # page restyled 2026-09-07 on /assets/outlook.css; no padding patches needed
     dict(path="gefs.html", mode="site-header"),                    # GEFS extended page (scripts/gefs, gefs.yml), GEPS layout
     dict(path="subseasonal-method.html", mode="site-header"),      # methodology note split out of subseasonal.html; linked from there only, not in PRODUCTS

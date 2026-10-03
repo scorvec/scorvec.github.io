@@ -78,6 +78,8 @@ PAGES = {
                        models=["OISST"], horizon="Observed", region=["Tropical Pacific"],
                        groups={"Impacts on the Americas": dict(topic="research", horizon="Climate record", models=["CMIP6", "ERA5"],
                                                                region=["North America", "South America"], tier=1, prio=20)}),
+    "/tropical-waves.html": dict(kind="stage", file="tropical-waves.html", topic="drivers", title="Tropical waves",
+                                 tier=0, prio=3, models=["ERA5", "IFS-ENS", "AIFS-ENS"], horizon="Days 1–15", region=["Tropics"]),
     "/stratosphere.html": dict(kind="stage", file="stratosphere.html", topic="circulation", title="Stratosphere and polar vortex",
                                tier=0, prio=1, models=["AIFS-ENS"], horizon="Days 1–15", region=["Northern Hemisphere"],
                                groups={"Stratosphere history": dict(topic="research", horizon="Climate record", models=["MERRA-2"],

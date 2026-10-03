@@ -54,6 +54,13 @@ PAGES = [
               "GEFS E-P flux and wave driving to 1 hPa, stationary wave-1 and the 100 hPa eddy heat flux, with a MERRA-2 "
               "catalogue of every major sudden stratospheric warming since 1980 and what followed at the surface.",
          canonical="https://scorvec.com/stratosphere.html"),
+    # 2026-10-03 (user): every tropical-wave product on one page, under Tropics
+    dict(slug="waves", out="tropical-waves.html", active="A_ATMOSPHERE", layout="stage",
+         title="Tropical Waves &mdash; Wheeler&ndash;Kiladis Spectrum, Kelvin and Rossby Wave Trackers &middot; Shawn Corvec",
+         desc="Which convectively coupled equatorial waves are active: a daily Wheeler-Kiladis wavenumber-frequency "
+              "spectrum of OLR from ERA5, the IFS ensemble and GMGSI satellite data against NOAA OLR 1991-2020, "
+              "with Kelvin, equatorial Rossby and MJO filtered Hovmollers, wave trackers and ocean Kelvin waves.",
+         canonical="https://scorvec.com/tropical-waves.html"),
 ]
 
 

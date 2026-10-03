@@ -304,7 +304,7 @@ jobs:
           # (2026-09-07 03:03Z: a rendered walker_basins.webp never reached main).
           DAY=$(python -c "import json; print(json.load(open('assets/sst/manifest.json'))['sst_valid_day'])" 2>/dev/null || date -u +%Y-%m-%d)
           SNAP=$(mktemp -d)
-          git add -A enso.html circulation.html stratosphere.html sst.html enso-*.html assets/sst/ 2>/dev/null || true
+          git add -A enso.html circulation.html stratosphere.html tropical-waves.html sst.html enso-*.html assets/sst/ 2>/dev/null || true
           git diff --staged --name-only -z | tar cf "$SNAP/outs.tar" --null -T - 2>/dev/null || true
           git reset -q
           for i in 1 2 3 4 5; do
@@ -315,13 +315,13 @@ jobs:
             # stage-picker fix and the new TC text at 23:27). A page whose templates or whose own file changed on main
             # since this run checked out keeps MAIN's version; the next run re-renders it from the new templates.
             TPL_CHANGED=$(git diff --name-only "$GITHUB_SHA" origin/main -- scripts/sst/pages scripts/sst/partials scripts/sst/enso_site.py scripts/site/apply_chrome.py | head -1)
-            for f in enso.html circulation.html stratosphere.html sst.html enso-*.html; do
+            for f in enso.html circulation.html stratosphere.html tropical-waves.html sst.html enso-*.html; do
               [ -e "$f" ] || continue
               if [ -n "$TPL_CHANGED" ] || ! git diff --quiet "$GITHUB_SHA" origin/main -- "$f"; then
                 git checkout origin/main -- "$f" 2>/dev/null && echo "::notice::kept main's $f (changed on main during this run)"
               fi
             done
-            git add -A enso.html circulation.html stratosphere.html sst.html enso-*.html assets/sst/
+            git add -A enso.html circulation.html stratosphere.html tropical-waves.html sst.html enso-*.html assets/sst/
             if git diff --staged --quiet; then echo "No changes; skipping commit."; exit 0; fi
             git commit -q -m "data update: ${DAY}"
             if timeout 180 git push; then echo "Pushed on attempt $i."; exit 0; fi
