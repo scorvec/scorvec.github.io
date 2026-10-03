@@ -29,24 +29,30 @@ jobs:
       - run: python scripts/sst/build_olr_realtime.py
       - run: python scripts/sst/olr_waves.py --realtime --out assets/sst/olr_waves.webp
       - run: python scripts/sst/wave_trackers.py --out assets/sst/wave_tracker.webp
-      # Wheeler-Kiladis spectrum for tropical-waves.html: ERA5 (ARCO) to ~6 days back, the previous day's 00Z IFS-ENS
-      # (today's is not on the Google mirror at this hour) and the GMGSI store above. The 1991-2020 background
-      # (reference/wk_clim.nc) is built on the laptop once: `wk_spectrum.py build`.
+      # Wheeler-Kiladis spectrum for tropical-waves.html: raw power of the last 96 days of observed OLR
+      # (NASA CERES FLASHFlux, NOAA-20, ~4 days behind; Earthdata login). Daily files cached between runs.
+      - uses: actions/cache@v4
+        with:
+          path: ~/wk_flashflux
+          key: wk-flashflux-${{ github.run_id }}
+          restore-keys: wk-flashflux-
       - name: Wheeler-Kiladis spectrum
         env:
-          ECMWF_SOURCES: google
+          EARTHDATA_USERNAME: ${{ secrets.EARTHDATA_USERNAME }}
+          EARTHDATA_PASSWORD: ${{ secrets.EARTHDATA_PASSWORD }}
+          WK_CACHE: /home/runner/wk_flashflux
         working-directory: scripts/mjo/src
         run: |
-          pip install --quiet zarr gcsfs eccodes requests
-          python wk_spectrum.py now --date "$(date -u -d yesterday +%Y%m%d)" --out ../../../assets/sst/wk_now.webp \
-            || echo "::warning::Wheeler-Kiladis spectrum failed; continuing"
+          pip install --quiet earthaccess
+          python wk_spectrum.py --out ../../../assets/sst/wk_raw.webp || echo "::warning::Wheeler-Kiladis spectrum failed; continuing"
       - name: Commit & push
         run: |
           git config user.name "Shawn Corvec"
           git config user.email "26825570+scorvec@users.noreply.github.com"
           git add assets/sst/olr_waves.webp assets/sst/wave_tracker.webp scripts/sst/metar/olr_rt.nc
-          git add assets/sst/wk_now.webp assets/sst/wk_gmgsi.webp assets/sst/wk_clim.webp assets/sst/data/wk_spectrum.json \
-            scripts/mjo/data/reference/wk_olr_recent.nc 2>/dev/null || true
+          git add assets/sst/wk_raw.webp assets/sst/data/wk_spectrum.json 2>/dev/null || true
+          # the normalised first version (2026-10-03, replaced the same day at the user's request)
+          git rm -q --ignore-unmatch assets/sst/wk_now.webp assets/sst/wk_gmgsi.webp assets/sst/wk_clim.webp
           if git diff --staged --quiet; then echo "no changes"; exit 0; fi
           git commit -m "data update: $(date -u +%Y-%m-%dT%H:%MZ)"
           for i in 1 2 3 4 5; do

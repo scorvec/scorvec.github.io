@@ -1,9 +1,9 @@
 <main>
   <div class="page-header">
-    <p class="eyebrow">Daily from satellite OLR, ERA5 and the ECMWF ensembles, against NOAA OLR 1991&ndash;2020</p>
+    <p class="eyebrow">Daily from satellite OLR and the ECMWF ensembles</p>
     <h1>Tropical waves</h1>
     <p class="sub">The waves that organise tropical rain: Kelvin waves, equatorial Rossby waves, mixed Rossby&ndash;gravity
-      waves and the MJO. The spectrum says which of them are stronger than normal right now; the Hovm&ouml;llers and trackers
+      waves and the MJO. The spectrum shows how the last 96 days of tropical cloudiness divide among them; the Hovm&ouml;llers and trackers
       show where each one is along the equator and where the forecast takes it. The MJO has its own page,
       <a href="/mjo.html">MJO forecast</a>.</p>
   </div>
@@ -17,7 +17,7 @@
       <p class="cap" id="cap"></p>
       <div id="about"></div>
       <p class="hint"><span class="kbd">&larr;</span> <span class="kbd">&rarr;</span> step through the options &middot; <span class="kbd">&uarr;</span> <span class="kbd">&darr;</span> change figure &middot; click a still to enlarge</p>
-      <div class="chart-card-footer"><span class="chart-sources">NOAA GMGSI infrared mosaic &middot; NOAA Interpolated OLR (Liebmann &amp; Smith 1996, NOAA PSL) &middot; ERA5 (Copernicus C3S / ECMWF) &middot; ECMWF AIFS-ENS and IFS-ENS open data (CC BY 4.0) &middot; NOAA CoastWatch altimetry</span></div>
+      <div class="chart-card-footer"><span class="chart-sources">NASA CERES FLASHFlux &middot; NOAA GMGSI infrared mosaic &middot; ECMWF AIFS-ENS and IFS-ENS open data (CC BY 4.0) &middot; NOAA CoastWatch altimetry</span></div>
     </section>
   </div>
   <div class="lightbox" id="lightbox"><img alt=""></div>
@@ -28,23 +28,15 @@
         cycles per day). Each kind of equatorial wave lives in its own part of that plane, along the curves drawn from
         shallow-water theory: <b>Kelvin</b> waves eastward and fast, <b>equatorial Rossby</b> waves westward and slow, the
         <b>MJO</b> eastward at the largest scales and 30&ndash;90 days, <b>mixed Rossby&ndash;gravity</b> waves in the
-        antisymmetric half. OLR between 15&deg;S and 15&deg;N is split into the part symmetric about the equator (Kelvin,
-        ER, MJO) and the antisymmetric part (MRG).</p>
-<p><b>Climatology</b>: 1991&ndash;2020 power divided by its smooth red-noise background, from NOAA OLR in 302 overlapping
-        96-day windows: the ridges along the curves are the waves. <b>Observed + forecast</b>: the same ratio for the last
-        96 days of ERA5 (about six days behind), and for the 96 days ending at day 15 of the IFS-ENS forecast, each of 20
-        members run separately and the powers averaged. ERA5 carries about a fifth less power than NOAA OLR, so the
-        background is scaled by the ratio of the two, measured on the same days of 2021&ndash;22. <b>Satellite (GMGSI)</b>:
-        the site's real-time OLR from geostationary infrared, to yesterday. It exists only as a 15&deg;S&ndash;15&deg;N
-        average, which keeps the symmetric waves and cancels the antisymmetric ones, and it is tested only at periods where
-        it agrees with ERA5 (8 days and longer): its two snapshots a day put diurnal-cycle noise into the faster bands.</p>
-<p>A 96-day window has few degrees of freedom, so a bin is shaded only where its ratio passes a chi-square test with the
-        false-discovery rate held at 10&nbsp;% across the whole plane. A blank panel means no wave is significantly stronger
-        than normal; it does not mean there are no waves. A standing anomaly, such as the one an El Ni&ntilde;o keeps over
-        the central Pacific, sits at zero frequency and is removed from each window with its trend, so it never shows here.
-        Wider and narrower bands were tested: &plusmn;10&deg; sharpens Kelvin waves and the MJO by about a tenth but weakens
-        the MRG; centring on the summer ITCZ helped nothing.</p>
-<p class="chart-sources">NOAA Interpolated OLR (Liebmann &amp; Smith 1996), NOAA PSL &middot; ERA5 mean top net long-wave flux, ARCO (Copernicus C3S / ECMWF) &middot; ECMWF IFS-ENS open data, top thermal radiation (CC&nbsp;BY&nbsp;4.0) &middot; NOAA GMGSI &middot; method as NCL wkSpaceTime: 96-day windows, 3-harmonic seasonal cycle, 10&nbsp;% taper, background smoothed 1-2-1 &middot; updated daily</p>
+        antisymmetric half. Outgoing longwave radiation between 15&deg;S and 15&deg;N is split into the part symmetric
+        about the equator (Kelvin, Rossby, MJO) and the antisymmetric part (mixed Rossby&ndash;gravity).</p>
+<p>This is the <b>raw power</b> of the last 96 days, nothing divided out: power always rises toward low frequencies and
+        large scales, so the waves show as ridges and lobes standing out along their curves rather than as isolated peaks.
+        Each grid point's mean and trend over the window are removed first, so a standing anomaly (the seasonal cycle, or the
+        one an El Ni&ntilde;o keeps over the central Pacific) does not appear.</p>
+<p class="chart-sources">NASA CERES FLASHFlux daily gridded TOA longwave flux from NOAA-20 (FLASH_TISA_NOAA20, 1&deg;; NASA Langley ASDC),
+        about four days behind &middot; method as NCL wkSpaceTime: 96-day window, mean and trend removed, 10&nbsp;% taper,
+        symmetric/antisymmetric split, power summed over latitude, one 1-2-1 pass in frequency &middot; updated daily</p>
 </template>
 <template id="about-olr">
 <p>A longitude &times; time Hovm&ouml;ller of deep convection along the equator. NOAA's interpolated-OLR product ended in 2022, so this derives an OLR proxy in real time from the <b>GMGSI</b> global longwave-IR satellite mosaic: the IR brightness temperature (cold cloud tops) is converted to outgoing longwave radiation, and the 5&deg;S&ndash;5&deg;N zonal mean is stacked over time. <span style="color:#e07b00">Yellow to red is low OLR (deep convection)</span>; blue is high OLR (suppressed or clear sky). An eastward (top to bottom-right) tilt is the MJO propagating east; convection parked at the dateline reflects the El&nbsp;Ni&ntilde;o-shifted warm pool. Newest day at the bottom.</p>
@@ -121,7 +113,7 @@
       "@type": "WebPage",
       "name": "Tropical waves: Wheeler-Kiladis spectrum, Kelvin and Rossby wave trackers, OLR wave decomposition",
       "url": "https://scorvec.com/tropical-waves.html",
-      "description": "Which convectively coupled equatorial waves are active now: a daily Wheeler-Kiladis wavenumber-frequency spectrum of OLR from ERA5, IFS-ENS and GMGSI against NOAA OLR 1991-2020, with Kelvin, equatorial Rossby and MJO filtered Hovmollers, wave trackers and ocean Kelvin waves.",
+      "description": "Which convectively coupled equatorial waves are active now: a daily Wheeler-Kiladis wavenumber-frequency spectrum of OLR of satellite-measured OLR (CERES), with Kelvin, equatorial Rossby and MJO filtered Hovmollers, wave trackers and ocean Kelvin waves.",
       "isPartOf": {"@type": "WebSite", "name": "Shawn Corvec", "url": "https://scorvec.com/"},
       "author": {"@id": "https://scorvec.com/#person"},
       "about": [
@@ -133,16 +125,13 @@
 <script>
 window.STAGE = {
   groups: [
-  {label: "Which waves are active", ico: "\u{1F4CA}", items: [["wk","Wheeler\u2013Kiladis spectrum","observed, forecast, satellite"]]},
+  {label: "Which waves are active", ico: "\u{1F4CA}", items: [["wk","Wheeler\u2013Kiladis spectrum","observed OLR, last 96 days"]]},
   {label: "Along the equator", ico: "\u{1F30A}", items: [["waves","Wave decomposition","Kelvin, Rossby, MJO bands"],["trackers","Kelvin and Rossby trackers","with the forecast"],["kelvin","Kelvin wave tracker, AIFS-ENS","map + 15-day forecast"],["olr","OLR Hovm\u00f6ller","synthetic, equatorial"]]},
   {label: "Ocean", ico: "\u{1F30A}", items: [["okelvin","Ocean Kelvin waves","sea level, arrival dates"]]}
 ],
   products: {
-  wk: {label: "Wheeler\u2013Kiladis spectrum", a: {label: "Data", items: [["now","Observed + forecast (ERA5, IFS-ENS)"],["gmgsi","Satellite, to yesterday (GMGSI)"],["clim","1991\u20132020 climatology"]]},
-          img: function (a) { return "assets/sst/wk_" + (a || "now") + ".webp"; }, bust: "hourly", about: "about-wk", fit: false,
-          cap: function (a) { return {now: "Power in the last 96 days of ERA5 (top) and in the 96 days ending at IFS-ENS day 15 (bottom), divided by the 1991\u20132020 background; shaded only where significant. Left: waves symmetric about the equator (Kelvin, Rossby, MJO); right: antisymmetric (mixed Rossby\u2013gravity).",
-                                      gmgsi: "The same test on the site's satellite OLR, to yesterday: symmetric waves only, periods of 8 days and longer.",
-                                      clim: "Where the waves live: 1991\u20132020 OLR power divided by its smooth background. The ridges along the theoretical curves are the waves."}[a || "now"]; }},
+  wk: {label: "Wheeler\u2013Kiladis spectrum", img: function () { return "assets/sst/wk_raw.webp"; }, bust: "hourly", about: "about-wk", fit: false,
+          cap: function () { return "Raw wavenumber\u2013frequency power of the last 96 days of satellite-measured OLR, 15\u00b0S\u201315\u00b0N. Left: waves symmetric about the equator (Kelvin, Rossby, MJO); right: antisymmetric (mixed Rossby\u2013gravity)."; }},
   olr: {label: "Synthetic OLR Hovmöller", img: function () { return "assets/sst/olr_hovmoller.webp"; }, bust: "hourly", about: "about-olr", fit: false,
           cap: function () { return "Equatorial convection against time from the infrared composite: enhanced (blue) and suppressed (brown) bands moving east."; }},
   waves: {label: "Tropical wave decomposition", img: function () { return "assets/sst/olr_waves.webp"; }, bust: "hourly", about: "about-waves", fit: false,

@@ -58,7 +58,7 @@ PAGES = [
     dict(slug="waves", out="tropical-waves.html", active="A_ATMOSPHERE", layout="stage",
          title="Tropical Waves &mdash; Wheeler&ndash;Kiladis Spectrum, Kelvin and Rossby Wave Trackers &middot; Shawn Corvec",
          desc="Which convectively coupled equatorial waves are active: a daily Wheeler-Kiladis wavenumber-frequency "
-              "spectrum of OLR from ERA5, the IFS ensemble and GMGSI satellite data against NOAA OLR 1991-2020, "
+              "spectrum of satellite-measured OLR (NASA CERES), "
               "with Kelvin, equatorial Rossby and MJO filtered Hovmollers, wave trackers and ocean Kelvin waves.",
          canonical="https://scorvec.com/tropical-waves.html"),
 ]
