@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""NH polar vortex FORECAST monitor -- AIFS-ENS, IFS-ENS, GEPS and GDPS.
+"""NH polar vortex FORECAST monitor -- AIFS-ENS, IFS-ENS, GEPS, GDPS and GEOS FP.
 
 Three panels, forecast-first (a short analysis tail for context, then every
 model that publishes the stratosphere):
@@ -22,6 +22,8 @@ Models (probed 2026-08-28; all four publish u AND height at 10 and 100 hPa):
   geps  GEPS      20 members, 0.5 deg, day 16. One `allmbrs` GRIB per
                   variable/level/step (~2.4 MB UGRD, ~1.3 MB HGT) -> ~98 MB/cycle.
   gdps  GDPS      deterministic, 0.15 deg, day 10 -> ~31 MB/cycle.
+  geosfp GEOS FP   NASA GMAO, deterministic, newest 00Z run (day 10; 06/12/18Z stop at day 5), NCCS OPeNDAP
+                  (added 2026-10-03, user). MERRA-2's operational sibling.
   ifs   IFS-ENS   all 50 perturbed members, 0.25 deg, day 15 (2026-09-27, user: "5 ifs-ens
                   members is not enough for the stratosphere plots"). There is NO control
                   at these levels - open data publishes only type=pf at pressure levels.
@@ -99,6 +101,7 @@ STYLE = {
     "ifs":  ("#1f4b6e", "IFS-ENS"),
     "geps": ("#2f7d4f", "GEPS"),
     "gdps": ("#6b4c9a", "GDPS"),
+    "geosfp": ("#b0306a", "GEOS FP"),
 }
 
 
@@ -294,6 +297,57 @@ def load_ifs(date, cyc, leads, members):
     return out
 
 
+GEOSFP_FC = "https://opendap.nccs.nasa.gov/dods/GEOS-5/fp/0.25_deg/fcast/inst3_3d_asm_Np/inst3_3d_asm_Np.{c}"
+
+
+def load_geosfp(base):
+    """NASA GMAO GEOS FP, deterministic, from the NCCS OPeNDAP forecast collection (user, 2026-10-03). Only the 00Z run
+    goes to day 10 (the 06/12/18Z runs stop at day 5), so this takes the newest 00Z run at or before the figure's cycle,
+    reading the daily 00Z steps of u at 10/100 hPa along 60N and h (geopotential height, m) at 100 hPa over 65-90N.
+    GEOS FP is the operational sibling of MERRA-2, the reference the bands come from. ~1 min over OPeNDAP."""
+    import time as _t
+    day0 = base.normalize()
+    for back in (0, 1):
+        init = day0 - pd.Timedelta(days=back)
+        url = GEOSFP_FC.format(c=f"{init:%Y%m%d}_00")
+        d = None
+        for k in range(3):
+            try:
+                d = xr.open_dataset(url)
+                if not np.issubdtype(d.time.dtype, np.datetime64):
+                    raise RuntimeError("time axis not decoded")
+                break
+            except Exception as e:                                                # noqa: BLE001
+                d = None
+                if "not found" in str(e).lower() or "404" in str(e):
+                    break
+                _t.sleep(15 * (k + 1))
+        if d is None:
+            continue
+        tt = pd.DatetimeIndex(d.time.values)
+        if len(tt) < 70:                                                          # run still being written
+            continue
+        ti = np.flatnonzero(tt.hour == 0)
+        lev = d.lev.values
+        l10, l100 = int(np.argmin(np.abs(lev - 10))), int(np.argmin(np.abs(lev - 100)))
+        try:
+            u = d["u"].isel(time=ti, lev=[l10, l100]).sel(lat=PHI, method="nearest").load().mean("lon")
+            z = d["h"].isel(time=ti, lev=l100).sel(lat=slice(CAP[0], CAP[1])).load()
+        except Exception as e:                                                    # noqa: BLE001
+            print(f"::warning::GEOS FP {init:%Y%m%d} 00Z read failed ({str(e)[:90]}); figure goes without it", flush=True)
+            return None
+        w = np.cos(np.deg2rad(z.lat))
+        zc = (z.mean("lon") * w).sum("lat") / w.sum()
+        idx = tt[ti]
+        print(f"    GEOS FP {init:%Y-%m-%d} 00Z: {len(idx)} days, u10(0) {float(u.isel(time=0, lev=0)):.1f} m/s, "
+              f"cap z100(0) {float(zc.isel(time=0)):.0f} m", flush=True)
+        return {"u10": pd.DataFrame({0: u.isel(lev=0).values}, index=idx),
+                "u100": pd.DataFrame({0: u.isel(lev=1).values}, index=idx),
+                "zcap": pd.DataFrame({0: zc.values}, index=idx)}
+    print("::warning::no complete GEOS FP 00Z forecast for this cycle or the day before; figure goes without it", flush=True)
+    return None
+
+
 # ── reference: MERRA-2, epoch-referenced where a trend matters ──────────────
 def _detrend_to_epoch(s, epoch):
     """Adjust every historical day to `epoch`'s climate level.
@@ -481,7 +535,7 @@ def draw_model(ax, df, key, sub=None):
 
 def main() -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--models", default="aifs,geps,gdps,ifs")
+    ap.add_argument("--models", default="aifs,geps,gdps,ifs,geosfp")
     ap.add_argument("--ifs-members", type=int, default=50,
                     help="IFS-ENS perturbed members (all 50 by default; there is no control)")
     ap.add_argument("--cycle")
@@ -534,6 +588,8 @@ def main() -> int:
         fc["gdps"] = load_gdps(date, cyc, list(range(0, 241, 24)))
     if "ifs" in want:
         fc["ifs"] = load_ifs(date, cyc, list(range(0, 361, 24)), a.ifs_members)
+    if "geosfp" in want:
+        fc["geosfp"] = load_geosfp(base)
     fc = {k: v for k, v in fc.items() if v}
     if not fc:
         print("no model data available"); return 1
@@ -605,7 +661,7 @@ def main() -> int:
              "Zonal-mean zonal wind at 60°N and the 65–90°N polar-cap height. Shading is each ensemble's 10th–90th member "
              "percentile, the solid line its mean; dashed = deterministic or control-only.\n"
              "AIFS-ENS (25 members + control) and IFS-ENS (all 50 perturbed members; open data has no IFS control at these "
-             "levels) to day 15, GEPS to day 16, GDPS to day 10.\n"
+             "levels) to day 15, GEPS to day 16, GDPS and GEOS FP (00Z run, NASA GMAO) to day 10.\n"
              "Reference: MERRA-2 1980–2026 day-of-year percentiles; the height climatology is detrended to the current "
              "year (+18.7 m/decade), the winds are not (<0.25 m/s/decade). Vertical line = analysis time.",
              ha="center", va="bottom", fontsize=8, color="#6f6b64", linespacing=1.5)

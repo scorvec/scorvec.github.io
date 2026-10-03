@@ -155,7 +155,7 @@ jobs:
       # All four models in one figure. Without IFS (not on the mirror) it still renders the other three.
       - name: NH polar vortex
         run: |
-          M=aifs,geps,gdps; [ "$READY" = "true" ] && M=aifs,geps,gdps,ifs
+          M=aifs,geps,gdps,geosfp; [ "$READY" = "true" ] && M=aifs,geps,gdps,geosfp,ifs
           python scripts/strat/nh_vortex.py --models "$M" --cycle "$D$T" --out assets/sst/nh_vortex.webp \
             || echo "::warning::nh_vortex failed; keeping the previous figure"
 
