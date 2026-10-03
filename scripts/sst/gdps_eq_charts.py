@@ -65,8 +65,10 @@ from matplotlib.colors import BoundaryNorm, ListedColormap      # noqa: E402
 # Map domain + grammar copied from the super-ensemble animator
 # (scripts/mjo/src/mslp_wind_anim.py) so the two products read identically.
 EXTENT = (100, 280, -30, 45)                    # lon0, lon1 (0..360), lat0, lat1
-# 150 hPa map reaches further east, over South America and the Atlantic ITCZ edge
-EXTENT_150 = (100, 300, -30, 45)
+# 150 hPa map reaches further east, over South America and the Atlantic ITCZ edge, and (2026-10-03, user: "extend the
+# latitude bands a bit") 45S-55N: the old 30S edge cut through the Southern Hemisphere subtropical jet and 45N through
+# the northern flank of the North Pacific jet
+EXTENT_150 = (100, 300, -45, 55)
 STATIONS = {"Darwin (YPDN)": (130.9, -12.4), "Tarawa (NGTA)": (173.0, 1.4),
             "Christmas I. (PLCH)": (202.5, 2.0), "Tahiti (NTAA)": (210.4, -17.5)}
 MS2KT = 1.94384
@@ -422,7 +424,12 @@ def render_outflow_frame(u, v, z, init: pd.Timestamp, h: int, fp: Path) -> None:
     # rather than 15 km speckle
     spd = gaussian_filter(np.hypot(u.values, v.values) * MS2KT,
                           0.5 / dx, mode=("nearest", "wrap"))
-    fig = plt.figure(figsize=(14.0, 6.2))
+    # figure height follows the domain: the map keeps the true plate-carree aspect, with fixed bands (in inches) for the
+    # title above and the colour bar below
+    W, TOP_IN, BOT_IN = 14.0, 0.62, 0.80
+    map_h = W * (0.99 - 0.03) * (EXTENT_150[3] - EXTENT_150[2]) / (EXTENT_150[1] - EXTENT_150[0])
+    H = map_h + TOP_IN + BOT_IN
+    fig = plt.figure(figsize=(W, H))
     ax = plt.axes(projection=proj)
     ax.set_extent([EXTENT_150[0], EXTENT_150[1],
                    EXTENT_150[2], EXTENT_150[3]], crs=pc)
@@ -435,7 +442,7 @@ def render_outflow_frame(u, v, z, init: pd.Timestamp, h: int, fp: Path) -> None:
     # fill under wall-to-wall lines in the jet regions
     cz = ax.contour(lon, lat, gaussian_filter(z.values / 10.0, 2.0 * _GS,
                                               mode=("nearest", "wrap")),
-                    levels=np.arange(1320, 1452, 6), colors="#111111",
+                    levels=np.arange(1260, 1452, 6), colors="#111111",
                     linewidths=0.7, transform=pc)
     ax.clabel(cz, inline=True, fontsize=6, fmt="%d")
     bstride = max(1, int(round(4.0 / dx)))            # barbs ~every 4°
@@ -449,9 +456,9 @@ def render_outflow_frame(u, v, z, init: pd.Timestamp, h: int, fp: Path) -> None:
                       linestyle=(0, (3, 3)), zorder=3)
     gl.top_labels = gl.right_labels = False
     gl.xlocator = mticker.FixedLocator(list(range(-180, 181, 20)))
-    gl.ylocator = mticker.FixedLocator(list(range(-30, 46, 15)))
+    gl.ylocator = mticker.FixedLocator(list(range(-45, 61, 15)))
     gl.xlabel_style = gl.ylabel_style = {"size": 6, "color": "0.3"}
-    cax = fig.add_axes([0.13, 0.06, 0.74, 0.02])
+    cax = fig.add_axes([0.13, 0.42 / H, 0.74, 0.12 / H])
     cb = fig.colorbar(cf, cax=cax, orientation="horizontal", extend="both")
     cb.set_label("150 hPa wind speed (kt) · white < 25 kt · black contours = "
                  "geopotential height (dam)", fontsize=8)
@@ -463,7 +470,7 @@ def render_outflow_frame(u, v, z, init: pd.Timestamp, h: int, fp: Path) -> None:
              f"ECCC 15 km deterministic\ninit {init:%Y-%m-%d %H}Z  ·  "
              f"F{int(h):03d} valid {valid:%Y-%m-%d %H}Z",
              fontsize=10, ha="left", va="top")
-    fig.subplots_adjust(left=0.03, right=0.99, top=0.90, bottom=0.10)
+    fig.subplots_adjust(left=0.03, right=0.99, top=1 - TOP_IN / H, bottom=BOT_IN / H)
     fig.savefig(fp, dpi=104); plt.close(fig)
 
 
