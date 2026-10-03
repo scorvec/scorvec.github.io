@@ -272,7 +272,15 @@
       f.style.aspectRatio = (p.ratio ? p.ratio(sel.a, sel.b, sel.c) : "1259/700"); st.appendChild(f); fitStage();
     } else {
       var src = p.img(sel.a, sel.b, sel.c); if (p.bust === "hourly") src += (src.indexOf("?") < 0 ? "?" : "&") + "v=" + hourKey();
-      var im = document.createElement("img"); im.src = src; im.alt = p.label; st.appendChild(im);
+      var im = document.createElement("img"); im.alt = p.label;
+      // a figure whose first build has not been published yet (new product) 404s: say so instead of a broken icon
+      im.onerror = function () {
+        var m = document.createElement("p"); m.className = "stage-missing";
+        m.textContent = "This chart has not been published yet - it appears after the next update of this product (usually within a few hours).";
+        m.style.cssText = "padding:2.5rem 1rem;text-align:center;color:#6f6b64;font-size:1.05rem;border:1px dashed #cfcac2;border-radius:8px;margin:0.5rem 0";
+        if (im.parentNode) im.parentNode.replaceChild(m, im);
+      };
+      im.src = src; st.appendChild(im);
       im.onload = fitStage; im.onclick = function () { var lb = $("lightbox"); lb.querySelector("img").src = im.src; lb.classList.add("on"); };
     }
     $("cap").innerHTML = p.cap ? p.cap(sel.a, sel.b, sel.c) : "";
