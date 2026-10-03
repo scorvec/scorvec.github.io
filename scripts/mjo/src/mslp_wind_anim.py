@@ -85,6 +85,73 @@ def model_means(cyc, short):
         return am, na, None, 0
 
 
+# Single runs (2026-10-03, user: "add the aifs-ens member 0, aifs single, IFS op, and GDPS" - for THIS plot). Each gets its
+# own loop on the same map and scales; drawn on the AIFS-ENS 0.25-deg grid of the subdomain.
+SINGLE = {"aifs0": "AIFS-ENS member 0", "aifs1": "AIFS single", "hres": "IFS HRES", "gdps": "GDPS"}
+GDPS_URL = "https://dd.weather.gc.ca/{d}/WXO-DD/model_gdps/15km/{c}/{L:03d}/{d}T{c}Z_MSC_GDPS_{v}_LatLon0.15_PT{L:03d}H.grib2"
+
+
+def _grib_field(blob):
+    """One GRIB message (bytes) -> DataArray(latitude asc, longitude 0..360)."""
+    import eccodes as ec
+    h = ec.codes_new_from_message(bytes(blob))
+    ni, nj = ec.codes_get(h, "Ni"), ec.codes_get(h, "Nj")
+    la0, la1 = ec.codes_get(h, "latitudeOfFirstGridPointInDegrees"), ec.codes_get(h, "latitudeOfLastGridPointInDegrees")
+    lo0, di = ec.codes_get(h, "longitudeOfFirstGridPointInDegrees"), ec.codes_get(h, "iDirectionIncrementInDegrees")
+    v = ec.codes_get_values(h).reshape(nj, ni); ec.codes_release(h)
+    da = xr.DataArray(v, dims=("latitude", "longitude"),
+                      coords={"latitude": np.linspace(la0, la1, nj), "longitude": (lo0 + di * np.arange(ni)) % 360})
+    return da.sortby("latitude").sortby("longitude")
+
+
+def single_fields(key, cyc, lat, lon):
+    """{msl (Pa), 10u, 10v}: DataArray (step, latitude, longitude) on the target lat/lon, daily steps. ECMWF single runs
+    are byte-ranged from the Google Cloud mirror only (oper fc); GDPS (to day 10) comes from the ECCC Datamart."""
+    if key == "aifs0":
+        sp = lambda t, f: ecmwf.sfc_path(cyc, "aifs-ens", t, f)
+        return {f: _open([sp("cf", f)], f).isel(number=0).interp(latitude=lat, longitude=lon) for f in ("msl", "10u", "10v")}
+    out = {f: [] for f in ("msl", "10u", "10v")}; steps = []
+    if key in ("aifs1", "hres"):
+        import rangefetch as rf
+        model = "aifs-single" if key == "aifs1" else "ifs"
+        for st in DAILY_STEPS:
+            try:
+                idx = rf.fetch_index(cyc.date, cyc.time, model, st, "fc", stream="oper")
+            except Exception as e:                                     # noqa: BLE001
+                print(f"  {key} +{st}h: not on the Google mirror ({str(e)[:60]})", flush=True); break
+            want = sorted([e for e in idx if e.get("levtype") == "sfc" and e.get("param") in out], key=lambda e: e["_offset"])
+            if len(want) < 3:
+                break
+            blob = rf.fetch_ranges(rf.path_for(cyc.date, cyc.time, model, st, "fc", stream="oper") + ".grib2", rf.coalesce(want))
+            pos = 0
+            for e in want:
+                out[e["param"]].append(_grib_field(blob[pos:pos + e["_length"]]).interp(latitude=lat, longitude=lon)); pos += e["_length"]
+            steps.append(st)
+    elif key == "gdps":
+        import requests
+        names = {"msl": "Pressure_MSL", "10u": "WindU_AGL-10m", "10v": "WindV_AGL-10m"}
+        for st in [s for s in DAILY_STEPS if s <= 240]:
+            got = {}
+            for f, nm in names.items():
+                r = requests.get(GDPS_URL.format(d=cyc.date, c=cyc.time, L=st, v=nm), timeout=120,
+                                 headers={"User-Agent": "scorvec-enso/1.0"})
+                if r.status_code != 200:
+                    break
+                got[f] = _grib_field(r.content).interp(latitude=lat, longitude=lon)
+            if len(got) < 3:
+                print(f"  gdps +{st}h: not on the Datamart", flush=True); break
+            for f in out:
+                out[f].append(got[f])
+            steps.append(st)
+    if not steps:
+        raise RuntimeError(f"{key}: no fields")
+    td = np.array(steps, "timedelta64[h]").astype("timedelta64[ns]")
+    res = {f: xr.concat(v, "step").assign_coords(step=td) for f, v in out.items()}
+    if float(res["msl"].median()) < 2000:                                 # GDPS publishes MSLP in hPa? keep Pa throughout
+        res["msl"] = res["msl"] * 100.0
+    return res
+
+
 def wait_for_ifs(cyc, minutes):
     """IFS-ENS day 15 reaches the Google mirror ~08:50/20:55Z, often after this job starts: wait (Google only - never
     another mirror) up to `minutes`, re-trying the surface batch every 60 s."""
@@ -124,6 +191,7 @@ def main() -> int:
     ap.add_argument("--anim-dir", default="assets/sst/anim/mslp_wind")
     ap.add_argument("--manifest", default="assets/sst/anim/mslp_wind_manifest.json")
     ap.add_argument("--wait-ifs", type=float, default=0, help="minutes to wait for IFS-ENS day 15 on the Google mirror")
+    ap.add_argument("--single", default="aifs0,aifs1,hres,gdps", help="single runs to add as their own loops ('' = none)")
     args = ap.parse_args()
     cyc = ecmwf.Cycle(args.date, args.time)
     init = np.datetime64(f"{args.date[:4]}-{args.date[4:6]}-{args.date[6:8]}T{args.time}:00")
@@ -142,12 +210,24 @@ def main() -> int:
     variants.append(("mslp_wind_aifs", "_aifs", f"AIFS-ENS ({na} members)", F["msl"][0], F["10u"][0], F["10v"][0]))
     if have_ifs:
         variants.append(("mslp_wind_ifs", "_ifs", f"IFS-ENS ({ni} members)", F["msl"][2], F["10u"][2], F["10v"][2]))
+    sub = dict(latitude=slice(EXTENT[2] - 1, EXTENT[3] + 1), longitude=slice(EXTENT[0] - 1, EXTENT[1] + 1))
+    glat, glon = F["msl"][0].sel(**sub).latitude, F["msl"][0].sel(**sub).longitude
+    for key in [k for k in args.single.split(",") if k]:
+        try:
+            sf = single_fields(key, cyc, glat, glon)
+            n = sf["msl"].sizes["step"]
+            variants.append((f"mslp_wind_{key}", f"_{key}", f"{SINGLE[key]}, to day {n}", sf["msl"],
+                             sf["10u"], sf["10v"]))
+        except Exception as e:                                             # noqa: BLE001
+            print(f"  single run {key} skipped: {repr(e)[:100]}", flush=True)
     regions = {}
     for region, suf, who, msl, u10, v10 in variants:
         msl = msl / 100.0                                  # Pa -> hPa
-        entries = render(args, init, region, who, msl, u10, v10, Path(args.anim_dir + suf))
+        entries = render(args, init, region, who, msl, u10, v10, Path(args.anim_dir + suf),
+                         kind="Ensemble-mean" if region in ("mslp_wind", "mslp_wind_aifs", "mslp_wind_ifs") else "Single run:")
         regions[region] = {"label": {"mslp_wind": "Blend (AIFS-ENS + IFS-ENS)", "mslp_wind_aifs": "AIFS-ENS only",
-                                     "mslp_wind_ifs": "IFS-ENS only"}[region], "frames": entries}
+                                     "mslp_wind_ifs": "IFS-ENS only"}.get(region, SINGLE.get(region.split("_")[-1], region)),
+                           "frames": entries}
         print(f"  {region}: {len(entries)} frames ({who})", flush=True)
     mani = {"ver": args.date + args.time, "regions": regions}
     Path(args.manifest).parent.mkdir(parents=True, exist_ok=True)
@@ -156,7 +236,7 @@ def main() -> int:
     return 0
 
 
-def render(args, init, region, who, msl, u10, v10, anim):
+def render(args, init, region, who, msl, u10, v10, anim, kind="Ensemble-mean"):
     la0, la1 = EXTENT[2], EXTENT[3]; lo0, lo1 = EXTENT[0], EXTENT[1]
     sub = dict(latitude=slice(la0, la1), longitude=slice(lo0, lo1))
     msl = msl.sel(**sub); u10 = u10.sel(**sub); v10 = v10.sel(**sub)
@@ -204,7 +284,7 @@ def render(args, init, region, who, msl, u10, v10, anim):
         fig.colorbar(cf, cax=cax, orientation="horizontal", extend="both").set_label(
             "10 m wind speed (kt)", fontsize=8)
         cax.tick_params(labelsize=7)
-        ax.set_title(f"Ensemble-mean MSLP (mb) + 10 m wind  ·  {who}"
+        ax.set_title(f"{kind} MSLP (mb) + 10 m wind  ·  {who}"
                      f"\ninit {str(init)[:13]}Z  ·  "
                      f"F{int(h):03d} valid {str(valid)[:13]}Z", fontsize=10, loc="left")
         fp = anim / f"F{k:02d}.webp"

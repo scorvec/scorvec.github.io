@@ -333,7 +333,7 @@ jobs:
       # the AIFS comparison loops + KE spectra live in aifs-compare.yml (they
       # took 30+ min here and the cycle's figures were still uncommitted when
       # the run was cancelled on 2026-09-02).
-      - name: MSLP + 10 m wind loops (blend, AIFS-ENS, IFS-ENS)
+      - name: MSLP + 10 m wind loops (blend, AIFS-ENS, IFS-ENS, and single runs AIFS-ENS m0, AIFS single, IFS HRES, GDPS)
         if: ${{ inputs.rmm_only != 'true' }}
         timeout-minutes: 40
         working-directory: scripts/mjo
@@ -440,6 +440,7 @@ jobs:
         run: |
           scripts/lib/publish_frames_ci.sh assets/sst/anim/wind200 assets/sst/anim/waf assets/sst/anim/mslp_wind \
             assets/sst/anim/mslp_wind_aifs assets/sst/anim/mslp_wind_ifs \
+            assets/sst/anim/mslp_wind_aifs0 assets/sst/anim/mslp_wind_aifs1 assets/sst/anim/mslp_wind_hres assets/sst/anim/mslp_wind_gdps \
             assets/sst/anim/walker assets/sst/anim/mmsf assets/sst/anim/kelvin assets/sst/anim/okelvin assets/sst/anim/gillrain
 
       - name: Commit & push (generated outputs)
