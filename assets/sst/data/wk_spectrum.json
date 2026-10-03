@@ -1,1 +1,1 @@
-{"init": "2026-10-02", "era5_last": "2026-09-27", "gap_days": 4, "forecast_days": 15, "members": 20, "obs_window": ["2026-06-24", "2026-09-27"], "fc_window": ["2026-07-13", "2026-10-16"], "gmgsi": {"window": ["2026-06-29", "2026-10-02"], "tested_min_period_days": 8.0, "max_ratio": 2.87, "significant_bins": 0}}
+{"source": "FLASH_TISA_NOAA20 Fluxes/TOA/All_Sky/toa_lw_all", "window": ["2026-06-26", "2026-09-29"], "days": 96, "mean_olr": 255.5}
