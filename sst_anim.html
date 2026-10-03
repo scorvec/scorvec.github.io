@@ -416,6 +416,16 @@ async function init() {
   // the viewer can switch. A manifest may relabel the picker via "selectorLabel".
   const params = new URLSearchParams(location.search);
   const want = params.get("region") || location.hash.replace("#", "") || manifest.default;
+  // An embed that asks for exactly one loop (?region=X&regions=X) which the manifest does not carry yet (a new product
+  // before its first run) must say so - falling back to the first loop showed a DIFFERENT product under this one's
+  // title (2026-10-03: the single-run MSLP loops showed the ensemble blend).
+  if (params.get("region") && !manifest.regions[want] && regParam !== null && onlyIds.length === 0) {
+    $("loading").textContent = "This loop has not been published yet; it appears after the next model run.";
+    $("frame").style.visibility = "hidden";
+    const bar = document.getElementById("regionBar"); if (bar) bar.style.display = "none";
+    if (params.has("embed")) document.body.classList.add("embed");
+    return;
+  }
   region = (want && manifest.regions[want]) ? want : (regIds[0] || allRegIds[0]);
   markRegion(region);
   const multiRegion = regIds.length > 1;
