@@ -1,4 +1,4 @@
-name: Atmospheric river monitor (AIFS-ENS IVT)
+name: Atmospheric river monitor (AIFS-ENS IVT, AIFS-ENS + IFS-ENS precipitable water)
 
 # ar.html: IVT proxy for all 51 AIFS-ENS members (TCW × 850 hPa wind, calibrated each
 # cycle on the control's exact IVT), 12-hourly to day 15; West Coast landfall tool,
@@ -75,7 +75,9 @@ jobs:
       - name: Publish loop frames to the frames branch
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: scripts/lib/publish_frames_ci.sh assets/ar/anim/ar_ivt assets/ar/anim/ar_prob assets/ar/anim/ar_ctrl
+        # PWAT loops (2026-10-03): the IFS-ENS pair is absent when that run missed the mirror; publish_frames_ci skips a
+        # missing directory, so the previous IFS frames stay on the branch rather than being blanked
+        run: scripts/lib/publish_frames_ci.sh assets/ar/anim/ar_ivt assets/ar/anim/ar_prob assets/ar/anim/ar_ctrl assets/ar/anim/pwat_aifs assets/ar/anim/pwatanom_aifs assets/ar/anim/pwat_ifs assets/ar/anim/pwatanom_ifs
 
       - name: Commit & push
         run: |

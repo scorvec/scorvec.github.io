@@ -240,7 +240,7 @@
       <div id="about"></div>
       <p class="hint"><span class="kbd">&larr;</span> <span class="kbd">&rarr;</span> step through the options &middot; <span class="kbd">&uarr;</span> <span class="kbd">&darr;</span> change figure &middot; click a still to enlarge</p>
       <div class="chart-card-footer">
-      <span>ECMWF AIFS-ENS open data (CC BY 4.0): total column water, 850&nbsp;hPa wind, and q/u/v on six levels for member 0 &middot; 0.25&deg;, 12-hourly to day 15 &middot; coast transect from Natural Earth</span>
+      <span>ECMWF AIFS-ENS and IFS-ENS open data (CC BY 4.0): total column water, 850&nbsp;hPa wind, and q/u/v on six levels for member 0 &middot; 0.25&deg;, 12-hourly to day 15 &middot; PWAT climatology: ERA5 1991&ndash;2020 (Copernicus C3S / ECMWF) &middot; coast transect from Natural Earth</span>
       <span id="genLabel">&mdash;</span>
     </div>
     </section>
@@ -256,12 +256,14 @@
 <template id="about-coast"><p>Coast latitude against forecast time. Left: the ensemble-mean IVT at the first ocean point west of the coast, with the member 0&rsquo;s 250 and 500 contours in red. Middle: the fraction of members at or above 250, the AR threshold, with the fraction above 500 contoured. Right: the 90th-percentile member, the strong-AR tail the mean hides. Named locations are marked along the left axis.</p><p>Exact IVT for every member would need humidity and wind through the column for 51 members at 31 steps, about 12&nbsp;GB per cycle. The ensemble therefore uses a proxy, IVT &asymp; k&thinsp;&middot;&thinsp;TCW&thinsp;&middot;&thinsp;|V<sub>850</sub>|, with total column water from the open data and the 850&nbsp;hPa wind; k is refitted every cycle against the member 0&rsquo;s exact IVT through the origin over points with IVT above 100, and the fit is reported here and on the maps. The member 0 itself is always exact. Thresholds are absolute (250, 500, 750, 1000, 1250), following the Ralph et&nbsp;al. (2019) scale rather than percentile-based detection, so no climatology enters the categories.</p></template>
 <template id="about-table"><p>For each member, the strongest spell with IVT at or above 250 at the location sets a category on the Ralph et&nbsp;al. (2019) scale: a preliminary rank from the peak IVT (250, 500, 750, 1000, 1250 for AR1&ndash;AR5), lowered one step if the spell is shorter than 24&nbsp;hours &mdash; which drops a bare AR1 out of the count altogether &mdash; and raised one if it lasts 48&nbsp;hours or more. The table gives the fraction of members reaching each category within the 15 days, the most likely category, the median peak IVT, and the median onset time.</p><p>Exact IVT for every member would need humidity and wind through the column for 51 members at 31 steps, about 12&nbsp;GB per cycle. The ensemble therefore uses a proxy, IVT &asymp; k&thinsp;&middot;&thinsp;TCW&thinsp;&middot;&thinsp;|V<sub>850</sub>|, with total column water from the open data and the 850&nbsp;hPa wind; k is refitted every cycle against the member 0&rsquo;s exact IVT through the origin over points with IVT above 100, and the fit is reported here and on the maps. The member 0 itself is always exact. Thresholds are absolute (250, 500, 750, 1000, 1250), following the Ralph et&nbsp;al. (2019) scale rather than percentile-based detection, so no climatology enters the categories.</p></template>
 <template id="about-loops"><p>Three loops on one player, switched with the buttons above the frame: the <b>ensemble-mean IVT</b> with its vector and the 50% and 80% probability contours; the <b>probability of AR conditions</b>, the share of members with IVT at or above 250 with the mean 250 and 500 contours; and the <b>member 0&rsquo;s exact IVT</b>, the field the ensemble proxy is calibrated against each cycle. North Pacific to the Rockies, 0.25&deg;.</p><p>Exact IVT for every member would need humidity and wind through the column for 51 members at 31 steps, about 12&nbsp;GB per cycle. The ensemble therefore uses a proxy, IVT &asymp; k&thinsp;&middot;&thinsp;TCW&thinsp;&middot;&thinsp;|V<sub>850</sub>|, with total column water from the open data and the 850&nbsp;hPa wind; k is refitted every cycle against the member 0&rsquo;s exact IVT through the origin over points with IVT above 100, and the fit is reported here and on the maps. The member 0 itself is always exact. Thresholds are absolute (250, 500, 750, 1000, 1250), following the Ralph et&nbsp;al. (2019) scale rather than percentile-based detection, so no climatology enters the categories.</p></template>
+<template id="about-pwat"><p>Precipitable water is the depth of liquid water the whole atmospheric column would hold if every bit of vapour, cloud liquid and ice condensed out: here ECMWF&rsquo;s total column water, the same field the IVT proxy uses. Atmospheric rivers show up as long, narrow plumes of high values reaching from the subtropics toward the coast, but precipitable water alone does not say how fast the moisture moves; IVT does (the loops above).</p><p>Both models are shown as ensemble means, every 12 hours to day 15: the 51 AIFS-ENS members and the 50 perturbed IFS-ENS members (the open data carry no IFS-ENS control at these steps). The <b>anomaly</b> is taken against the ERA5 1991&ndash;2020 climatology of total column water for the same day of the year and the same hour (00 or 12&nbsp;UTC), fitted with three annual harmonics on a 1.5&deg; grid and interpolated to the 0.25&deg; forecast grid, so the coarse climatology softens anomalies over steep terrain. An ensemble mean smooths individual plumes as the members diverge; in week 2 read the anomaly as where moisture is favoured, not as a single river. When the IFS-ENS run has not reached the mirror in time for this job, only the AIFS-ENS loops are updated that cycle.</p></template>
 <script>
 window.STAGE = {
   groups: [
     { label: "Landfall", items: [["coast", "Where the rivers make landfall", "coast latitude against time"],
                                 ["table", "AR-scale odds at named places", "Ralph et al. categories"]] },
-    { label: "Maps", items: [["loops", "The rivers, 12-hourly to day 15", "mean IVT, P(AR), member 0"]] }
+    { label: "Maps", items: [["loops", "The rivers, 12-hourly to day 15", "mean IVT, P(AR), member 0"],
+                             ["pwat", "Precipitable water and its anomaly", "AIFS-ENS and IFS-ENS means"]] }
   ],
   products: {
     coast: { label: "Where the rivers will make landfall, and how strong", bust: "hourly",
@@ -278,7 +280,16 @@ window.STAGE = {
              cap: function (a) { return { ar_ivt: "Ensemble-mean IVT with its vector and the 50% and 80% probability contours, North Pacific to the Rockies, 0.25\u00b0.",
                                         ar_prob: "Share of members with IVT at or above 250, with the mean 250 and 500 contours.",
                                         ar_ctrl: "The member 0\u2019s exact IVT, the field the ensemble proxy is calibrated against each cycle." }[a]; },
-             about: "about-loops" }
+             about: "about-loops" },
+    pwat: { label: "Precipitable water, 12-hourly to day 15",
+            a: { label: "Field", items: [["pwatanom", "Anomaly"], ["pwat", "Precipitable water"]] },
+            b: { label: "Model", items: [["aifs", "AIFS-ENS"], ["ifs", "IFS-ENS"]] },
+            frame: function (a, b) { var r = a + "_" + b; return "sst_anim.html?embed=1&base=assets/ar/anim&manifest=ar_manifest.json&region=" + r + "&regions=" + r; },
+            ratio: function () { return "1200/700"; },
+            cap: function (a, b) { var m = b === "ifs" ? "IFS-ENS (50 perturbed members)" : "AIFS-ENS (51 members)";
+                                   return a === "pwat" ? "Ensemble-mean precipitable water (total column water), " + m + ", with the +10 and +20 mm anomaly contours."
+                                                       : "Ensemble-mean precipitable-water anomaly against ERA5 1991–2020 at the valid hour, " + m + ", with the 25 and 40 mm contours."; },
+            about: "about-pwat" }
   }
 };
 </script>

@@ -11,6 +11,9 @@ which for 51 members × 31 steps is ~12 GB per cycle — so:
 Products (assets/ar/):
   anim/ar_ivt, ar_prob, ar_ctrl + ar_manifest.json   12-hourly loops to day 15 (ensemble-mean IVT with vectors;
                                                       P(IVT ≥ 250); member 0's exact IVT) for the site viewer
+  anim/pwat_{aifs,ifs}, pwatanom_{aifs,ifs}           ensemble-mean precipitable water (total column water) and its
+                                                      anomaly vs ERA5 1991-2020 at the valid hour (data/pwat_clim.nc,
+                                                      build_pwat_clim.py); IFS-ENS only when its cycle is on the mirror
   ar_coast.webp   West-coast landfall tool: coast latitude × forecast time, ensemble-mean IVT and P(≥250/500)
   ar_monitor.json AR-scale probabilities at the named coastal points, the calibration, the coast arrays
     python scripts/ar/ar_monitor.py --date 20260906 --time 00
@@ -182,6 +185,107 @@ def loops(ivt, ivte_m, ivtn_m, ivt_c, ivte, ivtn, lat, lon, valid, init, k_fit, 
     print(f"  wrote {len(valid)} frames × 3 loops → {manifest}", flush=True)
 
 
+# ── precipitable water (total column water) ──────────────────────────────────────
+PWAT_CLIM = HERE / "data" / "pwat_clim.nc"
+IFS_WAIT_MIN = float(os.environ.get("AR_IFS_WAIT_MIN", "25"))
+
+
+def pwat_clim(lat, lon, valid):
+    """ERA5 1991-2020 total-column-water climatology (build_pwat_clim.py) at each valid time's day of year and hour,
+    on the forecast grid -> (step, lat, lon) mm."""
+    d = xr.open_dataset(PWAT_CLIM)
+    out = []
+    for t in valid:
+        t = pd.Timestamp(t)
+        c = d["coef"].sel(hour=12 if t.hour >= 6 and t.hour < 18 else 0).values
+        w = 2 * np.pi * t.dayofyear / 365.25
+        b = [1.0] + [f(k * w) for k in range(1, (c.shape[0] - 1) // 2 + 1) for f in (np.cos, np.sin)]
+        f = xr.DataArray(np.tensordot(np.array(b), c, axes=(0, 0)), dims=("latitude", "longitude"),
+                         coords={"latitude": d.latitude.values, "longitude": d.longitude.values})
+        out.append(f.interp(latitude=lat, longitude=lon).values)
+    return np.stack(out).astype("float32")
+
+
+def ifs_tcw(cyc):
+    """IFS-ENS total column water, the 50 perturbed members (open data has no IFS-ENS control at these steps since
+    mid-2026), 12-hourly to day 15, from the Google mirror only. Waits up to AR_IFS_WAIT_MIN minutes for the cycle's
+    day-15 step to appear on the mirror (it lands ~08:50/20:55Z, around this job's slot); otherwise None."""
+    sys.path.insert(0, str(HERE.parents[0] / "ecmwf"))
+    import rangefetch
+    t_end = time.time() + 60 * IFS_WAIT_MIN
+    while not rangefetch.cycle_complete(cyc.date, cyc.time, "ifs", 360, "pf"):
+        if time.time() > t_end:
+            print(f"::warning::IFS-ENS {cyc.date} {cyc.time}Z not complete on the Google mirror after {IFS_WAIT_MIN:.0f} min;"
+                  " PWAT loops are AIFS-ENS only this cycle", flush=True)
+            return None
+        time.sleep(60)
+    try:
+        p = ecmwf.ensure(cyc, ecmwf.Spec("ifs", "pf", "tcw", "sfc", (), S12))
+        da = _open(p, "tcw")
+        return da.transpose("number", "step", "latitude", "longitude").astype("float32").load()
+    except Exception as e:                                                # noqa: BLE001
+        print(f"::warning::IFS-ENS tcw unavailable ({str(e)[:120]}); PWAT loops are AIFS-ENS only", flush=True)
+        return None
+
+
+def pwat_loops(models, lat, lon, valid, init, anim: Path, manifest: Path) -> None:
+    """Two 12-hourly loops per model (ensemble-mean PWAT; its anomaly against ERA5 1991-2020 at the valid hour), added to
+    the AR manifest. models = [(tag, label, tcw (member, step, lat, lon))]."""
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    from matplotlib.colors import BoundaryNorm, ListedColormap, LinearSegmentedColormap
+    import cartopy.crs as ccrs
+    pc = ccrs.PlateCarree()
+    clim = pwat_clim(lat, lon, valid)
+    lev = [5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65]
+    cm = ListedColormap(["#f1e3c4", "#d9c08c", "#b7d7a8", "#7fc4a0", "#45a8a0", "#2c88b5", "#2a62a8", "#3b3f9a", "#5e2d8f",
+                         "#8b2a8a", "#b8327a", "#dc4f61", "#ef7b4a", "#f6aa3c"])
+    alev = [-30, -25, -20, -15, -10, -5, -2, 2, 5, 10, 15, 20, 25, 30]
+    acm = LinearSegmentedColormap.from_list("pwa", ["#5c3305", "#8c510a", "#bf812d", "#dfc27d", "#f6e8c3", "#f5f5f5",
+                                                    "#c7eae5", "#80cdc1", "#35978f", "#01665e", "#003c30"], N=len(alev) + 1)
+    M = json.loads(manifest.read_text())
+    for tag, label, tcw in models:
+        n = tcw.shape[0]
+        mean = np.nanmean(tcw, axis=0)                                  # (step, lat, lon)
+        anom = mean - clim
+        for kind in ("pwat", "pwatanom"):
+            d = anim / f"{kind}_{tag}"
+            d.mkdir(parents=True, exist_ok=True)
+            for old in d.glob("F*.webp"):
+                old.unlink()
+            frames = []
+            for k, t in enumerate(valid):
+                lab = ("analysis" if k == 0 else f"+{12 * k} h") + f" · {pd.Timestamp(t):%a %d %b %HZ}"
+                fig = plt.figure(figsize=(12, 6.3)); ax = _frame_axes(fig)
+                if kind == "pwat":
+                    cf = ax.pcolormesh(lon, lat, mean[k], cmap=cm, norm=BoundaryNorm(lev, cm.N, extend="both"), transform=pc,
+                                       shading="nearest", rasterized=True)
+                    cs = ax.contour(lon, lat, anom[k], levels=[10, 20], colors=["#111", "#000"], linewidths=[0.7, 1.2], transform=pc)
+                    title = f"Precipitable water, ensemble mean — {label} {n} members, init {init:%d %b %HZ} · {lab}"
+                    cl = "total column water (mm) · black contours: anomaly +10 and +20 mm vs ERA5 1991–2020"
+                else:
+                    cf = ax.pcolormesh(lon, lat, anom[k], cmap=acm, norm=BoundaryNorm(alev, acm.N, extend="both"), transform=pc,
+                                       shading="nearest", rasterized=True)
+                    cs = ax.contour(lon, lat, mean[k], levels=[25, 40], colors=["#333", "#000"], linewidths=[0.6, 1.0], transform=pc)
+                    ax.clabel(cs, fmt="%d mm", fontsize=7)
+                    title = f"Precipitable-water anomaly, ensemble mean — {label} {n} members, init {init:%d %b %HZ} · {lab}"
+                    cl = (f"anomaly (mm) vs ERA5 1991–2020 at {pd.Timestamp(t):%HZ} for the date · contours: precipitable water 25 "
+                          "and 40 mm")
+                _coast(ax); ax.set_title(title, fontsize=10.5, loc="left", fontweight="bold")
+                cax = fig.add_axes([0.25, 0.065, 0.5, 0.02]); cb = fig.colorbar(cf, cax=cax, orientation="horizontal")
+                cb.ax.tick_params(labelsize=8); cb.set_label(cl, fontsize=8)
+                fp = d / f"F{k:02d}.webp"
+                fig.savefig(fp, dpi=100, facecolor="white", pil_kwargs={"quality": 82, "method": 6}); plt.close(fig)
+                frames.append({"idx": k, "file": fp.name, "date": pd.Timestamp(t).strftime("%Y-%m-%d"), "label": lab})
+            M["regions"][f"{kind}_{tag}"] = {"label": ("Precipitable water" if kind == "pwat" else "PWAT anomaly") + f", {label}",
+                                             "frames": frames}
+        print(f"  PWAT loops {tag}: {n} members, mean {float(np.nanmean(mean)):.1f} mm, anomaly range "
+              f"{float(np.nanmin(anom)):.0f}..{float(np.nanmax(anom)):.0f} mm", flush=True)
+    M["pwat_models"] = [t for t, _, _ in models]
+    manifest.write_text(json.dumps(M))
+
+
 def coast_tool(ivt, ivt_c, lat, lon, valid, init, out: Path) -> dict:
     """Landfall Hovmöller on the coastal transect. Returns the arrays for the JSON."""
     import matplotlib
@@ -257,7 +361,22 @@ def main() -> int:
     ivte_m[:] = np.where(np.isfinite(ivte_m), ivte_m, 0); ivtn_m[:] = np.where(np.isfinite(ivtn_m), ivtn_m, 0)
     del spd
     coast = coast_tool(ivt, ivt_c, lat, lon, valid, init, ASSETS / "ar_coast.webp")
+    mpath = ASSETS / "anim" / "ar_manifest.json"
+    old_regions = json.loads(mpath.read_text()).get("regions", {}) if mpath.exists() else {}
     loops(ivt, ivte_m, ivtn_m, ivt_c, ivte, ivtn, lat, lon, valid, init, k_fit, ASSETS / "anim", ASSETS / "anim" / "ar_manifest.json")
+    # precipitable water: AIFS-ENS (the tcw already loaded) and IFS-ENS when its cycle is on the mirror
+    pw_models = [("aifs", "AIFS-ENS", tcw.values)]
+    itcw = ifs_tcw(cyc)
+    if itcw is not None:
+        assert np.allclose(itcw.latitude.values, lat) and np.allclose(itcw.longitude.values, lon)
+        pw_models.append(("ifs", "IFS-ENS", itcw.values))
+    pwat_loops(pw_models, lat, lon, valid, init, ASSETS / "anim", ASSETS / "anim" / "ar_manifest.json")
+    if itcw is None:                     # keep pointing at the previous IFS frames, which stay on the frames branch
+        M = json.loads(mpath.read_text())
+        for r in ("pwat_ifs", "pwatanom_ifs"):
+            if r in old_regions:
+                M["regions"][r] = dict(old_regions[r], label=old_regions[r]["label"].split(" (")[0] + " (previous run)")
+        mpath.write_text(json.dumps(M))
     # AR scale at the named points
     table = []
     for nm in COAST["named"]:
