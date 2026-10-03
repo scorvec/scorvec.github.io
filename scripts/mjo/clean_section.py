@@ -42,7 +42,8 @@ def clean_section() -> str:
     try:
         from enso_rmm import status_sentence
         status = status_sentence(json.loads(STATUS.read_text())) if STATUS.exists() else ""
-    except Exception:                                                                 # noqa: BLE001
+    except Exception as e:                                                            # noqa: BLE001
+        print(f"clean_section: no status line ({type(e).__name__}: {e})", file=sys.stderr)
         status = ""
     v = json.loads(CORR.read_text()) if CORR.exists() else {}
     val = v.get("validation", {})

@@ -23,12 +23,20 @@ jobs:
         with:
           fetch-depth: 0          # the frames' history ...
           filter: blob:none       # ... as commits and trees only; `git show` fetches the few blobs it restores
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install the page builder's imports
+        # generate_page -> clean_section -> src/enso_rmm.status_sentence imports numpy/pandas/xarray at load time;
+        # without them the "No coherent MJO ..." status line silently drops off the page (first restore, 2026-10-03)
+        run: pip install --quiet numpy pandas xarray
       - name: Restore missing frames, keep the newest 60 by name
-        run: python3 scripts/mjo/restore_frames.py --keep 60
+        run: python scripts/mjo/restore_frames.py --keep 60
       - name: Rebuild the MJO page and manifests
         run: |
-          python3 scripts/mjo/generate_page.py
-          python3 scripts/site/apply_chrome.py || true
+          python scripts/mjo/generate_page.py
+          grep -q "coherent MJO\|shows an MJO" mjo.html || echo "::warning::the ENSO-removed status line is missing from mjo.html"
+          python scripts/site/apply_chrome.py || true
       - name: Commit & push
         run: |
           git config user.name "github-actions[bot]"
