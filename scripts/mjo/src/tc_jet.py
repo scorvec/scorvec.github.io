@@ -218,7 +218,7 @@ def render_card(storms, idx, v250, lat, lon, steps, init, out_png: Path, out_jso
     out_png.parent.mkdir(parents=True, exist_ok=True); out_json.parent.mkdir(parents=True, exist_ok=True)
     days = np.asarray(steps, float) / 24.0
     fig = plt.figure(figsize=(12.6, 11.2))
-    gs = fig.add_gridspec(2, 1, height_ratios=[1.0, 1.9], hspace=0.34, left=0.07, right=0.97, top=0.93, bottom=0.095)
+    gs = fig.add_gridspec(2, 1, height_ratios=[1.0, 1.9], hspace=0.40, left=0.07, right=0.97, top=0.905, bottom=0.11)
     ax1, ax2 = fig.add_subplot(gs[0]), fig.add_subplot(gs[1])
     fig.suptitle(f"Tropical cyclones and the jet — AIFS-ENS control, init {init:%d %b %Y %HZ}", fontsize=14, fontweight="bold",
                  x=0.07, ha="left")
@@ -226,15 +226,23 @@ def render_card(storms, idx, v250, lat, lon, steps, init, out_png: Path, out_jso
     for i, s in enumerate(storms):
         c = COLS[i % len(COLS)]
         hs = sorted(idx.get(s["id"], {}))
-        if hs:
-            ax1.plot(np.array(hs) / 24, [idx[s["id"]][h] for h in hs], "-o", color=c, lw=2.2, ms=4.5, label=label(s))
-        r = recurvature(s); rec[s["id"]] = r
+        fol_h = {int(h) for h in s["steps"][s["followed"]]} if "followed" in s else set()
+        ht = [h for h in hs if h not in fol_h]; hf = [h for h in hs if h in fol_h]
+        if ht:
+            ax1.plot(np.array(ht) / 24, [idx[s["id"]][h] for h in ht], "-o", color=c, lw=2.2, ms=4.5, label=label(s))
+        if hf:                                             # after the tracker's last fix: the same measure around the
+            hj = ([ht[-1]] if ht else []) + hf             # post-tropical low, dashed with open circles
+            ax1.plot(np.array(hj) / 24, [idx[s["id"]][h] for h in hj], ls=(0, (3, 2)), color=c, lw=2.0,
+                     label=None if ht else label(s))
+            ax1.plot(np.array(hf) / 24, [idx[s["id"]][h] for h in hf], "o", mfc="#fff", mec=c, mew=1.4, ms=5)
+        r = s["rec_h"] if "rec_h" in s else recurvature(s); rec[s["id"]] = r
         if r is not None and r in idx.get(s["id"], {}):
             ax1.plot([r / 24], [idx[s["id"]][r]], marker="*", ms=17, color=c, mec="#000", mew=0.8, zorder=5)
     ax1.set_xlim(0, days[-1] if len(days) else 10); ax1.set_ylim(bottom=0)
     ax1.set_xlabel("forecast day"); ax1.set_ylabel("PVU per day")
     ax1.set_title("Outflow–jet interaction: negative PV advection by the storm's irrotational outflow, 300–200 hPa, within 500 km"
-                  "  (★ recurvature)", fontsize=10.5, loc="left")
+                  "\n★ recurvature · dashed, open circles: the post-tropical low, followed after the tracker's last fix",
+                  fontsize=10.5, loc="left")
     ax1.grid(alpha=0.35)
     if storms:
         ax1.legend(loc="upper left", fontsize=9.5, ncol=min(4, len(storms)), frameon=False)
@@ -269,10 +277,18 @@ def render_card(storms, idx, v250, lat, lon, steps, init, out_png: Path, out_jso
         shown += 1
         ls = (s["lon"][m] - lon0) % 360 + lon0
         tt = s["steps"][m] / 24.0
+        fl = s["followed"][m] if "followed" in s else np.zeros(int(m.sum()), bool)
         brk = np.where(np.abs(np.diff(ls)) > 180)[0] + 1
-        ls_p, tt_p = np.insert(ls, brk, np.nan), np.insert(tt, brk, np.nan)
-        ax2.plot(ls_p, tt_p, color="#111", lw=4.2, solid_capstyle="round")
-        ax2.plot(ls_p, tt_p, color=c, lw=2.6, solid_capstyle="round")
+        for part, sty in ((~fl, "-"), (fl, (0, (2.2, 1.4)))):          # the tracker solid, the followed low dashed
+            if not part.any():
+                continue
+            sel = part.copy()
+            if sty != "-" and (~fl).any():                              # join the dashed part to the tracker's last point
+                sel[np.where(~fl)[0][-1]] = True
+            li, ti = np.where(sel, ls, np.nan), np.where(sel, tt, np.nan)
+            lp, tp = np.insert(li, brk, np.nan), np.insert(ti, brk, np.nan)
+            ax2.plot(lp, tp, color="#111", lw=4.2, ls=sty, dash_capstyle="butt", solid_capstyle="round")
+            ax2.plot(lp, tp, color=c, lw=2.6, ls=sty, dash_capstyle="butt", solid_capstyle="round")
         ax2.annotate(label(s), (ls[0], tt[0]), xytext=(-6, 0), textcoords="offset points", color=c, fontsize=10,
                      fontweight="bold", va="center", ha="right",
                      path_effects=[pe.Stroke(linewidth=2.6, foreground="#fff"), pe.Normal()])
@@ -286,21 +302,24 @@ def render_card(storms, idx, v250, lat, lon, steps, init, out_png: Path, out_jso
                  bbox=dict(boxstyle="round", fc="#fff", ec="#bbb"))
     ax2.set_ylabel("forecast day  (time runs down)"); ax2.set_xlabel("longitude  (east is to the right)")
     ax2.set_title(f"Wave packets along the jet: strength of the 250 hPa trough/ridge pattern, {band[0]:.0f}–{band[1]:.0f}°N (m/s)\n"
-                  f"Bright streaks = packets of strong troughs and ridges, moving east as they slant down. Coloured lines: the storms' "
-                  f"longitudes once north of {MIDLAT:.0f}°N, ★ recurvature", fontsize=10.2, loc="left")
+                  f"Bright streaks = packets of strong troughs and ridges, moving east as they slant down.\n"
+                  f"Coloured lines: the storms' longitudes once north of {MIDLAT:.0f}°N (dashed: the post-tropical low), ★ recurvature",
+                  fontsize=10.2, loc="left")
     cb = fig.colorbar(cf, ax=ax2, orientation="horizontal", fraction=0.04, pad=0.09)
     cb.set_label("wave-packet amplitude: envelope of the 250 hPa north–south wind, zonal wavenumbers 4–15 (m/s)")
-    fig.text(0.07, 0.012, "Tracks: ECMWF tropical-cyclone tracker on AIFS-ENS (open data, CC BY 4.0), control member. "
-             "Metric after Archambault et al. (2013, 2015, Mon. Wea. Rev.).\n"
-             "Index = area mean of the negative part of −v_χ·∇PV (sign flipped), irrotational wind from the 300–200 hPa layer (T106), PV smoothed 1°. "
-             "★ = the turn from westward to eastward motion.", fontsize=8.4, color="#6f6b64")
+    fig.text(0.07, 0.008, "Tracks: ECMWF tropical-cyclone tracker on AIFS-ENS (open data, CC BY 4.0), control member; after the tracker's last "
+             "fix the storm is followed on as the control's surface low.\n"
+             "Metric after Archambault et al. (2013, 2015, Mon. Wea. Rev.). Index = area mean of the negative part of −v_χ·∇PV "
+             "(sign flipped), irrotational wind from the 300–200 hPa layer (T106),\n"
+             "PV smoothed 1°. ★ = the turn from westward to eastward motion.", fontsize=8.4, color="#6f6b64", va="bottom")
     fig.savefig(out_png, dpi=100, facecolor="white", pil_kwargs={"quality": 85, "method": 6}); plt.close(fig)
     js = {"init": f"{init:%Y-%m-%dT%H:%MZ}", "radius_km": R_KM, "units": "PVU/day",
           "storms": [{"id": s["id"], "name": label(s), "named": s["named"], "recurvature_h": rec[s["id"]],
                       "track": [{"h": int(h), "lat": round(float(y), 2), "lon": round(float(x), 2),
                                  "pmsl": None if not np.isfinite(p) else round(float(p), 1),
-                                 "wind": None if not np.isfinite(wv) else round(float(wv), 1)}
-                                for h, y, x, p, wv in zip(s["steps"], s["lat"], s["lon"], s["pmsl"], s["wind"])],
+                                 "wind": None if not np.isfinite(wv) else round(float(wv), 1), "followed": bool(fo)}
+                                for h, y, x, p, wv, fo in zip(s["steps"], s["lat"], s["lon"], s["pmsl"], s["wind"],
+                                                              s.get("followed", np.zeros(len(s["steps"]), bool)))],
                       "index": {str(h): round(float(v), 3) for h, v in sorted(idx.get(s["id"], {}).items()) if np.isfinite(v)}}
                      for s in storms]}
     out_json.write_text(json.dumps(js))
@@ -468,9 +487,12 @@ def extended(track, cont):
     if cont is None or not len(cont["steps"]):
         return track
     p = track.get("pmsl", np.full(len(track["steps"]), np.nan))
-    return dict(steps=np.r_[track["steps"], cont["steps"]].astype(int), lat=np.r_[track["lat"], cont["lat"]],
-                lon=np.r_[track["lon"], cont["lon"]], pmsl=np.r_[p, cont["pmsl"]],
-                followed=np.r_[np.zeros(len(track["steps"]), bool), np.ones(len(cont["steps"]), bool)])
+    out = dict(steps=np.r_[track["steps"], cont["steps"]].astype(int), lat=np.r_[track["lat"], cont["lat"]],
+               lon=np.r_[track["lon"], cont["lon"]], pmsl=np.r_[p, cont["pmsl"]],
+               followed=np.r_[np.zeros(len(track["steps"]), bool), np.ones(len(cont["steps"]), bool)])
+    if "wind" in track:                                  # the tracker's wind; none for the followed low
+        out["wind"] = np.r_[track["wind"], np.full(len(cont["steps"]), np.nan)]
+    return out
 
 
 # ── map helper (2026-10-03, user: "Good lord that map projection") ───────────────────────────────────────────────────

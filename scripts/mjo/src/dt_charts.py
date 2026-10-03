@@ -265,6 +265,18 @@ ADV_COL = "#ff3df2"
 import matplotlib.patheffects as pe                                      # noqa: E402
 
 
+def load_msl_control(cyc):
+    """The control's mean sea-level pressure every 12 h to day 15 (hPa; lat ascending -5..85, lon 0..360) - the same request
+    as tc_phase.load_msl, so whichever runs second finds the file cached."""
+    p = ecmwf.ensure(cyc, ecmwf.Spec("aifs-ens", "cf", "msl", "sfc", (), tuple(range(0, 361, 12))))
+    da = xr.open_dataset(p, engine="cfgrib", backend_kwargs={"indexpath": ""})["msl"]
+    if "number" in da.dims:
+        da = da.squeeze("number", drop=True)
+    da = da.assign_coords(longitude=da.longitude % 360).sortby("longitude").sortby("latitude").sel(latitude=slice(-5.0, 85.0))
+    return ((da / 100.0).values.astype("float32"), da.latitude.values, da.longitude.values,
+            (da.step / np.timedelta64(1, "h")).values.astype(int))
+
+
 def _storms(ax, storms, h, polar):
     """Tropical cyclones in the control at lead h: past track solid, the rest dashed, a dot sized by strength."""
     import cartopy.crs as ccrs
@@ -279,11 +291,16 @@ def _storms(ax, storms, h, polar):
         ax.plot(lo_u[~past | (s["steps"] == h)], s["lat"][~past | (s["steps"] == h)], color="#fff", lw=1.1, ls=(0, (3, 2)),
                 transform=ccrs.Geodetic(), zorder=8, path_effects=halo)
         k = np.where(s["steps"] == h)[0][0]
+        post = bool(s["followed"][k]) if "followed" in s else False
         w = s["wind"][k]
         strong = np.isfinite(w) and w >= 33
-        ax.scatter([pos[1]], [pos[0]], s=120 if strong else 70, c="#e8000b" if strong else "#ff9f1c", edgecolors="#fff",
-                   linewidths=1.6, transform=ccrs.PlateCarree(), zorder=9)
-        lab = TC.label(s) + (f" {s['pmsl'][k]:.0f} hPa" if np.isfinite(s["pmsl"][k]) else "")
+        if post:                                         # past the tracker's last fix: the post-tropical low
+            ax.scatter([pos[1]], [pos[0]], s=95, c="#6a3d9a", edgecolors="#fff", linewidths=1.6,
+                       transform=ccrs.PlateCarree(), zorder=9)
+        else:
+            ax.scatter([pos[1]], [pos[0]], s=120 if strong else 70, c="#e8000b" if strong else "#ff9f1c", edgecolors="#fff",
+                       linewidths=1.6, transform=ccrs.PlateCarree(), zorder=9)
+        lab = TC.label(s) + (" (post-tropical)" if post else "") + (f" {s['pmsl'][k]:.0f} hPa" if np.isfinite(s["pmsl"][k]) else "")
         ax.text(pos[1], pos[0], "  " + lab, transform=ccrs.PlateCarree(), fontsize=8.6 if polar else 9.6, fontweight="bold",
                 color="#fff", va="center", zorder=10, path_effects=[pe.Stroke(linewidth=2.6, foreground="#000"), pe.Normal()],
                 clip_on=True)
@@ -321,6 +338,26 @@ def main() -> int:
         storms = TC.nh_storms(TC.decode(fp)) if fp else []
     except Exception as e:                                               # never let the tracks take the maps down
         print(f"  TC tracks unavailable ({e}); maps drawn without storms", flush=True)
+    # 2026-10-03 (user: "you cut it off before it bombs out", Choi-Wan): ECMWF's tracker stops at or near extratropical
+    # transition, a day before Choi-Wan deepened 979 -> 948 hPa. Each storm is followed on as the control's surface low
+    # (tc_jet.follow_low, the same follower as the depth and phase-space charts) - dashed and labelled post-tropical on the
+    # card and the maps, and the outflow index continues along it. Recurvature stays a property of the tracker's track.
+    for x in storms:
+        x["rec_h"] = TC.recurvature(x)
+    if storms:
+        try:
+            msl, mlat, mlon, msteps = load_msl_control(cyc)
+            ext = []
+            for x in storms:
+                cont = TC.follow_low(msl, mlat, mlon, msteps, x, h_max=int(STEPS[-1]))
+                if len(cont["steps"]):
+                    print(f"  {TC.label(x)}: followed past the tracker's last fix (+{int(x['steps'][-1])} h) to "
+                          f"+{int(cont['steps'][-1])} h, deepest {np.nanmin(cont['pmsl']):.0f} hPa", flush=True)
+                    x = dict(x, **TC.extended(x, cont))
+                ext.append(x)
+            storms = ext
+        except Exception as e:
+            print(f"  control msl unavailable ({e}); storms end at the tracker's last fix", flush=True)
     print(f"  {len(storms)} NH tropical cyclones in the control: {', '.join(TC.label(x) for x in storms) or 'none'}", flush=True)
     idx = {x["id"]: {} for x in storms}
     v250 = []
@@ -371,7 +408,7 @@ def main() -> int:
                     if av is None: arrs[4] = None
                 cf = _draw(ax, la_, lo_, arrs[0], arrs[1], arrs[2], arrs[3], kind, polar, ttl, adv=arrs[4], storms=storms, h=int(h))
                 if kind == "dt" and storms:
-                    blab += " · white: storm tracks · magenta: outflow PV advection −1/−2 PVU/day"
+                    blab += " · white: storm tracks (purple dot: post-tropical) · magenta: outflow PV advection −1/−2 PVU/day"
                 _bar(fig, cf, cax, blab)
                 kk = key(f, rg); fp = dirs[kk] / f"F{k:02d}.webp"
                 fig.savefig(fp, dpi=100, facecolor="white", pil_kwargs={"quality": 82, "method": 6}); plt.close(fig)
