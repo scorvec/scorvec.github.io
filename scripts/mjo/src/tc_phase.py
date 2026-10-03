@@ -81,7 +81,8 @@ def phase_series(z, lat, lon, steps, s):
     """B, -VT_L, -VT_U at each 12-h step where the (extended) control track has a position."""
     lev = list(z.isobaricInhPa.values.astype(int))
     fol = s.get("followed", np.zeros(len(s["steps"]), bool))
-    out = {"h": [], "lat": [], "lon": [], "B": [], "VTL": [], "VTU": [], "followed": []}
+    mrg = s.get("merged", np.zeros(len(s["steps"]), bool))
+    out = {"h": [], "lat": [], "lon": [], "B": [], "VTL": [], "VTU": [], "followed": [], "merged": []}
     for k, h in enumerate(steps):
         pos = TC.at(s, int(h))
         if pos is None or pos[0] <= 0:
@@ -103,7 +104,7 @@ def phase_series(z, lat, lon, steps, s):
         B = float(thick[right].mean() - thick[left].mean())
         dz = [float(Z[lev.index(p)][m].max() - Z[lev.index(p)][m].min()) for p in LEVS]
         dzd = dict(zip(LEVS, dz))
-        out["followed"].append(bool(fol[kk]))
+        out["followed"].append(bool(fol[kk])); out["merged"].append(bool(mrg[kk]))
         out["h"].append(int(h)); out["lat"].append(pos[0]); out["lon"].append(pos[1]); out["B"].append(B)
         out["VTL"].append(_slope([dzd[p] for p in LOW], LOW)); out["VTU"].append(_slope([dzd[p] for p in UPP], UPP))
     for key in ("B", "VTL", "VTU"):                                       # Hart: 24-h running mean
@@ -126,8 +127,8 @@ def render(rows, init, out_png):
     import matplotlib.pyplot as plt
     from matplotlib.collections import LineCollection
     n = max(1, len(rows))
-    fig, axs = plt.subplots(n, 2, figsize=(12.6, 4.6 * n + 1.2), squeeze=False)
-    fig.subplots_adjust(left=0.08, right=0.92, top=1 - 1.05 / (4.6 * n + 1.2), bottom=1.0 / (4.6 * n + 1.2), hspace=0.42, wspace=0.28)
+    fig, axs = plt.subplots(n, 2, figsize=(12.6, 4.6 * n + 1.45), squeeze=False)
+    fig.subplots_adjust(left=0.08, right=0.92, top=1 - 1.05 / (4.6 * n + 1.45), bottom=1.25 / (4.6 * n + 1.45), hspace=0.42, wspace=0.28)
     fig.suptitle(f"Cyclone phase space (Hart 2003) — AIFS-ENS control, init {init:%d %b %Y %HZ}", fontsize=14,
                  fontweight="bold", x=0.08, ha="left", y=1 - 0.25 / (4.6 * n + 1.2))
     cmap = plt.get_cmap("viridis"); norm = plt.Normalize(0, 15)
@@ -170,7 +171,14 @@ def render(rows, init, out_png):
                 j = np.where(fol)[0][0] - 1
                 if j >= 0:
                     ax.annotate("tracker's last fix", (x[j], y[j]), xytext=(10, 12), textcoords="offset points", fontsize=8.3,
-                                color="#444", arrowprops=dict(arrowstyle="-", color="#888", lw=0.8))
+                                color="#444", arrowprops=dict(arrowstyle="-", color="#888", lw=0.8), zorder=6,
+                                bbox=dict(boxstyle="round,pad=0.15", fc="#fff", ec="none", alpha=0.85))
+                mg = np.array(ser.get("merged", [False] * len(x)), bool)
+                if mg.any():                                   # absorbed by a low that already existed (tc_jet.follow_low)
+                    jm = int(np.where(mg)[0][0])
+                    ax.annotate("merges into another low", (x[jm], y[jm]), xytext=(10, -14), textcoords="offset points",
+                                fontsize=8.3, color="#444", arrowprops=dict(arrowstyle="-", color="#888", lw=0.8), zorder=6,
+                                bbox=dict(boxstyle="round,pad=0.15", fc="#fff", ec="none", alpha=0.85))
             xr = (min(xr[0], np.nanmin(x) - 10), max(xr[1], np.nanmax(x) + 10)) if c == 0 else \
                  (min(xr[0], np.nanmin(x) - 40), max(xr[1], np.nanmax(x) + 40))
             yr = (min(yr[0], np.nanmin(y) - 40), max(yr[1], np.nanmax(y) + 40))
@@ -193,9 +201,9 @@ def render(rows, init, out_png):
     cax = fig.add_axes([0.935, 0.25, 0.012, 0.5])
     cb = fig.colorbar(plt.cm.ScalarMappable(norm=norm, cmap=cmap), cax=cax); cb.set_label("forecast day")
     fig.text(0.08, 0.004, "Thermal wind = slope of the height perturbation (max − min within 500 km) against ln p; positive = warm core. "
-             "Levels 925/850/700/600 and 600/500/400/300 hPa (open data; Hart used 900–600 every 25 hPa). 24-h running mean.\n"
-             "Solid: ECMWF's tracker. Dashed, open dots: the same low followed on as the surface-pressure minimum after the tracker's last fix "
-             "(the tracker usually stops at extratropical transition).", fontsize=8, color="#6f6b64")
+             "24-h running mean.\nLevels 925/850/700/600 and 600/500/400/300 hPa (open data; Hart used 900–600 every 25 hPa).\n"
+             "Solid: ECMWF's tracker. Dashed, open dots: the low followed on as the surface-pressure minimum after the tracker's last fix, "
+             "or the low it merges into (the tracker usually stops at extratropical transition).", fontsize=8, color="#6f6b64")
     out_png.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(out_png, dpi=100, facecolor="white", pil_kwargs={"quality": 85, "method": 6}); plt.close(fig)
 
@@ -223,10 +231,11 @@ def main() -> int:
             print(f"  control msl unavailable ({e}); phase paths end at the tracker's last fix", flush=True); msl = None
         for s in storms:
             if msl is not None:
-                cont = TC.follow_low(msl, mlat, mlon, msteps, s)
+                cont = TC.follow_low(msl, mlat, mlon, msteps, s, merge=True)
                 if len(cont["steps"]):
+                    mg = f", merged into another low at +{int(cont['steps'][cont['merged']][0])} h" if cont["merged"].any() else ""
                     print(f"  {TC.label(s)}: followed past the tracker's last fix (+{int(s['steps'][-1])} h) to +{int(cont['steps'][-1])} h, "
-                          f"deepest {np.nanmin(cont['pmsl']):.0f} hPa", flush=True)
+                          f"deepest {np.nanmin(cont['pmsl']):.0f} hPa{mg}", flush=True)
                 s = dict(s, **TC.extended(s, cont))
             ser = phase_series(z, lat, lon, steps, s)
             if len(ser["h"]) >= 2:

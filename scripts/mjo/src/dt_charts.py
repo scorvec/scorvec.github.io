@@ -300,7 +300,9 @@ def _storms(ax, storms, h, polar):
         else:
             ax.scatter([pos[1]], [pos[0]], s=120 if strong else 70, c="#e8000b" if strong else "#ff9f1c", edgecolors="#fff",
                        linewidths=1.6, transform=ccrs.PlateCarree(), zorder=9)
-        lab = TC.label(s) + (" (post-tropical)" if post else "") + (f" {s['pmsl'][k]:.0f} hPa" if np.isfinite(s["pmsl"][k]) else "")
+        mrg = bool(s["merged"][k]) if "merged" in s else False
+        lab = TC.label(s) + (" (post-tropical, merged)" if mrg else " (post-tropical)" if post else "") + \
+            (f" {s['pmsl'][k]:.0f} hPa" if np.isfinite(s["pmsl"][k]) else "")
         ax.text(pos[1], pos[0], "  " + lab, transform=ccrs.PlateCarree(), fontsize=8.6 if polar else 9.6, fontweight="bold",
                 color="#fff", va="center", zorder=10, path_effects=[pe.Stroke(linewidth=2.6, foreground="#000"), pe.Normal()],
                 clip_on=True)
@@ -340,8 +342,9 @@ def main() -> int:
         print(f"  TC tracks unavailable ({e}); maps drawn without storms", flush=True)
     # 2026-10-03 (user: "you cut it off before it bombs out", Choi-Wan): ECMWF's tracker stops at or near extratropical
     # transition, a day before Choi-Wan deepened 979 -> 948 hPa. Each storm is followed on as the control's surface low
-    # (tc_jet.follow_low, the same follower as the depth and phase-space charts) - dashed and labelled post-tropical on the
-    # card and the maps, and the outflow index continues along it. Recurvature stays a property of the tracker's track.
+    # (tc_jet.follow_low, the same follower as the depth and phase-space charts; merge=True also follows it into a low that
+    # already existed and absorbs it, as Choi-Wan did in the 2 Oct 12Z run) - dashed and labelled post-tropical on the card
+    # and the maps, and the outflow index continues along it. Recurvature stays a property of the tracker's track.
     for x in storms:
         x["rec_h"] = TC.recurvature(x)
     if storms:
@@ -349,10 +352,11 @@ def main() -> int:
             msl, mlat, mlon, msteps = load_msl_control(cyc)
             ext = []
             for x in storms:
-                cont = TC.follow_low(msl, mlat, mlon, msteps, x, h_max=int(STEPS[-1]))
+                cont = TC.follow_low(msl, mlat, mlon, msteps, x, h_max=int(STEPS[-1]), merge=True)
                 if len(cont["steps"]):
+                    mg = f", merged into another low at +{int(cont['steps'][cont['merged']][0])} h" if cont["merged"].any() else ""
                     print(f"  {TC.label(x)}: followed past the tracker's last fix (+{int(x['steps'][-1])} h) to "
-                          f"+{int(cont['steps'][-1])} h, deepest {np.nanmin(cont['pmsl']):.0f} hPa", flush=True)
+                          f"+{int(cont['steps'][-1])} h, deepest {np.nanmin(cont['pmsl']):.0f} hPa{mg}", flush=True)
                     x = dict(x, **TC.extended(x, cont))
                 ext.append(x)
             storms = ext

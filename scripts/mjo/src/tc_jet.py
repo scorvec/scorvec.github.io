@@ -223,6 +223,7 @@ def render_card(storms, idx, v250, lat, lon, steps, init, out_png: Path, out_jso
     fig.suptitle(f"Tropical cyclones and the jet — AIFS-ENS control, init {init:%d %b %Y %HZ}", fontsize=14, fontweight="bold",
                  x=0.07, ha="left")
     rec = {}
+    any_merge = any(np.asarray(s.get("merged", [False]), bool).any() for s in storms)
     for i, s in enumerate(storms):
         c = COLS[i % len(COLS)]
         hs = sorted(idx.get(s["id"], {}))
@@ -235,14 +236,17 @@ def render_card(storms, idx, v250, lat, lon, steps, init, out_png: Path, out_jso
             ax1.plot(np.array(hj) / 24, [idx[s["id"]][h] for h in hj], ls=(0, (3, 2)), color=c, lw=2.0,
                      label=None if ht else label(s))
             ax1.plot(np.array(hf) / 24, [idx[s["id"]][h] for h in hf], "o", mfc="#fff", mec=c, mew=1.4, ms=5)
+            mg = s["steps"][np.asarray(s.get("merged", np.zeros(len(s["steps"]), bool)), bool)]
+            if len(mg) and int(mg[0]) in idx[s["id"]]:                # where it merges into another low
+                ax1.plot([mg[0] / 24], [idx[s["id"]][int(mg[0])]], marker="D", ms=8, color=c, mec="#000", mew=0.8, zorder=5)
         r = s["rec_h"] if "rec_h" in s else recurvature(s); rec[s["id"]] = r
         if r is not None and r in idx.get(s["id"], {}):
             ax1.plot([r / 24], [idx[s["id"]][r]], marker="*", ms=17, color=c, mec="#000", mew=0.8, zorder=5)
     ax1.set_xlim(0, days[-1] if len(days) else 10); ax1.set_ylim(bottom=0)
     ax1.set_xlabel("forecast day"); ax1.set_ylabel("PVU per day")
     ax1.set_title("Outflow–jet interaction: negative PV advection by the storm's irrotational outflow, 300–200 hPa, within 500 km"
-                  "\n★ recurvature · dashed, open circles: the post-tropical low, followed after the tracker's last fix",
-                  fontsize=10.5, loc="left")
+                  "\n★ recurvature · dashed, open circles: the post-tropical low, followed after the tracker's last fix"
+                  + (" · ◆ it merges into another low" if any_merge else ""), fontsize=10.5, loc="left")
     ax1.grid(alpha=0.35)
     if storms:
         ax1.legend(loc="upper left", fontsize=9.5, ncol=min(4, len(storms)), frameon=False)
@@ -292,6 +296,10 @@ def render_card(storms, idx, v250, lat, lon, steps, init, out_png: Path, out_jso
         ax2.annotate(label(s), (ls[0], tt[0]), xytext=(-6, 0), textcoords="offset points", color=c, fontsize=10,
                      fontweight="bold", va="center", ha="right",
                      path_effects=[pe.Stroke(linewidth=2.6, foreground="#fff"), pe.Normal()])
+        mgk = np.where(np.asarray(s.get("merged", np.zeros(len(s["steps"]), bool)), bool) & m)[0]
+        if len(mgk):                                      # where it merges into another low
+            ax2.plot((s["lon"][mgk[0]] - lon0) % 360 + lon0, s["steps"][mgk[0]] / 24.0, marker="D", ms=10, color=c,
+                     mec="#000", mew=0.8, zorder=6)
         r = rec[s["id"]]                                  # recurvature, if it falls inside the chart
         kk = np.where(s["steps"] == r)[0] if r is not None and r <= days[-1] * 24 else []
         if len(kk):
@@ -303,7 +311,8 @@ def render_card(storms, idx, v250, lat, lon, steps, init, out_png: Path, out_jso
     ax2.set_ylabel("forecast day  (time runs down)"); ax2.set_xlabel("longitude  (east is to the right)")
     ax2.set_title(f"Wave packets along the jet: strength of the 250 hPa trough/ridge pattern, {band[0]:.0f}–{band[1]:.0f}°N (m/s)\n"
                   f"Bright streaks = packets of strong troughs and ridges, moving east as they slant down.\n"
-                  f"Coloured lines: the storms' longitudes once north of {MIDLAT:.0f}°N (dashed: the post-tropical low), ★ recurvature",
+                  f"Coloured lines: the storms' longitudes once north of {MIDLAT:.0f}°N (dashed: the post-tropical low"
+                  f"{', ◆ merger' if any_merge else ''}), ★ recurvature",
                   fontsize=10.2, loc="left")
     cb = fig.colorbar(cf, ax=ax2, orientation="horizontal", fraction=0.04, pad=0.09)
     cb.set_label("wave-packet amplitude: envelope of the 250 hPa north–south wind, zonal wavenumbers 4–15 (m/s)")
@@ -317,9 +326,11 @@ def render_card(storms, idx, v250, lat, lon, steps, init, out_png: Path, out_jso
           "storms": [{"id": s["id"], "name": label(s), "named": s["named"], "recurvature_h": rec[s["id"]],
                       "track": [{"h": int(h), "lat": round(float(y), 2), "lon": round(float(x), 2),
                                  "pmsl": None if not np.isfinite(p) else round(float(p), 1),
-                                 "wind": None if not np.isfinite(wv) else round(float(wv), 1), "followed": bool(fo)}
-                                for h, y, x, p, wv, fo in zip(s["steps"], s["lat"], s["lon"], s["pmsl"], s["wind"],
-                                                              s.get("followed", np.zeros(len(s["steps"]), bool)))],
+                                 "wind": None if not np.isfinite(wv) else round(float(wv), 1), "followed": bool(fo),
+                                 "merged": bool(mg)}
+                                for h, y, x, p, wv, fo, mg in zip(s["steps"], s["lat"], s["lon"], s["pmsl"], s["wind"],
+                                                                  s.get("followed", np.zeros(len(s["steps"]), bool)),
+                                                                  s.get("merged", np.zeros(len(s["steps"]), bool)))],
                       "index": {str(h): round(float(v), 3) for h, v in sorted(idx.get(s["id"], {}).items()) if np.isfinite(v)}}
                      for s in storms]}
     out_json.write_text(json.dumps(js))
@@ -355,6 +366,10 @@ FOLLOW_DECAY_HPA = 15.0      # once the low has filled this much from its deepes
                              # re-form downstream; a long hop then lands on another system)
 FOLLOW_FILLED_HPA = 1010.0   # a low that has filled to this central pressure is no longer followed (over high terrain the
                              # sea-level reduction makes weak "lows" that are not storms)
+FOLLOW_MERGE_KM = 1500.0     # merge=True: when the storm's own low is gone, a low that existed a step earlier within this
+                             # distance of it, north of FOLLOW_MIDLAT, along the motion and within reach, has absorbed it
+                             # (extratropical transition by merger: Choi-Wan 2026-10-02 12Z ran into a 988 hPa low 1,300 km
+                             # downstream at +108 h, which became 943 hPa by +132 h)
 
 
 def _gc_km(lat, lon, clat, clon):
@@ -407,7 +422,7 @@ def _step_to(lat0, lon0, dlat, dlon_deg):
     return lat0 + dlat, ((lon0 + dlon_deg + 180) % 360) - 180
 
 
-def follow_low(msl, lat, lon, steps_h, track, h_max=None):
+def follow_low(msl, lat, lon, steps_h, track, h_max=None, merge=False):
     """Continue `track` (dict steps/lat/lon[/pmsl]) beyond its last fix as a surface low, every field step.
 
     msl: (len(steps_h), nlat, nlon) hPa, lat ascending, lon 0..360; steps_h: lead hours (12-hourly). Starts at the
@@ -417,9 +432,12 @@ def follow_low(msl, lat, lon, steps_h, track, h_max=None):
     allowed; a jump sideways or backwards is not); a candidate that is the continuation of ANOTHER low already present a
     step earlier (within FOLLOW_OTHER_KM of it, and closer to it than our storm was) is excluded. The survivor nearest to
     the persistence first guess (previous position + previous displacement) is taken; none = the end of the track.
-    Returns the CONTINUATION only: dict(steps, lat, lon, pmsl)."""
+    merge=True: if no candidate survives but one was excluded only as another system's continuation, and that system lay
+    within FOLLOW_MERGE_KM of our storm a step earlier, both north of FOLLOW_MIDLAT, the storm has merged into it: the
+    track continues with the merged low (flagged in `merged` from that step on).
+    Returns the CONTINUATION only: dict(steps, lat, lon, pmsl, merged)."""
     steps_h = np.asarray(steps_h, int)
-    empty = dict(steps=np.array([], int), lat=np.array([]), lon=np.array([]), pmsl=np.array([]))
+    empty = dict(steps=np.array([], int), lat=np.array([]), lon=np.array([]), pmsl=np.array([]), merged=np.array([], bool))
     fstep = set(steps_h.tolist())
     on = [int(h) for h in track["steps"] if int(h) in fstep]
     if not on:
@@ -434,8 +452,9 @@ def follow_low(msl, lat, lon, steps_h, track, h_max=None):
         v_lon = (((lo - float(track["lon"][kp]) + 180) % 360) - 180) / dt
     else:
         v_lat = v_lon = 0.0
-    out = {"steps": [], "lat": [], "lon": [], "pmsl": []}
+    out = {"steps": [], "lat": [], "lon": [], "pmsl": [], "merged": []}
     h_last = h0
+    merged = False
     for k in np.where(steps_h > h0)[0]:
         h = int(steps_h[k])
         if h_max is not None and h > h_max:
@@ -450,6 +469,7 @@ def follow_low(msl, lat, lon, steps_h, track, h_max=None):
         before = closed_lows(msl[kp_[0]], lat, lon, (la, lo), reach + FOLLOW_OTHER_KM) if len(kp_) else []
         g_la, g_lo = _step_to(la, lo, v_lat * dt12, v_lon * dt12)
         best, bd = None, np.inf
+        mbest, mbd = None, np.inf                                          # merger candidates (merge=True only)
         for c_la, c_lo, pmin, depth in cands:
             dist = _km(la, lo, c_la, c_lo)
             if pmin >= FOLLOW_FILLED_HPA:
@@ -460,18 +480,25 @@ def follow_low(msl, lat, lon, steps_h, track, h_max=None):
                 dang = abs(((_bearing(la, lo, c_la, c_lo) - mot + 180) % 360) - 180)
                 if dang > FOLLOW_CONE_DEG:
                     continue
-            other = False
+            other, absorber = False, False
             for b_la, b_lo, _, _ in before:
-                if _km(b_la, b_lo, la, lo) < FOLLOW_SAME_KM:
+                d_ours = _km(b_la, b_lo, la, lo)
+                if d_ours < FOLLOW_SAME_KM:
                     continue                                               # our own storm (or its second centre) a step earlier
                 dbc = _km(b_la, b_lo, c_la, c_lo)
                 if dbc < FOLLOW_OTHER_KM and dbc < dist:
-                    other = True; break
-            if other:
-                continue
+                    other = True
+                    absorber = d_ours <= FOLLOW_MERGE_KM and min(la, c_la, b_la) >= FOLLOW_MIDLAT
+                    break
             dg = _km(g_la, g_lo, c_la, c_lo)
+            if other:
+                if merge and absorber and dg < mbd:
+                    mbest, mbd = (c_la, c_lo, pmin), dg
+                continue
             if dg < bd:
                 best, bd = (c_la, c_lo, pmin), dg
+        if best is None and mbest is not None:
+            best, merged = mbest, True                                     # absorbed by a pre-existing low
         if best is None:
             break
         c_la, c_lo, pmin = best
@@ -479,7 +506,9 @@ def follow_low(msl, lat, lon, steps_h, track, h_max=None):
         v_lon = (((c_lo - lo + 180) % 360) - 180) / dt12
         la, lo, h_last = c_la, c_lo, h
         out["steps"].append(h); out["lat"].append(la); out["lon"].append(lo); out["pmsl"].append(round(pmin, 1))
-    return {k: np.array(v, int if k == "steps" else float) for k, v in out.items()} if out["steps"] else empty
+        out["merged"].append(merged)
+    typ = {"steps": int, "merged": bool}
+    return {k: np.array(v, typ.get(k, float)) for k, v in out.items()} if out["steps"] else empty
 
 
 def extended(track, cont):
@@ -492,6 +521,8 @@ def extended(track, cont):
                followed=np.r_[np.zeros(len(track["steps"]), bool), np.ones(len(cont["steps"]), bool)])
     if "wind" in track:                                  # the tracker's wind; none for the followed low
         out["wind"] = np.r_[track["wind"], np.full(len(cont["steps"]), np.nan)]
+    if "merged" in cont:                                 # from the step the storm was absorbed by a pre-existing low
+        out["merged"] = np.r_[np.zeros(len(track["steps"]), bool), np.asarray(cont["merged"], bool)]
     return out
 
 
