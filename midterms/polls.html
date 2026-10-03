@@ -244,7 +244,7 @@ fetch('data/polls.json').then(r=>r.json()).then(D=>{
  $$('.bar input').forEach(inp=>inp.addEventListener('input',()=>{const q=inp.value.trim().toLowerCase();
   $$(`#l-${inp.dataset.f} details.race`).forEach(el=>{el.style.display=!q||el.dataset.s.includes(q)?'':'none'})}));
  natTable('#t-generic',D.national.generic.polls,'Democrat minus Republican');natTable('#t-approval',D.national.approval.polls,'approve minus disapprove');
- if(D.national.generic.now!=null)$('#gnow').textContent=`· trend today ${mg(D.national.generic.now)}; the forecast runs at ${mg(D.E_now)} after the ${(+D.bias).toFixed(1).replace('-','\u2212')} correction for the average's past Democratic overstatement (1996-2024, at this distance from Election Day)`;
+ if(D.national.generic.now!=null)$('#gnow').textContent=`· trend today ${mg(D.national.generic.now)}; the forecast runs at ${mg(D.E_now)} ${D.bias?` after a ${(+D.bias).toFixed(1).replace('-','\u2212')} correction`:', the trend itself, with no correction for the direction of a polling miss'}`;
  if(D.national.approval.now!=null)$('#anow').textContent=`· trend today ${sg(D.national.approval.now)}`;
  $$('.tabs button').forEach(b=>b.addEventListener('click',()=>tab(b.dataset.p)));
  const h=decodeURIComponent(location.hash.slice(1)), [ho,hs]=h.split(':');
