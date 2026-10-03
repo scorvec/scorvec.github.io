@@ -263,7 +263,7 @@
 </template>
 <template id="about-tcens">
 <p>The <a href="#tcjet">single-run view</a> follows one forecast; this one asks what the ensembles agree on. <b>Track ensembles</b>: for each Northern-Hemisphere storm, every AIFS-ENS member (control + 50) and every IFS-ENS member (50 perturbed; the open-data file carries no IFS control) as tracked by ECMWF's own tropical-cyclone tracker, coloured by the day the member recurves; grey members never recurve. A member <i>recurves</i> where its 24-hour zonal motion turns from westward (at least 1&nbsp;m/s) to eastward (at least 2&nbsp;m/s); a storm that heads north or east from the start therefore counts as not recurving. The bars give the share of members recurving on each day, the dashed lines the share whose track has ended (the tracker loses a storm when it dissipates or becomes extratropical). "Possible new storms" are systems the tracker finds forming in at least 40% of a model's members; the same system in both models is shown once.</p>
-<p><b>How deep it gets</b> (AIFS-ENS; the storm whose members deepen most first, a second storm when one qualifies): a recurving storm can deepen sharply as it becomes extratropical, just after ECMWF's tracker stops following it. Each member's low is therefore followed on as the surface-pressure minimum: a closed low (at least 2&nbsp;hPa below its surroundings), allowed to re-form up to 1,800&nbsp;km downstream along its motion while it is still deepening (during the transition the centre often jumps north along the jet), never moved onto a low that already existed as a separate system, and treated as one system when it is briefly double-centred. Its <i>depth</i> is the lowest central pressure north of 35&deg;N of the storm or of any low it merges with (within 1,200&nbsp;km, for three days after the tracker's last fix). The map shows each member's path to a day after its deepest point and where that point is; the histogram, the distribution of depths across members; the summary, how many members deepen below 960 and 950&nbsp;hPa, when and where, and how many reach their deepest point in a merged low. A storm whose deepening mostly falls after day 10 is named instead of drawn.</p>
+<p><b>How deep it gets</b> (AIFS-ENS; every named storm that reaches the mid-latitudes in enough members, picked on the map): a recurving storm can deepen sharply as it becomes extratropical, just after ECMWF's tracker stops following it. Each member's low is therefore followed on as the surface-pressure minimum: a closed low (at least 2&nbsp;hPa below its surroundings), allowed to re-form up to 1,800&nbsp;km downstream along its motion while it is still deepening (during the transition the centre often jumps north along the jet), never moved onto a low that already existed as a separate system, and treated as one system when it is briefly double-centred. Its <i>depth</i> is the lowest central pressure north of 35&deg;N of the storm or of any low it merges with (within 1,200&nbsp;km, for three days after the tracker's last fix). The map shows each member's path to a day after its deepest point and where that point is; the histogram, the distribution of depths across members; the summary, how many members deepen below 960 and 950&nbsp;hPa, when and where, and how many reach their deepest point in a merged low. A storm whose deepening mostly falls after day 10 is named instead of drawn.</p>
 <p class="chart-sources">Tracks: ECMWF tropical-cyclone tracker on AIFS-ENS and IFS-ENS (open data, CC&nbsp;BY&nbsp;4.0; the deterministic AIFS-single and IFS HRES tracks in the same files are left out) &middot; depth: AIFS-ENS control + 50 members' mean sea-level pressure, 12-hourly, 0.5&deg; &middot; updated each 00/12Z cycle</p>
 </template>
 <template id="about-tcphase">
@@ -351,6 +351,146 @@
       ]
     }
     </script>
+<!-- Storm picker (2026-10-03, user: "For the cyclone phase space and ensemble tracks, would be better if you could click on a
+     map and select the storm"). Mounted by the tcens and tcphase products; reads assets/sst/data/tcens.json + tcphase.json
+     (per-storm figures in assets/sst/tc/, written by tc_ens.py / tc_phase.py). State in the hash: #tcens/<id>[/depth], #tcphase/<id>. -->
+<div id="tc-picker" class="tcp" hidden>
+<style>
+.tcp{--tk:#1b1d22;--tm:#6f6b64;--tr:#e3e1db}
+.tcp-map{position:relative;border:1px solid var(--tr);border-radius:8px;background:#f3f6f9;overflow:hidden}
+.tcp-map svg{display:block;width:100%;height:auto}
+.tcp-map .land{fill:#e7e3d8;stroke:#b9b2a3;stroke-width:.6}
+.tcp-map .grid{stroke:#d6dde4;stroke-width:.6}
+.tcp-map .gl{font:11px "Source Sans 3",sans-serif;fill:#8a8a8a}
+.tcp-map .trk{fill:none;stroke-width:2.2;opacity:.55;cursor:pointer}
+.tcp-map .trk.sel{stroke-width:3.6;opacity:1}
+.tcp-map .hit{fill:none;stroke:transparent;stroke-width:18;cursor:pointer}
+.tcp-map .dot{stroke:#fff;stroke-width:1.5;cursor:pointer}
+.tcp-map .lab{font:600 13px "Source Sans 3",sans-serif;paint-order:stroke;stroke:#fff;stroke-width:3px;fill:var(--tk);cursor:pointer}
+.tcp-hint{margin:6px 0 10px;color:var(--tm);font-size:.95rem}
+.tcp-row{display:flex;flex-wrap:wrap;gap:6px;margin:4px 0 10px}
+.tcp-row button{font:inherit;font-size:.98rem;border:1px solid var(--tr);background:#fff;border-radius:999px;padding:5px 12px;cursor:pointer;color:var(--tk)}
+.tcp-row button[aria-pressed=true]{background:var(--tk);color:#fff;border-color:var(--tk)}
+.tcp-row button:disabled{opacity:.45;cursor:not-allowed}
+.tcp-row i{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px;vertical-align:0}
+.tcp-fig img{display:block;width:100%;height:auto;border:1px solid var(--tr);border-radius:6px;background:#fff}
+.tcp-fig p{margin:6px 0 0;color:var(--tm);font-size:.95rem}
+.tcp-empty{padding:24px;color:var(--tm);text-align:center}
+</style>
+<div class="tcp-map" id="tcp-map" aria-label="Map of the active tropical storms; select one to see its forecasts"><div class="tcp-empty">Loading the storms…</div></div>
+<p class="tcp-hint">Click or tap a storm on the map (or a name below) to see its forecasts. Lines: the AIFS-ENS control's track; the dot is where each storm is now.</p>
+<div class="tcp-row" id="tcp-storms" role="group" aria-label="Storms"></div>
+<div class="tcp-row" id="tcp-views" role="group" aria-label="View"></div>
+<div class="tcp-fig" id="tcp-fig"></div>
+<script>
+(function () {
+  "use strict";
+  var root = document.getElementById("tc-picker"); if (!root) return;
+  var COLORS = ["#c2394b", "#1f5fa8", "#23874f", "#9a3f8f", "#d97a0b", "#2a8a9a", "#6b4f2a", "#b5179e", "#3d5a80", "#7a7a00"];
+  var VIEWS = [["tracks", "Ensemble tracks"], ["phase", "Phase space"], ["depth", "How deep it gets"]];
+  var bust = "?v=" + new Date().toISOString().slice(0, 13).replace(/\D/g, "");
+  var S = [], land = null, ready = false;
+  function J(u) { return fetch(u + bust).then(function (r) { return r.ok ? r.json() : null; }).catch(function () { return null; }); }
+  function script(src) { return new Promise(function (ok, no) { var s = document.createElement("script"); s.src = src; s.onload = ok; s.onerror = no; document.head.appendChild(s); }); }
+  function state() {   // #tcens/<id>[/depth] or #tcphase/<id>
+    var h = decodeURIComponent(location.hash.slice(1)).split("/"), v = h[0] === "tcphase" ? "phase" : (h[2] === "depth" ? "depth" : "tracks");
+    return { prod: h[0], id: h[1] || null, view: v };
+  }
+  function go(id, view) {
+    var h = view === "phase" ? "#tcphase/" + id : "#tcens/" + id + (view === "depth" ? "/depth" : "");
+    if (location.hash !== h) location.hash = h; else render();
+  }
+  function merge(ens, ph) {
+    var by = {}, out = [];
+    (ens && ens.storms || []).forEach(function (s) {
+      var p = {}; Object.keys(s.models || {}).forEach(function (m) { p[m] = s.models[m].p_recurve; });
+      var o = { id: s.id, key: s.key, name: s.name, track: s.track || null, files: { tracks: s.tracks_file, depth: s.depth_file }, p: p };
+      if (!by[s.id]) { by[s.id] = o; out.push(o); }
+    });
+    (ph && ph.storms || []).forEach(function (s) {
+      var o = by[s.id];
+      if (!o) { o = by[s.id] = { id: s.id, name: s.name, files: {}, p: {} }; out.push(o); }
+      o.files.phase = s.file;
+      if (!o.track && s.series) o.track = { lat: s.series.lat, lon: s.series.lon, h: s.series.h };
+    });
+    return out.filter(function (o) { return o.track && o.track.lat && o.track.lat.length; });
+  }
+  function wrap(d) { return ((d + 540) % 360) - 180; }
+  function drawMap() {
+    var host = document.getElementById("tcp-map");
+    if (!S.length) { host.innerHTML = '<div class="tcp-empty">No tropical storms in the Northern Hemisphere in this cycle.</div>'; return; }
+    // centre on the storms (circular mean of the current positions), equirectangular with cos(latitude) scaling
+    var sx = 0, sy = 0; S.forEach(function (s) { var a = s.track.lon[0] * Math.PI / 180; sx += Math.cos(a); sy += Math.sin(a); });
+    var c = Math.atan2(sy, sx) * 180 / Math.PI, xs = [], ys = [];
+    S.forEach(function (s) { s.rel = s.track.lon.map(function (l) { return wrap(l - c); }); xs = xs.concat(s.rel); ys = ys.concat(s.track.lat); });
+    var x0 = Math.min.apply(null, xs) - 8, x1 = Math.max.apply(null, xs) + 8, y0 = Math.max(-5, Math.min.apply(null, ys) - 6), y1 = Math.min(78, Math.max.apply(null, ys) + 6);
+    if (x1 - x0 < 50) { var m = (x0 + x1) / 2; x0 = m - 25; x1 = m + 25; }
+    if (y1 - y0 < 28) { var n = (y0 + y1) / 2; y0 = Math.max(-5, n - 14); y1 = y0 + 28; }
+    var k = Math.cos((y0 + y1) / 2 * Math.PI / 180), W = 1000, sc = W / ((x1 - x0) * k), H = Math.round((y1 - y0) * sc);
+    var X = function (r) { return ((r - x0) * k * sc).toFixed(1); }, Y = function (la) { return ((y1 - la) * sc).toFixed(1); };
+    var svg = '<svg viewBox="0 0 ' + W + " " + H + '" role="img" aria-label="Storm tracks"><defs><clipPath id="tcp-clip"><rect width="' + W + '" height="' + H + '"/></clipPath></defs><g clip-path="url(#tcp-clip)">';
+    for (var g = Math.ceil(y0 / 10) * 10; g <= y1; g += 10) svg += '<line class="grid" x1="0" x2="' + W + '" y1="' + Y(g) + '" y2="' + Y(g) + '"/><text class="gl" x="4" y="' + (Y(g) - 3) + '">' + Math.abs(g) + (g > 0 ? "°N" : g < 0 ? "°S" : "°") + "</text>";
+    for (var gx = Math.ceil((x0 + c) / 20) * 20; gx <= x1 + c; gx += 20) { var r = wrap(gx - c), lab = ((gx % 360) + 360) % 360; svg += '<line class="grid" y1="0" y2="' + H + '" x1="' + X(r) + '" x2="' + X(r) + '"/><text class="gl" x="' + (+X(r) + 3) + '" y="' + (H - 4) + '">' + (lab > 180 ? (360 - lab) + "°W" : lab + (lab && lab < 180 ? "°E" : "°")) + "</text>"; }
+    if (land) {
+      var d = "";
+      land.forEach(function (ring) {
+        var prev = null, rel = ring.map(function (p) { var v = prev === null ? wrap(p[0] - c) : prev.v + wrap(p[0] - prev.l); prev = { v: v, l: p[0] }; return [v, p[1]]; });
+        [-360, 0, 360].forEach(function (sh) {
+          var mn = Infinity, mx = -Infinity; rel.forEach(function (q) { mn = Math.min(mn, q[0] + sh); mx = Math.max(mx, q[0] + sh); });
+          if (mx < x0 - 2 || mn > x1 + 2) return;
+          d += "M" + rel.map(function (q) { return X(q[0] + sh) + "," + Y(q[1]); }).join("L") + "Z";
+        });
+      });
+      svg += '<path class="land" d="' + d + '"/>';
+    }
+    var st = state();
+    S.forEach(function (s, i) {
+      var col = COLORS[i % COLORS.length], sel = s.id === st.id, pts = s.rel.map(function (r, j) { return X(r) + "," + Y(s.track.lat[j]); }).join(" ");
+      svg += '<g data-id="' + s.id + '"><polyline class="hit" points="' + pts + '"/><polyline class="trk' + (sel ? " sel" : "") + '" stroke="' + col + '" points="' + pts + '"/>' +
+             '<circle class="dot" r="' + (sel ? 8 : 6) + '" fill="' + col + '" cx="' + X(s.rel[0]) + '" cy="' + Y(s.track.lat[0]) + '"/>' +
+             '<text class="lab" x="' + (+X(s.rel[0]) + (+X(s.rel[0]) > W * 0.78 ? -10 : 10)) + '" y="' + (+Y(s.track.lat[0]) - 8) + '"' + (+X(s.rel[0]) > W * 0.78 ? ' text-anchor="end"' : "") + '>' + s.name + "</text></g>";
+    });
+    host.innerHTML = svg + "</g></svg>";
+    host.querySelectorAll("g[data-id]").forEach(function (el) { el.addEventListener("click", function () { go(el.getAttribute("data-id"), state().view); }); });
+  }
+  function render() {
+    if (!ready) return;
+    var st = state(); if (st.prod !== "tcens" && st.prod !== "tcphase") return;
+    var s = S.filter(function (x) { return x.id === st.id; })[0] || S[0];
+    if (s && s.id !== st.id) { go(s.id, st.view); return; }
+    drawMap();
+    document.getElementById("tcp-storms").innerHTML = S.map(function (x, i) {
+      return '<button type="button" data-id="' + x.id + '" aria-pressed="' + (s && x.id === s.id) + '"><i style="background:' + COLORS[i % COLORS.length] + '"></i>' + x.name + "</button>"; }).join("");
+    document.querySelectorAll("#tcp-storms button").forEach(function (b) { b.onclick = function () { go(b.getAttribute("data-id"), state().view); }; });
+    document.getElementById("tcp-views").innerHTML = s ? VIEWS.map(function (v) {
+      var has = !!s.files[v[0]]; return '<button type="button" data-v="' + v[0] + '" aria-pressed="' + (st.view === v[0]) + '"' + (has ? "" : " disabled title=\"Not available for this storm in this cycle\"") + ">" + v[1] + "</button>"; }).join("") : "";
+    document.querySelectorAll("#tcp-views button").forEach(function (b) { b.onclick = function () { go(s.id, b.getAttribute("data-v")); }; });
+    var fig = document.getElementById("tcp-fig");
+    if (!s) { fig.innerHTML = ""; return; }
+    var f = s.files[st.view];
+    if (!f) {
+      fig.innerHTML = '<div class="tcp-empty">' + (st.view === "depth" ? "This storm does not reach the mid-latitudes and deepen in enough AIFS-ENS members for this chart." :
+        st.view === "phase" ? "No phase-space diagram for this storm in this cycle (the control run does not track it long enough)." : "No ensemble tracks for this storm in this cycle.") + "</div>";
+      return;
+    }
+    var pr = Object.keys(s.p).map(function (m) { return (m === "aifs" ? "AIFS-ENS" : "IFS-ENS") + " " + Math.round(100 * s.p[m]) + "%"; }).join(", ");
+    fig.innerHTML = '<img src="assets/sst/' + f + bust + '" alt="' + s.name + ": " + (VIEWS.filter(function (v) { return v[0] === st.view; })[0][1]) + '" loading="lazy">' +
+      (pr ? "<p>Share of members that recurve: " + pr + ".</p>" : "");
+  }
+  Promise.all([J("assets/sst/data/tcens.json"), J("assets/sst/data/tcphase.json")]).then(function (r) {
+    S = merge(r[0], r[1]); ready = true; render();
+    return script("https://cdn.jsdelivr.net/npm/topojson-client@3/dist/topojson-client.min.js").then(function () { return fetch("https://cdn.jsdelivr.net/npm/world-atlas@2/land-110m.json"); })
+      .then(function (r) { return r.json(); }).then(function (t) {
+        var f = topojson.feature(t, t.objects.land), rings = [];
+        (f.features || [f]).forEach(function (ft) { var g = ft.geometry; (g.type === "Polygon" ? [g.coordinates] : g.coordinates).forEach(function (poly) { poly.forEach(function (ring) { rings.push(ring); }); }); });
+        land = rings; render();
+      });
+  }).catch(function () { var h = document.getElementById("tcp-map"); if (h && !S.length) h.innerHTML = '<div class="tcp-empty">Could not load the storm list. Reload the page to try again.</div>'; });
+  window.addEventListener("hashchange", render);
+})();
+</script>
+</div>
+
 <script>
 window.STAGE = {
   groups: [
@@ -372,11 +512,10 @@ window.STAGE = {
           b: {label: "Region", items: [["nh","Northern Hemisphere"],["npac","North Pacific"],["na","North America"],["atl","North Atlantic & Europe"],["asia","East Asia"]]},
           frame: function (a, b) { return (function (r) { return "sst_anim.html?embed=1&manifest=dt_manifest.json&region=" + r + "&regions=" + r; })(a + (b && b !== "nh" ? "_" + b : "")); }, about: "about-dt",
           cap: function (a) { return a === "dt" ? "Potential temperature on the 2-PVU surface, AIFS-ENS member 0, 12-hourly to day 10: low θ is polar or stratospheric air reaching down." : "Ertel PV on the " + (a === "dt_pv330" ? "330" : "350") + " K isentrope, member 0."; }},
-  tcens: {label: "TC ensembles", a: {label: "View", items: [["tracks","Track ensembles"],["depth","How deep it gets (storm 1)"],["depth_2","How deep it gets (storm 2)"]]},
-          img: function (a) { return "assets/sst/tcens_" + (a || "tracks") + ".webp"; }, bust: "hourly", about: "about-tcens",
-          cap: function (a) { return a === "tracks" ? "Every AIFS-ENS and IFS-ENS member's track for each Northern-Hemisphere storm, coloured by the day it recurves, with the odds and timing of recurvature." : "How deep each AIFS-ENS member's low gets once the storm reaches the mid-latitudes, followed past ECMWF's tracker: where, when and how deep."; }},
-  tcphase: {label: "Cyclone phase space", img: function () { return "assets/sst/tcphase.webp"; }, bust: "hourly", about: "about-tcphase",
-          cap: function () { return "Where each storm sits between tropical (warm, symmetric) and extratropical (cold, frontal) structure through the AIFS-ENS control forecast."; }},
+  tcens: {label: "TC ensembles", dom: function () { return "tc-picker"; }, ownHash: true, about: "about-tcens",
+          cap: function () { return "Pick a storm on the map: every AIFS-ENS and IFS-ENS member's track coloured by the day it recurves, with the odds and timing of recurvature, and how deep the AIFS-ENS members' low gets once the storm reaches the mid-latitudes."; }},
+  tcphase: {label: "Cyclone phase space", dom: function () { return "tc-picker"; }, ownHash: true, about: "about-tcphase",
+          cap: function () { return "Pick a storm on the map: where it sits between tropical (warm, symmetric) and extratropical (cold, frontal) structure through the AIFS-ENS control forecast."; }},
   tcjet: {label: "Tropical cyclones and the jet", img: function () { return "assets/sst/tcjet.webp"; }, bust: "hourly", about: "about-tcjet",
           cap: function () { return "How strongly each storm's upper-level outflow meets the jet (top), and the wave packets along the jet with the storms' positions (bottom); AIFS-ENS control to day 10."; }},
   aam: {label: "Atmospheric angular momentum", a: {label: "View", items: [["series","Series and forecast"],["trend","Run-to-run trend"],["phase","Phase"],["zonal","By latitude (loop)"]]},

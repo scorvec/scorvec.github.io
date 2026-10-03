@@ -269,9 +269,19 @@ def main() -> int:
                       f"end +{ser['h'][-1]} h B {ser['B'][-1]:+.0f}, -VTL {ser['VTL'][-1]:+.0f}, -VTU {ser['VTU'][-1]:+.0f}; "
                       f"ET onset {on}, complete {co}", flush=True)
     render(rows, init, Path(a.out))
+    # one diagram per storm for the page's storm picker (2026-10-03); stale storms' files removed first
+    tcd = Path(a.out).parent / "tc"; tcd.mkdir(parents=True, exist_ok=True)
+    for f in tcd.glob("phase_*.webp"): f.unlink()
+    files = {}
+    for row in rows:
+        sid = "".join(ch if ch.isalnum() or ch in "-_" else "-" for ch in str(row[0]["id"]))
+        try:
+            render([row], init, tcd / f"phase_{sid}.webp"); files[row[0]["id"]] = f"tc/phase_{sid}.webp"
+        except Exception as e:
+            print(f"  per-storm phase {row[0]['id']} failed ({e!r})", flush=True)
     js = {"init": f"{init:%Y-%m-%dT%H:%MZ}", "member": "control", "radius_km": R_KM,
           "levels": {"B": [925, 600], "VTL": list(LOW), "VTU": list(UPP)},
-          "storms": [{"id": s["id"], "name": TC.label(s), "et_onset_h": on, "et_complete_h": co, "series": ser}
+          "storms": [{"id": s["id"], "name": TC.label(s), "et_onset_h": on, "et_complete_h": co, "series": ser, "file": files.get(s["id"])}
                      for s, ser, on, co in rows]}
     Path(a.json).parent.mkdir(parents=True, exist_ok=True); Path(a.json).write_text(json.dumps(js))
     print(f"wrote {a.out} and {a.json} ({len(rows)} storms) in {time.time() - t0:.0f} s", flush=True)

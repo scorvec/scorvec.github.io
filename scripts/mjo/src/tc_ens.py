@@ -34,6 +34,13 @@ import tc_jet as TC                                                     # noqa: 
 URLS = {"aifs": "https://storage.googleapis.com/ecmwf-open-data/{d}/{h:02d}z/aifs-ens/0p25/enfo/{d}{h:02d}0000-360h-enfo-tf.bufr",
         "ifs": "https://storage.googleapis.com/ecmwf-open-data/{d}/{h:02d}z/ifs/0p25/enfo/{d}{h:02d}0000-360h-enfo-tf.bufr"}
 MLAB = {"aifs": "AIFS-ENS", "ifs": "IFS-ENS"}
+MAX_PER_STORM = 10        # per-storm figures for the page's storm picker (assets/sst/tc/, 2026-10-03)
+
+
+def slug(key):
+    """File-safe storm key ('aifs:71W' -> 'aifs-71W')."""
+    import re
+    return re.sub(r"[^A-Za-z0-9_-]+", "-", str(key))
 MISSING = -1e99
 MIN_GROUP = 8
 MIN_SENS = 20                       # members with a day-3 position needed for the sensitivity maps
@@ -830,6 +837,15 @@ def main() -> int:
     print(f"  storms: " + ", ".join(f"{_stormlab(s)} " + "/".join(f"{MLAB[m]} {100 * st[s['key']][m]['p_recurve']:.0f}%" for m in s["models"])
                                     for s in order), flush=True)
     render_tracks(order, st, init, out / "tcens_tracks.webp")
+    # one figure per storm for the page's storm picker (2026-10-03, user: "would be better if you could click on a map and
+    # select the storm"); the folder is this script's and tc_phase's alone - stale storms' files are removed here
+    tcd = out / "tc"; tcd.mkdir(exist_ok=True)
+    for f in list(tcd.glob("tracks_*.webp")) + list(tcd.glob("depth_*.webp")): f.unlink()
+    for s in order[:MAX_PER_STORM]:
+        try:
+            render_tracks([s], st, init, tcd / f"tracks_{slug(s['key'])}.webp")
+        except Exception as e:
+            print(f"  per-storm tracks {s['key']} failed ({e!r})", flush=True)
     # step 2 - diagnostic only (2026-10-03, user: "keep the TC-jet stuff as diagnostic as possible, leave out the stuff
     # about how the flow could be changed by the recurving storm"): the recurving-vs-not 500 hPa composites, the position
     # sensitivity and the depth-vs-downstream-response analysis are no longer computed or drawn (composite, sensitivity,
@@ -860,12 +876,23 @@ def main() -> int:
             if late_names:
                 msg += " Deepening after day 10 (beyond this chart): " + ", ".join(late_names) + "."
             render_depth(None, {}, init, out / fn, note=msg)
+    for k, (et_, late_) in depth.items():
+        try:
+            render_depth(storms[k], et_, init, out / "tc" / f"depth_{slug(k)}.webp")
+        except Exception as e:
+            print(f"  per-storm depth {k} failed ({e!r})", flush=True)
     if depth:
         print("  depth: " + "; ".join(f"{_stormlab(storms[k])} {len(v[0])} members, median {np.median([e['pmin'] for e in v[0].values()]):.0f} hPa"
                                        + (" (deepens after day 10)" if v[1] else "") for k, v in depth.items()), flush=True)
     js = {"init": f"{init:%Y-%m-%dT%H:%MZ}", "models": {m: {"members": nm[m]} for m in nm}, "depth_storms": ok[:2], "storms": []}
     for s in order:
-        e = {"key": s["key"], "id": s["id"], "name": _stormlab(s), "named": s["named"], "models": {}}
+        e = {"key": s["key"], "id": s["id"], "name": _stormlab(s), "named": s["named"], "models": {}, "slug": slug(s["key"])}
+        if (out / "tc" / f"tracks_{e['slug']}.webp").exists(): e["tracks_file"] = f"tc/tracks_{e['slug']}.webp"
+        if (out / "tc" / f"depth_{e['slug']}.webp").exists(): e["depth_file"] = f"tc/depth_{e['slug']}.webp"
+        mdl = "aifs" if "aifs" in s["models"] else "ifs"                       # a reference track for the map: the
+        tr = s["models"][mdl]["tracks"]; k0 = 0 if 0 in tr else next(iter(tr))   # AIFS control where it has one
+        e["track"] = {"model": mdl, "member": int(k0), "h": [int(h) for h in tr[k0]["steps"]],
+                      "lat": [round(float(v), 2) for v in tr[k0]["lat"]], "lon": [round(float(v), 2) for v in tr[k0]["lon"]]}
         for m in s["models"]:
             q = st[s["key"]][m]
             e["models"][m] = {"tracked": q["n_tracked"], "members": q["n_members"], "p_recurve": q["p_recurve"],
