@@ -121,16 +121,50 @@ def et_times(ser):
     return onset, comp
 
 
+def place_labels(fig, ax, labels, caps):
+    """Put each label at the first of eight spots around its point that stays inside the panel and clear of the corner captions
+    and the labels already placed (2026-10-03: fixed offsets ran off the frame and into each other)."""
+    ren = fig.canvas.get_renderer(); frame = ax.get_window_extent(ren)
+    taken = [c.get_window_extent(ren).expanded(1.02, 1.1) for c in caps]
+    spots = [(12, 12, "left", "bottom"), (-12, 12, "right", "bottom"), (12, -12, "left", "top"), (-12, -12, "right", "top"),
+             (26, 28, "left", "bottom"), (-26, 28, "right", "bottom"), (26, -28, "left", "top"), (-26, -28, "right", "top")]
+    box = dict(boxstyle="round,pad=0.15", fc="#fff", ec="none", alpha=0.85)
+    for text, xy, leader in labels:
+        kw = dict(textcoords="offset points", fontsize=8.3 if leader else 8.5, color="#444" if leader else "#000", bbox=box, zorder=6)
+        if leader: kw["arrowprops"] = dict(arrowstyle="-", color="#888", lw=0.8)
+        chosen, fallback = None, None
+        for spot in spots:
+            dx, dy, ha, va = spot
+            a = ax.annotate(text, xy, xytext=(dx, dy), ha=ha, va=va, **kw); bb = a.get_window_extent(ren)
+            inside = bb.x0 >= frame.x0 + 2 and bb.x1 <= frame.x1 - 2 and bb.y0 >= frame.y0 + 2 and bb.y1 <= frame.y1 - 2
+            if inside and not any(bb.overlaps(o) for o in taken): chosen = bb; break
+            if inside and fallback is None: fallback = spot          # inside the frame, though touching something
+            a.remove()
+        if chosen is None:
+            dx, dy, ha, va = fallback or spots[0]
+            chosen = ax.annotate(text, xy, xytext=(dx, dy), ha=ha, va=va, **kw).get_window_extent(ren)
+        taken.append(chosen)
+
+
 def render(rows, init, out_png):
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
     from matplotlib.collections import LineCollection
     n = max(1, len(rows))
-    fig, axs = plt.subplots(n, 2, figsize=(12.6, 4.6 * n + 1.45), squeeze=False)
-    fig.subplots_adjust(left=0.08, right=0.92, top=1 - 1.05 / (4.6 * n + 1.45), bottom=1.25 / (4.6 * n + 1.45), hspace=0.42, wspace=0.28)
+    # 2026-10-03 (user: "way too small with way too much whitespace"): each storm's axes are fitted to its own track (always
+    # keeping the zero lines and the B = 10 m threshold), the rows sit closer and the figure is drawn at a higher resolution;
+    # Hart's fixed -600..300 frame had squeezed every track into a corner.
+    H = 4.25 * n + 1.25
+    fig, axs = plt.subplots(n, 2, figsize=(12.6, H), squeeze=False)
+    fig.subplots_adjust(left=0.075, right=0.915, top=1 - 0.95 / H, bottom=1.05 / H, hspace=0.36, wspace=0.22)
     fig.suptitle(f"Cyclone phase space (Hart 2003) — AIFS-ENS control, init {init:%d %b %Y %HZ}", fontsize=14,
-                 fontweight="bold", x=0.08, ha="left", y=1 - 0.25 / (4.6 * n + 1.2))
+                 fontweight="bold", x=0.075, ha="left", y=1 - 0.22 / H)
+
+    def span(v, need, minspan, pad=0.12):
+        lo, hi = min(np.nanmin(v), need[0]), max(np.nanmax(v), need[1])
+        if hi - lo < minspan: m = (hi + lo) / 2; lo, hi = m - minspan / 2, m + minspan / 2
+        w = hi - lo; return lo - pad * w, hi + pad * w
     cmap = plt.get_cmap("viridis"); norm = plt.Normalize(0, 15)
     if not rows:
         for ax in axs[0]:
@@ -139,24 +173,26 @@ def render(rows, init, out_png):
                        ha="center", fontsize=13, color="#555")
     for r, (s, ser, onset, comp) in enumerate(rows):
         d = np.array(ser["h"]) / 24.0
+        rB = span(np.array(ser["B"]), (-5, 15), 30); rL = span(np.array(ser["VTL"]), (-40, 40), 160)
+        rU = span(np.array(ser["VTU"]), (-40, 40), 160)
         for c, (xk, yk, xl, yl, xr, yr) in enumerate((
                 ("B", "VTL", "B: thermal asymmetry, 925–600 hPa thickness right minus left of motion (m)",
-                 "−VT_L: 925–600 hPa thermal wind", (-25, 125), (-600, 300)),
-                ("VTL", "VTU", "−VT_L: 925–600 hPa thermal wind", "−VT_U: 600–300 hPa thermal wind", (-600, 300), (-600, 300)))):
-            ax = axs[r][c]
+                 "−VT_L: 925–600 hPa thermal wind", rB, rL),
+                ("VTL", "VTU", "−VT_L: 925–600 hPa thermal wind", "−VT_U: 600–300 hPa thermal wind", rL, rU))):
+            ax = axs[r][c]; caps, labels = [], []
             x, y = np.array(ser[xk]), np.array(ser[yk])
             if c == 0:
                 ax.axvline(10, color="#888", lw=1, ls="--"); ax.axhline(0, color="#888", lw=1, ls="--")
                 for tx, ty, t in ((0.02, 0.97, "symmetric warm core\n(tropical)"), (0.98, 0.97, "asymmetric warm core"),
                                   (0.02, 0.03, "symmetric cold core"), (0.98, 0.03, "asymmetric cold core\n(extratropical)")):
-                    ax.text(tx, ty, t, transform=ax.transAxes, fontsize=8.5, color="#6f6b64", ha="left" if tx < .5 else "right",
-                            va="top" if ty > .5 else "bottom")
+                    caps.append(ax.text(tx, ty, t, transform=ax.transAxes, fontsize=8.5, color="#6f6b64", ha="left" if tx < .5 else "right",
+                            va="top" if ty > .5 else "bottom", zorder=1, bbox=dict(boxstyle="round,pad=0.1", fc="#fff", ec="none", alpha=0.7)))
             else:
                 ax.axvline(0, color="#888", lw=1, ls="--"); ax.axhline(0, color="#888", lw=1, ls="--")
                 for tx, ty, t in ((0.98, 0.97, "deep warm core\n(tropical)"), (0.02, 0.03, "deep cold core\n(extratropical)"),
                                   (0.98, 0.03, "shallow warm core\n(hybrid / ET)"), (0.02, 0.97, "warm aloft, cold below")):
-                    ax.text(tx, ty, t, transform=ax.transAxes, fontsize=8.5, color="#6f6b64", ha="left" if tx < .5 else "right",
-                            va="top" if ty > .5 else "bottom")
+                    caps.append(ax.text(tx, ty, t, transform=ax.transAxes, fontsize=8.5, color="#6f6b64", ha="left" if tx < .5 else "right",
+                            va="top" if ty > .5 else "bottom", zorder=1, bbox=dict(boxstyle="round,pad=0.1", fc="#fff", ec="none", alpha=0.7)))
             pts = np.c_[x, y].reshape(-1, 1, 2)
             fol = np.array(ser.get("followed", [False] * len(x)), bool)
             if len(x) > 1:
@@ -170,42 +206,30 @@ def render(rows, init, out_png):
                 ax.scatter(x[fol], y[fol], s=26, zorder=3, facecolors="#fff", edgecolors=[cmap(norm(v)) for v in d[fol]], linewidths=1.4)
                 j = np.where(fol)[0][0] - 1
                 if j >= 0:
-                    ax.annotate("tracker's last fix", (x[j], y[j]), xytext=(10, 12), textcoords="offset points", fontsize=8.3,
-                                color="#444", arrowprops=dict(arrowstyle="-", color="#888", lw=0.8), zorder=6,
-                                bbox=dict(boxstyle="round,pad=0.15", fc="#fff", ec="none", alpha=0.85))
+                    labels.append(("tracker's last fix", (x[j], y[j]), True))
                 mg = np.array(ser.get("merged", [False] * len(x)), bool)
                 if mg.any():                                   # absorbed by a low that already existed (tc_jet.follow_low)
                     jm = int(np.where(mg)[0][0])
-                    ax.annotate("merges into another low", (x[jm], y[jm]), xytext=(10, -14), textcoords="offset points",
-                                fontsize=8.3, color="#444", arrowprops=dict(arrowstyle="-", color="#888", lw=0.8), zorder=6,
-                                bbox=dict(boxstyle="round,pad=0.15", fc="#fff", ec="none", alpha=0.85))
-            xr = (min(xr[0], np.nanmin(x) - 10), max(xr[1], np.nanmax(x) + 10)) if c == 0 else \
-                 (min(xr[0], np.nanmin(x) - 40), max(xr[1], np.nanmax(x) + 40))
-            yr = (min(yr[0], np.nanmin(y) - 40), max(yr[1], np.nanmax(y) + 40))
+                    labels.append(("merges into another low", (x[jm], y[jm]), True))
             ax.scatter(x[:1], y[:1], marker="o", s=110, facecolors="none", edgecolors="#000", lw=1.6, zorder=4)
             ax.scatter(x[-1:], y[-1:], marker="X", s=90, color="#000", zorder=4)
-            box = dict(boxstyle="round,pad=0.15", fc="#fff", ec="none", alpha=0.85)
-            # start above-left, end below-right; if they sit close together, push them further apart
-            near = (abs(x[-1] - x[0]) < 0.12 * (xr[1] - xr[0])) and (abs(y[-1] - y[0]) < 0.12 * (yr[1] - yr[0]))
-            ax.annotate(f"start (+{ser['h'][0]} h)", (x[0], y[0]), xytext=(-14, 16 if not near else 26), textcoords="offset points",
-                        fontsize=8.5, ha="right", bbox=box, zorder=6)
-            ax.annotate(f"end (+{ser['h'][-1]} h)", (x[-1], y[-1]), xytext=(10, -14 if not near else -26), textcoords="offset points",
-                        fontsize=8.5, bbox=box, zorder=6)
+            labels[:0] = [(f"start (+{ser['h'][0]} h)", (x[0], y[0]), False), (f"end (+{ser['h'][-1]} h)", (x[-1], y[-1]), False)]
             ax.set_xlim(*xr); ax.set_ylim(*yr)
+            place_labels(fig, ax, labels, caps)
             ax.set_xlabel(xl, fontsize=9.5); ax.set_ylabel(yl, fontsize=9.5); ax.grid(alpha=0.3)
         et = []
         if onset is not None: et.append(f"ET onset +{onset} h (B > 10 m)")
         if comp is not None: et.append(f"ET complete +{comp} h (−VT_L < 0)")
         axs[r][0].set_title(f"{TC.label(s)}: " + ("; ".join(et) if et else "no extratropical transition in the control's track"),
                             loc="left", fontsize=11, fontweight="bold")
-    cax = fig.add_axes([0.935, 0.25, 0.012, 0.5])
+    cax = fig.add_axes([0.932, 0.25, 0.012, 0.5])
     cb = fig.colorbar(plt.cm.ScalarMappable(norm=norm, cmap=cmap), cax=cax); cb.set_label("forecast day")
-    fig.text(0.08, 0.004, "Thermal wind = slope of the height perturbation (max − min within 500 km) against ln p; positive = warm core. "
-             "24-h running mean.\nLevels 925/850/700/600 and 600/500/400/300 hPa (open data; Hart used 900–600 every 25 hPa).\n"
-             "Solid: ECMWF's tracker. Dashed, open dots: the low followed on as the surface-pressure minimum after the tracker's last fix, "
+    fig.text(0.075, 0.004, "Axes fitted to each storm's track. Thermal wind = slope of the height perturbation (max − min within 500 km) against ln p; "
+             "positive = warm core; 24-h running mean.\nLevels 925/850/700/600 and 600/500/400/300 hPa (open data; Hart used 900–600 every 25 hPa).\n"
+             "Solid: ECMWF's tracker. Dashed, open dots: the low followed on as the surface-pressure minimum after the tracker's last fix,\n"
              "or the low it merges into (the tracker usually stops at extratropical transition).", fontsize=8, color="#6f6b64")
     out_png.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(out_png, dpi=100, facecolor="white", pil_kwargs={"quality": 85, "method": 6}); plt.close(fig)
+    fig.savefig(out_png, dpi=125, facecolor="white", pil_kwargs={"quality": 85, "method": 6}); plt.close(fig)
 
 
 def main() -> int:
