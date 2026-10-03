@@ -68,6 +68,22 @@
       var b = item.querySelector('.sh-menubtn'); if (b) b.setAttribute('aria-expanded', 'false');
     });
   });
+  // Close every menu once one is used (2026-10-03, user on a phone: "the drop down menu doesn't move out of the way when I
+  // select a page"). A link into the page already open (circulation.html#tcphase from circulation.html) only changes the
+  // hash, and Back can restore a page from the back/forward cache with its menu still open.
+  function closeAll() {
+    header.querySelectorAll('.sh-has-menu.is-open').forEach(function (item) {
+      item.classList.remove('is-open');
+      var b = item.querySelector('.sh-menubtn'); if (b) b.setAttribute('aria-expanded', 'false');
+    });
+    if (header.classList.contains('is-open')) {
+      header.classList.remove('is-open');
+      if (toggle) { toggle.setAttribute('aria-expanded', 'false'); toggle.lastChild.nodeValue = 'Menu'; }
+    }
+  }
+  header.addEventListener('click', function (e) { if (e.target.closest && e.target.closest('a[href]')) closeAll(); });
+  window.addEventListener('hashchange', closeAll);
+  window.addEventListener('pageshow', function (e) { if (e.persisted) closeAll(); });
 })();
 
 // The finder (2026-09-27, the topic redesign): Ctrl/Cmd-K, "/" or the header's "Find a plot" opens a search
