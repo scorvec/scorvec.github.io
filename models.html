@@ -29,7 +29,8 @@
           --serif: 'Source Serif 4', Georgia, serif; --sans: 'Source Sans 3', 'Helvetica Neue', Arial, sans-serif; }
   *, *::before, *::after { box-sizing: border-box; }
   body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--sans); line-height: 1.5; }
-  main.mv { max-width: min(96vw, 1800px); margin: 0 auto; padding: 1.2rem clamp(0.5rem, 2vw, 1.5rem) 3rem; }
+  /* full width on any screen (user 2026-10-03: "take up more of the browser window real estate if it is available") */
+  main.mv { max-width: none; margin: 0 auto; padding: 1.2rem clamp(0.4rem, 1vw, 1rem) 3rem; }
   .kicker { font-size: 0.88rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); margin: 0.2rem 0 0; }
   h1 { font-family: var(--serif); font-weight: 500; font-size: clamp(1.6rem, 3.2vw, 2.3rem); line-height: 1.15; margin: 0.25rem 0 0.4rem; }
   h2 { font-family: var(--serif); font-weight: 500; font-size: 1.3rem; margin: 1.8rem 0 0.5rem; }
@@ -65,7 +66,8 @@
   .chk { display: inline-flex; align-items: center; gap: 0.5rem; font-size: 1.12rem; font-weight: 600; color: var(--ink); cursor: pointer; user-select: none; min-height: 40px; }
   .chk input { width: 1.25rem; height: 1.25rem; accent-color: var(--accent); margin: 0; }
 
-  .mv-map { position: relative; width: 100%; height: clamp(340px, calc(100vh - 230px), 880px); background: var(--map); border: 1px solid var(--rule);
+  /* the map plus the time bar fill the window once scrolled to it: no 880 px cap */
+  .mv-map { position: relative; width: 100%; height: max(340px, calc(100vh - 110px)); background: var(--map); border: 1px solid var(--rule);
             border-radius: 8px; overflow: hidden; touch-action: none; cursor: grab; }
   .mv-map.drag { cursor: grabbing; }
   .mv-map canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
@@ -91,10 +93,21 @@
   .mv-tip .v { font-weight: 600; font-size: 0.95rem; }
   .mv-tip .ll { color: #cfd6cf; }
 
-  .mv-time { display: flex; align-items: center; gap: 0.5rem; margin: 0.55rem 0 0.2rem; flex-wrap: wrap; }
+  /* time bar ABOVE the map with a thick slider (user 2026-10-03: "the little slider at the bottom is a bit hard to use -
+     maybe put it at the top and make it a bit thicker") */
+  .mv-time { display: flex; align-items: center; gap: 0.5rem; margin: 0.2rem 0 0.55rem; flex-wrap: wrap; }
   .mv-time button { font: inherit; font-size: 1.35rem; font-weight: 700; min-width: 3.3rem; height: 3rem; border: 1px solid var(--rule); border-radius: 6px; background: var(--panel);
                     color: var(--ink); cursor: pointer; }
-  .mv-time input[type=range] { flex: 1 1 14rem; min-width: 10rem; accent-color: var(--accent); height: 2.6rem; }
+  .mv-time input[type=range] { flex: 1 1 14rem; min-width: 10rem; height: 3rem; margin: 0; background: transparent; cursor: pointer;
+                                -webkit-appearance: none; appearance: none; touch-action: manipulation; }
+  .mv-time input[type=range]::-webkit-slider-runnable-track { height: 14px; border-radius: 7px; background: #cfd5cc; border: 1px solid #b8beb5; }
+  .mv-time input[type=range]::-moz-range-track { height: 14px; border-radius: 7px; background: #cfd5cc; border: 1px solid #b8beb5; }
+  .mv-time input[type=range]::-moz-range-progress { height: 14px; border-radius: 7px; background: var(--accent); }
+  .mv-time input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 30px; height: 30px; margin-top: -9px;
+      border-radius: 50%; background: var(--accent); border: 3px solid #fff; box-shadow: 0 0 0 1px var(--accent), 0 1px 4px rgba(0,0,0,0.35); }
+  .mv-time input[type=range]::-moz-range-thumb { width: 26px; height: 26px; border-radius: 50%; background: var(--accent); border: 3px solid #fff;
+      box-shadow: 0 0 0 1px var(--accent), 0 1px 4px rgba(0,0,0,0.35); }
+  .mv-time input[type=range]:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; border-radius: 8px; }
   .mv-valid { font-size: 1.05rem; color: var(--ink); min-width: 15rem; line-height: 1.3; }
   .mv-valid .vt { font-size: 1.22rem; font-weight: 600; }
   .mv-valid .loc { color: var(--ink2); }
@@ -178,7 +191,7 @@
     .runsel.mv-fsel { display: inline-flex; flex: 1 1 12rem; }
     .mv-fsel select { flex: 1 1 auto; min-width: 0; }
     .mv-map { height: clamp(300px, calc(100svh - 215px), 640px); }
-    .mv-time { position: sticky; bottom: 0; z-index: 5; background: var(--bg); margin: 0; padding: 0.35rem 0 0.25rem; }
+    .mv-time { margin: 0 0 0.35rem; padding: 0.2rem 0 0.25rem; }
     .mv-valid { min-width: 0; flex: 1 1 100%; font-size: 0.95rem; order: -1; }
     .mv-valid .vt { font-size: 1.08rem; }
     .mv-time input[type=range] { flex: 1 1 5rem; min-width: 5rem; }
@@ -370,6 +383,13 @@
     <div class="mv-acc" id="ecBar" hidden><div class="seg" id="ecSub" role="group" aria-label="ECAPE field"></div></div>
   </div>
 
+  <div class="mv-time">
+    <button type="button" id="play" aria-label="Play">&#9654;</button>
+    <button type="button" id="back" aria-label="Previous hour">&lsaquo;</button>
+    <input type="range" id="hour" min="0" max="18" value="0" aria-label="Forecast hour">
+    <button type="button" id="fwd" aria-label="Next hour">&rsaquo;</button>
+    <span class="mv-valid" id="valid" aria-live="polite"></span>
+  </div>
   <div class="mv-map" id="map" aria-label="Model map. Scroll or pinch to zoom, drag to pan.">
     <canvas id="gl"></canvas>
     <canvas id="ov"></canvas>
@@ -379,13 +399,6 @@
     <div class="mv-msg" id="msg"></div>
     <div class="mv-load" id="load"></div>
     <div class="mv-tip" id="tip"></div>
-  </div>
-  <div class="mv-time">
-    <button type="button" id="play" aria-label="Play">&#9654;</button>
-    <button type="button" id="back" aria-label="Previous hour">&lsaquo;</button>
-    <input type="range" id="hour" min="0" max="18" value="0" aria-label="Forecast hour">
-    <button type="button" id="fwd" aria-label="Next hour">&rsaquo;</button>
-    <span class="mv-valid" id="valid" aria-live="polite"></span>
   </div>
   <div class="mv-legend"><canvas id="leg" aria-label="Colour scale"></canvas><p class="mv-legT" id="legT"></p></div>
   <div class="mv-show"><b>Show</b>
