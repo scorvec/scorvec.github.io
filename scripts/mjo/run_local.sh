@@ -144,7 +144,7 @@ if [ ! -f "$RMM_PNG" ] || [ -f "plots/rmm_${COMPACT}.png.missing" ]; then
   "$PY" run_rmm.py --skip-download --date "$DATE" --time "$TIME" || { echo "RMM build failed"; exit 1; }
   mkdir -p "$REPO/assets/mjo"
   cp "plots/rmm_${COMPACT}.png" "$RMM_PNG"
-  ls -t "$REPO"/assets/mjo/rmm_*z.png 2>/dev/null | tail -n +61 | xargs -r rm
+  ls "$REPO"/assets/mjo/rmm_*z.png 2>/dev/null | sort -r | tail -n +61 | xargs -r rm
 else
   echo "RMM plot already present for ${COMPACT}; (re)publishing + resuming with the rest."
 fi

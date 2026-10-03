@@ -204,9 +204,10 @@ jobs:
             cp "scripts/mjo/plots/rmmclean_${{ needs.check.outputs.compact }}.png" assets/mjo/
             cp scripts/mjo/plots/rmm_clean_status.json assets/mjo/ || true
           fi
-          # keep the most recent 60 archived plots of each
-          ls -t assets/mjo/rmm_*z.png 2>/dev/null | tail -n +61 | xargs -r rm
-          ls -t assets/mjo/rmmclean_*z.png 2>/dev/null | tail -n +61 | xargs -r rm
+          # keep the most recent 60 archived plots of each, BY CYCLE NAME (2026-10-03: `ls -t` saw tied checkout mtimes and
+          # its name tie-break pruned the NEWEST cycles - re-plotting a past cycle dropped the latest frames)
+          ls assets/mjo/rmm_*z.png 2>/dev/null | sort -r | tail -n +61 | xargs -r rm
+          ls assets/mjo/rmmclean_*z.png 2>/dev/null | sort -r | tail -n +61 | xargs -r rm
 
       - name: Regenerate MJO page
         run: python scripts/mjo/generate_page.py
@@ -224,8 +225,8 @@ jobs:
             if ! timeout 120 git fetch origin main; then echo "fetch $i failed"; sleep 5; continue; fi   # falling through would hit "No changes" and fake success
             git reset --hard origin/main
             tar xf "$SNAP/outs.tar"
-            ls -t assets/mjo/rmm_*z.png 2>/dev/null | tail -n +61 | xargs -r rm
-            ls -t assets/mjo/rmmclean_*z.png 2>/dev/null | tail -n +61 | xargs -r rm
+            ls assets/mjo/rmm_*z.png 2>/dev/null | sort -r | tail -n +61 | xargs -r rm
+            ls assets/mjo/rmmclean_*z.png 2>/dev/null | sort -r | tail -n +61 | xargs -r rm
             git add $OUT
             if git diff --staged --quiet; then echo "No changes."; exit 0; fi
             git commit -m "data update: ${{ needs.check.outputs.compact }}"
@@ -480,7 +481,7 @@ jobs:
             perl -0pi -e "s/((?:mmsf_anom|walker_anom|hadley_timeseries|gill_rain)\.webp)\?v=\w+/\${1}?v=$CB/g" circulation.html
             perl -0pi -e "s/((?:kelvin_hov|ocean_kelvin)\.webp)\?v=\w+/\${1}?v=$CB/g" enso.html
             git add enso.html circulation.html
-            ls -t assets/mjo/rmm_*z.png 2>/dev/null | tail -n +61 | xargs -r rm   # re-apply pruning
+            ls assets/mjo/rmm_*z.png 2>/dev/null | sort -r | tail -n +61 | xargs -r rm   # re-apply pruning
             for f in $OUT; do [ -e "$f" ] && git add "$f"; done
             if git diff --staged --quiet; then echo "No changes; skipping commit."; exit 0; fi
             git commit -m "data update: ${{ needs.check.outputs.compact }}"
