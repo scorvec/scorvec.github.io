@@ -327,3 +327,203 @@ def packet_envelope(v, lon, kmin=4, kmax=15):
     Z = np.zeros_like(F)
     Z[..., kmin:kmax + 1] = 2.0 * F[..., kmin:kmax + 1]
     return np.abs(np.fft.ifft(Z, axis=-1))
+
+
+# ── following the storm after the tracker's last fix (2026-10-03) ─────────────────────────────────────────────────────
+# ECMWF's tracker stops at (or soon after) extratropical transition, which is exactly when a recurving storm phases with
+# a mid-latitude trough and can deepen explosively (Choi-Wan 2026-10-02 00Z: dropped at +120 h near 40N 153E, 979 hPa;
+# the control's low is 950 hPa near 57N 170E 24 h later, and 36 of 50 members are below 960 hPa at day 6). follow_low
+# continues the track as the surface-pressure minimum, conservatively, so a different low is never picked up.
+FOLLOW_REACH_KM = 1800.0     # per 12 h: a transitioning storm's centre can re-form far downstream along the jet
+FOLLOW_SLOW_KM = 900.0       # a step longer than this must point roughly along the previous motion ...
+FOLLOW_CONE_DEG = 75.0       # ... within this angle
+FOLLOW_MIN_DEPTH = 2.0       # hPa below the 400-600 km ring mean: a closed low
+FOLLOW_OTHER_KM = 500.0      # a low that existed 12 h earlier within this distance of a candidate (and was not our storm)
+                             # makes that candidate a different system
+FOLLOW_SAME_KM = 900.0       # a low within this distance of our storm at the previous step is part of the same system (a
+                             # phasing storm is often double-centred for a step), so it never blocks a candidate
+FOLLOW_MIDLAT = 30.0         # long jumps (re-forming along the jet) only north of this latitude; in the tropics a step is
+                             # limited to FOLLOW_SLOW_KM
+FOLLOW_DECAY_HPA = 15.0      # once the low has filled this much from its deepest, long jumps stop (a decaying low does not
+                             # re-form downstream; a long hop then lands on another system)
+FOLLOW_FILLED_HPA = 1010.0   # a low that has filled to this central pressure is no longer followed (over high terrain the
+                             # sea-level reduction makes weak "lows" that are not storms)
+
+
+def _gc_km(lat, lon, clat, clon):
+    """Great-circle distance (km) from (clat, clon) to every point of a (lat, lon) grid (1-D axes)."""
+    la = np.deg2rad(np.asarray(lat))[:, None]; lo = np.deg2rad(np.asarray(lon))[None, :]
+    c0, l0 = np.deg2rad(clat), np.deg2rad(clon)
+    cosd = np.sin(la) * np.sin(c0) + np.cos(la) * np.cos(c0) * np.cos(lo - l0)
+    return A_EARTH / 1000 * np.arccos(np.clip(cosd, -1, 1))
+
+
+def _bearing(lat1, lon1, lat2, lon2):
+    p1, p2, dl = np.deg2rad(lat1), np.deg2rad(lat2), np.deg2rad(lon2 - lon1)
+    return float(np.rad2deg(np.arctan2(np.sin(dl) * np.cos(p2), np.cos(p1) * np.sin(p2) - np.sin(p1) * np.cos(p2) * np.cos(dl))))
+
+
+def closed_lows(f, lat, lon, centre, radius_km, smooth_deg=0.5, sep_deg=2.5):
+    """Closed lows in field f (hPa, lat ascending, lon 0..360) within radius_km of centre=(lat, lon):
+    list of (lat, lon(-180..180), central pressure, depth). A low = a local minimum of the lightly smoothed field over a
+    sep_deg box whose raw central pressure (min within 120 km) is >= FOLLOW_MIN_DEPTH below the 400-600 km ring mean."""
+    from scipy.ndimage import gaussian_filter, minimum_filter
+    n = abs(lat[1] - lat[0]); lon360 = np.asarray(lon) % 360
+    clat, clon = centre
+    dl = radius_km / 111.0 + 7.0
+    j = np.where(np.abs(lat - clat) <= dl)[0]
+    dlon = ((lon360 - (clon % 360) + 180) % 360) - 180
+    i = np.where(np.abs(dlon) <= dl / max(np.cos(np.deg2rad(min(abs(clat) + dl, 85))), 0.1))[0]
+    if not len(j) or not len(i):
+        return []
+    sub = np.nan_to_num(f[np.ix_(j, i)], nan=1013.0)
+    fs = gaussian_filter(sub, sigma=smooth_deg / n, mode="nearest")
+    mn = minimum_filter(fs, size=max(3, int(round(sep_deg / n))) | 1, mode="nearest")
+    out = []
+    la_s, lo_s = lat[j], lon360[i]
+    dist = _gc_km(la_s, lo_s, clat, clon % 360)
+    for a, b in np.argwhere((fs == mn) & (dist <= radius_km)):
+        if a in (0, len(j) - 1) or b in (0, len(i) - 1):
+            continue                                                       # on the window edge: not resolved
+        c_la, c_lo = float(la_s[a]), float(lo_s[b])
+        dd = _gc_km(la_s, lo_s, c_la, c_lo)
+        ring, core = (dd >= 400) & (dd <= 600), dd <= 120
+        if not ring.any() or not core.any():
+            continue
+        pmin = float(sub[core].min()); depth = float(sub[ring].mean() - pmin)
+        if depth >= FOLLOW_MIN_DEPTH:
+            out.append((c_la, ((c_lo + 180) % 360) - 180, pmin, depth))
+    return out
+
+
+def _step_to(lat0, lon0, dlat, dlon_deg):
+    return lat0 + dlat, ((lon0 + dlon_deg + 180) % 360) - 180
+
+
+def follow_low(msl, lat, lon, steps_h, track, h_max=None):
+    """Continue `track` (dict steps/lat/lon[/pmsl]) beyond its last fix as a surface low, every field step.
+
+    msl: (len(steps_h), nlat, nlon) hPa, lat ascending, lon 0..360; steps_h: lead hours (12-hourly). Starts at the
+    tracker's last fix that falls on a field step. Each step: the candidates are the closed lows within FOLLOW_REACH_KM
+    (scaled by the time step) of the previous position; a candidate further than FOLLOW_SLOW_KM must lie within
+    FOLLOW_CONE_DEG of the previous motion (a centre re-forming downstream along the jet, as in a phasing transition, is
+    allowed; a jump sideways or backwards is not); a candidate that is the continuation of ANOTHER low already present a
+    step earlier (within FOLLOW_OTHER_KM of it, and closer to it than our storm was) is excluded. The survivor nearest to
+    the persistence first guess (previous position + previous displacement) is taken; none = the end of the track.
+    Returns the CONTINUATION only: dict(steps, lat, lon, pmsl)."""
+    steps_h = np.asarray(steps_h, int)
+    empty = dict(steps=np.array([], int), lat=np.array([]), lon=np.array([]), pmsl=np.array([]))
+    fstep = set(steps_h.tolist())
+    on = [int(h) for h in track["steps"] if int(h) in fstep]
+    if not on:
+        return empty
+    h0 = on[-1]
+    k0 = int(np.where(track["steps"] == h0)[0][0])
+    la, lo = float(track["lat"][k0]), float(track["lon"][k0])
+    prev = np.where(track["steps"] <= h0 - 12)[0]
+    if len(prev):
+        kp = prev[-1]; dt = (h0 - int(track["steps"][kp])) / 12.0
+        v_lat = (la - float(track["lat"][kp])) / dt
+        v_lon = (((lo - float(track["lon"][kp]) + 180) % 360) - 180) / dt
+    else:
+        v_lat = v_lon = 0.0
+    out = {"steps": [], "lat": [], "lon": [], "pmsl": []}
+    h_last = h0
+    for k in np.where(steps_h > h0)[0]:
+        h = int(steps_h[k])
+        if h_max is not None and h > h_max:
+            break
+        dt12 = (h - h_last) / 12.0
+        reach = FOLLOW_REACH_KM * dt12
+        cands = closed_lows(msl[k], lat, lon, (la, lo), reach)
+        if not cands:
+            break
+        mot = _bearing(la, lo, *_step_to(la, lo, v_lat, v_lon)) if (abs(v_lat) + abs(v_lon)) > 0.2 else None
+        kp_ = np.where(steps_h == h_last)[0]
+        before = closed_lows(msl[kp_[0]], lat, lon, (la, lo), reach + FOLLOW_OTHER_KM) if len(kp_) else []
+        g_la, g_lo = _step_to(la, lo, v_lat * dt12, v_lon * dt12)
+        best, bd = None, np.inf
+        for c_la, c_lo, pmin, depth in cands:
+            dist = _km(la, lo, c_la, c_lo)
+            if pmin >= FOLLOW_FILLED_HPA:
+                continue
+            if dist > FOLLOW_SLOW_KM * dt12:
+                if mot is None or min(la, c_la) < FOLLOW_MIDLAT or (out["pmsl"] and out["pmsl"][-1] - min(out["pmsl"]) >= FOLLOW_DECAY_HPA):
+                    continue
+                dang = abs(((_bearing(la, lo, c_la, c_lo) - mot + 180) % 360) - 180)
+                if dang > FOLLOW_CONE_DEG:
+                    continue
+            other = False
+            for b_la, b_lo, _, _ in before:
+                if _km(b_la, b_lo, la, lo) < FOLLOW_SAME_KM:
+                    continue                                               # our own storm (or its second centre) a step earlier
+                dbc = _km(b_la, b_lo, c_la, c_lo)
+                if dbc < FOLLOW_OTHER_KM and dbc < dist:
+                    other = True; break
+            if other:
+                continue
+            dg = _km(g_la, g_lo, c_la, c_lo)
+            if dg < bd:
+                best, bd = (c_la, c_lo, pmin), dg
+        if best is None:
+            break
+        c_la, c_lo, pmin = best
+        v_lat = (c_la - la) / dt12
+        v_lon = (((c_lo - lo + 180) % 360) - 180) / dt12
+        la, lo, h_last = c_la, c_lo, h
+        out["steps"].append(h); out["lat"].append(la); out["lon"].append(lo); out["pmsl"].append(round(pmin, 1))
+    return {k: np.array(v, int if k == "steps" else float) for k, v in out.items()} if out["steps"] else empty
+
+
+def extended(track, cont):
+    """The tracker's track followed by its continuation, as one track dict (pmsl NaN where the tracker had none)."""
+    if cont is None or not len(cont["steps"]):
+        return track
+    p = track.get("pmsl", np.full(len(track["steps"]), np.nan))
+    return dict(steps=np.r_[track["steps"], cont["steps"]].astype(int), lat=np.r_[track["lat"], cont["lat"]],
+                lon=np.r_[track["lon"], cont["lon"]], pmsl=np.r_[p, cont["pmsl"]],
+                followed=np.r_[np.zeros(len(track["steps"]), bool), np.ones(len(cont["steps"]), bool)])
+
+
+# ── map helper (2026-10-03, user: "Good lord that map projection") ───────────────────────────────────────────────────
+# The TC figures drew 160-200-degree-wide mid-latitude sectors on a flat lat-lon grid squeezed to fit ("auto" aspect),
+# which flattened Siberia, Alaska and Canada into slivers. sector_axes() draws a sector the way weather maps do: Lambert
+# conformal with standard parallels inside the band, the outline following the sector's own meridians and latitude
+# circles (a fan, no empty corners), true aspect.
+def sector_projection(lon0, lon1, lat0, lat1):
+    import cartopy.crs as ccrs
+    clon = (((lon0 + lon1) / 2.0) + 180.0) % 360.0 - 180.0
+    span = lat1 - lat0
+    return ccrs.LambertConformal(central_longitude=clon, central_latitude=(lat0 + lat1) / 2.0,
+                                 standard_parallels=(lat0 + span / 4.0, lat1 - span / 4.0), cutoff=max(lat0 - 5, -10))
+
+
+def sector_aspect(lon0, lon1, lat0, lat1, n=90):
+    """height / width of the sector's outline in the projection (for laying out axes before drawing)."""
+    import cartopy.crs as ccrs
+    proj = sector_projection(lon0, lon1, lat0, lat1)
+    lo = np.r_[np.linspace(lon0, lon1, n), np.linspace(lon1, lon0, n)]
+    la = np.r_[np.full(n, lat0), np.full(n, lat1)]
+    xy = proj.transform_points(ccrs.PlateCarree(), lo, la)
+    return float((xy[:, 1].max() - xy[:, 1].min()) / (xy[:, 0].max() - xy[:, 0].min()))
+
+
+def sector_axes(fig, rect, lon0, lon1, lat0, lat1, land=True, coast_res="50m", n=90):
+    """A GeoAxes at rect=[x, y, w, h] (figure fraction) showing the sector lon0..lon1 (0..360, may exceed 360), lat0..lat1
+    as a Lambert fan: true aspect, the outline along the sector's edges, coastlines, borders and light land."""
+    import cartopy.crs as ccrs
+    import cartopy.feature as cfeature
+    import matplotlib.path as mpath
+    proj = sector_projection(lon0, lon1, lat0, lat1)
+    ax = fig.add_axes(rect, projection=proj)
+    lo = np.r_[np.linspace(lon0, lon1, n), np.linspace(lon1, lon0, n), lon0]
+    la = np.r_[np.full(n, lat0), np.full(n, lat1), lat0]
+    xy = proj.transform_points(ccrs.PlateCarree(), lo, la)[:, :2]
+    ax.set_xlim(xy[:, 0].min(), xy[:, 0].max()); ax.set_ylim(xy[:, 1].min(), xy[:, 1].max())
+    ax.set_boundary(mpath.Path(xy), transform=ax.transData)
+    if land:
+        ax.add_feature(cfeature.LAND, facecolor="#f2f1ec", zorder=0)
+    ax.coastlines(coast_res, lw=0.6, color="#333")
+    ax.add_feature(cfeature.BORDERS, lw=0.3, edgecolor="#777")
+    ax.gridlines(lw=0.3, color="#999", alpha=0.5, xlocs=range(-180, 181, 30), ylocs=range(0, 91, 15))
+    return ax

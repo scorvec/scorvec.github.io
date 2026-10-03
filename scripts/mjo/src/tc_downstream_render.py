@@ -37,54 +37,66 @@ def stamp() -> str:
 
 
 def maps(ds, js, b, var, sk, out: Path):
+    """Fixed-geography composites as Lambert fans (2026-10-03, user: "Good lord that map projection" - the 200-degree
+    sectors had been squeezed onto flat lat-lon strips). Layout in inches; the fan keeps its true aspect."""
+    import sys as _s
+    _s.path.insert(0, str(Path(__file__).parent))
     import cartopy.crs as ccrs
-    import cartopy.feature as cfeature
     import matplotlib.pyplot as plt
     from matplotlib.colors import BoundaryNorm
+    import tc_jet as TC
     title, unit, cmap, lev = VAR[var]
     x0, x1, y0, y1 = EXTENT[b]
-    proj = ccrs.PlateCarree(central_longitude=(x0 + x1) / 2)
     info = js["sets"][f"{b}|{sk}"]
     rows = [("all", f"All recurving storms ({info['n_storms']['all']} storms, {info['n_episodes']['all']} independent episodes)")]
     if info["n_episodes"].get("strong") and info["n_episodes"].get("weak"):
         rows.append(("diff", f"Strong minus weak outflow–jet interaction (top vs bottom third: {info['n_episodes']['strong']} vs "
                              f"{info['n_episodes']['weak']} episodes)"))
-    H = 1.95 * len(rows) + 1.75
-    fig = plt.figure(figsize=(16, H))
+    W = 16.0; gap = 0.12; pw = (W - 0.4 - gap * (len(SHOW_LAGS) - 1)) / len(SHOW_LAGS)
+    ph = pw * TC.sector_aspect(x0, x1, y0, y1)
+    row_h, note_h = 0.42 + 0.28 + ph + 0.2, 0.45
+    def has(gk):                                   # anything significant at any lag shown -> draw the row, else a note
+        vn = f"{var}__{b}__{sk}__{gk}"
+        return vn in ds and any(np.isfinite(ds[vn].sel(lag=L).values).any() for L in SHOW_LAGS)
+    on = {gk: has(gk) for gk, _ in rows}
+    TOP = 0.7; BOT = 1.35 if any(on.values()) else 0.6
+    H = TOP + sum(row_h if on[gk] else note_h for gk, _ in rows) + BOT
+    fig = plt.figure(figsize=(W, H))
+    fx = lambda v: v / W; fy = lambda v: 1 - v / H
     norm = BoundaryNorm(lev, 256, extend="both")
     lat, lon = ds.latitude.values, ds.longitude.values
     lon_c = np.r_[lon, lon[0] + 360]
     cf = None
+    y = TOP
     for r, (gk, lab) in enumerate(rows):
+        if not on[gk]:
+            fig.text(fx(0.2), fy(y + 0.1), f"• {lab}: nothing significant on days " + ", ".join(f"+{L}" for L in SHOW_LAGS) + ".",
+                     fontsize=11.5, color="#6f6b64", va="top")
+            y += note_h
+            continue
+        fig.text(fx(0.2), fy(y + 0.08), lab, fontsize=11.5, fontweight="bold", va="top")
         vn = f"{var}__{b}__{sk}__{gk}"
         for c, L in enumerate(SHOW_LAGS):
-            ax = fig.add_subplot(len(rows), len(SHOW_LAGS), r * len(SHOW_LAGS) + c + 1, projection=proj)
-            ax.set_extent((x0, x1, y0, y1), crs=ccrs.PlateCarree())
-            ax.add_feature(cfeature.LAND, facecolor="#f2f1ec", zorder=0)
+            ax = TC.sector_axes(fig, [fx(0.2 + c * (pw + gap)), fy(y + 0.42 + 0.28 + ph), fx(pw), ph / H], x0, x1, y0, y1, coast_res="110m")
             if vn in ds:
                 f = ds[vn].sel(lag=L).values
-                if var == "z500" or var == "t2m" or var == "prcp":
-                    pass
                 fc = np.concatenate([f, f[:, :1]], 1)
                 if np.isfinite(fc).any():
-                    cf = ax.pcolormesh(lon_c, lat, fc, cmap=cmap, norm=norm, transform=ccrs.PlateCarree(), shading="nearest")
+                    cf = ax.pcolormesh(lon_c, lat, fc, cmap=cmap, norm=norm, transform=ccrs.PlateCarree(), shading="nearest", zorder=1)
                 else:
-                    ax.text(0.5, 0.5, "nothing significant", transform=ax.transAxes, ha="center", va="center", color="#6f6b64",
-                            fontsize=11)
-            ax.coastlines(resolution="110m", lw=0.6, color="#333")
-            ax.add_feature(cfeature.BORDERS, lw=0.3, edgecolor="#666")
-            ax.set_title(f"day +{L}" + (" (recurvature day)" if L == 0 else ""), fontsize=11, loc="left")
-            if c == 0:
-                ax.text(0, 1.2, lab, transform=ax.transAxes, fontsize=11.5, fontweight="bold", ha="left")
-    fig.suptitle(f"After a {BASIN_LAB[b]} tropical cyclone recurves — {title}, {SEASON_LAB[sk]}, ERA5 1991–2020",
-                 fontsize=14, fontweight="bold", x=0.02, ha="left", y=0.995)
-    fig.subplots_adjust(left=0.02, right=0.98, top=1 - 0.95 / H, bottom=1.2 / H, hspace=0.42, wspace=0.05)
+                    ax.text(0.5, 0.42, "nothing significant", transform=ax.transAxes, ha="center", va="center", color="#6f6b64",
+                            fontsize=11, zorder=5)
+            fig.text(fx(0.2 + c * (pw + gap)), fy(y + 0.42 + 0.02), f"day +{L}" + (" (recurvature day)" if L == 0 else ""),
+                     fontsize=11, va="top")
+        y += row_h
+    fig.text(fx(0.2), fy(0.18), f"After a {BASIN_LAB[b]} tropical cyclone recurves — {title}, {SEASON_LAB[sk]}, ERA5 1991–2020",
+             fontsize=14, fontweight="bold", va="top")
     if cf is not None:
-        cax = fig.add_axes([0.3, 0.66 / H, 0.4, 0.14 / H])
+        cax = fig.add_axes([0.3, (BOT - 0.55) / H, 0.4, 0.14 / H])
         cb = fig.colorbar(cf, cax=cax, orientation="horizontal"); cb.set_label(f"{title} ({unit})")
-    fig.text(0.02, 0.06 / H, "Only cells passing a test across independent episodes (storms within 4 days merged) with a 10 % false-"
-             "discovery rate are coloured; white = not significant. Anomalies vs a 1991–2020 seasonal cycle + trend. Associations, "
-             "not proof of cause.", fontsize=8.6, color="#6f6b64")
+    fig.text(fx(0.2), 0.05 / H, "Days +0, +4, +8 and +12 shown; the regional-means view has every day. Only cells passing a test across "
+             "independent episodes (storms within 4 days merged) with a 10 % false-discovery rate are coloured;\nwhite = not significant. "
+             "Anomalies vs a 1991–2020 seasonal cycle + trend. Associations, not proof of cause.", fontsize=8.6, color="#6f6b64")
     fig.savefig(out, dpi=72, facecolor="white", pil_kwargs={"quality": 82, "method": 6}); plt.close(fig)
 
 

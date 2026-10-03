@@ -191,7 +191,7 @@ jobs:
                assets/sst/torque_timeseries.webp assets/sst/torque_ranges.webp assets/sst/jets.webp \
                assets/sst/data/torque_ranges.json \
                assets/sst/anim/dt_manifest.json assets/sst/tcjet.webp assets/sst/data/tcjet.json \
-               assets/sst/tcens_tracks.webp assets/sst/tcens_impact.webp assets/sst/tcens_impact_2.webp assets/sst/data/tcens.json \
+               assets/sst/tcens_tracks.webp assets/sst/tcens_impact.webp assets/sst/tcens_impact_2.webp assets/sst/tcens_depth.webp assets/sst/tcens_depth_2.webp assets/sst/data/tcens.json \
                assets/sst/tcphase.webp assets/sst/data/tcphase.json \
                assets/sst/tcdown_*.webp assets/sst/data/tcdown_index.json assets/sst/data/tc_alert.json \
                scripts/mjo/data/reference/aam_history.nc scripts/mjo/data/reference/aam_forecast_archive.nc \

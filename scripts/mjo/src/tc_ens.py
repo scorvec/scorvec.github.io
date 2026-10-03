@@ -285,6 +285,208 @@ def sensitivity(s: dict, Z: dict):
     return dict(n=len(ks), res=res)
 
 
+# ── step 3: how deep the storm gets after it reaches the mid-latitudes (2026-10-03) ─────────────────────────────────
+# User: "choi-wan becomes an exceptionally powerful extratropical storm and impacts the jet stream when it phases with the
+# mid-latitude upper trough". Recurving vs not cannot see that when nearly every member recurves and transitions; the
+# depth of the post-transition low can. Each member's low is followed past the tracker's last fix (tc_jet.follow_low), and
+# its lowest central pressure north of ET_LAT within the z500 window is the predictor.
+ET_LAT = 35.0
+ET_H_MAX = 240
+MIN_ET_MEMBERS = 20
+MIN_ET_SPREAD = 2.0          # hPa: below this the members agree on the depth and there is nothing to regress on
+
+
+def load_msl(date: str, hh: str, h_max=ET_H_MAX):
+    """{member: (steps, lat, lon) hPa} at 12-h steps to h_max on a 0.5-degree grid, 10-82N; member 0 = control."""
+    import xarray as xr
+    import store as ecmwf
+    cyc = ecmwf.Cycle(date, hh); S = tuple(range(0, h_max + 1, 12))
+    out = {}
+    lat = lon = None
+    for t in ("cf", "pf"):
+        p = ecmwf.ensure(cyc, ecmwf.Spec("aifs-ens", t, "msl", "sfc", (), S))
+        da = xr.open_dataset(p, engine="cfgrib", backend_kwargs={"indexpath": ""})["msl"]
+        da = da.assign_coords(longitude=da.longitude % 360).sortby("longitude").sortby("latitude")
+        da = da.sel(latitude=slice(10.0, 82.0)).coarsen(latitude=2, longitude=2, boundary="trim").mean() / 100.0
+        if "number" in da.dims:
+            for k, num in enumerate(da.number.values):
+                out[int(num)] = da.isel(number=k).values.astype("float32")
+        else:
+            out[0] = da.values.astype("float32")
+        lat, lon = da.latitude.values, da.longitude.values
+        steps = (da.step / np.timedelta64(1, "h")).values.astype(int)
+    return out, lat, lon, steps
+
+
+SYS_KM = 1200.0              # the "system": any closed low this close to the storm's latest position ...
+SYS_H = 72                   # ... from the tracker's last fix to this many hours later
+EXTRAP_H = 48                # once the track ends, the search centre moves on with its last motion for up to this long
+
+
+def et_depth(s: dict, M: dict, lat, lon, steps) -> dict:
+    """Per member: the track extended past the tracker (tc_jet.follow_low) and the depth of the SYSTEM it becomes.
+
+    During phasing the low is often double-centred and ECMWF's tracker can stay with a decaying southern remnant while the
+    main low re-forms 1000+ km to the north (Choi-Wan, 2 Oct 00Z: 20 of 21 "shallow" members had a 935-955 hPa low next to
+    their followed path). Depth is therefore the lowest central pressure, north of ET_LAT, of the storm's own track and of
+    any closed low within SYS_KM of its latest position over SYS_H hours from the tracker's last fix: the remnant together
+    with whatever low it merges into. {member: dict(ext, pmin, h, lat, lon, on_track, n_followed)}."""
+    res = {}
+    stl = list(np.asarray(steps, int))
+    for k, tr in s["tracks"].items():
+        if k not in M:
+            continue
+        cont = TC.follow_low(M[k], lat, lon, steps, tr, h_max=ET_H_MAX)
+        ext = TC.extended(tr, cont)
+        cands = []                                                          # (p, h, lat, lon, on_track)
+        m = (ext["lat"] >= ET_LAT) & (ext["steps"] <= ET_H_MAX) & np.isfinite(ext["pmsl"])
+        for i in np.where(m)[0]:
+            cands.append((float(ext["pmsl"][i]), int(ext["steps"][i]), float(ext["lat"][i]), float(ext["lon"][i]), True))
+        on = [int(h) for h in tr["steps"] if int(h) in set(stl)]
+        if on:
+            h_end = on[-1]
+            for h in stl:
+                if h < h_end or h > min(h_end + SYS_H, ET_H_MAX):
+                    continue
+                before = np.where(ext["steps"] <= h)[0]
+                c_la, c_lo = float(ext["lat"][before[-1]]), float(ext["lon"][before[-1]])
+                gap = h - int(ext["steps"][before[-1]])
+                if gap > 0 and len(before) >= 2:                            # the track has ended: move the search centre
+                    j1, j0 = before[-1], before[-2]                         # on with the last motion, for up to EXTRAP_H
+                    dt = (int(ext["steps"][j1]) - int(ext["steps"][j0])) or 6
+                    f_ = min(gap, EXTRAP_H) / dt
+                    c_la = float(np.clip(c_la + f_ * (ext["lat"][j1] - ext["lat"][j0]), -80, 80))
+                    c_lo = float(((c_lo + f_ * (((ext["lon"][j1] - ext["lon"][j0] + 180) % 360) - 180) + 180) % 360) - 180)
+                for la, lo, p, _ in TC.closed_lows(M[k][stl.index(h)], lat, lon, (c_la, c_lo), SYS_KM):
+                    if la >= ET_LAT:
+                        cands.append((float(p), int(h), float(la), float(lo), False))
+        if not cands:
+            continue
+        p, h, la, lo, ontr = min(cands, key=lambda c: c[0])
+        res[k] = dict(ext=ext, pmin=round(p, 1), h=h, lat=la, lon=lo, on_track=ontr, n_followed=int(len(cont["steps"])))
+    return res
+
+
+def depth_regression(et: dict, Z: dict):
+    """z500 regressed on how deep the low gets (x = -pmin, hPa deeper), across members: raw slope + t-test at every
+    step (precursor and downstream days as separate FDR families), and the downstream slope with the day-2 pattern held
+    fixed (_partial, the same group-blind controls as the recurvature composite)."""
+    from scipy import stats as sst
+    ks = [k for k in et if k in Z]
+    if len(ks) < MIN_ET_MEMBERS:
+        return None
+    x = np.array([-et[k]["pmin"] for k in ks])
+    if x.std() < MIN_ET_SPREAD:
+        return None
+    xa = x - x.mean()
+    Y = np.stack([Z[k] for k in ks]); Ya = Y - Y.mean(0)
+    slope = np.tensordot(xa, Ya, axes=(0, 0)) / np.sum(xa ** 2)
+    r = np.tensordot(xa, Ya, axes=(0, 0)) / (np.sqrt(np.sum(xa ** 2)) * np.sqrt(np.sum(Ya ** 2, 0)) + 1e-9)
+    n = len(ks)
+    tt = r * np.sqrt((n - 2) / np.clip(1 - r ** 2, 1e-9, None))
+    pv = 2 * sst.t.sf(np.abs(tt), n - 2)
+    sig = np.concatenate([bh(pv[:NPRE], 0.10), bh(pv[NPRE:], 0.10)])
+    C, ve = _early_pcs(Z, ks)
+    adj = _partial(xa, C, Y[:, NPRE:]); adj["ve"] = ve
+    return dict(n=n, sd=float(x.std()), mean_pmin=float(-x.mean()), slope=slope, sig=sig, adj=adj, mean=Y.mean(0))
+
+
+# Position-independent measures (2026-10-03): at FIXED points the depth-z500 link is weak (Choi-Wan 2 Oct 00Z: max |r|
+# 0.39, nothing passes FDR) because the deepest members put the low in different places. These do not care where:
+SECTOR_JET = (150.0, 240.0, 35.0, 70.0)   # lon0, lon1, lat0, lat1: the North Pacific downstream of a recurving W Pacific storm
+JET_DAYS = (5, 7)
+SR_BOX = (-20, 20, -30, 40)               # storm-relative box: dlat0, dlat1, dlon0, dlon1 (degrees; downstream to the east)
+
+
+def _sector(lat, lon, box):
+    j = (lat >= box[2]) & (lat <= box[3]); i = (lon % 360 >= box[0]) & (lon % 360 <= box[1])
+    return j, i
+
+
+def jet_measures(z, lat, lon):
+    """For one member and step, z (lat, lon) in m on the 1-degree grid: the downstream ridge amplitude (max of z minus its
+    zonal mean along each latitude), the wave amplitude (std of z along each latitude, averaged), and the strongest
+    500 hPa geostrophic wind (m/s), all inside SECTOR_JET."""
+    j, i = _sector(lat, lon, SECTOR_JET)
+    sub = z[np.ix_(j, i)]; la = lat[j]
+    dev = sub - sub.mean(1, keepdims=True)
+    ridge = float(dev.max()); amp = float(sub.std(1).mean())
+    phi = np.deg2rad(la)[:, None]; dy = np.deg2rad(abs(lat[1] - lat[0])) * TC.A_EARTH
+    dzdy = np.gradient(sub, axis=0) / dy
+    dzdx = np.gradient(sub, axis=1) / (dy * np.cos(phi))
+    f = 2 * 7.2921e-5 * np.sin(phi)
+    spd = 9.80665 * np.hypot(dzdx, dzdy) / f
+    jet = float(np.nanmax(np.where(np.abs(la)[:, None] >= 30, spd, np.nan)))
+    return dict(ridge=ridge, amp=amp, jet=jet)
+
+
+def _pr(x, y, C=None):
+    """Pearson r, two-sided p, Fisher 95% CI; with C, the partial correlation controlling for the columns of C."""
+    from scipy import stats as sst
+    x = np.asarray(x, float); y = np.asarray(y, float); k = 0
+    if C is not None:
+        X = np.column_stack([np.ones(len(x)), C])
+        x = x - X @ np.linalg.lstsq(X, x, rcond=None)[0]; y = y - X @ np.linalg.lstsq(X, y, rcond=None)[0]; k = C.shape[1]
+    n = len(x); r = float(np.corrcoef(x, y)[0, 1]); dof = n - 2 - k
+    t = r * np.sqrt(dof / max(1 - r ** 2, 1e-12)); p = float(2 * sst.t.sf(abs(t), dof))
+    zf = np.arctanh(np.clip(r, -0.999999, 0.999999)); se = 1 / np.sqrt(max(n - 3 - k, 1))
+    return dict(r=r, p=p, lo=float(np.tanh(zf - 1.96 * se)), hi=float(np.tanh(zf + 1.96 * se)), n=n)
+
+
+def depth_links(et: dict, Zf: dict, zlat, zlon, zsteps):
+    """Depth (hPa deeper) against the jet measures at JET_DAYS across members: raw and with the day-2 pattern held fixed
+    (partial correlation on the same group-blind controls), Benjamini-Hochberg over the whole set; and the storm-relative
+    composite (deepest third minus shallowest third of z500 around each member's own low at its deepest)."""
+    from scipy import stats as sst
+    ks = [k for k in et if k in Zf]
+    if len(ks) < MIN_ET_MEMBERS:
+        return None
+    x = np.array([-et[k]["pmin"] for k in ks])
+    if x.std() < MIN_ET_SPREAD:
+        return None
+    zs = list(zsteps)
+    d2 = zs.index(48)
+    C, ve = _pcs_of(np.stack([Zf[k][d2] for k in ks]), zlat)             # the day-2 pattern, group-blind
+    links = []
+    for d in JET_DAYS:
+        si = zs.index(24 * d)
+        meas = [jet_measures(Zf[k][si], zlat, zlon) for k in ks]
+        for key in ("ridge", "amp", "jet"):
+            y = np.array([m[key] for m in meas])
+            links.append(dict(day=d, key=key, y=y, raw=_pr(x, y), adj=_pr(x, y, C)))
+    ps = np.array([l["raw"]["p"] for l in links] + [l["adj"]["p"] for l in links])
+    sig = bh(ps, 0.10); nl = len(links)
+    for i, l in enumerate(links):
+        l["raw"]["sig"] = bool(sig[i]); l["adj"]["sig"] = bool(sig[nl + i])
+    # storm-relative composite at each member's own time of minimum (nearest field step)
+    dlat = np.arange(SR_BOX[0], SR_BOX[1] + 1); dlon = np.arange(SR_BOX[2], SR_BOX[3] + 1)
+    # anomalies against the ENSEMBLE MEAN at the same place and time: deeper members also sit further north, where 500 hPa
+    # heights are hundreds of metres lower anyway, so raw heights around the low would mix "deeper" with "further north"
+    zm = np.mean([Zf[k] for k in ks], axis=0)
+    boxes = []
+    for k in ks:
+        e = et[k]; si = int(np.argmin(np.abs(np.array(zs) - e["h"])))
+        la = np.clip(np.round(e["lat"] + dlat), zlat.min(), zlat.max()); lo = (np.round(e["lon"]) + dlon) % 360
+        jj = np.array([int(np.argmin(np.abs(zlat - v))) for v in la]); ii = np.array([int(np.argmin(np.abs(zlon % 360 - v))) for v in lo])
+        boxes.append((Zf[k][si] - zm[si])[np.ix_(jj, ii)])
+    B = np.stack(boxes)
+    o = np.argsort(x); third = len(ks) // 3
+    deep, shallow = B[o[-third:]], B[o[:third]]
+    t, pv = sst.ttest_ind(deep, shallow, axis=0, equal_var=False)
+    comp = dict(diff=deep.mean(0) - shallow.mean(0), sig=bh(pv, 0.10), mean=B.mean(0), dlat=dlat, dlon=dlon, n=(third, third),
+                p_deep=float(-x[o[-third:]].mean()), p_shallow=float(-x[o[:third]].mean()))
+    return dict(n=len(ks), x=x, links=links, ve=ve, k=C.shape[1], comp=comp, days_of_min=np.array([et[k]["h"] for k in ks]) / 24.0)
+
+
+def _pcs_of(X3, lat, k=K_PCS):
+    """Leading member PCs of a (members, lat, lon) field, cos-lat weighted, and the variance share they explain."""
+    X = X3.reshape(len(X3), -1).astype("float64"); X = X - X.mean(0)
+    w = np.sqrt(np.clip(np.cos(np.deg2rad(lat)), 0, None)); X = X * np.repeat(w, X3.shape[2])
+    U, S, _ = np.linalg.svd(np.nan_to_num(X), full_matrices=False)
+    k = min(k, len(X3) - 4)
+    return U[:, :k] * S[:k], float(np.sum(S[:k] ** 2) / np.sum(S ** 2))
+
+
 # ── figures ───────────────────────────────────────────────────────────────────────────────────────────────────────
 def _stormlab(s):
     return s["name"].title() if s["named"] else f"possible new storm ({s['id']})"
@@ -437,9 +639,9 @@ def render_impact(s: dict, comp, sens, Z_lat, Z_lon, init, out_png: Path, note: 
         else:
             rows.append((f"Storm's day-3 {word}, day-2 pattern held fixed: no significant link to 500 hPa height at days 5, 7 or 10.",))
     mw = (W - 0.9) / 3.0
-    mh = mw * (SECTOR[3] - SECTOR[2]) / (SECTOR[1] - SECTOR[0]) * 1.25
+    mh = mw * TC.sector_aspect(*SECTOR)                                      # a Lambert fan at its true aspect
     ROW_ON, ROW_OFF, TOP, BOT = 0.5 + 0.3 + mh + 0.75, 0.42, 1.15, 0.85
-    H = TOP + BOT + sum(ROW_ON if len(r) > 1 else ROW_OFF for r in rows)
+    H = TOP + BOT + sum(ROW_ON if len(r) > 1 else ROW_OFF + 0.2 * (len(r[0]) // 160) for r in rows)
     fig = plt.figure(figsize=(W, H))
     fx = lambda x: x / W
     fy = lambda y: 1 - y / H
@@ -451,17 +653,17 @@ def render_impact(s: dict, comp, sens, Z_lat, Z_lon, init, out_png: Path, note: 
     y = TOP
     for r in rows:
         if len(r) == 1:
-            fig.text(0.02, fy(y + 0.12), "• " + r[0], fontsize=11.5, color="#6f6b64", va="top")
-            y += ROW_OFF
+            import textwrap
+            wrapped = textwrap.fill("• " + r[0], 165, subsequent_indent="   ")
+            fig.text(0.02, fy(y + 0.12), wrapped, fontsize=11.5, color="#6f6b64", va="top")
+            y += ROW_OFF + 0.2 * wrapped.count("\n")
             continue
         head, days, fields, conts, cmap, lev, cblab = r
         fig.text(0.02, fy(y + 0.05), head, fontsize=12, fontweight="bold", va="top", wrap=True)
         cf = None
         for c, (d, (val, sg)) in enumerate(zip(days, fields)):
             x0 = 0.3 + c * (mw + 0.15)
-            ax = fig.add_axes([fx(x0), fy(y + 0.8 + mh), fx(mw), mh / H], projection=proj)
-            ax.set_extent([SECTOR[0], SECTOR[1], SECTOR[2], SECTOR[3]], crs=ccrs.PlateCarree()); ax.set_aspect("auto")
-            ax.coastlines("50m", lw=0.6, color="#333"); ax.add_feature(cfeature.BORDERS, lw=0.3, edgecolor="#666")
+            ax = TC.sector_axes(fig, [fx(x0), fy(y + 0.8 + mh), fx(mw), mh / H], *SECTOR)
             cf = ax.contourf(Z_lon, Z_lat, np.where(sg, val, np.nan), levels=lev, cmap=cmap, extend="both", transform=ccrs.PlateCarree())
             if conts is not None:
                 ax.contour(Z_lon, Z_lat, conts[c], levels=np.arange(5040, 6001, 60), colors="#222", linewidths=0.6, transform=ccrs.PlateCarree())
@@ -478,6 +680,166 @@ def render_impact(s: dict, comp, sens, Z_lat, Z_lon, init, out_png: Path, note: 
              "isolate its effect." + (f"\nThis storm recurves around day {rec_med:.1f}: by day 2 it may already be shaping the flow, so rows 3-4 can "
              "remove part of its own effect too." if rec_med is not None and rec_med <= 3.5 else ""), fontsize=9, color="#6f6b64", va="bottom")
     fig.savefig(out_png, dpi=80, facecolor="white", pil_kwargs={"quality": 85, "method": 6}); plt.close(fig)
+
+
+MEAS_LAB = {"ridge": ("Downstream ridge", "largest height above the latitude-mean (m)"),
+            "amp": ("Wave amplitude", "spread of 500 hPa height along latitudes (m)"),
+            "jet": ("Strongest 500 hPa jet", "geostrophic wind (m/s)")}
+
+
+def render_depth(s: dict, et: dict, L: dict, init, out_png: Path, note: str | None = None):
+    """How deep the storm gets after reaching the mid-latitudes, and what goes with it (layout in inches): followed tracks
+    + the depth distribution; depth against three position-independent jet measures; the storm-centred composite (only
+    when something in it is significant) and a plain-language summary built from the numbers."""
+    import textwrap
+    import cartopy.crs as ccrs
+    import cartopy.feature as cfeature
+    import matplotlib.pyplot as plt
+    from matplotlib.colors import Normalize
+    W = 17.0
+    ttl = (f"How deep {_stormlab(s)} gets after it reaches the mid-latitudes — AIFS-ENS, init {init:%d %b %Y %HZ}" if s is not None
+           else f"Tropical cyclones after transition — AIFS-ENS, init {init:%d %b %Y %HZ}")
+    if s is None or L is None:
+        fig = plt.figure(figsize=(W, 3.0))
+        fig.suptitle(ttl, fontsize=15, fontweight="bold", x=0.02, ha="left", y=0.95)
+        fig.text(0.5, 0.45, note or "No storm reaches the mid-latitudes in enough AIFS-ENS members for this analysis.",
+                 ha="center", fontsize=13, color="#6f6b64", wrap=True)
+        fig.savefig(out_png, dpi=80, facecolor="white", pil_kwargs={"quality": 85, "method": 6}); plt.close(fig)
+        return
+    c = L["comp"]; comp_on = bool(c["sig"].mean() >= MIN_AREA)
+    H = 1.25 + 4.6 + 0.85 + 0.55 + 3.0 + 0.95 + (0.35 + 3.6 + 0.9 if comp_on else 2.0) + 0.75
+    fig = plt.figure(figsize=(W, H))
+    fx = lambda x: x / W; fy = lambda y: 1 - y / H
+    fig.suptitle(ttl, fontsize=15, fontweight="bold", x=0.02, ha="left", y=fy(0.22), va="top")
+    n_merge = sum(1 for e in et.values() if not e["on_track"])
+    fig.text(0.02, fy(0.55), f"Each member's low is followed past the tracker's last fix (dashed). Depth = the lowest central pressure north of 35°N "
+             f"of the storm or of any low it merges with (within {SYS_KM:.0f} km, up to {SYS_H} h after the tracker's last fix);\n"
+             f"{n_merge} of {len(et)} members reach theirs in the merged low. Colours: depth, as in the histogram.", fontsize=10.2, color="#444",
+             va="top")
+    pm = np.array([e["pmin"] for e in et.values()])
+    vmin, vmax = np.floor(np.percentile(pm, 2) / 5) * 5, np.ceil(np.percentile(pm, 98) / 5) * 5
+    cmap = plt.get_cmap("magma"); norm = Normalize(vmin, vmax + 5)
+    # ── row A: map + distribution
+    def shown(e):                                    # a member's path up to a day after its deepest point (decaying lows clutter)
+        x = e["ext"]; keep = x["steps"] <= e["h"] + 24
+        return {k: (v[keep] if hasattr(v, "__len__") and len(v) == len(x["steps"]) else v) for k, v in x.items()}
+    paths = {k: shown(e) for k, e in et.items()}
+    allla = np.concatenate([q["lat"] for q in paths.values()] + [np.array([e["lat"] for e in et.values()])])
+    allo = np.concatenate([q["lon"] % 360 for q in paths.values()] + [np.array([e["lon"] % 360 for e in et.values()])])
+    alt = ((allo + 180) % 360) - 180                                     # a storm crossing 0E reads better in -180..180
+    if np.ptp(alt) < np.ptp(allo):
+        allo = alt
+    mid = np.array([q for q in zip(allo, allla) if q[1] >= 22]) if (allla >= 22).sum() > 10 else np.c_[allo, allla]
+    lo0, lo1 = np.percentile(mid[:, 0], 0.5) - 8, np.percentile(mid[:, 0], 99.5) + 8
+    la0, la1 = max(np.percentile(allla, 0.5) - 5, 22), min(np.percentile(allla, 99.5) + 5, 82)   # the chart is about the
+    # mid-latitude phase: start at 22N so the map zooms where the deepening happens (tracks enter from the bottom)
+    bh = 4.6                                                             # map height; the fan keeps its true aspect and
+    asp = TC.sector_aspect(lo0, lo1, la0, la1)                           # the histogram takes the width that is left
+    w_ = min(bh / asp, 10.4); h_ = w_ * asp
+    ax = TC.sector_axes(fig, [fx(0.3), fy(1.25 + 4.6 - (bh - h_) / 2), fx(w_), h_ / H], lo0, lo1, la0, la1)
+    hx = 0.3 + w_ + 1.0; hw = W - hx - 0.35
+    for k, e in sorted(et.items(), key=lambda kv: -kv[1]["pmin"]):
+        x = paths[k]; fol = x.get("followed", np.zeros(len(x["steps"]), bool)); col = cmap(norm(e["pmin"]))
+        ax.plot(x["lon"][~fol], x["lat"][~fol], color="#9a9a9a", lw=0.5, alpha=0.7, transform=ccrs.Geodetic())
+        if fol.any():
+            j0 = max(np.where(fol)[0][0] - 1, 0)
+            ax.plot(x["lon"][j0:], x["lat"][j0:], color=col, lw=1.1, alpha=0.85, ls=(0, (3, 1.5)), transform=ccrs.Geodetic())
+        ax.scatter([e["lon"]], [e["lat"]], s=30 if e["on_track"] else 26, color=col, edgecolors="#000", linewidths=0.4,
+                   transform=ccrs.PlateCarree(), zorder=5, marker="o" if e["on_track"] else "D")
+    if 0 in et:
+        x = paths[0]
+        ax.plot(x["lon"], x["lat"], color="#000", lw=2.2, transform=ccrs.Geodetic(), zorder=6)
+        ax.scatter([et[0]["lon"]], [et[0]["lat"]], s=150, marker="*", color="#000", edgecolors="#fff", linewidths=0.8,
+                   transform=ccrs.PlateCarree(), zorder=7)
+    fig.text(0.02, fy(1.12), "Map: grey = the tracker's track · dashed = followed as a surface low (to a day after its deepest point) · "
+             "● deepest on that path · ◆ deepest in the low it merged with · black = the control (★ its deepest)", fontsize=9.8, color="#333",
+             va="bottom")
+    ah = fig.add_axes([fx(hx), fy(1.25 + 4.6), fx(hw), 4.25 / H])
+    bins = np.arange(np.floor(pm.min() / 2) * 2, np.ceil(pm.max() / 2) * 2 + 2.01, 2)
+    cnt, edges, patches = ah.hist(pm, bins=bins, edgecolor="#fff")
+    for pa, lft in zip(patches, edges[:-1]):
+        pa.set_facecolor(cmap(norm(lft + 1)))
+    if 0 in et:
+        ah.axvline(et[0]["pmin"], color="#000", lw=1.6, ls="--")
+        ah.text(et[0]["pmin"], ah.get_ylim()[1] * 0.97, " control", fontsize=9.5, va="top")
+    ah.set_xlabel("deepest central pressure north of 35°N (hPa)", fontsize=10); ah.set_ylabel("members", fontsize=10)
+    n = len(pm); b960, b950 = int((pm < 960).sum()), int((pm < 950).sum())
+    ah.set_title(f"{n} members · median {np.median(pm):.0f} hPa · {b960} below 960 · {b950} below 950", fontsize=10.2, loc="left")
+    ah.grid(alpha=0.3)
+    # ── row B: depth vs the jet measures (day 7, day 5 quoted)
+    y0 = 1.25 + 4.6 + 0.85
+    fig.text(0.02, fy(y0 - 0.1), "Does a deeper low go with a bigger downstream response? North Pacific 150°E–120°W, 35–70°N, day 7 "
+             "(day 5 quoted): measures that do not depend on where the low is", fontsize=12, fontweight="bold", va="top")
+    x = L["x"]; dmin = L["days_of_min"]
+    pw = (W - 1.75) / 3.0
+    sc = None
+    for cc, key in enumerate(("ridge", "amp", "jet")):
+        l7 = next(l for l in L["links"] if l["day"] == 7 and l["key"] == key)
+        l5 = next(l for l in L["links"] if l["day"] == 5 and l["key"] == key)
+        axs = fig.add_axes([fx(0.65 + cc * (pw + 0.1)), fy(y0 + 0.55 + 3.0), fx(pw - 0.62), 3.0 / H])
+        sc = axs.scatter(-x, l7["y"], c=dmin, cmap="viridis", vmin=3, vmax=10, s=26, edgecolors="#333", linewidths=0.3)
+        axs.invert_xaxis()
+        if l7["raw"]["sig"]:
+            cf_ = np.polyfit(-x, l7["y"], 1); xx = np.linspace(-x.max(), -x.min(), 10); axs.plot(xx, np.polyval(cf_, xx), color="#c0392b", lw=1.8)
+        r, a = l7["raw"], l7["adj"]
+        axs.set_title(f"{MEAS_LAB[key][0]}: r = {r['r']:+.2f} ({r['lo']:+.2f} to {r['hi']:+.2f}), p = {r['p']:.2f} — "
+                      f"{'significant' if r['sig'] else 'not significant'}", fontsize=9.6, loc="left")
+        axs.text(0.02, 0.03, f"day-2 pattern held fixed: r = {a['r']:+.2f}, p = {a['p']:.2f}\nday 5: r = {l5['raw']['r']:+.2f}, p = {l5['raw']['p']:.2f}",
+                 transform=axs.transAxes, fontsize=8.6, color="#444", va="bottom", bbox=dict(boxstyle="round", fc="#fff", ec="#ccc", alpha=0.92))
+        axs.set_xlabel("deepest central pressure (hPa), deeper to the right", fontsize=9.5); axs.set_ylabel(MEAS_LAB[key][1], fontsize=9.5)
+        axs.grid(alpha=0.3)
+    cax2 = fig.add_axes([fx(W - 0.95), fy(y0 + 0.55 + 3.0), fx(0.13), 3.0 / H])
+    cb2 = fig.colorbar(sc, cax=cax2); cb2.set_label("day of the deepest point", fontsize=9.5)
+    # ── row C: storm-centred composite (only when significant) + summary
+    y1 = y0 + 0.55 + 3.0 + 0.95
+    core_sig = c["sig"][np.ix_(np.abs(c["dlat"]) <= 3, np.abs(c["dlon"]) <= 5)].any()
+    core_val = float(np.nanmin(np.where(c["sig"], c["diff"], np.nan)[np.ix_(np.abs(c["dlat"]) <= 3, np.abs(c["dlon"]) <= 5)])) if core_sig else None
+    dn = bool(c["sig"][:, c["dlon"] >= 15].any())
+    best = max(L["links"], key=lambda l: abs(l["raw"]["r"]))
+    any_sig = any(l["raw"]["sig"] or l["adj"]["sig"] for l in L["links"])
+    lines = [f"• {n} members' lows reach 35°N; {b960} deepen below 960 hPa and {b950} below 950 (median {np.median(pm):.0f} hPa, deepest "
+             f"around day {np.median(dmin):.1f}). The control: {et[0]['pmin']:.0f} hPa." if 0 in et else
+             f"• {n} members' lows reach 35°N; {b960} deepen below 960 hPa and {b950} below 950 (median {np.median(pm):.0f} hPa).",
+             (f"• Around the low at its deepest, the deepest third of members ({c['p_deep']:.0f} hPa) have a 500 hPa trough "
+              f"{abs(core_val):.0f} m deeper over the centre than the shallowest third ({c['p_shallow']:.0f} hPa): surface low and upper "
+              f"trough deepen together." if core_sig else
+              f"• Around the low at its deepest, the deepest third ({c['p_deep']:.0f} hPa) and the shallowest third ({c['p_shallow']:.0f} hPa) "
+              f"show no significant difference in 500 hPa height (FDR 10%)."),
+             ("• That comparison also shows significant differences downstream (east) of the low." if dn else None),
+             ("• How deep it gets IS significantly linked to: " + ", ".join(f"{MEAS_LAB[l['key']][0].lower()} on day {l['day']} (r {l['raw']['r']:+.2f})"
+              for l in L["links"] if l["raw"]["sig"]) + "." if any_sig else
+              f"• How deep it gets is not significantly linked to the downstream ridge, the wave amplitude or the jet on days 5 and 7 "
+              f"(the largest correlation: {MEAS_LAB[best['key']][0].lower()} on day {best['day']}, r {best['raw']['r']:+.2f}, p {best['raw']['p']:.2f}, "
+              f"which does not survive the false-discovery correction)."),
+             "• What this can and cannot say: when nearly every member deepens the storm, the ensemble can test how much the DEPTH matters, "
+             "not whether the transition matters — an effect all members share cannot show up in a comparison between them. The wave-packet "
+             "diagram on the 'Tropical cyclones and the jet' card follows the downstream wave train itself."]
+    lines = [l for l in lines if l]
+    if comp_on:
+        fig.text(0.02, fy(y1 - 0.12), f"Around the low at its deepest: deepest third ({c['n'][0]} members, mean {c['p_deep']:.0f} hPa) minus "
+                 f"shallowest third (mean {c['p_shallow']:.0f} hPa), 500 hPa height against the ensemble mean", fontsize=12, fontweight="bold", va="top")
+        axc = fig.add_axes([fx(0.65), fy(y1 + 0.35 + 3.6), fx(7.2), 3.6 / H])
+        D = np.where(c["sig"], c["diff"], np.nan); lev = np.arange(-160, 161, 20)
+        cfc = axc.contourf(c["dlon"], c["dlat"], D, levels=lev, cmap="RdBu_r", extend="both")
+        axc.plot(0, 0, marker="x", ms=12, mew=2.5, color="#000"); axc.text(1, 1, "the low", fontsize=9.5)
+        axc.set_xlabel("degrees east of the low (downstream to the right)", fontsize=9.5); axc.set_ylabel("degrees north of the low", fontsize=9.5)
+        axc.set_aspect("equal"); axc.grid(alpha=0.3)
+        axc.set_title(f"{100 * np.mean(c['sig']):.0f}% of the box significant (shaded only there; FDR 10%)", fontsize=9.6, loc="left")
+        cb3 = fig.colorbar(cfc, ax=axc, orientation="horizontal", fraction=0.05, pad=0.18); cb3.set_label("height difference (m)", fontsize=9.5)
+        tx, width, yy = fx(8.45), 78, y1 + 0.2
+    else:
+        tx, width, yy = 0.02, 175, y1 + 0.2
+    fig.text(tx, fy(yy - 0.32), "What the members say", fontsize=12.5, fontweight="bold", va="top")
+    for ln in lines:
+        wrapped = textwrap.fill(ln, width, subsequent_indent="   ")
+        fig.text(tx, fy(yy), wrapped, fontsize=10.6, va="top", color="#222")
+        yy += 0.215 * (wrapped.count("\n") + 1) + 0.14
+    fig.text(0.02, fy(H - 0.12), "Tracks: ECMWF tropical-cyclone tracker on AIFS-ENS (open data, CC BY 4.0), continued as the surface-pressure minimum "
+             "(closed lows; long jumps only along the motion and while the low is not decaying; never onto a low that already existed as a separate "
+             "system).\nHeights and pressure: AIFS-ENS control + 50 members. Correlations across members with Fisher 95% intervals; "
+             "Benjamini–Hochberg false-discovery rate 10% over all six tests; partial correlations hold the day-2 pattern's four leading member "
+             "patterns fixed.\nAssociations across the members of one model, not proof of cause.", fontsize=8.8, color="#6f6b64", va="bottom")
+    fig.savefig(out_png, dpi=80, facecolor="white", pil_kwargs={"quality": 86, "method": 6}); plt.close(fig)
 
 
 def main() -> int:
@@ -557,8 +919,38 @@ def main() -> int:
             for fn in ("tcens_impact.webp", "tcens_impact_2.webp"):
                 render_impact(None, None, None, None, None, init, out / fn,
                               note="No named Northern-Hemisphere storm in AIFS-ENS this cycle.")
+    # step 3: how deep each named storm gets after it reaches the mid-latitudes, and what goes with it
+    depth = {}
+    if not a.no_z500 and Z is not None and cand:
+        try:
+            M, mlat, mlon, msteps = load_msl(a.date, a.time)
+            ZS = tuple(range(0, ET_H_MAX + 1, 12))
+            Zf, zl2, zo2 = load_z500(a.date, a.time, steps_h=ZS)
+            for s in cand:
+                et = et_depth(s["models"]["aifs"], M, mlat, mlon, msteps)
+                if len(et) < MIN_ET_MEMBERS:
+                    continue
+                dm = np.median([e["h"] for e in et.values()]) / 24
+                late = dm > ET_H_MAX / 24 - 1.5 or np.mean([e["h"] >= ET_H_MAX - 12 for e in et.values()]) > 1 / 3
+                depth[s["key"]] = (et, None if late else depth_links(et, Zf, zl2, zo2, ZS), late)
+        except Exception as e:
+            print(f"  depth step failed ({e!r})", flush=True)
+    ok = sorted([k for k, v in depth.items() if v[1] is not None], key=lambda k: np.median([e["pmin"] for e in depth[k][0].values()]))
+    late_names = [_stormlab(storms[k]) for k, v in depth.items() if v[2]]
+    for n_, fn in enumerate(("tcens_depth.webp", "tcens_depth_2.webp")):
+        if n_ < len(ok):
+            render_depth(storms[ok[n_]], depth[ok[n_]][0], depth[ok[n_]][1], init, out / fn)
+        else:
+            msg = ("No other storm" if n_ else "No storm") + " reaches the mid-latitudes and deepens within day 10 in at least " \
+                  f"{MIN_ET_MEMBERS} AIFS-ENS members this cycle."
+            if late_names:
+                msg += " Deepening after day 10 (beyond this analysis): " + ", ".join(late_names) + "."
+            render_depth(None, {}, None, init, out / fn, note=msg)
+    if depth:
+        print("  depth: " + "; ".join(f"{_stormlab(storms[k])} {len(v[0])} members, median {np.median([e['pmin'] for e in v[0].values()]):.0f} hPa"
+                                       + (" (deepens after day 10)" if v[2] else "") for k, v in depth.items()), flush=True)
     js = {"init": f"{init:%Y-%m-%dT%H:%MZ}", "models": {m: {"members": nm[m]} for m in nm}, "impact_storms": [x["key"] for x in tested[:2]],
-          "storms": []}
+          "depth_storms": ok[:2], "storms": []}
     for s in order:
         e = {"key": s["key"], "id": s["id"], "name": _stormlab(s), "named": s["named"], "models": {}}
         for m in s["models"]:
@@ -578,9 +970,22 @@ def main() -> int:
                                                           {"sd_deg": round(sens["res"][p]["sd"], 2),
                                                            "sig_area_pct_by_day_adjusted": {str(d): round(100 * float(np.mean(sens["res"][p]["adj"]["sig"][i])), 1) for i, d in enumerate(DAYS)}}
                                                           for p in ("lat", "lon")}}
+        if s["key"] in depth:
+            et_, L_, late_ = depth[s["key"]]
+            pm_ = np.array([v["pmin"] for v in et_.values()])
+            e["depth"] = {"members": len(et_), "deepens_after_day10": bool(late_), "pmin_p10_p50_p90": [round(float(np.percentile(pm_, q)), 1) for q in (10, 50, 90)],
+                          "below_960": int((pm_ < 960).sum()), "below_950": int((pm_ < 950).sum()),
+                          "day_of_min_median": round(float(np.median([v["h"] for v in et_.values()]) / 24), 2),
+                          "merged_low_minima": int(sum(not v["on_track"] for v in et_.values())),
+                          "control_pmin": et_[0]["pmin"] if 0 in et_ else None,
+                          "links": None if L_ is None else [{"day": l["day"], "measure": l["key"], "r": round(l["raw"]["r"], 3), "p": round(l["raw"]["p"], 4),
+                                                             "significant": l["raw"]["sig"], "r_day2_fixed": round(l["adj"]["r"], 3),
+                                                             "p_day2_fixed": round(l["adj"]["p"], 4), "significant_day2_fixed": l["adj"]["sig"]}
+                                                            for l in L_["links"]],
+                          "storm_centred_sig_pct": None if L_ is None else round(100 * float(np.mean(L_["comp"]["sig"])), 1)}
         js["storms"].append(e)
     (out / "data" / "tcens.json").write_text(json.dumps(js))
-    print(f"  wrote tcens_tracks.webp, tcens_impact.webp, data/tcens.json in {time.time() - t0:.0f}s", flush=True)
+    print(f"  wrote tcens_tracks.webp, tcens_impact(_2).webp, tcens_depth(_2).webp, data/tcens.json in {time.time() - t0:.0f}s", flush=True)
     return 0
 
 

@@ -9,6 +9,9 @@ Along the control's own tracker position (tc_jet.decode, the run the dynamic-tro
 Approximation: AIFS-ENS open data has z on 1000/925/850/700/600/500/400/300 hPa only, so the lower layer is 925-600 hPa
 (925, 850, 700, 600) instead of Hart's 900-600 every 25 hPa, B uses Z600 - Z925, and the upper layer is 600/500/400/300.
 Parameters are smoothed with a 24-h running mean (Hart). Control member only: one deterministic path through phase space.
+Since 2026-10-03 the path continues past the tracker's last fix: ECMWF's tracker stops at (or near) extratropical transition,
+exactly when the phase diagram gets interesting, so the control's low is followed on as the surface-pressure minimum
+(tc_jet.follow_low, 12-hourly, from the control's own msl) and those points are drawn dashed.
     python src/tc_phase.py --date 20261002 --time 00 --out ../../assets/sst/tcphase.webp --json ../../assets/sst/data/tcphase.json
 """
 from __future__ import annotations
@@ -64,10 +67,21 @@ def _slope(dz, levs):
     return float(np.polyfit(x, np.asarray(dz, float), 1)[0])
 
 
+def load_msl(cyc):
+    import xarray as xr
+    p = ecmwf.ensure(cyc, ecmwf.Spec("aifs-ens", "cf", "msl", "sfc", (), STEPS))
+    da = xr.open_dataset(p, engine="cfgrib", backend_kwargs={"indexpath": ""})["msl"]
+    if "number" in da.dims:
+        da = da.squeeze("number", drop=True)
+    da = da.assign_coords(longitude=da.longitude % 360).sortby("longitude").sortby("latitude").sel(latitude=slice(-5.0, 85.0))
+    return (da / 100.0).values.astype("float32"), da.latitude.values, da.longitude.values, (da.step / np.timedelta64(1, "h")).values.astype(int)
+
+
 def phase_series(z, lat, lon, steps, s):
-    """B, -VT_L, -VT_U at each 12-h step where the control has a position (NaN elsewhere)."""
+    """B, -VT_L, -VT_U at each 12-h step where the (extended) control track has a position."""
     lev = list(z.isobaricInhPa.values.astype(int))
-    out = {"h": [], "lat": [], "lon": [], "B": [], "VTL": [], "VTU": []}
+    fol = s.get("followed", np.zeros(len(s["steps"]), bool))
+    out = {"h": [], "lat": [], "lon": [], "B": [], "VTL": [], "VTU": [], "followed": []}
     for k, h in enumerate(steps):
         pos = TC.at(s, int(h))
         if pos is None or pos[0] <= 0:
@@ -89,6 +103,7 @@ def phase_series(z, lat, lon, steps, s):
         B = float(thick[right].mean() - thick[left].mean())
         dz = [float(Z[lev.index(p)][m].max() - Z[lev.index(p)][m].min()) for p in LEVS]
         dzd = dict(zip(LEVS, dz))
+        out["followed"].append(bool(fol[kk]))
         out["h"].append(int(h)); out["lat"].append(pos[0]); out["lon"].append(pos[1]); out["B"].append(B)
         out["VTL"].append(_slope([dzd[p] for p in LOW], LOW)); out["VTU"].append(_slope([dzd[p] for p in UPP], UPP))
     for key in ("B", "VTL", "VTU"):                                       # Hart: 24-h running mean
@@ -142,14 +157,32 @@ def render(rows, init, out_png):
                     ax.text(tx, ty, t, transform=ax.transAxes, fontsize=8.5, color="#6f6b64", ha="left" if tx < .5 else "right",
                             va="top" if ty > .5 else "bottom")
             pts = np.c_[x, y].reshape(-1, 1, 2)
+            fol = np.array(ser.get("followed", [False] * len(x)), bool)
             if len(x) > 1:
-                lc = LineCollection(np.concatenate([pts[:-1], pts[1:]], axis=1), cmap=cmap, norm=norm, lw=3)
-                lc.set_array(d[:-1]); ax.add_collection(lc)
-            sc = ax.scatter(x, y, c=d, cmap=cmap, norm=norm, s=22, zorder=3, edgecolors="none")
+                segs = np.concatenate([pts[:-1], pts[1:]], axis=1)
+                for mask, ls in ((~fol[1:], "solid"), (fol[1:], (0, (2.5, 1.6)))):     # tracker solid, followed dashed
+                    if mask.any():
+                        lc = LineCollection(segs[mask], cmap=cmap, norm=norm, lw=3, linestyles=ls)
+                        lc.set_array(d[:-1][mask]); ax.add_collection(lc)
+            sc = ax.scatter(x[~fol], y[~fol], c=d[~fol], cmap=cmap, norm=norm, s=22, zorder=3, edgecolors="none")
+            if fol.any():
+                ax.scatter(x[fol], y[fol], s=26, zorder=3, facecolors="#fff", edgecolors=[cmap(norm(v)) for v in d[fol]], linewidths=1.4)
+                j = np.where(fol)[0][0] - 1
+                if j >= 0:
+                    ax.annotate("tracker's last fix", (x[j], y[j]), xytext=(10, 12), textcoords="offset points", fontsize=8.3,
+                                color="#444", arrowprops=dict(arrowstyle="-", color="#888", lw=0.8))
+            xr = (min(xr[0], np.nanmin(x) - 10), max(xr[1], np.nanmax(x) + 10)) if c == 0 else \
+                 (min(xr[0], np.nanmin(x) - 40), max(xr[1], np.nanmax(x) + 40))
+            yr = (min(yr[0], np.nanmin(y) - 40), max(yr[1], np.nanmax(y) + 40))
             ax.scatter(x[:1], y[:1], marker="o", s=110, facecolors="none", edgecolors="#000", lw=1.6, zorder=4)
-            ax.annotate(f"start (+{ser['h'][0]} h)", (x[0], y[0]), xytext=(8, 6), textcoords="offset points", fontsize=8.5)
             ax.scatter(x[-1:], y[-1:], marker="X", s=90, color="#000", zorder=4)
-            ax.annotate(f"end (+{ser['h'][-1]} h)", (x[-1], y[-1]), xytext=(8, -12), textcoords="offset points", fontsize=8.5)
+            box = dict(boxstyle="round,pad=0.15", fc="#fff", ec="none", alpha=0.85)
+            # start above-left, end below-right; if they sit close together, push them further apart
+            near = (abs(x[-1] - x[0]) < 0.12 * (xr[1] - xr[0])) and (abs(y[-1] - y[0]) < 0.12 * (yr[1] - yr[0]))
+            ax.annotate(f"start (+{ser['h'][0]} h)", (x[0], y[0]), xytext=(-14, 16 if not near else 26), textcoords="offset points",
+                        fontsize=8.5, ha="right", bbox=box, zorder=6)
+            ax.annotate(f"end (+{ser['h'][-1]} h)", (x[-1], y[-1]), xytext=(10, -14 if not near else -26), textcoords="offset points",
+                        fontsize=8.5, bbox=box, zorder=6)
             ax.set_xlim(*xr); ax.set_ylim(*yr)
             ax.set_xlabel(xl, fontsize=9.5); ax.set_ylabel(yl, fontsize=9.5); ax.grid(alpha=0.3)
         et = []
@@ -159,9 +192,10 @@ def render(rows, init, out_png):
                             loc="left", fontsize=11, fontweight="bold")
     cax = fig.add_axes([0.935, 0.25, 0.012, 0.5])
     cb = fig.colorbar(plt.cm.ScalarMappable(norm=norm, cmap=cmap), cax=cax); cb.set_label("forecast day")
-    fig.text(0.08, 0.004, "Thermal wind = slope of the height perturbation (max − min within 500 km) against ln p; positive = warm core.\n"
-             "Levels 925/850/700/600 and 600/500/400/300 hPa (open data; Hart used 900–600 every 25 hPa). 24-h running mean.",
-             fontsize=8, color="#6f6b64")
+    fig.text(0.08, 0.004, "Thermal wind = slope of the height perturbation (max − min within 500 km) against ln p; positive = warm core. "
+             "Levels 925/850/700/600 and 600/500/400/300 hPa (open data; Hart used 900–600 every 25 hPa). 24-h running mean.\n"
+             "Solid: ECMWF's tracker. Dashed, open dots: the same low followed on as the surface-pressure minimum after the tracker's last fix "
+             "(the tracker usually stops at extratropical transition).", fontsize=8, color="#6f6b64")
     out_png.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(out_png, dpi=100, facecolor="white", pil_kwargs={"quality": 85, "method": 6}); plt.close(fig)
 
@@ -183,7 +217,17 @@ def main() -> int:
         print(f"  z {zp.name}: {zp.stat().st_size / 1e6:.0f} MB, loaded in {time.time() - t0:.0f} s", flush=True)
         lat, lon = z.latitude.values, z.longitude.values
         steps = (z.step / np.timedelta64(1, "h")).values.astype(int)
+        try:
+            msl, mlat, mlon, msteps = load_msl(cyc)
+        except Exception as e:                                           # the extension is a bonus: never lose the chart for it
+            print(f"  control msl unavailable ({e}); phase paths end at the tracker's last fix", flush=True); msl = None
         for s in storms:
+            if msl is not None:
+                cont = TC.follow_low(msl, mlat, mlon, msteps, s)
+                if len(cont["steps"]):
+                    print(f"  {TC.label(s)}: followed past the tracker's last fix (+{int(s['steps'][-1])} h) to +{int(cont['steps'][-1])} h, "
+                          f"deepest {np.nanmin(cont['pmsl']):.0f} hPa", flush=True)
+                s = dict(s, **TC.extended(s, cont))
             ser = phase_series(z, lat, lon, steps, s)
             if len(ser["h"]) >= 2:
                 on, co = et_times(ser)
