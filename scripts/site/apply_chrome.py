@@ -39,7 +39,8 @@ PRODUCTS = [
     # Stratosphere; "Climate drivers" and "Atmospheric
     # circulation" are gone. The 2026-09-27 rules stand: products only (the person lives in PERSONAL) and never a group
     # called "Weather" or "Research". Group titles are the catalogue's topic labels (build_catalog.TOPICS) - rename both.
-    ("Days 1–15", "The next two weeks: storms, hazards and the flow aloft", [
+    # 2026-10-03, user: "Days 1-15" -> "Mid-latitude weather", and Pacific pressure and wind moved under the El Niño monitor.
+    ("Mid-latitude weather", "The next two weeks: storms, hazards and the flow aloft", [
         ("Surface and hazards", [
             ("/models.html", "Short-range model maps",
              "Zoomable maps of the newest HRRR, RRFS and RDPS runs for aviation, severe and winter weather and renewables: radar with precipitation type, accumulation, ceiling, visibility, temperature, dewpoint, wind, HRRR entraining CAPE (ECAPE), smoke and sunshine, with contours and hover values.",
@@ -49,9 +50,6 @@ PRODUCTS = [
              "Every run in season"),
             ("/ar.html", "Atmospheric rivers",
              "Integrated vapour transport from the 51-member AIFS ensemble: probability of AR conditions at each 12-hourly step, a West Coast landfall tool and Ralph-scale category odds at named locations.",
-             "Twice daily"),
-            ("/circulation.html#mslp", "Pacific pressure and wind",
-             "Sea-level pressure and 10 m wind over the Pacific from the AIFS and IFS ensembles, separately and blended, to day 15.",
              "Twice daily"),
         ]),
         ("Upper air", [
@@ -71,6 +69,9 @@ PRODUCTS = [
             ("/enso.html", "El Niño monitor",
              "Daily ONI and RONI, Niño-region sea surface temperatures, the subsurface, winds and convection, with SST anomaly maps and animation.",
              "Daily"),
+            ("/circulation.html#mslp", "Pacific pressure and wind",
+             "Sea-level pressure and 10 m wind over the Pacific from the AIFS and IFS ensembles, separately and blended, to day 15.",
+             "Twice daily"),
             ("/mjo.html", "MJO forecast",
              "Real-time multivariate MJO index from the ECMWF AIFS ensemble, with the observed phase-space track, an ENSO-removed version, and what each phase has meant for temperature and rain.",
              "Twice daily"),

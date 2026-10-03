@@ -54,7 +54,7 @@ THUMB_INDEX_URL = "https://raw.githubusercontent.com/scorvec/scorvec.github.io/f
 
 # ids stay stable (they are in catalogue URLs, ?topic=...); labels are the menu group titles in apply_chrome.PRODUCTS
 TOPICS = [   # 2026-10-03: the theme-first menus (ids unchanged; labels = apply_chrome.PRODUCTS titles, in menu order)
-    ("weather", "Days 1–15", "The next two weeks: storms, hazards and the flow aloft"),
+    ("weather", "Mid-latitude weather", "The next two weeks: storms, hazards and the flow aloft"),
     ("drivers", "Tropics", "ENSO, the MJO, tropical cyclones and the tropical circulation"),
     ("circulation", "Stratosphere", "The polar vortex and the waves going up into it, the QBO, and the atmosphere's angular momentum"),
     ("outlooks", "Weeks to seasons", "From weeks two to five out to the coming seasons"),
@@ -86,7 +86,7 @@ PAGES = {
     # tropical-cyclone and tropical-circulation items under Tropics, angular momentum under Stratosphere
     "/circulation.html": dict(kind="stage", file="circulation.html", topic="drivers", title="Jets, Walker and Hadley cells",
                               tier=0, prio=4, models=["AIFS-ENS"], horizon="Days 1–15", region=["Global"],
-                              groups={"Days 1–15 maps": dict(topic="weather", region=["Pacific", "Northern Hemisphere"]),
+                              groups={"Mid-latitude weather": dict(topic="weather", region=["Pacific", "Northern Hemisphere"]),
                                       "Tropical cyclones": dict(topic="drivers", region=["Pacific", "North America"], prio=3),
                                       "Tropical circulation": dict(topic="drivers", models=["AIFS-ENS", "IMERG", "ERA5"], region=["Tropics"]),
                                       "Angular momentum & torques": dict(topic="circulation", region=["Global"])}),

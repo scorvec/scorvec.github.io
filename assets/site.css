@@ -308,6 +308,14 @@ html body {
   font-feature-settings: 'kern' 1, 'liga' 1;
 }
 html body.dense { font-size: 15.5px; line-height: 1.45; }
+/* Larger text on desktop screens (2026-10-03, user: "the font in general throughout the site tends to be too small on my
+   monitor"). Everything sized in rem follows the root and grows ~10 %; text sized in px is raised page by page (the midterms
+   pages). Phones and narrow windows keep the sizes above. */
+@media (min-width: 1000px) {
+  html:root { font-size: 110%; }
+  html body { font-size: 18.5px; }
+  html body.dense { font-size: 17px; }
+}
 html h1, html h2 {
   font-family: var(--f-serif);
   font-weight: 600;
