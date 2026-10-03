@@ -337,7 +337,7 @@ window.STAGE = {
   {label: "Overturning & jets", ico: "\u{1F30D}", items: [["pacjet","North Pacific jet","250 hPa maps, jet axis, phases"],["hadley","Hadley cells","meridional streamfunction"],["walker","Walker circulation","loop, by basin, weekly departure"],["jets","Subtropical jets","strength and position"]]}
 ],
   products: {
-  gillrain: {label: "Rain-forced circulation (Gill model)", img: function () { return "assets/sst/gill_rain.webp?v=a189bd1e0ead"; }, fit: false,
+  gillrain: {label: "Rain-forced circulation (Gill model)", img: function () { return "assets/sst/gill_rain.webp?v=202610030014"; }, fit: false,
           about: "about-gillrain", cap: function () { return "How much of the tropical upper-level circulation the rain itself explains: the Gill (1980) model forced by the observed rain of the last four weeks (IMERG Late) and by the AIFS-ENS forecast rain of weeks 1 and 2, against the observed and forecast 200 hPa velocity potential."; }},
   mslp: {label: "MSLP and 10 m wind", a: {label: "Ensemble", items: [["mslp_wind","Blend (AIFS-ENS + IFS-ENS)"],["mslp_wind_aifs","AIFS-ENS only"],["mslp_wind_ifs","IFS-ENS only"]]},
           frame: function (a) { return (function (r) { return "sst_anim.html?embed=1&manifest=mslp_wind_manifest.json&region=" + r + "&regions=" + r; })(a || "mslp_wind"); }, about: "about-mslp", cap: function () { return "Ensemble-mean sea-level pressure and 10 m wind, days 0–15."; }},
