@@ -40,6 +40,16 @@ MODELS = {
     "aifs": dict(model="aifs-ens", types=["cf", "pf"], label="AIFS-ENS (AI)"),
     "ifs":  dict(model="ifs",      types=["pf"],        label="IFS-ENS (physics)"),
 }
+# Single runs (2026-10-03, user: "also add the aifs-ens member 0, aifs single, IFS op, and GDPS"). Drawn as their own
+# figure (anomaly only), so the ensemble-mean figure keeps its readable four columns.
+DET = {
+    "aifs0": "AIFS-ENS member 0 (AI)",
+    "aifs1": "AIFS single (AI)",
+    "hres": "IFS HRES (physics)",
+    "gdps": "GDPS (physics)",
+}
+GDPS_10U = ("https://dd.weather.gc.ca/{d}/WXO-DD/model_gdps/15km/{c}/{L:03d}/"
+            "{d}T{c}Z_MSC_GDPS_WindU_AGL-10m_LatLon0.15_PT{L:03d}H.grib2")
 
 
 def download(model_key: str, date: str, time: str, out_dir: Path = None) -> dict:
@@ -79,6 +89,103 @@ def ensemble_mean_band(paths: dict) -> xr.DataArray:
     # this plot's intent (DAILY_STEPS).
     ens = ens.isel(step=ens.step.values > np.timedelta64(0))
     return ens.compute()
+
+
+def _band_from_grib(blob_or_path, step_h: int) -> np.ndarray:
+    """One 10u field (any regular lat/lon grid) -> 5S-5N cos-weighted mean on LON_GRID."""
+    import eccodes as ec
+    if isinstance(blob_or_path, (bytes, bytearray)):
+        h = ec.codes_new_from_message(bytes(blob_or_path))
+    else:
+        with open(blob_or_path, "rb") as f:
+            h = ec.codes_grib_new_from_file(f)
+    ni, nj = ec.codes_get(h, "Ni"), ec.codes_get(h, "Nj")
+    la0, la1 = ec.codes_get(h, "latitudeOfFirstGridPointInDegrees"), ec.codes_get(h, "latitudeOfLastGridPointInDegrees")
+    lo0 = ec.codes_get(h, "longitudeOfFirstGridPointInDegrees")
+    di = ec.codes_get(h, "iDirectionIncrementInDegrees")
+    v = ec.codes_get_values(h).reshape(nj, ni)
+    ec.codes_release(h)
+    lat = np.linspace(la0, la1, nj)
+    lon = (lo0 + di * np.arange(ni)) % 360
+    keep = np.abs(lat) <= LAT_BAND
+    w = np.cos(np.deg2rad(lat[keep]))
+    prof = (v[keep] * w[:, None]).sum(0) / w.sum()
+    o = np.argsort(lon)
+    lon, prof = lon[o], prof[o]
+    return np.interp(LON_GRID, np.r_[lon, lon[0] + 360], np.r_[prof, prof[0]])
+
+
+def det_band(key: str, date: str, time: str, cf_path=None) -> xr.DataArray:
+    """Daily-step 5S-5N 10u for one single run -> (step, LON_GRID). ECMWF from the Google Cloud mirror only (byte
+    ranges of the 10u message), GDPS from the ECCC Datamart; member 0 is read out of the cached AIFS-ENS cf batch."""
+    if key == "aifs0":
+        p = cf_path or ecmwf.sfc_path(ecmwf.Cycle(date, time), "aifs-ens", "cf", "10u")
+        return ensemble_mean_band({"cf": p})
+    rows, steps = [], []
+    if key in ("aifs1", "hres"):
+        import rangefetch as rf
+        model = "aifs-single" if key == "aifs1" else "ifs"
+        for st in DAILY_STEPS:
+            try:
+                idx = rf.fetch_index(date, time, model, st, "fc", stream="oper")
+            except Exception as e:                                     # noqa: BLE001
+                print(f"  {key} +{st}h: index unavailable ({str(e)[:60]})", flush=True)
+                break
+            want = [e for e in idx if e.get("param") == "10u" and e.get("levtype") == "sfc"]
+            if not want:
+                break
+            blob = rf.fetch_ranges(rf.path_for(date, time, model, st, "fc", stream="oper") + ".grib2", rf.coalesce(want))
+            rows.append(_band_from_grib(blob, st)); steps.append(st)
+    elif key == "gdps":
+        import requests
+        for st in [s for s in DAILY_STEPS if s <= 240]:
+            r = requests.get(GDPS_10U.format(d=date, c=time, L=st), timeout=120,
+                             headers={"User-Agent": "scorvec-enso/1.0"})
+            if r.status_code != 200:
+                print(f"  gdps +{st}h: HTTP {r.status_code}", flush=True)
+                break
+            rows.append(_band_from_grib(r.content, st)); steps.append(st)
+    if not rows:
+        raise RuntimeError(f"{key}: no fields")
+    return xr.DataArray(np.array(rows), dims=("step", "longitude"),
+                        coords={"step": np.array(steps, "timedelta64[h]").astype("timedelta64[ns]"), "longitude": LON_GRID})
+
+
+def plot_det(data: dict, init: pd.Timestamp, out: Path):
+    """Single runs, anomaly only: one column per run, the same scale as the ensemble figure. A run that stops early
+    (GDPS at day 10) leaves the rest of its column blank."""
+    m = (LON_GRID >= LON_VIEW[0]) & (LON_GRID <= LON_VIEW[1])
+    lons = LON_GRID[m]
+    ncol = len(data)
+    fig = plt.figure(figsize=(3.35 * ncol, 8.8))
+    gs = fig.add_gridspec(2, ncol, height_ratios=[0.85, 6.5], hspace=0.05, wspace=0.10, left=0.06, right=0.9,
+                          top=0.9, bottom=0.07)
+    fig.suptitle(f"Equatorial Pacific 10 m zonal wind forecast, single runs — init {init:%Y-%m-%d %HZ}\n"
+                 f"5°S–5°N · anomaly vs ERA5 1991–2020", fontsize=12, fontweight="bold")
+    im = None
+    for j, (k, (anom, lead)) in enumerate(data.items()):
+        _ref_map(fig.add_subplot(gs[0, j], projection=ccrs.PlateCarree(central_longitude=180)), f"{DET[k]}\nanomaly")
+        ax = fig.add_subplot(gs[1, j])
+        im = ax.contourf(lons, lead, anom[:, m], levels=np.arange(-ANOM_LIM, ANOM_LIM + .01, 1.5), cmap="RdBu_r",
+                         extend="both", norm=mcolors.TwoSlopeNorm(0, -ANOM_LIM, ANOM_LIM))
+        ax.contour(lons, lead, anom[:, m], levels=[0], colors="k", linewidths=0.5, alpha=0.5)
+        ax.set_ylim(15, 1)
+        if lead.max() < 14.9:
+            ax.axhspan(lead.max(), 15, color="#f2f1ee", zorder=0)
+            ax.text(0.5, (lead.max() + 15) / 2, f"run ends at day {lead.max():.0f}", ha="center", va="center",
+                    transform=ax.get_yaxis_transform(), fontsize=8, color="#6f6b64")
+        ax.set_xticks(*_lon_ticks()); ax.tick_params(labelsize=7.5)
+        ax.axvline(180, color="0.5", lw=0.5, ls=":")
+        ax.set_xlabel("Longitude", fontsize=8)
+        ax.set_ylabel("Forecast lead (days)" if j == 0 else "")
+        if j > 0:
+            ax.set_yticklabels([])
+    c = fig.colorbar(im, cax=fig.add_axes([0.915, 0.2, 0.013, 0.56]), extend="both")
+    c.set_label("u anomaly (m s⁻¹)", fontsize=8); c.ax.tick_params(labelsize=7)
+    out.parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(out, dpi=120, bbox_inches="tight")
+    plt.close(fig)
+    print(f"saved {out}")
 
 
 def anomalize(ens: xr.DataArray, init: pd.Timestamp) -> tuple[np.ndarray, np.ndarray]:
@@ -179,6 +286,9 @@ def main() -> int:
     ap.add_argument("--data-dir", default="data/u10")
     ap.add_argument("--out", default="plots/eq_hovmoller.webp")
     ap.add_argument("--models", default="aifs,ifs")
+    ap.add_argument("--det-out", default=None, help="also draw the single runs (AIFS-ENS member 0, AIFS single, "
+                                                     "IFS HRES, GDPS) to this file")
+    ap.add_argument("--det", default="aifs0,aifs1,hres,gdps")
     args = ap.parse_args()
 
     init = pd.Timestamp(f"{args.date}T{args.time}:00")
@@ -192,6 +302,18 @@ def main() -> int:
             data[k] = {"anom": a, "abs": ens.values}
         except Exception as e:                      # e.g. that cycle not yet on a model
             print(f"  {k}: skipped ({repr(e)[:90]})", flush=True)
+    if args.det_out:
+        det = {}
+        for k in args.det.split(","):
+            try:
+                b = det_band(k, args.date, args.time)
+                a, v = anomalize(b, init)
+                det[k] = (a, np.array([(pd.Timestamp(x) - init) / pd.Timedelta(days=1) for x in v]))
+                print(f"  {k}: {len(v)} days", flush=True)
+            except Exception as e:                  # noqa: BLE001
+                print(f"  {k}: skipped ({repr(e)[:90]})", flush=True)
+        if det:
+            plot_det(det, init, Path(args.det_out))
     if not data:
         raise SystemExit("no model data available for the Hovmöller")
     plot(data, valid, init, Path(args.out))
