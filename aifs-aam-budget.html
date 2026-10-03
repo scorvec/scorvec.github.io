@@ -376,8 +376,7 @@
   <ul>
     <li>One winter (December–February 2025–26), 30 cycles and four members per ensemble. The Southern Hemisphere and
     Andes results may depend on the season or on the model version; AIFS-ENS has been upgraded since.</li>
-    <li>Only the 13 published pressure levels (1000–50 hPa) were available, the 10 hPa level reaching open data only in mid-2026. For
-    AIFS these are the model's own levels. For IFS they are a subsample, which costs about 5 Hadley of noise (measured in ERA5).</li>
+    <li>Only the 13 published pressure levels (1000–50 hPa) were available, the 10 hPa level reaching open data only in mid-2026. For AIFS these are the model's own levels, so its output loses nothing. IFS runs on 137 levels, so for IFS they are a subsample, and ERA5 measures what that costs: over this winter the daily change in angular momentum computed on these 13 levels differs from the one on all 37 by 5.3 Hadley rms (Northern Hemisphere 3.8, Southern 4.4), against day-to-day swings of 30 Hadley, and the mean difference is -0.4 Hadley (95% interval -1.2 to +0.5, n.s.). With the same torques, ERA5's residual spread is 7.4 Hadley on 13 levels and 5.3 on 37; sampling the mountain torque hourly instead of 6-hourly leaves it at 7.3. Fewer levels add scatter, not a bias, so they cannot account for the biased residuals of AIFS-ENS above, and ERA5 sampled on the same 13 levels still explains 79% of its own change.</li>
     <li>Friction is a calibrated bulk estimate for every model and adds about 7–8 Hadley of noise to every residual. Against
     IFS's own stress it behaves the same at every lead (Figure 9).</li>
     <li>Gravity-wave drag is not available from either forecast and stays in the residual. ERA5 puts it at about −5 Hadley
