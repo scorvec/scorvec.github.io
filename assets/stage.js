@@ -155,14 +155,19 @@
     }
     return true;
   }
+  // Never while the page is pinch-zoomed (2026-10-03, user: on a phone, zoom in and the plot "just jumps to the next image"):
+  // a one-finger sideways drag is then a PAN around the enlarged figure, not a request for the next plot. Also dropped when
+  // the zoom changed during the gesture (a pinch whose fingers landed one after the other).
+  function zoom() { return window.visualViewport ? window.visualViewport.scale : 1; }
   function wireSwipe() {
     var st = $("stage"), t0 = null;
     st.addEventListener("touchstart", function (e) {
-      t0 = (e.touches.length === 1 && swipeable(e.target, st)) ? { x: e.touches[0].clientX, y: e.touches[0].clientY, t: Date.now() } : null;
+      t0 = (e.touches.length === 1 && zoom() < 1.02 && swipeable(e.target, st)) ? { x: e.touches[0].clientX, y: e.touches[0].clientY, t: Date.now(), z: zoom() } : null;
     }, { passive: true });
     st.addEventListener("touchmove", function (e) { if (e.touches.length > 1) t0 = null; }, { passive: true });
     st.addEventListener("touchend", function (e) {
       if (!t0 || !e.changedTouches.length) return;
+      if (e.touches.length || Math.abs(zoom() - t0.z) > 0.01 || zoom() >= 1.02) { t0 = null; return; }
       var dx = e.changedTouches[0].clientX - t0.x, dy = e.changedTouches[0].clientY - t0.y, dt = Date.now() - t0.t; t0 = null;
       if (Math.abs(dx) > 60 && Math.abs(dx) > 2 * Math.abs(dy) && dt < 700) stepProduct(dx < 0 ? 1 : -1);
     }, { passive: true });
