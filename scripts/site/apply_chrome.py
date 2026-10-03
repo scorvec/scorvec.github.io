@@ -31,22 +31,99 @@ REPO = Path(__file__).resolve().parents[2]
 # A group's items may be a flat list or a list of (subtitle, items) columns. Group titles are also the catalogue's
 # topic labels (scripts/site/build_catalog.py TOPICS) - rename both together.
 PRODUCTS = [
-    ("Short and medium range", "Days 1 to 15: storms, hazards and the temperature forecast", [
-        ("/models.html", "Short-range model maps",
-         "Zoomable maps of the newest HRRR, RRFS and RDPS runs for aviation, severe and winter weather and renewables: radar with precipitation type, accumulation, ceiling, visibility, temperature, dewpoint, wind, HRRR entraining CAPE (ECAPE), smoke and sunshine, with contours and hover values.",
-         "Four times daily"),
-        ("/snowbands.html", "Snow-band diagnostics",
-         "Where HRRR, RRFS and RDPS set up mesoscale snow bands: 700 hPa frontogenesis and deformation, EPV* and slantwise instability, lift through the dendritic growth zone, the model's own bands and where the ingredients overlap. November to mid-April, with case studies against the radar.",
-         "Every run in season"),
-        ("/ar.html", "Atmospheric rivers",
-         "Integrated vapour transport from the 51-member AIFS ensemble: probability of AR conditions at each 12-hourly step, a West Coast landfall tool and Ralph-scale category odds at named locations.",
-         "Twice daily"),
-        # /ecape.html RETIRED 2026-09-30 (user: "then we can retire the old page"): the same HRRR ECAPE grids are a field
-        # of /models.html; ecape.html is a redirect stub.
-        # /cities/ (city temperature forecasts) PAUSED 2026-09-27 (user: "Turn off the city forecast and verification
-        # page for now"); restore this row and the verification row from git history.
-    ], "Short/medium range"),
-    ("Subseasonal and seasonal", "From weeks two to five out to the coming seasons", [
+    # 2026-10-03, user: "reorganize the order and categories of the option on the dropdown menu at the top of the site";
+    # chose the THEME-FIRST layout (over a range-first one): Days 1-15 / Tropics / Stratosphere / Weeks to seasons /
+    # Studies and verification / Tools. Tropical cyclones and the days 1-15 upper-air loops got their own entries (they had
+    # been reachable only inside circulation.html); the QBO moved to Stratosphere; "Climate drivers" and "Atmospheric
+    # circulation" are gone. The 2026-09-27 rules stand: products only (the person lives in PERSONAL) and never a group
+    # called "Weather" or "Research". Group titles are the catalogue's topic labels (build_catalog.TOPICS) - rename both.
+    ("Days 1–15", "The next two weeks: storms, hazards and the flow aloft", [
+        ("Surface and hazards", [
+            ("/models.html", "Short-range model maps",
+             "Zoomable maps of the newest HRRR, RRFS and RDPS runs for aviation, severe and winter weather and renewables: radar with precipitation type, accumulation, ceiling, visibility, temperature, dewpoint, wind, HRRR entraining CAPE (ECAPE), smoke and sunshine, with contours and hover values.",
+             "Four times daily"),
+            ("/snowbands.html", "Snow-band diagnostics",
+             "Where HRRR, RRFS and RDPS set up mesoscale snow bands: 700 hPa frontogenesis and deformation, EPV* and slantwise instability, lift through the dendritic growth zone, the model's own bands and where the ingredients overlap. November to mid-April, with case studies against the radar.",
+             "Every run in season"),
+            ("/ar.html", "Atmospheric rivers",
+             "Integrated vapour transport from the 51-member AIFS ensemble: probability of AR conditions at each 12-hourly step, a West Coast landfall tool and Ralph-scale category odds at named locations.",
+             "Twice daily"),
+            ("/circulation.html#mslp", "Pacific pressure and wind",
+             "Sea-level pressure and 10 m wind over the Pacific from the AIFS and IFS ensembles, separately and blended, to day 15.",
+             "Twice daily"),
+        ]),
+        ("Upper air", [
+            ("/circulation.html#dt", "Dynamic tropopause",
+             "The 2-PVU surface and PV on the 330 and 350 K isentropes from the AIFS ensemble: the hemisphere and four regions, with tropical storms and their outflow marked.",
+             "Daily"),
+            ("/circulation.html#pacjet", "North Pacific jet",
+             "250 hPa jet maps, the jet axis from every member, and the jet's extension and shift phases with what they usually bring downstream.",
+             "Twice daily"),
+            ("/circulation.html#waf", "Wave activity flux",
+             "Takaya–Nakamura wave activity flux at 250 hPa, the ensemble's quasi-stationary wave trains.",
+             "Daily"),
+        ]),
+    ]),
+    ("Tropics", "ENSO, the MJO, tropical cyclones and the tropical circulation", [
+        ("ENSO and the MJO", [
+            ("/enso.html", "El Niño monitor",
+             "Daily ONI and RONI, Niño-region sea surface temperatures, the subsurface, winds and convection, with SST anomaly maps and animation.",
+             "Daily"),
+            ("/mjo.html", "MJO forecast",
+             "Real-time multivariate MJO index from the ECMWF AIFS ensemble, with the observed phase-space track, an ENSO-removed version, and what each phase has meant for temperature and rain.",
+             "Twice daily"),
+            ("/enso.html#kelvin", "Kelvin waves",
+             "Atmospheric and oceanic Kelvin waves along the equator: the AIFS-ENS tracker, sea level and the zonal wind.",
+             "Daily"),
+        ]),
+        ("Tropical cyclones", [
+            ("/circulation.html#tcjet", "Tropical cyclones and the jet",
+             "How each storm's outflow pushes on the jet stream, the wave packets it can launch downstream, and a watch when a recurvature looks likely.",
+             "Daily"),
+            ("/circulation.html#tcens", "Tropical cyclone ensembles",
+             "Every AIFS and IFS ensemble member's track, the odds and timing of recurvature, and how deep the storm gets once it becomes extratropical.",
+             "Daily"),
+            ("/circulation.html#tcphase", "Cyclone phase space",
+             "Hart's diagrams: whether each storm is still a warm-core tropical cyclone or turning into a cold-core extratropical low, and when.",
+             "Daily"),
+        ]),
+        ("Tropical circulation", [
+            ("/circulation.html#walker", "Walker and Hadley cells",
+             "The tropical overturning circulation from the AIFS ensemble: the Walker circulation by ocean basin and the Hadley cells.",
+             "Daily"),
+            ("/circulation.html#vpot", "Velocity potential",
+             "200 hPa velocity potential and the irrotational wind: where the tropics are venting and where they are subsiding.",
+             "Twice daily"),
+            ("/circulation.html#gillrain", "Rain-forced circulation (Gill model)",
+             "How much of the tropical upper-level circulation the rain itself explains: the Gill (1980) model forced by IMERG and AIFS-ENS rainfall against the observed and forecast velocity potential.",
+             "Twice daily"),
+        ]),
+    ]),
+    ("Stratosphere", "The polar vortex and the waves going up into it, the QBO, and the atmosphere's angular momentum", [
+        ("Polar vortex", [
+            ("/stratosphere.html", "Stratosphere and polar vortex",
+             "Will the vortex weaken? AIFS, GEPS and GEFS 60°N winds, heat flux and wave driving, potential vorticity, the Brewer–Dobson circulation, and every sudden warming since 1980 with what followed.",
+             "Twice daily"),
+            ("/stratosphere.html#heatflux", "Eddy heat flux",
+             "100 hPa poleward heat flux, the wave activity going up into the vortex, from AIFS-ENS, GEPS and GEFS.",
+             "Twice daily"),
+            ("/stratosphere.html#pv", "Potential vorticity",
+             "GEOS FP Ertel PV on the 475 and 850 K surfaces.",
+             "Daily"),
+            ("/stratosphere.html#bdc", "Brewer–Dobson circulation",
+             "Tropical upwelling and the residual circulation from GEOS FP and MERRA-2.",
+             "Daily"),
+        ]),
+        ("QBO and momentum", [
+            ("/qbo/", "QBO tracker",
+             "Equatorial stratospheric winds at 10 to 100 hPa from radiosondes, 1950 to the present.",
+             "Weekly"),
+            ("/circulation.html#aam", "Angular momentum and torques",
+             "Global atmospheric angular momentum and the mountain and friction torques that change it.",
+             "Daily"),
+        ]),
+    ]),
+    ("Weeks to seasons", "From weeks two to five out to the coming seasons", [
         ("Weeks 2–5", [
             ("/subseasonal.html", "GEPS extended ensemble",
              "Environment Canada's extended ensemble to day 35 for the Americas, the tropics and the polar vortex: weekly anomalies against its own reforecast, terciles, teleconnections, regimes and change since the previous run.",
@@ -66,70 +143,29 @@ PRODUCTS = [
              "Every member of seven centres' seasonal models for Niño-3.4, with percentile fans and a record of how past forecasts did.",
              "Monthly"),
         ]),
-    ], "Subseasonal/seasonal"),
-    ("Climate drivers", "The modes: ENSO, the MJO and the QBO, as they stand now", [
-        ("/enso.html", "El Niño monitor",
-         "Daily ONI and RONI, Niño-region sea surface temperatures, the subsurface, winds and convection, with SST anomaly maps and animation.",
-         "Daily"),
-        ("/mjo.html", "MJO forecast",
-         "Real-time multivariate MJO index from the ECMWF AIFS ensemble, with the observed phase-space track, an ENSO-removed version, and what each phase has meant for temperature and rain.",
-         "Twice daily"),
-        ("/qbo/", "QBO tracker",
-         "Equatorial stratospheric winds at 10 to 100 hPa from radiosondes, 1950 to the present.",
-         "Weekly"),
     ]),
-    # (user, same day: "The jets, aam and stratosphere stuff should not really be under 'climate drivers' either")
-    # A "#" item under its own page is a sub-item: indented in the menu, left off the homepage rows.
-    ("Atmospheric circulation", "The stratosphere and the troposphere's jets, waves and overturning cells", [
-        ("Stratosphere", [
-            ("/stratosphere.html", "Stratosphere and polar vortex",
-             "Will the vortex weaken? AIFS, GEPS and GEFS 60°N winds, heat flux and wave driving, potential vorticity, the Brewer–Dobson circulation, and every sudden warming since 1980 with what followed.",
-             "Twice daily"),
-            ("/stratosphere.html#heatflux", "Eddy heat flux",
-             "100 hPa poleward heat flux, the wave activity going up into the vortex, from AIFS-ENS, GEPS and GEFS.",
-             "Twice daily"),
-            ("/stratosphere.html#pv", "Potential vorticity",
-             "GEOS FP Ertel PV on the 475 and 850 K surfaces.",
-             "Daily"),
-            ("/stratosphere.html#bdc", "Brewer–Dobson circulation",
-             "Tropical upwelling and the residual circulation from GEOS FP and MERRA-2.",
-             "Daily"),
-        ]),
-        ("Troposphere", [
-            ("/circulation.html", "Jets, Walker and Hadley cells",
-             "Wave activity flux, the dynamic tropopause, angular momentum and mountain torques, and the Hadley and Walker cells from the AIFS ensemble.",
-             "Daily"),
-            ("/circulation.html#gillrain", "Rain-forced circulation (Gill model)",
-             "How much of the tropical upper-level circulation the rain itself explains: the Gill (1980) model forced by IMERG and AIFS-ENS rainfall against the observed and forecast velocity potential.",
-             "Twice daily"),
-            ("/circulation.html#waf", "Wave activity flux",
-             "Takaya–Nakamura wave activity flux at 250 hPa, the ensemble's quasi-stationary wave trains.",
-             "Daily"),
-            ("/circulation.html#aam", "Angular momentum and torques",
-             "Global atmospheric angular momentum and the mountain and friction torques that change it.",
-             "Daily"),
-            ("/circulation.html#dt", "Dynamic tropopause",
-             "The 2-PVU surface and PV on the 330 and 350 K isentropes from the AIFS ensemble.",
-             "Daily"),
-        ]),
-    ], "Circulation"),
     ("Studies and verification", "What the record and the models say, and how the forecasts score", [
         ("Studies", [
             ("/enso.html#imp_reg", "ENSO impacts on the Americas",
              "Thousands of El Niño and La Niña events in 16 CMIP6 models against the observed record: regressions, composites, super and east-based El Niños, 500 hPa wave trains, and why the PDO mostly follows the atmosphere rather than driving it. Significant results only.",
              "Static"),
+            ("/mjo.html#mi", "MJO impacts",
+             "What each MJO phase has meant for temperature and rain, season by season, in CMIP6 models and the observed record. Significant results only.",
+             "Static"),
+            ("/circulation.html#tcdown", "Recurving tropical cyclones, 1991–2020",
+             "What followed about 600 recurving tropical cyclones in ERA5: the ridge and trough downstream, and how little of it survives at fixed places.",
+             "Static"),
             ("/stratosphere.html#shwinters", "Stratosphere history",
              "Every northern winter and sudden warming since 1980 in MERRA-2, with 15,000 more from nine CMIP6 models: the dripping-paint composites and what usually follows at the surface.",
              "Static"),
             ("/aifs-aam-budget.html", "AINWP and conservation",
-             "Do AI weather models obey the conservation laws? ECMWF's AI ensemble (AIFS-ENS) against its physics ensemble: angular momentum against its own torques, and (being added) dry-air mass, water and energy. Winter 2025–26, days 1–15.",
+             "Do AI weather models obey the conservation laws? ECMWF's AI ensemble (AIFS-ENS), the single AIFS and the physics ensemble against angular momentum and its torques, dry-air mass, water and energy. Winter 2025–26, days 1–15.",
              "Static"),
             ("/topics/", "Explainers",
              "How to read the products: the equations and the physics behind each diagnostic.",
              "As written"),
         ]),
         ("Verification", [
-            # /cities/verify.html paused 2026-09-27 with the city forecasts (see above)
             ("/aifs-verify.html", "AIFS single versus member 0",
              "The two ECMWF AIFS configurations compared as deterministic models against radiosondes and ERA5, with the ensemble member spectrally matched to the single model and the ensemble mean for reference.",
              "Every 00Z and 12Z run"),

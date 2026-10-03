@@ -58,18 +58,80 @@ a:focus-visible,button:focus-visible,summary:focus-visible,input:focus-visible{o
     <nav class="sh-nav" id="sh-menu" aria-label="Site">
       <ul class="sh-list">
         <li class="sh-item sh-has-menu">
-          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g0"><span class="sh-lf">Short and medium range</span><span class="sh-ls">Short/medium range</span></button>
-          <div class="sh-menu sh-menu--list" id="sh-g0">
-            <ul>
-              <li><a href="/models.html">Short-range model maps</a></li>
-              <li><a href="/snowbands.html">Snow-band diagnostics</a></li>
-              <li><a href="/ar.html">Atmospheric rivers</a></li>
-            </ul>
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g0">Days 1–15</button>
+          <div class="sh-menu sh-menu--cols" id="sh-g0">
+            <div>
+              <h3>Surface and hazards</h3>
+              <ul>
+                <li><a href="/models.html">Short-range model maps</a></li>
+                <li><a href="/snowbands.html">Snow-band diagnostics</a></li>
+                <li><a href="/ar.html">Atmospheric rivers</a></li>
+                <li><a href="/circulation.html#mslp">Pacific pressure and wind</a></li>
+              </ul>
+            </div>
+            <div>
+              <h3>Upper air</h3>
+              <ul>
+                <li><a href="/circulation.html#dt">Dynamic tropopause</a></li>
+                <li><a href="/circulation.html#pacjet">North Pacific jet</a></li>
+                <li><a href="/circulation.html#waf">Wave activity flux</a></li>
+              </ul>
+            </div>
           </div>
         </li>
         <li class="sh-item sh-has-menu">
-          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g1"><span class="sh-lf">Subseasonal and seasonal</span><span class="sh-ls">Subseasonal/seasonal</span></button>
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g1">Tropics</button>
           <div class="sh-menu sh-menu--cols" id="sh-g1">
+            <div>
+              <h3>ENSO and the MJO</h3>
+              <ul>
+                <li><a href="/enso.html">El Niño monitor</a></li>
+                <li><a href="/mjo.html">MJO forecast</a></li>
+                <li class="sh-subitem"><a href="/enso.html#kelvin">Kelvin waves</a></li>
+              </ul>
+            </div>
+            <div>
+              <h3>Tropical cyclones</h3>
+              <ul>
+                <li><a href="/circulation.html#tcjet">Tropical cyclones and the jet</a></li>
+                <li><a href="/circulation.html#tcens">Tropical cyclone ensembles</a></li>
+                <li><a href="/circulation.html#tcphase">Cyclone phase space</a></li>
+              </ul>
+            </div>
+            <div>
+              <h3>Tropical circulation</h3>
+              <ul>
+                <li><a href="/circulation.html#walker">Walker and Hadley cells</a></li>
+                <li><a href="/circulation.html#vpot">Velocity potential</a></li>
+                <li><a href="/circulation.html#gillrain">Rain-forced circulation (Gill model)</a></li>
+              </ul>
+            </div>
+          </div>
+        </li>
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g2">Stratosphere</button>
+          <div class="sh-menu sh-menu--cols" id="sh-g2">
+            <div>
+              <h3>Polar vortex</h3>
+              <ul>
+                <li><a href="/stratosphere.html">Stratosphere and polar vortex</a></li>
+                <li class="sh-subitem"><a href="/stratosphere.html#heatflux">Eddy heat flux</a></li>
+                <li class="sh-subitem"><a href="/stratosphere.html#pv">Potential vorticity</a></li>
+                <li class="sh-subitem"><a href="/stratosphere.html#bdc">Brewer–Dobson circulation</a></li>
+              </ul>
+            </div>
+            <div>
+              <h3>QBO and momentum</h3>
+              <ul>
+                <li><a href="/qbo/">QBO tracker</a></li>
+                <li><a href="/circulation.html#aam">Angular momentum and torques</a></li>
+              </ul>
+            </div>
+          </div>
+        </li>
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g3">Weeks to seasons</button>
+          <div class="sh-menu sh-menu--cols" id="sh-g3">
             <div>
               <h3>Weeks 2–5</h3>
               <ul>
@@ -88,46 +150,14 @@ a:focus-visible,button:focus-visible,summary:focus-visible,input:focus-visible{o
           </div>
         </li>
         <li class="sh-item sh-has-menu">
-          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g2">Climate drivers</button>
-          <div class="sh-menu sh-menu--list" id="sh-g2">
-            <ul>
-              <li><a href="/enso.html">El Niño monitor</a></li>
-              <li><a href="/mjo.html">MJO forecast</a></li>
-              <li><a href="/qbo/">QBO tracker</a></li>
-            </ul>
-          </div>
-        </li>
-        <li class="sh-item sh-has-menu">
-          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g3"><span class="sh-lf">Atmospheric circulation</span><span class="sh-ls">Circulation</span></button>
-          <div class="sh-menu sh-menu--cols" id="sh-g3">
-            <div>
-              <h3>Stratosphere</h3>
-              <ul>
-                <li><a href="/stratosphere.html">Stratosphere and polar vortex</a></li>
-                <li class="sh-subitem"><a href="/stratosphere.html#heatflux">Eddy heat flux</a></li>
-                <li class="sh-subitem"><a href="/stratosphere.html#pv">Potential vorticity</a></li>
-                <li class="sh-subitem"><a href="/stratosphere.html#bdc">Brewer–Dobson circulation</a></li>
-              </ul>
-            </div>
-            <div>
-              <h3>Troposphere</h3>
-              <ul>
-                <li><a href="/circulation.html">Jets, Walker and Hadley cells</a></li>
-                <li class="sh-subitem"><a href="/circulation.html#gillrain">Rain-forced circulation (Gill model)</a></li>
-                <li class="sh-subitem"><a href="/circulation.html#waf">Wave activity flux</a></li>
-                <li class="sh-subitem"><a href="/circulation.html#aam">Angular momentum and torques</a></li>
-                <li class="sh-subitem"><a href="/circulation.html#dt">Dynamic tropopause</a></li>
-              </ul>
-            </div>
-          </div>
-        </li>
-        <li class="sh-item sh-has-menu">
           <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g4"><span class="sh-lf">Studies and verification</span><span class="sh-ls">Studies/verification</span></button>
           <div class="sh-menu sh-menu--cols" id="sh-g4">
             <div>
               <h3>Studies</h3>
               <ul>
                 <li><a href="/enso.html#imp_reg">ENSO impacts on the Americas</a></li>
+                <li><a href="/mjo.html#mi">MJO impacts</a></li>
+                <li><a href="/circulation.html#tcdown">Recurving tropical cyclones, 1991–2020</a></li>
                 <li><a href="/stratosphere.html#shwinters">Stratosphere history</a></li>
                 <li><a href="/aifs-aam-budget.html">AINWP and conservation</a></li>
                 <li><a href="/topics/">Explainers</a></li>

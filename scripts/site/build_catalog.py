@@ -53,11 +53,11 @@ THUMB_DIR = "assets/site/thumbs"                       # on the frames branch
 THUMB_INDEX_URL = "https://raw.githubusercontent.com/scorvec/scorvec.github.io/frames/" + THUMB_DIR + "/index.json"
 
 # ids stay stable (they are in catalogue URLs, ?topic=...); labels are the menu group titles in apply_chrome.PRODUCTS
-TOPICS = [
-    ("weather", "Short and medium range", "Days 1 to 15: storms, hazards and the temperature forecast"),
-    ("outlooks", "Subseasonal and seasonal", "From weeks two to five out to the coming seasons"),
-    ("drivers", "Climate drivers", "The modes: ENSO, the MJO and the QBO, as they stand now"),
-    ("circulation", "Atmospheric circulation", "The stratosphere and the troposphere's jets, waves and overturning cells"),
+TOPICS = [   # 2026-10-03: the theme-first menus (ids unchanged; labels = apply_chrome.PRODUCTS titles, in menu order)
+    ("weather", "Days 1–15", "The next two weeks: storms, hazards and the flow aloft"),
+    ("drivers", "Tropics", "ENSO, the MJO, tropical cyclones and the tropical circulation"),
+    ("circulation", "Stratosphere", "The polar vortex and the waves going up into it, the QBO, and the atmosphere's angular momentum"),
+    ("outlooks", "Weeks to seasons", "From weeks two to five out to the coming seasons"),
     ("research", "Studies and verification", "What the record and the models say, and how the forecasts score"),
     ("tools", "Tools", "Explore the data yourself"),
 ]
@@ -82,9 +82,14 @@ PAGES = {
                                tier=0, prio=1, models=["AIFS-ENS"], horizon="Days 1–15", region=["Northern Hemisphere"],
                                groups={"Stratosphere history": dict(topic="research", horizon="Climate record", models=["MERRA-2"],
                                                                     tier=1, prio=21)}),
-    "/circulation.html": dict(kind="stage", file="circulation.html", topic="circulation", title="Jets, Walker and Hadley cells",
+    # circulation.html's groups follow the theme-first menus (2026-10-03): its days 1-15 maps under Days 1-15, the
+    # tropical-cyclone and tropical-circulation items under Tropics, angular momentum under Stratosphere
+    "/circulation.html": dict(kind="stage", file="circulation.html", topic="drivers", title="Jets, Walker and Hadley cells",
                               tier=0, prio=4, models=["AIFS-ENS"], horizon="Days 1–15", region=["Global"],
-                              groups={"Tropical rain and circulation": dict(models=["IMERG", "AIFS-ENS", "ERA5"], region=["Tropics"], prio=2)}),
+                              groups={"Days 1–15 maps": dict(topic="weather", region=["Pacific", "Northern Hemisphere"]),
+                                      "Tropical cyclones": dict(topic="drivers", region=["Pacific", "North America"], prio=3),
+                                      "Tropical circulation": dict(topic="drivers", models=["AIFS-ENS", "IMERG", "ERA5"], region=["Tropics"]),
+                                      "Angular momentum & torques": dict(topic="circulation", region=["Global"])}),
     "/snowbands.html": dict(kind="stage", file="snowbands.html", topic="weather", title="Snow-band diagnostics",
                             tier=0 if snow_season() else 2, prio=5 if snow_season() else 40,
                             models=["HRRR", "RRFS", "RDPS"], horizon="Days 1–15", region=["North America"]),
@@ -105,7 +110,7 @@ PAGES = {
                      models=["AIFS-ENS"], horizon="Days 1–15", region=["North America", "Pacific"]),
     # "/ecape.html" retired 2026-09-30: its ECAPE grids are a field of /models.html
     # "/cities/" paused 2026-09-27 (city forecasts turned off); restore from git history
-    "/qbo/": dict(kind="stage", file="qbo/index.html", topic="drivers", title="QBO tracker", tier=0, prio=9,
+    "/qbo/": dict(kind="stage", file="qbo/index.html", topic="circulation", title="QBO tracker", tier=0, prio=9,
                   models=["Radiosondes"], horizon="Observed", region=["Tropics"]),
     "/enso-forecasts.html": dict(kind="stage", file="enso-forecasts.html", topic="outlooks", title="ENSO forecasts", tier=2, prio=29,
                                  models=["C3S", "Multi-model"], horizon="Seasons", region=["Tropical Pacific"]),

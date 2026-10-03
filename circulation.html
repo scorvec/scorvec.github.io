@@ -37,18 +37,80 @@
     <nav class="sh-nav" id="sh-menu" aria-label="Site">
       <ul class="sh-list">
         <li class="sh-item sh-has-menu">
-          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g0"><span class="sh-lf">Short and medium range</span><span class="sh-ls">Short/medium range</span></button>
-          <div class="sh-menu sh-menu--list" id="sh-g0">
-            <ul>
-              <li><a href="/models.html">Short-range model maps</a></li>
-              <li><a href="/snowbands.html">Snow-band diagnostics</a></li>
-              <li><a href="/ar.html">Atmospheric rivers</a></li>
-            </ul>
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g0">Days 1–15</button>
+          <div class="sh-menu sh-menu--cols" id="sh-g0">
+            <div>
+              <h3>Surface and hazards</h3>
+              <ul>
+                <li><a href="/models.html">Short-range model maps</a></li>
+                <li><a href="/snowbands.html">Snow-band diagnostics</a></li>
+                <li><a href="/ar.html">Atmospheric rivers</a></li>
+                <li><a href="/circulation.html#mslp">Pacific pressure and wind</a></li>
+              </ul>
+            </div>
+            <div>
+              <h3>Upper air</h3>
+              <ul>
+                <li><a href="/circulation.html#dt">Dynamic tropopause</a></li>
+                <li><a href="/circulation.html#pacjet">North Pacific jet</a></li>
+                <li><a href="/circulation.html#waf">Wave activity flux</a></li>
+              </ul>
+            </div>
           </div>
         </li>
         <li class="sh-item sh-has-menu">
-          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g1"><span class="sh-lf">Subseasonal and seasonal</span><span class="sh-ls">Subseasonal/seasonal</span></button>
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g1">Tropics</button>
           <div class="sh-menu sh-menu--cols" id="sh-g1">
+            <div>
+              <h3>ENSO and the MJO</h3>
+              <ul>
+                <li><a href="/enso.html">El Niño monitor</a></li>
+                <li><a href="/mjo.html">MJO forecast</a></li>
+                <li class="sh-subitem"><a href="/enso.html#kelvin">Kelvin waves</a></li>
+              </ul>
+            </div>
+            <div>
+              <h3>Tropical cyclones</h3>
+              <ul>
+                <li><a href="/circulation.html#tcjet">Tropical cyclones and the jet</a></li>
+                <li><a href="/circulation.html#tcens">Tropical cyclone ensembles</a></li>
+                <li><a href="/circulation.html#tcphase">Cyclone phase space</a></li>
+              </ul>
+            </div>
+            <div>
+              <h3>Tropical circulation</h3>
+              <ul>
+                <li><a href="/circulation.html#walker">Walker and Hadley cells</a></li>
+                <li><a href="/circulation.html#vpot">Velocity potential</a></li>
+                <li><a href="/circulation.html#gillrain">Rain-forced circulation (Gill model)</a></li>
+              </ul>
+            </div>
+          </div>
+        </li>
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g2">Stratosphere</button>
+          <div class="sh-menu sh-menu--cols" id="sh-g2">
+            <div>
+              <h3>Polar vortex</h3>
+              <ul>
+                <li><a href="/stratosphere.html">Stratosphere and polar vortex</a></li>
+                <li class="sh-subitem"><a href="/stratosphere.html#heatflux">Eddy heat flux</a></li>
+                <li class="sh-subitem"><a href="/stratosphere.html#pv">Potential vorticity</a></li>
+                <li class="sh-subitem"><a href="/stratosphere.html#bdc">Brewer–Dobson circulation</a></li>
+              </ul>
+            </div>
+            <div>
+              <h3>QBO and momentum</h3>
+              <ul>
+                <li><a href="/qbo/">QBO tracker</a></li>
+                <li><a href="/circulation.html#aam">Angular momentum and torques</a></li>
+              </ul>
+            </div>
+          </div>
+        </li>
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g3">Weeks to seasons</button>
+          <div class="sh-menu sh-menu--cols" id="sh-g3">
             <div>
               <h3>Weeks 2–5</h3>
               <ul>
@@ -67,46 +129,14 @@
           </div>
         </li>
         <li class="sh-item sh-has-menu">
-          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g2">Climate drivers</button>
-          <div class="sh-menu sh-menu--list" id="sh-g2">
-            <ul>
-              <li><a href="/enso.html">El Niño monitor</a></li>
-              <li><a href="/mjo.html">MJO forecast</a></li>
-              <li><a href="/qbo/">QBO tracker</a></li>
-            </ul>
-          </div>
-        </li>
-        <li class="sh-item sh-has-menu">
-          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g3" aria-current="page"><span class="sh-lf">Atmospheric circulation</span><span class="sh-ls">Circulation</span></button>
-          <div class="sh-menu sh-menu--cols" id="sh-g3">
-            <div>
-              <h3>Stratosphere</h3>
-              <ul>
-                <li><a href="/stratosphere.html">Stratosphere and polar vortex</a></li>
-                <li class="sh-subitem"><a href="/stratosphere.html#heatflux">Eddy heat flux</a></li>
-                <li class="sh-subitem"><a href="/stratosphere.html#pv">Potential vorticity</a></li>
-                <li class="sh-subitem"><a href="/stratosphere.html#bdc">Brewer–Dobson circulation</a></li>
-              </ul>
-            </div>
-            <div>
-              <h3>Troposphere</h3>
-              <ul>
-                <li><a href="/circulation.html" aria-current="page">Jets, Walker and Hadley cells</a></li>
-                <li class="sh-subitem"><a href="/circulation.html#gillrain">Rain-forced circulation (Gill model)</a></li>
-                <li class="sh-subitem"><a href="/circulation.html#waf">Wave activity flux</a></li>
-                <li class="sh-subitem"><a href="/circulation.html#aam">Angular momentum and torques</a></li>
-                <li class="sh-subitem"><a href="/circulation.html#dt">Dynamic tropopause</a></li>
-              </ul>
-            </div>
-          </div>
-        </li>
-        <li class="sh-item sh-has-menu">
           <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g4"><span class="sh-lf">Studies and verification</span><span class="sh-ls">Studies/verification</span></button>
           <div class="sh-menu sh-menu--cols" id="sh-g4">
             <div>
               <h3>Studies</h3>
               <ul>
                 <li><a href="/enso.html#imp_reg">ENSO impacts on the Americas</a></li>
+                <li><a href="/mjo.html#mi">MJO impacts</a></li>
+                <li><a href="/circulation.html#tcdown">Recurving tropical cyclones, 1991–2020</a></li>
                 <li><a href="/stratosphere.html#shwinters">Stratosphere history</a></li>
                 <li><a href="/aifs-aam-budget.html">AINWP and conservation</a></li>
                 <li><a href="/topics/">Explainers</a></li>
@@ -161,7 +191,7 @@
   <div class="page-header">
     <p class="eyebrow">Daily, from the ECMWF AIFS ensemble and the ECCC GDPS, anomalies against ERA5 1991&ndash;2020</p>
     <h1>Global circulation and jets</h1>
-    <p class="sub">The atmosphere's response to the tropical ocean and what it does downstream: the upper-level flow, angular momentum and its torques, the overturning cells and the jets &mdash; one figure at a time, picked from the menu. Every figure carries its method and sources under the caption. Most diagnostics use the full 50-member AIFS-ENS or member 0 alone; the heavier ones (angular momentum, jets, wave activity flux) use a 25-member subset, and each About block says which. The polar vortex, E&ndash;P flux, heat flux and the sudden-warming history are on <a href="/stratosphere.html">Stratosphere and the polar vortex</a>.</p>
+    <p class="sub">The flow aloft over the next two weeks, tropical cyclones and what they do to the jet stream, and the tropical circulation: the dynamic tropopause, the North Pacific jet, wave activity, recurving storms and their transition, the Walker and Hadley cells and the atmosphere's angular momentum &mdash; one figure at a time, picked from the menu. Every figure carries its method and sources under the caption. Most diagnostics use the full 50-member AIFS-ENS or member 0 alone; the heavier ones (angular momentum, jets, wave activity flux) use a 25-member subset, and each About block says which. The polar vortex, E&ndash;P flux, heat flux and the sudden-warming history are on <a href="/stratosphere.html">Stratosphere and the polar vortex</a>.</p>
 
   </div>
   <div class="ss-layout">
@@ -240,6 +270,7 @@
 <template id="about-tcens">
 <p>The <a href="#tcjet">single-run view</a> follows one forecast; this one asks what the ensembles agree on. <b>Track ensembles</b>: for each Northern-Hemisphere storm, every AIFS-ENS member (control + 50) and every IFS-ENS member (50 perturbed; the open-data file carries no IFS control) as tracked by ECMWF's own tropical-cyclone tracker, coloured by the day the member recurves; grey members never recurve. A member <i>recurves</i> where its 24-hour zonal motion turns from westward (at least 1&nbsp;m/s) to eastward (at least 2&nbsp;m/s); a storm that heads north or east from the start therefore counts as not recurving. The bars give the share of members recurving on each day, the dashed lines the share whose track has ended (the tracker loses a storm when it dissipates or becomes extratropical). "Possible new storms" are systems the tracker finds forming in at least 40% of a model's members; the same system in both models is shown once.</p>
 <p><b>Recurving vs not</b> (AIFS-ENS 500&nbsp;hPa height, 1&deg; means): the members in which the storm recurves differ from the others for two reasons that a plain difference cannot separate. A storm recurves because a trough approaches and steers it north-east, so the recurving members are partly selected by a different large-scale pattern (a <i>cause</i> of recurvature); and the storm's outflow then builds a ridge downstream (an <i>effect</i>). The chart therefore has four rows. <b>1</b>: the recurving-minus-other difference at days 0 and 2, before the storm reaches the jet &mdash; anything here was already in place. <b>2</b>: the raw difference at days 5, 7 and 10, labelled as cause and effect mixed. <b>3</b>: the same difference after a regression that holds the day-2 pattern fixed (its four leading patterns of member-to-member spread, chosen without looking at which members recurve) &mdash; what remains is closer to the storm's own downstream effect. <b>4</b>: the ensemble sensitivity (after Torn &amp; Hakim 2008), the change in 500&nbsp;hPa height per degree of the storm's day-3 latitude or longitude, with the day-2 pattern held fixed the same way. Groups need at least 8 members each (early vs late recurvers when almost all recurve). Shading appears only where significant (Welch t-test, or the t-test on the regression coefficient; Benjamini&ndash;Hochberg false-discovery rate 10%, the early and the later days tested as separate families); a row with nothing significant, or only specks under 2% of the map, is a one-line note. Two cautions: the adjusted test has less statistical power, so "nothing remains" means the raw difference is largely explained by what was there at day 2, not that the storm does nothing; and a storm that recurves within about three days may already be shaping the day-2 flow, so the adjustment can remove part of its own effect (the chart says so when it applies). Only a model run with the storm removed would isolate its effect; these are associations across the members of one model.</p>
+<p><b>How deep it gets</b> (AIFS-ENS, the storm with the deepest members first): a recurving storm that phases with an upper trough can deepen explosively as an extratropical cyclone, just after ECMWF's tracker stops following it. Each member's low is therefore followed on as the surface-pressure minimum: a closed low (2&nbsp;hPa below its surroundings), allowed to re-form up to 1,800&nbsp;km downstream along its motion while it is still deepening (the centre often jumps north along the jet during phasing), never moved onto a low that already existed as a separate system, and treated as one system when it is briefly double-centred. Its <i>depth</i> is the lowest central pressure north of 35&deg;N of the storm or of any low it merges with (within 1,200&nbsp;km, for three days after the tracker's last fix); the chart says how many members reach theirs in the merged low. Below the map and the distribution: does a deeper low go with a bigger downstream response? Three measures that do not depend on where the low ends up (the downstream ridge, the wave amplitude and the strongest 500&nbsp;hPa jet over the North Pacific, days 5 and 7), each with its correlation, 95% interval and the same correlation with the day-2 pattern held fixed (Benjamini&ndash;Hochberg over all six), and a storm-centred comparison of the deepest and shallowest thirds of members, shaded only where significant. A storm whose deepening mostly falls after day 10 is not analysed, and is named instead. When nearly every member deepens the storm, the ensemble can test how much the <i>depth</i> matters but not whether the transition itself matters &mdash; an effect every member shares cannot show up in a comparison between members.</p>
 <p class="chart-sources">Tracks: ECMWF tropical-cyclone tracker on AIFS-ENS and IFS-ENS (open data, CC&nbsp;BY&nbsp;4.0; the deterministic AIFS-single and IFS HRES tracks in the same files are left out) &middot; heights: AIFS-ENS control + 50 members (IFS-ENS heights not yet included) &middot; Torn &amp; Hakim (2008), MWR 136, 663&ndash;677 &middot; updated each 00/12Z cycle</p>
 </template>
 <template id="about-tcphase">
@@ -330,11 +361,10 @@
 <script>
 window.STAGE = {
   groups: [
-  {label: "Tropical rain and circulation", ico: "\u{1F327}", items: [["gillrain","Rain-forced circulation","Gill model vs the observed χ200"]]},
-  {label: "Forecast loops", ico: "\u{1F5FA}", items: [["mslp","MSLP and 10 m wind","ensemble mean, days 0–15"],["gdps_ir","GDPS simulated IR","forecast satellite loop"],["gdps150","GDPS 150 hPa","wind and height"]]},
-  {label: "Upper-level dynamics", ico: "\u2699", items: [["vpot","Velocity potential","200 hPa, irrotational wind"],["waf","Wave activity flux","Rossby packets, 250 hPa"],["dt","Dynamic tropopause","θ on 2 PVU, isentropic PV"],["tcjet","Tropical cyclones and the jet","outflow PV advection, wave packets"],["tcens","TC ensembles and downstream impact","recurvature odds, 500 hPa response"],["tcdown","TC downstream: the 1991–2020 record","what follows recurvature, ERA5"],["tcphase","Cyclone phase space","warm core to extratropical (Hart)"]]},
-  {label: "Angular momentum & torques", ico: "\u2696", items: [["aam","Atmospheric angular momentum","series, trend, phase, by latitude"],["torque","Surface torques","friction and mountain"]]},
-  {label: "Overturning & jets", ico: "\u{1F30D}", items: [["pacjet","North Pacific jet","250 hPa maps, jet axis, phases"],["hadley","Hadley cells","meridional streamfunction"],["walker","Walker circulation","loop, by basin, weekly departure"],["jets","Subtropical jets","strength and position"]]}
+  {label: "Days 1–15 maps", ico: "\u{1F5FA}", items: [["mslp","MSLP and 10 m wind","ensemble mean, days 0–15"],["dt","Dynamic tropopause","θ on 2 PVU, five regions, storms"],["pacjet","North Pacific jet","250 hPa maps, jet axis, phases"],["waf","Wave activity flux","Rossby packets, 250 hPa"],["gdps_ir","GDPS simulated IR","forecast satellite loop"],["gdps150","GDPS 150 hPa","wind and height"]]},
+  {label: "Tropical cyclones", ico: "\u{1F300}", items: [["tcjet","Tropical cyclones and the jet","outflow, wave packets, recurvature watch"],["tcens","TC ensembles","tracks, recurvature, depth after transition"],["tcphase","Cyclone phase space","warm core to extratropical (Hart)"],["tcdown","TC downstream: the 1991–2020 record","what follows recurvature, ERA5"]]},
+  {label: "Tropical circulation", ico: "\u{1F327}", items: [["walker","Walker circulation","loop, by basin, weekly departure"],["hadley","Hadley cells","meridional streamfunction"],["vpot","Velocity potential","200 hPa, irrotational wind"],["gillrain","Rain-forced circulation","Gill model vs the observed χ200"],["jets","Subtropical jets","strength and position"]]},
+  {label: "Angular momentum & torques", ico: "\u2696", items: [["aam","Atmospheric angular momentum","series, trend, phase, by latitude"],["torque","Surface torques","friction and mountain"]]}
 ],
   products: {
   gillrain: {label: "Rain-forced circulation (Gill model)", img: function () { return "assets/sst/gill_rain.webp?v=202610030014"; }, fit: false,
@@ -354,9 +384,9 @@ window.STAGE = {
           c: {label: "Season", items: [["oct_nov","Oct–Nov"],["aug_sep","Aug–Sep"],["jun_nov","Jun–Nov"]]},
           img: function (a, b, c) { return "assets/sst/tcdown_" + (a || "WP") + "_" + (b || "rel") + "_" + (c || "oct_nov") + ".webp"; }, bust: "hourly", about: "about-tcdown",
           cap: function (a, b) { return b === "curves" ? "Regional mean 2 m temperature and precipitation anomalies in the two weeks after recurvature, 1991–2020, with 90 % intervals; dots mark days that pass the significance test." : b === "rel" ? "500 hPa height anomaly in a frame that moves with each storm (0 = where it recurves), 1991–2020: the ridge and trough its outflow builds downstream." : "Anomalies on a fixed map in the two weeks after recurvature, 1991–2020; only statistically significant cells are coloured."; }},
-  tcens: {label: "TC ensembles and downstream impact", a: {label: "View", items: [["tracks","Track ensembles"],["impact","Recurving vs not (storm 1)"],["impact_2","Recurving vs not (storm 2)"]]},
+  tcens: {label: "TC ensembles", a: {label: "View", items: [["tracks","Track ensembles"],["impact","Recurving vs not (storm 1)"],["impact_2","Recurving vs not (storm 2)"],["depth","How deep it gets (storm 1)"],["depth_2","How deep it gets (storm 2)"]]},
           img: function (a) { return "assets/sst/tcens_" + (a || "tracks") + ".webp"; }, bust: "hourly", about: "about-tcens",
-          cap: function (a) { return a === "tracks" ? "Every AIFS-ENS and IFS-ENS member's track for each Northern-Hemisphere storm, coloured by the day it recurves, with the odds and timing of recurvature." : "How the 500 hPa flow over the North Pacific and North America differs between AIFS-ENS members in which the storm recurves and those in which it does not, and how it varies with the storm's day-3 position; only statistically significant differences are shaded."; }},
+          cap: function (a) { return a === "tracks" ? "Every AIFS-ENS and IFS-ENS member's track for each Northern-Hemisphere storm, coloured by the day it recurves, with the odds and timing of recurvature." : /^depth/.test(a) ? "How deep each AIFS-ENS member's low gets once the storm reaches the mid-latitudes (followed past the tracker), and whether deeper lows go with a bigger downstream response." : "How the 500 hPa flow differs between AIFS-ENS members where the storm recurves and where it does not: before the storm reaches the jet, raw, and with the day-2 pattern held fixed."; }},
   tcphase: {label: "Cyclone phase space", img: function () { return "assets/sst/tcphase.webp"; }, bust: "hourly", about: "about-tcphase",
           cap: function () { return "Where each storm sits between tropical (warm, symmetric) and extratropical (cold, frontal) structure through the AIFS-ENS control forecast."; }},
   tcjet: {label: "Tropical cyclones and the jet", img: function () { return "assets/sst/tcjet.webp"; }, bust: "hourly", about: "about-tcjet",
