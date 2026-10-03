@@ -40,7 +40,12 @@ MISSING = -1e99
 MIN_GROUP = 8
 MIN_SENS = 20                       # members with a day-3 position needed for the sensitivity maps
 SENS_H = 72
-DAYS = (5, 7, 10)
+DAYS = (5, 7, 10)                     # downstream days shown
+PRE_DAYS = (0, 2)                      # precursor check: before the storm reaches the jet
+STEPS_H = tuple(24 * d for d in PRE_DAYS + DAYS)   # z500 steps loaded; index 0..1 = PRE_DAYS, 2..4 = DAYS
+NPRE = len(PRE_DAYS)
+ADJ_DAY_IDX = 1                        # the day-2 field the adjusted maps control for
+K_PCS = 4                              # leading member-spread patterns of that field used as controls
 SECTOR = (100.0, 300.0, 15.0, 75.0)   # lon0, lon1 (0..360), lat0, lat1
 MIN_AREA = 0.02                        # a map row is drawn only if >= 2% of it is significant on some day; below that, a note
 CACHE = Path(__file__).resolve().parents[2] / "ecmwf" / "cache" / "tc"
@@ -145,7 +150,7 @@ def stats(s: dict, nmem: int) -> dict:
 
 
 # ── step 2: downstream z500 ───────────────────────────────────────────────────────────────────────────────────────
-def load_z500(date: str, hh: str, steps_h=(120, 168, 240)):
+def load_z500(date: str, hh: str, steps_h=STEPS_H):
     """{member: (len(steps), lat, lon)} z500 in metres on a 1-deg grid over SECTOR; member 0 = control."""
     import xarray as xr
     import store as ecmwf
@@ -202,8 +207,52 @@ def composite(s_aifs: dict, st: dict, Z: dict):
         return None
     A = np.stack([Z[k] for k in a]); B = np.stack([Z[k] for k in b])
     t, p = sst.ttest_ind(A, B, axis=0, equal_var=False)
-    sig = bh(p, 0.10)
-    return dict(diff=A.mean(0) - B.mean(0), sig=sig, n=(len(a), len(b)), kind=kind, mean=np.concatenate([A, B]).mean(0))
+    sig = np.concatenate([bh(p[:NPRE], 0.10), bh(p[NPRE:], 0.10)])   # precursor and downstream days tested as separate families
+    out = dict(diff=A.mean(0) - B.mean(0), sig=sig, n=(len(a), len(b)), kind=kind, mean=np.concatenate([A, B]).mean(0))
+    # 2026-10-03 (user: does this show what the storm does, or the pattern that makes it recurve?): the raw difference
+    # mixes both. Adjusted version: the same group difference at the downstream days, after regressing out the leading
+    # member-spread patterns of the DAY-2 field (chosen blind to the groups), i.e. what was already there before the
+    # storm met the jet. Still an association, but closer to the storm's own effect.
+    keys = a + b
+    G = np.r_[np.ones(len(a)), np.zeros(len(b))]
+    C, ve = _early_pcs(Z, keys)
+    out["adj"] = _partial(G, C, np.stack([Z[k][NPRE:] for k in keys]))
+    out["adj"]["ve"] = ve
+    return out
+
+
+def _early_pcs(Z: dict, keys, k=K_PCS):
+    """Leading principal components (across members) of the day-2 z500 field over SECTOR, cos-lat weighted; and the
+    share of the member variance they explain. Computed without the group labels."""
+    X = np.stack([Z[q][ADJ_DAY_IDX].ravel() for q in keys]).astype("float64")
+    X = X - X.mean(0)
+    w = np.sqrt(np.clip(np.cos(np.deg2rad(_LAT)), 0, None)) if _LAT is not None else None
+    if w is not None:
+        X = X * np.repeat(w, X.shape[1] // len(w))
+    X = np.nan_to_num(X)
+    U, S, _ = np.linalg.svd(X, full_matrices=False)
+    k = min(k, len(keys) - 4)
+    return U[:, :k] * S[:k], float(np.sum(S[:k] ** 2) / np.sum(S ** 2))
+
+
+def _partial(x, C, Y):
+    """OLS of Y (members, ...) on [1, x, C] at every point: the coefficient of x, its p-value, BH mask (FDR 10%)."""
+    from scipy import stats as sst
+    n = len(x)
+    X = np.column_stack([np.ones(n), x, C])
+    shp = Y.shape[1:]; Ym = Y.reshape(n, -1).astype("float64")
+    beta, *_ = np.linalg.lstsq(X, Ym, rcond=None)
+    res = Ym - X @ beta
+    dof = n - X.shape[1]
+    s2 = (res ** 2).sum(0) / dof
+    cinv = np.linalg.inv(X.T @ X)[1, 1]
+    se = np.sqrt(s2 * cinv) + 1e-12
+    t = beta[1] / se
+    pv = 2 * sst.t.sf(np.abs(t), dof)
+    return dict(coef=beta[1].reshape(shp), sig=bh(pv.reshape(shp), 0.10), dof=dof, k=C.shape[1])
+
+
+_LAT = None
 
 
 def sensitivity(s: dict, Z: dict):
@@ -225,12 +274,14 @@ def sensitivity(s: dict, Z: dict):
             res[nm] = None
             continue
         Ya = Y - Y.mean(0)
+        C, ve = _early_pcs(Z, ks)
+        adj = _partial(xa, C, Y[:, NPRE:]); adj["ve"] = ve                # controlled for the day-2 pattern
         slope = np.tensordot(xa, Ya, axes=(0, 0)) / np.sum(xa ** 2)       # m per degree
         r = np.tensordot(xa, Ya, axes=(0, 0)) / (np.sqrt(np.sum(xa ** 2)) * np.sqrt(np.sum(Ya ** 2, 0)) + 1e-9)
         n = len(ks)
         tt = r * np.sqrt((n - 2) / np.clip(1 - r ** 2, 1e-9, None))
         p = 2 * sst.t.sf(np.abs(tt), n - 2)
-        res[nm] = dict(slope=slope, r=r, sig=bh(p, 0.10), sd=float(x.std()))
+        res[nm] = dict(slope=slope, r=r, sig=bh(p, 0.10), sd=float(x.std()), adj=adj)
     return dict(n=len(ks), res=res)
 
 
@@ -321,13 +372,17 @@ def _sig_area(comp, sens) -> float:
 
 
 def render_impact(s: dict, comp, sens, Z_lat, Z_lon, init, out_png: Path, note: str | None = None):
-    """Layout in inches (2026-10-03, user: "lots of overlapping text"): one plain-language heading per row, short panel titles,
-    and a row with nothing significant collapses to a one-line note instead of an empty block."""
+    """Rows (2026-10-03, user: "does this chart do as you claim or just show differences between the pattern that leads to a
+    recurve and the one that does not"): the raw member-group difference MIXES the steering pattern that makes the storm
+    recurve with what the storm then does. So: (1) the same difference BEFORE any interaction (days 0 and 2): what was
+    already there; (2) the raw difference at days 5/7/10, labelled as mixed; (3) the difference after regressing out the
+    leading member-spread patterns of the day-2 field: closer to the storm's own effect; (4) the position sensitivity,
+    controlled the same way. Rows with nothing (or only specks) significant collapse to a one-line note."""
     import cartopy.crs as ccrs
     import cartopy.feature as cfeature
     import matplotlib.pyplot as plt
     W = 17.0
-    ttl = (f"What {_stormlab(s)} does downstream — AIFS-ENS 500 hPa height, init {init:%d %b %Y %HZ}" if s is not None
+    ttl = (f"How the flow differs when {_stormlab(s)} recurves — AIFS-ENS 500 hPa height, init {init:%d %b %Y %HZ}" if s is not None
            else f"Tropical cyclones and the downstream flow — AIFS-ENS, init {init:%d %b %Y %HZ}")
     if s is None or (comp is None and sens is None):
         fig = plt.figure(figsize=(W, 3.0))
@@ -335,77 +390,93 @@ def render_impact(s: dict, comp, sens, Z_lat, Z_lon, init, out_png: Path, note: 
         fig.text(0.5, 0.45, note or "No storm has enough members in each group for a test.", ha="center", fontsize=13, color="#6f6b64")
         fig.savefig(out_png, dpi=80, facecolor="white", pil_kwargs={"quality": 85, "method": 6}); plt.close(fig)
         return
-    # rows: (kind, pred, active, heading or note)
-    rows = []
+    big = lambda sig: max(float(np.mean(x)) for x in sig) >= MIN_AREA
+    rr = [t for t in (TC.recurvature(tr) for tr in s["models"]["aifs"]["tracks"].values()) if t is not None]
+    rec_med = float(np.median(rr)) / 24 if rr else None
+    rows = []   # (heading, days, fields[(value, sig)], contours or None, cmap, levels, cbar label) or (note,)
     if comp is None:
-        rows.append(("comp", None, False, "Recurving vs other members: too few members in one group for a test (needs 8 in each)."))
-    elif max(float(np.mean(x)) for x in comp["sig"]) < MIN_AREA:
-        rows.append(("comp", None, False, f"{comp['kind'][0].capitalize()} vs {comp['kind'][1]} ({comp['n'][0]} vs {comp['n'][1]} members): "
-                     "no significant 500 hPa height difference at days 5, 7 or 10" +
-                     (" (only isolated specks pass)." if comp["sig"].any() else ".")))
+        rows.append(("Recurving vs other members: too few members in one group for a test (needs 8 in each).",))
     else:
-        rows.append(("comp", None, True, f"{comp['kind'][0].capitalize()} minus {comp['kind'][1]} ({comp['n'][0]} vs {comp['n'][1]} members): "
-                     "difference in 500 hPa height"))
-    for pred, word in (("lat", "latitude"), ("lon", "longitude")):
-        if sens is None:
-            rows.append(("sens", pred, False, f"Day-3 {word}: too few members tracked at day 3 for a sensitivity test."))
-        elif sens["res"].get(pred) is None:
-            rows.append(("sens", pred, False, f"Day-3 {word}: the members agree on it, nothing to test."))
-        elif max(float(np.mean(x)) for x in sens["res"][pred]["sig"]) < MIN_AREA:
-            rows.append(("sens", pred, False, f"Day-3 {word}: no significant link to 500 hPa height at days 5, 7 or 10" +
-                         (" (only isolated specks pass)." if _row_any(sens, pred) else ".")))
+        g = f"{comp['kind'][0]} minus {comp['kind'][1]} ({comp['n'][0]} vs {comp['n'][1]} members)"
+        lev = np.arange(-160, 161, 20)
+        pre = [(comp["diff"][i], comp["sig"][i]) for i in range(NPRE)]
+        if big([x[1] for x in pre]):
+            rows.append((f"1 · Before the storm reaches the jet (days {PRE_DAYS[0]} and {PRE_DAYS[1]}): {g[0].upper() + g[1:]}. "
+                         "Differences here were already in place, so they are a CAUSE of recurvature, not an effect.",
+                         PRE_DAYS, pre, [comp["mean"][i] for i in range(NPRE)], "RdBu_r", lev, "height difference (m) · contours: ensemble-mean 500 hPa height"))
         else:
-            what = "1° further north" if pred == "lat" else "1° further east"
-            rows.append(("sens", pred, True, f"If the storm is {what} at day 3: change in 500 hPa height (m), across {sens['n']} members"))
+            rows.append((f"1 · Before the storm reaches the jet (days {PRE_DAYS[0]} and {PRE_DAYS[1]}): no significant difference between the groups "
+                         "point by point (small early differences can still grow — row 3 accounts for them).",))
+        post = [(comp["diff"][NPRE + i], comp["sig"][NPRE + i]) for i in range(len(DAYS))]
+        if big([x[1] for x in post]):
+            rows.append((f"2 · Raw difference, {g}: cause and effect MIXED (the pattern that steers the storm plus what the storm does)",
+                         DAYS, post, [comp["mean"][NPRE + i] for i in range(len(DAYS))], "RdBu_r", lev,
+                         "height difference (m) · contours: ensemble-mean 500 hPa height"))
+        else:
+            rows.append((f"2 · Raw difference, {g}: nothing significant at days 5, 7 or 10.",))
+        A = comp["adj"]; adj = [(A["coef"][i], A["sig"][i]) for i in range(len(DAYS))]
+        if big([x[1] for x in adj]):
+            rows.append((f"3 · The same difference after removing what the day-2 pattern predicts ({A['k']} leading member patterns, "
+                         f"{100 * A['ve']:.0f}% of the day-2 spread): closer to the storm's own downstream effect",
+                         DAYS, adj, None, "RdBu_r", lev, "height difference not explained by the day-2 pattern (m)"))
+        else:
+            rows.append((f"3 · After removing what the day-2 pattern predicts ({100 * A['ve']:.0f}% of its member spread): nothing significant "
+                         "remains — the raw difference above is largely what was already in place at day 2 (the adjusted test also has less power).",))
+    for pred, word in (("lat", "latitude"), ("lon", "longitude")):
+        R = None if sens is None else sens["res"].get(pred)
+        if sens is None:
+            rows.append((f"Storm's day-3 {word}: too few members tracked at day 3 for a test.",)); continue
+        if R is None:
+            rows.append((f"Storm's day-3 {word}: the members agree on it, nothing to test.",)); continue
+        A = R["adj"]; fl = [(A["coef"][i], A["sig"][i]) for i in range(len(DAYS))]
+        what = "1° further north" if pred == "lat" else "1° further east"
+        if big([x[1] for x in fl]):
+            rows.append((f"4 · If the storm is {what} at day 3, with the day-2 pattern held fixed: change in 500 hPa height ({sens['n']} members)",
+                         DAYS, fl, None, "PuOr_r", np.arange(-40, 41, 5),
+                         f"metres per degree (members' day-3 {word} spreads {R['sd']:.1f}°)"))
+        else:
+            rows.append((f"Storm's day-3 {word}, day-2 pattern held fixed: no significant link to 500 hPa height at days 5, 7 or 10.",))
     mw = (W - 0.9) / 3.0
-    mh = mw * (SECTOR[3] - SECTOR[2]) / (SECTOR[1] - SECTOR[0]) * 1.25          # a little taller than plate carrée: easier to read
-    ROW_ON, ROW_OFF, TOP, BOT = 0.45 + 0.3 + mh + 0.75, 0.42, 0.95, 0.7
-    H = TOP + BOT + sum(ROW_ON if a else ROW_OFF for _, _, a, _ in rows)
+    mh = mw * (SECTOR[3] - SECTOR[2]) / (SECTOR[1] - SECTOR[0]) * 1.25
+    ROW_ON, ROW_OFF, TOP, BOT = 0.5 + 0.3 + mh + 0.75, 0.42, 1.15, 0.85
+    H = TOP + BOT + sum(ROW_ON if len(r) > 1 else ROW_OFF for r in rows)
     fig = plt.figure(figsize=(W, H))
     fx = lambda x: x / W
-    fy = lambda y: 1 - y / H                                           # y measured from the top, inches
+    fy = lambda y: 1 - y / H
     fig.suptitle(ttl, fontsize=15, fontweight="bold", x=0.02, ha="left", y=fy(0.25), va="top")
-    fig.text(0.02, fy(0.58), "Shaded only where significant (Benjamini–Hochberg false-discovery rate 10%). Thin lines: the AIFS-ENS members' tracks.",
-             fontsize=10.5, color="#444", va="top")
+    fig.text(0.02, fy(0.58), "The members where the storm recurves differ partly BECAUSE a different pattern steers them, and partly because of "
+             "what the storm then does. Row 1 shows the first, row 3 tries to remove it.\nShaded only where significant (Benjamini–Hochberg "
+             "false-discovery rate 10%). Thin lines: the AIFS-ENS members' tracks.", fontsize=10.5, color="#444", va="top")
     proj = ccrs.PlateCarree(central_longitude=200)
     y = TOP
-    for kind, pred, active, text in rows:
-        if not active:
-            fig.text(0.02, fy(y + 0.12), "• " + text, fontsize=11.5, color="#6f6b64", va="top")
+    for r in rows:
+        if len(r) == 1:
+            fig.text(0.02, fy(y + 0.12), "• " + r[0], fontsize=11.5, color="#6f6b64", va="top")
             y += ROW_OFF
             continue
-        fig.text(0.02, fy(y + 0.05), text, fontsize=12.5, fontweight="bold", va="top")
+        head, days, fields, conts, cmap, lev, cblab = r
+        fig.text(0.02, fy(y + 0.05), head, fontsize=12, fontweight="bold", va="top", wrap=True)
         cf = None
-        for c, d in enumerate(DAYS):
+        for c, (d, (val, sg)) in enumerate(zip(days, fields)):
             x0 = 0.3 + c * (mw + 0.15)
-            ax = fig.add_axes([fx(x0), fy(y + 0.75 + mh), fx(mw), mh / H], projection=proj)
+            ax = fig.add_axes([fx(x0), fy(y + 0.8 + mh), fx(mw), mh / H], projection=proj)
             ax.set_extent([SECTOR[0], SECTOR[1], SECTOR[2], SECTOR[3]], crs=ccrs.PlateCarree()); ax.set_aspect("auto")
             ax.coastlines("50m", lw=0.6, color="#333"); ax.add_feature(cfeature.BORDERS, lw=0.3, edgecolor="#666")
-            if kind == "comp":
-                D = np.where(comp["sig"][c], comp["diff"][c], np.nan)
-                cf = ax.contourf(Z_lon, Z_lat, D, levels=np.arange(-160, 161, 20), cmap="RdBu_r", extend="both", transform=ccrs.PlateCarree())
-                ax.contour(Z_lon, Z_lat, comp["mean"][c], levels=np.arange(5040, 6001, 60), colors="#222", linewidths=0.6, transform=ccrs.PlateCarree())
-                frac = 100 * np.mean(comp["sig"][c])
-            else:
-                R = sens["res"][pred]
-                D = np.where(R["sig"][c], R["slope"][c], np.nan)
-                cf = ax.contourf(Z_lon, Z_lat, D, levels=np.arange(-40, 41, 5), cmap="PuOr_r", extend="both", transform=ccrs.PlateCarree())
-                frac = 100 * np.mean(R["sig"][c])
-            ax.set_title(f"Day {d} · {frac:.0f}% of the map significant", fontsize=11, loc="left", pad=4)
+            cf = ax.contourf(Z_lon, Z_lat, np.where(sg, val, np.nan), levels=lev, cmap=cmap, extend="both", transform=ccrs.PlateCarree())
+            if conts is not None:
+                ax.contour(Z_lon, Z_lat, conts[c], levels=np.arange(5040, 6001, 60), colors="#222", linewidths=0.6, transform=ccrs.PlateCarree())
+            ax.set_title(f"Day {d} · {100 * np.mean(sg):.0f}% of the map significant", fontsize=11, loc="left", pad=4)
             for tr in s["models"]["aifs"]["tracks"].values():
                 ax.plot(tr["lon"], tr["lat"], color="#000", lw=0.35, alpha=0.35, transform=ccrs.Geodetic())
-        cax = fig.add_axes([fx(W * 0.25), fy(y + 0.75 + mh + 0.32), fx(W * 0.5), 0.12 / H])
-        cb = fig.colorbar(cf, cax=cax, orientation="horizontal")
-        cb.ax.tick_params(labelsize=9.5)
-        if kind == "comp":
-            cb.set_label("height difference (m) · contours: ensemble-mean 500 hPa height every 60 m", fontsize=10)
-        else:
-            sdv = sens["res"][pred]["sd"]
-            cb.set_label(f"metres per degree (the members' day-3 {'latitude' if pred == 'lat' else 'longitude'} spreads {sdv:.1f}°)", fontsize=10)
+        cax = fig.add_axes([fx(W * 0.25), fy(y + 0.8 + mh + 0.32), fx(W * 0.5), 0.12 / H])
+        cb = fig.colorbar(cf, cax=cax, orientation="horizontal"); cb.ax.tick_params(labelsize=9.5)
+        cb.set_label(cblab, fontsize=10)
         y += ROW_ON
     fig.text(0.02, fy(H - 0.2), "Tracks: ECMWF tropical-cyclone tracker on AIFS-ENS (open data, CC BY 4.0). Heights: AIFS-ENS control + 50 members, "
-             "1° means. Composite: Welch t-test.\nSensitivity after Torn & Hakim (2008, MWR). Associations across members, not proof that the storm "
-             "causes the change.", fontsize=9, color="#6f6b64", va="bottom")
+             "1° means. Rows 1-2: Welch t-test. Rows 3-4: least squares with the leading day-2 member patterns as controls.\n"
+             "Sensitivity after Torn & Hakim (2008, MWR). All rows are associations across members; only a run with the storm removed would "
+             "isolate its effect." + (f"\nThis storm recurves around day {rec_med:.1f}: by day 2 it may already be shaping the flow, so rows 3-4 can "
+             "remove part of its own effect too." if rec_med is not None and rec_med <= 3.5 else ""), fontsize=9, color="#6f6b64", va="bottom")
     fig.savefig(out_png, dpi=80, facecolor="white", pil_kwargs={"quality": 85, "method": 6}); plt.close(fig)
 
 
@@ -463,6 +534,7 @@ def main() -> int:
         if cand:
             try:
                 Z, lat, lon = load_z500(a.date, a.time)
+                globals()["_LAT"] = np.repeat(lat, 1)
             except Exception as e:
                 print(f"  z500 unavailable ({e})", flush=True)
         if Z is not None:
@@ -498,10 +570,13 @@ def main() -> int:
         if s["key"] in impact:
             comp, sens = impact[s["key"]]
             e["composite"] = None if comp is None else {"groups": comp["kind"], "n": comp["n"],
-                                                         "sig_area_pct_by_day": {str(d): round(100 * float(np.mean(comp["sig"][i])), 1) for i, d in enumerate(DAYS)}}
+                                                         "sig_area_pct_by_day": {str(d): round(100 * float(np.mean(comp["sig"][NPRE + i])), 1) for i, d in enumerate(DAYS)},
+                                                         "precursor_sig_area_pct_by_day": {str(d): round(100 * float(np.mean(comp["sig"][i])), 1) for i, d in enumerate(PRE_DAYS)},
+                                                         "adjusted_sig_area_pct_by_day": {str(d): round(100 * float(np.mean(comp["adj"]["sig"][i])), 1) for i, d in enumerate(DAYS)},
+                                                         "adjusted_controls": {"day": PRE_DAYS[ADJ_DAY_IDX], "pcs": comp["adj"]["k"], "var_explained": round(comp["adj"]["ve"], 3)}}
             e["sensitivity"] = None if sens is None else {"n": sens["n"], **{p: None if sens["res"][p] is None else
                                                           {"sd_deg": round(sens["res"][p]["sd"], 2),
-                                                           "sig_area_pct_by_day": {str(d): round(100 * float(np.mean(sens["res"][p]["sig"][i])), 1) for i, d in enumerate(DAYS)}}
+                                                           "sig_area_pct_by_day_adjusted": {str(d): round(100 * float(np.mean(sens["res"][p]["adj"]["sig"][i])), 1) for i, d in enumerate(DAYS)}}
                                                           for p in ("lat", "lon")}}
         js["storms"].append(e)
     (out / "data" / "tcens.json").write_text(json.dumps(js))
