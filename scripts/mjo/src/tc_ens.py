@@ -19,6 +19,8 @@ sensitivity, depth_links, render_impact, ...) stay below, unused; main() no long
 """
 from __future__ import annotations
 
+import pyproj  # noqa: F401  first, before eccodes/xarray load eckit's own libproj (exit abort 'double free', see CLAUDE.md pacjet)
+
 import argparse
 import json
 import sys

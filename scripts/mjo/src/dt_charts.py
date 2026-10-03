@@ -13,6 +13,8 @@ Rendered on the hemispheric polar view (loops dt, dt_pv330, dt_pv350) and, since
 """
 from __future__ import annotations
 
+import pyproj  # noqa: F401  first, before eccodes/xarray load eckit's own libproj (exit abort 'double free', see CLAUDE.md pacjet)
+
 import argparse
 import json
 import sys
