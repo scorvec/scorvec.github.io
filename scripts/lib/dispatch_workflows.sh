@@ -70,6 +70,9 @@ sst.yml|19:23|
 tao-subsurface.yml|09:10|
 tao-subsurface.yml|14:40|
 fci.yml|21:50|
+daily.yml|02:35|-R scorvec/midterms-2026
+midterms-sync.yml|03:15|
+midterms-sync.yml|05:15|
 ecape.yml|00:58|-f publish=true
 ecape.yml|06:58|-f publish=true
 ecape.yml|12:58|-f publish=true

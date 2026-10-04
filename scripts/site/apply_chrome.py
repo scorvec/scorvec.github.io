@@ -286,7 +286,7 @@ PAGES = [
     dict(path="skewt/methodology.html", mode="nav", tabs="skewt"),
     dict(path="skewt/gaps.html", mode="nav", tabs="skewt"),
     dict(path="qbo/index.html", mode="nav"),
-    dict(path="midterms/index.html", mode="after-body", footer=True),   # 2026 midterm forecast (published from ~/midterms, weekly)
+    dict(path="midterms/index.html", mode="after-body", footer=True),   # 2026 midterm forecast (synced daily from github.com/scorvec/midterms-2026 by midterms-sync.yml)
     dict(path="midterms/about.html", mode="after-body", footer=True),   # how the midterm forecast works + sources
     dict(path="midterms/polls.html", mode="after-body", footer=True),   # every poll in the midterm forecast and its weight
     dict(path="midterms/whatif.html", mode="after-body", footer=True),  # "What if?": the forecast re-simulated with the reader's assumptions

@@ -1,0 +1,117 @@
+# .github/workflows/midterms-sync.yml (site repository)
+#
+# Pulls the published forecast from the public model repository (scorvec/midterms-2026, built daily by its own
+# .github/workflows/daily.yml) into the site's midterms/ folder and re-applies the site chrome. It reproduces what the
+# old local publisher did:
+#   * copy web/index.html, about.html, polls.html, whatif.html, whatif_engine.js and web/data/{model, summary, polls,
+#     race_history, whatif, districts_2026.topo}.json into midterms/ and midterms/data/;
+#   * drop the robots noindex tag (the model repo's pages no longer carry it; kept as a guard);
+#   * stamp the site header/footer: apply_chrome.stamp_all(only={the four midterms pages});
+#   * commit only midterms/ (path-limited), snapshot + resync on every push attempt, never rebase;
+#   * dispatch pages.yml like the other site workflows.
+# The model's summary.json (homepage panel) is now produced by the model repository itself (midterms/weekly.py summary()),
+# and the methodology notes in model.json are already in public wording, so no text substitutions are needed.
+# Files are read at the commit SHA of the model repo's main (immutable raw URLs, so no CDN staleness).
+name: midterms sync
+
+on:
+  schedule:
+    - cron: "15 3 * * *"        # 45 min after the model's 02:30 UTC run; a second pass catches a late run
+    - cron: "15 5 * * *"
+  workflow_dispatch:
+  repository_dispatch:
+    types: [midterms-updated]   # optional: the model repo can trigger this with a token that may dispatch here
+
+permissions:
+  contents: write
+  actions: write
+
+concurrency:
+  group: midterms-sync
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      MODEL_REPO: scorvec/midterms-2026
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Fetch the published forecast
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          sha=$(gh api "repos/$MODEL_REPO/commits/main" --jq .sha)
+          echo "model repo at $sha"
+          base="https://raw.githubusercontent.com/$MODEL_REPO/$sha/web"
+          tmp=$(mktemp -d); mkdir -p "$tmp/data"
+          for f in index.html about.html polls.html whatif.html whatif_engine.js; do
+            curl -fsSL --retry 3 -o "$tmp/$f" "$base/$f"
+          done
+          for f in model.json summary.json polls.json race_history.json whatif.json districts_2026.topo.json; do
+            curl -fsSL --retry 3 -o "$tmp/data/$f" "$base/data/$f"
+          done
+          # refuse to publish a broken or older forecast
+          python - "$tmp" <<'EOF'
+          import json, sys, pathlib
+          t = pathlib.Path(sys.argv[1])
+          for f in (t / "data").glob("*.json"): json.loads(f.read_text())
+          new = json.loads((t / "data" / "model.json").read_text())
+          for k in ("house", "senate", "governor"): assert k in new and new[k].get("now"), f"model.json lacks {k}"
+          old_p = pathlib.Path("midterms/data/model.json")
+          if old_p.exists():
+              old = json.loads(old_p.read_text())
+              assert new["asof"] >= old["asof"], f"model repo asof {new['asof']} is older than the site's {old['asof']}"
+          print("forecast", new["asof"], "generated", new.get("generated"))
+          EOF
+          mkdir -p midterms/data
+          for f in index.html about.html polls.html whatif.html; do
+            sed 's|<meta name="robots" content="noindex">||' "$tmp/$f" > "midterms/$f"
+          done
+          cp "$tmp/whatif_engine.js" midterms/whatif_engine.js
+          # compact copies (the model repo writes compact JSON already; this keeps the site files minified either way)
+          for f in "$tmp"/data/*.json; do
+            python -c "import json,sys; json.dump(json.load(open(sys.argv[1])), open(sys.argv[2], 'w'), separators=(',', ':'))" "$f" "midterms/data/$(basename "$f")"
+          done
+
+      - name: Stamp the site chrome
+        run: |
+          python -c "import sys; sys.path.insert(0, 'scripts/site'); import apply_chrome as A; A.stamp_all(only={'midterms/index.html', 'midterms/about.html', 'midterms/polls.html', 'midterms/whatif.html'}, quiet=True)"
+
+      - name: Commit & push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          # snapshot + clean resync each attempt (the site's pattern); path-limited to midterms/
+          SNAP=$(mktemp -d)
+          git add -A midterms
+          git diff --staged --name-only -z | tar cf "$SNAP/outs.tar" --null -T - 2>/dev/null || true
+          git reset -q
+          asof=$(python -c "import json; print(json.load(open('midterms/data/model.json'))['asof'])")
+          for i in 1 2 3 4 5; do
+            if ! timeout 120 git fetch origin main; then echo "fetch $i failed"; sleep 5; continue; fi
+            git reset --hard origin/main
+            tar xf "$SNAP/outs.tar" 2>/dev/null || true
+            git add -A midterms
+            if git diff --staged --quiet; then echo "No changes; skipping commit."; echo "PUSHED=0" >> "$GITHUB_ENV"; exit 0; fi
+            git commit -q -m "midterms: forecast update $asof" -- midterms
+            if timeout 180 git push; then echo "Pushed on attempt $i."; echo "PUSHED=1" >> "$GITHUB_ENV"; exit 0; fi
+            echo "Push $i rejected; resyncing and retrying…"
+            sleep 5
+          done
+          exit 1
+
+      - name: Deploy the site
+        if: success() && env.PUSHED == '1'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh workflow run pages.yml --repo "$GITHUB_REPOSITORY" || echo "::warning::pages dispatch failed; the dispatcher will catch it"
