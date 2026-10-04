@@ -232,6 +232,42 @@ def index_from(X, mu, sd, w, scale):
     return idx, cover, contrib, Z
 
 
+def daily_index(raw, X, mu, sd, w, scale, days=400):
+    """The headline day by day (2026-10-04, user: 'a zoomed-in "real time" conditions chart'): the same weights and
+    standardisation; inputs that move daily (spreads, CP rates, fed funds, the curve, VIX, the S&P 500, the dollar) take each
+    business day's value, the slow ones (loan officer survey, bank loans, CP outstanding, Z.1, the weekly mortgage rate)
+    their latest published value - the weekly frame forward-filled. Daily levels are noisier than the weekly averages."""
+    end = max(raw[k].index.max() for k in ("BAA10Y", "DFF", "VIXCLS"))
+    bd = pd.bdate_range(end - pd.Timedelta(days=days + 400), end)
+    dl = lambda s_: s_.reindex(s_.index.union(bd)).ffill(limit=5).reindex(bd)
+    core = yoy(raw["PCEPILFE"]); core.index = core.index + pd.Timedelta(days=RELEASE_LAG_D["PCEPILFE"]); core = dl(core.reindex(core.index.union(bd)).ffill())
+    Xd = X.reindex(X.index.union(bd)).ffill(limit=10).reindex(bd)          # slow inputs: latest published value
+    Xd["baa"] = dl(raw["BAA10Y"]); Xd["aaa"] = dl(raw["AAA10Y"])
+    tb = raw["DTB3"]
+    Xd["cp_nonfin"] = dl(raw["DCPN3M"] - tb.reindex(raw["DCPN3M"].index)); Xd["cp_fin"] = dl(raw["DCPF3M"] - tb.reindex(raw["DCPF3M"].index))
+    Xd["real_ff"] = dl(raw["DFF"]) - core; Xd["curve"] = -dl(raw["T10Y2Y"])
+    mort = dl(raw["MORTGAGE30US"].reindex(raw["MORTGAGE30US"].index.union(bd)).ffill(limit=7))
+    Xd["real_mort"] = mort - core; Xd["mort_sprd"] = mort - dl(raw["DGS10"])
+    Xd["vix"] = dl(raw["VIXCLS"])
+    eq = raw.get("SPX") if raw.get("SPX") is not None and len(raw.get("SPX")) > 2000 else raw["NASDAQCOM"]
+    eqd = dl(eq.reindex(eq.index.union(pd.bdate_range(eq.index.min(), end))).ffill(limit=5))
+    Xd["eq_dd"] = 100.0 * (1.0 - eqd / eqd.rolling(252, min_periods=126).max())
+    usd = raw["DTWEXBGS"]; ud = dl(usd)
+    Xd["usd"] = 100.0 * (ud / dl(usd.reindex(usd.index.union(bd - pd.DateOffset(years=1))).ffill().reindex(bd - pd.DateOffset(years=1))).values - 1.0)
+    Xd = Xd[list(X.columns)]
+    idx, cover, contrib, Z = index_from(Xd, mu, sd, w, scale)
+    keep = (idx.index >= end - pd.Timedelta(days=days)) & (cover >= 0.8)
+    idx, contrib = idx[keep].dropna(), contrib[keep]
+    groups = {}
+    for k, (lab, g, desc) in INPUTS.items():
+        groups.setdefault(g, []).append(k)
+    return dict(index=[[str(d.date()), round(float(v), 3)] for d, v in idx.items()],
+                contrib={g: [[str(d.date()), round(float(x), 3)] for d, x in contrib[ks].sum(axis=1, min_count=1).reindex(idx.index).items()] for g, ks in groups.items()},
+                asof=str(idx.index[-1].date()), latest=round(float(idx.iloc[-1]), 3),
+                chg_5d=round(float(idx.iloc[-1] - idx.iloc[-6]), 3) if len(idx) > 6 else None,
+                chg_21d=round(float(idx.iloc[-1] - idx.iloc[-22]), 3) if len(idx) > 22 else None)
+
+
 def hy_nowcast(raw, cache):
     """Real-time high-yield spread (2026-10-04, user: HYG/IEI "sounds like a plan"): the official ICE BofA HY OAS posts on
     FRED a day late; between postings, today's spread = the last official value + the change implied by HYG's daily return
@@ -383,7 +419,7 @@ def main():
               chg_4w=round(float(idx[last] - idx.dropna().iloc[-5]), 3), chg_13w=round(float(idx[last] - idx.dropna().iloc[-14]), 3),
               chg_52w=round(float(idx[last] - idx.dropna().iloc[-53]), 3),
               fit=dict(start=FIT_START, weeks=int(nfit), pc1_share=round(float(share[0]), 3), pc2_share=round(float(share[1]), 3)),
-              hy_nowcast=hy_nowcast(raw, cache), private=privp, subs=subs, recessions=spans, corr=corr, groups={g: round(v, 3) for g, v in groups.items()}, inputs=inputs, show_only=show,
+              hy_nowcast=hy_nowcast(raw, cache), private=privp, daily=daily_index(raw, X, mu, sd, w, scale), subs=subs, recessions=spans, corr=corr, groups={g: round(v, 3) for g, v in groups.items()}, inputs=inputs, show_only=show,
               index=ser(idx), coverage=ser(cover, 2), bench={k: ser(v) for k, v in bench.items()},
               contrib={g: ser(contrib[[k for k, x in INPUTS.items() if x[1] == g]].sum(axis=1, min_count=1)) for g in groups})
     (out / "fci.json").write_text(json.dumps(js, separators=(",", ":")))

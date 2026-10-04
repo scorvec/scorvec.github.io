@@ -236,6 +236,16 @@
   <div class="tiles" id="tiles"></div>
   <p class="src" id="asof"></p>
 
+  <section class="card" id="daily-card" hidden>
+    <h2>Day by day</h2>
+    <p class="note" id="daily-note">The headline index recomputed every business day with the same weights: spreads, commercial
+      paper, fed funds, the curve, the VIX, stocks and the dollar at each day's value; the loan officer survey, bank lending and
+      the weekly mortgage rate at their latest release. Bars: what each group contributes (above zero tighter). Daily values are
+      noisier than the weekly averages above.</p>
+    <div class="seg" id="d-range" role="group" aria-label="Period"></div>
+    <div class="chart" id="c-daily"></div>
+  </section>
+
   <section class="card">
     <h2>The index since 1990</h2>
     <p class="note">Weekly, Friday dates. Grey bands: US recessions (NBER). Dashed: the Chicago Fed's National Financial Conditions
@@ -414,6 +424,24 @@
     sp.innerHTML = Object.keys(d.show_only).map(function (k, j) { var s = d.show_only[k];
       return "<div><b>" + s.label + "</b><div class='d' style='font-size:.9rem;color:#3d3b37'>" + s.last.toFixed(2) + " pt on " + s.asof + " · " + ord(s.pct_3y) +
         " percentile of the last 3 years (range " + s.min_3y.toFixed(2) + "–" + s.max_3y.toFixed(2) + ")</div><div class='chart' id='sp" + j + "'></div></div>"; }).join("");
+    var dy = d.daily;
+    if (dy) {
+      document.getElementById("daily-card").hidden = false;
+      var GCd = { "Corporate bonds": "#1f5fa8", "Corporate short-term funding": "#5aa0d8", "Bank lending": "#23874f", "Policy and rates": "#9a6fb0", "Mortgages": "#c2394b", "Markets": "#d97a0b" };
+      document.getElementById("daily-note").insertAdjacentHTML("afterbegin", "<b>" + dy.asof + ": " + fmt(dy.latest) + " sd</b>" +
+        (dy.chg_5d !== null ? " (" + (dy.chg_5d >= 0 ? "tighter" : "looser") + " by " + Math.abs(dy.chg_5d).toFixed(2) + " over 5 business days, " +
+         (dy.chg_21d >= 0 ? "tighter" : "looser") + " by " + Math.abs(dy.chg_21d).toFixed(2) + " over a month). " : ". "));
+      ranges("d-range", [[1, "1 month"], [3, "3 months"], [6, "6 months"], [12, "1 year"]], 3, function (m) {
+        var t0 = new Date(dy.asof); t0.setMonth(t0.getMonth() - m); t0 = t0.toISOString().slice(0, 10);
+        var tr = Object.keys(dy.contrib).map(function (g) { var a = dy.contrib[g].filter(function (r) { return r[0] >= t0; });
+          return { type: "bar", x: a.map(function (r) { return r[0]; }), y: a.map(function (r) { return r[1]; }), name: g, marker: { color: GCd[g] || "#999" },
+                   hovertemplate: "%{y:+.2f}<extra>" + g + "</extra>" }; });
+        var ix = dy.index.filter(function (r) { return r[0] >= t0; });
+        tr.push({ x: ix.map(function (r) { return r[0]; }), y: ix.map(function (r) { return r[1]; }), name: "Index (daily)", mode: "lines+markers",
+                  line: { color: "#1c1c1a", width: 2.4 }, marker: { size: m <= 3 ? 4 : 0 }, hovertemplate: "%{y:+.2f} sd<extra>index</extra>" });
+        Plotly.react("c-daily", tr, L({ barmode: "relative", bargap: 0.15, xaxis: { gridcolor: "#eee", type: "date", rangebreaks: [{ bounds: ["sat", "mon"] }] } }), CFG);
+      });
+    }
     var pv = d["private"];
     if (pv) {
       document.getElementById("pc-card").hidden = false;
