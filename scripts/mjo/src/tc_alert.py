@@ -81,7 +81,7 @@ def main() -> int:
         when = init + pd.Timedelta(days=mday or 0)
         # basin = where the CONTROL has the storm nearest the median recurvature time (Nolo 2026 is 15E but recurves near
         # 168E: its downstream is the western Pacific's); the id letter only when the control does not carry the storm
-        basin = BASIN_OF.get(sid[-1:].upper())
+        basin = BASIN_OF.get(sid.split("-")[0][-1:].upper())          # tc_ens names a 2nd group under one id "72E-2"
         tr = ctl.get(sid, {}).get("track") or []
         if tr:
             k = int(np.argmin([abs(t["h"] - 24 * (mday if mday is not None else 0)) for t in tr]))

@@ -128,20 +128,102 @@ def _dup(tr, other) -> bool:
     return False
 
 
+GEN_KM, GEN_H = 600.0, 48           # genesis points this close in space and time are one developing system
+TS_WIND = 17.0                       # m/s: tropical-storm strength
+MIN_COMPANION = 3                    # a group under min_frac is kept only as the OTHER model's view of a system that
+                                     # passes there ("IFS-ENS: 14 of 50 members", not "not in IFS-ENS"); never on its own
+
+
+def region_of(lat, lon):
+    """A plain-language place for a developing system (Atlantic and eastern Pacific; None elsewhere)."""
+    lo = (lon + 180) % 360 - 180
+    for name, la0, la1, lo0, lo1 in (("Bay of Campeche", 17.5, 22.5, -98.5, -90.0), ("Gulf of Mexico", 21.0, 31.0, -98.5, -80.5),
+                                     ("western Caribbean", 9.0, 22.0, -89.0, -75.0), ("eastern Caribbean", 9.0, 19.0, -75.0, -60.0),
+                                     ("off the Southeast US coast", 24.0, 36.0, -82.0, -70.0), ("central tropical Atlantic", 7.0, 25.0, -60.0, -35.0),
+                                     ("eastern tropical Atlantic", 5.0, 25.0, -35.0, -15.0), ("subtropical Atlantic", 25.0, 40.0, -70.0, -20.0),
+                                     ("off southern Mexico", 8.0, 20.0, -110.0, -90.0), ("eastern Pacific", 5.0, 25.0, -140.0, -110.0)):
+        if la0 <= lat <= la1 and lo0 <= lo <= lo1:
+            return name
+    return None
+
+
+_PACIFIC_REGIONS = {"off southern Mexico", "eastern Pacific"}
+
+
+def basin_of(sid, lat, lon):
+    """'L' Atlantic, 'E' eastern Pacific, else the tracker id's letter. From WHERE the system develops when that is known:
+    a Pacific disturbance that crosses the isthmus keeps its E id (IFS 71E developing in the Bay of Campeche, 2026-10-04)."""
+    r = region_of(lat, lon)
+    if r is None:
+        return sid[-1:]
+    return "E" if r in _PACIFIC_REGIONS else "L"
+
+
 def nh_storms(msgs: list[dict], min_frac: float = 0.4, nmem: int = 51) -> list[dict]:
-    """Named NH storms, plus genesis clusters carried by >= min_frac of members at tropical-storm strength. A genesis
-    member track that duplicates the same member's track of a named storm (within 150 km at a shared step) is dropped."""
+    """Named NH storms, plus developing systems reached by >= min_frac of DISTINCT members at tropical-storm strength.
+
+    ECMWF's tracker splits one developing system across several provisional ids (2026-10-04: the Bay of Campeche system
+    in the 00Z AIFS-ENS sat under 70L, 71L, 72L, ... with 9 / 13 / 7 ... tropical-storm members each, so every id failed
+    the 40 % test on its own while 31 of 51 distinct members developed it). Genesis is therefore clustered across ids:
+    each member track that reaches tropical-storm strength contributes its genesis point (where and when it first does),
+    points within GEN_KM and GEN_H are linked, and a cluster counts its distinct members (each member's strongest track
+    is kept once). A genesis track that duplicates the same member's track of a named storm (within 150 km at a shared
+    step) is dropped first."""
     named = [m for m in msgs if m["named"]]
     keep = []
-    for m in msgs:
+    for m in named:
         tr = {k: t for k, t in m["tracks"].items() if (t["lat"] > 0).any() and len(t["steps"]) > 1}
-        if not m["named"]:
-            tr = {k: t for k, t in tr.items() if not any(k in n["tracks"] and _dup(t, n["tracks"][k]) for n in named)}
-            tr = {k: t for k, t in tr.items() if np.nanmax(np.r_[t["wind"], 0]) >= 17.0}
-            if len(tr) < min_frac * nmem:
-                continue
         if tr:
             keep.append(dict(m, tracks=tr))
+    pts = []                                                              # (id, member, track, lat, lon, step) at genesis
+    for m in msgs:
+        if m["named"]:
+            continue
+        for k, t in m["tracks"].items():
+            if not ((t["lat"] > 0).any() and len(t["steps"]) > 1) or any(k in n["tracks"] and _dup(t, n["tracks"][k]) for n in named):
+                continue
+            w = np.nan_to_num(t["wind"], nan=0.0)
+            if w.max() < TS_WIND:
+                continue
+            i = int(np.argmax(w >= TS_WIND))
+            if t["lat"][i] > 0:
+                pts.append((m["id"], k, t, float(t["lat"][i]), float(t["lon"][i]), int(t["steps"][i])))
+    bas = [basin_of(p_[0], p_[3], p_[4]) for p_ in pts]
+    par = list(range(len(pts)))                                           # union-find, single linkage
+    def root(i):
+        while par[i] != i:
+            par[i] = par[par[i]]; i = par[i]
+        return i
+    for i in range(len(pts)):
+        for j in range(i + 1, len(pts)):
+            if bas[i] == bas[j] and abs(pts[i][5] - pts[j][5]) <= GEN_H \
+               and TC._km(pts[i][3], pts[i][4], pts[j][3], pts[j][4]) < GEN_KM:     # same basin letter: the Bay of
+                # Campeche and the Gulf of Tehuantepec are ~300 km apart across the isthmus and must never merge
+                par[root(i)] = root(j)
+    groups = {}
+    for i in range(len(pts)):
+        groups.setdefault(root(i), []).append(pts[i])
+    used = set()                                                          # one tracker id can head several groups:
+    for g in sorted(groups.values(), key=lambda g: -len({x[1] for x in g})):   # the largest keeps the bare id
+        best = {}
+        for sid, k, t, la, lo, h in g:                                    # one track per member: its strongest
+            if k not in best or np.nanmax(t["wind"]) > np.nanmax(best[k][1]["wind"]):
+                best[k] = (sid, t, la, lo)
+        weak = len(best) < min_frac * nmem
+        if weak and len(best) < MIN_COMPANION:
+            continue
+        ids = {}
+        for sid, _, _, _ in best.values():
+            ids[sid] = ids.get(sid, 0) + 1
+        main_id = max(ids, key=ids.get)
+        n_ = 2
+        while main_id in used:
+            main_id = f"{max(ids, key=ids.get)}-{n_}"; n_ += 1
+        used.add(main_id)
+        gla = float(np.median([v[2] for v in best.values()])); glo = float(np.median([v[3] for v in best.values()]))
+        keep.append(dict(id=main_id, name=main_id, named=False, weak=weak, ids=sorted(ids), region=region_of(gla, glo),
+                         basin=basin_of(main_id[:3], gla, glo),
+                         genesis=(round(gla, 1), round(glo, 1)), tracks={k: v[1] for k, v in best.items()}))
     return keep
 
 
@@ -496,7 +578,9 @@ def _pcs_of(X3, lat, k=K_PCS):
 
 # ── figures ───────────────────────────────────────────────────────────────────────────────────────────────────────
 def _stormlab(s):
-    return s["name"].title() if s["named"] else f"possible new storm ({s['id']})"
+    if s["named"]:
+        return s["name"].title()
+    return f"possible new storm, {s['region']} ({s['id']})" if s.get("region") else f"possible new storm ({s['id']})"
 
 
 def render_tracks(storms: list[dict], st: dict, init, out_png: Path):
@@ -824,16 +908,32 @@ def main() -> int:
         h = int(vals[np.argmax(cnt)])
         ps = [TC.at(t, h) for t in s["tracks"].values() if TC.at(t, h) is not None]
         return h, float(np.median([q[0] for q in ps])), float(np.median([q[1] for q in ps]))
-    gen = {m: {s["id"]: s for s in lst if not s["named"]} for m, lst in per.items()}
-    shared = set()
-    for gid in set(gen.get("aifs", {})) & set(gen.get("ifs", {})):
-        ha, la_, lo_ = med_pos(gen["aifs"][gid]); hi, lb, lob = med_pos(gen["ifs"][gid])
-        if abs(ha - hi) <= 48 and TC._km(la_, lo_, lb, lob) < 500:
-            shared.add(gid)                                              # same tracker id, same place: one system
+    # developing systems: the two trackers number the same system differently (2026-10-04: AIFS 71L = IFS 70L), so they
+    # are matched by WHERE they develop (genesis medians within GEN_KM), not by id; the AIFS id names the pair
+    gen = {m: [s for s in lst if not s["named"]] for m, lst in per.items()}
+    pair = {}                                                            # id(ifs system) -> aifs system
+    for sa in gen.get("aifs", []):
+        best = None
+        for si in gen.get("ifs", []):
+            d = TC._km(*sa["genesis"], *si["genesis"])
+            if d < GEN_KM and sa["basin"] == si["basin"] and not (sa.get("weak") and si.get("weak")) and id(si) not in pair \
+               and (best is None or d < best[0]):
+                best = (d, si)
+        if best:
+            pair[id(best[1])] = sa
     for m, lst in per.items():
         for s in lst:
-            key = s["id"] if (s["named"] or s["id"] in shared) else f"{m}:{s['id']}"
-            storms.setdefault(key, dict(key=key, id=s["id"], name=s["name"], named=s["named"], models={}))["models"][m] = s
+            if s["named"]:
+                key = s["id"]
+            elif m == "ifs" and id(s) in pair:
+                key = "gen:" + pair[id(s)]["id"]
+            else:
+                key = ("gen:" if m == "aifs" else f"{m}:") + s["id"]
+            ref = pair[id(s)] if (m == "ifs" and id(s) in pair) else s
+            storms.setdefault(key, dict(key=key, id=ref["id"], name=ref["name"], named=s["named"], region=ref.get("region"),
+                                        models={}))["models"][m] = s
+    for key in [k for k, v in storms.items() if all(x.get("weak") for x in v["models"].values())]:
+        del storms[key]                                                  # below the bar in every model: not shown
     st = {k: {m: stats(s["models"][m], nm[m]) for m in s["models"]} for k, s in storms.items()}
     order = sorted(storms.values(), key=lambda s: (not s["named"], -max(st[s["key"]][m]["p_recurve"] for m in s["models"])))
     print(f"  storms: " + ", ".join(f"{_stormlab(s)} " + "/".join(f"{MLAB[m]} {100 * st[s['key']][m]['p_recurve']:.0f}%" for m in s["models"])
