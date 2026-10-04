@@ -18,6 +18,7 @@
 //                                  # writes <stem>_ecape.f32 + <stem>_ecape.json
 
 #include <cmath>
+#include <cstdlib>
 #include <cstdio>
 #include <cstring>
 #include <string>
@@ -36,6 +37,8 @@ extern "C" int compute_sounding(const float*, const float*, const float*,
                                 const float*, const float*, const float*, int,
                                 float*, float*, float*, float*);
 extern "C" int out_size();
+extern "C" int compute_ecape4(const float*, const float*, const float*, const float*, const float*, const float*, int,
+                              float*, float*, float*);
 
 // skewt_wasm.cpp out[] indices we keep (see its header comment).
 enum { I_ML_CAPE = 5, I_MU_CAPE = 10, I_ECAPE_MU = 42, I_ECAPE_ML = 45 };
@@ -127,6 +130,8 @@ int main(int argc, char** argv) {
     const int nout = out_size();
 
     long long ok = 0, bad = 0;
+    const bool full = std::getenv("ECAPE_FULL") && std::string(std::getenv("ECAPE_FULL")) == "1";
+    std::printf("  kernel: %s\n", full ? "full explorer analysis (ECAPE_FULL=1)" : "compute_ecape4 (ML/MU CAPE + ECAPE only)");
 #ifdef _OPENMP
     std::printf("  OpenMP: %d threads\n", omp_get_max_threads());
 #endif
@@ -166,9 +171,11 @@ int main(int argc, char** argv) {
                 for (int k = 1; k < nlev; ++k)
                     if (!(H[k] > H[k - 1])) H[k] = H[k - 1] + 0.1f;
 
-                const int rc = compute_sounding(P.data(), H.data(), T.data(), D.data(),
-                                                U.data(), V.data(), nlev,
-                                                o.data(), a.data(), b.data(), c.data());
+                // the four numbers only (2026-10-04); ECAPE_FULL=1 runs the explorer's whole analysis for comparison
+                const int rc = full ? compute_sounding(P.data(), H.data(), T.data(), D.data(), U.data(), V.data(), nlev,
+                                                       o.data(), a.data(), b.data(), c.data())
+                                    : compute_ecape4(P.data(), H.data(), T.data(), D.data(), U.data(), V.data(), nlev,
+                                                     o.data(), b.data(), c.data());
                 if (rc != 0) { ++bad; continue; }
                 auto keep = [&](int src) {
                     const float v = o[src];

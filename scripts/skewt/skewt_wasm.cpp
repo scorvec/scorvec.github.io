@@ -81,6 +81,72 @@ KEEP int compute_sounding(const float* pres, const float* hght,
     }
 }
 
+// compute_ecape4 (2026-10-04, user: "any way we could speed up the compute?"): the HRRR ECAPE grid (scripts/ecape/
+// ecape_grid.cpp) needs only ML/MU CAPE and ML/MU ECAPE, but called compute_sounding() - the whole explorer analysis (SB
+// parcel and its ECAPE, DCAPE, kinematics, composites, winter, PBL, SHIP) - on 1.9 million columns an hour. This is the SAME
+// code path as compute_sounding_impl for those four numbers (same ML parcel, same effective-inflow MU search and fallbacks,
+// same MSE profile and ECAPE calls), stopping there. Writes out[5], out[10], out[42], out[45] like compute_sounding.
+static int compute_ecape4_impl(const float* pres, const float* hght, const float* tmpk, const float* dwpk,
+                               const float* uwin, const float* vwin, const int N, float* out, float* ml_vt, float* mu_vt) {
+    if (N < 5) return 1;
+    out[5] = out[10] = out[42] = out[45] = MISSING;
+    std::vector<float> mixr(N), vtmp(N), thta(N), buoy(N), scratch(N);
+    for (int i = 0; i < N; ++i) {
+        mixr[i] = mixratio(pres[i], dwpk[i]);
+        vtmp[i] = virtual_temperature(tmpk[i], mixr[i]);
+        thta[i] = theta(pres[i], tmpk[i], THETA_REF_PRESSURE);
+    }
+    lifter_wobus lifter;
+    std::fill(ml_vt, ml_vt + N, MISSING);
+    std::fill(mu_vt, mu_vt + N, MISSING);
+    PressureLayer mix_lyr(pres[0], pres[0] - 10000.0f);
+    Parcel ml = Parcel::mixed_layer_parcel(mix_lyr, pres, hght, thta.data(), mixr.data(), N);
+    ml.lift_parcel(lifter, pres, ml_vt, N);
+    buoyancy(ml_vt, vtmp.data(), buoy.data(), N);
+    ml.cape_cinh(pres, hght, buoy.data(), N);
+    Parcel mu;
+    PressureLayer eff = effective_inflow_layer(lifter, pres, hght, tmpk, dwpk, vtmp.data(), scratch.data(),
+                                               buoy.data(), N, 100.0f, -250.0f, &mu);
+    if (mu.pres == MISSING || eff.bottom == MISSING) {
+        PressureLayer mu_lyr(pres[0], pres[0] - 40000.0f);
+        mu = Parcel::most_unstable_parcel(mu_lyr, lifter, pres, hght, tmpk, vtmp.data(), dwpk, mu_vt, buoy.data(), N);
+    }
+    if (mu.pres == MISSING) {
+        int kbest = 0;
+        float tebest = -1e9f;
+        for (int i = 0; i < N && pres[0] - pres[i] <= 40000.0f; ++i) {
+            const float te = thetae(pres[i], tmpk[i], dwpk[i]);
+            if (te > tebest) { tebest = te; kbest = i; }
+        }
+        mu = Parcel(pres[kbest], tmpk[kbest], dwpk[kbest], LPL::MU);
+    }
+    std::fill(mu_vt, mu_vt + N, MISSING);
+    mu.lift_parcel(lifter, pres, mu_vt, N);
+    buoyancy(mu_vt, vtmp.data(), buoy.data(), N);
+    mu.cape_cinh(pres, hght, buoy.data(), N);
+    out[5] = ml.cape; out[10] = mu.cape;
+    if (mu.cape > 0 || ml.cape > 0) {
+        const float sfc = hght[0];
+        std::vector<float> mse(N);
+        for (int i = 0; i < N; ++i) {
+            const float q = mixr[i] / (1.0f + mixr[i]);
+            mse[i] = moist_static_energy(hght[i] - sfc, tmpk[i], q);
+        }
+        if (mu.cape > 0) out[42] = entrainment_cape(pres, hght, tmpk, mse.data(), uwin, vwin, N, &mu);
+        if (ml.cape > 0) out[45] = entrainment_cape(pres, hght, tmpk, mse.data(), uwin, vwin, N, &ml);
+    }
+    return 0;
+}
+
+extern "C" KEEP int compute_ecape4(const float* pres, const float* hght, const float* tmpk, const float* dwpk,
+                                   const float* uwin, const float* vwin, const int N, float* out, float* ml_vt, float* mu_vt) {
+    try {
+        return compute_ecape4_impl(pres, hght, tmpk, dwpk, uwin, vwin, N, out, ml_vt, mu_vt);
+    } catch (...) {
+        return 2;
+    }
+}
+
 static int compute_sounding_impl(const float* pres, const float* hght,
                                  const float* tmpk, const float* dwpk,
                                  const float* uwin, const float* vwin, const int N,
