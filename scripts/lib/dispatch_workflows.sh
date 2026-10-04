@@ -70,10 +70,10 @@ sst.yml|19:23|
 tao-subsurface.yml|09:10|
 tao-subsurface.yml|14:40|
 fci.yml|21:50|
-ecape.yml|01:20|-f publish=true
-ecape.yml|07:20|-f publish=true
-ecape.yml|13:20|-f publish=true
-ecape.yml|19:20|-f publish=true
+ecape.yml|00:58|-f publish=true
+ecape.yml|06:58|-f publish=true
+ecape.yml|12:58|-f publish=true
+ecape.yml|18:58|-f publish=true
 strat.yml|07:35|-f publish=true
 strat.yml|19:35|-f publish=true
 # IFS-ENS stratosphere products + nh_vortex (strat-ifs.yml, 2026-09-27): IFS-ENS day 15 reaches the Google mirror

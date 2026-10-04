@@ -16,7 +16,7 @@ What is stored per column and hour (43 levels: surface + 42 hybrid):
   levels : p residual from A_k + B_k*p_s (5 Pa), T (0.1 K), Td (0.2 K, from SPFH), u/v (0.25 m/s)
 Winds are EARTH-relative (HRRR's are grid-relative; rotated here). Heights are NOT stored: the page rebuilds them
 hypsometrically from z_s upward with the virtual temperature, plus a fitted per-level correction zc (see fit_coef).
-A_k, B_k (and zc) are fitted on the cycle's first encoded hour and reused for every hour (the residual absorbs the rest; HRRR's
+A_k, B_k (and zc) are fitted on every hour separately (index.json "coef", one set per hour; v=1 files had one set) (the residual absorbs the rest; HRRR's
 coordinate follows dry pressure, so p is not exactly A + B p_s - rms 3 Pa near the ground, ~35 Pa mid-column).
 
 Tile file (.bin): b"SND1", uint16 nhours, uint16 0, nhours x uint32 byte lengths, then one zlib stream per hour.
@@ -164,12 +164,10 @@ def cmd_encode(a):
     stem, out = Path(a.stem), Path(a.out) / "snd"
     parts = out / "_parts"; parts.mkdir(parents=True, exist_ok=True)
     meta, cube, sfc = load(stem)
-    cf = parts / "coef.json"
-    if cf.exists():
-        coef = json.loads(cf.read_text())
-    else:
-        coef = fit_coef(cube, sfc); coef["grid"] = meta["grid"]; coef["fit_fxx"] = a.fxx
-        cf.write_text(json.dumps(coef))
+    # coefficients PER HOUR (2026-10-04): the ECAPE job now encodes the hours on three parallel runners, so a "fit once on
+    # the first hour" set would differ by runner; each hour carries its own A, B, zc and the page uses the hour's set
+    coef = fit_coef(cube, sfc); coef["grid"] = meta["grid"]
+    (parts / f"coef_{a.fxx}.json").write_text(json.dumps(coef))
     codes = quantise(meta, cube, sfc, coef)
     n = 0
     for ty, tx, sl in tiles(*codes.shape[1:]):
@@ -181,8 +179,13 @@ def cmd_encode(a):
 def cmd_pack(a):
     out = Path(a.out) / "snd"; parts = out / "_parts"
     hours = [int(h) for h in a.hours.split()]
-    coef = json.loads((parts / "coef.json").read_text())
-    g = coef["grid"]; ny4, nx4 = -(-g["ny"] // D), -(-g["nx"] // D)
+    coefs = []
+    for h in hours:
+        cf = parts / f"coef_{h}.json"
+        if not cf.exists():
+            raise SystemExit(f"missing {cf.name}")
+        coefs.append(json.loads(cf.read_text()))
+    g = coefs[0]["grid"]; ny4, nx4 = -(-g["ny"] // D), -(-g["nx"] // D)
     total = nt = 0
     for ty, tx, _ in tiles(ny4, nx4):
         bufs = []
@@ -194,8 +197,9 @@ def cmd_pack(a):
         head = b"SND1" + struct.pack("<HH", len(bufs), 0) + struct.pack(f"<{len(bufs)}I", *map(len, bufs))
         f = out / f"{ty}_{tx}.bin"
         f.write_bytes(head + b"".join(bufs)); total += f.stat().st_size; nt += 1
-    idx = dict(v=1, model="hrrr", D=D, ts=TS, nx=nx4, ny=ny4, nlev=NLEV + 1, hours=hours,
-               sfc_scale=SFC_SCALE, lev_scale=LEV_SCALE, A=coef["A"], B=coef["B"], zc=coef["zc"], grid=g,
+    idx = dict(v=2, model="hrrr", D=D, ts=TS, nx=nx4, ny=ny4, nlev=NLEV + 1, hours=hours,
+               sfc_scale=SFC_SCALE, lev_scale=LEV_SCALE, A=coefs[0]["A"], B=coefs[0]["B"], zc=coefs[0]["zc"],
+               coef=[dict(A=c["A"], B=c["B"], zc=c["zc"]) for c in coefs], grid=g,
                bytes=total, tiles=nt,
                note="12 km columns of the 3 km HRRR (every 4th point); level 0 = surface (2 m T/Td, 10 m wind)")
     (out / "index.json").write_text(json.dumps(idx, separators=(",", ":")))

@@ -2396,8 +2396,9 @@
     }
     return out;
   }
-  function sndProfile(m, c) {
-    var s = m.s, ss = s.sfc_scale, ls = s.lev_scale, nl = s.nlev - 1, ps = c[0] * ss[0];
+  function sndProfile(m, c, h) {
+    var s0 = m.s, cf = (s0.coef && s0.coef[h]) || s0, ss = s0.sfc_scale, ls = s0.lev_scale, nl = s0.nlev - 1, ps = c[0] * ss[0];
+    var s = { A: cf.A, B: cf.B, zc: cf.zc };                                     // per-hour coefficients (index v2), else the one set
     var P = [ps], T = [c[2] * ss[2]], D = [c[3] * ss[3]], U = [c[4] * ss[4]], V = [c[5] * ss[5]], Z = [c[1] * ss[1]];
     for (var k = 0; k < nl; k++) {
       var b = 6 + 5 * k, p = s.A[k] + s.B[k] * ps + c[b] * ls[0];
@@ -2437,7 +2438,7 @@
       if (seq !== SND.seq) return;
       var np = 6 + 5 * (s.nlev - 1), items = raws.map(function (raw, h) {
         var fxx = s.hours[h], t = new Date(init + fxx * 3600e3).toISOString();
-        return { fxx: fxx, label: "+" + fxx + " h", valid: t.slice(0, 10) + " " + t.slice(11, 16), prof: sndProfile(m, sndCodes(raw, np, th, tw, jl, il)) };
+        return { fxx: fxx, label: "+" + fxx + " h", valid: t.slice(0, 10) + " " + t.slice(11, 16), prof: sndProfile(m, sndCodes(raw, np, th, tw, jl, il), h) };
       });
       SND.items = items;
       var zs = items[0].prof.H[0];

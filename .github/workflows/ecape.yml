@@ -26,7 +26,8 @@ name: HRRR ECAPE (CONUS)
 # the cycle directory), PRUNE_OLDER for anything older than every cycle the viewer keeps, and the manifest merged on
 # main's CURRENT copy with scripts/models/manifest_merge.py (this job owns hrrr.json["ecape"], models.yml the rest).
 #
-# GitHub honours only a fraction of this repo's cron firings, so the laptop dispatcher fires the same slots
+# Slots at cycle +58 min (2026-10-04; were +1 h 20): HRRR's F00 wrfnat is on AWS at ~+53. GitHub honours only a fraction of
+# this repo's cron firings, so the laptop dispatcher fires the same slots
 # (scripts/lib/dispatch_workflows.sh, -f publish=true); a firing with nothing new exits in about a minute.
 on:
   workflow_call:
@@ -60,30 +61,27 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  build:
+  # 2026-10-04 (user: "this job is a bit slow and could probably be launched a bit earlier ... start the job after only some
+  # of the 12Z data is in"): the single job was COMPUTE-BOUND (2 min 42 s per forecast hour x 29 = 78 min, never waiting on
+  # the model) and started at cycle +1 h 20 min, so maps landed ~cycle +2 h 40 min while the model finishes F48 at ~+1 h 47.
+  # Now: dispatched at cycle +58 min (F00 is on AWS at ~+53), the hours dealt round-robin to THREE parallel runners that
+  # each follow the model, and one short job merges, verifies, packs the soundings and publishes (~cycle +2 h).
+  plan:
     runs-on: ubuntu-latest
-    timeout-minutes: 240
-    env:
-      DO_PUBLISH: ${{ (github.event_name == 'schedule' || github.event.inputs.publish == 'true') && '1' || '0' }}
+    timeout-minutes: 30
+    outputs:
+      cycle: ${{ steps.cyc.outputs.cycle }}
+      skip: ${{ steps.cyc.outputs.skip }}
+      hours: ${{ steps.cyc.outputs.hours }}
+      shard0: ${{ steps.cyc.outputs.shard0 }}
+      shard1: ${{ steps.cyc.outputs.shard1 }}
+      shard2: ${{ steps.cyc.outputs.shard2 }}
     steps:
       - uses: actions/checkout@v7
-
       - uses: actions/setup-python@v7
         with:
           python-version: '3.11'
-
-      - name: System libs
-        run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y --no-install-recommends libeccodes0
-
-      - run: pip install --quiet numpy eccodes pillow
-
-      - name: Build the SHARPlib kernel
-        run: |
-          chmod +x scripts/ecape/build.sh
-          ./scripts/ecape/build.sh
-
+      - run: pip install --quiet numpy
       - name: Resolve the cycle
         id: cyc
         run: |
@@ -105,28 +103,72 @@ jobs:
           elif cyc and c < max(cyc): print("older than the viewer's run " + max(cyc))
           PY
           )
+          # dispatched at cycle +58 min: if F00 of the new cycle is a few minutes late we resolved the previous (published)
+          # one - poll for the new cycle for up to 25 min rather than leave it to the next slot six hours later
+          if [ "$WHY" = "published" ] && [ -z "${{ github.event.inputs.cycle }}" ]; then
+            for i in $(seq 1 25); do
+              sleep 60
+              C2=$(python scripts/ecape/fetch_hrrr.py --print-cycle --extended-only --probe-fxx 0 || echo "$C")
+              if [ "$C2" != "$C" ]; then echo "newer cycle $C2 appeared after $i min"; C="$C2"; WHY=""; echo "cycle=$C" >> "$GITHUB_OUTPUT"; break; fi
+            done
+          fi
           if [ -n "$WHY" ] && [ -z "${{ github.event.inputs.cycle }}" ]; then
             echo "cycle $C: $WHY - nothing to do"; echo "skip=true" >> "$GITHUB_OUTPUT"
           else
             echo "skip=false" >> "$GITHUB_OUTPUT"
           fi
-
-      - name: Compute and encode
-        if: ${{ steps.cyc.outputs.skip != 'true' }}
-        run: |
-          set -euo pipefail
-          CYCLE="${{ steps.cyc.outputs.cycle }}"
           FXX="${{ github.event.inputs.fxx }}"
           [ -n "$FXX" ] || FXX="$(seq 0 1 18) $(seq 21 3 48)"
+          read -r -a H <<< "$(printf '%s' "$FXX" | tr '\n\t' '  ')"
+          echo "hours=${H[*]}" >> "$GITHUB_OUTPUT"
+          # round-robin, so all three runners move through forecast time together and none waits on the model alone
+          for k in 0 1 2; do
+            S=""; for i in "${!H[@]}"; do if [ $((i % 3)) -eq $k ]; then S="$S ${H[$i]}"; fi; done
+            echo "shard$k=${S# }" >> "$GITHUB_OUTPUT"; echo "shard $k:$S"
+          done
+
+  compute:
+    needs: plan
+    if: ${{ needs.plan.outputs.skip != 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    strategy:
+      fail-fast: true
+      matrix:
+        shard: [0, 1, 2]
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+
+      - name: System libs
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends libeccodes0
+
+      - run: pip install --quiet numpy eccodes pillow
+
+      - name: Build the SHARPlib kernel
+        run: |
+          chmod +x scripts/ecape/build.sh
+          ./scripts/ecape/build.sh
+
+      - name: Compute and encode this runner's hours
+        run: |
+          set -euo pipefail
+          CYCLE="${{ needs.plan.outputs.cycle }}"
+          case "${{ matrix.shard }}" in 0) FXX="${{ needs.plan.outputs.shard0 }}";; 1) FXX="${{ needs.plan.outputs.shard1 }}";; *) FXX="${{ needs.plan.outputs.shard2 }}";; esac
           D="assets/models/data/hrrr/$CYCLE"
           rm -rf "$D"
-          # seq emits NEWLINES and `read -a` stops at the first one: normalise whitespace first.
-          read -r -a HOURS <<< "$(printf '%s' "$FXX" | tr '\n\t' '  ')"
+          read -r -a HOURS <<< "$FXX"
+          echo "shard ${{ matrix.shard }}: ${HOURS[*]}"
           fetch_one() {
             python scripts/ecape/fetch_hrrr.py --date "${CYCLE:0:8}" --hour "${CYCLE:8:2}" --fxx "$1" \
               --out "$RUNNER_TEMP/hrrr_f$1" --quiet --wait-minutes 40 --surface
           }
-          # pull hour N+1 while hour N computes (~4.6 GB of ~14 GB scratch)
+          # pull hour N+1 while hour N computes
           fetch_one "${HOURS[0]}"
           for i in "${!HOURS[@]}"; do
             f="${HOURS[$i]}"; nxt="${HOURS[$((i+1))]:-}"
@@ -137,28 +179,70 @@ jobs:
             python scripts/ecape/to_models.py encode "$STEM" --out "$D"
             if [ -z "${SND_FAIL:-}" ]; then
               python scripts/ecape/to_soundings.py encode "$STEM" --out "$D" --fxx "$f" \
-                || { SND_FAIL=1; echo "::warning::soundings: F$f failed to encode - no soundings this cycle"; }
+                || { SND_FAIL=1; echo "::warning::soundings: F$f failed to encode"; rm -rf "$D/snd"; }
             fi
             rm -f "$STEM.f32" "${STEM}_ecape.f32" "${STEM}_sfc.f32" "$STEM.json" "${STEM}_ecape.json"
             echo "::endgroup::"
             if [ -n "$BG" ]; then wait "$BG"; fi      # a failed prefetch fails the run, never skips an hour
           done
+          [ -n "${SND_FAIL:-}" ] && rm -rf "$D/snd" || true
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ecape-shard-${{ matrix.shard }}
+          path: assets/models/data/hrrr/${{ needs.plan.outputs.cycle }}
+          retention-days: 1
+          compression-level: 0          # WebP and zlib parts do not compress further
+
+  build:
+    needs: [plan, compute]
+    if: ${{ needs.plan.outputs.skip != 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      DO_PUBLISH: ${{ (github.event_name == 'schedule' || github.event.inputs.publish == 'true') && '1' || '0' }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+
+      - run: pip install --quiet numpy pillow
+
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: ecape-shard-*
+          path: ${{ runner.temp }}/shards
+
+      - name: Merge, verify, pack
+        id: cyc
+        run: |
+          set -euo pipefail
+          CYCLE="${{ needs.plan.outputs.cycle }}"
+          echo "cycle=$CYCLE" >> "$GITHUB_OUTPUT"; echo "skip=false" >> "$GITHUB_OUTPUT"
+          D="assets/models/data/hrrr/$CYCLE"
+          rm -rf "$D"; mkdir -p "$D"
+          for sh in "$RUNNER_TEMP"/shards/ecape-shard-*; do cp -a "$sh"/. "$D"/; done
+          read -r -a HOURS <<< "${{ needs.plan.outputs.hours }}"
           # never publish a partial cycle: every field must have every hour
           for fld in ecape_mu ecape_ml mucape mlcape; do
             got=$(find "$D/$fld" -name '*.webp' 2>/dev/null | wc -l | tr -d ' ')
             if [ "$got" -ne "${#HOURS[@]}" ]; then echo "::error::$fld has $got hours, expected ${#HOURS[@]} - not publishing"; exit 1; fi
           done
           echo "verified: ${#HOURS[@]} hours x 4 fields, $(du -sk "$D" | cut -f1) KB"
-          # forecast soundings: every hour's parts -> one file per tile (all hours), or none at all
-          if [ -z "${SND_FAIL:-}" ] && python scripts/ecape/to_soundings.py pack "$D" --hours "${HOURS[*]}"; then :
+          # forecast soundings: every hour's parts -> one file per tile (all hours), or none at all (a runner that failed
+          # its soundings removed its parts, so the pack refuses on the missing hours)
+          if [ -d "$D/snd/_parts" ] && python scripts/ecape/to_soundings.py pack "$D" --hours "${HOURS[*]}"; then :
           else rm -rf "$D/snd"; echo "::warning::forecast soundings not written this cycle"; fi
+          if timeout 60 git fetch -q --depth 1 origin main && git show FETCH_HEAD:assets/models/hrrr.json > /tmp/mv.json 2>/dev/null; then :; else echo '{}' > /tmp/mv.json; fi
           # meteogram series at the map's airports and the tracker cities (nearest cell, read back from the WebP files
           # above; scripts/models/points.py format) - optional: the maps publish without it
           python scripts/ecape/to_models.py points --cycle "$CYCLE" --out "$D" --manifest /tmp/mv.json \
             || { rm -f "$D/points_ecape.json"; echo "::warning::ECAPE point series not written"; }
 
       - name: Publish to the models viewer
-        if: ${{ env.DO_PUBLISH == '1' && steps.cyc.outputs.skip != 'true' }}
+        if: ${{ env.DO_PUBLISH == '1' }}
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CYCLE: ${{ steps.cyc.outputs.cycle }}
