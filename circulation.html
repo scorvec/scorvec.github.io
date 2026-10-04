@@ -501,7 +501,7 @@ window.STAGE = {
   {label: "Angular momentum & torques", ico: "\u2696", items: [["aam","Atmospheric angular momentum","series, trend, phase, by latitude"],["torque","Surface torques","friction and mountain"]]}
 ],
   products: {
-  gillrain: {label: "Rain-forced circulation (Gill model)", img: function () { return "assets/sst/gill_rain.webp?v=8a0b8a3b4f65"; }, fit: false,
+  gillrain: {label: "Rain-forced circulation (Gill model)", img: function () { return "assets/sst/gill_rain.webp?v=202610040938"; }, fit: false,
           about: "about-gillrain", cap: function () { return "How much of the tropical upper-level circulation the rain itself explains: the Gill (1980) model forced by the observed rain of the last four weeks (IMERG Late) and by the AIFS-ENS forecast rain of weeks 1 and 2, against the observed and forecast 200 hPa velocity potential."; }},
   mslp: {label: "MSLP and 10 m wind", a: {label: "Model", items: [["mslp_wind","Blend (AIFS-ENS + IFS-ENS)"],["mslp_wind_aifs","AIFS-ENS mean"],["mslp_wind_ifs","IFS-ENS mean"],["mslp_wind_aifs0","AIFS-ENS member 0"],["mslp_wind_aifs1","AIFS single"],["mslp_wind_hres","IFS HRES"],["mslp_wind_gdps","GDPS"]]},
           frame: function (a) { return (function (r) { return "sst_anim.html?embed=1&manifest=mslp_wind_manifest.json&region=" + r + "&regions=" + r; })(a || "mslp_wind"); }, about: "about-mslp", cap: function (a) { return /aifs0|aifs1|hres|gdps/.test(a || "") ? "One model run's sea-level pressure and 10 m wind, days 1–15 (GDPS to day 10): sharper than an ensemble mean, and only one of the possible outcomes." : "Ensemble-mean sea-level pressure and 10 m wind, days 0–15."; }},
