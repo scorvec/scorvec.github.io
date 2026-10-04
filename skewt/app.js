@@ -4132,6 +4132,16 @@ function fitLayout() {
   dlg.style.width = dW + "px";
   const W = main.clientWidth;
   rW = Math.min(rW, Math.max(360, W - gap - 280));
+  // embedded in models.html (2026-10-04, user: "a lot of empty space that could be filled"): the skew-T keeps its aspect,
+  // so a wide dock left black bands either side of it; give the right column (hodograph, tables) everything else
+  if (EMBED) {
+    // size the skew-T column from the panel's REAL padding and border (the nominal 20 px left bands above and below)
+    const pnl = document.getElementById("skewt").parentElement, cs = getComputedStyle(pnl);
+    const padX = parseFloat(cs.paddingLeft) + parseFloat(cs.paddingRight) + parseFloat(cs.borderLeftWidth) + parseFloat(cs.borderRightWidth) + 2;
+    const padY = parseFloat(cs.paddingTop) + parseFloat(cs.paddingBottom) + parseFloat(cs.borderTopWidth) + parseFloat(cs.borderBottomWidth) + 2;
+    const skFit = Math.floor((H - padY) * PLOT_ASPECT.skewt) + padX;
+    rW = Math.max(360, W - gap - skFit);
+  }
   main.style.gridTemplateColumns = `${W - gap - rW}px ${rW}px`;
   if (inRender || !lastProf || !lastRes) return;
   const sk = document.getElementById("skewt");
