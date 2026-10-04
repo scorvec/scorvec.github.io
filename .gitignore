@@ -220,3 +220,4 @@ scripts/mjo/data/sla_raw/
 /status.json
 assets/gefs/anim/runs/
 scripts/site/.private_terms
+scripts/fci/data/

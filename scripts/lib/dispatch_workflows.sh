@@ -69,6 +69,7 @@ sst.yml|19:23|
 # morning pass keeps enso-subsurface a day fresher than the evening sst run.
 tao-subsurface.yml|09:10|
 tao-subsurface.yml|14:40|
+fci.yml|21:50|
 ecape.yml|01:20|-f publish=true
 ecape.yml|07:20|-f publish=true
 ecape.yml|13:20|-f publish=true

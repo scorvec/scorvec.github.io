@@ -184,6 +184,9 @@ PRODUCTS = [
         ("/climate.html", "US climate trends",
          "Every US county and calendar month since 1895: temperature, precipitation and degree-day trends per decade with significance, the 1991–2020 normal and what normal is now.",
          "Monthly"),
+        ("/fci.html", "US credit conditions",
+         "How tight credit is in the US, weekly since 1990: corporate bond spreads, commercial paper, bank business lending and the loan officer survey, mortgage rates, the fed funds rate and the yield curve, with sub-indices for companies, mortgages and policy.",
+         "Daily"),
     ]),
 ]
 
@@ -260,6 +263,7 @@ PAGES = [
     dict(path="aifs-aam-budget.html", mode="after-body"),         # static study (2026-10-01), built from ~/aam_budget/scripts/build_page.py
     dict(path="about.html", mode="after-body"),                    # the person: bio, resume, publications, profiles                  # every plot on the site (scripts/site/build_catalog.py)
     dict(path="climate.html", mode="after-body"),
+    dict(path="fci.html", mode="after-body"),
     dict(path="research.html", mode="nav", fixes=[
         ("padding: 7.5rem 2rem 5rem;", "padding: 2.5rem 2rem 5rem;"),
         ("main { padding: 6rem 1.5rem 4rem; }", "main { padding: 1.5rem 1.5rem 4rem; }"),

@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>US Credit Conditions Index &middot; Shawn Corvec</title>
+<meta name="description" content="How tight is credit in the US economy right now? A weekly credit conditions index from public Federal Reserve data: corporate bond spreads, commercial paper, bank business lending and the Senior Loan Officer Survey, mortgage rates, the fed funds rate and the yield curve, with sub-indices for corporate credit, mortgages and policy.">
+<link rel="canonical" href="https://scorvec.com/fci.html">
+<meta property="og:type" content="website">
+<meta property="og:title" content="US Credit Conditions Index">
+<meta property="og:description" content="A weekly index of how tight US credit is, from corporate spreads, commercial paper, bank lending standards, mortgage rates, fed funds and the yield curve.">
+<meta property="og:url" content="https://scorvec.com/fci.html">
+<style>
+  :root {
+    --bg: #fafaf8; --ink: #1c1c1a; --ink2: #3d3b37; --muted: #6f6b64; --accent: #2c4a72; --rule: #e6e3dc; --panel: #ffffff;
+    --tight: #b4321f; --loose: #1f5fa8;
+    --serif: "Newsreader", Georgia, serif; --sans: "Schibsted Grotesk", Inter, -apple-system, sans-serif;
+  }
+  *, *::before, *::after { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--sans); line-height: 1.55; }
+  main { max-width: min(94vw, 1500px); margin: 0 auto; padding: 1.5rem 1.2rem 3rem; }
+  h1 { font-family: var(--serif); font-weight: 500; font-size: clamp(1.7rem, 3.4vw, 2.5rem); line-height: 1.15; margin: 0.4rem 0 0.6rem; }
+  h2 { font-family: var(--serif); font-weight: 500; font-size: 1.35rem; margin: 0 0 0.4rem; }
+  .kicker { font-size: 0.78rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+  .lede { color: var(--ink2); max-width: 62rem; font-size: 1.04rem; }
+  .card { background: var(--panel); border: 1px solid var(--rule); border-radius: 10px; padding: 1.1rem 1.3rem 1rem; margin: 1.3rem 0; }
+  .note { color: var(--ink2); font-size: 0.95rem; max-width: 72rem; margin: 0.1rem 0 0.8rem; }
+  .tiles { display: grid; grid-template-columns: 1.35fr repeat(3, 1fr); gap: 0.8rem; margin: 1.2rem 0 0.4rem; }
+  .tile { background: var(--panel); border: 1px solid var(--rule); border-left: 6px solid var(--c, var(--accent)); border-radius: 10px; padding: 0.8rem 1rem; }
+  .tile .k { font-size: 0.82rem; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; }
+  .tile .v { font-family: var(--serif); font-size: clamp(1.9rem, 3vw, 2.6rem); line-height: 1.1; margin: 0.15rem 0; }
+  .tile .v small { font-family: var(--sans); font-size: 0.95rem; color: var(--muted); margin-left: 0.3rem; }
+  .tile .w { font-size: 1rem; font-weight: 600; }
+  .tile .d { font-size: 0.9rem; color: var(--ink2); }
+  .chart { width: 100%; height: 420px; }
+  .chart.short { height: 330px; }
+  .seg { display: inline-flex; gap: 0.3rem; margin: 0 0 0.5rem; flex-wrap: wrap; }
+  .seg button { font: 600 0.88rem var(--sans); border: 1.5px solid var(--accent); color: var(--accent); background: #eef2f7; border-radius: 999px; padding: 0.3rem 0.8rem; cursor: pointer; }
+  .seg button[aria-pressed="true"] { background: var(--accent); color: #fff; }
+  table.inp { width: 100%; border-collapse: collapse; font-size: 0.95rem; font-variant-numeric: tabular-nums; }
+  table.inp th { text-align: left; font-size: 0.8rem; color: var(--muted); font-weight: 600; border-bottom: 1.5px solid var(--rule); padding: 0.35rem 0.5rem; }
+  table.inp td { padding: 0.4rem 0.5rem; border-bottom: 1px solid var(--rule); vertical-align: top; }
+  table.inp td.n { text-align: right; white-space: nowrap; }
+  table.inp tr.g td { background: #f3f2ee; font-weight: 700; font-size: 0.86rem; color: var(--ink2); }
+  table.inp td .desc { display: block; color: var(--muted); font-size: 0.8rem; }
+  .zbar { display: inline-block; position: relative; width: 120px; height: 10px; background: #f0eee8; border-radius: 3px; vertical-align: middle; }
+  .zbar i { position: absolute; top: 0; bottom: 0; }
+  .zbar b { position: absolute; left: 50%; top: -2px; bottom: -2px; width: 1px; background: #999; }
+  .tblwrap { overflow-x: auto; }
+  .spreads { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.8rem; }
+  .spreads .chart { height: 220px; }
+  details.method { margin-top: 1.4rem; }
+  details.method summary { cursor: pointer; font-weight: 600; color: var(--accent); }
+  details.method p, details.method li { color: var(--ink2); font-size: 0.95rem; max-width: 72rem; }
+  .src { font-size: 0.82rem; color: var(--muted); margin-top: 0.6rem; }
+  @media (max-width: 900px) {
+    .tiles { grid-template-columns: 1fr 1fr; }
+    .tiles .tile:first-child { grid-column: 1 / -1; }
+    .spreads { grid-template-columns: 1fr; }
+    .chart { height: 340px; }
+  }
+</style>
+<script src="https://cdn.jsdelivr.net/npm/plotly.js-cartesian-dist-min@2.35.2/plotly-cartesian.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,500;0,8..60,600;1,8..60,400&family=Source+Sans+3:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/site.css">
+<script src="/assets/site.js" defer></script>
+<script src="/assets/rail.js" defer></script>
+</head>
+<body>
+<!-- sh:start -->
+<header class="sh" id="site-header">
+  <div class="sh-in">
+    <a class="sh-brand" href="/">Shawn Corvec</a>
+    <button class="sh-find" type="button" aria-haspopup="dialog" aria-keyshortcuts="Control+K Meta+K" title="Find a plot (Ctrl K)"><svg viewBox="0 0 20 20" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true" focusable="false"><circle cx="8.5" cy="8.5" r="5.5" style="fill:none;stroke:currentColor"/><path d="M12.6 12.6 17 17" style="fill:none;stroke:currentColor"/></svg><span class="sh-find-t">Find a plot</span><kbd>Ctrl K</kbd></button>
+    <button class="sh-toggle" type="button" aria-expanded="false" aria-controls="sh-menu">Menu</button>
+    <nav class="sh-nav" id="sh-menu" aria-label="Site">
+      <ul class="sh-list">
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g0">Mid-latitude weather</button>
+          <div class="sh-menu sh-menu--cols" id="sh-g0">
+            <div>
+              <h3>Surface and hazards</h3>
+              <ul>
+                <li><a href="/models.html">Short-range model maps</a></li>
+                <li><a href="/snowbands.html">Snow-band diagnostics</a></li>
+                <li><a href="/ar.html">Atmospheric rivers</a></li>
+              </ul>
+            </div>
+            <div>
+              <h3>Upper air</h3>
+              <ul>
+                <li><a href="/circulation.html#dt">Dynamic tropopause</a></li>
+                <li><a href="/circulation.html#pacjet">North Pacific jet</a></li>
+                <li><a href="/circulation.html#waf">Wave activity flux</a></li>
+              </ul>
+            </div>
+          </div>
+        </li>
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g1">Tropics</button>
+          <div class="sh-menu sh-menu--cols" id="sh-g1">
+            <div>
+              <h3>ENSO and the MJO</h3>
+              <ul>
+                <li><a href="/enso.html">El Niño monitor</a></li>
+                <li><a href="/circulation.html#mslp">Pacific pressure and wind</a></li>
+                <li><a href="/mjo.html">MJO forecast</a></li>
+                <li><a href="/tropical-waves.html">Tropical waves</a></li>
+              </ul>
+            </div>
+            <div>
+              <h3>Tropical cyclones</h3>
+              <ul>
+                <li><a href="/circulation.html#tcjet">Tropical cyclones and the jet</a></li>
+                <li><a href="/circulation.html#tcens">Tropical cyclone ensembles</a></li>
+                <li><a href="/circulation.html#tcphase">Cyclone phase space</a></li>
+              </ul>
+            </div>
+            <div>
+              <h3>Tropical circulation</h3>
+              <ul>
+                <li><a href="/circulation.html#walker">Walker and Hadley cells</a></li>
+                <li><a href="/circulation.html#vpot">Velocity potential</a></li>
+                <li><a href="/circulation.html#gillrain">Rain-forced circulation (Gill model)</a></li>
+              </ul>
+            </div>
+          </div>
+        </li>
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g2">Stratosphere</button>
+          <div class="sh-menu sh-menu--cols" id="sh-g2">
+            <div>
+              <h3>Polar vortex</h3>
+              <ul>
+                <li><a href="/stratosphere.html">Stratosphere and polar vortex</a></li>
+                <li class="sh-subitem"><a href="/stratosphere.html#heatflux">Eddy heat flux</a></li>
+                <li class="sh-subitem"><a href="/stratosphere.html#pv">Potential vorticity</a></li>
+                <li class="sh-subitem"><a href="/stratosphere.html#bdc">Brewer–Dobson circulation</a></li>
+              </ul>
+            </div>
+            <div>
+              <h3>QBO and momentum</h3>
+              <ul>
+                <li><a href="/qbo/">QBO tracker</a></li>
+                <li><a href="/circulation.html#aam">Angular momentum and torques</a></li>
+              </ul>
+            </div>
+          </div>
+        </li>
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g3">Weeks to seasons</button>
+          <div class="sh-menu sh-menu--cols" id="sh-g3">
+            <div>
+              <h3>Weeks 2–5</h3>
+              <ul>
+                <li><a href="/subseasonal.html">GEPS extended ensemble</a></li>
+                <li><a href="/gefs.html">GEFS extended ensemble</a></li>
+              </ul>
+            </div>
+            <div>
+              <h3>Seasons</h3>
+              <ul>
+                <li><a href="/seasonal.html">Eight C3S seasonal models</a></li>
+                <li><a href="/sfs.html">NOAA SFS seasonal</a></li>
+                <li><a href="/enso-forecasts.html">ENSO forecasts</a></li>
+              </ul>
+            </div>
+          </div>
+        </li>
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g4"><span class="sh-lf">Studies and verification</span><span class="sh-ls">Studies/verification</span></button>
+          <div class="sh-menu sh-menu--cols" id="sh-g4">
+            <div>
+              <h3>Studies</h3>
+              <ul>
+                <li><a href="/enso.html#imp_reg">ENSO impacts on the Americas</a></li>
+                <li><a href="/mjo.html#mi">MJO impacts</a></li>
+                <li><a href="/stratosphere.html#shwinters">Stratosphere history</a></li>
+                <li><a href="/aifs-aam-budget.html">AINWP and conservation</a></li>
+                <li><a href="/topics/">Explainers</a></li>
+              </ul>
+            </div>
+            <div>
+              <h3>Verification</h3>
+              <ul>
+                <li><a href="/aifs-verify.html">AIFS single versus member 0</a></li>
+              </ul>
+            </div>
+          </div>
+        </li>
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g5" aria-current="page">Tools</button>
+          <div class="sh-menu sh-menu--list" id="sh-g5">
+            <ul>
+              <li><a href="/catalog.html">Every plot on the site</a></li>
+              <li><a href="/skewt/">Sounding explorer</a></li>
+              <li><a href="/asos5.html">Five-minute airport observations</a></li>
+              <li><a href="/climate.html">US climate trends</a></li>
+              <li><a href="/fci.html" aria-current="page">US credit conditions</a></li>
+            </ul>
+          </div>
+        </li>
+        <li class="sh-item sh-item--special"><a class="sh-special" href="/midterms/">2026 Midterms</a></li>
+        <li class="sh-item sh-has-menu sh-item--me">
+          <button class="sh-link sh-menubtn sh-me" type="button" aria-expanded="false" aria-controls="sh-me">About</button>
+          <div class="sh-menu sh-menu--list sh-menu--me" id="sh-me">
+            <ul>
+              <li><a href="/about.html">About me</a></li>
+              <li><a href="/resume.html">Resume</a></li>
+              <li><a href="/research.html">Publications</a></li>
+              <li class="sh-me-ext"><a href="https://github.com/scorvec">GitHub</a></li>
+              <li><a href="https://scholar.google.com/citations?user=EYLRCJIAAAAJ&amp;hl=en">Google Scholar</a></li>
+              <li><a href="https://www.linkedin.com/in/shawn-corvec-35895b231/">LinkedIn</a></li>
+            </ul>
+          </div>
+        </li>
+      </ul>
+    </nav>
+  </div>
+</header>
+<!-- sh:end -->
+<main>
+  <div class="kicker">US credit conditions · weekly, public Federal Reserve data</div>
+  <h1>How tight is US credit?</h1>
+  <p class="lede">One weekly number for how hard it is to borrow in the US, built from corporate bond spreads, commercial paper,
+    bank business lending and the Fed's survey of loan officers, mortgage rates, the fed funds rate and the yield curve. Zero is
+    the average since 2001; +1 means one standard deviation tighter than that. Three sub-indices beside it show <i>where</i>
+    the tightness is: for companies, for home buyers, or in the policy rate and the curve.</p>
+
+  <div class="tiles" id="tiles"></div>
+  <p class="src" id="asof"></p>
+
+  <section class="card">
+    <h2>The index since 1990</h2>
+    <p class="note">Weekly, Friday dates. Grey bands: US recessions (NBER). Dashed: the Chicago Fed's National Financial Conditions
+      Index credit subindex for comparison (also 0 = average, positive = tighter; its own scale).</p>
+    <div class="seg" id="h-range" role="group" aria-label="Period"></div>
+    <div class="chart" id="c-hist"></div>
+  </section>
+
+  <section class="card">
+    <h2>Where the tightness is</h2>
+    <p class="note">Each sub-index is the plain average of its inputs' tightness scores (standard deviations from the 2001–present
+      average, oriented so higher = tighter). They can disagree: companies can borrow cheaply while mortgages are expensive.</p>
+    <div class="seg" id="s-range" role="group" aria-label="Period"></div>
+    <div class="chart" id="c-subs"></div>
+  </section>
+
+  <section class="card">
+    <h2>What is moving the headline</h2>
+    <p class="note">The headline index split into its inputs' contributions, grouped. Bars above zero push it tighter, below zero
+      looser; the line is the index.</p>
+    <div class="chart short" id="c-contrib"></div>
+  </section>
+
+  <section class="card">
+    <h2>The inputs this week</h2>
+    <p class="note">Tightness score = standard deviations from the 2001–present average, oriented so a positive score is tighter
+      (blue: looser than average, red: tighter). Weight = the input's loading in the headline index.</p>
+    <div class="tblwrap"><table class="inp" id="t-inp"></table></div>
+  </section>
+
+  <section class="card">
+    <h2>Market credit spreads (last three years)</h2>
+    <p class="note">ICE BofA option-adjusted spreads over Treasuries. FRED carries only the last three years of these series, too
+      short to estimate weights, so they are shown here rather than inside the index; Moody's Baa and Aaa spreads carry the
+      corporate-bond signal in the index back to the 1980s.</p>
+    <div class="spreads" id="spreads"></div>
+  </section>
+
+  <details class="method">
+    <summary>How the index is built</summary>
+    <ul>
+      <li><b>Inputs</b> (all from FRED, St. Louis Fed): Moody's Baa and Aaa corporate yields minus the 10-year Treasury;
+        3-month AA nonfinancial and financial commercial paper minus the 3-month bill; year-on-year growth of commercial paper
+        outstanding, of bank commercial &amp; industrial loans (H.8) and of nonfinancial corporate debt (Financial Accounts,
+        Z.1); the Senior Loan Officer Opinion Survey's net share of banks tightening business-loan standards (large &amp;
+        middle-market and small firms) and net share reporting stronger demand; the effective fed funds rate and the Freddie
+        Mac 30-year mortgage rate, both <i>real</i> (minus core PCE inflation over the past year); the mortgage rate minus the
+        10-year Treasury; and the 10-year minus 2-year Treasury spread.</li>
+      <li><b>Orientation</b>: every input is signed so that a higher value means tighter credit (slower loan and debt growth,
+        weaker loan demand and a flatter curve count as tighter).</li>
+      <li><b>Real rates</b>: the fed funds and mortgage rates fell for forty years; in nominal terms that decline would dominate
+        any statistical combination, so both enter net of core inflation.</li>
+      <li><b>Weights</b>: the headline is the first principal component of the standardised inputs over 2001–present (when every
+        input exists), signed so wider corporate spreads count as tighter and scaled to one standard deviation. It captures the
+        common credit cycle: loan-officer standards, corporate spreads and commercial paper carry most of the weight, while the
+        real fed funds rate, loan growth and corporate debt growth barely load and the yield curve loads with the opposite
+        sign (curves steepen in recessions as spreads widen). That is why the three sub-indices, which weight their inputs
+        equally, sit beside it.</li>
+      <li><b>No hindsight</b>: each input enters a week only once it would have been published (bank loans about 9 days after
+        the data week, core PCE about two months after the month, the loan officer survey about 50 days after its quarter
+        date, Z.1 about five months after its quarter), and is carried forward to the next release. Daily series are weekly
+        averages. Before 2001 the index uses the inputs that existed, re-weighted.</li>
+      <li><b>Check</b>: the index correlates <span id="m-corr"></span> with the Chicago Fed's NFCI credit subindex since 1990 and peaks
+        in every credit event: 1998, 2001, 2008, 2020 and 2023.</li>
+    </ul>
+  </details>
+  <p class="src">Data: Federal Reserve Bank of St. Louis (FRED); Board of Governors of the Federal Reserve System (H.8, H.15,
+    Commercial Paper, Senior Loan Officer Opinion Survey, Financial Accounts Z.1); Moody's; Freddie Mac; ICE Data Indices
+    (ICE BofA spreads, via FRED); Chicago Fed (NFCI); NBER recession dates. Not investment advice.</p>
+</main>
+<script>
+(function () {
+  "use strict";
+  var TIGHT = "#b4321f", LOOSE = "#1f5fa8";
+  // how each input is SHOWN (natural sign and unit); the build orients them higher = tighter
+  var SHOW = {
+    baa: [1, "pt", 2], aaa: [1, "pt", 2], cp_nonfin: [1, "pt", 2], cp_fin: [1, "pt", 2],
+    cp_out: [-1, "% y/y", 1, "Commercial paper outstanding, growth"], ci_loans: [-1, "% y/y", 1, "Bank business loans, growth"],
+    sloos_lg: [1, "% net", 1], sloos_sm: [1, "% net", 1], sloos_dem: [-1, "% net", 1, "Business-loan demand (net % stronger)"],
+    corp_debt: [-1, "% y/y", 1, "Nonfinancial corporate debt, growth"], real_ff: [1, "%", 2], curve: [-1, "pt", 2, "Yield curve, 10-year minus 2-year"],
+    real_mort: [1, "%", 2], mort_sprd: [1, "pt", 2]
+  };
+  var bust = "?v=" + new Date().toISOString().slice(0, 13).replace(/\D/g, "");
+  function fmt(v, d) { return (v > 0 ? "+" : v < 0 ? "−" : "") + Math.abs(v).toFixed(d === undefined ? 2 : d); }
+  function word(z) { var a = Math.abs(z); return a < 0.25 ? "about average" : (a < 0.75 ? "a little " : a < 1.5 ? "" : "much ") + (z > 0 ? "tighter than average" : "looser than average"); }
+  function col(z) { return z > 0.25 ? TIGHT : z < -0.25 ? LOOSE : "#6f6b64"; }
+  function ord(p) { var n = Math.round(100 * p); return n + (n % 10 === 1 && n !== 11 ? "st" : n % 10 === 2 && n !== 12 ? "nd" : n % 10 === 3 && n !== 13 ? "rd" : "th"); }
+  function xy(a) { return { x: a.map(function (r) { return r[0]; }), y: a.map(function (r) { return r[1]; }) }; }
+  var LAY = { margin: { l: 52, r: 18, t: 10, b: 40 }, paper_bgcolor: "#fff", plot_bgcolor: "#fff", font: { family: "Schibsted Grotesk, Inter, sans-serif", size: 13, color: "#1c1c1a" },
+              hovermode: "x unified", legend: { orientation: "h", y: 1.1, x: 0 }, xaxis: { gridcolor: "#eee" },
+              yaxis: { gridcolor: "#eee", zeroline: true, zerolinecolor: "#888", title: { text: "sd (+ tighter)" } } };
+  var CFG = { displaylogo: false, responsive: true, modeBarButtonsToRemove: ["lasso2d", "select2d", "autoScale2d"] };
+  function L(extra) { return Object.assign(JSON.parse(JSON.stringify(LAY)), extra || {}); }
+  function ranges(id, opts, def, apply) {
+    var el = document.getElementById(id);
+    el.innerHTML = opts.map(function (o) { return '<button type="button" data-y="' + o[0] + '" aria-pressed="' + (o[0] === def) + '">' + o[1] + "</button>"; }).join("");
+    el.querySelectorAll("button").forEach(function (b) { b.onclick = function () {
+      el.querySelectorAll("button").forEach(function (x) { x.setAttribute("aria-pressed", x === b ? "true" : "false"); }); apply(+b.dataset.y); }; });
+    apply(def);
+  }
+  function startFor(d, years) { if (!years) return null; var t = new Date(d.asof); t.setFullYear(t.getFullYear() - years); return t.toISOString().slice(0, 10); }
+
+  fetch("assets/fci/fci.json" + bust).then(function (r) { return r.json(); }).then(function (d) {
+    // tiles
+    var T = [["Credit conditions index", d.latest, d.pct_rank, d.chg_13w, true]];
+    ["corporate", "mortgage", "policy"].forEach(function (k) { var s = d.subs[k]; T.push([s.label, s.latest, s.pct_rank, s.chg_13w, false]); });
+    document.getElementById("tiles").innerHTML = T.map(function (t) {
+      return '<div class="tile" style="--c:' + col(t[1]) + '"><div class="k">' + t[0] + '</div><div class="v">' + fmt(t[1]) + '<small>sd</small></div>' +
+        '<div class="w" style="color:' + col(t[1]) + '">' + word(t[1]).replace(/^./, function (c) { return c.toUpperCase(); }) + "</div>" +
+        '<div class="d">' + ord(t[2]) + " percentile since 1990 · " + (Math.abs(t[3]) < 0.05 ? "little changed" : (t[3] > 0 ? "tighter" : "looser") + " by " + Math.abs(t[3]).toFixed(2)) + " over 13 weeks</div></div>";
+    }).join("");
+    document.getElementById("asof").textContent = "Week ending " + d.asof + " · updated " + d.made.replace("T", " ") + " UTC · weights fitted on " +
+      d.fit.weeks + " weeks since " + d.fit.start.slice(0, 4) + " (first component: " + Math.round(100 * d.fit.pc1_share) + "% of the variance)";
+    document.getElementById("m-corr").textContent = d.corr.NFCICREDIT.toFixed(2);
+    var shapes = (d.recessions || []).map(function (r) { return { type: "rect", xref: "x", yref: "paper", x0: r[0], x1: r[1], y0: 0, y1: 1, fillcolor: "#000", opacity: 0.07, line: { width: 0 } }; });
+    // history
+    var h = xy(d.index), nb = xy(d.bench.NFCICREDIT);
+    ranges("h-range", [[0, "Since 1990"], [10, "10 years"], [5, "5 years"], [2, "2 years"]], 0, function (y) {
+      Plotly.react("c-hist", [
+        { x: h.x, y: h.y, name: "Credit conditions index", line: { color: "#1c1c1a", width: 2 }, hovertemplate: "%{y:+.2f} sd<extra>index</extra>" },
+        { x: nb.x, y: nb.y, name: "Chicago Fed NFCI credit subindex", line: { color: "#8a6d3b", width: 1.3, dash: "dash" }, hovertemplate: "%{y:+.2f}<extra>NFCI credit</extra>" }
+      ], L({ shapes: shapes, xaxis: { gridcolor: "#eee", range: y ? [startFor(d, y), d.asof] : null } }), CFG);
+    });
+    // sub-indices
+    var SC = { corporate: "#1f5fa8", mortgage: "#c2394b", policy: "#23874f" };
+    ranges("s-range", [[0, "Since 1990"], [10, "10 years"], [5, "5 years"], [2, "2 years"]], 5, function (y) {
+      var tr = ["corporate", "mortgage", "policy"].map(function (k) { var s = xy(d.subs[k].series);
+        return { x: s.x, y: s.y, name: d.subs[k].label, line: { color: SC[k], width: 2 }, hovertemplate: "%{y:+.2f}<extra>" + d.subs[k].label + "</extra>" }; });
+      Plotly.react("c-subs", tr, L({ shapes: shapes, xaxis: { gridcolor: "#eee", range: y ? [startFor(d, y), d.asof] : null } }), CFG);
+    });
+    // contributions, last 5 years
+    var GC = { "Corporate bonds": "#1f5fa8", "Corporate short-term funding": "#5aa0d8", "Bank lending": "#23874f", "Policy and rates": "#9a6fb0", "Mortgages": "#c2394b" };
+    var t0 = startFor(d, 5), tr = Object.keys(d.contrib).map(function (g) {
+      var s = d.contrib[g].filter(function (r) { return r[0] >= t0; });
+      return { type: "bar", x: s.map(function (r) { return r[0]; }), y: s.map(function (r) { return r[1]; }), name: g, marker: { color: GC[g] || "#999" }, hovertemplate: "%{y:+.2f}<extra>" + g + "</extra>" };
+    });
+    var hi = d.index.filter(function (r) { return r[0] >= t0; });
+    tr.push({ x: hi.map(function (r) { return r[0]; }), y: hi.map(function (r) { return r[1]; }), name: "Index", line: { color: "#1c1c1a", width: 2 }, hovertemplate: "%{y:+.2f}<extra>index</extra>" });
+    Plotly.react("c-contrib", tr, L({ barmode: "relative", bargap: 0 }), CFG);
+    // inputs table, grouped
+    var groups = [], by = {};
+    d.inputs.forEach(function (i) { if (!by[i.group]) { by[i.group] = []; groups.push(i.group); } by[i.group].push(i); });
+    var html = "<tr><th>Input</th><th class='n'>Now</th><th class='n'>Tightness score</th><th></th><th class='n'>13 weeks ago</th><th class='n'>Percentile</th><th class='n'>Weight</th></tr>";
+    groups.forEach(function (g) {
+      html += "<tr class='g'><td colspan='7'>" + g + "</td></tr>";
+      by[g].forEach(function (i) {
+        var sh = SHOW[i.key] || [1, "", 2], v = i.value === null ? null : sh[0] * i.value, z = i.z;
+        var bar = z === null ? "" : "<span class='zbar'><b></b><i style='background:" + col(z) + ";" + (z >= 0 ? "left:50%;width:" : "right:50%;width:") + Math.min(50, Math.abs(z) / 3 * 50) + "%'></i></span>";
+        html += "<tr><td>" + (sh[3] || i.label) + "<span class='desc'>" + i.desc + (i.asof ? " · latest " + i.asof : "") + "</span></td>" +
+          "<td class='n'>" + (v === null ? "–" : fmt(v, sh[2]) + " " + sh[1]) + "</td>" +
+          "<td class='n' style='color:" + (z === null ? "#999" : col(z)) + "'>" + (z === null ? "–" : fmt(z)) + "</td><td>" + bar + "</td>" +
+          "<td class='n'>" + (i.z_13w_ago === null ? "–" : fmt(i.z_13w_ago)) + "</td>" +
+          "<td class='n'>" + (i.pct_rank === null ? "–" : ord(i.pct_rank)) + "</td>" +
+          "<td class='n'>" + fmt(i.loading) + "</td></tr>";
+      });
+    });
+    document.getElementById("t-inp").innerHTML = html;
+    // ICE BofA spreads
+    var sp = document.getElementById("spreads");
+    sp.innerHTML = Object.keys(d.show_only).map(function (k, j) { var s = d.show_only[k];
+      return "<div><b>" + s.label + "</b><div class='d' style='font-size:.9rem;color:#3d3b37'>" + s.last.toFixed(2) + " pt on " + s.asof + " · " + ord(s.pct_3y) +
+        " percentile of the last 3 years (range " + s.min_3y.toFixed(2) + "–" + s.max_3y.toFixed(2) + ")</div><div class='chart' id='sp" + j + "'></div></div>"; }).join("");
+    Object.keys(d.show_only).forEach(function (k, j) { var s = xy(d.show_only[k].series);
+      Plotly.react("sp" + j, [{ x: s.x, y: s.y, line: { color: "#2c4a72", width: 1.8 }, hovertemplate: "%{y:.2f} pt<extra></extra>" }],
+        L({ margin: { l: 40, r: 10, t: 8, b: 30 }, showlegend: false, yaxis: { gridcolor: "#eee", title: { text: "pt" } } }), CFG); });
+  }).catch(function (e) {
+    document.getElementById("tiles").innerHTML = "<p class='note'>The index data could not be loaded. Reload the page to try again.</p>";
+  });
+})();
+</script>
+<!-- sf:start -->
+<footer class="sf">
+  <div class="sf-in">
+    <div class="sf-group">
+      <p class="sf-h" role="heading" aria-level="2">This site</p>
+      <ul>
+        <li><a href="/">Home</a></li>
+        <li><a href="/catalog.html">Every plot</a></li>
+        <li><a href="/topics/">Explainers</a></li>
+        <li><a href="/stats.html">Visitor stats</a></li>
+      </ul>
+      <p class="sf-disclaimer">This site is under constant development. Nothing here is checked before publication and there is no expectation of accuracy, completeness or availability; do not rely on it for decisions. Built from open data; sources are credited on each page.</p>
+    </div>
+    <div class="sf-group sf-group--me">
+      <p class="sf-h" role="heading" aria-level="2">Shawn Corvec</p>
+      <ul>
+        <li><a href="/about.html">About</a></li>
+        <li><a href="/resume.html">Resume</a></li>
+        <li><a href="/research.html">Publications</a></li>
+        <li><a href="https://github.com/scorvec" rel="noopener">GitHub</a></li>
+        <li><a href="https://www.linkedin.com/in/shawn-corvec-35895b231/" rel="noopener">LinkedIn</a></li>
+        <li><a href="https://scholar.google.com/citations?user=EYLRCJIAAAAJ&amp;hl=en" rel="noopener">Google Scholar</a></li>
+      </ul>
+    </div>
+  </div>
+</footer>
+<!-- sf:end -->
+</body>
+</html>
