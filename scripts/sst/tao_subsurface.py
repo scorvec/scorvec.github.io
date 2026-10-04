@@ -35,7 +35,7 @@ import xarray as xr
 HOST = "https://www.pmel.noaa.gov"
 CGI = HOST + "/cgi-tao/cover.cgi"
 MISSING = -9.99
-HEADERS = {"User-Agent": "Mozilla/5.0 (research; SST/RONI El Nino monitor)"}
+HEADERS = {"User-Agent": "scorvec.com data pipeline (+https://scorvec.com)"}
 
 
 def deliver(start: datetime, end: datetime, dest: Path) -> Path:

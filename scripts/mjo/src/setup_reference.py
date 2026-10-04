@@ -37,7 +37,7 @@ BASE_END     = 2001   # Wheeler & Hendon (2004) base period
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
-HEADERS = {"User-Agent": "Mozilla/5.0 (compatible; research script)"}
+HEADERS = {"User-Agent": "scorvec.com data pipeline (+https://scorvec.com)"}
 
 
 def download(url: str, dest: Path) -> Path:
@@ -131,10 +131,13 @@ def download_obs_rmm() -> None:
         print("obs_rmm.nc: already exists, skipping")
         return
 
-    txt = download(
-        "http://www.bom.gov.au/climate/mjo/graphics/rmm.74toRealtime.txt",
-        REF_DIR / "rmm.74toRealtime.txt",
-    )
+    # The BoM website blocks automated downloads and asks scripts to stop ("does not support web scraping", 2026-10-04);
+    # RMM is read from a copy downloaded by hand in a browser. Never fetch bom.gov.au/climate from a script.
+    cands = [REF_DIR / "rmm.74toRealtime.txt", Path.home() / "data_archive" / "geps_subx" / "telecon" / "bom" / "rmm.74toRealtime.txt"]
+    txt = next((c for c in cands if c.exists()), None)
+    if txt is None:
+        raise SystemExit("rmm.74toRealtime.txt not found: download it by hand (browser) from "
+                         "http://www.bom.gov.au/climate/mjo/graphics/rmm.74toRealtime.txt to " + str(cands[0]))
 
     rows = []
     with open(txt) as f:

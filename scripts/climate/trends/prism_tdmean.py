@@ -40,7 +40,7 @@ MASK = HERE / "prism_county_mask.npz"
 CACHE = HERE.parent / "data" / "prism"
 BASE = "https://data.prism.oregonstate.edu/time_series/us/an/4km/tdmean/monthly/"
 ATLAS = "https://cdn.jsdelivr.net/npm/us-atlas@3/counties-10m.json"
-UA = {"User-Agent": "Mozilla/5.0 (scorvec.com climate trends; contact: site owner)"}
+UA = {"User-Agent": "scorvec.com data pipeline (+https://scorvec.com)"}
 FIRST = (1895, 1)
 REVISE_MONTHS = 8
 

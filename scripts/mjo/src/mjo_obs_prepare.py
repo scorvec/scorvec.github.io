@@ -28,13 +28,17 @@ from cmip6_mjo_extract import GRIDS, _interp                                    
 
 OBS = Path.home() / "data_archive" / "cmip6_mjo" / "obs"
 STORE = Path.home() / "era5_store"
-UA = {"User-Agent": "Mozilla/5.0 (scorvec research)"}
+UA = {"User-Agent": "scorvec.com data pipeline (+https://scorvec.com)"}
 Y0, Y1 = 1979, 2024
 
 
 def rmm():
-    url = "http://www.bom.gov.au/climate/mjo/graphics/rmm.74toRealtime.txt"
-    txt = urllib.request.urlopen(urllib.request.Request(url, headers=UA), timeout=120).read().decode()
+    # The BoM website blocks automated downloads and asks scripts to stop ("does not support web scraping", 2026-10-04);
+    # RMM is read from a copy downloaded by hand in a browser. Never fetch bom.gov.au/climate from a script.
+    src = Path.home() / "data_archive" / "geps_subx" / "telecon" / "bom" / "rmm.74toRealtime.txt"
+    if not src.exists():
+        raise SystemExit(f"{src} missing: download rmm.74toRealtime.txt by hand (browser) from the BoM MJO page")
+    txt = src.read_text()
     rows = []
     for ln in txt.splitlines()[2:]:
         p = ln.split()

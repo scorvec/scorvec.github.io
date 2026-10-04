@@ -63,7 +63,7 @@ STRIDE = 25                     # 0.25° sampling — see method note above
 MUR_START = "2002-06-01"
 CLIM_Y0, CLIM_Y1 = 2003, 2022   # MUR cannot do 1991-2020; 20 whole years
 CHUNK_DAYS = 60
-UA = {"User-Agent": "Mozilla/5.0 (scorvec.com research monitor)"}
+UA = {"User-Agent": "scorvec.com data pipeline (+https://scorvec.com)"}
 
 
 def _load() -> pd.Series:

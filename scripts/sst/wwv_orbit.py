@@ -32,7 +32,7 @@ WWV_URL = "https://www.pmel.noaa.gov/tao/wwv/data/wwv.dat"
 
 def fetch_wwv() -> dict[str, float]:
     req = urllib.request.Request(WWV_URL, headers={
-        "User-Agent": "Mozilla/5.0 (research; SST/RONI El Nino monitor)"})
+        "User-Agent": "scorvec.com data pipeline (+https://scorvec.com)"})
     with urllib.request.urlopen(req, timeout=60) as r:
         text = r.read().decode()
     out = {}
