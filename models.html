@@ -130,7 +130,7 @@
      controls at the top in a box with a different color", "move the color bar to be vertical and place it on the right") */
   .mv-panel { background: #e6edf4; border: 1px solid #c9d6e3; border-radius: 10px; padding: 0.7rem 0.85rem 0.15rem; margin: 0 0 0.6rem; }
   .mv-panel .mv-bar { margin-bottom: 0.4rem; }
-  .mv-mapwrap { display: flex; gap: 8px; align-items: stretch; }
+  .mv-mapwrap { display: flex; gap: 8px; align-items: stretch; position: relative; }
   .mv-mapwrap > .mv-map { flex: 1 1 auto; min-width: 0; }
   .mv-legend { flex: 0 0 96px; margin: 0; }
   .mv-legend canvas { width: 100%; height: 100%; display: block; }
@@ -220,6 +220,7 @@
     .mv-time { margin: 0 0 0.35rem; padding: 0.2rem 0 0.25rem; }
     .mv-panel { padding: 0.5rem 0.55rem 0.05rem; }
     .mv-mapwrap { flex-direction: column; gap: 0.3rem; }
+    .mv-sndhint { position: static; max-width: none; font-size: 0.92rem; padding: 0.35rem 0.4rem 0.35rem 0.65rem; }   /* phones: under the map, not over it */
     .mv-legend { flex: 0 0 auto; }
     .mv-legend canvas { height: 38px; }
     .mv-valid { min-width: 0; flex: 1 1 100%; font-size: 0.95rem; order: -1; }
@@ -433,9 +434,9 @@
     <div class="mv-msg" id="msg"></div>
     <div class="mv-load" id="load"></div>
     <div class="mv-tip" id="tip"></div>
-    <div class="mv-sndhint" id="sndH" hidden role="note"><span id="sndHT"></span><button type="button" id="sndHX" aria-label="Hide this tip" title="Hide this tip">&times;</button></div>
   </div>
   <div class="mv-legend"><canvas id="leg" aria-label="Colour scale"></canvas></div>
+    <div class="mv-sndhint" id="sndH" hidden role="note"><span id="sndHT"></span><button type="button" id="sndHX" aria-label="Hide this tip" title="Hide this tip">&times;</button></div>
   </div>
   <p class="mv-legT" id="legT"></p>
   <div class="mv-show"><b>Show</b>
@@ -1344,6 +1345,21 @@
     drawLegend();
     render();
   }
+  // the map box takes the domain's shape when that is shorter than the CSS height (2026-10-04, user, phone screenshot: "a
+  // lot of blank space at the top and bottom. Make the map fit the window on open") - a portrait phone showed the wide HRRR
+  // domain in a band across a tall box. Applied on open, on "fit" and when the window's width changes; never taller than CSS.
+  function fitBox(g) {
+    mapEl.style.height = "";
+    var r = mapEl.getBoundingClientRect(), bw, bh;
+    if (st.model === "rdps") { bw = 7600000; bh = 5200000; } else { var bb = g._bb; bw = bb[1] - bb[0]; bh = bb[3] - bb[2]; }
+    var need = Math.ceil(r.width * bh / bw * 1.03);
+    if (need < r.height) mapEl.style.height = Math.max(220, need) + "px";
+  }
+  var fitBoxW = 0;
+  window.addEventListener("resize", function () {
+    var c = cycleObj(st.model, st.ci), w = window.innerWidth; if (!c || !view || w === fitBoxW) return; fitBoxW = w;
+    fitBox(prepGrid(c.grids.main));
+  });
   function fit(g) {
     var bb = g._bb, pad = 0.02;
     view = { cx: (bb[0] + bb[1]) / 2, cy: (bb[2] + bb[3]) / 2, s: Math.max((bb[1] - bb[0]) / W, (bb[3] - bb[2]) / H) * (1 + pad) };
@@ -2247,7 +2263,7 @@
   mapEl.addEventListener("gestureend", function (e) { e.preventDefault(); settleSoon(120); });
   $("zin").onclick = function () { zoomBy(W / 2, H / 2, 0.6, 45); };
   $("zout").onclick = function () { zoomBy(W / 2, H / 2, 1 / 0.6, 45); };
-  $("zfit").onclick = function () { var c = cycleObj(st.model, st.ci); if (c) { zA = null; fit(prepGrid(c.grids.main)); render(); } };
+  $("zfit").onclick = function () { var c = cycleObj(st.model, st.ci); if (c) { zA = null; fitBox(prepGrid(c.grids.main)); resize(); fit(prepGrid(c.grids.main)); render(); } };
   // touch fixes (2026-10-04, user: double-tap / press-and-hold "only seems to work part of the time and zooming and panning
   // seems to be a bit buggy"): a SLOP before a press becomes a pan (a finger wobbles 2-10 px on a tap; any 1 px used to cancel
   // the tap and nudge the map), no flick-glide after a gesture that pinched, a cancelled pointer is never a tap, and a
@@ -3002,6 +3018,7 @@
     if (!hadHour) st.hour = Math.round((Date.now() - Date.parse(c.init)) / 3600e3);
     st.hour = nearestHour(c, st.hour);
     setButtons();
+    fitBox(prepGrid(c.grids.main)); fitBoxW = window.innerWidth;
     resize();
     fit(prepGrid(c.grids.main));
     onChange();
