@@ -144,6 +144,11 @@ gefs.yml|04:40|
 gefs.yml|06:40|
 gefs.yml|09:40|
 gefs.yml|13:40|
+# GEPS days 1-35 (geps.yml, 2026-10-04: moved off the laptop's launchd com.scorvec.geps). The extended cycle's day-35
+# step lands ~06:50Z Mon/Thu; the 07:20 slot waits up to 2 h for it, the later slots exit in ~1 min once it is built.
+geps.yml|mon,thu@07:20|
+geps.yml|mon,thu@10:20|
+geps.yml|tue,fri@07:20|
 # Plot catalogue (catalog.yml, 2026-09-27): the finder index plus the thumbnails of every figure that changed; a
 # dispatch redraws thumbnails, a push only rebuilds the index. Twice a day keeps the thumbnails under ~12 h old.
 catalog.yml|07:05|

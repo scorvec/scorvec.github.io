@@ -81,17 +81,16 @@ def geps(date: str):
 
     def one(job):
         li, ki, L, lev = job
-        keep = lev in (10.0, 100.0)
+        # 10/100 hPa are the vortex products' own files; 500 hPa at the 24-h steps is already in the same cache because
+        # scripts/geps/forecast.py keeps it there - either way nothing is downloaded twice in a GEPS run
+        cached = sm.DL / f"geps_{date}00_HGT{int(lev)}_{L:03d}.grib2"
+        keep = lev in (10.0, 100.0) or (cached.exists() and cached.stat().st_size > 0)
         if keep:
             f = sm.fetch(date, "00", "HGT", int(lev), L)
         else:
             f = tmp / f"HGT{int(lev)}_{L:03d}.grib2"
-            try:
-                with urllib.request.urlopen(urllib.request.Request(
-                        sm.GEPS.format(d=date, c="00", v="HGT", lev=int(lev), L=L), headers=sm.UA), timeout=300) as r:
-                    f.write_bytes(r.read())
-            except Exception as e:                                               # noqa: BLE001
-                print(f"    miss HGT{int(lev)} +{L}h: {str(e)[:60]}", flush=True)
+            if sm.datamart.download(sm.GEPS.format(d=date, c="00", v="HGT", lev=int(lev), L=L), f, timeout=300) is None:
+                print(f"    miss HGT{int(lev)} +{L}h", flush=True)
                 return li, ki, None
         if f is None:
             return li, ki, None
@@ -118,7 +117,7 @@ def geps(date: str):
         return li, ki, caps
     jobs = [(li, ki, L, lev) for li, L in enumerate(leads) for ki, lev in enumerate(LEVELS)]
     C = None
-    with ThreadPoolExecutor(8) as ex:
+    with ThreadPoolExecutor(sm.datamart.WORKERS) as ex:          # polite: the Datamart is a shared service
         for li, ki, caps in ex.map(one, jobs):
             if not caps:
                 continue

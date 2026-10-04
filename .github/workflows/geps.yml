@@ -1,0 +1,181 @@
+name: GEPS days 1-35 (subseasonal)
+
+# subseasonal.html: the ECCC GEPS extended ensemble (Mon/Thu 00Z, 21 members, day 35) against a lead-matched GEPS8
+# hindcast climatology - maps and loops, change vs the previous run, teleconnections, tercile maps, weather regimes,
+# ensemble clusters, the MJO and the polar vortex. scripts/geps/run_geps.sh does the work; this file seeds, publishes
+# and commits.
+#
+# MOVED OFF THE LAPTOP 2026-10-04 (user rule: no downloads on the laptop; launchd com.scorvec.geps retired). The
+# laptop's ~150 GB of hindcast and reanalysis stores never leave it: everything the build reads from them was reduced
+# ONCE, locally, to the release asset geps-ref-v1 (scripts/geps/make_reference.py, 0.48 GB). A run downloads only the
+# new cycle's fields from the MSC Datamart - the variables, levels and steps the products use, each file once (the
+# ledger in the step summary says exactly what) - plus small incremental refreshes (ARCO ERA5 band means, CPC/PSL
+# index files).
+#
+# SCHEDULE. The day-35 step lands ~06:45-06:52 UTC on Mondays and Thursdays. 07:20 is the main slot (the script
+# waits up to 2 h for a late cycle); 10:20 and the next day's 07:20 are backstops that exit in about a minute once the
+# cycle is built (state/last_cycle.json on the frames branch). The laptop dispatcher fires the same slots.
+#
+# Data: ECCC GEPS via the MSC Datamart, Open Government Licence - Canada.
+
+on:
+  schedule:
+    - cron: "20 7 * * 1,4"
+    - cron: "20 10 * * 1,4"
+    - cron: "20 7 * * 2,5"
+  workflow_dispatch:
+    inputs:
+      cycle:
+        description: "extended cycle YYYYMMDD (default: today's Mon/Thu cycle, else the newest)"
+        required: false
+      force:
+        description: "rebuild even if this cycle is already published"
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+  actions: write
+
+concurrency:
+  group: geps
+  cancel-in-progress: false
+
+jobs:
+  geps:
+    runs-on: ubuntu-latest
+    timeout-minutes: 240
+    env:
+      GEPS_REF: ${{ github.workspace }}/scripts/geps/ref
+      GEPS_STATE: ${{ github.workspace }}/scripts/geps/state
+      GEPS_WORK: ${{ github.workspace }}/scripts/geps/work
+      GEPS_FETCH_WORKERS: "4"
+      RENDER_WORKERS: "4"
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          sparse-checkout: |
+            scripts/geps
+            scripts/strat
+            scripts/mjo
+            scripts/regimes
+            scripts/lib
+            scripts/sst/metar
+            assets/geps
+            assets/sst/data
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+      - uses: actions/cache@v6
+        with:
+          path: ~/.cache/pip
+          key: geps-pip-v1
+      - name: Install Python dependencies
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y --no-install-recommends libgeos-dev libproj-dev proj-bin
+          # netCDF4/h5netcdf are xarray BACKEND plugins (no import names them); zarr+gcsfs read ARCO ERA5 for the MJO
+          # channels (fetch_arco_*); cartopy 0.25 pinned (0.26 collapses dateline-centred extents, 2026-09-18)
+          pip install --quiet numpy scipy pandas xarray dask netCDF4 h5netcdf zarr gcsfs cfgrib eccodes \
+            matplotlib==3.10.9 cartopy==0.25.0 'shapely>=2.1.2' 'pyproj>=3.7.2' requests
+      # coastlines/borders are fetched by cartopy on first use; keep them between runs
+      - uses: actions/cache@v6
+        with:
+          path: ~/.local/share/cartopy
+          key: cartopy-naturalearth-v1
+
+      # The reference set (release geps-ref-v1, 0.48 GB) changes only when make_reference.py is rerun - and then the
+      # release TAG changes, which is this cache key, so a run downloads it once per version, not once per run.
+      - uses: actions/cache@v6
+        id: refcache
+        with:
+          path: scripts/geps/ref
+          key: geps-ref-v1
+      - name: Reference set (release geps-ref-v1)
+        if: steps.refcache.outputs.cache-hit != 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release download geps-ref-v1 --repo "$GITHUB_REPOSITORY" -p geps_ref_v1.tar -D /tmp --clobber
+          mkdir -p scripts/geps/ref && tar xf /tmp/geps_ref_v1.tar -C scripts/geps/ref && rm /tmp/geps_ref_v1.tar
+      - name: Place the vortex reference (strat clim, S2S reforecast drift)
+        run: |
+          mkdir -p scripts/strat/data && cp -r scripts/geps/ref/strat/. scripts/strat/data/
+          du -sh scripts/geps/ref; ls scripts/strat/data scripts/strat/data/geps_s2s
+
+      # publish_frames_ci.sh swaps directories WHOLESALE, so both are seeded from the branch first: the loops (a
+      # product that fails keeps its previous frames) and the state (observed-tail caches, refreshed index files, the
+      # previous cycle for the change maps, the vortex series). First run only: the laptop's seed (release asset).
+      - name: Seed frames and state from the frames branch
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          scripts/lib/fetch_frames_ci.sh assets/geps/anim scripts/geps/state || true
+          if [ ! -f scripts/geps/state/last_cycle.json ]; then
+            echo "no GEPS state on the frames branch yet - unpacking the laptop seed"
+            gh release download geps-ref-v1 --repo "$GITHUB_REPOSITORY" -p geps_state_seed.tar -D /tmp --clobber \
+              && mkdir -p scripts/geps/state && tar xf /tmp/geps_state_seed.tar -C scripts/geps/state \
+              || echo "::warning::no state seed - observed tails start from what the Datamart still holds"
+          fi
+          find scripts/geps/state -type f | wc -l
+
+      - name: Build
+        id: run
+        env:
+          WANT: ${{ inputs.cycle }}
+          FORCE: ${{ inputs.force && '1' || '0' }}
+        run: |
+          df -h / | tail -1; free -g | head -2
+          # peak memory and wall time of the whole build, for the runner-size check
+          T=""; [ -x /usr/bin/time ] && T="/usr/bin/time -v -o /tmp/time.log"
+          $T scripts/geps/run_geps.sh
+          grep -E "Maximum resident|Elapsed" /tmp/time.log 2>/dev/null || true
+          df -h / | tail -1; du -sh scripts/geps/work scripts/geps/state 2>/dev/null || true
+
+      - name: Publish the loops and the state (frames branch)
+        if: steps.run.outputs.new == '1'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: scripts/lib/publish_frames_ci.sh assets/geps/anim scripts/geps/state
+
+      - name: Commit & push (page assets, page stamp, MJO observed channels)
+        if: steps.run.outputs.new == '1'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          OUT="assets/geps subseasonal.html scripts/mjo/data/reference/era5_olr_band.nc scripts/mjo/data/reference/era5_eq_uv_recent.nc"
+          # snapshot + clean resync each attempt (the sfs/gefs pattern): never a rebase, never a reset that could
+          # silently discard the render
+          SNAP=$(mktemp -d)
+          git add -A $OUT 2>/dev/null || true
+          git diff --staged --name-only -z | tar cf "$SNAP/outs.tar" --null -T - 2>/dev/null || true
+          git reset -q
+          for i in 1 2 3 4 5; do
+            if ! timeout 120 git fetch origin main; then echo "fetch $i failed"; sleep 5; continue; fi
+            git reset --hard origin/main
+            tar xf "$SNAP/outs.tar" 2>/dev/null || true
+            git add -A $OUT
+            if git diff --staged --quiet; then echo "No changes; skipping commit."; exit 0; fi
+            git commit -q -m "subseasonal: GEPS extended cycle ${{ steps.run.outputs.cycle }}"
+            if timeout 180 git push; then echo "Pushed on attempt $i."; exit 0; fi
+            echo "Push $i rejected; resyncing and retrying…"
+            sleep 5
+          done
+          exit 1
+
+      - name: Deploy the site
+        if: success() && steps.run.outputs.new == '1'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh workflow run pages.yml --repo "$GITHUB_REPOSITORY" || echo "pages dispatch failed; the dispatcher will catch it"
+          # the multi-model regime view (subseasonal.html) reads assets/geps/regimes_members.json
+          gh workflow run regimes.yml --repo "$GITHUB_REPOSITORY" || echo "::warning::regimes dispatch failed"
+
+      - name: Summary
+        if: always()
+        run: |
+          {
+            echo "### GEPS extended cycle ${{ steps.run.outputs.cycle || '(none built)' }}"
+            echo "- $(cd scripts/geps && python datamart.py)"
+            echo "- Page: [/subseasonal.html](https://scorvec.com/subseasonal.html)"
+          } >> "$GITHUB_STEP_SUMMARY"
