@@ -67,7 +67,17 @@ CARRY_W = {"usd": 3, "sloos_lg": 20, "sloos_sm": 20, "sloos_dem": 20, "corp_debt
 SERIES = ["DFF", "T10Y2Y", "DGS10", "DTB3", "MORTGAGE30US", "BAA10Y", "AAA10Y", "DCPN3M", "DCPF3M", "COMPOUT", "TOTCI",
           "DRTSCILM", "DRTSCIS", "DRSDCILM", "BCNSDODNS", "PCEPILFE", "NFCI", "NFCICREDIT",
           "BAMLC0A0CM", "BAMLC0A4CBBB", "BAMLH0A0HYM2", "USREC",
-          "VIXCLS", "DTWEXBGS", "TWEXB", "NASDAQCOM"]
+          "VIXCLS", "DTWEXBGS", "TWEXB", "NASDAQCOM", "LNFACBW027SBOG"]
+# Private credit (2026-10-04, user: "What about private credit? This has been a huge funder of the AI CAPEX boom" ->
+# "Sub-index + panel"): listed BDCs as the market read, bank loans to nonbank financial institutions as the funding read.
+# Their histories (2005-2021 starts; NDFI loans 2015) are too short for the 2001 weights, so they form a fifth sub-index
+# standardised over their own history and stay out of the headline.
+BDCS = ["ARCC", "MAIN", "FSK", "OBDC", "BXSL"]
+PRIVATE = {
+    "pc_dd":   ("Listed private-credit lenders (BDCs) below their 52-week highs", "% drawdown, equal-weighted average of " + ", ".join(BDCS) + " (total return)"),
+    "pc_rel":  ("BDCs lagging high-yield bonds", "minus the BDCs' 13-week total return in excess of the HYG high-yield ETF's (equal-weighted)"),
+    "pc_ndfi": ("Bank lending to nonbank lenders (slower growth = tighter)", "minus the year-on-year % change in commercial banks' loans to nondepository financial institutions (H.8, LNFACBW027SBOG; one-off reclassification jumps chain-linked out)"),
+}
 YAHOO = "https://query1.finance.yahoo.com/v8/finance/chart/{}?period1={}&period2={}&interval=1d&events=div"
 # sub-indices (2026-10-04, user chose "PCA + rate sub-indices"): the PCA headline is the corporate credit cycle (real fed
 # funds, loan growth and the curve barely load, the curve with a recession-steepening sign), so three transparent
@@ -110,7 +120,8 @@ def fetch(sid, cache: Path, max_age_h=6.0):
 def fetch_yahoo(ticker, cache: Path, start="1990-01-01", max_age_h=6.0, field="adjclose"):
     """Daily close (dividend-adjusted by default) from Yahoo's chart API, cached. Yahoo answers a bare "Mozilla/5.0" UA and
     throttles bursts (429 'Too Many Requests'): one request at a time, retried with back-off; None if it never answers."""
-    fp = cache / f"yahoo_{ticker.replace('^', '_')}.json"
+    fp = cache / f"yahoo_{ticker.replace('^', '_')}_{start[:4]}.json"     # the start is part of the key: a short pull must not
+                                                                         # serve a long request (HYG: nowcast vs private credit)
     if not fp.exists() or time.time() - fp.stat().st_mtime > max_age_h * 3600:
         url = YAHOO.format(urllib.request.quote(ticker), int(pd.Timestamp(start).timestamp()), int(time.time()))
         for attempt in range(5):
@@ -227,7 +238,7 @@ def hy_nowcast(raw, cache):
     against IEI's (3-7 y Treasuries: TLT's 16-year duration swamped the credit signal, daily r 0.33 vs 0.76). The regression
     is refitted every run on the trailing 500 days; the track record is the one-day-ahead error over the last 250 days
     (each day estimated from the previous official value, out of sample)."""
-    hyg, iei = fetch_yahoo("HYG", cache, start="2021-01-01"), fetch_yahoo("IEI", cache, start="2021-01-01")
+    hyg, iei = fetch_yahoo("HYG", cache, start="2005-01-01"), fetch_yahoo("IEI", cache, start="2005-01-01")
     if hyg is None or iei is None:
         return None
     R = pd.concat([np.log(hyg).diff().rename("hyg") * 100, np.log(iei).diff().rename("iei") * 100], axis=1).dropna()
@@ -259,6 +270,31 @@ def hy_nowcast(raw, cache):
                          rmse_bp=round(float(np.sqrt(np.mean((pred - act) ** 2))), 1),
                          no_change_bp=round(float(np.sqrt(np.mean(act ** 2))), 1)),
                 track=track, etf_last=str(R.index[-1].date()))
+
+
+def private_credit(raw, cache):
+    """Weekly private-credit inputs (higher = tighter), their own-history z-scores and the panel's series; None without data."""
+    px = {t: fetch_yahoo(t, cache, start="2005-01-01") for t in BDCS + ["BIZD"]}
+    hyg = fetch_yahoo("HYG", cache, start="2005-01-01")
+    W = {t: v.resample("W-FRI").last() for t, v in px.items() if v is not None and len(v) > 60}
+    if len([t for t in BDCS if t in W]) < 2 or hyg is None:
+        return None
+    dd = pd.DataFrame({t: 100.0 * (1 - W[t] / W[t].rolling(52, min_periods=26).max()) for t in W})
+    ret13 = pd.DataFrame({t: np.log(W[t]).diff(13) for t in BDCS if t in W})
+    hw = np.log(hyg.resample("W-FRI").last()).diff(13)
+    nd = raw["LNFACBW027SBOG"].sort_index()
+    g = nd.pct_change()
+    g[g.abs() > 0.10] = 0.0                                          # a >10 % week is a reclassification (Jan 2025: +20 %)
+    ndc = (1 + g.fillna(0)).cumprod() * nd.iloc[0]
+    I = pd.DataFrame({"pc_dd": dd[[t for t in BDCS if t in dd]].mean(axis=1, skipna=True),
+                      "pc_rel": -100.0 * (ret13.mean(axis=1, skipna=True) - hw.reindex(ret13.index)),
+                      "pc_ndfi": -weekly(yoy(ndc), "last", RELEASE_LAG_D["TOTCI"])})
+    I = I[I.index >= pd.Timestamp("2006-01-01")]
+    I["pc_ndfi"] = I["pc_ndfi"].ffill(limit=4)
+    Z = (I - I.mean()) / I.std(ddof=0)
+    sub = Z.mean(axis=1, skipna=True).dropna()
+    nd_w = nd.resample("W-FRI").last()
+    return dict(I=I, Z=Z, sub=sub, dd=dd, ndfi_level=nd_w, ndfi_yoy=-I["pc_ndfi"])
 
 
 def main():
@@ -315,6 +351,25 @@ def main():
                            z_13w_ago=None if not np.isfinite(z13) else round(float(z13), 2),
                            contribution=None if not np.isfinite(contrib.loc[last, k]) else round(float(contrib.loc[last, k]), 3),
                            pct_rank=None if not len(s) else round(float((Z[k].dropna() <= z).mean()), 3) if np.isfinite(z) else None))
+    pc = private_credit(raw, cache)
+    if pc is not None:
+        v = pc["sub"]
+        subs["private"] = dict(label="Private credit", inputs=list(PRIVATE), latest=round(float(v.iloc[-1]), 3),
+                               pct_rank=round(float((v <= v.iloc[-1]).mean()), 3), chg_13w=round(float(v.iloc[-1] - v.iloc[-14]), 3),
+                               since=str(v.index[0].date()), series=[[str(d.date()), round(float(x), 3)] for d, x in v.items()])
+        for k, (lab, desc) in PRIVATE.items():
+            s_ = pc["I"][k].dropna(); zz = pc["Z"][k].dropna()
+            inputs.append(dict(key=k, label=lab, group="Private credit (not in the headline)", desc=desc + f" · since {s_.index[0].year}",
+                               loading=None, value=round(float(s_.iloc[-1]), 3), asof=str(s_.index[-1].date()),
+                               z=round(float(zz.iloc[-1]), 2), z_13w_ago=round(float(zz.iloc[-14]), 2) if len(zz) > 14 else None,
+                               contribution=None, pct_rank=round(float((zz <= zz.iloc[-1]).mean()), 3)))
+        t0 = pd.Timestamp(last) - pd.DateOffset(years=6)
+        privp = dict(dd={t: [[str(d.date()), round(float(x), 2)] for d, x in pc["dd"][t].dropna().items() if d >= t0] for t in pc["dd"]},
+                     rel=[[str(d.date()), round(float(-x), 2)] for d, x in pc["I"]["pc_rel"].dropna().items() if d >= t0],
+                     ndfi=[[str(d.date()), round(float(x), 1), None if not np.isfinite(y_) else round(float(y_), 2)]
+                           for (d, x), y_ in zip(pc["ndfi_level"].dropna().items(), pc["ndfi_yoy"].reindex(pc["ndfi_level"].dropna().index).values)])
+    else:
+        privp = None
     show = {}
     for sid, lab in SHOW_ONLY.items():
         s = raw[sid]
@@ -328,7 +383,7 @@ def main():
               chg_4w=round(float(idx[last] - idx.dropna().iloc[-5]), 3), chg_13w=round(float(idx[last] - idx.dropna().iloc[-14]), 3),
               chg_52w=round(float(idx[last] - idx.dropna().iloc[-53]), 3),
               fit=dict(start=FIT_START, weeks=int(nfit), pc1_share=round(float(share[0]), 3), pc2_share=round(float(share[1]), 3)),
-              hy_nowcast=hy_nowcast(raw, cache), subs=subs, recessions=spans, corr=corr, groups={g: round(v, 3) for g, v in groups.items()}, inputs=inputs, show_only=show,
+              hy_nowcast=hy_nowcast(raw, cache), private=privp, subs=subs, recessions=spans, corr=corr, groups={g: round(v, 3) for g, v in groups.items()}, inputs=inputs, show_only=show,
               index=ser(idx), coverage=ser(cover, 2), bench={k: ser(v) for k, v in bench.items()},
               contrib={g: ser(contrib[[k for k, x in INPUTS.items() if x[1] == g]].sum(axis=1, min_count=1)) for g in groups})
     (out / "fci.json").write_text(json.dumps(js, separators=(",", ":")))
@@ -337,6 +392,8 @@ def main():
     print("loadings: " + ", ".join(f"{k} {w[k]:+.2f}" for k in w.sort_values(ascending=False).index))
     print("groups now: " + ", ".join(f"{g} {v:+.2f}" for g, v in groups.items()))
     print("sub-indices: " + ", ".join(f"{v['label']} {v['latest']:+.2f} (pct {v['pct_rank']:.0%}, 13w {v['chg_13w']:+.2f})" for v in subs.values()))
+    if pc is not None:
+        print("private credit inputs now: " + ", ".join(f"{k} {pc['I'][k].dropna().iloc[-1]:+.2f} (z {pc['Z'][k].dropna().iloc[-1]:+.2f})" for k in PRIVATE))
     return 0
 
 
