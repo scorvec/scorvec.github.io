@@ -57,7 +57,6 @@ INPUTS = {
     # the index catches market-led tightenings the credit inputs see late (peaks 2018Q4 -0.31 -> +0.17, 2022 -0.05 -> +0.70,
     # Apr 2025 -0.11 -> +0.31), PC1 28 -> 31 %, corr NFCI 0.75 -> 0.79, NFCI credit 0.75 -> 0.78; today unchanged
     "vix":        ("Stock-market volatility (VIX)", "Markets", "CBOE VIX, weekly average (VIXCLS)"),
-    "eq_dd":      ("S&P 500 below its 52-week high", "Markets", "% drawdown of the S&P 500 from its highest weekly close of the past year"),
     "usd":        ("Stronger dollar", "Markets", "year-on-year % change in the Fed's broad trade-weighted dollar (DTWEXBGS, spliced to TWEXB before 2006)"),
 }
 # days from a value's date stamp to its publication (conservative)
@@ -66,19 +65,21 @@ RELEASE_LAG_D = {"TOTCI": 9, "COMPOUT": 2, "PCEPILFE": 58, "DRTSCILM": 50, "DRTS
 CARRY_W = {"usd": 3, "sloos_lg": 20, "sloos_sm": 20, "sloos_dem": 20, "corp_debt": 30, "ci_loans": 4, "cp_out": 3, "real_mort": 2}
 SERIES = ["DFF", "T10Y2Y", "DGS10", "DTB3", "MORTGAGE30US", "BAA10Y", "AAA10Y", "DCPN3M", "DCPF3M", "COMPOUT", "TOTCI",
           "DRTSCILM", "DRTSCIS", "DRSDCILM", "BCNSDODNS", "PCEPILFE", "NFCI", "NFCICREDIT",
-          "BAMLC0A0CM", "BAMLC0A4CBBB", "BAMLH0A0HYM2", "USREC",
-          "VIXCLS", "DTWEXBGS", "TWEXB", "NASDAQCOM", "LNFACBW027SBOG"]
+          "USREC", "VIXCLS", "DTWEXBGS", "TWEXB", "LNFACBW027SBOG"]
+# DATA TERMS (2026-10-04, user: "Always make sure we are sourcing and attributing all data sources correctly and collecting
+# the data in an appropriate manner"): FRED marks the ICE BofA OAS series (BAMLC0A0CM, BAMLC0A4CBBB, BAMLH0A0HYM2), the
+# S&P 500 and the Nasdaq Composite "Copyrighted: Pre-Approval Required" ("Reproduction of this data in any form is prohibited
+# except with the prior written permission of ICE Data Indices") - they are NOT used. Yahoo Finance has no public API (the
+# chart endpoint is unofficial; its terms do not allow automated retrieval or redistribution) - the S&P 500 drawdown, the
+# HYG/IEI high-yield nowcast and the BDC prices are gone with it. Everything left is public domain or "Copyrighted:
+# Citation Required" on FRED (Moody's, Freddie Mac, Cboe VIX, Chicago Fed NFCI, the curve, NBER) and is credited on fci.html.
 # Private credit (2026-10-04, user: "What about private credit? This has been a huge funder of the AI CAPEX boom" ->
-# "Sub-index + panel"): listed BDCs as the market read, bank loans to nonbank financial institutions as the funding read.
-# Their histories (2005-2021 starts; NDFI loans 2015) are too short for the 2001 weights, so they form a fifth sub-index
-# standardised over their own history and stay out of the headline.
-BDCS = ["ARCC", "MAIN", "FSK", "OBDC", "BXSL"]
+# "Sub-index + panel"): bank loans to nonbank financial institutions as the funding read (the listed-BDC market read used
+# Yahoo prices and was removed the same day - see DATA TERMS). The history (2015 on) is too short for the 2001 weights, so
+# it is a separate sub-index standardised over its own history and stays out of the headline.
 PRIVATE = {
-    "pc_dd":   ("Listed private-credit lenders (BDCs) below their 52-week highs", "% drawdown, equal-weighted average of " + ", ".join(BDCS) + " (total return)"),
-    "pc_rel":  ("BDCs lagging high-yield bonds", "minus the BDCs' 13-week total return in excess of the HYG high-yield ETF's (equal-weighted)"),
     "pc_ndfi": ("Bank lending to nonbank lenders (slower growth = tighter)", "minus the year-on-year % change in commercial banks' loans to nondepository financial institutions (H.8, LNFACBW027SBOG; one-off reclassification jumps chain-linked out)"),
 }
-YAHOO = "https://query1.finance.yahoo.com/v8/finance/chart/{}?period1={}&period2={}&interval=1d&events=div"
 # sub-indices (2026-10-04, user chose "PCA + rate sub-indices"): the PCA headline is the corporate credit cycle (real fed
 # funds, loan growth and the curve barely load, the curve with a recession-steepening sign), so three transparent
 # equal-weight averages of the oriented z-scores sit beside it and show where the tightness is
@@ -86,9 +87,7 @@ SUBS = {"corporate": ("Corporate credit", ["baa", "aaa", "cp_nonfin", "cp_fin", 
                                            "sloos_dem", "corp_debt"]),
         "mortgage": ("Mortgages", ["real_mort", "mort_sprd"]),
         "policy": ("Policy rate and yield curve", ["real_ff", "curve"]),
-        "markets": ("Markets", ["vix", "eq_dd", "usd"])}
-SHOW_ONLY = {"BAMLC0A0CM": "Investment-grade spread (ICE BofA OAS)", "BAMLC0A4CBBB": "BBB spread (ICE BofA OAS)",
-             "BAMLH0A0HYM2": "High-yield spread (ICE BofA OAS)"}
+        "markets": ("Markets", ["vix", "usd"])}
 
 
 def fetch(sid, cache: Path, max_age_h=6.0):
@@ -97,8 +96,8 @@ def fetch(sid, cache: Path, max_age_h=6.0):
     if not fp.exists() or time.time() - fp.stat().st_mtime > max_age_h * 3600:
         for attempt in range(6):
             try:
-                # FRED hangs some clients (oil board notes: a browser UA never answers); curl's UA is the one that works
-                req = urllib.request.Request(FRED.format(sid), headers={"User-Agent": "curl/8.4.0", "Accept": "*/*"})
+                # an honest user agent (2026-10-04, data-terms rule; FRED answers it). A browser UA used to hang (oil board notes).
+                req = urllib.request.Request(FRED.format(sid), headers={"User-Agent": "scorvec.com credit conditions index (+https://scorvec.com/fci.html)", "Accept": "*/*"})
                 with urllib.request.urlopen(req, timeout=25) as r:
                     txt = r.read().decode()
                 if not txt.startswith("observation_date"):
@@ -115,34 +114,6 @@ def fetch(sid, cache: Path, max_age_h=6.0):
     s = pd.to_numeric(d.iloc[:, 1], errors="coerce")
     s.index = pd.to_datetime(d.iloc[:, 0])
     return s.dropna()
-
-
-def fetch_yahoo(ticker, cache: Path, start="1990-01-01", max_age_h=6.0, field="adjclose"):
-    """Daily close (dividend-adjusted by default) from Yahoo's chart API, cached. Yahoo answers a bare "Mozilla/5.0" UA and
-    throttles bursts (429 'Too Many Requests'): one request at a time, retried with back-off; None if it never answers."""
-    fp = cache / f"yahoo_{ticker.replace('^', '_')}_{start[:4]}.json"     # the start is part of the key: a short pull must not
-                                                                         # serve a long request (HYG: nowcast vs private credit)
-    if not fp.exists() or time.time() - fp.stat().st_mtime > max_age_h * 3600:
-        url = YAHOO.format(urllib.request.quote(ticker), int(pd.Timestamp(start).timestamp()), int(time.time()))
-        for attempt in range(5):
-            try:
-                req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
-                with urllib.request.urlopen(req, timeout=30) as r:
-                    txt = r.read().decode()
-                json.loads(txt)["chart"]["result"][0]["timestamp"]
-                fp.write_text(txt)
-                break
-            except Exception as e:                                   # noqa: BLE001
-                if attempt == 4:
-                    print(f"  yahoo {ticker}: {e}", flush=True)
-                time.sleep(3 * (attempt + 1))
-        time.sleep(1.2)
-    if not fp.exists():
-        return None
-    d = json.loads(fp.read_text())["chart"]["result"][0]
-    vals = d["indicators"]["adjclose"][0]["adjclose"] if field == "adjclose" else d["indicators"]["quote"][0][field]
-    idx = pd.to_datetime(d["timestamp"], unit="s", utc=True).tz_convert("America/New_York").normalize().tz_localize(None)
-    return pd.Series(vals, index=idx, dtype=float).dropna()
 
 
 def weekly(s, how="mean", lag_d=0):
@@ -182,11 +153,6 @@ def build_inputs(raw):
     W["real_mort"] = mort - core_w.reindex(mort.index).ffill()
     W["mort_sprd"] = mort - weekly(raw["DGS10"]).reindex(mort.index)
     W["vix"] = weekly(raw["VIXCLS"])
-    eq = raw.get("SPX")
-    if eq is None or len(eq) < 2000:                                  # Yahoo unreachable: the Nasdaq from FRED stands in
-        eq = raw["NASDAQCOM"]; print("  equity: S&P 500 unavailable, using the Nasdaq Composite (FRED)", flush=True)
-    pw = eq.resample("W-FRI").last()
-    W["eq_dd"] = 100.0 * (1.0 - pw / pw.rolling(52, min_periods=26).max())
     old, new = raw["TWEXB"], raw["DTWEXBGS"]
     k = (new / old.reindex(new.index)).dropna(); k = float(k[k.index <= "2019-12-31"].median())
     usd = pd.concat([old[old.index < new.index[0]] * k, new]).sort_index()
@@ -249,9 +215,6 @@ def daily_index(raw, X, mu, sd, w, scale, days=400):
     mort = dl(raw["MORTGAGE30US"].reindex(raw["MORTGAGE30US"].index.union(bd)).ffill(limit=7))
     Xd["real_mort"] = mort - core; Xd["mort_sprd"] = mort - dl(raw["DGS10"])
     Xd["vix"] = dl(raw["VIXCLS"])
-    eq = raw.get("SPX") if raw.get("SPX") is not None and len(raw.get("SPX")) > 2000 else raw["NASDAQCOM"]
-    eqd = dl(eq.reindex(eq.index.union(pd.bdate_range(eq.index.min(), end))).ffill(limit=5))
-    Xd["eq_dd"] = 100.0 * (1.0 - eqd / eqd.rolling(252, min_periods=126).max())
     usd = raw["DTWEXBGS"]; ud = dl(usd)
     Xd["usd"] = 100.0 * (ud / dl(usd.reindex(usd.index.union(bd - pd.DateOffset(years=1))).ffill().reindex(bd - pd.DateOffset(years=1))).values - 1.0)
     Xd = Xd[list(X.columns)]
@@ -268,69 +231,20 @@ def daily_index(raw, X, mu, sd, w, scale, days=400):
                 chg_21d=round(float(idx.iloc[-1] - idx.iloc[-22]), 3) if len(idx) > 22 else None)
 
 
-def hy_nowcast(raw, cache):
-    """Real-time high-yield spread (2026-10-04, user: HYG/IEI "sounds like a plan"): the official ICE BofA HY OAS posts on
-    FRED a day late; between postings, today's spread = the last official value + the change implied by HYG's daily return
-    against IEI's (3-7 y Treasuries: TLT's 16-year duration swamped the credit signal, daily r 0.33 vs 0.76). The regression
-    is refitted every run on the trailing 500 days; the track record is the one-day-ahead error over the last 250 days
-    (each day estimated from the previous official value, out of sample)."""
-    hyg, iei = fetch_yahoo("HYG", cache, start="2005-01-01"), fetch_yahoo("IEI", cache, start="2005-01-01")
-    if hyg is None or iei is None:
-        return None
-    R = pd.concat([np.log(hyg).diff().rename("hyg") * 100, np.log(iei).diff().rename("iei") * 100], axis=1).dropna()
-    oas = raw["BAMLH0A0HYM2"] * 100.0                                   # bp
-    D = pd.concat([R, oas.diff().rename("d")], axis=1).dropna()
-    def coefs(F):
-        X = np.c_[np.ones(len(F)), F["hyg"], F["iei"]]
-        return np.linalg.lstsq(X, F["d"].values, rcond=None)[0]
-    pred, act = [], []
-    for t in D.index[-250:]:                                          # out of sample: fitted on the 500 days before t
-        F = D[D.index < t].iloc[-500:]
-        if len(F) < 200:
-            continue
-        b = coefs(F); pred.append(b[0] + b[1] * D.at[t, "hyg"] + b[2] * D.at[t, "iei"]); act.append(D.at[t, "d"])
-    pred, act = np.array(pred), np.array(act)
-    b = coefs(D.iloc[-500:])
-    last = oas.index[-1]; after = R[R.index > last]                   # ETF days the official series has not reached yet
-    est = float(oas.iloc[-1] + (b[0] + after["hyg"] * b[1] + after["iei"] * b[2]).sum()) if len(after) else None
-    track = []
-    for t in D.index[-120:]:                                          # yesterday's official + today's ETF-implied change
-        prev = oas[oas.index < t]
-        if len(prev):
-            track.append([str(t.date()), round(float(oas.at[t]) / 100, 3),
-                          round(float(prev.iloc[-1] + b[0] + b[1] * D.at[t, "hyg"] + b[2] * D.at[t, "iei"]) / 100, 3)])
-    return dict(official=dict(date=str(last.date()), value=round(float(oas.iloc[-1]) / 100, 3)),
-                estimate=None if est is None else dict(date=str(after.index[-1].date()), value=round(est / 100, 3), days=len(after)),
-                bp_per_pct=dict(hyg=round(float(b[1]), 1), iei=round(float(b[2]), 1)),
-                oos=dict(days=int(len(act)), r=round(float(np.corrcoef(pred, act)[0, 1]), 2),
-                         rmse_bp=round(float(np.sqrt(np.mean((pred - act) ** 2))), 1),
-                         no_change_bp=round(float(np.sqrt(np.mean(act ** 2))), 1)),
-                track=track, etf_last=str(R.index[-1].date()))
-
-
 def private_credit(raw, cache):
     """Weekly private-credit inputs (higher = tighter), their own-history z-scores and the panel's series; None without data."""
-    px = {t: fetch_yahoo(t, cache, start="2005-01-01") for t in BDCS + ["BIZD"]}
-    hyg = fetch_yahoo("HYG", cache, start="2005-01-01")
-    W = {t: v.resample("W-FRI").last() for t, v in px.items() if v is not None and len(v) > 60}
-    if len([t for t in BDCS if t in W]) < 2 or hyg is None:
-        return None
-    dd = pd.DataFrame({t: 100.0 * (1 - W[t] / W[t].rolling(52, min_periods=26).max()) for t in W})
-    ret13 = pd.DataFrame({t: np.log(W[t]).diff(13) for t in BDCS if t in W})
-    hw = np.log(hyg.resample("W-FRI").last()).diff(13)
     nd = raw["LNFACBW027SBOG"].sort_index()
+    if len(nd) < 120: return None
     g = nd.pct_change()
     g[g.abs() > 0.10] = 0.0                                          # a >10 % week is a reclassification (Jan 2025: +20 %)
     ndc = (1 + g.fillna(0)).cumprod() * nd.iloc[0]
-    I = pd.DataFrame({"pc_dd": dd[[t for t in BDCS if t in dd]].mean(axis=1, skipna=True),
-                      "pc_rel": -100.0 * (ret13.mean(axis=1, skipna=True) - hw.reindex(ret13.index)),
-                      "pc_ndfi": -weekly(yoy(ndc), "last", RELEASE_LAG_D["TOTCI"])})
+    I = pd.DataFrame({"pc_ndfi": -weekly(yoy(ndc), "last", RELEASE_LAG_D["TOTCI"])})
     I = I[I.index >= pd.Timestamp("2006-01-01")]
     I["pc_ndfi"] = I["pc_ndfi"].ffill(limit=4)
     Z = (I - I.mean()) / I.std(ddof=0)
     sub = Z.mean(axis=1, skipna=True).dropna()
     nd_w = nd.resample("W-FRI").last()
-    return dict(I=I, Z=Z, sub=sub, dd=dd, ndfi_level=nd_w, ndfi_yoy=-I["pc_ndfi"])
+    return dict(I=I, Z=Z, sub=sub, ndfi_level=nd_w, ndfi_yoy=-I["pc_ndfi"])
 
 
 def main():
@@ -343,7 +257,6 @@ def main():
     raw = {}
     for s in SERIES:                                             # one at a time, gently: FRED throttles bursts
         raw[s] = fetch(s, cache); time.sleep(0.5)
-    raw["SPX"] = fetch_yahoo("^GSPC", cache, field="close")
     X = build_inputs(raw)
     mu, sd, w, share, scale, nfit = fit_pca(X)
     idx, cover, contrib, Z = index_from(X, mu, sd, w, scale)
@@ -400,26 +313,17 @@ def main():
                                z=round(float(zz.iloc[-1]), 2), z_13w_ago=round(float(zz.iloc[-14]), 2) if len(zz) > 14 else None,
                                contribution=None, pct_rank=round(float((zz <= zz.iloc[-1]).mean()), 3)))
         t0 = pd.Timestamp(last) - pd.DateOffset(years=6)
-        privp = dict(dd={t: [[str(d.date()), round(float(x), 2)] for d, x in pc["dd"][t].dropna().items() if d >= t0] for t in pc["dd"]},
-                     rel=[[str(d.date()), round(float(-x), 2)] for d, x in pc["I"]["pc_rel"].dropna().items() if d >= t0],
-                     ndfi=[[str(d.date()), round(float(x), 1), None if not np.isfinite(y_) else round(float(y_), 2)]
+        privp = dict(ndfi=[[str(d.date()), round(float(x), 1), None if not np.isfinite(y_) else round(float(y_), 2)]
                            for (d, x), y_ in zip(pc["ndfi_level"].dropna().items(), pc["ndfi_yoy"].reindex(pc["ndfi_level"].dropna().index).values)])
     else:
         privp = None
-    show = {}
-    for sid, lab in SHOW_ONLY.items():
-        s = raw[sid]
-        show[sid] = dict(label=lab, last=round(float(s.iloc[-1]), 2), asof=str(s.index[-1].date()),
-                         min_3y=round(float(s.min()), 2), max_3y=round(float(s.max()), 2),
-                         pct_3y=round(float((s <= s.iloc[-1]).mean()), 3),
-                         series=[[str(d.date()), round(float(v), 3)] for d, v in s.resample("W-FRI").last().dropna().items()])
     ser = lambda s, nd=3: [[str(d.date()), None if not np.isfinite(v) else round(float(v), nd)] for d, v in s.items()]
     js = dict(made=pd.Timestamp.utcnow().strftime("%Y-%m-%dT%H:%MZ"), asof=str(last.date()),
               latest=round(float(idx[last]), 3), pct_rank=round(pct, 3),
               chg_4w=round(float(idx[last] - idx.dropna().iloc[-5]), 3), chg_13w=round(float(idx[last] - idx.dropna().iloc[-14]), 3),
               chg_52w=round(float(idx[last] - idx.dropna().iloc[-53]), 3),
               fit=dict(start=FIT_START, weeks=int(nfit), pc1_share=round(float(share[0]), 3), pc2_share=round(float(share[1]), 3)),
-              hy_nowcast=hy_nowcast(raw, cache), private=privp, daily=daily_index(raw, X, mu, sd, w, scale), subs=subs, recessions=spans, corr=corr, groups={g: round(v, 3) for g, v in groups.items()}, inputs=inputs, show_only=show,
+              private=privp, daily=daily_index(raw, X, mu, sd, w, scale), subs=subs, recessions=spans, corr=corr, groups={g: round(v, 3) for g, v in groups.items()}, inputs=inputs,
               index=ser(idx), coverage=ser(cover, 2), bench={k: ser(v) for k, v in bench.items()},
               contrib={g: ser(contrib[[k for k, x in INPUTS.items() if x[1] == g]].sum(axis=1, min_count=1)) for g in groups})
     (out / "fci.json").write_text(json.dumps(js, separators=(",", ":")))

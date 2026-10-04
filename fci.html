@@ -229,7 +229,7 @@
   <h1>How tight is US credit?</h1>
   <p class="lede">One weekly number for how hard it is to borrow in the US, built from corporate bond spreads, commercial paper,
     bank business lending and the Fed's survey of loan officers, mortgage rates, the fed funds rate, the yield curve, stock-market
-    volatility and drawdowns, and the dollar. Zero is
+    volatility and the dollar. Zero is
     the average since 2001; +1 means one standard deviation tighter than that. Five sub-indices beside it show <i>where</i>
     the tightness is: for companies, for home buyers, in the policy rate and the curve, in markets, or in private credit.</p>
 
@@ -239,7 +239,7 @@
   <section class="card" id="daily-card" hidden>
     <h2>Day by day</h2>
     <p class="note" id="daily-note">The headline index recomputed every business day with the same weights: spreads, commercial
-      paper, fed funds, the curve, the VIX, stocks and the dollar at each day's value; the loan officer survey, bank lending and
+      paper, fed funds, the curve, the VIX and the dollar at each day's value; the loan officer survey, bank lending and
       the weekly mortgage rate at their latest release. Bars: what each group contributes (above zero tighter). Daily values are
       noisier than the weekly averages above.</p>
     <div class="seg" id="d-range" role="group" aria-label="Period"></div>
@@ -271,13 +271,12 @@
 
   <section class="card" id="pc-card" hidden>
     <h2>Private credit</h2>
-    <p class="note">Private lending to companies (much of it now funding data-centre and AI build-outs) has no public price, so two
-      windows stand in. <b>Left</b>: the listed lenders, business development companies, below their 52-week highs (total
-      return; the dotted line is the BDC ETF); a fall that high-yield bonds do not share is stress specific to private credit.
-      <b>Right</b>: commercial banks' loans to nonbank financial institutions, the bank credit lines behind private-credit
-      funds (H.8; the January 2025 reclassification jump is linked out of the growth rate). These series start between 2005 and
-      2021, so they form their own sub-index and are not in the headline.</p>
-    <div class="pc-grid"><div class="chart" id="c-pc-dd"></div><div class="chart" id="c-pc-ndfi"></div></div>
+    <p class="note">Private lending to companies (much of it now funding data-centre and AI build-outs) has no public price. What
+      public data does show is the bank funding behind it: commercial banks' loans to nonbank financial institutions, the credit
+      lines that private-credit funds draw on (Federal Reserve H.8; the January 2025 reclassification jump is linked out of the
+      growth rate). Slower growth reads as tighter. The series starts in 2015, so it forms its own sub-index and is not in the
+      headline.</p>
+    <div class="chart" id="c-pc-ndfi"></div>
   </section>
 
   <section class="card">
@@ -287,14 +286,6 @@
     <div class="tblwrap"><table class="inp" id="t-inp"></table></div>
   </section>
 
-  <section class="card">
-    <h2>Market credit spreads (last three years)</h2>
-    <p class="note">ICE BofA option-adjusted spreads over Treasuries. FRED carries only the last three years of these series, too
-      short to estimate weights, so they are shown here rather than inside the index; Moody's Baa and Aaa spreads carry the
-      corporate-bond signal in the index back to the 1980s.</p>
-    <p class="note" id="hy-now"></p>
-    <div class="spreads" id="spreads"></div>
-  </section>
 
   <details class="method">
     <summary>How the index is built</summary>
@@ -306,7 +297,7 @@
         middle-market and small firms) and net share reporting stronger demand; the effective fed funds rate and the Freddie
         Mac 30-year mortgage rate, both <i>real</i> (minus core PCE inflation over the past year); the mortgage rate minus the
         10-year Treasury; and the 10-year minus 2-year Treasury spread.</li>
-      <li><b>Markets</b>: the VIX (weekly average), the S&amp;P 500's drawdown from its highest close of the past year, and the
+      <li><b>Markets</b>: the VIX (weekly average) and the
         year-on-year change in the Fed's broad trade-weighted dollar (spliced to its predecessor before 2006). With them the index
         also registers market-led tightenings that loan officers and spreads see later: late 2018, 2022, April 2025.</li>
       <li><b>Orientation</b>: every input is signed so that a higher value means tighter credit (slower loan and debt growth,
@@ -327,9 +318,13 @@
         in every credit event: 1998, 2001, 2008, 2020 and 2023.</li>
     </ul>
   </details>
-  <p class="src">Data: Federal Reserve Bank of St. Louis (FRED); Board of Governors of the Federal Reserve System (H.8, H.15,
-    Commercial Paper, Senior Loan Officer Opinion Survey, Financial Accounts Z.1); Moody's; Freddie Mac; ICE Data Indices
-    (ICE BofA spreads, via FRED); Chicago Fed (NFCI); NBER recession dates. Not investment advice.</p>
+  <p class="src">Data, all retrieved from FRED, Federal Reserve Bank of St. Louis: Board of Governors of the Federal Reserve
+    System (H.8 bank lending, H.15 rates, commercial paper, Senior Loan Officer Opinion Survey, Financial Accounts Z.1, broad
+    trade-weighted dollar); U.S. Bureau of Economic Analysis (core PCE prices); Moody's Baa and Aaa corporate bond yields
+    (BAA10Y, AAA10Y); Freddie Mac, 30-year fixed mortgage rate (MORTGAGE30US); Chicago Board Options Exchange, CBOE
+    Volatility Index: VIX (VIXCLS); Federal Reserve Bank of Chicago, National Financial Conditions Index and its credit
+    subindex (NFCI, NFCICREDIT); NBER-based recession indicators (USREC). Series marked "Copyrighted: Citation Required" on
+    FRED are cited here as required; no series marked "Pre-Approval Required" is used. Not investment advice.</p>
 </main>
 <script>
 (function () {
@@ -341,8 +336,8 @@
     cp_out: [-1, "% y/y", 1, "Commercial paper outstanding, growth"], ci_loans: [-1, "% y/y", 1, "Bank business loans, growth"],
     sloos_lg: [1, "% net", 1], sloos_sm: [1, "% net", 1], sloos_dem: [-1, "% net", 1, "Business-loan demand (net % stronger)"],
     corp_debt: [-1, "% y/y", 1, "Nonfinancial corporate debt, growth"], real_ff: [1, "%", 2], curve: [-1, "pt", 2, "Yield curve, 10-year minus 2-year"],
-    real_mort: [1, "%", 2], mort_sprd: [1, "pt", 2], vix: [1, "", 1, "VIX"], eq_dd: [1, "%", 1], usd: [1, "% y/y", 1, "Trade-weighted dollar, change"],
-    pc_dd: [1, "%", 1], pc_rel: [-1, "pt", 1, "BDCs vs high-yield bonds, 13-week return"], pc_ndfi: [-1, "% y/y", 1, "Bank loans to nonbank lenders, growth"]
+    real_mort: [1, "%", 2], mort_sprd: [1, "pt", 2], vix: [1, "", 1, "VIX"], usd: [1, "% y/y", 1, "Trade-weighted dollar, change"],
+    pc_ndfi: [-1, "% y/y", 1, "Bank loans to nonbank lenders, growth"]
   };
   var bust = "?v=" + new Date().toISOString().slice(0, 13).replace(/\D/g, "");
   function fmt(v, d) { return (v > 0 ? "+" : v < 0 ? "−" : "") + Math.abs(v).toFixed(d === undefined ? 2 : d); }
@@ -419,11 +414,6 @@
       });
     });
     document.getElementById("t-inp").innerHTML = html;
-    // ICE BofA spreads
-    var sp = document.getElementById("spreads");
-    sp.innerHTML = Object.keys(d.show_only).map(function (k, j) { var s = d.show_only[k];
-      return "<div><b>" + s.label + "</b><div class='d' style='font-size:.9rem;color:#3d3b37'>" + s.last.toFixed(2) + " pt on " + s.asof + " · " + ord(s.pct_3y) +
-        " percentile of the last 3 years (range " + s.min_3y.toFixed(2) + "–" + s.max_3y.toFixed(2) + ")</div><div class='chart' id='sp" + j + "'></div></div>"; }).join("");
     var dy = d.daily;
     if (dy) {
       document.getElementById("daily-card").hidden = false;
@@ -445,32 +435,11 @@
     var pv = d["private"];
     if (pv) {
       document.getElementById("pc-card").hidden = false;
-      var PCC = { ARCC: "#1f5fa8", MAIN: "#23874f", FSK: "#c2394b", OBDC: "#d97a0b", BXSL: "#7b3fa0", BIZD: "#1c1c1a" };
-      var trd = Object.keys(pv.dd).map(function (t) { var s = xy(pv.dd[t]);
-        return { x: s.x, y: s.y.map(function (v) { return -v; }), name: t + (t === "BIZD" ? " (BDC ETF)" : ""), line: { color: PCC[t] || "#888", width: t === "BIZD" ? 2.4 : 1.4, dash: t === "BIZD" ? "dot" : "solid" },
-                 hovertemplate: "%{y:.1f}%<extra>" + t + "</extra>" }; });
-      Plotly.react("c-pc-dd", trd, L({ yaxis: { gridcolor: "#eee", zeroline: true, zerolinecolor: "#888", title: { text: "% below 52-week high" } } }), CFG);
       var nl = pv.ndfi;
       Plotly.react("c-pc-ndfi", [
         { x: nl.map(function (r) { return r[0]; }), y: nl.map(function (r) { return r[1]; }), name: "loans, $ billion", line: { color: "#7b3fa0", width: 2 }, hovertemplate: "$%{y:,.0f}B<extra>loans</extra>" },
         { x: nl.map(function (r) { return r[0]; }), y: nl.map(function (r) { return r[2]; }), name: "growth, % y/y (right)", yaxis: "y2", line: { color: "#d97a0b", width: 1.4 }, hovertemplate: "%{y:+.1f}%<extra>y/y</extra>" }
       ], L({ yaxis: { gridcolor: "#eee", title: { text: "$ billion" } }, yaxis2: { overlaying: "y", side: "right", showgrid: false, title: { text: "% y/y" }, zeroline: false } }), CFG);
-    }
-    var hn = d.hy_nowcast;
-    Object.keys(d.show_only).forEach(function (k, j) { var s = xy(d.show_only[k].series), tr2 = [{ x: s.x, y: s.y, name: "official", line: { color: "#2c4a72", width: 1.8 }, hovertemplate: "%{y:.2f} pt<extra>official</extra>" }];
-      if (k === "BAMLH0A0HYM2" && hn) {
-        tr2.push({ x: hn.track.map(function (r) { return r[0]; }), y: hn.track.map(function (r) { return r[2]; }), name: "ETF estimate", mode: "markers",
-                   marker: { color: "#d97a0b", size: 4 }, hovertemplate: "%{y:.2f} pt<extra>HYG/IEI estimate</extra>" });
-        if (hn.estimate) tr2.push({ x: [hn.estimate.date], y: [hn.estimate.value], name: "today", mode: "markers", marker: { color: "#d97a0b", size: 11, symbol: "diamond", line: { color: "#000", width: 1 } },
-                   hovertemplate: "%{y:.2f} pt<extra>estimate, not yet on FRED</extra>" });
-      }
-      Plotly.react("sp" + j, tr2, L({ margin: { l: 40, r: 10, t: 8, b: 30 }, showlegend: false, yaxis: { gridcolor: "#eee", title: { text: "pt" } } }), CFG); });
-    if (hn && hn.estimate) {
-      document.getElementById("hy-now").innerHTML = "<b>High-yield spread, real-time estimate for " + hn.estimate.date + ": " + hn.estimate.value.toFixed(2) + " pt</b> (" +
-        (hn.estimate.value - hn.official.value >= 0 ? "+" : "−") + Math.round(Math.abs(hn.estimate.value - hn.official.value) * 100) + " bp on the last official value, " +
-        hn.official.value.toFixed(2) + " pt on " + hn.official.date + "). From the day's return on the HYG high-yield ETF against IEI (3–7-year Treasuries), " +
-        "re-anchored to the official ICE BofA series every time FRED posts it. Out of sample over the last " + hn.oos.days + " trading days it was off by " +
-        hn.oos.rmse_bp.toFixed(1) + " bp a day on average (carrying the previous official value: " + hn.oos.no_change_bp.toFixed(1) + " bp). Orange dots on the chart: each day's estimate.";
     }
   }).catch(function (e) {
     document.getElementById("tiles").innerHTML = "<p class='note'>The index data could not be loaded. Reload the page to try again.</p>";
