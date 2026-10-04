@@ -1817,7 +1817,11 @@
     if (!$("sta").checked) return;
     if (!APTS) { loadApts(); return; }
     var kpp = view.s / 1000, maxTier = kpp > 2.2 ? 1 : 2, labTier = [2, kpp > 1.2 ? 1 : 2, kpp > 0.7 ? 1 : 2][Q.lvl];
-    var FONT = "600 11px 'Source Sans 3', Arial, sans-serif", G = 48, grid = new Map();
+    // label size follows the zoom (2026-10-04, user: on a big laptop screen "the city font size is tiny ... and it doesn't
+    // change when I zoom"): 13 px at the national view up to 19 px zoomed into a city, +1 on very wide windows
+    var LS = Math.round(Math.max(13, Math.min(19, 13 + 1.7 * Math.log2(Math.max(1, 3.2 / (view.s / 1000))))) + (W >= 1500 ? 1 : 0)), K = LS / 11;
+    var FONT = "600 " + LS + "px 'Source Sans 3', Arial, sans-serif", G = 48, grid = new Map();
+    var TDF = "700 " + (LS + 1) + "px 'Source Sans 3', Arial, sans-serif";
     function hits(b) {
       for (var gx = Math.floor(b[0] / G); gx <= Math.floor(b[2] / G); gx++) for (var gy = Math.floor(b[1] / G); gy <= Math.floor(b[3] / G); gy++) {
         var L = grid.get(gx * 4096 + gy); if (!L) continue;
@@ -1846,23 +1850,23 @@
       var px = v[0], py = v[1], a = v[2];
       aptShown.push(v);
       if (a[4] <= labTier && tdv && tdv[a[2]]) {           // the numbers first, above the marker; the code label then avoids them
-        ctx.font = TD_FONT;
+        ctx.font = TDF;
         var tv = tdv[a[2]], ts = Math.round(tv[0]) + "", ds = tv[1] === tv[1] ? Math.round(tv[1]) + "" : "",
-            tws = textW(ctx, TD_FONT, ts), dws = ds ? textW(ctx, TD_FONT, ds) : 0, gap = ds ? 5 : 0, wt = tws + gap + dws,
-            nb = [px - wt / 2 - 2, py - 22, px + wt / 2 + 2, py - 8];
+            tws = textW(ctx, TDF, ts), dws = ds ? textW(ctx, TDF, ds) : 0, gap = ds ? 5 * K : 0, wt = tws + gap + dws,
+            nb = [px - wt / 2 - 2, py - 22 * K, px + wt / 2 + 2, py - 8 * K];
         if (hits(nb)) ctx.font = FONT;
         else {
-          add(nb); ctx.textAlign = "left"; var xs = px - wt / 2, yy = py - 15;
+          add(nb); ctx.textAlign = "left"; var xs = px - wt / 2, yy = py - 15 * K;
           ctx.strokeText(ts, xs, yy); ctx.fillStyle = "#c62828"; ctx.fillText(ts, xs, yy);
           if (ds) { ctx.strokeText(ds, xs + tws + gap, yy); ctx.fillStyle = "#1b7a2e"; ctx.fillText(ds, xs + tws + gap, yy); }
           ctx.font = FONT; ctx.fillStyle = "#141614";
         }
       }
       if (a[4] <= labTier) {
-        var tw = a.tw || (a.tw = textW(ctx, FONT, a[2])), spots = [[px + 7, py, "left"], [px - 7, py, "right"], [px, py - 11, "center"], [px, py + 11, "center"]];
+        var tw = textW(ctx, FONT, a[2]), spots = [[px + 7 * K, py, "left"], [px - 7 * K, py, "right"], [px, py - 11 * K, "center"], [px, py + 11 * K, "center"]];
         for (var k = 0; k < spots.length; k++) {
           var sx = spots[k][0], sy = spots[k][1], al = spots[k][2];
-          var x0 = al === "left" ? sx : al === "right" ? sx - tw : sx - tw / 2, b = [x0 - 2, sy - 7, x0 + tw + 2, sy + 7];
+          var x0 = al === "left" ? sx : al === "right" ? sx - tw : sx - tw / 2, b = [x0 - 2, sy - 7 * K, x0 + tw + 2, sy + 7 * K];
           if (hits(b)) continue;
           add(b); ctx.textAlign = al;
           ctx.strokeText(a[2], sx, sy); ctx.fillText(a[2], sx, sy);
