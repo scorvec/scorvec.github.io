@@ -76,17 +76,18 @@ def fetch(sid, cache: Path, max_age_h=6.0):
     """One FRED series as a float Series indexed by date (cached; a failed refresh falls back to the cache)."""
     fp = cache / f"{sid}.csv"
     if not fp.exists() or time.time() - fp.stat().st_mtime > max_age_h * 3600:
-        for attempt in range(4):
+        for attempt in range(6):
             try:
-                req = urllib.request.Request(FRED.format(sid), headers={"User-Agent": "scorvec-fci/1.0"})
-                with urllib.request.urlopen(req, timeout=60) as r:
+                # FRED hangs some clients (oil board notes: a browser UA never answers); curl's UA is the one that works
+                req = urllib.request.Request(FRED.format(sid), headers={"User-Agent": "curl/8.4.0", "Accept": "*/*"})
+                with urllib.request.urlopen(req, timeout=25) as r:
                     txt = r.read().decode()
                 if not txt.startswith("observation_date"):
                     raise ValueError("not a FRED csv")
                 fp.write_text(txt)
                 break
             except Exception as e:                                   # noqa: BLE001
-                if attempt == 3:
+                if attempt == 5:
                     if not fp.exists():
                         raise
                     print(f"  {sid}: refresh failed ({e}); using the cache", flush=True)
@@ -181,7 +182,9 @@ def main():
     a = ap.parse_args()
     cache = Path(a.cache); cache.mkdir(parents=True, exist_ok=True)
     out = Path(a.out); out.mkdir(parents=True, exist_ok=True)
-    raw = {s: fetch(s, cache) for s in SERIES}
+    raw = {}
+    for s in SERIES:                                             # one at a time, gently: FRED throttles bursts
+        raw[s] = fetch(s, cache); time.sleep(0.5)
     X = build_inputs(raw)
     mu, sd, w, share, scale, nfit = fit_pca(X)
     idx, cover, contrib, Z = index_from(X, mu, sd, w, scale)
