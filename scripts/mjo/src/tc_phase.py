@@ -215,17 +215,26 @@ def render(rows, init, out_png):
                     labels.append(("merges into another low", (x[jm], y[jm]), True))
             ax.scatter(x[:1], y[:1], marker="o", s=110, facecolors="none", edgecolors="#000", lw=1.6, zorder=4)
             ax.scatter(x[-1:], y[-1:], marker="X", s=90, color="#000", zorder=4)
-            labels[:0] = [(f"start (+{ser['h'][0]} h)", (x[0], y[0]), False), (f"end (+{ser['h'][-1]} h)", (x[-1], y[-1]), False)]
+            labels[:0] = [(f"start, {TC.date_lab(init, ser['h'][0] / 24, 'short')}", (x[0], y[0]), False),
+                          (f"end, {TC.date_lab(init, ser['h'][-1] / 24, 'short')}", (x[-1], y[-1]), False)]
+            hh = np.asarray(ser["h"])                          # 2026-10-04: a date at every second day's point
+            for kd in range(2, int(hh[-1] // 24), 2):
+                jj = np.where(hh == 24 * kd)[0]
+                if len(jj):
+                    labels.append((TC.date_lab(init, kd, "short"), (x[jj[0]], y[jj[0]]), True))
             ax.set_xlim(*xr); ax.set_ylim(*yr)
             place_labels(fig, ax, labels, caps)
             ax.set_xlabel(xl, fontsize=9.5); ax.set_ylabel(yl, fontsize=9.5); ax.grid(alpha=0.3)
         et = []
         if onset is not None: et.append(f"ET onset +{onset} h (B > 10 m)")
         if comp is not None: et.append(f"ET complete +{comp} h (−VT_L < 0)")
+        if onset is not None: et[0] = f"ET onset {TC.date_lab(init, onset / 24, 'short')} (B > 10 m)"
+        if comp is not None: et[-1] = f"ET complete {TC.date_lab(init, comp / 24, 'short')} (−VT_L < 0)"
         axs[r][0].set_title(f"{TC.label(s)}: " + ("; ".join(et) if et else "no extratropical transition in the control's track"),
                             loc="left", fontsize=11, fontweight="bold")
     cax = fig.add_axes([0.932, 0.25, 0.012, 0.5])
-    cb = fig.colorbar(plt.cm.ScalarMappable(norm=norm, cmap=cmap), cax=cax); cb.set_label("forecast day")
+    cb = fig.colorbar(plt.cm.ScalarMappable(norm=norm, cmap=cmap), cax=cax); cb.set_label("valid date (UTC) and forecast day")
+    cb.set_ticks(range(0, 16, 2)); cb.set_ticklabels([TC.date_lab(init, d, "one").replace(" (", "\n(") for d in range(0, 16, 2)], fontsize=7.6)
     fig.text(0.075, 0.004, "Axes fitted to each storm's track. Thermal wind = slope of the height perturbation (max − min within 500 km) against ln p; "
              "positive = warm core; 24-h running mean.\nLevels 925/850/700/600 and 600/500/400/300 hPa (open data; Hart used 900–600 every 25 hPa).\n"
              "Solid: ECMWF's tracker. Dashed, open dots: the low followed on as the surface-pressure minimum after the tracker's last fix,\n"

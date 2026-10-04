@@ -186,6 +186,10 @@
 .tcp-map .trk.sel{stroke-width:3.6;opacity:1}
 .tcp-map .hit{fill:none;stroke:transparent;stroke-width:18;cursor:pointer}
 .tcp-map .dot{stroke:#fff;stroke-width:1.5;cursor:pointer}
+.tcp-when{margin:8px 0 0;font-size:1.02rem;color:var(--tk)}
+.tcp-when b{font-weight:600}
+.tcp-map .dd{stroke:#fff;stroke-width:.8}
+.tcp-map .dl{font:600 11px "Source Sans 3",sans-serif;paint-order:stroke;stroke:#fff;stroke-width:3px;fill:#333;pointer-events:none}
 .tcp-map .lead{stroke-width:1;opacity:.7}
 .tcp-map .lab{font:600 13px "Source Sans 3",sans-serif;paint-order:stroke;stroke:#fff;stroke-width:3px;fill:var(--tk);cursor:pointer}
 .tcp-hint{margin:6px 0 10px;color:var(--tm);font-size:.95rem}
@@ -199,7 +203,8 @@
 .tcp-empty{padding:24px;color:var(--tm);text-align:center}
 </style>
 <div class="tcp-map" id="tcp-map" aria-label="Map of the active tropical storms; select one to see its forecasts"><div class="tcp-empty">Loading the storms…</div></div>
-<p class="tcp-hint">Click or tap a storm on the map (or a name below) to see its forecasts. Lines: the AIFS-ENS control's track; the dot is where each storm is now.</p>
+<p class="tcp-when" id="tcp-when"></p>
+<p class="tcp-hint">Click or tap a storm on the map (or a name below) to see its forecasts. Lines: the AIFS-ENS control's track (IFS-ENS: the member nearest the others), small dots every 24 hours, dates on the selected storm. Filled dot: where the storm is now; hollow dot: where a developing system is first tracked, later in the forecast.</p>
 <div class="tcp-row" id="tcp-storms" role="group" aria-label="Storms"></div>
 <div class="tcp-row" id="tcp-views" role="group" aria-label="View"></div>
 <div class="tcp-fig" id="tcp-fig"></div>
@@ -210,7 +215,13 @@
   var COLORS = ["#c2394b", "#1f5fa8", "#23874f", "#9a3f8f", "#d97a0b", "#2a8a9a", "#6b4f2a", "#b5179e", "#3d5a80", "#7a7a00"];
   var VIEWS = [["tracks", "Ensemble tracks"], ["phase", "Phase space"], ["depth", "How deep it gets"]];
   var bust = "?v=" + new Date().toISOString().slice(0, 13).replace(/\D/g, "");
-  var S = [], land = null, ready = false;
+  var S = [], land = null, ready = false, INIT = null;
+  // valid time of forecast hour h, UTC (2026-10-04, user: "no indication of time on any of these plots")
+  function when(h, long) {
+    var t = new Date(INIT + h * 3600e3), D = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"], M = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    var hh = t.getUTCHours() ? " " + String(t.getUTCHours()).padStart(2, "0") + "Z" : "";
+    return (long ? D[t.getUTCDay()] + " " : "") + t.getUTCDate() + " " + M[t.getUTCMonth()] + (long ? (hh || " 00Z") : hh);
+  }
   function J(u) { return fetch(u + bust).then(function (r) { return r.ok ? r.json() : null; }).catch(function () { return null; }); }
   function script(src) { return new Promise(function (ok, no) { var s = document.createElement("script"); s.src = src; s.onload = ok; s.onerror = no; document.head.appendChild(s); }); }
   function state() {   // #tcens/<id>[/depth] or #tcphase/<id>
@@ -225,19 +236,29 @@
     var by = {}, out = [];
     (ens && ens.storms || []).forEach(function (s) {
       var p = {}; Object.keys(s.models || {}).forEach(function (m) { p[m] = s.models[m].p_recurve; });
+      var gen = {}; Object.keys(s.models || {}).forEach(function (m) { if (s.models[m].genesis_h_p10_p50_p90) gen[m] = s.models[m].genesis_h_p10_p50_p90; });
       var o = { id: s.id, key: s.key, name: s.name, named: s.named !== false, short: s.named === false ? "new " + s.id : s.name,
-                track: s.track || null, files: { tracks: s.tracks_file, depth: s.depth_file }, p: p };
+                track: s.track || null, files: { tracks: s.tracks_file, depth: s.depth_file }, p: p, gen: gen };
       if (!by[s.id]) { by[s.id] = o; out.push(o); }
     });
     (ph && ph.storms || []).forEach(function (s) {
       var o = by[s.id];
       if (!o) { o = by[s.id] = { id: s.id, name: s.name, named: true, short: s.name, files: {}, p: {} }; out.push(o); }
       o.files.phase = s.file;
-      if (!o.track && s.series) o.track = { lat: s.series.lat, lon: s.series.lon, h: s.series.h };
+      if (!o.track && s.series) o.track = { lat: s.series.lat, lon: s.series.lon, h: s.series.h, model: "aifs", member: 0 };
     });
     return out.filter(function (o) { return o.track && o.track.lat && o.track.lat.length; });
   }
   function wrap(d) { return ((d + 540) % 360) - 180; }
+  function timeline(s) {
+    var hs = s.track.h || [], mdl = s.track.model === "ifs" ? "IFS-ENS" : "AIFS-ENS",
+        ref = s.track.member ? "an " + mdl + " member (the one nearest the others)" : "the " + mdl + " control";
+    var txt = "<b>" + s.name + "</b>: the line is " + ref + ", " + when(hs[0], true) + " to " + when(hs[hs.length - 1], true) + ".";
+    var g = Object.keys(s.gen || {});
+    if (g.length) txt += " Reaches tropical-storm strength (17 m/s) " + g.map(function (m) {
+      var q = s.gen[m]; return "around " + when(q[1], true) + " in " + (m === "aifs" ? "AIFS-ENS" : "IFS-ENS") + " (10–90 %: " + when(q[0]) + " – " + when(q[2]) + ")"; }).join("; ") + ".";
+    return txt;
+  }
   function drawMap() {
     var host = document.getElementById("tcp-map");
     if (!S.length) { host.innerHTML = '<div class="tcp-empty">No tropical storms in the Northern Hemisphere in this cycle.</div>'; return; }
@@ -296,11 +317,29 @@
     S.forEach(function (s, i) {
       var col = COLORS[i % COLORS.length], sel = s.id === st.id, pts = s.rel.map(function (r, j) { return X(r) + "," + Y(s.track.lat[j]); }).join(" ");
       var L = labs[i], d = dots[i], lx = Math.min(Math.max(d[0], L.b[0]), L.b[2]), ly = Math.min(Math.max(d[1], L.b[1]), L.b[3]);
-      svg += '<g data-id="' + s.id + '"><title>' + s.name + '</title><polyline class="hit" points="' + pts + '"/><polyline class="trk' + (sel ? " sel" : "") + '" stroke="' + col + '" points="' + pts + '"/>' +
+      var hs = s.track.h || [], dd = "", later = (hs[0] || 0) > 0;
+      hs.forEach(function (h, j) { if (h > 0 && h % 24 === 0) dd += '<circle class="dd" r="' + (sel ? 3.6 : 2.6) + '" fill="' + col + '" cx="' + X(s.rel[j]) + '" cy="' + Y(s.track.lat[j]) + '"/>'; });
+      svg += '<g data-id="' + s.id + '"><title>' + s.name + (later ? " (first tracked " + when(hs[0], true) + ")" : "") + '</title><polyline class="hit" points="' + pts + '"/><polyline class="trk' + (sel ? " sel" : "") + '" stroke="' + col + '" points="' + pts + '"/>' + dd +
              (L.far ? '<line class="lead" x1="' + d[0] + '" y1="' + d[1] + '" x2="' + lx.toFixed(1) + '" y2="' + ly.toFixed(1) + '" stroke="' + col + '"/>' : "") +
-             '<circle class="dot" r="' + (sel ? 8 : 6) + '" fill="' + col + '" cx="' + d[0] + '" cy="' + d[1] + '"/>' +
+             '<circle class="dot" r="' + (sel ? 8 : 6) + '" fill="' + (later ? "#fff" : col) + '"' + (later ? ' style="stroke:' + col + ';stroke-width:2.6"' : "") + ' cx="' + d[0] + '" cy="' + d[1] + '"/>' +
              '<text class="lab" x="' + L.x.toFixed(1) + '" y="' + L.y.toFixed(1) + '">' + s.short + "</text></g>";
     });
+    // dates along the selected storm's track, wherever they clear the labels already placed
+    var ss = S.filter(function (x) { return x.id === st.id; })[0] || S[0];
+    if (ss && INIT !== null) {
+      var hs2 = ss.track.h || [], every = hs2.length && hs2[hs2.length - 1] - hs2[0] > 8 * 24 ? 48 : 24, dl = "";
+      hs2.forEach(function (h, j) {
+        if (!(h > 0 && h % every === 0)) return;
+        var px = +X(ss.rel[j]), py = +Y(ss.track.lat[j]), t = when(h), w2 = tw(t) * 11 / 13;
+        [[6, -5], [-6 - w2, -5], [6, 13], [-6 - w2, 13]].some(function (c) {
+          var b = [px + c[0], py + c[1] - 9, px + c[0] + w2, py + c[1] + 2];
+          if (b[0] < 2 || b[2] > W - 2 || b[1] < 2 || b[3] > H - 16) return false;
+          for (var q = 0; q < boxes.length; q++) { var o = boxes[q]; if (b[0] < o[2] + 2 && b[2] > o[0] - 2 && b[1] < o[3] + 1 && b[3] > o[1] - 1) return false; }
+          boxes.push(b); dl += '<text class="dl" x="' + b[0].toFixed(1) + '" y="' + (py + c[1]).toFixed(1) + '">' + t + "</text>"; return true;
+        });
+      });
+      svg += dl;
+    }
     host.innerHTML = svg + "</g></svg>";
     host.querySelectorAll("g[data-id]").forEach(function (el) { el.addEventListener("click", function () { go(el.getAttribute("data-id"), state().view); }); });
   }
@@ -319,6 +358,8 @@
     document.getElementById("tcp-views").innerHTML = s ? VIEWS.map(function (v) {
       var has = !!s.files[v[0]]; return '<button type="button" data-v="' + v[0] + '" aria-pressed="' + (st.view === v[0]) + '"' + (has ? "" : " disabled title=\"Not available for this storm in this cycle\"") + ">" + v[1] + "</button>"; }).join("") : "";
     document.querySelectorAll("#tcp-views button").forEach(function (b) { b.onclick = function () { go(s.id, b.getAttribute("data-v")); }; });
+    var whenEl = document.getElementById("tcp-when");
+    if (whenEl) whenEl.innerHTML = s && INIT !== null ? timeline(s) : "";
     var fig = document.getElementById("tcp-fig");
     if (!s) { fig.innerHTML = ""; return; }
     var f = s.files[st.view];
@@ -332,6 +373,8 @@
       (pr ? "<p>Share of members that recurve: " + pr + ".</p>" : "");
   }
   Promise.all([J("assets/sst/data/tcens.json"), J("assets/sst/data/tcphase.json")]).then(function (r) {
+    var ini = (r[0] && r[0].init) || (r[1] && r[1].init); INIT = ini ? Date.parse(ini.replace("Z", ":00Z").replace(/:00:00Z$/, ":00Z")) : null;
+    if (INIT !== null && isNaN(INIT)) INIT = Date.parse(ini);
     S = merge(r[0], r[1]); ready = true; render();
     return script("https://cdn.jsdelivr.net/npm/topojson-client@3/dist/topojson-client.min.js").then(function () { return fetch("https://cdn.jsdelivr.net/npm/world-atlas@2/land-110m.json"); })
       .then(function (r) { return r.json(); }).then(function (t) {

@@ -209,6 +209,32 @@ def within(lat, lon, clat, clon, r_km) -> np.ndarray:
 COLS = ["#c0392b", "#1f5fa8", "#23874f", "#8e44ad", "#d35400", "#16a085", "#7f8c8d", "#b7950b"]
 
 
+def date_lab(init, d, fmt="two"):
+    """Valid-time label for forecast day d (2026-10-04, user: "no indication of time on any of these plots").
+    two: 'Tue 6 Oct\nday 2'; one: 'Tue 6 Oct (day 2)'; short: '6 Oct'. The hour is shown when the run is not a 00Z one."""
+    import pandas as pd
+    t = pd.Timestamp(init) + pd.Timedelta(hours=round(float(d) * 24))
+    hh = "" if t.hour == 0 else f" {t:%H}Z"
+    if fmt == "short":
+        return f"{t.day} {t:%b}{hh}"
+    if fmt == "stack":
+        return f"{t.day} {t:%b}{hh}\nday {float(d):g}"
+    if fmt == "one":
+        return f"{t:%a} {t.day} {t:%b}{hh} (day {float(d):g})"
+    return f"{t:%a} {t.day} {t:%b}{hh}\nday {float(d):g}"
+
+
+def date_axis(ax, init, dmax, axis="x", step=None, fmt=None):
+    """Integer forecast days on an axis, labelled with their valid dates."""
+    step = step or (1 if dmax <= 8 else 2)
+    ticks = np.arange(0, float(dmax) + 1e-6, step)
+    labs = [date_lab(init, t, fmt or ("two" if axis == "x" else "one")) for t in ticks]
+    if axis == "x":
+        ax.set_xticks(ticks); ax.set_xticklabels(labs, fontsize=8.6)
+    else:
+        ax.set_yticks(ticks); ax.set_yticklabels(labs, fontsize=8.6)
+
+
 def render_card(storms, idx, v250, lat, lon, steps, init, out_png: Path, out_json: Path, band=(35.0, 60.0), lon0=100.0):
     """Two panels: the outflow index per storm against lead, and a Hovmöller of 250 hPa v (35-60N) with the storms'
     longitudes and recurvature points, so a wave packet launched by a recurving storm can be followed downstream."""
@@ -243,7 +269,8 @@ def render_card(storms, idx, v250, lat, lon, steps, init, out_png: Path, out_jso
         if r is not None and r in idx.get(s["id"], {}):
             ax1.plot([r / 24], [idx[s["id"]][r]], marker="*", ms=17, color=c, mec="#000", mew=0.8, zorder=5)
     ax1.set_xlim(0, days[-1] if len(days) else 10); ax1.set_ylim(bottom=0)
-    ax1.set_xlabel("forecast day"); ax1.set_ylabel("PVU per day")
+    date_axis(ax1, init, days[-1] if len(days) else 10, "x")
+    ax1.set_xlabel("valid date (UTC) and forecast day"); ax1.set_ylabel("PVU per day")
     ax1.set_title("Outflow–jet interaction: negative PV advection by the storm's irrotational outflow, 300–200 hPa, within 500 km"
                   "\n★ recurvature · dashed, open circles: the post-tropical low, followed after the tracker's last fix"
                   + (" · ◆ it merges into another low" if any_merge else ""), fontsize=10.5, loc="left")
@@ -268,6 +295,7 @@ def render_card(storms, idx, v250, lat, lon, steps, init, out_png: Path, out_jso
     from matplotlib.colors import LinearSegmentedColormap
     cmap = LinearSegmentedColormap.from_list("pk", ["#ffffff", "#fde9b6", "#fbbf5e", "#f08a2c", "#d4501f", "#9e2117", "#5c0d17"])
     cf = ax2.contourf(lon_s[o], days, hov[:, o], levels=np.arange(0, 41, 4), cmap=cmap, extend="max")
+    date_axis(ax2, init, days[-1], "y")
     ax2.set_ylim(days[-1], 0)
     tick = np.arange(lon0, lon0 + 361, 30)
     ax2.set_xticks(tick); ax2.set_xticklabels([f"{int(((t + 180) % 360) - 180)}°" for t in tick])
@@ -308,7 +336,7 @@ def render_card(storms, idx, v250, lat, lon, steps, init, out_png: Path, out_jso
         ax2.text(0.5, 0.04, f"No storm reaches {MIDLAT:.0f}°N in the control run within day {days[-1]:.0f}",
                  transform=ax2.transAxes, ha="center", fontsize=11, color="#444",
                  bbox=dict(boxstyle="round", fc="#fff", ec="#bbb"))
-    ax2.set_ylabel("forecast day  (time runs down)"); ax2.set_xlabel("longitude  (east is to the right)")
+    ax2.set_ylabel("valid date, UTC  (time runs down)"); ax2.set_xlabel("longitude  (east is to the right)")
     ax2.set_title(f"Wave packets along the jet: strength of the 250 hPa trough/ridge pattern, {band[0]:.0f}–{band[1]:.0f}°N (m/s)\n"
                   f"Bright streaks = packets of strong troughs and ridges, moving east as they slant down.\n"
                   f"Coloured lines: the storms' longitudes once north of {MIDLAT:.0f}°N (dashed: the post-tropical low"

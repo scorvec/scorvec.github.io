@@ -583,6 +583,37 @@ def _stormlab(s):
     return f"possible new storm, {s['region']} ({s['id']})" if s.get("region") else f"possible new storm ({s['id']})"
 
 
+def genesis_h(t):
+    """Hour a member track first reaches tropical-storm strength, or None."""
+    w = np.nan_to_num(t["wind"], nan=0.0)
+    return int(t["steps"][int(np.argmax(w >= TS_WIND))]) if (w >= TS_WIND).any() else None
+
+
+def ref_member(tracks):
+    """The member drawn thick and dated: the AIFS control where there is one, else the member nearest the others
+    (mean distance over the 24-hourly positions it shares with them) - IFS-ENS open data carries no control track."""
+    if 0 in tracks:
+        return 0
+    keys = list(tracks)
+    if len(keys) < 3:
+        return keys[0]
+    best, bd = keys[0], np.inf
+    for k in keys:
+        ds = []
+        for h in range(0, int(tracks[k]["steps"][-1]) + 1, 24):
+            a = TC.at(tracks[k], h)
+            if a is None:
+                continue
+            for o in keys:
+                if o != k:
+                    b = TC.at(tracks[o], h)
+                    if b is not None:
+                        ds.append(TC._km(a[0], a[1], b[0], b[1]))
+        if len(ds) > 10 and np.mean(ds) < bd:
+            best, bd = k, float(np.mean(ds))
+    return best
+
+
 def render_tracks(storms: list[dict], st: dict, init, out_png: Path):
     import cartopy.crs as ccrs
     import cartopy.feature as cfeature
@@ -618,38 +649,82 @@ def render_tracks(storms: list[dict], st: dict, init, out_png: Path):
                 ax.text(0.5, 0.5, f"not in {MLAB[m]}", transform=ax.transAxes, ha="center", color="#6f6b64")
                 continue
             rec = st[s["key"]][m]["recurve"]
+            kref = ref_member(S["tracks"])
             for k, t in S["tracks"].items():
                 r = rec.get(k)
                 col = "#9a9a9a" if r is None else cmap(norm(r / 24))
-                ax.plot(t["lon"], t["lat"], color=col, lw=2.0 if k == 0 else 0.9, alpha=0.95 if k == 0 else 0.75,
-                        transform=ccrs.Geodetic(), zorder=4 if r is not None else 3)
+                ax.plot(t["lon"], t["lat"], color=col, lw=0.9, alpha=0.75, transform=ccrs.Geodetic(), zorder=4 if r is not None else 3)
+                dd = [TC.at(t, h) for h in range(24, int(t["steps"][-1]) + 1, 24)]          # a dot every 24 h: the timeline
+                dd = np.array([q for q in dd if q is not None])
+                if len(dd):
+                    ax.plot(dd[:, 1], dd[:, 0], ls="none", marker="o", ms=1.9, color=col, alpha=0.8, transform=ccrs.PlateCarree(), zorder=4)
                 if r is not None:
                     pos = TC.at(t, r)
                     ax.plot(pos[1], pos[0], marker="o", ms=3.2, color=col, mec="#000", mew=0.3, transform=ccrs.PlateCarree(), zorder=5)
-            t0 = next(iter(S["tracks"].values()))
-            ax.plot(t0["lon"][0], t0["lat"][0], marker="X", ms=11, color="#000", transform=ccrs.PlateCarree(), zorder=6)
+                if not s["named"]:
+                    g = genesis_h(t)
+                    if g is not None:
+                        pg = TC.at(t, g)
+                        ax.plot(pg[1], pg[0], marker="D", ms=3.6, mfc="#fff", mec="#222", mew=0.6, transform=ccrs.PlateCarree(), zorder=6)
+            tr0 = S["tracks"][kref]                                            # the dated reference line
+            r0 = rec.get(kref)
+            ax.plot(tr0["lon"], tr0["lat"], color="#111", lw=3.4, transform=ccrs.Geodetic(), zorder=7)
+            ax.plot(tr0["lon"], tr0["lat"], color="#9a9a9a" if r0 is None else cmap(norm(r0 / 24)), lw=2.0, transform=ccrs.Geodetic(), zorder=7)
+            import matplotlib.patheffects as pe
+            last = []
+            for kd in range(1, int(tr0["steps"][-1] // 24) + 1):
+                q = TC.at(tr0, 24 * kd)
+                if q is None:
+                    continue
+                ax.plot(q[1], q[0], marker="o", ms=5, mfc="#fff", mec="#111", mew=1.0, transform=ccrs.PlateCarree(), zorder=8)
+                xy = ax.projection.transform_point(q[1], q[0], ccrs.PlateCarree())
+                disp = ax.transData.transform(xy)
+                if any(np.hypot(*(disp - o)) < 34 for o in last):                         # skip a label that would overlap
+                    continue
+                last.append(disp)
+                ax.annotate(TC.date_lab(init, kd, "short"), xy, xytext=(5, 4), textcoords="offset points", fontsize=7.6,
+                            fontweight="bold", color="#111", zorder=9, path_effects=[pe.Stroke(linewidth=2.4, foreground="#fff"), pe.Normal()])
+            ax.plot(tr0["lon"][0], tr0["lat"][0], marker="X", ms=11, color="#000", transform=ccrs.PlateCarree(), zorder=9)
             q = st[s["key"]][m]
-            ax.set_title(f"{_stormlab(s)} · {MLAB[m]}: {q['n_tracked']} of {q['n_members']} members tracked, "
+            ax.set_title(f"{MLAB[m]}: {q['n_tracked']} of {q['n_members']} members tracked, "
                          f"{100 * q['p_recurve']:.0f}% recurve", fontsize=10.5, loc="left")
-        ax = fig.add_axes([0.71, top - (i + 1) * rh + 0.12 * rh, 0.27, 0.74 * rh])
+            if c == 0:                                  # the storm's name once per row, above both maps
+                fig.text(0.035, top - i * rh + 0.3 / H, _stormlab(s), fontsize=12.5, fontweight="bold", va="top")
+        ax = fig.add_axes([0.71, top - (i + 1) * rh + 0.16 * rh, 0.27, 0.70 * rh])
         width = 0.42
+        gtxt = []
         for c, (m, colr) in enumerate((("aifs", "#1f5fa8"), ("ifs", "#c0392b"))):
             if m not in s["models"]:
                 continue
             q = st[s["key"]][m]
-            d = np.array([r / 24 for r in q["recurve"].values() if r is not None])
+            if s["named"]:
+                d = np.array([r / 24 for r in q["recurve"].values() if r is not None])
+                lab = f"{MLAB[m]} recurves ({100 * q['p_recurve']:.0f}%)"
+            else:                                       # a developing system: WHEN members reach tropical-storm strength
+                d = np.array([g / 24 for g in (genesis_h(t) for t in s["models"][m]["tracks"].values()) if g is not None])
+                lab = f"{MLAB[m]}: {len(d)} of {q['n_members']} members"
+                if len(d):
+                    p10, p50, p90 = np.percentile(d, [10, 50, 90])
+                    lab += (f"\n  median {TC.date_lab(init, p50, 'short')}; 10–90 %: {TC.date_lab(init, p10, 'short')}"
+                            f" – {TC.date_lab(init, p90, 'short')}")
             h_, _ = np.histogram(d, bins=np.arange(0, 16))
-            ax.bar(np.arange(15) + 0.5 + (c - 0.5) * width, 100 * h_ / q["n_members"], width=width, color=colr, alpha=0.85,
-                   label=f"{MLAB[m]} recurves ({100 * q['p_recurve']:.0f}%)")
-            endd = np.array([e / 24 for e in q["ended"].values()])
-            frac = [100 * np.sum(endd < N) / q["n_members"] for N in range(16)]
-            ax.plot(range(16), frac, color=colr, lw=1.6, ls="--", label=f"{MLAB[m]} track ended (cumulative)")
-        ax.set_xlim(0, 15); ax.set_ylim(0, 100); ax.set_xlabel("forecast day"); ax.set_ylabel("% of members")
-        ax.grid(alpha=0.3); ax.legend(fontsize=8.2, loc="upper left", frameon=False)
-        ax.set_title("Recurvature day (bars) · track ended (lines)", fontsize=10.5, loc="left")
+            ax.bar(np.arange(15) + 0.5 + (c - 0.5) * width, 100 * h_ / q["n_members"], width=width, color=colr, alpha=0.85, label=lab)
+            if s["named"]:
+                endd = np.array([e / 24 for e in q["ended"].values()])
+                frac = [100 * np.sum(endd < N) / q["n_members"] for N in range(16)]
+                ax.plot(range(16), frac, color=colr, lw=1.6, ls="--", label=f"{MLAB[m]} track ended (cumulative)")
+        ax.set_xlim(0, 15); ax.set_ylim(0, 100 if s["named"] else max(10, ax.get_ylim()[1])); ax.set_ylabel("% of members")
+        TC.date_axis(ax, init, 15, "x", step=2, fmt="stack")
+        ax.grid(alpha=0.3); ax.legend(fontsize=8.2, loc="upper left" if s["named"] else "upper right", frameon=False)
+        ax.set_title("Recurvature date (bars) · track ended (lines)" if s["named"] else
+                     "When members reach tropical-storm strength (17 m/s)", fontsize=10.5, loc="left")
+
     cax = fig.add_axes([0.08, 0.55 / H, 0.5, 0.18 / H])
     cb = fig.colorbar(plt.cm.ScalarMappable(norm=norm, cmap=cmap), cax=cax, orientation="horizontal", ticks=bounds)
-    cb.set_label("member colour = recurvature day (dot = the turn) · grey = no recurvature · thick line = AIFS control · X = start", fontsize=9)
+    cb.set_ticklabels([TC.date_lab(init, b, "short") for b in bounds], fontsize=8)
+    cb.set_label("member colour = recurvature date (dot = the turn) · grey = no recurvature · small dots every 24 h · X = start\n"
+                 "thick dated line: AIFS control (IFS-ENS has no control: the member nearest the others)"
+                 + ("" if all(x["named"] for x in rows) else " · ◇ where a member first reaches 17 m/s"), fontsize=8.6)
     fig.savefig(out_png, dpi=90, facecolor="white", pil_kwargs={"quality": 85, "method": 6}); plt.close(fig)
 
 
@@ -993,6 +1068,7 @@ def main() -> int:
         if (out / "tc" / f"depth_{e['slug']}.webp").exists(): e["depth_file"] = f"tc/depth_{e['slug']}.webp"
         mdl = "aifs" if "aifs" in s["models"] else "ifs"                       # a reference track for the map: the
         tr = s["models"][mdl]["tracks"]; k0 = 0 if 0 in tr else next(iter(tr))   # AIFS control where it has one
+        k0 = ref_member(tr)                                                      # the same dated line as the figure
         e["track"] = {"model": mdl, "member": int(k0), "h": [int(h) for h in tr[k0]["steps"]],
                       "lat": [round(float(v), 2) for v in tr[k0]["lat"]], "lon": [round(float(v), 2) for v in tr[k0]["lon"]]}
         for m in s["models"]:
@@ -1001,6 +1077,10 @@ def main() -> int:
                               "recurve_day_p10_p50_p90": q["rec_day_q"],
                               "p_track_ended_by_day": {str(N): round(float(np.mean([v < N * 24 for v in q["ended"].values()])) * q["n_tracked"] / q["n_members"], 3)
                                                        for N in (3, 5, 7, 10)}}
+            if not s["named"]:                                  # when members reach tropical-storm strength (hours)
+                gh = [g for g in (genesis_h(t) for t in s["models"][m]["tracks"].values()) if g is not None]
+                if gh:
+                    e["models"][m]["genesis_h_p10_p50_p90"] = [int(round(float(np.percentile(gh, q)))) for q in (10, 50, 90)]
         if s["key"] in depth:
             et_, late_ = depth[s["key"]]
             pm_ = np.array([v["pmin"] for v in et_.values()])
