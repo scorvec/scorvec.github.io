@@ -113,13 +113,13 @@
 .sh-menu { border-left-color: var(--c-rule); border-right-color: var(--c-rule); border-bottom-color: var(--c-rule); }
 .sh-has-menu.is-open > .sh-menu { display: grid; }
 .sh-menu h3 {
-  font-family: var(--f-serif); font-size: 1.12rem; font-weight: 500; line-height: 1.3;
+  font-family: var(--f-serif); font-size: 1.25rem; font-weight: 500; line-height: 1.3;
   color: var(--c-accent); margin: 0 0 0.4rem;
 }
 .sh-menu ul { list-style: none; margin: 0; padding: 0; }
 .sh-menu li { margin: 0; padding: 0; }
 .sh-menu a {
-  display: block; padding: 0.4rem 0; font-size: 1.08rem;
+  display: block; padding: 0.42rem 0; font-size: 1.22rem;
   color: var(--c-ink); text-decoration: none;
 }
 .sh-menu a:hover { color: var(--c-accent); text-decoration: underline; text-underline-offset: 0.16em; }
@@ -134,9 +134,9 @@
 .sh-menu--list { left: 0; right: auto; width: max-content; min-width: 15rem; max-width: 24rem; grid-template-columns: 1fr; padding: 0.7rem 1.1rem 0.75rem; }
 .sh-item:nth-last-child(-n + 4) > .sh-menu--list { left: auto; right: 0; }
 .sh-menu--list a { padding: 0.42rem 0; white-space: nowrap; }
-.sh-menu--cols { left: 0; right: auto; width: max-content; min-width: 30rem; max-width: 42rem; grid-template-columns: repeat(2, minmax(14rem, 1fr)); gap: 0.6rem 2rem; padding: 0.9rem 1.2rem 0.8rem; }
+.sh-menu--cols { left: 0; right: auto; width: max-content; min-width: 30rem; max-width: 48rem; grid-template-columns: repeat(2, minmax(14rem, 1fr)); gap: 0.6rem 2rem; padding: 0.9rem 1.2rem 0.8rem; }
 .sh-menu--cols a { padding: 0.36rem 0; white-space: nowrap; }
-.sh-menu--cols h3 { font-size: 0.86rem; font-family: var(--f-sans); font-weight: 500; letter-spacing: 0.04em; color: var(--c-muted); margin: 0 0 0.25rem; }
+.sh-menu--cols h3 { font-size: 1rem; font-family: var(--f-sans); font-weight: 500; letter-spacing: 0.04em; color: var(--c-muted); margin: 0 0 0.25rem; }
 
 /* mobile toggle */
 .sh-toggle {
@@ -605,15 +605,15 @@ html.fp-lock { overflow: hidden; }
   .sh:not(.sh--compact) .sh-in { gap: 20px; }
   .sh:not(.sh--compact) .sh-brand { font-size: 25px; }
   .sh:not(.sh--compact) .sh-list { gap: 2px; }
-  .sh:not(.sh--compact) .sh-link { font-size: 17.5px; padding: 10px 12px; }
+  .sh:not(.sh--compact) .sh-link { font-size: 19px; padding: 10px 12px; }
   /* 2026-10-04 (user: the menus "are a bit small. I would center them and increase the font size"): the product menus
      sit centred in the space after the finder, the special button and the person's menu stay at the right */
   .sh:not(.sh--compact) nav.sh-nav { flex: 1 1 auto; min-width: 0; }
   .sh:not(.sh--compact) .sh-list > li:first-child { margin-left: auto; }
   .sh:not(.sh--compact) .sh-link::before { left: 11px; right: 11px; bottom: 6px; }
   .sh:not(.sh--compact) .sh-has-menu > .sh-menubtn::before { right: 26px; }
-  .sh:not(.sh--compact) .sh-me { font-size: 16px; }
-  .sh:not(.sh--compact) .sh-special { font-size: 16px; padding: 7px 14px; }
+  .sh:not(.sh--compact) .sh-me { font-size: 17px; }
+  .sh:not(.sh--compact) .sh-special { font-size: 17px; padding: 7px 14px; }
   .sh:not(.sh--compact) .sh-item--special { margin-left: auto; }
   .sh:not(.sh--compact) .sh-item--me { margin-left: 6px; padding-left: 8px; }
   .sh:not(.sh--compact) .sh-find { font-size: 15px; min-width: 205px; padding: 7px 8px 7px 13px; }
@@ -626,8 +626,10 @@ html.fp-lock { overflow: hidden; }
   .sh.sh--tighter .sh-find kbd { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
   .sh.sh--tighter .sh-find { padding: 8px; }
 }
+/* only on genuinely narrow windows does the one-line row step down from 19 px, so 1280-px laptops keep the full row */
+@media (min-width: 861px) and (max-width: 1340px) { .sh.sh--tighter .sh-link { font-size: 17.5px; padding: 10px 5px; } }
 /* a deep link under its own page in a menu column (Atmospheric circulation): indented and quieter */
-.sh-menu li.sh-subitem a { padding-left: 0.95rem; font-size: 0.95rem; color: var(--c-muted); }
+.sh-menu li.sh-subitem a { padding-left: 0.95rem; font-size: 1.1rem; color: var(--c-muted); }
 .sh-menu li.sh-subitem a:hover { color: var(--c-accent); }
 .sh--overlay .sh-menu li.sh-subitem a { color: #5c6b73; }
 /* a menu's full title in the stacked phone / compact menu, its short label on the one-line desktop row */

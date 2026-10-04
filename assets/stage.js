@@ -413,6 +413,7 @@
     nav.insertBefore(b, nav.firstChild);
     var saved = null; try { saved = localStorage.getItem("ss-wide"); } catch (e) {}
     if (saved === "1") set(true);
+    else { b.textContent = "Larger"; b.title = "Hide the list of plots and use the full width"; b.setAttribute("aria-pressed", "false"); }
   })();
   addEventListener("keydown", function (e) {
     if (e.target && /INPUT|SELECT|TEXTAREA/.test(e.target.tagName)) return;
