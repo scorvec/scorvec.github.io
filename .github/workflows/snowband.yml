@@ -140,4 +140,4 @@ jobs:
         if: steps.commit.outputs.pushed == '1'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh workflow run pages.yml --repo "$GITHUB_REPOSITORY" || echo "::warning::pages dispatch failed; the dispatcher will catch it"
+        run: echo "site deploy is batched - the dispatcher deploys within 15 min (pages.yml)"

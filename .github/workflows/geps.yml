@@ -167,7 +167,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh workflow run pages.yml --repo "$GITHUB_REPOSITORY" || echo "pages dispatch failed; the dispatcher will catch it"
+          echo "site deploy is batched - the dispatcher deploys within 15 min (pages.yml)"
           # the multi-model regime view (subseasonal.html) reads assets/geps/regimes_members.json
           gh workflow run regimes.yml --repo "$GITHUB_REPOSITORY" || echo "::warning::regimes dispatch failed"
 

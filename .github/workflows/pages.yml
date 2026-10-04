@@ -10,11 +10,17 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+  # 2026-10-04: deploys are BATCHED. Data workflows no longer dispatch this after each commit (that was ~170 deploys
+  # a day); the laptop dispatcher (scripts/lib/dispatch_workflows.sh pages_if_stale) fires it every 15 min when main is
+  # ahead of the last deploy, and this cron is the backstop for when the laptop is off (skips when nothing changed).
+  schedule:
+    - cron: '17,47 * * * *'
 
 permissions:
   contents: read
   pages: write
   id-token: write
+  actions: read
 
 # One Pages deploy at a time. cancel-in-progress:false lets an in-flight deploy finish
 # (don't abort a CDN sync mid-way); subsequent pushes queue behind it.
@@ -23,7 +29,23 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  # scheduled backstop only: skip when the newest successful deploy already published this commit
+  check:
+    runs-on: ubuntu-latest
+    outputs:
+      stale: ${{ steps.c.outputs.stale }}
+    steps:
+      - id: c
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [ "${{ github.event_name }}" != "schedule" ]; then echo "stale=1" >> "$GITHUB_OUTPUT"; exit 0; fi
+          last=$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/pages.yml/runs?status=success&per_page=1" -q '.workflow_runs[0].head_sha' || echo "")
+          if [ -n "$last" ] && [ "$last" = "$GITHUB_SHA" ]; then echo "already deployed $GITHUB_SHA"; echo "stale=0" >> "$GITHUB_OUTPUT"
+          else echo "stale=1" >> "$GITHUB_OUTPUT"; fi
   deploy:
+    needs: check
+    if: needs.check.outputs.stale == '1'
     environment:
       name: github-pages
       url: ${{ steps.deploy1.outputs.page_url || steps.deploy2.outputs.page_url || steps.deploy3.outputs.page_url }}

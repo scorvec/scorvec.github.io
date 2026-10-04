@@ -33,6 +33,11 @@ name: Stratosphere, IFS-ENS (vortex, heat flux, wave-1, winds, drip, zero line, 
 # raised to 60/s for Google on these runners (default 14/s, set for AWS/Azure throttling; Google does not throttle,
 # and the budget still meters every request and halves on any 429/503). Measured on the laptop: 8 -> 25-50 MB/s.
 on:
+  # backstop crons (2026-10-04: moved here from the per-hour caller files, which were deleted; the laptop
+  # dispatcher, scripts/lib/dispatch_workflows.sh, fires this on time - these only matter when it is off)
+  schedule:
+    - cron: '5 9 * * *'
+    - cron: '5 21 * * *'
   workflow_call:
   workflow_dispatch:
     inputs:

@@ -85,7 +85,7 @@ strat-ifs.yml|09:05|-f publish=true
 strat-ifs.yml|21:05|-f publish=true
 gdps-charts.yml|06:20|-f cycle=00
 gdps-charts.yml|18:20|-f cycle=12
-soi-hourly.yml|*:12|
+soi-hourly.yml|*/3:12|
 # The two hourly satellite loops were merged into satellite-loops.yml on
 # 2026-08-31 and their workflow files deleted; these entries kept pointing at
 # workflows that no longer exist, so the dispatcher reported them overdue for
@@ -170,7 +170,7 @@ aifs-compare.yml|09:45|
 aifs-compare.yml|21:45|
 asos5.yml|*:05|
 asos5.yml|*:35|
-skewt-data.yml|*:50|
+skewt-data.yml|*/3:50|
 olr-waves.yml|02:40|
 site-stats.yml|05:17|
 mur-sst.yml|13:47|

@@ -14,10 +14,6 @@ on:
   workflow_run:
     workflows:
       - "GEFS extended outlook"
-      - "Stratosphere — 07Z"
-      - "Stratosphere — 19Z"
-      - "Stratosphere IFS-ENS — 09Z"
-      - "Stratosphere IFS-ENS — 21Z"
       - "Stratosphere (vortex, wave-1, E-P flux)"
       - "Stratosphere, IFS-ENS (vortex, heat flux, wave-1, winds, drip, E-P flux)"
     types: [completed]
@@ -86,4 +82,4 @@ jobs:
         if: steps.commit.outputs.pushed == '1'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh workflow run pages.yml --repo "$GITHUB_REPOSITORY" || echo "pages dispatch failed; the dispatcher will catch it"
+        run: echo "site deploy is batched - the dispatcher deploys within 15 min (pages.yml)"

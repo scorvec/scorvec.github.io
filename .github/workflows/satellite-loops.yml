@@ -15,6 +15,15 @@ name: IR satellite loops (GMGSI)
 # after the last one simply renders four frames instead of one. Nothing is lost;
 # the window just fills in slightly later.
 on:
+  # backstop crons (2026-10-04: moved here from the per-hour caller files, which were deleted; the laptop
+  # dispatcher, scripts/lib/dispatch_workflows.sh, fires this on time - these only matter when it is off)
+  schedule:
+    - cron: '40 1 * * *'
+    - cron: '40 5 * * *'
+    - cron: '40 9 * * *'
+    - cron: '40 13 * * *'
+    - cron: '40 17 * * *'
+    - cron: '40 21 * * *'
   workflow_call:
   workflow_dispatch:
 

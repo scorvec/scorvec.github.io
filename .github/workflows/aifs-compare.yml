@@ -26,7 +26,7 @@ permissions:
   actions: write   # dispatch pages.yml after committing
 
 concurrency:
-  # SAME group as aifs-verify-backfill.yml (2026-09-27). Both seed the verification archive at the start and
+  # SAME group as the (deleted, one-off) aifs-verify-backfill.yml (2026-09-27). Both seed the verification archive at the start and
   # publish every seeded file back at the end, so an overlap let the twice-daily run overwrite the backfill's
   # upgraded archives (and its scores JSON) with the copies it had seeded hours earlier. One at a time.
   group: aifs-verify-state
@@ -177,4 +177,4 @@ jobs:
         if: success()
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh workflow run pages.yml --repo "$GITHUB_REPOSITORY" || echo "pages dispatch failed; the dispatcher will catch it"
+        run: echo "site deploy is batched - the dispatcher deploys within 15 min (pages.yml)"

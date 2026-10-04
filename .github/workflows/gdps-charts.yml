@@ -6,6 +6,11 @@ name: GDPS tropical forecast products
 # skipped local run can't stall these; the script is idempotent and falls back
 # to yesterday's 00Z cycle when today's isn't complete yet.
 on:
+  # backstop crons (2026-10-04: moved here from the per-hour caller files, which were deleted; the laptop
+  # dispatcher, scripts/lib/dispatch_workflows.sh, fires this on time - these only matter when it is off)
+  schedule:
+    - cron: '20 6 * * *'
+    - cron: '20 18 * * *'
   workflow_call:
     inputs:
       cycle:

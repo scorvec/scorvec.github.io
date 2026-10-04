@@ -25,18 +25,7 @@ on:
       - "scripts/sst/pages/**"
       - "scripts/site/**"
       - ".github/workflows/catalog.yml"
-  workflow_run:
-    workflows:
-      - "SST anomalies & RONI (El Niño monitor)"
-      - "MJO RMM (AIFS-ENS)"
-      - "Stratosphere (vortex, wave-1, E-P flux)"
-      - "Stratosphere history (static MERRA-2 reference)"
-      - "ENSO impacts on the Americas (static CMIP6 reference)"
-      - "MJO impacts by phase and month (static CMIP6 reference)"
-      - "GEFS extended outlook"
-      - "Snow-band diagnostics"
-      - "NOAA SFS seasonal outlook (monthly)"
-    types: [completed]
+  # 2026-10-04: no longer re-runs after each data workflow (62 runs/day, mostly no change); twice daily + page edits
   schedule:
     - cron: "35 6 * * *"
     - cron: "35 18 * * *"
@@ -122,4 +111,4 @@ jobs:
         if: success() && env.PUSHED == '1'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh workflow run pages.yml --repo "$GITHUB_REPOSITORY" || echo "::warning::pages dispatch failed; the dispatcher will catch it"
+        run: echo "site deploy is batched - the dispatcher deploys within 15 min (pages.yml)"

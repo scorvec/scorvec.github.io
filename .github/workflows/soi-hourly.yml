@@ -9,10 +9,14 @@ name: Hourly SOI estimate (Darwin/Tahiti METAR)
 # requested frequency, not repo load. Workflows asking for one firing a day were
 # honoured 5 of 5.
 #
-# So the schedule lives in 24 one-line-per-hour callers (soi-h00.yml ...
-# soi-h23.yml), each asking for a single daily firing, and the work stays here
+# 2026-10-04: the 24 per-hour caller files were deleted; it now runs every 3 hours (dispatcher slot
+# */3:12 + the backstop cron above), and the work stays here
 # as a reusable workflow. One copy of the logic, 24 cheap schedules.
 on:
+  # backstop crons (2026-10-04: moved here from the per-hour caller files, which were deleted; the laptop
+  # dispatcher, scripts/lib/dispatch_workflows.sh, fires this on time - these only matter when it is off)
+  schedule:
+    - cron: '12 */3 * * *'
   workflow_call:
   workflow_dispatch:
 

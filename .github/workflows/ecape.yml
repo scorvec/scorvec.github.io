@@ -30,6 +30,13 @@ name: HRRR ECAPE (CONUS)
 # this repo's cron firings, so the laptop dispatcher fires the same slots
 # (scripts/lib/dispatch_workflows.sh, -f publish=true); a firing with nothing new exits in about a minute.
 on:
+  # backstop crons (2026-10-04: moved here from the per-hour caller files, which were deleted; the laptop
+  # dispatcher, scripts/lib/dispatch_workflows.sh, fires this on time - these only matter when it is off)
+  schedule:
+    - cron: '58 0 * * *'
+    - cron: '58 6 * * *'
+    - cron: '58 12 * * *'
+    - cron: '58 18 * * *'
   workflow_call:
   workflow_dispatch:
     inputs:
@@ -271,7 +278,7 @@ jobs:
             git -C "$W" -c user.name="Shawn Corvec" -c user.email="26825570+scorvec@users.noreply.github.com" commit -q -m "models: hrrr ECAPE $CYCLE"
             if timeout 180 git -C "$W" push -q origin HEAD:main; then
               echo "manifest pushed (attempt $i)"
-              gh workflow run pages.yml --repo "$GITHUB_REPOSITORY" || echo "::warning::pages dispatch failed; the next push deploys it"
+              echo "site deploy is batched - the dispatcher deploys within 15 min (pages.yml)"
               exit 0
             fi
             sleep 7

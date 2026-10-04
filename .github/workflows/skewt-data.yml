@@ -11,6 +11,10 @@ name: Skew-T sounding mirror
 # to skewt-data (no main history growth, no Pages rebuild).
 
 on:
+  # backstop crons (2026-10-04: moved here from the per-hour caller files, which were deleted; the laptop
+  # dispatcher, scripts/lib/dispatch_workflows.sh, fires this on time - these only matter when it is off)
+  schedule:
+    - cron: '50 */3 * * *'
   # Triggered hourly by the dispatcher (:50) plus four once-a-day schedule
   # callers as backstops. An hourly run is cheap: IEM is asked only about hour
   # slots not yet asked (state.json on the data branch), at most 6 requests per

@@ -4,6 +4,13 @@ name: Synthetic OLR Hovmöller (GMGSI IR)
 # (AWS). Every 6 h it (re)computes the latest day or two and re-renders. Commits only its
 # own files (tiny daily store + webp).
 on:
+  # backstop crons (2026-10-04: moved here from the per-hour caller files, which were deleted; the laptop
+  # dispatcher, scripts/lib/dispatch_workflows.sh, fires this on time - these only matter when it is off)
+  schedule:
+    - cron: '25 1 * * *'
+    - cron: '25 7 * * *'
+    - cron: '25 13 * * *'
+    - cron: '25 19 * * *'
   workflow_call:
   workflow_dispatch:
 
