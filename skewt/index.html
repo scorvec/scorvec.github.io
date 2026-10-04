@@ -117,7 +117,7 @@
   body.embed #modal { background: var(--bg); }
   body.embed #modal .dialog { width: 100vw !important; height: 100vh; height: 100svh; max-width: none; border: 0;
                               border-radius: 0; box-shadow: none; max-height: 100svh; }
-  body.embed .dlg-head .seg, body.embed .arch-controls, body.embed #uw-link, body.embed #climo-btn,
+  body.embed .dlg-head .seg, body.embed .arch-controls, body.embed #climo-btn,
   body.embed #rec-btn, body.embed #share-btn, body.embed #close { display: none !important; }
   /* (the sounding card's width is then set per screen by fitLayout() in app.js) */
   .dialog { background: var(--bg); border: 1px solid var(--rule); border-radius: 14px;
@@ -562,7 +562,7 @@
 <nav>
   <div class="nav-mid">
     <h1 class="page-title">Global sounding explorer, live and archived</h1>
-    <p class="tagline"><span class="tag-text">Every radiosonde launch on Earth — live, and back more than a century.
+    <p class="tagline"><span class="tag-text">Every radiosonde launch on Earth — live in North America, within about a day elsewhere, and back more than a century.
       Click a station for the full analysis: parcels, ECAPE, shear, hodograph and where each value
       ranks in that station's own climatology, computed in your browser.</span>
       <span class="links"><a class="first" href="methodology.html">Read the methodology first →</a>
@@ -574,10 +574,11 @@
       In the sounding card the skew-T takes the left; on the right are the hodograph, a strip of <b>key numbers</b>
       (CAPE, shear, helicity, composites, PWAT, freezing level; amber and red mark notable values) and the full index
       tables, which scroll.</p>
-      <p><b style="color:#4a7ab5">Blue</b> stations reported at the last 00Z/12Z interval;
+      <p><b style="color:#4a7ab5">Blue</b> stations reported at the last 00Z/12Z interval (real time, North America);
       <b style="color:#bf5af2">purple</b> ones launched off-hour (06Z, 15Z, 18Z…) — usually a special
-      release ahead of severe weather; <b style="color:#33c495">teal</b> are active but missed the last
-      slot, <b style="color:#c0392b">red</b> are closed (archive only). Click a station, then pick
+      release ahead of severe weather; <b style="color:#33c495">teal</b> are active but have nothing in real
+      time — outside North America the newest soundings arrive through NOAA's daily IGRA update, about a day
+      behind (the tooltip says when); <b style="color:#c0392b">red</b> are closed (archive only). Click a station, then pick
       <b>Latest</b> or <b>Archive</b>. The launch strip under the station name lists every release the
       mirror holds for the last four days, specials included — click one to open it, or step through
       launches with ◀ ▶. Recent launches load instantly; <b>the first click on a station can take a few
@@ -735,8 +736,6 @@
         <span class="hours"></span>
       </span>
       <span id="mstatus"></span>
-      <a id="uw-link" href="https://weather.uwyo.edu/upperair/sounding.shtml" target="_blank"
-         rel="noopener" style="font-size:0.78rem; color:var(--accent)">UW page ↗</a>
       <span class="grp" style="margin-left:auto">
         <button id="climo-btn" style="display:none" title="annual cycle of any ranked variable at this station">Climatology</button>
         <button id="rec-btn" style="display:none" title="station record extremes — all-time and for this date">Records</button>
@@ -785,11 +784,13 @@
     <footer id="dlg-footer" title="click to expand">
       <b>Tip:</b> click the skew-T to open a full-resolution card built from the un-thinned
       profile with every reportable wind level — the PNG button saves that same image.
-      <b>Data:</b> latest soundings from the
-      <a href="https://weather.uwyo.edu/upperair/sounding.shtml">University of Wyoming</a> archive
-      (BUFR, mirrored hourly — UW sends no CORS headers); any historical date directly from
-      <a href="https://www.ncei.noaa.gov/products/weather-balloon/integrated-global-radiosonde-archive">NOAA
-      IGRA v2</a> (first load per station can be tens of MB, then cached).
+      <b>Data:</b> real-time North American soundings from the
+      <a href="https://mesonet.agron.iastate.edu/archive/raob/">Iowa Environmental Mesonet</a> (IEM, Iowa State
+      University) and <a href="https://www.spc.noaa.gov/exper/soundings/">NOAA/NWS SPC</a>; the rest of the world
+      and every historical date from NOAA National Centers for Environmental Information,
+      <a href="https://www.ncei.noaa.gov/products/weather-balloon/integrated-global-radiosonde-archive">Integrated
+      Global Radiosonde Archive v2</a> (IGRA; the daily update runs about a day behind; the first archive load per
+      station can be tens of MB, then cached). Recent launches are mirrored hourly to a data branch.
       <b>Analysis:</b> <a href="https://github.com/keltonhalbert/SHARPlib">SHARPlib</a> (K. Halbert,
       NWS SPC lineage) as WebAssembly — SB/ML/MU parcels, LI, DCAPE, effective inflow, Bunkers,
       SRH, effective shear, SCP/STP. Map: Leaflet, Esri Dark Gray Canvas (&copy; Esri, OpenStreetMap contributors). Built by Claude
@@ -798,6 +799,6 @@
   </div>
 </div>
 <script src="sharplib.js?v=92a2fd08"></script>
-<script src="app.js?v=cfe4b65d"></script>
+<script src="app.js?v=2936a18d"></script>
 </body>
 </html>

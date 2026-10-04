@@ -2,7 +2,7 @@
 """Bundle complete UTC days of mirrored soundings into the permanent archive.
 
 Reads per-launch files ({id}_{YYYYMMDDHH}.csv) from the mirror output and
-writes one zip per COMPLETE day (uw-YYYYMMDD.zip) into the skewt-archive
+writes one zip per COMPLETE day (day-YYYYMMDD.zip) into the skewt-archive
 branch checkout — append-only, committed once, never rewritten, so pushes
 stay incremental and the browser can fetch any day via raw.githubusercontent
 (CORS-open) and unzip with fflate.
@@ -13,25 +13,30 @@ from __future__ import annotations
 
 import sys
 import zipfile
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
+
+LAG_DAYS = 3
 
 
 def main() -> int:
     src = Path(sys.argv[1])
     dst = Path(sys.argv[2])
     dst.mkdir(parents=True, exist_ok=True)
-    today = datetime.now(timezone.utc).strftime("%Y%m%d")
+    # A day is complete only once NOAA IGRA's daily update has caught up with it
+    # (~1-2 days behind), so bundle days at least LAG_DAYS old - still inside the
+    # mirror's 96 h retention, so every launch of the day is on disk.
+    last = (datetime.now(timezone.utc) - timedelta(days=LAG_DAYS)).strftime("%Y%m%d")
 
     by_day: dict = {}
     for f in src.glob("*_*.csv"):
         day = f.stem.split("_")[1][:8]
-        if day < today:                                   # only complete days
+        if day <= last:                                   # only complete days
             by_day.setdefault(day, []).append(f)
 
     made = 0
     for day, files in sorted(by_day.items()):
-        out = dst / f"uw-{day}.zip"
+        out = dst / f"day-{day}.zip"
         if out.exists():
             continue
         with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as z:

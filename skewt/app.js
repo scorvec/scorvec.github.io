@@ -1,7 +1,9 @@
 /* Skew-T Explorer — all client-side.
-   Data: U. Wyoming sounding archive, mirrored to the skewt-data branch by
-   .github/workflows/skewt-data.yml (UW sends no CORS headers; raw.github
-   serves ACAO *). Physics: SHARPlib via WebAssembly (sharplib.js/.wasm). */
+   Data: recent soundings mirrored to the skewt-data branch by
+   .github/workflows/skewt-data.yml — real-time North America from the Iowa
+   Environmental Mesonet (IEM), the rest of the world from NOAA NCEI IGRA v2's
+   daily update (about a day behind); older dates straight from IGRA v2.
+   Physics: SHARPlib via WebAssembly (sharplib.js/.wasm). */
 "use strict";
 
 const MISSING = -9999.0;
@@ -1054,6 +1056,10 @@ function launchHour(dt) {
 }
 const isOffHour = dt => { const h = launchHour(dt); return h !== null && h !== 0 && h !== 12; };
 const p2 = n => String(n).padStart(2, "0");
+// manifest entries carry their source: "IEM" (real time, North America) or "IGRA"
+// (NOAA NCEI's daily IGRA v2 update — about a day behind, so never shown as live)
+const srcLabel = src => src === "IGRA"
+  ? "NOAA IGRA v2 daily update, about a day behind" : "IEM real-time, via the mirror";
 
 // SPC/IEM report wind on only some levels; zero-filling the rest would drag the
 // hodograph to the origin, so interpolate U/V across the gaps in log-p.
@@ -1179,8 +1185,7 @@ function prefetchLatest(id) {                 // warm whatever loadSounding() wi
   if (s && s.dt) ghFetch("skewt-data", "soundings/" + id + ".csv", s.dt).catch(() => {});
 }
 const IGRA = "https://www.ncei.noaa.gov/data/integrated-global-radiosonde-archive/access/";
-const UW_ARCHIVE = "https://raw.githubusercontent.com/scorvec/scorvec.github.io/skewt-archive/";
-const UW_ARCHIVE_START = "2026-07-10";      // day bundles exist from here on
+const DAY_ARCHIVE_START = "2026-10-05";     // day-YYYYMMDD.zip bundles exist from here on
 const dayZipCache = new Map();              // YYYYMMDD -> {filename: Uint8Array} | null
 let M = null;                    // wasm module
 let entries = {};                // mirror manifest: id -> {n, la, lo, dt, src}
@@ -1328,7 +1333,7 @@ Promise.all([
   // per-launch archive), so "in the manifest" is NOT the same as "reported
   // recently" — Glasgow showed as live on a launch 36 h old. Live means it
   // reported at the last regular interval (00Z/12Z).
-  const isLive = id => id && entries[id] &&
+  const isLive = id => id && entries[id] && entries[id].src !== "IGRA" &&
     ageHours(entries[id].dt) <= dueAgeH() + 1.2;
 
   // closed stations: archive-only, hidden behind the toggle. Single-year
@@ -1347,11 +1352,20 @@ Promise.all([
   // stations still in the manifest whose newest sounding is older than that)
   for (const s of stns.stations) {
     if (s.y1 < ACTIVE_YEAR || isLive(s.id)) continue;
-    const stale = s.id && entries[s.id] ? entries[s.id].dt : null;
+    const me = s.id ? entries[s.id] : null, stale = me ? me.dt : null;
+    const viaIgra = me && me.src === "IGRA";
+    const flag = me && anomalies[s.id] && anomalies[s.id].dt === me.dt ? anomalies[s.id] : null;
+    if (flag)                                   // record watch on a delayed (IGRA) sounding
+      L.circleMarker([s.la, s.lo], flag.flags.some(f => f.rec)
+        ? { radius: RAD.active + 4, weight: 2.5, color: "#ff2d2d", opacity: 0.9, fill: false }
+        : { radius: RAD.active + 3, weight: 1.2, color: "#ff9a6e", opacity: 0.7, fill: false }).addTo(map);
     const m = L.circleMarker([s.la, s.lo], {
       radius: RAD.active, weight: 1, color: "#1f7a5e", fillColor: "#33c495", fillOpacity: 0.85,
     }).addTo(map);
-    m.bindTooltip(stale
+    m.bindTooltip(viaIgra
+      ? `${s.n} (${s.gid}) · latest ${stale}Z via NOAA IGRA v2 (${Math.round(ageHours(stale))} h ago; ` +
+        `IGRA updates daily, about a day behind) — click to open`
+      : stale
       ? `${s.n} (${s.gid}) · last sounding ${stale}Z (${Math.round(ageHours(stale))} h ago) — click for archive`
       : `${s.n} (${s.gid}) · nothing at the last regular interval — click for archive (${s.y0}–${s.y1})`);
     m.on("click", () => { highlight(m); selectStation(s); });
@@ -2251,9 +2265,6 @@ function selectStation(s) {
   setStatus(mode === "latest"
     ? "fetching latest sounding from the mirror…"
     : "fetching from the NOAA IGRA archive (first load per station can be tens of MB)…", true);
-  document.getElementById("uw-link").href = s.id
-    ? "https://weather.uwyo.edu/wsgi/sounding?id=" + s.id
-    : "https://weather.uwyo.edu/upperair/sounding.shtml";
   loadSounding();
 }
 
@@ -2266,8 +2277,10 @@ function parseCSV(text) {
   for (let i = 1; i < rows.length; i++) {
     const c = rows[i].split(",");
     if (c.length < 13) continue;
-    const p = +c[3] * 100, h = +c[4], t = +c[5] + 273.15, d = +c[6] + 273.15;
-    const wd = +c[11], ws = +c[12];
+    // parseFloat, not +: an empty field must read as missing, never as 0
+    const num = k => parseFloat(c[k]);
+    const p = num(3) * 100, h = num(4), t = num(5) + 273.15, d = num(6) + 273.15;
+    const wd = num(11), ws = num(12);
     if (!isFinite(p) || !isFinite(t) || p >= lastP || p < 2000) continue;
     lastP = p;
     out.P.push(p); out.H.push(isFinite(h) ? h : NaN); out.T.push(t);
@@ -2277,7 +2290,9 @@ function parseCSV(text) {
       out.V.push(-ws * Math.cos(wd * Math.PI / 180));
     } else { out.U.push(NaN); out.V.push(NaN); }
   }
-  return out.P.length >= 10 ? out : null;
+  if (out.P.length < 10) return null;
+  fillWinds(out);                        // never hand NaN winds to SHARPlib
+  return out;
 }
 
 function thin(prof, target = 350) {
@@ -2481,7 +2496,7 @@ async function loadSounding() {
         const prof = parseCSV(await r.text());
         if (stale()) return;
         if (!prof) throw 0;
-        setStatus(`valid ${s.dt}Z · ${prof.P.length} levels (UW BUFR/GTS mirror)`);
+        setStatus(`valid ${s.dt}Z · ${prof.P.length} levels (${srcLabel(s.src)})`);
         plotTitle = `${current.n || ""} ${current.id}  ·  ${s.dt}Z`.trim();
         plotNote = ""; lastMonth = s.dt.slice(5, 7); lastDoy = doyOf(s.dt); lastHourZ = hourOf(s.dt);
         lastValidDt = s.dt;
@@ -2489,20 +2504,20 @@ async function loadSounding() {
         return;
       } catch (e) { /* mirror failed — fall through to the archive */ }
     }
-    // No live source at all (station absent from SPC/IEM/UW this cycle):
+    // No live source at all (station absent from SPC/IEM and the mirror):
     // "Latest" should still mean something — show the newest ARCHIVED sounding
     // rather than a dead end. The nearest-available fallback below finds it.
     setStatus("no live feed — fetching this station's newest archived sounding…", true);
   }
-  // archive mode: recent launches come from the high-res UW mirror when
-  // available (BUFR fidelity, ~4-day retention), else NOAA IGRA v2.
+  // archive mode: recent launches come from the mirror's per-launch files when
+  // available (~4-day retention), else the day bundles, else NOAA IGRA v2.
   // (Latest mode lands here too when no live source exists — with today's
   // date, so the fallback resolves to the newest launch on record.)
   const ymd = mode === "latest" ? new Date().toISOString().slice(0, 10) : archDate;
   const me = current.id ? entries[current.id] : null;
   const wantDt = `${ymd} ${String(archHour).padStart(2, "0")}:00`;
   if (me && (me.hours || []).includes(wantDt)) {
-    setStatus("fetching high-resolution sounding from the mirror…", true);
+    setStatus("fetching sounding from the mirror…", true);
     try {
       const tag = wantDt.replace(/[-: ]/g, "").slice(0, 10);
       const r = await ghFetch("skewt-data", "soundings/" + current.id + "_" + tag + ".csv", tag);
@@ -2510,7 +2525,7 @@ async function loadSounding() {
         const prof = parseCSV(await r.text());
         if (stale()) return;              // user switched station mid-download
         if (prof) {
-          setStatus(`valid ${wantDt}Z · ${prof.P.length} levels (UW BUFR high-res mirror)`);
+          setStatus(`valid ${wantDt}Z · ${prof.P.length} levels (mirror)`);
           plotTitle = `${current.n || ""} ${current.id}  ·  ${wantDt}Z`.trim();
           plotNote = ""; lastMonth = wantDt.slice(5, 7); lastDoy = doyOf(wantDt); lastHourZ = hourOf(wantDt);
           lastValidDt = wantDt;
@@ -2520,13 +2535,13 @@ async function loadSounding() {
       }
     } catch (e) { /* fall through to IGRA */ }
   }
-  // permanent high-res day bundles (UW BUFR, from the archive branch)
-  if (current.id && ymd >= UW_ARCHIVE_START) {
+  // permanent day bundles (IEM + IGRA launches, from the archive branch)
+  if (current.id && ymd >= DAY_ARCHIVE_START) {
     const dkey = ymd.replaceAll("-", "");
     if (!dayZipCache.has(dkey)) {
-      setStatus(`downloading high-res day bundle ${ymd}…`, true);
+      setStatus(`downloading day bundle ${ymd}…`, true);
       try {
-        const r = await ghFetch("skewt-archive", "uw-" + dkey + ".zip", null, true);
+        const r = await ghFetch("skewt-archive", "day-" + dkey + ".zip", null, true);
         dayZipCache.set(dkey, r.ok
           ? fflate.unzipSync(new Uint8Array(await r.arrayBuffer())) : null);
       } catch (e) { /* transient network failure — don't cache, retry next time */ }
@@ -2541,7 +2556,7 @@ async function loadSounding() {
         const prof = parseCSV(fflate.strFromU8(bundle[pick]));
         if (prof) {
           const hh = pick.slice(-6, -4);
-          setStatus(`valid ${ymd} ${hh}Z · ${prof.P.length} levels (UW BUFR day archive)`);
+          setStatus(`valid ${ymd} ${hh}Z · ${prof.P.length} levels (day archive)`);
           plotTitle = `${current.n || ""} ${current.id}  ·  ${ymd} ${hh}Z`.trim();
           plotNote = ""; lastMonth = ymd.slice(5, 7); lastDoy = doyOf(ymd); lastHourZ = +hh;
           lastValidDt = `${ymd} ${hh}:00`;
@@ -2643,7 +2658,7 @@ async function queuePrev12() {
       } catch (e) { /* the trend is optional — never block the sounding */ }
     }
   }
-  // US stations: the mirror can be missing whole slots (UW manifest hiccups),
+  // US stations: the mirror can be missing whole slots (IEM lags or gaps),
   // but SPC serves every observed 00Z/12Z sounding directly — hit the exact
   // slot nearest 12 h back, walking the 6-hourly slots inside the window.
   if (!got && current.id && iemMap && iemMap[current.id] &&
@@ -3660,7 +3675,7 @@ function drawHodo(prof, res) {
     const txt = `${Math.round(dirOf(uMs, vMs))}/${Math.round(Math.hypot(u, v))} ${lab}`;
     const tw = ctx.measureText(txt).width;
     let tx = X(u) + 9, ty = Y(v) + 4.5;
-    while (markUsed.some(([ux, uy, uw]) => Math.abs(uy - ty) < 17 && tx < ux + uw && ux < tx + tw))
+    while (markUsed.some(([ux, uy, mw]) => Math.abs(uy - ty) < 17 && tx < ux + mw && ux < tx + tw))
       ty += 18;
     markUsed.push([tx, ty, tw]);
     ctx.fillText(txt, tx, ty);

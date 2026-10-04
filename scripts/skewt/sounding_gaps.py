@@ -19,11 +19,12 @@ import sys
 import zipfile
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
-from urllib.request import urlopen
+from urllib.request import Request, urlopen
 
 ROOT = Path(__file__).resolve().parents[2]
-IGRA = ("https://www.ncei.noaa.gov/data/integrated-global-radiosonde-archive/"
-        "access/data-y2d/")
+# /pub/data/igra/ mirrors the same files; ncei.noaa.gov/robots.txt disallows /data*
+IGRA = "https://www.ncei.noaa.gov/pub/data/igra/data/data-y2d/"
+UA = "scorvec.com skew-t explorer (+https://scorvec.com/skewt/)"
 START = date(2026, 1, 1)
 
 
@@ -32,7 +33,8 @@ def station_days(gid: str, y0: int):
     raw = None
     for yy in (y0 + 1, y0, y0 - 1):        # beg-year varies with por freshness
         try:
-            raw = urlopen(IGRA + f"{gid}-data-beg{yy}.txt.zip", timeout=300).read()
+            raw = urlopen(Request(IGRA + f"{gid}-data-beg{yy}.txt.zip",
+                                 headers={"User-Agent": UA}), timeout=300).read()
             break
         except Exception:
             continue
