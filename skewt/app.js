@@ -1187,7 +1187,10 @@ let entries = {};                // mirror manifest: id -> {n, la, lo, dt, src}
 let anomalies = {};              // wmo -> {dt, flags:[{k,lab,v,pct,sense}]} (record watch)
 let igraStations = {};           // gid -> station meta (all 2,921 incl. closed)
 let byWmo = {};                  // wmo id -> gid
-let current = null;              // selected: {gid, id, n, e}
+let current = null;              // selected: {gid, id, n, e}  (model soundings: {model: true, id, n})
+// ?embed=model: the card alone, fed forecast soundings by models.html (2026-10-04) — see "model soundings" at the end
+const EMBED = new URLSearchParams(location.search).get("embed") === "model";
+const MS = { items: [], idx: 0, title: "", coords: "", model: "" };
 let plotTitle = "", plotCoords = "";
 let pinned = null;                 // { prof, title } — overlay for comparison              // drawn on the skew-t canvas itself
 let plotNote = "";               // secondary blurb (e.g. wind-only)
@@ -1248,7 +1251,10 @@ function openModal() { modal.hidden = false; sizePlots(); }
 // give both plots their layout size before anything is drawn (a freshly
 // opened card would otherwise show the canvases at their attribute size)
 function sizePlots() { for (const id of ["skewt", "hodo"]) plotBox(document.getElementById(id)); }
-function closeModal() { modal.hidden = true; }
+function closeModal() {
+  if (EMBED) { parent.postMessage({ type: "mv-close" }, location.origin); return; }   // the host closes its dock
+  modal.hidden = true;
+}
 document.getElementById("close").onclick = closeModal;
 modal.addEventListener("click", e => { if (e.target === modal) closeModal(); });
 addEventListener("keydown", e => {
@@ -2089,6 +2095,7 @@ const MON_S = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "O
 function renderLaunchStrip() {
   const el = document.getElementById("launches");
   if (!el) return;
+  if (current && current.model) { renderModelStrip(el); return; }
   if (!current || !current.id || !entries[current.id]) { el.innerHTML = ""; return; }
   // the strip is the MIRROR's window (the last ~4 days), plus whatever is on
   // screen — a full IGRA record would be thousands of chips
@@ -2435,6 +2442,7 @@ function parseIGRA(text, gid, ymd, wantHour, elev) {
 let loadSeq = 0;
 async function loadSounding() {
   if (!current) return;
+  if (current.model) { showModelHour(MS.idx); return; }
   const seq = ++loadSeq;                 // stale-response guard
   const stale = () => seq !== loadSeq;
   await wasmReady;
@@ -2599,6 +2607,19 @@ async function queuePrev12() {
   const t0 = Date.parse(lastValidDt.replace(" ", "T") + ":00Z");
   if (!isFinite(t0)) return;
   let got = null;
+  if (current.model) {                              // a forecast: the same run's sounding ~12 h earlier, if it has one
+    let best = null;
+    MS.items.forEach(it => {
+      const back = (t0 - Date.parse(it.valid.replace(" ", "T") + ":00Z")) / 3600e3;
+      if (back >= 6 && back <= 18 && (!best || Math.abs(back - 12) < Math.abs(best.back - 12))) best = { it, back };
+    });
+    if (best) {
+      const pr = copyProf(best.it.prof); sanitizeHeights(pr); fillDewpoints(pr);
+      prev12 = { prof: pr, dt: best.it.valid, backH: Math.round(best.back), M: mseProfile(pr), forKey: key };
+      if (lastProf && lastRes) { fillTables(lastProf, lastRes); drawMSE(lastProf); }
+    }
+    return;
+  }
   const me = current.id ? entries[current.id] : null;
   if (me && me.hours) {
     let best = null;
@@ -4308,3 +4329,68 @@ function render(prof) {
   };
   drawRecents();
 })();
+
+// ---------- model soundings (2026-10-04, user: "Option 2" — click anywhere on models.html for a forecast sounding) ----------
+// models.html opens this page as <iframe src="/skewt/?embed=model"> in a dock, decodes the HRRR column itself
+// (scripts/ecape/to_soundings.py tiles) and posts every forecast hour of it here:
+//   in : {type: "mv-sounding", model, title, coords, items: [{label, fxx, valid: "YYYY-MM-DD HH:MM", prof: {P,H,T,D,U,V}}], idx}
+//        {type: "mv-sel", idx}                       the map's hour changed
+//   out: {type: "mv-ready"} once loaded, {type: "mv-hour", fxx} when an hour chip is picked, {type: "mv-close"}
+// The analysis is exactly the station card's: same SHARPlib build, same tables, same charts. No climatology ranks
+// (there is no station), and the MSE trend compares with the same run 12 h earlier.
+function copyProf(p) { const o = {}; for (const k of ["P", "H", "T", "D", "U", "V"]) o[k] = Array.from(p[k]); return o; }
+async function showModelHour(i) {
+  await wasmReady;
+  if (wasmFailed) { setStatus(`analysis engine failed to load (${wasmFailed}) — reload the page`); return; }
+  const it = MS.items[i]; if (!it) return;
+  MS.idx = i;
+  plotTitle = `${MS.title}  ·  ${it.label}  ·  ${it.valid.slice(5, 13)}Z`;
+  plotCoords = MS.coords; plotNote = "";
+  lastMonth = it.valid.slice(5, 7); lastDoy = doyOf(it.valid); lastHourZ = hourOf(it.valid); lastValidDt = it.valid;
+  setStatus(`${MS.model} forecast ${it.label} · valid ${it.valid}Z · ${it.prof.P.length} levels`);
+  render(lastProfFull = copyProf(it.prof));         // render() sanitises in place: never hand it the stored profile
+}
+function renderModelStrip(el) {
+  let html = `<span class="lbl" title="forecast hours of this run">forecast</span>`, day = "";
+  MS.items.forEach((it, i) => {
+    const d = it.valid.slice(0, 10);
+    if (d !== day) { day = d; html += `<span class="day">${MON_S[+d.slice(5, 7) - 1]} ${+d.slice(8, 10)}</span>`; }
+    html += `<button data-mhour="${i}" class="${i === MS.idx ? "on" : ""}" title="${it.label} · valid ${it.valid}Z">${it.valid.slice(11, 13)}Z</button>`;
+  });
+  el.innerHTML = html;
+}
+document.getElementById("launches").addEventListener("click", e => {
+  const b = e.target.closest("button[data-mhour]"); if (!b || !current || !current.model) return;
+  const j = +b.dataset.mhour;                       // showModelHour is async: report the hour picked, not MS.idx
+  showModelHour(j);
+  if (EMBED && MS.items[j]) parent.postMessage({ type: "mv-hour", fxx: MS.items[j].fxx }, location.origin);
+});
+if (EMBED) {
+  document.body.classList.add("embed");
+  const ft = document.getElementById("dlg-footer");
+  if (ft) ft.innerHTML = "<b>Model sounding:</b> one 12 km column of the 3 km HRRR (every 4th grid point, the nearest one to " +
+    "where you clicked), 42 native levels to ~70 hPa plus the 2 m temperature and dewpoint and the 10 m wind. Heights are " +
+    "rebuilt from the surface. <b>Analysis:</b> <a href=\"https://github.com/keltonhalbert/SHARPlib\">SHARPlib</a> as WebAssembly, " +
+    "the same as for the balloon soundings. Not for operational use.";
+  addEventListener("keydown", e => {                 // left/right step the forecast hours
+    if (!current || !current.model || (e.target && /INPUT|SELECT|TEXTAREA/.test(e.target.tagName))) return;
+    if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
+    const j = Math.max(0, Math.min(MS.items.length - 1, MS.idx + (e.key === "ArrowRight" ? 1 : -1)));
+    if (j !== MS.idx) { showModelHour(j); parent.postMessage({ type: "mv-hour", fxx: MS.items[j].fxx }, location.origin); }
+    e.preventDefault();
+  });
+  addEventListener("message", e => {
+    if (e.origin !== location.origin) return;
+    const d = e.data || {};
+    if (d.type === "mv-sounding") {
+      MS.items = d.items || []; MS.title = d.title || ""; MS.coords = d.coords || ""; MS.model = d.model || "";
+      MS.idx = Math.max(0, Math.min(MS.items.length - 1, d.idx || 0));
+      current = { model: true, id: "model:" + MS.title, n: MS.title };
+      prev12 = null; prev12Key = ""; climo = null; climoGid = null;
+      document.getElementById("stn-label").textContent = MS.title;
+      openModal();
+      showModelHour(MS.idx);
+    } else if (d.type === "mv-sel" && current && current.model && d.idx !== MS.idx) showModelHour(d.idx);
+  });
+  parent.postMessage({ type: "mv-ready" }, location.origin);
+}

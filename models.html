@@ -139,6 +139,10 @@
            box-shadow: 0 18px 60px rgba(20, 24, 22, 0.28); overflow: hidden; display: flex; flex-direction: column; }
   .mv-mg.full { top: 0; bottom: 0; width: 100vw; border: 0; border-radius: 0; }
   .mv-mg[hidden] { display: none; }
+  /* forecast sounding dock (2026-10-04): the meteogram's frame around the sounding explorer in an iframe */
+  .mv-snd iframe { flex: 1 1 auto; min-height: 0; width: 100%; border: 0; display: block; background: #0b0b12; }
+  .mv-snd .mv-mgtop { padding-bottom: 0.55rem; }
+  #map.snd-pick { cursor: crosshair; }
   .mv-mgtop { flex: none; padding: 0.75rem 1.3rem 0.65rem; border-bottom: 1px solid var(--rule); background: var(--panel); }
   .mv-mgbody { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 0.3rem 1.3rem 1.5rem; }
   .mv-mgh { display: flex; flex-wrap: wrap; align-items: center; gap: 0.45rem 1rem; }
@@ -178,6 +182,7 @@
     .mgr-tile .big { font-size: 1.4rem; }
     /* phones: the whole sheet scrolls (a fixed readout of three tiles would leave the charts a sliver) */
     .mv-mg { overflow-y: auto; overscroll-behavior: contain; display: block; }
+    .mv-mg.mv-snd:not([hidden]) { display: flex; overflow: hidden; }
     .mv-mgbody { overflow: visible; }
     .mgr-tile .ln { font-size: 0.95rem; }
   }
@@ -406,6 +411,7 @@
     <label class="chk" id="contL" hidden title="Labelled contours drawn from the same data (isotherms, flight-category thresholds, isobars, CAPE)"><input type="checkbox" id="cont" checked> Contours</label>
     <label class="chk" title="Airports with scheduled service in the US and Canada (OurAirports) and a few city centres; hover for the model's value there, click or tap for the forecast meteogram"><input type="checkbox" id="sta" checked> Airports</label>
     <label class="chk" id="diffL" hidden title="The other 3 km model's value subtracted at the same valid time, on the shared grid (HRRR and RRFS use the identical grid)"><input type="checkbox" id="diff"> <span id="diffT">Difference</span></label>
+    <label class="chk" id="sndL" hidden title="Click or tap anywhere in the HRRR domain for that spot's forecast sounding (skew-T, hodograph and the full parameter tables, every hour of the run)"><input type="checkbox" id="sndOn"> Click for a sounding</label>
     <label class="chk" id="farmsL" hidden title="US wind projects (USGS Wind Turbine Database) or large-scale solar plants (USGS Solar PV Database), sized by capacity"><input type="checkbox" id="farms" checked> <span id="farmsT">Wind farms</span></label>
     <span class="mv-keys">Keys: <kbd>&larr;</kbd> <kbd>&rarr;</kbd> change hour &middot; <kbd>Space</kbd> play or pause &middot; scroll to zoom, drag to pan</span>
   </div>
@@ -414,13 +420,21 @@
   <section class="mv-mg" id="mg" hidden role="dialog" aria-label="Forecast meteogram">
     <div class="mv-mgtop">
       <div class="mv-mgh"><h2 id="mgT"></h2><span class="sub" id="mgS"></span><span class="mv-key" id="mgK"></span>
-        <span class="mv-mgbtns"><button type="button" class="x" id="mgW" title="Use the whole window (the map stays underneath)">Full window</button><button type="button" class="x" id="mgX">Close<kbd>Esc</kbd></button></span></div>
+        <span class="mv-mgbtns"><button type="button" class="x" id="mgSnd" hidden title="The HRRR forecast sounding at this station">Sounding</button><button type="button" class="x" id="mgW" title="Use the whole window (the map stays underneath)">Full window</button><button type="button" class="x" id="mgX">Close<kbd>Esc</kbd></button></span></div>
       <div class="mv-mgr" id="mgR"></div>
     </div>
     <div class="mv-mgbody" id="mgB">
       <div id="mgC"></div>
       <p class="mv-legT" id="mgN"></p>
     </div>
+  </section>
+
+  <section class="mv-mg mv-snd" id="snd" hidden role="dialog" aria-label="Forecast sounding">
+    <div class="mv-mgtop">
+      <div class="mv-mgh"><h2 id="sndT">Forecast sounding</h2><span class="sub" id="sndS"></span>
+        <span class="mv-mgbtns"><button type="button" class="x" id="sndX">Close<kbd>Esc</kbd></button></span></div>
+    </div>
+    <iframe id="sndF" title="Forecast sounding: skew-T, hodograph and parameters"></iframe>
   </section>
 
   <details class="mv-about">
@@ -1507,6 +1521,7 @@
     drawContourLabels(ctx);
     drawFarms(ctx);
     drawAirports(ctx);
+    drawSndMark(ctx);
     labc.style.visibility = "";
   }
 
@@ -1987,6 +2002,7 @@
     var slider = $("hour"), cS = cycleObj(st.model, st.ci); slider.max = Math.max(0, uiHours(cS).length - 1); slider.value = Math.max(0, uiHours(cS).indexOf(st.hour));
     $("contL").hidden = !contourSpec(st.field, st.model, [0, 1]);
     $("diffL").hidden = !diffAvail(); if (diffAvail()) $("diffT").textContent = "Minus " + MODELS[diffOther(st.model)];
+    $("sndL").hidden = !sndMeta(); sndFollowMap();
     var n = (NOTES[st.model] && NOTES[st.model][st.field]) || "";
     var fm = cycleObj(st.model, st.ci) && cycleObj(st.model, st.ci).fields[st.field === "acc" ? st.acc.type : st.field];
     if (st.field === "acc" && fm && fm.method) n = "<b>" + ACC_TYPES[st.acc.type].label + "</b>: " + fm.method + ". Pick a window to see the amount that falls in it; the accumulation is the model's own, not a radar estimate.";
@@ -2156,7 +2172,9 @@
     var r = mapEl.getBoundingClientRect();
     if (ptrs.has(e.pointerId) && !moved && e.pointerType !== "mouse") hover(e.clientX - r.left, e.clientY - r.top, true);
     if (ptrs.has(e.pointerId) && !moved && ptrs.size === 1) {        // a click or tap on an airport or city opens its meteogram
-      var ap0 = nearestApt(e.clientX - r.left, e.clientY - r.top, e.pointerType === "mouse" ? 81 : 196); if (ap0) openMg(ap0[2][2], ap0[2][3]); }
+      var ap0 = nearestApt(e.clientX - r.left, e.clientY - r.top, e.pointerType === "mouse" ? 81 : 196);
+      if (sndPicking()) { if (ap0) openSndLL(ap0[2][0], ap0[2][1], ap0[2][2] + " " + ap0[2][3]); else openSndXY(toXY(e.clientX - r.left, e.clientY - r.top)); }  // sounding mode: anywhere
+      else if (ap0) openMg(ap0[2][2], ap0[2][3]); }
     var wasPan = ptrs.size === 1 && !pinch && moved;
     ptrs.delete(e.pointerId); if (ptrs.size < 2) pinch = null; if (!ptrs.size) mapEl.classList.remove("drag");
     if (ptrs.size) return;
@@ -2336,6 +2354,8 @@
   var CITY_EXTRA = null;
   function openMg(id, name) {
     MG.id = id; MG.name = name || id; MG.hov = null;
+    var aS = (APTS || []).filter(function (x) { return x[2] === id; })[0];
+    $("mgSnd").hidden = !(aS && sndMeta()); $("mgSnd").onclick = aS ? function () { openSndLL(aS[0], aS[1], aS[2] + " " + aS[3]); } : null;
     $("mg").hidden = false; $("mgT").textContent = id; $("mgS").textContent = name && name !== id ? name : "";
     $("mgR").textContent = "Loading the forecasts for " + id + "…"; $("mgC").innerHTML = "";
     writeHash();
@@ -2345,6 +2365,119 @@
     $("mgB").scrollTop = 0; $("mg").scrollTop = 0;
   }
   function closeMg() { $("mg").hidden = true; MG.id = null; writeHash(); }
+
+  // ── forecast soundings (2026-10-04, user: click anywhere for a sounding, HRRR only, "use our existing sounding
+  // infrastructure"). Data: scripts/ecape/to_soundings.py in the ECAPE job -> assets/models/data/hrrr/<cycle>/snd/
+  // {ty}_{tx}.bin, every 4th HRRR column (12 km) in 24 x 24-column tiles, ALL forecast hours per tile (one download per
+  // click, hours then instant); the manifest's ecape[cycle].snd carries the layout, scales and coefficients. The card is
+  // the sounding explorer itself (/skewt/?embed=model in #sndF), handed the decoded profiles by postMessage, so the
+  // analysis (SHARPlib, tables, hodograph) is exactly the balloon soundings'.
+  var SND = { win: null, ready: false, pend: null, items: null, ll: null, tiles: {}, seq: 0 };
+  function sndMeta() { var c = cycleObj("hrrr", 0); return c && c.ecape && c.ecape.snd && c.grids && c.grids.main ? { c: c, s: c.ecape.snd, g: prepGrid(c.grids.main) } : null; }
+  function sndPicking() { return $("sndOn").checked && !$("sndL").hidden; }
+  $("sndOn").onchange = function () { mapEl.classList.toggle("snd-pick", this.checked); };
+  function sndTile(m, ty, tx) {
+    var k = m.c.cycle + "/" + ty + "_" + tx;
+    if (!SND.tiles[k]) SND.tiles[k] = getBytes("assets/models/data/hrrr/" + m.c.cycle + "/snd/" + ty + "_" + tx + ".bin", m.s.sha, "high")
+      .catch(function (e) { delete SND.tiles[k]; throw e; });
+    return SND.tiles[k];
+  }
+  function inflate(u8) { return new Response(new Blob([u8]).stream().pipeThrough(new DecompressionStream("deflate"))).arrayBuffer(); }
+  // one column of one hour's stream: the codes are left-neighbour residuals (first column from the row above), byte-
+  // shuffled, mod 2^16 - so a column needs only its tile row's prefix sums, never the whole plane
+  function sndCodes(raw, np, th, tw, jl, il) {
+    var b = new Uint8Array(raw), n = b.length / 2, out = new Array(np), pl = th * tw;
+    for (var p = 0; p < np; p++) {
+      var o = p * pl, v = 0, k;
+      for (k = 0; k <= jl; k++) v += b[o + k * tw] | (b[n + o + k * tw] << 8);
+      for (k = 1; k <= il; k++) v += b[o + jl * tw + k] | (b[n + o + jl * tw + k] << 8);
+      v &= 65535; out[p] = p === 0 ? v : (v >= 32768 ? v - 65536 : v);      // p_s unsigned, the rest int16
+    }
+    return out;
+  }
+  function sndProfile(m, c) {
+    var s = m.s, ss = s.sfc_scale, ls = s.lev_scale, nl = s.nlev - 1, ps = c[0] * ss[0];
+    var P = [ps], T = [c[2] * ss[2]], D = [c[3] * ss[3]], U = [c[4] * ss[4]], V = [c[5] * ss[5]], Z = [c[1] * ss[1]];
+    for (var k = 0; k < nl; k++) {
+      var b = 6 + 5 * k, p = s.A[k] + s.B[k] * ps + c[b] * ls[0];
+      if (!(p < P[P.length - 1])) continue;                                     // keep pressure strictly decreasing
+      P.push(p); T.push(c[b + 1] * ls[1]); D.push(c[b + 2] * ls[2]); U.push(c[b + 3] * ls[3]); V.push(c[b + 4] * ls[4]); Z.push(k);
+    }
+    var tv = function (t, td, pp) { var e = 611.2 * Math.exp(17.67 * (td - 273.15) / (td - 29.65)), q = 0.622 * e / (pp - 0.378 * e); return t * (1 + 0.608 * q); };
+    var H = [Z[0]];                                                              // heights rebuilt hypsometrically + the fitted per-level correction
+    for (var i = 1; i < P.length; i++) {
+      var tm = 0.5 * (tv(T[i], D[i], P[i]) + tv(T[i - 1], D[i - 1], P[i - 1]));
+      H.push(H[i - 1] + 287.04 * tm / 9.80665 * Math.log(P[i - 1] / P[i]));
+    }
+    for (i = 1; i < P.length; i++) { H[i] += s.zc[Z[i]]; }
+    for (i = 1; i < P.length; i++) H[i] = Math.max(H[i], H[i - 1] + 0.5);
+    for (i = 0; i < D.length; i++) D[i] = Math.min(D[i], T[i]);
+    return { P: P, H: H, T: T, D: D, U: U, V: V };
+  }
+  function openSndLL(lon, lat, label) { var q = P.fwd(lon, lat); openSndXY(q, label); }
+  function openSndXY(xy, label) {
+    var m = sndMeta(); if (!m) return;
+    var s = m.s, ij = gridIJ(m.g, xy[0], xy[1]), i = Math.round(ij[0] / s.D), j = Math.round(ij[1] / s.D);
+    if (!(i >= 0 && j >= 0 && i < s.nx && j < s.ny)) { showSndDock(); $("sndT").textContent = "Outside the HRRR domain"; $("sndS").textContent = "Soundings cover the HRRR's area (the lower 48 and southern Canada)."; return; }
+    var ll = ijLL(m.g, i * s.D, j * s.D), ty = Math.floor(j / s.ts), tx = Math.floor(i / s.ts);
+    var th = Math.min(s.ts, s.ny - ty * s.ts), tw = Math.min(s.ts, s.nx - tx * s.ts), jl = j - ty * s.ts, il = i - tx * s.ts;
+    var lat = Math.abs(ll[1]).toFixed(2) + "°" + (ll[1] >= 0 ? "N" : "S"), lon = Math.abs(ll[0]).toFixed(2) + "°" + (ll[0] >= 0 ? "E" : "W");
+    var seq = ++SND.seq, init = Date.parse(m.c.init);
+    SND.ll = ll; showSndDock(); render();
+    $("sndT").textContent = label || (lat + " " + lon);
+    $("sndS").textContent = "HRRR " + m.c.init.slice(11, 13) + "Z run · loading the column…";
+    sndTile(m, ty, tx).then(function (buf) {
+      var dv = new DataView(buf), u8 = new Uint8Array(buf);
+      if (String.fromCharCode(u8[0], u8[1], u8[2], u8[3]) !== "SND1") throw new Error("bad tile");
+      var nh = dv.getUint16(4, true), off = 8 + 4 * nh, jobs = [];
+      for (var h = 0; h < nh; h++) { var len = dv.getUint32(8 + 4 * h, true); jobs.push(inflate(u8.subarray(off, off + len))); off += len; }
+      return Promise.all(jobs);
+    }).then(function (raws) {
+      if (seq !== SND.seq) return;
+      var np = 6 + 5 * (s.nlev - 1), items = raws.map(function (raw, h) {
+        var fxx = s.hours[h], t = new Date(init + fxx * 3600e3).toISOString();
+        return { fxx: fxx, label: "+" + fxx + " h", valid: t.slice(0, 10) + " " + t.slice(11, 16), prof: sndProfile(m, sndCodes(raw, np, th, tw, jl, il)) };
+      });
+      SND.items = items;
+      var zs = items[0].prof.H[0];
+      $("sndS").textContent = (label ? lat + " " + lon + " · " : "") + "HRRR " + m.c.init.slice(0, 10) + " " + m.c.init.slice(11, 13) + "Z run · 12 km column, " + Math.round(zs) + " m (" + Math.round(zs * 3.28084).toLocaleString("en-US") + " ft)";
+      sndSend({ type: "mv-sounding", model: "HRRR", title: "HRRR " + m.c.init.slice(11, 13) + "Z  " + (label ? label.split(" ")[0] : lat + " " + lon),
+                coords: lat + "  " + lon + "  " + Math.round(zs) + " m", items: items, idx: sndIdxFor(mapValid()) });
+    }).catch(function () { if (seq === SND.seq) $("sndS").textContent = "The sounding data could not be loaded. Try again in a moment."; });
+  }
+  function showSndDock() {
+    $("snd").hidden = false;
+    if (!SND.win) { $("sndF").src = "skewt/?embed=model"; SND.win = $("sndF").contentWindow; }
+  }
+  function closeSnd() { $("snd").hidden = true; SND.ll = null; SND.seq++; render(); }
+  $("sndX").onclick = closeSnd;
+  function sndSend(msg) { if (SND.ready) $("sndF").contentWindow.postMessage(msg, location.origin); else SND.pend = msg; }
+  window.addEventListener("message", function (e) {
+    if (e.origin !== location.origin || e.source !== $("sndF").contentWindow) return;
+    var d = e.data || {};
+    if (d.type === "mv-ready") { SND.ready = true; if (SND.pend) { sndSend(SND.pend); SND.pend = null; } }
+    else if (d.type === "mv-close") closeSnd();
+    else if (d.type === "mv-hour" && SND.items) { var m = sndMeta(); if (m) mgSyncMap(Date.parse(m.c.init) + d.fxx * 3600e3); }
+  });
+  document.addEventListener("keydown", function (e) {
+    if ($("snd").hidden || e.key !== "Escape" || (e.target && /INPUT|SELECT|TEXTAREA/.test(e.target.tagName))) return;
+    closeSnd(); e.preventDefault(); e.stopImmediatePropagation();
+  }, true);
+  function mapValid() { var c = cycleObj(st.model, st.ci); return c ? Date.parse(c.init) + st.hour * 3600e3 : Date.now(); }
+  function sndIdxFor(t) {
+    var m = sndMeta(); if (!m) return 0; var t0 = Date.parse(m.c.init), best = 0;
+    m.s.hours.forEach(function (h, k) { if (Math.abs(t0 + h * 3600e3 - t) < Math.abs(t0 + m.s.hours[best] * 3600e3 - t)) best = k; });
+    return best;
+  }
+  function sndFollowMap() { if (!$("snd").hidden && SND.items && SND.ready) sndSend({ type: "mv-sel", idx: sndIdxFor(mapValid()) }); }
+  function drawSndMark(ctx) {
+    if (!SND.ll || $("snd").hidden) return;
+    var q = P.fwd(SND.ll[0], SND.ll[1]), p = toPx(q[0], q[1]);
+    ctx.lineWidth = 3; ctx.strokeStyle = "rgba(255,255,255,0.95)"; ctx.beginPath(); ctx.arc(p[0], p[1], 9, 0, 2 * Math.PI); ctx.stroke();
+    ctx.lineWidth = 2; ctx.strokeStyle = "#c2394b"; ctx.beginPath(); ctx.arc(p[0], p[1], 9, 0, 2 * Math.PI);
+    ctx.moveTo(p[0] - 15, p[1]); ctx.lineTo(p[0] - 5, p[1]); ctx.moveTo(p[0] + 5, p[1]); ctx.lineTo(p[0] + 15, p[1]);
+    ctx.moveTo(p[0], p[1] - 15); ctx.lineTo(p[0], p[1] - 5); ctx.moveTo(p[0], p[1] + 5); ctx.lineTo(p[0], p[1] + 15); ctx.stroke();
+  }
   $("mgX").onclick = closeMg;
   $("mgW").onclick = function () { var f = $("mg").classList.toggle("full"); this.textContent = f ? "Standard size" : "Full window";
     this.title = f ? "Back to the centred panel" : "Use the whole window (the map stays underneath)"; drawMg(); };

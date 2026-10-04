@@ -318,6 +318,52 @@ def decode(grib: Path, out_stem: Path, cycle: dict, quiet=False):
     return meta
 
 
+# Surface layer for the forecast soundings (scripts/ecape/to_soundings.py): the profile starts at the ground with the
+# 2 m temperature/dewpoint and 10 m wind, not at hybrid level 1 (~10 m up). Written to <stem>_sfc.f32, shape (6, ny, nx)
+# in this order, and NEVER mixed into the kernel's cube (its layout is fixed by NVAR/NLEV).
+SFC = [("PRES", "surface"), ("HGT", "surface"), ("TMP", "2 m above ground"), ("DPT", "2 m above ground"),
+       ("UGRD", "10 m above ground"), ("VGRD", "10 m above ground")]
+
+
+def fetch_surface(url: str, rows, out_stem: Path, quiet=False):
+    """Byte-range the six surface messages and decode them to <stem>_sfc.f32 (float32, (6, ny, nx), SFC order)."""
+    import eccodes as ec
+    want = {k: i for i, k in enumerate(SFC)}
+    ranges, order = [], []
+    for i, (n, off, var, lev) in enumerate(rows):
+        if (var, lev) in want:
+            end = rows[i + 1][1] - 1 if i + 1 < len(rows) else None
+            ranges.append((off, end)); order.append(want[(var, lev)])
+    if sorted(order) != list(range(len(SFC))):
+        raise SystemExit(f"surface: index has {len(order)} of the {len(SFC)} messages")
+    tmp = Path(tempfile.mkdtemp()) / "hrrr_sfc.grib2"
+    try:
+        download(url, ranges, tmp, quiet=True)
+        out, k = None, 0
+        with open(tmp, "rb") as fh:                       # messages arrive in offset order = `order` sorted by offset
+            for idx in [o for _, o in sorted(zip([r[0] for r in ranges], order))]:
+                gid = ec.codes_grib_new_from_file(fh)
+                try:
+                    ny, nx = ec.codes_get(gid, "Ny"), ec.codes_get(gid, "Nx")
+                    if out is None:
+                        out = np.zeros((len(SFC), ny, nx), np.float32)
+                    out[idx] = ec.codes_get_values(gid).reshape(ny, nx)
+                    k += 1
+                finally:
+                    ec.codes_release(gid)
+        if k != len(SFC):
+            raise SystemExit(f"surface: decoded {k} of {len(SFC)} messages")
+        out.tofile(str(out_stem) + "_sfc.f32")
+        if not quiet:
+            print(f"  surface layer -> {out_stem}_sfc.f32", flush=True)
+    finally:
+        tmp.unlink(missing_ok=True)
+        try:
+            os.rmdir(tmp.parent)
+        except OSError:
+            pass
+
+
 def main(argv=None) -> int:
     global NLEV
     ap = argparse.ArgumentParser()
@@ -330,6 +376,8 @@ def main(argv=None) -> int:
     ap.add_argument("--grib", help="decode this local GRIB instead of downloading "
                                    "(iteration aid; skips the fetch entirely)")
     ap.add_argument("--quiet", action="store_true")
+    ap.add_argument("--surface", action="store_true",
+                    help="also write <out>_sfc.f32 (surface P/z, 2 m T/Td, 10 m wind) for the forecast soundings")
     ap.add_argument("--levels", type=int, default=NLEV,
                     help=f"hybrid levels to keep from the ground up "
                          f"(default {NLEV}; 38 is known to fail - see NLEV)")
@@ -386,6 +434,12 @@ def main(argv=None) -> int:
         decode(Path(a.grib), out_stem, dict(date=date, hour=hour, fxx=a.fxx),
                quiet=a.quiet)
         return 0
+    if a.surface:                      # optional extra: a failure must never cost the ECAPE hour
+        try:
+            fetch_surface(url, rows, out_stem, quiet=a.quiet)
+        except (SystemExit, Exception) as e:  # noqa: BLE001
+            print(f"::warning::surface layer not written ({e}); no soundings this hour", flush=True)
+            Path(str(out_stem) + "_sfc.f32").unlink(missing_ok=True)
     tmp = Path(tempfile.mkdtemp()) / "hrrr_subset.grib2"
     nbytes = download(url, ranges, tmp, quiet=a.quiet)
     print(f"  downloaded {nbytes/1e6:.1f} MB", flush=True)

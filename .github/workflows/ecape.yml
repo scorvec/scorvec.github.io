@@ -13,6 +13,12 @@ name: HRRR ECAPE (CONUS)
 # Cost per cycle (runner, 2 cores): ~397 MB wrfnat download and ~100 s of kernel per forecast hour, 29 hours;
 # ~1.5 MB of WebP per hour (4 fields) -> ~43 MB per cycle on the frames branch.
 #
+# FORECAST SOUNDINGS (2026-10-04, user: click anywhere on models.html for a sounding, HRRR only): the same cube, every
+# 4th column (12 km), 42 levels + the surface layer (fetch_hrrr.py --surface: +~3 MB a hour), encoded per hour by
+# scripts/ecape/to_soundings.py (~6 s) and packed at the end into 228 tiles of 24 x 24 columns x every hour:
+# ~14 MB a hour -> ~400 MB per cycle on the frames branch (~1.8 MB per tile = per click). Optional: if it fails the
+# ECAPE maps still publish, without soundings.
+#
 # Only 00/06/12/18Z run past F18, so the driver resolves ONE extended cycle up front (its F00) and FOLLOWS the model:
 # each hour waits up to 40 min for its own file.
 #
@@ -118,7 +124,7 @@ jobs:
           read -r -a HOURS <<< "$(printf '%s' "$FXX" | tr '\n\t' '  ')"
           fetch_one() {
             python scripts/ecape/fetch_hrrr.py --date "${CYCLE:0:8}" --hour "${CYCLE:8:2}" --fxx "$1" \
-              --out "$RUNNER_TEMP/hrrr_f$1" --quiet --wait-minutes 40
+              --out "$RUNNER_TEMP/hrrr_f$1" --quiet --wait-minutes 40 --surface
           }
           # pull hour N+1 while hour N computes (~4.6 GB of ~14 GB scratch)
           fetch_one "${HOURS[0]}"
@@ -129,7 +135,11 @@ jobs:
             STEM="$RUNNER_TEMP/hrrr_f$f"
             ./scripts/ecape/ecape_grid "$STEM"
             python scripts/ecape/to_models.py encode "$STEM" --out "$D"
-            rm -f "$STEM.f32" "${STEM}_ecape.f32" "$STEM.json" "${STEM}_ecape.json"
+            if [ -z "${SND_FAIL:-}" ]; then
+              python scripts/ecape/to_soundings.py encode "$STEM" --out "$D" --fxx "$f" \
+                || { SND_FAIL=1; echo "::warning::soundings: F$f failed to encode - no soundings this cycle"; }
+            fi
+            rm -f "$STEM.f32" "${STEM}_ecape.f32" "${STEM}_sfc.f32" "$STEM.json" "${STEM}_ecape.json"
             echo "::endgroup::"
             if [ -n "$BG" ]; then wait "$BG"; fi      # a failed prefetch fails the run, never skips an hour
           done
@@ -139,6 +149,9 @@ jobs:
             if [ "$got" -ne "${#HOURS[@]}" ]; then echo "::error::$fld has $got hours, expected ${#HOURS[@]} - not publishing"; exit 1; fi
           done
           echo "verified: ${#HOURS[@]} hours x 4 fields, $(du -sk "$D" | cut -f1) KB"
+          # forecast soundings: every hour's parts -> one file per tile (all hours), or none at all
+          if [ -z "${SND_FAIL:-}" ] && python scripts/ecape/to_soundings.py pack "$D" --hours "${HOURS[*]}"; then :
+          else rm -rf "$D/snd"; echo "::warning::forecast soundings not written this cycle"; fi
           # meteogram series at the map's airports and the tracker cities (nearest cell, read back from the WebP files
           # above; scripts/models/points.py format) - optional: the maps publish without it
           python scripts/ecape/to_models.py points --cycle "$CYCLE" --out "$D" --manifest /tmp/mv.json \
@@ -157,6 +170,7 @@ jobs:
           read -r NEWEST FLOOR < <(python -c "import json,sys;c=[x['cycle'] for x in json.load(open(sys.argv[1])).get('cycles',[])];print(max(c) if c else '-', min(c+[sys.argv[2]]))" "$RUNNER_TEMP/mv_base.json" "$CYCLE")
           if [ "$NEWEST" != "-" ] && [[ "$CYCLE" < "$NEWEST" ]]; then echo "::notice::the viewer already shows $NEWEST; ECAPE $CYCLE not published"; exit 0; fi
           EXTRA=""; [ -s "$D/points_ecape.json" ] && EXTRA="$D/points_ecape.json"
+          [ -s "$D/snd/index.json" ] && EXTRA="$EXTRA $D/snd"
           SHA=$(SRC=. PRUNE_OLDER="assets/models/data/hrrr:$FLOOR" scripts/models/publish_data.sh "$D/ecape_mu" "$D/ecape_ml" "$D/mucape" "$D/mlcape" $EXTRA | tail -1)
           echo "frames commit $SHA"
           python scripts/ecape/to_models.py entry --cycle "$CYCLE" --site . --sha "$SHA" --out "$RUNNER_TEMP/ecape_entry.json"

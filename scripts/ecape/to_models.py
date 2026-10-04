@@ -149,6 +149,14 @@ def cmd_entry(a):
     if pf.exists():                                           # meteogram series (cmd_points), on the same frames commit
         entry["points"] = dict(file="points_ecape.json", bytes=pf.stat().st_size, **({"sha": a.sha} if a.sha else {}))
         entry["bytes"] = nbytes + pf.stat().st_size
+    si = root / "snd" / "index.json"
+    if si.exists():                                           # forecast soundings (to_soundings.py), same frames commit
+        snd = json.loads(si.read_text())
+        snd.pop("grid", None)                                 # the page uses the cycle's own grids.main
+        if a.sha:
+            snd["sha"] = a.sha
+        entry["snd"] = snd
+        entry["bytes"] += snd.get("bytes", 0)
     Path(a.out).write_text(json.dumps({"ecape": {a.cycle: entry}}, separators=(",", ":")))
     print(f"ECAPE entry {a.cycle}: {len(fields)} fields x {len(hours)} hours, {nbytes / 1e6:.1f} MB")
     return 0

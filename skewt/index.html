@@ -112,6 +112,13 @@
   .modal { position: fixed; inset: 0; background: rgba(4,4,9,0.78); z-index: 2000;
            display: flex; align-items: center; justify-content: center; }
   .modal[hidden] { display: none; }
+  /* ?embed=model (models.html's sounding dock): the card alone, edge to edge; station-only controls hidden */
+  body.embed > :not(.modal):not(#png-view):not(script) { display: none !important; }
+  body.embed #modal { background: var(--bg); }
+  body.embed #modal .dialog { width: 100vw !important; height: 100vh; height: 100svh; max-width: none; border: 0;
+                              border-radius: 0; box-shadow: none; max-height: 100svh; }
+  body.embed .dlg-head .seg, body.embed .arch-controls, body.embed #uw-link, body.embed #climo-btn,
+  body.embed #rec-btn, body.embed #share-btn, body.embed #close { display: none !important; }
   /* (the sounding card's width is then set per screen by fitLayout() in app.js) */
   .dialog { background: var(--bg); border: 1px solid var(--rule); border-radius: 14px;
             width: 98vw; height: 96vh; display: flex; flex-direction: column;
@@ -790,6 +797,6 @@
   </div>
 </div>
 <script src="sharplib.js?v=92a2fd08"></script>
-<script src="app.js?v=c658289e"></script>
+<script src="app.js?v=48801108"></script>
 </body>
 </html>
