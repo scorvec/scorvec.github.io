@@ -244,7 +244,7 @@ def render_card(storms, idx, v250, lat, lon, steps, init, out_png: Path, out_jso
     out_png.parent.mkdir(parents=True, exist_ok=True); out_json.parent.mkdir(parents=True, exist_ok=True)
     days = np.asarray(steps, float) / 24.0
     fig = plt.figure(figsize=(12.6, 11.2))
-    gs = fig.add_gridspec(2, 1, height_ratios=[1.0, 1.9], hspace=0.40, left=0.07, right=0.97, top=0.905, bottom=0.11)
+    gs = fig.add_gridspec(2, 1, height_ratios=[1.0, 1.9], hspace=0.40, left=0.115, right=0.97, top=0.905, bottom=0.11)
     ax1, ax2 = fig.add_subplot(gs[0]), fig.add_subplot(gs[1])
     fig.suptitle(f"Tropical cyclones and the jet — AIFS-ENS control, init {init:%d %b %Y %HZ}", fontsize=14, fontweight="bold",
                  x=0.07, ha="left")

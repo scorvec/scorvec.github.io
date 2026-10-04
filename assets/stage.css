@@ -78,10 +78,15 @@
    images on mobile"). One compact bar replaces the rail's pills: previous / "Choose a plot: <current>" / next, sticky
    under the site header; the list opens in a sheet (stage.js openSheet). The crumb and the keyboard hint go; option
    rows become one sideways-scrolling line each. Tap targets are at least 44 px. ── */
+.ss-layout.ss-wide { grid-template-columns: minmax(0, 1fr); }
+.ss-layout.ss-wide > .ss-rail { display: none; }
+.ss-widen { margin-right: 0.4rem; }
 .ss-pick, .ss-sheet, .ss-more { display: none; }
 .ss-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 @media (max-width: 1000px) {
-  .ss-layout { grid-template-columns: 1fr; gap: 0.6rem; }
+  .ss-layout, .ss-layout.ss-wide { grid-template-columns: 1fr; gap: 0.6rem; }
+  .ss-layout.ss-wide > .ss-rail { display: block; }
+  .ss-widen { display: none; }
   .ss-rail { position: sticky; top: 64px; z-index: 30; max-height: none; overflow: visible; padding: 6px;
              background: color-mix(in srgb, var(--surface, #fff) 94%, transparent); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); }
   .ss-rail .rail-group { display: none; }

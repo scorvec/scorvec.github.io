@@ -398,6 +398,22 @@
     });
   }
   $("prevBtn").onclick = function () { step(-1); }; $("nextBtn").onclick = function () { step(1); };
+  // "Larger" (2026-10-04, user: the dynamic tropopause maps "could be a bit bigger"): hides the rail so the figure takes the
+  // whole content width; desktop only (phones already use it all), remembered in this browser
+  (function () {
+    var nav = $("prevBtn").parentNode, lay = document.querySelector(".ss-layout"); if (!nav || !lay) return;
+    var b = document.createElement("button"); b.type = "button"; b.className = "ss-widen";
+    function set(on) {
+      lay.classList.toggle("ss-wide", on); b.textContent = on ? "Show the menu" : "Larger";
+      b.title = on ? "Bring back the list of plots" : "Hide the list of plots and use the full width"; b.setAttribute("aria-pressed", on ? "true" : "false");
+      try { localStorage.setItem("ss-wide", on ? "1" : "0"); } catch (e) {}
+      fitStage(); setTimeout(fitStage, 60);
+    }
+    b.onclick = function () { set(!lay.classList.contains("ss-wide")); };
+    nav.insertBefore(b, nav.firstChild);
+    var saved = null; try { saved = localStorage.getItem("ss-wide"); } catch (e) {}
+    if (saved === "1") set(true);
+  })();
   addEventListener("keydown", function (e) {
     if (e.target && /INPUT|SELECT|TEXTAREA/.test(e.target.tagName)) return;
     if (sheet && !sheet.hidden) return;

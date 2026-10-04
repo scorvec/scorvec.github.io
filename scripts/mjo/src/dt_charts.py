@@ -136,7 +136,7 @@ def on_isentrope(pv, th, U, V, theta):
 # 9.6x9.9 figure with a 0.96x0.87 rect drew the circle 851 px wide inside 960 px and put 61 px of
 # white above the title. The rect below is square by construction (MAP_S on both sides), which is
 # the whole trick — the title and colour bar get the only bands that are not map.
-FIG_W, MAP_S, PAD_TOP, PAD_BOT = 9.6, 9.40, 0.26, 0.52
+FIG_W, MAP_S, PAD_TOP, PAD_BOT = 9.6, 9.40, 0.26, 1.02   # PAD_BOT 0.52 -> 1.02: a band for the storm key (2026-10-04)
 FIG_H = MAP_S + PAD_TOP + PAD_BOT
 
 
@@ -155,7 +155,7 @@ def _frame():
     return fig, ax, cax
 
 
-RG_W, RG_H = 11.8, 7.9
+RG_W, RG_H = 11.8, 8.6           # 8.6 (was 7.9): a band under the map for the storm key (2026-10-04)
 
 
 def _frame_region(rg):
@@ -165,10 +165,10 @@ def _frame_region(rg):
     R = REGIONS[rg]
     fig = plt.figure(figsize=(RG_W, RG_H))
     proj = ccrs.LambertConformal(central_longitude=R["clon"], central_latitude=R["clat"], standard_parallels=(30, 60))
-    ax = fig.add_axes([0.012, 0.105, 0.976, 0.845], projection=proj)
+    ax = fig.add_axes([0.012, 0.172, 0.976, 0.777], projection=proj)
     lo0, lo1 = R["lon"]; span = (lo1 - lo0) % 360
     ax.set_extent([lo0 - 360 if lo0 > 180 else lo0, (lo0 - 360 if lo0 > 180 else lo0) + span, R["lat"][0], R["lat"][1]], crs=ccrs.PlateCarree())
-    cax = fig.add_axes([0.2, 0.045, 0.6, 0.022])
+    cax = fig.add_axes([0.2, 0.042, 0.6, 0.02])
     return fig, ax, cax
 
 
@@ -279,18 +279,41 @@ def load_msl_control(cyc):
             (da.step / np.timedelta64(1, "h")).values.astype(int))
 
 
+TRACK_HIST_H = 48            # 2026-10-04 (user: "remove the track history lines after a certain time so that the maps don't get
+                             # too messy"): only the last 48 h of a storm's past track are drawn
+
+
+def _key(ax, polar):
+    """On-map key for the storm overlays (2026-10-04, user: "indicate clearly what the magenta lines are")."""
+    from matplotlib.lines import Line2D
+    h = [Line2D([], [], color=ADV_COL, lw=2.6, path_effects=[pe.Stroke(linewidth=4.2, foreground="#222"), pe.Normal()]),
+         Line2D([], [], color="#fff", lw=1.8, path_effects=[pe.Stroke(linewidth=3.4, foreground="#000"), pe.Normal()]),
+         Line2D([], [], color="#fff", lw=1.2, ls=(0, (3, 2)), path_effects=[pe.Stroke(linewidth=3.0, foreground="#000"), pe.Normal()]),
+         Line2D([], [], ls="none", marker="o", ms=8, mfc="#ff9f1c", mec="#fff"),
+         Line2D([], [], ls="none", marker="o", ms=8, mfc="#6a3d9a", mec="#fff")]
+    t = ["Magenta: a storm's outflow pushing into the jet\n(outflow PV advection −1 / −2 PVU per day)",
+         f"Storm track, last {TRACK_HIST_H} h", "Storm track ahead (forecast)", "Tropical storm (red: hurricane strength)",
+         "Post-tropical low"]
+    # in the band between the map and the colour bar, never on the data
+    h = [h[0], h[1], h[3], h[2], h[4]]; t = [t[0], t[1], t[3], t[2], t[4]]
+    ax.figure.legend(h, t, loc="center", bbox_to_anchor=(0.5, 0.76 / FIG_H if polar else 0.118), ncol=3,
+                     fontsize=7.8 if polar else 9.0, frameon=False, columnspacing=1.4 if polar else 1.8, handlelength=2.0)
+
+
 def _storms(ax, storms, h, polar):
-    """Tropical cyclones in the control at lead h: past track solid, the rest dashed, a dot sized by strength."""
+    """Tropical cyclones in the control at lead h: the last TRACK_HIST_H hours solid, the rest dashed, a dot sized by
+    strength."""
     import cartopy.crs as ccrs
     halo = [pe.Stroke(linewidth=3.2, foreground="#000"), pe.Normal()]
     for s in storms:
         pos = TC.at(s, h)
         if pos is None or pos[0] <= 0:
             continue
-        past = s["steps"] <= h
+        past = (s["steps"] <= h) & (s["steps"] >= h - TRACK_HIST_H)
         lo_u = np.rad2deg(np.unwrap(np.deg2rad(s["lon"])))
         ax.plot(lo_u[past], s["lat"][past], color="#fff", lw=1.6, transform=ccrs.Geodetic(), zorder=8, path_effects=halo)
-        ax.plot(lo_u[~past | (s["steps"] == h)], s["lat"][~past | (s["steps"] == h)], color="#fff", lw=1.1, ls=(0, (3, 2)),
+        ahead = s["steps"] >= h
+        ax.plot(lo_u[ahead], s["lat"][ahead], color="#fff", lw=1.1, ls=(0, (3, 2)),
                 transform=ccrs.Geodetic(), zorder=8, path_effects=halo)
         k = np.where(s["steps"] == h)[0][0]
         post = bool(s["followed"][k]) if "followed" in s else False
@@ -414,10 +437,11 @@ def main() -> int:
                     if av is None: arrs[4] = None
                 cf = _draw(ax, la_, lo_, arrs[0], arrs[1], arrs[2], arrs[3], kind, polar, ttl, adv=arrs[4], storms=storms, h=int(h))
                 if kind == "dt" and storms:
-                    blab += " · white: storm tracks (purple dot: post-tropical) · magenta: outflow PV advection −1/−2 PVU/day"
+                    _key(ax, polar)
+                    blab += " · storm overlays: see the key on the map"
                 _bar(fig, cf, cax, blab)
                 kk = key(f, rg); fp = dirs[kk] / f"F{k:02d}.webp"
-                fig.savefig(fp, dpi=100, facecolor="white", pil_kwargs={"quality": 82, "method": 6}); plt.close(fig)
+                fig.savefig(fp, dpi=100 if polar else 125, facecolor="white", pil_kwargs={"quality": 82, "method": 6}); plt.close(fig)
                 entries[kk].append({"idx": k, "file": fp.name, "date": valid.strftime("%Y-%m-%d"), "label": lab})
         if k % 5 == 0:
             print(f"    step {h:3d} h done ({time.time() - t0:.0f}s)", flush=True)
