@@ -441,6 +441,7 @@
   <div class="mv-show"><b>Show</b>
     <label class="chk" id="contL" hidden title="Labelled contours drawn from the same data (isotherms, flight-category thresholds, isobars, CAPE)"><input type="checkbox" id="cont" checked> Contours</label>
     <label class="chk" title="Airports with scheduled service in the US and Canada (OurAirports) and a few city centres; hover for the model's value there, click or tap for the forecast meteogram"><input type="checkbox" id="sta" checked> Airports</label>
+    <label class="chk" title="The model's 2 m temperature (red) and dewpoint (green), °F, at the hour shown, above each labelled airport"><input type="checkbox" id="tdn" checked> Temp / dew</label>
     <label class="chk" id="diffL" hidden title="The other 3 km model's value subtracted at the same valid time, on the shared grid (HRRR and RRFS use the identical grid)"><input type="checkbox" id="diff"> <span id="diffT">Difference</span></label>
     <label class="chk" id="farmsL" hidden title="US wind projects (USGS Wind Turbine Database) or large-scale solar plants (USGS Solar PV Database), sized by capacity"><input type="checkbox" id="farms" checked> <span id="farmsT">Wind farms</span></label>
     <span class="mv-keys" id="sndL" hidden><b>Sounding:</b> double-click the map (on a phone, double-tap or press and hold) for that spot's HRRR forecast sounding</span>
@@ -1776,6 +1777,25 @@
   }
   // labels: collision boxes in a 48 px hash grid; text widths cached. Lower quality levels label the hubs only at
   // national scale and the medium airports only closer in (markers stay).
+  // temperature / dewpoint at the airports: the run's points.json (the meteogram file, loaded once per model and run) at the
+  // map's hour; decoded per station once and cached on the doc
+  var TD_FONT = "700 12px 'Source Sans 3', Arial, sans-serif", TDD = {};
+  function aptTd() {
+    if (!$("tdn").checked) return null;
+    var c = cycleObj(st.model, st.ci); if (!c || !c.points) return null;
+    var key = st.model + "/" + c.cycle, doc = TDD[key];
+    if (doc === undefined) { TDD[key] = null; mgFile(st.model, c).then(function (d) { TDD[key] = d || false; if (d) render(); }).catch(function () { TDD[key] = false; }); return null; }
+    if (!doc) return null;
+    var k = doc.hours.indexOf(st.hour); if (k < 0) return null;
+    if (!doc._td) doc._td = {};
+    if (!doc._td[k]) {
+      var o = {}, T = doc.fields.t2m, D = doc.fields.td2m; if (!T) return null;
+      doc.ids.forEach(function (id) { var a = mgSeries(doc, "t2m", id), b = D ? mgSeries(doc, "td2m", id) : null;
+        if (a && a.v[k] === a.v[k]) o[id] = [a.v[k], b ? b.v[k] : NaN]; });
+      doc._td[k] = o;
+    }
+    return doc._td[k];
+  }
   function drawAirports(ctx) {
     aptShown = [];
     if (!$("sta").checked) return;
@@ -1793,6 +1813,7 @@
         var k = gx * 4096 + gy, L = grid.get(k); if (!L) grid.set(k, L = []); L.push(b); }
     }
     ctx.font = FONT; ctx.textBaseline = "middle";
+    var tdv = aptTd();                                    // {id: [T, Td]} at the hour shown (2026-10-04, user: temp/dewpoint above each label)
     var vis = [];
     for (var i = 0; i < APTS.length; i++) {
       var a = APTS[i]; if (a[4] > maxTier) continue;
@@ -1808,6 +1829,19 @@
     vis.forEach(function (v) {
       var px = v[0], py = v[1], a = v[2];
       aptShown.push(v);
+      if (a[4] <= labTier && tdv && tdv[a[2]]) {           // the numbers first, above the marker; the code label then avoids them
+        ctx.font = TD_FONT;
+        var tv = tdv[a[2]], ts = Math.round(tv[0]) + "", ds = tv[1] === tv[1] ? Math.round(tv[1]) + "" : "",
+            tws = textW(ctx, TD_FONT, ts), dws = ds ? textW(ctx, TD_FONT, ds) : 0, gap = ds ? 5 : 0, wt = tws + gap + dws,
+            nb = [px - wt / 2 - 2, py - 22, px + wt / 2 + 2, py - 8];
+        if (hits(nb)) ctx.font = FONT;
+        else {
+          add(nb); ctx.textAlign = "left"; var xs = px - wt / 2, yy = py - 15;
+          ctx.strokeText(ts, xs, yy); ctx.fillStyle = "#c62828"; ctx.fillText(ts, xs, yy);
+          if (ds) { ctx.strokeText(ds, xs + tws + gap, yy); ctx.fillStyle = "#1b7a2e"; ctx.fillText(ds, xs + tws + gap, yy); }
+          ctx.font = FONT; ctx.fillStyle = "#141614";
+        }
+      }
       if (a[4] <= labTier) {
         var tw = a.tw || (a.tw = textW(ctx, FONT, a[2])), spots = [[px + 7, py, "left"], [px - 7, py, "right"], [px, py - 11, "center"], [px, py + 11, "center"]];
         for (var k = 0; k < spots.length; k++) {
@@ -2163,6 +2197,7 @@
   $("cont").onchange = function () { prefetch(); render(); };
   $("accWin").onchange = function () { st.acc.win = +this.value; onChange(); };
   $("sta").onchange = function () { render(); };
+  $("tdn").onchange = function () { render(); };
   $("farms").onchange = function () { render(); };
   $("diff").onchange = function () { prefetch(); onChange(); };
   document.addEventListener("keydown", function (e) {
