@@ -632,8 +632,8 @@
   function capeOf(c, k) { return c === 255 ? null : (c / k) * (c / k); }
   FIELDS.ecape = { label: "ECAPE / CAPE", enc: "sqrt", unit: "J/kg" };
   // the field picker, grouped by what people use the maps for (2026-09-30 redesign); units shown on the buttons
-  var FIELD_GROUPS = [["Clouds & visibility", ["ir", "ceil", "vis"]], ["Surface", ["t2m", "td2m", "mslp", "wind10", "gust", "wind80"]], ["Precipitation", ["refl", "acc"]],
-                      ["Severe", ["ecape"]], ["Air quality & energy", ["smoke", "sw"]]];
+  var FIELD_GROUPS = [["Clouds & visibility", ["ir", "ceil", "vis"]], ["Surface", ["t2m", "td2m", "mslp", "wind10", "gust"]], ["Precipitation", ["refl", "acc"]],
+                      ["Severe", ["ecape"]], ["Air quality & energy", ["wind80", "smoke", "sw"]]];
   var FIELD_ORDER = [].concat.apply([], FIELD_GROUPS.map(function (g) { return g[1]; }));
   var FIELD_UNIT = { ir: "°C", ceil: "ft", vis: "mi", t2m: "°F", td2m: "°F", mslp: "hPa", wind10: "m/s", gust: "m/s", wind80: "m/s", refl: "dBZ", acc: "in", ecape: "J/kg", smoke: "mg/m²", sw: "W/m²" };
   function encOf(f, fm) { return (fm && fm.enc) || FIELDS[f].enc; }
