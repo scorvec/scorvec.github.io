@@ -1,13 +1,13 @@
 {
  "updated": "2026-10-04",
- "total_30d": 340,
+ "total_30d": 347,
  "countries_30d": 15,
- "total_all": 965,
+ "total_all": 972,
  "countries_all": 19,
  "top_pages_30d": [
   {
    "path": "/aifs-aam-budget.html",
-   "count": 30
+   "count": 32
   },
   {
    "path": "/aifs-verify.html",
@@ -27,7 +27,7 @@
   },
   {
    "path": "/mjo.html",
-   "count": 19
+   "count": 22
   },
   {
    "path": "/stats.html",
