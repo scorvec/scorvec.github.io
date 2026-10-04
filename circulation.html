@@ -367,6 +367,7 @@
 .tcp-map .trk.sel{stroke-width:3.6;opacity:1}
 .tcp-map .hit{fill:none;stroke:transparent;stroke-width:18;cursor:pointer}
 .tcp-map .dot{stroke:#fff;stroke-width:1.5;cursor:pointer}
+.tcp-map .lead{stroke-width:1;opacity:.7}
 .tcp-map .lab{font:600 13px "Source Sans 3",sans-serif;paint-order:stroke;stroke:#fff;stroke-width:3px;fill:var(--tk);cursor:pointer}
 .tcp-hint{margin:6px 0 10px;color:var(--tm);font-size:.95rem}
 .tcp-row{display:flex;flex-wrap:wrap;gap:6px;margin:4px 0 10px}
@@ -405,12 +406,13 @@
     var by = {}, out = [];
     (ens && ens.storms || []).forEach(function (s) {
       var p = {}; Object.keys(s.models || {}).forEach(function (m) { p[m] = s.models[m].p_recurve; });
-      var o = { id: s.id, key: s.key, name: s.name, track: s.track || null, files: { tracks: s.tracks_file, depth: s.depth_file }, p: p };
+      var o = { id: s.id, key: s.key, name: s.name, named: s.named !== false, short: s.named === false ? "new " + s.id : s.name,
+                track: s.track || null, files: { tracks: s.tracks_file, depth: s.depth_file }, p: p };
       if (!by[s.id]) { by[s.id] = o; out.push(o); }
     });
     (ph && ph.storms || []).forEach(function (s) {
       var o = by[s.id];
-      if (!o) { o = by[s.id] = { id: s.id, name: s.name, files: {}, p: {} }; out.push(o); }
+      if (!o) { o = by[s.id] = { id: s.id, name: s.name, named: true, short: s.name, files: {}, p: {} }; out.push(o); }
       o.files.phase = s.file;
       if (!o.track && s.series) o.track = { lat: s.series.lat, lon: s.series.lon, h: s.series.h };
     });
@@ -445,11 +447,40 @@
       svg += '<path class="land" d="' + d + '"/>';
     }
     var st = state();
+    // 2026-10-04 (user: "be careful with the overlapping labels"): map labels are SHORT (named storms by name, developing
+    // systems "new 71L"; the full name is in the buttons and the tooltip) and placed greedily - the selected storm first,
+    // then named ones - at the first candidate spot around the dot that clears every placed label, every dot and the
+    // frame; a label pushed away from its dot gets a thin leader line
+    var mctx = document.createElement("canvas").getContext("2d"); mctx.font = '600 13px "Source Sans 3", sans-serif';
+    var tw = function (t) { return mctx.measureText(t).width || 7 * t.length; };
+    var dots = S.map(function (s) { return [+X(s.rel[0]), +Y(s.track.lat[0])]; }), boxes = [], labs = {};
+    var hit = function (b) {
+      if (b[0] < 2 || b[2] > W - 2 || b[1] < 2 || b[3] > H - 16) return true;
+      for (var q = 0; q < boxes.length; q++) { var o = boxes[q]; if (b[0] < o[2] + 3 && b[2] > o[0] - 3 && b[1] < o[3] + 2 && b[3] > o[1] - 2) return true; }
+      for (q = 0; q < dots.length; q++) { var d = dots[q]; if (d[0] > b[0] - 8 && d[0] < b[2] + 8 && d[1] > b[1] - 8 && d[1] < b[3] + 8) return true; }
+      return false;
+    };
+    var order = S.map(function (s, i) { return i; }).sort(function (a, b) {
+      var ka = (S[a].id === st.id ? 0 : S[a].named ? 1 : 2), kb = (S[b].id === st.id ? 0 : S[b].named ? 1 : 2); return ka - kb || a - b; });
+    order.forEach(function (i) {
+      var s = S[i], t = s.short, w = tw(t), d = dots[i], best = null;
+      [[10, 4, 0], [-10, 4, 1], [9, -9, 0], [-9, -9, 1], [9, 17, 0], [-9, 17, 1], [-w / 2, -13, 0], [-w / 2, 24, 0],
+       [26, -22, 0], [-26, -22, 1], [26, 30, 0], [-26, 30, 1], [-w / 2, -30, 0], [-w / 2, 42, 0], [44, 4, 0], [-44, 4, 1],
+       [40, -40, 0], [-40, -40, 1], [40, 48, 0], [-40, 48, 1]].some(function (c) {
+        var x0 = c[2] ? d[0] + c[0] - w : d[0] + c[0], b = [x0, d[1] + c[1] - 11, x0 + w, d[1] + c[1] + 3];
+        if (hit(b)) return false;
+        best = { x: x0, y: d[1] + c[1], b: b, far: Math.hypot(c[0], c[1]) > 24 }; return true;
+      });
+      if (!best) { var x1 = Math.min(Math.max(d[0] + 10, 2), W - w - 2); best = { x: x1, y: d[1] + 4, b: [x1, d[1] - 7, x1 + w, d[1] + 7], far: false }; }
+      boxes.push(best.b); labs[i] = best;
+    });
     S.forEach(function (s, i) {
       var col = COLORS[i % COLORS.length], sel = s.id === st.id, pts = s.rel.map(function (r, j) { return X(r) + "," + Y(s.track.lat[j]); }).join(" ");
-      svg += '<g data-id="' + s.id + '"><polyline class="hit" points="' + pts + '"/><polyline class="trk' + (sel ? " sel" : "") + '" stroke="' + col + '" points="' + pts + '"/>' +
-             '<circle class="dot" r="' + (sel ? 8 : 6) + '" fill="' + col + '" cx="' + X(s.rel[0]) + '" cy="' + Y(s.track.lat[0]) + '"/>' +
-             '<text class="lab" x="' + (+X(s.rel[0]) + (+X(s.rel[0]) > W * 0.78 ? -10 : 10)) + '" y="' + (+Y(s.track.lat[0]) - 8) + '"' + (+X(s.rel[0]) > W * 0.78 ? ' text-anchor="end"' : "") + '>' + s.name + "</text></g>";
+      var L = labs[i], d = dots[i], lx = Math.min(Math.max(d[0], L.b[0]), L.b[2]), ly = Math.min(Math.max(d[1], L.b[1]), L.b[3]);
+      svg += '<g data-id="' + s.id + '"><title>' + s.name + '</title><polyline class="hit" points="' + pts + '"/><polyline class="trk' + (sel ? " sel" : "") + '" stroke="' + col + '" points="' + pts + '"/>' +
+             (L.far ? '<line class="lead" x1="' + d[0] + '" y1="' + d[1] + '" x2="' + lx.toFixed(1) + '" y2="' + ly.toFixed(1) + '" stroke="' + col + '"/>' : "") +
+             '<circle class="dot" r="' + (sel ? 8 : 6) + '" fill="' + col + '" cx="' + d[0] + '" cy="' + d[1] + '"/>' +
+             '<text class="lab" x="' + L.x.toFixed(1) + '" y="' + L.y.toFixed(1) + '">' + s.short + "</text></g>";
     });
     host.innerHTML = svg + "</g></svg>";
     host.querySelectorAll("g[data-id]").forEach(function (el) { el.addEventListener("click", function () { go(el.getAttribute("data-id"), state().view); }); });
