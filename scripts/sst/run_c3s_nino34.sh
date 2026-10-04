@@ -1,0 +1,172 @@
+#!/bin/bash
+# Local monthly build of the C3S multi-model ENSO forecast (ONI + RONI) →
+# assets/sst/c3s_nino34.webp + scripts/sst/c3s_nino34_clim.csv, then commit & push
+# only if something changed.
+#
+# Runs LOCALLY only (no GitHub Action): the CDS pulls are small but the lagged
+# ensembles (NCEP/UKMO/BoM) peak at ~20 GB RAM to decode, which a CI runner can't
+# give. Needs ~/.cdsapirc (Copernicus CDS personal access token).
+#
+# Cadence: the C3S centres publish each month's seasonal forecast across roughly
+# the 6th–14th, so the launchd agent polls a few times a day and this script only
+# acts on days 6–16. It runs at most once per day, and once all 7 models are in
+# for the month it writes a .done stamp and no-ops the rest of the month. Forecast
+# GRIBs are cached on disk and the hindcast climatology is cached in the committed
+# CSV, so re-runs within a month are cheap (no re-download).
+#
+# Invoked by ~/Library/LaunchAgents/com.scorvec.c3s.plist (StartInterval poll).
+set -uo pipefail
+
+# ---------------------------------------------------------------------------
+# RETIRED 2026-09-04 (user: "no more locally rendered jobs pushing images to
+# github, except GEPS"). This script rendered site products on the laptop and
+# pushed them to main, racing the GitHub Actions renders: on 2026-09-04 its
+# 15-minute pass overwrote the CI's TAO cross-section with a day-old frame, so
+# enso-subsurface showed Sep 1 under a Sep 2 manifest. Its launchd job is in
+# ~/Library/LaunchAgents/disabled/. Rendering belongs to Actions; the laptop
+# dispatches (scripts/lib/dispatch_workflows.sh). A .git/hooks/pre-push guard
+# blocks the push even if this runs. Set ALLOW_LOCAL_RENDER=1 for a manual,
+# deliberate one-off.
+if [ "${ALLOW_LOCAL_RENDER:-0}" != "1" ]; then
+  echo "$(basename "$0"): local rendering is retired; dispatch the workflow instead." >&2
+  exit 0
+fi
+# A deliberate manual run may push the products it just rendered; the pre-push
+# hook would otherwise reject them (see scripts/lib/pre-push.hook).
+export ALLOW_LOCAL_ASSET_PUSH=1
+# ---------------------------------------------------------------------------
+
+PY="${C3S_PY:-/opt/homebrew/Caskroom/miniconda/base/envs/mjo/bin/python}"
+REPO="$(cd "$(dirname "$0")/../.." && pwd)"
+export MPLBACKEND=Agg SST_SITE_ROOT="$REPO" \
+       PATH="$(dirname "$PY"):/usr/bin:/bin:/usr/sbin:/sbin:/opt/homebrew/bin"
+cd "$REPO" || exit 1
+
+LOG="$REPO/scripts/sst/run_c3s_nino34.log"
+exec >> "$LOG" 2>&1
+echo "===================== $(date) ====================="
+
+STAMPDIR="$REPO/scripts/sst/data/c3s"; mkdir -p "$STAMPDIR"
+ISSUE_GUESS=$(date +%Y%m)
+DONE_STAMP="$STAMPDIR/.done_${ISSUE_GUESS}"
+DAY_STAMP="$STAMPDIR/.ran_$(date +%Y%m%d)"
+
+if [ "${1:-}" = "--poll" ]; then
+  DOM=$((10#$(date +%d)))
+  if [ "$DOM" -lt 6 ] || [ "$DOM" -gt 16 ]; then exit 0; fi   # outside the monthly release window
+  [ -f "$DONE_STAMP" ] && exit 0                               # all 7 models already committed this month
+  [ -f "$DAY_STAMP" ]  && exit 0                               # already ran today
+fi
+touch "$DAY_STAMP"
+find "$STAMPDIR" -maxdepth 1 -name '.ran_*' -mtime +40 -delete 2>/dev/null  # tidy old day-stamps
+
+source "$REPO/scripts/lib/gitlock.sh"
+require_main || exit 0
+
+# Single-instance lock (a run can take ~30 min; don't overlap the next poll).
+LOCK="$STAMPDIR/.run.lock"
+if ! mkdir "$LOCK" 2>/dev/null; then
+  owner="$(cat "$LOCK/pid" 2>/dev/null)"
+  if { [ -n "$owner" ] && kill -0 "$owner" 2>/dev/null; } \
+     || [ -n "$(find "$LOCK" -maxdepth 0 -mmin -1 2>/dev/null)" ]; then
+    echo "another c3s run in progress (pid ${owner:-?}) — skipping this fire"; exit 0
+  fi
+  echo "stale lock (owner pid ${owner:-none} not running) — taking over"
+  rm -rf "$LOCK"; mkdir "$LOCK" 2>/dev/null || { echo "could not acquire lock"; exit 0; }
+fi
+echo $$ > "$LOCK/pid"
+trap 'rm -rf "$LOCK" 2>/dev/null' EXIT
+
+OUT=$("$PY" scripts/sst/c3s_nino34.py 2>&1); echo "$OUT"
+NMODELS=$(printf '%s\n' "$OUT" | sed -nE 's/.*\(([0-9]+) models\)/\1/p' | tail -1)
+
+# append/refresh this issue in the forecast-evolution store (cached GRIBs; cheap)
+"$PY" scripts/sst/c3s_evolution.py || echo "evolution store update failed; continuing"
+
+# How east-based: every member's SST anomaly over the tropical Pacific (C3S postprocessed
+# anomalies, 10S-10N x 120E-70W at 1 degree, a few MB a system and no hindcast download),
+# projected on Takahashi's E and C modes from ERSSTv6 -> assets/sst/data/enso_flavour.json.
+# The CDS rejects parallel requests from one key, so the strips come one system at a time.
+# The hindcast strips for the start month (1993-2016, all systems, ~25-30 MB each) come first: cached per
+# start month, so only the first issue of a given calendar month pays; the build then runs the
+# first-month persistence test and writes scripts/sst/reference/enso_flavour_hindcast_MM.json, which the
+# daily Actions step (enso_flavour_obs.py) uses to weight the first-month correction.
+"$PY" scripts/sst/c3s_enso_flavour.py --fetch-hindcast || echo "hindcast strips incomplete; the test waits for them"
+"$PY" scripts/sst/c3s_enso_flavour.py || echo "east/central build failed; keeping the previous issue"
+
+# NOAA SFS moved to GitHub Actions on 2026-09-10 (.github/workflows/sfs.yml): it needs no
+# credentials, unlike C3S. Rendering it here as well would push a second, competing copy over
+# whatever the workflow just published — and a partial local render would delete the loops it
+# did not rebuild, exactly the way the first workflow run did. Dispatch sfs.yml instead:
+#   gh workflow run sfs.yml -f issue=YYYYMM
+# seasonal.html: one anomaly-map set per system, from the postprocessed (ensemble-mean)
+# collection — ~27 MB an issue, so it runs every month beside the plume. The render is
+# skipped, not failed, when the download comes back short: an issue with two systems in it
+# would otherwise overwrite the full set from last month.
+if "$PY" scripts/sst/c3s_maps.py; then
+  "$PY" scripts/sst/c3s_maps_render.py || echo "c3s map render failed; keeping the previous issue"
+else
+  echo "c3s map download failed; keeping the previous issue"
+fi
+
+# Tercile probabilities need the members and the matching 1993-2016 hindcast, which is
+# gigabytes per system: the hindcast is cached per START MONTH and reused every year, so
+# only the first issue of a given month pays for it. ECMWF comes from the SEAS5 page's own
+# copy. Both steps are resumable, and the render skips any system whose files are short.
+if "$PY" scripts/sst/c3s_terciles.py; then
+  "$PY" scripts/sst/c3s_terciles_render.py || echo "c3s tercile render failed; keeping the previous issue"
+else
+  echo "c3s tercile inputs incomplete; keeping the previous issue"
+fi
+
+# Ocean indices for every system, off the anomaly fields c3s_maps.py just cached: no
+# download of its own, so it runs whenever those exist.
+"$PY" scripts/sst/c3s_indices.py || echo "c3s indices failed; keeping the previous issue"
+
+# Population-weighted monthly temperature for every system: reads the members the tercile
+# step already cached, so it costs nothing beyond the arithmetic.
+"$PY" scripts/sst/c3s_popt_monthly.py || echo "c3s population-weighted build failed; keeping the previous issue"
+
+# The daily impact products need 6-hourly members per system over the country boxes: about
+# 4 GB and seven hours of CDS time an issue, so this is deliberately the LAST thing the
+# monthly run does and every other product is already published by the time it starts. It
+# is resumable -- a chunk on disk is never re-fetched -- so an interrupted run costs only
+# what it had not reached, and the builder runs on whatever landed.
+"$PY" scripts/sst/c3s_sixh.py || echo "c3s 6-hourly pull incomplete; building on what landed"
+"$PY" scripts/sst/c3s_popt_daily.py || echo "c3s daily distribution build failed; keeping the previous issue"
+
+# Threshold days need two more things: this issue's daily max/min (small, one year) and the
+# 24-year extremes climatology to quantile-map against. The climatology is keyed on the START
+# MONTH, so it is paid for once per calendar month and is free in the same month next year --
+# about 14 GB the first time a month comes round, nothing after. NCEP is skipped inside the
+# fetcher: it publishes no daily extremes to this collection at all.
+"$PY" scripts/sst/c3s_sixh.py --var x || echo "c3s forecast extremes incomplete; building on what landed"
+"$PY" scripts/sst/c3s_sixh.py --hindcast || echo "c3s extremes climatology incomplete; building on what landed"
+
+# PRIVATE strat gate product — writes only to gitignored paths
+"$PY" scripts/strat/sfs_gate100.py || echo "SFS gate failed; continuing"
+
+
+git add assets/sst/c3s_nino34.webp scripts/sst/c3s_nino34_clim.csv assets/sst/data/enso_forecast.json \
+        assets/sst/data/c3s_evolution.json assets/sst/data/enso_flavour.json \
+        scripts/sst/reference/enso_flavour_eof.npz scripts/sst/reference/enso_flavour_hindcast_*.json \
+        assets/sst/c3s assets/sst/data/c3s_maps.json assets/sst/data/c3s_indices.json assets/sst/data/c3s_popt.json assets/sst/data/c3s_popt_daily.json
+if git diff --staged --quiet; then
+  echo "no changes to commit"
+  [ "${NMODELS:-0}" -ge 7 ] 2>/dev/null && touch "$DONE_STAMP"
+  exit 0
+fi
+source "$REPO/scripts/lib/gitlock.sh"
+trap 'git_unlock; rm -rf "$LOCK" 2>/dev/null' EXIT
+git_lock || { echo "git lock busy; leaving as a local commit for the next run"; exit 0; }
+git -c user.name="Shawn Corvec" -c user.email="26825570+scorvec@users.noreply.github.com" \
+    commit -m "data update: "
+for i in 1 2 3 4 5; do
+  if git pull --rebase --autostash -X theirs && git push; then
+    echo "pushed (attempt $i)"
+    [ "${NMODELS:-0}" -ge 7 ] 2>/dev/null && touch "$DONE_STAMP"
+    git_unlock; exit 0
+  fi
+  echo "push attempt $i failed; retrying…"; sleep 5
+done
+echo "ERROR: could not push after 5 attempts."; git_unlock; exit 1

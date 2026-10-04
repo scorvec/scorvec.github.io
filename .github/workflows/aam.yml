@@ -1,0 +1,225 @@
+name: AAM, torque and jets (ECMWF ENS heavy levels)
+
+# The heavy leg of the atmosphere page: atmospheric angular momentum (main
+# figure + trend, zonal loop, phase), the torque budget (loop + time series +
+# ranges) and the jets figure/loop. They need the ~3 GB 14-level ENS pull, so
+# they live apart from mjo.yml (RMM + the light products) and are fired by the
+# laptop dispatcher ~40 min after it (scripts/lib/dispatch_workflows.sh).
+#
+# Until 2026-09-02 this was a dispatch-only TRIAL that uploaded artifacts; the
+# three trial runs (2026-08-29/30) succeeded in ~27 min on a 16 GB runner with
+# the ERA5 history cache current, which is what this now trusts. The laptop's
+# run_local.sh HEAVY group that used to build these is no longer scheduled.
+on:
+  workflow_dispatch:
+    inputs:
+      date:
+        description: 'Cycle date YYYYMMDD (blank = latest AIFS-ENS)'
+        default: ''
+      time:
+        description: 'Cycle hour, 00 or 12 (blank = latest)'
+        default: ''
+
+permissions:
+  contents: write
+  actions: write   # dispatch pages.yml after committing
+
+concurrency:
+  group: aam
+  cancel-in-progress: false
+
+# ECMWF open data from the Google Cloud mirror ONLY (user rule 2026-09-06). The shared store's code default is
+# Google-only since 2026-09-29 and it ignores any other mirror name; this is belt and braces.
+env:
+  ECMWF_SOURCES: google
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    env:
+      MPLBACKEND: Agg
+      MJO_HEAVY_ATMOS: '1'
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+      - uses: actions/cache@v6
+        with:
+          path: ~/.cache/pip
+          key: pip-mjo-${{ runner.os }}-${{ hashFiles('scripts/mjo/requirements-mjo.txt') }}
+          restore-keys: |
+            pip-mjo-${{ runner.os }}-
+
+      - name: Install eccodes (GRIB decoder)
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends libeccodes0 libgeos-dev libproj-dev proj-bin
+
+      - name: Install Python dependencies
+        run: pip install -r scripts/mjo/requirements-mjo.txt
+
+      - name: Resolve cycle
+        id: cyc
+        working-directory: scripts/mjo/src
+        run: |
+          set -euo pipefail
+          D="${{ github.event.inputs.date }}"; T="${{ github.event.inputs.time }}"
+          if [ -z "$D" ] || [ -z "$T" ]; then
+            # Availability, not the clock (2026-09-28): the shared resolver takes the newest cycle whose every step
+            # is on the Google mirror (scripts/ecmwf/cycles.py) and logs why it passed over a newer one.
+            python ../../ecmwf/cycles.py --profile aifs-ens --out /tmp/cyc || true
+            D=$(awk '{print $1}' /tmp/cyc 2>/dev/null || true)
+            T=$(awk '{print $2}' /tmp/cyc 2>/dev/null || true)
+          fi
+          if ! echo "$D" | grep -qE '^[0-9]{8}$' || ! echo "$T" | grep -qE '^(00|12)$'; then
+            echo "ERROR: no ready cycle (D='$D' T='$T') - see the resolver's lines above" >&2; exit 1
+          fi
+          echo "date=$D" >> "$GITHUB_OUTPUT"; echo "time=$T" >> "$GITHUB_OUTPUT"
+          echo "cycle: $D ${T}Z"
+
+      # The light pass first (sfc 10u/msl series the torque budget reads), then
+      # the 14-level pull. Non-fatal: the builders use whatever is cached.
+      - name: Fetch the ENS cycle (light sfc + the ~3 GB AAM levels)
+        working-directory: scripts/mjo
+        timeout-minutes: 75
+        run: |
+          MJO_HEAVY_ATMOS= python src/ens_cycle.py --date "${{ steps.cyc.outputs.date }}" --time "${{ steps.cyc.outputs.time }}" \
+            || echo "ens_cycle (light) had issues; continuing"
+          python src/ens_cycle.py --date "${{ steps.cyc.outputs.date }}" --time "${{ steps.cyc.outputs.time }}" \
+            || echo "ens_cycle (heavy) had issues; continuing"
+          du -sh data 2>/dev/null || true
+
+      - name: AAM main figure + trend
+        working-directory: scripts/mjo
+        run: |
+          python src/aam.py --date "${{ steps.cyc.outputs.date }}" --time "${{ steps.cyc.outputs.time }}" \
+            --data-dir data/aam --out ../../assets/sst/aam.webp || echo "AAM failed; continuing"
+
+      - name: AAM zonal loop
+        working-directory: scripts/mjo
+        run: |
+          mkdir -p ../../assets/sst/anim/aam_zonal
+          python src/aam_zonal.py --date "${{ steps.cyc.outputs.date }}" --time "${{ steps.cyc.outputs.time }}" \
+            --anim-dir ../../assets/sst/anim/aam_zonal --manifest ../../assets/sst/anim/aam_zonal_manifest.json \
+            || echo "AAM zonal failed; continuing"
+
+      - name: AAM phase figure
+        working-directory: scripts/mjo
+        run: |
+          python src/aam_phase.py --date "${{ steps.cyc.outputs.date }}" --time "${{ steps.cyc.outputs.time }}" \
+            --out ../../assets/sst/aam_phase.webp || echo "AAM phase failed; continuing"
+
+      - name: Torque budget (loop, time series, ranges)
+        working-directory: scripts/mjo
+        run: |
+          mkdir -p ../../assets/sst/anim/torque
+          python src/torque_map_anim.py --date "${{ steps.cyc.outputs.date }}" --time "${{ steps.cyc.outputs.time }}" \
+            --data-dir data/torque --sp-dir data/aam --u10-dir data/u10 --msl-dir data/msl \
+            --anim-dir ../../assets/sst/anim/torque --manifest ../../assets/sst/anim/torque_manifest.json \
+            --ts-out ../../assets/sst/torque_timeseries.webp --ranges-out ../../assets/sst/torque_ranges.webp \
+            --series-out ../../assets/sst/data/torque_ranges.json \
+            || echo "torque budget failed; continuing"
+
+      - name: Jets
+        working-directory: scripts/mjo
+        run: |
+          mkdir -p ../../assets/sst/anim/jets
+          python src/jets.py --date "${{ steps.cyc.outputs.date }}" --time "${{ steps.cyc.outputs.time }}" \
+            --out ../../assets/sst/jets.webp \
+            --anim-dir ../../assets/sst/anim/jets --manifest ../../assets/sst/anim/jets_manifest.json \
+            || echo "jets failed; continuing"
+
+      - name: Dynamic tropopause (member 0)
+        working-directory: scripts/mjo
+        run: |
+          mkdir -p ../../assets/sst/anim/dt ../../assets/sst/anim/dt_npac ../../assets/sst/anim/dt_na ../../assets/sst/anim/dt_atl ../../assets/sst/anim/dt_asia ../../assets/sst/anim/dt_pv330 ../../assets/sst/anim/dt_pv330_npac ../../assets/sst/anim/dt_pv330_na ../../assets/sst/anim/dt_pv330_atl ../../assets/sst/anim/dt_pv330_asia ../../assets/sst/anim/dt_pv350 ../../assets/sst/anim/dt_pv350_npac ../../assets/sst/anim/dt_pv350_na ../../assets/sst/anim/dt_pv350_atl ../../assets/sst/anim/dt_pv350_asia
+          python src/dt_charts.py --date "${{ steps.cyc.outputs.date }}" --time "${{ steps.cyc.outputs.time }}" \
+            --anim-dir ../../assets/sst/anim --manifest ../../assets/sst/anim/dt_manifest.json \
+            || echo "dynamic tropopause failed; continuing"
+
+      - name: Tropical-cyclone track ensembles and depth after transition (AIFS-ENS + IFS-ENS tracks, AIFS-ENS msl)
+        working-directory: scripts/mjo
+        run: |
+          python src/tc_ens.py --date "${{ steps.cyc.outputs.date }}" --time "${{ steps.cyc.outputs.time }}" \
+            --out-dir ../../assets/sst \
+            || echo "::warning::TC ensemble products failed; continuing"
+
+      - name: Cyclone phase space (Hart 2003; AIFS-ENS control, z 925-300 hPa)
+        working-directory: scripts/mjo
+        run: |
+          python src/tc_phase.py --date "${{ steps.cyc.outputs.date }}" --time "${{ steps.cyc.outputs.time }}" \
+            --out ../../assets/sst/tcphase.webp --json ../../assets/sst/data/tcphase.json \
+            || echo "::warning::cyclone phase space failed; continuing"
+
+      # The 1991-2020 "what follows a recurving storm" figures (tc_downstream_render.py) were withdrawn 2026-10-03 (user: "keep
+      # the TC-jet stuff as diagnostic as possible"); the reference files and the renderer stay in the repo, unused.
+      - name: Recurvature watch (share of members recurving, diagnostic)
+        working-directory: scripts/mjo
+        run: python src/tc_alert.py --out-dir ../../assets/sst || echo "::warning::recurvature watch failed; continuing"
+
+      # The North Pacific jet moved to strat.yml / strat-ifs.yml on 2026-09-28 (it needs 250 hPa v, which only the
+      # stratosphere jobs fetch); it still reads the torque_ranges.json written above, from main.
+
+      - name: Cache-bust the rebuilt figures
+        run: |
+          CB=$(date -u +%Y%m%d%H%M)
+          perl -0pi -e "s/((?:aam|aam_trend|aam_phase|jets|torque_timeseries|torque_ranges)\.webp)\?v=\w+/\${1}?v=$CB/g" circulation.html
+
+      - name: Publish loop frames to the frames branch
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: scripts/lib/publish_frames_ci.sh assets/sst/anim/aam_zonal assets/sst/anim/torque assets/sst/anim/jets assets/sst/anim/dt assets/sst/anim/dt_npac assets/sst/anim/dt_na assets/sst/anim/dt_atl assets/sst/anim/dt_asia assets/sst/anim/dt_pv330 assets/sst/anim/dt_pv330_npac assets/sst/anim/dt_pv330_na assets/sst/anim/dt_pv330_atl assets/sst/anim/dt_pv330_asia assets/sst/anim/dt_pv350 assets/sst/anim/dt_pv350_npac assets/sst/anim/dt_pv350_na assets/sst/anim/dt_pv350_atl assets/sst/anim/dt_pv350_asia
+
+      - name: Commit & push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          # Snapshot outputs, then commit on a clean sync of origin/main each attempt
+          # (same pattern as mjo.yml: losing the build to a rebase is structurally impossible).
+          # circulation.html is NOT snapshotted: a run that started before a page push would restore its stale copy over
+          # it (2026-10-02, a 21:34 run wiped the DT region selector and the TC card). The cache-bust is re-applied to
+          # main's current page on every attempt instead.
+          CB=$(date -u +%Y%m%d%H%M)
+          OUT="assets/sst/aam.webp assets/sst/aam_trend.webp assets/sst/aam_phase.webp \
+               assets/sst/anim/aam_zonal_manifest.json assets/sst/anim/torque_manifest.json assets/sst/anim/jets_manifest.json \
+               assets/sst/torque_timeseries.webp assets/sst/torque_ranges.webp assets/sst/jets.webp \
+               assets/sst/data/torque_ranges.json \
+               assets/sst/anim/dt_manifest.json assets/sst/tcjet.webp assets/sst/data/tcjet.json \
+               assets/sst/tcens_tracks.webp assets/sst/tcens_depth.webp assets/sst/tcens_depth_2.webp assets/sst/data/tcens.json \
+               assets/sst/tcphase.webp assets/sst/data/tcphase.json assets/sst/tc \
+               assets/sst/data/tc_alert.json \
+               scripts/mjo/data/reference/aam_history.nc scripts/mjo/data/reference/aam_forecast_archive.nc \
+               scripts/mjo/data/reference/aam_latband_history.nc"
+          SNAP=$(mktemp -d)
+          tar cf "$SNAP/outs.tar" --ignore-failed-read $OUT 2>/dev/null || true
+          for i in 1 2 3 4 5; do
+            if ! timeout 120 git fetch origin main; then echo "fetch $i failed"; sleep 5; continue; fi
+            git reset --hard origin/main
+            # per-storm figures (tc_ens / tc_phase): replace the folder wholesale so departed storms' files go, but only
+            # when this run produced one (a failed TC step must not empty it)
+            if tar tf "$SNAP/outs.tar" 2>/dev/null | grep -q '^assets/sst/tc/'; then rm -rf assets/sst/tc; fi
+            tar xf "$SNAP/outs.tar"
+            perl -0pi -e "s/((?:aam|aam_trend|aam_phase|jets|torque_timeseries|torque_ranges)\.webp)\?v=\w+/\${1}?v=$CB/g" circulation.html
+            git add circulation.html
+            for f in $OUT; do [ -e "$f" ] && git add "$f"; done
+            git add -A assets/sst/tc 2>/dev/null || true
+            if git diff --staged --quiet; then echo "No changes; skipping commit."; exit 0; fi
+            git commit -m "data update: ${{ steps.cyc.outputs.date }}_${{ steps.cyc.outputs.time }}z (a)"
+            if timeout 180 git push; then echo "Pushed on attempt $i."; exit 0; fi
+            echo "Push $i rejected; resyncing and retrying…"
+            sleep 5
+          done
+          echo "ERROR: could not push after 5 attempts." >&2
+          exit 1
+
+      # A commit pushed with GITHUB_TOKEN does not trigger the Pages deploy, so
+      # the site would wait for the laptop dispatcher's next tick (up to 15 min)
+      # to notice main is ahead. workflow_dispatch IS allowed from a token, so
+      # deploy right away; pages.yml's concurrency group folds overlapping ones.
+      - name: Deploy the site
+        if: success()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh workflow run pages.yml --repo "$GITHUB_REPOSITORY" || echo "pages dispatch failed; the dispatcher will catch it"

@@ -1,0 +1,20 @@
+name: Short-range models — RRFS
+
+# Schedule-only caller for models.yml (models.html): every 3 h at :40 - RRFS v1 runs 00/06/12/18Z to f84 and finishes ~4-5 h after its start.
+# The laptop dispatcher (scripts/lib/dispatch_workflows.sh) fires the same slots; a firing with no new complete cycle
+# exits in about a minute, so double firings cost nothing.
+on:
+  schedule:
+  - cron: '40 */3 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: write
+
+jobs:
+  run:
+    uses: ./.github/workflows/models.yml
+    with:
+      model: rrfs
+    secrets: inherit

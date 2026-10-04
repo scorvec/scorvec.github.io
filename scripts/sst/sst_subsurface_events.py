@@ -1,0 +1,265 @@
+#!/usr/bin/env python3
+"""Subsurface El Niño analog comparison (TAO/TRITON equatorial Pacific).
+
+Compares the current event's equatorial subsurface temperature against the
+1997-98, 2015-16 and 2023-24 El Niños, reusing the TAO DISDEL fetch
+(tao_subsurface) and the 1991-2020 harmonic climatology (sst_subsurface).
+
+Products (assets/sst/):
+  subsurface_events_xsec.webp  matching-phase depth×lon temperature-anomaly
+                               cross-sections (2×2: current vs analogs)
+  subsurface_events_hc.webp    equatorial 0–300 m temperature-anomaly index
+                               through each event's development year + next
+
+TAO mooring coverage varies by year (1997 and 2023 are gappier), so some
+longitudes / periods are missing — shown as gaps.
+"""
+from __future__ import annotations
+
+import os
+from datetime import datetime
+from pathlib import Path
+
+import numpy as np
+import pandas as pd
+import xarray as xr
+import matplotlib
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt
+import matplotlib.colors as mcolors
+
+import tao_subsurface as tao
+import sst_subsurface as ss
+
+HERE = Path(__file__).resolve().parent
+SITE_ROOT = Path(os.environ["SST_SITE_ROOT"]).resolve() if os.environ.get("SST_SITE_ROOT") else HERE
+ASSETS = SITE_ROOT / "assets" / "sst"
+DATA = HERE / "data"
+EVDIR = DATA / "subsurface_events"
+
+ANALOGS = [1997, 2015, 2023]
+ANALOG_COLORS = {1997: "#1f77b4", 2015: "#2ca02c", 2023: "#9467bd"}
+XSEC_WIN = 14            # days averaged for the matching-phase cross-section
+HC_SMOOTH = 15           # days, heat-content running mean
+
+
+def _anomaly(grid: xr.DataArray) -> xr.DataArray:
+    coeffs = ss.load_or_build_coeffs(grid.longitude.values)
+    doy = pd.to_datetime(grid.time.values).dayofyear.values
+    return xr.DataArray(grid.values - ss.eval_climatology(coeffs, doy),
+                        dims=grid.dims, coords=grid.coords)
+
+
+def current_ds() -> xr.Dataset:
+    """Current-year equatorial TAO temps — reuse the daily cache if present
+    (produced by the daily sst job), else fetch year-to-date from DISDEL."""
+    p = DATA / "tao_eq_temp.nc"
+    if p.exists():
+        return xr.open_dataset(p)
+    import re
+    from datetime import timezone
+    now = datetime.now(timezone.utc)
+    EVDIR.mkdir(parents=True, exist_ok=True)
+    ap = EVDIR / f"tao_{now.year}_cur.ascii"
+    # Re-fetch the current-year TAO whenever the cache lags the main subsurface file
+    # (tao_eq_recent.nc, which run_local_sst re-downloads every run). The old "fetched
+    # today" check pinned the analog's "current" panel to a stale date when the first
+    # daily run fetched before DISDEL had posted the new day (TAO lags ~2 days). The
+    # analog-year ascii are fixed history and stay cached.
+    def _last(path: Path):
+        try:
+            ms = re.findall(r"^\s*(\d{8})\s", path.read_text(errors="replace"), re.M)
+            return pd.to_datetime(ms[-1], format="%Y%m%d").date() if ms else None
+        except Exception:
+            return None
+    target = None
+    recent = DATA / "tao_eq_recent.nc"
+    if recent.exists():
+        try:
+            target = pd.to_datetime(xr.open_dataset(recent).time.values[-1]).date()
+        except Exception:
+            target = None
+    cached = _last(ap) if (ap.exists() and ap.stat().st_size > 0) else None
+    fresh = cached is not None and target is not None and cached >= target
+    if not fresh:
+        tao.deliver(datetime(now.year, 1, 1), now, ap)
+    return tao.parse(ap)
+
+
+def event_anom(year: int, cur_year: int, cur_ds: xr.Dataset) -> xr.DataArray:
+    """Regridded temperature ANOMALY (time, depth, lon) for one event.
+    Current year reuses cur_ds; analogs fetch Yr0+Yr1 from DISDEL."""
+    if year == cur_year:
+        ds = cur_ds
+    else:
+        EVDIR.mkdir(parents=True, exist_ok=True)
+        p = EVDIR / f"tao_{year}_{year + 1}.ascii"
+        if not (p.exists() and p.stat().st_size > 0):
+            tao.deliver(datetime(year, 1, 1), datetime(year + 1, 12, 31), p)
+        ds = tao.parse(p)
+    return _anomaly(ss.to_depth_grid(ds))
+
+
+# ── 1. matching-phase cross-sections ──────────────────────────────────────────
+def xsec(events: dict, cur_year: int, match: pd.Timestamp, out: Path, detr: bool = False):
+    years = [cur_year] + ANALOGS
+    labels = [f"{cur_year} (current)"] + [f"{y}–{str(y + 1)[2:]}" for y in ANALOGS]
+    # Set the shared anomaly scale from THESE panels' data.
+    #
+    # ss.ANOM_LEVELS is a module default until sst_subsurface.main() replaces it
+    # at runtime - and that never happens here, because this is a separate
+    # entry point. So this figure quietly kept the fixed +/-12 while the other
+    # product had moved to a data-driven scale, and its 2026 panel was clipping
+    # exactly the way the animation used to. One scale across all four panels,
+    # chosen from all four, or the comparison between events is meaningless.
+    allA = []
+    for yr in years:
+        a = events[yr]
+        end = pd.Timestamp(yr, match.month, match.day)
+        w = a.sel(time=slice(end - pd.Timedelta(days=XSEC_WIN - 1), end)).mean("time")
+        allA.append(np.asarray(w.values, float))
+    ss.set_anom_scale(np.concatenate([x.ravel() for x in allA]))
+    fig, axes = plt.subplots(2, 2, figsize=(12, 7.4), sharex=True, sharey=True)
+    im = None
+    for ax, yr, lab in zip(axes.ravel(), years, labels):
+        a = events[yr]
+        end = pd.Timestamp(yr, match.month, match.day)
+        win = a.sel(time=slice(end - pd.Timedelta(days=XSEC_WIN - 1), end)).mean("time")
+        lons = win.longitude.values
+        if len(lons) >= 2:
+            Ag = ss.interp_lon(win.values, lons)
+            im = ax.contourf(ss.LON_GRID, ss.DEPTH_GRID, Ag, levels=ss.ANOM_LEVELS,
+                             cmap="RdBu_r", extend="both",
+                             norm=mcolors.TwoSlopeNorm(0, -ss.ANOM_LIM, ss.ANOM_LIM))
+            ax.contour(ss.LON_GRID, ss.DEPTH_GRID, Ag, levels=[0], colors="k", linewidths=0.6)
+            # The strongest cores had no line on them at all - contours stopped
+            # at zero here while the field reaches past +10.
+            lv = [v for v in ss.ANOM_CONTOURS if np.nanmin(Ag) <= v <= np.nanmax(Ag)]
+            if lv:
+                cc = ax.contour(ss.LON_GRID, ss.DEPTH_GRID, Ag, levels=lv,
+                                colors="k", linewidths=0.7)
+                ax.clabel(cc, fmt="%+d", fontsize=6)
+        ax.scatter(lons, np.full(len(lons), 6), marker="v", s=18, color="k", zorder=5)
+        ax.set_ylim(300, 0)
+        ax.set_title(lab, fontsize=10)
+        ax.set_xticks([165, 180, 200, 220, 240, 260])
+        ax.set_xticklabels(["165°E", "180°", "160°W", "140°W", "120°W", "100°W"], fontsize=8)
+    for ax in axes[:, 0]:
+        ax.set_ylabel("Depth (m)")
+    extra = ("\ndetrended with data from 1991–2020" if detr else "")
+    fig.suptitle(f"Equatorial Pacific subsurface temperature anomaly — week of ~{match:%b %d} of each event"
+                 f"{extra}\n(triangles = moorings reporting; TAO coverage varies by year)",
+                 fontsize=11.5, fontweight="bold")
+    cb = fig.colorbar(im, ax=axes, fraction=0.025, pad=0.02, extend="both")
+    cb.set_label("Temperature anomaly (°C)", fontsize=9)
+    out.parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(out, dpi=120, bbox_inches="tight")
+    plt.close(fig)
+    print(f"wrote {out} (matching ~{match:%b %d})")
+
+
+# ── 2. heat-content (0–300 m T anomaly) evolution overlay ─────────────────────
+# A mooring that stops reporting is carried forward at its last anomaly for at
+# most this many days, then the index goes to NaN rather than silently
+# re-weighting itself onto whichever moorings are left.
+HC_PERSIST_DAYS = 10
+HC_MIN_MOORINGS = 6                       # of the 8 equatorial TAO/TRITON sites
+
+
+def heat_content(events: dict, cur_year: int, out: Path, detr: bool = False):
+    def hc(a: xr.DataArray):
+        """0-300 m anomaly index with FIXED mooring weights.
+
+        The old version was mean(depth) then a plain nanmean over whichever
+        moorings reported. That is not a coverage-robust estimator: the
+        anomaly has a strong zonal gradient in an ENSO year (warm at depth in
+        the east, cool in the shoaling west), so when the western moorings
+        drop out the mean silently moves onto the eastern ones and reads warm.
+        Measured 2026-09-06: 165E/180/170W went dark on Sep 1; the east-only
+        mean ran +0.9 to +1.0 C above the all-mooring mean all August, and the
+        published index jumped +0.74 C in the five days the west was missing.
+
+        So each mooring keeps a fixed 1/8 weight. A silent mooring is carried
+        forward at its own last anomaly (subsurface anomalies change slowly)
+        for up to HC_PERSIST_DAYS; with fewer than HC_MIN_MOORINGS live or
+        persisted the index is NaN. The returned `persisted` series marks days
+        that used any carried value, so the plot can show them as such.
+        """
+        col = a.sel(depth=slice(0, 300)).mean("depth", skipna=True)   # (time, lon)
+        df = pd.DataFrame(col.values, index=pd.to_datetime(a.time.values),
+                          columns=[float(x) for x in col.longitude.values])
+        live = df.notna()
+        filled = df.ffill(limit=HC_PERSIST_DAYS)
+        used = filled.notna()
+        s = filled.mean(axis=1, skipna=True)
+        s[used.sum(axis=1) < HC_MIN_MOORINGS] = np.nan
+        persisted = (used.sum(axis=1) > live.sum(axis=1)) & s.notna()
+        # Centred running mean where the full window exists; at the tail a centred window with a
+        # low min_periods under-smooths the newest days and draws a hook (the 2026-09 chart ran
+        # +0.3 C above the fixed-weight value on its last week), so the tail falls back to the
+        # trailing mean, which lags a little but cannot hook.
+        centred = s.rolling(HC_SMOOTH, center=True, min_periods=HC_SMOOTH).mean()
+        trailing = s.rolling(HC_SMOOTH, min_periods=HC_SMOOTH // 2 + 1).mean()
+        s = centred.fillna(trailing)
+        return s, persisted.reindex(s.index).fillna(False)
+
+    fig, ax = plt.subplots(figsize=(9.5, 5.2))
+    def devdays(idx, yr):
+        return (idx - pd.Timestamp(yr, 1, 1)).days
+    for yr in ANALOGS:
+        s, _ = hc(events[yr])
+        ax.plot(devdays(s.index, yr), s.values, color=ANALOG_COLORS[yr], lw=1.8,
+                label=f"{yr}–{str(yr + 1)[2:]}")
+    cur, pers = hc(events[cur_year])
+    ax.plot(devdays(cur.index, cur_year), cur.values, color="#d62728", lw=3.0,
+            label=f"{cur_year} (current)", zorder=5)
+    # days where a silent mooring was carried forward: same line, hollow
+    # markers, so a reader can see which part of the tail rests on persistence
+    if pers.any():
+        pi = cur.index[pers.values]
+        ax.plot(devdays(pi, cur_year), cur.loc[pi].values, "o", ms=4.5, mfc="white",
+                mec="#d62728", mew=1.4, zorder=6,
+                label=f"{cur_year}: a mooring carried forward (≤{HC_PERSIST_DAYS} d)")
+    ax.axhline(0, color="0.6", lw=0.8)
+    ticks = [pd.Timestamp(2001, m, 1).dayofyear - 1 for m in (1, 4, 7, 10)]
+    ticks = ticks + [t + 365 for t in ticks]
+    ax.set_xticks(ticks)
+    ax.set_xticklabels([f"{m}\nYr0" for m in ("Jan", "Apr", "Jul", "Oct")] +
+                       [f"{m}\nYr1" for m in ("Jan", "Apr", "Jul", "Oct")], fontsize=8)
+    ax.set_xlim(0, 730)
+    ax.set_ylabel("Equatorial 0–300 m temperature anomaly (°C)")
+    if detr:
+        title = ("Subsurface heat content (eq. Pacific 0–300 m T anomaly)\n"
+                 "detrended with data from 1991–2020")
+        fs = 10.5
+    else:
+        title = "Subsurface heat content (eq. Pacific 0–300 m T anomaly): current vs. 1997, 2015, 2023"
+        fs = 11.5
+    ax.set_title(title, fontsize=fs, fontweight="bold", loc="left")
+    ax.legend(fontsize=9, loc="lower left", framealpha=0.9)    # lower left is empty: every event is positive in its first half-year
+    ax.grid(True, alpha=0.25)
+    fig.tight_layout()
+    fig.savefig(out, dpi=120, bbox_inches="tight")
+    plt.close(fig)
+    print(f"wrote {out} (current latest {cur.dropna().index[-1]:%b %d} {cur.dropna().iloc[-1]:+.2f}°C"
+          f"{', ' + str(int(pers.sum())) + ' day(s) with a mooring carried forward' if pers.any() else ''})")
+
+
+def main() -> int:
+    cur_ds = current_ds()
+    match = pd.to_datetime(cur_ds.time.values[-1])
+    cur_year = int(match.year)
+    events = {y: event_anom(y, cur_year, cur_ds) for y in [cur_year] + ANALOGS}
+    xsec(events, cur_year, match, ASSETS / "subsurface_events_xsec.webp")
+    heat_content(events, cur_year, ASSETS / "subsurface_events_hc.webp")
+
+    # de-trended companions: remove the 1991–2020 secular trend so the analog
+    # comparison isolates the ENSO signal from the background ocean warming/cooling.
+    events_dt = {y: ss.detrend(a) for y, a in events.items()}
+    xsec(events_dt, cur_year, match, ASSETS / "subsurface_events_xsec_detrended.webp", detr=True)
+    heat_content(events_dt, cur_year, ASSETS / "subsurface_events_hc_detrended.webp", detr=True)
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

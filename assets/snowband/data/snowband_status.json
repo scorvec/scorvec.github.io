@@ -1,0 +1,253 @@
+{
+ "models": {
+  "hrrr": {
+   "cycle": "2026092712",
+   "checked": "2026-09-27T14:19Z",
+   "regions": [
+    "nema",
+    "onq",
+    "mw",
+    "rk"
+   ],
+   "gate": {
+    "nema": 0.0,
+    "onq": 0.0,
+    "mw": 0.0,
+    "rk": 0.0042
+   },
+   "forced": true,
+   "state": "rendered",
+   "note": "",
+   "sources": {
+    "nema": "hrrr",
+    "onq": "hrrr",
+    "mw": "hrrr",
+    "rk": "hrrr"
+   },
+   "coverage": {
+    "hrrr:nema": 1.005,
+    "hrrr:atl": 0.293,
+    "hrrr:onq": 0.973,
+    "hrrr:mw": 1.01,
+    "hrrr:rk": 1.004
+   },
+   "rendered": [
+    "nema",
+    "onq",
+    "mw",
+    "rk"
+   ],
+   "seconds": 225,
+   "mb": 1447,
+   "requests": 799,
+   "leads": [
+    "f01",
+    "f03",
+    "f06",
+    "f09",
+    "f12",
+    "f15",
+    "f18",
+    "f21",
+    "f24",
+    "f27",
+    "f30",
+    "f33",
+    "f36",
+    "f39",
+    "f42",
+    "f45",
+    "f48"
+   ],
+   "attempted": "2026092712"
+  },
+  "rrfs": {
+   "state": "rendered",
+   "note": "",
+   "checked": "2026-09-27T14:23Z",
+   "cycle": "2026092706",
+   "regions": [
+    "nema",
+    "atl",
+    "onq",
+    "mw",
+    "rk"
+   ],
+   "sources": {
+    "nema": "rrfs13",
+    "atl": "rrfs13",
+    "onq": "rrfs13",
+    "mw": "rrfs13",
+    "rk": "rrfs13"
+   },
+   "coverage": {
+    "rrfs13:nema": 1.173,
+    "rrfs13:atl": 1.171,
+    "rrfs13:onq": 1.167,
+    "rrfs13:mw": 1.187,
+    "rrfs13:rk": 1.205
+   },
+   "gate": {
+    "nema": 0.0,
+    "atl": 0.0,
+    "onq": 0.0,
+    "mw": 0.0,
+    "rk": 0.0047
+   },
+   "forced": true,
+   "rendered": [
+    "nema",
+    "atl",
+    "onq",
+    "mw",
+    "rk"
+   ],
+   "seconds": 568,
+   "mb": 1542,
+   "requests": 168,
+   "leads": [
+    "f03",
+    "f06",
+    "f09",
+    "f12",
+    "f15",
+    "f18",
+    "f21",
+    "f24",
+    "f27",
+    "f30",
+    "f33",
+    "f36",
+    "f39",
+    "f42",
+    "f45",
+    "f48",
+    "f51",
+    "f54",
+    "f57",
+    "f60",
+    "f63",
+    "f66",
+    "f69",
+    "f72",
+    "f75",
+    "f78",
+    "f81",
+    "f84"
+   ],
+   "attempted": "2026092706",
+   "bands_3km": [
+    "nema",
+    "onq",
+    "mw",
+    "rk"
+   ]
+  },
+  "rdps": {
+   "cycle": "2026092706",
+   "checked": "2026-09-27T14:32Z",
+   "regions": [
+    "nema",
+    "atl",
+    "onq",
+    "mw",
+    "rk"
+   ],
+   "gate": {
+    "nema": 0.0,
+    "atl": 0.0,
+    "onq": 0.0,
+    "mw": 0.0,
+    "rk": 0.0005
+   },
+   "forced": true,
+   "state": "rendered",
+   "rendered": [
+    "nema",
+    "atl",
+    "onq",
+    "mw",
+    "rk"
+   ],
+   "note": "",
+   "seconds": 896,
+   "mb": 1018,
+   "requests": 1652,
+   "leads": [
+    "f03",
+    "f06",
+    "f09",
+    "f12",
+    "f15",
+    "f18",
+    "f21",
+    "f24",
+    "f27",
+    "f30",
+    "f33",
+    "f36",
+    "f39",
+    "f42",
+    "f45",
+    "f48",
+    "f51",
+    "f54",
+    "f57",
+    "f60",
+    "f63",
+    "f66",
+    "f69",
+    "f72",
+    "f75",
+    "f78",
+    "f81",
+    "f84"
+   ],
+   "sources": {
+    "nema": "rdps",
+    "atl": "rdps",
+    "onq": "rdps",
+    "mw": "rdps",
+    "rk": "rdps"
+   },
+   "coverage": {
+    "rdps:nema": 1.028,
+    "rdps:atl": 0.998,
+    "rdps:onq": 1.009,
+    "rdps:mw": 1.033,
+    "rdps:rk": 1.035
+   },
+   "attempted": "2026092706"
+  }
+ },
+ "season": {
+  "active": false,
+  "window": "1 November \u2013 15 April",
+  "next_start": "2026-11-01"
+ },
+ "forced": true,
+ "updated": "2026-10-04T03:00Z",
+ "test_label": "Test run on the 27 Sep nor'easter (rain)",
+ "cases": {
+  "c2020121613": {
+   "spec": "hrrr01:2020121613-2020121706",
+   "region": "sny",
+   "label": "Binghamton band, 16\u201317 December 2020 (40.2 in), HRRR f01 each hour",
+   "rendered": "2026-09-27T14:55Z",
+   "frames": 18,
+   "mb": 1446,
+   "seconds": 202,
+   "about": "binghamton"
+  },
+  "c2026092700": {
+   "spec": "hrrr01:2026092700-2026092712@nema",
+   "region": "nema",
+   "label": "Nor'easter, 27 September 2026 (rain), HRRR f01 each hour against the radar",
+   "rendered": "2026-09-27T15:00Z",
+   "frames": 13,
+   "mb": 1066,
+   "seconds": 166,
+   "about": "generic"
+  }
+ }
+}

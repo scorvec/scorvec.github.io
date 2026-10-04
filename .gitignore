@@ -1,0 +1,223 @@
+# macOS Finder metadata
+.DS_Store
+
+# Python bytecode caches
+__pycache__/
+*.pyc
+
+# MJO pipeline runtime artifacts (large / regenerated; reference .nc are kept)
+scripts/mjo/data/aifs/
+scripts/mjo/plots/
+scripts/mjo/data/reference/era5_recent/
+scripts/mjo/data/reference/ncep_recent/
+
+# SST pipeline data cache (large OISST netCDFs, re-downloaded each run)
+scripts/sst/data/
+
+# Hovmöller 10u download cache
+scripts/mjo/data/u10/
+
+# SOI msl download cache + LongPaddock SOI text
+scripts/mjo/data/msl/
+scripts/mjo/data/soi/
+
+# Local MJO builder logs
+scripts/mjo/*.log
+
+# AAM 13-level download cache
+scripts/mjo/data/aam/
+
+# torque 6-hourly sp cache
+scripts/mjo/data/torque/
+
+# Local SST builder logs
+scripts/sst/*.log
+
+
+# Local synoptic builder logs
+scripts/synoptic/*.log
+
+# ens change-product archive (local run-to-run state, regenerable)
+scripts/ens/data/archive/
+
+# ens climatology netCDFs — large, build/keep LOCAL only (README stays tracked)
+scripts/ens/data/reference/*.nc
+
+# shared ECMWF GRIB cache (large, regenerable per cycle)
+scripts/ecmwf/cache/
+
+# u850 analog Hovmöller band series (large, local-only; rebuilt by build_u850_bandseries.py)
+scripts/mjo/data/reference/eq_u850_bandseries.nc
+scripts/mjo/data/reference/eq_u850_*_arco.nc
+scripts/ecmwf/.mirror_rotation.json
+
+# MEI nowcast cached inputs (regenerated daily; fit json is committed separately)
+scripts/mjo/data/mei/
+
+# shared cross-pipeline git lock (runtime mutex dir)
+.gitlock/
+
+# Stray artifacts from scripts run in the wrong cwd (real outputs live under repo-root assets/)
+scripts/sst/assets/
+scripts/mjo/assets/
+scripts/sst/sst.html
+scripts/mjo/run_local.log.prev
+scripts/mjo/data/.cycle_done_*
+scripts/mjo/data/.u850_analogs_day
+
+
+assets/sst/enso_maps/
+scripts/sst/enso_tmaps_cache/
+scripts/sst/data/glm_hourly/
+
+# synoptic frames live on the synoptic-frames orphan branch (CDN), not main
+assets/synoptic/*/*/*.webp
+
+# transient: IFS-leg completeness flags for hovmoller/soi self-heal
+assets/sst/*.webp.missing
+scripts/sst/data/imerg/
+
+scripts/climate/data/
+scripts/synoptic/.julia_staging/
+scripts/synoptic/.julia_overlays/
+scripts/ecmwf/.budget_state.json*
+
+# telecon engine: large local-only data (store lives in ~/era5_store)
+scripts/telecon/data/olr/
+scripts/telecon/data/ibtracs_wp.csv
+scripts/telecon/data/gwd_daily/
+scripts/telecon/data/merra2_gwd_events/
+scripts/telecon/data/outcomes/
+scripts/strat/data/
+
+# private research — kept local only (2026-07-28). stratosphere.html was un-ignored 2026-09-26: the name now
+# belongs to the public page split out of circulation.html (public products only); the research stays in assets/strat/.
+assets/strat/
+scripts/telecon/
+scripts/verify/data/
+# scripts/strat is excluded by CONTENTS (trailing /*), not as a directory: git
+# cannot re-include a file whose parent directory is excluded, so the three
+# negations below would silently do nothing under `scripts/strat/`.
+# Published 2026-08-29: only the scripts behind the LIVE figures on
+# enso-atmosphere.html (nh_vortex.webp, wave1_amp.webp, the E-P flux loop).
+# Everything else here still writes to assets/strat/, which stays private and
+# only feeds the local stratosphere.html.
+scripts/strat/*
+!scripts/strat/nh_vortex.py
+!scripts/strat/qbo_duct.py
+!scripts/strat/vortex_winds.py
+!scripts/strat/wave1_maps.py
+!scripts/strat/build_m2_reference.py
+!scripts/strat/build_wave1_clim.py
+!scripts/strat/heatflux100.py
+!scripts/strat/heatflux100_ext.py
+!scripts/strat/bdc_dc.py
+!scripts/strat/geos_pv.py
+!scripts/strat/momentum_budget.py
+!scripts/strat/build_vt100_clim.py
+!scripts/strat/build_strat_history.py
+!scripts/strat/strat_history.py
+!scripts/strat/build_cmip6_drip.py
+!scripts/strat/build_cmip6_follow.py
+!scripts/strat/cmip6_follow_extract.py
+!scripts/strat/forecast_drip.py
+!scripts/strat/geosfp_cap.py
+!scripts/strat/build_drip_ref.py
+!scripts/strat/upperstrat.py
+!scripts/strat/upperstrat_data.py
+!scripts/strat/build_upperstrat_clim.py
+!scripts/strat/build_ssw_precursors.py
+!scripts/strat/ssw_precursors.py
+!scripts/strat/build_mbudget_history.py
+!scripts/strat/fetch_m2gmi_aoa.py
+!scripts/strat/build_age_of_air.py
+!scripts/strat/age_of_air.py
+!scripts/strat/fetch_mls_h2o.py
+!scripts/strat/tape_recorder.py
+!scripts/strat/ifs_ens.py
+!scripts/strat/qbo_zeroline.py
+!scripts/strat/build_qbo_zeroline.py
+!scripts/strat/fetch_m2_zmu.py
+# The MERRA-2 reference cache (282 KB) that replaces the 690 MB laptop-only
+# archive for nh_vortex on a runner. The directory itself must be re-included
+# first - git will not descend into an excluded directory to find the file.
+!scripts/strat/reference/
+!scripts/strat/reference/m2_strat_daily.nc
+!scripts/strat/reference/vt100_clim.nc
+!scripts/strat/reference/heatflux100_history_seed.json
+!scripts/strat/reference/strat_obs_daily.nc
+!scripts/strat/reference/strat_history.nc
+!scripts/strat/reference/strat_history_events.json
+!scripts/strat/reference/cmip6_drip.nc
+!scripts/strat/reference/cmip6_follow.nc
+!scripts/strat/reference/drip_std.json
+!scripts/strat/reference/mbudget_clim.npz
+!scripts/strat/reference/geosfp_cap_offset.json
+!scripts/strat/reference/geosfp_cap_seed.json
+!scripts/strat/reference/aifs_capdrift.json
+!scripts/strat/reference/ssw_precursors.json
+!scripts/strat/reference/mbudget_history.json
+!scripts/strat/reference/age_of_air.nc
+!scripts/strat/reference/tape_mls.npz
+!scripts/strat/reference/tape_geosfp_seed.npz
+!scripts/strat/reference/qbo_zeroline_ref.nc
+!scripts/strat/reference/qbo_zeroline_test.json
+
+# removed-project local archive (ERCOT page + C3S winter analysis, restorable)
+local_archive/
+scripts/mjo/data/reference/arco_eq_u/
+scripts/mjo/data/reference/m2_eq_u/
+scripts/sfs/data/*.npy
+scripts/sst/.run.lock/
+scripts/sst/data/region_weights_energy.npz
+scripts/verify/launchd_aifs.log
+
+# local stamp for scripts/lib/publish_frames.sh
+scripts/lib/.frames_published
+scripts/lib/.frames_published.at
+scripts/lib/.frames.lock
+scripts/lib/frames.log
+
+# ── animation frames ────────────────────────────────────────────────────────
+# Frame webp are served from the orphan `frames` branch, not from main — the
+# daily churn was ~6 GB/month of permanent history and forced a full history
+# collapse on 2026-08-28. Published by scripts/lib/publish_frames.sh (launchd
+# com.scorvec.frames, every 15 min). The *_manifest.json files stay tracked, so
+# the viewers still fetch them same-origin.
+assets/*/anim/**/*.webp
+assets/mjo/impacts/anim/**/*.webp
+# EXCEPT the dirs built only by GitHub workflows. The frames branch has a
+# SINGLE publisher (the laptop) because several producers force-pushing one
+# orphan branch would clobber each other — so these must stay on main for the
+# laptop to pull and republish. They are ~10% of the churn.
+!assets/sst/anim/gdps_ir/*.webp
+!assets/sst/anim/gdps_wind/*.webp
+!assets/sst/anim/gdps_outflow/*.webp
+!assets/sst/anim/mur_ct/*.webp
+!assets/sst/anim/pacsat/*.webp
+!assets/sst/anim/samsat/*.webp
+
+# asos5 local runner log
+scripts/asos5/asos5.log
+
+# columbia pipeline weights cache
+.cache/
+
+# the tropical velocity-potential history rides on the frames branch, never on main
+assets/sst/anim/walker/*.nc
+assets/sst/anim/wk_olr/
+assets/sst/anim/gillrain/*.nc
+assets/sst/anim/waf/*.nc
+
+# local build residue (untracked 2026-09-09; they carried absolute home paths)
+scripts/mjo/data/.julia_staging/
+scripts/mjo/data/*.log
+
+# ocean Kelvin tracker: yearly altimetry downloads behind build_sla_clim.py (~60 MB each; only sla_clim.nc is committed)
+scripts/mjo/data/sla_raw/
+
+# product freshness, generated at deploy time by scripts/site/status.py (pages.yml)
+/status.json
+assets/gefs/anim/runs/
+scripts/site/.private_terms
+scripts/fci/data/

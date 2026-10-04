@@ -1,0 +1,531 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Do AI weather models conserve angular momentum, mass, water and energy? · Shawn Corvec</title>
+<meta name="description" content="Budget tests of ECMWF's AIFS-ENS against the physics-based IFS-ENS: does each forecast's change in atmospheric angular momentum match its own torques, and does it keep the atmosphere's dry mass, water and energy? Winter 2025–26, 30 cycles, days 1–15.">
+<link rel="canonical" href="https://scorvec.com/aifs-aam-budget.html">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<meta name="author" content="Shawn Corvec">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Do AI weather models conserve angular momentum, mass, water and energy?">
+<meta property="og:description" content="Budget tests of ECMWF's AIFS-ENS against the physics-based IFS-ENS: does each forecast's change in atmospheric angular momentum match its own torques, and does it keep the atmosphere's dry mass, water and energy? Winter 2025–26, 30 cycles, days 1–15.">
+<meta property="og:url" content="https://scorvec.com/aifs-aam-budget.html">
+<meta property="og:image" content="https://scorvec.com/studies/aifs-aam-budget/closure_global.webp">
+<meta property="og:site_name" content="Shawn Corvec">
+<meta name="twitter:card" content="summary_large_image">
+<script type="application/ld+json">
+{
+ "@context": "https://schema.org",
+ "@type": "ScholarlyArticle",
+ "headline": "Do AI weather models conserve angular momentum, mass, water and energy?",
+ "name": "Do AI weather models conserve angular momentum, mass, water and energy?",
+ "description": "Budget tests of ECMWF's AIFS-ENS against the physics-based IFS-ENS: does each forecast's change in atmospheric angular momentum match its own torques, and does it keep the atmosphere's dry mass, water and energy? Winter 2025–26, 30 cycles, days 1–15.",
+ "url": "https://scorvec.com/aifs-aam-budget.html",
+ "inLanguage": "en",
+ "datePublished": "2026-10-01",
+ "dateModified": "2026-10-02",
+ "author": {
+  "@id": "https://scorvec.com/#person"
+ },
+ "image": [
+  "https://scorvec.com/studies/aifs-aam-budget/closure_global.webp"
+ ],
+ "keywords": "AIFS, AIFS-ENS, IFS, angular momentum budget, mass conservation, water budget, energy conservation, mountain torque, friction torque, machine learning weather prediction"
+}
+</script>
+<script data-goatcounter="https://scorvec.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
+<link rel="stylesheet" href="/assets/site.css">
+<script src="/assets/site.js" defer></script>
+<script src="/assets/rail.js" defer></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
+  onload="renderMathInElement(document.body,{delimiters:[{left:'$$',right:'$$',display:true},{left:'$',right:'$',display:false}],throwOnError:false});"></script>
+<style>
+  body { background: var(--c-bg, #f5f6f3); color: var(--c-ink, #29321f); margin: 0; }
+  .study { font-size: clamp(1.06rem, 0.78rem + 0.5vw, 1.35rem); max-width: min(76rem, 100%); margin: 0 auto; padding: 2rem 1.25rem 3.5rem; }
+  .study figcaption, .study .tcap { font-size: 0.86em; }   /* beats site.css "html figcaption" (rem) so captions scale with the text */
+  .study .crumbs { font-size: 0.92em; color: var(--c-muted, #5c6b73); margin-bottom: 1.2rem; }
+  .study .crumbs a { color: inherit; }
+  .study h1 { text-align: left; margin: 0 0 0.5rem; }
+  .study .dek { color: var(--c-muted, #5c6b73); font-size: 1.05em; margin: 0 0 1.4rem; }
+  .study h2 { margin: 2.4rem 0 0.7rem; text-align: left; }
+  .study h3 { margin: 1.8rem 0 0.5rem; text-align: left; }
+  .study p, .study li { line-height: 1.6; }
+  .study ul { padding-left: 1.2rem; }
+  .study li { margin: 0.45rem 0; }
+  .study a { color: var(--c-accent, #274b7a); text-underline-offset: 0.2em; }
+  .study .katex-display { overflow-x: auto; overflow-y: hidden; padding: 0.2rem 0; }
+  .lede { border: 1px solid var(--c-rule, #dfe3dc); border-left: 4px solid var(--c-accent, #274b7a); background: #fff;
+          padding: 0.2rem 1.2rem 0.4rem; margin: 0 0 1.6rem; }
+  .lede h2 { margin-top: 0.9rem; }
+  figure { margin: 1.6rem 0 2rem; }
+  figure img { display: block; width: 100%; height: auto; border: 1px solid var(--c-rule, #dfe3dc); background: #fff; }
+  figcaption, .tcap { color: #6f6b64; font-size: 0.92em; margin-top: 0.5rem; line-height: 1.5; }
+  .tw { overflow-x: auto; margin: 0.8rem 0 0; }
+  table.res { border-collapse: collapse; width: 100%; font-size: 0.92em; font-variant-numeric: tabular-nums; }
+  table.res th, table.res td { padding: 0.35rem 0.55rem; border-bottom: 1px solid var(--c-rule, #dfe3dc); text-align: right; white-space: nowrap; }
+  table.res th[scope=row], table.res thead th:first-child, table.res tr.grp th { text-align: left; }
+  table.res thead th { border-bottom: 2px solid #29321f; }
+  table.res tr.grp th { padding-top: 0.8rem; font-weight: 700; border-bottom: none; }
+  table.res tr.diff th, table.res tr.diff td { font-weight: 600; }
+  .ns { color: #6f6b64; font-style: italic; font-weight: 400 !important; }
+  .sig { color: #6f6b64; font-weight: 400; font-size: 0.85em; }
+  .refs { font-size: 0.95em; } .refs li { margin: 0.4rem 0; }
+  .credits { font-size: 0.92em; }
+  .byline { color: #6f6b64; font-size: 0.92em; margin-top: 2.2rem; }
+  #lb { position: fixed; inset: 0; background: rgba(20, 22, 18, 0.88); display: none; align-items: center; justify-content: center;
+        z-index: 1000; cursor: zoom-out; padding: 1rem; }
+  #lb.on { display: flex; }
+  #lb img { max-width: 100%; max-height: 100%; background: #fff; }
+  @media (max-width: 600px) { .study { padding: 1.2rem 1rem 2.5rem; } table.res { font-size: 0.85em; } }
+</style>
+</head>
+<body>
+<!-- sh:start -->
+<header class="sh" id="site-header">
+  <div class="sh-in">
+    <a class="sh-brand" href="/">Shawn Corvec</a>
+    <button class="sh-find" type="button" aria-haspopup="dialog" aria-keyshortcuts="Control+K Meta+K" title="Find a plot (Ctrl K)"><svg viewBox="0 0 20 20" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true" focusable="false"><circle cx="8.5" cy="8.5" r="5.5" style="fill:none;stroke:currentColor"/><path d="M12.6 12.6 17 17" style="fill:none;stroke:currentColor"/></svg><span class="sh-find-t">Find a plot</span><kbd>Ctrl K</kbd></button>
+    <button class="sh-toggle" type="button" aria-expanded="false" aria-controls="sh-menu">Menu</button>
+    <nav class="sh-nav" id="sh-menu" aria-label="Site">
+      <ul class="sh-list">
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g0">Mid-latitude weather</button>
+          <div class="sh-menu sh-menu--cols" id="sh-g0">
+            <div>
+              <h3>Surface and hazards</h3>
+              <ul>
+                <li><a href="/models.html">Short-range model maps</a></li>
+                <li><a href="/snowbands.html">Snow-band diagnostics</a></li>
+                <li><a href="/ar.html">Atmospheric rivers</a></li>
+              </ul>
+            </div>
+            <div>
+              <h3>Upper air</h3>
+              <ul>
+                <li><a href="/circulation.html#dt">Dynamic tropopause</a></li>
+                <li><a href="/circulation.html#pacjet">North Pacific jet</a></li>
+                <li><a href="/circulation.html#waf">Wave activity flux</a></li>
+              </ul>
+            </div>
+          </div>
+        </li>
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g1">Tropics</button>
+          <div class="sh-menu sh-menu--cols" id="sh-g1">
+            <div>
+              <h3>ENSO and the MJO</h3>
+              <ul>
+                <li><a href="/enso.html">El Niño monitor</a></li>
+                <li><a href="/circulation.html#mslp">Pacific pressure and wind</a></li>
+                <li><a href="/mjo.html">MJO forecast</a></li>
+                <li><a href="/tropical-waves.html">Tropical waves</a></li>
+              </ul>
+            </div>
+            <div>
+              <h3>Tropical cyclones</h3>
+              <ul>
+                <li><a href="/circulation.html#tcjet">Tropical cyclones and the jet</a></li>
+                <li><a href="/circulation.html#tcens">Tropical cyclone ensembles</a></li>
+                <li><a href="/circulation.html#tcphase">Cyclone phase space</a></li>
+              </ul>
+            </div>
+            <div>
+              <h3>Tropical circulation</h3>
+              <ul>
+                <li><a href="/circulation.html#walker">Walker and Hadley cells</a></li>
+                <li><a href="/circulation.html#vpot">Velocity potential</a></li>
+                <li><a href="/circulation.html#gillrain">Rain-forced circulation (Gill model)</a></li>
+              </ul>
+            </div>
+          </div>
+        </li>
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g2">Stratosphere</button>
+          <div class="sh-menu sh-menu--cols" id="sh-g2">
+            <div>
+              <h3>Polar vortex</h3>
+              <ul>
+                <li><a href="/stratosphere.html">Stratosphere and polar vortex</a></li>
+                <li class="sh-subitem"><a href="/stratosphere.html#heatflux">Eddy heat flux</a></li>
+                <li class="sh-subitem"><a href="/stratosphere.html#pv">Potential vorticity</a></li>
+                <li class="sh-subitem"><a href="/stratosphere.html#bdc">Brewer–Dobson circulation</a></li>
+              </ul>
+            </div>
+            <div>
+              <h3>QBO and momentum</h3>
+              <ul>
+                <li><a href="/qbo/">QBO tracker</a></li>
+                <li><a href="/circulation.html#aam">Angular momentum and torques</a></li>
+              </ul>
+            </div>
+          </div>
+        </li>
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g3">Weeks to seasons</button>
+          <div class="sh-menu sh-menu--cols" id="sh-g3">
+            <div>
+              <h3>Weeks 2–5</h3>
+              <ul>
+                <li><a href="/subseasonal.html">GEPS extended ensemble</a></li>
+                <li><a href="/gefs.html">GEFS extended ensemble</a></li>
+              </ul>
+            </div>
+            <div>
+              <h3>Seasons</h3>
+              <ul>
+                <li><a href="/seasonal.html">Eight C3S seasonal models</a></li>
+                <li><a href="/sfs.html">NOAA SFS seasonal</a></li>
+                <li><a href="/enso-forecasts.html">ENSO forecasts</a></li>
+              </ul>
+            </div>
+          </div>
+        </li>
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g4" aria-current="page"><span class="sh-lf">Studies and verification</span><span class="sh-ls">Studies/verification</span></button>
+          <div class="sh-menu sh-menu--cols" id="sh-g4">
+            <div>
+              <h3>Studies</h3>
+              <ul>
+                <li><a href="/enso.html#imp_reg">ENSO impacts on the Americas</a></li>
+                <li><a href="/mjo.html#mi">MJO impacts</a></li>
+                <li><a href="/stratosphere.html#shwinters">Stratosphere history</a></li>
+                <li><a href="/aifs-aam-budget.html" aria-current="page">AINWP and conservation</a></li>
+                <li><a href="/topics/">Explainers</a></li>
+              </ul>
+            </div>
+            <div>
+              <h3>Verification</h3>
+              <ul>
+                <li><a href="/aifs-verify.html">AIFS single versus member 0</a></li>
+              </ul>
+            </div>
+          </div>
+        </li>
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g5">Tools</button>
+          <div class="sh-menu sh-menu--list" id="sh-g5">
+            <ul>
+              <li><a href="/catalog.html">Every plot on the site</a></li>
+              <li><a href="/skewt/">Sounding explorer</a></li>
+              <li><a href="/asos5.html">Five-minute airport observations</a></li>
+              <li><a href="/climate.html">US climate trends</a></li>
+              <li><a href="/fci.html">US credit conditions</a></li>
+            </ul>
+          </div>
+        </li>
+        <li class="sh-item sh-item--special"><a class="sh-special" href="/midterms/">2026 Midterms</a></li>
+        <li class="sh-item sh-has-menu sh-item--me">
+          <button class="sh-link sh-menubtn sh-me" type="button" aria-expanded="false" aria-controls="sh-me">About</button>
+          <div class="sh-menu sh-menu--list sh-menu--me" id="sh-me">
+            <ul>
+              <li><a href="/about.html">About me</a></li>
+              <li><a href="/resume.html">Resume</a></li>
+              <li><a href="/research.html">Publications</a></li>
+              <li class="sh-me-ext"><a href="https://github.com/scorvec">GitHub</a></li>
+              <li><a href="https://scholar.google.com/citations?user=EYLRCJIAAAAJ&amp;hl=en">Google Scholar</a></li>
+              <li><a href="https://www.linkedin.com/in/shawn-corvec-35895b231/">LinkedIn</a></li>
+            </ul>
+          </div>
+        </li>
+      </ul>
+    </nav>
+  </div>
+</header>
+<!-- sh:end -->
+<main>
+
+<article class="study">
+  <p class="crumbs"><a href="/">Home</a> › Studies › AINWP and conservation</p>
+  <h1>Do AI weather models conserve angular momentum, mass, water and energy?</h1>
+  <p class="dek">Budget tests of ECMWF's data-driven ensemble (AIFS-ENS) against its physics-based ensemble (IFS-ENS), with ERA5
+  as the reference: angular momentum first, then dry-air mass, water and energy. Winter 2025–26, 30 forecast cycles, days 1–15.</p>
+
+  <section class="lede">
+  <h2>The short answer</h2>
+  <ul>
+    <li><b>No, not as well as the physics model.</b> The atmosphere's angular momentum can only change through torques at the
+    surface: pressure pushing on mountains and the drag of the ground on the wind. In IFS-ENS those torques explain
+    89% of the forecast's own day-to-day change in angular momentum at every lead. In AIFS-ENS they explain
+    72% on days 1–10 and only 11% on days 11–15. The gap is statistically
+    significant on 14 of the 15 lead days.</li>
+    <li><b>Three things cause it.</b> AIFS does not conserve the total mass of the atmosphere, which is the largest
+    source of day-to-day scatter. It carries a steady excess of a few Hadley on days 1–8, a value close to the reanalysis it
+    learned from. And in week 2 it develops a pressure pattern across the Andes that should brake the winds, while its
+    winds do not respond.</li>
+    <li><b>It does not make the forecasts worse where we could measure.</b> AIFS-ENS's angular momentum is at least
+    as close to ERA5 as IFS-ENS's, and its 500 hPa height error is statistically the same. The
+    inconsistency matters for anything that reads the <i>mechanism</i>: torque-based angular momentum forecasts and
+    attributing a jet change to a mountain torque. It matters most past day 10.</li>
+    <li><b>Mass, water and energy</b> (AIFS-ENS gains dry air (+18 Pa of global-mean pressure by day 15, IFS-ENS +1 Pa), with runs scattering 24 Pa against IFS's 3; it rains 0.26 mm a day (9%) less than IFS-ENS at every lead; and both models lose column energy against their own analyses, AIFS-ENS slightly faster. AIFS publishes no evaporation or net fluxes, so the water and energy budgets cannot be closed directly.) <a href="#conservation">Details below</a>.</li>
+  </ul>
+  </section>
+
+  <figure id="fig1"><a href="/studies/aifs-aam-budget/closure_global.webp" class="zoom"><img src="/studies/aifs-aam-budget/closure_global.webp" alt="Spread, mean and explained fraction of the global angular momentum budget residual by lead day for AIFS-ENS, IFS-ENS, AIFS single and ERA5" loading="lazy"></a><figcaption><b>Figure 1.</b> The global budget by lead day. Residual R = the forecast's change in angular momentum minus its own mountain and friction torques. Left: day-to-day spread of R. Middle: its mean. Right: the share of the tendency the torques explain, 1 − mean(R²)/var(dM/dt). Shading: 95% block-bootstrap intervals over cycles. AIFS-ENS and IFS-ENS are four members × 30 cycles each, and AIFS single is 30 runs.</figcaption></figure>
+  <figure id="fig2"><a href="/studies/aifs-aam-budget/example_cycle.webp" class="zoom"><img src="/studies/aifs-aam-budget/example_cycle.webp" alt="Global angular momentum tendency against the same run's mountain plus friction torque for one cycle, AIFS-ENS, IFS-ENS and ERA5" loading="lazy"></a><figcaption><b>Figure 2.</b> One cycle (15 January 2026, 00Z). Black: the change in global angular momentum. Dashed: what the same run's torques imply. In IFS-ENS the two lie on top of each other at every lead; in AIFS-ENS they part after about day 8. Thin lines are perturbed members.</figcaption></figure>
+
+  <h2>Why the question</h2>
+  <p>About the Earth's axis, the atmosphere's angular momentum $M$ (the winds plus the mass carried round by the rotating Earth) obeys</p>
+  <p>$$\frac{dM}{dt} = T_{\text{mountain}} + T_{\text{friction}} + T_{\text{gravity-wave drag}}$$</p>
+  <p>(see the <a href="/topics/atmospheric-angular-momentum.html">angular momentum</a> and
+  <a href="/topics/mountain-torque.html">mountain torque</a> explainers). In a physics model this budget is built in: the
+  dynamics conserve momentum up to numerical error, and each surface stress is calculated. A data-driven model such as AIFS
+  has no conservation law. It learns to predict the next state from the last, and nothing ties the change in its winds to
+  the pressure it places against the mountains or to the drag implied by its own surface winds. A budget test asks whether
+  each forecast is consistent with itself, separately from whether it is accurate.</p>
+
+  <h2>What was done</h2>
+  <ul>
+    <li><b>Forecasts</b>: ECMWF open data, 30 cycles at 00Z, every third day from 1 December 2025 to 26 February 2026,
+    days 1–15. No cycle or step was missing. Runs per cycle: AIFS-ENS member 0 and perturbed members 1–3, IFS-ENS control and
+    perturbed members 1–3, and the deterministic AIFS single. In the open data the IFS high-resolution forecast is
+    bit-identical to the IFS-ENS control, so the control stands in for it. Fields: surface pressure and 10 m wind every 6 hours
+    (plus IFS's own accumulated surface stress), and zonal and meridional wind on the 13 published pressure levels
+    (1000–50 hPa) every 24 hours. Each model's own orography is used.</li>
+    <li><b>Reference</b>: ERA5 for 1 December 2025 to 16 March 2026, hourly surface fields with its turbulent and gravity-wave
+    surface stresses, and winds on all 37 levels.</li>
+    <li><b>Budget</b>: lead day $k$ is the 24-hour window ending at hour $24k$. The change in $M$ across the window is compared
+    with the torques averaged over it at 6-hourly steps, which cancels the daily and twice-daily pressure tides exactly. The
+    hemispheric budgets also subtract the angular momentum carried across the equator.</li>
+    <li><b>Friction</b>: AIFS publishes no surface stress, so every model gets the same bulk estimate,
+    $\tau = C_d\,\rho\,|V_{10}|\,u_{10}$, with the site's per-cell drag coefficient, recalibrated over land and sea against ERA5's own
+    stress for this winter (cross-validated r = 0.94, RMSE 4.7 Hadley). Gravity-wave drag is not
+    published for any forecast and stays in the residual. 1 Hadley = 10<sup>18</sup> N m.</li>
+    <li><b>Statistics</b>: moving-block bootstrap over cycles (blocks of three consecutive cycles, 2,000 resamples), with
+    model differences paired on the same cycles. "Significant" means two-sided p &lt; 0.05 at that lead day. Every
+    comparison below says which lead days pass, and those that do not are marked n.s.</li>
+  </ul>
+
+  <h2>Results</h2>
+  <h3>The global budget</h3>
+  <div class='tw'><table class='res'><thead><tr><th></th><th>days 1–5</th><th>days 6–10</th><th>days 11–15</th></tr></thead><tbody><tr class='grp'><th colspan='4'>Explained fraction</th></tr><tr><th scope='row'>AIFS-ENS</th><td>0.73</td><td>0.72</td><td>0.11</td></tr><tr><th scope='row'>IFS-ENS</th><td>0.87</td><td>0.90</td><td>0.91</td></tr><tr><th scope='row'>AIFS single</th><td>0.43</td><td>0.50</td><td>0.45</td></tr><tr><th scope='row'>ERA5, same days</th><td>0.78</td><td>0.79</td><td>0.78</td></tr><tr class='diff'><th scope='row'>AIFS-ENS minus IFS-ENS</th><td>-0.19 <span class='sig'>(4 of 5 days)</span></td><td>-0.22 <span class='sig'>(5 of 5 days)</span></td><td>-0.87 <span class='sig'>(5 of 5 days)</span></td></tr><tr class='grp'><th colspan='4'>Residual spread, sd (Hadley)</th></tr><tr><th scope='row'>AIFS-ENS</th><td>11.7</td><td>11.7</td><td>13.2</td></tr><tr><th scope='row'>IFS-ENS</th><td>10.2</td><td>8.8</td><td>9.1</td></tr><tr><th scope='row'>AIFS single</th><td>13.9</td><td>13.4</td><td>12.9</td></tr><tr><th scope='row'>ERA5, same days</th><td>9.5</td><td>9.2</td><td>9.7</td></tr><tr class='diff'><th scope='row'>AIFS-ENS minus IFS-ENS</th><td>+1.9 <span class='sig'>(3 of 5 days)</span></td><td>+2.7 <span class='sig'>(5 of 5 days)</span></td><td>+3.9 <span class='sig'>(3 of 5 days)</span></td></tr><tr class='grp'><th colspan='4'>Mean residual (Hadley)</th></tr><tr><th scope='row'>AIFS-ENS</th><td>+6.3</td><td>+8.8</td><td>+21.3</td></tr><tr><th scope='row'>IFS-ENS</th><td>-0.1</td><td>+0.6</td><td>+0.7</td></tr><tr><th scope='row'>AIFS single</th><td>+9.4</td><td>+7.4</td><td>+0.7</td></tr><tr><th scope='row'>ERA5, same days</th><td>+10.1</td><td>+10.1</td><td>+10.8</td></tr><tr class='diff'><th scope='row'>AIFS-ENS minus IFS-ENS</th><td>+6.2 <span class='sig'>(4 of 5 days)</span></td><td>+8.3 <span class='sig'>(5 of 5 days)</span></td><td>+20.4 <span class='sig'>(5 of 5 days)</span></td></tr></tbody></table></div>
+  <p class="tcap">Global residual averaged over each band of lead days. Model rows are descriptive. The "AIFS-ENS minus IFS-ENS" rows give
+  the mean difference and the number of lead days in the band where it is significant, or n.s. where no lead day is.</p>
+  <ul>
+    <li><b>IFS-ENS closes its budget.</b> With the shared bulk friction its residual averages about zero, and the explained
+    fraction is above ERA5's at 11 of 15 lead days (significant). With IFS's own surface stress the residual falls
+    to 5.4 Hadley spread and -3.0 Hadley mean on days 2–15. That is about the size of the missing gravity-wave
+    drag (ERA5: -5.2 ± 2.2) plus the error from sampling only 13 levels.</li>
+    <li><b>AIFS-ENS closes less well.</b> Its explained fraction is significantly lower than IFS-ENS's on 14 of 15 days
+    (all except day 1), and its residual spread is significantly larger on 11 of 15. Against ERA5 itself, AIFS-ENS is not
+    significantly different on days 1–5 and differs on only one day of days 6–10. It falls well below on all of days 11–15.</li>
+    <li><b>AIFS single</b> explains about 46% of its tendency at every lead, significantly below IFS-ENS on all 15
+    days. Its residual is no larger than AIFS-ENS's, but its own tendency is smoother, so the same residual is a larger share.</li>
+  </ul>
+  <h3>By hemisphere</h3>
+  <div class='tw'><table class='res'><thead><tr><th>AIFS-ENS minus IFS-ENS</th><th>days 1–5</th><th>days 6–10</th><th>days 11–15</th></tr></thead><tbody><tr><th scope='row'>NH: explained fraction</th><td>-0.07 <span class='sig'>(1 of 5 days)</span></td><td>-0.05 <span class='sig'>(1 of 5 days)</span></td><td>-0.22 <span class='sig'>(4 of 5 days)</span></td></tr><tr><th scope='row'>NH: spread (Hadley)</th><td>+1.6 <span class='sig'>(2 of 5 days)</span></td><td>+1.7 <span class='sig'>(4 of 5 days)</span></td><td>+2.5 <span class='sig'>(2 of 5 days)</span></td></tr><tr><th scope='row'>SH: explained fraction</th><td>-0.38 <span class='sig'>(5 of 5 days)</span></td><td>-0.42 <span class='sig'>(5 of 5 days)</span></td><td>-1.55 <span class='sig'>(5 of 5 days)</span></td></tr><tr><th scope='row'>SH: spread (Hadley)</th><td>+2.3 <span class='sig'>(4 of 5 days)</span></td><td>+2.5 <span class='sig'>(5 of 5 days)</span></td><td>+2.7 <span class='sig'>(4 of 5 days)</span></td></tr></tbody></table></div>
+  <p class="tcap">After removing the cross-equatorial transport. The deficit is mainly a Southern Hemisphere one.</p>
+  <figure id="fig3"><a href="/studies/aifs-aam-budget/closure_hemispheres.webp" class="zoom"><img src="/studies/aifs-aam-budget/closure_hemispheres.webp" alt="Hemispheric angular momentum budget residual spread and explained fraction by lead, AIFS-ENS, IFS-ENS, AIFS single and ERA5" loading="lazy"></a><figcaption><b>Figure 3.</b> Northern (top) and Southern (bottom) Hemisphere budgets.</figcaption></figure>
+
+  <h3>Cause 1: the total mass of the atmosphere drifts</h3>
+  <p>AIFS predicts surface pressure freely, and the global mean wanders: by day 10 the run-to-run spread of the global-mean
+  surface pressure is 0.24 hPa in AIFS-ENS and 0.31 hPa in AIFS single. IFS holds it at
+  0.00 hPa because it applies a global mass fixer. Air that appears or disappears changes the mass part of the angular
+  momentum with no torque to account for it. Removing that effect brings AIFS-ENS's residual spread down to IFS-ENS's on days 2–9,
+  with no significant difference on any of those days (p ≥ 0.15). Mass non-conservation is therefore the main
+  source of the extra scatter. AIFS single improves to about 0.8 explained but stays significantly below IFS-ENS at most
+  leads.</p>
+  <figure id="fig4"><a href="/studies/aifs-aam-budget/mass_drift.webp" class="zoom"><img src="/studies/aifs-aam-budget/mass_drift.webp" alt="Change of global-mean surface pressure since the start of the forecast, mean and spread, AIFS-ENS, IFS-ENS and AIFS single" loading="lazy"></a><figcaption><b>Figure 4.</b> Change in global-mean surface pressure since the start of the forecast: mean (left) and spread across runs (right). IFS-ENS is flat at zero.</figcaption></figure>
+  <figure id="fig5"><a href="/studies/aifs-aam-budget/mass_corrected.webp" class="zoom"><img src="/studies/aifs-aam-budget/mass_corrected.webp" alt="Global budget residual after removing the effect of the global mass drift" loading="lazy"></a><figcaption><b>Figure 5.</b> As Figure 1, after removing the angular momentum change caused by the change in total mass (solid; dotted = uncorrected).</figcaption></figure>
+
+  <h3>Cause 2: a steady excess on days 1–8</h3>
+  <p>Even after the mass correction, AIFS-ENS's angular momentum rises by +4 to +7 Hadley a day more than its torques allow,
+  significantly more than IFS-ENS's near-zero. ERA5, the reanalysis AIFS was trained on, shows a similar excess (+10 Hadley on
+  the same days). This is expected in a reanalysis, because assimilating observations adds momentum that no torque supplies;
+  Veerman and van Heerwaarden (2019) found the same in ERA-20C. One reading is that AIFS has learned the analysed evolution,
+  observation increments included, rather than a closed physical budget. <i>That is a hypothesis; it was not tested
+  here.</i></p>
+
+  <h3>Cause 3: the Andes in week 2</h3>
+  <p>On days 13–15 AIFS-ENS's global mountain torque is -19 Hadley below ERA5's on the same days
+  (95% interval -27 to -11, significant). In the Southern Hemisphere it is
+  -16 (95% interval -22 to -11, significant). For IFS-ENS
+  (-3) and AIFS single (-0) the difference is not significant. Split
+  by mountain range, -20 of the -20 Hadley sits over the Andes. AIFS-ENS builds
+  too strong a high-to-the-west, low-to-the-east pressure contrast across the range, a pattern that should brake the
+  westerlies. Its angular momentum change meanwhile stays unbiased against ERA5, so the torque has no effect on its own
+  winds. The per-range split is descriptive; only the global and hemispheric values were tested.</p>
+  <figure id="fig6"><a href="/studies/aifs-aam-budget/mountain_ranges.webp" class="zoom"><img src="/studies/aifs-aam-budget/mountain_ranges.webp" alt="Mountain torque minus ERA5 by mountain range for days 1 to 3 and 13 to 15, AIFS-ENS, IFS-ENS and AIFS single" loading="lazy"></a><figcaption><b>Figure 6.</b> Mountain torque minus ERA5 at the same valid times, summed over each range: days 1–3 (left) and 13–15 (right). Descriptive.</figcaption></figure>
+
+  <h2>Does it matter for accuracy?</h2>
+  <ul>
+    <li><b>Angular momentum error</b>: AIFS-ENS's relative angular momentum is closer to ERA5 than IFS-ENS's at every lead day,
+    significantly so at day 5 and day 15. At day 10 the difference
+    (0.40 against 0.50 ×10<sup>25</sup> kg m² s⁻¹) is <span class="ns">n.s.</span>
+    (p = 0.13). IFS-ENS loses angular momentum steadily
+    (-0.31 ×10<sup>25</sup> by day 15) while closing its own budget almost exactly.</li>
+    <li><b>500 hPa height</b> (20–90°N, RMSE): 112 m for AIFS-ENS against 115 m for
+    IFS-ENS at day 10. The difference is <span class="ns">n.s.</span> at days 5, 10 and 15.</li>
+    <li><b>Run by run</b>: a run that closes its budget worse does not have a larger day-10 z500 error. The correlation is
+    <span class="ns">n.s.</span> for every model. The one significant link is in angular momentum itself: within a cycle,
+    the AIFS-ENS member with the larger unexplained change by day 10 has the larger total angular momentum error
+    (r = 0.35, 95% interval 0.18
+    to 0.50). The same link is n.s. for IFS-ENS.</li>
+  </ul>
+  <figure id="fig7"><a href="/studies/aifs-aam-budget/terms_vs_era5.webp" class="zoom"><img src="/studies/aifs-aam-budget/terms_vs_era5.webp" alt="Correlation and RMSE against ERA5 of the angular momentum tendency, mountain torque and friction torque by lead, three models" loading="lazy"></a><figcaption><b>Figure 7.</b> Each budget term against ERA5 at the same valid day: accuracy, not consistency.</figcaption></figure>
+  <figure id="fig8"><a href="/studies/aifs-aam-budget/residual_vs_error.webp" class="zoom"><img src="/studies/aifs-aam-budget/residual_vs_error.webp" alt="Budget residual against day-10 z500 error and angular momentum error for each run, and the cumulative residual by lead" loading="lazy"></a><figcaption><b>Figure 8.</b> Left and middle: each run's residual against its day-10 errors (no significant relation with z500). Right: the cumulative unexplained change in angular momentum.</figcaption></figure>
+  <p>The inconsistency does not show up in headline scores, because the model has learned the analysed evolution of the
+  angular momentum well. It matters for products that read the mechanism, such as this site's
+  <a href="/circulation.html#torque">torque budget</a>, which is computed from AIFS-ENS. For those, an AIFS-ENS torque past
+  about day 10 is not a cause of its angular momentum change in the way an IFS torque is. The largest contributor, mass
+  drift, is also the most fixable: global mass constraints of the kind Sha et al. (2025) added to another AI model would remove it.</p>
+
+  <h2>Caveats</h2>
+  <ul>
+    <li>One winter (December–February 2025–26), 30 cycles and four members per ensemble. The Southern Hemisphere and
+    Andes results may depend on the season or on the model version; AIFS-ENS has been upgraded since.</li>
+    <li>Only the 13 published pressure levels (1000–50 hPa) were available, the 10 hPa level reaching open data only in mid-2026. For AIFS these are the model's own levels, so its output loses nothing. IFS runs on 137 levels, so for IFS they are a subsample, and ERA5 measures what that costs: over this winter the daily change in angular momentum computed on these 13 levels differs from the one on all 37 by 5.3 Hadley rms (Northern Hemisphere 3.8, Southern 4.4), against day-to-day swings of 30 Hadley, and the mean difference is -0.4 Hadley (95% interval -1.2 to +0.5, n.s.). With the same torques, ERA5's residual spread is 7.4 Hadley on 13 levels and 5.3 on 37; sampling the mountain torque hourly instead of 6-hourly leaves it at 7.3. Fewer levels add scatter, not a bias, so they cannot account for the biased residuals of AIFS-ENS above, and ERA5 sampled on the same 13 levels still explains 79% of its own change.</li>
+    <li>Friction is a calibrated bulk estimate for every model and adds about 7–8 Hadley of noise to every residual. Against
+    IFS's own stress it behaves the same at every lead (Figure 9).</li>
+    <li>Gravity-wave drag is not available from either forecast and stays in the residual. ERA5 puts it at about −5 Hadley
+    this winter, too small and too steady to explain the difference between the models.</li>
+    <li>The idea that AIFS reproduces the reanalysis's observation increments is an untested hypothesis.</li>
+    <li>The mass correction assumes the spurious air is spread like the real air. It is a diagnostic split, not an exact one.</li>
+    <li>A literature search found no earlier angular momentum budget test of an AI weather model. That is a search result,
+    not proof that none exists.</li>
+    <li>ERA5 is the reference for accuracy, and it is itself an analysis made with the IFS.</li>
+  </ul>
+  <figure id="fig9"><a href="/studies/aifs-aam-budget/friction_proxy.webp" class="zoom"><img src="/studies/aifs-aam-budget/friction_proxy.webp" alt="Bulk friction torque against ERA5 turbulent stress torque, and against IFS's own surface stress torque by lead" loading="lazy"></a><figcaption><b>Figure 9.</b> The friction estimate: against ERA5's turbulent stress (left), and in IFS-ENS against the model's own stress by lead (middle, right).</figcaption></figure>
+
+  <h2>The reference: a reanalysis does not close either</h2>
+  <div class='tw'><table class='res'><thead><tr><th>ERA5, 105 days</th><th>mean</th><th>sd</th><th>explained</th></tr></thead><tbody><tr><th scope='row'>bulk friction, 13 levels (as for the forecasts)</th><td>+10.5</td><td>9.3</td><td>0.79</td></tr><tr><th scope='row'>ERA5's own turbulent stress, 13 levels</th><td>+10.5</td><td>8.1</td><td>0.81</td></tr><tr><th scope='row'>+ ERA5 gravity-wave drag</th><td>+15.6</td><td>7.4</td><td>0.68</td></tr><tr><th scope='row'>+ all 37 levels, hourly mountain torque</th><td>+15.7</td><td>5.3</td><td>0.69</td></tr></tbody></table></div>
+  <p class="tcap">ERA5's own budget over the same winter, in Hadley; the spread of its daily tendency is 31.</p>
+  <p>ERA5 explains about 80% of its daily change but runs a steady +10 to +16 Hadley excess, which
+  adding gravity-wave drag makes larger. Huang, Sardeshmukh and Weickmann (1999) found the same kind of imbalance in the NCEP
+  reanalysis: total torques about 10 Hadley too low for the observed change, which is the same sign and size as the
+  excess here.</p>
+
+
+  <h2 id="conservation">Beyond angular momentum: mass, water and energy</h2>
+  <p>The same 30 cycles and the same runs were tested against three more conservation laws, using every relevant field the open
+  data publish: surface pressure and total column water for each run every 24 hours, precipitation, downward surface radiation,
+  and temperature, humidity and geopotential on the 13 pressure levels. AIFS outputs far fewer fields than the IFS: no evaporation,
+  no net or top-of-atmosphere radiation and no turbulent heat fluxes, so the water and energy budgets cannot be closed from the
+  fluxes the way the angular momentum budget can. What can be tested is how the stored quantities drift.</p>
+
+  <h3>Mass: the dry air should never change</h3>
+  <p>Without sources of dry air, the weight of the dry atmosphere, the global-mean surface pressure minus the weight of its water,
+  is fixed. IFS imposes this with a global mass fixer: its total surface pressure stays within 0.1 Pa, and its dry air changes only
+  as its column water does (+1.4 Pa by day 15). AIFS has no such constraint.</p>
+  <ul>
+    <li><b>AIFS-ENS gains dry air</b>: +18.0 (95% interval +8.1 to +26.9) Pa by day 15. Against IFS-ENS on the same cycles the difference is
+    +16.6 (95% interval +6.3 to +25.9) Pa at day 15. It is significant on days 1, 2, 12, 13, 14, 15
+    and <span class="ns">n.s.</span> on the others (day 10: +8.4 Pa). 16 Pa of global-mean pressure is about
+    8&nbsp;×&nbsp;10<sup>14</sup> kg of air, 0.016% of the atmosphere.</li>
+    <li><b>AIFS single loses dry air</b> late in the forecast: -13.5 (95% interval -26.8 to -0.8) Pa by day 15, significantly below IFS-ENS only on days 14, 15.</li>
+    <li><b>The scatter is the larger problem.</b> By day 15 the run-to-run spread of the change is 24 Pa for AIFS-ENS
+    and 30 Pa for AIFS single, against 3 Pa for IFS-ENS. This is the mass drift that drives the
+    extra scatter in the angular momentum budget above.</li>
+  </ul>
+  <figure id="fig10"><a href="/studies/aifs-aam-budget/cons_mass.webp" class="zoom"><img src="/studies/aifs-aam-budget/cons_mass.webp" alt="Change of global-mean surface pressure and of dry-air pressure since the start of the forecast, and its run-to-run spread, for AIFS-ENS, IFS-ENS and AIFS single" loading="lazy"></a><figcaption><b>Figure 10.</b> Change in total air (left) and dry air (middle, surface pressure minus the weight of the column water) since the start of each forecast, and the spread of the dry-air change across runs (right).</figcaption></figure>
+
+  <h3>Water: what falls must evaporate or come out of the column</h3>
+  <p>Globally, the change in column water equals evaporation minus precipitation. Neither AIFS nor the open IFS data publish
+  evaporation, so the budget cannot be closed: the evaporation a run would need is whatever balances its own rain and column
+  water. What the data do show:</p>
+  <ul>
+    <li><b>AIFS-ENS rains less</b>: 2.75 mm a day globally at day 10 against IFS-ENS's 3.01, a difference of
+    -0.26 (95% interval -0.28 to -0.24) mm a day, significant at every lead from day 1. AIFS single sits between them
+    (2.92). ERA5's December–February global mean is 2.87 mm a day of precipitation and 2.93 mm a day of evaporation (the reanalysis does not balance them exactly either).</li>
+    <li><b>Column water is steady.</b> After the first day, every model's global column water changes by less than 0.05 mm a day, so
+    each run's evaporation must nearly equal its precipitation, and AIFS-ENS is therefore implying about 9% less evaporation than
+    IFS-ENS. On day 1 AIFS-ENS loses 0.13 mm of column water, a spin-down from its initial state that IFS does not show.</li>
+    <li>Against each model's own analysis at day 15, column water is -0.27 kg m<sup>−2</sup> (AIFS-ENS),
+    -0.24 (IFS-ENS) and -0.11 (AIFS single): all three dry the atmosphere slightly, by about 1%.</li>
+  </ul>
+  <figure id="fig11"><a href="/studies/aifs-aam-budget/cons_water.webp" class="zoom"><img src="/studies/aifs-aam-budget/cons_water.webp" alt="Global precipitation, change in column water and implied evaporation by lead day for AIFS-ENS, IFS-ENS and AIFS single" loading="lazy"></a><figcaption><b>Figure 11.</b> The global water budget by lead day: precipitation (left), change in column water (middle) and the evaporation they imply (right).</figcaption></figure>
+
+  <h3>Energy: drift against the analysis</h3>
+  <p>The total energy of the column, $\int (c_pT + \Phi + Lq)\,dp/g$, changes only through radiation and surface fluxes, which AIFS does not
+  publish. The test that remains is drift: compare each control run with its own model's analysis at the valid time, possible at days 3, 6,
+  9, 12 and 15 because a new cycle starts every third day. The analysis is not a conservation law, so this measures how far each model
+  wanders from the observed energy state, not a budget residual.</p>
+  <ul>
+    <li><b>All three lose energy.</b> By day 15 the loss averages -2.3 W m<sup>−2</sup> for AIFS-ENS, -1.8 for
+    IFS-ENS and -3.5 for AIFS single over the 15 days, mostly as cooling (enthalpy -1.4,
+    -1.2 and -2.4). A cooling drift of this size is a known IFS behaviour, so the physics model
+    is no reference of perfection here.</li>
+    <li><b>AIFS-ENS drifts slightly faster than IFS-ENS</b>: -0.52 (95% interval -1.20 to -0.02) W m<sup>−2</sup> at day 15, significant at 4 of the
+    5 tested leads. <b>AIFS single drifts faster</b>: -1.74 (95% interval -2.41 to -0.95) W m<sup>−2</sup>.</li>
+    <li>AIFS-ENS's downward solar radiation at the surface is 3.1 W m<sup>−2</sup> lower than IFS-ENS's at every
+    lead (significant); its downward thermal radiation is the same within 0.5 W m<sup>−2</sup>. Without net or top-of-atmosphere radiation,
+    this cannot be tied to the energy drift.</li>
+  </ul>
+  <figure id="fig12"><a href="/studies/aifs-aam-budget/cons_energy.webp" class="zoom"><img src="/studies/aifs-aam-budget/cons_energy.webp" alt="Column energy change against the verifying analysis at days 3 to 15, its components at day 15, and downward surface solar radiation by lead" loading="lazy"></a><figcaption><b>Figure 12.</b> Column energy against each model's own analysis (left), by component at day 15 (middle), and downward solar radiation at the surface (right).</figcaption></figure>
+  <p><b>What could not be tested.</b> The water budget needs evaporation, and the energy budget needs net radiation at the top and bottom of
+  the atmosphere and the turbulent heat fluxes; none of these is in the AIFS open data. Kinetic energy (about 0.05% of the total) and
+  the levels above 50 hPa are left out of the column energy. The mass and water results use the published total column water, which
+  includes cloud water and ice.</p>
+
+
+  <h2>References</h2>
+  <ol class="refs">
+    <li>Huang, H.-P., P. D. Sardeshmukh and K. M. Weickmann, 1999: The balance of global angular momentum in a long-term atmospheric data set. <i>J. Geophys. Res.</i>, 104, 2031–2040. <a href="https://doi.org/10.1029/1998JD200068">doi:10.1029/1998JD200068</a></li>
+    <li>Veerman, M. A., and C. C. van Heerwaarden, 2019: Trends in and closure of the atmospheric angular momentum budget in the 20th century in ERA-20C. <i>Q. J. R. Meteorol. Soc.</i>, 145, 2990–3003. <a href="https://doi.org/10.1002/qj.3600">doi:10.1002/qj.3600</a></li>
+    <li>Hersbach, H., and co-authors, 2020: The ERA5 global reanalysis. <i>Q. J. R. Meteorol. Soc.</i>, 146, 1999–2049. <a href="https://doi.org/10.1002/qj.3803">doi:10.1002/qj.3803</a></li>
+    <li>Egger, J., K. Weickmann and K.-P. Hoinka, 2007: Angular momentum in the global atmospheric circulation. <i>Rev. Geophys.</i>, 45, RG4007. <a href="https://doi.org/10.1029/2006RG000213">doi:10.1029/2006RG000213</a></li>
+    <li>Bell, M. J., R. Hide and G. Sakellarides, 1991: Atmospheric angular momentum forecasts as novel tests of global numerical weather prediction models. <i>Phil. Trans. R. Soc. A</i>, 334, 55–92. <a href="https://doi.org/10.1098/rsta.1991.0003">doi:10.1098/rsta.1991.0003</a></li>
+    <li>Toniazzo, T., and co-authors, 2020: Enforcing conservation of axial angular momentum in the atmospheric general circulation model CAM6. <i>Geosci. Model Dev.</i>, 13, 685–705.</li>
+    <li>Lang, S., and co-authors, 2024: AIFS – ECMWF's data-driven forecasting system. <a href="https://arxiv.org/abs/2406.01465">arXiv:2406.01465</a>; and AIFS-CRPS: ensemble forecasting using a model trained with a loss function based on the CRPS. <a href="https://arxiv.org/abs/2412.15832">arXiv:2412.15832</a></li>
+    <li>Bonavita, M., 2024: On some limitations of current machine learning weather prediction models. <i>Geophys. Res. Lett.</i>, 51. <a href="https://doi.org/10.1029/2023GL107377">doi:10.1029/2023GL107377</a></li>
+    <li>Sha, Y., J. Schreck, W. Chapman and D. J. Gagne, 2025: Improving AI weather prediction models using global mass and energy conservation schemes. <i>J. Adv. Model. Earth Syst.</i>, 17. <a href="https://doi.org/10.1029/2025MS005138">doi:10.1029/2025MS005138</a></li>
+    <li>Chapman, W. E., J. Schreck and Y. Sha, 2026: Hard conservation correctors can hide a degrading model when training autoregressive emulators. <a href="https://arxiv.org/abs/2607.18416">arXiv:2607.18416</a></li>
+  </ol>
+
+  <h2>Data</h2>
+  <p class="credits">Forecasts: ECMWF open data (AIFS-ENS, AIFS single, IFS-ENS), © ECMWF, licensed under
+  <a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a>, fetched from ECMWF's Google Cloud mirror. Reference:
+  ERA5 (Hersbach et al., 2020), Copernicus Climate Change Service (C3S) / ECMWF, via the ARCO-ERA5 store on Google Cloud;
+  contains modified Copernicus Climate Change Service information 2026. Neither ECMWF nor the European Commission is
+  responsible for any use of this information. About 128 GB of forecast fields and 95 GB of ERA5 were read for the angular
+  momentum study, and a further 28 GB of forecast fields for the mass, water and energy extension.</p>
+  <p class="byline">By <a href="/about.html">Shawn Corvec</a>, meteorologist. Published 1 October 2026; mass, water and energy added 2 October 2026. A static study: it is not updated.</p>
+</article>
+
+</main>
+<div id="lb" role="dialog" aria-label="Enlarged figure"><img alt=""></div>
+<script>
+(function () {
+  var lb = document.getElementById("lb"), im = lb.querySelector("img");
+  document.querySelectorAll("a.zoom").forEach(function (a) {
+    a.addEventListener("click", function (e) {
+      if (innerWidth < 700) return;            // phones: open the image itself (pinch-zoom)
+      e.preventDefault(); im.src = a.href; im.alt = a.querySelector("img").alt; lb.classList.add("on");
+    });
+  });
+  lb.addEventListener("click", function () { lb.classList.remove("on"); });
+  addEventListener("keydown", function (e) { if (e.key === "Escape") lb.classList.remove("on"); });
+})();
+</script>
+<!-- sf:start -->
+<footer class="sf">
+  <div class="sf-in">
+    <div class="sf-group">
+      <p class="sf-h" role="heading" aria-level="2">This site</p>
+      <ul>
+        <li><a href="/">Home</a></li>
+        <li><a href="/catalog.html">Every plot</a></li>
+        <li><a href="/topics/">Explainers</a></li>
+        <li><a href="/stats.html">Visitor stats</a></li>
+      </ul>
+      <p class="sf-disclaimer">This site is under constant development. Nothing here is checked before publication and there is no expectation of accuracy, completeness or availability; do not rely on it for decisions. Built from open data; sources are credited on each page.</p>
+    </div>
+    <div class="sf-group sf-group--me">
+      <p class="sf-h" role="heading" aria-level="2">Shawn Corvec</p>
+      <ul>
+        <li><a href="/about.html">About</a></li>
+        <li><a href="/resume.html">Resume</a></li>
+        <li><a href="/research.html">Publications</a></li>
+        <li><a href="https://github.com/scorvec" rel="noopener">GitHub</a></li>
+        <li><a href="https://www.linkedin.com/in/shawn-corvec-35895b231/" rel="noopener">LinkedIn</a></li>
+        <li><a href="https://scholar.google.com/citations?user=EYLRCJIAAAAJ&amp;hl=en" rel="noopener">Google Scholar</a></li>
+      </ul>
+    </div>
+  </div>
+</footer>
+<!-- sf:end -->
+</body>
+</html>

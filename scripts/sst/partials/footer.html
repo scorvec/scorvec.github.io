@@ -1,0 +1,155 @@
+
+<footer>
+  <p class="counter">Unique viewers: <span id="count">&mdash;</span></p>
+</footer>
+
+<script>
+  fetch('https://scorvec.goatcounter.com/counter/TOTAL.json')
+    .then(r => r.json())
+    .then(d => { document.getElementById('count').textContent = d.count_unique || d.count; })
+    .catch(() => { document.getElementById('count').textContent = '—'; });
+</script>
+<script>
+  // Size each animation iframe to its embedded content's exact height (image +
+  // controls), so the wide plots fill their cards with no letterboxing on any screen.
+  addEventListener('message', function (e) {
+    var d = e.data; if (!d || d.type !== 'sstAnimHeight') return;
+    var fr = document.querySelectorAll('iframe.anim-embed');
+    for (var i = 0; i < fr.length; i++) {
+      if (fr[i].contentWindow === e.source) {
+        fr[i].style.height = d.h + 'px';
+        fr[i].style.aspectRatio = 'auto';
+        fr[i].style.maxHeight = 'none';
+        // d.w = the width the frame actually renders at when it is height-capped
+        // (portrait/square loops); pin the iframe to it so it hugs the picture and
+        // centres. 0 = the frame fills the width, no pin.
+        fr[i].style.maxWidth = d.w ? d.w + 'px' : '';
+      }
+    }
+  });
+  // A pinned width must be released when the window grows, or the loop could
+  // never re-expand; the animator re-measures and re-posts as soon as it widens.
+  addEventListener('resize', function () {
+    var fr = document.querySelectorAll('iframe.anim-embed');
+    for (var i = 0; i < fr.length; i++) fr[i].style.maxWidth = '';
+  });
+  // Hourly-updating images (committed by their own GitHub Actions, not the page build):
+  // load with an hour-granular cache-buster so the latest render shows without churning
+  // the page HTML. The page's static ?v= can't cover them (they change between page builds).
+  ['soi-hourly', 'kiribati-wind', 'kiribati-history', 'olr-hovmoller', 'olr-waves', 'wave-tracker', 'eq-current-hov', 'eq-uwind-hov'].forEach(function (id) {
+    var im = document.getElementById(id);
+    if (im && im.dataset.src) im.src = im.dataset.src + '?v=' + new Date().toISOString().slice(0, 13);
+  });
+
+  // Live wind-arrow widget for the Tarawa WWB monitor: draw the latest wind at each
+  // station from the hourly kiribati_wind.json (arrow points the way the wind blows TO).
+  (function () {
+    var host = document.getElementById('wwb-arrows'); if (!host) return;
+    fetch('assets/sst/kiribati_wind.json?v=' + new Date().toISOString().slice(0, 13))
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        if (!d.stations) return;
+        var html = '';
+        Object.keys(d.stations).forEach(function (icao) {
+          var s = d.stations[icao], west = s.u_ms > 0, col = west ? '#d62728' : '#1f77b4';
+          var bearing = (s.dir + 180) % 360;             // flow direction (downwind)
+          var lab = Math.abs(s.u_ms) < 0.5 ? 'calm' : (west ? 'westerly' : 'easterly');
+          html += '<div class="wwb-stn"><svg width="92" height="92" viewBox="0 0 100 100">'
+            + '<circle cx="50" cy="50" r="44" fill="none" stroke="#ddd"/>'
+            + '<text x="50" y="13" text-anchor="middle" font-size="9" fill="#bbb">N</text>'
+            + '<g transform="rotate(' + bearing + ' 50 50)">'
+            + '<line x1="50" y1="52" x2="50" y2="24" stroke="' + col + '" stroke-width="4"/>'
+            + '<path d="M50 12 L42 30 L50 25 L58 30 Z" fill="' + col + '"/></g>'
+            + '<circle cx="50" cy="50" r="3.5" fill="' + col + '"/></svg>'
+            + '<b>' + s.name + '</b><span style="color:' + col + '">' + s.dir + '° / '
+            + s.spd_kt + ' kt &middot; ' + lab + '</span></div>';
+        });
+        host.innerHTML = html + '<div class="wwb-stn" style="max-width:9em">updated<br>' + d.updated + '</div>';
+      }).catch(function () {});
+  })();
+</script>
+<script>
+// Figure toggles. One delegated listener for every .fig-toggle on the page:
+// each button carries the src it should swap in, and the target is the <img> or
+// <iframe> with id "fig-<data-fig>". Progressive enhancement — with JS off the
+// card still shows its default figure, which is why the src is in the markup.
+(function () {
+  document.addEventListener("click", function (e) {
+    var b = e.target.closest ? e.target.closest(".fig-toggle button") : null;
+    if (!b) return;
+    var wrap = b.parentNode, el = document.getElementById("fig-" + wrap.dataset.fig);
+    if (!el) return;
+    var src = b.getAttribute("data-src");
+    if (src && el.getAttribute("src") !== src) el.setAttribute("src", src);
+    // panels can differ in aspect ratio (each animator sizes to its own domain),
+    // so a button may carry the class its figure needs alongside the src
+    var cls = b.getAttribute("data-cls");
+    if (cls) el.className = cls;
+    Array.prototype.forEach.call(wrap.children, function (c) { c.classList.remove("on"); });
+    b.classList.add("on");
+  });
+})();
+</script>
+<script>
+// Plot decks. One delegated listener for every deck on the page. Panels other
+// than the first ship their iframe src in data-src, so a deck costs exactly one
+// animator load on page open and the rest only when the reader asks for them.
+(function () {
+  function reveal(panel) {
+    var f = panel.querySelectorAll("iframe[data-src], img[data-src], img[data-deferred]");
+    for (var i = 0; i < f.length; i++) {
+      var el = f[i], d = el.getAttribute("data-src");
+      if (d) { el.setAttribute("src", d); el.removeAttribute("data-src"); }
+      el.removeAttribute("data-deferred");
+    }
+  }
+  document.addEventListener("click", function (e) {
+    var b = e.target.closest ? e.target.closest(".plot-deck .deck-tabs button") : null;
+    if (!b) return;
+    var deck = b.closest(".plot-deck");
+    var tabs = deck.querySelectorAll(".deck-tabs button");
+    var panels = deck.querySelectorAll(".deck-panel");
+    var i = Array.prototype.indexOf.call(tabs, b);
+    for (var k = 0; k < panels.length; k++) {
+      if (k === i) { panels[k].hidden = false; reveal(panels[k]); }
+      else panels[k].hidden = true;
+      tabs[k].classList.toggle("on", k === i);
+    }
+  });
+})();
+</script>
+</body>
+</html>
+<script>
+// Animators load when they come NEAR the viewport, not on page open.
+//
+// enso-atmosphere shipped five decks, each auto-loading its first panel's
+// animator: five sst_anim documents, five manifests and five frame windows
+// racing on open, so the page showed a wall of "Loading frames..." before
+// anything was readable. Only the top deck is on screen at that moment.
+//
+// Hidden deck panels have display:none, so they have no layout box and never
+// intersect - a panel behind a tab stays deferred until reveal() opens it,
+// exactly as before. This observer therefore only ever pulls in the panel a
+// reader is actually approaching.
+(function () {
+  var q = function () { return document.querySelectorAll("iframe[data-src]"); };
+  function load(el) {
+    var d = el.getAttribute("data-src");
+    if (d) { el.setAttribute("src", d); el.removeAttribute("data-src"); }
+  }
+  if (!("IntersectionObserver" in window)) {           // old browser: no deferral
+    Array.prototype.forEach.call(q(), load); return;
+  }
+  var io = new IntersectionObserver(function (entries) {
+    entries.forEach(function (e) {
+      if (e.isIntersecting) { load(e.target); io.unobserve(e.target); }
+    });
+  }, { rootMargin: "500px 0px" });                     // start ~a screen early
+  function observeAll() { Array.prototype.forEach.call(q(), function (el) { io.observe(el); }); }
+  observeAll();
+  // Panels revealed by a tab click can expose iframes that were display:none
+  // when this ran, so pick those up too.
+  document.addEventListener("click", function () { setTimeout(observeAll, 0); });
+})();
+</script>

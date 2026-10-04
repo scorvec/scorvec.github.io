@@ -1,0 +1,183 @@
+"""
+Top-level driver: download AIFS-ENS, compute wind-only RMM, and plot.
+
+CDS-free: reads the committed 120-day filter map (data/reference/wind_map120.nc)
+and observed-RMM history (data/reference/obs_history.nc), and extends the history
+with today's AIFS analysis.  Refresh those committed files locally (with CDS) via
+src/seed_recent.py — this keeps ERA5/CDS out of automated runs.
+
+Usage:
+    python run_rmm.py --date 20240601 --time 00
+
+Prerequisites (run once / occasionally):
+    python src/setup_reference.py    # W&H reference EOFs + climatology
+    python src/seed_recent.py        # wind_map120.nc + obs_history.nc (needs CDS)
+"""
+
+import argparse
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).parent / "src"))
+
+from download_aifs import download, download_ifs
+from rmm import compute_rmm
+from plot import plot_rmm
+import recent_analysis
+import archive_truth
+import cycle_debias
+import numpy as np
+import pandas as pd
+import xarray as xr
+
+CLIM_PATH = Path("data/reference/climatology.nc")
+EOFS_PATH = Path("data/reference/eofs.nc")
+PRCP_CLIM_PATH = Path("data/reference/prcp_clim.nc")
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--date", required=True, help="Init date YYYYMMDD")
+    parser.add_argument("--time", default="00", help="Init hour: 00 or 12")
+    parser.add_argument("--skip-download", action="store_true")
+    parser.add_argument("--out-dir", default="plots")
+    args = parser.parse_args()
+
+    if not CLIM_PATH.exists() or not EOFS_PATH.exists():
+        print("ERROR: Run src/setup_reference.py first.")
+        sys.exit(1)
+    if not recent_analysis.MAP120_PATH.exists():
+        print("ERROR: Missing wind_map120.nc — run src/seed_recent.py first.")
+        sys.exit(1)
+
+    # 1. Download AIFS-ENS
+    if not args.skip_download:
+        download(args.date, args.time, Path("data/aifs"))
+
+    clim = xr.open_dataset(CLIM_PATH)
+    eofs = xr.open_dataset(EOFS_PATH)
+    init = pd.Timestamp(f"{args.date}T{args.time}:00")
+
+    # 2. Compute wind-only RMM, filtered by the committed 120-day map
+    mean120 = recent_analysis.load_map120()
+    # The map drifts <1%/day so a week of staleness is by design (ARCO lag +
+    # refresh cadence) — but a silently frozen filter slowly re-admits the
+    # ENSO signal into RMM. Surface it where CI annotations pick it up.
+    if mean120.get("window_end"):
+        stale = (init - pd.Timestamp(mean120["window_end"])).days
+        if stale > 14:
+            print(f"::warning::wind_map120.nc window ends {mean120['window_end']} "
+                  f"({stale} days before init) — low-frequency filter is stale; "
+                  "check the map120 refresh job")
+    print("Computing RMM …")
+    prcp_clim = (xr.open_dataset(PRCP_CLIM_PATH) if PRCP_CLIM_PATH.exists()
+                 else None)
+    if prcp_clim is None:
+        print("::warning::prcp_clim.nc missing — RMM will be wind-only "
+              "(run src/build_prcp_clim.py)")
+    rmm = compute_rmm(Path("data/aifs"), args.date, args.time, clim, eofs,
+                      mean120=mean120, prcp_clim=prcp_clim)
+    print(f"  channels: {rmm.attrs.get('channels')}")
+
+    # 2b. De-bias the 12Z cycle onto the 00Z family (see cycle_debias docstring:
+    # AIFS-ENS 12Z runs are systematically RMM-offset vs 00Z runs at the same
+    # valid times, which made alternating frames "windshield-wiper"). The RAW
+    # ensemble mean is archived first — the correction is estimated from raw
+    # trailing 00Z/12Z pairs, so re-running a cycle never double-corrects.
+    leads = rmm["lead_day"].values
+    cycle_debias.record(args.date, args.time,
+                        leads, rmm["rmm1"].mean("member").values,
+                        rmm["rmm2"].mean("member").values,
+                        rmm1_wind=rmm["rmm1_wind"].mean("member").values,
+                        rmm2_wind=rmm["rmm2_wind"].mean("member").values)
+    # the analysis point that extends the observed history must stay RAW (lead 0 of the control)
+    cf0_raw = (float(rmm.sel(member="cf").isel(lead_day=0)["rmm1_wind"]),
+               float(rmm.sel(member="cf").isel(lead_day=0)["rmm2_wind"]))
+    off1, off2 = cycle_debias.offset_for(args.date, args.time, leads)
+    if np.any(off1) or np.any(off2):
+        rmm["rmm1"] = rmm["rmm1"] - xr.DataArray(off1, dims=["lead_day"])
+        rmm["rmm2"] = rmm["rmm2"] - xr.DataArray(off2, dims=["lead_day"])
+        rmm.attrs["cycle_debias"] = (
+            f"12Z-family offset removed; max |d| = "
+            f"{float(np.hypot(off1, off2).max()):.2f} RMM units")
+        print(f"12Z cycle de-bias applied (day-14 offset "
+              f"({off1[-1]:+.2f}, {off2[-1]:+.2f}))")
+    # the wind-only channels (the ENSO-removed product plots these) carry their own 12Z offset; until 2026-10-02 they
+    # were never corrected, so that product wiped back and forth by ~1 RMM unit at day 14 (user: "severe windshield
+    # wiper effect on the mjo plots between 00z and 12z cycles")
+    w1, w2 = cycle_debias.offset_for(args.date, args.time, leads, keys=("rmm1_wind", "rmm2_wind"))
+    if np.any(w1) or np.any(w2):
+        rmm["rmm1_wind"] = rmm["rmm1_wind"] - xr.DataArray(w1, dims=["lead_day"])
+        rmm["rmm2_wind"] = rmm["rmm2_wind"] - xr.DataArray(w2, dims=["lead_day"])
+        print(f"12Z cycle de-bias applied to the wind-only RMM (day-14 offset ({w1[-1]:+.2f}, {w2[-1]:+.2f}))")
+    elif int(args.time) == 12:
+        print("::warning::12Z wind-only RMM NOT de-biased yet (wind channels still warming up in ensmean_history)")
+
+    rmm_path = Path("data/aifs") / f"rmm_{args.date}_{args.time}z.nc"
+    rmm.to_netcdf(rmm_path)
+
+    # 2c. IFS-ENS through the IDENTICAL machinery — the physics-model reference
+    # for the AI forecast (also a methodology cross-check against other vendors).
+    # Best-effort: IFS disseminates ~1-2 h after AIFS; when absent the sidecar
+    # below tells the hourly poll to re-run this stage until it lands.
+    rmm_ifs = None
+    try:
+        if download_ifs(args.date, args.time, Path("data/aifs")):
+            print("Computing IFS RMM …")
+            rmm_ifs = compute_rmm(Path("data/aifs"), args.date, args.time,
+                                  clim, eofs, mean120=mean120,
+                                  prcp_clim=prcp_clim, model="ifs")
+            print(f"  IFS channels: {rmm_ifs.attrs.get('channels')}")
+            rmm_ifs.to_netcdf(Path("data/aifs") / f"rmm_ifs_{args.date}_{args.time}z.nc")
+    except Exception as e:                          # noqa: BLE001
+        print(f"IFS RMM leg failed ({repr(e)[:80]}); plotting AIFS only")
+        rmm_ifs = None
+
+    # 3. Extend the observed history with today's AIFS analysis (member 0, earliest
+    #    lead). lead_day 0 if step 0 was downloaded, else the first forecast day —
+    #    .isel keeps this robust to the daily-vs-6-hourly step choice.
+    archive_truth.append_truth(init, *cf0_raw)
+    obs = archive_truth.load_truth(days=None)
+    if obs is not None:                           # a re-plotted past cycle shows only what was observed by its init
+        obs = obs.sel(time=obs["time"] <= np.datetime64(init, "ns")).isel(time=slice(-120, None))   # 12-hourly → ~60 days
+
+    # 4. Plot
+    Path(args.out_dir).mkdir(parents=True, exist_ok=True)
+    out_png = Path(args.out_dir) / f"rmm_{args.date}_{args.time}z.png"
+    plot_rmm(rmm, obs=obs, out_path=out_png, ifs=rmm_ifs)
+
+    # 4b. ENSO-removed wind-only RMM (src/enso_rmm.py): same members, observed tail and IFS overlay, minus the
+    #     part linearly related to the Nino-3.4 change over the filter window. Best-effort: a failure here never
+    #     touches the raw product above.
+    try:
+        import enso_rmm
+        n34 = enso_rmm.n34_smoothed()
+        if n34 is None:
+            raise FileNotFoundError("assets/sst/data/enso_daily.json")
+        c = enso_rmm.load_c()
+        dn = enso_rmm.delta_n34(n34, init, mean120.get("window_end"))
+        if not np.isfinite(dn):
+            raise ValueError("Nino-3.4 series too short for the 120-day window")
+        rc = enso_rmm.clean_forecast(rmm, dn, c, "AIFS")
+        ic = enso_rmm.clean_forecast(rmm_ifs, dn, c, "IFS") if rmm_ifs is not None else None
+        oc = enso_rmm.clean_obs(obs, n34, c)
+        d0 = f"{args.date[:4]}-{args.date[4:6]}-{args.date[6:8]} {args.time}Z"
+        plot_rmm(rc, obs=oc, ifs=ic, out_path=Path(args.out_dir) / f"rmmclean_{args.date}_{args.time}z.png",
+                 title=f"ENSO removed: wind-only RMM{' (AIFS vs IFS)' if ic is not None else ' (AIFS)'}  —  Init: {d0}")
+        st = enso_rmm.diagnose(rc, oc, dn, enso_rmm.romi_status())
+        st.update(init=d0, updated=pd.Timestamp.utcnow().strftime("%Y-%m-%d %H:%MZ"))
+        (Path(args.out_dir) / "rmm_clean_status.json").write_text(__import__("json").dumps(st))
+        print(f"ENSO-removed RMM: dN34 {dn:+.2f} K, forecast amp {st['forecast']['amp_mean']}, "
+              f"speed {st['forecast']['speed']} deg/day, coherent={st['coherent_mjo_forecast']}")
+    except Exception as e:                                        # noqa: BLE001
+        print(f"::warning::ENSO-removed RMM skipped ({repr(e)[:120]})")
+
+    miss = Path(str(out_png) + ".missing")
+    if rmm_ifs is None:
+        miss.write_text("ifs\n")
+    elif miss.exists():
+        miss.unlink()
+
+
+if __name__ == "__main__":
+    main()

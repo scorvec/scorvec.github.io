@@ -1,0 +1,393 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>What If? Midterm Assumptions</title>
+<meta name="description" content="Change the assumptions behind the 2026 midterm forecast - how polls miss, how big errors are, whether races move together - and watch the chances change.">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;600;700&family=Source+Serif+4:opsz,wght@8..60,500;8..60,600&display=swap">
+<style>
+:root{--ink:#1b1d22;--muted:#6f6b64;--rule:#e3e1db;--bg:#fcfcfa;--card:#fff;--d:#1f5fbf;--dd:#0b3d91;--r:#b3261e;--rd:#a32215;--focus:#1f5fbf;--soft:#f4f2ed}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:17px/1.55 "Source Sans 3",-apple-system,Helvetica,Arial,sans-serif}
+.wi{max-width:1180px;margin:0 auto;padding:18px 20px 56px}
+.wi-head{display:flex;align-items:baseline;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:6px}
+.wi-head h1{font:600 31px/1.15 "Source Serif 4",Georgia,serif;margin:0}
+.wi-head a{color:var(--d);font-size:17px}
+.lede{max-width:820px;margin:6px 0 18px;font-size:18px}
+.lede b{font-weight:600}
+a:focus-visible,button:focus-visible,input:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+/* results: the one bold element, sticky so the numbers stay in view while the sliders move */
+.res{position:sticky;top:0;z-index:5;background:var(--card);border:1px solid var(--rule);border-radius:10px;padding:12px 18px 10px;display:grid;grid-template-columns:repeat(4,1fr);gap:0;box-shadow:0 2px 10px rgba(27,29,34,.06)}
+.res>div{padding:2px 14px 4px 0}
+.res>div+div{padding-left:14px;border-left:1px solid var(--rule)}
+.res b{display:block;font:600 36px/1.05 "Source Serif 4",Georgia,serif;font-variant-numeric:tabular-nums}
+.res span{display:block;font-size:16.5px;line-height:1.3}
+.res small{display:block;color:var(--muted);font-size:15px;margin-top:3px;font-variant-numeric:tabular-nums}
+.res .up{color:var(--dd)} .res .dn{color:var(--rd)}
+.kept{grid-column:1/-1;margin:8px 0 0;padding-top:8px;border-top:1px solid var(--rule);font-size:15.5px;color:var(--muted);display:none}
+.kept.on{display:block}.kept.warn{color:var(--rd)}
+@media(max-width:820px){.res{grid-template-columns:1fr 1fr}.res>div:nth-child(odd){padding-left:0;border-left:0}.res>div:nth-child(n+3){border-top:1px solid var(--rule);padding-top:8px}.res b{font-size:30px}}
+/* controls */
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:18px}
+@media(max-width:900px){.grid{grid-template-columns:1fr}}
+.ctl{background:var(--card);border:1px solid var(--rule);border-radius:10px;padding:14px 16px 12px}
+.ctl h2{font:600 19px/1.3 "Source Serif 4",Georgia,serif;margin:0 0 2px;display:flex;justify-content:space-between;gap:10px;align-items:baseline}
+.ctl h2 output{font:600 17px "Source Sans 3",sans-serif;font-variant-numeric:tabular-nums;white-space:nowrap}
+.ctl p{margin:2px 0 10px;color:var(--muted);font-size:16px}
+.sl{position:relative;padding:4px 0 30px}
+.sl input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:10px;border-radius:5px;margin:0;background:var(--soft);border:1px solid var(--rule);cursor:pointer}
+.sl input.rb{background:linear-gradient(90deg,#a32215 0%,#ebe9e4 50%,#0b3d91 100%);border:0}
+.sl input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:24px;height:24px;border-radius:50%;background:#fff;border:3px solid var(--ink);box-shadow:0 1px 3px rgba(0,0,0,.25)}
+.sl input[type=range]::-moz-range-thumb{width:20px;height:20px;border-radius:50%;background:#fff;border:3px solid var(--ink)}
+.tk{position:absolute;top:18px;transform:translateX(-50%);font-size:13.5px;color:var(--muted);white-space:nowrap;pointer-events:none}
+.tk::before{content:"";display:block;width:1px;height:7px;background:var(--muted);margin:0 auto 1px}
+.tk.m{color:var(--ink);font-weight:600}.tk.m::before{width:2px;background:var(--ink)}
+.sl.yrs{padding-top:34px;padding-bottom:30px}.sl.yrs .tk:not(.yr){top:52px}.sl.yrs .tk.yr{top:2px}.sl.yrs .tk.yr.hi{top:-13px}.sl.yrs input{margin-top:0}.tk.yr{top:2px;font-size:13px;color:var(--ink)}.tk.yr.hi{top:-14px}.tk.yr::before{display:none}.tk.yr::after{content:"";display:block;width:1px;height:6px;background:var(--muted);margin:0 auto}
+.ends{display:flex;justify-content:space-between;font-size:14.5px;color:var(--muted);margin-top:-4px}
+.btn{border:1px solid var(--rule);background:#fff;border-radius:6px;padding:5px 12px;font:inherit;font-size:16px;cursor:pointer}
+.btn:hover{border-color:var(--muted)}
+.bar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:16px 0 0}
+/* races */
+.races{margin-top:26px}
+.races h2{font:600 23px/1.2 "Source Serif 4",Georgia,serif;margin:0 0 4px}
+.races>p{margin:0 0 12px;color:var(--muted);max-width:820px}
+.tabs{display:flex;gap:4px;border-bottom:1px solid var(--rule);margin-bottom:10px}
+.tabs button{border:0;background:none;font:inherit;font-size:17px;padding:8px 14px;cursor:pointer;color:var(--muted);border-bottom:3px solid transparent}
+.tabs button[aria-selected=true]{color:var(--ink);font-weight:600;border-bottom-color:var(--ink)}
+table{border-collapse:collapse;width:100%;font-size:16px}
+th{text-align:left;font-weight:600;color:var(--muted);font-size:14.5px;padding:6px 8px;border-bottom:1px solid var(--rule)}
+td{padding:7px 8px;border-bottom:1px solid var(--rule);vertical-align:middle;font-variant-numeric:tabular-nums}
+td.nm{min-width:180px}td.nm small{display:block;color:var(--muted);font-size:14px}
+.pb{position:relative;height:10px;border-radius:5px;background:linear-gradient(90deg,var(--r),var(--r));min-width:120px}
+.pb i{position:absolute;left:0;top:0;bottom:0;background:var(--d);border-radius:5px 0 0 5px}
+.pb b{position:absolute;top:-3px;width:2px;height:16px;background:var(--ink)}
+.chg{font-size:14.5px}.chg.up{color:var(--dd)}.chg.dn{color:var(--rd)}
+.call{display:inline-flex;border:1px solid var(--rule);border-radius:6px;overflow:hidden}
+.call button{border:0;background:#fff;font:inherit;font-size:14.5px;padding:4px 9px;cursor:pointer;color:var(--muted)}
+.call button+button{border-left:1px solid var(--rule)}
+.call button.on.d{background:var(--d);color:#fff}.call button.on.r{background:var(--r);color:#fff}.call button.on.n{background:var(--soft);color:var(--ink)}
+.more{margin-top:8px}
+.note{margin-top:28px;padding-top:12px;border-top:1px solid var(--rule);color:var(--muted);font-size:15.5px;max-width:900px}
+@media(max-width:640px){td.pbc{display:none}.wi-head h1{font-size:26px}}
+</style><link rel="stylesheet" href="/assets/site.css">
+<script src="/assets/site.js" defer></script>
+<script src="/assets/rail.js" defer></script>
+</head><body>
+<!-- sh:start -->
+<header class="sh" id="site-header">
+  <div class="sh-in">
+    <a class="sh-brand" href="/">Shawn Corvec</a>
+    <button class="sh-find" type="button" aria-haspopup="dialog" aria-keyshortcuts="Control+K Meta+K" title="Find a plot (Ctrl K)"><svg viewBox="0 0 20 20" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true" focusable="false"><circle cx="8.5" cy="8.5" r="5.5" style="fill:none;stroke:currentColor"/><path d="M12.6 12.6 17 17" style="fill:none;stroke:currentColor"/></svg><span class="sh-find-t">Find a plot</span><kbd>Ctrl K</kbd></button>
+    <button class="sh-toggle" type="button" aria-expanded="false" aria-controls="sh-menu">Menu</button>
+    <nav class="sh-nav" id="sh-menu" aria-label="Site">
+      <ul class="sh-list">
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g0">Mid-latitude weather</button>
+          <div class="sh-menu sh-menu--cols" id="sh-g0">
+            <div>
+              <h3>Surface and hazards</h3>
+              <ul>
+                <li><a href="/models.html">Short-range model maps</a></li>
+                <li><a href="/snowbands.html">Snow-band diagnostics</a></li>
+                <li><a href="/ar.html">Atmospheric rivers</a></li>
+              </ul>
+            </div>
+            <div>
+              <h3>Upper air</h3>
+              <ul>
+                <li><a href="/circulation.html#dt">Dynamic tropopause</a></li>
+                <li><a href="/circulation.html#pacjet">North Pacific jet</a></li>
+                <li><a href="/circulation.html#waf">Wave activity flux</a></li>
+              </ul>
+            </div>
+          </div>
+        </li>
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g1">Tropics</button>
+          <div class="sh-menu sh-menu--cols" id="sh-g1">
+            <div>
+              <h3>ENSO and the MJO</h3>
+              <ul>
+                <li><a href="/enso.html">El Niño monitor</a></li>
+                <li><a href="/circulation.html#mslp">Pacific pressure and wind</a></li>
+                <li><a href="/mjo.html">MJO forecast</a></li>
+                <li><a href="/tropical-waves.html">Tropical waves</a></li>
+              </ul>
+            </div>
+            <div>
+              <h3>Tropical cyclones</h3>
+              <ul>
+                <li><a href="/circulation.html#tcjet">Tropical cyclones and the jet</a></li>
+                <li><a href="/circulation.html#tcens">Tropical cyclone ensembles</a></li>
+                <li><a href="/circulation.html#tcphase">Cyclone phase space</a></li>
+              </ul>
+            </div>
+            <div>
+              <h3>Tropical circulation</h3>
+              <ul>
+                <li><a href="/circulation.html#walker">Walker and Hadley cells</a></li>
+                <li><a href="/circulation.html#vpot">Velocity potential</a></li>
+                <li><a href="/circulation.html#gillrain">Rain-forced circulation (Gill model)</a></li>
+              </ul>
+            </div>
+          </div>
+        </li>
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g2">Stratosphere</button>
+          <div class="sh-menu sh-menu--cols" id="sh-g2">
+            <div>
+              <h3>Polar vortex</h3>
+              <ul>
+                <li><a href="/stratosphere.html">Stratosphere and polar vortex</a></li>
+                <li class="sh-subitem"><a href="/stratosphere.html#heatflux">Eddy heat flux</a></li>
+                <li class="sh-subitem"><a href="/stratosphere.html#pv">Potential vorticity</a></li>
+                <li class="sh-subitem"><a href="/stratosphere.html#bdc">Brewer–Dobson circulation</a></li>
+              </ul>
+            </div>
+            <div>
+              <h3>QBO and momentum</h3>
+              <ul>
+                <li><a href="/qbo/">QBO tracker</a></li>
+                <li><a href="/circulation.html#aam">Angular momentum and torques</a></li>
+              </ul>
+            </div>
+          </div>
+        </li>
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g3">Weeks to seasons</button>
+          <div class="sh-menu sh-menu--cols" id="sh-g3">
+            <div>
+              <h3>Weeks 2–5</h3>
+              <ul>
+                <li><a href="/subseasonal.html">GEPS extended ensemble</a></li>
+                <li><a href="/gefs.html">GEFS extended ensemble</a></li>
+              </ul>
+            </div>
+            <div>
+              <h3>Seasons</h3>
+              <ul>
+                <li><a href="/seasonal.html">Eight C3S seasonal models</a></li>
+                <li><a href="/sfs.html">NOAA SFS seasonal</a></li>
+                <li><a href="/enso-forecasts.html">ENSO forecasts</a></li>
+              </ul>
+            </div>
+          </div>
+        </li>
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g4"><span class="sh-lf">Studies and verification</span><span class="sh-ls">Studies/verification</span></button>
+          <div class="sh-menu sh-menu--cols" id="sh-g4">
+            <div>
+              <h3>Studies</h3>
+              <ul>
+                <li><a href="/enso.html#imp_reg">ENSO impacts on the Americas</a></li>
+                <li><a href="/mjo.html#mi">MJO impacts</a></li>
+                <li><a href="/stratosphere.html#shwinters">Stratosphere history</a></li>
+                <li><a href="/aifs-aam-budget.html">AINWP and conservation</a></li>
+                <li><a href="/topics/">Explainers</a></li>
+              </ul>
+            </div>
+            <div>
+              <h3>Verification</h3>
+              <ul>
+                <li><a href="/aifs-verify.html">AIFS single versus member 0</a></li>
+              </ul>
+            </div>
+          </div>
+        </li>
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g5">Tools</button>
+          <div class="sh-menu sh-menu--list" id="sh-g5">
+            <ul>
+              <li><a href="/catalog.html">Every plot on the site</a></li>
+              <li><a href="/skewt/">Sounding explorer</a></li>
+              <li><a href="/asos5.html">Five-minute airport observations</a></li>
+              <li><a href="/climate.html">US climate trends</a></li>
+              <li><a href="/fci.html">US credit conditions</a></li>
+            </ul>
+          </div>
+        </li>
+        <li class="sh-item sh-item--special"><a class="sh-special" href="/midterms/" aria-current="page">2026 Midterms</a></li>
+        <li class="sh-item sh-has-menu sh-item--me">
+          <button class="sh-link sh-menubtn sh-me" type="button" aria-expanded="false" aria-controls="sh-me">About</button>
+          <div class="sh-menu sh-menu--list sh-menu--me" id="sh-me">
+            <ul>
+              <li><a href="/about.html">About me</a></li>
+              <li><a href="/resume.html">Resume</a></li>
+              <li><a href="/research.html">Publications</a></li>
+              <li class="sh-me-ext"><a href="https://github.com/scorvec">GitHub</a></li>
+              <li><a href="https://scholar.google.com/citations?user=EYLRCJIAAAAJ&amp;hl=en">Google Scholar</a></li>
+              <li><a href="https://www.linkedin.com/in/shawn-corvec-35895b231/">LinkedIn</a></li>
+            </ul>
+          </div>
+        </li>
+      </ul>
+    </nav>
+  </div>
+</header>
+<!-- sh:end -->
+<main class="wi">
+<header class="wi-head"><h1>What if? Change the forecast's assumptions</h1>
+ <div><a href="index.html">The forecast</a> &nbsp;<a href="about.html">How it works</a></div></header>
+<p class="lede">A forecast is a set of assumptions plus the polls. Move a slider and every race is <b>simulated again in your browser</b>, 5,000 times, to show how much each assumption matters. The starting position is the model's own forecast; nothing here changes it. It is meant for exploring, not as a prediction.</p>
+
+<section class="res" aria-live="polite" aria-label="Results with your assumptions">
+ <div><b id="rH">…</b><span>chance Democrats win the House</span><small id="rHs"></small></div>
+ <div><b id="rS">…</b><span>chance Democrats control the Senate</span><small id="rSs"></small></div>
+ <div><b id="rB">…</b><span>chance Democrats win both</span><small id="rBs"></small></div>
+ <div><b id="rG">…</b><span>chance of a Democratic majority of governors</span><small id="rGs"></small></div>
+ <p class="kept" id="kept"></p>
+</section>
+
+<div class="grid">
+ <section class="ctl"><h2>The national mood <output id="oE"></output></h2>
+  <p>How the country would vote for the House if the election were today. It moves every race: House seats one for one, Senate and governor races less.</p>
+  <div class="sl"><input class="rb" type="range" id="E" min="-6" max="16" step="0.5" aria-label="National mood"><div id="tkE"></div></div>
+  <div class="ends"><span>Republicans +6</span><span>Democrats +16</span></div></section>
+
+ <section class="ctl"><h2>Which way the polls miss <output id="oM"></output></h2>
+  <p>The model assumes state and district polls are as likely to miss toward either party. Here you can assume a direction. The marks show how far Senate and governor polls missed in past elections.</p>
+  <div class="sl yrs"><input type="range" id="M" min="-8" max="8" step="0.5" aria-label="Polling miss"><div id="tkM"></div></div>
+  <div class="ends"><span>polls overstate Republicans</span><span>polls overstate Democrats</span></div></section>
+
+ <section class="ctl"><h2>How big polling misses are <output id="oZ"></output></h2>
+  <p>The size of every error in the simulation, from the national mood to each race. Smaller errors make favourites safer; larger ones give underdogs more chances.</p>
+  <div class="sl"><input type="range" id="Z" min="0.5" max="2" step="0.05" aria-label="Error size"><div id="tkZ"></div></div>
+  <div class="ends"><span>half as big</span><span>twice as big</span></div></section>
+
+ <section class="ctl"><h2>Do races move together? <output id="oC"></output></h2>
+  <p>Polls tend to miss in the same direction across many races at once. If misses were independent, they would cancel out and control would be nearly certain. If all races missed together, one bad night for the polls would decide everything.</p>
+  <div class="sl"><input type="range" id="C" min="0" max="2" step="0.05" aria-label="Correlation between races"><div id="tkC"></div></div>
+  <div class="ends"><span>each race on its own</span><span>all races together</span></div></section>
+
+ <section class="ctl"><h2>Polls or fundamentals? <output id="oW"></output></h2>
+  <p>Each race blends its polls with a "fundamentals" estimate from the state's lean, incumbency and the national mood. Turn the polls down to see the fundamentals alone, or up to lean on the polls harder.</p>
+  <div class="sl"><input type="range" id="W" min="0" max="4" step="0.05" aria-label="Weight of the polls"><div id="tkW"></div></div>
+  <div class="ends"><span>fundamentals only</span><span>polls count 4x</span></div></section>
+
+ <section class="ctl"><h2>Trust the best pollsters more <output id="oT"></output></h2>
+  <p>Give more weight to pollsters whose past polls missed less than others in the same races (Selzer, Siena, Emerson...) and less to those that missed more. In testing on 2018-2024 this did not improve the forecast, so the model weights established pollsters equally.</p>
+  <div class="sl"><input type="range" id="T" min="0" max="1.5" step="0.05" aria-label="Trust in pollster track records"><div id="tkT"></div></div>
+  <div class="ends"><span>all equal</span><span>strongly by track record</span></div></section>
+</div>
+<div class="bar"><button class="btn" id="reset" type="button">Back to the model's assumptions</button><span id="share" class="chg"></span></div>
+
+<section class="races" aria-label="Races">
+ <h2>Pick the winners yourself</h2>
+ <p>Call any race for either party and the chances above show only the simulations in which your calls come true: what has to happen elsewhere if, say, Texas goes Republican. The bars show each race's chance with your assumptions; the black mark is the model's.</p>
+ <div class="tabs" role="tablist"><button role="tab" aria-selected="true" data-t="S">Senate</button><button role="tab" aria-selected="false" data-t="G">Governors</button><button role="tab" aria-selected="false" data-t="H">House</button></div>
+ <div id="tbl"></div>
+ <button class="btn more" id="more" type="button" hidden>Show every race</button>
+</section>
+
+<p class="note">How this works: the page uses the same race means, error sizes and correlations as the forecast, and the same random draws every time, so a change in the numbers comes only from the assumption you moved. When a slider changes how polls count, each race's polls and fundamentals are re-blended with a simple precision-weighted average, which matches the model's own blend to about a tenth of a point. Senate control follows the forecast's rule: Democrats need more seats than the Republicans (the Vice President breaks a 50-50 tie), and independent winners are not counted for either side. <span id="gen"></span></p>
+</main>
+<script src="whatif_engine.js"></script>
+<script>
+(function(){
+  const $ = (i) => document.getElementById(i), pct = (x) => x == null ? "–" : (x < 0.01 ? "<1%" : x > 0.99 ? ">99%" : Math.round(100 * x) + "%");
+  const mg = (x) => (x > 0 ? "D+" : x < 0 ? "R+" : "") + Math.abs(x).toFixed(1).replace(/\.0$/, "");
+  let D, A, E, base, st = {}, tab = "S", all = false, picks = {};
+  const def = () => ({ E: D.E0, M: 0, Z: 1, C: 1, W: 1, T: 0 });
+  function tick(host, input, v, lab, cls) {
+    const lo = +input.min, hi = +input.max, x = (v - lo) / (hi - lo);
+    const el = document.createElement("span"); el.className = "tk " + (cls || ""); el.textContent = lab; el.style.left = (x * 100) + "%"; host.appendChild(el);
+  }
+  function readHash() { try { const h = new URLSearchParams(location.hash.slice(1)); const s = def();
+    for (const k of Object.keys(s)) if (h.has(k)) s[k] = +h.get(k);
+    if (h.has("p")) h.get("p").split(",").filter(Boolean).forEach(x => { const [k, v] = x.split("="); if (v === "D" || v === "R") picks[k] = v; });
+    return s; } catch (e) { return def(); } }
+  function writeHash() { const d = def(), h = new URLSearchParams();
+    for (const k of Object.keys(st)) if (Math.abs(st[k] - d[k]) > 1e-9) h.set(k, st[k]);
+    const p = Object.entries(picks).map(([k, v]) => k + "=" + v).join(","); if (p) h.set("p", p);
+    history.replaceState(null, "", h.toString() ? "#" + h.toString() : location.pathname); }
+  function delta(x, b) { if (x == null || b == null) return ""; const d = Math.round(100 * (x - b)); if (!d) return "model: " + pct(b);
+    return `model: ${pct(b)} <span class="${d > 0 ? "up" : "dn"}">(${d > 0 ? "+" : "−"}${Math.abs(d)} pts)</span>`; }
+  let pend = false;
+  function update() { if (pend) return; pend = true; requestAnimationFrame(() => { pend = false; render(); }); }
+  function render() {
+    const o = { E: st.E, miss: st.M, size: st.Z, corr: st.C, pollw: st.W, trust: st.T, picks };
+    const r = E.run(o);
+    $("oE").textContent = mg(st.E); $("oM").textContent = st.M === 0 ? "no direction" : (st.M > 0 ? "Democrats " : "Republicans ") + "overstated by " + Math.abs(st.M) + " pts";
+    $("oZ").textContent = "×" + st.Z.toFixed(2).replace(/0$/, ""); $("oC").textContent = st.C === 1 ? "as measured" : st.C === 0 ? "independent" : st.C === 2 ? "all together" : (st.C < 1 ? "less than measured" : "more than measured");
+    $("oW").textContent = st.W === 0 ? "fundamentals only" : st.W === 1 ? "as the model" : "polls ×" + st.W.toFixed(2).replace(/0$/, "");
+    $("oT").textContent = st.T === 0 ? "all equal (the model)" : "strength " + st.T.toFixed(2).replace(/0$/, "");
+    $("rH").textContent = pct(r.house.p); $("rS").textContent = pct(r.senate.p); $("rB").textContent = pct(r.both); $("rG").textContent = pct(r.governor.p);
+    $("rHs").innerHTML = (r.house.mean != null ? `${Math.round(r.house.mean)} seats (${r.house.p10}–${r.house.p90}) · ` : "") + delta(r.house.p, base.house.p);
+    $("rSs").innerHTML = (r.senate.mean != null ? `${r.senate.mean.toFixed(1)} seats · ` : "") + delta(r.senate.p, base.senate.p);
+    $("rBs").innerHTML = delta(r.both, base.both);
+    $("rGs").innerHTML = (r.governor.mean != null ? `${r.governor.mean.toFixed(1)} governors · ` : "") + delta(r.governor.p, base.governor.p);
+    const np = Object.keys(picks).length, k = $("kept");
+    k.className = "kept" + (np ? " on" : "") + (np && r.kept < 200 ? " warn" : "");
+    k.innerHTML = np ? `${r.kept.toLocaleString()} of ${r.n.toLocaleString()} simulations match your ${np} call${np > 1 ? "s" : ""}` + (r.kept < 200 ? " – too few to say much; your calls are unlikely together" : "") + ` <button class="btn" id="clr" type="button">Clear calls</button>` : "";
+    if (np) $("clr").onclick = () => { picks = {}; writeHash(); update(); };
+    table(r); writeHash();
+  }
+  function rows(r) {
+    if (tab === "H") return D.house.seats.map((s, j) => ({ key: "H:" + s.seat, nm: s.seat, sub: "", p: r.house.win[j], b: base.house.win[j], fixed: !!s.fix }))
+      .filter(x => !x.fixed);
+    const sec = tab === "S" ? "senate" : "governor", R = D[sec].races;
+    return R.map((x, j) => ({ key: (tab === "S" ? "S:" : "G:") + x.st, nm: x.st + (x.sp ? " (special)" : ""), sub: `${x.d || "?"}${x.ind ? " (I)" : ""} v ${x.r || "?"}`,
+      p: r[sec].win[j], b: base[sec].win[j] }));
+  }
+  function table(r) {
+    let L = rows(r);
+    L.sort((a, b) => Math.abs(a.b - 0.5) - Math.abs(b.b - 0.5));
+    const comp = L.filter(x => x.b > 0.03 && x.b < 0.97 || picks[x.key]), show = all ? L : comp;
+    $("more").hidden = all || comp.length === L.length; $("more").textContent = `Show every race (${L.length})`;
+    let h = `<table><thead><tr><th>Race</th><th>Democratic chance</th><th class="pbc"></th><th>Your call</th></tr></thead><tbody>`;
+    for (const x of show) {
+      const d = x.p == null ? null : Math.round(100 * (x.p - x.b)), c = picks[x.key] || "";
+      h += `<tr><td class="nm">${x.nm}${x.sub ? `<small>${x.sub}</small>` : ""}</td>
+        <td>${pct(x.p)} ${d ? `<span class="chg ${d > 0 ? "up" : "dn"}">${d > 0 ? "+" : "−"}${Math.abs(d)}</span>` : ""}</td>
+        <td class="pbc"><div class="pb"><i style="width:${x.p == null ? 0 : 100 * x.p}%"></i><b style="left:${100 * x.b}%"></b></div></td>
+        <td><span class="call" data-k="${x.key}"><button class="d${c === "D" ? " on" : ""}" data-v="D" type="button" aria-pressed="${c === "D"}">D</button><button class="n${!c ? " on" : ""}" data-v="" type="button" aria-pressed="${!c}">–</button><button class="r${c === "R" ? " on" : ""}" data-v="R" type="button" aria-pressed="${c === "R"}">R</button></span></td></tr>`;
+    }
+    $("tbl").innerHTML = h + "</tbody></table>";
+  }
+  $("tbl").addEventListener("click", (ev) => { const b = ev.target.closest("button[data-v]"); if (!b) return; const k = b.parentNode.dataset.k, v = b.dataset.v;
+    if (v) picks[k] = v; else delete picks[k]; update(); });
+  document.querySelectorAll(".tabs button").forEach(b => b.addEventListener("click", () => { tab = b.dataset.t; all = false;
+    document.querySelectorAll(".tabs button").forEach(x => x.setAttribute("aria-selected", x === b)); update(); }));
+  $("more").addEventListener("click", () => { all = true; update(); });
+  $("reset").addEventListener("click", () => { st = def(); picks = {}; for (const k of Object.keys(st)) $(k).value = st[k]; update(); });
+  Promise.all([fetch("data/whatif.json").then(r => r.json())]).then(([d]) => {
+    D = d; E = new WhatIf.Engine(D, 5000); base = E.run({ E: D.E0 });
+    st = readHash();
+    for (const k of Object.keys(st)) { const el = $(k); el.value = st[k]; el.addEventListener("input", () => { st[k] = +el.value; update(); }); }
+    tick($("tkE"), $("E"), D.E0, "today's polls " + mg(D.E0), "m"); tick($("tkE"), $("E"), 0, "even");
+    tick($("tkM"), $("M"), 0, "no direction (model)", "m");
+    Object.entries(D.hist_miss).filter(([y, v]) => Math.abs(v) >= 0.8).sort((a, b) => a[1] - b[1])
+      .forEach(([y, v], i) => tick($("tkM"), $("M"), Math.max(-8, Math.min(8, v)), y, "yr" + (i % 2 ? " hi" : "")));
+    tick($("tkZ"), $("Z"), 1, "model", "m"); tick($("tkC"), $("C"), 1, "model (measured)", "m"); tick($("tkW"), $("W"), 1, "model", "m"); tick($("tkT"), $("T"), 0, "model", "m");
+    $("gen").textContent = `Data as of ${D.generated.slice(0, 10)}.`;
+    update();
+  }).catch(e => { $("rH").textContent = "–"; document.querySelector(".lede").insertAdjacentHTML("afterend", `<p class="kept on warn">Could not load the simulation data (${e.message}). Reload the page to try again.</p>`); });
+})();
+</script>
+<!-- sf:start -->
+<footer class="sf">
+  <div class="sf-in">
+    <div class="sf-group">
+      <p class="sf-h" role="heading" aria-level="2">This site</p>
+      <ul>
+        <li><a href="/">Home</a></li>
+        <li><a href="/catalog.html">Every plot</a></li>
+        <li><a href="/topics/">Explainers</a></li>
+        <li><a href="/stats.html">Visitor stats</a></li>
+      </ul>
+      <p class="sf-disclaimer">This site is under constant development. Nothing here is checked before publication and there is no expectation of accuracy, completeness or availability; do not rely on it for decisions. Built from open data; sources are credited on each page.</p>
+    </div>
+    <div class="sf-group sf-group--me">
+      <p class="sf-h" role="heading" aria-level="2">Shawn Corvec</p>
+      <ul>
+        <li><a href="/about.html">About</a></li>
+        <li><a href="/resume.html">Resume</a></li>
+        <li><a href="/research.html">Publications</a></li>
+        <li><a href="https://github.com/scorvec" rel="noopener">GitHub</a></li>
+        <li><a href="https://www.linkedin.com/in/shawn-corvec-35895b231/" rel="noopener">LinkedIn</a></li>
+        <li><a href="https://scholar.google.com/citations?user=EYLRCJIAAAAJ&amp;hl=en" rel="noopener">Google Scholar</a></li>
+      </ul>
+    </div>
+  </div>
+</footer>
+<!-- sf:end -->
+</body></html>

@@ -1,0 +1,612 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<meta name="description" content="Animated loops of global sea-surface temperature, wind, and precipitation anomalies.">
+<link rel="canonical" href="https://scorvec.com/sst_anim.html">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SST Anomaly Animation · Shawn Corvec</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  /* one player chrome everywhere, standalone or embedded */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --page: #fcfcfa; --surface: #ffffff; --border: #e2e0da;
+    --ink: #1a1a1a; --ink2: #4a4744; --muted: #6f6b64;
+    --aqua: #8a4b2a; --aqua-deep: #a85c33;
+    --sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  }
+  body {
+    background: var(--page);
+    color: var(--ink); font-family: var(--sans);
+    -webkit-font-smoothing: antialiased; padding: 1rem;
+    display: flex; flex-direction: column; align-items: center; gap: 0.8rem;
+    min-height: 100vh;
+  }
+  .frame-wrap {
+    width: 100%; max-width: 1280px; background: var(--surface);
+    border: 1px solid var(--border); border-radius: 12px; overflow: hidden;
+    position: relative;
+  }
+  .frame-wrap img { display: block; width: 100%; height: auto; }
+  /* MOBILE + very wide products (global TC, ASCAT strips...): shrink-to-fit
+     makes raster text unreadable. Render at a legible height with horizontal
+     pan instead, and let a tap open the frame for native pinch-zoom. */
+  .frame-wrap.panwide { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .frame-wrap.panwide img { width: auto; max-width: none; height: 60vw;
+                            max-height: 380px; }
+  .frame-loading {
+    position: absolute; inset: 0; display: flex; align-items: center;
+    justify-content: center; color: var(--muted); font-size: 0.85rem;
+    background: rgba(255,255,255,0.75);
+  }
+  .frame-loading.hidden { display: none; }
+  .buffering { position: absolute; top: 6px; right: 6px; font-size: 0.72rem; color: var(--muted);
+               background: rgba(255,255,255,0.85); border-radius: 4px; padding: 2px 7px; pointer-events: none; }
+  .buffering.hidden { display: none; }
+  .hostnote { font-size: 0.72rem; color: var(--muted); padding: 2px 6px; }
+
+  /* ONE slim row: transport · slider · pickers · date. It wraps on narrow
+     screens (slider takes its own line); the old two-row + separate date
+     layout wasted ~50 px under every animation on the site. */
+  .controls {
+    width: 100%; max-width: 1280px; background: var(--surface);
+    border: 1px solid var(--border); border-radius: 10px;
+    padding: 0.45rem 0.65rem;
+    display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;
+  }
+  .btn {
+    border: 1px solid var(--border); background: transparent; color: var(--ink2);
+    border-radius: 8px; padding: 0.34rem 0.6rem; cursor: pointer;
+    font-size: 0.9rem; line-height: 1; transition: all 0.15s;
+  }
+  .btn:hover { color: var(--ink); border-color: rgba(148,184,225,0.45); }
+  .btn.play { background: var(--aqua); border-color: var(--aqua); color: #ffffff;
+              min-width: 2.7rem; font-weight: 600; }
+  .btn.play:hover { background: var(--aqua-deep); }
+  /* Region picker as visible buttons, not a dropdown: a <select> hides how many
+     views exist and needs a click to reveal them. Matches the site's deck tabs. */
+  .regbar {
+    width: 100%; max-width: 1280px; display: flex; align-items: center;
+    flex-wrap: wrap; gap: 0.3rem 0.6rem; padding: 0.1rem 0.15rem 0;
+  }
+  .regbtns { display: flex; flex-wrap: wrap; gap: 0.35rem; }
+  .regbtns button {
+    font: inherit; font-size: 0.8rem; font-weight: 600; letter-spacing: 0.01em;
+    padding: 0.32rem 0.8rem; cursor: pointer; border-radius: 3px;
+    border: 1.5px solid var(--aqua); background: #f6efe9; color: var(--aqua);
+    transition: background 0.15s, color 0.15s, border-color 0.15s;
+  }
+  .regbtns button:hover { background: #ecdfd4; border-color: var(--aqua-deep); color: var(--aqua-deep); }
+  .regbtns button.on {
+    background: var(--aqua); border-color: var(--aqua); color: #fff;
+    box-shadow: 0 1px 5px rgba(138,75,42,0.38);
+  }
+  select {
+    border: 1px solid var(--border); background: var(--surface); color: var(--ink2);
+    border-radius: 999px; padding: 0.3rem 0.55rem; font-size: 0.8rem;
+    font-family: var(--sans); cursor: pointer;
+  }
+  label.ctl-label {
+    font-size: 0.66rem; text-transform: uppercase; letter-spacing: 0.08em;
+    color: var(--muted);
+  }
+  .slider { flex: 1; min-width: 140px; accent-color: var(--aqua); }
+  .frame-date {
+    font-size: 0.74rem; color: var(--muted); font-variant-numeric: tabular-nums;
+    margin-left: auto; white-space: nowrap;
+  }
+  .hint { display: none; font-size: 0.7rem; color: var(--muted); width: 100%; }
+  body:not(.embed) .hint { display: block; text-align: center; }
+  .speed { display: flex; align-items: center; gap: 0.3rem; }
+  a.back {
+    align-self: flex-start; font-size: 0.8rem; color: var(--aqua-deep);
+    text-decoration: none; max-width: 1280px; width: 100%;
+  }
+  @media (max-width: 600px) {
+    select, .btn { font-size: 16px; }
+    .slider { flex-basis: 100%; order: 10; }
+    .frame-date { font-size: 0.7rem; }
+    .controls { gap: 0.45rem; }
+  }
+  /* embedded in a card iframe: the parent sizes the iframe to image + controls
+     via postMessage (postHeight()), so there is never letterboxing at any
+     viewport width. The frame renders at most at native resolution and at most
+     88% of the top window's height (capHeight()) so the whole animation always
+     fits the monitor, like the site's still images. */
+  body.embed .frame-wrap:not(.panwide) img {
+    width: auto; max-width: 100%; height: auto; margin: 0 auto;
+  }
+  body.embed {
+    padding: 0; gap: 0; min-height: 0; overflow: hidden;
+    justify-content: flex-start; background: var(--page);
+  }
+  body.embed .frame-wrap {
+    width: 100%; max-width: none; display: block;
+    border: none; border-radius: 0; background: transparent;
+  }
+  body.embed .controls {
+    border: none; border-left: none; border-right: none; border-radius: 0;
+    border-top: 1px solid var(--border); background: rgba(252,252,250,0.85);
+    padding: 0.35rem 0.55rem;
+  }
+</style>
+<script>
+  // Count this page ONLY when it is opened directly, never when it is embedded.
+  // It is the animator: enso-atmosphere alone embeds it four times, so an
+  // unconditional beacon turned one visit into five pageviews and inflated
+  // every figure on stats.html.
+  if (!new URLSearchParams(location.search).has("embed")) {
+    var gc = document.createElement("script");
+    gc.async = true; gc.src = "//gc.zgo.at/count.js";
+    gc.setAttribute("data-goatcounter", "https://scorvec.goatcounter.com/count");
+    document.head.appendChild(gc);
+  }
+</script>
+<meta name="robots" content="noindex">
+</head>
+<body>
+
+<a class="back" id="back-link" href="enso.html">&larr; Back to the El Niño monitor</a>
+
+<div class="frame-wrap">
+  <img id="frame" alt="SST anomaly animation frame">
+  <div class="frame-loading" id="loading">Loading frames&hellip;</div>
+  <div class="buffering hidden" id="buffering"></div>
+</div>
+
+<div class="regbar" id="regionBar">
+  <span class="ctl-label" id="regionLabel">Region</span>
+  <span class="regbtns" id="regionBtns"></span>
+</div>
+
+<div class="controls">
+  <button class="btn" id="first" title="First (Home)">&#x23EE;</button>
+  <button class="btn" id="prev" title="Previous (&larr;)">&#x25C0;</button>
+  <button class="btn play" id="play" title="Play/Pause (Space)">&#x25B6;</button>
+  <button class="btn" id="next" title="Next (&rarr;)">&#x25B6;&#x25B6;</button>
+  <button class="btn" id="last" title="Last (End)">&#x23ED;</button>
+  <input type="range" class="slider" id="slider" min="0" max="0" value="0">
+  <span class="speed">
+    <select id="speed" title="playback speed">
+      <option value="0.5">0.5&times;</option>
+      <option value="1" selected>1&times;</option>
+      <option value="2">2&times;</option>
+      <option value="4">4&times;</option>
+    </select>
+  </span>
+  <span class="frame-date" id="date">&mdash;</span>
+  <span class="hint">Space play &middot; &larr; &rarr; step &middot; Home/End jump</span>
+</div>
+
+<script src="assets/frames_root.js"></script>
+<script>
+const ANIM_BASE = new URLSearchParams(location.search).get("base") || "assets/sst/anim";
+// Frame webp live on the orphan `frames` branch, not on main — the daily churn
+// was ~6 GB/month of permanent history (see scripts/lib/publish_frames.sh).
+// MANIFESTS stay on main, so the manifest fetch below is still same-origin and
+// needs no CORS; only <img> goes cross-origin, and images never need CORS.
+// An explicit absolute ?base= (or a relative one outside assets/sst/anim) is
+// honoured for both, so callers can still point the viewer anywhere.
+const FRAME_ROOT = window.FRAME_ROOT;   // assets/frames_root.js
+// Only the directories publish_frames.sh actually mirrors live on that branch, and they
+// are all `assets/<product>/anim`. mjo.html passes base=assets (its frames sit in
+// assets/mjo/ on main) — routing it to the branch 404s every frame. Anything that is not
+// an /anim directory, and any absolute base, is served from where it already lives.
+const ON_FRAMES_BRANCH = ANIM_BASE.indexOf("//") === -1 && /\/anim$/.test(ANIM_BASE);
+const FRAME_BASE = ON_FRAMES_BRANCH ? FRAME_ROOT + ANIM_BASE : ANIM_BASE;
+// If the branch is missing a frame (mid-migration, or a renderer that has not published
+// yet) fall back to the copy on main. The flag is per-FRAME, not per-element: imgEl is
+// reused for every frame, so a single latched flag meant the first miss consumed the
+// fallback and every later frame showed a broken image (mjo.html did exactly this).
+function frameSrc(im, rid, f, ver) {
+  // manifests without a render stamp (the SST loops until 2026-09-03) get an
+  // hourly key so a re-render or a transient miss is not cached forever
+  const q = `?v=${f.date}.${ver || Math.floor(Date.now() / 3.6e6)}`;
+  const rel = `${ANIM_BASE}/${rid}/${f.file}`;
+  if (ON_FRAMES_BRANCH && window.frameLoad) {
+    // raw.githubusercontent.com -> cdn.jsdelivr.net mirror -> copy on main
+    // (assets/frames_root.js); the chain is per-FRAME because imgEl is reused
+    window.frameLoad(im, rel, q, rel);
+  } else {
+    im.onerror = null;
+    im.src = rel + q;
+  }
+  return im.src;
+}
+// Frame-host status (assets/frames_root.js): say WHY nothing shows instead of
+// spinning forever, and note when the slower mirror is carrying the loop.
+document.addEventListener("framehost", ev => {
+  const d = ev.detail || {};
+  if (d.dead) {
+    loadingEl.classList.remove("hidden");
+    loadingEl.innerHTML = "Frames could not be loaded. This network appears to block GitHub content hosts " +
+      "(raw.githubusercontent.com and cdn.jsdelivr.net) &mdash; try another connection.";
+  } else if (d.recovered) {
+    loadingEl.classList.add("hidden");           // a host answered after all
+    const n0 = document.getElementById("hostnote");
+    if (n0 && /could not be loaded/.test(n0.textContent)) n0.remove();
+  } else if (d.missing) {
+    // frames are arriving, but some file in this loop is not on the branch yet
+    let n = document.getElementById("hostnote");
+    if (!n) {
+      n = document.createElement("div"); n.id = "hostnote"; n.className = "hostnote";
+      document.querySelector(".frame-wrap").insertAdjacentElement("afterend", n);
+    }
+    n.textContent = d.n + (d.n === 1 ? " frame of this loop is" : " frames of this loop are")
+      + " not published yet — the rest play normally.";
+  } else if (d.mirror) {
+    let n = document.getElementById("hostnote");
+    if (!n) {
+      n = document.createElement("div"); n.id = "hostnote"; n.className = "hostnote";
+      document.querySelector(".frame-wrap").insertAdjacentElement("afterend", n);
+    }
+    const why = d.why ? " [" + d.why + ", " + Math.round(performance.now()) + " ms after load]" : "";
+    const base = "Frames via the cdn.jsdelivr.net mirror: raw.githubusercontent.com is unreachable on this network, so loops can lag a few hours." + why;
+    n.textContent = base;
+    // say HOW stale: jsDelivr exposes `age` (seconds its cache has held the copy)
+    const probe = () => {
+      const src = imgEl.currentSrc || imgEl.src;
+      if (!src || src.indexOf(window.FRAME_ROOT_MIRROR) !== 0) return;
+      fetch(src, { method: "HEAD" }).then(r => {
+        const a = parseFloat(r.headers.get("age"));
+        if (!isFinite(a) || a < 60) return;
+        n.textContent = base + " The frame on screen was cached " +
+          (a < 5400 ? Math.round(a / 60) + " min" : (a / 3600).toFixed(1) + " h") + " ago.";
+      }).catch(() => {});
+    };
+    setTimeout(probe, 1500);
+  }
+});
+let manifest = null;
+let region = null;
+let frames = [];
+let idx = 0;
+let playing = false;
+let timer = null;
+let baseDelay = 220;     // ms per frame at 1x
+let speed = 1;
+let preloaded = {};      // region -> array of Image objects
+
+const $ = id => document.getElementById(id);
+const imgEl = $("frame"), dateEl = $("date"), slider = $("slider");
+const loadingEl = $("loading");
+
+// When embedded in a card iframe, tell the parent our exact content height so it can
+// size the iframe to the image + controls (no letterboxing). Fires on every frame
+// load and on resize (width change → image height changes since it scales to width).
+function capHeight() {
+  // keep image + controls within the top window's viewport (same-origin embed);
+  // panwide mode has its own CSS height cap — an inline max-height would override it
+  try {
+    const wrap = imgEl.closest(".frame-wrap");
+    if (wrap && wrap.classList.contains("panwide")) { imgEl.style.maxHeight = ""; return; }
+    // Everything that is not the picture: the controls bar AND the region-button
+    // bar when a loop has one (the bar wraps to two rows once the iframe is pinned
+    // narrow, so measure it rather than assuming one row of controls).
+    let extra = 0;
+    for (const el of document.body.children) {
+      if (el === wrap || !el.offsetHeight) continue;
+      extra += el.getBoundingClientRect().height;
+    }
+    // An embedding page may pass its own height budget (?maxh=). It WINS outright, including over
+    // the 88vh default: the host has already measured its own layout and decided how much scrolling
+    // a tall figure is worth. Taking the min of the two capped the stage viewer's portrait loops at
+    // roughly half the width they had room for (fixed 2026-09-09).
+    const mh = parseFloat(new URLSearchParams(location.search).get("maxh")) || 0;
+    const lim = mh > 0 ? mh : window.top.innerHeight * 0.88;
+    imgEl.style.maxHeight = Math.max(240, Math.round(lim - extra)) + "px";
+  } catch (e) {}
+}
+// Also post the width the frame would render at under the height cap. When the
+// 88vh cap (or native resolution) makes the image narrower than the iframe, the host
+// pins the iframe to that width and centres it, so a portrait loop hugs its picture
+// instead of sitting small inside a full-width box. w = 0 means "don't pin". The
+// width is derived from the cap and the natural aspect, NOT measured from the
+// rendered image: once the host has pinned the iframe the image fills it exactly,
+// so a measured "narrower than the iframe?" test would flip to false, release the
+// pin, and oscillate. The host clamps to 100% itself, so over-asking is harmless.
+function postHeight() {
+  if (!document.body.classList.contains("embed")) return;
+  capHeight();
+  const h = Math.ceil(document.body.getBoundingClientRect().height);
+  let w = 0;
+  const wrap = imgEl.closest(".frame-wrap");
+  if (imgEl.naturalWidth && imgEl.naturalHeight && !(wrap && wrap.classList.contains("panwide"))) {
+    const capH = parseFloat(imgEl.style.maxHeight) || 0;
+    w = imgEl.naturalWidth;
+    if (capH > 0) w = Math.min(w, Math.floor(capH * imgEl.naturalWidth / imgEl.naturalHeight));
+  }
+  if (h > 0) parent.postMessage({ type: "sstAnimHeight", h, w }, "*");
+}
+imgEl.addEventListener("load", postHeight);
+addEventListener("resize", postHeight);
+// The parent only learns our height from that "load" event, and it does NOT fire for an
+// image already decoded in cache — so on a warm reload the parent kept its fallback
+// aspect-ratio box. On a short viewport that box is smaller than the content and
+// body.embed{overflow:hidden} clipped the plot (seen on mjo.html at ~760px tall).
+// Post unconditionally once the layout settles, and again if the image was already done.
+function postHeightSoon() {
+  requestAnimationFrame(function () { requestAnimationFrame(postHeight); });
+  setTimeout(postHeight, 250);
+  setTimeout(postHeight, 1200);
+}
+if (imgEl.complete && imgEl.naturalWidth) { fitWide(); postHeightSoon(); }
+addEventListener("load", postHeightSoon);
+if (document.fonts && document.fonts.ready) document.fonts.ready.then(postHeight);
+
+// wide-image mobile handling: aspect > 2.4 on a narrow screen → pan mode
+function fitWide() {
+  const wrap = imgEl.closest(".frame-wrap");
+  if (!wrap || !imgEl.naturalWidth) return;
+  const wide = imgEl.naturalWidth / imgEl.naturalHeight > 2.4
+    && Math.min(window.innerWidth, document.body.clientWidth) < 700;
+  wrap.classList.toggle("panwide", wide);
+}
+imgEl.addEventListener("load", () => { fitWide(); postHeight(); });
+addEventListener("resize", () => { fitWide(); postHeight(); });
+imgEl.addEventListener("click", () => {          // click → larger version
+  // Embedded: ask the parent page to open its lightbox on the current frame
+  // (lightbox.js listens for same-origin lb-show messages). Standalone or no
+  // parent lightbox: open the raw frame, pinch-zoomable, in a new tab.
+  if (document.body.classList.contains("embed")) {
+    try {
+      parent.postMessage({ type: "lb-show", src: imgEl.src,
+                           caption: dateEl ? dateEl.textContent : "" },
+                         location.origin);
+      return;
+    } catch (e) { /* cross-origin parent — fall through */ }
+  }
+  window.open(imgEl.src, "_blank");
+});
+imgEl.style.cursor = "zoom-in";
+// the control bar's own height changes when the row wraps (narrow cards) or
+// fonts finish loading — observe it directly so the parent never miscounts
+if (window.ResizeObserver) new ResizeObserver(postHeight).observe(document.body);
+
+async function init() {
+  try {
+    const MF = new URLSearchParams(location.search).get("manifest") || "manifest.json";
+{ // "back" follows whichever product embeds the animator
+  const b = (new URLSearchParams(location.search).get("base") || "").toLowerCase();
+  const dest = b.includes("mjo") ? ["mjo.html", "MJO Forecast"] : null;
+  const bl = document.getElementById("back-link");
+  if (bl && dest) { bl.href = dest[0]; bl.innerHTML = "&larr; Back to " + dest[1]; }
+}
+    const r = await fetch(`${ANIM_BASE}/${MF}?v=${Date.now()}`);
+    manifest = await r.json();
+  } catch (e) {
+    dateEl.textContent = "Failed to load animation manifest.";
+    loadingEl.classList.add("hidden");
+    return;
+  }
+  // Populate the region buttons.
+  // ?regions=a,b,c limits the picker to a subset, in the order given, so one
+  // manifest can serve several pages: the SST page shows the surface products
+  // and leaves the equatorial cross-sections to enso-subsurface.html. Unknown
+  // ids are dropped; if that leaves nothing, fall back to the full set rather
+  // than render a picker with no buttons.
+  const regBtns = $("regionBtns");
+  const allRegIds = Object.keys(manifest.regions);
+  const regParam = new URLSearchParams(location.search).get("regions");
+  const onlyIds = (regParam || "").split(",").map((s) => s.trim())
+    .filter((s) => s && manifest.regions[s]);
+  // Honour ?regions= even when nothing in it matched. The manifest is written by
+  // two scripts in sequence, so it can briefly lack the regions the other owns;
+  // falling back to the full set there would advertise exactly the products the
+  // page asked to hide (the subsurface page showing only SST plots). Show no
+  // picker instead — a missing picker beats a wrong one.
+  const regIds = regParam !== null ? onlyIds : allRegIds;
+  regBtns.innerHTML = "";
+  regIds.forEach((rid) => {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.dataset.rid = rid;
+    b.textContent = manifest.regions[rid].label;
+    regBtns.appendChild(b);
+  });
+  function markRegion(rid) {
+    regBtns.querySelectorAll("button").forEach((b) =>
+      b.classList.toggle("on", b.dataset.rid === rid));
+  }
+  // Region from ?region=, #hash, or the manifest's default; ?embed=1 strips chrome for
+  // inline iframes — but a multi-region manifest (e.g. GLM 1h/3h/24h) keeps the picker so
+  // the viewer can switch. A manifest may relabel the picker via "selectorLabel".
+  const params = new URLSearchParams(location.search);
+  const want = params.get("region") || location.hash.replace("#", "") || manifest.default;
+  // An embed that asks for exactly one loop (?region=X&regions=X) which the manifest does not carry yet (a new product
+  // before its first run) must say so - falling back to the first loop showed a DIFFERENT product under this one's
+  // title (2026-10-03: the single-run MSLP loops showed the ensemble blend).
+  if (params.get("region") && !manifest.regions[want] && regParam !== null && onlyIds.length === 0) {
+    $("loading").textContent = "This loop has not been published yet; it appears after the next model run.";
+    $("frame").style.visibility = "hidden";
+    const bar = document.getElementById("regionBar"); if (bar) bar.style.display = "none";
+    if (params.has("embed")) document.body.classList.add("embed");
+    return;
+  }
+  region = (want && manifest.regions[want]) ? want : (regIds[0] || allRegIds[0]);
+  markRegion(region);
+  const multiRegion = regIds.length > 1;
+  const regLabel = document.getElementById("regionLabel");
+  if (manifest.selectorLabel && regLabel) regLabel.textContent = manifest.selectorLabel;
+  if (params.has("embed")) {
+    document.body.classList.add("embed");
+    const b = document.querySelector(".back"); if (b) b.style.display = "none";
+    if (!multiRegion) {                          // single-region embed: hide the picker
+      const bar = document.getElementById("regionBar");
+      if (bar) bar.style.display = "none";
+    }
+  }
+  regBtns.addEventListener("click", (e) => {
+    const b = e.target.closest("button[data-rid]");
+    if (!b || b.dataset.rid === region) return;
+    markRegion(b.dataset.rid);
+    switchRegion(b.dataset.rid);
+  });
+
+  setupRegion();
+}
+
+function setupRegion() {
+  frames = manifest.regions[region].frames;
+  slider.max = frames.length - 1;
+  // forecast-style embeds can ask to open on a specific frame (?start=0) and
+  // roll on load (?autoplay=1); observation loops keep the newest-frame default
+  const P = new URLSearchParams(location.search);
+  const s = P.get("start");
+  idx = s !== null ? Math.min(Math.max(parseInt(s) || 0, 0), frames.length - 1)
+                   : frames.length - 1;     // default: most recent
+  // The frame on screen first, alone. The eight-frame window used to start WITH it, so a slow link was
+  // split nine ways and nothing appeared for a long time - it looked broken (user, 2026-09-26). The
+  // window follows once that frame is in (or after 3 s regardless).
+  showFrame(idx);
+  let windowStarted = false;
+  const startWindow = () => { if (windowStarted) return; windowStarted = true; preload(region); };
+  if (imgEl.complete && imgEl.naturalWidth) startWindow();
+  else { imgEl.addEventListener("load", startWindow, { once: true }); setTimeout(startWindow, 3000); }
+  slowNote();
+  if (P.get("autoplay") === "1" && !playing) play();
+}
+
+function switchRegion(rid) {
+  stop();
+  region = rid;
+  setupRegion();
+}
+
+// phones: decoding every full-size frame at once blows Safari's image budget
+// (frames go blank mid-loop) — preload a rolling window instead
+// (EAGER removed 2026-08-30: every device now starts with a window and fetches
+// the rest on first interaction, so there is no device-dependent branch left.)
+function preloadWindow(rid, center) {
+  const fr = manifest.regions[rid].frames, span = 8;
+  for (let d = 0; d <= span; d++) {
+    const k = (center + d) % fr.length;
+    const im = new Image();
+    try { im.fetchPriority = "low"; } catch (e) {}
+    frameSrc(im, rid, fr[k], manifest.ver);
+    if (d === 0) {
+      if (im.complete) loadingEl.classList.add("hidden");
+      else im.onload = () => loadingEl.classList.add("hidden");
+    }
+  }
+}
+// ON LOAD: a WINDOW, never the whole loop — on any device.
+//
+// This used to preload every frame of the region as soon as the animator
+// appeared, on any screen wider than 700px. Measured on enso-atmosphere
+// (2026-08-30): 269 image requests on first paint, 113 of them ASCAT frames -
+// a four-month daily loop pulled in full before the reader had touched
+// anything. On a slow connection that IS the page-load time, and a visitor who
+// never presses play pays all of it for nothing.
+//
+// The full set is still fetched, just at the first sign the reader wants it
+// (play, scrub, or a region switch), by which point they are looking at the
+// animator rather than waiting for the page.
+function preload(rid) {
+  preloadWindow(rid, Math.max(0, manifest.regions[rid].frames.length - 1));
+}
+
+// The rest of the loop, on demand. Idempotent, and cheap to call from every
+// interaction handler because of the preloaded[] guard.
+function preloadAll(rid) {
+  if (preloaded[rid]) return;
+  preloaded[rid] = manifest.regions[rid].frames.map(f => {
+    const im = new Image();
+    try { im.fetchPriority = "low"; } catch (e) {}
+    frameSrc(im, rid, f, manifest.ver);   // bust cache when sliding-window content changes
+    return im;
+  });
+  const first = preloaded[rid][frames.length - 1] || preloaded[rid][0];
+  if (first.complete) loadingEl.classList.add("hidden");
+  else first.onload = () => loadingEl.classList.add("hidden");
+}
+
+function showFrame(i) {
+  idx = (i + frames.length) % frames.length;
+  // Top up the window as the reader moves, until the full set has been
+  // fetched. Was gated on !EAGER (mobile only); now that every device starts
+  // windowed, desktop needs it too or scrubbing outruns the preloaded frames.
+  const f = frames[idx];
+  try { imgEl.fetchPriority = "high"; } catch (e) {}
+  frameSrc(imgEl, region, f, manifest.ver);          // the visible frame goes out first
+  if (!preloaded[region] && idx % 4 === 0) preloadWindow(region, idx);
+  dateEl.textContent = f.label;
+  slider.value = idx;
+}
+
+// Say what is happening on a slow link instead of a silent "Loading frames..." (2026-09-26).
+function slowNote() {
+  setTimeout(() => {
+    if (loadingEl.classList.contains("hidden") || /could not be loaded/.test(loadingEl.textContent)) return;
+    loadingEl.innerHTML = "Still loading&hellip; the frame host is slow on this connection. Frames will appear as they arrive.";
+  }, 5000);
+}
+const bufEl = $("buffering");
+function framesReady() {
+  const p = preloaded[region];
+  return p ? p.filter(im => im.complete && im.naturalWidth).length : 0;
+}
+
+function step(d) { showFrame(idx + d); }
+
+function play() {
+  if (playing) { stop(); return; }
+  preloadAll(region);          // they want the loop: fetch the rest now
+  playing = true;
+  $("play").innerHTML = "&#x23F8;";   // pause glyph
+  let waited = 0;
+  const tick = () => {
+    if (!playing) return;
+    // loop back to start at the end
+    const nx = idx + 1 >= frames.length ? 0 : idx + 1;
+    const pre = preloaded[region] && preloaded[region][nx];
+    // on a slow link, hold the current frame until the next one has arrived rather than showing a
+    // half-drawn or blank image (up to 10 s, then move on so one missing file cannot stall the loop)
+    if (pre && !(pre.complete && pre.naturalWidth) && waited < 40) {
+      waited++;
+      bufEl.textContent = `Loading frames: ${framesReady()} of ${frames.length}`;
+      bufEl.classList.remove("hidden");
+      timer = setTimeout(tick, 250);
+      return;
+    }
+    waited = 0; bufEl.classList.add("hidden");
+    showFrame(nx);
+    timer = setTimeout(tick, baseDelay / speed);
+  };
+  timer = setTimeout(tick, baseDelay / speed);
+}
+
+function stop() {
+  playing = false;
+  if (bufEl) bufEl.classList.add("hidden");
+  $("play").innerHTML = "&#x25B6;";
+  if (timer) clearTimeout(timer);
+}
+
+// Controls
+$("play").addEventListener("click", play);
+$("next").addEventListener("click", () => { stop(); step(1); });
+$("prev").addEventListener("click", () => { stop(); step(-1); });
+$("first").addEventListener("click", () => { stop(); showFrame(0); });
+$("last").addEventListener("click", () => { stop(); showFrame(frames.length - 1); });
+slider.addEventListener("input", () => { stop(); preloadAll(region); showFrame(parseInt(slider.value)); });
+$("speed").addEventListener("change", e => {
+  speed = parseFloat(e.target.value);
+  if (playing) { stop(); play(); }
+});
+
+document.addEventListener("keydown", e => {
+  if (e.key === " ") { e.preventDefault(); play(); }
+  else if (e.key === "ArrowRight") { stop(); step(1); }
+  else if (e.key === "ArrowLeft") { stop(); step(-1); }
+  else if (e.key === "Home") { stop(); showFrame(0); }
+  else if (e.key === "End") { stop(); showFrame(frames.length - 1); }
+});
+
+init();
+</script>
+</body>
+</html>

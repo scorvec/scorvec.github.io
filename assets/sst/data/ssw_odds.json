@@ -1,0 +1,44 @@
+{
+ "winter": "2026/27",
+ "qbo50": 13.4,
+ "qbo_label": "September 2026",
+ "qbo_source": "KIT/FU Berlin",
+ "enso": {
+  "oni": 2.16,
+  "oni_season": "JAS 2026",
+  "roni": 1.7,
+  "roni_season": "JAS 2026",
+  "nino34": 3.33,
+  "date": "2026-10-02"
+ },
+ "enso_bin": "> 2",
+ "qbo_phase": "W",
+ "cmip6_share": 0.671,
+ "cmip6_ci": [
+  0.601,
+  0.74
+ ],
+ "cmip6_n": 173,
+ "cmip6_decjan": 0.231,
+ "cmip6_febmar": 0.509,
+ "cmip6_base": 0.481,
+ "obs_base": 0.507,
+ "vortex_from_qbo": {
+  "u_nd": {
+   "pred": 33.7,
+   "lo": 21.1,
+   "hi": 46.2,
+   "clim": 30.036,
+   "r": 0.437,
+   "p": 0.000195
+  },
+  "u_jf": {
+   "pred": 31.9,
+   "lo": 11.9,
+   "hi": 51.8,
+   "clim": 28.028,
+   "r": 0.305,
+   "p": 0.0115
+  }
+ }
+}

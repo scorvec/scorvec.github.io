@@ -1,0 +1,545 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AIFS single vs AIFS-ENS member 0, spectrally matched — Live Verification · Shawn Corvec</title>
+<meta name="description" content="Live deterministic verification of ECMWF's AIFS single against AIFS-ENS member 0 with member 0 filtered to the single's power spectrum, so neither model gains from smoothing: scored against radiosondes and ERA5, with bootstrap confidence intervals, the ensemble mean as a reference and the power spectra by lead.">
+<link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;1,400&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #fafaf8; --ink: #1c1c1a; --muted: #6f6b64; --accent: #2c4a72;
+    --accent-light: #e8eef5; --rule: #e4e2dc;
+    --single: #b3372f; --control: #2c5f8a; --raw: #8fb0cc; --ensmean: #5c5a55;
+    --serif: 'Lora', Georgia, serif; --sans: 'Inter', sans-serif;
+  }
+  @media (min-width: 768px) { html { font-size: 108%; } }
+  body { background: var(--bg); color: var(--ink); font-family: var(--sans);
+         -webkit-font-smoothing: antialiased; display: flex; flex-direction: column; min-height: 100vh; }
+  nav { position: fixed; top: 0; left: 0; right: 0; z-index: 10; display: flex; justify-content: space-between;
+        align-items: center; padding: 1.2rem 3rem; background: rgba(250,250,248,0.95);
+        backdrop-filter: blur(8px); border-bottom: 1px solid var(--rule); }
+  .nav-name { font-family: var(--serif); font-size: 1rem; text-decoration: none; color: var(--ink); }
+  .nav-links { display: flex; gap: 2rem; list-style: none; }
+  .nav-links a { font-size: 0.82rem; letter-spacing: 0.04em; text-decoration: none; color: var(--muted); }
+  .nav-links a:hover { color: var(--ink); }
+  main { flex: 1; max-width: min(94vw, 2000px); margin: 0 auto; padding: 2.5rem 2.5rem 5rem; width: 100%; }
+  h1 { font-family: var(--serif); font-weight: 400; font-size: 1.9rem; margin-bottom: 0.6rem; text-wrap: balance; }
+  .lede { font-size: 0.88rem; color: var(--muted); line-height: 1.7; max-width: 62rem; margin-bottom: 1.8rem; }
+  .lede b { color: var(--ink); font-weight: 500; }
+  .verdict { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 0.7rem; margin-bottom: 1.6rem; }
+  .verdict .kpi { border: 1px solid var(--rule); background: #fff; border-radius: 9px; padding: 0.75rem 0.95rem; }
+  .kpi .lab { font-size: 0.66rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+  .kpi .val { font-family: var(--serif); font-size: 1.45rem; margin-top: 0.15rem; font-variant-numeric: tabular-nums; }
+  .kpi .val small { font-family: var(--sans); font-size: 0.68rem; color: var(--muted); margin-left: 0.35rem; }
+  .kpi .val.single { color: var(--single); } .kpi .val.control { color: var(--control); }
+  .card { border: 1px solid var(--rule); background: #fff; border-radius: 10px; margin-bottom: 1.6rem; overflow: hidden; }
+  .card-head { padding: 1rem 1.4rem 0.4rem; }
+  .card-head h2 { font-family: var(--serif); font-weight: 500; font-size: 1.12rem; }
+  .card-head p { font-size: 0.78rem; color: var(--muted); line-height: 1.55; margin-top: 0.25rem; max-width: 72rem; }
+  .card-foot { padding: 0.65rem 1.4rem; border-top: 1px solid var(--rule); font-size: 0.7rem; color: var(--muted); }
+  .controls { display: flex; flex-wrap: wrap; gap: 0.8rem; align-items: center; padding: 0.5rem 1.4rem 0.6rem; }
+  .seg { display: inline-flex; border: 1px solid var(--rule); border-radius: 7px; overflow: hidden; background: #fff; }
+  /* a segmented strip wider than the screen scrolls sideways; the shadows (painted under the
+     transparent buttons, attached to the scroll content) only show at an edge that has more. */
+  .seg { max-width: 100%; overflow-x: auto; overflow-y: hidden; scrollbar-width: thin;
+    background:
+      linear-gradient(to right, #fff 30%, rgba(255,255,255,0)),
+      linear-gradient(to right, rgba(255,255,255,0), #fff 70%) 100% 0,
+      radial-gradient(farthest-side at 0 50%, rgba(0,0,0,.25), rgba(0,0,0,0)),
+      radial-gradient(farthest-side at 100% 50%, rgba(0,0,0,.25), rgba(0,0,0,0)) 100% 0;
+    background-repeat: no-repeat; background-size: 40px 100%, 40px 100%, 14px 100%, 14px 100%;
+    background-attachment: local, local, scroll, scroll; }
+  .seg button { border: 0; background: transparent; padding: 0.36rem 0.8rem; font: 500 0.76rem var(--sans);
+                color: var(--muted); cursor: pointer; white-space: nowrap; }
+  .seg button + button { border-left: 1px solid var(--rule); }
+  .seg button.on { background: var(--accent); color: #fff; }
+  .seg button:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+  .legend { display: inline-flex; flex-wrap: wrap; gap: 0.3rem 1rem; font-size: 0.74rem; color: var(--muted); margin-left: auto; }
+  .legend i { display: inline-block; width: 18px; height: 3px; vertical-align: middle; margin-right: 5px; border-radius: 2px; }
+  .grid4 { display: grid; grid-template-columns: 1fr 1fr; }
+  .grid4 > div { height: 300px; }
+  @media (max-width: 800px) { .grid4 { grid-template-columns: 1fr; } .grid4 > div { height: 260px; } }
+  .empty { padding: 2rem 1.4rem; color: var(--muted); font-size: 0.85rem; text-align: center; }
+  .anim-embed { width: 100%; aspect-ratio: 1460 / 680; border: 0; display: block; }
+  .colophon { margin-top: 2.4rem; padding-top: 1.6rem; border-top: 1px solid var(--rule); font-size: 0.82rem;
+              color: var(--muted); line-height: 1.7; max-width: 64rem; }
+  .colophon h3 { font-family: var(--serif); font-weight: 400; font-size: 1rem; color: var(--ink); margin-bottom: 0.5rem; }
+  .colophon p + p { margin-top: 0.7rem; }
+  .colophon b { color: var(--ink); font-weight: 500; }
+  @media (max-width: 768px) { nav { padding: 1rem 1.5rem; } main { padding: 1.5rem 1rem 3rem; max-width: 100%; } }
+  /* the stage viewer (assets/stage.css) on this page's palette; a mounted card drops its own frame */
+  :root { --surface: #ffffff; --edge: #d9d5cc; --ink2: #444; }
+  .ss-layout { margin-top: 1rem; }
+  .stage > .card { border: 0; margin: 0; border-radius: 0; }
+  /* scorecard (2026-10-04): one table, colour = which model wins, solid = significant */
+  .kpi .val.ens { color: var(--ensmean); }
+  .kpi .sub { font-size: 0.7rem; color: var(--muted); margin-top: 0.2rem; line-height: 1.4; }
+  #scorecard { min-width: 0; max-width: 100%; }
+  .sc-wrap { overflow-x: auto; padding: 0.3rem 1.4rem 0.4rem; max-width: 100%; }
+  @media (max-width: 700px) { .sc-wrap { padding: 0.3rem 0.5rem; } table.sc { min-width: 620px; border-spacing: 2px; }
+    table.sc td.c { min-width: 2.9rem; height: 2.2rem; font-size: 0.76rem; } table.sc td.rl { font-size: 0.78rem; padding-right: 0.4rem; }
+    table.sc td.rl small { display: block; margin-left: 0; } .sc-bar span.g { width: 120px; } }
+  table.sc { border-collapse: separate; border-spacing: 3px; width: 100%; min-width: 760px; font-variant-numeric: tabular-nums; }
+  table.sc th { font: 500 0.74rem var(--sans); color: var(--muted); padding: 0.3rem 0.2rem; text-align: center; white-space: nowrap; }
+  table.sc th.rl { text-align: left; padding-left: 0; }
+  table.sc tr.grp th { text-align: left; font: 600 0.7rem var(--sans); letter-spacing: 0.07em; text-transform: uppercase;
+    color: var(--accent); padding: 0.9rem 0 0.25rem; border-bottom: 1px solid var(--rule); }
+  table.sc td.rl { font-size: 0.86rem; white-space: nowrap; padding-right: 0.8rem; position: sticky; left: 0; background: #fff; z-index: 1; }
+  table.sc td.rl small { color: var(--muted); font-size: 0.74rem; margin-left: 0.35rem; }
+  table.sc td.c { height: 2.6rem; min-width: 3.6rem; border-radius: 5px; text-align: center; font-size: 0.86rem;
+    color: #1c1c1a; cursor: default; position: relative; }
+  table.sc td.c.ns { color: #6f6b64; font-weight: 400; }
+  table.sc td.c.sig { font-weight: 600; }
+  table.sc td.c.sig::after { content: ""; position: absolute; top: 4px; right: 5px; width: 5px; height: 5px; border-radius: 50%; background: currentColor; opacity: 0.55; }
+  table.sc td.c.na { background: #f3f2ee; color: #b5b1a8; }
+  table.sc td.c:hover { outline: 2px solid var(--ink); outline-offset: -1px; }
+  .sc-key { display: flex; flex-wrap: wrap; align-items: center; gap: 0.6rem 1.4rem; padding: 0.6rem 1.4rem 1rem; font-size: 0.76rem; color: var(--muted); }
+  .sc-bar { display: inline-flex; align-items: center; gap: 0.45rem; }
+  .sc-bar span.g { display: inline-block; width: 210px; height: 12px; border-radius: 3px; }
+  .sc-tip { position: fixed; z-index: 50; pointer-events: none; background: #1c1c1a; color: #fff; font-size: 0.76rem; line-height: 1.5;
+    padding: 0.5rem 0.7rem; border-radius: 6px; max-width: 300px; box-shadow: 0 4px 14px rgba(0,0,0,.2); display: none; }
+  .sc-tip b { font-weight: 600; }
+  .sc-empty { padding: 2rem 1.4rem; color: var(--muted); font-size: 0.85rem; text-align: center; }
+</style>
+<script data-goatcounter="https://scorvec.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
+<link rel="canonical" href="https://scorvec.com/aifs-verify.html">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400&family=Schibsted+Grotesk:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/stage.css">
+<link rel="stylesheet" href="/assets/site.css">
+<script src="/assets/site.js" defer></script>
+<script src="/assets/rail.js" defer></script>
+</head>
+<body>
+<!-- sh:start -->
+<header class="sh" id="site-header">
+  <div class="sh-in">
+    <a class="sh-brand" href="/">Shawn Corvec</a>
+    <button class="sh-find" type="button" aria-haspopup="dialog" aria-keyshortcuts="Control+K Meta+K" title="Find a plot (Ctrl K)"><svg viewBox="0 0 20 20" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true" focusable="false"><circle cx="8.5" cy="8.5" r="5.5" style="fill:none;stroke:currentColor"/><path d="M12.6 12.6 17 17" style="fill:none;stroke:currentColor"/></svg><span class="sh-find-t">Find a plot</span><kbd>Ctrl K</kbd></button>
+    <button class="sh-toggle" type="button" aria-expanded="false" aria-controls="sh-menu">Menu</button>
+    <nav class="sh-nav" id="sh-menu" aria-label="Site">
+      <ul class="sh-list">
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g0">Mid-latitude weather</button>
+          <div class="sh-menu sh-menu--cols" id="sh-g0">
+            <div>
+              <h3>Surface and hazards</h3>
+              <ul>
+                <li><a href="/models.html">Short-range model maps</a></li>
+                <li><a href="/snowbands.html">Snow-band diagnostics</a></li>
+                <li><a href="/ar.html">Atmospheric rivers</a></li>
+              </ul>
+            </div>
+            <div>
+              <h3>Upper air</h3>
+              <ul>
+                <li><a href="/circulation.html#dt">Dynamic tropopause</a></li>
+                <li><a href="/circulation.html#pacjet">North Pacific jet</a></li>
+                <li><a href="/circulation.html#waf">Wave activity flux</a></li>
+              </ul>
+            </div>
+          </div>
+        </li>
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g1">Tropics</button>
+          <div class="sh-menu sh-menu--cols" id="sh-g1">
+            <div>
+              <h3>ENSO and the MJO</h3>
+              <ul>
+                <li><a href="/enso.html">El Niño monitor</a></li>
+                <li><a href="/circulation.html#mslp">Pacific pressure and wind</a></li>
+                <li><a href="/mjo.html">MJO forecast</a></li>
+                <li><a href="/tropical-waves.html">Tropical waves</a></li>
+              </ul>
+            </div>
+            <div>
+              <h3>Tropical cyclones</h3>
+              <ul>
+                <li><a href="/circulation.html#tcjet">Tropical cyclones and the jet</a></li>
+                <li><a href="/circulation.html#tcens">Tropical cyclone ensembles</a></li>
+                <li><a href="/circulation.html#tcphase">Cyclone phase space</a></li>
+              </ul>
+            </div>
+            <div>
+              <h3>Tropical circulation</h3>
+              <ul>
+                <li><a href="/circulation.html#walker">Walker and Hadley cells</a></li>
+                <li><a href="/circulation.html#vpot">Velocity potential</a></li>
+                <li><a href="/circulation.html#gillrain">Rain-forced circulation (Gill model)</a></li>
+              </ul>
+            </div>
+          </div>
+        </li>
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g2">Stratosphere</button>
+          <div class="sh-menu sh-menu--cols" id="sh-g2">
+            <div>
+              <h3>Polar vortex</h3>
+              <ul>
+                <li><a href="/stratosphere.html">Stratosphere and polar vortex</a></li>
+                <li class="sh-subitem"><a href="/stratosphere.html#heatflux">Eddy heat flux</a></li>
+                <li class="sh-subitem"><a href="/stratosphere.html#pv">Potential vorticity</a></li>
+                <li class="sh-subitem"><a href="/stratosphere.html#bdc">Brewer–Dobson circulation</a></li>
+              </ul>
+            </div>
+            <div>
+              <h3>QBO and momentum</h3>
+              <ul>
+                <li><a href="/qbo/">QBO tracker</a></li>
+                <li><a href="/circulation.html#aam">Angular momentum and torques</a></li>
+              </ul>
+            </div>
+          </div>
+        </li>
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g3">Weeks to seasons</button>
+          <div class="sh-menu sh-menu--cols" id="sh-g3">
+            <div>
+              <h3>Weeks 2–5</h3>
+              <ul>
+                <li><a href="/subseasonal.html">GEPS extended ensemble</a></li>
+                <li><a href="/gefs.html">GEFS extended ensemble</a></li>
+              </ul>
+            </div>
+            <div>
+              <h3>Seasons</h3>
+              <ul>
+                <li><a href="/seasonal.html">Eight C3S seasonal models</a></li>
+                <li><a href="/sfs.html">NOAA SFS seasonal</a></li>
+                <li><a href="/enso-forecasts.html">ENSO forecasts</a></li>
+              </ul>
+            </div>
+          </div>
+        </li>
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g4" aria-current="page"><span class="sh-lf">Studies and verification</span><span class="sh-ls">Studies/verification</span></button>
+          <div class="sh-menu sh-menu--cols" id="sh-g4">
+            <div>
+              <h3>Studies</h3>
+              <ul>
+                <li><a href="/enso.html#imp_reg">ENSO impacts on the Americas</a></li>
+                <li><a href="/mjo.html#mi">MJO impacts</a></li>
+                <li><a href="/stratosphere.html#shwinters">Stratosphere history</a></li>
+                <li><a href="/aifs-aam-budget.html">AINWP and conservation</a></li>
+                <li><a href="/topics/">Explainers</a></li>
+              </ul>
+            </div>
+            <div>
+              <h3>Verification</h3>
+              <ul>
+                <li><a href="/aifs-verify.html" aria-current="page">AIFS single versus member 0</a></li>
+              </ul>
+            </div>
+          </div>
+        </li>
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g5">Tools</button>
+          <div class="sh-menu sh-menu--list" id="sh-g5">
+            <ul>
+              <li><a href="/catalog.html">Every plot on the site</a></li>
+              <li><a href="/skewt/">Sounding explorer</a></li>
+              <li><a href="/asos5.html">Five-minute airport observations</a></li>
+              <li><a href="/climate.html">US climate trends</a></li>
+              <li><a href="/fci.html">US credit conditions</a></li>
+            </ul>
+          </div>
+        </li>
+        <li class="sh-item sh-item--special"><a class="sh-special" href="/midterms/">2026 Midterms</a></li>
+        <li class="sh-item sh-has-menu sh-item--me">
+          <button class="sh-link sh-menubtn sh-me" type="button" aria-expanded="false" aria-controls="sh-me">About</button>
+          <div class="sh-menu sh-menu--list sh-menu--me" id="sh-me">
+            <ul>
+              <li><a href="/about.html">About me</a></li>
+              <li><a href="/resume.html">Resume</a></li>
+              <li><a href="/research.html">Publications</a></li>
+              <li class="sh-me-ext"><a href="https://github.com/scorvec">GitHub</a></li>
+              <li><a href="https://scholar.google.com/citations?user=EYLRCJIAAAAJ&amp;hl=en">Google Scholar</a></li>
+              <li><a href="https://www.linkedin.com/in/shawn-corvec-35895b231/">LinkedIn</a></li>
+            </ul>
+          </div>
+        </li>
+      </ul>
+    </nav>
+  </div>
+</header>
+<!-- sh:end -->
+<main>
+  <h1>AIFS single versus AIFS-ENS member 0, spectrally matched</h1>
+  <p class="lede"><b>The question:</b> as deterministic forecasts, how does ECMWF's AIFS single compare with
+  member&nbsp;0 of AIFS-ENS? The two are trained differently. The single is trained to minimise squared error, which
+  rewards hedging: it blurs what it is unsure about as lead time grows. The ensemble members are trained on a
+  CRPS-type objective that keeps each run sharp. <b>RMSE and anomaly correlation reward smoothing</b>, so a raw
+  comparison would partly measure blur rather than forecast quality. Here member&nbsp;0 is first passed through a
+  <b>spectral filter that gives it the single's power spectrum</b> at each lead, then both are truncated at T120 and
+  scored against <b>independent radiosondes</b> from the <a href="skewt/">sounding explorer</a>, with ERA5 alongside.
+  Member&nbsp;0 as published and the <b>ensemble mean</b> are shown as references; the ensemble mean averages 26 runs,
+  so it is not a single model run.</p>
+  <div class="verdict" id="verdict"></div>
+  <!-- One card at a time on the shared stage viewer (assets/stage.js), 2026-09-27 (navigation phase 2). The cards
+       mount whole with their own controls; deep links #diff #scores #spectra #loop #z500 #t2m (none existed). -->
+  <div class="ss-layout">
+    <aside class="ss-rail" id="rail" aria-label="Figures"></aside>
+    <section class="ss-main">
+      <div class="crumb"><div class="path" id="crumb"></div>
+        <div class="nav"><button type="button" id="prevBtn" title="previous (←)">&larr; prev</button><button type="button" id="nextBtn" title="next (→)">next &rarr;</button></div></div>
+      <div class="opts"><div class="controls" id="opts-a"></div><div class="controls" id="opts-b"></div><div class="controls" id="opts-c"></div></div>
+      <div class="stage" id="stage"></div>
+      <p class="cap" id="cap"></p>
+      <div id="about"></div>
+      <p class="hint"><span class="kbd">&uarr;</span> <span class="kbd">&darr;</span> change figure &middot; each card keeps its own controls</p>
+    </section>
+  </div>
+  <template id="about-lead"><p>Each line is the mean over the <b>same</b> verified runs at every lead (a run enters a
+  lead only when all four models have it), so the lines are comparable point by point. Station anomalies are against
+  each radiosonde station's own day-of-year median; ERA5 anomalies against the ERA5 1991&ndash;2020 climatology. The
+  <b>activity ratio</b> is std(forecast anomaly) / std(observed anomaly): a model can buy RMSE by damping variance, and
+  this ratio shows the purchase. Whether two lines differ significantly is in the scorecard.</p>
+  <p>Data: ECMWF AIFS and AIFS-ENS open data (CC BY 4.0), radiosondes from the <a href="skewt/">sounding explorer</a>
+  mirror, ERA5 via WeatherBench2.</p></template>
+  <template id="about-spec"><p>Spherical-harmonic power of each model's global field against total wavenumber, averaged
+  over the archived runs and shown as a ratio to the AIFS single at the same lead. Member&nbsp;0 as published sits
+  above 1 wherever the single has smoothed small scales away; the matched member&nbsp;0 should lie on 1 &mdash; that
+  is what the filter is for. The dotted line is the T120 truncation applied before scoring; nothing to its right
+  enters any score.</p></template>
+  <div class="lightbox" id="lightbox"><img alt=""></div>
+  <div class="dom-holder">
+    <div class="card" id="scorecard">
+    <div class="card-head">
+      <h2 id="scTitle">Scorecard</h2>
+      <p id="scLede"></p>
+    </div>
+    <div class="sc-wrap"><table class="sc" id="scTable"></table></div>
+    <div class="sc-empty" id="scEmpty">Collecting &mdash; every 00Z and 12Z run is archived and verified as its radiosondes and ERA5 arrive.</div>
+    <div class="sc-key" id="scKey"></div>
+    <div class="card-foot" id="scNote"></div>
+  </div>
+  <div class="card" id="loop">
+    <div class="card-head">
+      <h2>Side-by-side forecast loop &mdash; MSLP &middot; 1000&ndash;500 thickness &middot; 6-h precipitation</h2>
+      <p>Every 6 hours through the run, refreshed each 00Z/12Z cycle. Watch the single's precipitation smear into
+      washes at range while member 0 keeps convective texture &mdash; same synoptic systems, different sharpness.</p>
+    </div>
+    <iframe class="anim-embed" data-src="sst_anim.html?embed=1&amp;manifest=aifs_compare_manifest.json&amp;region=aifs_compare" title="AIFS single vs member 0, North America loop"></iframe>
+    <div class="card-foot">ECMWF AIFS &amp; AIFS-ENS open data (CC BY 4.0) &middot; North America &middot; 61 frames per run</div>
+  </div>
+  <div class="card" id="z500">
+    <div class="card-head">
+      <h2>500 hPa height anomaly &mdash; Northern Hemisphere loop</h2>
+      <p>Shading is the height anomaly against the 1991&ndash;2020 day-of-year climatology (ridges warm, troughs
+      cool); the black contours are the actual heights every 6 dam, so the flow stays readable under the anomaly.</p>
+    </div>
+    <iframe class="anim-embed" style="aspect-ratio: 1460 / 760" data-src="sst_anim.html?embed=1&amp;manifest=aifs_z500_manifest.json&amp;region=aifs_z500" title="AIFS single vs member 0, 500 hPa height loop"></iframe>
+    <div class="card-foot">anomaly shading + height contours, 6-hourly to hour 360 &middot; climatology: ERA5 via WeatherBench2</div>
+  </div>
+  <div class="card" id="t2m">
+    <div class="card-head">
+      <h2>2 m temperature anomaly &mdash; North America loop</h2>
+      <p>Shading is the 2 m temperature anomaly against the 1991&ndash;2020 day-of-year climatology; grey contours are
+      the actual 2 m temperature every 5 &deg;C with the freezing line in blue. The same two runs, 6-hourly to hour 360.</p>
+    </div>
+    <iframe class="anim-embed" data-src="sst_anim.html?embed=1&amp;manifest=aifs_t2m_manifest.json&amp;region=aifs_t2m" title="AIFS single vs member 0, 2 m temperature anomaly loop"></iframe>
+    <div class="card-foot">climatology: ERA5 via WeatherBench2 &middot; a radiosonde cannot verify 2 m temperature, so its scores above are against ERA5</div>
+  </div>
+  </div>
+<script>
+window.STAGE = { groups: [{"label": "Scores", "items": [["scorecard", "Scorecard", "every variable and lead, one table"], ["scores", "Scores by lead", "RMSE, ACC, bias, activity"], ["spectra", "Power spectra", "the blurring and the matching"]]}, {"label": "Loops", "items": [["loop", "Side-by-side forecast loop", "MSLP, thickness, 6-h precipitation"], ["z500", "500 hPa height anomaly", "Northern Hemisphere loop"], ["t2m", "2 m temperature anomaly", "North America loop"]]}],
+  aliases: { diff: "scorecard" },
+  products: {
+    scorecard: { label: "Scorecard", fit: false,
+      a: { label: "compared with the single", items: [["matched", "member 0, matched"], ["control", "member 0, as published"], ["ensmean", "ensemble mean"]] },
+      b: { label: "score", items: [["rmse", "RMSE"], ["acc", "anomaly correlation"]] },
+      dom: function () { return "scorecard"; } },
+    scores: { label: "Scores by lead", bust: "hourly", about: "about-lead",
+      a: { label: "truth", items: [["raob", "radiosondes"], ["era5", "ERA5"]] },
+      b: function (t) { return { label: "variable", items: t === "raob" ? [["z500", "500 hPa height"], ["t850", "850 hPa temperature"]]
+        : [["z500", "500 hPa height"], ["t850", "850 hPa temperature"], ["msl", "sea-level pressure"], ["t2m", "2 m temperature"]] }; },
+      img: function (t, v) { return "assets/verify/aifs_lead_" + t + "_" + v + "_nh.webp"; },
+      cap: function (t, v) { return "Northern Hemisphere 20&ndash;80&deg;N, scored against " + (t === "raob" ? "radiosondes" : "ERA5") + ". Red: AIFS single; dark blue: member 0 spectrally matched; light blue dashed: member 0 as published; grey dotted: ensemble mean."; } },
+    spectra: { label: "Power spectra", bust: "hourly", about: "about-spec",
+      img: function () { return "assets/verify/aifs_spectra.webp"; },
+      cap: function () { return "Member 0's power divided by the single's at days 1, 5 and 10: solid as published, dashed after the spectral matching."; } },
+    loop: { label: "Side-by-side forecast loop", dom: function () { return "loop"; } },
+    z500: { label: "500 hPa height anomaly", dom: function () { return "z500"; } },
+    t2m: { label: "2 m temperature anomaly", dom: function () { return "t2m"; } }
+  },
+  onRender: function (sel) { if (window.AIFS_SC) window.AIFS_SC(sel); } };
+</script>
+  <div class="colophon">
+    <h3>Method</h3>
+    <p><b>Why the matching.</b> The AIFS single minimises squared error, so as its forecast loses predictability it
+    damps the features it cannot place; that lowers RMSE whether or not the forecast is better. Member&nbsp;0 of
+    AIFS-ENS is trained to stay sharp. To compare them as deterministic forecasts on equal terms, member&nbsp;0's
+    spherical-harmonic coefficients are multiplied, degree by degree, by
+    f(l)&nbsp;=&nbsp;min(1,&nbsp;&radic;(P<sub>single</sub>(l)&nbsp;/&nbsp;P<sub>member&nbsp;0</sub>(l))), where P
+    are the two models' mean power spectra at the same lead over the <b>previous 40 runs</b> (a 5-degree running
+    mean of the ratio; the global mean, l&nbsp;=&nbsp;0, is left alone). The filter uses only past forecasts, never
+    the verifying data, so it is a transformation the forecaster could apply in real time. It only removes power
+    (f&nbsp;&le;&nbsp;1). The spectra panel shows how closely the filtered member&nbsp;0 reproduces the single. The
+    filter matches the <i>average</i> spectrum; it cannot copy the single's flow-dependent damping (smoothing more
+    where the flow is less predictable), so part of what remains may still be hedging done well rather than a
+    better-placed forecast.</p>
+    <p><b>Same scale.</b> Every 0.25&deg; global field is expanded in spherical harmonics (pyshtools) and all series
+    are truncated at T120 (about 1.5&deg;) before scoring, so no model is judged at scales it does not share with
+    the others. A 1.5&deg; block mean, which this page used until September 2026, still passed much of the
+    300&ndash;600 km power.</p>
+    <p><b>Independent truth.</b> ERA5 is an IFS analysis that both models were trained on. The primary truth is the
+    radiosonde network the <a href="skewt/">sounding explorer</a> mirrors every hour: 500 hPa height and 850 hPa
+    temperature are interpolated in log-pressure from each station's sounding, and the forecasts are sampled at the
+    stations by bilinear interpolation. ERA5 scores (NH 20&ndash;80&deg;N, cosine-weighted, 1.5&deg;) come from the
+    same truncated fields and are the only truth for MSLP and 2 m temperature. Radiosonde scores arrive within
+    hours; ERA5 lags about 6 days.</p>
+    <p><b>Scores and tests.</b> RMSE, bias, anomaly correlation and activity ratio at leads 24&ndash;240 h, per run.
+    Station anomalies use each station's own day-of-year median from its full IGRA record; ERA5 anomalies use the
+    ERA5 1991&ndash;2020 &plusmn;7-day climatology (WeatherBench2), including 850 hPa temperature since
+    September&nbsp;2026. Differences from the single are tested with a paired moving-block bootstrap: runs are
+    paired by start time and resampled in blocks of four consecutive runs (two days) to allow for serial
+    correlation, 2,000 times; the 95&nbsp;% percentile interval is shown and a difference is called significant only
+    when it excludes zero.</p>
+    <p><b>The ensemble mean.</b> The mean of the control and 25 perturbed AIFS-ENS members is shown for reference.
+    Averaging removes the unpredictable part of the forecast, so it usually wins on RMSE at longer leads while
+    having much less variance than the atmosphere; it is not a single model run and is not the page's question.</p>
+  </div>
+</main>
+<div class="sc-tip" id="scTip"></div>
+<script>
+(function () {
+  "use strict";
+  var D = null, cur = { a: "matched", b: "rmse" };
+  var NAME = { matched: "member 0, spectrally matched", control: "member 0 as published", ensmean: "the ensemble mean" };
+  var SHORT = { matched: "member 0 (matched)", control: "member 0 (as published)", ensmean: "ensemble mean" };
+  // full colour at |RMSE change| 20 % or |ACC difference| 0.05; green = the comparison model beats the single
+  var SAT = { rmse: 20, acc: 5 };
+  var GOOD = [26, 133, 102], BAD = [196, 64, 52], WHITE = [255, 255, 255];
+  function mix(c, t) { return "rgb(" + c.map(function (x, i) { return Math.round(WHITE[i] + (x - WHITE[i]) * t); }).join(",") + ")"; }
+  function better(metric, v) { return metric === "rmse" ? v < 0 : v > 0; }
+  function colour(metric, cell) {
+    var t = Math.min(1, Math.abs(cell.v) / SAT[metric]);
+    t = Math.sqrt(t) * (cell.sig ? 0.85 : 0.32);
+    return mix(better(metric, cell.v) ? GOOD : BAD, t);
+  }
+  function fmt(metric, v) { var s = metric === "rmse" ? Math.abs(v).toFixed(Math.abs(v) < 10 ? 1 : 0) + "%" : Math.abs(v / 100).toFixed(3).replace(/^0/, "");
+    return (v > 0 ? "+" : v < 0 ? "−" : "") + s; }
+  function $(id) { return document.getElementById(id); }
+  function esc(x) { return String(x).replace(/&/g, "&amp;").replace(/</g, "&lt;"); }
+
+  function kpis() {
+    var h = $("verdict"); h.innerHTML = ""; if (!D) return;
+    var z = D.day5_z500_rmse || {}, d = D.day5_diff || {};
+    function k(lab, val, cls, sub) { var e = document.createElement("div"); e.className = "kpi";
+      e.innerHTML = '<div class="lab">' + lab + '</div><div class="val ' + (cls || "") + '">' + val + '</div>' + (sub ? '<div class="sub">' + sub + '</div>' : ""); h.appendChild(e); }
+    function dt(s) { return s ? s.slice(0, 4) + "-" + s.slice(4, 6) + "-" + s.slice(6, 8) + " " + s.slice(8, 10) + "Z" : ""; }
+    k("verified runs", D.runs, "", dt(D.first) + " &rarr; " + dt(D.last));
+    if (z.single != null) k("day-5 z500 RMSE · AIFS single", z.single.toFixed(1) + "<small>m</small>", "single", "vs radiosondes, NH");
+    if (z.matched != null) k("day-5 z500 RMSE · member 0 matched", z.matched.toFixed(1) + "<small>m</small>", "control",
+      d.mean != null ? (d.mean > 0 ? "+" : "") + d.mean.toFixed(1) + " m vs the single, 95 % [" + d.lo.toFixed(1) + ", " + d.hi.toFixed(1) + "]" + (d.sig ? ", significant" : ", not significant") : "");
+    if (z.ensmean != null) k("day-5 z500 RMSE · ensemble mean", z.ensmean.toFixed(1) + "<small>m</small>", "ens", "26-member average, for reference");
+  }
+
+  function table() {
+    var tb = $("scTable"); tb.innerHTML = "";
+    if (!D || !D.rows || !D.rows.length) { $("scEmpty").style.display = ""; $("scKey").style.display = "none"; return; }
+    $("scEmpty").style.display = "none"; $("scKey").style.display = "";
+    var m = cur.b, c = cur.a, days = D.leads.map(function (l) { return l / 24; });
+    $("scTitle").textContent = (m === "rmse" ? "RMSE" : "Anomaly correlation") + ": " + SHORT[c] + " against the AIFS single";
+    $("scLede").innerHTML = m === "rmse"
+      ? "Each cell is the change in RMSE from the AIFS single, in per cent, at that lead, over the same runs. <b>Green: " + esc(NAME[c]) + " has the lower error; red: the single does.</b> Solid colour and a dot mean the 95&nbsp;% paired-bootstrap interval excludes zero; pale cells are not significant."
+      : "Each cell is the difference in anomaly correlation (" + esc(SHORT[c]) + " minus the single) at that lead, over the same runs. <b>Green: " + esc(NAME[c]) + " correlates better; red: the single does.</b> Solid colour and a dot mean the 95&nbsp;% paired-bootstrap interval excludes zero; pale cells are not significant.";
+    var head = "<tr><th class='rl'></th>" + days.map(function (d) { return "<th>day " + d + "</th>"; }).join("") + "</tr>";
+    var html = "", lastTruth = null;
+    D.rows.forEach(function (r, ri) {
+      if (r.truth !== lastTruth) { html += "<tr class='grp'><th colspan='" + (days.length + 1) + "'>against " + esc(r.truth) + (r.truth === "ERA5" ? " &middot; NH 20&ndash;80&deg;N" : "") + "</th></tr>" + head; lastTruth = r.truth; }
+      var cells = ((r.cmp[c] || {})[m]) || [];
+      html += "<tr><td class='rl'>" + esc(r.label) + (r.truth === "radiosondes" ? "<small>" + esc(r.region) + "</small>" : "") + "</td>";
+      D.leads.forEach(function (_, li) {
+        var x = cells[li];
+        if (!x || x.v == null) { html += "<td class='c na'>&ndash;</td>"; return; }
+        html += "<td class='c " + (x.sig ? "sig" : "ns") + "' style='background:" + colour(m, x) + "' data-r='" + ri + "' data-l='" + li + "'>" + fmt(m, x.v) + "</td>";
+      });
+      html += "</tr>";
+    });
+    tb.innerHTML = html;
+    var g = function (rgb) { return "rgb(" + rgb.join(",") + ")"; };
+    $("scKey").innerHTML = "<span class='sc-bar'>single better <span class='g' style='background:linear-gradient(to right," + mix(BAD, .85) + "," + mix(BAD, .3) + ",#fff," + mix(GOOD, .3) + "," + mix(GOOD, .85) + ")'></span> " + esc(SHORT[c]) + " better</span>"
+      + "<span>full colour at " + (m === "rmse" ? "&plusmn;20 %" : "&plusmn;0.05") + "</span><span>&bull; = significant (95 %)</span><span>hover a cell for the values</span>";
+    $("scNote").innerHTML = "AIFS single and AIFS-ENS member 0, 00Z + 12Z runs, every series truncated at T" + (D.lmax_t || 120) + " before scoring &middot; " + esc(D.diff_test || "") + " &middot; updated " + esc(D.generated || "");
+  }
+
+  function tip(ev) {
+    var t = $("scTip"), td = ev.target.closest && ev.target.closest("td.c[data-r]");
+    if (!td) { t.style.display = "none"; return; }
+    var r = D.rows[+td.dataset.r], li = +td.dataset.l, m = cur.b, c = cur.a, x = r.cmp[c][m][li];
+    var s = r.single[m][li], o = s + (m === "rmse" ? x.d : x.d), u = r.unit;
+    var val = function (v) { return m === "rmse" ? v.toFixed(r.unit === "m" ? 1 : 2) + " " + u : v.toFixed(3); };
+    t.innerHTML = "<b>" + esc(r.label) + " &middot; " + esc(r.truth) + (r.truth === "radiosondes" ? " " + esc(r.region) : "") + " &middot; day " + D.leads[li] / 24 + "</b><br>"
+      + (m === "rmse" ? "RMSE" : "Anomaly correlation") + ": single " + val(s) + ", " + esc(SHORT[c]) + " " + val(o) + "<br>"
+      + "difference " + fmt(m, x.v) + ", 95 % [" + fmt(m, x.lo) + ", " + fmt(m, x.hi) + "]<br>"
+      + (x.sig ? "significant" : "not significant") + " &middot; " + x.n + " paired runs";
+    t.style.display = "block";
+    var w = t.offsetWidth, hgt = t.offsetHeight, X = ev.clientX + 14, Y = ev.clientY + 14;
+    if (X + w > innerWidth - 8) X = ev.clientX - w - 14; if (Y + hgt > innerHeight - 8) Y = ev.clientY - hgt - 14;
+    t.style.left = X + "px"; t.style.top = Y + "px";
+  }
+  $("scTable").addEventListener("mousemove", tip);
+  $("scTable").addEventListener("mouseleave", function () { $("scTip").style.display = "none"; });
+  $("scTable").addEventListener("click", tip);
+
+  window.AIFS_SC = function (sel) {
+    if (!sel || sel.p !== "scorecard") return;
+    if (sel.a in NAME) cur.a = sel.a; if (sel.b === "rmse" || sel.b === "acc") cur.b = sel.b; table();
+  };
+  fetch("assets/verify/aifs_scorecard.json?v=" + Math.floor(Date.now() / 3.6e6)).then(function (r) { if (!r.ok) throw 0; return r.json(); })
+    .then(function (j) { D = j; kpis(); table(); })
+    .catch(function () { table(); });
+})();
+</script>
+<script>
+// Animators load when they come near the viewport, not on page open.
+(function () {
+  var q = function () { return document.querySelectorAll("iframe[data-src]"); };
+  function load(el) { var d = el.getAttribute("data-src"); if (d) { el.setAttribute("src", d); el.removeAttribute("data-src"); } }
+  if (!("IntersectionObserver" in window)) { Array.prototype.forEach.call(q(), load); return; }
+  var io = new IntersectionObserver(function (entries) {
+    entries.forEach(function (e) { if (e.isIntersecting) { load(e.target); io.unobserve(e.target); } });
+  }, { rootMargin: "500px 0px" });
+  Array.prototype.forEach.call(q(), function (el) { io.observe(el); });
+})();
+addEventListener("message", function (e) {
+  var d = e.data; if (!d || d.type !== "sstAnimHeight") return;
+  var fr = document.querySelectorAll("iframe.anim-embed");
+  for (var i = 0; i < fr.length; i++) if (fr[i].contentWindow === e.source) { fr[i].style.height = d.h + "px"; fr[i].style.aspectRatio = "auto"; }
+});
+</script>
+<!-- sf:start -->
+<footer class="sf">
+  <div class="sf-in">
+    <div class="sf-group">
+      <p class="sf-h" role="heading" aria-level="2">This site</p>
+      <ul>
+        <li><a href="/">Home</a></li>
+        <li><a href="/catalog.html">Every plot</a></li>
+        <li><a href="/topics/">Explainers</a></li>
+        <li><a href="/stats.html">Visitor stats</a></li>
+      </ul>
+      <p class="sf-disclaimer">This site is under constant development. Nothing here is checked before publication and there is no expectation of accuracy, completeness or availability; do not rely on it for decisions. Built from open data; sources are credited on each page.</p>
+    </div>
+    <div class="sf-group sf-group--me">
+      <p class="sf-h" role="heading" aria-level="2">Shawn Corvec</p>
+      <ul>
+        <li><a href="/about.html">About</a></li>
+        <li><a href="/resume.html">Resume</a></li>
+        <li><a href="/research.html">Publications</a></li>
+        <li><a href="https://github.com/scorvec" rel="noopener">GitHub</a></li>
+        <li><a href="https://www.linkedin.com/in/shawn-corvec-35895b231/" rel="noopener">LinkedIn</a></li>
+        <li><a href="https://scholar.google.com/citations?user=EYLRCJIAAAAJ&amp;hl=en" rel="noopener">Google Scholar</a></li>
+      </ul>
+    </div>
+  </div>
+</footer>
+<!-- sf:end -->
+<script src="/assets/stage.js" defer></script>
+</body>
+</html>

@@ -1,0 +1,59 @@
+name: GEFS reforecast daily climatology v2 - combine only
+
+# Re-runs the combine step of gefs-reforecast2.yml on the month artifacts of an earlier run (kept 7 days), with the
+# CURRENT scripts/gefs/gefs_daily.py - a dispatched run pins its own commit, so a combine fix needs this. Publishes to
+# release gefs-clim-v2, overwriting.
+
+on:
+  workflow_dispatch:
+    inputs:
+      run_id:
+        description: "gefs-reforecast2.yml run whose rf2-YYYY-MM artifacts to combine"
+        required: true
+      months:
+        description: "JSON list of months"
+        default: "[1,2,3,4,5,6,7,8,9,10,11,12]"
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  combine:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      max-parallel: 12
+      matrix:
+        m: ${{ fromJSON(inputs.months) }}
+    steps:
+      - name: Room for three months of starts
+        run: sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL; df -h / | tail -1
+      - uses: actions/checkout@v7
+        with:
+          sparse-checkout: scripts/gefs
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+      - run: pip install --quiet numpy scipy eccodes
+      - name: Download months ${{ matrix.m }} +- 1
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          m=${{ matrix.m }}
+          for k in $(( (m + 10) % 12 + 1 )) $m $(( m % 12 + 1 )); do
+            mm=$(printf %02d $k)
+            gh run download ${{ inputs.run_id }} -R "$GITHUB_REPOSITORY" -p "rf2-*-$mm" -D "in/$mm"
+          done
+          find in -name 'rf2_*.npz' | wc -l; du -sh in
+      - name: Climatology for the centres in month ${{ matrix.m }}
+        run: python scripts/gefs/gefs_daily.py combine ${{ matrix.m }} --inp in --out clim
+      - name: Publish (release gefs-clim-v2)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          ls clim
+          gh release view gefs-clim-v2 >/dev/null 2>&1 || gh release create gefs-clim-v2 --title "GEFS reforecast daily climatology v2" \
+            --notes "Daily lead-dependent GEFSv12 climatology (reforecast 2000-2019, Wednesday 35-day starts, 4 members). See scripts/gefs/gefs_daily.py." || true
+          gh release upload gefs-clim-v2 clim/*.npz --clobber

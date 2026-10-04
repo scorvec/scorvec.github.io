@@ -1,0 +1,157 @@
+#!/bin/bash
+# Local SST/RONI build. MANUAL FALLBACK as of 2026-08-29 - sst.yml is now the
+# primary path and com.scorvec.sst has been unloaded, to keep the laptop's cores
+# free (it routinely runs WRF under mpirun -np 18). Run this by hand when you
+# want an immediate rebuild rather than waiting for the Action.
+#
+# The workflow now covers everything this does: it already built sst-roni,
+# sst_subsurface and tao_subsurface, and gained wwv_orbit, mur_nino34 and
+# build_nino_history on the same date. sst_events has its own weekly workflow;
+# analog_atmos was retired 2026-08-28 with the analogs page.
+#
+# The trade, stated plainly: this ran every 15 minutes, and GitHub honours only
+# about one cron firing every seven hours for this repo. SST products are daily,
+# so that is acceptable - but it is not equivalent, and a same-day correction
+# will not appear until the next firing unless you run this.
+#
+# Rebuilds the OISST anomaly maps + RONI + TAO subsurface + ASCAT winds, then
+# commits & pushes only if something changed.
+#
+# Idempotent: commits only when `git diff` is non-empty, so running it repeatedly
+# / alongside the Action is safe (whoever lands the new OISST day first wins; the
+# other run no-ops).
+#
+# OISST/PSL files are CACHED and only re-downloaded when PSL publishes newer data
+# (sst-roni HEAD-checks Last-Modified), so the 4-hourly polls don't re-pull the full
+# ~240 MB annual file each time — just when a new day actually lands. The GitHub
+# Action runs from a clean checkout, so it has no cache to reuse.
+set -uo pipefail
+
+# ---------------------------------------------------------------------------
+# RETIRED 2026-09-04 (user: "no more locally rendered jobs pushing images to
+# github, except GEPS"). This script rendered site products on the laptop and
+# pushed them to main, racing the GitHub Actions renders: on 2026-09-04 its
+# 15-minute pass overwrote the CI's TAO cross-section with a day-old frame, so
+# enso-subsurface showed Sep 1 under a Sep 2 manifest. Its launchd job is in
+# ~/Library/LaunchAgents/disabled/. Rendering belongs to Actions; the laptop
+# dispatches (scripts/lib/dispatch_workflows.sh). A .git/hooks/pre-push guard
+# blocks the push even if this runs. Set ALLOW_LOCAL_RENDER=1 for a manual,
+# deliberate one-off.
+if [ "${ALLOW_LOCAL_RENDER:-0}" != "1" ]; then
+  echo "$(basename "$0"): local rendering is retired; dispatch the workflow instead." >&2
+  exit 0
+fi
+# A deliberate manual run may push the products it just rendered; the pre-push
+# hook would otherwise reject them (see scripts/lib/pre-push.hook).
+export ALLOW_LOCAL_ASSET_PUSH=1
+# ---------------------------------------------------------------------------
+
+# Scheduled poll window: the launchd agent fires every 15 min (StartInterval) and passes
+# --poll; only actually check during 09:00–13:59 ET (OISST typically posts ~midday ET), so
+# the other fires exit instantly. Manual runs (no --poll) always proceed.
+if [ "${1:-}" = "--poll" ]; then
+  H=$(TZ=America/New_York date +%H); H=$((10#$H))
+  if [ "$H" -lt 9 ] || [ "$H" -ge 14 ]; then
+    # outside the OISST window: TAO + the Copernicus current sections advance
+    # daily regardless of OISST — hand off to the light subsurface refresh
+    # (self-gated to once per ~3 h) instead of going fully idle
+    exec /bin/bash "$(dirname "$0")/run_subsurface_light.sh"
+  fi
+fi
+
+PY="${SST_PY:-/opt/homebrew/Caskroom/miniconda/base/envs/mjo/bin/python}"
+REPO="$(cd "$(dirname "$0")/../.." && pwd)"
+export MPLBACKEND=Agg SST_SITE_ROOT="$REPO" \
+       PATH="$(dirname "$PY"):/usr/bin:/bin:/usr/sbin:/sbin:/opt/homebrew/bin"
+cd "$REPO" || exit 1
+
+LOG="$REPO/scripts/sst/run_local_sst.log"
+exec >> "$LOG" 2>&1
+echo "===================== $(date) ====================="
+# Only ever render+commit from main (a stray feature-branch checkout once captured a
+# whole day of SST/synoptic/MJO commits). Source the lock lib early just for this guard;
+# it's re-sourced below where the git critical section actually runs.
+source "$REPO/scripts/lib/gitlock.sh"
+require_main || exit 0
+
+# Single-instance lock: a slow run (TAO/OISST fetch) must not overlap the next scheduled fire —
+# concurrent renders + the push-retry `git reset --hard` race and wipe each other's in-flight
+# frames. mkdir is atomic; the lock records its owner PID, so an orphaned lock (a run killed or
+# slept without firing its EXIT trap) is reclaimed at once instead of blocking for hours.
+LOCK="$REPO/scripts/sst/.run.lock"
+if ! mkdir "$LOCK" 2>/dev/null; then
+  owner="$(cat "$LOCK/pid" 2>/dev/null)"
+  if { [ -n "$owner" ] && kill -0 "$owner" 2>/dev/null; } \
+     || [ -n "$(find "$LOCK" -maxdepth 0 -mmin -1 2>/dev/null)" ]; then   # owner alive, or <1 min (PID not yet written)
+    echo "another SST run in progress (pid ${owner:-?}) — skipping this fire"; exit 0
+  fi
+  echo "stale lock (owner pid ${owner:-none} not running) — taking over"
+  rm -rf "$LOCK"; mkdir "$LOCK" 2>/dev/null || { echo "could not acquire lock"; exit 0; }
+fi
+echo $$ > "$LOCK/pid"
+trap 'rm -rf "$LOCK" 2>/dev/null' EXIT
+
+DAY_Q='import json,os;p="assets/sst/manifest.json";print(json.load(open(p)).get("sst_valid_day","") if os.path.exists(p) else "")'
+PREV_DAY=$("$PY" -c "$DAY_Q" 2>/dev/null || echo "")
+"$PY" scripts/sst/sst-roni.py || { echo "sst-roni failed (retrying once)"; \
+  sleep 30; "$PY" scripts/sst/sst-roni.py || echo "sst-roni failed twice; continuing — downstream uses caches"; }
+NEW_DAY=$("$PY" -c "$DAY_Q" 2>/dev/null || echo "")
+"$PY" scripts/sst/tao_subsurface.py --days 120 \
+  --out scripts/sst/data/tao_eq_recent.nc \
+  --ascii scripts/sst/data/tao_eq_recent.ascii || echo "TAO failed; continuing"
+"$PY" scripts/sst/sst_subsurface.py || echo "subsurface failed; continuing"
+"$PY" scripts/sst/wwv_orbit.py || echo "WWV orbit failed; continuing"
+# MUR Nino-3.4 absolute SST. Laptop-only on purpose: the 2002-present box-mean
+# series is cached under scripts/sst/data/ (gitignored), so an Actions run would
+# have no cache and refetch 24 years (~50 min) every time. Incremental here:
+# one small ERDDAP request appended to the cache.
+"$PY" scripts/sst/mur_nino34.py || echo "MUR Nino-3.4 failed; keeping previous figure"
+( cd scripts/sst && SST_SITE_ROOT="$REPO" "$PY" sst_ascat_winds.py ) || echo "ASCAT failed; continuing"
+# Optional machine-local post steps (not part of the site build):
+[ -x "$HOME/.local/hooks/sst_post.sh" ] && SST_SITE_ROOT="$REPO" "$HOME/.local/hooks/sst_post.sh"
+
+( cd scripts/sst && "$PY" eq_current_section.py ) || echo "eq current section failed; continuing"
+( cd scripts/sst && "$PY" eq_current_hovmoller.py ) || echo "eq current hovmoller failed; continuing"
+( cd scripts/sst && "$PY" eq_uwind_hovmoller.py ) || echo "eq uwind hovmoller failed; continuing"
+( cd scripts/sst && "$PY" eq_current_map.py ) || echo "eq current map failed; continuing"
+
+# Analog comparison charts (current vs 1997/2015/2023 El Niño) — rebuild ONCE PER
+# CALENDAR DAY (or whenever OISST advances). The subsurface analog tracks TAO, which
+# can advance independently of OISST (OISST has ~1–2 day PSL latency), so gating purely
+# on OISST left the subsurface cross-section a day stale. A per-day stamp keeps the
+# 4-hourly polls cheap (only the first poll of a new day rebuilds) while ensuring the
+# analogs refresh every day. sst_events loads the ~3.8 GB cached analog-year files.
+ANALOG_STAMP="$REPO/scripts/sst/data/.analog_built_day"
+TODAY_UTC=$(date -u +%Y-%m-%d)
+LAST_ANALOG=$(cat "$ANALOG_STAMP" 2>/dev/null || echo "")
+if [ "$TODAY_UTC" != "$LAST_ANALOG" ] || { [ -n "$NEW_DAY" ] && [ "$NEW_DAY" != "$PREV_DAY" ]; }; then
+  echo "rebuilding analog charts (day ${LAST_ANALOG:-none}→$TODAY_UTC; OISST ${PREV_DAY:-none}→${NEW_DAY:-none})"
+  ok=1
+  SST_SITE_ROOT="$REPO" "$PY" scripts/sst/sst_events.py || { echo "sst_events failed; continuing"; ok=0; }
+  ( cd scripts/sst && SST_SITE_ROOT="$REPO" "$PY" sst_subsurface_events.py ) || { echo "subsurface analog failed; continuing"; ok=0; }
+  # Monthly Niño-region history JSON for the interactive analog explorer (CPC ERSSTv5;
+  # changes ~monthly, so once-a-day is ample). Non-fatal — a CPC hiccup keeps the old JSON.
+  SST_SITE_ROOT="$REPO" "$PY" scripts/sst/build_nino_history.py || echo "nino history failed; keeping previous JSON"
+  # Atmospheric fingerprint maps (ERA5 monthly, CDS): re-request only when a
+  # newer month should exist, so this is a no-op most days.
+  # analog_atmos.py retired 2026-08-28 with the analogs page: its only consumer was enso-analogs.html.
+  # (Its super-El Nino composite also lacked volcanic screening — 1982 El Chichon
+  # and 1991 Pinatubo were 2 of the 5 composited events.)
+  #SST_SITE_ROOT="$REPO" "$PY" scripts/sst/analog_atmos.py || echo "analog atmos failed; keeping previous maps"
+  [ "$ok" = 1 ] && echo "$TODAY_UTC" > "$ANALOG_STAMP"     # stamp only on full success → retry next poll otherwise
+fi
+
+git add sst.html enso-*.html assets/sst/
+if git diff --staged --quiet; then echo "no changes to commit"; exit 0; fi
+DAY=$("$PY" -c "import json; print(json.load(open('assets/sst/manifest.json'))['sst_valid_day'])" 2>/dev/null)
+source "$REPO/scripts/lib/gitlock.sh"
+trap 'git_unlock; rm -rf "$LOCK" 2>/dev/null' EXIT   # both cleanups (this trap replaces the lock-only one above)
+git_lock || { echo "git lock busy; leaving as a local commit for the next run"; exit 0; }
+git -c user.name="Shawn Corvec" -c user.email="26825570+scorvec@users.noreply.github.com" \
+    commit -m "data update: $(date -u +%FT%H:%MZ)"
+for i in 1 2 3 4 5; do
+  if git pull --rebase --autostash -X theirs origin main && git push; then echo "pushed (attempt $i)"; git_unlock; exit 0; fi
+  git_rebase_rescue   # finish the rebase past frame-count conflicts, else abort clean
+  echo "push attempt $i failed; retrying…"; sleep 5
+done
+echo "ERROR: could not push after 5 attempts."; git_unlock; exit 1

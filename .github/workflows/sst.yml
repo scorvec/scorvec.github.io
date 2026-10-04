@@ -1,0 +1,350 @@
+name: SST anomalies & RONI (El Niño monitor)
+
+# NOAA OISST updates daily (1–2 day latency). We rebuild twice a day; the script
+# always uses the latest available day, so a late update is simply picked up by
+# the next run. Manual dispatch with --force re-downloads regardless.
+#
+# Two sources, same product: NCEI publishes each day's file (final, or `_preliminary`
+# for the recent window) at ~13:31 UTC, and PSL folds the same dailies into its yearly
+# file at ~16:30 UTC. ensure_mean() takes PSL's file and tops it up from NCEI's dailies,
+# so the 13:50 slot already has the newest day and the 19:23 slot picks up PSL's copy
+# plus any preliminary day that has since been finalised.
+#
+# Cron timing matters. Two constraints, both in UTC (GitHub cron is always UTC):
+#   1. PSL rewrites sst.day.anom.<YEAR>.nc with the previous day at ~16:30 UTC.
+#   2. The laptop primary (run_local_sst.sh) polls until 13:59 America/New_York,
+#      which is 17:59 UTC in EDT but 18:59 UTC in EST — the window MOVES with DST.
+# 19:23 UTC clears both year-round, so this fallback can only ever see the freshest
+# day and never overlaps the laptop (its single-instance lock doesn't span machines).
+# The old 16:23 UTC slot sat 8 min ahead of PSL and was saved only by GitHub's
+# 1–2 h scheduling delay; an on-time dispatch would have committed stale maps.
+on:
+  schedule:
+  - cron: '50 13 * * *'   # 13:50 UTC — right after NCEI posts the previous day's `_preliminary` daily file (~13:31 UTC). oisst9120.ensure_mean tops the PSL year file up from those dailies, so the monitor gets the new day ~3 h before PSL rebuilds its yearly file; the day is flagged provisional and is replaced when NCEI finalises (~2 weeks).
+  - cron: '23 19 * * *'   # 19:23 UTC — after PSL publishes OISST (~16:30 UTC). Everything this job builds is daily at most (OISST, TAO, MUR, ASCAT; WWV is monthly-ish), so two firings a day is the right size — deliberately NOT more. The laptop's 15-min cadence was always over-serving it; com.scorvec.sst was unloaded 2026-08-29.
+  # (The 23:23 retry slot was removed 2026-08-30. It existed because "the
+  # cron fires once a day, so a runner-infra hang at 19:23 loses the whole
+  # day" - which is now the dispatcher's job: a failed, timed-out or
+  # cancelled run re-opens its slot after 120 min, so the retry happens
+  # when it is needed instead of every single night.)
+  workflow_dispatch:
+    inputs:
+      force:
+        description: 'Re-download OISST even if cached'
+        required: false
+        default: 'false'
+
+# Frame store (Cloudflare R2, S3 API). Absent secrets leave these empty and the
+# publishers fall back to the orphan `frames` branch - see scripts/lib/frames_env.sh.
+env:
+  FRAMES_S3_BUCKET: ${{ secrets.FRAMES_S3_BUCKET }}
+  FRAMES_S3_ENDPOINT: ${{ secrets.FRAMES_S3_ENDPOINT }}
+  FRAMES_S3_REGION: ${{ secrets.FRAMES_S3_REGION }}
+  FRAMES_S3_ACL: ${{ secrets.FRAMES_S3_ACL }}
+  AWS_ACCESS_KEY_ID: ${{ secrets.FRAMES_S3_ACCESS_KEY_ID }}
+  AWS_SECRET_ACCESS_KEY: ${{ secrets.FRAMES_S3_SECRET_ACCESS_KEY }}
+
+permissions:
+  contents: write
+  actions: write   # dispatch pages.yml after committing
+
+concurrency:
+  group: sst-roni
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    # 90, not 60. The job legitimately runs ~56 min and one firing already died
+    # at 60m21s (2026-08-31 23:14Z). 'MUR 1 km Nino-3.4 vs OISST' alone is
+    # 40.3 min of that - 72% of the job - because mur_nino34.py pulls MUR 1 km
+    # granules from ERDDAP. It cannot simply move to mur-sst.yml: it reads
+    # assets/data/enso_daily.json, which the OISST step earlier in THIS job
+    # produces, so splitting it would score MUR against the previous cycle's
+    # OISST. Raising the cap is the honest fix until that tradeoff is decided.
+    timeout-minutes: 90
+    env:
+      MPLBACKEND: Agg
+      SST_SITE_ROOT: ${{ github.workspace }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+      - uses: actions/cache@v6
+        with:
+          path: ~/.cache/pip
+          key: pip-sst-${{ runner.os }}-${{ hashFiles('scripts/sst/requirements-sst.txt') }}
+          restore-keys: |
+            pip-sst-${{ runner.os }}-
+
+      # OISST cache: the 1.4 GB 1991-2020 climatology exists only on PSL, and
+      # the yearly file is ~470 MB per run — cache both so a PSL outage rides
+      # on the NCEI day-file fallback (oisst9120) instead of failing outright.
+      - uses: actions/cache@v6
+        with:
+          path: |
+            scripts/sst/data/sst.day.mean.ltm.1991-2020.nc
+            scripts/sst/data/sst.day.mean.*.nc
+          key: oisst-data-${{ github.run_id }}
+          restore-keys: |
+            oisst-data-
+
+      # ASCAT daily-mean u/v archive: lets a plot-layout change re-render every
+      # frame in the window from cached fields instead of refetching Copernicus.
+      - uses: actions/cache@v6
+        with:
+          path: scripts/sst/data/ascat
+          key: ascat-data-${{ github.run_id }}
+          restore-keys: |
+            ascat-data-
+
+      - name: Install cartopy system libs
+        run: |
+          # Bounded + retried: an apt mirror hang here once ate the full 60-min job budget
+          # (2026-08-19 run, killed at timeout during this step).
+          for i in 1 2 3; do
+            if sudo timeout 240 apt-get update -qq -o Acquire::Retries=3 && \
+               sudo timeout 300 apt-get install -y --no-install-recommends -o Acquire::Retries=3 \
+                 libgeos-dev libproj-dev proj-bin; then exit 0; fi
+            echo "apt attempt $i failed; retrying"; sleep 10
+          done
+          exit 1
+
+      - name: Install Python dependencies
+        run: pip install -r scripts/sst/requirements-sst.txt
+
+      # Seed from the frames branch before rendering: ascat appends only what
+      # is missing, and frames stopped arriving with the checkout when they
+      # were taken off main.
+      - name: Seed existing frames
+        run: scripts/lib/fetch_frames_ci.sh scripts/sst/data/cmems assets/sst/anim/equatorial assets/sst/anim/equatorial_dt assets/sst/anim/anomaly assets/sst/anim/relative assets/sst/anim/absolute assets/sst/anim/tropical_rel assets/sst/anim/eq_cur_map assets/sst/anim/eq_cur_section assets/sst/anim/ascat assets/sst/anim/walker
+
+      # CPC's OWN published ONI/RONI, which the RONI card draws as the official
+      # series. Best-effort: without it the card falls back to drawing the OISST
+      # estimate alone, which is what it did before this existed.
+      - name: CPC official ONI/RONI
+        run: python scripts/sst/cpc_official_enso.py || echo "::warning::CPC official fetch failed; RONI card will show estimates only"
+
+      - name: Build SST maps, RONI, and animation (OISST)
+        run: |
+          FORCE=""
+          [ "${{ inputs.force }}" = "true" ] && FORCE="--force"
+          python scripts/sst/sst-roni.py $FORCE
+
+      # Walker circulation by basin (Indian/Atlantic with ENSO removed): needs the OISST file the
+      # step above just refreshed and walker_ud_history.nc that mjo.yml commits. Best-effort.
+      # sst-roni.py regenerates sst.html and enso-*.html from partials; the shared header,
+      # tabs and footer live in scripts/site/apply_chrome.py and must be stamped afterwards.
+      - name: Re-apply the site chrome to the regenerated pages
+        run: python scripts/site/apply_chrome.py
+
+      # ENSO forecasts page: this month's observed E and C so far (OISST, projected on the page's E/C
+      # patterns), each model's first-month check and the first-month-corrected view. Reads the
+      # laptop-built enso_flavour.json; needs no Copernicus key. Best-effort: on failure the page keeps
+      # the previous day's file.
+      - name: ENSO forecasts, observed E and C so far (OISST)
+        run: python scripts/sst/enso_flavour_obs.py || echo "::warning::enso_flavour_obs failed; keeping the previous observed E/C"
+
+      - name: Walker circulation by ocean basin
+        run: python scripts/sst/walker_basins.py || echo "walker_basins failed; continuing"
+
+      # Weekly departure of the tropical velocity potential from the Pacific-forced part (reads the
+      # χ history mjo.yml keeps in assets/sst/anim/walker on the frames branch, seeded above).
+      - name: Walker departure from Pacific forcing, weekly
+        run: python scripts/sst/walker_chi_weekly.py || echo "walker_chi_weekly failed; continuing"
+
+      # The subsurface page is owned by tao-subsurface.yml (3x a day). Here it is a courtesy refresh, so a PMEL DISDEL
+      # hiccup must not take the SST anomalies / RONI run down with it (2026-09-22 17:45Z did exactly that).
+      - name: Fetch TAO equatorial subsurface temperature (recent 120 days)
+        id: tao
+        continue-on-error: true
+        run: |
+          python scripts/sst/tao_subsurface.py --days 120 \
+            --out scripts/sst/data/tao_eq_recent.nc \
+            --ascii scripts/sst/data/tao_eq_recent.ascii
+
+      # tao_subsurface.py exits 0 with skip=true when PMEL answers 502/503/504 (maintenance): that is NOT a fetch
+      # (2026-10-02: the build ran on a missing file and the failure stopped the OISST/RONI commit)
+      - name: Build equatorial subsurface cross-section + animation
+        if: steps.tao.outcome == 'success' && steps.tao.outputs.skip != 'true'
+        run: python scripts/sst/sst_subsurface.py
+
+      - name: Note skipped subsurface refresh
+        if: steps.tao.outcome != 'success' || steps.tao.outputs.skip == 'true'
+        run: |
+          echo "::warning::TAO DISDEL fetch failed or PMEL in maintenance; subsurface left to tao-subsurface.yml"
+          # sst-roni re-rendered the pages with a __TAO_DAY__ placeholder that only sst_subsurface.py fills: keep the
+          # committed subsurface page (tao-subsurface.yml's) rather than ship the raw token
+          for f in $(grep -l "__TAO_DAY__" enso*.html sst.html circulation.html 2>/dev/null); do
+            git checkout HEAD -- "$f" && echo "restored $f"
+          done
+
+      - name: Build daily ASCAT equatorial-Pacific wind map (Copernicus Marine)
+        working-directory: scripts/sst
+        env:
+          COPERNICUSMARINE_SERVICE_USERNAME: ${{ secrets.COPERNICUSMARINE_SERVICE_USERNAME }}
+          COPERNICUSMARINE_SERVICE_PASSWORD: ${{ secrets.COPERNICUSMARINE_SERVICE_PASSWORD }}
+        run: |
+          if [ -z "$COPERNICUSMARINE_SERVICE_USERNAME" ]; then
+            echo "Copernicus Marine credentials not set; skipping wind map."; exit 0
+          fi
+          python sst_ascat_winds.py || echo "ASCAT wind map failed; continuing"
+
+      # Copernicus Marine equatorial CURRENT products (zonal-current section
+      # loop, surface-current map loop, current + wind Hovmollers). These ran
+      # only in run_local_sst.sh and stopped with the laptop launchd job on
+      # 2026-08-29; they were left out of the offload and enso-subsurface.html
+      # froze at Aug 29. The scripts keep latitude-mean NetCDF stores under
+      # scripts/sst/data/cmems (gitignored): section_store.nc (every day since
+      # 1 Mar 2026, ~0.3 MB/day) and the two rolling Hovmoller stores. The
+      # stores ride the frames branch with the loops (seeded above, published
+      # below) so a run downloads ONLY the new day(s) - NO run may ever rebuild
+      # months of section from Copernicus; the laptop copies were seeded there
+      # on 2026-09-02. Frames are skipped when present, so nothing re-renders.
+      - name: Equatorial current section, map, and Hovmollers (Copernicus Marine)
+        working-directory: scripts/sst
+        env:
+          COPERNICUSMARINE_SERVICE_USERNAME: ${{ secrets.COPERNICUSMARINE_SERVICE_USERNAME }}
+          COPERNICUSMARINE_SERVICE_PASSWORD: ${{ secrets.COPERNICUSMARINE_SERVICE_PASSWORD }}
+        run: |
+          if [ -z "$COPERNICUSMARINE_SERVICE_USERNAME" ]; then
+            echo "Copernicus Marine credentials not set; skipping current products."; exit 0
+          fi
+          python eq_current_section.py || echo "eq current section failed; continuing"
+          python eq_current_hovmoller.py || echo "eq current hovmoller failed; continuing"
+          python eq_uwind_hovmoller.py || echo "eq uwind hovmoller failed; continuing"
+          python eq_current_map.py || echo "eq current map failed; continuing"
+          rm -f data/cmems/*_chunk.nc data/cmems/map_block.nc   # transient subsets; only the stores go back to the branch
+
+      # Products that only the laptop was building, moved here 2026-08-29 so the
+      # SST pipeline no longer needs run_local_sst.sh. Each is non-fatal: a
+      # single upstream outage should not take the whole cycle down, and the
+      # previous figure/JSON stays on the site until the next run succeeds.
+      - name: Warm-water volume orbit
+        run: python scripts/sst/wwv_orbit.py || echo "WWV orbit failed; continuing"
+
+      # THE MUR SERIES CACHE. Without this the step costs 40 min - 72% of the
+      # whole job - and it is not MUR being slow. scripts/sst/data/ is gitignored
+      # (.gitignore:15), so nino34_series.json never reaches a runner, and
+      # mur_nino34.py falls back to `start = MUR_START if s.empty`: it re-fetches
+      # the ENTIRE record from ERDDAP every run. With the series restored it
+      # fetches only the days it is missing, which is one or two.
+      #
+      # run_id in the key so every run writes a fresh entry, restore-keys to fall
+      # back to the newest previous one - the read-only pattern, since a fixed key
+      # would save once and then never update as the series grows.
+      - uses: actions/cache@v6
+        with:
+          path: scripts/sst/data/mur
+          key: mur-nino34-series-${{ github.run_id }}
+          restore-keys: |
+            mur-nino34-series-
+
+      - name: MUR 1 km Nino-3.4 vs OISST
+        run: python scripts/sst/mur_nino34.py || echo "MUR Nino-3.4 failed; keeping previous figure"
+
+      - name: Nino-region history JSON
+        env:
+          SST_SITE_ROOT: ${{ github.workspace }}
+        run: python scripts/sst/build_nino_history.py || echo "nino history failed; keeping previous JSON"
+
+      # ── MEI.v2 daily nowcast (moved from the laptop 2026-09-02) ─────────────
+      # Regression of the bimonthly MEI.v2 on daily Niño-3.4 (the OISST means
+      # this job already downloaded), the daily SOI and the equatorial 850 hPa
+      # zonal wind. The two gitignored inputs it needs ride the frames branch
+      # under scripts/mjo/data/reference_big: the 1959-2023 band series (64 MB,
+      # static) and the current-year ERA5 tail, which refresh_u850_tail.py
+      # extends by the few new days ARCO has (never a whole-year rebuild).
+      - name: Seed the MEI inputs from the frames branch
+        run: |
+          scripts/lib/fetch_frames_ci.sh scripts/mjo/data/reference_big
+          cp -n scripts/mjo/data/reference_big/*.nc scripts/mjo/data/reference/ 2>/dev/null || true
+          pip install -q zarr gcsfs
+
+      - name: MEI nowcast
+        timeout-minutes: 20
+        working-directory: scripts/mjo
+        run: |
+          set +e
+          mkdir -p data/soi
+          curl -sSf --max-time 120 -o data/soi/DailySOI.txt \
+            "https://data.longpaddock.qld.gov.au/SeasonalClimateOutlook/SouthernOscillationIndex/SOIDataFiles/DailySOI1887-1989Base.txt" \
+            || echo "daily SOI download failed; nowcast will use whatever is cached"
+          python src/refresh_u850_tail.py || echo "u850 tail refresh failed; nowcast uses the seeded tail"
+          if [ -f data/reference/eq_u850_bandseries.nc ]; then
+            python src/build_mei_nowcast.py --apply "$(date -u +%Y)" || echo "MEI nowcast failed; keeping previous figures"
+            cp -f data/reference/eq_u850_*_arco.nc data/reference_big/ 2>/dev/null || true
+          else
+            echo "no u850 band series on this runner - skipping the MEI nowcast"
+          fi
+          CB=$(date -u +%Y%m%d%H%M)
+          perl -0pi -e "s/((?:mei\/mei_nowcast|mei\/mei_analogs|mei\/mei_history)\.webp)\?v=\w+/\${1}?v=$CB/g" ../../enso.html
+          perl -0pi -e "s/((?:walker_basins|walker_chi_weekly)\.webp)\?v=\w+/\${1}?v=$CB/g" ../../circulation.html
+
+      # WITHOUT THIS THE ANIMATIONS NEVER LEAVE THE RUNNER. .gitignore keeps
+      # frame webp off main, and this workflow had no frames-branch publisher
+      # at all - so every loop it rendered was discarded when the job ended.
+      # It went unnoticed while the laptop still had local copies and pushed
+      # them; once those were cleaned up on 2026-08-30 the loops froze on the
+      # branch, which is why a fix to the anomaly contours never appeared.
+      - name: Publish frames to the orphan branch
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: scripts/lib/publish_frames_ci.sh scripts/sst/data/cmems scripts/mjo/data/reference_big assets/sst/anim/equatorial assets/sst/anim/equatorial_dt assets/sst/anim/anomaly assets/sst/anim/relative assets/sst/anim/absolute assets/sst/anim/tropical_rel assets/sst/anim/eq_cur_map assets/sst/anim/eq_cur_section assets/sst/anim/ascat
+
+      - name: Commit & push (generated outputs)
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          # Snapshot the outputs, then commit on a clean sync of origin/main each attempt (the
+          # mjo.yml pattern). The old rebase recovery silently DISCARDED the build when a push
+          # collided: leftover unstaged files made the rebase fail, the reset --hard fallback
+          # reverted the outputs, and "Everything up-to-date" was reported as success
+          # (2026-09-07 03:03Z: a rendered walker_basins.webp never reached main).
+          DAY=$(python -c "import json; print(json.load(open('assets/sst/manifest.json'))['sst_valid_day'])" 2>/dev/null || date -u +%Y-%m-%d)
+          SNAP=$(mktemp -d)
+          git add -A enso.html circulation.html stratosphere.html tropical-waves.html sst.html enso-*.html assets/sst/ 2>/dev/null || true
+          git diff --staged --name-only -z | tar cf "$SNAP/outs.tar" --null -T - 2>/dev/null || true
+          git reset -q
+          for i in 1 2 3 4 5; do
+            if ! timeout 120 git fetch origin main; then echo "fetch $i failed"; sleep 5; continue; fi
+            git reset --hard origin/main
+            tar xf "$SNAP/outs.tar" 2>/dev/null || true
+            # 2026-10-02: a run started before a page edit restored its stale render over it (circulation.html lost the
+            # stage-picker fix and the new TC text at 23:27). A page whose templates or whose own file changed on main
+            # since this run checked out keeps MAIN's version; the next run re-renders it from the new templates.
+            TPL_CHANGED=$(git diff --name-only "$GITHUB_SHA" origin/main -- scripts/sst/pages scripts/sst/partials scripts/sst/enso_site.py scripts/site/apply_chrome.py | head -1)
+            for f in enso.html circulation.html stratosphere.html tropical-waves.html sst.html enso-*.html; do
+              [ -e "$f" ] || continue
+              if [ -n "$TPL_CHANGED" ] || ! git diff --quiet "$GITHUB_SHA" origin/main -- "$f"; then
+                git checkout origin/main -- "$f" 2>/dev/null && echo "::notice::kept main's $f (changed on main during this run)"
+              fi
+            done
+            git add -A enso.html circulation.html stratosphere.html tropical-waves.html sst.html enso-*.html assets/sst/
+            if git diff --staged --quiet; then echo "No changes; skipping commit."; exit 0; fi
+            git commit -q -m "data update: ${DAY}"
+            if timeout 180 git push; then echo "Pushed on attempt $i."; exit 0; fi
+            echo "Push $i rejected; resyncing and retrying…"
+            sleep 5
+          done
+          echo "ERROR: could not push after 5 attempts." >&2
+          exit 1
+
+      # A commit pushed with GITHUB_TOKEN does not trigger the Pages deploy, so
+      # the site would wait for the laptop dispatcher's next tick (up to 15 min)
+      # to notice main is ahead. workflow_dispatch IS allowed from a token, so
+      # deploy right away; pages.yml's concurrency group folds overlapping ones.
+      - name: Deploy the site
+        if: success()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh workflow run pages.yml --repo "$GITHUB_REPOSITORY" || echo "pages dispatch failed; the dispatcher will catch it"
+
+      - name: Summary
+        if: always()
+        run: |
+          echo "### SST / RONI" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Page: [/enso.html](https://scorvec.com/enso.html)" >> "$GITHUB_STEP_SUMMARY"
+          [ -f assets/sst/manifest.json ] && \
+            echo "- $(python -c "import json;m=json.load(open('assets/sst/manifest.json'));print('OISST',m['sst_valid_day'],'· RONI',m['roni_latest_value'],'°C')" )" >> "$GITHUB_STEP_SUMMARY" || true

@@ -1,0 +1,143 @@
+name: Short-range models (data)
+
+# models.html (2026-09-30): HRRR / RRFS / RDPS fields as 8-bit lossless WebP data on each model's native grid, drawn by
+# the page with WebGL. scripts/models/models.py does the work; this file sequences it for ONE model per run
+# (the callers models-hrrr.yml / models-rrfs.yml / models-rdps.yml fix the model, so the laptop dispatcher's
+# "already ran since" check is per model - one workflow with a model input would let an HRRR run satisfy an RDPS slot).
+#
+# Each run: read that model's CURRENT manifest from main, plan (the newest COMPLETE cycle not yet published; for HRRR
+# also the newest 48-h cycle if it is newer than the published one), fetch + encode, push the cycle directory to the
+# frames branch with scripts/models/publish_data.sh (blobless: the branch is never downloaded; old cycles pruned in
+# the same commit), stamp the frames commit into the manifest, THEN commit the manifest to main - never the other
+# way round, or the page would point at data that is not there yet. A cycle that lost hours is not published.
+# Actions honours a fraction of cron firings and late, so the laptop dispatcher fires the same slots; a firing with
+# nothing new exits in about a minute.
+
+on:
+  workflow_call:
+    inputs:
+      model:
+        type: string
+        required: true
+  workflow_dispatch:
+    inputs:
+      model:
+        description: "hrrr, rrfs or rdps"
+        required: true
+        default: hrrr
+      cycle:
+        description: "Cycle YYYYMMDDHH (blank = plan the newest unpublished)"
+        required: false
+        default: ""
+
+permissions:
+  contents: write
+  actions: write
+
+concurrency:
+  group: models-${{ inputs.model }}
+  cancel-in-progress: false
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      MODEL: ${{ inputs.model }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # non-cone patterns so the two static point lists (data/models_airports.json, data/models_cities.json - the
+          # meteogram points) come without the rest of data/
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            /scripts/models/
+            /scripts/snowband/
+            /scripts/lib/
+            /assets/models/
+            /data/models_airports.json
+            /data/models_cities.json
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+      - run: pip install --quiet numpy pillow eccodes
+      - name: Plan
+        id: plan
+        env:
+          CYCLE: ${{ inputs.cycle }}
+        run: |
+          set -euo pipefail
+          case "$MODEL" in hrrr|rrfs|rdps) ;; *) echo "::error::unknown model $MODEL"; exit 1 ;; esac
+          mkdir -p assets/models
+          # main's CURRENT manifest, not the checkout's (a run queued behind another checks out an older commit)
+          if timeout 60 git fetch -q --depth 1 origin main && git show "FETCH_HEAD:assets/models/$MODEL.json" > "/tmp/$MODEL.json" 2>/dev/null; then
+            cp "/tmp/$MODEL.json" "assets/models/$MODEL.json"
+          else echo "no manifest on main yet for $MODEL"; rm -f "assets/models/$MODEL.json"; fi
+          if [ -n "${CYCLE:-}" ]; then echo "$MODEL $CYCLE" > "$RUNNER_TEMP/plan.txt"
+          else python scripts/models/models.py plan --models "$MODEL" --manifests assets/models > "$RUNNER_TEMP/plan.txt"; fi
+          cat "$RUNNER_TEMP/plan.txt"
+          echo "n=$(wc -l < "$RUNNER_TEMP/plan.txt" | tr -d ' ')" >> "$GITHUB_OUTPUT"
+      - name: Boundaries (once)
+        if: steps.plan.outputs.n != '0'
+        run: |
+          set -euo pipefail
+          if timeout 60 git show "FETCH_HEAD:assets/models/geo.json" > /dev/null 2>&1; then echo "geo.json is on main"; exit 0; fi
+          python scripts/models/build_geo.py --out assets/models/geo.json
+          echo "BUILT_GEO=1" >> "$GITHUB_ENV"
+      - name: Fetch, encode, publish
+        id: run
+        if: steps.plan.outputs.n != '0'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          done=0
+          while read -r m cyc; do
+            [ -n "$cyc" ] || continue
+            echo "::group::$m $cyc"
+            L="$RUNNER_TEMP/lists_$cyc"
+            python scripts/models/models.py run --model "$m" --cycle "$cyc" --site . --procs 4 --lists "$L"
+            PR=$(tr '\n' ' ' < "$L/prune.txt")
+            if [ ! -s "$L/publish.txt" ] && [ -z "${PR// /}" ]; then echo "::warning::$m $cyc is older than every retained cycle - not published"; continue; fi
+            # field directories, not the cycle directory (ecape.yml writes ecape_mu/... into the same HRRR cycle), and a
+            # PRUNE_OLDER floor that collects any cycle directory older than everything kept
+            SHA=$(SRC=. PRUNE="$PR" PRUNE_OLDER="$(cat "$L/floor.txt" 2>/dev/null)" scripts/models/publish_data.sh $(cat "$L/publish.txt") | tail -1)
+            echo "frames commit $SHA (pruned: ${PR:-nothing})"
+            python scripts/models/models.py stamp --manifest "assets/models/$m.json" --cycle "$cyc" --sha "$SHA"
+            rm -rf "assets/models/data/$m/$cyc"          # the data is on the frames branch now; keep the runner disk free
+            done=$((done + 1))
+            echo "::endgroup::"
+          done < "$RUNNER_TEMP/plan.txt"
+          echo "done=$done" >> "$GITHUB_OUTPUT"
+      - name: Commit & push the manifest
+        id: commit
+        if: steps.run.outputs.done != '' && steps.run.outputs.done != '0'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          SNAP=$(mktemp -d)
+          outs() { ls "assets/models/$MODEL.json" assets/models/geo.json assets/models/geo_counties.json 2>/dev/null; }
+          for f in $(outs); do git add -f "$f"; done
+          git diff --staged --name-only -z | tar cf "$SNAP/outs.tar" --null -T - 2>/dev/null || true
+          cp "assets/models/$MODEL.json" "$SNAP/ours.json"
+          git reset -q
+          for i in 1 2 3 4 5; do
+            if ! timeout 120 git fetch origin main; then echo "fetch $i failed"; sleep 5; continue; fi
+            git reset -q --hard origin/main
+            tar xf "$SNAP/outs.tar" 2>/dev/null || true
+            # hrrr.json is shared with ecape.yml: keep OUR cycles and main's CURRENT "ecape" section (scripts/models/
+            # manifest_merge.py), re-read on every attempt, so whichever job pushes second never overwrites the other
+            git show "origin/main:assets/models/$MODEL.json" > "$SNAP/base.json" 2>/dev/null || rm -f "$SNAP/base.json"
+            python scripts/models/manifest_merge.py --part cycles --ours "$SNAP/ours.json" --base "$SNAP/base.json" --out "assets/models/$MODEL.json"
+            for f in $(outs); do git add -f "$f"; done
+            if git diff --staged --quiet; then echo "No changes; skipping commit."; exit 0; fi
+            git commit -q -m "models: $MODEL $(date -u +%Y-%m-%dT%H:%MZ)"
+            if timeout 180 git push; then echo "Pushed on attempt $i."; echo "pushed=1" >> "$GITHUB_OUTPUT"; exit 0; fi
+            sleep 5
+          done
+          exit 1
+      - name: Deploy the site
+        if: steps.commit.outputs.pushed == '1'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh workflow run pages.yml --repo "$GITHUB_REPOSITORY" || echo "::warning::pages dispatch failed; the next push deploys it"

@@ -1,0 +1,57 @@
+name: US credit conditions index
+
+# fci.html: weekly US credit conditions index (scripts/fci/fci_build.py) from FRED's public csv endpoint (no key). FRED
+# posts most daily rates the next business morning and the weekly H.8 bank loans / CP outstanding on Fridays, so one
+# run a day at 21:40 UTC is plenty (dispatcher slot too: GitHub honours only a fraction of this repo's cron firings).
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '40 21 * * *'
+
+permissions:
+  contents: write
+  actions: write
+
+concurrency:
+  group: fci
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+      - name: Install
+        run: pip install --quiet numpy pandas
+      - name: Build the index
+        run: python scripts/fci/fci_build.py --out assets/fci --cache "$RUNNER_TEMP/fred"
+      - name: Commit & push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          # snapshot + clean resync each attempt (the mjo.yml / sst.yml pattern; never a rebase)
+          SNAP=$(mktemp -d)
+          git add -A assets/fci/ 2>/dev/null || true
+          git diff --staged --name-only -z | tar cf "$SNAP/outs.tar" --null -T - 2>/dev/null || true
+          git reset -q
+          for i in 1 2 3 4 5; do
+            if ! timeout 120 git fetch origin main; then echo "fetch $i failed"; sleep 5; continue; fi
+            git reset --hard origin/main
+            tar xf "$SNAP/outs.tar" 2>/dev/null || true
+            git add -A assets/fci/
+            if git diff --staged --quiet; then echo "No changes; skipping commit."; exit 0; fi
+            git commit -q -m "data update: credit conditions $(date -u +%Y-%m-%dT%H:%MZ)"
+            if timeout 180 git push; then echo "Pushed on attempt $i."; exit 0; fi
+            echo "Push $i rejected; resyncing and retrying…"
+            sleep 5
+          done
+          exit 1
+      - name: Deploy the site
+        if: success()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh workflow run pages.yml --repo "$GITHUB_REPOSITORY" || echo "pages dispatch failed; the dispatcher will catch it"

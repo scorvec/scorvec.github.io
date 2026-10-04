@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Loop player</title>
+<style>
+  /* the bar is dark navy: controls need LIGHT ink (they were #1a1a1a, ~1.1:1, invisible - fixed 2026-09-25) */
+  :root { --bg: #0f1626; --bar: #131c30; --rule: rgba(148,184,225,0.30);
+          --ink: #e6edf6; --muted: #9fb0c4; --aqua: #8a4b2a; --hover: #f0b27a; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); font-family: Inter, -apple-system, sans-serif;
+         color: var(--ink); overflow: hidden; }
+  #frame { display: block; width: 100%; height: auto; user-select: none;
+           -webkit-user-drag: none; cursor: ew-resize; background: #fff; }
+  #bar { display: flex; align-items: center; gap: 10px; padding: 7px 12px;
+         background: var(--bar); border-top: 1px solid var(--rule); }
+  button { background: transparent; border: 1px solid var(--rule); color: var(--ink);
+           border-radius: 6px; font-size: 13px; line-height: 1; padding: 5px 9px;
+           cursor: pointer; font-family: inherit; }
+  button:hover { border-color: var(--hover); color: var(--hover); }
+  button:focus-visible, select:focus-visible, #scrub:focus-visible { outline: 2px solid var(--hover); outline-offset: 2px; }
+  /* prominent scrubber: thick filled track + large ringed thumb */
+  #scrub { flex: 1; height: 26px; cursor: pointer; -webkit-appearance: none;
+           appearance: none; background: transparent; min-width: 120px; }
+  #scrub::-webkit-slider-runnable-track { height: 8px; border-radius: 4px;
+    background: linear-gradient(to right, var(--aqua) 0%, var(--aqua) var(--fill, 0%),
+                rgba(148,184,225,0.28) var(--fill, 0%), rgba(148,184,225,0.28) 100%); }
+  #scrub::-webkit-slider-thumb { -webkit-appearance: none; width: 18px; height: 18px;
+    border-radius: 50%; background: var(--aqua); border: 3px solid #fff;
+    box-shadow: 0 0 6px rgba(0,0,0,0.55); margin-top: -5px; }
+  #scrub::-moz-range-track { height: 8px; border-radius: 4px;
+    background: rgba(148,184,225,0.28); }
+  #scrub::-moz-range-progress { height: 8px; border-radius: 4px; background: var(--aqua); }
+  #scrub::-moz-range-thumb { width: 16px; height: 16px; border-radius: 50%;
+    background: var(--aqua); border: 3px solid #fff;
+    box-shadow: 0 0 6px rgba(0,0,0,0.55); }
+  select { background: var(--bar); color: var(--ink); border: 1px solid var(--rule);
+           border-radius: 6px; font-size: 12px; padding: 3px 4px; }
+  #label { font-size: 12px; color: var(--muted); white-space: nowrap;
+           font-variant-numeric: tabular-nums; min-width: 11ch; text-align: right; }
+  #load { position: absolute; inset: 0; display: flex; flex-direction: column;
+          align-items: center; justify-content: center; gap: 10px;
+          background: var(--bg); z-index: 5; }
+  #loadbar { width: min(60%, 340px); height: 4px; background: var(--rule);
+             border-radius: 2px; overflow: hidden; }
+  #loadfill { height: 100%; width: 0%; background: var(--aqua); transition: width .15s; }
+  #loadtxt { font-size: 12px; color: var(--muted); }
+  .err { color: #ff8a7a; font-size: 13px; padding: 0 1rem; text-align: center; }
+</style>
+<meta name="robots" content="noindex">
+</head>
+<body>
+<div id="load"><div id="loadbar"><div id="loadfill"></div></div>
+  <div id="loadtxt">loading&hellip;</div></div>
+<img id="frame" alt="forecast loop frame">
+<div id="bar">
+  <button id="play" title="space" aria-label="Play or pause">&#9654;</button>
+  <button id="back" title="&larr;" aria-label="Previous frame">&#9198;</button>
+  <button id="fwd" title="&rarr;" aria-label="Next frame">&#9197;</button>
+  <input id="scrub" type="range" min="0" max="0" value="0" step="1" aria-label="Frame">
+  <select id="speed" aria-label="Playback speed">
+    <option value="600">slow</option>
+    <option value="330" selected>normal</option>
+    <option value="180">fast</option>
+  </select>
+  <span id="label">&mdash;</span>
+</div>
+<script src="assets/frames_root.js"></script>
+<script>
+(function () {
+  "use strict";
+  var q = new URLSearchParams(location.search);
+  var manifest = q.get("manifest"), regionKey = q.get("region");
+  // frame/manifest root — default is the site's shared anim dir; pages can
+  // point elsewhere (e.g. base=assets/sfs/anim/). Same-origin paths only.
+  var base = q.get("base") || "assets/sst/anim/";
+  if (base.indexOf("..") !== -1 || base.indexOf("//") !== -1) base = "assets/sst/anim/";
+  if (base.slice(-1) !== "/") base += "/";
+  // Frames moved off main to the orphan `frames` branch (scripts/lib/publish_frames.sh);
+  // manifests stayed, so `base` still resolves the manifest same-origin and only the
+  // <img> requests below go cross-origin. The "//" guard above still rejects a
+  // caller-supplied absolute base, so this root is a constant, never user input.
+  var img = document.getElementById("frame"), scrub = document.getElementById("scrub");
+  var playBtn = document.getElementById("play"), label = document.getElementById("label");
+  var frames = [], imgs = [], okFrame = [], doneFrame = [], nDone = 0, cur = 0, playing = false, timer = null;
+  var DWELL = 4;                                   // extra ticks on the last frame
+
+  function postH() {
+    var h = img.offsetHeight + document.getElementById("bar").offsetHeight;
+    if (h > 40) parent.postMessage({ type: "sstAnimHeight", h: h }, "*");
+  }
+  addEventListener("resize", function () { setTimeout(postH, 60); });
+
+  function show(i, fromPlay) {
+    if (!frames.length) return;
+    i = (i + frames.length) % frames.length;
+    if (!okFrame[i]) {                             // skip missing frames
+      var j = i, guard = 0;
+      do { j = (j + (fromPlay === false ? -1 : 1) + frames.length) % frames.length;
+           guard++; } while (!okFrame[j] && guard <= frames.length);
+      if (!okFrame[j]) return;
+      i = j;
+    }
+    cur = i;
+    img.src = imgs[i].src;
+    scrub.value = i;
+    scrub.style.setProperty("--fill",
+      (frames.length > 1 ? 100 * i / (frames.length - 1) : 0) + "%");
+    var miss = 0;                                  // failed for good, not merely still loading
+    for (var k = 0; k < frames.length; k++) if (doneFrame[k] && !okFrame[k]) miss++;
+    label.textContent = frames[i].label + " · " + (i + 1) + "/" + frames.length
+      + (nDone < frames.length ? " · loading " + nDone + "/" + frames.length : "")
+      + (miss ? " · " + miss + " missing" : "");
+  }
+  function tick() {
+    var last = frames.length - 1;
+    if (cur >= last) { dwell = (dwell + 1) % DWELL; if (dwell) return; }
+    var nxt = cur >= last ? 0 : cur + 1;
+    if (!doneFrame[nxt]) return;                   // still downloading: hold here rather than skip ahead
+    show(nxt, true);
+  }
+  var dwell = 0;
+  function setPlaying(p) {
+    playing = p;
+    playBtn.innerHTML = p ? "&#9646;&#9646;" : "&#9654;";
+    clearInterval(timer);
+    if (p) timer = setInterval(tick, +document.getElementById("speed").value);
+  }
+  document.getElementById("speed").addEventListener("change", function () {
+    if (playing) setPlaying(true);
+  });
+  playBtn.addEventListener("click", function () { setPlaying(!playing); });
+  document.getElementById("back").addEventListener("click", function () {
+    setPlaying(false); show(cur - 1, false); });
+  document.getElementById("fwd").addEventListener("click", function () {
+    setPlaying(false); show(cur + 1, true); });
+  scrub.addEventListener("input", function () {
+    setPlaying(false); show(+scrub.value, true); });
+  addEventListener("keydown", function (e) {
+    if (e.target && e.target.tagName === "SELECT") return;  // speed menu keeps native keys
+    // preventDefault throughout: when the range input has focus its NATIVE
+    // arrow/Home/End handling also moves the value, double-stepping frames
+    if (e.key === " ") { e.preventDefault(); setPlaying(!playing); }
+    else if (e.key === "ArrowLeft") { e.preventDefault(); setPlaying(false); show(cur - 1, false); }
+    else if (e.key === "ArrowRight") { e.preventDefault(); setPlaying(false); show(cur + 1, true); }
+    else if (e.key === "Home") { e.preventDefault(); setPlaying(false); show(0, true); }
+    else if (e.key === "End") { e.preventDefault(); setPlaying(false); show(frames.length - 1, true); }
+  });
+  // drag-scrub on the image
+  var dragging = false;
+  function dragTo(clientX) {
+    var r = img.getBoundingClientRect();
+    var f = Math.max(0, Math.min(1, (clientX - r.left) / r.width));
+    show(Math.round(f * (frames.length - 1)), true);
+  }
+  img.addEventListener("pointerdown", function (e) {
+    dragging = true; setPlaying(false); dragTo(e.clientX);
+    img.setPointerCapture(e.pointerId);
+  });
+  img.addEventListener("pointermove", function (e) { if (dragging) dragTo(e.clientX); });
+  addEventListener("pointerup", function () { dragging = false; });
+
+  function fail(msg) {
+    document.getElementById("load").innerHTML = '<div class="err">' + msg + "</div>";
+  }
+  if (!manifest || !regionKey) { fail("missing manifest/region parameters"); return; }
+  fetch(base + manifest + "?v=" + Date.now())
+    .then(function (r) { if (!r.ok) throw 0; return r.json(); })
+    .then(function (man) {
+      var reg = man.regions[regionKey];
+      if (!reg) throw 0;
+      frames = reg.frames;
+      scrub.max = frames.length - 1;
+      // short loops (monthly leads) read better at a slower default pace
+      if (frames.length <= 15) document.getElementById("speed").value = "600";
+      var ver = man.ver || 0;
+      // PROGRESSIVE (2026-09-25, user: "the frames are super slow on some connections"). This used to fetch every frame
+      // at once and show nothing until the last arrived: a 90-frame loop is ~23 MB, ~40 s on a 5 Mbit/s phone, all spent
+      // on a progress bar. Now frames are requested IN PLAY ORDER a few at a time, the first frame shows as soon as it
+      // arrives, playback starts after the first START frames and waits for a frame that is still downloading.
+      var cn = navigator.connection || {}, slow = !!(cn.saveData || /(^|-)2g|3g/.test(cn.effectiveType || ""));
+      var LANES = slow ? 4 : 6, START = Math.min(frames.length, 8), next = 0, started = false;
+      okFrame = frames.map(function () { return false; });
+      doneFrame = frames.map(function () { return false; });
+      imgs = frames.map(function () { return new Image(); });
+      function lane() {
+        if (next >= frames.length) return;
+        var i = next++, im = imgs[i], fr = frames[i];
+        im.onload = function () { okFrame[i] = true; done(i); };
+        // raw.githubusercontent.com -> jsDelivr mirror -> copy on main (assets/frames_root.js); a frame every host
+        // failed still counts as done so the loader cannot stall on it
+        window.frameLoad(im, base + regionKey + "/" + fr.file, "?v=" + ver,
+                         base + regionKey + "/" + fr.file, function () { done(i); });
+      }
+      function done(i) {
+        if (doneFrame[i]) return;
+        doneFrame[i] = true; nDone++;
+        document.getElementById("loadfill").style.width = Math.round(100 * nDone / frames.length) + "%";
+        document.getElementById("loadtxt").textContent = "loading frames · " + nDone + "/" + frames.length;
+        if (!started && okFrame[0]) {               // the first frame is in: show it, drop the overlay
+          started = true;
+          document.getElementById("load").style.display = "none";
+          show(0, true);
+          img.onload = function () { postH(); img.onload = postH; };
+        }
+        var head = 0; while (head < frames.length && doneFrame[head]) head++;
+        if (started && !playing && head >= START && !autoStarted) {
+          autoStarted = true; setPlaying(q.get("autoplay") !== "0");
+        }
+        if (nDone === frames.length && !started) {   // frame 0 itself failed: show whatever loaded
+          started = true; document.getElementById("load").style.display = "none"; show(0, true);
+        }
+        if (started) show(cur, true);                // refresh the "loading n/N" note
+        lane();
+      }
+      var autoStarted = false;
+      for (var l = 0; l < LANES; l++) lane();
+    })
+    .catch(function () { fail("loop manifest unavailable — check back shortly"); });
+})();
+</script>
+</body>
+</html>

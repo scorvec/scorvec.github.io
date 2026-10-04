@@ -1,0 +1,21 @@
+name: Short-range models — HRRR
+
+# Schedule-only caller for models.yml (models.html): 00/06/12/18Z runs only (user 2026-09-30: "only show the runs that have data out to 48 hours");
+# f48 reaches S3 ~1 h 50 after the cycle, so +2 h 10 and a +3 h 10 retry.
+# The laptop dispatcher (scripts/lib/dispatch_workflows.sh) fires the same slots; a firing with no new complete cycle
+# exits in about a minute, so double firings cost nothing.
+on:
+  schedule:
+  - cron: '10 2,3,8,9,14,15,20,21 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: write
+
+jobs:
+  run:
+    uses: ./.github/workflows/models.yml
+    with:
+      model: hrrr
+    secrets: inherit

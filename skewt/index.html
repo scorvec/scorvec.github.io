@@ -1,0 +1,804 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Global Real-time &amp; Archived Sounding Explorer — Shawn Corvec</title>
+<meta name="description" content="Interactive worldwide radiosonde Skew-T viewer: click any station for a full sounding analysis computed in-browser with SHARPlib (WebAssembly).">
+<link rel="canonical" href="https://scorvec.com/skewt/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Shawn Corvec">
+<meta property="og:title" content="Global Real-time &amp; Archived Sounding Explorer">
+<meta property="og:description" content="Click any radiosonde station on Earth for a full skew-T analysis — real-time US soundings, nine decades of archives, ECAPE, hodographs, and per-station climatology, computed entirely in your browser.">
+<meta property="og:url" content="https://scorvec.com/skewt/">
+<meta property="og:image" content="https://scorvec.com/skewt/og-card.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Global Real-time &amp; Archived Sounding Explorer">
+<meta name="twitter:description" content="Every weather balloon on Earth, back nine decades — skew-Ts, hodographs, ECAPE and station climatology, all in-browser.">
+<meta name="twitter:image" content="https://scorvec.com/skewt/og-card.png">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "WebApplication",
+  "name": "Global Real-time & Archived Sounding Explorer",
+  "url": "https://scorvec.com/skewt/",
+  "description": "Interactive worldwide radiosonde viewer: real-time and archived atmospheric soundings with skew-T diagrams, hodographs, ECAPE, moist static energy, and per-station climatology, computed client-side with SHARPlib compiled to WebAssembly.",
+  "applicationCategory": "Weather",
+  "operatingSystem": "Any (browser)",
+  "isAccessibleForFree": true,
+  "author": { "@type": "Person", "name": "Shawn Corvec", "url": "https://scorvec.com/" },
+  "about": [
+    { "@type": "Thing", "name": "atmospheric sounding" },
+    { "@type": "Thing", "name": "skew-T log-P diagram" },
+    { "@type": "Thing", "name": "radiosonde" },
+    { "@type": "Thing", "name": "ECAPE" }
+  ]
+}
+</script>
+<!-- self-hosted (leaflet 1.9.4, fflate 0.8.2): an unpkg outage used to kill the
+     whole app at L-is-undefined while every data feed had a fallback -->
+<link rel="stylesheet" href="vendor/leaflet.css">
+<script src="vendor/leaflet.js"></script>
+<script src="vendor/fflate.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Lora:wght@400;500&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  [hidden] { display: none !important; }   /* wins over `canvas { display: block }` */
+  :root {
+    --bg: #0b0b12; --panel: #11111c; --ink: #e8e8f0; --muted: #8b8ba3;
+    --accent: #64d2ff; --rule: #23233a;
+    --serif: 'Lora', Georgia, serif; --sans: 'Inter', sans-serif;
+  }
+  html { font-size: 115%; }
+  html, body { height: 100%; }
+  body { display: flex; flex-direction: column; }
+  body { background: var(--bg); color: var(--ink); font-family: var(--sans);
+         -webkit-font-smoothing: antialiased; }
+  nav { display: flex; justify-content: space-between; align-items: flex-start;
+        gap: 1.5rem; padding: 0.7rem 1.4rem; border-bottom: 1px solid var(--rule); }
+  nav .nav-name, nav a.back { padding-top: 3px; white-space: nowrap; }
+  .nav-mid { flex: 1 1 auto; min-width: 0; }
+  .page-title { font-family: var(--serif); font-weight: 600; display: block; margin: 0;
+    line-height: 1.25; font-size: clamp(1.1rem, 1rem + 1.6vw, 2rem);
+    text-wrap: balance; }
+  .nav-name { font-family: var(--serif); font-size: 1rem; text-decoration: none; color: var(--ink); }
+  nav a.back { font-size: 0.9rem; letter-spacing: 0.05em; color: var(--muted); text-decoration: none; }
+  .wrap { max-width: min(94vw, 2000px); margin: 0 auto; padding: 1rem 1rem 2.5rem; }
+  h1 { font-family: var(--serif); font-weight: 400; font-size: 1.4rem;
+       margin-bottom: 0.1rem; display: inline-block; margin-right: 0.8rem; }
+  .sub { color: var(--muted); font-size: 0.8rem; margin-bottom: 0.7rem; display: inline; }
+  #map { position: absolute; inset: 0; background: #0b0b12; }
+  .leaflet-container { background: #1b1b1f; }
+  .leaflet-bottom.leaflet-left { bottom: 50%; transform: translateY(50%); }
+  .controls { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin: 0.6rem 0; }
+  .controls .station { font-weight: 600; font-size: 1.05rem; min-width: 200px; }
+  .controls button, .controls input[type=date] {
+    font: 500 0.9rem var(--sans); color: var(--ink); background: var(--panel);
+    border: 1px solid var(--rule); border-radius: 7px; padding: 6px 13px; cursor: pointer;
+    color-scheme: dark;
+  }
+  .controls button.on { background: var(--accent); color: #08222e; border-color: var(--accent); }
+  .controls button:hover { border-color: var(--accent); }
+  #status { font-size: 0.9rem; color: var(--muted); }
+  /* Sounding card v3 (2026-10-02): the skew-T owns the left of the card at its design aspect, sized from the
+     card height; the right column stacks the hodograph, a strip of key numbers and the index tables, which
+     scroll at a READABLE size instead of shrinking to fit. fitLayout() in app.js sets the two column widths. */
+  .main { display: grid; grid-template-columns: minmax(0, 1fr) 420px; gap: 12px; flex: 1 1 0; min-height: 0; }
+  .main .sk-panel { display: flex; align-items: center; justify-content: center; min-height: 0; min-width: 0; overflow: hidden; }
+  .rcol { display: flex; flex-direction: column; gap: 10px; min-height: 0; min-width: 0; overflow-y: auto; overscroll-behavior: contain; padding-right: 2px; }
+  .rtop { display: flex; gap: 8px; align-items: flex-start; flex: 0 0 auto; min-width: 0; }
+  .rtop.narrow { flex-direction: column; align-items: stretch; }
+  .rtop.narrow .hodo-panel { align-self: center; }
+  .rtop .hodo-panel { flex: 0 0 auto; display: flex; justify-content: center; }
+  .rtop .keystrip { flex: 1 1 0; min-width: 0; }
+  .rtop.narrow .keystrip { flex: none; }
+  .main canvas { display: block; }
+  .keystrip { display: grid; grid-template-columns: repeat(auto-fill, minmax(90px, 1fr)); gap: 5px; flex: 0 0 auto; }
+  .keystrip:empty { display: none; }
+  .kchip { background: var(--panel); border: 1px solid var(--rule); border-radius: 8px; padding: 4px 7px 5px; min-width: 0; }
+  .kchip .kl { display: block; font-size: 0.64rem; color: var(--muted); letter-spacing: 0.02em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .kchip .kv { display: block; font-size: 0.95rem; font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .kchip .kv small { font-size: 0.7em; font-weight: 500; color: var(--muted); margin-left: 2px; }
+  .kchip.hot { border-color: rgba(255,120,100,0.6); background: rgba(224,70,55,0.12); }
+  .kchip.warm { border-color: rgba(255,190,110,0.5); background: rgba(255,170,60,0.08); }
+  .tables-grid { columns: 270px; column-gap: 16px; }
+  .tables-grid .tbl { break-inside: avoid; margin-bottom: 10px; }
+  .tables-grid table.params { width: 100%; }
+  #pcl-table th, #pcl-table td { padding: 1px 3px; }
+
+  .modal { position: fixed; inset: 0; background: rgba(4,4,9,0.78); z-index: 2000;
+           display: flex; align-items: center; justify-content: center; }
+  .modal[hidden] { display: none; }
+  /* ?embed=model (models.html's sounding dock): the card alone, edge to edge; station-only controls hidden */
+  body.embed > :not(.modal):not(#png-view):not(script) { display: none !important; }
+  body.embed #modal { background: var(--bg); }
+  body.embed #modal .dialog { width: 100vw !important; height: 100vh; height: 100svh; max-width: none; border: 0;
+                              border-radius: 0; box-shadow: none; max-height: 100svh; }
+  body.embed .dlg-head .seg, body.embed .arch-controls, body.embed #climo-btn,
+  body.embed #rec-btn, body.embed #share-btn, body.embed #close { display: none !important; }
+  /* (the sounding card's width is then set per screen by fitLayout() in app.js) */
+  .dialog { background: var(--bg); border: 1px solid var(--rule); border-radius: 14px;
+            width: 98vw; height: 96vh; display: flex; flex-direction: column;
+            padding: 8px 14px 8px; box-shadow: 0 18px 60px rgba(0,0,0,0.6); }
+  .topbar { padding: 6px 1.4rem; border-bottom: 1px solid var(--rule); }
+  /* the map never drops below ~two-thirds of the screen: on a short laptop or a phone the page scrolls a little
+     instead of leaving a 300-px letterbox under the header (2026-10-02) */
+  .mapwrap { position: relative; flex: 1 0 auto; min-height: max(360px, 66vh); min-height: max(360px, 66svh); }
+  #mstatus { font-size: 0.9rem; color: var(--muted); }
+  #status.busy, #mstatus.busy { color: #ffd60a; font-weight: 600;
+    animation: pulse 0.9s ease-in-out infinite alternate; }
+  @keyframes pulse { from { opacity: 1; } to { opacity: 0.45; } }
+  .dlg-head { display: flex; gap: 6px; row-gap: 4px; align-items: center; flex-wrap: wrap;
+              padding: 2px 2px 6px; position: sticky; top: 0; background: var(--bg);
+              z-index: 5; }
+  /* the toolbar wraps to two rows on a laptop; every pixel it spends is a pixel
+     the sounding doesn't get, so it runs tighter than the map's controls */
+  .dlg-head button, .dlg-head input[type=date] { font-size: 0.82rem; padding: 4px 9px; }
+  .dlg-head .station { font-size: 0.98rem; min-width: 0; }
+  #close { margin-left: 4px; font-size: 1rem; line-height: 1; padding: 5px 10px; }
+  .panel { background: var(--panel); border: 1px solid var(--rule);
+           border-radius: 10px; padding: 8px; }
+  .side { display: flex; flex-direction: column; gap: 10px; }
+  canvas { display: block; width: 100%; height: auto; border-radius: 6px; }
+  /* --tbl-fs is set by fillTables' fit pass: it shrinks until the tables fit
+     the space the plots leave, instead of scrolling or wasting a big screen */
+  table.params { width: 100%; border-collapse: collapse;
+                 font-size: 0.76rem; }
+  table.params th, table.params td { padding: 0 4px; text-align: right;
+    border-bottom: 1px solid var(--rule); font-variant-numeric: tabular-nums;
+    line-height: 1.45; padding-top: 1px; padding-bottom: 1px; }
+  table.params th { color: var(--muted); font-weight: 600; }
+  table.params td:first-child, table.params th:first-child { text-align: left; color: #c8c8dc; }
+  h3 { font-family: var(--serif); font-weight: 500;
+       font-size: 0.98rem; margin: 2px 0 3px; color: #e0e0ee; }
+  /* one ellipsized line by default — the credits don't get to tax the plots;
+     click to expand when someone actually wants to read them */
+  footer { color: var(--muted); font-size: 0.62rem; line-height: 1.4;
+           margin-top: 2px; max-width: none; cursor: pointer;
+           white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  footer.open { white-space: normal; }
+  .dlg-body { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
+  .tables-wrap { flex: 1 0 auto; padding: 8px 10px; }   /* the whole right column scrolls, never the tables alone */
+  footer a { color: var(--accent); }
+  .pctcell { padding: 1px 6px; border-radius: 4px; }
+  .pctlab { color: var(--muted); font-size: 0.72em; margin-left: 5px; }
+  /* climatology tags: percentile pill (outside p10-p90) and ★/★★ record
+     marker + year — coloured by tail so they read at a glance */
+  .pcttag { display: inline-block; font-size: 0.78em; font-weight: 700; margin-left: 4px;
+            padding: 0 4px; border-radius: 3px; line-height: 1.5; letter-spacing: 0.02em; }
+  .pcttag.hi { color: #ffb4a4; background: rgba(224,70,55,0.28); border: 1px solid rgba(255,120,100,0.55); }
+  .pcttag.lo { color: #b8d3ff; background: rgba(56,120,216,0.30); border: 1px solid rgba(120,170,255,0.55); }
+  .rectag { font-weight: 700; margin-left: 2px; letter-spacing: 0.02em; }
+  .rectag.hi { color: #ffe066; text-shadow: 0 0 6px rgba(255,120,60,0.8); }
+  .rectag.lo { color: #d6ecff; text-shadow: 0 0 6px rgba(120,170,255,0.9); }
+  #climo-modal { z-index: 2100; }
+  .maplegend { background: rgba(17,17,28,0.94); color: #e8e8f0; padding: 9px 12px;
+    border-radius: 8px; border: 1px solid #2e2e48;
+    font: 14.5px Inter, sans-serif; line-height: 1.85; }
+  /* ── record watch v2 (2026-10-02): interactive map + filterable ranked list ─────────────── */
+  .dialog.rw { display: flex; flex-direction: column; width: 98vw; max-width: none; height: 96vh; height: 96svh; max-height: none; padding: 12px 16px 12px; gap: 10px; overflow: hidden; }
+  .rw-head { display: flex; gap: 12px; align-items: flex-start; justify-content: space-between; }
+  .rw-ttl h2 { font-family: var(--serif); font-weight: 600; font-size: clamp(1.25rem, 1rem + 0.8vw, 1.8rem); margin: 0; }
+  .rw-sub { color: var(--muted); font-size: 0.9rem; margin-top: 2px; line-height: 1.4; }
+  .rw-actions { display: flex; gap: 6px; flex: none; }
+  .rw-actions button, .rw-filters button { font: 500 0.88rem var(--sans); color: var(--ink); background: var(--panel);
+    border: 1px solid var(--rule); border-radius: 7px; padding: 7px 12px; cursor: pointer; min-height: 38px; }
+  .rw-filters .seg button { border: 0; border-radius: 0; background: transparent; }
+  .rw-filters .seg button + button { border-left: 1px solid var(--rule); }
+  .rw-filters .seg button.on { background: var(--accent); color: #08222e; }
+  .rw-stats { display: flex; gap: 8px; flex-wrap: wrap; }
+  .rw-stat { background: var(--panel); border: 1px solid var(--rule); border-radius: 9px; padding: 6px 12px; min-width: 120px; }
+  .rw-stat b { display: block; font-size: 1.35rem; font-variant-numeric: tabular-nums; line-height: 1.15; }
+  .rw-stat span { color: var(--muted); font-size: 0.76rem; }
+  .rw-stat.all b { color: #ffd166; } .rw-stat.rec b { color: #ff8a7a; }
+  .rw-filters { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .rw-body { flex: 1 1 0; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) clamp(340px, 34%, 560px); gap: 12px; }
+  .rw-map { position: relative; min-height: 0; border: 1px solid var(--rule); border-radius: 10px; overflow: hidden; }
+  #rw-map { position: absolute; inset: 0; background: #1b1b1f; }
+  .rw-listwrap { min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding-right: 2px; }
+  .rw-count { color: var(--muted); font-size: 0.82rem; margin: 2px 2px 6px; }
+  #anom-list { list-style: none; margin: 0; padding: 0; }
+  #anom-list li.st { background: var(--panel); border: 1px solid var(--rule); border-radius: 9px; padding: 8px 11px 9px;
+    margin-bottom: 7px; cursor: pointer; }
+  #anom-list li.st:hover, #anom-list li.st:focus-visible, #anom-list li.st.hl { border-color: var(--accent); outline: none; }
+  #anom-list .nm { font-weight: 600; font-size: 0.98rem; color: var(--ink); }
+  #anom-list .when { color: var(--muted); font-size: 0.78rem; margin-left: 6px; font-weight: 400; }
+  #anom-list .fl { display: grid; grid-template-columns: minmax(7.5em, auto) auto 1fr; gap: 2px 10px; align-items: center;
+    margin-top: 5px; font-size: 0.86rem; }
+  #anom-list .fl .lab { color: #c8c8dc; }
+  #anom-list .fl .val { font-variant-numeric: tabular-nums; font-weight: 600; white-space: nowrap; }
+  #anom-list .fl .val.hi { color: #ff8a7a; } #anom-list .fl .val.lo { color: #8ec5ff; }
+  #anom-list .badge { display: inline-block; font-size: 0.72rem; font-weight: 700; padding: 1px 6px; border-radius: 4px; margin-right: 6px; white-space: nowrap; }
+  #anom-list .badge.all { background: rgba(255,209,102,0.2); color: #ffd166; border: 1px solid rgba(255,209,102,0.55); }
+  #anom-list .badge.rec { background: rgba(255,120,100,0.18); color: #ffb4a4; border: 1px solid rgba(255,120,100,0.5); }
+  #anom-list .badge.pc { background: rgba(255,255,255,0.06); color: #c8c8dc; border: 1px solid var(--rule); }
+  #anom-list .prev { color: var(--muted); font-size: 0.78rem; white-space: nowrap; }
+  #anom-list .bar { grid-column: 1 / -1; height: 5px; border-radius: 3px; position: relative;
+    background: linear-gradient(90deg, #3b7ddd 0%, #2a2a3f 12%, #2a2a3f 88%, #e0563f 100%); margin: 1px 0 3px; }
+  #anom-list .bar i { position: absolute; top: -3px; width: 3px; height: 11px; border-radius: 2px; background: #fff; transform: translateX(-50%); }
+  .rw-star { color: #ffd166; font-size: 20px; line-height: 20px; text-shadow: 0 0 4px #000, 0 0 2px #000; text-align: center; }
+  .rw-star.lo { color: #8ec5ff; } .rw-star.hi { color: #ff7a5c; } .rw-star.all { color: #ffd166; font-size: 26px; line-height: 26px; }
+  #anom-list li.more { list-style: none; text-align: center; padding: 4px 0 10px; }
+  #anom-list li.more button { font: 600 0.9rem var(--sans); color: var(--ink); background: var(--panel); border: 1px solid var(--accent);
+    border-radius: 8px; padding: 8px 16px; cursor: pointer; }
+  @media (max-height: 700px) and (min-width: 901px) { .rw-sub { display: none; } .rw-stat b { font-size: 1.1rem; } }
+  @media (max-width: 900px) {
+    .dialog.rw { display: flex; height: 96svh; overflow-y: auto; }
+    .rw-body { display: block; flex: none; }
+    .rw-map { height: 48svh; margin-bottom: 10px; }
+    .rw-listwrap { overflow: visible; }
+    .rw-stat { min-width: 0; flex: 1 1 22%; padding: 4px 7px; }
+    .rw-stat b { font-size: 1.02rem; }
+    .rw-stat span { font-size: 0.64rem; line-height: 1.25; display: block; }
+    .rw-sub { font-size: 0.8rem; }
+    .rw-filters .seg { max-width: 100%; overflow-x: auto; }
+    .rw-filters button { min-height: 40px; padding: 7px 10px; }
+  }
+  #export-btn, #share-btn, #climo-btn, #anom-toggle { white-space: nowrap; }
+  /* the Records button (2026-10-02, user: "more prominent ... a big shiny button") */
+  .controls .rw-btn { margin-left: auto; position: relative; overflow: hidden; display: inline-flex; align-items: center; gap: 9px;
+    font: 700 1.08rem var(--sans); letter-spacing: 0.02em; color: #2a1600; padding: 10px 22px 10px 18px; min-height: 46px;
+    border: 1px solid #ffd27a; border-radius: 999px; cursor: pointer;
+    background: linear-gradient(180deg, #ffe7a3 0%, #ffbf3c 45%, #f08a1c 100%);
+    box-shadow: 0 0 0 1px rgba(255,170,60,0.35), 0 4px 18px rgba(255,150,40,0.45), inset 0 1px 0 rgba(255,255,255,0.75);
+    text-shadow: 0 1px 0 rgba(255,255,255,0.45); transition: transform .12s, box-shadow .12s; }
+  .controls .rw-btn:hover { transform: translateY(-1px); border-color: #fff0c2;
+    box-shadow: 0 0 0 1px rgba(255,190,90,0.55), 0 6px 26px rgba(255,150,40,0.65), inset 0 1px 0 rgba(255,255,255,0.85); }
+  .controls .rw-btn:active { transform: translateY(1px); }
+  .controls .rw-btn::after { content: ""; position: absolute; top: 0; bottom: 0; left: -60%; width: 40%; pointer-events: none;
+    background: linear-gradient(100deg, transparent, rgba(255,255,255,0.65), transparent); transform: skewX(-20deg);
+    animation: rw-shine 3.6s ease-in-out infinite; }
+  @keyframes rw-shine { 0%, 62% { left: -60%; } 100% { left: 130%; } }
+  .rw-btn .rw-ic { font-size: 1.3em; line-height: 1; color: #b3001b; text-shadow: 0 0 6px rgba(255,255,255,0.8); }
+  .rw-btn .rw-n { font: 800 0.86rem var(--sans); color: #fff; background: #c4161c; border-radius: 999px; padding: 2px 8px;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.35); text-shadow: none; }
+  @media (prefers-reduced-motion: reduce) { .controls .rw-btn::after { animation: none; display: none; } }
+  @media (max-width: 700px) { .controls .rw-btn { font-size: 1rem; padding: 8px 16px 8px 13px; min-height: 42px; } }
+  .maplegend .leg-chip { display: none; }        /* desktop: always full card */
+  @media (max-width: 700px) {
+    /* mobile default = collapsed chip; .expanded shows the full card */
+    .maplegend { padding: 0; cursor: pointer; border-radius: 16px; }
+    .maplegend .leg-chip { display: flex; align-items: center; justify-content: center;
+      gap: 3px; padding: 5px 10px; font-size: 13px; font-weight: 600; white-space: nowrap; }
+    .maplegend .leg-body { display: none; }
+    .maplegend.expanded { padding: 6px 9px; font-size: 11px; line-height: 1.7; }
+    .maplegend.expanded .leg-chip { display: none; }
+    .maplegend.expanded .leg-body { display: block; }
+  }
+
+  /* ── page header: one line of purpose; the manual folds away ─────────── */
+  .tagline { color: var(--muted); font-size: 0.86rem; line-height: 1.45; margin-top: 3px;
+             max-width: 112ch; }
+  .tagline b { color: var(--ink); font-weight: 600; }
+  .links a { color: var(--accent); text-decoration: none; white-space: nowrap; }
+  .links a.first { color: #ff8a7a; font-weight: 600; }
+  details.howto { margin-top: 3px; font-size: 0.8rem; color: var(--muted); max-width: 112ch;
+                  line-height: 1.5; }
+  details.howto summary { cursor: pointer; color: var(--accent); list-style: none;
+                          display: inline-flex; gap: 6px; align-items: center; width: max-content; }
+  details.howto summary::-webkit-details-marker { display: none; }
+  details.howto summary::before { content: "▸"; font-size: 0.8em; transition: transform .15s; }
+  details.howto[open] summary::before { transform: rotate(90deg); }
+  details.howto p { margin-top: 5px; }
+  details.howto b { color: var(--ink); }
+
+  /* segmented control: Latest | Archive */
+  .seg { display: inline-flex; border: 1px solid var(--rule); border-radius: 8px;
+         overflow: hidden; background: var(--panel); }
+  .controls .seg button { border: 0; border-radius: 0; background: transparent; }
+  .controls .seg button + button { border-left: 1px solid var(--rule); }
+  .controls .seg button.on { background: var(--accent); color: #08222e; }
+  .arch-controls { display: inline-flex; gap: 6px; align-items: center; }
+
+  /* hour chips: built from the launches that EXIST on the chosen date, so a
+     06Z or 18Z special is a button, not a guess */
+  .hours { display: inline-flex; gap: 4px; }
+  .controls .hours button { padding: 4px 8px; font-variant-numeric: tabular-nums; }
+  .controls .hours button.special { border-color: rgba(191,90,242,0.7); color: #d9a8ff; }
+  .controls .hours button.special.on { background: #bf5af2; color: #1a0a26; border-color: #bf5af2; }
+
+  /* THE LAUNCH STRIP — this station's actual releases over the mirror's
+     window, oldest left, newest right. Off-hour releases are purple: the
+     whole point of the strip is that they exist and are one click away. */
+  .launches { display: flex; gap: 3px; align-items: center; flex-wrap: wrap; width: 100%;
+              padding: 1px 0 0; min-height: 0; }
+  .launches:empty { display: none; }
+  .launches .lbl { color: var(--muted); font-size: 0.68rem; margin-right: 4px;
+                   letter-spacing: 0.06em; text-transform: uppercase; }
+  .launches .day { color: var(--muted); font-size: 0.7rem; margin: 0 1px 0 7px;
+                   font-variant-numeric: tabular-nums; }
+  .launches .day:first-of-type { margin-left: 0; }
+  .controls .launches button { font: 500 0.72rem var(--sans); padding: 2px 7px; border-radius: 5px;
+    border: 1px solid var(--rule); background: transparent; color: #c8c8dc;
+    font-variant-numeric: tabular-nums; }
+  .controls .launches button.special { color: #d9a8ff; border-color: rgba(191,90,242,0.6); }
+  .controls .launches button.on { background: #e8e8f0; color: #0b0b12; border-color: #e8e8f0; font-weight: 600; }
+  .controls .launches button.special.on { background: #bf5af2; color: #1a0a26; border-color: #bf5af2; }
+
+  /* toolbar groups: analysis tools | actions */
+  .grp { display: inline-flex; gap: 4px; align-items: center; }
+  .grp + .grp { margin-left: 4px; padding-left: 8px; border-left: 1px solid var(--rule); }
+
+  /* map key, inline in the control bar on desktop (the floating card is mobile-only) */
+  .key { display: inline-flex; gap: 11px; align-items: center; color: var(--muted);
+         font-size: 0.76rem; flex-wrap: wrap; }
+  .key .dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%;
+              margin-right: 4px; vertical-align: -1px; }
+  .key .ring { display: inline-block; width: 9px; height: 9px; border-radius: 50%;
+               border: 2px solid; margin-right: 4px; vertical-align: -1px; box-sizing: border-box; }
+  .key label { cursor: pointer; }
+  .key input { vertical-align: -1px; margin-right: 3px; }
+  /* full colour key inline in the toolbar only where it fits on one line; elsewhere the map's own legend card */
+  @media (min-width: 1500px) { .maplegend { display: none; } }
+  @media (max-width: 1499px) { .topbar .key { display: none; } }
+  @media (max-height: 820px) and (min-width: 701px) {
+    .page-title { font-size: 1.35rem; }
+    .tagline .tag-text { display: none; }
+    nav { padding-top: 0.45rem; padding-bottom: 0.45rem; }
+  }
+
+  /* station finder + recents (2026-10-02) */
+  .finder { position: relative; }
+  .finder input { font: 500 0.92rem var(--sans); color: var(--ink); background: var(--panel); border: 1px solid #3a3a5c;
+    border-radius: 8px; padding: 7px 11px; width: min(330px, 70vw); color-scheme: dark; }
+  .finder input::placeholder { color: #8b8ba3; }
+  .finder ul { position: absolute; top: calc(100% + 4px); left: 0; z-index: 2500; list-style: none; margin: 0; padding: 4px;
+    width: min(440px, 92vw); max-height: 60vh; overflow-y: auto; background: #151522; border: 1px solid #34345a;
+    border-radius: 9px; box-shadow: 0 12px 40px rgba(0,0,0,0.55); }
+  .finder li { padding: 6px 9px; border-radius: 6px; cursor: pointer; font-size: 0.88rem; line-height: 1.35; }
+  .finder li small { color: var(--muted); }
+  .finder li.on, .finder li:hover { background: rgba(100,210,255,0.14); }
+  .finder li .lv { color: #8ec5ff; font-weight: 600; font-size: 0.72rem; margin-left: 4px; }
+  .recents { display: inline-flex; gap: 5px; flex-wrap: wrap; align-items: center; }
+  .recents:empty { display: none; }
+  .recents .lbl { color: var(--muted); font-size: 0.74rem; }
+  .controls .recents button { padding: 3px 9px; font-size: 0.8rem; }
+  button:focus-visible, input:focus-visible, select:focus-visible, summary:focus-visible {
+    outline: 2px solid var(--accent); outline-offset: 2px; }
+  @media (prefers-reduced-motion: reduce) { #status.busy, #mstatus.busy { animation: none; } }
+  /* numbers never break mid-value: the parcels table scrolls sideways instead */
+  #pcl-table td, #pcl-table th { white-space: nowrap; }
+  .tables-grid .tbl.pcl { overflow-x: auto; }
+  /* mobile — MUST be last: overrides the desktop dialog/flex rules above */
+  @media (max-width: 1020px) {
+    .tables-grid { columns: 260px; }
+    .dialog { display: block; height: auto; max-height: 96vh; max-height: 96svh;
+              overflow-y: auto; width: 97vw; }
+    .dlg-head { position: static; }   /* flow above the charts, never overlapped */
+    .dlg-body { display: block; }
+    .main { display: block; min-height: 0; }
+    .rcol { display: block; }
+    .rtop { display: flex; flex-direction: column-reverse; align-items: stretch; gap: 10px; margin-bottom: 10px; }
+    .rtop .keystrip { flex: none; width: 100%; }
+    .main .panel { display: block; overflow: visible; margin-bottom: 10px; }
+    .keystrip { margin-bottom: 10px; }
+    /* stacked layout: the plots size off width at their design aspect */
+    .main canvas { width: 100%; height: auto; }
+    .main #skewt { aspect-ratio: 19 / 21; }
+    .main #hodo  { aspect-ratio: 14 / 15; }
+    .tables-wrap { overflow-y: visible; max-height: none; min-height: 0; }
+    .controls .station { min-width: 0; flex-basis: 100%; }
+    table.params { font-size: 0.76rem; }
+    table.params td { overflow-wrap: anywhere; padding: 2px 4px; }
+    #pcl-table td { overflow-wrap: normal; }
+    .key { display: none; }
+    .launches .lbl { display: none; }
+    table.params td:first-child { white-space: normal; }
+    .pctcell { padding: 1px 3px; }
+  }
+  @media (max-width: 700px) {
+    html { font-size: 100%; }
+    nav { flex-direction: column; gap: 0.4rem; }
+    .tagline { font-size: 0.8rem; }
+    .tagline .tag-text { display: none; }     /* phones: the map comes first; the how-to keeps the explanation */
+    footer { max-height: none; overflow: visible; white-space: normal; }
+    .topbar { padding: 6px 0.8rem; }
+  }
+</style>
+<script data-goatcounter="https://scorvec.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400&family=Schibsted+Grotesk:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/site.css">
+<script src="/assets/site.js" defer></script>
+<script src="/assets/rail.js" defer></script>
+</head>
+<body>
+<!-- sh:start -->
+<header class="sh sh--dark" id="site-header">
+  <div class="sh-in">
+    <a class="sh-brand" href="/">Shawn Corvec</a>
+    <button class="sh-find" type="button" aria-haspopup="dialog" aria-keyshortcuts="Control+K Meta+K" title="Find a plot (Ctrl K)"><svg viewBox="0 0 20 20" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true" focusable="false"><circle cx="8.5" cy="8.5" r="5.5" style="fill:none;stroke:currentColor"/><path d="M12.6 12.6 17 17" style="fill:none;stroke:currentColor"/></svg><span class="sh-find-t">Find a plot</span><kbd>Ctrl K</kbd></button>
+    <button class="sh-toggle" type="button" aria-expanded="false" aria-controls="sh-menu">Menu</button>
+    <nav class="sh-nav" id="sh-menu" aria-label="Site">
+      <ul class="sh-list">
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g0">Mid-latitude weather</button>
+          <div class="sh-menu sh-menu--cols" id="sh-g0">
+            <div>
+              <h3>Surface and hazards</h3>
+              <ul>
+                <li><a href="/models.html">Short-range model maps</a></li>
+                <li><a href="/snowbands.html">Snow-band diagnostics</a></li>
+                <li><a href="/ar.html">Atmospheric rivers</a></li>
+              </ul>
+            </div>
+            <div>
+              <h3>Upper air</h3>
+              <ul>
+                <li><a href="/circulation.html#dt">Dynamic tropopause</a></li>
+                <li><a href="/circulation.html#pacjet">North Pacific jet</a></li>
+                <li><a href="/circulation.html#waf">Wave activity flux</a></li>
+              </ul>
+            </div>
+          </div>
+        </li>
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g1">Tropics</button>
+          <div class="sh-menu sh-menu--cols" id="sh-g1">
+            <div>
+              <h3>ENSO and the MJO</h3>
+              <ul>
+                <li><a href="/enso.html">El Niño monitor</a></li>
+                <li><a href="/circulation.html#mslp">Pacific pressure and wind</a></li>
+                <li><a href="/mjo.html">MJO forecast</a></li>
+                <li><a href="/tropical-waves.html">Tropical waves</a></li>
+              </ul>
+            </div>
+            <div>
+              <h3>Tropical cyclones</h3>
+              <ul>
+                <li><a href="/circulation.html#tcjet">Tropical cyclones and the jet</a></li>
+                <li><a href="/circulation.html#tcens">Tropical cyclone ensembles</a></li>
+                <li><a href="/circulation.html#tcphase">Cyclone phase space</a></li>
+              </ul>
+            </div>
+            <div>
+              <h3>Tropical circulation</h3>
+              <ul>
+                <li><a href="/circulation.html#walker">Walker and Hadley cells</a></li>
+                <li><a href="/circulation.html#vpot">Velocity potential</a></li>
+                <li><a href="/circulation.html#gillrain">Rain-forced circulation (Gill model)</a></li>
+              </ul>
+            </div>
+          </div>
+        </li>
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g2">Stratosphere</button>
+          <div class="sh-menu sh-menu--cols" id="sh-g2">
+            <div>
+              <h3>Polar vortex</h3>
+              <ul>
+                <li><a href="/stratosphere.html">Stratosphere and polar vortex</a></li>
+                <li class="sh-subitem"><a href="/stratosphere.html#heatflux">Eddy heat flux</a></li>
+                <li class="sh-subitem"><a href="/stratosphere.html#pv">Potential vorticity</a></li>
+                <li class="sh-subitem"><a href="/stratosphere.html#bdc">Brewer–Dobson circulation</a></li>
+              </ul>
+            </div>
+            <div>
+              <h3>QBO and momentum</h3>
+              <ul>
+                <li><a href="/qbo/">QBO tracker</a></li>
+                <li><a href="/circulation.html#aam">Angular momentum and torques</a></li>
+              </ul>
+            </div>
+          </div>
+        </li>
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g3">Weeks to seasons</button>
+          <div class="sh-menu sh-menu--cols" id="sh-g3">
+            <div>
+              <h3>Weeks 2–5</h3>
+              <ul>
+                <li><a href="/subseasonal.html">GEPS extended ensemble</a></li>
+                <li><a href="/gefs.html">GEFS extended ensemble</a></li>
+              </ul>
+            </div>
+            <div>
+              <h3>Seasons</h3>
+              <ul>
+                <li><a href="/seasonal.html">Eight C3S seasonal models</a></li>
+                <li><a href="/sfs.html">NOAA SFS seasonal</a></li>
+                <li><a href="/enso-forecasts.html">ENSO forecasts</a></li>
+              </ul>
+            </div>
+          </div>
+        </li>
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g4"><span class="sh-lf">Studies and verification</span><span class="sh-ls">Studies/verification</span></button>
+          <div class="sh-menu sh-menu--cols" id="sh-g4">
+            <div>
+              <h3>Studies</h3>
+              <ul>
+                <li><a href="/enso.html#imp_reg">ENSO impacts on the Americas</a></li>
+                <li><a href="/mjo.html#mi">MJO impacts</a></li>
+                <li><a href="/stratosphere.html#shwinters">Stratosphere history</a></li>
+                <li><a href="/aifs-aam-budget.html">AINWP and conservation</a></li>
+                <li><a href="/topics/">Explainers</a></li>
+              </ul>
+            </div>
+            <div>
+              <h3>Verification</h3>
+              <ul>
+                <li><a href="/aifs-verify.html">AIFS single versus member 0</a></li>
+              </ul>
+            </div>
+          </div>
+        </li>
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g5" aria-current="page">Tools</button>
+          <div class="sh-menu sh-menu--list" id="sh-g5">
+            <ul>
+              <li><a href="/catalog.html">Every plot on the site</a></li>
+              <li><a href="/skewt/" aria-current="page">Sounding explorer</a></li>
+              <li><a href="/asos5.html">Five-minute airport observations</a></li>
+              <li><a href="/climate.html">US climate trends</a></li>
+              <li><a href="/fci.html">US credit conditions</a></li>
+            </ul>
+          </div>
+        </li>
+        <li class="sh-item sh-item--special"><a class="sh-special" href="/midterms/">2026 Midterms</a></li>
+        <li class="sh-item sh-has-menu sh-item--me">
+          <button class="sh-link sh-menubtn sh-me" type="button" aria-expanded="false" aria-controls="sh-me">About</button>
+          <div class="sh-menu sh-menu--list sh-menu--me" id="sh-me">
+            <ul>
+              <li><a href="/about.html">About me</a></li>
+              <li><a href="/resume.html">Resume</a></li>
+              <li><a href="/research.html">Publications</a></li>
+              <li class="sh-me-ext"><a href="https://github.com/scorvec">GitHub</a></li>
+              <li><a href="https://scholar.google.com/citations?user=EYLRCJIAAAAJ&amp;hl=en">Google Scholar</a></li>
+              <li><a href="https://www.linkedin.com/in/shawn-corvec-35895b231/">LinkedIn</a></li>
+            </ul>
+          </div>
+        </li>
+      </ul>
+    </nav>
+  </div>
+</header>
+<!-- sh:end -->
+<nav>
+  <div class="nav-mid">
+    <h1 class="page-title">Global sounding explorer, live and archived</h1>
+    <p class="tagline"><span class="tag-text">Every radiosonde launch on Earth — live in North America, within about a day elsewhere, and back more than a century.
+      Click a station for the full analysis: parcels, ECAPE, shear, hodograph and where each value
+      ranks in that station's own climatology, computed in your browser.</span>
+      <span class="links"><a class="first" href="methodology.html">Read the methodology first →</a>
+      &nbsp;·&nbsp; <a href="gaps.html">US sounding gap report →</a></span></p>
+    <details class="howto">
+      <summary>How to use it</summary>
+      <p><b>Find a station</b> by typing a city, WMO number (72357), ICAO code (KOUN) or country in the box above
+      the map &mdash; or press <b>/</b> &mdash; and the stations you open stay one click away under &ldquo;Recent&rdquo;.
+      In the sounding card the skew-T takes the left; on the right are the hodograph, a strip of <b>key numbers</b>
+      (CAPE, shear, helicity, composites, PWAT, freezing level; amber and red mark notable values) and the full index
+      tables, which scroll.</p>
+      <p><b style="color:#4a7ab5">Blue</b> stations reported at the last 00Z/12Z interval (real time, North America);
+      <b style="color:#bf5af2">purple</b> ones launched off-hour (06Z, 15Z, 18Z…) — usually a special
+      release ahead of severe weather; <b style="color:#33c495">teal</b> are active but have nothing in real
+      time — outside North America the newest soundings arrive through NOAA's daily IGRA update, about a day
+      behind (the tooltip says when); <b style="color:#c0392b">red</b> are closed (archive only). Click a station, then pick
+      <b>Latest</b> or <b>Archive</b>. The launch strip under the station name lists every release the
+      mirror holds for the last four days, specials included — click one to open it, or step through
+      launches with ◀ ▶. Recent launches load instantly; <b>the first click on a station can take a few
+      seconds, or longer for archived dates</b> (older soundings come from NOAA's global archive as one
+      per-station file, with a pulsing note showing progress) — then every other date at that station
+      is instant. The analysis runs entirely in your browser via SHARPlib compiled to WebAssembly.</p>
+    </details>
+  </div>
+</nav>
+
+<div class="topbar controls">
+  <span class="finder" role="search">
+    <input id="stn-search" type="search" autocomplete="off" spellcheck="false" placeholder="Find a station: city, WMO, ICAO, country"
+      aria-label="Find a station" aria-controls="stn-results" aria-expanded="false">
+    <ul id="stn-results" role="listbox" hidden></ul>
+  </span>
+  <span class="recents" id="recents"></span>
+  <span class="seg"><button data-act="latest" class="mctl on">Latest</button><button data-act="archive" class="mctl">Archive</button></span>
+  <span class="arch-controls" style="display:none">
+    <button data-act="dprev" title="previous launch">◀</button>
+    <input type="date" class="datectl" min="1905-01-01" aria-label="Sounding date">
+    <button data-act="dnext" title="next launch">▶</button>
+    <span class="hours"></span>
+  </span>
+  <span id="status"></span>
+  <span class="key" style="margin-left:auto">
+    <span><i class="dot" style="background:#4a7ab5"></i>reported at the last 00/12Z</span>
+    <span><i class="dot" style="background:#bf5af2"></i>special (off-hour) release</span>
+    <span><i class="dot" style="background:#33c495"></i>active</span>
+    <span><i class="dot" style="background:#c0392b"></i>closed</span>
+    <span><i class="ring" style="border-color:#ff2d2d"></i>record set today</span>
+    <span><i class="ring" style="border-color:rgba(255,150,110,0.85)"></i>top / bottom 5 % for the date</span>
+    <label><input type="checkbox" id="show-closed-top">show closed</label>
+  </span>
+  <button id="anom-toggle" class="rw-btn" title="today's record-breaking and most extreme soundings, each ranked against its own station's archive"><span class="rw-ic" aria-hidden="true">★</span><span class="rw-lb">Records</span><span class="rw-n" id="rw-n" hidden></span></button>
+</div>
+<div class="mapwrap"><div id="map"></div></div>
+
+<div id="anom-modal" class="modal" hidden style="z-index:2100">
+  <div class="dialog rw" role="dialog" aria-labelledby="rw-title">
+    <div class="rw-head">
+      <div class="rw-ttl"><h2 id="rw-title">Record watch</h2>
+        <p class="rw-sub" id="rw-sub">Today&rsquo;s most unusual soundings, each ranked against its own station&rsquo;s archive.</p></div>
+      <div class="rw-actions">
+        <button id="anom-save" type="button" title="download a labelled map of the records as an image">Download map</button>
+        <button id="anom-close" type="button" title="close (Esc)">✕</button>
+      </div>
+    </div>
+    <div class="rw-stats" id="rw-stats"></div>
+    <div class="rw-filters" role="toolbar" aria-label="Filters">
+      <span class="seg" id="rw-grp" role="group" aria-label="Variable"><button data-v="all" class="on">All</button><button data-v="t">Temperature</button><button data-v="m">Moisture</button><button data-v="h">Heights</button><button data-v="w">Wind</button><button data-v="i">Instability</button></span>
+      <span class="seg" id="rw-dir" role="group" aria-label="Direction"><button data-v="all" class="on">Both</button><button data-v="high">Warm / high</button><button data-v="low">Cold / low</button></span>
+      <span class="seg" id="rw-kind" role="group" aria-label="Which"><button data-v="all" class="on">All flagged</button><button data-v="rec">Records only</button></span>
+      <span class="seg" id="rw-age" role="group" aria-label="Launched within"><button data-v="24">24 h</button><button data-v="48" class="on">48 h</button><button data-v="999">Any</button></span>
+    </div>
+    <div class="rw-body">
+      <div class="rw-map"><div id="rw-map"></div></div>
+      <div class="rw-listwrap">
+        <p class="rw-count" id="rw-count"></p>
+        <ul id="anom-list"></ul>
+      </div>
+    </div>
+    <canvas id="anom-canvas" width="1240" height="760" hidden></canvas>
+  </div>
+</div>
+
+<div id="png-view" hidden
+  style="position:fixed; inset:0; z-index:3000; background:rgba(4,4,9,0.96); overflow:auto;
+         -webkit-overflow-scrolling:touch">
+  <div style="position:sticky; top:8px; text-align:right; padding-right:12px">
+    <button style="font:600 0.95rem var(--sans); background:var(--panel); color:var(--ink);
+      border:1px solid var(--rule); border-radius:8px; padding:7px 14px">✕ close</button>
+  </div>
+  <img id="png-view-img" alt="full sounding analysis image" style="max-width:none; width:1400px; display:block; margin:0 auto; padding:8px">
+</div>
+
+<div id="cloud-modal" class="modal" hidden style="z-index:2100">
+  <div class="dialog" style="height:auto; max-height:92vh; width:min(860px,96vw)">
+    <div class="dlg-head controls">
+      <span class="station">Cloud layers</span>
+      <button id="cloud-close" title="close" style="margin-left:auto">✕</button>
+    </div>
+    <div class="panel" style="margin-top:6px">
+      <canvas id="cloud-canvas" style="width:100%; height:min(52vh,460px); display:block"></canvas>
+    </div>
+    <div class="panel" style="margin-top:6px">
+      <table class="params kin" id="cloud-table" style="font-size:0.92rem"></table>
+    </div>
+    <p class="note" style="color:var(--muted); font-size:0.75rem; margin-top:8px">
+      Layers from RH (wrt ice below 0 °C), calibrated on 49,259 METAR cloud bases; teal band = dendritic growth zone (−12 to −18 °C). Method in the <a href="methodology.html#fog" target="_blank">methodology</a>.</p>
+  </div>
+</div>
+
+<div id="rec-modal" class="modal" hidden style="z-index:2100">
+  <div class="dialog" style="height:auto; max-height:90vh; width:min(820px,96vw); overflow-y:auto">
+    <div class="dlg-head controls">
+      <span class="station" id="rec-title">Station records</span>
+      <button id="rec-close" title="close" style="margin-left:auto">✕</button>
+    </div>
+    <div class="panel" style="margin-top:6px; overflow-x:auto">
+      <table class="params kin" id="rec-table" style="font-size:0.78rem"></table>
+    </div>
+    <p class="note" id="rec-note" style="color:var(--muted); font-size:0.75rem; margin-top:8px"></p>
+  </div>
+</div>
+<div id="fog-modal" class="modal" hidden style="z-index:2100">
+  <div class="dialog" style="height:auto; max-height:92vh; width:min(860px,96vw)">
+    <div class="dlg-head controls">
+      <span class="station">Fog · frost · dew</span>
+      <button id="fog-close" title="close" style="margin-left:auto">✕</button>
+    </div>
+    <div class="panel" style="margin-top:6px">
+      <canvas id="fog-canvas" style="width:100%; height:min(48vh,420px); display:block"></canvas>
+    </div>
+    <div class="panel" style="margin-top:6px">
+      <table class="params kin" id="fog-table" style="font-size:0.92rem"></table>
+    </div>
+    <p class="note" style="color:var(--muted); font-size:0.75rem; margin-top:8px">
+      Probabilities are empirical (87,568 sounding–METAR pairs); FSI, bulk Richardson, frost point and the dew/frost logic are explained in the <a href="methodology.html#fog" target="_blank">methodology</a>.</p>
+  </div>
+</div>
+
+<div id="climo-modal" class="modal" hidden>
+  <div class="dialog" style="height:auto; max-height:92vh; width:min(1160px,96vw)">
+    <div class="dlg-head controls">
+      <span class="station" id="climo-title">—</span>
+      <select id="climo-var" aria-label="Climatology variable" style="font:500 0.85rem var(--sans); background:var(--panel);
+        color:var(--ink); border:1px solid var(--rule); border-radius:7px; padding:5px 9px;
+        color-scheme:dark"></select>
+      <span id="climo-sub" style="font-size:0.82rem; color:var(--muted)"></span>
+      <button id="climo-close" title="close (Esc)" style="margin-left:auto">✕</button>
+    </div>
+    <div class="panel" style="margin-top:6px">
+      <canvas id="climo-canvas" width="1200" height="560" style="width:100%;height:auto"></canvas>
+      <div id="climo-hist-note" style="color:var(--muted); font-size:0.8rem; margin:8px 4px 2px"></div>
+      <canvas id="climo-hist" width="1200" height="280" style="width:100%;height:auto"></canvas>
+    </div>
+    <p class="note" style="color:var(--muted); font-size:0.78rem; margin-top:8px">
+      Day-of-year climatology from this station's full radiosonde record (each point pools a ±10-day
+      window): shaded bands = 10th–90th and 25th–75th percentile, line = median, and the outer
+      envelope traces the all-time daily record high (red) and low (blue). The gold dot is the
+      sounding on display.</p>
+  </div>
+</div>
+
+<div id="modal" class="modal" hidden>
+  <div class="dialog">
+    <div class="dlg-head controls">
+      <span class="station" id="stn-label">—</span>
+      <span class="seg"><button data-act="latest" class="mctl on">Latest</button><button data-act="archive" class="mctl">Archive</button></span>
+      <span class="arch-controls" style="display:none">
+        <button data-act="dprev" title="previous launch">◀</button>
+        <input type="date" class="datectl" min="1905-01-01" aria-label="Sounding date">
+        <button data-act="dnext" title="next launch">▶</button>
+        <span class="hours"></span>
+      </span>
+      <span id="mstatus"></span>
+      <span class="grp" style="margin-left:auto">
+        <button id="climo-btn" style="display:none" title="annual cycle of any ranked variable at this station">Climatology</button>
+        <button id="rec-btn" style="display:none" title="station record extremes — all-time and for this date">Records</button>
+        <button id="fog-btn" title="fog, frost and dew diagnostics">Fog &amp; frost</button>
+        <button id="cloud-btn" title="cloud layer estimate">Clouds</button>
+      </span>
+      <span class="grp">
+        <button id="pin-btn" title="pin this sounding, then load another to overlay them">Compare</button>
+        <button id="share-btn" title="copy a link to this exact sounding">Share</button>
+        <button id="export-btn" title="download skew-T + hodograph as an image">PNG</button>
+      </span>
+      <button id="close" title="close (Esc)">✕</button>
+      <div class="launches" id="launches"></div>
+    </div>
+    <div class="dlg-body">
+    <div class="main">
+      <div class="panel sk-panel"><canvas id="skewt" title="click for the full-resolution sounding (every wind level)" style="cursor:zoom-in" width="760" height="840"></canvas></div>
+      <div class="rcol">
+        <div class="rtop">
+          <div class="panel hodo-panel"><canvas id="hodo" width="560" height="600"></canvas></div>
+          <div class="keystrip" id="keystrip" aria-label="Key numbers"></div>
+        </div>
+        <div class="panel tables-wrap">
+      <div class="tables-grid">
+        <div class="tbl pcl"><h3>Parcels</h3>
+          <table class="params" id="pcl-table"></table></div>
+        <div class="tbl"><h3>Moist static energy</h3>
+          <table class="params kin" id="mse-table"></table></div>
+        <div class="tbl"><h3>Kinematics</h3>
+          <table class="params kin" id="kin-table"></table></div>
+        <div class="tbl"><h3>Composites</h3>
+          <table class="params kin" id="kin-table-b"></table></div>
+        <div class="tbl"><h3>Tropical</h3>
+          <table class="params kin" id="tropic-table"></table></div>
+        <div class="tbl"><h3>Winter</h3>
+          <table class="params kin" id="winter-table"></table></div>
+        <div class="tbl"><h3>Thermo &amp; moisture</h3>
+          <table class="params kin" id="kin-table2"></table></div>
+        <div class="tbl"><h3>Levels</h3>
+          <table class="params kin" id="kin-table3"></table></div>
+      </div>
+        </div>
+      </div>
+    </div>
+    </div>
+    <footer id="dlg-footer" title="click to expand">
+      <b>Tip:</b> click the skew-T to open a full-resolution card built from the un-thinned
+      profile with every reportable wind level — the PNG button saves that same image.
+      <b>Data:</b> real-time North American soundings from the
+      <a href="https://mesonet.agron.iastate.edu/archive/raob/">Iowa Environmental Mesonet</a> (IEM, Iowa State
+      University) and <a href="https://www.spc.noaa.gov/exper/soundings/">NOAA/NWS SPC</a>; the rest of the world
+      and every historical date from NOAA National Centers for Environmental Information,
+      <a href="https://www.ncei.noaa.gov/products/weather-balloon/integrated-global-radiosonde-archive">Integrated
+      Global Radiosonde Archive v2</a> (IGRA; the daily update runs about a day behind; the first archive load per
+      station can be tens of MB, then cached). Recent launches are mirrored hourly to a data branch.
+      <b>Analysis:</b> <a href="https://github.com/keltonhalbert/SHARPlib">SHARPlib</a> (K. Halbert,
+      NWS SPC lineage) as WebAssembly — SB/ML/MU parcels, LI, DCAPE, effective inflow, Bunkers,
+      SRH, effective shear, SCP/STP. Map: Leaflet, Esri Dark Gray Canvas (&copy; Esri, OpenStreetMap contributors). Built by Claude
+      (Anthropic's Claude Fable 5), directed by Shawn Corvec. Not for operational use.
+  </footer>
+  </div>
+</div>
+<script src="sharplib.js?v=92a2fd08"></script>
+<script src="app.js?v=2936a18d"></script>
+</body>
+</html>

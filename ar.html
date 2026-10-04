@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Atmospheric River Monitor &mdash; AIFS-ENS IVT, West Coast landfall probabilities &middot; Shawn Corvec</title>
+<meta name="description" content="Atmospheric river forecast monitor from the ECMWF AIFS ensemble: probability of AR conditions (IVT ≥ 250 kg/m/s) day by day over the North Pacific, a West Coast landfall tool from Baja California to southeast Alaska, exact member-0 IVT maps, and AR-scale (Ralph et al. 2019) category probabilities at named coastal locations. Updated twice daily.">
+<link rel="canonical" href="https://scorvec.com/ar.html">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Atmospheric River Monitor — AIFS-ENS IVT and West Coast landfall probabilities">
+<meta property="og:description" content="Probability of atmospheric-river conditions by day, a coastal landfall tool and AR-scale probabilities from the 51-member ECMWF AIFS ensemble.">
+<meta property="og:url" content="https://scorvec.com/ar.html">
+<meta property="og:image" content="https://scorvec.com/assets/ar/ar_coast.webp">
+<meta name="twitter:card" content="summary_large_image">
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebPage",
+ "name":"Atmospheric River Monitor — AIFS-ENS IVT and West Coast landfall probabilities",
+ "url":"https://scorvec.com/ar.html",
+ "description":"Atmospheric-river forecast products from the ECMWF AIFS ensemble open data: integrated vapour transport, probability of AR conditions, a West Coast landfall tool and Ralph-scale category probabilities.",
+ "author":{"@type":"Person","name":"Shawn Corvec","url":"https://scorvec.com/"}}
+</script>
+<style>
+  :root {
+    --bg: #fafaf8; --ink: #1c1c1a; --muted: #6f6b64; --accent: #2c4a72; --rule: #e6e3dc; --panel: #ffffff;
+    --serif: "Newsreader", Georgia, serif; --sans: "Schibsted Grotesk", Inter, -apple-system, sans-serif;
+  }
+  *, *::before, *::after { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--sans); line-height: 1.55; }
+  main { max-width: min(94vw, 2000px); margin: 0 auto; padding: 1.5rem 1.2rem 3rem; }
+  h1 { font-family: var(--serif); font-weight: 500; font-size: clamp(1.7rem, 3.4vw, 2.5rem); line-height: 1.15; margin: 0.4rem 0 0.6rem; }
+  h2 { font-family: var(--serif); font-weight: 500; font-size: 1.35rem; margin: 0 0 0.5rem; }
+  .lede { color: #444; max-width: 62rem; font-size: 1.02rem; }
+  .kicker { font-size: 0.78rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+  .card { background: var(--panel); border: 1px solid var(--rule); border-radius: 10px; padding: 1.2rem 1.3rem 1rem; margin: 1.4rem 0; }
+  .card p.note { color: #444; font-size: 0.95rem; max-width: 70rem; margin: 0.2rem 0 0.9rem; }
+  .card img { display: block; width: 100%; height: auto; border-radius: 6px; }
+  .anim-embed { display: block; width: 100%; border: 0; border-radius: 6px; background: var(--bg); }
+  .anim-embed.ar { aspect-ratio: 1200 / 730; }   /* image 1200×630 + controls and the region picker */
+  .chart-card-footer { display: flex; justify-content: space-between; gap: 1rem; flex-wrap: wrap; margin-top: 0.7rem; font-size: 0.8rem; color: var(--muted); }
+  /* the stage viewer's variables on this page's palette (assets/stage.css reads them) */
+  :root { --surface: #ffffff; --edge: #d9d5cc; --ink2: #444; --accent-light: rgba(44, 74, 114, 0.08); }
+  .ss-layout { margin-top: 1.2rem; }
+  .ss-main .chart-card-footer { padding: 0 1.2rem 0.9rem; }
+  table.ar { border-collapse: collapse; width: 100%; font-size: 0.9rem; }
+  table.ar th, table.ar td { padding: 0.4rem 0.55rem; border-bottom: 1px solid var(--rule); text-align: center; }
+  table.ar th { font-weight: 500; color: #333; background: #f3f1ec; }
+  table.ar td:first-child, table.ar th:first-child { text-align: left; }
+  td.c1 { background: #fff7e0; } td.c2 { background: #ffe9b8; } td.c3 { background: #ffcf8a; } td.c4 { background: #f7a25e; color: #fff; } td.c5 { background: #c9382c; color: #fff; }
+  .scale { font-size: 0.85rem; color: #444; }
+  .scale b { color: var(--ink); }
+  @media (max-width: 720px) { main { padding: 1rem 0.8rem 2rem; } table.ar { font-size: 0.8rem; } }
+  /* phones: drop the columns a reader can live without (≥AR1 duplicates Any AR, AR4/AR5 are rare, onset and
+     control are detail) and let the rest wrap, so the table fits without sideways scrolling */
+  .ar-narrow { display: none; font-size: 0.78rem; color: var(--muted); margin: 0.4rem 0 0; }
+  @media (max-width: 480px) {
+    table.ar { font-size: 0.76rem; }
+    table.ar th, table.ar td { padding: 0.35rem 0.25rem; white-space: nowrap; }
+    table.ar th, table.ar td:first-child { white-space: normal; }   /* headers and place names wrap; numbers stay whole */
+    table.ar th:nth-child(3), table.ar td:nth-child(3), table.ar th:nth-child(6), table.ar td:nth-child(6),
+    table.ar th:nth-child(7), table.ar td:nth-child(7), table.ar th:nth-child(10), table.ar td:nth-child(10),
+    table.ar th:nth-child(11), table.ar td:nth-child(11) { display: none; }
+    .ar-narrow { display: block; }
+  }
+</style>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400&family=Schibsted+Grotesk:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/site.css">
+<link rel="stylesheet" href="/assets/stage.css">
+<script src="/assets/site.js" defer></script>
+<script src="/assets/rail.js" defer></script>
+</head>
+<body>
+<!-- sh:start -->
+<header class="sh" id="site-header">
+  <div class="sh-in">
+    <a class="sh-brand" href="/">Shawn Corvec</a>
+    <button class="sh-find" type="button" aria-haspopup="dialog" aria-keyshortcuts="Control+K Meta+K" title="Find a plot (Ctrl K)"><svg viewBox="0 0 20 20" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true" focusable="false"><circle cx="8.5" cy="8.5" r="5.5" style="fill:none;stroke:currentColor"/><path d="M12.6 12.6 17 17" style="fill:none;stroke:currentColor"/></svg><span class="sh-find-t">Find a plot</span><kbd>Ctrl K</kbd></button>
+    <button class="sh-toggle" type="button" aria-expanded="false" aria-controls="sh-menu">Menu</button>
+    <nav class="sh-nav" id="sh-menu" aria-label="Site">
+      <ul class="sh-list">
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g0" aria-current="page">Mid-latitude weather</button>
+          <div class="sh-menu sh-menu--cols" id="sh-g0">
+            <div>
+              <h3>Surface and hazards</h3>
+              <ul>
+                <li><a href="/models.html">Short-range model maps</a></li>
+                <li><a href="/snowbands.html">Snow-band diagnostics</a></li>
+                <li><a href="/ar.html" aria-current="page">Atmospheric rivers</a></li>
+              </ul>
+            </div>
+            <div>
+              <h3>Upper air</h3>
+              <ul>
+                <li><a href="/circulation.html#dt">Dynamic tropopause</a></li>
+                <li><a href="/circulation.html#pacjet">North Pacific jet</a></li>
+                <li><a href="/circulation.html#waf">Wave activity flux</a></li>
+              </ul>
+            </div>
+          </div>
+        </li>
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g1">Tropics</button>
+          <div class="sh-menu sh-menu--cols" id="sh-g1">
+            <div>
+              <h3>ENSO and the MJO</h3>
+              <ul>
+                <li><a href="/enso.html">El Niño monitor</a></li>
+                <li><a href="/circulation.html#mslp">Pacific pressure and wind</a></li>
+                <li><a href="/mjo.html">MJO forecast</a></li>
+                <li><a href="/tropical-waves.html">Tropical waves</a></li>
+              </ul>
+            </div>
+            <div>
+              <h3>Tropical cyclones</h3>
+              <ul>
+                <li><a href="/circulation.html#tcjet">Tropical cyclones and the jet</a></li>
+                <li><a href="/circulation.html#tcens">Tropical cyclone ensembles</a></li>
+                <li><a href="/circulation.html#tcphase">Cyclone phase space</a></li>
+              </ul>
+            </div>
+            <div>
+              <h3>Tropical circulation</h3>
+              <ul>
+                <li><a href="/circulation.html#walker">Walker and Hadley cells</a></li>
+                <li><a href="/circulation.html#vpot">Velocity potential</a></li>
+                <li><a href="/circulation.html#gillrain">Rain-forced circulation (Gill model)</a></li>
+              </ul>
+            </div>
+          </div>
+        </li>
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g2">Stratosphere</button>
+          <div class="sh-menu sh-menu--cols" id="sh-g2">
+            <div>
+              <h3>Polar vortex</h3>
+              <ul>
+                <li><a href="/stratosphere.html">Stratosphere and polar vortex</a></li>
+                <li class="sh-subitem"><a href="/stratosphere.html#heatflux">Eddy heat flux</a></li>
+                <li class="sh-subitem"><a href="/stratosphere.html#pv">Potential vorticity</a></li>
+                <li class="sh-subitem"><a href="/stratosphere.html#bdc">Brewer–Dobson circulation</a></li>
+              </ul>
+            </div>
+            <div>
+              <h3>QBO and momentum</h3>
+              <ul>
+                <li><a href="/qbo/">QBO tracker</a></li>
+                <li><a href="/circulation.html#aam">Angular momentum and torques</a></li>
+              </ul>
+            </div>
+          </div>
+        </li>
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g3">Weeks to seasons</button>
+          <div class="sh-menu sh-menu--cols" id="sh-g3">
+            <div>
+              <h3>Weeks 2–5</h3>
+              <ul>
+                <li><a href="/subseasonal.html">GEPS extended ensemble</a></li>
+                <li><a href="/gefs.html">GEFS extended ensemble</a></li>
+              </ul>
+            </div>
+            <div>
+              <h3>Seasons</h3>
+              <ul>
+                <li><a href="/seasonal.html">Eight C3S seasonal models</a></li>
+                <li><a href="/sfs.html">NOAA SFS seasonal</a></li>
+                <li><a href="/enso-forecasts.html">ENSO forecasts</a></li>
+              </ul>
+            </div>
+          </div>
+        </li>
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g4"><span class="sh-lf">Studies and verification</span><span class="sh-ls">Studies/verification</span></button>
+          <div class="sh-menu sh-menu--cols" id="sh-g4">
+            <div>
+              <h3>Studies</h3>
+              <ul>
+                <li><a href="/enso.html#imp_reg">ENSO impacts on the Americas</a></li>
+                <li><a href="/mjo.html#mi">MJO impacts</a></li>
+                <li><a href="/stratosphere.html#shwinters">Stratosphere history</a></li>
+                <li><a href="/aifs-aam-budget.html">AINWP and conservation</a></li>
+                <li><a href="/topics/">Explainers</a></li>
+              </ul>
+            </div>
+            <div>
+              <h3>Verification</h3>
+              <ul>
+                <li><a href="/aifs-verify.html">AIFS single versus member 0</a></li>
+              </ul>
+            </div>
+          </div>
+        </li>
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g5">Tools</button>
+          <div class="sh-menu sh-menu--list" id="sh-g5">
+            <ul>
+              <li><a href="/catalog.html">Every plot on the site</a></li>
+              <li><a href="/skewt/">Sounding explorer</a></li>
+              <li><a href="/asos5.html">Five-minute airport observations</a></li>
+              <li><a href="/climate.html">US climate trends</a></li>
+              <li><a href="/fci.html">US credit conditions</a></li>
+            </ul>
+          </div>
+        </li>
+        <li class="sh-item sh-item--special"><a class="sh-special" href="/midterms/">2026 Midterms</a></li>
+        <li class="sh-item sh-has-menu sh-item--me">
+          <button class="sh-link sh-menubtn sh-me" type="button" aria-expanded="false" aria-controls="sh-me">About</button>
+          <div class="sh-menu sh-menu--list sh-menu--me" id="sh-me">
+            <ul>
+              <li><a href="/about.html">About me</a></li>
+              <li><a href="/resume.html">Resume</a></li>
+              <li><a href="/research.html">Publications</a></li>
+              <li class="sh-me-ext"><a href="https://github.com/scorvec">GitHub</a></li>
+              <li><a href="https://scholar.google.com/citations?user=EYLRCJIAAAAJ&amp;hl=en">Google Scholar</a></li>
+              <li><a href="https://www.linkedin.com/in/shawn-corvec-35895b231/">LinkedIn</a></li>
+            </ul>
+          </div>
+        </li>
+      </ul>
+    </nav>
+  </div>
+</header>
+<!-- sh:end -->
+<main>
+  <p class="kicker">Twice daily from the ECMWF AIFS ensemble, <span id="initLabel">&mdash;</span></p>
+  <h1>Atmospheric river monitor</h1>
+  <p class="lede">Integrated vapour transport from the 51-member ECMWF AIFS ensemble, read the way forecasters read atmospheric rivers: the probability that IVT reaches the 250&nbsp;kg&nbsp;m<sup>&minus;1</sup>&nbsp;s<sup>&minus;1</sup> threshold at each 12-hourly step, a landfall tool along the West Coast from Baja California to southeast Alaska, exact member-0 IVT for the next three days, and the chance of each Ralph-scale category at named coastal locations. Every member is carried to day 15 at 12-hour steps, so AR duration, not only intensity, enters the scale.</p>
+
+  <!-- One figure at a time on the shared stage viewer (assets/stage.js), 2026-09-27 (navigation phase 2).
+       Deep links: #coast, #table, #loops/ar_ivt|ar_prob|ar_ctrl. The page had no anchors before. -->
+  <div class="ss-layout">
+    <aside class="ss-rail" id="rail" aria-label="Figures"></aside>
+    <section class="ss-main">
+      <div class="crumb"><div class="path" id="crumb"></div>
+        <div class="nav"><button type="button" id="prevBtn" title="previous (←)">&larr; prev</button><button type="button" id="nextBtn" title="next (→)">next &rarr;</button></div></div>
+      <div class="opts"><div class="controls" id="opts-a"></div><div class="controls" id="opts-b"></div><div class="controls" id="opts-c"></div></div>
+      <div class="stage" id="stage"></div>
+      <p class="cap" id="cap"></p>
+      <div id="about"></div>
+      <p class="hint"><span class="kbd">&larr;</span> <span class="kbd">&rarr;</span> step through the options &middot; <span class="kbd">&uarr;</span> <span class="kbd">&darr;</span> change figure &middot; click a still to enlarge</p>
+      <div class="chart-card-footer">
+      <span>ECMWF AIFS-ENS and IFS-ENS open data (CC BY 4.0): total column water, 850&nbsp;hPa wind, and q/u/v on six levels for member 0 &middot; 0.25&deg;, 12-hourly to day 15 &middot; PWAT climatology: ERA5 1991&ndash;2020 (Copernicus C3S / ECMWF) &middot; coast transect from Natural Earth</span>
+      <span id="genLabel">&mdash;</span>
+    </div>
+    </section>
+  </div>
+  <div class="lightbox" id="lightbox"><img alt=""></div>
+  <div class="dom-holder">
+    <div id="dom-table" hidden>
+      <div style="overflow-x:auto"><table class="ar" id="arTable"></table></div>
+    <p class="ar-narrow">Narrow screen: the &ge;&nbsp;AR1, &ge;&nbsp;AR4, AR5, onset and member-0 columns are hidden &mdash; turn the phone sideways for the full table.</p>
+    <p class="scale" style="margin-top:0.7rem"><b>AR1</b> weak, primarily beneficial &middot; <b>AR2</b> moderate, mostly beneficial &middot; <b>AR3</b> strong, balance of beneficial and hazardous &middot; <b>AR4</b> extreme, mostly hazardous &middot; <b>AR5</b> exceptional, primarily hazardous. Duration is sampled at 12&nbsp;hours here, so a one-step spell counts as under 24&nbsp;hours.</p>
+    </div>
+  </div>
+<template id="about-coast"><p>Coast latitude against forecast time. Left: the ensemble-mean IVT at the first ocean point west of the coast, with the member 0&rsquo;s 250 and 500 contours in red. Middle: the fraction of members at or above 250, the AR threshold, with the fraction above 500 contoured. Right: the 90th-percentile member, the strong-AR tail the mean hides. Named locations are marked along the left axis.</p><p>Exact IVT for every member would need humidity and wind through the column for 51 members at 31 steps, about 12&nbsp;GB per cycle. The ensemble therefore uses a proxy, IVT &asymp; k&thinsp;&middot;&thinsp;TCW&thinsp;&middot;&thinsp;|V<sub>850</sub>|, with total column water from the open data and the 850&nbsp;hPa wind; k is refitted every cycle against the member 0&rsquo;s exact IVT through the origin over points with IVT above 100, and the fit is reported here and on the maps. The member 0 itself is always exact. Thresholds are absolute (250, 500, 750, 1000, 1250), following the Ralph et&nbsp;al. (2019) scale rather than percentile-based detection, so no climatology enters the categories.</p></template>
+<template id="about-table"><p>For each member, the strongest spell with IVT at or above 250 at the location sets a category on the Ralph et&nbsp;al. (2019) scale: a preliminary rank from the peak IVT (250, 500, 750, 1000, 1250 for AR1&ndash;AR5), lowered one step if the spell is shorter than 24&nbsp;hours &mdash; which drops a bare AR1 out of the count altogether &mdash; and raised one if it lasts 48&nbsp;hours or more. The table gives the fraction of members reaching each category within the 15 days, the most likely category, the median peak IVT, and the median onset time.</p><p>Exact IVT for every member would need humidity and wind through the column for 51 members at 31 steps, about 12&nbsp;GB per cycle. The ensemble therefore uses a proxy, IVT &asymp; k&thinsp;&middot;&thinsp;TCW&thinsp;&middot;&thinsp;|V<sub>850</sub>|, with total column water from the open data and the 850&nbsp;hPa wind; k is refitted every cycle against the member 0&rsquo;s exact IVT through the origin over points with IVT above 100, and the fit is reported here and on the maps. The member 0 itself is always exact. Thresholds are absolute (250, 500, 750, 1000, 1250), following the Ralph et&nbsp;al. (2019) scale rather than percentile-based detection, so no climatology enters the categories.</p></template>
+<template id="about-loops"><p>Three loops on one player, switched with the buttons above the frame: the <b>ensemble-mean IVT</b> with its vector and the 50% and 80% probability contours; the <b>probability of AR conditions</b>, the share of members with IVT at or above 250 with the mean 250 and 500 contours; and the <b>member 0&rsquo;s exact IVT</b>, the field the ensemble proxy is calibrated against each cycle. North Pacific to the Rockies, 0.25&deg;.</p><p>Exact IVT for every member would need humidity and wind through the column for 51 members at 31 steps, about 12&nbsp;GB per cycle. The ensemble therefore uses a proxy, IVT &asymp; k&thinsp;&middot;&thinsp;TCW&thinsp;&middot;&thinsp;|V<sub>850</sub>|, with total column water from the open data and the 850&nbsp;hPa wind; k is refitted every cycle against the member 0&rsquo;s exact IVT through the origin over points with IVT above 100, and the fit is reported here and on the maps. The member 0 itself is always exact. Thresholds are absolute (250, 500, 750, 1000, 1250), following the Ralph et&nbsp;al. (2019) scale rather than percentile-based detection, so no climatology enters the categories.</p></template>
+<template id="about-pwat"><p>Precipitable water is the depth of liquid water the whole atmospheric column would hold if every bit of vapour, cloud liquid and ice condensed out: here ECMWF&rsquo;s total column water, the same field the IVT proxy uses. Atmospheric rivers show up as long, narrow plumes of high values reaching from the subtropics toward the coast, but precipitable water alone does not say how fast the moisture moves; IVT does (the loops above).</p><p>Both models are shown as ensemble means, every 12 hours to day 15: the 51 AIFS-ENS members and the 50 perturbed IFS-ENS members (the open data carry no IFS-ENS control at these steps). The <b>anomaly</b> is taken against the ERA5 1991&ndash;2020 climatology of total column water for the same day of the year and the same hour (00 or 12&nbsp;UTC), fitted with three annual harmonics on a 1.5&deg; grid and interpolated to the 0.25&deg; forecast grid, so the coarse climatology softens anomalies over steep terrain. An ensemble mean smooths individual plumes as the members diverge; in week 2 read the anomaly as where moisture is favoured, not as a single river. When the IFS-ENS run has not reached the mirror in time for this job, only the AIFS-ENS loops are updated that cycle.</p></template>
+<script>
+window.STAGE = {
+  groups: [
+    { label: "Landfall", items: [["coast", "Where the rivers make landfall", "coast latitude against time"],
+                                ["table", "AR-scale odds at named places", "Ralph et al. categories"]] },
+    { label: "Maps", items: [["loops", "The rivers, 12-hourly to day 15", "mean IVT, P(AR), member 0"],
+                             ["pwat", "Precipitable water and its anomaly", "AIFS-ENS and IFS-ENS means"]] }
+  ],
+  products: {
+    coast: { label: "Where the rivers will make landfall, and how strong", bust: "hourly",
+             img: function () { return "assets/ar/ar_coast.webp"; },
+             cap: function () { return "West Coast landfall: ensemble-mean IVT, the share of members at or above 250 kg m\u207b\u00b9 s\u207b\u00b9, and the 90th-percentile member, by coast latitude and forecast time."; },
+             about: "about-coast" },
+    table: { label: "AR-scale probabilities at named locations", dom: function () { return "dom-table"; },
+             cap: function () { return "Fraction of the 51 members reaching each Ralph-scale category within 15 days, the most likely category, median peak IVT and onset."; },
+             about: "about-table" },
+    loops: { label: "The rivers, 12-hourly to day 15",
+             a: { label: "Field", items: [["ar_ivt", "Ensemble-mean IVT"], ["ar_prob", "P(IVT \u2265 250)"], ["ar_ctrl", "Member 0, exact IVT"]] },
+             frame: function (a) { return "sst_anim.html?embed=1&base=assets/ar/anim&manifest=ar_manifest.json&region=" + a + "&regions=" + a; },
+             ratio: function () { return "1200/700"; },
+             cap: function (a) { return { ar_ivt: "Ensemble-mean IVT with its vector and the 50% and 80% probability contours, North Pacific to the Rockies, 0.25\u00b0.",
+                                        ar_prob: "Share of members with IVT at or above 250, with the mean 250 and 500 contours.",
+                                        ar_ctrl: "The member 0\u2019s exact IVT, the field the ensemble proxy is calibrated against each cycle." }[a]; },
+             about: "about-loops" },
+    pwat: { label: "Precipitable water, 12-hourly to day 15",
+            a: { label: "Field", items: [["pwatanom", "Anomaly"], ["pwat", "Precipitable water"]] },
+            b: { label: "Model", items: [["aifs", "AIFS-ENS"], ["ifs", "IFS-ENS"]] },
+            frame: function (a, b) { var r = a + "_" + b; return "sst_anim.html?embed=1&base=assets/ar/anim&manifest=ar_manifest.json&region=" + r + "&regions=" + r; },
+            ratio: function () { return "1200/700"; },
+            cap: function (a, b) { var m = b === "ifs" ? "IFS-ENS (50 perturbed members)" : "AIFS-ENS (51 members)";
+                                   return a === "pwat" ? "Ensemble-mean precipitable water (total column water), " + m + ", with the +10 and +20 mm anomaly contours."
+                                                       : "Ensemble-mean precipitable-water anomaly against ERA5 1991–2020 at the valid hour, " + m + ", with the 25 and 40 mm contours."; },
+            about: "about-pwat" }
+  }
+};
+</script>
+</main>
+<script>
+(function () {
+  fetch("assets/ar/ar_monitor.json?v=" + Date.now()).then(function (r) { return r.ok ? r.json() : null; }).then(function (d) {
+    if (!d) return;
+    var v = "?v=" + encodeURIComponent(d.generated);
+        document.getElementById("initLabel").textContent = "run of " + d.init.replace("T", " ");
+    document.getElementById("genLabel").textContent = "built " + d.generated + " · proxy k = " + d.proxy.k.toFixed(3) + ", r = " + d.proxy.r.toFixed(2) + " over " + d.proxy.n.toLocaleString() + " member-0 points";
+    var rows = ['<tr><th>Location</th><th>Any AR</th><th>≥ AR1</th><th>≥ AR2</th><th>≥ AR3</th><th>≥ AR4</th><th>AR5</th><th>Most likely</th><th>Median peak IVT</th><th>Median onset</th><th>Member 0</th></tr>'];
+    d.named.forEach(function (n) {
+      var cls = function (c) { return c > 0 ? ' class="c' + c + '"' : ''; };
+      var pct = function (x) { return Math.round(x * 100) + "%"; };
+      rows.push('<tr><td>' + n.name + '</td><td>' + pct(n.p_ar) + '</td>' + [1, 2, 3, 4, 5].map(function (c) { return '<td>' + pct(n.p_ge[String(c)]) + '</td>'; }).join('') +
+        '<td' + cls(n.most_likely) + '>' + (n.most_likely ? "AR" + n.most_likely : "none") + '</td><td>' + (n.median_peak ? Math.round(n.median_peak) : "—") + '</td><td>' + (n.onset_h_median == null ? "—" : "+" + n.onset_h_median + " h") + '</td><td' + cls(n.control_rank) + '>' + (n.control_rank ? "AR" + n.control_rank : "none") + '</td></tr>');
+    });
+    document.getElementById("arTable").innerHTML = rows.join("");
+  }).catch(function () {});
+})();
+</script>
+<!-- sf:start -->
+<footer class="sf">
+  <div class="sf-in">
+    <div class="sf-group">
+      <p class="sf-h" role="heading" aria-level="2">This site</p>
+      <ul>
+        <li><a href="/">Home</a></li>
+        <li><a href="/catalog.html">Every plot</a></li>
+        <li><a href="/topics/">Explainers</a></li>
+        <li><a href="/stats.html">Visitor stats</a></li>
+      </ul>
+      <p class="sf-disclaimer">This site is under constant development. Nothing here is checked before publication and there is no expectation of accuracy, completeness or availability; do not rely on it for decisions. Built from open data; sources are credited on each page.</p>
+    </div>
+    <div class="sf-group sf-group--me">
+      <p class="sf-h" role="heading" aria-level="2">Shawn Corvec</p>
+      <ul>
+        <li><a href="/about.html">About</a></li>
+        <li><a href="/resume.html">Resume</a></li>
+        <li><a href="/research.html">Publications</a></li>
+        <li><a href="https://github.com/scorvec" rel="noopener">GitHub</a></li>
+        <li><a href="https://www.linkedin.com/in/shawn-corvec-35895b231/" rel="noopener">LinkedIn</a></li>
+        <li><a href="https://scholar.google.com/citations?user=EYLRCJIAAAAJ&amp;hl=en" rel="noopener">Google Scholar</a></li>
+      </ul>
+    </div>
+  </div>
+</footer>
+<!-- sf:end -->
+<script src="/assets/stage.js" defer></script>
+</body>
+</html>

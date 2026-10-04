@@ -1,0 +1,180 @@
+name: AIFS comparison loops   # KE spectra retired 2026-09-11, see SPECTRA-OFF below
+
+# The slow, optional tail of the atmosphere products, kept OUT of mjo.yml so
+# a 30-minute ENS pull here can never hold the cycle's figures hostage (which
+# is what happened on the first combined run, 2026-09-02). Fired by the laptop
+# dispatcher ~1 h after mjo.yml (scripts/lib/dispatch_workflows.sh); the
+# products were the laptop's run_local.sh ANALYSIS group + com.scorvec.aifsanim
+# until then.
+#
+# The deterministic SCORES moved to aifs_station_verify.py on 2026-09-02:
+# spherical-harmonic truncation of both models at the same degree, verified
+# against the explorer's radiosondes (z500, surface T) and ERA5. Its only
+# large input, the 1991-2020 climatology, lives on the verify-data branch.
+on:
+  workflow_dispatch:
+    inputs:
+      date:
+        description: 'Cycle date YYYYMMDD (blank = latest AIFS-ENS)'
+        default: ''
+      time:
+        description: 'Cycle hour, 00 or 12 (blank = latest)'
+        default: ''
+
+permissions:
+  contents: write
+  actions: write   # dispatch pages.yml after committing
+
+concurrency:
+  # SAME group as aifs-verify-backfill.yml (2026-09-27). Both seed the verification archive at the start and
+  # publish every seeded file back at the end, so an overlap let the twice-daily run overwrite the backfill's
+  # upgraded archives (and its scores JSON) with the copies it had seeded hours earlier. One at a time.
+  group: aifs-verify-state
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 110
+    env:
+      MPLBACKEND: Agg
+      ECMWF_SOURCES: google     # user rule: ECMWF open data from the Google mirror only
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+      - uses: actions/cache@v6
+        with:
+          path: ~/.cache/pip
+          key: pip-mjo-${{ runner.os }}-${{ hashFiles('scripts/mjo/requirements-mjo.txt') }}
+          restore-keys: |
+            pip-mjo-${{ runner.os }}-
+      - name: Install eccodes (GRIB decoder)
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends libeccodes0 libgeos-dev libproj-dev proj-bin
+      - name: Install Python dependencies
+        run: pip install -r scripts/mjo/requirements-mjo.txt
+
+      - name: Resolve cycle
+        id: cyc
+        working-directory: scripts/mjo/src
+        run: |
+          set -euo pipefail
+          D="${{ github.event.inputs.date }}"; T="${{ github.event.inputs.time }}"
+          if [ -z "$D" ] || [ -z "$T" ]; then
+            # Availability, not the clock (2026-09-28): the shared resolver takes the newest cycle whose every step
+            # is on the Google mirror (scripts/ecmwf/cycles.py; AIFS single + AIFS-ENS) and logs why it passed over a newer one.
+            python ../../ecmwf/cycles.py --profile aifs-compare --out /tmp/cyc || true
+            D=$(awk '{print $1}' /tmp/cyc 2>/dev/null || true)
+            T=$(awk '{print $2}' /tmp/cyc 2>/dev/null || true)
+          fi
+          if ! echo "$D" | grep -qE '^[0-9]{8}$' || ! echo "$T" | grep -qE '^(00|12)$'; then
+            echo "ERROR: no ready cycle (D='$D' T='$T') - see the resolver's lines above" >&2; exit 1
+          fi
+          echo "date=$D" >> "$GITHUB_OUTPUT"; echo "time=$T" >> "$GITHUB_OUTPUT"
+          echo "cycle: $D ${T}Z"
+
+      # Verification state rides the orphan `verify-data` branch (on the frames branch until 2026-09-28, where
+      # its 785 MB was cloned by every loop publisher): the 46 MB ERA5 climatology
+      # (z500/msl/t2m, built once from the WB2 store on the laptop), the ERA5
+      # truth cache, the radiosonde truth cache and the per-cycle station
+      # archive. Seeded 2026-09-02; published back below after every run.
+      - name: Seed verification state from the verify-data branch
+        env:
+          FRAMES_BRANCH: verify-data
+        run: scripts/lib/fetch_frames_ci.sh scripts/verify/data/clim scripts/verify/data/truth scripts/verify/data/truth_st scripts/verify/data/st_archive
+
+      - name: Spectrally fair verification (radiosondes + ERA5)
+        timeout-minutes: 45     # + the 25-member ensemble mean and the spectrally matched member 0 (2026-09-27)
+        run: |
+          mkdir -p assets/verify
+          python scripts/verify/aifs_station_verify.py --collect \
+            --date "${{ steps.cyc.outputs.date }}" --time "${{ steps.cyc.outputs.time }}" \
+            || echo "::warning::verification collect failed; continuing"
+          # the four cycles before this one: archive any that a failed run missed, and complete any that lack the
+          # matched / ensemble-mean series (a failed perturbed-member fetch, or an archive from the old code);
+          # a complete archive returns at once
+          for back in 12 24 36 48; do
+            prev=$(date -u -d "${{ steps.cyc.outputs.date }} ${{ steps.cyc.outputs.time }}:00 ${back} hours ago" +%Y%m%d%H)
+            python scripts/verify/aifs_station_verify.py --collect --date "${prev:0:8}" --time "${prev:8:2}" \
+              || echo "::warning::${prev} could not be completed"
+            rm -rf scripts/ecmwf/cache/${prev}z 2>/dev/null || true
+          done
+          # score on top of main's CURRENT file as well as the checkout's: a run queued behind the backfill
+          # checks out the commit it was dispatched at, hours old (2026-09-28: it dropped the backfill's ERA5 scores)
+          MF=""
+          if timeout 120 git fetch -q --depth 1 origin main && git show FETCH_HEAD:assets/verify/aifs_scores_v2.json > /tmp/main_scores.json; then
+            MF="--merge-from /tmp/main_scores.json"
+          else echo "::warning::could not read main's scores; scoring on the checkout's copy only"; fi
+          python scripts/verify/aifs_station_verify.py --verify $MF || echo "::warning::verification scoring failed; continuing"
+          # the page's scorecard + static figures (aifs-verify.html reads these, not the 11 MB scores file)
+          python scripts/verify/aifs_verify_figs.py || echo "::warning::scorecard/figures failed; continuing"
+          rm -rf scripts/verify/data/uw_cache
+
+      - name: AIFS comparison loops
+        timeout-minutes: 60
+        run: |
+          mkdir -p assets/sst/anim/aifs_compare assets/sst/anim/aifs_z500
+          python scripts/verify/aifs_compare_anim.py --engine mpl \
+            --date "${{ steps.cyc.outputs.date }}" --time "${{ steps.cyc.outputs.time }}" \
+            || echo "AIFS comparison loops failed; continuing"
+
+      # SPECTRA-OFF 2026-09-11 (user: "retire the HRRR vs RRFS power spectra plots
+      # for now"). The page is gone from the site; scripts/spectra/ke_spectra.py and
+      # this step are kept so it can be switched back on by deleting the comment
+      # markers and restoring spectra.html from git history.
+      # - name: KE spectra (HRRR vs RRFS)
+      #   timeout-minutes: 12
+      #   working-directory: scripts/spectra
+      #   run: |
+      #     mkdir -p ../../assets/spectra
+      #     python ke_spectra.py --date "${{ steps.cyc.outputs.date }}" --cycle "${{ steps.cyc.outputs.time }}" \
+      #       --fxx 0 6 24 48 --out ../../assets/spectra/ke_spectra.webp || echo "KE spectra failed; continuing"
+
+      - name: Publish verification state to the verify-data branch
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          FRAMES_BRANCH: verify-data
+        run: scripts/lib/publish_frames_ci.sh +scripts/verify/data/truth +scripts/verify/data/truth_st +scripts/verify/data/st_archive
+
+      - name: Publish loop frames to the frames branch
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: scripts/lib/publish_frames_ci.sh assets/sst/anim/aifs_compare assets/sst/anim/aifs_z500 assets/sst/anim/aifs_t2m
+
+      - name: Commit & push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          OUT="assets/verify/aifs_scores_v2.json assets/verify/aifs_det_scores.json assets/sst/anim/aifs_compare_manifest.json \
+               assets/sst/anim/aifs_z500_manifest.json assets/sst/anim/aifs_t2m_manifest.json \
+               assets/verify/aifs_scorecard.json assets/verify/aifs_spectra.webp \
+               assets/verify/aifs_lead_raob_z500_nh.webp assets/verify/aifs_lead_raob_t850_nh.webp \
+               assets/verify/aifs_lead_era5_z500_nh.webp assets/verify/aifs_lead_era5_t850_nh.webp \
+               assets/verify/aifs_lead_era5_msl_nh.webp assets/verify/aifs_lead_era5_t2m_nh.webp"
+          SNAP=$(mktemp -d)
+          tar cf "$SNAP/outs.tar" --ignore-failed-read $OUT 2>/dev/null || true
+          for i in 1 2 3 4 5; do
+            if ! timeout 120 git fetch origin main; then echo "fetch $i failed"; sleep 5; continue; fi
+            git reset --hard origin/main
+            tar xf "$SNAP/outs.tar"
+            for f in $OUT; do [ -e "$f" ] && git add "$f"; done
+            if git diff --staged --quiet; then echo "No changes; skipping commit."; exit 0; fi
+            git commit -m "data update: ${{ steps.cyc.outputs.date }}_${{ steps.cyc.outputs.time }}z (v)"
+            if timeout 180 git push; then echo "Pushed on attempt $i."; exit 0; fi
+            sleep 5
+          done
+          echo "ERROR: could not push after 5 attempts." >&2
+          exit 1
+
+      # A commit pushed with GITHUB_TOKEN does not trigger the Pages deploy, so
+      # the site would wait for the laptop dispatcher's next tick (up to 15 min)
+      # to notice main is ahead. workflow_dispatch IS allowed from a token, so
+      # deploy right away; pages.yml's concurrency group folds overlapping ones.
+      - name: Deploy the site
+        if: success()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh workflow run pages.yml --repo "$GITHUB_REPOSITORY" || echo "pages dispatch failed; the dispatcher will catch it"

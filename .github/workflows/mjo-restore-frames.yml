@@ -1,0 +1,60 @@
+name: MJO restore loop frames (maintenance)
+
+# Dispatch-only. Puts back RMM loop frames (assets/mjo/rmm_*z.png, rmmclean_*z.png) that the old mtime-based pruning
+# deleted, from their last committed version, keeps the newest 60 cycles by name, and rebuilds mjo.html + manifests.
+# Added 2026-10-03: `ls -t` pruning had kept August runs and dropped most of late September, and re-plotting past
+# cycles dropped the latest frame. The laptop's pre-push hook (rightly) refuses asset pushes, so the restore runs here.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: mjo-rmm          # same group as mjo.yml: never commits over an RMM run
+  cancel-in-progress: false
+
+jobs:
+  restore:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0          # the frames' history ...
+          filter: blob:none       # ... as commits and trees only; `git show` fetches the few blobs it restores
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install the page builder's imports
+        # generate_page -> clean_section -> src/enso_rmm.status_sentence imports numpy/pandas/xarray at load time;
+        # without them the "No coherent MJO ..." status line silently drops off the page (first restore, 2026-10-03)
+        run: pip install --quiet numpy pandas xarray
+      - name: Restore missing frames, keep the newest 60 by name
+        run: python scripts/mjo/restore_frames.py --keep 60
+      - name: Rebuild the MJO page and manifests
+        run: |
+          python scripts/mjo/generate_page.py
+          grep -q "coherent MJO\|shows an MJO" mjo.html || echo "::warning::the ENSO-removed status line is missing from mjo.html"
+          python scripts/site/apply_chrome.py || true
+      - name: Commit & push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          OUT="assets/mjo mjo.html"
+          SNAP=$(mktemp -d)
+          tar cf "$SNAP/outs.tar" $OUT
+          for i in 1 2 3 4 5; do
+            if ! timeout 120 git fetch origin main; then echo "fetch $i failed"; sleep 5; continue; fi
+            git reset --hard origin/main
+            tar xf "$SNAP/outs.tar"
+            ls assets/mjo/rmm_*z.png 2>/dev/null | sort -r | tail -n +61 | xargs -r rm
+            ls assets/mjo/rmmclean_*z.png 2>/dev/null | sort -r | tail -n +61 | xargs -r rm
+            git add -A $OUT
+            if git diff --staged --quiet; then echo "No changes."; exit 0; fi
+            git commit -m "MJO loop: restore frames dropped by the old mtime pruning (newest 60 cycles by name)"
+            if timeout 180 git push; then echo "Pushed on attempt $i."; exit 0; fi
+            sleep 5
+          done
+          echo "ERROR: could not push." >&2
+          exit 1

@@ -1,0 +1,895 @@
+<main>
+  <div class="page-header">
+    <p class="eyebrow">Daily from the ECMWF AIFS ensemble, against MERRA-2 and ERA5; the history from MERRA-2, 1980&ndash;2026</p>
+    <h1>Stratosphere and the polar vortex</h1>
+    <p class="sub">Whether the winter polar vortex is about to weaken, and what that has meant at the surface before. The forecast side follows the vortex winds, the planetary waves driving them and the heat flux carrying those waves upward, member by member through the 15-day AIFS ensemble. The history side is every winter and every major sudden warming since 1980 from MERRA-2, with only the statistically significant results shown. Background on each diagnostic is in the <a href="/topics/sudden-stratospheric-warming.html">sudden stratospheric warming</a>, <a href="/topics/ep-flux.html">E&ndash;P flux</a> and <a href="/topics/eddy-heat-flux.html">eddy heat flux</a> explainers. The tropospheric circulation is on <a href="/circulation.html">Global circulation and jets</a>.</p>
+
+  </div>
+  <div class="ss-layout">
+    <aside class="ss-rail" id="rail" aria-label="Figures"></aside>
+    <section class="ss-main">
+      <div class="crumb"><div class="path" id="crumb"></div>
+        <div class="nav"><button type="button" id="prevBtn" title="previous (←)">&larr; prev</button><button type="button" id="nextBtn" title="next (→)">next &rarr;</button></div></div>
+      <div class="opts"><div class="controls" id="opts-a"></div><div class="controls" id="opts-b"></div><div class="controls" id="opts-c"></div></div>
+      <div class="stage" id="stage"></div>
+      <p class="cap" id="cap"></p>
+      <div id="about"></div>
+      <p class="hint"><span class="kbd">&larr;</span> <span class="kbd">&rarr;</span> step through the options &middot; <span class="kbd">&uarr;</span> <span class="kbd">&darr;</span> change figure &middot; click a still to enlarge</p>
+      <div class="chart-card-footer"><span class="chart-sources">ECMWF AIFS-ENS and IFS-ENS open data (CC BY 4.0) &middot; ECCC GEPS and GDPS &middot; NOAA GEFS and GFS &middot; NASA GMAO GEOS FP and MERRA-2 &middot; NCEP/NCAR Reanalysis 1 (NOAA PSL) &middot; ERA5 (Copernicus C3S) &middot; updated each 00/12Z cycle</span><span class="chart-updated">__SST_DAY__</span></div>
+    </section>
+  </div>
+  <div class="lightbox" id="lightbox"><img alt=""></div>
+  <div class="dom-holder" id="dom-holder">
+    <div id="dom-shwinters" class="card sh-hist" hidden>
+      <div class="controls" role="group" aria-label="Variable">
+        <span class="seg-label">Show</span>
+        <button type="button" class="pill on" data-shv="u10">Wind, 60°N 10 hPa</button>
+        <button type="button" class="pill" data-shv="t10">Polar-cap temperature, 10 hPa</button>
+        <button type="button" class="pill" data-shv="z100s">Polar-cap height, 100 hPa</button>
+      </div>
+      <div class="controls" role="group" aria-label="Highlight">
+        <span class="seg-label">Highlight</span>
+        <button type="button" class="pill on" data-shh="analogs">Strong El Niño analogs</button>
+        <button type="button" class="pill" data-shh="nino">El Niño</button>
+        <button type="button" class="pill" data-shh="nina">La Niña</button>
+        <button type="button" class="pill" data-shh="qboe">QBO east</button>
+        <button type="button" class="pill" data-shh="qbow">QBO west</button>
+        <button type="button" class="pill" data-shh="none">None</button>
+        <label class="sh-pick">Winter <select id="shw-pick" aria-label="Pick a winter to draw in black"><option value="">none</option></select></label>
+      </div>
+      <div id="shw-plot" class="plot" style="height:560px"></div>
+      <p class="note" id="shw-note"></p>
+    </div>
+    <div id="dom-shssw" class="card sh-hist" hidden>
+      <div class="sh-tablewrap"><table class="sh-table" id="shs-table">
+        <caption>Major sudden warmings on MERRA-2, 1980–2026</caption>
+        <thead><tr><th scope="col">Central date</th><th scope="col">Shape</th><th scope="col">Depth</th><th scope="col">Lowest wind<br><small>m/s, days 0–30</small></th><th scope="col">Easterly spell<br><small>days from day 0</small></th><th scope="col">Cap warming<br><small>10 hPa, K</small></th><th scope="col">AO before → after<br><small>days −20…−1, +1…+45</small></th><th scope="col">ENSO</th><th scope="col">QBO</th></tr></thead>
+        <tbody></tbody></table></div>
+      <details class="sh-sv"><summary>Strong-vortex events (the opposite extreme)</summary>
+        <div class="sh-tablewrap"><table class="sh-table" id="shs-sv"><thead><tr><th scope="col">Date</th><th scope="col">Peak 10 hPa index</th><th scope="col">Strongest wind<br><small>m/s, days 0–30</small></th><th scope="col">AO before → after</th></tr></thead><tbody></tbody></table></div>
+      </details>
+      <p class="note" id="shs-note"></p>
+    </div>
+  </div>
+<template id="about-vortex">
+<p><a href="/topics/sudden-stratospheric-warming.html">The explainer</a>: what sudden stratospheric warmings measures, the equations and how to read the chart.</p>
+<p>The stratospheric vortex is the slow variable that sets the odds for the surface weeks later, so it is worth watching before it moves. <b>Top</b>: the zonal-mean zonal wind at <b>10&nbsp;hPa, 60&deg;N</b> &mdash; the standard sudden-stratospheric-warming diagnostic. A reversal to <i>easterly</i> here in winter is a major SSW (the original WMO definition also asked for a reversed 60&ndash;90&deg; temperature gradient), which is why the zero line is drawn heavy and the member fraction crossing it is called out. <b>Middle</b>: the same wind at <b>100&nbsp;hPa</b>. Anomalies that reach this far down are the ones with a path to the troposphere &mdash; a 10&nbsp;hPa event that never appears at 100&nbsp;hPa usually never reaches the surface. <b>Bottom</b>: the <b>100&nbsp;hPa polar-cap (65&ndash;90&deg;N) height anomaly</b>, positive for a weak or displaced vortex; this is the field that actually leads the AO/NAO response. Each model&rsquo;s band is its members&rsquo; 10th&ndash;90th percentile and the solid line their mean; dashed lines are deterministic runs (GDPS, and NASA&rsquo;s <b>GEOS FP</b>, whose 00Z run reaches day 10; GEOS FP is the operational sibling of MERRA-2, the reanalysis the climatology bands come from). The AIFS-ENS polar-cap height uses the same 25 perturbed members plus the control as the winds. <b>IFS-ENS</b> is drawn with <b>all 50</b> of its perturbed members; ECMWF&rsquo;s open data carries no IFS-ENS control at these levels. The chart is drawn about 90 minutes after the AIFS products (around 09:30 and 21:30&nbsp;UTC), once IFS-ENS day&nbsp;15 is on the mirror.</p>
+<p class="chart-sources">ECMWF AIFS-ENS zonal wind and geopotential at 10/100&nbsp;hPa (open data, CC BY 4.0) &middot; ECMWF IFS-ENS, all 50 perturbed members, 0.25&deg; (open data, CC&nbsp;BY&nbsp;4.0, from the Google Cloud mirror), zonal wind and geopotential height at 10/100&nbsp;hPa &middot; ECCC GEPS (20 members + control) and GDPS &middot; reference: MERRA-2 1980&ndash;2026 day-of-year 10th&ndash;90th percentiles (NASA GMAO) &middot; analysis tail: ERA5 &middot; updated daily</p>
+</template>
+<template id="about-upperstrat">
+<p>The stratosphere does not stop at 10&nbsp;hPa. Its top, the <b>stratopause</b> near 1&nbsp;hPa (about 48&nbsp;km), is where the polar vortex usually changes first: a sudden warming generally shows up there as a warming and a slackening of the westerlies days before it reaches 10&nbsp;hPa, and it then works its way down, the way the <a href="#fdrip">dripping-paint</a> charts show lower down. The spring <b>final warming</b> that ends the southern vortex (September&ndash;November) also comes down from the top. Most forecast products on this site stop at 10&nbsp;hPa; four models publish higher, and this item puts them side by side. ECMWF&rsquo;s AIFS-ENS and IFS-ENS cannot join them: their open data stops at 10&nbsp;hPa.</p>
+<p><b>Time series</b>: the zonal-mean zonal wind at <b>60&deg;</b> (the latitude of the sudden-warming criterion, reversal to easterly at 10&nbsp;hPa) and the <b>polar-cap temperature</b> (the cos-weighted mean of the zonal-mean temperature over 60&ndash;90&deg;) at 1, 5 and 10&nbsp;hPa. GEFS shows its 31 members as a 10&ndash;90&nbsp;% band with the ensemble mean and the control; the other three are single deterministic runs. Each model runs to its own range (GEFS 35 days, GFS 16, GEOS FP and GDPS 10) on a common axis, so switching models keeps the dates in place. <b>Height&ndash;time</b>: the same two quantities from 100 up to 1&nbsp;hPa against time, the wind raw with its zero line in black and the temperature as an anomaly, with the last 30 days of analyses to the left of the black line; the colour scales are fixed, identical for every model. <b>Polar maps</b>: geopotential height (contours, dam) over temperature at 5 and 1&nbsp;hPa, analysis to day 10, one colour scale per run shared by every model and frame. &ldquo;Compare all&rdquo; overlays the four models on the time series and tiles them on the sections and maps.</p>
+<p><b>Model tops, and where the plots stop.</b> Nothing above 1&nbsp;hPa is drawn for any model. GEFS and GDPS publish nothing higher, and the top layers of every model are a damping (&ldquo;sponge&rdquo;) layer where the winds are relaxed artificially, so the levels nearest a model&rsquo;s lid are its least trustworthy. GEFS (version&nbsp;12, 64 layers) is the one to read with the most caution at 1&nbsp;hPa: that is its top published level and its lid is not far above it. GDPS (the GEM model) has its lid at 0.1&nbsp;hPa but ECCC publishes only 1, 5, 10, 20, 30, 50 and 100&nbsp;hPa in the stratosphere, so its section is interpolated across wider gaps (the ticks on the right edge of each section mark the levels a model actually provides). GFS (127 layers) reaches about 80&nbsp;km and GEOS FP (72 layers) 0.01&nbsp;hPa, so 1&nbsp;hPa is well inside both.</p>
+<p><b>Raw output, not drift-corrected.</b> Models drift toward their own climate with lead time, and the drift is largest near their tops. No correction is applied here: the GEFS reforecast carries wind and temperature at 1, 2, 3, 5 and 10&nbsp;hPa, so a GEFS correction is possible but not yet built, and the other three have no reforecast with these levels. What is measured is where each model <b>starts</b>: every time-series panel prints its day-0 value minus the GEOS FP 00Z analysis of the same day (for GEFS, the control). On the first run (27 September 2026) the four analyses agreed to within 0.7&nbsp;m/s and 1.3&nbsp;K at 10 and 5&nbsp;hPa but differed by up to 2.6&nbsp;m/s and 5&nbsp;K at 1&nbsp;hPa (GFS, GEFS and GDPS all 2&ndash;5&nbsp;K warmer on the polar caps than GEOS FP), where the observations constraining an analysis are thinnest: a difference between two models at 1&nbsp;hPa is partly a difference in where they began. The temperature anomalies on the sections carry the same offsets.</p>
+<p><b>Reference.</b> The grey band is MERRA-2 (NASA GMAO), mean and 10&ndash;90&nbsp;% range by day of year: northern hemisphere from MERRA-2&rsquo;s daily means, 2005&ndash;2024; southern hemisphere from the MERRA-2 GMI replay (MERRA-2&rsquo;s meteorology, sampled at 00Z every 10th day), 2005&ndash;2019, which tracks MERRA-2 itself to within 0.2&nbsp;m/s and 0.2&nbsp;K on average at 1&nbsp;hPa. Not 1991&ndash;2020: MERRA-2 begins assimilating Aura MLS temperatures in August 2004, and its polar-cap temperature steps by about +4&nbsp;K at 1&nbsp;hPa and &minus;4&nbsp;K at 2&ndash;3&nbsp;hPa across that date, so a longer base would put a two-kelvin artefact into every anomaly near the stratopause. The black line is the GEOS FP analysis (the daily mean of the 00, 06, 12 and 18Z states), the same assimilation system as MERRA-2 in a newer version; on the same 142 days of 2018&ndash;19 it ran 0.9&ndash;1.2&nbsp;K colder than MERRA-2 on the polar caps at 1&nbsp;hPa and 1.1&ndash;1.4&nbsp;K warmer at 3&nbsp;hPa, with the winds within 1&nbsp;m/s, so a departure of the black line from the grey band smaller than that is not a real anomaly. Everything here is descriptive: no statistical test is made or implied.</p>
+<p class="chart-sources">NOAA GFS (1&deg;) and GEFS (0.5&deg;, gec00 + gep01&ndash;30), 00Z, from the NOAA open-data buckets on AWS &middot; ECCC GDPS 15&nbsp;km, 00Z, MSC Datamart &middot; NASA GMAO GEOS FP forecast and assimilation (NCCS OPeNDAP) &middot; MERRA-2 and MERRA-2 GMI (NASA GMAO) &middot; the 00Z field at each 24-hour step &middot; updated daily after the four 00Z runs are out (early afternoon UTC)</p>
+</template>
+<template id="about-vwinds">
+<p>The vortex as it actually looks, rather than as an index. Wind <b>speed</b> is
+        shaded with <b>streamlines</b> over it at <b>10&nbsp;hPa</b>. This is where the vortex lives and where an SSW is declared &mdash; the level the WMO diagnostic is evaluated on. The red contour
+        is <b>u&nbsp;=&nbsp;0</b>: where the westerlies end in the zonal sense (not the PV-gradient
+        vortex edge), and the outer bound of the corridor $0<\bar{u}<U_c$ in which planetary waves can propagate vertically; outside it they cannot. The dashed ring is
+        60&deg;, the latitude the SSW diagnostic is evaluated at. Speeds below the first contour
+        are left white, which is why the summer hemisphere is largely blank &mdash; there is no
+        vortex there to draw. Both hemispheres share the colour scale, so they are directly
+        comparable.</p>
+<p>Every forecast frame is the <b>ensemble mean</b> of 25 AIFS-ENS members (the analysis frame is the control, which is the analysis). The mean shows the part of the flow the members agree on. It is also smoother and weaker than any one member wherever they disagree, so a split that only a few members carry appears here as a stretched, slackened vortex rather than two centres. The eddy heat flux chart shows how far the members spread in wave-2, the component that splits the vortex.</p>
+<p>The <b>IFS-ENS</b> version is the mean of all <b>50</b> of its perturbed members, on the same fixed colour scales. Its open data has no ensemble control at these levels, so its analysis frame is the IFS HRES analysis, the state the ensemble is started from.</p>
+<p class="chart-sources">ECMWF AIFS-ENS, mean of 25 perturbed members; analysis frame from the control (open data, CC&nbsp;BY&nbsp;4.0) &middot; ECMWF IFS-ENS, all 50 perturbed members, 0.25&deg; (open data, CC&nbsp;BY&nbsp;4.0, from the Google Cloud mirror), mean of the 50; analysis frame from IFS HRES &middot; 10&nbsp;hPa speed of the mean wind shaded, streamlines overlaid, red contour u&nbsp;=&nbsp;0 &middot; fixed colour scale &middot; analysis plus 12-hourly steps to day&nbsp;15 &middot; updated each 00/12Z cycle</p>
+</template>
+<template id="about-epflux">
+<p><a href="/topics/ep-flux.html">The explainer</a>: what the E–P flux and its divergence measures, the equations and how to read the chart.</p>
+<p>Where the torque budget shows how the Earth exchanges angular momentum with the
+        atmosphere at the surface, the <b>Eliassen&ndash;Palm flux</b> shows how the waves
+        redistribute it internally &mdash; the same quasi-geostrophic diagnostic used to
+        diagnose sudden stratospheric warmings, computed live from the <b>NOAA GEFS</b> ensemble (the control and
+        30 perturbed members) and stepped through the 15-day forecast. Each member&rsquo;s flux is computed and then
+        averaged: the flux is quadratic in the waves, and the flux of the ensemble-mean fields would fade with lead time
+        as the members&rsquo; wave phases drift apart.</p>
+<p><b>Why GEFS (since 30 September 2026).</b> GEFS carries wind and temperature at 31 levels, including 1, 2, 3, 5, 7,
+        20, 30 and 70&nbsp;hPa. ECMWF&rsquo;s open data has nothing between 10 and 50&nbsp;hPa, so the AIFS-ENS and IFS-ENS
+        versions this item used to show took the stratospheric divergence over 10&ndash;100&nbsp;hPa in one step, and
+        one-sided at 10&nbsp;hPa. Those two loops are retired. Over 50&ndash;100&nbsp;hPa, where all three models have
+        levels, GEFS and AIFS-ENS agree: on the 30 September analysis their [v&prime;&theta;&prime;] at 40&ndash;80&deg;
+        correlates at 0.98&ndash;1.00 with amplitudes within 10&nbsp;%.</p>
+<p><b>How it is computed.</b> F<sub>&phi;</sub>&nbsp;=&nbsp;&minus;a&nbsp;cos&phi;&nbsp;[u&prime;v&prime;] and
+        F<sub>p</sub>&nbsp;=&nbsp;a&nbsp;cos&phi;&nbsp;f&nbsp;[v&prime;&theta;&prime;]/[&theta;]<sub>p</sub>, with the
+        zonal-mean static stability [&theta;]<sub>p</sub> at each latitude and level; the eddies are zonal wavenumbers 1&ndash;3. Vertical
+        derivatives are taken in ln&nbsp;p on the actual levels; the divergence is smoothed along latitude only
+        (2.5&deg;), never across levels. The shading is the divergence as a force on the zonal-mean wind
+        (purple: waves decelerating the westerlies). At the top level, 1&nbsp;hPa, the derivative is one-sided, so
+        the 1&ndash;2&nbsp;hPa layer is hatched. Latitudes poleward of 82&deg; are masked.</p>
+<p><b>Checked 1 October 2026.</b> Grey marks levels that lie <b>below the ground</b> on more than 10&nbsp;% of a
+        latitude circle (Antarctica, Greenland, the Andes, Tibet), from each member&rsquo;s surface pressure: the model
+        fills those levels by extrapolation, and the fluxes there were producing saturated bands near the surface.
+        Since the same day the static stability is the zonal mean rather than one global profile, which had
+        under-stated the stability above the polar tropopause. On 26 September the stratospheric pattern
+        (100&ndash;2&nbsp;hPa, 40&ndash;80&deg;) matched the GEOS-FP analysis momentum budget at a pattern correlation
+        of 0.87 in the south and 0.81 in the north. The many purple areas are real: in southern spring the planetary
+        waves drag on the westerlies over most of the extratropical stratosphere. In the MERRA-2 climatology for late
+        September, 80&nbsp;% of that region is convergent; in the GEOS-FP analysis of 26 September, 47&nbsp;%;
+        in the GEFS loop, 50&nbsp;%. Single frames near the poles can be large because a strong high-latitude trough
+        is a real wave-1 eddy: on 1 October the AIFS-ENS analysis has the same [u&prime;v&prime;], about
+        &minus;160&nbsp;m&sup2;/s&sup2; at 75&ndash;78&deg;N and 250&nbsp;hPa.</p>
+<p><b>The arrows</b> use the Edmon, Hoskins and McIntyre (1980) display scaling written for a logarithmic pressure
+        axis (Jucker 2021), multiplied by 1000&nbsp;hPa/p so the stratosphere is legible. The factor leaves every
+        direction exact but grows with height, so compare arrow lengths along a level, and read the convergence from
+        the shading. One fixed scale serves every frame and every run, so arrow lengths can be compared
+        from day to day; the rare arrow longer than the frame can hold is drawn at the maximum length in red.
+        The dashed magenta line is where the zonal-mean wind equals the wave-1 Charney&ndash;Drazin critical
+        velocity: wave 1 propagates upward only where 0&nbsp;&lt;&nbsp;&#363;&nbsp;&lt;&nbsp;U<sub>c</sub>.</p>
+<p class="chart-sources">NOAA GEFS (Global Ensemble Forecast System), control + 30 perturbed members, 0.5&deg;, u, v and
+        T at 31 levels 1000&ndash;1&nbsp;hPa from NOAA&rsquo;s open data on AWS (noaa-gefs-pds; public domain) &middot;
+        per-member fluxes averaged &middot; QG E&ndash;P flux, wavenumbers 1&ndash;3, zonal-mean static stability, below-ground levels masked from surface pressure
+        &middot; analysis plus daily steps to day&nbsp;15 &middot; updated each 00/12Z cycle</p>
+</template>
+<template id="about-qbozl">
+<p>Holton and Tan (1980) proposed that the <b>quasi-biennial oscillation</b> reaches the polar vortex through a
+        critical line. Planetary waves coming up and equatorward from the winter midlatitudes cannot cross the
+        latitude where the zonal-mean wind [u] turns easterly. With easterly QBO winds in the lower stratosphere that
+        line sits in the winter subtropics, the waveguide is narrower, and more wave activity is steered toward the
+        vortex. This item tracks <b>where that line is</b>, day by day, at 70, 50, 30 and 10&nbsp;hPa. The
+        <a href="#shqbo">QBO and the vortex</a> item in the history group shows the equatorial wind itself.</p>
+<p><b>The index.</b> [u] is smoothed along latitude (Gaussian, &sigma;&nbsp;2&deg;). The scan starts at the
+        strongest westerlies between 25 and 45&deg;N and moves toward the equator. The zero line is the first crossing
+        whose easterly region beyond it reaches at least 1&nbsp;m/s. Shallower dips are stepped over, because a
+        &minus;0.3&nbsp;m/s wobble is within analysis noise. When there are no northern westerlies to start from, the
+        index is undefined; at 50&nbsp;hPa that is most of June to August. When no crossing qualifies before
+        45&deg;S, the day is marked with a triangle. The line is broken where it jumps by more than 8&deg; in a day:
+        that is a switch between two crossings, not motion. The grey band is the MERRA-2 1980&ndash;2025 spread of
+        the index for the date. The bottom panels are the mean [u] of past winters, split by the sign of the
+        Singapore 50&nbsp;hPa wind in October&ndash;November, with this year&rsquo;s analysed line laid over them.</p>
+<p><b>Checks.</b> On the 46 years of MERRA-2 daily data, the 50&nbsp;hPa index never goes undefined or censored
+        in October&ndash;March. Its median change from one day to the next is 0.3&deg;. On 1.3&nbsp;% of days it
+        jumps by more than 10&deg;, when a shallow subtropical easterly band crosses the 1&nbsp;m/s depth threshold.
+        Varying the smoothing (0 or 4&deg;) or the depth threshold (0 or 2&nbsp;m/s) moves October&ndash;November days
+        by less than 1&deg; on 94&ndash;99&nbsp;% of days. The live analysis is GEOS FP at 00&nbsp;UTC. On the 82
+        days it overlaps MERRA-2 (12 June to 1 September 2026), its [u] between 30&deg;S and 30&deg;N differs by
+        1.0&ndash;1.9&nbsp;m/s RMS, and its zero-line latitude differs by a median 0.3&ndash;0.4&deg; at 70 and
+        50&nbsp;hPa. No offset is applied. The forecasts compute the index <b>per member</b> (AIFS-ENS control +
+        25 members, IFS-ENS 50 members) and show the median and 10&ndash;90&nbsp;% range. The forecast shading is
+        the AIFS-ENS ensemble-mean [u].</p>
+<p><b>Does it predict the winter vortex? No, not significantly, so this is a diagnostic.</b> We tested it on the
+        46 winters 1980/81&ndash;2025/26. The outcome was the December&ndash;February zonal-mean wind at 60&deg;N,
+        10&nbsp;hPa (MERRA-2), plus whether the winter had a major sudden warming. The rival predictor was the
+        Singapore 50&nbsp;hPa wind in October&ndash;November. Intervals are 95&nbsp;% bootstrap, over winters, and
+        p-values come from 10,000 permutations (Freedman&ndash;Lane for the partial tests).</p>
+<ul>
+<li><b>Singapore 50&nbsp;hPa</b>: r&nbsp;+0.39 [+0.13, +0.61], p&nbsp;0.008. It is still +0.40 (p&nbsp;0.008)
+        with CPC&rsquo;s DJF RONI held fixed. MERRA-2&rsquo;s own equatorial 50&nbsp;hPa wind gives +0.40
+        (p&nbsp;0.006). This is significant.</li>
+<li><b>The zero line at 50&nbsp;hPa</b> (from the October&ndash;November mean profile, the version chosen before
+        the test): r&nbsp;+0.17 [&minus;0.06, +0.39], p&nbsp;0.34. Beyond Singapore and ENSO its partial r is +0.20
+        [&minus;0.19, +0.39], p&nbsp;0.21. Neither is significant. The reason is plain in the data: in autumn
+        the 50&nbsp;hPa zero line hardly moves with the QBO (r&nbsp;&minus;0.06 with Singapore). It sat between 24
+        and 29.5&deg;N in 45 of the 46 autumns, bounded by a subtropical easterly band that is present in both
+        phases. The exception was 1997.</li>
+<li><b>All eight versions</b> (70, 50, 30 and 10&nbsp;hPa, each taken from the mean profile or as a mean of daily
+        values): none is significant on its own (smallest p&nbsp;0.08). None adds to Singapore and ENSO (smallest
+        p&nbsp;0.12, and none passes a 10&nbsp;% false-discovery rate). Varying the rule changes nothing either.
+        One of five variants, a 4&nbsp;m/s depth threshold, reached p&nbsp;0.02 on its own, but that does not
+        survive the 13 versions tried, and it adds nothing beyond Singapore (p&nbsp;0.20).</li>
+<li><b>Sudden warmings</b> (24 of the 46 winters): no version separates warming winters from the rest
+        (area under the ROC curve 0.39&ndash;0.66, p&nbsp;&ge;&nbsp;0.06). Singapore 50&nbsp;hPa does not either,
+        in this sample (0.59, p&nbsp;0.29).</li>
+</ul>
+<p>The null is consistent with <b>Garfinkel et al. (2012)</b>. In their model experiments the QBO acted on the
+        vortex less through the position of the critical line than through its <b>secondary (meridional)
+        circulation</b>, which changes the subtropical and polar-vortex-edge winds in the lower and upper
+        stratosphere and with them where the waves go. So read this chart for where the waves can and cannot go
+        this autumn, not as a forecast of the vortex. For that, the equatorial wind itself is the better
+        (significant) predictor.</p>
+<p class="chart-sources">NASA GMAO MERRA-2 (M2I3NPASM; daily means of the 0/6/12/18Z analyses, zonal mean of 144
+        longitudes, 50&deg;S&ndash;50&deg;N, Earthdata Cloud OPeNDAP), 1980 &ndash; 1 September 2026 &middot; NASA GMAO GEOS FP
+        assimilation, 00Z (NCCS OPeNDAP; the Brewer&ndash;Dobson product&rsquo;s daily cache) &middot; ECMWF AIFS-ENS
+        control + 25 members and IFS-ENS 50 members, u at 50 and 10&nbsp;hPa to day 15 (open data, CC&nbsp;BY&nbsp;4.0,
+        Google Cloud mirror) &middot; KIT / FU Berlin QBO (Singapore) &middot; CPC RONI &middot; MERRA-2
+        u(60&deg;N, 10&nbsp;hPa) and the sudden-warming catalogue of the history group &middot; reference built
+        2026-09-28, redrawn with each AIFS-ENS and IFS-ENS cycle</p>
+</template>
+<template id="about-pv">
+<p><b>Potential vorticity</b> on a surface of constant potential temperature (an <b>isentrope</b>) is the
+        clearest single picture of the polar vortex. Away from heating and friction, air keeps both its potential
+        temperature and its PV, so on an isentrope PV moves with the flow like dye: tongues of low-PV air drawn
+        poleward and filaments peeled off the vortex are real parcels of air, not just a shape in a height field.
+        The vortex is the cap of high PV over the pole, and its <b>edge</b> is where PV changes most sharply,
+        which is also where the polar-night jet blows. A <b>displacement</b> shows as the cap pushed off the pole;
+        a <b>split</b> as the cap pinched into two separate pieces.</p>
+<p>Two levels, side by side. <b>475&nbsp;K</b> is the lower stratosphere, roughly 60&ndash;70&nbsp;hPa over the
+        winter pole, the part of the vortex that couples down to the weather. <b>850&nbsp;K</b> is about
+        10&nbsp;hPa, where a sudden warming is defined and where a split or displacement usually shows first. The
+        pressure each surface sits at over the cap is printed in its title. PV grows steeply with height, so each
+        level has its own fixed scale in PVU (1&nbsp;PVU = 10<sup>&minus;6</sup>&nbsp;K&nbsp;m<sup>2</sup>&nbsp;kg<sup>&minus;1</sup>&nbsp;s<sup>&minus;1</sup>),
+        kept the same through the loop and the seasons. Southern PV is negative. It is sign-flipped here so the vortex
+        reads positive in both hemispheres.</p>
+<p>The <b>red line</b> is the vortex edge by the <b>Nash et&nbsp;al. (1996)</b> method. Each point is given an
+        equivalent latitude, the latitude of a polar cap with the same area as all the air of higher PV. The edge is
+        where the PV gradient in equivalent latitude, times the mean wind along the contour, peaks (searched between
+        45&deg; and 85&deg;). It is drawn only when that wind reaches <b>15.2&nbsp;m/s</b>, their threshold for a vortex
+        to exist. A hemisphere with no vortex shows no line rather than a meaningless one. The note under each map
+        gives the edge&rsquo;s PV, its equivalent latitude, the jet along it and the area it encloses. Pieces of the
+        contour shorter than 2,500&nbsp;km are not drawn. The PV field is lightly smoothed (about 80&nbsp;km) before
+        shading, to remove grid-scale noise in the analysed PV.</p>
+<p class="chart-sources">NASA GMAO GEOS FP (NCCS OPeNDAP), analysis + 10-day forecast, 00Z (<code>inst3_3d_asm_Np</code>:
+        Ertel PV, u, v and T on 200&ndash;3&nbsp;hPa, read at 0.5&deg;&nbsp;&times;&nbsp;0.625&deg;) &middot; interpolated to
+        475 and 850&nbsp;K linearly in ln&nbsp;&theta; &middot; vortex edge after Nash, Newman, Rosenfield and Schoeberl
+        (1996), <i>J.&nbsp;Geophys. Res.</i> 101, 9471&ndash;9478 &middot; polar stereographic, 20&ndash;90&deg; &middot;
+        updated daily once the 00Z forecast is posted</p>
+</template>
+<template id="about-wave1">
+<p>The <b>zonal wavenumber-1 component</b> of geopotential height at three levels, bottom-up from left to right:
+        <b>500&nbsp;hPa</b> (the tropospheric source), <b>100&nbsp;hPa</b> (where wave driving reaches the vortex)
+        and <b>10&nbsp;hPa</b> (the vortex itself), for one hemisphere at a time. The loop opens on whichever
+        hemisphere carries the larger wave. Red is a ridge and blue a trough, relative to the zonal mean; thin
+        contours are the full height field. Each level has its own colour scale, because wave amplitude grows
+        with height.</p>
+<p><b>Reading it.</b> The filled <b>&#9650;</b> on the dashed 60&deg; circle marks this map&rsquo;s wave-1 ridge and
+        the open <b>&#9651;</b> where the 1991&ndash;2020 normal puts it on this date. Each panel quotes the wave&rsquo;s
+        amplitude at 55&ndash;65&deg;, its size against the normal standing wave (<b>&times; normal</b>; amplified at
+        &ge;&nbsp;1.25&times;, weak at &le;&nbsp;0.75&times;) and how far its ridge sits from the normal ridge. The line
+        under the maps gives the ridge longitude at each level and how it moves with height. A ridge that shifts
+        <b>west</b> going up is carrying wave activity upward into the vortex (the positive eddy heat flux in the
+        next item); one stacked over the same longitude is not. At 10&nbsp;hPa the normal standing wave is too
+        small to compare against in early autumn and summer, and the panel says so.</p>
+<p><b>Agreement.</b> The map is the <b>ensemble mean</b> of 25 members. Dots mark where fewer than 80&nbsp;% of the
+        members agree on the sign of the wave there, and each panel quotes the members&rsquo; phase agreement
+        (1&nbsp;= every member has its ridge at the same longitude). A long-lead map with low agreement is an average of
+        different waves, so its phase should not be read. The analysis frame is the control. The <b>IFS-ENS</b> maps
+        average all <b>50</b> of its perturbed members; with no ensemble control on open data, their analysis frame is
+        the IFS HRES analysis.</p>
+<p class="chart-sources">ECMWF AIFS-ENS, 25 perturbed members (open data, CC&nbsp;BY&nbsp;4.0), 500, 100 and 10&nbsp;hPa,
+        analysis to day&nbsp;15 &middot; ECMWF IFS-ENS, all 50 perturbed members, 0.25&deg; (open data, CC&nbsp;BY&nbsp;4.0, from the Google Cloud mirror), the same levels and steps &middot; zonal wavenumber-1 Fourier component of geopotential height &middot; normal
+        standing wave: ERA5 1991&ndash;2020 (WeatherBench2 for 500/100&nbsp;hPa, ERA5 ARCO for 10&nbsp;hPa) &middot;
+        polar stereographic &middot; updated each 00/12Z cycle. Corrected 2026-09-27: the wave&rsquo;s phase against the
+        normal had been read 180&deg; off, because the forecast and normal grids start at different longitudes; the
+        amplitude ratio was never affected.</p>
+</template>
+<template id="about-bdc">
+<p>The <b>Brewer–Dobson circulation</b> is the slow overturning of the stratosphere: air rises through the tropical
+tropopause, drifts poleward and sinks over the winter pole. It sets how fast air, water vapour and ozone move through the
+stratosphere, and it is driven from above &mdash; waves breaking in the extratropical stratosphere pull the circulation along.
+This product estimates it by <b>downward control</b> (Haynes et al. 1991): the zonal momentum forcing &mdash; the divergence
+of the Eliassen&ndash;Palm flux of the resolved waves plus the parameterized gravity-wave drag &mdash; divided by the
+Coriolis term gives the residual meridional wind, integrated from the top down into the residual streamfunction &Psi;*.
+The tropical upward mass flux is &Psi;* at the two subtropical turnaround latitudes (fixed for the day of year from the
+MERRA-2 mean circulation). Estimating it from the analysed mean meridional wind or vertical velocity directly does not
+work: in both GEOS FP and MERRA-2 that version shows no northern-winter maximum at all, because the tropical upwelling
+(~0.3&nbsp;mm/s) is buried in the noise of a daily zonal mean.</p>
+<p>The reference is MERRA-2 (15 years, 1991&ndash;2009): at 70&nbsp;hPa the annual mean is 6.4&times;10<sup>9</sup>&nbsp;kg/s
+with a December&ndash;January maximum 1.5&times; the July minimum, as in the published reanalysis estimates. GEOS FP is put on the
+MERRA-2 scale by the same-day difference measured on 38 days of 2018&ndash;19 (&minus;0.9 at 70&nbsp;hPa, most of it GEOS FP's
+weaker gravity-wave drag). The forecast holds the last five days' drag fixed, because GEOS FP publishes no forecast wind
+tendencies. Values are trailing 30-day means: a single day scatters by about &plusmn;4. The analysis increment, the
+reanalyses' own correction to the momentum budget, is left out.</p>
+<p class="chart-sources">NASA GMAO GEOS FP (assimilation and 00Z forecast, NCCS OPeNDAP) &middot; MERRA-2 GMI replay (NASA
+GMAO) &middot; test: z-test of the 30-day mean against MERRA-2's day-to-day and year-to-year variance plus the errors of the normal
+and of the GEOS FP offset; section shaded only where the false-discovery rate is below 10&nbsp;% &middot; updated daily</p>
+</template>
+<template id="about-aoa">
+<p>The <b>age of stratospheric air</b> is how long ago, on average, the air at a place was last at the ground. Air enters
+        the stratosphere through the cold tropical tropopause, is lifted by the tropical branch of the Brewer&ndash;Dobson
+        circulation, spreads poleward and sinks at high latitudes, while breaking waves mix old air back toward the tropics.
+        Age therefore grows with height and toward the poles. It sums up the whole circulation in one number &mdash; a faster
+        overturning makes younger air &mdash; and it is the quantity on which models and observations disagree
+        (Waugh and Hall 2002).</p>
+<p><b>The data.</b> The MERRA-2 GMI replay (NASA GMAO): the GMI stratosphere&ndash;troposphere chemistry model driven by
+        the MERRA-2 reanalysis winds and temperatures, 1980&ndash;2019, carrying a <b>clock tracer</b> released at the
+        surface. Its mixing-ratio deficit is the mean age in days. Monthly means from NCCS, zonal means of 72 longitudes,
+        2&deg; latitude, 250&ndash;0.1&nbsp;hPa. The age is referenced to the <em>surface</em>; balloon and aircraft
+        estimates are usually referenced to the tropical tropopause, about 0.3 years later.</p>
+<p><b>Magnitudes.</b> Annual mean at 50&nbsp;hPa (~20.5&nbsp;km): 1.7 years over the equator (10&deg;S&ndash;10&deg;N),
+        3.7 years at 35&ndash;55&deg; in both hemispheres, 4.4&ndash;4.6 years over the poles; at 10&nbsp;hPa (~31&nbsp;km)
+        4.4&ndash;4.6 years at mid-latitudes. Observations: about 1 year over the equator at 20&nbsp;km from ER-2 aircraft
+        CO<sub>2</sub> (tropopause-referenced), 4&ndash;5 years at high latitudes, and 5&nbsp;&plusmn;&nbsp;0.5 years in the
+        mid-latitude middle stratosphere (Andrews et al. 2001; Waugh and Hall 2002). GMI sits at the young end of that
+        range aloft and a little old over the equator at 20&nbsp;km, as most models and reanalysis-driven transport do.</p>
+<p><b>Record checks.</b> No spin-up: the global-mean age anomaly at every level from 100 to 1&nbsp;hPa is flat through
+        1980&ndash;1982 (slope &lt;&nbsp;0.05 years per year), so no years are dropped. What the record does show is a decline
+        of about 0.5 years in the middle and upper stratosphere between the early 1990s and 2003, after which it is flat.
+        The same drop appears in MERRA-2-driven age in other transport models (Chabrillat et al. 2018, a decrease of
+        0.8 years 1989&ndash;2015 at northern mid-latitudes, mostly before 2000). It coincides with changes in what
+        MERRA-2 assimilates &mdash; a new production stream from January 1992, AMSU radiances from 1998, Aura MLS
+        temperatures from 2004 &mdash; so it cannot be read as a clean climate trend. The step across each stream start
+        (12 months after minus 12 before) is at most 0.2 years.</p>
+<p><b>Trend.</b> Over 1980&ndash;2019 the age decreases almost everywhere (1,502 of 1,547 cells significant), by
+        0.17&nbsp;&plusmn;&nbsp;0.05 years per decade at 30&ndash;50&deg;N, 30&ndash;5&nbsp;hPa &mdash; the latitudes and
+        heights of the balloon record of Engel et al. (2017), which found <b>+0.15&nbsp;&plusmn;&nbsp;0.18 years per
+        decade</b> for 1975&ndash;2016, not significant. This is the known disagreement: chemistry&ndash;climate models
+        simulate air getting younger as greenhouse warming speeds the circulation, and the balloon record does not confirm
+        it. Here the decline is the 1990s step; over <b>2004&ndash;2019</b> the balloon box shows no significant trend
+        (+0.02&nbsp;&plusmn;&nbsp;0.09). Of the 105 cells (of 1,547) with a significant 2004&ndash;2019 trend, 85 show air
+        getting <em>older</em>, by up to 0.16 years per decade, mostly in the northern extratropical lower stratosphere;
+        20 show a tiny decline (under 0.03 years per decade) in the southern subtropical lowermost stratosphere.</p>
+<p><b>ENSO.</b> El Ni&ntilde;o makes the tropical lower-stratosphere air younger, as a faster Brewer&ndash;Dobson ascent
+        should: &minus;0.26 months per +1&nbsp;&deg;C of the relative Ni&ntilde;o-3.4 index at 70&nbsp;hPa
+        (p&nbsp;=&nbsp;0.002) and &minus;0.35 at 50&nbsp;hPa (p&nbsp;=&nbsp;0.001), with the index one month earlier. The
+        sign is the same at every lag from 0 to 8 months and significant at lags 0&ndash;2 and 7&ndash;8. Across the section
+        99 cells from 20&deg;S to 22&deg;N and 200&ndash;30&nbsp;hPa are significantly younger, and 101 cells in the
+        mid-latitude lowermost stratosphere (85&ndash;200&nbsp;hPa) significantly older. The effect is small: a strong
+        El Ni&ntilde;o of +2&nbsp;&deg;C takes about half a month off air that is about ten months old at 70&nbsp;hPa.</p>
+<p><b>QBO.</b> The quasi-biennial oscillation's secondary circulation sinks at the equator under westerly shear and
+        rises in the subtropics. With westerlies at 50&nbsp;hPa the equatorial air at 50&nbsp;hPa is older by 0.52 months
+        per standard deviation (7.5&nbsp;m/s; p&nbsp;&lt;&nbsp;10<sup>&minus;9</sup>), and 446 of 1,547 cells respond
+        significantly to the 50&nbsp;hPa index, 166 to the 30&nbsp;hPa index.</p>
+<p><b>Statistics.</b> Monthly anomalies from the monthly climatology are regressed on a linear trend, the relative
+        Ni&ntilde;o-3.4 index (CPC RONI, lag chosen as the one with the largest |t| at 70&nbsp;hPa over the equator; the
+        neighbouring lags are shown) and the CPC 30 and 50&nbsp;hPa equatorial wind indices together, with AR(1) errors
+        (Prais&ndash;Winsten; the age anomalies are strongly persistent, lag-1 autocorrelation ~0.86, so ordinary least
+        squares would overstate significance several-fold). El Chich&oacute;n (April 1982&ndash;March 1984) and Pinatubo
+        (June 1991&ndash;December 1993) are left out: their warming coincided with El Ni&ntilde;o. Every map is shaded only
+        where a two-sided t-test passes a false-discovery rate of 10&nbsp;% over the whole section (Benjamini&ndash;Hochberg;
+        Wilks 2016). The seasonal-cycle panel tests each month against the annual mean over the 40 years.</p>
+<p class="chart-sources">NASA GMAO MERRA-2 GMI replay, <code>tavgM_3d_dac_Np</code> <code>aoadays</code> (NCCS OPeNDAP)
+        &middot; CPC RONI and QBO indices &middot; Engel et al. 2017, <i>ACP</i> 17, 6825 &middot; Chabrillat et al. 2018,
+        <i>ACP</i> 18, 14715 &middot; Waugh and Hall 2002, <i>Rev. Geophys.</i> 40 &middot; static reference, built once
+        from the 1980&ndash;2019 record</p>
+</template>
+<template id="about-tape">
+<p>Air enters the stratosphere through the cold tropical tropopause, which freeze-dries it to the water-vapour
+        saturation of its coldest point. That cold point is coldest in northern winter and warmest in northern summer, so
+        the air entering carries an annual cycle of water vapour &mdash; about 3&nbsp;ppmv in February, 5 in September at
+        100&nbsp;hPa &mdash; and the slow tropical ascent of the Brewer&ndash;Dobson circulation lifts it like a signal
+        written on a rising tape: the <b>tape recorder</b> (Mote et al. 1996). The slope of its dry and moist bands is the
+        ascent speed; the value at 100&ndash;70&nbsp;hPa is the entry value the cold point has just set.</p>
+<p><b>The data.</b> The long record is <b>Aura MLS</b> version 6 (ML2H2O v006, NASA JPL / GES DISC), the reference for
+        stratospheric water vapour: 10&deg;S&ndash;10&deg;N daily means of the profiles that pass the v6 data-quality
+        screening (status, quality, convergence, precision), August 2004 on, 7,344 good days. MLS is reached with an
+        Earthdata login, which the site's GitHub Actions do not hold, so the MLS record is built on the laptop and
+        committed; it currently ends on the last MLS day marked on the figures. Two limits: since May 2024 MLS's
+        190-GHz radiometer, which measures water, has run about one week a month to save its life, and about four days a
+        month since early 2026, so the recent record is monthly snapshots (the tape-recorder section fills the gaps of up
+        to seven weeks by interpolation, marked in its strip); and the radiometer is ageing: a drift against frost-point
+        balloon sondes remains after the v5/v6 correction (MLS v6 data-quality document).</p>
+<p><b>GEOS FP after the last MLS day.</b> The newest weeks come from the GEOS FP analyses (NASA GMAO, one 12Z analysis a
+        day, updated twice daily). GEOS FP does <b>not</b> assimilate stratospheric water vapour, and it shows: after the
+        January 2022 Hunga eruption, which injected about 150&nbsp;Tg of water, MLS measured +1.0 to +1.4&nbsp;ppmv at
+        30&ndash;10&nbsp;hPa over the tropics in 2022&ndash;2023 while GEOS FP stayed at its old values (&minus;0.1), a gap
+        of about 20&nbsp;%. Its water at 100&nbsp;hPa does follow MLS (month-to-month anomaly correlation 0.82 in
+        2018&ndash;2021, 0.92 since 2024) because the entry value is set by the <em>analysed</em> temperatures; from
+        70&nbsp;hPa up it does not (r from &minus;0.35 to +0.55 by level and period). So GEOS FP is used only after the last MLS day, shifted
+        onto the MLS scale by the mean difference over the 60 days before it. That offset was chosen by a hindcast of 87
+        MLS months since 2019; a monthly mean predicted that way is off by 0.17&nbsp;ppmv (rms) at 100&nbsp;hPa and
+        0.40 at 70&nbsp;hPa, and that error is added to every test that uses GEOS FP.</p>
+<p><b>Entry value.</b> The last 30 days are tested against the MLS 2005&ndash;2021 normal for the same dates (years
+        before Hunga), with the year-to-year spread of 30-day means plus the GEOS FP error. At 100&nbsp;hPa the water
+        tracks GEOS FP's analysed 100&nbsp;hPa temperature: monthly anomalies correlate at r&nbsp;=&nbsp;0.85,
+        +0.36&nbsp;ppmv per kelvin (p&nbsp;&lt;&nbsp;0.001, autocorrelation-adjusted; the temperature anomaly is against
+        GEOS FP's own 2018&ndash;2025 years).</p>
+<p><b>Ascent speed.</b> At each MLS level an annual harmonic is fitted over a calendar year; the time of the moist
+        maximum rises with height, and the speed is the height gained per day (log-pressure height, scale height 7&nbsp;km,
+        the coordinate of the residual w*). The 100&nbsp;hPa level is left out: MLS's ~3&nbsp;km vertical resolution
+        smears the entry level. Over 2005&ndash;2021 the band rises at 0.27&nbsp;mm/s at 68&nbsp;hPa, slows to
+        0.23&nbsp;mm/s near 46&nbsp;hPa and speeds up to 0.34&nbsp;mm/s at 26&nbsp;hPa &mdash; 83&ndash;46&nbsp;hPa
+        averages 0.26&nbsp;&plusmn;&nbsp;0.05&nbsp;mm/s (single years), 46&ndash;26&nbsp;hPa 0.27&nbsp;&plusmn;&nbsp;0.03,
+        about 45 days per kilometre. Those match the published MLS and SWOOSH estimates (Brehon et al. 2026:
+        0.21&ndash;0.33&nbsp;mm/s, slowest near 50&nbsp;hPa). The latest 12 months are compared with the single years by
+        a z-test with a bootstrap over calendar months (the duty-cycled data come in monthly bursts).</p>
+<p><b>Against w*.</b> The tape moves with the residual vertical velocity plus vertical mixing into the tropical pipe,
+        so it runs a little faster than w*. The site's Brewer&ndash;Dobson product gives, by downward control, a
+        MERRA-2 w* of 0.22&nbsp;mm/s at 70&nbsp;hPa and 0.23 at 50&nbsp;hPa (annual means 1991&ndash;2009, averaged between
+        the turnaround latitudes, about &plusmn;25&ndash;35&deg;): the MLS tape is about 20&nbsp;% faster at 70&nbsp;hPa and within
+        10&nbsp;% at 50&nbsp;hPa. The figure also marks GEOS FP's w* over the last 30 days, by downward control (on the MERRA-2
+        scale) and from its analysed &omega;*. GEOS FP's own tape recorder (2018&ndash;2025) rises at 0.29&ndash;0.35&nbsp;mm/s
+        between 50 and 30&nbsp;hPa, 10&ndash;20&nbsp;% faster than MLS's.</p>
+<p class="chart-sources">Aura MLS v6 H<sub>2</sub>O (NASA JPL, GES DISC; Earthdata) &middot; NASA GMAO GEOS FP
+        <code>inst3_3d_asm_Np</code> (NCCS OPeNDAP) &middot; MERRA-2 GMI replay (downward-control w*) &middot; Mote et al.
+        1996, <i>JGR</i> 101, 3989 &middot; Brehon et al. 2026, <i>ACP</i> 26, 3743 &middot; updated twice daily with the
+        Brewer&ndash;Dobson product; the MLS record is extended when it is rebuilt on the laptop</p>
+</template>
+<template id="about-mbudget">
+<p>The <b>zonal momentum budget</b> says, term by term, what is speeding up or slowing down the stratospheric
+        westerlies. It is written in the transformed Eulerian mean (TEM) form of Andrews, Holton and Leovy (1987), in
+        which the waves' effect on the mean flow is a single term, the divergence of their Eliassen&ndash;Palm flux:
+$$\frac{\partial\bar u}{\partial t} \;=\; \hat f\,\bar v^{*} \;-\; \bar w^{*}\frac{\partial\bar u}{\partial z} \;+\; \frac{\nabla\!\cdot\!\mathbf F}{\rho_0\,a\cos\phi} \;+\; X_{\rm GWD} \;+\; X_{\rm ANA} \;+\; \text{residual},\qquad \hat f = f-\frac{1}{a\cos\phi}\frac{\partial(\bar u\cos\phi)}{\partial\phi}$$
+        The left side is the <b>observed</b> change of the zonal-mean wind over each day. On the right: the Coriolis force
+        on the residual (Brewer&ndash;Dobson) meridional flow $\bar v^{*}$; vertical advection by the residual vertical
+        flow $\bar w^{*}$; the drag of the <b>resolved waves</b> (planetary and synoptic, also split into zonal wavenumbers
+        1, 2 and 3+); the model's parameterized <b>gravity-wave drag</b>, orographic and non-orographic together (GEOS FP
+        publishes only the total); and the <b>analysis increment</b>, the push the data assimilation gives the model to
+        keep it on the observations. The residual is what is left over: numerical damping and the sampling error of the
+        eddy fluxes. A negative term pushes westward and slows a westerly vortex.</p>
+<p>The same budget, with the same code, averaged over every major sudden warming of 1980&ndash;2019 is in <a href="#shmbudget">Momentum budget of past warmings</a> (Stratosphere history).</p>
+<p><b>The vortex view.</b> Every term averaged over 55&ndash;65&deg; at 10&nbsp;hPa (1 and 50&nbsp;hPa as options), as
+        trailing 7-day means or daily values; the legend gives each term's mean over the last 30 days. Above it, the vortex
+        wind itself against the MERRA-2 normal and its 10&ndash;90&nbsp;% range of single days; below it, the resolved-wave
+        term by zonal wavenumber against its MERRA-2 normal. Each day is the mean of eight 3-hourly analyses (00&ndash;24Z)
+        with each term computed per analysis: the terms swing by several m/s per day within a day, so a single daily
+        analysis can be off by several m/s per day, and on a test day six-hourly sampling missed the model's own
+        daily-mean dynamical tendency by 0.2&ndash;0.5&nbsp;m/s per day at 1&ndash;5&nbsp;hPa where three-hourly came within
+        0.05&ndash;0.15.</p>
+<p><b>How well it closes.</b> GEOS FP publishes its own wind tendencies, so the budget can be checked twice. First,
+        the day's change in the analysed wind equals the sum of the model's five published tendencies (dynamics, gravity-wave
+        drag, increment, moist, turbulent) to 0.02&nbsp;m/s per day rms on the three days checked; the moist and turbulent
+        tendencies are exactly zero above 100&nbsp;hPa. Second, the TEM terms computed here reproduce the model's own
+        dynamical tendency, so the residual is small. Over the first 12 days (15&ndash;26 September 2026), daily values:
+        at <b>10&nbsp;hPa</b> the five terms explain 99.2&nbsp;% (60&deg;N) and 98.5&nbsp;% (60&deg;S) of the day-to-day
+        variance of the observed change, with a residual of 0.07 and 0.24&nbsp;m/s per day rms against 1.2 and
+        2.4 for the resolved waves; at <b>50&nbsp;hPa</b> 99.9&nbsp;% in both, residual 0.04 and 0.10. At <b>1&nbsp;hPa</b>
+        it is 97.8&nbsp;% in the north but only 93&nbsp;% in the southern spring, where a systematic residual of about
+        &minus;2.3&nbsp;m/s per day appears: the model's dynamics hold a westward tendency that the TEM terms on the
+        published pressure levels (0.7, 1 and 2&nbsp;hPa) do not capture, partly the coarse vertical grid there and
+        partly, it seems, the model's damping near its top (the residual tracks the wind, r&nbsp;&minus;0.6). Read
+        1&nbsp;hPa in the south as indicative. The figure's footer gives these statistics for the whole record shown.</p>
+<p><b>The analysis increment</b> is not small. Over the same 12 days it averaged 0.43&nbsp;m/s per day in size at
+        60&deg;S, 10&nbsp;hPa against 0.13 for the gravity-wave drag, 0.13 against 0.01 at 50&nbsp;hPa, and
+        1.5 against 1.1 at 1&nbsp;hPa; at 60&deg;N it matches the drag at 10&nbsp;hPa and is three times it at
+        1&nbsp;hPa. Only in the tropics at 10&nbsp;hPa does the drag dominate (0.35 against 0.04). Part of the forcing the
+        model's own physics does not supply is supplied by the observations.</p>
+<p id="mb-upwelling"><b>Tropical upwelling.</b> The mean residual vertical velocity $\bar w^{*}$ between the subtropical
+        turnaround latitudes (where the residual circulation turns from rising to sinking, fixed by day of year from the
+        MERRA-2 mean circulation, as in the Brewer&ndash;Dobson item) at 70 and 100&nbsp;hPa, split by <b>downward
+        control</b> (Haynes et al. 1991): each force, divided by $\hat f$ and integrated down from the top, drives its
+        own share of the upwelling. The parts are the resolved waves, the gravity-wave drag, the analysis increment, the
+        non-steady part (the wind's own change, $-\partial\bar u/\partial t$) and &ldquo;other&rdquo; (vertical advection
+        and the residual). By construction they add up to the upwelling implied by the analysed $\bar v^{*}$; the
+        $\bar w^{*}$ computed straight from the analysed vertical velocity is an independent check. Over 28&nbsp;August&ndash;26&nbsp;September 2026 the two agreed: 0.185 against
+        0.184&nbsp;mm/s at 70&nbsp;hPa (daily correlation 0.79) and 0.218 against 0.188 at 100&nbsp;hPa. Over the same days the
+        increment drove three times as much of the 70&nbsp;hPa upwelling as the gravity-wave drag did (0.031 against
+        0.011&nbsp;mm/s), against 0.193 for the resolved waves. Lines are
+        trailing 30-day means. On the right, the last 30 days against MERRA-2: each normal is put on the GEOS FP scale by
+        the 2018&ndash;19 same-day difference (at 70&nbsp;hPa resolved &minus;0.016, gravity waves &minus;0.018, increment
+        &minus;0.010&nbsp;mm/s) and tested with a z-test against MERRA-2's year-to-year spread of 30-day means plus the
+        errors of the normal and of that difference; the footer says which parts are significant. 0.2&nbsp;mm/s is about
+        17&nbsp;m a day.</p>
+<p><b>Where the forces act.</b> Latitude&ndash;height sections from 100 to 1&nbsp;hPa of the resolved-wave drag, the
+        gravity-wave drag and the increment, averaged over the last 30 days, with the MERRA-2 normal for the same days as
+        contours. Below each, the difference from that normal, shaded only where it passes a z-test at a false-discovery
+        rate of 10&nbsp;% (Wilks 2016) and exceeds 0.25&nbsp;m/s per day. GEOS FP's gravity-wave drag is weaker than
+        MERRA-2's (about 0.6 of it at 60&deg;N, 10&nbsp;hPa on the 2018&ndash;19 same days), so it is compared with MERRA-2's
+        scaled by that measured ratio, point by point; the increment normal is MERRA-2's own monthly increment,
+        2005&ndash;2024.</p>
+<p><b>The forecast.</b> GEOS FP's forecast files carry no wind tendencies, so after the forecast line only the resolved
+        terms (Coriolis, vertical advection, resolved waves by wavenumber) and the forecast change of the wind are drawn.
+        Nothing is drawn for the gravity-wave drag or the increment: the gap between the forecast change and the
+        resolved terms is not a drag forecast. The upwelling forecast is the resolved part alone.</p>
+<p><b>Normals.</b> MERRA-2 (the GMI replay, 00Z every 10th day, 1991&ndash;2019). They are shown for reading, not
+        tested here: the resolved-wave normal comes from single 00Z analyses, which scatter by 0.5 (60&deg;N) to
+        3.5&nbsp;m/s per day (60&deg;S) about the daily mean at 10&nbsp;hPa, and on 38 same days of 2018&ndash;19 GEOS FP
+        minus MERRA-2 was &minus;0.1&nbsp;&plusmn;&nbsp;0.5 at 60&deg;N 10&nbsp;hPa (not significant), so no offset is
+        applied.</p>
+<p class="chart-sources">NASA GMAO GEOS FP (NCCS OPeNDAP): assimilation <code>inst3_3d_asm_Np</code> u, v, T and
+        &omega; every 3&nbsp;h on 200&ndash;0.1&nbsp;hPa at 1&deg;&nbsp;&times;&nbsp;1.25&deg;; <code>tavg3_3d_udt_Nv</code>
+        gravity-wave drag and analysis-increment tendencies, all eight 3-hourly windows of each day on the model's
+        pure-pressure levels; 00Z forecast <code>inst3_3d_asm_Np</code> to 240&nbsp;h &middot; MERRA-2 GMI replay
+        (NASA GMAO) for the normals &middot; updated daily</p>
+</template>
+<template id="about-fdrip">
+<p>The <b>dripping-paint</b> view of the forecasts: the polar-cap (65&ndash;90&deg;N) geopotential height at eleven
+        levels from 1000 to 10&nbsp;hPa, standardised exactly as in the MERRA-2 history drips (anomaly from a 4-harmonic
+        seasonal cycle and linear trend, divided by the seasonal standard deviation), so a forecast can be read against
+        the historical composites. Red is a high cap: a warm, weak vortex, and near the ground a negative Arctic
+        Oscillation. Left of the line are the <b>last 60 days observed</b> in GEOS FP analyses; right of it the
+        <b>ensemble mean</b> of the forecast.</p>
+<p><b>Drift is removed before anything is drawn.</b> Extended-range models slide towards their own climate with lead,
+        and in the stratosphere that slide is large: in its reforecasts GEPS raises the 10&nbsp;hPa cap by about 200&nbsp;m
+        by day 35, and GEFS by about 170&nbsp;m. Left in, that drift would paint a warming that is only the model. So
+        each model's anomaly is taken after subtracting its measured systematic difference from the MERRA-2 reference at
+        that lead:</p>
+<ul>
+<li><b>GEPS</b>: from the GEPS reforecasts in the ECMWF S2S archive (2001&ndash;2020, control + 3 members, start dates
+        within 8 days of the forecast's day of year). 10 and 100&nbsp;hPa are corrected; the other levels are added as
+        their reforecasts arrive from the archive.</li>
+<li><b>GEFS</b>: from the GEFS v2 reforecast daily climatology (2000&ndash;2019), which holds 10, 100 and 500&nbsp;hPa.</li>
+<li><b>AIFS-ENS</b>: no reforecast exists, so its control's cap forecasts from 25 recent cycles are verified against
+        the GEOS FP analyses and the mean error at each level and lead is removed where it is significant (more than
+        twice its standard error). It is small for the first week and rises to +15 to +45&nbsp;m by days 10&ndash;15.</li>
+<li><b>IFS-ENS</b> (all 50 perturbed members): no open reforecast either, and no control at these levels on open data,
+        so the mean of the 50 members on the same 25 cycles is verified the same way and removed where significant (at
+        every level). In the stratosphere it drifts the other way from AIFS-ENS: the 10&nbsp;hPa cap falls from 23&nbsp;m
+        above the analysis at the start to 53&nbsp;&plusmn;&nbsp;2&nbsp;m below by day&nbsp;7 and 104&nbsp;&plusmn;&nbsp;4&nbsp;m
+        below by day&nbsp;15 (50&nbsp;hPa &minus;33&nbsp;m, 100&nbsp;hPa &minus;14&nbsp;m), a vortex that grows too cold and
+        too strong; from 250 to 925&nbsp;hPa it rises by 13&ndash;23&nbsp;m by day&nbsp;15, as AIFS-ENS does. Both drifts come
+        from 00Z cycles between 30 June and 10 September 2026; a winter drift may differ.</li>
+</ul>
+<p>Levels where a model's drift has not been measured are <b>hatched</b>: there only the model's offset from the
+        GEOS FP analysis over its first day is removed, so read them with caution, especially at long lead. The
+        1000&nbsp;hPa cap needs that offset most: models extrapolate heights below the ground, while GEOS FP and MERRA-2
+        leave those points out (and on some summer days the observed value is undefined), so GEPS and GEFS read about
+        30&ndash;40&nbsp;m low at the start (AIFS-ENS 11&nbsp;m) by definition alone. The lower panel shows the 1000&nbsp;hPa cap (a proxy for the Arctic Oscillation; high = negative
+        AO) and the share of members with the 100&nbsp;hPa cap at least one standard deviation high, the level that couples
+        to the troposphere.</p>
+<p class="chart-sources">ECCC GEPS (MSC Datamart), NOAA GEFS (AWS Open Data), ECMWF AIFS-ENS open data (CC&nbsp;BY&nbsp;4.0),
+        ECMWF IFS-ENS open data, all 50 perturbed members, 0.25&deg; (CC&nbsp;BY&nbsp;4.0, Google Cloud mirror)
+        &middot; observed: NASA GMAO GEOS FP analyses (NCCS OPeNDAP), the measured GEOS FP&ndash;MERRA-2 offset removed &middot;
+        scale: MERRA-2 1980&ndash;2026 (NASA GMAO) &middot; drift: ECMWF S2S GEPS reforecasts (non-commercial research licence), GEFS v2
+        reforecast &middot; updated with each GEPS extended run, each GEFS 00Z run and each AIFS-ENS and IFS-ENS 00/12Z cycle</p>
+</template>
+<template id="about-heatflux">
+<p><a href="/topics/eddy-heat-flux.html">The explainer</a>: what the 100 hPa eddy heat flux measures, the equations and how to read the chart.</p>
+<p>The wave-1 maps show how large the planetary wave is and where its ridge sits; they do not show
+        whether it <b>propagates upward</b>. That is the vertical component of the Eliassen&ndash;Palm
+        flux, which at 100&nbsp;hPa is proportional to the zonal-mean <b>poleward eddy heat flux
+        [v&prime;T&prime;]</b>. A large wave that is vertically stacked carries almost none; one that
+        tilts westward with height carries a lot. <b>Positive is poleward in both hemispheres</b>,
+        which is wave activity entering the stratosphere.</p>
+<p>The flux is quadratic, so it is computed <b>per member and then averaged</b>: the flux of the
+        ensemble-mean fields fades with lead as the members&rsquo; phases decorrelate. Top left: the daily
+        flux, members and the analysed record against the climatological 10&ndash;90&nbsp;% range. Top right: the
+        wave-1 and wave-2 parts. Bottom left is the panel to read for the vortex: the <b>trailing
+        40-day mean, standardised</b>. A few strong days do little; weeks above +1&sigma; weaken
+        the vortex, weeks below &minus;1&sigma; let it strengthen. In early autumn radiative cooling
+        dominates, so a burst slows the vortex&rsquo;s seasonal spin-up rather than reversing it.
+        Bottom right: the ensemble-mean flux by latitude through the forecast.</p>
+<p>The <b>GEPS</b> and <b>GEFS</b> versions carry the same calculation to day 35 (one 00Z field a day, as for
+        AIFS-ENS), against the same climatology and the same analysed record, so the three read on one scale. The
+        flux is the models&rsquo; own, <b>not bias-corrected</b>: GEPS&rsquo;s reforecasts run the 10&nbsp;hPa vortex
+        progressively too weak with lead (about 4&ndash;6&nbsp;m/s by day 35), GEFS drifts with lead as well (the drift
+        the GEFS page removes from its own products), and a systematic flux error could sit behind either. Read week 3 onward as the model&rsquo;s tendency, not a calibrated
+        probability. The 40-day mean at the end of a 35-day forecast is almost all forecast.</p>
+<p>The <b>IFS-ENS</b> version uses all <b>50</b> of its perturbed members to day 15, taken to 0.5&deg; like GEPS and
+        GEFS (wavenumbers 1&ndash;72 need nothing finer). Its open data has no control at 100&nbsp;hPa, so there is no
+        control line.</p>
+<p class="chart-sources">ECMWF AIFS-ENS, 25 perturbed members + control, v and T at 100&nbsp;hPa, daily to day 15 (open data, CC&nbsp;BY&nbsp;4.0)
+        &middot; ECMWF IFS-ENS, all 50 perturbed members, 0.25&deg; (open data, CC&nbsp;BY&nbsp;4.0, from the Google Cloud mirror), v and T at 100&nbsp;hPa, daily to day 15
+        &middot; ECCC GEPS 00Z extended run, 20 perturbed members + control, 0.5&deg;, days 1&ndash;35 (MSC Datamart)
+        &middot; NOAA GEFS 00Z, 30 perturbed members + control, 0.5&deg;, days 1&ndash;35 (NOAA Open Data Dissemination, AWS) &middot; zonal wavenumbers 1&ndash;72 to match the climatology&rsquo;s resolution &middot; climatology: NCEP/NCAR Reanalysis&nbsp;1 (NOAA PSL), 1991&ndash;2020, &plusmn;15-day window &middot; analysed tail: the AIFS control&rsquo;s step-0 fields, 00 and 12&nbsp;UTC averaged (PSL&rsquo;s R1 stopped in March 2026) &middot; updated each AIFS-ENS 00/12Z cycle, each GEPS extended run and each GEFS 00Z run</p>
+</template>
+<template id="about-shwinters">
+<p>Each grey line is one northern winter, 1980/81 to 2025/26, October to May, from NASA&rsquo;s MERRA-2 reanalysis; the band is the 10&ndash;90&nbsp;% range of those 46 winters and the dashed line the median winter. Three views:</p>
+<ul>
+<li><b>Wind at 60&deg;N, 10&nbsp;hPa</b>, the textbook measure of the polar vortex. Below zero is a major sudden warming.</li>
+<li><b>Polar-cap temperature at 10&nbsp;hPa</b>, the warming itself: often 30&ndash;50&nbsp;K in a week.</li>
+<li><b>Polar-cap height at 100&nbsp;hPa</b>, standardised, positive = weak vortex. This is the lower stratosphere, the level that couples to the troposphere: an event that never shows here rarely reaches the ground.</li>
+</ul>
+<p>The highlight buttons draw a set of winters in colour: the five strong El Ni&ntilde;o winters that are the usual analogs for 2026/27 (1982/83, 1997/98, 2009/10, 2015/16, 2023/24), all El Ni&ntilde;o or La Ni&ntilde;a winters (CPC&rsquo;s RONI in DJF at or beyond &plusmn;0.5), or the QBO phase at 50&nbsp;hPa in October&ndash;November. Dots mark each sudden warming&rsquo;s central date (a diamond for a split). The menu draws any single winter in black. Three of the five strong El Ni&ntilde;o analogs had no sudden warming at all (a description of those winters, not a tested result: five winters cannot establish a rate).</p>
+<p>Our MERRA-2 pull is missing 299 of 16,979 days, scattered and at most nine in a row (one of them a corrupted all-zero record). The 10&nbsp;hPa wind is filled from NCEP R1 plus the local MERRA-2 minus R1 offset (the two correlate at 0.998); everything else is interpolated.</p>
+<p class="chart-sources">NASA GMAO MERRA-2 (M2I3NPASM; daily means of the 0/6/12/18Z analyses, zonal means at 42 levels to 0.1&nbsp;hPa, polar cap 65&ndash;90&deg;N cos-weighted) &middot; NCEP/NCAR R1 10&nbsp;hPa height maps (NOAA PSL) &middot; ERA5 2&nbsp;m temperature and 500&nbsp;hPa height (WeatherBench2, 1.5&deg;) &middot; CPC daily AO, RONI and QBO 50&nbsp;hPa index &middot; SILSO sunspot number &middot; static reference, built 2026-09-25</p>
+</template>
+<template id="about-shssw">
+<p><a href="/topics/sudden-stratospheric-warming.html">The explainer</a>: what sudden stratospheric warmings measures, the equations and how to read the chart.</p>
+<p>A <b>major sudden stratospheric warming</b> (SSW) follows Charlton and Polvani (2007): the first day the zonal-mean wind at 60&deg;N and 10&nbsp;hPa turns easterly, November to March. A second event in the same winter needs 20 straight westerly days in between, and a reversal that never recovers (at least 10 westerly days before 30 April) is the spring final warming, not an SSW. On MERRA-2 that finds 30 reversals since 1980. Two of them, 17 February 2002 and 28 November 2025, were one day of easterlies weaker than 0.2&nbsp;m/s that NCEP R1 never shows; they are listed as <i>unconfirmed</i> and left out of every composite and rate. That leaves 28 events in 24 of 46 winters.</p>
+<p><b>Deep or shallow</b>: the mean standardised polar-cap height at 100&ndash;150&nbsp;hPa over the 30 days after, split at the median. It was the best single predictor of the surface response in our earlier tests, better than how warm the stratosphere got or how far down the warming reached. After the 14 deep events the AO averaged 1.42 below the same dates in other years over days 1&ndash;30 and 0.69 below over days 31&ndash;60, both significant (t-test, false-discovery rate 10&nbsp;%). After the 14 shallow events there is no significant change. Against dates in the same season with the same AO over the previous 20 days and no warming, deep events ran 1.2 lower over the next 45 days, also significant (95&nbsp;% interval 0.7&ndash;1.7); shallow events were no different. Blocking before an event does not predict its depth (r = 0.03). Depth is measured over the same weeks as the surface response, so this is association, not proof of direction. Depth is also only known two to three weeks in: it tells you what an event is doing once it has happened, not whether one is coming.</p>
+<p><b>Split or displacement</b>, from the 10&nbsp;hPa height maps (MERRA-2 here is zonal-mean only, so the maps are NCEP R1): a split if, on any day from &minus;3 to +7, two separate low centres lie below the vortex edge (the DJFM mean 10&nbsp;hPa height at 60&deg;N, minus 150&nbsp;m), the smaller at least a quarter the size of the larger; otherwise a displacement. It matches the type usually given in the literature for all 20 events that have an established one (Charlton and Polvani 1981&ndash;2002, plus the well-studied later events), but it was tuned on them. The moment method&rsquo;s aspect-ratio threshold of 2.4 (Seviour et al. 2013) got 17 of 20 on this 2.5&deg; grid. 10 of the 28 are splits.</p>
+<p><b>Strong-vortex events</b> are the opposite extreme: the 10&nbsp;hPa annular index (the standardised polar-cap height anomaly with its sign flipped) first crossing +1.5, November to March, at least 60 days apart, after Baldwin and Dunkerton (2001). There were 27. The AO averaged 0.76 above normal over the 30 days after them, which is significant, and was back to normal by days 31&ndash;60.</p>
+<p class="chart-sources">NASA GMAO MERRA-2 (M2I3NPASM; daily means of the 0/6/12/18Z analyses, zonal means at 42 levels to 0.1&nbsp;hPa, polar cap 65&ndash;90&deg;N cos-weighted) &middot; NCEP/NCAR R1 10&nbsp;hPa height maps (NOAA PSL) &middot; ERA5 2&nbsp;m temperature and 500&nbsp;hPa height (WeatherBench2, 1.5&deg;) &middot; CPC daily AO, RONI and QBO 50&nbsp;hPa index &middot; SILSO sunspot number &middot; static reference, built 2026-09-25</p>
+</template>
+<template id="about-shdrip">
+<p>Baldwin and Dunkerton (2001) showed that large stratospheric anomalies tend to work their way down over a few weeks and then hold the surface in the same state for a month or two. Drawn against time and height, the composite looks like paint dripping down a wall. This is that chart from MERRA-2: the polar-cap (65&ndash;90&deg;N) geopotential height anomaly at 42 levels from 1000 to 1&nbsp;hPa, standardised for each level and day of year, with each level&rsquo;s linear trend removed. Above 5&nbsp;hPa a step at August 2004 is removed too, when MERRA-2 began assimilating Aura MLS; that is a data change, not climate. The standard deviation is floored at a third of its winter peak, so late-spring days do not blow up.</p>
+<p>Colour appears only where the composite passes a significance test: a t-test across events at every level and day, with the false-discovery rate held at 10&nbsp;% over the whole chart. With spatially correlated fields that keeps the chance of any false signal near 5&nbsp;% (Wilks 2016). Grey is not significant. Read it for three things. First, how fast the red reaches 100&nbsp;hPa. Second, whether it <b>lingers</b> there: significantly, to about day 60 after the deep events and the splits, to day 39 after displacements, and never after the shallow events. Third, whether the surface AO below turns negative. Day by day that passes only after the deep events (days 5&ndash;26) and, with the opposite sign, after strong-vortex events (days 3&ndash;9). The box gives 30-day means, a more powerful test that also passes for all warmings pooled. The blue that follows aloft is the vortex re-forming. The dashed line is the same calendar days averaged over every other year, the baseline every test is against.</p>
+<p><b>CMIP6, and the same chart in wind.</b> The <i>Data</i> buttons add the composite from climate models, where the sample is thousands of events instead of 28. Nine CMIP6 models that resolve the stratosphere and make their own QBO (UKESM1-0-LL, MRI-ESM2-0, CESM2-WACCM, CESM2-WACCM-FV2, CNRM-CM6-1, CNRM-ESM2-1, HadGEM3-GC31-LL, MPI-ESM1-2-HR, MIROC6) contribute 25,444 model-years of control, historical, scenario and AMIP runs: 15,136 sudden warmings (7,571 deep, 7,565 shallow) and 18,264 strong-vortex events. Their archive has no daily polar-cap height, so these charts use the zonal-mean wind at 60&deg;N, standardised and sign-flipped so a weak vortex is red; MERRA-2 is redrawn in the same variable beside them. Each run is measured against its own running climatology (15 days &times; 31 years), which removes control-run drift and forced trends. The events follow the MERRA-2 rules in wind terms: Charlton&ndash;Polvani reversals at 10&nbsp;hPa, December to March; deep and shallow split at each model&rsquo;s median of the day 1&ndash;30 wind anomaly at 100 and 150&nbsp;hPa (in MERRA-2 that agrees with the height-based split on 26 of the 28 events); a strong-vortex event when u(60&deg;N, 10&nbsp;hPa) first rises 1.5 standard deviations above normal, November to March, at least 60 days apart. Splits and displacements need the vortex&rsquo;s shape, which zonal means do not carry, so they stay MERRA-2 height only. The strip below is u(60&deg;N) at 700&nbsp;hPa, a daily stand-in for the AO (negative = weaker westerlies); 700 rather than 1000&nbsp;hPa because one model&rsquo;s zonal means are missing near the ground.</p>
+<p>The CMIP6 chart colours a cell only where it is <b>robust</b>: each model&rsquo;s composite counts once, the across-model t-test passes a false-discovery rate of 10&nbsp;% over the chart, and at least 80&nbsp;% of the models agree on the sign. In the big sample the paint does reach the ground: over days 1&ndash;30 the 700&nbsp;hPa westerlies weaken by 0.19 standard deviations after all warmings and by 0.51 after deep ones, and strengthen by 0.18 after strong-vortex events (all 9 models agree each time, p&nbsp;&lt;&nbsp;10<sup>&minus;5</sup>). After shallow warmings they are slightly <i>stronger</i> than normal for a month (+0.13, 9 of 9 models, significant). MERRA-2 in the same variable (false-discovery rate 10&nbsp;% over its eight 30-day tests) is significant over days 1&ndash;30 for deep warmings (&minus;0.46) and strong-vortex events (+0.18), and over days 31&ndash;60 for all warmings (&minus;0.18) and strong-vortex events, where the observed value turns <i>negative</i> (&minus;0.21) while the models&rsquo; stays positive (+0.11), both significant.</p>
+<p class="chart-sources">NASA GMAO MERRA-2 (M2I3NPASM; daily means of the 0/6/12/18Z analyses, zonal means at 42 levels to 0.1&nbsp;hPa, polar cap 65&ndash;90&deg;N cos-weighted) &middot; NCEP/NCAR R1 10&nbsp;hPa height maps (NOAA PSL) &middot; ERA5 2&nbsp;m temperature and 500&nbsp;hPa height (WeatherBench2, 1.5&deg;) &middot; CPC daily AO, RONI and QBO 50&nbsp;hPa index &middot; SILSO sunspot number &middot; CMIP6 DynVarMIP daily zonal-mean <code>ua</code> (EdayZ), Pangeo Google Cloud mirror, reduced 2026-09-27 &middot; static reference, built 2026-09-25</p>
+</template>
+<template id="about-shfollow">
+<p>What happened at the surface after each kind of event, averaged over every event since 1980, <b>showing only what is statistically significant</b>. Temperatures and heights are ERA5 anomalies against each grid point&rsquo;s own seasonal cycle and linear trend (1979&ndash;2026), so the warming climate does not count as a signal.</p>
+<p>The <b>map</b> shades 2&nbsp;m temperature, and contours 500&nbsp;hPa height, only where the mean over days 1&ndash;30 or 31&ndash;60 passes a t-test across events with the false-discovery rate held at 10&nbsp;% over the map (Wilks 2016). The count of significant cells is printed under each map. Shallow events have none in either window, and neither do days 31&ndash;60 after splits or displacements; those maps say so. After deep events the significant part in days 1&ndash;30 is the familiar negative-AO pattern: warm over Greenland and north-east Canada, cold over northern Siberia, high heights over Greenland.</p>
+<p>The <b>Arctic Oscillation</b> view compares 30-day means with the same calendar days in other years, with the false-discovery rate held at 10&nbsp;% over the 12 tests. Significant: after all warmings &minus;0.60 (days 1&ndash;30) and &minus;0.34 (31&ndash;60); after deep ones &minus;1.42 and &minus;0.69; after splits &minus;0.98 (days 1&ndash;30 only); after strong-vortex events +0.76 (days 1&ndash;30 only). Not significant: shallow events and displacements in either window.</p>
+<p>The <b>NAO</b> view does the same with CPC&rsquo;s daily North Atlantic Oscillation index. Significant: after deep warmings &minus;0.43 (days 1&ndash;30) and &minus;0.30 (31&ndash;60); after all warmings &minus;0.23 in days 31&ndash;60 (&minus;0.19 in days 1&ndash;30 is not significant); after displacements &minus;0.27 (days 31&ndash;60); after strong-vortex events +0.37 (days 1&ndash;30). Not significant: shallow events and splits. In both index views the share of events with a negative index is tested against the share on the <b>same calendar days in other years</b> (the thin line), not against 50&nbsp;%: the winter NAO of 1980&ndash;2026 was negative on only about 30&nbsp;% of those days (the AO on about 47&nbsp;%), so a coin flip is the wrong reference.</p>
+<p>The <b>by region</b> table uses land-only box means: Eastern US 32&ndash;45&deg;N 95&ndash;70&deg;W, Central Canada 48&ndash;60&deg;N 105&ndash;85&deg;W, NW Europe 47&ndash;60&deg;N 10&deg;W&ndash;15&deg;E, Scandinavia 58&ndash;70&deg;N 5&ndash;30&deg;E, Siberia 50&ndash;65&deg;N 70&ndash;120&deg;E and East Asia 30&ndash;45&deg;N 105&ndash;135&deg;E. Each cell tests the share of events that ran cold against the region&rsquo;s normal chance of a cold 30-day window (binomial test, false-discovery rate 10&nbsp;% over all 72 cells). <b>One cell passes</b>: Scandinavia, days 1&ndash;30 after deep events, cold 13 times in 14 (&minus;1.7&nbsp;K) against a normal 44&nbsp;%. Nothing else is significant, including the eastern US and northwest Europe.</p>
+<p><b>CMIP6</b> (the Data option) asks the same questions of the 9 stratosphere-resolving models of the CMIP6 dripping-paint charts and their events: 25,444 model-years of control, historical, scenario and AMIP runs with 15,136 sudden warmings (7,571 deep, 7,565 shallow) and 18,264 strong-vortex events. Each run&rsquo;s monthly 2&nbsp;m temperature and sea-level pressure (2.5&deg;, 20&ndash;90&deg;N) are anomalies from its own 31-year running climatology, so forced trends and drift drop out. What differs from the ERA5 version, because of what the models archive: the fields are <b>monthly</b>, so a window&rsquo;s value is the overlap-weighted mean of the calendar months it spans (each day carries its month&rsquo;s anomaly), which smooths it; <b>sea-level pressure replaces 500&nbsp;hPa height</b>; the daily AO is stood in for by the zonal-mean wind at 60&deg;N, 700&nbsp;hPa (weaker westerlies &asymp; negative AO), with a monthly sea-level-pressure annular mode as a check; the <b>NAO is monthly</b>, each run&rsquo;s pressure over 20&ndash;80&deg;N, 90&deg;W&ndash;40&deg;E projected on ERA5&rsquo;s NAO pattern for that calendar month (the leading EOF of 1991&ndash;2020 monthly SLP; ERA5 projected the same way correlates 0.84 with CPC&rsquo;s monthly NAO in December&ndash;March); splits and displacements cannot be told apart from zonal means. Test: each model&rsquo;s composite, models weighted equally; a value is shown only where an across-model t-test passes a 10&nbsp;% false-discovery rate over the map or the table and at least 80&nbsp;% of the models agree on the sign.</p>
+<p>What the large sample says. The annular mode is robustly negative after all warmings (700&nbsp;hPa wind &minus;0.19 and &minus;0.15&nbsp;&sigma; in days 1&ndash;30 and 31&ndash;60; pressure index &minus;0.37 and &minus;0.36) and after deep ones (&minus;0.51 and &minus;0.27; &minus;0.81 and &minus;0.61), and positive after strong-vortex events (+0.18 and +0.11). The NAO: all warmings &minus;0.35 and &minus;0.32 (negative after 67&nbsp;% and 65&nbsp;% of events against 49&nbsp;% normally), deep &minus;0.74 and &minus;0.53 (86&nbsp;% and 75&nbsp;%), strong vortex +0.29 and +0.21; shallow warmings are not robust in days 1&ndash;30 and &minus;0.10 in days 31&ndash;60. By region, after deep warmings: Scandinavia &minus;1.17 and &minus;1.29&nbsp;K (cold after 69&nbsp;% and 74&nbsp;% of events), Siberia &minus;1.04 and &minus;1.06&nbsp;K, the eastern US &minus;0.74 and &minus;0.48&nbsp;K, northwest Europe &minus;0.46 and &minus;0.43&nbsp;K; after shallow warmings Siberia and East Asia run warm in days 1&ndash;30 (+0.62 and +0.53&nbsp;K). With thousands of events most of each CMIP6 map passes; the deep-warming pattern is the negative-AO one ERA5 shows, cold northern Eurasia and eastern US, warm Greenland and north-east Canada, high pressure over the Arctic. Wherever an observed value above is significant and a CMIP6 counterpart exists, the two agree in sign; the models add significance where 14 observed deep events cannot.</p>
+<p class="chart-sources">NASA GMAO MERRA-2 (M2I3NPASM; daily means of the 0/6/12/18Z analyses, zonal means at 42 levels to 0.1&nbsp;hPa, polar cap 65&ndash;90&deg;N cos-weighted) &middot; NCEP/NCAR R1 10&nbsp;hPa height maps (NOAA PSL) &middot; ERA5 2&nbsp;m temperature and 500&nbsp;hPa height (WeatherBench2, 1.5&deg;) &middot; CPC daily AO and NAO, monthly NAO, RONI and QBO 50&nbsp;hPa index &middot; CMIP6 via the Pangeo archive on Google Cloud (Amon tas and psl, EdayZ ua; 9 models, 200 runs) &middot; SILSO sunspot number &middot; static reference, built 2026-09-25</p>
+</template>
+<template id="about-shtiming">
+<p>Does anything in the tropics give warning of a sudden warming? This chart answers the part of that question about the <b>Brewer&ndash;Dobson circulation</b>: whether the tropical lower stratosphere starts to rise faster (and so to cool) before the polar vortex breaks, or only once the planetary waves that break it are already arriving. It is a composite of the 28 major warmings in the MERRA-2 catalogue (1981&ndash;2026), each series in standard deviations of its own day-of-year variability and measured from that event&rsquo;s level 60&ndash;90 days earlier. Each event is compared with <b>dates that had the same westerly history</b>: the same calendar days (&plusmn;15) in other winters on which the wind at 60&deg;N, 10&nbsp;hPa had blown from the west for at least as long as it had before that event, outside the 20-day recovery period the warming definition imposes (3,000 random draws). A line is drawn in colour where the composite differs significantly from those dates after controlling the false discovery rate at 10&nbsp;% over the 131 lags, and grey where it does not; the dashed line marks the first day of a significant run of at least five days.</p>
+<p>The order is the textbook one. The 100&nbsp;hPa eddy heat flux (the upward wave flux into the stratosphere) turns significant 15 days before the central date and peaks 3 days before; the 10&nbsp;hPa polar cap starts warming 18 days before and peaks on the day; the wind at 60&deg;N falls from 8 days before to its lowest 2 days after. The <b>tropical cooling rate</b> (the 10-day change of the 100&ndash;50&nbsp;hPa layer temperature over 0&ndash;15&deg;N from ERA5 heights; cooling means faster upwelling) turns significant 14 days before and peaks 2 days before, in step with the heat flux, and the tropical temperature itself is lowest about 13 days <i>after</i> the central date. Over all December&ndash;March days, not only events, the cooling rate correlates best with the heat flux at lags 0 to +5 days with the flux leading (r&nbsp;&minus;0.51), and not at all with the tropics leading.</p>
+<p>The circulation itself, by downward control (the same operator as the Brewer&ndash;Dobson item above, MERRA-2 GMI every 10th day 1991&ndash;2019, 16 events): tropical upwelling across 70&nbsp;hPa is 3.1&times;10<sup>9</sup>&nbsp;kg/s (about a third) above normal in the last 10 days before the central date, the only significant 10-day window from day &minus;60 on (leaving out any one event: 2.7&ndash;3.7). About 85&nbsp;% of that is the drag of resolved planetary waves and 15&nbsp;% orographic gravity-wave drag; the non-orographic drag does not change. In five CMIP6 models with the data, the monthly upwelling anomaly is nine times larger in the month of the warming than in the month before (+9&nbsp;% against +1&nbsp;%; all 5 agree on the first, 3 of 5 on the second).</p>
+<p><b>So the upwelling surge is a response to the wave driving, not a precursor</b>, which is what downward control predicts. Before the wave pulse nothing differs significantly from comparable dates. The vortex is <b>not</b> anomalously strong in the weeks before a warming: an earlier version of this chart, compared with any dates rather than ones with the same westerly history, showed a significantly strong vortex 3&ndash;7 weeks before and a warm tropical layer 2&ndash;4 weeks before, and neither survives the fairer comparison. On the plain anomaly the vortex is weak two to three months before a warming (&minus;0.3 standard deviations, p&nbsp;0.05) and near normal after that, and the tropical layer is cold throughout, because warming winters tend to have an easterly QBO at 50&nbsp;hPa. A five-day warming of the tropical layer about six weeks before the central date does pass the test, but it was spotted on this chart rather than predicted, and it carries no forecast information. Tested on every eligible November&ndash;March day of 1980/81&ndash;2025/26 (logistic models fitted with one winter left out at a time, Brier skill against the seasonal climatology, significance from resampling whole winters): nothing &mdash; vortex strength, sixteen measures of vortex shape and stability, the tropical temperature or its 10-day trend, the heat flux or its 40-day mean, the QBO or ENSO &mdash; predicts a warming three to six weeks ahead better than the calendar does. Only the next two weeks are predictable: a weak vortex under a strong heat flux (Brier skill score +0.19, significant).</p>
+<p class="chart-sources">NASA GMAO MERRA-2 daily zonal means (heat flux 45&ndash;75&deg;N, u(60&deg;N, 10&nbsp;hPa), polar cap 65&ndash;90&deg;N) &middot; ERA5 geopotential heights, 0&ndash;15&deg;N (Copernicus C3S, WeatherBench2 1.5&deg;) &middot; MERRA-2 GMI replay (NASA GMAO, NCCS) for the downward-control upwelling &middot; CMIP6 DynVarMIP monthly TEM (CESM2-WACCM, HadGEM3-GC31-LL, MIROC6, MRI-ESM2-0, UKESM1-0-LL; 4,176 warmings) &middot; static reference, built 2026-09-27, comparison dates and significance test revised 2026-09-30</p>
+</template>
+<template id="about-shqbo">
+<p>Holton and Tan (1980) found the winter vortex weaker when the equatorial winds of the <b>quasi-biennial oscillation</b> (QBO) blow from the east in the lower stratosphere. <b>Left</b>: the correlation between the October&ndash;November equatorial wind at each level (FU Berlin/KIT, Canton, Gan and Singapore soundings) and the zonal-mean wind at 60&deg;N, 10&nbsp;hPa in November&ndash;December and January&ndash;February, over 68 winters from 1958/59 (MERRA-2 from 1980, NCEP R1 before). Coloured bars pass a false-discovery rate of 10&nbsp;% over the seven levels; grey ones do not. The relation is strongest at 30&ndash;50&nbsp;hPa: r&nbsp;=&nbsp;+0.44 to +0.52 with the November&ndash;December vortex (p&nbsp;&lt;&nbsp;0.001) and +0.30 to +0.39 with January&ndash;February (p&nbsp;&le;&nbsp;0.012). It changes sign at 10&nbsp;hPa, where the QBO phase is usually the opposite one. <b>Middle</b>: the 50&nbsp;hPa relation winter by winter: each metre per second of westerly QBO adds about 0.27&nbsp;m/s to the November&ndash;December vortex.</p>
+<p>Whether a warming happens is a coarser question than how strong the vortex is, and the observations cannot settle it: 67&nbsp;% of winters with an easterly 40&nbsp;hPa QBO had a warming against 36&nbsp;% with a westerly one (Fisher p&nbsp;0.016), but that does not survive correction for having tried seven levels, and at the conventional 50&nbsp;hPa it is 62&nbsp;% against 44&nbsp;% (p&nbsp;0.21). Those shares are therefore not drawn. <b>Right</b>: five CMIP6 models that make a realistic QBO (UKESM1-0-LL, MRI-ESM2-0, CESM2-WACCM and -FV2, HadGEM3-GC31-LL; 50&nbsp;hPa monthly spread at least 8&nbsp;m/s against about 12 observed) do settle it: with an easterly October&ndash;November QBO at 50&nbsp;hPa, 55&nbsp;% of 5,700 winters had a December&ndash;March warming against 44&nbsp;% of 9,833 westerly ones (odds ratio 1.53, Cochran&ndash;Mantel&ndash;Haenszel p&nbsp;&asymp;&nbsp;10<sup>&minus;31</sup>, 4 of 5 models), and the effect holds within neutral, El Ni&ntilde;o and La Ni&ntilde;a winters alike (odds ratio 1.6&ndash;1.7). The models&rsquo; effect is smaller than the observed vortex relation suggests, consistent with their too-weak QBO below 30&nbsp;hPa.</p>
+<p>The QBO sets the odds for a whole winter; it says little about when. Once the vortex&rsquo;s current state is known, the 50&nbsp;hPa QBO adds only a little to the chance of a warming in the next 10&ndash;50 days (models: odds ratio 0.86&ndash;0.88 per standard deviation of westerly wind, p&nbsp;0.01&ndash;0.03). The equatorial wind higher up, around the stratopause, shows no relation with warmings in the observations (1991&ndash;2025) and is not drawn.</p>
+<p class="chart-sources">FU Berlin / KIT QBO (monthly zonal wind 70&ndash;10&nbsp;hPa) &middot; NASA GMAO MERRA-2 and NCEP/NCAR R1 (NOAA PSL) u(60&deg;N, 10&nbsp;hPa) &middot; CMIP6 DynVarMIP daily zonal-mean <code>ua</code> (EdayZ), control, historical, scenario and AMIP runs, Pangeo Google Cloud mirror &middot; static reference, built 2026-09-27</p>
+</template>
+<template id="about-shenso">
+<p>Does El Ni&ntilde;o bring sudden warmings? The observed record is too short to say: since 1957 a warming came in 54&nbsp;% of El Ni&ntilde;o winters, 61&nbsp;% of La Ni&ntilde;a winters and 36&nbsp;% of neutral ones (the pattern of Butler and Polvani 2011), but none of those differences is significant (Fisher p&nbsp;0.14&ndash;0.25), and 3 of 7 strong El Ni&ntilde;o winters had one. The observed winters are drawn as open squares for reference only.</p>
+<p>Climate models give the sample the observations lack: 24,686 winters and 14,837 December&ndash;March warmings (Charlton&ndash;Polvani, u(60&deg;N, 10&nbsp;hPa)) in nine CMIP6 models that resolve the stratosphere, pooling control, historical, scenario and AMIP runs. Each run&rsquo;s December&ndash;February Ni&ntilde;o-3.4 is taken against its own 31-year running climatology (which removes drift and forced warming) and rescaled to the observed spread. <b>Left</b>: the share of winters with a warming rises steadily with Ni&ntilde;o-3.4, from 50&nbsp;% in neutral winters to 65&nbsp;% in strong El Ni&ntilde;os (odds ratio 1.88, p&nbsp;&asymp;&nbsp;10<sup>&minus;29</sup>, all 9 models agree), and it does so whether the QBO is westerly or easterly. La Ni&ntilde;a slightly <i>lowers</i> it in the models (48&nbsp;% against 50&nbsp;%, p&nbsp;0.001), the opposite of the observed hint. <b>Right</b>: El Ni&ntilde;o also moves the warmings later: 64&nbsp;% of El Ni&ntilde;o warmings fall in February&ndash;March against 59&nbsp;% of neutral ones (p&nbsp;&asymp;&nbsp;10<sup>&minus;7</sup>, 6 of 9 models) and 57&nbsp;% of La Ni&ntilde;a ones. El Ni&ntilde;o warmings are also deeper (the 100&nbsp;hPa wind over the following 30 days is 0.5&nbsp;m/s weaker, p&nbsp;&asymp;&nbsp;10<sup>&minus;13</sup>).</p>
+<p>Tests: Cochran&ndash;Mantel&ndash;Haenszel across model &times; experiment strata, and the number of models agreeing in sign; error bars are 95&nbsp;% bootstrap intervals. The models&rsquo; ENSO teleconnections are known to be too weak and too far west in the North Pacific, so the size of the effect is uncertain even where its sign is not.</p>
+<p class="chart-sources">CMIP6 DynVarMIP daily zonal-mean <code>ua</code> (EdayZ) and monthly <code>ts</code> (Ni&ntilde;o-3.4), UKESM1-0-LL, MRI-ESM2-0, CESM2-WACCM, CESM2-WACCM-FV2, CNRM-CM6-1, CNRM-ESM2-1, HadGEM3-GC31-LL, MPI-ESM1-2-HR, MIROC6 (Pangeo Google Cloud mirror) &middot; observed: CPC ONI and the MERRA-2 / NCEP R1 warming catalogue &middot; static reference, built 2026-09-27</p>
+</template>
+<template id="about-shseason">
+<p>A <b>model-based</b> reading of this winter&rsquo;s two tested seasonal factors, redrawn when they change. The inputs are the equatorial wind at 50&nbsp;hPa (KIT/FU Berlin monthly soundings; the October&ndash;November mean once both months are in, the latest month before that) and CPC&rsquo;s latest official ONI (with RONI alongside). <b>Left</b>: the share of CMIP6 winters with a December&ndash;March sudden warming when the QBO had the same phase and Ni&ntilde;o-3.4 fell in the same half-degree class, from the five models with a realistic QBO (95&nbsp;% bootstrap interval), with the class above it shown too, because this winter&rsquo;s El Ni&ntilde;o is still strengthening. The small print gives how many of those winters had a warming in December&ndash;January and how many in February&ndash;March. <b>Middle</b>: the November&ndash;December and January&ndash;February vortex the <i>observed</i> QBO relation (the QBO item, 68 winters) expects from the QBO alone, with a 90&nbsp;% prediction range. <b>Right</b>: the observed strong El Ni&ntilde;o winters and what happened, for reference; a handful of winters is a description, not a test.</p>
+<p>What each part rests on: the model shares are significant differences in the models (El Ni&ntilde;o and QBO both p&nbsp;&lt;&nbsp;10<sup>&minus;10</sup>); the QBO&ndash;vortex relation is significant in the observations (r&nbsp;+0.44 in November&ndash;December); the observed El Ni&ntilde;o effect is not significant. The two point opposite ways this year: a westerly QBO argues for a stronger vortex and fewer warmings, a strong El Ni&ntilde;o for more of them, and in the models the El Ni&ntilde;o extra falls almost entirely in February&ndash;March. Nothing in the tropics refines this from week to week: MJO phase, tropical convection and the Brewer&ndash;Dobson upwelling were tested and add nothing significant beyond the state of the vortex itself, which is the thing to watch in November and December.</p>
+<p class="chart-sources">KIT / FU Berlin QBO (atmohub.kit.edu), falling back to the site&rsquo;s IGRA Singapore series &middot; CPC ONI and RONI &middot; CMIP6 (UKESM1-0-LL, MRI-ESM2-0, CESM2-WACCM, CESM2-WACCM-FV2, HadGEM3-GC31-LL; 14,919 winters) &middot; MERRA-2 / NCEP R1 u(60&deg;N, 10&nbsp;hPa) &middot; redrawn when the QBO or ONI changes</p>
+</template>
+<template id="about-shmbudget">
+<p>The live <a href="#mbudget">Momentum budget</a> item says, day by day, what is speeding up or slowing the vortex now. This item asks the same question of the past: every term of the same transformed-Eulerian-mean budget, with the <b>same operator</b> (the live product&rsquo;s code), averaged over the major sudden warmings of 1980&ndash;2019 at 55&ndash;65&deg;N and 50, 10 and 1&nbsp;hPa: the observed change of the wind, the Coriolis force on the residual (Brewer&ndash;Dobson) flow $\hat f\bar v^*$, vertical advection $-\bar w^*\partial\bar u/\partial z$, the drag of the resolved planetary waves (the Eliassen&ndash;Palm flux divergence, also split into zonal wavenumbers 1, 2 and 3+), and the parameterized gravity-wave drag split into its orographic and non-orographic parts. Events: the 23 MERRA-2 catalogue warmings of 1980&ndash;2019 plus 29 February 1980 from NCEP R1, 24 in all (listed below); <i>deepest</i> = the top third (7 events) by the catalogue&rsquo;s depth measure (the 100&ndash;150&nbsp;hPa polar-cap height over the 30 days after).</p>
+<p><b>How it is measured.</b> The record is NASA&rsquo;s MERRA-2 GMI replay (MERRA-2&rsquo;s meteorology) at 00Z each day, 2&deg;&nbsp;&times;&nbsp;2.5&deg;, with the model&rsquo;s daily-mean gravity-wave drag. A single analysis per day is a weakness: the zonal-mean terms swing by several m/s per day within a day (tides and inertial oscillations), so single days scatter widely (the residual&rsquo;s day-to-day spread is 2.4, 2.4 and 7.6&nbsp;m/s per day at 50, 10 and 1&nbsp;hPa), and always sampling 00Z biases the absolute Coriolis term (on ordinary winter days the terms leave a mean residual of +1.8, +0.3 and +1.8&nbsp;m/s per day; the live item&rsquo;s MERRA-2 normals, built from the same 00Z replay, show the same imbalance). Everything is therefore drawn as a <b>5-day mean departure from the same calendar days in other winters</b>, sampled at the same hour, which cancels that bias; the departures do add up (the residual&rsquo;s departure is small and not significant at 50 and 10&nbsp;hPa; at 1&nbsp;hPa it reaches about +2&nbsp;m/s per day after the central date, where single 00Z snapshots are least representative). Colour marks where a departure is significant against 2,000 season-matched random dates (same calendar day &plusmn;10 days, another winter, p&nbsp;&lt;&nbsp;0.05); the box gives the mean over days &minus;20 to &minus;1 with its p. Leaving out any one event moves those window means by at most 10&ndash;20 per cent. The replay has no analysis-increment tendency, so its residual includes the assimilation&rsquo;s push.</p>
+<p><b>What drives a warming.</b> In the 20 days before the central date the resolved waves are the force: at 10&nbsp;hPa their drag departs by &minus;2.4&nbsp;m/s per day from normal (p&nbsp;0.002), the wind decelerates by &minus;1.7 (p&nbsp;&lt;&nbsp;0.001), and the Coriolis force on the circulation the waves drive pushes back by +0.8 (not significant). Wave&nbsp;1 does most of it at 10 and 1&nbsp;hPa. Over days &minus;20 to +5 the Coriolis term offsets 47&nbsp;% (90&nbsp;% interval 20&nbsp;%&ndash;64&nbsp;%) of the extra wave drag at 10&nbsp;hPa, 67&nbsp;% (90&nbsp;% interval 48&nbsp;%&ndash;83&nbsp;%) at 50&nbsp;hPa and 58&nbsp;% (90&nbsp;% interval 41&nbsp;%&ndash;71&nbsp;%) at 1&nbsp;hPa: this is the thermal-wind adjustment, the part of the wave forcing that goes into the residual circulation (and so into warming the polar cap and cooling the tropics) instead of into slowing the wind. In the deepest events the share at 50&nbsp;hPa is 75&nbsp;% (90&nbsp;% interval 60&nbsp;%&ndash;85&nbsp;%).</p>
+<p><b>Does anything besides the waves and the Coriolis force matter at 50&nbsp;hPa?</b> No. Averaged over days &minus;20 to +5, the departures there are, in size, 1.29&nbsp;m/s per day for the resolved waves and 0.98 for the Coriolis term against 0.03 for vertical advection, 0.02 for gravity-wave drag and 0.24 for the residual (all events); in the 7 deepest events 2.01 and 1.63 against 0.04, 0.03 and 0.24. Vertical advection stays a few per cent of the wave drag in both sets (days &minus;20 to &minus;1: +0.01, p&nbsp;0.55, all; &minus;0.01, p&nbsp;0.74, deepest). Its departure is significant only after the central date, and small there too: &minus;0.06&nbsp;m/s per day at 50&nbsp;hPa and &minus;0.11 at 10&nbsp;hPa over days 0 to +20 (p&nbsp;&lt;&nbsp;0.001 and p&nbsp;0.001), against &minus;0.89 and &minus;1.07 for the waves. Gravity-wave drag departs by no more than a few hundredths at 50&nbsp;hPa; at 1&nbsp;hPa it turns less westward after the reversal (+0.49, p&nbsp;&lt;&nbsp;0.001), the filtering of eastward-propagating waves by the easterlies.</p>
+<p><b>The analysis increment</b>, which the replay lacks, is available for the 7 warmings since 2018 in GEOS FP (00Z states with the mean of four three-hourly tendency windows each day). It stays small through them: over days &minus;20 to &minus;1 it averages +0.01&nbsp;m/s per day at 50&nbsp;hPa and &minus;0.04 at 10&nbsp;hPa (neither different from zero, t-test across events; seven events are too few for a random-date null, so these are plain means), against a resolved-wave drag of &minus;5.0 at 10&nbsp;hPa; at 1&nbsp;hPa it is &minus;1.1, about its usual winter value (MERRA-2&rsquo;s December&ndash;February mean is about &minus;1.5), so it does not respond to the warmings either.</p>
+<p>Events: 1980-02-29, 1981-12-04, 1984-02-24, 1985-01-01, 1987-01-23, 1987-12-08, 1988-03-14, 1989-02-21, 1998-12-15, 1999-02-26, 2000-03-20, 2001-02-11, 2001-12-30, 2003-01-18, 2004-01-05, 2006-01-21, 2007-02-24, 2008-02-22, 2009-01-24, 2010-02-09, 2010-03-24, 2013-01-07, 2018-02-12, 2019-01-02. Deepest: 1985-01-01, 2009-01-24, 2004-01-05, 1987-01-23, 2001-02-11, 1999-02-26, 2006-01-21. The null uses the Oct&ndash;Apr days on file (27&nbsp;% of the days outside the event windows at the time of the build, event-window days thinned to the same share), which makes the tests conservative.</p>
+<p class="chart-sources">NASA GMAO MERRA-2 GMI replay (merra2_gmi inst3_3d_met_Np 00Z and tavg24_3d_dad_Np, NCCS OPeNDAP) &middot; NASA GMAO GEOS FP assimilation (inst3_3d_asm_Np, tavg3_3d_udt_Cp) &middot; operator: <code>momentum_budget.tem_terms</code> &middot; warming catalogue: MERRA-2 (this group) &middot; static reference, built 2026-09-27</p>
+</template>
+</main>
+<script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebPage",
+      "name": "Stratosphere and the polar vortex: sudden stratospheric warming forecast, E-P flux, eddy heat flux and every warming since 1980",
+      "url": "https://scorvec.com/stratosphere.html",
+      "description": "Daily AIFS-ENS forecasts of the stratospheric polar vortex (zonal-mean wind at 60N 10 and 100 hPa, polar-cap height), GEFS E-P flux and wave driving to 1 hPa, stationary wave-1 and the 100 hPa eddy heat flux, with a MERRA-2 catalogue of every major sudden stratospheric warming since 1980, dripping-paint composites and their surface impacts.",
+      "isPartOf": {"@type": "WebSite", "name": "Shawn Corvec", "url": "https://scorvec.com/"},
+      "author": {"@id": "https://scorvec.com/#person"},
+      "about": [
+        {"@type": "Thing", "name": "Sudden stratospheric warming", "sameAs": "https://en.wikipedia.org/wiki/Sudden_stratospheric_warming"},
+        {"@type": "Thing", "name": "Polar vortex", "sameAs": "https://en.wikipedia.org/wiki/Polar_vortex"},
+        {"@type": "Thing", "name": "Eliassen-Palm flux", "sameAs": "https://en.wikipedia.org/wiki/Eliassen%E2%80%93Palm_flux"}
+      ]
+    }
+    </script>
+<script>
+window.STAGE = {
+  groups: [
+  {label: "Stratosphere", ico: "\u2744", items: [["vortex","Polar vortex diagnostics","u(60°N), polar-cap height"],["upperstrat","Upper stratosphere","GEFS, GFS, GEOS FP, GDPS up to 1 hPa"],["vwinds","Vortex winds","10 and 100 hPa, both hemispheres"],["pv","Potential vorticity","GEOS FP, 475 and 850 K"],["epflux","E–P flux","GEFS wave driving to 1 hPa, k = 1–3"],["qbozl","QBO zero-wind line","where the waves meet easterlies, 70–10 hPa"],["wave1","Stationary wave-1","100 and 500 hPa"],["heatflux","Eddy heat flux","100 hPa [v′T′], is it going up?"],["fdrip","Forecast dripping paint","GEPS, GEFS, AIFS-ENS, IFS-ENS: is it reaching down?"],["bdc","Brewer–Dobson circulation","tropical upwelling, downward control"],["aoa","Age of stratospheric air","MERRA-2 GMI, 1980–2019"],["tape","Water-vapour tape recorder","Aura MLS + GEOS FP, how fast air rises"],["mbudget","Momentum budget","what drives the vortex and the upwelling"]]},
+  {label: "Stratosphere history", ico: "\u231B", items: [["shwinters","Every winter since 1980","pick any winter, compare"],["shssw","Sudden warmings since 1980","timeline, catalogue, vortex shapes"],["shdrip","Dripping paint","how an event reaches the surface"],["shfollow","What usually follows","AO, NAO, temperature, by region; CMIP6"],["shtiming","Who moves first","waves, vortex, tropical upwelling"],["shqbo","The QBO and the vortex","observed and CMIP6"],["shenso","El Niño and sudden warmings","CMIP6, 25,000 winters"],["shseason","This winter's odds","QBO and ENSO, model-based"],["shmbudget","Momentum budget of past warmings","every term, 24 warmings"]]}
+],
+  products: {
+  vortex: {label: "Northern polar vortex", img: function () { return "assets/sst/nh_vortex.webp?v=__CACHE__"; }, about: "about-vortex", fit: false,
+          cap: function () { return "Zonal-mean wind at 60°N at 10 and 100 hPa and the 100 hPa polar-cap height, members against the MERRA-2 percentile bands."; }},
+  upperstrat: {label: "Upper stratosphere (GEFS, GFS, GEOS FP, GDPS)",
+          a: {label: "Model", items: [["gefs","GEFS, 35 days"],["gfs","GFS, 16 days"],["geos","GEOS FP, 10 days"],["gdps","GDPS, 10 days"],["all","Compare all"]]},
+          b: {label: "Hemisphere", items: [["nh","Northern"],["sh","Southern"]]},
+          c: {label: "View", items: [["ts","Time series"],["sec","Height–time"],["map","Polar maps"]]},
+          frame: function (a, b, c) { var r = "upperstrat_" + a + "_" + b; return c === "map" ? "sst_anim.html?embed=1&manifest=upperstrat_maps_manifest.json&regions=" + r + "&region=" + r + "&start=0" : null; },
+          ratio: function (a) { return a === "all" ? "1440/830" : "1040/590"; },
+          img: function (a, b, c) { return "assets/sst/upperstrat_" + (c === "sec" ? "sec" : "ts") + "_" + a + "_" + b + ".webp"; },
+          bust: "hourly", about: "about-upperstrat", fit: false,
+          cap: function (a, b, c) {
+            var h = b === "sh" ? "S" : "N", m = {gefs: "GEFS", gfs: "GFS", geos: "GEOS FP", gdps: "GDPS", all: "all four models"}[a];
+            if (c === "map") return "Height and temperature at 5 and 1 hPa, " + (a === "all" ? "the four models side by side at the same valid time (GEFS = its control)" : m + (a === "gefs" ? " control" : "")) + ", analysis to day 10. Raw output.";
+            if (c === "sec") return "Zonal-mean wind at 60°" + h + " and the polar-cap temperature anomaly from 100 up to 1 hPa: GEOS FP analyses, then " + (a === "all" ? "each model to its own range, on one colour scale" : m + (a === "gefs" ? " ensemble mean" : "")) + ". A warming that starts at the top shows as red coming down.";
+            return "Zonal-mean wind at 60°" + h + " and polar-cap temperature at 1, 5 and 10 hPa: GEOS FP analyses, then " + (a === "all" ? "every model overlaid" : m) + ", against the MERRA-2 range. Raw output; each panel prints the day-0 offset from the GEOS FP analysis."; }},
+  vwinds: {label: "Vortex winds", a: {label: "Level", items: [["vortex_10","10 hPa"],["vortex_100","100 hPa"]]},
+          b: {label: "Model", items: [["aifs","AIFS-ENS"],["ifs","IFS-ENS"]]},
+          frame: function (a, b) { var lev = a === "vortex_100" ? "100" : "10";
+                                   return b === "ifs" ? "sst_anim.html?embed=1&manifest=vortex_winds_ifs_manifest.json&region=vortex_ifs_" + lev
+                                                      : "sst_anim.html?embed=1&manifest=vortex_winds_manifest.json&region=vortex_" + lev; }, about: "about-vwinds",
+          cap: function (a, b) { return (b === "ifs" ? "IFS-ENS (50 members)" : "AIFS-ENS (25 members)") + " ensemble-mean wind speed and streamlines at " + (a === "vortex_100" ? "100" : "10") + " hPa, both hemispheres; the red contour is u = 0."; }},
+  pv: {label: "Potential vorticity (GEOS FP)", a: {label: "Hemisphere", items: [["geos_pv_nh","Northern"],["geos_pv_sh","Southern"]]},
+          frame: function (a) { return "sst_anim.html?embed=1&manifest=geos_pv_manifest.json&region=" + a + "&regions=" + a; }, ratio: function () { return "924/572"; }, about: "about-pv",
+          cap: function (a) { return "Ertel potential vorticity on the 475 K (lower stratosphere) and 850 K (about 10 hPa) surfaces, GEOS FP analysis and 10-day forecast; the red line is the vortex edge." + (a === "geos_pv_sh" ? " Southern values are sign-flipped so the vortex reads positive." : ""); }},
+  epflux: {label: "E–P flux and wave driving", a: {label: "Model", items: [["gefs","GEFS"]]},
+          frame: function () { return "sst_anim.html?embed=1&manifest=epflux_gefs_manifest.json&region=epflux_gefs"; }, about: "about-epflux",
+          cap: function () { return "Eliassen–Palm flux for wavenumbers 1–3 and its divergence from the NOAA GEFS ensemble, 31 levels up to 1 hPa, per-member fluxes averaged over the control and 30 perturbed members."; }},
+  qbozl: {label: "QBO zero-wind line", a: {label: "Level", items: [["50","50 hPa"],["70","70 hPa"],["30","30 hPa"],["10","10 hPa"]]},
+          img: function (a) { return "assets/sst/qbo_zeroline_" + a + ".webp"; }, bust: "hourly", about: "about-qbozl", fit: false,
+          cap: function (a) { return "Latitude of the northern zero-wind line at " + a + " hPa: the last five months of MERRA-2 and GEOS FP analyses"
+                                     + (a === "50" || a === "10" ? " and the AIFS-ENS and IFS-ENS forecasts to day 15" : " (no forecast: ECMWF open data stops at 50 and 10 hPa here)")
+                                     + ", against the MERRA-2 climatology and the easterly- and westerly-QBO winters. A diagnostic, not a forecast of the vortex."; }},
+  wave1: {label: "Stationary wave-1", a: {label: "Hemisphere", items: [["wave1_nh","Northern"],["wave1_sh","Southern"]]},
+          b: {label: "Model", items: [["aifs","AIFS-ENS"],["ifs","IFS-ENS"]]},
+          frame: function (a, b) { var h = a === "wave1_sh" ? "sh" : "nh";
+                                   return b === "ifs" ? "sst_anim.html?embed=1&manifest=wave1_maps_ifs_manifest.json&region=wave1_ifs_" + h
+                                                      : "sst_anim.html?embed=1&manifest=wave1_maps_manifest.json&region=wave1_" + h; }, about: "about-wave1",
+          ratio: function () { return "1716/759"; },
+          cap: function () { return "Wave-1 of geopotential at 500, 100 and 10 hPa, with its ridge against the normal and whether it leans west with height, i.e. is propagating up into the vortex."; }},
+  bdc: {label: "Brewer–Dobson circulation", a: {label: "View", items: [["up","Tropical upwelling"],["sec","Residual streamfunction"]]},
+          img: function (a) { return "assets/sst/bdc_dc_" + (a === "sec" ? "section" : "upwelling") + ".webp"; }, bust: "hourly", about: "about-bdc", fit: false,
+          cap: function (a) { return a === "sec" ? "The residual (Brewer–Dobson) streamfunction by downward control, 30-day mean; shading only where the anomaly from MERRA-2 is significant (FDR 10 %)."
+                                                 : "Upward mass flux through 70 and 100 hPa between the turnaround latitudes, trailing 30-day mean: GEOS FP analyses and 10-day forecast against the MERRA-2 range."; }},
+  aoa: {label: "Age of stratospheric air (MERRA-2 GMI)", a: {label: "View", items: [["clim","Climatology"],["cycle","Seasonal cycle"],["trend","Trend"],["enso","ENSO"],["qbo","QBO"]]},
+          b: function (a) { return a === "clim" ? {label: "Season", items: [["ann","Annual"],["djf","DJF"],["mam","MAM"],["jja","JJA"],["son","SON"]]}
+                                 : a === "trend" ? {label: "Period", items: [["all","1980–2019"],["p04","2004–2019"]]} : null; },
+          img: function (a, b) { return "assets/sst/aoa_" + (a === "clim" ? "clim_" + (b || "ann") : a === "trend" ? (b === "p04" ? "trend04" : "trend") : a) + ".webp?v=__CACHE__"; },
+          fit: false, about: "about-aoa",
+          cap: function (a) {
+            if (a === "clim") return "Mean age of air – the average time since the air was last at the ground – zonal mean from the MERRA-2 GMI replay, 1980–2019.";
+            if (a === "cycle") return "The seasonal cycle of mean age at 50 hPa: five latitude bands, and each month's departure from the annual mean where it is significant.";
+            if (a === "trend") return "Linear trend in mean age, shaded only where significant (false-discovery rate 10 %), beside the 30–50°N box of the balloon record. Most of the 40-year decline is one drop in the 1990s.";
+            if (a === "enso") return "Mean age per +1 °C of the relative Niño-3.4 index: El Niño makes the tropical lower-stratosphere air younger. Significant cells only.";
+            return "Mean age per standard deviation of westerly equatorial wind at 50 and at 30 hPa. Significant cells only."; }},
+  tape: {label: "Water-vapour tape recorder (Aura MLS + GEOS FP)", a: {label: "View", items: [["sec","Tape recorder"],["anom","Anomaly"],["entry","Entry value"],["ascent","Ascent speed vs w*"],["record","MLS record since 2004"]]},
+          img: function (a) { return "assets/sst/tape_" + ({sec: "section", anom: "anom", entry: "entry", ascent: "ascent", record: "record"})[a] + ".webp"; },
+          bust: "hourly", about: "about-tape", fit: false,
+          cap: function (a) {
+            if (a === "sec") return "Tropical (10°S–10°N) water vapour minus its mean over the three years shown, 100 to 10 hPa: the yearly bands rising from the tropopause. Aura MLS, then GEOS FP after the last MLS day.";
+            if (a === "anom") return "The same section with the seasonal cycle removed: what differs from a normal year, including the water the 2022 Hunga eruption put in the stratosphere.";
+            if (a === "entry") return "Water vapour entering the stratosphere at 100 and 70 hPa against the MLS 2005–2021 normal, with a significance test on the last 30 days, and GEOS FP's 100 hPa temperature.";
+            if (a === "ascent") return "How fast the bands rise, from MLS, against the Brewer–Dobson w* of MERRA-2 and of GEOS FP.";
+            return "The whole Aura MLS record, 2004 to now, as monthly anomalies from 100 to 3 hPa."; }},
+  mbudget: {label: "Momentum budget (GEOS FP)", a: {label: "View", items: [["vnh","Northern vortex"],["vsh","Southern vortex"],["up","Tropical upwelling"],["sec","Where the forces act"]]},
+          b: function (a) { return (a === "vnh" || a === "vsh") ? {label: "Level", items: [["10","10 hPa"],["1","1 hPa"],["50","50 hPa"]]} : null; },
+          c: function (a) { return (a === "vnh" || a === "vsh") ? {label: "Smoothing", items: [["s7","7-day mean"],["d1","Daily"]]} : null; },
+          img: function (a, b, c) { if (a === "up") return "assets/sst/mbudget_upwelling.webp"; if (a === "sec") return "assets/sst/mbudget_sections.webp";
+                                    return "assets/sst/mbudget_vortex_" + (a === "vsh" ? "sh" : "nh") + "_" + (b || "10") + "_" + (c || "s7") + ".webp"; },
+          bust: "hourly", about: "about-mbudget", fit: false,
+          cap: function (a, b) {
+            if (a === "up") return "Tropical upwelling at 70 and 100 hPa split by downward control into the parts driven by resolved waves, gravity-wave drag and the analysis increment, with the non-steady part and the directly analysed w̄*; the bars compare the last 30 days with MERRA-2. GEOS FP analyses; the forecast carries the resolved part only.";
+            if (a === "sec") return "Where each force acts: 30-day mean resolved-wave driving, gravity-wave drag and analysis increment from GEOS FP, with the MERRA-2 normal as contours; the anomaly is shaded only where significant (false-discovery rate 10 %).";
+            return "What is speeding up or slowing the " + (a === "vsh" ? "southern" : "northern") + " vortex at " + (b || "10") + " hPa (55–65°" + (a === "vsh" ? "S" : "N") + "): the observed change in the wind and every term of the transformed-Eulerian-mean budget, GEOS FP analyses to yesterday, then the 10-day forecast with the resolved terms only."; }},
+  fdrip: {label: "Forecast dripping paint", a: {label: "Model", items: [["geps","GEPS, days 1–35"],["gefs","GEFS, days 1–35"],["aifs","AIFS-ENS, days 1–15"],["ifs","IFS-ENS, days 1–15"]]},
+          img: function (a) { return a === "gefs" ? "assets/gefs/gefs_drip.webp" : a === "aifs" ? "assets/sst/aifs_drip.webp" : a === "ifs" ? "assets/sst/ifs_drip.webp" : "assets/geps/geps_drip.webp"; },
+          bust: "hourly", about: "about-fdrip", fit: false,
+          cap: function (a) { return "Standardised polar-cap height from 1000 to 10 hPa: the last 60 days observed (GEOS FP), then the "
+                                     + (a === "gefs" ? "GEFS" : a === "aifs" ? "AIFS-ENS" : a === "ifs" ? "IFS-ENS (50 members)" : "GEPS") + " ensemble mean with the model's drift removed where it has been measured; hatched levels are not drift-corrected. Same scale as the history drips."; }},
+  heatflux: {label: "100 hPa eddy heat flux", a: {label: "Hemisphere", items: [["nh","Northern"],["sh","Southern"]]},
+          b: {label: "Model", items: [["aifs","AIFS-ENS, days 1–15"],["ifs","IFS-ENS, days 1–15"],["geps","GEPS, days 1–35"],["gefs","GEFS, days 1–35"]]},
+          img: function (a, b) { var h = a === "sh" ? "sh" : "nh";
+                                 return b === "geps" ? "assets/geps/geps_heatflux100_" + h + ".webp" : b === "gefs" ? "assets/gefs/gefs_heatflux100_" + h + ".webp"
+                                      : b === "ifs" ? "assets/sst/ifs_heatflux100_" + h + ".webp" : "assets/sst/heatflux100_" + h + ".webp"; }, bust: "hourly", about: "about-heatflux", fit: false,
+          cap: function (a, b) { return "Poleward eddy heat flux at 100 hPa, 45–75°" + (a === "sh" ? "S" : "N") + ", total and its wave-1 and wave-2 parts: the upward wave-activity flux into the stratosphere, "
+                                        + (b === "geps" ? "GEPS extended run (Mon/Thu, 21 members) to day 35" : b === "gefs" ? "GEFS (31 members) to day 35" : b === "ifs" ? "IFS-ENS (50 members) to day 15" : "AIFS-ENS (25 members + control) to day 15")
+                                        + ", members against the 1991–2020 climatology."; }},
+  shwinters: {label: "Every winter since 1980", dom: function () { return "dom-shwinters"; }, about: "about-shwinters",
+          cap: function () { return "Every northern winter in MERRA-2, October to May, against the 1980–2026 range. Hover a line to name the winter; pick one to draw it in black."; }},
+  shssw: {label: "Sudden warmings since 1980", a: {label: "View", items: [["timeline","Timeline"],["table","Catalogue"],["gallery","Vortex at each warming"]]},
+          dom: function (a) { return a === "table" ? "dom-shssw" : null; }, fit: false,
+          img: function (a) { return "assets/sst/strat_hist_" + (a === "gallery" ? "gallery" : "timeline") + ".webp?v=__CACHE__"; }, about: "about-shssw",
+          cap: function (a) { return a === "timeline" ? "Every major sudden warming (Charlton–Polvani, MERRA-2) and strong-vortex event, winter by winter, with ENSO and the QBO." : a === "table" ? "The catalogue: when, how deep, what shape, and what the Arctic Oscillation did before and after." : "What the 10 hPa vortex looked like at each warming: two pieces for a split, one pushed off the pole for a displacement."; }},
+  shdrip: {label: "Dripping paint", a: {label: "Events", items: [["ssw_all","All SSWs"],["ssw_deep","Deep"],["ssw_shallow","Shallow"],["ssw_split","Splits"],["ssw_disp","Displacements"],["sv","Strong vortex"]]},
+          b: function (a) { return {label: "Data", items: (a === "ssw_split" || a === "ssw_disp") ? [["m2z","MERRA-2 polar-cap height"]]
+                                    : [["m2z","MERRA-2 polar-cap height"],["m2u","MERRA-2 u(60°N)"],["cmip6","CMIP6 u(60°N), 9 models"]]}; },
+          img: function (a, b) { return "assets/sst/strat_hist_drip_" + (b === "m2u" || b === "cmip6" ? b + "_" : "") + a + ".webp?v=__CACHE__"; }, fit: false, about: "about-shdrip",
+          cap: function (a, b) {
+            if (b === "cmip6") return "Zonal-mean wind at 60°N from the ground to 1 hPa around " + (a === "sv" ? "strong-vortex events" : "sudden warmings") + " in 9 CMIP6 models (25,444 model-years), sign flipped so a weak vortex is red, with 700 hPa u(60°N) below. Shaded only where the models robustly agree.";
+            if (b === "m2u") return "MERRA-2 drawn the way the CMIP6 chart is, events defined in wind terms as for the models: u(60°N) from the ground to 1 hPa, sign flipped, with 700 hPa u(60°N) below.";
+            return a === "sv" ? "Polar-cap height from the ground to 1 hPa around strong-vortex events, with the surface Arctic Oscillation below." : "Polar-cap height from the ground to 1 hPa around the warmings, with the surface Arctic Oscillation below: red dripping down to the ground is a weak vortex reaching the surface."; }},
+  shfollow: {label: "What usually follows", a: {label: "View", items: [["map","Map, days 1–30"],["map2","Map, days 31–60"],["ao","Arctic Oscillation"],["nao","NAO"],["regions","By region"]]},
+          b: {label: "Data", items: [["obs","ERA5 / MERRA-2, since 1980"],["cmip6","CMIP6, 9 models"]]},
+          c: function (a, b) { return (a === "map" || a === "map2") ? {label: "Events", items: b === "cmip6"
+                                    ? [["ssw_all","All SSWs"],["ssw_deep","Deep"],["ssw_shallow","Shallow"],["sv","Strong vortex"]]
+                                    : [["ssw_all","All SSWs"],["ssw_deep","Deep"],["ssw_shallow","Shallow"],["ssw_split","Splits"],["ssw_disp","Displacements"],["sv","Strong vortex"]]} : null; },
+          img: function (a, b, c) { var m = b === "cmip6" ? "cmip6_" : "", w = a === "map2" ? "d31_60" : "d1_30";
+                                    return "assets/sst/strat_hist_" + ((a === "map" || a === "map2") ? "follows_" + m + c + "_" + w : a + (b === "cmip6" ? "_cmip6" : "")) + ".webp?v=__CACHE__"; },
+          fit: false, about: "about-shfollow",
+          cap: function (a, b) {
+            var cm = b === "cmip6";
+            if (a === "map" || a === "map2") return cm ? "2 m temperature and sea-level pressure after each kind of event in 9 CMIP6 models (monthly anomalies), shown only where the models robustly agree."
+                                                       : "ERA5 2 m temperature and 500 hPa height after each kind of event: the mean over every event since 1980, shown only where significant.";
+            if (a === "ao") return cm ? "The annular mode after sudden warmings and strong-vortex events in 9 CMIP6 models: daily 700 hPa wind at 60°N as the AO proxy, with the monthly pressure-based index as a check."
+                                      : "The Arctic Oscillation after sudden warmings and after strong-vortex events, and how often it went negative against the same days in other years.";
+            if (a === "nao") return cm ? "The North Atlantic Oscillation after each kind of event in 9 CMIP6 models: a monthly index, the models' pressure projected on ERA5's NAO pattern."
+                                       : "The North Atlantic Oscillation (CPC daily index) after sudden warmings and after strong-vortex events, and how often it went negative against the same days in other years.";
+            return cm ? "Six land regions in 9 CMIP6 models: how often each kind of event was followed by a cold window, printed only where that differs robustly from the model's normal."
+                      : "Six land regions: how often each kind of event was followed by a cold month, printed only where that differs significantly from normal."; }},
+  shtiming: {label: "Who moves first around a sudden warming", img: function () { return "assets/sst/ssw_timing.webp?v=__CACHE__"; }, fit: false, about: "about-shtiming",
+          cap: function () { return "Heat flux, vortex, polar cap and the tropical lower stratosphere around the 28 MERRA-2 warmings: colour only where the composite differs significantly from dates with the same westerly history (FDR 10 %)."; }},
+  shqbo: {label: "The QBO and the polar vortex", img: function () { return "assets/sst/ssw_qbo.webp?v=__CACHE__"; }, fit: false, about: "about-shqbo",
+          cap: function () { return "The October–November QBO and the winter vortex, observed since 1958 (significant levels in colour), and the share of winters with a warming by QBO phase in five CMIP6 models."; }},
+  shenso: {label: "El Niño and sudden warmings (CMIP6)", img: function () { return "assets/sst/ssw_enso.webp?v=__CACHE__"; }, fit: false, about: "about-shenso",
+          cap: function () { return "The share of winters with a sudden warming by December–February Niño-3.4 in nine CMIP6 models, and the month of the warming by ENSO class; observed winters for reference, not significant."; }},
+  shseason: {label: "This winter's odds (model-based)", img: function () { return "assets/sst/ssw_odds.webp"; }, bust: "hourly", fit: false, about: "about-shseason",
+          cap: function () { return "This winter's QBO and ENSO on the tested relations: the share of CMIP6 winters with a warming in that state, the vortex the observed QBO relation expects, and the observed look-alike winters."; }},
+  shmbudget: {label: "Momentum budget of past warmings (MERRA-2)", a: {label: "Level", items: [["10","10 hPa"],["50","50 hPa"],["1","1 hPa"]]},
+          b: {label: "Events", items: [["all","All 24 warmings"],["strong","Deepest third"]]},
+          img: function (a, b) { return "assets/sst/ssw_mbudget_" + (a || "10") + "_" + (b || "all") + ".webp?v=__CACHE__"; }, fit: false, about: "about-shmbudget",
+          cap: function (a, b) { return "Every term of the live momentum budget, composited over " + (b === "strong" ? "the deepest third of the" : "all") + " sudden warmings of 1980–2019 at 55–65°N, " + (a || "10") + " hPa: departures from the same days in other winters, coloured where significant."; }}
+}
+};
+</script>
+<style>
+.sh-hist .controls { display: flex; flex-wrap: wrap; gap: 0.35rem; align-items: center; margin-bottom: 0.45rem; }
+.sh-pick { margin-left: auto; font-size: 0.85rem; color: var(--muted); display: inline-flex; gap: 0.4rem; align-items: center; }
+.sh-pick select { font: inherit; color: var(--ink, #1c2430); padding: 0.22rem 0.4rem; border: 1px solid #c9c5bb; border-radius: 4px; background: #fff; }
+.sh-tablewrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.sh-table { border-collapse: collapse; width: 100%; font-size: 0.84rem; font-variant-numeric: tabular-nums; }
+.sh-table caption { text-align: left; font-weight: 600; padding: 0.2rem 0 0.5rem; }
+.sh-table th { text-align: left; font-weight: 600; border-bottom: 1.5px solid #333; padding: 0.35rem 0.45rem; vertical-align: bottom; white-space: nowrap; }
+.sh-table th button { all: unset; cursor: pointer; }
+.sh-table th button:focus-visible { outline: 2px solid #2b5f8a; outline-offset: 2px; }
+.sh-table th small { font-weight: 400; color: var(--muted); }
+.sh-table td { padding: 0.3rem 0.45rem; border-bottom: 1px solid #e6e3dc; white-space: nowrap; }
+.sh-table tr.marginal td { color: var(--muted); font-style: italic; }
+.sh-table .neg { color: #2b5f8a; } .sh-table .pos { color: #a33a26; }
+.sh-sv { margin-top: 1rem; } .sh-sv summary { cursor: pointer; font-weight: 600; padding: 0.3rem 0; }
+@media (max-width: 640px) { .sh-pick { margin-left: 0; } }
+</style>
+<script>
+(function () {
+  "use strict";
+  var J = null, st = { v: "u10", h: "analogs", pick: "" }, sortKey = null, sortDir = 1;
+  var PAL = ["#b0402a", "#2b5f8a", "#1c8f85", "#8a5a14", "#7b4fb3", "#c0507f", "#3a7d44", "#5a6b8c", "#a0522d", "#2f8fb0", "#8f7a1c", "#6b3fa0"];
+  var MON = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  function $(id) { return document.getElementById(id); }
+  function fmt(d) { var p = d.split("-"); return +p[2] + " " + MON[+p[1] - 1] + " " + p[0]; }
+  function loadPlotly(cb) {
+    if (window.Plotly) return cb();
+    if (loadPlotly.q) { loadPlotly.q.push(cb); return; }
+    loadPlotly.q = [cb];
+    var sc = document.createElement("script");
+    sc.src = "https://cdn.jsdelivr.net/npm/plotly.js-cartesian-dist-min@2.35.2/plotly-cartesian.min.js";
+    sc.onload = function () { loadPlotly.q.forEach(function (f) { f(); }); };
+    document.head.appendChild(sc);
+  }
+  function winter(w) { for (var i = 0; i < J.winters.length; i++) if (J.winters[i].winter === w) return J.winters[i]; return null; }
+  function xs() { return J.days.map(function (md) { return (md >= "07" ? "2001-" : "2002-") + md; }); }
+  function xOf(date) { var md = date.slice(5); return (md >= "07" ? "2001-" : "2002-") + md; }
+  function hiSet() {
+    var W = J.winters, f = null;
+    if (st.h === "analogs") return J.analogs.slice();
+    if (st.h === "nino") f = function (w) { return w.enso === "El Niño"; };
+    if (st.h === "nina") f = function (w) { return w.enso === "La Niña"; };
+    if (st.h === "qboe") f = function (w) { return w.qbo === "E"; };
+    if (st.h === "qbow") f = function (w) { return w.qbo === "W"; };
+    return f ? W.filter(f).map(function (w) { return w.winter; }) : [];
+  }
+  function draw() {
+    var el = $("dom-shwinters");
+    if (!J || el.hidden || !el.offsetWidth) return;
+    loadPlotly(function () {
+      var V = J.vars[st.v], x = xs(), tr = [], units = V.units, hi = hiSet(), dig = st.v === "z100s" ? 2 : 1;
+      var c = V.clim;
+      tr.push({ x: x, y: c.p90, mode: "lines", line: { width: 0 }, hoverinfo: "skip", showlegend: false });
+      tr.push({ x: x, y: c.p10, mode: "lines", line: { width: 0 }, fill: "tonexty", fillcolor: "rgba(120,120,120,0.16)", hoverinfo: "skip", name: "10–90 % range" });
+      tr.push({ x: x, y: c.p50, mode: "lines", line: { color: "#555", width: 1.4, dash: "dash" }, hoverinfo: "skip", name: "median winter" });
+      Object.keys(V.winters).forEach(function (w) {
+        if (hi.indexOf(w) >= 0 || w === st.pick) return;
+        tr.push({ x: x, y: V.winters[w], mode: "lines", line: { color: "rgba(80,90,105,0.26)", width: 0.9 }, name: w, showlegend: false,
+                  hovertemplate: "<b>" + w + "</b> %{x|%-d %b}: %{y:." + dig + "f} " + units + "<extra></extra>" });
+      });
+      var marks = { x: [], y: [], text: [], symbol: [], color: [] };
+      function addMarks(w, col) {
+        var W = winter(w); if (!W) return;
+        J.ssw.forEach(function (e) {
+          if (e.winter !== w || e.marginal) return;
+          var i = J.days.indexOf(e.date.slice(5)); if (i < 0) return;
+          marks.x.push(xOf(e.date)); marks.y.push(V.winters[w][i]); marks.text.push(w + ": SSW " + fmt(e.date) + " (" + e.type + ", " + e.depth + ")");
+          marks.symbol.push(e.type === "split" ? "diamond" : "circle"); marks.color.push(col);
+        });
+      }
+      hi.forEach(function (w, k) {
+        var col = PAL[k % PAL.length];
+        if (!V.winters[w] || w === st.pick) return;
+        tr.push({ x: x, y: V.winters[w], mode: "lines", line: { color: col, width: 2.3 }, name: w,
+                  hovertemplate: "<b>" + w + "</b> %{x|%-d %b}: %{y:." + dig + "f} " + units + "<extra></extra>" });
+        addMarks(w, col);
+      });
+      if (st.pick && V.winters[st.pick]) {
+        tr.push({ x: x, y: V.winters[st.pick], mode: "lines", line: { color: "#111", width: 3.2 }, name: st.pick,
+                  hovertemplate: "<b>" + st.pick + "</b> %{x|%-d %b}: %{y:." + dig + "f} " + units + "<extra></extra>" });
+        addMarks(st.pick, "#111");
+      }
+      if (marks.x.length) tr.push({ x: marks.x, y: marks.y, mode: "markers", name: "SSW central date", text: marks.text,
+        marker: { size: 11, symbol: marks.symbol, color: marks.color, line: { color: "#fff", width: 1.5 } }, hovertemplate: "%{text}<extra></extra>" });
+      var narrow = el.offsetWidth < 640;
+      $("shw-plot").style.height = (narrow ? 480 : 580) + "px";
+      var lay = {
+        margin: { l: 58, r: 14, t: 40, b: narrow ? 120 : 84 }, paper_bgcolor: "rgba(0,0,0,0)", plot_bgcolor: "rgba(0,0,0,0)",
+        font: { family: "Source Sans 3, Inter, system-ui, sans-serif", size: 13, color: "#1c2430" },
+        title: { text: "<b>" + V.label + "</b>", x: 0.01, xanchor: "left", y: 0.985, yanchor: "top", font: { size: narrow ? 13 : 15 } },
+        legend: { orientation: "h", x: 0, y: -0.09, yanchor: "top", font: { size: 12 } },
+        hovermode: "closest", hoverlabel: { bgcolor: "#fff", font: { size: 12 } },
+        xaxis: { type: "date", range: ["2001-10-01", "2002-05-31"], tickformat: "%b", dtick: "M1", gridcolor: "#e8e6e0", ticks: "outside", ticklen: 4 },
+        yaxis: { title: { text: units }, gridcolor: "#e8e6e0", zeroline: !!V.zero, zerolinecolor: "#333", zerolinewidth: 1.6 }
+      };
+      Plotly.react("shw-plot", tr, lay, { displayModeBar: false, responsive: true });
+      var parts = hi.concat(st.pick && hi.indexOf(st.pick) < 0 ? [st.pick] : []).map(function (w) {
+        var W = winter(w); if (!W) return w;
+        return w + (W.ssw.length ? " (SSW " + W.ssw.map(fmt).join(", ") + ")" : " (no SSW)");
+      });
+      $("shw-note").textContent = parts.length ? "Drawn: " + parts.join("; ") + "." : "";
+    });
+  }
+  function cls(v) { return v < 0 ? "neg" : v > 0 ? "pos" : ""; }
+  function table() {
+    if (!J) return;
+    var rows = J.ssw.map(function (e) { var W = winter(e.winter) || {}; return { e: e, W: W }; });
+    if (sortKey) rows.sort(function (a, b) { var p = sortKey(a), q = sortKey(b); return (p < q ? -1 : p > q ? 1 : 0) * sortDir; });
+    $("shs-table").tBodies[0].innerHTML = rows.map(function (r) {
+      var e = r.e, W = r.W;
+      return "<tr" + (e.marginal ? ' class="marginal"' : "") + "><td>" + fmt(e.date) + "</td><td>" + (e.marginal ? "unconfirmed, not used" : e.type) +
+        "</td><td>" + (e.marginal ? "" : e.depth) + "</td><td>" + e.u_min.toFixed(1) + "</td><td>" + e.spell + "</td><td>+" + e.T10_peak.toFixed(0) +
+        '</td><td><span class="' + cls(e.ao_pre) + '">' + (e.ao_pre > 0 ? "+" : "") + e.ao_pre.toFixed(1) + '</span> → <span class="' + cls(e.ao_post) + '">' + (e.ao_post > 0 ? "+" : "") + e.ao_post.toFixed(1) +
+        "</span></td><td>" + (W.enso || "") + (W.roni_djf != null ? " (" + (W.roni_djf > 0 ? "+" : "") + W.roni_djf.toFixed(1) + ")" : "") + "</td><td>" + (W.qbo || "") + (W.qbo50_on != null ? " (" + (W.qbo50_on > 0 ? "+" : "") + W.qbo50_on.toFixed(0) + ")" : "") + "</td></tr>";
+    }).join("");
+    $("shs-sv").tBodies[0].innerHTML = J.strong_vortex.map(function (s) {
+      return "<tr><td>" + fmt(s.date) + "</td><td>+" + s.nam10_peak.toFixed(1) + "</td><td>" + s.u_max.toFixed(0) + '</td><td><span class="' + cls(s.ao_pre) + '">' + (s.ao_pre > 0 ? "+" : "") + s.ao_pre.toFixed(1) + '</span> → <span class="' + cls(s.ao_post) + '">' + (s.ao_post > 0 ? "+" : "") + s.ao_post.toFixed(1) + "</span></td></tr>";
+    }).join("");
+    $("shs-note").textContent = "Descriptive list; the tests are under What usually follows. Over days 1–30 the AO averaged 0.60 below the same dates in other years after these warmings, 1.42 below after the deep ones (both significant, t-test with false-discovery rate 10 %), with no significant change after the shallow ones. Click a column heading to sort. ENSO = CPC RONI (DJF); QBO = CPC 50 hPa index, Oct–Nov mean, m/s.";
+  }
+  var KEYS = [function (r) { return r.e.date; }, function (r) { return r.e.type; }, function (r) { return r.e.depth; }, function (r) { return r.e.u_min; },
+              function (r) { return r.e.spell; }, function (r) { return r.e.T10_peak; }, function (r) { return r.e.ao_post; },
+              function (r) { return r.W.roni_djf; }, function (r) { return r.W.qbo50_on; }];
+  Array.prototype.forEach.call(document.querySelectorAll("#shs-table thead th"), function (th, i) {
+    var b = document.createElement("button"); b.type = "button"; while (th.firstChild) b.appendChild(th.firstChild); th.appendChild(b);
+    b.addEventListener("click", function () { if (sortKey === KEYS[i]) sortDir = -sortDir; else { sortKey = KEYS[i]; sortDir = 1; } table(); });
+  });
+  Array.prototype.forEach.call(document.querySelectorAll("#dom-shwinters .pill[data-shv]"), function (b) {
+    b.addEventListener("click", function () { st.v = b.dataset.shv; document.querySelectorAll("#dom-shwinters .pill[data-shv]").forEach(function (o) { o.classList.toggle("on", o === b); }); draw(); });
+  });
+  Array.prototype.forEach.call(document.querySelectorAll("#dom-shwinters .pill[data-shh]"), function (b) {
+    b.addEventListener("click", function () { st.h = b.dataset.shh; document.querySelectorAll("#dom-shwinters .pill[data-shh]").forEach(function (o) { o.classList.toggle("on", o === b); }); draw(); });
+  });
+  $("shw-pick").addEventListener("change", function () { st.pick = this.value; draw(); });
+  fetch("assets/sst/data/strat_history.json?v=__CACHE__").then(function (r) { return r.json(); }).then(function (j) {
+    J = j;
+    var sel = $("shw-pick");
+    J.winters.slice().reverse().forEach(function (w) { var o = document.createElement("option"); o.value = w.winter; o.textContent = w.winter; sel.appendChild(o); });
+    table(); draw();
+  }).catch(function () { $("shw-note").textContent = "The history file is not available."; $("shs-note").textContent = "The history file is not available."; });
+  window.addEventListener("resize", function () { clearTimeout(draw.t); draw.t = setTimeout(draw, 60); });
+})();
+</script>

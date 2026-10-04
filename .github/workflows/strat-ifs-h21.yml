@@ -1,0 +1,16 @@
+name: Stratosphere IFS-ENS — 21Z
+
+# One of 2 schedule-only callers for strat-ifs.yml (the strat-h07/h19 pattern: one firing per file per day is the
+# frequency GitHub honours best). The laptop dispatcher fires the same slot on time; this is the backstop.
+on:
+  schedule:
+  - cron: '5 21 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  run:
+    uses: ./.github/workflows/strat-ifs.yml
+    secrets: inherit
