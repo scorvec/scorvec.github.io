@@ -69,7 +69,8 @@
   /* time bar + map + colour legend fit in the window together once scrolled to (sticky header ~64 px, time bar ~62,
      legend ~70): no 880 px cap */
   .mv-map { position: relative; width: 100%; height: max(340px, calc(100vh - 225px)); background: var(--map); border: 1px solid var(--rule);
-            border-radius: 8px; overflow: hidden; touch-action: none; cursor: grab; }
+            border-radius: 8px; overflow: hidden; touch-action: none; cursor: grab;
+            -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; }
   .mv-map.drag { cursor: grabbing; }
   .mv-map canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
   /* the line overlay is moved by the compositor during a gesture (CSS transform, no canvas redraw); the label canvas is
@@ -2212,9 +2213,17 @@
   $("zin").onclick = function () { zoomBy(W / 2, H / 2, 0.6, 45); };
   $("zout").onclick = function () { zoomBy(W / 2, H / 2, 1 / 0.6, 45); };
   $("zfit").onclick = function () { var c = cycleObj(st.model, st.ci); if (c) { zA = null; fit(prepGrid(c.grids.main)); render(); } };
-  var ptrs = new Map(), pinch = null, moved = false, vel = [0, 0, 0], glide = 0;
+  // touch fixes (2026-10-04, user: double-tap / press-and-hold "only seems to work part of the time and zooming and panning
+  // seems to be a bit buggy"): a SLOP before a press becomes a pan (a finger wobbles 2-10 px on a tap; any 1 px used to cancel
+  // the tap and nudge the map), no flick-glide after a gesture that pinched, a cancelled pointer is never a tap, and a
+  // single tap on touch waits out the double-tap window before opening an airport's meteogram (the full-screen sheet used to
+  // catch the second tap)
+  var ptrs = new Map(), pinch = null, moved = false, vel = [0, 0, 0], glide = 0, gest = { pinched: false, start: null };
+  var SLOP_TOUCH = 10, SLOP_MOUSE = 4;
+  mapEl.addEventListener("contextmenu", function (e) { if (e.pointerType && e.pointerType !== "mouse") e.preventDefault(); });   // the phone's long-press menu, not desktop right-click
   mapEl.addEventListener("pointerdown", function (e) {
     if (e.target.closest("button")) return;
+    if (!ptrs.size) gest = { pinched: false, start: [e.clientX, e.clientY], touch: e.pointerType !== "mouse" };
     mapEl.setPointerCapture(e.pointerId); ptrs.set(e.pointerId, [e.clientX, e.clientY]); moved = false;
     cancelAnimationFrame(glide); if (zA) { cancelAnimationFrame(zA.raf); zA = null; } vel = [0, 0, performance.now()]; beginInteract();
     if (ptrs.size === 2) { var p = Array.from(ptrs.values()); pinch = { d: Math.hypot(p[0][0] - p[1][0], p[0][1] - p[1][1]), s: view.s }; }
@@ -2230,10 +2239,14 @@
         var a = toXY(mx, my); view.s = pinch.s * pinch.d / Math.max(d, 1); clampView(); var b = toXY(mx, my);
         view.cx += a[0] - b[0]; view.cy += a[1] - b[1];
         view.cx -= (e.clientX - old[0]) * view.s / 2; view.cy += (e.clientY - old[1]) * view.s / 2;
-        moved = true; render(); return;
+        moved = true; gest.pinched = true; render(); return;
+      }
+      if (ptrs.size === 1 && !moved && !gest.pinched && gest.start) {    // still inside the slop: a press, not a pan yet
+        if (Math.hypot(e.clientX - gest.start[0], e.clientY - gest.start[1]) < (e.pointerType === "mouse" ? SLOP_MOUSE : SLOP_TOUCH)) { ptrs.set(e.pointerId, old); return; }
+        moved = true; clearTimeout(SND.press);
       }
       if (Math.abs(e.clientX - old[0]) + Math.abs(e.clientY - old[1]) > 0) {
-        view.cx -= (e.clientX - old[0]) * view.s; view.cy += (e.clientY - old[1]) * view.s; if (Math.hypot(e.clientX - old[0], e.clientY - old[1]) > 1) moved = true;
+        view.cx -= (e.clientX - old[0]) * view.s; view.cy += (e.clientY - old[1]) * view.s; moved = true;
         var now = performance.now(), dt = Math.max(now - vel[2], 1), a8 = Math.min(dt / 40, 1);   // smoothed px/ms for the glide
         vel = [vel[0] * (1 - a8) + (e.clientX - old[0]) / dt * a8, vel[1] * (1 - a8) + (e.clientY - old[1]) / dt * a8, now]; render();
       }
@@ -2242,25 +2255,29 @@
     if (e.pointerType === "mouse" && !interacting) hover(px, py);
   });
   function endPtr(e) {
-    var r = mapEl.getBoundingClientRect();
-    if (ptrs.has(e.pointerId) && !moved && e.pointerType !== "mouse") hover(e.clientX - r.left, e.clientY - r.top, true);
+    var r = mapEl.getBoundingClientRect(), isTap = e.type === "pointerup" && !moved && !gest.pinched;
+    if (ptrs.has(e.pointerId) && isTap && e.pointerType !== "mouse") hover(e.clientX - r.left, e.clientY - r.top, true);
     // double-TAP on touch screens (2026-10-04, user: "Double-clicking on mobile doesn't seem to work": touch-action none on
     // the map means the browser never synthesises dblclick from taps) - two taps within 350 ms and 40 px = a sounding, like
     // a double-click; the first tap may have opened an airport's meteogram, which is closed again
     var dtap = false;
-    if (ptrs.has(e.pointerId) && !moved && ptrs.size === 1 && e.pointerType !== "mouse" && !SND.pressFired) {
+    if (ptrs.has(e.pointerId) && isTap && ptrs.size === 1 && e.pointerType !== "mouse" && !SND.pressFired) {
       var tx = e.clientX - r.left, ty = e.clientY - r.top, now = performance.now(), lt = SND.lastTap;
-      if (lt && now - lt.t < 350 && Math.hypot(tx - lt.x, ty - lt.y) < 40 && sndOn()) {
-        dtap = true; SND.lastTap = null;
+      if (lt && now - lt.t < 400 && Math.hypot(tx - lt.x, ty - lt.y) < 45 && sndOn()) {
+        dtap = true; SND.lastTap = null; clearTimeout(SND.tapT);
         if (!$("mg").hidden && MG.openedAt && now - MG.openedAt < 700) closeMg();
         sndAt(lt.x, lt.y, true);
       } else SND.lastTap = { t: now, x: tx, y: ty };
     }
-    if (ptrs.has(e.pointerId) && !moved && ptrs.size === 1 && !dtap) {   // a click or tap on an airport or city opens its meteogram
+    if (ptrs.has(e.pointerId) && isTap && ptrs.size === 1 && !dtap && !SND.pressFired) {   // a click or tap on an airport or city opens its meteogram
       var ap0 = nearestApt(e.clientX - r.left, e.clientY - r.top, e.pointerType === "mouse" ? 81 : 196);
-      if (ap0 && !SND.pressFired) { openMg(ap0[2][2], ap0[2][3]); MG.openedAt = performance.now(); } }
+      if (ap0) {
+        var openIt = function () { openMg(ap0[2][2], ap0[2][3]); MG.openedAt = performance.now(); };
+        clearTimeout(SND.tapT);
+        if (e.pointerType !== "mouse" && sndOn()) SND.tapT = setTimeout(openIt, 400); else openIt();   // touch: wait out a double-tap
+      } }
     clearTimeout(SND.press); SND.pressFired = false;
-    var wasPan = ptrs.size === 1 && !pinch && moved;
+    var wasPan = ptrs.size === 1 && !pinch && moved && !gest.pinched;
     ptrs.delete(e.pointerId); if (ptrs.size < 2) pinch = null; if (!ptrs.size) mapEl.classList.remove("drag");
     if (ptrs.size) return;
     // a flick keeps the map moving briefly (decaying glide), then the lines are redrawn in full
@@ -2294,7 +2311,7 @@
     if (e.pointerType === "mouse" || !sndOn()) return;
     var r = mapEl.getBoundingClientRect(), px = e.clientX - r.left, py = e.clientY - r.top;
     clearTimeout(SND.press); SND.pressFired = false;
-    SND.press = setTimeout(function () { if (!moved && ptrs.size === 1) { SND.pressFired = true; sndAt(px, py, true); } }, 550);
+    SND.press = setTimeout(function () { if (!moved && !gest.pinched && ptrs.size === 1) { SND.pressFired = true; clearTimeout(SND.tapT); SND.lastTap = null; sndAt(px, py, true); } }, 550);
   });
   // hover reads the NATIVE grid even when the half-resolution one is on screen: the first hover asks for the native file
   // (the half-resolution value is shown until it has arrived)
