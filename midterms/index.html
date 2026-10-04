@@ -544,7 +544,7 @@ function tsChart(sel,ciSel,tr,band,polls,ci,nowPt,marks,o,name){if(!tr||!tr.leng
  svg.append('g').selectAll('circle').data(pl).join('circle').attr('cx',p=>xs(p.d)).attr('cy',p=>ys(Math.max(lo,Math.min(hi,p.a)))).attr('r',2.6).attr('fill',o.col).attr('opacity',0.28);
  svg.append('path').attr('d',d3.line().x(p=>xs(p[0])).y(p=>ys(p[1])).curve(d3.curveMonotoneX)(tr2)).attr('fill','none').attr('stroke',o.col).attr('stroke-width',2.6);
  svg.append('circle').attr('cx',xs(last[0])).attr('cy',ys(last[1])).attr('r',4).attr('fill',o.col);
- {const short=l=>l.replace('RealClearPolitics','RCP').replace('Decision Desk HQ','DDHQ').replace('FiftyPlusOne','50+1');
+ {const short=l=>l.replace('Decision Desk HQ','DDHQ').replace('FiftyPlusOne','50+1');
   const ms=marks.map(k=>({...k,y:ys(k.v)})).sort((a,b)=>a.y-b.y);for(let i=1;i<ms.length;i++)ms[i].ly=Math.max(ms[i].y,(ms[i-1].ly??ms[i-1].y)+14);if(ms.length)ms[0].ly=ms[0].ly??ms[0].y;
   const over=(ms.length?ms[ms.length-1].ly:0)-(Hh-m.b);if(over>0)ms.forEach(k=>k.ly-=over);
   ms.forEach(k=>{svg.append('path').attr('d',d3.symbol(d3.symbolDiamond,34)()).attr('transform',`translate(${W-m.r+8},${k.y})`).attr('fill','#6f6b64');
