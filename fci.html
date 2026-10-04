@@ -25,7 +25,7 @@
   .lede { color: var(--ink2); max-width: 62rem; font-size: 1.04rem; }
   .card { background: var(--panel); border: 1px solid var(--rule); border-radius: 10px; padding: 1.1rem 1.3rem 1rem; margin: 1.3rem 0; }
   .note { color: var(--ink2); font-size: 0.95rem; max-width: 72rem; margin: 0.1rem 0 0.8rem; }
-  .tiles { display: grid; grid-template-columns: 1.35fr repeat(3, 1fr); gap: 0.8rem; margin: 1.2rem 0 0.4rem; }
+  .tiles { display: grid; grid-template-columns: 1.3fr repeat(4, 1fr); gap: 0.8rem; margin: 1.2rem 0 0.4rem; }
   .tile { background: var(--panel); border: 1px solid var(--rule); border-left: 6px solid var(--c, var(--accent)); border-radius: 10px; padding: 0.8rem 1rem; }
   .tile .k { font-size: 0.82rem; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; }
   .tile .v { font-family: var(--serif); font-size: clamp(1.9rem, 3vw, 2.6rem); line-height: 1.1; margin: 0.15rem 0; }
@@ -225,9 +225,10 @@
   <div class="kicker">US credit conditions · weekly, public Federal Reserve data</div>
   <h1>How tight is US credit?</h1>
   <p class="lede">One weekly number for how hard it is to borrow in the US, built from corporate bond spreads, commercial paper,
-    bank business lending and the Fed's survey of loan officers, mortgage rates, the fed funds rate and the yield curve. Zero is
-    the average since 2001; +1 means one standard deviation tighter than that. Three sub-indices beside it show <i>where</i>
-    the tightness is: for companies, for home buyers, or in the policy rate and the curve.</p>
+    bank business lending and the Fed's survey of loan officers, mortgage rates, the fed funds rate, the yield curve, stock-market
+    volatility and drawdowns, and the dollar. Zero is
+    the average since 2001; +1 means one standard deviation tighter than that. Four sub-indices beside it show <i>where</i>
+    the tightness is: for companies, for home buyers, in the policy rate and the curve, or in markets.</p>
 
   <div class="tiles" id="tiles"></div>
   <p class="src" id="asof"></p>
@@ -267,6 +268,7 @@
     <p class="note">ICE BofA option-adjusted spreads over Treasuries. FRED carries only the last three years of these series, too
       short to estimate weights, so they are shown here rather than inside the index; Moody's Baa and Aaa spreads carry the
       corporate-bond signal in the index back to the 1980s.</p>
+    <p class="note" id="hy-now"></p>
     <div class="spreads" id="spreads"></div>
   </section>
 
@@ -280,6 +282,9 @@
         middle-market and small firms) and net share reporting stronger demand; the effective fed funds rate and the Freddie
         Mac 30-year mortgage rate, both <i>real</i> (minus core PCE inflation over the past year); the mortgage rate minus the
         10-year Treasury; and the 10-year minus 2-year Treasury spread.</li>
+      <li><b>Markets</b>: the VIX (weekly average), the S&amp;P 500's drawdown from its highest close of the past year, and the
+        year-on-year change in the Fed's broad trade-weighted dollar (spliced to its predecessor before 2006). With them the index
+        also registers market-led tightenings that loan officers and spreads see later: late 2018, 2022, April 2025.</li>
       <li><b>Orientation</b>: every input is signed so that a higher value means tighter credit (slower loan and debt growth,
         weaker loan demand and a flatter curve count as tighter).</li>
       <li><b>Real rates</b>: the fed funds and mortgage rates fell for forty years; in nominal terms that decline would dominate
@@ -312,7 +317,7 @@
     cp_out: [-1, "% y/y", 1, "Commercial paper outstanding, growth"], ci_loans: [-1, "% y/y", 1, "Bank business loans, growth"],
     sloos_lg: [1, "% net", 1], sloos_sm: [1, "% net", 1], sloos_dem: [-1, "% net", 1, "Business-loan demand (net % stronger)"],
     corp_debt: [-1, "% y/y", 1, "Nonfinancial corporate debt, growth"], real_ff: [1, "%", 2], curve: [-1, "pt", 2, "Yield curve, 10-year minus 2-year"],
-    real_mort: [1, "%", 2], mort_sprd: [1, "pt", 2]
+    real_mort: [1, "%", 2], mort_sprd: [1, "pt", 2], vix: [1, "", 1, "VIX"], eq_dd: [1, "%", 1], usd: [1, "% y/y", 1, "Trade-weighted dollar, change"]
   };
   var bust = "?v=" + new Date().toISOString().slice(0, 13).replace(/\D/g, "");
   function fmt(v, d) { return (v > 0 ? "+" : v < 0 ? "−" : "") + Math.abs(v).toFixed(d === undefined ? 2 : d); }
@@ -337,7 +342,7 @@
   fetch("assets/fci/fci.json" + bust).then(function (r) { return r.json(); }).then(function (d) {
     // tiles
     var T = [["Credit conditions index", d.latest, d.pct_rank, d.chg_13w, true]];
-    ["corporate", "mortgage", "policy"].forEach(function (k) { var s = d.subs[k]; T.push([s.label, s.latest, s.pct_rank, s.chg_13w, false]); });
+    ["corporate", "mortgage", "policy", "markets"].forEach(function (k) { var s = d.subs[k]; if (s) T.push([s.label, s.latest, s.pct_rank, s.chg_13w, false]); });
     document.getElementById("tiles").innerHTML = T.map(function (t) {
       return '<div class="tile" style="--c:' + col(t[1]) + '"><div class="k">' + t[0] + '</div><div class="v">' + fmt(t[1]) + '<small>sd</small></div>' +
         '<div class="w" style="color:' + col(t[1]) + '">' + word(t[1]).replace(/^./, function (c) { return c.toUpperCase(); }) + "</div>" +
@@ -356,14 +361,14 @@
       ], L({ shapes: shapes, xaxis: { gridcolor: "#eee", range: y ? [startFor(d, y), d.asof] : null } }), CFG);
     });
     // sub-indices
-    var SC = { corporate: "#1f5fa8", mortgage: "#c2394b", policy: "#23874f" };
+    var SC = { corporate: "#1f5fa8", mortgage: "#c2394b", policy: "#23874f", markets: "#d97a0b" };
     ranges("s-range", [[0, "Since 1990"], [10, "10 years"], [5, "5 years"], [2, "2 years"]], 5, function (y) {
-      var tr = ["corporate", "mortgage", "policy"].map(function (k) { var s = xy(d.subs[k].series);
+      var tr = ["corporate", "mortgage", "policy", "markets"].filter(function (k) { return d.subs[k]; }).map(function (k) { var s = xy(d.subs[k].series);
         return { x: s.x, y: s.y, name: d.subs[k].label, line: { color: SC[k], width: 2 }, hovertemplate: "%{y:+.2f}<extra>" + d.subs[k].label + "</extra>" }; });
       Plotly.react("c-subs", tr, L({ shapes: shapes, xaxis: { gridcolor: "#eee", range: y ? [startFor(d, y), d.asof] : null } }), CFG);
     });
     // contributions, last 5 years
-    var GC = { "Corporate bonds": "#1f5fa8", "Corporate short-term funding": "#5aa0d8", "Bank lending": "#23874f", "Policy and rates": "#9a6fb0", "Mortgages": "#c2394b" };
+    var GC = { "Corporate bonds": "#1f5fa8", "Corporate short-term funding": "#5aa0d8", "Bank lending": "#23874f", "Policy and rates": "#9a6fb0", "Mortgages": "#c2394b", "Markets": "#d97a0b" };
     var t0 = startFor(d, 5), tr = Object.keys(d.contrib).map(function (g) {
       var s = d.contrib[g].filter(function (r) { return r[0] >= t0; });
       return { type: "bar", x: s.map(function (r) { return r[0]; }), y: s.map(function (r) { return r[1]; }), name: g, marker: { color: GC[g] || "#999" }, hovertemplate: "%{y:+.2f}<extra>" + g + "</extra>" };
@@ -394,9 +399,22 @@
     sp.innerHTML = Object.keys(d.show_only).map(function (k, j) { var s = d.show_only[k];
       return "<div><b>" + s.label + "</b><div class='d' style='font-size:.9rem;color:#3d3b37'>" + s.last.toFixed(2) + " pt on " + s.asof + " · " + ord(s.pct_3y) +
         " percentile of the last 3 years (range " + s.min_3y.toFixed(2) + "–" + s.max_3y.toFixed(2) + ")</div><div class='chart' id='sp" + j + "'></div></div>"; }).join("");
-    Object.keys(d.show_only).forEach(function (k, j) { var s = xy(d.show_only[k].series);
-      Plotly.react("sp" + j, [{ x: s.x, y: s.y, line: { color: "#2c4a72", width: 1.8 }, hovertemplate: "%{y:.2f} pt<extra></extra>" }],
-        L({ margin: { l: 40, r: 10, t: 8, b: 30 }, showlegend: false, yaxis: { gridcolor: "#eee", title: { text: "pt" } } }), CFG); });
+    var hn = d.hy_nowcast;
+    Object.keys(d.show_only).forEach(function (k, j) { var s = xy(d.show_only[k].series), tr2 = [{ x: s.x, y: s.y, name: "official", line: { color: "#2c4a72", width: 1.8 }, hovertemplate: "%{y:.2f} pt<extra>official</extra>" }];
+      if (k === "BAMLH0A0HYM2" && hn) {
+        tr2.push({ x: hn.track.map(function (r) { return r[0]; }), y: hn.track.map(function (r) { return r[2]; }), name: "ETF estimate", mode: "markers",
+                   marker: { color: "#d97a0b", size: 4 }, hovertemplate: "%{y:.2f} pt<extra>HYG/IEI estimate</extra>" });
+        if (hn.estimate) tr2.push({ x: [hn.estimate.date], y: [hn.estimate.value], name: "today", mode: "markers", marker: { color: "#d97a0b", size: 11, symbol: "diamond", line: { color: "#000", width: 1 } },
+                   hovertemplate: "%{y:.2f} pt<extra>estimate, not yet on FRED</extra>" });
+      }
+      Plotly.react("sp" + j, tr2, L({ margin: { l: 40, r: 10, t: 8, b: 30 }, showlegend: false, yaxis: { gridcolor: "#eee", title: { text: "pt" } } }), CFG); });
+    if (hn && hn.estimate) {
+      document.getElementById("hy-now").innerHTML = "<b>High-yield spread, real-time estimate for " + hn.estimate.date + ": " + hn.estimate.value.toFixed(2) + " pt</b> (" +
+        (hn.estimate.value - hn.official.value >= 0 ? "+" : "−") + Math.round(Math.abs(hn.estimate.value - hn.official.value) * 100) + " bp on the last official value, " +
+        hn.official.value.toFixed(2) + " pt on " + hn.official.date + "). From the day's return on the HYG high-yield ETF against IEI (3–7-year Treasuries), " +
+        "re-anchored to the official ICE BofA series every time FRED posts it. Out of sample over the last " + hn.oos.days + " trading days it was off by " +
+        hn.oos.rmse_bp.toFixed(1) + " bp a day on average (carrying the previous official value: " + hn.oos.no_change_bp.toFixed(1) + " bp). Orange dots on the chart: each day's estimate.";
+    }
   }).catch(function (e) {
     document.getElementById("tiles").innerHTML = "<p class='note'>The index data could not be loaded. Reload the page to try again.</p>";
   });
