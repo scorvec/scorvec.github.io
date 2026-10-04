@@ -138,6 +138,11 @@ scripts/strat/*
 !scripts/strat/qbo_zeroline.py
 !scripts/strat/build_qbo_zeroline.py
 !scripts/strat/fetch_m2_zmu.py
+# GEPS subseasonal vortex products (public subseasonal.html), moved to Actions 2026-10-04 with scripts/geps
+!scripts/strat/strat_maps.py
+!scripts/strat/strat_series.py
+!scripts/strat/strat_frames.py
+!scripts/strat/geps_s2s_hindcast.py
 # The MERRA-2 reference cache (282 KB) that replaces the 690 MB laptop-only
 # archive for nh_vortex on a runner. The directory itself must be re-included
 # first - git will not descend into an excluded directory to find the file.
@@ -221,3 +226,10 @@ scripts/mjo/data/sla_raw/
 assets/gefs/anim/runs/
 scripts/site/.private_terms
 scripts/fci/data/
+
+# GEPS subseasonal pipeline (scripts/geps): reference set from the geps-ref release, state carried on the frames
+# branch, per-run scratch - none of it belongs on main
+scripts/geps/ref/
+scripts/geps/state/
+scripts/geps/work/
+scripts/geps/data/
