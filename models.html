@@ -142,7 +142,7 @@
   /* forecast sounding dock (2026-10-04): the meteogram's frame around the sounding explorer in an iframe */
   .mv-snd iframe { flex: 1 1 auto; min-height: 0; width: 100%; border: 0; display: block; background: #0b0b12; }
   .mv-snd .mv-mgtop { padding-bottom: 0.55rem; }
-  #map.snd-pick { cursor: crosshair; }
+
   .mv-mgtop { flex: none; padding: 0.75rem 1.3rem 0.65rem; border-bottom: 1px solid var(--rule); background: var(--panel); }
   .mv-mgbody { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 0.3rem 1.3rem 1.5rem; }
   .mv-mgh { display: flex; flex-wrap: wrap; align-items: center; gap: 0.45rem 1rem; }
@@ -412,8 +412,8 @@
     <label class="chk" id="contL" hidden title="Labelled contours drawn from the same data (isotherms, flight-category thresholds, isobars, CAPE)"><input type="checkbox" id="cont" checked> Contours</label>
     <label class="chk" title="Airports with scheduled service in the US and Canada (OurAirports) and a few city centres; hover for the model's value there, click or tap for the forecast meteogram"><input type="checkbox" id="sta" checked> Airports</label>
     <label class="chk" id="diffL" hidden title="The other 3 km model's value subtracted at the same valid time, on the shared grid (HRRR and RRFS use the identical grid)"><input type="checkbox" id="diff"> <span id="diffT">Difference</span></label>
-    <label class="chk" id="sndL" hidden title="Click or tap anywhere in the HRRR domain for that spot's forecast sounding (skew-T, hodograph and the full parameter tables, every hour of the run)"><input type="checkbox" id="sndOn"> Click for a sounding</label>
     <label class="chk" id="farmsL" hidden title="US wind projects (USGS Wind Turbine Database) or large-scale solar plants (USGS Solar PV Database), sized by capacity"><input type="checkbox" id="farms" checked> <span id="farmsT">Wind farms</span></label>
+    <span class="mv-keys" id="sndL" hidden><b>Sounding:</b> double-click the map (on a phone, press and hold) for that spot's HRRR forecast sounding</span>
     <span class="mv-keys">Keys: <kbd>&larr;</kbd> <kbd>&rarr;</kbd> change hour &middot; <kbd>Space</kbd> play or pause &middot; scroll to zoom, drag to pan</span>
   </div>
   <p class="mv-note" id="note"></p>
@@ -2174,8 +2174,8 @@
     if (ptrs.has(e.pointerId) && !moved && e.pointerType !== "mouse") hover(e.clientX - r.left, e.clientY - r.top, true);
     if (ptrs.has(e.pointerId) && !moved && ptrs.size === 1) {        // a click or tap on an airport or city opens its meteogram
       var ap0 = nearestApt(e.clientX - r.left, e.clientY - r.top, e.pointerType === "mouse" ? 81 : 196);
-      if (sndPicking()) { if (ap0) openSndLL(ap0[2][0], ap0[2][1], ap0[2][2] + " " + ap0[2][3]); else openSndXY(toXY(e.clientX - r.left, e.clientY - r.top)); }  // sounding mode: anywhere
-      else if (ap0) openMg(ap0[2][2], ap0[2][3]); }
+      if (ap0 && !SND.pressFired) { openMg(ap0[2][2], ap0[2][3]); MG.openedAt = performance.now(); } }
+    clearTimeout(SND.press); SND.pressFired = false;
     var wasPan = ptrs.size === 1 && !pinch && moved;
     ptrs.delete(e.pointerId); if (ptrs.size < 2) pinch = null; if (!ptrs.size) mapEl.classList.remove("drag");
     if (ptrs.size) return;
@@ -2193,7 +2193,25 @@
   }
   mapEl.addEventListener("pointerup", endPtr); mapEl.addEventListener("pointercancel", endPtr);
   mapEl.addEventListener("pointerleave", function (e) { if (e.pointerType === "mouse") tip.style.display = "none"; });
-  mapEl.addEventListener("dblclick", function (e) { var r = mapEl.getBoundingClientRect(); zoomBy(e.clientX - r.left, e.clientY - r.top, 0.5, 45); });
+  // double-click (2026-10-04, user: "have a sounding pop up if you double-click, rather than having to check a box"): a
+  // forecast sounding where HRRR soundings exist (snapping to an airport within reach), else zoom in as before; the first
+  // click of the pair may have opened that airport's meteogram - closed again. Phones: press and hold (550 ms).
+  function sndAt(px, py, touch) {
+    var ap = nearestApt(px, py, touch ? 196 : 81);
+    if (ap) openSndLL(ap[2][0], ap[2][1], ap[2][2] + " " + ap[2][3]); else openSndXY(toXY(px, py));
+  }
+  mapEl.addEventListener("dblclick", function (e) {
+    var r = mapEl.getBoundingClientRect(), px = e.clientX - r.left, py = e.clientY - r.top;
+    if (!sndMeta()) { zoomBy(px, py, 0.5, 45); return; }
+    if (!$("mg").hidden && MG.openedAt && performance.now() - MG.openedAt < 700) closeMg();
+    sndAt(px, py, false);
+  });
+  mapEl.addEventListener("pointerdown", function (e) {
+    if (e.pointerType === "mouse" || !sndMeta()) return;
+    var r = mapEl.getBoundingClientRect(), px = e.clientX - r.left, py = e.clientY - r.top;
+    clearTimeout(SND.press); SND.pressFired = false;
+    SND.press = setTimeout(function () { if (!moved && ptrs.size === 1) { SND.pressFired = true; sndAt(px, py, true); } }, 550);
+  });
   // hover reads the NATIVE grid even when the half-resolution one is on screen: the first hover asks for the native file
   // (the half-resolution value is shown until it has arrived)
   function hoverSrc() {
@@ -2373,10 +2391,9 @@
   // click, hours then instant); the manifest's ecape[cycle].snd carries the layout, scales and coefficients. The card is
   // the sounding explorer itself (/skewt/?embed=model in #sndF), handed the decoded profiles by postMessage, so the
   // analysis (SHARPlib, tables, hodograph) is exactly the balloon soundings'.
-  var SND = { win: null, ready: false, pend: null, items: null, ll: null, tiles: {}, seq: 0 };
+  var SND = { win: null, ready: false, pend: null, items: null, ll: null, tiles: {}, seq: 0, press: 0, pressFired: false };
   function sndMeta() { var c = cycleObj("hrrr", 0); return c && c.ecape && c.ecape.snd && c.grids && c.grids.main ? { c: c, s: c.ecape.snd, g: prepGrid(c.grids.main) } : null; }
-  function sndPicking() { return $("sndOn").checked && !$("sndL").hidden; }
-  $("sndOn").onchange = function () { mapEl.classList.toggle("snd-pick", this.checked); };
+
   function sndTile(m, ty, tx) {
     var k = m.c.cycle + "/" + ty + "_" + tx;
     if (!SND.tiles[k]) SND.tiles[k] = getBytes("assets/models/data/hrrr/" + m.c.cycle + "/snd/" + ty + "_" + tx + ".bin", m.s.sha, "high")
