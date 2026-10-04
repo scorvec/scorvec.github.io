@@ -95,8 +95,10 @@ def eval_vp_clim(coef: np.ndarray, doy: int) -> np.ndarray:
 
 
 def render(anom, uchi, vchi, ufull, vfull, dlat, dlon, init, valid, tag: str, out: Path):
-    fig = plt.figure(figsize=(13.6, 6.6), constrained_layout=True)   # fixed canvas → frames don't jitter
-    ax = plt.axes(projection=ccrs.PlateCarree(central_longitude=180))
+    # fixed canvas and FIXED axes positions (2026-10-04: constrained_layout let the fixed-aspect map grow until the title
+    # ran off the top of the image, user: "The title of this plot is cut off")
+    fig = plt.figure(figsize=(13.6, 6.6))
+    ax = fig.add_axes([0.01, 0.17, 0.98, 0.775], projection=ccrs.PlateCarree(central_longitude=180))
     ax.set_extent([-180, 180, -75, 75], crs=ccrs.PlateCarree())
     PC = ccrs.PlateCarree()
     cf = ax.contourf(dlon, dlat, anom / 1e6, levels=VP_LEVELS, cmap=VP_CMAP,
@@ -114,13 +116,15 @@ def render(anom, uchi, vchi, ufull, vfull, dlat, dlon, init, valid, tag: str, ou
     ax.text(0.006, 0.97, f"Init: {init:%HZ %a %d %b %Y}\nValid: {valid:%HZ %a %d %b %Y}  ({tag})",
             transform=ax.transAxes, fontsize=9, va="top", ha="left", family="monospace", zorder=6,
             bbox=dict(boxstyle="round,pad=0.3", facecolor="white", alpha=0.8, edgecolor="0.6", linewidth=0.5))
-    cb = plt.colorbar(cf, ax=ax, orientation="horizontal", pad=0.05, aspect=55, shrink=0.78)
+    cb = fig.colorbar(cf, cax=fig.add_axes([0.12, 0.095, 0.76, 0.03]), orientation="horizontal")
     cb.set_label("200 hPa velocity-potential anomaly (m² s⁻¹ × 10⁻⁶); green = divergence / convection, "
                  "orange = convergence  ·  vectors = irrotational wind  ·  contours = 200 hPa wind speed (m s⁻¹)",
                  fontsize=7.5)
     cb.ax.tick_params(labelsize=7)
-    ax.set_title("AIFS-ENS 200 hPa Velocity-Potential Anomaly & Irrotational Wind (ensemble mean)",
-                 fontsize=10.5, loc="left")
+    fig.canvas.draw()                                   # the map's real (aspect-fitted) box, so the title sits on its left edge
+    bb = ax.get_position()
+    fig.text(bb.x0, bb.y1 + 0.012, "AIFS-ENS 200 hPa Velocity-Potential Anomaly & Irrotational Wind (ensemble mean)",
+             fontsize=10.5, ha="left", va="bottom")
     out.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(out, dpi=110); plt.close(fig)          # fixed size (no tight bbox) so every frame matches
 
