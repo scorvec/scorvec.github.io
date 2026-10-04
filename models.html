@@ -86,6 +86,18 @@
   .mv-load { position: absolute; left: 8px; bottom: 8px; z-index: 3; background: rgba(255,255,255,0.93); border: 1px solid var(--rule); border-radius: 6px;
              padding: 0.2rem 0.5rem; font-size: 0.82rem; color: var(--ink2); pointer-events: none; }
   .mv-load:empty { display: none; }
+  /* sounding prompt on the map (2026-10-04, user: "There are no directions on the HRRR model page to double-click for a
+     sounding" - the Show-row hint was small, at the far right, hidden on phones and absent while a run's soundings were
+     still being computed). Dismissible; the dismissal is remembered per browser. */
+  .mv-sndhint { position: absolute; left: 8px; bottom: 8px; z-index: 3; display: flex; align-items: center; gap: 0.5rem;
+    max-width: calc(100% - 16px); background: #1f3b5c; color: #fff; border-radius: 8px; padding: 0.42rem 0.45rem 0.42rem 0.75rem;
+    font: 500 0.98rem/1.3 var(--sans); box-shadow: 0 2px 10px rgba(0,0,0,0.25); }
+  .mv-sndhint[hidden] { display: none; }
+  .mv-sndhint.wait { background: rgba(255,255,255,0.95); color: var(--ink); border: 1px solid var(--rule); box-shadow: none; }
+  .mv-sndhint b { font-weight: 700; }
+  .mv-sndhint button { flex: 0 0 auto; border: 0; background: rgba(255,255,255,0.18); color: inherit; border-radius: 5px;
+    width: 30px; height: 30px; font: 600 1.1rem var(--sans); cursor: pointer; }
+  .mv-sndhint.wait button { background: var(--panel); }
   .mv-msg { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 2; max-width: min(34rem, 90%); text-align: center;
             background: rgba(255,255,255,0.96); border: 1.5px dashed #b9beb6; border-radius: 8px; padding: 1.1rem 1.3rem; font-size: 0.97rem; color: var(--ink2); }
   .mv-msg:empty { display: none; }
@@ -113,8 +125,15 @@
   .mv-valid .vt { font-size: 1.22rem; font-weight: 600; }
   .mv-valid .loc { color: var(--ink2); }
   .mv-valid .fh { display: inline-block; margin-left: 0.35rem; padding: 0 0.4rem; border-radius: 4px; background: var(--accent-soft); color: var(--accent); font-weight: 600; font-size: 0.9rem; }
-  .mv-legend { margin: 0.3rem 0 0; }
-  .mv-legend canvas { width: 100%; height: 38px; display: block; }
+  /* controls in one tinted panel; colour bar vertical on the right of the map (2026-10-04, user: "enclose the slider and
+     controls at the top in a box with a different color", "move the color bar to be vertical and place it on the right") */
+  .mv-panel { background: #e6edf4; border: 1px solid #c9d6e3; border-radius: 10px; padding: 0.7rem 0.85rem 0.15rem; margin: 0 0 0.6rem; }
+  .mv-panel .mv-bar { margin-bottom: 0.4rem; }
+  .mv-mapwrap { display: flex; gap: 8px; align-items: stretch; }
+  .mv-mapwrap > .mv-map { flex: 1 1 auto; min-width: 0; }
+  .mv-legend { flex: 0 0 96px; margin: 0; }
+  .mv-legend canvas { width: 100%; height: 100%; display: block; }
+  .mv-legT { margin-top: 0.3rem; }
   .mv-note { margin: 0.5rem 0 0; padding: 0.55rem 0.8rem; background: var(--panel); border: 1px solid var(--rule); border-left: 4px solid var(--accent);
              border-radius: 4px; font-size: 1.02rem; color: var(--ink2); max-width: 80rem; }
   .mv-note:empty { display: none; }
@@ -198,6 +217,10 @@
     .mv-fsel select { flex: 1 1 auto; min-width: 0; }
     .mv-map { height: clamp(300px, calc(100svh - 215px), 640px); }
     .mv-time { margin: 0 0 0.35rem; padding: 0.2rem 0 0.25rem; }
+    .mv-panel { padding: 0.5rem 0.55rem 0.05rem; }
+    .mv-mapwrap { flex-direction: column; gap: 0.3rem; }
+    .mv-legend { flex: 0 0 auto; }
+    .mv-legend canvas { height: 38px; }
     .mv-valid { min-width: 0; flex: 1 1 100%; font-size: 0.95rem; order: -1; }
     .mv-valid .vt { font-size: 1.08rem; }
     .mv-time input[type=range] { flex: 1 1 5rem; min-width: 5rem; }
@@ -376,6 +399,7 @@
   <h1>Short-range model maps</h1>
   <p class="lede">Zoomable maps of the newest HRRR, RRFS and RDPS forecasts, out to two to three and a half days, for aviation, severe and winter weather, and wind and solar power. Pick a map, scrub through the hours, and hover or tap anywhere for the model's value. <b>Click or tap an airport</b> for its forecast from all three models, and compare the HRRR and RRFS with <b>Minus</b>.</p>
 
+  <div class="mv-panel">
   <div class="mv-bar">
     <div class="mv-row">
       <div class="seg" id="models" role="group" aria-label="Model"></div>
@@ -397,6 +421,8 @@
     <button type="button" id="fwd" aria-label="Next hour">&rsaquo;</button>
     <span class="mv-valid" id="valid" aria-live="polite"></span>
   </div>
+  </div>
+  <div class="mv-mapwrap">
   <div class="mv-map" id="map" aria-label="Model map. Scroll or pinch to zoom, drag to pan.">
     <canvas id="gl"></canvas>
     <canvas id="ov"></canvas>
@@ -406,14 +432,17 @@
     <div class="mv-msg" id="msg"></div>
     <div class="mv-load" id="load"></div>
     <div class="mv-tip" id="tip"></div>
+    <div class="mv-sndhint" id="sndH" hidden role="note"><span id="sndHT"></span><button type="button" id="sndHX" aria-label="Hide this tip" title="Hide this tip">&times;</button></div>
   </div>
-  <div class="mv-legend"><canvas id="leg" aria-label="Colour scale"></canvas><p class="mv-legT" id="legT"></p></div>
+  <div class="mv-legend"><canvas id="leg" aria-label="Colour scale"></canvas></div>
+  </div>
+  <p class="mv-legT" id="legT"></p>
   <div class="mv-show"><b>Show</b>
     <label class="chk" id="contL" hidden title="Labelled contours drawn from the same data (isotherms, flight-category thresholds, isobars, CAPE)"><input type="checkbox" id="cont" checked> Contours</label>
     <label class="chk" title="Airports with scheduled service in the US and Canada (OurAirports) and a few city centres; hover for the model's value there, click or tap for the forecast meteogram"><input type="checkbox" id="sta" checked> Airports</label>
     <label class="chk" id="diffL" hidden title="The other 3 km model's value subtracted at the same valid time, on the shared grid (HRRR and RRFS use the identical grid)"><input type="checkbox" id="diff"> <span id="diffT">Difference</span></label>
     <label class="chk" id="farmsL" hidden title="US wind projects (USGS Wind Turbine Database) or large-scale solar plants (USGS Solar PV Database), sized by capacity"><input type="checkbox" id="farms" checked> <span id="farmsT">Wind farms</span></label>
-    <span class="mv-keys" id="sndL" hidden><b>Sounding:</b> double-click the map (on a phone, press and hold) for that spot's HRRR forecast sounding</span>
+    <span class="mv-keys" id="sndL" hidden><b>Sounding:</b> double-click the map (on a phone, double-tap or press and hold) for that spot's HRRR forecast sounding</span>
     <span class="mv-keys">Keys: <kbd>&larr;</kbd> <kbd>&rarr;</kbd> change hour &middot; <kbd>Space</kbd> play or pause &middot; scroll to zoom, drag to pan</span>
   </div>
   <p class="mv-note" id="note"></p>
@@ -555,7 +584,7 @@
   // ECAPE (2026-09-30, user: "put the ecape plots into the short-term models interface as well"): HRRR only, computed by the
   // ECAPE job (scripts/ecape/to_models.py) from the same runs; files ecape_mu / ecape_ml / mucape / mlcape, code = round(K*sqrt(J/kg)),
   // listed in hrrr.json["ecape"][cycle] and joined to the cycle on load. The ratio is divided here (masked where CAPE <= 100 J/kg,
-  // as render_ecape.py does). Colour tables are render_ecape.py's, so the old ECAPE maps and these read the same.
+  // as render_ecape.py does). Colour tables were render_ecape.py's until 2026-10-04; now brighter, one hue per class (below).
   var EC_SUBS = {
     ecape_mu: { label: "MU ECAPE", long: "entraining CAPE, most-unstable parcel", kind: "cape", files: ["ecape_mu"] },
     ecape_ml: { label: "ML ECAPE", long: "entraining CAPE, mixed-layer parcel", kind: "cape", files: ["ecape_ml"] },
@@ -565,9 +594,11 @@
     mlcape: { label: "ML CAPE", long: "undiluted CAPE, mixed-layer parcel", kind: "cape", files: ["mlcape"] } };
   var EC_ORDER = ["ecape_mu", "ecape_ml", "ratio_mu", "ratio_ml", "mucape", "mlcape"];
   var CAPE_LEVELS = [0, 100, 250, 500, 750, 1000, 1500, 2000, 2500, 3000, 4000, 5000];
-  var CAPE_COLORS = ["#ffffff", "#e8f4ea", "#c9e8c9", "#9fd89f", "#ffe9a8", "#ffc95c", "#ff9a3c", "#f4633a", "#dc3c2e", "#b81f36", "#8c1046", "#59062c"];
+  // 2026-10-04 (user: "a bit more colorful and ... easier to see differences"): one distinct hue per class - blues for
+  // marginal, greens to yellow for moderate, orange-red for large, magenta-purple for extreme (was pale greens to maroon)
+  var CAPE_COLORS = ["#ffffff", "#bfe0f2", "#72b6e6", "#2f7fd0", "#1fa463", "#8fd043", "#f3e228", "#f6a623", "#ea5a1f", "#c8172d", "#d63fa8", "#7b2fc4"];
   var RATIO_LEVELS = [0.0, 0.15, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0, 1.1, 1.25, 1.5];
-  var RATIO_COLORS = ["#3b1f4e", "#43307d", "#3c5a9a", "#2f7fa0", "#2f9e8f", "#57b56d", "#9ac64f", "#d8d13f", "#f4e07a", "#ff9a3c", "#e8503a", "#a8143c", "#6d0026"];
+  var RATIO_COLORS = ["#4a2377", "#6b3fbf", "#3d64d8", "#249cdd", "#20b7ad", "#37b658", "#97cf37", "#eadf27", "#f7b329", "#f27a20", "#df3a24", "#c0175d", "#6e0a30"];
   function stepColour(levels, colors, v) {                        // matplotlib BoundaryNorm, extend="max": bin i = [L[i], L[i+1])
     if (v === null || !(v >= levels[0])) return null;
     var i = levels.length - 1; while (i > 0 && v < levels[i]) i--;
@@ -1832,11 +1863,48 @@
   }
 
   // ── legend ─────────────────────────────────────────────────────────────────────────────────────────────────────
+  // vertical on the right of the map when the map row is a row (wide screens), horizontal under it on phones
+  function legVert() { var w = document.querySelector(".mv-mapwrap"); return !!w && getComputedStyle(w).flexDirection === "row"; }
+  function legSetup(hpx) {
+    var cv = $("leg"), dpr = Math.min(window.devicePixelRatio || 1, 2), vert = legVert();
+    cv.style.height = vert ? "100%" : hpx + "px";
+    var r = cv.getBoundingClientRect(); cv.width = Math.round(r.width * dpr); cv.height = Math.round(r.height * dpr);
+    var ctx = cv.getContext("2d"); ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, r.width, r.height);
+    ctx.font = "13.5px 'Source Sans 3', Arial, sans-serif"; return { ctx: ctx, w: r.width, h: r.height, vert: vert };
+  }
+  function rgbaStr(c) { return typeof c === "string" ? c : "rgba(" + Math.round(c[0]) + "," + Math.round(c[1]) + "," + Math.round(c[2]) + "," + (c[3] == null ? 1 : c[3]) + ")"; }
+  // colAt(t): colour at fraction t (0 bottom .. 1 top) or null; ticks: [[t, label]]
+  function vBar(g, colAt, ticks, x0, bw) {
+    var ctx = g.ctx, y0 = g.h - 12, y1 = 12; x0 = x0 == null ? 10 : x0; bw = bw || 22;
+    ctx.fillStyle = "#e9ebe6"; ctx.fillRect(x0, y1, bw, y0 - y1);
+    for (var py = y1; py < y0; py++) { var c = colAt((y0 - py) / (y0 - y1)); if (c) { ctx.fillStyle = rgbaStr(c); ctx.fillRect(x0, py, bw, 1.2); } }
+    ctx.strokeStyle = "#8c918b"; ctx.lineWidth = 1; ctx.strokeRect(x0 + 0.5, y1 + 0.5, bw - 1, y0 - y1 - 1);
+    ctx.fillStyle = "#3d4540"; ctx.textAlign = "left"; ctx.textBaseline = "middle"; var last = 1e9;
+    ticks.forEach(function (tk) {
+      var y = y0 - tk[0] * (y0 - y1); if (y < y1 - 1 || y > y0 + 1) return;
+      ctx.fillRect(x0 + bw, y - 0.5, 4, 1);
+      if (Math.abs(last - y) < 17) return;
+      ctx.fillText(tk[1], x0 + bw + 7, Math.min(Math.max(y, y1 + 6), y0 - 6)); last = y;
+    });
+  }
   function drawLegendRefl() {
-    var cv = $("leg"), dpr = Math.min(window.devicePixelRatio || 1, 2); cv.style.height = "92px";
-    var r = cv.getBoundingClientRect(); cv.width = Math.round(r.width * dpr); cv.height = Math.round(92 * dpr);
-    var ctx = cv.getContext("2d"); ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, r.width, 92);
-    var rate = st.model === "rdps", lab = r.width < 500 ? 78 : 92, x0 = 6 + lab, x1 = r.width - 6, lo = 5, hi = 72, bh = 11;
+    var g = legSetup(92), rate = st.model === "rdps", vt = rate ? [0.1, 0.5, 1, 2.5, 5, 10, 25, 50] : [10, 20, 30, 40, 50, 60, 70];
+    $("legT").textContent = rate ? "Precipitation rate, mm/h (not reflectivity), coloured by type · isobars every 2 hPa" : "Simulated reflectivity, dBZ, 1 km above ground, coloured by precipitation type at the surface · isobars every 2 hPa";
+    if (g.vert) {                                   // five type columns, names written up the column heads, dBZ (or mm/h) ticks on the right
+      var ctx = g.ctx, top = 74, lo5 = 5, hi72 = 72, cw = 10, xs = 6, y0 = g.h - 12;
+      ctx.save(); ctx.font = "12.5px 'Source Sans 3', Arial, sans-serif"; ctx.fillStyle = "#3d4540"; ctx.textAlign = "left"; ctx.textBaseline = "middle";
+      [1, 2, 3, 4, 5].forEach(function (t, k) { ctx.save(); ctx.translate(xs + k * (cw + 1) + cw / 2, top - 6); ctx.rotate(-Math.PI / 2);
+        ctx.fillText(PT_NAMES[t].replace(/^./, function (a) { return a.toUpperCase(); }), 0, 0); ctx.restore(); });
+      ctx.restore();
+      [1, 2, 3, 4, 5].forEach(function (t, k) { var x = xs + k * (cw + 1);
+        for (var py = top; py < y0; py++) { var c = interp(PT_RAMPS[t], lo5 + (y0 - py) / (y0 - top) * (hi72 - lo5)); ctx.fillStyle = rgbaStr(c); ctx.fillRect(x, py, cw, 1.2); } });
+      var x0 = xs + 5 * (cw + 1) - 1, last = 1e9; ctx.fillStyle = "#3d4540"; ctx.textAlign = "left"; ctx.textBaseline = "middle";
+      vt.forEach(function (tv) { var d = rate ? rateEq(tv) : tv, y = y0 - (d - lo5) / (hi72 - lo5) * (y0 - top); if (y < top || y > y0) return;
+        ctx.fillRect(x0, y - 0.5, 4, 1); if (Math.abs(last - y) < 16) return; ctx.fillText(String(tv), x0 + 6, y); last = y; });
+      return;
+    }
+    var cv = $("leg"), r = { width: g.w }, ctx = g.ctx;
+    var lab = r.width < 500 ? 78 : 92, x0 = 6 + lab, x1 = r.width - 6, lo = 5, hi = 72, bh = 11;
     function xOf(dbz) { return x0 + (dbz - lo) / (hi - lo) * (x1 - x0); }
     ctx.font = "13.5px 'Source Sans 3', Arial, sans-serif"; ctx.textBaseline = "middle"; ctx.textAlign = "right";
     [1, 2, 3, 4, 5].forEach(function (t, row) {
@@ -1846,16 +1914,17 @@
       ctx.fillStyle = "#3d4540"; ctx.fillText(PT_NAMES[t].replace(/^./, function (a) { return a.toUpperCase(); }), x0 - 6, y + bh / 2);
     });
     var yT = 2 + 5 * (bh + 3); ctx.textAlign = "center"; ctx.textBaseline = "top"; ctx.fillStyle = "#3d4540";
-    var ticks = rate ? [0.1, 0.5, 1, 2.5, 5, 10, 25, 50] : [10, 20, 30, 40, 50, 60, 70];
-    ticks.forEach(function (tv) { var x = xOf(rate ? rateEq(tv) : tv); if (x < x0 || x > x1) return; ctx.fillRect(x - 0.5, yT, 1, 4); ctx.fillText(String(tv), x, yT + 5); });
-    $("legT").textContent = rate ? "Precipitation rate, mm/h (not reflectivity), coloured by type · isobars every 2 hPa" : "Simulated reflectivity, dBZ, 1 km above ground, coloured by precipitation type at the surface · isobars every 2 hPa";
+    vt.forEach(function (tv) { var x = xOf(rate ? rateEq(tv) : tv); if (x < x0 || x > x1) return; ctx.fillRect(x - 0.5, yT, 1, 4); ctx.fillText(String(tv), x, yT + 5); });
   }
   function drawLegendSteps() {                                    // stepped colour bar, one equal box per class (as the old ECAPE maps)
     var ratio = EC_SUBS[st.ec].kind === "ratio", L = ratio ? RATIO_LEVELS : CAPE_LEVELS.slice(1), C = ratio ? RATIO_COLORS : CAPE_COLORS.slice(1);
-    var cv = $("leg"), dpr = Math.min(window.devicePixelRatio || 1, 2); cv.style.height = "38px";
-    var r = cv.getBoundingClientRect(); cv.width = Math.round(r.width * dpr); cv.height = Math.round(38 * dpr);
-    var ctx = cv.getContext("2d"); ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, r.width, 38);
-    var x0 = 6, x1 = r.width - 6, bh = 14, y = 4, n = C.length, bw = (x1 - x0) / n;
+    $("legT").textContent = ratio ? "ECAPE / CAPE: the fraction of CAPE an entraining updraft keeps (above 1: storm-relative inflow outweighs the mixing) · blank where CAPE is 100 J/kg or less · contours 0.5 and 1"
+                                  : "J/kg (blank below 100 J/kg) · contours 1,000, 2,000 and 3,000 J/kg";
+    var g = legSetup(38), n = C.length;
+    if (g.vert) { vBar(g, function (t) { return C[Math.min(n - 1, Math.floor(t * n))]; },
+                       L.map(function (v, i) { return [i / n, ratio ? String(v) : v >= 1000 ? (v / 1000) + "k" : String(v)]; })); return; }
+    var ctx = g.ctx, r = { width: g.w };
+    var x0 = 6, x1 = r.width - 6, bh = 14, y = 4, bw = (x1 - x0) / n;
     for (var i = 0; i < n; i++) { ctx.fillStyle = C[i]; ctx.fillRect(x0 + i * bw, y, Math.ceil(bw), bh); }
     ctx.strokeStyle = "#8c918b"; ctx.lineWidth = 1; ctx.strokeRect(x0 + 0.5, y + 0.5, x1 - x0 - 1, bh - 1);
     ctx.fillStyle = "#3d4540"; ctx.font = "13.5px 'Source Sans 3', Arial, sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "top";
@@ -1865,8 +1934,6 @@
       var lab = ratio ? String(L[i]) : L[i] >= 1000 ? (L[i] / 1000) + "k" : String(L[i]);
       if (x - last < 24) continue; ctx.fillText(lab, Math.min(Math.max(x, x0 + 8), x1 - 8), y + bh + 5); last = x;
     }
-    $("legT").textContent = ratio ? "ECAPE / CAPE: the fraction of CAPE an entraining updraft keeps (above 1: storm-relative inflow outweighs the mixing) · blank where CAPE is 100 J/kg or less · contours 0.5 and 1"
-                                  : "J/kg (blank below 100 J/kg) · contours 1,000, 2,000 and 3,000 J/kg";
   }
   function drawLegend() {
     if (diffOn()) { drawLegendDiff(); return; }
@@ -1875,16 +1942,18 @@
     if (st.field === "acc") {
       var at = ACC_TYPES[st.acc.type]; FIELDS.acc.ticks = at.ticks; FIELDS.acc.enc = "log"; FIELDS.acc._lo = at.lo; FIELDS.acc._hi = at.hi;
     }
-    $("leg").style.height = "38px";
-    var cv = $("leg"), r = cv.getBoundingClientRect(), dpr = Math.min(window.devicePixelRatio || 1, 2);
-    cv.width = Math.round(r.width * dpr); cv.height = Math.round(38 * dpr);
-    var ctx = cv.getContext("2d"); ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, r.width, 38);
-    var name = st.field, fd = FIELDS[name], w = r.width, x0 = 6, x1 = w - 6, bh = 14, y = 4;
+    var g = legSetup(38), ctx = g.ctx;
+    var name = st.field, fd = FIELDS[name], w = g.w, x0 = 6, x1 = w - 6, bh = 14, y = 4;
     var lo, hi, logx = fd.enc === "log";
     if (name === "ir") { lo = 45; hi = -95; } else if (name === "t2m") { lo = -40; hi = 125; } else if (name === "td2m") { lo = -20; hi = 82; }
     else if (name === "ceil") { lo = 50; hi = 30000; } else if (name === "vis") { lo = 0.05; hi = 10; } else if (name === "smoke") { lo = 2; hi = 1500; }
     else if (name === "wind80") { lo = 0; hi = 40; } else if (name === "acc") { lo = fd._lo; hi = fd._hi; } else { lo = 0; hi = 1050; }
-    function xOf(v) { var t = logx ? (Math.log(v) - Math.log(lo)) / (Math.log(hi) - Math.log(lo)) : (v - lo) / (hi - lo); return x0 + t * (x1 - x0); }
+    function tOf(v) { return logx ? (Math.log(v) - Math.log(lo)) / (Math.log(hi) - Math.log(lo)) : (v - lo) / (hi - lo); }
+    function xOf(v) { return x0 + tOf(v) * (x1 - x0); }
+    function vOf(t) { return logx ? Math.exp(Math.log(lo) + t * (Math.log(hi) - Math.log(lo))) : lo + t * (hi - lo); }
+    function tickLab(tv) { return (name === "ceil" && tv >= 1000) ? (tv / 1000) + "k" : String(tv).replace("-", "−"); }
+    legCaption(name);
+    if (g.vert) { vBar(g, function (t) { return colourOf(name, vOf(t)); }, fd.ticks.map(function (tv) { return [tOf(tv), tickLab(tv)]; })); return; }
     ctx.fillStyle = "#e9ebe6"; ctx.fillRect(x0, y, x1 - x0, bh);
     for (var px = x0; px < x1; px++) {
       var t = (px - x0) / (x1 - x0), v = logx ? Math.exp(Math.log(lo) + t * (Math.log(hi) - Math.log(lo))) : lo + t * (hi - lo);
@@ -1901,6 +1970,8 @@
       if (Math.abs(x - last) < 26) return;
       ctx.fillText(lab, Math.min(Math.max(x, x0 + 8), x1 - 8), y + bh + 5); last = x;
     });
+  }
+  function legCaption(name) {
     var unitLabel = { ir: "Brightness temperature, °C (cold, high cloud tops in colour)", ceil: "Cloud ceiling, feet above ground, in flight-category colours (no shading: no ceiling)",
                       vis: "Visibility, miles, in flight-category colours (no shading: 10 mi or more)", t2m: "Temperature 2 m above ground, °F (blue line: freezing)", td2m: "Dewpoint 2 m above ground, °F",
                       smoke: "Smoke, mg per m², vertically integrated", wind80: "Wind speed 80 m above ground, m/s (barbs in knots)", sw: "Incoming sunshine (shortwave) at the surface, W per m²" }[name];
@@ -2003,7 +2074,8 @@
     var slider = $("hour"), cS = cycleObj(st.model, st.ci); slider.max = Math.max(0, uiHours(cS).length - 1); slider.value = Math.max(0, uiHours(cS).indexOf(st.hour));
     $("contL").hidden = !contourSpec(st.field, st.model, [0, 1]);
     $("diffL").hidden = !diffAvail(); if (diffAvail()) $("diffT").textContent = "Minus " + MODELS[diffOther(st.model)];
-    $("sndL").hidden = !sndMeta(); sndFollowMap();
+    if (st.model !== "hrrr" && !$("snd").hidden) closeSnd();   // soundings are HRRR only: switching model closes one
+    $("sndL").hidden = !sndOn(); sndHint(); sndFollowMap();
     var n = (NOTES[st.model] && NOTES[st.model][st.field]) || "";
     var fm = cycleObj(st.model, st.ci) && cycleObj(st.model, st.ci).fields[st.field === "acc" ? st.acc.type : st.field];
     if (st.field === "acc" && fm && fm.method) n = "<b>" + ACC_TYPES[st.acc.type].label + "</b>: " + fm.method + ". Pick a window to see the amount that falls in it; the accumulation is the model's own, not a radar estimate.";
@@ -2172,7 +2244,19 @@
   function endPtr(e) {
     var r = mapEl.getBoundingClientRect();
     if (ptrs.has(e.pointerId) && !moved && e.pointerType !== "mouse") hover(e.clientX - r.left, e.clientY - r.top, true);
-    if (ptrs.has(e.pointerId) && !moved && ptrs.size === 1) {        // a click or tap on an airport or city opens its meteogram
+    // double-TAP on touch screens (2026-10-04, user: "Double-clicking on mobile doesn't seem to work": touch-action none on
+    // the map means the browser never synthesises dblclick from taps) - two taps within 350 ms and 40 px = a sounding, like
+    // a double-click; the first tap may have opened an airport's meteogram, which is closed again
+    var dtap = false;
+    if (ptrs.has(e.pointerId) && !moved && ptrs.size === 1 && e.pointerType !== "mouse" && !SND.pressFired) {
+      var tx = e.clientX - r.left, ty = e.clientY - r.top, now = performance.now(), lt = SND.lastTap;
+      if (lt && now - lt.t < 350 && Math.hypot(tx - lt.x, ty - lt.y) < 40 && sndOn()) {
+        dtap = true; SND.lastTap = null;
+        if (!$("mg").hidden && MG.openedAt && now - MG.openedAt < 700) closeMg();
+        sndAt(lt.x, lt.y, true);
+      } else SND.lastTap = { t: now, x: tx, y: ty };
+    }
+    if (ptrs.has(e.pointerId) && !moved && ptrs.size === 1 && !dtap) {   // a click or tap on an airport or city opens its meteogram
       var ap0 = nearestApt(e.clientX - r.left, e.clientY - r.top, e.pointerType === "mouse" ? 81 : 196);
       if (ap0 && !SND.pressFired) { openMg(ap0[2][2], ap0[2][3]); MG.openedAt = performance.now(); } }
     clearTimeout(SND.press); SND.pressFired = false;
@@ -2202,12 +2286,12 @@
   }
   mapEl.addEventListener("dblclick", function (e) {
     var r = mapEl.getBoundingClientRect(), px = e.clientX - r.left, py = e.clientY - r.top;
-    if (!sndMeta()) { zoomBy(px, py, 0.5, 45); return; }
+    if (!sndOn()) { zoomBy(px, py, 0.5, 45); return; }
     if (!$("mg").hidden && MG.openedAt && performance.now() - MG.openedAt < 700) closeMg();
     sndAt(px, py, false);
   });
   mapEl.addEventListener("pointerdown", function (e) {
-    if (e.pointerType === "mouse" || !sndMeta()) return;
+    if (e.pointerType === "mouse" || !sndOn()) return;
     var r = mapEl.getBoundingClientRect(), px = e.clientX - r.left, py = e.clientY - r.top;
     clearTimeout(SND.press); SND.pressFired = false;
     SND.press = setTimeout(function () { if (!moved && ptrs.size === 1) { SND.pressFired = true; sndAt(px, py, true); } }, 550);
@@ -2330,9 +2414,11 @@
     return lut;
   }
   function drawLegendDiff() {
-    var spec = DIFF_FIELDS[st.field], cv = $("leg"), dpr = Math.min(window.devicePixelRatio || 1, 2); cv.style.height = "38px";
-    var r = cv.getBoundingClientRect(); cv.width = Math.round(r.width * dpr); cv.height = Math.round(38 * dpr);
-    var ctx = cv.getContext("2d"); ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, r.width, 38);
+    var spec = DIFF_FIELDS[st.field], g = legSetup(38), ctx = g.ctx, r = { width: g.w }, o = diffOther(st.model);
+    $("legT").textContent = MODELS[st.model] + " minus " + MODELS[o] + ", " + FIELDS[st.field].label.toLowerCase() + ", " + spec.unit +
+      " (red: " + MODELS[st.model] + " higher; blue: lower; colours saturate at ±" + spec.range + ") · same valid time, each model's newest run";
+    if (g.vert) { vBar(g, function (t) { return diffColour((t * 2 - 1) * spec.range, spec.range); },
+                       [-1, -0.5, 0, 0.5, 1].map(function (f) { return [(f + 1) / 2, (f > 0 ? "+" : f < 0 ? "−" : "") + Math.abs(f * spec.range)]; })); return; }
     var x0 = 6, x1 = r.width - 6, bh = 14, y = 4;
     ctx.fillStyle = "#e9ebe6"; ctx.fillRect(x0, y, x1 - x0, bh);
     for (var px = x0; px < x1; px++) { var c = diffColour(((px - x0) / (x1 - x0) * 2 - 1) * spec.range, spec.range);
@@ -2341,9 +2427,6 @@
     ctx.fillStyle = "#3d4540"; ctx.font = "13.5px 'Source Sans 3', Arial, sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "top";
     [-1, -0.5, 0, 0.5, 1].forEach(function (f) { var x = x0 + (f + 1) / 2 * (x1 - x0); ctx.fillRect(x - 0.5, y + bh, 1, 4);
       ctx.fillText((f > 0 ? "+" : f < 0 ? "−" : "") + Math.abs(f * spec.range), Math.min(Math.max(x, x0 + 10), x1 - 10), y + bh + 5); });
-    var o = diffOther(st.model);
-    $("legT").textContent = MODELS[st.model] + " minus " + MODELS[o] + ", " + FIELDS[st.field].label.toLowerCase() + ", " + spec.unit +
-      " (red: " + MODELS[st.model] + " higher; blue: lower; colours saturate at ±" + spec.range + ") · same valid time, each model's newest run";
   }
 
   // ── meteograms (2026-10-01, user: "click an airport or city -> meteogram"): the run's points.json per model (one file
@@ -2391,7 +2474,24 @@
   // click, hours then instant); the manifest's ecape[cycle].snd carries the layout, scales and coefficients. The card is
   // the sounding explorer itself (/skewt/?embed=model in #sndF), handed the decoded profiles by postMessage, so the
   // analysis (SHARPlib, tables, hodograph) is exactly the balloon soundings'.
-  var SND = { win: null, ready: false, pend: null, items: null, ll: null, tiles: {}, seq: 0, press: 0, pressFired: false };
+  var SND = { win: null, ready: false, pend: null, items: null, ll: null, tiles: {}, seq: 0, press: 0, pressFired: false, lastTap: null };
+  // the on-map prompt: how to get a sounding (double-click / press and hold), or that this run's are still being computed
+  var SND_HINT_KEY = "mv-snd-hint-off";
+  function sndHintOff() { try { return localStorage.getItem(SND_HINT_KEY) === "1"; } catch (e) { return false; } }
+  function sndHint() {
+    var el = $("sndH"), hr = cycleObj("hrrr", 0);
+    if (!el || !hr || st.model !== "hrrr" || sndHintOff() || !$("snd").hidden) { if (el) el.hidden = true; return; }
+    var touch = window.matchMedia && matchMedia("(pointer: coarse)").matches, ok = !!sndMeta();
+    el.classList.toggle("wait", !ok);
+    $("sndHT").innerHTML = ok ? (touch ? "<b>Double-tap</b> (or press and hold) anywhere on the map for that spot's HRRR forecast sounding"
+                                       : "<b>Double-click</b> anywhere on the map for that spot's HRRR forecast sounding")
+      : "HRRR forecast soundings for the " + hr.init.slice(11, 13) + "Z run are still being computed (about an hour after its maps)";
+    el.hidden = false;
+  }
+  $("sndHX").addEventListener("click", function (e) { e.stopPropagation(); try { localStorage.setItem(SND_HINT_KEY, "1"); } catch (_) {} $("sndH").hidden = true; });
+  ["dblclick", "pointerdown", "wheel"].forEach(function (ev) { $("sndH").addEventListener(ev, function (e) { e.stopPropagation(); }); });
+  // map gestures give soundings only while the HRRR is on screen (user 2026-10-04: other models' maps showed HRRR soundings)
+  function sndOn() { return st.model === "hrrr" ? sndMeta() : null; }
   function sndMeta() { var c = cycleObj("hrrr", 0); return c && c.ecape && c.ecape.snd && c.grids && c.grids.main ? { c: c, s: c.ecape.snd, g: prepGrid(c.grids.main) } : null; }
 
   function sndTile(m, ty, tx) {
@@ -2465,10 +2565,10 @@
     }).catch(function () { if (seq === SND.seq) $("sndS").textContent = "The sounding data could not be loaded. Try again in a moment."; });
   }
   function showSndDock() {
-    $("snd").hidden = false;
+    $("snd").hidden = false; $("sndH").hidden = true;
     if (!SND.win) { $("sndF").src = "skewt/?embed=model"; SND.win = $("sndF").contentWindow; }
   }
-  function closeSnd() { $("snd").hidden = true; SND.ll = null; SND.seq++; render(); }
+  function closeSnd() { $("snd").hidden = true; SND.ll = null; SND.seq++; render(); sndHint(); }
   $("sndX").onclick = closeSnd;
   function sndSend(msg) { if (SND.ready) $("sndF").contentWindow.postMessage(msg, location.origin); else SND.pend = msg; }
   window.addEventListener("message", function (e) {
