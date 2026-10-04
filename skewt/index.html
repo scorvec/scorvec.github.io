@@ -367,25 +367,18 @@
   button:focus-visible, input:focus-visible, select:focus-visible, summary:focus-visible {
     outline: 2px solid var(--accent); outline-offset: 2px; }
   @media (prefers-reduced-motion: reduce) { #status.busy, #mstatus.busy { animation: none; } }
-  /* index tables at a READABLE size (2026-10-04, user: "the indices text could be expanded with a larger font"):
-     15 px on laptop/desktop cards and in the models.html dock, 14 px on short screens and phones */
+  /* index tables at a READABLE size (2026-10-04, user: "make the text of the other indices larger instead of the ones
+     that have their own box"): the TABLES grow (16.5 px on laptop/desktop, 15 px on short screens, 14 px on phones);
+     the key-number boxes keep their original size */
   @media (min-width: 1021px) {
-    table.params { font-size: 15px; }
-    table.params th, table.params td { line-height: 1.5; padding-top: 2px; padding-bottom: 2px; }
-    .tables-grid { columns: 320px; column-gap: 20px; }
-    .tables-grid h3 { font-size: 1.12rem; margin: 4px 0 4px; }
-    .kchip { padding: 6px 9px 7px; }
-    .kchip .kl { font-size: 12.5px; }
-    .kchip .kv { font-size: 19px; }
-    .keystrip { grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 7px; }
-    /* beside the hodograph the chips stretch to its full height instead of leaving a blank block under them */
-    .rtop:not(.narrow) { align-items: stretch; }
-    .rtop:not(.narrow) .keystrip { grid-auto-rows: 1fr; align-content: stretch; }
-    .rtop:not(.narrow) .kchip { display: flex; flex-direction: column; justify-content: center; }
-    body.embed .kchip .kv { font-size: 21px; }
-    body.embed .kchip .kl { font-size: 13px; }
+    table.params { font-size: 16.5px; }
+    table.params th, table.params td { line-height: 1.45; padding-top: 2px; padding-bottom: 2px; }
+    .tables-grid { columns: 300px; column-gap: 22px; }
+    .tables-grid h3 { font-size: 1.18rem; margin: 5px 0 4px; }
+    /* the 8-column parcels table spans the whole column set: at this size it no longer fits one text column */
+    .tables-grid .tbl.pcl { column-span: all; }
   }
-  @media (min-width: 1021px) and (max-height: 760px) { table.params { font-size: 14px; } }
+  @media (min-width: 1021px) and (max-height: 760px) { table.params { font-size: 15px; } }
   /* numbers never break mid-value: the parcels table scrolls sideways instead */
   #pcl-table td, #pcl-table th { white-space: nowrap; }
   .tables-grid .tbl.pcl { overflow-x: auto; }
@@ -820,6 +813,6 @@
   </div>
 </div>
 <script src="sharplib.js?v=92a2fd08"></script>
-<script src="app.js?v=414b90a2"></script>
+<script src="app.js?v=b89a8770"></script>
 </body>
 </html>

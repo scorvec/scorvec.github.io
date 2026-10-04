@@ -1197,7 +1197,7 @@ let byWmo = {};                  // wmo id -> gid
 let current = null;              // selected: {gid, id, n, e}  (model soundings: {model: true, id, n})
 // ?embed=model: the card alone, fed forecast soundings by models.html (2026-10-04) — see "model soundings" at the end
 const EMBED = new URLSearchParams(location.search).get("embed") === "model";
-const MS = { items: [], idx: 0, title: "", coords: "", model: "" };
+const MS = { items: [], idx: 0, title: "", coords: "", model: "", pt: {} };
 let plotTitle = "", plotCoords = "";
 let pinned = null;                 // { prof, title } — overlay for comparison              // drawn on the skew-t canvas itself
 let plotNote = "";               // secondary blurb (e.g. wind-only)
@@ -4139,8 +4139,10 @@ function fillTables(prof, res) {
     ks.push(chip("PWAT", num(o[15]) ? o[15].toFixed(1) : "—", num(o[15]) ? "mm" : ""));
     ks.push(chip("DCAPE", num(o[39]) ? Math.round(o[39]) : "—", num(o[39]) ? "J/kg" : "", o[39] >= 1000 ? "warm" : ""));
     ks.push(chip("Freezing level", isFinite(fzl) ? (fzl / 1000).toFixed(1) : "—", isFinite(fzl) ? "km AGL" : ""));
-    if (cold && pt && pt.type) ks.push(chip("Precip type", pt.type, "", "", "Bourgouin energy method: what would fall if it precipitated"));
+    if (cold && pt && pt.type) ks.push(chip(current && current.model ? "Bourgouin type" : "Precip type", pt.type, "", "",
+      "Bourgouin energy method: what would fall if it precipitated"));
     document.getElementById("keystrip").innerHTML = ks.join("");
+    modelPointChips();
   })();
   const row = ([k, v]) => `<tr><td>${k}</td><td>${v}</td></tr>`;
   document.getElementById("kin-table").innerHTML = kinem.map(row).join("");
@@ -4388,6 +4390,39 @@ function render(prof) {
 //   out: {type: "mv-ready"} once loaded, {type: "mv-hour", fxx} when an hour chip is picked, {type: "mv-close"}
 // The analysis is exactly the station card's: same SHARPlib build, same tables, same charts. No climatology ranks
 // (there is no station), and the MSE trend compares with the same run 12 h earlier.
+// The model's own point values for the shown hour (models.html samples its HRRR map frames and posts
+// {type: "mv-point", fxx, ceil: ft | null (no ceiling) | undefined (not in the run), ptype: {code, name, dbz} | undefined}).
+// Ceiling colours = the map's flight categories; type colours = the map's radar ramps.
+const MODEL_PT = { "-1": ["none", "#8b8ba3"], 0: ["type not given", "#a6e3a0"], 1: ["rain", "#4cc24f"], 2: ["snow", "#8cc3f0"],
+                   3: ["freezing rain", "#f09fc6"], 4: ["sleet", "#f8bb72"], 5: ["rain/snow mix", "#c09ae8"] };
+function modelPointChips() {
+  const ks = document.getElementById("keystrip");
+  if (!ks || !current || !current.model) return;
+  ks.querySelectorAll(".kchip.mpt").forEach(el => el.remove());
+  const it = MS.items[MS.idx], v = it && MS.pt[it.fxx];
+  const box = (label, val, unit, col, title) =>
+    `<div class="kchip mpt" title="${title}" style="${col ? `border-color:${col}88;` : ""}"><span class="kl">${label}</span>` +
+    `<span class="kv"${col ? ` style="color:${col}"` : ""}>${val}${unit ? `<small>${unit}</small>` : ""}</span></div>`;
+  let ce = "…", ceU = "", ceC = null;
+  if (v) {
+    if (v.ceil === undefined) ce = "—";
+    else if (v.ceil === null) { ce = "none"; ceC = "#4cc24f"; }
+    else {
+      ce = v.ceil < 50 ? "<50" : v.ceil >= 10000 ? Math.round(v.ceil / 1000) + "k" : String(Math.round(v.ceil / 100) * 100);
+      ceU = "ft"; ceC = v.ceil < 500 ? "#e36be3" : v.ceil < 1000 ? "#ff5a4f" : v.ceil <= 3000 ? "#6aa6ff" : "#4cc24f";
+    }
+  }
+  let pt = "…", ptC = null;
+  if (v) {
+    if (v.ptype === undefined) pt = "—";
+    else { const m = MODEL_PT[v.ptype.code] || MODEL_PT[0]; pt = v.ptype.code === 0 ? "precip" : m[0]; ptC = m[1]; }
+  }
+  ks.insertAdjacentHTML("beforeend",
+    box("Ceiling (HRRR)", ce, ceU, ceC, "the HRRR's cloud ceiling where you clicked (3 km grid), this hour: lowest broken-or-overcast layer, " +
+        "feet above ground; colours = flight categories (LIFR, IFR, MVFR, VFR)") +
+    box("Sfc precip type", pt, "", ptC, "the HRRR's surface precipitation type where you clicked (3 km grid), this hour (none = no echo " +
+        "above 5 dBZ at 1 km); colours as on the radar + type map"));
+}
 function copyProf(p) { const o = {}; for (const k of ["P", "H", "T", "D", "U", "V"]) o[k] = Array.from(p[k]); return o; }
 async function showModelHour(i) {
   await wasmReady;
@@ -4433,7 +4468,7 @@ if (EMBED) {
     if (e.origin !== location.origin) return;
     const d = e.data || {};
     if (d.type === "mv-sounding") {
-      MS.items = d.items || []; MS.title = d.title || ""; MS.coords = d.coords || ""; MS.model = d.model || "";
+      MS.items = d.items || []; MS.title = d.title || ""; MS.coords = d.coords || ""; MS.model = d.model || ""; MS.pt = {};
       MS.idx = Math.max(0, Math.min(MS.items.length - 1, d.idx || 0));
       current = { model: true, id: "model:" + MS.title, n: MS.title };
       prev12 = null; prev12Key = ""; climo = null; climoGid = null;
@@ -4441,6 +4476,10 @@ if (EMBED) {
       openModal();
       showModelHour(MS.idx);
     } else if (d.type === "mv-sel" && current && current.model && d.idx !== MS.idx) showModelHour(d.idx);
+    else if (d.type === "mv-point" && current && current.model) {
+      MS.pt[d.fxx] = { ceil: d.ceil, ptype: d.ptype };
+      const it = MS.items[MS.idx]; if (it && it.fxx === d.fxx) modelPointChips();
+    }
   });
   parent.postMessage({ type: "mv-ready" }, location.origin);
 }

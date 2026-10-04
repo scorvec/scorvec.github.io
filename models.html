@@ -2614,7 +2614,7 @@
     var th = Math.min(s.ts, s.ny - ty * s.ts), tw = Math.min(s.ts, s.nx - tx * s.ts), jl = j - ty * s.ts, il = i - tx * s.ts;
     var lat = Math.abs(ll[1]).toFixed(2) + "°" + (ll[1] >= 0 ? "N" : "S"), lon = Math.abs(ll[0]).toFixed(2) + "°" + (ll[0] >= 0 ? "E" : "W");
     var seq = ++SND.seq, init = Date.parse(m.c.init);
-    SND.ll = ll; showSndDock(); render();
+    SND.ll = ll; SND.xy = xy; showSndDock(); render();
     $("sndT").textContent = label || (lat + " " + lon);
     $("sndS").textContent = "HRRR " + m.c.init.slice(11, 13) + "Z run · loading the column…";
     sndTile(m, ty, tx).then(function (buf) {
@@ -2632,9 +2632,48 @@
       SND.items = items;
       var zs = items[0].prof.H[0];
       $("sndS").textContent = (label ? lat + " " + lon + " · " : "") + "HRRR " + m.c.init.slice(0, 10) + " " + m.c.init.slice(11, 13) + "Z run · 12 km column, " + Math.round(zs) + " m (" + Math.round(zs * 3.28084).toLocaleString("en-US") + " ft)";
+      var i0 = sndIdxFor(mapValid());
       sndSend({ type: "mv-sounding", model: "HRRR", title: "HRRR " + m.c.init.slice(11, 13) + "Z  " + (label ? label.split(" ")[0] : lat + " " + lon),
-                coords: lat + "  " + lon + "  " + Math.round(zs) + " m", items: items, idx: sndIdxFor(mapValid()) });
+                coords: lat + "  " + lon + "  " + Math.round(zs) + " m", items: items, idx: i0 });
+      if (items[i0]) sndPoint(items[i0].fxx);
     }).catch(function () { if (seq === SND.seq) $("sndS").textContent = "The sounding data could not be loaded. Try again in a moment."; });
+  }
+  // point values for the dock's "Ceiling" and "Precip type" boxes (2026-10-04, user: "add ceiling and an indicator for
+  // ptype as an index with its own box"): the map's OWN decoded HRRR frames (ceil; refl R = dBZ, G = surface type),
+  // sampled at the clicked spot for the hour on show. Only that hour's two frames are fetched, the same files the map uses.
+  function sndFieldCode(c, field, fxx, xy) {
+    var fm = c.fields[field]; if (!fm || fm.hours.indexOf(fxx) < 0) return Promise.resolve(undefined);   // not in this run
+    return new Promise(function (res) {
+      var t0 = Date.now();
+      (function poll() {
+        var e = peek("hrrr", c, field, fxx, false) || peek("hrrr", c, field, fxx, true);
+        if (!e) { decoded("hrrr", c, field, fxx, false); var x = frames.get(fkey("hrrr", c, field, fxx, false));
+          if ((x && x.fail) || Date.now() - t0 > 30000) return res(undefined);
+          return setTimeout(poll, 200); }
+        var g = prepGrid(c.grids[e.lo && fm.lo ? fm.lo : fm.grid]), ij = gridIJ(g, xy[0], xy[1]);
+        var i = Math.floor(ij[0] + 0.5), j = Math.floor(ij[1] + 0.5);
+        if (i < 0 || j < 0 || i >= g.nx || j >= g.ny) return res(undefined);
+        var idx = (g.ny - 1 - j) * g.nx + i, a = e.dec.data;
+        res(chOf(field) === 2 ? [a[2 * idx], a[2 * idx + 1]] : [a[idx]]);
+      })();
+    });
+  }
+  function sndPoint(fxx) {
+    var m = sndMeta(); if (!m || !SND.ll || !SND.items) return;
+    var key = SND.seq + "/" + fxx; if (SND.ptKey === key) return;  // the dock's hour and the map's hour both ask
+    SND.ptKey = key;
+    var c = m.c, xy = SND.xy || P.fwd(SND.ll[0], SND.ll[1]), seq = SND.seq;   // the spot clicked, at the map's 3 km
+    Promise.all([sndFieldCode(c, "ceil", fxx, xy), sndFieldCode(c, "refl", fxx, xy)]).then(function (r) {
+      if (seq !== SND.seq) return;
+      var ce = r[0], rf = r[1], ceil, pt;
+      if (ce === undefined) ceil = undefined;                          // field missing at this hour
+      else if (ce[0] === 255) ceil = null;                            // no ceiling
+      else ceil = ce[0] === 0 ? 49 : Math.round(valueOf(FIELDS.ceil, ce[0]));
+      if (rf === undefined) pt = undefined;
+      else if (rf[0] === 0 || rf[0] === 255) pt = { code: -1, name: "none" };     // no echo: no precipitation
+      else pt = { code: Math.min(rf[1], 5), name: rf[1] ? PT_NAMES[Math.min(rf[1], 5)] : "precip, type not given", dbz: reflValue("refl2", rf[0]) };
+      sndSend({ type: "mv-point", fxx: fxx, ceil: ceil, ptype: pt });
+    });
   }
   function showSndDock() {
     $("snd").hidden = false; $("sndH").hidden = true;
@@ -2642,13 +2681,18 @@
   }
   function closeSnd() { $("snd").hidden = true; SND.ll = null; SND.seq++; render(); sndHint(); }
   $("sndX").onclick = closeSnd;
-  function sndSend(msg) { if (SND.ready) $("sndF").contentWindow.postMessage(msg, location.origin); else SND.pend = msg; }
+  // before the explorer is ready: keep the newest sounding plus the point values that follow it (a new sounding drops the rest)
+  function sndSend(msg) {
+    if (SND.ready) { $("sndF").contentWindow.postMessage(msg, location.origin); return; }
+    if (msg.type === "mv-sounding" || !SND.pend) SND.pend = [];
+    SND.pend.push(msg);
+  }
   window.addEventListener("message", function (e) {
     if (e.origin !== location.origin || e.source !== $("sndF").contentWindow) return;
     var d = e.data || {};
-    if (d.type === "mv-ready") { SND.ready = true; if (SND.pend) { sndSend(SND.pend); SND.pend = null; } }
+    if (d.type === "mv-ready") { SND.ready = true; if (SND.pend) { SND.pend.forEach(sndSend); SND.pend = null; } }
     else if (d.type === "mv-close") closeSnd();
-    else if (d.type === "mv-hour" && SND.items) { var m = sndMeta(); if (m) mgSyncMap(Date.parse(m.c.init) + d.fxx * 3600e3); }
+    else if (d.type === "mv-hour" && SND.items) { var m = sndMeta(); if (m) mgSyncMap(Date.parse(m.c.init) + d.fxx * 3600e3); sndPoint(d.fxx); }
   });
   document.addEventListener("keydown", function (e) {
     if ($("snd").hidden || e.key !== "Escape" || (e.target && /INPUT|SELECT|TEXTAREA/.test(e.target.tagName))) return;
@@ -2660,7 +2704,10 @@
     m.s.hours.forEach(function (h, k) { if (Math.abs(t0 + h * 3600e3 - t) < Math.abs(t0 + m.s.hours[best] * 3600e3 - t)) best = k; });
     return best;
   }
-  function sndFollowMap() { if (!$("snd").hidden && SND.items && SND.ready) sndSend({ type: "mv-sel", idx: sndIdxFor(mapValid()) }); }
+  function sndFollowMap() {
+    if ($("snd").hidden || !SND.items || !SND.ready) return;
+    var k = sndIdxFor(mapValid()); sndSend({ type: "mv-sel", idx: k }); if (SND.items[k]) sndPoint(SND.items[k].fxx);
+  }
   function drawSndMark(ctx) {
     if (!SND.ll || $("snd").hidden) return;
     var q = P.fwd(SND.ll[0], SND.ll[1]), p = toPx(q[0], q[1]);
