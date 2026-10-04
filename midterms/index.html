@@ -339,6 +339,7 @@ const mg=v=>v==null?'–':(v>=0?'D+':'R+')+Math.abs(v).toFixed(1);
 const pvi=v=>v==null?'':(v>=0?'D+':'R+')+Math.abs(v);
 const pc=p=>`<td class="n pd" style="color:${p>=.5?'#0b3d91':'#a32215'}">${pct(p)}</td>`;
 const who=s=>/^none|new seat/i.test(s.member||'')||!s.member?'New seat':s.open?`Open seat (${s.member} not running)`:s.member;
+const rcvTxt=r=>r.rcv?`<p class="mt-note">Ranked-choice: ${r.rcv} · <a href="about.html#rcv">how</a></p>`:'';
 const pollTxt=r=>r.n_polls?`${r.n_polls} poll${r.n_polls>1?'s':''}, average ${mg(r.poll_margin)}`:'no polls';
 fetch('data/model.json').then(r=>r.json()).then(j=>{D=j;init();if(RH)histReady()});
 let RH=null;fetch('data/race_history.json').then(r=>r.ok?r.json():null).then(j=>{RH=j;if(D&&RH)histReady()}).catch(()=>{});
@@ -373,11 +374,11 @@ function pick(sec,key){SEL[sec]=key;$$(sec==='house'?'path.t':`#${sec==='senate'
 function panel(sec){const el=$('#race-'+sec);const key=SEL[sec];if(!key)return;
  if(sec==='house'){const s=D.house.seats.find(x=>x.seat===key);if(!s)return;const p=s.p[gi],m=s.mu+(E-D.house.E_now);
   el.innerHTML=`<h3>${s.seat}</h3><p class="who">${who(s)}${s.open?'':(s.inc>0?' · Democratic incumbent':s.inc<0?' · Republican incumbent':'')}</p>${bar(p,'Democrat','Republican')}
-  <dl><dt>Expected margin</dt><dd>${mg(m)}</dd><dt>Partisan lean</dt><dd>${pvi(s.cook_pvi)} (Cook PVI)</dd><dt>Polls</dt><dd>${pollTxt(s)}${s.n_polls?` · <a href="polls.html#house:${s.seat}">see them</a>`:''}</dd>${s.rating!=null?`<dt>Race raters</dt><dd>${pct(s.rating)} Democratic</dd>`:''}${s.money_d!=null?`<dt>Raised by June 30</dt><dd>D $${(s.money_d/1e6).toFixed(1)}M · R $${(s.money_r/1e6).toFixed(1)}M</dd>`:''}</dl>`;trend(el,'house',s.seat,'Democrat');return}
+  <dl><dt>Expected margin</dt><dd>${mg(m)}</dd><dt>Partisan lean</dt><dd>${pvi(s.cook_pvi)} (Cook PVI)</dd><dt>Polls</dt><dd>${pollTxt(s)}${s.n_polls?` · <a href="polls.html#house:${s.seat}">see them</a>`:''}</dd>${s.rating!=null?`<dt>Race raters</dt><dd>${pct(s.rating)} Democratic</dd>`:''}${s.money_d!=null?`<dt>Raised by June 30</dt><dd>D $${(s.money_d/1e6).toFixed(1)}M · R $${(s.money_r/1e6).toFixed(1)}M</dd>`:''}</dl>${rcvTxt(s)}`;trend(el,'house',s.seat,'Democrat');return}
  const S=sec==='senate'?D.senate:D.governor,[st,sp]=String(key).split('|');const r=S.races.find(x=>x.state===st&&(!!x.special)===(sp==='sp'))||S.races.find(x=>x.state===st);if(!r)return;
  const slope=sec==='senate'?S.nat_slope:S.slope,m=r.mu+(E-S.E_now)*slope,p=r.p[gi],ind=r.dem_party&&r.dem_party!=='D';
  el.innerHTML=`<h3>${NAMES[r.state]||r.state} ${sec==='senate'?'Senate':'Governor'}${r.special?' (special)':''}</h3><p class="who">${r.dem||'?'} (${r.dem_party||'D'}) v ${r.rep||'?'} (R)${r.inc?'':' · open seat'}</p>${bar(p,ind?'Independent':'Democrat','Republican')}
-  <dl><dt>Expected margin</dt><dd>${mg(m)}</dd>${r.cook_pvi!=null?`<dt>Partisan lean</dt><dd>${pvi(r.cook_pvi)} (Cook PVI)</dd>`:''}<dt>Polls</dt><dd>${pollTxt(r)}${r.n_polls?` · <a href="polls.html#${sec==='senate'?'senate':'governor'}:${r.state}">see them</a>`:''}</dd>${r.cook?`<dt>Cook rating</dt><dd>${r.cook}</dd>`:''}</dl>${r.prior_note?`<p class="mt-note">${r.prior_note}</p>`:''}`;trend(el,sec,r.state+(r.special?'|sp':''),ind?'Independent':'Democrat')}
+  <dl><dt>Expected margin</dt><dd>${mg(m)}</dd>${r.cook_pvi!=null?`<dt>Partisan lean</dt><dd>${pvi(r.cook_pvi)} (Cook PVI)</dd>`:''}<dt>Polls</dt><dd>${pollTxt(r)}${r.n_polls?` · <a href="polls.html#${sec==='senate'?'senate':'governor'}:${r.state}">see them</a>`:''}</dd>${r.cook?`<dt>Cook rating</dt><dd>${r.cook}</dd>`:''}</dl>${r.prior_note?`<p class="mt-note">${r.prior_note}</p>`:''}${rcvTxt(r)}`;trend(el,sec,r.state+(r.special?'|sp':''),ind?'Independent':'Democrat')}
 // Chance of winning over time (race_history.json, midterms/race_history.py + backfill.py): the CURRENT model reconstructed
 // as of each past date with only the polls released by then (weekly to June, daily after), then each day's own run; the
 // faint dashed line is what the board showed at the time (since 16 Sep). Independent of the slider. Days that modelled a
