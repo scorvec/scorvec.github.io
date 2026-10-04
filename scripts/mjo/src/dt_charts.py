@@ -33,7 +33,8 @@ import tc_jet as TC                                                     # noqa: 
 LEVS = (700, 600, 500, 400, 300, 250, 200, 150, 100)
 STEPS = tuple(range(0, 241, 12))
 A_EARTH, OMEGA, G0, KAPPA = 6.371e6, 7.2921e-5, 9.80665, 0.2857
-LAT0 = 0.0                                                               # southern edge of the computation (the regional
+LAT0 = -80.0                                                             # southern edge of the computation (0 until 2026-10-04,
+                                                                         # when South America was added; the NH regional
                                                                          # Lambert maps reach ~10N at their corners; tropics: no 2-PVU crossing below 100 hPa = 100 hPa values)
 THETAS = (330.0, 350.0)
 CENTRAL_LON = -140.0
@@ -45,6 +46,9 @@ REGIONS = {
     "na":   dict(label="North America", lon=(200, 315), lat=(15, 70), clon=-100, clat=45),
     "atl":  dict(label="North Atlantic & Europe", lon=(282, 45), lat=(22, 75), clon=-20, clat=50),
     "asia": dict(label="East Asia", lon=(75, 175), lat=(15, 68), clon=125, clat=42),
+    # 2026-10-04 (user: "add dynamic tropopause charts for south america"): Southern Hemisphere, so the dynamic tropopause
+    # is the -2 PVU surface and the isentropic maps show -PV (same colours and thresholds as the NH); southern Lambert cone
+    "sam":  dict(label="South America", lon=(250, 340), lat=(-58, 14), clon=-65, clat=-22, sh=True),
 }
 DT_LEV = np.arange(260, 401, 5)
 # θ on the dynamic tropopause: purple/blue = low θ (troughs, cut-offs, stratospheric air folded down), greens through
@@ -164,7 +168,9 @@ def _frame_region(rg):
     import matplotlib.pyplot as plt
     R = REGIONS[rg]
     fig = plt.figure(figsize=(RG_W, RG_H))
-    proj = ccrs.LambertConformal(central_longitude=R["clon"], central_latitude=R["clat"], standard_parallels=(30, 60))
+    sh = R.get("sh", False)
+    proj = ccrs.LambertConformal(central_longitude=R["clon"], central_latitude=R["clat"],
+                                 standard_parallels=(-30, -60) if sh else (30, 60), cutoff=30 if sh else -30)
     ax = fig.add_axes([0.012, 0.172, 0.976, 0.777], projection=proj)
     lo0, lo1 = R["lon"]; span = (lo1 - lo0) % 360
     ax.set_extent([lo0 - 360 if lo0 > 180 else lo0, (lo0 - 360 if lo0 > 180 else lo0) + span, R["lat"][0], R["lat"][1]], crs=ccrs.PlateCarree())
@@ -178,7 +184,7 @@ def _subset(rg, lat, lon, *fields):
     # far side, and a box-shaped subset left white wedges there. The cone's cut sits at clon+180, so longitudes run
     # clon-179 .. clon+179 and no cell straddles it.
     clon = REGIONS[rg]["clon"]
-    jl = np.where((lat >= -10) & (lat < 90))[0]                            # pole row off
+    jl = np.where((lat > -89.9) & (lat <= 30))[0] if REGIONS[rg].get("sh") else np.where((lat >= -10) & (lat < 90))[0]   # pole row off
     off = (lon - clon + 180) % 360
     il = np.where((off >= 1) & (off <= 359))[0]; il = il[np.argsort(off[il])]
     lon_u = clon - 180 + off[il]
@@ -414,29 +420,38 @@ def main() -> int:
             print(f"  outflow PV advection failed at +{h} h ({e})", flush=True)
         dt = dynamic_tropopause(pv, th, U, V, p_pa)
         isos = {th_: on_isentrope(pv, th, U, V, th_) for th_ in THETAS}
+        if any(R.get("sh") for R in REGIONS.values()):                       # Southern Hemisphere: on -PV
+            dt_s = dynamic_tropopause(-pv, th, U, V, p_pa)
+            isos_s = {th_: on_isentrope(-pv, th, U, V, th_) for th_ in THETAS}
         valid = init + pd.Timedelta(hours=int(h)); lab = ("analysis" if h == 0 else f"+{h} h") + f" · {valid:%a %d %b %HZ}"
         for rg, R in REGIONS.items():
             polar = rg == "nh"
+            sh = R.get("sh", False)
+            dtr, isr, pvt, sg = (dt_s, isos_s, "−2 PVU", "−PV") if sh else (dt, isos, "2 PVU", "PV")
             for f, flab in FIELDS:
                 if f == "dt":
-                    fld, pc, uu, vv, kind = dt["theta"], dt["p"], dt["u"], dt["v"], "dt"
-                    blab = "θ on 2 PVU (K) · black: DT pressure 200–500 hPa · arrows: DT wind · tropics: θ at 100 hPa"
-                    ttl = f"Dynamic tropopause θ (2 PVU) · {R['label']} — AIFS-ENS member 0, init {init:%d %b %HZ} · {lab}"
+                    fld, pc, uu, vv, kind = dtr["theta"], dtr["p"], dtr["u"], dtr["v"], "dt"
+                    blab = f"θ on {pvt} (K) · black: DT pressure 200–500 hPa · arrows: DT wind · tropics: θ at 100 hPa"
+                    ttl = f"Dynamic tropopause θ ({pvt}) · {R['label']} — AIFS-ENS member 0, init {init:%d %b %HZ} · {lab}"
                 else:
-                    iso = isos[330.0 if f == "dt_pv330" else 350.0]; th_ = 330 if f == "dt_pv330" else 350
+                    iso = isr[330.0 if f == "dt_pv330" else 350.0]; th_ = 330 if f == "dt_pv330" else 350
                     fld, pc, uu, vv, kind = iso["pv"], None, iso["u"], iso["v"], "pv"
-                    blab = f"PV on {th_} K (PVU) · black line: 2 PVU (the dynamic tropopause on this surface) · arrows: wind on {th_} K"
-                    ttl = f"PV on {th_} K · {R['label']} — AIFS-ENS member 0, init {init:%d %b %HZ} · {lab}"
-                av = adv_show if kind == "dt" else None
+                    blab = (f"{sg} on {th_} K (PVU" + ("; Southern Hemisphere, sign flipped" if sh else "") +
+                            f") · black line: {pvt} (the dynamic tropopause on this surface) · arrows: wind on {th_} K")
+                    ttl = f"{sg} on {th_} K · {R['label']} — AIFS-ENS member 0, init {init:%d %b %HZ} · {lab}"
+                av = adv_show if (kind == "dt" and not sh) else None
                 if polar:
-                    fig, ax, cax = _frame(); la_, lo_ = lat, lon; arrs = (fld, pc, uu, vv, av)
+                    fig, ax, cax = _frame(); jn = lat >= 0.0           # the polar stereographic map: NH rows only (SH
+                    la_, lo_ = lat[jn], lon                              # points project to non-finite coordinates)
+                    arrs = tuple(None if a_ is None else a_[jn] for a_ in (fld, pc, uu, vv, av))
                 else:
                     fig, ax, cax = _frame_region(rg)
                     la_, lo_, arrs = _subset(rg, lat, lon, fld, pc if pc is not None else fld, uu, vv, av if av is not None else fld)
                     if pc is None: arrs[1] = None
                     if av is None: arrs[4] = None
-                cf = _draw(ax, la_, lo_, arrs[0], arrs[1], arrs[2], arrs[3], kind, polar, ttl, adv=arrs[4], storms=storms, h=int(h))
-                if kind == "dt" and storms:
+                cf = _draw(ax, la_, lo_, arrs[0], arrs[1], arrs[2], arrs[3], kind, polar, ttl, adv=arrs[4],
+                           storms=[] if sh else storms, h=int(h))
+                if kind == "dt" and storms and not sh:
                     _key(ax, polar)
                     blab += " · storm overlays: see the key on the map"
                 _bar(fig, cf, cax, blab)
