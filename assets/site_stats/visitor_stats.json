@@ -1,33 +1,29 @@
 {
- "updated": "2026-10-03",
- "total_30d": 335,
- "countries_30d": 11,
- "total_all": 947,
- "countries_all": 16,
+ "updated": "2026-10-04",
+ "total_30d": 340,
+ "countries_30d": 15,
+ "total_all": 965,
+ "countries_all": 19,
  "top_pages_30d": [
   {
-   "path": "/aifs-verify.html",
+   "path": "/aifs-aam-budget.html",
    "count": 30
   },
   {
-   "path": "/asos5.html",
-   "count": 25
+   "path": "/aifs-verify.html",
+   "count": 26
   },
   {
-   "path": "/subseasonal.html",
+   "path": "/asos5.html",
    "count": 24
   },
   {
-   "path": "/sfs.html",
+   "path": "/subseasonal.html",
    "count": 23
   },
   {
-   "path": "/aifs-aam-budget.html",
-   "count": 21
-  },
-  {
-   "path": "/skewt",
-   "count": 20
+   "path": "/sfs.html",
+   "count": 22
   },
   {
    "path": "/mjo.html",
@@ -35,15 +31,19 @@
   },
   {
    "path": "/stats.html",
-   "count": 17
-  },
-  {
-   "path": "/enso-forecasts.html",
    "count": 16
   },
   {
-   "path": "/ecape.html",
+   "path": "/skewt",
    "count": 15
+  },
+  {
+   "path": "/ecape.html",
+   "count": 14
+  },
+  {
+   "path": "/enso-forecasts.html",
+   "count": 14
   }
  ]
 }
