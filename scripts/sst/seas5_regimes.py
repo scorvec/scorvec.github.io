@@ -44,7 +44,18 @@ against all winters, permutation p (own FDR family); SEAS5's hindcast of the sam
 1981-2016 is the open circle on the figure.
 
 Outputs: assets/sst/seas5_regimes_{na,ea}.webp, assets/sst/data/seas5_regimes.json.
-Data: seas5_regimes_fetch.py (CDS, cached in scripts/sst/data/seas5/regimes/).
+Data: seas5_regimes_fetch.py (CDS, this issue's forecast in scripts/sst/data/seas5/regimes/).
+
+Derived tables (seas5_ref.py, since 2026-10-04; the build reads no hindcast GRIB, no ~/data_archive and
+no ~/era5_store):
+  obs_regimes_centroids   the regime centroids and names (GEPS regimes.nc / GEFS gefs_patterns_ref.npz)
+  obs_regimes_era5        the observed regime label of every ERA5 day 1959-… per sector and the
+                          latitude trend of height (frozen at the local store's end)
+  hc_regimes_{MM}         per start month: the model climatology M (215 lead days, box) and the regime
+                          label of every hindcast member-day under each regime set, plus the 36
+                          held-out-year relabellings — everything compute() drew from the 1.6 GB hindcast.
+                          A new start month is fetched once in Actions (RAW_HC "regimes:hc"), reduced
+                          and deleted.
 
     python seas5_regimes.py --issue 202609
 """
@@ -62,7 +73,8 @@ import numpy as np
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 from seas5_outlook import ASSETS                                                 # noqa: E402
-from seas5_regimes_fetch import DIR, HC_YEARS, fc_file, hc_files                 # noqa: E402
+from seas5_regimes_fetch import DIR, HC_YEARS, fc_file, fetch_hindcast, hc_files  # noqa: E402
+import seas5_ref as R                                                            # noqa: E402
 
 G0 = 9.80665
 K = 4
@@ -74,6 +86,7 @@ SECTORS = {"na": dict(label="North America / Pacific", lat=(80, 20), lon=(-170, 
 SEASONS = {"cold": (10, 11, 12, 1, 2, 3), "warm": (4, 5, 6, 7, 8, 9)}
 BOX_LAT = np.arange(80.0, 19.99, -2.5)                  # 25
 BOX_LON = np.arange(-170.0, 30.01, 2.5)                 # 81
+# laptop stores: read only by the OBS_UNITS derivations (seas5_ref.py obs), never by the build
 REG_NC = Path.home() / "data_archive" / "geps_subx" / "telecon" / "regimes.nc"
 REG_NAMES = Path.home() / "data_archive" / "geps_subx" / "telecon" / "regime_names.json"
 REG_NPZ = Path.home() / "data_archive" / "gefs_ref" / "gefs_patterns_ref.npz"
@@ -102,6 +115,25 @@ def season_of(month: int) -> str:
 
 # ── regimes (read only) ────────────────────────────────────────────────────────
 def load_regimes():
+    """{(sector, set): (centroids (K, lat, lon), lat, lon)}, names {(sector, set): [K names]} from the
+    derived table obs_regimes_centroids."""
+    t = R.need(R.obs_ref("regimes_centroids"), "regime centroids")
+    cent = {(sk, s): (t[f"c_{sk}_{s}"], t[f"lat_{sk}_{s}"], t[f"lon_{sk}_{s}"]) for sk in SECTORS for s in SEASONS}
+    names = {(sk, s): list(t["meta"]["names"][f"{sk}_{s}"]) for sk in SECTORS for s in SEASONS}
+    return cent, names
+
+
+def derive_obs_centroids() -> None:
+    """obs_regimes_centroids from the subseasonal regime store (laptop, once)."""
+    cent, names = _load_regimes_store()
+    arrs = {}
+    for (sk, s), (c, lat, lon) in cent.items():
+        arrs[f"c_{sk}_{s}"], arrs[f"lat_{sk}_{s}"], arrs[f"lon_{sk}_{s}"] = c, lat, lon
+    R.save(R.obs_ref("regimes_centroids"), meta=dict(names={f"{sk}_{s}": v for (sk, s), v in names.items()},
+                                                     source=str(REG_NC if REG_NC.exists() else REG_NPZ)), **arrs)
+
+
+def _load_regimes_store():
     """{(sector, set): (centroids (K, lat, lon), lat, lon)}, names {(sector, set): [K names]}."""
     cent = {}
     if REG_NC.exists():
@@ -177,12 +209,16 @@ def running_partial(a, n, axis):
 
 
 # ── observations: ERA5 daily z500 from the local store ─────────────────────────
-def era5_box():
-    """(dates, z (T, 25, 81) m) on the 2.5 deg box, cached."""
+def era5_box(any_cache: bool = False):
+    """(dates, z (T, 25, 81) m) on the 2.5 deg box, cached. any_cache: take the cache as it stands
+    (the store is no longer topped up from the network; the cache is what the published product used)."""
     import pandas as pd
     import xarray as xr
-    files = sorted(ERA5.glob("z500_*.nc"))
     cache = DIR / "era5_z500_box25.npz"
+    if any_cache and cache.exists():
+        d = np.load(cache, allow_pickle=True)
+        return pd.DatetimeIndex(d["dates"]), d["z"]
+    files = sorted(ERA5.glob("z500_*.nc"))
     stamp = f"{len(files)}:{int(files[-1].stat().st_mtime)}"
     if cache.exists():
         d = np.load(cache, allow_pickle=True)
@@ -242,10 +278,28 @@ def trend_by_lat(t, anom):
     return coef[0], coef[1]
 
 
+def observed_table():
+    """(dates, {sector: labels (T,)}, (a0, s_lat)) from the derived table obs_regimes_era5."""
+    import pandas as pd
+    t = R.need(R.obs_ref("regimes_era5"), "observed ERA5 regime labels")
+    return (pd.DatetimeIndex(t["dates"].astype("datetime64[D]")), {sk: t[f"lab_{sk}"] for sk in SECTORS},
+            (t["a0"], t["s_lat"]))
+
+
+def derive_obs_era5() -> None:
+    """obs_regimes_era5 from the ERA5 store's 2.5° box cache (laptop, once): every day's label per sector."""
+    cent, _ = load_regimes()
+    ot, olab, (a0, s) = observed(Classifier(cent))
+    R.save(R.obs_ref("regimes_era5"), meta=dict(first=str(ot[0].date()), last=str(ot[-1].date()),
+                                                source="ERA5 daily z500, WeatherBench-2 1.5 deg store (Copernicus Climate Change Service)"),
+           dates=ot.values.astype("datetime64[D]").astype("int64"), a0=a0, s_lat=s,
+           **{f"lab_{sk}": olab[sk].astype(np.int8) for sk in SECTORS})
+
+
 def observed(clf):
     """Observed regime labels per sector (ERA5, anomaly vs 1991-2020 day of year, trend by latitude out,
     5-day mean) -> dates, {sector: labels (T,)}, trend coefficients."""
-    t, z = era5_box()
+    t, z = era5_box(any_cache=True)
     clim = doy_clim(t, z)
     an = z - clim[t.dayofyear.values - 1]
     a0, s = trend_by_lat(t, an)
@@ -291,7 +345,7 @@ def _daily_from_grib(path, hindcast):
     return years, out
 
 
-def hindcast_daily(month):
+def hindcast_daily(month, save=True):
     cache = DIR / f"hc_z500_daily_{month}_{HC_YEARS[0]}_{HC_YEARS[-1]}.npy"
     if cache.exists():
         return np.load(cache, mmap_mode=None)
@@ -301,8 +355,80 @@ def hindcast_daily(month):
         parts.append(a); print(f"    {f.name}: years {yrs[0]}-{yrs[-1]}", flush=True)
     H = np.concatenate(parts)                             # (24, 25, 215, lat, lon)
     assert H.shape[0] == len(HC_YEARS), H.shape
-    np.save(cache, H)
+    if save:
+        np.save(cache, H)
     return H
+
+
+def _set_day_masks(month):
+    """{set: (215,) bool} lead days that can fall in that regime set for this start month in ANY start year
+    (a Feb 29 in the window shifts the later month boundaries by a day)."""
+    m = int(month)
+    out = {s: np.zeros(215, bool) for s in SEASONS}
+    for y in (1999, 2000, 2001):
+        d = lead_dates(f"{y}{m:02d}")
+        for s in SEASONS:
+            out[s] |= np.isin(d.month, SEASONS[s])
+    return out
+
+
+def _classify_set(clf, X, sk, sset, mask):
+    """labels (..., 215) uint8 of X (..., 215, lat, lon_sector) under ONE regime set on the masked days, 255 elsewhere."""
+    lab = np.full(X.shape[:-2], 255, dtype=np.uint8)
+    Xs = X[..., mask, :, :]
+    flat = Xs.reshape(-1, Xs.shape[-2] * Xs.shape[-1])
+    out = np.empty(flat.shape[0], dtype=np.uint8)
+    for i0 in range(0, flat.shape[0], 200000):
+        out[i0:i0 + 200000] = clf(np.ascontiguousarray(flat[i0:i0 + 200000]), sk, sset)
+    lab[..., mask] = out.reshape(Xs.shape[:-2])
+    return lab
+
+
+def derive_hc(month) -> None:
+    """hc_regimes_{MM}: everything compute() needs from the 36-year daily hindcast — the smoothed model
+    climatology M and, per sector and regime set, the label of every member-day (lab) and of every member-day
+    under each of the 36 held-out-year climatology shifts (loyo). Labels are per set over every lead day the
+    set can cover, so the build picks them by the issue's own calendar exactly as classify_model did."""
+    month = f"{int(month):02d}"
+    cent, _ = load_regimes()
+    clf = Classifier(cent)
+    _, _, (_, s_lat) = observed_table()
+    H = hindcast_daily(month, save=False)                # (years, 25, 215, lat, lon); the .npy cache if the laptop has one
+    years = np.array([int(y) for y in HC_YEARS])
+    ny = len(years)
+    raw_mean = H.mean(axis=(0, 1))
+    M = running_partial(raw_mean, CLIM_SMOOTH, axis=0)
+    ybar = years.mean()
+    trend = (s_lat[:, None] * np.ones((1, BOX_LON.size))).astype("float32")
+    A = H - M[None, None]
+    A -= (years - ybar).reshape(-1, 1, 1, 1, 1).astype("float32") * trend[None, None, None]
+    A = running_partial(A, SMOOTH, axis=2)
+    ens = H.mean(1)
+    delta = running_partial(running_partial(ens - raw_mean[None], CLIM_SMOOTH, axis=1), SMOOTH, axis=1) / (ny - 1)
+    del H, ens
+    masks = _set_day_masks(month)
+    out = dict(M=M.astype("float32"))
+    for sk in SECTORS:
+        ii = sector_idx(sk)
+        As = np.ascontiguousarray(A[..., ii])
+        for sset in SEASONS:
+            mk = masks[sset]
+            out[f"lab_{sk}_{sset}"] = _classify_set(clf, As, sk, sset, mk)
+            out[f"loyo_{sk}_{sset}"] = np.stack([_classify_set(clf, As + delta[iy][None, None][..., ii], sk, sset, mk) for iy in range(ny)])
+            print(f"    {sk} {sset}: {int(mk.sum())} lead days labelled", flush=True)
+        del As
+    R.save(R.hc_ref("regimes", month), meta=dict(month=month, years=[int(years[0]), int(years[-1])], members=25), **out)
+
+
+def _labels_for(T, key, dates):
+    """(…, 215) int8 labels for this issue's calendar from the per-set tables (same as classify_model)."""
+    src = {s: T[f"{key}_{s}"] for s in SEASONS}
+    any_ = next(iter(src.values()))
+    lab = np.empty(any_.shape, dtype=np.int8)
+    for sset in SEASONS:
+        m = np.isin(dates.month, SEASONS[sset])
+        lab[..., m] = src[sset][..., m]
+    return lab
 
 
 def forecast_daily(ym):
@@ -462,25 +588,17 @@ def compute(ym):
     main_set = max(SEASONS, key=lambda s: sum(tg["kind"] == "month" and tg["set"] == s for tg in tgs))
     roni = enso_table()
 
-    print("  observations (ERA5 local store) …", flush=True)
-    ot, olab, (a0, s_lat) = observed(clf)
+    print("  observations (derived table obs_regimes_era5) …", flush=True)
+    ot, olab, (a0, s_lat) = observed_table()
     print(f"    {ot[0]:%Y-%m-%d} .. {ot[-1]:%Y-%m-%d}, {time.time() - t0:.0f} s", flush=True)
 
-    print("  SEAS5 hindcast …", flush=True)
-    H = hindcast_daily(month)                            # (years, 25, 215, lat, lon)
+    print("  SEAS5 hindcast (derived table) …", flush=True)
+    T = R.need(R.hc_ref("regimes", month), f"regime hindcast labels, start month {month}")
     years = np.array([int(y) for y in HC_YEARS])
     ny = len(years)
-    raw_mean = H.mean(axis=(0, 1))                       # (215, lat, lon)
-    M = running_partial(raw_mean, CLIM_SMOOTH, axis=0)
+    M = T["M"]                                            # smoothed model climatology (215, lat, lon)
     ybar = years.mean()                                   # the hindcast's mean start year
     trend = (s_lat[:, None] * np.ones((1, BOX_LON.size))).astype("float32")      # m per year, (lat, lon)
-    A = H - M[None, None]
-    A -= (years - ybar).reshape(-1, 1, 1, 1, 1).astype("float32") * trend[None, None, None]
-    A = running_partial(A, SMOOTH, axis=2)
-    # held-out-year shifts of the model climatology: delta_y = smooth(Fbar_y - mean) / (n - 1)
-    ens = H.mean(1)
-    delta = running_partial(running_partial(ens - raw_mean[None], CLIM_SMOOTH, axis=1), SMOOTH, axis=1) / (ny - 1)
-    del H, ens
 
     print("  SEAS5 forecast …", flush=True)
     F = forecast_daily(ym)                               # (51, 215, lat, lon)
@@ -511,11 +629,11 @@ def compute(ym):
     for sk, spec in SECTORS.items():
         print(f"  {sk}: classifying …", flush=True)
         ii = sector_idx(sk)
-        As = np.ascontiguousarray(A[..., ii])
-        lab_hc = classify_model(clf, As, dates, sk)       # (years, 25, 215)
+        lab_hc = _labels_for(T, f"lab_{sk}", dates)       # (years, 25, 215), classified once per start month
         lab_fc = classify_model(clf, AF[..., ii], dates, sk)   # (51, 215)
         lab_fr = classify_model(clf, AF_raw[..., ii], dates, sk)
-        loyo = [classify_model(clf, As + delta[iy][None, None][..., ii], dates, sk) for iy in range(ny)]
+        loyo_all = _labels_for(T, f"loyo_{sk}", dates)    # (36 held-out shifts, years, 25, 215)
+        loyo = [loyo_all[iy] for iy in range(ny)]
         lab_o = olab[sk]
         sec = dict(label=spec["label"], names={s: names[(sk, s)] for s in SEASONS}, targets=[])
         for ti, tg in enumerate(tgs):
@@ -594,7 +712,7 @@ def compute(ym):
             sec["targets"].append(dict(key=tg["key"], label=tg["label"], kind=tg["kind"], set=tg["set"],
                                        valid=[f"{y}-{m:02d}" for y, m in tg["cal"]], regimes=rows))
         out["sectors"][sk] = sec
-        del loyo, As
+        del loyo, loyo_all
     # Benjamini-Hochberg, q = 0.10, within each family of tests (all regimes x targets x sectors of this start)
     sig = bh([f[2] for f in fam_skill], Q_FDR)
     for (row, _, _), s_ in zip(fam_skill, sig):
@@ -781,6 +899,15 @@ def clean(o):
     return o
 
 
+# ── seas5_ref registry ────────────────────────────────────────────────────────
+# the raw hindcast: twelve 3-year requests of seasonal-original-pressure-levels z500 (~1.6 GB a start month),
+# fetched once per start month in Actions, reduced to hc_regimes_{MM} and deleted
+RAW_HC = {"regimes:hc": ((lambda month: hc_files(f"{int(month):02d}")),
+                         (lambda month: fetch_hindcast(f"{int(month):02d}")))}
+REF_UNITS = {"regimes": dict(raw=["regimes:hc"], fn=derive_hc)}
+OBS_UNITS = {"regimes_centroids": derive_obs_centroids, "regimes_era5": derive_obs_era5}
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--issue", default=time.strftime("%Y%m", time.gmtime()))
@@ -790,8 +917,11 @@ def main() -> int:
     if a.render_only and cache.exists():
         doc = json.loads(cache.read_text())
     else:
-        if not fc_file(a.issue).exists() or not all(f.exists() for f in hc_files(a.issue[4:])):
-            print(f"  regimes: SEAS5 z500 for {a.issue} not fetched yet (seas5_regimes_fetch.py all --issue {a.issue})")
+        if not fc_file(a.issue).exists():
+            print(f"  regimes: SEAS5 z500 for {a.issue} not fetched yet (seas5_regimes_fetch.py forecast --issue {a.issue})")
+            return 1
+        if not R.hc_ref("regimes", a.issue[4:]).exists():
+            print(f"  regimes: derived table {R.hc_ref('regimes', a.issue[4:]).name} missing (seas5_ref.py hindcast --month {a.issue[4:]})")
             return 1
         doc = clean(compute(a.issue))
         cache.write_text(json.dumps(doc))

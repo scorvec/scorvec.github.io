@@ -11,17 +11,21 @@ count (ratio of normal frequency, hatched where the normal is under 0.5 d/month)
 probability of ≥ 1 such day, and the monthly-mean v10 anomaly against the hindcast (m/s). Cities
 carry the member counts for the page's clickable overlay.
 
-    python seas5_wind.py fetch    [--issue 202609]     # forecast chunks
-    python seas5_wind.py hindcast [--issue 202609]     # hindcast chunks (~6 × 300 MB)
+    python seas5_wind.py fetch    [--issue 202609]     # forecast chunks (Actions only)
     python seas5_wind.py build    [--issue 202609]
+
+The hindcast (6 chunks × ~470 MB per start month) is never read by the build: seas5_ref.py reduces it
+once per start month to hc_wind_us_{MM}.npz (unit "wind_us", raw key "w:us"; the normal count of days
+per threshold and the mean daily v10, per lead month and cell), and the raw chunks can be deleted.
 """
 from __future__ import annotations
 import argparse, calendar, json, os, sys, time
 from pathlib import Path
 import numpy as np, xarray as xr
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from seas5_outlook import ASSETS, CENTRE, SYSTEM, CLIM_YEARS, _client                     # noqa: E402
-from seas5_popT import REGIONS, SIXH, month_hours                                          # noqa: E402
+from seas5_outlook import ASSETS, CENTRE, DATA, SYSTEM, CLIM_YEARS, _client               # noqa: E402
+from seas5_popT import REGIONS, month_hours                                                # noqa: E402
+import seas5_ref as SR                                                                     # noqa: E402
 from seas5_extremes_build import CITIES, map_geometry, _CITY_PX                            # noqa: E402
 from seas5_build import valid_months                                                       # noqa: E402
 
@@ -37,8 +41,20 @@ V_LEVELS = [-3, -2, -1.5, -1, -0.5, -0.25, 0.25, 0.5, 1, 1.5, 2, 3]
 V_COLORS = ["#40004b", "#762a83", "#9970ab", "#c2a5cf", "#e7d4e8", "#f4f4f1", "#d9f0d3", "#a6dba0", "#5aae61", "#1b7837", "#00441b"]
 
 
+SIXH = DATA / "sixh"
+UNIT = "wind_us"
+
+
 def fc_path(ym, k): return SIXH / f"{REGION}_{ym}_m{k}_w.grib"
 def hc_path(ym, k): return SIXH / f"hc_{REGION}_{ym[4:]}_m{k}_w.grib"
+
+
+def _hc_issue(month: str) -> str:
+    """A YYYYMM for a hindcast start month: the latest issue of that month not in the future. The
+    6-hourly request lists leadtime hours, which depend on the month lengths of the issue year."""
+    import datetime as _dt
+    now = _dt.datetime.utcnow(); m = int(month)
+    return f"{now.year if m <= now.month else now.year - 1}{m:02d}"
 
 
 def _retrieve(dest: Path, years, ym, k, label):
@@ -106,37 +122,67 @@ def draw_map(field, lat, lon, levels, colors, label, title, sub, out: Path, exte
     fig.savefig(out, dpi=120, pil_kwargs={"quality": 86, "method": 6}); plt.close(fig)
 
 
+# ── derived hindcast table (seas5_ref) ───────────────────────────────────────
+def derive_hc(month: str) -> None:
+    """hc_wind_us_{MM}.npz: per lead month k (1..6), the hindcast's mean count of days at or above each
+    threshold (south_{T}, speed_{T}: float32 [lat, lon], exactly the build's former `hcnt`), the mean
+    daily-mean v10 (vmean, the v-anomaly reference) and the sample count; plus lat/lon."""
+    ym = _hc_issue(month); arrs = {}; meta = {"leads": [], "samples": {}}
+    lat = lon = None
+    for k in range(1, 7):
+        p = hc_path(ym, k)
+        if not p.exists():
+            continue
+        uh, vh, hlat, hlon, hh = load(p); vm_h, sm_h = daily_stats(uh, vh, hh); del uh, vh
+        lat, lon = hlat, hlon
+        for kind, thrs, stat in (("south", SOUTHERLY, vm_h), ("speed", SPEED, sm_h)):
+            for T in thrs:
+                arrs[f"m{k}_{kind}_{T}"] = (stat >= T).sum(1).astype(np.float32).mean(0)
+        arrs[f"m{k}_vmean"] = vm_h.mean(1).mean(0).astype(np.float32)
+        meta["leads"].append(k); meta["samples"][str(k)] = int(vm_h.shape[0])
+        print(f"    hindcast month {k}: {vm_h.shape[0]} samples", flush=True)
+        del vm_h, sm_h
+    if not meta["leads"]:
+        raise FileNotFoundError(f"no wind hindcast chunks for start month {month}")
+    SR.save(SR.hc_ref(UNIT, month), meta=meta, lat=lat, lon=lon, **arrs)
+
+
+REF_UNITS = {UNIT: dict(raw=["w:us"], fn=derive_hc)}
+RAW_HC = {"w:us": ((lambda month: [hc_path(_hc_issue(month), k) for k in range(1, 7)]),
+                   (lambda month: all([_retrieve(hc_path(_hc_issue(month), k), CLIM_YEARS, _hc_issue(month), k, "hindcast") for k in range(1, 7)])))}
+
+
 def build(ym: str) -> dict:
     t0 = time.time(); vms = valid_months(ym); issue_lbl = f"{calendar.month_name[int(ym[4:])]} {ym[:4]} issue"
     doc = {"generated": time.strftime("%Y-%m-%d %H:%M UTC", time.gmtime()), "issue": ym, "thr_south": SOUTHERLY, "thr_speed": SPEED, "months": {}, "cities": {}}
     for c in CITIES[REGION]:
         doc["cities"][c[0]] = {"lat": c[1], "lon": c[2], "side": c[3], "months": {}}
+    ref = SR.load(SR.hc_ref(UNIT, ym[4:]))
+    if ref is None:
+        print(f"  {SR.hc_ref(UNIT, ym[4:]).name} missing — % of normal and v-anomaly maps skipped", flush=True)
     for k, vm in enumerate(vms, start=1):
         if not fc_path(ym, k).exists(): continue
         u, v, lat, lon, hours = load(fc_path(ym, k)); vm_f, sm_f = daily_stats(u, v, hours); del u, v
         vmean_f = vm_f.mean(1)                                                       # (member, lat, lon) monthly-mean v10
         hc = None
-        if hc_path(ym, k).exists():
-            try:
-                uh, vh, hlat, hlon, hh = load(hc_path(ym, k)); vm_h, sm_h = daily_stats(uh, vh, hh); del uh, vh
-                if hlat.shape == lat.shape and hlon.shape == lon.shape: hc = (vm_h, sm_h)
-                print(f"    hindcast month {k}: {vm_h.shape[0]} samples", flush=True)
-            except Exception as e:                                                   # noqa: BLE001
-                print(f"    hindcast month {k} unreadable ({str(e)[:80]})", flush=True)
+        if ref is not None and k in ref["meta"]["leads"]:
+            if ref["lat"].shape == lat.shape and ref["lon"].shape == lon.shape:
+                hc = {key[len(f"m{k}_"):]: a for key, a in ref.items() if key.startswith(f"m{k}_")}
+                print(f"    hindcast month {k}: {ref['meta']['samples'][str(k)]} samples (derived table)", flush=True)
         mo = int(vm[5:]); plabel = f"{calendar.month_abbr[mo]} {vm[:4]}"; key = vm.replace("-", "_")
         rec = {"days": int(vm_f.shape[1]), "south": {}, "speed": {}, "vanom": None}
         ci = [(c[0], int(np.abs(lat - c[1]).argmin()), int(np.abs(lon - c[2]).argmin())) for c in CITIES[REGION]]
         sub = f"SEAS5 51 members, 6-hourly 10 m wind, 1° cells. {issue_lbl}."
         subr = f"Ensemble-mean count of days divided by the mean count in SEAS5's own 1993–2016 hindcast (25 members × 24 years, same start month and lead), so the model's wind bias cancels; hatched where the normal is under half a day a month. {issue_lbl}."
-        for kind, thrs, stat_f, stat_h, what in (("south", SOUTHERLY, vm_f, hc[0] if hc else None, "daily-mean southerly 10 m wind ≥"),
-                                                 ("speed", SPEED, sm_f, hc[1] if hc else None, "daily-max 10 m wind speed ≥")):
+        for kind, thrs, stat_f, stat_h, what in (("south", SOUTHERLY, vm_f, hc, "daily-mean southerly 10 m wind ≥"),
+                                                 ("speed", SPEED, sm_f, hc, "daily-max 10 m wind speed ≥")):
             for T in thrs:
                 cnt = (stat_f >= T).sum(1).astype(np.float32); meanc = cnt.mean(0); pany = 100 * (cnt >= 1).mean(0)
                 e = {}
                 f1 = ASSETS / f"seas5_wind_{kind}_{T}_prob_{key}.webp"
                 draw_map(pany, lat, lon, PROB_LEVELS, PROB_COLORS, "probability (%)", f"SEAS5 · chance of a day with {what} {T} m/s · {plabel}", sub, f1, extend="neither"); e["prob"] = f1.name
                 if stat_h is not None:
-                    hcnt = (stat_h >= T).sum(1).astype(np.float32).mean(0)
+                    hcnt = stat_h[f"{kind}_{T}"]
                     r = np.where(hcnt >= 0.5, np.clip(100 * meanc / np.maximum(hcnt, 1e-6), 0, 9999), np.nan)
                     f2 = ASSETS / f"seas5_wind_{kind}_{T}_pct_{key}.webp"
                     draw_map(r, lat, lon, PCT_LEVELS, PCT_COLORS, "% of the normal count", f"SEAS5 · days with {what} {T} m/s, % of normal · {plabel}", subr, f2, extend="max", hatch=np.where(hcnt < 0.5, 1.0, np.nan)); e["pct"] = f2.name
@@ -147,13 +193,13 @@ def build(ym: str) -> dict:
                         doc["cities"][name]["months"].setdefault(vm, {}).setdefault(kind, {})[str(T)] = {"m": [int(x) for x in cnt[:, i, j]], "n": None}
                 rec[kind][str(T)] = e
         if hc is not None:
-            va = vmean_f.mean(0) - hc[0].mean(1).mean(0); f3 = ASSETS / f"seas5_wind_vanom_{key}.webp"
+            va = vmean_f.mean(0) - hc["vmean"]; f3 = ASSETS / f"seas5_wind_vanom_{key}.webp"
             draw_map(va, lat, lon, V_LEVELS, V_COLORS, "m/s, southerly positive", f"SEAS5 · monthly-mean 10 m meridional wind anomaly · {plabel}",
                      f"Ensemble mean of 51 members minus the 1993–2016 hindcast mean for the same start month and lead; green = more southerly, purple = more northerly. {issue_lbl}.", f3, extend="both"); rec["vanom"] = f3.name
             for name, i, j in ci:
                 doc["cities"][name]["months"][vm]["vanom"] = round(float(va[i, j]), 2)
         doc["months"][vm] = rec
-        print(f"  {vm}: {vm_f.shape[1]} days · mean v10 anomaly {np.nanmean(vmean_f.mean(0) - (hc[0].mean(1).mean(0) if hc else 0)):+.2f} m/s", flush=True)
+        print(f"  {vm}: {vm_f.shape[1]} days · mean v10 anomaly {np.nanmean(vmean_f.mean(0) - (hc['vmean'] if hc else 0)):+.2f} m/s", flush=True)
     for name, (fx, fy) in _CITY_PX.get(REGION, {}).items():
         doc["cities"][name]["x"], doc["cities"][name]["y"] = fx, fy
     OUT_JSON.write_text(json.dumps(doc, separators=(",", ":")))
@@ -169,5 +215,5 @@ if __name__ == "__main__":
     if a.cmd == "fetch":
         ok = [_retrieve(fc_path(ym, k), [ym[:4]], ym, k, "forecast") for k in range(1, 7)]; sys.exit(0 if all(ok) else 1)
     if a.cmd == "hindcast":
-        ok = [_retrieve(hc_path(ym, k), CLIM_YEARS, ym, k, "hindcast") for k in range(1, 7)]; sys.exit(0 if all(ok) else 1)
+        sys.exit("the hindcast is handled by seas5_ref.py (unit wind_us): python seas5_ref.py hindcast --month MM --only wind_us")
     build(ym)

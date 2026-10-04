@@ -30,11 +30,25 @@ worth for that month and lead.
 
 Output: assets/sst/data/seas5_tele.json (this issue with members; previous issue
 summary). Imported by seas5_outlook's runner via `python seas5_tele.py --issue`.
+
+Derived tables (seas5_ref.py; since 2026-10-04 the build never opens a raw hindcast GRIB,
+~/data_archive or ~/era5_store):
+  obs_tele_patterns   the CPC-style projectors + per-month z500 σ + validation meta (from
+                      ~/data_archive/geps_subx/telecon/patterns.nc, validation.json)
+  obs_tele_era5       ERA5 monthly index series and calendar-month σ (local ERA5 store), frozen
+                      at the store's end — the observed tail of the CPC-calibrated SOI/EqSOI keeps
+                      moving because CPC's own files are re-read every run
+  hc_tele_nh_{MM}     hindcast mean z500/msl fields + every index's 600 × 6 hindcast series
+  hc_tele_strat_{MM}  vortex-wind and QBO hindcast series
+  hc_tele_polar_{MM}  polar-cap NAM and wave-amplitude hindcast series
+  is_tele_{YYYYMM}    this issue's summary (no members), next month's "previous issue" line
 """
 from __future__ import annotations
 
 import argparse
+import copy
 import json
+import os
 import sys
 import time
 from pathlib import Path
@@ -43,12 +57,15 @@ import numpy as np
 import xarray as xr
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from seas5_outlook import ASSETS, fc_path, hc_path, previous_issues  # noqa: E402
+from seas5_outlook import ASSETS, DATA, fc_path, hc_path, previous_issues  # noqa: E402
 from seas5_build import G0, _open, _summ, detrend_pair, load_field, valid_months  # noqa: E402
+import seas5_ref as R  # noqa: E402
 
-TC = Path.home() / "data_archive" / "geps_subx" / "telecon"
+# the GEPS telecon store: read by derive_obs only (laptop, once) — never by the build
+TC = Path(os.environ.get("TELECON_DIR", str(Path.home() / "data_archive" / "geps_subx" / "telecon")))
+CPC_DIR = DATA / "cpc_tele"                    # CPC's published index files, re-read every run in Actions
 OUT_JSON = ASSETS / "data" / "seas5_tele.json"
-ERA5 = Path(__file__).resolve().parent / "data" / "seas5" / "era5"
+UA = "scorvec.com SEAS5 outlook (https://github.com/scorvec/scorvec.github.io)"
 
 TELE_ORDER = ["nao", "pna", "ao", "ea", "wp", "epnp", "eawr", "sca", "tnh", "pol", "epo", "wpo"]
 DEFINED_MONTHS = {"tnh": {12, 1, 2}, "epnp": set(range(1, 13)) - {8, 9}}
@@ -58,13 +75,27 @@ TELE_LABEL = {"eqsoi": "Equatorial SOI", "nao": "NAO", "pna": "PNA", "ao": "Arct
 
 
 # ── the projectors ───────────────────────────────────────────────────────────
+def derive_obs_patterns() -> None:
+    """obs_tele_patterns: the projectors the page uses (TELE_ORDER only), the per-month z500 σ and the
+    validation meta, from the GEPS telecon store (laptop, once)."""
+    ds = xr.open_dataset(TC / "patterns.nc")
+    meta = json.loads((TC / "validation.json").read_text())
+    ids = [i for i in TELE_ORDER if i in meta and i in ds.index.values]
+    R.save(R.obs_ref("tele_patterns"), meta=dict(validation=meta, ids=ids, source=str(ds.attrs.get("source", ""))),
+           lat=ds.lat.values, lon=ds.lon.values, projector=ds.projector.sel(index=ids).values,
+           std_month_z500=ds.std_month_z500.values)
+    ds.close()
+
+
 class Patterns:
     def __init__(self):
-        self.ds = xr.open_dataset(TC / "patterns.nc")
-        self.meta = json.loads((TC / "validation.json").read_text())
-        lat = self.ds.lat.values
-        self.w = np.sqrt(np.clip(np.cos(np.deg2rad(lat.astype("float64"))), 0, None))[:, None] * np.ones((1, self.ds.lon.size))
-        self.ids = [i for i in TELE_ORDER if i in self.meta and i in self.ds.index.values]
+        t = R.need(R.obs_ref("tele_patterns"), "teleconnection projectors")
+        self.lat, self.lon = t["lat"], t["lon"]
+        self.meta = t["meta"]["validation"]
+        self.ids = list(t["meta"]["ids"])
+        self._proj = {sid: t["projector"][i] for i, sid in enumerate(self.ids)}
+        self._sd = t["std_month_z500"]
+        self.w = np.sqrt(np.clip(np.cos(np.deg2rad(self.lat.astype("float64"))), 0, None))[:, None] * np.ones((1, self.lon.size))
 
     def to_ncep(self, a: xr.DataArray) -> np.ndarray:
         """(..., lat, lon) on any regular grid → NCEP 2.5° (90..−90, 0..357.5), NaN where absent."""
@@ -72,7 +103,7 @@ class Patterns:
         a = a.assign_coords(longitude=np.where(lon < 0, lon + 360, lon)).sortby("longitude")
         wrap = a.isel(longitude=0).assign_coords(longitude=360.0)
         a = xr.concat([a, wrap], dim="longitude").sortby("latitude")
-        out = a.interp(latitude=self.ds.lat.values, longitude=self.ds.lon.values, method="linear")
+        out = a.interp(latitude=self.lat, longitude=self.lon, method="linear")
         return out.transpose(..., "latitude", "longitude").values
 
     def index(self, sid: str, anom: np.ndarray, months) -> np.ndarray:
@@ -80,14 +111,14 @@ class Patterns:
         → CPC-scale monthly index (annual standard deviations); NaN in months CPC does not define."""
         m = self.meta[sid]
         mo = np.asarray(months) - 1
-        P = self.ds.projector.sel(index=sid).values[mo]
+        P = self._proj[sid][mo]
         a = np.asarray(anom, dtype="float64")
         if m.get("standardize"):
-            sd = self.ds.std_month_z500.values[mo]
+            sd = self._sd[mo]
             a = a / np.where(sd > 0, sd, np.nan)
         if m.get("demean"):
-            lat = self.ds.lat.values
-            cosw = (np.cos(np.deg2rad(lat)) * (lat >= 20))[:, None] * np.ones((1, self.ds.lon.size))
+            lat = self.lat
+            cosw = (np.cos(np.deg2rad(lat)) * (lat >= 20))[:, None] * np.ones((1, self.lon.size))
             a = a - (np.nan_to_num(a) * cosw).sum(axis=(-2, -1), keepdims=True) / cosw.sum()
         raw = np.einsum("nij,nij->n", np.nan_to_num(a * self.w), P)
         # CPC does not define every pattern in every month (TNH Dec–Feb only; EP/NP not Aug–Sep)
@@ -102,14 +133,20 @@ def _grid(path: Path, var: str, **filt):
     return vals, lat, lon
 
 
-def _pair(kind: str, ym: str, var: str, **filt):
-    """(fc[sample, lead, lat, lon], hc[...], lat, lon) or None."""
-    f, h = fc_path(kind, ym), hc_path(kind, ym[4:])
-    if not (f.exists() and h.exists()):
+def _fc(kind: str, ym: str, var: str, **filt):
+    """this issue's forecast (fc[sample, lead, lat, lon], lat, lon) or None — the build's only GRIB read."""
+    f = fc_path(kind, ym)
+    if not f.exists():
         return None
-    fc, lat, lon = _grid(f, var, **filt)
-    hc, _, _ = _grid(h, var, **filt)
-    return fc, hc, lat, lon
+    return _grid(f, var, **filt)
+
+
+def _hct(unit: str, ym: str) -> dict | None:
+    """the derived hindcast table of this unit for the issue's start month, or None (product skipped)."""
+    t = R.load(R.hc_ref(unit, ym[4:]))
+    if t is None:
+        print(f"  {unit}: derived table {R.hc_ref(unit, ym[4:]).name} missing — skipped", flush=True)
+    return t
 
 
 def _zonal_at(vals, lat, lat0):
@@ -140,6 +177,71 @@ def _point(vals, lat, lon, la, lo):
     return vals[:, :, int(np.argmin(np.abs(lat - la))), int(np.argmin(np.abs(lon - lo)))]
 
 
+def _boxm(v, lat, lon, la0, la1, lo0, lo1):
+    ml = (lat >= la0) & (lat <= la1); mo = (lon >= lo0) & (lon <= lo1)
+    w = np.cos(np.deg2rad(lat[ml]))[:, None]
+    sub = v[..., ml, :][..., mo]
+    return (sub * w).sum(axis=(-2, -1)) / (w.sum() * mo.sum())
+
+
+# ── derived hindcast tables (seas5_ref.py; raw GRIBs read here only) ─────────
+def _calendar_months(month: str) -> list[int]:
+    """calendar month of each lead for a start month (the year is irrelevant)."""
+    return [int(v[5:]) for v in valid_months(f"2000{int(month):02d}")]
+
+
+def derive_hc_nh(month: str) -> None:
+    """hc_tele_nh_{MM}: hindcast mean z500 / msl (raw units) and every z500/msl-based index's 600 × 6
+    hindcast series, exactly as compute() used to build them from the raw hindcast."""
+    month = f"{int(month):02d}"
+    pats = Patterns()
+    months = _calendar_months(month)
+    hz, lat, lon = load_field(hc_path("nh_z", month), "z", level=500)
+    hp, _, _ = load_field(hc_path("nh_msl", month), "msl")
+    hz_m = np.nanmean(hz, 0); hp_m = np.nanmean(hp, 0)
+    ahz = xr.DataArray((hz - hz_m[None]) / G0, dims=("s", "l", "latitude", "longitude"), coords={"latitude": lat, "longitude": lon})
+    ahp = xr.DataArray((hp - hp_m[None]) / 100.0, dims=("s", "l", "latitude", "longitude"), coords={"latitude": lat, "longitude": lon})
+    nhz, nhp = pats.to_ncep(ahz), pats.to_ncep(ahp)
+    out = dict(lat=lat, lon=lon, hz_m=hz_m, hp_m=hp_m)
+    for sid in pats.ids:
+        src = nhp if pats.meta[sid].get("field") == "slp" else nhz
+        n, L = src.shape[:2]
+        out[f"pat_{sid}"] = pats.index(sid, src.reshape(n * L, *src.shape[2:]), np.tile(months, n)).reshape(n, L)
+    del nhz, nhp, ahz, ahp
+    out["soi_ht"] = _point(hp, lat, lon, -17.5, -149.5) - _point(hp, lat, lon, -12.5, 130.5)
+    out["eqsoi_he"] = _boxm(hp, lat, lon, -5, 5, -130, -80) - _boxm(hp, lat, lon, -5, 5, 90, 140)
+    out["cap500"] = _cap(hz / G0, lat, 65)
+    del hz, hp
+    h1000, lat1, _ = load_field(hc_path("nh_z", month), "z", level=1000)
+    out["cap1000"] = _cap(h1000 / G0, lat1, 65)
+    R.save(R.hc_ref("tele_nh", month), meta=dict(month=month, ids=pats.ids), **out)
+
+
+def derive_hc_strat(month: str) -> None:
+    """hc_tele_strat_{MM}: 60°N/60°S 10 hPa zonal-mean wind and the 10/30/50 hPa equatorial QBO band, 600 × 6."""
+    month = f"{int(month):02d}"
+    out = {}
+    hu, lat, _ = load_field(hc_path("strat_u", month), "u", level=10)
+    out["u60n10"], out["u60s10"] = _zonal_at(hu, lat, 60), _zonal_at(hu, lat, -60)
+    for lev in (10, 30, 50):
+        hu, lat, _ = load_field(hc_path("strat_u", month), "u", level=lev)
+        out[f"qbo{lev}"] = _band_zonal(hu, lat, -5, 5)
+    R.save(R.hc_ref("tele_strat", month), meta=dict(month=month), **out)
+
+
+def derive_hc_polar(month: str) -> None:
+    """hc_tele_polar_{MM}: 65–90°N cap mean height at 10/50/100 hPa and wave-1/2 amplitude at 100 hPa, 60°N."""
+    month = f"{int(month):02d}"
+    out = {}
+    for lev in (10, 50, 100):
+        hz, lat, _ = load_field(hc_path("polar_n", month), "z", level=lev)
+        out[f"cap{lev}"] = _cap(hz / G0, lat, 65)
+        if lev == 100:
+            for k in (1, 2):
+                out[f"wave{k}"] = _wave_amp(hz / G0, lat, 60, k)
+    R.save(R.hc_ref("tele_polar", month), meta=dict(month=month), **out)
+
+
 # ── per-issue indices ────────────────────────────────────────────────────────
 def compute(ym: str, pats: Patterns, with_members: bool, scale: dict | None = None) -> dict:
     """scale: {key: {calendar_month: σ}} from ERA5 (1991–2020) — the unit for the indices that have no
@@ -167,26 +269,28 @@ def compute(ym: str, pats: Patterns, with_members: bool, scale: dict | None = No
             e["members"] = np.where(np.isfinite(fc_idx), np.round(fc_idx, 3), None).tolist()
         return e
 
-    # 500 hPa / msl patterns
-    z = _pair("nh_z", ym, "z", level=500)
-    p = _pair("nh_msl", ym, "msl")
-    if z and p:
-        fz, hz, lat, lon = z; fp, hp, _, _ = p
-        hz_m = np.nanmean(hz, 0); hp_m = np.nanmean(hp, 0)
+    # 500 hPa / msl patterns (hindcast side: hc_tele_nh — mean fields and each index's 600 × 6 series)
+    z = _fc("nh_z", ym, "z", level=500)
+    p = _fc("nh_msl", ym, "msl")
+    T = _hct("tele_nh", ym) if (z and p) else None
+    if z and p and T is not None:
+        (fz, lat, lon), (fp, _, _) = z, p
+        assert np.allclose(lat, T["lat"]) and np.allclose(lon, T["lon"])
+        hz_m, hp_m = T["hz_m"], T["hp_m"]
         az = xr.DataArray((fz - hz_m[None]) / G0, dims=("s", "l", "latitude", "longitude"), coords={"latitude": lat, "longitude": lon})
-        ahz = xr.DataArray((hz - hz_m[None]) / G0, dims=("s", "l", "latitude", "longitude"), coords={"latitude": lat, "longitude": lon})
         ap = xr.DataArray((fp - hp_m[None]) / 100.0, dims=("s", "l", "latitude", "longitude"), coords={"latitude": lat, "longitude": lon})
-        ahp = xr.DataArray((hp - hp_m[None]) / 100.0, dims=("s", "l", "latitude", "longitude"), coords={"latitude": lat, "longitude": lon})
-        nz, nhz, npm, nhp = (pats.to_ncep(a) for a in (az, ahz, ap, ahp))
+        nz, npm = (pats.to_ncep(a) for a in (az, ap))
         for sid in pats.ids:
             m = pats.meta[sid]
-            src, hsrc = (npm, nhp) if m.get("field") == "slp" else (nz, nhz)
+            src = npm if m.get("field") == "slp" else nz
+            if f"pat_{sid}" not in T:
+                continue
             def run(arr):
                 n, L = arr.shape[:2]
                 flat = arr.reshape(n * L, *arr.shape[2:])
                 mo = np.tile(months, n)
                 return pats.index(sid, flat, mo).reshape(n, L)
-            fi, hi = run(src), run(hsrc)
+            fi, hi = run(src), T[f"pat_{sid}"]
             unit_note = "CPC-scale (annual standard deviations)"
             if not m.get("standardize"):                   # AO (EOF, raw) and the EPO/WPO boxes (metres) need a unit
                 fi, hi, unit_note = to_sigma(sid, fi, hi)
@@ -197,7 +301,7 @@ def compute(ym: str, pats: Patterns, with_members: bool, scale: dict | None = No
             out[sid]["_hc"] = hi                                          # kept for skill, dropped before writing
         # SOI from msl points
         ft = _point(fp, lat, lon, -17.5, -149.5) - _point(fp, lat, lon, -12.5, 130.5)
-        ht = _point(hp, lat, lon, -17.5, -149.5) - _point(hp, lat, lon, -12.5, 130.5)
+        ht = T["soi_ht"]
         fa, ha, unit_note = to_sigma("soi", (ft - ht.mean(0)) / 100.0, (ht - ht.mean(0)) / 100.0)
         out["soi"] = entry(fa, ha, "Southern Oscillation index", "σ",
                            f"Tahiti minus Darwin sea-level pressure anomaly; unit: {unit_note}; negative with El Niño.", "tele")
@@ -206,52 +310,50 @@ def compute(ym: str, pats: Patterns, with_members: bool, scale: dict | None = No
         # minus Indonesia (5°N–5°S, 90–140°E) — the pressure gradient that drives the Walker circulation,
         # far less station-noisy than Tahiti−Darwin (user 2026-09-07: "a more physically consistent
         # zonal pressure difference index"). Negative in El Niño, like the SOI.
-        def _boxm(v, la0, la1, lo0, lo1):
-            ml = (lat >= la0) & (lat <= la1); mo = (lon >= lo0) & (lon <= lo1)
-            w = np.cos(np.deg2rad(lat[ml]))[:, None]
-            sub = v[..., ml, :][..., mo]
-            return (sub * w).sum(axis=(-2, -1)) / (w.sum() * mo.sum())
-        fe = _boxm(fp, -5, 5, -130, -80) - _boxm(fp, -5, 5, 90, 140)
-        he = _boxm(hp, -5, 5, -130, -80) - _boxm(hp, -5, 5, 90, 140)
+        fe = _boxm(fp, lat, lon, -5, 5, -130, -80) - _boxm(fp, lat, lon, -5, 5, 90, 140)
+        he = T["eqsoi_he"]
         fa2, ha2, unit_note2 = to_sigma("eqsoi", (fe - he.mean(0)) / 100.0, (he - he.mean(0)) / 100.0)
         out["eqsoi"] = entry(fa2, ha2, "Equatorial SOI", "σ",
                              f"Eastern equatorial Pacific minus Indonesian sea-level pressure anomaly (5°N–5°S boxes, CPC definition); unit: {unit_note2}; negative with El Niño. The equatorial gradient that drives the Walker circulation, without the Tahiti–Darwin station noise.", "tele")
         out["eqsoi"]["_hc"] = ha2
-    # stratospheric wind
-    u = _pair("strat_u", ym, "u", level=10)
-    if u:
-        fu, hu, lat, lon = u
+    # stratospheric wind (hindcast side: hc_tele_strat)
+    u = _fc("strat_u", ym, "u", level=10)
+    TS = _hct("tele_strat", ym) if u else None
+    if u and TS is not None:
+        fu, lat, lon = u
         for key, la, lab in (("u60n10", 60, "60°N 10 hPa zonal wind"), ("u60s10", -60, "60°S 10 hPa zonal wind")):
-            fi, hi = _zonal_at(fu, lat, la), _zonal_at(hu, lat, la)
+            fi, hi = _zonal_at(fu, lat, la), TS[key]
             e = entry(fi, hi, lab, "m/s", "Zonal-mean zonal wind, the standard vortex-strength metric; below zero is an easterly (reversed) vortex.", "strat")
             e["p_easterly"] = np.nanmean(fi < 0, axis=0).round(3).tolist()
             e["absolute"] = True
             e["_hc"] = hi
             out[key] = e
         for lev in (10, 30, 50):
-            fu, hu, lat, lon = _pair("strat_u", ym, "u", level=lev)
-            fi, hi = _band_zonal(fu, lat, -5, 5), _band_zonal(hu, lat, -5, 5)
+            fu, lat, lon = _fc("strat_u", ym, "u", level=lev)
+            fi, hi = _band_zonal(fu, lat, -5, 5), TS[f"qbo{lev}"]
             e = entry(fi, hi, f"QBO: equatorial {lev} hPa wind", "m/s", "5°S–5°N zonal-mean zonal wind, SEAS5's own QBO; westerly positive.", "strat")
             e["absolute"] = True; e["_hc"] = hi
             out[f"qbo{lev}"] = e
     # NAM by level and planetary waves
+    tabs = {"polar_n": _hct("tele_polar", ym) if fc_path("polar_n", ym).exists() else None,
+            "nh_z": T if fc_path("nh_z", ym).exists() else None}
     for lev, kind in ((10, "polar_n"), (50, "polar_n"), (100, "polar_n"), (500, "nh_z"), (1000, "nh_z")):
-        r = _pair(kind, ym, "z", level=lev)
-        if not r:
+        r = _fc(kind, ym, "z", level=lev)
+        if not r or tabs[kind] is None:
             continue
-        fz, hz, lat, lon = r
-        fc_cap, hc_cap = _cap(fz / G0, lat, 65), _cap(hz / G0, lat, 65)
+        fz, lat, lon = r
+        fc_cap, hc_cap = _cap(fz / G0, lat, 65), tabs[kind][f"cap{lev}"]
         fa, hr = detrend_pair(fc_cap, hc_cap, ym)                   # heights carry the warming trend: anomaly vs the hindcast trend line
         sd = np.nanstd(hr, axis=0)
         fi = -fa / sd; hi = -hr / sd
         e = entry(fi, hi, f"NAM at {lev} hPa", "σ", "Polar-cap (65–90°N) height anomaly against the hindcast's linear trend (detrended), standardised and sign-flipped: positive = strong vortex / low polar heights.", "strat")
         e["_hc"] = hi
         out[f"nam{lev}"] = e
-    r = _pair("polar_n", ym, "z", level=100)
-    if r:
-        fz, hz, lat, lon = r
+    r = _fc("polar_n", ym, "z", level=100)
+    if r and tabs["polar_n"] is not None:
+        fz, lat, lon = r
         for k in (1, 2):
-            fi, hi = _wave_amp(fz / G0, lat, 60, k), _wave_amp(hz / G0, lat, 60, k)
+            fi, hi = _wave_amp(fz / G0, lat, 60, k), tabs["polar_n"][f"wave{k}"]
             e = entry(fi, hi, f"Wave-{k} amplitude, 100 hPa, 60°N", "m", "Amplitude of the zonal wavenumber along 60°N: the planetary-wave forcing that precedes a warming.", "strat")
             e["absolute"] = True; e["_hc"] = hi
             out[f"wave{k}_100"] = e
@@ -260,6 +362,31 @@ def compute(ym: str, pats: Patterns, with_members: bool, scale: dict | None = No
 
 # ── skill against ERA5 ───────────────────────────────────────────────────────
 def era5_indices(pats: Patterns):
+    """(series, scale) from the derived table obs_tele_era5 (see _era5_indices_store); (None, None) without it."""
+    t = R.load(R.obs_ref("tele_era5"))
+    if t is None:
+        print(f"  {R.obs_ref('tele_era5').name} missing — no ERA5 skill or σ scale", flush=True)
+        return None, None
+    m = t["meta"]
+    series = {k: {(int(y), int(mo)): float(v) for y, mo, v in rows} for k, rows in (m["series"] or {}).items()} or None
+    scale = {k: {int(mo): float(v) for mo, v in d.items()} for k, d in (m["scale"] or {}).items()} or None
+    return series, scale
+
+
+def derive_obs_era5() -> None:
+    """obs_tele_era5 from the LOCAL ERA5 store (laptop, once): the monthly observed index series and
+    calendar-month σ that era5_indices serves to the build. Uses the store's monthly aggregates cached
+    under DATA/era5 (local_monthly_*.nc)."""
+    import era5_local
+    era5_local.CACHE = DATA / "era5"
+    series, scale = _era5_indices_store(Patterns())
+    R.save(R.obs_ref("tele_era5"),
+           meta=dict(series={k: [[y, mo, v] for (y, mo), v in sorted(d.items())] for k, d in (series or {}).items()},
+                     scale={k: {str(mo): v for mo, v in d.items()} for k, d in (scale or {}).items()},
+                     source="ERA5 monthly means of the WeatherBench-2 daily store (Copernicus Climate Change Service)"))
+
+
+def _era5_indices_store(pats: Patterns):
     """(series, scale): series = {key: {(year, month): value}} observed indices in the SAME units as the
     model's; scale = {key: {month: σ}} the ERA5 1991–2020 calendar-month standard deviation used as
     the unit for AO/EPO/WPO/SOI. From the LOCAL ERA5 store: the 0–90°N 500 hPa height and sea-level
@@ -359,15 +486,19 @@ CPC_COLS = {"nao": "NAO", "ea": "EA", "wp": "WP", "epnp": "EP/NP", "pna": "PNA",
 
 def cpc_published() -> dict:
     """{key: {(year, month): value}} CPC's own monthly indices (their standardisation, so the overlay
-    is a check on sign and rough size, not a same-unit comparison). Files refreshed when > 12 h old."""
+    is a check on sign and rough size, not a same-unit comparison). Files refreshed when > 12 h old —
+    in GitHub Actions only (seas5_ref.fetch_allowed); elsewhere whatever copy is on disk is read."""
     import re, urllib.request
-    d = TC / "cpc"; d.mkdir(parents=True, exist_ok=True)
+    d = CPC_DIR; d.mkdir(parents=True, exist_ok=True)
     for name, url in CPC_FILES.items():
         f = d / name
         if f.exists() and time.time() - f.stat().st_mtime < 12 * 3600:
             continue
+        if not R.fetch_allowed():
+            print(f"  CPC {name}: downloads run in Actions only — using the copy on disk" + ("" if f.exists() else " (none)"), flush=True)
+            continue
         try:
-            with urllib.request.urlopen(url, timeout=60) as r:
+            with urllib.request.urlopen(urllib.request.Request(url, headers={"User-Agent": UA}), timeout=60) as r:
                 data = r.read()
             if data:
                 f.write_bytes(data)
@@ -639,6 +770,44 @@ def plot_probs(doc: dict, out: Path) -> None:
     print(f"  wrote {out.name}", flush=True)
 
 
+# ── per-issue summary and the seas5_ref registry ──────────────────────────────
+def save_issue_summary(ym: str, idx: dict) -> None:
+    """is_tele_{ym}: this issue's indices without members or hindcast series (exactly what
+    compute(ym, with_members=False) returns), read next month as the previous-issue line."""
+    summ = {}
+    for k, e in idx.items():
+        e = {kk: copy.deepcopy(vv) for kk, vv in e.items() if kk not in ("members", "_hc")}
+        summ[k] = e
+    R.save(R.is_ref("tele", ym), meta=dict(issue=ym, indices=summ))
+
+
+def load_issue_summary(ym: str) -> dict:
+    t = R.load(R.is_ref("tele", ym))
+    if t is None:
+        print(f"  previous issue {ym}: {R.is_ref('tele', ym).name} missing — no previous-issue line", flush=True)
+        return {}
+    return t["meta"]["indices"]
+
+
+def derive_issue(ym: str) -> None:
+    """is_tele_{ym} from that issue's forecast GRIBs + the derived tables (the laptop transition)."""
+    pats = Patterns()
+    _, scale = era5_indices(pats)
+    idx = compute(ym, pats, with_members=False, scale=scale)
+    if not idx:
+        raise FileNotFoundError(f"no teleconnection fields for {ym}")
+    save_issue_summary(ym, idx)
+
+
+REF_UNITS = {
+    "tele_nh": dict(raw=["m:nh_z", "m:nh_msl"], fn=derive_hc_nh),
+    "tele_strat": dict(raw=["m:strat_u"], fn=derive_hc_strat),
+    "tele_polar": dict(raw=["m:polar_n"], fn=derive_hc_polar),
+}
+ISSUE_UNITS = {"tele": derive_issue}
+OBS_UNITS = {"tele_patterns": derive_obs_patterns, "tele_era5": derive_obs_era5}
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--issue", required=True)
@@ -658,11 +827,10 @@ def main(argv=None) -> int:
         print(f"  CPC indices skipped ({str(e)[:80]})", flush=True)
     cur = compute(ym, pats, with_members=True, scale=scale)
     if not cur:
-        raise SystemExit("no teleconnection fields on disk yet")
+        raise SystemExit("no teleconnection fields (or derived tables) on disk yet")
+    save_issue_summary(ym, cur)                                       # next month's "previous issue" line
+    pv = load_issue_summary(prev)
     add_skill(cur, ym, era, cpc)
-    pv = compute(prev, pats, with_members=False, scale=scale)
-    for e in pv.values():
-        e.pop("_hc", None)
     doc = {"generated": time.strftime("%Y-%m-%d %H:%M UTC", time.gmtime()), "issue": ym, "previous": prev,
            "groups": {"tele": [k for k in cur if cur[k]["group"] == "tele"], "strat": [k for k in cur if cur[k]["group"] == "strat"]},
            "indices": cur, "previous_indices": pv,

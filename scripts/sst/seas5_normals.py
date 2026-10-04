@@ -23,7 +23,10 @@ the 30 observed years, scaled to the reference mean. Probabilities are member
 fractions. Monthly for the six lead months and seasonal for the three overlapping
 seasons, one 3 × 3 figure per (variable, reference, anomaly | tercile).
 
-Needs the ERA5 monthly means from seas5_era5.py (Americas, 1°, 1991–2025).
+Inputs (since 2026-10-04, so it runs in Actions): this issue's forecast GRIBs plus derived
+tables (seas5_ref.py) — hc_normals_{gl,gl_z500,energy,pme}_{MM} (hindcast mean / tercile bounds /
+interannual σ per period) and obs_normals_{var} (ERA5 1991–2025 per-calendar-month statistics,
+derived once on the laptop from the ERA5 monthly GRIBs in data/seas5/era5/; never fetched again).
 Output: assets/sst/seas5_norm_{var}_{ref}_{anom|std|terc}_{period}.webp (one map per period) + data/seas5_normals.json.
 """
 from __future__ import annotations
@@ -39,10 +42,10 @@ import numpy as np
 import xarray as xr
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from seas5_outlook import ASSETS, fc_path, hc_path  # noqa: E402
+from seas5_outlook import ASSETS, DATA, fc_path, hc_path  # noqa: E402
 from seas5_build import G0, SEASON_LEADS, TERC_BINS, TERC_PALETTES, _open, head_text, load_field, map_layout, season_label, valid_months  # noqa: E402
 
-ERA5 = Path(__file__).resolve().parent / "data" / "seas5" / "era5"
+ERA5 = DATA / "era5"                       # local ERA5 monthly GRIBs: read by derive_obs_var() on the laptop only
 OUT_JSON = ASSETS / "data" / "seas5_normals.json"
 Z_TERC = 0.4307                                                       # ±0.4307 σ bounds the middle third of a normal
 
@@ -67,13 +70,15 @@ CMAPS = {"pme": "BrBG", "t2m": "RdBu_r", "z500": "RdBu_r", "si10": "PuOr_r", "tp
 LAND_ONLY = {"t2m", "tp", "si10", "ssrd", "pme"}
 
 
-# ── ERA5 ─────────────────────────────────────────────────────────────────────
+# ── ERA5 (DERIVE TIME ONLY: reads the laptop's local files, never runs in Actions) ─
 _ERA: dict = {}
 
 
 def era5_monthly(key: str, short: str):
     """(vals[time, lat, lon] in display units, years, months, lat, lon), cached per (key, short).
-    ("am_e", "e") is the derived P − E: ERA5 precipitation plus ERA5 evaporation (negative upward)."""
+    ("am_e", "e") is the derived P − E: ERA5 precipitation plus ERA5 evaporation (negative upward).
+    Used only by derive_obs_var() on the laptop: the local ERA5 monthly GRIBs (pulled once in 2026-09,
+    kept forever) or the local store; the build reads the obs_normals_* tables instead."""
     if (key, short) in _ERA:
         return _ERA[(key, short)]
     if key == "am_e" and short == "e":
@@ -125,9 +130,9 @@ def _sel_month(v, yrs, mos, m, y0, y1):
     return v[sel], yrs[sel]
 
 
-def references(var: str, month: int, year: int) -> dict | None:
-    """Per grid point for one calendar month: means for each reference, σ for tercile bounds,
-    the 1993–2016 mean (to align the model) and the observed 1991–2020 sample (for precip terciles)."""
+def _references_raw(var: str, month: int) -> dict | None:
+    """Per grid point for one calendar month, from the full ERA5 record: means for each reference,
+    σ for tercile bounds, the 1993–2016 mean (to align the model) and the observed 1991–2020 sample."""
     _, _, _, ekey, eshort, _, _, mult = VARS[var]
     r = era5_monthly(ekey, eshort)
     if r is None:
@@ -144,43 +149,149 @@ def references(var: str, month: int, year: int) -> dict | None:
     ok = np.isfinite(sall).all(axis=(1, 2)); sall, yall = sall[ok], yall[ok]
     x = yall - yall.mean()
     slope = (x[:, None, None] * (sall - sall.mean(0))).sum(0) / (x ** 2).sum()
-    trend_val = sall.mean(0) + slope * (year - yall.mean())
     resid_sd = (sall - (sall.mean(0) + slope * x[:, None, None])).std(0, ddof=2)
-    return dict(lat=lat, lon=lon, m9316=s9316.mean(0), sample30=s30,
-                mean={"obs30": s30.mean(0), "obs10": s10.mean(0), "trend": trend_val},
-                sd={"obs30": s30.std(0, ddof=1), "obs10": s30.std(0, ddof=1), "trend": resid_sd},
+    return dict(lat=lat, lon=lon, m9316=s9316.mean(0), sample30=s30, mean30=s30.mean(0), mean10=s10.mean(0),
+                sall_mean=sall.mean(0), slope=slope, yall_mean=float(yall.mean()), sd30=s30.std(0, ddof=1), resid_sd=resid_sd,
                 span={"obs30": f"{y30.min()}–{y30.max()}", "obs10": f"{y10.min()}–{y10.max()}", "trend": f"{yall.min()}–{yall.max()} fit"})
 
 
+def derive_obs_var(var: str) -> None:
+    """obs_normals_{var}: per calendar month (axis 0 = Jan..Dec) on the ERA5 grid, everything the
+    observed references consume. Windows w* are the 3-month seasons STARTING in that month (wrapping
+    the year, the same element-wise averaging of the 30-year samples as before)."""
+    import seas5_ref as R
+    mult = VARS[var][7]
+    per = [_references_raw(var, m) for m in range(1, 13)]
+    if any(p is None for p in per):
+        print(f"  obs normals {var}: ERA5 reference incomplete — not written", flush=True)
+        return
+    f32 = lambda a: np.asarray(a, dtype=np.float32)
+    keys = ["m9316", "mean30", "mean10", "sall_mean", "slope"] + ([] if mult else ["sd30", "resid_sd"])
+    arrays = {k: f32([p[k] for p in per]) for k in keys}
+    arrays["yall_mean"] = np.array([p["yall_mean"] for p in per])
+    win = [np.mean([per[(m + j) % 12]["sample30"] for j in range(3)], axis=0) for m in range(12)]
+    if mult:
+        q = [np.nanpercentile(p["sample30"], [100 / 3, 200 / 3], axis=0) for p in per]
+        arrays["sp33"], arrays["sp67"] = f32([x[0] for x in q]), f32([x[1] for x in q])
+        arrays["sstd"] = f32([np.nanstd(p["sample30"], axis=0) for p in per])
+        q = [np.nanpercentile(w, [100 / 3, 200 / 3], axis=0) for w in win]
+        arrays["wp33"], arrays["wp67"] = f32([x[0] for x in q]), f32([x[1] for x in q])
+        arrays["wstd"] = f32([np.nanstd(w, axis=0) for w in win])
+    else:
+        arrays["wsd"] = f32([w.std(0, ddof=1) for w in win])
+    R.save(R.obs_ref(f"normals_{var}"), meta={"span": [p["span"] for p in per], "mult": mult},
+           lat=per[0]["lat"].astype(np.float64), lon=per[0]["lon"].astype(np.float64), **arrays)
+
+
+_OBS: dict = {}
+
+
+def _obs_table(var: str) -> dict | None:
+    if var not in _OBS:
+        import seas5_ref as R
+        _OBS[var] = R.load(R.obs_ref(f"normals_{var}"))
+    return _OBS[var]
+
+
+def references(var: str, month: int, year: int) -> dict | None:
+    """Per grid point for one calendar month (from obs_normals_{var}): means for each reference, σ for
+    tercile bounds, the 1993–2016 mean (to align the model), and `mi` (month index) for the window stats."""
+    t = _obs_table(var)
+    if t is None:
+        return None
+    i = month - 1
+    mult = bool(t["meta"]["mult"])
+    trend_val = t["sall_mean"][i].astype(np.float64) + t["slope"][i] * (year - t["yall_mean"][i])
+    d = dict(lat=t["lat"], lon=t["lon"], m9316=t["m9316"][i], mi=i, t=t,
+             mean={"obs30": t["mean30"][i], "obs10": t["mean10"][i], "trend": trend_val},
+             span=t["meta"]["span"][i])
+    if not mult:
+        d["sd"] = {"obs30": t["sd30"][i], "obs10": t["sd30"][i], "trend": t["resid_sd"][i]}
+    return d
+
+
 # ── model fields ─────────────────────────────────────────────────────────────
-def model_fields(ym: str, var: str):
-    label, kind, mvar, _, _, fac, _, _ = VARS[var]
+# hindcast tables: one per group of variables that share a raw hindcast kind
+HC_GROUPS = {"normals_gl": (["t2m", "tp"], ["m:gl"]), "normals_gl_z500": (["z500"], ["m:gl_z500"]),
+             "normals_energy": (["si10", "ssrd"], ["m:energy"]), "normals_pme": (["pme"], ["m:water", "m:sfc"])}
+VAR_GROUP = {v: g for g, (vs, _) in HC_GROUPS.items() for v in vs}
+
+
+def _to_units(var: str, a: np.ndarray) -> np.ndarray:
+    if var == "tp":
+        return a * 86400.0 * 1000
+    if var == "ssrd":
+        return a / 86400.0
+    if var == "t2m":
+        return a - 273.15
+    return a * VARS[var][5]
+
+
+def model_fields(ym: str, var: str, hindcast: bool = False):
+    """This issue's members (fc[sample, lead, lat, lon], lat, lon) in display units, or None. With
+    `hindcast` the same from the RAW hindcast GRIB of start month ym[4:] — derive time only."""
+    path = (lambda kind: hc_path(kind, ym[4:])) if hindcast else (lambda kind: fc_path(kind, ym))
+    _, kind, mvar, _, _, _, _, _ = VARS[var]
     if var == "pme":
         # evaporation is an Americas-box pull, so P − E uses the Americas precipitation (not the global kind)
-        f, h = fc_path("water", ym), hc_path("water", ym[4:]); ft, ht = fc_path("sfc", ym), hc_path("sfc", ym[4:])
-        if not (f.exists() and h.exists() and ft.exists() and ht.exists()):
+        w, s = path("water"), path("sfc")
+        if not (w.exists() and s.exists()):
             return None
-        fe, lat, lon = load_field(f, "e"); he, _, _ = load_field(h, "e")
-        ftp, _, _ = load_field(ft, "tprate"); htp, _, _ = load_field(ht, "tprate")
-        return (ftp + fe) * 86400.0 * 1000, (htp + he) * 86400.0 * 1000, lat, lon   # e is m/s (rate), negative upward
-    f, h = fc_path(kind, ym), hc_path(kind, ym[4:])
-    if not (f.exists() and h.exists()):
-        alt = {"gl": "sfc", "gl_z500": "z500"}.get(kind)              # Americas fallback for the global kinds
-        if alt is None:
-            return None
-        f, h = fc_path(alt, ym), hc_path(alt, ym[4:])
-        if not (f.exists() and h.exists()):
-            return None
-    fc, lat, lon = load_field(f, mvar); hc, _, _ = load_field(h, mvar)
-    if var == "tp":
-        fc, hc = fc * 86400.0 * 1000, hc * 86400.0 * 1000
-    elif var == "ssrd":
-        fc, hc = fc / 86400.0, hc / 86400.0
-    elif var == "t2m":
-        fc, hc = fc - 273.15, hc - 273.15
-    else:
-        fc, hc = fc * fac, hc * fac
-    return fc, hc, lat, lon
+        e, lat, lon = load_field(w, "e"); tp, _, _ = load_field(s, "tprate")
+        return (tp + e) * 86400.0 * 1000, lat, lon                    # e is m/s (rate), negative upward
+    f = path(kind)
+    if not f.exists():
+        return None
+    v, lat, lon = load_field(f, mvar)
+    return _to_units(var, v), lat, lon
+
+
+def _periods():
+    """(leads) for the six months then the three seasons — the panel order."""
+    return [(L,) for L in range(1, 7)] + [tuple(s) for s in SEASON_LEADS]
+
+
+def derive_hc(group: str, month: str) -> None:
+    """hc_{group}_{MM}: per variable and period (6 months + 3 seasons, axis 0) everything the 'hc'
+    reference and the observed-space bias correction take from the 600 hindcast samples: hcm (mean),
+    lo/hi (33rd/67th percentiles of the samples), sd (σ of the 24 per-year ensemble means). z500 is
+    detrended: ymean/slope of the per-year means, rlo/rhi the percentiles of the residuals (the trend
+    line is added back at the valid year at build time), sd the residual σ."""
+    import seas5_ref as R
+    arrays = {}
+    for var in HC_GROUPS[group][0]:
+        mf = model_fields("2000" + month, var, hindcast=True)
+        if mf is None:
+            raise FileNotFoundError(f"raw hindcast for {var} {month} not on disk")
+        hc, lat, lon = mf
+        hc_mean = np.nanmean(hc, axis=0)
+        ny = 24; yr = np.arange(ny) - (ny - 1) / 2                    # samples are member-major, year fastest
+        acc = {k: [] for k in (("hcm", "ymean", "slope", "rlo", "rhi", "sd") if var == "z500" else ("hcm", "lo", "hi", "sd"))}
+        for leads in _periods():
+            idx = [L - 1 for L in leads]
+            hsub = hc[:, idx[0]] if len(idx) == 1 else hc[:, idx].mean(1)
+            hcm = hc_mean[idx[0]] if len(idx) == 1 else hc_mean[idx].mean(0)
+            acc["hcm"].append(hcm)
+            if var == "z500":
+                ym_ = np.nanmean(hsub.reshape(-1, ny, *hsub.shape[1:]), axis=0)
+                slope = (yr[:, None, None] * (ym_ - ym_.mean(0))).sum(0) / (yr ** 2).sum()
+                resid = hsub - (hcm + slope[None] * np.tile(yr, hsub.shape[0] // ny)[:, None, None])
+                rlo, rhi = np.nanpercentile(resid, [100 / 3, 200 / 3], axis=0)
+                acc["ymean"].append(ym_.mean(0)); acc["slope"].append(slope); acc["rlo"].append(rlo); acc["rhi"].append(rhi)
+                acc["sd"].append(np.nanstd(ym_ - slope[None] * yr[:, None, None], axis=0))
+            else:
+                lo, hi = np.nanpercentile(hsub, [100 / 3, 200 / 3], axis=0)
+                acc["lo"].append(lo); acc["hi"].append(hi)
+                acc["sd"].append(np.nanstd(np.nanmean(hsub.reshape(-1, ny, *hsub.shape[1:]), axis=0), axis=0))
+        for k, v in acc.items():
+            arrays[f"{var}_{k}"] = np.asarray(v, dtype=np.float32)
+        arrays["lat"], arrays["lon"] = lat, lon
+        del hc
+    R.save(R.hc_ref(group, month), meta={"vars": HC_GROUPS[group][0], "periods": [list(p) for p in _periods()]}, **arrays)
+
+
+REF_UNITS = {g: dict(raw=raws, fn=(lambda month, g=g: derive_hc(g, month))) for g, (_, raws) in HC_GROUPS.items()}
+OBS_UNITS = {f"normals_{v}": (lambda v=v: derive_obs_var(v)) for v in VARS}
 
 
 def _regrid_to(src, slat, slon, lat, lon, reach: float = 1.1):
@@ -198,67 +309,61 @@ def _regrid_to(src, slat, slon, lat, lon, reach: float = 1.1):
 
 # ── products ─────────────────────────────────────────────────────────────────
 def panels_for(ym: str, var: str, ref: str):
-    """→ list of dict(title, anom[lat,lon], below, above, ens_anom_units) for 6 months + 3 seasons."""
+    """→ list of dict(title, anom[lat,lon], below, above, std) for 6 months + 3 seasons."""
+    import seas5_ref as R
     mf = model_fields(ym, var)
     if mf is None:
         return None, None, None
-    fc, hc, lat, lon = mf
-    hc_mean = np.nanmean(hc, axis=0)                                  # [lead, lat, lon]
+    fc, lat, lon = mf
+    H = R.need(R.hc_ref(VAR_GROUP[var], ym[4:]), f"SEAS5 hindcast statistics for {var}")
     mult = VARS[var][7]
     vm = valid_months(ym)
     out = []
 
-    valid_year = int(vm[0][:4])
-
-    def one(members, hcm, refs_list, title):
-        nonlocal valid_year
-        """members [sample, lat, lon] model values; hcm [lat, lon] hindcast mean; refs_list: per-month reference dicts (1 or 3)."""
+    def one(members, p, refs_list, title, valid_year):
+        """members [sample, lat, lon] model values; p the period index into the hindcast table;
+        refs_list: per-month reference dicts (1 or 3)."""
+        hcm = H[f"{var}_hcm"][p]
         if ref == "hc":
-            hsub = hcs
-            ny = 24
-            yr = np.arange(ny) - (ny - 1) / 2                      # samples are member-major, year fastest
             if var == "z500":
                 # heights carry the warming trend: the hindcast reference is its linear trend at the
                 # valid year (per grid point), and the spread is the residual spread — same as the caps
-                hy = hsub.reshape(-1, ny, *hsub.shape[1:])         # [member, year, lat, lon]
-                ym_ = np.nanmean(hy, axis=0)                         # per-year ensemble mean
-                slope = (yr[:, None, None] * (ym_ - ym_.mean(0))).sum(0) / (yr ** 2).sum()
+                ny = 24
                 target = (valid_year - 1993) - (ny - 1) / 2
-                hcm_ref = ym_.mean(0) + slope * target
-                resid = hsub - (hcm + slope[None] * np.tile(yr, hsub.shape[0] // ny)[:, None, None])
-                lo, hi = np.nanpercentile(resid + hcm_ref[None], [100 / 3, 200 / 3], axis=0)
+                hcm_ref = H["z500_ymean"][p] + H["z500_slope"][p] * target
+                lo, hi = H["z500_rlo"][p] + hcm_ref, H["z500_rhi"][p] + hcm_ref
                 a = np.nanmean(members, 0) - hcm_ref
                 below = (members < lo[None]).mean(0); above = (members > hi[None]).mean(0)
-                sd = np.nanstd(ym_ - slope[None] * yr[:, None, None], axis=0)
+                sd = H["z500_sd"][p]
                 return dict(title=title, anom=a, below=below, above=above, std=a / np.where(sd > 0, sd, np.nan))
             a = np.nanmean(members, 0) - hcm
-            lo, hi = np.nanpercentile(hsub, [100 / 3, 200 / 3], axis=0)
+            lo, hi = H[f"{var}_lo"][p], H[f"{var}_hi"][p]
             anom = (np.nanmean(members, 0) / hcm * 100.0) if mult else a
             below = (members < lo[None]).mean(0); above = (members > hi[None]).mean(0)
-            yr_means = np.nanmean(hsub.reshape(-1, ny, *hsub.shape[1:]), axis=0)   # interannual spread, not member noise
-            sd = np.nanstd(yr_means, axis=0)
+            sd = H[f"{var}_sd"][p]                                     # interannual spread, not member noise
             return dict(title=title, anom=anom, below=below, above=above, std=a / np.where(sd > 0, sd, np.nan))
         # observed space: average the per-month references over the season
-        m9316 = np.mean([_regrid_to(r["m9316"], r["lat"], r["lon"], lat, lon) for r in refs_list], axis=0)
-        rmean = np.mean([_regrid_to(r["mean"][ref], r["lat"], r["lon"], lat, lon) for r in refs_list], axis=0)
+        rg = lambda a, r: _regrid_to(a, r["lat"], r["lon"], lat, lon)
+        r0 = refs_list[0]; T = r0["t"]; season = len(refs_list) > 1
+        m9316 = np.mean([rg(r["m9316"], r) for r in refs_list], axis=0)
+        rmean = np.mean([rg(r["mean"][ref], r) for r in refs_list], axis=0)
         if mult:
             with np.errstate(divide="ignore", invalid="ignore"):
                 corr = members * (m9316 / np.where(hcm > 1e-6, hcm, np.nan))[None]
-            samp = np.mean([_regrid_to(r["sample30"], r["lat"], r["lon"], lat, lon) for r in refs_list], axis=0)   # [30, lat, lon]
-            scale = rmean / np.where(np.nanmean(samp, 0) > 1e-6, np.nanmean(samp, 0), np.nan)
-            lo, hi = np.nanpercentile(samp, [100 / 3, 200 / 3], axis=0) * scale
+            smean = np.mean([rg(T["mean30"][r["mi"]], r) for r in refs_list], axis=0)     # mean of the 30-year sample
+            scale = rmean / np.where(smean > 1e-6, smean, np.nan)
+            p33, p67, ssd = (T["wp33"], T["wp67"], T["wstd"]) if season else (T["sp33"], T["sp67"], T["sstd"])
+            lo, hi = rg(p33[r0["mi"]], r0) * scale, rg(p67[r0["mi"]], r0) * scale
             anom = np.nanmean(corr, 0) / rmean * 100.0
         else:
             corr = members - hcm[None] + m9316[None]
-            sd = np.sqrt(np.mean([_regrid_to(r["sd"][ref], r["lat"], r["lon"], lat, lon) ** 2 for r in refs_list], axis=0)) / np.sqrt(len(refs_list) if len(refs_list) > 1 else 1)
-            if len(refs_list) > 1:                                     # seasonal σ from the seasonal-mean series, not the monthly one
-                samp = np.mean([_regrid_to(r["sample30"], r["lat"], r["lon"], lat, lon) for r in refs_list], axis=0)
-                sd = samp.std(0, ddof=1)
+            # seasonal σ from the seasonal-mean series, not the monthly one
+            sd = rg(T["wsd"][r0["mi"]], r0) if season else rg(r0["sd"][ref], r0)
             lo, hi = rmean - Z_TERC * sd, rmean + Z_TERC * sd
             anom = np.nanmean(corr, 0) - rmean
         below = (corr < lo[None]).mean(0); above = (corr > hi[None]).mean(0)
         if mult:
-            samp_sd = np.nanstd(samp, axis=0)
+            samp_sd = rg(ssd[r0["mi"]], r0)
             std = (np.nanmean(corr, 0) - rmean) / np.where(samp_sd > 0, samp_sd, np.nan)
         else:
             std = (np.nanmean(corr, 0) - rmean) / np.where(sd > 0, sd, np.nan)
@@ -266,22 +371,27 @@ def panels_for(ym: str, var: str, ref: str):
 
     refs_cache = {}
     panels_for.last_span = None
-    for L, v in enumerate(vm):
-        y, m = int(v[:4]), int(v[5:])
-        hcs = hc[:, L]; valid_year = y
-        rl = [] if ref == "hc" else [refs_cache.setdefault((y, m), references(var, m, y))]
-        if ref != "hc" and rl[0] is None:
-            return None, None, None
-        if ref != "hc" and panels_for.last_span is None:
-            panels_for.last_span = rl[0]["span"][ref]
-        pnl = one(fc[:, L], hc_mean[L], rl, f"{calendar.month_abbr[m]} {y}"); pnl["key"] = f"{y}_{m:02d}"; out.append(pnl)
-    for leads in SEASON_LEADS:
-        idx = [Lx - 1 for Lx in leads]
-        hcs = hc[:, idx].mean(1); valid_year = int(vm[idx[1]][:4])
-        rl = [] if ref == "hc" else [refs_cache[(int(vm[i][:4]), int(vm[i][5:]))] for i in idx]
-        y0s, y1s = vm[idx[0]][:4], vm[idx[-1]][:4]
-        pnl = one(fc[:, idx].mean(1), hc_mean[idx].mean(0), rl, f"{season_label(ym, leads)} {y0s if y0s == y1s else y0s + '–' + y1s[2:]}")
-        pnl["key"] = f"{season_label(ym, leads)}_{y0s}"; out.append(pnl)
+    for p, leads in enumerate(_periods()):
+        idx = [L - 1 for L in leads]
+        months = [(int(vm[i][:4]), int(vm[i][5:])) for i in idx]
+        valid_year = months[len(months) // 2][0]
+        rl = []
+        if ref != "hc":
+            # the trend reference is evaluated at each month's own year (seasons straddling New Year included)
+            rl = [refs_cache.setdefault((y, m), references(var, m, y)) for y, m in months]
+            if any(r is None for r in rl):
+                return None, None, None
+            if panels_for.last_span is None:
+                panels_for.last_span = rl[0]["span"][ref]
+        members = fc[:, idx[0]] if len(idx) == 1 else fc[:, idx].mean(1)
+        if len(idx) == 1:
+            y, m = months[0]
+            title, key = f"{calendar.month_abbr[m]} {y}", f"{y}_{m:02d}"
+        else:
+            y0s, y1s = vm[idx[0]][:4], vm[idx[-1]][:4]
+            title = f"{season_label(ym, leads)} {y0s if y0s == y1s else y0s + '–' + y1s[2:]}"
+            key = f"{season_label(ym, leads)}_{y0s}"
+        pnl = one(members, p, rl, title, valid_year); pnl["key"] = key; out.append(pnl)
     return out, lat, lon
 
 

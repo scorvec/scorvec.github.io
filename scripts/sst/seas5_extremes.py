@@ -13,12 +13,16 @@ series (expected threshold days per month, normal, member spread).
 Data:
   * SEAS5 seasonal-original-single-levels, maximum/minimum 2 m temperature in the last 24 h,
     6-hourly, in the same monthly chunks as seas5_popT (files `{region}_{ym}_m{k}_x.grib`).
-  * NOAA CPC Global Unified daily Tmax/Tmin (0.5°, land), 1991–2020, the two boxes via PSL
-    OPeNDAP, cached under data/seas5/cpc/{tx|tn}_{region}_{year}.nc. (The local ERA5 store
-    has daily MEANS only, and the CDS derived-daily ERA5 jobs failed server-side, 2026-09-07.)
+  * NOAA CPC Global Unified daily Tmax/Tmin (0.5°, land), 1991–2020, the two boxes, pulled ONCE
+    from PSL OPeNDAP (2026-09-07/12) into data/seas5/cpc/{tx|tn}_{region}_{year}.nc on the laptop
+    and kept there for good (~/data_stores/INDEX.md). The OPeNDAP fetch was removed 2026-10-04:
+    the build reads the compact tables derived from that store instead (seas5_extremes_build.OBS_UNITS,
+    seas5_runs.OBS_UNITS), so CPC is never downloaded again.
+  * The hindcast extremes (25 members × 1993–2016, daily steps) per start month are a RAW_HC kind
+    ("x:us", "x:br") of seas5_ref.py: fetched once per start month in Actions, reduced to quantile
+    tables (hc_xdays_{region}_{MM}.npz) and deleted.
 
-    python seas5_extremes.py fetch [--issue 202609]     # SEAS5 chunks, this issue + previous
-    python seas5_extremes.py cpc   [--region us|br]     # the CPC normals, once (~1 h)
+    python seas5_extremes.py fetch [--issue 202609]     # this issue's SEAS5 chunks (Actions only)
     python seas5_extremes.py build [--issue 202609]
 """
 from __future__ import annotations
@@ -114,80 +118,45 @@ def fetch_hindcast(region: str, ym: str, k: int) -> bool:
 
 
 def fetch(ym: str, regions=None, issues=None) -> dict:
+    """This issue's forecast chunks only (the build does not use the previous issue). The hindcast
+    is seas5_ref's business (RAW_HC below): fetched only while hc_xdays_{region}_{MM} is missing."""
     got = {}
-    for iss in issues or (ym, previous_issues(ym, 1)[0]):
+    for iss in issues or (ym,):
         for region in regions or list(REGIONS):
             for k in range(1, MONTHS + 1):
                 got[(iss, region, k)] = fetch_chunk(region, iss, k)
-    for region in regions or list(REGIONS):
-        for k in range(1, MONTHS + 1):
-            got[("hc", region, k)] = fetch_hindcast(region, ym, k)
     return got
 
 
-CPC = DATA / "cpc"
+def _hc_issue(month: str) -> str:
+    """The issue whose calendar sets the hindcast's daily lead hours: SEAS5_ISSUE when it is this
+    start month (the workflow sets it), else this UTC year."""
+    iss = os.environ.get("SEAS5_ISSUE", "")
+    if len(iss) == 6 and iss[4:] == month:
+        return iss
+    import datetime as _dt
+    return f"{_dt.datetime.utcnow().year}{month}"
+
+
+def _raw_hc(region):
+    return ((lambda month: [hchunk_path(region, f"{int(month):02d}", k) for k in range(1, MONTHS + 1)]),
+            (lambda month: all([fetch_hindcast(region, _hc_issue(f"{int(month):02d}"), k) for k in range(1, MONTHS + 1)])))
+
+
+# raw hindcast kinds for seas5_ref (fetched one start month at a time in Actions, then discarded)
+RAW_HC = {f"x:{r}": _raw_hc(r) for r in REGIONS}
+
+
+CPC = DATA / "cpc"            # the local CPC store; read only when deriving the obs_ tables (laptop)
 
 
 def cpc_path(stat: str, region: str, year: int) -> Path:
     return CPC / f"{stat}_{region}_{year}.nc"
 
 
-def fetch_cpc(regions=None, years=None, stats=None) -> dict:
-    """NOAA CPC Global Unified daily Tmax / Tmin (0.5°, land only, 1979–), subset over the region
-    boxes through PSL's OPeNDAP, one (stat, region, year) at a time — sequential on purpose:
-    parallel PSL reads have returned silently corrupt arrays before. Each file is validated
-    (shape, NaN share, plausible range) before it is kept. ~30 s per year and box."""
-    import xarray as xr
-    got = {}
-    CPC.mkdir(parents=True, exist_ok=True)
-    for region in regions or list(REGIONS):
-        n_, w_, s_, e_ = REGIONS[region][2]
-        for year in years or YEARS:
-            for stat in stats or ("tx", "tn"):
-                dest = cpc_path(stat, region, year)
-                if dest.exists() and dest.stat().st_size > 0:
-                    got[(stat, region, year)] = True; continue
-                var = "tmax" if stat == "tx" else "tmin"; ok = False
-                for attempt in range(3):
-                    t0 = time.time()
-                    try:
-                        ds = xr.open_dataset(f"https://psl.noaa.gov/thredds/dodsC/Datasets/cpc_global_temp/{var}.{year}.nc")
-                        da = ds[var].sel(lat=slice(n_, s_), lon=slice(w_ % 360, e_ % 360)).load(); ds.close()
-                        a = da.values
-                        # A handful of cells in a live CPC year carry an out-of-range value
-                        # (Brazil 2026 tmin held a -89 C cell). Mask them if they are a
-                        # rounding error's worth of the field, reject the file if they are
-                        # not: a fill value read as data would poison a normal silently.
-                        wild = np.isfinite(a) & ((a > 60) | (a < -80))
-                        if wild.any():
-                            frac = float(wild.mean())
-                            if frac > 1e-3:
-                                raise ValueError(f"{frac:.3%} of cells outside -80..60 C")
-                            a = np.where(wild, np.nan, a)
-                            da = da.copy(data=a)
-                            print(f"    CPC {var} {region} {year}: masked {int(wild.sum())} out-of-range cell(s)", flush=True)
-                        nan = float(np.isnan(a).mean()); mx = float(np.nanmax(a)); mn = float(np.nanmin(a))
-                        # The CURRENT year is legitimately short — CPC publishes it day by
-                        # day — and these files are used for history as well as for the
-                        # 1991-2020 normals, so only a completed year must be complete.
-                        import datetime as _dt_
-                        full = 365 if year < _dt_.date.today().year else 60
-                        if a.shape[0] < full or nan > 0.95 or nan < 0.02 or mx > 60 or mn < -80 or not np.isfinite(mx):
-                            raise ValueError(f"implausible: shape {a.shape} nan {nan:.2f} range {mn:.0f}..{mx:.0f}")
-                        da = da.assign_coords(lon=((da.lon + 180) % 360) - 180).sortby("lon")
-                        da.to_dataset(name=var).to_netcdf(dest); ok = True
-                        print(f"  CPC {var} {region} {year}: {a.shape} nan {nan:.2f} max {mx:.1f} in {time.time() - t0:.0f}s", flush=True)
-                        break
-                    except Exception as e:                        # noqa: BLE001
-                        print(f"    CPC {var} {region} {year}: attempt {attempt + 1} failed ({str(e)[:120]})", flush=True)
-                        time.sleep(20)
-                got[(stat, region, year)] = ok
-    return got
-
-
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("cmd", choices=["fetch", "cpc", "build"])
+    ap.add_argument("cmd", choices=["fetch", "cpc", "build"])        # "cpc" kept as a no-op for old callers
     ap.add_argument("--issue", default=None)
     ap.add_argument("--region", nargs="*", default=None)
     ap.add_argument("--years", nargs="*", type=int, default=None)
@@ -199,8 +168,8 @@ def main(argv=None) -> int:
         got = fetch(ym, a.region); bad = [k for k, v in got.items() if not v]
         print(f"fetch {ym}: {len(got) - len(bad)} ok, {len(bad)} missing {bad}", flush=True)
     elif a.cmd == "cpc":
-        got = fetch_cpc(a.region, a.years, a.stat); bad = [k for k, v in got.items() if not v]
-        print(f"cpc: {len(got) - len(bad)} ok, {len(bad)} missing {bad}", flush=True)
+        print("cpc: the CPC record is never fetched again (2026-10-04); the build reads obs_xdays_cpc_* / "
+              "obs_runs_cpc_* derived from the local store by `seas5_ref.py obs`", flush=True)
     else:
         from seas5_extremes_build import build                    # written separately
         build(ym)

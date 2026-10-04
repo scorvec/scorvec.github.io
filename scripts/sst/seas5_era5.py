@@ -1,6 +1,10 @@
 #!/usr/bin/env python3
 """ERA5 monthly means as the observed reference for the SEAS5 page — pulled once.
 
+RETIRED 2026-10-04 (user rule: never download these again). The files below exist on the laptop
+(data/seas5/era5/era5_*_1991-2025.grib) and are reduced to obs_* tables by `seas5_ref.py obs`;
+running this script does nothing. The docstring and PULLS stay as the record of the requests.
+
 Two products need an observed record next to the model:
 
   * Normals. The tercile and anomaly maps are, by default, relative to SEAS5's
@@ -89,5 +93,9 @@ def fetch(keys=None) -> dict:
 
 
 if __name__ == "__main__":
-    got = fetch(sys.argv[1:] or None)
-    print("ERA5:", got)
+    # RETIRED 2026-10-04: the ERA5 monthly files these requests made were pulled once (Sept 2026) and are
+    # kept forever under data/seas5/era5/; nothing downloads them again. The products read derived tables
+    # instead (seas5_normals.OBS_UNITS → obs_normals_*.npz, built on the laptop with
+    # `seas5_ref.py obs`), so this script is not part of any run. Kept as the record of what was requested.
+    print("seas5_era5.py is retired: ERA5 references come from the derived obs_* tables (seas5_ref.py obs)")
+    sys.exit(0)

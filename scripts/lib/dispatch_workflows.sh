@@ -170,6 +170,10 @@ olr-waves.yml|02:40|
 site-stats.yml|05:17|
 mur-sst.yml|13:47|
 kiribati-history.yml|14:40|
+# ECMWF SEAS5 (seas5.yml, moved off the laptop 2026-10-04): the issue reaches the CDS on the 5th at 12 UTC. A daily
+# slot because this table has no day-of-month syntax; `window=true` makes the workflow's own gate run only on the
+# 5th-12th (or while the issue is still incomplete) and exit in ~30 s otherwise, exactly like its cron.
+seas5.yml|12:40|-f window=true
 qbo.yml|mon@07:15|
 sst-events.yml|mon@18:41|
 skewt-gaps.yml|tue,fri@08:40|

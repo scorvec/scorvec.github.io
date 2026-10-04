@@ -21,9 +21,18 @@ of the CDS grid. National series = Σ pop·T / Σ pop over the country's cells.
 
 Data: seasonal-original-single-levels, 2m_temperature, leadtime_hour 6..4416
 in monthly chunks, cached under scripts/sst/data/seas5/sixh/. ~120 MB per
-country per issue.
+country per issue. Fetched in GitHub Actions only, this issue only.
 
-    python scripts/sst/seas5_popT.py fetch [--issue 202609]   # this issue + previous
+Derived tables (seas5_ref.py, since 2026-10-04 — the build never reads the raw hindcast,
+the geonames file or the ERA5 store):
+  obs_popT_pop.npz        population per 1° cell of each region's CDS grid (from geonames)
+  obs_popT_era5.npz       observed population-weighted normals/records per calendar month
+                          (local ERA5 store, daily 1.5°)
+  hc_popT_hc_{MM}.npz     hindcast 1993–2016 mean 2 m temperature per lead on the region grids
+  is_popT_issue_{ym}.npz  each member's population-weighted daily series + the hindcast month
+                          mean, per region and lead — next month's "previous issue" curves
+
+    python scripts/sst/seas5_popT.py fetch [--issue 202609]   # this issue (Actions only)
     python scripts/sst/seas5_popT.py build [--issue 202609]
     python scripts/sst/seas5_popT.py       # both
 """
@@ -43,9 +52,10 @@ import pandas as pd
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from seas5_outlook import ASSETS, DATA, CENTRE, SYSTEM, _client, hc_path, previous_issues  # noqa: E402
 from seas5_build import valid_months  # noqa: E402
+import seas5_ref as R  # noqa: E402
 
 SIXH = DATA / "sixh"
-POP_FILE = Path.home() / "c3s" / "data" / "pop" / "cities15000.txt"
+POP_FILE = Path.home() / "c3s" / "data" / "pop" / "cities15000.txt"      # obs_popT_pop derivation only (laptop)
 OUT_JSON = ASSETS / "data" / "seas5_popT.json"
 
 REGIONS = {
@@ -109,11 +119,10 @@ def fetch_chunk(region: str, ym: str, k: int) -> bool:
 
 
 def fetch(ym: str, regions=None, issues=None) -> dict:
-    """Region / issue filters exist so several CDS requests can run in parallel
-    (one process per region × issue): a month of 6-hourly members is ~140 MB
-    and takes the CDS several minutes, and 24 of them in series is hours."""
+    """This issue's 6-hourly chunks only: the previous issue's series are kept as is_popT_issue_{ym}
+    (written by build), so they are never fetched twice. Sequential — one CDS key, never parallel."""
     got = {}
-    for iss in issues or (ym, previous_issues(ym, 1)[0]):
+    for iss in issues or (ym,):
         for region in regions or list(REGIONS):
             for k in range(1, MONTHS + 1):
                 got[(iss, region, k)] = fetch_chunk(region, iss, k)
@@ -121,8 +130,24 @@ def fetch(ym: str, regions=None, issues=None) -> dict:
 
 
 # ── population grid ──────────────────────────────────────────────────────────
+def region_grid(region: str):
+    """The 1° CDS grid of a region box: latitude N→S, longitude W→E (what every chunk carries)."""
+    n_, w_, s_, e_ = REGIONS[region][2]
+    return np.arange(n_, s_ - 0.5, -1.0), np.arange(w_, e_ + 0.5, 1.0)
+
+
 def pop_grid(region: str, lat: np.ndarray, lon: np.ndarray) -> np.ndarray:
-    """Population per 1° cell of the region's CDS grid, from geonames cities15000."""
+    """Population per 1° cell of the region's CDS grid, from the derived table obs_popT_pop
+    (built once from geonames on the laptop)."""
+    t = R.need(R.obs_ref("popT_pop"), "population grid")
+    glat, glon = t[f"lat_{region}"], t[f"lon_{region}"]
+    if glat.shape != np.shape(lat) or glon.shape != np.shape(lon) or not (np.allclose(glat, lat) and np.allclose(glon, lon)):
+        raise ValueError(f"{region}: chunk grid differs from the obs_popT_pop grid")
+    return t[f"w_{region}"].astype(np.float64)
+
+
+def pop_grid_from_file(region: str, lat: np.ndarray, lon: np.ndarray) -> np.ndarray:
+    """Population per cell of any (lat, lon) grid, from geonames cities15000 (derivation only)."""
     _, cc, area, _ = REGIONS[region]
     grid = np.zeros((lat.size, lon.size))
     n = 0
@@ -161,22 +186,56 @@ def daily_series(region: str, ym: str, k: int, w: np.ndarray | None = None):
 
 
 def hindcast_month_mean(ym: str, region: str, k: int, w: np.ndarray, lat: np.ndarray, lon: np.ndarray) -> float | None:
-    """Population-weighted hindcast mean 2 m temperature (K) for forecast month k,
-    from the monthly hindcast already pulled for the tercile maps (Americas, 1°)."""
-    from seas5_build import load_field
-    p = hc_path("sfc", ym[4:])
-    if not p.exists():
+    """Population-weighted hindcast mean 2 m temperature (K) for forecast month k, from the
+    derived table hc_popT_hc_{MM} (the monthly sfc hindcast's mean, on the region grid)."""
+    key = ym[4:]
+    if key not in _HC_CACHE:
+        _HC_CACHE[key] = R.load(R.hc_ref("popT_hc", key))
+        if _HC_CACHE[key] is None:
+            print(f"  hc_popT_hc_{key} missing — no hindcast reference", flush=True)
+    t = _HC_CACHE[key]
+    if t is None:
         return None
-    if ym[4:] not in _HC_CACHE:                                    # one 500 MB read per start month, not per call
-        hc, hlat, hlon = load_field(p, "t2m")
-        _HC_CACHE[ym[4:]] = (np.nanmean(hc, axis=0), hlat, hlon)  # [lead, lat, lon]
-    clim_all, hlat, hlon = _HC_CACHE[ym[4:]]
-    clim = clim_all[k - 1]                                        # [lat, lon]
-    ilat = np.array([int(np.argmin(np.abs(hlat - v))) for v in lat])
-    ilon = np.array([int(np.argmin(np.abs(hlon - v))) for v in lon])
-    sub = clim[np.ix_(ilat, ilon)]
+    sub = t[f"clim_{region}"][k - 1]
+    if sub.shape != (lat.size, lon.size):
+        raise ValueError(f"{region}: hc_popT_hc grid {sub.shape} vs chunk {(lat.size, lon.size)}")
     wn = w / w.sum()
     return float(np.nansum(sub * wn))
+
+
+def derive_hc(month: str) -> None:
+    """hc_popT_hc_{MM}: the 1993–2016 hindcast mean t2m (K) per lead, nearest-selected onto each region's
+    1° grid exactly as the build used to select it from the Americas monthly hindcast."""
+    from seas5_build import load_field
+    hc, hlat, hlon = load_field(hc_path("sfc", month), "t2m")
+    clim_all = np.nanmean(hc, axis=0)                                      # [lead, lat, lon] float32
+    del hc
+    arrs = {}
+    for region in REGIONS:
+        lat, lon = region_grid(region)
+        ilat = np.array([int(np.argmin(np.abs(hlat - v))) for v in lat])
+        ilon = np.array([int(np.argmin(np.abs(hlon - v))) for v in lon])
+        arrs[f"clim_{region}"] = clim_all[:, ilat][:, :, ilon]
+    R.save(R.hc_ref("popT_hc", month), meta={"source": "SEAS5 hindcast 1993-2016, monthly sfc t2m mean", "start_month": month}, **arrs)
+
+
+def derive_pop() -> None:
+    arrs = {}
+    for region in REGIONS:
+        lat, lon = region_grid(region)
+        arrs[f"lat_{region}"], arrs[f"lon_{region}"] = lat, lon
+        arrs[f"w_{region}"] = pop_grid_from_file(region, lat, lon)
+    R.save(R.obs_ref("popT_pop"), meta={"source": "GeoNames cities15000 (CC BY 4.0), populated places, summed per 1 deg cell"}, **arrs)
+
+
+def derive_era5() -> None:
+    refs = {}
+    for region in REGIONS:
+        lat, lon = region_grid(region)
+        r = era5_pop_reference(region, None, lat, lon)
+        if r is not None:
+            refs[region] = r
+    R.save(R.obs_ref("popT_era5"), meta={"source": "ERA5 (Copernicus C3S), local store, daily 2 m temperature", "regions": refs})
 
 
 def era5_pop_reference(region: str, w: np.ndarray, lat: np.ndarray, lon: np.ndarray) -> dict | None:
@@ -193,7 +252,7 @@ def era5_pop_reference(region: str, w: np.ndarray, lat: np.ndarray, lon: np.ndar
         return None
     da = era5_local.to_lon180(da).sel(latitude=slice(area[2], area[0]), longitude=slice(area[1], area[3]))
     # population on the store's 1.5° cells (same geonames places, regridded by nearest cell)
-    w15 = pop_grid_on(region, da.latitude.values, da.longitude.values)
+    w15 = pop_grid_from_file(region, da.latitude.values, da.longitude.values)
     wn = w15 / w15.sum()
     series = np.tensordot(da.values.astype(np.float64), wn, axes=([1, 2], [0, 1]))     # daily K
     t = pd.to_datetime(da.time.values)
@@ -216,9 +275,50 @@ def era5_pop_reference(region: str, w: np.ndarray, lat: np.ndarray, lon: np.ndar
     return out
 
 
-def pop_grid_on(region: str, lat: np.ndarray, lon: np.ndarray) -> np.ndarray:
-    """pop_grid for an arbitrary (lat, lon) grid, e.g. the store's 1.5° cells."""
-    return pop_grid(region, lat, lon)
+def observed_reference(region: str) -> dict | None:
+    """The derived obs_popT_era5 entry for the region (JSON round trip: month keys are strings)."""
+    t = R.load(R.obs_ref("popT_era5"))
+    if t is None:
+        print("  obs_popT_era5 missing — drawing in model space", flush=True)
+        return None
+    r = t["meta"]["regions"].get(region)
+    if r is None:
+        return None
+    return {"daily_years": r["daily_years"], "by_month": {int(m): v for m, v in r["by_month"].items()}}
+
+
+def issue_summary(ym: str, save: bool = True) -> dict:
+    """{region: {k: (daily [member, day] K, clim K | None)}} for an issue from its chunks and the
+    hc_popT_hc table of its start month; saved as is_popT_issue_{ym} for next month's build."""
+    out, arrs = {}, {}
+    for region in REGIONS:
+        w = None
+        for k in range(1, MONTHS + 1):
+            if not chunk_path(region, ym, k).exists():
+                continue
+            daily, lat, lon, w = daily_series(region, ym, k, w)
+            clim = hindcast_month_mean(ym, region, k, w, lat, lon)
+            out.setdefault(region, {})[k] = (daily, clim)
+            arrs[f"{region}_m{k}_daily"] = daily
+            arrs[f"{region}_m{k}_clim"] = np.array(np.nan if clim is None else clim)
+    if save and arrs:
+        R.save(R.is_ref("popT_issue", ym), meta={"issue": ym}, **arrs)
+    return out
+
+
+def load_issue_summary(ym: str) -> dict:
+    t = R.load(R.is_ref("popT_issue", ym))
+    if t is None:
+        print(f"  is_popT_issue_{ym} missing — no previous-issue curves", flush=True)
+        return {}
+    out = {}
+    for key in t:
+        if key.endswith("_daily"):
+            region, mk = key.split("_")[:2]
+            k = int(mk[1:])
+            c = float(t[f"{region}_{mk}_clim"])
+            out.setdefault(region, {})[k] = (t[key], c if np.isfinite(c) else None)
+    return out
 
 
 def to_unit(k_arr, unit):
@@ -238,22 +338,19 @@ def build(ym: str) -> None:
     summary = {"generated": time.strftime("%Y-%m-%d %H:%M UTC", time.gmtime()), "issue": ym, "previous": prev, "regions": {}}
     ASSETS.mkdir(parents=True, exist_ok=True); (ASSETS / "data").mkdir(parents=True, exist_ok=True)
 
+    # this issue from its chunks (and saved for next month); the previous issue from its saved summary
+    cur_all, prev_all = issue_summary(ym), load_issue_summary(prev)
     for region, (label, cc, area, unit) in REGIONS.items():
         # gather: {calendar month: {issue: (daily_values_unit, monthly_means_unit, clim_unit or None)}}
         data = {}
-        w = None
-        for iss, vm in ((ym, vm_now), (prev, vm_prev)):
-            for k in range(1, MONTHS + 1):
-                if not chunk_path(region, iss, k).exists():
-                    continue
-                daily, lat, lon, w = daily_series(region, iss, k, w)
-                clim = hindcast_month_mean(iss, region, k, w, lat, lon)
+        for iss, vm, src in ((ym, vm_now, cur_all), (prev, vm_prev, prev_all)):
+            for k, (daily, clim) in sorted(src.get(region, {}).items()):
                 data.setdefault(vm[k - 1], {})[iss] = (daily, clim)
         months = [m for m in vm_now if m in data and ym in data[m]]
         if not months:
             print(f"  {region}: nothing to draw", flush=True); continue
 
-        ref = era5_pop_reference(region, w, lat, lon) if w is not None else None
+        ref = observed_reference(region)
         fig, axes = plt.subplots(1, len(months), figsize=(3.1 * len(months) + 1, 5.6), squeeze=False)
         reg = {"label": label, "unit": unit, "months": {}, "observed_space": ref is not None}
         conv = (9 / 5) if unit == "F" else 1.0
@@ -361,6 +458,11 @@ def build(ym: str) -> None:
         print(f"  wrote {out.name}", flush=True)
     OUT_JSON.write_text(json.dumps(summary, separators=(",", ":")))
     print(f"wrote {OUT_JSON}", flush=True)
+
+
+REF_UNITS = {"popT_hc": dict(raw=["m:sfc"], fn=derive_hc)}
+ISSUE_UNITS = {"popT_issue": lambda ym: issue_summary(ym)}
+OBS_UNITS = {"popT_pop": derive_pop, "popT_era5": derive_era5}
 
 
 def main(argv=None) -> int:

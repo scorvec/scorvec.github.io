@@ -10,6 +10,9 @@ the previous issue, and the share of members drier than normal.
 
 Brazil regions are the four electrical subsystems as state groups (Southeast/Centre-West,
 South, Northeast, North).
+Inputs: this issue's sfc/water forecast GRIBs plus the derived tables of seas5_ref.py —
+hc_pme_regions_{MM} (hindcast region series) and is_pme_regions_{previous issue}; the raw
+hindcast is read only when deriving (seas5_ref.py hindcast).
 Output: assets/sst/seas5_pme_br.webp + data/seas5_pme_regions.json.
 
     python scripts/sst/seas5_pme_regions.py --issue 202609
@@ -84,24 +87,77 @@ def cell_weights(poly, lat: np.ndarray, lon: np.ndarray) -> np.ndarray:
 
 
 # ── model P − E ──────────────────────────────────────────────────────────────
-def pme_fields(ym: str):
-    """(fc[sample, lead, lat, lon], hc[...], lat, lon) in mm/day, or None."""
-    fs, hs, fw, hw = fc_path("sfc", ym), hc_path("sfc", ym[4:]), fc_path("water", ym), hc_path("water", ym[4:])
-    if not all(p.exists() for p in (fs, hs, fw, hw)):
+def pme_fields(ym: str, hindcast: bool = False):
+    """(vals[sample, lead, lat, lon], lat, lon) in mm/day, or None: this issue's forecast members, or with
+    `hindcast` the RAW hindcast GRIBs of start month ym[4:] (derive time only)."""
+    path = (lambda kind: hc_path(kind, ym[4:])) if hindcast else (lambda kind: fc_path(kind, ym))
+    fs, fw = path("sfc"), path("water")
+    if not (fs.exists() and fw.exists()):
         return None
-    ftp, lat, lon = load_field(fs, "tprate"); htp, _, _ = load_field(hs, "tprate")
-    fe, _, _ = load_field(fw, "e"); he, _, _ = load_field(hw, "e")
+    ftp, lat, lon = load_field(fs, "tprate")
+    fe, _, _ = load_field(fw, "e")
     k = 86400.0 * 1000
-    return (ftp + fe) * k, (htp + he) * k, lat, lon
+    return (ftp + fe) * k, lat, lon
 
 
-def region_series(fields, weights: dict) -> dict:
-    """{region: (fc[sample, lead], hc[sample, lead])} area-weighted P − E."""
-    fc, hc, lat, lon = fields
+def region_series(vals: np.ndarray, weights: dict) -> dict:
+    """{region: series[sample, lead]} area-weighted P − E."""
+    return {name: np.tensordot(np.nan_to_num(vals), w, axes=([2, 3], [0, 1])) for name, w in weights.items()}
+
+
+COUNTRIES = (("br", "Brazil", brazil_polygons),)
+
+
+def _series(ym: str, hindcast: bool = False) -> dict | None:
+    """{country: {region: series}} from raw GRIBs (this issue's forecast, or the start month's hindcast)."""
+    f = pme_fields(ym, hindcast)
+    if f is None:
+        return None
+    vals, lat, lon = f
     out = {}
-    for name, w in weights.items():
-        out[name] = (np.tensordot(np.nan_to_num(fc), w, axes=([2, 3], [0, 1])), np.tensordot(np.nan_to_num(hc), w, axes=([2, 3], [0, 1])))
+    for key, _, polys in COUNTRIES:
+        weights = {name: cell_weights(poly, lat, lon) for name, poly in polys().items()}
+        out[key] = region_series(vals, weights)
     return out
+
+
+def _save(path: Path, ser: dict) -> None:
+    import seas5_ref as R
+    arrays, meta = {}, {}
+    for key, regs in ser.items():
+        meta[key] = list(regs)
+        for i, (name, s) in enumerate(regs.items()):
+            arrays[f"{key}_{i}"] = np.asarray(s, dtype=np.float64)          # tiny; float64 keeps the published numbers exact
+    R.save(path, meta=meta, **arrays)
+
+
+def _load(d: dict | None) -> dict | None:
+    if d is None:
+        return None
+    return {key: {name: d[f"{key}_{i}"] for i, name in enumerate(names)} for key, names in d["meta"].items()}
+
+
+def derive_hc(month: str) -> None:
+    """hc_pme_regions_{MM}: the 600 hindcast samples' region-mean P − E [sample, lead] per region (tiny),
+    from which the build takes the normal (mean) and the year-to-year σ."""
+    import seas5_ref as R
+    ser = _series("2000" + month, hindcast=True)
+    if ser is None:
+        raise FileNotFoundError(f"raw sfc/water hindcast {month} not on disk")
+    _save(R.hc_ref("pme_regions", month), ser)
+
+
+def derive_issue(ym: str) -> None:
+    """is_pme_regions_{ym}: this issue's 51 members' region series — next month's "previous issue"."""
+    import seas5_ref as R
+    ser = _series(ym)
+    if ser is None:
+        raise FileNotFoundError(f"sfc/water forecast {ym} not on disk")
+    _save(R.is_ref("pme_regions", ym), ser)
+
+
+REF_UNITS = {"pme_regions": dict(raw=["m:water", "m:sfc"], fn=derive_hc)}
+ISSUE_UNITS = {"pme_regions": derive_issue}
 
 
 # ── figure ───────────────────────────────────────────────────────────────────
@@ -169,20 +225,27 @@ def render(country: str, label: str, series_now: dict, series_prev: dict | None,
 
 
 def build(ym: str) -> None:
+    """Reads this issue's sfc/water forecast GRIBs, hc_pme_regions_{MM} and is_pme_regions_{previous issue};
+    writes is_pme_regions_{ym} for next month."""
+    import seas5_ref as R
     t0 = time.time()
     prev = previous_issues(ym, 1)[0]
-    now, before = pme_fields(ym), pme_fields(prev)
+    now = _series(ym)
     if now is None:
         raise SystemExit("P − E fields for this issue are not on disk")
-    lat, lon = now[2], now[3]
+    _save(R.is_ref("pme_regions", ym), now)
+    hc = _load(R.need(R.hc_ref("pme_regions", ym[4:]), "SEAS5 P − E hindcast region series"))
+    before = _load(R.load(R.is_ref("pme_regions", prev)))
+    if before is None:
+        print(f"  no summary of the {prev} issue (is_pme_regions_{prev}.npz) — drawn without it", flush=True)
     doc = {"generated": time.strftime("%Y-%m-%d %H:%M UTC", time.gmtime()), "issue": ym, "previous": prev, "countries": {}}
-    for key, label, polys in (("br", "Brazil", brazil_polygons()),):
-        print(f"  {label}: {len(polys)} regions", flush=True)
-        weights = {name: cell_weights(poly, lat, lon) for name, poly in polys.items()}
-        s_now = region_series(now, weights)
-        s_prev = region_series(before, weights) if before is not None else None
+    for key, label, _ in COUNTRIES:
+        regions = list(now[key])
+        print(f"  {label}: {len(regions)} regions", flush=True)
+        s_now = {name: (now[key][name], hc[key][name]) for name in regions}
+        s_prev = {name: (before[key][name], None) for name in regions if name in before.get(key, {})} if before else None
         summ = render(key, label, s_now, s_prev, ym, prev, ASSETS / f"seas5_pme_{key}.webp")
-        doc["countries"][key] = {"label": label, "file": f"seas5_pme_{key}.webp", "regions": list(polys), "months": summ}
+        doc["countries"][key] = {"label": label, "file": f"seas5_pme_{key}.webp", "regions": regions, "months": summ}
     OUT_JSON.write_text(json.dumps(doc, separators=(",", ":")))
     print(f"wrote {OUT_JSON} in {(time.time() - t0) / 60:.1f} min", flush=True)
 
