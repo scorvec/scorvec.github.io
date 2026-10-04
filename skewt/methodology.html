@@ -251,18 +251,19 @@
     <tr><th>Source</th><th>Coverage</th><th>Latency</th><th>Resolution</th></tr>
     <tr><td><b>SPC observed</b></td><td>US</td><td>Fastest — ~1 h post-synoptic</td><td>~110–200 levels</td></tr>
     <tr><td><b>IEM RAOB</b></td><td>US + Canada</td><td>~1 h behind SPC</td><td>~180–250 levels</td></tr>
-    <tr><td><b>Mirror</b> (IEM + IGRA daily)</td><td>Global</td><td>hourly; IGRA part ~1 day behind</td><td>As received, thinned to 260 levels</td></tr>
+    <tr><td><b>Mirror</b> (IEM real time)</td><td>North America</td><td>hourly</td><td>As received, thinned to 260 levels</td></tr>
     <tr><td><b>NOAA IGRA v2</b></td><td>Global, 1905–now</td><td>~1–2 day lag</td><td>Mandatory + significant</td></tr>
   </table>
   </div>
   <p>A balloon takes 90 minutes to two hours to ascend, so no source has a complete 12Z sounding
   before roughly 13:30 UTC — that is the floor on "real-time", not a delay in the app.
-  A scheduled GitHub Actions job keeps the last four days of launches on a data branch the browser
-  reads directly: North America in real time from the Iowa Environmental Mesonet's RAOB feed (one
-  request per launch hour, well inside IEM's crawl delay), and the rest of the world from NOAA NCEI's
-  IGRA v2 year-to-date files, which NCEI refreshes once a day — so those launches are about a day
-  behind and are never drawn as live. Complete UTC days are also bundled into a permanent, growing
-  archive (the 📅 date picker reaches it).</p>
+  A scheduled GitHub Actions job keeps the last four days of North American launches on a data branch
+  the browser reads directly, from the Iowa Environmental Mesonet's RAOB feed (one request per launch
+  hour, well inside IEM's crawl delay). For the rest of the world it reads only NOAA NCEI's IGRA v2
+  file listing to learn which stations got new launches in NCEI's once-a-day update; opening such a
+  station fetches that one station's file from NOAA directly — so those soundings are about a day
+  behind and are never drawn as live. Complete UTC days of the real-time launches are also bundled
+  into a permanent, growing archive (the 📅 date picker reaches it).</p>
 
   <h2>2. The physics engine</h2>
   <p>All analysis is <a href="https://github.com/keltonhalbert/SHARPlib" target="_blank" rel="noopener">SHARPlib</a>
@@ -383,7 +384,7 @@
         <td>The record watch: compares each new sounding to its station's climatology.</td></tr>
     <tr><td><a href="https://github.com/scorvec/scorvec.github.io/blob/main/scripts/skewt/mirror_soundings.py" target="_blank" rel="noopener"><code>mirror_soundings.py</code></a>
         &middot; <a href="https://github.com/scorvec/scorvec.github.io/blob/main/scripts/skewt/archive_days.py" target="_blank" rel="noopener"><code>archive_days.py</code></a></td>
-        <td>Mirrors recent launches from IEM (real time) and NOAA IGRA v2 (daily) and bundles complete UTC days into the permanent archive.</td></tr>
+        <td>Mirrors recent IEM launches, lists the stations NOAA IGRA v2's daily update refreshed, and bundles complete UTC days into the permanent archive.</td></tr>
     <tr><td><a href="https://github.com/scorvec/scorvec.github.io/blob/main/.github/workflows/skewt-data.yml" target="_blank" rel="noopener"><code>skewt-data.yml</code></a></td>
         <td>The scheduled job: mirror → archive → flag → publish, hourly.</td></tr>
   </table>

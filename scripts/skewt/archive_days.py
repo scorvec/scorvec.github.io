@@ -16,16 +16,16 @@ import zipfile
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-LAG_DAYS = 3
+LAG_DAYS = 2
 
 
 def main() -> int:
     src = Path(sys.argv[1])
     dst = Path(sys.argv[2])
     dst.mkdir(parents=True, exist_ok=True)
-    # A day is complete only once NOAA IGRA's daily update has caught up with it
-    # (~1-2 days behind), so bundle days at least LAG_DAYS old - still inside the
-    # mirror's 96 h retention, so every launch of the day is on disk.
+    # Bundles hold the mirror's IEM (real-time) launches only. The mirror re-asks IEM
+    # about each hour for ~30 h (late stations), so a day is final LAG_DAYS later -
+    # still inside the 96 h retention, so every launch of the day is on disk.
     last = (datetime.now(timezone.utc) - timedelta(days=LAG_DAYS)).strftime("%Y%m%d")
 
     by_day: dict = {}

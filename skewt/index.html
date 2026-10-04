@@ -175,9 +175,15 @@
   .rectag.hi { color: #ffe066; text-shadow: 0 0 6px rgba(255,120,60,0.8); }
   .rectag.lo { color: #d6ecff; text-shadow: 0 0 6px rgba(120,170,255,0.9); }
   #climo-modal { z-index: 2100; }
-  .maplegend { background: rgba(17,17,28,0.94); color: #e8e8f0; padding: 9px 12px;
-    border-radius: 8px; border: 1px solid #2e2e48;
-    font: 14.5px Inter, sans-serif; line-height: 1.85; }
+  /* map key (2026-10-04, user: "legend font size improved for readability"): 15 px desktop / 14 px phones, swatches
+     sized to the text; light text on the dark card (#6f6b64 is the site's muted grey for LIGHT pages - on this
+     #11111c card it would measure ~3.5:1, so the key uses #e8e8f0, 15.6:1) */
+  .maplegend { background: rgba(17,17,28,0.95); color: #e8e8f0; padding: 10px 14px;
+    border-radius: 9px; border: 1px solid #2e2e48; max-width: min(380px, 80vw);
+    font: 15px/1.5 Inter, sans-serif; }
+  .maplegend .leg-body > span, .maplegend .leg-body > label { display: flex; align-items: center; gap: 0; margin: 3px 0; }
+  .maplegend .leg-body > label { margin-top: 6px; cursor: pointer; }
+  .maplegend input, .key input { margin: 0 8px 0 1px; }
   /* ── record watch v2 (2026-10-02): interactive map + filterable ranked list ─────────────── */
   .dialog.rw { display: flex; flex-direction: column; width: 98vw; max-width: none; height: 96vh; height: 96svh; max-height: none; padding: 12px 16px 12px; gap: 10px; overflow: hidden; }
   .rw-head { display: flex; gap: 12px; align-items: flex-start; justify-content: space-between; }
@@ -262,9 +268,9 @@
     /* mobile default = collapsed chip; .expanded shows the full card */
     .maplegend { padding: 0; cursor: pointer; border-radius: 16px; }
     .maplegend .leg-chip { display: flex; align-items: center; justify-content: center;
-      gap: 3px; padding: 5px 10px; font-size: 13px; font-weight: 600; white-space: nowrap; }
+      gap: 3px; padding: 6px 12px; font-size: 14px; font-weight: 600; white-space: nowrap; }
     .maplegend .leg-body { display: none; }
-    .maplegend.expanded { padding: 6px 9px; font-size: 11px; line-height: 1.7; }
+    .maplegend.expanded { padding: 8px 11px; font-size: 14px; line-height: 1.4; max-width: calc(100vw - 70px); }
     .maplegend.expanded .leg-chip { display: none; }
     .maplegend.expanded .leg-body { display: block; }
   }
@@ -323,12 +329,14 @@
   .grp + .grp { margin-left: 4px; padding-left: 8px; border-left: 1px solid var(--rule); }
 
   /* map key, inline in the control bar on desktop (the floating card is mobile-only) */
-  .key { display: inline-flex; gap: 11px; align-items: center; color: var(--muted);
-         font-size: 0.76rem; flex-wrap: wrap; }
-  .key .dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%;
-              margin-right: 4px; vertical-align: -1px; }
-  .key .ring { display: inline-block; width: 9px; height: 9px; border-radius: 50%;
-               border: 2px solid; margin-right: 4px; vertical-align: -1px; box-sizing: border-box; }
+  .key { display: inline-flex; gap: 6px 14px; align-items: center; color: #c8c8dc;
+         font-size: 15px; flex-wrap: wrap; }
+  .key > span, .key > label { display: inline-flex; align-items: center; }
+  .key .dot, .maplegend .dot { display: inline-block; flex: none; width: 11px; height: 11px; border-radius: 50%;
+              margin: 0 8px 0 2px; }
+  .key .dot.big, .maplegend .dot.big { width: 13px; height: 13px; margin: 0 7px 0 1px; }
+  .key .ring, .maplegend .ring { display: inline-block; flex: none; width: 14px; height: 14px; border-radius: 50%;
+               border: 2px solid; margin: 0 7px 0 0; box-sizing: border-box; }
   .key label { cursor: pointer; }
   .key input { vertical-align: -1px; margin-right: 3px; }
   /* full colour key inline in the toolbar only where it fits on one line; elsewhere the map's own legend card */
@@ -359,6 +367,25 @@
   button:focus-visible, input:focus-visible, select:focus-visible, summary:focus-visible {
     outline: 2px solid var(--accent); outline-offset: 2px; }
   @media (prefers-reduced-motion: reduce) { #status.busy, #mstatus.busy { animation: none; } }
+  /* index tables at a READABLE size (2026-10-04, user: "the indices text could be expanded with a larger font"):
+     15 px on laptop/desktop cards and in the models.html dock, 14 px on short screens and phones */
+  @media (min-width: 1021px) {
+    table.params { font-size: 15px; }
+    table.params th, table.params td { line-height: 1.5; padding-top: 2px; padding-bottom: 2px; }
+    .tables-grid { columns: 320px; column-gap: 20px; }
+    .tables-grid h3 { font-size: 1.12rem; margin: 4px 0 4px; }
+    .kchip { padding: 6px 9px 7px; }
+    .kchip .kl { font-size: 12.5px; }
+    .kchip .kv { font-size: 19px; }
+    .keystrip { grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 7px; }
+    /* beside the hodograph the chips stretch to its full height instead of leaving a blank block under them */
+    .rtop:not(.narrow) { align-items: stretch; }
+    .rtop:not(.narrow) .keystrip { grid-auto-rows: 1fr; align-content: stretch; }
+    .rtop:not(.narrow) .kchip { display: flex; flex-direction: column; justify-content: center; }
+    body.embed .kchip .kv { font-size: 21px; }
+    body.embed .kchip .kl { font-size: 13px; }
+  }
+  @media (min-width: 1021px) and (max-height: 760px) { table.params { font-size: 14px; } }
   /* numbers never break mid-value: the parcels table scrolls sideways instead */
   #pcl-table td, #pcl-table th { white-space: nowrap; }
   .tables-grid .tbl.pcl { overflow-x: auto; }
@@ -381,8 +408,8 @@
     .main #hodo  { aspect-ratio: 14 / 15; }
     .tables-wrap { overflow-y: visible; max-height: none; min-height: 0; }
     .controls .station { min-width: 0; flex-basis: 100%; }
-    table.params { font-size: 0.76rem; }
-    table.params td { overflow-wrap: anywhere; padding: 2px 4px; }
+    table.params { font-size: 14px; }
+    table.params td { overflow-wrap: anywhere; padding: 3px 4px; }
     #pcl-table td { overflow-wrap: normal; }
     .key { display: none; }
     .launches .lbl { display: none; }
@@ -574,11 +601,13 @@
       In the sounding card the skew-T takes the left; on the right are the hodograph, a strip of <b>key numbers</b>
       (CAPE, shear, helicity, composites, PWAT, freezing level; amber and red mark notable values) and the full index
       tables, which scroll.</p>
-      <p><b style="color:#4a7ab5">Blue</b> stations reported at the last 00Z/12Z interval (real time, North America);
+      <p><b style="color:#5a8fd8">Blue</b> stations reported at the last 00Z/12Z interval (real time, North America);
       <b style="color:#bf5af2">purple</b> ones launched off-hour (06Z, 15Z, 18Z…) — usually a special
-      release ahead of severe weather; <b style="color:#33c495">teal</b> are active but have nothing in real
-      time — outside North America the newest soundings arrive through NOAA's daily IGRA update, about a day
-      behind (the tooltip says when); <b style="color:#c0392b">red</b> are closed (archive only). Click a station, then pick
+      release ahead of severe weather; <b style="color:#33c495">teal</b> have a recent sounding that is not live —
+      outside North America the newest soundings arrive through NOAA's daily IGRA update, about a day behind (the
+      tooltip says when; opening one fetches that station's file from NOAA); <b style="color:#a3a9b2">hollow grey
+      rings</b> are active stations with nothing in the last four days; <b style="color:#e0533f">red</b> are closed
+      (archive only). Click a station, then pick
       <b>Latest</b> or <b>Archive</b>. The launch strip under the station name lists every release the
       mirror holds for the last four days, specials included — click one to open it, or step through
       launches with ◀ ▶. Recent launches load instantly; <b>the first click on a station can take a few
@@ -604,15 +633,7 @@
     <span class="hours"></span>
   </span>
   <span id="status"></span>
-  <span class="key" style="margin-left:auto">
-    <span><i class="dot" style="background:#4a7ab5"></i>reported at the last 00/12Z</span>
-    <span><i class="dot" style="background:#bf5af2"></i>special (off-hour) release</span>
-    <span><i class="dot" style="background:#33c495"></i>active</span>
-    <span><i class="dot" style="background:#c0392b"></i>closed</span>
-    <span><i class="ring" style="border-color:#ff2d2d"></i>record set today</span>
-    <span><i class="ring" style="border-color:rgba(255,150,110,0.85)"></i>top / bottom 5 % for the date</span>
-    <label><input type="checkbox" id="show-closed-top">show closed</label>
-  </span>
+  <span class="key" id="map-key" style="margin-left:auto"></span>
   <button id="anom-toggle" class="rw-btn" title="today's record-breaking and most extreme soundings, each ranked against its own station's archive"><span class="rw-ic" aria-hidden="true">★</span><span class="rw-lb">Records</span><span class="rw-n" id="rw-n" hidden></span></button>
 </div>
 <div class="mapwrap"><div id="map"></div></div>
@@ -790,7 +811,7 @@
       and every historical date from NOAA National Centers for Environmental Information,
       <a href="https://www.ncei.noaa.gov/products/weather-balloon/integrated-global-radiosonde-archive">Integrated
       Global Radiosonde Archive v2</a> (IGRA; the daily update runs about a day behind; the first archive load per
-      station can be tens of MB, then cached). Recent launches are mirrored hourly to a data branch.
+      station can be tens of MB, then cached). Recent North American launches are mirrored hourly to a data branch.
       <b>Analysis:</b> <a href="https://github.com/keltonhalbert/SHARPlib">SHARPlib</a> (K. Halbert,
       NWS SPC lineage) as WebAssembly — SB/ML/MU parcels, LI, DCAPE, effective inflow, Bunkers,
       SRH, effective shear, SCP/STP. Map: Leaflet, Esri Dark Gray Canvas (&copy; Esri, OpenStreetMap contributors). Built by Claude
@@ -799,6 +820,6 @@
   </div>
 </div>
 <script src="sharplib.js?v=92a2fd08"></script>
-<script src="app.js?v=2936a18d"></script>
+<script src="app.js?v=414b90a2"></script>
 </body>
 </html>

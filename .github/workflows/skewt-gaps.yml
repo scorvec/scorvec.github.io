@@ -1,7 +1,9 @@
 name: skewt-gaps
 on:
   schedule:
-  - cron: "40 8 * * 2,5"      # Tue+Fri 08:40 UTC (IGRA y2d lags ~2 days)
+  # Weekly (was Tue+Fri): the grade needs each US station's IGRA year-to-date file
+  # (~90 files, ~0.1 GB), and twice a week re-downloaded mostly unchanged data.
+  - cron: "40 8 * * 2"        # Tue 08:40 UTC (IGRA y2d lags ~2 days)
   workflow_dispatch:
 
 permissions:

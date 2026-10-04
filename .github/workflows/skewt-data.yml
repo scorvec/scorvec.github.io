@@ -1,19 +1,20 @@
 name: Skew-T sounding mirror
 
 # Mirrors recent radiosonde soundings to the `skewt-data` branch for the
-# client-side Skew-T Explorer at /skewt/: real-time North America from the Iowa
+# client-side Skew-T Explorer at /skewt/. Real-time North America from the Iowa
 # Environmental Mesonet (IEM RAOB JSON, one request per launch hour, spaced 121 s
-# for IEM's robots.txt Crawl-delay) and the rest of the world from NOAA NCEI's
-# IGRA v2 year-to-date files (updated once a day, so about a day behind; only
-# files whose listing timestamp changed are downloaded). All downloads happen
-# here in Actions with an honest User-Agent. Each run force-pushes ONE parentless
-# commit to skewt-data (no main history growth, no Pages rebuild).
+# for IEM's robots.txt Crawl-delay, at most 6 per run). The rest of the world is
+# NOT downloaded here: one request for NOAA NCEI's IGRA v2 y2d directory listing
+# (at most every 3 h) says which stations got new launches in NCEI's daily update,
+# and the browser fetches a station's file from NCEI when a visitor opens it.
+# Honest User-Agent on every request. Each run force-pushes ONE parentless commit
+# to skewt-data (no main history growth, no Pages rebuild).
 
 on:
   # Triggered hourly by the dispatcher (:50) plus four once-a-day schedule
   # callers as backstops. An hourly run is cheap: IEM is asked only about hour
   # slots not yet asked (state.json on the data branch), at most 6 requests per
-  # run, and the IGRA listing at most every 3 h.
+  # run (~1-4 MB), and the IGRA listing (~0.2 MB) at most every 3 h.
   workflow_call:
   workflow_dispatch:
 
@@ -36,7 +37,7 @@ concurrency:
 jobs:
   mirror:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
         with:

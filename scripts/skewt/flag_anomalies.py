@@ -67,8 +67,11 @@ def indices(P, T, D, H, W=None):
 
     def at(field, plevel):
         pv = plevel * 100.0
+        # A level BELOW the surface does not exist: high stations (Concordia, 3233 m,
+        # surface ~630 hPa) used to report their surface temperature as "850 hPa T"
+        # (-61.5 C) and get flagged. Same 20 hPa tolerance as the browser's interpP.
         if pv >= P[0]:
-            return field[0]
+            return field[0] if pv - P[0] < 2000.0 else np.nan
         for i in range(1, len(P)):
             if P[i] <= pv:
                 if not (np.isfinite(field[i]) and np.isfinite(field[i - 1])):
@@ -172,9 +175,14 @@ def ecape_for(sdir: Path) -> dict:
         q = ln.split()
         if len(q) == 2:
             try:
-                out[q[0]] = float(q[1])
+                v = float(q[1])
             except ValueError:
-                pass
+                continue
+            # the WASM helper returns a ~1e8 missing-value sentinel when a profile is
+            # too short for a parcel (truncated soundings ending near 650 hPa): that is
+            # "no value", not an implausible one to be logged and skipped downstream
+            if np.isfinite(v) and 0.0 <= v < 1.0e5:
+                out[q[0]] = v
     print(f"  ECAPE computed for {len(out)} soundings", flush=True)
     return out
 

@@ -9,36 +9,35 @@ Two public sources, both credited on the page:
     asks for Crawl-delay: 120, so requests are spaced IEM_DELAY s apart, capped per
     run (MAX_IEM_REQ), and each hour slot is asked at most two or three times over
     its first ~12 h (state.json remembers which slots were asked and when).
-  * NOAA NCEI IGRA v2 year-to-date files (Integrated Global Radiosonde Archive) -
-    the rest of the world, refreshed by NCEI once a day (~21:40 UTC), so these
-    launches are about a day behind. Fetched from /pub/data/igra/ (the /data/ tree
-    is disallowed in ncei.noaa.gov/robots.txt; /pub/ is not). The directory listing
-    is checked every IGRA_CHECK_H hours; a station's zip is downloaded only when
-    its listing timestamp changed since the last run AND the station has no IEM
-    launch in the last IEM_COVER_H hours (IEM already covers it in real time).
+  * NOAA NCEI IGRA v2 (Integrated Global Radiosonde Archive) - the rest of the
+    world, which NCEI refreshes once a day (~21:40 UTC), so about a day behind. The
+    mirror downloads NO IGRA data: it reads only the y2d directory listing from
+    /pub/data/igra/ (the /data/ tree is disallowed in ncei.noaa.gov/robots.txt) at
+    most every IGRA_CHECK_H hours, and lists stations whose file grew at a recent
+    daily update. The browser fetches a station's y2d zip on demand when opened.
 
 Outputs (the layout the client reads from the `skewt-data` branch):
   manifest.json             {pipeline, generated, entries: {id: {id,n,la,lo,src,dt,hours}}}
                             id = WMO number (the client's byWmo key); src = "IEM" | "IGRA"
-  soundings/{id}_{YYYYMMDDHH}.csv   one per launch, kept RETAIN_H hours (carried forward)
+                            (IGRA entries: dt null, no hours, "upd" = NCEI update time UTC)
+  soundings/{id}_{YYYYMMDDHH}.csv   one per IEM launch, kept RETAIN_H hours (carried forward)
   soundings/{id}.csv                copy of the newest launch
-  state.json                fetch bookkeeping (IEM slots asked, IGRA timestamps, per-file source)
+  state.json                bookkeeping (IEM slots asked, IGRA file sizes, per-file source)
 
 CSV columns are fixed (the client and flag_anomalies.py index them by position):
   time,longitude,latitude,pressure_hPa,geopotential height_m,temperature_C,
   dew point temperature_C,ice point temperature_C,relative humidity_%,
   humidity wrt ice_%,mixing ratio_g/kg,wind direction_degree,wind speed_m/s
-Neither source carries RH / ice point / mixing ratio, so they are derived from T, Td
+IEM carries no RH / ice point / mixing ratio, so they are derived from T, Td
 and p (Magnus/Bolton over water, Buck-style over ice); winds reported on a subset of
 levels are interpolated in log-p onto every thermodynamic level (as the client does
 for live profiles). Missing values are written as "nan".
 
     python scripts/skewt/mirror_soundings.py OUTDIR [PREVDIR]
-Env (testing): SKEWT_MAX_IGRA (cap IGRA downloads), SKEWT_MAX_IEM_REQ, SKEWT_IEM_DELAY.
+Env (testing): SKEWT_MAX_IEM_REQ, SKEWT_IEM_DELAY.
 """
 from __future__ import annotations
 
-import io
 import json
 import math
 import os
@@ -48,7 +47,6 @@ import sys
 import time
 import urllib.error
 import urllib.request
-import zipfile
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
@@ -63,9 +61,7 @@ MAX_LEVELS = 260
 RETAIN_H = 96
 IEM_DELAY = float(os.environ.get("SKEWT_IEM_DELAY", 121))   # robots.txt Crawl-delay: 120
 MAX_IEM_REQ = int(os.environ.get("SKEWT_MAX_IEM_REQ", 6))
-MAX_IGRA = int(os.environ.get("SKEWT_MAX_IGRA", 100000))
 IEM_LOOKBACK_H = 30
-IEM_COVER_H = 36
 IGRA_CHECK_H = 3
 HEADER = ("time,longitude,latitude,pressure_hPa,geopotential height_m,temperature_C,"
           "dew point temperature_C,ice point temperature_C,relative humidity_%,"
@@ -315,135 +311,69 @@ def write_iem(outdir, pr, sid, la, lo, el, name, meta, got) -> int:
 
 
 # ---------------------------------------------------------------- IGRA (global, daily)
+# NO IGRA DATA IS DOWNLOADED HERE (since 2026-10-04). The y2d zips are whole-year
+# files that NCEI rewrites every day, so mirroring them meant ~0.5 GB/day of mostly
+# unchanged data. Instead the mirror reads only the directory LISTING (one request,
+# at most every IGRA_CHECK_H hours) and remembers each file's size: a file that GREW
+# at NCEI's latest daily update holds new launches. Those stations go into the
+# manifest as src "IGRA" (no per-launch files); when a visitor opens one, the browser
+# fetches that one station's y2d zip from NCEI itself (CORS-open).
 LIST_RE = re.compile(r'href="([A-Z0-9]{11})-data-beg(\d{4})\.txt\.zip".*?'
                      r'<td align="right">([\d-]+ [\d:]+)</td>\s*<td align="right">(\d+)</td>', re.S)
+IGRA_RECENT_H = 60              # grew at one of the last ~2 daily updates
 
 
-def _iv(s: str, a: int, b: int):
-    try:
-        v = int(s[a:b])
-    except ValueError:
-        return None
-    return None if v in (-9999, -8888) else v
+def _listing_utc(stamp: str) -> str:
+    """NCEI's index prints US Eastern local time; store UTC."""
+    from zoneinfo import ZoneInfo
+    t = datetime.strptime(stamp, "%Y-%m-%d %H:%M").replace(tzinfo=ZoneInfo("America/New_York"))
+    return t.astimezone(timezone.utc).strftime("%Y-%m-%d %H:%M")
 
 
-def parse_igra(text: str, since: datetime):
-    """Yield (launch datetime, levels) for soundings at/after `since`."""
-    lines = text.split("\n")
-    i = 0
-    while i < len(lines):
-        h = lines[i]
-        if not h.startswith("#"):
-            i += 1
-            continue
-        try:
-            y, mo, d, hh = int(h[13:17]), int(h[18:20]), int(h[21:23]), int(h[24:26])
-            nlev = int(h[32:36])
-        except ValueError:
-            i += 1
-            continue
-        body = lines[i + 1:i + 1 + nlev]
-        i += 1 + nlev
-        if hh == 99:
-            continue                                  # launch hour unknown
-        try:
-            launch = datetime(y, mo, d, hh, tzinfo=timezone.utc)
-        except ValueError:
-            continue
-        if launch < since:
-            continue
-        levels = []
-        for L in body:
-            p = _iv(L, 9, 15)
-            if p is None:
-                continue                              # height-only pibal level
-            et = L[3:8].strip()
-            ets = None
-            if et and et not in ("-9999", "-8888"):
-                try:
-                    v = int(et)
-                    ets = (v // 100) * 60 + v % 100
-                except ValueError:
-                    pass
-            t = _iv(L, 22, 27)
-            dp = _iv(L, 34, 39)
-            rh = _iv(L, 28, 33)
-            tc = t / 10 if t is not None else None
-            td = None
-            if tc is not None and dp is not None:
-                td = tc - dp / 10
-            elif tc is not None and rh is not None and rh > 0:
-                g = math.log(min(100, rh / 10) / 100) + 17.67 * tc / (tc + 243.5)
-                td = 243.5 * g / (17.67 - g)
-            wd, ws = _iv(L, 40, 45), _iv(L, 46, 51)
-            levels.append({"p": p / 100, "h": _iv(L, 16, 21), "t": tc, "td": td,
-                           "wd": wd, "ws": ws / 10 if ws is not None else None, "et": ets})
-        yield launch, levels
-
-
-def run_igra(outdir: Path, state: dict, by_gid: dict, meta: dict) -> int:
-    ig = state.setdefault("igra", {"files": {}})
+def run_igra(state: dict, by_gid: dict, prev_manifest: dict, meta: dict) -> dict:
+    """{wmo: update stamp (UTC)} for IGRA stations with new launches at a recent update."""
+    ig = state.setdefault("igra", {})
+    ig.pop("files", None)                              # bookkeeping of the old bulk download
+    size, grew = ig.setdefault("size", {}), ig.setdefault("grew", {})
     last = ig.get("checked")
     if last and (NOW - datetime.fromisoformat(last)).total_seconds() < IGRA_CHECK_H * 3600:
         print(f"  IGRA: listing checked {last[:16]}Z — next check after {IGRA_CHECK_H} h", flush=True)
-        return 0
-    try:
-        listing = get(IGRA_Y2D, timeout=120).decode("utf-8", "replace")
-    except Exception as e:                                      # noqa: BLE001
-        print(f"::warning::IGRA listing failed: {repr(e)[:80]}", flush=True)
-        return 0
-    ig["checked"] = NOW.isoformat()
-    rows = LIST_RE.findall(listing)
-    # stations IEM delivered recently are already real time - skip their IGRA file
-    cover = NOW - timedelta(hours=IEM_COVER_H)
-    iem_recent = set()
-    for fn, src in meta["filesrc"].items():
-        if src == "IEM":
-            sid, tag = fn[:-4].split("_")
-            if datetime.strptime(tag, "%Y%m%d%H").replace(tzinfo=timezone.utc) >= cover:
-                iem_recent.add(sid)
-    todo = []
-    for gid, beg, stamp, size in rows:
-        s = by_gid.get(gid)
-        if not s or not s.get("id") or s["id"] in iem_recent:
-            continue
-        if ig["files"].get(gid) == stamp:
-            continue                                  # unchanged since our last download
-        todo.append((gid, beg, stamp, int(size)))
-    todo = todo[:MAX_IGRA]
-    print(f"  IGRA: {len(rows)} y2d files listed, {len(todo)} changed and needed "
-          f"({sum(t[3] for t in todo) / 1e6:.0f} MB)", flush=True)
-    since = NOW - timedelta(hours=RETAIN_H)
-    nbytes = nfiles = 0
-    for gid, beg, stamp, size in todo:
-        s = by_gid[gid]
+    else:
         try:
-            raw = get(f"{IGRA_Y2D}{gid}-data-beg{beg}.txt.zip", timeout=300, backoff=10)
+            listing = get(IGRA_Y2D, timeout=120).decode("utf-8", "replace")
+            meta["igra_bytes"] = len(listing)
+            ig["checked"] = NOW.isoformat()
+            rows = LIST_RE.findall(listing)
+            bootstrap = not size
+            seed = set()
+            if bootstrap:      # first run: the previous manifest knows who reported recently
+                w2g = {s["id"]: g for g, s in by_gid.items() if s.get("id")}
+                seed = {w2g.get(w) for w, e in (prev_manifest.get("entries") or {}).items()
+                        if e.get("src") == "IGRA"}
+            n_grew = 0
+            for gid, beg, stamp, sz in rows:
+                sz, utc = int(sz), _listing_utc(stamp)
+                old = size.get(gid)
+                if (old is not None and sz > old) or (bootstrap and gid in seed):
+                    grew[gid] = utc
+                    n_grew += 1
+                size[gid] = sz
+            print(f"  IGRA listing: {len(rows)} y2d files ({len(listing) // 1024} KB), "
+                  f"{n_grew} grew{' (bootstrap from the previous manifest)' if bootstrap else ''}",
+                  flush=True)
         except Exception as e:                                  # noqa: BLE001
-            print(f"    {gid}: {repr(e)[:70]}", flush=True)
+            print(f"::warning::IGRA listing failed: {repr(e)[:80]}", flush=True)
+    out = {}
+    for gid, utc in list(grew.items()):
+        age = (NOW - datetime.strptime(utc, "%Y-%m-%d %H:%M").replace(tzinfo=timezone.utc)
+               ).total_seconds() / 3600
+        if age > IGRA_RECENT_H:
+            del grew[gid]
             continue
-        nbytes += len(raw)
-        try:
-            with zipfile.ZipFile(io.BytesIO(raw)) as z:
-                text = z.read(z.namelist()[0]).decode("ascii", "replace")
-        except zipfile.BadZipFile:
-            continue
-        ig["files"][gid] = stamp
-        sid = s["id"]
-        for launch, levels in parse_igra(text, since):
-            fn = f"{sid}_{_tag(launch)}.csv"
-            if meta["filesrc"].get(fn) == "IEM":
-                continue                              # the real-time copy wins
-            csv = to_csv(levels, launch, s["la"], s["lo"], s.get("e") or 0)
-            if not csv:
-                continue
-            (outdir / "soundings" / fn).write_text(csv)
-            meta["filesrc"][fn] = "IGRA"
-            nfiles += 1
-        time.sleep(0.2)
-    print(f"  IGRA: downloaded {nbytes / 1e6:.0f} MB, wrote {nfiles} launch file(s)", flush=True)
-    meta["igra_bytes"] = nbytes
-    return nfiles
+        s = by_gid.get(gid)
+        if s and s.get("id"):
+            out[s["id"]] = utc
+    return out
 
 
 # ---------------------------------------------------------------- main
@@ -466,6 +396,8 @@ def main() -> int:
     if state:
         carried = 0
         for fn, src in (state.get("filesrc") or {}).items():
+            if src != "IEM":
+                continue                # IGRA launches are no longer mirrored (browser fetches them)
             f = prevdir / "soundings" / fn
             try:
                 ts = datetime.strptime(fn[:-4].split("_")[1], "%Y%m%d%H").replace(tzinfo=timezone.utc)
@@ -480,7 +412,7 @@ def main() -> int:
         print("  no previous state from this pipeline — starting fresh", flush=True)
 
     run_iem(outdir, state, by_wmo, icao2wmo, meta)
-    run_igra(outdir, state, by_gid, meta)
+    igra = run_igra(state, by_gid, prev_manifest, meta)
 
     # manifest: per station, every launch held + the newest one's source
     hours: dict = {}
@@ -498,16 +430,27 @@ def main() -> int:
                         "src": src, "dt": dt, "hours": [h for h, _ in hs]}
         shutil.copyfile(outdir / "soundings" / f"{sid}_{dt.replace('-', '').replace(' ', '')[:10]}.csv",
                         outdir / "soundings" / f"{sid}.csv")
-    n_iem = sum(1 for e in entries.values() if e["src"] == "IEM")
+    n_iem = len(entries)
+    # IGRA stations: listed without per-launch files; "upd" = the NCEI daily update
+    # that brought their newest launches (the launches themselves are ~1-2 days old)
+    for sid, upd in igra.items():
+        if sid in entries or sid not in by_wmo:
+            continue                    # IEM already has it in real time
+        s = by_wmo[sid]
+        entries[sid] = {"id": sid, "n": s["n"], "la": round(s["la"], 3), "lo": round(s["lo"], 3),
+                        "src": "IGRA", "dt": None, "upd": upd}
     (outdir / "manifest.json").write_text(json.dumps(
         {"pipeline": PIPELINE, "generated": NOW.strftime("%Y-%m-%d %H:%M UTC"),
          "sources": {"IEM": n_iem, "IGRA": len(entries) - n_iem}, "entries": entries}))
     state["filesrc"] = meta["filesrc"]
     state["names"] = {k: v for k, v in meta["names"].items() if k in entries}
     (outdir / "state.json").write_text(json.dumps(state))
-    print(f"  manifest: {len(entries)} stations ({n_iem} newest via IEM, "
-          f"{len(entries) - n_iem} via IGRA), {len(meta['filesrc'])} launch files → {outdir}",
+    print(f"  manifest: {len(entries)} stations ({n_iem} IEM real time with "
+          f"{len(meta['filesrc'])} launch files, {len(entries) - n_iem} IGRA on demand) → {outdir}",
           flush=True)
+    print(f"  transfer this run: IEM {meta.get('iem_req', 0)} request(s) "
+          f"{meta.get('iem_bytes', 0) / 1e6:.2f} MB; IGRA listing "
+          f"{meta.get('igra_bytes', 0) / 1e3:.0f} KB", flush=True)
     return 0 if entries else 1
 
 

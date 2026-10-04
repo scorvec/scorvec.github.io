@@ -20,7 +20,7 @@ always names the one you're looking at, so you're never guessing.
 |---|---|---|---|---|
 | **SPC observed** (`spc.noaa.gov/exper/soundings`) | US | Fastest — ~1 h post-synoptic | ~110–200 levels | ✅ |
 | **IEM RAOB** (`mesonet.agron.iastate.edu`) | US + Canada | ~1 h behind SPC | ~180–250 levels | ✅ |
-| **Mirror** (IEM real time + IGRA daily, on `skewt-data`) | Global | hourly; IGRA part ~1 day behind | As received, thinned to 260 | ✅ (raw.githubusercontent) |
+| **Mirror** (IEM real time, on `skewt-data`) | North America | hourly | As received, thinned to 260 | ✅ (raw.githubusercontent) |
 | **NOAA IGRA v2** (`ncei.noaa.gov`) | Global, 1905–present | ~1–2 day lag | Mandatory + significant levels | ✅ |
 
 ### The physics floor on "real-time"
@@ -41,14 +41,15 @@ work outside North America, where no CORS-open real-time feed exists. A GitHub A
 
 - **North America, real time:** the Iowa Environmental Mesonet RAOB JSON, *one* request per launch
   hour for all stations (each hour slot asked at most 2–3 times, ≥121 s apart for IEM's crawl delay).
-- **Rest of the world, ~1 day behind:** NOAA NCEI's IGRA v2 year-to-date files from
-  `ncei.noaa.gov/pub/data/igra/` (NCEI refreshes them once a day ~21:40 UTC). The listing is checked
-  every 3 h and a station's zip is downloaded only when its timestamp changed and IEM has not already
-  delivered it in real time — roughly 450–550 MB once a day. These entries carry `src: "IGRA"` and are
-  never drawn as live.
+- **Rest of the world, ~1 day behind — on demand:** the mirror downloads NO IGRA data. It reads only
+  the y2d directory listing at `ncei.noaa.gov/pub/data/igra/data/data-y2d/` (one ~0.2 MB request, at
+  most every 3 h) and remembers each file's size; a file that grew at NCEI's daily update (~21:40 UTC)
+  holds new launches, so that station is listed with `src: "IGRA"`, `dt: null` and `upd` (the update
+  time) and drawn teal, never live. Opening it makes the BROWSER fetch that one station's year-to-date
+  zip from NCEI (CORS-open, ~0.2–3 MB) and show the newest launch.
 
-It force-pushes the last 96 h of launches to the `skewt-data` branch, which `raw.githubusercontent.com`
-serves CORS-open. Complete UTC days (three days back, once IGRA has caught up) are additionally bundled
+It force-pushes the last 96 h of IEM launches to the `skewt-data` branch, which `raw.githubusercontent.com`
+serves CORS-open. Complete UTC days (two days back, once IEM's late stations are in) are additionally bundled
 into `day-YYYYMMDD.zip` on an append-only `skewt-archive` branch that the browser fetches and unzips
 client-side with `fflate`.
 
@@ -291,7 +292,7 @@ scripts/skewt/
   climo_cape.cpp    native build of the SAME wrapper, for the climatology
   build_climo.py    per-station climatology builder
   flag_anomalies.py record-watch: compares each latest sounding to its climatology
-  mirror_soundings.py  recent-launch mirror (IEM real time + NOAA IGRA v2 daily)
+  mirror_soundings.py  recent-launch mirror (IEM real time; NOAA IGRA v2 listing only)
 
 branches (data, served CORS-open via raw.githubusercontent.com)
   skewt-data     latest soundings + manifest + anomalies.json   (force-pushed hourly)

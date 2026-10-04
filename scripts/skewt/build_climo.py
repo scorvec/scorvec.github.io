@@ -29,8 +29,9 @@ from pathlib import Path
 
 import numpy as np
 
-IGRA = ("https://www.ncei.noaa.gov/data/integrated-global-radiosonde-archive/"
-        "access/data-por/")
+# /pub/data/igra/ serves the same files; ncei.noaa.gov/robots.txt disallows /data*
+IGRA = "https://www.ncei.noaa.gov/pub/data/igra/data/data-por/"
+UA = "scorvec.com skew-t explorer (+https://scorvec.com/skewt/)"
 PCTS = [1, 5, 10, 25, 50, 75, 90, 95, 99]
 # day-of-year climatology: an anchor every 5 days, each pooling a +/-10-day
 # window. Far better than calendar months — a July 11 sounding is compared with
@@ -188,7 +189,8 @@ def _samples(gid: str) -> dict | None:
             pass                                          # corrupt cache: refetch
 
     try:
-        raw = urllib.request.urlopen(IGRA + f"{gid}-data.txt.zip", timeout=180).read()
+        raw = urllib.request.urlopen(urllib.request.Request(
+            IGRA + f"{gid}-data.txt.zip", headers={"User-Agent": UA}), timeout=180).read()
         zf = zipfile.ZipFile(io.BytesIO(raw))
         text = zf.read(zf.namelist()[0]).decode("utf-8", "ignore")
     except Exception as e:                                # noqa: BLE001

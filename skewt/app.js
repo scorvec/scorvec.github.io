@@ -1184,7 +1184,9 @@ function prefetchLatest(id) {                 // warm whatever loadSounding() wi
   const s = entries[id];
   if (s && s.dt) ghFetch("skewt-data", "soundings/" + id + ".csv", s.dt).catch(() => {});
 }
-const IGRA = "https://www.ncei.noaa.gov/data/integrated-global-radiosonde-archive/access/";
+// NCEI serves the same IGRA files under /pub/data/igra/data/ (CORS-open, and outside the /data* tree its robots.txt
+// disallows). A visitor opening a station fetches that ONE station's file — the mirror downloads no IGRA data.
+const IGRA = "https://www.ncei.noaa.gov/pub/data/igra/data/";
 const DAY_ARCHIVE_START = "2026-10-05";     // day-YYYYMMDD.zip bundles exist from here on
 const dayZipCache = new Map();              // YYYYMMDD -> {filename: Uint8Array} | null
 let M = null;                    // wasm module
@@ -1225,6 +1227,12 @@ function f32(arr) {
 
 // ---------- station map ----------
 const COARSE = window.matchMedia && matchMedia("(pointer:coarse)").matches;
+// Map marker palette — ONE place, shared by the markers, the legend card and the toolbar key (2026-10-04 sweep).
+// Each colour clears ~3:1 against the dark basemap; state pairs that colour-blind viewers could confuse are also
+// split by SHAPE/SIZE (live = large with a light rim, special = larger still, stale = hollow ring, closed = small).
+const MK = { live: "#5a8fd8", liveRim: "#dbe8ff", off: "#bf5af2", offRim: "#f0dcff", recent: "#33c495",
+             recentRim: "#1f7a5e", stale: "#a3a9b2", closed: "#e0533f", closedRim: "#7a1f1f",
+             rec: "#ff2d2d", p95: "#ff9a6e", sel: "#ffd60a" };
 const RAD = COARSE ? { closed: 5, active: 7, live: 10 } : { closed: 2.5, active: 4, live: 6 };
 const map = L.map("map", { worldCopyJump: true, preferCanvas: true }).setView([30, -10], 3);
 // mobile nav wraps after fonts/layout settle, resizing the map container —
@@ -1343,31 +1351,33 @@ Promise.all([
     if (s.y1 >= ACTIVE_YEAR || (s.id && entries[s.id])) continue;
     if (s.y1 <= s.y0) continue;
     const m = L.circleMarker([s.la, s.lo], {
-      radius: RAD.closed, weight: 0.5, color: "#7a1f1f", fillColor: "#c0392b", fillOpacity: 0.75,
+      radius: RAD.closed, weight: 0.5, color: MK.closedRim, fillColor: MK.closed, fillOpacity: 0.85,
     }).addTo(closedLayer);
     m.bindTooltip(`${s.n} (${s.gid}) · closed ${s.y0}–${s.y1} — click for archive`);
     m.on("click", () => { setMode("archive"); highlight(m); selectStation(s); });
   }
-  // active stations that missed the last regular slot: small teal (includes
-  // stations still in the manifest whose newest sounding is older than that)
+  // Not live. Teal = a RECENT sounding that is not from the last regular slot: NOAA IGRA's daily update (about a
+  // day behind; the browser fetches the station's file on click) or a real-time station that missed the slot.
+  // Hollow grey ring = active station with nothing in the last ~4 days (archive only).
   for (const s of stns.stations) {
     if (s.y1 < ACTIVE_YEAR || isLive(s.id)) continue;
     const me = s.id ? entries[s.id] : null, stale = me ? me.dt : null;
     const viaIgra = me && me.src === "IGRA";
-    const flag = me && anomalies[s.id] && anomalies[s.id].dt === me.dt ? anomalies[s.id] : null;
-    if (flag)                                   // record watch on a delayed (IGRA) sounding
+    const flag = me && me.dt && anomalies[s.id] && anomalies[s.id].dt === me.dt ? anomalies[s.id] : null;
+    if (flag)
       L.circleMarker([s.la, s.lo], flag.flags.some(f => f.rec)
-        ? { radius: RAD.active + 4, weight: 2.5, color: "#ff2d2d", opacity: 0.9, fill: false }
-        : { radius: RAD.active + 3, weight: 1.2, color: "#ff9a6e", opacity: 0.7, fill: false }).addTo(map);
-    const m = L.circleMarker([s.la, s.lo], {
-      radius: RAD.active, weight: 1, color: "#1f7a5e", fillColor: "#33c495", fillOpacity: 0.85,
-    }).addTo(map);
+        ? { radius: RAD.active + 4, weight: 2.5, color: MK.rec, opacity: 0.95, fill: false }
+        : { radius: RAD.active + 3, weight: 1.4, color: MK.p95, opacity: 0.8, fill: false }).addTo(map);
+    const m = L.circleMarker([s.la, s.lo], me
+      ? { radius: RAD.active, weight: 1, color: MK.recentRim, fillColor: MK.recent, fillOpacity: 0.9 }
+      : { radius: RAD.active - 0.5, weight: 1.6, color: MK.stale, opacity: 0.9, fill: true, fillOpacity: 0 }
+    ).addTo(map);
     m.bindTooltip(viaIgra
-      ? `${s.n} (${s.gid}) · latest ${stale}Z via NOAA IGRA v2 (${Math.round(ageHours(stale))} h ago; ` +
-        `IGRA updates daily, about a day behind) — click to open`
+      ? `${s.n} (${s.gid}) · new launches in NOAA IGRA v2's daily update (${me.upd || "?"}Z) — ` +
+        `about a day behind; click to open the newest`
       : stale
-      ? `${s.n} (${s.gid}) · last sounding ${stale}Z (${Math.round(ageHours(stale))} h ago) — click for archive`
-      : `${s.n} (${s.gid}) · nothing at the last regular interval — click for archive (${s.y0}–${s.y1})`);
+      ? `${s.n} (${s.gid}) · last sounding ${stale}Z (${Math.round(ageHours(stale))} h ago), not at the last 00Z/12Z — click to open`
+      : `${s.n} (${s.gid}) · no sounding in the last ~4 days — click for the archive (${s.y0}–${s.y1})`);
     m.on("click", () => { highlight(m); selectStation(s); });
   }
   // stations that reported at the last regular interval: big blue, on top
@@ -1384,15 +1394,15 @@ Promise.all([
       // whole map look like an emergency and hid the stations that mattered.
       const isRec = flag.flags.some(f => f.rec);
       L.circleMarker([s.la, s.lo], isRec
-        ? { radius: RAD.live + 4, weight: 3, color: "#ff2d2d", opacity: 0.95, fill: false }
-        : { radius: RAD.live + 3, weight: 1.4, color: "#ff9a6e", opacity: 0.75, fill: false }
+        ? { radius: RAD.live + 4, weight: 3, color: MK.rec, opacity: 0.95, fill: false }
+        : { radius: RAD.live + 3, weight: 1.4, color: MK.p95, opacity: 0.8, fill: false }
       ).addTo(map);
     }
     const off = isOffHour(s.dt);                         // 06Z / 18Z special release
     const m = L.circleMarker([s.la, s.lo], {
       radius: off ? RAD.live + 1 : RAD.live, weight: 1.5,
-      color: off ? "#e3c2ff" : "#cfe3ff",
-      fillColor: off ? "#bf5af2" : "#4a7ab5", fillOpacity: 0.95,
+      color: off ? MK.offRim : MK.liveRim,
+      fillColor: off ? MK.off : MK.live, fillOpacity: 0.95,
     }).addTo(map);
     const arch = ig ? ` · archive ${ig.y0}–${ig.y1}` : "";
     const anomTip = flag ? `<br><b style="color:#ff2d2d">⚡ record watch:</b> ` +
@@ -1400,7 +1410,7 @@ Promise.all([
         ? `${f.lab} ${f.v} — <b>${f.rec.tier === "all" ? "ALL-TIME RECORD" : "RECORD for the date"} ${f.rec.t}</b> (prev ${f.rec.prev}, ${f.rec.y})`
         : `${f.lab} ${f.v} (P${f.pct} ${f.sense})`).join(", ") : "";
     const offTip = off
-      ? ` <b style="color:#bf5af2">· off-hour launch (${String(launchHour(s.dt)).padStart(2, "0")}Z)</b>`
+      ? ` <b style="color:${MK.off}">· off-hour launch (${String(launchHour(s.dt)).padStart(2, "0")}Z)</b>`
       : "";
     m.bindTooltip(`${s.n || id} (${id}) · latest ${s.dt}Z ` +
       `(${Math.round(ageHours(s.dt))} h ago)${offTip}${arch}${anomTip}`);
@@ -1992,19 +2002,28 @@ document.getElementById("pin-btn").addEventListener("click", () => {
 
 // legend + closed-station toggle (Leaflet control)
 const legend = L.control({ position: "bottomleft" });
+// the colour key, written ONCE from MK: the legend card and the wide-screen toolbar key are the same list
+function mapKeyHTML(boxId) {
+  const dot = (c, rim, big) => `<i class="dot${big ? " big" : ""}" style="background:${c};box-shadow:0 0 0 1.5px ${rim}"></i>`;
+  const ring = (c, w) => `<i class="ring" style="border-color:${c};border-width:${w}px"></i>`;
+  return [
+    `<span>${dot(MK.live, MK.liveRim, 1)}live: reported at the last 00Z/12Z (North America, real time)</span>`,
+    `<span>${dot(MK.off, MK.offRim, 1)}special off-hour release (06Z, 18Z…)</span>`,
+    `<span>${dot(MK.recent, MK.recentRim)}recent, not live: NOAA IGRA daily update (~1 day behind) or missed the last slot</span>`,
+    `<span>${ring(MK.stale, 2)}active, nothing in the last 4 days</span>`,
+    `<span>${dot(MK.closed, MK.closedRim)}closed (archive only)</span>`,
+    `<span>${ring(MK.rec, 3)}record set today</span>`,
+    `<span>${ring(MK.p95, 2)}top / bottom 5 % for the date</span>`,
+    `<span>${ring(MK.sel, 3)}selected</span>`,
+    `<label><input type="checkbox" id="${boxId}"> show closed stations</label>`,
+  ].join("");
+}
+{ const k = document.getElementById("map-key"); if (k) k.innerHTML = mapKeyHTML("show-closed-top"); }
 legend.onAdd = () => {
   const div = L.DomUtil.create("div");
   div.className += " maplegend";
   div.innerHTML =
-    '<span class="leg-chip" title="legend">ⓘ&nbsp;key</span><div class="leg-body">' +
-    '<span style="color:#4a7ab5;font-size:1.05em">●</span> reported at last regular interval (00Z/12Z)<br>' +
-    '<span style="color:#bf5af2;font-size:1.05em">●</span> off-hour (06/18Z)<br>' +
-    '<span style="color:#33c495;font-size:1.05em">●</span> active &nbsp;&nbsp;' +
-    '<span style="color:#c0392b;font-size:1.05em">●</span> closed<br>' +
-    '<span style="color:#ff2d2d">◎</span> record today &nbsp;&nbsp;' +
-    '<span style="color:#ff9a6e">◎</span> top/bottom 5% &nbsp;&nbsp;' +
-    '<span style="color:#ffd60a">◎</span> selected<br>' +
-    '<label style="cursor:pointer"><input type="checkbox" id="show-closed"> show closed stations</label></div>';
+    '<span class="leg-chip" title="legend">ⓘ&nbsp;key</span><div class="leg-body">' + mapKeyHTML("show-closed") + '</div>';
   div.addEventListener("click", e => {          // chip toggles on mobile; CSS gates visibility
     if (e.target.id !== "show-closed" && e.target.tagName !== "LABEL")
       div.classList.toggle("expanded");
@@ -2027,10 +2046,11 @@ for (const id of ["show-closed", "show-closed-top"]) {
 function highlight(marker) {
   if (selectedMarker)                      // restore BOTH weight and color, else
     selectedMarker.setStyle({ weight: selectedMarker._baseW || 1,     // every
-                              color: selectedMarker._baseC || "#333" }); // past
+                              color: selectedMarker._baseC || "#333", opacity: selectedMarker._baseO ?? 1 }); // past
   marker._baseW = marker.options.weight;   // selection keeps a yellow outline
   marker._baseC = marker.options.color;
-  marker.setStyle({ weight: 3.5, color: "#ffd60a" });
+  marker._baseO = marker.options.opacity;
+  marker.setStyle({ weight: 3.5, color: MK.sel, opacity: 1 });
   selectedMarker = marker;
 }
 
@@ -2488,7 +2508,7 @@ async function loadSounding() {
         return;
       }
     }
-    if (s) {
+    if (s && s.dt && s.src !== "IGRA") {
       setStatus("fetching…", true);
       try {
         const r = await ghFetch("skewt-data", "soundings/" + current.id + ".csv", s.dt);
@@ -2507,7 +2527,9 @@ async function loadSounding() {
     // No live source at all (station absent from SPC/IEM and the mirror):
     // "Latest" should still mean something — show the newest ARCHIVED sounding
     // rather than a dead end. The nearest-available fallback below finds it.
-    setStatus("no live feed — fetching this station's newest archived sounding…", true);
+    setStatus(s && s.src === "IGRA"
+      ? "fetching this station's newest sounding from NOAA IGRA v2 (daily update, about a day behind)…"
+      : "no live feed — fetching this station's newest archived sounding…", true);
   }
   // archive mode: recent launches come from the mirror's per-launch files when
   // available (~4-day retention), else the day bundles, else NOAA IGRA v2.
@@ -2597,7 +2619,8 @@ async function loadSounding() {
   setStatus(`valid ${shown} ${String(got.hh).padStart(2, "0")}Z · ` +
     (got.windOnly ? `${got.nWind} wind levels — pilot balloon, hodograph only`
                   : `${got.prof.P.length} levels, ${got.nWind} wind levels`) +
-    ` (NOAA IGRA v2)` + (fellBack ? ` — nearest available to ${ymd}` : ""));
+    ` (NOAA IGRA v2)` + (fellBack ? (mode === "latest" ? " — newest on file; IGRA updates daily, about a day behind"
+                                    : ` — nearest available to ${ymd}`) : ""));
   plotTitle = `${current.n || ""} ${current.id || current.gid}  ·  ${shown} ` +
     `${String(got.hh).padStart(2, "0")}Z`.trim();
   plotNote = got.windOnly
@@ -2730,7 +2753,9 @@ function compute(prof) {
   const out = M._malloc(nOut * 4);
   const tr = [M._malloc(N * 4), M._malloc(N * 4), M._malloc(N * 4)];
   const _rc = M._compute_sounding(...ptrs, N, out, tr[0], tr[1], tr[2]);
-  const o = Array.from(M.HEAPF32.subarray(out / 4, out / 4 + nOut));
+  // ECAPE comes back as a ~1e8 sentinel when a profile is too short for a parcel (truncated IGRA soundings ending
+  // near 650 hPa printed "99915704 J/kg"); nothing in the output is legitimately that large, so read it as missing
+  const o = Array.from(M.HEAPF32.subarray(out / 4, out / 4 + nOut), v => Math.abs(v) >= 1e7 ? MISSING : v);
   const traces = tr.map(p => Array.from(M.HEAPF32.subarray(p / 4, p / 4 + N)));
   [...ptrs, out, ...tr].forEach(p => M._free(p));
   if (_rc !== 0) console.warn("compute_sounding rc=", _rc);
