@@ -4,23 +4,23 @@
  "qbo_label": "September 2026",
  "qbo_source": "KIT/FU Berlin",
  "enso": {
-  "oni": 1.8,
-  "oni_season": "JJA 2026",
-  "roni": 1.4,
-  "roni_season": "JJA 2026",
+  "oni": 2.16,
+  "oni_season": "JAS 2026",
+  "roni": 1.7,
+  "roni_season": "JAS 2026",
   "nino34": 3.33,
-  "date": "2026-10-01"
+  "date": "2026-10-02"
  },
- "enso_bin": "1.5 to 2",
+ "enso_bin": "> 2",
  "qbo_phase": "W",
- "cmip6_share": 0.599,
+ "cmip6_share": 0.671,
  "cmip6_ci": [
-  0.556,
-  0.64
+  0.601,
+  0.74
  ],
- "cmip6_n": 509,
- "cmip6_decjan": 0.191,
- "cmip6_febmar": 0.456,
+ "cmip6_n": 173,
+ "cmip6_decjan": 0.231,
+ "cmip6_febmar": 0.509,
  "cmip6_base": 0.481,
  "obs_base": 0.507,
  "vortex_from_qbo": {
