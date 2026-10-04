@@ -331,36 +331,61 @@ def _listing_utc(stamp: str) -> str:
 
 
 def run_igra(state: dict, by_gid: dict, prev_manifest: dict, meta: dict) -> dict:
-    """{wmo: update stamp (UTC)} for IGRA stations with new launches at a recent update."""
+    """{wmo: update stamp (UTC)} for IGRA stations with new launches at a recent update.
+
+    The recent set ("grew") lives in state.json and is re-emitted on every run. The
+    listing is re-read when the throttle allows OR whenever there is nothing to compare
+    against (no sizes) or nothing to show (empty set) - an empty set must never wait
+    out the throttle (2026-10-04: a stale "checked" stamp from the old bulk pipeline
+    skipped the listing and the map lost every IGRA station for a run).
+    """
     ig = state.setdefault("igra", {})
     ig.pop("files", None)                              # bookkeeping of the old bulk download
     size, grew = ig.setdefault("size", {}), ig.setdefault("grew", {})
     last = ig.get("checked")
-    if last and (NOW - datetime.fromisoformat(last)).total_seconds() < IGRA_CHECK_H * 3600:
-        print(f"  IGRA: listing checked {last[:16]}Z — next check after {IGRA_CHECK_H} h", flush=True)
+    fresh = last and (NOW - datetime.fromisoformat(last)).total_seconds() < IGRA_CHECK_H * 3600
+    if fresh and size and grew:
+        print(f"  IGRA: listing checked {last[:16]}Z — next check after {IGRA_CHECK_H} h; "
+              f"{len(grew)} recent station(s) carried", flush=True)
     else:
         try:
             listing = get(IGRA_Y2D, timeout=120).decode("utf-8", "replace")
             meta["igra_bytes"] = len(listing)
             ig["checked"] = NOW.isoformat()
             rows = LIST_RE.findall(listing)
-            bootstrap = not size
-            seed = set()
-            if bootstrap:      # first run: the previous manifest knows who reported recently
+            newest = max((_listing_utc(r[2]) for r in rows), default="")
+            # bootstrap guesses stand only until NCEI's next daily update gives real growth
+            replaced = bool(ig.get("boot") and newest and newest != ig["boot"] and size)
+            if replaced:
+                grew.clear()
+                ig.pop("boot", None)
+            how = ""
+            if not size or (not grew and not replaced):
+                # Nothing to compare against yet: seed from the previous manifest's IGRA
+                # stations (either manifest format), else from the station list (stations
+                # that reported this year). Approximate for at most one daily update.
                 w2g = {s["id"]: g for g, s in by_gid.items() if s.get("id")}
                 seed = {w2g.get(w) for w, e in (prev_manifest.get("entries") or {}).items()
-                        if e.get("src") == "IGRA"}
+                        if e.get("src") == "IGRA"} - {None}
+                how = "the previous manifest"
+                if not seed:
+                    seed = {g for g, s in by_gid.items() if s.get("y1", 0) >= NOW.year}
+                    how = "the station list (reported this year)"
+                listed = {r[0] for r in rows}
+                for gid in seed & listed:
+                    grew[gid] = newest
+                ig["boot"] = newest
             n_grew = 0
             for gid, beg, stamp, sz in rows:
                 sz, utc = int(sz), _listing_utc(stamp)
                 old = size.get(gid)
-                if (old is not None and sz > old) or (bootstrap and gid in seed):
+                if old is not None and sz > old:
                     grew[gid] = utc
                     n_grew += 1
                 size[gid] = sz
-            print(f"  IGRA listing: {len(rows)} y2d files ({len(listing) // 1024} KB), "
-                  f"{n_grew} grew{' (bootstrap from the previous manifest)' if bootstrap else ''}",
-                  flush=True)
+            print(f"  IGRA listing: {len(rows)} y2d files ({len(listing) // 1024} KB), newest update "
+                  f"{newest}Z, {n_grew} grew since last listing"
+                  + (f"; seeded {len(grew)} from {how}" if how else ""), flush=True)
         except Exception as e:                                  # noqa: BLE001
             print(f"::warning::IGRA listing failed: {repr(e)[:80]}", flush=True)
     out = {}
@@ -373,6 +398,9 @@ def run_igra(state: dict, by_gid: dict, prev_manifest: dict, meta: dict) -> dict
         s = by_gid.get(gid)
         if s and s.get("id"):
             out[s["id"]] = utc
+    if not out:
+        print("::warning::no IGRA stations to list this run — the map will show North America only",
+              flush=True)
     return out
 
 
