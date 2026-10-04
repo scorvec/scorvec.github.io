@@ -24,7 +24,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(next(p for p in Path(__file__).resolve().parents
                             if p.name == "scripts") / "lib"))
-from webget import get  # noqa: E402
+from webget import get, cached  # noqa: E402
 
 import numpy as np
 import pandas as pd
@@ -111,7 +111,9 @@ def longpaddock():
     in diff, so a regression (with one outlier-rejection pass) of the published SOI on the file's
     own pressure difference, per calendar month, returns SD = 10/slope and mean = −intercept/slope.
     Pure-numpy so the hourly job stays light (no scipy)."""
-    txt = get(SOI_URL, backoff=8).decode()
+    # once a day upstream (~05 UTC): a copy < 12 h old is reused, else a conditional GET (304 = no transfer);
+    # scripts/sst/data/soi persists between runs via actions/cache (soi-hourly.yml)
+    txt = cached(SOI_URL, HERE / "data" / "soi" / "DailySOI.txt", max_age_h=12, backoff=8)
     df = pd.read_csv(io.StringIO(txt), sep=r"\s+")
     df["date"] = pd.to_datetime(df["Year"].astype(int).astype(str), format="%Y") + \
         pd.to_timedelta(df["Day"].astype(int) - 1, unit="D")

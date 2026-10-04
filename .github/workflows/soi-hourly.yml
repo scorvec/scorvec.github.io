@@ -33,6 +33,12 @@ jobs:
     timeout-minutes: 20   # room for the bounded git-retry loop in Commit & push
     steps:
       - uses: actions/checkout@v7
+      # LongPaddock daily SOI copy + its ETag sidecar, kept between runs so it is fetched at most once a day
+      - uses: actions/cache@v6
+        with:
+          path: scripts/sst/data/soi
+          key: soi-longpaddock-${{ github.run_id }}
+          restore-keys: soi-longpaddock-
       - uses: actions/setup-python@v7
         with:
           python-version: '3.11'

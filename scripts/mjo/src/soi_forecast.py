@@ -34,7 +34,7 @@ sys.path.insert(0, str(Path(__file__).parent))
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "ecmwf"))
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "lib"))
 import store as ecmwf                                    # shared ECMWF download manager
-from webget import get_text
+from webget import get_text, cached
 
 SOI_URL = ("https://data.longpaddock.qld.gov.au/SeasonalClimateOutlook/"
            "SouthernOscillationIndex/SOIDataFiles/DailySOI1887-1989Base.txt")
@@ -56,15 +56,9 @@ CLIM = json.loads(CLIM_PATH.read_text()) if CLIM_PATH.exists() else None
 # ── observed SOI + Troup normals ──────────────────────────────────────────────
 def fetch_obs(cache: Path) -> pd.DataFrame:
     """LongPaddock daily SOI -> DataFrame indexed by date: Tahiti, Darwin, SOI."""
-    cache.parent.mkdir(parents=True, exist_ok=True)
-    try:
-        txt = get_text(SOI_URL)
-        cache.write_text(txt)
-    except Exception as e:                            # fall back to cached copy
-        if not cache.exists():
-            raise
-        print(f"  SOI fetch failed ({repr(e)[:60]}); using cached {cache.name}")
-        txt = cache.read_text()
+    # LongPaddock updates the file once a day (~05 UTC): reuse a copy < 12 h old, else a conditional GET
+    # (304 = nothing transferred); the copy persists between runs via actions/cache (mjo.yml)
+    txt = cached(SOI_URL, cache, max_age_h=12)
     df = pd.read_csv(io.StringIO(txt), sep=r"\s+")
     df.columns = [c.strip() for c in df.columns]
     df["date"] = (pd.to_datetime(df["Year"].astype(int).astype(str) + "-01-01")

@@ -29,6 +29,7 @@ import matplotlib.pyplot as plt
 
 sys.path.insert(0, str(Path(__file__).parent))
 from soi_forecast import fetch_obs
+from webget import cached  # noqa: E402
 
 MIN_COVER = 0.8                      # a window must be ≥80% present to count
 BOM_URL = "ftp://ftp.bom.gov.au/anon/home/ncc/www/sco/soi/soiplaintext.html"
@@ -43,16 +44,18 @@ def running(series: pd.Series, days: int) -> pd.Series:
 def fetch_bom_monthly(cache: Path) -> pd.Series:
     """BoM monthly Troup SOI (1893–present) from the FTP plain-text table,
     cached with fallback like the daily file."""
-    cache.parent.mkdir(parents=True, exist_ok=True)
-    try:
-        with urllib.request.urlopen(BOM_URL, timeout=60) as r:
-            txt = r.read().decode("utf-8", "replace")
-        cache.write_text(txt)
-    except Exception as e:                                # noqa: BLE001
-        if not cache.exists():
-            raise
-        print(f"  BoM monthly fetch failed ({repr(e)[:60]}); using cached {cache.name}")
+    # The table changes once a month and the FTP server has no conditional GET, so it is fetched only when a new
+    # month's value can be due: at most once a day, and not at all after the 10th once this month's copy is held.
+    import datetime as _dt, json as _js
+    meta_p = cache.with_name(cache.name + ".meta.json"); today = _dt.datetime.now(_dt.timezone.utc)
+    got = None
+    if cache.exists() and meta_p.exists():
+        try: got = _dt.datetime.fromisoformat(_js.loads(meta_p.read_text())["fetched"])
+        except Exception: got = None
+    if got and (got.year, got.month) == (today.year, today.month) and today.day > 10:
         txt = cache.read_text()
+    else:
+        txt = cached(BOM_URL, cache, max_age_h=24, encoding="latin-1")
     vals = {}
     for ln in txt.splitlines():
         m = re.match(r"\s*(\d{4})\s+(.+)$", ln)

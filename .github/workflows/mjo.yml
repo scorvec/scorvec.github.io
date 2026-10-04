@@ -157,6 +157,12 @@ jobs:
           key: pip-mjo-${{ runner.os }}-${{ hashFiles('scripts/mjo/requirements-mjo.txt') }}
           restore-keys: |
             pip-mjo-${{ runner.os }}-
+      # SOI inputs (LongPaddock daily, BoM monthly) + ETag sidecars, kept between runs: fetched only when new
+      - uses: actions/cache@v6
+        with:
+          path: scripts/mjo/data/soi
+          key: soi-inputs-${{ github.run_id }}
+          restore-keys: soi-inputs-
       - name: Install eccodes (GRIB decoder)
         run: |
           sudo apt-get update -qq
