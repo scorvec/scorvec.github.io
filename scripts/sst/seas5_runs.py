@@ -12,6 +12,12 @@ run-days; normal = the same statistics over the CPC record's own seasons (1991/9
 Outputs assets/sst/seas5_runs_{region}_{sig}_{prob|pct|days}.webp and data/seas5_runs.json (with
 per-city member run-day counts for the page's clickable cities).
 
+Derived tables (seas5_ref.py, 2026-10-04): the quantile mapping reads hc_xdays_{region}_{MM} and
+obs_xdays_cpc_{region} (seas5_extremes_build); the CPC day-of-year mean/σ and the observed seasons'
+run statistics (the normal) come from obs_runs_cpc_{region}, derived once from the local CPC store —
+one set per possible season length (with a 28- or 29-day February), because the observed seasons are
+cut to the forecast's day count.
+
     python seas5_runs.py [--issue 202609]
 """
 from __future__ import annotations
@@ -21,9 +27,10 @@ import numpy as np, xarray as xr
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from seas5_outlook import ASSETS                                                                  # noqa: E402
 from seas5_extremes import xchunk_path, cpc_path, YEARS                                            # noqa: E402
-from seas5_extremes_build import daily_extremes, hindcast_extremes, quantile_map, cpc_daily, CITIES, map_geometry, _CITY_PX, draw_cities   # noqa: E402
+from seas5_extremes_build import daily_extremes, mapped, CITIES, map_geometry, _CITY_PX, draw_cities   # noqa: E402
 from seas5_build import valid_months                                                              # noqa: E402
-from seas5_popT import REGIONS                                                                    # noqa: E402
+from seas5_popT import REGIONS, region_grid                                                       # noqa: E402
+import seas5_ref as R                                                                             # noqa: E402
 
 SIG = [1.5, 2.0, 2.5]
 RUN = 3
@@ -78,6 +85,48 @@ def run_stats(z, sign, thr, run=RUN):
     return nruns, rdays
 
 
+def observed_seasons(oz, odates, smonths, ndays):
+    """The CPC record's own seasons on the calendar window, each cut to the forecast's `ndays`
+    → [season, day, lat, lon] (seasons shorter than ndays are dropped, as the build always did)."""
+    oyears = odates.astype("datetime64[Y]").astype(int) + 1970; omon = odates.astype("datetime64[M]").astype(int) % 12 + 1
+    first = smonths[0]; seasons = []
+    for y in range(YEARS[0], YEARS[-1]):
+        sel = ((oyears == y) & (omon >= first)) | ((oyears == y + 1) & (omon <= smonths[-1]) & (omon < first))
+        if sel.sum() >= 80: seasons.append(oz[sel][:ndays] if sel.sum() >= ndays else None)
+    seasons = [s for s in seasons if s is not None]
+    D = min(s.shape[0] for s in seasons)
+    return np.stack([s[:D] for s in seasons])
+
+
+def season_lengths(smonths):
+    """Possible day counts of the season window: February with 28 or 29 days."""
+    base = sum(calendar.monthrange(2001, m)[1] for m in smonths)
+    return sorted({base, base + (1 if 2 in smonths else 0)})
+
+
+def derive_obs(region: str) -> None:
+    """obs_runs_cpc_{region}: CPC 1991–2020 day-of-year mean/σ on the region's 1° grid and, per possible
+    season length and σ threshold, the observed seasons' run counts and run-days per cell."""
+    kind, sign, smonths, slabel, what = SEASON[region]
+    lat, lon = region_grid(region)
+    obs, odates = cpc_tmean(region, lat, lon); clim, sd = doy_clim(obs, odates)
+    odoy = ((odates.astype("datetime64[D]") - odates.astype("datetime64[Y]")).astype(int)) + 1
+    oz = (obs - clim[odoy - 1]) / np.where(sd[odoy - 1] > 0.5, sd[odoy - 1], np.nan)
+    arrs = {"lat": lat, "lon": lon, "clim": clim, "sd": sd}
+    for nd in season_lengths(smonths):
+        oz_s = observed_seasons(oz, odates, smonths, nd)
+        arrs[f"nseasons_{nd}"] = np.array(oz_s.shape[0])
+        for T in SIG:
+            onr, ord_ = run_stats(oz_s, sign, T)
+            key = f"{T:g}".replace(".", "p")
+            arrs[f"onr_{nd}_{key}"], arrs[f"ord_{nd}_{key}"] = onr, ord_
+    R.save(R.obs_ref(f"runs_cpc_{region}"), meta={"source": "NOAA CPC Global Unified daily Tmax/Tmin (PSL), (Tmax+Tmin)/2, 1991-2020",
+                                                   "season": slabel, "run_days": RUN, "sigmas": SIG}, **arrs)
+
+
+OBS_UNITS = {f"runs_cpc_{r}": (lambda r=r: derive_obs(r)) for r in SEASON}
+
+
 def draw(field, lat, lon, region, levels, colors, label, title, sub, out, extend="neither", hatch=None):
     import matplotlib; matplotlib.use("Agg")
     import matplotlib.pyplot as plt, textwrap
@@ -110,41 +159,44 @@ def build(ym: str) -> dict:
         ks = [k for k, vm in enumerate(vms, start=1) if int(vm[5:]) in smonths and xchunk_path(region, ym, k).exists()]
         if len(ks) < len(smonths):
             print(f"  {region}: season {slabel} not fully covered by this issue ({len(ks)}/{len(smonths)} months) — skipped", flush=True); continue
+        tab = R.load(R.obs_ref(f"runs_cpc_{region}"))
+        if tab is None:
+            print(f"  {region}: obs_runs_cpc_{region} missing — skipped", flush=True); continue
         fields, lat = [], None; dates = []
         for k in ks:
             tx, tn, lat, lon = daily_extremes(region, ym, k); vm = vms[k - 1]; mo = int(vm[5:])
             parts = {}
             for stat, raw in (("tx", tx), ("tn", tn)):
-                hc = hindcast_extremes(region, ym, k, stat); ov, om, oyrs = cpc_daily(stat, region, range(1993, 2017), lat, lon)
-                parts[stat] = quantile_map(raw, hc, ov[om == mo]) if (hc is not None and ov is not None) else raw
-                del hc
+                parts[stat] = mapped(region, ym, k, stat, raw, lat, lon, mo)
+            if parts["tx"] is None or parts["tn"] is None:
+                break
             fields.append((parts["tx"] + parts["tn"]) / 2.0)
             nd = fields[-1].shape[1]
             dates += [np.datetime64(f"{vm}-01") + np.timedelta64(i, "D") for i in range(nd)]
+        if len(fields) < len(ks):
+            print(f"  {region}: quantile tables missing for this start month — skipped", flush=True); continue
         tm = np.concatenate(fields, axis=1); del fields                              # [member, day, lat, lon]
         dates = np.array(dates, dtype="datetime64[D]")
-        obs, odates = cpc_tmean(region, lat, lon); clim, sd = doy_clim(obs, odates)
+        if not (np.allclose(tab["lat"], lat) and np.allclose(tab["lon"], lon)):
+            raise ValueError(f"{region}: chunk grid differs from obs_runs_cpc_{region}")
+        clim, sd = tab["clim"], tab["sd"]
         doy = ((dates - dates.astype("datetime64[Y]")).astype(int)) + 1
         z = (tm - clim[doy - 1][None]) / np.where(sd[doy - 1] > 0.5, sd[doy - 1], np.nan)[None]
-        # normal: the CPC record's own seasons on the same calendar window
-        odoy = ((odates.astype("datetime64[D]") - odates.astype("datetime64[Y]")).astype(int)) + 1
-        oz = (obs - clim[odoy - 1]) / np.where(sd[odoy - 1] > 0.5, sd[odoy - 1], np.nan)
-        oyears = odates.astype("datetime64[Y]").astype(int) + 1970; omon = odates.astype("datetime64[M]").astype(int) % 12 + 1
-        first = smonths[0]; seasons = []
-        for y in range(YEARS[0], YEARS[-1]):
-            sel = ((oyears == y) & (omon >= first)) | ((oyears == y + 1) & (omon <= smonths[-1]) & (omon < first))
-            if sel.sum() >= 80: seasons.append(oz[sel][:tm.shape[1]] if sel.sum() >= tm.shape[1] else None)
-        seasons = [s for s in seasons if s is not None]
-        D = min(s.shape[0] for s in seasons); oz_s = np.stack([s[:D] for s in seasons])           # [season, day, lat, lon]
-        entry = {"label": REGIONS[region][0], "kind": kind, "season": slabel, "months": [vms[k - 1] for k in ks], "normal_seasons": len(seasons), "sigmas": {}, "cities": {}}
+        # normal: the CPC record's own seasons on the same calendar window, cut to this forecast's day count
+        nd = tm.shape[1]
+        if f"nseasons_{nd}" not in tab:
+            print(f"  {region}: no observed-season table for a {nd}-day window — skipped", flush=True); continue
+        nseasons = int(tab[f"nseasons_{nd}"])
+        entry = {"label": REGIONS[region][0], "kind": kind, "season": slabel, "months": [vms[k - 1] for k in ks], "normal_seasons": nseasons, "sigmas": {}, "cities": {}}
         ci = [(c[0], int(np.abs(lat - c[1]).argmin()), int(np.abs(lon - c[2]).argmin())) for c in CITIES.get(region, [])]
         for T in SIG:
-            nr, rd = run_stats(z, sign, T); onr, ord_ = run_stats(oz_s, sign, T)
+            nr, rd = run_stats(z, sign, T)
+            onr, ord_ = tab[f"onr_{nd}_{f'{T:g}'.replace('.', 'p')}"], tab[f"ord_{nd}_{f'{T:g}'.replace('.', 'p')}"]
             p = (nr >= 1).mean(0); po = (onr >= 1).mean(0); ed = rd.mean(0); eod = ord_.mean(0)
             key = f"{T:g}".replace(".", "p")
             sub = (f"Runs of ≥ {RUN} consecutive days with the daily-mean temperature proxy ((Tmax+Tmin)/2, members quantile-mapped from the SEAS5 hindcast onto CPC) "
                    f"{'at or below −' if sign < 0 else 'at or above +'}{T:g} σ of the CPC 1991–2020 day-of-year climatology, anywhere in {slabel} ({', '.join(entry['months'])}); "
-                   f"normal = the same statistic over the {len(seasons)} CPC seasons. {issue_lbl}.")
+                   f"normal = the same statistic over the {nseasons} CPC seasons. {issue_lbl}.")
             f1 = ASSETS / f"seas5_runs_{region}_{key}_prob.webp"
             draw(100 * p, lat, lon, region, PROB_LEVELS, PROB_COLORS, "probability (%)", f"SEAS5 · chance of a ≥ {RUN}-day {what[:-1]} beyond {T:g} σ · {slabel} {ym[:4]}–{str(int(ym[:4]) + 1)[2:]}", sub, f1)
             r = np.where(po >= 0.05, np.clip(100 * p / np.maximum(po, 1e-6), 0, 9999), np.nan)
@@ -164,7 +216,7 @@ def build(ym: str) -> dict:
         for c in CITIES.get(region, []):
             entry["cities"][c[0]]["side"] = c[3]
         doc["regions"][region] = entry
-        del tm, z, obs, oz, oz_s
+        del tm, z
     OUT_JSON.write_text(json.dumps(doc, separators=(",", ":")))
     print(f"wrote {OUT_JSON} in {(time.time() - t0) / 60:.1f} min", flush=True)
     return doc

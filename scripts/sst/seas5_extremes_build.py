@@ -11,6 +11,13 @@ coarsened to the 1° cells) counted the same way. Outputs:
                                         member p10/p90, per region × threshold × month
   assets/sst/seas5_xdays_{region}_{thr}_{YYYY_MM}.webp   map: % of normal (hatched where the
                                         normal is under half a day a month)
+
+Derived tables (seas5_ref.py, 2026-10-04 — the build reads neither the raw hindcast nor the CPC store):
+  hc_xdays_{region}_{MM}.npz    the 41 hindcast quantiles (1 %…99 %) of daily Tmax/Tmin per 1° cell and
+                                lead, pooled over 25 members × 24 years × the month's days — all the
+                                quantile mapping ever used from the 2.5 GB of hindcast extremes
+  obs_xdays_cpc_{region}.npz    the 41 CPC 1993–2016 quantiles per cell and calendar month (the mapping's
+                                target) and the CPC 1991–2020 mean threshold-day counts (the normal)
 """
 from __future__ import annotations
 import calendar, json, sys, time
@@ -19,8 +26,9 @@ import numpy as np
 import xarray as xr
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from seas5_outlook import ASSETS, DATA, hc_path, previous_issues                  # noqa: E402
-from seas5_popT import REGIONS, pop_grid                                            # noqa: E402
-from seas5_extremes import xchunk_path, hchunk_path, cpc_path, THRESH, YEARS                    # noqa: E402
+from seas5_popT import REGIONS, pop_grid, region_grid                               # noqa: E402
+import seas5_ref as R                                                               # noqa: E402
+from seas5_extremes import xchunk_path, hchunk_path, cpc_path, THRESH, YEARS, RAW_HC            # noqa: E402,F401  (RAW_HC: seas5_ref reads it from this module)
 from seas5_build import load_field, valid_months                                    # noqa: E402
 
 OUT_JSON = ASSETS / "data" / "seas5_extremes.json"
@@ -70,13 +78,25 @@ def hindcast_extremes(region: str, ym: str, k: int, stat: str):
     return a - 273.15
 
 
+NQ = 41
+QS = np.linspace(0.01, 0.99, NQ)
+
+
+def hc_quantiles(hc: np.ndarray) -> np.ndarray:
+    """hc [sample, day, lat, lon] → [q, lat, lon], pooled over samples and days."""
+    return np.nanquantile(hc.reshape(-1, *hc.shape[2:]), QS, axis=0)
+
+
 def quantile_map(fc: np.ndarray, hc: np.ndarray, obs: np.ndarray, nq: int = 41) -> np.ndarray:
     """Per cell: map each forecast value through the hindcast → observed quantile relation.
     fc [member, day, lat, lon]; hc [sample, day, lat, lon]; obs [day', lat, lon] (CPC, same calendar
     month, 1993–2016). Tails beyond the hindcast range carry the end-quantile offset."""
-    q = np.linspace(0.01, 0.99, nq)
-    hq = np.nanquantile(hc.reshape(-1, *hc.shape[2:]), q, axis=0)         # [q, lat, lon]
-    oq = np.nanquantile(obs, q, axis=0)
+    assert nq == NQ
+    return quantile_map_q(fc, hc_quantiles(hc), np.nanquantile(obs, QS, axis=0))
+
+
+def quantile_map_q(fc: np.ndarray, hq: np.ndarray, oq: np.ndarray) -> np.ndarray:
+    """quantile_map from the quantile tables themselves: hq, oq [q, lat, lon]."""
     out = np.empty_like(fc)
     ny, nx = fc.shape[2], fc.shape[3]
     for iy in range(ny):
@@ -90,10 +110,24 @@ def quantile_map(fc: np.ndarray, hc: np.ndarray, obs: np.ndarray, nq: int = 41) 
 
 
 def cpc_normal(region: str, stat: str, lat, lon) -> tuple[dict, list[int]]:
-    """Mean monthly count of threshold days per 1° cell over the CPC years on disk → ({thr: [12, lat, lon]}, years)."""
+    """Mean monthly count of threshold days per 1° cell, CPC 1991–2020 → ({thr: [12, lat, lon]}, years),
+    from the derived table obs_xdays_cpc_{region}."""
     key = (region, stat)
     if key in _ERA5_NORMAL:
         return _ERA5_NORMAL[key]
+    _, _, _, thrs, op = [t for t in THRESH[region] if t[1] == stat][0]
+    t = obs_table(region, lat, lon)
+    if t is None:
+        acc, used = {th: np.full((12, lat.size, lon.size), np.nan) for th in thrs}, []
+    else:
+        used = [int(y) for y in t[f"used_{stat}"]]
+        acc = {th: t[f"normal_{stat}_{th}"] for th in thrs}
+    _ERA5_NORMAL[key] = (acc, used)
+    return acc, used
+
+
+def _cpc_normal_from_store(region: str, stat: str, lat, lon) -> tuple[dict, list[int]]:
+    """The original count over the local CPC files (derivation only)."""
     _, _, _, thrs, op = [t for t in THRESH[region] if t[1] == stat][0]
     vals, months, used = cpc_daily(stat, region, YEARS, lat, lon)
     acc = {t: np.full((12, lat.size, lon.size), np.nan) for t in thrs}
@@ -103,8 +137,74 @@ def cpc_normal(region: str, stat: str, lat, lon) -> tuple[dict, list[int]]:
             for t in thrs:
                 hit = (vals[sel] <= t) if op == "le" else (vals[sel] >= t)
                 acc[t][m - 1] = np.where(np.isfinite(vals[sel]).all(0), hit.sum(0) / nyr, np.nan)
-    _ERA5_NORMAL[key] = (acc, used)
     return acc, used
+
+
+# ── derived tables ───────────────────────────────────────────────────────────
+_TABLES: dict = {}
+
+
+def obs_table(region: str, lat=None, lon=None) -> dict | None:
+    if ("obs", region) not in _TABLES:
+        t = R.load(R.obs_ref(f"xdays_cpc_{region}"))
+        if t is None:
+            print(f"  obs_xdays_cpc_{region} missing — no CPC reference", flush=True)
+        _TABLES[("obs", region)] = t
+    t = _TABLES[("obs", region)]
+    if t is not None and lat is not None and not (np.allclose(t["lat"], lat) and np.allclose(t["lon"], lon)):
+        raise ValueError(f"{region}: chunk grid differs from obs_xdays_cpc_{region}")
+    return t
+
+
+def hc_table(region: str, month: str) -> dict | None:
+    if ("hc", region, month) not in _TABLES:
+        t = R.load(R.hc_ref(f"xdays_{region}", month))
+        if t is None:
+            print(f"  hc_xdays_{region}_{month} missing — no quantile mapping", flush=True)
+        _TABLES[("hc", region, month)] = t
+    return _TABLES[("hc", region, month)]
+
+
+def mapped(region: str, ym: str, k: int, stat: str, raw: np.ndarray, lat, lon, mo: int) -> np.ndarray | None:
+    """Quantile-map raw [member, day, lat, lon] °C from the derived tables; None when a table is missing."""
+    h, o = hc_table(region, ym[4:]), obs_table(region, lat, lon)
+    if h is None or o is None or f"hq_{stat}_m{k}" not in h or f"oq_{stat}_{mo:02d}" not in o:
+        return None
+    return quantile_map_q(raw, h[f"hq_{stat}_m{k}"], o[f"oq_{stat}_{mo:02d}"])
+
+
+def derive_hc(region: str, month: str) -> None:
+    """hc_xdays_{region}_{MM} from the raw hindcast chunks sixh/hc_{region}_{MM}_m{k}_x.grib."""
+    ym = f"2000{month}"                                              # only ym[4:] is used to find the files
+    arrs = {}
+    for k in range(1, 7):
+        for stat in ("tx", "tn"):
+            hc = hindcast_extremes(region, ym, k, stat)
+            if hc is None:
+                raise FileNotFoundError(f"hindcast extremes {region} {month} m{k} missing")
+            arrs[f"hq_{stat}_m{k}"] = hc_quantiles(hc); del hc
+    R.save(R.hc_ref(f"xdays_{region}", month), meta={"source": "SEAS5 hindcast 1993-2016 daily Tmax/Tmin (C3S)", "q": QS.tolist(), "units": "degC"}, **arrs)
+
+
+def derive_obs(region: str) -> None:
+    """obs_xdays_cpc_{region} from the local CPC store (data/seas5/cpc), on the region's 1° grid."""
+    lat, lon = region_grid(region)
+    arrs = {"lat": lat, "lon": lon}
+    for stat in ("tx", "tn"):
+        ov, om, oyrs = cpc_daily(stat, region, range(1993, 2017), lat, lon)
+        if ov is not None and len(oyrs) >= 20:
+            for mo in range(1, 13):
+                arrs[f"oq_{stat}_{mo:02d}"] = np.nanquantile(ov[om == mo], QS, axis=0)
+        acc, used = _cpc_normal_from_store(region, stat, lat, lon)
+        arrs[f"used_{stat}"] = np.array(used, dtype=np.int32)
+        for t, v in acc.items():
+            arrs[f"normal_{stat}_{t}"] = v
+    R.save(R.obs_ref(f"xdays_cpc_{region}"), meta={"source": "NOAA CPC Global Unified daily Tmax/Tmin (PSL), 0.5 deg coarsened to 1 deg",
+                                                    "q": QS.tolist(), "quantile_years": "1993-2016", "normal_years": "1991-2020"}, **arrs)
+
+
+REF_UNITS = {f"xdays_{r}": dict(raw=[f"x:{r}"], fn=(lambda month, r=r: derive_hc(r, month))) for r in REGIONS}
+OBS_UNITS = {f"xdays_cpc_{r}": (lambda r=r: derive_obs(r)) for r in REGIONS}
 
 
 # City labels on the threshold-day maps and the clickable city distributions on the page (user
@@ -212,14 +312,9 @@ def build(ym: str) -> dict:
                     w = pop_grid(region, lat, lon); wn = w / w.sum()
                 vm = valid_months(ym)[k - 1]; mo = int(vm[5:]); plabel = f"{calendar.month_abbr[mo]} {vm[:4]}"
                 raw = tn if stat == "tn" else tx
-                hc = hindcast_extremes(region, ym, k, stat)
-                ov, om, oyrs = cpc_daily(stat, region, range(1993, 2017), lat, lon)
-                if hc is not None and ov is not None and len(oyrs) >= 20:
-                    field = quantile_map(raw, hc, ov[om == mo]); corr = "quantile-mapped (hindcast → CPC 1993–2016)"
-                    del hc
-                else:
-                    shift = bias_shift(ym, k, region, lat, lon)
-                    field = raw - (shift[None, None] if shift is not None else 0.0); corr = "mean shift" if shift is not None else "uncorrected"
+                field = mapped(region, ym, k, stat, raw, lat, lon, mo); corr = "quantile-mapped (hindcast → CPC 1993–2016)"
+                if field is None:                                   # no table for this start month: skip, never draw uncorrected
+                    print(f"  {region} {set_key} {vm}: quantile tables missing — skipped", flush=True); continue
                 normal, used = cpc_normal(region, stat, lat, lon); entry["normal_years"] = [min(used), max(used), len(used)] if used else None
                 mrec = {}
                 ci = []

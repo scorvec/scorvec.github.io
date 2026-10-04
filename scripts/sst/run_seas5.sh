@@ -1,70 +1,87 @@
 #!/bin/bash
-# SEAS5 seasonal outlook: fetch from the CDS, build, publish — on the laptop.
+# ECMWF SEAS5 seasonal outlook driver — the steps of .github/workflows/seas5.yml.
 #
-# The CDS credentials (~/.cdsapirc) stay on this machine by decision
-# (2026-09-06), so unlike the rest of the site this product is rendered here and
-# pushed here; the pre-push hook allows exactly assets/sst/seas5_*.webp and
-# assets/sst/data/seas5_outlook.json. launchd (com.scorvec.seas5) fires this
-# daily from the 5th to the 12th at 07:30 local:
-#   - before the issue is on the CDS, seas5_outlook.py exits after one small
-#     probe and nothing is committed;
-#   - once built, the issue is stamped in the JSON and later firings are no-ops;
-#   - hindcasts (per start month) are cached under scripts/sst/data/seas5/.
+# Moved off the laptop 2026-10-04 (user rule: no downloads on the laptop; never download anything twice).
+# The laptop launchd job com.scorvec.seas5 is retired. Three stages:
 #
-#     scripts/sst/run_seas5.sh              # this month's issue
-#     scripts/sst/run_seas5.sh 202609       # a specific issue
-#     FORCE=1 scripts/sst/run_seas5.sh      # rebuild even if already published
+#   run_seas5.sh fetch  YYYYMM   this issue's forecasts from the CDS — sequential, one key. Refused
+#                                outside GitHub Actions (seas5_ref.guard_fetch). Exit 3 = issue not out yet.
+#   run_seas5.sh tables YYYYMM   derived hindcast tables for the issue's start month (seas5_ref.py). With
+#                                TABLES_FETCH=1 (Actions only) a missing table's raw hindcast kind is fetched,
+#                                reduced and deleted, one kind at a time, within BUDGET_MIN minutes; without it
+#                                only what is already on disk is reduced (the laptop's local GRIBs).
+#   run_seas5.sh build  YYYYMM   every product from this issue's forecasts + the derived tables, no network.
+#                                Also a local build helper: SEAS5_DATA=<dir with forecast/ and ref/>
+#                                SST_SITE_ROOT=<scratch> SEAS5_OFFLINE=1 scripts/sst/run_seas5.sh build 202609
+#
+# Outputs: assets/sst/seas5_*.webp, assets/sst/data/seas5_*.json, and seas5_status.json (complete = every
+# hindcast table of the start month exists, so later firings of the workflow are no-ops). Derived tables:
+# $SEAS5_REF_DIR (default scripts/sst/data/seas5/ref), mirrored to the release seas5-ref-v1 by the workflow.
 set -uo pipefail
-PY=/opt/homebrew/Caskroom/miniconda/base/envs/mjo/bin/python
-SITE="$HOME/scorvec.github.io"
-cd "$SITE/scripts/sst" || exit 1
+cd "$(dirname "$0")" || exit 1
+PY="${PYTHON:-python}"
 export MPLBACKEND=Agg
-ISSUE="${1:-$(date -u +%Y%m)}"
-JSON="$SITE/assets/sst/data/seas5_outlook.json"
-LOG="data/seas5/run_${ISSUE}.log"
-mkdir -p data/seas5
-echo "===================== $(date) issue $ISSUE =====================" >> "$LOG"
+CMD="${1:?usage: run_seas5.sh fetch|tables|build [YYYYMM]}"
+ISSUE="${2:-$(date -u +%Y%m)}"
+MM="${ISSUE:4:2}"
+export SEAS5_ISSUE="$ISSUE"     # raw hindcast fetches take their lead-hour calendar from the issue year (leap Februaries)
+SITE="${SST_SITE_ROOT:-$(cd ../.. && pwd)}"
+FAILED=()
+step() {   # step <label> <command...> — best-effort; a failed product never sinks the others
+  local label="$1"; shift
+  echo "::group::$label"
+  if "$@"; then echo "::endgroup::"; else echo "::endgroup::"; echo "::warning::$label FAILED"; FAILED+=("$label"); fi
+}
 
-if [ "${FORCE:-0}" != "1" ] && [ -f "$JSON" ] && grep -q "\"issue\":\"$ISSUE\"" "$JSON"; then
-  echo "  $ISSUE already published; nothing to do" >> "$LOG"; exit 0
-fi
-
-"$PY" seas5_outlook.py fetch --issue "$ISSUE" --previous 3 >> "$LOG" 2>&1
-if grep -q "is not on the CDS yet" "$LOG"; then
-  echo "  $ISSUE not on the CDS yet; will try again tomorrow" >> "$LOG"; exit 0
-fi
-"$PY" seas5_outlook.py build --issue "$ISSUE" --previous 3 >> "$LOG" 2>&1 || { echo "  BUILD FAILED" >> "$LOG"; exit 1; }
-"$PY" seas5_era5.py >> "$LOG" 2>&1 || echo "  ERA5 reference pull incomplete (normals/skill degrade gracefully)" >> "$LOG"   # cached; a no-op after the first run
-"$PY" seas5_tele.py --issue "$ISSUE" >> "$LOG" 2>&1 || echo "  teleconnections FAILED" >> "$LOG"
-"$PY" seas5_normals.py --issue "$ISSUE" >> "$LOG" 2>&1 || echo "  normals FAILED" >> "$LOG"
-# weather-regime frequencies vs SEAS5's own climate (500 hPa, 2.5 deg sectors; the hindcast of a new start month is
-# twelve sequential CDS requests for 1981-2016, ~1.6 GB, cached after the first run)
-"$PY" seas5_regimes_fetch.py all --issue "$ISSUE" >> "$LOG" 2>&1 || echo "  regimes fetch incomplete" >> "$LOG"
-"$PY" seas5_regimes.py --issue "$ISSUE" >> "$LOG" 2>&1 || echo "  regimes FAILED (main products still publish)" >> "$LOG"
-# population-weighted temperature distributions from the 6-hourly members (US, Brazil); best-effort
-"$PY" seas5_popT.py all --issue "$ISSUE" >> "$LOG" 2>&1 || echo "  popT FAILED (main products still publish)" >> "$LOG"
-# threshold days (US cold days, Brazil hot days) from the daily extremes; CPC normals are cached after the first run
-"$PY" seas5_extremes.py cpc >> "$LOG" 2>&1 || echo "  CPC normals incomplete (threshold days degrade to a partial normal)" >> "$LOG"
-"$PY" seas5_extremes.py fetch --issue "$ISSUE" >> "$LOG" 2>&1 || echo "  extremes fetch incomplete" >> "$LOG"
-"$PY" seas5_extremes_build.py "$ISSUE" >> "$LOG" 2>&1 || echo "  threshold days FAILED (main products still publish)" >> "$LOG"
-"$PY" seas5_runs.py --issue "$ISSUE" >> "$LOG" 2>&1 || echo "  cold-snap runs FAILED (main products still publish)" >> "$LOG"
-"$PY" seas5_wind.py fetch --issue "$ISSUE" >> "$LOG" 2>&1 || echo "  wind fetch incomplete" >> "$LOG"
-"$PY" seas5_wind.py hindcast --issue "$ISSUE" >> "$LOG" 2>&1 || echo "  wind hindcast incomplete (ratio maps skipped)" >> "$LOG"
-"$PY" seas5_wind.py build --issue "$ISSUE" >> "$LOG" 2>&1 || echo "  wind events FAILED (main products still publish)" >> "$LOG"
-"$PY" seas5_snow.py fetch --issue "$ISSUE" >> "$LOG" 2>&1 || echo "  snowfall fetch incomplete" >> "$LOG"
-"$PY" seas5_snow.py hindcast --issue "$ISSUE" >> "$LOG" 2>&1 || echo "  snowfall hindcast incomplete (ratio maps skipped)" >> "$LOG"
-"$PY" seas5_snow.py build --issue "$ISSUE" >> "$LOG" 2>&1 || echo "  snowfall products FAILED (main products still publish)" >> "$LOG"
-# P − E distributions by region (Brazil ONS subsystems); best-effort
-"$PY" seas5_pme_regions.py --issue "$ISSUE" >> "$LOG" 2>&1 || echo "  pme regions FAILED (main products still publish)" >> "$LOG"
-
-# Publish: only the SEAS5 outputs. A concurrent CI data commit just shifts our base.
-( cd "$SITE" && git add assets/sst/seas5_*.webp assets/sst/data/seas5_*.json \
-  && { git diff --staged --quiet -- assets/sst/seas5_*.webp assets/sst/data/seas5_*.json \
-         && echo "  no change to publish" && exit 0; \
-       git -c user.name="Shawn Corvec" -c user.email="26825570+scorvec@users.noreply.github.com" \
-           commit -q -m "data update: SEAS5 ${ISSUE:0:4}-${ISSUE:4:2} issue" \
-           -- assets/sst/seas5_*.webp assets/sst/data/seas5_*.json \
-       && git pull -q --no-rebase --autostash origin main && git push -q origin HEAD:main \
-       && echo "  published $ISSUE"; } ) >> "$LOG" 2>&1 \
-  || echo "  (publish FAILED — commit assets/sst/seas5_* by hand)" >> "$LOG"
-tail -3 "$LOG"
+case "$CMD" in
+fetch)
+  LOG=$(mktemp)
+  "$PY" seas5_outlook.py fetch --issue "$ISSUE" 2>&1 | tee "$LOG"
+  rc=${PIPESTATUS[0]}
+  if grep -q "is not on the CDS yet" "$LOG"; then exit 3; fi
+  [ "$rc" -eq 0 ] || exit 1
+  # the other products' own forecast pulls (6-hourly / daily, regional) — each sequential
+  step "fetch popT (6-hourly t2m, US + Brazil)"      "$PY" seas5_popT.py fetch --issue "$ISSUE"
+  step "fetch extremes (daily Tmax/Tmin)"            "$PY" seas5_extremes.py fetch --issue "$ISSUE"
+  step "fetch wind (6-hourly 10 m u/v, US)"          "$PY" seas5_wind.py fetch --issue "$ISSUE"
+  step "fetch snowfall (daily, North America)"       "$PY" seas5_snow.py fetch --issue "$ISSUE"
+  step "fetch regimes (daily z500, 51 members)"      "$PY" seas5_regimes_fetch.py forecast --issue "$ISSUE"
+  [ ${#FAILED[@]} -eq 0 ] || echo "::warning::forecast fetches incomplete: ${FAILED[*]}"
+  exit 0
+  ;;
+tables)
+  ARGS=(hindcast --month "$MM")
+  if [ "${TABLES_FETCH:-0}" = "1" ]; then ARGS+=(--fetch --discard-raw --budget-min "${BUDGET_MIN:-200}"); fi
+  "$PY" seas5_ref.py "${ARGS[@]}"
+  "$PY" seas5_ref.py missing --month "$MM" >/dev/null
+  exit $?
+  ;;
+build)
+  step "outlook (indices, terciles, maps, polar caps)" "$PY" seas5_outlook.py build --issue "$ISSUE" --previous 3
+  step "normals"                    "$PY" seas5_normals.py --issue "$ISSUE"
+  step "teleconnections"            "$PY" seas5_tele.py --issue "$ISSUE"
+  step "pme regions"                "$PY" seas5_pme_regions.py --issue "$ISSUE"
+  step "regimes"                    "$PY" seas5_regimes.py --issue "$ISSUE"      # after the outlook: quotes its DJF rel. Niño-3.4
+  step "popT"                       "$PY" seas5_popT.py build --issue "$ISSUE"
+  step "threshold days"             "$PY" seas5_extremes_build.py "$ISSUE"
+  step "cold-snap runs"             "$PY" seas5_runs.py --issue "$ISSUE"
+  step "wind events"                "$PY" seas5_wind.py build --issue "$ISSUE"
+  step "snowfall"                   "$PY" seas5_snow.py build --issue "$ISSUE"
+  MISSING=$("$PY" seas5_ref.py missing --month "$MM")
+  "$PY" - "$ISSUE" "$MISSING" "$(IFS='|'; echo "${FAILED[*]:-}")" "$SITE/assets/sst/data/seas5_status.json" <<'EOF'
+import json, sys, time
+issue, missing, failed, out = sys.argv[1:5]
+failed = [f for f in failed.split("|") if f]
+# complete = the main outlook built and every hindcast table of the start month exists; a failed minor
+# product does not hold the issue open (re-running would not fix it), it is listed for a human instead
+doc = {"issue": issue, "generated": time.strftime("%Y-%m-%d %H:%M UTC", time.gmtime()),
+       "missing_tables": missing.split(), "failed": failed,
+       "complete": not missing.split() and not any(f.startswith("outlook") for f in failed)}
+open(out, "w").write(json.dumps(doc, separators=(",", ":")))
+print("status:", doc)
+EOF
+  [ ${#FAILED[@]} -eq 0 ] || { echo "failed products: ${FAILED[*]}"; }
+  exit 0
+  ;;
+*) echo "unknown command $CMD" >&2; exit 2 ;;
+esac

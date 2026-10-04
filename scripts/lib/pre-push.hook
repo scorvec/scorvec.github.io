@@ -10,10 +10,9 @@
 # the backstop that stops the next one before it reaches GitHub.
 #
 # Allowed under assets/: geps/** (the one local publisher the user kept),
-# pjm/** (desk-pull data, not a rendered job), the SEAS5 outlook outputs
-# (assets/sst/seas5_*.webp + assets/sst/data/seas5_*.json — the CDS
-# credentials stay on this laptop by the user's decision of 2026-09-06, so
-# scripts/sst/run_seas5.sh renders and publishes them here), and .js/.css.
+# pjm/** (desk-pull data, not a rendered job), and .js/.css. The SEAS5 outlook
+# outputs were allowed until 2026-10-04, when the product moved to Actions
+# (.github/workflows/seas5.yml; the laptop no longer downloads anything).
 # Override for a deliberate one-off:  ALLOW_LOCAL_ASSET_PUSH=1 git push
 [ "${ALLOW_LOCAL_ASSET_PUSH:-0}" = "1" ] && exit 0
 z=0000000000000000000000000000000000000000
@@ -23,8 +22,7 @@ while read -r lref lsha rref rsha; do
   if [ "$rsha" = "$z" ]; then files=$(git ls-tree -r --name-only "$lsha");
   else files=$(git diff --name-only --diff-filter=d "$rsha" "$lsha"); fi   # deletions are not renders
   hit=$(printf '%s\n' "$files" | grep -E '^assets/' \
-        | grep -vE '^assets/(geps|pjm)/' | grep -vE '\.(js|css)$' \
-        | grep -vE '^assets/sst/(seas5_[A-Za-z0-9_]+\.webp|data/seas5_[A-Za-z0-9_]+\.json)$' || true)
+        | grep -vE '^assets/(geps|pjm)/' | grep -vE '\.(js|css)$' || true)
   [ -n "$hit" ] && bad="$bad$hit"$'\n'
 done
 if [ -n "$bad" ]; then

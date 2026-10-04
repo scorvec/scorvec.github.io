@@ -9,8 +9,10 @@ one box that covers both sectors: 80-20N, 170W-30E (25 x 81 points, ~4 KB a fiel
   hindcast   25 members x 1981-2016 (the full SEAS5     ~1.6 GB  data/seas5/regimes/hc_z500_{MM}_{y0}_{y1}.grib
              hindcast), three years a request (32k fields), per start month
 
-Requests run one at a time: the CDS rejects parallel requests from one key. Everything is cached
-forever; a rerun only pulls what is missing. The AWS Planette icechunk copy of SEAS5 holds the
+Requests run one at a time: the CDS rejects parallel requests from one key. Downloads run in GitHub
+Actions only (seas5_outlook._client refuses elsewhere). Since 2026-10-04 the workflow fetches only the
+forecast per issue; a start month's hindcast is pulled once by `seas5_ref.py hindcast --fetch` (RAW_HC
+"regimes:hc" in seas5_regimes.py), reduced to hc_regimes_{MM}.npz and deleted — never fetched again. The AWS Planette icechunk copy of SEAS5 holds the
 hindcast too, but its forecast pressure levels stop at the October 2025 start and a sector read
 costs whole-globe chunks (~25 GB a start month), so the CDS is the one source for both.
 

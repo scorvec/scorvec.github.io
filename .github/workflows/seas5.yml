@@ -1,0 +1,267 @@
+name: ECMWF SEAS5 seasonal outlook (monthly)
+
+# The SEAS5 member-level products on seasonal.html (ENSO/ocean plumes, terciles, single-map viewer,
+# normals, teleconnections, regimes, population-weighted temperature, threshold days, cold-snap runs,
+# wind, snowfall, P − E regions).
+#
+# WHY THIS EXISTS. Until 2026-10-04 this ran on the laptop (launchd com.scorvec.seas5 → run_seas5.sh)
+# because the CDS key stayed there. User rule 2026-10-04: NO downloads on the laptop, and collect data
+# strategically — never download anything twice. So:
+#   * the raw hindcasts (25 members × 1993–2016 per start month, ~10 GB of GRIB) and the observed
+#     records (ERA5 monthly/daily, CPC daily Tmax/Tmin, teleconnection projectors) are reduced ONCE to
+#     compact derived tables (scripts/sst/seas5_ref.py) kept as assets of the GitHub release
+#     `seas5-ref-v1` — built on the laptop from its local stores where those exist;
+#   * this job downloads only this issue's forecasts (~1.3 GB from the CDS) plus, for a start month
+#     whose tables do not exist yet, that month's raw hindcast kinds ONE AT A TIME — each reduced to its
+#     table, uploaded to the release and deleted at once, so it is never fetched again;
+#   * everything an issue needs from the PREVIOUS issue (change maps, plume evolution) is kept as a
+#     per-issue summary table (is_*), so earlier forecasts are not fetched twice either.
+#
+# WHEN. ECMWF releases SEAS5 on the 5th at 12 UTC. The cron fires daily 5th–12th; before the issue is
+# on the CDS one small probe answers "not yet" and the job ends. Once the issue is published AND every
+# table for its start month exists (assets/sst/data/seas5_status.json), later firings exit in seconds.
+# A first-time start month can need more than one run (the CDS queues hindcast requests for hours):
+# each run spends at most `budget_min` minutes starting hindcast fetches, publishes whatever is ready,
+# and the next firing continues — also after the 12th, until the issue is complete.
+#
+# CDS courtesy: one key, so every request is sequential (never parallel), retried at most three times
+# with a pause, and nothing already held is requested again. Licence: Copernicus (the page carries
+# "Contains modified Copernicus Climate Change Service information 2026"). The CDS client sends its
+# own honest User-Agent (cdsapi/<version>).
+#
+# Secrets: CDSAPI_URL (https://cds.climate.copernicus.eu/api) and CDSAPI_KEY (the personal access token).
+
+on:
+  schedule:
+  - cron: '40 12 5-12 * *'
+  workflow_dispatch:
+    inputs:
+      issue:
+        description: 'Issue month YYYYMM (empty = current UTC month)'
+        required: false
+        default: ''
+      force:
+        description: 'Rebuild even if this issue is already published and complete'
+        required: false
+        default: 'false'
+      window:
+        description: 'true = behave like the cron (run only on the 5th–12th or while the issue is incomplete); the laptop dispatcher sets it'
+        required: false
+        default: 'false'
+      budget_min:
+        description: 'Minutes this run may spend starting raw hindcast fetches for missing tables'
+        required: false
+        default: '200'
+
+permissions:
+  contents: write   # commit the outputs, upload tables to the seas5-ref-v1 release
+  actions: write    # dispatch pages.yml after committing
+
+concurrency:
+  group: seas5
+  cancel-in-progress: false
+
+env:
+  REF_TAG: seas5-ref-v1
+  MPLBACKEND: Agg
+  PYTHONUNBUFFERED: '1'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 340
+    env:
+      SEAS5_REF_DIR: ${{ github.workspace }}/seas5_ref
+      SST_SITE_ROOT: ${{ github.workspace }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Resolve the issue and decide whether to run
+        id: gate
+        run: |
+          I="${{ inputs.issue }}"; [ -n "$I" ] || I=$(date -u +%Y%m)
+          D=$((10#$(date -u +%d)))
+          prev() { local y=${1:0:4} m=$((10#${1:4:2})); m=$((m-1)); [ $m -eq 0 ] && { y=$((y-1)); m=12; }; printf '%04d%02d' $y $m; }
+          P1=$(prev "$I"); P2=$(prev "$P1"); P3=$(prev "$P2")
+          read -r PUB COMPLETE < <(python3 - "$I" <<'EOF'
+          import json, sys
+          try:
+              pub = json.load(open("assets/sst/data/seas5_outlook.json")).get("issue", "")
+          except Exception:
+              pub = ""
+          try:
+              st = json.load(open("assets/sst/data/seas5_status.json"))
+              comp = "1" if st.get("issue") == sys.argv[1] and st.get("complete") else "0"
+          except Exception:
+              comp = "0"
+          print(pub or "-", comp)
+          EOF
+          )
+          RUN=1; WHY="manual dispatch"
+          if [ "${{ inputs.force }}" = "true" ]; then WHY="forced"
+          elif [ "$PUB" = "$I" ] && [ "$COMPLETE" = "1" ]; then RUN=0; WHY="$I already published and complete"
+          elif [ "${{ github.event_name }}" = "schedule" ] || [ "${{ inputs.window }}" = "true" ]; then
+            if [ "$PUB" = "$I" ]; then WHY="$I published but incomplete — continuing"
+            elif [ $D -ge 5 ] && [ $D -le 12 ]; then WHY="release window, day $D"
+            else RUN=0; WHY="outside the 5th–12th window (day $D)"; fi
+          fi
+          echo "Issue $I (previous $P1 $P2 $P3); published=$PUB complete=$COMPLETE → run=$RUN ($WHY)"
+          {
+            echo "issue=$I"; echo "month=${I:4:2}"; echo "p1=$P1"; echo "p2=$P2"; echo "p3=$P3"
+            echo "pm=${P1:4:2}"; echo "run=$RUN"; echo "why=$WHY"
+          } >> "$GITHUB_OUTPUT"
+
+      - uses: actions/setup-python@v7
+        if: steps.gate.outputs.run == '1'
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        if: steps.gate.outputs.run == '1'
+        run: |
+          for i in 1 2 3; do
+            if sudo timeout 240 apt-get update -qq -o Acquire::Retries=3 && \
+               sudo timeout 300 apt-get install -y --no-install-recommends -o Acquire::Retries=3 \
+                 libgeos-dev libproj-dev proj-bin libeccodes0; then break; fi
+            echo "apt attempt $i failed; retrying"; sleep 10
+          done
+          # cartopy pinned to the laptop's 0.25 (0.26 collapses dateline-centred global extents) and
+          # matplotlib to 3.10 (see requirements-sst.txt). netCDF4/h5netcdf are xarray backend plugins.
+          pip install --quiet numpy pandas scipy xarray cfgrib eccodes cdsapi requests \
+            matplotlib==3.10.9 cartopy==0.25.0 'shapely>=2.1.2' 'pyproj>=3.7.2' Pillow netCDF4 h5netcdf
+
+      - name: Free runner disk (raw hindcast kinds are up to ~3 GB each)
+        if: steps.gate.outputs.run == '1'
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /usr/local/.ghcup 2>/dev/null || true
+          df -h "$GITHUB_WORKSPACE" | tail -1
+
+      - name: CDS credentials
+        if: steps.gate.outputs.run == '1'
+        env:
+          CDSAPI_URL: ${{ secrets.CDSAPI_URL }}
+          CDSAPI_KEY: ${{ secrets.CDSAPI_KEY }}
+        run: |
+          if [ -z "$CDSAPI_KEY" ]; then echo "::error::secret CDSAPI_KEY is not set"; exit 1; fi
+          umask 077
+          printf 'url: %s\nkey: %s\n' "${CDSAPI_URL:-https://cds.climate.copernicus.eu/api}" "$CDSAPI_KEY" > ~/.cdsapirc
+
+      # The derived tables this issue needs: observed references, this start month's and the previous
+      # start month's hindcast tables, and the summaries of the three previous issues.
+      - name: Download the derived tables (release ${{ env.REF_TAG }})
+        if: steps.gate.outputs.run == '1'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          mkdir -p "$SEAS5_REF_DIR"
+          if ! gh release view "$REF_TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "::error::release $REF_TAG not found — create it from the laptop's tables (see seas5_ref.py)"; exit 1
+          fi
+          M=${{ steps.gate.outputs.month }}; PM=${{ steps.gate.outputs.pm }}
+          gh release download "$REF_TAG" --repo "$GITHUB_REPOSITORY" -D "$SEAS5_REF_DIR" --clobber \
+            -p 'obs_*' -p "hc_*_${M}.npz" -p "hc_*_${PM}.npz" \
+            -p "is_*_${{ steps.gate.outputs.p1 }}.npz" -p "is_*_${{ steps.gate.outputs.p2 }}.npz" \
+            -p "is_*_${{ steps.gate.outputs.p3 }}.npz" -p "is_*_${{ steps.gate.outputs.issue }}.npz" || true
+          touch "$RUNNER_TEMP/ref_marker"
+          ls -la "$SEAS5_REF_DIR" | tail -n +2
+          du -sh "$SEAS5_REF_DIR"
+
+      # A first-time start month can take several daily runs; the forecast GRIBs of the issue ride along
+      # in the Actions cache between them so they are never fetched twice. Raw hindcast files are never
+      # cached (their names carry no issue; they are deleted once reduced).
+      - name: Restore this issue's forecast GRIBs from earlier runs
+        if: steps.gate.outputs.run == '1'
+        uses: actions/cache@v4
+        with:
+          path: |
+            scripts/sst/data/seas5/forecast/*_${{ steps.gate.outputs.issue }}.grib
+            scripts/sst/data/seas5/sixh/*_${{ steps.gate.outputs.issue }}*.grib
+            scripts/sst/data/seas5/regimes/fc_*_${{ steps.gate.outputs.issue }}.grib
+          key: seas5-fc-${{ steps.gate.outputs.issue }}-${{ github.run_id }}
+          restore-keys: |
+            seas5-fc-${{ steps.gate.outputs.issue }}-
+
+      - name: Fetch this issue's forecasts (CDS, sequential)
+        if: steps.gate.outputs.run == '1'
+        id: fetch
+        run: |
+          set +e
+          scripts/sst/run_seas5.sh fetch "${{ steps.gate.outputs.issue }}"
+          rc=$?
+          if [ $rc -eq 3 ]; then echo "ready=0" >> "$GITHUB_OUTPUT"; echo "Issue not on the CDS yet."; exit 0; fi
+          [ $rc -eq 0 ] || { echo "::error::forecast fetch failed"; exit 1; }
+          echo "ready=1" >> "$GITHUB_OUTPUT"
+
+      # Only while a table for this start month is missing: fetch that raw hindcast kind, reduce it,
+      # delete it. Uploaded straight away (next step) so a later timeout cannot lose the work.
+      - name: Hindcast tables for start month ${{ steps.gate.outputs.month }} (one-time per start month)
+        if: steps.gate.outputs.run == '1' && steps.fetch.outputs.ready == '1'
+        run: |
+          TABLES_FETCH=1 BUDGET_MIN="${{ inputs.budget_min || '200' }}" \
+            scripts/sst/run_seas5.sh tables "${{ steps.gate.outputs.issue }}" || echo "::warning::some hindcast tables are still missing"
+
+      - name: Upload new hindcast tables
+        if: always() && steps.gate.outputs.run == '1' && steps.fetch.outputs.ready == '1'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          NEW=$(find "$SEAS5_REF_DIR" -name 'hc_*.npz' -newer "$RUNNER_TEMP/ref_marker" | sort)
+          if [ -z "$NEW" ]; then echo "no new hindcast tables"; exit 0; fi
+          echo "$NEW"
+          gh release upload "$REF_TAG" --repo "$GITHUB_REPOSITORY" --clobber $NEW
+
+      - name: Build the products (forecasts + derived tables only, no network)
+        if: steps.gate.outputs.run == '1' && steps.fetch.outputs.ready == '1'
+        run: SEAS5_OFFLINE=1 scripts/sst/run_seas5.sh build "${{ steps.gate.outputs.issue }}"
+
+      - name: Upload this issue's summary tables
+        if: steps.gate.outputs.run == '1' && steps.fetch.outputs.ready == '1'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          NEW=$(find "$SEAS5_REF_DIR" -name "is_*_${{ steps.gate.outputs.issue }}.npz" -newer "$RUNNER_TEMP/ref_marker" | sort)
+          [ -n "$NEW" ] || { echo "::warning::no issue summaries written"; exit 0; }
+          gh release upload "$REF_TAG" --repo "$GITHUB_REPOSITORY" --clobber $NEW
+
+      - name: Commit & push (generated outputs)
+        if: steps.gate.outputs.run == '1' && steps.fetch.outputs.ready == '1'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          # snapshot + clean resync each attempt (the mjo.yml pattern): a rebase recovery that reset
+          # --hard could silently discard the render and still report success. Merges, never rebases.
+          SNAP=$(mktemp -d)
+          git add -A assets/sst/seas5_*.webp assets/sst/data/seas5_*.json 2>/dev/null || true
+          git diff --staged --name-only -z | tar cf "$SNAP/outs.tar" --null -T - 2>/dev/null || true
+          git reset -q
+          for i in 1 2 3 4 5; do
+            if ! timeout 120 git fetch origin main; then echo "fetch $i failed"; sleep 5; continue; fi
+            git reset --hard origin/main
+            tar xf "$SNAP/outs.tar" 2>/dev/null || true
+            git add -A assets/sst/seas5_*.webp assets/sst/data/seas5_*.json
+            if git diff --staged --quiet; then echo "No changes; skipping commit."; exit 0; fi
+            I="${{ steps.gate.outputs.issue }}"
+            git commit -q -m "data update: SEAS5 ${I:0:4}-${I:4:2} issue"
+            if timeout 180 git push; then echo "Pushed on attempt $i."; exit 0; fi
+            echo "Push $i rejected; resyncing and retrying…"
+            sleep 5
+          done
+          echo "ERROR: could not push after 5 attempts." >&2
+          exit 1
+
+      - name: Deploy the site
+        if: success() && steps.gate.outputs.run == '1' && steps.fetch.outputs.ready == '1'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh workflow run pages.yml --repo "$GITHUB_REPOSITORY" || echo "::warning::pages dispatch failed; the dispatcher will catch it"
+
+      - name: Summary
+        if: always()
+        run: |
+          {
+            echo "### ECMWF SEAS5 ${{ steps.gate.outputs.issue }}"
+            echo "- gate: ${{ steps.gate.outputs.why }}"
+            echo "- forecast on the CDS: ${{ steps.fetch.outputs.ready || 'not checked' }}"
+            [ -f assets/sst/data/seas5_status.json ] && echo "- status: $(cat assets/sst/data/seas5_status.json)"
+            echo "- Page: [/seasonal.html](https://scorvec.com/seasonal.html)"
+          } >> "$GITHUB_STEP_SUMMARY"

@@ -38,8 +38,9 @@ and assets/sst/data/seas5_outlook.json.
     python scripts/sst/seas5_outlook.py build  [--issue 202609]
     python scripts/sst/seas5_outlook.py        # fetch, then build
 
-Requires ~/.cdsapirc. Hindcast pulls are large (hundreds of MB per start month)
-and queue on the CDS for a long time; they are cached forever once down.
+Fetching needs ~/.cdsapirc and runs in GitHub Actions only (.github/workflows/seas5.yml; the
+laptop never downloads — seas5_ref.guard_fetch). The build reads this issue's forecast GRIBs plus
+the derived tables of seas5_ref.py, never the raw hindcast.
 """
 from __future__ import annotations
 
@@ -55,7 +56,8 @@ import numpy as np
 HERE = Path(__file__).resolve().parent
 SITE_ROOT = Path(os.environ["SST_SITE_ROOT"]).resolve() if os.environ.get("SST_SITE_ROOT") else HERE.parents[1]
 ASSETS = SITE_ROOT / "assets" / "sst"
-DATA = HERE / "data" / "seas5"
+# SEAS5_DATA: where the raw GRIBs and the derived tables live (a worktree points it at the main checkout's store)
+DATA = Path(os.environ["SEAS5_DATA"]).resolve() if os.environ.get("SEAS5_DATA") else HERE / "data" / "seas5"
 SIGMA_PATH = HERE / "roni_sigma.json"
 PDO_PATTERN = HERE / "reference" / "pdo_pattern.nc"
 
@@ -117,6 +119,9 @@ KINDS = {
     "water": dict(dataset="seasonal-monthly-single-levels",
                   variable=["evaporation"], area=[75, -170, -60, -30], grid=[1.0, 1.0]),
 }
+# kinds no product reads any more (the Americas z500 was the terciles' fallback before the global kinds;
+# u200 never got a product): not fetched, so nothing is downloaded that nothing uses
+UNUSED_KINDS = {"z500", "u200"}
 # the immediately previous issue is pulled in full (change maps, polar-cap
 # comparison); older issues only need SST (the plume-evolution lines)
 PREVIOUS_KINDS = ["sst"]
@@ -124,6 +129,8 @@ PREVIOUS_FULL = list(KINDS)
 
 
 def _client():
+    from seas5_ref import guard_fetch                     # downloads run in GitHub Actions only (user rule 2026-10-04)
+    guard_fetch("Copernicus CDS")
     import cdsapi
     return cdsapi.Client(timeout=900, quiet=True, progress=False, wait_until_complete=True, retry_max=1)
 
@@ -131,6 +138,8 @@ def _client():
 def _retrieve(kind: str, years: list[str], month: str, dest: Path) -> bool:
     if dest.exists() and dest.stat().st_size > 0:
         return True
+    from seas5_ref import guard_fetch                     # raise here, outside the retry loop below
+    guard_fetch(f"CDS {kind} {month}")
     dest.parent.mkdir(parents=True, exist_ok=True)
     k = KINDS[kind]
     req = {"originating_centre": CENTRE, "system": SYSTEM, "product_type": ["monthly_mean"],
@@ -177,27 +186,22 @@ def previous_issues(ym: str, n: int) -> list[str]:
     return out
 
 
-def fetch(ym: str, n_prev: int, kinds=None) -> dict:
-    """Pull everything for the issue (and SST for the previous issues). Returns
-    {(kind, ym|hc-month): ok}. Order: the issue's forecasts first (cheap, and
-    they tell us whether the issue is out at all), then hindcasts, then the
-    previous issues."""
+def fetch(ym: str, n_prev: int = 0, kinds=None) -> dict:
+    """Pull this issue's forecast kinds — and nothing else. Since 2026-10-04 the hindcasts are reduced
+    once per start month to derived tables (seas5_ref.py hindcast --fetch, which pulls a raw kind only
+    while its table is missing and deletes it afterwards), and everything the build needs from earlier
+    issues is kept as per-issue summaries (seas5_ref is_*), so neither is ever downloaded again.
+    `n_prev` is accepted for the old command line and ignored. Order: SST first — it tells us whether
+    the issue is on the CDS at all."""
     got = {}
+    want = [k for k in KINDS if (kinds is None or k in kinds) and k not in UNUSED_KINDS]
+    want.sort(key=lambda k: k != "sst")
     month = ym[4:]
-    want = [k for k in KINDS if (kinds is None or k in kinds)]
     for kind in want:
         got[("fc", kind, ym)] = _retrieve(kind, [ym[:4]], month, fc_path(kind, ym))
-    if kinds is None and not got[("fc", "sst", ym)]:
-        print(f"SEAS5 {ym} is not on the CDS yet — nothing more to do", flush=True)
-        return got
-    for kind in want:
-        got[("hc", kind, month)] = _retrieve(kind, CLIM_YEARS, month, hc_path(kind, month))
-    for i, prev in enumerate(previous_issues(ym, n_prev)):
-        for kind in [k for k in (PREVIOUS_FULL if i == 0 else PREVIOUS_KINDS) if (kinds is None or k in kinds)]:
-            ok = _retrieve(kind, [prev[:4]], prev[4:], fc_path(kind, prev))
-            got[("fc", kind, prev)] = ok
-            if ok:
-                got[("hc", kind, prev[4:])] = _retrieve(kind, CLIM_YEARS, prev[4:], hc_path(kind, prev[4:]))
+        if kind == "sst" and kinds is None and not got[("fc", kind, ym)]:
+            print(f"SEAS5 {ym} is not on the CDS yet — nothing more to do", flush=True)
+            return got
     return got
 
 
