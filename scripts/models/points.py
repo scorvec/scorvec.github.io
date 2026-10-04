@@ -148,6 +148,9 @@ SPEC = {
     "td2m": ("F", 0.1, "bilinear", True),
     "ws80": ("m/s", 0.1, "bilinear (u, v)", True),
     "wd80": ("deg from", 5, "bilinear (u, v)", False),
+    "ws10": ("m/s", 0.1, "bilinear (u, v)", True),        # 10 m wind and surface gust (user 2026-10-04)
+    "wd10": ("deg from", 5, "bilinear (u, v)", False),
+    "gust": ("m/s", 0.1, "bilinear", True),
     "ceil": ("ft AGL", 10, "nearest", False),        # null = no ceiling
     "vis": ("mi", 0.1, "nearest", False),            # capped at 10 (= 10 mi or more, as a METAR reports it)
     "refl": ("dBZ", 1, "nearest", False),            # HRRR/RRFS: REFD 1 km AGL; null below 5 dBZ

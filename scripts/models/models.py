@@ -18,6 +18,9 @@ Encoding (codes 0-254 data, 255 = missing / "none"); the page holds the same tab
   td2m    as t2m
   smoke   mg m-2 column smoke, log from 0.1 to 3,000; 0 = below 0.1
   wind80  m/s, EARTH-relative u in R and v in G, -50.8 + 0.4 * code (the page draws speed, arrows and hover values)
+  wind10  as wind80, 10 m above ground (user 2026-10-04: "Might as well get the 10m wind too")
+  gust    m/s, linear, 0.25 m/s steps from 0 (0-63.5 m/s = 0-123 kt; 254 = 63.5 or more): the model's instantaneous
+          surface gust (user 2026-10-04: "add MSLP and wind gust/direction"); the page draws the 10 m wind's barbs on it
   sw      W m-2, linear 5 W m-2 steps
   refl    HRRR/RRFS: R = dBZ / 0.5 at 1 km AGL (0 = below 5 dBZ), G = precipitation type (see ptype_flags);
           RDPS: R = precipitation rate, log 0.1-100 mm/h, G = type (RDPS_PTYPE); manifest enc refl2 / rate2
@@ -90,6 +93,8 @@ FIELDS = {
     "td2m": dict(enc="linf"),
     "smoke": dict(enc="log", lo=0.1, hi=3000.0),
     "wind80": dict(enc="lin2", off=-50.8, step=0.4),
+    "wind10": dict(enc="lin2", off=-50.8, step=0.4),
+    "gust": dict(enc="lin", off=0.0, step=0.25),
     "sw": dict(enc="lin", off=0.0, step=5.0),
     "refl": dict(enc="refl2"),       # HRRR/RRFS: dBZ in R, precipitation type in G; RDPS: precipitation rate ("rate2")
     # mean-sea-level pressure, overlay only (isobars on the reflectivity map, user 2026-09-30): 0.5 hPa from 940 hPa, stored
@@ -112,8 +117,18 @@ ACC_METHOD = {
     "rdps": dict(apcp="Precip-Accum", asnow="10:1 from the RDPS's accumulated snow water equivalent (not a model snowfall)",
                  afzra="FreezingRain-Accum (liquid equivalent)", aip="IcePellets-Accum (liquid equivalent)"),
 }
-ORDER = ["ir", "refl", "ceil", "vis", "t2m", "td2m", "smoke", "wind80", "sw", "mslp", "apcp", "asnow", "afzra", "aip"]
+ORDER = ["ir", "refl", "ceil", "vis", "t2m", "td2m", "smoke", "wind80", "wind10", "gust", "sw", "mslp", "apcp", "asnow", "afzra", "aip"]
 SUB = {"hrrr": 4, "rrfs": 4, "rdps": 2}
+# Smoke is seasonal (user 2026-10-04: "We can turn off the smoke between Oct 1 - Apr 1"): a run whose UTC date falls
+# outside (start month, start day, end month, end day) inclusive fetches, encodes and publishes no smoke for any model -
+# HRRR/RRFS COLMD, RDPS via RAQDPS-FireWork (and its separate grid fetch) - and points.json carries no smoke series. The
+# field is then absent from the manifest and models.html hides its button. It comes back on its own from Apr 1.
+SMOKE_SEASON = (4, 1, 9, 30)
+
+
+def smoke_on(cyc_dt):
+    m0, d0, m1, d1 = SMOKE_SEASON
+    return (m0, d0) <= (cyc_dt.month, cyc_dt.day) <= (m1, d1)
 # Half-resolution copies for zoomed-out views (2026-10-01, user: the page was slow on a low-powered laptop on a slow
 # line): <fff>_lo.webp = every 2nd point of the native grid (plain decimation, so every encoding - 16-bit accumulations,
 # precipitation-type flags, the 255 mask - keeps its meaning; grid j = 0, the southern row, is kept), listed as
@@ -243,19 +258,24 @@ PT = {"refd": r"^REFD:1000 m above ground:", "crain": r"^CRAIN:surface:(anl|\d+ 
 # run-total accumulations; the HRRR writes 24 and 48 h as "0-1 day acc" / "0-2 day acc"
 ACC = {"apcp": r"^APCP:surface:0-\d+ (hour|day) acc", "asnow": r"^ASNOW:surface:0-\d+ (hour|day) acc",
        "frzr": r"^FRZR:surface:0-\d+ (hour|day) acc"}
+# 10 m wind and the instantaneous surface gust (user 2026-10-04); the anchors keep out the hourly-max WIND / MAXUW / MAXVW
+# lines that share the 10 m level ("5-6 hour max fcst"). Same names in HRRR wrfsfc and RRFS 2dfld (checked 2026-10-04).
+WG = {"gust": r"^GUST:surface:(anl|\d+ hour fcst):?$", "u10": r"^UGRD:10 m above ground:(anl|\d+ hour fcst):?$",
+      "v10": r"^VGRD:10 m above ground:(anl|\d+ hour fcst):?$"}
 IDX_WANT = {   # field -> regex on "VAR:LEVEL:TIME[:extra]" of a wgrib2 .idx line
     # MSLP: HRRR MSLMA (MAPS reduction, the only MSLP in wrfsfc); RRFS MSLET (NCEP's chart reduction; no PRMSL in 2dfld)
     "hrrr": {"mslp": r"^MSLMA:mean sea level:", "psfc": r"^PRES:surface:", "ir": r"^SBT124:top of atmosphere:", "ceilh": r"^HGT:cloud ceiling:", "zsfc": r"^HGT:surface:",
              "vis": r"^VIS:surface:", "t2m": r"^TMP:2 m above ground:", "td2m": r"^DPT:2 m above ground:",
              "smoke": r"^COLMD:entire atmosphere", "u80": r"^UGRD:80 m above ground:",
-             "v80": r"^VGRD:80 m above ground:", "sw": r"^DSWRF:surface:(anl|\d+ hour fcst):?$", **PT, **ACC},
+             "v80": r"^VGRD:80 m above ground:", "sw": r"^DSWRF:surface:(anl|\d+ hour fcst):?$", **WG, **PT, **ACC},
     "rrfs": {"mslp": r"^MSLET:mean sea level:", "psfc": r"^PRES:surface:", "ir": r"^SBTA1613:top of atmosphere:", "ceilh": r"^HGT:cloud ceiling:", "zsfc": r"^HGT:surface:",
              "vis": r"^VIS:surface:", "t2m": r"^TMP:2 m above ground:", "td2m": r"^DPT:2 m above ground:",
              "smoke": r"^COLMD:entire atmosphere.*Particulate organic matter dry", "u80": r"^UGRD:80 m above ground:",
-             "v80": r"^VGRD:80 m above ground:", "sw": r"^DSWRF:surface:(anl|\d+ hour fcst):?$", **PT, **ACC},
+             "v80": r"^VGRD:80 m above ground:", "sw": r"^DSWRF:surface:(anl|\d+ hour fcst):?$", **WG, **PT, **ACC},
 }
 RDPS_VARS = {"ir": "UpwardLongwaveRadiationFlux_NTAtm", "t2m": "AirTemp_AGL-2m", "td2m": "DewPoint_AGL-2m",
-             "u80": "WindU_AGL-80m", "v80": "WindV_AGL-80m", "swacc": "DownwardShortwaveRadiationFlux-Accum_Sfc",
+             "u80": "WindU_AGL-80m", "v80": "WindV_AGL-80m",
+             "u10": "WindU_AGL-10m", "v10": "WindV_AGL-10m", "gust": "WindGust_AGL-10m", "swacc": "DownwardShortwaveRadiationFlux-Accum_Sfc",
              "prate": "PrecipRate_Sfc", "ptype": "PrecipType-Instant_Sfc", "mslp": "Pressure_MSL", "psfc": "Pressure_Sfc",
              "apcp": "Precip-Accum_Sfc", "swe": "Snow-Accum_Sfc", "frzr": "FreezingRain-Accum_Sfc", "ipacc": "IcePellets-Accum_Sfc"}
 RDPS_BOX = (-172.0, -45.0, 17.0, 80.0)      # crop of the RDPS grid (lon0, lon1, lat0, lat1): North America
@@ -435,6 +455,11 @@ def process_hour(model, lead, blobs, outdir):
         if "u80" in blobs and "v80" in blobs:
             u, v = dec(blobs["u80"]), dec(blobs["v80"])
             phys["wind80"] = to_earth(u, v, alpha) if _CTX.get("grid_rel") else (u, v)
+        if "u10" in blobs and "v10" in blobs:
+            u, v = dec(blobs["u10"]), dec(blobs["v10"])
+            phys["wind10"] = to_earth(u, v, alpha) if _CTX.get("grid_rel") else (u, v)
+        if "gust" in blobs:
+            phys["gust"] = dec(blobs["gust"])
         if "sw" in blobs:
             phys["sw"] = dec(blobs["sw"])
         if "mslp" in blobs and "psfc" in blobs:
@@ -466,6 +491,11 @@ def process_hour(model, lead, blobs, outdir):
         if "u80" in blobs and "v80" in blobs:
             u, v = dec(blobs["u80"], crop), dec(blobs["v80"], crop)
             phys["wind80"] = to_earth(u, v, alpha) if _CTX.get("grid_rel") else (u, v)
+        if "u10" in blobs and "v10" in blobs:
+            u, v = dec(blobs["u10"], crop), dec(blobs["v10"], crop)
+            phys["wind10"] = to_earth(u, v, alpha) if _CTX.get("grid_rel") else (u, v)
+        if "gust" in blobs:
+            phys["gust"] = dec(blobs["gust"], crop)
         if "swacc" in blobs and "swacc_prev" in blobs:
             a1, a0 = dec(blobs["swacc"], crop), dec(blobs["swacc_prev"], crop)
             phys["sw"] = np.maximum(a1 - a0, 0.0) / 3600.0
@@ -536,6 +566,12 @@ def sample_points(model, phys, mfull, ps, rs=None):
         u, v = (ps.bilinear(c) for c in phys["wind80"])
         out["ws80"] = np.hypot(u, v)
         out["wd80"] = np.mod(270.0 - np.degrees(np.arctan2(v, u)), 360.0)
+    if "wind10" in phys:
+        u, v = (ps.bilinear(c) for c in phys["wind10"])
+        out["ws10"] = np.hypot(u, v)
+        out["wd10"] = np.mod(270.0 - np.degrees(np.arctan2(v, u)), 360.0)
+    if "gust" in phys:
+        out["gust"] = ps.bilinear(phys["gust"])
     if "ceil" in phys:
         out["ceil"] = near(phys["ceil"])
     if "vis" in phys:
@@ -562,8 +598,10 @@ def sample_points(model, phys, mfull, ps, rs=None):
 # ── fetch plans ─────────────────────────────────────────────────────────────────────────────────────────────────────
 def fetch_hour(model, date, cyc, lead, cyc_dt):
     """-> {key: bytes} for one forecast hour (keys as in IDX_WANT / RDPS_VARS)."""
+    smoke = smoke_on(cyc_dt)
     if model in ("hrrr", "rrfs"):
-        want = {k: v for k, v in IDX_WANT[model].items() if k != "zsfc" and not (lead == 0 and k in ACC)}   # f00 has no accumulations
+        want = {k: v for k, v in IDX_WANT[model].items() if k != "zsfc" and not (lead == 0 and k in ACC)   # f00 has no accumulations
+                and (smoke or k != "smoke")}
         return fetch_idx_fields(model, file_url(model, date, cyc, lead), want)
     f = fetcher("rdps")
     names = dict(RDPS_VARS)
@@ -573,7 +611,7 @@ def fetch_hour(model, date, cyc, lead, cyc_dt):
     if lead >= 1:
         jobs["swacc_prev"] = rdps_url(date, cyc, lead - 1, RDPS_VARS["swacc"])
     r_dt, off = raq_for(cyc_dt)
-    if lead + off <= 72:
+    if smoke and lead + off <= 72:
         jobs["smoke"] = raq_url(r_dt.strftime("%Y%m%d"), r_dt.hour, lead + off)
     out = {}
 
@@ -611,6 +649,8 @@ def complete(model, cyc_dt):
     ok = head_ok(rdps_url(date, cyc, n, RDPS_VARS["swacc"]))
     if not ok:
         return False
+    if not smoke_on(cyc_dt):                                    # out of the smoke season: no RAQDPS to wait for
+        return True
     r_dt, off = raq_for(cyc_dt)
     if head_ok(raq_url(r_dt.strftime("%Y%m%d"), r_dt.hour, 72)):
         return True
@@ -703,6 +743,8 @@ def cmd_run(a):
         grids["main"] = grid_desc(b, crop)
         r_dt, off = raq_for(cyc_dt)
         try:
+            if not smoke_on(cyc_dt):
+                raise sb.Missing("out of the smoke season (SMOKE_SEASON)")
             rb = f.get(raq_url(r_dt.strftime("%Y%m%d"), r_dt.hour, off + 1))
             grids["raq"] = grid_desc(rb)
         except Exception as e:                                  # noqa: BLE001
