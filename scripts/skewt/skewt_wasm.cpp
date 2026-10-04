@@ -86,6 +86,17 @@ KEEP int compute_sounding(const float* pres, const float* hght,
 // parcel and its ECAPE, DCAPE, kinematics, composites, winter, PBL, SHIP) - on 1.9 million columns an hour. This is the SAME
 // code path as compute_sounding_impl for those four numbers (same ML parcel, same effective-inflow MU search and fallbacks,
 // same MSE profile and ECAPE calls), stopping there. Writes out[5], out[10], out[42], out[45] like compute_sounding.
+// Stable-column screen (2026-10-04, user: "Skipping columns is a great idea!"): a parcel can be positively buoyant above
+// its source only where its theta-e exceeds the environment's SATURATED theta-e. If every candidate source level in the
+// lowest 400 hPa (the MU search depth) and the 100-hPa mixed-layer parcel stay at least `g_screen_k` below the minimum
+// saturated theta-e above them, no parcel has CAPE: ML/MU CAPE are 0 and ECAPE is not computed - exactly what the full
+// path returns for such a column. The margin absorbs the lifter-vs-formula difference and the virtual-temperature effect;
+// Measured 2026-10-04 on two full HRRR hours (06Z F06, 12Z F06; 7.6 M values each): mismatches vs the unscreened kernel
+// 3,334 / 1,110 at 1 K, 202 / 12 at 2 K, 6 / 0 at 2.5 K, none at 3 K and 4 K. 4 K keeps a full kelvin of headroom and is
+// still exact; kernel time 54.8 s (full analysis) -> 48.7 s (lean) -> 43.5 s (lean + screen). < 0 = off.
+static float g_screen_k = 4.0f;
+extern "C" KEEP void set_ecape_screen(float k) { g_screen_k = k; }
+
 static int compute_ecape4_impl(const float* pres, const float* hght, const float* tmpk, const float* dwpk,
                                const float* uwin, const float* vwin, const int N, float* out, float* ml_vt, float* mu_vt) {
     if (N < 5) return 1;
@@ -95,6 +106,20 @@ static int compute_ecape4_impl(const float* pres, const float* hght, const float
         mixr[i] = mixratio(pres[i], dwpk[i]);
         vtmp[i] = virtual_temperature(tmpk[i], mixr[i]);
         thta[i] = theta(pres[i], tmpk[i], THETA_REF_PRESSURE);
+    }
+    if (g_screen_k >= 0.0f) {
+        std::vector<float> minabove(N);                       // min saturated theta-e strictly above level k
+        float m = 1e9f;
+        for (int k = N - 1; k >= 0; --k) { minabove[k] = m; m = std::min(m, thetae(pres[k], tmpk[k], tmpk[k])); }
+        bool can = false;
+        for (int k = 0; k < N - 1 && pres[0] - pres[k] <= 40000.0f && !can; ++k)
+            can = thetae(pres[k], tmpk[k], dwpk[k]) + g_screen_k >= minabove[k];
+        if (!can) {
+            PressureLayer mix0(pres[0], pres[0] - 10000.0f);
+            Parcel ml0 = Parcel::mixed_layer_parcel(mix0, pres, hght, thta.data(), mixr.data(), N);
+            can = thetae(ml0.pres, ml0.tmpk, ml0.dwpk) + g_screen_k >= minabove[0];
+        }
+        if (!can) { out[5] = 0.0f; out[10] = 0.0f; return 0; }   // no parcel can be buoyant: CAPE 0, no ECAPE
     }
     lifter_wobus lifter;
     std::fill(ml_vt, ml_vt + N, MISSING);

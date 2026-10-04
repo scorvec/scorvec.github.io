@@ -37,6 +37,7 @@ extern "C" int compute_sounding(const float*, const float*, const float*,
                                 const float*, const float*, const float*, int,
                                 float*, float*, float*, float*);
 extern "C" int out_size();
+extern "C" void set_ecape_screen(float);
 extern "C" int compute_ecape4(const float*, const float*, const float*, const float*, const float*, const float*, int,
                               float*, float*, float*);
 
@@ -131,7 +132,8 @@ int main(int argc, char** argv) {
 
     long long ok = 0, bad = 0;
     const bool full = std::getenv("ECAPE_FULL") && std::string(std::getenv("ECAPE_FULL")) == "1";
-    std::printf("  kernel: %s\n", full ? "full explorer analysis (ECAPE_FULL=1)" : "compute_ecape4 (ML/MU CAPE + ECAPE only)");
+    if (const char* sk = std::getenv("ECAPE_SCREEN_K")) set_ecape_screen((float)std::atof(sk));   // tests; < 0 = off
+    std::printf("  kernel: %s\n", full ? "full explorer analysis (ECAPE_FULL=1)" : "compute_ecape4 (ML/MU CAPE + ECAPE only, stable-column screen)");
 #ifdef _OPENMP
     std::printf("  OpenMP: %d threads\n", omp_get_max_threads());
 #endif
