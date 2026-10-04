@@ -109,6 +109,8 @@ jobs:
             MF="--merge-from /tmp/main_scores.json"
           else echo "::warning::could not read main's scores; scoring on the checkout's copy only"; fi
           python scripts/verify/aifs_station_verify.py --verify $MF || echo "::warning::verification scoring failed; continuing"
+          # the page's scorecard + static figures (aifs-verify.html reads these, not the 11 MB scores file)
+          python scripts/verify/aifs_verify_figs.py || echo "::warning::scorecard/figures failed; continuing"
           rm -rf scripts/verify/data/uw_cache
 
       - name: AIFS comparison loops
@@ -147,7 +149,11 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           OUT="assets/verify/aifs_scores_v2.json assets/verify/aifs_det_scores.json assets/sst/anim/aifs_compare_manifest.json \
-               assets/sst/anim/aifs_z500_manifest.json assets/sst/anim/aifs_t2m_manifest.json"
+               assets/sst/anim/aifs_z500_manifest.json assets/sst/anim/aifs_t2m_manifest.json \
+               assets/verify/aifs_scorecard.json assets/verify/aifs_spectra.webp \
+               assets/verify/aifs_lead_raob_z500_nh.webp assets/verify/aifs_lead_raob_t850_nh.webp \
+               assets/verify/aifs_lead_era5_z500_nh.webp assets/verify/aifs_lead_era5_t850_nh.webp \
+               assets/verify/aifs_lead_era5_msl_nh.webp assets/verify/aifs_lead_era5_t2m_nh.webp"
           SNAP=$(mktemp -d)
           tar cf "$SNAP/outs.tar" --ignore-failed-read $OUT 2>/dev/null || true
           for i in 1 2 3 4 5; do

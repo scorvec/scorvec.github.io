@@ -156,7 +156,6 @@
 }
 @keyframes ss-up { from { transform: translateY(24px); opacity: 0.4; } }
 @media (prefers-reduced-motion: reduce) { .ss-sheet-box { animation: none; } }
-}
 /* The option pills, for stage pages that do not load outlook.css (navigation phase 2: qbo, ar …). Same look as
    outlook.css's .pill; scoped to the option rows so outlook.css pages are unaffected. */
 .opts .pill { font: 600 0.72rem var(--sans); letter-spacing: 0.02em; color: var(--accent);

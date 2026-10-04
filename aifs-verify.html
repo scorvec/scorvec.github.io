@@ -74,9 +74,37 @@
   :root { --surface: #ffffff; --edge: #d9d5cc; --ink2: #444; }
   .ss-layout { margin-top: 1rem; }
   .stage > .card { border: 0; margin: 0; border-radius: 0; }
+  /* scorecard (2026-10-04): one table, colour = which model wins, solid = significant */
+  .kpi .val.ens { color: var(--ensmean); }
+  .kpi .sub { font-size: 0.7rem; color: var(--muted); margin-top: 0.2rem; line-height: 1.4; }
+  #scorecard { min-width: 0; max-width: 100%; }
+  .sc-wrap { overflow-x: auto; padding: 0.3rem 1.4rem 0.4rem; max-width: 100%; }
+  @media (max-width: 700px) { .sc-wrap { padding: 0.3rem 0.5rem; } table.sc { min-width: 620px; border-spacing: 2px; }
+    table.sc td.c { min-width: 2.9rem; height: 2.2rem; font-size: 0.76rem; } table.sc td.rl { font-size: 0.78rem; padding-right: 0.4rem; }
+    table.sc td.rl small { display: block; margin-left: 0; } .sc-bar span.g { width: 120px; } }
+  table.sc { border-collapse: separate; border-spacing: 3px; width: 100%; min-width: 760px; font-variant-numeric: tabular-nums; }
+  table.sc th { font: 500 0.74rem var(--sans); color: var(--muted); padding: 0.3rem 0.2rem; text-align: center; white-space: nowrap; }
+  table.sc th.rl { text-align: left; padding-left: 0; }
+  table.sc tr.grp th { text-align: left; font: 600 0.7rem var(--sans); letter-spacing: 0.07em; text-transform: uppercase;
+    color: var(--accent); padding: 0.9rem 0 0.25rem; border-bottom: 1px solid var(--rule); }
+  table.sc td.rl { font-size: 0.86rem; white-space: nowrap; padding-right: 0.8rem; position: sticky; left: 0; background: #fff; z-index: 1; }
+  table.sc td.rl small { color: var(--muted); font-size: 0.74rem; margin-left: 0.35rem; }
+  table.sc td.c { height: 2.6rem; min-width: 3.6rem; border-radius: 5px; text-align: center; font-size: 0.86rem;
+    color: #1c1c1a; cursor: default; position: relative; }
+  table.sc td.c.ns { color: #6f6b64; font-weight: 400; }
+  table.sc td.c.sig { font-weight: 600; }
+  table.sc td.c.sig::after { content: ""; position: absolute; top: 4px; right: 5px; width: 5px; height: 5px; border-radius: 50%; background: currentColor; opacity: 0.55; }
+  table.sc td.c.na { background: #f3f2ee; color: #b5b1a8; }
+  table.sc td.c:hover { outline: 2px solid var(--ink); outline-offset: -1px; }
+  .sc-key { display: flex; flex-wrap: wrap; align-items: center; gap: 0.6rem 1.4rem; padding: 0.6rem 1.4rem 1rem; font-size: 0.76rem; color: var(--muted); }
+  .sc-bar { display: inline-flex; align-items: center; gap: 0.45rem; }
+  .sc-bar span.g { display: inline-block; width: 210px; height: 12px; border-radius: 3px; }
+  .sc-tip { position: fixed; z-index: 50; pointer-events: none; background: #1c1c1a; color: #fff; font-size: 0.76rem; line-height: 1.5;
+    padding: 0.5rem 0.7rem; border-radius: 6px; max-width: 300px; box-shadow: 0 4px 14px rgba(0,0,0,.2); display: none; }
+  .sc-tip b { font-weight: 600; }
+  .sc-empty { padding: 2rem 1.4rem; color: var(--muted); font-size: 0.85rem; text-align: center; }
 </style>
 <script data-goatcounter="https://scorvec.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
-<script src="https://cdn.plot.ly/plotly-2.35.2.min.js" charset="utf-8"></script>
 <link rel="canonical" href="https://scorvec.com/aifs-verify.html">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -265,68 +293,29 @@
       <p class="hint"><span class="kbd">&uarr;</span> <span class="kbd">&darr;</span> change figure &middot; each card keeps its own controls</p>
     </section>
   </div>
+  <template id="about-lead"><p>Each line is the mean over the <b>same</b> verified runs at every lead (a run enters a
+  lead only when all four models have it), so the lines are comparable point by point. Station anomalies are against
+  each radiosonde station's own day-of-year median; ERA5 anomalies against the ERA5 1991&ndash;2020 climatology. The
+  <b>activity ratio</b> is std(forecast anomaly) / std(observed anomaly): a model can buy RMSE by damping variance, and
+  this ratio shows the purchase. Whether two lines differ significantly is in the scorecard.</p>
+  <p>Data: ECMWF AIFS and AIFS-ENS open data (CC BY 4.0), radiosondes from the <a href="skewt/">sounding explorer</a>
+  mirror, ERA5 via WeatherBench2.</p></template>
+  <template id="about-spec"><p>Spherical-harmonic power of each model's global field against total wavenumber, averaged
+  over the archived runs and shown as a ratio to the AIFS single at the same lead. Member&nbsp;0 as published sits
+  above 1 wherever the single has smoothed small scales away; the matched member&nbsp;0 should lie on 1 &mdash; that
+  is what the filter is for. The dotted line is the T120 truncation applied before scoring; nothing to its right
+  enters any score.</p></template>
   <div class="lightbox" id="lightbox"><img alt=""></div>
   <div class="dom-holder">
-    <div class="card" id="diff">
+    <div class="card" id="scorecard">
     <div class="card-head">
-      <h2>Difference from the single, with 95&nbsp;% intervals</h2>
-      <p>Each line is the mean of <b>(model &minus; AIFS single)</b> over the same runs for all three comparisons; the shading is a 95&nbsp;%
-      paired moving-block bootstrap interval (blocks of four consecutive runs, two days, to allow for correlation
-      between neighbouring runs; 2,000 resamples). Filled markers: the interval excludes zero, a significant
-      difference. Open markers: no significant difference. For RMSE, above zero means worse than the single; for
-      anomaly correlation, above zero means better.</p>
+      <h2 id="scTitle">Scorecard</h2>
+      <p id="scLede"></p>
     </div>
-    <div class="controls">
-      <span class="seg" id="truthSeg">
-        <button data-t="raob:z500:nh" class="on">z500 &middot; radiosondes</button><button data-t="raob:t850:nh">850 hPa T &middot; radiosondes</button><button data-t="era5:z500:nh">z500 &middot; ERA5</button><button data-t="era5:t850:nh">850 hPa T &middot; ERA5</button><button data-t="era5:msl:nh">MSLP &middot; ERA5</button><button data-t="era5:t2m:nh">2 m T &middot; ERA5</button>
-      </span>
-      <span class="seg" id="regionSeg" title="radiosonde scores only">
-        <button data-r="nh" class="on">NH 20&ndash;80&deg;N</button><button data-r="glb">global</button>
-      </span>
-      <span class="legend"><span><i style="background:none;height:0;border-top:2px solid var(--control)"></i>member 0, matched</span><span><i style="background:none;height:0;border-top:2px dashed var(--raw)"></i>member 0, as published</span><span><i style="background:none;height:0;border-top:2px dotted var(--ensmean)"></i>ensemble mean</span></span>
-    </div>
-    <div class="grid4" id="diffGrid"><div id="d-rmse"></div><div id="d-acc"></div></div>
-    <div class="empty" id="diffEmpty" style="display:none">Not enough paired runs yet (at least 20 per lead).</div>
-    <div class="card-foot" id="diffNote"></div>
-  </div>
-  <div class="card" id="scores">
-    <div class="card-head">
-      <h2>Scores by lead</h2>
-      <p>Mean over the same verified runs for every line; the shading is &plusmn;1 standard error, descriptive only. Whether two lines differ
-      significantly is tested in the panel above. Station anomalies are against each station's <b>own</b>
-      day-of-year median from its full radiosonde record; ERA5 anomalies against the ERA5 1991&ndash;2020
-      climatology. The <b>activity ratio</b> is std(forecast anomaly) / std(observed anomaly): a model can buy RMSE
-      by damping variance, and this ratio shows the purchase.</p>
-    </div>
-    <div class="controls">
-      <span class="seg" id="showSeg" title="reference series">
-        <button data-s="ctl" class="on">member 0 as published</button><button data-s="ens" class="on">ensemble mean</button>
-      </span>
-      <span class="legend"><span><i style="background:none;height:0;border-top:2px solid var(--single)"></i>AIFS single</span><span><i style="background:none;height:0;border-top:2px solid var(--control)"></i>member 0, matched</span><span><i style="background:none;height:0;border-top:2px dashed var(--raw)"></i>member 0, as published</span><span><i style="background:none;height:0;border-top:2px dotted var(--ensmean)"></i>ensemble mean</span></span>
-    </div>
-    <div class="grid4" id="scoreGrid">
-      <div id="c-rmse"></div><div id="c-acc"></div><div id="c-bias"></div><div id="c-act"></div>
-    </div>
-    <div class="empty" id="scoreEmpty">Collecting &mdash; every 00Z and 12Z run is archived and verified as its radiosondes and ERA5 arrive.</div>
-    <div class="card-foot" id="scoreNote">no verified runs yet</div>
-  </div>
-  <div class="card" id="spectra">
-    <div class="card-head">
-      <h2>Power spectra by lead &mdash; the blurring, and the matching</h2>
-      <p>Spherical-harmonic power of each model's global field against total wavenumber, averaged over the archived
-      runs. The single loses power as lead grows; member&nbsp;0 as published does not. The matched member&nbsp;0
-      should lie on the single's curve: that is what the filter is for. The dotted line is the common truncation
-      applied before scoring; nothing to its right enters any score.</p>
-    </div>
-    <div class="controls">
-      <span class="seg" id="specVar"><button data-v="z500" class="on">z500</button><button data-v="t850">850 hPa T</button><button data-v="msl">MSLP</button><button data-v="t2m">2 m temperature</button></span>
-      <span class="seg" id="specLead"><button data-l="24">day 1</button><button data-l="120" class="on">day 5</button><button data-l="240">day 10</button></span>
-      <span class="seg" id="specMode"><button data-m="abs" class="on">power</button><button data-m="ratio">ratio to the single</button></span>
-      <span class="legend"><span><i style="background:none;height:0;border-top:2px solid var(--single)"></i>AIFS single</span><span><i style="background:none;height:0;border-top:2px solid var(--control)"></i>member 0, matched</span><span><i style="background:none;height:0;border-top:2px dashed var(--raw)"></i>member 0, as published</span><span><i style="background:none;height:0;border-top:2px dotted var(--ensmean)"></i>ensemble mean</span></span>
-    </div>
-    <div id="c-spec" style="height:400px"></div>
-    <div class="empty" id="specEmpty">no spectra yet</div>
-    <div class="card-foot" id="specNote"></div>
+    <div class="sc-wrap"><table class="sc" id="scTable"></table></div>
+    <div class="sc-empty" id="scEmpty">Collecting &mdash; every 00Z and 12Z run is archived and verified as its radiosondes and ERA5 arrive.</div>
+    <div class="sc-key" id="scKey"></div>
+    <div class="card-foot" id="scNote"></div>
   </div>
   <div class="card" id="loop">
     <div class="card-head">
@@ -357,15 +346,27 @@
   </div>
   </div>
 <script>
-window.STAGE = { groups: [{"label": "Scores", "items": [["diff", "Difference from the single", "95 % intervals, paired bootstrap"], ["scores", "Scores by lead", "RMSE, ACC, bias, activity"], ["spectra", "Power spectra by lead", "the blurring and the matching"]]}, {"label": "Loops", "items": [["loop", "Side-by-side forecast loop", "MSLP, thickness, 6-h precipitation"], ["z500", "500 hPa height anomaly", "Northern Hemisphere loop"], ["t2m", "2 m temperature anomaly", "North America loop"]]}],
+window.STAGE = { groups: [{"label": "Scores", "items": [["scorecard", "Scorecard", "every variable and lead, one table"], ["scores", "Scores by lead", "RMSE, ACC, bias, activity"], ["spectra", "Power spectra", "the blurring and the matching"]]}, {"label": "Loops", "items": [["loop", "Side-by-side forecast loop", "MSLP, thickness, 6-h precipitation"], ["z500", "500 hPa height anomaly", "Northern Hemisphere loop"], ["t2m", "2 m temperature anomaly", "North America loop"]]}],
+  aliases: { diff: "scorecard" },
   products: {
-    diff: { label: "Difference from the single", dom: function () { return "diff"; } },
-    scores: { label: "Scores by lead", dom: function () { return "scores"; } },
-    spectra: { label: "Power spectra by lead", dom: function () { return "spectra"; } },
+    scorecard: { label: "Scorecard", fit: false,
+      a: { label: "compared with the single", items: [["matched", "member 0, matched"], ["control", "member 0, as published"], ["ensmean", "ensemble mean"]] },
+      b: { label: "score", items: [["rmse", "RMSE"], ["acc", "anomaly correlation"]] },
+      dom: function () { return "scorecard"; } },
+    scores: { label: "Scores by lead", bust: "hourly", about: "about-lead",
+      a: { label: "truth", items: [["raob", "radiosondes"], ["era5", "ERA5"]] },
+      b: function (t) { return { label: "variable", items: t === "raob" ? [["z500", "500 hPa height"], ["t850", "850 hPa temperature"]]
+        : [["z500", "500 hPa height"], ["t850", "850 hPa temperature"], ["msl", "sea-level pressure"], ["t2m", "2 m temperature"]] }; },
+      img: function (t, v) { return "assets/verify/aifs_lead_" + t + "_" + v + "_nh.webp"; },
+      cap: function (t, v) { return "Northern Hemisphere 20&ndash;80&deg;N, scored against " + (t === "raob" ? "radiosondes" : "ERA5") + ". Red: AIFS single; dark blue: member 0 spectrally matched; light blue dashed: member 0 as published; grey dotted: ensemble mean."; } },
+    spectra: { label: "Power spectra", bust: "hourly", about: "about-spec",
+      img: function () { return "assets/verify/aifs_spectra.webp"; },
+      cap: function () { return "Member 0's power divided by the single's at days 1, 5 and 10: solid as published, dashed after the spectral matching."; } },
     loop: { label: "Side-by-side forecast loop", dom: function () { return "loop"; } },
     z500: { label: "500 hPa height anomaly", dom: function () { return "z500"; } },
     t2m: { label: "2 m temperature anomaly", dom: function () { return "t2m"; } }
-  } };
+  },
+  onRender: function (sel) { if (window.AIFS_SC) window.AIFS_SC(sel); } };
 </script>
   <div class="colophon">
     <h3>Method</h3>
@@ -403,228 +404,96 @@ window.STAGE = { groups: [{"label": "Scores", "items": [["diff", "Difference fro
     having much less variance than the atmosphere; it is not a single model run and is not the page's question.</p>
   </div>
 </main>
+<div class="sc-tip" id="scTip"></div>
 <script>
 (function () {
   "use strict";
-  var COL = { single: "#b3372f", matched: "#2c5f8a", control: "#8fb0cc", ensmean: "#5c5a55" };
-  var DASH = { single: "solid", matched: "solid", control: "dash", ensmean: "dot" };
-  var NAME = { single: "AIFS single", matched: "member 0, matched", control: "member 0, as published",
-               ensmean: "ensemble mean" };
-  var UNIT = { z500: "m", t850: "°C", msl: "hPa", t2m: "°C" };
-  var state = { truth: "raob", var: "z500", region: "nh", specVar: "z500", specLead: 120, specMode: "abs",
-                show: { ctl: true, ens: true }, D: null };
-  function seg(id, key, cb, multi) {
-    var el = document.getElementById(id);
-    el.addEventListener("click", function (ev) {
-      var b = ev.target.closest("button"); if (!b) return;
-      if (multi) { b.classList.toggle("on"); cb(b.dataset[key], b.classList.contains("on")); return; }
-      el.querySelectorAll("button").forEach(function (x) { x.classList.remove("on"); });
-      b.classList.add("on"); cb(b.dataset[key]);
-    });
+  var D = null, cur = { a: "matched", b: "rmse" };
+  var NAME = { matched: "member 0, spectrally matched", control: "member 0 as published", ensmean: "the ensemble mean" };
+  var SHORT = { matched: "member 0 (matched)", control: "member 0 (as published)", ensmean: "ensemble mean" };
+  // full colour at |RMSE change| 20 % or |ACC difference| 0.05; green = the comparison model beats the single
+  var SAT = { rmse: 20, acc: 5 };
+  var GOOD = [26, 133, 102], BAD = [196, 64, 52], WHITE = [255, 255, 255];
+  function mix(c, t) { return "rgb(" + c.map(function (x, i) { return Math.round(WHITE[i] + (x - WHITE[i]) * t); }).join(",") + ")"; }
+  function better(metric, v) { return metric === "rmse" ? v < 0 : v > 0; }
+  function colour(metric, cell) {
+    var t = Math.min(1, Math.abs(cell.v) / SAT[metric]);
+    t = Math.sqrt(t) * (cell.sig ? 0.85 : 0.32);
+    return mix(better(metric, cell.v) ? GOOD : BAD, t);
   }
-  seg("truthSeg", "t", function (v) { var p = v.split(":"); state.truth = p[0]; state.var = p[1];
-    document.getElementById("regionSeg").style.opacity = state.truth === "raob" ? 1 : 0.4; drawAll(); });
-  seg("regionSeg", "r", function (v) { state.region = v; drawAll(); });
-  seg("showSeg", "s", function (v, on) { state.show[v] = on; drawScores(); }, true);
-  seg("specVar", "v", function (v) { state.specVar = v; drawSpec(); });
-  seg("specLead", "l", function (v) { state.specLead = +v; drawSpec(); });
-  seg("specMode", "m", function (v) { state.specMode = v; drawSpec(); });
-  var BASE = { paper_bgcolor: "rgba(0,0,0,0)", plot_bgcolor: "rgba(0,0,0,0)",
-               font: { family: "Inter, sans-serif", size: 11.5, color: "#1c1c1a" },
-               margin: { l: 52, r: 16, t: 34, b: 38 }, showlegend: false, hovermode: "x unified",
-               xaxis: { title: { text: "lead (days)", font: { size: 10.5, color: "#6f6b64" } }, gridcolor: "#eeece6",
-                        zeroline: false, dtick: 1, range: [0.6, 10.4] },
-               yaxis: { gridcolor: "#eeece6", zeroline: false } };
-  function region() { return state.truth === "raob" ? state.region : "nh"; }
-  function models() {
-    var m = ["single", "matched"]; if (state.show.ctl) m.push("control"); if (state.show.ens) m.push("ensmean"); return m;
+  function fmt(metric, v) { var s = metric === "rmse" ? Math.abs(v).toFixed(Math.abs(v) < 10 ? 1 : 0) + "%" : Math.abs(v / 100).toFixed(3).replace(/^0/, "");
+    return (v > 0 ? "+" : v < 0 ? "−" : "") + s; }
+  function $(id) { return document.getElementById(id); }
+  function esc(x) { return String(x).replace(/&/g, "&amp;").replace(/</g, "&lt;"); }
+
+  function kpis() {
+    var h = $("verdict"); h.innerHTML = ""; if (!D) return;
+    var z = D.day5_z500_rmse || {}, d = D.day5_diff || {};
+    function k(lab, val, cls, sub) { var e = document.createElement("div"); e.className = "kpi";
+      e.innerHTML = '<div class="lab">' + lab + '</div><div class="val ' + (cls || "") + '">' + val + '</div>' + (sub ? '<div class="sub">' + sub + '</div>' : ""); h.appendChild(e); }
+    function dt(s) { return s ? s.slice(0, 4) + "-" + s.slice(4, 6) + "-" + s.slice(6, 8) + " " + s.slice(8, 10) + "Z" : ""; }
+    k("verified runs", D.runs, "", dt(D.first) + " &rarr; " + dt(D.last));
+    if (z.single != null) k("day-5 z500 RMSE · AIFS single", z.single.toFixed(1) + "<small>m</small>", "single", "vs radiosondes, NH");
+    if (z.matched != null) k("day-5 z500 RMSE · member 0 matched", z.matched.toFixed(1) + "<small>m</small>", "control",
+      d.mean != null ? (d.mean > 0 ? "+" : "") + d.mean.toFixed(1) + " m vs the single, 95 % [" + d.lo.toFixed(1) + ", " + d.hi.toFixed(1) + "]" + (d.sig ? ", significant" : ", not significant") : "");
+    if (z.ensmean != null) k("day-5 z500 RMSE · ensemble mean", z.ensmean.toFixed(1) + "<small>m</small>", "ens", "26-member average, for reference");
   }
-  function stat(recs) {
-    var by = {};
-    recs.forEach(function (r) { (by[r.lead] = by[r.lead] || []).push(r); });
-    return Object.keys(by).map(Number).sort(function (a, b) { return a - b; }).map(function (L) {
-      var vals = by[L];
-      function arr(k) { return vals.map(function (r) { return r[k]; }).filter(function (v) { return v != null; }); }
-      return { lead: L, n: vals.length,
-        mean: function (k) { var a = arr(k); return a.length ? a.reduce(function (s, v) { return s + v; }, 0) / a.length : null; },
-        se: function (k) { var a = arr(k); if (a.length < 2) return 0; var m = a.reduce(function (s, v) { return s + v; }, 0) / a.length;
-          var v = a.reduce(function (s, x) { return s + (x - m) * (x - m); }, 0) / (a.length - 1); return Math.sqrt(v / a.length); } };
-    });
-  }
-  function hexA(c, a) { return c + a; }
-  function series(model, metric, S, unit) {
-    var x = S.map(function (p) { return p.lead / 24; });
-    var y = S.map(function (p) { return p.mean(metric); });
-    var e = S.map(function (p) { return p.se(metric); });
-    var band = { x: x.concat(x.slice().reverse()),
-                 y: y.map(function (v, i) { return v == null ? null : v + e[i]; }).concat(y.map(function (v, i) { return v == null ? null : v - e[i]; }).reverse()),
-                 fill: "toself", fillcolor: hexA(COL[model], "22"), line: { width: 0 }, hoverinfo: "skip", showlegend: false, type: "scatter" };
-    var line = { x: x, y: y, name: NAME[model], mode: "lines+markers", type: "scatter",
-                 line: { color: COL[model], width: model === "single" || model === "matched" ? 2.3 : 1.6, dash: DASH[model] },
-                 marker: { size: 5, color: COL[model] },
-                 hovertemplate: NAME[model] + " %{y:.3~f}" + unit + "<extra></extra>" };
-    return [band, line];
-  }
-  function panel(id, title, metric, R, unit, ref) {
-    var traces = [];
-    models().forEach(function (m) {
-      var S = stat(R.filter(function (r) { return r.model === m; }));
-      if (S.length) traces = traces.concat(series(m, metric, S, unit));
-    });
-    var lay = JSON.parse(JSON.stringify(BASE));
-    lay.title = { text: title, font: { family: "Lora, serif", size: 13.5 }, x: 0.02, xanchor: "left" };
-    if (ref != null) lay.shapes = [{ type: "line", x0: 0.6, x1: 10.4, y0: ref, y1: ref, line: { color: "#888", dash: "dot", width: 1 } }];
-    if (metric === "acc") lay.yaxis.range = [0.4, 1.005];
-    Plotly.react(id, traces, lay, { displayModeBar: false, responsive: true });
-  }
-  function drawScores() {
-    var D = state.D; if (!D) return;
-    var R = D.records.filter(function (r) { return r.truth === state.truth && r.var === state.var && r.region === region(); });
-    // one sample for every line: the runs (per lead) where the matched series verified, once it has any
-    var hasM = {}; R.forEach(function (r) { if (r.model === "matched") hasM[r.init + ":" + r.lead] = 1; });
-    if (Object.keys(hasM).length) R = R.filter(function (r) { return hasM[r.init + ":" + r.lead]; });
-    var grid = document.getElementById("scoreGrid"), empty = document.getElementById("scoreEmpty");
-    if (!R.length) { grid.style.display = "none"; empty.style.display = ""; empty.textContent = "no verified runs yet for this combination"; return; }
-    grid.style.display = ""; empty.style.display = "none";
-    var u = " " + UNIT[state.var];
-    panel("c-rmse", "RMSE (" + UNIT[state.var] + ")", "rmse", R, u, null);
-    panel("c-acc", "Anomaly correlation", "acc", R, "", null);
-    panel("c-bias", "Bias, forecast − observed (" + UNIT[state.var] + ")", "bias", R, u, 0);
-    panel("c-act", "Activity ratio (1 = observed variance)", "act", R, "", 1);
-    var inits = {}; R.forEach(function (r) { if (r.model === "single") inits[r.init] = 1; });
-    var nst = R.filter(function (r) { return r.lead === 24 && r.model === "single"; }).map(function (r) { return r.n; });
-    var meanN = nst.length ? Math.round(nst.reduce(function (s, v) { return s + v; }, 0) / nst.length) : null;
-    document.getElementById("scoreNote").textContent =
-      Object.keys(inits).length + " verified runs, the same runs for every line · " +
-      (state.truth === "raob" ? (meanN + " stations per lead · truth: radiosondes (explorer mirror)") : "truth: ERA5, NH 20–80°N, 1.5°") +
-      " · all series truncated at T" + D.lmax_t + " · updated " + D.generated;
-  }
-  function diffPanel(id, title, metric, E, unit) {
-    var traces = [], x0 = 0.6, x1 = 10.4;
-    ["matched", "control", "ensmean"].forEach(function (m) {
-      var rows = (E[m] || {})[metric]; if (!rows || !rows.length) return;
-      var x = rows.map(function (r) { return r.lead / 24; });
-      traces.push({ x: x.concat(x.slice().reverse()), y: rows.map(function (r) { return r.hi; }).concat(rows.map(function (r) { return r.lo; }).reverse()),
-                    fill: "toself", fillcolor: hexA(COL[m], m === "matched" ? "33" : "1f"), line: { width: 0 }, hoverinfo: "skip", type: "scatter" });
-      traces.push({ x: x, y: rows.map(function (r) { return r.mean; }), mode: "lines+markers", type: "scatter", name: NAME[m],
-                    line: { color: COL[m], width: m === "matched" ? 2.4 : 1.5, dash: DASH[m] },
-                    marker: { size: 7, color: rows.map(function (r) { return r.sig ? COL[m] : "#fff"; }), line: { color: COL[m], width: 1.5 } },
-                    customdata: rows.map(function (r) { return [r.lo, r.hi, r.n, r.sig ? "significant" : "not significant"]; }),
-                    hovertemplate: NAME[m] + " %{y:.3~f}" + unit + " [%{customdata[0]:.3~f}, %{customdata[1]:.3~f}] · %{customdata[3]} · n %{customdata[2]}<extra></extra>" });
-    });
-    var lay = JSON.parse(JSON.stringify(BASE));
-    lay.title = { text: title, font: { family: "Lora, serif", size: 13.5 }, x: 0.02, xanchor: "left" };
-    lay.shapes = [{ type: "line", x0: x0, x1: x1, y0: 0, y1: 0, line: { color: "#1c1c1a", width: 1 } }];
-    Plotly.react(id, traces, lay, { displayModeBar: false, responsive: true });
-    return traces.length > 0;
-  }
-  function sigText(rows, metric) {
-    if (!rows || !rows.length) return null;
-    var worse = [], better = [], ns = [];
-    rows.forEach(function (r) {
-      var d = r.lead / 24; if (!r.sig) { ns.push(d); return; }
-      var isWorse = metric === "acc" ? r.mean < 0 : r.mean > 0; (isWorse ? worse : better).push(d);
-    });
-    function fmt(a) { return a.length ? "day " + a.join(", ") : null; }
-    var out = [];
-    if (worse.length) out.push("significantly worse than the single at " + fmt(worse));
-    if (better.length) out.push("significantly better at " + fmt(better));
-    if (ns.length) out.push("no significant difference at " + fmt(ns));
-    return out.join("; ");
-  }
-  function drawDiffs() {
-    var D = state.D; if (!D || !D.diffs) return;
-    var E = D.diffs[state.truth + ":" + state.var + ":" + region()] || {};
-    var u = " " + UNIT[state.var];
-    var ok1 = diffPanel("d-rmse", "RMSE, model − single (" + UNIT[state.var] + ")", "rmse", E, u);
-    var ok2 = diffPanel("d-acc", "Anomaly correlation, model − single", "acc", E, "");
-    var grid = document.getElementById("diffGrid"), empty = document.getElementById("diffEmpty");
-    grid.style.display = (ok1 || ok2) ? "" : "none"; empty.style.display = (ok1 || ok2) ? "none" : "";
-    var m = E.matched || {}, t = sigText(m.rmse, "rmse"), a = sigText(m.acc, "acc");
-    var n = m.rmse && m.rmse.length ? m.rmse[0].n : 0;
-    document.getElementById("diffNote").textContent = (t || a) ?
-      "Matched member 0 on RMSE: " + (t || "n/a") + ". On anomaly correlation: " + (a || "n/a") + ". " + n + " paired runs at day 1. " + (D.diff_test ? D.diff_test.method : "") :
-      "Not enough paired runs with the matched series yet.";
-  }
-  function drawSpec() {
-    var D = state.D; if (!D || !D.spectra) return;
-    var k = "_" + state.specVar + "_" + state.specLead;
-    var ks = { single: D.spectra["single" + k], control: D.spectra["control" + k], matched: D.spectra["matched" + k], ensmean: D.spectra["ensmean" + k] };
-    var el = document.getElementById("c-spec"), empty = document.getElementById("specEmpty");
-    if (!ks.single || !ks.control) { el.style.display = "none"; empty.style.display = ""; return; }
-    el.style.display = ""; empty.style.display = "none";
-    var l = ks.single.mean.map(function (_, i) { return i; }).slice(1);
-    var traces = [], order = ["single", "matched", "control", "ensmean"];
-    var lay = JSON.parse(JSON.stringify(BASE));
-    lay.hovermode = "x";
-    lay.xaxis = { title: { text: "total wavenumber (spherical-harmonic degree)", font: { size: 10.5, color: "#6f6b64" } },
-                  type: "log", gridcolor: "#eeece6", zeroline: false, range: [0, Math.log10(360)] };
-    if (state.specMode === "abs") {
-      order.forEach(function (m) {
-        if (!ks[m]) return;
-        traces.push({ x: l, y: ks[m].mean.slice(1), name: NAME[m], mode: "lines", line: { color: COL[m], width: m === "single" ? 2.6 : 1.8, dash: DASH[m] },
-                      hovertemplate: NAME[m] + " %{y:.3~g}<extra></extra>" });
+
+  function table() {
+    var tb = $("scTable"); tb.innerHTML = "";
+    if (!D || !D.rows || !D.rows.length) { $("scEmpty").style.display = ""; $("scKey").style.display = "none"; return; }
+    $("scEmpty").style.display = "none"; $("scKey").style.display = "";
+    var m = cur.b, c = cur.a, days = D.leads.map(function (l) { return l / 24; });
+    $("scTitle").textContent = (m === "rmse" ? "RMSE" : "Anomaly correlation") + ": " + SHORT[c] + " against the AIFS single";
+    $("scLede").innerHTML = m === "rmse"
+      ? "Each cell is the change in RMSE from the AIFS single, in per cent, at that lead, over the same runs. <b>Green: " + esc(NAME[c]) + " has the lower error; red: the single does.</b> Solid colour and a dot mean the 95&nbsp;% paired-bootstrap interval excludes zero; pale cells are not significant."
+      : "Each cell is the difference in anomaly correlation (" + esc(SHORT[c]) + " minus the single) at that lead, over the same runs. <b>Green: " + esc(NAME[c]) + " correlates better; red: the single does.</b> Solid colour and a dot mean the 95&nbsp;% paired-bootstrap interval excludes zero; pale cells are not significant.";
+    var head = "<tr><th class='rl'></th>" + days.map(function (d) { return "<th>day " + d + "</th>"; }).join("") + "</tr>";
+    var html = "", lastTruth = null;
+    D.rows.forEach(function (r, ri) {
+      if (r.truth !== lastTruth) { html += "<tr class='grp'><th colspan='" + (days.length + 1) + "'>against " + esc(r.truth) + (r.truth === "ERA5" ? " &middot; NH 20&ndash;80&deg;N" : "") + "</th></tr>" + head; lastTruth = r.truth; }
+      var cells = ((r.cmp[c] || {})[m]) || [];
+      html += "<tr><td class='rl'>" + esc(r.label) + (r.truth === "radiosondes" ? "<small>" + esc(r.region) + "</small>" : "") + "</td>";
+      D.leads.forEach(function (_, li) {
+        var x = cells[li];
+        if (!x || x.v == null) { html += "<td class='c na'>&ndash;</td>"; return; }
+        html += "<td class='c " + (x.sig ? "sig" : "ns") + "' style='background:" + colour(m, x) + "' data-r='" + ri + "' data-l='" + li + "'>" + fmt(m, x.v) + "</td>";
       });
-      lay.yaxis = { title: { text: "power (" + UNIT[state.specVar] + "²)", font: { size: 10.5, color: "#6f6b64" } }, type: "log", gridcolor: "#eeece6", zeroline: false };
-    } else {
-      order.slice(1).forEach(function (m) {
-        if (!ks[m]) return;
-        var ratio = ks[m].mean.map(function (v, i) { return ks.single.mean[i] > 0 ? v / ks.single.mean[i] : null; }).slice(1);
-        traces.push({ x: l, y: ratio, name: NAME[m] + " / single", mode: "lines", line: { color: COL[m], width: 2, dash: DASH[m] },
-                      hovertemplate: NAME[m] + " / single %{y:.2f}<extra></extra>" });
-      });
-      lay.yaxis = { title: { text: "power ratio to the single", font: { size: 10.5, color: "#6f6b64" } }, gridcolor: "#eeece6", zeroline: false };
-      lay.shapes = [{ type: "line", x0: 1, x1: 360, xref: "x", y0: 1, y1: 1, line: { color: "#888", dash: "dot", width: 1 } }];
-    }
-    // Plotly quirk: on a log axis SHAPES take raw data values, ANNOTATIONS take log10
-    lay.shapes = (lay.shapes || []).concat([{ type: "line", x0: D.lmax_t, x1: D.lmax_t, xref: "x", yref: "paper", y0: 0, y1: 1,
-                                             line: { color: "#2c4a72", dash: "dot", width: 1.2 } }]);
-    lay.annotations = [{ x: Math.log10(D.lmax_t), y: 1, xref: "x", yref: "paper", text: "T" + D.lmax_t + " truncation", showarrow: false,
-                         xanchor: "right", yanchor: "top", font: { size: 10, color: "#2c4a72" }, xshift: -4 }];
-    lay.margin.t = 18;
-    Plotly.react(el, traces, lay, { displayModeBar: false, responsive: true });
-    var nm = ks.matched ? ks.matched.n : 0, match = "";
-    var mc = (D.match_check || {})[state.specVar + "_" + state.specLead];
-    if (mc) {
-      match = " · matched member 0 / single over the same " + mc.n + " runs, l 1–" + D.lmax_t + ": median " + mc.median.toFixed(3) +
-              ", largest departure " + (100 * mc.max_dev).toFixed(1) + " % (member 0 as published: median " + mc.raw_median.toFixed(2) + ")";
-    } else if (ks.matched) {
-      var r = ks.matched.mean.slice(1, D.lmax_t + 1).map(function (v, i) { return v / ks.single.mean[i + 1]; });
-      var dev = r.map(function (x) { return Math.abs(x - 1); }); var mx = Math.max.apply(null, dev);
-      var med = r.slice().sort(function (a, b) { return a - b; })[Math.floor(r.length / 2)];
-      match = " · matched member 0 / single, l 1–" + D.lmax_t + ": median " + med.toFixed(2) + ", largest departure " + (100 * mx).toFixed(0) + " %";
-    }
-    document.getElementById("specNote").textContent = "mean over " + ks.single.n + " runs (" + nm + " for the matched and ensemble-mean series) · day " +
-      (state.specLead / 24) + match + " · last run " + (ks.single.last_init || "");
+      html += "</tr>";
+    });
+    tb.innerHTML = html;
+    var g = function (rgb) { return "rgb(" + rgb.join(",") + ")"; };
+    $("scKey").innerHTML = "<span class='sc-bar'>single better <span class='g' style='background:linear-gradient(to right," + mix(BAD, .85) + "," + mix(BAD, .3) + ",#fff," + mix(GOOD, .3) + "," + mix(GOOD, .85) + ")'></span> " + esc(SHORT[c]) + " better</span>"
+      + "<span>full colour at " + (m === "rmse" ? "&plusmn;20 %" : "&plusmn;0.05") + "</span><span>&bull; = significant (95 %)</span><span>hover a cell for the values</span>";
+    $("scNote").innerHTML = "AIFS single and AIFS-ENS member 0, 00Z + 12Z runs, every series truncated at T" + (D.lmax_t || 120) + " before scoring &middot; " + esc(D.diff_test || "") + " &middot; updated " + esc(D.generated || "");
   }
-  function verdict(D) {
-    var host = document.getElementById("verdict"); host.innerHTML = "";
-    function kpi(lab, val, cls, small) {
-      var d = document.createElement("div"); d.className = "kpi";
-      d.innerHTML = '<div class="lab">' + lab + '</div><div class="val ' + (cls || "") + '">' + val + (small ? "<small>" + small + "</small>" : "") + "</div>";
-      host.appendChild(d);
-    }
-    var R = D.records.filter(function (r) { return r.truth === "raob" && r.var === "z500" && r.region === "nh" && r.lead === 120; });
-    var byM = {}; R.forEach(function (r) { (byM[r.model] = byM[r.model] || []).push(r); });
-    var paired = {}; (byM.matched || []).forEach(function (r) { paired[r.init] = 1; });
-    function m(model, k, onlyPaired) { var a = (byM[model] || []).filter(function (r) { return !onlyPaired || paired[r.init]; })
-      .map(function (r) { return r[k]; }).filter(function (v) { return v != null; });
-      return a.length ? a.reduce(function (s, v) { return s + v; }, 0) / a.length : null; }
-    var inits = {}; D.records.forEach(function (r) { inits[r.init] = 1; });
-    kpi("verified runs", Object.keys(inits).length, "", "00Z + 12Z");
-    var P = Object.keys(paired).length > 0;
-    if (m("single", "rmse", P) != null) kpi("day-5 z500 RMSE vs radiosondes", m("single", "rmse", P).toFixed(1) + " m", "single", "AIFS single");
-    if (m("matched", "rmse") != null) kpi("day-5 z500 RMSE vs radiosondes", m("matched", "rmse", true).toFixed(1) + " m", "control", "member 0, matched");
-    var E = ((D.diffs || {})["raob:z500:nh"] || {}).matched;
-    var row = E && E.rmse ? E.rmse.filter(function (r) { return r.lead === 120; })[0] : null;
-    if (row) kpi("day-5 difference, matched − single", (row.mean > 0 ? "+" : "") + row.mean.toFixed(1) + " m", "",
-                 "95 % " + row.lo.toFixed(1) + " to " + row.hi.toFixed(1) + (row.sig ? " · significant" : " · not significant"));
-    if (m("ensmean", "rmse") != null) kpi("day-5 z500 RMSE vs radiosondes", m("ensmean", "rmse", true).toFixed(1) + " m", "", "ensemble mean (26 runs)");
+
+  function tip(ev) {
+    var t = $("scTip"), td = ev.target.closest && ev.target.closest("td.c[data-r]");
+    if (!td) { t.style.display = "none"; return; }
+    var r = D.rows[+td.dataset.r], li = +td.dataset.l, m = cur.b, c = cur.a, x = r.cmp[c][m][li];
+    var s = r.single[m][li], o = s + (m === "rmse" ? x.d : x.d), u = r.unit;
+    var val = function (v) { return m === "rmse" ? v.toFixed(r.unit === "m" ? 1 : 2) + " " + u : v.toFixed(3); };
+    t.innerHTML = "<b>" + esc(r.label) + " &middot; " + esc(r.truth) + (r.truth === "radiosondes" ? " " + esc(r.region) : "") + " &middot; day " + D.leads[li] / 24 + "</b><br>"
+      + (m === "rmse" ? "RMSE" : "Anomaly correlation") + ": single " + val(s) + ", " + esc(SHORT[c]) + " " + val(o) + "<br>"
+      + "difference " + fmt(m, x.v) + ", 95 % [" + fmt(m, x.lo) + ", " + fmt(m, x.hi) + "]<br>"
+      + (x.sig ? "significant" : "not significant") + " &middot; " + x.n + " paired runs";
+    t.style.display = "block";
+    var w = t.offsetWidth, hgt = t.offsetHeight, X = ev.clientX + 14, Y = ev.clientY + 14;
+    if (X + w > innerWidth - 8) X = ev.clientX - w - 14; if (Y + hgt > innerHeight - 8) Y = ev.clientY - hgt - 14;
+    t.style.left = X + "px"; t.style.top = Y + "px";
   }
-  function drawAll() { drawDiffs(); drawScores(); }
-  fetch("assets/verify/aifs_scores_v2.json?v=" + Date.now()).then(function (r) { if (!r.ok) throw 0; return r.json(); })
-    .then(function (D) { state.D = D; verdict(D); drawAll(); drawSpec(); })
-    .catch(function () { /* the empty states stand */ });
+  $("scTable").addEventListener("mousemove", tip);
+  $("scTable").addEventListener("mouseleave", function () { $("scTip").style.display = "none"; });
+  $("scTable").addEventListener("click", tip);
+
+  window.AIFS_SC = function (sel) {
+    if (!sel || sel.p !== "scorecard") return;
+    if (sel.a in NAME) cur.a = sel.a; if (sel.b === "rmse" || sel.b === "acc") cur.b = sel.b; table();
+  };
+  fetch("assets/verify/aifs_scorecard.json?v=" + Math.floor(Date.now() / 3.6e6)).then(function (r) { if (!r.ok) throw 0; return r.json(); })
+    .then(function (j) { D = j; kpis(); table(); })
+    .catch(function () { table(); });
 })();
 </script>
 <script>
