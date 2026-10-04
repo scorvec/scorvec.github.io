@@ -456,9 +456,12 @@
   }
   function render() {
     if (!ready) return;
-    var st = state(); if (st.prod !== "tcens" && st.prod !== "tcphase") return;
+    // the stage switches products with pushState/replaceState (no hashchange), so the hash may still name
+    // another product, or carry no storm id yet: draw with the first storm and only fix the hash when it is ours
+    var st = state(), mine = st.prod === "tcens" || st.prod === "tcphase";
     var s = S.filter(function (x) { return x.id === st.id; })[0] || S[0];
-    if (s && s.id !== st.id) { go(s.id, st.view); return; }
+    if (s && mine && s.id !== st.id) { go(s.id, st.view); return; }
+    if (!mine) st = { prod: "tcens", id: s ? s.id : null, view: "tracks" };
     drawMap();
     document.getElementById("tcp-storms").innerHTML = S.map(function (x, i) {
       return '<button type="button" data-id="' + x.id + '" aria-pressed="' + (s && x.id === s.id) + '"><i style="background:' + COLORS[i % COLORS.length] + '"></i>' + x.name + "</button>"; }).join("");
@@ -488,6 +491,12 @@
       });
   }).catch(function () { var h = document.getElementById("tcp-map"); if (h && !S.length) h.innerHTML = '<div class="tcp-empty">Could not load the storm list. Reload the page to try again.</div>'; });
   window.addEventListener("hashchange", render);
+  window.addEventListener("popstate", render);
+  // the block is mounted into the stage later than it loads: redraw whenever it becomes visible
+  var shown = false;
+  if (window.MutationObserver) new MutationObserver(function () {
+    var vis = !!root.offsetParent; if (vis && !shown) render(); shown = vis;    // hidden -> visible only (render itself mutates the DOM)
+  }).observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ["hidden", "class", "style"] });
 })();
 </script>
 </div>
