@@ -110,7 +110,7 @@ def fetch_chunk(region: str, ym: str, k: int) -> bool:
                 return True
         except Exception as e:                                    # noqa: BLE001
             msg = str(e).replace("\n", " ")
-            if "no data" in msg.lower() or "not found" in msg.lower():
+            if "no data" in msg.lower() or ("not found" in msg.lower() and "/jobs/" not in msg):   # a 404 on the CDS job URL = a dropped job, retry
                 print(f"    {region} {ym} m{k}: no data on the CDS ({msg[:80]})", flush=True)
                 return False
             print(f"    {region} {ym} m{k}: attempt {attempt + 1} failed ({msg[:120]})", flush=True)

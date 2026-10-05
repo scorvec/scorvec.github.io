@@ -164,14 +164,18 @@ def _retrieve(kind: str, years: list[str], month: str, dest: Path) -> bool:
                 return True
         except Exception as e:                              # noqa: BLE001
             msg = str(e).replace("\n", " ")
-            if "no data" in msg.lower() or "not found" in msg.lower():
+            # "no data" is MARS saying the selection is empty. A 404 on the CDS's own job URL (.../retrieve/v1/jobs/...)
+            # is NOT that: on release day a job queued ~17 min and then 404'd (2026-10-05 19:22) - the CDS dropped it
+            # under load, so it is retried like the queue limit below.
+            jobs404 = "404" in msg and "/jobs/" in msg
+            if "no data" in msg.lower() or ("not found" in msg.lower() and not jobs404):
                 print(f"    {kind} {month}: no data on the CDS — skipped ({msg[:80]})", flush=True)
                 return False
             print(f"    {kind} {month}: attempt {attempt + 1} failed ({msg[:600]})", flush=True)
             # Release day (2026-10-05 18:59): "Number queued requests for this dataset is temporarily limited" - the
             # CDS throttling everyone pulling the new issue, not a missing issue. Back off for minutes, not seconds,
             # and give it 5 tries (~50 min); the caller reports "busy" rather than "not on the CDS yet".
-            if "temporarily limited" in msg.lower() or "queued requests" in msg.lower():
+            if "temporarily limited" in msg.lower() or "queued requests" in msg.lower() or jobs404:
                 CDS_BUSY, tries = True, 5
                 time.sleep(240 * (attempt + 1))
             else:
