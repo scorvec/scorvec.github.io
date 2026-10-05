@@ -47,8 +47,11 @@ REGIONS = {
     "atl":  dict(label="North Atlantic & Europe", lon=(282, 45), lat=(22, 75), clon=-20, clat=50),
     "asia": dict(label="East Asia", lon=(75, 175), lat=(15, 68), clon=125, clat=42),
     # 2026-10-04 (user: "add dynamic tropopause charts for south america"): Southern Hemisphere, so the dynamic tropopause
-    # is the -2 PVU surface and the isentropic maps show -PV (same colours and thresholds as the NH); southern Lambert cone
-    "sam":  dict(label="South America", lon=(250, 340), lat=(-58, 14), clon=-65, clat=-22, sh=True),
+    # is the -2 PVU surface and the isentropic maps show -PV (same colours and thresholds as the NH). 2026-10-05 (user: "the
+    # map projection for south america is just weird"): the southern Lambert cone in a wide frame tilted the continent and
+    # spent half the map on the tropics; now plate carree (the CPTEC/INMET convention), wide enough to show troughs coming
+    # in from the SE Pacific and leaving into the South Atlantic, and the whole continent north to 12N.
+    "sam":  dict(label="South America", lon=(230, 5), lat=(-68, 12), clon=-65, clat=-28, sh=True, proj="pc"),
 }
 DT_LEV = np.arange(260, 401, 5)
 # θ on the dynamic tropopause: purple/blue = low θ (troughs, cut-offs, stratospheric air folded down), greens through
@@ -163,14 +166,17 @@ RG_W, RG_H = 11.8, 8.6           # 8.6 (was 7.9): a band under the map for the s
 
 
 def _frame_region(rg):
-    """A wide figure with one regional Lambert map and the colour-bar axes under it."""
+    """A wide figure with one regional map (Lambert, or plate carree for South America) and the colour-bar axes under it."""
     import cartopy.crs as ccrs
     import matplotlib.pyplot as plt
     R = REGIONS[rg]
     fig = plt.figure(figsize=(RG_W, RG_H))
     sh = R.get("sh", False)
-    proj = ccrs.LambertConformal(central_longitude=R["clon"], central_latitude=R["clat"],
-                                 standard_parallels=(-30, -60) if sh else (30, 60), cutoff=30 if sh else -30)
+    if R.get("proj") == "pc":                                            # cut at clon+180, the same as _subset's
+        proj = ccrs.PlateCarree(central_longitude=R["clon"])
+    else:
+        proj = ccrs.LambertConformal(central_longitude=R["clon"], central_latitude=R["clat"],
+                                     standard_parallels=(-30, -60) if sh else (30, 60), cutoff=30 if sh else -30)
     ax = fig.add_axes([0.012, 0.172, 0.976, 0.777], projection=proj)
     lo0, lo1 = R["lon"]; span = (lo1 - lo0) % 360
     ax.set_extent([lo0 - 360 if lo0 > 180 else lo0, (lo0 - 360 if lo0 > 180 else lo0) + span, R["lat"][0], R["lat"][1]], crs=ccrs.PlateCarree())
@@ -230,7 +236,7 @@ def _decorate(ax, polar, title):
     import cartopy.feature as cfeature
     ax.coastlines(resolution="50m", lw=1.0, color="#000", zorder=6); ax.add_feature(cfeature.BORDERS, lw=0.45, edgecolor="#222", zorder=6)
     if not polar: ax.add_feature(cfeature.STATES.with_scale("50m"), lw=0.25, edgecolor="#444", zorder=6)
-    ax.gridlines(lw=0.3, color="#6f6b64", alpha=0.6, ylocs=range(10, 90, 10 if not polar else 20), xlocs=range(-180, 181, 20 if not polar else 30))
+    ax.gridlines(lw=0.3, color="#6f6b64", alpha=0.6, ylocs=range(-80, 90, 10) if not polar else range(20, 90, 20), xlocs=range(-180, 181, 20 if not polar else 30))
     ax.set_title(title, fontsize=10.5 if not polar else 9.6, loc="left", fontweight="bold")
 
 
