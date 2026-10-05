@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Dynamic-tropopause charts from the AIFS-ENS member 0 (PV does not survive averaging).
 
-From temperature and wind on nine pressure levels (700–100 hPa), 12-hourly to day 10:
+From temperature and wind on nine pressure levels (700–100 hPa), 6-hourly to day 10:
   Ertel PV on the pressure grid    PV = −g [ (ζ + f) ∂θ/∂p − ∂v/∂p ∂θ/∂x + ∂u/∂p ∂θ/∂y ]   (PVU = 1e−6 K m² kg⁻¹ s⁻¹)
   the dynamic tropopause           first crossing of 2 PVU searching upward from 700 hPa; θ, p and the wind
                                    interpolated linearly in PV between the bracketing levels
@@ -31,7 +31,7 @@ import store as ecmwf                                                   # noqa: 
 import tc_jet as TC                                                     # noqa: E402
 
 LEVS = (700, 600, 500, 400, 300, 250, 200, 150, 100)
-STEPS = tuple(range(0, 241, 12))
+STEPS = tuple(range(0, 241, 6))   # 6-hourly since 2026-10-05 (user: the 12-h stepping was too coarse); 12 h before
 A_EARTH, OMEGA, G0, KAPPA = 6.371e6, 7.2921e-5, 9.80665, 0.2857
 LAT0 = -80.0                                                             # southern edge of the computation (0 until 2026-10-04,
                                                                          # when South America was added; the NH regional
@@ -312,13 +312,29 @@ def _key(ax, polar):
                      fontsize=7.8 if polar else 9.0, frameon=False, columnspacing=1.4 if polar else 1.8, handlelength=2.0)
 
 
+def _at(s, h):
+    """((lat, lon), k) of a storm at lead h: the exact fix, or - the post-tropical continuation is 12-hourly while the
+    maps are 6-hourly - linear between fixes at most 12 h apart; k = the fix at or before h (labels). (None, None) if
+    the storm has no position there."""
+    st = np.asarray(s["steps"], int)
+    k = np.where(st == h)[0]
+    if len(k):
+        return (float(s["lat"][k[0]]), float(s["lon"][k[0]])), int(k[0])
+    b = np.where(st < h)[0]; f = np.where(st > h)[0]
+    if not len(b) or not len(f) or st[f[0]] - st[b[-1]] > 12:
+        return None, None
+    i, j = b[-1], f[0]; w = (h - st[i]) / (st[j] - st[i])
+    dlo = (float(s["lon"][j]) - float(s["lon"][i]) + 180.0) % 360.0 - 180.0
+    return (float(s["lat"][i]) + w * (float(s["lat"][j]) - float(s["lat"][i])), float(s["lon"][i]) + w * dlo), int(i)
+
+
 def _storms(ax, storms, h, polar):
     """Tropical cyclones in the control at lead h: the last TRACK_HIST_H hours solid, the rest dashed, a dot sized by
     strength."""
     import cartopy.crs as ccrs
     halo = [pe.Stroke(linewidth=3.2, foreground="#000"), pe.Normal()]
     for s in storms:
-        pos = TC.at(s, h)
+        pos, k = _at(s, h)
         if pos is None or pos[0] <= 0:
             continue
         past = (s["steps"] <= h) & (s["steps"] >= h - TRACK_HIST_H)
@@ -327,7 +343,6 @@ def _storms(ax, storms, h, polar):
         ahead = s["steps"] >= h
         ax.plot(lo_u[ahead], s["lat"][ahead], color="#fff", lw=1.1, ls=(0, (3, 2)),
                 transform=ccrs.Geodetic(), zorder=8, path_effects=halo)
-        k = np.where(s["steps"] == h)[0][0]
         post = bool(s["followed"][k]) if "followed" in s else False
         w = s["wind"][k]
         strong = np.isfinite(w) and w >= 33
@@ -415,10 +430,11 @@ def main() -> int:
             adv[lat > 85] = np.nan                                       # the pole row's PV is singular
             near = np.zeros(adv.shape, bool)
             for x in storms:
-                pos = TC.at(x, int(h))
+                pos, _ = _at(x, int(h))
                 if pos is None or pos[0] <= 0:
                     continue
-                idx[x["id"]][int(h)] = TC.disc_index(adv, lat, lon, *pos)
+                if TC.at(x, int(h)) is not None:                         # the TC-jet card: exact fixes only, as before
+                    idx[x["id"]][int(h)] = TC.disc_index(adv, lat, lon, *pos)
                 near |= TC.within(lat, lon, *pos, 1500.0)
             if near.any():
                 adv_show = np.where(near, adv, np.nan)
