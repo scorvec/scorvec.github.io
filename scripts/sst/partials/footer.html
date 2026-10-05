@@ -145,7 +145,7 @@
     entries.forEach(function (e) {
       if (e.isIntersecting) { load(e.target); io.unobserve(e.target); }
     });
-  }, { rootMargin: "500px 0px" });                     // start ~a screen early
+  }, { rootMargin: "0px" });   // once it is on screen (2026-10-05, user: no frames loaded in the background; was a screen early)
   function observeAll() { Array.prototype.forEach.call(q(), function (el) { io.observe(el); }); }
   observeAll();
   // Panels revealed by a tab click can expose iframes that were display:none

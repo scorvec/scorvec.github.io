@@ -520,6 +520,17 @@ addEventListener("message", function (e) {
     if (f.contentWindow === e.source) { f.style.height = x.h + "px"; f.style.aspectRatio = "auto"; }
   });
 });
+// The loop player loads once it is on screen (2026-10-05, user: no frames in the background). Native
+// loading="lazy" starts an iframe 1250-2500 px before it is visible, i.e. on page open for most readers.
+(function () {
+  var q = document.querySelectorAll(".figs iframe[data-src]");
+  function load(f) { var d = f.getAttribute("data-src"); if (d) { f.setAttribute("src", d); f.removeAttribute("data-src"); } }
+  if (!("IntersectionObserver" in window)) { Array.prototype.forEach.call(q, load); return; }
+  var io = new IntersectionObserver(function (es) {
+    es.forEach(function (e) { if (e.isIntersecting) { io.unobserve(e.target); load(e.target); } });
+  }, { rootMargin: "0px" });
+  Array.prototype.forEach.call(q, function (f) { io.observe(f); });
+})();
 </script>"""
 
 
@@ -556,7 +567,7 @@ def head(title: str, desc: str, url: str, ld: dict, math: bool) -> str:
 
 def figure_html(f: dict) -> str:
     if f["kind"] == "loop":
-        return (f'<figure><iframe src="{f["src"]}" title="{html.escape(f["title"])}" loading="lazy"></iframe>'
+        return (f'<figure><iframe data-src="{f["src"]}" title="{html.escape(f["title"])}"></iframe>'
                 f'<figcaption>{html.escape(f["title"])}. Use the controls to step through the forecast.</figcaption></figure>')
     cap = f'<figcaption>{html.escape(f["cap"])}</figcaption>' if f.get("cap") else ""
     return f'<figure><img src="{f["src"]}" alt="{html.escape(f["alt"])}" loading="lazy">{cap}</figure>'

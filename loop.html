@@ -19,6 +19,9 @@
            border-radius: 6px; font-size: 13px; line-height: 1; padding: 5px 9px;
            cursor: pointer; font-family: inherit; }
   button:hover { border-color: var(--hover); color: var(--hover); }
+  /* the player opens paused on frame 0 (frames load only once it plays): make Play the obvious control */
+  #play { background: var(--aqua); border-color: var(--aqua); color: #fff; font-weight: 600; min-width: 2.6rem; }
+  #play:hover { background: #a85c33; border-color: #a85c33; color: #fff; }
   button:focus-visible, select:focus-visible, #scrub:focus-visible { outline: 2px solid var(--hover); outline-offset: 2px; }
   /* prominent scrubber: thick filled track + large ringed thumb */
   #scrub { flex: 1; height: 26px; cursor: pointer; -webkit-appearance: none;
@@ -42,16 +45,13 @@
   #load { position: absolute; inset: 0; display: flex; flex-direction: column;
           align-items: center; justify-content: center; gap: 10px;
           background: var(--bg); z-index: 5; }
-  #loadbar { width: min(60%, 340px); height: 4px; background: var(--rule);
-             border-radius: 2px; overflow: hidden; }
-  #loadfill { height: 100%; width: 0%; background: var(--aqua); transition: width .15s; }
   #loadtxt { font-size: 12px; color: var(--muted); }
   .err { color: #ff8a7a; font-size: 13px; padding: 0 1rem; text-align: center; }
 </style>
 <meta name="robots" content="noindex">
 </head>
 <body>
-<div id="load"><div id="loadbar"><div id="loadfill"></div></div>
+<div id="load">
   <div id="loadtxt">loading&hellip;</div></div>
 <img id="frame" alt="forecast loop frame">
 <div id="bar">
@@ -83,7 +83,8 @@
   // caller-supplied absolute base, so this root is a constant, never user input.
   var img = document.getElementById("frame"), scrub = document.getElementById("scrub");
   var playBtn = document.getElementById("play"), label = document.getElementById("label");
-  var frames = [], imgs = [], okFrame = [], doneFrame = [], nDone = 0, cur = 0, playing = false, timer = null;
+  var frames = [], imgs = [], okFrame = [], doneFrame = [], reqd = [], nDone = 0, cur = 0, playing = false, timer = null;
+  var request = function () {}, engage = function () {}, pump = function () {}, engaged = false;
   var DWELL = 4;                                   // extra ticks on the last frame
 
   function postH() {
@@ -95,29 +96,32 @@
   function show(i, fromPlay) {
     if (!frames.length) return;
     i = (i + frames.length) % frames.length;
-    if (!okFrame[i]) {                             // skip missing frames
+    var failed = function (k) { return doneFrame[k] && !okFrame[k]; };
+    if (failed(i)) {                               // skip frames every host failed
       var j = i, guard = 0;
       do { j = (j + (fromPlay === false ? -1 : 1) + frames.length) % frames.length;
-           guard++; } while (!okFrame[j] && guard <= frames.length);
-      if (!okFrame[j]) return;
+           guard++; } while (failed(j) && guard <= frames.length);
+      if (failed(j)) return;
       i = j;
     }
     cur = i;
-    img.src = imgs[i].src;
+    if (okFrame[i]) img.src = imgs[i].src;         // in hand: draw it
+    else request(i, true);                         // not fetched yet: fetch it first; done() draws it if still wanted
     scrub.value = i;
     scrub.style.setProperty("--fill",
       (frames.length > 1 ? 100 * i / (frames.length - 1) : 0) + "%");
     var miss = 0;                                  // failed for good, not merely still loading
     for (var k = 0; k < frames.length; k++) if (doneFrame[k] && !okFrame[k]) miss++;
     label.textContent = frames[i].label + " · " + (i + 1) + "/" + frames.length
-      + (nDone < frames.length ? " · loading " + nDone + "/" + frames.length : "")
+      + (engaged && nDone < frames.length ? " · loading " + nDone + "/" + frames.length : "")
       + (miss ? " · " + miss + " missing" : "");
+    pump();                                        // a step or scrub re-aims the queue at the new position
   }
   function tick() {
     var last = frames.length - 1;
     if (cur >= last) { dwell = (dwell + 1) % DWELL; if (dwell) return; }
     var nxt = cur >= last ? 0 : cur + 1;
-    if (!doneFrame[nxt]) return;                   // still downloading: hold here rather than skip ahead
+    if (!doneFrame[nxt]) { pump(); return; }       // still downloading: hold here rather than skip ahead
     show(nxt, true);
   }
   var dwell = 0;
@@ -125,27 +129,27 @@
     playing = p;
     playBtn.innerHTML = p ? "&#9646;&#9646;" : "&#9654;";
     clearInterval(timer);
-    if (p) timer = setInterval(tick, +document.getElementById("speed").value);
+    if (p) { engage(); timer = setInterval(tick, +document.getElementById("speed").value); }
   }
   document.getElementById("speed").addEventListener("change", function () {
     if (playing) setPlaying(true);
   });
   playBtn.addEventListener("click", function () { setPlaying(!playing); });
   document.getElementById("back").addEventListener("click", function () {
-    setPlaying(false); show(cur - 1, false); });
+    setPlaying(false); show(cur - 1, false); engage(); });
   document.getElementById("fwd").addEventListener("click", function () {
-    setPlaying(false); show(cur + 1, true); });
+    setPlaying(false); show(cur + 1, true); engage(); });
   scrub.addEventListener("input", function () {
-    setPlaying(false); show(+scrub.value, true); });
+    setPlaying(false); show(+scrub.value, true); engage(); });
   addEventListener("keydown", function (e) {
     if (e.target && e.target.tagName === "SELECT") return;  // speed menu keeps native keys
     // preventDefault throughout: when the range input has focus its NATIVE
     // arrow/Home/End handling also moves the value, double-stepping frames
     if (e.key === " ") { e.preventDefault(); setPlaying(!playing); }
-    else if (e.key === "ArrowLeft") { e.preventDefault(); setPlaying(false); show(cur - 1, false); }
-    else if (e.key === "ArrowRight") { e.preventDefault(); setPlaying(false); show(cur + 1, true); }
-    else if (e.key === "Home") { e.preventDefault(); setPlaying(false); show(0, true); }
-    else if (e.key === "End") { e.preventDefault(); setPlaying(false); show(frames.length - 1, true); }
+    else if (e.key === "ArrowLeft") { e.preventDefault(); setPlaying(false); show(cur - 1, false); engage(); }
+    else if (e.key === "ArrowRight") { e.preventDefault(); setPlaying(false); show(cur + 1, true); engage(); }
+    else if (e.key === "Home") { e.preventDefault(); setPlaying(false); show(0, true); engage(); }
+    else if (e.key === "End") { e.preventDefault(); setPlaying(false); show(frames.length - 1, true); engage(); }
   });
   // drag-scrub on the image
   var dragging = false;
@@ -155,7 +159,8 @@
     show(Math.round(f * (frames.length - 1)), true);
   }
   img.addEventListener("pointerdown", function (e) {
-    dragging = true; setPlaying(false); dragTo(e.clientX);
+    if (!frames.length) return;
+    dragging = true; setPlaying(false); dragTo(e.clientX); engage();
     img.setPointerCapture(e.pointerId);
   });
   img.addEventListener("pointermove", function (e) { if (dragging) dragTo(e.clientX); });
@@ -175,47 +180,57 @@
       // short loops (monthly leads) read better at a slower default pace
       if (frames.length <= 15) document.getElementById("speed").value = "600";
       var ver = man.ver || 0;
-      // PROGRESSIVE (2026-09-25, user: "the frames are super slow on some connections"). This used to fetch every frame
-      // at once and show nothing until the last arrived: a 90-frame loop is ~23 MB, ~40 s on a 5 Mbit/s phone, all spent
-      // on a progress bar. Now frames are requested IN PLAY ORDER a few at a time, the first frame shows as soon as it
-      // arrives, playback starts after the first START frames and waits for a frame that is still downloading.
+      // ON DEMAND (2026-10-05, user: "Don't load unnecessary frames in the background either"). Opening the player
+      // fetches frame 0 and nothing else; it no longer plays by itself (only ?autoplay=1 asks for that). Play, a step,
+      // a scrub or a drag on the picture starts the PROGRESSIVE loader of 2026-09-25 (user: "the frames are super slow
+      // on some connections"): frames IN PLAY ORDER from the one on screen, a few at a time, so the next frame is the
+      // next to arrive, and playback waits for a frame that is still downloading.
       var cn = navigator.connection || {}, slow = !!(cn.saveData || /(^|-)2g|3g/.test(cn.effectiveType || ""));
-      var LANES = slow ? 4 : 6, START = Math.min(frames.length, 8), next = 0, started = false;
+      var LANES = slow ? 2 : 4, started = false, live = 0;
       okFrame = frames.map(function () { return false; });
       doneFrame = frames.map(function () { return false; });
-      imgs = frames.map(function () { return new Image(); });
-      function lane() {
-        if (next >= frames.length) return;
-        var i = next++, im = imgs[i], fr = frames[i];
-        im.onload = function () { okFrame[i] = true; done(i); };
+      reqd = frames.map(function () { return false; });
+      imgs = frames.map(function () { return null; });
+      request = function (i, urgent) {
+        if (reqd[i]) return;
+        reqd[i] = true;
+        var im = imgs[i] = new Image(), fr = frames[i], lane = !urgent;
+        if (lane) live++;
+        try { im.fetchPriority = urgent ? "high" : "low"; } catch (e) {}
+        im.onload = function () { okFrame[i] = true; done(i, lane); };
         // raw.githubusercontent.com -> jsDelivr mirror -> copy on main (assets/frames_root.js); a frame every host
         // failed still counts as done so the loader cannot stall on it
         window.frameLoad(im, base + regionKey + "/" + fr.file, "?v=" + ver,
-                         base + regionKey + "/" + fr.file, function () { done(i); }, man.frames_sha);
-      }
-      function done(i) {
+                         base + regionKey + "/" + fr.file, function () { done(i, lane); }, man.frames_sha);
+      };
+      pump = function () {
+        if (!engaged) return;
+        for (var d = 1; d < frames.length && live < LANES; d++) {
+          var k = (cur + d) % frames.length;       // play order from the frame on screen
+          if (!reqd[k]) request(k, false);
+        }
+      };
+      engage = function () { if (engaged || !frames.length) return; engaged = true; pump(); };
+      function done(i, lane) {
         if (doneFrame[i]) return;
         doneFrame[i] = true; nDone++;
-        document.getElementById("loadfill").style.width = Math.round(100 * nDone / frames.length) + "%";
-        document.getElementById("loadtxt").textContent = "loading frames · " + nDone + "/" + frames.length;
-        if (!started && okFrame[0]) {               // the first frame is in: show it, drop the overlay
+        if (lane) live--;
+        if (!started && okFrame[i]) {               // the first frame is in: show it, drop the overlay
           started = true;
           document.getElementById("load").style.display = "none";
-          show(0, true);
+          show(i, true);
           img.onload = function () { postH(); img.onload = postH; };
+          if (q.get("autoplay") === "1") setPlaying(true);
+        } else if (!started && i === 0) {           // frame 0 itself failed: look for any frame that loads
+          document.getElementById("loadtxt").textContent = "first frame unavailable · trying the others";
+          engage();
+        } else if (started) {
+          show(cur, true);                           // draws the frame the reader stepped to once it lands; refreshes "loading n/N"
         }
-        var head = 0; while (head < frames.length && doneFrame[head]) head++;
-        if (started && !playing && head >= START && !autoStarted) {
-          autoStarted = true; setPlaying(q.get("autoplay") !== "0");
-        }
-        if (nDone === frames.length && !started) {   // frame 0 itself failed: show whatever loaded
-          started = true; document.getElementById("load").style.display = "none"; show(0, true);
-        }
-        if (started) show(cur, true);                // refresh the "loading n/N" note
-        lane();
+        pump();
       }
-      var autoStarted = false;
-      for (var l = 0; l < LANES; l++) lane();
+      document.getElementById("loadtxt").textContent = "loading the first frame…";
+      request(0, true);
     })
     .catch(function () { fail("loop manifest unavailable — check back shortly"); });
 })();

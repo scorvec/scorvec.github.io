@@ -851,22 +851,24 @@
         var m = rq.url.match(/data\/(\w+)\/(\d{10})\//); if (m && !live[m[1] + "/" + m[2]]) cc.delete(rq); }); });
     }).catch(function () {});
   }
-  function fetchT(url, ms, prio) {
+  function fetchT(url, ms, prio, sig) {
     var ctrl = typeof AbortController === "function" ? new AbortController() : null;
     var t = ctrl && setTimeout(function () { ctrl.abort(); }, ms);
+    if (ctrl && sig) { if (sig.aborted) ctrl.abort(); else sig.addEventListener("abort", function () { ctrl.abort(); }); }   // the viewer moved on
     var opt = ctrl ? { signal: ctrl.signal } : {}; if (prio) opt.priority = prio;
     return fetch(url, opt).then(function (r) { if (t) clearTimeout(t); return r; },
                                 function (e) { if (t) clearTimeout(t); throw e; });
   }
-  function getBytes(rel, sha, prio) {
+  function getBytes(rel, sha, prio, sig) {
     var raw = window.FRAME_ROOT_RAW || "https://raw.githubusercontent.com/scorvec/scorvec.github.io/frames/";
     var mir = MIRROR + (sha || "frames") + "/";
     var hosts = LOCAL ? ["/"] : (window.frameHostIsMirror && window.frameHostIsMirror() ? [mir, raw] : [raw, mir]);
     var k = 0;
     function next() {
+      if (sig && sig.aborted) return Promise.reject(new Error("cancelled"));   // cancelled: no other host either
       if (k >= hosts.length) return Promise.reject(new Error("unavailable"));
       var h = hosts[k++];
-      return fetchT(h + rel, h === raw && !rawOk ? 7000 : 30000, prio).then(function (r) {
+      return fetchT(h + rel, h === raw && !rawOk ? 7000 : 30000, prio, sig).then(function (r) {
         if (!r.ok) return next();
         if (h === raw) rawOk = true;
         var th = performance.now();                         // headers in: the body time measures bandwidth, not latency
@@ -1165,6 +1167,11 @@
   function fkey(model, c, field, h, lo) { return model + "/" + c.cycle + "/" + field + "/" + h + (lo ? "~lo" : ""); }
   function entry(k) { var e = frames.get(k); if (!e) { e = { used: 0 }; frames.set(k, e); } return e; }
   function want(list, nUrgent) {                            // list of [model, cycle, field, hour, lo], highest priority first
+    // Files still downloading that the new list no longer asks for (another model, field or run was picked) are
+    // cancelled, not finished "for later" (2026-10-05, user: "Don't load unnecessary frames in the background either").
+    // Urgent ones (the frame on screen, a hover's native file) are never cancelled.
+    var keep = {}; list.forEach(function (a) { keep[fkey(a[0], a[1], a[2], a[3], a[4])] = 1; });
+    frames.forEach(function (e, k) { if (e.bytesP && e.ac && !e.urgent && !keep[k]) e.ac.abort(); });
     queue = list.filter(function (a) { var e = frames.get(fkey(a[0], a[1], a[2], a[3], a[4])); return !(e && (e.bytes || e.bytesP || e.fail)); })
       .map(function (a, i) { return a.slice(0, 5).concat([i < (nUrgent || 0)]); });
     pump();
@@ -1182,14 +1189,19 @@
       e.lo = !!a[4];
       var fmP = a[1].fields && a[1].fields[a[2]];           // ECAPE files sit in the ECAPE job's frames commit
       var t0 = performance.now(), conc = inflight;
-      e.bytesP = getBytes(relPath(a[0], a[1], a[2], a[3], a[4]), (fmP && fmP.sha) || a[1].sha, urgent ? "high" : "low").then(function (e, urgent, t0, conc) { return function (buf) {
-        e.bytes = buf; e.bytesP = null; inflight--; if (urgent) urgentIn--;
+      var ac = typeof AbortController === "function" ? new AbortController() : null;
+      e.ac = ac; e.urgent = urgent;
+      e.bytesP = getBytes(relPath(a[0], a[1], a[2], a[3], a[4]), (fmP && fmP.sha) || a[1].sha, urgent ? "high" : "low", ac && ac.signal).then(function (e, urgent, t0, conc) { return function (buf) {
+        e.bytes = buf; e.bytesP = null; e.ac = null; inflight--; if (urgent) urgentIn--;
         if (e.wantDec && !e.dec && !e.decP) startDec(e);         // asked for while it was downloading (hover's native file)
         var dt = Math.max(buf._tb, 4);                       // a big file in under 4 ms: a very fast line (or local)
         if (!buf._cached && buf.byteLength > 60000) {
           var r = buf.byteLength / dt * Math.max(1, (conc + inflight + 1) / 2); NET.bw = NET.n ? 0.6 * NET.bw + 0.4 * r : r; NET.n++; }
         pump(); trimBytes(); render(); return buf; }; }(e, urgent, t0, conc),
-        function (e, urgent) { return function (err) { e.bytesP = null; e.fail = true; inflight--; if (urgent) urgentIn--; pump(); render(); throw err; }; }(e, urgent));
+        function (e, urgent, ac) { return function (err) {
+          e.bytesP = null; e.ac = null; inflight--; if (urgent) urgentIn--;
+          if (ac && ac.signal.aborted) { pump(); return; }    // cancelled, not failed: asked for again later if wanted
+          e.fail = true; pump(); render(); throw err; }; }(e, urgent, ac));
       e.bytesP.catch(function () {});
     }
     updLoad();
@@ -2223,9 +2235,16 @@
     writeHash();
     render();
   }
-  // Prefetch: on a fast connection every hour of the field, nearest first (play and scrubbing never wait); on a slow
-  // one (measured, or the browser says so) only the next three hours and the previous one, then the same hour of the
-  // neighbouring maps, two files at a time, so a slow line is not flooded with hours nobody looks at.
+  // Prefetch. Until the viewer plays, steps or moves the time slider on this map (engaged()), ONLY what the map on screen needs is
+  // fetched: this hour of this field and the overlays drawn on it (2026-10-05, user: "Don't load unnecessary frames in
+  // the background either"; opening the page used to pull every hour of the default field). Once engaged: on a fast
+  // connection every hour of the field, nearest first (play and scrubbing never wait); on a slow one (measured, or the
+  // browser says so) only the next three hours and the previous one, two files at a time. The same hour of the
+  // neighbouring maps is no longer fetched "for later".
+  // engagement belongs to one map: a new model, run or field starts again from its one visible hour
+  function engKey() { return [st.model, st.ci, st.field, st.acc.type, st.ec].join("/"); }
+  function engage() { st.engaged = engKey(); }
+  function engaged() { return st.playing || st.engaged === engKey(); }
   function prefetch() {
     var cc = currentCycle(), c = cc.c; if (!c) return;
     var pfs = fileFields(), pf = pfs[0];
@@ -2244,28 +2263,22 @@
     }
     if (!slow) for (var d2 = 4; i0 - d2 >= 0; d2++) list.push([st.model, c, pf, hs[i0 - d2], lo]);
     if (st.field === "refl" && $("cont").checked && c.fields.mslp) {       // the isobars' small grid rides along
-      var ms = c.fields.mslp.hours, out = [];
-      list.forEach(function (a, i) { if (ms.indexOf(a[3]) >= 0) { out.push(a, [st.model, c, "mslp", a[3], false]); if (i < nU) nU++; } else out.push(a); });
+      var ms = c.fields.mslp.hours, out = [], n0 = nU;            // n0: urgency is decided on the list as it was (nU grows below)
+      list.forEach(function (a, i) { if (ms.indexOf(a[3]) >= 0) { out.push(a, [st.model, c, "mslp", a[3], false]); if (i < n0) nU++; } else out.push(a); });
       list = out;
     }
     if (st.field === "gust" && c.fields.wind10) {                   // the barbs' 10 m wind rides along
-      var w10 = c.fields.wind10.hours, lo10 = loOK(c, "wind10"), outw = [];
-      list.forEach(function (a, i) { outw.push(a); if (w10.indexOf(a[3]) >= 0) { outw.push([st.model, c, "wind10", a[3], lo10]); if (i < nU) nU++; } });
+      var w10 = c.fields.wind10.hours, lo10 = loOK(c, "wind10"), outw = [], n1 = nU;
+      list.forEach(function (a, i) { outw.push(a); if (w10.indexOf(a[3]) >= 0) { outw.push([st.model, c, "wind10", a[3], lo10]); if (i < n1) nU++; } });
       list = outw;
     }
     if (pfs.length > 1) { var out2 = []; list.forEach(function (a) { pfs.forEach(function (f) { if (c.fields[f]) out2.push([a[0], a[1], f, a[3], false]); }); }); list = out2; nU *= pfs.length; }
-    if (slow && !st.playing) {                                    // the same hour of the maps either side of this one
-      var fi = FIELD_ORDER.indexOf(st.field);
-      [fi + 1, fi - 1].forEach(function (j) {
-        var f = FIELD_ORDER[j]; if (!f || f === "ecape" || (NA[st.model] && NA[st.model][f])) return;
-        var file = f === "acc" ? st.acc.type : f; if (c.fields[file] && c.fields[file].hours.indexOf(cc.hour) >= 0) list.push([st.model, c, file, cc.hour, loOK(c, file)]);
-      });
-    }
     if (diffOn()) {                                                // the other model's frame at the same valid time rides along
-      var o2 = diffOther(st.model), c2 = cycleObj(o2, 0), fm2 = c2.fields[pf], out3 = [];
-      list.forEach(function (a, i) { out3.push(a); var h2 = diffHour(c, c2, a[3]); if (fm2 && a[2] === pf && fm2.hours.indexOf(h2) >= 0) { out3.push([o2, c2, pf, h2, a[4] && !!fm2.lo]); if (i < nU) nU++; } });
+      var o2 = diffOther(st.model), c2 = cycleObj(o2, 0), fm2 = c2.fields[pf], out3 = [], n3 = nU;
+      list.forEach(function (a, i) { out3.push(a); var h2 = diffHour(c, c2, a[3]); if (fm2 && a[2] === pf && fm2.hours.indexOf(h2) >= 0) { out3.push([o2, c2, pf, h2, a[4] && !!fm2.lo]); if (i < n3) nU++; } });
       list = out3;
     }
+    if (!engaged()) { want(list.slice(0, nU), nU); return; }   // the map on screen only
     want(list, nU);
     // decode the next two ahead of the play head
     for (var k = 1; k <= 2 && i0 + k < hs.length; k++) pfs.forEach(function (f) { if (c.fields[f]) decoded(st.model, c, f, hs[i0 + k], f === pf && lo); });
@@ -2285,12 +2298,12 @@
       if (ready) { st.hour = next; onChange(); } else { prefetch(); schedule(); }
     }, 260);
   }
-  function step(dh) { var c = cycleObj(st.model, st.ci); if (!c) return; var hs = uiHours(c), ix = hs.indexOf(st.hour);
+  function step(dh) { var c = cycleObj(st.model, st.ci); if (!c) return; engage(); var hs = uiHours(c), ix = hs.indexOf(st.hour);
     st.hour = hs[Math.max(0, Math.min(hs.length - 1, ix + dh))]; onChange(); }
-  $("hour").addEventListener("input", function () { var hs = uiHours(cycleObj(st.model, st.ci)); st.hour = hs[+this.value] || 0; onChange(); });
+  $("hour").addEventListener("input", function () { engage(); var hs = uiHours(cycleObj(st.model, st.ci)); st.hour = hs[+this.value] || 0; onChange(); });
   $("back").onclick = function () { step(-1); };
   $("fwd").onclick = function () { step(1); };
-  function togglePlay() { var b = $("play"); st.playing = !st.playing; b.innerHTML = st.playing ? "&#10074;&#10074;" : "&#9654;"; b.setAttribute("aria-label", st.playing ? "Pause" : "Play"); render(); }
+  function togglePlay() { var b = $("play"); st.playing = !st.playing; engage(); b.innerHTML = st.playing ? "&#10074;&#10074;" : "&#9654;"; b.setAttribute("aria-label", st.playing ? "Pause" : "Play"); render(); }
   $("play").onclick = togglePlay;
   $("run").onchange = function () { var old = cycleObj(st.model, st.ci), vt = Date.parse(old.init) + st.hour * 3600e3; st.ci = +this.value;
     var c = cycleObj(st.model, st.ci); st.hour = nearestHour(c, Math.round((vt - Date.parse(c.init)) / 3600e3)); setButtons(); onChange(); };

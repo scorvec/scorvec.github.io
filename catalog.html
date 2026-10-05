@@ -369,7 +369,7 @@ document.addEventListener('DOMContentLoaded', function () {
     // should show changes (a search that lands on an option shows that option's own figure)
     var io = 'IntersectionObserver' in window ? new IntersectionObserver(function (es) {
       es.forEach(function (e) { if (e.isIntersecting) { io.unobserve(e.target); paint(e.target); } });
-    }, { rootMargin: '500px 0px' }) : null;
+    }, { rootMargin: '0px' }) : null;            // thumbnails load as their card scrolls into view, not a screen early (2026-10-05)
     var cards = {};
     items.forEach(function (it) {
       var a = document.createElement('a');

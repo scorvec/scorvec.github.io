@@ -355,7 +355,7 @@
         var card = tip.parentElement.getBoundingClientRect();
         tip.style.left = (ev.clientX - card.left + 14) + "px"; tip.style.top = (ev.clientY - card.top + 14) + "px";
       }).on("mouseleave", function () { document.getElementById("tip").style.display = "none"; })
-        .on("click", function () { var fips = this.__data__.id; document.getElementById("selState").value = fips.slice(0, 2); fillCounties(fips.slice(0, 2), fips); drawSeries(fips); });
+        .on("click", function () { var fips = this.__data__.id; document.getElementById("selState").value = fips.slice(0, 2); fillCounties(fips.slice(0, 2), fips); drawSeries(fips, true); });
     });
   }
   function pills(id, items, cur, cb) {
@@ -389,7 +389,20 @@
     sel.innerHTML = fl.map(function (f) { return '<option value="' + f + '">' + (names[f] || f) + "</option>"; }).join("");
     if (pick) sel.value = pick;
   }
-  function drawSeries(fips) {
+  // The county series (a state's whole binary, ~0.8 MB from the frames host) is fetched once its card is on screen or
+  // the reader picks a county, not on page open: the card sits below the map and the heat table (2026-10-05, user:
+  // "Don't load unnecessary frames in the background either").
+  var seriesSeen = !("IntersectionObserver" in window), seriesWant = null;
+  if (!seriesSeen) new IntersectionObserver(function (es, obs) {
+    if (!es.some(function (e) { return e.isIntersecting; })) return;
+    obs.disconnect(); seriesSeen = true; if (seriesWant) drawSeriesNow(seriesWant);
+  }, { rootMargin: "0px" }).observe(document.getElementById("series"));
+  function drawSeries(fips, user) {
+    if (user) seriesSeen = true;
+    seriesWant = fips;
+    if (seriesSeen) drawSeriesNow(fips);
+  }
+  function drawSeriesNow(fips) {
     var sf = fips.slice(0, 2), v = st.v, ci = COLS.indexOf(st.col), idx = seriesIdx[sf];
     if (!idx) return;
     document.getElementById("seriesStatus").textContent = "loading…";
@@ -445,8 +458,8 @@
   pills("viewPills", [{key: "trend", label: "Trend per decade"}, {key: "shift", label: "Normal shift"}, {key: "normal", label: "1991–2020 normal"}], st.view, function (k) { st.view = k; drawMap(); });
   ["selVar", "selCol", "selStart"].forEach(function (id) { document.getElementById(id).addEventListener("change", function () { st.v = document.getElementById("selVar").value; st.col = document.getElementById("selCol").value; st.start = document.getElementById("selStart").value; drawMap(); drawHeat(); var c = document.getElementById("selCounty").value; if (c) drawSeries(c); }); });
   document.getElementById("chkSig").addEventListener("change", function () { st.sig = this.checked; drawMap(); });
-  document.getElementById("selState").addEventListener("change", function () { fillCounties(this.value); var c = document.getElementById("selCounty").value; if (c) drawSeries(c); });
-  document.getElementById("selCounty").addEventListener("change", function () { drawSeries(this.value); });
+  document.getElementById("selState").addEventListener("change", function () { fillCounties(this.value); var c = document.getElementById("selCounty").value; if (c) drawSeries(c, true); });
+  document.getElementById("selCounty").addEventListener("change", function () { drawSeries(this.value, true); });
   document.getElementById("selDDState").addEventListener("change", drawDD);
   Promise.all([
     fetch("https://cdn.jsdelivr.net/npm/us-atlas@3/counties-10m.json").then(function (r) { return r.json(); }),

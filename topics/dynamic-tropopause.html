@@ -308,7 +308,7 @@ because the mean of fifty differently placed folds is a smear. The 2-PVU surface
   <a class="live" href="/circulation.html#dt">Open the dynamic tropopause maps in the circulation viewer</a>
 </article>
 <div class="figs">
-<figure><iframe src="/sst_anim.html?embed=1&manifest=dt_manifest.json&region=dt" title="Potential temperature on the 2-PVU dynamic tropopause, AIFS member 0, 12-hourly to day 10" loading="lazy"></iframe><figcaption>Potential temperature on the 2-PVU dynamic tropopause, AIFS member 0, 12-hourly to day 10. Use the controls to step through the forecast.</figcaption></figure>
+<figure><iframe data-src="/sst_anim.html?embed=1&manifest=dt_manifest.json&region=dt" title="Potential temperature on the 2-PVU dynamic tropopause, AIFS member 0, 12-hourly to day 10"></iframe><figcaption>Potential temperature on the 2-PVU dynamic tropopause, AIFS member 0, 12-hourly to day 10. Use the controls to step through the forecast.</figcaption></figure>
 </div>
 <div class="topic" style="padding-top:0">
   <section class="related"><h2>Related</h2><ul><li><a href="/topics/wave-activity-flux.html">Wave activity flux</a></li><li><a href="/topics/ep-flux.html">E–P flux</a></li><li><a href="/topics/">All explainers</a></li></ul></section>
@@ -323,6 +323,17 @@ addEventListener("message", function (e) {
     if (f.contentWindow === e.source) { f.style.height = x.h + "px"; f.style.aspectRatio = "auto"; }
   });
 });
+// The loop player loads once it is on screen (2026-10-05, user: no frames in the background). Native
+// loading="lazy" starts an iframe 1250-2500 px before it is visible, i.e. on page open for most readers.
+(function () {
+  var q = document.querySelectorAll(".figs iframe[data-src]");
+  function load(f) { var d = f.getAttribute("data-src"); if (d) { f.setAttribute("src", d); f.removeAttribute("data-src"); } }
+  if (!("IntersectionObserver" in window)) { Array.prototype.forEach.call(q, load); return; }
+  var io = new IntersectionObserver(function (es) {
+    es.forEach(function (e) { if (e.isIntersecting) { io.unobserve(e.target); load(e.target); } });
+  }, { rootMargin: "0px" });
+  Array.prototype.forEach.call(q, function (f) { io.observe(f); });
+})();
 </script>
 <!-- sf:start -->
 <footer class="sf">

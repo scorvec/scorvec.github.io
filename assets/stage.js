@@ -337,9 +337,22 @@
       relBox = document.createElement("div"); relBox.className = "ss-related"; relBox.hidden = true;
       var anchor = $("about"); anchor.parentNode.insertBefore(relBox, anchor.nextSibling);
       if ("IntersectionObserver" in window) {
+        // In view, not 300 px early: its six thumbnails are frames-host requests (2026-10-05, user: no frames in the
+        // background). And still in view a moment later: on page open the strip sits on screen for a few hundred ms,
+        // until the figure above it (an embed that posts its height) has grown, which used to count as "seen".
         new IntersectionObserver(function (es, obs) {
-          if (es.some(function (e) { return e.isIntersecting; })) { obs.disconnect(); relWanted = true; fillRelated(); }
-        }, { rootMargin: "300px 0px" }).observe(relBox);
+          if (!es.some(function (e) { return e.isIntersecting; })) return;
+          var tries = 0, check = function () {
+            if (relWanted) return;
+            var fr = document.querySelector("#stage iframe"), im = document.querySelector("#stage > img");
+            // an embed not sized yet, or a figure still downloading: the box above the strip will still grow
+            if (((fr && fr.style.aspectRatio !== "auto") || (im && !im.complete)) && ++tries < 20) { setTimeout(check, 800); return; }
+            var r = relBox.getBoundingClientRect();
+            if (r.top >= window.innerHeight || r.bottom <= 0) return;  // pushed off screen: wait for the next scroll in
+            obs.disconnect(); relWanted = true; fillRelated();
+          };
+          setTimeout(check, 800);
+        }, { rootMargin: "0px" }).observe(relBox);
         relBox.hidden = false; relBox.style.minHeight = "1px";
       } else { relWanted = true; }
     }

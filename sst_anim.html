@@ -201,7 +201,7 @@ const FRAME_BASE = ON_FRAMES_BRANCH ? FRAME_ROOT + ANIM_BASE : ANIM_BASE;
 // yet) fall back to the copy on main. The flag is per-FRAME, not per-element: imgEl is
 // reused for every frame, so a single latched flag meant the first miss consumed the
 // fallback and every later frame showed a broken image (mjo.html did exactly this).
-function frameSrc(im, rid, f, ver) {
+function frameSrc(im, rid, f, ver, onFail) {   // onFail: every host failed (the loader frees its lane)
   // manifests without a render stamp (the SST loops until 2026-09-03) get an
   // hourly key so a re-render or a transient miss is not cached forever
   const q = `?v=${f.date}.${ver || Math.floor(Date.now() / 3.6e6)}`;
@@ -209,9 +209,9 @@ function frameSrc(im, rid, f, ver) {
   if (ON_FRAMES_BRANCH && window.frameLoad) {
     // raw.githubusercontent.com -> cdn.jsdelivr.net mirror -> copy on main
     // (assets/frames_root.js); the chain is per-FRAME because imgEl is reused
-    window.frameLoad(im, rel, q, rel, null, manifest && manifest.frames_sha);   // frames_sha: the mirror's pinned commit
+    window.frameLoad(im, rel, q, rel, onFail || null, manifest && manifest.frames_sha);   // frames_sha: the mirror's pinned commit
   } else {
-    im.onerror = null;
+    im.onerror = onFail ? () => onFail(im) : null;
     im.src = rel + q;
   }
   return im.src;
@@ -268,7 +268,6 @@ let playing = false;
 let timer = null;
 let baseDelay = 220;     // ms per frame at 1x
 let speed = 1;
-let preloaded = {};      // region -> array of Image objects
 
 const $ = id => document.getElementById(id);
 const imgEl = $("frame"), dateEl = $("date"), slider = $("slider");
@@ -458,84 +457,74 @@ function setupRegion() {
   const s = P.get("start");
   idx = s !== null ? Math.min(Math.max(parseInt(s) || 0, 0), frames.length - 1)
                    : frames.length - 1;     // default: most recent
-  // The frame on screen first, alone. The eight-frame window used to start WITH it, so a slow link was
-  // split nine ways and nothing appeared for a long time - it looked broken (user, 2026-09-26). The
-  // window follows once that frame is in (or after 3 s regardless).
+  // The frame on screen and NOTHING else (2026-10-05, user: "Don't load unnecessary frames in the background
+  // either"). This used to follow the first frame with an eight-frame window on every page open, and every
+  // region switch; a visitor who never pressed play paid ~1.5 MB per loop for frames they never saw.
   showFrame(idx);
-  let windowStarted = false;
-  const startWindow = () => { if (windowStarted) return; windowStarted = true; preload(region); };
-  if (imgEl.complete && imgEl.naturalWidth) startWindow();
-  else { imgEl.addEventListener("load", startWindow, { once: true }); setTimeout(startWindow, 3000); }
   slowNote();
+  // ?autoplay=1 is opt-in only (no page passes it today): playing is what fetches the rest of the loop
   if (P.get("autoplay") === "1" && !playing) play();
 }
 
 function switchRegion(rid) {
   stop();
+  retire();                 // the old region's frames still downloading are dropped, not finished "for later"
   region = rid;
   setupRegion();
 }
 
-// phones: decoding every full-size frame at once blows Safari's image budget
-// (frames go blank mid-loop) — preload a rolling window instead
-// (EAGER removed 2026-08-30: every device now starts with a window and fetches
-// the rest on first interaction, so there is no device-dependent branch left.)
-function preloadWindow(rid, center) {
-  const fr = manifest.regions[rid].frames, span = 8;
-  for (let d = 0; d <= span; d++) {
-    const k = (center + d) % fr.length;
-    const im = new Image();
-    try { im.fetchPriority = "low"; } catch (e) {}
-    frameSrc(im, rid, fr[k], manifest.ver);
-    if (d === 0) {
-      if (im.complete) loadingEl.classList.add("hidden");
-      else im.onload = () => loadingEl.classList.add("hidden");
-    }
-  }
+// ── The rest of the loop, on demand only ────────────────────────────────────────────────────────────────────
+// Nothing beyond the frame on screen is requested until the reader plays, steps or scrubs (engage()). Then the
+// frames come IN PLAY ORDER from the one on screen, a few at a time (as loop.html does), so the next frame is
+// always the next to arrive and a slow link is not split twenty ways. Fetching every frame at once also blew
+// Safari's image budget on phones (frames went blank mid-loop). A region switch retires the loader: frames of
+// the old region still in flight are cancelled (src cleared, frameLoad token retired) and never resumed.
+let loader = null;          // { rid, imgs: [Image|undefined per frame], live }
+const NETC = navigator.connection || {};
+const LANES = (NETC.saveData || /(^|-)2g|3g/.test(NETC.effectiveType || "")) ? 2 : 4;
+function engage() {
+  if (!manifest || !region) return;
+  if (!loader || loader.rid !== region) { retire(); loader = { rid: region, imgs: new Array(frames.length), live: 0 }; }
+  pump();
 }
-// ON LOAD: a WINDOW, never the whole loop — on any device.
-//
-// This used to preload every frame of the region as soon as the animator
-// appeared, on any screen wider than 700px. Measured on enso-atmosphere
-// (2026-08-30): 269 image requests on first paint, 113 of them ASCAT frames -
-// a four-month daily loop pulled in full before the reader had touched
-// anything. On a slow connection that IS the page-load time, and a visitor who
-// never presses play pays all of it for nothing.
-//
-// The full set is still fetched, just at the first sign the reader wants it
-// (play, scrub, or a region switch), by which point they are looking at the
-// animator rather than waiting for the page.
-function preload(rid) {
-  preloadWindow(rid, Math.max(0, manifest.regions[rid].frames.length - 1));
-}
-
-// The rest of the loop, on demand. Idempotent, and cheap to call from every
-// interaction handler because of the preloaded[] guard.
-function preloadAll(rid) {
-  if (preloaded[rid]) return;
-  preloaded[rid] = manifest.regions[rid].frames.map(f => {
-    const im = new Image();
-    try { im.fetchPriority = "low"; } catch (e) {}
-    frameSrc(im, rid, f, manifest.ver);   // bust cache when sliding-window content changes
-    return im;
+function retire() {
+  if (!loader) return;
+  loader.imgs.forEach(im => {
+    if (!im || im.complete) return;
+    im._frameTok = null; im.onerror = null; im.onload = null;   // frameLoad's chain and stall race see a retired element
+    im.src = "";                                                // the browser cancels the request
   });
-  const first = preloaded[rid][frames.length - 1] || preloaded[rid][0];
-  if (first.complete) loadingEl.classList.add("hidden");
-  else first.onload = () => loadingEl.classList.add("hidden");
+  loader = null;
+}
+function pump() {
+  const L = loader;
+  if (!L || L.rid !== region) return;
+  const fr = manifest.regions[L.rid].frames, n = fr.length;
+  for (let d = 1; d < n && L.live < LANES; d++) {
+    const k = (idx + d) % n;                  // play order from the frame on screen
+    if (L.imgs[k]) continue;
+    const im = new Image();
+    L.imgs[k] = im; L.live++;
+    try { im.fetchPriority = "low"; } catch (e) {}
+    let fin = false;
+    const done = () => { if (fin || loader !== L) return; fin = true; L.live--; pump(); };
+    im.addEventListener("load", done, { once: true });
+    frameSrc(im, L.rid, fr[k], manifest.ver, done);   // done also when every host failed, so a lane never stalls
+  }
 }
 
 function showFrame(i) {
   idx = (i + frames.length) % frames.length;
-  // Top up the window as the reader moves, until the full set has been
-  // fetched. Was gated on !EAGER (mobile only); now that every device starts
-  // windowed, desktop needs it too or scrubbing outruns the preloaded frames.
   const f = frames[idx];
   try { imgEl.fetchPriority = "high"; } catch (e) {}
   frameSrc(imgEl, region, f, manifest.ver);          // the visible frame goes out first
-  if (!preloaded[region] && idx % 4 === 0) preloadWindow(region, idx);
   dateEl.textContent = f.label;
   slider.value = idx;
+  if (loader) pump();                                // a scrub re-aims the queue at the new position
 }
+imgEl.addEventListener("load", () => {
+  if (!/could not be loaded/.test(loadingEl.textContent)) loadingEl.classList.add("hidden");
+});
 
 // Say what is happening on a slow link instead of a silent "Loading frames..." (2026-09-26).
 function slowNote() {
@@ -546,15 +535,15 @@ function slowNote() {
 }
 const bufEl = $("buffering");
 function framesReady() {
-  const p = preloaded[region];
-  return p ? p.filter(im => im.complete && im.naturalWidth).length : 0;
+  const p = loader && loader.rid === region ? loader.imgs : [];
+  let n = 1;                                          // the frame on screen
+  for (let k = 0; k < p.length; k++) if (k !== idx && p[k] && p[k].complete && p[k].naturalWidth) n++;
+  return n;
 }
-
-function step(d) { showFrame(idx + d); }
 
 function play() {
   if (playing) { stop(); return; }
-  preloadAll(region);          // they want the loop: fetch the rest now
+  engage();                    // they want the loop: fetch the rest now, in play order
   playing = true;
   $("play").innerHTML = "&#x23F8;";   // pause glyph
   let waited = 0;
@@ -562,10 +551,10 @@ function play() {
     if (!playing) return;
     // loop back to start at the end
     const nx = idx + 1 >= frames.length ? 0 : idx + 1;
-    const pre = preloaded[region] && preloaded[region][nx];
+    const pre = loader && loader.imgs[nx];
     // on a slow link, hold the current frame until the next one has arrived rather than showing a
     // half-drawn or blank image (up to 10 s, then move on so one missing file cannot stall the loop)
-    if (pre && !(pre.complete && pre.naturalWidth) && waited < 40) {
+    if (frames.length > 1 && !(pre && pre.complete && pre.naturalWidth) && waited < 40) {
       waited++;
       bufEl.textContent = `Loading frames: ${framesReady()} of ${frames.length}`;
       bufEl.classList.remove("hidden");
@@ -586,24 +575,27 @@ function stop() {
   if (timer) clearTimeout(timer);
 }
 
-// Controls
+// Controls. Every step, jump and scrub also engage() the loader: a reader who moves through the loop gets the
+// rest of it, in order from where they are; one who only looks at the opening frame downloads nothing more.
+const goTo = i => { stop(); showFrame(i); engage(); };
 $("play").addEventListener("click", play);
-$("next").addEventListener("click", () => { stop(); step(1); });
-$("prev").addEventListener("click", () => { stop(); step(-1); });
-$("first").addEventListener("click", () => { stop(); showFrame(0); });
-$("last").addEventListener("click", () => { stop(); showFrame(frames.length - 1); });
-slider.addEventListener("input", () => { stop(); preloadAll(region); showFrame(parseInt(slider.value)); });
+$("next").addEventListener("click", () => goTo(idx + 1));
+$("prev").addEventListener("click", () => goTo(idx - 1));
+$("first").addEventListener("click", () => goTo(0));
+$("last").addEventListener("click", () => goTo(frames.length - 1));
+slider.addEventListener("input", () => goTo(parseInt(slider.value)));
 $("speed").addEventListener("change", e => {
   speed = parseFloat(e.target.value);
   if (playing) { stop(); play(); }
 });
 
 document.addEventListener("keydown", e => {
+  if (!frames.length) return;
   if (e.key === " ") { e.preventDefault(); play(); }
-  else if (e.key === "ArrowRight") { stop(); step(1); }
-  else if (e.key === "ArrowLeft") { stop(); step(-1); }
-  else if (e.key === "Home") { stop(); showFrame(0); }
-  else if (e.key === "End") { stop(); showFrame(frames.length - 1); }
+  else if (e.key === "ArrowRight") goTo(idx + 1);
+  else if (e.key === "ArrowLeft") goTo(idx - 1);
+  else if (e.key === "Home") goTo(0);
+  else if (e.key === "End") goTo(frames.length - 1);
 });
 
 init();
