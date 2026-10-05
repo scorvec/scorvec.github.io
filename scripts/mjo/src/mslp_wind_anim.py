@@ -289,7 +289,7 @@ def render(args, init, region, who, msl, u10, v10, anim, kind="Ensemble-mean"):
                      f"F{int(h):03d} valid {str(valid)[:13]}Z", fontsize=10, loc="left")
         fp = anim / f"F{k:02d}.webp"
         fig.subplots_adjust(left=0.03, right=0.99, top=0.92, bottom=0.10)
-        fig.savefig(fp, dpi=104); plt.close(fig)
+        fig.savefig(fp, dpi=104, pil_kwargs={"quality": 65, "method": 6}); plt.close(fig)   # loop frames: WebP q65 m6 (2026-10-05 encode study)
         entries.append({"idx": k, "file": fp.name,
                         "date": str(valid)[:10], "label": f"F{int(h):03d} · {str(valid)[:13]}Z"})
     return entries

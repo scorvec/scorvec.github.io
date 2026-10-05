@@ -545,7 +545,7 @@ def render_maps(M, which, hemi, out_anim: Path, base_init):
             fig.text(0.015, 0.915, f"Raw output · contours every {Z_INT[5.0] / 10:.0f} dam (5 hPa) and {Z_INT[1.0] / 10:.0f} dam "
                      f"(1 hPa) · {TOPS[which]}", fontsize=9, color=MUTED)
         fp = d / f"F{day:02d}.webp"
-        fig.savefig(fp, format="webp", facecolor="white", pil_kwargs={"quality": 84, "method": 6})
+        fig.savefig(fp, format="webp", facecolor="white", pil_kwargs={"quality": 65, "method": 6})   # loop frames: WebP q65 m6 (2026-10-05)
         plt.close(fig)
         frames.append({"idx": len(frames), "file": fp.name, "date": f"{valid:%Y-%m-%d}",
                        "label": ("analysis" if day == 0 else f"day {day}") + f" · {valid:%a %d %b}"})

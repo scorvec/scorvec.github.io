@@ -338,7 +338,8 @@ def publish(specpath: Path):
         for fr in loop["frames"]:
             im = Image.open(STAGE / (fr["id"] + ".png"))
             fn = f"F{fr['idx']:02d}.webp"
-            im.save(outdir / fn, quality=92, method=6)
+            # loop frames: WebP q65 method 6 (2026-10-05 encode study: ~30-35 % fewer bytes than q82, text/contours/colour bars unchanged at 1x)
+            im.save(outdir / fn, quality=65, method=6)
             frames.append({"idx": fr["idx"], "file": fn, "date": fr["date"],
                            "label": fr["label"]})
         man = {"ver": int(time.time()), "days": len(frames),
@@ -622,7 +623,7 @@ def _draw_frame_once(job):
                      f" · valid {valid:%a %b %d %HZ} · init {base:%Y-%m-%d %HZ}",
                      fontsize=12, fontweight="bold")
     out = LOOPS[kind]["anim"] / f"F{i:02d}.webp"
-    fig.savefig(out, dpi=150)
+    fig.savefig(out, dpi=150, pil_kwargs={"quality": 65, "method": 6})                     # loop frames: WebP q65 m6 (2026-10-05 encode study)
     plt.close(fig)
     return (kind, {"idx": i, "file": out.name, "date": f"{valid:%Y-%m-%d}",
                    "label": f"h{s:03d} · {valid:%b %d %HZ}"})

@@ -460,7 +460,7 @@ def render(levels_at_step, hemi, date, time, step_h, out_path: Path, source="ens
              "the vortex (positive eddy heat flux); one stacked over the same longitude is not.",
              fontsize=8.3, color="#6f6b64", ha="left", va="top", linespacing=1.35)
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(out_path, dpi=110, facecolor="white", pil_kwargs={"quality": 88, "method": 6})
+    fig.savefig(out_path, dpi=110, facecolor="white", pil_kwargs={"quality": 65, "method": 6})   # loop frames: WebP q65 m6 (2026-10-05 encode study)
     plt.close(fig)
     return out_path
 

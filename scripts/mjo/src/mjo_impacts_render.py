@@ -151,7 +151,8 @@ def render_one(job):
         cb.set_label(f"{spec['unit']}" if spec["unit"] != "%" else "% of the months' normal", fontsize=8.5, labelpad=1)
         cb.ax.tick_params(labelsize=7.5, pad=1)
         fp = out / f"F{p + 1:02d}.webp"
-        fig.savefig(fp, dpi=100, facecolor="white", pil_kwargs={"quality": 80, "method": 6})
+        # loop frames: WebP q65 method 6 (2026-10-05 encode study: ~30-35 % fewer bytes than q82, text/contours/colour bars unchanged at 1x)
+        fig.savefig(fp, dpi=100, facecolor="white", pil_kwargs={"quality": 65, "method": 6})
         plt.close(fig)
         frames.append({"idx": p, "file": fp.name, "date": f"p{p + 1}", "label": f"Phase {p + 1} · {PHASE_WHERE[p + 1]}"})
     # strip: all eight phases, grid shaped by the map aspect
@@ -184,7 +185,7 @@ def render_one(job):
     cb.ax.tick_params(labelsize=7.5, pad=1)
     for f in so.glob("F*.webp"):
         f.unlink()
-    fig.savefig(so / "F01.webp", dpi=90, facecolor="white", pil_kwargs={"quality": 78, "method": 6})
+    fig.savefig(so / "F01.webp", dpi=90, facecolor="white", pil_kwargs={"quality": 65, "method": 6})
     plt.close(fig)
     return name, data, m, lag, frames
 

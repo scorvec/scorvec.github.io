@@ -563,8 +563,9 @@ def daily(tag, cycle, base, base_kind="model", only=None):
                          fontsize=9, labelpad=3)
             cb.ax.tick_params(labelsize=8, pad=1.5)
             f = d / f"F{i:02d}.webp"
+            # loop frames: WebP q65 method 6 (2026-10-05 encode study: ~30-35 % fewer bytes than q82, text/contours/colour bars unchanged at 1x)
             fig.savefig(f, dpi=100, facecolor="white",
-                        pil_kwargs={"quality": 86, "method": 6})
+                        pil_kwargs={"quality": 65, "method": 6})
             plt.close(fig)
             frames.append({"idx": i, "file": f.name,
                            "date": valid.strftime("%Y-%m-%d"),

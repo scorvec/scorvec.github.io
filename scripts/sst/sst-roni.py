@@ -373,7 +373,7 @@ _ONE_PANEL_KINDS = {"trel"}
 # which is what the eye wants on a retina display. webp quality up with it so the extra pixels are
 # not spent on compression artefacts.
 FRAME_DPI = 170
-FRAME_QUALITY = 88
+FRAME_QUALITY = 70     # 88 until 2026-10-05; encode study: ~45 % fewer bytes, no visible change at 1x on the 170-dpi frames
 
 
 def _kind_style(kind):

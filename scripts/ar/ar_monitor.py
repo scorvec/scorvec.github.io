@@ -156,7 +156,7 @@ def loops(ivt, ivte_m, ivtn_m, ivt_c, ivte, ivtn, lat, lon, valid, init, k_fit, 
         _coast(ax); ax.set_title(f"Ensemble-mean IVT — AIFS-ENS 51 members, init {init:%d %b %HZ} · {lab}", fontsize=10.5, loc="left", fontweight="bold")
         cax = fig.add_axes([0.25, 0.065, 0.5, 0.02]); cb = fig.colorbar(cf, cax=cax, orientation="horizontal"); cb.ax.tick_params(labelsize=8)
         cb.set_label("IVT (kg m⁻¹ s⁻¹), proxy calibrated on member 0 (r = %.2f) · arrows where ≥ 200 · red: P(IVT ≥ 250) = 0.5 and 0.8" % k_fit["r"], fontsize=8)
-        fp = dirs["ar_ivt"] / f"F{k:02d}.webp"; fig.savefig(fp, dpi=100, facecolor="white", pil_kwargs={"quality": 82, "method": 6}); plt.close(fig)
+        fp = dirs["ar_ivt"] / f"F{k:02d}.webp"; fig.savefig(fp, dpi=100, facecolor="white", pil_kwargs={"quality": 65, "method": 6}); plt.close(fig)
         entries["ar_ivt"].append({"idx": k, "file": fp.name, "date": pd.Timestamp(t).strftime("%Y-%m-%d"), "label": lab})
         # 2. probability
         fig = plt.figure(figsize=(12, 6.3)); ax = _frame_axes(fig)
@@ -165,7 +165,7 @@ def loops(ivt, ivte_m, ivtn_m, ivt_c, ivte, ivtn, lat, lon, valid, init, k_fit, 
         _coast(ax); ax.set_title(f"Probability of AR conditions, IVT ≥ 250 — AIFS-ENS 51 members, init {init:%d %b %HZ} · {lab}", fontsize=10.5, loc="left", fontweight="bold")
         cax = fig.add_axes([0.25, 0.065, 0.5, 0.02]); cb = fig.colorbar(cf, cax=cax, orientation="horizontal"); cb.ax.tick_params(labelsize=8)
         cb.set_label("fraction of members with IVT ≥ 250 kg m⁻¹ s⁻¹ · navy contours: ensemble-mean IVT 250 and 500", fontsize=8)
-        fp = dirs["ar_prob"] / f"F{k:02d}.webp"; fig.savefig(fp, dpi=100, facecolor="white", pil_kwargs={"quality": 82, "method": 6}); plt.close(fig)
+        fp = dirs["ar_prob"] / f"F{k:02d}.webp"; fig.savefig(fp, dpi=100, facecolor="white", pil_kwargs={"quality": 65, "method": 6}); plt.close(fig)
         entries["ar_prob"].append({"idx": k, "file": fp.name, "date": pd.Timestamp(t).strftime("%Y-%m-%d"), "label": lab})
         # 3. member 0, exact
         fig = plt.figure(figsize=(12, 6.3)); ax = _frame_axes(fig)
@@ -175,7 +175,7 @@ def loops(ivt, ivte_m, ivtn_m, ivt_c, ivte, ivtn, lat, lon, valid, init, k_fit, 
         _coast(ax); ax.set_title(f"Control member, exact IVT (1/g)∫q·V dp, 1000–300 hPa — init {init:%d %b %HZ} · {lab}", fontsize=10.5, loc="left", fontweight="bold")
         cax = fig.add_axes([0.25, 0.065, 0.5, 0.02]); cb = fig.colorbar(cf, cax=cax, orientation="horizontal"); cb.ax.tick_params(labelsize=8)
         cb.set_label("IVT (kg m⁻¹ s⁻¹) · arrows: IVT vector where ≥ 200", fontsize=8)
-        fp = dirs["ar_ctrl"] / f"F{k:02d}.webp"; fig.savefig(fp, dpi=100, facecolor="white", pil_kwargs={"quality": 82, "method": 6}); plt.close(fig)
+        fp = dirs["ar_ctrl"] / f"F{k:02d}.webp"; fig.savefig(fp, dpi=100, facecolor="white", pil_kwargs={"quality": 65, "method": 6}); plt.close(fig)
         entries["ar_ctrl"].append({"idx": k, "file": fp.name, "date": pd.Timestamp(t).strftime("%Y-%m-%d"), "label": lab})
     mani = {"ver": int(pd.Timestamp.now().timestamp()), "default": "ar_ivt",
             "regions": {"ar_ivt": {"label": "Ensemble-mean IVT", "frames": entries["ar_ivt"]},
@@ -276,7 +276,7 @@ def pwat_loops(models, lat, lon, valid, init, anim: Path, manifest: Path) -> Non
                 cax = fig.add_axes([0.25, 0.065, 0.5, 0.02]); cb = fig.colorbar(cf, cax=cax, orientation="horizontal")
                 cb.ax.tick_params(labelsize=8); cb.set_label(cl, fontsize=8)
                 fp = d / f"F{k:02d}.webp"
-                fig.savefig(fp, dpi=100, facecolor="white", pil_kwargs={"quality": 82, "method": 6}); plt.close(fig)
+                fig.savefig(fp, dpi=100, facecolor="white", pil_kwargs={"quality": 65, "method": 6}); plt.close(fig)
                 frames.append({"idx": k, "file": fp.name, "date": pd.Timestamp(t).strftime("%Y-%m-%d"), "label": lab})
             M["regions"][f"{kind}_{tag}"] = {"label": ("Precipitable water" if kind == "pwat" else "PWAT anomaly") + f", {label}",
                                              "frames": frames}

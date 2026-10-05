@@ -350,8 +350,9 @@ def render(uv, lev, date, time, step_h, out_path: Path, source: str = "control",
              fontsize=8, color="#6f6b64", ha="left", va="bottom", linespacing=1.4)
 
     out_path.parent.mkdir(parents=True, exist_ok=True)
+    # loop frames: WebP q65 method 6 (2026-10-05 encode study: ~30-35 % fewer bytes than q82, text/contours/colour bars unchanged at 1x)
     fig.savefig(out_path, dpi=125, facecolor="white",
-                pil_kwargs={"quality": 88, "method": 6})
+                pil_kwargs={"quality": 65, "method": 6})
     plt.close(fig)
     return out_path
 

@@ -171,9 +171,10 @@ def render_frame(dt: datetime, out: Path, cfg: dict) -> bool:
                  "colour = deep convection (cold tops)", fontsize=9, loc="left")
     # 200 dpi puts the Pacific frame at ~2030 px across, close to the GMGSI
     # mosaic's own 0.07 deg pixels; the 92 dpi / 934 px frames were a 3x
-    # downsample that read as blurry (2026-09-01). ~380 KB a frame at q80.
+    # downsample that read as blurry (2026-09-01). ~380 KB a frame at q80; q65 since 2026-10-05 (encode study:
+    # ~20-25 % fewer bytes, IR texture and colour-enhanced tops indistinguishable from q80 at 3x zoom).
     fig.savefig(out, dpi=cfg.get("dpi", 200), bbox_inches="tight",
-                pil_kwargs={"quality": 80, "method": 6}); plt.close(fig)
+                pil_kwargs={"quality": 65, "method": 6}); plt.close(fig)
     return True
 
 

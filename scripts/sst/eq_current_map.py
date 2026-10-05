@@ -74,7 +74,7 @@ def render_frame(day: xr.Dataset, dt: datetime, out: Path) -> None:
                  "shading = speed · streamlines = flow direction", fontsize=11)
     cb = fig.colorbar(pm, ax=ax, orientation="horizontal", pad=0.07, aspect=48, shrink=0.72)
     cb.set_label("current speed (m s⁻¹)")
-    fig.savefig(out, dpi=110, bbox_inches="tight"); plt.close(fig)
+    fig.savefig(out, dpi=110, bbox_inches="tight", pil_kwargs={"quality": 65, "method": 6}); plt.close(fig)   # loop frames: WebP q65 m6 (2026-10-05 encode study)
 
 
 def main(argv=None) -> int:

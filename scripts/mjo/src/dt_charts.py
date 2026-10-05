@@ -478,7 +478,8 @@ def main() -> int:
                     blab += " · storm overlays: see the key on the map"
                 _bar(fig, cf, cax, blab)
                 kk = key(f, rg); fp = dirs[kk] / f"F{k:02d}.webp"
-                fig.savefig(fp, dpi=100 if polar else 125, facecolor="white", pil_kwargs={"quality": 82, "method": 6}); plt.close(fig)
+                # loop frames: WebP q65 method 6 (2026-10-05 encode study: ~30-35 % fewer bytes than q82, text/contours/colour bars unchanged at 1x)
+                fig.savefig(fp, dpi=100 if polar else 125, facecolor="white", pil_kwargs={"quality": 65, "method": 6}); plt.close(fig)
                 entries[kk].append({"idx": k, "file": fp.name, "date": valid.strftime("%Y-%m-%d"), "label": lab})
         if k % 5 == 0:
             print(f"    step {h:3d} h done ({time.time() - t0:.0f}s)", flush=True)

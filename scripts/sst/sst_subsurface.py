@@ -349,7 +349,7 @@ def plot_frame(temp2d, anom2d, lons, date, out_path, missing=None):
     ax2.set_xlabel("Longitude (mooring sites marked ▾)")
     fig.tight_layout(rect=(0, 0, 1, 0.97))
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(out_path, dpi=110, bbox_inches="tight")
+    fig.savefig(out_path, dpi=110, bbox_inches="tight", pil_kwargs={"quality": 65, "method": 6})   # loop frames: WebP q65 m6 (2026-10-05)
     plt.close(fig)
 
 
@@ -386,7 +386,7 @@ def plot_anom_pair(araw2d, adt2d, lons, date, out_path, missing=None):
     ax2.set_xlabel("Longitude (mooring sites marked ▾)")
     fig.tight_layout(rect=(0, 0, 1, 0.97))
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(out_path, dpi=110, bbox_inches="tight")
+    fig.savefig(out_path, dpi=110, bbox_inches="tight", pil_kwargs={"quality": 65, "method": 6})   # loop frames: WebP q65 m6 (2026-10-05)
     plt.close(fig)
 
 

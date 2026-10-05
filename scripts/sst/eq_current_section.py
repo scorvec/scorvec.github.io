@@ -117,7 +117,7 @@ def render_frame(u: xr.DataArray, t: xr.DataArray, dt: datetime, out: Path) -> N
                  "red = eastward (incl. the Equatorial Undercurrent); black = 20 / 26 / 28 °C isotherms", fontsize=10, pad=12)
     cb = fig.colorbar(pm, ax=ax, orientation="vertical", pad=0.02, aspect=30)
     cb.set_label("zonal current (m s⁻¹)   ·   eastward +")
-    fig.tight_layout(); fig.savefig(out, dpi=110, bbox_inches="tight"); plt.close(fig)
+    fig.tight_layout(); fig.savefig(out, dpi=110, bbox_inches="tight", pil_kwargs={"quality": 65, "method": 6}); plt.close(fig)   # loop frames: WebP q65 m6 (2026-10-05)
 
 
 def main(argv=None) -> int:

@@ -419,7 +419,8 @@ def _frames_job(spec):
                      fontsize=9, labelpad=3)
         cb.ax.tick_params(labelsize=8, pad=1.5)
         f = d / f"F{i:02d}.webp"
-        fig.savefig(f, dpi=100, facecolor="white", pil_kwargs={"quality": 86, "method": 6})
+        # loop frames: WebP q65 method 6 (2026-10-05 encode study: ~30-35 % fewer bytes than q82, text/contours/colour bars unchanged at 1x)
+        fig.savefig(f, dpi=100, facecolor="white", pil_kwargs={"quality": 65, "method": 6})
         plt.close(fig)
         frames.append({"idx": i, "file": f.name, "date": valid.isoformat(), "label": f"day {i + 1} · {valid:%b %d}"})
     return f"{key}_{tag}", title, frames
@@ -657,7 +658,7 @@ def _vloop_job(spec):
         fig.suptitle(f"{'Northern' if north else 'Southern'} polar vortex — {lev} hPa · GEFS day {i + 1}, valid {valid:%a %d %b}",
                      fontsize=12.5, fontweight="bold", y=0.988, va="top")
         fp = d / f"F{i:02d}.webp"
-        fig.savefig(fp, dpi=100, facecolor="white", pil_kwargs={"quality": 86, "method": 6})
+        fig.savefig(fp, dpi=100, facecolor="white", pil_kwargs={"quality": 65, "method": 6})
         plt.close(fig)
         frames.append({"idx": i, "file": fp.name, "date": valid.isoformat(), "label": f"day {i + 1} · {valid:%b %d}"})
     return rid, frames

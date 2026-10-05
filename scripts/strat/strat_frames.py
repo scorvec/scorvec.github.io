@@ -237,8 +237,9 @@ def main() -> int:
                              + (" · reforecast drift removed" if mb and lev in anom_levels else ""),
                              fontsize=12.5, fontweight="bold", y=0.988, va="top")
                 fp = d / f"F{i:02d}.webp"
+                # loop frames: WebP q65 method 6 (2026-10-05 encode study: ~30-35 % fewer bytes than q82, text/contours/colour bars unchanged at 1x)
                 fig.savefig(fp, dpi=100, facecolor="white",
-                            pil_kwargs={"quality": 86, "method": 6})
+                            pil_kwargs={"quality": 65, "method": 6})
                 plt.close(fig)
                 frames.append({"idx": i, "file": fp.name,
                                "date": valid.strftime("%Y-%m-%d"),

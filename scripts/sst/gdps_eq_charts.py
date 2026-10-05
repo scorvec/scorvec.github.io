@@ -381,7 +381,7 @@ def _wind_frame(k: int) -> dict:
              f"{valid:%Y-%m-%d %H}Z", fontsize=10, ha="left", va="top")
     fp = anim / f"F{k:02d}.webp"
     fig.subplots_adjust(left=0.03, right=0.99, top=0.90, bottom=0.10)
-    fig.savefig(fp, dpi=104); plt.close(fig)
+    fig.savefig(fp, dpi=104, pil_kwargs={"quality": 65, "method": 6}); plt.close(fig)       # loop frames: WebP q65 m6 (2026-10-05 encode study)
     return {"idx": k, "file": fp.name, "date": f"{valid:%Y-%m-%d}",
             "label": f"F{int(h):03d} · {valid:%Y-%m-%d %H}Z"}
 
@@ -471,7 +471,7 @@ def render_outflow_frame(u, v, z, init: pd.Timestamp, h: int, fp: Path) -> None:
              f"F{int(h):03d} valid {valid:%Y-%m-%d %H}Z",
              fontsize=10, ha="left", va="top")
     fig.subplots_adjust(left=0.03, right=0.99, top=1 - TOP_IN / H, bottom=BOT_IN / H)
-    fig.savefig(fp, dpi=104); plt.close(fig)
+    fig.savefig(fp, dpi=104, pil_kwargs={"quality": 65, "method": 6}); plt.close(fig)       # loop frames: WebP q65 m6 (2026-10-05 encode study)
 
 
 def _outflow_frame(lead: int) -> int:
@@ -554,7 +554,7 @@ def render_ir_frame(tb2d, lat, lon, init: pd.Timestamp, lead: int,
     # no bbox_inches="tight": under matplotlib 3.11 + cartopy the GeoAxes drops
     # out of the tight bbox and every frame collapsed to just the colorbar
     # (801×99 slivers, 2026-08-25); the fixed axes rect already frames the map
-    fig.savefig(out, dpi=IR_DPI, pil_kwargs={"quality": 74, "method": 6})
+    fig.savefig(out, dpi=IR_DPI, pil_kwargs={"quality": 65, "method": 6})
     plt.close(fig)
 
 

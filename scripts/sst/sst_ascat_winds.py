@@ -189,7 +189,7 @@ def plot(dsd: xr.Dataset, day: pd.Timestamp, out: Path):
                       pad=0.18, aspect=60, shrink=0.55, extend="max")
     cb.set_label("wind speed (m s⁻¹, shaded) · vectors: direction · gap-filled scatterometer L4", fontsize=8); cb.ax.tick_params(labelsize=7)
     out.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(out, dpi=130, bbox_inches="tight")
+    fig.savefig(out, dpi=130, bbox_inches="tight", pil_kwargs={"quality": 65, "method": 6})   # loop frames: WebP q65 m6 (2026-10-05 encode study)
     plt.close(fig)
     print(f"saved {out} ({day:%Y-%m-%d}; mean speed {np.nanmean(spd):.1f}, "
           f"max {np.nanmax(spd):.1f} m/s)")

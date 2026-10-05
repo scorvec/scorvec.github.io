@@ -276,8 +276,9 @@ def render(field: xr.DataArray, extent, title: str, out: Path,
     # bbox_inches="tight" can close up the whitespace band beneath the map.
     ax.text(0.0, -0.16, note, transform=ax.transAxes, fontsize=6.5,
             color="#666", va="top", ha="left")
+    # loop frames: WebP q65 method 6 (2026-10-05 encode study: ~30-35 % fewer bytes than q82, text/contours/colour bars unchanged at 1x)
     fig.savefig(out, facecolor="white", bbox_inches="tight", pad_inches=0.05,
-                pil_kwargs={"quality": 84, "method": 6})
+                pil_kwargs={"quality": 65, "method": 6})
     plt.close(fig)
     print(f"  wrote {out.name} ({out.stat().st_size/1e3:.0f} kB)", flush=True)
 

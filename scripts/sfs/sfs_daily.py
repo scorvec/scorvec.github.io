@@ -310,7 +310,7 @@ def render_chi_loop(issue, t0, lead_days):
                    "Ensemble mean of 31 members against the ERA5 1991–2020 harmonic normal; shading and contours in 10⁶ m² s⁻¹, arrows the anomalous divergent wind; negative = outflow, enhanced convection.")
         MS.colorbar(fig, H, cf, "χ anomaly (10⁶ m² s⁻¹)")
         fn = f"F{i:02d}.webp"
-        MS.save(fig, outdir / fn)
+        MS.save(fig, outdir / fn, quality=65)   # loop frames: WebP q65 (2026-10-05 encode study)
         frames.append({"idx": i, "file": fn, "date": f"{valid:%Y-%m-%d}",
                        "label": f"{valid:%b %d} · day {int(lead_days[k])}"})
     (ANIM / f"{name}_manifest.json").write_text(json.dumps(
@@ -444,7 +444,7 @@ def render_daily_maps(issue, t0, sel, lead_days, t2, z5, F, lat, lon):
             MS.heading(fig, H, f"SFS beta {label} anomaly · {valid:%a %b %d %Y} (day {int(lead_days[ksel][i])}) · {t0:%B %Y} issue", sub)
             MS.colorbar(fig, H, pm0, f"anomaly ({unit0})", levels)
             fn = f"F{i:02d}.webp"
-            MS.save(fig, outdir / fn)
+            MS.save(fig, outdir / fn, quality=65)   # loop frames: WebP q65 (2026-10-05 encode study)
             frames.append({"idx": i, "file": fn, "date": f"{valid:%Y-%m-%d}",
                            "label": f"{valid:%b %d} · day {int(lead_days[ksel][i])}"})
         (ANIM / f"{name}_manifest.json").write_text(json.dumps(
