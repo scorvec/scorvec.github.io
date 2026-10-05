@@ -14,6 +14,14 @@ on:
         description: 'Members per model (0 = all)'
         required: false
         default: '0'
+      ecmwf_date:
+        description: 'ECMWF 00Z cycle YYYYMMDD for AIFS-ENS/IFS-ENS rain (empty = skip)'
+        required: false
+        default: ''
+      skip_cmip:
+        description: 'Skip the CMIP6 extraction (true/false)'
+        required: false
+        default: 'false'
 
 permissions:
   contents: read
@@ -30,8 +38,36 @@ jobs:
           [ -n "$M" ] || M="ACCESS-ESM1-5 CESM2 CNRM-CM6-1 CNRM-ESM2-1 CanESM5 EC-Earth3 GISS-E2-1-G GISS-E2-1-H INM-CM5-0 IPSL-CM6A-LR MIROC-ES2L MIROC6 MPI-ESM1-2-HR MPI-ESM1-2-LR MRI-ESM2-0 NorCPM1"
           echo "matrix=$(python3 -c "import json,sys; print(json.dumps(sys.argv[1].split()))" "$M")" >> "$GITHUB_OUTPUT"
 
+  ecmwf:
+    if: inputs.ecmwf_date != ''
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      ECMWF_SOURCES: google
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          sparse-checkout: |
+            scripts/ecmwf
+            scripts/sst/iod_ecmwf_fetch.py
+          sparse-checkout-cone-mode: false
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+      - name: Install
+        run: pip install --quiet numpy xarray ecmwf-opendata multiurl requests cfgrib eccodes
+      - name: Fetch
+        run: python scripts/sst/iod_ecmwf_fetch.py --date "${{ inputs.ecmwf_date }}" --out out
+      - uses: actions/upload-artifact@v7
+        with:
+          name: ecmwf-tp
+          path: out/*.npz
+          retention-days: 7
+          if-no-files-found: warn
+
   extract:
     needs: plan
+    if: inputs.skip_cmip != 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 340
     strategy:
@@ -63,7 +99,7 @@ jobs:
 
   merge:
     needs: extract
-    if: always()
+    if: always() && inputs.skip_cmip != 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/download-artifact@v7
