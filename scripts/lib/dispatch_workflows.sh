@@ -175,6 +175,8 @@ kiribati-history.yml|14:40|
 # slot because this table has no day-of-month syntax; `window=true` makes the workflow's own gate run only on the
 # 5th-12th (or while the issue is still incomplete) and exit in ~30 s otherwise, exactly like its cron.
 seas5.yml|12:40|-f window=true
+# a second try the same day: the issue can reach the CDS hours after 12 UTC (2026-10-05: 400s at 12:30); the gate skips once complete
+seas5.yml|18:40|-f window=true
 qbo.yml|mon@07:15|
 sst-events.yml|mon@18:41|
 skewt-gaps.yml|tue,fri@08:40|
