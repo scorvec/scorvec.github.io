@@ -14,6 +14,12 @@
 (function () {
   var RAW = "https://raw.githubusercontent.com/scorvec/scorvec.github.io/frames/";
   var MIRROR = "https://cdn.jsdelivr.net/gh/scorvec/scorvec.github.io@frames/";
+  // A branch path on jsDelivr can be 12 h old while the manifest is fresh, and frame names repeat every run, so the
+  // mirror showed the previous run's maps under the new labels. Manifests published since 2026-10-05 carry
+  // "frames_sha" (scripts/lib/publish_frames_ci.sh): the mirror is then asked for that exact commit, which jsDelivr
+  // caches correctly, and @frames is only the next fallback.
+  var MIRROR_AT = "https://cdn.jsdelivr.net/gh/scorvec/scorvec.github.io@";
+  function isMirror(u) { return u.indexOf(MIRROR_AT) === 0; }
   var onMirror = false, dead = 0, served = 0, deadSaid = false;
   // rawOk: RAW has answered (the probe, or any frame) - slowness after that is bandwidth, not a block.
   // pending: frames still waiting on their first host, re-pointed at once if the tab switches hosts.
@@ -47,19 +53,22 @@
   // has attached its listener (the page scripts run after this one)
   if (onMirror) document.addEventListener("DOMContentLoaded", function () { emit({ mirror: true, why: "session" }); });
 
-  // frameLoad(im, rel, query, local, onFail): set im.src and walk the fallback
+  // frameLoad(im, rel, query, local, onFail, sha): set im.src and walk the fallback
   // chain on error. `rel` is the repo path (assets/sst/anim/<dir>/<file>),
   // `local` the same-origin copy on main (may no longer exist), onFail runs
   // once every host has failed. Consumers keep their own im.onload.
-  window.frameLoad = function (im, rel, query, local, onFail) {
+  window.frameLoad = function (im, rel, query, local, onFail, sha) {
     var q = query || "";
-    var first = onMirror ? MIRROR : RAW, second = onMirror ? RAW : MIRROR;
+    var pinned = /^[0-9a-f]{7,40}$/.test(sha || "") ? MIRROR_AT + sha + "/" : null;
+    var mir = pinned || MIRROR;
+    var first = onMirror ? mir : RAW, second = onMirror ? RAW : mir;
     var tries = [first + rel + q, second + rel + q];
+    if (pinned) tries.push(MIRROR + rel + q);                  // the pinned commit failed: the branch path
     if (local) tries.push(local + q);
     var k = 0, done = false, tok = {};
     im._frameTok = tok;                       // a later frameLoad on the same element retires this one
     var live = function () { return im._frameTok === tok && !done; };
-    var hop = function () { if (live() && k === 0 && tries[1].indexOf(MIRROR) === 0) { k = 1; im.src = tries[1]; } };
+    var hop = function () { if (live() && k === 0 && isMirror(tries[1])) { k = 1; im.src = tries[1]; } };
     if (!onMirror) { pending.push(hop); if (pending.length > 400) pending = pending.slice(-200); }   // old entries are long settled
     // A host that neither answers nor refuses (a web filter silently dropping the connection) would hold
     // the frame until the browser's own timeout, a minute or more, before onerror walks the chain - that
@@ -72,7 +81,7 @@
       var racer = new Image();
       racer.onload = function () {
         if (!live() || k !== 0) return;
-        if (tries[1].indexOf(MIRROR) === 0 && stalls >= 2) useMirror("raw stalled");
+        if (isMirror(tries[1]) && stalls >= 2) useMirror("raw stalled");
         k = 1; im.src = tries[1];           // already in the cache: instant
       };
       racer.src = tries[1];
@@ -104,7 +113,7 @@
       if (deadSaid) { deadSaid = false; emit({ recovered: true }); }
       // RAW failed but the mirror served the very same file: RAW is blocked
       // here, not missing a frame. Route the rest of the session to the mirror.
-      if (k === 1 && !onMirror && tries[1].indexOf(MIRROR) === 0) useMirror("raw failed, mirror served");
+      if (k === 1 && !onMirror && isMirror(tries[1])) useMirror("raw failed, mirror served");
     }, { once: true });
     im.src = tries[0];
   };

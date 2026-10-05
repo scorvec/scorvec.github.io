@@ -141,7 +141,7 @@ git config user.name "Shawn Corvec"
 git config user.email "26825570+scorvec@users.noreply.github.com"
 git checkout -q --orphan fresh
 git add -A
-if git diff --cached --quiet; then echo "  no frame changes"; return 0; fi
+if git diff --cached --quiet; then echo "  no frame changes"; PUBLISHED_SHA="$BASE"; return 0; fi
 MSG="animation frames"; [ "$BRANCH" = frames ] || MSG="$BRANCH update"
 git commit -q -m "$MSG $(date -u +%Y-%m-%dT%H:%MZ)"
 git config http.postBuffer 524288000
@@ -151,10 +151,49 @@ else
   git push -q --force origin "fresh:$BRANCH" || return 75
 fi
 echo "  pushed $(find assets -name '*.webp' | wc -l | tr -d ' ') frames total to $BRANCH"
+PUBLISHED_SHA=$(git rev-parse HEAD)
 return 0
 }
+
+# Pin the jsDelivr mirror (2026-10-05). jsDelivr holds a BRANCH path (@frames) for up to 12 h and frame names are reused
+# every run (F00.webp ...), while the manifests on main are fresh - so a network that can only reach the mirror showed
+# the previous run's maps under the new run's time labels. A COMMIT path (@<sha>) is immutable and cached correctly, so
+# every manifest next to / inside a directory just published gets "frames_sha": the commit holding exactly these frames
+# (or a later one). Viewers build the mirror URL from it (assets/frames_root.js) and fall back to @frames without it.
+# A manifest belongs to a published dir if it sits inside it, or next to it and names it as a JSON string. Workflows
+# publish before their commit step, which snapshots the manifests, so the stamp rides along.
+stamp_manifests() {
+  local sha="$1"; shift
+  [ -n "$sha" ] || return 0
+  local d base parent m
+  local list=()
+  for d in "$@"; do
+    d="${d#+}"; [ -d "$d" ] || continue
+    base=$(basename "$d"); parent=$(dirname "$d")
+    for m in "$d"/*_manifest.json "$d"/manifest.json "$parent"/*_manifest.json "$parent"/manifest.json; do
+      [ -f "$m" ] || continue
+      case "$m" in "$d"/*) list+=("$m") ;; *) grep -q "\"$base\"" "$m" && list+=("$m") ;; esac
+    done
+  done
+  [ ${#list[@]} -gt 0 ] || return 0
+  python3 - "$sha" "${list[@]}" <<'PY' || echo "::warning::could not stamp frames_sha into the manifests"
+import json, sys
+sha, files = sys.argv[1], sorted(set(sys.argv[2:]))
+for f in files:
+    try:
+        m = json.load(open(f))
+    except Exception as e:
+        print(f"  {f}: not stamped ({e})"); continue
+    if not isinstance(m, dict):
+        continue
+    m["frames_sha"] = sha
+    json.dump(m, open(f, "w"), separators=(",", ":"))
+    print(f"  {f}: frames_sha {sha[:10]}")
+PY
+}
+PUBLISHED_SHA=""
 for attempt in 1 2 3 4 5; do
-  publish_once "$@" && exit 0
+  publish_once "$@" && { cd "$ORIG_PWD" && stamp_manifests "$PUBLISHED_SHA" "$@"; exit 0; }
   rc=$?
   [ "$rc" -eq 75 ] || exit "$rc"
   echo "  $BRANCH moved under us (another job published) - re-cloning, attempt $((attempt + 1))/5"

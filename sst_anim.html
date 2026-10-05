@@ -209,7 +209,7 @@ function frameSrc(im, rid, f, ver) {
   if (ON_FRAMES_BRANCH && window.frameLoad) {
     // raw.githubusercontent.com -> cdn.jsdelivr.net mirror -> copy on main
     // (assets/frames_root.js); the chain is per-FRAME because imgEl is reused
-    window.frameLoad(im, rel, q, rel);
+    window.frameLoad(im, rel, q, rel, null, manifest && manifest.frames_sha);   // frames_sha: the mirror's pinned commit
   } else {
     im.onerror = null;
     im.src = rel + q;

@@ -191,7 +191,7 @@
         // raw.githubusercontent.com -> jsDelivr mirror -> copy on main (assets/frames_root.js); a frame every host
         // failed still counts as done so the loader cannot stall on it
         window.frameLoad(im, base + regionKey + "/" + fr.file, "?v=" + ver,
-                         base + regionKey + "/" + fr.file, function () { done(i); });
+                         base + regionKey + "/" + fr.file, function () { done(i); }, man.frames_sha);
       }
       function done(i) {
         if (doneFrame[i]) return;
