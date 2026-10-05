@@ -162,7 +162,7 @@ def _retrieve(kind: str, years: list[str], month: str, dest: Path) -> bool:
             if "no data" in msg.lower() or "not found" in msg.lower():
                 print(f"    {kind} {month}: no data on the CDS — skipped ({msg[:80]})", flush=True)
                 return False
-            print(f"    {kind} {month}: attempt {attempt + 1} failed ({msg[:120]})", flush=True)
+            print(f"    {kind} {month}: attempt {attempt + 1} failed ({msg[:600]})", flush=True)
             time.sleep(30)
     return False
 
