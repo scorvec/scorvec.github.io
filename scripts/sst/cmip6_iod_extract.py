@@ -6,6 +6,7 @@ writes small derived npz files that leave the runner as one workflow artifact. N
 
 Per member of the local ENSO-impact store (16 models, 429 historical members, 1950-2014):
   ts   monthly 1949-12..2014-12, 2.5-degree area-overlap mean over 20S-20N x 40-120E, int16 centi-degC  (DMI boxes)
+  pr   monthly 1949-12..2014-12, same Indian Ocean grid, float16 mm/day  (rainfall-dipole index)
 Per member of the z500 subset (<= 10 per model, 147 members), Sep/Oct/Nov months 1950-2014 only:
   zg   200 and 500 hPa, global 2.5 degree, int16 metres offset (z200 - 11500, z500 - 5500)
   pr   30S-30N, global 2.5 degree, float16 mm/day
@@ -125,6 +126,13 @@ def do_member(src, member, stores, want_zg, out):
             x = v.sel(lat=slice(-30, 30), lon=slice(25, 135)).transpose("time", "lat", "lon")
             box = regrid(x.values.astype("float64"), x.lat.values.astype(float), x.lon.values.astype(float), IO_LAT, IO_LON, False)
             rec.update(ts_io=np.round((box - 273.15) * 100).astype("int16"), months=months, io_lat=IO_LAT, io_lon=IO_LON)
+            if "pr" in stores:                       # Indian Ocean rainfall, every month, every member (rainfall-index analogues)
+                q, qm, _ = open_da(stores["pr"], "pr")
+                if len(qm) != NMON:
+                    raise ValueError(f"pr {len(qm)} months")
+                q = q.sel(lat=slice(-30, 30), lon=slice(25, 135)).transpose("time", "lat", "lon")
+                pio = regrid(q.values.astype("float64") * 86400.0, q.lat.values.astype(float), q.lon.values.astype(float), IO_LAT, IO_LON, False)
+                rec.update(pr_io=pio.astype("float16"))
             if want_zg and "zg" in stores and "pr" in stores:
                 z, zm, _ = open_da(stores["zg"], "zg")
                 son = np.array([m[5:] in ("09", "10", "11") and "1950" <= m[:4] <= "2014" for m in zm])
