@@ -84,7 +84,7 @@ jobs:
         with:
           python-version: '3.11'
       - name: Install
-        run: pip install --quiet numpy pandas xarray 'dask[array]' zarr gcsfs fsspec
+        run: pip install --quiet numpy pandas xarray 'dask[array]' zarr gcsfs fsspec cftime
       - name: Catalogue
         run: curl -sSfL -o pangeo-cmip6.csv https://storage.googleapis.com/cmip6/pangeo-cmip6.csv
       - name: Extract
