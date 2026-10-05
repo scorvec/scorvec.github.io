@@ -14,4 +14,4 @@ cartopy==0.25.0  # 0.26.0 collapses set_extent((-180, 180, ...)) on a dateline-c
 shapely>=2.1.2
 pyproj>=3.7.2
 Pillow
-copernicusmarine>=2.0
+copernicusmarine>=2.5.0
