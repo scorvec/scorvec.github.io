@@ -57,6 +57,10 @@ jobs:
           for f in index.html about.html polls.html whatif.html whatif_engine.js; do
             curl -fsSL --retry 3 -o "$tmp/$f" "$base/$f"
           done
+          # legislatures.html (state legislative chambers, experimental; 2026-10-05) - optional until the model repo publishes it
+          for f in legislatures.html; do
+            curl -fsSL --retry 3 -o "$tmp/$f" "$base/$f" || rm -f "$tmp/$f"
+          done
           for f in model.json summary.json polls.json race_history.json whatif.json districts_2026.topo.json; do
             curl -fsSL --retry 3 -o "$tmp/data/$f" "$base/data/$f"
           done
@@ -74,7 +78,8 @@ jobs:
           print("forecast", new["asof"], "generated", new.get("generated"))
           EOF
           mkdir -p midterms/data
-          for f in index.html about.html polls.html whatif.html; do
+          for f in index.html about.html polls.html whatif.html legislatures.html; do
+            [ -f "$tmp/$f" ] || continue
             sed 's|<meta name="robots" content="noindex">||' "$tmp/$f" > "midterms/$f"
           done
           cp "$tmp/whatif_engine.js" midterms/whatif_engine.js
@@ -85,7 +90,7 @@ jobs:
 
       - name: Stamp the site chrome
         run: |
-          python -c "import sys; sys.path.insert(0, 'scripts/site'); import apply_chrome as A; A.stamp_all(only={'midterms/index.html', 'midterms/about.html', 'midterms/polls.html', 'midterms/whatif.html'}, quiet=True)"
+          python -c "import sys; sys.path.insert(0, 'scripts/site'); import apply_chrome as A; A.stamp_all(only={'midterms/index.html', 'midterms/about.html', 'midterms/polls.html', 'midterms/whatif.html', 'midterms/legislatures.html'}, quiet=True)"
 
       - name: Commit & push
         run: |

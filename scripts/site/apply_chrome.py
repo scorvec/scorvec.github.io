@@ -290,6 +290,7 @@ PAGES = [
     dict(path="midterms/about.html", mode="after-body", footer=True),   # how the midterm forecast works + sources
     dict(path="midterms/polls.html", mode="after-body", footer=True),   # every poll in the midterm forecast and its weight
     dict(path="midterms/whatif.html", mode="after-body", footer=True),  # "What if?": the forecast re-simulated with the reader's assumptions
+    dict(path="midterms/legislatures.html", mode="after-body", footer=True),  # state legislative chambers (experimental, 2026-10-05)
     dict(path="cities/index.html", mode="nav"),
     dict(path="cities/verify.html", mode="nav"),
     # the 404 body is a centring flexbox: stack it so the header spans the top and the message centres below
