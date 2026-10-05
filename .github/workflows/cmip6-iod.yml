@@ -1,0 +1,80 @@
+name: CMIP6 IOD extraction (temporary)
+
+# TEMPORARY (2026-10-05): research job for the IOD + El Nino study. Streams Pangeo CMIP6 (Google Cloud, anonymous) and
+# leaves ONE workflow artifact (cmip6-iod) of small derived npz files. Nothing is committed. Delete this workflow after.
+
+on:
+  workflow_dispatch:
+    inputs:
+      models:
+        description: 'Space-separated models (empty = all 16)'
+        required: false
+        default: ''
+      limit:
+        description: 'Members per model (0 = all)'
+        required: false
+        default: '0'
+
+permissions:
+  contents: read
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.m.outputs.matrix }}
+    steps:
+      - id: m
+        run: |
+          M="${{ inputs.models }}"
+          [ -n "$M" ] || M="ACCESS-ESM1-5 CESM2 CNRM-CM6-1 CNRM-ESM2-1 CanESM5 EC-Earth3 GISS-E2-1-G GISS-E2-1-H INM-CM5-0 IPSL-CM6A-LR MIROC-ES2L MIROC6 MPI-ESM1-2-HR MPI-ESM1-2-LR MRI-ESM2-0 NorCPM1"
+          echo "matrix=$(python3 -c "import json,sys; print(json.dumps(sys.argv[1].split()))" "$M")" >> "$GITHUB_OUTPUT"
+
+  extract:
+    needs: plan
+    runs-on: ubuntu-latest
+    timeout-minutes: 340
+    strategy:
+      fail-fast: false
+      max-parallel: 16
+      matrix:
+        model: ${{ fromJson(needs.plan.outputs.matrix) }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          sparse-checkout: scripts/sst/cmip6_iod_extract.py
+          sparse-checkout-cone-mode: false
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+      - name: Install
+        run: pip install --quiet numpy pandas xarray 'dask[array]' zarr gcsfs fsspec
+      - name: Catalogue
+        run: curl -sSfL -o pangeo-cmip6.csv https://storage.googleapis.com/cmip6/pangeo-cmip6.csv
+      - name: Extract
+        run: python scripts/sst/cmip6_iod_extract.py --model "${{ matrix.model }}" --out out --limit "${{ inputs.limit }}"
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: part-${{ matrix.model }}
+          path: out/*.npz
+          retention-days: 2
+          if-no-files-found: warn
+
+  merge:
+    needs: extract
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v7
+        with:
+          pattern: part-*
+          path: parts
+          merge-multiple: true
+      - run: ls parts | wc -l && du -sh parts
+      - uses: actions/upload-artifact@v7
+        with:
+          name: cmip6-iod
+          path: parts/*.npz
+          retention-days: 7
+          compression-level: 0
