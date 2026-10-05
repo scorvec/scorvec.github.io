@@ -191,17 +191,23 @@ td.n{text-align:right}
 </header>
 <!-- sh:end --><main class="wi">
 <div class="head"><h1>State legislatures, 2026</h1><a href="index.html">&larr; Congress and governors</a></div>
-<p class="lede" id="lede">Chances of control of fourteen competitive state legislative chambers.</p>
+<p class="lede" id="lede">Chances of control of seventeen competitive state legislative chambers.</p>
 <div class="xp"><b>Experimental.</b> This part of the forecast is new and rests on less evidence than the Congress and governor forecasts.
-Tested on 2018 and 2022 with only what was known on October 1 (24 chamber elections): the control chances scored a Brier score of 0.119,
-against 0.250 for simply assuming the current majority holds, but they called the winner right 75% of the time - no more often than that
-naive rule. The final seat count fell inside the 80% range in 22 of 24. Known gaps:
+Tested on 2018 and 2022 with only what was known on October 1, on the fourteen original chambers (24 chamber elections): the
+control chances scored a Brier score of 0.118, against 0.250 for simply assuming the current majority holds; the winner was called right
+in 79% of them against 75% for that naive rule, and the final seat count fell inside the 80% range in 23 of 24. The Georgia, Iowa and
+Texas Houses were tested separately (5 chamber elections with complete district data; Georgia 2018 lacked two districts): all five
+called right, as the naive rule also did, Brier 0.006, seat counts inside the 80% range 5 of 5 - a test with no close chamber in it. Known gaps:
 <ul><li><b>New Hampshire House</b> (400 seats): no candidate lists are available, so every seat is treated as contested by full slates of
 both parties, and floterial districts are simulated as ordinary multi-member districts; it was not part of the 2018 test.</li>
 <li><b>Michigan Senate</b>: no 2024 Senate election, and the 2026 court-ordered redraw of the Detroit-area districts is not yet in the
 Census boundary files; district leans are 2020 results moved by the 2024 swing, on the 2022 lines.</li>
 <li><b>Minnesota Senate</b> (and part of the New Hampshire Senate): no candidate lists; sitting senators are assumed to run unless they
-have announced their retirement.</li></ul></div>
+have announced their retirement.</li>
+<li><b>Iowa House</b>: candidates are described in prose; retirements are read from it, but most nominees are not, so a seat counts as
+contested unless the page says a party has no candidate.</li>
+<li><b>Georgia and Texas Houses</b>: many seats have only one party on the ballot; a seat is fixed only when the chamber page shows it
+(a general-election listing without the other party), otherwise it is simulated as contested.</li></ul></div>
 <p class="note" id="note"></p>
 <div class="grid" id="grid"></div>
 <p class="note" style="margin-top:22px">How it works: each seat's expected margin is the district's 2024 presidential lean (precinct returns joined to legislative

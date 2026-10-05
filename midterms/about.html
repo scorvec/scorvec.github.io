@@ -217,15 +217,16 @@ a:focus-visible{outline:2px solid var(--d);outline-offset:2px}
 <p><b>Alaska's House seat.</b> The likely final round is the Republican, Nick Begich, against an independent, Bill Hill; the Democrat polls near 10 %. The House model scores Democrats against Republicans only, so this seat stays on its fundamentals and the panel says so.</p>
 
 <h2 id="legislatures">State legislatures (experimental)</h2>
-<p>Published as experimental (<a href="legislatures.html">the page</a>). Fourteen chambers in seven states (Michigan, Minnesota, Wisconsin, Arizona, Pennsylvania,
-New Hampshire, North Carolina) are simulated seat by seat with the same national draw as the House and Senate. A seat's expected margin
+<p>Published as experimental (<a href="legislatures.html">the page</a>). Seventeen chambers (both chambers in Michigan, Minnesota, Wisconsin, Arizona, Pennsylvania,
+New Hampshire and North Carolina, and the Georgia, Iowa and Texas Houses) are simulated seat by seat with the same national draw as the House and Senate. A seat's expected margin
 starts from its district's 2024 presidential result relative to the nation (precinct returns joined to the precinct's legislative
 district), adds the national mood at 0.77 strength and an incumbency effect of 6 points; errors move every seat in a state together. The state's
 own Senate and governor polls were tested as an extra signal (their pull away from those races' fundamentals, at the fitted 0.07 share)
 and not adopted: they did not improve the backtest. All of these were fitted on
 past elections (Klarner's state legislative returns 1972-2022 and the 2018 and 2022 results). Tested on 2018 and 2022 with only the
-information available on October 1, the chamber chances scored a Brier score of 0.12 against 0.25 for assuming the current majority
-holds; the seat count fell inside the 80% range in 22 of 24 chamber elections. The New Hampshire House (400 seats, multi-member and
+information available on October 1, the fourteen original chambers' chances scored a Brier score of 0.12 against 0.25 for assuming the
+current majority holds (calls right 79% v 75%); the seat count fell inside the 80% range in 23 of 24 chamber elections. The Georgia,
+Iowa and Texas Houses, tested separately, were called right in all 5 testable elections, as the naive rule also was. The New Hampshire House (400 seats, multi-member and
 floterial districts, no candidate lists) is experimental, and the Michigan Senate uses the 2022 district lines where a 2026 court-ordered
 redraw is not yet in the Census files. The Minnesota Senate has no candidate lists, so sitting senators are assumed to run unless
 they have announced their retirement.</p>
