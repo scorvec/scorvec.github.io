@@ -18,6 +18,10 @@ on:
         description: 'ECMWF 00Z cycle YYYYMMDD for AIFS-ENS/IFS-ENS rain (empty = skip)'
         required: false
         default: ''
+      groups:
+        description: 'JSON list of comma-joined model groups (one job each; replaces the plan job)'
+        required: false
+        default: '[]'
       skip_cmip:
         description: 'Skip the CMIP6 extraction (true/false)'
         required: false
@@ -28,6 +32,7 @@ permissions:
 
 jobs:
   plan:
+    if: inputs.groups == '[]' && inputs.skip_cmip != 'true'
     runs-on: ubuntu-latest
     outputs:
       matrix: ${{ steps.m.outputs.matrix }}
@@ -67,14 +72,14 @@ jobs:
 
   extract:
     needs: plan
-    if: inputs.skip_cmip != 'true'
+    if: always() && inputs.skip_cmip != 'true' && (needs.plan.result == 'success' || inputs.groups != '[]')
     runs-on: ubuntu-latest
     timeout-minutes: 340
     strategy:
       fail-fast: false
       max-parallel: 16
       matrix:
-        model: ${{ fromJson(needs.plan.outputs.matrix) }}
+        model: ${{ fromJson(inputs.groups != '[]' && inputs.groups || needs.plan.outputs.matrix) }}
     steps:
       - uses: actions/checkout@v7
         with:
