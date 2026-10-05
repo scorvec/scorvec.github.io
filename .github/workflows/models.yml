@@ -104,6 +104,15 @@ jobs:
             SHA=$(SRC=. PRUNE="$PR" PRUNE_OLDER="$(cat "$L/floor.txt" 2>/dev/null)" scripts/models/publish_data.sh $(cat "$L/publish.txt") | tail -1)
             echo "frames commit $SHA (pruned: ${PR:-nothing})"
             python scripts/models/models.py stamp --manifest "assets/models/$m.json" --cycle "$cyc" --sha "$SHA"
+            # Pre-warm the pinned jsDelivr mirror for what the page opens on (2026-10-05): networks that block
+            # raw.githubusercontent.com read cdn.jsdelivr.net/...@<sha>/, where a file's first request is a 1-2 s cold
+            # fetch. Only the first 12 hours of the opening maps (IR, temperature, radar; low-res tiles) and the
+            # meteogram file, 4 at a time, best-effort, capped at 2 min - not the whole run.
+            if [ -n "$SHA" ]; then
+              find "assets/models/data/$m/$cyc" -type f \( -name points.json -o -regex '.*/\(ir\|t2m\|refl\)/0\(0[0-9]\|1[0-2]\)_lo\.webp' \) |
+                sed "s|^|https://cdn.jsdelivr.net/gh/${GITHUB_REPOSITORY}@${SHA}/|" |
+                timeout 120 xargs -P 4 -n 1 curl -s -o /dev/null --max-time 30 || true
+            fi
             rm -rf "assets/models/data/$m/$cyc"          # the data is on the frames branch now; keep the runner disk free
             done=$((done + 1))
             echo "::endgroup::"
