@@ -34,6 +34,34 @@ td.n{text-align:right}
 .mb{font-size:14px;color:var(--muted)}
 .xp{max-width:860px;background:var(--card);border:1px solid var(--rule);border-left:4px solid var(--rd);border-radius:8px;padding:10px 14px;font-size:16px;margin:0 0 14px}
 .xp ul{margin:6px 0 0;padding-left:20px}.xp li{margin:3px 0}
+/* district maps (2026-10-05) */
+.ml{margin:8px 0 0;font-size:15.5px}
+.maps{background:var(--card);border:1px solid var(--rule);border-radius:10px;padding:14px 16px 12px;margin-top:14px}
+.maps h2{font:600 22px/1.25 "Source Serif 4",Georgia,serif;margin:0}
+.mh{display:flex;align-items:center;justify-content:space-between;gap:10px 14px;flex-wrap:wrap;margin-bottom:4px}
+.mh select{font:inherit;font-size:16.5px;padding:5px 8px;border:1px solid #b9b5ac;border-radius:6px;background:#fff;color:var(--ink);max-width:100%}
+.mtabs{display:inline-flex;border:1px solid #b9b5ac;border-radius:6px;overflow:hidden}
+.mtabs button{border:0;background:#fff;font:inherit;font-size:15px;padding:4px 10px;cursor:pointer;color:var(--ink)}
+.mtabs button[aria-pressed=true]{background:var(--ink);color:#fff}
+.mflag{max-width:860px;border-left:4px solid var(--rd);background:#fbf3f1;padding:6px 10px;border-radius:6px;font-size:15.5px;margin:6px 0}
+.mwrap{position:relative;margin-top:6px}
+.mwrap svg{width:100%;height:auto;max-height:min(78vh,760px);touch-action:none;cursor:grab}
+.mwrap .mz{position:absolute;right:4px;top:4px;border:1px solid var(--rule);background:#fff;border-radius:6px;padding:3px 9px;font:inherit;font-size:14.5px;cursor:pointer}
+.mmsg{color:var(--muted);font-size:16px;padding:30px 0;text-align:center}
+path.sd{stroke:#fff;stroke-width:.5;vector-effect:non-scaling-stroke;cursor:pointer}
+path.sd.fl{stroke:#1b1d22;stroke-width:1}
+path.sd:hover,path.sd.sel{stroke:#000;stroke-width:2}
+path.fo{fill:none;stroke:#1b1d22;stroke-width:1.6;stroke-dasharray:4 2.5;vector-effect:non-scaling-stroke;pointer-events:none}
+path.so{fill:none;stroke:#5c5a55;stroke-width:.8;vector-effect:non-scaling-stroke;pointer-events:none}
+.lg{display:flex;flex-wrap:wrap;align-items:flex-start;gap:8px 18px;margin-top:8px;font-size:14.5px;color:var(--muted)}
+.lg .sc{display:grid;grid-template-columns:repeat(7,minmax(30px,46px));gap:1px}
+.lg .sc i{display:block;height:12px}
+.lg .sc span{font-size:12.5px;text-align:center;color:var(--muted);font-variant-numeric:tabular-nums}
+.lg .ends{display:flex;justify-content:space-between;font-size:13.5px}
+.lg .it{display:flex;align-items:center;gap:6px}
+.lg svg{width:30px;height:14px;flex:none;border-radius:2px}
+.tip{position:fixed;pointer-events:none;background:#1b1d22;color:#fff;font-size:14.5px;line-height:1.4;padding:7px 10px;border-radius:6px;display:none;max-width:min(340px,calc(100vw - 24px));z-index:9}
+.tip b{font-weight:600}.tip .tm{color:#d6d3cc}
 </style><link rel="stylesheet" href="/assets/site.css">
 <script src="/assets/site.js" defer></script>
 <script src="/assets/rail.js" defer></script>
@@ -206,10 +234,25 @@ Census boundary files; district leans are 2020 results moved by the 2024 swing, 
 have announced their retirement.</li>
 <li><b>Iowa House</b>: candidates are described in prose; retirements are read from it, but most nominees are not, so a seat counts as
 contested unless the page says a party has no candidate.</li>
-<li><b>Georgia and Texas Houses</b>: many seats have only one party on the ballot; a seat is fixed only when the chamber page shows it
-(a general-election listing without the other party), otherwise it is simulated as contested.</li></ul></div>
+<li><b>Georgia House</b>: nominees come from the Georgia Secretary of State's official results of the May 19 primary and the June 16
+runoff; a party with no primary candidate in a district has no nominee (40 seats have only a Democrat, 21 only a Republican). A nominee
+who withdrew after the primary would not show.</li>
+<li><b>Texas House</b>: a seat is fixed as one-party only when the chamber page's general-election listing lacks the other party.</li></ul></div>
 <p class="note" id="note"></p>
+<section class="maps" id="maps" aria-labelledby="mapsh">
+<div class="mh"><h2 id="mapsh">District map</h2><span><label for="chsel" class="note" style="margin-right:6px">Chamber</label><select id="chsel"></select></span></div>
+<p class="note" id="msub" style="margin:2px 0 0"></p>
+<p class="mflag" id="mflag" hidden></p>
+<div id="mfl" hidden style="margin-top:6px"><span class="note" style="margin-right:6px">Shade</span><span class="mtabs"><button type="button" data-fl="0" aria-pressed="true">Base districts</button><button type="button" data-fl="1" aria-pressed="false">Floterials</button></span></div>
+<div class="mwrap"><svg id="lmap" viewBox="0 0 960 600" role="img" aria-label="District map"></svg><button class="mz" id="mzr" type="button">Reset zoom</button></div>
+<div class="lg" id="mleg"></div>
+<p class="note" id="mnote"></p>
+<p class="note" style="font-size:14.5px">Hover or tap a district for its forecast; scroll or pinch to zoom. Shading is the chance a Democrat wins the seat (for
+districts electing several members, the expected Democratic share of them). District boundaries: U.S. Census Bureau TIGER/Line Shapefiles
+2025 (state legislative districts), simplified; New Hampshire floterial districts are drawn as the base districts that vote in them.</p>
+</section>
 <div class="grid" id="grid"></div>
+<div class="tip" id="tip" role="tooltip"></div>
 <p class="note" style="margin-top:22px">How it works: each seat's expected margin is the district's 2024 presidential lean (precinct returns joined to legislative
 districts), the national environment from the generic ballot and incumbency, with errors that
 move every seat in a state together and with the national mood. (The state's own Senate and governor polls were also tested as a
@@ -237,10 +280,120 @@ fetch("data/model.json?"+Date.now()).then(r=>r.json()).then(M=>{
       <p class="sub">Democratic seats: ${c.mean_d.toFixed(0)} on average, 80% range ${c.p10}–${c.p90}; majority ${maj}${sup}</p>
       <svg viewBox="0 0 ${W} ${H+14}" aria-label="Distribution of Democratic seats">${bars}<line x1="${mxl}" x2="${mxl}" y1="0" y2="${H}" stroke="#1b1d22" stroke-dasharray="3 2"/><text x="${mxl}" y="${H+12}" font-size="11" text-anchor="middle" fill="#6f6b64">${maj}</text></svg>
       ${c.experimental?`<p class="exp">Experimental: ${c.experimental}.</p>`:""}
-      <details><summary>${(c.tipping||[]).length&&c.tipping[0].p_tip!=null?"Tipping-point seats":"Closest seats"}</summary><table><thead><tr><th>District</th><th>Member</th><th class="n">2024 lean</th><th class="n">D win</th>${(c.tipping||[]).length&&c.tipping[0].p_tip!=null?"<th class='n'>Decides control</th>":""}</tr></thead><tbody>${tip}</tbody></table></details>`;
+      <details><summary>${(c.tipping||[]).length&&c.tipping[0].p_tip!=null?"Tipping-point seats":"Closest seats"}</summary><table><thead><tr><th>District</th><th>Member</th><th class="n">2024 lean</th><th class="n">D win</th>${(c.tipping||[]).length&&c.tipping[0].p_tip!=null?"<th class='n'>Decides control</th>":""}</tr></thead><tbody>${tip}</tbody></table></details>
+      <p class="ml"><a href="#maps" data-map="${c.state}_${c.chamber}">District map</a></p>`;
     g.appendChild(d);
   }
 });
+</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/topojson/3.0.2/topojson.min.js"></script>
+<script>
+/* District maps (data-driven): every chamber in data/stateleg_seats.json that data/stateleg_geo/index.json maps to a state file
+   (data/stateleg_geo/{ST}.topo.json, loaded when first shown) gets a map; chambers added later appear once both files carry them. */
+(()=>{
+const $=s=>document.querySelector(s), svg=d3.select("#lmap"), tip=$("#tip");
+const NEU="#e6e6e6", DC="#0b3d91", RC="#a32215", mix=(a,b,t)=>d3.interpolateRgb(a,b)(t);
+const CLS=[{lo:.95,lab:"Safe D",c:DC,t:"≥95"},{lo:.85,lab:"Likely D",c:mix(NEU,DC,.68),t:"85–95"},{lo:.65,lab:"Lean D",c:mix(NEU,DC,.38),t:"65–85"},
+  {lo:.35,lab:"Toss-up",c:NEU,t:"35–65"},{lo:.15,lab:"Lean R",c:mix(NEU,RC,.38),t:"65–85"},{lo:.05,lab:"Likely R",c:mix(NEU,RC,.68),t:"85–95"},{lo:-1,lab:"Safe R",c:RC,t:"≥95"}];
+const cls=p=>CLS.find(c=>p>=c.lo&&(c.lo!==.35||p<=.65))||CLS[6];
+const pct=x=>x==null?"–":(x<0.005?"<1":x>=0.995?">99":Math.round(100*x))+"%";
+const mg=(v,d=1)=>Math.abs(v)<0.05?"even":(v>0?"D+":"R+")+Math.abs(v).toFixed(d);
+const esc=t=>String(t).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const who=t=>esc(t).replace(/\((O)\)/g,"(independent)");
+let S=null,I=null,KEY=null,FL=0,loading=null,zoom=null;const TOPO={},DONE={};
+function load(){return loading||(loading=Promise.all([fetch("data/stateleg_seats.json?"+Date.now()).then(r=>r.ok?r.json():null),
+  fetch("data/stateleg_geo/index.json?"+Date.now()).then(r=>r.ok?r.json():null)]).then(([s,i])=>{S=s;I=i;init()}).catch(e=>{console.error(e);msg("The district maps could not be loaded.")}))}
+const topo=f=>TOPO[f]||(TOPO[f]=fetch("data/stateleg_geo/"+f+"?v="+encodeURIComponent(I.build||"")).then(r=>{if(!r.ok)throw new Error(f+" "+r.status);return r.json()}));
+function msg(t){svg.selectAll("*").remove();svg.attr("viewBox","0 0 960 120");svg.append("text").attr("x",480).attr("y",60).attr("text-anchor","middle").attr("fill","#6f6b64").attr("font-size",17).text(t);$("#mleg").innerHTML=""}
+const geo=k=>I&&I.chambers&&I.chambers[k]&&I.chambers[k].file&&(I.files||[]).includes(I.chambers[k].file)?I.chambers[k]:null;
+function init(){
+  if(!S||!S.chambers){msg("District maps appear after the next daily forecast run.");return}
+  const sel=$("#chsel");sel.innerHTML=S.chambers.map(c=>{const k=c.state+"_"+c.chamber;return `<option value="${k}">${esc(c.name)}${geo(k)?"":" (no map yet)"}</option>`}).join("");
+  const h=location.hash.startsWith("#map-")?location.hash.slice(5):null;
+  show(h&&S.chambers.some(c=>c.state+"_"+c.chamber===h)?h:sel.value);
+  sel.addEventListener("change",()=>{show(sel.value);history.replaceState(null,"","#map-"+sel.value)});
+}
+function defs(){const d=svg.append("defs");
+  const hatch=(id,bg)=>{const p=d.append("pattern").attr("id",id).attr("class","pz").attr("patternUnits","userSpaceOnUse").attr("width",6).attr("height",6).attr("patternTransform","rotate(45)");
+    p.append("rect").attr("width",6).attr("height",6).attr("fill",bg);p.append("line").attr("x1",0).attr("y1",0).attr("x2",0).attr("y2",6).attr("stroke","#fff").attr("stroke-width",2.2)};
+  const dots=(id,col)=>{const p=d.append("pattern").attr("id",id).attr("class","pz").attr("patternUnits","userSpaceOnUse").attr("width",5).attr("height",5);
+    p.append("rect").attr("width",5).attr("height",5).attr("fill",mix("#f4f2ed",col,.14));p.append("circle").attr("cx",2.5).attr("cy",2.5).attr("r",1.1).attr("fill",mix("#f4f2ed",col,.6))};
+  hatch("hD",DC);hatch("hR",RC);dots("nD",DC);dots("nR",RC);dots("nO","#8a8577")}
+function fill(s,h){if(h)return `url(#n${h.party==="D"?"D":h.party==="R"?"R":"O"})`;if(!s)return "#f4f2ed";if(s.fx)return `url(#h${s.fx})`;return cls(s.p).c}
+function show(key){
+  KEY=key;const G0=geo(key);
+  if(G0&&!(G0.file in DONE)){msg("Loading the district map…");topo(G0.file).then(t=>{DONE[G0.file]=t;if(KEY===key)show(key)}).catch(e=>{console.error(e);DONE[G0.file]=null;if(KEY===key)show(key)});return}
+  const T=G0?DONE[G0.file]:null;$("#chsel").value=key;hideTip();const C=S.chambers.find(c=>c.state+"_"+c.chamber===key),G=geo(key);
+  $("#mflag").hidden=!(G&&G.flag);if(G&&G.flag)$("#mflag").textContent=G.flag;$("#mnote").textContent=G&&G.note?G.note:"";
+  $("#mfl").hidden=!(G&&G.floterials);if(!(G&&G.floterials))FL=0;
+  document.querySelectorAll("#mfl button").forEach(b=>b.setAttribute("aria-pressed",String(+b.dataset.fl===FL)));
+  const held=new Map((C.held||[]).map(h=>[h.d,h])),by=new Map(C.seats.map(s=>[s.d,s]));
+  const nfx=C.seats.filter(s=>s.fx).length,ntu=C.seats.filter(s=>!s.fx&&s.p>=.35&&s.p<=.65).length;
+  $("#msub").textContent=`${C.seats.length} districts up in 2026${held.size?`, ${held.size} not up`:""} · ${ntu} toss-up${ntu===1?"":"s"} (35–65%) · ${nfx} uncontested`;
+  svg.on(".zoom",null);svg.selectAll("*").remove();svg.attr("aria-label",`${C.name}: districts by chance of a Democratic win`);
+  if(!G||!T||!T.objects[G.object]){msg(G&&!T?`The ${C.name} map could not be loaded.`:`No district boundaries for the ${C.name} yet.`);return}
+  defs();const obj=T.objects[G.object],fc=topojson.feature(T,obj);
+  const b=d3.geoBounds(fc),lon=(b[0][0]+b[1][0])/2,lat=(b[0][1]+b[1][1])/2;
+  const pr=d3.geoConicConformal().parallels([lat-2,lat+2]).rotate([-lon,0]).center([0,lat]).fitSize([960,720],fc),path=d3.geoPath(pr);
+  const [[x0,y0],[x1,y1]]=path.bounds(fc),vb=[x0-6,y0-6,x1-x0+12,y1-y0+12];svg.attr("viewBox",vb.join(" "));
+  const g=svg.append("g");
+  const flo=G.floterials&&T.objects[G.floterials]?topojson.feature(T,T.objects[G.floterials]).features:[];
+  const base=g.selectAll("path.sd").data(fc.features).join("path").attr("class","sd").attr("d",path);
+  if(FL){base.attr("fill","#faf9f6").style("cursor","default").classed("sd",false).attr("stroke","#c9c5bc").attr("stroke-width",.6).attr("vector-effect","non-scaling-stroke");
+    g.selectAll("path.fl").data(flo).join("path").attr("class","sd").attr("d",path).attr("fill",f=>fill(by.get(f.properties.id))).classed("fl",true).call(on,C,by,held,G);
+    $("#mnote").textContent="Shaded: the floterial districts, each electing extra members from several base districts voting together; the base districts are drawn in outline."}
+  else{base.attr("fill",f=>fill(by.get(f.properties.id),held.get(f.properties.id))).call(on,C,by,held,G);
+    g.selectAll("path.fo").data(flo).join("path").attr("class","fo").attr("d",path)}
+  g.append("path").attr("class","so").attr("d",path(topojson.mesh(T,obj,(a,b)=>a===b)));
+  const ids=new Set(fc.features.map(f=>f.properties.id).concat(flo.map(f=>f.properties.id)));
+  const miss=C.seats.filter(s=>!ids.has(s.d)).map(s=>s.d);if(miss.length)console.warn(C.name,"districts without a shape:",miss);
+  zoom=d3.zoom().scaleExtent([1,24]).translateExtent([[vb[0],vb[1]],[vb[0]+vb[2],vb[1]+vb[3]]]).on("zoom",e=>{g.attr("transform",e.transform);
+    svg.selectAll("pattern.pz").each(function(){const r=this.querySelector("line")?" rotate(45)":"";this.setAttribute("patternTransform",`scale(${1/e.transform.k})${r}`)});hideTip()});
+  svg.property("__zoom",d3.zoomIdentity).call(zoom);legend(C,G,held.size);
+}
+function on(sel,C,by,held,G){sel.on("pointermove",(e,f)=>{if(e.pointerType==="mouse")showTip(e,f,C,by,held,G)})
+  .on("pointerleave",e=>{if(e.pointerType==="mouse")hideTip()})
+  .on("click",(e,f)=>{e.stopPropagation();svg.selectAll("path.sel").classed("sel",false);d3.select(e.currentTarget).classed("sel",true).raise();showTip(e,f,C,by,held,G)})}
+function html(C,id,by,held,G){
+  const dn=/^\d/.test(id)?`District ${id}`:id,h=held.get(id),s=by.get(id),L=[`<b>${esc(C.name)}, ${esc(dn)}</b>`];
+  if(h){L.push("Not up in 2026 (next election in 2028)");if(h.member)L.push(`Held by ${who(h.member)} (${h.party==="D"?"Democrat":h.party==="R"?"Republican":"other"})`);return L.join("<br>")}
+  if(!s)return L.concat(["No forecast for this district"]).join("<br>");
+  const k=s.k||1;if(k>1)L.push(`${k} seats`+(FL&&G.floterials?" (floterial)":""));
+  if(k===1)L.push(s.run?`Incumbent: ${who(s.inc)}`:s.inc?`Open seat <span class="tm">(now ${who(s.inc)})</span>`:"Open seat");
+  else L.push(s.inc?`Now: ${who(s.inc)}<br><span class="tm">${s.run||0} of them on the 2026 ballot${C.state==="NH"&&C.chamber==="lower"?" (assumed)":""}</span>`:"No sitting members");
+  if(s.dem||s.rep)L.push(`Candidates: ${s.dem?"D "+esc(s.dem):"no Democrat"} · ${s.rep?"R "+esc(s.rep):"no Republican"}`);
+  else if(!s.fx)L.push(`<span class="tm">Candidates not listed</span>`);
+  if(s.fx)L.push(`<b>Uncontested</b>: only ${s.fx==="D"?"Democrats":"Republicans"} on the ballot`+(k>1?` (${s.fx==="D"?s.ed.toFixed(0):(k-s.ed).toFixed(0)} of ${k} seats)`:""));
+  else{L.push(k>1?`Expected Democratic seats: <b>${s.ed.toFixed(1)} of ${k}</b>`:`Democrat wins: <b>${pct(s.p)}</b> · ${cls(s.p).lab}`);
+    L.push(`Expected margin: ${mg(s.m)}`)}
+  L.push(`Lean: ${mg(s.l,0)} <span class="tm">(2024 president, v the nation)</span>`);
+  if(!FL&&G.floterial_of&&G.floterial_of[id])for(const f of G.floterial_of[id]){const q=by.get(f);if(q)L.push(`<span class="tm">Also votes in floterial ${esc(f)} (${q.k} seat${q.k>1?"s":""}): ${q.fx?"uncontested":q.k>1?`${q.ed.toFixed(1)} D expected`:`D ${pct(q.p)}`}</span>`)}
+  return L.join("<br>")}
+function showTip(e,f,C,by,held,G){tip.innerHTML=html(C,f.properties.id,by,held,G);tip.style.display="block";
+  const w=tip.offsetWidth,h=tip.offsetHeight;let x=e.clientX+14,y=e.clientY+14;if(x+w>innerWidth-8)x=Math.max(8,e.clientX-w-14);if(y+h>innerHeight-8)y=Math.max(8,e.clientY-h-14);
+  tip.style.left=x+"px";tip.style.top=y+"px"}
+function hideTip(){tip.style.display="none"}
+function sw(fillv,extra=""){return `<svg viewBox="0 0 30 14" aria-hidden="true"><rect width="30" height="14" fill="${fillv}"/>${extra}</svg>`}
+function legend(C,G,nheld){
+  const hat=c=>sw(c,[0,6,12,18,24,30].map(x=>`<line x1="${x-8}" y1="14" x2="${x+6}" y2="0" stroke="#fff" stroke-width="2"/>`).join(""));
+  const dot=c=>sw(mix("#f4f2ed",c,.14),[3,9,15,21,27].map(x=>`<circle cx="${x}" cy="4" r="1.1" fill="${mix("#f4f2ed",c,.6)}"/><circle cx="${x}" cy="10" r="1.1" fill="${mix("#f4f2ed",c,.6)}"/>`).join(""));
+  const r=CLS.slice().reverse();
+  let h=`<div><div class="sc">${r.map(c=>`<i style="background:${c.c}" title="${c.lab}"></i>`).join("")}${r.map(c=>`<span>${c.t}</span>`).join("")}</div>
+   <div class="ends"><span>Republican favoured</span><span>Democratic favoured</span></div></div>`;
+  if(C.seats.some(x=>x.fx))h+=`<div class="it">${hat(DC)}${hat(RC)}<span>uncontested: one party on the ballot</span></div>`;
+  if(nheld)h+=`<div class="it">${dot(DC)}${dot(RC)}<span>not up in 2026: held by D / R</span></div>`;
+  if(G.floterials&&!FL)h+=`<div class="it"><svg viewBox="0 0 30 14" aria-hidden="true"><rect width="30" height="14" fill="#fff"/><path d="M1 7H29" stroke="#1b1d22" stroke-width="1.6" stroke-dasharray="4 2.5"/></svg><span>floterial district</span></div>`;
+  $("#mleg").innerHTML=h}
+document.querySelectorAll("#mfl button").forEach(b=>b.addEventListener("click",()=>{FL=+b.dataset.fl;show(KEY)}));
+$("#mzr").addEventListener("click",()=>{if(zoom)svg.transition().duration(400).call(zoom.transform,d3.zoomIdentity)});
+document.addEventListener("click",e=>{const a=e.target.closest&&e.target.closest("a[data-map]");
+  if(a){e.preventDefault();load().then(()=>{if(S&&S.chambers.some(c=>c.state+"_"+c.chamber===a.dataset.map)){show(a.dataset.map);history.replaceState(null,"","#map-"+a.dataset.map)}$("#maps").scrollIntoView({behavior:"smooth",block:"start"})});return}
+  if(!e.target.closest("#lmap path.sd")){hideTip();svg.selectAll("path.sel").classed("sel",false)}});
+addEventListener("scroll",hideTip,{passive:true});
+if(location.hash.startsWith("#map")||!("IntersectionObserver" in window))load();
+else{const io=new IntersectionObserver(es=>{if(es.some(x=>x.isIntersecting)){io.disconnect();load()}},{rootMargin:"600px"});io.observe($("#maps"))}
+})();
 </script><!-- sf:start -->
 <footer class="sf">
   <div class="sf-in">
