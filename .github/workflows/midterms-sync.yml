@@ -4,7 +4,8 @@
 # .github/workflows/daily.yml) into the site's midterms/ folder and re-applies the site chrome. It reproduces what the
 # old local publisher did:
 #   * copy web/index.html, about.html, polls.html, whatif.html, whatif_engine.js and web/data/{model, summary, polls,
-#     race_history, whatif, districts_2026.topo}.json into midterms/ and midterms/data/;
+#     race_history, whatif, districts_2026.topo}.json into midterms/ and midterms/data/; legislatures.html, its
+#     data/stateleg_seats.json and data/stateleg_geo/ (index.json + the per-state TopoJSON it lists) when published;
 #   * drop the robots noindex tag (the model repo's pages no longer carry it; kept as a guard);
 #   * stamp the site header/footer: apply_chrome.stamp_all(only={the four midterms pages});
 #   * commit only midterms/ (path-limited), snapshot + resync on every push attempt, never rebase;
@@ -64,11 +65,24 @@ jobs:
           for f in model.json summary.json polls.json race_history.json whatif.json districts_2026.topo.json; do
             curl -fsSL --retry 3 -o "$tmp/data/$f" "$base/data/$f"
           done
+          # legislatures.html district maps (2026-10-05): per-seat forecasts + per-state TopoJSON listed in
+          # stateleg_geo/index.json "files" (new chambers add states, so the list is read, not hard-coded). Optional as a
+          # whole; once the index is there every listed file must arrive (set -e) so a half-copied set is never published.
+          curl -fsSL --retry 3 -o "$tmp/data/stateleg_seats.json" "$base/data/stateleg_seats.json" || rm -f "$tmp/data/stateleg_seats.json"
+          mkdir -p "$tmp/geo"
+          if curl -fsSL --retry 3 -o "$tmp/geo/index.json" "$base/data/stateleg_geo/index.json"; then
+            for f in $(python -c "import json,sys; print(' '.join(json.load(open(sys.argv[1]))['files']))" "$tmp/geo/index.json"); do
+              [[ "$f" =~ ^[A-Z]{2}\.topo\.json$ ]] || { echo "::error::unexpected geometry file name $f"; exit 1; }
+              curl -fsSL --retry 3 -o "$tmp/geo/$f" "$base/data/stateleg_geo/$f"
+            done
+          else
+            rm -rf "$tmp/geo"
+          fi
           # refuse to publish a broken or older forecast
           python - "$tmp" <<'EOF'
           import json, sys, pathlib
           t = pathlib.Path(sys.argv[1])
-          for f in (t / "data").glob("*.json"): json.loads(f.read_text())
+          for f in [*(t / "data").glob("*.json"), *(t / "geo").glob("*.json")]: json.loads(f.read_text())
           new = json.loads((t / "data" / "model.json").read_text())
           for k in ("house", "senate", "governor"): assert k in new and new[k].get("now"), f"model.json lacks {k}"
           old_p = pathlib.Path("midterms/data/model.json")
@@ -87,6 +101,12 @@ jobs:
           for f in "$tmp"/data/*.json; do
             python -c "import json,sys; json.dump(json.load(open(sys.argv[1])), open(sys.argv[2], 'w'), separators=(',', ':'))" "$f" "midterms/data/$(basename "$f")"
           done
+          if [ -d "$tmp/geo" ]; then              # replaced wholesale: a state that drops out of the index goes too
+            rm -rf midterms/data/stateleg_geo; mkdir -p midterms/data/stateleg_geo
+            for f in "$tmp"/geo/*.json; do
+              python -c "import json,sys; json.dump(json.load(open(sys.argv[1])), open(sys.argv[2], 'w'), separators=(',', ':'))" "$f" "midterms/data/stateleg_geo/$(basename "$f")"
+            done
+          fi
 
       - name: Stamp the site chrome
         run: |
