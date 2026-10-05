@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
     inputs:
       models:
-        description: 'Space-separated models (empty = all 16)'
+        description: 'Space-separated job groups; models within a group joined by commas (empty = all 16, one per job)'
         required: false
         default: ''
       limit:
@@ -88,11 +88,14 @@ jobs:
       - name: Catalogue
         run: curl -sSfL -o pangeo-cmip6.csv https://storage.googleapis.com/cmip6/pangeo-cmip6.csv
       - name: Extract
-        run: python scripts/sst/cmip6_iod_extract.py --model "${{ matrix.model }}" --out out --limit "${{ inputs.limit }}"
+        run: |
+          for m in $(echo "${{ matrix.model }}" | tr ',' ' '); do
+            python scripts/sst/cmip6_iod_extract.py --model "$m" --out out --limit "${{ inputs.limit }}" || echo "::warning::$m failed"
+          done
       - uses: actions/upload-artifact@v7
         if: always()
         with:
-          name: part-${{ matrix.model }}
+          name: part-${{ strategy.job-index }}-${{ github.run_attempt }}
           path: out/*.npz
           retention-days: 2
           if-no-files-found: warn
