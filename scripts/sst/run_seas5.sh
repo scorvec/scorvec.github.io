@@ -38,7 +38,7 @@ fetch)
   LOG=$(mktemp)
   "$PY" seas5_outlook.py fetch --issue "$ISSUE" 2>&1 | tee "$LOG"
   rc=${PIPESTATUS[0]}
-  if grep -q "is not on the CDS yet" "$LOG"; then exit 3; fi
+  if grep -q -e "is not on the CDS yet" -e "the CDS is busy" "$LOG"; then exit 3; fi   # 3 = try again later
   [ "$rc" -eq 0 ] || exit 1
   # the other products' own forecast pulls (6-hourly / daily, regional) — each sequential
   step "fetch popT (6-hourly t2m, US + Brazil)"      "$PY" seas5_popT.py fetch --issue "$ISSUE"

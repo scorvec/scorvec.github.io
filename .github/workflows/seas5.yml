@@ -189,7 +189,7 @@ jobs:
           set +e
           scripts/sst/run_seas5.sh fetch "${{ steps.gate.outputs.issue }}"
           rc=$?
-          if [ $rc -eq 3 ]; then echo "ready=0" >> "$GITHUB_OUTPUT"; echo "Issue not on the CDS yet."; exit 0; fi
+          if [ $rc -eq 3 ]; then echo "ready=0" >> "$GITHUB_OUTPUT"; echo "Issue not fetched yet (not on the CDS, or the CDS is throttling) - the next slot retries."; exit 0; fi
           [ $rc -eq 0 ] || { echo "::error::forecast fetch failed"; exit 1; }
           echo "ready=1" >> "$GITHUB_OUTPUT"
 

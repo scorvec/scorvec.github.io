@@ -128,6 +128,9 @@ PREVIOUS_KINDS = ["sst"]
 PREVIOUS_FULL = list(KINDS)
 
 
+CDS_BUSY = False           # set when the CDS rejected a request as throttled (queue limit), see _retrieve
+
+
 def _client():
     from seas5_ref import guard_fetch                     # downloads run in GitHub Actions only (user rule 2026-10-04)
     guard_fetch("Copernicus CDS")
@@ -148,7 +151,9 @@ def _retrieve(kind: str, years: list[str], month: str, dest: Path) -> bool:
     if "pressure_level" in k:
         req["pressure_level"] = k["pressure_level"]
     tmp = dest.with_suffix(f".part{os.getpid()}")                    # parallel fetchers never share a partial file
-    for attempt in range(3):
+    global CDS_BUSY
+    attempt, tries = 0, 3
+    while attempt < tries:
         t0 = time.time()
         try:
             print(f"  CDS {kind} {month} years={years[0]}..{years[-1]} → {dest.name} …", flush=True)
@@ -163,7 +168,15 @@ def _retrieve(kind: str, years: list[str], month: str, dest: Path) -> bool:
                 print(f"    {kind} {month}: no data on the CDS — skipped ({msg[:80]})", flush=True)
                 return False
             print(f"    {kind} {month}: attempt {attempt + 1} failed ({msg[:600]})", flush=True)
-            time.sleep(30)
+            # Release day (2026-10-05 18:59): "Number queued requests for this dataset is temporarily limited" - the
+            # CDS throttling everyone pulling the new issue, not a missing issue. Back off for minutes, not seconds,
+            # and give it 5 tries (~50 min); the caller reports "busy" rather than "not on the CDS yet".
+            if "temporarily limited" in msg.lower() or "queued requests" in msg.lower():
+                CDS_BUSY, tries = True, 5
+                time.sleep(240 * (attempt + 1))
+            else:
+                time.sleep(30)
+        attempt += 1
     return False
 
 
@@ -200,7 +213,10 @@ def fetch(ym: str, n_prev: int = 0, kinds=None) -> dict:
     for kind in want:
         got[("fc", kind, ym)] = _retrieve(kind, [ym[:4]], month, fc_path(kind, ym))
         if kind == "sst" and kinds is None and not got[("fc", kind, ym)]:
-            print(f"SEAS5 {ym} is not on the CDS yet — nothing more to do", flush=True)
+            if CDS_BUSY:
+                print(f"SEAS5 {ym}: the CDS is busy (queued requests for this dataset are throttled) — retry later", flush=True)
+            else:
+                print(f"SEAS5 {ym} is not on the CDS yet — nothing more to do", flush=True)
             return got
     return got
 
