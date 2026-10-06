@@ -166,7 +166,8 @@ aifs-compare.yml|09:45|
 aifs-compare.yml|21:45|
 asos5.yml|*:05|
 asos5.yml|*:35|
-skewt-data.yml|*/3:50|
+# skewt-data hourly again 2026-10-06 (user): off-hour specials (06Z/18Z) must reach the map within ~2-3 h, not ~5
+skewt-data.yml|*:50|
 olr-waves.yml|02:40|
 site-stats.yml|05:17|
 mur-sst.yml|13:47|

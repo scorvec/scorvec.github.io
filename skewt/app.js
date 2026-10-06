@@ -1178,9 +1178,27 @@ function memoRT(kind, wmo, fn) {
 }
 const fetchSPC = wmo => memoRT("spc", wmo, fetchSPCRaw);
 const fetchIEM = wmo => memoRT("iem", wmo, fetchIEMRaw);
+// 2026-10-06 (user: the 18Z markers were missing while a click showed the 18Z sounding): the map comes from the
+// mirror (hourly, a launch hour is asked once it is >= 2 h old), a click/hover fetches the station live from SPC/IEM.
+// When that live fetch finds a launch NEWER than the map's, restyle the station's marker on the spot - purple for an
+// off-hour special, blue for a regular launch - so the map never contradicts the sounding on screen. No extra requests.
+function noteLatest(id, valid) {
+  if (!id || !valid || !/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$/.test(valid)) return;
+  const e = entries[id];
+  if (e && e.dt && e.dt >= valid) return;
+  entries[id] = Object.assign({}, e || {}, { dt: valid, src: "IEM" });
+  const rec = markerById[id]; if (!rec) return;
+  const off = isOffHour(valid);
+  rec.m.setStyle({ weight: 1.5, color: off ? MK.offRim : MK.liveRim, opacity: 1, fill: true,
+                   fillColor: off ? MK.off : MK.live, fillOpacity: 0.95 });
+  rec.m.setRadius(off ? RAD.live + 1 : RAD.live); rec.m.bringToFront();
+  rec.m.setTooltipContent(`${rec.n || id} (${id}) · latest ${valid}Z (${Math.round(ageHours(valid))} h ago)` +
+    (off ? ` <b style="color:${MK.off}">· off-hour launch (${p2(launchHour(valid))}Z)</b>` : "") +
+    " · found live; the map's own feed refreshes hourly");
+}
 function prefetchLatest(id) {                 // warm whatever loadSounding() will ask for first
   if (mode !== "latest" || !id) return;
-  if (iemMap && iemMap[id]) { fetchSPC(id).then(g => g || fetchIEM(id)); return; }
+  if (iemMap && iemMap[id]) { fetchSPC(id).then(g => g || fetchIEM(id)).then(g => { if (g) noteLatest(id, g.valid); }); return; }
   const s = entries[id];
   if (s && s.dt) ghFetch("skewt-data", "soundings/" + id + ".csv", s.dt).catch(() => {});
 }
@@ -1191,6 +1209,7 @@ const DAY_ARCHIVE_START = "2026-10-05";     // day-YYYYMMDD.zip bundles exist fr
 const dayZipCache = new Map();              // YYYYMMDD -> {filename: Uint8Array} | null
 let M = null;                    // wasm module
 let entries = {};                // mirror manifest: id -> {n, la, lo, dt, src}
+const markerById = {};           // wmo id -> {m: circleMarker, n}: restyled when a click finds a newer launch (noteLatest)
 let anomalies = {};              // wmo -> {dt, flags:[{k,lab,v,pct,sense}]} (record watch)
 let igraStations = {};           // gid -> station meta (all 2,921 incl. closed)
 let byWmo = {};                  // wmo id -> gid
@@ -1379,6 +1398,7 @@ Promise.all([
       ? `${s.n} (${s.gid}) · last sounding ${stale}Z (${Math.round(ageHours(stale))} h ago), not at the last 00Z/12Z — click to open`
       : `${s.n} (${s.gid}) · no sounding in the last ~4 days — click for the archive (${s.y0}–${s.y1})`);
     m.on("click", () => { highlight(m); selectStation(s); });
+    if (s.id) markerById[s.id] = { m, n: s.n };
   }
   // stations that reported at the last regular interval: big blue, on top
   for (const [id, s] of Object.entries(entries)) {
@@ -1414,6 +1434,7 @@ Promise.all([
       : "";
     m.bindTooltip(`${s.n || id} (${id}) · latest ${s.dt}Z ` +
       `(${Math.round(ageHours(s.dt))} h ago)${offTip}${arch}${anomTip}`);
+    markerById[id] = { m, n: s.n || id };
     if (!COARSE) m.on("mouseover", () => prefetchLatest(id));
     m.on("click", () => {
       highlight(m);   // respects the current Latest/Archive mode + chosen date
@@ -2504,6 +2525,7 @@ async function loadSounding() {
         plotTitle = `${current.n || ""} ${current.id}  ·  ${got.valid}Z`.trim();
         plotNote = ""; lastMonth = got.valid.slice(5, 7); lastDoy = doyOf(got.valid); lastHourZ = hourOf(got.valid);
         lastValidDt = got.valid;
+        noteLatest(current.id, got.valid);
         render(thin(lastProfFull = got.prof));
         return;
       }
