@@ -908,9 +908,12 @@ def run_wis2(outdir: Path, state: dict, by_wmo: dict, meta: dict) -> dict:
             pri = (0 if k == "N" else 1 if k == "S" else 2) + (2 if by in NA_CCCC else 0)
             cand.append({"key": key, "size": size, "lm": lm, "did": did, "kind": k, "by": by,
                          "hdr": hdr, "pri": pri})
-    # in-run dedupe of the two gateway copies, newest launches first within a priority
+    # in-run dedupe of the two gateway copies. Order: newest 6-hour arrival window first
+    # (a backlog - first run, or after an outage - never starves the current launches),
+    # within it national/IUS before IUK before North America, newest first
     uniq = {}
-    for c in sorted(cand, key=lambda c: (c["pri"], -c["lm"].timestamp())):
+    for c in sorted(cand, key=lambda c: ((NOW - c["lm"]).total_seconds() // 21600, c["pri"],
+                                         -c["lm"].timestamp())):
         uniq.setdefault(c["did"], c)
     todo = list(uniq.values())
     print(f"  WIS2: {ctr['list']} list request(s) ({ctr['list_bytes'] / 1e6:.2f} MB), "

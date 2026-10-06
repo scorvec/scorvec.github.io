@@ -25,6 +25,11 @@ on:
   # ~5 MB of BUFR); the IGRA listing (~0.2 MB) at most every 3 h.
   workflow_call:
   workflow_dispatch:
+    inputs:
+      wis2_max_get:
+        description: WIS2 GET budget for this run (catch-up after an outage; default 200)
+        required: false
+        default: '200'
 
 permissions:
   contents: write
@@ -76,6 +81,10 @@ jobs:
             || echo "::warning::ecCodes unavailable — WIS2 skipped this run"
 
       - name: Mirror soundings
+        env:
+          SKEWT_WIS2_MAX_GET: ${{ inputs.wis2_max_get || '200' }}
+          # a catch-up run may spend longer on WIS2 (the job's 30-min timeout still bounds it)
+          SKEWT_WIS2_MAX_S: ${{ (inputs.wis2_max_get && inputs.wis2_max_get != '200') && '900' || '480' }}
         run: python scripts/skewt/mirror_soundings.py /tmp/skewt-data prev-data
 
       - uses: actions/checkout@v7
