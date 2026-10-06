@@ -3,12 +3,15 @@ name: Skew-T sounding mirror
 # Mirrors recent radiosonde soundings to the `skewt-data` branch for the
 # client-side Skew-T Explorer at /skewt/. Real-time North America from the Iowa
 # Environmental Mesonet (IEM RAOB JSON, one request per launch hour, spaced 121 s
-# for IEM's robots.txt Crawl-delay, at most 6 per run). The rest of the world is
-# NOT downloaded here: one request for NOAA NCEI's IGRA v2 y2d directory listing
-# (at most every 3 h) says which stations got new launches in NCEI's daily update,
-# and the browser fetches a station's file from NCEI when a visitor opens it.
-# Honest User-Agent on every request. Each run force-pushes ONE parentless commit
-# to skewt-data (no main history growth, no Pages rebuild).
+# for IEM's robots.txt Crawl-delay, at most 6 per run). Real-time rest of the
+# world from the WMO WIS 2.0 Global Cache on AWS Open Data (anonymous S3; ~35-40
+# ListObjects + at most 200 GETs of new BUFR messages per run, decoded with
+# ecCodes; failures there are non-fatal). Stations neither carries: one request
+# for NOAA NCEI's IGRA v2 y2d directory listing (at most every 3 h) says which got
+# new launches in NCEI's daily update, and the browser fetches a station's file
+# from NCEI when a visitor opens it. Honest User-Agent on every request. Each run
+# force-pushes ONE parentless commit to skewt-data (no main history growth, no
+# Pages rebuild); the push is seeded with the previous tip so only new files go up.
 
 on:
   # backstop crons (2026-10-04: moved here from the per-hour caller files, which were deleted; the laptop
@@ -18,7 +21,8 @@ on:
   # Triggered hourly by the dispatcher (:50) plus four once-a-day schedule
   # callers as backstops. An hourly run is cheap: IEM is asked only about hour
   # slots not yet asked (state.json on the data branch), at most 6 requests per
-  # run (~1-4 MB), and the IGRA listing (~0.2 MB) at most every 3 h.
+  # run (~1-4 MB); WIS2 fetches only keys not seen before (~3 MB of listings +
+  # ~5 MB of BUFR); the IGRA listing (~0.2 MB) at most every 3 h.
   workflow_call:
   workflow_dispatch:
 
@@ -64,7 +68,12 @@ jobs:
           python-version: '3.12'
 
       - name: Install deps
-        run: pip install --quiet numpy      # flag_anomalies.py needs it
+        run: |
+          pip install --quiet numpy      # flag_anomalies.py needs it
+          # ecCodes (the PyPI wheel bundles the library) decodes the WIS2 BUFR. Non-fatal:
+          # without it the mirror skips WIS2 and IEM/IGRA still publish.
+          pip install --quiet eccodes && python -c "import eccodes; print('ecCodes', eccodes.codes_get_api_version())" \
+            || echo "::warning::ecCodes unavailable — WIS2 skipped this run"
 
       - name: Mirror soundings
         run: python scripts/skewt/mirror_soundings.py /tmp/skewt-data prev-data
@@ -115,7 +124,20 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A
           git commit -q -m "Sounding mirror: $(date -u +'%Y-%m-%d %H:%M UTC')"
-          git push -f "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git" skewt-data
+          URL="https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git"
+          # Seed the previous tip's objects (the prev-data checkout) so the push sends only
+          # new blobs: with WIS2 the branch holds ~4000 launch files, and a cold parentless
+          # push would re-upload all of them every hour.
+          git fetch -q --depth=1 "$GITHUB_WORKSPACE/prev-data" HEAD 2>/dev/null \
+            || echo "::warning::could not seed the push from prev-data — full push"
+          if ! git push -f "$URL" skewt-data; then
+            echo "::warning::seeded push failed — retrying as a plain full push"
+            rm -rf .git && git init -q -b skewt-data
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add -A && git commit -q -m "Sounding mirror: $(date -u +'%Y-%m-%d %H:%M UTC')"
+            git push -f "$URL" skewt-data
+          fi
           # Purge the jsDelivr edge for the hot JSONs. jsDelivr is ghFetch's
           # last-resort host (used when raw.githubusercontent is blocked and
           # api.github.com is rate-limited, e.g. corporate networks); without
@@ -130,3 +152,5 @@ jobs:
         run: |
           echo "### Sounding mirror $(date -u +%F)" >> "$GITHUB_STEP_SUMMARY"
           echo "- Page: [/skewt/](https://scorvec.com/skewt/)" >> "$GITHUB_STEP_SUMMARY"
+          python -c "import json; m=json.load(open('/tmp/skewt-data/manifest.json')); print('- Stations by source:', m.get('sources'))" \
+            >> "$GITHUB_STEP_SUMMARY" 2>/dev/null || true

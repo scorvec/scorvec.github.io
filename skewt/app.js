@@ -1,8 +1,9 @@
 /* Skew-T Explorer — all client-side.
    Data: recent soundings mirrored to the skewt-data branch by
    .github/workflows/skewt-data.yml — real-time North America from the Iowa
-   Environmental Mesonet (IEM), the rest of the world from NOAA NCEI IGRA v2's
-   daily update (about a day behind); older dates straight from IGRA v2.
+   Environmental Mesonet (IEM), the rest of the world in real time from the WMO
+   WIS 2.0 Global Cache (BUFR from each national service); stations neither
+   carries from NOAA NCEI IGRA v2's daily update; older dates straight from IGRA v2.
    Physics: SHARPlib via WebAssembly (sharplib.js/.wasm). */
 "use strict";
 
@@ -1056,10 +1057,23 @@ function launchHour(dt) {
 }
 const isOffHour = dt => { const h = launchHour(dt); return h !== null && h !== 0 && h !== 12; };
 const p2 = n => String(n).padStart(2, "0");
-// manifest entries carry their source: "IEM" (real time, North America) or "IGRA"
-// (NOAA NCEI's daily IGRA v2 update — about a day behind, so never shown as live)
-const srcLabel = src => src === "IGRA"
-  ? "NOAA IGRA v2 daily update, about a day behind" : "IEM real-time, via the mirror";
+// manifest entries carry their source: "IEM" (real time, North America), "WIS2" (real time, the
+// rest of the world: WMO WIS 2.0 Global Cache, credited to the national service that sent it -
+// entry.by, per launch entry.hx) or "IGRA" (NOAA NCEI's daily IGRA v2 update — about a day
+// behind, so never shown as live)
+let centres = {};                // manifest: originating-centre code -> service name
+const centreName = code => centres[code] || code || "unknown";
+const srcLabel = (src, by) => src === "IGRA" ? "NOAA IGRA v2 daily update, about a day behind"
+  : src === "WIS2" ? `WMO WIS 2.0 real-time (originating service: ${centreName(by)})`
+  : "IEM real-time, via the mirror";
+// source of one held launch "YYYY-MM-DD HH:00" of a manifest entry -> [src, by]
+function launchSrc(me, h) {
+  if (!me) return ["IEM", null];
+  const code = (me.hx && me.hx[h]) || me.by;
+  if (!code) return [me.src, null];
+  return code === "IEM" ? ["IEM", null] : ["WIS2", code];
+}
+const viaTip = (src, by) => src === "WIS2" ? ` · via WMO WIS 2.0, from ${centreName(by)}` : "";
 
 // SPC/IEM report wind on only some levels; zero-filling the rest would drag the
 // hodograph to the origin, so interpolate U/V across the gaps in log-p.
@@ -1344,6 +1358,7 @@ Promise.all([
   ghFetch("skewt-data", "anomalies.json", Date.now()).then(r => r.ok ? r.json() : {}).catch(() => ({})),
 ]).then(([stns, man, anom]) => {
   entries = (man && man.entries) || {};
+  centres = (man && man.centres) || {};
   anomalies = anom || {};
   rwBadgeCount();
   feedsLoadedAt = Date.now();
@@ -1375,8 +1390,9 @@ Promise.all([
     m.bindTooltip(`${s.n} (${s.gid}) · closed ${s.y0}–${s.y1} — click for archive`);
     m.on("click", () => { setMode("archive"); highlight(m); selectStation(s); });
   }
-  // Not live. Teal = a RECENT sounding that is not from the last regular slot: NOAA IGRA's daily update (about a
-  // day behind; the browser fetches the station's file on click) or a real-time station that missed the slot.
+  // Not live. Teal = a RECENT sounding that is not from the last regular slot: a real-time (IEM / WIS2) station
+  // that missed the slot, or one only NOAA IGRA's daily update carries (about a day behind; the browser fetches
+  // the station's file on click).
   // Hollow grey ring = active station with nothing in the last ~4 days (archive only).
   for (const s of stns.stations) {
     if (s.y1 < ACTIVE_YEAR || isLive(s.id)) continue;
@@ -1395,7 +1411,8 @@ Promise.all([
       ? `${s.n} (${s.gid}) · new launches in NOAA IGRA v2's daily update (${me.upd || "?"}Z) — ` +
         `about a day behind; click to open the newest`
       : stale
-      ? `${s.n} (${s.gid}) · last sounding ${stale}Z (${Math.round(ageHours(stale))} h ago), not at the last 00Z/12Z — click to open`
+      ? `${s.n} (${s.gid}) · last sounding ${stale}Z (${Math.round(ageHours(stale))} h ago), not at the last 00Z/12Z` +
+        `${viaTip(me.src, me.by)} — click to open`
       : `${s.n} (${s.gid}) · no sounding in the last ~4 days — click for the archive (${s.y0}–${s.y1})`);
     m.on("click", () => { highlight(m); selectStation(s); });
     if (s.id) markerById[s.id] = { m, n: s.n };
@@ -1433,7 +1450,7 @@ Promise.all([
       ? ` <b style="color:${MK.off}">· off-hour launch (${String(launchHour(s.dt)).padStart(2, "0")}Z)</b>`
       : "";
     m.bindTooltip(`${s.n || id} (${id}) · latest ${s.dt}Z ` +
-      `(${Math.round(ageHours(s.dt))} h ago)${offTip}${arch}${anomTip}`);
+      `(${Math.round(ageHours(s.dt))} h ago)${offTip}${viaTip(s.src, s.by)}${arch}${anomTip}`);
     markerById[id] = { m, n: s.n || id };
     if (!COARSE) m.on("mouseover", () => prefetchLatest(id));
     m.on("click", () => {
@@ -2028,9 +2045,9 @@ function mapKeyHTML(boxId) {
   const dot = (c, rim, big) => `<i class="dot${big ? " big" : ""}" style="background:${c};box-shadow:0 0 0 1.5px ${rim}"></i>`;
   const ring = (c, w) => `<i class="ring" style="border-color:${c};border-width:${w}px"></i>`;
   return [
-    `<span>${dot(MK.live, MK.liveRim, 1)}live: reported at the last 00Z/12Z (North America, real time)</span>`,
+    `<span>${dot(MK.live, MK.liveRim, 1)}live: reported at the last 00Z/12Z (real time: IEM in North America, WMO WIS 2.0 elsewhere)</span>`,
     `<span>${dot(MK.off, MK.offRim, 1)}special off-hour release (06Z, 18Z…)</span>`,
-    `<span>${dot(MK.recent, MK.recentRim)}recent, not live: NOAA IGRA daily update (~1 day behind) or missed the last slot</span>`,
+    `<span>${dot(MK.recent, MK.recentRim)}recent, not live: missed the last slot, or a station only NOAA's daily IGRA update carries (~1 day behind)</span>`,
     `<span>${ring(MK.stale, 2)}active, nothing in the last 4 days</span>`,
     `<span>${dot(MK.closed, MK.closedRim)}closed (archive only)</span>`,
     `<span>${ring(MK.rec, 3)}record set today</span>`,
@@ -2170,8 +2187,10 @@ function renderLaunchStrip() {
       html += `<span class="day">${MON_S[+d.slice(5, 7) - 1]} ${+d.slice(8, 10)}</span>`;
     }
     const on = lastValidDt === h;
+    const [ls, lb] = (me.hours || []).includes(h) ? launchSrc(me, h) : [null, null];
+    const via = ls === "WIS2" ? ` — WMO WIS 2.0, ${centreName(lb)}` : ls === "IEM" ? " — IEM" : "";
     html += `<button data-launch="${h}" class="${hh % 6 ? "special" : ""}${on ? " on" : ""}"` +
-      ` title="${d} ${hourZ(hh)}${hh % 6 ? " — off-hour (special) release" : ""}${on ? " — on screen" : ""}">${hourZ(hh)}</button>`;
+      ` title="${d} ${hourZ(hh)}${hh % 6 ? " — off-hour (special) release" : ""}${via}${on ? " — on screen" : ""}">${hourZ(hh)}</button>`;
   }
   if (specials) html += `<span class="day" style="margin-left:8px; color:#d9a8ff">` +
     `${specials} special release${specials > 1 ? "s" : ""}</span>`;
@@ -2538,7 +2557,7 @@ async function loadSounding() {
         const prof = parseCSV(await r.text());
         if (stale()) return;
         if (!prof) throw 0;
-        setStatus(`valid ${s.dt}Z · ${prof.P.length} levels (${srcLabel(s.src)})`);
+        setStatus(`valid ${s.dt}Z · ${prof.P.length} levels (${srcLabel(s.src, s.by)})`);
         plotTitle = `${current.n || ""} ${current.id}  ·  ${s.dt}Z`.trim();
         plotNote = ""; lastMonth = s.dt.slice(5, 7); lastDoy = doyOf(s.dt); lastHourZ = hourOf(s.dt);
         lastValidDt = s.dt;
@@ -2569,7 +2588,8 @@ async function loadSounding() {
         const prof = parseCSV(await r.text());
         if (stale()) return;              // user switched station mid-download
         if (prof) {
-          setStatus(`valid ${wantDt}Z · ${prof.P.length} levels (mirror)`);
+          const [hs, hb] = launchSrc(me, wantDt);
+          setStatus(`valid ${wantDt}Z · ${prof.P.length} levels (${srcLabel(hs, hb)})`);
           plotTitle = `${current.n || ""} ${current.id}  ·  ${wantDt}Z`.trim();
           plotNote = ""; lastMonth = wantDt.slice(5, 7); lastDoy = doyOf(wantDt); lastHourZ = hourOf(wantDt);
           lastValidDt = wantDt;

@@ -11,6 +11,7 @@ stay incremental and the browser can fetch any day via raw.githubusercontent
 """
 from __future__ import annotations
 
+import json
 import sys
 import zipfile
 from datetime import datetime, timedelta, timezone
@@ -26,10 +27,19 @@ def main() -> int:
     # Bundles hold the mirror's IEM (real-time) launches only. The mirror re-asks IEM
     # about each hour for ~30 h (late stations), so a day is final LAG_DAYS later -
     # still inside the 96 h retention, so every launch of the day is on disk.
+    # WIS2 launches (the rest of the world) are NOT bundled: NOAA IGRA v2 archives those
+    # stations permanently (the client falls through to IGRA for them), and ~1000
+    # high-resolution launches a day would grow this git branch by GBs a year.
     last = (datetime.now(timezone.utc) - timedelta(days=LAG_DAYS)).strftime("%Y%m%d")
+    filesrc = {}
+    sf = src.parent / "state.json"
+    if sf.exists():
+        filesrc = json.loads(sf.read_text()).get("filesrc") or {}
 
     by_day: dict = {}
     for f in src.glob("*_*.csv"):
+        if filesrc.get(f.name, "IEM") != "IEM":
+            continue
         day = f.stem.split("_")[1][:8]
         if day <= last:                                   # only complete days
             by_day.setdefault(day, []).append(f)

@@ -242,27 +242,38 @@
   <a href="./" class="cta">← Open the explorer</a>
 
   <h2>1. Data sources</h2>
-  <p>A sounding can arrive from four places. The app tries them in order of freshness, and the
-  status line names the source you're looking at.</p>
+  <p>A sounding can arrive from five places. The app tries them in order of freshness, and the
+  status line names the source you're looking at — for WMO WIS 2.0 soundings, including the national
+  meteorological service that sent it.</p>
 
   <div class="table-wrap">
   <table>
     <tr><th>Source</th><th>Coverage</th><th>Latency</th><th>Resolution</th></tr>
     <tr><td><b>SPC observed</b></td><td>US</td><td>Fastest — ~1 h post-synoptic</td><td>~110–200 levels</td></tr>
     <tr><td><b>IEM RAOB</b></td><td>US + Canada</td><td>~1 h behind SPC</td><td>~180–250 levels</td></tr>
-    <tr><td><b>Mirror</b> (IEM real time)</td><td>North America</td><td>hourly</td><td>As received, thinned to 260 levels</td></tr>
+    <tr><td><b>WMO WIS 2.0</b> Global Cache</td><td>Global (~550 stations a day)</td><td>~2 h after launch (90 % within ~3.3 h)</td><td>Mostly high resolution (median ~590 levels), thinned to 260</td></tr>
+    <tr><td><b>Mirror</b> (IEM + WIS 2.0)</td><td>Global</td><td>hourly</td><td>As received, thinned to 260 levels</td></tr>
     <tr><td><b>NOAA IGRA v2</b></td><td>Global, 1905–now</td><td>~1–2 day lag</td><td>Mandatory + significant</td></tr>
   </table>
   </div>
   <p>A balloon takes 90 minutes to two hours to ascend, so no source has a complete 12Z sounding
   before roughly 13:30 UTC — that is the floor on "real-time", not a delay in the app.
-  A scheduled GitHub Actions job keeps the last four days of North American launches on a data branch
-  the browser reads directly, from the Iowa Environmental Mesonet's RAOB feed (one request per launch
-  hour, well inside IEM's crawl delay). For the rest of the world it reads only NOAA NCEI's IGRA v2
-  file listing to learn which stations got new launches in NCEI's once-a-day update; opening such a
-  station fetches that one station's file from NOAA directly — so those soundings are about a day
-  behind and are never drawn as live. Complete UTC days of the real-time launches are also bundled
-  into a permanent, growing archive (the 📅 date picker reaches it).</p>
+  A scheduled GitHub Actions job keeps the last four days of launches on a data branch the browser
+  reads directly. North America comes from the Iowa Environmental Mesonet's RAOB feed (one request per
+  launch hour, well inside IEM's crawl delay). The rest of the world comes from the
+  <a href="https://registry.opendata.aws/wis2-global-cache/" target="_blank" rel="noopener">WMO WIS 2.0
+  Global Cache</a> on AWS Open Data: every hour the job lists the radiosonde BUFR messages the national
+  services published (directly, and through the DWD and JMA gateways that re-publish the GTS), fetches
+  only the ones it has not seen, decodes them with ecCodes and keeps, for each station and launch hour,
+  the most complete message (temperature, humidity, wind and height on the most levels), never letting
+  a later, coarser copy replace a richer one. Profiles pass strict checks first (monotone pressure,
+  physical temperature and dew-point ranges, no levels below the reported surface, at least ten levels).
+  These are core data under the WMO Unified Data Policy; the status line names the national service
+  each sounding came from. Stations neither real-time feed carries still appear from NOAA NCEI's IGRA v2
+  once-a-day update (the job reads only the file listing; opening such a station fetches its file from
+  NOAA directly) — those are about a day behind and never drawn as live. Complete UTC days of the North
+  American launches are also bundled into a permanent, growing archive (the 📅 date picker reaches it);
+  the rest of the world's past launches come from IGRA v2.</p>
 
   <h2>2. The physics engine</h2>
   <p>All analysis is <a href="https://github.com/keltonhalbert/SHARPlib" target="_blank" rel="noopener">SHARPlib</a>
@@ -383,7 +394,7 @@
         <td>The record watch: compares each new sounding to its station's climatology.</td></tr>
     <tr><td><a href="https://github.com/scorvec/scorvec.github.io/blob/main/scripts/skewt/mirror_soundings.py" target="_blank" rel="noopener"><code>mirror_soundings.py</code></a>
         &middot; <a href="https://github.com/scorvec/scorvec.github.io/blob/main/scripts/skewt/archive_days.py" target="_blank" rel="noopener"><code>archive_days.py</code></a></td>
-        <td>Mirrors recent IEM launches, lists the stations NOAA IGRA v2's daily update refreshed, and bundles complete UTC days into the permanent archive.</td></tr>
+        <td>Mirrors recent IEM and WMO WIS 2.0 launches, lists the stations NOAA IGRA v2's daily update refreshed, and bundles complete UTC days of the IEM launches into the permanent archive.</td></tr>
     <tr><td><a href="https://github.com/scorvec/scorvec.github.io/blob/main/.github/workflows/skewt-data.yml" target="_blank" rel="noopener"><code>skewt-data.yml</code></a></td>
         <td>The scheduled job: mirror → archive → flag → publish, hourly.</td></tr>
   </table>
@@ -410,7 +421,9 @@
   Built by Claude (Anthropic's Claude Fable 5), directed by Shawn Corvec. Physics by
   <a href="https://github.com/keltonhalbert/SHARPlib" target="_blank" rel="noopener">SHARPlib</a>
   (K. Halbert, NWS SPC lineage). Data from NOAA/NWS SPC; the Iowa Environmental Mesonet (IEM), Iowa State
-  University; and NOAA National Centers for Environmental Information, Integrated Global Radiosonde Archive v2 (IGRA). Not for operational use.
+  University; the WMO WIS 2.0 Global Cache (AWS Open Data), core data under the WMO Unified Data Policy,
+  with the originating national meteorological services credited per sounding; and NOAA National Centers
+  for Environmental Information, Integrated Global Radiosonde Archive v2 (IGRA). Not for operational use.
 </footer>
 <!-- sf:start -->
 <footer class="sf sf--dark">

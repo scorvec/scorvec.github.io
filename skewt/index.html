@@ -593,11 +593,12 @@
       In the sounding card the skew-T takes the left; on the right are the hodograph, a strip of <b>key numbers</b>
       (CAPE, shear, helicity, composites, PWAT, freezing level; amber and red mark notable values) and the full index
       tables, which scroll.</p>
-      <p><b style="color:#5a8fd8">Blue</b> stations reported at the last 00Z/12Z interval (real time, North America);
+      <p><b style="color:#5a8fd8">Blue</b> stations reported at the last 00Z/12Z interval (real time: North America
+      from IEM, the rest of the world from the WMO WIS 2.0 Global Cache, usually about two hours after launch);
       <b style="color:#bf5af2">purple</b> ones launched off-hour (06Z, 15Z, 18Z…) — usually a special
       release ahead of severe weather; <b style="color:#33c495">teal</b> have a recent sounding that is not live —
-      outside North America the newest soundings arrive through NOAA's daily IGRA update, about a day behind (the
-      tooltip says when; opening one fetches that station's file from NOAA); <b style="color:#a3a9b2">hollow grey
+      they missed the last slot, or only NOAA's daily IGRA update carries them, about a day behind (the
+      tooltip says which; opening one fetches that station's file from NOAA); <b style="color:#a3a9b2">hollow grey
       rings</b> are active stations with nothing in the last four days; <b style="color:#e0533f">red</b> are closed
       (archive only). Click a station, then pick
       <b>Latest</b> or <b>Archive</b>. The launch strip under the station name lists every release the
@@ -799,11 +800,15 @@
       profile with every reportable wind level — the PNG button saves that same image.
       <b>Data:</b> real-time North American soundings from the
       <a href="https://mesonet.agron.iastate.edu/archive/raob/">Iowa Environmental Mesonet</a> (IEM, Iowa State
-      University) and <a href="https://www.spc.noaa.gov/exper/soundings/">NOAA/NWS SPC</a>; the rest of the world
-      and every historical date from NOAA National Centers for Environmental Information,
+      University) and <a href="https://www.spc.noaa.gov/exper/soundings/">NOAA/NWS SPC</a>; real-time soundings
+      for the rest of the world from the <a href="https://registry.opendata.aws/wis2-global-cache/">WMO WIS 2.0
+      Global Cache</a> (AWS Open Data), core data under the
+      <a href="https://wmo.int/wmo-unified-data-policy-resolution-res1">WMO Unified Data Policy</a>; the originating national
+      meteorological service is credited per sounding in the status line; every historical date, and stations
+      neither real-time feed carries, from NOAA National Centers for Environmental Information,
       <a href="https://www.ncei.noaa.gov/products/weather-balloon/integrated-global-radiosonde-archive">Integrated
-      Global Radiosonde Archive v2</a> (IGRA; the daily update runs about a day behind; the first archive load per
-      station can be tens of MB, then cached). Recent North American launches are mirrored hourly to a data branch.
+      Global Radiosonde Archive v2</a> (IGRA; its daily update runs about a day behind; the first archive load per
+      station can be tens of MB, then cached). Recent launches are mirrored hourly to a data branch.
       <b>Analysis:</b> <a href="https://github.com/keltonhalbert/SHARPlib">SHARPlib</a> (K. Halbert,
       NWS SPC lineage) as WebAssembly — SB/ML/MU parcels, LI, DCAPE, effective inflow, Bunkers,
       SRH, effective shear, SCP/STP. Map: Leaflet, Esri Dark Gray Canvas (&copy; Esri, OpenStreetMap contributors). Built by Claude
@@ -812,6 +817,6 @@
   </div>
 </div>
 <script src="sharplib.js?v=92a2fd08"></script>
-<script src="app.js?v=d9cf7866"></script>
+<script src="app.js?v=b57a0002"></script>
 </body>
 </html>
