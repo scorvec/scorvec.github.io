@@ -13,15 +13,16 @@ precompute climatologies.
 
 ## 1. Data sources
 
-A sounding can come from four places. The app walks them in order of *freshness*, and the status line
+A sounding can come from six places. The app walks them in order of *freshness*, and the status line
 always names the one you're looking at, so you're never guessing.
 
 | Source | Coverage | Latency | Resolution | CORS |
 |---|---|---|---|---|
 | **SPC observed** (`spc.noaa.gov/exper/soundings`) | US | Fastest — ~1 h post-synoptic | ~110–200 levels | ✅ |
 | **IEM RAOB** (`mesonet.agron.iastate.edu`) | US + Canada | ~1 h behind SPC | ~180–250 levels | ✅ |
+| **ECCC MSC Datamart** (`dd.weather.gc.ca`, Environment and Climate Change Canada) | Canada, ~29 stations | ~1 h after launch to 100 hPa, ~2 h entire | Native ~1-s BUFR (3–7k levels) | — (via the mirror) |
 | **WMO WIS 2.0 Global Cache** (`s3://wis2globalcache`, AWS Open Data) | Global, ~550 stations/day | ~2 h after launch | Mostly high-res BUFR | — (via the mirror) |
-| **Mirror** (IEM + WIS 2.0 real time, on `skewt-data`) | Global | hourly | As received, thinned to 260 | ✅ (raw.githubusercontent) |
+| **Mirror** (IEM + ECCC + WIS 2.0 real time, on `skewt-data`) | Global | hourly | As received, thinned to 260 | ✅ (raw.githubusercontent) |
 | **NOAA IGRA v2** (`ncei.noaa.gov`) | Global, 1905–present | ~1–2 day lag | Mandatory + significant levels | ✅ |
 
 ### The physics floor on "real-time"
@@ -42,6 +43,20 @@ work outside North America, where no CORS-open real-time feed exists. A GitHub A
 
 - **North America, real time:** the Iowa Environmental Mesonet RAOB JSON, *one* request per launch
   hour for all stations (each hour slot asked at most 2–3 times, ≥121 s apart for IEM's crawl delay).
+- **Canada, real time:** Environment and Climate Change Canada's MSC Datamart,
+  `dd.weather.gc.ca/YYYYMMDD/WXO-DD/bulletins/alphanumeric/YYYYMMDD/IU/<CCCC>/<HH>/` (reception date and
+  hour; one directory per station, e.g. `CWSE` = Stony Plain 71119). `IUK` = the station's native ~1-s
+  BUFR ascent to 100 hPa (~1 h after launch), `IUS` = the entire ascent (~2 h), `CCA`… = corrections;
+  `IUW`/`IUJ` (PILOT winds) are skipped. Only today's and yesterday's directories are polled, a station
+  directory is re-listed only when its mtime changed, an hour directory until it is final, and per launch
+  only a file that outranks what was already fetched is downloaded (≤ 200 listings / 90 GETs per run;
+  ~1–2 KB per listing, 70–150 KB per file). Manifest entries get `src: "ECCC"` / `by: "ECCC"`.
+  Data Source: Environment and Climate Change Canada, under the
+  [ECCC Data Servers End-use Licence](https://eccc-msc.github.io/open-data/licence/readme_en/).
+- **Precedence** per station and launch hour: the richest file wins (all of T, Td, wind and height; then
+  more levels; then the later correction), a coarser file never replaces a richer one, ECCC wins a tie
+  with a WIS2 relay of the same bulletin, IEM keeps North America against WIS2, and ECCC and IEM compete on
+  richness (in practice IEM carries no Canadian station).
 - **Rest of the world, real time:** the WMO WIS 2.0 Global Cache on AWS Open Data (anonymous S3,
   ~72 h retention). Each run lists the DWD and JMA GTS gateways' `I/U/S` and `I/U/K` radiosonde trees
   and ~25 national centres' `.../surface-based-observations/temp/` topics (~36 ListObjects), GETs only
@@ -303,7 +318,7 @@ scripts/skewt/
   climo_cape.cpp    native build of the SAME wrapper, for the climatology
   build_climo.py    per-station climatology builder
   flag_anomalies.py record-watch: compares each latest sounding to its climatology
-  mirror_soundings.py  recent-launch mirror (IEM + WMO WIS 2.0 real time; NOAA IGRA v2 listing only)
+  mirror_soundings.py  recent-launch mirror (IEM + ECCC MSC Datamart + WMO WIS 2.0 real time; NOAA IGRA v2 listing only)
 
 branches (data, served CORS-open via raw.githubusercontent.com)
   skewt-data     latest soundings + manifest + anomalies.json   (force-pushed hourly)
@@ -319,14 +334,15 @@ branches (data, served CORS-open via raw.githubusercontent.com)
   require complete, quality-gated soundings. Check `n` before leaning on a percentile.
 - IGRA's historical vertical resolution is coarser than modern BUFR, so a 1960 hodograph is
   genuinely less detailed than today's — not a rendering artifact.
-- SPC coverage is US-only; Canada falls back to IEM; the rest of the world comes from the WMO WIS 2.0
+- SPC coverage is US-only; Canada comes from ECCC's MSC Datamart (~1–2 h after launch); the rest of the world comes from the WMO WIS 2.0
   Global Cache (~2 h after launch). Stations that publish nothing to WIS 2.0 (~120 of the IGRA-active
   ones in the 2026-10-06 survey) still come from NOAA IGRA v2's daily update, about a day old.
 
 ---
 
 *Built by Claude (Anthropic), directed by Shawn Corvec. Physics by SHARPlib (K. Halbert, NWS SPC).
-Data from NOAA/NWS SPC; the Iowa Environmental Mesonet (IEM), Iowa State University; the WMO WIS 2.0
+Data from NOAA/NWS SPC; the Iowa Environmental Mesonet (IEM), Iowa State University; Data Source:
+Environment and Climate Change Canada (MSC Datamart, under the ECCC Data Servers End-use Licence); the WMO WIS 2.0
 Global Cache (AWS Open Data; core data under the WMO Unified Data Policy, originating national
 meteorological services credited per sounding); and NOAA National Centers for Environmental
 Information, Integrated Global Radiosonde Archive v2 (IGRA).*

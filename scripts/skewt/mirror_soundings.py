@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Mirror recent radiosonde soundings for the Skew-T Explorer (runs in GitHub Actions).
 
-Three public sources, all credited on the page:
+Four public sources, all credited on the page:
 
   * IEM RAOB JSON (Iowa Environmental Mesonet, Iowa State University) - real-time
     North America. ONE request per launch hour returns every station that reported
@@ -9,6 +9,12 @@ Three public sources, all credited on the page:
     asks for Crawl-delay: 120, so requests are spaced IEM_DELAY s apart, capped per
     run (MAX_IEM_REQ), and each hour slot is asked at most two or three times over
     its first ~12 h (state.json remembers which slots were asked and when).
+  * ECCC MSC Datamart (Environment and Climate Change Canada, dd.weather.gc.ca) - real-time
+    Canada: each Canadian upper-air station's own native ~1-s BUFR (IUK to 100 hPa ~1 h after
+    launch, IUS entire ~2 h after), from today's and yesterday's reception-date directories;
+    only directories that changed are re-listed, only files that outrank what is held are GET.
+    ECCC Data Servers End-use Licence ("Data Source: Environment and Climate Change Canada").
+    Wins a tie against a WIS2 relay of the same bulletin and competes with IEM on richness.
   * WMO WIS 2.0 Global Cache on AWS Open Data (s3://wis2globalcache, anonymous) -
     real-time BUFR radiosondes for the rest of the world, ~2 h after launch. Core
     data under the WMO Unified Data Policy; the originating national service is
@@ -27,16 +33,18 @@ Three public sources, all credited on the page:
 
 Outputs (the layout the client reads from the `skewt-data` branch):
   manifest.json             {pipeline, generated, sources, centres, entries: {id: {id,n,la,lo,src,dt,hours}}}
-                            id = WMO number (the client's byWmo key); src = "IEM" | "WIS2" | "IGRA"
-                            of the newest launch. Stations with any WIS2 launch also carry
-                            "by" (originating centre code of the newest launch, "IEM" for an
-                            IEM one) and "hx" {hour: code} for held launches whose code differs;
+                            id = WMO number (the client's byWmo key); src = "IEM" | "ECCC" | "WIS2"
+                            | "IGRA" of the newest launch. Stations with any WIS2/ECCC launch also
+                            carry "by" (originating centre code of the newest launch, "IEM" for an
+                            IEM one, "ECCC" for a Datamart one) and "hx" {hour: code} for held
+                            launches whose code differs;
                             top-level "centres" maps codes to names. (IGRA entries: dt null, no
                             hours, "upd" = NCEI update time UTC)
-  soundings/{id}_{YYYYMMDDHH}.csv   one per IEM/WIS2 launch (nominal hour), kept RETAIN_H hours
+  soundings/{id}_{YYYYMMDDHH}.csv   one per IEM/ECCC/WIS2 launch (nominal hour), kept RETAIN_H hours
   soundings/{id}.csv                copy of the newest launch
   state.json                bookkeeping (IEM slots asked, IGRA file sizes, per-file source,
-                            WIS2 keys seen + per-file richness)
+                            WIS2 keys seen, ECCC directories listed + best file per launch,
+                            per-file richness "score")
 
 CSV columns are fixed (the client and flag_anomalies.py index them by position):
   time,longitude,latitude,pressure_hPa,geopotential height_m,temperature_C,
@@ -49,7 +57,8 @@ for live profiles). Missing values are written as "nan".
 
     python scripts/skewt/mirror_soundings.py OUTDIR [PREVDIR]
 Env (testing / budgets): SKEWT_MAX_IEM_REQ, SKEWT_IEM_DELAY, SKEWT_WIS2_MAX_GET,
-SKEWT_WIS2_MAX_LIST, SKEWT_WIS2_MAX_S, SKEWT_WIS2=0 (skip WIS2).
+SKEWT_WIS2_MAX_LIST, SKEWT_WIS2_MAX_S, SKEWT_WIS2=0 (skip WIS2), SKEWT_ECCC_MAX_LIST,
+SKEWT_ECCC_MAX_GET, SKEWT_ECCC_MAX_S, SKEWT_ECCC=0 (skip ECCC).
 """
 from __future__ import annotations
 
@@ -154,7 +163,7 @@ def to_csv(levels: list, launch: datetime, la: float, lo: float, elev: float) ->
     rows, lastP, lastH, lastT = [], 1e9, elev, None
     for L in thermo:
         p, t = L["p"], L["t"]
-        if p >= lastP:
+        if round(p, 1) >= round(lastP, 1):    # written to 0.1 hPa: no duplicate pressures
             continue
         h = L.get("h")
         if not _num(h):          # hypsometric fill between reported heights
@@ -321,6 +330,11 @@ def write_iem(outdir, pr, sid, la, lo, el, name, meta, got) -> int:
     if dest.exists() and meta["filesrc"].get(fn) == "IEM" and \
             dest.read_text().count("\n") >= text.count("\n"):
         return 0
+    # Canada's own high-resolution ECCC file stands unless IEM's is richer (see rank())
+    if meta["filesrc"].get(fn) == "ECCC":
+        held = held_rank(fn, dest, meta, meta["score"])
+        if held and rank(richness(levels), 0, "IEM") <= held:
+            return 0
     dest.write_text(text)
     meta["filesrc"][fn] = "IEM"
     meta["names"][sid] = {"n": name, "la": la, "lo": lo}
@@ -498,6 +512,11 @@ WIS2_CCCC = {
     "VTBB": "Thai Meteorological Department", "WSSS": "Meteorological Service Singapore",
     "YRBK": "National Meteorological Administration (Romania)",
 }
+# Canadian upper-air stations bulletin under their own indicator (MSC Datamart IU/ tree, 2026-10-06);
+# a WIS2 relay of one (e.g. CAYT, St John's) is credited to ECCC
+for _c in ("CAYT CGCB COYU CWEU CWLT CWMW CWQI CWSE CWVK CYBK CYCB CYEV CYFB CYJT CYPH CYPL CYQD "
+           "CYRB CYSM CYUX CYVP CYVQ CYXY CYYE CYYQ CYYR CYZT CYZV CZXS").split():
+    WIS2_CCCC.setdefault(_c, "Environment and Climate Change Canada")
 NA_CCCC = {"KWBC", "CWAO", "CWUL"}       # North America: IEM's ground, fetched last
 # GTS hubs that compile other countries' soundings into their bulletins: a station outside the
 # hub's home (IGRA/FIPS country prefixes) is credited to its own national service, "relayed by" the
@@ -598,8 +617,8 @@ def nominal_hour(launch: datetime, hints: list) -> datetime:
     return t.replace(hour=t.hour // 3 * 3, minute=0, second=0, microsecond=0)
 
 
-class Wis2Decoder:
-    """ecCodes BUFR decoding of radiosonde messages -> per-subset launch dicts."""
+class BufrDecoder:
+    """ecCodes BUFR decoding of radiosonde messages -> per-subset launch dicts (WIS2 and ECCC)."""
 
     def __init__(self):
         import eccodes                                    # noqa: PLC0415 - optional dependency
@@ -884,10 +903,27 @@ def wis2_centres(state: dict, ctr: Counter) -> list:
     return list(WIS2_NATIVE) + [c for c in found if c not in WIS2_NATIVE]
 
 
-def wis2_subset(s: dict, c: dict, hints: list, by_wmo: dict, by_fn: dict, stats: Counter,
+def bbb_rank(bbb) -> int:
+    """Correction rank of a GTS BBB indicator: CCA/AAA 1, CCB/AAB 2...; original or RRx (late) 0."""
+    return ord(bbb[2]) - 64 if bbb and bbb[:2] in ("CC", "AA") and "A" <= bbb[2] <= "Z" else 0
+
+
+def shared_score(state: dict) -> dict:
+    """fn -> [complete, n, kind, cc] of the held WIS2/ECCC launch files (was state.wis2.score)."""
+    if "score" not in state:
+        state["score"] = (state.get("wis2") or {}).pop("score", {})
+    return state["score"]
+
+
+def take_subset(s: dict, c: dict, hints: list, by_wmo: dict, by_fn: dict, stats: Counter,
                 oldest: datetime) -> bool:
-    """QC one decoded subset; a usable launch goes into by_fn[file name] (False = skipped)."""
+    """QC one decoded subset (WIS2 or ECCC); a usable launch goes into by_fn[file name].
+
+    c: the message's {kind, by, src[, cc]} - kind "K" = GTS TEMP parts (may merge), "S" =
+    entire sounding, "N" = national WIS2 topic, "H" = ECCC high-resolution to 100 hPa
+    (standalone, never merged); cc = correction rank (0 original, 1 CCA, ...)."""
     stats["subsets"] += 1
+    tag = c.get("src", "WIS2")
     sid = s["wmo"]
     if sid.startswith("?"):
         sid = sid[1:]
@@ -906,7 +942,7 @@ def wis2_subset(s: dict, c: dict, hints: list, by_wmo: dict, by_fn: dict, stats:
                 abs((lo - st["lo"] + 180) % 360 - 180) * math.cos(math.radians(st["la"])) > 1.5):
             stats["position_mismatch"] += 1
             if stats["position_mismatch"] <= 6:
-                print(f"    WIS2 {sid}: BUFR position {la:.2f},{lo:.2f} vs station list "
+                print(f"    {tag} {sid}: BUFR position {la:.2f},{lo:.2f} vs station list "
                       f"{st['la']:.2f},{st['lo']:.2f} — skipped", flush=True)
             return False
         la, lo, elev, name = st["la"], st["lo"], st.get("e") or s["elev"] or 0, st["n"]
@@ -929,8 +965,90 @@ def wis2_subset(s: dict, c: dict, hints: list, by_wmo: dict, by_fn: dict, stats:
     fn = f"{sid}_{_tag(nom)}.csv"
     by_fn.setdefault(fn, []).append({
         "sid": sid, "levels": levels, "launch": launch, "kind": c["kind"], "by": c["by"],
-        "la": la, "lo": lo, "elev": elev, "name": name, "rich": richness(levels), "upper": upper})
+        "src": tag, "cc": c.get("cc", 0), "la": la, "lo": lo, "elev": elev, "name": name,
+        "rich": richness(levels), "upper": upper})
     return True
+
+
+# Precedence between the real-time sources for one station and launch hour (file name):
+#   * a launch is ranked (complete, n thermo levels, correction rank, source tiebreak) - see rank();
+#     a candidate replaces the held file only when it ranks strictly higher, so a coarser file
+#     never replaces a richer one and a correction (CCA, CCB...) replaces its original;
+#   * ECCC (Canada's own MSC Datamart BUFR) wins a tie with a WIS2 relay of the same bulletin;
+#   * IEM keeps North America against WIS2 (the long-standing rule: WIS2 never overwrites an IEM
+#     file, IEM replaces a WIS2 one) - but ECCC competes with IEM on richness both ways, because the
+#     Datamart file is the native ~1-s ascent while IEM carries mandatory + significant levels.
+SRC_TIE = {"ECCC": 1}
+
+
+def rank(rich, cc: int, src: str) -> tuple:
+    return (int(rich[0]), int(rich[1]), int(cc or 0), SRC_TIE.get(src, 0))
+
+
+def held_rank(fn: str, dest: Path, meta: dict, score: dict) -> tuple | None:
+    """Rank of the file currently held for fn, or None when nothing (usable) is held."""
+    cur = meta["filesrc"].get(fn)
+    if not cur or not dest.exists():
+        return None
+    sc = score.get(fn)
+    if cur in ("WIS2", "ECCC") and sc:
+        return rank(sc[:2], sc[3] if len(sc) > 3 else 0, cur)
+    try:                                            # IEM (or a score lost): from the file itself
+        return rank(richness(levels_from_csv(dest.read_text())), 0, cur)
+    except Exception:                               # noqa: BLE001
+        return None
+
+
+def commit_launches(outdir: Path, by_fn: dict, meta: dict, score: dict, src: str,
+                    stats: Counter, ctr: Counter, by_wmo: dict) -> dict:
+    """Per station and launch hour keep the richest candidate; TEMP parts (WIS2 IUK) merge -
+    with each other and with parts already written by an earlier run. -> {fn: sid} written."""
+    got = {}
+    for fn, cs in by_fn.items():
+        dest = outdir / "soundings" / fn
+        cur = meta["filesrc"].get(fn)
+        if cur == "IEM" and src == "WIS2":
+            stats["kept_iem"] += 1                        # North America: IEM's launch stands
+            continue
+        old = held_rank(fn, dest, meta, score)
+        sc = score.get(fn) if cur in ("WIS2", "ECCC") else None
+        pool = [x for x in cs if not x["upper"]]
+        parts = [x for x in cs if x["kind"] == "K"]
+        base = []
+        if parts and cur == "WIS2" and sc and sc[2] == "K":
+            try:
+                base = levels_from_csv(dest.read_text())
+            except Exception:                             # noqa: BLE001
+                base = []
+        if parts and (len(parts) > 1 or base or any(x["upper"] for x in parts)):
+            m = dict(next((x for x in parts if not x["upper"]), parts[0]))
+            m["levels"] = merge_levels(base, *(x["levels"] for x in parts))
+            m["upper"] = False
+            if standalone(m["levels"]):
+                m["rich"] = richness(m["levels"])
+                pool.append(m)
+        if not pool:
+            stats["upper_part_only"] += 1
+            continue
+        best = max(pool, key=lambda x: rank(x["rich"], x["cc"], x["src"]))
+        if old and rank(best["rich"], best["cc"], best["src"]) <= old:
+            stats["not_richer"] += 1                      # never replace a richer launch
+            continue
+        text = to_csv(thin_levels(best["levels"], MAX_LEVELS - 2), best["launch"],
+                      best["la"], best["lo"], best["elev"])
+        if not text:
+            stats["csv_short"] += 1
+            continue
+        if cur and cur != src:
+            stats[f"replaced_{cur}"] += 1
+        dest.write_text(text)
+        meta["filesrc"][fn] = src
+        meta["fileby"][fn] = "ECCC" if src == "ECCC" else credit_code(best["by"], by_wmo.get(best["sid"]))
+        meta["names"][best["sid"]] = {"n": best["name"], "la": best["la"], "lo": best["lo"]}
+        score[fn] = [best["rich"][0], best["rich"][1], best["kind"], best["cc"]]
+        got[fn] = best["sid"]
+        ctr["by_" + best["kind"]] += 1
+    return got
 
 
 def run_wis2(outdir: Path, state: dict, by_wmo: dict, meta: dict) -> dict:
@@ -943,8 +1061,8 @@ def run_wis2(outdir: Path, state: dict, by_wmo: dict, meta: dict) -> dict:
         w["v"] = 2
     seen = w.setdefault("seen", {})                       # dedupe id -> LastModified (epoch h)
     newseen = {}                       # merged into `seen` only after this run's files are written
-    score = w.setdefault("score", {})                     # fn -> [complete, n, kind]
-    dec = Wis2Decoder()                                   # ImportError -> caller skips WIS2
+    score = shared_score(state)                           # fn -> [complete, n, kind, cc]
+    dec = BufrDecoder()                                   # ImportError -> caller skips WIS2
 
     # 1. list: gateways' IUS trees first (most stations, entire soundings), then the
     #    national centres, then the gateways' IUK trees
@@ -982,7 +1100,7 @@ def run_wis2(outdir: Path, state: dict, by_wmo: dict, meta: dict) -> dict:
             by = src if native else (hdr[1] if hdr else src)
             pri = (0 if k == "N" else 1 if k == "S" else 2) + (2 if by in NA_CCCC else 0)
             cand.append({"key": key, "size": size, "lm": lm, "did": did, "kind": k, "by": by,
-                         "hdr": hdr, "pri": pri})
+                         "hdr": hdr, "pri": pri, "cc": bbb_rank(hdr[3] if hdr else None)})
     # in-run dedupe of the two gateway copies. Order: newest 6-hour arrival window first
     # (a backlog - first run, or after an outage - never starves the current launches),
     # within it national/IUS before IUK before North America, newest first
@@ -1021,63 +1139,20 @@ def run_wis2(outdir: Path, state: dict, by_wmo: dict, meta: dict) -> dict:
             subsets = []
         for s in subsets:
             try:
-                wis2_subset(s, c, hints, by_wmo, by_fn, stats, oldest)
+                take_subset(s, c, hints, by_wmo, by_fn, stats, oldest)
             except Exception as e:                        # noqa: BLE001 - one bad subset only
                 stats["process_error"] += 1
                 if stats["process_error"] <= 3:
                     print(f"::warning::WIS2 {c['key'].rsplit('/', 1)[-1]}: {repr(e)[:120]}", flush=True)
 
-    # 3. per station and launch hour keep the richest message; TEMP parts (IUK) merge -
-    #    with each other and with parts already written by an earlier run
-    got = {}
-    for fn, cs in by_fn.items():
-        dest = outdir / "soundings" / fn
-        if meta["filesrc"].get(fn) == "IEM":
-            stats["kept_iem"] += 1                        # North America: IEM's launch stands
-            continue
-        old = score.get(fn) if meta["filesrc"].get(fn) == "WIS2" and dest.exists() else None
-        pool = [x for x in cs if not x["upper"]]
-        parts = [x for x in cs if x["kind"] == "K"]
-        base = []
-        if parts and old and old[2] == "K":
-            try:
-                base = levels_from_csv(dest.read_text())
-            except Exception:                             # noqa: BLE001
-                base = []
-        if parts and (len(parts) > 1 or base or any(x["upper"] for x in parts)):
-            m = dict(next((x for x in parts if not x["upper"]), parts[0]))
-            m["levels"] = merge_levels(base, *(x["levels"] for x in parts))
-            m["upper"] = False
-            if standalone(m["levels"]):
-                m["rich"] = richness(m["levels"])
-                pool.append(m)
-        if not pool:
-            stats["upper_part_only"] += 1
-            continue
-        best = max(pool, key=lambda x: x["rich"])
-        if old and tuple(best["rich"]) <= tuple(old[:2]):
-            stats["not_richer"] += 1                      # never replace a richer launch
-            continue
-        text = to_csv(thin_levels(best["levels"], MAX_LEVELS - 2), best["launch"],
-                      best["la"], best["lo"], best["elev"])
-        if not text:
-            stats["csv_short"] += 1
-            continue
-        dest.write_text(text)
-        meta["filesrc"][fn] = "WIS2"
-        meta["fileby"][fn] = credit_code(best["by"], by_wmo.get(best["sid"]))
-        meta["names"][best["sid"]] = {"n": best["name"], "la": best["la"], "lo": best["lo"]}
-        score[fn] = [best["rich"][0], best["rich"][1], best["kind"]]
-        got[fn] = best["sid"]
-        ctr["by_" + best["kind"]] += 1
+    # 3. per station and launch hour keep the richest message (shared with ECCC)
+    got = commit_launches(outdir, by_fn, meta, score, "WIS2", stats, ctr, by_wmo)
 
     seen.update(newseen)
     # bookkeeping: forget keys past the cache's retention, scores of files no longer held
     cut = int((NOW - timedelta(hours=WIS2_SEEN_H)).timestamp() // 3600)
     for k in [k for k, v in seen.items() if v < cut]:
         del seen[k]
-    for fn in [fn for fn in score if meta["filesrc"].get(fn) != "WIS2"]:
-        del score[fn]
     print(f"  WIS2: {ctr['get']} GET(s) {ctr['get_bytes'] / 1e6:.2f} MB, {ctr['get_err']} failed, "
           f"{ctr['deferred']} deferred to the next run (budget {WIS2_MAX_GET} GETs / {WIS2_MAX_S:.0f} s); "
           f"{stats['subsets']} subsets -> {len(got)} launch file(s) written/upgraded "
@@ -1087,6 +1162,212 @@ def run_wis2(outdir: Path, state: dict, by_wmo: dict, meta: dict) -> dict:
           flush=True)
     meta.update(wis2_list=ctr["list"], wis2_list_bytes=ctr["list_bytes"], wis2_get=ctr["get"],
                 wis2_bytes=ctr["get_bytes"], wis2_written=len(got))
+    return got
+
+
+# ---------------------------------------------------------------- ECCC (Canada, real time)
+# Environment and Climate Change Canada's MSC Datamart publishes every Canadian upper-air
+# station's own BUFR bulletins within minutes of reception (ECCC Data Servers End-use Licence;
+# attribution "Data Source: Environment and Climate Change Canada"). Layout (2026-10-06 probe):
+#   https://dd.weather.gc.ca/YYYYMMDD/WXO-DD/bulletins/alphanumeric/YYYYMMDD/IU/<CCCC>/<HH>/
+#   YYYYMMDD and HH are the RECEPTION date and hour (not the nominal time): one directory per
+#   station (CCCC = the station's own indicator, e.g. CWSE = Stony Plain 71119), so a 12Z launch
+#   lands in 12/ (the first part, ~12:15) and 13/ (the entire sounding, ~13:15).
+#   File names TTAAii_CCCC_YYGGgg_BBB__seq, e.g. IUKB01_CWSE_061200___51534.
+#   IUK = native ~1-s ascent (BUFR 309057) from the surface to 100 hPa, posted ~1 h after launch;
+#   IUS = the same ascent entire, to burst (~6-7k levels), ~2 h after launch; CCA/CCB = corrections
+#   (often the same ascent with a longer tail); IUW / IUJ = PILOT wind-only (309051) - skipped.
+#   Off-hour specials sit in their own reception-hour directories (18/, 19/ ...).
+ECCC_DD = "https://dd.weather.gc.ca/{d}/WXO-DD/bulletins/alphanumeric/{d}/IU/"
+ECCC_NAME = "Environment and Climate Change Canada (MSC Datamart)"
+ECCC_MAX_LIST = int(os.environ.get("SKEWT_ECCC_MAX_LIST", 200))
+ECCC_MAX_GET = int(os.environ.get("SKEWT_ECCC_MAX_GET", 90))
+ECCC_MAX_S = float(os.environ.get("SKEWT_ECCC_MAX_S", 240))
+ECCC_DONE_MIN = 75             # a reception-hour directory is final this long after its hour began
+ECCC_KIND = {"IUS": ("S", 2), "IUK": ("H", 1)}        # TTA -> (kind, rank): entire beats to-100-hPa
+ECCC_NAME_RE = re.compile(r"^(IU[A-Z])[A-Z](\d\d)_([A-Z]{4})_(\d{6})_([A-Z]{3})?_")
+DD_ROW_RE = re.compile(r'<a href="([^"?/][^"]*?)(/?)">[^<]*</a>\s+(\d{4}-\d\d-\d\d \d\d:\d\d)\s+(\S+)')
+
+
+def dd_list(url: str, ctr: Counter) -> list | None:
+    """Apache index -> [(name, is_dir, mtime UTC, size text)]; None on 404 / budget."""
+    if ctr["list"] >= ECCC_MAX_LIST:
+        ctr["list_capped"] += 1
+        return None
+    try:
+        raw = get(url, timeout=40, tries=2, backoff=5)
+    except urllib.error.HTTPError as e:
+        ctr["list"] += 1
+        if e.code == 404:
+            return []
+        raise
+    ctr["list"] += 1
+    ctr["list_bytes"] += len(raw)
+    return [(n, bool(d), datetime.strptime(t, "%Y-%m-%d %H:%M").replace(tzinfo=timezone.utc), sz)
+            for n, d, t, sz in DD_ROW_RE.findall(raw.decode("utf-8", "replace"))]
+
+
+def run_eccc(outdir: Path, state: dict, by_wmo: dict, meta: dict) -> dict:
+    """Mirror new Canadian launches from the MSC Datamart; returns {fn: sid} written.
+
+    Polls only today's and yesterday's (UTC) reception dates. A station directory is
+    re-listed only when its mtime changed (a new hour directory), an hour directory until
+    it is final (ECCC_DONE_MIN after its hour began); per launch (CCCC + YYGGgg) only a
+    file that outranks what was already fetched (IUS > IUK, then later corrections) is GET."""
+    t0 = time.time()
+    ctr, stats = Counter(), Counter()
+    e = state.setdefault("eccc", {})
+    cdir = e.setdefault("cdir", {})          # "date/CCCC" -> station dir mtime at our last listing
+    hdir = e.setdefault("hdir", {})          # "date/CCCC/HH" -> 1 once final and listed
+    best = e.setdefault("best", {})          # "CCCC/YYGGgg" -> [kind rank, cc, epoch h]
+    cmap = e.setdefault("cccc", {})          # CCCC -> WMO id, learned from the BUFR itself
+    daydone = e.setdefault("daydone", {})
+    dec = BufrDecoder()                      # ImportError -> caller skips ECCC
+    today = NOW.strftime("%Y%m%d")
+    dates = [today, (NOW - timedelta(days=1)).strftime("%Y%m%d")]
+    types, hour_todo, roots_ok = Counter(), [], {}
+    for d in dates:
+        if daydone.get(d):
+            continue
+        base = ECCC_DD.format(d=d)
+        try:
+            root = dd_list(base, ctr)
+        except Exception as ex:                           # noqa: BLE001
+            print(f"  ECCC list {d} failed: {repr(ex)[:80]}", flush=True)
+            continue
+        if root is None:
+            continue
+        roots_ok[d] = True
+        for cccc, isdir, mt, _ in root:
+            if not isdir:
+                continue
+            key = f"{d}/{cccc}"
+            stamp = f"{mt:%Y-%m-%d %H:%M}"
+            if cdir.get(key) != stamp:
+                try:
+                    rows = dd_list(f"{base}{cccc}/", ctr)
+                except Exception as ex:                   # noqa: BLE001
+                    print(f"  ECCC list {key} failed: {repr(ex)[:80]}", flush=True)
+                    roots_ok[d] = False
+                    continue
+                if rows is None:
+                    roots_ok[d] = False
+                    continue
+                for hh, hd, _, _ in rows:
+                    if hd and re.fullmatch(r"\d\d", hh):
+                        hdir.setdefault(f"{key}/{hh}", 0)
+                cdir[key] = stamp
+            hour_todo += [k for k, v in hdir.items() if k.startswith(key + "/") and not v]
+    # hour directories newest first, so a backlog never starves the current launches
+    hour_todo.sort(key=lambda k: (k[:8], k[-2:]), reverse=True)
+    files = []
+    for hk in hour_todo:
+        d, cccc, hh = hk.split("/")
+        when = datetime.strptime(d + hh, "%Y%m%d%H").replace(tzinfo=timezone.utc)
+        try:
+            rows = dd_list(f"{ECCC_DD.format(d=d)}{cccc}/{hh}/", ctr)
+        except Exception as ex:                           # noqa: BLE001
+            print(f"  ECCC list {hk} failed: {repr(ex)[:80]}", flush=True)
+            continue
+        if rows is None:
+            continue
+        if NOW >= when + timedelta(minutes=ECCC_DONE_MIN):
+            hdir[hk] = 1
+        for name, isdir, mt, _ in rows:
+            m = ECCC_NAME_RE.match(name)
+            if isdir or not m:
+                continue
+            tta, _, cc4, yyggg, bbb = m.groups()
+            types[tta] += 1
+            if tta not in ECCC_KIND or cc4 != cccc:
+                continue
+            kind, kr = ECCC_KIND[tta]
+            files.append({"url": f"{ECCC_DD.format(d=d)}{cccc}/{hh}/{name}", "name": name, "hk": hk,
+                          "grp": f"{cccc}/{yyggg}", "kind": kind, "kr": kr, "cc": bbb_rank(bbb),
+                          "lm": mt, "yyggg": yyggg, "cccc": cccc})
+    # per launch: the single best new file (entire > to-100-hPa, then the latest correction)
+    pick = {}
+    for f in files:
+        old = best.get(f["grp"])
+        if old and (f["kr"], f["cc"]) <= (old[0], old[1]):
+            continue
+        cur = pick.get(f["grp"])
+        if not cur or (f["kr"], f["cc"], f["lm"]) > (cur["kr"], cur["cc"], cur["lm"]):
+            pick[f["grp"]] = f
+    todo = sorted(pick.values(), key=lambda f: f["lm"], reverse=True)
+    print(f"  ECCC: {ctr['list']} listing(s) ({ctr['list_bytes'] / 1e3:.0f} KB), "
+          f"{len(hour_todo)} hour dir(s) open; bulletin types seen "
+          f"{dict(sorted(types.items()))}; {len(todo)} new launch file(s) to fetch", flush=True)
+
+    by_fn, fetched, oldest = {}, {}, NOW - timedelta(hours=RETAIN_H)
+    for f in todo:
+        if ctr["get"] >= ECCC_MAX_GET or time.time() - t0 > ECCC_MAX_S:
+            ctr["deferred"] += 1
+            hdir[f["hk"]] = 0                             # list it again next run
+            continue
+        try:
+            blob = get(f["url"], timeout=60, tries=2, backoff=5)
+        except Exception:                                 # noqa: BLE001
+            ctr["get_err"] += 1
+            hdir[f["hk"]] = 0
+            continue
+        ctr["get"] += 1
+        ctr["get_bytes"] += len(blob)
+        best[f["grp"]] = [f["kr"], f["cc"], int(f["lm"].timestamp() // 3600)]
+        try:
+            subsets = dec.decode(blob, stats)
+        except Exception:                                 # noqa: BLE001
+            stats["decode_error"] += 1
+            subsets = []
+        hints = [_hdr_time(f["yyggg"], f["lm"])]
+        c = {"kind": f["kind"], "by": "ECCC", "src": "ECCC", "cc": f["cc"]}
+        for s in subsets:
+            try:
+                if take_subset(s, c, hints, by_wmo, by_fn, stats, oldest):
+                    sid = s["wmo"].lstrip("?")
+                    cmap[f["cccc"]] = sid
+                    fetched.setdefault(f"{sid}_{_tag(nominal_hour(s['launch'], hints + [s.get('typ')]))}.csv",
+                                       []).append((f, s["launch"]))
+            except Exception as ex:                       # noqa: BLE001
+                stats["process_error"] += 1
+                if stats["process_error"] <= 3:
+                    print(f"::warning::ECCC {f['name']}: {repr(ex)[:120]}", flush=True)
+    got = commit_launches(outdir, by_fn, meta, shared_score(state), "ECCC", stats, ctr, by_wmo)
+    # latency: reception (Datamart mtime) minus launch, per kind, for the files written
+    lat = {"H": [], "S": []}
+    for fn in got:
+        for f, launch in fetched.get(fn, []):
+            lat[f["kind"]].append((f["lm"] - launch).total_seconds() / 60)
+    med = lambda v: sorted(v)[len(v) // 2] if v else None          # noqa: E731
+    for k, nm in (("H", "IUK to 100 hPa"), ("S", "IUS entire")):
+        if lat[k]:
+            print(f"  ECCC latency {nm}: posted {med(lat[k]):.0f} min after launch (median), "
+                  f"range {min(lat[k]):.0f}-{max(lat[k]):.0f}, n={len(lat[k])}", flush=True)
+    # bookkeeping: a past day is finished once every station and hour directory is final
+    for d in dates[1:]:
+        if roots_ok.get(d) and NOW >= datetime.strptime(d, "%Y%m%d").replace(tzinfo=timezone.utc) + \
+                timedelta(days=1, minutes=ECCC_DONE_MIN) and \
+                all(v for k, v in hdir.items() if k.startswith(d + "/")):
+            daydone[d] = 1
+    keep = set(dates)
+    for dct in (cdir, hdir):
+        for k in [k for k in dct if k[:8] not in keep]:
+            del dct[k]
+    for k in [k for k in daydone if k not in keep]:
+        del daydone[k]
+    cut = int((NOW - timedelta(hours=RETAIN_H + 24)).timestamp() // 3600)
+    for k in [k for k, v in best.items() if v[2] < cut]:
+        del best[k]
+    print(f"  ECCC: {ctr['get']} GET(s) {ctr['get_bytes'] / 1e6:.2f} MB, {ctr['get_err']} failed, "
+          f"{ctr['deferred']} deferred (budget {ECCC_MAX_LIST} listings / {ECCC_MAX_GET} GETs / "
+          f"{ECCC_MAX_S:.0f} s); {stats['subsets']} subsets -> {len(got)} launch file(s) written/upgraded "
+          f"(entire {ctr['by_S']}, to 100 hPa {ctr['by_H']}) in {time.time() - t0:.0f} s", flush=True)
+    sk = {k: v for k, v in sorted(stats.items()) if k != "subsets"}
+    if sk:
+        print("  ECCC skips: " + ", ".join(f"{k} {v}" for k, v in sk.items()), flush=True)
+    print("  ECCC stations (CCCC=WMO): " + " ".join(f"{k}={v}" for k, v in sorted(cmap.items())), flush=True)
+    meta.update(eccc_list=ctr["list"], eccc_list_bytes=ctr["list_bytes"], eccc_get=ctr["get"],
+                eccc_bytes=ctr["get_bytes"], eccc_written=len(got))
     return got
 
 
@@ -1101,6 +1382,8 @@ def credit_code(by: str, st: dict | None) -> str:
 
 
 def centre_label(code: str) -> str:
+    if code == "ECCC":
+        return ECCC_NAME
     if "@" in code:
         hub, fips = code.split("@", 1)
         who = f"the national service of {FIPS_NAME[fips]}" if fips in FIPS_NAME else "the national service"
@@ -1121,7 +1404,7 @@ def main() -> int:
         prev_manifest = json.loads((prevdir / "manifest.json").read_text())
     if prev_manifest.get("pipeline") == PIPELINE and (prevdir / "state.json").exists():
         state = json.loads((prevdir / "state.json").read_text())
-    meta = {"filesrc": {}, "fileby": {}, "names": state.get("names", {})}
+    meta = {"filesrc": {}, "fileby": {}, "names": state.get("names", {}), "score": shared_score(state)}
     # Carry forward this pipeline's own per-launch files inside the retention window.
     # Files from a manifest without the pipeline mark came from the retired feed and
     # are deliberately NOT carried.
@@ -1129,7 +1412,7 @@ def main() -> int:
         carried = Counter()
         oldby = state.get("fileby") or {}
         for fn, src in (state.get("filesrc") or {}).items():
-            if src not in ("IEM", "WIS2"):
+            if src not in ("IEM", "WIS2", "ECCC"):
                 continue                # IGRA launches are not mirrored (the browser fetches them)
             f = prevdir / "soundings" / fn
             try:
@@ -1141,13 +1424,22 @@ def main() -> int:
                 meta["filesrc"][fn] = src
                 if src == "WIS2":
                     meta["fileby"][fn] = credit_code(oldby.get(fn, ""), by_wmo.get(fn.split("_")[0]))
+                elif src == "ECCC":
+                    meta["fileby"][fn] = "ECCC"
                 carried[src] += 1
         print(f"  carried forward {sum(carried.values())} launch file(s) {dict(carried)}", flush=True)
     else:
         print("  no previous state from this pipeline — starting fresh", flush=True)
 
     run_iem(outdir, state, by_wmo, icao2wmo, meta)
-    # WIS2 must never take the IEM/IGRA publication down with it
+    # ECCC and WIS2 must never take the IEM/IGRA publication down with them
+    if os.environ.get("SKEWT_ECCC", "1") != "0":
+        try:
+            run_eccc(outdir, state, by_wmo, meta)
+        except ImportError as e:
+            print(f"::warning::ECCC skipped — ecCodes unavailable ({e})", flush=True)
+        except Exception as e:                                  # noqa: BLE001
+            print(f"::warning::ECCC failed this run: {repr(e)[:160]}", flush=True)
     if os.environ.get("SKEWT_WIS2", "1") != "0":
         try:
             run_wis2(outdir, state, by_wmo, meta)
@@ -1162,7 +1454,7 @@ def main() -> int:
     hours: dict = {}
     for fn, src in meta["filesrc"].items():
         sid, tag = fn[:-4].split("_")
-        code = (meta["fileby"].get(fn) or "WIS2") if src == "WIS2" else "IEM"
+        code = "IEM" if src == "IEM" else "ECCC" if src == "ECCC" else (meta["fileby"].get(fn) or "WIS2")
         hours.setdefault(sid, []).append((f"{tag[:4]}-{tag[4:6]}-{tag[6:8]} {tag[8:10]}:00", src, code))
     entries, used = {}, set()
     for sid, hs in hours.items():
@@ -1173,12 +1465,12 @@ def main() -> int:
             continue
         e = {"id": sid, "n": s["n"], "la": round(s["la"], 3), "lo": round(s["lo"], 3),
              "src": src, "dt": dt, "hours": [h[0] for h in hs]}
-        if any(h[1] == "WIS2" for h in hs):
+        if any(h[1] in ("WIS2", "ECCC") for h in hs):
             e["by"] = code
             hx = {h[0]: h[2] for h in hs if h[2] != code}
             if hx:
                 e["hx"] = hx
-            used.update(h[2] for h in hs if h[1] == "WIS2")
+            used.update(h[2] for h in hs if h[1] in ("WIS2", "ECCC"))
         entries[sid] = e
         shutil.copyfile(outdir / "soundings" / f"{sid}_{dt.replace('-', '').replace(' ', '')[:10]}.csv",
                         outdir / "soundings" / f"{sid}.csv")
@@ -1195,19 +1487,24 @@ def main() -> int:
     n_igra = len(entries) - sum(n_rt.values())
     (outdir / "manifest.json").write_text(json.dumps(
         {"pipeline": PIPELINE, "generated": NOW.strftime("%Y-%m-%d %H:%M UTC"),
-         "sources": {"IEM": n_rt["IEM"], "WIS2": n_rt["WIS2"], "IGRA": n_igra},
+         "sources": {"IEM": n_rt["IEM"], "ECCC": n_rt["ECCC"], "WIS2": n_rt["WIS2"], "IGRA": n_igra},
          "centres": {c: centre_label(c) for c in sorted(used)},
          "entries": entries}, ensure_ascii=False))
     state["filesrc"] = meta["filesrc"]
+    score = shared_score(state)
+    for fn in [fn for fn in score if meta["filesrc"].get(fn) not in ("WIS2", "ECCC")]:
+        del score[fn]
     state["fileby"] = {fn: b for fn, b in meta["fileby"].items() if meta["filesrc"].get(fn) == "WIS2"}
     state["names"] = {k: v for k, v in meta["names"].items() if k in entries}
     (outdir / "state.json").write_text(json.dumps(state, ensure_ascii=False))
     nf = Counter(meta["filesrc"].values())
-    print(f"  manifest: {len(entries)} stations ({n_rt['IEM']} IEM + {n_rt['WIS2']} WIS2 real time "
-          f"with {nf['IEM']} + {nf['WIS2']} launch files, {n_igra} IGRA on demand) → {outdir}",
-          flush=True)
+    print(f"  manifest: {len(entries)} stations ({n_rt['IEM']} IEM + {n_rt['ECCC']} ECCC + {n_rt['WIS2']} WIS2 "
+          f"real time with {nf['IEM']} + {nf['ECCC']} + {nf['WIS2']} launch files, {n_igra} IGRA on demand) "
+          f"→ {outdir}", flush=True)
     print(f"  transfer this run: IEM {meta.get('iem_req', 0)} request(s) "
-          f"{meta.get('iem_bytes', 0) / 1e6:.2f} MB; WIS2 {meta.get('wis2_list', 0)} list(s) "
+          f"{meta.get('iem_bytes', 0) / 1e6:.2f} MB; ECCC {meta.get('eccc_list', 0)} listing(s) "
+          f"{meta.get('eccc_list_bytes', 0) / 1e6:.2f} MB + {meta.get('eccc_get', 0)} GET(s) "
+          f"{meta.get('eccc_bytes', 0) / 1e6:.2f} MB; WIS2 {meta.get('wis2_list', 0)} list(s) "
           f"{meta.get('wis2_list_bytes', 0) / 1e6:.2f} MB + {meta.get('wis2_get', 0)} GET(s) "
           f"{meta.get('wis2_bytes', 0) / 1e6:.2f} MB; IGRA listing "
           f"{meta.get('igra_bytes', 0) / 1e3:.0f} KB", flush=True)

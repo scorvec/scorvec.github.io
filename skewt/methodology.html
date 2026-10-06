@@ -242,7 +242,7 @@
   <a href="./" class="cta">← Open the explorer</a>
 
   <h2>1. Data sources</h2>
-  <p>A sounding can arrive from five places. The app tries them in order of freshness, and the
+  <p>A sounding can arrive from six places. The app tries them in order of freshness, and the
   status line names the source you're looking at — for WMO WIS 2.0 soundings, including the national
   meteorological service that sent it.</p>
 
@@ -250,9 +250,10 @@
   <table>
     <tr><th>Source</th><th>Coverage</th><th>Latency</th><th>Resolution</th></tr>
     <tr><td><b>SPC observed</b></td><td>US</td><td>Fastest — ~1 h post-synoptic</td><td>~110–200 levels</td></tr>
-    <tr><td><b>IEM RAOB</b></td><td>US + Canada</td><td>~1 h behind SPC</td><td>~180–250 levels</td></tr>
+    <tr><td><b>IEM RAOB</b></td><td>US</td><td>~1 h behind SPC</td><td>~180–250 levels</td></tr>
+    <tr><td><b>ECCC MSC Datamart</b></td><td>Canada (~29 stations)</td><td>~1 h after launch to 100 hPa, ~2 h entire</td><td>Native ~1-s ascent (3–7k levels), thinned to 260</td></tr>
     <tr><td><b>WMO WIS 2.0</b> Global Cache</td><td>Global (~550 stations a day)</td><td>~2 h after launch (90 % within ~3.3 h)</td><td>Mostly high resolution (median ~590 levels), thinned to 260</td></tr>
-    <tr><td><b>Mirror</b> (IEM + WIS 2.0)</td><td>Global</td><td>hourly</td><td>As received, thinned to 260 levels</td></tr>
+    <tr><td><b>Mirror</b> (IEM + ECCC + WIS 2.0)</td><td>Global</td><td>hourly</td><td>As received, thinned to 260 levels</td></tr>
     <tr><td><b>NOAA IGRA v2</b></td><td>Global, 1905–now</td><td>~1–2 day lag</td><td>Mandatory + significant</td></tr>
   </table>
   </div>
@@ -260,7 +261,12 @@
   before roughly 13:30 UTC — that is the floor on "real-time", not a delay in the app.
   A scheduled GitHub Actions job keeps the last four days of launches on a data branch the browser
   reads directly. North America comes from the Iowa Environmental Mesonet's RAOB feed (one request per
-  launch hour, well inside IEM's crawl delay). The rest of the world comes from the
+  launch hour, well inside IEM's crawl delay). Canada comes from Environment and Climate Change Canada's
+  <a href="https://dd.weather.gc.ca/" target="_blank" rel="noopener">MSC Datamart</a>: each upper-air
+  station posts its own high-resolution BUFR there, a first file to 100 hPa about an hour after launch and
+  the entire ascent about an hour later (corrections follow); the job lists only the station directories
+  that changed and keeps the richest file per launch, so the entire sounding replaces the partial one and a
+  WIS 2.0 relay of the same bulletin never replaces Canada's own copy. The rest of the world comes from the
   <a href="https://registry.opendata.aws/wis2-global-cache/" target="_blank" rel="noopener">WMO WIS 2.0
   Global Cache</a> on AWS Open Data: every hour the job lists the radiosonde BUFR messages the national
   services published (directly, and through the DWD and JMA gateways that re-publish the GTS), fetches
@@ -394,7 +400,7 @@
         <td>The record watch: compares each new sounding to its station's climatology.</td></tr>
     <tr><td><a href="https://github.com/scorvec/scorvec.github.io/blob/main/scripts/skewt/mirror_soundings.py" target="_blank" rel="noopener"><code>mirror_soundings.py</code></a>
         &middot; <a href="https://github.com/scorvec/scorvec.github.io/blob/main/scripts/skewt/archive_days.py" target="_blank" rel="noopener"><code>archive_days.py</code></a></td>
-        <td>Mirrors recent IEM and WMO WIS 2.0 launches, lists the stations NOAA IGRA v2's daily update refreshed, and bundles complete UTC days of the IEM launches into the permanent archive.</td></tr>
+        <td>Mirrors recent IEM, ECCC MSC Datamart and WMO WIS 2.0 launches, lists the stations NOAA IGRA v2's daily update refreshed, and bundles complete UTC days of the IEM launches into the permanent archive.</td></tr>
     <tr><td><a href="https://github.com/scorvec/scorvec.github.io/blob/main/.github/workflows/skewt-data.yml" target="_blank" rel="noopener"><code>skewt-data.yml</code></a></td>
         <td>The scheduled job: mirror → archive → flag → publish, hourly.</td></tr>
   </table>
@@ -421,7 +427,9 @@
   Built by Claude (Anthropic's Claude Fable 5), directed by Shawn Corvec. Physics by
   <a href="https://github.com/keltonhalbert/SHARPlib" target="_blank" rel="noopener">SHARPlib</a>
   (K. Halbert, NWS SPC lineage). Data from NOAA/NWS SPC; the Iowa Environmental Mesonet (IEM), Iowa State
-  University; the WMO WIS 2.0 Global Cache (AWS Open Data), core data under the WMO Unified Data Policy,
+  University; Data Source: Environment and Climate Change Canada (MSC Datamart), under the
+  <a href="https://eccc-msc.github.io/open-data/licence/readme_en/" target="_blank" rel="noopener">ECCC Data Servers End-use Licence</a>;
+  the WMO WIS 2.0 Global Cache (AWS Open Data), core data under the WMO Unified Data Policy,
   with the originating national meteorological services credited per sounding; and NOAA National Centers
   for Environmental Information, Integrated Global Radiosonde Archive v2 (IGRA). Not for operational use.
 </footer>

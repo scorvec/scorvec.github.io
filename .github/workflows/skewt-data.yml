@@ -3,7 +3,10 @@ name: Skew-T sounding mirror
 # Mirrors recent radiosonde soundings to the `skewt-data` branch for the
 # client-side Skew-T Explorer at /skewt/. Real-time North America from the Iowa
 # Environmental Mesonet (IEM RAOB JSON, one request per launch hour, spaced 121 s
-# for IEM's robots.txt Crawl-delay, at most 6 per run). Real-time rest of the
+# for IEM's robots.txt Crawl-delay, at most 6 per run). Real-time Canada from
+# Environment and Climate Change Canada's MSC Datamart (each station's own high-res
+# BUFR; today's and yesterday's directories, only changed ones re-listed, <= 200
+# small listings + 90 GETs per run, typically a few; non-fatal). Real-time rest of the
 # world from the WMO WIS 2.0 Global Cache on AWS Open Data (anonymous S3; ~35-40
 # ListObjects + at most 200 GETs of new BUFR messages per run, decoded with
 # ecCodes; failures there are non-fatal). Stations neither carries: one request
@@ -21,8 +24,9 @@ on:
   # Triggered hourly by the dispatcher (:50) plus four once-a-day schedule
   # callers as backstops. An hourly run is cheap: IEM is asked only about hour
   # slots not yet asked (state.json on the data branch), at most 6 requests per
-  # run (~1-4 MB); WIS2 fetches only keys not seen before (~3 MB of listings +
-  # ~5 MB of BUFR); the IGRA listing (~0.2 MB) at most every 3 h.
+  # run (~1-4 MB); ECCC lists only changed Datamart directories (~0-0.2 MB) and GETs
+  # only files that outrank what it holds (~0-5 MB); WIS2 fetches only keys not seen
+  # before (~3 MB of listings + ~5 MB of BUFR); the IGRA listing (~0.2 MB) at most every 3 h.
   workflow_call:
   workflow_dispatch:
     inputs:
@@ -78,7 +82,7 @@ jobs:
           # ecCodes (the PyPI wheel bundles the library) decodes the WIS2 BUFR. Non-fatal:
           # without it the mirror skips WIS2 and IEM/IGRA still publish.
           pip install --quiet eccodes && python -c "import eccodes; print('ecCodes', eccodes.codes_get_api_version())" \
-            || echo "::warning::ecCodes unavailable — WIS2 skipped this run"
+            || echo "::warning::ecCodes unavailable — WIS2 and ECCC skipped this run"
 
       - name: Mirror soundings
         env:
