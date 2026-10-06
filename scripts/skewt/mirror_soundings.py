@@ -818,6 +818,21 @@ def qc_levels(levels: list, stats: Counter, upper_part: bool = False) -> list | 
     psfc = max((L["p"] for L in levels if L["sig"] & SFC_BIT), default=None)
     if psfc:
         levels = [L for L in levels if L["p"] <= psfc + 0.5]
+    # physically impossible levels: warmer than +15 C above 600 hPa (the global 500 hPa maximum is
+    # near 0 C), or a reported height below one reported at a higher pressure (2026-10-06 Kolpasevo:
+    # two trailing levels at 493 hPa / 575 m / +47 C)
+    zmax, keep = -1e9, []
+    for L in sorted(levels, key=lambda L: -L["p"]):
+        if L["t"] is not None and L["p"] < 600 and L["t"] > 15:
+            stats["qc_hot_aloft"] += 1
+            continue
+        if L.get("h") is not None:
+            if L["h"] < zmax - 100:
+                stats["qc_height_order"] += 1
+                continue
+            zmax = max(zmax, L["h"])
+        keep.append(id(L))
+    levels = [L for L in levels if id(L) in set(keep)]
     th = [L for L in levels if L["t"] is not None]
     if len(th) < (3 if upper_part else WIS2_MIN_LEVELS):
         stats["qc_few"] += 1
@@ -857,14 +872,18 @@ def deep_superadiabatic(levels: list, depth: float = 300.0, lapse: float = 0.015
         z.append(z[-1] + 29.27 * ((a["t"] + b["t"]) / 2 + 273.15) * math.log(a["p"] / b["p"]))
     j = 0
     for i in range(len(th)):
-        if z[i] < 200:                            # a hot surface layer can be strongly superadiabatic
-            continue
-        while j < len(th) and z[j] - z[i] < depth:
+        # a hot surface layer can be strongly superadiabatic: a layer starting in the lowest 200 m
+        # must be >= 500 m deep and cool faster than 22 K/km to count
+        d, lr = (depth, lapse) if z[i] >= 200 else (500.0, 0.022)
+        j = max(j, i + 1)
+        while j < len(th) and z[j] - z[i] < d:
             j += 1
         if j >= len(th):
             break
-        if (th[i]["t"] - th[j]["t"]) / (z[j] - z[i]) > lapse:
+        if (th[i]["t"] - th[j]["t"]) / (z[j] - z[i]) > lr:
             return True
+        if z[i] < 200:
+            j = i + 1                             # the two windows differ: rescan for the next start
     return False
 
 
@@ -1841,6 +1860,8 @@ def main() -> int:
                     try:            # files written before the deep-superadiabatic check existed
                         if deep_superadiabatic(levels_from_csv(f.read_text())):
                             carried["dropped_superadiabatic"] += 1
+                            print(f"    dropped {fn} ({src}, {meta['fileby'].get(fn) or oldby.get(fn) or ''}): "
+                                  f"deep superadiabatic layer", flush=True)
                             continue
                     except Exception:                           # noqa: BLE001
                         pass
