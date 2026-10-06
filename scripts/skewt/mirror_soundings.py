@@ -769,10 +769,11 @@ def qc_levels(levels: list, stats: Counter, upper_part: bool = False) -> list | 
         stats["qc_top_only"] += 1
         return None
     srt = sorted(th, key=lambda L: -L["p"])
-    for a, b, c in zip(srt, srt[1:], srt[2:]):            # isolated spike vs both neighbours
-        if abs(b["t"] - a["t"]) > 15 and abs(b["t"] - c["t"]) > 15 and a["p"] - c["p"] < 100:
-            b["t"] = None
-            b["td"] = None
+    spikes = [b for a, b, c in zip(srt, srt[1:], srt[2:])   # isolated spike vs both neighbours
+              if abs(b["t"] - a["t"]) > 15 and abs(b["t"] - c["t"]) > 15 and a["p"] - c["p"] < 100]
+    for b in spikes:
+        b["t"] = None
+        b["td"] = None
     if sum(1 for L in levels if L["t"] is not None and L["p"] >= 20) < (3 if upper_part else WIS2_MIN_LEVELS):
         stats["qc_few"] += 1
         return None
@@ -862,12 +863,62 @@ def wis2_centres(state: dict, ctr: Counter) -> list:
     return list(WIS2_NATIVE) + [c for c in found if c not in WIS2_NATIVE]
 
 
+def wis2_subset(s: dict, c: dict, hints: list, by_wmo: dict, by_fn: dict, stats: Counter,
+                oldest: datetime) -> bool:
+    """QC one decoded subset; a usable launch goes into by_fn[file name] (False = skipped)."""
+    stats["subsets"] += 1
+    sid = s["wmo"]
+    if sid.startswith("?"):
+        sid = sid[1:]
+        if sid not in by_wmo:
+            stats["unknown_wsi"] += 1
+            return False
+    launch = s["launch"]
+    if launch > NOW + timedelta(hours=1) or launch < oldest:
+        stats["too_old_or_future"] += 1
+        return False
+    st = by_wmo.get(sid)
+    la, lo = s["la"], s["lo"]
+    if st:
+        if la is not None and lo is not None and (
+                abs(la - st["la"]) > 1.5 or
+                abs((lo - st["lo"] + 180) % 360 - 180) * math.cos(math.radians(st["la"])) > 1.5):
+            stats["position_mismatch"] += 1
+            return False
+        la, lo, elev, name = st["la"], st["lo"], st.get("e") or s["elev"] or 0, st["n"]
+    else:
+        if la is None or lo is None or not (-90 <= la <= 90 and -180 <= lo <= 360):
+            stats["no_position"] += 1
+            return False
+        lo = (lo + 180) % 360 - 180
+        elev, name = s["elev"] or 0, f"WMO {sid}"
+    levels = qc_levels(s["levels"], stats)
+    upper = False
+    if not levels and c["kind"] == "K":           # TEMP parts C/D: kept to merge only
+        levels = qc_levels(s["levels"], Counter(), upper_part=True)
+        upper = bool(levels)
+    if not levels:
+        return False
+    nom = nominal_hour(launch, hints + [s.get("typ")])
+    if nom < NOW - timedelta(hours=RETAIN_H):
+        return False
+    fn = f"{sid}_{_tag(nom)}.csv"
+    by_fn.setdefault(fn, []).append({
+        "sid": sid, "levels": levels, "launch": launch, "kind": c["kind"], "by": c["by"],
+        "la": la, "lo": lo, "elev": elev, "name": name, "rich": richness(levels), "upper": upper})
+    return True
+
+
 def run_wis2(outdir: Path, state: dict, by_wmo: dict, meta: dict) -> dict:
     """Mirror new WIS2 radiosonde launches into soundings/; returns {fn: sid} written."""
     t0 = time.time()
     ctr, stats = Counter(), Counter()
     w = state.setdefault("wis2", {})
+    if w.get("v") != 2:                # v1 (first day) marked keys seen, then a bug aborted: start over
+        w.pop("seen", None)
+        w["v"] = 2
     seen = w.setdefault("seen", {})                       # dedupe id -> LastModified (epoch h)
+    newseen = {}                       # merged into `seen` only after this run's files are written
     score = w.setdefault("score", {})                     # fn -> [complete, n, kind]
     dec = Wis2Decoder()                                   # ImportError -> caller skips WIS2
 
@@ -930,56 +981,27 @@ def run_wis2(outdir: Path, state: dict, by_wmo: dict, meta: dict) -> dict:
         except urllib.error.HTTPError as e:
             ctr["get_err"] += 1
             if e.code in (403, 404):                      # expired from the cache
-                seen[c["did"]] = int(c["lm"].timestamp() // 3600)
+                newseen[c["did"]] = int(c["lm"].timestamp() // 3600)
             continue
         except Exception:                                 # noqa: BLE001
             ctr["get_err"] += 1
             continue
         ctr["get"] += 1
         ctr["get_bytes"] += len(blob)
-        seen[c["did"]] = int(c["lm"].timestamp() // 3600)
+        newseen[c["did"]] = int(c["lm"].timestamp() // 3600)
         hints = [_hdr_time(c["hdr"][2], c["lm"])] if c["hdr"] else []
-        for s in dec.decode(blob, stats):
-            stats["subsets"] += 1
-            sid = s["wmo"]
-            if sid.startswith("?"):
-                sid = sid[1:]
-                if sid not in by_wmo:
-                    stats["unknown_wsi"] += 1
-                    continue
-            launch = s["launch"]
-            if launch > NOW + timedelta(hours=1) or launch < oldest:
-                stats["too_old_or_future"] += 1
-                continue
-            st = by_wmo.get(sid)
-            la, lo = s["la"], s["lo"]
-            if st:
-                if la is not None and lo is not None and (
-                        abs(la - st["la"]) > 1.5 or
-                        abs((lo - st["lo"] + 180) % 360 - 180) * math.cos(math.radians(st["la"])) > 1.5):
-                    stats["position_mismatch"] += 1
-                    continue
-                la, lo, elev, name = st["la"], st["lo"], st.get("e") or s["elev"] or 0, st["n"]
-            else:
-                if la is None or lo is None or not (-90 <= la <= 90 and -180 <= lo <= 360):
-                    stats["no_position"] += 1
-                    continue
-                lo = (lo + 180) % 360 - 180
-                elev, name = s["elev"] or 0, f"WMO {sid}"
-            levels = qc_levels(s["levels"], stats)
-            upper = False
-            if not levels and c["kind"] == "K":           # TEMP parts C/D: kept to merge only
-                levels = qc_levels(s["levels"], Counter(), upper_part=True)
-                upper = bool(levels)
-            if not levels:
-                continue
-            nom = nominal_hour(launch, hints + [s.get("typ")])
-            if nom < NOW - timedelta(hours=RETAIN_H):
-                continue
-            fn = f"{sid}_{_tag(nom)}.csv"
-            by_fn.setdefault(fn, []).append({
-                "sid": sid, "levels": levels, "launch": launch, "kind": c["kind"], "by": c["by"],
-                "la": la, "lo": lo, "elev": elev, "name": name, "rich": richness(levels), "upper": upper})
+        try:
+            subsets = dec.decode(blob, stats)
+        except Exception:                                 # noqa: BLE001
+            stats["decode_error"] += 1
+            subsets = []
+        for s in subsets:
+            try:
+                wis2_subset(s, c, hints, by_wmo, by_fn, stats, oldest)
+            except Exception as e:                        # noqa: BLE001 - one bad subset only
+                stats["process_error"] += 1
+                if stats["process_error"] <= 3:
+                    print(f"::warning::WIS2 {c['key'].rsplit('/', 1)[-1]}: {repr(e)[:120]}", flush=True)
 
     # 3. per station and launch hour keep the richest message; TEMP parts (IUK) merge -
     #    with each other and with parts already written by an earlier run
@@ -1025,6 +1047,7 @@ def run_wis2(outdir: Path, state: dict, by_wmo: dict, meta: dict) -> dict:
         got[fn] = best["sid"]
         ctr["by_" + best["kind"]] += 1
 
+    seen.update(newseen)
     # bookkeeping: forget keys past the cache's retention, scores of files no longer held
     cut = int((NOW - timedelta(hours=WIS2_SEEN_H)).timestamp() // 3600)
     for k in [k for k, v in seen.items() if v < cut]:
