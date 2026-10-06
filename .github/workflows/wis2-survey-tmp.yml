@@ -43,7 +43,7 @@ jobs:
         env:
           SURVEY_OUT: /tmp/survey-out
           SURVEY_MAX_DL: ${{ inputs.max_dl }}
-        run: python scripts/skewt/wis2_survey_tmp.py
+        run: s=0; python scripts/skewt/wis2_survey_tmp.py 2> /tmp/survey-err.txt || s=$?; grep -c . /tmp/survey-err.txt || true; sort /tmp/survey-err.txt | uniq -c | sort -rn | head -20; exit $s
       - uses: actions/upload-artifact@v4
         if: always()
         with:

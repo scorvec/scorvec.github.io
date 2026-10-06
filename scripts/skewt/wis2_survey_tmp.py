@@ -238,9 +238,9 @@ def decode(blob):
                         sub = []
                         for k in range(1, n + 1):
                             try:
+                                ec.codes_set(h, "extractSubset", k)
+                                ec.codes_set(h, "doExtractSubsets", 1)
                                 h2 = ec.codes_clone(h)
-                                ec.codes_set(h2, "extractSubset", k)
-                                ec.codes_set(h2, "doExtractSubsets", 1)
                                 ec.codes_set(h2, "unpack", 1)
                                 sub.append(summarise(h2))
                                 ec.codes_release(h2)
@@ -355,7 +355,10 @@ def jma_cache():
         for t in top[:3]:
             sub, _ = ls(t, bucket=b, client=c, maxpages=1)
             print(f"   {t}: {len(sub)} prefixes, e.g. {sub[:12]}", flush=True)
-        for pre in ("data/de-dwd-gts-to-wis2/data/core/I/U/", "cache/a/wis2/de-dwd-gts-to-wis2/data/core/I/U/"):
+        sub, _ = ls("wis2/data/", bucket=b, client=c)
+        print(f"   wis2/data/: {len(sub)} centres: {' '.join(seg(x) for x in sub)}", flush=True)
+        for pre in ("wis2/data/de-dwd-gts-to-wis2/data/core/I/U/S/", "wis2/data/jp-jma-gts-to-wis2/data/core/I/U/S/",
+                    "wis2/data/br-inmet/data/core/weather/surface-based-observations/temp/"):
             _, o = ls(pre, delim=None, bucket=b, client=c, maxpages=20)
             if o:
                 lms = [x["LastModified"] for x in o]
@@ -364,11 +367,50 @@ def jma_cache():
         print(f"   JMA cache check failed: {repr(e)[:160]}", flush=True)
 
 
+GW = ["de-dwd-gts-to-wis2", "jp-jma-gts-to-wis2"]
+NATIVE_EXTRA = ["data/kr-kma/data/core/weather/experimental/temp-drop/"]
+
+
+def targeted():
+    """Run 1 mapped the whole bucket (1003 list requests); radiosondes live only in
+    the gateways' I/U/<A1>/ trees and in each centre's .../surface-based-observations/temp/."""
+    centres = [seg(c) for c in ls("data/")[0]]
+    files, counts = [], {}
+    for c in GW:
+        for a1 in ("K", "S", "J", "D", "E"):
+            pre = f"data/{c}/data/core/I/U/{a1}/"
+            n0 = NREQ["list"]
+            _, objs = ls(pre, delim=None)
+            dirs = {"/".join(o["Key"].split("/")[6:9]) for o in objs}
+            counts[pre] = len(objs)
+            print(f"== {pre}: {len(objs)} objects in {NREQ['list'] - n0} req, {len(dirs)} A2ii/CCCC dirs", flush=True)
+            for o in objs:
+                files.append(dict(key=o["Key"], size=o["Size"], lm=o["LastModified"],
+                                  src=c, kind="gts-" + c.split("-")[1], a1=a1))
+    for c in centres:
+        if c in GW:
+            continue
+        pre = f"data/{c}/data/core/weather/surface-based-observations/temp/"
+        _, objs = ls(pre, delim=None)
+        if objs:
+            print(f"== native {pre}: {len(objs)} objects", flush=True)
+            for o in objs:
+                files.append(dict(key=o["Key"], size=o["Size"], lm=o["LastModified"], src=c,
+                                  kind="native", a1="native"))
+    for pre in NATIVE_EXTRA:
+        _, objs = ls(pre, delim=None)
+        print(f"== native {pre}: {len(objs)} objects", flush=True)
+        for o in objs:
+            files.append(dict(key=o["Key"], size=o["Size"], lm=o["LastModified"], src=pre.split("/")[1],
+                              kind="native", a1="drop"))
+    return centres, files
+
+
 def main():
     t0 = time.time()
     jma_cache()
-    centres, gw, native, leaves = discover()
-    files = list_upper_air(gw, leaves)
+    centres, files = targeted()
+    leaves = []
     if not files:
         print("no upper-air files found", flush=True)
     lms = [f["lm"] for f in files]
@@ -384,12 +426,28 @@ def main():
         print(f"   size: median {stx.median(sizes):.0f} B, p90 {pct(sizes, .9)} B, max {max(sizes)} B, "
               f"total {sum(sizes) / 1e6:.1f} MB", flush=True)
     # A1 breakdown in the GTS tree
-    a1c = Counter((f["key"].split("/")[6] if f["kind"] == "gts" else "native") for f in files)
-    print("   by T1T2A1:", dict(a1c), flush=True)
+    a1c = Counter((f["kind"], f["a1"]) for f in files)
+    print("   by kind/A1:", dict(a1c), flush=True)
+    a24 = defaultdict(lambda: [0, 0])
+    for f in files:
+        if f["lm"] >= NOW - timedelta(hours=24):
+            a24[(f["kind"], f["a1"])][0] += 1
+            a24[(f["kind"], f["a1"])][1] += f["size"]
+    print("   last 24 h by kind/A1 (files, MB):", {k: (v[0], round(v[1] / 1e6, 1)) for k, v in a24.items()})
+    per_src = Counter(f["src"] for f in files if f["kind"] == "native" and f["lm"] >= NOW - timedelta(hours=24))
+    print("   native last 24 h per centre:", dict(per_src))
 
     # last 24 h
-    win = [f for f in files if f["lm"] >= NOW - timedelta(hours=24)]
+    win = [f for f in files if f["lm"] >= NOW - timedelta(hours=24) and f["a1"] in ("K", "S", "native", "drop")]
     win.sort(key=lambda f: f["key"])
+    capped, seen_src = [], Counter()
+    for f in sorted(win, key=lambda f: f["lm"], reverse=True):
+        if f["kind"] == "native":
+            seen_src[f["src"]] += 1
+            if seen_src[f["src"]] > 1200:
+                continue
+        capped.append(f)
+    win = sorted(capped, key=lambda f: f["key"])
     tot = sum(f["size"] for f in win)
     print(f"== last 24 h: {len(win)} files, {tot / 1e6:.1f} MB", flush=True)
     take = win
@@ -415,7 +473,8 @@ def main():
             if err:
                 errs[err[:60]] += 1
             for s in subs:
-                s.update(key=f["key"], src=f["src"], kind=f["kind"], lm=f["lm"].isoformat(), size=f["size"])
+                s.update(key=f["key"], src=f["src"], kind=f["kind"], a1=f["a1"], lm=f["lm"].isoformat(),
+                         size=f["size"])
                 nom = nominal_from_name(f["key"], f["lm"])
                 s["nom"] = nom.isoformat() if nom else None
                 recs.append(s)
@@ -531,12 +590,33 @@ def report(recs, files, take):
           f"native-only {sum(all(x.startswith('native') for x in v) for v in srcs.values())}, "
           f"gts-only {sum(all(x.startswith('gts') for x in v) for v in srcs.values())}")
     print("messages per station-time:", dict(sorted(Counter(min(v, 10) for v in nmsg.values()).items())))
+    kinds = defaultdict(set)
+    for r in rec24:
+        kinds[(r["sid"], r["bucket"])].add(r["kind"])
+    print("kind combos per station-time:", Counter(tuple(sorted(v)) for v in kinds.values()).most_common())
+    for kk in ("gts-dwd", "gts-jma", "native"):
+        print(f"  station-times reachable via {kk}: {sum(kk in v for v in kinds.values())}; "
+              f"ONLY via {kk}: {sum(v == {kk} for v in kinds.values())}")
+    # A1 split: TAC-converted K parts vs S entire soundings
+    a1lev = defaultdict(list)
+    for r in rec24:
+        a1lev[r["a1"]].append(r["nlev"])
+    for a, xs in a1lev.items():
+        print(f"  levels per message [{a}]: n={len(xs)} median {stx.median(xs)} p10 {pct(xs, .1)} p90 {pct(xs, .9)}; "
+              f">=150: {sum(x >= 150 for x in xs)}")
+    # first arrival of any message vs of the best one, per station-time
+    fa, fb = [], []
+    for k, r in best.items():
+        ts = [datetime.fromisoformat(x["lm"]) for x in rec24 if (x["sid"], x["bucket"]) == k]
+        fa.append((min(ts) - k[1]).total_seconds() / 60)
+    print(f"first arrival (any message) after synoptic hour, min: p10 {pct(fa, .1):.0f} median {pct(fa, .5):.0f} "
+          f"p90 {pct(fa, .9):.0f}")
     combos = Counter(tuple(sorted(v)) for v in srcs.values())
     print("source combos:", combos.most_common(12))
     # gts vs native level comparison for overlap
     cmpl = []
     for k in both:
-        g = max((r["nlev"] for r in rec24 if (r["sid"], r["bucket"]) == k and r["kind"] == "gts"), default=0)
+        g = max((r["nlev"] for r in rec24 if (r["sid"], r["bucket"]) == k and r["kind"].startswith("gts")), default=0)
         n = max((r["nlev"] for r in rec24 if (r["sid"], r["bucket"]) == k and r["kind"] == "native"), default=0)
         cmpl.append((g, n))
     if cmpl:
