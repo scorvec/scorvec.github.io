@@ -529,7 +529,8 @@ WIS2_CCCC.update({
     "SBBR": "DECEA / INMET (Brazil)", "SGAS": "DINAC-DMH (Paraguay)", "SKBO": "IDEAM (Colombia)",
     "UBBB": "National Hydrometeorological Service (Azerbaijan)", "UGEE": "Hydromet Service (Armenia)",
     "UKMS": "Ukrainian Hydrometeorological Center", "UMMN": "Belhydromet (Belarus)", "VBRR": "DMH (Myanmar)",
-    "VNNN": "DHM (Nepal)", "WBSB": "Brunei Darussalam Meteorological Department", "WIIX": "BMKG (Indonesia)",
+    "VNNN": "Viet Nam Meteorological and Hydrological Administration",
+    "MNUB": "NAMEM (Mongolia)", "DKPY": "Korea Meteorological Administration", "WBSB": "Brunei Darussalam Meteorological Department", "WIIX": "BMKG (Indonesia)",
     "WMKK": "MetMalaysia", "DTTA": "INM (Tunisia)",
 })
 # Canadian upper-air stations bulletin under their own indicator (MSC Datamart IU/ tree, 2026-10-06);
@@ -837,7 +838,34 @@ def qc_levels(levels: list, stats: Counter, upper_part: bool = False) -> list | 
     if sum(1 for L in levels if L["t"] is not None and L["p"] >= 20) < (3 if upper_part else WIS2_MIN_LEVELS):
         stats["qc_few"] += 1
         return None
+    if deep_superadiabatic(levels):
+        stats["qc_superadiabatic"] += 1
+        return None
     return levels
+
+
+def deep_superadiabatic(levels: list, depth: float = 300.0, lapse: float = 0.015) -> bool:
+    """True when the troposphere (above the lowest 200 m) cools faster than 15 K/km over a layer >= 300 m
+    deep (dry adiabatic
+    is 9.8 K/km; nature never sustains that). Catches mis-coded temperatures that pass every
+    per-level check - e.g. PAGASA BUFR 2026-10-06 with Davao at -4.3 C at 850 hPa."""
+    th = sorted((L for L in levels if L["t"] is not None and L["p"] >= 100), key=lambda L: -L["p"])
+    if len(th) < 3:
+        return False
+    z = [0.0]
+    for a, b in zip(th, th[1:]):                  # hypsometric thickness from T alone
+        z.append(z[-1] + 29.27 * ((a["t"] + b["t"]) / 2 + 273.15) * math.log(a["p"] / b["p"]))
+    j = 0
+    for i in range(len(th)):
+        if z[i] < 200:                            # a hot surface layer can be strongly superadiabatic
+            continue
+        while j < len(th) and z[j] - z[i] < depth:
+            j += 1
+        if j >= len(th):
+            break
+        if (th[i]["t"] - th[j]["t"]) / (z[j] - z[i]) > lapse:
+            return True
+    return False
 
 
 def standalone(levels: list) -> bool:
@@ -1416,7 +1444,7 @@ TAC_GATEWAY = "de-dwd-gts-to-wis2"
 TAC_TREES = ("S", "K", "L", "E")
 TAC_PART = {"S": "A", "K": "B", "L": "C", "E": "D"}
 TAC_HDR_RE = re.compile(r"(?:^|_)(U[SKLE][A-Z]{2}\d{2})([A-Z]{4})(\d{6})([A-Z]{3})?(?=[_.]|$)")
-TAC_MAX_GET = int(os.environ.get("SKEWT_TAC_MAX_GET", 400))
+TAC_MAX_GET = int(os.environ.get("SKEWT_TAC_MAX_GET", 600))
 TAC_MAX_LIST = int(os.environ.get("SKEWT_TAC_MAX_LIST", 16))
 TAC_MAX_S = float(os.environ.get("SKEWT_TAC_MAX_S", 200))
 TAC_MIN_SIZE = 50                 # smaller files are "TTAA 5506/ 61024 NIL=" placeholders
@@ -1809,6 +1837,13 @@ def main() -> int:
             except (IndexError, ValueError):
                 continue
             if ts >= cutoff and f.exists():
+                if src != "IEM":
+                    try:            # files written before the deep-superadiabatic check existed
+                        if deep_superadiabatic(levels_from_csv(f.read_text())):
+                            carried["dropped_superadiabatic"] += 1
+                            continue
+                    except Exception:                           # noqa: BLE001
+                        pass
                 shutil.copyfile(f, outdir / "soundings" / fn)
                 meta["filesrc"][fn] = src
                 if src == "WIS2":
@@ -1818,7 +1853,8 @@ def main() -> int:
                 elif src == "ECCC":
                     meta["fileby"][fn] = "ECCC"
                 carried[src] += 1
-        print(f"  carried forward {sum(carried.values())} launch file(s) {dict(carried)}", flush=True)
+        print(f"  carried forward {sum(v for k, v in carried.items() if not k.startswith('dropped'))} "
+              f"launch file(s) {dict(carried)}", flush=True)
     else:
         print("  no previous state from this pipeline — starting fresh", flush=True)
 
