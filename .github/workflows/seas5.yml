@@ -80,6 +80,7 @@ jobs:
       - name: Resolve the issue and decide whether to run
         id: gate
         run: |
+          echo "JOB_T0=$(date +%s)" >> "$GITHUB_ENV"     # job start, for the hindcast budget below
           I="${{ inputs.issue }}"; [ -n "$I" ] || I=$(date -u +%Y%m)
           D=$((10#$(date -u +%d)))
           prev() { local y=${1:0:4} m=$((10#${1:4:2})); m=$((m-1)); [ $m -eq 0 ] && { y=$((y-1)); m=12; }; printf '%04d%02d' $y $m; }
@@ -193,12 +194,31 @@ jobs:
           [ $rc -eq 0 ] || { echo "::error::forecast fetch failed"; exit 1; }
           echo "ready=1" >> "$GITHUB_OUTPUT"
 
+      # 2026-10-06: saved right after the fetch, not only by the restore step's post-job save - a job killed by its timeout
+      # later on runs no post steps, and the next run would download this issue's forecasts again
+      - name: Save this issue's forecast GRIBs now
+        if: steps.gate.outputs.run == '1' && steps.fetch.outputs.ready == '1'
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            scripts/sst/data/seas5/forecast/*_${{ steps.gate.outputs.issue }}.grib
+            scripts/sst/data/seas5/sixh/*_${{ steps.gate.outputs.issue }}*.grib
+            scripts/sst/data/seas5/regimes/fc_*_${{ steps.gate.outputs.issue }}.grib
+          key: seas5-fc-${{ steps.gate.outputs.issue }}-${{ github.run_id }}-fetched
+
       # Only while a table for this start month is missing: fetch that raw hindcast kind, reduce it,
       # delete it. Uploaded straight away (next step) so a later timeout cannot lose the work.
       - name: Hindcast tables for start month ${{ steps.gate.outputs.month }} (one-time per start month)
         if: steps.gate.outputs.run == '1' && steps.fetch.outputs.ready == '1'
         run: |
-          TABLES_FETCH=1 BUDGET_MIN="${{ inputs.budget_min || '200' }}" \
+          # 2026-10-06: the budget is capped by the time the JOB has left (timeout 340 min) minus 75 min for an in-flight CDS
+          # fetch, the build and the commit - a 200-min budget that started 3 h into the job would have been killed by the
+          # job timeout before the products were built. Tables still missing are picked up by the next run.
+          LEFT=$(( 340 - ( $(date +%s) - ${JOB_T0:-$(date +%s)} ) / 60 - 75 ))
+          B="${{ inputs.budget_min || '200' }}"; [ "$LEFT" -lt "$B" ] && B=$LEFT
+          echo "hindcast budget ${B} min (job time left after margin: ${LEFT} min)"
+          if [ "$B" -le 5 ]; then echo "::warning::no time left for hindcast tables this run - building with what is there"; exit 0; fi
+          TABLES_FETCH=1 BUDGET_MIN="$B" \
             scripts/sst/run_seas5.sh tables "${{ steps.gate.outputs.issue }}" || echo "::warning::some hindcast tables are still missing"
 
       - name: Upload new hindcast tables
