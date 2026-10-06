@@ -575,11 +575,19 @@ def _global_map(field, lat, lon, var, levels, cmap, cstep, title, sub, cb_label,
         ax.set_extent([-180, 180, lat0, lat1], crs=proj)
     ax.add_feature(cfeature.LAND, facecolor="#f1f0eb", zorder=0)
     norm = BoundaryNorm(levels, len(levels) - 1)
-    m = ax.contourf(lon_c, lat, np.ma.masked_invalid(d_c), levels=levels, cmap=plt.get_cmap(cmap, len(levels) - 1), norm=norm,
-                    extend="both", transform=pc, zorder=1)
+    # 2026-10-06: cartopy 0.25 + shapely 2.1 can fail projecting a masked contour set ("'GeometryCollection' object is not
+    # subscriptable" in _rings_to_multi_polygon; the October SST maps hit it). Retry contouring in projected space.
+    LON2, LAT2 = np.meshgrid(lon_c, lat)
+    def _cf(fn, *a, **k):
+        try:
+            return fn(lon_c, lat, *a, **k)
+        except TypeError:
+            return fn(LON2, LAT2, *a, transform_first=True, **k)
+    m = _cf(ax.contourf, np.ma.masked_invalid(d_c), levels=levels, cmap=plt.get_cmap(cmap, len(levels) - 1), norm=norm,
+            extend="both", transform=pc, zorder=1)
     if cstep:
         cl = [x for x in np.arange(-6, 6.01, cstep) if abs(x) > 1e-9]
-        cs = ax.contour(lon_c, lat, np.ma.masked_invalid(d_c), levels=cl, colors="#333", linewidths=0.35, transform=pc, zorder=2)
+        cs = _cf(ax.contour, np.ma.masked_invalid(d_c), levels=cl, colors="#333", linewidths=0.35, transform=pc, zorder=2)
         ax.clabel(cs, fontsize=5.5, fmt=lambda v: f"{v:+.2g}", inline=True, inline_spacing=2)
     if var in ("t2m", "tp", "sf", "sd", "sdp"):
         ax.add_feature(cfeature.OCEAN, facecolor="#ffffff", zorder=2); ax.add_feature(cfeature.LAKES, facecolor="#ffffff", zorder=2)
