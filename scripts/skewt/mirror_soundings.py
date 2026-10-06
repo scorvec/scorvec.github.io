@@ -504,7 +504,7 @@ NA_CCCC = {"KWBC", "CWAO", "CWUL"}       # North America: IEM's ground, fetched 
 # hub (2026-10-06: Bogota's IDEAM sounding arrives in a KWBC bulletin)
 RELAY_HOME = {
     "KWBC": {"US", "RQ", "GQ", "AQ", "VQ", "CQ", "RM", "FM", "PS", "AY", "WQ", "JQ"},
-    "AMMC": {"AS", "AY", "CK", "KT", "NF"},
+    "AMMC": {"AS", "AY", "CK", "KT", "NF", "AT", "HM"},
     "NFFN": {"FJ"},
     "EGRR": {"UK", "FK", "SH", "GI", "AY", "BD"},
     "LFPW": {"FR", "FP", "NC", "RE", "GP", "MB", "FG", "SB", "WF", "AY", "FS"},
