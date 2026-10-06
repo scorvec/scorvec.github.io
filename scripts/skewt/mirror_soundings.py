@@ -903,6 +903,10 @@ def wis2_centres(state: dict, ctr: Counter) -> list:
     return list(WIS2_NATIVE) + [c for c in found if c not in WIS2_NATIVE]
 
 
+# Active stations missing from stations.json (no IGRA history yet), named from their BUFR position
+EXTRA_NAMES = {"73140": "Chibougamau Ua; Que"}      # 49.78 N 74.53 W, ECCC CGCB (2026-10-06)
+
+
 def bbb_rank(bbb) -> int:
     """Correction rank of a GTS BBB indicator: CCA/AAA 1, CCB/AAB 2...; original or RRx (late) 0."""
     return ord(bbb[2]) - 64 if bbb and bbb[:2] in ("CC", "AA") and "A" <= bbb[2] <= "Z" else 0
@@ -951,7 +955,7 @@ def take_subset(s: dict, c: dict, hints: list, by_wmo: dict, by_fn: dict, stats:
             stats["no_position"] += 1
             return False
         lo = (lo + 180) % 360 - 180
-        elev, name = s["elev"] or 0, f"WMO {sid}"
+        elev, name = s["elev"] or 0, EXTRA_NAMES.get(sid, f"WMO {sid}")
     levels = qc_levels(s["levels"], stats)
     upper = False
     if not levels and c["kind"] == "K":           # TEMP parts C/D: kept to merge only
@@ -1338,6 +1342,10 @@ def run_eccc(outdir: Path, state: dict, by_wmo: dict, meta: dict) -> dict:
     for fn in got:
         for f, launch in fetched.get(fn, []):
             lat[f["kind"]].append((f["lm"] - launch).total_seconds() / 60)
+    late = [f"{fn[:-4]} {f['name'][:6]} +{(f['lm'] - launch).total_seconds() / 3600:.0f} h"
+            for fn in got for f, launch in fetched.get(fn, []) if (f["lm"] - launch).total_seconds() > 6 * 3600]
+    if late:
+        print(f"  ECCC posted > 6 h after launch (backfill/corrections): {', '.join(late[:12])}", flush=True)
     med = lambda v: sorted(v)[len(v) // 2] if v else None          # noqa: E731
     for k, nm in (("H", "IUK to 100 hPa"), ("S", "IUS entire")):
         if lat[k]:
