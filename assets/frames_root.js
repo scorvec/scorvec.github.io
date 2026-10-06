@@ -24,7 +24,7 @@
   // separate first stage: a failure, or no answer within CDN_STALL_MS, hands the frame to the RAW / jsDelivr chain below
   // unchanged, and two failures park the tab on that chain for 30 min. Unpinned frames skip it (a branch path would be
   // cached stale for a year).
-  var CDN = "https://scorvec-frames.b-cdn.net/", CDN_STALL_MS = 6000;
+  var CDN = "https://frames.scorvec.com/", CDN_STALL_MS = 6000;           // = scorvec-frames.b-cdn.net (CNAME, Let's Encrypt)
   var cdnBad = 0, cdnServed = false;
   try { var cb = +(sessionStorage.getItem("frameCdnBad") || 0); if (cb && Date.now() - cb < 30 * 60 * 1000) cdnBad = 2; } catch (e) {}
   window.FRAME_ROOT_CDN = CDN;
