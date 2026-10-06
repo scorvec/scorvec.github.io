@@ -20,7 +20,8 @@ always names the one you're looking at, so you're never guessing.
 |---|---|---|---|---|
 | **SPC observed** (`spc.noaa.gov/exper/soundings`) | US | Fastest — ~1 h post-synoptic | ~110–200 levels | ✅ |
 | **IEM RAOB** (`mesonet.agron.iastate.edu`) | US + Canada | ~1 h behind SPC | ~180–250 levels | ✅ |
-| **Mirror** (IEM real time, on `skewt-data`) | North America | hourly | As received, thinned to 260 | ✅ (raw.githubusercontent) |
+| **WMO WIS 2.0 Global Cache** (`s3://wis2globalcache`, AWS Open Data) | Global, ~550 stations/day | ~2 h after launch | Mostly high-res BUFR | — (via the mirror) |
+| **Mirror** (IEM + WIS 2.0 real time, on `skewt-data`) | Global | hourly | As received, thinned to 260 | ✅ (raw.githubusercontent) |
 | **NOAA IGRA v2** (`ncei.noaa.gov`) | Global, 1905–present | ~1–2 day lag | Mandatory + significant levels | ✅ |
 
 ### The physics floor on "real-time"
@@ -41,15 +42,25 @@ work outside North America, where no CORS-open real-time feed exists. A GitHub A
 
 - **North America, real time:** the Iowa Environmental Mesonet RAOB JSON, *one* request per launch
   hour for all stations (each hour slot asked at most 2–3 times, ≥121 s apart for IEM's crawl delay).
-- **Rest of the world, ~1 day behind — on demand:** the mirror downloads NO IGRA data. It reads only
+- **Rest of the world, real time:** the WMO WIS 2.0 Global Cache on AWS Open Data (anonymous S3,
+  ~72 h retention). Each run lists the DWD and JMA GTS gateways' `I/U/S` and `I/U/K` radiosonde trees
+  and ~25 national centres' `.../surface-based-observations/temp/` topics (~36 ListObjects), GETs only
+  keys not seen before (≤ 200 per run, byte-identical gateway copies fetched once), decodes the BUFR
+  with ecCodes and keeps, per station and nominal launch hour, the richest QC-passed message (TEMP
+  parts merge). Manifest entries get `src: "WIS2"`, `by` (originating centre; `HUB@FIPS` when a GTS hub
+  relayed another country's sounding) and `hx` per launch; `centres` names them. IEM keeps North
+  America: WIS2 never overwrites an IEM file. Core data under the WMO Unified Data Policy; the
+  originating national service is credited per sounding.
+- **Stations neither feed carries, ~1 day behind — on demand:** the mirror downloads NO IGRA data. It reads only
   the y2d directory listing at `ncei.noaa.gov/pub/data/igra/data/data-y2d/` (one ~0.2 MB request, at
   most every 3 h) and remembers each file's size; a file that grew at NCEI's daily update (~21:40 UTC)
   holds new launches, so that station is listed with `src: "IGRA"`, `dt: null` and `upd` (the update
   time) and drawn teal, never live. Opening it makes the BROWSER fetch that one station's year-to-date
   zip from NCEI (CORS-open, ~0.2–3 MB) and show the newest launch.
 
-It force-pushes the last 96 h of IEM launches to the `skewt-data` branch, which `raw.githubusercontent.com`
-serves CORS-open. Complete UTC days (two days back, once IEM's late stations are in) are additionally bundled
+It force-pushes the last 96 h of IEM and WIS2 launches to the `skewt-data` branch, which `raw.githubusercontent.com`
+serves CORS-open (the parentless push is seeded with the previous tip, so only new files upload). Complete UTC
+days of the IEM launches (two days back, once IEM's late stations are in) are additionally bundled
 into `day-YYYYMMDD.zip` on an append-only `skewt-archive` branch that the browser fetches and unzips
 client-side with `fflate`.
 
@@ -292,7 +303,7 @@ scripts/skewt/
   climo_cape.cpp    native build of the SAME wrapper, for the climatology
   build_climo.py    per-station climatology builder
   flag_anomalies.py record-watch: compares each latest sounding to its climatology
-  mirror_soundings.py  recent-launch mirror (IEM real time; NOAA IGRA v2 listing only)
+  mirror_soundings.py  recent-launch mirror (IEM + WMO WIS 2.0 real time; NOAA IGRA v2 listing only)
 
 branches (data, served CORS-open via raw.githubusercontent.com)
   skewt-data     latest soundings + manifest + anomalies.json   (force-pushed hourly)
@@ -308,11 +319,14 @@ branches (data, served CORS-open via raw.githubusercontent.com)
   require complete, quality-gated soundings. Check `n` before leaning on a percentile.
 - IGRA's historical vertical resolution is coarser than modern BUFR, so a 1960 hodograph is
   genuinely less detailed than today's — not a rendering artifact.
-- SPC coverage is US-only; Canada falls back to IEM; the rest of the world comes from NOAA IGRA v2's
-  daily update, so outside North America the newest sounding is about a day old.
+- SPC coverage is US-only; Canada falls back to IEM; the rest of the world comes from the WMO WIS 2.0
+  Global Cache (~2 h after launch). Stations that publish nothing to WIS 2.0 (~120 of the IGRA-active
+  ones in the 2026-10-06 survey) still come from NOAA IGRA v2's daily update, about a day old.
 
 ---
 
 *Built by Claude (Anthropic), directed by Shawn Corvec. Physics by SHARPlib (K. Halbert, NWS SPC).
-Data from NOAA/NWS SPC; the Iowa Environmental Mesonet (IEM), Iowa State University; and NOAA National
-Centers for Environmental Information, Integrated Global Radiosonde Archive v2 (IGRA).*
+Data from NOAA/NWS SPC; the Iowa Environmental Mesonet (IEM), Iowa State University; the WMO WIS 2.0
+Global Cache (AWS Open Data; core data under the WMO Unified Data Policy, originating national
+meteorological services credited per sounding); and NOAA National Centers for Environmental
+Information, Integrated Global Radiosonde Archive v2 (IGRA).*
