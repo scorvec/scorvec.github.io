@@ -129,6 +129,7 @@ PREVIOUS_FULL = list(KINDS)
 
 
 CDS_BUSY = False           # set when the CDS rejected a request as throttled (queue limit), see _retrieve
+CDS_MARS = False           # set when MARS answered "please check your selection" (not yet ingested - or a bad request)
 
 
 def _client():
@@ -151,7 +152,7 @@ def _retrieve(kind: str, years: list[str], month: str, dest: Path) -> bool:
     if "pressure_level" in k:
         req["pressure_level"] = k["pressure_level"]
     tmp = dest.with_suffix(f".part{os.getpid()}")                    # parallel fetchers never share a partial file
-    global CDS_BUSY
+    global CDS_BUSY, CDS_MARS
     attempt, tries = 0, 3
     while attempt < tries:
         t0 = time.time()
@@ -172,6 +173,8 @@ def _retrieve(kind: str, years: list[str], month: str, dest: Path) -> bool:
                 print(f"    {kind} {month}: no data on the CDS — skipped ({msg[:80]})", flush=True)
                 return False
             print(f"    {kind} {month}: attempt {attempt + 1} failed ({msg[:600]})", flush=True)
+            if "check your selection" in msg.lower() or "marsruntimeerror" in msg.lower():
+                CDS_MARS = True
             # Release day (2026-10-05 18:59): "Number queued requests for this dataset is temporarily limited" - the
             # CDS throttling everyone pulling the new issue, not a missing issue. Back off for minutes, not seconds,
             # and give it 5 tries (~50 min); the caller reports "busy" rather than "not on the CDS yet".
@@ -217,8 +220,16 @@ def fetch(ym: str, n_prev: int = 0, kinds=None) -> dict:
     for kind in want:
         got[("fc", kind, ym)] = _retrieve(kind, [ym[:4]], month, fc_path(kind, ym))
         if kind == "sst" and kinds is None and not got[("fc", kind, ym)]:
+            import datetime as _dtm
+            day = _dtm.datetime.now(_dtm.timezone.utc).day if ym == _dtm.datetime.now(_dtm.timezone.utc).strftime("%Y%m") else 99
             if CDS_BUSY:
                 print(f"SEAS5 {ym}: the CDS is busy (queued requests for this dataset are throttled) — retry later", flush=True)
+            elif CDS_MARS and day >= 7:
+                # 2026-10-06: on the 5th/6th a MARS "check your selection" means the issue is not ingested yet; from the 7th
+                # on it more likely means the request itself is wrong (new system number, renamed variable, area/grid) -
+                # say so loudly instead of the quiet "not on the CDS yet" (run_seas5.sh turns this into a failed step)
+                print(f"SEAS5 {ym}: MARS still rejects the request two days after the release — CHECK THE REQUEST "
+                      f"(system {SYSTEM}, variables, area/grid against the CDS form)", flush=True)
             else:
                 print(f"SEAS5 {ym} is not on the CDS yet — nothing more to do", flush=True)
             return got

@@ -77,6 +77,23 @@ def obs_ref(name: str) -> Path:
     return REF / f"obs_{name}.npz"
 
 
+def _upload_now(month: str, since: float) -> None:
+    """2026-10-06: each new hindcast table goes to the reference release as soon as it is built (Actions sets
+    SEAS5_REF_UPLOAD_TAG + GH_TOKEN), so a job killed later by its timeout cannot lose finished tables. Best-effort:
+    the workflow's own upload step after the tables step uploads anything this missed."""
+    tag = os.environ.get("SEAS5_REF_UPLOAD_TAG")
+    if not tag or not os.environ.get("GH_TOKEN"):
+        return
+    import subprocess
+    new = [str(p) for p in REF.glob(f"hc_*_{month}.npz") if p.stat().st_mtime >= since - 1]
+    if not new:
+        return
+    r = subprocess.run(["gh", "release", "upload", tag, "--repo", os.environ.get("GITHUB_REPOSITORY", ""), "--clobber", *new],
+                       capture_output=True, text=True)
+    print(f"    uploaded to release {tag}: {', '.join(Path(x).name for x in new)}" if r.returncode == 0
+          else f"    release upload failed (the workflow step retries): {r.stderr.strip()[:200]}", flush=True)
+
+
 def save(path: Path, meta: dict | None = None, **arrays) -> Path:
     """Atomic compressed npz; `meta` (JSON-able) rides along as the __meta__ entry."""
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -194,8 +211,10 @@ def derive_hindcast(month: str, fetch: bool = False, discard_raw: bool = False, 
         if not ok:
             print(f"  {u} {month}: raw fetch failed — skipped", flush=True); left.append(u); continue
         print(f"  deriving {u} {month} ({m}) …", flush=True)
+        t_u = time.time()
         try:
             spec["fn"](month)
+            _upload_now(month, t_u)
         except Exception as e:                                          # noqa: BLE001 — one unit must not sink the rest
             print(f"  {u} {month}: derive FAILED ({str(e)[:200]})", flush=True); left.append(u)
         if discard_raw:

@@ -210,6 +210,9 @@ jobs:
       # delete it. Uploaded straight away (next step) so a later timeout cannot lose the work.
       - name: Hindcast tables for start month ${{ steps.gate.outputs.month }} (one-time per start month)
         if: steps.gate.outputs.run == '1' && steps.fetch.outputs.ready == '1'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SEAS5_REF_UPLOAD_TAG: ${{ env.REF_TAG }}            # seas5_ref uploads each table as soon as it is built
         run: |
           # 2026-10-06: the budget is capped by the time the JOB has left (timeout 340 min) minus 75 min for an in-flight CDS
           # fetch, the build and the commit - a 200-min budget that started 3 h into the job would have been killed by the
@@ -218,8 +221,10 @@ jobs:
           B="${{ inputs.budget_min || '200' }}"; [ "$LEFT" -lt "$B" ] && B=$LEFT
           echo "hindcast budget ${B} min (job time left after margin: ${LEFT} min)"
           if [ "$B" -le 5 ]; then echo "::warning::no time left for hindcast tables this run - building with what is there"; exit 0; fi
-          TABLES_FETCH=1 BUDGET_MIN="$B" \
-            scripts/sst/run_seas5.sh tables "${{ steps.gate.outputs.issue }}" || echo "::warning::some hindcast tables are still missing"
+          # hard stop 20 min before the job timeout, whatever an in-flight CDS request is doing, so the build always runs
+          TL=$(( 340 - ( $(date +%s) - ${JOB_T0:-$(date +%s)} ) / 60 - 20 ))
+          TABLES_FETCH=1 BUDGET_MIN="$B" timeout --signal=INT "${TL}m" \
+            scripts/sst/run_seas5.sh tables "${{ steps.gate.outputs.issue }}" || echo "::warning::some hindcast tables are still missing (or the step hit its ${TL}-min stop)"
 
       - name: Upload new hindcast tables
         if: always() && steps.gate.outputs.run == '1' && steps.fetch.outputs.ready == '1'
