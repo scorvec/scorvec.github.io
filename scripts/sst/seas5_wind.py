@@ -19,6 +19,7 @@ once per start month to hc_wind_us_{MM}.npz (unit "wind_us", raw key "w:us"; the
 per threshold and the mean daily v10, per lead month and cell), and the raw chunks can be deleted.
 """
 from __future__ import annotations
+import pyproj  # noqa: F401  first, before eccodes/xarray/cartopy load another libproj: "double free or corruption" abort at exit (2026-10-06 SEAS5 build)
 import argparse, calendar, json, os, sys, time
 from pathlib import Path
 import numpy as np, xarray as xr

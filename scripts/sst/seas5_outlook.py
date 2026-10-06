@@ -44,6 +44,7 @@ the derived tables of seas5_ref.py, never the raw hindcast.
 """
 from __future__ import annotations
 
+import pyproj  # noqa: F401  first, before eccodes/xarray/cartopy load another libproj: "double free or corruption" abort at exit (2026-10-06 SEAS5 build)
 import argparse
 import json
 import os

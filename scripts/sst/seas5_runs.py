@@ -21,6 +21,7 @@ cut to the forecast's day count.
     python seas5_runs.py [--issue 202609]
 """
 from __future__ import annotations
+import pyproj  # noqa: F401  first, before eccodes/xarray/cartopy load another libproj: "double free or corruption" abort at exit (2026-10-06 SEAS5 build)
 import argparse, calendar, json, sys, time
 from pathlib import Path
 import numpy as np, xarray as xr

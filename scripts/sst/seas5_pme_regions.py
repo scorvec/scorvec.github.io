@@ -19,6 +19,7 @@ Output: assets/sst/seas5_pme_br.webp + data/seas5_pme_regions.json.
 """
 from __future__ import annotations
 
+import pyproj  # noqa: F401  first, before eccodes/xarray/cartopy load another libproj: "double free or corruption" abort at exit (2026-10-06 SEAS5 build)
 import argparse
 import calendar
 import json

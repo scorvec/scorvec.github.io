@@ -26,6 +26,7 @@ hindcast (raw key "sf:na", 6 chunks) to hc_snow_na_{MM}.npz — per lead month a
 monthly `na_snow` hindcast (raw "m:na_snow") to hc_snow_normal_{MM}.npz, its mean rate per lead.
 """
 from __future__ import annotations
+import pyproj  # noqa: F401  first, before eccodes/xarray/cartopy load another libproj: "double free or corruption" abort at exit (2026-10-06 SEAS5 build)
 import argparse, calendar, json, os, sys, time
 from pathlib import Path
 import numpy as np

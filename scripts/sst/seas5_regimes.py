@@ -61,6 +61,7 @@ no ~/era5_store):
 """
 from __future__ import annotations
 
+import pyproj  # noqa: F401  first, before eccodes/xarray/cartopy load another libproj: "double free or corruption" abort at exit (2026-10-06 SEAS5 build)
 import argparse
 import calendar
 import json

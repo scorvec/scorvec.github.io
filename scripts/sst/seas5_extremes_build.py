@@ -20,6 +20,7 @@ Derived tables (seas5_ref.py, 2026-10-04 — the build reads neither the raw hin
                                 target) and the CPC 1991–2020 mean threshold-day counts (the normal)
 """
 from __future__ import annotations
+import pyproj  # noqa: F401  first, before eccodes/xarray/cartopy load another libproj: "double free or corruption" abort at exit (2026-10-06 SEAS5 build)
 import calendar, json, sys, time
 from pathlib import Path
 import numpy as np
