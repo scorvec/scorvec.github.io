@@ -866,13 +866,16 @@
     var raw = window.FRAME_ROOT_RAW || "https://raw.githubusercontent.com/scorvec/scorvec.github.io/frames/";
     var mir = MIRROR + (sha || "frames") + "/";
     var hosts = LOCAL ? ["/"] : (window.frameHostIsMirror && window.frameHostIsMirror() ? [mir, raw] : [raw, mir]);
+    // Bunny CDN first for pinned files (2026-10-06; assets/frames_root.js holds the host and the per-tab health check)
+    var cdn = !LOCAL && window.FRAME_ROOT_CDN && /^[0-9a-f]{7,40}$/.test(sha || "") && (!window.frameCdnOk || window.frameCdnOk()) ? window.FRAME_ROOT_CDN + sha + "/" : null;
+    if (cdn) hosts.unshift(cdn);
     var k = 0;
     function next() {
       if (sig && sig.aborted) return Promise.reject(new Error("cancelled"));   // cancelled: no other host either
       if (k >= hosts.length) return Promise.reject(new Error("unavailable"));
       var h = hosts[k++];
-      return fetchT(h + rel, h === raw && !rawOk ? 7000 : 30000, prio, sig).then(function (r) {
-        if (!r.ok) return next();
+      return fetchT(h + rel, h === raw && !rawOk ? 7000 : (h === cdn ? 8000 : 30000), prio, sig).then(function (r) {
+        if (!r.ok) { if (h === cdn && window.frameCdnFailed) window.frameCdnFailed(); return next(); }
         if (h === raw) rawOk = true;
         var th = performance.now();                         // headers in: the body time measures bandwidth, not latency
         return r.arrayBuffer().then(function (buf) {
@@ -880,7 +883,7 @@
           frameCache().then(function (cc) { if (cc) cc.put(CACHE_HOST + rel, new Response(buf.slice(0), { headers: { "Content-Type": "image/webp" } })).catch(function () {}); });
           return buf;
         });
-      }, next);
+      }, function () { if (h === cdn && !(sig && sig.aborted) && window.frameCdnFailed) window.frameCdnFailed(); return next(); });
     }
     return frameCache().then(function (cc) { return cc ? cc.match(CACHE_HOST + rel) : null; }).catch(function () { return null; })
       .then(function (hit) { return hit ? hit.arrayBuffer().then(function (b) { b._cached = true; return b; }) : next(); });

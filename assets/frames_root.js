@@ -19,6 +19,19 @@
   // "frames_sha" (scripts/lib/publish_frames_ci.sh): the mirror is then asked for that exact commit, which jsDelivr
   // caches correctly, and @frames is only the next fallback.
   var MIRROR_AT = "https://cdn.jsdelivr.net/gh/scorvec/scorvec.github.io@";
+  // Bunny CDN (2026-10-06, user's own pull zone; origin = raw.githubusercontent.com/scorvec/scorvec.github.io): asked FIRST
+  // for any frame whose manifest carries frames_sha, as CDN + <sha>/ + path (immutable, cached a year at the edge). It is a
+  // separate first stage: a failure, or no answer within CDN_STALL_MS, hands the frame to the RAW / jsDelivr chain below
+  // unchanged, and two failures park the tab on that chain for 30 min. Unpinned frames skip it (a branch path would be
+  // cached stale for a year).
+  var CDN = "https://scorvec-frames.b-cdn.net/", CDN_STALL_MS = 6000;
+  var cdnBad = 0, cdnServed = false;
+  try { var cb = +(sessionStorage.getItem("frameCdnBad") || 0); if (cb && Date.now() - cb < 30 * 60 * 1000) cdnBad = 2; } catch (e) {}
+  window.FRAME_ROOT_CDN = CDN;
+  window.frameCdnOk = function () { return cdnBad < 2; };
+  window.frameCdnFailed = function () {
+    if (++cdnBad >= 2) { try { sessionStorage.setItem("frameCdnBad", String(Date.now())); } catch (e) {} }
+  };
   function isMirror(u) { return u.indexOf(MIRROR_AT) === 0; }
   var onMirror = false, dead = 0, served = 0, deadSaid = false;
   // rawOk: RAW has answered (the probe, or any frame) - slowness after that is bandwidth, not a block.
@@ -58,6 +71,24 @@
   // `local` the same-origin copy on main (may no longer exist), onFail runs
   // once every host has failed. Consumers keep their own im.onload.
   window.frameLoad = function (im, rel, query, local, onFail, sha) {
+    if (cdnBad < 2 && /^[0-9a-f]{7,40}$/.test(sha || "")) {
+      var ctok = {}; im._frameTok = ctok; var fell = false;
+      var fall = function () { if (fell || im._frameTok !== ctok) return; fell = true; chain(im, rel, query, local, onFail, sha); };
+      // a stall only counts against the CDN while it has served nothing in this tab (blocked or unreachable); once it has,
+      // a slow frame is bandwidth and simply goes to the next host
+      var st = setTimeout(function () { if (!cdnServed) window.frameCdnFailed(); fall(); }, CDN_STALL_MS);
+      im.onerror = function () { clearTimeout(st); window.frameCdnFailed(); fall(); };
+      im.addEventListener("load", function () {
+        if (im._frameTok !== ctok) return;
+        clearTimeout(st); served++; cdnServed = true;
+        if (deadSaid) { deadSaid = false; emit({ recovered: true }); }
+      }, { once: true });
+      im.src = CDN + sha + "/" + rel;                         // no query: the path is already unique, and the edge ignores it
+      return;
+    }
+    chain(im, rel, query, local, onFail, sha);
+  };
+  function chain(im, rel, query, local, onFail, sha) {
     var q = query || "";
     var pinned = /^[0-9a-f]{7,40}$/.test(sha || "") ? MIRROR_AT + sha + "/" : null;
     var mir = pinned || MIRROR;
@@ -116,7 +147,7 @@
       if (k === 1 && !onMirror && isMirror(tries[1])) useMirror("raw failed, mirror served");
     }, { once: true });
     im.src = tries[0];
-  };
+  }
 
   // One cheap reachability probe per tab so a blocked network switches before
   // the first loop starts rather than after each frame times out. HEAD, CORS
