@@ -1030,7 +1030,7 @@ def take_subset(s: dict, c: dict, hints: list, by_wmo: dict, by_fn: dict, stats:
     levels = qc_levels(s["levels"], stats, who=f"{tag} {sid} {c['by']}")
     upper = False
     if not levels and c["kind"] == "K":           # TEMP parts C/D: kept to merge only
-        levels = qc_levels(s["levels"], Counter(), upper_part=True)
+        levels = qc_levels(s["levels"], Counter(), upper_part=True, who=f"{tag} {sid} {c['by']} (part)")
         upper = bool(levels)
     if not levels:
         return False
