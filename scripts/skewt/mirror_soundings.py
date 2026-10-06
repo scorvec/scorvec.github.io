@@ -808,7 +808,7 @@ class BufrDecoder:
         return {"wmo": wmo, "launch": launch, "la": la, "lo": lo, "elev": elev, "levels": levels}
 
 
-def qc_levels(levels: list, stats: Counter, upper_part: bool = False) -> list | None:
+def qc_levels(levels: list, stats: Counter, upper_part: bool = False, who: str = "") -> list | None:
     """Strict checks on one launch's levels; None rejects it.
 
     Drops levels below the reported surface and isolated temperature spikes; rejects
@@ -853,14 +853,18 @@ def qc_levels(levels: list, stats: Counter, upper_part: bool = False) -> list | 
     if sum(1 for L in levels if L["t"] is not None and L["p"] >= 20) < (3 if upper_part else WIS2_MIN_LEVELS):
         stats["qc_few"] += 1
         return None
-    if deep_superadiabatic(levels):
+    bad = deep_superadiabatic(levels)
+    if bad:
         stats["qc_superadiabatic"] += 1
+        if stats["qc_superadiabatic"] <= 8:
+            print(f"    QC {who}: deep superadiabatic {bad[0]:.0f}->{bad[1]:.0f} hPa, {bad[2]} K/km "
+                  "— profile rejected", flush=True)
         return None
     return levels
 
 
-def deep_superadiabatic(levels: list, depth: float = 300.0, lapse: float = 0.015) -> bool:
-    """True when the troposphere (above the lowest 200 m) cools faster than 15 K/km over a layer >= 300 m
+def deep_superadiabatic(levels: list, depth: float = 300.0, lapse: float = 0.015) -> tuple | bool:
+    """(p bottom, p top, K/km) of the first offending layer, else False: when the troposphere (above the lowest 200 m) cools faster than 15 K/km over a layer >= 300 m
     deep (dry adiabatic
     is 9.8 K/km; nature never sustains that). Catches mis-coded temperatures that pass every
     per-level check - e.g. PAGASA BUFR 2026-10-06 with Davao at -4.3 C at 850 hPa."""
@@ -881,7 +885,7 @@ def deep_superadiabatic(levels: list, depth: float = 300.0, lapse: float = 0.015
         if j >= len(th):
             break
         if (th[i]["t"] - th[j]["t"]) / (z[j] - z[i]) > lr:
-            return True
+            return (th[i]["p"], th[j]["p"], round((th[i]["t"] - th[j]["t"]) / (z[j] - z[i]) * 1000, 1))
         if z[i] < 200:
             j = i + 1                             # the two windows differ: rescan for the next start
     return False
@@ -1023,7 +1027,7 @@ def take_subset(s: dict, c: dict, hints: list, by_wmo: dict, by_fn: dict, stats:
             return False
         lo = (lo + 180) % 360 - 180
         elev, name = s["elev"] or 0, EXTRA_NAMES.get(sid, f"WMO {sid}")
-    levels = qc_levels(s["levels"], stats)
+    levels = qc_levels(s["levels"], stats, who=f"{tag} {sid} {c['by']}")
     upper = False
     if not levels and c["kind"] == "K":           # TEMP parts C/D: kept to merge only
         levels = qc_levels(s["levels"], Counter(), upper_part=True)
@@ -1778,7 +1782,7 @@ def run_tac(outdir: Path, state: dict, by_wmo: dict, meta: dict) -> dict:
             except Exception:                             # noqa: BLE001
                 pass
         levels = merge_levels(*[[dict(L) for L in s] for s in sets])
-        levels = qc_levels(levels, stats)
+        levels = qc_levels(levels, stats, who=f"TAC {fn[:-4]} {ps[0]['cccc']}")
         if not levels:
             continue
         x0 = newest.get("A") or newest.get("B") or next(iter(newest.values()))
@@ -1858,10 +1862,11 @@ def main() -> int:
             if ts >= cutoff and f.exists():
                 if src != "IEM":
                     try:            # files written before the deep-superadiabatic check existed
-                        if deep_superadiabatic(levels_from_csv(f.read_text())):
+                        bad = deep_superadiabatic(levels_from_csv(f.read_text()))
+                        if bad:
                             carried["dropped_superadiabatic"] += 1
                             print(f"    dropped {fn} ({src}, {meta['fileby'].get(fn) or oldby.get(fn) or ''}): "
-                                  f"deep superadiabatic layer", flush=True)
+                                  f"deep superadiabatic {bad[0]:.0f}->{bad[1]:.0f} hPa, {bad[2]} K/km", flush=True)
                             continue
                     except Exception:                           # noqa: BLE001
                         pass
