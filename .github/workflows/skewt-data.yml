@@ -6,7 +6,9 @@ name: Skew-T sounding mirror
 # for IEM's robots.txt Crawl-delay, at most 6 per run). Real-time Canada from
 # Environment and Climate Change Canada's MSC Datamart (each station's own high-res
 # BUFR; today's and yesterday's directories, only changed ones re-listed, <= 200
-# small listings + 90 GETs per run, typically a few; non-fatal). Real-time rest of the
+# small listings + 90 GETs per run, typically a few; non-fatal). Text-format GTS TEMP
+# (services with no BUFR, most of Africa) from DWD's WIS2 gateway U/{S,K,L,E} trees:
+# 8 ListObjects (~1.7 MB) + <= 600 small GETs (~0.5 KB each). Real-time rest of the
 # world from the WMO WIS 2.0 Global Cache on AWS Open Data (anonymous S3; ~35-40
 # ListObjects + at most 200 GETs of new BUFR messages per run, decoded with
 # ecCodes; failures there are non-fatal). Stations neither carries: one request
