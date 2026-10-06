@@ -472,7 +472,8 @@ WIS2_CCCC = {
     "BIKF": "Icelandic Met Office", "BIRK": "Icelandic Met Office", "DAMM": "Météo Algérie",
     "DBBB": "Météo-Bénin", "DEMS": "India Meteorological Department",
     "DTTA": "INM (Tunisia)", "DTTZ": "INM (Tunisia)", "EBWM": "Royal Meteorological Institute of Belgium",
-    "EDZW": "Deutscher Wetterdienst", "EEMH": "Estonian Environment Agency",
+    "EDZW": "Deutscher Wetterdienst", "LFPW": "Météo-France",
+    "CWAO": "Environment and Climate Change Canada", "EEMH": "Estonian Environment Agency",
     "EFKL": "Finnish Meteorological Institute", "EGRR": "Met Office (UK)", "EHDB": "KNMI (Netherlands)",
     "EIDB": "Met Éireann", "EKMI": "DMI (Denmark)", "ENMI": "MET Norway", "ESWI": "SMHI (Sweden)",
     "EYHM": "Lithuanian Hydrometeorological Service", "FMMI": "Météo Madagascar",
@@ -498,6 +499,26 @@ WIS2_CCCC = {
     "YRBK": "National Meteorological Administration (Romania)",
 }
 NA_CCCC = {"KWBC", "CWAO", "CWUL"}       # North America: IEM's ground, fetched last
+# GTS hubs that compile other countries' soundings into their bulletins: a station outside the
+# hub's home (IGRA/FIPS country prefixes) is credited to its own national service, "relayed by" the
+# hub (2026-10-06: Bogota's IDEAM sounding arrives in a KWBC bulletin)
+RELAY_HOME = {
+    "KWBC": {"US", "RQ", "GQ", "AQ", "VQ", "CQ", "RM", "FM", "PS", "AY", "WQ", "JQ"},
+    "AMMC": {"AS", "AY", "CK", "KT", "NF"},
+    "NFFN": {"FJ"},
+    "EGRR": {"UK", "FK", "SH", "GI", "AY", "BD"},
+    "LFPW": {"FR", "FP", "NC", "RE", "GP", "MB", "FG", "SB", "WF", "AY", "FS"},
+}
+FIPS_NAME = {
+    "AC": "Antigua and Barbuda", "AR": "Argentina", "BB": "Barbados", "BF": "the Bahamas", "BH": "Belize",
+    "BL": "Bolivia", "BR": "Brazil", "CI": "Chile", "CO": "Colombia", "CS": "Costa Rica", "CU": "Cuba",
+    "DR": "the Dominican Republic", "EC": "Ecuador", "ES": "El Salvador", "GT": "Guatemala", "GY": "Guyana",
+    "HA": "Haiti", "HO": "Honduras", "JM": "Jamaica", "MX": "Mexico", "NU": "Nicaragua", "NS": "Suriname",
+    "PA": "Paraguay", "PE": "Peru", "PM": "Panama", "TD": "Trinidad and Tobago", "UY": "Uruguay",
+    "VE": "Venezuela", "KR": "Kiribati", "TV": "Tuvalu", "TN": "Tonga", "WS": "Samoa", "NH": "Vanuatu",
+    "BP": "the Solomon Islands", "PP": "Papua New Guinea", "NZ": "New Zealand", "CW": "the Cook Islands",
+    "ID": "Indonesia", "TT": "Timor-Leste", "CA": "Canada", "BD": "Bermuda", "FK": "the Falkland Islands",
+}
 WIS2_MAX_GET = int(os.environ.get("SKEWT_WIS2_MAX_GET", 200))
 WIS2_MAX_LIST = int(os.environ.get("SKEWT_WIS2_MAX_LIST", 45))
 WIS2_MAX_S = float(os.environ.get("SKEWT_WIS2_MAX_S", 480))
@@ -884,6 +905,9 @@ def wis2_subset(s: dict, c: dict, hints: list, by_wmo: dict, by_fn: dict, stats:
                 abs(la - st["la"]) > 1.5 or
                 abs((lo - st["lo"] + 180) % 360 - 180) * math.cos(math.radians(st["la"])) > 1.5):
             stats["position_mismatch"] += 1
+            if stats["position_mismatch"] <= 6:
+                print(f"    WIS2 {sid}: BUFR position {la:.2f},{lo:.2f} vs station list "
+                      f"{st['la']:.2f},{st['lo']:.2f} — skipped", flush=True)
             return False
         la, lo, elev, name = st["la"], st["lo"], st.get("e") or s["elev"] or 0, st["n"]
     else:
@@ -1041,7 +1065,7 @@ def run_wis2(outdir: Path, state: dict, by_wmo: dict, meta: dict) -> dict:
             continue
         dest.write_text(text)
         meta["filesrc"][fn] = "WIS2"
-        meta["fileby"][fn] = best["by"]
+        meta["fileby"][fn] = credit_code(best["by"], by_wmo.get(best["sid"]))
         meta["names"][best["sid"]] = {"n": best["name"], "la": best["la"], "lo": best["lo"]}
         score[fn] = [best["rich"][0], best["rich"][1], best["kind"]]
         got[fn] = best["sid"]
@@ -1066,7 +1090,21 @@ def run_wis2(outdir: Path, state: dict, by_wmo: dict, meta: dict) -> dict:
     return got
 
 
+def credit_code(by: str, st: dict | None) -> str:
+    """Attribution code of one launch: the centre, or "HUB@FIPS" when a hub relayed a
+    station from another country."""
+    home = RELAY_HOME.get(by)
+    gid = (st or {}).get("gid") or ""
+    if home and len(gid) >= 2 and gid[:2] not in home:
+        return f"{by}@{gid[:2]}"
+    return by
+
+
 def centre_label(code: str) -> str:
+    if "@" in code:
+        hub, fips = code.split("@", 1)
+        who = f"the national service of {FIPS_NAME[fips]}" if fips in FIPS_NAME else "the national service"
+        return f"{who}, relayed by {centre_label(hub)}"
     return WIS2_NATIVE.get(code) or WIS2_CCCC.get(code) or code
 
 
@@ -1102,7 +1140,7 @@ def main() -> int:
                 shutil.copyfile(f, outdir / "soundings" / fn)
                 meta["filesrc"][fn] = src
                 if src == "WIS2":
-                    meta["fileby"][fn] = oldby.get(fn, "")
+                    meta["fileby"][fn] = credit_code(oldby.get(fn, ""), by_wmo.get(fn.split("_")[0]))
                 carried[src] += 1
         print(f"  carried forward {sum(carried.values())} launch file(s) {dict(carried)}", flush=True)
     else:
