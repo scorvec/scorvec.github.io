@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Mirror recent radiosonde soundings for the Skew-T Explorer (runs in GitHub Actions).
 
-Four public sources, all credited on the page:
+Five public sources, all credited on the page:
 
   * IEM RAOB JSON (Iowa Environmental Mesonet, Iowa State University) - real-time
     North America. ONE request per launch hour returns every station that reported
@@ -23,6 +23,9 @@ Four public sources, all credited on the page:
     not seen before (state.json), decodes them with ecCodes and keeps, per station
     and launch hour, the richest message. North American launches stay IEM's: WIS2
     never overwrites an IEM file and IEM replaces a WIS2 one for the same hour.
+  * GTS TEMP text (FM-35 TAC) via DWD's WIS 2.0 gateway (U/{S,K,L,E} trees) - real time for the
+    services that send no BUFR (most of Africa); parts A-D decoded and merged, used only for
+    station-hours no BUFR source holds (src "TAC", by "TAC:<CCCC>").
   * NOAA NCEI IGRA v2 (Integrated Global Radiosonde Archive) - the backfill for
     stations neither real-time feed carries; NCEI refreshes it once a day (~21:40
     UTC), so about a day behind. The mirror downloads NO IGRA data: it reads only
@@ -58,7 +61,8 @@ for live profiles). Missing values are written as "nan".
     python scripts/skewt/mirror_soundings.py OUTDIR [PREVDIR]
 Env (testing / budgets): SKEWT_MAX_IEM_REQ, SKEWT_IEM_DELAY, SKEWT_WIS2_MAX_GET,
 SKEWT_WIS2_MAX_LIST, SKEWT_WIS2_MAX_S, SKEWT_WIS2=0 (skip WIS2), SKEWT_ECCC_MAX_LIST,
-SKEWT_ECCC_MAX_GET, SKEWT_ECCC_MAX_S, SKEWT_ECCC=0 (skip ECCC).
+SKEWT_ECCC_MAX_GET, SKEWT_ECCC_MAX_S, SKEWT_ECCC=0 (skip ECCC), SKEWT_TAC_MAX_GET, SKEWT_TAC_MAX_LIST,
+SKEWT_TAC_MAX_S, SKEWT_TAC=0 (skip TAC).
 """
 from __future__ import annotations
 
@@ -512,6 +516,22 @@ WIS2_CCCC = {
     "VTBB": "Thai Meteorological Department", "WSSS": "Meteorological Service Singapore",
     "YRBK": "National Meteorological Administration (Romania)",
 }
+# compiling centres seen only in the TAC TEMP trees (2026-10-07 survey of the DWD gateway's U/ trees)
+WIS2_CCCC.update({
+    "DFFD": "ANAM (Burkina Faso)", "DIAP": "SODEXAM (Côte d'Ivoire)", "DRRN": "Direction de la Météorologie Nationale (Niger)",
+    "FAPR": "South African Weather Service", "FCBB": "ANAC Météorologie (Republic of the Congo)",
+    "FEFF": "Direction de la Météorologie (Central African Republic)", "FKKD": "Direction de la Météorologie Nationale (Cameroon)",
+    "FSIA": "Seychelles Meteorological Authority", "FZAA": "METTELSAT (DR Congo)", "GABS": "Mali-Météo",
+    "GCXO": "AEMET (Spain, Canary Islands)", "GOOY": "ANACIM (Senegal)", "GQNO": "ONM (Mauritania)",
+    "HECA": "Egyptian Meteorological Authority", "LGAT": "Hellenic National Meteorological Service",
+    "NCRG": "Cook Islands Meteorological Service", "OIII": "IRIMO (Iran)", "OJAM": "Jordan Meteorological Department",
+    "OOMS": "Oman Meteorology", "OPKC": "Pakistan Meteorological Department", "SABM": "Servicio Meteorológico Nacional (Argentina)",
+    "SBBR": "DECEA / INMET (Brazil)", "SGAS": "DINAC-DMH (Paraguay)", "SKBO": "IDEAM (Colombia)",
+    "UBBB": "National Hydrometeorological Service (Azerbaijan)", "UGEE": "Hydromet Service (Armenia)",
+    "UKMS": "Ukrainian Hydrometeorological Center", "UMMN": "Belhydromet (Belarus)", "VBRR": "DMH (Myanmar)",
+    "VNNN": "DHM (Nepal)", "WBSB": "Brunei Darussalam Meteorological Department", "WIIX": "BMKG (Indonesia)",
+    "WMKK": "MetMalaysia", "DTTA": "INM (Tunisia)",
+})
 # Canadian upper-air stations bulletin under their own indicator (MSC Datamart IU/ tree, 2026-10-06);
 # a WIS2 relay of one (e.g. CAYT, St John's) is credited to ECCC
 for _c in ("CAYT CGCB COYU CWEU CWLT CWMW CWQI CWSE CWVK CYBK CYCB CYEV CYFB CYJT CYPH CYPL CYQD "
@@ -995,7 +1015,7 @@ def held_rank(fn: str, dest: Path, meta: dict, score: dict) -> tuple | None:
     if not cur or not dest.exists():
         return None
     sc = score.get(fn)
-    if cur in ("WIS2", "ECCC") and sc:
+    if cur in ("WIS2", "ECCC", "TAC") and sc:
         return rank(sc[:2], sc[3] if len(sc) > 3 else 0, cur)
     try:                                            # IEM (or a score lost): from the file itself
         return rank(richness(levels_from_csv(dest.read_text())), 0, cur)
@@ -1014,8 +1034,11 @@ def commit_launches(outdir: Path, by_fn: dict, meta: dict, score: dict, src: str
         if cur == "IEM" and src == "WIS2":
             stats["kept_iem"] += 1                        # North America: IEM's launch stands
             continue
+        if src == "TAC" and cur in ("IEM", "ECCC", "WIS2"):
+            stats["kept_bufr"] += 1                       # text TEMP only where no BUFR is held
+            continue
         old = held_rank(fn, dest, meta, score)
-        sc = score.get(fn) if cur in ("WIS2", "ECCC") else None
+        sc = score.get(fn) if cur in ("WIS2", "ECCC", "TAC") else None
         pool = [x for x in cs if not x["upper"]]
         parts = [x for x in cs if x["kind"] == "K"]
         base = []
@@ -1047,7 +1070,8 @@ def commit_launches(outdir: Path, by_fn: dict, meta: dict, score: dict, src: str
             stats[f"replaced_{cur}"] += 1
         dest.write_text(text)
         meta["filesrc"][fn] = src
-        meta["fileby"][fn] = "ECCC" if src == "ECCC" else credit_code(best["by"], by_wmo.get(best["sid"]))
+        code = credit_code(best["by"], by_wmo.get(best["sid"]))
+        meta["fileby"][fn] = "ECCC" if src == "ECCC" else "TAC:" + code if src == "TAC" else code
         meta["names"][best["sid"]] = {"n": best["name"], "la": best["la"], "lo": best["lo"]}
         score[fn] = [best["rich"][0], best["rich"][1], best["kind"], best["cc"]]
         got[fn] = best["sid"]
@@ -1379,6 +1403,361 @@ def run_eccc(outdir: Path, state: dict, by_wmo: dict, meta: dict) -> dict:
     return got
 
 
+# ---------------------------------------------------------------- TAC TEMP (GTS text, via WIS2)
+# Many services - most of Africa among them - still send their soundings to the GTS only as
+# alphanumeric FM-35 TEMP, never as BUFR. DWD's WIS2 gateway republishes those bulletins under
+# data/de-dwd-gts-to-wis2/data/core/U/{S,K,L,E}/<A1>/<A2>/<ii>/<CCCC>/ (US = part A TTAA, UK = part
+# B TTBB, UL = part C TTCC, UE = part D TTDD; 2026-10-07 survey: 74 compiling centres, ~4400 files
+# per 72 h, ~3 MB). Decoded here and used ONLY for a station-hour no BUFR source (IEM, ECCC, WIS2
+# BUFR) holds; a BUFR launch that arrives later replaces it when richer, as everywhere else.
+# Parts A-D (and corrections / delayed copies) of one launch are merged, across runs too.
+# Not decoded: PPBB/PILOT (no sample carried any in that survey; every TTBB had its 21212 winds).
+TAC_GATEWAY = "de-dwd-gts-to-wis2"
+TAC_TREES = ("S", "K", "L", "E")
+TAC_PART = {"S": "A", "K": "B", "L": "C", "E": "D"}
+TAC_HDR_RE = re.compile(r"(?:^|_)(U[SKLE][A-Z]{2}\d{2})([A-Z]{4})(\d{6})([A-Z]{3})?(?=[_.]|$)")
+TAC_MAX_GET = int(os.environ.get("SKEWT_TAC_MAX_GET", 400))
+TAC_MAX_LIST = int(os.environ.get("SKEWT_TAC_MAX_LIST", 16))
+TAC_MAX_S = float(os.environ.get("SKEWT_TAC_MAX_S", 200))
+TAC_MIN_SIZE = 50                 # smaller files are "TTAA 5506/ 61024 NIL=" placeholders
+STD_Z = {1000: 110, 925: 760, 850: 1460, 700: 3010, 500: 5570, 400: 7190, 300: 9160, 250: 10360,
+         200: 11790, 150: 13610, 100: 16180, 70: 18440, 50: 20580, 30: 23850, 20: 26480, 10: 31060}
+SEQ_A = [("00", 1000), ("92", 925), ("85", 850), ("70", 700), ("50", 500), ("40", 400), ("30", 300),
+         ("25", 250), ("20", 200), ("15", 150), ("10", 100)]
+SEQ_C = [("70", 70), ("50", 50), ("30", 30), ("20", 20), ("10", 10)]
+# Id (last standard level with a wind group): candidates tried in order until the parse is consistent
+ID_A = {"1": (100, 150), "2": (200, 250), "3": (300,), "4": (400,), "5": (500,), "7": (700,),
+        "8": (850,), "9": (925,), "0": (1000,), "/": (None,)}
+ID_C = {"1": (10,), "2": (20,), "3": (30,), "5": (50,), "7": (70,), "/": (None,)}
+TAC_STOP = {"21212", "31313", "41414", "51515", "61616", "71717"}
+TROP_BIT, MAXW_BIT = 1 << 13, 1 << 12      # flags only, so thin_levels keeps them
+
+
+def _tac_t(g: str):
+    """TTTaDD -> (t, td) in C."""
+    if len(g) != 5 or "/" in g[:3] or not g[:3].isdigit():
+        return None, None
+    ta = int(g[2])
+    t = int(g[:2]) + ta / 10
+    if ta % 2:
+        t = -t
+    dd, td = g[3:], None
+    if dd.isdigit():
+        d = int(dd)
+        dep = d / 10 if d <= 50 else d - 50 if d >= 56 else None
+        if dep is not None:
+            td = t - dep
+    return t, td
+
+
+def _tac_w(g: str, knots: bool):
+    """dddff -> (wd, ws m/s); the units digit of ddd carries ff's hundreds."""
+    if len(g) != 5 or not g.isdigit():
+        return None, None
+    ddd, ff = int(g[:3]), int(g[3:])
+    ff += 100 * (ddd % 5)
+    ddd -= ddd % 5
+    if ddd > 360 or (ddd == 0 and ff):
+        return None, None
+    return float(ddd), ff * 0.514444 if knots else float(ff)
+
+
+def _tac_h(p: int, hhh: str):
+    """Standard-level hhh -> geopotential m (m for 1000-700 hPa, dam above; nearest plausible)."""
+    if not hhh.isdigit():
+        return None
+    v = int(hhh)
+    if p == 1000:
+        return float(500 - v if v >= 500 else v)
+    unit = 1 if p >= 700 else 10
+    return float(min(((v + k * 1000) * unit for k in range(5)), key=lambda z: abs(z - STD_Z[p])))
+
+
+def _lvl(p, h=None, t=None, td=None, w=(None, None), sig=0):
+    return {"p": p, "h": h, "t": t, "td": td, "wd": w[0], "ws": w[1], "et": None, "sig": sig}
+
+
+def _tac_std(toks, i, seq, last_wind, knots):
+    out = []
+    for code, p in seq:
+        if i >= len(toks) or toks[i][:2] != code or toks[i] in TAC_STOP:
+            break
+        if i + 1 >= len(toks):
+            break
+        t, td = _tac_t(toks[i + 1])
+        lv = _lvl(float(p), _tac_h(p, toks[i][2:]), t, td)
+        i += 2
+        if last_wind is not None and p >= last_wind and i < len(toks):
+            lv["wd"], lv["ws"] = _tac_w(toks[i], knots)
+            i += 1
+        out.append(lv)
+    nxt = toks[i] if i < len(toks) else ""
+    ok = not nxt or nxt in TAC_STOP or nxt[:2] in ("88", "77", "66")
+    return out, i, ok
+
+
+def _tac_trop_maxw(toks, i, knots, scale, out):
+    while i < len(toks):
+        g = toks[i]
+        if g[:2] == "88" and len(g) == 5:
+            if g[2:] == "999":
+                i += 1
+                continue
+            if not g[2:].isdigit():
+                break
+            t, td = _tac_t(toks[i + 1]) if i + 1 < len(toks) else (None, None)
+            w = _tac_w(toks[i + 2], knots) if i + 2 < len(toks) else (None, None)
+            out.append(_lvl(int(g[2:]) * scale, None, t, td, w, TROP_BIT))
+            i += 3
+        elif g[:2] in ("77", "66") and len(g) == 5:
+            if g[2:] == "999":
+                i += 1
+                continue
+            if not g[2:].isdigit() or i + 1 >= len(toks):
+                break
+            out.append(_lvl(int(g[2:]) * scale, w=_tac_w(toks[i + 1], knots), sig=MAXW_BIT))
+            i += 2
+            if i < len(toks) and toks[i][0] == "4" and toks[i] not in TAC_STOP:
+                i += 1                                # vertical wind shear group
+        else:
+            break
+    return i
+
+
+def _tac_sig(toks, i, knots, part, out):
+    """Parts B/D: nnPPP TTTaDD pairs, then 21212 nnPPP dddff wind pairs."""
+    def pres(g):
+        v = int(g[2:])
+        return v / 10 if part == "D" else float(v + 1000 if v < 100 else v)
+
+    def is_lvl(g):                 # nnPPP, nn = 00, 11, ... 99; PPP may be missing ("11///")
+        return len(g) == 5 and g[:2].isdigit() and g[0] == g[1] and g not in TAC_STOP
+    while i + 1 < len(toks) and is_lvl(toks[i]):
+        if toks[i][2:].isdigit():
+            t, td = _tac_t(toks[i + 1])
+            out.append(_lvl(pres(toks[i]), None, t, td, sig=SFC_BIT if part == "B" and toks[i][:2] == "00" else 0))
+        i += 2
+    if i < len(toks) and toks[i] == "21212":
+        i += 1
+        while i + 1 < len(toks) and is_lvl(toks[i]):
+            if toks[i][2:].isdigit():
+                out.append(_lvl(pres(toks[i]), w=_tac_w(toks[i + 1], knots),
+                                sig=SFC_BIT if part == "B" and toks[i][:2] == "00" else 0))
+            i += 2
+    return i
+
+
+def parse_temp(toks: list, stats: Counter) -> dict | None:
+    """One FM-35 TEMP report (tokens from MiMiMjMj on) -> {wmo, part, day, hour, knots, launch, levels}."""
+    if len(toks) < 3 or toks[0] not in ("TTAA", "TTBB", "TTCC", "TTDD"):
+        return None
+    part = {"TTAA": "A", "TTBB": "B", "TTCC": "C", "TTDD": "D"}[toks[0]]
+    if "NIL" in toks:
+        stats["tac_nil"] += 1
+        return None
+    g1, wmo = toks[1], toks[2]
+    if len(g1) != 5 or not g1[:4].isdigit() or not re.fullmatch(r"\d{5}", wmo):
+        stats["tac_bad_head"] += 1
+        return None
+    yy, hour, ind = int(g1[:2]), int(g1[2:4]), g1[4]
+    knots = yy > 50
+    day = yy - 50 if knots else yy
+    if not 1 <= day <= 31 or hour > 23:
+        stats["tac_bad_head"] += 1
+        return None
+    out, i = [], 3
+    if part in ("A", "C"):
+        if part == "A" and i + 2 < len(toks) and toks[i][:2] == "99" and toks[i][2:].isdigit():
+            ps = int(toks[i][2:])
+            t, td = _tac_t(toks[i + 1])
+            out.append(_lvl(float(ps + 1000 if ps < 100 else ps), None, t, td,
+                            _tac_w(toks[i + 2], knots), SFC_BIT))
+            i += 3
+        seq, ids = (SEQ_A, ID_A) if part == "A" else (SEQ_C, ID_C)
+        best = None
+        for lw in ids.get(ind, (None,)):
+            levs, j, ok = _tac_std(toks, i, seq, lw, knots)
+            if ok or best is None:
+                best = (levs, j)
+            if ok:
+                break
+        else:
+            stats["tac_inconsistent"] += 1
+        out += best[0]
+        i = _tac_trop_maxw(toks, best[1], knots, 1 if part == "A" else 0.1, out)
+    else:
+        i = _tac_sig(toks, i, knots, part, out)
+    launch = None
+    if "31313" in toks:                                   # 31313 srrarasasa 8GGgg: launch time
+        k = toks.index("31313")
+        if k + 2 < len(toks) and re.fullmatch(r"8\d{4}", toks[k + 2]):
+            gg, mm = int(toks[k + 2][1:3]), int(toks[k + 2][3:5])
+            if gg < 24 and mm < 60:
+                launch = (gg, mm)
+    out = [L for L in out if L["p"] and 0.5 <= L["p"] <= 1100]
+    if not out:
+        stats["tac_empty"] += 1
+        return None
+    return {"wmo": wmo, "part": part, "day": day, "hour": hour, "knots": knots, "launch": launch, "levels": out}
+
+
+def tac_reports(text: str, stats: Counter) -> list:
+    """Every TEMP report in a GTS bulletin (multi-station bulletins carry several, '=' separated)."""
+    lines = text.replace("\r", "\n").split("\n")
+    body = " ".join(ln for ln in lines if not re.match(r"^\s*U[A-Z]{3}\d\d [A-Z]{4} \d{6}", ln))
+    out = []
+    for chunk in body.split("="):
+        toks = chunk.split()
+        k = next((j for j, t in enumerate(toks) if t in ("TTAA", "TTBB", "TTCC", "TTDD", "PPBB", "PPAA",
+                                                          "PPCC", "PPDD")), None)
+        if k is None:
+            continue
+        if toks[k].startswith("PP"):
+            stats["tac_pilot_skipped"] += 1
+            continue
+        r = parse_temp(toks[k:], stats)
+        if r:
+            out.append(r)
+    return out
+
+
+def run_tac(outdir: Path, state: dict, by_wmo: dict, meta: dict) -> dict:
+    """Mirror TAC TEMP launches for station-hours no BUFR source holds; returns {fn: sid} written."""
+    t0 = time.time()
+    ctr, stats = Counter(), Counter()
+    w = state.setdefault("tac", {})
+    seen = w.setdefault("seen", {})                       # header+size id -> LastModified epoch h
+    newseen = {}
+    oldest = NOW - timedelta(hours=WIS2_MAX_AGE_H)
+    cand = []
+    for tree in TAC_TREES:
+        try:
+            objs, _ = s3_list(f"data/{TAC_GATEWAY}/data/core/U/{tree}/", ctr)
+        except Exception as e:                            # noqa: BLE001
+            print(f"  TAC list U/{tree} failed: {repr(e)[:80]}", flush=True)
+            continue
+        for key, size, lm in objs:
+            if lm < oldest or size > 100_000:
+                continue
+            hdr = TAC_HDR_RE.search(key.rsplit("/", 1)[-1])
+            if not hdr:
+                continue
+            did = "".join(x or "" for x in hdr.groups()) + f":{size}"
+            if did in seen:
+                continue
+            if size < TAC_MIN_SIZE:                       # NIL placeholder: never fetched
+                newseen[did] = int(lm.timestamp() // 3600)
+                ctr["nil_small"] += 1
+                continue
+            cand.append({"key": key, "lm": lm, "did": did, "hdr": hdr.groups()})
+    cand.sort(key=lambda c: ((NOW - c["lm"]).total_seconds() // 21600, -c["lm"].timestamp()))
+    print(f"  TAC: {ctr['list']} list request(s) ({ctr['list_bytes'] / 1e6:.2f} MB); "
+          f"{len(cand)} new bulletin(s) to fetch, {ctr['nil_small']} NIL placeholders skipped", flush=True)
+
+    # fetch + decode; group the reports by station and nominal hour
+    parts: dict = {}
+    for c in cand:
+        if ctr["get"] >= TAC_MAX_GET or time.time() - t0 > TAC_MAX_S:
+            ctr["deferred"] += 1
+            continue
+        try:
+            blob = get(WIS2_BASE + urllib.parse.quote(c["key"]), timeout=40, tries=2, backoff=5)
+        except urllib.error.HTTPError as e:
+            ctr["get_err"] += 1
+            if e.code in (403, 404):
+                newseen[c["did"]] = int(c["lm"].timestamp() // 3600)
+            continue
+        except Exception:                                 # noqa: BLE001
+            ctr["get_err"] += 1
+            continue
+        ctr["get"] += 1
+        ctr["get_bytes"] += len(blob)
+        newseen[c["did"]] = int(c["lm"].timestamp() // 3600)
+        cccc, yyggg, bbb = c["hdr"][1], c["hdr"][2], c["hdr"][3]
+        ref = _hdr_time(yyggg, c["lm"])
+        try:
+            reps = tac_reports(blob.decode("latin-1"), stats)
+        except Exception:                                 # noqa: BLE001
+            stats["tac_decode_error"] += 1
+            continue
+        for r in reps:
+            stats["tac_reports"] += 1
+            # the report's YYGG is the nominal hour for most senders but the actual launch hour
+            # for some (South Africa: 11Z for a 12Z sounding); 31313 8GGgg is the launch time
+            rt = _hdr_time(f"{r['day']:02d}{r['hour']:02d}00", c["lm"])
+            if not rt:
+                stats["tac_bad_time"] += 1
+                continue
+            launch = rt
+            if r["launch"]:
+                gg, mm = r["launch"]
+                launch = rt.replace(hour=gg, minute=mm)
+                if launch - rt > timedelta(hours=12):
+                    launch -= timedelta(days=1)
+                elif rt - launch > timedelta(hours=12):
+                    launch += timedelta(days=1)
+                if abs((launch - rt).total_seconds()) > 3 * 3600:
+                    launch = rt
+            nom = nominal_hour(launch, [rt, ref])
+            if nom < NOW - timedelta(hours=RETAIN_H) or nom > NOW + timedelta(hours=2):
+                stats["tac_too_old_or_future"] += 1
+                continue
+            sid = r["wmo"]
+            if sid not in by_wmo:
+                stats["tac_unknown_station"] += 1
+                continue
+            fn = f"{sid}_{_tag(nom)}.csv"
+            parts.setdefault(fn, []).append({"r": r, "cccc": cccc, "cc": bbb_rank(bbb), "lm": c["lm"],
+                                             "launch": launch, "sid": sid})
+
+    # per station-hour: newest correction of each part, merged (with a TAC file held from an
+    # earlier run), QC'd, then committed through the shared precedence rules
+    by_fn = {}
+    for fn, ps in parts.items():
+        cur = meta["filesrc"].get(fn)
+        if cur in ("IEM", "ECCC", "WIS2"):
+            stats["kept_bufr"] += 1                       # a BUFR / IEM launch holds this hour
+            continue
+        newest = {}
+        for x in ps:
+            k = x["r"]["part"]
+            if k not in newest or (x["cc"], x["lm"]) >= (newest[k]["cc"], newest[k]["lm"]):
+                newest[k] = x
+        sets = [x["r"]["levels"] for x in newest.values()]
+        dest = outdir / "soundings" / fn
+        if cur == "TAC" and dest.exists():
+            try:
+                sets.insert(0, levels_from_csv(dest.read_text()))
+            except Exception:                             # noqa: BLE001
+                pass
+        levels = merge_levels(*[[dict(L) for L in s] for s in sets])
+        levels = qc_levels(levels, stats)
+        if not levels:
+            continue
+        x0 = newest.get("A") or newest.get("B") or next(iter(newest.values()))
+        st = by_wmo[x0["sid"]]
+        by_fn[fn] = [{"sid": x0["sid"], "levels": levels, "launch": x0["launch"], "kind": "T",
+                      "by": x0["cccc"], "src": "TAC", "cc": 0, "la": st["la"], "lo": st["lo"],
+                      "elev": st.get("e") or 0, "name": st["n"], "rich": richness(levels), "upper": False,
+                      "parts": "".join(sorted(newest))}]
+    got = commit_launches(outdir, by_fn, meta, shared_score(state), "TAC", stats, ctr, by_wmo)
+    seen.update(newseen)
+    cut = int((NOW - timedelta(hours=WIS2_SEEN_H)).timestamp() // 3600)
+    for k in [k for k, v in seen.items() if v < cut]:
+        del seen[k]
+    nlev = sorted(by_fn[fn][0]["rich"][1] for fn in got)
+    print(f"  TAC: {ctr['get']} GET(s) {ctr['get_bytes'] / 1e6:.2f} MB, {ctr['get_err']} failed, "
+          f"{ctr['deferred']} deferred (budget {TAC_MAX_GET} GETs / {TAC_MAX_S:.0f} s); "
+          f"{stats['tac_reports']} reports -> {len(got)} launch file(s) written/upgraded"
+          + (f", median {nlev[len(nlev) // 2]} thermo levels" if nlev else "")
+          + f" in {time.time() - t0:.0f} s", flush=True)
+    print("  TAC skips: " + ", ".join(f"{k} {v}" for k, v in sorted(stats.items()) if k != "tac_reports"),
+          flush=True)
+    meta.update(tac_list=ctr["list"], tac_list_bytes=ctr["list_bytes"], tac_get=ctr["get"],
+                tac_bytes=ctr["get_bytes"], tac_written=len(got))
+    return got
+
+
 def credit_code(by: str, st: dict | None) -> str:
     """Attribution code of one launch: the centre, or "HUB@FIPS" when a hub relayed a
     station from another country."""
@@ -1392,6 +1771,8 @@ def credit_code(by: str, st: dict | None) -> str:
 def centre_label(code: str) -> str:
     if code == "ECCC":
         return ECCC_NAME
+    if code.startswith("TAC:"):
+        return centre_label(code[4:])
     if "@" in code:
         hub, fips = code.split("@", 1)
         who = f"the national service of {FIPS_NAME[fips]}" if fips in FIPS_NAME else "the national service"
@@ -1420,7 +1801,7 @@ def main() -> int:
         carried = Counter()
         oldby = state.get("fileby") or {}
         for fn, src in (state.get("filesrc") or {}).items():
-            if src not in ("IEM", "WIS2", "ECCC"):
+            if src not in ("IEM", "WIS2", "ECCC", "TAC"):
                 continue                # IGRA launches are not mirrored (the browser fetches them)
             f = prevdir / "soundings" / fn
             try:
@@ -1432,6 +1813,8 @@ def main() -> int:
                 meta["filesrc"][fn] = src
                 if src == "WIS2":
                     meta["fileby"][fn] = credit_code(oldby.get(fn, ""), by_wmo.get(fn.split("_")[0]))
+                elif src == "TAC":
+                    meta["fileby"][fn] = oldby.get(fn) or "TAC:?"
                 elif src == "ECCC":
                     meta["fileby"][fn] = "ECCC"
                 carried[src] += 1
@@ -1455,6 +1838,11 @@ def main() -> int:
             print(f"::warning::WIS2 skipped — ecCodes unavailable ({e})", flush=True)
         except Exception as e:                                  # noqa: BLE001
             print(f"::warning::WIS2 failed this run: {repr(e)[:160]}", flush=True)
+    if os.environ.get("SKEWT_TAC", "1") != "0":
+        try:
+            run_tac(outdir, state, by_wmo, meta)
+        except Exception as e:                                  # noqa: BLE001
+            print(f"::warning::TAC failed this run: {repr(e)[:160]}", flush=True)
     igra = run_igra(state, by_gid, prev_manifest, meta)
 
     # manifest: per station, every launch held + the newest one's source (and, where
@@ -1473,12 +1861,12 @@ def main() -> int:
             continue
         e = {"id": sid, "n": s["n"], "la": round(s["la"], 3), "lo": round(s["lo"], 3),
              "src": src, "dt": dt, "hours": [h[0] for h in hs]}
-        if any(h[1] in ("WIS2", "ECCC") for h in hs):
+        if any(h[1] in ("WIS2", "ECCC", "TAC") for h in hs):
             e["by"] = code
             hx = {h[0]: h[2] for h in hs if h[2] != code}
             if hx:
                 e["hx"] = hx
-            used.update(h[2] for h in hs if h[1] in ("WIS2", "ECCC"))
+            used.update(h[2] for h in hs if h[1] in ("WIS2", "ECCC", "TAC"))
         entries[sid] = e
         shutil.copyfile(outdir / "soundings" / f"{sid}_{dt.replace('-', '').replace(' ', '')[:10]}.csv",
                         outdir / "soundings" / f"{sid}.csv")
@@ -1495,26 +1883,30 @@ def main() -> int:
     n_igra = len(entries) - sum(n_rt.values())
     (outdir / "manifest.json").write_text(json.dumps(
         {"pipeline": PIPELINE, "generated": NOW.strftime("%Y-%m-%d %H:%M UTC"),
-         "sources": {"IEM": n_rt["IEM"], "ECCC": n_rt["ECCC"], "WIS2": n_rt["WIS2"], "IGRA": n_igra},
+         "sources": {"IEM": n_rt["IEM"], "ECCC": n_rt["ECCC"], "WIS2": n_rt["WIS2"], "TAC": n_rt["TAC"],
+                     "IGRA": n_igra},
          "centres": {c: centre_label(c) for c in sorted(used)},
          "entries": entries}, ensure_ascii=False))
     state["filesrc"] = meta["filesrc"]
     score = shared_score(state)
-    for fn in [fn for fn in score if meta["filesrc"].get(fn) not in ("WIS2", "ECCC")]:
+    for fn in [fn for fn in score if meta["filesrc"].get(fn) not in ("WIS2", "ECCC", "TAC")]:
         del score[fn]
-    state["fileby"] = {fn: b for fn, b in meta["fileby"].items() if meta["filesrc"].get(fn) == "WIS2"}
+    state["fileby"] = {fn: b for fn, b in meta["fileby"].items() if meta["filesrc"].get(fn) in ("WIS2", "TAC")}
     state["names"] = {k: v for k, v in meta["names"].items() if k in entries}
     (outdir / "state.json").write_text(json.dumps(state, ensure_ascii=False))
     nf = Counter(meta["filesrc"].values())
     print(f"  manifest: {len(entries)} stations ({n_rt['IEM']} IEM + {n_rt['ECCC']} ECCC + {n_rt['WIS2']} WIS2 "
-          f"real time with {nf['IEM']} + {nf['ECCC']} + {nf['WIS2']} launch files, {n_igra} IGRA on demand) "
+          f"+ {n_rt['TAC']} TAC real time with {nf['IEM']} + {nf['ECCC']} + {nf['WIS2']} + {nf['TAC']} launch files, "
+          f"{n_igra} IGRA on demand) "
           f"→ {outdir}", flush=True)
     print(f"  transfer this run: IEM {meta.get('iem_req', 0)} request(s) "
           f"{meta.get('iem_bytes', 0) / 1e6:.2f} MB; ECCC {meta.get('eccc_list', 0)} listing(s) "
           f"{meta.get('eccc_list_bytes', 0) / 1e6:.2f} MB + {meta.get('eccc_get', 0)} GET(s) "
           f"{meta.get('eccc_bytes', 0) / 1e6:.2f} MB; WIS2 {meta.get('wis2_list', 0)} list(s) "
           f"{meta.get('wis2_list_bytes', 0) / 1e6:.2f} MB + {meta.get('wis2_get', 0)} GET(s) "
-          f"{meta.get('wis2_bytes', 0) / 1e6:.2f} MB; IGRA listing "
+          f"{meta.get('wis2_bytes', 0) / 1e6:.2f} MB; TAC {meta.get('tac_list', 0)} list(s) "
+          f"{meta.get('tac_list_bytes', 0) / 1e6:.2f} MB + {meta.get('tac_get', 0)} GET(s) "
+          f"{meta.get('tac_bytes', 0) / 1e6:.3f} MB; IGRA listing "
           f"{meta.get('igra_bytes', 0) / 1e3:.0f} KB", flush=True)
     return 0 if entries else 1
 

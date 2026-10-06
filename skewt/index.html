@@ -595,7 +595,8 @@
       tables, which scroll.</p>
       <p><b style="color:#5a8fd8">Blue</b> stations reported at the last 00Z/12Z interval (real time: North America
       from IEM, Canada from Environment and Climate Change Canada's MSC Datamart about one to two hours after launch,
-      the rest of the world from the WMO WIS 2.0 Global Cache, usually about two hours after launch);
+      the rest of the world from the WMO WIS 2.0 Global Cache, usually about two hours after launch &mdash; as
+      text-format TEMP messages where a service sends no BUFR, as most of Africa does);
       <b style="color:#bf5af2">purple</b> ones launched off-hour (06Z, 15Z, 18Z…) — usually a special
       release ahead of severe weather; <b style="color:#33c495">teal</b> have a recent sounding that is not live —
       they missed the last slot, or only NOAA's daily IGRA update carries them, about a day behind (the
@@ -808,7 +809,8 @@
       for the rest of the world from the <a href="https://registry.opendata.aws/wis2-global-cache/">WMO WIS 2.0
       Global Cache</a> (AWS Open Data), core data under the
       <a href="https://wmo.int/wmo-unified-data-policy-resolution-res1">WMO Unified Data Policy</a>; the originating national
-      meteorological service is credited per sounding in the status line; every historical date, and stations
+      meteorological service is credited per sounding in the status line (services that send only text-format
+      GTS TEMP messages, most of Africa among them, arrive through DWD's WIS 2.0 gateway and are decoded here); every historical date, and stations
       neither real-time feed carries, from NOAA National Centers for Environmental Information,
       <a href="https://www.ncei.noaa.gov/products/weather-balloon/integrated-global-radiosonde-archive">Integrated
       Global Radiosonde Archive v2</a> (IGRA; its daily update runs about a day behind; the first archive load per
@@ -821,6 +823,6 @@
   </div>
 </div>
 <script src="sharplib.js?v=92a2fd08"></script>
-<script src="app.js?v=db14f7c6"></script>
+<script src="app.js?v=065bd700"></script>
 </body>
 </html>

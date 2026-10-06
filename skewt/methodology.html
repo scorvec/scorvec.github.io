@@ -253,6 +253,7 @@
     <tr><td><b>IEM RAOB</b></td><td>US</td><td>~1 h behind SPC</td><td>~180–250 levels</td></tr>
     <tr><td><b>ECCC MSC Datamart</b></td><td>Canada (~29 stations)</td><td>~1 h after launch to 100 hPa, ~2 h entire</td><td>Native ~1-s ascent (3–7k levels), thinned to 260</td></tr>
     <tr><td><b>WMO WIS 2.0</b> Global Cache</td><td>Global (~550 stations a day)</td><td>~2 h after launch (90 % within ~3.3 h)</td><td>Mostly high resolution (median ~590 levels), thinned to 260</td></tr>
+    <tr><td><b>WMO GTS TEMP</b> (text) via WIS 2.0</td><td>Services sending no BUFR (most of Africa, parts of Asia)</td><td>~2 h after launch</td><td>Standard + significant levels (~30–80), parts A–D merged</td></tr>
     <tr><td><b>Mirror</b> (IEM + ECCC + WIS 2.0)</td><td>Global</td><td>hourly</td><td>As received, thinned to 260 levels</td></tr>
     <tr><td><b>NOAA IGRA v2</b></td><td>Global, 1905–now</td><td>~1–2 day lag</td><td>Mandatory + significant</td></tr>
   </table>
@@ -274,6 +275,12 @@
   the most complete message (temperature, humidity, wind and height on the most levels), never letting
   a later, coarser copy replace a richer one. Profiles pass strict checks first (monotone pressure,
   physical temperature and dew-point ranges, no levels below the reported surface, at least ten levels).
+  Services that still send only text-format TEMP messages (most of Africa, and some of Asia and South
+  America) reach the GTS that way; DWD's WIS 2.0 gateway republishes those bulletins, and the job decodes
+  them (parts A–D: standard and significant levels, tropopause, maximum wind, winds by pressure; knots or
+  m/s; corrections; several stations per bulletin) for any station and hour no BUFR source holds. Those
+  profiles are as coarse as the archive's (tens of levels, not hundreds), and a BUFR copy replaces one
+  when it arrives. Argentina currently sends empty (NIL) TEMP bulletins, so its stations have nothing recent.
   These are core data under the WMO Unified Data Policy; the status line names the national service
   each sounding came from. Stations neither real-time feed carries still appear from NOAA NCEI's IGRA v2
   once-a-day update (the job reads only the file listing; opening such a station fetches its file from

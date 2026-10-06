@@ -66,6 +66,15 @@ work outside North America, where no CORS-open real-time feed exists. A GitHub A
   relayed another country's sounding) and `hx` per launch; `centres` names them. IEM keeps North
   America: WIS2 never overwrites an IEM file. Core data under the WMO Unified Data Policy; the
   originating national service is credited per sounding.
+- **Text TEMP (TAC), real time:** services that send no BUFR (most of Africa: South Africa FAPR, Egypt HECA,
+  Niger, Senegal, Cameroon…; some of Asia) still put FM-35 TEMP on the GTS, which DWD's WIS 2.0 gateway
+  republishes under `data/de-dwd-gts-to-wis2/data/core/U/{S,K,L,E}/` (parts A, B, C, D). The mirror lists
+  those four trees (~8 ListObjects), GETs only unseen bulletins ≥ 50 bytes (smaller ones are NIL),
+  decodes TTAA/TTBB/TTCC/TTDD (standard + significant levels, tropopause, max wind, 21212 winds; knots vs
+  m/s from YY+50; multi-station; CCx corrections) and merges the parts per station and nominal hour (also
+  with a part written by an earlier run). Used ONLY where no BUFR/IEM/ECCC file holds the station-hour;
+  `src: "TAC"`, `by: "TAC:<CCCC>"`. PPBB (PILOT winds by height) is not decoded. Argentina (SABM) sends
+  NIL TEMPs only (2026-10-07), so its stations have no recent data from any source.
 - **Stations neither feed carries, ~1 day behind — on demand:** the mirror downloads NO IGRA data. It reads only
   the y2d directory listing at `ncei.noaa.gov/pub/data/igra/data/data-y2d/` (one ~0.2 MB request, at
   most every 3 h) and remembers each file's size; a file that grew at NCEI's daily update (~21:40 UTC)
@@ -318,7 +327,7 @@ scripts/skewt/
   climo_cape.cpp    native build of the SAME wrapper, for the climatology
   build_climo.py    per-station climatology builder
   flag_anomalies.py record-watch: compares each latest sounding to its climatology
-  mirror_soundings.py  recent-launch mirror (IEM + ECCC MSC Datamart + WMO WIS 2.0 real time; NOAA IGRA v2 listing only)
+  mirror_soundings.py  recent-launch mirror (IEM + ECCC MSC Datamart + WMO WIS 2.0 BUFR + GTS TEMP text real time; NOAA IGRA v2 listing only)
 
 branches (data, served CORS-open via raw.githubusercontent.com)
   skewt-data     latest soundings + manifest + anomalies.json   (force-pushed hourly)

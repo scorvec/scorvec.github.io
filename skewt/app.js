@@ -1060,23 +1060,27 @@ const p2 = n => String(n).padStart(2, "0");
 // manifest entries carry their source: "IEM" (real time, North America), "ECCC" (real time, Canada:
 // Environment and Climate Change Canada's MSC Datamart, the stations' own high-resolution BUFR), "WIS2"
 // (real time, the rest of the world: WMO WIS 2.0 Global Cache, credited to the national service that
-// sent it - entry.by, per launch entry.hx) or "IGRA" (NOAA NCEI's daily IGRA v2 update — about a day
-// behind, so never shown as live)
+// sent it - entry.by, per launch entry.hx), "TAC" (real time, text-format GTS TEMP from services that send
+// no BUFR - most of Africa - via the WIS 2.0 gateways; by = "TAC:<CCCC>") or "IGRA" (NOAA NCEI's daily
+// IGRA v2 update — about a day behind, so never shown as live)
 let centres = {};                // manifest: originating-centre code -> service name
 const centreName = code => centres[code] || code || "unknown";
 const srcLabel = (src, by) => src === "IGRA" ? "NOAA IGRA v2 daily update, about a day behind"
   : src === "WIS2" ? `WMO WIS 2.0 real-time (originating service: ${centreName(by)})`
   : src === "ECCC" ? "MSC Datamart real-time · Data Source: Environment and Climate Change Canada"
+  : src === "TAC" ? `WMO GTS TEMP via WIS 2.0 (originating service: ${centreName(by)})`
   : "IEM real-time, via the mirror";
 // source of one held launch "YYYY-MM-DD HH:00" of a manifest entry -> [src, by]
 function launchSrc(me, h) {
   if (!me) return ["IEM", null];
   const code = (me.hx && me.hx[h]) || me.by;
   if (!code) return [me.src, null];
-  return code === "IEM" ? ["IEM", null] : code === "ECCC" ? ["ECCC", null] : ["WIS2", code];
+  return code === "IEM" ? ["IEM", null] : code === "ECCC" ? ["ECCC", null]
+    : code.startsWith("TAC:") ? ["TAC", code] : ["WIS2", code];
 }
 const viaTip = (src, by) => src === "WIS2" ? ` · via WMO WIS 2.0, from ${centreName(by)}`
-  : src === "ECCC" ? " · from Environment and Climate Change Canada (MSC Datamart)" : "";
+  : src === "ECCC" ? " · from Environment and Climate Change Canada (MSC Datamart)"
+  : src === "TAC" ? ` · WMO GTS TEMP via WIS 2.0, from ${centreName(by)}` : "";
 
 // SPC/IEM report wind on only some levels; zero-filling the rest would drag the
 // hodograph to the origin, so interpolate U/V across the gaps in log-p.
@@ -2192,7 +2196,8 @@ function renderLaunchStrip() {
     const on = lastValidDt === h;
     const [ls, lb] = (me.hours || []).includes(h) ? launchSrc(me, h) : [null, null];
     const via = ls === "WIS2" ? ` — WMO WIS 2.0, ${centreName(lb)}` : ls === "IEM" ? " — IEM"
-      : ls === "ECCC" ? " — Environment and Climate Change Canada (MSC Datamart)" : "";
+      : ls === "ECCC" ? " — Environment and Climate Change Canada (MSC Datamart)"
+      : ls === "TAC" ? ` — WMO GTS TEMP via WIS 2.0, ${centreName(lb)}` : "";
     html += `<button data-launch="${h}" class="${hh % 6 ? "special" : ""}${on ? " on" : ""}"` +
       ` title="${d} ${hourZ(hh)}${hh % 6 ? " — off-hour (special) release" : ""}${via}${on ? " — on screen" : ""}">${hourZ(hh)}</button>`;
   }
