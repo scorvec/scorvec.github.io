@@ -84,7 +84,8 @@ def phase_series(z, lat, lon, steps, s):
     lev = list(z.isobaricInhPa.values.astype(int))
     fol = s.get("followed", np.zeros(len(s["steps"]), bool))
     mrg = s.get("merged", np.zeros(len(s["steps"]), bool))
-    out = {"h": [], "lat": [], "lon": [], "B": [], "VTL": [], "VTU": [], "followed": [], "merged": []}
+    out = {"h": [], "lat": [], "lon": [], "B": [], "VTL": [], "VTU": [], "followed": [], "merged": [], "pmsl": [], "wind": []}
+    pm = np.asarray(s.get("pmsl", np.full(len(s["steps"]), np.nan)), float); wd = np.asarray(s.get("wind", np.full(len(s["steps"]), np.nan)), float)
     for k, h in enumerate(steps):
         pos = TC.at(s, int(h))
         if pos is None or pos[0] <= 0:
@@ -107,6 +108,8 @@ def phase_series(z, lat, lon, steps, s):
         dz = [float(Z[lev.index(p)][m].max() - Z[lev.index(p)][m].min()) for p in LEVS]
         dzd = dict(zip(LEVS, dz))
         out["followed"].append(bool(fol[kk])); out["merged"].append(bool(mrg[kk]))
+        out["pmsl"].append(round(float(pm[kk]), 1) if kk < len(pm) and np.isfinite(pm[kk]) else None)
+        out["wind"].append(round(float(wd[kk]), 1) if kk < len(wd) and np.isfinite(wd[kk]) else None)
         out["h"].append(int(h)); out["lat"].append(pos[0]); out["lon"].append(pos[1]); out["B"].append(B)
         out["VTL"].append(_slope([dzd[p] for p in LOW], LOW)); out["VTU"].append(_slope([dzd[p] for p in UPP], UPP))
     for key in ("B", "VTL", "VTU"):                                       # Hart: 24-h running mean
@@ -158,8 +161,11 @@ def render(rows, init, out_png):
     # keeping the zero lines and the B = 10 m threshold), the rows sit closer and the figure is drawn at a higher resolution;
     # Hart's fixed -600..300 frame had squeezed every track into a corner.
     H = 4.25 * n + 1.25
-    fig, axs = plt.subplots(n, 2, figsize=(12.6, H), squeeze=False)
-    fig.subplots_adjust(left=0.075, right=0.915, top=1 - 0.95 / H, bottom=1.05 / H, hspace=0.36, wspace=0.22)
+    # 2026-10-05 (user: "the cyclone phase graphs dont have anything about storm intensity"): point size = central pressure
+    # (bigger = deeper), pressure in the date labels, and a third panel with the central pressure (and the tracker's maximum
+    # 10-m wind) against time, ET onset / completion marked
+    fig, axs = plt.subplots(n, 3, figsize=(16.4, H), squeeze=False, gridspec_kw={"width_ratios": [1, 1, 0.66]})
+    fig.subplots_adjust(left=0.06, right=0.905, top=1 - 0.95 / H, bottom=1.05 / H, hspace=0.36, wspace=0.25)
     fig.suptitle(f"Cyclone phase space (Hart 2003) — AIFS-ENS control, init {init:%d %b %Y %HZ}", fontsize=14,
                  fontweight="bold", x=0.075, ha="left", y=1 - 0.22 / H)
 
@@ -168,6 +174,9 @@ def render(rows, init, out_png):
         if hi - lo < minspan: m = (hi + lo) / 2; lo, hi = m - minspan / 2, m + minspan / 2
         w = hi - lo; return lo - pad * w, hi + pad * w
     cmap = plt.get_cmap("viridis"); norm = plt.Normalize(0, 15)
+    def psize(p):                                          # marker area from central pressure: 1010 hPa -> 10, 950 -> ~150
+        p = np.array([np.nan if v is None else v for v in p], float)
+        return np.where(np.isfinite(p), np.clip(10 + 2.35 * (1010 - p), 10, 190), 18)
     if not rows:
         for ax in axs[0]:
             ax.axis("off")
@@ -203,9 +212,10 @@ def render(rows, init, out_png):
                     if mask.any():
                         lc = LineCollection(segs[mask], cmap=cmap, norm=norm, lw=3, linestyles=ls)
                         lc.set_array(d[:-1][mask]); ax.add_collection(lc)
-            sc = ax.scatter(x[~fol], y[~fol], c=d[~fol], cmap=cmap, norm=norm, s=22, zorder=3, edgecolors="none")
+            sz = psize(ser.get("pmsl", [None] * len(x)))
+            sc = ax.scatter(x[~fol], y[~fol], c=d[~fol], cmap=cmap, norm=norm, s=sz[~fol], zorder=3, edgecolors="#fff", linewidths=0.5)
             if fol.any():
-                ax.scatter(x[fol], y[fol], s=26, zorder=3, facecolors="#fff", edgecolors=[cmap(norm(v)) for v in d[fol]], linewidths=1.4)
+                ax.scatter(x[fol], y[fol], s=sz[fol], zorder=3, facecolors="#fff", edgecolors=[cmap(norm(v)) for v in d[fol]], linewidths=1.4)
                 j = np.where(fol)[0][0] - 1
                 if j >= 0:
                     labels.append(("tracker's last fix", (x[j], y[j]), True))
@@ -217,14 +227,38 @@ def render(rows, init, out_png):
             ax.scatter(x[-1:], y[-1:], marker="X", s=90, color="#000", zorder=4)
             labels[:0] = [(f"start, {TC.date_lab(init, ser['h'][0] / 24, 'short')}", (x[0], y[0]), False),
                           (f"end, {TC.date_lab(init, ser['h'][-1] / 24, 'short')}", (x[-1], y[-1]), False)]
-            hh = np.asarray(ser["h"])                          # 2026-10-04: a date at every second day's point
+            hh = np.asarray(ser["h"])                          # 2026-10-04: a date at every second day's point (+ its pressure)
+            pms = ser.get("pmsl", [None] * len(x))
             for kd in range(2, int(hh[-1] // 24), 2):
                 jj = np.where(hh == 24 * kd)[0]
                 if len(jj):
-                    labels.append((TC.date_lab(init, kd, "short"), (x[jj[0]], y[jj[0]]), True))
+                    pv = pms[jj[0]]
+                    labels.append((TC.date_lab(init, kd, "short") + (f" · {pv:.0f} hPa" if pv is not None else ""), (x[jj[0]], y[jj[0]]), True))
             ax.set_xlim(*xr); ax.set_ylim(*yr)
             place_labels(fig, ax, labels, caps)
             ax.set_xlabel(xl, fontsize=9.5); ax.set_ylabel(yl, fontsize=9.5); ax.grid(alpha=0.3)
+        ax = axs[r][2]                                         # intensity against time
+        pv = np.array([np.nan if v is None else v for v in ser.get("pmsl", [])], float)
+        wv = np.array([np.nan if v is None else v for v in ser.get("wind", [])], float)
+        if len(pv) and np.isfinite(pv).any():
+            for mask, ls in ((~fol, "-"), (fol, (0, (2.5, 1.6)))):
+                if mask.any():
+                    m2 = mask.copy(); idx = np.where(mask)[0]
+                    if ls != "-" and idx[0] > 0: m2[idx[0] - 1] = True        # join the dashed part to the last tracker fix
+                    ax.plot(d[m2], pv[m2], color="#1b3a5c", lw=2.0, ls=ls, zorder=2)
+            ax.scatter(d, pv, c=d, cmap=cmap, norm=norm, s=psize(ser["pmsl"]), zorder=3, edgecolors="#fff", linewidths=0.5)
+            ax.invert_yaxis(); ax.set_ylabel("central pressure (hPa)", fontsize=9.5, color="#1b3a5c")
+            jmin = int(np.nanargmin(pv)); ax.annotate(f"deepest {pv[jmin]:.0f} hPa\n{TC.date_lab(init, d[jmin], 'short')}", (d[jmin], pv[jmin]),
+                                                      xytext=(8, -10), textcoords="offset points", va="top", fontsize=8.6, fontweight="bold", color="#1b3a5c", zorder=6, bbox=dict(boxstyle="round,pad=0.15", fc="#fff", ec="none", alpha=0.85))
+        if np.isfinite(wv).any():
+            a2 = ax.twinx(); a2.plot(d, wv * 1.943844, color="#c2394b", lw=1.4, alpha=0.85)
+            a2.set_ylabel("max 10-m wind, tracker (kt)", fontsize=9, color="#c2394b"); a2.tick_params(labelsize=8, colors="#c2394b")
+            a2.axhline(64, color="#c2394b", lw=0.7, ls=":", alpha=0.7); a2.text(d[0], 64, " hurricane / typhoon (64 kt)", fontsize=7.5, color="#c2394b", va="bottom")
+        for hv, lab_ in ((onset, "ET onset"), (comp, "ET complete")):
+            if hv is not None:
+                ax.axvline(hv / 24, color="#6f6b64", lw=1, ls="--"); ax.text(hv / 24, 0.02, " " + lab_, transform=ax.get_xaxis_transform(), fontsize=8, color="#6f6b64", rotation=90, va="bottom")
+        ax.set_xlabel("forecast day", fontsize=9.5); ax.grid(alpha=0.3); ax.tick_params(labelsize=8.5)
+        ax.set_title("Intensity", loc="left", fontsize=10.5, fontweight="bold")
         et = []
         if onset is not None: et.append(f"ET onset +{onset} h (B > 10 m)")
         if comp is not None: et.append(f"ET complete +{comp} h (−VT_L < 0)")
@@ -232,15 +266,15 @@ def render(rows, init, out_png):
         if comp is not None: et[-1] = f"ET complete {TC.date_lab(init, comp / 24, 'short')} (−VT_L < 0)"
         axs[r][0].set_title(f"{TC.label(s)}: " + ("; ".join(et) if et else "no extratropical transition in the control's track"),
                             loc="left", fontsize=11, fontweight="bold")
-    cax = fig.add_axes([0.932, 0.25, 0.012, 0.5])
+    cax = fig.add_axes([0.952, 0.25, 0.010, 0.5])
     cb = fig.colorbar(plt.cm.ScalarMappable(norm=norm, cmap=cmap), cax=cax); cb.set_label("valid date (UTC) and forecast day")
     cb.set_ticks(range(0, 16, 2)); cb.set_ticklabels([TC.date_lab(init, d, "one").replace(" (", "\n(") for d in range(0, 16, 2)], fontsize=7.6)
     fig.text(0.075, 0.004, "Axes fitted to each storm's track. Thermal wind = slope of the height perturbation (max − min within 500 km) against ln p; "
-             "positive = warm core; 24-h running mean.\nLevels 925/850/700/600 and 600/500/400/300 hPa (open data; Hart used 900–600 every 25 hPa).\n"
+             "positive = warm core; 24-h running mean. Point size = central pressure (bigger = deeper).\nLevels 925/850/700/600 and 600/500/400/300 hPa (open data; Hart used 900–600 every 25 hPa).\n"
              "Solid: ECMWF's tracker. Dashed, open dots: the low followed on as the surface-pressure minimum after the tracker's last fix,\n"
              "or the low it merges into (the tracker usually stops at extratropical transition).", fontsize=8, color="#6f6b64")
     out_png.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(out_png, dpi=125, facecolor="white", pil_kwargs={"quality": 85, "method": 6}); plt.close(fig)
+    fig.savefig(out_png, dpi=125, facecolor="white", bbox_inches="tight", pad_inches=0.12, pil_kwargs={"quality": 85, "method": 6}); plt.close(fig)
 
 
 def main() -> int:
