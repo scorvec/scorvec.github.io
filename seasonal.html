@@ -3,17 +3,18 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>C3S Seasonal Models — Eight Systems, Maps, Terciles and the ECMWF Member-Level Outlook · Shawn Corvec</title>
-<meta name="description" content="The Copernicus C3S seasonal ensemble: anomaly maps and tercile probabilities for eight systems from seven centres and their multi-model mean, alongside the member-level ECMWF SEAS5 outlook — ENSO and ocean indices, teleconnections, the stratosphere and impacts.">
+<title>Seasonal Model Forecasts — Eight C3S Systems, ECMWF SEAS5 Members and NOAA SFS · Shawn Corvec</title>
+<meta name="description" content="Seasonal model forecasts: anomaly maps and tercile probabilities for eight Copernicus C3S systems from seven centres and their multi-model mean, the member-level ECMWF SEAS5 outlook — ENSO and ocean indices, teleconnections, the stratosphere and impacts — and NOAA's SFS beta: 31-member Niño-3.4 plumes, climate indices and monthly anomaly maps.">
+<meta name="keywords" content="seasonal forecast, seasonal model forecasts, C3S, ECMWF SEAS5, multi-model seasonal ensemble, tercile probabilities, NOAA SFS, SFS model, Seasonal Forecast System, CFSv2 successor, ENSO forecast, Nino 3.4">
 <link rel="canonical" href="https://scorvec.com/seasonal.html">
 <meta property="og:type" content="website">
-<meta property="og:title" content="C3S Seasonal Models">
-<meta property="og:description" content="Eight C3S seasonal systems from seven centres: anomaly maps and tercile probabilities for every model and their multi-model mean, with the member-level ECMWF SEAS5 outlook alongside.">
+<meta property="og:title" content="Seasonal model forecasts">
+<meta property="og:description" content="Eight C3S seasonal systems from seven centres plus NOAA's SFS beta: anomaly maps and tercile probabilities for every C3S model and their multi-model mean, the member-level ECMWF SEAS5 outlook, and SFS plumes and monthly maps.">
 <meta property="og:url" content="https://scorvec.com/seasonal.html">
 <meta property="og:site_name" content="Shawn Corvec &mdash; Weather &amp; Climate Monitors">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="C3S Seasonal Models">
-<meta name="twitter:description" content="Eight C3S seasonal systems from seven centres: anomaly maps and tercile probabilities for every model and their multi-model mean, with the member-level ECMWF SEAS5 outlook alongside.">
+<meta name="twitter:title" content="Seasonal model forecasts">
+<meta name="twitter:description" content="Eight C3S seasonal systems from seven centres plus NOAA's SFS beta: anomaly maps and tercile probabilities for every C3S model and their multi-model mean, the member-level ECMWF SEAS5 outlook, and SFS plumes and monthly maps.">
 <link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;1,400&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/assets/outlook.css">
 <link rel="stylesheet" href="/assets/stage.css">
@@ -30,6 +31,13 @@
   .xd-city:hover .dot, .xd-city.on .dot { background: var(--accent); box-shadow: 0 0 0 2px var(--accent); transform: scale(1.25); }
   .xd-city .nm { position: absolute; top: 50%; transform: translateY(-50%); font: 600 0.8rem var(--sans); color: var(--accent); white-space: nowrap; pointer-events: none;
                  background: rgba(255,255,255,0.92); padding: 0.05rem 0.3rem; border-radius: 3px; display: none; }
+  /* NOAA SFS group (moved from sfs.html 2026-10-06) */
+  .method-head { font-family: var(--serif); font-weight: 500; font-size: 1rem; margin: 0.9rem 0 0.3rem; }
+  .method-list { max-width: 90ch; font-size: 0.84rem; line-height: 1.6; color: var(--ink2); padding-left: 1.2rem; margin: 0 0 0.9rem; }
+  .method-list li + li { margin-top: 0.35rem; }
+  .method-list b { color: var(--ink); font-weight: 500; }
+  .sfs-block .plot { margin-bottom: 0.4rem; }
+  .sfs-block .chips { margin: 0 0 0.8rem; }
   .xd-city.r .nm { left: 100%; } .xd-city.l .nm { right: 100%; }
   #xdCity { min-height: 0; }
   @media (max-width: 700px) {
@@ -151,8 +159,7 @@
             <div>
               <h3>Seasons</h3>
               <ul>
-                <li><a href="/seasonal.html" aria-current="page">Eight C3S seasonal models</a></li>
-                <li><a href="/sfs.html">NOAA SFS seasonal</a></li>
+                <li><a href="/seasonal.html" aria-current="page">Seasonal model forecasts</a></li>
                 <li><a href="/enso-forecasts.html">ENSO forecasts</a></li>
               </ul>
             </div>
@@ -214,13 +221,14 @@
 <script src="/assets/outlook-charts.js"></script>
 <main>
   <header>
-    <div class="eyebrow">Monthly, from the Copernicus C3S multi-system seasonal ensemble, <span id="issueLabel">latest issue</span></div>
-    <h1>C3S seasonal models</h1>
-    <p class="sub">Eight seasonal systems from seven centres, each read against <b>its own 1993&ndash;2016 hindcast</b>
+    <div class="eyebrow">Monthly, from the Copernicus C3S multi-system seasonal ensemble and the NOAA SFS beta, <span id="issueLabel">latest issue</span></div>
+    <h1>Seasonal model forecasts</h1>
+    <p class="sub">Eight C3S seasonal systems from seven centres, each read against <b>its own 1993&ndash;2016 hindcast</b>
     so the models compare even though their biases do not. Every system carries the global maps and the tercile
     probabilities; ECMWF SEAS5 carries the member-level work as well &mdash; ENSO and ocean indices, teleconnections,
-    the stratosphere and the impact products &mdash; because its full ensemble is the one held locally. Pick a figure
-    from the rail.</p>
+    the stratosphere and the impact products &mdash; because its full ensemble is the one held locally. NOAA&rsquo;s
+    SFS beta, the successor to CFSv2, has its own group: 31 members against its own 1991&ndash;2020 reforecast. Pick a
+    figure from the rail.</p>
     <div class="chips" id="chips">
       <div class="chip"><div class="l">Loading forecast feed&hellip;</div><div class="v neut">&mdash;</div></div>
     </div>
@@ -679,6 +687,45 @@
       <span class="chart-updated" id="rgUpdated">&mdash;</span>
     </div>
   </div>
+  <!-- NOAA SFS beta (moved from sfs.html 2026-10-06): mounted blocks for the sfs-plume / sfs-indices products. The maps
+       product is a loop.html frame (assets/sfs/anim), created only when it is on stage. The data loads on the first
+       visit to the group (STAGE.onRender), not with the page. -->
+  <div id="dom-sfs-plume" class="sfs-block" hidden>
+    <div class="chips" id="sfsChips">
+      <div class="chip"><div class="l">NOAA SFS beta</div><div class="v neut">&mdash;</div><div class="s">loading the feed&hellip;</div></div>
+    </div>
+    <p class="note">31 members against the model&rsquo;s own reforecast: fan = member 10&ndash;90% and 25&ndash;75%, sienna = ensemble mean, black = observed (ERSSTv5), blue dashes = the C3S multi-model mean for the same issue.</p>
+    <div class="controls">
+      <button class="pill on" data-idx="n34">Ni&ntilde;o-3.4 (&rarr; ONI)</button>
+      <button class="pill" data-idx="roni">RONI</button>
+      <span class="ctlsep">&middot;</span>
+      <button class="pill on" data-sm="0">Monthly</button>
+      <button class="pill" data-sm="1">3-month (ONI convention)</button>
+      <span class="ctlsep">&middot;</span>
+      <button class="pill" data-mem="1" id="sfsMemPill">Show all members</button>
+    </div>
+    <div id="sfsPlumeChart" class="plot" style="height:480px"></div>
+    <div class="chart-card-footer">
+      <span class="chart-sources">NOAA SFS beta v1.0 prototype (NODD zarr, ocn_monthly)
+      &middot; Ni&ntilde;o-3.4 (5&deg;S&ndash;5&deg;N, 170&ndash;120&deg;W), cos-weighted
+      &middot; anomalies vs own reforecast 1991&ndash;2020 per init month &amp; lead
+      &middot; C3S overlay: anomalies vs each model's own 1993&ndash;2016 hindcast
+      &middot; observed: ERSSTv5, 1991&ndash;2020</span>
+      <span class="chart-updated" id="sfsPlumeUpdated">&mdash;</span>
+    </div>
+  </div>
+  <div id="dom-sfs-indices" class="sfs-block" hidden>
+    <p class="note">IOD, South Atlantic dipole, the Ni&ntilde;o flavours and a reforecast-EOF PDO, per member, in &sigma;. Fan and mean as on the plume.</p>
+    <div class="controls" id="sfsIdxPills"></div>
+    <div id="sfsIdxChart" class="plot" style="height:460px"></div>
+    <div class="chart-card-footer">
+      <span class="chart-sources">SFS beta ocn_monthly zarr, 31 members &middot;
+      anomalies vs own reforecast 1991&ndash;2020 per init month &amp; lead &middot;
+      PDO pattern: EOF1 of reforecast North Pacific SSTA (20&ndash;70&deg;N,
+      110&deg;E&ndash;100&deg;W, 30 yrs &times; 11 members &times; 10 leads pooled)</span>
+      <span class="chart-updated" id="sfsIdxUpdated">&mdash;</span>
+    </div>
+  </div>
   <div class="card" id="aboutCard" data-label="About this page" data-group="About">
     <h2>What this page reads, and how</h2>
     <p class="note" style="max-width:80ch;font-size:0.9rem;line-height:1.65">ECMWF&rsquo;s seasonal system, read in full and checked against observations: the ENSO
@@ -690,10 +737,32 @@
     States and Brazil set against normals and records. Model drift is removed everywhere by
     anomalising each member against SEAS5&rsquo;s own 1993&ndash;2016 hindcast for the same start
     month and lead. The other seven systems are on this page too, in the maps and tercile cards above; what stays
-    ECMWF-only here is the member-level work, because SEAS5 is the ensemble held locally.</p>
+    ECMWF-only here is the member-level work, because SEAS5 is the ensemble held locally. NOAA&rsquo;s SFS beta is
+    read separately, member by member, against its own reforecast (the NOAA SFS group).</p>
     <div class="chart-card-footer"><span class="chart-sources">ECMWF SEAS5 via the Copernicus Climate Data Store</span><span class="chart-updated">built by scripts/sst/seas5_outlook.py</span></div>
   </div>
   </div>
+<template id="about-sfs"><p class="note" style="max-width:80ch;font-size:0.9rem;line-height:1.65">NOAA's next-generation Seasonal Forecast System &mdash; the UFS-based successor to CFSv2, running in near-real-time beta since March 2026 with open zarr output. Every month: 31 members, 12 monthly leads. Anomalies are computed against the <b>model's own 1991&ndash;2020 reforecast</b> for the same init month and lead (11 members &times; 30 years), so drift and bias are removed the same way the C3S models are handled in the other groups on this page and on the <a href="enso-forecasts.html">ENSO forecasts page</a>.</p>
+    <h3 class="method-head">Method</h3>
+    <ul class="method-list">
+      <li><b>Ni&ntilde;o-3.4.</b> Monthly index from all 31 members; fan = member 10&ndash;90% and 25&ndash;75%, sienna line = ensemble mean, observed ERSSTv5 leads in, <b style="color:var(--cool)">blue dashes</b> = the C3S multi-model mean from the same issue month. The 3-month toggle gives the ONI convention.</li>
+      <li><b>Derived indices.</b> IOD (Saji DMI), the South Atlantic Subtropical Dipole (SW&nbsp;&minus;&nbsp;NE), the Ni&ntilde;o flavors, and a PDO from North Pacific SST anomalies (global mean removed) projected onto the model's own reforecast EOF1, in reforecast-&sigma; units; same fan and mean.</li>
+      <li><b>Monthly anomaly maps.</b> One frame per forecast month against the reforecast for the same init month and lead; fixed color scale across leads.</li>
+    </ul>
+    <p class="note" style="max-width:80ch;font-size:0.9rem;line-height:1.65"><b>About the system.</b> SFS beta is a NOAA research prototype (published by the 6th of each month), not yet an operational product &mdash; ensemble size, physics and post-processing are still evolving, and months may occasionally be late or revised. NOAA publishes the raw ensemble openly but few graphical products; everything in this group is computed directly from the full 31-member zarr output and refreshed with each monthly issue.</p>
+    <div class="chart-card-footer"><span class="chart-sources">NOAA SFS beta on NODD (open zarr, public domain) &middot; own 1991&ndash;2020 reforecast &middot; ERSSTv5, C3S</span><span class="chart-updated">built by scripts/sfs/*.py</span></div></template>
+<template id="about-sfs-maps"><p>One frame per forecast month against the model&rsquo;s own reforecast, fixed colour scale, in the loop player.</p><div class="chart-card-footer">
+      <span class="chart-sources">SFS beta ocn_monthly / atm_monthly zarr (1&deg;), 31-member mean
+      &middot; anomalies vs own reforecast 1991&ndash;2020 per init month &amp; lead &middot; fixed colour scale across leads</span>
+      <span class="chart-updated" id="sfsMonthlyUpdated">&mdash;</span>
+    </div><p class="note" style="max-width:80ch;font-size:0.9rem;line-height:1.65">NOAA's next-generation Seasonal Forecast System &mdash; the UFS-based successor to CFSv2, running in near-real-time beta since March 2026 with open zarr output. Every month: 31 members, 12 monthly leads. Anomalies are computed against the <b>model's own 1991&ndash;2020 reforecast</b> for the same init month and lead (11 members &times; 30 years), so drift and bias are removed the same way the C3S models are handled in the other groups on this page and on the <a href="enso-forecasts.html">ENSO forecasts page</a>.</p>
+    <h3 class="method-head">Method</h3>
+    <ul class="method-list">
+      <li><b>Ni&ntilde;o-3.4.</b> Monthly index from all 31 members; fan = member 10&ndash;90% and 25&ndash;75%, sienna line = ensemble mean, observed ERSSTv5 leads in, <b style="color:var(--cool)">blue dashes</b> = the C3S multi-model mean from the same issue month. The 3-month toggle gives the ONI convention.</li>
+      <li><b>Derived indices.</b> IOD (Saji DMI), the South Atlantic Subtropical Dipole (SW&nbsp;&minus;&nbsp;NE), the Ni&ntilde;o flavors, and a PDO from North Pacific SST anomalies (global mean removed) projected onto the model's own reforecast EOF1, in reforecast-&sigma; units; same fan and mean.</li>
+      <li><b>Monthly anomaly maps.</b> One frame per forecast month against the reforecast for the same init month and lead; fixed color scale across leads.</li>
+    </ul>
+    <div class="chart-card-footer"><span class="chart-sources">NOAA SFS beta on NODD (open zarr, public domain) &middot; own 1991&ndash;2020 reforecast &middot; ERSSTv5, C3S</span><span class="chart-updated">built by scripts/sfs/*.py</span></div></template>
 
   <div class="colophon">
     <h3>Data and method</h3>
@@ -708,11 +777,23 @@
     <p>Forecast: ECMWF SEAS5 (C3S <code>originating_centre=ecmwf</code>, <code>system=51</code>), 51 members, monthly means for lead months 1&ndash;6 and the 6-hourly 2 m temperature, from the Copernicus Climate Data Store; hindcast: the same system&rsquo;s 1993&ndash;2016 re-forecasts, 25 members, for the same start month, and likewise for the previous issue. Sea-surface temperature, 500 and 1000 hPa height, sea-level pressure and stratospheric winds on a 2&deg; grid; 2 m temperature, precipitation, evaporation, 10 m wind, solar radiation and 500 hPa height on a 1&deg; grid over the Americas; geopotential at 10, 50 and 100 hPa poleward of 60&deg; in each hemisphere.</p>
     <p>Observations: ERA5 from a local archive (daily 1.5&deg; fields, 1959 or 1991 to the present depending on the field), monthly-meaned for normals, trends, records and skill; CPC ERSSTv5 for the observed Ni&ntilde;o indices; NOAA CPC Global Unified daily maximum and minimum temperature (0.5&deg;, 1991&ndash;2020, via NOAA PSL) for the threshold-day normals. Teleconnection projectors are the CPC-style regression patterns built for the GEPS page on NCEP/NCAR R1 (1991&ndash;2020). Population weights: GeoNames (CC BY 4.0) places of 15,000 or more people. The hindcast and observed references are reduced once to compact tables, so each monthly run in GitHub Actions downloads only the new forecast.</p>
     <p>Method: indices are cosine-weighted box means; anomalies are member minus hindcast mean at the same lead (member minus the hindcast&rsquo;s linear trend for geopotential heights, which carry the warming signal). Relative Ni&ntilde;o-3.4 follows the CPC/ECMWF construction used elsewhere on this site; the Trans-Ni&ntilde;o index is Trenberth &amp; Stepaniak (2001), standardised by the hindcast spread. Terciles against the hindcast use the 33.3rd and 66.7th percentiles of the 600 hindcast samples per grid point; against observed references the members are first bias-corrected (member &minus; hindcast mean + ERA5 1993&ndash;2016 mean, multiplicatively for rain and sunshine) and the bounds are &plusmn;0.43&sigma; of the observed 1991&ndash;2020 spread around the reference (detrended for the trend reference; empirical percentiles for rain and sunshine). Standardised anomalies divide the ensemble-mean anomaly by the reference&rsquo;s year-to-year standard deviation. Skill is the correlation of the 24 hindcast years&rsquo; ensemble mean with ERA5 at the valid month. Teleconnection phase probabilities are calibrated by regressing the observed monthly index (ERA5, same projection) on the hindcast ensemble mean over those 24 years for each calendar month and lead, and reading the ±0.5&sigma; tail areas of a Gaussian centred on the regression prediction with the residual spread &mdash; an in-sample fit at n&nbsp;=&nbsp;24, so the quoted r is slightly optimistic; below r&nbsp;=&nbsp;0.25 the probabilities are treated as climatology. The AO, EPO, WPO and SOI, which have no built-in standardisation, are expressed in ERA5&rsquo;s 1991&ndash;2020 standard deviation for the calendar month, applied identically to model and observations. Built by <code>scripts/sst/seas5_outlook.py</code> and its companions; the JSON behind the charts: <a href="assets/sst/data/seas5_outlook.json">seas5_outlook.json</a>, <a href="assets/sst/data/seas5_tele.json">seas5_tele.json</a>, <a href="assets/sst/data/seas5_popT.json">seas5_popT.json</a>, <a href="assets/sst/data/seas5_pme_regions.json">seas5_pme_regions.json</a>, <a href="assets/sst/data/seas5_normals.json">seas5_normals.json</a>, <a href="assets/sst/data/seas5_regimes.json">seas5_regimes.json</a>.</p>
+    <p><b>NOAA SFS beta</b> (the NOAA SFS group, moved here from its own page in October 2026): NOAA&rsquo;s next-generation
+    Seasonal Forecast System, the UFS-based replacement for CFSv2, running in near-real-time beta since March 2026. NOAA
+    publishes the raw ensemble output openly but few graphical products; the Ni&ntilde;o-3.4/RONI plumes, the
+    IOD/SASD/PDO indices and the monthly anomaly-map loops are computed directly from the full 31-member zarr output and
+    refreshed with each monthly issue (published by the 6th of each month). It is a research prototype, not yet an
+    operational product &mdash; ensemble size, physics and post-processing are still evolving, and months may occasionally
+    be late or revised. The reforecast climatology uses 11 members per year over 1991&ndash;2020, init-month specific, so
+    lead-dependent drift cancels by construction. Data: NOAA Open Data Dissemination, <code>noaa-oar-sfsdev-pds</code> on
+    AWS. Built by <code>scripts/sfs/*.py</code>; the JSON behind the charts:
+    <a href="assets/sfs/data/sfs_nino34.json">sfs_nino34.json</a>, <a href="assets/sfs/data/sfs_indices.json">sfs_indices.json</a>.</p>
+    <p>SFS beta data: NOAA/OAR via NODD (public domain) &middot; C3S overlay on the SFS plume: Copernicus Climate Change
+    Service &middot; observed indices: NOAA CPC ERSSTv5.</p>
     <p>Contains modified Copernicus Climate Change Service information 2026. Neither the European Commission nor ECMWF is responsible for any use of this information.</p>
   </div>
 <script>
 window.STAGE = {
-  groups: [{"label": "Every model", "items": [["c3sMapCard", "Anomaly maps", ""], ["c3sTercCard", "Tercile probabilities", ""], ["c3sIdxCard", "Ocean indices", ""], ["c3sPopCard", "Population-weighted, monthly", ""], ["c3sDayCard", "Population-weighted, daily", ""], ["ni-o-3-4-every-member", "Niño-3.4, every member", ""]]}, {"label": "SEAS5 · ENSO & oceans", "items": [["enso-indices", "ENSO indices", ""], ["pdo-amo-iod-atlantic-ni-o", "PDO, AMO, IOD, Atlantic Niño", ""]]}, {"label": "SEAS5 · Maps", "items": [["changeCard", "Maps and changes", ""], ["calibrated-terciles", "Calibrated terciles", ""], ["normCard", "Against observed normals", ""]]}, {"label": "SEAS5 · Teleconnections & stratosphere", "items": [["teleCard", "Teleconnection indices", ""], ["stratCard", "Vortex, QBO, annular mode", ""], ["polar-stratosphere", "Polar stratosphere", ""], ["regimeCard", "Weather regimes", ""]]}, {"label": "SEAS5 · Impacts", "items": [["popCard", "Population-weighted, daily", ""], ["xdaysCard", "Threshold days", ""], ["runsCard", "Cold-snap risk", ""], ["windCard", "Wind events", ""], ["snowCard", "Snowfall", ""], ["pmeCard", "P − E by region", ""]]}, {"label": "About", "items": [["aboutCard", "About this page", ""]]}],
+  groups: [{"label": "Every model", "items": [["c3sMapCard", "Anomaly maps", ""], ["c3sTercCard", "Tercile probabilities", ""], ["c3sIdxCard", "Ocean indices", ""], ["c3sPopCard", "Population-weighted, monthly", ""], ["c3sDayCard", "Population-weighted, daily", ""], ["ni-o-3-4-every-member", "Niño-3.4, every member", ""]]}, {"label": "SEAS5 · ENSO & oceans", "items": [["enso-indices", "ENSO indices", ""], ["pdo-amo-iod-atlantic-ni-o", "PDO, AMO, IOD, Atlantic Niño", ""]]}, {"label": "SEAS5 · Maps", "items": [["changeCard", "Maps and changes", ""], ["calibrated-terciles", "Calibrated terciles", ""], ["normCard", "Against observed normals", ""]]}, {"label": "SEAS5 · Teleconnections & stratosphere", "items": [["teleCard", "Teleconnection indices", ""], ["stratCard", "Vortex, QBO, annular mode", ""], ["polar-stratosphere", "Polar stratosphere", ""], ["regimeCard", "Weather regimes", ""]]}, {"label": "SEAS5 · Impacts", "items": [["popCard", "Population-weighted, daily", ""], ["xdaysCard", "Threshold days", ""], ["runsCard", "Cold-snap risk", ""], ["windCard", "Wind events", ""], ["snowCard", "Snowfall", ""], ["pmeCard", "P − E by region", ""]]}, {"label": "NOAA SFS (beta)", "items": [["sfs-plume", "Niño-3.4 plume", "all 31 members"], ["sfs-indices", "Climate indices", "IOD, SASD, Niño flavours, PDO"], ["sfs-maps", "Monthly anomaly maps", "eight fields, every lead"]]}, {"label": "About", "items": [["aboutCard", "About this page", ""]]}],
   products: {
     "c3sMapCard": { label: "Anomaly maps", gated: true, dom: function () { return "c3sMapCard"; } },
     "c3sTercCard": { label: "Tercile probabilities", gated: true, dom: function () { return "c3sTercCard"; } },
@@ -735,9 +816,22 @@ window.STAGE = {
     "normCard": { label: "Against observed normals", gated: true, dom: function () { return "normCard"; } },
     "polar-stratosphere": { label: "Polar stratosphere", gated: true, dom: function () { return "polar-stratosphere"; } },
     "regimeCard": { label: "Weather regimes", gated: true, dom: function () { return "regimeCard"; } },
+    "sfs-plume": { label: "SFS Niño-3.4 — all 31 members", dom: function () { return "dom-sfs-plume"; }, about: "about-sfs",
+                   cap: function () { return ""; } },
+    "sfs-indices": { label: "SFS derived climate indices — member spread", dom: function () { return "dom-sfs-indices"; }, about: "about-sfs",
+                     cap: function () { return ""; } },
+    "sfs-maps": { label: "SFS monthly anomaly maps",
+                  a: { label: "Field", items: [["sfs_sst", "SST"], ["sfs_t2m", "2 m temperature"], ["sfs_precip", "Precipitation"], ["sfs_z500", "500 hPa height"], ["sfs_mslp", "MSLP"], ["sfs_wind850", "850 hPa wind"], ["sfs_wind200", "200 hPa wind"], ["sfs_chi200", "200 hPa χ"]] },
+                  frame: function (a) { return "loop.html?base=assets/sfs/anim&manifest=" + a + "_manifest.json&region=" + a + "&autoplay=0"; },
+                  ratio: function () { return "1440/860"; },
+                  cap: function (a) { return ({"sfs_sst": "Sea-surface temperature anomaly, monthly means", "sfs_t2m": "2 m temperature anomaly, monthly means", "sfs_precip": "Precipitation anomaly, monthly means", "sfs_z500": "500 hPa height anomaly, monthly means", "sfs_mslp": "Mean sea-level pressure anomaly, monthly means", "sfs_wind850": "850 hPa wind anomaly, monthly means", "sfs_wind200": "200 hPa wind anomaly, monthly means", "sfs_chi200": "200 hPa velocity potential (χ) anomaly, monthly means"})[a] + " from the NOAA SFS beta against the model\u2019s own 1991\u20132020 reforecast, one frame per forecast month, fixed colour scale."; },
+                  about: "about-sfs-maps" },
     "aboutCard": { label: "About this page", gated: true, dom: function () { return "aboutCard"; } }
   }
 };
+// the SFS group's data loads on its first visit (window.SFS.start, defined further down), not with the page
+window.STAGE.aliases = { "sfs": "sfs-plume" };
+window.STAGE.onRender = function (sel) { if (sel.p.indexOf("sfs-") === 0 && window.SFS) window.SFS.start(sel.p); };
 </script>
 </main>
 
@@ -754,7 +848,7 @@ window.STAGE = {
   function fmt(v, d) { return v == null ? "—" : (v >= 0 ? "+" : "") + v.toFixed(d == null ? 2 : d); }
   function meta(key) { for (var i = 0; i < J.index_meta.length; i++) if (J.index_meta[i].key === key) return J.index_meta[i]; return {label: key, units: "", note: ""}; }
 
-  // Chart chrome lives in /assets/outlook-charts.js (shared with sfs.html, 2026-09-07): the x-range shows at
+  // Chart chrome lives in /assets/outlook-charts.js (shared with the SFS group below, 2026-09-07): the x-range shows at
   // most six months of observed history, the y-range fits the visible data, members are drawn at a
   // legible weight, the legend sits above the plot and the current mean / last observation carry end labels.
 
@@ -1752,6 +1846,189 @@ window.STAGE = {
     draw();
     card.hidden = false;
   }).catch(function () {});
+})();
+</script>
+
+<script>
+/* NOAA SFS beta group (moved from sfs.html 2026-10-06). Everything is scoped to the two SFS blocks: the SEAS5 card
+   above has its own data-sm pills. The feeds load on the group's first visit (STAGE.onRender -> SFS.start). */
+(function () {
+  "use strict";
+  var OC = window.OutlookCharts;
+  var $ = function (id) { return document.getElementById(id); };
+  var PL = $("dom-sfs-plume"), IX = $("dom-sfs-indices");
+  if (!OC || !PL || !IX) return;
+  var state = { idx: "n34", smooth: false, members: false, sfs: null, c3s: null, hist: null };
+  var built = "";
+
+  function fmt(v, d) { return v == null || !isFinite(v) ? "—" : (v > 0 ? "+" : "") + v.toFixed(d == null ? 2 : d); }
+  function mean(a) { var s = 0, n = 0; a.forEach(function (v) { if (isFinite(v)) { s += v; n++; } }); return n ? s / n : NaN; }
+  function pct(sorted, p) {
+    var i = (sorted.length - 1) * p, lo = Math.floor(i), hi = Math.ceil(i);
+    return sorted[lo] + (sorted[hi] - sorted[lo]) * (i - lo);
+  }
+  function roll3(arr) {
+    return arr.map(function (_, i) {
+      var w = arr.slice(Math.max(0, i - 1), Math.min(arr.length, i + 2)).filter(isFinite);
+      return w.length ? w.reduce(function (a, b) { return a + b; }) / w.length : NaN;
+    });
+  }
+  function md(ym) { return OC.monthDate(ym); }
+  function stampMaps() { var el = $("sfsMonthlyUpdated"); if (el && built) el.textContent = built; }
+
+  function draw() {
+    var S = state.sfs;
+    var valid = S.valid_months;
+    var useR = state.idx === "roni" && S.members_rnino;
+    var members = useR ? S.members_rnino : S.members;
+    var nM = members.length;
+
+    // observed: at most six months before the first forecast month (the shared x-range rule)
+    var obsX = [], obsY = [];
+    if (state.hist) {
+      var src = useR ? (state.hist.series.roni || state.hist.series.oni) : state.hist.series.oni;
+      var arr = src.anom || src, idx = OC.obsWindow(valid, state.hist.months);
+      idx.forEach(function (i) { obsX.push(state.hist.months[i]); obsY.push(arr[i]); });
+    }
+    function smooth(fcArr) {
+      if (!state.smooth) return fcArr;
+      var bridge = obsY.slice(-2).concat(fcArr);
+      return roll3(bridge).slice(Math.min(2, obsY.length));
+    }
+
+    var q = OC.quantiles(members, [10, 25, 75, 90]);
+    var fan = { p10: smooth(q.p10), p25: smooth(q.p25), p75: smooth(q.p75), p90: smooth(q.p90) }, mmm = smooth(q.mean);
+    var fx = valid.map(md), units = "°C", hv = { units: units, digits: 2 };
+
+    var traces = OC.fanTraces(fx, fan, { outerName: "members 10–90%", innerName: "members 25–75%" });
+    if (state.members) traces.push(OC.memberTrace(fx, members.map(function (m) { return smooth(m.slice()); }), { name: "members (" + nM + ")" }));
+    // C3S multi-model mean overlay, same issue window
+    var c3sN = 0;
+    if (state.c3s) {
+      var F = state.c3s, labels = Object.keys(F.models), cx = [], cy = [], fKey = useR ? "rnino" : "n34";
+      c3sN = labels.length;
+      F.valid_months.forEach(function (ym, L3) {
+        cx.push(md(ym)); cy.push(mean(labels.map(function (mo) { return mean(F.models[mo][fKey][L3]); })));
+      });
+      var cyPlot = state.smooth ? roll3(obsY.slice(-2).concat(cy)).slice(Math.min(2, obsY.length)) : cy;
+      traces.push(OC.refTrace(cx, cyPlot, "C3S multi-model mean (" + c3sN + " models)", { markers: true, units: units }));
+    }
+    // ensemble mean, anchored on the last observed month so there is no seam
+    var mx = fx.slice(), my = mmm.slice();
+    if (obsX.length && obsX[obsX.length - 1] < valid[0]) { mx.unshift(md(obsX[obsX.length - 1])); my.unshift(obsY[obsY.length - 1]); }
+    traces.push(OC.meanTrace(mx, my, "SFS ensemble mean (" + nM + " members)", hv));
+    if (obsX.length) traces.push(OC.obsTrace(obsX.map(md), obsY, "observed (ERSSTv5)", hv));
+
+    var shapes = [];
+    [0.5, 1.0, 1.5, 2.0, -0.5, -1.0, -1.5, -2.0].forEach(function (yv) {
+      shapes.push(OC.hline(yv, yv > 0 ? "rgba(180,84,31,0.35)" : "rgba(63,111,143,0.35)", "dot", 1));
+    });
+    OC.react("sfsPlumeChart", traces, {
+      title: (useR ? "Relative Niño-3.4" : "Niño-3.4") + " anomaly" + (state.smooth ? ", 3-month running mean" : "") + " — SFS " + S.issue + " issue",
+      yunits: "anomaly (" + units + ")", xrange: OC.monthRange(valid, obsX), shapes: shapes
+    });
+    built = "issue " + S.issue + " · built " + S.generated;
+    $("sfsPlumeUpdated").textContent = built;
+    stampMaps();
+
+    var peak = { v: -99, i: 0 };
+    q.mean.forEach(function (v, i) { if (v > peak.v) peak = { v: v, i: i }; });
+    var pool = members.map(function (m) { return m[peak.i]; })
+      .filter(isFinite).sort(function (a, b) { return a - b; });
+    var c3sPeak = null;
+    if (state.c3s) {
+      var F2 = state.c3s, labels2 = Object.keys(F2.models);
+      var fKey2 = useR ? "rnino" : "n34";
+      c3sPeak = Math.max.apply(null, F2.valid_months.map(function (_, L4) {
+        return mean(labels2.map(function (mo) { return mean(F2.models[mo][fKey2][L4]); }));
+      }));
+    }
+    var chips = [
+      { l: "SFS issue " + S.issue, v: nM + " members", s: "12 monthly leads · beta v1.0", cls: "neut" },
+      { l: "Peak " + (useR ? "RONI" : "Niño-3.4") + " · " + valid[peak.i], v: fmt(peak.v) + " °C",
+        s: "members P10–P90: " + fmt(pct(pool, 0.10), 1) + " … " + fmt(pct(pool, 0.90), 1),
+        cls: peak.v >= 0.5 ? "warm" : "neut" },
+      { l: "C3S " + (c3sN ? c3sN + "-model" : "multi-model") + " peak", v: c3sPeak == null ? "—" : fmt(c3sPeak) + " °C",
+        s: "same issue month, own-hindcast base", cls: "neut" },
+      { l: "Climatology", v: "own reforecast", s: "1991–2020 · 11 members × 30 yrs", cls: "neut" },
+    ];
+    $("sfsChips").innerHTML = chips.map(function (c) {
+      return '<div class="chip"><div class="l">' + c.l + '</div>' +
+             '<div class="v ' + c.cls + '">' + c.v + '</div>' +
+             '<div class="s">' + c.s + "</div></div>";
+    }).join("");
+  }
+
+  function wire(sel, fn) {
+    var bs = PL.querySelectorAll(sel);
+    Array.prototype.forEach.call(bs, function (b) { b.addEventListener("click", function () { fn(b, bs); if (state.sfs) draw(); }); });
+  }
+  function only(b, bs) { Array.prototype.forEach.call(bs, function (o) { o.classList.toggle("on", o === b); }); }
+  wire(".pill[data-idx]", function (b, bs) { state.idx = b.dataset.idx; only(b, bs); });
+  wire(".pill[data-sm]", function (b, bs) { state.smooth = b.dataset.sm === "1"; only(b, bs); });
+  wire(".pill[data-mem]", function (b) { state.members = !state.members; b.classList.toggle("on", state.members); });
+
+  // ── derived indices ──────────────────────────────────────────────────────
+  var idxState = { data: null, key: "dmi" };
+  function drawIdx() {
+    var D = idxState.data;
+    if (!D) return;
+    var d = D.indices[idxState.key];
+    if (!d) return;
+    var valid = D.valid_months, x = valid.map(md);
+    var q = OC.quantiles(d.members, [10, 25, 75, 90]), hv = { units: d.units, digits: 2 };
+    var traces = OC.fanTraces(x, q, { outerName: "members 10–90%", innerName: "members 25–75%" });
+    traces.push(OC.memberTrace(x, d.members, { name: "members (" + d.members.length + ")" }));
+    traces.push(OC.meanTrace(x, q.mean, "ensemble mean", hv));
+    OC.react("sfsIdxChart", traces, { title: d.label + " — SFS " + D.issue + " issue", yunits: d.label + " (" + d.units + ")", xrange: OC.monthRange(valid, []) });
+    $("sfsIdxUpdated").textContent = "issue " + D.issue + " · built " + D.generated;
+  }
+
+  var started = false;
+  function start() {
+    setTimeout(stampMaps, 0);                // the stage fills #about after onRender: stamp the copied template then
+    if (started) return;
+    started = true;
+    fetch("assets/sfs/data/sfs_indices.json?v=" + Date.now())
+      .then(function (r) { if (!r.ok) throw 0; return r.json(); })
+      .then(function (D) {
+        idxState.data = D;
+        var order = ["dmi", "sasd", "pdo", "nino3", "nino4", "nino12"];
+        var host = $("sfsIdxPills");
+        order.forEach(function (k) {
+          if (!D.indices[k]) return;
+          var b = document.createElement("button");
+          b.className = "pill" + (k === idxState.key ? " on" : "");
+          b.textContent = D.indices[k].label.split(" (")[0];
+          b.addEventListener("click", function () {
+            idxState.key = k;
+            Array.prototype.forEach.call(host.querySelectorAll(".pill"), function (o) { o.classList.toggle("on", o === b); });
+            drawIdx();
+          });
+          host.appendChild(b);
+        });
+        drawIdx();
+      })
+      .catch(function () {
+        $("sfsIdxChart").innerHTML =
+          '<div style="padding:2rem;color:var(--muted)">indices feed building — check back after the monthly build</div>';
+      });
+
+    Promise.all([
+      fetch("assets/sfs/data/sfs_nino34.json?v=" + Date.now()).then(function (r) { if (!r.ok) throw 0; return r.json(); }),
+      fetch("assets/sst/data/enso_forecast.json?v=" + Date.now()).then(function (r) { return r.ok ? r.json() : null; }).catch(function () { return null; }),
+      fetch("assets/sst/data/nino_history.json?v=" + Date.now()).then(function (r) { return r.ok ? r.json() : null; }).catch(function () { return null; }),
+    ]).then(function (res) {
+      state.sfs = res[0]; state.c3s = res[1]; state.hist = res[2];
+      draw();
+    }).catch(function (e) {
+      if (window.console) console.warn("SFS feed unavailable:", e);
+      $("sfsChips").innerHTML =
+        '<div class="chip"><div class="l">SFS feed</div><div class="v neut">unavailable</div>' +
+        '<div class="s">check back after the monthly build (~6th)</div></div>';
+    });
+  }
+  window.SFS = { start: start };
 })();
 </script>
 

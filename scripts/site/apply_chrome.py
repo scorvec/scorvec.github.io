@@ -136,11 +136,9 @@ PRODUCTS = [
              "Daily"),
         ]),
         ("Seasons", [
-            ("/seasonal.html", "Eight C3S seasonal models",
-             "Eight seasonal systems from seven centres: anomaly maps and tercile probabilities for every model and their mean, plus the member-level ECMWF SEAS5 outlook: indices, teleconnections, the stratosphere and impacts.",
-             "Monthly"),
-            ("/sfs.html", "NOAA SFS seasonal",
-             "Maps from NOAA's new Seasonal Forecast System, 31 members, for the months ahead.",
+            # renamed from "Eight C3S seasonal models" and the NOAA SFS page folded in (2026-10-06, user)
+            ("/seasonal.html", "Seasonal model forecasts",
+             "Eight C3S systems from seven centres plus NOAA's SFS beta: anomaly maps and tercile probabilities for every C3S model and their mean, the member-level ECMWF SEAS5 outlook (indices, teleconnections, the stratosphere, impacts) and the 31-member SFS plumes and monthly maps.",
              "Monthly"),
             ("/enso-forecasts.html", "ENSO forecasts",
              "Every member of seven centres' seasonal models for Niño-3.4, with percentile fans and a record of how past forecasts did.",
@@ -240,7 +238,7 @@ PAGES = [
         ("main { padding: 6rem 1rem 2rem; max-width: 100%; }", "main { padding: 1.5rem 1rem 2rem; max-width: 100%; }"),
         ("main { padding: 9.5rem 1rem 3rem; }", "main { padding: 1.5rem 1rem 3rem; }"),
     ]),
-    dict(path="seasonal.html", mode="after-body", tabs="enso"),   # the merged C3S page (was seas5.html)
+    dict(path="seasonal.html", mode="after-body", tabs="enso"),   # seasonal model forecasts: C3S + SEAS5 (was seas5.html) + NOAA SFS (was sfs.html)
     dict(path="enso.html", mode="after-body", tabs="enso"),
     dict(path="circulation.html", mode="after-body", tabs="enso"),
     dict(path="stratosphere.html", mode="after-body", tabs="enso"),   # split out of circulation.html 2026-09-26
@@ -255,7 +253,7 @@ PAGES = [
         ("main { padding: 6.3rem 1rem 3rem; max-width: 100%; }", "main { padding: 1.5rem 1rem 3rem; max-width: 100%; }"),
     ]),
     dict(path="asos5.html", mode="site-header"),        # v3 (2026-10-02) has no fixed-header padding to undo
-    dict(path="sfs.html", mode="nav"),
+    # sfs.html: folded into seasonal.html 2026-10-06, now a redirect stub (no chrome)
     dict(path="ar.html", mode="after-body"),
     dict(path="models.html", mode="after-body"),                   # short-range model viewer (scripts/models, models*.yml), WebGL data page
     dict(path="snowbands.html", mode="after-body"),                # snow-band diagnostics (scripts/snowband, snowband.yml), stage viewer

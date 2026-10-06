@@ -99,10 +99,10 @@ PAGES = {
                               models=["GEPS"], horizon="Weeks 1–5", region=["North America"], own_models=True),
     "/gefs.html": dict(kind="stage", file="gefs.html", topic="outlooks", title="GEFS extended ensemble", tier=0, prio=3,
                        models=["GEFS"], horizon="Weeks 1–5", region=["North America"], own_models=True),
-    "/seasonal.html": dict(kind="stage", file="seasonal.html", topic="outlooks", title="Eight C3S seasonal models", tier=2, prio=30,
-                           models=["C3S", "SEAS5"], horizon="Seasons", region=["Global"]),
-    "/sfs.html": dict(kind="stage", file="sfs.html", topic="outlooks", title="NOAA SFS seasonal", tier=2, prio=31,
-                      models=["SFS"], horizon="Seasons", region=["Global"]),
+    "/seasonal.html": dict(kind="stage", file="seasonal.html", topic="outlooks", title="Seasonal model forecasts", tier=2, prio=30,
+                           models=["C3S", "SEAS5"], horizon="Seasons", region=["Global"],
+                           # the NOAA SFS page, folded in 2026-10-06 (sfs.html is a redirect stub)
+                           groups={"NOAA SFS (beta)": dict(models=["SFS"], prio=31)}),
     # single-figure / app pages: one entry each (label and description from the chrome's PRODUCTS table)
     "/mjo.html": dict(kind="page", topic="drivers", tier=0, prio=2, models=["AIFS-ENS"], horizon="Days 1–15", region=["Tropics"],
                       thumb_manifest=("assets/mjo", "rmm_manifest.json", "mjo", "last"), variable=["Convection"]),

@@ -42,8 +42,8 @@ PRODUCTS = {
     "/subseasonal.html":     (96,  {"path": "assets/geps/telecon.json"}),
     "/gefs.html":            (24,  {"path": "assets/gefs/data/gefs.json"}),
     "/enso-forecasts.html":  (744, {"path": "assets/sst/data/enso_forecast.json"}),
-    "/seasonal.html":        (744, {"path": "assets/sst/data/c3s_indices.json"}),
-    "/sfs.html":             (744, {"path": "assets/sfs/data/sfs_indices.json"}),
+    # C3S/SEAS5 and the NOAA SFS group (sfs.html folded in 2026-10-06): the newest of the two
+    "/seasonal.html":        (744, {"paths": ["assets/sst/data/c3s_indices.json", "assets/sfs/data/sfs_indices.json"]}),
     "/aifs-verify.html":     (12,  {"path": "assets/verify/aifs_scores_v2.json"}),
 }
 
@@ -73,6 +73,16 @@ def iso(s: str) -> str:
 
 
 def updated(src: dict) -> str:
+    if "paths" in src:                                           # a page with several producers: its newest publish
+        got = []
+        for p in src["paths"]:
+            try:
+                got.append(updated({"path": p}))
+            except Exception as e:                               # noqa: BLE001  one missing file must not hide the other
+                print(f"  {p}: {str(e)[:120]}", file=sys.stderr)
+        if not got:
+            raise ValueError(f"no source dated: {src['paths']}")
+        return max(got)
     if "path" in src:
         c = get(f"{API}/commits?sha=main&per_page=1&path={src['path']}")
         return iso(c[0]["commit"]["committer"]["date"])
