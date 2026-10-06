@@ -1,0 +1,52 @@
+name: WIS2 radiosonde survey (temporary)
+
+# TEMPORARY (2026-10-06): one-off coverage survey of radiosonde BUFR in the WMO
+# WIS2 Global Cache on AWS (s3://wis2globalcache). Survey only; writes nothing to
+# any branch. Delete this file and scripts/skewt/wis2_survey_tmp.py afterwards.
+
+on:
+  workflow_dispatch:
+    inputs:
+      max_dl:
+        description: max files to download
+        default: '14000'
+
+permissions:
+  contents: read
+
+jobs:
+  survey:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          sparse-checkout: |
+            scripts/skewt
+            skewt/stations.json
+            skewt/iem_raob.json
+          sparse-checkout-cone-mode: false
+      - uses: actions/checkout@v7
+        with:
+          ref: skewt-data
+          path: prev-data
+          sparse-checkout: |
+            manifest.json
+          sparse-checkout-cone-mode: false
+        continue-on-error: true
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+      - name: Install deps
+        run: pip install --quiet boto3 requests eccodes && python -c "import eccodes; print(eccodes.codes_get_api_version())"
+      - name: Survey
+        env:
+          SURVEY_OUT: /tmp/survey-out
+          SURVEY_MAX_DL: ${{ inputs.max_dl }}
+        run: s=0; python scripts/skewt/wis2_survey_tmp.py 2> /tmp/survey-err.txt || s=$?; grep -c . /tmp/survey-err.txt || true; sort /tmp/survey-err.txt | uniq -c | sort -rn | head -20; exit $s
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: wis2-survey
+          path: /tmp/survey-out/wis2_survey.json.gz
+          retention-days: 3
