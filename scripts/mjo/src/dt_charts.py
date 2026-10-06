@@ -269,7 +269,7 @@ def _draw(ax, lat, lon, field, pcont, u, v, kind, polar, title, adv=None, storms
         cs = ax.contour(X, Y, A_, levels=ADV_LEV, colors=ADV_COL, linewidths=[2.2, 1.5], linestyles="solid", zorder=7)
         for c in (cs.collections if hasattr(cs, "collections") else [cs]):
             c.set_path_effects([pe.Stroke(linewidth=3.6, foreground="#000"), pe.Normal()])
-    _storms(ax, storms, h, polar)
+    _storms_ens(ax, storms, h, polar)
     _decorate(ax, polar, title)
     return cf
 
@@ -303,9 +303,11 @@ def _key(ax, polar):
          Line2D([], [], color="#fff", lw=1.2, ls=(0, (3, 2)), path_effects=[pe.Stroke(linewidth=3.0, foreground="#000"), pe.Normal()]),
          Line2D([], [], ls="none", marker="o", ms=8, mfc="#ff9f1c", mec="#fff"),
          Line2D([], [], ls="none", marker="o", ms=8, mfc="#6a3d9a", mec="#fff")]
-    t = ["Magenta: a storm's outflow pushing into the jet\n(outflow PV advection −1 / −2 PVU per day)",
-         f"Storm track, last {TRACK_HIST_H} h", "Storm track ahead (forecast)", "Tropical storm (red: hurricane strength)",
-         "Post-tropical low"]
+    from matplotlib.patches import Patch
+    h[4] = Patch(facecolor="#d9d6cf", edgecolor="#444", lw=0.8)              # the map's translucent white cone, as seen on colour
+    t = ["Magenta: a storm's outflow pushing into the jet\n(outflow PV advection −1 / −2 PVU per day; member 0)",
+         f"AIFS-ENS mean track, last {TRACK_HIST_H} h", "AIFS-ENS mean track ahead (while ≥ half\nthe members still track the storm)",
+         "Storm, median of the members\n(red: hurricane strength)", f"Cone: {CONE_Q:.0f} % of AIFS-ENS members"]
     # in the band between the map and the colour bar, never on the data
     h = [h[0], h[1], h[3], h[2], h[4]]; t = [t[0], t[1], t[3], t[2], t[4]]
     ax.figure.legend(h, t, loc="center", bbox_to_anchor=(0.5, 0.76 / FIG_H if polar else 0.118), ncol=3,
@@ -326,6 +328,83 @@ def _at(s, h):
     i, j = b[-1], f[0]; w = (h - st[i]) / (st[j] - st[i])
     dlo = (float(s["lon"][j]) - float(s["lon"][i]) + 180.0) % 360.0 - 180.0
     return (float(s["lat"][i]) + w * (float(s["lat"][j]) - float(s["lat"][i])), float(s["lon"][i]) + w * dlo), int(i)
+
+
+# 2026-10-05 (user: the detector "is showing Koguma following the exact same path as Choi-Wan ... use the AIFS-ENS mean
+# track and cone"): the maps draw each storm from ALL AIFS-ENS member tracks in ECMWF's tracker file (the same BUFR the
+# control track comes from, no extra download) instead of the control's track + the surface-low follower, which can latch
+# on to another storm's low. Mean = the members' 3-D unit-vector mean at each step, kept while at least ENS_MIN_FRAC of the
+# storm's members still carry it; cone = the CONE_Q-th percentile of the members' distance from that mean. The magenta
+# outflow contours and the TC-jet card stay on member 0 - they are computed from member 0's fields.
+ENS_MIN_FRAC, ENS_MIN_N, CONE_Q = 0.5, 5, 67
+CONE_FC, CONE_ALPHA = "#ffffff", 0.28
+
+
+def ens_mean_tracks(fp, steps):
+    import tc_ens as TE
+    out = []
+    for s in TE.nh_storms(TE.decode_all(fp)):
+        tr = list(s["tracks"].values()); n0 = len(tr)
+        if n0 < ENS_MIN_N or s.get("weak"):                    # a genesis cluster below tc_ens's 40 % test: no mean track
+            continue
+        rows = []
+        for h in steps:
+            P = []
+            for t in tr:
+                k = np.where(t["steps"] == h)[0]
+                if len(k): P.append((t["lat"][k[0]], t["lon"][k[0]], t["pmsl"][k[0]], t["wind"][k[0]]))
+            if len(P) < max(ENS_MIN_N, ENS_MIN_FRAC * n0):
+                if rows: break                                     # the storm has ended for most members
+                continue                                           # not formed yet in most members (genesis)
+            P = np.array(P, float); fa, la_ = np.deg2rad(P[:, 0]), np.deg2rad(P[:, 1])
+            v = np.c_[np.cos(fa) * np.cos(la_), np.cos(fa) * np.sin(la_), np.sin(fa)].mean(0)
+            mla, mlo = float(np.rad2deg(np.arctan2(v[2], np.hypot(v[0], v[1])))), float(np.rad2deg(np.arctan2(v[1], v[0])))
+            d = [TC._km(mla, mlo, a, b) for a, b in P[:, :2]]
+            rows.append((h, mla, mlo, float(np.percentile(d, CONE_Q)), float(np.nanmedian(P[:, 2])), float(np.nanmedian(P[:, 3])), len(P)))
+        if len(rows) >= 2:
+            a = np.array(rows, float)
+            lon_u = np.rad2deg(np.unwrap(np.deg2rad(a[:, 2] % 360)))           # continuous across the dateline
+            out.append(dict(id=s["id"], name=s["name"], named=s["named"], steps=a[:, 0].astype(int), lat=a[:, 1], lon=lon_u,
+                            r_km=np.maximum.accumulate(a[:, 3]), pmsl=a[:, 4], wind=a[:, 5], n=a[:, 6].astype(int), n0=n0))
+    return out
+
+
+def _cone(s, k):
+    """Union of the cone circles from step index k on, joined pairwise by convex hulls; coordinates in PlateCarree(180)."""
+    from shapely.geometry import MultiPoint
+    from shapely.ops import unary_union
+    th = np.linspace(0, 2 * np.pi, 48)
+    def circ(i):
+        dla = s["r_km"][i] / 111.2; dlo = dla / max(np.cos(np.deg2rad(s["lat"][i])), 0.2)
+        return list(zip(s["lon"][i] - 180 + dlo * np.cos(th), s["lat"][i] + dla * np.sin(th)))
+    parts = [MultiPoint(circ(i) + circ(i + 1)).convex_hull for i in range(k, len(s["steps"]) - 1)] or [MultiPoint(circ(k)).convex_hull]
+    return unary_union(parts)
+
+
+def _storms_ens(ax, storms, h, polar):
+    """AIFS-ENS mean tracks and cones at lead h: the last TRACK_HIST_H hours solid, the mean ahead dashed, the cone shaded,
+    a dot at the mean position sized/coloured by the members' median wind, labelled with the median central pressure."""
+    import cartopy.crs as ccrs
+    halo = [pe.Stroke(linewidth=3.2, foreground="#000"), pe.Normal()]
+    for s in storms:
+        st = s["steps"]
+        if h < st[0] or h > st[-1]:
+            continue
+        k = int(np.searchsorted(st, h)); k = min(k, len(st) - 1)
+        try:
+            ax.add_geometries([_cone(s, k)], crs=ccrs.PlateCarree(central_longitude=180), facecolor=CONE_FC, alpha=CONE_ALPHA,
+                              edgecolor="#ffffff", linewidth=0.8, zorder=7.5)
+        except Exception:
+            pass                                                            # never let a cone take a frame down
+        past = (st <= h) & (st >= h - TRACK_HIST_H)
+        ax.plot(s["lon"][past], s["lat"][past], color="#fff", lw=1.6, transform=ccrs.Geodetic(), zorder=8, path_effects=halo)
+        ax.plot(s["lon"][k:], s["lat"][k:], color="#fff", lw=1.1, ls=(0, (3, 2)), transform=ccrs.Geodetic(), zorder=8, path_effects=halo)
+        w = s["wind"][k]; strong = np.isfinite(w) and w >= 33
+        ax.scatter([s["lon"][k]], [s["lat"][k]], s=120 if strong else 70, c="#e8000b" if strong else "#ff9f1c", edgecolors="#fff",
+                   linewidths=1.6, transform=ccrs.PlateCarree(), zorder=9)
+        lab = TC.label(s) + (f" {s['pmsl'][k]:.0f} hPa" if np.isfinite(s["pmsl"][k]) else "") + f" ({s['n'][k]}/{s['n0']} members)"
+        ax.text(s["lon"][k], s["lat"][k], "  " + lab, transform=ccrs.PlateCarree(), fontsize=8.6 if polar else 9.6, fontweight="bold",
+                color="#fff", va="center", zorder=10, path_effects=[pe.Stroke(linewidth=2.6, foreground="#000"), pe.Normal()], clip_on=True)
 
 
 def _storms(ax, storms, h, polar):
@@ -386,7 +465,7 @@ def main() -> int:
             old.unlink()
     entries = {k: [] for k in dirs}
     # tropical cyclones in the same control run (ECMWF's tracker on AIFS-ENS) + the outflow-jet metric
-    storms = []
+    storms = []; fp = None
     try:
         fp = TC.fetch(a.date, int(a.time), Path(__file__).resolve().parents[2] / "ecmwf" / "cache" / "tc")
         storms = TC.nh_storms(TC.decode(fp)) if fp else []
@@ -415,6 +494,14 @@ def main() -> int:
         except Exception as e:
             print(f"  control msl unavailable ({e}); storms end at the tracker's last fix", flush=True)
     print(f"  {len(storms)} NH tropical cyclones in the control: {', '.join(TC.label(x) for x in storms) or 'none'}", flush=True)
+    storms_ens = []
+    try:
+        if fp:
+            storms_ens = ens_mean_tracks(fp, [int(x) for x in STEPS])
+            print("  AIFS-ENS mean tracks: " + (", ".join(f"{TC.label(x)} +{x['steps'][0]}..+{x['steps'][-1]} h, cone {x['r_km'][-1]:.0f} km"
+                                                           for x in storms_ens) or "none"), flush=True)
+    except Exception as e:
+        print(f"  AIFS-ENS member tracks unavailable ({e}); maps drawn without storms", flush=True)
     idx = {x["id"]: {} for x in storms}
     v250 = []
     for k, h in enumerate(steps):
@@ -472,8 +559,8 @@ def main() -> int:
                     if pc is None: arrs[1] = None
                     if av is None: arrs[4] = None
                 cf = _draw(ax, la_, lo_, arrs[0], arrs[1], arrs[2], arrs[3], kind, polar, ttl, adv=arrs[4],
-                           storms=[] if sh else storms, h=int(h))
-                if kind == "dt" and storms and not sh:
+                           storms=[] if sh else storms_ens, h=int(h))
+                if kind == "dt" and storms_ens and not sh:
                     _key(ax, polar)
                     blab += " · storm overlays: see the key on the map"
                 _bar(fig, cf, cax, blab)
