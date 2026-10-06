@@ -554,17 +554,26 @@ def _global_map(field, lat, lon, var, levels, cmap, cstep, title, sub, cb_label,
     from matplotlib.colors import BoundaryNorm
     import cartopy.crs as ccrs
     import cartopy.feature as cfeature
-    from cartopy.util import add_cyclic_point
     pc = ccrs.PlateCarree(); proj = ccrs.PlateCarree(central_longitude=MAP_CENTRAL.get(var, MAP_CENTRAL_DEFAULT))
     ext = MAP_EXTENT.get(var)
     lat0, lat1 = (ext[2], ext[3]) if ext else ((-70, 70) if var == "sst" else (-60, 85))
-    order = np.argsort(lon); lon_s = lon[order]; d = field[:, order]
+    # Both CRSs are PlateCarree, so put the data in the map's own frame (longitude relative to the central meridian, exact
+    # +-180 edge columns) and draw with transform=proj: cartopy then bypasses project_geometry, which in cartopy 0.25 +
+    # shapely 2.1 fails at draw time on some masked contour sets ("'GeometryCollection' object is not subscriptable" - the
+    # October 2026 SST maps).
+    c0 = MAP_CENTRAL.get(var, MAP_CENTRAL_DEFAULT)
+    lon_r = (np.asarray(lon, float) - c0 + 180.0) % 360.0 - 180.0
+    order = np.argsort(lon_r); lon_s = lon_r[order]; d = field[:, order]
     if lat[0] > lat[-1]:
         lat = lat[::-1]; d = d[::-1]
-    if ext:
-        d_c, lon_c = d, lon_s
-    else:
-        d_c, lon_c = add_cyclic_point(d, coord=lon_s)
+    gap = lon_s[0] + 360.0 - lon_s[-1]
+    w = (180.0 - lon_s[-1]) / gap if gap > 0 else 0.0
+    edge = d[:, -1] * (1 - w) + d[:, 0] * w if 0 < w < 1 else (d[:, 0] if w >= 1 else d[:, -1])
+    if lon_s[0] > -180.0 + 1e-9:
+        d = np.concatenate([edge[:, None], d], axis=1); lon_s = np.concatenate([[-180.0], lon_s])
+    if lon_s[-1] < 180.0 - 1e-9:
+        d = np.concatenate([d, d[:, :1]], axis=1); lon_s = np.concatenate([lon_s, [180.0]])
+    d_c, lon_c = d, lon_s
     lon_span = (ext[1] - ext[0]) if ext else 360.0
     W = 14.0; map_h = W * (lat1 - lat0) / lon_span; top, bot = 0.95, 0.85; H = map_h + top + bot
     fig = plt.figure(figsize=(W, H))
@@ -575,19 +584,11 @@ def _global_map(field, lat, lon, var, levels, cmap, cstep, title, sub, cb_label,
         ax.set_extent([-180, 180, lat0, lat1], crs=proj)
     ax.add_feature(cfeature.LAND, facecolor="#f1f0eb", zorder=0)
     norm = BoundaryNorm(levels, len(levels) - 1)
-    # 2026-10-06: cartopy 0.25 + shapely 2.1 can fail projecting a masked contour set ("'GeometryCollection' object is not
-    # subscriptable" in _rings_to_multi_polygon; the October SST maps hit it). Retry contouring in projected space.
-    LON2, LAT2 = np.meshgrid(lon_c, lat)
-    def _cf(fn, *a, **k):
-        try:
-            return fn(lon_c, lat, *a, **k)
-        except TypeError:
-            return fn(LON2, LAT2, *a, transform_first=True, **k)
-    m = _cf(ax.contourf, np.ma.masked_invalid(d_c), levels=levels, cmap=plt.get_cmap(cmap, len(levels) - 1), norm=norm,
-            extend="both", transform=pc, zorder=1)
+    m = ax.contourf(lon_c, lat, np.ma.masked_invalid(d_c), levels=levels, cmap=plt.get_cmap(cmap, len(levels) - 1), norm=norm,
+                    extend="both", transform=proj, zorder=1)
     if cstep:
         cl = [x for x in np.arange(-6, 6.01, cstep) if abs(x) > 1e-9]
-        cs = _cf(ax.contour, np.ma.masked_invalid(d_c), levels=cl, colors="#333", linewidths=0.35, transform=pc, zorder=2)
+        cs = ax.contour(lon_c, lat, np.ma.masked_invalid(d_c), levels=cl, colors="#333", linewidths=0.35, transform=proj, zorder=2)
         ax.clabel(cs, fontsize=5.5, fmt=lambda v: f"{v:+.2g}", inline=True, inline_spacing=2)
     if var in ("t2m", "tp", "sf", "sd", "sdp"):
         ax.add_feature(cfeature.OCEAN, facecolor="#ffffff", zorder=2); ax.add_feature(cfeature.LAKES, facecolor="#ffffff", zorder=2)
