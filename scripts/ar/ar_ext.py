@@ -41,8 +41,9 @@ import arlib as A                                                      # noqa: E
 
 SITE = Path(os.environ.get("SST_SITE_ROOT", HERE.parents[1]))
 ASSETS = SITE / "assets" / "ar"
-K_EXT = float(os.environ.get("AR_K_EXT", "0.0"))      # set below once measured; 0 = not set (refuse to run)
-K_EXT_DEFAULT = 0.90
+# k fitted on the GEFS control's exact IVT (17 levels) by ar_ens.py: 0.923 for 2026-10-07 12Z (r 0.96); frozen at 0.92.
+# Changing it means rebuilding the release (load_clim refuses a mismatch).
+K_EXT = float(os.environ.get("AR_K_EXT", "0.92"))
 RF = "https://noaa-gefs-retrospective.s3.amazonaws.com/GEFSv12/reforecast"
 RF_MEMBERS = ("c00", "p01", "p02", "p03", "p04")
 WEEKS = {"w3": (15, 21), "w4": (22, 28), "w5": (29, 35)}
@@ -56,7 +57,7 @@ YEARS = range(2000, 2020)
 
 
 def k_ext():
-    return K_EXT or K_EXT_DEFAULT
+    return K_EXT
 
 
 def week_of(h):

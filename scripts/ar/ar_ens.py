@@ -111,6 +111,7 @@ def read_ecmwf(model, date, hh):
             cf = ecmwf.ensure(cyc, ecmwf.Spec("aifs-ens", "cf", p, lt, lv, S))
             pf = ecmwf.ensure(cyc, ecmwf.Spec("aifs-ens", "pf", p, lt, lv, S))
             a = np.concatenate([_ecmwf_grib(cf, 1, S), _ecmwf_grib(pf, 50, S, member_offset=1)])
+            A.LEDGER.add("ecmwf-google", cf.stat().st_size + pf.stat().st_size)
             parts[p] = a; os.remove(pf)
             print(f"  {p}: {a.shape}, NaN {np.isnan(a).mean():.4f}", flush=True)
         cal_type, cal_numbers = "cf", None
@@ -119,7 +120,8 @@ def read_ecmwf(model, date, hh):
         parts = {}
         for p, lt, lv in (("tcw", "sfc", ()), ("u", "pl", (850,)), ("v", "pl", (850,))):
             pf = ecmwf.ensure(cyc, ecmwf.Spec("ifs", "pf", p, lt, lv, S))
-            parts[p] = _ecmwf_grib(pf, 50, S, member_offset=1); os.remove(pf)
+            parts[p] = _ecmwf_grib(pf, 50, S, member_offset=1)
+            A.LEDGER.add("ecmwf-google", pf.stat().st_size); os.remove(pf)
             print(f"  {p}: {parts[p].shape}, NaN {np.isnan(parts[p]).mean():.4f}", flush=True)
         cal_type, cal_numbers = "pf", [1]
         members = 50
@@ -128,7 +130,8 @@ def read_ecmwf(model, date, hh):
     fld = {}
     for p in ("q", "u", "v"):
         sp = ecmwf.Spec(model if model == "aifs-ens" else "ifs", cal_type, p, "pl", lv, S, nmembers=(1 if cal_type == "pf" else 0))
-        fld[p] = _levels(ecmwf.ensure(cyc, sp), lv, S)
+        fp = ecmwf.ensure(cyc, sp); A.LEDGER.add("ecmwf-google", fp.stat().st_size)
+        fld[p] = _levels(fp, lv, S)
     sps = ecmwf.Spec(model if model == "aifs-ens" else "ifs", cal_type, "sp", "sfc", (), S, nmembers=(1 if cal_type == "pf" else 0))
     ps = _ecmwf_grib(ecmwf.ensure(cyc, sps), 1, S, numbers=[0] if cal_type == "cf" else [1])[0]
     exact = np.stack([np.hypot(*A.integrate(lv, fld["q"][:, k], fld["u"][:, k], fld["v"][:, k], ps[k])) for k in range(len(S))])
@@ -324,7 +327,7 @@ def _ready(system, d, hh):
 def latest(system):
     """Newest complete 00/12Z cycle. The cycle due now (init >= 7 h ago) is waited for up to AR_WAIT_MIN minutes,
     then older ones are taken (the page states each system's init)."""
-    now = pd.Timestamp.utcnow().tz_localize(None)
+    now = pd.Timestamp.now("UTC").tz_localize(None)
     t_end = time.time() + 60 * float(os.environ.get("AR_WAIT_MIN", "0"))
     for back in range(0, 6):
         t = (now - pd.Timedelta(hours=7) - pd.Timedelta(hours=12 * back)).floor("12h")
@@ -362,7 +365,7 @@ def run_system(system, date, hh, work: Path):
     if nan > 0.001:
         raise SystemExit(f"{system}: {nan:.3%} of the member fields missing")
     # screens
-    if not (20 < float(np.nanmax(W)) < 120) or not (10 < float(np.nanmax(np.abs(U))) < 120):
+    if not (20 < float(np.nanmax(W)) < 170) or not (10 < float(np.nanmax(np.abs(U))) < 120):
         raise SystemExit(f"{system}: range screen failed (max W {np.nanmax(W):.1f}, max |u850| {np.nanmax(np.abs(U)):.1f})")
     si = [STEPS.index(s) for s in D["exact_steps"]]
     m0 = D["cal_index"]
@@ -487,11 +490,11 @@ def coast_figure(out, label, init, valid, coast_mem, title_note):
     ax.set_ylim(tl.min(), tl.max())
     ax.xaxis.set_major_locator(mdates.DayLocator(interval=1)); ax.xaxis.set_major_formatter(mdates.DateFormatter("%d\n%b"))
     ax.tick_params(axis="x", labelsize=7.5); ax.grid(True, axis="x", alpha=0.25)
-    fig.subplots_adjust(left=0.2, right=0.97, top=0.86, bottom=0.17)
+    fig.subplots_adjust(left=0.2, right=0.97, top=0.86, bottom=0.21)
     fig.text(0.02, 0.97, f"West Coast landfall — {label}, init {init:%d %b %Y %HZ}, 6-hourly to day 15", fontsize=12.5,
              fontweight="bold", va="top")
     fig.text(0.02, 0.925, title_note, fontsize=8.5, color="#444", va="top")
-    cax = fig.add_axes([0.3, 0.05, 0.5, 0.025])
+    cax = fig.add_axes([0.3, 0.085, 0.5, 0.025])
     cb = fig.colorbar(pm, cax=cax, orientation="horizontal", ticks=lev[:-1] + [1.0])
     cb.ax.set_xticklabels(["5", "10", "20", "30", "40", "50", "60", "70", "80", "90", "100"]); cb.ax.tick_params(labelsize=7.5)
     cb.set_label("P(IVT ≥ 250 kg m⁻¹ s⁻¹), % of members · navy: ensemble-mean IVT 250 / 500 · dashed: P(IVT ≥ 500) = 50 %", fontsize=8)

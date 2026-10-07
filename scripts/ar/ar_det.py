@@ -82,12 +82,12 @@ def coast_figure(out, m, init, valid, cser, tl, levels):
     ax.xaxis.set_major_locator(mdates.DayLocator(interval=1)); ax.xaxis.set_major_formatter(mdates.DateFormatter("%a %d\n%b"))
     ax.xaxis.set_minor_locator(mdates.HourLocator(byhour=[0, 6, 12, 18]))
     ax.tick_params(axis="x", labelsize=7.5); ax.grid(True, axis="x", alpha=0.3)
-    fig.subplots_adjust(left=0.2, right=0.97, top=0.86, bottom=0.17)
+    fig.subplots_adjust(left=0.2, right=0.97, top=0.86, bottom=0.21)
     fig.text(0.02, 0.97, f"Coastline IVT — {m['label']}, init {init:%d %b %Y %HZ}, 6-hourly to day 7", fontsize=12.5,
              fontweight="bold", va="top")
     fig.text(0.02, 0.925, f"IVT 1000–300 hPa ({len(levels)} levels) at the first ocean point west of the coast on each 0.25° latitude, "
              "Baja California to southeast Alaska · contours 250 / 500 / 750 / 1000", fontsize=8.5, color="#444", va="top")
-    cax = fig.add_axes([0.3, 0.05, 0.5, 0.025])
+    cax = fig.add_axes([0.3, 0.085, 0.5, 0.025])
     cb = fig.colorbar(pm, cax=cax, orientation="horizontal", extend="max", ticks=A.IVT_LEV); cb.ax.tick_params(labelsize=7.5)
     cb.set_label("IVT (kg m⁻¹ s⁻¹) · AR threshold 250", fontsize=8)
     fig.savefig(out, dpi=100, facecolor="white", pil_kwargs={"quality": 80, "method": 6}); plt.close(fig)
