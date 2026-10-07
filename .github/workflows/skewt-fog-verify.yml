@@ -1,0 +1,36 @@
+name: skewt-fog-verify
+# Dispatch-only: verify the Skew-T explorer's fog / ceiling estimate against METARs.
+# Builds a matched IGRA-sounding x IEM-METAR dataset, ports cloudLayers/estCeiling/fog model to Python
+# (checked against the real app.js under node), scores old/new/tuned rules with station-block bootstrap CIs.
+on:
+  workflow_dispatch:
+    inputs:
+      stage:
+        description: "probe | all"
+        default: "all"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: skewt-fog-verify
+  cancel-in-progress: false
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 340
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - name: Probe sources
+        if: inputs.stage == 'probe'
+        run: python scripts/skewt/verify_fog.py probe out
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: skewt-fog-${{ inputs.stage }}
+          path: out/
+          if-no-files-found: ignore
