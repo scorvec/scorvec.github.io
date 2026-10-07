@@ -256,8 +256,9 @@ jobs:
             echo "::warning::under 75% of the map fields are on the CDS yet; keeping the previous issue"
           fi
 
+      # also after a cancelled or failed step: whatever was fetched is kept (2026-10-07: a run cancelled mid-plume kept nothing)
       - name: Save this issue's small C3S files now
-        if: always() && steps.gate.outputs.run == '1' && steps.enso.outputs.ready == '1'
+        if: always() && steps.gate.outputs.run == '1'
         uses: actions/cache/save@v4
         with:
           path: |
