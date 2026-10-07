@@ -1,0 +1,83 @@
+name: Recon mirror
+
+# Mirrors the NHC Atlantic reconnaissance archive (HDOBs, dropsondes, vortex messages, RECCOs, plan of the
+# day) plus the ATCF best track / official forecast of the storms flown to the `recon-data` branch for
+# recon.html (nhc.noaa.gov sends no CORS header, so the page cannot read it directly).
+# scripts/recon/recon_mirror.py: one ~2 KB directory listing tells whether anything changed; an unchanged
+# archive exits in a second and pushes nothing. New files only are fetched (filtered listings of the last
+# day or two). While a mission is airborne the run polls once more ~7 min later, so the mirror is about
+# 8-15 min behind NHC during flights. Each push is ONE parentless commit (no history growth, no Pages
+# build), seeded with the previous tip so only new blobs go up.
+#
+# Triggers: the laptop dispatcher (scripts/lib/dispatch_workflows.sh, every 15 min); the cron below is
+# only the in-season backstop for when the laptop is off (Actions honours few crons in this repo).
+# Off-season (Dec-May) with no Atlantic storm the script checks NHC at most every 2 h.
+# Backfill (dispatch only): `gh workflow run recon.yml -f backfill="2024 AL14"` mirrors every mission of one
+# past storm and pins it (kept when the season's missions are pruned).
+
+on:
+  schedule:
+    - cron: '20 */3 * 6-11 *'
+  workflow_dispatch:
+    inputs:
+      backfill:
+        description: 'Backfill one storm: "YEAR SID", e.g. "2024 AL14" (empty = live run)'
+        required: false
+        default: ''
+      days:
+        description: 'Live run: list this many days back (catch-up after an outage; empty = since the last run)'
+        required: false
+        default: ''
+
+permissions:
+  contents: write
+
+concurrency:
+  group: recon-data
+  cancel-in-progress: false
+
+jobs:
+  mirror:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          sparse-checkout: scripts/recon
+          sparse-checkout-cone-mode: false
+
+      - uses: actions/checkout@v7
+        with:
+          ref: recon-data
+          path: prev-data
+        continue-on-error: true      # first run: the branch does not exist yet
+
+      - name: Mirror
+        id: m1
+        env:
+          BACKFILL: ${{ inputs.backfill }}
+          DAYS: ${{ inputs.days }}
+        run: |
+          args=()
+          [ -n "$BACKFILL" ] && args+=(--backfill "$BACKFILL")
+          [ -n "$DAYS" ] && args+=(--days "$DAYS")
+          python3 scripts/recon/recon_mirror.py /tmp/recon-data --prev prev-data "${args[@]}"
+
+      - name: Push data branch
+        if: steps.m1.outputs.changed == 'true'
+        run: bash scripts/recon/push_data.sh /tmp/recon-data "$GITHUB_WORKSPACE/prev-data"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Second pass (a mission is airborne)
+        id: m2
+        if: steps.m1.outputs.airborne == 'true' && inputs.backfill == ''
+        run: |
+          sleep 420
+          python3 scripts/recon/recon_mirror.py /tmp/recon-data
+
+      - name: Push data branch (second pass)
+        if: steps.m2.outputs.changed == 'true'
+        run: bash scripts/recon/push_data.sh /tmp/recon-data "$GITHUB_WORKSPACE/prev-data"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
