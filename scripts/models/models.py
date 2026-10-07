@@ -1158,9 +1158,9 @@ def cmd_run(a):
             c, t10, an = cums["acobb"], cums.get("as10"), last_z.get("asnow")
             msg = f"  snow ratio check: hours x points with snow liquid > 0.01 in: {sum(len(a) for a in st['slr'])}"
             if st["slr"]:
-                a, k = np.concatenate(st["slr"]), np.concatenate(st["slrk"])
-                msg += (f"; Cobb SLR p10/p50/p90 {np.percentile(a, 10):.1f}/{np.percentile(a, 50):.1f}/{np.percentile(a, 90):.1f} mean {a.mean():.1f}"
-                        f"; Kuchera p50 {np.median(k):.1f} mean {k.mean():.1f}; no saturated layer {100 * st['none'] / max(st['nsnow'], 1):.0f} % of snow points")
+                sa, sk = np.concatenate(st["slr"]), np.concatenate(st["slrk"])
+                msg += (f"; Cobb SLR p10/p50/p90 {np.percentile(sa, 10):.1f}/{np.percentile(sa, 50):.1f}/{np.percentile(sa, 90):.1f} mean {sa.mean():.1f}"
+                        f"; Kuchera p50 {np.median(sk):.1f} mean {sk.mean():.1f}; no saturated layer {100 * st['none'] / max(st['nsnow'], 1):.0f} % of snow points")
             if an is not None:
                 m = (c > 0.1) | (an > 0.1)
                 if m.any():
