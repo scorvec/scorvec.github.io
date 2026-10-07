@@ -253,16 +253,27 @@ def compute(ym: str, pats: Patterns, with_members: bool, scale: dict | None = No
     months = [int(v[5:]) for v in vm]
     nl = len(vm)
 
+    def cut(fi, hi):
+        """forecast and hindcast index to their common leads; a hindcast lead with no finite value (a field the
+        lead-7 hindcast lacks) ends the series there"""
+        n = min(fi.shape[1], hi.shape[1])
+        while n > 0 and not np.isfinite(hi[:, n - 1]).any():
+            n -= 1
+        return fi[:, :n], hi[:, :n]
+
     def to_sigma(key, fi, hi):
-        if scale and key in scale and all(m in scale[key] for m in months):
-            sd = np.array([scale[key][m] for m in months])[None]
+        fi, hi = cut(fi, hi)
+        ms = months[:fi.shape[1]]
+        if scale and key in scale and all(m in scale[key] for m in ms):
+            sd = np.array([scale[key][m] for m in ms])[None]
             return fi / sd, hi / sd, "ERA5 1991–2020 standard deviation for the calendar month"
         sd = np.nanstd(hi, axis=0); sd = np.where(sd > 0, sd, np.nan)
         return fi / sd, hi / sd, "hindcast spread at each lead"
 
     def entry(fc_idx, hc_idx, label, units, note, group, sign_note=None):
         """fc_idx [sample, lead], hc_idx [sample, lead] (hindcast, anomaly or absolute as the index wants)."""
-        e = dict(label=label, units=units, note=note, group=group, valid=vm, **_summ(fc_idx),
+        fc_idx, hc_idx = cut(fc_idx, hc_idx)
+        e = dict(label=label, units=units, note=note, group=group, valid=vm[:fc_idx.shape[1]], **_summ(fc_idx),
                  clim_sd=np.nanstd(hc_idx, axis=0).round(3).tolist(), clim_mean=np.nanmean(hc_idx, axis=0).round(3).tolist(),
                  p_pos=np.nanmean(fc_idx > 0, axis=0).round(3).tolist(), p_neg=np.nanmean(fc_idx < 0, axis=0).round(3).tolist(),
                  hc_years=None)
@@ -278,6 +289,8 @@ def compute(ym: str, pats: Patterns, with_members: bool, scale: dict | None = No
         (fz, lat, lon), (fp, _, _) = z, p
         assert np.allclose(lat, T["lat"]) and np.allclose(lon, T["lon"])
         hz_m, hp_m = T["hz_m"], T["hp_m"]
+        nt = min(fz.shape[1], fp.shape[1], hz_m.shape[0], hp_m.shape[0])   # 7 with the lead-7 supplement and table
+        fz, fp, hz_m, hp_m = fz[:, :nt], fp[:, :nt], hz_m[:nt], hp_m[:nt]
         az = xr.DataArray((fz - hz_m[None]) / G0, dims=("s", "l", "latitude", "longitude"), coords={"latitude": lat, "longitude": lon})
         ap = xr.DataArray((fp - hp_m[None]) / 100.0, dims=("s", "l", "latitude", "longitude"), coords={"latitude": lat, "longitude": lon})
         nz, npm = (pats.to_ncep(a) for a in (az, ap))
@@ -289,9 +302,9 @@ def compute(ym: str, pats: Patterns, with_members: bool, scale: dict | None = No
             def run(arr):
                 n, L = arr.shape[:2]
                 flat = arr.reshape(n * L, *arr.shape[2:])
-                mo = np.tile(months, n)
+                mo = np.tile(months[:L], n)
                 return pats.index(sid, flat, mo).reshape(n, L)
-            fi, hi = run(src), T[f"pat_{sid}"]
+            fi, hi = run(src), T[f"pat_{sid}"][:, :nt]
             unit_note = "CPC-scale (annual standard deviations)"
             if not m.get("standardize"):                   # AO (EOF, raw) and the EPO/WPO boxes (metres) need a unit
                 fi, hi, unit_note = to_sigma(sid, fi, hi)
@@ -302,7 +315,7 @@ def compute(ym: str, pats: Patterns, with_members: bool, scale: dict | None = No
             out[sid]["_hc"] = hi                                          # kept for skill, dropped before writing
         # SOI from msl points
         ft = _point(fp, lat, lon, -17.5, -149.5) - _point(fp, lat, lon, -12.5, 130.5)
-        ht = T["soi_ht"]
+        ht = T["soi_ht"][:, :nt]
         fa, ha, unit_note = to_sigma("soi", (ft - ht.mean(0)) / 100.0, (ht - ht.mean(0)) / 100.0)
         out["soi"] = entry(fa, ha, "Southern Oscillation index", "σ",
                            f"Tahiti minus Darwin sea-level pressure anomaly; unit: {unit_note}; negative with El Niño.", "tele")
@@ -312,7 +325,7 @@ def compute(ym: str, pats: Patterns, with_members: bool, scale: dict | None = No
         # far less station-noisy than Tahiti−Darwin (user 2026-09-07: "a more physically consistent
         # zonal pressure difference index"). Negative in El Niño, like the SOI.
         fe = _boxm(fp, lat, lon, -5, 5, -130, -80) - _boxm(fp, lat, lon, -5, 5, 90, 140)
-        he = T["eqsoi_he"]
+        he = T["eqsoi_he"][:, :nt]
         fa2, ha2, unit_note2 = to_sigma("eqsoi", (fe - he.mean(0)) / 100.0, (he - he.mean(0)) / 100.0)
         out["eqsoi"] = entry(fa2, ha2, "Equatorial SOI", "σ",
                              f"Eastern equatorial Pacific minus Indonesian sea-level pressure anomaly (5°N–5°S boxes, CPC definition); unit: {unit_note2}; negative with El Niño. The equatorial gradient that drives the Walker circulation, without the Tahiti–Darwin station noise.", "tele")
@@ -325,7 +338,7 @@ def compute(ym: str, pats: Patterns, with_members: bool, scale: dict | None = No
         for key, la, lab in (("u60n10", 60, "60°N 10 hPa zonal wind"), ("u60s10", -60, "60°S 10 hPa zonal wind")):
             fi, hi = _zonal_at(fu, lat, la), TS[key]
             e = entry(fi, hi, lab, "m/s", "Zonal-mean zonal wind, the standard vortex-strength metric; below zero is an easterly (reversed) vortex.", "strat")
-            e["p_easterly"] = np.nanmean(fi < 0, axis=0).round(3).tolist()
+            e["p_easterly"] = np.nanmean(fi[:, :len(e["valid"])] < 0, axis=0).round(3).tolist()
             e["absolute"] = True
             e["_hc"] = hi
             out[key] = e
@@ -343,7 +356,7 @@ def compute(ym: str, pats: Patterns, with_members: bool, scale: dict | None = No
         if not r or tabs[kind] is None:
             continue
         fz, lat, lon = r
-        fc_cap, hc_cap = _cap(fz / G0, lat, 65), tabs[kind][f"cap{lev}"]
+        fc_cap, hc_cap = cut(_cap(fz / G0, lat, 65), tabs[kind][f"cap{lev}"])
         fa, hr = detrend_pair(fc_cap, hc_cap, ym)                   # heights carry the warming trend: anomaly vs the hindcast trend line
         sd = np.nanstd(hr, axis=0)
         fi = -fa / sd; hi = -hr / sd
@@ -571,7 +584,6 @@ def add_skill(idx: dict, ym: str, era: dict | None, cpc: dict | None = None) -> 
     s); the calibrated forecast is N(a·x̄ + b, s²), so P(≥ +THR) and P(≤ −THR) collapse to climatology when
     the slope is ~0. In-sample over 24 years (no cross-validation), which flatters r slightly at n = 24.
     Also attaches the last TAIL_MONTHS observed values (ERA5) and CPC's published index where one exists."""
-    vm = valid_months(ym)
     y0, m0 = int(ym[:4]), int(ym[4:])
     tail = [((y0 * 12 + m0 - 1 - k) // 12, (y0 * 12 + m0 - 1 - k) % 12 + 1) for k in range(TAIL_MONTHS, 0, -1)]
     for key, e in idx.items():
@@ -593,7 +605,7 @@ def add_skill(idx: dict, ym: str, era: dict | None, cpc: dict | None = None) -> 
             e["skill"] = None; e["cal"] = None; continue
         n = hc.shape[0] // 24                                          # members per year; samples stack member-major
         r, cal = [], []                                                # (xarray stack over (number, time): time varies fastest)
-        for L, v in enumerate(vm):
+        for L, v in enumerate(e["valid"][:hc.shape[1]]):
             mo = int(v[5:])
             yrs = list(range(1993, 2017))
             hmean = np.nanmean(hc[:, L].reshape(n, 24), axis=0)        # → per-year ensemble mean, years in order
@@ -710,7 +722,7 @@ def plot_probs(doc: dict, out: Path) -> None:
     import matplotlib.pyplot as plt
     from matplotlib.patches import Patch, Rectangle
     keys = [k for k in doc["groups"]["tele"] if doc["indices"][k].get("p_neg05")]
-    n = len(keys); vm = doc["indices"][keys[0]]["valid"]; W = len(vm)
+    n = len(keys); vm = max((doc["indices"][k]["valid"] for k in keys), key=len); W = len(vm)
     fig = plt.figure(figsize=(13.6, 0.80 * n + 2.6))
     ax = fig.add_axes([0.205, 0.075, 0.765, 0.79])
     bw = 0.78
@@ -730,6 +742,8 @@ def plot_probs(doc: dict, out: Path) -> None:
         y = n - 1 - r_
         for L, v in enumerate(vm):
             x0 = L - bw / 2
+            if L >= len(e["mean"]):
+                ax.text(L, y, "no hindcast at this lead", ha="center", va="center", fontsize=7, color=MUTED, style="italic"); continue
             if e["mean"][L] is None:
                 ax.text(L, y, "not defined by CPC in this month", ha="center", va="center", fontsize=7, color=MUTED, style="italic"); continue
             c = (e.get("cal") or [None] * W)[L]

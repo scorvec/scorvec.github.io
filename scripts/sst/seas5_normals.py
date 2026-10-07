@@ -44,7 +44,7 @@ import xarray as xr
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from seas5_outlook import ASSETS, DATA, fc_path, hc_path  # noqa: E402
-from seas5_build import G0, SEASON_LEADS, TERC_BINS, TERC_PALETTES, _open, head_text, load_field, map_layout, season_label, valid_months  # noqa: E402
+from seas5_build import G0, SEASON_LEADS, seasons_for, TERC_BINS, TERC_PALETTES, _open, head_text, load_field, map_layout, season_label, valid_months  # noqa: E402
 
 ERA5 = DATA / "era5"                       # local ERA5 monthly GRIBs: read by derive_obs_var() on the laptop only
 OUT_JSON = ASSETS / "data" / "seas5_normals.json"
@@ -247,9 +247,10 @@ def model_fields(ym: str, var: str, hindcast: bool = False):
     return _to_units(var, v), lat, lon
 
 
-def _periods():
-    """(leads) for the six months then the three seasons — the panel order."""
-    return [(L,) for L in range(1, 7)] + [tuple(s) for s in SEASON_LEADS]
+def _periods(n: int = 7):
+    """(leads) for the n lead months then the seasons they make — the panel order (7 months + 4 seasons from the
+    October 2026 issue, 6 + 3 before; a table records its own list in meta["periods"])."""
+    return [(L,) for L in range(1, n + 1)] + [tuple(s) for s in seasons_for(n)]
 
 
 def derive_hc(group: str, month: str) -> None:
@@ -265,10 +266,11 @@ def derive_hc(group: str, month: str) -> None:
         if mf is None:
             raise FileNotFoundError(f"raw hindcast for {var} {month} not on disk")
         hc, lat, lon = mf
+        periods = _periods(hc.shape[1])
         hc_mean = np.nanmean(hc, axis=0)
         ny = 24; yr = np.arange(ny) - (ny - 1) / 2                    # samples are member-major, year fastest
         acc = {k: [] for k in (("hcm", "ymean", "slope", "rlo", "rhi", "sd") if var == "z500" else ("hcm", "lo", "hi", "sd"))}
-        for leads in _periods():
+        for leads in periods:
             idx = [L - 1 for L in leads]
             hsub = hc[:, idx[0]] if len(idx) == 1 else hc[:, idx].mean(1)
             hcm = hc_mean[idx[0]] if len(idx) == 1 else hc_mean[idx].mean(0)
@@ -288,7 +290,7 @@ def derive_hc(group: str, month: str) -> None:
             arrays[f"{var}_{k}"] = np.asarray(v, dtype=np.float32)
         arrays["lat"], arrays["lon"] = lat, lon
         del hc
-    R.save(R.hc_ref(group, month), meta={"vars": HC_GROUPS[group][0], "periods": [list(p) for p in _periods()]}, **arrays)
+    R.save(R.hc_ref(group, month), meta={"vars": HC_GROUPS[group][0], "periods": [list(p) for p in periods]}, **arrays)
 
 
 REF_UNITS = {g: dict(raw=raws, fn=(lambda month, g=g: derive_hc(g, month))) for g, (_, raws) in HC_GROUPS.items()}
@@ -372,7 +374,11 @@ def panels_for(ym: str, var: str, ref: str):
 
     refs_cache = {}
     panels_for.last_span = None
-    for p, leads in enumerate(_periods()):
+    tab_periods = [tuple(x) for x in H["meta"].get("periods", [list(q) for q in _periods(6)])]
+    for leads in _periods(fc.shape[1]):
+        if tuple(leads) not in tab_periods:                          # e.g. lead 7 while the lead-7 table is missing
+            continue
+        p = tab_periods.index(tuple(leads))
         idx = [L - 1 for L in leads]
         months = [(int(vm[i][:4]), int(vm[i][5:])) for i in idx]
         valid_year = months[len(months) // 2][0]
@@ -498,13 +504,15 @@ def build(ym: str, only_vars=None, only_refs=None) -> None:
                 print(f"  {var} vs {ref}: FAILED ({str(e)[:120]})", flush=True); continue
             if panels is None:
                 print(f"  {var} vs {ref}: fields not on disk — skipped", flush=True); continue
-            if not man["periods"]:
-                man["periods"] = [dict(key=p["key"], label=p["title"], kind="season" if "_" in p["key"] and not p["key"][0].isdigit() else "month") for p in panels]
+            have = {q["key"] for q in man["periods"]}
+            man["periods"] += [dict(key=p["key"], label=p["title"], kind="season" if "_" in p["key"] and not p["key"][0].isdigit() else "month")
+                               for p in panels if p["key"] not in have]
             man["extent"][var] = "global" if (lon.max() - lon.min()) > 300 else "americas"
             for kind in ("anom", "std", "terc"):
                 files = render(ym, var, ref, kind, panels, lat, lon, ASSETS)
                 man["figures"][f"{var}|{ref}|{kind}"] = files
                 print(f"  wrote {len(files)} maps: {var} {ref} {kind}", flush=True)
+    man["periods"].sort(key=lambda q: (q["kind"] != "month", q["key"] if q["kind"] == "month" else ""))   # months in order, seasons as made
     if OUT_JSON.exists():                                            # keep figure sets from a partial earlier run of the same issue
         old = json.loads(OUT_JSON.read_text())
         if old.get("issue") == ym and isinstance(next(iter(old.get("figures", {}).values()), None), dict):

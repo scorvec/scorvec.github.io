@@ -51,7 +51,7 @@ import numpy as np
 import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from seas5_outlook import ASSETS, DATA, CENTRE, SYSTEM, _client, hc_path, previous_issues  # noqa: E402
+from seas5_outlook import ASSETS, DATA, CENTRE, SYSTEM, _client, hc_path, nleads, previous_issues  # noqa: E402
 from seas5_build import valid_months  # noqa: E402
 import seas5_ref as R  # noqa: E402
 
@@ -65,7 +65,7 @@ REGIONS = {
     "br": ("Brazil", "BR", [6, -74, -34, -34], "C"),
 }
 PPL_CODES = {"PPL", "PPLA", "PPLA2", "PPLA3", "PPLA4", "PPLA5", "PPLC", "PPLG", "PPLS"}
-MONTHS = 6
+MONTHS = 6                     # the monthly hindcast's leads; an issue's forecast chunks run to nleads(ym) (7 from Oct 2026)
 _HC_CACHE: dict = {}
 
 
@@ -125,7 +125,7 @@ def fetch(ym: str, regions=None, issues=None) -> dict:
     got = {}
     for iss in issues or (ym,):
         for region in regions or list(REGIONS):
-            for k in range(1, MONTHS + 1):
+            for k in range(1, nleads(iss) + 1):
                 got[(iss, region, k)] = fetch_chunk(region, iss, k)
     return got
 
@@ -197,6 +197,8 @@ def hindcast_month_mean(ym: str, region: str, k: int, w: np.ndarray, lat: np.nda
     t = _HC_CACHE[key]
     if t is None:
         return None
+    if k > t[f"clim_{region}"].shape[0]:
+        return None                                                        # no lead-7 hindcast table: month not drawn
     sub = t[f"clim_{region}"][k - 1]
     if sub.shape != (lat.size, lon.size):
         raise ValueError(f"{region}: hc_popT_hc grid {sub.shape} vs chunk {(lat.size, lon.size)}")
@@ -294,7 +296,7 @@ def issue_summary(ym: str, save: bool = True) -> dict:
     out, arrs = {}, {}
     for region in REGIONS:
         w = None
-        for k in range(1, MONTHS + 1):
+        for k in range(1, nleads(ym) + 1):
             if not chunk_path(region, ym, k).exists():
                 continue
             daily, lat, lon, w = daily_series(region, ym, k, w)
