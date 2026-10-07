@@ -720,6 +720,10 @@
   NOTES.rdps.dt = "The RDPS's own 2-PVU surface (the pressure of the 2 PVU level, Pressure_PVU-2 on the MSC Datamart), with potential temperature and wind interpolated to it from 16 and 9 pressure levels, every 3 hours, smoothed to 20 km.";
   NOTES.rrfs.ceil = NOTES.hrrr.ceil; NOTES.rrfs.vis = NOTES.hrrr.vis; NOTES.rrfs.sw = NOTES.hrrr.sw;
   var NA = { rdps: { ceil: "The RDPS output has no cloud ceiling.", vis: "The RDPS output has no visibility." } };
+  // 2026-10-07, user: "Dont use nomads if we can" - the RRFS pressure-level files exist only on NOMADS (no real-time AWS
+  // copy), so the upper-air maps come from the HRRR (AWS) and the RDPS (MSC Datamart) only
+  NA.rrfs = {};
+  ["ua925", "ua250", "z500", "dt"].forEach(function (f) { NA.rrfs[f] = "Upper-air maps come from the HRRR and the RDPS: the RRFS's pressure-level files are only on NOMADS, which this page avoids."; });
 
   // ── display projection: the HRRR's Lambert conformal (tangent at 38.5 N, 97.5 W, sphere 6371229 m) ────────────────
   var P = (function () {

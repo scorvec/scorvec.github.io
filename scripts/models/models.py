@@ -149,6 +149,11 @@ ORDER = ["ir", "refl", "ceil", "vis", "t2m", "td2m", "smoke", "wind80", "wind10"
          "ua925", "ua250", "dt", "z500", "afram", "acobb", "as10", "asnod"]
 UA_FIELDS = ("ua925", "ua250", "dt", "z500")
 UA_ON = os.environ.get("MV_UA", "0") == "1"            # models.yml sets MV_UA=1 (the switch for the upper-air fetch)
+# 2026-10-07, user: "Dont use nomads if we can" - upper air only where it comes from AWS (HRRR) or the Datamart (RDPS);
+# the RRFS prslev files exist only on NOMADS (noaa-rrfs-pds holds no real-time runs), so no RRFS upper air
+UA_MODELS = set(os.environ.get("MV_UA_MODELS", "hrrr,rdps").split(","))
+def ua_on(model):
+    return UA_ON and model in UA_MODELS
 # the grid each upper-air field is stored on: HRRR/RRFS 925/250 hPa on the 6 km half-resolution grid, the dynamic tropopause
 # and 500 hPa (computed from fields smoothed to ~12 km) on the MSLP files' 12 km grid; RDPS native 10 km and 20 km
 UA_GRID = {"hrrr": dict(ua925="lo", ua250="lo", dt="sub", z500="sub"), "rrfs": dict(ua925="lo", ua250="lo", dt="sub", z500="sub"),
@@ -859,7 +864,7 @@ def fetch_hour(model, date, cyc, lead, cyc_dt):
         want = {k: v for k, v in IDX_WANT[model].items() if k != "zsfc" and not (lead == 0 and k in ACC)   # f00 has no accumulations
                 and (smoke or k != "smoke")}
         out = fetch_idx_fields(model, file_url(model, date, cyc, lead), want)
-        pw = dict(ua_want(model)) if (UPR.ua_hour(lead) and UA_ON) else {}
+        pw = dict(ua_want(model)) if (UPR.ua_hour(lead) and ua_on(model)) else {}
         # the Cobb snow ratio (HRRR): T, RH and omega every 25 hPa 925-300 hPa, fetched only for hours with snow somewhere
         if model == "hrrr" and UA_ON and "csnow" in out and np.nanmax(sb.decode(out["csnow"])) > 0.5:
             for p in WIN.COBB_LEVS:
@@ -885,7 +890,7 @@ def fetch_hour(model, date, cyc, lead, cyc_dt):
     jobs = {k: rdps_url(date, cyc, lead, v) for k, v in names.items()}
     if lead >= 1:
         jobs["swacc_prev"] = rdps_url(date, cyc, lead - 1, RDPS_VARS["swacc"])
-    if UPR.ua_hour(lead) and UA_ON:
+    if UPR.ua_hour(lead) and ua_on("rdps"):
         jobs.update(rdps_ua_jobs(date, cyc, lead))
     r_dt, off = raq_for(cyc_dt)
     if smoke and lead + off <= 72:
@@ -998,7 +1003,7 @@ def cmd_run(a):
     outdir.mkdir(parents=True)
     t_start = time.time()
     if model == "rrfs":
-        fetcher("rrfs").budget = 2 * len(leads) + 2 * UA_ON * sum(UPR.ua_hour(h) for h in leads) + 30   # NOMADS: .idx + one multi-range request per file (2dfld, and prslev every 3 h), a few retries
+        fetcher("rrfs").budget = 2 * len(leads) + 2 * ua_on("rrfs") * sum(UPR.ua_hour(h) for h in leads) + 30   # NOMADS: .idx + one multi-range request per file (2dfld, and prslev every 3 h), a few retries
 
     # static context: grid description, terrain (ceiling AGL), wind rotation, the RDPS crop
     ctx, grids = {}, {}
