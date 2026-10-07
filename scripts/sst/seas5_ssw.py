@@ -299,7 +299,7 @@ def verify(p: np.ndarray, o: np.ndarray, rng) -> dict:
                         o_freq=(round(float(o[sel].mean()), 3) if sel.any() else None)))
     return dict(n=int(n), bss=round(float(bss), 3), bss_ci90=[round(float(lo), 3), round(float(hi), 3)], auc=round(float(auc), 3),
                 auc_ci90=[round(float(alo), 3), round(float(ahi), 3)], brier=round(float(bs), 4), brier_clim=round(float(bsc), 4),
-                skilful=bool(lo > 0), reliability=rel)
+                skilful=bool(np.isfinite(lo) and lo > 0), reliability=rel)
 
 
 def perm_diff(x: np.ndarray, grp: np.ndarray, rng, n=10000) -> tuple[float, float]:
@@ -439,7 +439,17 @@ def build(ym: str) -> dict:
     doc["observed_tail"] = {str(int(l)): [[str(d.date()), round(float(x), 2)] for d, x in s.items() if np.isfinite(x)] for l, s in tail.items()}
     figs = render(ym, dates, f60, clim_mean, q10, q90, z, fsec, hsec, lats, tail, doc)
     doc["figures"] = figs
-    OUT_JSON.write_text(json.dumps(doc, separators=(",", ":")))
+    def clean(o):                                                       # NaN is not JSON (a window with no observed event)
+        if isinstance(o, dict):
+            return {k: clean(v) for k, v in o.items()}
+        if isinstance(o, (list, tuple)):
+            return [clean(v) for v in o]
+        if isinstance(o, (float, np.floating)):
+            return None if not np.isfinite(o) else float(o)
+        if isinstance(o, np.integer):
+            return int(o)
+        return o
+    OUT_JSON.write_text(json.dumps(clean(doc), separators=(",", ":")))
     print(f"wrote {OUT_JSON} in {(time.time() - t0) / 60:.1f} min", flush=True)
     return doc
 
