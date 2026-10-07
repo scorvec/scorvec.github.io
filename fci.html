@@ -639,23 +639,23 @@
     if (H && H.heloc && H.heloc.length) {
       document.getElementById("hs-card").hidden = false;
       var x0 = "2000-01-01";
-      Plotly.react("c-hs-he", [ln(H.heloc, "Banks' home-equity lines (H.8)", "#8c5a2b", { line: { color: "#8c5a2b", width: 1.8 }, hovertemplate: "%{y:+.1f}%<extra>bank HELOCs</extra>" }),
-        stepln(H.he_lim, "Home-equity credit limits, all lenders", "#1f5fa8", 1.8)],
-        L({ shapes: shapes, xaxis: { gridcolor: "#eee", range: [x0, d.asof] }, yaxis: yax("% y/y") }), CFG);
+      Plotly.react("c-hs-he", [ln(H.heloc, "Banks' HELOCs (H.8)", "#8c5a2b", { line: { color: "#8c5a2b", width: 1.8 }, hovertemplate: "%{y:+.1f}%<extra>bank HELOCs</extra>" }),
+        stepln(H.he_lim, "HE credit limits, all lenders", "#1f5fa8", 1.8)],
+        L({ shapes: shapes, legend: { orientation: "h", y: -0.16, x: 0 }, xaxis: { gridcolor: "#eee", range: [x0, d.asof] }, yaxis: yax("% y/y") }), CFG);
       var S = H.sloos, vl = (S.splices || []).map(function (s) { return { type: "line", xref: "x", yref: "paper", x0: s, x1: s, y0: 0, y1: 1, line: { color: "#999", width: 1, dash: "dot" } }; });
       Plotly.react("c-hs-sl", [stepln(S.mort, "Mortgage standards (tightening)", "#c2394b", 2), stepln(S.mort_dem, "Mortgage demand (stronger)", "#c2394b", 1.2),
         stepln(S.heloc, "HELOC standards (tightening)", "#8c5a2b", 2), stepln(S.heloc_dem, "HELOC demand (stronger)", "#8c5a2b", 1.2)].map(function (tr, i) { if (i % 2) tr.line.dash = "dot"; return tr; }),
-        L({ shapes: shapes.concat(vl), xaxis: { gridcolor: "#eee", range: [x0, d.asof] }, yaxis: yax("net %") }), CFG);
+        L({ shapes: shapes.concat(vl), legend: { orientation: "h", y: -0.16, x: 0 }, xaxis: { gridcolor: "#eee", range: [x0, d.asof] }, yaxis: yax("net %") }), CFG);
       var R = H.refi;
       if (R.share.length) Plotly.react("c-hs-rf", [ln(R.share, "Refinances, % of all new mortgages", "#23874f", { line: { color: "#23874f", width: 1.8 }, hovertemplate: "%{y:.1f}%<extra>refinance share</extra>" }),
         ln(R.cash_share, "Cash-out, % of refinances", "#d97a0b", { line: { color: "#d97a0b", width: 1.6 }, hovertemplate: "%{y:.1f}%<extra>cash-out share</extra>" }),
-        ln(R.cash_ratio, "Cash-out volume, % of mortgage debt a year (right)", "#8c5a2b", { yaxis: "y2", line: { color: "#8c5a2b", width: 2.2 }, hovertemplate: "%{y:.2f}%<extra>cash-out volume</extra>" })],
+        ln(R.cash_ratio, "Cash-out loans, % of debt a year (right)", "#8c5a2b", { yaxis: "y2", line: { color: "#8c5a2b", width: 2.2 }, hovertemplate: "%{y:.2f}%<extra>cash-out volume</extra>" })],
         L({ shapes: shapes, margin: { l: 52, r: 52, t: 10, b: 40 }, legend: { orientation: "h", y: -0.16, x: 0 }, xaxis: { gridcolor: "#eee", range: [x0, d.asof] }, yaxis: yax("%"),
             yaxis2: { overlaying: "y", side: "right", showgrid: false, zeroline: false, rangemode: "tozero", title: { text: "% of debt" } } }), CFG);
       var K = H.lockin;
       if (K.gap.length) {
         Plotly.react("c-hs-lk", [ln(K.mort, "30-year fixed rate (Freddie Mac)", "#1c1c1a", { line: { color: "#1c1c1a", width: 1.3 } }),
-          stepln(K.out_rate, "Average rate on outstanding mortgages (FHFA)", "#1f5fa8", 2),
+          stepln(K.out_rate, "Rate on outstanding loans (FHFA)", "#1f5fa8", 2),
           ln(K.gap, "Lock-in gap", "#b4321f", { line: { color: "#b4321f", width: 2.2 }, fill: "tozeroy", fillcolor: "rgba(180,50,31,0.12)", hovertemplate: "%{y:+.2f} pt<extra>lock-in gap</extra>" })],
           L({ shapes: shapes, legend: { orientation: "h", y: -0.16, x: 0 }, xaxis: { gridcolor: "#eee", range: [K.mort[0][0], d.asof] }, yaxis: yax("%") }), CFG);
       }
@@ -665,7 +665,7 @@
         (hl ? "; home-equity credit limits at all lenders " + fmt(hl[1], 1) + "% (New York Fed, " + (H.hhdc_report || "") + " report)" : "") +
         (g ? ". Lock-in gap " + fmt(g[1]) + " points (" + g[0] + "): the outstanding average rate was " + o[1].toFixed(1) + "% in " + qq(o[0]) +
           (l3 && g6 ? ", with " + Math.round(l3[1]) + "% of balances below 3% and " + Math.round(g6[1]) + "% at 6% or more" : "") : "") +
-        (cr ? ". Cash-out refinancing in " + qq(cr[0]) + " ran at " + cr[1].toFixed(2) + "% of mortgage debt a year, and refinances were " + Math.round(rs[1]) + "% of new mortgages" : "") +
+        (cr ? ". Cash-out refinancing in " + qq(cr[0]) + " ran at " + cr[1].toFixed(2) + "% of mortgage debt a year (the whole new loans, not only the cash taken out), and refinances were " + Math.round(rs[1]) + "% of new mortgages" : "") +
         ". The mortgage survey questions changed wording in 2007 and 2015 (dotted lines); the three wordings are joined end to end.";
       var A2h = A && A.housing;
       if (A2h) document.getElementById("hs-adm").textContent = A2h.admitted.length ? A2h.admitted.map(function (k) { return A2h.labels[k] + " (weight " + fmt(A2h.after.loadings[k]) + ")"; }).join(" and ") +
