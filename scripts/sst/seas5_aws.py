@@ -72,6 +72,42 @@ CDS_SRC = {
     ("strat_u", "u_30"): (0, ["30", "50"], [4, -180, -4, 180], (7,)),    # QBO band only: the table reads 5°S–5°N
     ("strat_u", "u_50"): (0, ["30", "50"], [4, -180, -4, 180], (7,)),
 }
+# MEAN MATCHING. The lead-6 test (2026-10-07, run 37673283305) found the AWS copy identical to the CDS monthly hindcast
+# for smooth fields (u60N 10 hPa, polar-cap z10, Niño boxes, z500: rms < 0.05 m / 0.001 K) but not where the grid
+# matters: t2m rms 0.21 K (max 3.4 K, coasts and mountains; 0.5 of the interannual σ there), SST box means natl −0.18 K
+# and glob −0.07 K (coast/ice masks), snow depth rms 91 mm (glaciers). The offsets are stationary (lead 5 → 6 change:
+# t2m 0.05 K rms, SST 0.02 K, snow depth 2.5 mm), so each AWS field with a CDS mean field in the base tables is moved
+# by δ_L = CDS mean − AWS mean at leads 5 and 6, and by δ_6 at lead 7. Leads 5–6 then match the CDS hindcast mean
+# exactly; lead 7 carries the lead-6 offset (residual ≈ the 5 → 6 change above).
+MEAN_REF = {("gl", "t2m"): ("build_gl", "hcm_t2m"), ("gl", "sst"): ("build_gl", "hcm_sst"),
+            ("gl_z500", "z"): ("build_gl_z500", "hcm_z500"), ("gl_u850", "u"): ("build_gl_u850", "hcm_u850"),
+            ("gl_v850", "v"): ("build_gl_v850", "hcm_v850"), ("na_snowdepth", "sd"): ("build_na_snowdepth", "hcm_sd"),
+            ("sst", "sst"): ("build_sst", "hc_mean"), ("nh_msl", "msl"): ("tele_nh", "hp_m"), ("nh_z", "z_500"): ("tele_nh", "hz_m")}
+
+
+def mean_match(kind: str, key: str, month: str, v: np.ndarray, lat, lon) -> tuple[np.ndarray, dict]:
+    """v [600, 3 (leads 5–7), lat, lon] moved onto the CDS hindcast mean (MEAN_REF); unchanged without a table."""
+    import seas5_ref as R
+    if (kind, key) not in MEAN_REF:
+        return v, {}
+    unit, name = MEAN_REF[(kind, key)]
+    t = R._load_one(R.hc_ref(unit, f"{int(month):02d}"))
+    if t is None or name not in t:
+        print(f"    {kind} {key}: no {unit} table — NOT mean-matched", flush=True)
+        return v, {"mean_matched": False}
+    if not (np.allclose(t["lat"], lat) and np.allclose(((t["lon"] + 180) % 360) - 180, ((np.asarray(lon) + 180) % 360) - 180)):
+        raise ValueError(f"{kind} {key}: {unit} grid differs from the pseudo-raw grid")
+    d = {L: (t[name][L - 1] - np.nanmean(v[:, L - 5], axis=0)).astype(np.float32) for L in (5, 6)}
+    v = v.copy()
+    v[:, 0] += d[5]; v[:, 1] += d[6]; v[:, 2] += d[6]
+    w = np.cos(np.deg2rad(np.asarray(lat)))[:, None] * np.ones(len(lon))[None]
+    rms = lambda a: float(np.sqrt(np.nansum(np.where(np.isfinite(a), a * a, 0) * w) / np.sum(w * np.isfinite(a))))
+    info = {"mean_matched": True, "delta6_rms": rms(d[6]), "delta6_max": float(np.nanmax(np.abs(d[6]))), "delta_change_5_6_rms": rms(d[6] - d[5])}
+    print(f"    {kind} {key}: mean-matched to {unit}:{name} (δ6 rms {info['delta6_rms']:.3g}, max {info['delta6_max']:.3g}; "
+          f"5→6 change rms {info['delta_change_5_6_rms']:.3g})", flush=True)
+    return v, info
+
+
 # NOT extended (stay at 6 leads): the `energy` kind — the monthly 10 m wind speed is not reproducible from the
 # sub-daily u/v (seas5_lead7 docstring)
 SUBSET = {"sfc": ("gl", ("t2m", "tprate"))}
@@ -268,8 +304,9 @@ def build_kind(kind: str, month: str, aws_only: bool = False) -> Path | None:
             if (kind, k) in AWS_SRC:
                 group, var, level, fac = AWS_SRC[(kind, k)]
                 cell = aws_monthly(group, var, level, month)
-                arrays[k] = cell_to_points(cell, lat, lon) * np.float32(fac)
-                src_note[k] = f"AWS Planette SEAS5 daily {group}/{var}{'@' + str(level) if level else ''}, bilinear to the CDS grid"
+                arrays[k], mm = mean_match(kind, k, month, cell_to_points(cell, lat, lon) * np.float32(fac), lat, lon)
+                src_note[k] = (f"AWS Planette SEAS5 daily {group}/{var}{'@' + str(level) if level else ''}, bilinear to the CDS grid"
+                               + (f"; mean-matched to the CDS monthly hindcast (lead-6 offset rms {mm['delta6_rms']:.3g}, 5→6 change {mm['delta_change_5_6_rms']:.3g})" if mm.get("mean_matched") else ""))
             else:
                 if aws_only and CDS_SRC[(kind, k)][1]:
                     continue
@@ -381,7 +418,7 @@ def check(month: str, out: Path | None = None) -> dict:
         # tercile bounds at the single month (normals tables: 33rd/67th percentile of the 600 samples, months 1–6 first)
         if nt is not None and f"{nvar}_lo" in nt:
             for L in (5, 6):
-                samp = z[key][:, L - 5] * (fac if kind != "energy" else 1.0)
+                samp = z[key][:, L - 5] * (fac if kind != "energy" else 1.0) - (273.15 if nvar == "t2m" else 0.0)   # normals: °C
                 lo, hi = np.nanpercentile(samp, [100 / 3, 200 / 3], axis=0)
                 field_cmp(f"tercile-lo {kind}:{var} lead {L}", {L: nt[f'{nvar}_lo'][L - 1]}, {L: lo}, z["lat"], sd)
                 field_cmp(f"tercile-hi {kind}:{var} lead {L}", {L: nt[f'{nvar}_hi'][L - 1]}, {L: hi}, z["lat"], sd)

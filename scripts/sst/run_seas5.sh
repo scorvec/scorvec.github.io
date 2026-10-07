@@ -48,7 +48,14 @@ fetch)
   step "fetch snowfall (daily, North America)"       "$PY" seas5_snow.py fetch --issue "$ISSUE"
   step "fetch regimes (daily z500, 51 members)"      "$PY" seas5_regimes_fetch.py forecast --issue "$ISSUE"
   # lead month 7 (from the October 2026 issue): the sub-daily product reduced to the monthly definition, per kind
-  step "fetch lead-7 monthly means (sub-daily)"      "$PY" seas5_lead7.py forecast --issue "$ISSUE"
+  # Budgeted: on 2026-10-07 the CDS queued each pressure-level request 30–90 min. No new request after the job has
+  # less than 120 min left (seas5.yml timeout 340 min); the cache keeps what came, the next firing fetches the rest.
+  L7B=200; if [ -n "${JOB_T0:-}" ]; then L7B=$(( 340 - ( $(date +%s) - JOB_T0 ) / 60 - 120 )); fi
+  if [ "$L7B" -gt 0 ]; then
+    step "fetch lead-7 monthly means (sub-daily)"    "$PY" seas5_lead7.py forecast --issue "$ISSUE" --budget-min "$L7B"
+  else
+    echo "::warning::no time left for the lead-7 fetch this run"
+  fi
   [ ${#FAILED[@]} -eq 0 ] || echo "::warning::forecast fetches incomplete: ${FAILED[*]}"
   exit 0
   ;;
