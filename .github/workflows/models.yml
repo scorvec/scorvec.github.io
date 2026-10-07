@@ -44,6 +44,9 @@ jobs:
     timeout-minutes: 90
     env:
       MODEL: ${{ inputs.model }}
+      # upper-air maps (2026-10-06): 925/250 hPa, dynamic tropopause, 500 hPa every 3 h from the pressure-level files
+      # (HRRR wrfprs on AWS, RRFS prslev on NOMADS - one more multi-range request per 3 h -, RDPS isobaric files)
+      MV_UA: "1"
     steps:
       - uses: actions/checkout@v7
         with:
