@@ -47,13 +47,14 @@ def _hdr(text):
 
 def mission_of(s):
     """'AF304 0209A ISAIAS' / 'NOAA9 01BBA SURV' -> dict(aircraft, mission, storm_no, basin, name)."""
-    m = re.search(r"\b((?:AF|NOAA|NASA|NAVY|USN|CARCAH)\s?\d{1,3}[A-Z]?)\s+(\d{2}[A-Z0-9]{2}[A-Z])\s+([A-Z0-9-]+)?", s)
+    # mission: 2-digit mission no + storm no (or CARCAH letters) + basin, e.g. 0209A / 01BBA; WXWXA = non-tasked weather recon
+    m = re.search(r"\b((?:AF|NOAA|NASA|NAVY|USN|CARCAH)\s?\d{1,3}[A-Z]?)\s+(\d{2}[A-Z0-9]{2}[A-Z]|WXWX[A-Z])\b\s*([A-Z0-9-]+)?", s)
     if not m:
         return None
     ac, mi, nm = m.group(1).replace(" ", ""), m.group(2), (m.group(3) or "").strip()
-    sn = mi[2:4]
+    sn = "WX" if mi.startswith("WX") else mi[2:4]
     return dict(aircraft=ac, mission=mi, storm_no=int(sn) if sn.isdigit() else None, tag=sn,
-                basin=mi[4], name=nm if nm not in ("HDOB", "OB") else "")
+                basin=mi[4], name=nm if nm not in ("HDOB", "OB") and not nm.isdigit() else "")
 
 
 def aircraft_type(ac):

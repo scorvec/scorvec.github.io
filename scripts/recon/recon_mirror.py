@@ -445,6 +445,9 @@ class Mirror:
     def assign(self, m, st):
         """m: mission or its manifest entry (year, storm_no, mission); st: mission_stats()."""
         y = m.get("year") or int(st.get("key", "0000")[:4])
+        mi = m.get("mission") or ""
+        if mi in ("", "UNK") or mi.startswith("WX") or m.get("aircraft") in (None, "UNK"):
+            return None, None              # weather recon (WXWXA) / unparsed: never a storm's mission
         if m.get("storm_no") and (m.get("mission") or "")[-1:] == "A":
             return f"AL{m['storm_no']:02d}{y}", "mission number"
         sid = st.get("vdm_sid")
@@ -529,6 +532,15 @@ class Mirror:
             st = mission_stats(m) if m else {}
             sid, _ = self.assign(m, st) if m else (None, None)
             if sid not in pinned:
+                p.unlink()
+                self.changed = True
+        # missions that belong to no storm (weather recon, unparsed headers) are not shown: keep them 3 days only
+        for p in mdir.glob("*/*.json"):
+            m = jload(p, {})
+            if not m:
+                continue
+            st = mission_stats(m)
+            if self.assign(m, st)[0] is None and (st.get("last") or 0) < NOW.timestamp() - 3 * 86400:
                 p.unlink()
                 self.changed = True
         for p in (self.out / "storms").glob("*.json"):

@@ -126,6 +126,8 @@ PAGES = {
     "/catalog.html": dict(kind="page", topic="tools", tier=1, prio=28, models=[], horizon=None, region=[]),
     "/skewt/": dict(kind="page", topic="tools", tier=1, prio=24, models=["Radiosondes"], horizon="Observed", region=["Global"],
                     thumb="skewt/og-card.png", variable=["Soundings"]),
+    "/recon.html": dict(kind="page", topic="drivers", tier=1, prio=24, models=["Reconnaissance"], horizon="Observed",
+                        region=["North America"], variable=["Wind", "Pressure"]),
     "/asos5.html": dict(kind="page", topic="tools", tier=1, prio=25, models=["ASOS"], horizon="Observed", region=["North America"],
                         variable=["Temperature"]),
     "/climate.html": dict(kind="page", topic="tools", tier=1, prio=25, models=["nClimDiv", "PRISM"], horizon="Climate record",
