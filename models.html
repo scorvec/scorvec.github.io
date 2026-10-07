@@ -3685,7 +3685,7 @@
     var c = cycleObj(st.model, st.ci);
     if (!c) { $("msg").textContent = MODEL_ORDER.some(function (m) { return man[m]; }) ? "No model run has been published yet." : "The list of model runs could not be loaded. Check your connection and reload the page."; return; }
     $("msg").textContent = "";
-    if (NA[st.model] && NA[st.model][st.field]) st.field = "ir";
+    if (NA[st.model] && NA[st.model][st.field] && !FIELDS[st.field].conv) st.field = "ir";
     if (!hadHour) st.hour = Math.round((Date.now() - Date.parse(c.init)) / 3600e3);
     st.hour = nearestHour(c, st.hour);
     setButtons();
