@@ -309,23 +309,32 @@ def geps_column(f, ps):
 
 
 # ── cycle resolution ─────────────────────────────────────────────────────────────────────────────────────────────
+def _ready(system, d, hh):
+    if system in ("aifs", "ifs"):
+        import cycles
+        prof = cycles.AIFS_ENS if system == "aifs" else (cycles.Need("ifs", "ef", step=360, every=cycles.IFS_STEPS),)
+        return cycles.is_ready(d, hh, prof)[0]
+    if system == "gefs":
+        return A.http_get(gefs_url(d, hh, "gep30", 360) + ".idx", src="aws-s3") is not None
+    import requests
+    r = requests.head(GEPS_URL.format(d=d, c=hh, v="VGRD_ISBL_0850", L=360), headers={"User-Agent": A.UA}, timeout=30)
+    return r.status_code == 200
+
+
 def latest(system):
+    """Newest complete 00/12Z cycle. The cycle due now (init >= 7 h ago) is waited for up to AR_WAIT_MIN minutes,
+    then older ones are taken (the page states each system's init)."""
     now = pd.Timestamp.utcnow().tz_localize(None)
+    t_end = time.time() + 60 * float(os.environ.get("AR_WAIT_MIN", "0"))
     for back in range(0, 6):
-        t = (now - pd.Timedelta(hours=12 * back)).floor("12h")
+        t = (now - pd.Timedelta(hours=7) - pd.Timedelta(hours=12 * back)).floor("12h")
         d, hh = t.strftime("%Y%m%d"), t.strftime("%H")
-        if system in ("aifs", "ifs"):
-            import cycles
-            prof = cycles.AIFS_ENS if system == "aifs" else (cycles.Need("ifs", "ef", step=360, every=cycles.IFS_STEPS),)
-            ok, why = cycles.is_ready(d, hh, prof)
-        elif system == "gefs":
-            ok = A.http_get(gefs_url(d, hh, "gep30", 360) + ".idx", src="aws-s3") is not None
-        else:
-            import requests
-            r = requests.head(GEPS_URL.format(d=d, c=hh, v="VGRD_ISBL_0850", L=360), headers={"User-Agent": A.UA}, timeout=30)
-            ok = r.status_code == 200
-        if ok:
-            return d, hh
+        while True:
+            if _ready(system, d, hh):
+                return d, hh
+            if back > 0 or time.time() > t_end:
+                break
+            print(f"  {system} {d} {hh}Z not complete yet; waiting", flush=True); time.sleep(120)
         print(f"  {system} {d} {hh}Z not complete", flush=True)
     return None
 
@@ -564,7 +573,7 @@ def combine(work: Path, procs: int):
         regions[key] = {"label": name, "frames": [{"idx": k, "file": f"F{k:02d}.webp", "date": t.strftime("%Y-%m-%d"),
                                                    "label": f"{t:%a %d %b %HZ} · " + (f"+{int((t - vt[s_][0]) / pd.Timedelta(hours=1))} h {SYSTEMS[s_]['short']}" if key.startswith(("ens_a", "ens_i", "ens_g", "pwat")) else f"+{int((t - newest) / pd.Timedelta(hours=1))} h from {newest:%d %HZ}")}
                                                   for k, t in enumerate(L["valid"])]}
-    mani = {"ver": int(time.time()), "default": "ens_mm_p250", "regions": regions}
+    mani = {"ver": int(time.time()), "default": "ens_mm_p250", "regions": regions, "data_dir": "ens_data"}
     (ANIM / "ar_ens_manifest.json").write_text(json.dumps(mani, separators=(",", ":")))
 
     # ── coastal figures + JSON ──
@@ -600,7 +609,8 @@ def combine(work: Path, procs: int):
                 row.append(round(float(np.mean(vals)), 2) if len(vals) == len(mm_sys) else None)
             mmv.append(row)
         scale.setdefault("mm", {})[key] = mmv
-    (ANIM / "ens_plume.json").write_text(json.dumps(plume, separators=(",", ":")))
+    (ANIM / "ens_data").mkdir(parents=True, exist_ok=True)
+    (ANIM / "ens_data" / "plume.json").write_text(json.dumps(plume, separators=(",", ":")))
     nb = {k: A.dir_bytes(v) for k, v in dirs.items()}
     doc = {"generated": time.strftime("%Y-%m-%d %H:%M UTC", time.gmtime()), "combination": mm_sys, "stale": stale,
            "common": [common[0].strftime("%Y-%m-%dT%HZ"), common[-1].strftime("%Y-%m-%dT%HZ")],
