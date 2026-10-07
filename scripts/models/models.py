@@ -122,6 +122,10 @@ FIELDS = {
     "ua250": dict(enc="uvz", off=-101.6, step=0.8),
     "dt": dict(enc="dt", th=(250.0, 0.6), off=-101.6, step=0.8),
     "z500": dict(enc="vz", vo=(-30.0, 0.5)),
+    # 500 hPa wind for the barbs on the z500 map (2026-10-07, user: "add wind barbs"): a companion 2-channel frame (u, v
+    # earth-relative, as 250 hPa) on the z500 grid - a 4th channel in z500 would be WebP alpha, which the canvas decode
+    # premultiplies (not bit-exact)
+    "w500": dict(enc="lin2", off=-101.6, step=0.8),
 }
 ACC_METHOD = {
     "hrrr": dict(apcp="APCP", asnow="ASNOW, the HRRR's own snowfall (variable snow density)",
@@ -146,8 +150,8 @@ ACC_METHOD["rrfs"].update(afram=_FRAM.format(src="FRZR; 3-hourly past 36 h"), as
                           as10=ACC_METHOD["hrrr"]["as10"])
 ACC_METHOD["rdps"].update(afram=_FRAM.format(src="FreezingRain-Accum"), asnod=_SNOD.format(src="SnowDepth"))
 ORDER = ["ir", "refl", "ceil", "vis", "t2m", "td2m", "smoke", "wind80", "wind10", "gust", "sw", "mslp", "apcp", "asnow", "afzra", "aip",
-         "ua925", "ua250", "dt", "z500", "afram", "acobb", "as10", "asnod"]
-UA_FIELDS = ("ua925", "ua250", "dt", "z500")
+         "ua925", "ua250", "dt", "z500", "w500", "afram", "acobb", "as10", "asnod"]
+UA_FIELDS = ("ua925", "ua250", "dt", "z500", "w500")
 UA_ON = os.environ.get("MV_UA", "0") == "1"            # models.yml sets MV_UA=1 (the switch for the upper-air fetch)
 # 2026-10-07, user: "Dont use nomads if we can" - upper air only where it comes from AWS (HRRR) or the Datamart (RDPS);
 # the RRFS prslev files exist only on NOMADS (noaa-rrfs-pds holds no real-time runs), so no RRFS upper air
@@ -156,8 +160,8 @@ def ua_on(model):
     return UA_ON and model in UA_MODELS
 # the grid each upper-air field is stored on: HRRR/RRFS 925/250 hPa on the 6 km half-resolution grid, the dynamic tropopause
 # and 500 hPa (computed from fields smoothed to ~12 km) on the MSLP files' 12 km grid; RDPS native 10 km and 20 km
-UA_GRID = {"hrrr": dict(ua925="lo", ua250="lo", dt="sub", z500="sub"), "rrfs": dict(ua925="lo", ua250="lo", dt="sub", z500="sub"),
-           "rdps": dict(ua925="main", ua250="main", dt="sub", z500="sub")}
+UA_GRID = {"hrrr": dict(ua925="lo", ua250="lo", dt="sub", z500="sub", w500="sub"), "rrfs": dict(ua925="lo", ua250="lo", dt="sub", z500="sub", w500="sub"),
+           "rdps": dict(ua925="main", ua250="main", dt="sub", z500="sub", w500="sub")}
 SUB = {"hrrr": 4, "rrfs": 4, "rdps": 2}
 # Smoke is seasonal (user 2026-10-04: "We can turn off the smoke between Oct 1 - Apr 1"): a run whose UTC date falls
 # outside (start month, start day, end month, end day) inclusive fetches, encodes and publishes no smoke for any model -
@@ -176,7 +180,7 @@ def smoke_on(cyc_dt):
 # 3 km models only: on the 10 km RDPS grid the page would never pick them. Measured on 2026100118 HRRR: lo/full bytes
 # 0.28-0.36 per field, +33 % on the cycle.
 LO = {"hrrr": 2, "rrfs": 2}
-LO_SKIP = {"mslp", "ua925", "ua250", "dt", "z500"}
+LO_SKIP = {"mslp", "ua925", "ua250", "dt", "z500", "w500"}
 
 
 def decimate(arr, f):
@@ -579,6 +583,9 @@ def ua_lcc(blobs):
         if "ua:HGT:500" in blobs:
             av = UPR._121(UPR._121(absv[LV.index(500)]))
             out["z500"] = ("vz", (av * 1e5).astype(np.float32), UPR.smooth_dec(dec(blobs["ua:HGT:500"]), F))
+            k5 = LV.index(500)
+            u5, v5 = to_earth(U[k5], V[k5], asub) if asub is not None else (U[k5], V[k5])
+            out["w500"] = (np.asarray(u5, np.float32), np.asarray(v5, np.float32))
     return out
 
 
@@ -624,6 +631,9 @@ def ua_rdps(blobs, crop):
         av = dec(blobs["ua:AV:500"], crop)
         av = av * 1e5 if np.nanmedian(np.abs(av)) < 0.01 else av            # s-1 -> 1e-5 s-1
         out["z500"] = ("vz", UPR.smooth_dec(av, F), UPR.smooth_dec(height_m(blobs["ua:Z:500"], crop, 500), F))
+        if "ua:U:500" in blobs and "ua:V:500" in blobs:
+            u5, v5 = earth(dec(blobs["ua:U:500"], crop), dec(blobs["ua:V:500"], crop), al)
+            out["w500"] = (UPR.smooth_dec(u5, F), UPR.smooth_dec(v5, F))
     return out
 
 
