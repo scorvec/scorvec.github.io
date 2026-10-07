@@ -3516,7 +3516,7 @@
     if (FIELDS[p[1]]) st.field = p[1];
     if (p[2] !== undefined && /^\d+$/.test(p[2])) st.hour = +p[2];
     if (p[3] && /^r\d$/.test(p[3])) st.ci = +p[3].slice(1);
-    var am = (p[3] && /^[a-z]+-\d+$/.test(p[3]) ? p[3] : p[4] || "").match(/^([a-z]+)-(\d+)$/);
+    var am = (p[3] && /^[a-z][a-z0-9]*-\d+$/.test(p[3]) ? p[3] : p[4] || "").match(/^([a-z][a-z0-9]*)-(\d+)$/);   // "as10-6"
     if (am && ACC_TYPES[am[1]]) { st.acc.type = am[1]; st.acc.win = +am[2]; }
     [p[3], p[4]].forEach(function (x) { if (x && EC_SUBS[x]) st.ec = x; });
     p.forEach(function (x) { if (/^@[A-Z0-9]{3,5}$/.test(x)) hashStation = x.slice(1); });
