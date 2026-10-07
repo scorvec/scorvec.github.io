@@ -79,6 +79,7 @@ sys.path.insert(0, str(HERE.parent / "snowband"))
 import snowband as sb                                   # noqa: E402  the shared, validated transport (S3 / NOMADS / Datamart)
 from manifest_merge import prune_ecape                 # noqa: E402  hrrr.json is shared with the ECAPE job
 import points as PTS                                    # noqa: E402  meteogram point series (points.json)
+import upper as UPR                                     # noqa: E402  upper-air fields: 925/250 hPa, dynamic tropopause, 500 hPa
 
 UA = {"User-Agent": "scorvec-models/1.0 (+https://scorvec.com/models.html)"}
 SIGMA = 5.670374419e-8
@@ -107,6 +108,14 @@ FIELDS = {
     "asnow": dict(enc="acc16", unit=0.1),      # snowfall (HRRR/RRFS: the model's ASNOW; RDPS: 10:1 from its snow water)
     "afzra": dict(enc="acc16", unit=0.01),     # freezing rain, liquid equivalent (model's own FRZR / FreezingRain-Accum)
     "aip": dict(enc="acc16", unit=0.01),       # sleet, liquid equivalent (HRRR/RRFS: APCP while the sleet type is on; RDPS: IcePellets-Accum)
+    # upper air (2026-10-06; upper.py), every 3rd hour. "uvz": R, G = earth-relative u, v (off + step * code), B = height,
+    # per-frame offset and step (manifest "q", like linf). 925 hPa: +-63.5 m/s in 0.5 m/s (~1 kt); 250 hPa: +-101.6 m/s
+    # in 0.8 m/s (the jet reaches ~100 m/s). "dt": R = potential temperature on 2 PVU, 250 K + 0.6 K * code (to 402 K),
+    # G, B = the wind on it as 250 hPa. "vz": R = 500 hPa absolute vorticity, 1e-5 s-1, -30 + 0.5 * code; G = height.
+    "ua925": dict(enc="uvz", off=-63.5, step=0.5),
+    "ua250": dict(enc="uvz", off=-101.6, step=0.8),
+    "dt": dict(enc="dt", th=(250.0, 0.6), off=-101.6, step=0.8),
+    "z500": dict(enc="vz", vo=(-30.0, 0.5)),
 }
 ACC_METHOD = {
     "hrrr": dict(apcp="APCP", asnow="ASNOW, the HRRR's own snowfall (variable snow density)",
@@ -117,7 +126,14 @@ ACC_METHOD = {
     "rdps": dict(apcp="Precip-Accum", asnow="10:1 from the RDPS's accumulated snow water equivalent (not a model snowfall)",
                  afzra="FreezingRain-Accum (liquid equivalent)", aip="IcePellets-Accum (liquid equivalent)"),
 }
-ORDER = ["ir", "refl", "ceil", "vis", "t2m", "td2m", "smoke", "wind80", "wind10", "gust", "sw", "mslp", "apcp", "asnow", "afzra", "aip"]
+ORDER = ["ir", "refl", "ceil", "vis", "t2m", "td2m", "smoke", "wind80", "wind10", "gust", "sw", "mslp", "apcp", "asnow", "afzra", "aip",
+         "ua925", "ua250", "dt", "z500"]
+UA_FIELDS = ("ua925", "ua250", "dt", "z500")
+UA_ON = os.environ.get("MV_UA", "0") == "1"            # models.yml sets MV_UA=1 (the switch for the upper-air fetch)
+# the grid each upper-air field is stored on: HRRR/RRFS 925/250 hPa on the 6 km half-resolution grid, the dynamic tropopause
+# and 500 hPa (computed from fields smoothed to ~12 km) on the MSLP files' 12 km grid; RDPS native 10 km and 20 km
+UA_GRID = {"hrrr": dict(ua925="lo", ua250="lo", dt="sub", z500="sub"), "rrfs": dict(ua925="lo", ua250="lo", dt="sub", z500="sub"),
+           "rdps": dict(ua925="main", ua250="main", dt="sub", z500="sub")}
 SUB = {"hrrr": 4, "rrfs": 4, "rdps": 2}
 # Smoke is seasonal (user 2026-10-04: "We can turn off the smoke between Oct 1 - Apr 1"): a run whose UTC date falls
 # outside (start month, start day, end month, end day) inclusive fetches, encodes and publishes no smoke for any model -
@@ -136,7 +152,7 @@ def smoke_on(cyc_dt):
 # 3 km models only: on the 10 km RDPS grid the page would never pick them. Measured on 2026100118 HRRR: lo/full bytes
 # 0.28-0.36 per field, +33 % on the cycle.
 LO = {"hrrr": 2, "rrfs": 2}
-LO_SKIP = {"mslp"}
+LO_SKIP = {"mslp", "ua925", "ua250", "dt", "z500"}
 
 
 def decimate(arr, f):
@@ -198,6 +214,18 @@ def encode(name, x):
         v = np.clip(np.rint(np.nan_to_num(x, nan=0.0) / f["unit"]), 0, 65535).astype(np.uint16)
         c = np.dstack([(v >> 8).astype(np.uint8), (v & 255).astype(np.uint8), np.zeros(v.shape, np.uint8)])
         return c[::-1], None
+    if f["enc"] in ("uvz", "dt", "vz"):
+        z3 = np.zeros(x[1].shape, np.uint8)
+        if f["enc"] == "uvz":                                      # ("uvz", u, v, height)
+            zc, p = UPR.q_auto(x[3])
+            c = np.dstack([q_lin(x[1], f["off"], f["step"]), q_lin(x[2], f["off"], f["step"]), zc])
+        elif f["enc"] == "dt":                                     # ("dt", theta, u, v)
+            c = np.dstack([q_lin(x[1], *f["th"]), q_lin(x[2], f["off"], f["step"]), q_lin(x[3], f["off"], f["step"])])
+            p = None
+        else:                                                      # ("vz", absolute vorticity 1e-5 s-1, height)
+            zc, p = UPR.q_auto(x[2])
+            c = np.dstack([q_lin(x[1], *f["vo"]), zc, z3])
+        return c[::-1], p
     if name == "mslp":                                             # ("mslp", hPa, high-terrain mask): R = pressure, G = 1 where
         c = np.dstack([q_lin(x[1], f["off"], f["step"]), x[2], np.zeros(x[2].shape, np.uint8)])   # surface p < 850 hPa
         p = None
@@ -287,6 +315,37 @@ def file_url(model, date, cyc, lead):
     if model == "rrfs":
         return f"{sb.rrfs_base(date, cyc)}.2dfld.3km.f{lead:03d}.conus.grib2"
     raise ValueError(model)
+
+
+def prs_url(model, date, cyc, lead):
+    """The isobaric-level file (upper air): HRRR wrfprs (S3), RRFS prslev (NOMADS)."""
+    if model == "hrrr":
+        return f"{sb.hrrr_base(date, cyc)}.wrfprsf{lead:02d}.grib2"
+    return f"{sb.rrfs_base(date, cyc)}.prslev.3km.f{lead:03d}.conus.grib2"
+
+
+def ua_want():
+    """.idx regexes of the upper-air messages (HRRR wrfprs / RRFS prslev share the names): T, u, v on UA_LEVS for the
+    dynamic tropopause and 500 hPa vorticity, and the 925 / 250 / 500 hPa heights and 925 hPa wind."""
+    w = {}
+    for p in UPR.UA_LEVS:
+        for v in ("TMP", "UGRD", "VGRD"):
+            w[f"ua:{v}:{p}"] = rf"^{v}:{p} mb:(anl|\d+ hour fcst):?$"
+    for v, p in (("UGRD", 925), ("VGRD", 925), ("HGT", 925), ("HGT", 250), ("HGT", 500)):
+        w[f"ua:{v}:{p}"] = rf"^{v}:{p} mb:(anl|\d+ hour fcst):?$"
+    return w
+
+
+def rdps_ua_jobs(date, cyc, lead):
+    j = {f"ua:T:{p}": rdps_url(date, cyc, lead, f"AirTemp_IsbL-{p:04d}") for p in UPR.RDPS_T_LEVS}
+    for p in sorted(set(UPR.RDPS_UV_LEVS) | {925}):
+        j[f"ua:U:{p}"] = rdps_url(date, cyc, lead, f"WindU_IsbL-{p:04d}")
+        j[f"ua:V:{p}"] = rdps_url(date, cyc, lead, f"WindV_IsbL-{p:04d}")
+    for p in (925, 250, 500):
+        j[f"ua:Z:{p}"] = rdps_url(date, cyc, lead, f"GeopotentialHeight_IsbL-{p:04d}")
+    j["ua:AV:500"] = rdps_url(date, cyc, lead, "AbsoluteVorticity_IsbL-0500")
+    j["ua:PDT"] = rdps_url(date, cyc, lead, "Pressure_PVU-2")
+    return j
 
 
 def rdps_url(date, cyc, lead, var):
@@ -431,6 +490,117 @@ def f_of_k(k):
     return (k - 273.15) * 1.8 + 32.0 if np.nanmean(k) > 150 else k * 1.8 + 32.0
 
 
+def to_grid(u, v, alpha):
+    ca, sa = np.cos(alpha), np.sin(alpha)
+    return u * ca + v * sa, -u * sa + v * ca
+
+
+def dec_units(buf, crop=None):
+    """values and the GRIB units string"""
+    import eccodes
+    g = eccodes.codes_new_from_message(buf)
+    try:
+        u = eccodes.codes_get(g, "units")
+    except Exception:                                           # noqa: BLE001
+        u = ""
+    finally:
+        eccodes.codes_release(g)
+    return dec(buf, crop), u
+
+
+def height_m(buf, crop, lev):
+    """geopotential height in metres whatever the file's unit (dam or gpm): the factor that puts the median where the
+    level's heights live"""
+    z, u = dec_units(buf, crop)
+    if u.lower() in ("dam", "decametre", "decameters"):
+        return z * 10.0
+    med = float(np.nanmedian(z))
+    expect = {925: 750.0, 850: 1450.0, 700: 3000.0, 500: 5600.0, 250: 10300.0}[lev]
+    return z * 10.0 if abs(med * 10 - expect) < abs(med - expect) else z
+
+
+def ua_lcc(blobs):
+    """HRRR / RRFS upper air (upper.py) -> {field: tuple for encode()}"""
+    out = {}
+    F = _CTX["sub"]
+    al, rel = _CTX.get("alpha"), _CTX.get("grid_rel")
+
+    def earth(u, v, a):
+        return to_earth(u, v, a) if rel and a is not None else (u, v)
+    ps = dec(blobs["psfc"]) if "psfc" in blobs else None
+    for lev, name in ((925, "ua925"), (250, "ua250")):
+        ks = [f"ua:UGRD:{lev}", f"ua:VGRD:{lev}", f"ua:HGT:{lev}"]
+        if not all(k in blobs for k in ks):
+            continue
+        u, v, z = (dec(blobs[k])[::2, ::2] for k in ks)                     # the 6 km "lo" grid (every 2nd point)
+        if lev == 925 and ps is not None:                                   # below ground: the model extrapolated
+            bad = ps[::2, ::2] < 92500.0
+            u, v, z = (np.where(bad, np.nan, a) for a in (u, v, z))
+        ue, ve = earth(u, v, al[::2, ::2] if al is not None else None)
+        out[name] = ("uvz", ue, ve, z)
+    if all(f"ua:{v}:{p}" in blobs for v in ("TMP", "UGRD", "VGRD") for p in UPR.UA_LEVS):
+        st = lambda v: np.stack([UPR.smooth_dec(dec(blobs[f"ua:{v}:{p}"]), F) for p in UPR.UA_LEVS]).astype(np.float64)   # noqa: E731
+        T, U, V = st("TMP"), st("UGRD"), st("VGRD")
+        asub = al[::F, ::F] if al is not None else None
+        if not rel and asub is not None:                                    # the PV formula wants grid-relative winds
+            U, V = to_grid(U, V, asub[None])
+        lat = _CTX["lat_sub"]
+        m = UPR.lcc_mapfac(lat, _CTX["lat1"], _CTX["lat2"])
+        pv, th, absv = UPR.ertel_pv(T, U, V, UPR.UA_LEVS, lat, m, _CTX["dx"] * F)
+        d = UPR.dt_downward(pv, th, U, V, UPR.UA_LEVS)
+        ue, ve = to_earth(d["u"], d["v"], asub) if asub is not None else (d["u"], d["v"])
+        out["dt"] = ("dt", d["theta"].astype(np.float32), ue.astype(np.float32), ve.astype(np.float32))
+        if "ua:HGT:500" in blobs:
+            av = UPR._121(UPR._121(absv[UPR.UA_LEVS.index(500)]))
+            out["z500"] = ("vz", (av * 1e5).astype(np.float32), UPR.smooth_dec(dec(blobs["ua:HGT:500"]), F))
+    return out
+
+
+def ua_rdps(blobs, crop):
+    """RDPS upper air: winds and heights on its own grid, the dynamic tropopause at the model's own 2-PVU pressure"""
+    out = {}
+    F = _CTX["sub"]
+    al, rel = _CTX.get("alpha"), _CTX.get("grid_rel")
+
+    def earth(u, v, a):
+        return to_earth(u, v, a) if rel and a is not None else (u, v)
+    ps = None
+    if "psfc" in blobs:
+        ps = dec(blobs["psfc"], crop)
+        ps = ps if np.nanmean(ps) > 5000 else ps * 100.0
+    for lev, name in ((925, "ua925"), (250, "ua250")):
+        ks = [f"ua:U:{lev}", f"ua:V:{lev}", f"ua:Z:{lev}"]
+        if not all(k in blobs for k in ks):
+            continue
+        u, v = dec(blobs[ks[0]], crop), dec(blobs[ks[1]], crop)
+        z = height_m(blobs[ks[2]], crop, lev)
+        if lev == 925 and ps is not None:
+            bad = ps < 92500.0
+            u, v, z = (np.where(bad, np.nan, a) for a in (u, v, z))
+        ue, ve = earth(u, v, al)
+        out[name] = ("uvz", ue, ve, z)
+    need = [f"ua:T:{p}" for p in UPR.RDPS_T_LEVS] + [f"ua:{c}:{p}" for c in "UV" for p in UPR.RDPS_UV_LEVS] + ["ua:PDT"]
+    if all(k in blobs for k in need):
+        pd = dec(blobs["ua:PDT"], crop).astype(np.float64)
+        pd = pd / 100.0 if np.nanmedian(pd) > 2000 else pd                 # Pa -> hPa
+        T = np.stack([dec(blobs[f"ua:T:{p}"], crop) for p in UPR.RDPS_T_LEVS]).astype(np.float64)
+        T = T + 273.15 if np.nanmean(T) < 150 else T
+        lv = np.asarray(UPR.RDPS_T_LEVS, np.float64)
+        th = T * (1000.0 / lv[:, None, None]) ** UPR.KAPPA
+        U = np.stack([dec(blobs[f"ua:U:{p}"], crop) for p in UPR.RDPS_UV_LEVS]).astype(np.float64)
+        V = np.stack([dec(blobs[f"ua:V:{p}"], crop) for p in UPR.RDPS_UV_LEVS]).astype(np.float64)
+        pq = np.where(np.isfinite(pd), pd, 100.0)
+        tdt = UPR.interp_lnp(th, UPR.RDPS_T_LEVS, pq)
+        udt, vdt = UPR.interp_lnp(U, UPR.RDPS_UV_LEVS, pq), UPR.interp_lnp(V, UPR.RDPS_UV_LEVS, pq)
+        udt, vdt = earth(udt, vdt, al)
+        out["dt"] = ("dt",) + tuple(UPR.smooth_dec(a, F) for a in (tdt, udt, vdt))
+    if "ua:Z:500" in blobs and "ua:AV:500" in blobs:
+        av = dec(blobs["ua:AV:500"], crop)
+        av = av * 1e5 if np.nanmedian(np.abs(av)) < 0.01 else av            # s-1 -> 1e-5 s-1
+        out["z500"] = ("vz", UPR.smooth_dec(av, F), UPR.smooth_dec(height_m(blobs["ua:Z:500"], crop, 500), F))
+    return out
+
+
 def process_hour(model, lead, blobs, outdir):
     """Decode, convert, quantise and write every field of one forecast hour. -> {field: params-or-None}, bytes"""
     t0 = time.time()
@@ -480,6 +650,13 @@ def process_hour(model, lead, blobs, outdir):
         # sequential pass in cmd_run
         np.savez(Path(outdir) / f"_seq_{lead:03d}.npz", apcp=apcp.astype(np.float32),
                  ip=(pt == 4).astype(np.uint8) if pt is not None else np.zeros(apcp.shape, np.uint8))
+        if any(k.startswith("ua:") for k in blobs):
+            try:
+                phys.update(ua_lcc(blobs))
+            except Exception as e:                              # noqa: BLE001
+                import traceback
+                traceback.print_exc()
+                print(f"::warning::{model} f{lead:03d}: upper air failed ({e!r})", flush=True)
     else:
         if "ir" in blobs:
             olr = dec(blobs["ir"], crop)
@@ -526,6 +703,13 @@ def process_hour(model, lead, blobs, outdir):
             for k, v in RDPS_PTYPE.items():
                 t[code == k] = v
             phys["refl"] = ("rate", dec(blobs["prate"], crop) * 3600.0, t)          # kg m-2 s-1 -> mm/h
+        if any(k.startswith("ua:") for k in blobs):
+            try:
+                phys.update(ua_rdps(blobs, crop))
+            except Exception as e:                              # noqa: BLE001
+                import traceback
+                traceback.print_exc()
+                print(f"::warning::{model} f{lead:03d}: upper air failed ({e!r})", flush=True)
     pts = {}
     try:                                        # meteogram points + county temperatures: never fail the maps for them
         if _CTX.get("ps") is not None:
@@ -602,7 +786,19 @@ def fetch_hour(model, date, cyc, lead, cyc_dt):
     if model in ("hrrr", "rrfs"):
         want = {k: v for k, v in IDX_WANT[model].items() if k != "zsfc" and not (lead == 0 and k in ACC)   # f00 has no accumulations
                 and (smoke or k != "smoke")}
-        return fetch_idx_fields(model, file_url(model, date, cyc, lead), want)
+        out = fetch_idx_fields(model, file_url(model, date, cyc, lead), want)
+        if UPR.ua_hour(lead) and UA_ON:
+            # upper air from the isobaric file: never fails the hour (the surface maps are the core product)
+            for k in range(2):
+                try:
+                    out.update(fetch_idx_fields(model, prs_url(model, date, cyc, lead), ua_want()))
+                    break
+                except Exception as e:                          # noqa: BLE001
+                    if k:
+                        print(f"::warning::{model} f{lead:03d}: no upper air this hour ({e!r})", flush=True)
+                    else:
+                        time.sleep(15)
+        return out
     f = fetcher("rdps")
     names = dict(RDPS_VARS)
     if lead == 0:
@@ -610,6 +806,8 @@ def fetch_hour(model, date, cyc, lead, cyc_dt):
     jobs = {k: rdps_url(date, cyc, lead, v) for k, v in names.items()}
     if lead >= 1:
         jobs["swacc_prev"] = rdps_url(date, cyc, lead - 1, RDPS_VARS["swacc"])
+    if UPR.ua_hour(lead) and UA_ON:
+        jobs.update(rdps_ua_jobs(date, cyc, lead))
     r_dt, off = raq_for(cyc_dt)
     if smoke and lead + off <= 72:
         jobs["smoke"] = raq_url(r_dt.strftime("%Y%m%d"), r_dt.hour, lead + off)
@@ -721,7 +919,7 @@ def cmd_run(a):
     outdir.mkdir(parents=True)
     t_start = time.time()
     if model == "rrfs":
-        fetcher("rrfs").budget = 2 * len(leads) + 30         # NOMADS: .idx + one multi-range request per file, a few retries
+        fetcher("rrfs").budget = 2 * len(leads) + 2 * UA_ON * sum(UPR.ua_hour(h) for h in leads) + 30   # NOMADS: .idx + one multi-range request per file (2dfld, and prslev every 3 h), a few retries
 
     # static context: grid description, terrain (ceiling AGL), wind rotation, the RDPS crop
     ctx, grids = {}, {}
@@ -730,6 +928,8 @@ def cmd_run(a):
         lat, lon, grel = grid_latlon(z)
         ctx.update(zsfc=sb.decode(z), grid_rel=grel, alpha=alpha_of(lat, lon) if grel else None)
         grids["main"] = grid_desc(z)
+        ctx.update(lat_sub=lat[::SUB[model], ::SUB[model]].astype(np.float64), lat1=grids["main"]["lat1"],
+                   lat2=grids["main"]["lat2"], dx=grids["main"]["dx"])
         del lat, lon
     else:
         f = fetcher("rdps")
@@ -843,7 +1043,17 @@ def cmd_run(a):
         hrs = sorted(per_field[name])
         if not hrs:
             continue
-        e = dict(hours=hrs, grid="raq" if (model == "rdps" and name == "smoke") else "sub" if name == "mslp" else "main")
+        e = dict(hours=hrs, grid="raq" if (model == "rdps" and name == "smoke") else "sub" if name == "mslp"
+                 else UA_GRID[model][name] if name in UA_FIELDS else "main")
+        fd = FIELDS[name]
+        if fd["enc"] in ("uvz", "vz"):
+            e.update(enc=fd["enc"], q=[per_field[name][h] for h in hrs])
+        if fd["enc"] in ("uvz", "dt"):
+            e.update(enc=fd["enc"], uv=[fd["off"], fd["step"]])
+        if fd["enc"] == "dt":
+            e["th"] = list(fd["th"])
+        if fd["enc"] == "vz":
+            e["vo"] = list(fd["vo"])
         if FIELDS[name]["enc"] == "linf":
             e["q"] = [per_field[name][h] for h in hrs]
         if name == "refl":
