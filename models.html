@@ -487,6 +487,9 @@
       <tr><td>Wind gust</td><td>The model's instantaneous surface gust (GUST, a diagnosis of the wind that boundary-layer mixing can bring down), not an hourly maximum; barbs show the 10&nbsp;m wind</td><td>As HRRR</td><td>The model's instantaneous 10&nbsp;m gust (WindGust); barbs show the 10&nbsp;m wind</td></tr>
       <tr><td>Sea-level pressure</td><td>MSLP (MAPS reduction, MSLMA) in 4&nbsp;hPa colour classes, isobars every 2&nbsp;hPa, highs and lows; stored on every 4th grid point (12&nbsp;km) and interpolated. Faded where the ground is above ~1,500&nbsp;m (surface pressure below 850&nbsp;hPa): the reduction to sea level is unreliable there and no H or L is placed</td><td>As HRRR, MSLET reduction</td><td>As HRRR, every 2nd grid point (20&nbsp;km)</td></tr>
       <tr><td>ECAPE and CAPE</td><td>Entraining CAPE (Peters et al. 2023) and the undiluted CAPE for the most-unstable and mixed-layer parcels, computed with SHARPlib on every column of the HRRR's native levels, hourly to 18&nbsp;h and every 3 hours to 48&nbsp;h; the ECAPE/CAPE ratio is shown where CAPE exceeds 100&nbsp;J/kg</td><td class="na" colspan="2">Computed for the HRRR only</td></tr>
+      <tr><td>925 and 250&nbsp;hPa wind</td><td>Wind speed (knots) with barbs and the height of the pressure level (contours every 30&nbsp;m at 925&nbsp;hPa, 120&nbsp;m at 250&nbsp;hPa), from the pressure-level file (wrfprs), every 3 hours, on every 2nd grid point (6&nbsp;km); 925&nbsp;hPa left blank where the ground is above that level</td><td>As HRRR (prslev)</td><td>As HRRR, on the 10&nbsp;km grid</td></tr>
+      <tr><td>500&nbsp;hPa vorticity</td><td>Absolute vorticity computed from the 500&nbsp;hPa wind smoothed to 12&nbsp;km (with the grid's map factor), heights every 60&nbsp;m</td><td>As HRRR</td><td>The model's own absolute vorticity, smoothed to 20&nbsp;km</td></tr>
+      <tr><td>Dynamic tropopause</td><td>Potential temperature and wind on the 2-PVU surface, computed here: Ertel PV on 19 pressure levels (100&ndash;700&nbsp;hPa, fields smoothed to 12&nbsp;km), the 2-PVU crossing searched downward from 100&nbsp;hPa; 100&nbsp;hPa values where PV is below 2 PVU even there; colours as the site's dynamic-tropopause maps</td><td>As HRRR, from 11 pressure levels (100&ndash;700&nbsp;hPa every 50, 600 and 700: the RRFS file comes from NOMADS)</td><td>The model's own 2-PVU pressure (Pressure_PVU-2), with potential temperature and wind interpolated to it from the pressure levels; 20&nbsp;km</td></tr>
       <tr><td>Incoming shortwave</td><td>Downward shortwave at the surface, instantaneous at the valid time</td><td>As HRRR (instantaneous)</td><td>Mean over the hour ending at the valid time (the difference of the model's accumulated flux)</td></tr>
     </table></div>
     <h2>Runs and timing</h2>
@@ -497,7 +500,7 @@
     <p>Click or tap any airport (or one of a few city centres such as New York Central Park) for a meteogram from every model's newest run, every forecast hour: temperature and dewpoint, 10&nbsp;m wind and gusts and 80&nbsp;m wind with barbs, ceiling and visibility against the flight-category bands, simulated radar and precipitation type, hourly and accumulated precipitation by type, ECAPE and CAPE (HRRR), smoke, sunshine and sea-level pressure, with a line at the current time. The values are read from the model grids when the run is processed: bilinear between the four nearest grid points for smooth fields, the nearest point for ceiling, visibility, reflectivity, precipitation type and CAPE.</p>
     <p>&ldquo;Minus RRFS&rdquo; / &ldquo;Minus HRRR&rdquo; subtracts the other 3&nbsp;km model at the same valid time; the HRRR and RRFS share an identical grid, so the difference is cell by cell (temperature, dewpoint, 10&nbsp;m and 80&nbsp;m wind speed, gusts, IR and shortwave).</p>
     <h2>How the page works</h2>
-    <p>Nothing on this page is a picture. Each field and hour is shipped as the model's own numbers, rounded to 256 levels (0.625&nbsp;K for infrared, 0.5&nbsp;&deg;F for temperature and dewpoint, 0.4&nbsp;m/s for wind, 0.25&nbsp;m/s for gusts, 0.5&nbsp;hPa for sea-level pressure, 5&nbsp;W&nbsp;m<sup>&minus;2</sup> for shortwave, 2&ndash;3&nbsp;% steps on logarithmic scales for ceiling, visibility and smoke, and a square-root scale for ECAPE and CAPE: within &plusmn;4&nbsp;J/kg at 100, &plusmn;11 at 1,000 and &plusmn;20 at 3,000) on the native model grid, and your browser colours, projects, contours and reads it: zooming shows the model's grid cells, and the hover value is the stored one, within those steps. Maps are drawn on the HRRR's Lambert conformal projection for all three models, so switching model keeps the view. Contours (every 10&nbsp;&deg;F with the freezing line in blue; dewpoint every 10&nbsp;&deg;F with 60 and 70 emphasised; 80&nbsp;m wind 10/15/20&nbsp;m/s; 10&nbsp;m wind 20/30/40&nbsp;kt; gusts 30/40/50&nbsp;kt; isobars every 2&nbsp;hPa, 4&nbsp;hPa zoomed out, on the radar, pressure, 10&nbsp;m wind and gust maps) are drawn by your graphics card in the same pass as the colours, from the same numbers after a light smoothing (to about 6&nbsp;km on the 3&nbsp;km grids), so they show the pattern, not every 3&nbsp;km wiggle, and move with the map; their labels and the highs and lows are placed once the map is at rest. Boundaries: Natural Earth; US states and counties: US Census via us-atlas.</p>
+    <p>Nothing on this page is a picture. Each field and hour is shipped as the model's own numbers, rounded to 256 levels (0.625&nbsp;K for infrared, 0.5&nbsp;&deg;F for temperature and dewpoint, 0.4&nbsp;m/s for wind, 0.25&nbsp;m/s for gusts, 0.5&nbsp;hPa for sea-level pressure, 0.5&nbsp;m/s for the 925&nbsp;hPa and 0.8&nbsp;m/s for the 250&nbsp;hPa wind, a few metres for heights, 0.6&nbsp;K for the dynamic tropopause, 5&nbsp;W&nbsp;m<sup>&minus;2</sup> for shortwave, 2&ndash;3&nbsp;% steps on logarithmic scales for ceiling, visibility and smoke, and a square-root scale for ECAPE and CAPE: within &plusmn;4&nbsp;J/kg at 100, &plusmn;11 at 1,000 and &plusmn;20 at 3,000) on the native model grid, and your browser colours, projects, contours and reads it: zooming shows the model's grid cells, and the hover value is the stored one, within those steps. Maps are drawn on the HRRR's Lambert conformal projection for all three models, so switching model keeps the view. Contours (every 10&nbsp;&deg;F with the freezing line in blue; dewpoint every 10&nbsp;&deg;F with 60 and 70 emphasised; 80&nbsp;m wind 10/15/20&nbsp;m/s; 10&nbsp;m wind 20/30/40&nbsp;kt; gusts 30/40/50&nbsp;kt; isobars every 2&nbsp;hPa, 4&nbsp;hPa zoomed out, on the radar, pressure, 10&nbsp;m wind and gust maps) are drawn by your graphics card in the same pass as the colours, from the same numbers after a light smoothing (to about 6&nbsp;km on the 3&nbsp;km grids), so they show the pattern, not every 3&nbsp;km wiggle, and move with the map; their labels and the highs and lows are placed once the map is at rest. Boundaries: Natural Earth; US states and counties: US Census via us-atlas.</p>
     <p>Related: <a href="/ecape.html">entraining CAPE from the HRRR</a> and <a href="/snowbands.html">snow-band diagnostics from the HRRR, RRFS and RDPS</a>. Data: NOAA HRRR and RRFS (AWS open data; NOMADS for the RRFS), ECCC RDPS and RAQDPS-FireWork (MSC Datamart). Model output as published, uncorrected.</p>
   </details>
 </main>
@@ -633,14 +636,44 @@
   }
   function capeOf(c, k) { return c === 255 ? null : (c / k) * (c / k); }
   FIELDS.ecape = { label: "ECAPE / CAPE", enc: "sqrt", unit: "J/kg" };
+  // ── upper air (2026-10-06, user: "Can we add any upper air charts as well? Maybe 925mb winds, dynamic tropopause, 250mb
+  // winds?"). scripts/models/upper.py; every 3rd hour (the slider walks those hours on these maps). Files: 3 channels.
+  // ua925 / ua250: R, G = earth-relative u, v (off + step * code), B = height (per-frame q, like t2m), on the 6 km grid
+  // (RDPS 10 km); dt: R = theta on 2 PVU (250 K + 0.6 K), G, B = the wind on it; z500: R = absolute vorticity, G = height;
+  // dt and z500 on the 12 km grid (RDPS 20 km). All drawn with bilinear interpolation (shader modes 4 and 5).
+  function kts(list) { return list.map(function (a) { return S(a[0] / KT, a[1], a[2]); }); }
+  FIELDS.ua925 = { label: "925 hPa wind", enc: "lin2", off: -63.5, step: 0.5, unit: "kt", kt: true, smax: 48, bil: true, ch: 3, ua: true, barbs: true, zc: 2,
+                   stops: kts([[0, "#f6f6f4"], [10, "#d3e4f1"], [20, "#9cc5e3"], [30, "#5c9fcd"], [40, "#3f9b6a"], [50, "#8cc24a"], [60, "#e6d93a"], [70, "#f8a93a"], [80, "#e4552f"], [90, "#a8124f"]]),
+                   ticksKt: [0, 10, 20, 30, 40, 50, 60, 70, 80, 90] };
+  // the jet: nothing below ~45 kt, then the usual blues, greens, yellow, orange, red, purple to 190 kt
+  FIELDS.ua250 = { label: "250 hPa wind", enc: "lin2", off: -101.6, step: 0.8, unit: "kt", kt: true, smax: 100, bil: true, ch: 3, ua: true, barbs: true, zc: 2,
+                   stops: kts([[40, "#e8f1f7", 0], [50, "#c4def0"], [70, "#86bce5"], [90, "#4b8bd0"], [110, "#2f9e5b"], [130, "#e6d636"], [150, "#f3972b"], [170, "#d7301f"], [190, "#8b0a6e"]]),
+                   ticksKt: [50, 70, 90, 110, 130, 150, 170, 190] };
+  FIELDS.dt = { label: "Dynamic tropopause", enc: "lin", off: 250, step: 0.6, unit: "K", bil: true, ch: 3, ua: true, barbs: true, uvc: 1, uv: [-101.6, 0.8],
+                fmt: function (v) { return v.toFixed(1) + " K"; } };
+  FIELDS.z500 = { label: "500 hPa vorticity", enc: "lin", off: -30, step: 0.5, unit: "10⁻⁵ s⁻¹", bil: true, ch: 2, ua: true, zc: 1,
+                  stops: [S(10, "#fff3b0", 0), S(12, "#fff1a8", 0.55), S(16, "#fde26a"), S(20, "#f9b23c"), S(24, "#f07a2a"), S(28, "#dc3d24"), S(32, "#b3172f"), S(40, "#7a0f5a"), S(50, "#4b0a6e")],
+                  ticks: [12, 16, 20, 24, 28, 32, 40, 50] };
+  // theta on the dynamic tropopause: the site's DT maps (scripts/mjo/src/dt_charts.py): 5 K classes 260-400 K, colours from
+  // its 19 anchors spread evenly over the 30 classes (matplotlib LinearSegmentedColormap + BoundaryNorm, extend both)
+  var DT_LEV = range(260, 400, 5);
+  var DT_ANCH = ["#f2c6e6", "#c77fc9", "#8e3fa8", "#5d2a8a", "#3b3f9e", "#3f6fcf", "#3fa9df", "#4fc6cd", "#6fd6a8",
+                 "#a0e07f", "#d6e76a", "#f6d54c", "#f8ae3d", "#ef8231", "#dc552a", "#bd3029", "#93192b", "#5a0d24", "#3a0a14"];
+  var DT_COLS = (function () { var n = DT_LEV.length + 1, out = [];
+    for (var i = 0; i < n; i++) { var t = i / (n - 1) * (DT_ANCH.length - 1), k = Math.min(DT_ANCH.length - 2, Math.floor(t)), f = t - k, a = DT_ANCH[k], b = DT_ANCH[k + 1], c = "#";
+      for (var q = 0; q < 3; q++) { var x = Math.round(parseInt(a.slice(1 + 2 * q, 3 + 2 * q), 16) * (1 - f) + parseInt(b.slice(1 + 2 * q, 3 + 2 * q), 16) * f); c += (x < 16 ? "0" : "") + x.toString(16); }
+      out.push(c); } return out; })();
+  function dtColour(v) { var i = 0; while (i < DT_LEV.length && v >= DT_LEV[i]) i++; var h = DT_COLS[i];
+    return [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16), 1]; }
   // the field picker, grouped by what people use the maps for (2026-09-30 redesign); units shown on the buttons
   var FIELD_GROUPS = [["Clouds & visibility", ["ir", "ceil", "vis"]], ["Surface", ["t2m", "td2m", "mslp", "wind10", "gust"]], ["Precipitation", ["refl", "acc"]],
-                      ["Severe", ["ecape"]], ["Air quality & energy", ["wind80", "smoke", "sw"]]];
+                      ["Severe", ["ecape"]], ["Upper air", ["ua925", "ua250", "z500", "dt"]], ["Air quality & energy", ["wind80", "smoke", "sw"]]];
   var FIELD_ORDER = [].concat.apply([], FIELD_GROUPS.map(function (g) { return g[1]; }));
-  var FIELD_UNIT = { ir: "°C", ceil: "ft", vis: "mi", t2m: "°F", td2m: "°F", mslp: "hPa", wind10: "kt", gust: "kt", wind80: "m/s", refl: "dBZ", acc: "in", ecape: "J/kg", smoke: "mg/m²", sw: "W/m²" };
+  var FIELD_UNIT = { ir: "°C", ceil: "ft", vis: "mi", t2m: "°F", td2m: "°F", mslp: "hPa", wind10: "kt", gust: "kt", wind80: "m/s", refl: "dBZ", acc: "in", ecape: "J/kg", smoke: "mg/m²", sw: "W/m²",
+                     ua925: "kt", ua250: "kt", z500: "10⁻⁵/s", dt: "K" };
   function encOf(f, fm) { return (fm && fm.enc) || FIELDS[f].enc; }
   function accValue(type, c) { var vm = ACC_TYPES[type].vmax, t = c / 254; return vm * t * t; }
-  function chOf(f) { return f === "wind80" || f === "wind10" || f === "refl" || f === "mslp" || !!ACC_TYPES[f] ? 2 : 1; }
+  function chOf(f) { if (FIELDS[f] && FIELDS[f].ch) return FIELDS[f].ch; return f === "wind80" || f === "wind10" || f === "refl" || f === "mslp" || !!ACC_TYPES[f] ? 2 : 1; }
   var NOTES = {
     rdps: { refl: "<b>RDPS has no simulated reflectivity.</b> Shown: the model's <b>precipitation rate</b> (mm/h, instantaneous) coloured by its precipitation type, on the radar colour scale (colours placed with the Marshall–Palmer Z–R relation, so 1 mm/h looks like light rain on radar; it is a rate, not dBZ). Isobars: MSLP every 2 hPa.",
             ir: "<b>RDPS has no simulated satellite band.</b> Shown: the OLR-derived brightness temperature (proxy for IR), T<sub>b</sub> = (OLR/σ)<sup>¼</sup> from the instantaneous outgoing longwave at the top of the atmosphere. Cloud tops come out close to a 10.3 µm image; clear skies read 20–30 K colder than one, because OLR includes the water-vapour bands.",
@@ -662,6 +695,16 @@
   NOTES.rrfs.mslp = "RRFS sea-level pressure (NCEP's MSLET reduction; the 2-D file has no PRMSL), stored every 4th grid point (12 km) and interpolated. Faded where the ground is above ~1,500 m, where no highs or lows are marked.";
   NOTES.rdps.gust = "RDPS 10 m wind gust (WindGust), instantaneous at the valid time (not the hourly maximum). Barbs: the 10 m wind (knots).";
   NOTES.rdps.mslp = "RDPS sea-level pressure, stored every 2nd grid point (20 km) and interpolated. Faded where the ground is above ~1,500 m, where no highs or lows are marked.";
+  // upper air (2026-10-06)
+  NOTES.hrrr.ua925 = "HRRR 925 hPa wind and height (wrfprs, AWS), every 3 hours, on every 2nd grid point (6 km). Left blank where the ground rises above the 925 hPa level (surface pressure below 925 hPa): the model's values there are extrapolated below ground.";
+  NOTES.hrrr.ua250 = "HRRR 250 hPa wind and height (wrfprs, AWS), every 3 hours, on every 2nd grid point (6 km).";
+  NOTES.hrrr.z500 = "HRRR 500 hPa height and absolute vorticity, every 3 hours, on a 12 km grid. The vorticity is computed here from the 500 hPa wind smoothed to 12 km (with the Lambert grid's map factor), plus the Coriolis parameter.";
+  NOTES.hrrr.dt = "Computed here every 3 hours from the HRRR's temperature and wind on 19 pressure levels (100–700 hPa), smoothed to 12 km: Ertel potential vorticity on the pressure levels, then the 2-PVU surface found by searching <b>downward from 100 hPa</b> (so the low-level PV made by storms and fronts cannot fake a low tropopause), with potential temperature and wind interpolated to it. Where PV is still below 2 PVU at 100 hPa (tropical air) the 100 hPa values are shown. The HRRR's top is at 50 hPa, its domain small: the larger-scale view is on the site's <a href=\"/circulation.html#dt\">dynamic tropopause maps</a>.";
+  ["ua925", "ua250", "z500", "dt"].forEach(function (f) { NOTES.rrfs[f] = NOTES.hrrr[f].replace(/HRRR/g, "RRFS").replace("wrfprs, AWS", "prslev, NOMADS").replace("19 pressure levels (100–700 hPa)", "11 pressure levels (100–500 hPa every 50, 600 and 700; fewer than the HRRR's 19 because the RRFS file comes from NOMADS)").replace("RRFS's top is at 50 hPa", "RRFS's top is high"); });
+  NOTES.rdps.ua925 = "RDPS 925 hPa wind and height, every 3 hours, on its 10 km grid. Left blank where the ground rises above the 925 hPa level.";
+  NOTES.rdps.ua250 = "RDPS 250 hPa wind and height, every 3 hours, on its 10 km grid.";
+  NOTES.rdps.z500 = "RDPS 500 hPa height and the model's own absolute vorticity, every 3 hours, smoothed to 20 km.";
+  NOTES.rdps.dt = "The RDPS's own 2-PVU surface (the pressure of the 2 PVU level, Pressure_PVU-2 on the MSC Datamart), with potential temperature and wind interpolated to it from 16 and 9 pressure levels, every 3 hours, smoothed to 20 km.";
   NOTES.rrfs.ceil = NOTES.hrrr.ceil; NOTES.rrfs.vis = NOTES.hrrr.vis; NOTES.rrfs.sw = NOTES.hrrr.sw;
   var NA = { rdps: { ceil: "The RDPS output has no cloud ceiling.", vis: "The RDPS output has no visibility." } };
 
@@ -765,6 +808,7 @@
     }
     if (name === "smoke" && (v < 2)) return null;
     if (name === "mslp") return stepColour(MSLP_LEVELS, MSLP_COLORS, v);
+    if (name === "dt") return dtColour(v);
     if (name === "ecape") {                                     // below 100 J/kg left clear (render_ecape.py paints it white)
       if (EC_SUBS[st.ec].kind === "ratio") return stepColour(RATIO_LEVELS, RATIO_COLORS, v);
       return v < 100 ? null : stepColour(CAPE_LEVELS, CAPE_COLORS, v);
@@ -822,6 +866,7 @@
   // the hours the slider walks: the run's, or for ECAPE the ECAPE job's (hourly to 18 h, then 3-hourly)
   function uiHours(c) {
     if (st.field === "ecape" && c && c.fields[EC_SUBS[st.ec].files[0]]) return c.fields[EC_SUBS[st.ec].files[0]].hours;
+    if (FIELDS[st.field] && FIELDS[st.field].ua && c && c.fields[st.field]) return c.fields[st.field].hours;   // every 3 hours
     return hoursOf(c);
   }
   function fileFields() { return st.field === "acc" ? [st.acc.type] : st.field === "ecape" ? EC_SUBS[st.ec].files : [st.field]; }
@@ -953,7 +998,8 @@
             if (vv2 !== vv2) { g[o2 + x2] = 0; (gb || (gb = new Uint8Array(n2)))[o2 + x2] = 1; } else g[o2 + x2] = vv2 * 0.25; } }
       } else {
         var st2 = d.stride || 1;
-        for (k = 0; k < n2; k++) { vv2 = lut[a[k * st2]]; if (vv2 !== vv2) { g[k] = 0; (gb || (gb = new Uint8Array(n2)))[k] = 1; } else g[k] = vv2; }
+        var co = d.choff || 0;
+        for (k = 0; k < n2; k++) { vv2 = lut[a[k * st2 + co]]; if (vv2 !== vv2) { g[k] = 0; (gb || (gb = new Uint8Array(n2)))[k] = 1; } else g[k] = vv2; }
       }
       var tp = [performance.now() - t0];
       if (d.nblur && gb) {                                  // normalised convolution: masked cells carry no weight
@@ -1696,7 +1742,8 @@
     var df = !na && diffOn() ? diffFrame(st.model, c, st.field, cc.hour) : null;
     if (df && df.msg) na = df.msg;
     if (na) msg = na;
-    else if (!fm) msg = FIELDS[st.field].label + " is missing from this run.";
+    else if (!fm) msg = FIELDS[st.field].ua ? "The upper-air maps are not in this " + MODELS[st.model] + " run (" + c.init.slice(5, 10).replace("-", "/") + " " + c.init.slice(11, 13) + "Z): they come from the model's pressure-level output, every 3 hours, and appear with its next run."
+      : FIELDS[st.field].label + " is missing from this run.";
     else if (fm.hours.indexOf(cc.hour) < 0) msg = FIELDS[st.field].label + " is not available at +" + cc.hour + " h in this run" +
       (fm.hours.length ? " (it covers +" + fm.hours[0] + " to +" + fm.hours[fm.hours.length - 1] + " h)." : ".");
     if ($("msg").textContent !== msg) $("msg").textContent = msg;
@@ -1788,7 +1835,7 @@
     ctx.globalAlpha = 1;
     ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
     drawContourLines(ctx, x0, x1, y0, y1);
-    if ((st.field === "wind80" || st.field === "wind10") && drawn && drawn.e && drawn.e.dec && drawn.field === st.field && !drawn.diff) drawBarbs(ctx, drawn);
+    if ((st.field === "wind80" || st.field === "wind10" || FIELDS[st.field].barbs) && drawn && drawn.e && drawn.e.dec && drawn.field === st.field && !drawn.diff) drawBarbs(ctx, drawn);
     if (st.field === "gust" && drawn && drawn.field === "gust" && !drawn.diff) { var bw = windFor(drawn); if (bw) drawBarbs(ctx, bw); }
     ovView = { cx: view.cx, cy: view.cy, s: view.s };
     var t1 = performance.now();
@@ -1928,6 +1975,21 @@
         style: function (v) { return ["rgba(255,255,255,0.97)", v === 50 ? 2.6 : 1.8]; },
         gl: Object.assign({ list: [gm[0], gm[1]], special: [[gm[2], 2.6, "rgba(255,255,255,0.97)"]] }, WIND_GL) }); }
     if (field === "refl" || field === "mslp") return isoSpec(field);
+    // upper air: heights (925 every 30 m, labelled in metres; 250 every 120 m and 500 every 60 m, labelled in decametres)
+    // from the frame's height channel; the dynamic tropopause: theta every 10 K. Grids already 6-20 km: no block mean.
+    if (field === "ua925" || field === "ua250" || field === "z500") {
+      var Lz = new Float32Array(256); for (var cz = 0; cz < 256; cz++) Lz[cz] = cz === 255 ? NaN : q[0] + cz * q[1];
+      var zs = { ua925: [-300, 30, 2100], ua250: [8400, 120, 11400], z500: [4500, 60, 6180] }[field], lvz = range(zs[0], zs[2], zs[1]);
+      // heights are quantised to 2-10 m: a wider blur (as the accumulations) keeps quantisation plateaus from making ragged lines;
+      // normalised, so the 925 hPa lines do not crowd along the below-ground mask
+      return { rad: 2, rad2: 1, dec: 1, minPts: 6, lut: Lz, nblur: true, ch: FIELDS[field].zc, stride: FIELDS[field].ch, levels: lvz, values: lvz,
+        fmt: field === "ua925" ? function (v) { return String(v); } : function (v) { return String(v / 10); },
+        style: function () { return ["rgba(12,12,12,0.9)", 1.1]; }, gl: { reg: [zs[0], zs[1], zs[0], zs[2]], col: "rgba(12,12,12,0.9)", w: 1.1 } };
+    }
+    if (field === "dt") { var Lt = new Float32Array(256); for (var ct = 0; ct < 256; ct++) Lt[ct] = ct === 255 ? NaN : 250 + 0.6 * ct;
+      var lvt = range(260, 400, 10);
+      return { rad: 1, rad2: 0, dec: 1, minPts: 6, lut: Lt, ch: 0, stride: 3, levels: lvt, values: lvt, fmt: function (v) { return String(v); },
+        style: function () { return ["rgba(20,20,20,0.7)", 0.8]; }, gl: { reg: [260, 10, 260, 400], col: "rgba(20,20,20,0.7)", w: 0.8, hw: 0.6 } }; }
     return null;
   }
   // a second set of lines on some maps: isobars (and highs and lows) over the 10 m wind and the gust (2026-10-06, user: "add
@@ -1965,7 +2027,7 @@
     var cellKm = g.type === "lcc" ? g.dx / 1000 : g.di * 111.2, ext = null;
     if (spec.extKm) ext = [Math.max(4, Math.round(spec.extKm[0] / cellKm)), spec.extKm[1], Math.max(1, Math.round(spec.extKm[2] / cellKm))];
     workerCall({ op: "contour", w: e.dec.w, h: e.dec.h, data: e.dec.data, lut: spec.lut, speed: spec.speed, levels: spec.levels,
-                 rad: spec.rad, rad2: spec.rad2, dec: dec, minPts: spec.minPts, ext: ext, stride: spec.stride, emask: spec.emask, nblur: spec.nblur }).then(function (r) {
+                 rad: spec.rad, rad2: spec.rad2, dec: dec, minPts: spec.minPts, ext: ext, stride: spec.stride, choff: spec.ch, emask: spec.emask, nblur: spec.nblur }).then(function (r) {
       var lines = r.lines.map(function (o) {
         var n = o.pts.length / 2, xy = new Float64Array(o.pts.length), bb = [1e20, -1e20, 1e20, -1e20];
         for (var k = 0; k < n; k++) {
@@ -2198,7 +2260,8 @@
     var i = Math.floor(ij[0] + 0.5), j = Math.floor(ij[1] + 0.5);
     if (i < 0 || j < 0 || i >= d.g.nx || j >= d.g.ny) return null;
     var idx = (d.g.ny - 1 - j) * d.g.nx + i, a = d.e.dec.data;
-    return chOf(d.field) === 2 ? [a[2 * idx], a[2 * idx + 1], xy] : [a[idx], null, xy];
+    var nc = chOf(d.field);
+    return nc === 3 ? [a[3 * idx], a[3 * idx + 1], xy, a[3 * idx + 2]] : nc === 2 ? [a[2 * idx], a[2 * idx + 1], xy] : [a[idx], null, xy];
   }
   // the gust map's barbs and hover wind: the 10 m wind frame of the same model, run and hour (either resolution that is decoded)
   function windFor(d) {
@@ -2207,11 +2270,13 @@
     return { e: e, g: prepGrid(c.grids[e.lo && fm.lo ? fm.lo : fm.grid]), field: "wind10" };
   }
   function drawBarbs(ctx, d) {
-    var fd = FIELDS.wind80, sp = Math.round((W < 640 ? 34 : 40) * Q.barb[Q.lvl]), L = 17;
+    var fw = FIELDS[d.field] || FIELDS.wind80, uvc = fw.uvc || 0, fd = fw.uv ? { off: fw.uv[0], step: fw.uv[1] } : fw.barbs ? fw : FIELDS.wind80;
+    var sp = Math.round((W < 640 ? 34 : 40) * Q.barb[Q.lvl]), L = 17;
     ctx.strokeStyle = "rgba(18,20,18,0.85)"; ctx.fillStyle = "rgba(18,20,18,0.85)"; ctx.lineWidth = 1.1; ctx.globalAlpha = 1;
     for (var py = sp / 2; py < H; py += sp) for (var px = sp / 2; px < W; px += sp) {
-      var s = sample(d, px, py); if (!s || s[0] === 255) continue;
-      var u = fd.off + s[0] * fd.step, v = fd.off + s[1] * fd.step;
+      var s = sample(d, px, py); if (!s) continue;
+      var cu = uvc ? s[1] : s[0], cv = uvc ? s[3] : s[1]; if (cu === 255 || cv === 255) continue;
+      var u = fd.off + cu * fd.step, v = fd.off + cv * fd.step;
       var ll = P.inv(s[2][0], s[2][1]);
       var d0 = ll[0] * D2R - P.lon0; d0 = Math.atan2(Math.sin(d0), Math.cos(d0));
       var th = P.n * d0, su = u * Math.cos(th) - v * Math.sin(th), sv = u * Math.sin(th) + v * Math.cos(th);   // earth -> map frame
@@ -2320,8 +2385,22 @@
     var last = -1e9;
     for (i = 1; i < L.length; i++) { var x = x0 + i * bw; ctx.fillRect(x - 0.5, y + bh, 1, 4); if (x - last < 34) continue; ctx.fillText(lab(i), x, y + bh + 5); last = x; }
   }
+  function drawLegendDT() {                                       // 5 K classes as the site's DT maps; labels every 20 K
+    $("legT").textContent = "Potential temperature on the dynamic tropopause (the 2-PVU surface), K, in 5 K classes · barbs: the wind on it, knots · lines every 10 K · low θ (purple, blue): troughs and stratospheric air brought down; high θ (orange, red): ridges and tropical air";
+    var L = DT_LEV, C = DT_COLS, n = C.length, g = legSetup(38);
+    function lab(i) { return L[i - 1] % 20 === 0 ? String(L[i - 1]) : ""; }
+    if (g.vert) { vBar(g, function (t) { return C[Math.min(n - 1, Math.floor(t * n))]; },
+                       C.map(function (c, i) { return [i / n, i ? lab(i) : ""]; }).filter(function (x) { return x[1]; })); return; }
+    var ctx = g.ctx, x0 = 6, x1 = g.w - 6, bh = 14, y = 4, bw = (x1 - x0) / n;
+    for (var i = 0; i < n; i++) { ctx.fillStyle = C[i]; ctx.fillRect(x0 + i * bw, y, Math.ceil(bw), bh); }
+    ctx.strokeStyle = "#8c918b"; ctx.lineWidth = 1; ctx.strokeRect(x0 + 0.5, y + 0.5, x1 - x0 - 1, bh - 1);
+    ctx.fillStyle = "#3d4540"; ctx.font = "13.5px 'Source Sans 3', Arial, sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "top";
+    var last = -1e9;
+    for (i = 1; i < n; i++) { var x = x0 + i * bw; if (!lab(i)) continue; ctx.fillRect(x - 0.5, y + bh, 1, 4); if (x - last < 30) continue; ctx.fillText(lab(i), x, y + bh + 5); last = x; }
+  }
   function drawLegend() {
     if (diffOn()) { drawLegendDiff(); return; }
+    if (st.field === "dt") { drawLegendDT(); return; }
     if (st.field === "refl") { drawLegendRefl(); return; }
     if (st.field === "ecape") { drawLegendSteps(); return; }
     if (st.field === "mslp") { drawLegendMslp(); return; }
@@ -2333,7 +2412,8 @@
     var lo, hi, logx = fd.enc === "log";
     if (name === "ir") { lo = 45; hi = -95; } else if (name === "t2m") { lo = -40; hi = 125; } else if (name === "td2m") { lo = -20; hi = 82; }
     else if (name === "ceil") { lo = 50; hi = 30000; } else if (name === "vis") { lo = 0.05; hi = 10; } else if (name === "smoke") { lo = 2; hi = 1500; }
-    else if (name === "wind80" || name === "wind10") { lo = 0; hi = 40; } else if (name === "gust") { lo = 0; hi = 55; } else if (name === "acc") { lo = fd._lo; hi = fd._hi; } else { lo = 0; hi = 1050; }
+    else if (name === "wind80" || name === "wind10") { lo = 0; hi = 40; } else if (name === "gust") { lo = 0; hi = 55; }
+    else if (name === "ua925") { lo = 0; hi = 95 / KT; } else if (name === "ua250") { lo = 40 / KT; hi = 195 / KT; } else if (name === "z500") { lo = 8; hi = 52; } else if (name === "acc") { lo = fd._lo; hi = fd._hi; } else { lo = 0; hi = 1050; }
     function tOf(v) { return logx ? (Math.log(v) - Math.log(lo)) / (Math.log(hi) - Math.log(lo)) : (v - lo) / (hi - lo); }
     function xOf(v) { return x0 + tOf(v) * (x1 - x0); }
     function vOf(t) { return logx ? Math.exp(Math.log(lo) + t * (Math.log(hi) - Math.log(lo))) : lo + t * (hi - lo); }
@@ -2364,6 +2444,9 @@
                       vis: "Visibility, miles, in flight-category colours (no shading: 10 mi or more)", t2m: "Temperature 2 m above ground, °F (blue line: freezing)", td2m: "Dewpoint 2 m above ground, °F",
                       smoke: "Smoke, mg per m², vertically integrated", wind80: "Wind speed 80 m above ground, m/s (barbs in knots)",
                       wind10: "Wind speed 10 m above ground, knots (barbs: half barb 5, full 10, pennant 50) · white lines 20, 30, 40 kt · black lines: isobars every 2 hPa (4 hPa zoomed out), H/L = highs and lows",
+                      ua925: "Wind speed at 925 hPa (about 750 m above sea level), knots · barbs in knots · lines: 925 hPa height every 30 m · blank where the ground rises above the 925 hPa level",
+                      ua250: "Wind speed at 250 hPa (jet level, about 10.5 km), knots, shaded from 50 kt · barbs in knots · lines: 250 hPa height every 120 m, labelled in decametres",
+                      z500: "Absolute vorticity at 500 hPa, 10⁻⁵ s⁻¹, shaded from 12 · lines: 500 hPa height every 60 m, labelled in decametres (e.g. 576 = 5,760 m)",
                       gust: "Surface wind gust, knots · barbs: 10 m wind, knots · white lines 30, 40, 50 kt · black lines: isobars every 2 hPa (4 hPa zoomed out), H/L = highs and lows", sw: "Incoming sunshine (shortwave) at the surface, W per m²" }[name];
     if (name === "acc") unitLabel = ACC_TYPES[st.acc.type].unitLabel;
     if (st.model === "rdps" && name === "ir") unitLabel = "°C, OLR-derived brightness temperature (proxy for IR)";
@@ -2376,6 +2459,8 @@
   // 2026-10-04), the 10 m wind and gust in runs made before they were added. Accumulation and ECAPE explain themselves.
   function fieldGone(model, f) {
     var c = cycleObj(model, st.ci) || cycleObj(model, 0);
+    if (FIELDS[f] && FIELDS[f].ua && c && c.fields && !c.fields[f])        // upper air: keep the button while another model has it
+      return !MODEL_ORDER.some(function (m) { var c2 = cycleObj(m, 0); return c2 && c2.fields && c2.fields[f]; });
     return !!(c && c.fields && f !== "acc" && f !== "ecape" && !c.fields[f]);
   }
   function labelOf(model, f) { return model === "rdps" && f === "ir" ? "IR proxy (OLR)" : model === "rdps" && f === "refl" ? "Precip rate + type" : FIELDS[f].label; }
@@ -2767,6 +2852,25 @@
       var cm = function (i, j) { return am[2 * ((gm.ny - 1 - j) * gm.nx + i)]; }, q4 = [cm(i0m, j0m), cm(i1m, j0m), cm(i0m, j1m), cm(i1m, j1m)];
       var fxm = xm - i0m, fym = ym - j0m, cmv = q4.indexOf(255) >= 0 ? s[0] : (q4[0] * (1 - fxm) + q4[1] * fxm) * (1 - fym) + (q4[2] * (1 - fxm) + q4[3] * fxm) * fym;
       txt = cmv === 255 ? "no data" : fd.fmt(940 + 0.5 * cmv) + (s[1] ? "<br><span class=\"ll\">high terrain: sea-level reduction unreliable</span>" : "");
+    } else if (FIELDS[d.field] && FIELDS[d.field].ua) {                  // upper air: bilinear, as the shader draws it
+      var iju = MV_ij(d, px, py), gu = d.g, xu = Math.max(0, Math.min(gu.nx - 1, iju[0])), yu = Math.max(0, Math.min(gu.ny - 1, iju[1]));
+      var iu0 = Math.floor(xu), ju0 = Math.floor(yu), iu1 = Math.min(iu0 + 1, gu.nx - 1), ju1 = Math.min(ju0 + 1, gu.ny - 1), au = d.e.dec.data, ncu = chOf(d.field);
+      var bl = function (ch) { var q = [[iu0, ju0], [iu1, ju0], [iu0, ju1], [iu1, ju1]].map(function (p) { return au[ncu * ((gu.ny - 1 - p[1]) * gu.nx + p[0]) + ch]; });
+        if (q.indexOf(255) >= 0) return null; var fx = xu - iu0, fy = yu - ju0; return (q[0] * (1 - fx) + q[1] * fx) * (1 - fy) + (q[2] * (1 - fx) + q[3] * fx) * fy; };
+      var zq = d.fm.q && d.fm.q[d.fm.hours.indexOf(d.hour)];
+      var wtxt = function (cu, cv, off, stp) { if (cu === null || cv === null) return null; var uu = off + cu * stp, vv = off + cv * stp, spd = Math.sqrt(uu * uu + vv * vv);
+        return Math.round(spd * KT) + " kt (" + spd.toFixed(1) + " m/s) from " + Math.round((Math.atan2(-uu, -vv) / D2R + 360) % 360) + "°"; };
+      if (d.field === "dt") {
+        var tc = bl(0), wt = wtxt(bl(1), bl(2), fd.uv[0], fd.uv[1]);
+        txt = tc === null ? "no data" : "θ " + (250 + 0.6 * tc).toFixed(1) + " K on the 2-PVU surface" + (wt ? "<br>wind on it " + wt : "");
+      } else if (d.field === "z500") {
+        var vc = bl(0), zc5 = bl(1);
+        txt = vc === null ? "no data" : "absolute vorticity " + (-30 + 0.5 * vc).toFixed(1) + " × 10⁻⁵ s⁻¹" + (zc5 !== null && zq ? "<br>500 hPa height " + Math.round(zq[0] + zc5 * zq[1]).toLocaleString("en-US") + " m" : "");
+      } else {
+        var wt2 = wtxt(bl(0), bl(1), fd.off, fd.step), zc2 = bl(2), lvn = d.field === "ua925" ? 925 : 250;
+        txt = !wt2 ? (d.field === "ua925" && s[0] === 255 ? "below ground: the surface is above the 925 hPa level here" : "no data")
+          : wt2 + (zc2 !== null && zq ? "<br>" + lvn + " hPa height " + Math.round(zq[0] + zc2 * zq[1]).toLocaleString("en-US") + " m" : "");
+      }
     } else if (d.field === "gust") {
       var gvv = valueOf(fd, s[0], null); txt = gvv === null ? "no data" : (s[0] === 254 ? "≥ " : "") + fd.fmt(gvv);
       var w10 = windFor(d), sw = w10 && sample(w10, px, py);

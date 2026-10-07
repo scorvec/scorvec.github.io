@@ -324,11 +324,11 @@ def prs_url(model, date, cyc, lead):
     return f"{sb.rrfs_base(date, cyc)}.prslev.3km.f{lead:03d}.conus.grib2"
 
 
-def ua_want():
+def ua_want(model="hrrr"):
     """.idx regexes of the upper-air messages (HRRR wrfprs / RRFS prslev share the names): T, u, v on UA_LEVS for the
     dynamic tropopause and 500 hPa vorticity, and the 925 / 250 / 500 hPa heights and 925 hPa wind."""
     w = {}
-    for p in UPR.UA_LEVS:
+    for p in UPR.levs_of(model):
         for v in ("TMP", "UGRD", "VGRD"):
             w[f"ua:{v}:{p}"] = rf"^{v}:{p} mb:(anl|\d+ hour fcst):?$"
     for v, p in (("UGRD", 925), ("VGRD", 925), ("HGT", 925), ("HGT", 250), ("HGT", 500)):
@@ -538,20 +538,21 @@ def ua_lcc(blobs):
             u, v, z = (np.where(bad, np.nan, a) for a in (u, v, z))
         ue, ve = earth(u, v, al[::2, ::2] if al is not None else None)
         out[name] = ("uvz", ue, ve, z)
-    if all(f"ua:{v}:{p}" in blobs for v in ("TMP", "UGRD", "VGRD") for p in UPR.UA_LEVS):
-        st = lambda v: np.stack([UPR.smooth_dec(dec(blobs[f"ua:{v}:{p}"]), F) for p in UPR.UA_LEVS]).astype(np.float64)   # noqa: E731
+    LV = _CTX.get("ua_levs", UPR.UA_LEVS)
+    if all(f"ua:{v}:{p}" in blobs for v in ("TMP", "UGRD", "VGRD") for p in LV):
+        st = lambda v: np.stack([UPR.smooth_dec(dec(blobs[f"ua:{v}:{p}"]), F) for p in LV]).astype(np.float64)   # noqa: E731
         T, U, V = st("TMP"), st("UGRD"), st("VGRD")
         asub = al[::F, ::F] if al is not None else None
         if not rel and asub is not None:                                    # the PV formula wants grid-relative winds
             U, V = to_grid(U, V, asub[None])
         lat = _CTX["lat_sub"]
         m = UPR.lcc_mapfac(lat, _CTX["lat1"], _CTX["lat2"])
-        pv, th, absv = UPR.ertel_pv(T, U, V, UPR.UA_LEVS, lat, m, _CTX["dx"] * F)
-        d = UPR.dt_downward(pv, th, U, V, UPR.UA_LEVS)
+        pv, th, absv = UPR.ertel_pv(T, U, V, LV, lat, m, _CTX["dx"] * F)
+        d = UPR.dt_downward(pv, th, U, V, LV)
         ue, ve = to_earth(d["u"], d["v"], asub) if asub is not None else (d["u"], d["v"])
         out["dt"] = ("dt", d["theta"].astype(np.float32), ue.astype(np.float32), ve.astype(np.float32))
         if "ua:HGT:500" in blobs:
-            av = UPR._121(UPR._121(absv[UPR.UA_LEVS.index(500)]))
+            av = UPR._121(UPR._121(absv[LV.index(500)]))
             out["z500"] = ("vz", (av * 1e5).astype(np.float32), UPR.smooth_dec(dec(blobs["ua:HGT:500"]), F))
     return out
 
@@ -791,7 +792,7 @@ def fetch_hour(model, date, cyc, lead, cyc_dt):
             # upper air from the isobaric file: never fails the hour (the surface maps are the core product)
             for k in range(2):
                 try:
-                    out.update(fetch_idx_fields(model, prs_url(model, date, cyc, lead), ua_want()))
+                    out.update(fetch_idx_fields(model, prs_url(model, date, cyc, lead), ua_want(model)))
                     break
                 except Exception as e:                          # noqa: BLE001
                     if k:
@@ -928,7 +929,7 @@ def cmd_run(a):
         lat, lon, grel = grid_latlon(z)
         ctx.update(zsfc=sb.decode(z), grid_rel=grel, alpha=alpha_of(lat, lon) if grel else None)
         grids["main"] = grid_desc(z)
-        ctx.update(lat_sub=lat[::SUB[model], ::SUB[model]].astype(np.float64), lat1=grids["main"]["lat1"],
+        ctx.update(ua_levs=UPR.levs_of(model), lat_sub=lat[::SUB[model], ::SUB[model]].astype(np.float64), lat1=grids["main"]["lat1"],
                    lat2=grids["main"]["lat2"], dx=grids["main"]["dx"])
         del lat, lon
     else:
