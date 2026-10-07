@@ -50,7 +50,7 @@ jobs:
           /usr/bin/time -v python scripts/models/models.py run --model "${{ inputs.model }}" --cycle "${{ inputs.cycle }}" --site . --procs 4 --lists "$RUNNER_TEMP/l" 2>&1 | tee "$RUNNER_TEMP/run.log" | grep -v "^\s*\(Page\|Socket\|Signals\|Swaps\|File system\|Average\|Exit\|Volun\|Invol\|Minor\|Major\)" || true
           d="assets/models/data/${{ inputs.model }}/${{ inputs.cycle }}"
           for f in "$d"/*/; do n=$(basename "$f"); printf "%-8s %s\n" "$n" "$(ls -l "$f" | awk 'NR>1{s+=$5; c++} END{printf "%d files %.1f KB", c, s/1024}')"; done
-          for f in ua925 ua250 dt z500; do ls -l "$d/$f" 2>/dev/null | awk -v f=$f 'NR>1{printf "  %s %s %d\n", f, $9, $5}'; done
+          for f in ua925 ua250 dt z500; do ls -l "$d/$f" 2>/dev/null | awk -v f=$f 'NR>1{printf "  %s %s %d\n", f, $9, $5}' || true; done
           python - "$d" <<'PY'
           import sys, numpy as np
           from PIL import Image

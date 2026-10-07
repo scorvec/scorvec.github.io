@@ -196,7 +196,8 @@ def smoke_on(cyc_dt):
 # 0.28-0.36 per field, +33 % on the cycle.
 LO = {"hrrr": 2, "rrfs": 2}
 CONV_MAX = ("uh25", "uh03", "uvv")            # hourly-max fields: no f00, and a run swath each
-LO_SKIP = {"uh25", "uh25s", "uh03", "uh03s", "uvv", "uvvs",   # narrow tracks: every-2nd-point copies would drop them (tiny anyway)
+HPBL_GRID = {"hrrr": "lo", "rrfs": "lo", "rdps": "sub"}
+LO_SKIP = {"hpbl", "uh25", "uh25s", "uh03", "uh03s", "uvv", "uvvs",   # narrow tracks: every-2nd-point copies would drop them (tiny anyway)
            "mslp", "ua925", "ua250", "dt", "z500", "w500"}
 
 
@@ -744,8 +745,8 @@ def process_hour(model, lead, blobs, outdir):
                       f"p50/p99 of > 0: {np.percentile(fin[fin > 0], [50, 99]) if (fin > 0).any() else 'n/a'}, "
                       f"share <= 0: {(fin <= 0).mean() if fin.size else 'n/a'}", flush=True)
             phys["etop"] = np.where(np.isfinite(et) & (et > 0), et * 3.28084 / 1000.0, np.nan)
-        if "hpbl" in blobs:
-            phys["hpbl"] = dec(blobs["hpbl"])
+        if "hpbl" in blobs:                                      # 6 km (smoothed, every 2nd point): at 3 km in 25 m steps it was
+            phys["hpbl"] = UPR.smooth_dec(dec(blobs["hpbl"]), 2)  # 0.64 MB/h, the largest field of the run (measured 2026-10-07)
         if "mslp" in blobs and "psfc" in blobs:
             F = _CTX["sub"]
             ps = dec(blobs["psfc"])[::F, ::F]
@@ -796,8 +797,8 @@ def process_hour(model, lead, blobs, outdir):
         if "swacc" in blobs and "swacc_prev" in blobs:
             a1, a0 = dec(blobs["swacc"], crop), dec(blobs["swacc_prev"], crop)
             phys["sw"] = np.maximum(a1 - a0, 0.0) / 3600.0
-        if "hpbl" in blobs:
-            phys["hpbl"] = dec(blobs["hpbl"], crop)
+        if "hpbl" in blobs:                                      # 20 km, the MSLP files' grid (native: 0.3 MB/h x 85 h)
+            phys["hpbl"] = UPR.smooth_dec(dec(blobs["hpbl"], crop), _CTX["sub"])
         if "smoke" in blobs:
             phys["smoke"] = dec(blobs["smoke"]) * 1e6
         if "mslp" in blobs and "psfc" in blobs:
@@ -1252,7 +1253,7 @@ def cmd_run(a):
         if not hrs:
             continue
         e = dict(hours=hrs, grid="raq" if (model == "rdps" and name == "smoke") else "sub" if name == "mslp"
-                 else UA_GRID[model][name] if name in UA_FIELDS else "main")
+                 else UA_GRID[model][name] if name in UA_FIELDS else HPBL_GRID[model] if name == "hpbl" else "main")
         fd = FIELDS[name]
         if fd["enc"] in ("uvz", "vz"):
             e.update(enc=fd["enc"], q=[per_field[name][h] for h in hrs])
