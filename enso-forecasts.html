@@ -1558,8 +1558,8 @@ window.STAGE = {
       var cutL = function (a) { return a.slice(nL - 1); };
       traces.push({ x: ex, y: cutL(cs.p90), type: "scatter", mode: "lines", line: { width: 0 }, hoverinfo: "skip", showlegend: false });
       traces.push({ x: ex, y: cutL(cs.p10), type: "scatter", mode: "lines", line: { width: 0 }, fill: "tonexty", fillcolor: CD_FILL,
-                    name: "CanSIPS alone, 80% of members", hoverinfo: "skip" });
-      traces.push({ x: ex, y: cutL(cs.mean), type: "scatter", mode: "lines+markers", name: "CanSIPS alone, months " + (nL + 1) + "–" + (nL + ext.length),
+                    name: narrow() ? "CanSIPS only, 80%" : "CanSIPS alone, 80% of members", hoverinfo: "skip" });
+      traces.push({ x: ex, y: cutL(cs.mean), type: "scatter", mode: "lines+markers", name: narrow() ? "CanSIPS only, mean" : "CanSIPS alone, months " + (nL + 1) + "–" + (nL + ext.length),
                     line: { color: CD_COLOR, width: 3, dash: "dash" }, marker: { size: ex.map(function (_, i) { return i ? 6 : 0; }), color: CD_COLOR },
                     hovertemplate: "%{y:+.2f} °C<extra>CanSIPS only</extra>" });
     }
@@ -1592,10 +1592,10 @@ window.STAGE = {
     if (ext.length) shapes.push({ type: "rect", xref: "x", yref: "paper", x0: obsX.length + nL - 0.5, x1: x.length - 0.5, y0: 0, y1: 1,
                                   fillcolor: CD_BAND, line: { width: 0 }, layer: "below" });
     var ann = obsX.length ? [
-      { xref: "x", yref: "paper", x: (obsX.length - 1) / 2, y: 0.01, yanchor: "bottom", text: "observed", showarrow: false, font: { color: MUTED, size: 12.5 } },
-      { xref: "x", yref: "paper", x: obsX.length + (nL - 1) / 2, y: 0.01, yanchor: "bottom", text: "forecast, " + labels().length + " systems", showarrow: false, font: { color: MUTED, size: 12.5 } }] : [];
+      { xref: "x", yref: "paper", x: (obsX.length - 1) / 2, y: 0.01, yanchor: "bottom", text: narrow() && ext.length ? "obs." : "observed", showarrow: false, font: { color: MUTED, size: 12.5 } },
+      { xref: "x", yref: "paper", x: obsX.length + (nL - 1) / 2, y: 0.01, yanchor: "bottom", text: narrow() ? labels().length + " systems" : "forecast, " + labels().length + " systems", showarrow: false, font: { color: MUTED, size: 12.5 } }] : [];
     if (ext.length) ann.push({ xref: "x", yref: "paper", x: obsX.length + nL + (ext.length - 1) / 2, y: 0.01, yanchor: "bottom",
-                               text: narrow() ? "CanSIPS only" : "CanSIPS only, not multi-model", showarrow: false, font: { color: "#8a2f6e", size: 12.5 } });
+                               text: narrow() ? "CanSIPS" : "CanSIPS only, not multi-model", showarrow: false, font: { color: "#8a2f6e", size: 12.5 } });
     var lay = layout({ shapes: shapes, annotations: ann });
     lay.margin.r = narrow() ? 12 : 34;
     lay.xaxis.type = "category";
@@ -1649,10 +1649,10 @@ window.STAGE = {
     tr.push({ x: x, y: pad.concat(cs.p25), type: "scatter", mode: "lines", line: { width: 0 }, fill: "tonexty", fillcolor: "rgba(138,75,42,0.20)", name: "50% of members", hoverinfo: "skip" });
     if (D.fc && D.fc.issue === E.issue) {
       var mmK = mmmOf(key), smf = smooth ? smooth3(key) : null, mmS = smf ? smf(mmK) : mmK;
-      tr.push({ x: x, y: bridge.concat(mmS), type: "scatter", mode: "lines", name: "Average of all " + labels().length + " systems (months 1–" + D.fc.valid_months.length + ")",
+      tr.push({ x: x, y: bridge.concat(mmS), type: "scatter", mode: "lines", name: narrow() ? "All systems" : "Average of all " + labels().length + " systems (months 1–" + D.fc.valid_months.length + ")",
                 line: { color: INK2, width: 2, dash: "dot" }, hovertemplate: "%{y:+.2f} °C<extra>all systems</extra>" });
     }
-    tr.push({ x: x, y: bridge.concat(cs.mean), type: "scatter", mode: "lines+markers", name: "CanSIPS average (" + E.members + " members)",
+    tr.push({ x: x, y: bridge.concat(cs.mean), type: "scatter", mode: "lines+markers", name: narrow() ? "CanSIPS mean" : "CanSIPS average (" + E.members + " members)",
               line: { color: ACCENT, width: 4.5 }, marker: { size: 5, color: ACCENT }, hovertemplate: "<b>%{y:+.2f} °C</b><extra>CanSIPS</extra>" });
     if (obsX.length) {
       tr.push({ x: obsX, y: obsY, type: "scatter", mode: "lines+markers", name: obsLabel, line: { color: INK, width: 2.4, dash: obsDotted ? "dot" : "solid" },
