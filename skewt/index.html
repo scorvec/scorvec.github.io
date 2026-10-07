@@ -43,7 +43,7 @@
 <link rel="stylesheet" href="vendor/leaflet.css">
 <script src="vendor/leaflet.js"></script>
 <script src="vendor/fflate.js"></script>
-<link href="https://fonts.googleapis.com/css2?family=Lora:wght@400;500&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Lora:wght@400;500;700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
   [hidden] { display: none !important; }   /* wins over `canvas { display: block }` */
@@ -107,6 +107,10 @@
   .tables-grid { columns: 270px; column-gap: 16px; }
   .tables-grid .tbl { break-inside: avoid; margin-bottom: 10px; }
   .tables-grid table.params { width: 100%; }
+  /* section titles of the index tables: bold and clearly larger than the rows (user 2026-10-07: "larger more bold font
+     for clarity"), with a rule under each so the sections read as blocks */
+  .tables-grid h3 { font-weight: 700; font-size: 1.12rem; color: #f2f2fa; letter-spacing: 0.01em;
+    border-bottom: 1px solid var(--rule); padding-bottom: 3px; margin: 6px 0 5px; }
   #pcl-table th, #pcl-table td { padding: 1px 3px; }
 
   .modal { position: fixed; inset: 0; background: rgba(4,4,9,0.78); z-index: 2000;
@@ -374,7 +378,7 @@
     table.params { font-size: 16.5px; }
     table.params th, table.params td { line-height: 1.45; padding-top: 2px; padding-bottom: 2px; }
     .tables-grid { columns: 300px; column-gap: 22px; }
-    .tables-grid h3 { font-size: 1.18rem; margin: 5px 0 4px; }
+    .tables-grid h3 { font-size: 1.42rem; margin: 8px 0 6px; }
     /* the 8-column parcels table spans the whole column set: at this size it no longer fits one text column */
     .tables-grid .tbl.pcl { column-span: all; }
   }
@@ -823,6 +827,6 @@
   </div>
 </div>
 <script src="sharplib.js?v=92a2fd08"></script>
-<script src="app.js?v=065bd700"></script>
+<script src="app.js?v=ca7184a5"></script>
 </body>
 </html>

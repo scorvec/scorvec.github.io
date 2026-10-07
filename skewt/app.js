@@ -485,8 +485,9 @@ function cloudLayers(prof) {
     if (!isFinite(tC) || !isFinite(dC)) continue;
     const ew = 6.112 * Math.exp(17.67 * dC / (dC + 243.5));
     let rh = 100 * ew / (6.112 * Math.exp(17.67 * tC / (tC + 243.5)));
+    const rhw = rh;                                  // water RH: the fog / near-surface test
     if (tC < 0) rh = Math.max(rh, 100 * ew / (6.112 * Math.exp(22.46 * tC / (tC + 272.62))));
-    levs.push({ z, tC, rh: Math.min(rh, 105) });
+    levs.push({ z, tC, rh: Math.min(rh, 105), rhw });
   }
   // calibrated against 49,259 METAR-verified cloud bases at 14 stations
   // (2006-2025): 85/80 beat 90/85 on both POD (0.77) and FAR (0.51)
@@ -509,17 +510,45 @@ function cloudLayers(prof) {
   }
   return { layers, levs, thr };
 }
-// shared by the cloud pop-up and the main indices table. bar 94 = CSI
-// optimum; conf = fraction of matched layers in that peak-RH bin that
-// verified as BKN/OVC ceilings in training
+// shared by the cloud pop-up and the key-number strip. bar 94 = CSI optimum;
+// conf = fraction of matched layers in that peak-RH bin that verified as BKN/OVC
+// ceilings in training.
+// Near the ground (2026-10-07): a surface reading at 94-96 % RH is mist/haze, not
+// fog, and the ice-RH bar makes any cold surface layer look saturated. Of 618
+// live soundings on 2026-10-06 the old rule called 90 "obscured (fog)"; only 1
+// of them had a fog-model probability >= 50 %, 48 had T-Td > 0.5 C at the
+// surface and most were saturated at the surface level alone. Now "obscured"
+// needs WATER RH >= 97 % (T-Td <~ 0.4 C) continuously from the surface through
+// >= 30 m; otherwise, inside a surface-based moist layer below 300 m, a ceiling
+// base needs water RH >= 97 % held over >= 30 m (one wet level is not a deck).
+// Above 300 m, and in layers that start aloft, the calibrated 94 % bar stands.
+const CEIL_NEAR_M = 300, CEIL_SAT = 97, CEIL_DEPTH_M = 30;
 function estCeiling(res) {
   if (!res || res.levs.length < 3) return undefined;
+  const L = res.levs;
   const pCeil = rh => rh >= 100 ? 77 : rh >= 98 ? 69 : rh >= 96 ? 65 : rh >= 94 ? 62 : 54;
-  const ceil = res.layers.find(l => l.maxRh >= 94);
-  if (!ceil) return null;
-  const lv = res.levs.find(L => L.z >= ceil.base - 1 && L.z <= ceil.top + 1 && L.rh >= 94);
-  const zb = lv ? lv.z : ceil.base;
-  return { zb, top: ceil.top, obscured: zb < 50, conf: pCeil(ceil.maxRh) };
+  const runTop = i => { let j = i; while (j + 1 < L.length && L[j + 1].rhw >= CEIL_SAT) j++; return j; };
+  const fog = L[0].z < 15 && L[0].rhw >= CEIL_SAT && L[runTop(0)].z >= CEIL_DEPTH_M;
+  const mist = L[0].z < 15 && L[0].rh >= 94 && !fog;
+  for (const l of res.layers) {
+    if (l.maxRh < 94) continue;
+    const sfcBased = l.base < 50;
+    if (sfcBased && fog)
+      return { zb: 0, top: l.top, satTop: L[runTop(0)].z, obscured: true, conf: pCeil(l.maxRh) };
+    for (let i = 0; i < L.length; i++) {
+      const v = L[i];
+      if (v.z < Math.max(50, l.base - 1) || v.z > l.top + 1) continue;
+      if (!sfcBased || v.z >= CEIL_NEAR_M) {
+        if (v.rh >= 94) return { zb: v.z, top: l.top, obscured: false, conf: pCeil(l.maxRh), mist };
+        continue;
+      }
+      if (v.rhw < CEIL_SAT) continue;
+      const j = runTop(i);
+      if (L[j].z - v.z >= CEIL_DEPTH_M) return { zb: v.z, top: l.top, obscured: false, conf: pCeil(l.maxRh), mist };
+      i = j;
+    }
+  }
+  return mist ? { none: true, mist } : null;
 }
 function cloudRows(res) {
   const fz = z => `${Math.round(z)} m / ${(z * 3.28084 / 1000).toFixed(1)} kft`;
@@ -528,16 +557,16 @@ function cloudRows(res) {
   if (!res.layers.length)
     return [["Cloud layers", "none detected — column subsaturated at every level"]];
   const rows = [];
-  // ceiling base = where RH first reaches the broken/overcast bar (92%) inside
-  // the layer, not the 85% detection edge — surface haze (RH 85-92%) must not
-  // read as a 0 ft ceiling. True surface-based saturation reports as obscured.
+  // ceiling base = where RH first reaches the broken/overcast bar (94%) inside
+  // the layer, not the 85% detection edge; near the ground see estCeiling
   const ec = estCeiling(res);
-  rows.push(["Est. ceiling", !ec ? "none — no likely ceiling layer"
+  const mistNote = ec && ec.mist ? " · surface near-saturated (mist/haze), not saturated through a layer — no fog" : "";
+  rows.push(["Est. ceiling", !ec || ec.none ? "none — no likely ceiling layer" + mistNote
     : ec.obscured
-    ? `obscured — surface-based saturation (fog), top ${Math.round(ec.top)} m / ` +
-      `${(ec.top * 3.28084 / 1000).toFixed(1)} kft`
+    ? `obscured — saturated from the ground through ${Math.round(ec.satTop)} m (fog, or stratus down to the surface); ` +
+      `moist layer top ${Math.round(ec.top)} m / ${(ec.top * 3.28084 / 1000).toFixed(1)} kft`
     : `${Math.round(ec.zb)} m / ${Math.round(ec.zb * 3.28084 / 100) * 100} ft AGL ` +
-      `(~${ec.conf}% of similar layers verify as ceilings)`]);
+      `(~${ec.conf}% of similar layers verify as ceilings)` + mistNote]);
   res.layers.forEach((l, i) => {
     const lvl = l.base < 2000 ? "low" : l.base < 6000 ? "mid" : "high";
     const cov = l.maxRh >= 100 ? "likely broken/overcast"
@@ -4051,13 +4080,6 @@ function fillTables(prof, res) {
     ["500 hPa T", climoCell("500t", t500, g(t500, " °C", 0))],
     ["500 hPa height", climoCell("h500", h500, isFinite(h500) ? Math.round(h500) + " m" : "—")],
     ["1000–500 thick.", climoCell("thick", (isFinite(h500) && isFinite(h1000)) ? h500 - h1000 : NaN, (isFinite(h500) && isFinite(h1000)) ? Math.round(h500 - h1000) + " m" : "—")],
-    ["Est. ceiling", (() => {
-      const ec = estCeiling(cloudLayers(prof));
-      if (ec === undefined) return "—";
-      if (ec === null) return "none";
-      if (ec.obscured) return "obscured (fog)";
-      return `${Math.round(ec.zb)} m · ${Math.round(ec.zb * 3.28084 / 100) * 100} ft (~${ec.conf}%)`;
-    })()],
     ["850 / 250 wind", climoCell("850spd", s850, isFinite(s850) ? Math.round(s850 * 1.94384) + " kt" : "—") + " / " +
       climoCell("250spd", s250, isFinite(s250) ? Math.round(s250 * 1.94384) + " kt" : "—")],
     ["Freezing level", climoCell("fzl", fzl, isFinite(fzl) ? Math.round(fzl) + " m AGL" : "—")],
@@ -4189,6 +4211,21 @@ function fillTables(prof, res) {
       o[33] >= 1 || o[32] >= 4 ? "hot" : o[32] >= 1 ? "warm" : "", "effective-layer significant tornado and supercell composites"));
     ks.push(chip("PWAT", num(o[15]) ? o[15].toFixed(1) : "—", num(o[15]) ? "mm" : ""));
     ks.push(chip("DCAPE", num(o[39]) ? Math.round(o[39]) : "—", num(o[39]) ? "J/kg" : "", o[39] >= 1000 ? "warm" : ""));
+    {
+      // sounding-estimated ceiling (cloud pop-up for the layers); colours = flight categories
+      const ec = (() => { try { return estCeiling(cloudLayers(prof)); } catch (e) { return undefined; } })();
+      const ft = ec && !ec.none && !ec.obscured ? Math.round(ec.zb * 3.28084 / 100) * 100 : NaN;
+      const v = ec === undefined ? "—" : !ec || ec.none ? "none" : ec.obscured ? "fog" : ft >= 10000 ? (ft / 1000).toFixed(0) + "k" : String(ft);
+      const col = ec && ec.obscured ? "#e36be3" : !isFinite(ft) ? (ec === undefined ? null : "#4cc24f")
+        : ft < 500 ? "#e36be3" : ft < 1000 ? "#ff5a4f" : ft <= 3000 ? "#6aa6ff" : "#4cc24f";
+      const ttl = ec === undefined ? "needs a moisture profile"
+        : ec && ec.obscured ? `saturated from the ground through ${Math.round(ec.satTop)} m — fog, or stratus down to the surface`
+        : (!ec || ec.none ? "no likely broken/overcast layer" : `lowest likely broken/overcast base, ~${ec.conf}% of similar layers verify as ceilings`) +
+          (ec && ec.mist ? "; surface near-saturated (mist/haze) but not saturated through a layer, so not fog" : "");
+      ks.push(`<div class="kchip" title="Estimated ceiling from the sounding: ${ttl}. Colours = flight categories (LIFR, IFR, MVFR, VFR); Clouds button for the layers"` +
+        `${col ? ` style="border-color:${col}88;"` : ""}><span class="kl">${current && current.model ? "Ceiling (sounding)" : "Ceiling (est.)"}</span>` +
+        `<span class="kv"${col ? ` style="color:${col}"` : ""}>${v}${isFinite(ft) ? "<small>ft</small>" : ""}</span></div>`);
+    }
     ks.push(chip("Freezing level", isFinite(fzl) ? (fzl / 1000).toFixed(1) : "—", isFinite(fzl) ? "km AGL" : ""));
     if (cold && pt && pt.type) ks.push(chip(current && current.model ? "Bourgouin type" : "Precip type", pt.type, "", "",
       "Bourgouin energy method: what would fall if it precipitated"));
