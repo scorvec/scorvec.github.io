@@ -140,6 +140,15 @@ FIELDS = {
     # earth-relative, as 250 hPa) on the z500 grid - a 4th channel in z500 would be WebP alpha, which the canvas decode
     # premultiplies (not bit-exact)
     "w500": dict(enc="lin2", off=-101.6, step=0.8),
+    # potential vorticity (2026-10-07, user: "add some potential vorticity charts"), upper.py, 12 km (RDPS 20 km), every 3 h.
+    # PV code = (PVU + 2) / 0.0625 (-2 .. +13.9 PVU; 255 = masked). pvu: 300-250 hPa layer mean (1 channel; barbs and heights
+    # come from the ua250 frame); pvl: 850-700 hPa layer mean, G, B = 850 hPa wind (as 925), masked where the ground is above
+    # 850 hPa; pv315..pv340: PV on the isentrope, G = its pressure, 100 + 2.5 hPa * code, masked outside 100-700 hPa;
+    # w315..w340: the wind on it (as 250 hPa)
+    "pvu": dict(enc="pv1", off=-2.0, step=0.0625),
+    "pvl": dict(enc="pv3", off=-2.0, step=0.0625, uv=(-63.5, 0.5)),
+    **{f"pv{int(t)}": dict(enc="pvth", off=-2.0, step=0.0625, p=(100.0, 2.5)) for t in UPR.THETAS},
+    **{f"w{int(t)}": dict(enc="lin2", off=-101.6, step=0.8) for t in UPR.THETAS},
 }
 ACC_METHOD = {
     "hrrr": dict(apcp="APCP", asnow="ASNOW, the HRRR's own snowfall (variable snow density)",
@@ -165,8 +174,9 @@ ACC_METHOD["rrfs"].update(afram=_FRAM.format(src="FRZR; 3-hourly past 36 h"), as
 ACC_METHOD["rdps"].update(afram=_FRAM.format(src="FreezingRain-Accum"), asnod=_SNOD.format(src="SnowDepth"))
 ORDER = ["ir", "refl", "ceil", "vis", "t2m", "td2m", "smoke", "wind80", "wind10", "gust", "sw", "mslp", "apcp", "asnow", "afzra", "aip",
          "uh25", "uh25s", "uh03", "uh03s", "uvv", "uvvs", "etop", "hpbl",
-         "ua925", "ua250", "dt", "z500", "w500", "afram", "acobb", "as10", "asnod"]
-UA_FIELDS = ("ua925", "ua250", "dt", "z500", "w500")
+         "ua925", "ua250", "dt", "z500", "w500", "pvu", "pvl", *[f"{k}{int(t)}" for k in ("pv", "w") for t in UPR.THETAS], "afram", "acobb", "as10", "asnod"]
+PV_FIELDS = ("pvu", "pvl") + tuple(f"{k}{int(t)}" for k in ("pv", "w") for t in UPR.THETAS)
+UA_FIELDS = ("ua925", "ua250", "dt", "z500", "w500") + PV_FIELDS
 UA_ON = os.environ.get("MV_UA", "0") == "1"            # models.yml sets MV_UA=1 (the switch for the upper-air fetch)
 # 2026-10-07, user: "Dont use nomads if we can" - upper air only where it comes from AWS (HRRR) or the Datamart (RDPS);
 # the RRFS prslev files exist only on NOMADS (noaa-rrfs-pds holds no real-time runs), so no RRFS upper air
@@ -197,7 +207,7 @@ def smoke_on(cyc_dt):
 LO = {"hrrr": 2, "rrfs": 2}
 CONV_MAX = ("uh25", "uh03", "uvv")            # hourly-max fields: no f00, and a run swath each
 HPBL_GRID = {"hrrr": "lo", "rrfs": "lo", "rdps": "sub"}
-LO_SKIP = {"hpbl", "uh25", "uh25s", "uh03", "uh03s", "uvv", "uvvs",   # narrow tracks: every-2nd-point copies would drop them (tiny anyway)
+LO_SKIP = {*PV_FIELDS, "hpbl", "uh25", "uh25s", "uh03", "uh03s", "uvv", "uvvs",   # narrow tracks: every-2nd-point copies would drop them (tiny anyway)
            "mslp", "ua925", "ua250", "dt", "z500", "w500"}
 
 
@@ -269,6 +279,16 @@ def encode(name, x):
     if f["enc"] == "acc16":
         v = np.clip(np.rint(np.nan_to_num(x, nan=0.0) / f["unit"]), 0, 65535).astype(np.uint16)
         c = np.dstack([(v >> 8).astype(np.uint8), (v & 255).astype(np.uint8), np.zeros(v.shape, np.uint8)])
+        return c[::-1], None
+    if f["enc"] in ("pv1", "pv3", "pvth"):
+        pv = q_lin(x[1], f["off"], f["step"])
+        if f["enc"] == "pv1":
+            return pv[::-1], None
+        if f["enc"] == "pv3":
+            c = np.dstack([pv, q_lin(x[2], *f["uv"]), q_lin(x[3], *f["uv"])])
+        else:
+            c = np.dstack([pv, q_lin(x[2], *f["p"]), np.zeros(pv.shape, np.uint8)])
+        c[..., 1:][pv == 255] = 255
         return c[::-1], None
     if f["enc"] in ("uvz", "dt", "vz"):
         z3 = np.zeros(x[1].shape, np.uint8)
@@ -396,8 +416,8 @@ def ua_want(model="hrrr"):
 
 
 def rdps_ua_jobs(date, cyc, lead):
-    j = {f"ua:T:{p}": rdps_url(date, cyc, lead, f"AirTemp_IsbL-{p:04d}") for p in UPR.RDPS_T_LEVS}
-    for p in sorted(set(UPR.RDPS_UV_LEVS) | {925}):
+    j = {f"ua:T:{p}": rdps_url(date, cyc, lead, f"AirTemp_IsbL-{p:04d}") for p in sorted(set(UPR.RDPS_T_LEVS) | set(UPR.RDPS_PV_LEVS))}
+    for p in sorted(set(UPR.RDPS_UV_LEVS) | set(UPR.RDPS_PV_LEVS) | {925}):
         j[f"ua:U:{p}"] = rdps_url(date, cyc, lead, f"WindU_IsbL-{p:04d}")
         j[f"ua:V:{p}"] = rdps_url(date, cyc, lead, f"WindV_IsbL-{p:04d}")
     for p in (925, 250, 500):
@@ -578,6 +598,28 @@ def height_m(buf, crop, lev):
     return z * 10.0 if abs(med * 10 - expect) < abs(med - expect) else z
 
 
+def pv_products(pv, th, U, V, LV, earth, ps_sub):
+    """the PV charts from Ertel PV on the pressure levels (upper.py); U, V grid-relative, earth(u, v) -> earth-relative"""
+    out = {}
+    f32 = lambda a: np.asarray(a, np.float32)                               # noqa: E731
+    if all(p in LV for p in UPR.PV_UP):
+        out["pvu"] = ("pv1", f32(UPR.layer_mean(pv, LV, UPR.PV_UP)))
+    if all(p in LV for p in UPR.PV_LO):
+        lo = UPR.layer_mean(pv, LV, UPR.PV_LO)
+        k8 = LV.index(850)
+        u8, v8 = earth(U[k8], V[k8])
+        if ps_sub is not None:
+            bad = ps_sub < 85000.0
+            lo, u8, v8 = (np.where(bad, np.nan, a) for a in (lo, u8, v8))
+        out["pvl"] = ("pv3", f32(lo), f32(u8), f32(v8))
+    for t in UPR.THETAS:
+        o = UPR.on_theta(pv, th, U, V, LV, t, pmax=700)
+        ue, ve = earth(o["u"], o["v"])
+        out[f"pv{int(t)}"] = ("pvth", f32(o["pv"]), f32(o["p"]))
+        out[f"w{int(t)}"] = (f32(ue), f32(ve))
+    return out
+
+
 def ua_lcc(blobs):
     """HRRR / RRFS upper air (upper.py) -> {field: tuple for encode()}"""
     out = {}
@@ -607,7 +649,15 @@ def ua_lcc(blobs):
         lat = _CTX["lat_sub"]
         m = UPR.lcc_mapfac(lat, _CTX["lat1"], _CTX["lat2"])
         pv, th, absv = UPR.ertel_pv(T, U, V, LV, lat, m, _CTX["dx"] * F)
-        d = UPR.dt_downward(pv, th, U, V, LV)
+        n7 = sum(p <= 700 for p in LV)                                      # the DT search stays on 100-700 hPa
+        d = UPR.dt_downward(pv[:n7], th[:n7], U[:n7], V[:n7], LV[:n7])
+        try:
+            out.update(pv_products(pv, th, U, V, LV, lambda u, v: to_earth(u, v, asub) if asub is not None else (u, v),
+                                   ps[::F, ::F] if ps is not None else None))
+        except Exception as e:                                  # noqa: BLE001
+            import traceback
+            traceback.print_exc()
+            print(f"::warning::PV charts failed ({e!r})", flush=True)
         ue, ve = to_earth(d["u"], d["v"], asub) if asub is not None else (d["u"], d["v"])
         out["dt"] = ("dt", d["theta"].astype(np.float32), ue.astype(np.float32), ve.astype(np.float32))
         if "ua:HGT:500" in blobs:
@@ -657,6 +707,23 @@ def ua_rdps(blobs, crop):
         udt, vdt = UPR.interp_lnp(U, UPR.RDPS_UV_LEVS, pq), UPR.interp_lnp(V, UPR.RDPS_UV_LEVS, pq)
         udt, vdt = earth(udt, vdt, al)
         out["dt"] = ("dt",) + tuple(UPR.smooth_dec(a, F) for a in (tdt, udt, vdt))
+    PL = UPR.RDPS_PV_LEVS
+    if all(f"ua:{c}:{p}" in blobs for c in "TUV" for p in PL) and _CTX.get("rd_rlat") is not None:
+        try:
+            st = lambda c: np.stack([UPR.smooth_dec(dec(blobs[f"ua:{c}:{p}"], crop), F) for p in PL]).astype(np.float64)   # noqa: E731
+            T, U, V = st("T"), st("U"), st("V")
+            T = T + 273.15 if np.nanmean(T) < 150 else T
+            asub = al[::F, ::F] if al is not None else None
+            if not rel and asub is not None:
+                U, V = to_grid(U, V, asub[None])
+            g = _CTX["rd_grid"]
+            pv, th = UPR.ertel_pv_rot(T, U, V, PL, _CTX["rd_rlat"][:, None] * np.ones((1, T.shape[2])), _CTX["lat_sub"], g["di"] * F, g["dj"] * F)
+            out.update(pv_products(pv, th, U, V, PL, lambda u, v: to_earth(u, v, asub) if asub is not None else (u, v),
+                                   ps[::F, ::F] if ps is not None else None))
+        except Exception as e:                                  # noqa: BLE001
+            import traceback
+            traceback.print_exc()
+            print(f"::warning::RDPS PV charts failed ({e!r})", flush=True)
     if "ua:Z:500" in blobs and "ua:AV:500" in blobs:
         av = dec(blobs["ua:AV:500"], crop)
         av = av * 1e5 if np.nanmedian(np.abs(av)) < 0.01 else av            # s-1 -> 1e-5 s-1
@@ -1084,6 +1151,10 @@ def cmd_run(a):
         sl = (slice(*crop[0]), slice(*crop[1]))
         ctx.update(crop=crop, grid_rel=grel, alpha=alpha_of(lat, lon)[sl] if grel else None)
         grids["main"] = grid_desc(b, crop)
+        gm, F0 = grids["main"], SUB[model]                         # PV on the rotated grid: its own latitude of each sub row
+        ny0 = -(-gm["ny"] // F0)
+        ctx.update(rd_grid=gm, rd_rlat=gm["la1"] + (gm.get("j0", 0) + F0 * np.arange(ny0)) * gm["dj"],
+                   lat_sub=UPR.smooth_dec(lat[sl], F0).astype(np.float64))
         r_dt, off = raq_for(cyc_dt)
         try:
             if not smoke_on(cyc_dt):
@@ -1254,7 +1325,7 @@ def cmd_run(a):
         if not hrs:
             continue
         e = dict(hours=hrs, grid="raq" if (model == "rdps" and name == "smoke") else "sub" if name == "mslp"
-                 else UA_GRID[model][name] if name in UA_FIELDS else HPBL_GRID[model] if name == "hpbl" else "main")
+                 else UA_GRID[model].get(name, "sub") if name in UA_FIELDS else HPBL_GRID[model] if name == "hpbl" else "main")
         fd = FIELDS[name]
         if fd["enc"] in ("uvz", "vz"):
             e.update(enc=fd["enc"], q=[per_field[name][h] for h in hrs])
