@@ -140,7 +140,8 @@ HSUB = ["heloc_g", "heloc_lim", "sloos_heloc", "heloc_dem", "sloos_mort", "sloos
 # mortgage standards raise r (+0.023, CI -0.007..+0.049) but cut the 2018 peak 3.7 pp and fail; mortgage demand and bank
 # mortgage delinquency pass the gate alone but lose the greedy step. The HELOC survey questions (2008), HE credit limits (2003)
 # and the lock-in gap (2013) start too late to compete and feed the housing sub-index only.
-ADMIT_H: list[str] = ["refi_cash"]
+# 2026-10-07: the MIN_W weight floor removes it (loading +0.02): no housing input enters the headline; all feed the sub-index.
+ADMIT_H: list[str] = []
 ALL = dict(INPUTS); ALL.update(CAND); ALL.update(HCAND)
 ALL["del_heloc"] = ("Home-equity line delinquency rate", "Household housing finance", "% of HELOC balances 90+ days delinquent, all lenders (New York Fed Consumer Credit Panel / Equifax, quarterly from 2003; entered 50 days after the quarter ends)")
 
@@ -178,6 +179,8 @@ EPISODES = [("1998", "LTCM and Russia", "1998-08-01", "1998-12-31"), ("2001", "2
             ("2023", "Regional bank stress", "2023-03-01", "2023-06-30"), ("2018", "Late-2018 selloff", "2018-10-01", "2019-01-31"),
             ("2022", "2022 rate shock", "2022-01-01", "2022-12-31"), ("2025", "April 2025 tariff shock", "2025-03-15", "2025-05-31")]
 TOL_R, TOL_PEAK, TOL_EP = 0.005, 0.005, 0.02     # admission: "preserves" = r down <= 0.005, mean peak pct <= 0.5 pp, no episode > 2 pp
+MIN_W = 0.05   # 2026-10-07 (user approved): an admitted input must also CARRY weight, |loading| >= 0.05 in the new PC1 -
+               # cash-out refinancing "passed" at +0.02 with the index unchanged to three decimals, i.e. it was not doing anything
 
 
 def _get(url, timeout=60):
@@ -564,7 +567,7 @@ def admission(X, bench, base=None, cands=None):
             single[c] = None; continue
         m = evaluate(X, base + [c], bench)
         ok, d_r, d_p, worst = _gate(m, m0)
-        single[c] = dict(ok=bool(ok), d_r=round(d_r, 3), d_r_nfci=round(m["r_NFCI"] - m0["r_NFCI"], 3), d_peak=round(d_p, 3),
+        single[c] = dict(ok=bool(ok and abs(float(m["w"][c])) >= MIN_W), d_r=round(d_r, 3), d_r_nfci=round(m["r_NFCI"] - m0["r_NFCI"], 3), d_peak=round(d_p, 3),
                          worst=round(worst, 3), loading=round(float(m["w"][c]), 3), peaks={e: round(v, 3) for e, v in m["peaks"].items()})
     cur, mc, path, left = list(base), m0, [], list(eligible)
     while left:
@@ -572,7 +575,7 @@ def admission(X, bench, base=None, cands=None):
         for c in left:
             m = evaluate(X, cur + [c], bench)
             ok, d_r, d_p, worst = _gate(m, mc)
-            if ok and d_r + d_p >= 0 and (best is None or d_r + d_p > best[1]):
+            if ok and abs(float(m["w"][c])) >= MIN_W and d_r + d_p >= 0 and (best is None or d_r + d_p > best[1]):
                 best = (c, d_r + d_p, m, d_r, d_p)
         if best is None:
             break
