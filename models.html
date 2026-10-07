@@ -613,10 +613,10 @@
   // positive snow depth change)"; scripts/models/winter.py): FRAM radial ice, snowfall with the Cobb column snow ratio (HRRR),
   // snowfall at 10:1 (HRRR, RRFS), the snow-depth increase. Same files and window differencing as the others.
   var SNOW_STOPS = ACC_TYPES.asnow.stops;
-  ACC_TYPES.as10 = { label: "Snow 10:1", vmax: 100, unitLabel: "inches of snow at 10:1 from the snow-phase liquid", ticks: ACC_TYPES.asnow.ticks, lo: 0.1, hi: 48, levels: [1, 6, 12], stops: SNOW_STOPS, snow: true };
-  ACC_TYPES.acobb = { label: "Snow (Cobb ratio)", vmax: 100, unitLabel: "inches of snow with the Cobb column snow-to-liquid ratio (limited to 3–30)", ticks: ACC_TYPES.asnow.ticks, lo: 0.1, hi: 48, levels: [1, 6, 12], stops: SNOW_STOPS, snow: true };
-  ACC_TYPES.asnod = { label: "Snow depth increase", vmax: 100, unitLabel: "inches: the sum of the hourly increases of the model's snow depth (melt and settling not subtracted)", ticks: ACC_TYPES.asnow.ticks, lo: 0.1, hi: 48, levels: [1, 6, 12], stops: SNOW_STOPS, snow: true };
-  ACC_TYPES.afram = { label: "Ice (FRAM)", vmax: 3, unitLabel: "inches of RADIAL ice on power lines and branches (FRAM), not the liquid amount · 0.25 in bold (ice storm warning)", ticks: [0.01, 0.05, 0.1, 0.25, 0.5, 0.75, 1], lo: 0.01, hi: 1.5, levels: [0.1, 0.5], bold: 0.25,
+  ACC_TYPES.as10 = { derived: true, label: "Snow 10:1", vmax: 100, unitLabel: "inches of snow at 10:1 from the snow-phase liquid", ticks: ACC_TYPES.asnow.ticks, lo: 0.1, hi: 48, levels: [1, 6, 12], stops: SNOW_STOPS, snow: true };
+  ACC_TYPES.acobb = { derived: true, label: "Snow (Cobb ratio)", vmax: 100, unitLabel: "inches of snow with the Cobb column snow-to-liquid ratio (limited to 3–30)", ticks: ACC_TYPES.asnow.ticks, lo: 0.1, hi: 48, levels: [1, 6, 12], stops: SNOW_STOPS, snow: true };
+  ACC_TYPES.asnod = { derived: true, label: "Snow depth increase", vmax: 100, unitLabel: "inches: the sum of the hourly increases of the model's snow depth (melt and settling not subtracted)", ticks: ACC_TYPES.asnow.ticks, lo: 0.1, hi: 48, levels: [1, 6, 12], stops: SNOW_STOPS, snow: true };
+  ACC_TYPES.afram = { derived: true, label: "Ice (FRAM)", vmax: 3, unitLabel: "inches of RADIAL ice on power lines and branches (FRAM), not the liquid amount · 0.25 in bold (ice storm warning)", ticks: [0.01, 0.05, 0.1, 0.25, 0.5, 0.75, 1], lo: 0.01, hi: 1.5, levels: [0.1, 0.5], bold: 0.25,
                       stops: [S(0.01, "#e4ecf8", 0.9), S(0.05, "#b8cbef"), S(0.1, "#8aa5e2"), S(0.25, "#6a5ccb"), S(0.5, "#8e2db1"), S(0.75, "#c3197b"), S(1, "#6e0b3a")] };
   ACC_TYPES.asnow.snow = true;
   var ACC_ORDER = ["apcp", "asnow", "acobb", "as10", "asnod", "afzra", "afram", "aip"], ACC_WINS = [0, 1, 3, 6, 12, 24, 48];
@@ -2575,7 +2575,7 @@
     $("sndL").hidden = !sndOn(); sndHint(); sndFollowMap();
     var n = (NOTES[st.model] && NOTES[st.model][st.field]) || "";
     var fm = cycleObj(st.model, st.ci) && cycleObj(st.model, st.ci).fields[st.field === "acc" ? st.acc.type : st.field];
-    if (st.field === "acc" && fm && fm.method) n = "<b>" + ACC_TYPES[st.acc.type].label + "</b>: " + fm.method + ". Pick a window to see the amount that falls in it; the accumulation is the model's own, not a radar estimate.";
+    if (st.field === "acc" && fm && fm.method) n = "<b>" + ACC_TYPES[st.acc.type].label + "</b>: " + fm.method + ". Pick a window to see the amount that falls in it; " + (ACC_TYPES[st.acc.type].derived ? "computed here from the model's own fields" : "the accumulation is the model's own") + ", not a radar estimate.";
     if (fm && fm.from) n += (n ? " " : "") + "This run's smoke: " + fm.from + ".";
     if (st.field === "ecape" && st.model === "hrrr") {
       var e1 = cycleObj("hrrr", st.ci), sub1 = EC_SUBS[st.ec];
