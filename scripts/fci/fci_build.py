@@ -38,6 +38,7 @@ import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import callreport  # noqa: E402
+import housing  # noqa: E402
 
 FRED = "https://fred.stlouisfed.org/graph/fredgraph.csv?id={}"
 EBP_URL = "https://www.federalreserve.gov/econres/notes/feds-notes/ebp_csv.csv"
@@ -110,20 +111,56 @@ LIQ = {
 PRIVATE = {
     "pc_ndfi": ("Bank lending to nonbank lenders (slower growth = tighter)", "minus the year-on-year % change in commercial banks' loans to nondepository financial institutions (H.8, LNFACBW027SBOG; one-off reclassification jumps chain-linked out)"),
 }
-ALL = dict(INPUTS); ALL.update(CAND)
+# HOUSEHOLD HOUSING FINANCE (2026-10-07, user: "What about including something to do with refinancing/HELOCs?"). DATA TERMS
+# checked 2026-10-07: the FRED series below are Federal Reserve Board data with no copyright notice (public domain, citation
+# requested); FHFA's National Mortgage Database aggregates are a federal agency's public data; the New York Fed's Household
+# Debt and Credit workbook may be used and redistributed with its notice (housing.py). NOT USED: the MBA refinance index
+# (proprietary), Freddie Mac's cash-out refinance report (last issued for 2018Q4; its successor, the Refinance Transition
+# Report, covers Freddie Mac loans from 2020 only), ICE/Black Knight outstanding-rate data (proprietary). HMDA refinance counts
+# are annual and duplicate NMDB, so they are not used.
+# Stage 2 of the admission test: each of these is added to the CURRENT headline (BASE + ADMIT); only those with data from
+# before the 2001 fit start can compete, the rest form the housing sub-index only (like the liquidity block).
+HCAND = {
+    "heloc_g":    ("Bank home-equity lines (slower growth = tighter)", "Household housing finance", "minus the year-on-year % change in revolving home-equity loans at commercial banks (H.8, RHEACBW027SBOG; one-off reclassification jumps chain-linked out)"),
+    "sloos_mort": ("Banks tightening residential mortgage standards", "Household housing finance", "Senior Loan Officer Survey, net % tightening: all mortgages (H0SUBLPDHMSNQ) to 2007Q1, prime (DRTSPM) 2007Q2–2014Q4, GSE-eligible (SUBLPDHMSENQ) from 2015 - three question wordings spliced end to end"),
+    "sloos_mdem": ("Weaker residential mortgage demand", "Household housing finance", "minus the Senior Loan Officer Survey net % reporting stronger mortgage demand: all mortgages (H0SUBLPDHMDNQ) to 2007Q1, prime (DRSDPM) 2007Q2–2014Q4, GSE-eligible (SUBLPDHMDENQ) from 2015, spliced"),
+    "refi_cash":  ("Cash-out refinancing (less = tighter)", "Household housing finance", "minus cash-out refinance loan volume (the whole new loans, not only the cash taken out; FHFA National Mortgage Database, quarterly, annualised) as % of households' one-to-four-family mortgage debt (Fed Z.1, HHMSDODNS); entered 275 days after the quarter ends"),
+    "del_mort":   ("Residential mortgage delinquency rate", "Household housing finance", "delinquency rate on single-family residential mortgages, all commercial banks (DRSFRMACBS), seasonally adjusted; entered 150 days after the quarter starts"),
+    "sloos_heloc": ("Banks tightening home-equity line standards", "Household housing finance", "Senior Loan Officer Survey, net % tightening standards for HELOCs (SUBLPDCLHSNQ); asked since 2008"),
+    "heloc_dem":  ("Weaker home-equity line demand", "Household housing finance", "minus the Senior Loan Officer Survey net % reporting stronger HELOC demand (SUBLPDCLHDNQ); since 2008"),
+    "heloc_lim":  ("Home-equity credit limits (slower growth = tighter)", "Household housing finance", "minus the year-on-year % change in home-equity revolving credit limits, all lenders (New York Fed Consumer Credit Panel / Equifax, quarterly from 2003; entered 50 days after the quarter ends)"),
+    "lockin":     ("Mortgage lock-in gap", "Household housing finance", "Freddie Mac 30-year fixed rate minus the average contract rate on all outstanding first-lien mortgages (FHFA National Mortgage Database, balance-weighted, quarterly from 2013, entered 95 days after the quarter ends). Positive = most owners would refinance into a higher rate: little rate-refinancing or cash-out capacity"),
+}
+HCONTEXT = ["del_mort", "del_heloc"]                     # context unless admitted; del_heloc (2003) is chart and table only
+HSUB = ["heloc_g", "heloc_lim", "sloos_heloc", "heloc_dem", "sloos_mort", "sloos_mdem", "refi_cash", "lockin"]
+# ADMITTED on the evidence of stage 2 of the admission test (2026-10-07, run 37692314610): against the current 18-input headline
+# (r NFCI credit 0.794, mean episode-peak percentile 0.867) only the cash-out refinance ratio clears the gate with a non-negative
+# gain, and only formally: loading +0.02, r and the peaks unchanged to three decimals (d_r 95 % CI -0.002..+0.002). The bank
+# HELOC growth loads the wrong way (-0.11; banks' home-equity balances rise when borrowers draw lines in a crunch) and fails;
+# mortgage standards raise r (+0.023, CI -0.007..+0.049) but cut the 2018 peak 3.7 pp and fail; mortgage demand and bank
+# mortgage delinquency pass the gate alone but lose the greedy step. The HELOC survey questions (2008), HE credit limits (2003)
+# and the lock-in gap (2013) start too late to compete and feed the housing sub-index only.
+ADMIT_H: list[str] = ["refi_cash"]
+ALL = dict(INPUTS); ALL.update(CAND); ALL.update(HCAND)
+ALL["del_heloc"] = ("Home-equity line delinquency rate", "Household housing finance", "% of HELOC balances 90+ days delinquent, all lenders (New York Fed Consumer Credit Panel / Equifax, quarterly from 2003; entered 50 days after the quarter ends)")
 
 # days from a value's date stamp to its publication (conservative)
 RELEASE_LAG_D = {"TOTCI": 9, "COMPOUT": 2, "PCEPILFE": 58, "DRTSCILM": 50, "DRTSCIS": 50, "DRSDCILM": 50, "BCNSDODNS": 160,
                  "MORTGAGE30US": 0, "EBP": 40, "SHILLER_P": 32, "SLOOS": 50, "DELINQ": 150, "THREEFYTP10": 5,
-                 "WRESBAL": 1, "TLAACBW027SBOG": 9, "SOFR": 1}
+                 "WRESBAL": 1, "TLAACBW027SBOG": 9, "SOFR": 1,
+                 "RHEACBW027SBOG": 9, "NMDB_NEW": 275, "NMDB_OUT": 95, "HHDC": 50}     # NMDB/HHDC: days after the quarter END
 CARRY_W = {"usd": 3, "sloos_lg": 20, "sloos_sm": 20, "sloos_dem": 20, "corp_debt": 30, "ci_loans": 4, "cp_out": 3, "real_mort": 2,
            "gz": 9, "ebp": 9, "erp": 9, "eq_dd": 9, "real10": 2, "tp": 3, "sloos_cre": 20, "sloos_cc": 20, "del_ci": 20, "del_cc": 20,
-           "del_cre": 20, "liq_res": 3, "liq_rrp": 2, "liq_repo": 2}
+           "del_cre": 20, "liq_res": 3, "liq_rrp": 2, "liq_repo": 2,
+           "heloc_g": 4, "sloos_mort": 20, "sloos_mdem": 20, "refi_cash": 20, "del_mort": 20, "sloos_heloc": 20, "heloc_dem": 20,
+           "heloc_lim": 20, "lockin": 2, "del_heloc": 20}
 SERIES = ["DFF", "T10Y2Y", "DGS10", "DTB3", "MORTGAGE30US", "BAA10Y", "AAA10Y", "DCPN3M", "DCPF3M", "COMPOUT", "TOTCI",
           "DRTSCILM", "DRTSCIS", "DRSDCILM", "BCNSDODNS", "PCEPILFE", "NFCI", "NFCICREDIT",
           "USREC", "VIXCLS", "DTWEXBGS", "TWEXB", "LNFACBW027SBOG",
           "DFII10", "THREEFYTP10", "WRESBAL", "TLAACBW027SBOG", "RRPONTSYD", "SOFR", "IORB", "IOER",
-          "DRTSCREL", "SUBLPDRCSC", "SUBLPDRCSN", "SUBLPDRCSM", "DRTSCLCC", "DRBLACBS", "DRCCLACBS", "DRCRELEXFACBS"]
+          "DRTSCREL", "SUBLPDRCSC", "SUBLPDRCSN", "SUBLPDRCSM", "DRTSCLCC", "DRBLACBS", "DRCCLACBS", "DRCRELEXFACBS",
+          "RHEACBW027SBOG", "H0SUBLPDHMSNQ", "DRTSPM", "SUBLPDHMSENQ", "H0SUBLPDHMDNQ", "DRSDPM", "SUBLPDHMDENQ",
+          "SUBLPDCLHSNQ", "SUBLPDCLHDNQ", "DRSFRMACBS", "HHMSDODNS"]
 # private credit (2026-10-04, user: "What about private credit? ..." -> "Sub-index + panel"): bank loans to nonbank financial
 # institutions as the funding read; the H.8 history (2015 on) is too short for the 2001 weights, so it is a separate sub-index
 # standardised over its own history and stays out of the headline. 2026-10-07: the Call Report breakdown by borrower type
@@ -133,7 +170,8 @@ SUBS = {"corporate": ("Corporate credit", ["baa", "aaa", "gz", "ebp", "cp_nonfin
                                            "sloos_dem", "corp_debt"]),
         "mortgage": ("Mortgages", ["real_mort", "mort_sprd"]),
         "policy": ("Policy rate and yield curve", ["real_ff", "curve", "real10", "tp"]),
-        "markets": ("Markets", ["vix", "usd", "erp", "eq_dd"])}
+        "markets": ("Markets", ["vix", "usd", "erp", "eq_dd"]),
+        "housing": ("Home equity and refinancing", HSUB)}
 # credit events and market-led tightenings the headline must register (admission test): code, name, window start, end
 EPISODES = [("1998", "LTCM and Russia", "1998-08-01", "1998-12-31"), ("2001", "2001 recession", "2000-10-01", "2002-10-31"),
             ("2008", "Global financial crisis", "2008-09-01", "2009-06-30"), ("2020", "Covid shock", "2020-02-15", "2020-06-30"),
@@ -266,7 +304,89 @@ def shiller_monthly(shl):
     return ey.dropna(), dd.dropna()
 
 
-def build_inputs(raw, ebp, shl):
+def splice(*parts):
+    """End-to-end splice of successive question wordings: each part supplies the dates after the previous part's last date."""
+    out = []
+    for s in parts:
+        s = s.dropna()
+        if out:
+            s = s[s.index > out[-1].index[-1]]
+        if len(s):
+            out.append(s)
+    return pd.concat(out).sort_index()
+
+
+def link_breaks(s, thr, name):
+    """Chain-link one-off reclassification jumps (a weekly change beyond thr) out of a level series; logs them."""
+    s = s.sort_index()
+    g = s.pct_change()
+    jumps = g[g.abs() > thr]
+    if len(jumps):
+        print(f"  {name}: {len(jumps)} weekly jumps beyond {thr:.0%} linked out: " + ", ".join(f"{d.date()} {100 * v:+.1f}%" for d, v in jumps.items()), flush=True)
+    g[g.abs() > thr] = 0.0
+    return (1 + g.fillna(0)).cumprod() * s.iloc[0]
+
+
+def _qseries(d):
+    """{quarter_end: value} -> float Series."""
+    return pd.Series({pd.Timestamp(k): float(v) for k, v in (d or {}).items()}, dtype=float).sort_index()
+
+
+def housing_inputs(raw, hs, mort):
+    """Household housing-finance inputs (higher = tighter) as weekly series, plus the descriptive series for the panel."""
+    W, P = {}, {}
+    he = link_breaks(raw["RHEACBW027SBOG"], 0.03, "RHEACBW027SBOG")
+    W["heloc_g"] = -weekly(yoy(he), "last", RELEASE_LAG_D["RHEACBW027SBOG"])
+    mstd = splice(raw["H0SUBLPDHMSNQ"], raw["DRTSPM"], raw["SUBLPDHMSENQ"])
+    mdem = splice(raw["H0SUBLPDHMDNQ"], raw["DRSDPM"], raw["SUBLPDHMDENQ"])
+    W["sloos_mort"] = weekly(mstd, "last", RELEASE_LAG_D["SLOOS"])
+    W["sloos_mdem"] = -weekly(mdem, "last", RELEASE_LAG_D["SLOOS"])
+    W["sloos_heloc"] = weekly(raw["SUBLPDCLHSNQ"], "last", RELEASE_LAG_D["SLOOS"])
+    W["heloc_dem"] = -weekly(raw["SUBLPDCLHDNQ"], "last", RELEASE_LAG_D["SLOOS"])
+    W["del_mort"] = weekly(raw["DRSFRMACBS"], "last", RELEASE_LAG_D["DELINQ"])
+    new = (hs.get("nmdb_new") or {}).get("data", {})
+    out = (hs.get("nmdb_out") or {}).get("data", {})
+    hh = (hs.get("hhdc") or {}).get("data", {})
+    empty = pd.Series(dtype=float)
+    # cash-out refinancing: refinance-market volume ($ million) x the dollar-weighted cash-out share, annualised, over home
+    # mortgage debt at the end of the same quarter (Z.1 stamps the quarter's first day)
+    if new:
+        vol = _qseries(new.get("All Mortgages (Refinance)|TOT_LOANAMT|1")) * _qseries(new.get("All Mortgages (Refinance)|PCT_CASHOUT|2")) / 100.0
+        debt = raw["HHMSDODNS"].copy() / 1000.0; debt.index = debt.index + pd.offsets.QuarterEnd(0)    # $ million -> $ billion
+        assert 1000.0 < debt.iloc[-1] < 50000.0, f"HHMSDODNS units changed ({debt.iloc[-1]:.0f} $ billion?)"
+        ratio = (400.0 * vol / 1000.0 / debt.reindex(vol.index)).dropna()                                  # annualised, %
+        assert ratio.between(0.1, 30.0).all(), "cash-out refinance ratio out of range"
+        W["refi_cash"] = -weekly(ratio, "last", RELEASE_LAG_D["NMDB_NEW"])
+        P["refi_share"] = _qseries(new.get("All Mortgages|PCT_REFI|1"))
+        P["cash_share"] = _qseries(new.get("All Mortgages (Refinance)|PCT_CASHOUT|1"))
+        P["cash_ratio"] = ratio
+        P["orig"] = _qseries(new.get("All Mortgages|TOT_ORIG|1"))
+    else:
+        W["refi_cash"] = empty
+    if out:
+        orate = _qseries(out.get("All Mortgages|AVE_INTRATE|2"))
+        ow = weekly(orate, "last", RELEASE_LAG_D["NMDB_OUT"])
+        ow = ow.reindex(ow.index.union(mort.index)).ffill(limit=CARRY_W["refi_cash"]).reindex(mort.index)
+        W["lockin"] = (mort - ow).dropna()
+        P["out_rate"] = orate
+        P["lt3"] = _qseries(out.get("All Mortgages|PCT_INTRATE_LT_3|2"))
+        P["ge6"] = _qseries(out.get("All Mortgages|PCT_INTRATE_GE_6|2"))
+    else:
+        W["lockin"] = empty
+    if hh:
+        lim = _qseries(hh.get("he_lim"))
+        W["heloc_lim"] = -weekly(yoy(lim), "last", RELEASE_LAG_D["HHDC"])
+        W["del_heloc"] = weekly(_qseries(hh.get("heloc_90")), "last", RELEASE_LAG_D["HHDC"])
+        P["he_lim"], P["he_bal"] = lim, _qseries(hh.get("he_bal"))
+        P["hhdc_report"] = hh.get("report")
+    else:
+        W["heloc_lim"] = W["del_heloc"] = empty
+    P["heloc_h8"] = he
+    P["mort30"] = mort
+    return W, P
+
+
+def build_inputs(raw, ebp, shl, hs=None):
     W = {}
     core = yoy(raw["PCEPILFE"])
     core_w = weekly(core, "last", RELEASE_LAG_D["PCEPILFE"])
@@ -312,14 +432,16 @@ def build_inputs(raw, ebp, shl):
     W["del_ci"] = weekly(raw["DRBLACBS"], "last", RELEASE_LAG_D["DELINQ"])
     W["del_cc"] = weekly(raw["DRCCLACBS"], "last", RELEASE_LAG_D["DELINQ"])
     W["del_cre"] = weekly(raw["DRCRELEXFACBS"], "last", RELEASE_LAG_D["DELINQ"])
+    HW, HP = housing_inputs(raw, hs or {}, mort)
+    W.update(HW)
     X = pd.DataFrame(W)
     # every input carries forward to the latest Friday until its next release, but never further than its own cadence
     # allows (a discontinued series must not freeze into the index): weeks
-    grid = pd.date_range(X.index.min(), max(s.dropna().index.max() for s in W.values()), freq="W-FRI")
+    grid = pd.date_range(X.index.min(), max(s.dropna().index.max() for s in W.values() if len(s.dropna())), freq="W-FRI")
     X = X.reindex(grid)
     for k in X.columns:
         X[k] = X[k].ffill(limit=CARRY_W.get(k, 2))
-    meta = dict(real10_offset=round(off, 3), real10_tips_start=str(t0.date()))
+    meta = dict(real10_offset=round(off, 3), real10_tips_start=str(t0.date()), housing=HP)
     return X[X.index >= pd.Timestamp(SHOW_START)], meta
 
 
@@ -427,22 +549,24 @@ def block_boot_dr(a, b, y, block=52, reps=2000, seed=7):
     return [round(float(np.percentile(out, 2.5)), 3), round(float(np.percentile(out, 97.5)), 3)]
 
 
-def admission(X, bench):
+def admission(X, bench, base=None, cands=None):
     """Greedy forward selection over the candidates with history from before the fit start: at each step the candidate whose
     addition raises (corr with NFCI credit + mean episode-peak percentile) the most, among those that pass the gate (r falls
     by no more than TOL_R, mean peak percentile by no more than TOL_PEAK, no single episode by more than TOL_EP); stop when
     none passes with a non-negative gain. In-sample evidence (the weights are fitted on the same weeks)."""
-    eligible = [c for c in CAND if X[c].dropna().index.min() <= pd.Timestamp(FIT_START)]
-    m0 = evaluate(X, BASE, bench)
+    base = list(BASE if base is None else base)
+    cands = CAND if cands is None else cands
+    eligible = [c for c in cands if len(X[c].dropna()) and X[c].dropna().index.min() <= pd.Timestamp(FIT_START)]
+    m0 = evaluate(X, base, bench)
     single = {}
-    for c in CAND:
+    for c in cands:
         if c not in eligible:
             single[c] = None; continue
-        m = evaluate(X, BASE + [c], bench)
+        m = evaluate(X, base + [c], bench)
         ok, d_r, d_p, worst = _gate(m, m0)
         single[c] = dict(ok=bool(ok), d_r=round(d_r, 3), d_r_nfci=round(m["r_NFCI"] - m0["r_NFCI"], 3), d_peak=round(d_p, 3),
                          worst=round(worst, 3), loading=round(float(m["w"][c]), 3), peaks={e: round(v, 3) for e, v in m["peaks"].items()})
-    cur, mc, path, left = list(BASE), m0, [], list(eligible)
+    cur, mc, path, left = list(base), m0, [], list(eligible)
     while left:
         best = None
         for c in left:
@@ -514,6 +638,23 @@ def private_credit(raw):
     return dict(I=I, Z=Z, sub=sub, ndfi_level=nd_w, ndfi_yoy=-I["pc_ndfi"])
 
 
+def housing_panel(X, HP):
+    """Series for the home equity and refinancing card. Index inputs as entered (dated when public, natural sign); the NMDB
+    and HHDC descriptive series by the quarter they describe."""
+    q = lambda s, nd=2: ser(s.dropna(), nd) if s is not None and len(s.dropna()) else []
+    o = dict(heloc=q(-X["heloc_g"]), he_lim=steps(-X["heloc_lim"], 2),
+             sloos=dict(heloc=steps(X["sloos_heloc"], 1), heloc_dem=steps(-X["heloc_dem"], 1), mort=steps(X["sloos_mort"], 1),
+                        mort_dem=steps(-X["sloos_mdem"], 1), splices=["2007-04-01", "2015-01-01"]),
+             refi=dict(share=q(HP.get("refi_share"), 1), cash_share=q(HP.get("cash_share"), 1), cash_ratio=q(HP.get("cash_ratio"), 2)),
+             lockin=dict(gap=q(X["lockin"]), out_rate=q(HP.get("out_rate"), 1), lt3=q(HP.get("lt3"), 1), ge6=q(HP.get("ge6"), 1)),
+             hhdc_report=HP.get("hhdc_report"))
+    lk = X["lockin"].dropna()
+    if len(lk):
+        m = HP["mort30"].dropna()
+        o["lockin"]["mort"] = q(m[m.index >= lk.index[0] - pd.DateOffset(months=6)])
+    return o
+
+
 def ser(s, nd=3):
     return [[str(d.date()), None if not np.isfinite(v) else round(float(v), nd)] for d, v in s.items()]
 
@@ -555,15 +696,27 @@ def main():
         raw[s] = fetch(s, cache); time.sleep(0.5)
     ebp = fetch_ebp(cache)
     shl = fetch_shiller(cache)
-    X, meta = build_inputs(raw, ebp, shl)
+    try:
+        hs = housing.update(out / "housing_src.json")
+    except Exception as e:                                                   # noqa: BLE001
+        print(f"  ::warning::housing sources failed ({e})", flush=True); hs = {}
+    X, meta = build_inputs(raw, ebp, shl, hs)
+    HP = meta.pop("housing")
     benchw = {k: weekly(raw[k], "last") for k in ("NFCI", "NFCICREDIT")}
 
     # --- admission test (2026-10-07) ---
     m0, single, path, greedy = admission(X, benchw)
-    head = BASE + [k for k in ADMIT if k in CAND]
-    if sorted(greedy) != sorted(head):
+    head1 = BASE + [k for k in ADMIT if k in CAND]
+    if sorted(greedy) != sorted(head1):
         print(f"::warning::admission test now selects {[k for k in greedy if k not in BASE]} but ADMIT = {ADMIT} - review", flush=True)
-    m1 = evaluate(X, head, benchw)
+    m1 = evaluate(X, head1, benchw)
+    # stage 2 (2026-10-07, household housing finance): each candidate added to the current headline
+    h0, hsingle, hpath, hgreedy = admission(X, benchw, head1, HCAND)
+    head = head1 + [k for k in ADMIT_H if k in HCAND]
+    if sorted(hgreedy) != sorted(head):
+        print(f"::warning::housing admission now selects {[k for k in hgreedy if k not in head1]} but ADMIT_H = {ADMIT_H} - review", flush=True)
+    h1 = evaluate(X, head, benchw)
+    X_full = X
     Xh = X[head]
     mu, sd, w, share, scale, nfit = fit_pca(Xh)
     idx, cover, contrib, Zh = index_from(Xh, mu, sd, w, scale)
@@ -609,6 +762,12 @@ def main():
         lab, g, desc = ALL[k]
         grp = "Context: real estate, consumer credit, loan quality (not in the headline)" if k in CONTEXT else g + " (sub-index only, not the headline)"
         inputs.append(input_row(k, lab, grp, desc, X[k], Zall[k]))
+    for k in list(HCAND) + ["del_heloc"]:
+        if k in head:
+            continue
+        lab, g, desc = ALL[k]
+        grp = "Context: housing loan quality (not in the headline)" if k in HCONTEXT else "Home equity and refinancing (sub-index only, not the headline)"
+        inputs.append(input_row(k, lab, grp, desc, X[k], Zall[k]))
     for k, (lab, desc) in LIQ.items():
         inputs.append(input_row(k, lab, "Liquidity (own sub-index, not the headline)", desc, liq["I"][k], liq["Z"][k]))
     pc = private_credit(raw)
@@ -636,7 +795,8 @@ def main():
         equity=dict(erp=ser(X["erp"].dropna(), 2), ey=steps(X["erp"] + X["real10"], 2), dd=steps(X["eq_dd"], 2)),
         rates=dict(real10=ser(X["real10"].dropna(), 2), tp=ser(X["tp"].dropna(), 2), tips_start=meta["real10_tips_start"]),
         liquidity=dict(res=ser(-liq["I"]["liq_res"].dropna(), 2), rrp=ser(-liq["I"]["liq_rrp"].dropna(), 2), repo=ser(liq["I"]["liq_repo"].dropna(), 1)),
-        context={k: ser(X[k].dropna().resample("QS").last().dropna(), 2) for k in CONTEXT},
+        context={k: ser(X[k].dropna().resample("QS").last().dropna(), 2) for k in CONTEXT + HCONTEXT if len(X[k].dropna())},
+        housing=housing_panel(X, HP),
     )
 
     def ev(m):
@@ -644,13 +804,20 @@ def main():
                     peaks={e: round(v, 3) for e, v in m["peaks"].items()}, pc1_share=round(m["share"], 3), weeks=m["weeks"],
                     loadings={k: round(float(v), 3) for k, v in m["w"].items()})
     j = pd.concat([m1["idx"], m0["idx"]], axis=1, sort=True).dropna()
+    j2 = pd.concat([h1["idx"], h0["idx"]], axis=1, sort=True).dropna()
+    adm_h = dict(before=ev(h0), after=ev(h1), admitted=[k for k in head if k not in head1], greedy=[k for k in hgreedy if k not in head1],
+                 path=hpath, single=hsingle, labels={k: ALL[k][0] for k in HCAND}, ineligible=[k for k, v in hsingle.items() if v is None],
+                 context=HCONTEXT, r_old_new=round(float(j2.corr().iloc[0, 1]), 3),
+                 dr_ci=block_boot_dr(h1["idx"], h0["idx"], benchw["NFCICREDIT"]) if head != head1 else None,
+                 single_ci={k: block_boot_dr(evaluate(X_full, head1 + [k], benchw)["idx"], h0["idx"], benchw["NFCICREDIT"])
+                            for k, v in hsingle.items() if v is not None})
     adm = dict(rule=dict(tol_r=TOL_R, tol_peak=TOL_PEAK, tol_episode=TOL_EP),
                episodes=[dict(code=c, name=n, start=s_, end=e_) for c, n, s_, e_ in EPISODES],
-               before=ev(m0), after=ev(m1), admitted=[k for k in head if k not in BASE], greedy=[k for k in greedy if k not in BASE],
+               before=ev(m0), after=ev(m1), admitted=[k for k in head1 if k not in BASE], greedy=[k for k in greedy if k not in BASE],
                path=path, single=single, labels={k: ALL[k][0] for k in CAND},
                ineligible=[k for k, v in single.items() if v is None],
                r_old_new=round(float(j.corr().iloc[0, 1]), 3),
-               dr_ci=block_boot_dr(m1["idx"], m0["idx"], benchw["NFCICREDIT"]) if head != BASE else None)
+               dr_ci=block_boot_dr(m1["idx"], m0["idx"], benchw["NFCICREDIT"]) if head1 != BASE else None, housing=adm_h)
     js = dict(made=pd.Timestamp.now("UTC").strftime("%Y-%m-%dT%H:%MZ"), asof=str(last.date()),
               latest=round(float(idx[last]), 3), pct_rank=round(pct, 3),
               chg_4w=round(float(idx[last] - idx.dropna().iloc[-5]), 3), chg_13w=round(float(idx[last] - idx.dropna().iloc[-14]), 3),
@@ -674,7 +841,17 @@ def main():
     print("  greedy path: " + json.dumps(path))
     print("  ADMIT in code: %s; after: r credit %.3f, r NFCI %.3f, mean peak %.3f, PC1 %.3f; r(old, new index) %.3f; d_r 95%% CI %s" %
           (ADMIT, m1["r_NFCICREDIT"], m1["r_NFCI"], m1["mean_peak"], m1["share"], adm["r_old_new"], adm["dr_ci"]))
-    print("now: " + ", ".join(f"{i['key']} {i['value']} (z {i['z']}, {i['asof']})" for i in inputs if i['key'] in list(CAND) + list(LIQ)))
+    print("HOUSING ADMISSION (stage 2) baseline = current headline: r credit %.3f, r NFCI %.3f, mean peak %.3f, PC1 %.3f, peaks %s" % (h0["r_NFCICREDIT"], h0["r_NFCI"], h0["mean_peak"], h0["share"], {e: round(v, 3) for e, v in h0["peaks"].items()}))
+    for k, v in hsingle.items():
+        print(f"  + {k:11s}: " + ("ineligible (starts after the fit start)" if v is None else
+              f"{'PASS' if v['ok'] else 'fail'} d_r {v['d_r']:+.3f} d_r_nfci {v['d_r_nfci']:+.3f} d_peak {v['d_peak']:+.3f} worst ep {v['worst']:+.3f} loading {v['loading']:+.2f} peaks {v['peaks']} d_r CI {adm_h['single_ci'][k]}"))
+    print("  housing greedy path: " + json.dumps(hpath))
+    print("  ADMIT_H in code: %s; after: r credit %.3f, r NFCI %.3f, mean peak %.3f, PC1 %.3f; r(old, new) %.3f; d_r 95%% CI %s" %
+          (ADMIT_H, h1["r_NFCICREDIT"], h1["r_NFCI"], h1["mean_peak"], h1["share"], adm_h["r_old_new"], adm_h["dr_ci"]))
+    for k in list(HCAND) + ["del_heloc"]:
+        s_ = X[k].dropna()
+        print(f"  housing input {k}: " + ("EMPTY" if not len(s_) else f"{s_.index[0].date()}..{s_.index[-1].date()} n={len(s_)} latest {s_.iloc[-1]:+.3f} (z {Zall[k].dropna().iloc[-1]:+.2f})"))
+    print("now: " + ", ".join(f"{i['key']} {i['value']} (z {i['z']}, {i['asof']})" for i in inputs if i['key'] in list(CAND) + list(LIQ) + list(HCAND)))
     if cr:
         print(f"call report {cr[-1]['quarter']}: {json.dumps(cr[-1])}")
     return 0

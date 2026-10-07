@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>US Credit Conditions Index &middot; Shawn Corvec</title>
-<meta name="description" content="How tight is credit in the US economy right now? A weekly credit conditions index from public data: corporate bond spreads, commercial paper, bank lending and the Senior Loan Officer Survey, mortgage rates, the fed funds rate, the yield curve, stock prices and the dollar, with sub-indices for corporate credit, mortgages, rates, markets, liquidity and private credit.">
+<meta name="description" content="How tight is credit in the US economy right now? A weekly credit conditions index from public data: corporate bond spreads, commercial paper, bank lending and the Senior Loan Officer Survey, mortgage rates, the fed funds rate, the yield curve, stock prices and the dollar, with sub-indices for corporate credit, mortgages, rates, markets, liquidity, private credit, and home equity and refinancing.">
 <link rel="canonical" href="https://scorvec.com/fci.html">
 <meta property="og:type" content="website">
 <meta property="og:title" content="US Credit Conditions Index">
@@ -240,8 +240,9 @@
   <p class="lede">One weekly number for how hard it is to borrow in the US, built from corporate bond spreads, commercial paper,
     bank business lending and the Fed's survey of loan officers, mortgage rates, the fed funds rate, the yield curve, stock-market
     volatility and drawdowns, and the dollar. Zero is
-    the average since 2001; +1 means one standard deviation tighter than that. Six sub-indices beside it show <i>where</i>
-    the tightness is: for companies, for home buyers, in rates and the curve, in markets, in money-market liquidity, or in private credit.</p>
+    the average since 2001; +1 means one standard deviation tighter than that. Seven sub-indices beside it show <i>where</i>
+    the tightness is: for companies, for home buyers, in rates and the curve, in markets, in money-market liquidity, in private
+    credit, or for owners borrowing against their homes (home-equity lines and refinancing).</p>
 
   <div class="tiles" id="tiles"></div>
   <p class="src" id="asof"></p>
@@ -250,7 +251,7 @@
     <h2>Day by day</h2>
     <p class="note" id="daily-note">The headline index recomputed every business day with the same weights: spreads, commercial
       paper, fed funds, the curve, the VIX and the dollar at each day's value; the loan officer survey, bank lending,
-      the weekly mortgage rate and the monthly stock drawdown at their latest release. Bars: what each group contributes (above zero tighter). Daily values are
+      the weekly mortgage rate, the monthly stock drawdown and quarterly cash-out refinancing at their latest release. Bars: what each group contributes (above zero tighter). Daily values are
       noisier than the weekly averages above.</p>
     <div class="seg" id="d-range" role="group" aria-label="Period"></div>
     <div class="chart" id="c-daily"></div>
@@ -324,10 +325,33 @@
     </div>
   </section>
 
+  <section class="card" id="hs-card" hidden>
+    <h2>Home equity and refinancing</h2>
+    <p class="note">How easily households can borrow against their homes. Banks' home-equity lines of credit (HELOCs) and the
+      credit limits on them, what loan officers say about HELOC and mortgage standards and demand, how much refinancing pulls
+      cash out of homes, and the <i>lock-in gap</i>: today's 30-year rate minus the average rate on every outstanding mortgage.
+      When the gap is positive, most owners would refinance into a higher rate, so rate refinancing stops and cash-out
+      refinancing becomes expensive; the cheapest way left to tap home equity is a HELOC. <span id="hs-adm"></span></p>
+    <div class="pc-grid">
+      <div><h3>Home-equity lines, growth, % y/y</h3><div class="chart" id="c-hs-he"></div></div>
+      <div><h3>Banks' standards and demand, net %</h3><div class="chart" id="c-hs-sl"></div></div>
+      <div><h3>Refinancing, by the quarter the loans were made</h3><div class="chart" id="c-hs-rf"></div></div>
+      <div><h3>The mortgage lock-in gap, %</h3><div class="chart" id="c-hs-lk"></div></div>
+    </div>
+    <p class="note" id="hs-note" style="margin-top:0.6rem"></p>
+    <p class="callout">Not used: the Mortgage Bankers Association's refinance index is proprietary; Freddie Mac's cash-out
+      refinance report ended with 2018 (its successor covers only Freddie Mac loans from 2020); outstanding-rate data from
+      ICE are proprietary. The refinancing and outstanding-rate series here come from FHFA's National Mortgage Database, a
+      public 5% sample of all first-lien mortgages, which publishes originations about nine months after the quarter and
+      outstanding rates about three months after.</p>
+  </section>
+
   <section class="card" id="ctx-card" hidden>
     <h2>Context: real estate, consumer credit and loan quality</h2>
     <p class="note">Quarterly series shown for context, by the date each became public. Loan officers' standards for commercial
-      real estate and credit cards (net % of banks tightening), and delinquency rates at commercial banks. <span id="ctx-adm"></span></p>
+      real estate and credit cards (net % of banks tightening), and delinquency rates: business, card, commercial real estate
+      and single-family mortgage loans at commercial banks, and HELOC balances 90+ days late at all lenders (New York Fed
+      Consumer Credit Panel / Equifax). <span id="ctx-adm"></span></p>
     <div class="pc-grid">
       <div><h3>Banks tightening standards, net %</h3><div class="chart" id="c-ctx-s"></div></div>
       <div><h3>Delinquency rates, % of loans</h3><div class="chart" id="c-ctx-d"></div></div>
@@ -370,6 +394,12 @@
     <div class="tblwrap"><table class="adm" id="t-ep"></table></div>
     <h3 style="font:600 1rem var(--sans);margin:1.1rem 0 0.2rem">Weights before and after</h3>
     <div class="tblwrap"><table class="adm" id="t-load"></table></div>
+    <div id="adm2" hidden>
+      <h3 style="font:600 1.08rem var(--sans);margin:1.6rem 0 0.2rem">Second round: home equity and refinancing</h3>
+      <p class="note" id="adm2-note"></p>
+      <div class="tblwrap"><table class="adm" id="t-adm2"></table></div>
+      <div class="tblwrap" style="margin-top:0.8rem"><table class="adm" id="t-ep2"></table></div>
+    </div>
   </section>
 
   <details class="method">
@@ -382,7 +412,8 @@
         middle-market and small firms) and net share reporting stronger demand; the effective fed funds rate and the Freddie
         Mac 30-year mortgage rate, both <i>real</i> (minus core PCE inflation over the past year); the mortgage rate minus the
         10-year Treasury; the 10-year minus 2-year Treasury spread; and the Senior Loan Officer Survey's net share of banks
-        tightening credit-card standards (admitted 2026-10-07, see the test above).</li>
+        tightening credit-card standards (admitted 2026-10-07, see the test above); and cash-out refinance volume as a share of
+        mortgage debt (admitted in the second round, with a weight near zero).</li>
       <li><b>Markets</b>: the VIX (weekly average), the
         year-on-year change in the Fed's broad trade-weighted dollar (spliced to its predecessor before 2006), and how far the
         S&amp;P 500's monthly average price sits below its 12-month high (Shiller's data; admitted 2026-10-07). With them the index
@@ -392,6 +423,16 @@
         (rates). <b>Liquidity</b> sub-index: reserves and overnight reverse repo as shares of bank assets, and SOFR minus the
         rate on reserves, each standardised over its own history (from 2009, 2013 and 2018) and averaged once two of the three
         exist. <b>Context only</b>: commercial real estate standards and business, card and CRE delinquency rates.</li>
+      <li><b>Home equity and refinancing</b> sub-index: the year-on-year growth of banks' revolving home-equity loans (H.8,
+        from 1987; one-off reclassification jumps linked out) and of home-equity credit limits at all lenders (New York Fed
+        Consumer Credit Panel / Equifax, from 2003); the Senior Loan Officer Survey's net shares tightening HELOC standards and
+        reporting stronger HELOC demand (asked since 2008) and the same for residential mortgages (three wordings spliced end to
+        end: all mortgages to early 2007, prime mortgages to 2014, GSE-eligible mortgages since 2015); cash-out refinance
+        volume, annualised, as a share of home mortgage debt (FHFA National Mortgage Database from 1998 and the Fed's Z.1);
+        and the lock-in gap (from 2013). Slower growth, more banks tightening, weaker demand, less cash-out refinancing and a
+        wider gap count as tighter. Each input is standardised over its own history since 2001; the sub-index averages
+        whichever exist (at least four). The inputs with history from before 2001 also went through a second round of the
+        admission test, added to the current headline (table above).</li>
       <li><b>Admission rule</b> for a new input: added to the current inputs and the weights refitted, it must not lower the
         index's correlation with the NFCI credit subindex by more than 0.005, nor the average episode-peak percentile by more
         than 0.5 points, nor any single episode's by more than 2 points; candidates enter one at a time, best first, while one
@@ -409,11 +450,14 @@
         are in the table above.</li>
       <li><b>No hindsight</b>: each input enters a week only once it would have been published (bank loans about 9 days after
         the data week, core PCE about two months after the month, the loan officer survey about 50 days after its quarter
-        date, Z.1 about five months after its quarter, the GZ spread 40 days after its month starts, Shiller's prices a month
+        date, Z.1 about five months after its quarter, the GZ spread 40 days after its month starts, National Mortgage Database
+        originations 275 days and outstanding rates 95 days after the quarter ends, the New York Fed household debt data 50
+        days after the quarter ends, Shiller's prices a month
         and his earnings six months after the month, delinquency rates 150 days after the quarter starts), and is carried
         forward to the next release. Daily series are weekly averages. Before 2001 the index uses the inputs that existed,
         re-weighted (credit-card standards start in 1996). The GZ spread, the term premium and Shiller's earnings are revised
-        after the fact and have no archived vintages, so their history is the latest estimate.</li>
+        after the fact and have no archived vintages, so their history is the latest estimate; so are the National Mortgage
+        Database aggregates (late-reported loans fill in) and the New York Fed household debt series.</li>
       <li><b>Check</b>: the index correlates <span id="m-corr"></span> with the Chicago Fed's NFCI credit subindex since 1990;
         its peaks in each credit event are in the table above.</li>
     </ul>
@@ -431,7 +475,15 @@
     (2016), "Updating the Recession Risk and the Excess Bond Premium," FEDS Notes, Board of Governors of the Federal Reserve
     System (GZ spread and excess bond premium, federalreserve.gov); Robert J. Shiller, U.S. stock market data (ie_data.xls,
     shillerdata.com), S&amp;P composite prices and earnings; FFIEC Central Data Repository's Public Data Distribution, Call
-    Report bulk data, schedule RC-C item 9.a (cdr.ffiec.gov). Not investment advice.</p>
+    Report bulk data, schedule RC-C item 9.a (cdr.ffiec.gov); Federal Housing Finance Agency, National Mortgage Database
+    (NMDB®) aggregate statistics, new and outstanding residential mortgage statistics (fhfa.gov); Federal Reserve Bank of New
+    York, Quarterly Report on Household Debt and Credit, source New York Fed Consumer Credit Panel / Equifax: home-equity
+    revolving balances and limits and HELOC delinquency, shown here as growth rates and standardised scores (modified from
+    the original). © 2026 Federal Reserve Bank of New York. Content from the New York Fed subject to the Terms of Use at
+    newyorkfed.org. FRED: revolving home-equity loans (RHEACBW027SBOG), Senior Loan Officer Survey HELOC and residential
+    mortgage standards and demand (SUBLPDCLHSNQ, SUBLPDCLHDNQ, H0SUBLPDHMSNQ, DRTSPM, SUBLPDHMSENQ, H0SUBLPDHMDNQ, DRSDPM,
+    SUBLPDHMDENQ), single-family mortgage delinquency (DRSFRMACBS) and household home mortgages (HHMSDODNS), Board of
+    Governors of the Federal Reserve System. Not investment advice.</p>
 </main>
 <script>
 (function () {
@@ -448,9 +500,14 @@
     gz: [1, "pt", 2], ebp: [1, "pt", 2], erp: [1, "pt", 2], eq_dd: [1, "%", 1], real10: [1, "%", 2], tp: [1, "pt", 2],
     sloos_cre: [1, "% net", 1], sloos_cc: [1, "% net", 1], del_ci: [1, "%", 2], del_cc: [1, "%", 2], del_cre: [1, "%", 2],
     liq_res: [-1, "% of bank assets", 1, "Bank reserves, share of bank assets"], liq_rrp: [-1, "% of bank assets", 2, "Overnight reverse repo, share of bank assets"],
-    liq_repo: [1, "bp", 1, "SOFR minus the rate on reserves"]
+    liq_repo: [1, "bp", 1, "SOFR minus the rate on reserves"],
+    heloc_g: [-1, "% y/y", 1, "Bank home-equity lines, growth"], heloc_lim: [-1, "% y/y", 1, "Home-equity credit limits, growth"],
+    sloos_heloc: [1, "% net", 1], heloc_dem: [-1, "% net", 1, "Home-equity line demand (net % stronger)"],
+    sloos_mort: [1, "% net", 1], sloos_mdem: [-1, "% net", 1, "Residential mortgage demand (net % stronger)"],
+    refi_cash: [-1, "% of mortgage debt", 2, "Cash-out refinancing, annualised share of mortgage debt"], lockin: [1, "pt", 2],
+    del_mort: [1, "%", 2], del_heloc: [1, "%", 2]
   };
-  var SUBK = ["corporate", "mortgage", "policy", "markets", "liquidity", "private"];
+  var SUBK = ["corporate", "mortgage", "housing", "policy", "markets", "liquidity", "private"];
   var bust = "?v=" + new Date().toISOString().slice(0, 13).replace(/\D/g, "");
   function fmt(v, d) { return (v > 0 ? "+" : v < 0 ? "−" : "") + Math.abs(v).toFixed(d === undefined ? 2 : d); }
   function word(z) { var a = Math.abs(z); return a < 0.25 ? "about average" : (a < 0.75 ? "a little " : a < 1.5 ? "" : "much ") + (z > 0 ? "tighter than average" : "looser than average"); }
@@ -494,14 +551,14 @@
       ], L({ shapes: shapes, xaxis: { gridcolor: "#eee", range: y ? [startFor(d, y), d.asof] : null } }), CFG);
     });
     // sub-indices
-    var SC = { corporate: "#1f5fa8", mortgage: "#c2394b", policy: "#23874f", markets: "#d97a0b", liquidity: "#0f7f86", "private": "#7b3fa0" };
+    var SC = { corporate: "#1f5fa8", mortgage: "#c2394b", housing: "#8c5a2b", policy: "#23874f", markets: "#d97a0b", liquidity: "#0f7f86", "private": "#7b3fa0" };
     ranges("s-range", [[0, "Since 1990"], [10, "10 years"], [5, "5 years"], [2, "2 years"]], 5, function (y) {
       var tr = SUBK.filter(function (k) { return d.subs[k]; }).map(function (k) { var s = xy(d.subs[k].series);
         return { x: s.x, y: s.y, name: d.subs[k].label, line: { color: SC[k], width: 2 }, hovertemplate: "%{y:+.2f}<extra>" + d.subs[k].label + "</extra>" }; });
       Plotly.react("c-subs", tr, L({ shapes: shapes, xaxis: { gridcolor: "#eee", range: y ? [startFor(d, y), d.asof] : null } }), CFG);
     });
     // contributions, last 5 years
-    var GC = { "Corporate bonds": "#1f5fa8", "Corporate short-term funding": "#5aa0d8", "Bank lending": "#23874f", "Policy and rates": "#9a6fb0", "Mortgages": "#c2394b", "Markets": "#d97a0b" };
+    var GC = { "Corporate bonds": "#1f5fa8", "Corporate short-term funding": "#5aa0d8", "Bank lending": "#23874f", "Policy and rates": "#9a6fb0", "Mortgages": "#c2394b", "Markets": "#d97a0b", "Household housing finance": "#8c5a2b" };
     var t0 = startFor(d, 5), tr = Object.keys(d.contrib).map(function (g) {
       var s = d.contrib[g].filter(function (r) { return r[0] >= t0; });
       return { type: "bar", x: s.map(function (r) { return r[0]; }), y: s.map(function (r) { return r[1]; }), name: g, marker: { color: GC[g] || "#999" }, hovertemplate: "%{y:+.2f}<extra>" + g + "</extra>" };
@@ -530,7 +587,7 @@
     var dy = d.daily;
     if (dy) {
       document.getElementById("daily-card").hidden = false;
-      var GCd = { "Corporate bonds": "#1f5fa8", "Corporate short-term funding": "#5aa0d8", "Bank lending": "#23874f", "Policy and rates": "#9a6fb0", "Mortgages": "#c2394b", "Markets": "#d97a0b" };
+      var GCd = GC;
       document.getElementById("daily-note").insertAdjacentHTML("afterbegin", "<b>" + dy.asof + ": " + fmt(dy.latest) + " sd</b>" +
         (dy.chg_5d !== null ? " (" + (dy.chg_5d >= 0 ? "tighter" : "looser") + " by " + Math.abs(dy.chg_5d).toFixed(2) + " over 5 business days, " +
          (dy.chg_21d >= 0 ? "tighter" : "looser") + " by " + Math.abs(dy.chg_21d).toFixed(2) + " over a month). " : ". "));
@@ -578,15 +635,57 @@
         L({ shapes: shapes, showlegend: false, xaxis: { gridcolor: "#eee", range: [P.liquidity.repo[0][0], d.asof] }, yaxis: yax("bp") }), CFG);
     }
     var A = d.admission || null;
+    var H = P.housing;
+    if (H && H.heloc && H.heloc.length) {
+      document.getElementById("hs-card").hidden = false;
+      var x0 = "2000-01-01";
+      Plotly.react("c-hs-he", [ln(H.heloc, "Banks' HELOCs (H.8)", "#8c5a2b", { line: { color: "#8c5a2b", width: 1.8 }, hovertemplate: "%{y:+.1f}%<extra>bank HELOCs</extra>" }),
+        stepln(H.he_lim, "HE credit limits, all lenders", "#1f5fa8", 1.8)],
+        L({ shapes: shapes, legend: { orientation: "h", y: -0.16, x: 0 }, xaxis: { gridcolor: "#eee", range: [x0, d.asof] }, yaxis: yax("% y/y") }), CFG);
+      var S = H.sloos, vl = (S.splices || []).map(function (s) { return { type: "line", xref: "x", yref: "paper", x0: s, x1: s, y0: 0, y1: 1, line: { color: "#999", width: 1, dash: "dot" } }; });
+      Plotly.react("c-hs-sl", [stepln(S.mort, "Mortgage standards (tightening)", "#c2394b", 2), stepln(S.mort_dem, "Mortgage demand (stronger)", "#c2394b", 1.2),
+        stepln(S.heloc, "HELOC standards (tightening)", "#8c5a2b", 2), stepln(S.heloc_dem, "HELOC demand (stronger)", "#8c5a2b", 1.2)].map(function (tr, i) { if (i % 2) tr.line.dash = "dot"; return tr; }),
+        L({ shapes: shapes.concat(vl), legend: { orientation: "h", y: -0.16, x: 0 }, xaxis: { gridcolor: "#eee", range: [x0, d.asof] }, yaxis: yax("net %") }), CFG);
+      var R = H.refi;
+      if (R.share.length) Plotly.react("c-hs-rf", [ln(R.share, "Refinances, % of all new mortgages", "#23874f", { line: { color: "#23874f", width: 1.8 }, hovertemplate: "%{y:.1f}%<extra>refinance share</extra>" }),
+        ln(R.cash_share, "Cash-out, % of refinances", "#d97a0b", { line: { color: "#d97a0b", width: 1.6 }, hovertemplate: "%{y:.1f}%<extra>cash-out share</extra>" }),
+        ln(R.cash_ratio, "Cash-out loans, % of debt a year (right)", "#8c5a2b", { yaxis: "y2", line: { color: "#8c5a2b", width: 2.2 }, hovertemplate: "%{y:.2f}%<extra>cash-out volume</extra>" })],
+        L({ shapes: shapes, margin: { l: 52, r: 52, t: 10, b: 40 }, legend: { orientation: "h", y: -0.16, x: 0 }, xaxis: { gridcolor: "#eee", range: [x0, d.asof] }, yaxis: yax("%"),
+            yaxis2: { overlaying: "y", side: "right", showgrid: false, zeroline: false, rangemode: "tozero", title: { text: "% of debt" } } }), CFG);
+      var K = H.lockin;
+      if (K.gap.length) {
+        Plotly.react("c-hs-lk", [ln(K.mort, "30-year fixed rate (Freddie Mac)", "#1c1c1a", { line: { color: "#1c1c1a", width: 1.3 } }),
+          stepln(K.out_rate, "Rate on outstanding loans (FHFA)", "#1f5fa8", 2),
+          ln(K.gap, "Lock-in gap", "#b4321f", { line: { color: "#b4321f", width: 2.2 }, fill: "tozeroy", fillcolor: "rgba(180,50,31,0.12)", hovertemplate: "%{y:+.2f} pt<extra>lock-in gap</extra>" })],
+          L({ shapes: shapes, legend: { orientation: "h", y: -0.16, x: 0 }, xaxis: { gridcolor: "#eee", range: [K.mort[0][0], d.asof] }, yaxis: yax("%") }), CFG);
+      }
+      var last = function (a) { return a && a.length ? a[a.length - 1] : null; }, g = last(K.gap), o = last(K.out_rate), l3 = last(K.lt3), g6 = last(K.ge6), cr = last(R.cash_ratio), rs = last(R.share), hh = last(H.heloc), hl = last(H.he_lim);
+      var qq = function (s) { var m = +s.slice(5, 7); return s.slice(0, 4) + "Q" + Math.ceil(m / 3); };
+      document.getElementById("hs-note").innerHTML = "Latest: banks' home-equity lines " + (hh ? fmt(hh[1], 1) + "% on the year (" + hh[0] + ")" : "–") +
+        (hl ? "; home-equity credit limits at all lenders " + fmt(hl[1], 1) + "% (New York Fed, " + (H.hhdc_report || "") + " report)" : "") +
+        (g ? ". Lock-in gap " + fmt(g[1]) + " points (" + g[0] + "): the outstanding average rate was " + o[1].toFixed(1) + "% in " + qq(o[0]) +
+          (l3 && g6 ? ", with " + Math.round(l3[1]) + "% of balances below 3% and " + Math.round(g6[1]) + "% at 6% or more" : "") : "") +
+        (cr ? ". Cash-out refinancing in " + qq(cr[0]) + " ran at " + cr[1].toFixed(2) + "% of mortgage debt a year (the whole new loans, not only the cash taken out), and refinances were " + Math.round(rs[1]) + "% of new mortgages" : "") +
+        ". The mortgage survey questions changed wording in 2007 and 2015 (dotted lines); the three wordings are joined end to end.";
+      var A2h = A && A.housing;
+      if (A2h) document.getElementById("hs-adm").textContent = A2h.admitted.length ? A2h.admitted.map(function (k) { return A2h.labels[k] + " (weight " + fmt(A2h.after.loadings[k]) + ")"; }).join(" and ") +
+        " passed the admission test and " + (A2h.admitted.length > 1 ? "are" : "is") + " in the headline" + (A2h.admitted.every(function (k) { return Math.abs(A2h.after.loadings[k]) < 0.1; }) ? ", though with almost no weight: it moves independently of the credit cycle the headline tracks" : "") +
+        "; the others feed this sub-index only." :
+        "None of these passed the admission test (below), so they feed this sub-index only, not the headline.";
+    }
     if (P.context) {
       document.getElementById("ctx-card").hidden = false;
       var C = P.context;
       Plotly.react("c-ctx-s", [stepln(C.sloos_cre, "Commercial real estate", "#c2394b"), stepln(C.sloos_cc, "Credit cards", "#1f5fa8")],
         L({ shapes: shapes, yaxis: yax("net % tightening") }), CFG);
-      Plotly.react("c-ctx-d", [stepln(C.del_ci, "Business loans", "#1f5fa8"), stepln(C.del_cc, "Credit cards", "#d97a0b"), stepln(C.del_cre, "Commercial real estate", "#c2394b")],
-        L({ shapes: shapes, yaxis: yax("%") }), CFG);
+      var dl = [stepln(C.del_ci, "Business loans", "#1f5fa8"), stepln(C.del_cc, "Credit cards", "#d97a0b"), stepln(C.del_cre, "Commercial real estate", "#c2394b")];
+      if (C.del_mort) dl.push(stepln(C.del_mort, "Single-family mortgages", "#8c5a2b"));
+      if (C.del_heloc) dl.push(stepln(C.del_heloc, "HELOCs, 90+ days (all lenders)", "#6f6b64", 1.6));
+      Plotly.react("c-ctx-d", dl, L({ shapes: shapes, yaxis: yax("%") }), CFG);
       if (A) {
-        var inn = ["sloos_cre", "sloos_cc", "del_ci", "del_cc", "del_cre"].filter(function (k) { return A.admitted.indexOf(k) >= 0; }).map(function (k) { return A.labels[k].toLowerCase(); });
+        var A2 = A.housing || { admitted: [], labels: {} };
+        var inn = ["sloos_cre", "sloos_cc", "del_ci", "del_cc", "del_cre"].filter(function (k) { return A.admitted.indexOf(k) >= 0; }).map(function (k) { return A.labels[k].toLowerCase(); })
+          .concat(A2.admitted.indexOf("del_mort") >= 0 ? [A2.labels.del_mort.toLowerCase()] : []);
         document.getElementById("ctx-adm").textContent = " Delinquencies lag the credit cycle. Of these, " + (inn.length ? inn.join(" and ") + " passed the admission test below and " + (inn.length > 1 ? "are" : "is") + " in the headline; the rest failed it." : "none passed the admission test below.");
       }
     }
@@ -619,6 +718,32 @@
       var lab = {}; d.inputs.forEach(function (i) { lab[i.key] = SHOW[i.key] && SHOW[i.key][3] ? SHOW[i.key][3] : i.label; });
       lk.forEach(function (k) { lr += "<tr" + (B.loadings[k] === undefined ? " class='in'" : "") + "><td>" + (lab[k] || k) + "</td><td>" + (B.loadings[k] === undefined ? "–" : fmt(B.loadings[k])) + "</td><td>" + fmt(F.loadings[k]) + "</td></tr>"; });
       document.getElementById("t-load").innerHTML = lr;
+      var A2 = A.housing;
+      if (A2) {
+        document.getElementById("adm2").hidden = false;
+        var B2 = A2.before, F2 = A2.after, ci2 = A2.dr_ci, sig2 = ci2 && (ci2[0] > 0 || ci2[1] < 0);
+        document.getElementById("adm2-note").innerHTML = "The household housing-finance inputs, tested the same way but each added to the current " + Object.keys(B2.loadings).length +
+          "-input headline. Only inputs with data from before 2001 can compete (" + A2.ineligible.map(function (k) { return A2.labels[k].toLowerCase(); }).join("; ") + " start too late). " +
+          "Admitted: <b>" + (A2.admitted.length ? A2.admitted.map(function (k) { return A2.labels[k]; }).join("</b>, then <b>") : "none") + "</b>. " +
+          (A2.admitted.length ? "Correlation with NFCI credit " + B2.r_credit.toFixed(3) + " → " + F2.r_credit.toFixed(3) + "; average episode-peak percentile " + (100 * B2.mean_peak).toFixed(1) + " → " + (100 * F2.mean_peak).toFixed(1) +
+            "; the new and old index correlate " + A2.r_old_new.toFixed(3) + ". " + (ci2 ? "The correlation change is " + (sig2 ? "statistically significant" : "<b>not statistically significant</b>") + " (95% block-bootstrap interval " + fmt(ci2[0], 3) + " to " + fmt(ci2[1], 3) + "). " : "") : "") +
+          "The last column is the 95% block-bootstrap interval for each candidate's change in correlation on its own; in-sample, as above.";
+        var rows2 = "<tr><th>Candidate (added alone)</th><th>Change in r, NFCI credit</th><th>95% interval</th><th>Change in r, NFCI</th><th>Average peak, pts</th><th>Worst episode, pts</th><th>Weight</th><th style='text-align:left'>Verdict</th></tr>";
+        Object.keys(A2.labels).forEach(function (k) {
+          var v = A2.single[k], adm = A2.admitted.indexOf(k) >= 0, c = (A2.single_ci || {})[k];
+          var verdict = adm ? "In the headline" : v === null ? "Starts too late: sub-index only" : ((A2.context || []).indexOf(k) >= 0 ? "Context only" : "Sub-index only");
+          rows2 += "<tr" + (adm ? " class='in'" : "") + "><td>" + A2.labels[k] + "</td>" + (v === null ? "<td colspan='6'>–</td>" :
+            "<td>" + fmt(v.d_r, 3) + "</td><td>" + (c ? fmt(c[0], 3) + " to " + fmt(c[1], 3) : "–") + "</td><td>" + fmt(v.d_r_nfci, 3) + "</td><td>" + pp(v.d_peak) + "</td><td>" + pp(v.worst) + "</td><td>" + fmt(v.loading) + "</td>") +
+            "<td class='v'>" + verdict + "</td></tr>";
+        });
+        document.getElementById("t-adm2").innerHTML = rows2;
+        var er2 = "<tr><th>Episode peak percentile</th>" + A.episodes.map(function (e) { return "<th title='" + e.start + " to " + e.end + "'>" + e.name + "</th>"; }).join("") + "</tr>";
+        var ER = [["Current headline (" + Object.keys(B2.loadings).length + " inputs)", B2.peaks]];
+        if (A2.admitted.length) ER.push(["With the admitted (" + Object.keys(F2.loadings).length + " inputs)", F2.peaks]);
+        Object.keys(A2.single).forEach(function (k) { var v = A2.single[k]; if (v && A2.admitted.indexOf(k) < 0) ER.push(["+ " + A2.labels[k].toLowerCase(), v.peaks]); });
+        ER.forEach(function (r) { er2 += "<tr><td>" + r[0] + "</td>" + A.episodes.map(function (e) { return "<td>" + Math.round(100 * r[1][e.code]) + "</td>"; }).join("") + "</tr>"; });
+        document.getElementById("t-ep2").innerHTML = er2;
+      }
     }
     var pv = d["private"];
     if (pv) {
