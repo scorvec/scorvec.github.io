@@ -93,8 +93,13 @@ CAND = {
     "del_cre":   ("Commercial real estate delinquency rate", "Bank lending", "delinquency rate on CRE loans excluding farmland, all commercial banks (DRCRELEXFACBS); entered 150 days after the quarter starts"),
 }
 CONTEXT = ["sloos_cre", "sloos_cc", "del_ci", "del_cc", "del_cre"]          # shown as context unless admitted
-# ADMITTED on the evidence of the 2026-10-07 admission test (see admission()); the build re-checks it every run
-ADMIT: list[str] = []
+# ADMITTED on the evidence of the 2026-10-07 admission test (see admission(); run 37687348415): against the 16-input base
+# (r NFCI credit 0.770, mean episode-peak percentile 0.855) the greedy path added the credit-card standards (r +0.016,
+# peaks +0.2 pp) and then the S&P 500 drawdown (r +0.008, peaks +1.0 pp). Every other candidate failed the gate: the GZ
+# spread, ERP, term premium and the three delinquency rates lower r and the episode peaks; CRE standards raise r (+0.044)
+# but drop the 1998 peak 2.3 pp; the TIPS yield drops 2018 and 2022; the EBP passes alone but not after the two above.
+# The build re-checks this every run and warns when the evidence moves.
+ADMIT: list[str] = ["sloos_cc", "eq_dd"]
 # liquidity (2026-10-07): histories start 2009 (ample reserves), 2013 (ON RRP facility) and 2018 (SOFR) - far too short for the
 # 2001 weights, so a separate sub-index standardised over its own history, like private credit; not a headline candidate
 LIQ = {
@@ -335,9 +340,9 @@ def liquidity(raw, grid):
     floor = pd.concat([raw["IOER"][raw["IOER"].index < raw["IORB"].index[0]], raw["IORB"]]).sort_index()
     sofr = raw["SOFR"]
     spread = (100.0 * (sofr - floor.reindex(floor.index.union(sofr.index)).ffill().reindex(sofr.index))).dropna()
-    bad = spread.abs() > 300
+    bad = spread.abs() > 1000                                              # a units error, not stress (17 Sep 2019 was +315 bp, kept)
     if bad.any():
-        print(f"  ::warning::SOFR-IORB beyond 300 bp on {int(bad.sum())} days (dropped)", flush=True)
+        print(f"  ::warning::SOFR-IORB beyond 1000 bp on {int(bad.sum())} days (dropped)", flush=True)
         spread = spread[~bad]
     rep = weekly(spread, "mean", RELEASE_LAG_D["SOFR"])
     assert res_sh.dropna().between(0, 60).all() and rrp_sh.dropna().between(0, 60).all(), "liquidity shares out of range"
@@ -391,7 +396,7 @@ def evaluate(X, keys, bench):
     idx = idx[cover >= 0.5].dropna()
     out = dict(keys=list(keys), w=w, share=float(share[0]), idx=idx, weeks=int(n))
     for b, v in bench.items():
-        j = pd.concat([idx, v], axis=1).dropna()
+        j = pd.concat([idx, v], axis=1, sort=True).dropna()
         out["r_" + b] = float(j.corr().iloc[0, 1])
     pk = {}
     for code, _, a, z in EPISODES:
@@ -412,7 +417,7 @@ def _gate(m, ref):
 
 def block_boot_dr(a, b, y, block=52, reps=2000, seed=7):
     """95 % moving-block bootstrap interval for corr(a, y) - corr(b, y) on aligned weekly series (52-week blocks)."""
-    j = pd.concat([a, b, y], axis=1).dropna().values
+    j = pd.concat([a, b, y], axis=1, sort=True).dropna().values
     n = len(j); rng = np.random.default_rng(seed); nb = int(np.ceil(n / block)); out = []
     for _ in range(reps):
         st = rng.integers(0, n - block + 1, nb)
@@ -513,6 +518,13 @@ def ser(s, nd=3):
     return [[str(d.date()), None if not np.isfinite(v) else round(float(v), nd)] for d, v in s.items()]
 
 
+def steps(s, nd=3):
+    """A carried-forward (monthly/quarterly) weekly series as its change points only: plotted as a step line."""
+    s = s.dropna().round(nd)
+    s = s[s.ne(s.shift())]
+    return ser(s, nd)
+
+
 def sub_entry(label, keys, v):
     vv = v.dropna()
     return dict(label=label, inputs=keys, latest=round(float(vv.iloc[-1]), 3), pct_rank=round(float((vv <= vv.iloc[-1]).mean()), 3),
@@ -563,7 +575,7 @@ def main():
     for k in head:
         Zall[k] = Zh[k]
     bench = {k: v.reindex(idx.index) for k, v in benchw.items()}
-    corr = {k: round(float(pd.concat([idx, v], axis=1).dropna().corr().iloc[0, 1]), 3) for k, v in bench.items()}
+    corr = {k: round(float(pd.concat([idx, v], axis=1, sort=True).dropna().corr().iloc[0, 1]), 3) for k, v in bench.items()}
     pct = float((idx.dropna() <= idx[last]).mean())
     subs = {}
     for sk, (slab, keys) in SUBS.items():
@@ -619,8 +631,8 @@ def main():
         privp["callreport"] = cr
     # panels for the new charts (values as entered in the index: dated when they became public)
     panels = dict(
-        spreads={k: ser(X[k].dropna(), 3) for k in ("baa", "gz", "ebp")},
-        equity=dict(erp=ser(X["erp"].dropna(), 2), ey=ser((X["erp"] + X["real10"]).dropna(), 2), dd=ser(X["eq_dd"].dropna(), 2)),
+        spreads=dict(baa=ser(X["baa"].dropna(), 3), gz=steps(X["gz"]), ebp=steps(X["ebp"])),
+        equity=dict(erp=ser(X["erp"].dropna(), 2), ey=steps(X["erp"] + X["real10"], 2), dd=steps(X["eq_dd"], 2)),
         rates=dict(real10=ser(X["real10"].dropna(), 2), tp=ser(X["tp"].dropna(), 2), tips_start=meta["real10_tips_start"]),
         liquidity=dict(res=ser(-liq["I"]["liq_res"].dropna(), 2), rrp=ser(-liq["I"]["liq_rrp"].dropna(), 2), repo=ser(liq["I"]["liq_repo"].dropna(), 1)),
         context={k: ser(X[k].dropna().resample("QS").last().dropna(), 2) for k in CONTEXT},
@@ -630,7 +642,7 @@ def main():
         return dict(r_credit=round(m["r_NFCICREDIT"], 3), r_nfci=round(m["r_NFCI"], 3), mean_peak=round(m["mean_peak"], 3),
                     peaks={e: round(v, 3) for e, v in m["peaks"].items()}, pc1_share=round(m["share"], 3), weeks=m["weeks"],
                     loadings={k: round(float(v), 3) for k, v in m["w"].items()})
-    j = pd.concat([m1["idx"], m0["idx"]], axis=1).dropna()
+    j = pd.concat([m1["idx"], m0["idx"]], axis=1, sort=True).dropna()
     adm = dict(rule=dict(tol_r=TOL_R, tol_peak=TOL_PEAK, tol_episode=TOL_EP),
                episodes=[dict(code=c, name=n, start=s_, end=e_) for c, n, s_, e_ in EPISODES],
                before=ev(m0), after=ev(m1), admitted=[k for k in head if k not in BASE], greedy=[k for k in greedy if k not in BASE],
@@ -638,7 +650,7 @@ def main():
                ineligible=[k for k, v in single.items() if v is None],
                r_old_new=round(float(j.corr().iloc[0, 1]), 3),
                dr_ci=block_boot_dr(m1["idx"], m0["idx"], benchw["NFCICREDIT"]) if head != BASE else None)
-    js = dict(made=pd.Timestamp.utcnow().strftime("%Y-%m-%dT%H:%MZ"), asof=str(last.date()),
+    js = dict(made=pd.Timestamp.now("UTC").strftime("%Y-%m-%dT%H:%MZ"), asof=str(last.date()),
               latest=round(float(idx[last]), 3), pct_rank=round(pct, 3),
               chg_4w=round(float(idx[last] - idx.dropna().iloc[-5]), 3), chg_13w=round(float(idx[last] - idx.dropna().iloc[-14]), 3),
               chg_52w=round(float(idx[last] - idx.dropna().iloc[-53]), 3),
