@@ -497,7 +497,7 @@
     <p>Click or tap any airport (or one of a few city centres such as New York Central Park) for a meteogram from every model's newest run, every forecast hour: temperature and dewpoint, 10&nbsp;m wind and gusts and 80&nbsp;m wind with barbs, ceiling and visibility against the flight-category bands, simulated radar and precipitation type, hourly and accumulated precipitation by type, ECAPE and CAPE (HRRR), smoke, sunshine and sea-level pressure, with a line at the current time. The values are read from the model grids when the run is processed: bilinear between the four nearest grid points for smooth fields, the nearest point for ceiling, visibility, reflectivity, precipitation type and CAPE.</p>
     <p>&ldquo;Minus RRFS&rdquo; / &ldquo;Minus HRRR&rdquo; subtracts the other 3&nbsp;km model at the same valid time; the HRRR and RRFS share an identical grid, so the difference is cell by cell (temperature, dewpoint, 10&nbsp;m and 80&nbsp;m wind speed, gusts, IR and shortwave).</p>
     <h2>How the page works</h2>
-    <p>Nothing on this page is a picture. Each field and hour is shipped as the model's own numbers, rounded to 256 levels (0.625&nbsp;K for infrared, 0.5&nbsp;&deg;F for temperature and dewpoint, 0.4&nbsp;m/s for wind, 0.25&nbsp;m/s for gusts, 0.5&nbsp;hPa for sea-level pressure, 5&nbsp;W&nbsp;m<sup>&minus;2</sup> for shortwave, 2&ndash;3&nbsp;% steps on logarithmic scales for ceiling, visibility and smoke, and a square-root scale for ECAPE and CAPE: within &plusmn;4&nbsp;J/kg at 100, &plusmn;11 at 1,000 and &plusmn;20 at 3,000) on the native model grid, and your browser colours, projects, contours and reads it: zooming shows the model's grid cells, and the hover value is the stored one, within those steps. Maps are drawn on the HRRR's Lambert conformal projection for all three models, so switching model keeps the view. Contours (every 10&nbsp;&deg;F with the freezing line in blue; dewpoint every 10&nbsp;&deg;F with 60 and 70 emphasised; 80&nbsp;m wind 10/15/20&nbsp;m/s; 10&nbsp;m wind 20/30/40&nbsp;kt; gusts 30/40/50&nbsp;kt; isobars every 2&nbsp;hPa on the radar and pressure maps) are traced in your browser from the same numbers after a light smoothing, so they show the pattern, not every 3&nbsp;km wiggle. Boundaries: Natural Earth; US states and counties: US Census via us-atlas.</p>
+    <p>Nothing on this page is a picture. Each field and hour is shipped as the model's own numbers, rounded to 256 levels (0.625&nbsp;K for infrared, 0.5&nbsp;&deg;F for temperature and dewpoint, 0.4&nbsp;m/s for wind, 0.25&nbsp;m/s for gusts, 0.5&nbsp;hPa for sea-level pressure, 5&nbsp;W&nbsp;m<sup>&minus;2</sup> for shortwave, 2&ndash;3&nbsp;% steps on logarithmic scales for ceiling, visibility and smoke, and a square-root scale for ECAPE and CAPE: within &plusmn;4&nbsp;J/kg at 100, &plusmn;11 at 1,000 and &plusmn;20 at 3,000) on the native model grid, and your browser colours, projects, contours and reads it: zooming shows the model's grid cells, and the hover value is the stored one, within those steps. Maps are drawn on the HRRR's Lambert conformal projection for all three models, so switching model keeps the view. Contours (every 10&nbsp;&deg;F with the freezing line in blue; dewpoint every 10&nbsp;&deg;F with 60 and 70 emphasised; 80&nbsp;m wind 10/15/20&nbsp;m/s; 10&nbsp;m wind 20/30/40&nbsp;kt; gusts 30/40/50&nbsp;kt; isobars every 2&nbsp;hPa, 4&nbsp;hPa zoomed out, on the radar, pressure, 10&nbsp;m wind and gust maps) are drawn by your graphics card in the same pass as the colours, from the same numbers after a light smoothing (to about 6&nbsp;km on the 3&nbsp;km grids), so they show the pattern, not every 3&nbsp;km wiggle, and move with the map; their labels and the highs and lows are placed once the map is at rest. Boundaries: Natural Earth; US states and counties: US Census via us-atlas.</p>
     <p>Related: <a href="/ecape.html">entraining CAPE from the HRRR</a> and <a href="/snowbands.html">snow-band diagnostics from the HRRR, RRFS and RDPS</a>. Data: NOAA HRRR and RRFS (AWS open data; NOMADS for the RRFS), ECCC RDPS and RAQDPS-FireWork (MSC Datamart). Model output as published, uncorrected.</p>
   </details>
 </main>
@@ -896,6 +896,7 @@
         var c = new OffscreenCanvas(b.width, b.height), g = c.getContext("2d", { willReadFrequently: true }); g.drawImage(b, 0, 0);
         var px = g.getImageData(0, 0, b.width, b.height).data, n = b.width * b.height, o = new Uint8Array(n * d.ch), k;
         if (d.ch === 1) for (k = 0; k < n; k++) o[k] = px[4 * k];
+        else if (d.ch === 3) for (k = 0; k < n; k++) { o[3 * k] = px[4 * k]; o[3 * k + 1] = px[4 * k + 1]; o[3 * k + 2] = px[4 * k + 2]; }
         else for (k = 0; k < n; k++) { o[2 * k] = px[4 * k]; o[2 * k + 1] = px[4 * k + 1]; }
         self.postMessage({ id: d.id, w: b.width, h: b.height, data: o }, [o.buffer]);
       });
@@ -1134,6 +1135,7 @@
       var g = c.getContext("2d", { willReadFrequently: true }); g.drawImage(b, 0, 0);
       var px = g.getImageData(0, 0, b.width, b.height).data, n = b.width * b.height, o = new Uint8Array(n * ch);
       if (ch === 1) for (var k = 0; k < n; k++) o[k] = px[4 * k];
+      else if (ch === 3) for (var k3 = 0; k3 < n; k3++) { o[3 * k3] = px[4 * k3]; o[3 * k3 + 1] = px[4 * k3 + 1]; o[3 * k3 + 2] = px[4 * k3 + 2]; }
       else for (var k2 = 0; k2 < n; k2++) { o[2 * k2] = px[4 * k2]; o[2 * k2 + 1] = px[4 * k2 + 1]; }
       return { w: b.width, h: b.height, data: o };
     });
@@ -1214,7 +1216,7 @@
   function trimBytes() {
     if (frames.size <= BYTES_MAX) return;
     var arr = Array.from(frames.entries()).filter(function (x) { return x[1].bytes; }).sort(function (a, b) { return a[1].used - b[1].used; });
-    for (var i = 0; i < arr.length - BYTES_MAX; i++) { var e = arr[i][1]; if (e.tex) { gl.deleteTexture(e.tex); } frames.delete(arr[i][0]); }
+    for (var i = 0; i < arr.length - BYTES_MAX; i++) { var e = arr[i][1]; dropTex(e); frames.delete(arr[i][0]); }
   }
   var useClock = 0;
   function peek(model, c, field, h, lo) { var e = frames.get(fkey(model, c, field, h, lo)); return e && e.dec ? e : null; }
@@ -1233,7 +1235,7 @@
     e.decP = decode(e.bytes, e.ch).then(function (d) {
       e.dec = d; e.decP = null;
       var ds = Array.from(frames.values()).filter(function (x) { return x.dec; }).sort(function (a, b) { return a.used - b.used; });
-      for (var i = 0; i < ds.length - DEC_MAX; i++) { ds[i].dec = null; if (ds[i].tex) { gl.deleteTexture(ds[i].tex); ds[i].tex = null; } }
+      for (var i = 0; i < ds.length - DEC_MAX; i++) { ds[i].dec = null; dropTex(ds[i]); }
       render();
       if (e.lo === false && drawn && drawn.e && drawn.e.lo && tip.style.display === "block" && lastHover) hover(lastHover[0], lastHover[1]);   // the native value has arrived
     }, function () { e.decP = null; e.fail = true; render(); });
@@ -1255,50 +1257,146 @@
   var gl = glc.getContext("webgl2", { premultipliedAlpha: true, antialias: false, preserveDrawingBuffer: false });
   var prog, loc = {}, lutTex, lutKey = "";
   var VS = "#version 300 es\nin vec2 p;void main(){gl_Position=vec4(p,0.,1.);}";
+  // Contour LINES are drawn by the GPU in the same pass as the raster (2026-10-06, user: the worker-traced lines "lag
+  // significantly" - they were traced after each frame decoded, so they vanished and popped back on every hour step and
+  // trailed the raster while playing). Per frame, two small render passes turn the frame into the same smoothed field the
+  // worker contoured (block mean to ~6 km on the 3 km grids, then the box blur(s), CPU-identical kernel) in an RG32F
+  // texture (value, mask); the map pass samples it bilinearly and draws each level at a constant pixel width with
+  // fwidth(), with a halo. Two layers: A = the field's own lines, B = isobars from the MSLP frame (its own grid) on the
+  // radar, 10 m wind and gust maps. The worker trace is kept for label placement and H/L only.
+  // Needs EXT_color_buffer_float (render to RG32F); without it the old worker-drawn lines are used.
+  function cDecl(X) {
+    return ["uniform sampler2D uCt" + X + ";uniform int uCm" + X + ";uniform int uCty" + X + ";uniform vec4 uCL" + X + ";uniform vec4 uCR1" + X + ";uniform vec4 uCR2" + X + ";",
+      "uniform ivec2 uCN" + X + ";uniform vec2 uCD" + X + ";uniform ivec2 uCM" + X + ";uniform vec4 uCrg" + X + ";uniform vec2 uCmj" + X + ";uniform float uClv" + X + "[8];uniform int uCnl" + X + ";",
+      "uniform vec4 uCc" + X + ";uniform vec4 uCh" + X + ";uniform vec2 uCw" + X + ";uniform vec4 uCsp" + X + "[3];uniform vec4 uCspc" + X + "[3];",
+      // smoothed value at a display point: (value, mask); mask 1 = no line here
+      "vec2 cv" + X + "(vec2 xy){vec2 g=gIdx(xy,uCty" + X + ",uCL" + X + ",uCR1" + X + ",uCR2" + X + ");float yi=float(uCN" + X + ".y-1)-g.y;",
+      " vec2 l=vec2((g.x-uCD" + X + ".y)/uCD" + X + ".x,(yi-uCD" + X + ".y)/uCD" + X + ".x);",
+      " if(l.x<0.||l.y<0.||l.x>float(uCM" + X + ".x-1)||l.y>float(uCM" + X + ".y-1))return vec2(0.,1.);",
+      " ivec2 a0=ivec2(floor(l));ivec2 a1=min(a0+1,uCM" + X + "-1);vec2 f=l-vec2(a0);",
+      " vec2 p=texelFetch(uCt" + X + ",a0,0).rg,q=texelFetch(uCt" + X + ",ivec2(a1.x,a0.y),0).rg,r=texelFetch(uCt" + X + ",ivec2(a0.x,a1.y),0).rg,s=texelFetch(uCt" + X + ",a1,0).rg;",
+      " return vec2(mix(mix(p.r,q.r,f.x),mix(r.r,s.r,f.x),f.y),max(max(p.g,q.g),max(r.g,s.g)));}",
+      // composite the layer's lines over c (premultiplied)
+      "vec4 cl" + X + "(vec4 c,vec2 v,float fw){if(uCm" + X + "==0||v.y>0.5||!(fw>0.))return c;",
+      " float d=1e9,hw=uCw" + X + ".x;",
+      " if(uCm" + X + "==1){float f=(v.x-uCrg" + X + ".x)/uCrg" + X + ".y;float k=floor(f+0.5);float L=uCrg" + X + ".x+k*uCrg" + X + ".y;",
+      "  if(L>=uCrg" + X + ".z-1e-3&&L<=uCrg" + X + ".w+1e-3){d=abs(f-k)*uCrg" + X + ".y/fw;if(uCmj" + X + ".x>0.5&&abs(mod(k,uCmj" + X + ".x))<0.5)hw=uCmj" + X + ".y;}}",
+      " else{for(int n=0;n<8;n++){if(n>=uCnl" + X + ")break;d=min(d,abs(v.x-uClv" + X + "[n])/fw);}}",
+      " c=ov(c,uCh" + X + ",clamp(hw+uCw" + X + ".y-d+0.5,0.,1.));c=ov(c,uCc" + X + ",clamp(hw-d+0.5,0.,1.));",
+      " for(int n=0;n<3;n++){vec4 sp=uCsp" + X + "[n];if(sp.z<0.5)continue;float e=abs(v.x-sp.x)/fw;",
+      "  c=ov(c,uCh" + X + ",clamp(sp.y+uCw" + X + ".y-e+0.5,0.,1.));c=ov(c,uCspc" + X + "[n],clamp(sp.y-e+0.5,0.,1.));}",
+      " return c;}"].join("\n");
+  }
   var FS = [
     "#version 300 es", "precision highp float;precision highp int;precision highp sampler2D;",
     "uniform sampler2D uData;uniform sampler2D uLut;uniform vec2 uC;uniform float uS;uniform vec2 uWH;",
     "uniform int uType;uniform vec4 uL;uniform vec4 uR1;uniform vec4 uR2;uniform ivec2 uN;uniform int uMode;uniform vec3 uW;uniform vec4 uP;",
     "out vec4 o;",
+    // display metres (HRRR Lambert) -> fractional grid index of a Lambert (type 0) or rotated lat-lon (type 1) grid
+    "vec2 gIdx(vec2 xy,int ty,vec4 L,vec4 R1,vec4 R2){",
+    " if(ty==0)return vec2((xy.x-L.x)/L.z,(xy.y-L.y)/L.w);",
+    " float dy=uP.z-xy.y;float rho=sign(uP.x)*sqrt(xy.x*xy.x+dy*dy);float th=atan(xy.x,dy);",
+    " float lon=uP.w+th/uP.x;float lat=2.*atan(pow(uP.y/rho,1./uP.x))-1.5707963267948966;",
+    " float lo=lon-radians(R1.y);float cx=cos(lat)*cos(lo),cy=cos(lat)*sin(lo),cz=sin(lat);float t=radians(90.+R1.x);",
+    " float xr=cos(t)*cx+sin(t)*cz,zr=-sin(t)*cx+cos(t)*cz;float lr=degrees(atan(cy,xr)),pr=degrees(asin(clamp(zr,-1.,1.)));",
+    " float di=mod(lr-R1.z+540.,360.)-180.;return vec2(di/R2.x-R2.z,(pr-R1.w)/R2.y-R2.w);}",
+    "vec4 ov(vec4 c,vec4 s,float a){a*=s.a;return vec4(s.rgb*a,a)+c*(1.-a);}",
+    cDecl("A"), cDecl("B"),
+    // bilinear code (0..255 scale) of channel r of the data texture; -1 if any corner is 255 (missing)
+    "float bil(vec2 g,int ch){float x=clamp(g.x,0.,float(uN.x-1)),y=clamp(g.y,0.,float(uN.y-1));int i0=int(floor(x)),j0=int(floor(y));int i1=min(i0+1,uN.x-1),j1=min(j0+1,uN.y-1);",
+    " vec4 A=texelFetch(uData,ivec2(i0,uN.y-1-j0),0),B=texelFetch(uData,ivec2(i1,uN.y-1-j0),0),C=texelFetch(uData,ivec2(i0,uN.y-1-j1),0),D=texelFetch(uData,ivec2(i1,uN.y-1-j1),0);",
+    " float a=A[ch],b=B[ch],c=C[ch],d=D[ch];if(max(max(A.r,B.r),max(C.r,D.r))>0.999)return -1.;float fx=x-float(i0),fy=y-float(j0);return mix(mix(a,b,fx),mix(c,d,fx),fy)*255.;}",
     "void main(){",
-    " vec2 xy=uC+(gl_FragCoord.xy-0.5*uWH)*uS; float fi,fj;",
-    " if(uType==0){fi=(xy.x-uL.x)/uL.z;fj=(xy.y-uL.y)/uL.w;}",
-    " else{float dy=uP.z-xy.y;float rho=sign(uP.x)*sqrt(xy.x*xy.x+dy*dy);float th=atan(xy.x,dy);",
-    "  float lon=uP.w+th/uP.x;float lat=2.*atan(pow(uP.y/rho,1./uP.x))-1.5707963267948966;",
-    "  float lo=lon-radians(uR1.y);float cx=cos(lat)*cos(lo),cy=cos(lat)*sin(lo),cz=sin(lat);float t=radians(90.+uR1.x);",
-    "  float xr=cos(t)*cx+sin(t)*cz,zr=-sin(t)*cx+cos(t)*cz;float lr=degrees(atan(cy,xr)),pr=degrees(asin(clamp(zr,-1.,1.)));",
-    "  float di=mod(lr-uR1.z+540.,360.)-180.;fi=di/uR2.x-uR2.z;fj=(pr-uR1.w)/uR2.y-uR2.w;}",
+    " vec2 xy=uC+(gl_FragCoord.xy-0.5*uWH)*uS;",
+    // the contour values first, in uniform control flow (derivatives)
+    " vec2 vA=uCmA>0?cvA(xy):vec2(0.,1.);float fA=fwidth(vA.x);",
+    " vec2 vB=uCmB>0?cvB(xy):vec2(0.,1.);float fB=fwidth(vB.x);",
+    " vec2 g=gIdx(xy,uType,uL,uR1,uR2);float fi=g.x,fj=g.y;",
     " int i=int(floor(fi+0.5)),j=int(floor(fj+0.5));",
-    " if(i<0||j<0||i>=uN.x||j>=uN.y)discard;",
-    " vec4 t2=texelFetch(uData,ivec2(i,uN.y-1-j),0);float code;",
-    " int row=0;float fade=1.;",
-    " if(uMode==0){code=floor(t2.r*255.+0.5);}",
-    " else if(uMode==3){code=floor(t2.r*255.+0.5);if(code>254.5)discard;if(t2.g>0.002)fade=0.45;",
-    "  float x=clamp(fi,0.,float(uN.x-1)),y=clamp(fj,0.,float(uN.y-1));int i0=int(floor(x)),j0=int(floor(y));int i1=min(i0+1,uN.x-1),j1=min(j0+1,uN.y-1);",
-    "  float a=texelFetch(uData,ivec2(i0,uN.y-1-j0),0).r,b=texelFetch(uData,ivec2(i1,uN.y-1-j0),0).r,c2=texelFetch(uData,ivec2(i0,uN.y-1-j1),0).r,d=texelFetch(uData,ivec2(i1,uN.y-1-j1),0).r;",
-    "  if(max(max(a,b),max(c2,d))<0.999){float fx=x-float(i0),fy=y-float(j0);code=floor(mix(mix(a,b,fx),mix(c2,d,fx),fy)*255.+0.5);}}",
-    " else if(uMode==2){code=floor(t2.r*255.+0.5);if(code<0.5)discard;row=int(floor(t2.g*255.+0.5));if(row>5)row=0;}",
-    " else{float cu=floor(t2.r*255.+0.5),cv=floor(t2.g*255.+0.5);if(cu>254.5)discard;float u=uW.x+cu*uW.y,v=uW.x+cv*uW.y;code=min(254.,floor(sqrt(u*u+v*v)/uW.z*254.+0.5));}",
-    " vec4 c=texelFetch(uLut,ivec2(int(code),row),0);c.a*=fade;if(c.a<0.004)discard;o=vec4(c.rgb*c.a,c.a);",
+    " vec4 c=vec4(0.);",
+    " if(i>=0&&j>=0&&i<uN.x&&j<uN.y){",
+    "  vec4 t2=texelFetch(uData,ivec2(i,uN.y-1-j),0);float code=-1.;",
+    "  int row=0;float fade=1.;",
+    "  if(uMode==0){code=floor(t2.r*255.+0.5);}",
+    "  else if(uMode==3){code=floor(t2.r*255.+0.5);if(code>254.5)code=-1.;else{if(t2.g>0.002)fade=0.45;float b=bil(g,0);if(b>=0.)code=floor(b+0.5);}}",
+    "  else if(uMode==4){float b=bil(g,0);code=b<0.?-1.:floor(b+0.5);}",
+    "  else if(uMode==2){code=floor(t2.r*255.+0.5);if(code<0.5)code=-1.;row=int(floor(t2.g*255.+0.5));if(row>5)row=0;}",
+    "  else if(uMode==5){float x=clamp(fi,0.,float(uN.x-1)),y=clamp(fj,0.,float(uN.y-1));int i0=int(floor(x)),j0=int(floor(y));int i1=min(i0+1,uN.x-1),j1=min(j0+1,uN.y-1);float sp[4];bool bad=false;",
+    "   for(int k=0;k<4;k++){vec4 q=texelFetch(uData,ivec2(k==1||k==3?i1:i0,uN.y-1-(k>=2?j1:j0)),0);float cu=floor(q.r*255.+0.5),cv=floor(q.g*255.+0.5);if(cu>254.5)bad=true;float u=uW.x+cu*uW.y,v=uW.x+cv*uW.y;sp[k]=sqrt(u*u+v*v);}",
+    "   if(!bad){float fx=x-float(i0),fy=y-float(j0);code=min(254.,floor(mix(mix(sp[0],sp[1],fx),mix(sp[2],sp[3],fx),fy)/uW.z*254.+0.5));}}",
+    "  else{float cu=floor(t2.r*255.+0.5),cv=floor(t2.g*255.+0.5);if(cu<254.5){float u=uW.x+cu*uW.y,v=uW.x+cv*uW.y;code=min(254.,floor(sqrt(u*u+v*v)/uW.z*254.+0.5));}}",
+    "  if(code>=0.){c=texelFetch(uLut,ivec2(int(code),row),0);c.a*=fade;c=vec4(c.rgb*c.a,c.a);}",
+    " }",
+    " c=clB(c,vB,fB);c=clA(c,vA,fA);",
+    " if(c.a<0.004)discard;o=c;",
     "}"].join("\n");
+  // pass 1: frame -> lattice of D x D block means (mean with missing as 0, valid fraction); mode 0 = value from the
+  // decode table (channel uCh), 1 = wind speed from (u, v) codes
+  var FS_P1 = ["#version 300 es", "precision highp float;precision highp int;precision highp sampler2D;",
+    "uniform sampler2D uData;uniform sampler2D uDL;uniform int uMode;uniform int uD;uniform vec3 uW;uniform int uCh;out vec4 o;",
+    "float val(ivec2 t){vec4 c=texelFetch(uData,t,0);",
+    " if(uMode==1){float cu=floor(c.r*255.+0.5),cv=floor(c.g*255.+0.5);if(cu>254.5)return -1e30;float u=uW.x+cu*uW.y,v=uW.x+cv*uW.y;return sqrt(u*u+v*v)*uW.z;}",
+    " return texelFetch(uDL,ivec2(int(floor(c[uCh]*255.+0.5)),0),0).r;}",
+    "void main(){ivec2 q=ivec2(gl_FragCoord.xy);float s=0.,n=0.;",
+    " for(int b=0;b<4;b++){if(b>=uD)break;for(int a=0;a<4;a++){if(a>=uD)break;float v=val(ivec2(q.x*uD+a,q.y*uD+b));if(v>-1e29){s+=v;n+=1.;}}}",
+    " float dd=float(uD*uD);o=vec4(s/dd,n/dd,0.,1.);}"].join("\n");
+  // pass 2: the box blur(s) as one separable kernel, edges clamped (as the worker); nblur = normalised by the valid fraction
+  var FS_P2 = ["#version 300 es", "precision highp float;precision highp int;precision highp sampler2D;",
+    "uniform sampler2D uS;uniform ivec2 uM;uniform int uR;uniform float uK[9];uniform int uNb;out vec4 o;",
+    "void main(){ivec2 q=ivec2(gl_FragCoord.xy);float a=0.,w=0.;",
+    " for(int dy=-4;dy<=4;dy++){if(dy<-uR||dy>uR)continue;for(int dx=-4;dx<=4;dx++){if(dx<-uR||dx>uR)continue;",
+    "  vec2 s=texelFetch(uS,clamp(q+ivec2(dx,dy),ivec2(0),uM-1),0).rg;float k=uK[dx+4]*uK[dy+4];a+=k*s.r;w+=k*s.g;}}",
+    " float self=texelFetch(uS,q,0).g;o=vec4(uNb==1?(w>0.01?a/w:0.):a,self<0.999?1.:0.,0.,1.);}"].join("\n");
+  var GPUC = false, pre = null, cLoc = { A: {}, B: {} };
+  var C_UNI = ["uCt", "uCm", "uCty", "uCL", "uCR1", "uCR2", "uCN", "uCD", "uCM", "uCrg", "uCmj", "uClv", "uCnl", "uCc", "uCh", "uCw", "uCsp", "uCspc"];
   function initGL() {
     if (!gl) return false;
     function sh(type, src) { var s = gl.createShader(type); gl.shaderSource(s, src); gl.compileShader(s);
       if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(s)); return s; }
-    prog = gl.createProgram();
-    gl.attachShader(prog, sh(gl.VERTEX_SHADER, VS)); gl.attachShader(prog, sh(gl.FRAGMENT_SHADER, FS)); gl.linkProgram(prog);
-    if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(prog));
+    function link(fs) { var p = gl.createProgram(); gl.attachShader(p, sh(gl.VERTEX_SHADER, VS)); gl.attachShader(p, sh(gl.FRAGMENT_SHADER, fs));
+      gl.bindAttribLocation(p, 0, "p"); gl.linkProgram(p); if (!gl.getProgramParameter(p, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(p)); return p; }
+    prog = link(FS);
     gl.useProgram(prog);
     ["uData", "uLut", "uC", "uS", "uWH", "uType", "uL", "uR1", "uR2", "uN", "uMode", "uW", "uP"].forEach(function (n) { loc[n] = gl.getUniformLocation(prog, n); });
+    ["A", "B"].forEach(function (X) { C_UNI.forEach(function (n) { cLoc[X][n] = gl.getUniformLocation(prog, n + X + (n === "uClv" || n === "uCsp" || n === "uCspc" ? "[0]" : "")); }); });
     var b = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, b);
     gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW);
-    var ap = gl.getAttribLocation(prog, "p"); gl.enableVertexAttribArray(ap); gl.vertexAttribPointer(ap, 2, gl.FLOAT, false, 0, 0);
+    gl.enableVertexAttribArray(0); gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
     gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
     lutTex = gl.createTexture(); gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, lutTex);
     [gl.TEXTURE_MIN_FILTER, gl.TEXTURE_MAG_FILTER].forEach(function (p) { gl.texParameteri(gl.TEXTURE_2D, p, gl.NEAREST); });
-    gl.uniform1i(loc.uData, 0); gl.uniform1i(loc.uLut, 1);
+    gl.uniform1i(loc.uData, 0); gl.uniform1i(loc.uLut, 1); gl.uniform1i(cLoc.A.uCt, 2); gl.uniform1i(cLoc.B.uCt, 3);
+    gl.uniform1i(cLoc.A.uCm, 0); gl.uniform1i(cLoc.B.uCm, 0);
     gl.enable(gl.BLEND); gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
+    // the smoothing passes (GPU contours); a dummy RG32F texture keeps units 2 and 3 valid while no layer is on
+    try {
+      if (!/[?&]cpulines=only/.test(location.search) && gl.getExtension("EXT_color_buffer_float")) {
+        // the two smoothing programs (linking them lazily, at the first contour map, stalled that frame 0.2-1 s on SwiftShader)
+        pre = { link: function () {
+          var p1 = link(FS_P1), p2 = link(FS_P2), l1 = {}, l2 = {};
+          ["uData", "uDL", "uMode", "uD", "uW", "uCh"].forEach(function (n) { l1[n] = gl.getUniformLocation(p1, n); });
+          ["uS", "uM", "uR", "uK", "uNb"].forEach(function (n) { l2[n] = gl.getUniformLocation(p2, n + (n === "uK" ? "[0]" : "")); });
+          pre.p1 = p1; pre.p2 = p2; pre.l1 = l1; pre.l2 = l2; pre.link = null; }, fb: gl.createFramebuffer(), dl: newTex(), tmp: null, tmpWH: "" };
+        pre.link();
+        var dummy = newTex(); gl.texImage2D(gl.TEXTURE_2D, 0, gl.RG32F, 1, 1, 0, gl.RG, gl.FLOAT, new Float32Array([0, 1]));
+        [2, 3].forEach(function (u) { gl.activeTexture(gl.TEXTURE0 + u); gl.bindTexture(gl.TEXTURE_2D, dummy); });
+        pre.dummy = dummy;
+        GPUC = true;
+      }
+    } catch (e) { console.warn("GPU contours unavailable", e); GPUC = false; }
+    gl.useProgram(prog);
     return true;
+  }
+  function newTex() {
+    var t = gl.createTexture(); gl.activeTexture(gl.TEXTURE4); gl.bindTexture(gl.TEXTURE_2D, t);
+    [gl.TEXTURE_MIN_FILTER, gl.TEXTURE_MAG_FILTER].forEach(function (p) { gl.texParameteri(gl.TEXTURE_2D, p, gl.NEAREST); });
+    [gl.TEXTURE_WRAP_S, gl.TEXTURE_WRAP_T].forEach(function (p) { gl.texParameteri(gl.TEXTURE_2D, p, gl.CLAMP_TO_EDGE); });
+    return t;
+  }
+  function dropTex(e) {
+    if (!e || !gl) return;
+    if (e.tex) { gl.deleteTexture(e.tex); e.tex = null; }
+    if (e.ctex) { gl.deleteTexture(e.ctex); e.ctex = null; e.ckeyG = null; }
   }
   function texOf(e, ch) {
     if (e.tex) return e.tex;
@@ -1306,11 +1404,89 @@
     [gl.TEXTURE_MIN_FILTER, gl.TEXTURE_MAG_FILTER].forEach(function (p) { gl.texParameteri(gl.TEXTURE_2D, p, gl.NEAREST); });
     [gl.TEXTURE_WRAP_S, gl.TEXTURE_WRAP_T].forEach(function (p) { gl.texParameteri(gl.TEXTURE_2D, p, gl.CLAMP_TO_EDGE); });
     if (ch === 1) gl.texImage2D(gl.TEXTURE_2D, 0, gl.R8, e.dec.w, e.dec.h, 0, gl.RED, gl.UNSIGNED_BYTE, e.dec.data);
+    else if (ch === 3) gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB8, e.dec.w, e.dec.h, 0, gl.RGB, gl.UNSIGNED_BYTE, e.dec.data);
     else gl.texImage2D(gl.TEXTURE_2D, 0, gl.RG8, e.dec.w, e.dec.h, 0, gl.RG, gl.UNSIGNED_BYTE, e.dec.data);
     e.tex = t;
     var ts = Array.from(frames.values()).filter(function (x) { return x.tex; }).sort(function (a, b) { return a.used - b.used; });
-    for (var i = 0; i < ts.length - TEX_MAX; i++) { if (ts[i] !== e) { gl.deleteTexture(ts[i].tex); ts[i].tex = null; } }
+    for (var i = 0; i < ts.length - TEX_MAX; i++) { if (ts[i] !== e) dropTex(ts[i]); }
     return t;
+  }
+  // The smoothed field of a frame for the GPU contours, made once per frame (and contour spec): RG32F (value, mask) on the
+  // D x D block lattice, rows in IMAGE order (row 0 = north) exactly as the worker's lattice. -> {tex, D, ctr, W2, H2}
+  var GPU_MS = [];
+  function ctexOf(e, ch, spec, dec, gkey) {
+    if (e.ctex && e.ckeyG === gkey) return e.cinfo;
+    var t0 = performance.now();
+    if (pre.link) pre.link();
+    if (e.ctex) { gl.deleteTexture(e.ctex); e.ctex = null; }
+    var W = e.dec.w, H = e.dec.h, D = dec || 1, W2 = D === 1 ? W : Math.floor(W / D), H2 = D === 1 ? H : Math.floor(H / D);
+    var src = texOf(e, ch);
+    // decode table: code -> value (missing = -1e30)
+    gl.activeTexture(gl.TEXTURE4); gl.bindTexture(gl.TEXTURE_2D, pre.dl);
+    var dl = new Float32Array(256);
+    if (spec.lut) for (var k = 0; k < 256; k++) { var v = spec.lut[k]; dl[k] = v === v ? v : -1e30; }
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.R32F, 256, 1, 0, gl.RED, gl.FLOAT, dl);
+    if (!pre.tmp || pre.tmpWH !== W2 + "x" + H2) {
+      if (pre.tmp) gl.deleteTexture(pre.tmp);
+      pre.tmp = newTex(); gl.texImage2D(gl.TEXTURE_2D, 0, gl.RG32F, W2, H2, 0, gl.RG, gl.FLOAT, null); pre.tmpWH = W2 + "x" + H2;
+    }
+    var out = newTex(); gl.texImage2D(gl.TEXTURE_2D, 0, gl.RG32F, W2, H2, 0, gl.RG, gl.FLOAT, null);
+    gl.disable(gl.BLEND);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, pre.fb); gl.viewport(0, 0, W2, H2);
+    // pass 1
+    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, pre.tmp, 0);
+    gl.useProgram(pre.p1);
+    gl.activeTexture(gl.TEXTURE5); gl.bindTexture(gl.TEXTURE_2D, src);
+    gl.uniform1i(pre.l1.uData, 5); gl.uniform1i(pre.l1.uDL, 4); gl.uniform1i(pre.l1.uMode, spec.speed ? 1 : 0); gl.uniform1i(pre.l1.uD, D);
+    gl.uniform3f(pre.l1.uW, spec.speed ? spec.speed[0] : 0, spec.speed ? spec.speed[1] : 1, 1); gl.uniform1i(pre.l1.uCh, spec.ch || 0);
+    gl.activeTexture(gl.TEXTURE4); gl.bindTexture(gl.TEXTURE_2D, pre.dl);
+    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+    // pass 2: kernel = box(2 rad + 1) * box(2 rad2 + 1) per axis
+    var r1 = spec.rad || 0, r2 = spec.rad2 || 0, R = r1 + r2, K = new Float32Array(9);
+    for (var a = -r1; a <= r1; a++) for (var b = -r2; b <= r2; b++) K[a + b + 4] += 1 / ((2 * r1 + 1) * (2 * r2 + 1));
+    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, out, 0);
+    gl.useProgram(pre.p2);
+    gl.activeTexture(gl.TEXTURE5); gl.bindTexture(gl.TEXTURE_2D, pre.tmp);
+    gl.uniform1i(pre.l2.uS, 5); gl.uniform2i(pre.l2.uM, W2, H2); gl.uniform1i(pre.l2.uR, R); gl.uniform1fv(pre.l2.uK, K); gl.uniform1i(pre.l2.uNb, spec.nblur ? 1 : 0);
+    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    gl.activeTexture(gl.TEXTURE5); gl.bindTexture(gl.TEXTURE_2D, null);
+    gl.useProgram(prog); gl.enable(gl.BLEND);
+    e.ctex = out; e.ckeyG = gkey; e.cinfo = { tex: out, D: D, ctr: (D - 1) / 2, W2: W2, H2: H2 };
+    GPU_MS.push(Math.round((performance.now() - t0) * 10) / 10); if (GPU_MS.length > 50) GPU_MS.shift();
+    return e.cinfo;
+  }
+  function rgba01(s) {                                             // "rgba(r,g,b,a)" / "#rrggbb" -> [r, g, b, a] in 0..1
+    var m = /rgba?\(([^)]+)\)/.exec(s);
+    if (m) { var p = m[1].split(",").map(Number); return [p[0] / 255, p[1] / 255, p[2] / 255, p[3] == null ? 1 : p[3]]; }
+    return [parseInt(s.slice(1, 3), 16) / 255, parseInt(s.slice(3, 5), 16) / 255, parseInt(s.slice(5, 7), 16) / 255, 1];
+  }
+  // one contour layer's uniforms: L = {spec, info, g (grid of the source frame)}; null = off
+  function zoomSide(lay) { return (lay || []).map(function (L) { return L && L.spec.gl.zoomOut ? (view.s < L.spec.gl.zoomOut[0] ? 1 : 2) : 0; }).join(""); }
+  // shader mode of the field drawn: 0 one code, 1 wind speed (u, v), 2 radar + type, 3 MSLP (bilinear, terrain fade),
+  // 4 bilinear one code (coarse upper-air grids), 5 bilinear wind speed
+  function modeOf(f, ch) { var fd = FIELDS[f]; if (f === "refl") return 2; if (f === "mslp") return 3; if (fd && fd.bil) return ch >= 2 && fd.enc === "lin2" ? 5 : 4; return ch >= 2 ? 1 : 0; }
+  function setLayer(X, L) {
+    var u = cLoc[X];
+    if (!L) { gl.uniform1i(u.uCm, 0); return; }
+    var sp = L.spec, gp = sp.gl, g = L.g, info = L.info;
+    gl.activeTexture(X === "A" ? gl.TEXTURE2 : gl.TEXTURE3); gl.bindTexture(gl.TEXTURE_2D, info.tex);
+    gl.uniform1i(u.uCty, g.type === "lcc" ? 0 : 1);
+    if (g.type === "lcc") gl.uniform4f(u.uCL, g._x1, g._y1, g.dx, g.dy);
+    else { gl.uniform4f(u.uCR1, g.splat, g.splon, g.lo1, g.la1); gl.uniform4f(u.uCR2, g.di, g.dj, g.i0 || 0, g.j0 || 0); }
+    gl.uniform2i(u.uCN, g.nx, g.ny); gl.uniform2f(u.uCD, info.D, info.ctr); gl.uniform2i(u.uCM, info.W2, info.H2);
+    var reg = gp.reg && (!gp.zoomOut || view.s < gp.zoomOut[0]) ? gp.reg : gp.zoomOut ? gp.zoomOut[1] : null;
+    // every level is drawn a hair BELOW its value (as the worker's ">= level" test): a plateau of exactly the level value
+    // (0.5 hPa steps, smoothed) then counts as above it and the line runs along its lower edge, not round every cell of it
+    var EPS = function (v, step) { return v - 1e-3 * (step || Math.max(Math.abs(v), 1) * 0.01); };
+    if (reg) { gl.uniform1i(u.uCm, 1); gl.uniform4f(u.uCrg, EPS(reg[0], reg[1]), reg[1], EPS(reg[2], reg[1]), EPS(reg[3], reg[1])); gl.uniform2f(u.uCmj, reg[4] || 0, (reg[5] || 0) / 2 * DPR); }
+    else { var lv = new Float32Array(8); gp.list.forEach(function (v, i) { lv[i] = EPS(v); }); gl.uniform1i(u.uCm, 2); gl.uniform1fv(u.uClv, lv); gl.uniform1i(u.uCnl, gp.list.length); }
+    var c = rgba01(gp.col), h = rgba01(gp.halo || "rgba(255,255,255,0.55)");
+    gl.uniform4f(u.uCc, c[0], c[1], c[2], c[3]); gl.uniform4f(u.uCh, h[0], h[1], h[2], h[3]);
+    gl.uniform2f(u.uCw, gp.w / 2 * DPR, (gp.hw == null ? 0.9 : gp.hw) * DPR);
+    var spv = new Float32Array(12), spc = new Float32Array(12);
+    (gp.special || []).slice(0, 3).forEach(function (s, i) { var cc = rgba01(s[2]); spv.set([EPS(s[0]), s[1] / 2 * DPR, 1, 0], 4 * i); spc.set(cc, 4 * i); });
+    gl.uniform4fv(u.uCsp, spv); gl.uniform4fv(u.uCspc, spc);
   }
 
   // ── boundaries ─────────────────────────────────────────────────────────────────────────────────────────────────
@@ -1448,7 +1624,7 @@
     }
     var ent = { dec: { w: e1.dec.w, h: e1.dec.h, data: out }, exact: exact, used: ++useClock, lo: lo };
     ACCF.set(key + (lo ? "~lo" : ""), ent);
-    if (ACCF.size > 10) { var old = ACCF.keys().next().value, oe = ACCF.get(old); if (oe.tex && gl) gl.deleteTexture(oe.tex); ACCF.delete(old); }
+    if (ACCF.size > 10) { var old = ACCF.keys().next().value, oe = ACCF.get(old); dropTex(oe); ACCF.delete(old); }
     return { e: ent, fm: fm, label: label, start: start, key: key };
   }
   // ECAPE: the CAPE-type fields are drawn straight from their file; the ratio is divided here into a 1-byte code (0 = masked,
@@ -1477,7 +1653,7 @@
     }
     var ent = { dec: { w: ea.dec.w, h: ea.dec.h, data: out }, a: a, b: b, used: ++useClock };
     ECF.set(key, ent);
-    if (ECF.size > 8) { var old = ECF.keys().next().value, oe = ECF.get(old); if (oe.tex && gl) gl.deleteTexture(oe.tex); ECF.delete(old); }
+    if (ECF.size > 8) { var old = ECF.keys().next().value, oe = ECF.get(old); dropTex(oe); ECF.delete(old); }
     return { e: ent, fm: fm, key: key };
   }
   // the frame of a plain field: the resolution the zoom wants, else the other one if it is already decoded (the native
@@ -1496,6 +1672,7 @@
     gl.viewport(0, 0, glc.width, glc.height); gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT);
     gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, e.tex);
     gl.uniform2f(loc.uC, view.cx, view.cy); gl.uniform1f(loc.uS, view.s / DPR); gl.uniform2f(loc.uWH, glc.width, glc.height);
+    if (drawn.layers) { var zs = zoomSide(drawn.layers); if (zs !== drawn.zs) { setLayer("A", drawn.layers[0]); setLayer("B", drawn.layers[1]); drawn.zs = zs; } }
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
     moveOverlay();
     var t1 = performance.now();
@@ -1538,7 +1715,12 @@
     if (drawn && drawn.e === e) q = drawn.q;
     var gfm = acc ? c.fields[st.acc.type] : fm;
     var g = hold ? drawn.g : prepGrid(c.grids[e.lo && gfm.lo ? gfm.lo : gfm.grid]);
+    var dd = { e: e, g: g, field: st.field, model: st.model, q: q, c: c, hour: cc.hour, enc: acc ? "accd" : encOf(st.field, fm), fm: fm,
+              ckey: acc ? "acc/" + (acc.key || "") : ec ? "ec/" + (ec.key || "") : null, accLabel: acc ? acc.label : null, accType: acc ? st.acc.type : null,
+              ecSub: ec ? st.ec : null, start: acc ? acc.start : 0, diff: df ? df : null, hold: hold };
     if (gl) {
+      var lay = hold && drawn && drawn.layers ? drawn.layers : gpuLayers(dd);   // the smoothing passes run here, once per frame
+      dd.layers = lay;
       var ch = chOf(st.field), enc = encOf(st.field, fm);
       gl.viewport(0, 0, glc.width, glc.height); gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT);
       gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, texOf(e, acc || ec || df ? 1 : ch));
@@ -1553,12 +1735,11 @@
       gl.uniform2i(loc.uN, g.nx, g.ny);
       if (g.type === "lcc") { gl.uniform1i(loc.uType, 0); gl.uniform4f(loc.uL, g._x1, g._y1, g.dx, g.dy); }
       else { gl.uniform1i(loc.uType, 1); gl.uniform4f(loc.uR1, g.splat, g.splon, g.lo1, g.la1); gl.uniform4f(loc.uR2, g.di, g.dj, g.i0 || 0, g.j0 || 0); }
-      gl.uniform1i(loc.uMode, st.field === "refl" ? 2 : st.field === "mslp" ? 3 : ch === 2 ? 1 : 0); gl.uniform3f(loc.uW, fd.off || 0, fd.step || 1, fd.smax || 1);
+      gl.uniform1i(loc.uMode, modeOf(st.field, ch)); gl.uniform3f(loc.uW, fd.off || 0, fd.step || 1, fd.smax || 1);
+      setLayer("A", lay[0]); setLayer("B", lay[1]); dd.zs = zoomSide(lay);
       gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
     }
-    drawn = { e: e, g: g, field: st.field, model: st.model, q: q, c: c, hour: cc.hour, enc: acc ? "accd" : encOf(st.field, fm), fm: fm,
-              ckey: acc ? "acc/" + (acc.key || "") : ec ? "ec/" + (ec.key || "") : null, accLabel: acc ? acc.label : null, accType: acc ? st.acc.type : null,
-              ecSub: ec ? st.ec : null, start: acc ? acc.start : 0, diff: df ? df : null };
+    drawn = dd;
     ensureContours(drawn);
     drawOverlay();
     schedule();
@@ -1675,74 +1856,111 @@
     for (var c = 0; c < 256; c++) { var v = c === 255 ? hiNone : c === 0 ? loZero : valueOf(fd, c, null); L[c] = Math.log(v); }
     return L;
   }
+  // spec.gl: how the GPU draws the lines - reg [base, interval, lowest, highest, major every N levels, major width] or a
+  // list of up to 8 levels; col/w = line colour and width (CSS px), halo (+hw px each side), special = [[level, width,
+  // colour]] drawn on top, zoomOut = [metres per px, reg] used when zoomed out further. The worker trace (labels, H/L)
+  // still uses levels/values/style/fmt.
+  var ISO_GL = { reg: [940, 2, 940, 1066], col: "rgba(20,20,20,0.85)", w: 1.0, zoomOut: [4000, [940, 4, 940, 1066]] };
+  function isoSpec(field) {                                        // isobars from the MSLP frame (its own, coarser grid)
+    var pv = range(940, 1066, 2), L2 = new Float32Array(256);
+    for (var c = 0; c < 256; c++) L2[c] = c === 255 ? NaN : 940 + 0.5 * c;
+    // every 4 hPa while zoomed out past ~4 km per pixel (every 2 hPa crowds the national view)
+    var sh = function (v) { return v % 4 === 0 || view.s < 4000; };
+    var sp = { rad: 1, rad2: 1, dec: 1, minPts: 4, lut: L2, levels: pv, values: pv, src: "mslp", stride: 2, emask: true, extKm: [400, 2.0, 60], show: sh,
+      fmt: function (v) { return String(v); }, style: function () { return ["rgba(20,20,20,0.85)", 1.0]; }, gl: ISO_GL };
+    if (field === "mslp") {                                        // the pressure map itself: 1012 bold, 4 hPa lines a little heavier
+      sp.style = function (v) { return v === 1012 ? ["rgba(15,15,15,0.95)", 1.6] : ["rgba(20,20,20,0.85)", v % 4 ? 0.8 : 1.1]; };
+      sp.gl = { reg: [940, 2, 940, 1066, 2, 1.1], col: "rgba(20,20,20,0.85)", w: 0.8, special: [[1012, 1.6, "rgba(15,15,15,0.95)"]],
+                zoomOut: [4000, [940, 4, 940, 1066, 1, 1.1]] };
+    }
+    if (field === "wind10" || field === "gust") {                  // over the wind: thin, near-black, 1012 a little heavier
+      sp.style = function (v) { return v === 1012 ? ["rgba(5,5,5,0.95)", 1.3] : ["rgba(5,5,5,0.92)", 0.8]; };
+      sp.gl = { reg: [940, 2, 940, 1066], col: "rgba(5,5,5,0.92)", w: 0.8, hw: 0.7, special: [[1012, 1.3, "rgba(5,5,5,0.95)"]], zoomOut: [4000, [940, 4, 940, 1066]] };
+    }
+    return sp;
+  }
+  // wind speed lines over the wind and gust maps: white with a dark edge, thicker than the isobars, so the two read apart
+  var WIND_GL = { col: "rgba(255,255,255,0.97)", w: 1.8, halo: "rgba(25,25,35,0.75)", hw: 0.7 };
   function contourSpec(field, model, q) {
     var fine = model !== "rdps";                                   // 3 km grids: blur harder and contour every 2nd point
     var base = { rad: 1, rad2: 1, dec: fine ? 2 : 1, minPts: 8 };
     function linLut() { var L = new Float32Array(256); for (var c = 0; c < 256; c++) L[c] = c === 255 ? NaN : q[0] + c * q[1]; return L; }
     if (field === "t2m") { var lv = range(-60, 130, 10).concat([32]).sort(function (a, b) { return a - b; });
       return Object.assign(base, { lut: linLut(), levels: lv, values: lv, fmt: function (v) { return v + "°"; },
-        style: function (v) { return v === 32 ? ["#1640c8", 2.4] : ["rgba(20,22,20,0.8)", 0.9]; } }); }
+        style: function (v) { return v === 32 ? ["#1640c8", 2.4] : ["rgba(20,22,20,0.8)", 0.9]; },
+        gl: { reg: [-60, 10, -60, 130], col: "rgba(20,22,20,0.8)", w: 0.9, special: [[32, 2.4, "#1640c8"]] } }); }
     if (field === "td2m") { var lv2 = range(-40, 90, 10);
       return Object.assign(base, { lut: linLut(), levels: lv2, values: lv2, fmt: function (v) { return v + "°"; },
-        style: function (v) { return v === 60 || v === 70 ? ["rgba(10,40,20,0.95)", 2.1] : ["rgba(20,22,20,0.8)", 0.9]; } }); }
-    // no contours on ceiling and visibility (user, 2026-10-01): the fill already shows the flight-category breaks, and these
-    // were the slowest contours to trace (raw full-resolution grid)
+        style: function (v) { return v === 60 || v === 70 ? ["rgba(10,40,20,0.95)", 2.1] : ["rgba(20,22,20,0.8)", 0.9]; },
+        gl: { reg: [-40, 10, -40, 90], col: "rgba(20,22,20,0.8)", w: 0.9, special: [[60, 2.1, "rgba(10,40,20,0.95)"], [70, 2.1, "rgba(10,40,20,0.95)"]] } }); }
+    // no contours on ceiling and visibility (user, 2026-10-01): the fill already shows the flight-category breaks
     if (field === "ceil" || field === "vis") return null;
     if (field === "wind80") { var wv = [10, 15, 20];
       return Object.assign(base, { speed: [FIELDS.wind80.off, FIELDS.wind80.step], levels: wv, values: wv,
-        fmt: function (v) { return v + " m/s"; }, style: function () { return ["rgba(15,15,15,0.85)", 1.2]; } }); }
+        fmt: function (v) { return v + " m/s"; }, style: function () { return ["rgba(15,15,15,0.85)", 1.2]; },
+        gl: { list: wv, col: "rgba(15,15,15,0.85)", w: 1.2 } }); }
     if (field === "acc") { var at = ACC_TYPES[st.acc.type], La = new Float32Array(256);
       for (var ca = 0; ca < 256; ca++) La[ca] = ca === 0 ? 0 : accValue(st.acc.type, ca);
       // accumulations at 3 km are speckled by convection: 6 km blocks + ~15 km smoothing, so the lines give the pattern (the fill keeps every cell)
       return { rad: 2, rad2: 1, dec: 2, minPts: 12, lut: La, levels: at.levels, values: at.levels,
-        fmt: function (v) { return v + (st.acc.type === "asnow" ? "″" : " in"); }, style: function () { return ["rgba(15,15,15,0.9)", 1.2]; } }; }
+        fmt: function (v) { return v + (st.acc.type === "asnow" ? "″" : " in"); }, style: function () { return ["rgba(15,15,15,0.9)", 1.2]; },
+        gl: { list: at.levels, col: "rgba(15,15,15,0.9)", w: 1.2 } }; }
     if (field === "ecape") { var Le = new Float32Array(256), K = (q && !q.join) ? q : 2.8;
       if (EC_SUBS[st.ec].kind === "ratio") {
         // masked cells (CAPE <= 100) are left out of the smoothing (normalised blur), so no line runs along the mask edge
         for (var cr = 0; cr < 256; cr++) Le[cr] = cr === 0 ? NaN : (cr - 1) / 100;
         return Object.assign(base, { lut: Le, nblur: true, levels: [0.5, 1.0], values: [0.5, 1.0], fmt: function (v) { return v.toFixed(1); },
-          style: function (v) { return v === 1 ? ["rgba(15,15,15,0.95)", 1.8] : ["rgba(15,15,15,0.85)", 1.1]; } });
+          style: function (v) { return v === 1 ? ["rgba(15,15,15,0.95)", 1.8] : ["rgba(15,15,15,0.85)", 1.1]; },
+          gl: { list: [0.5], col: "rgba(15,15,15,0.85)", w: 1.1, special: [[1.0, 1.8, "rgba(15,15,15,0.95)"]] } });
       }
       for (var ce = 0; ce < 256; ce++) Le[ce] = ce === 255 ? NaN : (ce / K) * (ce / K);
       return Object.assign(base, { lut: Le, levels: [1000, 2000, 3000], values: [1000, 2000, 3000], fmt: function (v) { return v.toLocaleString("en-US"); },
-        style: function (v) { return v === 2000 ? ["rgba(15,15,15,0.9)", 1.6] : ["rgba(15,15,15,0.85)", 1.0]; } });
+        style: function (v) { return v === 2000 ? ["rgba(15,15,15,0.9)", 1.6] : ["rgba(15,15,15,0.85)", 1.0]; },
+        gl: { list: [1000, 3000], col: "rgba(15,15,15,0.85)", w: 1.0, special: [[2000, 1.6, "rgba(15,15,15,0.9)"]] } });
     }
     // knots (2026-10-05): traced at the m/s equivalents of round knot values, labelled in knots
-    if (field === "wind10") { var wv10 = [20, 30, 40];
-      return Object.assign(base, { speed: [FIELDS.wind10.off, FIELDS.wind10.step], levels: wv10.map(function (k) { return k / KT; }), values: wv10,
-        fmt: function (v) { return v + " kt"; }, style: function () { return ["rgba(15,15,15,0.85)", 1.2]; } }); }
-    if (field === "gust") { var gv = [30, 40, 50], Lg = new Float32Array(256);
+    if (field === "wind10") { var wv10 = [20, 30, 40], wm = wv10.map(function (k) { return k / KT; });
+      return Object.assign(base, { speed: [FIELDS.wind10.off, FIELDS.wind10.step], levels: wm, values: wv10,
+        fmt: function (v) { return v + " kt"; }, style: function () { return ["rgba(255,255,255,0.97)", 1.8]; }, gl: Object.assign({ list: wm }, WIND_GL) }); }
+    if (field === "gust") { var gv = [30, 40, 50], gm = gv.map(function (k) { return k / KT; }), Lg = new Float32Array(256);
       for (var cg = 0; cg < 256; cg++) Lg[cg] = cg === 255 ? NaN : 0.25 * cg;
-      return Object.assign(base, { lut: Lg, levels: gv.map(function (k) { return k / KT; }), values: gv, fmt: function (v) { return v + " kt"; },
-        style: function (v) { return v === 50 ? ["rgba(15,15,15,0.95)", 1.7] : ["rgba(15,15,15,0.85)", 1.1]; } }); }
-    if (field === "refl" || field === "mslp") { var pv = range(940, 1066, 2), L2 = new Float32Array(256);
-      for (var c = 0; c < 256; c++) L2[c] = c === 255 ? NaN : 940 + 0.5 * c;
-      // the MSLP map: every 4 hPa while zoomed out past ~4 km per pixel (every 2 hPa crowds the national view), bolder 1012
-      return { rad: 1, rad2: 1, dec: 1, minPts: 4, lut: L2, levels: pv, values: pv, src: "mslp", stride: 2, emask: true, extKm: [400, 2.0, 60],
-        show: field === "mslp" ? function (v) { return v % 4 === 0 || view.s < 4000; } : null,
-        fmt: function (v) { return String(v); }, style: field === "mslp" ? function (v) { return v === 1012 ? ["rgba(15,15,15,0.95)", 1.6] : ["rgba(20,20,20,0.85)", v % 4 ? 0.8 : 1.1]; } : function () { return ["rgba(20,20,20,0.85)", 1.0]; } };
-    }
+      return Object.assign(base, { lut: Lg, levels: gm, values: gv, fmt: function (v) { return v + " kt"; },
+        style: function (v) { return ["rgba(255,255,255,0.97)", v === 50 ? 2.6 : 1.8]; },
+        gl: Object.assign({ list: [gm[0], gm[1]], special: [[gm[2], 2.6, "rgba(255,255,255,0.97)"]] }, WIND_GL) }); }
+    if (field === "refl" || field === "mslp") return isoSpec(field);
     return null;
   }
+  // a second set of lines on some maps: isobars (and highs and lows) over the 10 m wind and the gust (2026-10-06, user: "add
+  // mslp contours to the 10m wind plot")
+  function extraSpec(field) { return field === "wind10" || field === "gust" ? isoSpec(field) : null; }
   var CONT = new Map(), contBusy = {};
+  var CPU_LINES = /[?&]cpulines=1/.test(location.search);          // testing: the old worker-traced lines on top, in red
+  var scrubbing = false, scrubT = 0;
+  function scrubbed() { scrubbing = true; clearTimeout(scrubT); scrubT = setTimeout(function () { scrubbing = false; render(); }, 350); }
   function contoursOn() { return !!contourSpec(st.field, st.model, [0, 1]) && $("cont").checked && !($("diff").checked && diffAvail()); }
-  function ensureContours(d) {
-    if (!contoursOn() || !d) return;
-    var fm = d.field === "acc" ? d.c.fields[d.accType] : d.field === "ecape" ? d.fm : d.c.fields[d.field]; if (!fm) return;
-    if (d.field === "ecape" && d.ecSub !== st.ec) return;
-    var spec0 = contourSpec(d.field, d.model, [0, 1]);
-    var srcField = spec0.src || d.field, sfm = d.field === "acc" || d.field === "ecape" ? fm : d.c.fields[srcField];
-    if (!sfm || sfm.hours.indexOf(d.hour) < 0) return;
-    // one set of lines per frame whatever resolution is on screen: the first one traced is kept (from the half-resolution
-    // grid the 2 x 2 block average becomes every 2nd point, the same 6 km lattice), so zooming does not redraw the lines
-    var key = d.ckey || d.model + "/" + d.c.cycle + "/" + d.field + "/" + d.hour;
+  // the frame a spec draws from: the field's own, or the MSLP frame (isobars) of the same run and hour
+  function specSrc(d, spec) {
+    var fm = d.field === "acc" ? d.c.fields[d.accType] : d.field === "ecape" ? d.fm : d.c.fields[d.field];
+    if (!spec.src) return fm ? { e: d.e, g: d.g, fm: fm, own: true } : null;
+    var sfm = d.c.fields[spec.src]; if (!sfm || sfm.hours.indexOf(d.hour) < 0) return null;
+    var e = peek(d.model, d.c, spec.src, d.hour, false) || decoded(d.model, d.c, spec.src, d.hour, false);
+    return e && e.dec ? { e: e, g: prepGrid(d.c.grids[sfm.grid]), fm: sfm, own: false } : null;
+  }
+  function specQ(d, spec, S) {                                    // the per-frame decode parameter of the frame a spec reads
+    if (S.own && d.field === "ecape") return d.fm.k || 2.8;
+    if (S.own && d.field === "acc") return null;
+    return S.fm.q ? S.fm.q[S.fm.hours.indexOf(d.hour)] : null;
+  }
+  function contKey(d, suffix) { return (d.ckey || d.model + "/" + d.c.cycle + "/" + d.field + "/" + d.hour) + (suffix || ""); }
+  // worker trace of one spec (labels, H/L; and the lines themselves where the GPU path is unavailable)
+  function ensureTrace(d, spec0, suffix) {
+    var key = contKey(d, suffix);
     if (CONT.has(key) || contBusy[key]) return;
-    var e = srcField === d.field ? d.e : decoded(d.model, d.c, srcField, d.hour);
-    if (!e || !e.dec) return;
-    var q = sfm.q && d.field !== "acc" ? sfm.q[sfm.hours.indexOf(d.hour)] : d.field === "ecape" ? (fm.k || 2.8) : null;
-    var spec = contourSpec(d.field, d.model, q), g = srcField === d.field ? d.g : prepGrid(d.c.grids[sfm.grid]);
-    var dec = spec.dec;
-    if (srcField === d.field && e.lo) dec = Math.max(1, Math.round(dec / 2));
+    if (d.field === "ecape" && d.ecSub !== st.ec) return;
+    var S = specSrc(d, spec0); if (!S) return;
+    var e = S.e, q = specQ(d, spec0, S);
+    var spec = suffix ? extraSpec(d.field) : contourSpec(d.field, d.model, q), g = S.g, dec = spec.dec;
+    if (S.own && e.lo) dec = Math.max(1, Math.round(dec / 2));
     contBusy[key] = 1;
     var cellKm = g.type === "lcc" ? g.dx / 1000 : g.di * 111.2, ext = null;
     if (spec.extKm) ext = [Math.max(4, Math.round(spec.extKm[0] / cellKm)), spec.extKm[1], Math.max(1, Math.round(spec.extKm[2] / cellKm))];
@@ -1764,49 +1982,77 @@
       delete contBusy[key]; render();
     }, function () { delete contBusy[key]; });
   }
+  function ensureContours(d) {
+    if (!contoursOn() || !d || d.hold) return;
+    // with the GPU drawing the lines the trace only places labels: none while playing or scrubbing (labels are hidden then)
+    if (GPUC && (st.playing || scrubbing)) return;
+    var sp = contourSpec(d.field, d.model, [0, 1]); if (sp) ensureTrace(d, sp, "");
+    var x = extraSpec(d.field); if (x) ensureTrace(d, x, "/iso");
+  }
   function gridXY(g, i, j) {
     if (g.type === "lcc") return [g._x1 + i * g.dx, g._y1 + j * g.dy];
     var ll = ijLL(g, i, j); return P.fwd(ll[0], ll[1]);
   }
-  function contNow() {
-    if (!contoursOn() || !drawn) return null;
-    var key = drawn.ckey || drawn.model + "/" + drawn.c.cycle + "/" + drawn.field + "/" + drawn.hour, C = CONT.get(key);
-    if (!C) ensureContours(drawn);
-    return C || null;
+  function contAll() {                                             // the traced sets of the frame on screen (main, isobars)
+    if (!contoursOn() || !drawn) return [];
+    var out = [], C = CONT.get(contKey(drawn, "")), X = extraSpec(drawn.field) ? CONT.get(contKey(drawn, "/iso")) : null;
+    if (C) out.push(C); if (X) out.push(X);
+    if ((!C || (extraSpec(drawn.field) && !X)) && !interacting) ensureContours(drawn);
+    return out;
   }
-  // contour lines: one tiled Path2D per level, built once per frame (km), stroked with the canvas transform
+  // GPU layers for the frame on screen: A = the field's own lines (refl and mslp: the isobars), B = isobars over the wind maps
+  function gpuLayer(d, spec, suffix) {
+    var S = specSrc(d, spec); if (!S) return null;
+    var q = specQ(d, spec, S), sp = suffix ? extraSpec(d.field) : contourSpec(d.field, d.model, q), dec = sp.dec;
+    if (S.own && S.e.lo) dec = Math.max(1, Math.round(dec / 2));
+    var ch = S.own ? (d.field === "acc" || d.field === "ecape" ? 1 : chOf(d.field)) : chOf(spec.src);
+    var gkey = (S.own ? d.field + "|" + (d.field === "acc" ? st.acc.type : d.field === "ecape" ? st.ec : "") : spec.src) + "|" + (q && q.join ? q.join(",") : q) + "|" + dec;
+    return { spec: sp, g: S.g, info: ctexOf(S.e, ch, sp, dec, gkey) };
+  }
+  function gpuLayers(d) {
+    if (!GPUC || !d || !contoursOn()) return [null, null];
+    var sp = contourSpec(d.field, d.model, [0, 1]), x = extraSpec(d.field);
+    return [sp ? gpuLayer(d, sp, "") : null, x ? gpuLayer(d, x, "/iso") : null];
+  }
+  // contour lines on the 2-D overlay: only without the GPU path (or, for testing, ?cpulines=1 on top in red)
   function drawContourLines(ctx, x0, x1, y0, y1) {
-    var C = contNow(); if (!C) return;
-    if (!C.groups) {
-      var by = new Map();
-      C.lines.forEach(function (L) { var gp = by.get(L.v); if (!gp) by.set(L.v, gp = []); gp.push(L); });
-      C.groups = [];
-      by.forEach(function (ls, v) {
-        var np = 0; ls.forEach(function (L) { np += L.xy.length / 2; });
-        var xy = new Float32Array(np * 2), off = new Int32Array(ls.length + 1), p = 0;
-        ls.forEach(function (L, i) { off[i] = p; for (var k = 0; k < L.xy.length; k++) xy[2 * p + k] = L.xy[k] / 1000; p += L.xy.length / 2; });
-        off[ls.length] = p;
-        C.groups.push({ v: v, sty: C.spec.style(v), tiles: buildTiles(xy, off, 400) });
+    if (GPUC && !CPU_LINES) return;
+    contAll().forEach(function (C) {
+      if (!C.groups) {
+        var by = new Map();
+        C.lines.forEach(function (L) { var gp = by.get(L.v); if (!gp) by.set(L.v, gp = []); gp.push(L); });
+        C.groups = [];
+        by.forEach(function (ls, v) {
+          var np = 0; ls.forEach(function (L) { np += L.xy.length / 2; });
+          var xy = new Float32Array(np * 2), off = new Int32Array(ls.length + 1), p = 0;
+          ls.forEach(function (L, i) { off[i] = p; for (var k = 0; k < L.xy.length; k++) xy[2 * p + k] = L.xy[k] / 1000; p += L.xy.length / 2; });
+          off[ls.length] = p;
+          C.groups.push({ v: v, sty: C.spec.style(v), tiles: buildTiles(xy, off, 400) });
+        });
+      }
+      var kpp = view.s / 1000;
+      kmTransform(ctx); ctx.lineJoin = "round"; ctx.lineCap = "round";
+      [0, 1].forEach(function (pass) {                               // halo first, then the line
+        if (CPU_LINES && GPUC && !pass) return;
+        C.groups.forEach(function (gp) {
+          if (C.spec.show && !C.spec.show(gp.v)) return;
+          ctx.strokeStyle = CPU_LINES && GPUC ? "rgba(230,0,40,0.9)" : pass ? gp.sty[0] : "rgba(255,255,255,0.55)";
+          ctx.lineWidth = (CPU_LINES && GPUC ? 0.8 : pass ? gp.sty[1] : gp.sty[1] + 1.8) * kpp;
+          strokeTiles(ctx, gp.tiles, x0, x1, y0, y1);
+        });
       });
-    }
-    var kpp = view.s / 1000;
-    kmTransform(ctx); ctx.lineJoin = "round"; ctx.lineCap = "round";
-    [0, 1].forEach(function (pass) {                               // halo first, then the line
-      C.groups.forEach(function (gp) {
-        if (C.spec.show && !C.spec.show(gp.v)) return;
-        ctx.strokeStyle = pass ? gp.sty[0] : "rgba(255,255,255,0.55)"; ctx.lineWidth = (pass ? gp.sty[1] : gp.sty[1] + 1.8) * kpp;
-        strokeTiles(ctx, gp.tiles, x0, x1, y0, y1);
-      });
+      ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
     });
-    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
   }
   var TW = new Map();                                              // text widths, per font + text
   function textW(ctx, font, txt) { var k = font + "|" + txt, w = TW.get(k); if (w === undefined) { w = ctx.measureText(txt).width; TW.set(k, w); } return w; }
   function drawContourLabels(ctx) {
-    var C = contNow(); if (!C) return;
+    if (GPUC && (st.playing || scrubbing)) return;                 // the lines are on the GPU; their labels wait for the map to rest
+    var all = contAll(); if (!all.length) return;
     var x0 = view.cx - W / 2 * view.s, x1 = view.cx + W / 2 * view.s, y0 = view.cy - H / 2 * view.s, y1 = view.cy + H / 2 * view.s;
     var boxes = [], GAP = W < 640 ? 170 : 240, FONT = "600 11.5px 'Source Sans 3', Arial, sans-serif";
     ctx.font = FONT; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    all.forEach(function (C) {
     C.lines.forEach(function (L) {
       if (L.bb[1] < x0 || L.bb[0] > x1 || L.bb[3] < y0 || L.bb[2] > y1) return;
       if (C.spec.show && !C.spec.show(L.v)) return;
@@ -1838,7 +2084,9 @@
         ctx.strokeText(hi ? "H" : "L", px, py); ctx.fillStyle = hi ? "#1c3fa8" : "#b0171f"; ctx.fillText(hi ? "H" : "L", px, py);
         ctx.font = "600 11px 'Source Sans 3', Arial, sans-serif"; ctx.lineWidth = 3; ctx.strokeText(Math.round(x[3]), px, py + 15); ctx.fillText(Math.round(x[3]), px, py + 15);
       });
+      ctx.font = FONT; ctx.textAlign = "center";
     }
+    });
   }
   // ── airports (2026-09-30, user: "add some airport stations with markers on the map (US and Canada)") ──────────────
   // OurAirports large/medium airports with scheduled service and an ICAO code (data/models_airports.json, built by
@@ -2013,7 +2261,7 @@
   }
   function drawLegendRefl() {
     var g = legSetup(92), rate = st.model === "rdps", vt = rate ? [0.1, 0.5, 1, 2.5, 5, 10, 25, 50] : [10, 20, 30, 40, 50, 60, 70];
-    $("legT").textContent = rate ? "Precipitation rate, mm/h (not reflectivity), coloured by type · isobars every 2 hPa" : "Simulated reflectivity, dBZ, 1 km above ground, coloured by precipitation type at the surface · isobars every 2 hPa";
+    $("legT").textContent = rate ? "Precipitation rate, mm/h (not reflectivity), coloured by type · isobars every 2 hPa (4 hPa zoomed out)" : "Simulated reflectivity, dBZ, 1 km above ground, coloured by precipitation type at the surface · isobars every 2 hPa (4 hPa zoomed out)";
     if (g.vert) {                                   // five type columns, names written up the column heads, dBZ (or mm/h) ticks on the right
       var ctx = g.ctx, top = 74, lo5 = 5, hi72 = 72, cw = 10, xs = 6, y0 = g.h - 12;
       ctx.save(); ctx.font = "12.5px 'Source Sans 3', Arial, sans-serif"; ctx.fillStyle = "#3d4540"; ctx.textAlign = "left"; ctx.textBaseline = "middle";
@@ -2115,8 +2363,8 @@
     var unitLabel = { ir: "Brightness temperature, °C (cold, high cloud tops in colour)", ceil: "Cloud ceiling, feet above ground, in flight-category colours (no shading: no ceiling)",
                       vis: "Visibility, miles, in flight-category colours (no shading: 10 mi or more)", t2m: "Temperature 2 m above ground, °F (blue line: freezing)", td2m: "Dewpoint 2 m above ground, °F",
                       smoke: "Smoke, mg per m², vertically integrated", wind80: "Wind speed 80 m above ground, m/s (barbs in knots)",
-                      wind10: "Wind speed 10 m above ground, knots (barbs: half barb 5, full 10, pennant 50) · contours 20, 30, 40 kt",
-                      gust: "Surface wind gust, knots · barbs: 10 m wind, knots · contours 30, 40, 50 kt", sw: "Incoming sunshine (shortwave) at the surface, W per m²" }[name];
+                      wind10: "Wind speed 10 m above ground, knots (barbs: half barb 5, full 10, pennant 50) · white lines 20, 30, 40 kt · black lines: isobars every 2 hPa (4 hPa zoomed out), H/L = highs and lows",
+                      gust: "Surface wind gust, knots · barbs: 10 m wind, knots · white lines 30, 40, 50 kt · black lines: isobars every 2 hPa (4 hPa zoomed out), H/L = highs and lows", sw: "Incoming sunshine (shortwave) at the surface, W per m²" }[name];
     if (name === "acc") unitLabel = ACC_TYPES[st.acc.type].unitLabel;
     if (st.model === "rdps" && name === "ir") unitLabel = "°C, OLR-derived brightness temperature (proxy for IR)";
     if (st.model === "rdps" && name === "sw") unitLabel = "W per m², mean over the previous hour";
@@ -2270,7 +2518,7 @@
       if (d <= back && i0 - d >= 0) list.push([st.model, c, pf, hs[i0 - d], lo]);
     }
     if (!slow) for (var d2 = 4; i0 - d2 >= 0; d2++) list.push([st.model, c, pf, hs[i0 - d2], lo]);
-    if (st.field === "refl" && $("cont").checked && c.fields.mslp) {       // the isobars' small grid rides along
+    if ((st.field === "refl" || extraSpec(st.field)) && $("cont").checked && c.fields.mslp) {       // the isobars' small grid rides along
       var ms = c.fields.mslp.hours, out = [], n0 = nU;            // n0: urgency is decided on the list as it was (nU grows below)
       list.forEach(function (a, i) { if (ms.indexOf(a[3]) >= 0) { out.push(a, [st.model, c, "mslp", a[3], false]); if (i < n0) nU++; } else out.push(a); });
       list = out;
@@ -2306,9 +2554,9 @@
       if (ready) { st.hour = next; onChange(); } else { prefetch(); schedule(); }
     }, 260);
   }
-  function step(dh) { var c = cycleObj(st.model, st.ci); if (!c) return; engage(); var hs = uiHours(c), ix = hs.indexOf(st.hour);
+  function step(dh) { var c = cycleObj(st.model, st.ci); if (!c) return; engage(); scrubbed(); var hs = uiHours(c), ix = hs.indexOf(st.hour);
     st.hour = hs[Math.max(0, Math.min(hs.length - 1, ix + dh))]; onChange(); }
-  $("hour").addEventListener("input", function () { engage(); var hs = uiHours(cycleObj(st.model, st.ci)); st.hour = hs[+this.value] || 0; onChange(); });
+  $("hour").addEventListener("input", function () { engage(); scrubbed(); var hs = uiHours(cycleObj(st.model, st.ci)); st.hour = hs[+this.value] || 0; onChange(); });
   $("back").onclick = function () { step(-1); };
   $("fwd").onclick = function () { step(1); };
   function togglePlay() { var b = $("play"); st.playing = !st.playing; engage(); b.innerHTML = st.playing ? "&#10074;&#10074;" : "&#9654;"; b.setAttribute("aria-label", st.playing ? "Pause" : "Play"); render(); }
@@ -2586,7 +2834,7 @@
       var cd = 127 + Math.round(d / spec.step); out[k] = cd < 1 ? 1 : cd > 253 ? 253 : cd; }
     var ent = { dec: { w: e1.dec.w, h: e1.dec.h, data: out }, exact: ex, v1: v1, v2: v2, used: ++useClock, lo: lo };
     DIFF.set(key, ent);
-    if (DIFF.size > 6) { var old = DIFF.keys().next().value, oe = DIFF.get(old); if (oe.tex && gl) gl.deleteTexture(oe.tex); DIFF.delete(old); }
+    if (DIFF.size > 6) { var old = DIFF.keys().next().value, oe = DIFF.get(old); dropTex(oe); DIFF.delete(old); }
     return { e: ent, fm: fm, key: key, h2: h2, o: o };
   }
   function diffColour(d, range) {                               // diverging: blue = this model lower, red = higher
@@ -3158,14 +3406,22 @@
   }
 
   window.MV = { st: st, man: man, frames: frames, CONT: CONT, get view() { return view; }, get drawn() { return drawn; }, P: P, gridIJ: gridIJ,   // for testing from the console
-    Q: Q, NET: NET, geo: geo,
+    Q: Q, NET: NET, geo: geo, gpuMs: GPU_MS, get gpuc() { return GPUC; }, render: render,
+    // GPU cost of the pan path: n map frames (view nudged each time) with and without the contour layers, each waited for (readPixels)
+    bench: function (n) { if (!drawn || !drawn.e || !drawn.e.tex) return null; n = n || 30; var r = {};
+      [true, false].forEach(function (on) { if (!on) { setLayer("A", null); setLayer("B", null); } else { setLayer("A", drawn.layers[0]); setLayer("B", drawn.layers[1]); }
+        var px = new Uint8Array(4), sync = function () { gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, px); };
+        sync(); var t0 = performance.now(); for (var i = 0; i < n; i++) { view.cx += (i % 2 ? -1 : 1) * view.s; fastFrame(); sync(); } r[on ? "withLines" : "noLines"] = Math.round((performance.now() - t0) / n * 100) / 100; });
+      setLayer("A", drawn.layers[0]); setLayer("B", drawn.layers[1]); r.dpr = DPR; r.px = glc.width + "x" + glc.height; r.lvl = Q.lvl; return r; },
     perf: { summary: function () { var r = function (x) { return Math.round(x * 10) / 10; };
       var gs = Q.gest.slice(-40);
       return { lvl: Q.lvl, dpr: DPR, gestMed: r(med(Q.gest)), gestN: Q.gest.length, gestSlowPct: gs.length ? Math.round(100 * gs.filter(function (x) { return x > 25; }).length / gs.length) : null, fastMed: r(med(Q.fast)), settleMed: r(med(Q.settle)), settleMax: r(Math.max.apply(0, Q.settle.concat([0]))),
                settleN: Q.settle.length, log: Q.log, netBytesPerMs: r(NET.bw), netN: NET.n, slow: netSlow(), lo: !!(drawn && drawn.e && drawn.e.lo) }; } } };
   // ── start ──────────────────────────────────────────────────────────────────────────────────────────────────────
   var glOk = false;
+  var tInit = performance.now();
   try { glOk = initGL(); } catch (e) { console.error(e); }
+  MV.initMs = Math.round((performance.now() - tInit) * 10) / 10;
   if (!glOk) $("msg").textContent = "This page needs WebGL 2, which this browser does not provide.";
   var bust = "?v=" + Math.floor(Date.now() / 60000);
   var hashStation = null;
