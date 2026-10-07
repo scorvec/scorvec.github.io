@@ -124,7 +124,7 @@ HCAND = {
     "heloc_g":    ("Bank home-equity lines (slower growth = tighter)", "Household housing finance", "minus the year-on-year % change in revolving home-equity loans at commercial banks (H.8, RHEACBW027SBOG; one-off reclassification jumps chain-linked out)"),
     "sloos_mort": ("Banks tightening residential mortgage standards", "Household housing finance", "Senior Loan Officer Survey, net % tightening: all mortgages (H0SUBLPDHMSNQ) to 2007Q1, prime (DRTSPM) 2007Q2–2014Q4, GSE-eligible (SUBLPDHMSENQ) from 2015 - three question wordings spliced end to end"),
     "sloos_mdem": ("Weaker residential mortgage demand", "Household housing finance", "minus the Senior Loan Officer Survey net % reporting stronger mortgage demand: all mortgages (H0SUBLPDHMDNQ) to 2007Q1, prime (DRSDPM) 2007Q2–2014Q4, GSE-eligible (SUBLPDHMDENQ) from 2015, spliced"),
-    "refi_cash":  ("Cash-out refinancing (less = tighter)", "Household housing finance", "minus cash-out refinance loan volume (FHFA National Mortgage Database, quarterly, annualised) as % of home mortgage debt (Fed Z.1, HHMSDODNS); entered 275 days after the quarter ends"),
+    "refi_cash":  ("Cash-out refinancing (less = tighter)", "Household housing finance", "minus cash-out refinance loan volume (FHFA National Mortgage Database, quarterly, annualised) as % of households' one-to-four-family mortgage debt (Fed Z.1, HHMSDODNS); entered 275 days after the quarter ends"),
     "del_mort":   ("Residential mortgage delinquency rate", "Household housing finance", "delinquency rate on single-family residential mortgages, all commercial banks (DRSFRMACBS), seasonally adjusted; entered 150 days after the quarter starts"),
     "sloos_heloc": ("Banks tightening home-equity line standards", "Household housing finance", "Senior Loan Officer Survey, net % tightening standards for HELOCs (SUBLPDCLHSNQ); asked since 2008"),
     "heloc_dem":  ("Weaker home-equity line demand", "Household housing finance", "minus the Senior Loan Officer Survey net % reporting stronger HELOC demand (SUBLPDCLHDNQ); since 2008"),
@@ -133,8 +133,14 @@ HCAND = {
 }
 HCONTEXT = ["del_mort", "del_heloc"]                     # context unless admitted; del_heloc (2003) is chart and table only
 HSUB = ["heloc_g", "heloc_lim", "sloos_heloc", "heloc_dem", "sloos_mort", "sloos_mdem", "refi_cash", "lockin"]
-# ADMITTED on the evidence of stage 2 of the admission test (set after the first Actions run; see admission()).
-ADMIT_H: list[str] = []
+# ADMITTED on the evidence of stage 2 of the admission test (2026-10-07, run 37692314610): against the current 18-input headline
+# (r NFCI credit 0.794, mean episode-peak percentile 0.867) only the cash-out refinance ratio clears the gate with a non-negative
+# gain, and only formally: loading +0.02, r and the peaks unchanged to three decimals (d_r 95 % CI -0.002..+0.002). The bank
+# HELOC growth loads the wrong way (-0.11; banks' home-equity balances rise when borrowers draw lines in a crunch) and fails;
+# mortgage standards raise r (+0.023, CI -0.007..+0.049) but cut the 2018 peak 3.7 pp and fail; mortgage demand and bank
+# mortgage delinquency pass the gate alone but lose the greedy step. The HELOC survey questions (2008), HE credit limits (2003)
+# and the lock-in gap (2013) start too late to compete and feed the housing sub-index only.
+ADMIT_H: list[str] = ["refi_cash"]
 ALL = dict(INPUTS); ALL.update(CAND); ALL.update(HCAND)
 ALL["del_heloc"] = ("Home-equity line delinquency rate", "Household housing finance", "% of HELOC balances 90+ days delinquent, all lenders (New York Fed Consumer Credit Panel / Equifax, quarterly from 2003; entered 50 days after the quarter ends)")
 
@@ -346,9 +352,10 @@ def housing_inputs(raw, hs, mort):
     # mortgage debt at the end of the same quarter (Z.1 stamps the quarter's first day)
     if new:
         vol = _qseries(new.get("All Mortgages (Refinance)|TOT_LOANAMT|1")) * _qseries(new.get("All Mortgages (Refinance)|PCT_CASHOUT|2")) / 100.0
-        debt = raw["HHMSDODNS"].copy(); debt.index = debt.index + pd.offsets.QuarterEnd(0)
-        ratio = (400.0 * vol / 1000.0 / debt.reindex(vol.index)).dropna()
-        assert ratio.between(0.0, 30.0).all(), "cash-out refinance ratio out of range"
+        debt = raw["HHMSDODNS"].copy() / 1000.0; debt.index = debt.index + pd.offsets.QuarterEnd(0)    # $ million -> $ billion
+        assert 1000.0 < debt.iloc[-1] < 50000.0, f"HHMSDODNS units changed ({debt.iloc[-1]:.0f} $ billion?)"
+        ratio = (400.0 * vol / 1000.0 / debt.reindex(vol.index)).dropna()                                  # annualised, %
+        assert ratio.between(0.1, 30.0).all(), "cash-out refinance ratio out of range"
         W["refi_cash"] = -weekly(ratio, "last", RELEASE_LAG_D["NMDB_NEW"])
         P["refi_share"] = _qseries(new.get("All Mortgages|PCT_REFI|1"))
         P["cash_share"] = _qseries(new.get("All Mortgages (Refinance)|PCT_CASHOUT|1"))
