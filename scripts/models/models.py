@@ -109,6 +109,20 @@ FIELDS = {
     "asnow": dict(enc="acc16", unit=0.1),      # snowfall (HRRR/RRFS: the model's ASNOW; RDPS: 10:1 from its snow water)
     "afzra": dict(enc="acc16", unit=0.01),     # freezing rain, liquid equivalent (model's own FRZR / FreezingRain-Accum)
     "aip": dict(enc="acc16", unit=0.01),       # sleet, liquid equivalent (HRRR/RRFS: APCP while the sleet type is on; RDPS: IcePellets-Accum)
+    # convection and the boundary layer (2026-10-07, user: "updraft helicity and swaths ... echo tops and PBL height. Max
+    # updraft speed is helpful as well"). HRRR wrfsfc / RRFS 2dfld; RDPS has only the PBL height.
+    #   uh25 / uh03  updraft helicity 2-5 / 0-3 km AGL, the model's max over the hour ending at the valid time (MXUPHL), m2 s-2:
+    #                code = round(254 sqrt(UH / 400)) (25 m2/s2 -> 64, 75 -> 110; 254 = 400 or more), 0 below 1 m2/s2
+    #   uvv          max upward vertical velocity over the hour, 100-1000 hPa (MAXUVV), m/s: 0.25 m/s steps, 0 below 1 m/s
+    #   *s           the RUN SWATH: running maximum since the start of the run (stored, one small file per hour - the page
+    #                would otherwise need every earlier hour to show one map)
+    #   etop         echo top (RETOP, the 18.3 dBZ top, m above sea level) in kft, 1 kft steps; 255 = no echo
+    #   hpbl         PBL height (HPBL; RDPS PlanetaryBoundaryLayerHeight), m above ground, 25 m steps to 6,350 m
+    "uh25": dict(enc="uh", top=400.0), "uh25s": dict(enc="uh", top=400.0),
+    "uh03": dict(enc="uh", top=400.0), "uh03s": dict(enc="uh", top=400.0),
+    "uvv": dict(enc="uvv", step=0.25), "uvvs": dict(enc="uvv", step=0.25),
+    "etop": dict(enc="etop"),
+    "hpbl": dict(enc="lin", off=0.0, step=25.0),
     # upper air (2026-10-06; upper.py), every 3rd hour. "uvz": R, G = earth-relative u, v (off + step * code), B = height,
     # per-frame offset and step (manifest "q", like linf). 925 hPa: +-63.5 m/s in 0.5 m/s (~1 kt); 250 hPa: +-101.6 m/s
     # in 0.8 m/s (the jet reaches ~100 m/s). "dt": R = potential temperature on 2 PVU, 250 K + 0.6 K * code (to 402 K),
@@ -150,6 +164,7 @@ ACC_METHOD["rrfs"].update(afram=_FRAM.format(src="FRZR; 3-hourly past 36 h"), as
                           as10=ACC_METHOD["hrrr"]["as10"])
 ACC_METHOD["rdps"].update(afram=_FRAM.format(src="FreezingRain-Accum"), asnod=_SNOD.format(src="SnowDepth"))
 ORDER = ["ir", "refl", "ceil", "vis", "t2m", "td2m", "smoke", "wind80", "wind10", "gust", "sw", "mslp", "apcp", "asnow", "afzra", "aip",
+         "uh25", "uh25s", "uh03", "uh03s", "uvv", "uvvs", "etop", "hpbl",
          "ua925", "ua250", "dt", "z500", "w500", "afram", "acobb", "as10", "asnod"]
 UA_FIELDS = ("ua925", "ua250", "dt", "z500", "w500")
 UA_ON = os.environ.get("MV_UA", "0") == "1"            # models.yml sets MV_UA=1 (the switch for the upper-air fetch)
@@ -180,7 +195,9 @@ def smoke_on(cyc_dt):
 # 3 km models only: on the 10 km RDPS grid the page would never pick them. Measured on 2026100118 HRRR: lo/full bytes
 # 0.28-0.36 per field, +33 % on the cycle.
 LO = {"hrrr": 2, "rrfs": 2}
-LO_SKIP = {"mslp", "ua925", "ua250", "dt", "z500", "w500"}
+CONV_MAX = ("uh25", "uh03", "uvv")            # hourly-max fields: no f00, and a run swath each
+LO_SKIP = {"uh25", "uh25s", "uh03", "uh03s", "uvv", "uvvs",   # narrow tracks: every-2nd-point copies would drop them (tiny anyway)
+           "mslp", "ua925", "ua250", "dt", "z500", "w500"}
 
 
 def decimate(arr, f):
@@ -238,6 +255,15 @@ def ptype_flags(ra, sn, fz, ip):
 def encode(name, x):
     """-> (uint8 image array, row 0 north; per-frame params or None)"""
     f = FIELDS[name]
+    if f["enc"] == "uh":
+        c = np.where(x >= 1.0, np.clip(np.rint(254 * np.sqrt(np.maximum(x, 0) / f["top"])), 1, 254), 0)
+        return np.where(np.isfinite(x), c, 255).astype(np.uint8)[::-1], None
+    if f["enc"] == "uvv":
+        c = np.where(x >= 1.0, np.clip(np.rint(x / f["step"]), 4, 254), 0)
+        return np.where(np.isfinite(x), c, 255).astype(np.uint8)[::-1], None
+    if f["enc"] == "etop":                                         # x = echo top, kft; NaN = no echo
+        c = np.where(np.isfinite(x), np.clip(np.rint(x), 0, 254), 255)
+        return c.astype(np.uint8)[::-1], None
     if f["enc"] == "acc16":
         v = np.clip(np.rint(np.nan_to_num(x, nan=0.0) / f["unit"]), 0, 65535).astype(np.uint16)
         c = np.dstack([(v >> 8).astype(np.uint8), (v & 255).astype(np.uint8), np.zeros(v.shape, np.uint8)])
@@ -316,6 +342,8 @@ ACC = {"apcp": r"^APCP:surface:0-\d+ (hour|day) acc", "asnow": r"^ASNOW:surface:
        "frzr": r"^FRZR:surface:0-\d+ (hour|day) acc"}
 # 10 m wind and the instantaneous surface gust (user 2026-10-04); the anchors keep out the hourly-max WIND / MAXUW / MAXVW
 # lines that share the 10 m level ("5-6 hour max fcst"). Same names in HRRR wrfsfc and RRFS 2dfld (checked 2026-10-04).
+CONV = {"uh25": r"^MXUPHL:5000-2000 m above ground:", "uh03": r"^MXUPHL:3000-0 m above ground:", "uvv": r"^MAXUVV:100-1000 mb",
+        "etop": r"^RETOP:", "hpbl": r"^HPBL:surface:"}
 WG = {"snod": r"^SNOD:surface:(anl|\d+ hour fcst):?$", "gust": r"^GUST:surface:(anl|\d+ hour fcst):?$", "u10": r"^UGRD:10 m above ground:(anl|\d+ hour fcst):?$",
       "v10": r"^VGRD:10 m above ground:(anl|\d+ hour fcst):?$"}
 IDX_WANT = {   # field -> regex on "VAR:LEVEL:TIME[:extra]" of a wgrib2 .idx line
@@ -323,17 +351,17 @@ IDX_WANT = {   # field -> regex on "VAR:LEVEL:TIME[:extra]" of a wgrib2 .idx lin
     "hrrr": {"mslp": r"^MSLMA:mean sea level:", "psfc": r"^PRES:surface:", "ir": r"^SBT124:top of atmosphere:", "ceilh": r"^HGT:cloud ceiling:", "zsfc": r"^HGT:surface:",
              "vis": r"^VIS:surface:", "t2m": r"^TMP:2 m above ground:", "td2m": r"^DPT:2 m above ground:",
              "smoke": r"^COLMD:entire atmosphere", "u80": r"^UGRD:80 m above ground:",
-             "v80": r"^VGRD:80 m above ground:", "sw": r"^DSWRF:surface:(anl|\d+ hour fcst):?$", **WG, **PT, **ACC},
+             "v80": r"^VGRD:80 m above ground:", "sw": r"^DSWRF:surface:(anl|\d+ hour fcst):?$", **WG, **PT, **ACC, **CONV},
     "rrfs": {"mslp": r"^MSLET:mean sea level:", "psfc": r"^PRES:surface:", "ir": r"^SBTA1613:top of atmosphere:", "ceilh": r"^HGT:cloud ceiling:", "zsfc": r"^HGT:surface:",
              "vis": r"^VIS:surface:", "t2m": r"^TMP:2 m above ground:", "td2m": r"^DPT:2 m above ground:",
              "smoke": r"^COLMD:entire atmosphere.*Particulate organic matter dry", "u80": r"^UGRD:80 m above ground:",
-             "v80": r"^VGRD:80 m above ground:", "sw": r"^DSWRF:surface:(anl|\d+ hour fcst):?$", **WG, **PT, **ACC},
+             "v80": r"^VGRD:80 m above ground:", "sw": r"^DSWRF:surface:(anl|\d+ hour fcst):?$", **WG, **PT, **ACC, **CONV},
 }
 RDPS_VARS = {"ir": "UpwardLongwaveRadiationFlux_NTAtm", "t2m": "AirTemp_AGL-2m", "td2m": "DewPoint_AGL-2m",
              "u80": "WindU_AGL-80m", "v80": "WindV_AGL-80m",
              "u10": "WindU_AGL-10m", "v10": "WindV_AGL-10m", "gust": "WindGust_AGL-10m", "swacc": "DownwardShortwaveRadiationFlux-Accum_Sfc",
              "prate": "PrecipRate_Sfc", "ptype": "PrecipType-Instant_Sfc", "mslp": "Pressure_MSL", "psfc": "Pressure_Sfc",
-             "apcp": "Precip-Accum_Sfc", "swe": "Snow-Accum_Sfc", "frzr": "FreezingRain-Accum_Sfc", "ipacc": "IcePellets-Accum_Sfc",
+             "apcp": "Precip-Accum_Sfc", "swe": "Snow-Accum_Sfc", "frzr": "FreezingRain-Accum_Sfc", "ipacc": "IcePellets-Accum_Sfc", "hpbl": "PlanetaryBoundaryLayerHeight_Sfc",
              "snod": "SnowDepth_Sfc"}
 RDPS_BOX = (-172.0, -45.0, 17.0, 80.0)      # crop of the RDPS grid (lon0, lon1, lat0, lat1): North America
 
@@ -705,6 +733,19 @@ def process_hour(model, lead, blobs, outdir):
             phys["gust"] = dec(blobs["gust"])
         if "sw" in blobs:
             phys["sw"] = dec(blobs["sw"])
+        for k in CONV_MAX:
+            if k in blobs:
+                phys[k] = dec(blobs[k])
+        if "etop" in blobs:
+            et = dec(blobs["etop"])
+            if lead in (3, 12):                                 # units / missing-value check in the log
+                fin = et[np.isfinite(et)]
+                print(f"  f{lead:03d} RETOP: finite {fin.size / et.size:.3f}, min {fin.min() if fin.size else 'n/a'}, "
+                      f"p50/p99 of > 0: {np.percentile(fin[fin > 0], [50, 99]) if (fin > 0).any() else 'n/a'}, "
+                      f"share <= 0: {(fin <= 0).mean() if fin.size else 'n/a'}", flush=True)
+            phys["etop"] = np.where(np.isfinite(et) & (et > 0), et * 3.28084 / 1000.0, np.nan)
+        if "hpbl" in blobs:
+            phys["hpbl"] = dec(blobs["hpbl"])
         if "mslp" in blobs and "psfc" in blobs:
             F = _CTX["sub"]
             ps = dec(blobs["psfc"])[::F, ::F]
@@ -755,6 +796,8 @@ def process_hour(model, lead, blobs, outdir):
         if "swacc" in blobs and "swacc_prev" in blobs:
             a1, a0 = dec(blobs["swacc"], crop), dec(blobs["swacc_prev"], crop)
             phys["sw"] = np.maximum(a1 - a0, 0.0) / 3600.0
+        if "hpbl" in blobs:
+            phys["hpbl"] = dec(blobs["hpbl"], crop)
         if "smoke" in blobs:
             phys["smoke"] = dec(blobs["smoke"]) * 1e6
         if "mslp" in blobs and "psfc" in blobs:
@@ -804,7 +847,7 @@ def process_hour(model, lead, blobs, outdir):
     except Exception as e:                      # noqa: BLE001
         print(f"  f{lead:03d}: point sampling failed: {e!r}", flush=True)
         pts = {}
-    meta, nbytes = {}, 0
+    meta, nbytes, maxc = {}, 0, {}
     lo = LO.get(model)
     for name, x in phys.items():
         arr, p = encode(name, x)
@@ -818,6 +861,10 @@ def process_hour(model, lead, blobs, outdir):
             (d / f"{lead:03d}_lo.webp").write_bytes(bl)
             nbytes += len(bl)
         meta[name] = p
+        if name in CONV_MAX:                                     # codes for the run-swath pass (monotonic encodings: max of
+            maxc[name] = arr                                     # codes = code of the max)
+    if maxc:
+        np.savez_compressed(Path(outdir) / f"_max_{lead:03d}.npz", **maxc)
     return lead, meta, nbytes, time.time() - t0, pts
 
 
@@ -871,7 +918,7 @@ def fetch_hour(model, date, cyc, lead, cyc_dt):
     """-> {key: bytes} for one forecast hour (keys as in IDX_WANT / RDPS_VARS)."""
     smoke = smoke_on(cyc_dt)
     if model in ("hrrr", "rrfs"):
-        want = {k: v for k, v in IDX_WANT[model].items() if k != "zsfc" and not (lead == 0 and k in ACC)   # f00 has no accumulations
+        want = {k: v for k, v in IDX_WANT[model].items() if k != "zsfc" and not (lead == 0 and (k in ACC or k in CONV_MAX))   # f00: no accumulations or hourly maxima
                 and (smoke or k != "smoke")}
         out = fetch_idx_fields(model, file_url(model, date, cyc, lead), want)
         pw = dict(ua_want(model)) if (UPR.ua_hour(lead) and ua_on(model)) else {}
@@ -1182,6 +1229,22 @@ def cmd_run(a):
                     msg += (f"; run totals over {int(m.sum())} cells with > 0.1 in: Cobb {c[m].mean():.2f} in, 10:1 {t10[m].mean():.2f}, "
                             f"ASNOW {an[m].mean():.2f}, r(Cobb, ASNOW) {np.corrcoef(c[m], an[m])[0, 1]:.2f}")
             print(msg, flush=True)
+    # run swaths: the running maximum of each hourly-max field since the start of the run (255 = missing is skipped)
+    run_max = {}
+    for fpath in sorted(outdir.glob("_max_*.npz")):
+        lead = int(fpath.stem[5:])
+        z = np.load(fpath)
+        for name in z.files:
+            c = z[name]
+            cur = run_max.get(name)
+            cur = c.copy() if cur is None else np.where(c == 255, cur, np.where(cur == 255, c, np.maximum(cur, c)))
+            run_max[name] = cur
+            b = webp(cur)
+            (outdir / (name + "s")).mkdir(exist_ok=True)
+            (outdir / (name + "s") / f"{lead:03d}.webp").write_bytes(b)
+            total_bytes += len(b)
+            per_field[name + "s"][lead] = None
+        fpath.unlink()
     fetch_stats = dict(requests=sum(f.nreq for f in _FETCH.values()), mb=round(sum(f.nbytes for f in _FETCH.values()) / 1e6, 1))
     fields = {}
     for name in ORDER:
@@ -1203,6 +1266,8 @@ def cmd_run(a):
             e["q"] = [per_field[name][h] for h in hrs]
         if name == "refl":
             e["enc"] = "rate2" if model == "rdps" else "refl2"
+        if fd["enc"] in ("uh", "uvv", "etop"):
+            e["enc"] = fd["enc"]
         if FIELDS[name]["enc"] == "acc16":
             e.update(enc="acc16", unit=FIELDS[name]["unit"], method=ACC_METHOD[model][name])
         if LO.get(model) and name not in LO_SKIP and e["grid"] == "main":
