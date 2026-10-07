@@ -49,7 +49,7 @@ jobs:
         run: |
           python -m http.server 8765 >/dev/null 2>&1 &
           sleep 2
-          for wh in 1400,2400 390,2400; do
+          for wh in 1400,10000 390,19000; do
             google-chrome --headless=new --no-sandbox --disable-gpu --window-size=$wh --virtual-time-budget=20000 \
               --enable-logging=stderr --v=0 --dump-dom http://localhost:8765/fci.html > "dom_$wh.html" 2> "log_$wh.txt" || true
             echo "== $wh: console"; grep -i "CONSOLE" "log_$wh.txt" | head -20 || true
