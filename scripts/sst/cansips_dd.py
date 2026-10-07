@@ -25,8 +25,8 @@ GRIB facts, measured from the files (`cansips_dd.py probe`):
     20S-20N mean of the relative index would include land.
 
 Indices exactly as c3s_nino34.py builds them for the page's other systems: Niño-3.4 = cos-weighted
-mean over 5S-5N, 170W-120W (here the 10 x 50 one-degree cells inside the box); the tropical mean
-over 20S-20N ocean; each COMPONENT anomalised against its own 1993-2016 hindcast for the same start
+mean over the one-degree points 5S-5N, 170W-120W (sampled as the CDS samples them, see indices());
+the tropical mean over the 5-degree ocean points 20S-20N; each COMPONENT anomalised against its own 1993-2016 hindcast for the same start
 month and lead, then pooled; rNiño-3.4 = (n34 - trop) anomaly x sigma(ONI)/sigma(rel) for the valid
 calendar month (roni_sigma.json).
 
@@ -294,14 +294,38 @@ def _box_weights(lat_rng, lon_rng=None) -> np.ndarray:
     return w / w.sum()
 
 
+def _point_weights(lats, lons, need_ocean: bool) -> np.ndarray:
+    """(180, 360) weights that reproduce sampling at integer-degree POINTS, as the CDS request does: each point is
+    bilinearly interpolated from the cell-centred grid, i.e. the mean of its four neighbouring cells, and points are
+    cos-weighted. need_ocean: a point counts only when all four cells are ocean (the land fill never enters)."""
+    oc = ocean_mask()
+    w = np.zeros((180, 360))
+    for la in lats:
+        i0 = int(round(la + 89.0))                                     # the cell centred at la - 0.5
+        for lo in lons:
+            j0 = int(round(lo - 1.0)) % 360                           # the cell centred at lo - 0.5
+            cells = [(i0, j0), (i0 + 1, j0), (i0, (j0 + 1) % 360), (i0 + 1, (j0 + 1) % 360)]
+            if need_ocean and not all(oc[c] for c in cells):
+                continue
+            for c in cells:
+                w[c] += 0.25 * np.cos(np.deg2rad(la))
+    return w / w.sum()
+
+
 def indices(arr: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
-    """Per-member (Niño-3.4, 20S-20N ocean mean) in degC from a WaterTemp member stack."""
+    """Per-member (Niño-3.4, 20S-20N ocean mean) in degC from a WaterTemp member stack.
+
+    Sampled exactly as c3s_nino34.py's CDS requests sample the C3S systems: Niño-3.4 on the 11 x 51 one-degree POINTS
+    5S..5N, 170W..120W inclusive, the tropical mean on the 5-degree points 20S..20N. Measured on the September 2026
+    issue (`checkbox`): the cell box (the 10 x 50 cells strictly inside the region) reads 0.09-0.15 C warmer than
+    C3S's copy of the same 40 runs, because a strong El Nino's anomaly is concentrated on the equator and the point
+    box reaches half a degree further off it; the point box agrees with C3S to 0.02 C."""
     global _W34, _WTR
     try:
         _W34
     except NameError:
-        _W34 = _box_weights((-5, 5), (190, 240))
-        _WTR = _box_weights((-20, 20))
+        _W34 = _point_weights(range(-5, 6), range(190, 241), need_ocean=False)
+        _WTR = _point_weights(range(-20, 21, 5), range(0, 360, 5), need_ocean=True)
     a = arr.astype(np.float64) - 273.15
     return (a * _W34).sum(axis=(1, 2)), (a * _WTR).sum(axis=(1, 2))
 
