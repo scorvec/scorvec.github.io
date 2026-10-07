@@ -61,9 +61,11 @@ def fdic():
     try:
         b, _ = get("https://api.fdic.gov/banks/docs/risview_properties.yaml", timeout=90)
         t = b.decode("utf-8", "replace")
-        blocks = re.split(r"\n  (?=[A-Z0-9_]+:\n)", t)
-        hits = [bl[:400] for bl in blocks if re.search(r"nondepository|non-depository|intermediar|private equity", bl, re.I)]
-        print("FDIC props hits", len(hits)); print("\n---\n".join(hits[:30]))
+        L = t.splitlines()
+        print("FDIC yaml lines", len(L))
+        for i, l in enumerate(L):
+            if re.search(r"nondepository|non-depository|intermediar|private equity", l, re.I):
+                print("\n".join(L[max(0, i - 4):i + 2])); print("---")
     except Exception as e:
         print("FDIC ERR", e)
 
@@ -111,6 +113,14 @@ def ffiec_download(t, hid, op):
     b, h = get(url, data=urllib.parse.urlencode(form).encode(), opener=op, timeout=300,
                headers={"Content-Type": "application/x-www-form-urlencoded", "User-Agent": "Mozilla/5.0 (compatible; scorvec.com FCI)"})
     print("download bytes", len(b), h.get("Content-Type"), h.get("Content-Disposition"))
+    if not b.startswith(b"PK"):
+        tt = b.decode("utf-8", "replace")
+        print("FORM SENT", {k: (v if len(v) < 60 else len(v)) for k, v in form.items()})
+        for m in re.findall(r'<span[^>]*(?:Label|lbl|Error|Message)[^>]*>([^<]{3,300})</span>', tt): print("MSG", m)
+        sel2 = re.search(r'<select[^>]*name="([^"]*Dates[^"]*)"[^>]*>(.*?)</select>', tt, re.S)
+        print("selected after", re.findall(r'<option[^>]*selected[^>]*>([^<]*)<', tt))
+        print(re.sub(r"\s+", " ", re.sub(r"<[^>]+>", " ", tt))[:3000])
+        return
     z = zipfile.ZipFile(io.BytesIO(b))
     names = z.namelist(); print("zip n", len(names)); print([n for n in names if "RCCI" in n or "RCC" in n][:10])
     for n in names:
@@ -125,7 +135,7 @@ def ffiec_download(t, hid, op):
 
 
 if __name__ == "__main__":
-    for f in (fred, ebp, shiller, fdic):
+    for f in (fdic,):
         try:
             print(f"===== {f.__name__}", flush=True); f()
         except Exception as e:
