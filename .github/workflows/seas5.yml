@@ -187,6 +187,7 @@ jobs:
             scripts/sst/data/seas5/forecast/*_${{ steps.gate.outputs.issue }}_L7.npz
             scripts/sst/data/seas5/sixh/*_${{ steps.gate.outputs.issue }}*.grib
             scripts/sst/data/seas5/regimes/fc_*_${{ steps.gate.outputs.issue }}.grib
+            scripts/sst/data/seas5/ssw/fc_*_${{ steps.gate.outputs.issue }}.grib
           key: seas5-fc-${{ steps.gate.outputs.issue }}-${{ github.run_id }}
           restore-keys: |
             seas5-fc-${{ steps.gate.outputs.issue }}-
@@ -213,6 +214,7 @@ jobs:
             scripts/sst/data/seas5/forecast/*_${{ steps.gate.outputs.issue }}_L7.npz
             scripts/sst/data/seas5/sixh/*_${{ steps.gate.outputs.issue }}*.grib
             scripts/sst/data/seas5/regimes/fc_*_${{ steps.gate.outputs.issue }}.grib
+            scripts/sst/data/seas5/ssw/fc_*_${{ steps.gate.outputs.issue }}.grib
           key: seas5-fc-${{ steps.gate.outputs.issue }}-${{ github.run_id }}-fetched
 
       # Only while a table for this start month is missing: fetch that raw hindcast kind, reduce it,

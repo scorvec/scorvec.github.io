@@ -114,6 +114,7 @@ jobs:
             scripts/sst/data/seas5/forecast/*_${{ steps.gate.outputs.issue }}.grib
             scripts/sst/data/seas5/sixh/*_${{ steps.gate.outputs.issue }}*.grib
             scripts/sst/data/seas5/regimes/fc_*_${{ steps.gate.outputs.issue }}.grib
+            scripts/sst/data/seas5/ssw/fc_*_${{ steps.gate.outputs.issue }}.grib
           key: seas5-fc-${{ steps.gate.outputs.issue }}-none
           restore-keys: |
             seas5-fc-${{ steps.gate.outputs.issue }}-

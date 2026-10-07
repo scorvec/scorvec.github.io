@@ -432,6 +432,7 @@
     </div>
     <div class="controls" id="mapPeriod" style="margin-top:0.4rem"></div>
     <div class="controls" id="mapSeasons"></div>
+    <p class="idx-note" id="mapChgNote" hidden></p>
     <div class="map-grid" id="mapSingle"></div>
     <div class="chart-card-footer">
       <span class="chart-sources">ECMWF SEAS5, consecutive monthly issues &middot; anomalies vs each issue&rsquo;s own 1993&ndash;2016 start-month hindcast &middot; 1&deg; grid</span>
@@ -446,8 +447,9 @@
     spread bias point by point, which is the calibration that matters most for a
     single-system tercile map. Shading is the most likely category and its probability; white
     means no category reaches 40&nbsp;%. Near-normal is not drawn: with a realistic spread it is
-    almost never the most likely tercile, and where it is, the signal is weak anyway. Three
-    overlapping seasons follow the start month; pick the variable and the season. Temperature and
+    almost never the most likely tercile, and where it is, the signal is weak anyway. Four
+    overlapping seasons follow the start month (three before the October 2026 issue; the fourth ends at lead month 7,
+    FMA for an October start); pick the variable and the season. Temperature and
     500&nbsp;hPa height are counted against the hindcast&rsquo;s <b>linear trend</b> extrapolated to
     the valid year rather than its flat 1993&ndash;2016 mean: two decades of warming (and the
     thickness rise that goes with it) would otherwise sit inside &ldquo;above normal&rdquo; before
@@ -474,7 +476,8 @@
     and month the 24 hindcast years&rsquo; ensemble mean is correlated with ERA5, and the observed index is
     regressed on the forecast to give a calibrated probability of each phase. Where the correlation is below
     0.25 the cell is hatched &mdash; the members still say something, but the hindcast says not to trust it, and
-    the calibrated bar falls back to climatology by construction. The board reads the six months at a glance;
+    the calibrated bar falls back to climatology by construction, at lead month 7 exactly as at the other leads. The
+    board reads the seven months at a glance;
     the chart below it lets you look at one index at a time.</p>
     <div class="map-grid" id="teleFigs" style="margin-bottom:1rem"></div>
     <div class="controls" id="telePills"></div>
@@ -504,6 +507,25 @@
     <div class="chart-card-footer">
       <span class="chart-sources">ECMWF SEAS5 u and z at 10&ndash;1000 hPa, 2&deg; &middot; anomalies and spreads vs the 1993&ndash;2016 hindcast &middot; skill: hindcast ensemble mean vs ERA5</span>
       <span class="chart-updated" id="stratUpdated">&mdash;</span>
+    </div>
+  </div>
+  <div class="card" id="sswCard" hidden data-label="Polar vortex and SSW risk" data-group="SEAS5 &middot; Teleconnections &amp; stratosphere">
+    <h2>Polar vortex and sudden-warming risk, against the model&rsquo;s own normal</h2>
+    <p class="note">The vortex day by day: the zonal-mean wind at 60&deg;N and 10&nbsp;hPa for each of the 51 members,
+    against SEAS5&rsquo;s <b>own</b> normal for the same start date and lead &mdash; its hindcast, 25 members &times; 36 winters
+    (1981&ndash;2016) &mdash; so the model&rsquo;s drift and bias are in the reference, not in the anomaly. A <b>major sudden
+    stratospheric warming</b> is counted the standard way (Charlton &amp; Polvani 2007): the daily wind turns easterly between
+    1&nbsp;November and 31&nbsp;March, 20 westerly days separate two events, and a reversal that never recovers for 10 days before
+    30&nbsp;April is the final warming, not an SSW. The risk index is the share of members with at least one, set against the
+    model&rsquo;s base rate (same start, same rule) and the observed rate (MERRA-2). Its skill is tested on the hindcast: each
+    winter&rsquo;s member fraction against what MERRA-2 observed. 100&nbsp;hPa is monthly only: the daily hindcast at that level is
+    not in the AWS copy and would take hundreds of thousands of CDS fields per start month.</p>
+    <div class="idx-note" id="sswVerdict"></div>
+    <div style="overflow-x:auto"><table class="chg" id="sswTable"></table></div>
+    <div class="map-grid" id="sswFigs"></div>
+    <div class="chart-card-footer">
+      <span class="chart-sources">ECMWF SEAS5: daily u 10 hPa (CDS sub-daily, 51 members; hindcast from the AWS SEAS5 daily copy, 1981&ndash;2016), monthly u 100 hPa (CDS, 1993&ndash;2016 hindcast) &middot; observed: MERRA-2 (NASA GMAO) 1980&ndash;2026, GEOS FP analyses this season</span>
+      <span class="chart-updated" id="sswUpdated">&mdash;</span>
     </div>
   </div>
   <div class="card" id="popCard" data-label="Population-weighted, daily" data-group="SEAS5 &middot; Impacts">
@@ -627,7 +649,8 @@
     the <b>last decade</b> (2016&ndash;2025), and the ERA5 1991&ndash;2025 <b>trend extrapolated</b> to the
     forecast month &mdash; what normal is expected to be now. Tercile bounds are &plusmn;0.43&sigma; of the
     observed 1991&ndash;2020 spread around each reference (detrended for the trend reference;
-    empirical percentiles for rain and sunshine). Six months and three seasons per figure.</p>
+    empirical percentiles for rain and sunshine). Seven months and four seasons per figure (six and three before the
+    October 2026 issue).</p>
     <div class="controls" id="normVar"></div>
     <div class="controls" id="normRef"></div>
     <div class="controls" id="normKind"></div>
@@ -804,7 +827,8 @@
     start month and reused every year; ECMWF is read from the copy already held for the member-level products. The
     Ni&ntilde;o-3.4 plume is the full ensemble of every system, which is affordable because the box is small. Multi-model
     means weight every SYSTEM equally, never every member, so a 124-member ensemble does not speak for the group.</p>
-    <p>Forecast: ECMWF SEAS5 (C3S <code>originating_centre=ecmwf</code>, <code>system=51</code>), 51 members, monthly means for lead months 1&ndash;6 and the 6-hourly 2 m temperature, from the Copernicus Climate Data Store; hindcast: the same system&rsquo;s 1993&ndash;2016 re-forecasts, 25 members, for the same start month, and likewise for the previous issue. Sea-surface temperature, 500 and 1000 hPa height, sea-level pressure and stratospheric winds on a 2&deg; grid; 2 m temperature, precipitation, evaporation, 10 m wind, solar radiation and 500 hPa height on a 1&deg; grid over the Americas; geopotential at 10, 50 and 100 hPa poleward of 60&deg; in each hemisphere.</p>
+    <p>Forecast: ECMWF SEAS5 (C3S <code>originating_centre=ecmwf</code>, <code>system=51</code>), 51 members, monthly means for lead months 1&ndash;6 and the 6-hourly 2 m temperature, from the Copernicus Climate Data Store, and from the October 2026 issue a <b>seventh lead month</b> (April for an October start) rebuilt from the same run&rsquo;s sub-daily fields (see <i>Lead month 7</i> below); hindcast: the same system&rsquo;s 1993&ndash;2016 re-forecasts, 25 members, for the same start month, and likewise for the previous issue. Sea-surface temperature, 500 and 1000 hPa height, sea-level pressure and stratospheric winds on a 2&deg; grid; 2 m temperature, precipitation, evaporation, 10 m wind, solar radiation and 500 hPa height on a 1&deg; grid over the Americas; geopotential at 10, 50 and 100 hPa poleward of 60&deg; in each hemisphere.</p>
+    <p><b>Lead month 7</b> (from the October 2026 issue). The CDS monthly product stops at lead month 6, but SEAS5 runs 215 days, so the seventh month (April for an October start) is rebuilt from the same run&rsquo;s sub-daily fields: instantaneous fields averaged over every step from 06&nbsp;UTC on the 1st (12&nbsp;UTC for pressure levels) to 00&nbsp;UTC on the 1st of the next month, accumulations as the month&rsquo;s total over its seconds. Applied to month 6 of the same issue, that rule reproduces the monthly product to its packing precision (largest difference 0.002&nbsp;K in 2&nbsp;m temperature, 0.3&nbsp;m&sup2;/s&sup2; in 500&nbsp;hPa geopotential, 1e-11&nbsp;m/s in precipitation). The 1993&ndash;2016 hindcast reference for month 7 comes from the daily copy of the C3S SEAS5 archive on AWS (Planette, Copernicus licence) for the instantaneous fields and from the CDS sub-daily hindcast for the accumulations and the 50/100/1000&nbsp;hPa heights and 30/50&nbsp;hPa winds. Checked at months 5 and 6 against the CDS monthly hindcast, the AWS copy is identical for smooth fields (polar-cap and N&iacute;&ntilde;o-box means, 500&nbsp;hPa height, 60&deg;N wind) but differs on the grid for 2&nbsp;m temperature (rms 0.2&nbsp;K, up to 3&nbsp;K on coasts and mountains), coastal SST box means (up to 0.18&nbsp;K) and snow depth; those offsets do not change between months 5 and 6, so each such field is moved onto the CDS hindcast mean using its month-6 offset. Not extended, so shown to month 6: 10&nbsp;m wind speed and solar radiation (the monthly wind speed is not reproducible from the sub-daily winds), and the 100&nbsp;hPa vortex wind. The seventh month has less skill; it goes through exactly the same calibration, trend handling and significance tests as the others, and the change maps have nothing to compare it with in the previous issue.</p>
     <p>Observations: ERA5 from a local archive (daily 1.5&deg; fields, 1959 or 1991 to the present depending on the field), monthly-meaned for normals, trends, records and skill; CPC ERSSTv5 for the observed Ni&ntilde;o indices; NOAA CPC Global Unified daily maximum and minimum temperature (0.5&deg;, 1991&ndash;2020, via NOAA PSL) for the threshold-day normals. Teleconnection projectors are the CPC-style regression patterns built for the GEPS page on NCEP/NCAR R1 (1991&ndash;2020). Population weights: GeoNames (CC BY 4.0) places of 15,000 or more people. The hindcast and observed references are reduced once to compact tables, so each monthly run in GitHub Actions downloads only the new forecast.</p>
     <p>Method: indices are cosine-weighted box means; anomalies are member minus hindcast mean at the same lead (member minus the hindcast&rsquo;s linear trend for geopotential heights, which carry the warming signal). Relative Ni&ntilde;o-3.4 follows the CPC/ECMWF construction used elsewhere on this site; the Trans-Ni&ntilde;o index is Trenberth &amp; Stepaniak (2001), standardised by the hindcast spread. Terciles against the hindcast use the 33.3rd and 66.7th percentiles of the 600 hindcast samples per grid point; against observed references the members are first bias-corrected (member &minus; hindcast mean + ERA5 1993&ndash;2016 mean, multiplicatively for rain and sunshine) and the bounds are &plusmn;0.43&sigma; of the observed 1991&ndash;2020 spread around the reference (detrended for the trend reference; empirical percentiles for rain and sunshine). Standardised anomalies divide the ensemble-mean anomaly by the reference&rsquo;s year-to-year standard deviation. Skill is the correlation of the 24 hindcast years&rsquo; ensemble mean with ERA5 at the valid month. Teleconnection phase probabilities are calibrated by regressing the observed monthly index (ERA5, same projection) on the hindcast ensemble mean over those 24 years for each calendar month and lead, and reading the ±0.5&sigma; tail areas of a Gaussian centred on the regression prediction with the residual spread &mdash; an in-sample fit at n&nbsp;=&nbsp;24, so the quoted r is slightly optimistic; below r&nbsp;=&nbsp;0.25 the probabilities are treated as climatology. The AO, EPO, WPO and SOI, which have no built-in standardisation, are expressed in ERA5&rsquo;s 1991&ndash;2020 standard deviation for the calendar month, applied identically to model and observations. Built by <code>scripts/sst/seas5_outlook.py</code> and its companions; the JSON behind the charts: <a href="assets/sst/data/seas5_outlook.json">seas5_outlook.json</a>, <a href="assets/sst/data/seas5_tele.json">seas5_tele.json</a>, <a href="assets/sst/data/seas5_popT.json">seas5_popT.json</a>, <a href="assets/sst/data/seas5_pme_regions.json">seas5_pme_regions.json</a>, <a href="assets/sst/data/seas5_normals.json">seas5_normals.json</a>, <a href="assets/sst/data/seas5_regimes.json">seas5_regimes.json</a>.</p>
     <p><b>NOAA SFS beta</b> (the NOAA SFS group, moved here from its own page in October 2026): NOAA&rsquo;s next-generation
@@ -828,7 +852,7 @@
   </div>
 <script>
 window.STAGE = {
-  groups: [{"label": "Every model", "items": [["c3sMapCard", "Anomaly maps", ""], ["c3sTercCard", "Tercile probabilities", ""], ["c3sIdxCard", "Ocean indices", ""], ["c3sPopCard", "Population-weighted, monthly", ""], ["c3sDayCard", "Population-weighted, daily", ""], ["ni-o-3-4-every-member", "Niño-3.4, every member", ""]]}, {"label": "SEAS5 · ENSO & oceans", "items": [["enso-indices", "ENSO indices", ""], ["pdo-amo-iod-atlantic-ni-o", "PDO, AMO, IOD, Atlantic Niño", ""]]}, {"label": "SEAS5 · Maps", "items": [["changeCard", "Maps and changes", ""], ["calibrated-terciles", "Calibrated terciles", ""], ["normCard", "Against observed normals", ""]]}, {"label": "SEAS5 · Teleconnections & stratosphere", "items": [["teleCard", "Teleconnection indices", ""], ["stratCard", "Vortex, QBO, annular mode", ""], ["polar-stratosphere", "Polar stratosphere", ""], ["regimeCard", "Weather regimes", ""]]}, {"label": "SEAS5 · Impacts", "items": [["popCard", "Population-weighted, daily", ""], ["xdaysCard", "Threshold days", ""], ["runsCard", "Cold-snap risk", ""], ["windCard", "Wind events", ""], ["snowCard", "Snowfall", ""], ["pmeCard", "P − E by region", ""]]}, {"label": "NOAA SFS (beta)", "items": [["sfs-plume", "Niño-3.4 plume", "all 31 members"], ["sfs-indices", "Climate indices", "IOD, SASD, Niño flavours, PDO"], ["sfs-maps", "Monthly anomaly maps", "eight fields, every lead"]]}, {"label": "CanSIPS (Environment Canada, 12 months)", "items": [["cs-plume", "Niño-3.4 plume", "40 members, 12 months"], ["cs-maps", "Anomaly maps", "nine fields, monthly and 3-month"], ["cs-terc", "Tercile probabilities", "ECCC's own: temperature, rain, snow"], ["cs-tails", "Decile tails", "ECCC's own: warmest, coldest, wettest, driest 10%"]]}, {"label": "About", "items": [["aboutCard", "About this page", ""]]}],
+  groups: [{"label": "Every model", "items": [["c3sMapCard", "Anomaly maps", ""], ["c3sTercCard", "Tercile probabilities", ""], ["c3sIdxCard", "Ocean indices", ""], ["c3sPopCard", "Population-weighted, monthly", ""], ["c3sDayCard", "Population-weighted, daily", ""], ["ni-o-3-4-every-member", "Niño-3.4, every member", ""]]}, {"label": "SEAS5 · ENSO & oceans", "items": [["enso-indices", "ENSO indices", ""], ["pdo-amo-iod-atlantic-ni-o", "PDO, AMO, IOD, Atlantic Niño", ""]]}, {"label": "SEAS5 · Maps", "items": [["changeCard", "Maps and changes", ""], ["calibrated-terciles", "Calibrated terciles", ""], ["normCard", "Against observed normals", ""]]}, {"label": "SEAS5 · Teleconnections & stratosphere", "items": [["teleCard", "Teleconnection indices", ""], ["stratCard", "Vortex, QBO, annular mode", ""], ["sswCard", "Polar vortex and SSW risk", ""], ["polar-stratosphere", "Polar stratosphere", ""], ["regimeCard", "Weather regimes", ""]]}, {"label": "SEAS5 · Impacts", "items": [["popCard", "Population-weighted, daily", ""], ["xdaysCard", "Threshold days", ""], ["runsCard", "Cold-snap risk", ""], ["windCard", "Wind events", ""], ["snowCard", "Snowfall", ""], ["pmeCard", "P − E by region", ""]]}, {"label": "NOAA SFS (beta)", "items": [["sfs-plume", "Niño-3.4 plume", "all 31 members"], ["sfs-indices", "Climate indices", "IOD, SASD, Niño flavours, PDO"], ["sfs-maps", "Monthly anomaly maps", "eight fields, every lead"]]}, {"label": "CanSIPS (Environment Canada, 12 months)", "items": [["cs-plume", "Niño-3.4 plume", "40 members, 12 months"], ["cs-maps", "Anomaly maps", "nine fields, monthly and 3-month"], ["cs-terc", "Tercile probabilities", "ECCC's own: temperature, rain, snow"], ["cs-tails", "Decile tails", "ECCC's own: warmest, coldest, wettest, driest 10%"]]}, {"label": "About", "items": [["aboutCard", "About this page", ""]]}],
   products: {
     "c3sMapCard": { label: "Anomaly maps", gated: true, dom: function () { return "c3sMapCard"; } },
     "c3sTercCard": { label: "Tercile probabilities", gated: true, dom: function () { return "c3sTercCard"; } },
@@ -842,6 +866,7 @@ window.STAGE = {
     "calibrated-terciles": { label: "Calibrated terciles", gated: true, dom: function () { return "calibrated-terciles"; } },
     "teleCard": { label: "Teleconnection indices", gated: true, dom: function () { return "teleCard"; } },
     "stratCard": { label: "Vortex, QBO, annular mode", gated: true, dom: function () { return "stratCard"; } },
+    "sswCard": { label: "Polar vortex and SSW risk", gated: true, dom: function () { return "sswCard"; } },
     "popCard": { label: "Population-weighted, daily", gated: true, dom: function () { return "popCard"; } },
     "xdaysCard": { label: "Threshold days", gated: true, dom: function () { return "xdaysCard"; } },
     "runsCard": { label: "Cold-snap risk", gated: true, dom: function () { return "runsCard"; } },
@@ -1317,6 +1342,15 @@ window.STAGE.onRender = function (sel) {
         '<input aria-label="Forecast month" type="range" id="mapSlider" min="0" max="' + (ms.length - 1) + '" step="1" value="0" style="width:min(320px,40vw);vertical-align:middle;accent-color:var(--accent)">' +
         '<button class="pill" id="mapNext" type="button" title="next month">›</button><span id="mapFrame" style="font:600 0.8rem var(--sans);color:var(--ink);min-width:6rem"></span>' +
         '<button class="pill" id="mapSpeed" type="button" title="frame time">' + (state.delay >= 900 ? "slow" : "fast") + '</button>' : "";
+      // lead month 7 (from the October 2026 issue): the previous issue ran six months, so the newest months and the
+      // season ending in them have no change map; say which, instead of leaving them out silently
+      var cn = document.getElementById("mapChgNote"), noPrev = P.filter(function (q) { return q.prev === null; });   // undefined = a JSON from before the field existed
+      if (cn) {
+        cn.hidden = !(state.k === "chg" && noPrev.length);
+        cn.textContent = cn.hidden ? "" : "No change map for " + noPrev.map(function (q) { return q.label; }).join(", ") + ": the " + issueLabel(prev) +
+          " issue's forecast ended in " + (M.previous_last ? mmm(M.previous_last) : "an earlier month") + ", so there is nothing to compare them with" +
+          (P.some(function (q) { return q.leads && q.leads.indexOf(7) >= 0 && q.prev === null; }) ? " (lead month 7 is new with this issue)." : ".");
+      }
       sb.innerHTML = ss.length ? '<span class="ctlsep">Seasons</span>' + ss.map(function (q) { return '<button class="pill' + (q.key === state.p ? " on" : "") + '" data-p="' + q.key + '">' + q.label + "</button>"; }).join("") : "";
       if (ms.length) {
         document.getElementById("mapPlay").onclick = function () { state.playing ? stop() : play(); };
@@ -2215,6 +2249,53 @@ window.STAGE.onRender = function (sel) {
   </div>
 </footer>
 <!-- sf:end -->
+<script>
+/* SEAS5 polar vortex and SSW risk (scripts/sst/seas5_ssw.py, 2026-10-07). Every claim is printed with its test:
+   the risk index is called skilful only when the hindcast BSS 90 % interval excludes zero. */
+(function () {
+  function pc(x) { return x == null ? "–" : Math.round(100 * x) + "%"; }
+  function f2(x) { return x == null ? "n/a" : x.toFixed(2); }
+  function mm(ym) { var m = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"]; return m[parseInt(ym.slice(5), 10) - 1] + " " + ym.slice(0, 4); }
+  fetch("assets/sst/data/seas5_ssw.json?v=" + Date.now()).then(function (r) { return r.ok ? r.json() : null; }).then(function (J) {
+    if (!J || !J.windows) return;
+    var card = document.getElementById("sswCard"); card.hidden = false;
+    var W = J.windows, A = W["Nov–Mar"], S = A.skill, E = J.enso || {}, v = "?v=" + encodeURIComponent(J.generated);
+    var sig = A.p_vs_model_base < 0.05;
+    var t = "<b>" + pc(A.forecast) + " of the 51 members</b> (" + A.forecast_k + ") have a major SSW between November and March, against the model&rsquo;s own base rate of " +
+      pc(A.model_base) + " (90 % interval " + pc(A.model_base_ci90[0]) + "–" + pc(A.model_base_ci90[1]) + ") and an observed rate of " + pc(A.obs_base_long) + " (MERRA-2, " + A.obs_long_years + "). " +
+      (sig ? "The departure from the model base rate is significant (binomial p " + f2(A.p_vs_model_base) + ")." : "The departure from the model base rate is not significant (binomial p " + f2(A.p_vs_model_base) + "): the members are consistent with the model&rsquo;s normal SSW rate.") + " ";
+    t += S.skilful ? "In the hindcast the index has skill beyond climatology: Brier skill score " + f2(S.bss) + " (90 % CI " + f2(S.bss_ci90[0]) + " to " + f2(S.bss_ci90[1]) + ", " + S.n + " winters)."
+      : "<b>In the hindcast the index carries no skill beyond climatology</b> (Brier skill score " + f2(S.bss) + ", 90 % CI " + f2(S.bss_ci90[0]) + " to " + f2(S.bss_ci90[1]) + "; ROC area " + f2(S.auc) + ", " + S.n + " winters, MERRA-2 as truth): read it as the model&rsquo;s view, not as a forecast with a track record.";
+    if (E.hindcast && E.observed) {
+      var h = E.hindcast, o = E.observed;
+      t += " ENSO context: in the hindcast, El Niño winters (DJF ONI ≥ 0.5, " + h.n_nino + " of them) average " + pc(h.rate_nino) + " of members with an SSW against " + pc(h.rate_other) + " in the rest (" + (h.p < 0.05 ? "significant, p " + h.p.toFixed(3) : "not significant, p " + h.p.toFixed(2)) + "); observed " + o.years + ": " + pc(o.rate_nino) + " against " + pc(o.rate_other) + " (" + (o.p < 0.05 ? "significant, p " + o.p.toFixed(3) : "not significant, p " + o.p.toFixed(2)) + ").";
+    }
+    if (J.timing && J.timing.fw_before_march) { var f = J.timing.fw_before_march; t += " Final warming before 1 March: " + pc(f.forecast) + " of members, " + pc(f.hindcast) + " in the hindcast, " + pc(f.observed) + " observed."; }
+    document.getElementById("sswVerdict").innerHTML = t;
+    var rows = ["<tr><th>Window</th><th>This issue</th><th>Model base rate</th><th>Observed (MERRA-2)</th><th>Hindcast skill (BSS, 90 % CI)</th></tr>"];
+    Object.keys(W).forEach(function (k) {
+      var e = W[k], s = e.skill;
+      rows.push("<tr><td>" + k + "</td><td>" + pc(e.forecast) + "</td><td>" + pc(e.model_base) + "</td><td>" + pc(e.obs_base_long) + "</td><td class=\"" + (s.skilful ? "up" : "flat") + "\">" +
+        (s.skilful ? f2(s.bss) + " (" + f2(s.bss_ci90[0]) + " to " + f2(s.bss_ci90[1]) + ")" : "n.s. (" + f2(s.bss_ci90[0]) + " to " + f2(s.bss_ci90[1]) + ")") + "</td></tr>");
+    });
+    if (J.monthly_u10 && J.monthly_u10.length) {
+      rows.push("<tr><th>Month</th><th>u60N 10 hPa, mean (P10–P90)</th><th>Model normal (P10–P90)</th><th>Anomaly</th><th>Chance of an easterly monthly mean (normal)</th></tr>");
+      J.monthly_u10.forEach(function (e) {
+        rows.push("<tr><td>" + mm(e.month) + "</td><td>" + e.mean.toFixed(1) + " (" + e.p10.toFixed(0) + "–" + e.p90.toFixed(0) + ") m/s</td><td>" + e.normal.toFixed(1) + " (" + e.normal_p10.toFixed(0) + "–" + e.normal_p90.toFixed(0) + ")</td><td>" + (e.z >= 0 ? "+" : "") + e.z.toFixed(1) + "σ</td><td>" + pc(e.p_easterly) + " (" + pc(e.p_easterly_normal) + ")</td></tr>");
+      });
+    }
+    document.getElementById("sswTable").innerHTML = rows.join("");
+    var F = J.figures || {}, caps = { u10: "<b>Daily vortex wind against the model normal.</b> Thin lines: members; band: their 10–90 %; brown: ensemble mean; grey: the hindcast normal; black: GEOS FP analyses so far. Lower panel: anomaly in σ of the hindcast spread.",
+      section: "<b>Where the vortex departs from normal</b>, 30–90°N at 10 hPa; inside the black contour the ensemble-mean anomaly is beyond 2 standard errors.",
+      u100: "<b>100 hPa, monthly</b>: the lower-stratospheric vortex, members against the 1993–2016 hindcast normal (leads 1–6; no daily or lead-7 hindcast at this level).",
+      risk: "<b>Risk, timing and reliability.</b> Bars: share of members with an SSW, against the model and observed base rates with 90 % intervals; histogram: when the first SSW falls; right: hindcast reliability against MERRA-2." };
+    document.getElementById("sswFigs").innerHTML = ["risk", "u10", "section", "u100"].filter(function (k) { return F[k]; }).map(function (k) {
+      return '<figure><a href="assets/sst/' + F[k] + v + '" target="_blank" rel="noopener"><img src="assets/sst/' + F[k] + v + '" alt="SEAS5 polar vortex ' + k + '" loading="lazy"></a><figcaption>' + caps[k] + "</figcaption></figure>";
+    }).join("");
+    document.getElementById("sswUpdated").textContent = "built " + J.generated;
+  }).catch(function () {});
+})();
+</script>
 <script src="/assets/stage.js" defer></script>
 </body>
 </html>
