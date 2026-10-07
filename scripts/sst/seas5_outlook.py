@@ -63,8 +63,23 @@ SIGMA_PATH = HERE / "roni_sigma.json"
 PDO_PATTERN = HERE / "reference" / "pdo_pattern.nc"
 
 CENTRE, SYSTEM = "ecmwf", "51"
-LEADS = ["1", "2", "3", "4", "5", "6"]          # leadtime_month 1 = the start month itself
-MAXLEAD = 6
+LEADS = ["1", "2", "3", "4", "5", "6"]          # leadtime_month 1 = the start month itself (the CDS monthly product's 1–6)
+MONTHLY_LEADS = 6
+# Lead month 7 (user 2026-10-07: "The seas5 forecasts should go out to april"): SEAS5 runs 215 days, so its 7th month
+# is in the sub-daily product. seas5_lead7.py reduces it to the monthly-product definition (forecast) and seas5_aws.py
+# builds the hindcast reference once per start month; load_field appends it as lead 7. Issues before L7_FROM were
+# built with 6 leads, so their per-issue summaries (the "previous issue" of the change products) have 6.
+MAXLEAD = 7
+L7_FROM = "202610"
+L7_STATE = {"on": False}       # True while seas5_ref derives a lead-7 table (hc_path → the pseudo-raw hindcast)
+
+
+def nleads(ym: str) -> int:
+    """Lead months an issue carries: 7 from L7_FROM (and SEAS5_LEAD7 != 0), 6 before; 7 while a lead-7 hindcast
+    table is being derived (the hindcast derivations call this with a dummy year)."""
+    if L7_STATE["on"]:
+        return MAXLEAD
+    return MAXLEAD if (ym >= L7_FROM and os.environ.get("SEAS5_LEAD7", "1") != "0") else MONTHLY_LEADS
 CLIM_YEARS = [str(y) for y in range(1993, 2017)]
 
 # ── what to pull. One entry per (dataset, region); the hindcast reuses the same
@@ -193,6 +208,11 @@ def fc_path(kind: str, ym: str) -> Path:
 
 
 def hc_path(kind: str, month: str) -> Path:
+    """The raw monthly hindcast of a kind — or, while seas5_ref derives a LEAD-7 table (L7_STATE, set by seas5_ref), the
+    kind's lead-7 pseudo-raw hindcast (seas5_aws.py: leads 5–7 from the daily data), which load_field reads as a
+    7-lead hindcast with leads 1–4 empty."""
+    if L7_STATE["on"]:
+        return DATA / "hindcast" / f"hc_{kind}_{int(month):02d}_L7.npz"
     return DATA / "hindcast" / f"hc_{kind}_{month}.grib"
 
 

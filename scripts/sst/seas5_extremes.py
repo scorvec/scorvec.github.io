@@ -31,7 +31,7 @@ import argparse, calendar, os, sys, time
 from pathlib import Path
 import numpy as np
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from seas5_outlook import ASSETS, DATA, CENTRE, SYSTEM, CLIM_YEARS, _client, previous_issues   # noqa: E402
+from seas5_outlook import ASSETS, DATA, CENTRE, SYSTEM, CLIM_YEARS, _client, nleads, previous_issues   # noqa: E402
 from seas5_popT import REGIONS, SIXH, MONTHS, month_hours                        # noqa: E402
 
 ERA5D = DATA / "era5" / "daily"
@@ -124,7 +124,7 @@ def fetch(ym: str, regions=None, issues=None) -> dict:
     got = {}
     for iss in issues or (ym,):
         for region in regions or list(REGIONS):
-            for k in range(1, MONTHS + 1):
+            for k in range(1, nleads(iss) + 1):
                 got[(iss, region, k)] = fetch_chunk(region, iss, k)
     return got
 
@@ -144,8 +144,14 @@ def _raw_hc(region):
             (lambda month: all([fetch_hindcast(region, _hc_issue(f"{int(month):02d}"), k) for k in range(1, MONTHS + 1)])))
 
 
+def _raw_hc7(region):
+    """lead month 7: the same CDS daily hindcast request for the 7th month only (seas5_ref unit xdays_{region}_L7)"""
+    return ((lambda month: [hchunk_path(region, f"{int(month):02d}", 7)]),
+            (lambda month: fetch_hindcast(region, _hc_issue(f"{int(month):02d}"), 7)))
+
+
 # raw hindcast kinds for seas5_ref (fetched one start month at a time in Actions, then discarded)
-RAW_HC = {f"x:{r}": _raw_hc(r) for r in REGIONS}
+RAW_HC = {**{f"x:{r}": _raw_hc(r) for r in REGIONS}, **{f"x7:{r}": _raw_hc7(r) for r in REGIONS}}
 
 
 CPC = DATA / "cpc"            # the local CPC store; read only when deriving the obs_ tables (laptop)

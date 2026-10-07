@@ -47,6 +47,8 @@ fetch)
   step "fetch wind (6-hourly 10 m u/v, US)"          "$PY" seas5_wind.py fetch --issue "$ISSUE"
   step "fetch snowfall (daily, North America)"       "$PY" seas5_snow.py fetch --issue "$ISSUE"
   step "fetch regimes (daily z500, 51 members)"      "$PY" seas5_regimes_fetch.py forecast --issue "$ISSUE"
+  # lead month 7 (from the October 2026 issue): the sub-daily product reduced to the monthly definition, per kind
+  step "fetch lead-7 monthly means (sub-daily)"      "$PY" seas5_lead7.py forecast --issue "$ISSUE"
   [ ${#FAILED[@]} -eq 0 ] || echo "::warning::forecast fetches incomplete: ${FAILED[*]}"
   exit 0
   ;;
@@ -69,15 +71,17 @@ build)
   step "wind events"                "$PY" seas5_wind.py build --issue "$ISSUE"
   step "snowfall"                   "$PY" seas5_snow.py build --issue "$ISSUE"
   MISSING=$("$PY" seas5_ref.py missing --month "$MM")
-  "$PY" - "$ISSUE" "$MISSING" "$(IFS='|'; echo "${FAILED[*]:-}")" "$SITE/assets/sst/data/seas5_status.json" <<'EOF'
+  MISS7=$("$PY" seas5_lead7.py missing --issue "$ISSUE")
+  "$PY" - "$ISSUE" "$MISSING" "$(IFS='|'; echo "${FAILED[*]:-}")" "$SITE/assets/sst/data/seas5_status.json" "$MISS7" <<'EOF'
 import json, sys, time
-issue, missing, failed, out = sys.argv[1:5]
+issue, missing, failed, out, miss7 = sys.argv[1:6]
 failed = [f for f in failed.split("|") if f]
-# complete = the main outlook built and every hindcast table of the start month exists; a failed minor
-# product does not hold the issue open (re-running would not fix it), it is listed for a human instead
+# complete = the main outlook built, every hindcast table of the start month exists (the lead-7 tables included)
+# and every lead-7 forecast supplement was fetched; a failed minor product does not hold the issue open
+# (re-running would not fix it), it is listed for a human instead
 doc = {"issue": issue, "generated": time.strftime("%Y-%m-%d %H:%M UTC", time.gmtime()),
-       "missing_tables": missing.split(), "failed": failed,
-       "complete": not missing.split() and not any(f.startswith("outlook") for f in failed)}
+       "missing_tables": missing.split(), "missing_lead7_forecast": miss7.split(), "failed": failed,
+       "complete": not missing.split() and not miss7.split() and not any(f.startswith("outlook") for f in failed)}
 open(out, "w").write(json.dumps(doc, separators=(",", ":")))
 print("status:", doc)
 EOF

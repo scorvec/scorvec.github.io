@@ -26,7 +26,7 @@ from pathlib import Path
 import numpy as np
 import xarray as xr
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from seas5_outlook import ASSETS, DATA, hc_path, previous_issues                  # noqa: E402
+from seas5_outlook import ASSETS, DATA, L7_STATE, hc_path, previous_issues        # noqa: E402
 from seas5_popT import REGIONS, pop_grid, region_grid                               # noqa: E402
 import seas5_ref as R                                                               # noqa: E402
 from seas5_extremes import xchunk_path, hchunk_path, cpc_path, THRESH, YEARS, RAW_HC            # noqa: E402,F401  (RAW_HC: seas5_ref reads it from this module)
@@ -178,7 +178,9 @@ def derive_hc(region: str, month: str) -> None:
     """hc_xdays_{region}_{MM} from the raw hindcast chunks sixh/hc_{region}_{MM}_m{k}_x.grib."""
     ym = f"2000{month}"                                              # only ym[4:] is used to find the files
     arrs = {}
-    for k in range(1, 7):
+    # leads 1–6 for the base table; while seas5_ref derives the lead-7 table (L7_STATE) only the 7th month's chunk
+    ks = [7] if L7_STATE["on"] else range(1, 7)
+    for k in ks:
         for stat in ("tx", "tn"):
             hc = hindcast_extremes(region, ym, k, stat)
             if hc is None:
@@ -303,7 +305,7 @@ def build(ym: str) -> dict:
         w = None; cache = {}
         for set_key, stat, thr_label, thrs, op in THRESH[region]:
             sub = {"kind": thr_label, "stat": stat, "thresholds": thrs, "months": {}}
-            for k in range(1, 7):
+            for k in range(1, len(valid_months(ym)) + 1):
                 if not xchunk_path(region, ym, k).exists():
                     continue
                 if k not in cache:

@@ -169,8 +169,11 @@ def render(country: str, label: str, series_now: dict, series_prev: dict | None,
     from matplotlib.lines import Line2D
     from scipy.stats import gaussian_kde
 
-    vm, vmp = valid_months(ym), valid_months(prev)
     regions = list(series_now)
+    f0, h0 = series_now[regions[0]]
+    nl = min(f0.shape[1], h0.shape[1])                                # 7 with the lead-7 supplement and table
+    vm = valid_months(ym)[:nl]
+    vmp = valid_months(prev)[:series_prev[next(iter(series_prev))][0].shape[1]] if series_prev else []
     ncol = len(vm)
     fig, axes = plt.subplots(len(regions), ncol, figsize=(3.05 * ncol + 1.1, 2.55 * len(regions) + (1.9 if len(regions) > 1 else 2.4)), squeeze=False)
     summary = {}
