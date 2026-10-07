@@ -2627,14 +2627,14 @@
       eb.appendChild(b);
     });
     $("ecBar").hidden = st.field !== "ecape";
-    if (fieldGone(st.model, st.field) || (NA[st.model] && NA[st.model][st.field])) st.field = "ir";
+    if (fieldGone(st.model, st.field) || (NA[st.model] && NA[st.model][st.field] && !FIELDS[st.field].conv)) st.field = "ir";
     var fh = SUBF[famOf(st.field)], sb = $("subSeg"); sb.innerHTML = ""; $("subBar").hidden = !fh;
     famLast[famOf(st.field)] = st.field;
     if (fh) fh.forEach(function (f) {
       if (fieldGone(st.model, f)) return;
       var b = document.createElement("button"); b.type = "button"; b.textContent = subLabel(st.model, f);
       b.setAttribute("aria-pressed", String(f === st.field));
-      var na1 = NA[st.model] && NA[st.model][f]; if (na1) { b.disabled = true; b.title = na1; }
+      var na1 = NA[st.model] && NA[st.model][f]; if (na1) b.title = na1;
       b.onclick = function () { pick(f); };
       sb.appendChild(b);
     });
@@ -2649,6 +2649,7 @@
         var u = document.createElement("small"); u.textContent = FIELD_UNIT[f]; b.appendChild(u);
         b.setAttribute("aria-pressed", String(f === famOf(st.field)));
         var na = NA[st.model] && NA[st.model][f], o = document.createElement("option");
+        if (na && FIELDS[f].conv) { b.title = na; na = null; }       // kept clickable: the map explains (like ECAPE)
         o.value = f; o.textContent = labelOf(st.model, f) + " (" + FIELD_UNIT[f] + ")" + (na ? " - not in this model" : ""); o.selected = f === famOf(st.field); o.disabled = !!na; og.appendChild(o);
         if (na) { b.disabled = true; b.title = na; }
         b.onclick = function () { if (famOf(st.field) !== f) pick(f); };
@@ -2676,7 +2677,7 @@
     if (!man[m] || !man[m].cycles || !man[m].cycles.length) return;
     var oldValid = cycleObj(st.model, st.ci) ? Date.parse(cycleObj(st.model, st.ci).init) + st.hour * 3600e3 : Date.now();
     st.model = m; st.ci = 0;
-    if (NA[m] && NA[m][st.field]) st.field = "ir";
+    if (NA[m] && NA[m][st.field] && !FIELDS[st.field].conv) st.field = "ir";   // convection maps stay and say "HRRR and RRFS only" (as ECAPE)
     var c = cycleObj(m, 0);
     st.hour = nearestHour(c, Math.round((oldValid - Date.parse(c.init)) / 3600e3));
     setButtons(); onChange();
