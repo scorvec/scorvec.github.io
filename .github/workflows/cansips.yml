@@ -1,15 +1,39 @@
 name: CanSIPS direct from ECCC (monthly, 12 months)
 
-# The ENSO forecasts page's CanSIPS plume to 12 months, read straight from ECCC's MSC Datamart
-# (scripts/sst/cansips_dd.py). Data Source: Environment and Climate Change Canada.
-
+# CanSIPS straight from Environment and Climate Change Canada's MSC Datamart, out to 12 months
+# (C3S stops at 6). One fetcher, scripts/sst/cansips_dd.py, feeds two products:
+#   1. the ENSO forecasts page's CanSIPS plume, assets/sst/data/cansips_dd.json (enso-forecasts.html
+#      draws months 7-12 as CanSIPS alone, past the C3S horizon);
+#   2. the seasonal page's CanSIPS group (scripts/sst/cansips_maps.py): anomaly maps for every field
+#      Datamart publishes plus ECCC's own probability products, frames on the frames branch.
+# Data Source: Environment and Climate Change Canada (ECCC Data Servers End-use Licence).
+#
+# WHEN. ECCC posts an issue on the last day of the previous month (October 2026: 2026-09-30 15:22 UTC).
+# Actions honours only a fraction of cron firings, so this fires four times a day from the 28th to the
+# 12th and exits in a minute when nothing new is posted: cansips_dd.py compares the Datamart file
+# times with the ones the published JSON was built from. A late or half-posted issue (fewer than 12
+# WaterTemp leads) is simply not built yet; the page keeps the previous one.
 on:
+  schedule:
+  - cron: '35 2,8,14,20 28-31,1-12 * *'
   workflow_dispatch:
     inputs:
       mode:
-        description: 'probe | build'
+        description: 'build | probe'
         required: false
         default: 'build'
+      issue:
+        description: 'Issue YYYYMM (empty = newest posted)'
+        required: false
+        default: ''
+      force:
+        description: 'Rebuild even if the files have not changed (true/false)'
+        required: false
+        default: 'false'
+      maps:
+        description: 'Also build the seasonal-page maps (true/false)'
+        required: false
+        default: 'true'
 
 permissions:
   contents: write
@@ -21,7 +45,7 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 90
+    timeout-minutes: 330
     env:
       SST_SITE_ROOT: ${{ github.workspace }}
       MPLBACKEND: Agg
@@ -31,7 +55,41 @@ jobs:
         with:
           python-version: '3.11'
       - name: Install Python dependencies
-        run: pip install --quiet numpy pandas requests eccodes
+        run: pip install --quiet numpy pandas requests eccodes global-land-mask
+
       - name: Probe the Datamart GRIB encoding
         if: inputs.mode == 'probe'
         run: python scripts/sst/cansips_dd.py probe
+
+      - name: ENSO plume (Niño-3.4 and relative Niño-3.4, 12 months)
+        id: enso
+        if: inputs.mode != 'probe'
+        run: |
+          ARGS=""
+          [ -n "${{ inputs.issue }}" ] && ARGS="--issue ${{ inputs.issue }}"
+          if [ "${{ inputs.force }}" = "true" ]; then ARGS="$ARGS --force"; fi
+          python scripts/sst/cansips_dd.py build $ARGS
+
+      - name: Commit & push the plume
+        if: inputs.mode != 'probe'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          OUTS="assets/sst/data/cansips_dd.json scripts/sst/cansips_dd_clim.csv"
+          SNAP=$(mktemp -d)
+          git add -A $OUTS 2>/dev/null || true
+          git diff --staged --name-only -z | tar cf "$SNAP/outs.tar" --null -T - 2>/dev/null || true
+          git reset -q
+          for i in 1 2 3 4 5; do
+            if ! timeout 120 git fetch origin main; then echo "fetch $i failed"; sleep 5; continue; fi
+            git reset --hard origin/main
+            tar xf "$SNAP/outs.tar" 2>/dev/null || true
+            git add -A $OUTS
+            if git diff --staged --quiet; then echo "No changes; skipping commit."; exit 0; fi
+            git commit -q -m "data update: CanSIPS (ECCC Datamart) ENSO plume"
+            if timeout 180 git push; then echo "Pushed on attempt $i."; exit 0; fi
+            echo "Push $i rejected; resyncing and retrying…"
+            sleep 5
+          done
+          echo "ERROR: could not push after 5 attempts." >&2
+          exit 1
