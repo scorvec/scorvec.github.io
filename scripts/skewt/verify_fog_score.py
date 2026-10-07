@@ -236,6 +236,36 @@ def score(out: Path) -> None:
         R.append(f"- {sn} test: tuned ({sat}/{dep}) minus new dCSI {fmt(d)}; old minus new dCSI {fmt(d2)}")
     R.append("")
 
+    # ---- bias-constrained selection (train): max CSI among configs with train bias in [0.8, 1.25]
+    bc = {}
+    for sn in subsets:
+        s = SW[(SW.subset == sn) & SW.train_bias.between(0.8, 1.25)].sort_values("train_csi", ascending=False)
+        if len(s):
+            bc[sn] = (int(s.iloc[0].sat), int(s.iloc[0].depth))
+    J["bias_constrained"] = {k: list(v) for k, v in bc.items()}
+    R.append("### Bias-constrained selection (train: max CSI with bias 0.8-1.25), held-out 2020-2025\n")
+    R.append("Selected: " + ", ".join(f"{k}: SAT {v[0]} / DEPTH {v[1]}" for k, v in bc.items()) +
+             ". 'resolution-aware' = the high-res pick on high-res profiles, the coarse pick on coarse ones.\n")
+    cand = {"new rule (97/30)": shipped}
+    if "all" in bc:
+        cand[f"bias-constrained all ({bc['all'][0]}/{bc['all'][1]})"] = F[f"fog_{bc['all'][0]}_{bc['all'][1]}"].values
+    if "high-res" in bc and "coarse" in bc:
+        h, c_ = bc["high-res"], bc["coarse"]
+        cand[f"resolution-aware ({h[0]}/{h[1]} | {c_[0]}/{c_[1]})"] = np.where(
+            F.hires.values, F[f"fog_{h[0]}_{h[1]}"].values, F[f"fog_{c_[0]}_{c_[1]}"].values)
+    table("Fog, held-out 2020-2025, bias-constrained candidates", cand, {k: v & te for k, v in subsets.items()})
+    R.append("Paired differences vs the shipped rule, 2020-2025 (dCSI; dbias; dPSS):\n")
+    for sn, msk0 in subsets.items():
+        msk = msk0 & te
+        btc = Boot(F.wmo.values[msk])
+        for fn, p in cand.items():
+            if fn == "new rule (97/30)":
+                continue
+            R.append(f"- {sn}, {fn}: {fmt(btc.diff(p[msk], shipped[msk], obs[msk], 'CSI'))}; "
+                     f"{fmt(btc.diff(p[msk], shipped[msk], obs[msk], 'bias'), 2)}; "
+                     f"{fmt(btc.diff(p[msk], shipped[msk], obs[msk], 'PSS'))}")
+    R.append("")
+
     # ---- per station (all years), year-block bootstrap within station
     R.append("### Per station, all years (CI = year-block bootstrap within the station)\n")
     R.append("| WMO | ICAO | n | fog obs | old CSI | old bias | new CSI | new bias | model p>=0.5 CSI |")
