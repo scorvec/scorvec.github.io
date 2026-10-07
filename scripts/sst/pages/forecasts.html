@@ -198,7 +198,40 @@
     </div>
     <div class="ef-panel"><div id="plumeChart" class="ef-chart" role="img" aria-label="Multi-model ENSO forecast plume"></div></div>
     <p class="ef-cap" id="plume-cap"></p>
-    <div class="ef-foot"><span>Copernicus C3S seasonal forecasts; each model&rsquo;s anomaly is taken against its own 1993&ndash;2016 hindcast. Observed: NOAA CPC.</span><span id="plume-updated"></span></div>
+    <div class="ef-foot"><span>Copernicus C3S seasonal forecasts; each model&rsquo;s anomaly is taken against its own 1993&ndash;2016 hindcast. <span id="plume-cd-src" hidden>Months 7&ndash;12: CanSIPS from ECCC&rsquo;s Datamart, Data Source: Environment and Climate Change Canada.</span> Observed: NOAA CPC.</span><span id="plume-updated"></span></div>
+  </section>
+
+  <!-- ── 1b. TWELVE MONTHS: CanSIPS ALONE (ECCC Datamart, scripts/sst/cansips_dd.py, 2026-10-07) ── -->
+  <section class="ef-sec" id="year" aria-labelledby="year-h">
+    <h2 id="year-h">The next twelve months</h2>
+    <p class="ef-intro">Canada&rsquo;s CanSIPS is the one system here that runs for a full year: 40 members from two
+    models, read straight from Environment and Climate Change Canada. The other systems stop at six months, so
+    <b>everything after month six is one model&rsquo;s view, not a multi-model forecast</b>, and is shaded to say so.</p>
+    <div id="year-empty" class="ef-empty" hidden>The twelve-month CanSIPS forecast has not been processed yet.</div>
+    <div id="year-body">
+      <p class="ef-obslead" id="year-issue"></p>
+      <div class="ef-controls">
+        <div class="ef-seg" role="group" aria-label="Index">
+          <span>Index</span>
+          <div class="grp">
+            <button type="button" data-set="cdIdx" data-v="n34" aria-pressed="true">ONI (Ni&ntilde;o-3.4)</button>
+            <button type="button" data-set="cdIdx" data-v="rnino" aria-pressed="false">RONI (relative)</button>
+          </div>
+        </div>
+        <div class="ef-seg" role="group" aria-label="Averaging">
+          <span>Average</span>
+          <div class="grp">
+            <button type="button" data-set="cdSmooth" data-v="1" aria-pressed="true">3-month</button>
+            <button type="button" data-set="cdSmooth" data-v="0" aria-pressed="false">Monthly</button>
+          </div>
+        </div>
+      </div>
+      <div class="ef-panel"><div id="yearChart" class="ef-chart" role="img" aria-label="CanSIPS twelve-month Niño-3.4 forecast"></div></div>
+      <p class="ef-cap" id="year-cap"></p>
+      <div class="ef-tablewrap"><table class="ef-lomo" id="year-table"></table></div>
+      <p class="ef-cap" id="year-check"></p>
+      <div class="ef-foot"><span>CanSIPS (GEM5.2-NEMO + CanESM5) from ECCC&rsquo;s MSC Datamart, each model against its own 1993&ndash;2016 hindcast. Data Source: Environment and Climate Change Canada. Observed: NOAA CPC.</span><span id="year-updated"></span></div>
+    </div>
   </section>
 
   <!-- ── 2. EAST OR CENTRAL ────────────────────────────────────────────── -->
@@ -316,12 +349,14 @@
 window.STAGE = {
   groups: [{ label: "The forecast", items: [["brief", "The outlook in brief", "the odds, the facts, the equator"],
                                             ["plume", "How strong will it get?", "every model and the member fan"],
+                                            ["year", "The next twelve months", "CanSIPS alone after month six"],
                                             ["flavour", "How east-based will it be?", "the E and C indices"],
                                             ["changes", "How has the forecast changed?", "issue by issue"],
                                             ["history", "Compared with past El Niños", "every year since 1970"]] }],
   products: {
     brief:   { label: "The outlook in brief", dom: function () { return "brief"; } },
     plume:   { label: "How strong will it get?", dom: function () { return "plume"; } },
+    year:    { label: "The next twelve months: CanSIPS", dom: function () { return "year"; } },
     flavour: { label: "How east-based will it be?", dom: function () { return "flavour"; } },
     changes: { label: "How has the forecast changed?", dom: function () { return "changes"; } },
     history: { label: "How does it compare with past El Niños?", dom: function () { return "history"; } }
@@ -340,6 +375,14 @@ window.STAGE = {
       forecast minus its own 1993&ndash;2016 hindcast average for the same start month and lead, which removes each
       model&rsquo;s drift and bias before anything is compared. The issue shown is the newest month for which at least four of the
       systems shown have published.</p>
+      <p><b>Twelve months: CanSIPS from the source.</b> C3S carries ECCC&rsquo;s CanSIPS for six months; ECCC
+      publishes the same 40-member forecast for twelve on its MSC Datamart, posted on the last day of the previous month,
+      with its full 1990&ndash;2020 hindcast. That copy is read directly, each of its two models (GEM5.2-NEMO, members
+      1&ndash;20, and CanESM5, 21&ndash;40) is taken against its own 1993&ndash;2016 hindcast for the same start month and
+      lead, exactly as for the C3S systems, and the Ni&ntilde;o-3.4 box and the 20&deg;S&ndash;20&deg;N average for RONI
+      use ocean cells only (the Datamart&rsquo;s sea temperature is filled over land). On the plume, CanSIPS alone
+      continues past month six, drawn dashed over a shaded band, and the multi-model average and fan stop where the other
+      systems stop. <span id="m-cdcheck"></span></p>
       <p>The multi-model average weights each model equally, and so do the shaded spreads and every probability on this
       page: a model with 124 members counts the same as one with 40.</p>
       <h3>ONI and RONI</h3>
@@ -403,6 +446,7 @@ window.STAGE = {
       <h3>Sources</h3>
       <ul>
         <li>Copernicus Climate Change Service (C3S) seasonal forecast single-level data, monthly means and anomalies. Contains modified Copernicus Climate Change Service information 2026.</li>
+        <li>CanSIPS twelve-month forecasts and hindcasts from the ECCC MSC Datamart (dd.weather.gc.ca), under the ECCC Data Servers End-use Licence. Data Source: Environment and Climate Change Canada.</li>
         <li>NOAA NCEI ERSSTv6 monthly sea-surface temperature, via NOAA PSL.</li>
         <li>NOAA CPC official ONI and RONI tables.</li>
         <li>NOAA OISST v2.1 daily, for the latest observations.</li>
@@ -434,7 +478,7 @@ window.STAGE = {
   var REF_EVENTS = [["1997–98", "#6a3d9a"], ["2015–16", "#1f77b4"], ["2009–10", "#2e8b57"]];
 
   var state = { idx: "n34", smooth: true, members: false, evoIdx: "n34", evoSmooth: true,
-                evoSpread: true, histIdx: "oni", season: "DJF", view: "raw" };
+                evoSpread: true, histIdx: "oni", season: "DJF", view: "raw", cdIdx: "n34", cdSmooth: true };
   var D = {};
 
   // ── small helpers ─────────────────────────────────────────────────────────
@@ -652,6 +696,39 @@ window.STAGE = {
     return best;
   }
 
+  // ── CanSIPS direct from ECCC (cansips_dd.json): 12 months, one system ─────
+  var CD_COLOR = "#e377c2", CD_FILL = "rgba(227,119,194,0.16)", CD_BAND = "rgba(227,119,194,0.09)";
+  function cdOf(issue) { return D.cd && D.cd.issues && D.cd.issues[issue] ? D.cd.issues[issue] : null; }
+  function pctl(a, p) {
+    var b = a.filter(fin).slice().sort(function (x, y) { return x - y; }); if (!b.length) return null;
+    var i = (b.length - 1) * p, lo = Math.floor(i), hi = Math.ceil(i); return b[lo] + (b[hi] - b[lo]) * (i - lo);
+  }
+  function cdSeries(E, key, smooth) {   // mean and member percentiles per lead (members weighted equally)
+    var nL = E.valid_months.length, nm = E[key][0].length, b = smooth ? bridgeFor(key, E.valid_months[0]) : [], tr = [];
+    for (var i = 0; i < nm; i++) {
+      var t = E[key].map(function (row) { return row[i]; });
+      tr.push(smooth ? roll3(b.concat(t)).slice(b.length) : t);
+    }
+    var out = { mean: [], p10: [], p25: [], p75: [], p90: [] };
+    for (var L = 0; L < nL; L++) {
+      var col = tr.map(function (t) { return t[L]; });
+      out.mean.push(mean(col)); out.p10.push(pctl(col, 0.10)); out.p25.push(pctl(col, 0.25));
+      out.p75.push(pctl(col, 0.75)); out.p90.push(pctl(col, 0.90));
+    }
+    return out;
+  }
+  function cdCheckText() {   // the direct copy against C3S's CanSIPS, months 1-6, from the newest issue that has both
+    if (!D.cd) return "";
+    var ks = Object.keys(D.cd.issues).sort().reverse();
+    for (var i = 0; i < ks.length; i++) {
+      var V = D.cd.issues[ks[i]].validation;
+      if (V && V.n34 && V.rnino) return "Checked against C3S&rsquo;s own CanSIPS for the " + monthLong(V.c3s_issue) +
+        " issue: over months 1&ndash;" + V.leads + " the two ensemble means differ by at most " + V.n34.max_abs_diff.toFixed(2) +
+        " &deg;C on Ni&ntilde;o-3.4 and " + V.rnino.max_abs_diff.toFixed(2) + " &deg;C on the relative index.";
+    }
+    return "";
+  }
+
   // ── 0. the brief ──────────────────────────────────────────────────────────
   function buildBrief() {
     var F = D.fc, nMem = labels().reduce(function (s, m) { return s + F.models[m].n34[0].length; }, 0);
@@ -851,19 +928,33 @@ window.STAGE = {
     }
     var mm = modelMeans(key), mmm = mmmOf(key), fan = spreadOf(key, sm);
     function S(arr) { return sm ? sm(arr) : arr; }
-    var x = obsX.concat(valid), pad = obsX.map(function () { return null; });
+    // months 7-12: CanSIPS alone, from ECCC's own copy of the SAME issue (never a newer one)
+    var E = cdOf(F.issue), ext = [];
+    if (E && E.valid_months.length > nL && E.valid_months.slice(0, nL).join() === valid.join()) ext = E.valid_months.slice(nL);
+    var extPad = ext.map(function () { return null; });
+    var x = obsX.concat(valid).concat(ext), pad = obsX.map(function () { return null; });
     var lastObs = null;
     for (var j = obsY.length - 1; j >= 0; j--) if (fin(obsY[j])) { lastObs = j; break; }
     var bridgePad = pad.slice();
     if (lastObs === obsY.length - 1) bridgePad[lastObs] = obsY[lastObs];
     var hoverSeason = valid.map(function (m) { return state.smooth ? seasonCode(m) : monLabel(m); });
     var traces = [];
-    traces.push({ x: x, y: pad.concat(fan.p90), type: "scatter", mode: "lines", line: { width: 0 }, hoverinfo: "skip", showlegend: false });
-    traces.push({ x: x, y: pad.concat(fan.p10), type: "scatter", mode: "lines", line: { width: 0 }, fill: "tonexty",
+    traces.push({ x: x, y: pad.concat(fan.p90).concat(extPad), type: "scatter", mode: "lines", line: { width: 0 }, hoverinfo: "skip", showlegend: false });
+    traces.push({ x: x, y: pad.concat(fan.p10).concat(extPad), type: "scatter", mode: "lines", line: { width: 0 }, fill: "tonexty",
                   fillcolor: "rgba(138,75,42,0.12)", name: "80% of members", hoverinfo: "skip" });
-    traces.push({ x: x, y: pad.concat(fan.p75), type: "scatter", mode: "lines", line: { width: 0 }, hoverinfo: "skip", showlegend: false });
-    traces.push({ x: x, y: pad.concat(fan.p25), type: "scatter", mode: "lines", line: { width: 0 }, fill: "tonexty",
+    traces.push({ x: x, y: pad.concat(fan.p75).concat(extPad), type: "scatter", mode: "lines", line: { width: 0 }, hoverinfo: "skip", showlegend: false });
+    traces.push({ x: x, y: pad.concat(fan.p25).concat(extPad), type: "scatter", mode: "lines", line: { width: 0 }, fill: "tonexty",
                   fillcolor: "rgba(138,75,42,0.20)", name: "50% of members", hoverinfo: "skip" });
+    if (ext.length) {
+      var cs = cdSeries(E, key, state.smooth), ex = [valid[nL - 1]].concat(ext);
+      var cutL = function (a) { return a.slice(nL - 1); };
+      traces.push({ x: ex, y: cutL(cs.p90), type: "scatter", mode: "lines", line: { width: 0 }, hoverinfo: "skip", showlegend: false });
+      traces.push({ x: ex, y: cutL(cs.p10), type: "scatter", mode: "lines", line: { width: 0 }, fill: "tonexty", fillcolor: CD_FILL,
+                    name: narrow() ? "CanSIPS only, 80%" : "CanSIPS alone, 80% of members", hoverinfo: "skip" });
+      traces.push({ x: ex, y: cutL(cs.mean), type: "scatter", mode: "lines+markers", name: narrow() ? "CanSIPS only, mean" : "CanSIPS alone, months " + (nL + 1) + "–" + (nL + ext.length),
+                    line: { color: CD_COLOR, width: 3, dash: "dash" }, marker: { size: ex.map(function (_, i) { return i ? 6 : 0; }), color: CD_COLOR },
+                    hovertemplate: "%{y:+.2f} °C<extra>CanSIPS only</extra>" });
+    }
     if (state.members) {
       var gx = [], gy = [];
       memberTrajectories(key, sm).forEach(function (t) {
@@ -874,11 +965,11 @@ window.STAGE = {
                     name: "Individual members", hoverinfo: "skip" });
     }
     labels().forEach(function (m) {
-      traces.push({ x: x, y: bridgePad.concat(S(mm[m])), type: "scatter", mode: "lines", name: m,
+      traces.push({ x: x, y: bridgePad.concat(S(mm[m])).concat(extPad), type: "scatter", mode: "lines", name: m,
                     line: { color: colorOf(m), width: 1.9 }, opacity: 0.95,
                     customdata: pad.concat(hoverSeason), hovertemplate: "%{y:+.2f} °C<extra>" + m + "</extra>" });
     });
-    traces.push({ x: x, y: bridgePad.concat(S(mmm)), type: "scatter", mode: "lines", name: "Average of all models",
+    traces.push({ x: x, y: bridgePad.concat(S(mmm)).concat(extPad), type: "scatter", mode: "lines", name: "Average of all models",
                   line: { color: ACCENT, width: 4.5 }, hovertemplate: "<b>%{y:+.2f} °C</b><extra>all models</extra>" });
     if (obsX.length) {
       var open = obsX.map(function (m) { return isProv(m); });
@@ -890,14 +981,21 @@ window.STAGE = {
     var shapes = thresholdShapes(x[0], x[x.length - 1], yExtent(traces));
     if (obsX.length) shapes.push({ type: "rect", xref: "x", yref: "paper", x0: -0.5, x1: obsX.length - 0.5, y0: 0, y1: 1,
                                    fillcolor: "rgba(26,26,26,0.04)", line: { width: 0 }, layer: "below" });
-    var lay = layout({ shapes: shapes, annotations: obsX.length ? [
-      { xref: "x", yref: "paper", x: (obsX.length - 1) / 2, y: 0.01, yanchor: "bottom", text: "observed", showarrow: false, font: { color: MUTED, size: 12.5 } },
-      { xref: "x", yref: "paper", x: obsX.length + (nL - 1) / 2, y: 0.01, yanchor: "bottom", text: "forecast", showarrow: false, font: { color: MUTED, size: 12.5 } }] : [] });
+    if (ext.length) shapes.push({ type: "rect", xref: "x", yref: "paper", x0: obsX.length + nL - 0.5, x1: x.length - 0.5, y0: 0, y1: 1,
+                                  fillcolor: CD_BAND, line: { width: 0 }, layer: "below" });
+    var ann = obsX.length ? [
+      { xref: "x", yref: "paper", x: (obsX.length - 1) / 2, y: 0.01, yanchor: "bottom", text: narrow() && ext.length ? "obs." : "observed", showarrow: false, font: { color: MUTED, size: 12.5 } },
+      { xref: "x", yref: "paper", x: obsX.length + (nL - 1) / 2, y: 0.01, yanchor: "bottom", text: narrow() ? labels().length + " systems" : "forecast, " + labels().length + " systems", showarrow: false, font: { color: MUTED, size: 12.5 } }] : [];
+    if (ext.length) ann.push({ xref: "x", yref: "paper", x: obsX.length + nL + (ext.length - 1) / 2, y: 0.01, yanchor: "bottom",
+                               text: narrow() ? "CanSIPS" : "CanSIPS only, not multi-model", showarrow: false, font: { color: "#8a2f6e", size: 12.5 } });
+    var lay = layout({ shapes: shapes, annotations: ann });
     lay.margin.r = narrow() ? 12 : 34;
     lay.xaxis.type = "category";
     lay.xaxis.tickangle = 0;
     lay.xaxis.tickvals = x; lay.xaxis.ticktext = x.map(function (m, i) {
-      return narrow() ? (i % 2 ? "" : MONS[+m.slice(5, 7) - 1] + (m.slice(5, 7) === "01" || i === 0 ? " " + m.slice(2, 4) : "")) : monLabel(m);
+      // 20 months once CanSIPS runs on: the year only at January and the first tick, or the labels collide
+      return narrow() ? (i % 2 ? "" : MONS[+m.slice(5, 7) - 1] + (m.slice(5, 7) === "01" || i === 0 ? " " + m.slice(2, 4) : ""))
+        : x.length > 14 ? MONS[+m.slice(5, 7) - 1] + (m.slice(5, 7) === "01" || i === 0 ? " " + m.slice(0, 4) : "") : monLabel(m);
     });
     lay.yaxis.title.text = (key === "n34" ? (state.smooth ? "ONI" : "Niño-3.4") : (state.smooth ? "RONI" : "relative Niño-3.4")) + " (°C)";
     el("plumeChart").style.height = (narrow() ? 520 : 500) + "px";
@@ -909,7 +1007,78 @@ window.STAGE = {
       : "Monthly values. ") + "The shading holds the middle 80% and middle 50% of members. " +
       (prov.length ? "Open circles are provisional observed months (" + prov.map(monLabel).join(", ") + "). " : "") +
       (key === "rnino" && !roniSeries() ? "No observed RONI series is available this run, so none is drawn. " : "") +
+      (ext.length ? "After " + monLabel(valid[nL - 1]) + " only Canada&rsquo;s CanSIPS runs on (dashed, with its own 80% band, on the pink background): <b>one model, not a multi-model forecast</b>. The multi-model average and fan stop at month " + nL + ". " : "") +
       "Dotted lines mark ±0.5, 1.0, 1.5 … °C.";
+    el("plume-cd-src").hidden = !ext.length;
+  }
+
+  // ── 1b. twelve months, CanSIPS alone ──────────────────────────────────────
+  function drawYear() {
+    var E = D.cd && D.cd.latest ? cdOf(D.cd.latest) : null;
+    el("year-body").hidden = !E; el("year-empty").hidden = !!E;
+    if (!E) return;
+    var key = state.cdIdx, smooth = state.cdSmooth, valid = E.valid_months, nL = valid.length, NC3S = 6;
+    var cs = cdSeries(E, key, smooth);
+    var obsX = [], obsY = [], obsLabel = "", obsDotted = false;
+    if (D.hist) {
+      var src = null;
+      if (key === "n34" && !smooth) { var nm = n34Monthly(); src = D.hist.months.map(function (m) { return fin(nm[m]) ? nm[m] : null; }); obsLabel = "Observed Niño-3.4 (monthly)"; }
+      else if (key === "n34") { src = oniSeries(); obsLabel = "Observed ONI"; }
+      else { src = roniSeries(); obsLabel = "Observed RONI"; obsDotted = !smooth; if (obsDotted) obsLabel += " (3-month)"; }
+      if (src) {
+        var cut = D.hist.months.indexOf(addMonths(valid[0], -1));
+        if (cut < 0) cut = D.hist.months.length - 1;
+        for (var i = Math.max(0, cut - 5); i <= cut; i++) { obsX.push(D.hist.months[i]); obsY.push(src[i]); }
+      }
+    }
+    var x = obsX.concat(valid), pad = obsX.map(function () { return null; }), tr = [];
+    var bridge = pad.slice(), lastObs = null;
+    for (var j = obsY.length - 1; j >= 0; j--) if (fin(obsY[j])) { lastObs = j; break; }
+    if (lastObs === obsY.length - 1) bridge[lastObs] = obsY[lastObs];
+    tr.push({ x: x, y: pad.concat(cs.p90), type: "scatter", mode: "lines", line: { width: 0 }, hoverinfo: "skip", showlegend: false });
+    tr.push({ x: x, y: pad.concat(cs.p10), type: "scatter", mode: "lines", line: { width: 0 }, fill: "tonexty", fillcolor: "rgba(138,75,42,0.12)", name: "80% of members", hoverinfo: "skip" });
+    tr.push({ x: x, y: pad.concat(cs.p75), type: "scatter", mode: "lines", line: { width: 0 }, hoverinfo: "skip", showlegend: false });
+    tr.push({ x: x, y: pad.concat(cs.p25), type: "scatter", mode: "lines", line: { width: 0 }, fill: "tonexty", fillcolor: "rgba(138,75,42,0.20)", name: "50% of members", hoverinfo: "skip" });
+    if (D.fc && D.fc.issue === E.issue) {
+      var mmK = mmmOf(key), smf = smooth ? smooth3(key) : null, mmS = smf ? smf(mmK) : mmK;
+      tr.push({ x: x, y: bridge.concat(mmS), type: "scatter", mode: "lines", name: narrow() ? "All systems" : "Average of all " + labels().length + " systems (months 1–" + D.fc.valid_months.length + ")",
+                line: { color: INK2, width: 2, dash: "dot" }, hovertemplate: "%{y:+.2f} °C<extra>all systems</extra>" });
+    }
+    tr.push({ x: x, y: bridge.concat(cs.mean), type: "scatter", mode: "lines+markers", name: narrow() ? "CanSIPS mean" : "CanSIPS average (" + E.members + " members)",
+              line: { color: ACCENT, width: 4.5 }, marker: { size: 5, color: ACCENT }, hovertemplate: "<b>%{y:+.2f} °C</b><extra>CanSIPS</extra>" });
+    if (obsX.length) {
+      tr.push({ x: obsX, y: obsY, type: "scatter", mode: "lines+markers", name: obsLabel, line: { color: INK, width: 2.4, dash: obsDotted ? "dot" : "solid" },
+                marker: { size: 7, color: obsX.map(function (m) { return isProv(m) ? "#ffffff" : INK; }), line: { color: INK, width: 2 } },
+                hovertemplate: "%{y:+.2f} °C<extra>observed</extra>" });
+    }
+    var shapes = thresholdShapes(x[0], x[x.length - 1], yExtent(tr));
+    if (obsX.length) shapes.push({ type: "rect", xref: "x", yref: "paper", x0: -0.5, x1: obsX.length - 0.5, y0: 0, y1: 1, fillcolor: "rgba(26,26,26,0.04)", line: { width: 0 }, layer: "below" });
+    shapes.push({ type: "rect", xref: "x", yref: "paper", x0: obsX.length + NC3S - 0.5, x1: x.length - 0.5, y0: 0, y1: 1, fillcolor: CD_BAND, line: { width: 0 }, layer: "below" });
+    var ann = [{ xref: "x", yref: "paper", x: obsX.length + NC3S + (nL - NC3S - 1) / 2, y: 0.01, yanchor: "bottom",
+                 text: narrow() ? "CanSIPS only" : "months 7–12: CanSIPS only, no other system", showarrow: false, font: { color: "#8a2f6e", size: 12.5 } },
+               { xref: "x", yref: "paper", x: obsX.length + (NC3S - 1) / 2, y: 0.01, yanchor: "bottom", text: narrow() ? "1–6" : "months 1–6", showarrow: false, font: { color: MUTED, size: 12.5 } }];
+    var lay = layout({ shapes: shapes, annotations: ann });
+    lay.margin.r = narrow() ? 12 : 34;
+    lay.xaxis.type = "category"; lay.xaxis.tickangle = 0; lay.xaxis.tickvals = x;
+    lay.xaxis.ticktext = x.map(function (m, i) { return narrow() ? (i % 2 ? "" : MONS[+m.slice(5, 7) - 1] + (m.slice(5, 7) === "01" || i === 0 ? " " + m.slice(2, 4) : "")) : MONS[+m.slice(5, 7) - 1] + (m.slice(5, 7) === "01" || i === 0 ? " " + m.slice(0, 4) : ""); });
+    lay.yaxis.title.text = (key === "n34" ? (smooth ? "ONI" : "Niño-3.4") : (smooth ? "RONI" : "relative Niño-3.4")) + " (°C)";
+    el("yearChart").style.height = (narrow() ? 520 : 480) + "px";
+    Plotly.react("yearChart", tr, lay, CONFIG);
+    var posted = E.posted_utc ? " posted " + (+E.posted_utc.slice(8, 10)) + " " + MONTHS_LONG[+E.posted_utc.slice(5, 7) - 1] + " " + E.posted_utc.slice(0, 4) : "";
+    el("year-issue").innerHTML = "<b>" + monthLong(E.issue) + "</b> CanSIPS issue," + posted + ", " + E.members + " members." +
+      (D.fc && D.fc.issue !== E.issue ? " It is newer than the " + monthLong(D.fc.issue) + " multi-model set in the other questions; the other centres publish the " +
+        MONTHS_LONG[+E.issue.slice(5, 7) - 1] + " issue around the 10th to the 13th." : "");
+    el("year-cap").innerHTML = (smooth ? "Centred 3-month averages, the ONI convention (the point at November is October–December). " : "Monthly values. ") +
+      "The shading holds the middle 80% and 50% of CanSIPS&rsquo;s members, every member weighted equally. " +
+      "Months 7–12 (pink) come from CanSIPS alone; no other system on this page reaches them, so they are one model&rsquo;s forecast and its spread, not a consensus.";
+    var rows = ["<tr><th>" + (smooth ? "Season" : "Month") + "</th><th>CanSIPS average</th><th>80% of members</th><th>Systems</th></tr>"];
+    valid.forEach(function (m, L) {
+      rows.push("<tr><td>" + (smooth ? seasonWords(m) + " " + m.slice(0, 4) : monLabel(m)) + "</td><td>" + sgn(cs.mean[L], 2) + " °C</td><td>" +
+        sgn(cs.p10[L], 1) + " to " + sgn(cs.p90[L], 1) + "</td><td>" + (L < NC3S ? "C3S systems too" : "<b>CanSIPS only</b>") + "</td></tr>");
+    });
+    el("year-table").innerHTML = rows.join("");
+    el("year-check").innerHTML = cdCheckText();
+    el("year-updated").textContent = "Issued " + monthLong(E.issue) + ", built " + D.cd.generated;
   }
 
   // ── 2. east or central ────────────────────────────────────────────────────
@@ -1538,15 +1707,16 @@ window.STAGE = {
   function redraw(which) {
     if (!D.fc) return;
     if (!which || which === "plume") drawPlume();
+    if (!which || which === "year") drawYear();
     if (!which || which === "flavour") { drawFlavour(); drawEquator(); buildBrief(); }
     if (!which || which === "evo") drawEvo();
     if (!which || which === "hist") { if (D.hist) drawHist(); }
   }
-  var WHICH = { idx: "plume", smooth: "plume", season: "flavour", view: "flavour", evoIdx: "evo", evoSmooth: "evo", histIdx: "hist" };
+  var WHICH = { cdIdx: "year", cdSmooth: "year", idx: "plume", smooth: "plume", season: "flavour", view: "flavour", evoIdx: "evo", evoSmooth: "evo", histIdx: "hist" };
   document.querySelectorAll("main.ef button[data-set]").forEach(function (b) {
     b.addEventListener("click", function () {
       var k = b.dataset.set, v = b.dataset.v;
-      state[k] = (k === "smooth" || k === "evoSmooth") ? v === "1" : v;
+      state[k] = (k === "smooth" || k === "evoSmooth" || k === "cdSmooth") ? v === "1" : v;
       b.parentNode.querySelectorAll("button").forEach(function (o) { o.setAttribute("aria-pressed", o === b ? "true" : "false"); });
       redraw(WHICH[k]);
     });
@@ -1579,8 +1749,10 @@ window.STAGE = {
     get("assets/sst/data/enso_flavour.json?v=__CACHE__", true),
     get("assets/sst/data/cpc_official.json?v=__CACHE__", true),
     get("assets/sst/data/enso_flavour_obs.json?v=__CACHE__", true),
+    get("assets/sst/data/cansips_dd.json?h=" + Math.floor(Date.now() / 3.6e6), true)   // written monthly by cansips.yml, not by the page build,
   ]).then(function (res) {
-    D.fc = res[0]; D.hist = res[1]; D.daily = res[2]; D.evo = res[3]; D.fl = res[4]; D.cpc = res[5]; D.flo = res[6];
+    D.fc = res[0]; D.hist = res[1]; D.daily = res[2]; D.evo = res[3]; D.fl = res[4]; D.cpc = res[5]; D.flo = res[6]; D.cd = res[7];
+    if (cdCheckText()) el("m-cdcheck").innerHTML = cdCheckText();
     if (!roniSeries()) {
       // no RONI anywhere: hide the history chart's RONI choice rather than relabel ONI
       document.querySelectorAll('button[data-set="histIdx"][data-v="roni"]').forEach(function (b) { b.hidden = true; });
@@ -1610,7 +1782,7 @@ window.STAGE = {
   }).catch(function (e) {
     console.error("forecast feed failed:", e);
     el("ef-lead").textContent = "The forecast data could not be loaded. Reload the page to try again; the static figure under Method and sources is always available.";
-    ["plume", "flavour", "changes", "history"].forEach(function (id) { el(id).hidden = true; });
+    ["plume", "year", "flavour", "changes", "history"].forEach(function (id) { el(id).hidden = true; });
   });
 })();
 </script>

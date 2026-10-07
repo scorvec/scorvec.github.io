@@ -1269,7 +1269,7 @@ let byWmo = {};                  // wmo id -> gid
 let current = null;              // selected: {gid, id, n, e}  (model soundings: {model: true, id, n})
 // ?embed=model: the card alone, fed forecast soundings by models.html (2026-10-04) — see "model soundings" at the end
 const EMBED = new URLSearchParams(location.search).get("embed") === "model";
-const MS = { items: [], idx: 0, title: "", coords: "", model: "", pt: {} };
+const MS = { items: [], idx: 0, title: "", coords: "", model: "", pt: {}, kind: "model", stripLabel: "" };   // kind "drop": recon.html dropsondes
 let plotTitle = "", plotCoords = "";
 let pinned = null;                 // { prof, title } — overlay for comparison              // drawn on the skew-t canvas itself
 let plotNote = "";               // secondary blurb (e.g. wind-only)
@@ -1287,6 +1287,8 @@ const igraCache = new Map();     // gid -> decompressed text
 const WASM_V = "66a5af64";
 const wasmReady = createSharp({
   locateFile: (f) => f.endsWith(".wasm") ? `${f}?v=${WASM_V}` : f,
+  // SHARPlib's messages come after a failure compute() already handles (rc 2): a warning, not an error
+  printErr: (t) => console.warn("SHARPlib: " + t),
 }).then(mod => { M = mod; })
   .catch(e => { wasmFailed = String(e).slice(0, 120); });
 let wasmFailed = null;
@@ -2729,6 +2731,7 @@ async function queuePrev12() {
   if (!isFinite(t0)) return;
   let got = null;
   if (current.model) {                              // a forecast: the same run's sounding ~12 h earlier, if it has one
+    if (MS.kind === "drop") return;                  // dropsondes: different places, not a time series
     let best = null;
     MS.items.forEach(it => {
       const back = (t0 - Date.parse(it.valid.replace(" ", "T") + ":00Z")) / 3600e3;
@@ -3489,6 +3492,7 @@ function drawSkewT(prof, res) {
   ctx.fillStyle = TH.muted; ctx.font = "12px Inter";
   for (const pp of (SK.pTop < 10000 ? [70, 100, 200, 300, 400, 500, 600, 700, 800, 900, 1000]
                                      : [100, 200, 300, 400, 500, 600, 700, 800, 900, 1000])) {
+    if (pp * 100 < SK.pTop) continue;                // zoomed (low-level dropsonde): only isobars inside the frame
     const y = yOf(pp * 100);
     ctx.strokeStyle = TH.gridSub; ctx.lineWidth = 1;
     ctx.beginPath(); ctx.moveTo(SK.l, y); ctx.lineTo(SK.l + pw, y); ctx.stroke();
@@ -4341,9 +4345,22 @@ function render(prof) {
   fillDewpoints(prof);                     // a lone NaN would void PWAT, CRH, MSE…
   fillWinds(prof);                         // interpolate wind gaps, never truncate
   const hasT = prof.T.some(v => isFinite(v));
-  const res = hasT ? compute(prof) : { o: new Array(64).fill(MISSING),
+  // a dropsonde released low (recon.html: a C-130 at 850 hPa) covers the boundary layer only: SHARPlib's parcel and
+  // layer routines need levels it does not have (they fail), so it gets the charts and the wind analysis, zoomed in
+  const topP = prof.P[prof.P.length - 1];
+  const shallowDrop = MS.kind === "drop" && current && current.model && topP > 50000;
+  let res = hasT && !shallowDrop ? compute(prof) : { o: new Array(64).fill(MISSING),
     sb: [], ml: [], mu: [] };
-  if (!hasT) jsKinematics(prof, res.o);    // pibal: winds still give shear/SRH/Bunkers
+  if (!hasT || shallowDrop) jsKinematics(prof, res.o);    // pibal: winds still give shear/SRH/Bunkers
+  // a dropsonde ends at the aircraft (a G-IV releases near 150-200 hPa), often still in moist air: SHARPlib's
+  // effective-inflow-layer search then finds no top and the whole analysis throws. Keep the winds rather than nothing.
+  let dropFail = false;
+  if (res.rc === 2 && MS.kind === "drop" && current && current.model) {
+    res = { o: new Array(64).fill(MISSING), sb: [], ml: [], mu: [] };
+    jsKinematics(prof, res.o); dropFail = true;
+  }
+  if (shallowDrop) plotNote = `low-level drop (top ${Math.round(topP / 100)} hPa): no parcel analysis`;
+  if (dropFail) plotNote = `no parcel analysis: the drop ends at ${Math.round(topP / 100)} hPa, still in moist air`;
   if (res.rc === 2) plotNote = "⚠ analysis failed on this profile — charts only";
   if (prof.dewSynth) plotNote = (plotNote ? plotNote + "   " : "") +
     "⚠ NO DEWPOINT DATA — green trace synthesized (T−30°); moisture parameters invalid";
@@ -4354,6 +4371,7 @@ function render(prof) {
   const tpTop = tropopause(prof);
   SK.pTop = (isFinite(tpTop.wmoP) && tpTop.wmoP < 12500 &&
              prof.P[prof.P.length - 1] < 9000) ? 7000 : 10000;
+  if (shallowDrop) SK.pTop = topP > 75000 ? 60000 : 40000;
   // tables first: fillTables -> fitLayout settles the card width, so the
   // plots draw once at their final size instead of drawing, then redrawing
   inRender = true;
@@ -4488,7 +4506,7 @@ const MODEL_PT = { "-1": ["none", "#8b8ba3"], 0: ["type not given", "#a6e3a0"], 
                    3: ["freezing rain", "#f09fc6"], 4: ["sleet", "#f8bb72"], 5: ["rain/snow mix", "#c09ae8"] };
 function modelPointChips() {
   const ks = document.getElementById("keystrip");
-  if (!ks || !current || !current.model) return;
+  if (!ks || !current || !current.model || MS.kind === "drop") return;
   ks.querySelectorAll(".kchip.mpt").forEach(el => el.remove());
   const it = MS.items[MS.idx], v = it && MS.pt[it.fxx];
   const box = (label, val, unit, col, title) =>
@@ -4523,15 +4541,17 @@ async function showModelHour(i) {
   plotTitle = `${MS.title}  ·  ${it.label}  ·  ${it.valid.slice(5, 13)}Z`;
   plotCoords = MS.coords; plotNote = "";
   lastMonth = it.valid.slice(5, 7); lastDoy = doyOf(it.valid); lastHourZ = hourOf(it.valid); lastValidDt = it.valid;
-  setStatus(`${MS.model} forecast ${it.label} · valid ${it.valid}Z · ${it.prof.P.length} levels`);
+  setStatus(MS.kind === "drop" ? (it.status || `${MS.model} · ${it.label} · ${it.prof.P.length} levels`)
+    : `${MS.model} forecast ${it.label} · valid ${it.valid}Z · ${it.prof.P.length} levels`);
   render(lastProfFull = copyProf(it.prof));         // render() sanitises in place: never hand it the stored profile
 }
 function renderModelStrip(el) {
-  let html = `<span class="lbl" title="forecast hours of this run">forecast</span>`, day = "";
+  let html = MS.kind === "drop" ? `<span class="lbl" title="every dropsonde of this mission">${MS.stripLabel || "sondes"}</span>`
+    : `<span class="lbl" title="forecast hours of this run">forecast</span>`, day = "";
   MS.items.forEach((it, i) => {
     const d = it.valid.slice(0, 10);
     if (d !== day) { day = d; html += `<span class="day">${MON_S[+d.slice(5, 7) - 1]} ${+d.slice(8, 10)}</span>`; }
-    html += `<button data-mhour="${i}" class="${i === MS.idx ? "on" : ""}" title="${it.label} · valid ${it.valid}Z">${it.valid.slice(11, 13)}Z</button>`;
+    html += `<button data-mhour="${i}" class="${i === MS.idx ? "on" : ""}" title="${it.label} · valid ${it.valid}Z">${it.chip || it.valid.slice(11, 13) + "Z"}</button>`;
   });
   el.innerHTML = html;
 }
@@ -4561,6 +4581,8 @@ if (EMBED) {
     if (d.type === "mv-sounding") {
       MS.items = d.items || []; MS.title = d.title || ""; MS.coords = d.coords || ""; MS.model = d.model || ""; MS.pt = {};
       MS.idx = Math.max(0, Math.min(MS.items.length - 1, d.idx || 0));
+      MS.kind = d.kind === "drop" ? "drop" : "model"; MS.stripLabel = d.stripLabel || "";
+      if (d.footer) { const ft = document.getElementById("dlg-footer"); if (ft) ft.innerHTML = d.footer; }
       current = { model: true, id: "model:" + MS.title, n: MS.title };
       prev12 = null; prev12Key = ""; climo = null; climoGid = null;
       document.getElementById("stn-label").textContent = MS.title;

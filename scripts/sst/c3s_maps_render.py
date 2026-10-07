@@ -164,7 +164,16 @@ def main() -> int:
            "periods": {p: period_label(PERIODS[p], y, mo) for p in PERIODS},
            "period_leads": {p: lead_note(PERIODS[p]) for p in PERIODS}}
     (SITE / "assets" / "sst" / "data").mkdir(parents=True, exist_ok=True)
-    (SITE / "assets" / "sst" / "data" / "c3s_maps.json").write_text(json.dumps(doc, separators=(",", ":")))
+    doc_path = SITE / "assets" / "sst" / "data" / "c3s_maps.json"
+    # the tercile block is c3s_terciles_render's: keep it until that step rewrites it (since 2026-10-07 the
+    # two run in separate, resumable steps of c3s.yml, and a map re-render must not drop the terciles)
+    try:
+        old = json.loads(doc_path.read_text())
+        if "terciles" in old:
+            doc["terciles"] = old["terciles"]
+    except Exception:                                                 # noqa: BLE001
+        pass
+    doc_path.write_text(json.dumps(doc, separators=(",", ":")))
     print(f"wrote {made} maps + c3s_maps.json ({len(models)} models)")
     return 0
 

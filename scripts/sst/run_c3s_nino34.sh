@@ -18,21 +18,22 @@
 set -uo pipefail
 
 # ---------------------------------------------------------------------------
-# RETIRED 2026-09-04 (user: "no more locally rendered jobs pushing images to
-# github, except GEPS"). This script rendered site products on the laptop and
-# pushed them to main, racing the GitHub Actions renders: on 2026-09-04 its
-# 15-minute pass overwrote the CI's TAO cross-section with a day-old frame, so
-# enso-subsurface showed Sep 1 under a Sep 2 manifest. Its launchd job is in
-# ~/Library/LaunchAgents/disabled/. Rendering belongs to Actions; the laptop
-# dispatches (scripts/lib/dispatch_workflows.sh). A .git/hooks/pre-push guard
-# blocks the push even if this runs. Set ALLOW_LOCAL_RENDER=1 for a manual,
-# deliberate one-off.
-if [ "${ALLOW_LOCAL_RENDER:-0}" != "1" ]; then
-  echo "$(basename "$0"): local rendering is retired; dispatch the workflow instead." >&2
-  exit 0
+# RETIRED 2026-10-07: the C3S build runs in GitHub Actions, .github/workflows/c3s.yml (CDS key secret,
+# cron 9th-16th + the laptop dispatcher). User rule: no downloads or processing on the laptop; it only
+# dispatches workflows. Run the workflow instead:
+#     gh workflow run c3s.yml -f issue=YYYYMM            (add -f force=true to rebuild a complete issue)
+# The products now read compact tables (scripts/sst/c3s_ref.py, release c3s-ref-v1) and the CDS client
+# refuses to download outside Actions (C3S_ALLOW_FETCH). C3S_LOCAL_OVERRIDE=1 is the deliberate, explicit
+# override for an emergency local run; it is NOT the old ALLOW_LOCAL_RENDER switch, which no longer suffices.
+# (Earlier: retired from launchd 2026-09-04, com.scorvec.c3s plist in ~/Library/LaunchAgents/disabled/.)
+if [ "${C3S_LOCAL_OVERRIDE:-0}" != "1" ]; then
+  echo "$(basename "$0"): retired - the C3S build runs in GitHub Actions: gh workflow run c3s.yml -f issue=YYYYMM" >&2
+  echo "  (.github/workflows/c3s.yml; explicit local override: C3S_LOCAL_OVERRIDE=1)" >&2
+  exit 1
 fi
-# A deliberate manual run may push the products it just rendered; the pre-push
-# hook would otherwise reject them (see scripts/lib/pre-push.hook).
+export C3S_ALLOW_FETCH=1 ALLOW_LOCAL_RENDER=1
+# A deliberate manual run may push the products it just rendered; the pre-push hook would otherwise
+# reject them (see scripts/lib/pre-push.hook).
 export ALLOW_LOCAL_ASSET_PUSH=1
 # ---------------------------------------------------------------------------
 

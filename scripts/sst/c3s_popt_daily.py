@@ -34,9 +34,15 @@ HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 from c3s_nino34 import MODELS
 from c3s_sixh import path_for as sixh_path
-from c3s_terciles import path_for as monthly_path
-from c3s_terciles_render import period_means
-from seas5_popT import REGIONS, pop_grid
+from c3s_terciles import hc_pop_means
+import c3s_ref as CR
+from seas5_popT import REGIONS
+
+
+def pop_grid(region, lat, lon):
+    """Population per cell of THIS grid (geonames places, c3s_ref.pop_weights). seas5_popT.pop_grid
+    only serves the SEAS5 region grids since 2026-10-04 and refuses any other."""
+    return CR.pop_weights(region, lat, lon)
 
 SITE = Path(os.environ.get("SST_SITE_ROOT", HERE.parents[1]))
 OUT = SITE / "assets" / "sst" / "data" / "c3s_popt_daily.json"
@@ -90,41 +96,37 @@ def daily_members(path: Path, region: str):
     return out[keep], uniq
 
 
+def daily_for(centre: str, system: str, region: str, issue: str, k: int):
+    """(values [sample, day], days) for forecast month k: the reduced table when it exists, else the
+    raw chunk (reduced here and the table written, so the chunk is never needed again)."""
+    t = CR.load(CR.is_sixh(centre, system, region, issue, k))
+    if t is not None:
+        return t["vals"], t["days"]
+    p = sixh_path(centre, system, region, issue, k)
+    if not p.exists():
+        return None, None
+    vals, days = daily_members(p, region)
+    if vals is None:
+        return None, None
+    CR.save(CR.is_sixh(centre, system, region, issue, k), vals=vals.astype("float32"), days=days)
+    return vals, days
+
+
 def hindcast_monthly(centre: str, system: str, region: str, issue: str, nmonth: int):
-    """Monthly hindcast mean per lead, population-weighted, K — the anomaly reference."""
-    hp = monthly_path("hc", centre, system, "t2m", issue)
-    if not hp.exists():
+    """Monthly hindcast mean per lead, population-weighted, K — the anomaly reference
+    (c3s_terciles.hc_pop_means: the hc_terc table, or the raw hindcast where it is on disk)."""
+    r = hc_pop_means(centre, system, region, issue)
+    if r is None:
         return None
-    leads = {f"m{i + 1}": [i] for i in range(nmonth)}
-    hcm, lat, lon, _ = period_means(hp, "t2m", 1.0, leads)
-    if not hcm:
-        return None
-    w = pop_grid(region, lat, np.where(lon > 180.0, lon - 360.0, lon))
-    if w.sum() <= 0:
-        return None
-    w = w / w.sum()
-    return {k: float((hcm[k] * w[None]).sum(axis=(1, 2)).mean()) for k in hcm}
+    return {k: v for k, v in r.items() if int(k[1:]) <= nmonth}
 
 
-def observed_months(region: str, issue: str, n_back: int = 6) -> dict | None:
-    """The last months of OBSERVED population-weighted daily temperature, same pooling.
-
-    CPC Global Unified daily Tmax/Tmin on its 0.5 deg land grid, population-weighted on the
-    same geonames places, daily mean taken as (Tmax+Tmin)/2. Anomalies are against the
-    OBSERVED 1993-2016 mean for that calendar month -- the models' hindcast period, not
-    CPC's 1991-2020 normal -- so the observed months and the forecast months sit on one
-    base (the same correction the ENSO plume needed, 2026-09-12).
-    """
+def cpc_daily_national(region: str, years) -> dict:
+    """{(year, month): daily population-weighted national means, degC} from the CPC files on disk."""
     import xarray as xr
-    from seas5_extremes import CPC, cpc_path
-    y, mo = int(issue[:4]), int(issue[4:6])
-    want = []
-    for k in range(n_back, 0, -1):
-        m = mo - k
-        want.append((y + (m - 1) // 12, (m - 1) % 12 + 1))
-    years = sorted({yy for yy, _ in want} | set(range(1993, 2017)))
-    tx, tn, w = {}, {}, None
-    for yy in years:
+    from seas5_extremes import cpc_path
+    tx, w = {}, None
+    for yy in sorted(set(years)):
         px, pn = cpc_path("tx", region, yy), cpc_path("tn", region, yy)
         if not (px.exists() and pn.exists()):
             continue
@@ -132,11 +134,9 @@ def observed_months(region: str, issue: str, n_back: int = 6) -> dict | None:
         if w is None:
             w = pop_grid(region, dx.lat.values, dx.lon.values)
             if w.sum() <= 0:
-                return None
+                return {}
             w = w / w.sum()
         tx[yy] = (dx, dn)
-    if not tx:
-        return None
     daily = {}                       # (year, month) -> array of daily national means, degC
     for yy, (dx, dn) in tx.items():
         mean = ((dx.values + dn.values) / 2.0)
@@ -151,10 +151,42 @@ def observed_months(region: str, issue: str, n_back: int = 6) -> dict | None:
             v = v[np.isfinite(v)]
             if v.size >= 20:
                 daily[(yy, m)] = v
+    return daily
+
+
+def cpc_base_clim(daily: dict) -> dict:
+    """{calendar month: 1993-2016 mean of the monthly national means}, degC."""
     clim = {}
     for m in range(1, 13):
         pool = [daily[(yy, m)].mean() for yy in range(1993, 2017) if (yy, m) in daily]
         clim[m] = float(np.mean(pool)) if pool else np.nan
+    return clim
+
+
+def observed_months(region: str, issue: str, n_back: int = 6) -> dict | None:
+    """The last months of OBSERVED population-weighted daily temperature, same pooling.
+
+    CPC Global Unified daily Tmax/Tmin on its 0.5 deg land grid, population-weighted on the
+    same geonames places, daily mean taken as (Tmax+Tmin)/2. Anomalies are against the
+    OBSERVED 1993-2016 mean for that calendar month -- the models' hindcast period, not
+    CPC's 1991-2020 normal -- so the observed months and the forecast months sit on one
+    base (the same correction the ENSO plume needed, 2026-09-12).
+    """
+    y, mo = int(issue[:4]), int(issue[4:6])
+    want = []
+    for k in range(n_back, 0, -1):
+        m = mo - k
+        want.append((y + (m - 1) // 12, (m - 1) % 12 + 1))
+    # the 1993-2016 base comes from the table (c3s_ref obs_c3s_cpc_clim, built once from the laptop's CPC
+    # store); only the months shown are read from CPC, fetched in Actions (c3s_ref.fetch_cpc)
+    clim = CR.cpc_clim(region)
+    if clim is None:
+        daily = cpc_daily_national(region, sorted({yy for yy, _ in want} | set(range(1993, 2017))))
+        clim = cpc_base_clim(daily)
+    else:
+        daily = cpc_daily_national(region, sorted({yy for yy, _ in want}))
+    if not daily:
+        return None
     out = {"months": [], "p10": [], "p25": [], "p50": [], "p75": [], "p90": [],
            "mean": [], "anom_p50": [], "anom_mean": []}
     unit = REGIONS[region][3]
@@ -197,10 +229,7 @@ def main() -> int:
             hc = hindcast_monthly(centre, system, region, issue, NMONTH)
             cols, labels = [], []
             for k in range(1, NMONTH + 1):
-                p = sixh_path(centre, system, region, issue, k)
-                if not p.exists():
-                    continue
-                vals, days = daily_members(p, region)
+                vals, days = daily_for(centre, system, region, issue, k)
                 if vals is None or not len(days):
                     continue
                 mm = (mo - 1 + k - 1) % 12 + 1

@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="canonical" href="https://scorvec.com/recon.html">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Hurricane Reconnaissance &middot; Shawn Corvec</title>
+<meta name="description" content="Atlantic hurricane hunter data, decoded and mapped: the flight track coloured by SFMR surface wind or flight-level wind, dropsonde skew-Ts, vortex fixes, best track and forecast, with the aircraft's own quality flags respected. Live during flights.">
+<link rel="preconnect" href="https://raw.githubusercontent.com" crossorigin>
+<link rel="stylesheet" href="/skewt/vendor/leaflet.css">
+<script src="/skewt/vendor/leaflet.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,500;0,8..60,600;1,8..60,400&family=Source+Sans+3:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/site.css">
+<script src="/assets/site.js" defer></script>
+<script src="/assets/rail.js" defer></script>
+<script data-goatcounter="https://scorvec.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
+<style>
+  :root {
+    --bg: #f5f6f3; --panel: #ffffff; --ink: #1f2620; --muted: #6f6b64; --rule: #dde1da; --soft: #f0f2ee;
+    --accent: #274b7a; --accent-ink: #ffffff; --warn-bg: #fdf3e4; --warn-bd: #e3c58e; --warn-ink: #6e5218;
+    --live: #b3261e; --grid: #e4e7e1; --axis: #4d544e; --track-case: rgba(20, 24, 22, 0.55);
+    --s-fl: #274b7a; --s-pk: #8aa3c4; --s-sfmr: #c2410c; --s-slp: #6d28d9; --s-alt: #2f6b3a;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #11141a; --panel: #181c24; --ink: #e6e8ec; --muted: #a3a7b1; --rule: #2a303b; --soft: #1e232c;
+      --accent: #7cb4ff; --accent-ink: #0d1117; --warn-bg: #2a2416; --warn-bd: #6b5626; --warn-ink: #f0d9a6;
+      --live: #ff6b62; --grid: #262c36; --axis: #b4b9c2; --track-case: rgba(0, 0, 0, 0.7);
+      --s-fl: #7cb4ff; --s-pk: #4f6a91; --s-sfmr: #ff8a4c; --s-slp: #b794ff; --s-alt: #6fcf86;
+      color-scheme: dark;
+    }
+    :root:not([data-theme="light"]) .sh, :root:not([data-theme="light"]) .st, :root:not([data-theme="light"]) .sf {
+      --c-bg: #11141a; --c-panel: #181c24; --c-ink: #e6e8ec; --c-muted: #a3a7b1; --c-rule: #2a303b;
+      --c-accent: #7cb4ff; --c-accent-soft: rgba(124, 180, 255, 0.12);
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #11141a; --panel: #181c24; --ink: #e6e8ec; --muted: #a3a7b1; --rule: #2a303b; --soft: #1e232c;
+    --accent: #7cb4ff; --accent-ink: #0d1117; --warn-bg: #2a2416; --warn-bd: #6b5626; --warn-ink: #f0d9a6;
+    --live: #ff6b62; --grid: #262c36; --axis: #b4b9c2; --track-case: rgba(0, 0, 0, 0.7);
+    --s-fl: #7cb4ff; --s-pk: #4f6a91; --s-sfmr: #ff8a4c; --s-slp: #b794ff; --s-alt: #6fcf86;
+    color-scheme: dark;
+  }
+  :root[data-theme="dark"] .sh, :root[data-theme="dark"] .st, :root[data-theme="dark"] .sf {
+    --c-bg: #11141a; --c-panel: #181c24; --c-ink: #e6e8ec; --c-muted: #a3a7b1; --c-rule: #2a303b;
+    --c-accent: #7cb4ff; --c-accent-soft: rgba(124, 180, 255, 0.12);
+  }
+  html, body { background: var(--bg); color: var(--ink); }
+  body { margin: 0; overflow-x: hidden; }
+  main.rc { max-width: 1800px; margin: 0 auto; padding: 1.1rem 16px 3rem; font-family: var(--f-sans, 'Source Sans 3', sans-serif); }
+  .rc h1 { font-family: var(--f-serif, serif); font-weight: 500; font-size: 1.85rem; margin: 0.2rem 0 0.15rem; }
+  .rc-lede { margin: 0 0 0.7rem; max-width: 95ch; line-height: 1.5; font-size: 1.02rem; }
+  .rc-lede .mu { color: var(--muted); }
+  .rc-bar { display: flex; flex-wrap: wrap; gap: 0.5rem 0.9rem; align-items: center; margin: 0.4rem 0 0.6rem; }
+  .rc-bar label { font-size: 0.86rem; color: var(--muted); display: flex; flex-direction: column; gap: 0.15rem; min-width: 0; }
+  .rc-bar select { font: 500 1rem var(--f-sans, sans-serif); color: var(--ink); background: var(--panel); border: 1px solid var(--rule);
+    border-radius: 7px; padding: 0.42rem 0.5rem; max-width: min(92vw, 520px); min-height: 40px; }
+  .seg { display: inline-flex; flex-wrap: wrap; border: 1px solid var(--rule); border-radius: 8px; overflow: hidden; background: var(--panel); }
+  .seg button { border: 0; background: transparent; color: var(--ink); font: 500 0.92rem var(--f-sans, sans-serif); padding: 0.45rem 0.7rem;
+    min-height: 38px; cursor: pointer; }
+  .seg button + button { border-left: 1px solid var(--rule); }
+  .seg button.on { background: var(--accent); color: var(--accent-ink); }
+  .seg button:focus-visible, .rc-bar select:focus-visible { outline: 3px solid #7aa7e0; outline-offset: -2px; }
+  .rc-status { display: flex; flex-wrap: wrap; gap: 0.3rem 0.9rem; align-items: center; font-size: 0.95rem; margin: 0 0 0.6rem; }
+  .rc-status .pill { display: inline-flex; align-items: center; gap: 0.35em; font-weight: 600; padding: 0.1rem 0.55rem; border-radius: 999px;
+    border: 1px solid var(--rule); background: var(--panel); }
+  .rc-status .pill.live { color: var(--live); border-color: color-mix(in srgb, var(--live) 45%, transparent); }
+  .rc-status .pill.live i { width: 0.55em; height: 0.55em; border-radius: 50%; background: var(--live); animation: pulse 1.6s infinite; }
+  @keyframes pulse { 50% { opacity: 0.25; } }
+  @media (prefers-reduced-motion: reduce) { .rc-status .pill.live i { animation: none; } }
+  .rc-status .mu { color: var(--muted); }
+  .rc-warn { background: var(--warn-bg); border: 1px solid var(--warn-bd); color: var(--warn-ink); border-radius: 7px; padding: 0.45rem 0.75rem;
+    margin: 0 0 0.6rem; font-size: 0.95rem; }
+  .rc-warn[hidden] { display: none; }
+
+  .rc-grid { display: grid; grid-template-columns: minmax(0, 1fr) 380px; gap: 0.8rem; align-items: start; }
+  @media (max-width: 1100px) { .rc-grid { grid-template-columns: minmax(0, 1fr); } }
+  .card { background: var(--panel); border: 1px solid var(--rule); border-radius: 10px; min-width: 0; }
+  .mapcard { position: relative; overflow: hidden; }
+  #map { height: min(70vh, 720px); min-height: 380px; background: var(--soft); }
+  @media (max-width: 700px) { #map { height: 62vh; min-height: 320px; } }
+  .legend { display: flex; flex-wrap: wrap; gap: 0.2rem 0.6rem; align-items: center; padding: 0.45rem 0.7rem; font-size: 0.85rem;
+    border-top: 1px solid var(--rule); }
+  .legend .sw { display: inline-flex; align-items: center; gap: 0.3em; white-space: nowrap; }
+  .legend .sw i { width: 1.3em; height: 0.55em; border-radius: 2px; display: inline-block; }
+  .legend .mu { color: var(--muted); }
+  .leaflet-container { font-family: var(--f-sans, sans-serif); }
+  .leaflet-tooltip.fixlab { background: transparent; border: 0; box-shadow: none; color: var(--ink); font: 600 11px var(--f-sans, sans-serif);
+    text-shadow: 0 0 3px var(--panel), 0 0 3px var(--panel), 0 0 2px var(--panel); padding: 0; }
+  .leaflet-tooltip.fixlab::before { display: none; }
+  #map.lowz .leaflet-tooltip.fixlab { display: none; }
+  .leaflet-popup-content { font: 0.92rem/1.45 var(--f-sans, sans-serif); margin: 10px 12px; min-width: 220px; }
+  .leaflet-popup-content table { border-collapse: collapse; }
+  .leaflet-popup-content td { padding: 1px 8px 1px 0; vertical-align: top; }
+  .leaflet-popup-content td:first-child { color: #5d5a54; }
+  .leaflet-popup-content pre { font-size: 11px; max-height: 180px; overflow: auto; background: #f4f4f1; padding: 6px; border-radius: 4px; white-space: pre; }
+  .leaflet-popup-content button { font: 600 0.9rem var(--f-sans, sans-serif); border: 1px solid #274b7a; background: #274b7a; color: #fff;
+    border-radius: 6px; padding: 0.3rem 0.7rem; cursor: pointer; margin-top: 0.3rem; }
+  .barb { pointer-events: none; }
+
+  .side { padding: 0.7rem 0.85rem 0.8rem; }
+  .side h2, .tscard h2, .lists h2 { font-family: var(--f-serif, serif); font-weight: 500; font-size: 1.2rem; margin: 0 0 0.35rem; }
+  .side .sub { font-size: 0.88rem; color: var(--muted); margin: -0.2rem 0 0.5rem; }
+  .stats { display: grid; grid-template-columns: auto 1fr; gap: 0.18rem 0.7rem; font-size: 0.95rem; margin: 0; }
+  .stats dt { color: var(--muted); }
+  .stats dd { margin: 0; font-variant-numeric: tabular-nums; }
+  .stats dd b { font-weight: 600; }
+  .stats dd small { color: var(--muted); font-size: 0.82rem; }
+  .stats a { color: var(--accent); cursor: pointer; text-decoration: underline; text-underline-offset: 0.14em; }
+  .qcnote { font-size: 0.84rem; color: var(--muted); margin: 0.55rem 0 0; line-height: 1.4; }
+
+  .tscard { margin-top: 0.8rem; padding: 0.6rem 0.6rem 0.4rem; position: relative; }
+  .tscard .key { font-size: 0.86rem; color: var(--muted); margin: 0 0 0.3rem 0.2rem; display: flex; flex-wrap: wrap; gap: 0.2rem 0.8rem; }
+  .tscard .key i { display: inline-block; width: 1.4em; height: 3px; vertical-align: middle; margin-right: 0.3em; }
+  #ts { width: 100%; height: 360px; display: block; touch-action: pan-y; cursor: crosshair; }
+  @media (max-width: 700px) { #ts { height: 330px; } }
+  #tsread { min-height: 1.4em; font-size: 0.9rem; margin: 0.15rem 0.2rem 0; font-variant-numeric: tabular-nums; }
+
+  .lists { margin-top: 0.8rem; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 0.8rem; }
+  @media (max-width: 1100px) { .lists { grid-template-columns: minmax(0, 1fr); } }
+  .lists .card { padding: 0.6rem 0.75rem; }
+  .tbl { width: 100%; overflow-x: auto; }
+  .tbl table { border-collapse: collapse; width: 100%; font-size: 0.9rem; font-variant-numeric: tabular-nums; }
+  .tbl th { text-align: left; font-weight: 600; color: var(--muted); border-bottom: 1px solid var(--rule); padding: 0.25rem 0.45rem 0.25rem 0; white-space: nowrap; }
+  .tbl td { border-bottom: 1px solid var(--grid); padding: 0.28rem 0.45rem 0.28rem 0; white-space: nowrap; }
+  .tbl tr.click { cursor: pointer; }
+  .tbl tr.click:hover td, .tbl tr.on td { background: color-mix(in srgb, var(--accent) 10%, transparent); }
+  .tbl .mu { color: var(--muted); }
+  .empty { color: var(--muted); font-size: 0.92rem; margin: 0.2rem 0; }
+  details.about { margin-top: 0.8rem; padding: 0.6rem 0.9rem; }
+  details.about summary { cursor: pointer; font-weight: 600; }
+  details.about p, details.about li { line-height: 1.5; max-width: 100ch; }
+  details.about pre { white-space: pre-wrap; font-size: 0.82rem; background: var(--soft); padding: 0.6rem; border-radius: 6px; max-height: 420px; overflow: auto; }
+  .credit { font-size: 0.88rem; color: var(--muted); margin: 0.9rem 0 0; line-height: 1.5; }
+  .credit a { color: var(--accent); }
+
+  /* dropsonde skew-T dock: the sounding explorer itself (/skewt/?embed=model) fed by postMessage */
+  .dock { position: fixed; z-index: 2000; top: 2vh; bottom: 2vh; left: 50%; transform: translateX(-50%); width: min(1700px, 96vw);
+    background: var(--panel); border: 1px solid var(--rule); border-radius: 10px; box-shadow: 0 10px 40px rgba(0,0,0,0.35);
+    display: flex; flex-direction: column; overflow: hidden; }
+  .dock[hidden] { display: none; }
+  .dock .top { display: flex; align-items: center; gap: 0.6rem; padding: 0.45rem 0.7rem; border-bottom: 1px solid var(--rule); }
+  .dock .top h2 { font: 500 1.1rem var(--f-serif, serif); margin: 0; }
+  .dock .top .sub { color: var(--muted); font-size: 0.88rem; flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .dock .top button { font: 600 0.92rem var(--f-sans, sans-serif); border: 1px solid var(--rule); background: var(--soft); color: var(--ink);
+    border-radius: 6px; padding: 0.35rem 0.75rem; cursor: pointer; }
+  .dock iframe { flex: 1 1 auto; width: 100%; border: 0; min-height: 0; background: #0b0b12; }
+  @media (max-width: 700px) { .dock { top: 0; bottom: 0; width: 100vw; border-radius: 0; } }
+</style>
+</head>
+<body>
+<!-- sh:start -->
+<header class="sh" id="site-header">
+  <div class="sh-in">
+    <a class="sh-brand" href="/">Shawn Corvec</a>
+    <button class="sh-find" type="button" aria-haspopup="dialog" aria-keyshortcuts="Control+K Meta+K" title="Find a plot (Ctrl K)"><svg viewBox="0 0 20 20" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true" focusable="false"><circle cx="8.5" cy="8.5" r="5.5" style="fill:none;stroke:currentColor"/><path d="M12.6 12.6 17 17" style="fill:none;stroke:currentColor"/></svg><span class="sh-find-t">Find a plot</span><kbd>Ctrl K</kbd></button>
+    <button class="sh-toggle" type="button" aria-expanded="false" aria-controls="sh-menu">Menu</button>
+    <nav class="sh-nav" id="sh-menu" aria-label="Site">
+      <ul class="sh-list">
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g0">Mid-latitude weather</button>
+          <div class="sh-menu sh-menu--cols" id="sh-g0">
+            <div>
+              <h3>Surface and hazards</h3>
+              <ul>
+                <li><a href="/models.html">Short-range model maps</a></li>
+                <li><a href="/snowbands.html">Snow-band diagnostics</a></li>
+                <li><a href="/ar.html">Atmospheric rivers</a></li>
+              </ul>
+            </div>
+            <div>
+              <h3>Upper air</h3>
+              <ul>
+                <li><a href="/circulation.html#dt">Dynamic tropopause</a></li>
+                <li><a href="/circulation.html#pacjet">North Pacific jet</a></li>
+                <li><a href="/circulation.html#waf">Wave activity flux</a></li>
+              </ul>
+            </div>
+          </div>
+        </li>
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g1" aria-current="page">Tropics</button>
+          <div class="sh-menu sh-menu--cols" id="sh-g1">
+            <div>
+              <h3>ENSO and the MJO</h3>
+              <ul>
+                <li><a href="/enso.html">El Niño monitor</a></li>
+                <li><a href="/circulation.html#mslp">Pacific pressure and wind</a></li>
+                <li><a href="/mjo.html">MJO forecast</a></li>
+                <li><a href="/tropical-waves.html">Tropical waves</a></li>
+              </ul>
+            </div>
+            <div>
+              <h3>Tropical cyclones</h3>
+              <ul>
+                <li><a href="/circulation.html#tcjet">Tropical cyclones and the jet</a></li>
+                <li><a href="/circulation.html#tcens">Tropical cyclone ensembles</a></li>
+                <li><a href="/circulation.html#tcphase">Cyclone phase space</a></li>
+                <li><a href="/recon.html" aria-current="page">Hurricane reconnaissance</a></li>
+              </ul>
+            </div>
+            <div>
+              <h3>Tropical circulation</h3>
+              <ul>
+                <li><a href="/circulation.html#walker">Walker and Hadley cells</a></li>
+                <li><a href="/circulation.html#vpot">Velocity potential</a></li>
+                <li><a href="/circulation.html#gillrain">Rain-forced circulation (Gill model)</a></li>
+              </ul>
+            </div>
+          </div>
+        </li>
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g2">Stratosphere</button>
+          <div class="sh-menu sh-menu--cols" id="sh-g2">
+            <div>
+              <h3>Polar vortex</h3>
+              <ul>
+                <li><a href="/stratosphere.html">Stratosphere and polar vortex</a></li>
+                <li class="sh-subitem"><a href="/stratosphere.html#heatflux">Eddy heat flux</a></li>
+                <li class="sh-subitem"><a href="/stratosphere.html#pv">Potential vorticity</a></li>
+                <li class="sh-subitem"><a href="/stratosphere.html#bdc">Brewer–Dobson circulation</a></li>
+              </ul>
+            </div>
+            <div>
+              <h3>QBO and momentum</h3>
+              <ul>
+                <li><a href="/qbo/">QBO tracker</a></li>
+                <li><a href="/circulation.html#aam">Angular momentum and torques</a></li>
+              </ul>
+            </div>
+          </div>
+        </li>
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g3">Weeks to seasons</button>
+          <div class="sh-menu sh-menu--cols" id="sh-g3">
+            <div>
+              <h3>Weeks 2–5</h3>
+              <ul>
+                <li><a href="/subseasonal.html">GEPS extended ensemble</a></li>
+                <li><a href="/gefs.html">GEFS extended ensemble</a></li>
+              </ul>
+            </div>
+            <div>
+              <h3>Seasons</h3>
+              <ul>
+                <li><a href="/seasonal.html">Seasonal model forecasts</a></li>
+                <li><a href="/enso-forecasts.html">ENSO forecasts</a></li>
+              </ul>
+            </div>
+          </div>
+        </li>
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g4"><span class="sh-lf">Studies and verification</span><span class="sh-ls">Studies/verification</span></button>
+          <div class="sh-menu sh-menu--cols" id="sh-g4">
+            <div>
+              <h3>Studies</h3>
+              <ul>
+                <li><a href="/enso.html#imp_reg">ENSO impacts on the Americas</a></li>
+                <li><a href="/mjo.html#mi">MJO impacts</a></li>
+                <li><a href="/stratosphere.html#shwinters">Stratosphere history</a></li>
+                <li><a href="/aifs-aam-budget.html">AINWP and conservation</a></li>
+                <li><a href="/topics/">Explainers</a></li>
+              </ul>
+            </div>
+            <div>
+              <h3>Verification</h3>
+              <ul>
+                <li><a href="/aifs-verify.html">AIFS single versus member 0</a></li>
+              </ul>
+            </div>
+          </div>
+        </li>
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g5">Tools</button>
+          <div class="sh-menu sh-menu--list" id="sh-g5">
+            <ul>
+              <li><a href="/catalog.html">Every plot on the site</a></li>
+              <li><a href="/skewt/">Sounding explorer</a></li>
+              <li><a href="/asos5.html">Five-minute airport observations</a></li>
+              <li><a href="/climate.html">US climate trends</a></li>
+              <li><a href="/fci.html">US credit conditions</a></li>
+            </ul>
+          </div>
+        </li>
+        <li class="sh-item sh-item--special"><a class="sh-special" href="/midterms/">2026 Midterms</a></li>
+        <li class="sh-item sh-has-menu sh-item--me">
+          <button class="sh-link sh-menubtn sh-me" type="button" aria-expanded="false" aria-controls="sh-me">About</button>
+          <div class="sh-menu sh-menu--list sh-menu--me" id="sh-me">
+            <ul>
+              <li><a href="/about.html">About me</a></li>
+              <li><a href="/resume.html">Resume</a></li>
+              <li><a href="/research.html">Publications</a></li>
+              <li class="sh-me-ext"><a href="https://github.com/scorvec">GitHub</a></li>
+              <li><a href="https://scholar.google.com/citations?user=EYLRCJIAAAAJ&amp;hl=en">Google Scholar</a></li>
+              <li><a href="https://www.linkedin.com/in/shawn-corvec-35895b231/">LinkedIn</a></li>
+            </ul>
+          </div>
+        </li>
+      </ul>
+    </nav>
+  </div>
+</header>
+<!-- sh:end -->
+<main class="rc">
+  <h1>Hurricane reconnaissance</h1>
+  <p class="rc-lede">Hurricane hunter data from the Atlantic, decoded and mapped: the flight track coloured by the SFMR surface wind
+    or the flight-level wind, dropsondes as skew-Ts, the vortex fixes, and the National Hurricane Center's best track and forecast.
+    <span class="mu">Values the aircraft flags as questionable are left out, never drawn as good.</span></p>
+
+  <div class="rc-bar">
+    <label>Storm <select id="selStorm" aria-label="Storm"></select></label>
+    <label>Mission <select id="selMission" aria-label="Mission"></select></label>
+    <label>Colour the track by
+      <span class="seg" id="segVar" role="group" aria-label="Colour the track by">
+        <button type="button" data-v="sfmr" class="on">SFMR wind</button><button type="button" data-v="ws">Flight-level wind</button><button type="button" data-v="x">Surface pressure</button><button type="button" data-v="t_">Temperature</button><button type="button" data-v="dd">Dewpoint depression</button>
+      </span></label>
+  </div>
+  <div class="rc-status" id="status" aria-live="polite"><span class="mu">Loading the mirror…</span></div>
+  <div class="rc-warn" id="warn" hidden></div>
+
+  <div class="rc-grid">
+    <div class="card mapcard">
+      <div id="map" role="region" aria-label="Map of the flight"></div>
+      <div class="legend" id="legend"></div>
+    </div>
+    <aside class="card side" id="side">
+      <h2>Mission</h2>
+      <p class="empty">Pick a mission.</p>
+    </aside>
+  </div>
+
+  <div class="card tscard">
+    <h2>Along the flight</h2>
+    <div class="key" id="tskey"></div>
+    <canvas id="ts" aria-label="Time series of flight-level wind, SFMR surface wind, extrapolated surface pressure and altitude"></canvas>
+    <div id="tsread"></div>
+  </div>
+
+  <div class="lists">
+    <div class="card"><h2>Dropsondes</h2><div class="tbl" id="drops"></div></div>
+    <div class="card"><h2>Vortex fixes</h2><div class="tbl" id="vdms"></div></div>
+  </div>
+
+  <details class="card about" id="podbox">
+    <summary>Plan of the day (CARCAH)</summary>
+    <pre id="pod">Loading…</pre>
+  </details>
+
+  <details class="card about">
+    <summary>What is shown, and how the data are checked</summary>
+    <ul>
+      <li><b>Track</b>: the high-density observations (HDOB), one every 30 s: position, flight-level pressure and height, the extrapolated
+        surface pressure (only below the 550 hPa level, as in the format; above it the message carries a D-value instead), temperature,
+        dewpoint, the 30-s flight-level wind and the peak 10-s wind, the SFMR surface wind and rain rate.</li>
+      <li><b>Quality flags</b>: every HDOB line ends with two flags set by the aircraft. A flagged field is removed, not drawn: position
+        (first digit 1 or 3), pressure and height (2 or 3), temperature and dewpoint (second digit 1, 4, 5 or 9), flight-level wind (2, 4, 6, 9)
+        and SFMR (3, 5, 6, 9). Missing values (<code>///</code>) are gaps. On top of that every field has a physical range check, a dewpoint
+        above the temperature is dropped, and a position that jumps more than 650 kt from both neighbours is dropped.
+        Track segments with no valid value of the chosen variable are drawn thin and grey.</li>
+      <li><b>Mission maxima</b> are taken within 300 n mi of the storm centre (interpolated best track), so the ferry legs and the departure
+        airfield do not count.</li>
+      <li><b>Dropsondes</b> (TEMP DROP): the mandatory levels, the significant temperature levels and the 21212 wind levels merged into one
+        profile; heights are integrated from the splash level (the sea surface) and tied to the coded mandatory-level heights. Temperature at a
+        wind-only level is interpolated in log pressure between the neighbouring significant levels (that is what significant levels guarantee).
+        The surface wind estimates follow Franklin et al. (2003): 0.83 times the mean wind in the lowest 150 m (WL150) and 0.80 times the mean
+        of the lowest 500 m (MBL). The skew-T is the <a href="/skewt/">sounding explorer</a> itself, with the same analysis.</li>
+      <li><b>Vortex fixes</b> (vortex data messages): the centre position and minimum pressure at the fix time, with the inbound and outbound
+        maximum flight-level winds placed at their bearing and range from the centre.</li>
+      <li><b>Storm</b>: a mission belongs to the storm in its mission number (e.g. 0209A = storm 09); a surveillance mission without one
+        (the NOAA G-IV) is put with the nearest storm and says so. Best track and official forecast: NHC ATCF b-deck and forecast file.</li>
+      <li><b>Freshness</b>: a mirror in GitHub Actions reads the NHC archive every 15 minutes, and again 7 minutes later while a mission is
+        airborne; NHC posts each message a few minutes after it is sent. The page asks for new data every 90 s while a mission is flying.</li>
+    </ul>
+  </details>
+
+  <p class="credit">Data: NOAA National Hurricane Center reconnaissance archive (USAF 53rd Weather Reconnaissance Squadron and NOAA Aircraft
+    Operations Center), <a href="https://www.nhc.noaa.gov/recon.php">nhc.noaa.gov</a>; best track and forecast from NHC's ATCF files.
+    Decoded here, not an official product; for operational use see the NHC.</p>
+</main>
+
+<section class="dock" id="dock" hidden role="dialog" aria-label="Dropsonde sounding">
+  <div class="top"><h2 id="dockT">Dropsonde</h2><span class="sub" id="dockS"></span><button type="button" id="dockX">Close</button></div>
+  <iframe id="dockF" title="Dropsonde skew-T, hodograph and parameters"></iframe>
+</section>
+
+<script src="/assets/recon/recon.js" defer></script>
+<!-- sf:start -->
+<footer class="sf">
+  <div class="sf-in">
+    <div class="sf-group">
+      <p class="sf-h" role="heading" aria-level="2">This site</p>
+      <ul>
+        <li><a href="/">Home</a></li>
+        <li><a href="/catalog.html">Every plot</a></li>
+        <li><a href="/topics/">Explainers</a></li>
+        <li><a href="/stats.html">Visitor stats</a></li>
+      </ul>
+      <p class="sf-disclaimer">This site is under constant development. Nothing here is checked before publication and there is no expectation of accuracy, completeness or availability; do not rely on it for decisions. Built from open data; sources are credited on each page.</p>
+    </div>
+    <div class="sf-group sf-group--me">
+      <p class="sf-h" role="heading" aria-level="2">Shawn Corvec</p>
+      <ul>
+        <li><a href="/about.html">About</a></li>
+        <li><a href="/resume.html">Resume</a></li>
+        <li><a href="/research.html">Publications</a></li>
+        <li><a href="https://github.com/scorvec" rel="noopener">GitHub</a></li>
+        <li><a href="https://www.linkedin.com/in/shawn-corvec-35895b231/" rel="noopener">LinkedIn</a></li>
+        <li><a href="https://scholar.google.com/citations?user=EYLRCJIAAAAJ&amp;hl=en" rel="noopener">Google Scholar</a></li>
+      </ul>
+    </div>
+  </div>
+</footer>
+<!-- sf:end -->
+</body>
+</html>

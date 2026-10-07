@@ -89,6 +89,9 @@ PRODUCTS = [
             ("/circulation.html#tcphase", "Cyclone phase space",
              "Hart's diagrams: whether each storm is still a warm-core tropical cyclone or turning into a cold-core extratropical low, and when.",
              "Daily"),
+            ("/recon.html", "Hurricane reconnaissance",
+             "Atlantic hurricane hunter flights decoded and mapped: the track by SFMR or flight-level wind, dropsonde skew-Ts, vortex fixes, best track and forecast, with the aircraft's quality flags respected.",
+             "Live during flights"),
         ]),
         ("Tropical circulation", [
             ("/circulation.html#walker", "Walker and Hadley cells",
@@ -253,6 +256,7 @@ PAGES = [
         ("main { padding: 6.3rem 1rem 3rem; max-width: 100%; }", "main { padding: 1.5rem 1rem 3rem; max-width: 100%; }"),
     ]),
     dict(path="asos5.html", mode="site-header"),        # v3 (2026-10-02) has no fixed-header padding to undo
+    dict(path="recon.html", mode="after-body"),         # Atlantic recon plotter (scripts/recon, recon.yml -> recon-data branch), 2026-10-07
     # sfs.html: folded into seasonal.html 2026-10-06, now a redirect stub (no chrome)
     dict(path="ar.html", mode="after-body"),
     dict(path="models.html", mode="after-body"),                   # short-range model viewer (scripts/models, models*.yml), WebGL data page

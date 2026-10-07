@@ -241,8 +241,30 @@ jobs:
           restore-keys: |
             mur-nino34-series-
 
+      # The series also lives in release mur-series-v1 (2026-10-07): the Actions cache is LRU-evicted when big entries (SEAS5
+      # GRIBs) push the repo past its 10 GB, and a lost cache must not mean a 40-min re-fetch. Restore from the release when
+      # the cache came back empty; publish the grown series back after the step.
+      - name: MUR series from the release when the cache is empty
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [ ! -s scripts/sst/data/mur/nino34_series.json ]; then
+            mkdir -p scripts/sst/data/mur
+            gh release download mur-series-v1 -p nino34_series.json -D scripts/sst/data/mur --clobber \
+              || echo "::warning::no MUR series in release mur-series-v1 yet"
+          fi
       - name: MUR 1 km Nino-3.4 vs OISST
         run: python scripts/sst/mur_nino34.py || echo "MUR Nino-3.4 failed; keeping previous figure"
+      - name: Publish the MUR series to the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          f=scripts/sst/data/mur/nino34_series.json
+          [ -s "$f" ] || exit 0
+          gh release view mur-series-v1 >/dev/null 2>&1 \
+            || gh release create mur-series-v1 --title "MUR Nino-3.4 daily series" --notes "Daily area-weighted Nino-3.4 MUR SST (scripts/sst/mur_nino34.py); kept here so an evicted Actions cache does not force a re-fetch." \
+            || true
+          gh release upload mur-series-v1 "$f" --clobber || echo "::warning::could not publish the MUR series"
 
       - name: Nino-region history JSON
         env:
