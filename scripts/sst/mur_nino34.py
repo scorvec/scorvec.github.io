@@ -119,17 +119,28 @@ def update(full: bool) -> pd.Series:
     # tz_localize(None): utcnow() is tz-aware in pandas >=2 and the series index
     # is naive, so a bare comparison raises
     end = pd.Timestamp.utcnow().tz_localize(None).normalize() - pd.Timedelta(days=2)
+    if s.empty and not full:
+        # 2026-10-07: the cached series was evicted from the Actions cache and the routine sst.yml run tried to rebuild the
+        # whole record from 2002 against a failing ERDDAP - 70 min of timeouts, the job cancelled at its 90 min cap. A missing
+        # series is now restored from the release (sst.yml) or rebuilt by the dispatch-only mur-backfill.yml, never here.
+        print("::warning::no MUR series (cache and release both empty) - skipping; run mur-backfill.yml", flush=True)
+        return s
     start = pd.Timestamp(MUR_START) if full or s.empty else s.index.max() + pd.Timedelta(days=1)
     if start > end:
         print(f"up to date ({len(s)} days through {s.index.max():%Y-%m-%d})")
         return s
     have = set(s.index)
     cur = start
+    fails = 0
     while cur <= end:
         stop = min(cur + pd.Timedelta(days=CHUNK_DAYS - 1), end)
         if not all((cur + pd.Timedelta(days=i)) in have
                    for i in range((stop - cur).days + 1)):
             got = fetch_range(cur, stop)
+            fails = 0 if len(got) else fails + 1
+            if fails >= 3 and not full:              # ERDDAP is down: keep what we have, try again next cycle
+                print("::warning::MUR: 3 chunks failed in a row - stopping this run", flush=True)
+                break
             if len(got):
                 s = pd.concat([s[~s.index.isin(got.index)], got]).sort_index()
                 _save(s)
