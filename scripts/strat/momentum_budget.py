@@ -589,7 +589,11 @@ def seam_offsets(lat, ref):
 # Render
 # ----------------------------------------------------------------------------------------------------------------------
 DAY = 86400.0
-TAIL_KEEP = 100                                            # analysis days used and drawn
+TAIL_KEEP = 100                                            # analysis days used (statistics, closure)
+# analysis days DRAWN (2026-10-07, user: "the history on these plots is a bit too long so the y-axis gets stretched"):
+# the 100-day tail set every axis range from early-summer values; the plots show the last DRAW_DAYS, and their y-ranges
+# come only from what is drawn (smoothing still uses the full tail, so the first drawn day is a full 7-day mean)
+DRAW_DAYS = 45
 WIN = 30
 INK, MUTED, GRID = B.INK, B.MUTED, B.GRID
 NAVY, NORMAL, BAND = B.NAVY, B.NORMAL, B.BAND
@@ -704,7 +708,7 @@ def fig_vortex(days, Z, lat, fc, R, h, L, mode, cl, path):
     blab = f"{min(abs(lo), abs(hi)):.0f}–{max(abs(lo), abs(hi)):.0f}°{hs}"
     t_last = days.max()
     fcd = fc["days"][fc["days"] > t_last] if fc is not None else pd.DatetimeIndex([])
-    t0 = days.min(); t1 = (fcd.max() if len(fcd) else t_last) + pd.Timedelta(days=1)
+    t0 = max(days.min(), t_last - pd.Timedelta(days=DRAW_DAYS - 1)); t1 = (fcd.max() if len(fcd) else t_last) + pd.Timedelta(days=1)
     fig = plt.figure(figsize=(12.4, 10.4), dpi=130)
     POS = ([0.066, 0.81, 0.919, 0.083], [0.066, 0.445, 0.919, 0.30], [0.066, 0.15, 0.919, 0.165])
     k = B.lev_index(L)
@@ -715,7 +719,8 @@ def fig_vortex(days, Z, lat, fc, R, h, L, mode, cl, path):
     ax.fill_between(doy_all, R[f"u_{h}{L}_q10"][dd], R[f"u_{h}{L}_q90"][dd], color=BAND, lw=0, label="MERRA-2 10–90 %")
     ax.plot(doy_all, R[f"u_{h}{L}_mean"][dd], color=NORMAL, lw=1.3, ls=(0, (5, 3)), label="MERRA-2 normal (1991–2019)")
     ua = band_series(Z, days, lat, "ubar", h, L)
-    ax.plot(ua.index, ua.values, color=INK, lw=2.0, label="GEOS FP")
+    uad = ua[ua.index >= t0]
+    ax.plot(uad.index, uad.values, color=INK, lw=2.0, label="GEOS FP")
     if len(fcd):
         uf = pd.Series(band(fc["ubar"][:, k], lat, lo, hi), index=fc["days"])
         uf = pd.concat([ua.iloc[-1:], uf[uf.index > t_last]])
@@ -734,7 +739,8 @@ def fig_vortex(days, Z, lat, fc, R, h, L, mode, cl, path):
         m30 = float(np.nanmean(sa[last30]))
         lw = 2.6 if key in ("dudt", "epd") else 1.6
         ls = (0, (3, 2)) if key == "resid" else "-"
-        ln, = ax.plot(sa.index, smooth(sa, mode).values, color=C[key], lw=lw, ls=ls, zorder=4 if key == "dudt" else 3,
+        ss = smooth(sa, mode); ss = ss[ss.index >= t0]
+        ln, = ax.plot(ss.index, ss.values, color=C[key], lw=lw, ls=ls, zorder=4 if key == "dudt" else 3,
                       label=f"{LAB[key]}  {m30:+.2f}")
         handles.append(ln)
         if key in RESOLVED and len(fcd):
@@ -763,7 +769,8 @@ def fig_vortex(days, Z, lat, fc, R, h, L, mode, cl, path):
         sa = band_series(Z, days, lat, key, h, L) * DAY
         m30 = float(np.nanmean(sa[last30]))
         lab = (LAB[w] if w != "epd" else "all resolved waves") + f"  {m30:+.2f}"
-        ax.plot(sa.index, smooth(sa, mode).values, color=C[w], lw=2.4 if w == "epd" else 1.5, label=lab)
+        ss = smooth(sa, mode); ss = ss[ss.index >= t0]
+        ax.plot(ss.index, ss.values, color=C[w], lw=2.4 if w == "epd" else 1.5, label=lab)
         if len(fcd):
             sf = pd.Series(band(fc[key][:, k], lat, lo, hi) * DAY, index=fc["days"])
             both = smooth(pd.concat([sa, sf[sf.index > t_last]]), mode)
@@ -873,14 +880,15 @@ def fig_upwelling(up, fup, days, fc, R, stats, path):
     t_last = days.max()
     fcd = fc["days"][fc["days"] > t_last] if fc is not None else pd.DatetimeIndex([])
     minp = int(0.8 * WIN)
-    t0 = days.min() + pd.Timedelta(days=minp - 1); t1 = (fcd.max() if len(fcd) else t_last) + pd.Timedelta(days=1)
+    t0 = max(days.min() + pd.Timedelta(days=minp - 1), t_last - pd.Timedelta(days=DRAW_DAYS - 1))
+    t1 = (fcd.max() if len(fcd) else t_last) + pd.Timedelta(days=1)
     fig = plt.figure(figsize=(12.4, 9.2), dpi=130)
     gs = fig.add_gridspec(2, 2, width_ratios=[3.1, 1.25], hspace=0.36, wspace=0.16, left=0.066, right=0.985, top=0.87, bottom=0.235)
     for row, L in enumerate(UP_LEVS):
         ax = fig.add_subplot(gs[row, 0]); _style(ax)
         df = up[L]
         for c in ("sum", "dir") + UP_COMP:
-            run = df[c].rolling(f"{WIN}D", min_periods=minp).mean()
+            run = df[c].rolling(f"{WIN}D", min_periods=minp).mean(); run = run[run.index >= t0]
             lw = 2.6 if c in ("sum", "ep") else (1.4 if c == "dir" else 1.6)
             ls = (0, (4, 2)) if c == "dir" else ((0, (3, 2)) if c == "ot" else "-")
             ax.plot(run.index, run.values, color=UP_C[c], lw=lw, ls=ls, label=UP_LAB[c] if row == 0 else None)
