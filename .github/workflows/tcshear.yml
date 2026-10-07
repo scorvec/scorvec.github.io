@@ -1,0 +1,135 @@
+name: TC shear and environment
+
+# Tropical-cyclone vertical wind shear and environment per active storm (scripts/tcshear/, circulation.html#tcshear):
+# environmental (vortex-removed) wind profile and hodograph, 200-850 / 850-500 / 500-200 hPa and generalized shear,
+# shear height and depth, vortex tilt against the shear and the observed TDR tilt, the ventilation index, and the 330 K
+# PV source of the shear - along every AIFS-ENS member's own track plus AIFS single, IFS HRES, GFS and HRRR.
+#
+# Cadence: every AIFS-ENS cycle (00/06/12/18Z); the laptop dispatcher fires it at :10 and :40 past 00/06/12/18 UTC
+# (scripts/lib/dispatch_workflows.sh), the cron below is the backstop. A first stdlib-only step asks NHC and JTWC whether
+# any storm is active and ends the run in seconds when none is; a cycle already published also exits early.
+# Data: ECMWF open data from the Google Cloud mirror ONLY; GFS / HRRR from the AWS S3 open-data buckets; OISST from NCEI.
+# Maps and per-storm JSON go to the frames branch (sha-pinned via publish_frames_ci.sh); the manifest and the
+# verification archive to main.
+#
+# mode=verify   SHIPS lsdiag (this season, NHC ATCF) vs the same quantities from the GFS at SHIPS's own positions, and
+#               model vortex tilt vs the NOAA TDR tilt for every flight with HRD centres (Melissa 2025, this season).
+# mode=hindcast a full product run for one past cycle (date/time/storm) into assets/sst/anim/tcshear_hc.
+on:
+  schedule:
+    - cron: '50 1,7,13,19 * * *'
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: 'live | verify | hindcast'
+        default: 'live'
+      date:
+        description: 'Cycle date YYYYMMDD (blank = newest ready AIFS-ENS cycle)'
+        default: ''
+      time:
+        description: 'Cycle hour 00/06/12/18 (blank = newest)'
+        default: ''
+      storm:
+        description: 'hindcast: tracker id, e.g. 13L'
+        default: ''
+      members:
+        description: 'AIFS-ENS perturbed members to use (50 = all)'
+        default: '50'
+      force:
+        description: 'rebuild a cycle that is already published'
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+concurrency:
+  group: tcshear-${{ github.event.inputs.mode || 'live' }}
+  cancel-in-progress: false
+
+env:
+  ECMWF_SOURCES: google
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    env:
+      MPLBACKEND: Agg
+      MODE: ${{ github.event.inputs.mode || 'live' }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Any storm active? (stdlib only)
+        id: gate
+        run: |
+          if [ "$MODE" = "live" ]; then python3 scripts/tcshear/gate.py; else echo "any=true" >> "$GITHUB_OUTPUT"; fi
+
+      - uses: actions/setup-python@v7
+        if: steps.gate.outputs.any == 'true'
+        with:
+          python-version: '3.11'
+      - uses: actions/cache@v6
+        if: steps.gate.outputs.any == 'true'
+        with:
+          path: ~/.cache/pip
+          key: pip-tcshear-${{ runner.os }}-${{ hashFiles('scripts/tcshear/requirements.txt') }}
+
+      - name: Install
+        if: steps.gate.outputs.any == 'true'
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends libeccodes0 libgeos-dev libproj-dev proj-bin
+          pip install -r scripts/tcshear/requirements.txt
+
+      - name: Build (live)
+        if: steps.gate.outputs.any == 'true' && env.MODE == 'live'
+        timeout-minutes: 120
+        run: |
+          args=(--members "${{ github.event.inputs.members || '50' }}")
+          [ -n "${{ github.event.inputs.date }}" ] && args+=(--date "${{ github.event.inputs.date }}" --time "${{ github.event.inputs.time }}")
+          [ "${{ github.event.inputs.force }}" = "true" ] && args+=(--force)
+          /usr/bin/time -v python scripts/tcshear/tcshear.py "${args[@]}" 2> >(tee /tmp/time.txt >&2)
+          grep -E "Maximum resident|Elapsed" /tmp/time.txt || true
+          du -sh assets/sst/anim/tcshear || true
+
+      - name: Build (hindcast)
+        if: env.MODE == 'hindcast'
+        timeout-minutes: 120
+        run: |
+          python scripts/tcshear/tcshear.py --date "${{ github.event.inputs.date }}" --time "${{ github.event.inputs.time }}" \
+            --only "${{ github.event.inputs.storm }}" --members "${{ github.event.inputs.members || '50' }}" --tag hc --force --no-hrrr
+
+      - name: Verify (SHIPS lsdiag and TDR tilt)
+        if: env.MODE == 'verify'
+        timeout-minutes: 140
+        run: python scripts/tcshear/verify.py --out assets/sst/data/tcshear_validation.json
+
+      - name: Publish maps and per-storm data to the frames branch
+        if: steps.gate.outputs.any == 'true' && env.MODE != 'verify'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          D=assets/sst/anim/tcshear; [ "$MODE" = "hindcast" ] && D=assets/sst/anim/tcshear_hc
+          scripts/lib/publish_frames_ci.sh "$D"
+
+      - name: Commit & push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          OUT="assets/sst/anim/tcshear_manifest.json assets/sst/anim/tcshear_hc_manifest.json assets/sst/data/tcshear_verify.json assets/sst/data/tcshear_validation.json"
+          SNAP=$(mktemp -d)
+          tar cf "$SNAP/outs.tar" --ignore-failed-read $OUT 2>/dev/null || true
+          for i in 1 2 3 4 5; do
+            if ! timeout 120 git fetch origin main; then echo "fetch $i failed"; sleep 5; continue; fi
+            git reset --hard origin/main
+            tar xf "$SNAP/outs.tar" 2>/dev/null || true
+            for f in $OUT; do [ -e "$f" ] && git add "$f"; done
+            if git diff --staged --quiet; then echo "No changes; skipping commit."; exit 0; fi
+            git commit -m "data update: tc shear ($MODE) $(date -u +%Y%m%d_%H%MZ)"
+            if timeout 180 git push; then echo "Pushed on attempt $i."; exit 0; fi
+            echo "Push $i rejected; resyncing and retrying"
+            sleep 5
+          done
+          echo "ERROR: could not push after 5 attempts." >&2
+          exit 1

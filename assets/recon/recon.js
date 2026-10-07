@@ -834,7 +834,8 @@
     $("tdrSub").innerHTML = `HRD flight <b>${esc(d.id)}</b> (${esc(d.tail || d.aircraft)}), matched to ${esc(m.aircraft)} ${esc(m.mission)} by ${esc(d.how)}. ` +
       `${d.analyses.length} analys${d.analyses.length === 1 ? "is" : "es"}, ${d.composites.length} composite${d.composites.length === 1 ? "" : "s"}` +
       `${d.centres.length ? `, ${nC} TDR centre${nC === 1 ? "" : "s"} on the map${nBad ? ` (${nBad} not drawn: no centre found, or failed the check)` : ""}` : ""}. ` +
-      `<a href="${esc(d.src)}">Originals at AOML</a>.`;
+      `<a href="${esc(d.src)}">Originals at AOML</a>.` +
+      (d.storm ? ` <a href="/circulation.html#tcshear/${esc(d.storm)}/fc/0/tilt">This storm's tilt against the model shear</a>.` : "");
     tdrCentres();
     legend();
     tdrUI();

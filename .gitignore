@@ -233,3 +233,8 @@ scripts/geps/ref/
 scripts/geps/state/
 scripts/geps/work/
 scripts/geps/data/
+
+# TC shear (tcshear.yml): per-storm JSON + maps live on the frames branch only
+assets/sst/anim/tcshear/
+assets/sst/anim/tcshear_hc/
+scripts/tcshear/__pycache__/
