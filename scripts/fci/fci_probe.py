@@ -108,7 +108,7 @@ def ffiec_download(t, hid, op):
         if "TSV" in r or "Tab" in r:
             nm = re.search(r'name="([^"]+)"', r).group(1); vl = re.search(r'value="([^"]+)"', r).group(1); form[nm] = vl
     for bt in btns:
-        if "Download" in bt:
+        if 'value="Download"' in bt:
             nm = re.search(r'name="([^"]+)"', bt).group(1); vl = re.search(r'value="([^"]+)"', bt).group(1); form[nm] = vl
     b, h = get(url, data=urllib.parse.urlencode(form).encode(), opener=op, timeout=300,
                headers={"Content-Type": "application/x-www-form-urlencoded", "User-Agent": "Mozilla/5.0 (compatible; scorvec.com FCI)"})
@@ -130,12 +130,12 @@ def ffiec_download(t, hid, op):
             codes = head[0].rstrip("\n").split("\t"); desc = head[1].rstrip("\n").split("\t")
             print("file", n, "cols", len(codes))
             for c, dsc in zip(codes, desc):
-                if re.search(r"nondepository|intermediar|private equity|NDFI", dsc, re.I) or c.strip('"') in ("RCON1563", "RCFD1563", "RCONJ454", "RCFDJ454"):
+                if re.search(r"nondepository|intermediar|private equity|NDFI|broker|mutual fund|insurance", dsc, re.I) or c.strip('"') in ("RCON1563", "RCFD1563", "RCONJ454", "RCFDJ454", "RCON2122", "RCFD2122"):
                     print("  ", c, "|", dsc)
 
 
 if __name__ == "__main__":
-    for f in (fdic,):
+    for f in ():
         try:
             print(f"===== {f.__name__}", flush=True); f()
         except Exception as e:
