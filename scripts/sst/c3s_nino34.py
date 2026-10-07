@@ -105,6 +105,8 @@ MODELS = [
 
 
 def _client():
+    from c3s_ref import guard_fetch                  # CDS downloads run in GitHub Actions only (c3s.yml)
+    guard_fetch("Copernicus CDS")
     import cdsapi
     return cdsapi.Client(timeout=600, quiet=True, progress=False,
                          wait_until_complete=True, retry_max=1)
@@ -357,10 +359,6 @@ OBS_HISTORY = ASSETS / "data" / "nino_history.json"      # written by the ENSO m
 OBS_MONTHS = 12
 
 
-OISST_MEAN = HERE / "data" / "sst.mon.mean.nc"      # the monthly OISST record (gitignored cache)
-REL_CACHE = HERE / "data" / "obs_relative_nino34.json"
-
-
 def observed_relative(months) -> "np.ndarray | None":
     """Observed MONTHLY relative Niño-3.4, built the way the models' is.
 
@@ -372,40 +370,20 @@ def observed_relative(months) -> "np.ndarray | None":
     OBSERVED 1993–2016 mean so the line sits on the same base as the hindcast anomalies
     beside it.
 
-    Cached: the source file is 2.2 GB and this is a monthly product.
+    The two box means come from scripts/sst/reference/oisst_box_monthly.json (c3s_ref.py:
+    built once from the 2.2 GB PSL file, extended month by month over OPeNDAP in c3s.yml).
     """
     import numpy as _np
-    want = list(months)
-    if REL_CACHE.exists():
-        try:
-            c = json.loads(REL_CACHE.read_text())
-            if c.get("months") and c["months"][-1] >= want[-1]:
-                by = dict(zip(c["months"], c["values"]))
-                return _np.array([by.get(m, _np.nan) for m in want], dtype=float)
-        except Exception:                                             # noqa: BLE001
-            pass
-    if not OISST_MEAN.exists():
+    from c3s_ref import OISST_BOX
+    if not OISST_BOX.exists():
         return None
-    try:
-        import xarray as xr
-        ds = xr.open_dataset(OISST_MEAN, chunks={"time": 120})
-        sst = ds["sst"]
+    c = json.loads(OISST_BOX.read_text())
+    keys = c["months"]
+    n34 = _np.array([_np.nan if v is None else v for v in c["n34"]], dtype=float)
+    trop = _np.array([_np.nan if v is None else v for v in c["trop"]], dtype=float)
+    yr = _np.array([int(k[:4]) for k in keys]); mo_ = _np.array([int(k[5:7]) for k in keys])
 
-        def box(la0, la1, lo0, lo1):
-            sub = sst.sel(lat=slice(la0, la1), lon=slice(lo0, lo1))
-            w = _np.cos(_np.deg2rad(sub.lat))
-            return sub.weighted(w.fillna(0)).mean(("lat", "lon")).compute()
-
-        n34 = box(-5, 5, 190, 240)
-        trop = box(-20, 20, 0, 360)
-    except Exception as e:                                            # noqa: BLE001
-        print(f"  observed relative index unavailable ({str(e)[:70]})", flush=True)
-        return None
-    yr = n34.time.dt.year.values
-    mo_ = n34.time.dt.month.values
-
-    def anom(x):
-        v = _np.asarray(x.values, float)
+    def anom(v):
         out = _np.full_like(v, _np.nan)
         for m in range(1, 13):
             sel = mo_ == m
@@ -416,15 +394,8 @@ def observed_relative(months) -> "np.ndarray | None":
 
     tab = _roni_scale_table()
     rel = (anom(n34) - anom(trop)) * _np.array([tab.get(int(m), 1.0) for m in mo_])
-    keys = [f"{y}-{m:02d}" for y, m in zip(yr, mo_)]
-    try:
-        REL_CACHE.write_text(json.dumps({"months": keys, "values": [None if not _np.isfinite(v) else round(float(v), 3) for v in rel],
-                                         "source": "NOAA OISST v2.1 monthly (PSL), anomalies on the observed 1993–2016 mean, "
-                                                   "σ-scaled by calendar month (roni_sigma.json)"}, separators=(",", ":")))
-    except Exception:                                                 # noqa: BLE001
-        pass
     by = dict(zip(keys, rel))
-    return _np.array([by.get(m, _np.nan) for m in want], dtype=float)
+    return _np.array([by.get(m, _np.nan) for m in list(months)], dtype=float)
 
 
 def observed_history(ym: str, months: int = OBS_MONTHS) -> dict | None:
@@ -658,11 +629,17 @@ def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--issue", help="YYYYMM (default: latest available, by quorum)")
     ap.add_argument("--out", default=str(ASSETS / "c3s_nino34.webp"))
+    ap.add_argument("--require-quorum", action="store_true",
+                    help="with --issue: exit 3 and write nothing unless QUORUM systems have published it")
     args = ap.parse_args()
     print("C3S multi-model ENSO (Niño-3.4 + rNiño-3.4, monthly + 3-month)")
     ym, results = resolve_issue(args.issue)
+    if args.require_quorum and len(results) < QUORUM:
+        print(f"issue {ym}: {len(results)} system(s) published, quorum {QUORUM} — not built yet")
+        return 3
     plot(ym, results, Path(args.out))
     publish_forecast_json(ym, results, ASSETS / "data" / "enso_forecast.json")
+    print(f"systems: {len(results)} ({', '.join(results)})")
     return 0
 
 

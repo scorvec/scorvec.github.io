@@ -30,7 +30,7 @@ HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 import mapstyle as MS
 from c3s_nino34 import MODELS
-from c3s_terciles import VARS, path_for
+from c3s_terciles import VARS, issue_table
 from c3s_maps_render import MONTHS, PERIODS, lead_note, period_label
 from seas5_build import TERC_BINS, TERC_PALETTES
 
@@ -116,6 +116,33 @@ def period_means(path: Path, short: str, fac: float, periods: dict):
     return out, lat, lon, years
 
 
+def bounds(h: np.ndarray, years: np.ndarray | None, detrend: bool) -> dict:
+    """The hindcast half of `probs`, kept as a table (c3s_ref hc_terc): per grid point the 1/3 and 2/3
+    bounds of the hindcast season means and, with `detrend`, the per-point linear-trend slope b."""
+    out = {}
+    if detrend and years is not None:
+        x = (years - years.mean()).astype("float32")[:, None, None]
+        b = np.nansum(x * (h - np.nanmean(h, axis=0, keepdims=True)), axis=0) / float((x[:, 0, 0] ** 2).sum())
+        h = h - b[None] * x
+        out["b"] = b
+        out["ymean"] = np.float64(years.mean())
+    out["lo"], out["hi"] = np.nanpercentile(h, [100 / 3, 200 / 3], axis=0)
+    return out
+
+
+def probs_from_bounds(f: np.ndarray, tb: dict, target_year: int | None, min_spread: float = 0.0) -> dict:
+    """The forecast half: members counted against stored bounds, moved by the trend extrapolated to
+    `target_year` when the bounds are detrended."""
+    if "b" in tb and target_year is not None:
+        f = f - tb["b"][None] * (target_year - tb["ymean"])
+    lo, hi = tb["lo"], tb["hi"]
+    below = (f < lo[None]).mean(0)
+    above = (f > hi[None]).mean(0)
+    dead = ~np.isfinite(lo) | ~np.isfinite(hi) | ((hi - lo) <= min_spread)
+    below = np.where(dead, np.nan, below); above = np.where(dead, np.nan, above)
+    return {"above": above, "below": below, "normal": 1.0 - above - below}
+
+
 def probs(f: np.ndarray, h: np.ndarray, years: np.ndarray | None,
           target_year: int | None, min_spread: float = 0.0) -> dict:
     """Tercile probabilities for one lead group, from the season means of the members (f)
@@ -123,18 +150,10 @@ def probs(f: np.ndarray, h: np.ndarray, years: np.ndarray | None,
 
     Cells whose two boundaries sit within `min_spread` are dropped: in a desert, or in a
     dry season, a third of the hindcast can be the same near-zero number, and "below the
-    lower tercile" then means nothing. Masking them is honest; drawing them is not."""
-    if target_year is not None and years is not None:
-        x = (years - years.mean()).astype("float32")[:, None, None]
-        b = np.nansum(x * (h - np.nanmean(h, axis=0, keepdims=True)), axis=0) / float((x[:, 0, 0] ** 2).sum())
-        h = h - b[None] * x
-        f = f - b[None] * (target_year - years.mean())
-    lo, hi = np.nanpercentile(h, [100 / 3, 200 / 3], axis=0)
-    below = (f < lo[None]).mean(0)
-    above = (f > hi[None]).mean(0)
-    dead = ~np.isfinite(lo) | ~np.isfinite(hi) | ((hi - lo) <= min_spread)
-    below = np.where(dead, np.nan, below); above = np.where(dead, np.nan, above)
-    return {"above": above, "below": below, "normal": 1.0 - above - below}
+    lower tercile" then means nothing. Masking them is honest; drawing them is not.
+    Since 2026-10-07 in two halves (bounds / probs_from_bounds) so the hindcast half is a table."""
+    tb = bounds(h, years, target_year is not None)
+    return probs_from_bounds(f, tb, target_year, min_spread)
 
 
 def draw(pr: dict, lat, lon, var: str, title: str, sub: str, out: Path) -> None:
@@ -179,33 +198,27 @@ def main() -> int:
         mid = f"{centre}_{system}"
         have = []
         for var in want:
-            short, fac = VARS[var][1], VARS[var][2]
-            fp, hp = path_for("fc", centre, system, var, issue), path_for("hc", centre, system, var, issue)
-            if not (fp.exists() and hp.exists()):
+            # the issue table (c3s_ref is_terc): built from the raw files when they are on disk,
+            # otherwise read from the release -- the raw files are deleted once reduced
+            t = issue_table(centre, system, var, issue)
+            if t is None:
                 continue
-            try:
-                fcm, lat, lon, _ = period_means(fp, short, fac, PERIODS)
-                hcm, lat_h, lon_h, years = period_means(hp, short, fac, PERIODS)
-            except Exception as e:                                    # noqa: BLE001
-                print(f"  {label} {var}: unreadable ({str(e)[:70]})", file=sys.stderr); continue
-            if not fcm or next(iter(fcm.values())).shape[-2:] != next(iter(hcm.values())).shape[-2:]:
-                print(f"  {label} {var}: forecast and hindcast grids differ; skipped", file=sys.stderr); continue
+            lat, lon, meta = t["lat"], t["lon"], t["meta"]
             for pid in PERIODS:
-                if pid not in fcm or pid not in hcm:
+                if pid not in meta["periods"]:
                     continue
                 idx = [i for i in PERIODS[pid]]
-                target = y + (mo - 1 + idx[len(idx) // 2]) // 12 if var in DETREND else None
-                pr = probs(fcm[pid], hcm[pid], years, target, min_spread=MIN_SPREAD.get(var, 0.0))
+                pr = {k: t[f"{k}_{pid}"] for k in ("above", "below", "normal")}
                 pname, lead = period_label(idx, y, mo), lead_note(idx)
-                sub = (f"{label} · {pname} ({lead}) · {MONTHS[mo - 1]} {y} issue · {fcm[pid].shape[0]} members counted "
-                       f"against this system's own 1993–2016 hindcast ({hcm[pid].shape[0]} samples) at each grid point. "
+                sub = (f"{label} · {pname} ({lead}) · {MONTHS[mo - 1]} {y} issue · {meta['nmem'][pid]} members counted "
+                       f"against this system's own 1993–2016 hindcast ({meta['nsamp'][pid]} samples) at each grid point. "
                        "White: no category reaches 40 %; near-normal is not drawn."
                        + ("  Counted against the hindcast's linear trend extrapolated to the valid year." if var in DETREND else ""))
                 draw(pr, lat, lon, var, f"{TITLES[var]}: most likely tercile — {label}",
                      sub, OUT / f"c3s_terc_{mid}_{var}_{pid}.webp")
                 pool.setdefault((var, pid), []).append(
                     {k: to_ref(pr[k], lat, lon) for k in ("above", "below", "normal")})
-            del fcm, hcm
+            del t
             have.append(var)
         # every listed system must carry every field: the picker offers one field list for
         # all of them, so a system with half the set would 404 on the other half

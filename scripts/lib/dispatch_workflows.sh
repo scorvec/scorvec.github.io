@@ -184,6 +184,11 @@ kiribati-history.yml|14:40|
 seas5.yml|12:40|-f window=true
 # a second try the same day: the issue can reach the CDS hours after 12 UTC (2026-10-05: 400s at 12:30); the gate skips once complete
 seas5.yml|18:40|-f window=true
+# C3S multi-system seasonal (c3s.yml, moved off the laptop 2026-10-07): the centres publish ~10th-13th; same slots as the
+# crons, and `window=true` makes the workflow run only on the 9th-16th (or while the issue is incomplete, to the 20th) and
+# exit in ~30 s otherwise or once the issue is complete. It shares seas5.yml's concurrency group (one CDS key).
+c3s.yml|03:20|-f window=true
+c3s.yml|09:20|-f window=true
 qbo.yml|mon@07:15|
 sst-events.yml|mon@18:41|
 skewt-gaps.yml|tue,fri@08:40|

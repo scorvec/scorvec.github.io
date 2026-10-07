@@ -35,10 +35,9 @@ import numpy as np
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 from c3s_nino34 import MODELS
-from c3s_terciles import path_for
-from c3s_terciles_render import period_means
+from c3s_terciles import fc_pop_members, hc_pop_means
 from c3s_popt_daily import observed_months          # one definition of the observed series
-from seas5_popT import REGIONS, pop_grid
+from seas5_popT import REGIONS
 
 SITE = Path(os.environ.get("SST_SITE_ROOT", HERE.parents[1]))
 OUT = SITE / "assets" / "sst" / "data" / "c3s_popt.json"
@@ -47,30 +46,17 @@ LEADS = {f"m{i + 1}": [i] for i in range(6)}          # one lead month per colum
 QS = [10, 25, 50, 75, 90]
 
 
-def weights_for(region: str, lat: np.ndarray, lon: np.ndarray) -> np.ndarray:
-    """Population per cell on THIS system's grid, zero outside the country box."""
-    lon180 = np.where(lon > 180.0, lon - 360.0, lon)
-    w = pop_grid(region, lat, lon180)
-    return w
-
-
 def series(region: str, centre: str, system: str, issue: str):
-    """(fc [member, lead], hc_mean [lead], months) population-weighted, in K."""
-    fp, hp = path_for("fc", centre, system, "t2m", issue), path_for("hc", centre, system, "t2m", issue)
-    if not (fp.exists() and hp.exists()):
+    """(fc [member, lead], hc_mean [lead], months) population-weighted, in K -- from the tercile
+    build's tables (c3s_terciles: is_terc fcpop_*, hc_terc hcpop_*), reduced from the raw members
+    with the same weights and order of operations this card always used."""
+    fc = fc_pop_members(centre, system, region, issue)
+    hcd = hc_pop_means(centre, system, region, issue)
+    if fc is None or hcd is None:
         return None
-    fcm, lat, lon, _ = period_means(fp, "t2m", 1.0, LEADS)
-    hcm, lat_h, lon_h, _ = period_means(hp, "t2m", 1.0, LEADS)
-    if not fcm or not hcm:
-        return None
-    w = weights_for(region, lat, lon)
-    if w.sum() <= 0:
-        return None
-    w = w / w.sum()
-    keys = [k for k in LEADS if k in fcm and k in hcm]
-    fc = np.stack([(fcm[k] * w[None]).sum(axis=(1, 2)) for k in keys], axis=1)      # [member, lead]
-    hc = np.array([float((hcm[k] * w[None]).sum(axis=(1, 2)).mean()) for k in keys])
-    return fc, hc, keys
+    keys = [k for k in LEADS if int(k[1:]) <= fc.shape[1] and k in hcd]
+    hc = np.array([hcd[k] for k in keys])
+    return fc[:, :len(keys)], hc, keys
 
 
 def to_unit(v, unit):
@@ -154,7 +140,7 @@ def main() -> int:
             print(f"  {region} observed: {obs['months'][0]} → {obs['months'][-1]}", flush=True)
     doc["models"] = [{"id": "mmm", "label": "Multi-model", "color": "#111111"}] + seen
     if not doc["regions"]:
-        raise SystemExit("no members on disk — run c3s_terciles.py first")
+        raise SystemExit("no member tables — run c3s_terciles.py first")
     OUT.parent.mkdir(parents=True, exist_ok=True)
     OUT.write_text(json.dumps(doc, separators=(",", ":")))
     print(f"wrote {OUT.name}: {len(doc['regions'])} region(s), {len(doc['models'])} model(s) incl. the pool")

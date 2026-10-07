@@ -33,7 +33,7 @@ THE FORECAST
 
   ECCC's two components (GEM5-NEMO + CanESM5) are merged into one CanSIPS, as in the plume.
 
-Runs on the LAPTOP (the Copernicus key stays there), monthly, from run_c3s_nino34.sh.
+Runs in GitHub Actions (.github/workflows/c3s.yml, CDS key secret) since 2026-10-07, monthly.
 
     python scripts/sst/c3s_enso_flavour.py                 # issue from enso_forecast.json
     python scripts/sst/c3s_enso_flavour.py --issue 202609
@@ -972,6 +972,13 @@ def build(issue: str, prev_issue: str | None) -> dict:
             print(f"  hindcast test ({len(hc['models'])} systems): headline {hc_doc['headline']}; "
                   + "; ".join(f"{s} E−C rmse raw {v['rmse_B_raw']:.2f} damped {v['rmse_B_damped']:.2f} (p {v['p_damped']})"
                               for s, v in hc["multi_model"].items()), flush=True)
+    elif hindcast_ref_path(month).exists():
+        # the test's result is kept per start month (committed); Actions fetches the strips only for a
+        # start month that has none yet, so a later issue of that month reads the stored result
+        hc = json.loads(hindcast_ref_path(month).read_text())
+        hc_doc = hindcast_block(hc, peak_season(FC_JSON))
+        print(f"  hindcast test for start month {month:02d} from {hindcast_ref_path(month).name}: "
+              f"headline {hc_doc['headline']}", flush=True)
     else:
         print(f"  hindcast strips for start month {month:02d} incomplete: run --fetch-hindcast", flush=True)
 

@@ -33,6 +33,7 @@ HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 from c3s_nino34 import MODELS, _client
 from seas5_popT import REGIONS, month_hours
+import c3s_ref as CR
 from seas5_popT import chunk_path as seas5_chunk_path
 
 STORE = HERE / "data" / "c3s" / "sixh"
@@ -70,6 +71,10 @@ def start_dates(centre: str, system: str, issue: str):
     """
     import xarray as xr
     from c3s_terciles import path_for as terc_path
+    import c3s_ref as CR
+    t = CR.load(CR.is_terc(centre, system, "t2m", issue))        # the tercile build keeps them (raw deleted)
+    if t is not None and "starts" in t:
+        return [str(x) for x in t["starts"]]
     p = terc_path("fc", centre, system, "t2m", issue)
     if not p.exists():
         return []
@@ -142,6 +147,11 @@ def fetch_chunk(centre: str, system: str, region: str, issue: str, k: int, var: 
     STORE.mkdir(parents=True, exist_ok=True)
     hours = month_hours(issue, k)
     starts = start_dates(centre, system, issue)
+    if not starts:
+        # without the start dates a lagged system's request would name day 01 alone and come back
+        # with a sliver of its members (2 of UKMO's 62) -- wait for the tercile build's table
+        print(f"  {centre}/{system} {region} m{k}: start dates unknown (no t2m members yet); skipped", flush=True)
+        return False
     if len(starts) > 1:
         # lagged ensemble: one request per start MONTH, every start day in it, and a lead
         # window widened by the spread of the starts so the target month is covered from
@@ -204,6 +214,8 @@ def main() -> int:
     ap.add_argument("--hindcast", action="store_true",
                     help="fetch the 24-year daily extremes instead (threshold days); keyed on start month")
     ap.add_argument("--order", default="", help="comma list of centre_system, fetched in this order")
+    ap.add_argument("--budget-min", type=float, default=0.0,
+                    help="stop STARTING new chunks after this many minutes (0 = no limit)")
     a = ap.parse_args()
     regions = [r for r in a.regions.split(",") if r in REGIONS]
     got = need = 0
@@ -219,8 +231,24 @@ def main() -> int:
         for region in regions:
             for k in range(1, a.months + 1):
                 need += 1
-                got += bool(fetch_hindcast(centre, system, region, a.issue, k) if a.hindcast
-                            else fetch_chunk(centre, system, region, a.issue, k, a.var))
+                if not a.hindcast and a.var == "t2m" and CR.is_sixh(centre, system, region, a.issue, k).exists():
+                    got += 1                     # already reduced to its table (c3s_popt_daily.daily_for)
+                    continue
+                if a.budget_min > 0 and (time.time() - t0) / 60 >= a.budget_min:
+                    print(f"  budget of {a.budget_min:.0f} min spent; the rest is left for the next run", flush=True)
+                    print(f"{got}/{need} chunk(s) ready (budget stop)")
+                    return 0 if got >= 0.75 * need else 1
+                ok = bool(fetch_hindcast(centre, system, region, a.issue, k) if a.hindcast
+                          else fetch_chunk(centre, system, region, a.issue, k, a.var))
+                if ok and not a.hindcast and a.var == "t2m":
+                    # reduce at once to the daily card's table and drop the raw chunk (Actions)
+                    from c3s_popt_daily import daily_for
+                    vals, _days = daily_for(centre, system, region, a.issue, k)
+                    ok = vals is not None
+                    p = path_for(centre, system, region, a.issue, k)
+                    if ok and CR.discard_raw() and STORE in p.parents:
+                        p.unlink(missing_ok=True)
+                got += ok
                 if a.probe:
                     print(f"probe: {got}/{need} chunk(s) in {(time.time() - t0) / 60:.1f} min")
                     return 0 if got else 1
