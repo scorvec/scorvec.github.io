@@ -2140,7 +2140,8 @@ window.STAGE.onRender = function (sel) {
     shapes.push({ type: "rect", xref: "x", yref: "paper", x0: OC.monthStart(valid[NC3S]), x1: OC.shiftMonths(last, 1) + "-01", y0: 0, y1: 1,
                   fillcolor: "rgba(227,119,194,0.10)", line: { width: 0 }, layer: "below" });
     OC.react("csPlumeChart", traces, {
-      title: (useR ? "Relative Niño-3.4" : "Niño-3.4") + " anomaly" + (st.smooth ? ", 3-month running mean" : "") + " — CanSIPS " + E.issue + " issue",
+      title: window.innerWidth < 640 ? (useR ? "Relative Niño-3.4" : "Niño-3.4") + " · CanSIPS " + E.issue
+           : (useR ? "Relative Niño-3.4" : "Niño-3.4") + " anomaly" + (st.smooth ? ", 3-month running mean" : "") + " — CanSIPS " + E.issue + " issue",
       yunits: "anomaly (°C)", xrange: [OC.monthRange(valid, obsX)[0], OC.shiftMonths(last, 1) + "-01"], shapes: shapes,
       annotations: [{ xref: "x", yref: "paper", x: OC.monthDate(valid[9]), y: 0.02, yanchor: "bottom", showarrow: false,
                       text: "months 7–12: CanSIPS only", font: { color: "#8a2f6e", size: 12 } }]
