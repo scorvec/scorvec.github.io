@@ -441,7 +441,7 @@
   <div class="mv-show"><b>Show</b>
     <label class="chk" id="contL" hidden title="Labelled contours drawn from the same data (isotherms, flight-category thresholds, isobars, CAPE)"><input type="checkbox" id="cont" checked> Contours</label>
     <label class="chk" title="Airports with scheduled service in the US and Canada (OurAirports) and a few city centres; hover for the model's value there, click or tap for the forecast meteogram"><input type="checkbox" id="sta" checked> Airports</label>
-    <label class="chk" title="The model's 2 m temperature (red) and dewpoint (green), °F, at the hour shown, above each labelled airport"><input type="checkbox" id="tdn" checked> Temp / dew</label>
+    <label class="chk" id="tdnL" title="The model's 2 m temperature (red) and dewpoint (green), °F, at the hour shown, above each labelled airport (temperature and dewpoint maps only)"><input type="checkbox" id="tdn" checked> Temp / dew</label>
     <label class="chk" id="diffL" hidden title="The other 3 km model's value subtracted at the same valid time, on the shared grid (HRRR and RRFS use the identical grid)"><input type="checkbox" id="diff"> <span id="diffT">Difference</span></label>
     <label class="chk" id="farmsL" hidden title="US wind projects (USGS Wind Turbine Database) or large-scale solar plants (USGS Solar PV Database), sized by capacity"><input type="checkbox" id="farms" checked> <span id="farmsT">Wind farms</span></label>
     <span class="mv-keys" id="sndL" hidden><b>Sounding:</b> double-click the map (on a phone, double-tap or press and hold) for that spot's HRRR forecast sounding</span>
@@ -1823,7 +1823,8 @@
     interacting = false; lastFast = 0;
     if (!gestDraws && ovView && view && ovView.cx === view.cx && ovView.cy === view.cy && ovView.s === view.s) return;   // a click: nothing moved
     qualityCheck(); render(); }, ms || 140); }
-  function syncFarmsUI() { var k = farmKind(), L = $("farmsL"); if (L.hidden !== !k) L.hidden = !k; if (k) { var t = k === "wind" ? "Wind farms" : "Solar farms"; if ($("farmsT").textContent !== t) $("farmsT").textContent = t; } }
+  function syncFarmsUI() { var tl = $("tdnL"); if (tl.hidden !== !tdField()) tl.hidden = !tdField();
+    var k = farmKind(), L = $("farmsL"); if (L.hidden !== !k) L.hidden = !k; if (k) { var t = k === "wind" ? "Wind farms" : "Solar farms"; if ($("farmsT").textContent !== t) $("farmsT").textContent = t; } }
   function moveOverlay() {
     if (!ovView) return;
     var k = ovView.s / view.s, tx = W / 2 * (1 - k) + (ovView.cx - view.cx) / view.s, ty = H / 2 * (1 - k) - (ovView.cy - view.cy) / view.s;
@@ -2187,8 +2188,10 @@
   // temperature / dewpoint at the airports: the run's points.json (the meteogram file, loaded once per model and run) at the
   // map's hour; decoded per station once and cached on the doc
   var TD_FONT = "700 12px 'Source Sans 3', Arial, sans-serif", TDD = {};
+  // only on the temperature and dewpoint maps (2026-10-07, user: turn them off "when im not looking at temp fields")
+  function tdField() { return st.field === "t2m" || st.field === "td2m"; }
   function aptTd() {
-    if (!$("tdn").checked) return null;
+    if (!tdField() || !$("tdn").checked) return null;
     var c = cycleObj(st.model, st.ci); if (!c || !c.points) return null;
     var key = st.model + "/" + c.cycle, doc = TDD[key];
     if (doc === undefined) { TDD[key] = null; mgFile(st.model, c).then(function (d) { TDD[key] = d || false; if (d) render(); }).catch(function () { TDD[key] = false; }); return null; }
