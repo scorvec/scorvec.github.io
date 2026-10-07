@@ -118,6 +118,7 @@ def run_model(model, date, hh, work: Path, procs: int, wait_min: float):
     jobs = [(k, dk) for k in range(len(STEPS)) for dk in A.DOMAINS]
     t1 = time.time()
     import multiprocessing as mp
+    A.warm_features()
     with mp.get_context("fork").Pool(procs) as pool:
         res = pool.map(_render, jobs, chunksize=2)
     t_render = time.time() - t1
