@@ -526,7 +526,10 @@ const CEIL_NEAR_M = 300, CEIL_SAT = 97, CEIL_DEPTH_M = 30;
 function estCeiling(res) {
   if (!res || res.levs.length < 3) return undefined;
   const L = res.levs;
-  const pCeil = rh => rh >= 100 ? 77 : rh >= 98 ? 69 : rh >= 96 ? 65 : rh >= 94 ? 62 : 54;
+  // re-verified 2026-10-07 (scripts/skewt/verify_fog.py: 31 airport launch sites, IGRA 2010-2025 vs routine
+  // METARs, held-out 2020-25): share of estimated bases 50 m-3 km with a BKN/OVC/VV at or below 12,000 ft.
+  // Was 77/69/65/62 (the old training); observed 85/74/65/56, ranking unchanged.
+  const pCeil = rh => rh >= 100 ? 85 : rh >= 98 ? 74 : rh >= 96 ? 65 : rh >= 94 ? 56 : 54;
   const runTop = i => { let j = i; while (j + 1 < L.length && L[j + 1].rhw >= CEIL_SAT) j++; return j; };
   const fog = L[0].z < 15 && L[0].rhw >= CEIL_SAT && L[runTop(0)].z >= CEIL_DEPTH_M;
   const mist = L[0].z < 15 && L[0].rh >= 94 && !fog;
