@@ -261,7 +261,12 @@ LAT_E = np.arange(-90, 91, 1.0)
 
 def _heading_text(ym, idx):
     t = f"{period_name(ym, idx)} ({lead_text(idx)})"
-    return t + (" · CanSIPS alone, past the C3S 6-month horizon" if beyond_c3s(idx) else "")
+    return t + (" · CanSIPS only" if beyond_c3s(idx) else "")
+
+
+def _beyond_note(idx):
+    return ("Months 7–12: CanSIPS alone, past the six months the C3S systems reach, so one model's forecast, not a consensus. "
+            if beyond_c3s(idx) else "")
 
 
 def draw_field(key, ym, idx, A, sig, comps, out: Path, nsig: float):
@@ -283,7 +288,7 @@ def draw_field(key, ym, idx, A, sig, comps, out: Path, nsig: float):
         ax.quiver(LO, LA, uu, vv, transform=pc, color="k", scale=VMAX_ARROW[key] * 30, width=0.0016, alpha=0.75, zorder=3)
     MS.features(ax, land_only=(dom == "land"), states=(kind != "sst"))
     MS.heading(fig, H, f"CanSIPS {title} · {_heading_text(ym, idx)} · {MONTHS[int(ym[4:]) - 1]} {ym[:4]} issue",
-               "Mean of 40 members (GEM5.2-NEMO + CanESM5) minus CanSIPS's own 1993–2016 hindcast for the same start month and "
+               _beyond_note(idx) + "Mean of 40 members (GEM5.2-NEMO + CanESM5) minus CanSIPS's own 1993–2016 hindcast for the same start month and "
                "lead, each model against its own. Shaded only where the shift is significant (Welch t-test, FDR q = 0.10; "
                f"{nsig:.0%} of the map); blank = no significant shift. Data Source: Environment and Climate Change Canada.",
                wrap=205)
@@ -314,7 +319,7 @@ def draw_terciles(key, ym, idx, above, below, normal, out: Path):
     fig.legend(handles=patches(PAL[pl]), loc="lower right", bbox_to_anchor=(0.96, 0.004), ncol=6, frameon=False,
                title=labs[1], fontsize=8, title_fontsize=8.5)
     MS.heading(fig, H, f"{title}: most likely tercile — CanSIPS · {_heading_text(ym, idx)} · {MONTHS[int(ym[4:]) - 1]} {ym[:4]} issue",
-               "ECCC's own tercile probabilities as published (not recomputed here), against ECCC's 1991–2020 hindcast "
+               _beyond_note(idx) + "ECCC's own tercile probabilities as published (not recomputed here), against ECCC's 1991–2020 hindcast "
                "climatology. White: no category reaches 40 % or near-normal is most likely; near-normal is not drawn."
                + (" No snow on the ground in the hindcast leaves a cell empty." if key == "swe" else "")
                + " Data Source: Environment and Climate Change Canada.", wrap=190)
@@ -331,7 +336,7 @@ def draw_tail(key, ym, idx, prob, out: Path):
                        norm=BoundaryNorm(TAIL_BINS, len(PAL[pal])), transform=pc, shading="flat", zorder=1)
     MS.features(ax, land_only=True)
     MS.heading(fig, H, f"Chance of {title[0].lower() + title[1:]} — CanSIPS · {_heading_text(ym, idx)} · {MONTHS[int(ym[4:]) - 1]} {ym[:4]} issue",
-               f"ECCC's own probability as published (from its Prob{prod} product, not recomputed here), against ECCC's "
+               _beyond_note(idx) + f"ECCC's own probability as published (from its Prob{prod} product, not recomputed here), against ECCC's "
                "1991–2020 hindcast climatology. The climatological chance is 10 %; white = under 20 %, twice that. "
                "Data Source: Environment and Climate Change Canada.", wrap=190)
     cb = MS.colorbar(fig, H, pm, "probability", None, extend="neither")
