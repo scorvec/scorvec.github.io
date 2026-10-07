@@ -491,6 +491,47 @@ def build(issue: str | None, force: bool) -> int:
     return 0
 
 
+# ── why the direct copy and C3S's differ: the box (validation only) ──────────
+def n34_points(arr: np.ndarray) -> np.ndarray:
+    """Niño-3.4 the way the CDS request samples it: 11 x 51 points at integer degrees (5S..5N, 190..240E), each
+    bilinearly interpolated from the cell-centred grid (= the mean of its four neighbouring cells), cos-weighted."""
+    a = arr.astype(np.float64) - 273.15
+    la = np.arange(-5, 6); lo = np.arange(190, 241)
+    i0 = (la + 89.5 - 0.5).astype(int); j0 = (lo - 0.5 - 0.5).astype(int)        # cell below / left of each point
+    v = 0.25 * (a[:, i0][:, :, j0] + a[:, i0 + 1][:, :, j0] + a[:, i0][:, :, j0 + 1] + a[:, i0 + 1][:, :, j0 + 1])
+    w = np.cos(np.deg2rad(la))[:, None] * np.ones(lo.size)[None, :]
+    return (v * w).sum(axis=(1, 2)) / w.sum()
+
+
+def checkbox(ym: str) -> int:
+    """Re-derive the Niño-3.4 anomaly with the C3S point box and compare both boxes with the C3S CanSIPS entry."""
+    month = int(ym[4:])
+    jobs = [(hc_dir(f"{y}{month:02d}") + hc_name("sst", f"{y}{month:02d}", L), hc_path("sst", f"{y}{month:02d}", L))
+            for y in CLIM_YEARS for L in range(6)]
+    jobs += [(fc_dir(ym) + fc_name("sst", ym, L), fc_path("sst", ym, L)) for L in range(6)]
+    fetch_many(jobs)
+    F = json.loads(C3S_JSON.read_text()); M = F["models"]["ECCC CanSIPSv3"]["n34"]
+    for L in range(6):
+        cells, pts = {c: [] for c in COMPONENTS}, {c: [] for c in COMPONENTS}
+        for y in CLIM_YEARS:
+            arr, _ = read_members(hc_path("sst", f"{y}{month:02d}", L), "sst", f"{y}{month:02d}", L)
+            n_c, _ = indices(arr); n_p = n34_points(arr)
+            for c, sl in COMPONENTS.items():
+                cells[c].append(n_c[sl]); pts[c].append(n_p[sl])
+        arr, _ = read_members(fc_path("sst", ym, L), "sst", ym, L)
+        f_c, _ = indices(arr); f_p = n34_points(arr)
+        an_c, an_p = np.empty(NMEM), np.empty(NMEM)
+        for c, sl in COMPONENTS.items():
+            an_c[sl] = f_c[sl] - np.concatenate(cells[c]).mean()
+            an_p[sl] = f_p[sl] - np.concatenate(pts[c]).mean()
+        c3 = np.array(M[L])   # C3S order: eccc_4 (= Datamart 21-40) then eccc_5 (= Datamart 1-20)
+        dd_c = np.concatenate([an_c[20:], an_c[:20]]); dd_p = np.concatenate([an_p[20:], an_p[:20]])
+        print(f"lead {L+1}: C3S mean {c3.mean():+.3f} | cell box {dd_c.mean():+.3f} (diff {dd_c.mean()-c3.mean():+.3f}, "
+              f"member rms {np.sqrt(((dd_c-c3)**2).mean()):.3f}) | point box {dd_p.mean():+.3f} (diff {dd_p.mean()-c3.mean():+.3f}, "
+              f"member rms {np.sqrt(((dd_p-c3)**2).mean()):.3f}) | sd C3S {c3.std():.3f} cell {dd_c.std():.3f} point {dd_p.std():.3f}", flush=True)
+    return 0
+
+
 # ── probe (kept: re-run it if ECCC changes the encoding) ─────────────────────
 def probe() -> int:
     import eccodes
@@ -511,12 +552,14 @@ def probe() -> int:
 
 def main() -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("cmd", choices=["build", "probe"])
+    ap.add_argument("cmd", choices=["build", "probe", "checkbox"])
     ap.add_argument("--issue", help="YYYYMM (default: newest posted)")
     ap.add_argument("--force", action="store_true")
     a = ap.parse_args()
     if a.cmd == "probe":
         return probe()
+    if a.cmd == "checkbox":
+        return checkbox(a.issue or "202609")
     return build(a.issue, a.force)
 
 
