@@ -2,7 +2,8 @@ name: US credit conditions index
 
 # fci.html: weekly US credit conditions index (scripts/fci/fci_build.py) from FRED's public csv endpoint (no key), the Fed
 # Board's GZ spread / excess bond premium csv, Shiller's ie_data.xls and the FFIEC Call Report bulk download
-# (scripts/fci/callreport.py; quarterly aggregates kept in assets/fci/callreport_ndfi.json, re-pulled weekly). FRED posts most
+# (scripts/fci/callreport.py; quarterly aggregates kept in assets/fci/callreport_ndfi.json, re-pulled weekly), FHFA's National
+# Mortgage Database aggregates and the New York Fed household debt workbook (scripts/fci/housing.py; assets/fci/housing_src.json). FRED posts most
 # daily rates the next business morning and the weekly H.8 bank loans / CP outstanding on Fridays, so one run a day at
 # 21:40 UTC is plenty (dispatcher slot too: GitHub honours only a fraction of this repo's cron firings). Dispatch with
 # publish=false (any branch) to build without committing; the json is kept as a run artifact.
@@ -34,7 +35,7 @@ jobs:
         with:
           python-version: '3.11'
       - name: Install
-        run: pip install --quiet numpy pandas xlrd
+        run: pip install --quiet numpy pandas xlrd openpyxl
       - name: Build the index
         run: python scripts/fci/fci_build.py --out assets/fci --cache "$RUNNER_TEMP/fred"
       - name: Keep the build
@@ -56,7 +57,7 @@ jobs:
             python - "dom_$wh.html" <<'PY'
           import re, sys
           t = open(sys.argv[1]).read()
-          for cid in ("daily-card", "spr-card", "eq-card", "rt-card", "liq-card", "ctx-card", "pc-card", "cr-wrap", "adm-card"):
+          for cid in ("daily-card", "spr-card", "eq-card", "rt-card", "liq-card", "hs-card", "ctx-card", "pc-card", "cr-wrap", "adm-card"):
               m = re.search(r'<(?:section|div)[^>]*id="%s"[^>]*>' % cid, t)
               print(cid, "MISSING" if not m else ("hidden" if "hidden" in m.group(0) else "shown"))
           print("plots drawn:", len(re.findall(r'class="main-svg"', t)) // 2, "| tiles:", len(re.findall(r'class="tile"', t)),
