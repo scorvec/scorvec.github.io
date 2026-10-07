@@ -13,7 +13,7 @@
 <meta property="og:site_name" content="Shawn Corvec &mdash; Weather &amp; Climate Monitors">
 <meta name="twitter:card" content="summary">
 <script data-goatcounter="https://scorvec.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
-<link rel="preconnect" href="https://raw.githubusercontent.com" crossorigin>
+<link rel="preconnect" href="https://frames.scorvec.com" crossorigin>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,500;0,8..60,600;1,8..60,400&family=Source+Sans+3:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
@@ -901,10 +901,12 @@
   // lo = the half-resolution copy (every 2nd point of the native grid, <fff>_lo.webp, manifest field "lo" names its grid)
   function relPath(model, c, field, h, lo) { return "assets/models/data/" + model + "/" + c.cycle + "/" + field + "/" + ("00" + h).slice(-3) + (lo ? "_lo" : "") + ".webp"; }
 
-  // ── data transport: raw.githubusercontent -> jsDelivr (pinned to the frames commit) ; same host logic as frameLoad ──
+  // ── data transport: Bunny CDN (frames.scorvec.com) -> raw.githubusercontent -> jsDelivr; same hosts as frameLoad ──
+  // assets/frames_root.js owns the host list and the per-tab CDN health check. The CDN is asked first for every file:
+  // pinned files as CDN/<sha>/<path> (cached a year), unpinned ones as CDN/frames/<path> (60 s edge TTL, so at most
+  // ~6 min old with raw's own 5 min). The GitHub hosts are silent fallbacks behind it.
   // A file's path names its run (model/cycle/field/hour), so its bytes never change: they are kept in Cache Storage and
-  // read back from there on a later visit without asking the network (raw.githubusercontent only allows a 5-minute
-  // browser cache, and jsDelivr's immutable copy is slow the first time a file is asked for). Old runs are pruned on load.
+  // read back from there on a later visit without asking the network. Old runs are pruned on load.
   var rawOk = false, CACHE_NAME = "mv-frames-v1", CACHE_HOST = "https://mv-frames.invalid/";
   var cacheP = null;
   function frameCache() {
@@ -931,26 +933,32 @@
   }
   function getBytes(rel, sha, prio, sig) {
     var raw = window.FRAME_ROOT_RAW || "https://raw.githubusercontent.com/scorvec/scorvec.github.io/frames/";
-    var mir = MIRROR + (sha || "frames") + "/";
-    var hosts = LOCAL ? ["/"] : (window.frameHostIsMirror && window.frameHostIsMirror() ? [mir, raw] : [raw, mir]);
-    // Bunny CDN first for pinned files (2026-10-06; assets/frames_root.js holds the host and the per-tab health check)
-    var cdn = !LOCAL && window.FRAME_ROOT_CDN && /^[0-9a-f]{7,40}$/.test(sha || "") && (!window.frameCdnOk || window.frameCdnOk()) ? window.FRAME_ROOT_CDN + sha + "/" : null;
-    if (cdn) hosts.unshift(cdn);
+    var hosts = LOCAL ? ["/"] : (window.frameUrls ? window.frameUrls("", sha) : ["https://frames.scorvec.com/" + (sha || "frames") + "/", raw, MIRROR + (sha || "frames") + "/"]);
+    var cdn = !LOCAL && /^https:\/\/frames\.scorvec\.com\//.test(hosts[0]) ? hosts[0] : null, cdnErr = false;
     var k = 0;
     function next() {
       if (sig && sig.aborted) return Promise.reject(new Error("cancelled"));   // cancelled: no other host either
       if (k >= hosts.length) return Promise.reject(new Error("unavailable"));
       var h = hosts[k++];
       return fetchT(h + rel, h === raw && !rawOk ? 7000 : (h === cdn ? 8000 : 30000), prio, sig).then(function (r) {
-        if (!r.ok) { if (h === cdn && window.frameCdnFailed) window.frameCdnFailed(); return next(); }
+        if (!r.ok) { if (h === cdn && r.status !== 404) cdnErr = true; return next(); }   // a 404 is the origin's own answer
         if (h === raw) rawOk = true;
+        if (h === cdn) { if (window.frameCdnServed) window.frameCdnServed(); }
+        else if (cdn) {
+          if (window.frameOtherServed) window.frameOtherServed();
+          if (cdnErr && window.frameCdnFailed) window.frameCdnFailed();                // the CDN failed where another host had it
+        }
         var th = performance.now();                         // headers in: the body time measures bandwidth, not latency
         return r.arrayBuffer().then(function (buf) {
           buf._tb = performance.now() - th;
           frameCache().then(function (cc) { if (cc) cc.put(CACHE_HOST + rel, new Response(buf.slice(0), { headers: { "Content-Type": "image/webp" } })).catch(function () {}); });
           return buf;
         });
-      }, function () { if (h === cdn && !(sig && sig.aborted) && window.frameCdnFailed) window.frameCdnFailed(); return next(); });
+      }, function (e) {
+        // no headers within 8 s: probe before blaming the CDN (a busy link answers a HEAD at once); a refusal is an error
+        if (h === cdn && !(sig && sig.aborted)) { if (e && e.name === "AbortError") { if (window.frameCdnStalled) window.frameCdnStalled(h + rel); } else cdnErr = true; }
+        return next();
+      });
     }
     return frameCache().then(function (cc) { return cc ? cc.match(CACHE_HOST + rel) : null; }).catch(function () { return null; })
       .then(function (hit) { return hit ? hit.arrayBuffer().then(function (b) { b._cached = true; return b; }) : next(); });

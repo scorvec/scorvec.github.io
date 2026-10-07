@@ -509,10 +509,22 @@
       })
       .catch(function () { state.failed++; });
   }
-  var BRANCH_URL = "https://raw.githubusercontent.com/scorvec/scorvec.github.io/asos5-data/asos5_latest.json";
+  // The asos5-data branch, CDN first (2026-10-07): frames.scorvec.com is the site's Bunny pull zone in front of
+  // raw.githubusercontent.com (blocked on many work networks). The edge ignores query strings and an Edge Rule holds
+  // /asos5-data/* for 60 s, so the file is at most ~6 min old (60 s + raw's own ~5 min); raw is the silent fallback.
+  var BRANCH_URLS = ["https://frames.scorvec.com/asos5-data/asos5_latest.json",
+                     "https://raw.githubusercontent.com/scorvec/scorvec.github.io/asos5-data/asos5_latest.json"];
   function fetchBranch() {
-    fetch(BRANCH_URL + "?ts=" + Date.now(), { cache: "no-store" }).then(function (r) { if (!r.ok) throw 0; return r.json(); })
-      .then(function (j) { if (j && j.stations) { state.branch = {}; j.stations.forEach(function (s) { state.branch[s.id] = s; }); schedule(); } })
+    var k = 0;
+    function next() {
+      if (k >= BRANCH_URLS.length) return Promise.reject(new Error("asos5-data unavailable"));
+      var u = BRANCH_URLS[k++], ctrl = typeof AbortController === "function" ? new AbortController() : null;
+      var t = ctrl && setTimeout(function () { ctrl.abort(); }, 8000);     // a silently dropped host: move on
+      return fetch(k === 1 ? u : u + "?ts=" + Date.now(), { cache: "no-store", signal: ctrl ? ctrl.signal : undefined })
+        .then(function (r) { if (t) clearTimeout(t); if (!r.ok) throw 0; return r.json(); })
+        .catch(function () { if (t) clearTimeout(t); return next(); });
+    }
+    next().then(function (j) { if (j && j.stations) { state.branch = {}; j.stations.forEach(function (s) { state.branch[s.id] = s; }); schedule(); } })
       .catch(function () {});
   }
   function refreshAll() {

@@ -283,15 +283,21 @@
     var rel = (series ? "assets/climate/anim/series/" : "assets/climate/anim/data/") + f;
     return (window.FRAME_ROOT || "") + rel;
   }
+  // frames-branch data through the shared host chain (assets/frames_root.js): frames.scorvec.com first, GitHub silent
+  // fallbacks; the plain FRAME_ROOT URL only if that script did not load
+  function frameGet(f, series, q) {
+    var rel = (series ? "assets/climate/anim/series/" : "assets/climate/anim/data/") + f;
+    return window.frameFetch ? window.frameFetch(rel, null, { query: q }) : fetch(dataUrl(f, series) + (q || ""));
+  }
   function getJSON(f) {
     if (cache[f]) return cache[f];
-    var p = fetch(dataUrl(f) + "?v=" + Math.floor(Date.now()/3.6e6)).then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); })
+    var p = frameGet(f, false, "?v=" + Math.floor(Date.now()/3.6e6)).then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); })
       .catch(function () { return fetch((f.indexOf("series/")===0 ? "" : DATA_ROOT_LOCAL) + f).then(function (r) { return r.json(); }); });
     cache[f] = p; return p;
   }
   function getBin(f) {
     var key = "bin:" + f; if (cache[key]) return cache[key];
-    var p = fetch(dataUrl(f, true)).then(function (r) { if (!r.ok) throw new Error(r.status); return r.arrayBuffer(); })
+    var p = frameGet(f, true).then(function (r) { if (!r.ok) throw new Error(r.status); return r.arrayBuffer(); })
       .catch(function () { return fetch(SERIES_ROOT_LOCAL + f).then(function (r) { return r.arrayBuffer(); }); }).then(function (b) { return new Int16Array(b); });
     cache[key] = p; return p;
   }

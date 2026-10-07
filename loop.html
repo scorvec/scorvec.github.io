@@ -198,7 +198,7 @@
         if (lane) live++;
         try { im.fetchPriority = urgent ? "high" : "low"; } catch (e) {}
         im.onload = function () { okFrame[i] = true; done(i, lane); };
-        // raw.githubusercontent.com -> jsDelivr mirror -> copy on main (assets/frames_root.js); a frame every host
+        // frames.scorvec.com (Bunny CDN) -> raw.githubusercontent.com -> jsDelivr -> copy on main (assets/frames_root.js); a frame every host
         // failed still counts as done so the loader cannot stall on it
         window.frameLoad(im, base + regionKey + "/" + fr.file, "?v=" + ver,
                          base + regionKey + "/" + fr.file, function () { done(i, lane); }, man.frames_sha);

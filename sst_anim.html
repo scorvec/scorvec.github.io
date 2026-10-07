@@ -207,9 +207,9 @@ function frameSrc(im, rid, f, ver, onFail) {   // onFail: every host failed (the
   const q = `?v=${f.date}.${ver || Math.floor(Date.now() / 3.6e6)}`;
   const rel = `${ANIM_BASE}/${rid}/${f.file}`;
   if (ON_FRAMES_BRANCH && window.frameLoad) {
-    // raw.githubusercontent.com -> cdn.jsdelivr.net mirror -> copy on main
+    // frames.scorvec.com (Bunny CDN) -> raw.githubusercontent.com -> jsDelivr -> copy on main
     // (assets/frames_root.js); the chain is per-FRAME because imgEl is reused
-    window.frameLoad(im, rel, q, rel, onFail || null, manifest && manifest.frames_sha);   // frames_sha: the mirror's pinned commit
+    window.frameLoad(im, rel, q, rel, onFail || null, manifest && manifest.frames_sha);   // frames_sha: pins the CDN and jsDelivr to that commit
   } else {
     im.onerror = onFail ? () => onFail(im) : null;
     im.src = rel + q;
@@ -217,13 +217,15 @@ function frameSrc(im, rid, f, ver, onFail) {   // onFail: every host failed (the
   return im.src;
 }
 // Frame-host status (assets/frames_root.js): say WHY nothing shows instead of
-// spinning forever, and note when the slower mirror is carrying the loop.
+// spinning forever, and note when the slower mirror is carrying the loop. Both
+// fire only after the CDN (frames.scorvec.com) itself has failed in this tab: a
+// network that merely blocks GitHub hears nothing, the CDN serves it.
 document.addEventListener("framehost", ev => {
   const d = ev.detail || {};
   if (d.dead) {
     loadingEl.classList.remove("hidden");
-    loadingEl.innerHTML = "Frames could not be loaded. This network appears to block GitHub content hosts " +
-      "(raw.githubusercontent.com and cdn.jsdelivr.net) &mdash; try another connection.";
+    loadingEl.innerHTML = "Frames could not be loaded from frames.scorvec.com or its fallbacks " +
+      "(raw.githubusercontent.com, cdn.jsdelivr.net) &mdash; check the connection and reload.";
   } else if (d.recovered) {
     loadingEl.classList.add("hidden");           // a host answered after all
     const n0 = document.getElementById("hostnote");
@@ -243,8 +245,7 @@ document.addEventListener("framehost", ev => {
       n = document.createElement("div"); n.id = "hostnote"; n.className = "hostnote";
       document.querySelector(".frame-wrap").insertAdjacentElement("afterend", n);
     }
-    const why = d.why ? " [" + d.why + ", " + Math.round(performance.now()) + " ms after load]" : "";
-    const base = "Frames via the cdn.jsdelivr.net mirror: raw.githubusercontent.com is unreachable on this network, so loops can lag a few hours." + why;
+    const base = "Frames via the cdn.jsdelivr.net fallback: frames.scorvec.com and raw.githubusercontent.com are not answering, so loops can lag a few hours.";
     n.textContent = base;
     // say HOW stale: jsDelivr exposes `age` (seconds its cache has held the copy)
     const probe = () => {

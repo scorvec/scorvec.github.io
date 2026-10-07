@@ -5,8 +5,9 @@
 "use strict";
 (function () {
   // ── hosts ────────────────────────────────────────────────────────────────
-  // To serve through the Bunny CDN first (once its Edge Rule caches /recon-data/* for 60 s), put "cdn" first here.
-  const HOSTS = ["raw", "jsd", "api"];
+  // Bunny CDN first (2026-10-07: its Edge Rule caches /recon-data/* and /tdr-data/* for 60 s; GitHub's raw host held
+  // "fresh" fetches up to 5 min and is blocked on some networks); raw / api / jsDelivr behind it
+  const HOSTS = ["cdn", "raw", "jsd", "api"];
   const REPO = "scorvec/scorvec.github.io", BR = "recon-data", TBR = "tdr-data";
   const URLS = {
     cdn: (p, b, br = BR) => [`https://frames.scorvec.com/${br}/${p}`],
@@ -23,7 +24,7 @@
       try {
         const r = await fetch(u, opt);
         if (r.ok) return await r.json();
-        if (r.status === 404 && order[i] === "raw") return null;
+        if (r.status === 404 && (order[i] === "raw" || order[i] === "cdn")) return null;   // host fine, file truly absent
       } catch (e) { /* blocked or offline: next host */ }
     }
     throw new Error("unreachable");
@@ -97,7 +98,7 @@
     let man;
     try { man = await dataFetch("manifest.json", Math.floor(Date.now() / 60000), true); }
     catch (e) {
-      if (first) setStatus(`<span class="mu">The data mirror could not be reached (tried raw.githubusercontent.com, jsDelivr and api.github.com). Try again shortly.</span>`);
+      if (first) setStatus(`<span class="mu">The data mirror could not be reached (tried frames.scorvec.com, raw.githubusercontent.com, jsDelivr and api.github.com). Try again shortly.</span>`);
       return false;
     }
     if (!man) { if (first) setStatus(`<span class="mu">The mirror has not published yet.</span>`); return false; }
@@ -941,7 +942,7 @@
     const fr = $("tdrFrame");
     if (!path) { fr.innerHTML = `<p class="ph">No image for this choice.</p>`; return; }
     const v = T.prod === "ctr" && T.doc.latest.ctr ? T.doc.latest.ctr.v : "";
-    const urls = [URLS.raw(path, v, TBR)[0], URLS.jsd(path, null, TBR)[0]];
+    const urls = [URLS.cdn(path, v, TBR)[0], URLS.raw(path, v, TBR)[0], URLS.jsd(path, null, TBR)[0]];
     let img = fr.querySelector("img"), a = fr.querySelector("a");
     if (!img) { fr.innerHTML = ""; a = document.createElement("a"); a.target = "_blank"; a.rel = "noopener"; a.title = "Open the full-size image";
                 img = document.createElement("img"); img.decoding = "async"; a.appendChild(img); fr.appendChild(a); }
@@ -976,7 +977,7 @@
     SAT.t = b.dataset.k === "off" ? null : +b.dataset.k;
     const x = list.find(y => y[0] === SAT.t);
     if (x) {
-      const urls = [URLS.raw(x[7], null, TBR)[0], URLS.jsd(x[7], null, TBR)[0]];
+      const urls = [URLS.cdn(x[7], null, TBR)[0], URLS.raw(x[7], null, TBR)[0], URLS.jsd(x[7], null, TBR)[0]];
       SAT.layer = L.imageOverlay(urls[0], [[x[3], x[4]], [x[5], x[6]]], { pane: "sat", opacity: 0.85, interactive: false, alt: "GOES infrared" }).addTo(map);
       SAT.layer.once("error", () => SAT.layer && SAT.layer.setUrl(urls[1]));
     }
