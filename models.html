@@ -3027,7 +3027,7 @@
       else if (d.field === "smoke" && s[0] === 0) txt = "below 0.1 mg/m²";
       else if (fd.enc === "uh" && s[0] === 0) txt = "below 1 m²/s²";
       else if (fd.enc === "uh" && s[0] === 254) txt = "400 m²/s² or more";
-      else if (fd.enc === "uvv" && s[0] === 0) txt = d.c.cycle >= "2026100800" ? "below 2 m/s" : "below 1 m/s";
+      else if (fd.enc === "uvv" && s[0] === 0) txt = "below 2 m/s";
       else if (d.field === "ir") txt = fd.fmt(val, val + 273.15);
       else txt = fd.fmt(val);
     }
