@@ -278,7 +278,7 @@ def process_station(args):
     mrows = load_metars(out / "metar" / f"{s['icao']}.csv", intl)
     mtimes = [r[0] for r in mrows]
     rows, profs, cases = [], [], []
-    qc = {"records": 0, "parse_fail": 0, "no_sfc_flag": 0, "missing_sfc_TTd": 0, "no_metar": 0, "kept": 0}
+    qc = {"records": 0, "parse_fail": 0, "nan_pressure": 0, "no_sfc_flag": 0, "missing_sfc_TTd": 0, "no_metar": 0, "kept": 0}
     rng = random.Random(int(s["wmo"]))
     for rec in iter_records(zpath):
         qc["records"] += 1
@@ -295,6 +295,9 @@ def process_station(args):
             qc["parse_fail"] += 1
             continue
         prof, info = got
+        if info["nan_p"]:                 # a >44 km height with no pressure: JS order undefined, drop
+            qc["nan_pressure"] += 1
+            continue
         if not info["sfc_flag"]:
             qc["no_sfc_flag"] += 1
             continue
@@ -453,7 +456,13 @@ def jstest(out: Path, app: str, old: str) -> None:
     js = {r["id"]: r for r in json.loads(js_out.read_text())}
     n = bad = 0
     msgs = []
+    skipped = 0
     for c in cases:
+        if "text" in c:
+            g = FP.parse_igra_record(c["text"].split("\n"), c["elev"])
+            if g is not None and g[1]["nan_p"]:
+                skipped += 1               # dropped from the dataset too (NaN pressure: JS sort order undefined)
+                continue
         a, b = js[c["id"]], py_case(c)
         n += 1
         probs = []
@@ -482,7 +491,7 @@ def jstest(out: Path, app: str, old: str) -> None:
                 msgs.append(f"{c['id']}: " + "; ".join(probs))
     syn = {c["id"]: (_norm_ec(js[c["id"]]["oldc"]), _norm_ec(js[c["id"]]["newc"]),
                      js[c["id"]]["pfog"]) for c in cases if c["id"].startswith("syn_")}
-    rep = {"cases": n, "mismatched": bad, "examples": msgs, "synthetic_js(old,new,pfog)": syn}
+    rep = {"cases": n, "skipped_nan_pressure": skipped, "mismatched": bad, "examples": msgs, "synthetic_js(old,new,pfog)": syn}
     (out / "jstest.json").write_text(json.dumps(rep, indent=1, default=str))
     print(json.dumps(rep, indent=1, default=str), flush=True)
     if bad:

@@ -37,7 +37,8 @@ def parse_igra_record(lines: list[str], elev: float):
     """lines[0] = '#' header, lines[1:] = levels. Mirrors parseIGRA after the record is chosen.
     Returns (prof, info) or None. info carries the surface-flag QC the JS does not do."""
     nlev = int(lines[0][32:36])
-    stdP = lambda h: 101325 * math.pow(1 - 2.25577e-5 * h, 5.25588)
+    # JS Math.pow(negative, 5.25588) is NaN (gph > 44.3 km); NaN < 2000 is false, so JS keeps the level
+    stdP = lambda h: (101325 * math.pow(1 - 2.25577e-5 * h, 5.25588)) if 1 - 2.25577e-5 * h > 0 else NAN
     thermo, winds = [], []
     for i in range(1, min(nlev, len(lines) - 1) + 1):
         L = lines[i]
@@ -100,7 +101,8 @@ def parse_igra_record(lines: list[str], elev: float):
         out["U"].append(w["u"]); out["V"].append(w["v"])
     if len(out["P"]) < 4:
         return None
-    info = {"sfc_flag": bool(first and first["sfc"]), "raw_t0": first["T"], "raw_d0": first["D"],
+    nan_p = any(math.isnan(lv["p"]) for lv in thermo) or any(math.isnan(w["p"]) for w in winds)
+    info = {"nan_p": nan_p, "sfc_flag": bool(first and first["sfc"]), "raw_t0": first["T"], "raw_d0": first["D"],
             "nlev": len(out["P"]), "nwind": len(winds)}
     return out, info
 

@@ -38,6 +38,15 @@ jobs:
       - name: Probe sources
         if: inputs.stage == 'probe'
         run: python scripts/skewt/verify_fog.py probe out
+      - name: Restore source cache (METAR pulls + IGRA files; keeps reruns off IEM)
+        if: inputs.stage == 'all'
+        uses: actions/cache/restore@v6
+        with:
+          path: |
+            out/metar
+            out/igra
+          key: skewt-fog-src-v1-${{ github.run_id }}
+          restore-keys: skewt-fog-src-v1-
       - name: Stations (co-location check)
         if: inputs.stage == 'all'
         run: python scripts/skewt/verify_fog.py stations out
@@ -47,6 +56,14 @@ jobs:
       - name: Build matched pairs (IGRA v2)
         if: inputs.stage == 'all'
         run: python scripts/skewt/verify_fog.py build out
+      - name: Save source cache
+        if: always() && inputs.stage == 'all'
+        uses: actions/cache/save@v6
+        with:
+          path: |
+            out/metar
+            out/igra
+          key: skewt-fog-src-v1-${{ github.run_id }}
       - name: Port check against the real app.js (node)
         if: inputs.stage == 'all'
         run: |
