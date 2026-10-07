@@ -380,15 +380,20 @@
   function drawFixTrack(sid) {
     lyr.fixes.clearLayers();
     const s = S.man && S.man.storms[sid]; if (!s) return;
-    const fx = [];
-    for (const k of s.missions) for (const f of (S.man.missions[k].fixes || [])) fx.push(f.concat([k]));
-    fx.sort((a, b) => a[0] - b[0]);
-    if (fx.length > 1) L.polyline(fx.map(f => [f[1], f[2]]), { renderer: rend, color: "#b3261e", weight: 1.6, dashArray: "4 4", interactive: false }).addTo(lyr.fixes);
+    const fx = stormFixes(sid);
+    if (fx.length > 1) L.polyline(fx.map(f => [f.la, f.lo]), { renderer: rend, color: "#b3261e", weight: 1.6, dashArray: "4 4", interactive: false }).addTo(lyr.fixes);
     for (const f of fx) {
-      if (f[4] === S.key) continue;                               // the open mission draws its own
-      L.circleMarker([f[1], f[2]], { renderer: rend, radius: 3.5, color: "#b3261e", weight: 1.5, fillColor: "#fff", fillOpacity: 1 })
-        .bindTooltip(`Fix ${dayhm(f[0])}${f[3] ? " · " + f[3] + " hPa" : ""} · ${esc(S.man.missions[f[4]].aircraft)}`).addTo(lyr.fixes);
+      if (f.k === S.key) continue;                               // the open mission draws its own
+      L.circleMarker([f.la, f.lo], { renderer: rend, radius: 3.5, color: "#b3261e", weight: 1.5, fillColor: "#fff", fillOpacity: 1 })
+        .bindTooltip(`Fix ${dayhm(f.t)}${f.p ? " · " + f.p + " hPa" + (f.x ? " (extrapolated)" : "") : ""} · ${esc(S.man.missions[f.k].aircraft)}`).addTo(lyr.fixes);
     }
+  }
+  // every vortex fix of a storm, all missions (manifest): {t, la, lo, p (hPa or null), x (1 = extrapolated), k (mission)}
+  function stormFixes(sid) {
+    const s = S.man && S.man.storms[sid], fx = [];
+    if (!s) return fx;
+    for (const k of s.missions) for (const f of (S.man.missions[k].fixes || [])) fx.push({ t: f[0], la: f[1], lo: f[2], p: f[3], x: f[4] || 0, k });
+    return fx.sort((a, b) => a.t - b.t);
   }
   function drawStorm(st, s) {
     lyr.btk.clearLayers();
@@ -896,8 +901,10 @@
     if (!path) { fr.innerHTML = `<p class="ph">No image for this choice.</p>`; return; }
     const v = T.prod === "ctr" && T.doc.latest.ctr ? T.doc.latest.ctr.v : "";
     const urls = [URLS.raw(path, v, TBR)[0], URLS.jsd(path, null, TBR)[0]];
-    let img = fr.querySelector("img");
-    if (!img) { fr.innerHTML = ""; img = document.createElement("img"); img.decoding = "async"; fr.appendChild(img); }
+    let img = fr.querySelector("img"), a = fr.querySelector("a");
+    if (!img) { fr.innerHTML = ""; a = document.createElement("a"); a.target = "_blank"; a.rel = "noopener"; a.title = "Open the full-size image";
+                img = document.createElement("img"); img.decoding = "async"; a.appendChild(img); fr.appendChild(a); }
+    img.onload = () => { a.href = img.src; };
     img.className = sq ? "sq" : "";
     img.alt = $("tdrCap").textContent || "Tail Doppler radar graphic";
     let k = 0;

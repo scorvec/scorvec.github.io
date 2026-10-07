@@ -375,7 +375,8 @@ class TDR:
                 best = (k, inside)
         if not best:
             return None, f"no {ac} mission of {'/'.join(sorted(names))} overlapping the analyses"
-        return best[0], f"{ac}, storm name {'/'.join(sorted(names))}, {best[1]} of {len(ts)} analyses inside the mission window"
+        return best[0], (f"aircraft ({ac}), storm name ({'/'.join(sorted(names))}) and time ({best[1]} of {len(ts)} analysis "
+                         "times inside the mission's observation window)")
 
     # centres
     def centre_list(self, year):
