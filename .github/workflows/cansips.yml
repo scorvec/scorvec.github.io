@@ -19,7 +19,7 @@ on:
   workflow_dispatch:
     inputs:
       mode:
-        description: 'build | probe'
+        description: 'build | probe | checkbox'
         required: false
         default: 'build'
       issue:
@@ -55,15 +55,23 @@ jobs:
         with:
           python-version: '3.11'
       - name: Install Python dependencies
-        run: pip install --quiet numpy pandas requests eccodes global-land-mask
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y --no-install-recommends libgeos-dev libproj-dev proj-bin
+          # cartopy pinned at 0.25: 0.26 blanks full-longitude maps (dateline collapse, 2026-09-18)
+          pip install --quiet numpy pandas requests eccodes global-land-mask scipy pyproj \
+            matplotlib==3.10.9 cartopy==0.25.0 pillow
 
       - name: Probe the Datamart GRIB encoding
         if: inputs.mode == 'probe'
         run: python scripts/sst/cansips_dd.py probe
 
+      - name: Box check against the C3S copy (validation only)
+        if: inputs.mode == 'checkbox'
+        run: python scripts/sst/cansips_dd.py checkbox --issue "${{ inputs.issue }}"
+
       - name: ENSO plume (Niño-3.4 and relative Niño-3.4, 12 months)
         id: enso
-        if: inputs.mode != 'probe'
+        if: inputs.mode != 'probe' && inputs.mode != 'checkbox'
         run: |
           ARGS=""
           [ -n "${{ inputs.issue }}" ] && ARGS="--issue ${{ inputs.issue }}"
@@ -71,7 +79,7 @@ jobs:
           python scripts/sst/cansips_dd.py build $ARGS
 
       - name: Commit & push the plume
-        if: inputs.mode != 'probe'
+        if: inputs.mode != 'probe' && inputs.mode != 'checkbox'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
@@ -87,6 +95,79 @@ jobs:
             git add -A $OUTS
             if git diff --staged --quiet; then echo "No changes; skipping commit."; exit 0; fi
             git commit -q -m "data update: CanSIPS (ECCC Datamart) ENSO plume"
+            if timeout 180 git push; then echo "Pushed on attempt $i."; exit 0; fi
+            echo "Push $i rejected; resyncing and retrying…"
+            sleep 5
+          done
+          echo "ERROR: could not push after 5 attempts." >&2
+          exit 1
+
+      # ── the seasonal page's CanSIPS group ──
+      # Hindcast climatology fields per start month live in the release cansips-ref-v1 (one start month
+      # costs ~3,200 Datamart files the first time it comes round, nothing after).
+      - name: Restore the hindcast climatology fields for this start month
+        if: inputs.mode != 'probe' && inputs.mode != 'checkbox' && inputs.maps != 'false'
+        id: clim
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          I="${{ inputs.issue }}"
+          [ -n "$I" ] || I=$(python -c "import sys; sys.path.insert(0,'scripts/sst'); import cansips_dd as D; print(D.latest_issue() or '')")
+          echo "issue=$I" >> "$GITHUB_OUTPUT"
+          [ -n "$I" ] || { echo "::warning::no complete issue posted"; exit 0; }
+          MM=${I:4:2}
+          mkdir -p scripts/sst/data/cansips_dd/clim
+          gh release view cansips-ref-v1 >/dev/null 2>&1 || gh release create cansips-ref-v1 --title "CanSIPS hindcast climatology fields" \
+            --notes "Per start month, per field: 1993-2016 hindcast mean and single-member SD of each CanSIPS component (scripts/sst/cansips_maps.py). Data Source: Environment and Climate Change Canada."
+          gh release download cansips-ref-v1 -p "cansips_clim_*_${MM}.npz" -D scripts/sst/data/cansips_dd/clim --clobber || echo "none cached for ${MM} yet"
+          ls -la scripts/sst/data/cansips_dd/clim
+
+      - name: Seasonal-page maps (anomalies + ECCC probabilities)
+        id: maps
+        if: inputs.mode != 'probe' && inputs.mode != 'checkbox' && inputs.maps != 'false' && steps.clim.outputs.issue != ''
+        run: |
+          FLAG="--if-stale"
+          if [ "${{ inputs.force }}" = "true" ]; then FLAG=""; fi
+          python scripts/sst/cansips_maps.py --issue "${{ steps.clim.outputs.issue }}" $FLAG
+
+      - name: Keep new climatology fields in the release
+        if: always() && steps.clim.outputs.issue != ''
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          MM=$(echo "${{ steps.clim.outputs.issue }}" | cut -c5-6)
+          HAVE=$(gh release view cansips-ref-v1 --json assets -q '.assets[].name' || true)
+          for f in scripts/sst/data/cansips_dd/clim/cansips_clim_*_${MM}.npz; do
+            [ -e "$f" ] || continue
+            if ! echo "$HAVE" | grep -qx "$(basename "$f")"; then gh release upload cansips-ref-v1 "$f" && echo "uploaded $(basename "$f")"; fi
+          done
+
+      - name: Publish the map frames to the frames branch
+        if: steps.maps.outcome == 'success'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          DIRS=$(find assets/cansips/anim -mindepth 1 -maxdepth 1 -type d -name 'cs_*' 2>/dev/null | sort || true)
+          if [ -z "$DIRS" ]; then echo "nothing rendered this run"; exit 0; fi
+          du -sh assets/cansips/anim
+          scripts/lib/publish_frames_ci.sh $DIRS
+
+      - name: Commit & push the map manifests
+        if: steps.maps.outcome == 'success'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          SNAP=$(mktemp -d)
+          git add -A assets/cansips 2>/dev/null || true
+          git diff --staged --name-only -z | tar cf "$SNAP/outs.tar" --null -T - 2>/dev/null || true
+          git reset -q
+          for i in 1 2 3 4 5; do
+            if ! timeout 120 git fetch origin main; then echo "fetch $i failed"; sleep 5; continue; fi
+            git reset --hard origin/main
+            tar xf "$SNAP/outs.tar" 2>/dev/null || true
+            git add -A assets/cansips
+            if git diff --staged --quiet; then echo "No changes; skipping commit."; exit 0; fi
+            git commit -q -m "data update: CanSIPS (ECCC Datamart) seasonal maps ${{ steps.clim.outputs.issue }}"
             if timeout 180 git push; then echo "Pushed on attempt $i."; exit 0; fi
             echo "Push $i rejected; resyncing and retrying…"
             sleep 5

@@ -25,8 +25,8 @@ GRIB facts, measured from the files (`cansips_dd.py probe`):
     20S-20N mean of the relative index would include land.
 
 Indices exactly as c3s_nino34.py builds them for the page's other systems: Niño-3.4 = cos-weighted
-mean over 5S-5N, 170W-120W (here the 10 x 50 one-degree cells inside the box); the tropical mean
-over 20S-20N ocean; each COMPONENT anomalised against its own 1993-2016 hindcast for the same start
+mean over the one-degree points 5S-5N, 170W-120W (sampled as the CDS samples them, see indices());
+the tropical mean over the 5-degree ocean points 20S-20N; each COMPONENT anomalised against its own 1993-2016 hindcast for the same start
 month and lead, then pooled; rNiño-3.4 = (n34 - trop) anomaly x sigma(ONI)/sigma(rel) for the valid
 calendar month (roni_sigma.json).
 
@@ -294,14 +294,38 @@ def _box_weights(lat_rng, lon_rng=None) -> np.ndarray:
     return w / w.sum()
 
 
+def _point_weights(lats, lons, need_ocean: bool) -> np.ndarray:
+    """(180, 360) weights that reproduce sampling at integer-degree POINTS, as the CDS request does: each point is
+    bilinearly interpolated from the cell-centred grid, i.e. the mean of its four neighbouring cells, and points are
+    cos-weighted. need_ocean: a point counts only when all four cells are ocean (the land fill never enters)."""
+    oc = ocean_mask()
+    w = np.zeros((180, 360))
+    for la in lats:
+        i0 = int(round(la + 89.0))                                     # the cell centred at la - 0.5
+        for lo in lons:
+            j0 = int(round(lo - 1.0)) % 360                           # the cell centred at lo - 0.5
+            cells = [(i0, j0), (i0 + 1, j0), (i0, (j0 + 1) % 360), (i0 + 1, (j0 + 1) % 360)]
+            if need_ocean and not all(oc[c] for c in cells):
+                continue
+            for c in cells:
+                w[c] += 0.25 * np.cos(np.deg2rad(la))
+    return w / w.sum()
+
+
 def indices(arr: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
-    """Per-member (Niño-3.4, 20S-20N ocean mean) in degC from a WaterTemp member stack."""
+    """Per-member (Niño-3.4, 20S-20N ocean mean) in degC from a WaterTemp member stack.
+
+    Sampled exactly as c3s_nino34.py's CDS requests sample the C3S systems: Niño-3.4 on the 11 x 51 one-degree POINTS
+    5S..5N, 170W..120W inclusive, the tropical mean on the 5-degree points 20S..20N. Measured on the September 2026
+    issue (`checkbox`): the cell box (the 10 x 50 cells strictly inside the region) reads 0.09-0.15 C warmer than
+    C3S's copy of the same 40 runs, because a strong El Nino's anomaly is concentrated on the equator and the point
+    box reaches half a degree further off it; the point box agrees with C3S to 0.02 C."""
     global _W34, _WTR
     try:
         _W34
     except NameError:
-        _W34 = _box_weights((-5, 5), (190, 240))
-        _WTR = _box_weights((-20, 20))
+        _W34 = _point_weights(range(-5, 6), range(190, 241), need_ocean=False)
+        _WTR = _point_weights(range(-20, 21, 5), range(0, 360, 5), need_ocean=True)
     a = arr.astype(np.float64) - 273.15
     return (a * _W34).sum(axis=(1, 2)), (a * _WTR).sum(axis=(1, 2))
 
@@ -491,6 +515,47 @@ def build(issue: str | None, force: bool) -> int:
     return 0
 
 
+# ── why the direct copy and C3S's differ: the box (validation only) ──────────
+def n34_points(arr: np.ndarray) -> np.ndarray:
+    """Niño-3.4 the way the CDS request samples it: 11 x 51 points at integer degrees (5S..5N, 190..240E), each
+    bilinearly interpolated from the cell-centred grid (= the mean of its four neighbouring cells), cos-weighted."""
+    a = arr.astype(np.float64) - 273.15
+    la = np.arange(-5, 6); lo = np.arange(190, 241)
+    i0 = (la + 89.5 - 0.5).astype(int); j0 = (lo - 0.5 - 0.5).astype(int)        # cell below / left of each point
+    v = 0.25 * (a[:, i0][:, :, j0] + a[:, i0 + 1][:, :, j0] + a[:, i0][:, :, j0 + 1] + a[:, i0 + 1][:, :, j0 + 1])
+    w = np.cos(np.deg2rad(la))[:, None] * np.ones(lo.size)[None, :]
+    return (v * w).sum(axis=(1, 2)) / w.sum()
+
+
+def checkbox(ym: str) -> int:
+    """Re-derive the Niño-3.4 anomaly with the C3S point box and compare both boxes with the C3S CanSIPS entry."""
+    month = int(ym[4:])
+    jobs = [(hc_dir(f"{y}{month:02d}") + hc_name("sst", f"{y}{month:02d}", L), hc_path("sst", f"{y}{month:02d}", L))
+            for y in CLIM_YEARS for L in range(6)]
+    jobs += [(fc_dir(ym) + fc_name("sst", ym, L), fc_path("sst", ym, L)) for L in range(6)]
+    fetch_many(jobs)
+    F = json.loads(C3S_JSON.read_text()); M = F["models"]["ECCC CanSIPSv3"]["n34"]
+    for L in range(6):
+        cells, pts = {c: [] for c in COMPONENTS}, {c: [] for c in COMPONENTS}
+        for y in CLIM_YEARS:
+            arr, _ = read_members(hc_path("sst", f"{y}{month:02d}", L), "sst", f"{y}{month:02d}", L)
+            n_c, _ = indices(arr); n_p = n34_points(arr)
+            for c, sl in COMPONENTS.items():
+                cells[c].append(n_c[sl]); pts[c].append(n_p[sl])
+        arr, _ = read_members(fc_path("sst", ym, L), "sst", ym, L)
+        f_c, _ = indices(arr); f_p = n34_points(arr)
+        an_c, an_p = np.empty(NMEM), np.empty(NMEM)
+        for c, sl in COMPONENTS.items():
+            an_c[sl] = f_c[sl] - np.concatenate(cells[c]).mean()
+            an_p[sl] = f_p[sl] - np.concatenate(pts[c]).mean()
+        c3 = np.array(M[L])   # C3S order: eccc_4 (= Datamart 21-40) then eccc_5 (= Datamart 1-20)
+        dd_c = np.concatenate([an_c[20:], an_c[:20]]); dd_p = np.concatenate([an_p[20:], an_p[:20]])
+        print(f"lead {L+1}: C3S mean {c3.mean():+.3f} | cell box {dd_c.mean():+.3f} (diff {dd_c.mean()-c3.mean():+.3f}, "
+              f"member rms {np.sqrt(((dd_c-c3)**2).mean()):.3f}) | point box {dd_p.mean():+.3f} (diff {dd_p.mean()-c3.mean():+.3f}, "
+              f"member rms {np.sqrt(((dd_p-c3)**2).mean()):.3f}) | sd C3S {c3.std():.3f} cell {dd_c.std():.3f} point {dd_p.std():.3f}", flush=True)
+    return 0
+
+
 # ── probe (kept: re-run it if ECCC changes the encoding) ─────────────────────
 def probe() -> int:
     import eccodes
@@ -511,12 +576,14 @@ def probe() -> int:
 
 def main() -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("cmd", choices=["build", "probe"])
+    ap.add_argument("cmd", choices=["build", "probe", "checkbox"])
     ap.add_argument("--issue", help="YYYYMM (default: newest posted)")
     ap.add_argument("--force", action="store_true")
     a = ap.parse_args()
     if a.cmd == "probe":
         return probe()
+    if a.cmd == "checkbox":
+        return checkbox(a.issue or "202609")
     return build(a.issue, a.force)
 
 
