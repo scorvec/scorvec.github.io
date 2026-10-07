@@ -457,6 +457,7 @@ def jstest(out: Path, app: str, old: str) -> None:
     n = bad = 0
     msgs = []
     skipped = 0
+    ties = []          # last-ulp exp() differences (V8 vs glibc) landing exactly on a confidence-bin edge
     for c in cases:
         if "text" in c:
             g = FP.parse_igra_record(c["text"].split("\n"), c["elev"])
@@ -481,7 +482,10 @@ def jstest(out: Path, app: str, old: str) -> None:
                 probs.append("layers")
             for k in ("newc", "oldc"):
                 ea, eb = _norm_ec(a[k]), _norm_ec(b[k])
-                if ea[0] != eb[0] or (ea[0] == "c" and not (ea[1] == eb[1] and _close(ea[2], eb[2]) and ea[3] == eb[3])):
+                if (ea[0] == eb[0] == "c" and ea[1] == eb[1] and _close(ea[2], eb[2]) and ea[3] != eb[3]
+                        and any(abs(l[2] - t) < 1e-9 for l in a["layers"] for t in (94, 96, 98, 100))):
+                    ties.append(f"{c['id']} {k}: conf {ea[3]} vs {eb[3]} (layer peak RH on a bin edge to 1e-9)")
+                elif ea[0] != eb[0] or (ea[0] == "c" and not (ea[1] == eb[1] and _close(ea[2], eb[2]) and ea[3] == eb[3])):
                     probs.append(f"{k} {ea} vs {eb}")
             if not _close(a["pfog"], b["pfog"], 1e-9):
                 probs.append(f"pfog {a['pfog']} vs {b['pfog']}")
@@ -491,7 +495,7 @@ def jstest(out: Path, app: str, old: str) -> None:
                 msgs.append(f"{c['id']}: " + "; ".join(probs))
     syn = {c["id"]: (_norm_ec(js[c["id"]]["oldc"]), _norm_ec(js[c["id"]]["newc"]),
                      js[c["id"]]["pfog"]) for c in cases if c["id"].startswith("syn_")}
-    rep = {"cases": n, "skipped_nan_pressure": skipped, "mismatched": bad, "examples": msgs, "synthetic_js(old,new,pfog)": syn}
+    rep = {"cases": n, "skipped_nan_pressure": skipped, "mismatched": bad, "ulp_bin_ties": ties, "examples": msgs, "synthetic_js(old,new,pfog)": syn}
     (out / "jstest.json").write_text(json.dumps(rep, indent=1, default=str))
     print(json.dumps(rep, indent=1, default=str), flush=True)
     if bad:
