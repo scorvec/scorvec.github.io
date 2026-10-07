@@ -413,7 +413,7 @@
     <div class="tbl" id="tdrCtr"></div>
     <p class="credit">Tail Doppler radar graphics: NOAA AOML Hurricane Research Division (real-time TDR graphics,
       <a href="https://www.aoml.noaa.gov/ftp/pub/hrd/data/RTradar/">aoml.noaa.gov/ftp/pub/hrd/data/RTradar</a>, compiled by P. Reasor);
-      the real-time analyses are run aboard the aircraft by NOAA OMAO's Aircraft Operations Center (since 2026). Real time with
+      the real-time analyses were made by HRD through 2025 and by NOAA OMAO's Aircraft Operations Center from 2026. Real time with
       automated quality control: not the post-season quality-controlled Level 2 data. Images are mirrored unchanged (re-encoded
       losslessly as WebP).</p>
   </section>
@@ -505,6 +505,16 @@
         track when there is no fix), is not drawn. A flight is matched to its NHC mission by aircraft (H = NOAA2 N42RF, I = NOAA3 N43RF,
         N = NOAA9 N49RF), storm name and time. Kept: the swaths at 1, 2, 3, 5, 8 and 10 km for every analysis and every composite;
         the azimuthal means, tilt, zoom and centre map for the latest composite only.</li>
+      <li><b>Centre track and passes</b>: the centre at any moment is interpolated in time between the vortex fixes of all missions
+        (and the flight's TDR centres, when there are any); beyond the fixes the nearest fix is moved with the best-track motion. A centre
+        pass is the closest approach within 20 n mi; each pass gives an inbound and an outbound leg, cut at 150 n mi or where the aircraft
+        turns back. The radial profiles, the per-leg maxima in the intensity history and the storm-relative plot all use this track.</li>
+      <li><b>Satellite</b>: GOES-East ABI band 13 (10.3 µm) brightness temperature at each centre pass, from NOAA's open data on AWS: a
+        mesoscale sector when one covers the storm (1-minute images), otherwise CONUS or the full disk; the image nearest the pass within
+        10 minutes, resampled to the map's projection. Pixels the ABI flags as out of range or missing are left empty. No passive-microwave
+        imagery: the freely redistributable source (NOAA's TC PRIMED) is not updated in real time (it held no 2026 Atlantic storm in
+        October 2026), and the real-time sources need a login or do not permit redistribution.</li>
+      <li><b>Alerts</b> (opt in): the browser's notifications, from this page only while it is open; nothing is sent from a server.</li>
       <li><b>Freshness</b>: a mirror in GitHub Actions reads the NHC archive every 15 minutes, and again 7 minutes later while a mission is
         airborne; NHC posts each message a few minutes after it is sent. The page asks for new data every 90 s while a mission is flying.</li>
     </ul>
@@ -512,7 +522,8 @@
 
   <p class="credit">Data: NOAA National Hurricane Center reconnaissance archive (USAF 53rd Weather Reconnaissance Squadron and NOAA Aircraft
     Operations Center), <a href="https://www.nhc.noaa.gov/recon.php">nhc.noaa.gov</a>; best track and forecast from NHC's ATCF files.
-    Decoded here, not an official product; for operational use see the NHC.</p>
+    Tail Doppler radar: NOAA AOML Hurricane Research Division. Satellite: NOAA GOES-East (GOES-16 to April 2025, GOES-19 since),
+    NOAA Open Data Dissemination on AWS. Decoded here, not an official product; for operational use see the NHC.</p>
 </main>
 
 <section class="dock" id="dock" hidden role="dialog" aria-label="Dropsonde sounding">
