@@ -148,7 +148,9 @@ def unit_factor(var: str, units: str) -> tuple[float, float]:
         if u == "Pa":
             return 0.01, 0.0
     elif var == "ssh":
-        if u == "m":
+        # eccodes has no name for ECCC's SeaSfcHeight-Geoid parameter and reports 'unknown'; read_members has already
+        # screened every member mean into -5..5, which only metres satisfy (cm would be +-500)
+        if u in ("m", "unknown"):
             return 100.0, 0.0
     elif var in ("u200", "v200", "u850", "v850"):
         if u in ("ms**-1", "m/s", "ms-1"):
@@ -165,7 +167,7 @@ def build_clim(var: str, month: int) -> dict:
     t0 = time.time()
     jobs = [(DDM.hc_dir(f"{y}{month:02d}") + DDM.hc_name(var, f"{y}{month:02d}", L), DDM.hc_path(var, f"{y}{month:02d}", L))
             for y in DDM.CLIM_YEARS for L in range(NL)]
-    paths = DDM.fetch_many(jobs, workers=8)
+    paths = DDM.fetch_many(jobs, workers=4)
     if any(q is None for q in paths):
         raise DDM.DataError(f"{var}: hindcast start month {month:02d} incomplete on the Datamart")
     nP, comps = len(PERIODS), list(DDM.COMPONENTS.values())
@@ -287,7 +289,7 @@ def draw_field(key, ym, idx, A, sig, comps, out: Path, nsig: float):
                wrap=205)
     MS.colorbar(fig, H, pm, f"anomaly ({units})", levels)
     out.parent.mkdir(parents=True, exist_ok=True)
-    MS.save(fig, out, dpi=105, quality=80)
+    MS.save(fig, out, dpi=100, quality=78)
 
 
 def draw_terciles(key, ym, idx, above, below, normal, out: Path):
@@ -317,7 +319,7 @@ def draw_terciles(key, ym, idx, above, below, normal, out: Path):
                + (" No snow on the ground in the hindcast leaves a cell empty." if key == "swe" else "")
                + " Data Source: Environment and Climate Change Canada.", wrap=190)
     out.parent.mkdir(parents=True, exist_ok=True)
-    MS.save(fig, out, dpi=100, quality=80)
+    MS.save(fig, out, dpi=100, quality=78)
 
 
 def draw_tail(key, ym, idx, prob, out: Path):
@@ -335,7 +337,7 @@ def draw_tail(key, ym, idx, prob, out: Path):
     cb = MS.colorbar(fig, H, pm, "probability", None, extend="neither")
     cb.set_ticks(TAIL_BINS[:-1] + [1.0]); cb.set_ticklabels([f"{int(b * 100)}%" for b in TAIL_BINS[:-1]] + ["100%"])
     out.parent.mkdir(parents=True, exist_ok=True)
-    MS.save(fig, out, dpi=100, quality=80)
+    MS.save(fig, out, dpi=100, quality=78)
 
 
 # ── ECCC probability products ────────────────────────────────────────────────
@@ -436,7 +438,7 @@ def main() -> int:
             if a.clim_only:
                 continue
             Xs = [forecast_members(v, ym)[0] for v in vs]
-        except DDM.DataError as e:
+        except (DDM.DataError, RuntimeError) as e:
             print(f"::warning::{key}: {e}"); failures.append(key); continue
         for suffix, sel in (("m", range(NL)), ("s", range(NL, len(PERIODS)))):
             name = f"cs_{key}_{suffix}"
@@ -466,7 +468,7 @@ def main() -> int:
                     idx = PERIODS[pi]
                     try:
                         f3 = prob_fields(ym, key, ["AboveNormal", "BelowNormal", "NearNormal"], idx)
-                    except DDM.DataError as e:
+                    except (DDM.DataError, RuntimeError) as e:
                         print(f"::warning::{name} {idx}: {e}"); f3 = None
                     if f3 is None:
                         continue
@@ -491,7 +493,7 @@ def main() -> int:
                     idx = PERIODS[pi]
                     try:
                         f1 = prob_fields(ym, pv, [prod], idx)
-                    except DDM.DataError as e:
+                    except (DDM.DataError, RuntimeError) as e:
                         print(f"::warning::{name} {idx}: {e}"); f1 = None
                     if f1 is None:
                         continue

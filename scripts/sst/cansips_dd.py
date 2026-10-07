@@ -139,7 +139,7 @@ def hc_dir(ym: str) -> str:
     return f"{dd_root()}/hindcast/{ym[:4]}/{ym[4:]}/"
 
 
-def fetch(url: str, dest: Path, tries: int = 5) -> Path | None:
+def fetch(url: str, dest: Path, tries: int = 8) -> Path | None:
     """GET to dest (atomic). None on 404. A GRIB that does not end in '7777' is a truncated transfer."""
     if dest.exists() and dest.stat().st_size > 0:
         return dest
@@ -159,11 +159,11 @@ def fetch(url: str, dest: Path, tries: int = 5) -> Path | None:
             return dest
         except Exception as e:                                         # noqa: BLE001
             print(f"  GET {url.rsplit('/', 1)[-1]} attempt {k+1}: {str(e)[:90]}", file=sys.stderr)
-            time.sleep(6 * (k + 1))
+            time.sleep(min(90, 8 * 2 ** k))           # the Datamart drops connections under load: back off hard
     raise RuntimeError(f"Datamart download failed after {tries} tries: {url}")
 
 
-def fetch_many(jobs: list[tuple[str, Path]], workers: int = 6) -> list[Path | None]:
+def fetch_many(jobs: list[tuple[str, Path]], workers: int = 4) -> list[Path | None]:
     with cf.ThreadPoolExecutor(workers) as ex:
         return list(ex.map(lambda j: fetch(*j), jobs))
 
