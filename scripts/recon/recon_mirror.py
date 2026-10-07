@@ -49,7 +49,7 @@ PRODUCTS = ["AHONT1", "REPNT1", "REPNT2", "REPNT3", "REPRPD"]     # Atlantic (RE
 HCOLS = ["t", "la", "lo", "p", "z", "x", "dv", "t_", "td", "wd", "ws", "wp", "sfmr", "rr", "qc"]
 NOW = datetime.now(UTC)
 CODE_V = 3                 # bump when the manifest's derived fields or the storm assignment change
-PASS_V = 1                 # bump when the per-pass (leg) summary or the eye-sonde estimate changes
+PASS_V = 2                 # bump when the per-pass (leg) summary or the eye-sonde estimate changes
 
 
 def log(*a):
@@ -292,6 +292,7 @@ SEC_OUT_NM = 10.0      # secondary maximum: at least this far outside the RMW ..
 SEC_KT = 5.0           # ... and this much above the wind minimum inside it and outside it (within SEC_SPAN_NM)
 SEC_SPAN_NM = 20.0
 SEC_FRAC = 0.5         # ... and at least half the leg's maximum wind (outer rainbands are not secondary maxima)
+SEC_MIN_VMAX = 64      # only on legs whose maximum flight-level wind is of hurricane force (no eyewall otherwise)
 
 
 def centre_fn(fixes, btk):
@@ -351,7 +352,10 @@ def secondary_max(pts, rmw, vmax):
     """pts: [(r, v)] FL wind along one leg. On the smoothed profile (smooth_profile: 1 n mi bins, 5 n mi running
     mean), a secondary wind maximum is the highest point within +-5 n mi, at least SEC_OUT_NM outside the RMW,
     at least SEC_KT above the lowest smoothed wind between it and the RMW, and SEC_KT above the lowest smoothed wind
-    in the SEC_SPAN_NM outside it (so its outer side must be sampled), and at least SEC_FRAC of the leg's maximum. Returns (r, v, dip) of the strongest, or None."""
+    in the SEC_SPAN_NM outside it (so its outer side must be sampled), and at least SEC_FRAC of the leg's maximum, on legs
+    whose maximum is at least SEC_MIN_VMAX. Returns (r, v, dip) of the strongest, or None."""
+    if vmax < SEC_MIN_VMAX:
+        return None
     sp = smooth_profile(pts)
     best = None
     for r, v in sp:

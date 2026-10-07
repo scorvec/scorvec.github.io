@@ -960,7 +960,7 @@
   segClick("tdrVar", k => { T.v[T.prod] = k; });
 
   // ── centre track and passes (a port of recon_mirror.centre_fn / legs / secondary_max: keep the two in step) ──
-  const NMI = 1.852, PASS_R = 20, LEG_MAX_R = 150, TURN_NM = 5, SEC_OUT_NM = 10, SEC_KT = 5, SEC_SPAN_NM = 20, SEC_FRAC = 0.5;
+  const NMI = 1.852, PASS_R = 20, LEG_MAX_R = 150, TURN_NM = 5, SEC_OUT_NM = 10, SEC_KT = 5, SEC_SPAN_NM = 20, SEC_FRAC = 0.5, SEC_MIN_VMAX = 64;
   const rad = Math.PI / 180;
   function gkm(a, b, c, d) {
     const p1 = a * rad, p2 = c * rad, dp = p2 - p1, dl = (d - b) * rad;
@@ -1018,6 +1018,7 @@
     return out;
   }
   function secondaryMax(pts, rmw, vmax) {
+    if (vmax < SEC_MIN_VMAX) return null;
     const sp = smoothProfile(pts);
     let best = null;
     for (const [r, v] of sp) {
@@ -1109,12 +1110,12 @@
     $("radTbl").innerHTML = R.legs.length ? `<table><thead><tr><th>Centre pass</th><th>Leg</th><th>To (n mi)</th><th>Max FL wind (RMW)</th><th>Max SFMR (radius)</th><th>Secondary FL maximum</th></tr></thead><tbody>` +
       R.legs.map((g, i) => `<tr class="click" data-i="${i}"><td><i style="display:inline-block;width:0.8em;height:0.8em;border-radius:2px;background:${legCol(i)};margin-right:0.35em"></i>${hm(g.tc)}Z</td><td>${g.dir < 0 ? "inbound" : "outbound"}</td><td>${Math.round(g.rmax)}</td>` +
         `<td>${g.ws ? `${g.ws[0]} kt (${g.ws[1].toFixed(0)} n mi)` : "—"}</td><td>${g.sfmr ? `${g.sfmr[0]} kt (${g.sfmr[1].toFixed(0)} n mi)` : "—"}</td>` +
-        `<td${g.sec ? ' class="flag"' : ""}>${g.sec ? `${Math.round(g.sec[1])} kt at ${g.sec[0].toFixed(0)} n mi (dip ${g.sec[2].toFixed(0)} kt inside)` : '<span class="mu">none</span>'}</td></tr>`).join("") + "</tbody></table>" : "";
+        `<td${g.sec ? ' class="flag"' : ""}>${g.sec ? `${Math.round(g.sec[1])} kt at ${g.sec[0].toFixed(0)} n mi (dip ${g.sec[2].toFixed(0)} kt inside)` : `<span class="mu">${g.ws && g.ws[0] < SEC_MIN_VMAX ? `not looked for (leg below ${SEC_MIN_VMAX} kt)` : "none"}</span>`}</td></tr>`).join("") + "</tbody></table>" : "";
     $("radTbl").querySelectorAll("tr[data-i]").forEach(tr => tr.onclick = () => { const g = R.legs[+tr.dataset.i]; if (g.ws) goTime(g.ws[2], true); });
     $("radNote").innerHTML = `<b>Radius of maximum wind</b> (circle): where the leg's highest 30-s flight-level wind (or SFMR, when shown) was observed. ` +
       `<b>Secondary wind maximum</b> (triangle, flight-level wind only): on the leg's profile averaged into 1 n mi bins and smoothed over 5 n mi, the highest point within ±5 n mi that lies at least ${SEC_OUT_NM} n mi outside the RMW, ` +
       `is at least ${SEC_KT} kt above the lowest wind between it and the RMW and above the lowest wind in the ${SEC_SPAN_NM} n mi outside it (which must be sampled), and is at least half the leg's maximum ` +
-      `(so outer rainbands do not count). A flag, not a diagnosis of an eyewall replacement: it depends on where the aircraft flew.`;
+      `(so outer rainbands do not count), on legs whose maximum is ${SEC_MIN_VMAX} kt or more. A flag, not a diagnosis of an eyewall replacement: it depends on where the aircraft flew.`;
     radDraw();
   }
   function radDraw() {
