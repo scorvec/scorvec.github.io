@@ -813,7 +813,7 @@ def main():
                             for k, v in hsingle.items() if v is not None})
     adm = dict(rule=dict(tol_r=TOL_R, tol_peak=TOL_PEAK, tol_episode=TOL_EP),
                episodes=[dict(code=c, name=n, start=s_, end=e_) for c, n, s_, e_ in EPISODES],
-               before=ev(m0), after=ev(m1), admitted=[k for k in head if k not in BASE], greedy=[k for k in greedy if k not in BASE],
+               before=ev(m0), after=ev(m1), admitted=[k for k in head1 if k not in BASE], greedy=[k for k in greedy if k not in BASE],
                path=path, single=single, labels={k: ALL[k][0] for k in CAND},
                ineligible=[k for k, v in single.items() if v is None],
                r_old_new=round(float(j.corr().iloc[0, 1]), 3),
