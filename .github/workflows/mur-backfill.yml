@@ -33,9 +33,15 @@ jobs:
         run: |
           mkdir -p scripts/sst/data/mur
           gh release download mur-series-v1 -p nino34_series.json -D scripts/sst/data/mur --clobber || true
+      # The series is saved after every 60-day chunk, so a step that hits its limit keeps what it fetched; Publish runs
+      # regardless and the next dispatch resumes (chunks already complete are skipped). 2026-10-07: the first run reached
+      # mid-2025 against a slow ERDDAP, hit the 300-min job cap and published nothing.
       - name: Backfill
+        timeout-minutes: 270
+        continue-on-error: true
         run: python scripts/sst/mur_nino34.py --backfill
       - name: Publish
+        if: always()
         run: |
           f=scripts/sst/data/mur/nino34_series.json
           [ -s "$f" ] || { echo "::error::no series built"; exit 1; }
