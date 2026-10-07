@@ -119,4 +119,30 @@ with tempfile.TemporaryDirectory() as tmp:
     check(len(man["pods"]) == 1, man.get("pods"))
     print(json.dumps({k: {kk: v[kk] for kk in ("storm", "how", "n_hdob", "n_drop", "max_fl", "min_x")}
                       for k, v in ms.items()}, indent=1))
+# ── TDR mirror: time resolution, file classes, centre screen (names as listed on AOML 2026-10-07) ──
+import tdr_mirror as TM  # noqa: E402
+_d = datetime(2026, 10, 7, tzinfo=UTC)
+check(TM.resolve(_d, "1647", ts("2026-10-07 17:41:00")) == ts("2026-10-07 16:47:00"), "same-day analysis")
+check(TM.resolve(datetime(2026, 9, 28, tzinfo=UTC), "0431", ts("2026-09-29 11:32:00")) == ts("2026-09-29 04:31:00"), "wrapped hour")
+check(TM.resolve(datetime(2024, 10, 8, tzinfo=UTC), "2446") == ts("2024-10-09 00:46:00"), "hour 24+ (2024 style)")
+_c = TM.classify("20261007I1", "swaths", "261007I1_ISAIAS_1647_dbz_ws_1.0km.png", ts("2026-10-07 17:41:00"))
+check(_c and _c["kind"] == "sw" and _c["h"] == 1 and _c["storm"] == "ISAIAS", _c)
+check(TM.classify("20261007I1", "swaths", "261007I1_ISAIAS_1647_dbz_ws_4.0km.png", None) is None, "4 km not kept")
+check(TM.classify("20261007I1", "swaths", "261007I1_ISAIAS_1647_vort_w_1.0km.png", None) is None, "vort_w not kept")
+_c = TM.classify("20241008H1", "composites", "241008H1_MILTON_2141_2446_ws_nhc_planview.png", None)
+check(_c["t1"] - _c["t0"] == 3 * 3600 + 5 * 60 and _c["v"] == "nhc", _c)
+_ok = """TDR center info from 261007I1_1647_xy.nc:
+
+Alt (km)  Lat (deg)  Lon (deg W)
+0.5       22.42      93.48
+2.0       22.43      93.48
+3.0       22.45      93.46
+6.0       99.99      99.99
+
+2-6-km Vortex Tilt:  13.4 km  at  63 deg
+"""
+_r, _w = TM.parse_centres(_ok, "261007I1", "1647")
+check(_r["c"]["2"] == [22.43, -93.48] and "6" not in _r["c"] and _r["tilt"] == [13.4, 63], _r)
+_r, _w = TM.parse_centres(_ok.replace("261007I1_1647", "260908N1_2507"), "261006N1", "2022")
+check(_r is None and "260908N1_2507" in _w, _w)            # a stale copy of another flight's file
 print("all recon checks passed")

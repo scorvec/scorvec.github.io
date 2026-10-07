@@ -135,6 +135,28 @@
   details.about summary { cursor: pointer; font-weight: 600; }
   details.about p, details.about li { line-height: 1.5; max-width: 100ch; }
   details.about pre { white-space: pre-wrap; font-size: 0.82rem; background: var(--soft); padding: 0.6rem; border-radius: 6px; max-height: 420px; overflow: auto; }
+  /* tail Doppler radar (AOML HRD real-time graphics, tdr-data branch) */
+  .tdr { margin-top: 0.8rem; padding: 0.6rem 0.75rem 0.7rem; }
+  .tdr[hidden] { display: none; }
+  .tdr-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.3rem 0.7rem; }
+  .tdr-head h2 { font-family: var(--f-serif, serif); font-weight: 500; font-size: 1.2rem; margin: 0; }
+  .tdr-badge { font-size: 0.8rem; font-weight: 600; color: var(--warn-ink); background: var(--warn-bg); border: 1px solid var(--warn-bd);
+    border-radius: 999px; padding: 0.05rem 0.55rem; }
+  .tdr .sub { font-size: 0.9rem; color: var(--muted); margin: 0.25rem 0 0.5rem; line-height: 1.45; max-width: 110ch; }
+  .tdr-ctl { display: flex; flex-wrap: wrap; gap: 0.45rem 0.9rem; align-items: flex-end; margin: 0 0 0.45rem; }
+  .tdr-ctl label { font-size: 0.86rem; color: var(--muted); display: flex; flex-direction: column; gap: 0.15rem; min-width: 0; max-width: 100%; }
+  .tdr-ctl label[hidden] { display: none; }
+  .tdr .seg button { padding: 0.4rem 0.6rem; font-size: 0.9rem; font-variant-numeric: tabular-nums; }
+  .tdr-fig { margin: 0; }
+  .tdr-fig .frame { background: #fff; border: 1px solid var(--rule); border-radius: 6px; overflow: hidden; min-height: 120px;
+    display: flex; align-items: center; justify-content: center; }
+  .tdr-fig img { display: block; width: 100%; height: auto; max-height: 82vh; object-fit: contain; }
+  .tdr-fig img.sq { width: auto; max-width: 100%; max-height: 78vh; }
+  .tdr-fig .ph { color: #5d5a54; font-size: 0.92rem; padding: 2rem 1rem; }
+  .tdr-fig figcaption { font-size: 0.88rem; line-height: 1.45; margin: 0.4rem 0 0; max-width: 120ch; }
+  .tdr-fig figcaption .mu, .tdr .mu { color: var(--muted); }
+  .tdr-fig figcaption a, .tdr .sub a { color: var(--accent); }
+  .tdr .tbl { margin-top: 0.5rem; }
   .credit { font-size: 0.88rem; color: var(--muted); margin: 0.9rem 0 0; line-height: 1.5; }
   .credit a { color: var(--accent); }
 
@@ -340,6 +362,26 @@
     <div id="tsread"></div>
   </div>
 
+  <section class="card tdr" id="tdr" hidden aria-labelledby="tdrH">
+    <div class="tdr-head"><h2 id="tdrH">Tail Doppler radar</h2><span class="tdr-badge">Real time · automated quality control</span></div>
+    <p class="sub" id="tdrSub"></p>
+    <div class="tdr-ctl">
+      <label>Product <span class="seg" id="tdrProd" role="group" aria-label="Tail Doppler radar product"></span></label>
+    </div>
+    <div class="tdr-ctl">
+      <label id="tdrTimeL">Analysis <span class="seg" id="tdrTime" role="group" aria-label="Analysis time"></span></label>
+      <label id="tdrHgtL">Height <span class="seg" id="tdrHgt" role="group" aria-label="Height"></span></label>
+      <label id="tdrVarL">Field <span class="seg" id="tdrVar" role="group" aria-label="Field"></span></label>
+    </div>
+    <figure class="tdr-fig"><div class="frame" id="tdrFrame"></div><figcaption id="tdrCap"></figcaption></figure>
+    <div class="tbl" id="tdrCtr"></div>
+    <p class="credit">Tail Doppler radar graphics: NOAA AOML Hurricane Research Division (real-time TDR graphics,
+      <a href="https://www.aoml.noaa.gov/ftp/pub/hrd/data/RTradar/">aoml.noaa.gov/ftp/pub/hrd/data/RTradar</a>, compiled by P. Reasor);
+      the real-time analyses are run aboard the aircraft by NOAA OMAO's Aircraft Operations Center (since 2026). Real time with
+      automated quality control: not the post-season quality-controlled Level 2 data. Images are mirrored unchanged (re-encoded
+      losslessly as WebP).</p>
+  </section>
+
   <div class="lists">
     <div class="card"><h2>Dropsondes</h2><div class="tbl" id="drops"></div></div>
     <div class="card"><h2>Vortex fixes</h2><div class="tbl" id="vdms"></div></div>
@@ -372,6 +414,17 @@
         maximum flight-level winds placed at their bearing and range from the centre.</li>
       <li><b>Storm</b>: a mission belongs to the storm in its mission number (e.g. 0209A = storm 09); a surveillance mission without one
         (the NOAA G-IV) is put with the nearest storm and says so. Best track and official forecast: NHC ATCF b-deck and forecast file.</li>
+      <li><b>Tail Doppler radar</b> (NOAA WP-3D and G-IV only): the real-time graphics of NOAA AOML's Hurricane Research
+        Division, mirrored about every 15 minutes. They appear about 70 minutes after each centre fix (analysis about 50 minutes,
+        transmission, graphics). Each <i>swath</i> is one analysis from one pass through the storm (2 km by 2 km by 0.5 km grid); the
+        <i>composites</i>, azimuthal means, tilt and zoom merge the passes so far around the centre found by the Fischer et al. (2022, 2024)
+        method, or, when none is found, around the centre the radar operator gave. HRD warns that the composites may not be storm
+        centred and may not be meaningful in storms weaker than hurricanes: check the individual swaths first. The high-resolution
+        in/outbound profiles are no longer made in real time from 2026. TDR centres (0.5, 2, 3 and 6 km) come from HRD's centre files;
+        a file that names a different analysis, or whose centre is more than 100 km from the vortex-message fixes (200 km from the best
+        track when there is no fix), is not drawn. A flight is matched to its NHC mission by aircraft (H = NOAA2 N42RF, I = NOAA3 N43RF,
+        N = NOAA9 N49RF), storm name and time. Kept: the swaths at 1, 2, 3, 5, 8 and 10 km for every analysis and every composite;
+        the azimuthal means, tilt, zoom and centre map for the latest composite only.</li>
       <li><b>Freshness</b>: a mirror in GitHub Actions reads the NHC archive every 15 minutes, and again 7 minutes later while a mission is
         airborne; NHC posts each message a few minutes after it is sent. The page asks for new data every 90 s while a mission is flying.</li>
     </ul>

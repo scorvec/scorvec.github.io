@@ -13,7 +13,9 @@ name: Recon mirror
 # only the in-season backstop for when the laptop is off (Actions honours few crons in this repo).
 # Off-season (Dec-May) with no Atlantic storm the script checks NHC at most every 2 h.
 # Backfill (dispatch only): `gh workflow run recon.yml -f backfill="2024 AL14"` mirrors every mission of one
-# past storm and pins it (kept when the season's missions are pruned).
+# past storm and pins it (kept when the season's missions are pruned); the same run backfills its TDR graphics.
+# TDR: scripts/recon/tdr_mirror.py mirrors NOAA AOML HRD real-time tail Doppler radar graphics (RTradar) for the
+# NOAA P-3/G-IV missions in the manifest to the `tdr-data` branch (images as lossless WebP).
 
 on:
   schedule:
@@ -76,6 +78,19 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      # NOAA P-3 / G-IV tail Doppler radar graphics (AOML HRD, real time) -> tdr-data branch, matched to the missions
+      # above. Separate branch and a blob-less clone: a run downloads no images, and pushes only new ones.
+      - name: Tail Doppler radar
+        id: tdr
+        continue-on-error: true      # a TDR failure must never hold up the HDOB mirror
+        env:
+          BACKFILL: ${{ inputs.backfill }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          args=()
+          [ -n "$BACKFILL" ] && args+=(--backfill "$BACKFILL")
+          python3 scripts/recon/tdr_mirror.py --manifest /tmp/recon-data "${args[@]}"
+
       - name: Second pass (a mission is airborne)
         id: m2
         if: steps.m1.outputs.airborne == 'true' && inputs.backfill == ''
@@ -88,3 +103,10 @@ jobs:
         run: bash scripts/recon/push_data.sh /tmp/recon-data "$GITHUB_WORKSPACE/prev-data"
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Tail Doppler radar (second pass)
+        if: steps.m2.outcome == 'success'
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: python3 scripts/recon/tdr_mirror.py --manifest /tmp/recon-data

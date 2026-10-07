@@ -7,19 +7,19 @@
   // ── hosts ────────────────────────────────────────────────────────────────
   // To serve through the Bunny CDN first (once its Edge Rule caches /recon-data/* for 60 s), put "cdn" first here.
   const HOSTS = ["raw", "jsd", "api"];
-  const REPO = "scorvec/scorvec.github.io", BR = "recon-data";
+  const REPO = "scorvec/scorvec.github.io", BR = "recon-data", TBR = "tdr-data";
   const URLS = {
-    cdn: p => [`https://frames.scorvec.com/${BR}/${p}`],
-    raw: (p, b) => [`https://raw.githubusercontent.com/${REPO}/${BR}/${p}${b ? "?t=" + encodeURIComponent(b) : ""}`],
-    jsd: p => [`https://cdn.jsdelivr.net/gh/${REPO}@${BR}/${p}`],
-    api: p => [`https://api.github.com/repos/${REPO}/contents/${p}?ref=${BR}`, { headers: { Accept: "application/vnd.github.raw" } }],
+    cdn: (p, b, br = BR) => [`https://frames.scorvec.com/${br}/${p}`],
+    raw: (p, b, br = BR) => [`https://raw.githubusercontent.com/${REPO}/${br}/${p}${b ? "?t=" + encodeURIComponent(b) : ""}`],
+    jsd: (p, b, br = BR) => [`https://cdn.jsdelivr.net/gh/${REPO}@${br}/${p}`],
+    api: (p, b, br = BR) => [`https://api.github.com/repos/${REPO}/contents/${p}?ref=${br}`, { headers: { Accept: "application/vnd.github.raw" } }],
   };
   // fresh = a file that changes (manifest, an airborne mission): api (always fresh) before jsDelivr (cached ~12 h)
-  async function dataFetch(path, bust, fresh) {
+  async function dataFetch(path, bust, fresh, br) {
     let order = HOSTS.slice();
     if (fresh) order = order.filter(h => h !== "jsd").concat(order.includes("jsd") ? ["jsd"] : []);
     for (let i = 0; i < order.length; i++) {
-      const [u, opt] = URLS[order[i]](path, bust);
+      const [u, opt] = URLS[order[i]](path, bust, br);
       try {
         const r = await fetch(u, opt);
         if (r.ok) return await r.json();
@@ -88,7 +88,7 @@
   const rend = L.canvas({ padding: 0.3, tolerance: 6 });
   const lyr = { btk: L.layerGroup().addTo(map), fixes: L.layerGroup().addTo(map), track: L.layerGroup().addTo(map),
                 barbs: L.layerGroup().addTo(map), drops: L.layerGroup().addTo(map), vdm: L.layerGroup().addTo(map),
-                hover: L.layerGroup().addTo(map) };
+                hover: L.layerGroup().addTo(map), tdr: L.layerGroup().addTo(map) };
   if (window.ResizeObserver) new ResizeObserver(() => map.invalidateSize()).observe($("map"));
 
   // ── load ─────────────────────────────────────────────────────────────────
@@ -112,7 +112,7 @@
       fillMissions();
       const cur = S.key && man.missions[S.key];
       if (cur && prevMis && (cur.bytes !== prevMis.bytes || cur.last !== prevMis.last)) await openMission(S.key, true);
-      else status();
+      else { status(); if (cur) tdrLoad(S.key, true); }      // TDR graphics arrive ~70 min after each fix, even after landing
     }
     pod();
     return true;
@@ -186,10 +186,12 @@
     prepRows();
     drawMission(!refresh);
     side(); lists(); drawTS(); status(); drawFixTrack(S.sid);
+    tdrLoad(key, refresh);
   }
   function clearMission() {
     S.mis = null; S.key = null; S.rows = [];
-    for (const k of ["track", "barbs", "drops", "vdm", "hover"]) lyr[k].clearLayers();
+    for (const k of ["track", "barbs", "drops", "vdm", "hover", "tdr"]) lyr[k].clearLayers();
+    T.doc = null; $("tdr").hidden = true;
     $("side").innerHTML = `<h2>Mission</h2><p class="empty">No reconnaissance has been flown into this storm yet. The plan of the day below lists what is tasked.</p>`;
     $("drops").innerHTML = $("vdms").innerHTML = `<p class="empty">—</p>`;
     $("legend").innerHTML = ""; drawTS();
@@ -427,6 +429,7 @@
     }
     h += `<span class="sw"><i style="background:#9a9a9a;height:2px"></i><span class="mu">no valid value (missing or flagged)</span></span>`;
     h += `<span class="sw mu">Dots: dropsondes (est. surface wind) · red crosses: vortex fixes · barbs: flight-level wind</span>`;
+    if (T.doc && T.doc.key === S.key && T.doc.centres.some(c => c.c)) h += `<span class="sw mu"><i style="background:${TDRC};height:0.7em;width:0.7em;transform:rotate(45deg)"></i>TDR centres (2 km; line to the 6 km centre)</span>`;
     $("legend").innerHTML = h;
   }
   function stat(label, o, unit, fmt) {
@@ -728,6 +731,184 @@
   function closeDock() { $("dock").hidden = true; }
   $("dockX").onclick = closeDock;
   document.addEventListener("keydown", e => { if (e.key === "Escape" && !$("dock").hidden) { closeDock(); e.preventDefault(); } });
+
+  // ── tail Doppler radar (NOAA AOML HRD real-time graphics, mirrored to the tdr-data branch) ──
+  const TDRC = "#0f8b8d";
+  const T = { idx: null, idxAt: 0, doc: null, prod: "sw", ti: -1, h: "1", v: {} };
+  try { const q = JSON.parse(localStorage.getItem("recon.tdr") || "{}"); if (q.prod) T.prod = q.prod; if (q.h) T.h = q.h; } catch (e) { /* storage blocked */ }
+  const tdrSave = () => { try { localStorage.setItem("recon.tdr", JSON.stringify({ prod: T.prod, h: T.h })); } catch (e) { /* blocked */ } };
+  const HGTS = ["1", "2", "3", "5", "8", "10"];
+  const rng = (a, b) => `${hm(a)}–${hm(b)}Z`;
+  const PRODS = {
+    sw: { lab: "Swath", times: d => d.analyses.filter(a => Object.keys(a.sw).length).map(a => ({ k: a.t, lab: hm(a.t) })) },
+    comp: { lab: "Composite", times: d => d.composites.map(c => ({ k: c.t1, lab: rng(c.t0, c.t1) })),
+            vars: [["dbz", "Reflectivity and 2 km wind"], ["nhc", "0.5 km and flight-level wind"]] },
+    zoom: { lab: "Inner core", one: d => d.latest.zoom },
+    tilt: { lab: "Vortex tilt", one: d => d.latest.tilt },
+    rz: { lab: "Azimuthal means", one: d => d.latest.rz, vars: [["vt", "Tangential wind"], ["ur", "Radial wind"], ["dbz", "Reflectivity"]] },
+    prof: { lab: "Profiles", times: d => d.analyses.filter(a => a.prof).map(a => ({ k: a.t, lab: hm(a.t) })),
+            vars: [["ws", "Wind speed"], ["dbz", "Reflectivity"], ["vr_rel", "Radial wind"], ["PBL_rel", "Boundary layer"]] },
+    ctr: { lab: "Centres", one: d => d.latest.ctr || (d.centres.length ? {} : null) },
+  };
+  const has = (d, k) => PRODS[k].times ? PRODS[k].times(d).length > 0 : !!PRODS[k].one(d);
+
+  async function tdrIndex(force) {
+    const air = Object.values(S.man.missions).some(isAir);
+    if (T.idx && !force && Date.now() - T.idxAt < (air ? 90e3 : 600e3)) return T.idx;
+    try { T.idx = await dataFetch("index.json", Math.floor(Date.now() / 60000), true, TBR) || { missions: {} }; T.idxAt = Date.now(); }
+    catch (e) { /* mirror unreachable: keep what we had */ }
+    return T.idx;
+  }
+  async function tdrLoad(key, refresh) {
+    const m = S.man.missions[key];
+    if (!m || !/^NOAA/.test(m.aircraft || "")) { T.doc = null; lyr.tdr.clearLayers(); $("tdr").hidden = true; return; }
+    const idx = await tdrIndex(refresh);
+    if (S.key !== key) return;
+    const e = idx && idx.missions && idx.missions[key];
+    if (!e) {
+      T.doc = null; lyr.tdr.clearLayers();
+      $("tdr").hidden = false;
+      $("tdrSub").innerHTML = isAir(m) ? "No tail Doppler radar analyses from this flight in the HRD real-time archive yet; each appears about 70 minutes after its centre fix."
+        : "No tail Doppler radar graphics from this flight in the HRD real-time archive.";
+      for (const id of ["tdrProd", "tdrTime", "tdrHgt", "tdrVar"]) $(id).innerHTML = "";
+      $("tdrTimeL").hidden = $("tdrHgtL").hidden = $("tdrVarL").hidden = true;
+      $("tdrProd").parentElement.hidden = true;
+      $("tdrFrame").hidden = true; $("tdrCap").innerHTML = ""; $("tdrCtr").innerHTML = "";
+      return;
+    }
+    if (refresh && T.doc && T.doc.key === key && T.docLast === e.last && T.docN === e.n_img) return;
+    let d;
+    try { d = await dataFetch(e.file, e.last + "_" + e.n_img + "_" + e.n_ctr, isAir(m), TBR); } catch (err) { return; }
+    if (S.key !== key || !d) return;
+    const first = !T.doc || T.doc.key !== key;
+    T.doc = d; T.docLast = e.last; T.docN = e.n_img;
+    if (first) T.ti = -1;
+    $("tdr").hidden = false; $("tdrProd").parentElement.hidden = false; $("tdrFrame").hidden = false;
+    const nC = d.centres.filter(c => c.c).length, nBad = d.centres.length - nC;
+    $("tdrSub").innerHTML = `HRD flight <b>${esc(d.id)}</b> (${esc(d.tail || d.aircraft)}), matched to ${esc(m.aircraft)} ${esc(m.mission)} by ${esc(d.how)}. ` +
+      `${d.analyses.length} analys${d.analyses.length === 1 ? "is" : "es"}, ${d.composites.length} composite${d.composites.length === 1 ? "" : "s"}` +
+      `${d.centres.length ? `, ${nC} TDR centre${nC === 1 ? "" : "s"} on the map${nBad ? ` (${nBad} not drawn: no centre found, or failed the check)` : ""}` : ""}. ` +
+      `<a href="${esc(d.src)}">Originals at AOML</a>.`;
+    tdrCentres();
+    legend();
+    tdrUI();
+  }
+  function tdrCentres() {
+    lyr.tdr.clearLayers();
+    const d = T.doc; if (!d) return;
+    const cur = tdrTime();
+    for (const c of d.centres) {
+      if (!c.c) continue;
+      const p = c.c["2"] || c.c["05"] || c.c["3"], p6 = c.c["6"];
+      if (!p) continue;
+      const on = cur && Math.abs(cur - c.t) < 60;
+      if (p6) L.polyline([p, p6], { renderer: rend, color: TDRC, weight: on ? 3 : 2, interactive: false }).addTo(lyr.tdr);
+      if (p6) L.circleMarker(p6, { renderer: rend, radius: 2.5, color: TDRC, weight: 1.5, fillColor: TDRC, fillOpacity: 1, interactive: false }).addTo(lyr.tdr);
+      const sz = on ? 18 : 13;
+      const lv = [["05", "0.5"], ["2", "2"], ["3", "3"], ["6", "6"]].filter(([k]) => c.c[k]).map(([k, l]) => `${l} km ${ll(c.c[k][0], c.c[k][1])}`).join("<br>");
+      L.marker(p, { zIndexOffset: 400, icon: L.divIcon({ className: "", iconSize: [sz, sz], iconAnchor: [sz / 2, sz / 2],
+        html: `<svg width="${sz}" height="${sz}" viewBox="0 0 20 20"><path d="M10 1 L19 10 L10 19 L1 10 Z" fill="${on ? TDRC : "#fff"}" stroke="${TDRC}" stroke-width="2.5"/></svg>` }) })
+        .bindTooltip(`<b>TDR centre ${hm(c.t)}Z</b><br>${lv}${c.tilt ? `<br>2–6 km tilt ${c.tilt[0]} km toward ${c.tilt[1]}°` : ""}` +
+          `${c.ref ? `<br><span style="color:#5d5a54">${c.ref[1]} km from the ${esc(c.ref[0])}</span>` : ""}<br><i>click: show this analysis</i>`)
+        .on("click", () => { const i = PRODS.sw.times(d).findIndex(x => Math.abs(x.k - c.t) < 60); if (i >= 0) { T.prod = "sw"; T.ti = i; tdrUI(); $("tdr").scrollIntoView({ behavior: "smooth", block: "start" }); } })
+        .addTo(lyr.tdr);
+    }
+  }
+  function tdrTime() {
+    const d = T.doc, P = PRODS[T.prod]; if (!d || !P || !P.times) return null;
+    const ts = P.times(d); if (!ts.length) return null;
+    const i = T.ti < 0 || T.ti >= ts.length ? ts.length - 1 : T.ti;
+    return T.prod === "comp" ? null : ts[i].k;
+  }
+  function segHTML(items, on) {
+    return items.map(([k, lab]) => `<button type="button" data-k="${esc(k)}"${String(k) === String(on) ? ' class="on" aria-pressed="true"' : ' aria-pressed="false"'}>${esc(lab)}</button>`).join("");
+  }
+  function tdrUI() {
+    const d = T.doc; if (!d) return;
+    const avail = Object.keys(PRODS).filter(k => has(d, k));
+    if (!avail.includes(T.prod)) T.prod = avail[0] || "sw";
+    $("tdrProd").innerHTML = segHTML(avail.map(k => [k, PRODS[k].lab]), T.prod);
+    const P = PRODS[T.prod];
+    // time
+    const ts = P.times ? P.times(d) : [];
+    if (T.ti >= ts.length) T.ti = -1;
+    const ti = T.ti < 0 ? ts.length - 1 : T.ti;
+    $("tdrTimeL").hidden = !ts.length;
+    $("tdrTimeL").firstChild.textContent = T.prod === "comp" ? "Passes merged " : "Analysis (centre fix) ";
+    $("tdrTime").innerHTML = segHTML(ts.map((t, i) => [i, t.lab]), ti);
+    // height (swath)
+    const a = T.prod === "sw" && ts.length ? d.analyses.find(x => x.t === ts[ti].k) : null;
+    const hs = a ? HGTS.filter(h => a.sw[h]) : [];
+    if (a && !hs.includes(T.h)) T.h = hs[0];
+    $("tdrHgtL").hidden = !a;
+    $("tdrHgt").innerHTML = segHTML(hs.map(h => [h, h + " km"]), T.h);
+    // field
+    let vars = P.vars || [];
+    let src = null, cap = "", sq = false;
+    if (T.prod === "sw" && a) {
+      src = a.sw[T.h];
+      cap = `<b>Swath, ${hm(a.t)}Z analysis, ${T.h} km</b>: reflectivity (left) and wind speed in knots (right) from this one pass, ` +
+        `earth-relative, with the analysis' centre fix in the corner. ${T.h === "1" ? "1 km is the lowest level shown and the nearest to the surface wind, which is weaker than the wind at 1 km. " : ""}` +
+        `Gaps are where the radar saw no scatterers.`;
+    } else if (T.prod === "comp" && ts.length) {
+      const c = d.composites[ti];
+      vars = vars.filter(([k]) => c[k]);
+      const v = vars.some(([k]) => k === T.v.comp) ? T.v.comp : (vars[0] || [])[0];
+      T.v.comp = v; src = c[v];
+      cap = `<b>Composite of the passes ${rng(c.t0, c.t1)}</b>: ${v === "nhc" ? "wind speed at 0.5 km (left) and at 2.5 km, about flight level (right)" : "reflectivity (left) and wind speed with streamlines at 2 km (right)"}, ` +
+        `around the mean centre. HRD: composites may not be storm centred, and in storms weaker than hurricanes may not be meaningful; check the swaths first.`;
+    } else if (T.prod === "rz") {
+      const r = d.latest.rz, v = vars.some(([k]) => k === T.v.rz && r[k]) ? T.v.rz : vars.find(([k]) => r[k])[0];
+      vars = vars.filter(([k]) => r[k]); T.v.rz = v; src = r[v];
+      cap = `<b>Azimuthal means, passes ${rng(r.t0, r.t1)}</b> (latest composite): ${{ vt: "tangential wind", ur: "radial wind", dbz: "reflectivity" }[v]} against radius and height, ` +
+        `2 km by 0.5 km grid, around the composite centre (same caveat as the composites).`;
+    } else if (T.prod === "zoom" || T.prod === "tilt") {
+      const z = d.latest[T.prod]; src = z.img;
+      cap = T.prod === "zoom" ? `<b>Inner 80 km, passes ${rng(z.t0, z.t1)}</b> (latest composite): reflectivity and wind with streamlines.`
+        : `<b>Vorticity and vortex tilt, passes ${rng(z.t0, z.t1)}</b> (latest composite), storm-relative flow; the arrow is the tilt of the vortex centre with height (1 km steps).`;
+    } else if (T.prod === "prof" && ts.length) {
+      const pa = d.analyses.find(x => x.t === ts[ti].k);
+      vars = vars.filter(([k]) => pa.prof[k]);
+      const v = vars.some(([k]) => k === T.v.prof) ? T.v.prof : vars[0][0];
+      T.v.prof = v; src = pa.prof[v];
+      cap = `<b>Inbound and outbound profiles, ${hm(pa.t)}Z analysis</b>${pa.azi ? ` (azimuths ${pa.azi[0]}° and ${pa.azi[1]}°)` : ""}: 150 m vertical spacing.`;
+    } else if (T.prod === "ctr") {
+      src = d.latest.ctr ? d.latest.ctr.img : null; sq = true;
+      cap = `<b>TDR centres</b> at 2 km (L) and 6 km (M) for each analysis, from the storm-relative flow (HRD's track map). The same centres are on the map above.`;
+    }
+    $("tdrVarL").hidden = vars.length < 2;
+    $("tdrVar").innerHTML = segHTML(vars, T.v[T.prod]);
+    tdrImg(src, sq);
+    $("tdrCap").innerHTML = cap + ` <span class="mu">Real time, automated quality control (NOAA AOML HRD).</span>`;
+    $("tdrCtr").innerHTML = T.prod === "ctr" ? tdrCtrTable(d) : "";
+    tdrCentres();
+  }
+  function tdrCtrTable(d) {
+    if (!d.centres.length) return `<p class="empty">No TDR centre files for this flight.</p>`;
+    const f = p => p ? ll(p[0], p[1]) : "—";
+    return `<table><thead><tr><th>Analysis</th><th>0.5 km</th><th>2 km</th><th>6 km</th><th>2–6 km tilt</th><th>Check</th></tr></thead><tbody>` +
+      d.centres.map(c => c.c ? `<tr><td>${hm(c.t)}Z</td><td>${f(c.c["05"])}</td><td>${f(c.c["2"])}</td><td>${f(c.c["6"])}</td>` +
+        `<td>${c.tilt ? `${c.tilt[0]} km to ${c.tilt[1]}°` : "—"}</td><td class="mu">${c.ref ? `${c.ref[1]} km from the ${esc(c.ref[0])}` : "unchecked (no fix or track)"}</td></tr>`
+        : `<tr><td>${hm(c.t)}Z</td><td colspan="4" class="mu">not drawn</td><td class="mu">${esc(c.bad)}</td></tr>`).join("") + "</tbody></table>";
+  }
+  function tdrImg(path, sq) {
+    const fr = $("tdrFrame");
+    if (!path) { fr.innerHTML = `<p class="ph">No image for this choice.</p>`; return; }
+    const v = T.prod === "ctr" && T.doc.latest.ctr ? T.doc.latest.ctr.v : "";
+    const urls = [URLS.raw(path, v, TBR)[0], URLS.jsd(path, null, TBR)[0]];
+    let img = fr.querySelector("img");
+    if (!img) { fr.innerHTML = ""; img = document.createElement("img"); img.decoding = "async"; fr.appendChild(img); }
+    img.className = sq ? "sq" : "";
+    img.alt = $("tdrCap").textContent || "Tail Doppler radar graphic";
+    let k = 0;
+    img.onerror = () => { if (++k < urls.length) img.src = urls[k]; else fr.innerHTML = `<p class="ph">The image could not be loaded. Try again shortly.</p>`; };
+    img.src = urls[0];
+  }
+  const segClick = (id, fn) => $(id).addEventListener("click", e => { const b = e.target.closest("button[data-k]"); if (b) { fn(b.dataset.k); tdrUI(); } });
+  segClick("tdrProd", k => { T.prod = k; T.ti = -1; tdrSave(); });
+  segClick("tdrTime", k => { T.ti = +k; });
+  segClick("tdrHgt", k => { T.h = k; tdrSave(); });
+  segClick("tdrVar", k => { T.v[T.prod] = k; });
 
   // ── controls ─────────────────────────────────────────────────────────────
   $("selStorm").onchange = e => pickStorm(e.target.value, null);
