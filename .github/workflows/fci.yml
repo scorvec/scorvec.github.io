@@ -5,6 +5,15 @@ name: US credit conditions index
 # run a day at 21:40 UTC is plenty (dispatcher slot too: GitHub honours only a fraction of this repo's cron firings).
 on:
   workflow_dispatch:
+    inputs:
+      publish:
+        description: 'Commit and push the build to main (false = build only, upload the json as an artifact)'
+        type: boolean
+        default: true
+      probe:
+        description: 'Run the source probe (scripts/fci/fci_probe.py) instead of the build'
+        type: boolean
+        default: false
   schedule:
     - cron: '40 21 * * *'
 
@@ -26,10 +35,22 @@ jobs:
         with:
           python-version: '3.11'
       - name: Install
-        run: pip install --quiet numpy pandas
+        run: pip install --quiet numpy pandas xlrd
+      - name: Probe the sources
+        if: inputs.probe
+        run: python scripts/fci/fci_probe.py
       - name: Build the index
+        if: ${{ !inputs.probe }}
         run: python scripts/fci/fci_build.py --out assets/fci --cache "$RUNNER_TEMP/fred"
+      - name: Keep the build
+        if: ${{ !inputs.probe }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: fci-build
+          path: assets/fci/
+          retention-days: 7
       - name: Commit & push
+        if: ${{ !inputs.probe && (github.event_name == 'schedule' || inputs.publish) && github.ref == 'refs/heads/main' }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
@@ -51,7 +72,7 @@ jobs:
           done
           exit 1
       - name: Deploy the site
-        if: success()
+        if: ${{ success() && !inputs.probe }}
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: echo "site deploy is batched - the dispatcher deploys within 15 min (pages.yml)"
