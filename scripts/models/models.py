@@ -79,7 +79,8 @@ sys.path.insert(0, str(HERE.parent / "snowband"))
 import snowband as sb                                   # noqa: E402  the shared, validated transport (S3 / NOMADS / Datamart)
 from manifest_merge import prune_ecape                 # noqa: E402  hrrr.json is shared with the ECAPE job
 import points as PTS                                    # noqa: E402  meteogram point series (points.json)
-import upper as UPR                                     # noqa: E402  upper-air fields: 925/250 hPa, dynamic tropopause, 500 hPa
+import upper as UPR                                     # noqa: E402
+import winter as WIN                                    # noqa: E402  FRAM ice, Cobb snow ratio, snow-depth increase  upper-air fields: 925/250 hPa, dynamic tropopause, 500 hPa
 
 UA = {"User-Agent": "scorvec-models/1.0 (+https://scorvec.com/models.html)"}
 SIGMA = 5.670374419e-8
@@ -112,6 +113,11 @@ FIELDS = {
     # per-frame offset and step (manifest "q", like linf). 925 hPa: +-63.5 m/s in 0.5 m/s (~1 kt); 250 hPa: +-101.6 m/s
     # in 0.8 m/s (the jet reaches ~100 m/s). "dt": R = potential temperature on 2 PVU, 250 K + 0.6 K * code (to 402 K),
     # G, B = the wind on it as 250 hPa. "vz": R = 500 hPa absolute vorticity, 1e-5 s-1, -30 + 0.5 * code; G = height.
+    # winter accumulations (2026-10-07; winter.py), same 16-bit "since the run started" encoding
+    "afram": dict(enc="acc16", unit=0.01),     # radial ice accretion, FRAM (Sanders and Barjenbruch 2016)
+    "acobb": dict(enc="acc16", unit=0.1),      # snowfall with the Cobb column snow ratio (HRRR)
+    "as10": dict(enc="acc16", unit=0.1),       # snowfall at 10:1 from the snow-phase liquid (HRRR, RRFS)
+    "asnod": dict(enc="acc16", unit=0.1),      # snow-depth increase (sum of positive hourly changes)
     "ua925": dict(enc="uvz", off=-63.5, step=0.5),
     "ua250": dict(enc="uvz", off=-101.6, step=0.8),
     "dt": dict(enc="dt", th=(250.0, 0.6), off=-101.6, step=0.8),
@@ -126,8 +132,21 @@ ACC_METHOD = {
     "rdps": dict(apcp="Precip-Accum", asnow="10:1 from the RDPS's accumulated snow water equivalent (not a model snowfall)",
                  afzra="FreezingRain-Accum (liquid equivalent)", aip="IcePellets-Accum (liquid equivalent)"),
 }
+_FRAM = ("radial ice accretion on power lines and branches from the Freezing Rain Accumulation Model (Sanders and Barjenbruch "
+         "2016): each hour's ice-to-liquid ratio from the freezing-rain rate, the 2 m wet-bulb temperature and the 10 m wind, "
+         "times the model's freezing-rain liquid ({src}), x 0.394 for radial ice")
+_SNOD = "the sum of the hourly INCREASES of the model's snow depth ({src}); melting and settling are not subtracted"
+ACC_METHOD["hrrr"].update(afram=_FRAM.format(src="FRZR"), asnod=_SNOD.format(src="SNOD"),
+                          acobb=("snowfall = column snow-to-liquid ratio x the snow-phase liquid (APCP where the surface type is snow, "
+                                 "half where it is a rain-snow mix). Ratio: Cobb and Waldstreicher (2005), as in the NBM - layers saturated "
+                                 "with respect to ice every 25 hPa from 925 to 300 hPa, weighted by upward motion and humidity, the 2011 "
+                                 "temperature table, limited to 3-30; no melting or compaction"),
+                          as10="10 x the snow-phase liquid (APCP where the surface type is snow, half where it is a rain-snow mix)")
+ACC_METHOD["rrfs"].update(afram=_FRAM.format(src="FRZR; 3-hourly past 36 h"), asnod=_SNOD.format(src="SNOD; 3-hourly past 36 h"),
+                          as10=ACC_METHOD["hrrr"]["as10"])
+ACC_METHOD["rdps"].update(afram=_FRAM.format(src="FreezingRain-Accum"), asnod=_SNOD.format(src="SnowDepth"))
 ORDER = ["ir", "refl", "ceil", "vis", "t2m", "td2m", "smoke", "wind80", "wind10", "gust", "sw", "mslp", "apcp", "asnow", "afzra", "aip",
-         "ua925", "ua250", "dt", "z500"]
+         "ua925", "ua250", "dt", "z500", "afram", "acobb", "as10", "asnod"]
 UA_FIELDS = ("ua925", "ua250", "dt", "z500")
 UA_ON = os.environ.get("MV_UA", "0") == "1"            # models.yml sets MV_UA=1 (the switch for the upper-air fetch)
 # the grid each upper-air field is stored on: HRRR/RRFS 925/250 hPa on the 6 km half-resolution grid, the dynamic tropopause
@@ -288,7 +307,7 @@ ACC = {"apcp": r"^APCP:surface:0-\d+ (hour|day) acc", "asnow": r"^ASNOW:surface:
        "frzr": r"^FRZR:surface:0-\d+ (hour|day) acc"}
 # 10 m wind and the instantaneous surface gust (user 2026-10-04); the anchors keep out the hourly-max WIND / MAXUW / MAXVW
 # lines that share the 10 m level ("5-6 hour max fcst"). Same names in HRRR wrfsfc and RRFS 2dfld (checked 2026-10-04).
-WG = {"gust": r"^GUST:surface:(anl|\d+ hour fcst):?$", "u10": r"^UGRD:10 m above ground:(anl|\d+ hour fcst):?$",
+WG = {"snod": r"^SNOD:surface:(anl|\d+ hour fcst):?$", "gust": r"^GUST:surface:(anl|\d+ hour fcst):?$", "u10": r"^UGRD:10 m above ground:(anl|\d+ hour fcst):?$",
       "v10": r"^VGRD:10 m above ground:(anl|\d+ hour fcst):?$"}
 IDX_WANT = {   # field -> regex on "VAR:LEVEL:TIME[:extra]" of a wgrib2 .idx line
     # MSLP: HRRR MSLMA (MAPS reduction, the only MSLP in wrfsfc); RRFS MSLET (NCEP's chart reduction; no PRMSL in 2dfld)
@@ -305,7 +324,8 @@ RDPS_VARS = {"ir": "UpwardLongwaveRadiationFlux_NTAtm", "t2m": "AirTemp_AGL-2m",
              "u80": "WindU_AGL-80m", "v80": "WindV_AGL-80m",
              "u10": "WindU_AGL-10m", "v10": "WindV_AGL-10m", "gust": "WindGust_AGL-10m", "swacc": "DownwardShortwaveRadiationFlux-Accum_Sfc",
              "prate": "PrecipRate_Sfc", "ptype": "PrecipType-Instant_Sfc", "mslp": "Pressure_MSL", "psfc": "Pressure_Sfc",
-             "apcp": "Precip-Accum_Sfc", "swe": "Snow-Accum_Sfc", "frzr": "FreezingRain-Accum_Sfc", "ipacc": "IcePellets-Accum_Sfc"}
+             "apcp": "Precip-Accum_Sfc", "swe": "Snow-Accum_Sfc", "frzr": "FreezingRain-Accum_Sfc", "ipacc": "IcePellets-Accum_Sfc",
+             "snod": "SnowDepth_Sfc"}
 RDPS_BOX = (-172.0, -45.0, 17.0, 80.0)      # crop of the RDPS grid (lon0, lon1, lat0, lat1): North America
 
 
@@ -602,6 +622,43 @@ def ua_rdps(blobs, crop):
     return out
 
 
+def winter_hour(blobs, crop, pt, apcp, phys):
+    """This hour's inputs to the winter accumulations (winter.py), for the sequential pass: freezing-rain liquid so far
+    (mm), 2 m wet-bulb (C) and 10 m wind (kt) where freezing rain has fallen or is falling, snow depth (in), and on the
+    HRRR the Cobb and Kuchera snow ratios where the surface type is snow or mix. Mostly-empty fields: compressed npz."""
+    out = {}
+    shape = phys["t2m"].shape if "t2m" in phys else None
+    fz = np.maximum(dec(blobs["frzr"], crop), 0).astype(np.float32) if "frzr" in blobs else (np.zeros(shape, np.float32) if shape else None)
+    if fz is not None:
+        out["frzr"] = fz
+        where = (fz > 0) | ((pt == 3) if pt is not None else False)
+        if where.any() and "t2m" in phys and "td2m" in phys and "wind10" in phys:
+            tc, tdc = (phys["t2m"] - 32) / 1.8, (phys["td2m"] - 32) / 1.8
+            tw = WIN.wetbulb_stull(tc, WIN.rh_from_td(tc, tdc))
+            u, v = phys["wind10"]
+            out["tw"] = np.where(where, tw, np.nan).astype(np.float16)
+            out["ws"] = np.where(where, np.hypot(u, v) * 1.943844, np.nan).astype(np.float16)
+    if "snod" in blobs:
+        sd, un = dec_units(blobs["snod"], crop)
+        out["snod"] = (np.maximum(np.nan_to_num(sd), 0) * (39.3701 if un.lower() in ("m", "") else 0.393701)).astype(np.float32)
+    if pt is not None:
+        sf = np.where(pt == 2, 2, np.where(pt == 5, 1, 0)).astype(np.uint8)      # snow 1.0, rain-snow mix 0.5 (x 2)
+        out["sf"] = sf
+        if "asnow" in phys:
+            out["asnow"] = phys["asnow"].astype(np.float32)
+        if (sf > 0).any() and all(f"cb:RH:{p}" in blobs for p in WIN.COBB_LEVS) and "psfc" in blobs:
+            T = np.stack([dec(blobs[f"ua:TMP:{p}"]) for p in WIN.COBB_LEVS])
+            RH = np.stack([dec(blobs[f"cb:RH:{p}"]) for p in WIN.COBB_LEVS])
+            OM = np.stack([dec(blobs[f"cb:VVEL:{p}"]) for p in WIN.COBB_LEVS])
+            ps = dec(blobs["psfc"])
+            slr, none = WIN.cobb_slr(T, RH, OM, WIN.COBB_LEVS, ps)
+            t2k = (phys["t2m"] - 32) / 1.8 + 273.15
+            out["slr"] = np.where(sf > 0, slr, np.nan).astype(np.float16)
+            out["slrk"] = np.where(sf > 0, WIN.kuchera(T, WIN.COBB_LEVS, ps, t2k), np.nan).astype(np.float16)
+            out["slr_none"] = np.array([int((none & (sf > 0)).sum()), int((sf > 0).sum())])
+    return out
+
+
 def process_hour(model, lead, blobs, outdir):
     """Decode, convert, quantise and write every field of one forecast hour. -> {field: params-or-None}, bytes"""
     t0 = time.time()
@@ -649,8 +706,14 @@ def process_hour(model, lead, blobs, outdir):
         phys["afzra"] = dec(blobs["frzr"]) * mm if "frzr" in blobs else np.zeros_like(apcp)
         # sleet: needs the previous processed hour, so the cumulative APCP and the sleet flag go to a side file for the
         # sequential pass in cmd_run
-        np.savez(Path(outdir) / f"_seq_{lead:03d}.npz", apcp=apcp.astype(np.float32),
-                 ip=(pt == 4).astype(np.uint8) if pt is not None else np.zeros(apcp.shape, np.uint8))
+        seq = dict(apcp=apcp.astype(np.float32), ip=(pt == 4).astype(np.uint8) if pt is not None else np.zeros(apcp.shape, np.uint8))
+        try:
+            seq.update(winter_hour(blobs, None, pt, apcp, phys))
+        except Exception as e:                                  # noqa: BLE001
+            import traceback
+            traceback.print_exc()
+            print(f"::warning::{model} f{lead:03d}: winter inputs failed ({e!r})", flush=True)
+        np.savez_compressed(Path(outdir) / f"_seq_{lead:03d}.npz", **seq)
         if any(k.startswith("ua:") for k in blobs):
             try:
                 phys.update(ua_lcc(blobs))
@@ -704,6 +767,14 @@ def process_hour(model, lead, blobs, outdir):
             for k, v in RDPS_PTYPE.items():
                 t[code == k] = v
             phys["refl"] = ("rate", dec(blobs["prate"], crop) * 3600.0, t)          # kg m-2 s-1 -> mm/h
+        try:                                                    # FRAM ice and the snow-depth increase (sequential pass)
+            seq = winter_hour(blobs, crop, None, None, phys)
+            if seq:
+                np.savez_compressed(Path(outdir) / f"_seq_{lead:03d}.npz", **seq)
+        except Exception as e:                                  # noqa: BLE001
+            import traceback
+            traceback.print_exc()
+            print(f"::warning::{model} f{lead:03d}: winter inputs failed ({e!r})", flush=True)
         if any(k.startswith("ua:") for k in blobs):
             try:
                 phys.update(ua_rdps(blobs, crop))
@@ -788,11 +859,18 @@ def fetch_hour(model, date, cyc, lead, cyc_dt):
         want = {k: v for k, v in IDX_WANT[model].items() if k != "zsfc" and not (lead == 0 and k in ACC)   # f00 has no accumulations
                 and (smoke or k != "smoke")}
         out = fetch_idx_fields(model, file_url(model, date, cyc, lead), want)
-        if UPR.ua_hour(lead) and UA_ON:
+        pw = dict(ua_want(model)) if (UPR.ua_hour(lead) and UA_ON) else {}
+        # the Cobb snow ratio (HRRR): T, RH and omega every 25 hPa 925-300 hPa, fetched only for hours with snow somewhere
+        if model == "hrrr" and UA_ON and "csnow" in out and np.nanmax(sb.decode(out["csnow"])) > 0.5:
+            for p in WIN.COBB_LEVS:
+                pw[f"ua:TMP:{p}"] = rf"^TMP:{p} mb:(anl|\d+ hour fcst):?$"
+                pw[f"cb:RH:{p}"] = rf"^RH:{p} mb:(anl|\d+ hour fcst):?$"
+                pw[f"cb:VVEL:{p}"] = rf"^VVEL:{p} mb:(anl|\d+ hour fcst):?$"
+        if pw:
             # upper air from the isobaric file: never fails the hour (the surface maps are the core product)
             for k in range(2):
                 try:
-                    out.update(fetch_idx_fields(model, prs_url(model, date, cyc, lead), ua_want(model)))
+                    out.update(fetch_idx_fields(model, prs_url(model, date, cyc, lead), pw))
                     break
                 except Exception as e:                          # noqa: BLE001
                     if k:
@@ -1013,31 +1091,82 @@ def cmd_run(a):
             total_bytes += nb
             for name, p in meta.items():
                 per_field[name][lead] = p
-    # sequential pass: sleet accumulation = APCP fallen between consecutive processed hours while the sleet type is on
+    # sequential pass over the published hours in order: sleet = APCP fallen between consecutive hours while the sleet type
+    # is on (HRRR/RRFS), and the winter accumulations (winter.py): FRAM radial ice, snowfall with the Cobb ratio (HRRR) and at
+    # 10:1 (HRRR/RRFS), the snow-depth increase. Each is a running total written like the other accumulations.
     seq = sorted(outdir.glob("_seq_*.npz"))
     if seq:
-        cum, prev = None, None
-        for fpath in seq:
-            lead = int(fpath.stem[5:])
-            z = np.load(fpath)
-            ap, ip = z["apcp"], z["ip"]
-            if cum is None:
-                cum, prev = np.zeros(ap.shape, np.float64), np.zeros(ap.shape, np.float32)
-            cum += np.maximum(ap - prev, 0) * ip / 25.4
-            prev = ap
-            arr, _ = encode("aip", cum)
+        prev, cums, plead = {}, {}, None
+        st = dict(slr=[], slrk=[], none=0, nsnow=0)
+
+        def emit(name, arr_in, lead):
+            nonlocal total_bytes
+            arr, _ = encode(name, arr_in)
             b = webp(arr)
-            (outdir / "aip").mkdir(exist_ok=True)
-            (outdir / "aip" / f"{lead:03d}.webp").write_bytes(b)
+            (outdir / name).mkdir(exist_ok=True)
+            (outdir / name / f"{lead:03d}.webp").write_bytes(b)
             total_bytes += len(b)
             if LO.get(model):
                 bl = webp(decimate(arr, LO[model]))
-                (outdir / "aip" / f"{lead:03d}_lo.webp").write_bytes(bl)
+                (outdir / name / f"{lead:03d}_lo.webp").write_bytes(bl)
                 total_bytes += len(bl)
-            per_field["aip"][lead] = None
-            if ctx.get("ps") is not None:
-                samples.setdefault(lead, {})["aip"] = ctx["ps"].bilinear(cum)
+            per_field[name][lead] = None
+        for fpath in seq:
+            lead = int(fpath.stem[5:])
+            z = np.load(fpath)
+            hrs = float(lead - plead) if plead is not None else 1.0
+            plead = lead
+
+            def inc(key):
+                cur = z[key].astype(np.float64)
+                d = np.maximum(cur - prev.get(key, cur if key == "snod" else 0.0), 0)
+                prev[key] = cur
+                return d
+
+            def add(name, x):
+                cums[name] = cums.get(name, 0) + x
+                return cums[name]
+            if "apcp" in z:
+                dap = inc("apcp") / 25.4                                     # in
+                cum = add("aip", dap * z["ip"])
+                emit("aip", cum, lead)
+                if ctx.get("ps") is not None:
+                    samples.setdefault(lead, {})["aip"] = ctx["ps"].bilinear(cum)
+                if "sf" in z:
+                    sl = dap * z["sf"] / 2.0                                 # snow-phase liquid, in
+                    emit("as10", add("as10", 10.0 * sl), lead)
+                    if model == "hrrr":
+                        slr = np.nan_to_num(z["slr"].astype(np.float32), nan=WIN.SLR_NONE) if "slr" in z else np.full(sl.shape, WIN.SLR_NONE, np.float32)
+                        emit("acobb", add("acobb", slr * sl), lead)
+                        wet = sl > 0.01
+                        if "slr" in z and wet.any():
+                            st["slr"].append(np.asarray(z["slr"], np.float32)[wet])
+                            st["slrk"].append(np.asarray(z["slrk"], np.float32)[wet])
+                            st["none"] += int(z["slr_none"][0]); st["nsnow"] += int(z["slr_none"][1])
+            if "frzr" in z:
+                liq = inc("frzr") / 25.4
+                if "tw" in z and (liq > 0).any():
+                    rad = WIN.fram_radial(liq, hrs, np.nan_to_num(z["tw"].astype(np.float32), nan=0.0), np.nan_to_num(z["ws"].astype(np.float32), nan=0.0))
+                else:
+                    rad = np.zeros(liq.shape, np.float32)
+                emit("afram", add("afram", rad), lead)
+            if "snod" in z:
+                emit("asnod", add("asnod", inc("snod")), lead)
+            last_z = {k: z[k] for k in ("asnow",) if k in z}
             fpath.unlink()
+        if model == "hrrr" and "acobb" in cums:                           # the snow-ratio check printed with every run
+            c, t10, an = cums["acobb"], cums.get("as10"), last_z.get("asnow")
+            msg = f"  snow ratio check: hours x points with snow liquid > 0.01 in: {sum(len(a) for a in st['slr'])}"
+            if st["slr"]:
+                a, k = np.concatenate(st["slr"]), np.concatenate(st["slrk"])
+                msg += (f"; Cobb SLR p10/p50/p90 {np.percentile(a, 10):.1f}/{np.percentile(a, 50):.1f}/{np.percentile(a, 90):.1f} mean {a.mean():.1f}"
+                        f"; Kuchera p50 {np.median(k):.1f} mean {k.mean():.1f}; no saturated layer {100 * st['none'] / max(st['nsnow'], 1):.0f} % of snow points")
+            if an is not None:
+                m = (c > 0.1) | (an > 0.1)
+                if m.any():
+                    msg += (f"; run totals over {int(m.sum())} cells with > 0.1 in: Cobb {c[m].mean():.2f} in, 10:1 {t10[m].mean():.2f}, "
+                            f"ASNOW {an[m].mean():.2f}, r(Cobb, ASNOW) {np.corrcoef(c[m], an[m])[0, 1]:.2f}")
+            print(msg, flush=True)
     fetch_stats = dict(requests=sum(f.nreq for f in _FETCH.values()), mb=round(sum(f.nbytes for f in _FETCH.values()) / 1e6, 1))
     fields = {}
     for name in ORDER:

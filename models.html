@@ -609,7 +609,20 @@
              stops: [S(0.01, "#fbd8e8", 0.9), S(0.05, "#f4a6c8"), S(0.1, "#e872a8"), S(0.25, "#d23d86"), S(0.5, "#a51e66"), S(1, "#6a0d44")] },
     aip: { label: "Sleet", vmax: 5, unitLabel: "inches of liquid falling as sleet", ticks: [0.01, 0.05, 0.1, 0.25, 0.5, 1], lo: 0.01, hi: 1.5, levels: [0.25, 0.5, 1],
            stops: [S(0.01, "#fde6c8", 0.9), S(0.05, "#f9c27e"), S(0.1, "#f39a45"), S(0.25, "#d9681c"), S(0.5, "#a8460c"), S(1, "#6e2a04")] } };
-  var ACC_ORDER = ["apcp", "asnow", "afzra", "aip"], ACC_WINS = [0, 1, 3, 6, 12, 24, 48];
+  // winter accumulations (2026-10-07, user: "ptype accumulations (FRAM model and an intelligent snow ratio calculator and
+  // positive snow depth change)"; scripts/models/winter.py): FRAM radial ice, snowfall with the Cobb column snow ratio (HRRR),
+  // snowfall at 10:1 (HRRR, RRFS), the snow-depth increase. Same files and window differencing as the others.
+  var SNOW_STOPS = ACC_TYPES.asnow.stops;
+  ACC_TYPES.as10 = { label: "Snow 10:1", vmax: 100, unitLabel: "inches of snow at 10:1 from the snow-phase liquid", ticks: ACC_TYPES.asnow.ticks, lo: 0.1, hi: 48, levels: [1, 6, 12], stops: SNOW_STOPS, snow: true };
+  ACC_TYPES.acobb = { label: "Snow (Cobb ratio)", vmax: 100, unitLabel: "inches of snow with the Cobb column snow-to-liquid ratio (limited to 3–30)", ticks: ACC_TYPES.asnow.ticks, lo: 0.1, hi: 48, levels: [1, 6, 12], stops: SNOW_STOPS, snow: true };
+  ACC_TYPES.asnod = { label: "Snow depth increase", vmax: 100, unitLabel: "inches: the sum of the hourly increases of the model's snow depth (melt and settling not subtracted)", ticks: ACC_TYPES.asnow.ticks, lo: 0.1, hi: 48, levels: [1, 6, 12], stops: SNOW_STOPS, snow: true };
+  ACC_TYPES.afram = { label: "Ice (FRAM)", vmax: 3, unitLabel: "inches of RADIAL ice on power lines and branches (FRAM), not the liquid amount · 0.25 in bold (ice storm warning)", ticks: [0.01, 0.05, 0.1, 0.25, 0.5, 0.75, 1], lo: 0.01, hi: 1.5, levels: [0.1, 0.5], bold: 0.25,
+                      stops: [S(0.01, "#e4ecf8", 0.9), S(0.05, "#b8cbef"), S(0.1, "#8aa5e2"), S(0.25, "#6a5ccb"), S(0.5, "#8e2db1"), S(0.75, "#c3197b"), S(1, "#6e0b3a")] };
+  ACC_TYPES.asnow.snow = true;
+  var ACC_ORDER = ["apcp", "asnow", "acobb", "as10", "asnod", "afzra", "afram", "aip"], ACC_WINS = [0, 1, 3, 6, 12, 24, 48];
+  var ACC_NA = { acobb: { rrfs: "Snowfall with the Cobb snow ratio is computed for HRRR only: it needs hourly temperature, humidity and vertical-motion profiles, which only the HRRR's files on AWS give at a reasonable cost.",
+                          rdps: "Snowfall with the Cobb snow ratio is computed for HRRR only: it needs hourly temperature, humidity and vertical-motion profiles, which the RDPS publishes at three levels only." },
+                 as10: { rdps: "The RDPS's Snow map is already 10:1 (ten times its accumulated snow water); a separate 10:1 map would be the same." } };
   FIELDS.acc = { label: "Accumulation", enc: "accd", unit: "in" };
   // ECAPE (2026-09-30, user: "put the ecape plots into the short-term models interface as well"): HRRR only, computed by the
   // ECAPE job (scripts/ecape/to_models.py) from the same runs; files ecape_mu / ecape_ml / mucape / mlcape, code = round(K*sqrt(J/kg)),
@@ -1650,7 +1663,7 @@
   var ACCF = new Map();
   function accFrame(model, c, hour, lo) {
     var type = st.acc.type, fm = c.fields[type];
-    if (!fm) return { msg: "Precipitation accumulation is not in this run yet." };
+    if (!fm) return { msg: (ACC_NA[type] && ACC_NA[type][model]) || (ACC_TYPES[type].label + " is not in this run: it starts with the runs made from 7 October 2026.") };
     if (fm.hours.indexOf(hour) < 0) return { msg: ACC_TYPES[type].label + " accumulation is not available at +" + hour + " h in this run." };
     lo = !!(lo && fm.lo);
     var start = 0;
@@ -1949,9 +1962,10 @@
     if (field === "acc") { var at = ACC_TYPES[st.acc.type], La = new Float32Array(256);
       for (var ca = 0; ca < 256; ca++) La[ca] = ca === 0 ? 0 : accValue(st.acc.type, ca);
       // accumulations at 3 km are speckled by convection: 6 km blocks + ~15 km smoothing, so the lines give the pattern (the fill keeps every cell)
-      return { rad: 2, rad2: 1, dec: 2, minPts: 12, lut: La, levels: at.levels, values: at.levels,
-        fmt: function (v) { return v + (st.acc.type === "asnow" ? "″" : " in"); }, style: function () { return ["rgba(15,15,15,0.9)", 1.2]; },
-        gl: { list: at.levels, col: "rgba(15,15,15,0.9)", w: 1.2 } }; }
+      var alv = at.bold ? at.levels.concat([at.bold]).sort(function (a, b) { return a - b; }) : at.levels;
+      return { rad: 2, rad2: 1, dec: 2, minPts: 12, lut: La, levels: alv, values: alv,
+        fmt: function (v) { return v + (at.snow ? "″" : " in"); }, style: function (v) { return ["rgba(15,15,15,0.9)", v === at.bold ? 2.2 : 1.2]; },
+        gl: { list: at.levels, col: "rgba(15,15,15,0.9)", w: 1.2, special: at.bold ? [[at.bold, 2.2, "rgba(15,15,15,0.95)"]] : null } }; }
     if (field === "ecape") { var Le = new Float32Array(256), K = (q && !q.join) ? q : 2.8;
       if (EC_SUBS[st.ec].kind === "ratio") {
         // masked cells (CAPE <= 100) are left out of the smoothing (normalised blur), so no line runs along the mask edge
@@ -2830,7 +2844,7 @@
     } else if (d.field === "acc") {
       var idx = (d.g.ny - 1 - Math.floor(MV_ij(d, px, py)[1] + 0.5)) * d.g.nx + Math.floor(MV_ij(d, px, py)[0] + 0.5);
       var av = d.e.exact ? d.e.exact[idx] : 0;
-      txt = (d.accType === "asnow" ? av.toFixed(1) + " in of snow" : av.toFixed(2) + " in" + (d.accType === "apcp" ? "" : " (liquid)")) +
+      txt = (ACC_TYPES[d.accType].snow ? av.toFixed(1) + " in of snow" + (d.accType === "asnod" ? " depth gained" : "") : d.accType === "afram" ? av.toFixed(2) + " in of radial ice" : av.toFixed(2) + " in" + (d.accType === "apcp" ? "" : " (liquid)")) +
             "<br><span class=\"ll\">" + d.accLabel + "</span>";
     } else if (d.field === "ecape") {
       var sub = EC_SUBS[d.ecSub], Kc = d.fm.k || 2.8, ij2 = MV_ij(d, px, py);
