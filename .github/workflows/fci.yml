@@ -44,6 +44,38 @@ jobs:
           name: fci-build
           path: assets/fci/
           retention-days: 7
+      - name: Check the page (build-only runs)
+        if: ${{ github.event_name == 'workflow_dispatch' && !inputs.publish }}
+        run: |
+          python -m http.server 8765 >/dev/null 2>&1 &
+          sleep 2
+          for wh in 1400,2400 390,2400; do
+            google-chrome --headless=new --no-sandbox --disable-gpu --window-size=$wh --virtual-time-budget=20000 \
+              --enable-logging=stderr --v=0 --dump-dom http://localhost:8765/fci.html > "dom_$wh.html" 2> "log_$wh.txt" || true
+            echo "== $wh: console"; grep -i "CONSOLE" "log_$wh.txt" | head -20 || true
+            python - "dom_$wh.html" <<'PY'
+          import re, sys
+          t = open(sys.argv[1]).read()
+          for cid in ("daily-card", "spr-card", "eq-card", "rt-card", "liq-card", "ctx-card", "pc-card", "cr-wrap", "adm-card"):
+              m = re.search(r'<(?:section|div)[^>]*id="%s"[^>]*>' % cid, t)
+              print(cid, "MISSING" if not m else ("hidden" if "hidden" in m.group(0) else "shown"))
+          print("plots drawn:", len(re.findall(r'class="main-svg"', t)) // 2, "| tiles:", len(re.findall(r'class="tile"', t)),
+                "| admission rows:", t.count("<tr", t.find('id="t-adm"'), t.find('</table>', t.find('id="t-adm"'))))
+          m = re.search(r'id="adm-note"[^>]*>(.*?)</p>', t, re.S); print("adm-note:", re.sub("<[^>]+>", "", m.group(1))[:900] if m else None)
+          m = re.search(r'id="cr-note"[^>]*>(.*?)</p>', t, re.S); print("cr-note:", re.sub("<[^>]+>", "", m.group(1))[-420:] if m else None)
+          PY
+            google-chrome --headless=new --no-sandbox --disable-gpu --window-size=$wh --virtual-time-budget=20000 \
+              --screenshot="shot_${wh%,*}.png" http://localhost:8765/fci.html >/dev/null 2>&1 || true
+          done
+      - name: Keep the page check
+        if: ${{ github.event_name == 'workflow_dispatch' && !inputs.publish }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: fci-page-check
+          path: |
+            shot_*.png
+            log_*.txt
+          retention-days: 7
       - name: Commit & push
         if: ${{ (github.event_name == 'schedule' || inputs.publish) && github.ref == 'refs/heads/main' }}
         run: |
