@@ -857,7 +857,8 @@ def live(mx, days_back):
                 if s:
                     mx.storms[p.stem] = s["btk"]
     # a new decoder/assignment version rebuilds the manifest (and prunes) even when NHC has nothing new
-    if mx.changed or mx.touched or days_back is not None or mx.manifest.get("code") != CODE_V:
+    stale = any(v.get("pv") != PASS_V for v in mx.manifest.get("missions", {}).values())
+    if mx.changed or mx.touched or days_back is not None or mx.manifest.get("code") != CODE_V or stale:
         mx.write_missions()
         mx.prune(pinned)
         mx.build_manifest(active, pinned)
