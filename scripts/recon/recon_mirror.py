@@ -440,7 +440,7 @@ def eye_drops(m, cf):
         if not how or not t:
             continue
         ws = (d.get("sfc_wind") or {}).get("ws")
-        est = round(d["sfc_p"] - ws / 10.0) if ws is not None else None
+        est = math.floor(d["sfc_p"] - ws / 10.0 + 0.5) if ws is not None else None   # half up, as the page
         out.append([t, d["sfc_p"], ws, est, how.lower() if how.isupper() else how, d.get("obnum")])
     return out
 

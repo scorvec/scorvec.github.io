@@ -88,6 +88,8 @@
   .legend .sw { display: inline-flex; align-items: center; gap: 0.3em; white-space: nowrap; }
   .legend .sw i { width: 1.3em; height: 0.55em; border-radius: 2px; display: inline-block; }
   .legend .mu { color: var(--muted); }
+  .satbar[hidden] { display: none; }
+  .satbar .seg button { padding: 0.3rem 0.55rem; min-height: 32px; font-size: 0.85rem; font-variant-numeric: tabular-nums; }
   .leaflet-container { font-family: var(--f-sans, sans-serif); }
   .leaflet-tooltip.fixlab { background: transparent; border: 0; box-shadow: none; color: var(--ink); font: 600 11px var(--f-sans, sans-serif);
     text-shadow: 0 0 3px var(--panel), 0 0 3px var(--panel), 0 0 2px var(--panel); padding: 0; }
@@ -157,6 +159,33 @@
   .tdr-fig figcaption .mu, .tdr .mu { color: var(--muted); }
   .tdr-fig figcaption a, .tdr .sub a { color: var(--accent); }
   .tdr .tbl { margin-top: 0.5rem; }
+  /* analysis cards: radial profiles, intensity history, storm-relative winds, eye/eyewall sondes */
+  .an { margin-top: 0.8rem; padding: 0.6rem 0.75rem 0.7rem; }
+  .an[hidden] { display: none; }
+  .an h2 { font-family: var(--f-serif, serif); font-weight: 500; font-size: 1.2rem; margin: 0 0 0.25rem; }
+  .an .sub { font-size: 0.9rem; color: var(--muted); margin: 0 0 0.45rem; line-height: 1.45; max-width: 120ch; }
+  .an canvas { width: 100%; display: block; touch-action: pan-y; cursor: crosshair; }
+  #radCv { height: 360px; } #histCv { height: 460px; } #eyeWs, #eyeTe { height: 320px; }
+  @media (max-width: 700px) { #radCv { height: 300px; } #histCv { height: 420px; } #eyeWs, #eyeTe { height: 280px; } }
+  .an .read { min-height: 1.4em; font-size: 0.9rem; margin: 0.2rem 0 0; font-variant-numeric: tabular-nums; }
+  .an .note { font-size: 0.86rem; color: var(--muted); line-height: 1.45; margin: 0.45rem 0 0; max-width: 120ch; }
+  .chips { display: flex; flex-wrap: wrap; gap: 0.3rem; margin: 0 0 0.4rem; }
+  .chips button { font: 500 0.84rem var(--f-sans, sans-serif); border: 1px solid var(--rule); background: var(--panel); color: var(--ink);
+    border-radius: 999px; padding: 0.22rem 0.6rem; cursor: pointer; display: inline-flex; align-items: center; gap: 0.35em; min-height: 32px;
+    font-variant-numeric: tabular-nums; }
+  .chips button i { width: 1.1em; height: 0.25em; border-radius: 2px; display: inline-block; }
+  .chips button[aria-pressed="false"] { opacity: 0.45; }
+  .an2 { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 0.8rem; }
+  @media (max-width: 1100px) { .an2 { grid-template-columns: minmax(0, 1fr); } }
+  .an2 > .card { margin-top: 0; }
+  .srgrid { display: grid; grid-template-columns: minmax(0, 560px) minmax(0, 1fr); gap: 0.8rem; align-items: start; }
+  @media (max-width: 1000px) { .srgrid { grid-template-columns: minmax(0, 1fr); } }
+  #srCv { aspect-ratio: 1 / 1; max-width: 560px; }
+  .tbl td.flag, .an .flag { color: var(--live); font-weight: 600; }
+  .alertbtn { font: 600 0.9rem var(--f-sans, sans-serif); border: 1px solid var(--rule); background: var(--panel); color: var(--ink);
+    border-radius: 8px; padding: 0.42rem 0.7rem; min-height: 38px; cursor: pointer; align-self: flex-end; }
+  .alertbtn[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+  .alertnote { font-size: 0.82rem; color: var(--muted); align-self: flex-end; max-width: 40ch; line-height: 1.35; }
   .credit { font-size: 0.88rem; color: var(--muted); margin: 0.9rem 0 0; line-height: 1.5; }
   .credit a { color: var(--accent); }
 
@@ -340,6 +369,8 @@
       <span class="seg" id="segVar" role="group" aria-label="Colour the track by">
         <button type="button" data-v="sfmr" class="on">SFMR wind</button><button type="button" data-v="ws">Flight-level wind</button><button type="button" data-v="x">Surface pressure</button><button type="button" data-v="t_">Temperature</button><button type="button" data-v="dd">Dewpoint depression</button>
       </span></label>
+    <button type="button" class="alertbtn" id="alertBtn" aria-pressed="false">Alert me to new fixes</button>
+    <span class="alertnote" id="alertNote" hidden></span>
   </div>
   <div class="rc-status" id="status" aria-live="polite"><span class="mu">Loading the mirror…</span></div>
   <div class="rc-warn" id="warn" hidden></div>
@@ -348,6 +379,11 @@
     <div class="card mapcard">
       <div id="map" role="region" aria-label="Map of the flight"></div>
       <div class="legend" id="legend"></div>
+      <div class="legend satbar" id="satBar" hidden>
+        <span><b>GOES infrared under the track</b></span>
+        <span class="seg" id="satSel" role="group" aria-label="Satellite image at a centre pass"></span>
+        <span class="mu" id="satInfo"></span>
+      </div>
     </div>
     <aside class="card side" id="side">
       <h2>Mission</h2>
@@ -382,10 +418,54 @@
       losslessly as WebP).</p>
   </section>
 
+  <section class="card an" id="rad" hidden aria-labelledby="radH">
+    <h2 id="radH">Radial wind profiles</h2>
+    <p class="sub" id="radSub"></p>
+    <div class="tdr-ctl"><label>Wind <span class="seg" id="radVar" role="group" aria-label="Wind shown"></span></label></div>
+    <div class="chips" id="radLegs" role="group" aria-label="Legs shown"></div>
+    <canvas id="radCv" aria-label="Wind against radius from the centre, one line per leg"></canvas>
+    <div class="read" id="radRead"></div>
+    <div class="tbl" id="radTbl"></div>
+    <p class="note" id="radNote"></p>
+  </section>
+
+  <section class="card an" id="hist" hidden aria-labelledby="histH">
+    <h2 id="histH">Intensity from the reconnaissance</h2>
+    <p class="sub" id="histSub"></p>
+    <canvas id="histCv" aria-label="Minimum pressure, maximum winds and pressure tendency against time, all missions of the storm"></canvas>
+    <div class="read" id="histRead"></div>
+    <div id="histFlags" class="note"></div>
+    <p class="note" id="histNote"></p>
+  </section>
+
+  <section class="card an" id="sr" hidden aria-labelledby="srH">
+    <h2 id="srH">Storm-relative winds and wind radii</h2>
+    <p class="sub" id="srSub"></p>
+    <div class="tdr-ctl">
+      <label>Orientation <span class="seg" id="srOri" role="group" aria-label="Orientation"></span></label>
+      <label>Wind <span class="seg" id="srVar" role="group" aria-label="Wind used"></span></label>
+    </div>
+    <div class="srgrid">
+      <canvas id="srCv" aria-label="Observations around the centre"></canvas>
+      <div><div class="tbl" id="srTbl"></div><p class="note" id="srNote"></p></div>
+    </div>
+  </section>
+
   <div class="lists">
     <div class="card"><h2>Dropsondes</h2><div class="tbl" id="drops"></div></div>
     <div class="card"><h2>Vortex fixes</h2><div class="tbl" id="vdms"></div></div>
   </div>
+
+  <section class="card an" id="eye" hidden aria-labelledby="eyeH">
+    <h2 id="eyeH">Eye and eyewall dropsondes</h2>
+    <div class="tbl" id="eyeTbl"></div>
+    <div class="an2" id="eyeProf">
+      <div><p class="sub" style="margin:0.5rem 0 0.2rem">Wind speed against height, eyewall sondes</p><canvas id="eyeWs" aria-label="Eyewall dropsonde wind speed against height"></canvas></div>
+      <div><p class="sub" style="margin:0.5rem 0 0.2rem">Equivalent potential temperature against height</p><canvas id="eyeTe" aria-label="Eyewall dropsonde equivalent potential temperature against height"></canvas></div>
+    </div>
+    <div class="chips" id="eyeKey"></div>
+    <p class="note" id="eyeNote"></p>
+  </section>
 
   <details class="card about" id="podbox">
     <summary>Plan of the day (CARCAH)</summary>
