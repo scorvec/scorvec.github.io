@@ -89,7 +89,7 @@
   const rend = L.canvas({ padding: 0.3, tolerance: 6 });
   const lyr = { btk: L.layerGroup().addTo(map), fixes: L.layerGroup().addTo(map), track: L.layerGroup().addTo(map),
                 barbs: L.layerGroup().addTo(map), drops: L.layerGroup().addTo(map), vdm: L.layerGroup().addTo(map),
-                hover: L.layerGroup().addTo(map), tdr: L.layerGroup().addTo(map) };
+                hover: L.layerGroup().addTo(map), tdr: L.layerGroup().addTo(map), plane: L.layerGroup().addTo(map) };
   if (window.ResizeObserver) new ResizeObserver(() => map.invalidateSize()).observe($("map"));
 
   // ── load ─────────────────────────────────────────────────────────────────
@@ -195,7 +195,7 @@
   }
   function clearMission() {
     S.mis = null; S.key = null; S.rows = [];
-    for (const k of ["track", "barbs", "drops", "vdm", "hover", "tdr"]) lyr[k].clearLayers();
+    for (const k of ["track", "barbs", "drops", "vdm", "hover", "tdr", "plane"]) lyr[k].clearLayers();
     T.doc = null; $("tdr").hidden = true;
     for (const id of ["rad", "sr", "eye"]) $(id).hidden = true;
     R.legs = []; histBuild();
@@ -276,6 +276,36 @@
       else L.polyline(seg, { renderer: rend, color: col(x), weight: 3.6, interactive: false }).addTo(lyr.track);
     }
     drawBarbs();
+    drawPlane();
+  }
+  // aircraft icon at the newest valid position, pointing along the last few minutes of track (2026-10-07, user: "a little
+  // plane icon to see where the recon flight is"). Airborne: live colour with a pulse; a finished flight keeps a muted
+  // icon at its last ob (usually the landing field).
+  function drawPlane() {
+    lyr.plane.clearLayers();
+    const ix = S.col, rows = S.rows;
+    let i1 = rows.length - 1;
+    while (i1 >= 0 && rows[i1][ix.la] == null) i1--;
+    if (i1 < 0) return;
+    let i0 = i1 - 1;                                   // a point ~2+ min back, so one jittery ob does not set the heading
+    while (i0 > 0 && (rows[i0][ix.la] == null || rows[i1][0] - rows[i0][0] < 120)) i0--;
+    const la1 = rows[i1][ix.la], lo1 = rows[i1][ix.lo];
+    let hdg = 0;
+    if (i0 >= 0 && rows[i0][ix.la] != null) {
+      const la0 = rows[i0][ix.la], lo0 = rows[i0][ix.lo], r = Math.PI / 180;
+      const y = Math.sin((lo1 - lo0) * r) * Math.cos(la1 * r);
+      const x = Math.cos(la0 * r) * Math.sin(la1 * r) - Math.sin(la0 * r) * Math.cos(la1 * r) * Math.cos((lo1 - lo0) * r);
+      hdg = (Math.atan2(y, x) / r + 360) % 360;
+    }
+    const m = S.man && S.man.missions[S.key], air = isAir(m);
+    const fill = air ? css("--live") : (dark() ? "#c9ccd2" : "#4d544e"), edge = dark() ? "#0d1014" : "#ffffff";
+    const svg = `<svg width="30" height="30" viewBox="-15 -15 30 30" style="overflow:visible"><g transform="rotate(${hdg.toFixed(0)})">` +
+      `<path d="M0 -12 L1.8 -4 L11 1.5 L11 3.5 L1.8 1.5 L1.4 8 L4.5 10.5 L4.5 12 L0 11 L-4.5 12 L-4.5 10.5 L-1.4 8 L-1.8 1.5 L-11 3.5 L-11 1.5 L-1.8 -4 Z" ` +
+      `fill="${fill}" stroke="${edge}" stroke-width="1.4" stroke-linejoin="round"/></g></svg>`;
+    const pulse = air ? `<span class="plane-pulse" style="border-color:${fill}"></span>` : "";
+    const t = m && m.last ? dayhm(m.last) : "";
+    L.marker([la1, lo1], { zIndexOffset: 1000, keyboard: false, title: `${m ? m.aircraft + " " + m.mission : "aircraft"} - ${air ? "latest position" : "last observation"}${t ? " " + t : ""}`,
+      icon: L.divIcon({ className: "plane-ic", html: pulse + svg, iconSize: [30, 30], iconAnchor: [15, 15] }) }).addTo(lyr.plane);
   }
   // wind barbs (flight-level wind), thinned to ~48 px apart on screen
   function barbSVG(dir, kt, colr) {

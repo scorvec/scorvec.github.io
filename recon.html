@@ -202,6 +202,13 @@
     border-radius: 6px; padding: 0.35rem 0.75rem; cursor: pointer; }
   .dock iframe { flex: 1 1 auto; width: 100%; border: 0; min-height: 0; background: #0b0b12; }
   @media (max-width: 700px) { .dock { top: 0; bottom: 0; width: 100vw; border-radius: 0; } }
+  /* aircraft icon at the newest ob (drawPlane in recon.js); the ring pulses only while the mission is airborne */
+  .plane-ic { position: relative; }
+  .plane-ic svg { position: absolute; left: 0; top: 0; filter: drop-shadow(0 1px 1.5px rgba(0,0,0,0.45)); }
+  .plane-pulse { position: absolute; left: 3px; top: 3px; width: 24px; height: 24px; border: 2px solid; border-radius: 50%;
+                 animation: planepulse 1.8s ease-out infinite; }
+  @keyframes planepulse { 0% { transform: scale(0.6); opacity: 0.9; } 100% { transform: scale(1.9); opacity: 0; } }
+  @media (prefers-reduced-motion: reduce) { .plane-pulse { animation: none; opacity: 0.6; } }
 </style>
 </head>
 <body>
@@ -532,7 +539,7 @@
   <iframe id="dockF" title="Dropsonde skew-T, hodograph and parameters"></iframe>
 </section>
 
-<script src="/assets/recon/recon.js" defer></script>
+<script src="/assets/recon/recon.js?v=20261007p" defer></script>
 <!-- sf:start -->
 <footer class="sf">
   <div class="sf-in">
