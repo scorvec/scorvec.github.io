@@ -36,7 +36,8 @@
   const MON = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
   const hm = t => { const d = new Date(t * 1000); return `${p2(d.getUTCHours())}:${p2(d.getUTCMinutes())}`; };
   const hms = t => { const d = new Date(t * 1000); return `${hm(t)}:${p2(d.getUTCSeconds())}`; };
-  const dayhm = t => { const d = new Date(t * 1000); return `${d.getUTCDate()} ${MON[d.getUTCMonth()]} ${hm(t)}Z`; };
+  const dayhm = t => { const d = new Date(t * 1000), y = d.getUTCFullYear();
+    return `${d.getUTCDate()} ${MON[d.getUTCMonth()]}${y !== new Date().getUTCFullYear() ? " " + y : ""} ${hm(t)}Z`; };
   const ll = (la, lo) => la == null ? "—" : `${Math.abs(la).toFixed(2)}°${la >= 0 ? "N" : "S"} ${Math.abs(lo).toFixed(2)}°${lo >= 0 ? "E" : "W"}`;
   const ago = t => {
     const m = Math.round((Date.now() / 1000 - t) / 60);
@@ -295,7 +296,10 @@
         icon: L.divIcon({ className: "barb", html: barbSVG(r[ix.wd], r[ix.ws], colr), iconSize: [34, 34], iconAnchor: [17, 17] }) }).addTo(lyr.barbs);
     }
   }
-  map.on("zoomend", () => { if (S.mis) drawBarbs(); });
+  // permanent fix labels only once zoomed in enough to separate them
+  const lowZ = () => $("map").classList.toggle("lowz", map.getZoom() < 6.5);
+  map.on("zoomend", () => { lowZ(); if (S.mis) drawBarbs(); });
+  lowZ();
 
   function dropEst(d) {
     const e = d.sfc_est || {};
@@ -504,7 +508,9 @@
     if (m) {
       const air = isAir(m);
       if (air) parts.push(`<span class="pill live"><i></i>Airborne</span>`);
-      if (m.last_hdob) parts.push(`<span>Newest observation <b>${dayhm(m.last_hdob)}</b> (${ago(m.last_hdob)})</span>`);
+      const tl = m.last_hdob || m.last;
+      if (tl && Date.now() / 1000 - tl > 2 * 86400) parts.push(`<span>Flown <b>${dayhm(m.first)} – ${dayhm(m.last)}</b></span>`);
+      else if (m.last_hdob) parts.push(`<span>Newest observation <b>${dayhm(m.last_hdob)}</b> (${ago(m.last_hdob)})</span>`);
       else if (m.last) parts.push(`<span>Newest message <b>${dayhm(m.last)}</b> (${ago(m.last)})</span>`);
     }
     parts.push(`<span class="mu">Mirror checked ${ago(S.man.updated)} · page refreshes ${anyAir() ? "every 90 s while a mission is airborne" : "every 10 min"}</span>`);
