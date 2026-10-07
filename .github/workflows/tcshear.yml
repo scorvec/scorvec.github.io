@@ -105,13 +105,20 @@ jobs:
         timeout-minutes: 140
         run: python scripts/tcshear/verify.py --out assets/sst/data/tcshear_validation.json
 
+      # The publisher retries a lost lease itself, but a collision with another publisher can still end it (2026-10-07:
+      # "stale info" then its temp-dir cleanup failed under set -e); try the whole publish up to three times. The commit
+      # step below runs only after a successful publish, so the manifest never points at JSON that is not there.
       - name: Publish maps and per-storm data to the frames branch
         if: steps.gate.outputs.any == 'true' && env.MODE != 'verify'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           D=assets/sst/anim/tcshear; [ "$MODE" = "hindcast" ] && D=assets/sst/anim/tcshear_hc
-          scripts/lib/publish_frames_ci.sh "$D"
+          for i in 1 2 3; do
+            if bash scripts/lib/publish_frames_ci.sh "$D"; then exit 0; fi
+            echo "::warning::frames publish attempt $i failed; retrying"; sleep $((20 * i))
+          done
+          exit 1
 
       - name: Commit & push
         run: |

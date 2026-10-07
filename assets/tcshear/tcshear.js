@@ -168,7 +168,7 @@
     obs.forEach(function (o) { ys.push(o[1]); }); shipsPts.forEach(function (p) { ys.push(p[1]); });
     var logy = m === "vi";
     var ylo = logy ? 0.003 : 0, yhi = ys.length ? Math.max.apply(null, ys) : 1;
-    if (logy) { yhi = Math.max(0.3, yhi * 1.2); ylo = Math.min(0.003, Math.max(0.0005, Math.min.apply(null, ys.filter(function (v) { return v > 0; })) || 0.003)); }
+    if (logy) { yhi = Math.min(1, Math.max(0.3, yhi * 1.2)); ylo = Math.min(0.003, Math.max(0.0005, Math.min.apply(null, ys.filter(function (v) { return v > 0; })) || 0.003)); }
     else yhi = yhi * 1.08 || 1;
     if (m === "rh600") { ylo = 0; yhi = 100; }
     function X(hh) { return L + (hh - xs[0]) / (xs[1] - xs[0]) * (W - L - Rm); }
