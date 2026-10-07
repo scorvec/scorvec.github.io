@@ -209,6 +209,8 @@ def render(country: str, label: str, series_now: dict, series_prev: dict | None,
             lines = [f"Forecast {cur.mean():+.2f} mm/day ({cur.mean() - clim[c]:+.2f} vs normal)"]
             if prv is not None:
                 lines.append(f"Change since {calendar.month_abbr[int(prev[4:])]} issue: {cur.mean() - prv.mean():+.2f}")
+            elif series_prev and mon not in vmp:
+                lines.append(f"No change: the {calendar.month_abbr[int(prev[4:])]} issue did not reach this month")
             lines.append(f"Drier than normal: {p_dry:.0%} of members")
             ax.text(0.0, -0.22, "\n".join(lines), transform=ax.transAxes, ha="left", va="top", fontsize=7.2, color="#222", linespacing=1.35)
             summary[name][mon] = dict(normal=round(float(clim[c]), 3), normal_sd=round(float(csd[c]), 3), mean=round(float(cur.mean()), 3),

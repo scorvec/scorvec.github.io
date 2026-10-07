@@ -53,25 +53,27 @@ AWS_SRC = {
     ("gl_v850", "v"): ("pressure", "v", 850, 1.0),
     ("na_snowdepth", "sd"): ("single", "sdwe", None, 1e-3),          # kg m-2 → m of water equivalent
     ("polar_n", "z_10"): ("pressure", "z", 10, 1.0),
-    ("polar_n", "z_100"): ("pressure", "z", 100, 1.0),
     ("polar_s", "z_10"): ("pressure", "z", 10, 1.0),
-    ("polar_s", "z_100"): ("pressure", "z", 100, 1.0),
     ("nh_z", "z_500"): ("pressure", "z", 500, 1.0),
-    ("nh_z", "z_1000"): ("pressure", "z", 1000, 1.0),
     ("nh_msl", "msl"): ("single", "slp", None, 1.0),
     ("strat_u", "u_10"): ("pressure", "u", 10, 1.0),
-    ("energy", "si10"): ("single", "ws10m", None, 1.0),
 }
+# The AWS copy holds no data at z 100 and z 1000 hPa (every chunk empty, seen 2026-10-07), nor z 50 / u 30 / u 50;
+# those come from the CDS sub-daily hindcast, lead 7 only, one request per kind (levels together).
 CDS_SRC = {
     ("gl", "tprate"): (1, None, None, LEADS),
     ("na_snow", "mtsfr"): (0, None, None, LEADS),
-    ("energy", "ssrd"): (1, None, None, LEADS),
     ("water", "e"): (0, None, None, LEADS),
-    ("polar_n", "z_50"): (0, ["50"], None, (7,)),
-    ("polar_s", "z_50"): (0, ["50"], None, (7,)),
-    ("strat_u", "u_30"): (0, ["30"], [4, -180, -4, 180], (7,)),    # QBO band only: the table reads 5°S–5°N
-    ("strat_u", "u_50"): (0, ["50"], [4, -180, -4, 180], (7,)),
+    ("polar_n", "z_50"): (0, ["50", "100"], None, (7,)),
+    ("polar_n", "z_100"): (0, ["50", "100"], None, (7,)),
+    ("polar_s", "z_50"): (0, ["50", "100"], None, (7,)),
+    ("polar_s", "z_100"): (0, ["50", "100"], None, (7,)),
+    ("nh_z", "z_1000"): (0, ["1000"], None, (7,)),
+    ("strat_u", "u_30"): (0, ["30", "50"], [4, -180, -4, 180], (7,)),    # QBO band only: the table reads 5°S–5°N
+    ("strat_u", "u_50"): (0, ["30", "50"], [4, -180, -4, 180], (7,)),
 }
+# NOT extended (stay at 6 leads): the `energy` kind — the monthly 10 m wind speed is not reproducible from the
+# sub-daily u/v (seas5_lead7 docstring)
 SUBSET = {"sfc": ("gl", ("t2m", "tprate"))}
 # variables that keep 6 leads: neither the AWS copy nor an affordable CDS request has them (none at present)
 UNAVAILABLE: dict = {}
@@ -202,21 +204,29 @@ def target_grid(kind: str):
     return lat, lon
 
 
+_CDS_FIELDS: dict = {}
+
+
 def _cds_hindcast(kind: str, key: str, month: str, lat, lon) -> np.ndarray | None:
-    """[600, 3 (leads 5–7), lat, lon] from the CDS sub-daily hindcast; leads not requested stay NaN."""
+    """[600, 3 (leads 5–7), lat, lon] from the CDS sub-daily hindcast; leads not requested stay NaN. Keys that share
+    a request (the same kind, group, levels, area and leads) are fetched once."""
     import seas5_lead7 as L7
     gi, levels, area, leads = CDS_SRC[(kind, key)]
-    ds, req = L7.request(kind, gi, YEARS, f"{int(month):02d}", leads)
-    if levels:
-        req["pressure_level"] = levels
-    if area:
-        req["area"] = area
-    tag = f"hc{int(month):02d}_{key}"
-    dest = L7.raw_path(kind, gi, tag)
-    if not L7._cds(ds, req, dest, f"hindcast {kind} {key} start {month} leads {list(leads)}"):
-        return None
-    fields = L7.reduce_group(dest, YEARS, f"{int(month):02d}", leads)
-    dest.unlink()
+    rk = (kind, gi, tuple(levels or ()), tuple(area or ()), tuple(leads), f"{int(month):02d}")
+    if rk not in _CDS_FIELDS:
+        ds, req = L7.request(kind, gi, YEARS, f"{int(month):02d}", leads)
+        if levels:
+            req["pressure_level"] = levels
+        if area:
+            req["area"] = area
+        tag = f"hc{int(month):02d}_{'_'.join(levels or ['sfc'])}_{len(leads)}"
+        dest = L7.raw_path(kind, gi, tag)
+        if not L7._cds(ds, req, dest, f"hindcast {kind} {'/'.join(levels or [])} start {month} leads {list(leads)}"):
+            return None
+        _CDS_FIELDS.clear()                                             # one request's fields in memory at a time
+        _CDS_FIELDS[rk] = L7.reduce_group(dest, YEARS, f"{int(month):02d}", leads)
+        dest.unlink()
+    fields = _CDS_FIELDS[rk]
     mvar, _, lev = key.partition("_")
     v, flat, flon = fields[(mvar, int(lev) if lev else None)]
     out = np.full((v.shape[0], len(LEADS), len(lat), len(lon)), np.nan, dtype=np.float32)
@@ -229,8 +239,9 @@ def _cds_hindcast(kind: str, key: str, month: str, lat, lon) -> np.ndarray | Non
     return out
 
 
-def build_kind(kind: str, month: str) -> Path | None:
-    """hindcast/hc_{kind}_{MM}_L7.npz: every key of the kind, [600, 3, lat, lon] for leads 5–7."""
+def build_kind(kind: str, month: str, aws_only: bool = False) -> Path | None:
+    """hindcast/hc_{kind}_{MM}_L7.npz: every key of the kind, [600, 3, lat, lon] for leads 5–7. `aws_only` (the
+    consistency test) skips the CDS pressure-level keys, which are exact by construction and queue for an hour."""
     dest = pseudo_path(kind, month)
     if dest.exists() and dest.stat().st_size > 0:
         return dest
@@ -260,6 +271,8 @@ def build_kind(kind: str, month: str) -> Path | None:
                 arrays[k] = cell_to_points(cell, lat, lon) * np.float32(fac)
                 src_note[k] = f"AWS Planette SEAS5 daily {group}/{var}{'@' + str(level) if level else ''}, bilinear to the CDS grid"
             else:
+                if aws_only and CDS_SRC[(kind, k)][1]:
+                    continue
                 v = _cds_hindcast(kind, k, month, lat, lon)
                 if v is None:
                     print(f"  {kind} {k}: CDS hindcast fetch failed — pseudo-raw not written", flush=True)
@@ -396,7 +409,7 @@ def check(month: str, out: Path | None = None) -> dict:
         z = pz(kind); t = R.load(R.hc_ref("build_polar", month))
         if z is None or t is None:
             continue
-        for lev in (10, 100):
+        for lev in [L for L in (10, 100) if f"z_{L}" in z.files]:
             v = np.full((z[f"z_{lev}"].shape[0], 6) + z[f"z_{lev}"].shape[2:], np.nan, np.float32); v[:, 4:6] = z[f"z_{lev}"][:, :2] / 9.80665
             series_cmp(f"polar cap {hemi} z{lev}", t[f"{hemi}_z{lev}"], box_mean(v, z["lat"], z["lon"], box))
     z = pz("nh_msl"); t = R.load(R.hc_ref("tele_nh", month))
@@ -409,7 +422,7 @@ def check(month: str, out: Path | None = None) -> dict:
     z = pz("nh_z")
     if z is not None and t is not None:
         from seas5_tele import _cap
-        for lev in (500, 1000):
+        for lev in [L for L in (500, 1000) if f"z_{L}" in z.files]:
             v = np.full((z[f"z_{lev}"].shape[0], 6) + z[f"z_{lev}"].shape[2:], np.nan, np.float32); v[:, 4:6] = z[f"z_{lev}"][:, :2] / 9.80665
             series_cmp(f"NAM cap 65N z{lev}", t[f"cap{lev}"], _cap(v, z["lat"], 65))
         field_cmp("mean nh_z z500", {L: t["hz_m"][L - 1] for L in (5, 6)}, {L: np.nanmean(z["z_500"][:, L - 5], 0) for L in (5, 6)}, z["lat"])
@@ -450,11 +463,12 @@ def main(argv=None) -> int:
     ap.add_argument("--month", default="10")
     ap.add_argument("--kinds", nargs="*")
     ap.add_argument("--out")
+    ap.add_argument("--aws-only", action="store_true")
     a = ap.parse_args(argv)
     if a.cmd == "probe":
         probe(); return 0
     if a.cmd == "build":
-        bad = [k for k in (a.kinds or kinds()) if build_kind(k, a.month) is None]
+        bad = [k for k in (a.kinds or kinds()) if build_kind(k, a.month, a.aws_only) is None]
         print(f"pseudo-raw start {a.month}: AWS {AWS_STATS['chunks']} chunk reads, {AWS_STATS['mb_raw'] / 1e3:.1f} GB decompressed, "
               f"{AWS_STATS['seconds'] / 60:.1f} min" + (f"; FAILED {bad}" if bad else ""), flush=True)
         return 1 if bad else 0
