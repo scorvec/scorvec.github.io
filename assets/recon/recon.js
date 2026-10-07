@@ -1339,10 +1339,12 @@
     if (mv) { const c0 = btAt(S.storm.btk, tm); const dy = mv[0] * 3600 * 60, dx = mv[1] * 3600 * 60 * Math.cos((c0 ? c0[0] : 20) * rad); hdg = (Math.atan2(dx, dy) / rad + 360) % 360; spd = Math.hypot(dx, dy); }
     SR.hdg = hdg;
     const pts = [];
+    SR.auto = SR.v === "sfmr" && !S.rows.some(r => r[ix.sfmr] != null);     // no valid SFMR on this flight: reduced FL wind
+    const use = SR.auto ? "fl" : SR.v;
     for (let i = 0; i < S.rows.length; i++) {
       const r = S.rows[i]; if (r[ix.la] == null) continue;
       const c = cf(r[0]); if (!c) continue;
-      const v = SR.v === "sfmr" ? r[ix.sfmr] : flReduce(r); if (v == null) continue;
+      const v = use === "sfmr" ? r[ix.sfmr] : flReduce(r); if (v == null) continue;
       const dy = (r[ix.la] - c[0]) * 60, dx = (r[ix.lo] - c[1]) * 60 * Math.cos(c[0] * rad), rr = Math.hypot(dx, dy);
       if (rr > 250) continue;
       pts.push({ i, dx, dy, r: rr, b: (Math.atan2(dx, dy) / rad + 360) % 360, v });
@@ -1365,7 +1367,8 @@
     const nhc = {}; for (const r of rad0) if (r[0] === nt) nhc[r[1]] = r.slice(2, 6);
     SR.nhc = nhc; SR.ext = ext;
     $("sr").hidden = false;
-    $("srSub").innerHTML = `${pts.length.toLocaleString("en-US")} ${SR.v === "sfmr" ? "SFMR surface winds" : "flight-level winds reduced to the surface"} from this flight placed around the centre interpolated to each observation's time` +
+    $("srSub").innerHTML = (SR.auto ? `<b>This flight has no valid SFMR values, so the flight-level wind reduced to the surface is shown.</b> ` : "") +
+      `${pts.length.toLocaleString("en-US")} ${use === "sfmr" ? "SFMR surface winds" : "flight-level winds reduced to the surface"} from this flight placed around the centre interpolated to each observation's time` +
       `${hdg != null ? `; storm motion ${Math.round(hdg)}° at ${Math.round(spd)} kt (best track)` : ""}. Dashed arcs: NHC's wind radii${nt ? ` at ${dayhm(nt)} (ATCF best track)` : " (none within 4 h of this flight)"}.`;
     $("srOri").innerHTML = segHTML([["north", "North up"], ["motion", "Motion up"]], SR.ori);
     $("srVar").innerHTML = segHTML([["sfmr", "SFMR"], ["fl", "Flight level reduced"]], SR.v);
@@ -1375,7 +1378,7 @@
     $("srNote").innerHTML = `Extent = the farthest observation in the quadrant (n mi) at or above the threshold. "≥" means the wind was still that strong at the edge of what the aircraft sampled, so the true extent is larger; ` +
       `"none (to R)" means it was sampled out to R n mi without reaching the threshold; "not sampled" means no observation in that quadrant, and no value is estimated. ` +
       `Quadrants are compass quadrants (NE, SE, SW, NW), as in NHC's radii. One flight samples a few radial legs, so an observed extent is a lower bound unless a leg ran along the quadrant's widest wind. ` +
-      (SR.v === "fl" ? `<b>Alternative</b>: flight-level wind × 0.9 at 700 hPa and × 0.8 at 850 hPa, the standard reductions of Franklin, Black and Valde (2003, <i>Wea. Forecasting</i>); other levels are left out. ` : "") +
+      (use === "fl" ? `<b>Alternative</b>: flight-level wind × 0.9 at 700 hPa and × 0.8 at 850 hPa, the standard reductions of Franklin, Black and Valde (2003, <i>Wea. Forecasting</i>); other levels are left out. ` : "") +
       `SFMR is the measured surface wind and is the primary estimate here.`;
     srDraw();
   }
