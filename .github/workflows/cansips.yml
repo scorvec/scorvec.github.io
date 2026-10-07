@@ -115,6 +115,9 @@ jobs:
           [ -n "$I" ] || I=$(python -c "import sys; sys.path.insert(0,'scripts/sst'); import cansips_dd as D; print(D.latest_issue() or '')")
           echo "issue=$I" >> "$GITHUB_OUTPUT"
           [ -n "$I" ] || { echo "::warning::no complete issue posted"; exit 0; }
+          # nothing to fetch when the published maps already come from this issue's files (most cron firings)
+          python scripts/sst/cansips_maps.py --issue "$I" --stale-check | tee -a "$GITHUB_OUTPUT"
+          if grep -q "^stale=false" "$GITHUB_OUTPUT" && [ "${{ inputs.force }}" != "true" ]; then echo "maps are current"; exit 0; fi
           MM=${I:4:2}
           mkdir -p scripts/sst/data/cansips_dd/clim
           gh release view cansips-ref-v1 >/dev/null 2>&1 || gh release create cansips-ref-v1 --title "CanSIPS hindcast climatology fields" \
@@ -124,7 +127,7 @@ jobs:
 
       - name: Seasonal-page maps (anomalies + ECCC probabilities)
         id: maps
-        if: inputs.mode != 'probe' && inputs.mode != 'checkbox' && inputs.maps != 'false' && steps.clim.outputs.issue != ''
+        if: inputs.mode != 'probe' && inputs.mode != 'checkbox' && inputs.maps != 'false' && steps.clim.outputs.issue != '' && (steps.clim.outputs.stale == 'true' || inputs.force == 'true')
         run: |
           FLAG="--if-stale"
           if [ "${{ inputs.force }}" = "true" ]; then FLAG=""; fi

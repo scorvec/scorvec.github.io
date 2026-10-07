@@ -420,7 +420,15 @@ def main() -> int:
     ap.add_argument("--no-probs", action="store_true")
     ap.add_argument("--clim-only", action="store_true")
     ap.add_argument("--if-stale", action="store_true", help="exit at once when the published maps are this issue's, complete")
+    ap.add_argument("--stale-check", action="store_true", help="print stale=true|false for GITHUB_OUTPUT and exit")
     a = ap.parse_args()
+    if a.stale_check:
+        ym = a.issue or DDM.latest_issue()
+        d0 = json.loads(DOC.read_text()) if DOC.exists() else {}
+        fresh = bool(ym) and d0.get("issue") == f"{ym[:4]}-{ym[4:]}" and not d0.get("failed") and \
+            d0.get("posted") == {str(k): v for k, v in (DDM.issue_posted(ym) or {}).items()}
+        print(f"stale={'false' if fresh else 'true'}")
+        return 0
     ym = a.issue or DDM.latest_issue()
     if not ym:
         print("::warning::no complete CanSIPS issue on the Datamart; keeping the published maps")
