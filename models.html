@@ -2491,7 +2491,7 @@
     var src = cc.c || c, h = cc.hour;
     var vt = Date.parse(c.init) + st.hour * 3600e3, t = fmtTime(vt);
     var init = src.init.replace(/T(\d\d):00Z/, " $1Z").slice(5).replace("-", "/");
-    $("badge").innerHTML = "<b>" + MODELS[st.model] + "</b> " + (st.model === "rdps" && st.field === "ir" ? "OLR-derived brightness temperature (proxy for IR)" : labelOf(st.model, st.field)) + " · run " + init + " +" + h + " h" + (st.field === "acc" ? " · " + ACC_TYPES[st.acc.type].label.toLowerCase() + (drawn && drawn.accLabel ? ", " + drawn.accLabel : "") : "") +
+    $("badge").innerHTML = "<b>" + MODELS[st.model] + "</b> " + (st.model === "rdps" && st.field === "ir" ? "OLR-derived brightness temperature (proxy for IR)" : labelOf(st.model, st.field)) + " · run " + init + " +" + h + " h" + (st.field === "acc" ? " · " + ACC_TYPES[st.acc.type].label.replace(/^./, function (c) { return c.toLowerCase(); }) + (drawn && drawn.accLabel ? ", " + drawn.accLabel : "") : "") +
       (st.field === "ecape" ? " · " + EC_SUBS[st.ec].long : "") + (diffOn() ? " · <b>minus " + MODELS[diffOther(st.model)] + "</b> at the same valid time" : "");
     $("valid").innerHTML = "<span class=\"vt\">" + t[0] + "</span> <span class=\"loc\">· " + t[1] + " your time</span><span class=\"fh\">+" + h + " h</span>";
   }
