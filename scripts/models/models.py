@@ -113,7 +113,7 @@ FIELDS = {
     # updraft speed is helpful as well"). HRRR wrfsfc / RRFS 2dfld; RDPS has only the PBL height.
     #   uh25 / uh03  updraft helicity 2-5 / 0-3 km AGL, the model's max over the hour ending at the valid time (MXUPHL), m2 s-2:
     #                code = round(254 sqrt(UH / 400)) (25 m2/s2 -> 64, 75 -> 110; 254 = 400 or more), 0 below 1 m2/s2
-    #   uvv          max upward vertical velocity over the hour, 100-1000 hPa (MAXUVV), m/s: 0.25 m/s steps, 0 below 1 m/s
+    #   uvv          max upward vertical velocity over the hour, 100-1000 hPa (MAXUVV), m/s: 0.25 m/s steps, 0 below 2 m/s
     #   *s           the RUN SWATH: running maximum since the start of the run (stored, one small file per hour - the page
     #                would otherwise need every earlier hour to show one map)
     #   etop         echo top (RETOP, the 18.3 dBZ top, m above sea level) in kft, 1 kft steps; 255 = no echo
@@ -260,7 +260,8 @@ def encode(name, x):
         c = np.where(x >= 1.0, np.clip(np.rint(254 * np.sqrt(np.maximum(x, 0) / f["top"])), 1, 254), 0)
         return np.where(np.isfinite(x), c, 255).astype(np.uint8)[::-1], None
     if f["enc"] == "uvv":
-        c = np.where(x >= 1.0, np.clip(np.rint(x / f["step"]), 4, 254), 0)
+        # below 2 m/s -> 0 (the map is blank there anyway): the 1-2 m/s of ordinary rising air filled the swaths with noise
+        c = np.where(x >= 2.0, np.clip(np.rint(x / f["step"]), 8, 254), 0)
         return np.where(np.isfinite(x), c, 255).astype(np.uint8)[::-1], None
     if f["enc"] == "etop":                                         # x = echo top, kft; NaN = no echo
         c = np.where(np.isfinite(x), np.clip(np.rint(x), 0, 254), 255)
