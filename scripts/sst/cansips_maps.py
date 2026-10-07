@@ -370,12 +370,15 @@ def read_prob(path: Path, ym: str) -> np.ndarray:
     if len(vals) != 1:
         raise DDM.DataError(f"{path.name}: {len(vals)} messages, expected 1")
     v = vals[0]
+    # ECCC publishes these in percent (Datamart readme: 0 % to 100 %); a field whose maximum stays under 1.5 would be
+    # a change of convention, so refuse it rather than guess. GRIB packing leaves values a hair past 100.
     mx = np.nanmax(v) if np.isfinite(v).any() else 0
-    if mx > 1.5:
-        v = v / 100.0
-    if np.nanmin(v) < -1e-6 or np.nanmax(v) > 1 + 1e-6:
-        raise DDM.DataError(f"{path.name}: probabilities outside 0..1 ({np.nanmin(v):.3g}..{np.nanmax(v):.3g})")
-    return v
+    if mx <= 1.5:
+        raise DDM.DataError(f"{path.name}: maximum {mx:.3g} - not the documented percent scale")
+    v = v / 100.0
+    if np.nanmin(v) < -1e-3 or np.nanmax(v) > 1 + 1e-3:
+        raise DDM.DataError(f"{path.name}: probabilities outside 0..100 % ({100 * np.nanmin(v):.4g}..{100 * np.nanmax(v):.4g})")
+    return np.clip(v, 0.0, 1.0)
 
 
 def prob_fields(ym, key, prods, idx):
@@ -473,9 +476,17 @@ def main() -> int:
                     if f3 is None:
                         continue
                     ab, be, nn = f3
-                    s = ab + be + nn; ok = np.isfinite(s)
-                    if ok.sum() and np.mean(np.abs(s[ok] - 1) > 0.03) > 0.01:
-                        print(f"::warning::{name} {idx}: terciles do not sum to 1 on {np.mean(np.abs(s[ok] - 1) > 0.03):.1%} of cells; skipped")
+                    s = ab + be + nn
+                    # where the hindcast has no snow (or no defined terciles) ECCC writes 0 for all three: no forecast there
+                    none = np.isfinite(s) & (s < 0.02)
+                    ab, be, nn = (np.where(none, np.nan, f) for f in (ab, be, nn))
+                    ok = np.isfinite(s) & ~none
+                    bad = float(np.mean(np.abs(s[ok] - 1) > 0.03)) if ok.any() else 1.0
+                    if bad > 0.01:
+                        print(f"::warning::{name} {idx}: terciles do not sum to 1 on {bad:.1%} of the defined cells; skipped")
+                        continue
+                    if key == "swe" and ok.mean() < 0.01:
+                        print(f"  {name} {idx}: snow terciles defined on {ok.mean():.2%} of the globe; frame skipped")
                         continue
                     fn = f"F{k:02d}.webp"
                     draw_terciles(key, ym, idx, ab, be, nn, d / fn)
