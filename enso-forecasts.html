@@ -1601,7 +1601,9 @@ window.STAGE = {
     lay.xaxis.type = "category";
     lay.xaxis.tickangle = 0;
     lay.xaxis.tickvals = x; lay.xaxis.ticktext = x.map(function (m, i) {
-      return narrow() ? (i % 2 ? "" : MONS[+m.slice(5, 7) - 1] + (m.slice(5, 7) === "01" || i === 0 ? " " + m.slice(2, 4) : "")) : monLabel(m);
+      // 20 months once CanSIPS runs on: the year only at January and the first tick, or the labels collide
+      return narrow() ? (i % 2 ? "" : MONS[+m.slice(5, 7) - 1] + (m.slice(5, 7) === "01" || i === 0 ? " " + m.slice(2, 4) : ""))
+        : x.length > 14 ? MONS[+m.slice(5, 7) - 1] + (m.slice(5, 7) === "01" || i === 0 ? " " + m.slice(0, 4) : "") : monLabel(m);
     });
     lay.yaxis.title.text = (key === "n34" ? (state.smooth ? "ONI" : "Niño-3.4") : (state.smooth ? "RONI" : "relative Niño-3.4")) + " (°C)";
     el("plumeChart").style.height = (narrow() ? 520 : 500) + "px";
