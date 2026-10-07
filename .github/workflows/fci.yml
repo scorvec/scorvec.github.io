@@ -1,8 +1,11 @@
 name: US credit conditions index
 
-# fci.html: weekly US credit conditions index (scripts/fci/fci_build.py) from FRED's public csv endpoint (no key). FRED
-# posts most daily rates the next business morning and the weekly H.8 bank loans / CP outstanding on Fridays, so one
-# run a day at 21:40 UTC is plenty (dispatcher slot too: GitHub honours only a fraction of this repo's cron firings).
+# fci.html: weekly US credit conditions index (scripts/fci/fci_build.py) from FRED's public csv endpoint (no key), the Fed
+# Board's GZ spread / excess bond premium csv, Shiller's ie_data.xls and the FFIEC Call Report bulk download
+# (scripts/fci/callreport.py; quarterly aggregates kept in assets/fci/callreport_ndfi.json, re-pulled weekly). FRED posts most
+# daily rates the next business morning and the weekly H.8 bank loans / CP outstanding on Fridays, so one run a day at
+# 21:40 UTC is plenty (dispatcher slot too: GitHub honours only a fraction of this repo's cron firings). Dispatch with
+# publish=false (any branch) to build without committing; the json is kept as a run artifact.
 on:
   workflow_dispatch:
     inputs:
@@ -10,10 +13,6 @@ on:
         description: 'Commit and push the build to main (false = build only, upload the json as an artifact)'
         type: boolean
         default: true
-      probe:
-        description: 'Run the source probe (scripts/fci/fci_probe.py) instead of the build'
-        type: boolean
-        default: false
   schedule:
     - cron: '40 21 * * *'
 
@@ -36,21 +35,17 @@ jobs:
           python-version: '3.11'
       - name: Install
         run: pip install --quiet numpy pandas xlrd
-      - name: Probe the sources
-        if: inputs.probe
-        run: python scripts/fci/fci_probe.py
       - name: Build the index
-        if: ${{ !inputs.probe }}
         run: python scripts/fci/fci_build.py --out assets/fci --cache "$RUNNER_TEMP/fred"
       - name: Keep the build
-        if: ${{ !inputs.probe }}
+        if: ${{ github.event_name == 'workflow_dispatch' && !inputs.publish }}
         uses: actions/upload-artifact@v4
         with:
           name: fci-build
           path: assets/fci/
           retention-days: 7
       - name: Commit & push
-        if: ${{ !inputs.probe && (github.event_name == 'schedule' || inputs.publish) && github.ref == 'refs/heads/main' }}
+        if: ${{ (github.event_name == 'schedule' || inputs.publish) && github.ref == 'refs/heads/main' }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
@@ -72,7 +67,7 @@ jobs:
           done
           exit 1
       - name: Deploy the site
-        if: ${{ success() && !inputs.probe }}
+        if: success()
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: echo "site deploy is batched - the dispatcher deploys within 15 min (pages.yml)"

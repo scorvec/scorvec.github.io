@@ -186,7 +186,7 @@ PRODUCTS = [
          "Every US county and calendar month since 1895: temperature, precipitation and degree-day trends per decade with significance, the 1991–2020 normal and what normal is now.",
          "Monthly"),
         ("/fci.html", "US credit conditions",
-         "How tight credit is in the US, weekly since 1990: corporate bond spreads, commercial paper, bank business lending and the loan officer survey, mortgage rates, the fed funds rate and the yield curve, with sub-indices for companies, mortgages and policy.",
+         "How tight credit is in the US, weekly since 1990: corporate bond spreads, commercial paper, bank lending and the loan officer survey, mortgage rates, the fed funds rate, the yield curve, stocks and the dollar, with sub-indices for companies, mortgages, rates, markets, liquidity and private credit.",
          "Daily"),
     ]),
 ]
