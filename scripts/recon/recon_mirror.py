@@ -48,6 +48,7 @@ ATCF = "https://ftp.nhc.noaa.gov/atcf"
 PRODUCTS = ["AHONT1", "REPNT1", "REPNT2", "REPNT3", "REPRPD"]     # Atlantic (REPNT0 = non-tasked weather recon)
 HCOLS = ["t", "la", "lo", "p", "z", "x", "dv", "t_", "td", "wd", "ws", "wp", "sfmr", "rr", "qc"]
 NOW = datetime.now(UTC)
+CODE_V = 2                 # bump when the manifest's derived fields or the storm assignment change
 
 
 def log(*a):
@@ -514,7 +515,7 @@ class Mirror:
                                year=int(sid[-4:]), missions=ms, last=last or None,
                                active=any(a["id"] == sid for a in active), pinned=sid in pinned,
                                file=f"storms/{sid}.json" if s else None)
-        man.update(v=1, updated=int(NOW.timestamp()), season=NOW.year, active=active, storms=storms,
+        man.update(v=1, code=CODE_V, updated=int(NOW.timestamp()), season=NOW.year, active=active, storms=storms,
                    missions=missions,
                    newest_ob=max([v["last_hdob"] or 0 for v in missions.values()], default=None) or None,
                    credit="NOAA National Hurricane Center reconnaissance archive (USAF 53rd WRS and NOAA AOC)")
@@ -647,7 +648,8 @@ def live(mx, days_back):
                 s = jload(p, None)
                 if s:
                     mx.storms[p.stem] = s["btk"]
-    if mx.changed or mx.touched:
+    # a new decoder/assignment version rebuilds the manifest (and prunes) even when NHC has nothing new
+    if mx.changed or mx.touched or days_back is not None or mx.manifest.get("code") != CODE_V:
         mx.write_missions()
         mx.prune(pinned)
         mx.build_manifest(active, pinned)
