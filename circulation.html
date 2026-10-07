@@ -412,7 +412,7 @@ References: Bister &amp; Emanuel 2002, <i>JGR</i> 107(D24), 4801 &middot; Chen, 
 .tcs-now{margin:6px 0 12px;color:var(--tk);font-size:1.02rem;line-height:1.5}
 .tcs-hour{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin:6px 0 8px;color:var(--tk)}
 .tcs-hour input{width:min(420px,70vw)}
-.tcs-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px;margin:6px 0}
+.tcs-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(290px,450px));justify-content:center;gap:14px;margin:6px 0}
 .tcs figure{margin:0}
 .tcs figcaption{color:var(--tm);font-size:.93rem;margin:4px 0 0}
 .tcs h4{margin:14px 0 4px;font-size:1.02rem;color:var(--tk)}
@@ -424,6 +424,7 @@ References: Bister &amp; Emanuel 2002, <i>JGR</i> 107(D24), 4801 &middot; Chen, 
 .tcs svg .thr{stroke:#8a5a00;stroke-width:1.2;stroke-dasharray:6 4}
 .tcs svg .tm{font:12px "Source Sans 3",sans-serif;fill:#6f6b64}
 .tcs svg .tl{font:600 12px "Source Sans 3",sans-serif;fill:#1b1d22;paint-order:stroke;stroke:#fff;stroke-width:3px}
+.tcs svg .thrl{fill:#7a4f00;font-weight:600}
 .tcs svg .tq{font:600 11.5px "Source Sans 3",sans-serif;fill:#4b4740;letter-spacing:.04em}
 .tcs-key{display:flex;flex-wrap:wrap;gap:4px 14px;margin:6px 0;color:var(--tk);font-size:.93rem}
 .tcs-key i,.tcs-tab i{display:inline-block;width:14px;height:4px;border-radius:2px;margin-right:6px;vertical-align:middle}
@@ -432,7 +433,7 @@ References: Bister &amp; Emanuel 2002, <i>JGR</i> 107(D24), 4801 &middot; Chen, 
 .tcs-tab th,.tcs-tab td{border-bottom:1px solid var(--tr);padding:5px 7px;text-align:left;vertical-align:top}
 .tcs-tab thead th{color:var(--tm);font-weight:600}
 .tcs-tab .mu,.tcs .mu{color:var(--tm)}
-.tcs-map img{display:block;width:100%;height:auto;border:1px solid var(--tr);border-radius:8px;background:#fff}
+.tcs-map img{display:block;width:100%;max-width:900px;margin:0 auto;height:auto;border:1px solid var(--tr);border-radius:8px;background:#fff}
 </style>
 <div class="tcs-row" id="tcs-storms" role="group" aria-label="Storms"></div>
 <div class="tcs-row" id="tcs-views" role="group" aria-label="View"></div>
@@ -452,7 +453,7 @@ References: Bister &amp; Emanuel 2002, <i>JGR</i> 107(D24), 4801 &middot; Chen, 
 </div>
 <div id="tcs-val" hidden></div>
 </div>
-<script src="/assets/tcshear/tcshear.js?v=20261007a" defer></script>
+<script src="/assets/tcshear/tcshear.js?v=20261008a" defer></script>
 <!-- Storm picker (2026-10-03, user: "For the cyclone phase space and ensemble tracks, would be better if you could click on a
      map and select the storm"). Mounted by the tcens and tcphase products; reads assets/sst/data/tcens.json + tcphase.json
      (per-storm figures in assets/sst/tc/, written by tc_ens.py / tc_phase.py). State in the hash: #tcens/<id>[/depth], #tcphase/<id>. -->

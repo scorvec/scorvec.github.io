@@ -17,9 +17,19 @@
   function $(id) { return document.getElementById(id); }
   function esc(s) { return String(s == null ? "" : s).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); }
   function J(u) { return fetch(u + "?t=" + Math.floor(Date.now() / 300000)).then(function (r) { return r.ok ? r.json() : null; }).catch(function () { return null; }); }
+  // the per-storm JSON and the maps live on the frames branch: frames_root.js walks the CDN -> raw -> jsDelivr chain
+  // (circulation.html does not load it itself; its loops do, inside their iframes)
+  var FR = null;
+  function frameRoot() {
+    if (window.frameFetch) return Promise.resolve();
+    if (!FR) FR = new Promise(function (ok) { var s = document.createElement("script"); s.src = "/assets/frames_root.js"; s.onload = ok; s.onerror = ok; document.head.appendChild(s); });
+    return FR;
+  }
   function FJ(rel, sha) {
-    if (!window.frameFetch) return J(rel);
-    return window.frameFetch(rel, sha, { local: rel }).then(function (r) { return r.json(); }).catch(function () { return null; });
+    return frameRoot().then(function () {
+      if (!window.frameFetch) return J(rel);
+      return window.frameFetch(rel, sha).then(function (r) { return r.json(); });
+    }).catch(function () { return null; });
   }
   function t0(doc) { return Date.parse(doc.init.replace(/:00Z$/, ":00:00Z")); }
   function fmtT(ms, long) {
@@ -161,6 +171,7 @@
     var sh = doc.obs.ships || {}, key = Object.keys(sh).sort().filter(function (k) { return Date.UTC(2000 + +k.slice(0, 2), +k.slice(2, 4) - 1, +k.slice(4, 6), +k.slice(6, 8)) <= tm0; }).pop();
     if (key && (m === "deep" || m === "pi")) { var S_ = sh[key], off = (S_.t0 * 1000 - tm0) / 3600000;
       (S_.hours || []).forEach(function (hh, i) { var v = m === "deep" ? S_.shear[i] : S_.pot_int[i]; if (v != null) shipsPts.push([hh + off, v]); }); }
+    obs = obs.filter(function (o) { return o[0] >= -48 && o[0] <= 120; });
     obs.forEach(function (o) { xs[0] = Math.min(xs[0], Math.floor(o[0] / 6) * 6); });
     var ys = [];
     rs.forEach(function (x) { x[1].forEach(function (r) { var v = val(r, m); if (v != null) ys.push(v); }); });
@@ -185,9 +196,9 @@
     s += '<line x1="' + X(0).toFixed(1) + '" x2="' + X(0).toFixed(1) + '" y1="' + T + '" y2="' + (H - B) + '" class="now"/>' + txt(X(0) + 4, H - B - 6, "run start", null, "tm");
     // thresholds (literature)
     if (m === "vi") [[0.03, "0.03: TCs tend to strengthen below (TE12)"], [0.1, "0.1: ~upper bound for strengthening (TE12)"]].forEach(function (q) {
-      s += '<line x1="' + L + '" x2="' + (W - Rm) + '" y1="' + Y(q[0]).toFixed(1) + '" y2="' + Y(q[0]).toFixed(1) + '" class="thr"/>' + txt(W - Rm - 4, Y(q[0]) - 4, q[1], "end", "tm"); });
+      s += '<line x1="' + L + '" x2="' + (W - Rm) + '" y1="' + Y(q[0]).toFixed(1) + '" y2="' + Y(q[0]).toFixed(1) + '" class="thr"/>' + txt(L + 6, Y(q[0]) - 5, q[1], null, "tl thrl"); });
     if (m === "tilt") [[30, "30 km: weak storms that intensified rapidly stayed below (Fischer et al. 2024)"]].forEach(function (q) {
-      s += '<line x1="' + L + '" x2="' + (W - Rm) + '" y1="' + Y(q[0]).toFixed(1) + '" y2="' + Y(q[0]).toFixed(1) + '" class="thr"/>' + txt(W - Rm - 4, Y(q[0]) - 4, q[1], "end", "tm"); });
+      s += '<line x1="' + L + '" x2="' + (W - Rm) + '" y1="' + Y(q[0]).toFixed(1) + '" y2="' + Y(q[0]).toFixed(1) + '" class="thr"/>' + txt(L + 6, Y(q[0]) - 5, q[1], null, "tl thrl"); });
     // fan
     var fh = Object.keys(fan).map(Number).sort(function (a, b) { return a - b; });
     if (fh.length > 1) {
@@ -205,7 +216,7 @@
     return s + "</svg>";
   }
   function niceStep(x) { var p = Math.pow(10, Math.floor(Math.log10(x || 1))), f = x / p; return (f < 1.5 ? 1 : f < 3 ? 2 : f < 7 ? 5 : 10) * p; }
-  function fmtNum(v) { return v >= 100 ? String(Math.round(v)) : v >= 10 ? v.toFixed(0) : v >= 1 ? v.toFixed(1) : v >= 0.01 ? v.toFixed(2) : v.toFixed(3); }
+  function fmtNum(v) { return v === 0 ? "0" : v >= 100 ? String(Math.round(v)) : v >= 10 ? v.toFixed(0) : v >= 1 ? v.toFixed(1) : v >= 0.01 ? v.toFixed(2) : v.toFixed(3); }
 
   function legend(doc, m) {
     var rs = runs(doc), out = [];
@@ -249,7 +260,7 @@
     s += ". ";
     var mx = rs[0][1].reduce(function (b, r) { return r.deep && r.h <= 72 && (!b || r.deep[0] > b.deep[0]) ? r : b; }, null);
     if (mx && mx.h > 0) s += "The control's shear peaks at " + Math.round(mx.deep[0] * KT) + " kt at +" + mx.h + " h (" + fmtT(tm0 + mx.h * 3600000, true) + "). ";
-    var td = (doc.obs.tdr || []).slice(-1)[0];
+    var td = (doc.obs.tdr || []).filter(function (o) { return o[0] * 1000 <= tm0 + 3 * 3600000; }).slice(-1)[0];
     if (td) s += "Latest radar tilt (" + fmtT(td[0] * 1000) + "): <b>" + td[1] + " km toward " + compass(td[2]) + "</b>, " + quadrant(relOf(td[2], c.deep[1])) + " of the analysed shear. ";
     if (c.vi != null) s += "Ventilation index " + c.vi.toFixed(3) + " (environmental-temperature core: " + (c.vi_env != null ? c.vi_env.toFixed(3) : "—") + "). ";
     if (c.d2pvu != null) s += "Nearest 2-PVU air on 330 K: " + c.d2pvu.toLocaleString() + " km to the " + compass(c.b2pvu) + ".";
@@ -344,7 +355,7 @@
     var fr = (doc.frames || []).filter(function (f) { return +f.slice(-8, -5) <= h; }).pop();
     var im = $("tcs-map");
     if (fr) { var rel = s.json.replace(/[^/]+$/, "") + fr; im.hidden = false; im.alt = doc.name + ": 330 K PV and shear, " + fr.slice(-8, -5) + " h";
-      if (im.getAttribute("data-rel") !== rel) { im.setAttribute("data-rel", rel); if (window.frameLoad) window.frameLoad(im, rel, "", rel, null, s.sha); else im.src = rel; } }
+      if (im.getAttribute("data-rel") !== rel) { im.setAttribute("data-rel", rel); if (window.frameLoad) window.frameLoad(im, rel, "", null, null, s.sha); else im.src = rel; } }
     else im.hidden = true;
   }
 
