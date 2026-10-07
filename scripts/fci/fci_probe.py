@@ -135,13 +135,10 @@ def ffiec_download(t, hid, op):
 
 
 if __name__ == "__main__":
-    for f in ():
-        try:
-            print(f"===== {f.__name__}", flush=True); f()
-        except Exception as e:
-            print(f"{f.__name__} FAILED {e!r}", flush=True)
-    try:
-        print("===== ffiec", flush=True)
-        t, hid, op = ffiec(); ffiec_download(t, hid, op)
-    except Exception as e:
-        import traceback; traceback.print_exc()
+    sys.path.insert(0, "scripts/fci")
+    import callreport, pathlib, os
+    t0 = time.time()
+    st = callreport.update(pathlib.Path(os.environ.get("RUNNER_TEMP", "/tmp")) / "cr.json", max_new=12)
+    print("elapsed", round(time.time() - t0), "s")
+    for d, a in st["quarters"].items():
+        print(json.dumps(a))
