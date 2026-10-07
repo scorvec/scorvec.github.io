@@ -1,0 +1,53 @@
+name: SEAS5 lead month 7 (probe / one-time hindcast tables)
+
+# The SEAS5 page reaches a 7th lead month (April for an October start, user 2026-10-07). The CDS monthly product
+# stops at leadtime_month 6, so month 7 comes from the daily data: the forecast from the CDS sub-daily product
+# (inside seas5.yml), the 1993–2016 hindcast reference ONCE per start month from Planette's anonymous AWS copy
+# of the SEAS5 daily archive (scripts/sst/seas5_aws.py) plus the CDS sub-daily hindcast for the accumulated
+# fields. This workflow runs the one-time parts, so the monthly seas5.yml job stays within its time budget.
+# Shares the `seas5` concurrency group: one CDS key, never two requests at once.
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: 'probe = AWS layout only'
+        required: true
+        default: 'probe'
+      month:
+        description: 'Start month MM'
+        required: false
+        default: '10'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: seas5
+  cancel-in-progress: false
+
+env:
+  REF_TAG: seas5-ref-v1
+  MPLBACKEND: Agg
+  PYTHONUNBUFFERED: '1'
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 340
+    env:
+      SEAS5_REF_DIR: ${{ github.workspace }}/seas5_ref
+      SST_SITE_ROOT: ${{ github.workspace }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'     # icechunk 2.x (the store is written by ic-2.2.2) needs Python >= 3.12
+
+      - name: Install dependencies
+        run: pip install --quiet numpy pandas 'icechunk==2.2.2' 'zarr>=3'
+
+      - name: Probe the AWS SEAS5 store
+        if: inputs.mode == 'probe'
+        run: python scripts/sst/seas5_aws.py probe
