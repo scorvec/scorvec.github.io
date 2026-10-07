@@ -24,7 +24,7 @@ import argparse, calendar, json, os, sys, time
 from pathlib import Path
 import numpy as np, xarray as xr
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from seas5_outlook import ASSETS, CENTRE, DATA, SYSTEM, CLIM_YEARS, _client               # noqa: E402
+from seas5_outlook import ASSETS, CENTRE, DATA, L7_STATE, SYSTEM, CLIM_YEARS, _client, nleads   # noqa: E402
 from seas5_popT import REGIONS, month_hours                                                # noqa: E402
 import seas5_ref as SR                                                                     # noqa: E402
 from seas5_extremes_build import CITIES, map_geometry, _CITY_PX                            # noqa: E402
@@ -130,7 +130,7 @@ def derive_hc(month: str) -> None:
     daily-mean v10 (vmean, the v-anomaly reference) and the sample count; plus lat/lon."""
     ym = _hc_issue(month); arrs = {}; meta = {"leads": [], "samples": {}}
     lat = lon = None
-    for k in range(1, 7):
+    for k in ([7] if L7_STATE["on"] else range(1, 7)):              # the lead-7 table (seas5_ref L7 unit) reads only month 7
         p = hc_path(ym, k)
         if not p.exists():
             continue
@@ -150,7 +150,9 @@ def derive_hc(month: str) -> None:
 
 REF_UNITS = {UNIT: dict(raw=["w:us"], fn=derive_hc)}
 RAW_HC = {"w:us": ((lambda month: [hc_path(_hc_issue(month), k) for k in range(1, 7)]),
-                   (lambda month: all([_retrieve(hc_path(_hc_issue(month), k), CLIM_YEARS, _hc_issue(month), k, "hindcast") for k in range(1, 7)])))}
+                   (lambda month: all([_retrieve(hc_path(_hc_issue(month), k), CLIM_YEARS, _hc_issue(month), k, "hindcast") for k in range(1, 7)]))),
+          "w7:us": ((lambda month: [hc_path(_hc_issue(month), 7)]),
+                    (lambda month: _retrieve(hc_path(_hc_issue(month), 7), CLIM_YEARS, _hc_issue(month), 7, "hindcast")))}
 
 
 def build(ym: str) -> dict:
@@ -214,7 +216,7 @@ if __name__ == "__main__":
     import datetime as _dt
     ym = a.issue or _dt.datetime.utcnow().strftime("%Y%m")
     if a.cmd == "fetch":
-        ok = [_retrieve(fc_path(ym, k), [ym[:4]], ym, k, "forecast") for k in range(1, 7)]; sys.exit(0 if all(ok) else 1)
+        ok = [_retrieve(fc_path(ym, k), [ym[:4]], ym, k, "forecast") for k in range(1, nleads(ym) + 1)]; sys.exit(0 if all(ok) else 1)
     if a.cmd == "hindcast":
         sys.exit("the hindcast is handled by seas5_ref.py (unit wind_us): python seas5_ref.py hindcast --month MM --only wind_us")
     build(ym)

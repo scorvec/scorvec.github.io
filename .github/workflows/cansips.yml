@@ -1,0 +1,37 @@
+name: CanSIPS direct from ECCC (monthly, 12 months)
+
+# The ENSO forecasts page's CanSIPS plume to 12 months, read straight from ECCC's MSC Datamart
+# (scripts/sst/cansips_dd.py). Data Source: Environment and Climate Change Canada.
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: 'probe | build'
+        required: false
+        default: 'build'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: cansips
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      SST_SITE_ROOT: ${{ github.workspace }}
+      MPLBACKEND: Agg
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+      - name: Install Python dependencies
+        run: pip install --quiet numpy pandas requests eccodes
+      - name: Probe the Datamart GRIB encoding
+        if: inputs.mode == 'probe'
+        run: python scripts/sst/cansips_dd.py probe

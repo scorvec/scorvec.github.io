@@ -55,7 +55,8 @@ import numpy as np
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
-from seas5_outlook import CLIM_YEARS, DATA, KINDS, _retrieve, hc_path  # noqa: E402
+from seas5_outlook import CLIM_YEARS, DATA, KINDS, L7_STATE, _retrieve, hc_path  # noqa: E402
+import re  # noqa: E402
 
 REF = Path(os.environ["SEAS5_REF_DIR"]).resolve() if os.environ.get("SEAS5_REF_DIR") else DATA / "ref"
 
@@ -94,8 +95,17 @@ def _upload_now(month: str, since: float) -> None:
           else f"    release upload failed (the workflow step retries): {r.stderr.strip()[:200]}", flush=True)
 
 
+def l7_sibling(path: Path) -> Path:
+    """hc_{unit}_{MM}.npz → hc_{unit}_L7_{MM}.npz, the unit's lead-7 extension table."""
+    return path.with_name(re.sub(r"_(\d\d)\.npz$", r"_L7_\1.npz", path.name))
+
+
 def save(path: Path, meta: dict | None = None, **arrays) -> Path:
-    """Atomic compressed npz; `meta` (JSON-able) rides along as the __meta__ entry."""
+    """Atomic compressed npz; `meta` (JSON-able) rides along as the __meta__ entry. While a lead-7 table is being
+    derived (L7_STATE), an hc_ table goes to its _L7 sibling — the product code is the same, only the hindcast it
+    reads (the lead-7 pseudo-raw) and the table it writes differ."""
+    if L7_STATE["on"] and path.name.startswith("hc_") and not path.stem.endswith("_L7") and "_L7_" not in path.name:
+        path = l7_sibling(path)
     path.parent.mkdir(parents=True, exist_ok=True)
     tmp = path.with_name(path.stem + f".part{os.getpid()}.npz")
     if meta is not None:
@@ -106,14 +116,69 @@ def save(path: Path, meta: dict | None = None, **arrays) -> Path:
     return path
 
 
-def load(path: Path) -> dict | None:
-    """{name: array} (+ 'meta' dict) or None when the table is not there."""
+def _load_one(path: Path) -> dict | None:
     if not path.exists():
         return None
     with np.load(path, allow_pickle=False) as z:
         out = {k: z[k] for k in z.files if k != "__meta__"}
         if "__meta__" in z.files:
             out["meta"] = json.loads(str(z["__meta__"]))
+    return out
+
+
+def load(path: Path) -> dict | None:
+    """{name: array} (+ 'meta' dict) or None when the table is not there. A hindcast table whose lead-7 extension
+    (hc_{unit}_L7_{MM}.npz) exists comes back MERGED: 7 leads / the fourth season (merge_l7)."""
+    out = _load_one(path)
+    if out is None or L7_STATE["on"] or not path.name.startswith("hc_") or "_L7" in path.name:
+        return out
+    ext = _load_one(l7_sibling(path))
+    return merge_l7(out, ext, path.name) if ext is not None else out
+
+
+def merge_l7(base: dict, ext: dict, name: str = "") -> dict:
+    """A base hindcast table (leads 1–6 from the CDS monthly hindcast) + its lead-7 extension (the same product code
+    run on the lead-7 pseudo-raw hindcast, leads 1–4 empty). Per array:
+      * a key only the extension has (the fourth season, the lead-7 lead set, month-7 keys) → taken from it;
+      * same shape → the base's (leads 1–6 stay CDS-monthly; the extension's leads 5–6 only serve the new season);
+      * one axis 6 → 7 (lead axis) → the base plus the extension's 7th entry;
+      * one axis len(base periods) → len(extension periods) (tables with a meta "periods" list) → the extension's
+        period order, each period from the base where the base has it.
+    meta: lists are unioned (base order first), dicts merged, the rest kept from the base unless new."""
+    bm, em = base.get("meta", {}), ext.get("meta", {})
+    bp = [tuple(p) for p in bm.get("periods", [])]; ep = [tuple(p) for p in em.get("periods", [])]
+    out = dict(base)
+    for k, e in ext.items():
+        if k == "meta":
+            continue
+        if k not in base:
+            out[k] = e; continue
+        b = base[k]
+        if not hasattr(b, "shape") or b.shape == e.shape:
+            continue
+        diff = [i for i in range(b.ndim) if b.ndim == e.ndim and b.shape[i] != e.shape[i]]
+        if b.ndim != e.ndim or len(diff) != 1:
+            raise ValueError(f"{name}:{k}: cannot merge shapes {b.shape} and {e.shape}")
+        ax = diff[0]
+        if (b.shape[ax], e.shape[ax]) == (6, 7):
+            out[k] = np.concatenate([b, np.take(e, [6], axis=ax)], axis=ax)
+        elif bp and ep and b.shape[ax] == len(bp) and e.shape[ax] == len(ep):
+            out[k] = np.concatenate([np.take(b, [bp.index(p)], axis=ax) if p in bp else np.take(e, [i], axis=ax)
+                                     for i, p in enumerate(ep)], axis=ax)
+        else:
+            raise ValueError(f"{name}:{k}: axis {ax} {b.shape[ax]} → {e.shape[ax]} is neither leads nor periods")
+    meta = dict(bm)
+    for k, v in em.items():
+        if k not in meta:
+            meta[k] = v
+        elif isinstance(meta[k], list) and isinstance(v, list):
+            meta[k] = list(meta[k]) + [x for x in v if x not in meta[k]]
+        elif isinstance(meta[k], dict) and isinstance(v, dict):
+            meta[k] = {**meta[k], **v}
+    if ep:
+        meta["periods"] = [list(p) for p in ep]
+    meta["lead7"] = True
+    out["meta"] = meta
     return out
 
 
@@ -151,14 +216,42 @@ def _modules() -> list[str]:
     return [m for m in MODULES if not sel or m in sel.split(",")]
 
 
+# raw hindcast key → its lead-7 counterpart (seas5_aws pseudo-raw for the monthly kinds; the modules' own k = 7
+# chunk for the daily products). A unit whose raw keys all map gets a lead-7 unit {unit}_L7.
+def _l7_raw(key: str) -> str | None:
+    if key.startswith("m:"):
+        return "l7:" + key[2:]
+    return {"x:us": "x7:us", "x:br": "x7:br", "w:us": "w7:us", "sf:na": "sf7:na"}.get(key)
+
+
+def derive_l7(fn, month: str) -> None:
+    """Run a unit's own derivation on the lead-7 pseudo-raw hindcast; its table goes to hc_{unit}_L7_{MM}.npz."""
+    L7_STATE["on"] = True
+    try:
+        fn(month)
+    finally:
+        L7_STATE["on"] = False
+
+
 def units(kind: str) -> dict:
-    """kind 'REF_UNITS' | 'ISSUE_UNITS' | 'OBS_UNITS' → {unit: (module name, spec)}."""
+    """kind 'REF_UNITS' | 'ISSUE_UNITS' | 'OBS_UNITS' → {unit: (module name, spec)}. REF_UNITS also lists the
+    lead-7 units ({unit}_L7, after all base units)."""
     out = {}
     for m in _modules():
         for u, spec in getattr(_mod(m), kind, {}).items():
             if u in out:
                 raise ValueError(f"unit {u} declared twice ({out[u][0]}, {m})")
             out[u] = (m, spec)
+    if kind == "REF_UNITS" and os.environ.get("SEAS5_LEAD7", "1") != "0":
+        l7 = {}
+        for u, (m, spec) in out.items():
+            raws = [_l7_raw(r) for r in spec["raw"]]
+            if not raws or any(r is None for r in raws):
+                continue
+            if "l7:sfc" in raws and "l7:gl" not in raws:
+                raws.insert(raws.index("l7:sfc"), "l7:gl")                   # the sfc pseudo-raw is cut from gl's
+            l7[f"{u}_L7"] = (m, dict(raw=raws, fn=(lambda month, f=spec["fn"]: derive_l7(f, month)), l7=True))
+        out.update(l7)
     return out
 
 
@@ -168,9 +261,21 @@ def raw_registry() -> dict:
     for kind in KINDS:
         reg[f"m:{kind}"] = ((lambda month, k=kind: [hc_path(k, f"{int(month):02d}")]),
                             (lambda month, k=kind: _retrieve(k, CLIM_YEARS, f"{int(month):02d}", hc_path(k, f"{int(month):02d}"))))
+        reg[f"l7:{kind}"] = ((lambda month, k=kind: [_pseudo(k, month)]),
+                             (lambda month, k=kind: _build_pseudo(k, month)))
     for m in _modules():
         reg.update(getattr(_mod(m), "RAW_HC", {}))
     return reg
+
+
+def _pseudo(kind: str, month: str) -> Path:
+    return DATA / "hindcast" / f"hc_{kind}_{int(month):02d}_L7.npz"
+
+
+def _build_pseudo(kind: str, month: str) -> bool:
+    """The kind's lead-7 pseudo-raw hindcast (seas5_aws: AWS daily + CDS sub-daily); needs icechunk (Python 3.12)."""
+    import seas5_aws
+    return seas5_aws.build_kind(kind, f"{int(month):02d}") is not None
 
 
 def raw_present(key: str, month: str, reg: dict) -> bool:

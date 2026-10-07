@@ -31,7 +31,7 @@ import argparse, calendar, json, os, sys, time
 from pathlib import Path
 import numpy as np
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from seas5_outlook import ASSETS, DATA, CENTRE, SYSTEM, CLIM_YEARS, _client, hc_path   # noqa: E402
+from seas5_outlook import ASSETS, DATA, CENTRE, SYSTEM, CLIM_YEARS, L7_STATE, _client, hc_path, nleads   # noqa: E402
 from seas5_build import load_field, valid_months                                       # noqa: E402
 from seas5_popT import month_hours                                                                # noqa: E402
 import seas5_ref as SR                                                                            # noqa: E402
@@ -47,16 +47,26 @@ SIXH = DATA / "sixh"
 UNIT, UNIT_NORMAL = "snow_na", "snow_normal"
 
 
-def sf_path(ym: str) -> Path:
-    return SIXH / f"na_{ym}_sf.grib"
+def sf_path(ym: str, m7: bool = False) -> Path:
+    """months 1–6 in one file; lead month 7 (from the October 2026 issue) in a second one, so an issue fetched before
+    lead 7 existed keeps its file and only the 7th month is added"""
+    return SIXH / (f"na_{ym}_sf_m7.grib" if m7 else f"na_{ym}_sf.grib")
 
 
 def fetch(ym: str) -> bool:
-    dest = sf_path(ym)
+    ok = _fetch(ym, False)
+    if nleads(ym) >= 7:
+        ok = _fetch(ym, True) and ok
+    return ok
+
+
+def _fetch(ym: str, m7: bool) -> bool:
+    dest = sf_path(ym, m7)
     if dest.exists() and dest.stat().st_size > 0:
         return True
     dest.parent.mkdir(parents=True, exist_ok=True)
-    hours = sorted({int(h) for k in range(1, 7) for h in month_hours(ym, k) if int(h) % 24 == 0 and int(h) <= 5160})
+    ks = [7] if m7 else range(1, 7)
+    hours = sorted({int(h) for k in ks for h in month_hours(ym, k) if int(h) % 24 == 0 and int(h) <= 5160})
     req = {"originating_centre": CENTRE, "system": SYSTEM, "variable": ["snowfall"],
            "year": [ym[:4]], "month": [ym[4:]], "day": ["01"], "leadtime_hour": [str(h) for h in hours],
            "area": AREA, "grid": [1.0, 1.0], "data_format": "grib"}
@@ -137,7 +147,7 @@ def derive_hc(month: str) -> None:
     the mean monthly total (tot_mean, float32) and the sample count n — the build's former hmx/htot
     statistics, exactly (a share is count / n)."""
     ym = _hc_issue(month); arrs = {}; meta = {"leads": [], "n": {}}; lat = lon = None
-    for k in range(1, 7):
+    for k in ([7] if L7_STATE["on"] else range(1, 7)):              # the lead-7 table (seas5_ref L7 unit) reads only month 7
         if not hc_sf_path(ym, k).exists():
             continue
         hd, hlat, hlon = load_hindcast_daily(ym, k)
@@ -165,7 +175,9 @@ def derive_normal(month: str) -> None:
 
 REF_UNITS = {UNIT: dict(raw=["sf:na"], fn=derive_hc), UNIT_NORMAL: dict(raw=["m:na_snow"], fn=derive_normal)}
 RAW_HC = {"sf:na": ((lambda month: [hc_sf_path(_hc_issue(month), k) for k in range(1, 7)]),
-                    (lambda month: all([fetch_hindcast(_hc_issue(month), k) for k in range(1, 7)])))}
+                    (lambda month: all([fetch_hindcast(_hc_issue(month), k) for k in range(1, 7)]))),
+          "sf7:na": ((lambda month: [hc_sf_path(_hc_issue(month), 7)]),
+                     (lambda month: fetch_hindcast(_hc_issue(month), 7)))}
 
 
 def load_daily(ym: str):
@@ -173,6 +185,10 @@ def load_daily(ym: str):
     import xarray as xr, pandas as pd
     ds = xr.open_dataset(sf_path(ym), engine="cfgrib", backend_kwargs={"indexpath": ""})
     v = ds[[k for k in ds.data_vars][0]]                                 # sf, m w.e. accumulated
+    if sf_path(ym, True).exists():                                       # lead month 7: continues the accumulation
+        d7 = xr.open_dataset(sf_path(ym, True), engine="cfgrib", backend_kwargs={"indexpath": ""})
+        v7 = d7[[k for k in d7.data_vars][0]]
+        v = xr.concat([v, v7.sel(step=[s for s in v7.step.values if s not in v.step.values])], dim="step")
     v = v.sortby("step")
     acc = v.values                                                       # (number, step, lat, lon)
     if acc.ndim == 3: acc = acc[None]
@@ -252,7 +268,7 @@ def build(ym: str) -> dict:
         name, la, lo, side = city[:4]
         doc["cities"][name] = {"lat": la, "lon": lo, "side": side, "months": {}}
     vms = valid_months(ym)
-    for k, vm in enumerate(vms[:6], start=1):
+    for k, vm in enumerate(vms, start=1):
         sel = (dates.year == int(vm[:4])) & (dates.month == int(vm[5:]))
         if sel.sum() < 20: continue
         d = daily[:, sel]                                                            # (member, day, lat, lon)
