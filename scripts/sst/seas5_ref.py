@@ -62,7 +62,7 @@ REF = Path(os.environ["SEAS5_REF_DIR"]).resolve() if os.environ.get("SEAS5_REF_D
 
 # product modules, in build order; each may define REF_UNITS / ISSUE_UNITS / OBS_UNITS / RAW_HC
 MODULES = ["seas5_build", "seas5_normals", "seas5_tele", "seas5_pme_regions", "seas5_popT",
-           "seas5_extremes_build", "seas5_runs", "seas5_wind", "seas5_snow", "seas5_regimes"]
+           "seas5_extremes_build", "seas5_runs", "seas5_wind", "seas5_snow", "seas5_regimes", "seas5_ssw"]
 
 
 # ── paths and I/O ────────────────────────────────────────────────────────────

@@ -47,6 +47,7 @@ fetch)
   step "fetch wind (6-hourly 10 m u/v, US)"          "$PY" seas5_wind.py fetch --issue "$ISSUE"
   step "fetch snowfall (daily, North America)"       "$PY" seas5_snow.py fetch --issue "$ISSUE"
   step "fetch regimes (daily z500, 51 members)"      "$PY" seas5_regimes_fetch.py forecast --issue "$ISSUE"
+  step "fetch polar vortex (daily u10, monthly u100)" "$PY" seas5_ssw.py fetch --issue "$ISSUE"
   # lead month 7 (from the October 2026 issue): the sub-daily product reduced to the monthly definition, per kind
   # Budgeted: on 2026-10-07 the CDS queued each pressure-level request 30–90 min. No new request after the job has
   # less than 120 min left (seas5.yml timeout 340 min); the cache keeps what came, the next firing fetches the rest.
@@ -77,6 +78,7 @@ build)
   step "cold-snap runs"             "$PY" seas5_runs.py --issue "$ISSUE"
   step "wind events"                "$PY" seas5_wind.py build --issue "$ISSUE"
   step "snowfall"                   "$PY" seas5_snow.py build --issue "$ISSUE"
+  step "polar vortex / SSW risk"    "$PY" seas5_ssw.py build --issue "$ISSUE"
   MISSING=$("$PY" seas5_ref.py missing --month "$MM")
   MISS7=$("$PY" seas5_lead7.py missing --issue "$ISSUE")
   "$PY" - "$ISSUE" "$MISSING" "$(IFS='|'; echo "${FAILED[*]:-}")" "$SITE/assets/sst/data/seas5_status.json" "$MISS7" <<'EOF'
