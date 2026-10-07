@@ -222,14 +222,15 @@
 <script src="/assets/outlook-charts.js"></script>
 <main>
   <header>
-    <div class="eyebrow">Monthly, from the Copernicus C3S multi-system seasonal ensemble and the NOAA SFS beta, <span id="issueLabel">latest issue</span></div>
+    <div class="eyebrow">Monthly, from the Copernicus C3S multi-system seasonal ensemble, the NOAA SFS beta and ECCC CanSIPS, <span id="issueLabel">latest issue</span></div>
     <h1>Seasonal model forecasts</h1>
     <p class="sub">Eight C3S seasonal systems from seven centres, each read against <b>its own 1993&ndash;2016 hindcast</b>
     so the models compare even though their biases do not. Every system carries the global maps and the tercile
     probabilities; ECMWF SEAS5 carries the member-level work as well &mdash; ENSO and ocean indices, teleconnections,
     the stratosphere and the impact products &mdash; because its full ensemble is the one held locally. NOAA&rsquo;s
-    SFS beta, the successor to CFSv2, has its own group: 31 members against its own 1991&ndash;2020 reforecast. Pick a
-    figure from the rail.</p>
+    SFS beta, the successor to CFSv2, has its own group: 31 members against its own 1991&ndash;2020 reforecast. Canada&rsquo;s
+    CanSIPS has a group read straight from Environment and Climate Change Canada that runs for <b>twelve months</b>; its
+    months 7&ndash;12 are CanSIPS alone. Pick a figure from the rail.</p>
     <div class="chips" id="chips">
       <div class="chip"><div class="l">Loading forecast feed&hellip;</div><div class="v neut">&mdash;</div></div>
     </div>
@@ -727,6 +728,31 @@
       <span class="chart-updated" id="sfsIdxUpdated">&mdash;</span>
     </div>
   </div>
+  <!-- CanSIPS straight from ECCC's MSC Datamart, 12 months (2026-10-07): one fetcher, scripts/sst/cansips_dd.py, for this
+       group and the ENSO forecasts page. The maps are loop.html frames (assets/cansips/anim) created only on stage; the plume
+       feed loads on the group's first visit (STAGE.onRender -> CSP.start). -->
+  <div id="dom-cs-plume" class="sfs-block" hidden>
+    <div class="chips" id="csChips">
+      <div class="chip"><div class="l">CanSIPS (ECCC)</div><div class="v neut">&mdash;</div><div class="s">loading the feed&hellip;</div></div>
+    </div>
+    <p class="note">40 members (GEM5.2-NEMO + CanESM5), each model against its own 1993&ndash;2016 hindcast: fan = member 10&ndash;90% and 25&ndash;75%, sienna = ensemble mean, black = observed, blue dashes = the C3S multi-model mean when it is the same issue. <b>Months 7&ndash;12 (pink) are CanSIPS alone</b>, past the six months the C3S systems reach.</p>
+    <div class="controls">
+      <button class="pill on" data-idx="n34">Ni&ntilde;o-3.4 (&rarr; ONI)</button>
+      <button class="pill" data-idx="roni">RONI</button>
+      <span class="ctlsep">&middot;</span>
+      <button class="pill on" data-sm="0">Monthly</button>
+      <button class="pill" data-sm="1">3-month (ONI convention)</button>
+      <span class="ctlsep">&middot;</span>
+      <button class="pill" data-mem="1">Show all members</button>
+    </div>
+    <div id="csPlumeChart" class="plot" style="height:480px"></div>
+    <div class="chart-card-footer">
+      <span class="chart-sources">CanSIPS from the ECCC MSC Datamart (WaterTemp, 1&deg;, ocean cells only)
+      &middot; Ni&ntilde;o-3.4 (5&deg;S&ndash;5&deg;N, 170&ndash;120&deg;W) &middot; anomalies vs its own 1993&ndash;2016 hindcast per start month &amp; lead
+      &middot; Data Source: Environment and Climate Change Canada</span>
+      <span class="chart-updated" id="csPlumeUpdated">&mdash;</span>
+    </div>
+  </div>
   <div class="card" id="aboutCard" data-label="About this page" data-group="About">
     <h2>What this page reads, and how</h2>
     <p class="note" style="max-width:80ch;font-size:0.9rem;line-height:1.65">ECMWF&rsquo;s seasonal system, read in full and checked against observations: the ENSO
@@ -743,6 +769,9 @@
     <div class="chart-card-footer"><span class="chart-sources">ECMWF SEAS5 via the Copernicus Climate Data Store</span><span class="chart-updated">built by scripts/sst/seas5_outlook.py</span></div>
   </div>
   </div>
+<template id="about-cansips"><p class="note" style="max-width:80ch;font-size:0.9rem;line-height:1.65"><b>CanSIPS</b> is Environment and Climate Change Canada&rsquo;s seasonal system: 40 members from two coupled models, GEM5.2-NEMO (members 1&ndash;20) and CanESM5 (21&ndash;40), half of each started on the last day of the month and half four days earlier. C3S carries it for six months; this group reads ECCC&rsquo;s own copy on its MSC Datamart, which runs for <b>twelve</b>, posted on the last day of the previous month. <b>Months 7&ndash;12 are CanSIPS alone</b>: no other system on this page reaches them, so read them as one model&rsquo;s forecast, not a consensus.</p>
+<p class="note" style="max-width:80ch;font-size:0.9rem;line-height:1.65"><b>Our anomaly maps</b> are the 40-member mean minus CanSIPS&rsquo;s own 1993&ndash;2016 hindcast for the same start month and lead (40 members &times; 24 years from the Datamart), each model against its own, the same base as the C3S systems. A cell is coloured only where the shift is statistically significant: a Welch t-test of the 40 forecast anomalies against the hindcast&rsquo;s spread (counted as 24 independent years), with the false-discovery rate held at 10% across the map (Benjamini&ndash;Hochberg). Blank means no significant shift, not &ldquo;normal&rdquo;. <b>The probability maps are ECCC&rsquo;s own</b>, shown as published and not recomputed here: tercile and decile probabilities against ECCC&rsquo;s 1991&ndash;2020 hindcast climatology.</p>
+<div class="chart-card-footer"><span class="chart-sources">ECCC MSC Datamart (dd.weather.gc.ca), ECCC Data Servers End-use Licence &middot; Data Source: Environment and Climate Change Canada</span><span class="chart-updated">built by scripts/sst/cansips_dd.py, cansips_maps.py (cansips.yml)</span></div></template>
 <template id="about-sfs"><p class="note" style="max-width:80ch;font-size:0.9rem;line-height:1.65">NOAA's next-generation Seasonal Forecast System &mdash; the UFS-based successor to CFSv2, running in near-real-time beta since March 2026 with open zarr output. Every month: 31 members, 12 monthly leads. Anomalies are computed against the <b>model's own 1991&ndash;2020 reforecast</b> for the same init month and lead (11 members &times; 30 years), so drift and bias are removed the same way the C3S models are handled in the other groups on this page and on the <a href="enso-forecasts.html">ENSO forecasts page</a>.</p>
     <h3 class="method-head">Method</h3>
     <ul class="method-list">
@@ -788,13 +817,18 @@
     lead-dependent drift cancels by construction. Data: NOAA Open Data Dissemination, <code>noaa-oar-sfsdev-pds</code> on
     AWS. Built by <code>scripts/sfs/*.py</code>; the JSON behind the charts:
     <a href="assets/sfs/data/sfs_nino34.json">sfs_nino34.json</a>, <a href="assets/sfs/data/sfs_indices.json">sfs_indices.json</a>.</p>
+    <p><b>CanSIPS</b> (the CanSIPS group, October 2026): Environment and Climate Change Canada&rsquo;s 40-member system read
+    from its MSC Datamart to twelve months, with its own 1990&ndash;2020 hindcast (1993&ndash;2016 used, as for C3S). Our
+    anomaly maps colour only significant cells; the probability maps are ECCC&rsquo;s own. Built by
+    <code>scripts/sst/cansips_dd.py</code> and <code>cansips_maps.py</code> in <code>cansips.yml</code>. Data Source:
+    Environment and Climate Change Canada (ECCC Data Servers End-use Licence).</p>
     <p>SFS beta data: NOAA/OAR via NODD (public domain) &middot; C3S overlay on the SFS plume: Copernicus Climate Change
     Service &middot; observed indices: NOAA CPC ERSSTv5.</p>
     <p>Contains modified Copernicus Climate Change Service information 2026. Neither the European Commission nor ECMWF is responsible for any use of this information.</p>
   </div>
 <script>
 window.STAGE = {
-  groups: [{"label": "Every model", "items": [["c3sMapCard", "Anomaly maps", ""], ["c3sTercCard", "Tercile probabilities", ""], ["c3sIdxCard", "Ocean indices", ""], ["c3sPopCard", "Population-weighted, monthly", ""], ["c3sDayCard", "Population-weighted, daily", ""], ["ni-o-3-4-every-member", "Niño-3.4, every member", ""]]}, {"label": "SEAS5 · ENSO & oceans", "items": [["enso-indices", "ENSO indices", ""], ["pdo-amo-iod-atlantic-ni-o", "PDO, AMO, IOD, Atlantic Niño", ""]]}, {"label": "SEAS5 · Maps", "items": [["changeCard", "Maps and changes", ""], ["calibrated-terciles", "Calibrated terciles", ""], ["normCard", "Against observed normals", ""]]}, {"label": "SEAS5 · Teleconnections & stratosphere", "items": [["teleCard", "Teleconnection indices", ""], ["stratCard", "Vortex, QBO, annular mode", ""], ["polar-stratosphere", "Polar stratosphere", ""], ["regimeCard", "Weather regimes", ""]]}, {"label": "SEAS5 · Impacts", "items": [["popCard", "Population-weighted, daily", ""], ["xdaysCard", "Threshold days", ""], ["runsCard", "Cold-snap risk", ""], ["windCard", "Wind events", ""], ["snowCard", "Snowfall", ""], ["pmeCard", "P − E by region", ""]]}, {"label": "NOAA SFS (beta)", "items": [["sfs-plume", "Niño-3.4 plume", "all 31 members"], ["sfs-indices", "Climate indices", "IOD, SASD, Niño flavours, PDO"], ["sfs-maps", "Monthly anomaly maps", "eight fields, every lead"]]}, {"label": "About", "items": [["aboutCard", "About this page", ""]]}],
+  groups: [{"label": "Every model", "items": [["c3sMapCard", "Anomaly maps", ""], ["c3sTercCard", "Tercile probabilities", ""], ["c3sIdxCard", "Ocean indices", ""], ["c3sPopCard", "Population-weighted, monthly", ""], ["c3sDayCard", "Population-weighted, daily", ""], ["ni-o-3-4-every-member", "Niño-3.4, every member", ""]]}, {"label": "SEAS5 · ENSO & oceans", "items": [["enso-indices", "ENSO indices", ""], ["pdo-amo-iod-atlantic-ni-o", "PDO, AMO, IOD, Atlantic Niño", ""]]}, {"label": "SEAS5 · Maps", "items": [["changeCard", "Maps and changes", ""], ["calibrated-terciles", "Calibrated terciles", ""], ["normCard", "Against observed normals", ""]]}, {"label": "SEAS5 · Teleconnections & stratosphere", "items": [["teleCard", "Teleconnection indices", ""], ["stratCard", "Vortex, QBO, annular mode", ""], ["polar-stratosphere", "Polar stratosphere", ""], ["regimeCard", "Weather regimes", ""]]}, {"label": "SEAS5 · Impacts", "items": [["popCard", "Population-weighted, daily", ""], ["xdaysCard", "Threshold days", ""], ["runsCard", "Cold-snap risk", ""], ["windCard", "Wind events", ""], ["snowCard", "Snowfall", ""], ["pmeCard", "P − E by region", ""]]}, {"label": "NOAA SFS (beta)", "items": [["sfs-plume", "Niño-3.4 plume", "all 31 members"], ["sfs-indices", "Climate indices", "IOD, SASD, Niño flavours, PDO"], ["sfs-maps", "Monthly anomaly maps", "eight fields, every lead"]]}, {"label": "CanSIPS (Environment Canada, 12 months)", "items": [["cs-plume", "Niño-3.4 plume", "40 members, 12 months"], ["cs-maps", "Anomaly maps", "nine fields, monthly and 3-month"], ["cs-terc", "Tercile probabilities", "ECCC's own: temperature, rain, snow"], ["cs-tails", "Decile tails", "ECCC's own: warmest, coldest, wettest, driest 10%"]]}, {"label": "About", "items": [["aboutCard", "About this page", ""]]}],
   products: {
     "c3sMapCard": { label: "Anomaly maps", gated: true, dom: function () { return "c3sMapCard"; } },
     "c3sTercCard": { label: "Tercile probabilities", gated: true, dom: function () { return "c3sTercCard"; } },
@@ -827,12 +861,38 @@ window.STAGE = {
                   ratio: function () { return "1440/860"; },
                   cap: function (a) { return ({"sfs_sst": "Sea-surface temperature anomaly, monthly means", "sfs_t2m": "2 m temperature anomaly, monthly means", "sfs_precip": "Precipitation anomaly, monthly means", "sfs_z500": "500 hPa height anomaly, monthly means", "sfs_mslp": "Mean sea-level pressure anomaly, monthly means", "sfs_wind850": "850 hPa wind anomaly, monthly means", "sfs_wind200": "200 hPa wind anomaly, monthly means", "sfs_chi200": "200 hPa velocity potential (χ) anomaly, monthly means"})[a] + " from the NOAA SFS beta against the model\u2019s own 1991\u20132020 reforecast, one frame per forecast month, fixed colour scale."; },
                   about: "about-sfs-maps" },
+    "cs-plume": { label: "CanSIPS Niño-3.4 — 40 members, 12 months", dom: function () { return "dom-cs-plume"; }, about: "about-cansips",
+                  cap: function () { return ""; } },
+    "cs-maps": { label: "CanSIPS anomaly maps",
+                 a: { label: "Field", items: [["sst", "SST"], ["t2m", "2 m temperature"], ["t850", "850 hPa temperature"], ["precip", "Precipitation"], ["mslp", "MSLP"], ["z500", "500 hPa height"], ["ssh", "Sea-surface height"], ["wind850", "850 hPa wind"], ["wind200", "200 hPa wind"]] },
+                 b: { label: "Average", items: [["m", "Monthly"], ["s", "3-month"]] },
+                 frame: function (a, b) { return "loop.html?base=assets/cansips/anim&manifest=cs_" + a + "_" + b + "_manifest.json&region=cs_" + a + "_" + b + "&autoplay=0"; },
+                 ratio: function () { return "1440/860"; },
+                 cap: function (a, b) { return ({"sst": "Sea-surface temperature", "t2m": "2 m temperature (land)", "t850": "850 hPa temperature", "precip": "Precipitation", "mslp": "Mean sea-level pressure", "z500": "500 hPa height", "ssh": "Sea-surface height", "wind850": "850 hPa wind (shading: zonal)", "wind200": "200 hPa wind (shading: zonal)"})[a] + " anomaly, " + (b === "s" ? "3-month" : "monthly") + " means, from CanSIPS (ECCC): 40-member mean against its own 1993\u20132016 hindcast, coloured only where significant (FDR 10%). Months 7\u201312 are CanSIPS alone, past the C3S six-month horizon. Data Source: Environment and Climate Change Canada."; },
+                 about: "about-cansips" },
+    "cs-terc": { label: "CanSIPS tercile probabilities (ECCC's own)",
+                 a: { label: "Field", items: [["t2m", "2 m temperature"], ["precip", "Precipitation"], ["swe", "Snow water equivalent"]] },
+                 b: { label: "Average", items: [["m", "Monthly"], ["s", "3-month"]] },
+                 frame: function (a, b) { return "loop.html?base=assets/cansips/anim&manifest=cs_terc_" + a + "_" + b + "_manifest.json&region=cs_terc_" + a + "_" + b + "&autoplay=0"; },
+                 ratio: function (a) { return a === "swe" ? "1440/560" : "1440/860"; },
+                 cap: function (a) { return "Most likely tercile from ECCC\u2019s own CanSIPS probabilities, as published, against ECCC\u2019s 1991\u20132020 hindcast climatology; colour only where a category reaches 40%." + (a === "swe" ? " Snow water equivalent matters in the cold season; cells without snow in the climatology are empty." : "") + " Months 7\u201312 are CanSIPS alone. Data Source: Environment and Climate Change Canada."; },
+                 about: "about-cansips" },
+    "cs-tails": { label: "CanSIPS decile tails (ECCC's own)",
+                  a: { label: "Tail", items: [["t2m_hot", "Warmest 10%"], ["t2m_cold", "Coldest 10%"], ["precip_wet", "Wettest 10%"], ["precip_dry", "Driest 10%"]] },
+                  b: { label: "Average", items: [["m", "Monthly"], ["s", "3-month"]] },
+                  frame: function (a, b) { return "loop.html?base=assets/cansips/anim&manifest=cs_tail_" + a + "_" + b + "_manifest.json&region=cs_tail_" + a + "_" + b + "&autoplay=0"; },
+                  ratio: function () { return "1440/860"; },
+                  cap: function () { return "ECCC\u2019s own probability that the month or season lands in the top or bottom 10% of its 1991\u20132020 hindcast climatology (from the ProbGT90Pct / ProbGT10Pct products, as published). The climatological chance is 10%; white is under 20%. Months 7\u201312 are CanSIPS alone. Data Source: Environment and Climate Change Canada."; },
+                  about: "about-cansips" },
     "aboutCard": { label: "About this page", gated: true, dom: function () { return "aboutCard"; } }
   }
 };
 // the SFS group's data loads on its first visit (window.SFS.start, defined further down), not with the page
 window.STAGE.aliases = { "sfs": "sfs-plume" };
-window.STAGE.onRender = function (sel) { if (sel.p.indexOf("sfs-") === 0 && window.SFS) window.SFS.start(sel.p); };
+window.STAGE.onRender = function (sel) {
+  if (sel.p.indexOf("sfs-") === 0 && window.SFS) window.SFS.start(sel.p);
+  if (sel.p === "cs-plume" && window.CSP) window.CSP.start();
+};
 </script>
 </main>
 
@@ -2030,6 +2090,100 @@ window.STAGE.onRender = function (sel) { if (sel.p.indexOf("sfs-") === 0 && wind
     });
   }
   window.SFS = { start: start };
+})();
+
+/* CanSIPS group (2026-10-07): the 12-month plume from cansips_dd.json (written monthly by cansips.yml). Loads on the
+   first visit to cs-plume and redraws on every mount, since the stage switches products without a hashchange. */
+(function () {
+  "use strict";
+  var OC = window.OutlookCharts, $ = function (id) { return document.getElementById(id); };
+  var PL = $("dom-cs-plume");
+  if (!OC || !PL) return;
+  var st = { idx: "n34", smooth: false, members: false, cd: null, c3s: null, hist: null }, NC3S = 6;
+  function fmt(v, d) { return v == null || !isFinite(v) ? "—" : (v > 0 ? "+" : "") + v.toFixed(d == null ? 2 : d); }
+  function mean(a) { var s = 0, n = 0; a.forEach(function (v) { if (isFinite(v)) { s += v; n++; } }); return n ? s / n : NaN; }
+  function roll3(arr) {
+    return arr.map(function (_, i) {
+      var w = arr.slice(Math.max(0, i - 1), Math.min(arr.length, i + 2)).filter(isFinite);
+      return w.length ? w.reduce(function (a, b) { return a + b; }) / w.length : NaN;
+    });
+  }
+  function draw() {
+    var E = st.cd.issues[st.cd.latest], valid = E.valid_months, useR = st.idx === "roni";
+    var byLead = useR ? E.rnino : E.n34, nM = byLead[0].length;
+    var members = []; for (var i = 0; i < nM; i++) members.push(byLead.map(function (r) { return r[i]; }));
+    var obsX = [], obsY = [];
+    if (st.hist) {
+      var src = useR ? (st.hist.series.roni || st.hist.series.oni) : st.hist.series.oni;
+      var arr = src.anom || src, idx = OC.obsWindow(valid, st.hist.months);
+      idx.forEach(function (k) { obsX.push(st.hist.months[k]); obsY.push(arr[k]); });
+    }
+    function smooth(a) { if (!st.smooth) return a; return roll3(obsY.slice(-2).concat(a)).slice(Math.min(2, obsY.length)); }
+    var q = OC.quantiles(members, [10, 25, 75, 90]);
+    var fan = { p10: smooth(q.p10), p25: smooth(q.p25), p75: smooth(q.p75), p90: smooth(q.p90) }, mm = smooth(q.mean);
+    var fx = valid.map(OC.monthDate), hv = { units: "°C", digits: 2 };
+    var traces = OC.fanTraces(fx, fan, { outerName: "members 10–90%", innerName: "members 25–75%" });
+    if (st.members) traces.push(OC.memberTrace(fx, members.map(function (m) { return smooth(m.slice()); }), { name: "members (" + nM + ")" }));
+    if (st.c3s && st.c3s.issue === E.issue) {
+      var F = st.c3s, labs = Object.keys(F.models).filter(function (m) { return !/DWD|BoM/.test(m); }), k = useR ? "rnino" : "n34";
+      var cy = F.valid_months.map(function (_, L) { return mean(labs.map(function (m) { return mean(F.models[m][k][L]); })); });
+      traces.push(OC.refTrace(F.valid_months.map(OC.monthDate), st.smooth ? roll3(obsY.slice(-2).concat(cy)).slice(Math.min(2, obsY.length)) : cy,
+                              "C3S multi-model mean (" + labs.length + " systems, months 1–6)", { markers: true, units: "°C" }));
+    }
+    var mx = fx.slice(), my = mm.slice();
+    if (obsX.length && obsX[obsX.length - 1] < valid[0]) { mx.unshift(OC.monthDate(obsX[obsX.length - 1])); my.unshift(obsY[obsY.length - 1]); }
+    traces.push(OC.meanTrace(mx, my, "CanSIPS ensemble mean (" + nM + " members)", hv));
+    if (obsX.length) traces.push(OC.obsTrace(obsX.map(OC.monthDate), obsY, "observed (CPC)", hv));
+    var shapes = [];
+    [0.5, 1.0, 1.5, 2.0, -0.5, -1.0, -1.5, -2.0].forEach(function (y) { shapes.push(OC.hline(y, y > 0 ? "rgba(180,84,31,0.35)" : "rgba(63,111,143,0.35)", "dot", 1)); });
+    var last = valid[valid.length - 1];
+    shapes.push({ type: "rect", xref: "x", yref: "paper", x0: OC.monthStart(valid[NC3S]), x1: OC.shiftMonths(last, 1) + "-01", y0: 0, y1: 1,
+                  fillcolor: "rgba(227,119,194,0.10)", line: { width: 0 }, layer: "below" });
+    OC.react("csPlumeChart", traces, {
+      title: (useR ? "Relative Niño-3.4" : "Niño-3.4") + " anomaly" + (st.smooth ? ", 3-month running mean" : "") + " — CanSIPS " + E.issue + " issue",
+      yunits: "anomaly (°C)", xrange: [OC.monthRange(valid, obsX)[0], OC.shiftMonths(last, 1) + "-01"], shapes: shapes,
+      annotations: [{ xref: "x", yref: "paper", x: OC.monthDate(valid[9]), y: 0.02, yanchor: "bottom", showarrow: false,
+                      text: "months 7–12: CanSIPS only", font: { color: "#8a2f6e", size: 12 } }]
+    });
+    $("csPlumeUpdated").textContent = "issue " + E.issue + " · built " + st.cd.generated;
+    var pk = { v: -99, i: 0 }; q.mean.forEach(function (v, i) { if (v > pk.v) pk = { v: v, i: i }; });
+    var pool = members.map(function (m) { return m[pk.i]; }).filter(isFinite).sort(function (a, b) { return a - b; });
+    var V = null; Object.keys(st.cd.issues).sort().reverse().some(function (k2) { V = st.cd.issues[k2].validation; return !!V; });
+    var chips = [
+      { l: "CanSIPS issue " + E.issue, v: nM + " members", s: "12 monthly leads · posted " + (E.posted_utc || "").slice(0, 10), cls: "neut" },
+      { l: "Peak " + (useR ? "RONI" : "Niño-3.4") + " · " + valid[pk.i] + (pk.i >= NC3S ? " (CanSIPS only)" : ""), v: fmt(pk.v) + " °C",
+        s: "members P10–P90: " + fmt(pool[Math.floor(0.1 * (pool.length - 1))], 1) + " … " + fmt(pool[Math.ceil(0.9 * (pool.length - 1))], 1), cls: pk.v >= 0.5 ? "warm" : "neut" },
+      { l: "Month 12 · " + last, v: fmt(q.mean[q.mean.length - 1]) + " °C", s: "CanSIPS alone; no other system reaches it", cls: "neut" },
+      { l: "Check vs C3S copy", v: V ? "≤ " + V[useR ? "rnino" : "n34"].max_abs_diff.toFixed(2) + " °C" : "—", s: V ? "ensemble means, months 1–6, " + V.c3s_issue + " issue" : "no common issue yet", cls: "neut" }
+    ];
+    $("csChips").innerHTML = chips.map(function (c) {
+      return '<div class="chip"><div class="l">' + c.l + '</div><div class="v ' + c.cls + '">' + c.v + '</div><div class="s">' + c.s + "</div></div>";
+    }).join("");
+  }
+  function wire(sel, fn) {
+    var bs = PL.querySelectorAll(sel);
+    Array.prototype.forEach.call(bs, function (b) { b.addEventListener("click", function () { fn(b, bs); if (st.cd) draw(); }); });
+  }
+  function only(b, bs) { Array.prototype.forEach.call(bs, function (o) { o.classList.toggle("on", o === b); }); }
+  wire(".pill[data-idx]", function (b, bs) { st.idx = b.dataset.idx; only(b, bs); });
+  wire(".pill[data-sm]", function (b, bs) { st.smooth = b.dataset.sm === "1"; only(b, bs); });
+  wire(".pill[data-mem]", function (b) { st.members = !st.members; b.classList.toggle("on", st.members); });
+  var started = false;
+  function start() {
+    if (started) { if (st.cd) setTimeout(draw, 0); return; }
+    started = true;
+    var h = Math.floor(Date.now() / 3.6e6);
+    Promise.all([
+      fetch("assets/sst/data/cansips_dd.json?h=" + h).then(function (r) { if (!r.ok) throw new Error("cansips_dd " + r.status); return r.json(); }),
+      fetch("assets/sst/data/enso_forecast.json?h=" + h).then(function (r) { return r.ok ? r.json() : null; }).catch(function () { return null; }),
+      fetch("assets/sst/data/nino_history.json?h=" + h).then(function (r) { return r.ok ? r.json() : null; }).catch(function () { return null; })
+    ]).then(function (res) { st.cd = res[0]; st.c3s = res[1]; st.hist = res[2]; draw(); })
+      .catch(function (e) {
+        if (window.console) console.warn("CanSIPS feed unavailable:", e);
+        $("csChips").innerHTML = '<div class="chip"><div class="l">CanSIPS feed</div><div class="v neut">unavailable</div><div class="s">check back after the monthly build (last day of the month)</div></div>';
+      });
+  }
+  window.CSP = { start: start };
 })();
 </script>
 
