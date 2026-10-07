@@ -10,36 +10,61 @@
 const MISSING = -9999.0;
 // ── data-branch fetching with host fallbacks ─────────────────────────────────
 // The mirror/climatology/archive live on git branches (kept off main so 6×/day
-// force-pushes don't bloat the repo or churn Pages). raw.githubusercontent.com
-// is the primary host, but some networks block it — so every branch fetch
-// falls back to api.github.com (different domain, always fresh, 60 req/h is
-// plenty for the small live files) and then jsDelivr's CDN (very widely
-// whitelisted; caches branches up to ~12 h, stale but far better than dead).
+// force-pushes don't bloat the repo or churn Pages). Since 2026-10-07 every
+// branch fetch goes to the site's own CDN FIRST (user: "can we just run
+// everything through bunny by default" — many work networks block
+// raw.githubusercontent.com): frames.scorvec.com is a Bunny pull zone whose
+// origin is raw.githubusercontent.com/scorvec/scorvec.github.io, so
+// CDN/<branch>/<path> serves raw/<branch>/<path>. The edge ignores query
+// strings, so CDN URLs carry none. Freshness: an Edge Rule holds /skewt-data/*
+// (and /frames/*, /asos5-data/*) for 60 s at the edge and in the browser, so the
+// live files are at most ~6 min old (60 s + raw's own ~5 min) — the hourly
+// mirror's cadence is unaffected. skewt-archive (append-only day zips, never
+// rewritten) and skewt-climo (rebuilt by hand, last 2026-08-29) take the zone's
+// year-long cache: purge /skewt-climo/* in Bunny after a climatology rebuild.
+// 404s are not cached at the edge (cache-control: no-cache), so a CDN 404 is the
+// origin's own "file absent".
+// Fallbacks, silent: raw.githubusercontent.com, then api.github.com (different
+// domain, always fresh, ~60 req/h) and jsDelivr (widely whitelisted; caches
+// branches up to ~12 h).
 const GH_REPO = "scorvec/scorvec.github.io";
+const CDN = "https://frames.scorvec.com/";
+const GH_RAW = "https://raw.githubusercontent.com/" + GH_REPO + "/";
+let cdnDown = 0;                    // CDN unreachable (refused / silent) this many times: skip it after 2
+function fetchT(url, init, ms) {    // fetch with a time-to-headers budget (a silently dropped host hangs ~1 min)
+  if (typeof AbortController !== "function") return fetch(url, init);
+  const ctrl = new AbortController(), t = setTimeout(() => ctrl.abort(), ms);
+  return fetch(url, Object.assign({}, init || {}, { signal: ctrl.signal })).finally(() => clearTimeout(t));
+}
 async function ghFetch(branch, path, bust, staticish) {
   const q = bust ? "?t=" + encodeURIComponent(bust) : "";
-  // Host order matters on networks that block raw.githubusercontent:
+  // Fallback order matters on networks that block raw.githubusercontent:
   // api.github.com allows only ~60 anonymous requests/hour, so save it for
   // the fresh-critical files (manifest, anomalies, latest soundings).
   // Content that never changes once written (climo, archive zips, dated
   // soundings) passes `staticish` and prefers jsDelivr — its cache
   // staleness is harmless there, and the api quota stays alive for the
   // record map + "Extreme today" panel.
-  const raw = [`https://raw.githubusercontent.com/${GH_REPO}/${branch}/${path}${q}`, null];
+  const cdn = [`${CDN}${branch}/${path}`, null, 8000];
+  const raw = [`${GH_RAW}${branch}/${path}${q}`, null, 8000];
   const api = [`https://api.github.com/repos/${GH_REPO}/contents/${path}?ref=${branch}`,
-     { headers: { Accept: "application/vnd.github.raw" } }];
-  const cdn = [`https://cdn.jsdelivr.net/gh/${GH_REPO}@${branch}/${path}`, null];
-  const tries = staticish ? [raw, cdn, api] : [raw, api, cdn];
+     { headers: { Accept: "application/vnd.github.raw" } }, 15000];
+  const jsd = [`https://cdn.jsdelivr.net/gh/${GH_REPO}@${branch}/${path}`, null, 15000];
+  const tries = (cdnDown >= 2 ? [] : [cdn]).concat(staticish ? [raw, jsd, api] : [raw, api, jsd]);
   for (let i = 0; i < tries.length; i++) {
     try {
-      const r = await fetch(tries[i][0], tries[i][1] || undefined);
+      const r = await fetchT(tries[i][0], tries[i][1] || undefined, tries[i][2]);
+      if (tries[i] === cdn) cdnDown = 0;
       if (r.ok) return r;
       if (r.status === 404 && i === 0) return r;   // host fine, file truly absent
-    } catch (e) { /* blocked / offline — try the next host */ }
+    } catch (e) {                                  // blocked / offline / silent — try the next host
+      if (tries[i] === cdn) cdnDown++;
+    }
   }
   return { ok: false, status: 0 };
 }
-const CLIMO_BASE = "https://raw.githubusercontent.com/scorvec/scorvec.github.io/skewt-climo/climo/";
+// direct URLs on the data branches, CDN first (ghFetch walks the fallbacks)
+const CLIMO_BASE = [CDN + "skewt-climo/climo/", GH_RAW + "skewt-climo/climo/"];
 let climo = null, climoGid = null;                 // current station climatology
 let lastProf = null, lastRes = null, lastMonth = null, lastDoy = null;
 let lastValidDt = null;                 // "YYYY-MM-DD HH:MM" of the plotted sounding
@@ -1039,7 +1064,7 @@ function openRecords() {
     `tying a mark counts as a record. Highlighted cells are marks this sounding takes over.`;
   document.getElementById("rec-modal").hidden = false;
 }
-const MIRROR = "https://raw.githubusercontent.com/scorvec/scorvec.github.io/skewt-data/";
+const MIRROR = [CDN + "skewt-data/", GH_RAW + "skewt-data/"];   // CDN first; ghFetch("skewt-data", …) walks them
 const SPC = "https://www.spc.noaa.gov/exper/soundings";
 const IEM = "https://mesonet.agron.iastate.edu/json/raob.py";
 let iemMap = null;                                  // WMO -> ICAO (US/Canada)
@@ -1365,8 +1390,9 @@ const ACTIVE_YEAR = new Date().getUTCFullYear() - 1;   // "active" = reported wi
 
 // Long-lived tabs and blocked networks both used to fail SILENTLY: the
 // manifest/record-watch load once, so a tab open since yesterday shows
-// yesterday's map, and a network that blocks raw.githubusercontent.com (the
-// host behind the mirror, climatology AND record watch) just looks broken.
+// yesterday's map, and a network that blocks every data host (the CDN and
+// its GitHub fallbacks behind the mirror, climatology AND record watch) just
+// looks broken.
 let feedsLoadedAt = 0;
 function feedBanner(msg) {
   let el = document.getElementById("feed-banner");
@@ -1403,7 +1429,8 @@ Promise.all([
   feedsLoadedAt = Date.now();
   if (!man)
     feedBanner("⚠ The live data feed is unreachable from this network (all hosts " +
-      "tried: raw.githubusercontent.com, api.github.com, cdn.jsdelivr.net) — live dots " +
+      "tried: frames.scorvec.com, then GitHub's raw.githubusercontent.com, api.github.com " +
+      "and cdn.jsdelivr.net) — live dots " +
       "and climatology are unavailable; US real-time and archive browsing still work. " +
       "Click to retry.");
   for (const s of stns.stations) {
