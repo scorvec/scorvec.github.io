@@ -1,13 +1,13 @@
 name: AR redesign dev runs (branch only)
 
-# Temporary: runs scripts/ar/dev/run.sh on every push to the ar-redesign branch so the redesign is built and checked
-# on a runner, never on the laptop. Removed before the branch merges.
+# Temporary (2026-10-07 AR redesign): runs a development script on a runner, never on the laptop. Dispatch only;
+# removed once the redesign is live.
 on:
-  push:
-    branches: [ar-redesign]
-    paths:
-      - scripts/ar/**
-      - .github/workflows/ar-dev.yml
+  workflow_dispatch:
+    inputs:
+      script:
+        description: 'bash script to run (repo path)'
+        default: 'scripts/ar/dev/run.sh'
 
 permissions:
   contents: read
@@ -44,7 +44,7 @@ jobs:
       - name: Python deps
         run: pip install -r scripts/mjo/requirements-mjo.txt
       - name: Run
-        run: bash scripts/ar/dev/run.sh
+        run: bash "${{ inputs.script }}"
       - name: Upload outputs
         if: always()
         uses: actions/upload-artifact@v4
