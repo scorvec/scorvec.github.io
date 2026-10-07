@@ -428,6 +428,8 @@ def build(ym: str) -> None:
                     lines = [f"Forecast mean {cur.mean():.1f}°{unit}" + (f"  ({cur.mean() - to_unit(rm['normal30'], unit):+.1f} vs 1991–2020 normal)" if ref else "")]
                     if len(xs_all) == 2:
                         lines.append(f"Change since the {calendar.month_abbr[int(prev[4:])]} issue: {cur.mean() - xs_all[0].mean():+.1f}°{unit}")
+                    elif mon not in vm_prev:
+                        lines.append(f"No change: the {calendar.month_abbr[int(prev[4:])]} issue did not reach this month")
                     ax.text(0.0, -0.20, "\n".join(lines), transform=ax.transAxes, ha="left", va="top", fontsize=7.8, color="#222", linespacing=1.4)
                 if row == 0:
                     ax.set_title(f"{calendar.month_abbr[int(mon[5:])]} {mon[:4]}", fontsize=12, loc="left")

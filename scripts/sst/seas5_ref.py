@@ -220,7 +220,8 @@ def _modules() -> list[str]:
 # chunk for the daily products). A unit whose raw keys all map gets a lead-7 unit {unit}_L7.
 def _l7_raw(key: str) -> str | None:
     if key.startswith("m:"):
-        return "l7:" + key[2:]
+        import seas5_aws
+        return "l7:" + key[2:] if key[2:] in seas5_aws.kinds() else None      # energy: not extended (seas5_lead7)
     return {"x:us": "x7:us", "x:br": "x7:br", "w:us": "w7:us", "sf:na": "sf7:na"}.get(key)
 
 

@@ -9,15 +9,19 @@ mean of every monthly kind of seas5_outlook.KINDS from it, on the SAME area and 
 products identically), so lead 7 drops into the arrays of leads 1–6:
 
   instantaneous fields (t2m, sst, msl, snow depth, z/u/v)   mean of the steps inside the month — STEP_RULE
-                                                            "left" = 00 UTC on the 1st … the last step before
-                                                            00 UTC on the 1st of the next month
+                                                            "right" = the first step AFTER 00 UTC on the 1st
+                                                            (06 UTC; 12 UTC for pressure levels) … 00 UTC on the
+                                                            1st of the next month inclusive
   accumulated fields (tp, snowfall, ssrd, evaporation)      (accumulation at the month's end − at its start)
                                                             / seconds in the month = the monthly product's rate
-  10 m wind speed                                           mean of the 6-hourly speeds from 10 m u and v
-
-The rule and the units were fixed by the lead-6 test: the same reduction applied to month 6 (March for an October
-start) against the monthly product's own month 6 (`check`, results in the docstring of CHECK below and in
-seas5_lead7_check.json on the release).
+The rule and the units were fixed by the lead-6 test (2026-10-07, run 37629317631): the same reduction applied to
+month 6 (March 2027 of the October 2026 issue, 51 members) against the monthly product's own month 6. With the
+"right" rule every field matches to GRIB packing precision — max |difference| t2m 0.002 K, SST 0.001 K, z500
+0.28 m²/s², u/v850 0.001 m/s, msl 0.18 Pa, z10 0.56 m²/s², u10 hPa 0.002 m/s, snow depth 5e-6 m; the accumulated
+rates tp / snowfall / evaporation to 1e-11 m/s (ratio 1.0000). The "left" rule (00 UTC on the 1st … 18 UTC on the
+last day) is off by up to 0.35 K in t2m and 430 m²/s² in z10. Not reproducible, so NOT extended: the 10 m wind
+SPEED (the monthly product's si10 is 1.2 % above the mean of the 6-hourly speeds from u10/v10, rms 0.18 member σ —
+it is computed from the model's own speed field) and with it the `energy` kind (si10, ssrd) stays at 6 leads.
 
     python seas5_lead7.py forecast --issue 202610           # this issue's month 7 → forecast/fc_{kind}_{ym}_L7.npz
     python seas5_lead7.py check --issue 202610              # month 6 the same way vs the monthly GRIBs (one-time)
@@ -43,7 +47,7 @@ from seas5_outlook import CENTRE, CLIM_YEARS, DATA, KINDS, SYSTEM, UNUSED_KINDS,
 
 LEAD = 7
 RAW = DATA / "l7raw"                      # sub-daily GRIBs: reduced at once, then deleted
-STEP_RULE = "left"                        # [H0, H1) — confirmed by the lead-6 test (see CHECK)
+STEP_RULE = "right"                       # (H0, H1] — fixed by the lead-6 test (module docstring)
 SECONDS_PER_HOUR = 3600.0
 
 # What each monthly kind needs from the sub-daily product: request groups (dataset, CDS variables, levels, cadence).
@@ -63,8 +67,6 @@ GROUPS = {
     "nh_z": [(PRESSURE, ["geopotential"], ["500", "1000"], 12)],
     "nh_msl": [(SINGLE, ["mean_sea_level_pressure"], None, 6)],
     "strat_u": [(PRESSURE, ["u_component_of_wind"], ["10", "30", "50"], 12)],
-    "energy": [(SINGLE, ["10m_u_component_of_wind", "10m_v_component_of_wind"], None, 6),
-               (SINGLE, ["surface_solar_radiation_downwards"], None, "acc")],
     "water": [(SINGLE, ["evaporation"], None, "acc")],
 }
 SUBSET_OF = {"sfc": "gl"}                 # the Americas t2m/tp kind is a cut of the global 1° kind (same grid points)
@@ -304,10 +306,13 @@ def grid_of(kind: str, ym: str):
     return out
 
 
-def forecast(ym: str, lead: int = LEAD, kinds=None, tag: str | None = None, keep_raw: bool = False) -> dict:
+def forecast(ym: str, lead: int = LEAD, kinds=None, tag: str | None = None, keep_raw: bool = False,
+             budget_min: float | None = None) -> dict:
     """This issue's month `lead` for every monthly kind → fc_{kind}_{ym}_L7.npz (or the _m{lead}chk name for the
-    test). Returns {kind: ok}."""
+    test). Returns {kind: ok}. With `budget_min`, no new request starts after that many minutes (the CDS queued
+    pressure-level requests 30–90 min each on 2026-10-07); what is left is fetched by the next run."""
     _FC_YEAR[0] = ym[:4]
+    t_start = time.time()
     tag = tag or f"fc{ym}m{lead}"
     want = [k for k in KINDS if k not in UNUSED_KINDS and (kinds is None or k in kinds)]
     got = {}
@@ -316,6 +321,9 @@ def forecast(ym: str, lead: int = LEAD, kinds=None, tag: str | None = None, keep
         dest = l7_path(kind, ym) if lead == LEAD else DATA / "forecast" / f"fc_{kind}_{ym}_m{lead}chk.npz"
         if dest.exists():
             got[kind] = True; continue
+        if budget_min is not None and kind not in SUBSET_OF and (time.time() - t_start) / 60 > budget_min:
+            print(f"  {kind}: lead-7 fetch budget ({budget_min:.0f} min) spent — left for the next run", flush=True)
+            got[kind] = False; continue
         if kind in SUBSET_OF:
             src = SUBSET_OF[kind]
             g = grid_of(kind, ym)
@@ -402,9 +410,10 @@ def main(argv=None) -> int:
     ap.add_argument("--issue", required=True)
     ap.add_argument("--kinds", nargs="*")
     ap.add_argument("--out")
+    ap.add_argument("--budget-min", type=float, default=None)
     a = ap.parse_args(argv)
     if a.cmd == "forecast":
-        got = forecast(a.issue, kinds=a.kinds)
+        got = forecast(a.issue, kinds=a.kinds, budget_min=a.budget_min)
         bad = [k for k, v in got.items() if not v]
         print(f"lead-7 supplements {a.issue}: {len(got) - len(bad)} ok" + (f", missing {bad}" if bad else ""), flush=True)
         return 0 if not bad else 1

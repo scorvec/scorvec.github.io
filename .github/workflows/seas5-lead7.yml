@@ -20,7 +20,7 @@ on:
   workflow_dispatch:
     inputs:
       mode:
-        description: 'check | tables | probe'
+        description: 'check | check-hc | tables | probe'
         required: true
         default: 'check'
       issue:
@@ -125,15 +125,16 @@ jobs:
           python scripts/sst/seas5_lead7.py check --issue "${{ steps.gate.outputs.issue }}" --out "$RUNNER_TEMP/seas5_lead7_check_fc_${{ steps.gate.outputs.issue }}.json"
 
       - name: Lead-6 test, hindcast (AWS / CDS sub-daily leads 5–6 vs the CDS monthly hindcast tables)
-        if: inputs.mode == 'check'
+        if: inputs.mode == 'check' || inputs.mode == 'check-hc'
         run: |
-          python scripts/sst/seas5_aws.py build --month "${{ steps.gate.outputs.month }}"
+          # the CDS pressure-level hindcast keys are exact by construction and queue for an hour each: not in the test
+          python scripts/sst/seas5_aws.py build --aws-only --month "${{ steps.gate.outputs.month }}"
           python scripts/sst/seas5_aws.py check --month "${{ steps.gate.outputs.month }}" --out "$RUNNER_TEMP/seas5_lead7_check_hc_${{ steps.gate.outputs.month }}.json"
           du -sh scripts/sst/data/seas5/aws scripts/sst/data/seas5/hindcast 2>/dev/null || true
           cat scripts/sst/data/seas5/l7_volume.jsonl 2>/dev/null || true
 
       - name: Upload the test results
-        if: always() && inputs.mode == 'check'
+        if: always() && (inputs.mode == 'check' || inputs.mode == 'check-hc')
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
