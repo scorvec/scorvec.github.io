@@ -188,38 +188,56 @@ def empty_mission(rec, key, year):
 
 
 def screen_track(rows):
-    """Drop positions implying > 450 kt between consecutive good positions (the aircraft cannot do that)."""
-    it, la, lo = 0, 1, 2
-    good = None
+    """Null isolated position spikes: a fix more than 650 kt from BOTH good neighbours while the neighbours
+    agree with each other. (Positions are coded to the minute, ~1 nm, so 30-s ground speeds from single
+    pairs are noisy by +-120 kt; a G-IV at 41-45 kft can genuinely make 480+ kt with a tailwind.)"""
+    good = [i for i, r in enumerate(rows) if r[1] is not None]
     bad = 0
-    for r in rows:
-        if r[la] is None:
+
+    def kt(a, b):
+        dt = abs(rows[b][0] - rows[a][0])
+        return km(rows[a][1], rows[a][2], rows[b][1], rows[b][2]) / 1.852 / (max(dt, 30) / 3600.0)
+    for j in range(1, len(good) - 1):
+        a, i, b = good[j - 1], good[j], good[j + 1]
+        if rows[a][1] is None:
             continue
-        if good is not None:
-            dt = r[it] - good[it]
-            if dt > 0:
-                kt = km(good[la], good[lo], r[la], r[lo]) / 1.852 / (dt / 3600.0)
-                if kt > 450:
-                    r[la] = r[lo] = None
-                    bad += 1
-                    continue
-        good = r
+        if kt(a, i) > 650 and kt(i, b) > 650 and kt(a, b) < 650:
+            rows[i][1] = rows[i][2] = None
+            bad += 1
     return bad
 
 
-def mission_stats(m):
+STORM_R_KM = 556          # 300 n mi: the storm-relative statistics (VDM-style "max FL wind" etc.)
+
+
+def mission_stats(m, track=None):
+    """Mission statistics. With a storm track, the maxima/minima are taken within 300 n mi of the centre
+    (interpolated best track), so ferry legs and the departure airfield do not count as storm values."""
     rows = m["hdob"]["rows"]
     ix = {c: i for i, c in enumerate(HCOLS)}
+    near = None
+    if track:
+        near = set()
+        for r in rows:
+            if r[ix["la"]] is None:
+                continue
+            c = track_at(track, r[0])
+            if c and km(r[ix["la"]], r[ix["lo"]], c[0], c[1]) <= STORM_R_KM:
+                near.add(r[0])
 
     def best(col, fn=max):
-        cand = [r for r in rows if r[ix[col]] is not None and r[ix["la"]] is not None]
+        cand = [r for r in rows if r[ix[col]] is not None and r[ix["la"]] is not None
+                and (near is None or r[0] in near)]
         if not cand:
             return None
         r = fn(cand, key=lambda r: r[ix[col]])
         return dict(v=r[ix[col]], t=r[ix["t"]], la=r[ix["la"]], lo=r[ix["lo"]])
 
     st = dict(n_hdob=len(rows), n_drop=len(m["drops"]), n_vdm=len(m["vdms"]), n_recco=len(m["reccos"]),
-              max_sfmr=best("sfmr"), max_fl=best("ws"), max_peak=best("wp"), min_x=best("x", min))
+              max_sfmr=best("sfmr"), max_fl=best("ws"), max_peak=best("wp"), min_x=best("x", min),
+              near=None if near is None else len(near),
+              n_qc=sum(1 for r in rows if r[ix["qc"]] not in ("00", None)))
+    st["fixes"] = [[v["t"], v["la"], v["lo"], v.get("mslp")] for v in m["vdms"]]
     ts = [r[0] for r in rows] + [d["spl_t"] or d["rel_t"] for d in m["drops"] if (d.get("spl_t") or d.get("rel_t"))] + \
          [v["t"] for v in m["vdms"]] + [r["t"] for r in m["reccos"]]
     st["first"], st["last"] = (min(ts), max(ts)) if ts else (None, None)
@@ -467,14 +485,18 @@ class Mirror:
             size = p.stat().st_size
             if key not in self.touched and key in old and old[key].get("bytes") == size:
                 e = dict(old[key])                       # unchanged file: reuse its stats, re-check the storm
-                e["storm"], e["how"] = self.assign(e, e)
-                missions[key] = e
-                continue
+                sid, how = self.assign(e, e)
+                if sid == e.get("storm") and (e.get("near") is not None or not self.storms.get(sid)):
+                    e["how"] = how
+                    missions[key] = e
+                    continue
             m = self.missions.get(key) or jload(p, None)
             if not m:
                 continue
             st = mission_stats(m)
             sid, how = self.assign(m, st)
+            if sid and self.storms.get(sid):
+                st = mission_stats(m, self.storms[sid])
             missions[key] = dict(aircraft=m["aircraft"], type=m["type"], mission=m["mission"],
                                  name=m.get("name") or "", year=m["year"], storm_no=m.get("storm_no"),
                                  storm=sid, how=how, bytes=size, file=f"missions/{key[:4]}/{key}.json",
@@ -682,8 +704,11 @@ def main():
     ap.add_argument("--prev", help="checkout of the previous recon-data tip (copied into OUT first)")
     ap.add_argument("--backfill", default="", help='"YEAR SID", e.g. "2024 AL14" (dispatch only)')
     ap.add_argument("--days", type=int, default=None, help="live mode: list this many days back")
+    ap.add_argument("--reset", action="store_true", help="start from an empty tree (keeps nothing from --prev)")
     a = ap.parse_args()
     out = Path(a.out)
+    if a.reset:
+        a.prev = None
     if a.prev and Path(a.prev).is_dir() and not out.exists():
         shutil.copytree(a.prev, out, ignore=shutil.ignore_patterns(".git"))
     out.mkdir(parents=True, exist_ok=True)

@@ -28,6 +28,11 @@ on:
         description: 'Live run: list this many days back (catch-up after an outage; empty = since the last run)'
         required: false
         default: ''
+      reset:
+        description: 'Rebuild from scratch (drops everything held, incl. backfilled storms; use with days)'
+        type: boolean
+        required: false
+        default: false
 
 permissions:
   contents: write
@@ -57,8 +62,10 @@ jobs:
         env:
           BACKFILL: ${{ inputs.backfill }}
           DAYS: ${{ inputs.days }}
+          RESET: ${{ inputs.reset }}
         run: |
           args=()
+          [ "$RESET" = "true" ] && args+=(--reset)
           [ -n "$BACKFILL" ] && args+=(--backfill "$BACKFILL")
           [ -n "$DAYS" ] && args+=(--days "$DAYS")
           python3 scripts/recon/recon_mirror.py /tmp/recon-data --prev prev-data "${args[@]}"
