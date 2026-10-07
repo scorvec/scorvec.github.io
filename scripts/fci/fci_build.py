@@ -533,9 +533,10 @@ def sub_entry(label, keys, v):
 
 def input_row(k, label, group, desc, s, zser, loading=None, contribution=None):
     s = s.dropna(); zz = zser.dropna()
+    ch = s[s.ne(s.shift())]                                           # the week the current value entered (carried values stay put)
     z = zz.iloc[-1] if len(zz) else np.nan
     return dict(key=k, label=label, group=group, desc=desc, loading=loading,
-                value=None if not len(s) else round(float(s.iloc[-1]), 3), asof=str(s.index[-1].date()) if len(s) else None,
+                value=None if not len(s) else round(float(s.iloc[-1]), 3), asof=str(ch.index[-1].date()) if len(s) else None,
                 z=None if not np.isfinite(z) else round(float(z), 2),
                 z_13w_ago=round(float(zz.iloc[-14]), 2) if len(zz) > 14 else None,
                 contribution=contribution, pct_rank=round(float((zz <= z).mean()), 3) if np.isfinite(z) else None)

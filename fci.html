@@ -51,6 +51,7 @@
   .spreads .chart { height: 220px; }
   .pc-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
   .pc-grid .chart { height: 300px; }
+  .pc-grid > div { min-width: 0; }
   .pc-grid h3 { font: 600 0.95rem var(--sans); margin: 0.2rem 0 0.2rem; color: var(--ink2); }
   table.adm { width: 100%; border-collapse: collapse; font-size: 0.9rem; font-variant-numeric: tabular-nums; }
   table.adm th { text-align: right; font-size: 0.78rem; color: var(--muted); font-weight: 600; border-bottom: 1.5px solid var(--rule); padding: 0.3rem 0.45rem; vertical-align: bottom; }
@@ -517,7 +518,7 @@
       by[g].forEach(function (i) {
         var sh = SHOW[i.key] || [1, "", 2], v = i.value === null ? null : sh[0] * i.value, z = i.z;
         var bar = z === null ? "" : "<span class='zbar'><b></b><i style='background:" + col(z) + ";" + (z >= 0 ? "left:50%;width:" : "right:50%;width:") + Math.min(50, Math.abs(z) / 3 * 50) + "%'></i></span>";
-        html += "<tr><td>" + (sh[3] || i.label) + "<span class='desc'>" + i.desc + (i.asof ? " · latest " + i.asof : "") + "</span></td>" +
+        html += "<tr><td>" + (sh[3] || i.label) + "<span class='desc'>" + i.desc + (i.asof ? " · this value entered " + i.asof : "") + "</span></td>" +
           "<td class='n'>" + (v === null ? "–" : fmt(v, sh[2]) + " " + sh[1]) + "</td>" +
           "<td class='n' style='color:" + (z === null ? "#999" : col(z)) + "'>" + (z === null ? "–" : fmt(z)) + "</td><td>" + bar + "</td>" +
           "<td class='n'>" + (i.z_13w_ago === null ? "–" : fmt(i.z_13w_ago)) + "</td>" +
@@ -570,10 +571,11 @@
     }
     if (P.liquidity) {
       document.getElementById("liq-card").hidden = false;
+      var lx = { gridcolor: "#eee", range: [P.liquidity.res[0][0], d.asof] };
       Plotly.react("c-liq", [ln(P.liquidity.res, "Reserves", "#0f7f86", { line: { color: "#0f7f86", width: 2 } }), ln(P.liquidity.rrp, "Overnight reverse repo", "#d97a0b")],
-        L({ shapes: shapes, yaxis: yax("% of bank assets") }), CFG);
+        L({ shapes: shapes, xaxis: lx, yaxis: yax("% of bank assets") }), CFG);
       Plotly.react("c-repo", [ln(P.liquidity.repo, "SOFR minus IORB", "#b4321f", { hovertemplate: "%{y:+.1f} bp<extra>SOFR − IORB</extra>" })],
-        L({ shapes: shapes, showlegend: false, yaxis: yax("bp") }), CFG);
+        L({ shapes: shapes, showlegend: false, xaxis: { gridcolor: "#eee", range: [P.liquidity.repo[0][0], d.asof] }, yaxis: yax("bp") }), CFG);
     }
     var A = d.admission || null;
     if (P.context) {
@@ -625,7 +627,7 @@
       Plotly.react("c-pc-ndfi", [
         { x: nl.map(function (r) { return r[0]; }), y: nl.map(function (r) { return r[1]; }), name: "loans, $ billion", line: { color: "#7b3fa0", width: 2 }, hovertemplate: "$%{y:,.0f}B<extra>loans</extra>" },
         { x: nl.map(function (r) { return r[0]; }), y: nl.map(function (r) { return r[2]; }), name: "growth, % y/y (right)", yaxis: "y2", line: { color: "#d97a0b", width: 1.4 }, hovertemplate: "%{y:+.1f}%<extra>y/y</extra>" }
-      ], L({ yaxis: { gridcolor: "#eee", title: { text: "$ billion" } }, yaxis2: { overlaying: "y", side: "right", showgrid: false, title: { text: "% y/y" }, zeroline: false } }), CFG);
+      ], L({ margin: { l: 52, r: 56, t: 10, b: 40 }, yaxis: { gridcolor: "#eee", title: { text: "$ billion" } }, yaxis2: { overlaying: "y", side: "right", showgrid: false, title: { text: "% y/y" }, zeroline: false } }), CFG);
       var cr = (pv.callreport || []).filter(function (q) { return q.breakdown_reported; });
       if (cr.length) {
         document.getElementById("cr-wrap").hidden = false;
