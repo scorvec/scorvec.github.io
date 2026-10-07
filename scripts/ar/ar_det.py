@@ -64,6 +64,35 @@ def _render(job):
     return dom_key, k, out.stat().st_size
 
 
+def coast_figure(out, m, init, valid, cser, tl, levels):
+    """Coastline IVT, latitude x time (the deterministic landfall chart)."""
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    import matplotlib.dates as mdates
+    cm, nm = A.ivt_cmap()
+    t = pd.DatetimeIndex(valid)
+    fig, ax = plt.subplots(figsize=(12, 6.4))
+    pm = ax.pcolormesh(t, tl, np.where(cser >= A.IVT_LEV[0], cser, np.nan).T, cmap=cm, norm=nm, shading="nearest")
+    cs = ax.contour(t, tl, cser.T, levels=[250, 500, 750, 1000], colors="#111", linewidths=[0.6, 0.9, 1.2, 1.5])
+    ax.clabel(cs, fmt="%d", fontsize=7)
+    pts = A.coast_points()
+    ax.set_yticks([p[0] for p in pts]); ax.set_yticklabels([f"{p[2].split(' (')[0]}  {p[0]:g}°N" for p in pts], fontsize=7.5)
+    ax.set_ylim(tl.min(), tl.max())
+    ax.xaxis.set_major_locator(mdates.DayLocator(interval=1)); ax.xaxis.set_major_formatter(mdates.DateFormatter("%a %d\n%b"))
+    ax.xaxis.set_minor_locator(mdates.HourLocator(byhour=[0, 6, 12, 18]))
+    ax.tick_params(axis="x", labelsize=7.5); ax.grid(True, axis="x", alpha=0.3)
+    fig.subplots_adjust(left=0.2, right=0.97, top=0.86, bottom=0.21)
+    fig.text(0.02, 0.97, f"Coastline IVT — {m['label']}, init {init:%d %b %Y %HZ}, 6-hourly to day 7", fontsize=12.5,
+             fontweight="bold", va="top")
+    fig.text(0.02, 0.925, f"IVT 1000–300 hPa ({len(levels)} levels) at the first ocean point west of the coast on each 0.25° latitude, "
+             "Baja California to southeast Alaska · contours 250 / 500 / 750 / 1000", fontsize=8.5, color="#444", va="top")
+    cax = fig.add_axes([0.3, 0.085, 0.5, 0.025])
+    cb = fig.colorbar(pm, cax=cax, orientation="horizontal", extend="max", ticks=A.IVT_LEV); cb.ax.tick_params(labelsize=7.5)
+    cb.set_label("IVT (kg m⁻¹ s⁻¹) · AR threshold 250", fontsize=8)
+    fig.savefig(out, dpi=100, facecolor="white", pil_kwargs={"quality": 80, "method": 6}); plt.close(fig)
+
+
 def run_model(model, date, hh, work: Path, procs: int, wait_min: float):
     t0 = time.time()
     init = pd.Timestamp(f"{date}T{hh}:00")
@@ -143,6 +172,7 @@ def run_model(model, date, hh, work: Path, procs: int, wait_min: float):
              "valid": [t.strftime("%Y-%m-%dT%HZ") for t in valid], "lat": tl.tolist(),
              "ivt": np.round(cser).astype(int).tolist(), "points": pts, "levels": levels}
     (dirs["pac"] / "coast.json").write_text(json.dumps(coast, separators=(",", ":")))
+    coast_figure(SITE / "assets" / "ar" / f"det_coast_{model}.webp", m, init, valid, cser, tl, levels)
 
     # ── analysis-time IVT on the 0.5-deg points (validation) ──
     la5 = np.arange(10.0, 70.01, 0.5); lo5 = np.arange(130.0, 300.01, 0.5)
@@ -153,6 +183,7 @@ def run_model(model, date, hh, work: Path, procs: int, wait_min: float):
     nbytes = {dk: A.dir_bytes(dirs[dk]) for dk in A.DOMAINS}
     part = {"model": model, "label": m["label"], "short": m["short"], "init": init.strftime("%Y-%m-%dT%HZ"),
             "levels": levels, "res": m["res"], "src": m["src"], "steps": list(STEPS), "level_bias": lvl_bias,
+            "points": [{k: p[k] for k in ("lat", "lon", "name", "rank", "peak", "dur_h", "onset", "daily")} for p in pts],
             "frames": frames, "bytes_frames": nbytes, "download": A.LEDGER.report(),
             "runtime_s": {"fetch": round(t_fetch), "render": round(t_render), "total": round(time.time() - t0)},
             "max_ivt": round(float(np.nanmax(ivt)))}
@@ -176,7 +207,7 @@ def combine(work: Path):
     for model in A.MODELS:
         if model in parts:
             p = parts[model]
-            models[model] = {k: p[k] for k in ("label", "short", "init", "levels", "res", "src", "level_bias", "max_ivt")}
+            models[model] = {k: p[k] for k in ("label", "short", "init", "levels", "res", "src", "level_bias", "max_ivt", "points")}
             models[model]["stale"] = False
             for dk, fr in p["frames"].items():
                 regions[f"det_{model}_{dk}"] = {"label": f"{p['short']} · {A.DOMAINS[dk]['label']}", "frames": fr}

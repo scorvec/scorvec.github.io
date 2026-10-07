@@ -1,0 +1,56 @@
+name: TAO heat-content audit (diagnostic, no commit)
+
+# Validation of the equatorial 0-300 m heat-content index (enso-subsurface.html, the analog
+# chart): whole TAO record with quality/source codes, old vs screened index, coverage table,
+# GLORYS12 at the 8 moorings, CPC/PMEL GODAS references. Outputs are an ARTIFACT only.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: tao-hc-audit
+  cancel-in-progress: false
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    env:
+      MPLBACKEND: Agg
+      SST_SITE_ROOT: ${{ github.workspace }}
+      AUDIT_OUT: ${{ github.workspace }}/hc_audit
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+      - uses: actions/cache@v6
+        with:
+          path: ~/.cache/pip
+          key: pip-sst-${{ runner.os }}-${{ hashFiles('scripts/sst/requirements-sst.txt') }}
+          restore-keys: |
+            pip-sst-${{ runner.os }}-
+      - uses: actions/cache@v6
+        with:
+          path: scripts/sst/data/hc_audit_cache
+          key: hc-audit-cache-v1-${{ github.run_id }}
+          restore-keys: |
+            hc-audit-cache-v1-
+      - name: Install
+        run: pip install -r scripts/sst/requirements-sst.txt
+      - name: Audit
+        working-directory: scripts/sst
+        env:
+          COPERNICUSMARINE_SERVICE_USERNAME: ${{ secrets.COPERNICUSMARINE_SERVICE_USERNAME }}
+          COPERNICUSMARINE_SERVICE_PASSWORD: ${{ secrets.COPERNICUSMARINE_SERVICE_PASSWORD }}
+        run: python tao_hc_audit.py 2>&1 | tee "$AUDIT_OUT.log"; exit ${PIPESTATUS[0]}
+      - name: Upload
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: hc-audit
+          path: |
+            hc_audit/
+            hc_audit.log
