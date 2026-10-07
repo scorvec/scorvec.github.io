@@ -315,7 +315,7 @@ def ecmwf_step(date, hh, model, step, levels=ECMWF_LEVELS, crop=CROP):
         if meta["typeOfLevel"] == "isobaricInhPa":
             recs[(sn, int(meta["level"]))] = (v, la, lo)
         elif sn in ("sp", "msl"):
-            recs[(sn, 0)] = (v, la, lo)
+            recs[("ps" if sn == "sp" else "msl", 0)] = (v, la, lo)
     d = _assemble(recs, levels)
     d["msl"] = None if d["msl"] is None else d["msl"] / 100.0
     return d
@@ -547,6 +547,17 @@ def prob_frame(out, lat, lon, prob, dom, title, sub, contour=None, contour_label
     cb.set_label("probability (% of members)" + (f" · {contour_label}" if contour_label else ""), fontsize=8)
     fig.savefig(out, dpi=100, facecolor="white", pil_kwargs={"quality": 65, "method": 6})
     plt.close(fig)
+
+
+def warm_features():
+    """Draw the map features once in the parent process: forked render workers would otherwise download the Natural
+    Earth shapefiles concurrently and read each other's half-written files (struct.error in shapefile.py, 2026-10-07)."""
+    import io
+    import matplotlib.pyplot as plt
+    for dom in list(DOMAINS.values()) + [ENS_DOMAIN]:
+        fig, ax, H = map_axes(dom)
+        map_features(ax)
+        fig.savefig(io.BytesIO(), format="png", dpi=20); plt.close(fig)
 
 
 def dir_bytes(d: Path) -> int:

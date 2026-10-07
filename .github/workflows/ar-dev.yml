@@ -13,7 +13,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: ar-dev
+  group: ar-dev-${{ inputs.script }}
   cancel-in-progress: true
 
 env:
