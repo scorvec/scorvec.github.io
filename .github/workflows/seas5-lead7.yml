@@ -20,7 +20,7 @@ on:
   workflow_dispatch:
     inputs:
       mode:
-        description: 'check | check-hc | tables | probe'
+        description: 'check | check-hc | tables (CDS group) | aws | probe (AWS only, own group)'
         required: true
         default: 'check'
       issue:
@@ -31,8 +31,10 @@ on:
 permissions:
   contents: write
 
+# AWS-only modes (probe, aws) hold no CDS key and run outside the `seas5` group, in parallel with the CDS queue
+# (2026-10-08, coordinator: AWS work must not block the key).
 concurrency:
-  group: seas5
+  group: ${{ (inputs.mode == 'probe' || inputs.mode == 'aws') && 'seas5-aws' || 'seas5' }}
   cancel-in-progress: false
 
 env:
@@ -86,7 +88,7 @@ jobs:
           df -h "$GITHUB_WORKSPACE" | tail -1
 
       - name: CDS credentials
-        if: inputs.mode != 'probe'
+        if: inputs.mode != 'probe' && inputs.mode != 'aws'
         env:
           CDSAPI_URL: ${{ secrets.CDSAPI_URL }}
           CDSAPI_KEY: ${{ secrets.CDSAPI_KEY }}
@@ -162,8 +164,17 @@ jobs:
           python seas5_ref.py missing --month "$M" || true
           cat data/seas5/l7_volume.jsonl 2>/dev/null || true
 
+      - name: AWS-only hindcast tables (the polar-vortex daily u10; no CDS key in this mode)
+        if: inputs.mode == 'aws'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SEAS5_REF_UPLOAD_TAG: ${{ env.REF_TAG }}
+        run: |
+          cd scripts/sst
+          python seas5_ref.py hindcast --month "${{ steps.gate.outputs.month }}" --only ssw --fetch --discard-raw
+
       - name: Upload new tables
-        if: always() && inputs.mode == 'tables'
+        if: always() && (inputs.mode == 'tables' || inputs.mode == 'aws')
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |

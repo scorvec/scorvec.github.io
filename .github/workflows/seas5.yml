@@ -217,6 +217,48 @@ jobs:
             scripts/sst/data/seas5/ssw/fc_*_${{ steps.gate.outputs.issue }}.grib
           key: seas5-fc-${{ steps.gate.outputs.issue }}-${{ github.run_id }}-fetched
 
+      # 2026-10-08 (user: publish each piece as soon as it is ready): the polar-vortex / SSW product needs only its small
+      # CDS requests (fetched above) and its hindcast table, so it is built and committed here, before the long lead-7
+      # fetch. The full build below rebuilds it with everything else.
+      - name: Publish the polar-vortex product
+        if: steps.gate.outputs.run == '1' && steps.fetch.outputs.ready == '1'
+        run: |
+          SEAS5_OFFLINE=1 scripts/sst/run_seas5.sh ssw "${{ steps.gate.outputs.issue }}" || { echo "::warning::polar-vortex build failed (table or forecast missing)"; exit 0; }
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          SNAP=$(mktemp -d)
+          git add -A assets/sst/seas5_ssw_*.webp assets/sst/data/seas5_ssw.json 2>/dev/null || true
+          git diff --staged --name-only -z | tar cf "$SNAP/outs.tar" --null -T - 2>/dev/null || true
+          git reset -q
+          for i in 1 2 3 4 5; do
+            if ! timeout 120 git fetch origin main; then echo "fetch $i failed"; sleep 5; continue; fi
+            git reset --hard origin/main
+            tar xf "$SNAP/outs.tar" 2>/dev/null || true
+            git add -A assets/sst/seas5_ssw_*.webp assets/sst/data/seas5_ssw.json 2>/dev/null || true
+            if git diff --staged --quiet; then echo "No changes; skipping commit."; exit 0; fi
+            I="${{ steps.gate.outputs.issue }}"
+            git commit -q -m "data update: SEAS5 ${I:0:4}-${I:4:2} polar vortex / SSW risk"
+            if timeout 180 git push; then echo "Pushed on attempt $i."; exit 0; fi
+            echo "Push $i rejected; resyncing and retrying…"; sleep 5
+          done
+          echo "::warning::could not push the polar-vortex product; the full commit below retries"
+
+      - name: Fetch lead month 7 (CDS sub-daily, budgeted)
+        if: steps.gate.outputs.run == '1' && steps.fetch.outputs.ready == '1'
+        run: scripts/sst/run_seas5.sh fetch-l7 "${{ steps.gate.outputs.issue }}"
+
+      - name: Save the lead-7 fields now
+        if: steps.gate.outputs.run == '1' && steps.fetch.outputs.ready == '1'
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            scripts/sst/data/seas5/forecast/*_${{ steps.gate.outputs.issue }}.grib
+            scripts/sst/data/seas5/forecast/*_${{ steps.gate.outputs.issue }}_L7.npz
+            scripts/sst/data/seas5/sixh/*_${{ steps.gate.outputs.issue }}*.grib
+            scripts/sst/data/seas5/regimes/fc_*_${{ steps.gate.outputs.issue }}.grib
+            scripts/sst/data/seas5/ssw/fc_*_${{ steps.gate.outputs.issue }}.grib
+          key: seas5-fc-${{ steps.gate.outputs.issue }}-${{ github.run_id }}-l7
+
       # Only while a table for this start month is missing: fetch that raw hindcast kind, reduce it,
       # delete it. Uploaded straight away (next step) so a later timeout cannot lose the work.
       - name: Hindcast tables for start month ${{ steps.gate.outputs.month }} (one-time per start month)

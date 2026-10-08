@@ -47,24 +47,28 @@ fetch)
   step "fetch wind (6-hourly 10 m u/v, US)"          "$PY" seas5_wind.py fetch --issue "$ISSUE"
   step "fetch snowfall (daily, North America)"       "$PY" seas5_snow.py fetch --issue "$ISSUE"
   step "fetch regimes (daily z500, 51 members)"      "$PY" seas5_regimes_fetch.py forecast --issue "$ISSUE"
-  # lead month 7 (from the October 2026 issue): the sub-daily product reduced to the monthly definition, per kind
-  # Budgeted: on 2026-10-07 the CDS queued each pressure-level request 30–90 min. No new request after the job has
-  # less than 120 min left (seas5.yml timeout 340 min); the cache keeps what came, the next firing fetches the rest.
+  # the polar-vortex product next (one small daily u10 request + a monthly u100): it publishes on its own (seas5.yml
+  # "Publish the polar-vortex product"), so it does not wait for the lead-7 fields
+  step "fetch polar vortex (daily u10, monthly u100)" "$PY" seas5_ssw.py fetch --issue "$ISSUE"
+  [ ${#FAILED[@]} -eq 0 ] || echo "::warning::forecast fetches incomplete: ${FAILED[*]}"
+  exit 0
+  ;;
+fetch-l7)
+  # lead month 7 (from the October 2026 issue): the sub-daily product reduced to the monthly definition, in
+  # seas5_lead7.COMBINED order (single-level requests first). Budgeted: the CDS queued pressure-level requests
+  # 1.5–4.5 h each on 2026-10-07/08; no new request after the job has less than 120 min left (timeout 340 min);
+  # the cache keeps what came and the next firing fetches the rest.
   L7B=200; if [ -n "${JOB_T0:-}" ]; then L7B=$(( 340 - ( $(date +%s) - JOB_T0 ) / 60 - 120 )); fi
   if [ "$L7B" -gt 0 ]; then
-    step "fetch lead-7 monthly means (sub-daily)"    "$PY" seas5_lead7.py forecast --issue "$ISSUE" --budget-min "$L7B"
+    "$PY" seas5_lead7.py forecast --issue "$ISSUE" --budget-min "$L7B" || echo "::warning::lead-7 fields incomplete — the next run continues"
   else
     echo "::warning::no time left for the lead-7 fetch this run"
   fi
-  # after lead 7 (the page's months come first): the polar-vortex product's daily u10 and monthly u100; the daily
-  # request queued 230 min on 2026-10-08, so it only starts with an hour of job time to spare
-  if [ -z "${JOB_T0:-}" ] || [ $(( 340 - ( $(date +%s) - JOB_T0 ) / 60 )) -gt 180 ]; then
-    step "fetch polar vortex (daily u10, monthly u100)" "$PY" seas5_ssw.py fetch --issue "$ISSUE"
-  else
-    echo "::warning::polar-vortex fetch left for the next run (job time)"
-  fi
-  [ ${#FAILED[@]} -eq 0 ] || echo "::warning::forecast fetches incomplete: ${FAILED[*]}"
   exit 0
+  ;;
+ssw)
+  "$PY" seas5_ssw.py build --issue "$ISSUE"
+  exit $?
   ;;
 tables)
   ARGS=(hindcast --month "$MM")
