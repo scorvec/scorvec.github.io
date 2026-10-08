@@ -180,7 +180,7 @@ def phase(lv, mo, U, out_path):
     ok, pcs, var = eof_phase(lv, U)
     mo_ok = mo[ok]
     fig, ax = plt.subplots(figsize=(8.4, 8.6), dpi=125)
-    fig.subplots_adjust(left=0.095, right=0.855, top=0.845, bottom=0.135)
+    fig.subplots_adjust(left=0.095, right=0.855, top=0.845, bottom=0.15)
     ax.plot(pcs[0], pcs[1], color="#c3c8ce", lw=0.6, zorder=1)
     n = 36
     seg = slice(len(mo_ok) - n, len(mo_ok))
@@ -206,11 +206,10 @@ def phase(lv, mo, U, out_path):
     fig.text(0.095, 0.905, f"grey: every month since {mo_ok[0]} · coloured: the last "
              f"{n} months, dark to bright · red: {mo_ok[-1]}",
              fontsize=9.6, color=MUTED, ha="left")
-    fig.text(0.095, 0.062, "A full QBO cycle is one loop around the origin, and the "
-             "radius is the strength of the oscillation.", fontsize=8.5, color=MUTED)
-    fig.text(0.095, 0.032, "A loop that shrinks toward the centre without closing is a "
-             "DISRUPTION — the QBO stalling mid-descent, as in 2016 and 2020.",
-             fontsize=8.5, color=MUTED)
+    # three lines (2026-10-08 sweep: the second sentence on one line ran off the right edge)
+    fig.text(0.095, 0.022, "A full QBO cycle is one loop around the origin, and the radius is the strength of the oscillation.\n"
+             "A loop that shrinks toward the centre without closing is a DISRUPTION — the QBO stalling\n"
+             "mid-descent, as in 2016 and 2020.", fontsize=8.5, color=MUTED, va="bottom", linespacing=1.5)
     cb = fig.colorbar(pts, ax=ax, fraction=0.035, pad=0.02)
     cb.set_ticks([0, n - 1]); cb.set_ticklabels([str(mo_ok[seg][0]), str(mo_ok[-1])])
     cb.ax.tick_params(labelsize=8.5, colors=INK)
