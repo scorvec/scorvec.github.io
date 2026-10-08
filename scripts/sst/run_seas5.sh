@@ -49,7 +49,7 @@ fetch)
   step "fetch regimes (daily z500, 51 members)"      "$PY" seas5_regimes_fetch.py forecast --issue "$ISSUE"
   # the polar-vortex product next (one small daily u10 request + a monthly u100): it publishes on its own (seas5.yml
   # "Publish the polar-vortex product"), so it does not wait for the lead-7 fields
-  step "fetch polar vortex (daily u10, monthly u100)" "$PY" seas5_ssw.py fetch --issue "$ISSUE"
+  step "fetch polar vortex (daily u10)"              "$PY" seas5_ssw.py fetch --issue "$ISSUE" --only u10
   [ ${#FAILED[@]} -eq 0 ] || echo "::warning::forecast fetches incomplete: ${FAILED[*]}"
   exit 0
   ;;
@@ -59,6 +59,7 @@ fetch-l7)
   # 1.5–4.5 h each on 2026-10-07/08; no new request after the job has less than 120 min left (timeout 340 min);
   # the cache keeps what came and the next firing fetches the rest.
   L7B=200; if [ -n "${JOB_T0:-}" ]; then L7B=$(( 340 - ( $(date +%s) - JOB_T0 ) / 60 - 120 )); fi
+  "$PY" seas5_ssw.py fetch --issue "$ISSUE" --only u100 || echo "::warning::monthly u100 forecast not fetched (the vortex card shows 10 hPa only)"
   if [ "$L7B" -gt 0 ]; then
     "$PY" seas5_lead7.py forecast --issue "$ISSUE" --budget-min "$L7B" || echo "::warning::lead-7 fields incomplete — the next run continues"
   else

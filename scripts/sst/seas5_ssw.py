@@ -207,13 +207,17 @@ def fc_u100_path(ym: str) -> Path:
     return DIR / f"fc_u100_{ym}.grib"
 
 
-def fetch(ym: str) -> bool:
+def fetch(ym: str, only: str | None = None) -> bool:
+    """daily u10 (the SSW product) and/or the monthly u100 forecast; `only` = "u10" | "u100"."""
     import seas5_lead7 as L7
+    if only == "u100":
+        return _monthly_u100([int(ym[:4])], ym[4:], fc_u100_path(ym))
     req = {"originating_centre": CENTRE, "system": SYSTEM, "variable": ["u_component_of_wind"], "pressure_level": ["10"],
            "year": [ym[:4]], "month": [ym[4:]], "day": ["01"], "leadtime_hour": HOURS,
            "area": [90, -180, 30, 180], "grid": [2.0, 2.0], "data_format": "grib"}
     ok = L7._cds("seasonal-original-pressure-levels", req, fc_path(ym), f"u10 daily 30-90N {ym}")
-    ok = _monthly_u100([int(ym[:4])], ym[4:], fc_u100_path(ym)) and ok
+    if only != "u10":
+        ok = _monthly_u100([int(ym[:4])], ym[4:], fc_u100_path(ym)) and ok
     return ok
 
 
@@ -601,12 +605,12 @@ def render(ym, dates, f60, cm, q10, q90, z, fsec, hsec, lats, tail, doc) -> dict
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("cmd", choices=["hindcast", "fetch", "build"])
-    ap.add_argument("--issue"); ap.add_argument("--month")
+    ap.add_argument("--issue"); ap.add_argument("--month"); ap.add_argument("--only", choices=["u10", "u100"])
     a = ap.parse_args(argv)
     if a.cmd == "hindcast":
         return 0 if hindcast(a.month) else 1
     if a.cmd == "fetch":
-        return 0 if fetch(a.issue) else 1
+        return 0 if fetch(a.issue, a.only) else 1
     build(a.issue)
     return 0
 
