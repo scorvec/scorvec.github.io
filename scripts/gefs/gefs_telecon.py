@@ -329,7 +329,8 @@ def _plume_panel(ax, ref, sid, base, prev_date, fc, pfc, obs, cpc, n_members, bi
             bbox=dict(facecolor="white", edgecolor="none", alpha=0.85, pad=1.2))
     ax.tick_params(labelsize=8 * fs)
     ax.xaxis.set_major_formatter(mdates.DateFormatter("%b %d"))
-    ax.xaxis.set_major_locator(mdates.DayLocator(interval=10 if not big else 5))
+    # every 14 days on the 4-column board: at 10 the last label ran into the next panel's first (2026-10-08)
+    ax.xaxis.set_major_locator(mdates.DayLocator(interval=14 if not big else 5))
     ax.grid(alpha=0.25, lw=0.5)
 
 
@@ -384,7 +385,10 @@ def plot_series(ref, base, prev_date, fc, pfc, obs, cpc, n_members, out: Path):
         ax = fig.add_axes([L0 + col * PW + 0.028, T0 - (row + 1) * PH + 0.055, PW * 0.86, PH * 0.74])
         _plume_panel(ax, ref, sid, base, prev_date, fc, pfc, obs, cpc, n_members)
         if i == 0:
-            ax.legend(fontsize=6.4, ncol=2, loc="lower left", framealpha=0.92)
+            lh, ll = ax.get_legend_handles_labels()
+    # one figure-level legend under the title (inside the AO panel it sat on the plume's lower half)
+    fig.legend(lh, ll, loc="upper center", bbox_to_anchor=(0.5, 0.958), ncol=len(ll), fontsize=8.2, frameon=False,
+               handlelength=2.2, columnspacing=1.6)
     fig.suptitle(f"Teleconnection indices — GEFS extended ensemble, {n_members} members · init {base:%Y-%m-%d} 00Z"
                  + (f"  ·  dashed: previous run {GP.parse_date(prev_date):%b %d}" if prev_date else "") + GP.TEST_NOTE,
                  fontsize=13.5, fontweight="bold", y=0.985, va="top")
