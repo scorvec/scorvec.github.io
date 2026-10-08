@@ -581,6 +581,64 @@ def main() -> int:
                           "old_last_plotted_value": round(float(old_sm.dropna().iloc[-1]), 3),
                           "glorys8_last": None if not len(idx_g.dropna()) else
                           [str(idx_g.last_valid_index().date()), round(float(idx_g.dropna().iloc[-1]), 3)]}
+    # ---- the production index: TAO + offset-corrected GLORYS fill (tao_hc.index) ----------------
+    have_g = g_anom.notna().any().any()
+    prod = H.index(strict, fill_df=H.fill_from(strict, g_anom) if have_g else None)
+    pm = monthly(prod["hc"])
+    pm_tao = monthly(prod["hc"].where(prod["cat"] <= 1))
+    catm = prod["cat"].groupby(prod.index.year).value_counts().unstack(fill_value=0)
+    catm.to_csv(OUT / "production_categories_by_year.csv")
+    log("production index day categories by year (0 all live, 1 >=6 live, 2 reanalysis-dependent, 3 none):\n"
+        + catm.to_string())
+    val = {}
+    for col in ("cpc_160E_80W", "cpc_180_100W"):
+        val[col] = {"tao_days": stats(pm_tao, cpc[col].reindex(pm_tao.index)),
+                    "all_days": stats(pm, cpc[col].reindex(pm.index))}
+        val[col]["tao_days_1993on"] = stats(pm_tao[pm_tao.index >= "1993"], cpc[col].reindex(pm_tao.index)[pm_tao.index >= "1993"])
+    summary["production_vs_cpc"] = val
+    log("production index vs CPC: " + json.dumps(val))
+    fit = val["cpc_160E_80W"]["tao_days"]
+    rr = (pm - (fit["slope"] * cpc["cpc_160E_80W"].reindex(pm.index) + fit["intercept"]))
+    ytab = pd.DataFrame({"months": rr.groupby(rr.index.year).count(),
+                         "mean_resid": rr.groupby(rr.index.year).mean().round(2),
+                         "max_abs_resid": rr.abs().groupby(rr.index.year).max().round(2)})
+    ytab.to_csv(OUT / "production_yearly_vs_cpc160.csv")
+    log("production index vs CPC 160E-80W by year (residual after the TAO-day fit):\n" + ytab.to_string())
+    sd = float(rr.std())
+    flags = rr[rr.abs() > 3 * sd]
+    summary["production_flags_gt_3sd"] = {k.strftime("%Y-%m"): round(float(v), 2) for k, v in flags.items()}
+    a1 = float(pd.Series(pm_tao.dropna().values).autocorr(1))
+    neff = len(pm_tao.dropna()) * (1 - a1) / (1 + a1)
+    p98 = prod["hc"]["1998"]
+    summary["production_1998"] = {"raw_min": round(float(p98.min()), 2), "date": str(p98.idxmin().date()),
+                                  "smoothed_min": round(float(H.smooth(prod["hc"])["1998"].min()), 2),
+                                  "cpc160_implied_min": round(float(fit["slope"] * cpc["cpc_160E_80W"]["1998"].min() + fit["intercept"]), 2)}
+    dt = summary["dropout_tests"]
+    valid = {
+        "generated": NOW.strftime("%Y-%m-%d"), "audit_run": os.environ.get("GITHUB_RUN_ID"),
+        "fill": {"use": bool(have_g), "source": "Copernicus Marine GLORYS12 reanalysis (my) + analysis (anfc), 0.25S-0.25N",
+                 "anfc_offset": {k: v["offset"] for k, v in ANFC_OFFSET.items()},
+                 "withheld_rmse": {k: dt[k]["glorys_fill"]["rmse"] for k in dt},
+                 "lon_interp_rmse": {k: dt[k]["lon_interp"]["rmse"] for k in dt},
+                 "carry_rmse": {str(k): v["rmse"] for k, v in summary["carry_tests_single_mooring"].items()}},
+        "validation": {
+            "cpc_fit": {"column": "160E-80W", "slope": fit["slope"], "intercept": fit["intercept"],
+                        "r": fit["r"], "n_months": fit["n"], "rmse_after_fit": fit["rmse_after_fit"],
+                        "lag1_autocorr": round(a1, 3), "n_eff": round(neff, 1)},
+            "cpc_180_100W": val["cpc_180_100W"]["tao_days"],
+            "glorys_daily_all8": summary["index_tao_vs_glorys_daily_all8"],
+            "old_index_vs_cpc_180_100W": summary["monthly_comparisons"]["tao8_old vs cpc_180_100W"]["1981-2026"],
+            "flags_gt_3sd": summary["production_flags_gt_3sd"],
+            "trough_1998": summary["production_1998"],
+            "summary_line": (f"Check vs NOAA CPC GODAS 0–300 m index (160°E–80°W), {fit['n']} months 1992–"
+                             f"{NOW.year}: r {fit['r']:.2f}, RMSE {fit['rmse_after_fit']:.2f} °C after a linear fit. "
+                             f"GLORYS12 fill, moorings withheld on fully covered days: RMSE "
+                             f"{dt['single 165E']['glorys_fill']['rmse']:.2f}–{dt['2026-09 (165E,180,170W,155W,95W)']['glorys_fill']['rmse']:.2f} °C "
+                             f"(1–5 moorings)."),
+        }}
+    (OUT / "tao_hc_validation.json").write_text(json.dumps(valid, indent=1))
+    log("VALIDATION " + json.dumps(valid))
+
     # daily frame for everything
     daily = pd.DataFrame({"q4_hc": idx_q4["hc"], "q4_n_live": idx_q4["n_live"], "new_hc": idx_new["hc"], "n_live": idx_new["n_live"], "n_carried": idx_new["n_carried"],
                           "old_raw": old_raw, "old_plotted": old_sm, "glorys8": idx_g})
