@@ -71,6 +71,29 @@ import olr_channel                                             # noqa: E402
 import plot                                                    # noqa: E402
 import recent_analysis as ra                                   # noqa: E402
 
+def _clear_offset(x, y, base, labels, unit=0.019):
+    """Offset (points) for a "day N" label at (x, y): `base` unless its box overlaps a region name (`labels` =
+    (text, x, y, rotation) in data units), else the first candidate that does not. 2026-10-08: "day 35" sat on
+    "Indian Ocean". Boxes are approximate (axes span ~8.6 units over ~6.5 in, so 1 pt ~ 0.019 units)."""
+    def box(o):                                    # annotate's text: left/baseline at the offset
+        x0, y0 = x + o[0] * unit, y + o[1] * unit
+        return x0, x0 + 0.85, y0 - 0.05, y0 + 0.28
+
+    def regions():
+        for t, lx, ly, rot in labels:
+            w = 0.16 * max(len(s) for s in t.split("\n")) / 2 + 0.1
+            h = 0.2 * (t.count("\n") + 1) / 2 + 0.06
+            yield (lx - h, lx + h, ly - w, ly + w) if rot else (lx - w, lx + w, ly - h, ly + h)
+
+    def hits(o):
+        a = box(o)
+        return sum(max(0.0, min(a[1], r[1]) - max(a[0], r[0])) * max(0.0, min(a[3], r[3]) - max(a[2], r[2]))
+                   for r in regions())
+    cands = [base, (11, 9), (11, -13), (-13, 11), (-13, -13), (11, -24), (-13, -24), (11, 22), (-13, 22),
+             (14, -4), (-58, -4)]
+    return min(cands, key=lambda o: (round(hits(o), 3), cands.index(o)))
+
+
 HERE = Path(__file__).resolve().parent
 LIVE = paths.LIVE
 FIGS = paths.FIGS
@@ -445,6 +468,7 @@ def plot_phase(cycle: str, base: pd.Timestamp):
     # each other and on the line: fan them out and back them with white
     for k, (dx, dy) in zip((9, 19, 34), ((11, 9), (11, -13), (-13, 11))):
         if k < len(L):
+            dx, dy = _clear_offset(r1[k], r2[k], (dx, dy), plot.REGION_LABELS)
             ax.annotate(f"day {L[k]}", (r1[k], r2[k]), textcoords="offset points",
                         xytext=(dx, dy), fontsize=9, fontweight="bold", zorder=10,
                         color=cmap(norm(k)),
