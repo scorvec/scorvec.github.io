@@ -233,6 +233,7 @@
   // ── layout ────────────────────────────────────────────────────────────────────
   function layout(o) {
     o = o || {};
+    var narrow = typeof innerWidth === "number" && innerWidth < 640;      // phones: smaller title and legend text
     var xaxis = {
       gridcolor: C.grid, linecolor: C.rule, tickcolor: C.edge, zeroline: false,
       showspikes: true, spikecolor: "#bbb", spikethickness: 1, spikemode: "across", spikedash: "solid",
@@ -246,13 +247,19 @@
     } else {                                                               // monthly dates
       xaxis.type = "date"; xaxis.tickformat = "%b\n%Y"; xaxis.dtick = "M1"; xaxis.tick0 = "2000-01-15";
       xaxis.hoverformat = "%b %Y";
+      // phones (2026-10-08 sweep): a tick every month was rotated upright and the two-line labels ran into each
+      // other; every 2nd/3rd month keeps them flat and legible
+      if (narrow) {
+        var span = o.xrange ? (xms(o.xrange[1]) - xms(o.xrange[0])) / 2.63e9 : 18;
+        xaxis.dtick = span > 12 ? "M3" : "M2"; xaxis.tickangle = 0;
+      }
     }
     var L = {
       margin: { l: 62, r: 70, t: 84, b: 54 }, paper_bgcolor: "rgba(0,0,0,0)", plot_bgcolor: "#fff",
       font: { family: "Inter, sans-serif", size: 14, color: C.ink }, showlegend: true,
       title: { text: o.title || "", x: 0, xanchor: "left", xref: "paper", y: 1, yref: "container", yanchor: "top",
-               pad: { t: 6 }, font: { family: "Inter, sans-serif", size: 15, weight: 700, color: C.ink } },
-      legend: { orientation: "h", x: 0, xanchor: "left", y: 1.02, yanchor: "bottom", font: { size: 12.5, color: C.ink2 },
+               pad: { t: 6 }, font: { family: "Inter, sans-serif", size: narrow ? 13 : 15, weight: 700, color: C.ink } },
+      legend: { orientation: "h", x: 0, xanchor: "left", y: 1.02, yanchor: "bottom", font: { size: narrow ? 11.5 : 12.5, color: C.ink2 },
                 itemwidth: 30, traceorder: "normal", bgcolor: "rgba(0,0,0,0)" },
       xaxis: xaxis,
       yaxis: { title: { text: o.yunits || "", standoff: 8, font: { size: 13, color: C.ink2 } }, gridcolor: C.grid, linecolor: C.rule,
@@ -291,6 +298,25 @@
     });
   }
 
+  // Phones (2026-10-08 sweep): above the plot, a six-to-nine entry legend wraps into a column that climbs into the
+  // title. Below 640 px it goes to the bottom of the figure, one entry per row, in a bottom margin sized for it, and
+  // the chart grows by the same amount so the plot area keeps its height.
+  function narrowLegend(id, traces, L) {
+    if (!(typeof innerWidth === "number" && innerWidth < 640) || L.showlegend === false) return;
+    var el = typeof id === "string" ? document.getElementById(id) : id;
+    if (!el) return;
+    var n = traces.filter(function (t) { return t.showlegend !== false && t.name; }).length;
+    if (!n) return;
+    var extra = n * 19 + 10;
+    if (!el.dataset.ocBaseH) el.dataset.ocBaseH = String(L.height || parseFloat(el.style.height) || el.clientHeight || 420);
+    var h = +el.dataset.ocBaseH + extra;
+    L.height = h;
+    if (el.style.height) el.style.height = h + "px";
+    L.margin = { l: L.margin.l, r: L.margin.r, t: L.title && L.title.text ? 40 : 14, b: L.margin.b + extra };
+    L.legend.x = 0; L.legend.xref = "container"; L.legend.y = 0; L.legend.yref = "container"; L.legend.yanchor = "bottom";
+    L.legend.entrywidth = Math.max(200, innerWidth - 40); L.legend.entrywidthmode = "pixels";   // one entry per row
+  }
+
   // draw: traces + options → Plotly.react with the fitted y-range and the end labels
   // o: {title, yunits, xrange, xtype, tickvals, ticktext, includeZero, shapes, annotations, height, layout(fn)}
   function react(id, traces, o) {
@@ -298,6 +324,7 @@
     var yr = o.yrange || yrange(traces, o.xrange, o.includeZero);
     var L = layout({ title: o.title, yunits: o.yunits, xrange: o.xrange, xtype: o.xtype, tickvals: o.tickvals, ticktext: o.ticktext,
                      yrange: yr, shapes: o.shapes, annotations: (o.annotations || []).concat(o.endLabels === false ? [] : endLabels(traces, o.xrange)), height: o.height });
+    narrowLegend(id, traces, L);
     if (o.layout) o.layout(L);
     return Plotly.react(id, strip(traces), L, { displayModeBar: false, responsive: true });
   }
