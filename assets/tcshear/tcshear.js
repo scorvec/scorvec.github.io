@@ -309,8 +309,10 @@
              "<figure>" + scatter(pr.map(function (r) { return [r.ships.shdc, r.ours.shdc, r.vmax >= 64 ? "#c2410c" : "#2a6fdb"]; }), "SHIPS SHDC (kt)", "ours, vortex removed (kt)", lim) + "<figcaption>Vortex-removed shear: the methods differ (orange = hurricanes).</figcaption></figure></div>";
     }
     if (td && td.summary) {
-      out += "<h4>Model vortex tilt against the NOAA tail Doppler radar (" + td.rows.length + " radar analyses)</h4>" +
-        "<p>Each radar analysis with HRD's 2- and 6-km centres against the 850→500 hPa vorticity-centroid tilt of each model's analysis at the nearest synoptic time (within 3 h; a 6-hour forecast where the analysis is not published). Model minus radar, km.</p>" +
+      var ng = ((td.summary.gfs || {}).magnitude || {}).n_groups;
+      out += "<h4>Model vortex tilt against the NOAA tail Doppler radar (" + td.rows.length + " radar analyses" + (ng ? " at " + ng + " synoptic times" : "") + ")</h4>" +
+        "<p>Each radar analysis with HRD's 2- and 6-km centres against the 850→500 hPa vorticity-centroid tilt of each model's analysis at the nearest synoptic time (within 3 h; a 6-hour forecast where the analysis is not published). Model minus radar, km. " +
+        "Several radar analyses share one model time, so the 95 % intervals resample whole synoptic times; with this few independent cases, read the intervals, not the point values. The models resolve large tilts (30 km and more) but put a floor of roughly 10–25 km under small ones, so their small tilts are not evidence of misalignment.</p>" +
         "<table class='tcs-tab'><thead><tr><th>Model</th><th>n</th><th>Bias</th><th>RMS difference</th><th>Correlation</th><th>Direction, radar tilt ≥ 20 km</th><th>Radar ≥ 30 km / model ≥ 30 km / both</th></tr></thead><tbody>" +
         ["gfs", "ifs", "aifs-single"].map(function (k) { var q = td.summary[k] || {}, dr = q.direction_tdr_ge20km || {}, tt = q.tilted_ge30km || {};
           return "<tr><th>" + ({ gfs: "GFS", ifs: "IFS HRES", "aifs-single": "AIFS single" }[k]) + "</th>" + fmtStat(q.magnitude, "km") + "<td>" + (dr.n ? "median |error| " + dr.median_abs + "° (n = " + dr.n + ")" : "—") + "</td><td>" + (tt.n ? tt.n_tdr + " / " + tt.n_model + " / " + tt.both : "—") + "</td></tr>"; }).join("") + "</tbody></table>";
