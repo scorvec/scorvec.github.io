@@ -71,6 +71,7 @@ def cbar(fig, cf, rect, ticks, label, extend=None):
     cax = fig.add_axes(rect)
     kw = {"extend": extend} if extend else {}
     cb = fig.colorbar(cf, cax=cax, orientation="horizontal", ticks=ticks, **kw)
+    cb.set_ticklabels([f"{t:g}".replace("-", "\u2212") for t in ticks])     # "−0.3", not "−0.30": the long labels touched
     cb.outline.set_visible(False); cb.ax.tick_params(labelsize=8.4, colors=INK)
     cb.ax.xaxis.set_label_position("top")
     cb.set_label(label, fontsize=9, color=INK, labelpad=3)
@@ -248,8 +249,10 @@ def fig_trend(ds, out, which="trend"):
                  "false-discovery-rate control of 10 % over the section; dashed contours: the climatological age (years).")
     ax = fig.add_axes([0.06, 0.29, 0.50, top - 0.33])
     lv = np.array([-0.3, -0.2, -0.15, -0.1, -0.05, 0, 0.05, 0.1, 0.15, 0.2, 0.3])
-    cax = fig.add_axes([0.13, 0.175, 0.36, 0.02])
+    cax = fig.add_axes([0.07, 0.175, 0.48, 0.02])
+    before = set(fig.axes)
     ns, nc = section(ax, ds, which, 1.0, lv, "younger ← years per decade → older", fig, cax)
+    cbax = [a_ for a_ in fig.axes if a_ not in before][0]                 # section() redraws the bar on new axes
     ax.set_title("trend, years per decade", loc="left", fontsize=11, fontweight="bold", color=INK)
     if ns == 0:
         ax.text(0.5, 0.5, "no significant trend anywhere", transform=ax.transAxes, ha="center", fontsize=11, color=MUTED)
@@ -279,7 +282,7 @@ def fig_trend(ds, out, which="trend"):
     f = bf[which]
     sigtxt = "significant" if f["p"] < 0.05 else "not significant"
     step = bf["late_minus_early"]
-    footer(fig, f"{ns} of {nc} cells significant. Right: the latitudes and heights of the balloon record of Engel et al. (2017), "
+    footer_lines = footer(fig, f"{ns} of {nc} cells significant. Right: the latitudes and heights of the balloon record of Engel et al. (2017), "
                 f"who found +0.15 ± 0.18 years per decade for 1975–2016, not significant; MERRA-2 GMI gives {f['coef']:+.2f} ± "
                 f"{1.96 * f['se']:.2f} for {y0}–{y1} (95 %, p = {f['p']:.2g}, {sigtxt}). Most of the 40-year decline is a drop of "
                 f"{abs(step):.1f} years between the early 1990s and 2003 (mean of {ds.attrs['sub_period_start']}–{y1} minus "
@@ -288,6 +291,15 @@ def fig_trend(ds, out, which="trend"):
                 "so it is not clean evidence of a climate trend. Chemistry–climate models simulate air growing younger as "
                 "greenhouse warming speeds the circulation; the balloon record does not confirm it. Source: NASA GMAO MERRA-2 "
                 "GMI replay.")
+    # 2026-10-08 sweep: the six-line footnote ran over the colour bar's tick labels. Lift the bar and both panels
+    # above the footnote's real height.
+    nl = footer_lines
+    H = fig.get_figheight()
+    cy = 0.014 + nl * 8.6 * 1.4 / 72 / H + 0.055
+    cbax.set_position([0.07, cy, 0.48, 0.02])
+    y0 = cy + 0.02 + 0.095
+    for a_ in (ax, ax2):
+        b_ = a_.get_position(); a_.set_position([b_.x0, y0, b_.width, b_.y1 - y0])
     save(fig, out)
     return {"sig_cells": ns, "cells": nc, "engel_box": f, "engel_period_fit": eng, "early_to_late_step": step}
 

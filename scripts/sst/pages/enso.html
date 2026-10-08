@@ -16,6 +16,18 @@
       posting; our newest season leans on a month that has not closed; and the OISST daily field is
       itself <b>preliminary for about two weeks</b> before it is archived as final.</p>
   </div>
+  <style>
+  /* phones and tablets (2026-10-08 sweep): the figure comes first and the headline numbers follow it, so the sideways
+     one-line chip strip (stage.css, written for chips ABOVE the figure) only showed one and a half of the nine numbers.
+     Below the figure they can take a grid. The clamped caveat box showed half a fourth line in its bottom padding:
+     the padding becomes a transparent border, which the clamp does not reach. */
+  @media (max-width: 1000px) {
+    .ss-host .page-header .chips { display: grid; grid-template-columns: repeat(auto-fill, minmax(148px, 1fr)); overflow: visible; gap: 0.45rem; }
+    .ss-host .page-header .chips > * { max-width: none; min-width: 0; }
+    .ss-host .page-header .chip .l { white-space: normal; overflow-wrap: anywhere; }
+    .ss-host .page-header .chipnote.ss-clamp:not(.ss-open) { padding-bottom: 0; border-bottom: 0.7rem solid transparent; box-shadow: 0 1px 0 var(--edge, #c9c5bb); }
+  }
+  </style>
   <div class="ss-layout">
     <aside class="ss-rail" id="rail" aria-label="Figures"></aside>
     <section class="ss-main">
