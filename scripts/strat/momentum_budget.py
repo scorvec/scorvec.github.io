@@ -1039,7 +1039,7 @@ def fig_sections(sec, lat, path):
             if j == 0:
                 ax.set_ylabel("hPa", fontsize=9.5, color=INK)
     cax = fig.add_axes([0.28, 0.14, 0.45, 0.022])
-    cb = fig.colorbar(cf, cax=cax, orientation="horizontal", ticks=SEC_LV)
+    cb = fig.colorbar(cf, cax=cax, orientation="horizontal", ticks=SEC_LV, format="%g")   # "0.25", "8", not "8.00"
     cb.ax.tick_params(labelsize=8.5, colors=INK); cb.outline.set_visible(False)
     cb.set_label("m s⁻¹ per day (negative = westward force: decelerates westerlies)", fontsize=9.5, color=INK)
     d0, d1 = sec["window"]

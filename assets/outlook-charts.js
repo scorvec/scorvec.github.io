@@ -302,7 +302,16 @@
   // title. Below 640 px it goes to the bottom of the figure, one entry per row, in a bottom margin sized for it, and
   // the chart grows by the same amount so the plot area keeps its height.
   function narrowLegend(id, traces, L) {
-    if (!(typeof innerWidth === "number" && innerWidth < 640) || L.showlegend === false) return;
+    if (L.showlegend === false) return;
+    if (!(typeof innerWidth === "number" && innerWidth < 640)) {
+      // wider screens: when Plotly wraps a horizontal legend it lines the second row up under the first row's entries,
+      // so a long name ran into its neighbour ("…calibrated to observations" over "raw model mean", 2026-10-08).
+      // Equal columns as wide as the longest name cannot collide.
+      var longest = 0;
+      traces.forEach(function (t) { if (t.showlegend !== false && t.name) longest = Math.max(longest, String(t.name).replace(/<[^>]*>/g, "").length); });
+      if (longest) { L.legend.entrywidth = Math.min(560, Math.round(longest * 6.9 + 48)); L.legend.entrywidthmode = "pixels"; }
+      return;
+    }
     var el = typeof id === "string" ? document.getElementById(id) : id;
     if (!el) return;
     var n = traces.filter(function (t) { return t.showlegend !== false && t.name; }).length;

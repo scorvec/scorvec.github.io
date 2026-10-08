@@ -201,6 +201,18 @@
       posting; our newest season leans on a month that has not closed; and the OISST daily field is
       itself <b>preliminary for about two weeks</b> before it is archived as final.</p>
   </div>
+  <style>
+  /* phones and tablets (2026-10-08 sweep): the figure comes first and the headline numbers follow it, so the sideways
+     one-line chip strip (stage.css, written for chips ABOVE the figure) only showed one and a half of the nine numbers.
+     Below the figure they can take a grid. The clamped caveat box showed half a fourth line in its bottom padding:
+     the padding becomes a transparent border, which the clamp does not reach. */
+  @media (max-width: 1000px) {
+    .ss-host .page-header .chips { display: grid; grid-template-columns: repeat(auto-fill, minmax(148px, 1fr)); overflow: visible; gap: 0.45rem; }
+    .ss-host .page-header .chips > * { max-width: none; min-width: 0; }
+    .ss-host .page-header .chip .l { white-space: normal; overflow-wrap: anywhere; }
+    .ss-host .page-header .chipnote.ss-clamp:not(.ss-open) { padding-bottom: 0; border-bottom: 0.7rem solid transparent; box-shadow: 0 1px 0 var(--edge, #c9c5bb); }
+  }
+  </style>
   <div class="ss-layout">
     <aside class="ss-rail" id="rail" aria-label="Figures"></aside>
     <section class="ss-main">
@@ -747,10 +759,10 @@ window.STAGE = {
   indices: {label: "Daily ENSO indices", dom: function () { return "dom-indices"; }, about: "about-indices",
           cap: function () { return "Daily area-weighted SST indices: Niño-3.4, the daily relative Niño-3.4 (the quantity RONI is built from — there is no official daily RONI) and the 90-day running ONI estimate; toggle absolute values and the range, click legend entries for the other regions."; }},
   onironi: {label: "ONI vs RONI", img: function () { return "assets/sst/roni.webp?v=941738f85bda"; }, about: "about-onironi", fit: false,
-          cap: function () { return "The 3-month ONI convention applied to OISST \u2014 an estimate, NOT the official CPC ERSSTv5 value \u2014 beside the relative index, by season. The newest season is preliminary: the convention is a centred 3-month mean, so it leans on a month that has not closed."; }},
-  beyond: {label: "Beyond ENSO", a: {label: "Index", items: [["pdo","PDO"],["iod","Indian Ocean Dipole"],["satl","South Atlantic dipole"]]},
+          cap: function () { return "RONI and ONI by season: CPC\u2019s published values (ERSSTv6) solid, and our OISST estimate, hatched, only for the seasons CPC has not reached yet. The newest season is preliminary: the convention is a centred 3-month mean, so it leans on a month that has not closed."; }},
+  beyond: {label: "Beyond ENSO", a: {label: "Index", items: [["pdo","PDO"],["iod","Indian Ocean Dipole"],["satl","Atlantic indices"]]},
           img: function (a) { return "assets/sst/" + a + "_daily.webp?v=941738f85bda"; }, about: "about-beyond",
-          cap: function (a) { return {pdo: "Daily PDO from the ERSST North Pacific EOF pattern projected on OISST, calibrated to NCEI over 1950–present.", iod: "Daily Dipole Mode Index, Saji boxes.", satl: "Daily South Atlantic subtropical dipole, Morioka poles."}[a]; }},
+          cap: function (a) { return {pdo: "Daily PDO from the ERSST North Pacific EOF pattern projected on OISST, calibrated to NCEI over 1950–present.", iod: "Daily Dipole Mode Index, Saji boxes.", satl: "Daily Atlantic indices: the Atlantic Niño (ATL3), the tropical South and North Atlantic (TSA, TNA) and the South Atlantic subtropical dipole (Morioka poles)."}[a]; }},
   mur: {label: "MUR 1 km cold tongue", frame: function () { return "sst_anim.html?embed=1&manifest=mur_manifest.json&region=mur_ct"; }, about: "about-mur",
           cap: function () { return "NASA JPL MUR 1 km SST, 160°E–79°W and 10°S–10°N, one frame a day since the event's onset, fixed colour range; the Niño boxes are drawn on each frame."; }},
   mur34: {label: "MUR Niño-3.4 against OISST", img: function () { return "assets/sst/mur_nino34.webp?v=941738f85bda"; }, about: "about-mur34", fit: false,
@@ -765,7 +777,7 @@ window.STAGE = {
           img: function (a) { return "assets/sst/mei/mei_" + a + ".webp?v=941738f85bda"; }, about: "about-mei", fit: false,
           cap: function (a) { return {nowcast: "A daily estimate of NOAA's bi-monthly MEI.v2 from its five inputs, R = 0.94 against the published index, leave-one-year-out.", analogs: "Past events with the closest MEI trajectory.", history: "The nowcast against the full MEI record.", validation: "How the nowcast has verified against each published value."}[a]; }},
   olr: {label: "Synthetic OLR Hovmöller", img: function () { return "assets/sst/olr_hovmoller.webp"; }, bust: "hourly", about: "about-olr", fit: false,
-          cap: function () { return "Equatorial convection against time from the infrared composite: enhanced (blue) and suppressed (brown) bands moving east."; }},
+          cap: function () { return "Equatorial convection against time from the infrared composite: low OLR (yellow to red) is deep convection, blue is suppressed or clear; eastward-moving bands are the MJO."; }},
   waves: {label: "Tropical wave decomposition", img: function () { return "assets/sst/olr_waves.webp"; }, bust: "hourly", about: "about-waves", fit: false,
           cap: function () { return "The OLR anomaly filtered into the Wheeler–Kiladis bands: MJO, Kelvin, equatorial Rossby and the rest."; }},
   okelvin: {label: "Ocean Kelvin waves", a: {label: "View", items: [["hov","Along the equator, with arrivals"],["map","Map, since March"]]},
@@ -785,7 +797,7 @@ window.STAGE = {
   ascat: {label: "ASCAT equatorial Pacific wind", frame: function () { return "sst_anim.html?embed=1&manifest=ascat_manifest.json&region=ascat"; }, about: "about-ascat",
           cap: function () { return "Copernicus Marine L4 scatterometer wind over 10°S–10°N, one frame a day, gap-filled; drag the slider for recent days."; }},
   eqwind: {label: "Equatorial zonal wind, Hovmöller", img: function () { return "assets/sst/eq_uwind_hov.webp"; }, bust: "hourly", about: "about-eqwind",
-          cap: function () { return "Zonal wind anomaly along the equator against time: westerly bursts as red streaks moving east."; }},
+          cap: function () { return "Surface zonal wind along the equator against time: westerly bursts as red streaks, the trade winds in blue."; }},
   soi: {label: "Southern Oscillation Index", a: {label: "View", items: [["hourly","SOI, hourly estimate"],["forecast","SOI, ensemble forecast"],["eqsoi","Equatorial SOI, observed and forecast"]]},
           img: function (a) { return a === "hourly" ? "assets/sst/soi_hourly.webp" : a === "forecast" ? "assets/sst/soi_forecast.webp?v=202610082122" : "assets/sst/eqsoi_forecast.webp?v=202610082122"; }, bust: "hourly",
           about: function (a) { return a === "eqsoi" ? "about-eqsoi" : a === "forecast" ? "about-soi_f" : "about-soi_h"; },
@@ -806,7 +818,7 @@ window.STAGE = {
   xsec: {label: "Cross-section against analogs", img: function () { return "assets/sst/subsurface_events_xsec.webp?v=941738f85bda"; }, about: "about-xsec", fit: false,
           cap: function () { return "The depth–longitude anomaly this week beside the same week of the 1997, 2015 and 2023 events."; }},
   cur_map: {label: "Surface currents", frame: function () { return "sst_anim.html?embed=1&manifest=eq_cur_map_manifest.json&region=eq_cur_map"; }, about: "about-cur_map",
-          cap: function () { return "Tropical Pacific surface current from the Copernicus Marine analysis: the South Equatorial Current, the counter-current and their anomalies."; }},
+          cap: function () { return "Tropical Pacific surface current from the Copernicus Marine analysis, speed shaded and streamlines for the flow: the westward South Equatorial Current and the eastward counter-current."; }},
   cur_sec: {label: "Undercurrent section", frame: function () { return "sst_anim.html?embed=1&manifest=eq_cur_section_manifest.json&region=eq_cur_section"; }, about: "about-cur_sec",
           cap: function () { return "Zonal current along the equator with depth: the eastward Equatorial Undercurrent beneath the westward surface flow."; }},
   cur_hov: {label: "Surface current Hovmöller", img: function () { return "assets/sst/eq_current_hov.webp"; }, bust: "hourly", about: "about-cur_hov", fit: false,

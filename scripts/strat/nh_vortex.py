@@ -647,13 +647,13 @@ def main() -> int:
                     color="#a33", style="italic")
         if key == "zcap":
             ax.axhline(0, color="#8a8680", lw=1, ls=":", zorder=4)
-            ax.text(0.005, 0.93, "positive = weaker / displaced vortex",
+            ax.text(0.005, 0.04, "positive = weaker / displaced vortex",      # bottom: at the top the legend hid it
                     transform=ax.transAxes, fontsize=8, color="#6f6b64", style="italic")
         if key == "u100" and obs.get("u100") is None:
             ax.text(0.5, 0.05, "no analysis tail at this level — the rolling ERA5 store "
                                "carries u only at 10 hPa",
                     transform=ax.transAxes, ha="center", fontsize=8, style="italic",
-                    color="#8a8680")
+                    color="#6f6b64")
 
     fig.suptitle(f"Northern polar vortex forecast — {base:%Y-%m-%d %HZ} cycle",
                  fontsize=14, fontweight="bold", y=0.996)
