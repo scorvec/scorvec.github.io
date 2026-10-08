@@ -159,11 +159,16 @@
     }
     var W = J.windows, A = W["Nov–Mar"], S = A.skill, E = J.enso || {}, v = "?v=" + encodeURIComponent(J.generated);
     var sig = A.p_vs_model_base < 0.05;
-    var t = "<b>" + pc(A.forecast) + " of the 51 members</b> (" + A.forecast_k + ") have a major SSW between November and March, against the model&rsquo;s own base rate of " +
+    // 2026-10-08 (user: make the lack of skill clear): a plain banner ahead of the number whenever the hindcast shows no skill
+    var t = S.skilful ? "" : '<div class="chipnote" style="margin:0 0 0.8rem;max-width:none"><b>No track record: read this as the model&rsquo;s view, not a forecast.</b> ' +
+      "In SEAS5&rsquo;s own hindcast the share of members with a sudden warming " + (bssWord(S) === "worse than climatology" ? "has done significantly worse than simply quoting the observed SSW rate every year" : "has not told SSW winters from quiet ones") + " (Brier skill score " + f2(S.bss) + ", 90 % CI " + f2(S.bss_ci90[0]) + " to " + f2(S.bss_ci90[1]) + ", " + S.n + " winters)" +
+      (A.model_base > A.obs_base_hc_years + 0.1 ? ", and the model puts a major SSW in far more winters than happen (" + pc(A.model_base) + " of its hindcast member-winters, " + pc(A.obs_base_hc_years) + " observed)" : "") +
+      '. <span id="sswBannerMore"></span>With no demonstrated skill, the observed rate of ' + pc(A.obs_base_long) + " (MERRA-2, " + A.obs_long_years + ") stays the reference for this winter.</div>";
+    t += "<b>" + pc(A.forecast) + " of the 51 members</b> (" + A.forecast_k + ") have a major SSW between November and March, against the model&rsquo;s own base rate of " +
       pc(A.model_base) + " (90 % interval " + pc(A.model_base_ci90[0]) + "–" + pc(A.model_base_ci90[1]) + ") and an observed rate of " + pc(A.obs_base_long) + " (MERRA-2, " + A.obs_long_years + "). " +
       (sig ? "The departure from the model base rate is significant (binomial p " + fp(A.p_vs_model_base) + ")." : "The departure from the model base rate is not significant (binomial p " + fp(A.p_vs_model_base) + "): the members are consistent with the model&rsquo;s normal SSW rate.") + " ";
     t += S.skilful ? "In the hindcast the index has skill beyond climatology: Brier skill score " + f2(S.bss) + " (90 % CI " + f2(S.bss_ci90[0]) + " to " + f2(S.bss_ci90[1]) + ", " + S.n + " winters)."
-      : "<b>In the hindcast the index " + (bssWord(S) === "worse than climatology" ? "does significantly worse than climatology" : "carries no skill beyond climatology") + "</b> (Brier skill score " + f2(S.bss) + ", 90 % CI " + f2(S.bss_ci90[0]) + " to " + f2(S.bss_ci90[1]) + "; ROC area " + f2(S.auc) + ", " + S.n + " winters, MERRA-2 as truth): read it as the model&rsquo;s view, not as a forecast with a track record." +
+      : "<b>In the hindcast the index " + (bssWord(S) === "worse than climatology" ? "does significantly worse than climatology" : "carries no skill beyond climatology") + "</b> (Brier skill score " + f2(S.bss) + ", 90 % CI " + f2(S.bss_ci90[0]) + " to " + f2(S.bss_ci90[1]) + "; ROC area " + f2(S.auc) + ", " + S.n + " winters, MERRA-2 as truth)." +
         (A.model_base > A.obs_base_hc_years + 0.1 ? " Part of the loss is calibration: SEAS5 puts a major SSW in " + pc(A.model_base) + " of its hindcast member-winters, against " + pc(A.obs_base_hc_years) + " of the same winters observed." : "");
     if (E.hindcast && E.observed) {
       var h = E.hindcast, o = E.observed;
@@ -208,6 +213,12 @@
       "Holm-corrected as one family. " + (sigAny ? "" : "<b>None is significant: the sample cannot show skill by signal strength or by ENSO amplitude.</b> ");
     var mde = K.mde; if (mde) h += "With " + K.n + " winters, a calibrated SSW forecast is detected with 80 % power only if its Brier skill is about " + mde.bss.toFixed(2) + " (ROC area " + mde.auc.toFixed(2) + ") or better; smaller real skill would go unseen. ";
     var sg = K.groups && K.groups["strong El Niño (ONI ≥ 1.5)"]; if (sg) h += "Strong El Niño winters number " + sg.n + " (" + sg.years.map(function (y) { return y + "/" + String((y + 1) % 100).padStart(2, "0"); }).join(", ") + "): SEAS5 put an SSW in " + Math.round(100 * sg.frac) + " % of members, " + Math.round(sg.obs_rate * sg.n) + " of the " + sg.n + " winters had one — too few winters to test.";
+    var more = document.getElementById("sswBannerMore");
+    if (more && !sigAny && T.T2 && Array.isArray(T.T2.value)) {
+      var w1 = (K.winters || []).filter(function (w) { return w.frac >= 0.999 && !w.obs; })[0];
+      more.innerHTML = "Over " + K.n + " October starts (" + K.years + "), winters in the top third of SEAS5&rsquo;s SSW share had one " + Math.round(100 * T.T2.value[0]) + " % of the time, the bottom third " + Math.round(100 * T.T2.value[1]) +
+        " %, and no ENSO subset or strong-signal subset shows skill either" + (w1 ? " (" + w1.year + "/" + String((w1.year + 1) % 100).padStart(2, "0") + ": every member had an SSW; none happened)" : "") + ". ";
+    }
     if (K.current) h += " This winter's " + Math.round(100 * K.current.frac) + " % (the star) is therefore the model's view, with no demonstrated skill behind it in any of the subsets tested.";
     h += "</p>";
     var rows = ["<tr><th>Pre-registered test</th><th>n</th><th>Result</th><th>Interval</th><th>p</th><th>p (Holm)</th></tr>"];

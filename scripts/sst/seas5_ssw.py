@@ -593,7 +593,7 @@ def render(ym, dates, f60, cm, q10, q90, z, fsec, hsec, lats, tail, doc) -> dict
     cx.set_title(f"Hindcast reliability, Nov–Mar ({verdict})", loc="left", fontsize=10.5)
     cx.text(0.02, 0.98, f"BSS {S['bss']:+.2f} (90 % CI {S['bss_ci90'][0]:+.2f} to {S['bss_ci90'][1]:+.2f})\nROC area {S['auc']:.2f} "
             f"({S['auc_ci90'][0]:.2f}–{S['auc_ci90'][1]:.2f}), {S['n']} winters", transform=cx.transAxes, va="top", fontsize=8, color=INK)
-    fig.suptitle(f"SEAS5 sudden-warming risk · {issue}", x=0.01, ha="left", fontsize=13)
+    fig.suptitle(f"SEAS5 sudden-warming risk · {issue}" + ("" if S["skilful"] else "  —  no hindcast skill: the model's view, not a forecast"), x=0.01, ha="left", fontsize=13)
     fig.text(0.01, -0.04, "Major SSW: Charlton & Polvani (2007) on daily u60N 10 hPa, Nov–Mar, 20-day separation, final warmings excluded. Error bars: "
              "90 % block-bootstrap intervals over winters. Reliability: the hindcast's yearly member fraction against MERRA-2 occurrence, 1981/82–2016/17.",
              fontsize=7.8, color=MUTED)
