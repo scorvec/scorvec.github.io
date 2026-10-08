@@ -3,72 +3,68 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Atmospheric River Monitor &mdash; AIFS-ENS IVT, West Coast landfall probabilities &middot; Shawn Corvec</title>
-<meta name="description" content="Atmospheric river forecast monitor from the ECMWF AIFS ensemble: probability of AR conditions (IVT ≥ 250 kg/m/s) day by day over the North Pacific, a West Coast landfall tool from Baja California to southeast Alaska, exact member-0 IVT maps, and AR-scale (Ralph et al. 2019) category probabilities at named coastal locations. Updated twice daily.">
+<title>Atmospheric Rivers &mdash; IVT from AIFS, IFS, GFS and GDPS, ensemble AR probabilities, weeks 3&ndash;5 &middot; Shawn Corvec</title>
+<meta name="description" content="Atmospheric river forecasts: integrated vapour transport maps 6-hourly to day 7 from ECMWF AIFS and IFS, NCEP GFS and ECCC GDPS, coastline IVT and AR-scale ranks along the West Coast, AR probabilities to day 15 from four ensembles (AIFS-ENS, IFS-ENS, GEFS, GEPS) and their equal-weight blend, and weeks 3–5 AR-frequency anomalies from the GEFS extended run against its reforecast climate.">
 <link rel="canonical" href="https://scorvec.com/ar.html">
 <meta property="og:type" content="website">
-<meta property="og:title" content="Atmospheric River Monitor — AIFS-ENS IVT and West Coast landfall probabilities">
-<meta property="og:description" content="Probability of atmospheric-river conditions by day, a coastal landfall tool and AR-scale probabilities from the 51-member ECMWF AIFS ensemble.">
+<meta property="og:title" content="Atmospheric rivers — IVT maps, West Coast landfall and AR probabilities">
+<meta property="og:description" content="Deterministic IVT from four models to day 7, ensemble AR probabilities to day 15, and GEFS weeks 3–5 AR-frequency anomalies.">
 <meta property="og:url" content="https://scorvec.com/ar.html">
-<meta property="og:image" content="https://scorvec.com/assets/ar/ar_coast.webp">
+<meta property="og:image" content="https://scorvec.com/assets/ar/det_coast_ifs.webp">
 <meta name="twitter:card" content="summary_large_image">
 <script type="application/ld+json">
 {"@context":"https://schema.org","@type":"WebPage",
- "name":"Atmospheric River Monitor — AIFS-ENS IVT and West Coast landfall probabilities",
+ "name":"Atmospheric rivers — IVT maps, West Coast landfall and AR probabilities",
  "url":"https://scorvec.com/ar.html",
- "description":"Atmospheric-river forecast products from the ECMWF AIFS ensemble open data: integrated vapour transport, probability of AR conditions, a West Coast landfall tool and Ralph-scale category probabilities.",
+ "description":"Integrated vapour transport from four deterministic models and four ensembles, AR-scale ranks and probabilities along the US West Coast, and a weeks 3–5 AR-frequency outlook.",
  "author":{"@type":"Person","name":"Shawn Corvec","url":"https://scorvec.com/"}}
 </script>
 <style>
   :root {
     --bg: #fafaf8; --ink: #1c1c1a; --muted: #6f6b64; --accent: #2c4a72; --rule: #e6e3dc; --panel: #ffffff;
     --serif: "Newsreader", Georgia, serif; --sans: "Schibsted Grotesk", Inter, -apple-system, sans-serif;
+    --surface: #ffffff; --edge: #d9d5cc; --ink2: #444; --accent-light: rgba(44, 74, 114, 0.08);
   }
   *, *::before, *::after { box-sizing: border-box; }
   body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--sans); line-height: 1.55; }
   main { max-width: min(94vw, 2000px); margin: 0 auto; padding: 1.5rem 1.2rem 3rem; }
   h1 { font-family: var(--serif); font-weight: 500; font-size: clamp(1.7rem, 3.4vw, 2.5rem); line-height: 1.15; margin: 0.4rem 0 0.6rem; }
-  h2 { font-family: var(--serif); font-weight: 500; font-size: 1.35rem; margin: 0 0 0.5rem; }
-  .lede { color: #444; max-width: 62rem; font-size: 1.02rem; }
+  .lede { color: #444; max-width: 66rem; font-size: 1.02rem; }
   .kicker { font-size: 0.78rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
-  .card { background: var(--panel); border: 1px solid var(--rule); border-radius: 10px; padding: 1.2rem 1.3rem 1rem; margin: 1.4rem 0; }
-  .card p.note { color: #444; font-size: 0.95rem; max-width: 70rem; margin: 0.2rem 0 0.9rem; }
-  .card img { display: block; width: 100%; height: auto; border-radius: 6px; }
-  .anim-embed { display: block; width: 100%; border: 0; border-radius: 6px; background: var(--bg); }
-  .anim-embed.ar { aspect-ratio: 1200 / 730; }   /* image 1200×630 + controls and the region picker */
-  .chart-card-footer { display: flex; justify-content: space-between; gap: 1rem; flex-wrap: wrap; margin-top: 0.7rem; font-size: 0.8rem; color: var(--muted); }
-  /* the stage viewer's variables on this page's palette (assets/stage.css reads them) */
-  :root { --surface: #ffffff; --edge: #d9d5cc; --ink2: #444; --accent-light: rgba(44, 74, 114, 0.08); }
+  .runs { font-size: 0.86rem; color: var(--ink2); margin: 0.2rem 0 0; }
+  .runs b { font-weight: 600; color: var(--ink); }
+  .runs .old { color: #8a3b12; }
   .ss-layout { margin-top: 1.2rem; }
-  .ss-main .chart-card-footer { padding: 0 1.2rem 0.9rem; }
-  table.ar { border-collapse: collapse; width: 100%; font-size: 0.9rem; }
-  table.ar th, table.ar td { padding: 0.4rem 0.55rem; border-bottom: 1px solid var(--rule); text-align: center; }
-  table.ar th { font-weight: 500; color: #333; background: #f3f1ec; }
-  table.ar td:first-child, table.ar th:first-child { text-align: left; }
-  td.c1 { background: #fff7e0; } td.c2 { background: #ffe9b8; } td.c3 { background: #ffcf8a; } td.c4 { background: #f7a25e; color: #fff; } td.c5 { background: #c9382c; color: #fff; }
-  .scale { font-size: 0.85rem; color: #444; }
+  .ss-main .chart-card-footer { display: flex; justify-content: space-between; gap: 1rem; flex-wrap: wrap; margin-top: 0.7rem;
+    font-size: 0.8rem; color: var(--muted); padding: 0 1.2rem 0.9rem; }
+  .tblwrap { overflow-x: auto; -webkit-overflow-scrolling: touch; max-width: 100%; }
+  table.ar { border-collapse: collapse; width: 100%; font-size: 0.86rem; font-variant-numeric: tabular-nums; }
+  table.ar th, table.ar td { padding: 0.36rem 0.45rem; border-bottom: 1px solid var(--rule); text-align: center; white-space: nowrap; }
+  table.ar th { font-weight: 600; color: #333; background: #f3f1ec; }
+  table.ar td:first-child, table.ar th:first-child { text-align: left; white-space: normal; min-width: 9.5rem; }
+  td.c1 { background: #fde68a; } td.c2 { background: #fbbf24; } td.c3 { background: #ea580c; color: #fff; }
+  td.c4 { background: #b91c1c; color: #fff; } td.c5 { background: #6b21a8; color: #fff; }
+  td.p { color: #1c1c1a; }
+  .scale { font-size: 0.84rem; color: #444; margin: 0.6rem 0 0; max-width: 90ch; }
   .scale b { color: var(--ink); }
-  @media (max-width: 720px) { main { padding: 1rem 0.8rem 2rem; } table.ar { font-size: 0.8rem; } }
-  /* phones: drop the columns a reader can live without (≥AR1 duplicates Any AR, AR4/AR5 are rare, onset and
-     control are detail) and let the rest wrap, so the table fits without sideways scrolling */
-  .ar-narrow { display: none; font-size: 0.78rem; color: var(--muted); margin: 0.4rem 0 0; }
-  @media (max-width: 480px) {
+  .note-sm { font-size: 0.82rem; color: var(--muted); margin: 0.5rem 0 0; max-width: 95ch; }
+  #plumeChart { width: 100%; height: 440px; }
+  @media (max-width: 720px) {
+    main { padding: 1rem 16px 2rem; }
     table.ar { font-size: 0.76rem; }
-    table.ar th, table.ar td { padding: 0.35rem 0.25rem; white-space: nowrap; }
-    table.ar th, table.ar td:first-child { white-space: normal; }   /* headers and place names wrap; numbers stay whole */
-    table.ar th:nth-child(3), table.ar td:nth-child(3), table.ar th:nth-child(6), table.ar td:nth-child(6),
-    table.ar th:nth-child(7), table.ar td:nth-child(7), table.ar th:nth-child(10), table.ar td:nth-child(10),
-    table.ar th:nth-child(11), table.ar td:nth-child(11) { display: none; }
-    .ar-narrow { display: block; }
+    table.ar th, table.ar td { padding: 0.3rem 0.28rem; }
+    table.ar td:first-child, table.ar th:first-child { min-width: 7rem; }
+    #plumeChart { height: 360px; }
   }
 </style>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400&family=Schibsted+Grotesk:wght@400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400&family=Schibsted+Grotesk:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/assets/site.css">
 <link rel="stylesheet" href="/assets/stage.css">
 <script src="/assets/site.js" defer></script>
 <script src="/assets/rail.js" defer></script>
+<script src="/assets/frames_root.js"></script>
 </head>
 <body>
 <!-- sh:start -->
@@ -225,12 +221,11 @@
 </header>
 <!-- sh:end -->
 <main>
-  <p class="kicker">Twice daily from the ECMWF AIFS ensemble, <span id="initLabel">&mdash;</span></p>
-  <h1>Atmospheric river monitor</h1>
-  <p class="lede">Integrated vapour transport from the 51-member ECMWF AIFS ensemble, read the way forecasters read atmospheric rivers: the probability that IVT reaches the 250&nbsp;kg&nbsp;m<sup>&minus;1</sup>&nbsp;s<sup>&minus;1</sup> threshold at each 12-hourly step, a landfall tool along the West Coast from Baja California to southeast Alaska, exact member-0 IVT for the next three days, and the chance of each Ralph-scale category at named coastal locations. Every member is carried to day 15 at 12-hour steps, so AR duration, not only intensity, enters the scale.</p>
+  <p class="kicker">Four models to day 7, four ensembles to day 15, GEFS weeks 3&ndash;5</p>
+  <h1>Atmospheric rivers</h1>
+  <p class="lede">Integrated vapour transport (IVT), the moisture carried sideways through the column, is the variable atmospheric rivers are defined by. It is computed here for each model from its humidity and wind levels. The page runs from the four deterministic models to day 7, through four ensembles to day 15, to the GEFS extended run in weeks 3&ndash;5, where only differences from the model&rsquo;s own climate that pass a significance test are drawn.</p>
+  <p class="runs" id="runs">&nbsp;</p>
 
-  <!-- One figure at a time on the shared stage viewer (assets/stage.js), 2026-09-27 (navigation phase 2).
-       Deep links: #coast, #table, #loops/ar_ivt|ar_prob|ar_ctrl. The page had no anchors before. -->
   <div class="ss-layout">
     <aside class="ss-rail" id="rail" aria-label="Figures"></aside>
     <section class="ss-main">
@@ -242,78 +237,215 @@
       <div id="about"></div>
       <p class="hint"><span class="kbd">&larr;</span> <span class="kbd">&rarr;</span> step through the options &middot; <span class="kbd">&uarr;</span> <span class="kbd">&darr;</span> change figure &middot; click a still to enlarge</p>
       <div class="chart-card-footer">
-      <span>ECMWF AIFS-ENS and IFS-ENS open data (CC BY 4.0): total column water, 850&nbsp;hPa wind, and q/u/v on six levels for member 0 &middot; 0.25&deg;, 12-hourly to day 15 &middot; PWAT climatology: ERA5 1991&ndash;2020 (Copernicus C3S / ECMWF) &middot; coast transect from Natural Earth</span>
-      <span id="genLabel">&mdash;</span>
-    </div>
+        <span>ECMWF AIFS, IFS, AIFS-ENS and IFS-ENS open data (CC BY 4.0, Google Cloud mirror) &middot; NOAA GFS, GEFS and GEFSv12 reforecast (AWS Open Data) &middot; ECCC GDPS and GEPS (MSC Datamart, Open Government Licence &ndash; Canada) &middot; ERA5 (Copernicus C3S/ECMWF) for the precipitable-water climate &middot; coast from Natural Earth</span>
+        <span id="genLabel">&nbsp;</span>
+      </div>
     </section>
   </div>
   <div class="lightbox" id="lightbox"><img alt=""></div>
+
   <div class="dom-holder">
-    <div id="dom-table" hidden>
-      <div style="overflow-x:auto"><table class="ar" id="arTable"></table></div>
-    <p class="ar-narrow">Narrow screen: the &ge;&nbsp;AR1, &ge;&nbsp;AR4, AR5, onset and member-0 columns are hidden &mdash; turn the phone sideways for the full table.</p>
-    <p class="scale" style="margin-top:0.7rem"><b>AR1</b> weak, primarily beneficial &middot; <b>AR2</b> moderate, mostly beneficial &middot; <b>AR3</b> strong, balance of beneficial and hazardous &middot; <b>AR4</b> extreme, mostly hazardous &middot; <b>AR5</b> exceptional, primarily hazardous. Duration is sampled at 12&nbsp;hours here, so a one-step spell counts as under 24&nbsp;hours.</p>
+    <div id="dom-detscale" hidden>
+      <div class="tblwrap"><table class="ar" id="detTable"></table></div>
+      <p class="scale"><b>AR1</b> weak &middot; <b>AR2</b> moderate &middot; <b>AR3</b> strong &middot; <b>AR4</b> extreme &middot; <b>AR5</b> exceptional (Ralph et&nbsp;al. 2019): the peak IVT of the spell sets a preliminary rank (250, 500, 750, 1000, 1250), one lower if IVT stays at or above 250 for under 24&nbsp;hours, one higher for 48&nbsp;hours or more. Day columns: the rank of the spell under way that day.</p>
+      <p class="note-sm" id="detNote"></p>
+    </div>
+    <div id="dom-ensscale" hidden>
+      <div class="tblwrap"><table class="ar" id="ensTable"></table></div>
+      <p class="note-sm" id="ensNote"></p>
+    </div>
+    <div id="dom-plume" hidden>
+      <div id="plumeChart" role="img" aria-label="Ensemble IVT plume at the chosen coastal point"></div>
+      <p class="note-sm" id="plumeNote">Loading the members&hellip;</p>
     </div>
   </div>
-<template id="about-coast"><p>Coast latitude against forecast time. Left: the ensemble-mean IVT at the first ocean point west of the coast, with the member 0&rsquo;s 250 and 500 contours in red. Middle: the fraction of members at or above 250, the AR threshold, with the fraction above 500 contoured. Right: the 90th-percentile member, the strong-AR tail the mean hides. Named locations are marked along the left axis.</p><p>Exact IVT for every member would need humidity and wind through the column for 51 members at 31 steps, about 12&nbsp;GB per cycle. The ensemble therefore uses a proxy, IVT &asymp; k&thinsp;&middot;&thinsp;TCW&thinsp;&middot;&thinsp;|V<sub>850</sub>|, with total column water from the open data and the 850&nbsp;hPa wind; k is refitted every cycle against the member 0&rsquo;s exact IVT through the origin over points with IVT above 100, and the fit is reported here and on the maps. The member 0 itself is always exact. Thresholds are absolute (250, 500, 750, 1000, 1250), following the Ralph et&nbsp;al. (2019) scale rather than percentile-based detection, so no climatology enters the categories.</p></template>
-<template id="about-table"><p>For each member, the strongest spell with IVT at or above 250 at the location sets a category on the Ralph et&nbsp;al. (2019) scale: a preliminary rank from the peak IVT (250, 500, 750, 1000, 1250 for AR1&ndash;AR5), lowered one step if the spell is shorter than 24&nbsp;hours &mdash; which drops a bare AR1 out of the count altogether &mdash; and raised one if it lasts 48&nbsp;hours or more. The table gives the fraction of members reaching each category within the 15 days, the most likely category, the median peak IVT, and the median onset time.</p><p>Exact IVT for every member would need humidity and wind through the column for 51 members at 31 steps, about 12&nbsp;GB per cycle. The ensemble therefore uses a proxy, IVT &asymp; k&thinsp;&middot;&thinsp;TCW&thinsp;&middot;&thinsp;|V<sub>850</sub>|, with total column water from the open data and the 850&nbsp;hPa wind; k is refitted every cycle against the member 0&rsquo;s exact IVT through the origin over points with IVT above 100, and the fit is reported here and on the maps. The member 0 itself is always exact. Thresholds are absolute (250, 500, 750, 1000, 1250), following the Ralph et&nbsp;al. (2019) scale rather than percentile-based detection, so no climatology enters the categories.</p></template>
-<template id="about-loops"><p>Three loops on one player, switched with the buttons above the frame: the <b>ensemble-mean IVT</b> with its vector and the 50% and 80% probability contours; the <b>probability of AR conditions</b>, the share of members with IVT at or above 250 with the mean 250 and 500 contours; and the <b>member 0&rsquo;s exact IVT</b>, the field the ensemble proxy is calibrated against each cycle. North Pacific to the Rockies, 0.25&deg;.</p><p>Exact IVT for every member would need humidity and wind through the column for 51 members at 31 steps, about 12&nbsp;GB per cycle. The ensemble therefore uses a proxy, IVT &asymp; k&thinsp;&middot;&thinsp;TCW&thinsp;&middot;&thinsp;|V<sub>850</sub>|, with total column water from the open data and the 850&nbsp;hPa wind; k is refitted every cycle against the member 0&rsquo;s exact IVT through the origin over points with IVT above 100, and the fit is reported here and on the maps. The member 0 itself is always exact. Thresholds are absolute (250, 500, 750, 1000, 1250), following the Ralph et&nbsp;al. (2019) scale rather than percentile-based detection, so no climatology enters the categories.</p></template>
-<template id="about-pwat"><p>Precipitable water is the depth of liquid water the whole atmospheric column would hold if every bit of vapour, cloud liquid and ice condensed out: here ECMWF&rsquo;s total column water, the same field the IVT proxy uses. Atmospheric rivers show up as long, narrow plumes of high values reaching from the subtropics toward the coast, but precipitable water alone does not say how fast the moisture moves; IVT does (the loops above).</p><p>Both models are shown as ensemble means, every 12 hours to day 15: the 51 AIFS-ENS members and the 50 perturbed IFS-ENS members (the open data carry no IFS-ENS control at these steps). The <b>anomaly</b> is taken against the ERA5 1991&ndash;2020 climatology of total column water for the same day of the year and the same hour (00 or 12&nbsp;UTC), fitted with three annual harmonics on a 1.5&deg; grid and interpolated to the 0.25&deg; forecast grid, so the coarse climatology softens anomalies over steep terrain. An ensemble mean smooths individual plumes as the members diverge; in week 2 read the anomaly as where moisture is favoured, not as a single river. When the IFS-ENS run has not reached the mirror in time for this job, only the AIFS-ENS loops are updated that cycle.</p></template>
-<script>
-window.STAGE = {
-  groups: [
-    { label: "Landfall", items: [["coast", "Where the rivers make landfall", "coast latitude against time"],
-                                ["table", "AR-scale odds at named places", "Ralph et al. categories"]] },
-    { label: "Maps", items: [["loops", "The rivers, 12-hourly to day 15", "mean IVT, P(AR), member 0"],
-                             ["pwat", "Precipitable water and its anomaly", "AIFS-ENS and IFS-ENS means"]] }
-  ],
-  products: {
-    coast: { label: "Where the rivers will make landfall, and how strong", bust: "hourly",
-             img: function () { return "assets/ar/ar_coast.webp"; },
-             cap: function () { return "West Coast landfall: ensemble-mean IVT, the share of members at or above 250 kg m\u207b\u00b9 s\u207b\u00b9, and the 90th-percentile member, by coast latitude and forecast time."; },
-             about: "about-coast" },
-    table: { label: "AR-scale probabilities at named locations", dom: function () { return "dom-table"; },
-             cap: function () { return "Fraction of the 51 members reaching each Ralph-scale category within 15 days, the most likely category, median peak IVT and onset."; },
-             about: "about-table" },
-    loops: { label: "The rivers, 12-hourly to day 15",
-             a: { label: "Field", items: [["ar_ivt", "Ensemble-mean IVT"], ["ar_prob", "P(IVT \u2265 250)"], ["ar_ctrl", "Member 0, exact IVT"]] },
-             frame: function (a) { return "sst_anim.html?embed=1&base=assets/ar/anim&manifest=ar_manifest.json&region=" + a + "&regions=" + a; },
-             ratio: function () { return "1200/700"; },
-             cap: function (a) { return { ar_ivt: "Ensemble-mean IVT with its vector and the 50% and 80% probability contours, North Pacific to the Rockies, 0.25\u00b0.",
-                                        ar_prob: "Share of members with IVT at or above 250, with the mean 250 and 500 contours.",
-                                        ar_ctrl: "The member 0\u2019s exact IVT, the field the ensemble proxy is calibrated against each cycle." }[a]; },
-             about: "about-loops" },
-    pwat: { label: "Precipitable water, 12-hourly to day 15",
-            a: { label: "Field", items: [["pwatanom", "Anomaly"], ["pwat", "Precipitable water"]] },
-            b: { label: "Model", items: [["aifs", "AIFS-ENS"], ["ifs", "IFS-ENS"]] },
-            frame: function (a, b) { var r = a + "_" + b; return "sst_anim.html?embed=1&base=assets/ar/anim&manifest=ar_manifest.json&region=" + r + "&regions=" + r; },
-            ratio: function () { return "1200/700"; },
-            cap: function (a, b) { var m = b === "ifs" ? "IFS-ENS (50 perturbed members)" : "AIFS-ENS (51 members)";
-                                   return a === "pwat" ? "Ensemble-mean precipitable water (total column water), " + m + ", with the +10 and +20 mm anomaly contours."
-                                                       : "Ensemble-mean precipitable-water anomaly against ERA5 1991–2020 at the valid hour, " + m + ", with the 25 and 40 mm contours."; },
-            about: "about-pwat" }
-  }
-};
-</script>
-</main>
+
+<template id="about-det"><p>Each map is the model&rsquo;s own IVT, (1/g)&thinsp;|&int;&thinsp;q&thinsp;<b>V</b>&thinsp;dp| from 1000 to 300&nbsp;hPa, integrated with the trapezoid rule over the pressure levels the model publishes. Where the ground is higher than a level, that level is left out and the lowest layer starts at the surface pressure. Without this step, the extrapolated values that pressure-level files carry below the Sierra Nevada, the Cascades and the Rockies would add transport that is not there. The 1000&nbsp;hPa cap is the same for every model, so over the ocean the thin layer below 1000&nbsp;hPa is left out by all four alike.</p>
+<p><b>Levels used.</b> AIFS and IFS: 1000, 925, 850, 700, 600, 500, 400 and 300&nbsp;hPa (the open data has no others in that range), 0.25&deg;. GFS: all 17 levels from 1000 to 300 (every 25&ndash;50&nbsp;hPa), 0.25&deg;. GDPS: 19 levels (1000, 985, 970, 950, 925, 900, 875, 850, 800 &hellip; 300), 15&nbsp;km latitude&ndash;longitude grid. The level-set bias is measured every run: <span id="lvlBias">&hellip;</span> Shading starts at 100 in two greys for transport below the AR threshold. From 250, the colours split each step of the Ralph AR scale in two. Arrows show the IVT vector where it is 250 or more; contours are sea-level pressure every 4&nbsp;hPa. The North Pacific view covers the West Coast landfalls; the North America view covers Gulf and Atlantic moisture plumes into the South and East.</p>
+<p>Sources: ECMWF AIFS single and IFS HRES open data from the Google Cloud mirror only; NCEP GFS 0.25&deg; byte-ranged from the AWS S3 open-data bucket; ECCC GDPS from the MSC Datamart. 00 and 12&nbsp;UTC runs, 6-hourly to +168&nbsp;h. A model whose run is late keeps its previous run on the page, marked, for up to 30&nbsp;hours.</p></template>
+<template id="about-detcoast"><p>The landfall view of the same IVT: latitude along the coast against time, read at the first ocean point west of the coastline on every 0.25&deg; of latitude from Baja California to southeast Alaska. This is the same transect the ensemble charts use. Black contours mark 250, 500, 750 and 1000. A river that stalls shows as a horizontal band; one sweeping down the coast shows as a diagonal.</p></template>
+<template id="about-detscale"><p>The AR scale of Ralph et&nbsp;al. (2019, <i>Bull. Amer. Meteor. Soc.</i> 100, 269&ndash;289) at eleven points 2.5&deg; apart from 30 to 55&deg;N on the coastal transect, from the chosen model&rsquo;s 6-hourly IVT. The table gives the strongest spell in the 7 days, its peak IVT, how long it stays at or above 250, when it starts, and the rank of the spell under way on each day. A spell still going at +168&nbsp;h is cut off there, so its duration, and possibly its rank, can rise in later runs. The rank comes from the computed IVT, not from CW3E&rsquo;s own landfall tool, so values can differ from theirs. Moisture around a tropical cyclone or its remnants also reaches these values (the San Diego and Baja points in early October 2026); the scale was designed for atmospheric rivers, so read such a rank as transport strength, not as an AR category.</p></template>
+<template id="about-ens"><p>The share of members with IVT at or above 250 (AR conditions) or 500 (AR2 or stronger), 6-hourly to day 15, for each ensemble and for their equal-weight blend. The blend averages each system&rsquo;s own member share, so a 21-member ensemble counts the same as a 51-member one. It uses the valid times every system covers and leaves out any system whose run is more than 24&nbsp;hours older than the newest.</p>
+<p><b>Why IVT is estimated, not computed, for the members.</b> Exact IVT needs humidity and wind on every level for every member: 6&ndash;50&nbsp;GB per ensemble per run. Each system therefore uses the estimate IVT&nbsp;&asymp;&nbsp;k&middot;W&middot;|V<sub>850</sub>|, where W is total column water (ECMWF) or precipitable water (GEFS, GEPS) and V<sub>850</sub> is the 850&nbsp;hPa wind. k is refitted every run, through the origin, against that system&rsquo;s own exact IVT for one member: the AIFS-ENS control on the 8 open-data levels; IFS-ENS member 1 (the open data have no IFS-ENS control at these steps); the GEFS control from relative humidity, temperature and wind on every level from 1000 to 300 in its two file sets; and the GEPS control, which has humidity only at 1000, 925, 850, 700, 500 and 250&nbsp;hPa, so q at 600, 400 and 300 is interpolated log-linearly in pressure (fitted every 48&nbsp;h of the run). The fit, its correlation, its error and how well the estimate hits the 250 threshold are listed under the AR-scale table. The estimate puts the vector along the 850&nbsp;hPa wind, and it misses rivers whose moisture rides above 700&nbsp;hPa.</p>
+<p>Steps are 6-hourly everywhere: every system publishes 6-hourly or finer out to 360&nbsp;h, and the finer early steps are not used, so the systems share one time axis and no step is interpolated. The earlier version of this page used the same estimate for AIFS-ENS only, at 12-hourly steps.</p></template>
+<template id="about-enscoast"><p>The share of members at or above 250 along the coastal transect, with the ensemble-mean IVT contoured at 250 and 500. A dashed line marks where half the members reach 500. Read the shading as the odds of AR conditions at landfall and the contours as the typical strength; individual members are in the plume view.</p></template>
+<template id="about-plume"><p>Every member&rsquo;s estimated IVT at the chosen coastal point, 6-hourly to day 15, with the ensemble median and the 10&ndash;90&nbsp;% band. Reference lines mark the AR-scale steps at 250, 500, 750 and 1000. The estimate is calibrated per system per run; see the ensemble maps for how.</p></template>
+<template id="about-ensscale"><p>For each member, every AR spell at the point is rated on the Ralph scale over its whole length within the forecast, and its rank is credited to every UTC day the spell touches. The table shows the share of members with an AR1-or-stronger (or AR3-or-stronger) spell on each day. The blend averages the systems equally, on the days every system covers in full. Spells cut off by the start or end of a forecast are rated on the part inside it.</p></template>
+<template id="about-ext"><p><b>What is shown.</b> AR frequency is the share of a week&rsquo;s 28 six-hourly times with estimated IVT&nbsp;&ge;&nbsp;250. Here it comes from the 31-member GEFS 00&nbsp;UTC extended run and is shown as the difference from GEFS&rsquo;s own reforecast climate at the same lead. That climate is the GEFSv12 reforecast 2000&ndash;2019: Wednesday 35-day starts within &plusmn;15 days of this run&rsquo;s date, the control and four perturbed members. Comparing against the model&rsquo;s own reforecast removes its moisture bias and its drift with lead. The estimate uses one fixed k for the live run and the reforecast alike, so the threshold means the same on both sides. Grey contours give the climatological frequency for context.</p>
+<p><b>Significance.</b> Each 1&deg; cell compares the 31 member frequencies with the reforecast&rsquo;s member frequencies using a two-sided Mann&ndash;Whitney U test. The Benjamini&ndash;Hochberg false-discovery rate is then held at 10&nbsp;% across the map (Wilks 2016). Cells that fail are left blank, and a week where nothing passes says so. Passing means the forecast differs from the model&rsquo;s climate. It is <i>not</i> evidence of skill: AR occurrence forecasts beyond two weeks have low skill over the western US (DeFlorio et&nbsp;al. 2019, <i>J. Geophys. Res. Atmos.</i> 124, 11242&ndash;11265), with occasional windows tied to the MJO and QBO. Two biases are uncorrected: the reforecast base period (2000&ndash;2019) is drier than today&rsquo;s climate, and GEFS operations drift differently from the reforecast at long lead (see the GEFS page).</p>
+<p>GEPS is not shown here: the GEPS reforecast the site holds has no moisture fields, so its weeks 3&ndash;5 cannot be tested against its own climate.</p></template>
+<template id="about-pwat"><p>Ensemble-mean total column water (vapour plus cloud) and its anomaly against ERA5 1991&ndash;2020 at the same date and hour (three annual harmonics on a 1.5&deg; grid), 6-hourly to day 15, for AIFS-ENS and IFS-ENS. Precipitable water shows where the moisture is; IVT shows where it is moving. An ensemble mean blurs individual plumes in week 2.</p></template>
+
 <script>
 (function () {
-  fetch("assets/ar/ar_monitor.json?v=" + Date.now()).then(function (r) { return r.ok ? r.json() : null; }).then(function (d) {
-    if (!d) return;
-    var v = "?v=" + encodeURIComponent(d.generated);
-        document.getElementById("initLabel").textContent = "run of " + d.init.replace("T", " ");
-    document.getElementById("genLabel").textContent = "built " + d.generated + " · proxy k = " + d.proxy.k.toFixed(3) + ", r = " + d.proxy.r.toFixed(2) + " over " + d.proxy.n.toLocaleString() + " member-0 points";
-    var rows = ['<tr><th>Location</th><th>Any AR</th><th>≥ AR1</th><th>≥ AR2</th><th>≥ AR3</th><th>≥ AR4</th><th>AR5</th><th>Most likely</th><th>Median peak IVT</th><th>Median onset</th><th>Member 0</th></tr>'];
-    d.named.forEach(function (n) {
-      var cls = function (c) { return c > 0 ? ' class="c' + c + '"' : ''; };
-      var pct = function (x) { return Math.round(x * 100) + "%"; };
-      rows.push('<tr><td>' + n.name + '</td><td>' + pct(n.p_ar) + '</td>' + [1, 2, 3, 4, 5].map(function (c) { return '<td>' + pct(n.p_ge[String(c)]) + '</td>'; }).join('') +
-        '<td' + cls(n.most_likely) + '>' + (n.most_likely ? "AR" + n.most_likely : "none") + '</td><td>' + (n.median_peak ? Math.round(n.median_peak) : "—") + '</td><td>' + (n.onset_h_median == null ? "—" : "+" + n.onset_h_median + " h") + '</td><td' + cls(n.control_rank) + '>' + (n.control_rank ? "AR" + n.control_rank : "none") + '</td></tr>');
+  var MODELS = [["aifs", "AIFS"], ["ifs", "IFS"], ["gfs", "GFS"], ["gdps", "GDPS"]];
+  var SYS = [["mm", "All four"], ["aifs", "AIFS-ENS"], ["ifs", "IFS-ENS"], ["gefs", "GEFS"], ["geps", "GEPS"]];
+  var SYS1 = SYS.slice(1);
+  var PTS = [["0", "30°N Baja"], ["1", "32.5° San Diego"], ["2", "35° Pt Conception"], ["3", "37.5° SF Bay"], ["4", "40° Cape Mendocino"],
+             ["5", "42.5° S Oregon"], ["6", "45° Oregon"], ["7", "47.5° Olympic Pen."], ["8", "50° Vancouver Is."], ["9", "52.5° Haida Gwaii"], ["10", "55° SE Alaska"]];
+  function anim(manifest, region, ratio) { return "sst_anim.html?embed=1&base=assets/ar/anim&manifest=" + manifest + "&region=" + region + "&regions=" + region + "&start=0"; }
+  window.STAGE = {
+    groups: [
+      { label: "IVT maps, days 1–7", items: [["det", "Integrated vapour transport", "AIFS · IFS · GFS · GDPS"]] },
+      { label: "West Coast landfall, days 1–7", items: [["detcoast", "Coastline IVT", "latitude against time"],
+                                                       ["detscale", "AR scale at the coast", "Ralph rank by point"]] },
+      { label: "AR probabilities, days 1–15", items: [["ens", "Chance of AR conditions", "four ensembles and the blend"],
+                                                     ["enscoast", "Landfall odds along the coast", "latitude against time"],
+                                                     ["plume", "Member plumes at the coast", "IVT at eleven points"],
+                                                     ["ensscale", "AR-scale odds by day", "P(≥ AR1), P(≥ AR3)"]] },
+      { label: "Weeks 3–5", items: [["ext", "AR frequency against the model's climate", "GEFS extended, significant only"]] },
+      { label: "Moisture", items: [["pwat", "Precipitable water", "AIFS-ENS and IFS-ENS means"]] }
+    ],
+    aliases: { coast: "enscoast", table: "ensscale", loops: "ens" },
+    products: {
+      det: { label: "Integrated vapour transport, 6-hourly to day 7",
+             a: { label: "Model", items: MODELS },
+             b: { label: "Region", items: [["pac", "North Pacific and West Coast"], ["na", "North America and the Gulf"]] },
+             frame: function (a, b) { return anim("ar_det_manifest.json", "det_" + a + "_" + b); },
+             ratio: function (a, b) { return b === "na" ? "1200/820" : "1200/690"; },
+             cap: function (a, b) { return "IVT 1000–300 hPa from the " + {aifs: "ECMWF AIFS single", ifs: "ECMWF IFS HRES", gfs: "NCEP GFS", gdps: "ECCC GDPS"}[a] + " run, with IVT vectors where at least 250 and sea-level pressure every 4 hPa. Shaded from 100; AR conditions from 250."; },
+             about: "about-det" },
+      detcoast: { label: "Coastline IVT, Baja California to southeast Alaska", bust: "hourly",
+                  a: { label: "Model", items: MODELS },
+                  img: function (a) { return "assets/ar/det_coast_" + a + ".webp"; },
+                  cap: function (a) { return "IVT at the first ocean point west of the coast, by latitude and time, 6-hourly to day 7."; },
+                  about: "about-detcoast" },
+      detscale: { label: "AR scale at eleven coastal points, days 1–7",
+                  a: { label: "Model", items: MODELS },
+                  dom: function () { return "dom-detscale"; },
+                  cap: function (a) { return "The strongest AR spell in each model's 7 days at points 2.5° apart from 30 to 55°N, and the rank under way each day."; },
+                  about: "about-detscale" },
+      ens: { label: "Chance of AR conditions, 6-hourly to day 15",
+             a: { label: "Ensemble", items: SYS },
+             b: function (a) { return a === "mm" ? { label: "Threshold", items: [["250", "IVT ≥ 250 (AR)"], ["500", "IVT ≥ 500 (AR2+)"]] } : null; },
+             frame: function (a, b) { return anim("ar_ens_manifest.json", "ens_" + a + "_p" + (a === "mm" ? (b || "250") : "250")); },
+             ratio: function () { return "1200/580"; },
+             cap: function (a, b) { return a === "mm" ? "Equal-weight blend of the four ensembles: the mean of each system's share of members reaching the threshold." : "Share of the ensemble's members with estimated IVT of 250 or more; the dashed line marks where half reach 500."; },
+             about: "about-ens" },
+      enscoast: { label: "Landfall odds along the coast, days 1–15", bust: "hourly",
+                  a: { label: "Ensemble", items: SYS1 },
+                  img: function (a) { return "assets/ar/ens_coast_" + a + ".webp"; },
+                  cap: function () { return "Share of members at or above 250 at the coast, by latitude and time, with the ensemble-mean 250 and 500 contours."; },
+                  about: "about-enscoast" },
+      plume: { label: "Member IVT at a coastal point, days 1–15",
+               a: { label: "Point", items: PTS },
+               b: { label: "Ensemble", items: SYS1 },
+               dom: function () { return "dom-plume"; },
+               cap: function () { return "Each member's estimated IVT, the median and the 10–90 % band, against the AR-scale steps."; },
+               about: "about-plume" },
+      ensscale: { label: "AR-scale odds by day at eleven coastal points",
+                  a: { label: "Ensemble", items: SYS },
+                  b: { label: "Category", items: [["ge1", "AR1 or stronger"], ["ge3", "AR3 or stronger"]] },
+                  dom: function () { return "dom-ensscale"; },
+                  cap: function () { return "Share of members with an AR spell of at least this rank on each UTC day."; },
+                  about: "about-ensscale" },
+      ext: { label: "AR frequency against GEFS's own climate, weeks 3–5", bust: "hourly",
+             a: { label: "Week", items: [["w3", "Week 3"], ["w4", "Week 4"], ["w5", "Week 5"], ["w34", "Weeks 3–4"]] },
+             img: function (a) { return "assets/ar/ext_" + a + ".webp"; },
+             cap: function (a) { return extCap(a); },
+             about: "about-ext" },
+      pwat: { label: "Precipitable water, 6-hourly to day 15",
+              a: { label: "Field", items: [["pwatanom", "Anomaly"], ["pwat", "Precipitable water"]] },
+              b: { label: "Ensemble", items: [["aifs", "AIFS-ENS"], ["ifs", "IFS-ENS"]] },
+              frame: function (a, b) { return anim("ar_ens_manifest.json", a + "_" + b); },
+              ratio: function () { return "1200/580"; },
+              cap: function (a, b) { return (a === "pwat" ? "Ensemble-mean total column water with the +10 and +20 mm anomaly contours, " : "Ensemble-mean precipitable-water anomaly against ERA5 1991–2020 at the valid hour, ") + (b === "ifs" ? "IFS-ENS (50 perturbed members)." : "AIFS-ENS (51 members)."); },
+              about: "about-pwat" }
+    },
+    onRender: function (s) {
+      if (s.p === "detscale") detTable(s.a || "aifs");
+      if (s.p === "ensscale") ensTable(s.a || "mm", s.b || "ge1");
+      if (s.p === "plume") plume(+(s.a || 0), s.b || "aifs");
+    }
+  };
+
+  var DET = null, ENS = null, EXT = null, ENSM = null;
+  function j(u) { return fetch(u + "?v=" + Date.now()).then(function (r) { return r.ok ? r.json() : null; }).catch(function () { return null; }); }
+  function esc(s) { return String(s).replace(/[&<>]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]; }); }
+  function hm(s) { return s ? s.replace("T", " ").replace(/:00Z$|Z$/, "Z") : "—"; }
+  function cur() { var h = location.hash.replace(/^#/, "").split("/"); return { p: h[0] || "det", a: h[1], b: h[2] }; }
+  function rerender() { var s = cur(); window.STAGE.onRender({ p: s.p, a: s.a, b: s.b }); }
+  function extCap(a) {
+    if (!EXT || !EXT.weeks || !EXT.weeks[a]) return "Weekly AR-frequency anomaly from the GEFS extended run, shaded only where significantly different from the GEFS reforecast climate.";
+    var w = EXT.weeks[a];
+    return w.label + " (" + w.from + " to " + w.to + "), GEFS 00Z run of " + EXT.init.slice(0, 10) + ": " + (w.n_sig ? w.n_sig.toLocaleString() + " of " + w.n_test.toLocaleString() + " cells differ significantly from the reforecast climate (FDR 10 %)." : "no cell differs significantly from the reforecast climate, so nothing is shaded.");
+  }
+
+  Promise.all([j("assets/ar/anim/ar_det_manifest.json"), j("assets/ar/ar_ens.json"), j("assets/ar/ar_ext.json"), j("assets/ar/anim/ar_ens_manifest.json")]).then(function (r) {
+    DET = r[0]; ENS = r[1]; EXT = r[2]; ENSM = r[3];
+    var bits = [];
+    if (DET) bits.push("<b>Days 1–7</b> " + MODELS.filter(function (m) { return DET.models[m[0]]; }).map(function (m) { var x = DET.models[m[0]]; return '<span class="' + (x.stale ? "old" : "") + '">' + m[1] + " " + hm(x.init).slice(5) + (x.stale ? " (previous run)" : "") + "</span>"; }).join(", "));
+    if (ENS) bits.push("<b>Days 1–15</b> " + SYS1.filter(function (s) { return ENS.systems[s[0]]; }).map(function (s) { return s[1] + " " + hm(ENS.systems[s[0]].init).slice(5); }).join(", "));
+    if (EXT) bits.push("<b>Weeks 3–5</b> GEFS " + EXT.init.slice(5, 10) + " 00Z");
+    document.getElementById("runs").innerHTML = "Runs on this page (UTC): " + bits.join(" · ");
+    if (ENS) document.getElementById("genLabel").textContent = "ensembles built " + ENS.generated + (DET ? " · deterministic built " + DET.generated : "");
+    if (DET) {
+      var lb = [];
+      ["gfs", "gdps"].forEach(function (m) { var b = DET.models[m] && DET.models[m].level_bias; if (b) lb.push(m.toUpperCase() + " IVT on only the ECMWF 8 levels is " + ((b.median_ratio_8lev_to_full - 1) * 100).toFixed(1) + " % from its full-level value (median over points ≥ 250; 10–90 %: " + ((b.p10_ratio - 1) * 100).toFixed(0) + " to +" + ((b.p90_ratio - 1) * 100).toFixed(0) + " %)"); });
+      var tpl = document.getElementById("about-det"), sp = tpl && tpl.content && tpl.content.querySelector("#lvlBias");
+      if (sp) sp.textContent = lb.length ? lb.join("; ") + "." : "";
+    }
+    rerender();
+  });
+
+  function cls(r) { return r > 0 ? ' class="c' + r + '"' : ""; }
+  function detTable(m) {
+    var el = document.getElementById("detTable"); if (!DET || !DET.models[m]) { el.innerHTML = "<tr><td>Not available this run.</td></tr>"; return; }
+    var x = DET.models[m], days = Object.keys(x.points[0].daily);
+    var h = "<tr><th>Point</th><th>Strongest spell</th><th>Peak IVT</th><th>Hours ≥ 250</th><th>Starts</th>" + days.map(function (d) { var t = new Date(d + "T00:00Z"); return "<th>" + t.toUTCString().slice(0, 3) + " " + d.slice(8) + "</th>"; }).join("") + "</tr>";
+    x.points.forEach(function (p) {
+      h += "<tr><td>" + esc(p.name) + "</td><td" + cls(p.rank) + ">" + (p.rank ? "AR" + p.rank : "none") + "</td><td>" + (p.peak ? p.peak : "—") + "</td><td>" + (p.dur_h ? p.dur_h : "—") + "</td><td>" + (p.onset ? hm(p.onset).slice(5) : "—") + "</td>" +
+        days.map(function (d) { var r = p.daily[d]; return "<td" + cls(r) + ">" + (r ? "AR" + r : "") + "</td>"; }).join("") + "</tr>";
     });
-    document.getElementById("arTable").innerHTML = rows.join("");
-  }).catch(function () {});
+    el.innerHTML = h;
+    document.getElementById("detNote").textContent = x.label + ", run of " + hm(x.init) + (x.stale ? " (this model's newest run was not out; previous run shown)" : "") + ". IVT on " + x.levels.length + " levels from " + x.levels[0] + " to " + x.levels[x.levels.length - 1] + " hPa.";
+  }
+  function shade(p) { if (p == null) return ""; var a = Math.min(1, p); var c = a < 0.05 ? "#fff" : a < 0.2 ? "#eef4fa" : a < 0.4 ? "#bcd6ec" : a < 0.6 ? "#7fb0d8" : a < 0.8 ? "#f2c14e" : "#d9542b"; return ' style="background:' + c + (a >= 0.8 ? ";color:#fff" : "") + '"'; }
+  function ensTable(s, cat) {
+    var el = document.getElementById("ensTable"); if (!ENS) { el.innerHTML = "<tr><td>Not available.</td></tr>"; return; }
+    var sc = ENS.scale, rows = s === "mm" ? sc.mm[cat] : (sc.systems[s] && sc.systems[s][cat]);
+    if (!rows) { el.innerHTML = "<tr><td>This ensemble is not in this run.</td></tr>"; return; }
+    var h = "<tr><th>Point</th>" + sc.days.map(function (d) { var t = new Date(d + "T00:00Z"); return "<th>" + t.toUTCString().slice(0, 3) + "<br>" + d.slice(8) + "</th>"; }).join("") + "</tr>";
+    sc.points.forEach(function (nm, i) { h += "<tr><td>" + esc(nm) + "</td>" + rows[i].map(function (p) { return "<td class=\"p\"" + shade(p) + ">" + (p == null ? "" : Math.round(p * 100)) + "</td>"; }).join("") + "</tr>"; });
+    el.innerHTML = h;
+    var cal = SYS1.filter(function (x) { return ENS.systems[x[0]]; }).map(function (x) { var c = ENS.systems[x[0]].calibration; return x[1] + " k = " + c.k.toFixed(3) + ", r = " + c.r.toFixed(2) + ", rmse " + Math.round(c.rmse) + ", hit rate at 250 " + Math.round(c.pod250 * 100) + " %, false alarms " + Math.round(c.far250 * 100) + " %"; });
+    document.getElementById("ensNote").textContent = "Percent of members (" + (s === "mm" ? "equal-weight blend of " + ENS.combination.length + " ensembles; blank = a day not every system covers" : ENS.systems[s].label + ", " + ENS.systems[s].members + " members, run of " + hm(ENS.systems[s].init)) + "). IVT estimate this run: " + cal.join("; ") + ".";
+  }
+  var PL = null, plotlyP = null;
+  function loadPlotly() {
+    if (window.Plotly) return Promise.resolve();
+    if (!plotlyP) plotlyP = new Promise(function (ok, no) { var s = document.createElement("script"); s.src = "https://cdn.jsdelivr.net/npm/plotly.js-cartesian-dist-min@2.35.2/plotly-cartesian.min.js"; s.onload = ok; s.onerror = no; document.head.appendChild(s); });
+    return plotlyP;
+  }
+  function plume(ip, s) {
+    var note = document.getElementById("plumeNote");
+    var get = PL ? Promise.resolve(PL) : (ENSM ? Promise.resolve(ENSM) : j("assets/ar/anim/ar_ens_manifest.json")).then(function (m) {
+      ENSM = m; return window.frameFetch("assets/ar/anim/ens_data/plume.json", m && m.frames_sha, { local: "assets/ar/anim/ens_data/plume.json" }).then(function (r) { return r.json(); });
+    }).then(function (d) { PL = d; return d; });
+    Promise.all([get, loadPlotly()]).then(function (r) {
+      var d = r[0], S = d.systems[s];
+      if (!S) { note.textContent = "This ensemble is not in this run."; return; }
+      var t = S.valid.map(function (v) { return v.replace("Z", ":00Z"); });
+      var M = S.members[ip], n = M.length, tr = [];
+      M.forEach(function (row, k) { tr.push({ x: t, y: row, mode: "lines", line: { width: 0.7, color: "rgba(44,74,114,0.32)" }, hoverinfo: "skip", showlegend: k === 0, name: "members" }); });
+      var q = function (p) { return t.map(function (_, i) { var c = M.map(function (r) { return r[i]; }).sort(function (a, b) { return a - b; }); var x = p * (c.length - 1), lo = Math.floor(x); return c[lo] + (c[Math.min(lo + 1, c.length - 1)] - c[lo]) * (x - lo); }); };
+      tr.push({ x: t, y: q(0.9), mode: "lines", line: { width: 0 }, hoverinfo: "skip", showlegend: false });
+      tr.push({ x: t, y: q(0.1), mode: "lines", line: { width: 0 }, fill: "tonexty", fillcolor: "rgba(217,84,43,0.16)", name: "10–90 %", hovertemplate: "%{y:.0f}<extra>10 %</extra>" });
+      tr.push({ x: t, y: q(0.5), mode: "lines", line: { width: 2.4, color: "#a51c30" }, name: "median", hovertemplate: "%{x|%a %d %HZ}: %{y:.0f}<extra>median</extra>" });
+      var top = Math.max.apply(null, M.map(function (r) { return Math.max.apply(null, r); }));
+      var shapes = [250, 500, 750, 1000].filter(function (v) { return v === 250 || v <= Math.max(400, top * 1.1); }).map(function (v) { return { type: "line", xref: "paper", x0: 0, x1: 1, y0: v, y1: v, line: { color: v === 250 ? "#333" : "#9a958c", width: v === 250 ? 1.2 : 0.8, dash: "dot" } }; });
+      var p = d.points[ip];
+      window.Plotly.react("plumeChart", tr, { margin: { l: 52, r: 12, t: 36, b: 40 }, paper_bgcolor: "#fff", plot_bgcolor: "#fff", shapes: shapes,
+        title: { text: S.label + " · " + p.name + " (" + p.lat + "°N, " + Math.abs(p.lon) + "°W) · run " + hm(S.init), font: { size: 13 }, x: 0.01 },
+        yaxis: { title: "IVT (kg m⁻¹ s⁻¹)", rangemode: "tozero", gridcolor: "#eee" }, xaxis: { gridcolor: "#eee" },
+        legend: { orientation: "h", y: 1.0, x: 1, xanchor: "right", yanchor: "bottom", font: { size: 11 } }, font: { family: "Schibsted Grotesk, sans-serif", color: "#1c1c1a" } },
+        { displayModeBar: false, responsive: true });
+      note.textContent = n + " members, 6-hourly. Dotted lines: AR-scale steps 250 / 500 / 750 / 1000.";
+    }).catch(function () { note.textContent = "The member data could not be loaded."; });
+  }
 })();
 </script>
+</main>
 <!-- sf:start -->
 <footer class="sf">
   <div class="sf-in">
