@@ -1,0 +1,74 @@
+name: SEAS5 SSW conditional skill (AWS only)
+
+# User 2026-10-08: SEAS5's SSW index has no skill overall — does it by ENSO strength or by the strength of the signal?
+# scripts/sst/seas5_ssw_skill.py: the October starts 1981-2025 (AWS SEAS5 daily copy: hindcast table hc_ssw_10 from the
+# release + the operational 2017-2025 starts read here), pre-registered tests T1-T6 with a Holm correction, power,
+# figure and JSON for the stratosphere hub. No CDS key, so it runs outside the `seas5` concurrency group.
+
+on:
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+concurrency:
+  group: seas5-aws
+  cancel-in-progress: false
+
+env:
+  REF_TAG: seas5-ref-v1
+  MPLBACKEND: Agg
+  PYTHONUNBUFFERED: '1'
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      SEAS5_REF_DIR: ${{ github.workspace }}/seas5_ref
+      SST_SITE_ROOT: ${{ github.workspace }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+      - name: Install dependencies
+        run: |
+          pip install --quiet numpy pandas scipy xarray netCDF4 h5netcdf 'pyproj>=3.7.2' matplotlib==3.10.9 Pillow cfgrib eccodes \
+            'icechunk==2.2.2' 'zarr>=3'
+      - name: Tables
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          mkdir -p "$SEAS5_REF_DIR"
+          gh release download "$REF_TAG" --repo "$GITHUB_REPOSITORY" -D "$SEAS5_REF_DIR" --clobber -p 'hc_ssw_10.npz'
+          gh release download "$REF_TAG" --repo "$GITHUB_REPOSITORY" -D scripts/sst/data/seas5/ssw --clobber -p 'aws_u60_op_10.npz' || true
+      - name: Operational October starts 2017-2025 (AWS)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if [ ! -f scripts/sst/data/seas5/ssw/aws_u60_op_10.npz ]; then
+            python scripts/sst/seas5_ssw_skill.py operational
+            gh release upload "$REF_TAG" --repo "$GITHUB_REPOSITORY" --clobber scripts/sst/data/seas5/ssw/aws_u60_op_10.npz
+          fi
+      - name: Tests, figure, JSON
+        run: python scripts/sst/seas5_ssw_skill.py build
+      - name: Commit & push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          SNAP=$(mktemp -d)
+          git add -A assets/sst/seas5_ssw_skill.webp assets/sst/data/seas5_ssw_skill.json
+          git diff --staged --name-only -z | tar cf "$SNAP/outs.tar" --null -T -
+          git reset -q
+          for i in 1 2 3 4 5; do
+            if ! timeout 120 git fetch origin main; then sleep 5; continue; fi
+            git reset --hard origin/main
+            tar xf "$SNAP/outs.tar"
+            git add -A assets/sst/seas5_ssw_skill.webp assets/sst/data/seas5_ssw_skill.json
+            if git diff --staged --quiet; then echo "No changes"; exit 0; fi
+            git commit -q -m "data update: SEAS5 SSW conditional skill"
+            if timeout 180 git push; then echo "Pushed on attempt $i."; exit 0; fi
+            sleep 5
+          done
+          exit 1
