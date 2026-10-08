@@ -455,7 +455,10 @@ function setupRegion() {
   // forecast-style embeds can ask to open on a specific frame (?start=0) and
   // roll on load (?autoplay=1); observation loops keep the newest-frame default
   const P = new URLSearchParams(location.search);
-  const s = P.get("start");
+  // ?start=manifest opens on the frame the producer marks as "now" (manifest.start, the Kelvin tracker's init
+  // day): a fixed ?start=10 assumed ten analysis days and opened on day +10 when the archive had fewer
+  let s = P.get("start");
+  if (s === "manifest") s = Number.isInteger(manifest.start) ? String(manifest.start) : null;
   idx = s !== null ? Math.min(Math.max(parseInt(s) || 0, 0), frames.length - 1)
                    : frames.length - 1;     // default: most recent
   // The frame on screen and NOTHING else (2026-10-05, user: "Don't load unnecessary frames in the background
