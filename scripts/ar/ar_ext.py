@@ -237,7 +237,7 @@ def ext_figure(out, title, sub, anom, sig, clim_f, n_sig, n_test):
     a = np.where(sig, anom, np.nan)
     pm = ax.pcolormesh(LON1, LAT1, a, cmap=cm, norm=nm, transform=pc, shading="nearest", rasterized=True, zorder=2)
     clim_f = np.where(LAT1[:, None] >= 20.0, clim_f, np.nan)
-    ax.axhline(20.0, color="#6f6b64", lw=0.6, ls=":", transform=pc, zorder=4)
+    ax.plot([LON1[0], LON1[-1]], [20.0, 20.0], color="#6f6b64", lw=0.6, ls=":", transform=pc, zorder=4)
     cs = ax.contour(LON1, LAT1, clim_f, levels=[5, 10, 20, 30], colors="#555", linewidths=[0.5, 0.7, 0.9, 1.1], transform=pc, zorder=4)
     ax.clabel(cs, fmt="%d%%", fontsize=6.5)
     A.map_features(ax)
