@@ -95,6 +95,12 @@
     main.ao h1 { font-size: 1.5rem; }
     .ao-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .ao-seg button { padding: 0.55rem 0.7rem; font-size: 0.95rem; }
+    /* the six variables in a 3 x 2 grid: as one scrolling row, Ceiling and Weather sat off screen with no hint (2026-10-08) */
+    #varSeg { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); width: 100%; overflow: hidden; }
+    #varSeg button + button { border-left: 0; }
+    #varSeg button { border-top: 1px solid #e3e6e0; }
+    #varSeg button:nth-child(-n+3) { border-top: 0; }
+    #varSeg button:not(:nth-child(3n+1)) { border-left: 1px solid #e3e6e0; }
     .ao-card .now { font-size: 1.35rem; }
     .ao-panel { height: 52vh; }
   }
@@ -469,6 +475,25 @@
       .then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); })
       .then(function (j) { return packDay(j.data || []); });
   }
+  // QC of the plotted temperature / dewpoint (2026-10-08 sweep: KRDU's 12:30Z 5-minute row on 7 Oct carried M61/M61, a
+  // one-sample -78 F spike through the whole chart). A value is dropped when it is outside the US surface record range,
+  // or when it jumps more than 8 C away from BOTH neighbours (within an hour each side) in the same direction while the
+  // neighbours agree within 4 C - a return within the hour that no real air mass makes. Applied to every pack, so day
+  // packs already kept in the browser are cleaned too.
+  function qcObs(obs) {
+    [1, 2].forEach(function (c) {
+      var idx = []; obs.forEach(function (o, i) { if (o[c] != null) { if (o[c] < -65 || o[c] > 57) o[c] = null; else idx.push(i); } });
+      var bad = [];
+      for (var j = 1; j < idx.length - 1; j++) {
+        var a = obs[idx[j - 1]], o = obs[idx[j]], b = obs[idx[j + 1]];
+        if (o[0] - a[0] > 3600 || b[0] - o[0] > 3600) continue;
+        var da = o[c] - a[c], db = o[c] - b[c];
+        if (Math.abs(da) > 8 && Math.abs(db) > 8 && da * db > 0 && Math.abs(a[c] - b[c]) < 4) bad.push(idx[j]);
+      }
+      bad.forEach(function (i) { obs[i][c] = null; });
+    });
+    return obs;
+  }
   function combine(a, b) {                            // yesterday pack + today pack
     var out = { obs: [], reports: [], six: [], day: null, wr: [], nAuto: 0 };
     [a, b].forEach(function (p) {
@@ -477,6 +502,7 @@
       out.wr = out.wr.concat(p.wr || []); out.nAuto += p.nAuto;
       if (p.day && (!out.day || p.day.e > out.day.e)) out.day = p.day;
     });
+    out.obs.sort(function (x, y) { return x[0] - y[0]; }); qcObs(out.obs);
     return out;
   }
   function loadStation(s) {
@@ -507,7 +533,7 @@
                    vsby: p.visibility && p.visibility.value != null ? p.visibility.value / 1609.344 : null, nws: 1 }; });
         // rows without a raw message are 5-minute samples: give them a marker so packDay treats them as the feed
         rows.forEach(function (r) { if (!r.raw) r.raw = s.id + " AUTO MADISHF"; });
-        var p = packDay(rows); p.src = "nws"; p.cad = p.nAuto >= 6 ? 5 : 60;
+        var p = packDay(rows); qcObs(p.obs); p.src = "nws"; p.cad = p.nAuto >= 6 ? 5 : 60;
         state.live[s.id] = p; state.src[s.id] = "nws";
       })
       .catch(function () { state.failed++; });
@@ -549,7 +575,7 @@
       if (!cur) byMin[k] = o.slice(0, 9).concat([0, null, null, 0]);
       else if (cur[T] == null && o[1] != null) cur[T] = o[1];
     });
-    var obs = Object.keys(byMin).map(function (k) { return byMin[k]; }).sort(function (a, b) { return a[E] - b[E]; });
+    var obs = qcObs(Object.keys(byMin).map(function (k) { return byMin[k]; }).sort(function (a, b) { return a[E] - b[E]; }));   // the merged series too
     var six = {}; ((live && live.six) || []).concat((br && br.sixhr) || []).forEach(function (g) { if (!six[g[0]]) six[g[0]] = g; });
     six = Object.keys(six).map(function (k) { return six[k]; }).sort(function (a, b) { return a[0] - b[0]; });
     var day = (live && live.day) || null; if (br && br.daymm && (!day || br.daymm.e > day.e)) day = br.daymm;

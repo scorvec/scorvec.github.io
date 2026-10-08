@@ -1067,12 +1067,14 @@ def figure(prod, P, meta, out):
             fig.text(pos.x0 + pos.width / 2, pos.y0 - fy(0.2), lab, ha="center", va="center", fontsize=8.6, color="#333")
     when = f"init {init:%Y-%m-%d %HZ} · f{lead:02d} valid {valid:%a %d %b %Y %HZ}"
     if not two:
-        fig.suptitle(f"{meta['model_label']} {LONG[prod]} · {when} · {REGION_ALL[meta['region']][0]}", fontsize=14,
-                     fontweight="bold", y=1 - fy(0.07), va="top")
+        st = fig.suptitle(f"{meta['model_label']} {LONG[prod]} · {when} · {REGION_ALL[meta['region']][0]}", fontsize=14,
+                          fontweight="bold", y=1 - fy(0.07), va="top")
+        _fit_width(fig, st)
     else:
-        fig.suptitle(f"{meta['model_label']} {LONG[prod]} · {REGION_ALL[meta['region']][0]}", fontsize=13.5, fontweight="bold",
-                     y=1 - fy(0.06), va="top")
-        fig.text(0.5, 1 - fy(0.40), when, ha="center", va="top", fontsize=11, fontweight="bold", color="#222")
+        st = fig.suptitle(f"{meta['model_label']} {LONG[prod]} · {REGION_ALL[meta['region']][0]}", fontsize=13.5, fontweight="bold",
+                          y=1 - fy(0.06), va="top")
+        _fit_width(fig, st)
+        _fit_width(fig, fig.text(0.5, 1 - fy(0.40), when, ha="center", va="top", fontsize=11, fontweight="bold", color="#222"))
     import textwrap
     note = sub if prod != "ing" else ("An overlap of ingredients, not a probability: it marks where the model's own atmosphere "
                                       "is set up for banding, not where a band will form, and says nothing about rain or snow.")
@@ -1083,6 +1085,15 @@ def figure(prod, P, meta, out):
     out.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(out, dpi=100 if ncol == 1 else 90, facecolor="white", pil_kwargs={"quality": 80, "method": 6})
     plt.close(fig)
+
+
+def _fit_width(fig, t, frac=0.94, minsize=9.5):
+    """Shrink a figure-level text until it fits frac of the figure width (2026-10-08 sweep: the overview title for
+    "Northeast and Mid-Atlantic" ran edge to edge of the image)."""
+    r = fig.canvas.get_renderer()
+    while t.get_window_extent(r).width > frac * fig.bbox.width and t.get_fontsize() > minsize:
+        t.set_fontsize(t.get_fontsize() - 0.5)
+    return t
 
 
 def render_task(task):
