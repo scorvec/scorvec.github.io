@@ -2258,8 +2258,11 @@ window.STAGE.onRender = function (sel) {
   function f2(x) { return x == null ? "n/a" : x.toFixed(2); }
   function mm(ym) { var m = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"]; return m[parseInt(ym.slice(5), 10) - 1] + " " + ym.slice(0, 4); }
   fetch("assets/sst/data/seas5_ssw.json?v=" + Date.now()).then(function (r) { return r.ok ? r.json() : null; }).then(function (J) {
-    if (!J || !J.windows) return;
     var card = document.getElementById("sswCard"); card.hidden = false;
+    if (!J || !J.windows) {                       // 2026-10-08: no build yet - say so instead of a dead menu link
+      document.getElementById("sswVerdict").innerHTML = "The first build of this product is still running: the daily 10&nbsp;hPa winds of all 51 October members come from the Copernicus data store, where requests queue for hours. The risk index, its skill test and the charts appear here once that run finishes.";
+      return;
+    }
     var W = J.windows, A = W["Nov–Mar"], S = A.skill, E = J.enso || {}, v = "?v=" + encodeURIComponent(J.generated);
     var sig = A.p_vs_model_base < 0.05;
     var t = "<b>" + pc(A.forecast) + " of the 51 members</b> (" + A.forecast_k + ") have a major SSW between November and March, against the model&rsquo;s own base rate of " +
@@ -2294,7 +2297,7 @@ window.STAGE.onRender = function (sel) {
       return '<figure><a href="assets/sst/' + F[k] + v + '" target="_blank" rel="noopener"><img src="assets/sst/' + F[k] + v + '" alt="SEAS5 polar vortex ' + k + '" loading="lazy"></a><figcaption>' + caps[k] + "</figcaption></figure>";
     }).join("");
     document.getElementById("sswUpdated").textContent = "built " + J.generated;
-  }).catch(function () {});
+  }).catch(function () { var c = document.getElementById("sswCard"); c.hidden = false; document.getElementById("sswVerdict").textContent = "This product could not be loaded just now; try reloading in a minute."; });
 })();
 </script>
 <script src="/assets/stage.js" defer></script>
