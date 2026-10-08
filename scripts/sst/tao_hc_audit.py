@@ -38,7 +38,6 @@ CPC_URL = "https://www.cpc.ncep.noaa.gov/products/analysis_monitoring/ocean/inde
 PMEL_URL = "https://www.pmel.noaa.gov/tao/wwv/data/{}.dat"
 
 GLORYS = [("my", "cmems_mod_glo_phy_my_0.083deg_P1D-m", "thetao"),
-          ("myint", "cmems_mod_glo_phy_myint_0.083deg_P1D-m", "thetao"),
           ("anfc", "cmems_mod_glo_phy-thetao_anfc_0.083deg_P1D-m", "thetao")]
 
 
@@ -121,32 +120,42 @@ def pmel_monthly():
     return pd.DataFrame(out)
 
 
-def glorys_series(fetch: bool = False):
-    """Daily 0-300 m mean T (absolute) at each mooring, 0.25S-0.25N, from my/myint/anfc."""
+def _fetch_one(tag, dsid, var, lo):
     import copernicusmarine as cm
+    import time as _t
+    glon = lo if lo < 180 else lo - 360          # GLORYS -180..180
+    fn = f"gl_{tag}_{int(lo)}.nc"
+    t0 = _t.time()
+    kw = dict(dataset_id=dsid, variables=[var], minimum_longitude=glon, maximum_longitude=glon,
+              minimum_latitude=-0.25, maximum_latitude=0.25, minimum_depth=0, maximum_depth=330,
+              output_filename=fn + ".part", output_directory=str(CACHE), overwrite=True,
+              coordinates_selection_method="nearest", disable_progress_bar=True)
+    if tag == "anfc":
+        kw.update(start_datetime="2022-06-01", end_datetime=NOW.strftime("%Y-%m-%d"))
+    try:
+        cm.subset(**kw)
+        (CACHE / (fn + ".part")).replace(CACHE / fn)
+        log(f"  fetched {fn} in {_t.time() - t0:.0f} s")
+    except Exception as e:  # noqa: BLE001
+        log(f"GLORYS {tag} {lo} failed: {e}")
+
+
+def glorys_series(fetch: bool = False):
+    """Daily 0-300 m T profile (5-m grid) at each mooring, 0.25S-0.25N, from my (reanalysis, which
+    now runs to ~6 weeks ago) and anfc (analysis)."""
     CACHE.mkdir(parents=True, exist_ok=True)
+    if fetch:
+        from concurrent.futures import ThreadPoolExecutor
+        jobs = [(tag, dsid, var, lo) for tag, dsid, var in GLORYS for lo in H.LONS
+                if not (CACHE / f"gl_{tag}_{int(lo)}.nc").exists()]
+        with ThreadPoolExecutor(max_workers=6) as ex:
+            list(ex.map(lambda j: _fetch_one(*j), jobs))
+        return None
     res = {}
     for tag, dsid, var in GLORYS:
         cols = {}
         for lo in H.LONS:
-            glon = lo if lo < 180 else lo - 360          # GLORYS -180..180
-            fn = f"gl_{tag}_{int(lo)}.nc"
-            p = CACHE / fn
-            if fetch and (not p.exists() or tag == "anfc"):
-                import time as _t
-                t0 = _t.time()
-                kw = dict(dataset_id=dsid, variables=[var], minimum_longitude=glon, maximum_longitude=glon,
-                          minimum_latitude=-0.25, maximum_latitude=0.25, minimum_depth=0, maximum_depth=330,
-                          output_filename=fn, output_directory=str(CACHE), overwrite=True,
-                          coordinates_selection_method="nearest")
-                if tag == "anfc":
-                    kw.update(start_datetime="2022-01-01", end_datetime=NOW.strftime("%Y-%m-%d"))
-                try:
-                    cm.subset(service="arco-time-series", disable_progress_bar=True, **kw)
-                except Exception as e:  # noqa: BLE001
-                    log(f"GLORYS {tag} {lo} failed: {e}")
-                    continue
-                log(f"  fetched {fn} in {_t.time() - t0:.0f} s")
+            p = CACHE / f"gl_{tag}_{int(lo)}.nc"
             if not p.exists():
                 continue
             d = xr.open_dataset(p)[var]
@@ -185,7 +194,7 @@ def glorys_anomaly(gl):
     coeffs = {}
     anom = {}
     for lo in H.LONS:
-        parts = [gl[k][lo] for k in ("my", "myint") if lo in gl.get(k, {})]
+        parts = [gl[k][lo] for k in ("my",) if lo in gl.get(k, {})]
         if not parts:
             continue
         rea = pd.concat(parts).sort_index()
@@ -202,7 +211,7 @@ def glorys_anomaly(gl):
             ov = a_af.index.intersection(a_rea.index)
             off = float((a_rea[ov] - a_af[ov]).mean()) if len(ov) > 60 else 0.0
             r = float(np.corrcoef(a_rea[ov], a_af[ov])[0, 1]) if len(ov) > 60 else np.nan
-            log(f"  anfc vs myint {H.LON_LABEL[lo]}: {len(ov)} d overlap, offset {off:+.3f}, r {r:.3f}")
+            log(f"  anfc vs my {H.LON_LABEL[lo]}: {len(ov)} d overlap, offset {off:+.3f}, r {r:.3f}")
             s = pd.concat([a_rea, (a_af + off)[a_af.index > a_rea.index.max()]])
         anom[lo] = s
     return pd.DataFrame(anom).reindex(columns=H.LONS), coeffs
@@ -259,22 +268,40 @@ def main() -> int:
 
     strict, info = H.mooring_anomaly(ds, strict=True)
     loose, info_l = H.mooring_anomaly(ds, strict=False)
-    strict_dt, _ = H.mooring_anomaly(ds, strict=True, detrend=True)
+    strict4, info4 = H.mooring_anomaly(ds, strict=True, qset=(1, 2, 3, 4))
     idx_new = H.index(strict)
+    idx_q4 = H.index(strict4)
+    # why profiles fail, by year (q123 screen and shape-only screen)
+    for tag, inf in [("q123", info), ("q1234", info4)]:
+        r = inf["reason"].stack().rename("reason").reset_index()
+        r.columns = ["time", "lon", "reason"]
+        r["year"] = pd.to_datetime(r["time"]).dt.year
+        tab = r.pivot_table(index="year", columns="reason", aggfunc="size", fill_value=0)
+        tab.to_csv(OUT / f"profile_reasons_{tag}.csv")
+        log(f"profile verdicts by year ({tag}; mooring-days):\n" + tab.to_string())
+        rm = r.pivot_table(index="lon", columns="reason", aggfunc="size", fill_value=0)
+        log(f"profile verdicts by mooring ({tag}):\n" + rm.rename(index=H.LON_LABEL).to_string())
+    both = strict.notna() & strict4.notna()
+    d4 = (strict4 - strict).where(both)
+    summary["q4_inclusion_effect_where_both_ok"] = {H.LON_LABEL[c]: {"n": int(both[c].sum()),
+        "mean": round(float(d4[c].mean()), 3) if both[c].any() else None,
+        "sd": round(float(d4[c].std()), 3) if both[c].sum() > 2 else None} for c in H.LONS}
     old_df, old_raw, old_sm, old_live, old_used = old_index(paths)
 
     # partial profiles that the old rule counted as live
-    part = (loose.notna() & strict.isna())
+    part = (loose.notna() & strict4.isna())
     py = part.groupby(part.index.year).sum()
     py.columns = [H.LON_LABEL[c] for c in py.columns]
     py.to_csv(OUT / "partial_profiles_by_year.csv")
-    log("mooring-days the OLD rule used but the screened rule rejects (partial/flagged profiles):\n" + py.to_string())
+    log("mooring-days the OLD rule used whose profile does not span 0-300 m (shape rule, Q4 kept):\n" + py.to_string())
 
     # per-year coverage
     cov = pd.DataFrame({
         "days": idx_new.groupby(idx_new.index.year).size(),
         "mean_live_strict": idx_new["n_live"].groupby(idx_new.index.year).mean().round(2),
         "days_ge6_strict": (idx_new["hc"].notna()).groupby(idx_new.index.year).sum(),
+        "days_ge6_q1234": (idx_q4["hc"].notna()).groupby(idx_q4.index.year).sum(),
+        "mean_live_q1234": idx_q4["n_live"].groupby(idx_q4.index.year).mean().round(2),
         "days_ge6_old": old_raw.notna().groupby(old_raw.index.year).sum(),
         "days_all8_live": (idx_new["n_live"] == 8).groupby(idx_new.index.year).sum(),
     })
@@ -352,6 +379,8 @@ def main() -> int:
         g_anom = pd.DataFrame(columns=H.LONS, dtype=float)
     g_anom.to_csv(OUT / "glorys_mooring_anom.csv")
     strict.to_csv(OUT / "tao_mooring_anom_strict.csv")
+    strict4.to_csv(OUT / "tao_mooring_anom_q1234.csv")
+    loose.to_csv(OUT / "tao_mooring_anom_old.csv")
     idx_g = g_anom.mean(axis=1).where(g_anom.notna().sum(axis=1) == 8)
 
     # mooring-level agreement TAO vs GLORYS
@@ -360,6 +389,31 @@ def main() -> int:
         if c in g_anom:
             ml[H.LON_LABEL[c]] = stats(strict[c], g_anom[c])
     summary["mooring_tao_vs_glorys_daily"] = ml
+    q4only = strict4.notna() & strict.isna()
+    qe = {}
+    for c in H.LONS:
+        g = g_anom[c].reindex(strict.index) if c in g_anom else None
+        if g is None:
+            continue
+        e123 = (strict[c] - g).dropna(); e4 = (strict4[c].where(q4only[c]) - g).dropna()
+        qe[H.LON_LABEL[c]] = {"q123_days": int(len(e123)), "q123_rmse": round(float(np.sqrt((e123 ** 2).mean())), 3) if len(e123) else None,
+                              "q4only_days": int(len(e4)), "q4only_rmse": round(float(np.sqrt((e4 ** 2).mean())), 3) if len(e4) else None,
+                              "q4only_bias_minus_q123_bias": round(float(e4.mean() - e123.mean()), 3) if len(e4) and len(e123) else None}
+    summary["q4_vs_glorys"] = qe
+    log("Q4-dependent mooring-days vs GLORYS: " + json.dumps(qe))
+    old_vs_g = {}
+    lo_only = loose.notna() & strict4.isna()
+    for c in H.LONS:
+        if c not in g_anom:
+            continue
+        g = g_anom[c].reindex(strict.index)
+        e = (loose[c].where(lo_only[c]) - g).dropna()
+        old_vs_g[H.LON_LABEL[c]] = {"partial_days": int(len(e)), "rmse": round(float(np.sqrt((e ** 2).mean())), 3) if len(e) else None,
+                                    "bias": round(float(e.mean()), 3) if len(e) else None}
+    summary["partial_profile_days_vs_glorys"] = old_vs_g
+    log("partial-profile mooring-days (old rule only) vs GLORYS: " + json.dumps(old_vs_g))
+    summary["index_q4_vs_glorys_daily_ge6"] = stats(idx_q4["hc"], g_anom.mean(axis=1).where(g_anom.notna().sum(axis=1) == 8))
+    summary["index_old_vs_glorys_daily"] = stats(old_raw, g_anom.mean(axis=1).where(g_anom.notna().sum(axis=1) == 8))
     log("per-mooring TAO (screened) vs GLORYS 0-300 m anomaly, daily: " + json.dumps(ml))
 
     # index agreement, all-8-live days
@@ -424,6 +478,7 @@ def main() -> int:
     hce = strict[east4].mean(axis=1).where(strict[east4].notna().all(axis=1))
     mon = pd.DataFrame({
         "tao8_new": monthly(idx_new["hc"]),
+        "tao8_q4": monthly(idx_q4["hc"]),
         "tao8_old": monthly(old_raw),
         "tao_180_110W_live": monthly(hc6),
         "tao_155W_95W_live": monthly(hce),
@@ -434,7 +489,7 @@ def main() -> int:
     }).join(cpc, how="outer").join(pm, how="outer")
     mon.to_csv(OUT / "monthly_compare.csv")
     comp = {}
-    for a, b in [("tao8_new", "cpc_180_100W"), ("tao8_new", "cpc_160E_80W"), ("tao8_old", "cpc_180_100W"),
+    for a, b in [("tao8_q4", "cpc_180_100W"), ("tao8_q4", "glorys8"), ("tao8_new", "cpc_180_100W"), ("tao8_new", "cpc_160E_80W"), ("tao8_old", "cpc_180_100W"),
                  ("tao_180_110W_live", "cpc_180_100W"), ("glorys8", "cpc_180_100W"), ("tao8_new", "glorys8"),
                  ("tao_155W_95W_live", "pmel_t300_east"), ("tao8_new", "pmel_t300")]:
         if a in mon and b in mon:
@@ -455,8 +510,12 @@ def main() -> int:
                       for y in sorted(set(resid.index.year))],
             "mean_resid_new": resid.groupby(resid.index.year).mean().round(2),
             "max_abs_resid_new": resid.abs().groupby(resid.index.year).max().round(2),
+            "mean_resid_q4": (mon["tao8_q4"] - pred).groupby(mon.index.year).mean().round(2),
+            "max_abs_resid_q4": (mon["tao8_q4"] - pred).abs().groupby(mon.index.year).max().round(2),
+            "months_q4": (mon["tao8_q4"] - pred).groupby(mon.index.year).count(),
             "mean_resid_old": rold.groupby(rold.index.year).mean().round(2),
             "max_abs_resid_old": rold.abs().groupby(rold.index.year).max().round(2),
+            "months_old": rold.groupby(rold.index.year).count(),
         })
         yr.to_csv(OUT / "yearly_vs_cpc.csv")
         log("yearly vs CPC 180W-100W (residual after one regression, deg C):\n" + yr.to_string())
@@ -499,7 +558,7 @@ def main() -> int:
                           "glorys8_last": None if not len(idx_g.dropna()) else
                           [str(idx_g.last_valid_index().date()), round(float(idx_g.dropna().iloc[-1]), 3)]}
     # daily frame for everything
-    daily = pd.DataFrame({"new_hc": idx_new["hc"], "n_live": idx_new["n_live"], "n_carried": idx_new["n_carried"],
+    daily = pd.DataFrame({"q4_hc": idx_q4["hc"], "q4_n_live": idx_q4["n_live"], "new_hc": idx_new["hc"], "n_live": idx_new["n_live"], "n_carried": idx_new["n_carried"],
                           "old_raw": old_raw, "old_plotted": old_sm, "glorys8": idx_g})
     daily.to_csv(OUT / "daily.csv")
     (OUT / "summary.json").write_text(json.dumps(summary, indent=1, default=str))

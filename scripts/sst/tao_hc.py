@@ -41,8 +41,7 @@ MIN_MOORINGS = 6
 PROFILE_TOP = 25.0          # m: shallowest screened sensor must be at or above this
 PROFILE_BOTTOM = 300.0      # m: a screened sensor must exist at or below this
 PROFILE_MAX_GAP = 150.0     # m: largest allowed vertical gap between screened sensors (0-300 m + next deeper)
-GOOD_Q = set("123")
-GOOD_S = set("1256")
+QSET = (1, 2, 3)            # quality codes kept (see audit: Q4 "lower quality" decision)
 MISSING = -9.99
 
 
@@ -121,33 +120,42 @@ def concat(dss: list[xr.Dataset]) -> xr.Dataset:
 
 
 # ── screening ─────────────────────────────────────────────────────────────────
-def screened_temp(ds: xr.DataArray | xr.Dataset, strict: bool = True) -> xr.DataArray:
-    """Temperature with failed / lower-quality / interpolated values removed (strict=True).
+def screened_temp(ds: xr.DataArray | xr.Dataset, strict: bool = True, qset=QSET) -> xr.DataArray:
+    """Temperature with failed / interpolated values (and quality codes outside qset) removed.
     strict=False returns the raw temperatures (the pre-2026-10-07 behaviour)."""
     t = ds["temp"]
     if not strict:
         return t
-    qok = np.isin(ds["q"].values, [1, 2, 3])
+    qok = np.isin(ds["q"].values, list(qset))
     sok = np.isin(ds["s"].values, [1, 2, 5, 6])
     return t.where(qok & sok)
 
 
-def profile_ok(temp: np.ndarray, depths: np.ndarray) -> bool:
+def profile_reason(temp: np.ndarray, depths: np.ndarray) -> str:
+    """'ok' or why a screened profile cannot give a 0-300 m mean: none / few / bottom / top / gap."""
     m = np.isfinite(temp)
+    if not m.any():
+        return "none"
     if m.sum() < 3:
-        return False
+        return "few"
     d = np.sort(depths[m])
-    if d.min() > PROFILE_TOP or d.max() < PROFILE_BOTTOM:
-        return False
-    d = d[d <= d[np.searchsorted(d, PROFILE_BOTTOM)]] if (d >= PROFILE_BOTTOM).any() else d
-    return bool(np.diff(d).max(initial=0) <= PROFILE_MAX_GAP)
+    if d.max() < PROFILE_BOTTOM:
+        return "bottom"
+    if d.min() > PROFILE_TOP:
+        return "top"
+    d = d[d <= d[np.searchsorted(d, PROFILE_BOTTOM)]]
+    return "ok" if np.diff(d).max(initial=0) <= PROFILE_MAX_GAP else "gap"
 
 
-def mooring_anomaly(ds: xr.Dataset, strict: bool = True, detrend: bool = False):
+def profile_ok(temp: np.ndarray, depths: np.ndarray) -> bool:
+    return profile_reason(temp, depths) == "ok"
+
+
+def mooring_anomaly(ds: xr.Dataset, strict: bool = True, detrend: bool = False, qset=QSET):
     """Per-mooring daily 0-300 m mean anomaly.
 
     Returns (anom DataFrame time x LONS, info dict of DataFrames: nsens, deepest, ok)."""
-    t = screened_temp(ds, strict)
+    t = screened_temp(ds, strict, qset)
     depths = ds.depth.values.astype(float)
     times = pd.to_datetime(ds.time.values)
     lons = [l for l in LONS if l in set(ds.longitude.values.astype(float))]
@@ -155,6 +163,7 @@ def mooring_anomaly(ds: xr.Dataset, strict: bool = True, detrend: bool = False):
     ok = np.zeros((len(times), len(lons)), bool)
     nsens = np.zeros((len(times), len(lons)), int)
     deepest = np.full((len(times), len(lons)), np.nan)
+    reason = np.full((len(times), len(lons)), "none", dtype=object)
     for j, lo in enumerate(lons):
         col = t.sel(longitude=lo).values
         for i in range(len(times)):
@@ -163,7 +172,8 @@ def mooring_anomaly(ds: xr.Dataset, strict: bool = True, detrend: bool = False):
             nsens[i, j] = int((fin & (depths <= 300)).sum())
             if fin.any():
                 deepest[i, j] = depths[fin].max()
-            if strict and not profile_ok(p, depths):
+            reason[i, j] = profile_reason(p, depths)
+            if strict and reason[i, j] != "ok":
                 continue
             g = ss._vinterp(depths, p)
             if np.isfinite(g).any():
@@ -184,7 +194,8 @@ def mooring_anomaly(ds: xr.Dataset, strict: bool = True, detrend: bool = False):
     df = pd.DataFrame(col.values, index=times, columns=lons).reindex(columns=LONS)
     info = {"nsens": pd.DataFrame(nsens, index=times, columns=lons).reindex(columns=LONS),
             "deepest": pd.DataFrame(deepest, index=times, columns=lons).reindex(columns=LONS),
-            "ok": df.notna()}
+            "ok": df.notna(),
+            "reason": pd.DataFrame(reason, index=times, columns=lons).reindex(columns=LONS)}
     return df, info
 
 
