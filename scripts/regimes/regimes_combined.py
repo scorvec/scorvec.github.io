@@ -170,7 +170,7 @@ def main() -> int:
                            + (f"; outline: the {RC.parse_date(prev_issue):%b %-d} issue" if prev else ""),
                   obs=(obs[0], obs[1]) if obs else None,
                   obs_label=f"observed ({obs[2]} analyses)" if obs else "observed",
-                  prev=prev, prev_label=f"previous issue ({RC.parse_date(prev_issue):%b %-d})" if prev else None,
+                  prev=prev, prev_label=f"previous issue, {RC.parse_date(prev_issue):%b %-d} (outline)" if prev else None,
                   models=models, skills=skills, footer=foot, n_label="probability (%)")
         print(f"  regimes_{sk}_combined.webp: " + ", ".join(k for k, _, _ in per)
               + "  " + "  ".join(f"wk{w['w0'] // 7 + 1} " + "/".join(f"{p * 100:.0f}" for p in w["p"])

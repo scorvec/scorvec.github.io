@@ -628,7 +628,8 @@ def fig_section(cen, V, S, levs, last_mls, fp_end, kind, clim_mean, clim_at, tra
     loc = mdates.MonthLocator(bymonth=(1, 4, 7, 10))
     ax.xaxis.set_major_locator(loc); ax.xaxis.set_major_formatter(mdates.ConciseDateFormatter(loc))
     # source strip under the section
-    sx = fig.add_axes([0.065, 0.228, 0.855, 0.014]); sx.set_xlim(te[0], te[-1]); sx.axis("off")
+    # below the date labels (at 0.228 the strip covered them: "Oct", "2024", "Apr" half hidden; 2026-10-08 sweep)
+    sx = fig.add_axes([0.065, 0.205, 0.855, 0.014]); sx.set_xlim(te[0], te[-1]); sx.axis("off")
     colors = {2: NAVY, 1: "#9fb3c8", 3: SIENNA}
     for i, s in enumerate(S):
         if s in colors:
@@ -641,11 +642,11 @@ def fig_section(cen, V, S, levs, last_mls, fp_end, kind, clim_mean, clim_at, tra
     cb.outline.set_visible(False); cb.ax.tick_params(labelsize=8.2, colors=INK)
     cb.ax.xaxis.set_label_position("top")
     cb.set_label("drier ← ppmv → moister", fontsize=9, color=INK, labelpad=3)
-    fig.text(0.065, 0.185, "strip: ", fontsize=8.2, color=MUTED, va="center")
+    fig.text(0.065, 0.176, "strip: ", fontsize=8.2, color=MUTED, va="center")
     for x, s, lab in ((0.098, 2, "Aura MLS measured"), (0.215, 1, "MLS, filled across the radiometer's off weeks"),
                       (0.47, 3, f"GEOS FP on the MLS scale, to {fp_end:%b %-d}")):
-        fig.patches.append(plt.Rectangle((x, 0.179), 0.012, 0.012, transform=fig.transFigure, color=colors[s]))
-        fig.text(x + 0.016, 0.185, lab, fontsize=8.2, color=INK, va="center")
+        fig.patches.append(plt.Rectangle((x, 0.170), 0.012, 0.012, transform=fig.transFigure, color=colors[s]))
+        fig.text(x + 0.016, 0.176, lab, fontsize=8.2, color=INK, va="center")
     _wrap(fig, "Aura MLS v6 (NASA JPL / GES DISC), 10°S–10°N daily means of screened profiles; its 190-GHz radiometer has "
                "run about one week a month since May 2024 and about four days a month since early 2026, so the recent MLS "
                "record is monthly snapshots. GEOS FP (NASA GMAO) does not assimilate stratospheric water vapour; it is used "
@@ -717,7 +718,7 @@ def fig_ascent(levs, clim_w, clim_se, clim_sd, n_years, cur, cur_se, cur_end, fp
     for key, L, lab in (("geosfp_direct_70", 70, "GEOS FP w* from analysed ω*, last 30 days"), ("geosfp_direct_100", 100, None)):
         if key in wref:
             ax.plot(wref[key], L, "*", color="#7a3a1a", ms=10, label=lab, zorder=6)
-    ax.set_yscale("log"); ax.set_ylim(100, 25); ax.minorticks_off()
+    ax.set_yscale("log"); ax.set_ylim(108, 25); ax.minorticks_off()   # 108: the 100 hPa markers sat half under the axis
     ax.set_yticks([100, 70, 50, 40, 30]); ax.set_yticklabels(["100", "70", "50", "40", "30"])
     ax.set_xlim(0, 0.85); ax.set_xlabel("ascent speed, mm/s", fontsize=9.2, color=INK); ax.set_ylabel("hPa", fontsize=9.2, color=INK)
     ax.set_title("profile", loc="left", fontsize=11, fontweight="bold", color=INK)
@@ -739,7 +740,7 @@ def fig_ascent(levs, clim_w, clim_se, clim_sd, n_years, cur, cur_se, cur_end, fp
     from matplotlib.ticker import MaxNLocator
     ax2.xaxis.set_major_locator(MaxNLocator(integer=True))
     ax2.set_title("layer means by year (shading: 2005–2021 mean ± 1 sd)", loc="left", fontsize=11, fontweight="bold", color=INK)
-    ax2.legend(fontsize=8.2, frameon=False, loc="upper left", ncol=1)
+    ax2.legend(fontsize=8.2, frameon=True, framealpha=0.9, edgecolor="none", loc="upper left", ncol=1)   # readable over the lines
     s, h = stats["low"], stats["high"]
     hi_txt = (f"46–26 hPa: {h['clim_mean']:.2f} (±{h['clim_sd']:.2f}); last 12 months {h['current']:.2f} ± "
               f"{1.96 * h['current_se']:.2f}, {'significantly ' + ('faster' if h['z'] > 0 else 'slower') if h['p'] < 0.05 else 'not significantly different'} "

@@ -404,7 +404,7 @@ def change(tag, cycle, base, base_kind="model", only=None, prev=None):
                      fontsize=13.5, fontweight="bold", y=title_y, va="top")
         fig.text(0.5, note_y, f"weekly means over the valid days both cycles forecast "
                  f"(days 1–{common[-1]} of this run); red = this run more positive",
-                 ha="center", va="bottom", fontsize=8.5, color="#8a8680")
+                 ha="center", va="bottom", fontsize=8.5, color="#6f6b64")
         FIGS.mkdir(parents=True, exist_ok=True)
         p = FIGS / f"geps_{key}_{tag}_change.webp"
         fig.savefig(p, dpi=105, facecolor="white",
@@ -503,7 +503,7 @@ def weekly(tag, cycle, base, base_kind="model", only=None, masked=False):
                      fontsize=15, fontweight="bold", y=title_y, va="top")
         if note:
             fig.text(0.5, note_y, note, ha="center",
-                     va="bottom", fontsize=8.5, color="#8a8680")
+                     va="bottom", fontsize=8.5, color="#6f6b64")
         FIGS.mkdir(parents=True, exist_ok=True)
         p = FIGS / f"geps_{key}_{tag}_weekly{'_masked' if mask is not None else ''}.webp"
         fig.savefig(p, dpi=105, facecolor="white",

@@ -23,6 +23,7 @@ both 2000-2019 (data/merra2_u60_10_clim.json).
 """
 from __future__ import annotations
 
+import textwrap
 import argparse
 import datetime as dt
 import json
@@ -529,12 +530,12 @@ def vortex_series(z, C2, base, hemi, prev, tail, out: Path, Dr=None):
         ax.xaxis.set_major_formatter(mdates.DateFormatter("%b %d")); ax.xaxis.set_major_locator(mdates.DayLocator(interval=10))
         ax.grid(alpha=0.25, lw=0.5)
         if pi == 0:
-            ax.legend(fontsize=7.2, ncol=2, loc="upper left", framealpha=0.9)
-    fig.text(0.5, 0.012, "Bias-corrected for the model's drift with lead time: each member minus the GEFSv12 reforecast mean "
+            ax.legend(fontsize=7.2, ncol=2, loc="best", framealpha=0.9)   # "upper left" sat on the rising mean (2026-10-08 sweep)
+    fig.text(0.5, 0.012, textwrap.fill("Bias-corrected for the model's drift with lead time: each member minus the GEFSv12 reforecast mean "
              "(2000–2019, same start date and lead) and minus the drift today's GEFS shows beyond it in recently verified runs, "
              "plus the ERA5 1991–2020 normal on the valid date; the anomaly panels take that normal to the valid year along "
-             "ERA5's linear trend where it is significant. Dotted: the raw model.",
-             ha="center", fontsize=8.3, color="#5c6b73", wrap=True)
+             "ERA5's linear trend where it is significant. Dotted: the raw model.", 190),
+             ha="center", va="bottom", fontsize=8.3, color="#5c6b73", linespacing=1.35)
     fig.suptitle(f"{'Northern' if north else 'Southern'} polar vortex\nGEFS extended ensemble · init {base:%Y-%m-%d} 00Z",
                  fontsize=13, fontweight="bold", y=0.985, va="top")
     p = out / f"gefs_strat_{hemi}_series.webp"

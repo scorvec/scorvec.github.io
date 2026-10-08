@@ -217,7 +217,9 @@ def plot_rmm(
 
     sm = plt.cm.ScalarMappable(cmap=cmap, norm=mcolors.Normalize(vmin=0, vmax=int(lead_days[-1])))
     plt.colorbar(sm, ax=ax, label="Forecast lead day", fraction=0.046, pad=0.02)
-    ax.legend(fontsize=8, loc="upper right")
+    # under the wheel: inside, upper right, it covered the phase-6 label and the Western Pacific octant
+    ax.legend(fontsize=8, loc="upper center", bbox_to_anchor=(0.5, -0.085), ncol=3, frameon=False,
+              columnspacing=1.2, handlelength=1.6)
 
     fig.tight_layout()
 

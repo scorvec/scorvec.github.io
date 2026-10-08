@@ -158,7 +158,9 @@ def main() -> int:
         ncol = max(r["k"] for r in rows) + 1            # no empty columns
         fig = plt.figure(figsize=(3.9 * ncol, 2.95 * len(rows) + 1.3))
         lim = float(np.nanpercentile(np.abs(np.stack([c["mean"] for r in rows for c in r["clusters"]])), 99))
-        levels = np.linspace(-lim, lim, 21)
+        # a nice contour step (10, 15, 20 ... m) so the colour bar reads in round numbers (it showed -138.2, -92.1, 46.1)
+        step = next((s for s in (5, 10, 15, 20, 25, 30, 40, 50, 60, 80, 100) if s * 10 >= lim), 100)
+        levels = np.arange(-10, 11) * step
         for ri, r in enumerate(rows):
             panels = [("ensemble mean", r["ens"], None)] + [
                 (f"scenario {c+1} · {cl['n']} members ({cl['n']/len(r['lab'])*100:.0f}%)", cl["mean"], cl)
@@ -190,15 +192,17 @@ def main() -> int:
                                                zorder=5, lw=0))
                     ax.text(0.5, 0.5, "not distinct", transform=ax.transAxes, ha="center", va="center", fontsize=13,
                             color="#5a5650", alpha=0.8, fontweight="bold", zorder=6)
-        cax = fig.add_axes([0.32, 0.040, 0.36, 0.011])
+        cax = fig.add_axes([0.32, 0.046, 0.36, 0.011])
         cb = fig.colorbar(m, cax=cax, orientation="horizontal"); cb.set_label("500 hPa height anomaly (m)", fontsize=8.5)
         cb.ax.tick_params(labelsize=7.5)
         fig.suptitle(f"{spec['label']} — 500 hPa scenarios: k-means clusters of the 21 members' weekly patterns · "
                      f"GEPS init {base:%Y-%m-%d}", fontsize=12, fontweight="bold", y=0.995, va="top")
-        fig.text(0.5, 0.004, f"k = {KS[0]}–{KS[-1]} tested per week against a null of {N_NULL} random rotations of the "
+        import textwrap                                 # one unwrapped line ran off both edges of the figure
+        fig.text(0.5, 0.004, "\n".join(textwrap.wrap(
+                 f"k = {KS[0]}–{KS[-1]} tested per week against a null of {N_NULL} random rotations of the "
                  f"members (same covariance, no grouping), the largest k beating its {NULL_PCT}th percentile shown; "
                  f"groups closer than ~2 sd cannot be told from a continuum with 21 members; frame colour and "
-                 f"label = nearest weather regime", ha="center", va="bottom", fontsize=7.4, color="#5a5650")
+                 f"label = nearest weather regime", int(ncol * 54))), ha="center", va="bottom", fontsize=7.4, color="#5a5650")
         for d in (FIGS, SITE):
             fig.savefig(d / f"geps_clusters_{sk}.webp", dpi=105, facecolor="white", pil_kwargs={"quality": 88, "method": 6})
         plt.close(fig)

@@ -421,9 +421,13 @@ def render(model, init, leads, Zf, corrected, tail_days, Zt, frac100, out: Path,
     ax2.set_ylabel("sd (high = −AO)", fontsize=10, color=INK)
     ax3 = ax2.twinx()
     ax3.bar(xf, frac100 * 100, width=0.8, color="#8c6d31", alpha=0.35, label="members with 100 hPa cap ≥ +1 sd (%)")
-    ax3.set_ylim(0, 100); ax3.set_ylabel("% of members, 100 hPa ≥ +1 sd", fontsize=9, color="#8c6d31")
+    # headroom for the key (2026-10-08 sweep: it sat on the observed line and under the bars); the key goes on the twin,
+    # the top-most axes, so nothing draws over it
+    lo, hi = ax2.get_ylim(); ax2.set_ylim(lo, hi + 0.3 * (hi - lo))
+    ax3.set_ylim(0, 130); ax3.set_yticks([0, 20, 40, 60, 80, 100])
+    ax3.set_ylabel("% of members, 100 hPa ≥ +1 sd", fontsize=9, color="#8c6d31")
     h1, l1 = ax2.get_legend_handles_labels(); h2, l2 = ax3.get_legend_handles_labels()
-    ax2.legend(h1 + h2, l1 + l2, fontsize=8.3, frameon=False, ncol=4, loc="upper left")
+    ax3.legend(h1 + h2, l1 + l2, fontsize=8.3, frameon=True, framealpha=0.9, edgecolor="none", ncol=4, loc="upper left")
     ax2.set_title("Near the surface: the 1000 hPa polar cap (an Arctic Oscillation proxy) and the lower stratosphere's weak-vortex share",
                   loc="left", fontsize=10.2, fontweight="bold", color=INK)
     for a in (ax, ax2):

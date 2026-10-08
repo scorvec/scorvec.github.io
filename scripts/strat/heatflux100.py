@@ -175,7 +175,7 @@ def render(hemi, north, valid, mem, ctrl, lat, hov, obs, clim, init, n_mem, out,
     ax.axvline(init, color="#9aa3ad", lw=0.9, ls=":"); ax.axhline(0, color="#9aa3ad", lw=0.7)
     ax.set_ylabel("[v′T′], K m s⁻¹", fontsize=10, color=INK)
     ax.set_title("Daily flux, all waves", loc="left", fontsize=11.5, fontweight="bold", color=INK)
-    ax.legend(fontsize=8.5, frameon=False, ncol=3, loc="upper left")
+    ax.legend(fontsize=8.5, frameon=True, framealpha=0.85, edgecolor="none", ncol=3, loc="upper left")
 
     # B: wave-1 and wave-2
     ax = fig.add_subplot(gs[0, 1]); style(ax)
@@ -189,7 +189,7 @@ def render(hemi, north, valid, mem, ctrl, lat, hov, obs, clim, init, n_mem, out,
             ax.plot(span[-(len(valid) + 21):], clim_at(clim, hemi, key, "mean", span[-(len(valid) + 21):]), color=col, lw=1.2, ls="--", label=f"{nm} climatology")
     ax.axvline(init, color="#9aa3ad", lw=0.9, ls=":"); ax.axhline(0, color="#9aa3ad", lw=0.7)
     ax.set_title("By zonal wavenumber", loc="left", fontsize=11.5, fontweight="bold", color=INK)
-    ax.legend(fontsize=8.5, frameon=False, loc="upper left")
+    ax.legend(fontsize=8.5, frameon=True, framealpha=0.85, edgecolor="none", loc="upper left")   # the analysed lines ran through it
 
     # C: trailing 40-day mean as a standardised anomaly (needs the observed tail)
     ax = fig.add_subplot(gs[1, 0]); style(ax)

@@ -29,6 +29,7 @@ polar-cap mean), and the grid-induced difference is far below the signal.
 """
 from __future__ import annotations
 
+import textwrap
 import argparse
 import sys
 from pathlib import Path
@@ -374,16 +375,16 @@ def main() -> int:
         ax.xaxis.set_major_locator(mdates.DayLocator(interval=10))
         ax.grid(alpha=0.25, lw=0.5)
         if pi == 0:
-            ax.legend(fontsize=7.2, ncol=2, loc="upper left", framealpha=0.9)
+            ax.legend(fontsize=7.2, ncol=2, loc="best", framealpha=0.9)   # "upper left" sat on the rising mean (2026-10-08 sweep)
         print(f"  {title.format(h='N' if north else 'S'):38s} "
               f"day35 mean {M.mean(1)[-1]:+8.2f} {unit}  "
               f"(p10 {np.percentile(M,10,1)[-1]:+.2f} p90 {np.percentile(M,90,1)[-1]:+.2f})",
               flush=True)
     if north and bias_table():
-        fig.text(0.5, 0.012, "Bias-corrected for the model's drift with lead time: GEPS reforecasts 2001–2020 (ECCC, via the "
+        fig.text(0.5, 0.012, textwrap.fill("Bias-corrected for the model's drift with lead time: GEPS reforecasts 2001–2020 (ECCC, via the "
                  "ECMWF S2S archive) minus MERRA-2 on the same dates, by start date and lead. Polar-cap height is not "
-                 "corrected. Bands and mean are after correction; the dotted line is the raw model.",
-                 ha="center", fontsize=8.3, color="#5c6b73", wrap=True)
+                 "corrected. Bands and mean are after correction; the dotted line is the raw model.", 190),
+             ha="center", va="bottom", fontsize=8.3, color="#5c6b73", linespacing=1.35)
     fig.suptitle(f"{'Northern' if north else 'Southern'} polar vortex\n"
                  f"GEPS extended ensemble · init {base:%Y-%m-%d %H}Z",
                  fontsize=13, fontweight="bold", y=0.985, va="top")

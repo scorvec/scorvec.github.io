@@ -66,6 +66,14 @@ def fig_header(fig, title, sub, x=0.045, y=None):
     return y - (0.36 + 0.19 * len(lines)) / H
 
 
+def cell_ink(v, lim, cmap="RdBu_r"):
+    """Text colour for a value printed on its own RdBu_r cell: white on dark cells, ink on light ones, chosen by the cell's
+    luminance (2026-10-08 sweep: a fixed |v| threshold left dark ink on mid-blue cells, ~4:1)."""
+    r, g, b_, _ = plt.get_cmap(cmap)((np.clip(v, -lim, lim) + lim) / (2 * lim))
+    lum = sum(w * (c / 12.92 if c <= 0.03928 else ((c + 0.055) / 1.055) ** 2.4) for w, c in zip((0.2126, 0.7152, 0.0722), (r, g, b_)))
+    return "white" if lum < 0.33 else INK
+
+
 def save(fig, out: Path):
     out.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(out, format="webp", pil_kwargs={"quality": 88})
@@ -215,7 +223,8 @@ def gallery(D, E, out):
         ax.set_title(f"{lab}\n{sub}", fontsize=8.6, color=INK if not e.get("marginal") else MUTED, pad=2, linespacing=1.15)
     cax = fig.add_axes([0.3, 0.018, 0.4, 0.012])
     cb = fig.colorbar(plt.cm.ScalarMappable(norm=norm, cmap=cmap), cax=cax, orientation="horizontal")
-    cb.set_ticks(lev[::2]); cb.ax.tick_params(labelsize=8); cb.set_label("10 hPa height, km", fontsize=8.5, color=INK)
+    # the label above the bar: below it, it fell off the bottom of the figure (2026-10-08 sweep: no units shown)
+    cb.set_ticks(lev[::2]); cb.ax.tick_params(labelsize=8); cb.ax.set_title("10 hPa height, km", fontsize=8.5, color=INK, pad=3)
     save(fig, out)
 
 
@@ -585,10 +594,10 @@ def regions_figure(E, out):
                 v = cells[(w, r, s_)]
                 if sig[(w, r, s_)]:
                     ax.text(j, i, f"{v.mean():+.1f} K\n{100 * np.mean(v < 0):.0f}% cold", ha="center", va="center", fontsize=8.8,
-                            color="white" if abs(v.mean()) > 1.3 else INK, linespacing=1.2, fontweight="bold")
+                            color=cell_ink(v.mean(), 2.0), linespacing=1.2, fontweight="bold")
                 else:
-                    ax.text(j, i, "n.s.", ha="center", va="center", fontsize=8.5, color="#8a8f96")
-        ax.set_xticks(range(len(S))); ax.set_xticklabels([f"{SET_SHORT[s_]}\n(n={E['sets'][s_]})" for s_ in S], fontsize=8.6)
+                    ax.text(j, i, "n.s.", ha="center", va="center", fontsize=8.5, color="#6f6b64")
+        ax.set_xticks(range(len(S))); ax.set_xticklabels([f"{SET_SHORT[s_]}\n(n={E['sets'][s_]})" for s_ in S], fontsize=7.8)   # 8.6: "Displacements" ran into "Strong vortex"
         ax.xaxis.tick_top()
         ax.set_yticks(range(len(R)))
         ax.set_yticklabels([f"{r}\n{E['region_base_pcold'][f'{w}|{r}'] * 100:.0f}% normally" for r in R] if k == 0 else [], fontsize=8.8)
@@ -802,11 +811,11 @@ def regions_cmip6(F, out):
                     v = float(np.nanmean(F.ix_mean.sel(set=s_, window=w, index=f"reg_{r}").values))
                     pc = 100 * float(np.nanmean(F.ix_pneg.sel(set=s_, window=w, index=f"reg_{r}").values))
                     ax.text(j, i, f"{v:+.2f} K\n{pc:.0f}% cold", ha="center", va="center", fontsize=8.8,
-                            color="white" if abs(v) > 0.8 else INK, linespacing=1.2, fontweight="bold")
+                            color=cell_ink(v, 1.2), linespacing=1.2, fontweight="bold")
                 else:
-                    ax.text(j, i, "n.s.", ha="center", va="center", fontsize=8.5, color="#8a8f96")
+                    ax.text(j, i, "n.s.", ha="center", va="center", fontsize=8.5, color="#6f6b64")
         ax.set_xticks(range(len(F_SETS)))
-        ax.set_xticklabels([f"{SET_SHORT[s_]}\n(n={int(F.n.sel(set=s_).sum()):,})" for s_ in F_SETS], fontsize=8.6)
+        ax.set_xticklabels([f"{SET_SHORT[s_]}\n(n={int(F.n.sel(set=s_).sum()):,})" for s_ in F_SETS], fontsize=7.8)
         ax.xaxis.tick_top()
         ax.set_yticks(range(len(R)))
         ax.set_yticklabels([f"{r}\n{100 * float(np.nanmean(F.ix_base_pneg.sel(window=w, index=f'reg_{r}').values)):.0f}% normally"
