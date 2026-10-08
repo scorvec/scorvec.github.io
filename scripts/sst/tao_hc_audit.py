@@ -121,7 +121,7 @@ def pmel_monthly():
     return pd.DataFrame(out)
 
 
-def glorys_series():
+def glorys_series(fetch: bool = False):
     """Daily 0-300 m mean T (absolute) at each mooring, 0.25S-0.25N, from my/myint/anfc."""
     import copernicusmarine as cm
     CACHE.mkdir(parents=True, exist_ok=True)
@@ -132,7 +132,9 @@ def glorys_series():
             glon = lo if lo < 180 else lo - 360          # GLORYS -180..180
             fn = f"gl_{tag}_{int(lo)}.nc"
             p = CACHE / fn
-            if not p.exists() or tag == "anfc":
+            if fetch and (not p.exists() or tag == "anfc"):
+                import time as _t
+                t0 = _t.time()
                 kw = dict(dataset_id=dsid, variables=[var], minimum_longitude=glon, maximum_longitude=glon,
                           minimum_latitude=-0.25, maximum_latitude=0.25, minimum_depth=0, maximum_depth=330,
                           output_filename=fn, output_directory=str(CACHE), overwrite=True,
@@ -140,10 +142,13 @@ def glorys_series():
                 if tag == "anfc":
                     kw.update(start_datetime="2022-01-01", end_datetime=NOW.strftime("%Y-%m-%d"))
                 try:
-                    cm.subset(**kw)
+                    cm.subset(service="arco-time-series", disable_progress_bar=True, **kw)
                 except Exception as e:  # noqa: BLE001
                     log(f"GLORYS {tag} {lo} failed: {e}")
                     continue
+                log(f"  fetched {fn} in {_t.time() - t0:.0f} s")
+            if not p.exists():
+                continue
             d = xr.open_dataset(p)[var]
             d = d.mean([c for c in ("latitude", "longitude") if c in d.dims])
             dep = d.depth.values.astype(float)
@@ -336,6 +341,8 @@ def main() -> int:
     summary["cpc_header"] = cpc_hdr
     pm = pmel_monthly()
     try:
+        if os.environ.get("AUDIT_GLORYS", "1") == "0":
+            raise RuntimeError("GLORYS disabled for this pass (AUDIT_GLORYS=0)")
         gl = glorys_series()
         g_anom, g_coeffs = glorys_anomaly(gl)
         np.savez(OUT / "glorys_clim_coeffs.npz", lons=np.array(list(g_coeffs)),
@@ -501,4 +508,7 @@ def main() -> int:
 
 
 if __name__ == "__main__":
+    if "--glorys-fetch" in sys.argv:
+        glorys_series(fetch=True)
+        sys.exit(0)
     sys.exit(main())

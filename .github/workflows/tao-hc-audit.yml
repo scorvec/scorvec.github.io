@@ -40,11 +40,23 @@ jobs:
             hc-audit-cache-v1-
       - name: Install
         run: pip install -r scripts/sst/requirements-sst.txt
-      - name: Audit
+      - name: Audit pass 1 (TAO + CPC/PMEL, no GLORYS)
         working-directory: scripts/sst
+        timeout-minutes: 45
+        env:
+          AUDIT_GLORYS: '0'
+        run: python tao_hc_audit.py 2>&1 | tee "$AUDIT_OUT.pass1.log"; exit ${PIPESTATUS[0]}
+      - name: Fetch GLORYS12 at the 8 moorings
+        working-directory: scripts/sst
+        timeout-minutes: 70
+        continue-on-error: true
         env:
           COPERNICUSMARINE_SERVICE_USERNAME: ${{ secrets.COPERNICUSMARINE_SERVICE_USERNAME }}
           COPERNICUSMARINE_SERVICE_PASSWORD: ${{ secrets.COPERNICUSMARINE_SERVICE_PASSWORD }}
+        run: python tao_hc_audit.py --glorys-fetch 2>&1 | tee "$AUDIT_OUT.glorys.log"; exit ${PIPESTATUS[0]}
+      - name: Audit pass 2 (with GLORYS)
+        working-directory: scripts/sst
+        timeout-minutes: 45
         run: python tao_hc_audit.py 2>&1 | tee "$AUDIT_OUT.log"; exit ${PIPESTATUS[0]}
       - name: Upload
         if: always()
@@ -53,4 +65,4 @@ jobs:
           name: hc-audit
           path: |
             hc_audit/
-            hc_audit.log
+            hc_audit*.log
