@@ -51,18 +51,31 @@ SRC = REPO / "qbo" / "qbo.json"
 CMAP = "RdBu_r"
 SECTION_YEARS = 14
 
-# The QBO page is a dark design (--bg #0b0b12, --panel #11111c). Figures on a
-# white ground would sit on it like pasted-in screenshots, so they are rendered
-# in the page's own palette instead.
-BG, PANEL, INK, MUTED, RULE, ACCENT = (
-    "#0b0b12", "#11111c", "#e8e8f0", "#8b8ba3", "#23233a", "#64d2ff")
+# The figures sit on the stratosphere hub (stratosphere.html#qbo since
+# 2026-10-08), a light page, so they use the hub's figure style (bdc_dc.py,
+# momentum_budget.py, qbo_zeroline.py): white ground, ink #1c2430, muted text
+# #6f6b64 (>= 4.5:1 on white), light gridlines, open top/right spines, bold
+# left-aligned title over a muted subtitle. Westerly red / easterly blue are the
+# hub's station-table colours. (Until 2026-10-08 they were drawn dark for the
+# old /qbo/ page.)
+INK, MUTED, GRID, SPINE = "#1c2430", "#6f6b64", "#d9dde2", "#9aa1a9"
+WEST, EAST, NAVY = "#a33a26", "#2b5f8a", "#24466e"
+MISSING = "#bfc4ca"          # no RdBu_r colour is a mid grey, so a hole cannot read as u = 0
 plt.rcParams.update({
-    "figure.facecolor": PANEL, "savefig.facecolor": PANEL,
-    "axes.facecolor": BG, "axes.edgecolor": RULE, "axes.labelcolor": INK,
-    "text.color": INK, "xtick.color": MUTED, "ytick.color": MUTED,
-    "grid.color": RULE, "legend.facecolor": PANEL, "legend.edgecolor": RULE,
+    "figure.facecolor": "white", "savefig.facecolor": "white",
+    "axes.facecolor": "white", "axes.edgecolor": SPINE, "axes.labelcolor": INK,
+    "text.color": INK, "xtick.color": INK, "ytick.color": INK,
+    "grid.color": GRID, "legend.frameon": False,
     "font.size": 10,
 })
+
+
+def style(ax):
+    for s in ("top", "right"):
+        ax.spines[s].set_visible(False)
+    for s in ("left", "bottom"):
+        ax.spines[s].set_color(SPINE)
+    ax.tick_params(colors=INK, labelsize=9.5, length=3)
 
 
 def load():
@@ -104,13 +117,12 @@ def section(lv, mo, U, out_path):
     levels = np.arange(-lim, lim + 0.01, 2.5)
     cf = ax.contourf(x, lv, Us, levels=levels, cmap=CMAP, extend="both",
                      norm=TwoSlopeNorm(0, -lim, lim))
-    # The zero line IS the QBO: its slope is the descent rate. Drawn BLACK, not
-    # in the page's ink colour: u = 0 falls where RdBu_r is at its palest, so a
-    # near-white line there is invisible however dark the rest of the figure is.
-    ax.contour(x, lv, Us, levels=[0], colors="#000000", linewidths=1.7)
-    # Missing months must not inherit the near-black axes colour - on a diverging
-    # scale that reads as an extreme value rather than as absent data.
-    ax.set_facecolor("#39394d")
+    # The zero line IS the QBO: its slope is the descent rate. Dark ink: u = 0
+    # falls where RdBu_r is at its palest.
+    ax.contour(x, lv, Us, levels=[0], colors=INK, linewidths=1.7)
+    # Missing months must not show the white axes ground - on a diverging scale
+    # that reads as u = 0 rather than as absent data.
+    ax.set_facecolor(MISSING)
     ax.set_yscale("log")
     ax.set_ylim(lv.max(), lv.min())
     ax.set_yticks(lv); ax.set_yticklabels([f"{int(v)}" for v in lv])
@@ -121,14 +133,17 @@ def section(lv, mo, U, out_path):
     ticks = [i for i, m in enumerate(mos) if m.month == 1]
     ax.set_xticks(ticks); ax.set_xticklabels([str(mos[i].year) for i in ticks])
     ax.set_xlim(0, len(mos) - 1)
-    ax.grid(axis="x", color=RULE, alpha=0.6, lw=0.6)
+    ax.grid(axis="x", color="white", alpha=0.55, lw=0.6)
+    style(ax)
     cb = fig.colorbar(cf, ax=ax, pad=0.012, fraction=0.028, extend="both")
-    cb.set_label("zonal wind (m s$^{-1}$)   —  westerly +, easterly −", fontsize=9)
+    cb.outline.set_edgecolor(SPINE)
+    cb.ax.tick_params(colors=INK, labelsize=9)
+    cb.set_label("zonal wind (m s$^{-1}$)   —  westerly +, easterly −", fontsize=9.5, color=INK)
     fig.suptitle("Quasi-Biennial Oscillation — tropical mean zonal wind",
-                 fontsize=14, fontweight="bold", x=0.052, ha="left", y=0.965)
+                 fontsize=15, fontweight="bold", color=INK, x=0.052, ha="left", y=0.965)
     fig.text(0.052, 0.895, f"{mos[0]} to {mos[-1]} · IGRA radiosondes · black contour "
              f"u = 0, and its downward slope IS the QBO descent — a flat stretch is a "
-             f"stalled shear zone", fontsize=9, color=MUTED, ha="left")
+             f"stalled shear zone", fontsize=9.6, color=MUTED, ha="left")
     fig.text(0.052, 0.028, "Flat grey is missing data — months with no usable "
              "sounding at that level. Only holes of up to three months are "
              "interpolated; anything longer stays a hole.",
@@ -166,28 +181,31 @@ def phase(lv, mo, U, out_path):
     mo_ok = mo[ok]
     fig, ax = plt.subplots(figsize=(8.4, 8.6), dpi=125)
     fig.subplots_adjust(left=0.095, right=0.855, top=0.845, bottom=0.135)
-    ax.plot(pcs[0], pcs[1], color="#33334d", lw=0.5, zorder=1)
+    ax.plot(pcs[0], pcs[1], color="#c3c8ce", lw=0.6, zorder=1)
     n = 36
     seg = slice(len(mo_ok) - n, len(mo_ok))
     x, y = pcs[0][seg], pcs[1][seg]
-    pts = ax.scatter(x, y, c=np.arange(n), cmap="viridis", s=26, zorder=3,
-                     edgecolor=PANEL, linewidth=0.4)
-    ax.plot(x, y, color="#7a7a96", lw=1.0, alpha=0.8, zorder=2)
-    ax.scatter([x[-1]], [y[-1]], s=190, facecolor="#ff5a5f", edgecolor=INK,
+    # viridis on white: its bright yellow end (the newest months) needs a thin
+    # dark edge to hold its shape against the ground.
+    pts = ax.scatter(x, y, c=np.arange(n), cmap="viridis", s=28, zorder=3,
+                     edgecolor="#59636f", linewidth=0.5)
+    ax.plot(x, y, color=SPINE, lw=1.0, alpha=0.9, zorder=2)
+    ax.scatter([x[-1]], [y[-1]], s=190, facecolor="#d9402a", edgecolor=INK,
                linewidth=1.4, zorder=5)
     ax.annotate(f"{mo_ok[-1]}", (x[-1], y[-1]), textcoords="offset points",
-                xytext=(12, 8), fontsize=11, fontweight="bold", color="#ff5a5f")
+                xytext=(12, 8), fontsize=11, fontweight="bold", color=WEST)
     r = float(np.nanmax(np.hypot(pcs[0], pcs[1]))) * 1.05
-    ax.add_artist(plt.Circle((0, 0), r * 0.55, fill=False, color=RULE, ls=":", lw=1.1))
-    ax.axhline(0, color=RULE, lw=1.0); ax.axvline(0, color=RULE, lw=1.0)
+    ax.add_artist(plt.Circle((0, 0), r * 0.55, fill=False, color=SPINE, ls=":", lw=1.1))
+    ax.axhline(0, color=SPINE, lw=0.9); ax.axvline(0, color=SPINE, lw=0.9)
+    style(ax)
     ax.set_xlim(-r, r); ax.set_ylim(-r, r); ax.set_aspect("equal")
     ax.set_xlabel(f"EOF 1  ({100*var[0]:.0f}% of variance)")
     ax.set_ylabel(f"EOF 2  ({100*var[1]:.0f}%)")
     fig.suptitle("QBO phase space — where the cycle is now",
-                 fontsize=14, fontweight="bold", x=0.095, ha="left", y=0.965)
+                 fontsize=15, fontweight="bold", color=INK, x=0.095, ha="left", y=0.965)
     fig.text(0.095, 0.905, f"grey: every month since {mo_ok[0]} · coloured: the last "
              f"{n} months, dark to bright · red: {mo_ok[-1]}",
-             fontsize=9, color=MUTED, ha="left")
+             fontsize=9.6, color=MUTED, ha="left")
     fig.text(0.095, 0.062, "A full QBO cycle is one loop around the origin, and the "
              "radius is the strength of the oscillation.", fontsize=8.5, color=MUTED)
     fig.text(0.095, 0.032, "A loop that shrinks toward the centre without closing is a "
@@ -195,7 +213,8 @@ def phase(lv, mo, U, out_path):
              fontsize=8.5, color=MUTED)
     cb = fig.colorbar(pts, ax=ax, fraction=0.035, pad=0.02)
     cb.set_ticks([0, n - 1]); cb.set_ticklabels([str(mo_ok[seg][0]), str(mo_ok[-1])])
-    cb.ax.tick_params(labelsize=8)
+    cb.ax.tick_params(labelsize=8.5, colors=INK)
+    cb.outline.set_edgecolor(SPINE)
     fig.savefig(out_path, pil_kwargs={"quality": 90, "method": 6})
     plt.close(fig)
     return out_path
@@ -256,8 +275,8 @@ def descent(lv, mo, U, out_path):
                                    gridspec_kw=dict(height_ratios=[2, 1], hspace=0.30))
     fig.subplots_adjust(left=0.062, right=0.975, top=0.845, bottom=0.135)
     rates = {"W": [], "E": []}
-    for kind, col, lab in (("W", "#ff5a5f", "westerly onset"),
-                           ("E", ACCENT, "easterly onset")):
+    for kind, col, lab in (("W", WEST, "westerly onset"),
+                           ("E", EAST, "easterly onset")):
         first = True
         for path in onset_paths(lv, Us, kind):
             xs = [p[1] for p in path]; ys = [lv[p[0]] for p in path]
@@ -273,23 +292,26 @@ def descent(lv, mo, U, out_path):
     ax1.set_ylabel("pressure (hPa)")
     ticks = [i for i, m in enumerate(mos) if m.month == 1]
     ax1.set_xticks(ticks); ax1.set_xticklabels([str(mos[i].year) for i in ticks])
-    ax1.set_xlim(0, len(mos) - 1); ax1.grid(alpha=0.25)
-    ax1.legend(fontsize=9, loc="upper right", framealpha=0.95, ncol=2, labelcolor=INK)
+    ax1.set_xlim(0, len(mos) - 1); ax1.grid(color=GRID, lw=0.6); ax1.set_axisbelow(True)
+    style(ax1)
+    ax1.legend(fontsize=9, loc="lower left", bbox_to_anchor=(0.0, 1.0), ncol=2,
+               borderaxespad=0.2, labelcolor=INK)
     allr = [r for v in rates.values() for r in v if np.isfinite(r)]
-    ax2.hist(allr, bins=np.arange(0, 2.01, 0.1), color="#3f6d8f", edgecolor=ACCENT)
+    ax2.hist(allr, bins=np.arange(0, 2.01, 0.1), color="#8fa9c4", edgecolor="white", lw=0.8)
     if allr:
         med = float(np.median(allr))
-        ax2.axvline(med, color="#ff5a5f", lw=1.8)
+        ax2.axvline(med, color=NAVY, lw=1.8)
         ax2.text(med, ax2.get_ylim()[1] * 0.92, f"  median {med:.2f} km/month",
-                 color="#ff5a5f", fontsize=9, va="top")
+                 color=NAVY, fontsize=9.5, va="top")
     ax2.set_xlabel("descent rate of a single onset, km per month")
     ax2.set_ylabel("count")
-    ax2.grid(alpha=0.25)
+    ax2.grid(axis="y", color=GRID, lw=0.6); ax2.set_axisbelow(True)
+    style(ax2)
     fig.suptitle("How the QBO descends — every regime onset, tracked level by level",
-                 fontsize=14, fontweight="bold", x=0.062, ha="left", y=0.965)
+                 fontsize=15, fontweight="bold", color=INK, x=0.062, ha="left", y=0.965)
     fig.text(0.062, 0.895, "each line follows ONE onset as it arrives at each level "
              "below; the slope is the descent rate",
-             fontsize=9, color=MUTED, ha="left")
+             fontsize=9.6, color=MUTED, ha="left")
     fig.text(0.062, 0.035, "A shallow line is a fast descent, a steep one is a slow "
              "one, and a line that stops before reaching 50-70 hPa is an onset that "
              "never made it down — the signature of a disrupted cycle.",
@@ -314,23 +336,25 @@ def cycles(lv, mo, U, out_path):
         if not (18 <= len(seg) <= 42):
             continue
         lens.append(len(seg))
-        ax.plot(np.arange(len(seg)), seg, color="#3d3d59", lw=1.0, zorder=1)
+        ax.plot(np.arange(len(seg)), seg, color="#b5bcc4", lw=1.0, zorder=1)
     cur = u30[onsets[-1]:]
-    ax.plot(np.arange(len(cur)), cur, color="#ff5a5f", lw=2.6, zorder=4,
+    ax.plot(np.arange(len(cur)), cur, color=WEST, lw=2.6, zorder=4,
             label=f"current cycle — {mo[onsets[-1]]} onward, {len(cur)} months so far")
-    ax.axhline(0, color=MUTED, lw=1.0)
+    ax.axhline(0, color=SPINE, lw=0.9)
     if lens:
-        ax.axvline(np.median(lens), color=ACCENT, ls="--", lw=1.4,
+        ax.axvline(np.median(lens), color=NAVY, ls="--", lw=1.4,
                    label=f"median cycle length {np.median(lens):.0f} months "
                          f"({len(lens)} cycles)")
     ax.set_xlabel("months since the 30 hPa westerly onset")
     ax.set_ylabel("30 hPa zonal wind (m s$^{-1}$)")
     fig.suptitle("This cycle against every cycle in the record",
-                 fontsize=14, fontweight="bold", x=0.068, ha="left", y=0.965)
+                 fontsize=15, fontweight="bold", color=INK, x=0.068, ha="left", y=0.965)
     fig.text(0.068, 0.885, "each grey line is one QBO cycle, aligned on the month the "
-             "30 hPa wind turned westerly", fontsize=9, color=MUTED, ha="left")
-    ax.legend(fontsize=9, loc="lower right", framealpha=0.95, labelcolor=INK)
-    ax.grid(alpha=0.25)
+             "30 hPa wind turned westerly", fontsize=9.6, color=MUTED, ha="left")
+    ax.legend(fontsize=9, loc="lower right", bbox_to_anchor=(1.0, 1.0), ncol=2,
+              borderaxespad=0.2, labelcolor=INK)
+    ax.grid(color=GRID, lw=0.6); ax.set_axisbelow(True)
+    style(ax)
     fig.savefig(out_path, pil_kwargs={"quality": 90, "method": 6})
     plt.close(fig)
     return out_path
