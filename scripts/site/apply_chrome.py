@@ -49,7 +49,7 @@ PRODUCTS = [
              "Where HRRR, RRFS and RDPS set up mesoscale snow bands: 700 hPa frontogenesis and deformation, EPV* and slantwise instability, lift through the dendritic growth zone, the model's own bands and where the ingredients overlap. November to mid-April, with case studies against the radar.",
              "Every run in season"),
             ("/ar.html", "Atmospheric rivers",
-             "Integrated vapour transport from the 51-member AIFS ensemble: probability of AR conditions at each 12-hourly step, a West Coast landfall tool and Ralph-scale category odds at named locations.",
+             "Integrated vapour transport maps to day 7 from AIFS, IFS, GFS and GDPS; West Coast landfall and AR-scale ranks; AR probabilities to day 15 from four ensembles and their blend; GEFS weeks 3–5 AR-frequency anomalies where significant.",
              "Twice daily"),
         ]),
         ("Upper air", [
@@ -89,6 +89,9 @@ PRODUCTS = [
             ("/circulation.html#tcphase", "Cyclone phase space",
              "Hart's diagrams: whether each storm is still a warm-core tropical cyclone or turning into a cold-core extratropical low, and when.",
              "Daily"),
+            ("/circulation.html#tcshear", "Shear and environment",
+             "Each storm's full environmental wind profile with the storm removed: layer and generalized shear, vortex tilt against the shear and the radar, the ventilation index and the trough causing the shear, across 51 ensemble members and four models.",
+             "Every 6 hours with a storm"),
             ("/recon.html", "Hurricane reconnaissance",
              "Atlantic hurricane hunter flights decoded and mapped: the track by SFMR or flight-level wind, dropsonde skew-Ts, vortex fixes, best track and forecast, with the aircraft's quality flags respected.",
              "Live during flights"),
@@ -186,7 +189,7 @@ PRODUCTS = [
          "Every US county and calendar month since 1895: temperature, precipitation and degree-day trends per decade with significance, the 1991–2020 normal and what normal is now.",
          "Monthly"),
         ("/fci.html", "US credit conditions",
-         "How tight credit is in the US, weekly since 1990: corporate bond spreads, commercial paper, bank business lending and the loan officer survey, mortgage rates, the fed funds rate and the yield curve, with sub-indices for companies, mortgages and policy.",
+         "How tight credit is in the US, weekly since 1990: corporate bond spreads, commercial paper, bank lending and the loan officer survey, mortgage rates, the fed funds rate, the yield curve, stocks and the dollar, with sub-indices for companies, mortgages, rates, markets, liquidity and private credit.",
          "Daily"),
     ]),
 ]

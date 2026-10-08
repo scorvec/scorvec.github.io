@@ -5,15 +5,17 @@ name: Recon mirror
 # recon.html (nhc.noaa.gov sends no CORS header, so the page cannot read it directly).
 # scripts/recon/recon_mirror.py: one ~2 KB directory listing tells whether anything changed; an unchanged
 # archive exits in a second and pushes nothing. New files only are fetched (filtered listings of the last
-# day or two). While a mission is airborne the run polls once more ~7 min later, so the mirror is about
-# 8-15 min behind NHC during flights. Each push is ONE parentless commit (no history growth, no Pages
+# day or two). While a mission is airborne the run stays up and polls every 2 min for up to 50 min (live loop),
+# so the mirror trails NHC by ~2 min during flights. Each push is ONE parentless commit (no history growth, no Pages
 # build), seeded with the previous tip so only new blobs go up.
 #
 # Triggers: the laptop dispatcher (scripts/lib/dispatch_workflows.sh, every 15 min); the cron below is
 # only the in-season backstop for when the laptop is off (Actions honours few crons in this repo).
 # Off-season (Dec-May) with no Atlantic storm the script checks NHC at most every 2 h.
 # Backfill (dispatch only): `gh workflow run recon.yml -f backfill="2024 AL14"` mirrors every mission of one
-# past storm and pins it (kept when the season's missions are pruned).
+# past storm and pins it (kept when the season's missions are pruned); the same run backfills its TDR graphics.
+# TDR: scripts/recon/tdr_mirror.py mirrors NOAA AOML HRD real-time tail Doppler radar graphics (RTradar) for the
+# NOAA P-3/G-IV missions in the manifest to the `tdr-data` branch (images as lossless WebP).
 
 on:
   schedule:
@@ -28,6 +30,11 @@ on:
         description: 'Live run: list this many days back (catch-up after an outage; empty = since the last run)'
         required: false
         default: ''
+      images_only:
+        description: 'With backfill: only the TDR + satellite images of that storm (its HDOBs are already mirrored)'
+        type: boolean
+        required: false
+        default: false
       reset:
         description: 'Rebuild from scratch (drops everything held, incl. backfilled storms; use with days)'
         type: boolean
@@ -44,7 +51,7 @@ concurrency:
 jobs:
   mirror:
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 75
     steps:
       - uses: actions/checkout@v7
         with:
@@ -61,12 +68,13 @@ jobs:
         id: m1
         env:
           BACKFILL: ${{ inputs.backfill }}
+          IMAGES_ONLY: ${{ inputs.images_only }}
           DAYS: ${{ inputs.days }}
           RESET: ${{ inputs.reset }}
         run: |
           args=()
           [ "$RESET" = "true" ] && args+=(--reset)
-          [ -n "$BACKFILL" ] && args+=(--backfill "$BACKFILL")
+          if [ -n "$BACKFILL" ] && [ "$IMAGES_ONLY" != "true" ]; then args+=(--backfill "$BACKFILL"); fi
           [ -n "$DAYS" ] && args+=(--days "$DAYS")
           python3 scripts/recon/recon_mirror.py /tmp/recon-data --prev prev-data "${args[@]}"
 
@@ -76,15 +84,61 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Second pass (a mission is airborne)
-        id: m2
-        if: steps.m1.outputs.airborne == 'true' && inputs.backfill == ''
+      # NOAA P-3 / G-IV tail Doppler radar graphics (AOML HRD, real time) -> tdr-data branch, matched to the missions
+      # above. Separate branch and a blob-less clone: a run downloads no images, and pushes only new ones.
+      - name: Tail Doppler radar
+        id: tdr
+        continue-on-error: true      # a TDR failure must never hold up the HDOB mirror
+        env:
+          BACKFILL: ${{ inputs.backfill }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          sleep 420
-          python3 scripts/recon/recon_mirror.py /tmp/recon-data
+          args=()
+          [ -n "$BACKFILL" ] && args+=(--backfill "$BACKFILL")
+          python3 scripts/recon/tdr_mirror.py --manifest /tmp/recon-data "${args[@]}"
 
-      - name: Push data branch (second pass)
-        if: steps.m2.outputs.changed == 'true'
-        run: bash scripts/recon/push_data.sh /tmp/recon-data "$GITHUB_WORKSPACE/prev-data"
+      # GOES-East band-13 infrared cut-outs at each centre pass -> tdr-data (sat/), shown under the track on the page
+      - name: Satellite under the track
+        continue-on-error: true
+        env:
+          BACKFILL: ${{ inputs.backfill }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          args=()
+          if [ -n "$BACKFILL" ]; then
+            set -- $BACKFILL; s=$2; [[ $s =~ ^AL[0-9]{2}$ ]] && s="$s$1"
+            args+=(--storm "$s" --max 250)
+          fi
+          python3 scripts/recon/goes_ir.py --manifest /tmp/recon-data "${args[@]}"
+
+      # Live loop (2026-10-07, user: "Yea that would be the way to do it"): while a mission is airborne the job stays up and
+      # polls NHC every 2 min for up to LIVE_MIN minutes, pushing each change, instead of one second pass 7 min later. The
+      # aircraft sends an HDOB about every 10 min, so the mirror then trails NHC by ~2 min rather than 8-15. Hand-off: the
+      # concurrency group keeps ONE run queued behind this one (the dispatcher's next 15-min trigger), which starts the
+      # moment this loop ends, so coverage is continuous through a flight; with nothing airborne a run still exits in seconds.
+      - name: Live loop (a mission is airborne)
+        if: steps.m1.outputs.airborne == 'true' && inputs.backfill == ''
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          LIVE_MIN: '50'
+          POLL_S: '120'
+        run: |
+          set -u
+          t_end=$(( $(date +%s) + LIVE_MIN * 60 )); k=0
+          airborne() { python3 - <<'PY'
+          import json, time, sys
+          m = json.load(open("/tmp/recon-data/manifest.json"))
+          sys.exit(0 if m.get("newest_ob") and time.time() - m["newest_ob"] < 40 * 60 else 1)
+          PY
+          }
+          while [ "$(date +%s)" -lt "$t_end" ] && airborne; do
+            sleep "$POLL_S"; k=$((k + 1))
+            out=$(python3 scripts/recon/recon_mirror.py /tmp/recon-data 2>&1) || { echo "$out" | tail -3; echo "::warning::live poll $k failed"; continue; }
+            echo "$out" | tail -1
+            if echo "$out" | tail -1 | grep -q "changed=True"; then
+              bash scripts/recon/push_data.sh /tmp/recon-data "$GITHUB_WORKSPACE/prev-data" || echo "::warning::live push $k failed"
+              # TDR graphics arrive about every 30-40 min: check them every 5th poll that brought new obs
+              if [ $((k % 5)) -eq 0 ]; then python3 scripts/recon/tdr_mirror.py --manifest /tmp/recon-data || true; fi
+            fi
+          done
+          echo "live loop ended after $k poll(s)"

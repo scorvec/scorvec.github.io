@@ -1,0 +1,56 @@
+name: AR redesign dev runs (branch only)
+
+# Temporary (2026-10-07 AR redesign): runs a development script on a runner, never on the laptop. Dispatch only;
+# removed once the redesign is live.
+on:
+  workflow_dispatch:
+    inputs:
+      script:
+        description: 'bash script to run (repo path)'
+        default: 'scripts/ar/dev/run.sh'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ar-dev-${{ inputs.script }}
+  cancel-in-progress: true
+
+env:
+  ECMWF_SOURCES: google
+
+jobs:
+  dev:
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    env:
+      MPLBACKEND: Agg
+      SST_SITE_ROOT: ${{ github.workspace }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+      - uses: actions/cache@v6
+        with:
+          path: ~/.cache/pip
+          key: pip-mjo-${{ runner.os }}-${{ hashFiles('scripts/mjo/requirements-mjo.txt') }}
+          restore-keys: |
+            pip-mjo-${{ runner.os }}-
+      - name: System libs
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends libeccodes0 libgeos-dev libproj-dev proj-bin
+      - name: Python deps
+        run: pip install -r scripts/mjo/requirements-mjo.txt
+      - name: Run
+        run: bash "${{ inputs.script }}"
+      - name: Upload outputs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ar-dev
+          path: |
+            scratch_out/
+          if-no-files-found: ignore
+          retention-days: 3

@@ -86,8 +86,11 @@
   .legend { display: flex; flex-wrap: wrap; gap: 0.2rem 0.6rem; align-items: center; padding: 0.45rem 0.7rem; font-size: 0.85rem;
     border-top: 1px solid var(--rule); }
   .legend .sw { display: inline-flex; align-items: center; gap: 0.3em; white-space: nowrap; }
+  .legend .sw.mu { white-space: normal; }
   .legend .sw i { width: 1.3em; height: 0.55em; border-radius: 2px; display: inline-block; }
   .legend .mu { color: var(--muted); }
+  .satbar[hidden] { display: none; }
+  .satbar .seg button { padding: 0.3rem 0.55rem; min-height: 32px; font-size: 0.85rem; font-variant-numeric: tabular-nums; }
   .leaflet-container { font-family: var(--f-sans, sans-serif); }
   .leaflet-tooltip.fixlab { background: transparent; border: 0; box-shadow: none; color: var(--ink); font: 600 11px var(--f-sans, sans-serif);
     text-shadow: 0 0 3px var(--panel), 0 0 3px var(--panel), 0 0 2px var(--panel); padding: 0; }
@@ -135,6 +138,55 @@
   details.about summary { cursor: pointer; font-weight: 600; }
   details.about p, details.about li { line-height: 1.5; max-width: 100ch; }
   details.about pre { white-space: pre-wrap; font-size: 0.82rem; background: var(--soft); padding: 0.6rem; border-radius: 6px; max-height: 420px; overflow: auto; }
+  /* tail Doppler radar (AOML HRD real-time graphics, tdr-data branch) */
+  .tdr { margin-top: 0.8rem; padding: 0.6rem 0.75rem 0.7rem; }
+  .tdr[hidden] { display: none; }
+  .tdr-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.3rem 0.7rem; }
+  .tdr-head h2 { font-family: var(--f-serif, serif); font-weight: 500; font-size: 1.2rem; margin: 0; }
+  .tdr-badge { font-size: 0.8rem; font-weight: 600; color: var(--warn-ink); background: var(--warn-bg); border: 1px solid var(--warn-bd);
+    border-radius: 999px; padding: 0.05rem 0.55rem; }
+  .tdr .sub { font-size: 0.9rem; color: var(--muted); margin: 0.25rem 0 0.5rem; line-height: 1.45; max-width: 110ch; }
+  .tdr-ctl { display: flex; flex-wrap: wrap; gap: 0.45rem 0.9rem; align-items: flex-end; margin: 0 0 0.45rem; }
+  .tdr-ctl label { font-size: 0.86rem; color: var(--muted); display: flex; flex-direction: column; gap: 0.15rem; min-width: 0; max-width: 100%; }
+  .tdr-ctl label[hidden] { display: none; }
+  .tdr .seg button { padding: 0.4rem 0.6rem; font-size: 0.9rem; font-variant-numeric: tabular-nums; }
+  .tdr-fig { margin: 0; }
+  .tdr-fig .frame { background: #fff; border: 1px solid var(--rule); border-radius: 6px; overflow: hidden; min-height: 120px;
+    display: flex; align-items: center; justify-content: center; }
+  .tdr-fig img { display: block; width: 100%; height: auto; max-height: 82vh; object-fit: contain; }
+  .tdr-fig img.sq { width: auto; max-width: 100%; max-height: 78vh; }
+  .tdr-fig .ph { color: #5d5a54; font-size: 0.92rem; padding: 2rem 1rem; }
+  .tdr-fig figcaption { font-size: 0.88rem; line-height: 1.45; margin: 0.4rem 0 0; max-width: 120ch; }
+  .tdr-fig figcaption .mu, .tdr .mu { color: var(--muted); }
+  .tdr-fig figcaption a, .tdr .sub a { color: var(--accent); }
+  .tdr .tbl { margin-top: 0.5rem; }
+  /* analysis cards: radial profiles, intensity history, storm-relative winds, eye/eyewall sondes */
+  .an { margin-top: 0.8rem; padding: 0.6rem 0.75rem 0.7rem; }
+  .an[hidden] { display: none; }
+  .an h2 { font-family: var(--f-serif, serif); font-weight: 500; font-size: 1.2rem; margin: 0 0 0.25rem; }
+  .an .sub { font-size: 0.9rem; color: var(--muted); margin: 0 0 0.45rem; line-height: 1.45; max-width: 120ch; }
+  .an canvas { width: 100%; display: block; touch-action: pan-y; cursor: crosshair; }
+  #radCv { height: 360px; } #histCv { height: 460px; } #eyeWs, #eyeTe { height: 320px; }
+  @media (max-width: 700px) { #radCv { height: 300px; } #histCv { height: 420px; } #eyeWs, #eyeTe { height: 280px; } }
+  .an .read { min-height: 1.4em; font-size: 0.9rem; margin: 0.2rem 0 0; font-variant-numeric: tabular-nums; }
+  .an .note { font-size: 0.86rem; color: var(--muted); line-height: 1.45; margin: 0.45rem 0 0; max-width: 120ch; }
+  .chips { display: flex; flex-wrap: wrap; gap: 0.3rem; margin: 0 0 0.4rem; }
+  .chips button { font: 500 0.84rem var(--f-sans, sans-serif); border: 1px solid var(--rule); background: var(--panel); color: var(--ink);
+    border-radius: 999px; padding: 0.22rem 0.6rem; cursor: pointer; display: inline-flex; align-items: center; gap: 0.35em; min-height: 32px;
+    font-variant-numeric: tabular-nums; }
+  .chips button i { width: 1.1em; height: 0.25em; border-radius: 2px; display: inline-block; }
+  .chips button[aria-pressed="false"] { opacity: 0.45; }
+  .an2 { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 0.8rem; }
+  @media (max-width: 1100px) { .an2 { grid-template-columns: minmax(0, 1fr); } }
+  .an2 > .card { margin-top: 0; }
+  .srgrid { display: grid; grid-template-columns: minmax(0, 560px) minmax(0, 1fr); gap: 0.8rem; align-items: start; }
+  @media (max-width: 1000px) { .srgrid { grid-template-columns: minmax(0, 1fr); } }
+  #srCv { aspect-ratio: 1 / 1; max-width: 560px; }
+  .tbl td.flag, .an .flag { color: var(--live); font-weight: 600; }
+  .alertbtn { font: 600 0.9rem var(--f-sans, sans-serif); border: 1px solid var(--rule); background: var(--panel); color: var(--ink);
+    border-radius: 8px; padding: 0.42rem 0.7rem; min-height: 38px; cursor: pointer; align-self: flex-end; }
+  .alertbtn[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+  .alertnote { font-size: 0.82rem; color: var(--muted); align-self: flex-end; max-width: 40ch; line-height: 1.35; }
   .credit { font-size: 0.88rem; color: var(--muted); margin: 0.9rem 0 0; line-height: 1.5; }
   .credit a { color: var(--accent); }
 
@@ -150,6 +202,13 @@
     border-radius: 6px; padding: 0.35rem 0.75rem; cursor: pointer; }
   .dock iframe { flex: 1 1 auto; width: 100%; border: 0; min-height: 0; background: #0b0b12; }
   @media (max-width: 700px) { .dock { top: 0; bottom: 0; width: 100vw; border-radius: 0; } }
+  /* aircraft icon at the newest ob (drawPlane in recon.js); the ring pulses only while the mission is airborne */
+  .plane-ic { position: relative; }
+  .plane-ic svg { position: absolute; left: 0; top: 0; filter: drop-shadow(0 1px 1.5px rgba(0,0,0,0.45)); }
+  .plane-pulse { position: absolute; left: 3px; top: 3px; width: 24px; height: 24px; border: 2px solid; border-radius: 50%;
+                 animation: planepulse 1.8s ease-out infinite; }
+  @keyframes planepulse { 0% { transform: scale(0.6); opacity: 0.9; } 100% { transform: scale(1.9); opacity: 0; } }
+  @media (prefers-reduced-motion: reduce) { .plane-pulse { animation: none; opacity: 0.6; } }
 </style>
 </head>
 <body>
@@ -200,6 +259,7 @@
                 <li><a href="/circulation.html#tcjet">Tropical cyclones and the jet</a></li>
                 <li><a href="/circulation.html#tcens">Tropical cyclone ensembles</a></li>
                 <li><a href="/circulation.html#tcphase">Cyclone phase space</a></li>
+                <li><a href="/circulation.html#tcshear">Shear and environment</a></li>
                 <li><a href="/recon.html" aria-current="page">Hurricane reconnaissance</a></li>
               </ul>
             </div>
@@ -318,6 +378,8 @@
       <span class="seg" id="segVar" role="group" aria-label="Colour the track by">
         <button type="button" data-v="sfmr" class="on">SFMR wind</button><button type="button" data-v="ws">Flight-level wind</button><button type="button" data-v="x">Surface pressure</button><button type="button" data-v="t_">Temperature</button><button type="button" data-v="dd">Dewpoint depression</button>
       </span></label>
+    <button type="button" class="alertbtn" id="alertBtn" aria-pressed="false">Alert me to new fixes</button>
+    <span class="alertnote" id="alertNote" hidden></span>
   </div>
   <div class="rc-status" id="status" aria-live="polite"><span class="mu">Loading the mirror…</span></div>
   <div class="rc-warn" id="warn" hidden></div>
@@ -326,6 +388,11 @@
     <div class="card mapcard">
       <div id="map" role="region" aria-label="Map of the flight"></div>
       <div class="legend" id="legend"></div>
+      <div class="legend satbar" id="satBar" hidden>
+        <span><b>GOES infrared under the track</b></span>
+        <span class="seg" id="satSel" role="group" aria-label="Satellite image at a centre pass"></span>
+        <span class="mu" id="satInfo"></span>
+      </div>
     </div>
     <aside class="card side" id="side">
       <h2>Mission</h2>
@@ -340,10 +407,74 @@
     <div id="tsread"></div>
   </div>
 
+  <section class="card tdr" id="tdr" hidden aria-labelledby="tdrH">
+    <div class="tdr-head"><h2 id="tdrH">Tail Doppler radar</h2><span class="tdr-badge">Real time · automated quality control</span></div>
+    <p class="sub" id="tdrSub"></p>
+    <div class="tdr-ctl">
+      <label>Product <span class="seg" id="tdrProd" role="group" aria-label="Tail Doppler radar product"></span></label>
+    </div>
+    <div class="tdr-ctl">
+      <label id="tdrTimeL">Analysis <span class="seg" id="tdrTime" role="group" aria-label="Analysis time"></span></label>
+      <label id="tdrHgtL">Height <span class="seg" id="tdrHgt" role="group" aria-label="Height"></span></label>
+      <label id="tdrVarL">Field <span class="seg" id="tdrVar" role="group" aria-label="Field"></span></label>
+    </div>
+    <figure class="tdr-fig"><div class="frame" id="tdrFrame"></div><figcaption id="tdrCap"></figcaption></figure>
+    <div class="tbl" id="tdrCtr"></div>
+    <p class="credit">Tail Doppler radar graphics: NOAA AOML Hurricane Research Division (real-time TDR graphics,
+      <a href="https://www.aoml.noaa.gov/ftp/pub/hrd/data/RTradar/">aoml.noaa.gov/ftp/pub/hrd/data/RTradar</a>, compiled by P. Reasor);
+      the real-time analyses were made by HRD through 2025 and by NOAA OMAO's Aircraft Operations Center from 2026. Real time with
+      automated quality control: not the post-season quality-controlled Level 2 data. Images are mirrored unchanged (re-encoded
+      losslessly as WebP).</p>
+  </section>
+
+  <section class="card an" id="rad" hidden aria-labelledby="radH">
+    <h2 id="radH">Radial wind profiles</h2>
+    <p class="sub" id="radSub"></p>
+    <div class="tdr-ctl"><label>Wind <span class="seg" id="radVar" role="group" aria-label="Wind shown"></span></label></div>
+    <div class="chips" id="radLegs" role="group" aria-label="Legs shown"></div>
+    <canvas id="radCv" aria-label="Wind against radius from the centre, one line per leg"></canvas>
+    <div class="read" id="radRead"></div>
+    <div class="tbl" id="radTbl"></div>
+    <p class="note" id="radNote"></p>
+  </section>
+
+  <section class="card an" id="hist" hidden aria-labelledby="histH">
+    <h2 id="histH">Intensity from the reconnaissance</h2>
+    <p class="sub" id="histSub"></p>
+    <canvas id="histCv" aria-label="Minimum pressure, maximum winds and pressure tendency against time, all missions of the storm"></canvas>
+    <div class="read" id="histRead"></div>
+    <div id="histFlags" class="note"></div>
+    <p class="note" id="histNote"></p>
+  </section>
+
+  <section class="card an" id="sr" hidden aria-labelledby="srH">
+    <h2 id="srH">Storm-relative winds and wind radii</h2>
+    <p class="sub" id="srSub"></p>
+    <div class="tdr-ctl">
+      <label>Orientation <span class="seg" id="srOri" role="group" aria-label="Orientation"></span></label>
+      <label>Wind <span class="seg" id="srVar" role="group" aria-label="Wind used"></span></label>
+    </div>
+    <div class="srgrid">
+      <canvas id="srCv" aria-label="Observations around the centre"></canvas>
+      <div><div class="tbl" id="srTbl"></div><p class="note" id="srNote"></p></div>
+    </div>
+  </section>
+
   <div class="lists">
     <div class="card"><h2>Dropsondes</h2><div class="tbl" id="drops"></div></div>
     <div class="card"><h2>Vortex fixes</h2><div class="tbl" id="vdms"></div></div>
   </div>
+
+  <section class="card an" id="eye" hidden aria-labelledby="eyeH">
+    <h2 id="eyeH">Eye and eyewall dropsondes</h2>
+    <div class="tbl" id="eyeTbl"></div>
+    <div class="an2" id="eyeProf">
+      <div><p class="sub" style="margin:0.5rem 0 0.2rem">Wind speed against height, eyewall sondes</p><canvas id="eyeWs" aria-label="Eyewall dropsonde wind speed against height"></canvas></div>
+      <div><p class="sub" style="margin:0.5rem 0 0.2rem">Equivalent potential temperature against height</p><canvas id="eyeTe" aria-label="Eyewall dropsonde equivalent potential temperature against height"></canvas></div>
+    </div>
+    <div class="chips" id="eyeKey"></div>
+    <p class="note" id="eyeNote"></p>
+  </section>
 
   <details class="card about" id="podbox">
     <summary>Plan of the day (CARCAH)</summary>
@@ -372,6 +503,27 @@
         maximum flight-level winds placed at their bearing and range from the centre.</li>
       <li><b>Storm</b>: a mission belongs to the storm in its mission number (e.g. 0209A = storm 09); a surveillance mission without one
         (the NOAA G-IV) is put with the nearest storm and says so. Best track and official forecast: NHC ATCF b-deck and forecast file.</li>
+      <li><b>Tail Doppler radar</b> (NOAA WP-3D and G-IV only): the real-time graphics of NOAA AOML's Hurricane Research
+        Division, mirrored about every 15 minutes. They appear about 70 minutes after each centre fix (analysis about 50 minutes,
+        transmission, graphics). Each <i>swath</i> is one analysis from one pass through the storm (2 km by 2 km by 0.5 km grid); the
+        <i>composites</i>, azimuthal means, tilt and zoom merge the passes so far around the centre found by the Fischer et al. (2022, 2024)
+        method, or, when none is found, around the centre the radar operator gave. HRD warns that the composites may not be storm
+        centred and may not be meaningful in storms weaker than hurricanes: check the individual swaths first. The high-resolution
+        in/outbound profiles are no longer made in real time from 2026. TDR centres (0.5, 2, 3 and 6 km) come from HRD's centre files;
+        a file that names a different analysis, or whose centre is more than 100 km from the vortex-message fixes (200 km from the best
+        track when there is no fix), is not drawn. A flight is matched to its NHC mission by aircraft (H = NOAA2 N42RF, I = NOAA3 N43RF,
+        N = NOAA9 N49RF), storm name and time. Kept: the swaths at 1, 2, 3, 5, 8 and 10 km for every analysis and every composite;
+        the azimuthal means, tilt, zoom and centre map for the latest composite only.</li>
+      <li><b>Centre track and passes</b>: the centre at any moment is interpolated in time between the vortex fixes of all missions
+        (and the flight's TDR centres, when there are any); beyond the fixes the nearest fix is moved with the best-track motion. A centre
+        pass is the closest approach within 20 n mi; each pass gives an inbound and an outbound leg, cut at 150 n mi or where the aircraft
+        turns back. The radial profiles, the per-leg maxima in the intensity history and the storm-relative plot all use this track.</li>
+      <li><b>Satellite</b>: GOES-East ABI band 13 (10.3 µm) brightness temperature at each centre pass, from NOAA's open data on AWS: a
+        mesoscale sector when one covers the storm (1-minute images), otherwise CONUS or the full disk; the image nearest the pass within
+        10 minutes, resampled to the map's projection. Pixels the ABI flags as out of range or missing are left empty. No passive-microwave
+        imagery: the freely redistributable source (NOAA's TC PRIMED) is not updated in real time (it held no 2026 Atlantic storm in
+        October 2026), and the real-time sources need a login or do not permit redistribution.</li>
+      <li><b>Alerts</b> (opt in): the browser's notifications, from this page only while it is open; nothing is sent from a server.</li>
       <li><b>Freshness</b>: a mirror in GitHub Actions reads the NHC archive every 15 minutes, and again 7 minutes later while a mission is
         airborne; NHC posts each message a few minutes after it is sent. The page asks for new data every 90 s while a mission is flying.</li>
     </ul>
@@ -379,7 +531,8 @@
 
   <p class="credit">Data: NOAA National Hurricane Center reconnaissance archive (USAF 53rd Weather Reconnaissance Squadron and NOAA Aircraft
     Operations Center), <a href="https://www.nhc.noaa.gov/recon.php">nhc.noaa.gov</a>; best track and forecast from NHC's ATCF files.
-    Decoded here, not an official product; for operational use see the NHC.</p>
+    Tail Doppler radar: NOAA AOML Hurricane Research Division. Satellite: NOAA GOES-East (GOES-16 to April 2025, GOES-19 since),
+    NOAA Open Data Dissemination on AWS. Decoded here, not an official product; for operational use see the NHC.</p>
 </main>
 
 <section class="dock" id="dock" hidden role="dialog" aria-label="Dropsonde sounding">
@@ -387,7 +540,7 @@
   <iframe id="dockF" title="Dropsonde skew-T, hodograph and parameters"></iframe>
 </section>
 
-<script src="/assets/recon/recon.js" defer></script>
+<script src="/assets/recon/recon.js?v=20261007s" defer></script>
 <!-- sf:start -->
 <footer class="sf">
   <div class="sf-in">

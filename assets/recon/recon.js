@@ -5,25 +5,26 @@
 "use strict";
 (function () {
   // ── hosts ────────────────────────────────────────────────────────────────
-  // To serve through the Bunny CDN first (once its Edge Rule caches /recon-data/* for 60 s), put "cdn" first here.
-  const HOSTS = ["raw", "jsd", "api"];
-  const REPO = "scorvec/scorvec.github.io", BR = "recon-data";
+  // Bunny CDN first (2026-10-07: its Edge Rule caches /recon-data/* and /tdr-data/* for 60 s; GitHub's raw host held
+  // "fresh" fetches up to 5 min and is blocked on some networks); raw / api / jsDelivr behind it
+  const HOSTS = ["cdn", "raw", "jsd", "api"];
+  const REPO = "scorvec/scorvec.github.io", BR = "recon-data", TBR = "tdr-data";
   const URLS = {
-    cdn: p => [`https://frames.scorvec.com/${BR}/${p}`],
-    raw: (p, b) => [`https://raw.githubusercontent.com/${REPO}/${BR}/${p}${b ? "?t=" + encodeURIComponent(b) : ""}`],
-    jsd: p => [`https://cdn.jsdelivr.net/gh/${REPO}@${BR}/${p}`],
-    api: p => [`https://api.github.com/repos/${REPO}/contents/${p}?ref=${BR}`, { headers: { Accept: "application/vnd.github.raw" } }],
+    cdn: (p, b, br = BR) => [`https://frames.scorvec.com/${br}/${p}`],
+    raw: (p, b, br = BR) => [`https://raw.githubusercontent.com/${REPO}/${br}/${p}${b ? "?t=" + encodeURIComponent(b) : ""}`],
+    jsd: (p, b, br = BR) => [`https://cdn.jsdelivr.net/gh/${REPO}@${br}/${p}`],
+    api: (p, b, br = BR) => [`https://api.github.com/repos/${REPO}/contents/${p}?ref=${br}`, { headers: { Accept: "application/vnd.github.raw" } }],
   };
   // fresh = a file that changes (manifest, an airborne mission): api (always fresh) before jsDelivr (cached ~12 h)
-  async function dataFetch(path, bust, fresh) {
+  async function dataFetch(path, bust, fresh, br) {
     let order = HOSTS.slice();
     if (fresh) order = order.filter(h => h !== "jsd").concat(order.includes("jsd") ? ["jsd"] : []);
     for (let i = 0; i < order.length; i++) {
-      const [u, opt] = URLS[order[i]](path, bust);
+      const [u, opt] = URLS[order[i]](path, bust, br);
       try {
         const r = await fetch(u, opt);
         if (r.ok) return await r.json();
-        if (r.status === 404 && order[i] === "raw") return null;
+        if (r.status === 404 && (order[i] === "raw" || order[i] === "cdn")) return null;   // host fine, file truly absent
       } catch (e) { /* blocked or offline: next host */ }
     }
     throw new Error("unreachable");
@@ -83,12 +84,13 @@
   const base = dark() ? "World_Dark_Gray" : "World_Light_Gray";
   L.tileLayer(ESRI + base + "_Base/MapServer/tile/{z}/{y}/{x}",
     { attribution: "Tiles &copy; Esri &mdash; Esri, HERE, Garmin, &copy; OpenStreetMap contributors", maxZoom: 13 }).addTo(map);
+  map.createPane("sat"); map.getPane("sat").style.zIndex = 300; map.getPane("sat").style.pointerEvents = "none";
   map.createPane("labels"); map.getPane("labels").style.zIndex = 350; map.getPane("labels").style.pointerEvents = "none";
   L.tileLayer(ESRI + base + "_Reference/MapServer/tile/{z}/{y}/{x}", { maxZoom: 13, pane: "labels", opacity: 0.9 }).addTo(map);
   const rend = L.canvas({ padding: 0.3, tolerance: 6 });
   const lyr = { btk: L.layerGroup().addTo(map), fixes: L.layerGroup().addTo(map), track: L.layerGroup().addTo(map),
                 barbs: L.layerGroup().addTo(map), drops: L.layerGroup().addTo(map), vdm: L.layerGroup().addTo(map),
-                hover: L.layerGroup().addTo(map) };
+                hover: L.layerGroup().addTo(map), tdr: L.layerGroup().addTo(map), plane: L.layerGroup().addTo(map) };
   if (window.ResizeObserver) new ResizeObserver(() => map.invalidateSize()).observe($("map"));
 
   // ── load ─────────────────────────────────────────────────────────────────
@@ -96,7 +98,7 @@
     let man;
     try { man = await dataFetch("manifest.json", Math.floor(Date.now() / 60000), true); }
     catch (e) {
-      if (first) setStatus(`<span class="mu">The data mirror could not be reached (tried raw.githubusercontent.com, jsDelivr and api.github.com). Try again shortly.</span>`);
+      if (first) setStatus(`<span class="mu">The data mirror could not be reached (tried frames.scorvec.com, raw.githubusercontent.com, jsDelivr and api.github.com). Try again shortly.</span>`);
       return false;
     }
     if (!man) { if (first) setStatus(`<span class="mu">The mirror has not published yet.</span>`); return false; }
@@ -112,9 +114,10 @@
       fillMissions();
       const cur = S.key && man.missions[S.key];
       if (cur && prevMis && (cur.bytes !== prevMis.bytes || cur.last !== prevMis.last)) await openMission(S.key, true);
-      else status();
+      else { status(); if (cur) tdrLoad(S.key, true); }      // TDR graphics arrive ~70 min after each fix, even after landing
     }
     pod();
+    alertCheck();
     return true;
   }
   function defaultStorm() {
@@ -169,6 +172,8 @@
       const st = await dataFetch(s.file, s.active ? Math.floor(Date.now() / 600000) : s.last, s.active);
       if (S.sid !== sid || !st) return;
       S.storm = st; drawStorm(st, s);
+      if (S.mis) { radBuild(); srBuild(); }
+      histBuild();
     } catch (e) { /* track is context only */ }
   }
   async function openMission(key, refresh) {
@@ -186,10 +191,15 @@
     prepRows();
     drawMission(!refresh);
     side(); lists(); drawTS(); status(); drawFixTrack(S.sid);
+    analyses();
+    tdrLoad(key, refresh);
   }
   function clearMission() {
     S.mis = null; S.key = null; S.rows = [];
-    for (const k of ["track", "barbs", "drops", "vdm", "hover"]) lyr[k].clearLayers();
+    for (const k of ["track", "barbs", "drops", "vdm", "hover", "tdr", "plane"]) lyr[k].clearLayers();
+    T.doc = null; $("tdr").hidden = true;
+    for (const id of ["rad", "sr", "eye"]) $(id).hidden = true;
+    R.legs = []; histBuild();
     $("side").innerHTML = `<h2>Mission</h2><p class="empty">No reconnaissance has been flown into this storm yet. The plan of the day below lists what is tasked.</p>`;
     $("drops").innerHTML = $("vdms").innerHTML = `<p class="empty">—</p>`;
     $("legend").innerHTML = ""; drawTS();
@@ -267,6 +277,36 @@
       else L.polyline(seg, { renderer: rend, color: col(x), weight: 3.6, interactive: false }).addTo(lyr.track);
     }
     drawBarbs();
+    drawPlane();
+  }
+  // aircraft icon at the newest valid position, pointing along the last few minutes of track (2026-10-07, user: "a little
+  // plane icon to see where the recon flight is"). Airborne: live colour with a pulse; a finished flight keeps a muted
+  // icon at its last ob (usually the landing field).
+  function drawPlane() {
+    lyr.plane.clearLayers();
+    const ix = S.col, rows = S.rows;
+    let i1 = rows.length - 1;
+    while (i1 >= 0 && rows[i1][ix.la] == null) i1--;
+    if (i1 < 0) return;
+    let i0 = i1 - 1;                                   // a point ~2+ min back, so one jittery ob does not set the heading
+    while (i0 > 0 && (rows[i0][ix.la] == null || rows[i1][0] - rows[i0][0] < 120)) i0--;
+    const la1 = rows[i1][ix.la], lo1 = rows[i1][ix.lo];
+    let hdg = 0;
+    if (i0 >= 0 && rows[i0][ix.la] != null) {
+      const la0 = rows[i0][ix.la], lo0 = rows[i0][ix.lo], r = Math.PI / 180;
+      const y = Math.sin((lo1 - lo0) * r) * Math.cos(la1 * r);
+      const x = Math.cos(la0 * r) * Math.sin(la1 * r) - Math.sin(la0 * r) * Math.cos(la1 * r) * Math.cos((lo1 - lo0) * r);
+      hdg = (Math.atan2(y, x) / r + 360) % 360;
+    }
+    const m = S.man && S.man.missions[S.key], air = isAir(m);
+    const fill = air ? css("--live") : (dark() ? "#c9ccd2" : "#4d544e"), edge = dark() ? "#0d1014" : "#ffffff";
+    const svg = `<svg width="30" height="30" viewBox="-15 -15 30 30" style="overflow:visible"><g transform="rotate(${hdg.toFixed(0)})">` +
+      `<path d="M0 -12 L1.8 -4 L11 1.5 L11 3.5 L1.8 1.5 L1.4 8 L4.5 10.5 L4.5 12 L0 11 L-4.5 12 L-4.5 10.5 L-1.4 8 L-1.8 1.5 L-11 3.5 L-11 1.5 L-1.8 -4 Z" ` +
+      `fill="${fill}" stroke="${edge}" stroke-width="1.4" stroke-linejoin="round"/></g></svg>`;
+    const pulse = air ? `<span class="plane-pulse" style="border-color:${fill}"></span>` : "";
+    const t = m && m.last ? dayhm(m.last) : "";
+    L.marker([la1, lo1], { zIndexOffset: 1000, keyboard: false, title: `${m ? m.aircraft + " " + m.mission : "aircraft"} - ${air ? "latest position" : "last observation"}${t ? " " + t : ""}`,
+      icon: L.divIcon({ className: "plane-ic", html: pulse + svg, iconSize: [30, 30], iconAnchor: [15, 15] }) }).addTo(lyr.plane);
   }
   // wind barbs (flight-level wind), thinned to ~48 px apart on screen
   function barbSVG(dir, kt, colr) {
@@ -378,15 +418,20 @@
   function drawFixTrack(sid) {
     lyr.fixes.clearLayers();
     const s = S.man && S.man.storms[sid]; if (!s) return;
-    const fx = [];
-    for (const k of s.missions) for (const f of (S.man.missions[k].fixes || [])) fx.push(f.concat([k]));
-    fx.sort((a, b) => a[0] - b[0]);
-    if (fx.length > 1) L.polyline(fx.map(f => [f[1], f[2]]), { renderer: rend, color: "#b3261e", weight: 1.6, dashArray: "4 4", interactive: false }).addTo(lyr.fixes);
+    const fx = stormFixes(sid);
+    if (fx.length > 1) L.polyline(fx.map(f => [f.la, f.lo]), { renderer: rend, color: "#b3261e", weight: 1.6, dashArray: "4 4", interactive: false }).addTo(lyr.fixes);
     for (const f of fx) {
-      if (f[4] === S.key) continue;                               // the open mission draws its own
-      L.circleMarker([f[1], f[2]], { renderer: rend, radius: 3.5, color: "#b3261e", weight: 1.5, fillColor: "#fff", fillOpacity: 1 })
-        .bindTooltip(`Fix ${dayhm(f[0])}${f[3] ? " · " + f[3] + " hPa" : ""} · ${esc(S.man.missions[f[4]].aircraft)}`).addTo(lyr.fixes);
+      if (f.k === S.key) continue;                               // the open mission draws its own
+      L.circleMarker([f.la, f.lo], { renderer: rend, radius: 3.5, color: "#b3261e", weight: 1.5, fillColor: "#fff", fillOpacity: 1 })
+        .bindTooltip(`Fix ${dayhm(f.t)}${f.p ? " · " + f.p + " hPa" + (f.x ? " (extrapolated)" : "") : ""} · ${esc(S.man.missions[f.k].aircraft)}`).addTo(lyr.fixes);
     }
+  }
+  // every vortex fix of a storm, all missions (manifest): {t, la, lo, p (hPa or null), x (1 = extrapolated), k (mission)}
+  function stormFixes(sid) {
+    const s = S.man && S.man.storms[sid], fx = [];
+    if (!s) return fx;
+    for (const k of s.missions) for (const f of (S.man.missions[k].fixes || [])) fx.push({ t: f[0], la: f[1], lo: f[2], p: f[3], x: f[4] || 0, k });
+    return fx.sort((a, b) => a.t - b.t);
   }
   function drawStorm(st, s) {
     lyr.btk.clearLayers();
@@ -427,6 +472,7 @@
     }
     h += `<span class="sw"><i style="background:#9a9a9a;height:2px"></i><span class="mu">no valid value (missing or flagged)</span></span>`;
     h += `<span class="sw mu">Dots: dropsondes (est. surface wind) · red crosses: vortex fixes · barbs: flight-level wind</span>`;
+    if (T.doc && T.doc.key === S.key && T.doc.centres.some(c => c.c)) h += `<span class="sw mu"><i style="background:${TDRC};height:0.7em;width:0.7em;transform:rotate(45deg)"></i>TDR centres (2 km; line to the 6 km centre)</span>`;
     $("legend").innerHTML = h;
   }
   function stat(label, o, unit, fmt) {
@@ -523,7 +569,7 @@
   setInterval(status, 20000);
   (function poll() {
     const wait = anyAir() ? 90e3 : 600e3;
-    setTimeout(async () => { if (!document.hidden) await loadManifest(false); poll(); }, wait);
+    setTimeout(async () => { if (!document.hidden || AL.on) await loadManifest(false); poll(); }, wait);
   })();
   document.addEventListener("visibilitychange", () => {
     if (!document.hidden && S.man && Date.now() - S.manAt > (anyAir() ? 90e3 : 600e3)) loadManifest(false);
@@ -612,6 +658,7 @@
   function hoverRow(i, fromMap) {
     S.hoverI = i;
     drawTS();
+    if (R.legs.length) { R.hoverI = i; radDraw(); }
     lyr.hover.clearLayers();
     if (i < 0) { $("tsread").textContent = ""; return; }
     const r = S.rows[i], ix = S.col, f = (k, u, d = 0) => r[ix[k]] == null ? "—" : r[ix[k]].toFixed(d) + " " + u;
@@ -728,6 +775,779 @@
   function closeDock() { $("dock").hidden = true; }
   $("dockX").onclick = closeDock;
   document.addEventListener("keydown", e => { if (e.key === "Escape" && !$("dock").hidden) { closeDock(); e.preventDefault(); } });
+
+  // ── tail Doppler radar (NOAA AOML HRD real-time graphics, mirrored to the tdr-data branch) ──
+  const TDRC = "#0f8b8d";
+  const T = { idx: null, idxAt: 0, doc: null, prod: "sw", ti: -1, h: "1", v: {} };
+  try { const q = JSON.parse(localStorage.getItem("recon.tdr") || "{}"); if (q.prod) T.prod = q.prod; if (q.h) T.h = q.h; } catch (e) { /* storage blocked */ }
+  const tdrSave = () => { try { localStorage.setItem("recon.tdr", JSON.stringify({ prod: T.prod, h: T.h })); } catch (e) { /* blocked */ } };
+  const HGTS = ["1", "2", "3", "5", "8", "10"];
+  const rng = (a, b) => `${hm(a)}–${hm(b)}Z`;
+  const PRODS = {
+    sw: { lab: "Swath", times: d => d.analyses.filter(a => Object.keys(a.sw).length).map(a => ({ k: a.t, lab: hm(a.t) })) },
+    comp: { lab: "Composite", times: d => d.composites.map(c => ({ k: c.t1, lab: rng(c.t0, c.t1) })),
+            vars: [["dbz", "Reflectivity and 2 km wind"], ["nhc", "0.5 km and flight-level wind"]] },
+    zoom: { lab: "Inner core", one: d => d.latest.zoom },
+    tilt: { lab: "Vortex tilt", one: d => d.latest.tilt },
+    rz: { lab: "Azimuthal means", one: d => d.latest.rz, vars: [["vt", "Tangential wind"], ["ur", "Radial wind"], ["dbz", "Reflectivity"]] },
+    prof: { lab: "Profiles", times: d => d.analyses.filter(a => a.prof).map(a => ({ k: a.t, lab: hm(a.t) })),
+            vars: [["ws", "Wind speed"], ["dbz", "Reflectivity"], ["vr_rel", "Radial wind"], ["PBL_rel", "Boundary layer"]] },
+    ctr: { lab: "Centres", one: d => d.latest.ctr || (d.centres.length ? {} : null) },
+  };
+  const has = (d, k) => PRODS[k].times ? PRODS[k].times(d).length > 0 : !!PRODS[k].one(d);
+
+  async function tdrIndex(force) {
+    const air = Object.values(S.man.missions).some(isAir);
+    if (T.idx && !force && Date.now() - T.idxAt < (air ? 90e3 : 600e3)) return T.idx;
+    try { T.idx = await dataFetch("index.json", Math.floor(Date.now() / 60000), true, TBR) || { missions: {} }; T.idxAt = Date.now(); }
+    catch (e) { /* mirror unreachable: keep what we had */ }
+    return T.idx;
+  }
+  async function tdrLoad(key, refresh) {
+    const m = S.man.missions[key];
+    if (!m) return;
+    const idx = await tdrIndex(refresh);
+    if (S.key !== key) return;
+    satUI(key, idx);
+    if (!/^NOAA/.test(m.aircraft || "")) { T.doc = null; lyr.tdr.clearLayers(); $("tdr").hidden = true; return; }
+    const e = idx && idx.missions && idx.missions[key];
+    if (!e) {
+      T.doc = null; lyr.tdr.clearLayers();
+      $("tdr").hidden = false;
+      $("tdrSub").innerHTML = isAir(m) ? "No tail Doppler radar analyses from this flight in the HRD real-time archive yet; each appears about 70 minutes after its centre fix."
+        : "No tail Doppler radar graphics from this flight in the HRD real-time archive.";
+      for (const id of ["tdrProd", "tdrTime", "tdrHgt", "tdrVar"]) $(id).innerHTML = "";
+      $("tdrTimeL").hidden = $("tdrHgtL").hidden = $("tdrVarL").hidden = true;
+      $("tdrProd").parentElement.hidden = true;
+      $("tdrFrame").hidden = true; $("tdrCap").innerHTML = ""; $("tdrCtr").innerHTML = "";
+      return;
+    }
+    if (refresh && T.doc && T.doc.key === key && T.docLast === e.last && T.docN === e.n_img) return;
+    let d;
+    try { d = await dataFetch(e.file, e.last + "_" + e.n_img + "_" + e.n_ctr, isAir(m), TBR); } catch (err) { return; }
+    if (S.key !== key || !d) return;
+    const first = !T.doc || T.doc.key !== key;
+    T.doc = d; T.docLast = e.last; T.docN = e.n_img;
+    if (first) T.ti = -1;
+    $("tdr").hidden = false; $("tdrProd").parentElement.hidden = false; $("tdrFrame").hidden = false;
+    const nC = d.centres.filter(c => c.c).length, nBad = d.centres.length - nC;
+    $("tdrSub").innerHTML = `HRD flight <b>${esc(d.id)}</b> (${esc(d.tail || d.aircraft)}), matched to ${esc(m.aircraft)} ${esc(m.mission)} by ${esc(d.how)}. ` +
+      `${d.analyses.length} analys${d.analyses.length === 1 ? "is" : "es"}, ${d.composites.length} composite${d.composites.length === 1 ? "" : "s"}` +
+      `${d.centres.length ? `, ${nC} TDR centre${nC === 1 ? "" : "s"} on the map${nBad ? ` (${nBad} not drawn: no centre found, or failed the check)` : ""}` : ""}. ` +
+      `<a href="${esc(d.src)}">Originals at AOML</a>.` +
+      (d.storm ? ` <a href="/circulation.html#tcshear/${esc(d.storm)}/fc/0/tilt">This storm's tilt against the model shear</a>.` : "");
+    tdrCentres();
+    legend();
+    tdrUI();
+    if (first && d.centres.some(c => c.c)) { radBuild(); srBuild(); }      // the TDR centres refine the centre track
+  }
+  function tdrCentres() {
+    lyr.tdr.clearLayers();
+    const d = T.doc; if (!d) return;
+    const cur = tdrTime();
+    for (const c of d.centres) {
+      if (!c.c) continue;
+      const p = c.c["2"] || c.c["05"] || c.c["3"], p6 = c.c["6"];
+      if (!p) continue;
+      const on = cur && Math.abs(cur - c.t) < 60;
+      if (p6) L.polyline([p, p6], { renderer: rend, color: TDRC, weight: on ? 3 : 2, interactive: false }).addTo(lyr.tdr);
+      if (p6) L.circleMarker(p6, { renderer: rend, radius: 2.5, color: TDRC, weight: 1.5, fillColor: TDRC, fillOpacity: 1, interactive: false }).addTo(lyr.tdr);
+      const sz = on ? 18 : 13;
+      const lv = [["05", "0.5"], ["2", "2"], ["3", "3"], ["6", "6"]].filter(([k]) => c.c[k]).map(([k, l]) => `${l} km ${ll(c.c[k][0], c.c[k][1])}`).join("<br>");
+      L.marker(p, { zIndexOffset: 400, icon: L.divIcon({ className: "", iconSize: [sz, sz], iconAnchor: [sz / 2, sz / 2],
+        html: `<svg width="${sz}" height="${sz}" viewBox="0 0 20 20"><path d="M10 1 L19 10 L10 19 L1 10 Z" fill="${on ? TDRC : "#fff"}" stroke="${TDRC}" stroke-width="2.5"/></svg>` }) })
+        .bindTooltip(`<b>TDR centre ${hm(c.t)}Z</b><br>${lv}${c.tilt ? `<br>2–6 km tilt ${c.tilt[0]} km toward ${c.tilt[1]}°` : ""}` +
+          `${c.ref ? `<br><span style="color:#5d5a54">${c.ref[1]} km from the ${esc(c.ref[0])}</span>` : ""}<br><i>click: show this analysis</i>`)
+        .on("click", () => { const i = PRODS.sw.times(d).findIndex(x => Math.abs(x.k - c.t) < 60); if (i >= 0) { T.prod = "sw"; T.ti = i; tdrUI(); $("tdr").scrollIntoView({ behavior: "smooth", block: "start" }); } })
+        .addTo(lyr.tdr);
+    }
+  }
+  function tdrTime() {
+    const d = T.doc, P = PRODS[T.prod]; if (!d || !P || !P.times) return null;
+    const ts = P.times(d); if (!ts.length) return null;
+    const i = T.ti < 0 || T.ti >= ts.length ? ts.length - 1 : T.ti;
+    return T.prod === "comp" ? null : ts[i].k;
+  }
+  function segHTML(items, on) {
+    return items.map(([k, lab]) => `<button type="button" data-k="${esc(k)}"${String(k) === String(on) ? ' class="on" aria-pressed="true"' : ' aria-pressed="false"'}>${esc(lab)}</button>`).join("");
+  }
+  function tdrUI() {
+    const d = T.doc; if (!d) return;
+    const avail = Object.keys(PRODS).filter(k => has(d, k));
+    if (!avail.includes(T.prod)) T.prod = avail[0] || "sw";
+    $("tdrProd").innerHTML = segHTML(avail.map(k => [k, PRODS[k].lab]), T.prod);
+    const P = PRODS[T.prod];
+    // time
+    const ts = P.times ? P.times(d) : [];
+    if (T.ti >= ts.length) T.ti = -1;
+    const ti = T.ti < 0 ? ts.length - 1 : T.ti;
+    $("tdrTimeL").hidden = !ts.length;
+    $("tdrTimeL").firstChild.textContent = T.prod === "comp" ? "Passes merged " : "Analysis (centre fix) ";
+    $("tdrTime").innerHTML = segHTML(ts.map((t, i) => [i, t.lab]), ti);
+    // height (swath)
+    const a = T.prod === "sw" && ts.length ? d.analyses.find(x => x.t === ts[ti].k) : null;
+    const hs = a ? HGTS.filter(h => a.sw[h]) : [];
+    if (a && !hs.includes(T.h)) T.h = hs[0];
+    $("tdrHgtL").hidden = !a;
+    $("tdrHgt").innerHTML = segHTML(hs.map(h => [h, h + " km"]), T.h);
+    // field
+    let vars = P.vars || [];
+    let src = null, cap = "", sq = false;
+    if (T.prod === "sw" && a) {
+      src = a.sw[T.h];
+      cap = `<b>Swath, ${hm(a.t)}Z analysis, ${T.h} km</b>: reflectivity (left) and wind speed in knots (right) from this one pass, ` +
+        `earth-relative, with the analysis' centre fix in the corner. ${T.h === "1" ? "1 km is the lowest level shown and the nearest to the surface wind, which is weaker than the wind at 1 km. " : ""}` +
+        `Gaps are where the radar saw no scatterers.`;
+    } else if (T.prod === "comp" && ts.length) {
+      const c = d.composites[ti];
+      vars = vars.filter(([k]) => c[k]);
+      const v = vars.some(([k]) => k === T.v.comp) ? T.v.comp : (vars[0] || [])[0];
+      T.v.comp = v; src = c[v];
+      cap = `<b>Composite of the passes ${rng(c.t0, c.t1)}</b>: ${v === "nhc" ? "wind speed at 0.5 km (left) and at 2.5 km, about flight level (right)" : "reflectivity (left) and wind speed with streamlines at 2 km (right)"}, ` +
+        `around the mean centre. HRD: composites may not be storm centred, and in storms weaker than hurricanes may not be meaningful; check the swaths first.`;
+    } else if (T.prod === "rz") {
+      const r = d.latest.rz, v = vars.some(([k]) => k === T.v.rz && r[k]) ? T.v.rz : vars.find(([k]) => r[k])[0];
+      vars = vars.filter(([k]) => r[k]); T.v.rz = v; src = r[v];
+      cap = `<b>Azimuthal means, passes ${rng(r.t0, r.t1)}</b> (latest composite): ${{ vt: "tangential wind", ur: "radial wind", dbz: "reflectivity" }[v]} against radius and height, ` +
+        `2 km by 0.5 km grid, around the composite centre (same caveat as the composites).`;
+    } else if (T.prod === "zoom" || T.prod === "tilt") {
+      const z = d.latest[T.prod]; src = z.img;
+      cap = T.prod === "zoom" ? `<b>Inner 80 km, passes ${rng(z.t0, z.t1)}</b> (latest composite): reflectivity and wind with streamlines.`
+        : `<b>Vorticity and vortex tilt, passes ${rng(z.t0, z.t1)}</b> (latest composite), storm-relative flow; the arrow is the tilt of the vortex centre with height (1 km steps).`;
+    } else if (T.prod === "prof" && ts.length) {
+      const pa = d.analyses.find(x => x.t === ts[ti].k);
+      vars = vars.filter(([k]) => pa.prof[k]);
+      const v = vars.some(([k]) => k === T.v.prof) ? T.v.prof : vars[0][0];
+      T.v.prof = v; src = pa.prof[v];
+      cap = `<b>Inbound and outbound profiles, ${hm(pa.t)}Z analysis</b>${pa.azi ? ` (azimuths ${pa.azi[0]}° and ${pa.azi[1]}°)` : ""}: 150 m vertical spacing.`;
+    } else if (T.prod === "ctr") {
+      src = d.latest.ctr ? d.latest.ctr.img : null; sq = true;
+      cap = `<b>TDR centres</b> at 2 km (L) and 6 km (M) for each analysis, from the storm-relative flow (HRD's track map). The same centres are on the map above.`;
+    }
+    $("tdrVarL").hidden = vars.length < 2;
+    $("tdrVar").innerHTML = segHTML(vars, T.v[T.prod]);
+    tdrImg(src, sq);
+    $("tdrCap").innerHTML = cap + ` <span class="mu">Real time, automated quality control (NOAA AOML HRD).</span>`;
+    $("tdrCtr").innerHTML = T.prod === "ctr" ? tdrCtrTable(d) : "";
+    tdrCentres();
+  }
+  function tdrCtrTable(d) {
+    if (!d.centres.length) return `<p class="empty">No TDR centre files for this flight.</p>`;
+    const f = p => p ? ll(p[0], p[1]) : "—";
+    return `<table><thead><tr><th>Analysis</th><th>0.5 km</th><th>2 km</th><th>6 km</th><th>2–6 km tilt</th><th>Check</th></tr></thead><tbody>` +
+      d.centres.map(c => c.c ? `<tr><td>${hm(c.t)}Z</td><td>${f(c.c["05"])}</td><td>${f(c.c["2"])}</td><td>${f(c.c["6"])}</td>` +
+        `<td>${c.tilt ? `${c.tilt[0]} km to ${c.tilt[1]}°` : "—"}</td><td class="mu">${c.ref ? `${c.ref[1]} km from the ${esc(c.ref[0])}` : "unchecked (no fix or track)"}</td></tr>`
+        : `<tr><td>${hm(c.t)}Z</td><td colspan="4" class="mu">not drawn</td><td class="mu">${esc(c.bad)}</td></tr>`).join("") + "</tbody></table>";
+  }
+  function tdrImg(path, sq) {
+    const fr = $("tdrFrame");
+    if (!path) { fr.innerHTML = `<p class="ph">No image for this choice.</p>`; return; }
+    const v = T.prod === "ctr" && T.doc.latest.ctr ? T.doc.latest.ctr.v : "";
+    const urls = [URLS.cdn(path, v, TBR)[0], URLS.raw(path, v, TBR)[0], URLS.jsd(path, null, TBR)[0]];
+    let img = fr.querySelector("img"), a = fr.querySelector("a");
+    if (!img) { fr.innerHTML = ""; a = document.createElement("a"); a.target = "_blank"; a.rel = "noopener"; a.title = "Open the full-size image";
+                img = document.createElement("img"); img.decoding = "async"; a.appendChild(img); fr.appendChild(a); }
+    img.onload = () => { a.href = img.src; };
+    img.className = sq ? "sq" : "";
+    img.alt = $("tdrCap").textContent || "Tail Doppler radar graphic";
+    let k = 0;
+    img.onerror = () => { if (++k < urls.length) img.src = urls[k]; else fr.innerHTML = `<p class="ph">The image could not be loaded. Try again shortly.</p>`; };
+    img.src = urls[0];
+  }
+  // GOES-East band-13 cut-outs at the centre passes (goes_ir.py), laid under the track on demand
+  const SAT = { key: null, t: null, layer: null };
+  const SATCOL = [["≤ −80", "#ffffff"], ["−75", "#b428c8"], ["−70", "#c8141e"], ["−65", "#f06e14"], ["−60", "#f5c81e"], ["−50", "#28aa3c"], ["−40", "#286ed2"], ["−30", "#5ac8e6"]];
+  function satUI(key, idx) {
+    const list = (idx && idx.sat && idx.sat[key]) || [];
+    if (SAT.key !== key) { SAT.key = key; SAT.t = null; if (SAT.layer) { map.removeLayer(SAT.layer); SAT.layer = null; } }
+    $("satBar").hidden = !list.length;
+    if (!list.length) return;
+    $("satSel").innerHTML = segHTML([["off", "Off"], ...list.map(x => [String(x[0]), hm(x[0]) + "Z pass"])], SAT.t == null ? "off" : String(SAT.t));
+    satInfo(list);
+  }
+  function satInfo(list) {
+    const x = list.find(y => y[0] === SAT.t);
+    $("satInfo").innerHTML = x ? `${esc(x[2])} band 13 (10.3 µm), image ${hms(x[1])}Z · ` +
+      SATCOL.map(([l, c]) => `<span class="sw"><i style="background:${c}"></i>${l}</span>`).join(" ") + ` <span class="sw"><i style="background:linear-gradient(90deg,#d7d7d7,#282828)"></i>−30 to +30 °C</span> · NOAA GOES-East (AWS open data)`
+      : "Cloud-top temperature at each centre pass, from NOAA GOES-East.";
+  }
+  $("satSel").addEventListener("click", e => {
+    const b = e.target.closest("button[data-k]"); if (!b || !T.idx) return;
+    const list = (T.idx.sat && T.idx.sat[SAT.key]) || [];
+    if (SAT.layer) { map.removeLayer(SAT.layer); SAT.layer = null; }
+    SAT.t = b.dataset.k === "off" ? null : +b.dataset.k;
+    const x = list.find(y => y[0] === SAT.t);
+    if (x) {
+      const urls = [URLS.cdn(x[7], null, TBR)[0], URLS.raw(x[7], null, TBR)[0], URLS.jsd(x[7], null, TBR)[0]];
+      SAT.layer = L.imageOverlay(urls[0], [[x[3], x[4]], [x[5], x[6]]], { pane: "sat", opacity: 0.85, interactive: false, alt: "GOES infrared" }).addTo(map);
+      SAT.layer.once("error", () => SAT.layer && SAT.layer.setUrl(urls[1]));
+    }
+    $("satSel").querySelectorAll("button").forEach(y => { const on = y === b; y.classList.toggle("on", on); y.setAttribute("aria-pressed", on); });
+    satInfo(list);
+  });
+  const segClick = (id, fn) => $(id).addEventListener("click", e => { const b = e.target.closest("button[data-k]"); if (b) { fn(b.dataset.k); tdrUI(); } });
+  segClick("tdrProd", k => { T.prod = k; T.ti = -1; tdrSave(); });
+  segClick("tdrTime", k => { T.ti = +k; });
+  segClick("tdrHgt", k => { T.h = k; tdrSave(); });
+  segClick("tdrVar", k => { T.v[T.prod] = k; });
+
+  // ── centre track and passes (a port of recon_mirror.centre_fn / legs / secondary_max: keep the two in step) ──
+  const NMI = 1.852, PASS_R = 20, LEG_MAX_R = 150, TURN_NM = 5, SEC_OUT_NM = 10, SEC_KT = 5, SEC_SPAN_NM = 20, SEC_FRAC = 0.5, SEC_MIN_VMAX = 64;
+  const rad = Math.PI / 180;
+  function gkm(a, b, c, d) {
+    const p1 = a * rad, p2 = c * rad, dp = p2 - p1, dl = (d - b) * rad;
+    const h = Math.sin(dp / 2) ** 2 + Math.cos(p1) * Math.cos(p2) * Math.sin(dl / 2) ** 2;
+    return 2 * 6371 * Math.asin(Math.min(1, Math.sqrt(h)));
+  }
+  function btAt(bt, t) {
+    if (!bt || !bt.length || t < bt[0][0] - 43200 || t > bt[bt.length - 1][0] + 43200) return null;
+    if (t <= bt[0][0]) return [bt[0][1], bt[0][2]];
+    if (t >= bt[bt.length - 1][0]) return [bt[bt.length - 1][1], bt[bt.length - 1][2]];
+    for (let j = 1; j < bt.length; j++) if (bt[j][0] >= t) {
+      const a = bt[j - 1], b = bt[j], f = (t - a[0]) / Math.max(1, b[0] - a[0]);
+      return [a[1] + f * (b[1] - a[1]), a[2] + f * (b[2] - a[2])];
+    }
+    return null;
+  }
+  function btMotion(bt, t) {             // deg/s lat, lon from the best-track segment around t
+    if (!bt || bt.length < 2) return null;
+    let a = t <= bt[0][0] ? bt[0] : bt[bt.length - 2], b = t <= bt[0][0] ? bt[1] : bt[bt.length - 1];
+    for (let j = 1; j < bt.length; j++) if (bt[j - 1][0] <= t && t <= bt[j][0]) { a = bt[j - 1]; b = bt[j]; break; }
+    const dt = Math.max(1, b[0] - a[0]);
+    return [(b[1] - a[1]) / dt, (b[2] - a[2]) / dt];
+  }
+  // fixes: [{t, la, lo}] sorted. Linear between fixes <= 6 h apart; else the nearest fix (<= 4 h) moved with the best-track
+  // motion; else the best track (+-12 h).
+  function centreFn(fixes, bt) {
+    return t => {
+      for (let j = 1; j < fixes.length; j++) {
+        const a = fixes[j - 1], b = fixes[j];
+        if (a.t <= t && t <= b.t && b.t - a.t <= 21600) { const w = (t - a.t) / Math.max(1, b.t - a.t); return [a.la + w * (b.la - a.la), a.lo + w * (b.lo - a.lo)]; }
+      }
+      if (fixes.length) {
+        let n = fixes[0];
+        for (const f of fixes) if (Math.abs(f.t - t) < Math.abs(n.t - t)) n = f;
+        if (Math.abs(n.t - t) <= 14400) {
+          const mv = btMotion(bt, t);
+          if (mv) return [n.la + mv[0] * (t - n.t), n.lo + mv[1] * (t - n.t)];
+          if (Math.abs(n.t - t) <= 1800) return [n.la, n.lo];
+        }
+      }
+      return btAt(bt, t);
+    };
+  }
+  function smoothProfile(pts) {
+    if (!pts.length) return [];
+    const bins = new Map();
+    for (const [r, v] of pts) { const k = Math.floor(r); if (!bins.has(k)) bins.set(k, []); bins.get(k).push(v); }
+    const ks = [...bins.keys()], lo = Math.min(...ks), hi = Math.max(...ks), raw = [];
+    for (let k = lo; k <= hi; k++) raw.push([k + 0.5, bins.has(k) ? bins.get(k).reduce((a, b) => a + b, 0) / bins.get(k).length : null]);
+    const out = [];
+    raw.forEach(([r, v], j) => {
+      const w = raw.slice(Math.max(0, j - 2), j + 3).map(x => x[1]).filter(x => x != null);
+      if (w.length >= 3 && v != null) out.push([r, w.reduce((a, b) => a + b, 0) / w.length]);
+    });
+    return out;
+  }
+  function secondaryMax(pts, rmw, vmax) {
+    if (vmax < SEC_MIN_VMAX) return null;
+    const sp = smoothProfile(pts);
+    let best = null;
+    for (const [r, v] of sp) {
+      if (r < rmw + SEC_OUT_NM || sp.some(([r2, v2]) => Math.abs(r2 - r) <= 5 && v2 > v)) continue;
+      const inner = sp.filter(([r2]) => rmw < r2 && r2 < r).map(x => x[1]), outer = sp.filter(([r2]) => r < r2 && r2 <= r + SEC_SPAN_NM).map(x => x[1]);
+      if (inner.length < 3 || outer.length < 5) continue;
+      const dip = v - Math.min(...inner);
+      if (v >= SEC_FRAC * vmax && dip >= SEC_KT && v - Math.min(...outer) >= SEC_KT && (!best || v > best[1])) best = [r, v, dip];
+    }
+    return best;
+  }
+  // -> {legs: [{dir, idx: [row indices], tc, rmin, rmax, ws/sfmr/wp: [v, r, t, i], sec}], rr: radius (n mi) per row}
+  function computeLegs(rows, ix, cf) {
+    const rr = rows.map(r => { if (r[ix.la] == null) return null; const c = cf(r[0]); return c ? gkm(r[ix.la], r[ix.lo], c[0], c[1]) / NMI : null; });
+    const good = []; rr.forEach((v, i) => { if (v != null) good.push(i); });
+    const used = new Set(), out = [];
+    good.forEach((i, gi) => {
+      if (rr[i] > PASS_R || used.has(i)) return;
+      const win = good.filter(j => Math.abs(rows[j][0] - rows[i][0]) <= 600);
+      if (rr[i] > Math.min(...win.map(j => rr[j]))) return;
+      win.forEach(j => used.add(j));
+      for (const d of [-1, 1]) {
+        const seq = [i]; let rmax = rr[i], last = i, k = gi + d;
+        while (k >= 0 && k < good.length) {
+          const j = good[k];
+          if (Math.abs(rows[j][0] - rows[last][0]) > 300 || rr[j] > LEG_MAX_R || rr[j] < rmax - TURN_NM) break;
+          rmax = Math.max(rmax, rr[j]); seq.push(j); last = j; k += d;
+        }
+        if (rmax - rr[i] < 15 || seq.length < 6) continue;
+        seq.sort((a, b) => a - b);
+        const leg = { dir: d, idx: seq, tc: rows[i][0], rmin: rr[i], rmax };
+        for (const col of ["ws", "sfmr", "wp"]) {
+          let b = null;
+          for (const j of seq) { const v = rows[j][ix[col]]; if (v != null && (!b || v > b[0])) b = [v, rr[j], rows[j][0], j]; }
+          if (b) leg[col] = b;
+        }
+        if (leg.ws) leg.sec = secondaryMax(seq.filter(j => rows[j][ix.ws] != null).map(j => [rr[j], rows[j][ix.ws]]).sort((a, b) => a[0] - b[0]), leg.ws[1], leg.ws[0]);
+        out.push(leg);
+      }
+    });
+    out.sort((a, b) => a.tc - b.tc || a.dir - b.dir);
+    return { legs: out, rr };
+  }
+  // centre fixes for the open storm: every vortex fix (all missions) plus this flight's TDR centres (2 km)
+  function centreFixes() {
+    const fx = stormFixes(S.sid).map(f => ({ t: f.t, la: f.la, lo: f.lo }));
+    if (T.doc && T.doc.key === S.key) for (const c of T.doc.centres) { const p = c.c && (c.c["2"] || c.c["05"]); if (p) fx.push({ t: c.t, la: p[0], lo: p[1], tdr: 1 }); }
+    return fx.sort((a, b) => a.t - b.t);
+  }
+
+  // ── canvas helpers ───────────────────────────────────────────────────────
+  function cvSetup(cv) {
+    const dpr = window.devicePixelRatio || 1, W = cv.clientWidth, H = cv.clientHeight;
+    if (!W) return null;
+    cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
+    const c = cv.getContext("2d"); c.setTransform(dpr, 0, 0, dpr, 0, 0); c.clearRect(0, 0, W, H);
+    c.font = "11px 'Source Sans 3', sans-serif"; c.lineWidth = 1;
+    return { c, W, H };
+  }
+  function axisY(c, Y, lo, hi, x0, x1, unit, fmt) {
+    const step = niceStep((hi - lo) / 4);
+    c.fillStyle = css("--axis"); c.textAlign = "right"; c.textBaseline = "middle";
+    for (let v = Math.ceil(lo / step) * step; v <= hi + 1e-9; v += step) {
+      const y = Y(v); c.strokeStyle = css("--grid"); c.beginPath(); c.moveTo(x0, y); c.lineTo(x1, y); c.stroke();
+      c.fillText(fmt ? fmt(v) : String(Math.round(v * 10) / 10), x0 - 5, y);
+    }
+    if (unit) { const yc = (Y(lo) + Y(hi)) / 2; c.save(); c.translate(11, yc); c.rotate(-Math.PI / 2); c.textAlign = "center"; c.fillText(unit, 0, 0); c.restore(); }
+  }
+  const LEGC = ["#3b6fd4", "#e0442c", "#2fa84f", "#9b4fd6", "#d98a12", "#1aa3a3", "#c2378f", "#6b7d1f", "#7a5230", "#5b8fd9"];
+  const legCol = i => LEGC[i % LEGC.length];
+
+  // ── radial wind profiles ─────────────────────────────────────────────────
+  const R = { v: "ws", off: new Set(), legs: [], rr: [], pts: [], hoverI: -1 };
+  const RVARS = [["ws", "Flight level (30 s)"], ["sfmr", "SFMR surface"], ["wp", "Peak 10-s flight level"]];
+  function radBuild() {
+    if (!S.mis || !S.rows.length) { $("rad").hidden = true; R.legs = []; return; }
+    const cf = centreFn(centreFixes(), S.storm && S.storm.btk);
+    const r = computeLegs(S.rows, S.col, cf);
+    R.legs = r.legs; R.rr = r.rr; R.off = new Set();
+    $("rad").hidden = false;
+    const nT = centreFixes().filter(f => f.tdr).length;
+    $("radSub").innerHTML = R.legs.length
+      ? `${R.legs.length} legs into or out of the centre on this flight, cut at ${LEG_MAX_R} n mi or where the aircraft turns back. Radius from the centre interpolated in time between the vortex fixes${nT ? " and the TDR centres" : ""} (best-track motion beyond them). Hover to find a point on the map and along the flight.`
+      : `No centre passes: the flight never came within ${PASS_R} n mi of the interpolated centre${S.man.missions[S.key].how && S.man.missions[S.key].how.startsWith("nearest") ? " (a surveillance flight)" : ""}.`;
+    $("radVar").innerHTML = segHTML(RVARS.filter(([k]) => R.legs.some(g => g[k])), R.v);
+    if (!R.legs.some(g => g[R.v])) R.v = "ws";
+    $("radVar").innerHTML = segHTML(RVARS.filter(([k]) => R.legs.some(g => g[k])), R.v);
+    $("radLegs").innerHTML = R.legs.map((g, i) => `<button type="button" data-i="${i}" aria-pressed="true"><i style="background:${legCol(i)}${g.dir > 0 ? ";background:repeating-linear-gradient(90deg," + legCol(i) + " 0 4px,transparent 4px 7px)" : ""}"></i>${hm(g.tc)}Z ${g.dir < 0 ? "in" : "out"}</button>`).join("");
+    $("radTbl").innerHTML = R.legs.length ? `<table><thead><tr><th>Centre pass</th><th>Leg</th><th>To (n mi)</th><th>Max FL wind (RMW)</th><th>Max SFMR (radius)</th><th>Secondary FL maximum</th></tr></thead><tbody>` +
+      R.legs.map((g, i) => `<tr class="click" data-i="${i}"><td><i style="display:inline-block;width:0.8em;height:0.8em;border-radius:2px;background:${legCol(i)};margin-right:0.35em"></i>${hm(g.tc)}Z</td><td>${g.dir < 0 ? "inbound" : "outbound"}</td><td>${Math.round(g.rmax)}</td>` +
+        `<td>${g.ws ? `${g.ws[0]} kt (${g.ws[1].toFixed(0)} n mi)` : "—"}</td><td>${g.sfmr ? `${g.sfmr[0]} kt (${g.sfmr[1].toFixed(0)} n mi)` : "—"}</td>` +
+        `<td${g.sec ? ' class="flag"' : ""}>${g.sec ? `${Math.round(g.sec[1])} kt at ${g.sec[0].toFixed(0)} n mi (dip ${g.sec[2].toFixed(0)} kt inside)` : `<span class="mu">${g.ws && g.ws[0] < SEC_MIN_VMAX ? `not looked for (leg below ${SEC_MIN_VMAX} kt)` : "none"}</span>`}</td></tr>`).join("") + "</tbody></table>" : "";
+    $("radTbl").querySelectorAll("tr[data-i]").forEach(tr => tr.onclick = () => { const g = R.legs[+tr.dataset.i]; if (g.ws) goTime(g.ws[2], true); });
+    $("radNote").innerHTML = `<b>Radius of maximum wind</b> (circle): where the leg's highest 30-s flight-level wind (or SFMR, when shown) was observed. ` +
+      `<b>Secondary wind maximum</b> (triangle, flight-level wind only): on the leg's profile averaged into 1 n mi bins and smoothed over 5 n mi, the highest point within ±5 n mi that lies at least ${SEC_OUT_NM} n mi outside the RMW, ` +
+      `is at least ${SEC_KT} kt above the lowest wind between it and the RMW and above the lowest wind in the ${SEC_SPAN_NM} n mi outside it (which must be sampled), and is at least half the leg's maximum ` +
+      `(so outer rainbands do not count), on legs whose maximum is ${SEC_MIN_VMAX} kt or more. A flag, not a diagnosis of an eyewall replacement: it depends on where the aircraft flew.`;
+    radDraw();
+  }
+  function radDraw() {
+    const cv = $("radCv"); if ($("rad").hidden) return;
+    const g0 = cvSetup(cv); if (!g0) return;
+    const { c, W, H } = g0, ix = S.col, v = R.v;
+    const vis = R.legs.map((g, i) => [g, i]).filter(([g, i]) => !R.off.has(i) && g[v]);
+    const L0 = 46, R0 = W - 12, T0 = 8, B0 = H - 26;
+    let rmax = 20, vmax = 20;
+    for (const [g] of vis) { rmax = Math.max(rmax, g.rmax); vmax = Math.max(vmax, g[v][0]); }
+    rmax = Math.min(LEG_MAX_R, Math.ceil(rmax / 10) * 10); vmax = Math.ceil((vmax + 8) / 10) * 10;
+    const X = r => L0 + r / rmax * (R0 - L0), Y = w => B0 - w / vmax * (B0 - T0);
+    axisY(c, Y, 0, vmax, L0, R0, "kt");
+    c.textAlign = "center"; c.textBaseline = "top";
+    for (let r = 0; r <= rmax; r += rmax > 80 ? 20 : 10) { c.strokeStyle = css("--grid"); c.beginPath(); c.moveTo(X(r), T0); c.lineTo(X(r), B0); c.stroke(); c.fillStyle = css("--axis"); c.fillText(String(r), X(r), B0 + 4); }
+    c.fillText("radius from the centre (n mi)", (L0 + R0) / 2, B0 + 14);
+    R.pts = [];
+    for (const [g, i] of vis) {
+      const col = legCol(i);
+      c.strokeStyle = col; c.lineWidth = 1.7; c.setLineDash(g.dir > 0 ? [5, 3] : []);
+      c.beginPath(); let on = false;
+      const seq = g.idx.slice().sort((a, b) => R.rr[a] - R.rr[b]);
+      for (const j of seq) {
+        const w = S.rows[j][ix[v]];
+        if (w == null) { on = false; continue; }
+        const x = X(R.rr[j]), y = Y(w);
+        if (on) c.lineTo(x, y); else { c.moveTo(x, y); on = true; }
+        R.pts.push([x, y, j, i]);
+      }
+      c.stroke(); c.setLineDash([]);
+      const m = g[v];
+      c.fillStyle = col; c.beginPath(); c.arc(X(m[1]), Y(m[0]), 4.5, 0, 2 * Math.PI); c.fill();
+      c.strokeStyle = css("--panel"); c.lineWidth = 1.5; c.stroke();
+      if (v === "ws" && g.sec) {
+        const x = X(g.sec[0]), y = Y(g.sec[1]) - 7;
+        c.fillStyle = col; c.beginPath(); c.moveTo(x, y + 6); c.lineTo(x - 6, y - 5); c.lineTo(x + 6, y - 5); c.closePath(); c.fill(); c.stroke();
+      }
+    }
+    if (!vis.length) { c.fillStyle = css("--muted"); c.font = "14px sans-serif"; c.textAlign = "left"; c.fillText(R.legs.length ? "No leg has this wind." : "No legs.", L0 + 10, T0 + 20); }
+    const hi = R.hoverI;
+    if (hi >= 0 && R.rr[hi] != null && S.rows[hi][ix[v]] != null && vis.some(([g]) => g.idx.includes(hi))) {
+      c.strokeStyle = css("--ink"); c.lineWidth = 2; c.beginPath(); c.arc(X(R.rr[hi]), Y(S.rows[hi][ix[v]]), 6, 0, 2 * Math.PI); c.stroke();
+    }
+    R.geo = { X, Y };
+  }
+  function radPointer(e) {
+    if (!R.pts.length) return;
+    const b = $("radCv").getBoundingClientRect(), x = e.clientX - b.left, y = e.clientY - b.top;
+    let best = null, bd = 14 * 14;
+    for (const p of R.pts) { const d = (p[0] - x) ** 2 + (p[1] - y) ** 2; if (d < bd) { bd = d; best = p; } }
+    if (!best) return;
+    const g = R.legs[best[3]], j = best[2], r = S.rows[j];
+    hoverRow(j, false);
+    $("radRead").innerHTML = `<b>${hms(r[0])}Z</b> · ${hm(g.tc)}Z pass, ${g.dir < 0 ? "inbound" : "outbound"} · ${R.rr[j].toFixed(1)} n mi from the centre · ` +
+      `FL ${r[S.col.ws] ?? "—"} kt, peak ${r[S.col.wp] ?? "—"} kt, SFMR ${r[S.col.sfmr] ?? "—"} kt`;
+  }
+  $("radCv").addEventListener("pointermove", radPointer);
+  $("radCv").addEventListener("pointerdown", radPointer);
+  $("radVar").addEventListener("click", e => { const b = e.target.closest("button[data-k]"); if (!b) return; R.v = b.dataset.k; $("radVar").innerHTML = segHTML(RVARS.filter(([k]) => R.legs.some(g => g[k])), R.v); radDraw(); });
+  $("radLegs").addEventListener("click", e => {
+    const b = e.target.closest("button[data-i]"); if (!b) return;
+    const i = +b.dataset.i; R.off.has(i) ? R.off.delete(i) : R.off.add(i);
+    b.setAttribute("aria-pressed", R.off.has(i) ? "false" : "true"); radDraw();
+  });
+
+  // ── intensity history (all missions of the storm) ────────────────────────
+  const RD_HPA_H = 1.0, RD_MIN_H = 12, RI_KT = 30;
+  function histData() {
+    const s = S.man.storms[S.sid]; if (!s) return null;
+    const fx = stormFixes(S.sid).filter(f => f.p != null && f.p > 850 && f.p < 1030);
+    const eye = [], legsW = [];
+    for (const k of s.missions) {
+      const m = S.man.missions[k];
+      for (const d of m.eyedrops || []) eye.push({ t: d[0], p: d[1], ws: d[2], est: d[3], how: d[4], ob: d[5], k });
+      for (const g of m.legs || []) {
+        if (g[4] != null) legsW.push({ t: g[6], v: g[4], r: g[5], kind: "fl", k, dir: g[0] });
+        if (g[7] != null) legsW.push({ t: g[9], v: g[7], r: g[8], kind: "sfmr", k, dir: g[0] });
+      }
+    }
+    // pressure tendency between consecutive measured (not extrapolated) fixes at least 1 h apart
+    const meas = fx.filter(f => !f.x), tend = [];
+    for (let j = 1, a = meas[0]; j < meas.length; j++) {
+      const b = meas[j];
+      if (b.t - a.t >= 3600) { tend.push({ t0: a.t, t1: b.t, r: (b.p - a.p) / ((b.t - a.t) / 3600) }); a = b; }
+    }
+    // rapid deepening: two measured fixes 12-24 h apart falling >= 1 hPa/h on average, and sustained: no fix in between
+    // above the start or below the end by more than 2 hPa (a deepen-then-fill cycle does not count)
+    const rd = [];
+    for (let i = 0; i < meas.length; i++) for (let j = i + 1; j < meas.length; j++) {
+      const h = (meas[j].t - meas[i].t) / 3600;
+      if (h < RD_MIN_H) continue; if (h > 24) break;
+      const mid = meas.slice(i + 1, j);
+      if ((meas[i].p - meas[j].p) / h >= RD_HPA_H && mid.every(f => f.p <= meas[i].p + 2 && f.p >= meas[j].p - 2)) rd.push([meas[i].t, meas[j].t, meas[i].p - meas[j].p, h]);
+    }
+    // NHC rapid intensification: best-track max wind up >= 30 kt in 24 h
+    const ri = [], bt = (S.storm && S.storm.btk) || [];
+    for (let i = 0; i < bt.length; i++) for (let j = i + 1; j < bt.length; j++) {
+      if (bt[j][0] - bt[i][0] > 86400) break;
+      if (bt[j][0] - bt[i][0] === 86400 && bt[i][3] != null && bt[j][3] != null && bt[j][3] - bt[i][3] >= RI_KT) ri.push([bt[i][0], bt[j][0], bt[j][3] - bt[i][3]]);
+    }
+    return { fx, eye, legsW, tend, rd: mergeSpans(rd), ri: mergeSpans(ri), bt };
+  }
+  function mergeSpans(sp) {
+    const s = sp.slice().sort((a, b) => a[0] - b[0]), out = [];
+    for (const x of s) { const l = out[out.length - 1]; if (l && x[0] <= l[1]) { l[1] = Math.max(l[1], x[1]); l.n++; l.best = Math.max(l.best, x[2] / (x[3] || 24)); } else out.push(Object.assign([x[0], x[1]], { n: 1, best: x[2] / (x[3] || 24), d: x[2] })); }
+    return out;
+  }
+  const HI = { pts: [] };
+  function histBuild() {
+    const D = S.sid && histData();
+    if (!D || (!D.fx.length && !D.legsW.length && !D.eye.length)) { $("hist").hidden = true; return; }
+    $("hist").hidden = false; HI.D = D;
+    const s = S.man.storms[S.sid];
+    $("histSub").innerHTML = `All ${s.missions.length} missions into ${esc(s.name || S.sid)}: minimum pressure from the vortex fixes (filled: measured by dropsonde; hollow: extrapolated from flight level) and from eye dropsondes (diamonds, splash pressure less 1 hPa per 10 kt of surface wind), ` +
+      `the highest flight-level and SFMR wind of each leg, and NHC's best track (grey). Fixes without a valid pressure are left out.`;
+    const f = [];
+    for (const x of D.rd) f.push(`<span class="flag">Rapid deepening</span> ${dayhm(x[0])} – ${dayhm(x[1])} (measured fixes falling ≥ ${RD_HPA_H} hPa/h over ≥ ${RD_MIN_H} h; steepest ${x.best.toFixed(1)} hPa/h)`);
+    for (const x of D.ri) f.push(`<span class="flag">Rapid intensification</span> (best track) ${dayhm(x[0])} – ${dayhm(x[1])}`);
+    $("histFlags").innerHTML = f.length ? f.join("<br>") : `No rapid deepening in the measured fixes (≥ ${RD_HPA_H} hPa/h sustained over ≥ ${RD_MIN_H} h) and no rapid intensification in the best track (≥ ${RI_KT} kt in 24 h).`;
+    $("histNote").innerHTML = `Rules: <b>rapid deepening</b> = two measured (dropsonde, not extrapolated) fixes ${RD_MIN_H}–24 h apart whose pressure fell by at least ${RD_HPA_H} hPa per hour on average, with no fix in between more than 2 hPa above the first or below the last, so the fall is sustained (shaded red in the pressure panel; overlapping windows merged); ` +
+      `<b>rapid intensification</b> = NHC's definition, a ${RI_KT} kt rise of the maximum sustained wind in 24 h, from the best track (the 24-h windows shaded in the wind panel). The bottom panel is the pressure change per hour between consecutive measured fixes at least 1 h apart (red: falling at ≥ ${RD_HPA_H} hPa/h). ` +
+      `Eye-sonde estimate: NHC practice of subtracting 1 hPa for every 10 kt of surface wind at the splash, since a sonde rarely lands at the exact centre. The best track after the storm is in progress is NHC's working best track and changes after the season.`;
+    histDraw();
+  }
+  function histDraw() {
+    if ($("hist").hidden || !HI.D) return;
+    const g0 = cvSetup($("histCv")); if (!g0) return;
+    const { c, W, H } = g0, D = HI.D;
+    const ts = [...D.fx.map(f => f.t), ...D.eye.map(e => e.t), ...D.legsW.map(l => l.t)];
+    if (!ts.length) return;
+    const t0 = Math.min(...ts) - 6 * 3600, t1 = Math.max(...ts) + 6 * 3600;
+    const L0 = 50, R0 = W - 12, X = t => L0 + (t - t0) / (t1 - t0) * (R0 - L0);
+    const P1 = [8, H * 0.42], P2 = [H * 0.47, H * 0.76], P3 = [H * 0.81, H - 24];
+    const bt = D.bt.filter(r => r[0] >= t0 && r[0] <= t1);
+    // pressure panel
+    const ps = [...D.fx.map(f => f.p), ...D.eye.map(e => e.est ?? e.p), ...bt.map(r => r[4]).filter(x => x)];
+    let plo = Math.min(...ps) - 3, phi = Math.max(...ps) + 3; if (phi - plo < 12) { const m = (plo + phi) / 2; plo = m - 6; phi = m + 6; }
+    const YP = p => P1[0] + (p - plo) / (phi - plo) * (P1[1] - P1[0]);          // pressure increases downward
+    for (const x of D.rd) { c.fillStyle = "rgba(220,50,40,0.13)"; c.fillRect(X(x[0]), P1[0], X(x[1]) - X(x[0]), P1[1] - P1[0]); }
+    { const step = niceStep((phi - plo) / 4); c.fillStyle = css("--axis"); c.textAlign = "right"; c.textBaseline = "middle";
+      for (let v = Math.ceil(plo / step) * step; v <= phi; v += step) { const y = YP(v); c.strokeStyle = css("--grid"); c.beginPath(); c.moveTo(L0, y); c.lineTo(R0, y); c.stroke(); c.fillText(String(v), L0 - 5, y); }
+      c.save(); c.translate(11, (P1[0] + P1[1]) / 2); c.rotate(-Math.PI / 2); c.textAlign = "center"; c.fillText("hPa", 0, 0); c.restore(); }
+    // wind panel
+    const ws = [...D.legsW.map(l => l.v), ...bt.map(r => r[3]).filter(x => x != null), 40];
+    const whi = Math.ceil((Math.max(...ws) + 10) / 10) * 10, YW = w => P2[1] - w / whi * (P2[1] - P2[0]);
+    for (const x of D.ri) { c.fillStyle = "rgba(220,50,40,0.13)"; c.fillRect(X(Math.max(t0, x[0])), P2[0], X(Math.min(t1, x[1])) - X(Math.max(t0, x[0])), P2[1] - P2[0]); }
+    axisY(c, YW, 0, whi, L0, R0, "");
+    c.save(); c.translate(11, (P2[0] + P2[1]) / 2); c.rotate(-Math.PI / 2); c.textAlign = "center"; c.fillStyle = css("--axis"); c.fillText("kt", 0, 0); c.restore();
+    // tendency panel
+    const rs = D.tend.map(x => x.r), rmax = Math.max(2, ...rs.map(Math.abs)) * 1.1, YT = r => (P3[0] + P3[1]) / 2 - r / rmax * (P3[1] - P3[0]) / 2;
+    axisY(c, YT, -Math.ceil(rmax), Math.ceil(rmax), L0, R0, "");
+    c.save(); c.translate(11, (P3[0] + P3[1]) / 2); c.rotate(-Math.PI / 2); c.textAlign = "center"; c.fillStyle = css("--axis"); c.fillText("hPa/h", 0, 0); c.restore();
+    // time axis
+    const span = t1 - t0, st = span > 6 * 86400 ? 86400 : span > 2 * 86400 ? 43200 : span > 86400 ? 21600 : 10800;
+    c.textAlign = "center"; c.textBaseline = "top";
+    for (let t = Math.ceil(t0 / st) * st; t <= t1; t += st) {
+      const x = X(t); c.strokeStyle = css("--grid"); c.beginPath(); c.moveTo(x, 8); c.lineTo(x, H - 24); c.stroke();
+      const d = new Date(t * 1000); c.fillStyle = css("--axis");
+      if (t % (st * (W < 600 ? 2 : 1)) === 0) c.fillText(`${d.getUTCDate()} ${MON[d.getUTCMonth()]}${d.getUTCHours() ? " " + p2(d.getUTCHours()) + "Z" : ""}`, x, H - 20);
+    }
+    HI.pts = [];
+    const grey = dark() ? "#9aa0aa" : "#7a7f86";
+    const line = (pts, Y, k) => { c.strokeStyle = grey; c.lineWidth = 1.6; c.beginPath(); let on = false; for (const r of pts) { if (r[k] == null) { on = false; continue; } const x = X(r[0]), y = Y(r[k]); on ? c.lineTo(x, y) : c.moveTo(x, y); on = true; } c.stroke(); };
+    line(bt, YP, 4); line(bt, YW, 3);
+    for (const r of bt) { if (r[4]) HI.pts.push([X(r[0]), YP(r[4]), `Best track ${dayhm(r[0])}: ${r[4]} hPa, ${r[3] ?? "—"} kt`]); }
+    // fixes
+    for (const f of D.fx) {
+      const x = X(f.t), y = YP(f.p);
+      c.beginPath(); c.arc(x, y, 4, 0, 2 * Math.PI); c.strokeStyle = "#b3261e"; c.lineWidth = 1.8; c.fillStyle = f.x ? css("--panel") : "#b3261e"; c.fill(); c.stroke();
+      HI.pts.push([x, y, `Fix ${dayhm(f.t)}: ${f.p} hPa${f.x ? " (extrapolated)" : ""} · ${esc(S.man.missions[f.k].aircraft)} ${esc(S.man.missions[f.k].mission)}`, f.k, f.t]);
+    }
+    for (const e of D.eye) {
+      const p = e.est ?? e.p, x = X(e.t), y = YP(p);
+      c.fillStyle = dark() ? "#e6e8ec" : "#1f2620"; c.beginPath(); c.moveTo(x, y - 5); c.lineTo(x + 5, y); c.lineTo(x, y + 5); c.lineTo(x - 5, y); c.closePath(); c.fill();
+      HI.pts.push([x, y, `Eye sonde ${dayhm(e.t)}: splash ${e.p} hPa${e.ws != null ? `, surface wind ${e.ws} kt → est. ${e.est} hPa` : " (no surface wind: no estimate)"} · ${esc(e.how)}`, e.k, e.t]);
+    }
+    for (const l of D.legsW) {
+      const x = X(l.t), y = YW(l.v);
+      c.fillStyle = l.kind === "fl" ? css("--s-fl") : css("--s-sfmr"); c.beginPath(); c.arc(x, y, l.kind === "fl" ? 3.2 : 3.6, 0, 2 * Math.PI); c.fill();
+      HI.pts.push([x, y, `${l.kind === "fl" ? "Max flight-level wind" : "Max SFMR wind"} ${l.v} kt at ${l.r.toFixed(0)} n mi, ${dayhm(l.t)} (${l.dir < 0 ? "inbound" : "outbound"} leg) · ${esc(S.man.missions[l.k].aircraft)}`, l.k, l.t]);
+    }
+    c.strokeStyle = css("--axis"); c.beginPath(); c.moveTo(L0, YT(0)); c.lineTo(R0, YT(0)); c.stroke();
+    for (const x of D.tend) {
+      const xa = X(x.t0), xb = X(x.t1), y = YT(x.r);
+      c.fillStyle = x.r <= -RD_HPA_H ? "rgba(200,40,30,0.75)" : (dark() ? "rgba(160,170,185,0.6)" : "rgba(90,100,110,0.5)");
+      c.fillRect(xa + 1, Math.min(y, YT(0)), Math.max(1, xb - xa - 2), Math.abs(y - YT(0)));
+      HI.pts.push([(xa + xb) / 2, y, `${dayhm(x.t0)} – ${dayhm(x.t1)}: ${x.r > 0 ? "+" : ""}${x.r.toFixed(2)} hPa/h`]);
+    }
+    // key
+    c.textAlign = "left"; c.textBaseline = "top"; c.font = "11px 'Source Sans 3', sans-serif";
+    const key = [["#b3261e", "fix (filled measured, hollow extrapolated)"], [dark() ? "#e6e8ec" : "#1f2620", "eye-sonde estimate"], [css("--s-fl"), "max FL wind per leg"], [css("--s-sfmr"), "max SFMR per leg"], [grey, "best track"]];
+    let kx = L0 + 6;
+    if (W > 640) for (const [col, lab] of key) { c.fillStyle = col; c.fillRect(kx, P1[0] + 2, 10, 10); c.fillStyle = css("--axis"); c.fillText(lab, kx + 14, P1[0] + 1); kx += c.measureText(lab).width + 30; }
+    // current mission span
+    const m = S.man.missions[S.key];
+    if (m && m.first) { c.fillStyle = dark() ? "rgba(124,180,255,0.10)" : "rgba(39,75,122,0.08)"; c.fillRect(X(m.first), 8, X(m.last) - X(m.first), H - 32); }
+  }
+  function histPointer(e) {
+    const b = $("histCv").getBoundingClientRect(), x = e.clientX - b.left, y = e.clientY - b.top;
+    let best = null, bd = 16 * 16;
+    for (const p of HI.pts) { const d = (p[0] - x) ** 2 + (p[1] - y) ** 2; if (d < bd) { bd = d; best = p; } }
+    $("histRead").innerHTML = best ? best[2] : "";
+    HI.sel = best;
+  }
+  $("histCv").addEventListener("pointermove", histPointer);
+  $("histCv").addEventListener("click", e => { histPointer(e); const p = HI.sel; if (p && p[3] && p[3] !== S.key) openMission(p[3]).then(() => goTime(p[4], true)); else if (p && p[3]) goTime(p[4], true); });
+
+  // ── storm-relative winds and wind radii ──────────────────────────────────
+  const SR = { ori: "north", v: "sfmr" };
+  const FLR = [[650, 750, 0.9, "700 hPa"], [800, 900, 0.8, "850 hPa"]];     // Franklin et al. (2003) standard reductions
+  function flReduce(r) {
+    const p = r[S.col.p], w = r[S.col.ws]; if (p == null || w == null) return null;
+    for (const [a, b, f] of FLR) if (p >= a && p <= b) return Math.round(w * f);
+    return null;
+  }
+  function srBuild() {
+    if (!S.mis || !S.rows.length) { $("sr").hidden = true; return; }
+    const cf = centreFn(centreFixes(), S.storm && S.storm.btk), ix = S.col;
+    const m = S.man.missions[S.key], tm = (m.first + m.last) / 2;
+    const mv = S.storm && btMotion(S.storm.btk, tm);
+    let hdg = null, spd = null;
+    if (mv) { const c0 = btAt(S.storm.btk, tm); const dy = mv[0] * 3600 * 60, dx = mv[1] * 3600 * 60 * Math.cos((c0 ? c0[0] : 20) * rad); hdg = (Math.atan2(dx, dy) / rad + 360) % 360; spd = Math.hypot(dx, dy); }
+    SR.hdg = hdg;
+    const pts = [];
+    SR.auto = SR.v === "sfmr" && !S.rows.some(r => r[ix.sfmr] != null);     // no valid SFMR on this flight: reduced FL wind
+    const use = SR.auto ? "fl" : SR.v;
+    for (let i = 0; i < S.rows.length; i++) {
+      const r = S.rows[i]; if (r[ix.la] == null) continue;
+      const c = cf(r[0]); if (!c) continue;
+      const v = use === "sfmr" ? r[ix.sfmr] : flReduce(r); if (v == null) continue;
+      const dy = (r[ix.la] - c[0]) * 60, dx = (r[ix.lo] - c[1]) * 60 * Math.cos(c[0] * rad), rr = Math.hypot(dx, dy);
+      if (rr > 250) continue;
+      pts.push({ i, dx, dy, r: rr, b: (Math.atan2(dx, dy) / rad + 360) % 360, v });
+    }
+    SR.pts = pts;
+    // observed extents by compass quadrant (NHC's convention)
+    const Q = ["NE", "SE", "SW", "NW"], qOf = b => Math.floor(b / 90);
+    const ext = {};
+    for (const thr of [34, 50, 64]) ext[thr] = Q.map((q, k) => {
+      const qq = pts.filter(p => qOf(p.b) === k);
+      if (!qq.length) return { s: "not sampled" };
+      const rs = Math.max(...qq.map(p => p.r)), hit = qq.filter(p => p.v >= thr);
+      if (!hit.length) return { s: `none (to ${Math.round(rs)})`, rs };
+      const e = Math.max(...hit.map(p => p.r));
+      return { e, rs, s: e >= rs - 5 ? `≥ ${Math.round(e)}` : String(Math.round(e)) };
+    });
+    // NHC radii: the b-deck synoptic time nearest the mission's middle (+-4 h)
+    const rad0 = (S.storm && S.storm.radii) || [];
+    let nt = null; for (const r of rad0) if (Math.abs(r[0] - tm) <= 14400 && (nt == null || Math.abs(r[0] - tm) < Math.abs(nt - tm))) nt = r[0];
+    const nhc = {}; for (const r of rad0) if (r[0] === nt) nhc[r[1]] = r.slice(2, 6);
+    SR.nhc = nhc; SR.ext = ext;
+    $("sr").hidden = false;
+    $("srSub").innerHTML = (SR.auto ? `<b>This flight has no valid SFMR values, so the flight-level wind reduced to the surface is shown.</b> ` : "") +
+      `${pts.length.toLocaleString("en-US")} ${use === "sfmr" ? "SFMR surface winds" : "flight-level winds reduced to the surface"} from this flight placed around the centre interpolated to each observation's time` +
+      `${hdg != null ? `; storm motion ${Math.round(hdg)}° at ${Math.round(spd)} kt (best track)` : ""}. Dashed arcs: NHC's wind radii${nt ? ` at ${dayhm(nt)} (ATCF best track)` : " (none within 4 h of this flight)"}.`;
+    $("srOri").innerHTML = segHTML([["north", "North up"], ["motion", "Motion up"]], SR.ori);
+    $("srVar").innerHTML = segHTML([["sfmr", "SFMR"], ["fl", "Flight level reduced"]], SR.v);
+    const cell = (o, n) => `<td>${o.s === "not sampled" ? '<span class="mu">not sampled</span>' : o.s}</td><td class="mu">${n == null ? "—" : n === 0 ? "0" : n}</td>`;
+    $("srTbl").innerHTML = `<table><thead><tr><th>Wind</th>${Q.map(q => `<th colspan="2">${q} (obs · NHC)</th>`).join("")}</tr></thead><tbody>` +
+      [34, 50, 64].map(thr => `<tr><td>${thr} kt</td>${Q.map((q, k) => cell(ext[thr][k], nhc[thr] ? nhc[thr][k] : null)).join("")}</tr>`).join("") + "</tbody></table>";
+    $("srNote").innerHTML = `Extent = the farthest observation in the quadrant (n mi) at or above the threshold. "≥" means the wind was still that strong at the edge of what the aircraft sampled, so the true extent is larger; ` +
+      `"none (to R)" means it was sampled out to R n mi without reaching the threshold; "not sampled" means no observation in that quadrant, and no value is estimated. ` +
+      `Quadrants are compass quadrants (NE, SE, SW, NW), as in NHC's radii. One flight samples a few radial legs, so an observed extent is a lower bound unless a leg ran along the quadrant's widest wind. ` +
+      (use === "fl" ? `<b>Alternative</b>: flight-level wind × 0.9 at 700 hPa and × 0.8 at 850 hPa, the standard reductions of Franklin, Black and Valde (2003, <i>Wea. Forecasting</i>); other levels are left out. ` : "") +
+      `SFMR is the measured surface wind and is the primary estimate here.`;
+    srDraw();
+  }
+  function srDraw() {
+    if ($("sr").hidden) return;
+    const cv = $("srCv"); cv.style.height = cv.clientWidth + "px";
+    const g0 = cvSetup(cv); if (!g0) return;
+    const { c, W, H } = g0, cx = W / 2, cy = H / 2;
+    const rmaxD = Math.max(50, ...SR.pts.map(p => p.r)), RM = rmaxD > 110 ? 150 : rmaxD > 60 ? 100 : 60, s = (Math.min(W, H) / 2 - 18) / RM;
+    const rot = SR.ori === "motion" && SR.hdg != null ? SR.hdg * rad : 0;
+    const P = (dx, dy) => { const x = dx * Math.cos(rot) - dy * Math.sin(rot), y = dx * Math.sin(rot) + dy * Math.cos(rot); return [cx + x * s, cy - y * s]; };
+    c.strokeStyle = css("--grid"); c.fillStyle = css("--axis"); c.textAlign = "left"; c.textBaseline = "bottom";
+    for (const r of [25, 50, 100, 150]) if (r <= RM) { c.beginPath(); c.arc(cx, cy, r * s, 0, 2 * Math.PI); c.stroke(); c.fillText(r + " n mi", cx + r * s * 0.71 + 2, cy - r * s * 0.71); }
+    for (let k = 0; k < 4; k++) { const a = k * 90 * rad; const [x, y] = P(Math.sin(a) * RM, Math.cos(a) * RM); c.beginPath(); c.moveTo(cx, cy); c.lineTo(x, y); c.stroke(); }
+    // north arrow / motion arrow
+    const [nx, ny] = P(0, RM * 0.97); c.fillStyle = css("--axis"); c.textAlign = "center"; c.textBaseline = "middle"; c.fillText("N", nx, ny);
+    if (SR.hdg != null) {
+      const a = SR.hdg * rad, [mx, my] = P(Math.sin(a) * RM * 0.35, Math.cos(a) * RM * 0.35);
+      c.strokeStyle = css("--ink"); c.lineWidth = 2.2; c.beginPath(); c.moveTo(cx, cy); c.lineTo(mx, my); c.stroke();
+      const ang = Math.atan2(my - cy, mx - cx); c.beginPath(); c.moveTo(mx, my); c.lineTo(mx - 8 * Math.cos(ang - 0.4), my - 8 * Math.sin(ang - 0.4)); c.lineTo(mx - 8 * Math.cos(ang + 0.4), my - 8 * Math.sin(ang + 0.4)); c.closePath(); c.fillStyle = css("--ink"); c.fill();
+      c.lineWidth = 1;
+    }
+    for (const p of SR.pts) { const [x, y] = P(p.dx, p.dy); c.fillStyle = binCol(WIND, p.v); c.fillRect(x - 1.8, y - 1.8, 3.6, 3.6); }
+    // NHC radii: quarter arcs per compass quadrant
+    const dash = { 34: [6, 4], 50: [3, 3], 64: [1.5, 2.5] };
+    for (const thr of [34, 50, 64]) {
+      const q = SR.nhc[thr]; if (!q) continue;
+      c.strokeStyle = binCol(WIND, thr); c.lineWidth = 2.2; c.setLineDash(dash[thr]);
+      q.forEach((r, k) => {
+        if (!r) return;
+        const a0 = k * 90, a1 = a0 + 90; c.beginPath();
+        for (let a = a0; a <= a1; a += 3) { const [x, y] = P(Math.sin(a * rad) * Math.min(r, RM), Math.cos(a * rad) * Math.min(r, RM)); a === a0 ? c.moveTo(x, y) : c.lineTo(x, y); }
+        c.stroke();
+      });
+    }
+    c.setLineDash([]); c.lineWidth = 1;
+    c.fillStyle = css("--axis"); c.textAlign = "left"; c.textBaseline = "top";
+    c.fillText(SR.ori === "motion" ? "motion up" : "north up", 6, 6);
+  }
+  $("srOri").addEventListener("click", e => { const b = e.target.closest("button[data-k]"); if (!b) return; SR.ori = b.dataset.k; $("srOri").innerHTML = segHTML([["north", "North up"], ["motion", "Motion up"]], SR.ori); srDraw(); });
+  $("srVar").addEventListener("click", e => { const b = e.target.closest("button[data-k]"); if (!b) return; SR.v = b.dataset.k; srBuild(); });
+
+  // ── eye and eyewall dropsondes ───────────────────────────────────────────
+  function thetaE(p, T, Td) {         // Bolton (1980), eq. 39 with T_L from eq. 15; p hPa, T/Td degC -> K
+    const TK = T + 273.15, DK = Td + 273.15, e = 6.112 * Math.exp(17.67 * Td / (Td + 243.5)), r = 0.622 * e / (p - e);
+    const TL = 1 / (1 / (DK - 56) + Math.log(TK / DK) / 800) + 56;
+    const thL = TK * Math.pow(1000 / (p - e), 0.2854) * Math.pow(TK / TL, 0.28 * r);
+    return thL * Math.exp((3036 / TL - 1.78) * r * (1 + 0.448 * r));
+  }
+  // eye / centre sondes of the open mission (the rule of recon_mirror.eye_drops; the manifest holds the same for all missions)
+  function eyeDropsHere() {
+    const cf = centreFn(centreFixes(), S.storm && S.storm.btk), out = [];
+    for (const d of S.mis.drops) {
+      if (!d.sfc_p) continue;
+      const sp = d.spg || d.spl || d.rel, t = d.spl_t || d.rel_t; if (!t) continue;
+      let how = ["EYE", "CENTER", "CNTR"].find(x => (d.tags || []).includes(x));
+      how = how ? how.toLowerCase() : null;
+      if (!how && sp) { const c = cf(t); if (c && gkm(sp.la, sp.lo, c[0], c[1]) / NMI <= 5) how = "within 5 n mi of the centre"; }
+      if (!how) continue;
+      const ws = d.sfc_wind ? d.sfc_wind.ws : null;
+      out.push([t, d.sfc_p, ws, ws != null ? Math.round(d.sfc_p - ws / 10) : null, how, d.obnum]);
+    }
+    return out;
+  }
+  function eyeBuild() {
+    if (!S.mis) { $("eye").hidden = true; return; }
+    const ed = eyeDropsHere();
+    const ew = S.mis.drops.map((d, i) => [d, i]).filter(([d]) => (d.tags || []).includes("EYEWALL") && d.prof && d.prof.some(r => r[5] != null && r[1] != null));
+    if (!ed.length && !ew.length) { $("eye").hidden = true; return; }
+    $("eye").hidden = false;
+    $("eyeTbl").innerHTML = ed.length ? `<table><thead><tr><th>Splash</th><th>Sonde</th><th>Splash pressure</th><th>Surface wind</th><th>Central pressure estimate</th><th>Identified by</th></tr></thead><tbody>` +
+      ed.map(e => `<tr><td>${hm(e[0])}Z</td><td>OB ${e[5] ?? "—"}</td><td>${e[1]} hPa</td><td>${e[2] != null ? e[2] + " kt" : "—"}</td><td><b>${e[3] != null ? e[3] + " hPa" : "—"}</b></td><td class="mu">${esc(e[4])}</td></tr>`).join("") + "</tbody></table>"
+      : `<p class="empty">No eye or centre dropsonde with a splash pressure on this flight.</p>`;
+    $("eyeProf").hidden = !ew.length;
+    $("eyeKey").innerHTML = ew.map(([d, i], k) => `<button type="button" aria-pressed="true" data-i="${i}"><i style="background:${legCol(k)}"></i>OB ${d.obnum ?? i + 1} ${d.spl_t ? hm(d.spl_t) + "Z" : ""}</button>`).join("");
+    $("eyeKey").querySelectorAll("button").forEach(b => b.onclick = () => openSkewT(+b.dataset.i));
+    $("eyeNote").innerHTML = `Central pressure estimate from an eye or centre sonde (remark EYE or CENTER, or a splash within 5 n mi of the interpolated centre): the splash pressure less 1 hPa for every 10 kt of surface wind, the rule NHC applies because a sonde in a moving wind field rarely lands at the pressure minimum. ` +
+      (ew.length ? `Eyewall sondes are those the operator remarked EYEWALL. θe after Bolton (1980). Click a sonde above for its skew-T.` : "");
+    S.eyew = ew; eyeDraw();
+  }
+  function eyeDraw() {
+    if ($("eye").hidden || !S.eyew || !S.eyew.length) return;
+    for (const [id, kind] of [["eyeWs", "ws"], ["eyeTe", "te"]]) {
+      const g0 = cvSetup($(id)); if (!g0) continue;
+      const { c, W, H } = g0, L0 = 46, R0 = W - 10, T0 = 8, B0 = H - 26;
+      const series = S.eyew.map(([d]) => d.prof.filter(r => r[1] != null && r[1] >= 0).map(r => [r[1], kind === "ws" ? r[5] : (r[2] != null && r[3] != null && r[0] > 100 ? thetaE(r[0], r[2], r[3]) : null)]).filter(x => x[1] != null).sort((a, b) => a[0] - b[0]));
+      const all = series.flat(); if (!all.length) continue;
+      const zmax = Math.min(Math.max(...all.map(x => x[0])), 12000), zt = Math.ceil(zmax / 1000) * 1000;
+      let vlo = Math.min(...all.map(x => x[1])), vhi = Math.max(...all.map(x => x[1]));
+      if (kind === "ws") vlo = 0; vlo = Math.floor(vlo / 5) * 5; vhi = Math.ceil(vhi / 5) * 5 + 5;
+      const X = v => L0 + (v - vlo) / (vhi - vlo) * (R0 - L0), Y = z => B0 - z / zt * (B0 - T0);
+      axisY(c, Y, 0, zt, L0, R0, "m", v => v >= 1000 ? (v / 1000) + "k" : String(v));
+      c.textAlign = "center"; c.textBaseline = "top"; c.fillStyle = css("--axis");
+      const st = niceStep((vhi - vlo) / 5);
+      for (let v = Math.ceil(vlo / st) * st; v <= vhi; v += st) { c.strokeStyle = css("--grid"); c.beginPath(); c.moveTo(X(v), T0); c.lineTo(X(v), B0); c.stroke(); c.fillText(String(v), X(v), B0 + 4); }
+      c.fillText(kind === "ws" ? "wind speed (kt)" : "θe (K)", (L0 + R0) / 2, B0 + 14);
+      series.forEach((sr, k) => { c.strokeStyle = legCol(k); c.lineWidth = 1.8; c.beginPath(); sr.forEach(([z, v], j) => { const x = X(v), y = Y(Math.min(z, zt)); j ? c.lineTo(x, y) : c.moveTo(x, y); }); c.stroke(); });
+    }
+  }
+
+  // ── alerts while the page is open (Notification API, no server push) ────
+  const AL = { on: false, last: {} };
+  function alertBaseline() { if (!S.man) return; for (const sid of Object.keys(S.man.storms)) { const f = stormFixes(sid); AL.last[sid] = f.length ? f[f.length - 1].t : 0; } }
+  function alertCheck() {
+    if (!AL.on || !S.man) return;
+    for (const [sid, s] of Object.entries(S.man.storms)) {
+      if (!s.active && s.year !== S.man.season) continue;
+      const fx = stormFixes(sid), prev = AL.last[sid] || 0, nw = fx.filter(f => f.t > prev);
+      for (const f of nw) {
+        const before = fx.filter(g => g.t < f.t && g.p != null).pop();
+        const drop = before && f.p != null ? before.p - f.p : null;
+        const title = `${s.name || sid}: new vortex fix`;
+        let body = `${f.p != null ? f.p + " hPa" + (f.x ? " (extrapolated)" : "") : "no pressure"} at ${hm(f.t)}Z · ${S.man.missions[f.k].aircraft} ${S.man.missions[f.k].mission}`;
+        if (drop != null && drop >= 3) body = `Pressure down ${drop} hPa since ${hm(before.t)}Z. ` + body;
+        try { new Notification(drop != null && drop >= 3 ? `${s.name || sid}: pressure falling` : title, { body, tag: `recon-${sid}-${f.t}` }); } catch (e) { /* not allowed */ }
+      }
+      if (fx.length) AL.last[sid] = Math.max(prev, fx[fx.length - 1].t);
+    }
+  }
+  (function alertInit() {
+    const b = $("alertBtn"), n = $("alertNote");
+    if (!("Notification" in window)) { b.disabled = true; b.title = "This browser has no notifications"; return; }
+    b.onclick = async () => {
+      if (AL.on) { AL.on = false; b.setAttribute("aria-pressed", "false"); b.textContent = "Alert me to new fixes"; n.hidden = true; return; }
+      let p = Notification.permission;
+      if (p === "default") p = await Notification.requestPermission();
+      if (p !== "granted") { n.hidden = false; n.textContent = "Notifications are blocked for this site in the browser's settings."; return; }
+      AL.on = true; alertBaseline();
+      b.setAttribute("aria-pressed", "true"); b.textContent = "Alerts on";
+      n.hidden = false; n.textContent = "Only while this tab stays open: a notification for each new vortex fix, and when the pressure falls 3 hPa or more since the previous fix. The page checks every 90 s while a mission is airborne.";
+    };
+  })();
+
+  function analyses() { radBuild(); histBuild(); srBuild(); eyeBuild(); }
+  let rzA = null;
+  addEventListener("resize", () => { clearTimeout(rzA); rzA = setTimeout(() => { radDraw(); histDraw(); srDraw(); eyeDraw(); }, 150); });
 
   // ── controls ─────────────────────────────────────────────────────────────
   $("selStorm").onchange = e => pickStorm(e.target.value, null);

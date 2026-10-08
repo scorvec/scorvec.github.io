@@ -48,7 +48,8 @@ ATCF = "https://ftp.nhc.noaa.gov/atcf"
 PRODUCTS = ["AHONT1", "REPNT1", "REPNT2", "REPNT3", "REPRPD"]     # Atlantic (REPNT0 = non-tasked weather recon)
 HCOLS = ["t", "la", "lo", "p", "z", "x", "dv", "t_", "td", "wd", "ws", "wp", "sfmr", "rr", "qc"]
 NOW = datetime.now(UTC)
-CODE_V = 2                 # bump when the manifest's derived fields or the storm assignment change
+CODE_V = 3                 # bump when the manifest's derived fields or the storm assignment change
+PASS_V = 2                 # bump when the per-pass (leg) summary or the eye-sonde estimate changes
 
 
 def log(*a):
@@ -141,6 +142,26 @@ def parse_atcf(text, best=True):
         rows.append([t, round(la, 1), round(lo, 1), vmax, mslp, typ, name, tau, int(t0.timestamp())])
     rows.sort()
     return rows
+
+
+def parse_radii(text):
+    """b-deck wind radii -> [[t, threshold kt, NE, SE, SW, NW n mi]] (NEQ quadrant code only; 0 = no such wind)."""
+    out, seen = [], set()
+    for ln in (text or "").splitlines():
+        c = [x.strip() for x in ln.split(",")]
+        if len(c) < 17 or c[12] != "NEQ" or not c[11].isdigit() or int(c[11]) not in (34, 50, 64):
+            continue
+        try:
+            t = int((datetime.strptime(c[2], "%Y%m%d%H").replace(tzinfo=UTC) + timedelta(hours=int(c[5] or 0))).timestamp())
+            q = [int(x) for x in c[13:17]]
+        except ValueError:
+            continue
+        if (t, int(c[11])) in seen or any(v < 0 or v > 1000 for v in q):
+            continue
+        seen.add((t, int(c[11])))
+        out.append([t, int(c[11])] + q)
+    out.sort()
+    return out
 
 
 def storm_name(rows):
@@ -238,7 +259,7 @@ def mission_stats(m, track=None):
               max_sfmr=best("sfmr"), max_fl=best("ws"), max_peak=best("wp"), min_x=best("x", min),
               near=None if near is None else len(near),
               n_qc=sum(1 for r in rows if r[ix["qc"]] not in ("00", None)))
-    st["fixes"] = [[v["t"], v["la"], v["lo"], v.get("mslp")] for v in m["vdms"]]
+    st["fixes"] = [[v["t"], v["la"], v["lo"], v.get("mslp"), 1 if v.get("mslp_extrap") else 0] for v in m["vdms"]]
     ts = [r[0] for r in rows] + [d["spl_t"] or d["rel_t"] for d in m["drops"] if (d.get("spl_t") or d.get("rel_t"))] + \
          [v["t"] for v in m["vdms"]] + [r["t"] for r in m["reccos"]]
     st["first"], st["last"] = (min(ts), max(ts)) if ts else (None, None)
@@ -259,6 +280,173 @@ def mission_stats(m, track=None):
         alts.sort()
         st["alt_med"] = alts[len(alts) // 2]
     return st
+
+
+# ─────────────────────────────────────────────── passes (legs) ──
+# The same algorithm runs in the page (assets/recon/recon.js, radial profiles); keep the two in step.
+NM = 1.852
+PASS_R = 20.0          # n mi: a centre pass comes within this radius of the interpolated centre
+LEG_MAX_R = 150.0      # n mi: legs are cut here
+TURN_NM = 5.0          # n mi: a leg ends where the radius falls this far below its running maximum
+SEC_OUT_NM = 10.0      # secondary maximum: at least this far outside the RMW ...
+SEC_KT = 5.0           # ... and this much above the wind minimum inside it and outside it (within SEC_SPAN_NM)
+SEC_SPAN_NM = 20.0
+SEC_FRAC = 0.5         # ... and at least half the leg's maximum wind (outer rainbands are not secondary maxima)
+SEC_MIN_VMAX = 64      # only on legs whose maximum flight-level wind is of hurricane force (no eyewall otherwise)
+
+
+def centre_fn(fixes, btk):
+    """Centre at time t from the vortex-message fixes [(t, la, lo)], linear between fixes <= 6 h apart; otherwise the
+    nearest fix (<= 4 h) moved with the best-track motion; otherwise the best track itself (+-12 h)."""
+    fixes = sorted(fixes)
+    bt = [(r[0], r[1], r[2]) for r in (btk or [])]
+
+    def bt_motion(t):
+        if len(bt) < 2:
+            return None
+        a, b = (bt[0], bt[1]) if t <= bt[0][0] else (bt[-2], bt[-1])
+        for p, q in zip(bt, bt[1:]):
+            if p[0] <= t <= q[0]:
+                a, b = p, q
+                break
+        dt = max(1, b[0] - a[0])
+        return (b[1] - a[1]) / dt, (b[2] - a[2]) / dt
+
+    def f(t):
+        for a, b in zip(fixes, fixes[1:]):
+            if a[0] <= t <= b[0] and b[0] - a[0] <= 6 * 3600:
+                w = (t - a[0]) / max(1, b[0] - a[0])
+                return a[1] + w * (b[1] - a[1]), a[2] + w * (b[2] - a[2])
+        if fixes:
+            n = min(fixes, key=lambda x: abs(x[0] - t))
+            if abs(n[0] - t) <= 4 * 3600:
+                mv = bt_motion(t)
+                if mv:
+                    return n[1] + mv[0] * (t - n[0]), n[2] + mv[1] * (t - n[0])
+                if abs(n[0] - t) <= 1800:
+                    return n[1], n[2]
+        p = track_at([list(x) for x in bt], t) if bt else None
+        return p
+    return f
+
+
+def smooth_profile(pts):
+    """[(r, v)] -> wind on 1-n-mi radius bins (mean of the obs in each bin), then a 5-bin running mean.
+    Bins without data stay empty; the running mean needs at least 3 filled bins."""
+    if not pts:
+        return []
+    bins = {}
+    for r, v in pts:
+        bins.setdefault(int(r), []).append(v)
+    lo, hi = min(bins), max(bins)
+    raw = [(k + 0.5, sum(bins[k]) / len(bins[k])) if k in bins else (k + 0.5, None) for k in range(lo, hi + 1)]
+    out = []
+    for j, (r, _) in enumerate(raw):
+        w = [v for _, v in raw[max(0, j - 2):j + 3] if v is not None]
+        if len(w) >= 3 and raw[j][1] is not None:
+            out.append((r, sum(w) / len(w)))
+    return out
+
+
+def secondary_max(pts, rmw, vmax):
+    """pts: [(r, v)] FL wind along one leg. On the smoothed profile (smooth_profile: 1 n mi bins, 5 n mi running
+    mean), a secondary wind maximum is the highest point within +-5 n mi, at least SEC_OUT_NM outside the RMW,
+    at least SEC_KT above the lowest smoothed wind between it and the RMW, and SEC_KT above the lowest smoothed wind
+    in the SEC_SPAN_NM outside it (so its outer side must be sampled), and at least SEC_FRAC of the leg's maximum, on legs
+    whose maximum is at least SEC_MIN_VMAX. Returns (r, v, dip) of the strongest, or None."""
+    if vmax < SEC_MIN_VMAX:
+        return None
+    sp = smooth_profile(pts)
+    best = None
+    for r, v in sp:
+        if r < rmw + SEC_OUT_NM:
+            continue
+        if any(v2 > v for r2, v2 in sp if abs(r2 - r) <= 5.0):
+            continue
+        inner = [v2 for r2, v2 in sp if rmw < r2 < r]
+        outer = [v2 for r2, v2 in sp if r < r2 <= r + SEC_SPAN_NM]
+        if len(inner) < 3 or len(outer) < 5:
+            continue
+        dip = v - min(inner)
+        if v >= SEC_FRAC * vmax and dip >= SEC_KT and v - min(outer) >= SEC_KT and (best is None or v > best[1]):
+            best = (round(r, 1), round(v), round(dip, 1))
+    return best
+
+
+def legs(rows, cf):
+    """Split a mission's HDOB rows into inbound/outbound legs around each centre pass.
+    -> [dict(dir=-1 inbound | 1 outbound, i0, i1 (row indices), tc, rmin, ...maxima)]"""
+    ix = {c: i for i, c in enumerate(HCOLS)}
+    rr = [None] * len(rows)
+    for i, r in enumerate(rows):
+        if r[ix["la"]] is None:
+            continue
+        c = cf(r[0])
+        if c:
+            rr[i] = km(r[ix["la"]], r[ix["lo"]], c[0], c[1]) / NM
+    out, used = [], set()
+    good = [i for i in range(len(rows)) if rr[i] is not None]
+    for n, i in enumerate(good):
+        if rr[i] > PASS_R or i in used:
+            continue
+        win = [j for j in good if abs(rows[j][0] - rows[i][0]) <= 600]
+        if rr[i] > min(rr[j] for j in win):
+            continue
+        used.update(win)
+        for d in (-1, 1):
+            seq, rmax, last = [i], rr[i], i
+            k = good.index(i) + d
+            while 0 <= k < len(good):
+                j = good[k]
+                if abs(rows[j][0] - rows[last][0]) > 300 or rr[j] > LEG_MAX_R or rr[j] < rmax - TURN_NM:
+                    break
+                rmax = max(rmax, rr[j])
+                seq.append(j)
+                last = j
+                k += d
+            if rmax - rr[i] < 15 or len(seq) < 6:
+                continue
+            seq.sort()
+            leg = dict(dir=d, i0=seq[0], i1=seq[-1], tc=rows[i][0], rmin=round(rr[i], 1), rmax=round(rmax, 1))
+            for col in ("ws", "sfmr", "wp"):
+                pts = [(rr[j], rows[j][ix[col]], rows[j][0]) for j in seq if rows[j][ix[col]] is not None]
+                if pts:
+                    b = max(pts, key=lambda x: x[1])
+                    leg[col] = [b[1], round(b[0], 1), b[2]]
+            if leg.get("ws"):
+                pts = sorted((rr[j], rows[j][ix["ws"]]) for j in seq if rows[j][ix["ws"]] is not None)
+                sm = secondary_max(pts, leg["ws"][1], leg["ws"][0])
+                if sm:
+                    leg["sec"] = list(sm)
+            out.append(leg)
+    out.sort(key=lambda g: (g["tc"], g["dir"]))
+    return out, rr
+
+
+EYE_TAGS = ("EYE", "CENTER", "CNTR")
+
+
+def eye_drops(m, cf):
+    """Eye / centre dropsondes with a splash pressure: by the remark (EYE, CENTER) or a splash within 5 n mi of the
+    interpolated centre. Central-pressure estimate (NHC practice): splash pressure minus 1 hPa per 10 kt of surface
+    wind (no estimate without a surface wind)."""
+    out = []
+    for d in m.get("drops", []):
+        if not d.get("sfc_p"):
+            continue
+        sp = d.get("spg") or d.get("spl") or d.get("rel")
+        t = d.get("spl_t") or d.get("rel_t")
+        how = next((x for x in EYE_TAGS if x in (d.get("tags") or [])), None)
+        if not how and sp and t:
+            c = cf(t)
+            if c and km(sp["la"], sp["lo"], c[0], c[1]) / NM <= 5:
+                how = "within 5 n mi of the centre"
+        if not how or not t:
+            continue
+        ws = (d.get("sfc_wind") or {}).get("ws")
+        est = math.floor(d["sfc_p"] - ws / 10.0 + 0.5) if ws is not None else None   # half up, as the page
+        out.append([t, d["sfc_p"], ws, est, how.lower() if how.isupper() else how, d.get("obnum")])
+    return out
 
 
 def merge(store, prod, name, rec, ft):
@@ -401,26 +589,27 @@ class Mirror:
                 sid = fn[1:9].upper()
                 if only and sid not in only:
                     continue
-                if st.get(fn) == mt and (sdir / f"{sid}.json").exists():
+                if st.get(fn) == mt and "radii" in jload(sdir / f"{sid}.json", {}):
                     continue
                 txt = get(f"{ATCF}/btk/{fn}")
                 if txt:
-                    self.write_storm(sid, parse_atcf(txt))
+                    self.write_storm(sid, parse_atcf(txt), radii=parse_radii(txt))
                     st[fn] = mt
         else:
             for sid in only or []:
-                if (sdir / f"{sid}.json").exists():
+                if "radii" in jload(sdir / f"{sid}.json", {}):
                     continue
                 fn = f"b{sid.lower()}.dat.gz"
                 raw = get(f"{ATCF}/archive/{year}/{fn}", binary=True)
                 if raw:
-                    self.write_storm(sid, parse_atcf(gzip.decompress(raw).decode("latin-1")))
+                    txt = gzip.decompress(raw).decode("latin-1")
+                    self.write_storm(sid, parse_atcf(txt), radii=parse_radii(txt))
         for p in sdir.glob(f"*{year}.json"):
             s = jload(p, None)
             if s:
                 self.storms[p.stem] = s["btk"]
 
-    def write_storm(self, sid, rows, fst=None):
+    def write_storm(self, sid, rows, fst=None, radii=None):
         p = self.out / "storms" / f"{sid}.json"
         s = jload(p, {"sid": sid})
         if rows is not None:
@@ -429,6 +618,8 @@ class Mirror:
             self.storms[sid] = s["btk"]
         if fst is not None:
             s["fcst"] = fst
+        if radii is not None:
+            s["radii"] = radii
         s["updated"] = int(NOW.timestamp())
         if jdump(p, s):
             self.changed = True
@@ -487,7 +678,7 @@ class Mirror:
         for p in sorted((self.out / "missions").glob("*/*.json")):
             key = p.stem
             size = p.stat().st_size
-            if key not in self.touched and key in old and old[key].get("bytes") == size:
+            if key not in self.touched and key in old and old[key].get("bytes") == size and old[key].get("pv") == PASS_V:
                 e = dict(old[key])                       # unchanged file: reuse its stats, re-check the storm
                 sid, how = self.assign(e, e)
                 if sid == e.get("storm") and (e.get("near") is not None or not self.storms.get(sid)):
@@ -505,6 +696,23 @@ class Mirror:
                                  name=m.get("name") or "", year=m["year"], storm_no=m.get("storm_no"),
                                  storm=sid, how=how, bytes=size, file=f"missions/{key[:4]}/{key}.json",
                                  flagged=m.get("flagged", 0), screened=m.get("screened", 0), **st)
+        # per-pass summaries + eye sondes for the missions recomputed above (centre from every fix of the storm)
+        for key, e in missions.items():
+            if e.get("pv") == PASS_V:
+                continue
+            if not e.get("storm"):
+                e["pv"] = PASS_V
+                continue
+            m = self.missions.get(key) or jload(self.out / e["file"], None)
+            if not m:
+                continue
+            fx = [(f[0], f[1], f[2]) for v in missions.values() if v.get("storm") == e["storm"] for f in v.get("fixes") or []]
+            cf = centre_fn(fx, self.storms.get(e["storm"]))
+            lg, _ = legs(m["hdob"]["rows"], cf)
+            e["legs"] = [[g["dir"], g["tc"], g["rmin"], g["rmax"], *(g.get("ws") or [None] * 3), *(g.get("sfmr") or [None] * 3),
+                          *(g.get("sec") or [None] * 3)] for g in lg]
+            e["eyedrops"] = eye_drops(m, cf)
+            e["pv"] = PASS_V
         storms = {}
         for sid in sorted({v["storm"] for v in missions.values() if v["storm"]} | {a["id"] for a in active}):
             s = jload(self.out / "storms" / f"{sid}.json", {})
@@ -649,7 +857,8 @@ def live(mx, days_back):
                 if s:
                     mx.storms[p.stem] = s["btk"]
     # a new decoder/assignment version rebuilds the manifest (and prunes) even when NHC has nothing new
-    if mx.changed or mx.touched or days_back is not None or mx.manifest.get("code") != CODE_V:
+    stale = any(v.get("pv") != PASS_V for v in mx.manifest.get("missions", {}).values())
+    if mx.changed or mx.touched or days_back is not None or mx.manifest.get("code") != CODE_V or stale:
         mx.write_missions()
         mx.prune(pinned)
         mx.build_manifest(active, pinned)

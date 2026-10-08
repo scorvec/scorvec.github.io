@@ -101,6 +101,17 @@ def dt_upward(pv, th, levs):
     return np.where(never, thr_[-1], t)
 
 
+def agree(ours, ref, tag):
+    """contingency of two yes/no fields: share agreeing, and the Heidke skill score"""
+    ok = np.isfinite(ours) & np.isfinite(ref)
+    a, b = ours[ok].astype(bool), ref[ok].astype(bool)
+    n = a.size
+    hits, fa, miss, cn = (a & b).sum(), (a & ~b).sum(), (~a & b).sum(), (~a & ~b).sum()
+    exp = ((hits + miss) * (hits + fa) + (cn + miss) * (cn + fa)) / max(n, 1)
+    hss = (hits + cn - exp) / max(n - exp, 1)
+    print(f"{tag:58s} N={n:7d}  agree {100 * (hits + cn) / max(n, 1):5.1f}%  HSS {hss:.2f}  ours-yes {100 * a.mean():4.1f}%  ref-yes {100 * b.mean():4.1f}%", flush=True)
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--cycle", required=True)
@@ -153,6 +164,21 @@ def main():
     inner = (plat > 25) & (plat < 50)
     stats(thh[inner], gref[inner], "   HRRR 25-50N")
     print(f"   HRRR theta range {np.nanpercentile(thh, 1):.0f}-{np.nanpercentile(thh, 99):.0f} K, GFS {np.nanpercentile(gref, 1):.0f}-{np.nanpercentile(gref, 99):.0f} K")
+    # the PV charts vs the GFS's own 2-PVU surface: stratospheric air in the 300-250 hPa layer <=> GFS 2-PVU below 275 hPa;
+    # PV > 2 on 330 K <=> GFS 2-PVU theta below 330 K
+    gp = gfs_interp(p_upp, glat, glon, plat, plon)
+    print("2b. HRRR PV charts vs GFS 2-PVU surface (yes/no consistency)")
+    if "pvu" in o:
+        agree(o["pvu"][1] > 2, np.where(np.isfinite(gp), gp > 275, np.nan), "   300-250 hPa PV > 2  vs  GFS p(2 PVU) > 275 hPa")
+    for t in (315, 320, 330, 340):
+        k = f"pv{t}"
+        if k in o:
+            x = o[k][1]
+            agree(np.where(np.isfinite(x), x > 2, np.nan), np.where(np.isfinite(gref), gref < t, np.nan), f"   PV({t} K) > 2  vs  GFS theta(2 PVU) < {t} K")
+            print(f"      {t} K: masked (outside 100-700 hPa) {100 * np.isnan(x).mean():.0f} %; PV p5/p50/p95 {np.nanpercentile(x, 5):.2f}/{np.nanpercentile(x, 50):.2f}/{np.nanpercentile(x, 95):.2f}")
+    if "pvl" in o:
+        x = o["pvl"][1]
+        print(f"   850-700 hPa PV: masked {100 * np.isnan(x).mean():.0f} %, p5/p50/p95/p99.5 {np.nanpercentile(x, 5):.2f}/{np.nanpercentile(x, 50):.2f}/{np.nanpercentile(x, 95):.2f}/{np.nanpercentile(x, 99.5):.2f} PVU, < 0: {100 * (x < 0).mean():.1f} %")
 
     # RDPS own 2-PVU
     M._CTX.clear()
@@ -165,6 +191,9 @@ def main():
     sl = (slice(*crop[0]), slice(*crop[1]))
     F2 = M.SUB["rdps"]
     M._CTX.update(sub=F2, crop=crop, grid_rel=grel2, alpha=M.alpha_of(lat2, lon2)[sl] if grel2 else None)
+    gm = M.grid_desc(b, crop)
+    M._CTX.update(rd_grid=gm, rd_rlat=gm["la1"] + (gm.get("j0", 0) + F2 * np.arange(-(-gm["ny"] // F2))) * gm["dj"],
+                  lat_sub=UPR.smooth_dec(lat2[sl], F2).astype(np.float64))
     jobs = M.rdps_ua_jobs(date, cyc, lead)
     jobs["psfc"] = M.rdps_url(date, cyc, lead, M.RDPS_VARS["psfc"])
     rb = {k: f.get(u) for k, u in jobs.items()}
@@ -178,6 +207,18 @@ def main():
     stats(thr[inner2], rref[inner2], "   RDPS 25-50N 125-65W")
     pd = M.dec(rb["ua:PDT"], crop)
     pd = pd / 100.0 if np.nanmedian(pd) > 2000 else pd
+    gp2 = gfs_interp(p_upp, glat, glon, rlat, rlon)
+    print("3b. RDPS PV charts (computed here) vs GFS and vs the RDPS's own 2-PVU pressure")
+    pds = UPR.smooth_dec(np.where(np.isfinite(M.dec(rb["ua:PDT"], crop)), M.dec(rb["ua:PDT"], crop), np.nan), F2)
+    pds = pds / 100.0 if np.nanmedian(pds) > 2000 else pds
+    if "pvu" in o2:
+        agree(o2["pvu"][1] > 2, np.where(np.isfinite(gp2), gp2 > 275, np.nan), "   RDPS 300-250 hPa PV > 2  vs  GFS p(2 PVU) > 275 hPa")
+        agree(o2["pvu"][1] > 2, np.where(np.isfinite(pds), pds > 275, np.nan), "   RDPS 300-250 hPa PV > 2  vs  RDPS's own p(2 PVU) > 275 hPa")
+    if "pv330" in o2:
+        x = o2["pv330"][1]
+        agree(np.where(np.isfinite(x), x > 2, np.nan), np.where(np.isfinite(rref), rref < 330, np.nan), "   RDPS PV(330 K) > 2  vs  GFS theta(2 PVU) < 330 K")
+    else:
+        print("   RDPS: no PV charts (missing levels?)", sorted(k for k in o2))
     print(f"   RDPS 2-PVU pressure p5/p50/p95 {np.nanpercentile(pd, 5):.0f}/{np.nanpercentile(pd, 50):.0f}/{np.nanpercentile(pd, 95):.0f} hPa")
     for k in ("ua925", "ua250", "z500"):
         for name, oo in (("HRRR", o), ("RDPS", o2)):

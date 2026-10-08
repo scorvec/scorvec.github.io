@@ -13,7 +13,7 @@
 <meta property="og:site_name" content="Shawn Corvec &mdash; Weather &amp; Climate Monitors">
 <meta name="twitter:card" content="summary">
 <script data-goatcounter="https://scorvec.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
-<link rel="preconnect" href="https://raw.githubusercontent.com" crossorigin>
+<link rel="preconnect" href="https://frames.scorvec.com" crossorigin>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,500;0,8..60,600;1,8..60,400&family=Source+Sans+3:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
@@ -294,6 +294,7 @@
                 <li><a href="/circulation.html#tcjet">Tropical cyclones and the jet</a></li>
                 <li><a href="/circulation.html#tcens">Tropical cyclone ensembles</a></li>
                 <li><a href="/circulation.html#tcphase">Cyclone phase space</a></li>
+                <li><a href="/circulation.html#tcshear">Shear and environment</a></li>
                 <li><a href="/recon.html">Hurricane reconnaissance</a></li>
               </ul>
             </div>
@@ -417,6 +418,7 @@
       <label class="runsel">Window <select id="accWin" aria-label="Accumulation window"></select></label>
     </div>
     <div class="mv-acc" id="ecBar" hidden><div class="seg" id="ecSub" role="group" aria-label="ECAPE field"></div></div>
+    <div class="mv-acc" id="subBar" hidden><div class="seg" id="subSeg" role="group" aria-label="Map variant"></div></div>
   </div>
 
   <div class="mv-time">
@@ -491,6 +493,11 @@
       <tr><td>Wind gust</td><td>The model's instantaneous surface gust (GUST, a diagnosis of the wind that boundary-layer mixing can bring down), not an hourly maximum; barbs show the 10&nbsp;m wind</td><td>As HRRR</td><td>The model's instantaneous 10&nbsp;m gust (WindGust); barbs show the 10&nbsp;m wind</td></tr>
       <tr><td>Sea-level pressure</td><td>MSLP (MAPS reduction, MSLMA) in 4&nbsp;hPa colour classes, isobars every 2&nbsp;hPa, highs and lows; stored on every 4th grid point (12&nbsp;km) and interpolated. Faded where the ground is above ~1,500&nbsp;m (surface pressure below 850&nbsp;hPa): the reduction to sea level is unreliable there and no H or L is placed</td><td>As HRRR, MSLET reduction</td><td>As HRRR, every 2nd grid point (20&nbsp;km)</td></tr>
       <tr><td>ECAPE and CAPE</td><td>Entraining CAPE (Peters et al. 2023) and the undiluted CAPE for the most-unstable and mixed-layer parcels, computed with SHARPlib on every column of the HRRR's native levels, hourly to 18&nbsp;h and every 3 hours to 48&nbsp;h; the ECAPE/CAPE ratio is shown where CAPE exceeds 100&nbsp;J/kg</td><td class="na" colspan="2">Computed for the HRRR only</td></tr>
+      <tr><td>Updraft helicity</td><td>MXUPHL 2&ndash;5&nbsp;km and 0&ndash;3&nbsp;km above ground, the maximum over each hour, and the run swath (the running maximum since the run started); classes from 25&nbsp;m&sup2;/s&sup2;, black outline at 75</td><td>As HRRR (past 36&nbsp;h the files are 3-hourly and each covers its last hour only)</td><td class="na">Not in the RDPS output</td></tr>
+      <tr><td>Max updraft</td><td>MAXUVV: the hourly maximum upward vertical velocity between 100 and 1000&nbsp;hPa, and its run swath</td><td>As HRRR</td><td class="na">Not in the RDPS output</td></tr>
+      <tr><td>Echo tops</td><td>RETOP: the 18.3&nbsp;dBZ echo top, thousands of feet above sea level, in 5,000&nbsp;ft classes (under Radar)</td><td>As HRRR</td><td class="na">Not in the RDPS output</td></tr>
+      <tr><td>PBL height</td><td>HPBL, metres above ground, every hour, smoothed to 6&nbsp;km</td><td>As HRRR</td><td>PlanetaryBoundaryLayerHeight, smoothed to 20&nbsp;km</td></tr>
+      <tr><td>Potential vorticity</td><td>Ertel PV computed here on 22 pressure levels (fields smoothed to 12&nbsp;km): the 300&ndash;250&nbsp;hPa mean with 250&nbsp;hPa barbs and heights and the 2-PVU line, PV on 315/320/330/340&nbsp;K with the wind and the pressure of the surface, and the 850&ndash;700&nbsp;hPa mean with 850&nbsp;hPa barbs; every 3 hours</td><td class="na">Not shown: the RRFS pressure-level files are only on NOMADS</td><td>As HRRR, on 19 levels of its rotated grid, 20&nbsp;km</td></tr>
       <tr><td>925 and 250&nbsp;hPa wind</td><td>Wind speed (knots) with barbs and the height of the pressure level (contours every 30&nbsp;m at 925&nbsp;hPa, 120&nbsp;m at 250&nbsp;hPa), from the pressure-level file (wrfprs), every 3 hours, on every 2nd grid point (6&nbsp;km); 925&nbsp;hPa left blank where the ground is above that level</td><td>As HRRR (prslev)</td><td>As HRRR, on the 10&nbsp;km grid</td></tr>
       <tr><td>500&nbsp;hPa vorticity</td><td>Absolute vorticity computed from the 500&nbsp;hPa wind smoothed to 12&nbsp;km (with the grid's map factor), heights every 30&nbsp;m (60&nbsp;m bold), 500&nbsp;hPa wind barbs</td><td>As HRRR</td><td>The model's own absolute vorticity, smoothed to 20&nbsp;km</td></tr>
       <tr><td>Dynamic tropopause</td><td>Potential temperature and wind on the 2-PVU surface, computed here: Ertel PV on 19 pressure levels (100&ndash;700&nbsp;hPa, fields smoothed to 12&nbsp;km), the 2-PVU crossing searched downward from 100&nbsp;hPa; 100&nbsp;hPa values where PV is below 2 PVU even there; colours as the site's dynamic-tropopause maps</td><td>As HRRR, from 11 pressure levels (100&ndash;700&nbsp;hPa every 50, 600 and 700: the RRFS file comes from NOMADS)</td><td>The model's own 2-PVU pressure (Pressure_PVU-2), with potential temperature and wind interpolated to it from the pressure levels; 20&nbsp;km</td></tr>
@@ -684,12 +691,49 @@
       out.push(c); } return out; })();
   function dtColour(v) { var i = 0; while (i < DT_LEV.length && v >= DT_LEV[i]) i++; var h = DT_COLS[i];
     return [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16), 1]; }
+  // ── convection and the boundary layer (2026-10-07, user: "updraft helicity and swaths are a good addition ... would add
+  // echo tops and PBL height. Max updraft speed is helpful as well"; no other severe fields). HRRR/RRFS; RDPS: PBL only.
+  // uh*: code = round(254 sqrt(UH / 400)), 0 below 1 m2/s2; uvv: 0.25 m/s steps, 0 below 1 m/s; "s" = run swath (running
+  // max since the run started, stored per hour); etop: kft, 255 = no echo; hpbl: 25 m steps. All 1-channel.
+  var UH_LEVELS = [25, 50, 75, 100, 150, 200, 300], UH_COLORS = ["#9ad0f0", "#3a9be0", "#2fa24a", "#f2d23a", "#f08a24", "#d7261e", "#a0157a"];
+  var ET_LEVELS = [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50], ET_COLORS = ["#d9eef5", "#a9d8ea", "#6db7dc", "#3b8fcc", "#2c9d63", "#8cc63f", "#f1d63a", "#f39b2d", "#e5532a", "#c01f3e", "#7c1d6f"];
+  function uhOf(c) { return c === 0 ? 0 : 400 * (c / 254) * (c / 254); }
+  ["uh25", "uh25s", "uh03", "uh03s"].forEach(function (f) {
+    var swath = /s$/.test(f), lay = f.indexOf("uh25") === 0 ? "2–5 km" : "0–3 km";
+    FIELDS[f] = { label: "Updraft helicity", sub: lay + (swath ? ", run swath" : ", hourly max"), enc: "uh", unit: "m²/s²", own: true, conv: true, swath: swath,
+                  fmt: function (v) { return Math.round(v) + " m²/s²"; } }; });
+  FIELDS.uvv = { label: "Max updraft", sub: "hourly max", enc: "uvv", unit: "m/s", own: true, conv: true, fmt: function (v) { return v.toFixed(2) + " m/s"; },
+                 stops: [S(1.9, "#e6f0f7", 0), S(2, "#cfe3f1", 0.85), S(5, "#8cc3e6"), S(10, "#3f8fd2"), S(15, "#2f9e5b"), S(20, "#c7d63a"), S(25, "#f2a830"), S(30, "#e0482a"), S(40, "#a8124f"), S(50, "#4a0f6a")],
+                 ticks: [2, 5, 10, 15, 20, 25, 30, 40, 50] };
+  FIELDS.uvvs = Object.assign({}, FIELDS.uvv, { sub: "run swath", swath: true });
+  FIELDS.etop = { label: "Echo tops", sub: "echo tops", enc: "etop", unit: "kft", conv: true, fmt: function (v) { return Math.round(v) + ",000 ft (" + (v * 0.3048).toFixed(1) + " km) above sea level"; } };
+  FIELDS.hpbl = { label: "PBL height", enc: "lin", off: 0, step: 25, unit: "m", bil: true,
+                  stops: [S(0, "#f4efe6"), S(250, "#e9dcc0"), S(500, "#d9c08d"), S(1000, "#a9c97a"), S(1500, "#5fb07a"), S(2000, "#3c8fb8"), S(2500, "#4a64b8"), S(3000, "#6a45a8"), S(4000, "#8a2a8a"), S(5000, "#5a0d4a")],
+                  ticks: [0, 500, 1000, 1500, 2000, 2500, 3000, 4000, 5000], fmt: function (v) { return Math.round(v).toLocaleString("en-US") + " m (" + Math.round(v * 3.28084).toLocaleString("en-US") + " ft) above ground"; } };
+  // ── potential vorticity (2026-10-07, user: "Can we add some potential vorticity charts"): scripts/models/upper.py, 12 km
+  // (RDPS 20 km), every 3 h. PV code = (PVU + 2) / 0.0625 (255 = masked). pvu 1 channel (barbs and heights from the ua250
+  // frame); pvl R = PV, G, B = 850 hPa wind; pv315..pv340 R = PV, G = the isentrope's pressure 100 + 2.5 hPa (wind: w315..)
+  function pvOf(c) { return -2 + 0.0625 * c; }
+  // the site's PV colours (scripts/mjo/src/dt_charts.py PV_LEV / PV_COLS): warm below 2 PVU, blue to purple above
+  var PV_LEV = [0, 0.5, 1, 1.5, 2, 3, 4, 5, 6, 8, 10, 12], PV_COLS = ["#fbe9b0", "#f8d27e", "#f2ad57", "#e5803d", "#b9d8ee", "#86b9e3", "#5a96d3", "#3e74c0", "#3654a6", "#3c3a8c", "#4a2675", "#5b1560"];
+  var PVL_LEV = [0.5, 0.75, 1, 1.5, 2, 3], PVL_COLS = ["#fde7c8", "#f9c58b", "#f19a4f", "#de6a2c", "#b8402a", "#7a1f3a"];
+  FIELDS.pvu = { label: "Upper-level PV", enc: "pv", unit: "PVU", bil: true, ch: 1, ua: true, pv: true };
+  FIELDS.pvl = { label: "Low-level PV", enc: "pv", unit: "PVU", bil: true, ch: 3, ua: true, pv: true, barbs: true, uvc: 1, uv: [-63.5, 0.5] };
+  [315, 320, 330, 340].forEach(function (t) {
+    FIELDS["pv" + t] = { label: "PV on " + t + " K", sub: t + " K", enc: "pv", unit: "PVU", bil: true, ch: 2, ua: true, pv: true, theta: t };
+    if (t === 330) FIELDS.pv330.btn = "Isentropic PV";
+    FIELDS["w" + t] = { label: "Wind on " + t + " K", enc: "lin2", off: -101.6, step: 0.8, unit: "kt", kt: true, smax: 100, ch: 2, barbs: true, companion: true }; });
+  // sub-options of one button (like ECAPE's): the button shows the family head; the bar under the field picker switches member
+  var SUBF = { pv330: ["pv315", "pv320", "pv330", "pv340"], refl: ["refl", "etop"], uh25: ["uh25", "uh25s", "uh03", "uh03s"], uvv: ["uvv", "uvvs"] };
+  var FAM = {}; Object.keys(SUBF).forEach(function (h) { SUBF[h].forEach(function (f) { FAM[f] = h; }); });
+  function famOf(f) { return FAM[f] || f; }
+  var famLast = {};                                                 // the member last shown per family
   // the field picker, grouped by what people use the maps for (2026-09-30 redesign); units shown on the buttons
   var FIELD_GROUPS = [["Clouds & visibility", ["ir", "ceil", "vis"]], ["Surface", ["t2m", "td2m", "mslp", "wind10", "gust"]], ["Precipitation", ["refl", "acc"]],
-                      ["Severe", ["ecape"]], ["Upper air", ["ua925", "ua250", "z500", "dt"]], ["Air quality & energy", ["wind80", "smoke", "sw"]]];
+                      ["Convection", ["ecape", "uh25", "uvv"]], ["Upper air", ["ua925", "ua250", "z500", "dt", "pvu", "pv330", "pvl"]], ["Air quality & energy", ["wind80", "smoke", "sw", "hpbl"]]];
   var FIELD_ORDER = [].concat.apply([], FIELD_GROUPS.map(function (g) { return g[1]; }));
   var FIELD_UNIT = { ir: "°C", ceil: "ft", vis: "mi", t2m: "°F", td2m: "°F", mslp: "hPa", wind10: "kt", gust: "kt", wind80: "m/s", refl: "dBZ", acc: "in", ecape: "J/kg", smoke: "mg/m²", sw: "W/m²",
-                     ua925: "kt", ua250: "kt", z500: "10⁻⁵/s", dt: "K" };
+                     ua925: "kt", ua250: "kt", z500: "10⁻⁵/s", dt: "K", uh25: "m²/s²", uvv: "m/s", hpbl: "m", etop: "kft", pvu: "PVU", pv330: "PVU", pvl: "PVU" };
   function encOf(f, fm) { return (fm && fm.enc) || FIELDS[f].enc; }
   function accValue(type, c) { var vm = ACC_TYPES[type].vmax, t = c / 254; return vm * t * t; }
   function chOf(f) { if (FIELDS[f] && FIELDS[f].ch) return FIELDS[f].ch; return f === "wind80" || f === "wind10" || f === "refl" || f === "mslp" || !!ACC_TYPES[f] ? 2 : 1; }
@@ -724,12 +768,31 @@
   NOTES.rdps.ua250 = "RDPS 250 hPa wind and height, every 3 hours, on its 10 km grid.";
   NOTES.rdps.z500 = "RDPS 500 hPa height and the model's own absolute vorticity, every 3 hours, smoothed to 20 km. Barbs: the 500 hPa wind (knots).";
   NOTES.rdps.dt = "The RDPS's own 2-PVU surface (the pressure of the 2 PVU level, Pressure_PVU-2 on the MSC Datamart), with potential temperature and wind interpolated to it from 16 and 9 pressure levels, every 3 hours, smoothed to 20 km.";
+  // convection (2026-10-07)
+  NOTES.hrrr.uh25 = "HRRR updraft helicity 2–5 km above ground (MXUPHL): the maximum over the hour ending at the time shown, from every model time step, so a storm's whole hour of track is in it. Values above ~75 m²/s² mark rotating updrafts (supercells) in a 3 km model; tracks are a few grid cells wide.";
+  NOTES.hrrr.uh25s = NOTES.hrrr.uh25.replace("the maximum over the hour ending at the time shown", "the run swath - the largest of the hourly maxima since the run started (stored hour by hour)");
+  NOTES.hrrr.uh03 = NOTES.hrrr.uh25.replace("2–5 km", "0–3 km") + " The 0–3 km layer picks up low-level rotation (tornado-prone storms, QLCS mesovortices).";
+  NOTES.hrrr.uh03s = NOTES.hrrr.uh03.replace("the maximum over the hour ending at the time shown", "the run swath - the largest of the hourly maxima since the run started");
+  NOTES.hrrr.uvv = "HRRR maximum upward vertical velocity in the hour ending at the time shown, between 100 and 1000 hPa (MAXUVV): the strongest updraft in each column. Deep convection shows 10–40 m/s; 1–2 m/s is ordinary rising air.";
+  NOTES.hrrr.uvvs = NOTES.hrrr.uvv.replace("in the hour ending at the time shown", "since the run started (run swath of the hourly maxima)");
+  NOTES.hrrr.etop = "HRRR echo top (RETOP): the highest level where the simulated reflectivity reaches 18.3 dBZ, in thousands of feet above sea level, instantaneous at the valid time. Tops above ~40,000 ft mark strong, deep convection.";
+  NOTES.hrrr.hpbl = "HRRR boundary-layer height (HPBL, from the MYNN scheme), metres above ground, instantaneous, smoothed to 6 km: how deep the air mixed from the surface is. Deep afternoon mixing brings momentum (gusts) down and dilutes smoke; shallow layers at night trap it.";
+  ["uh25", "uh25s", "uh03", "uh03s", "uvv", "uvvs", "etop", "hpbl"].forEach(function (f) { NOTES.rrfs[f] = NOTES.hrrr[f].replace(/HRRR/g, "RRFS"); });
+  ["uh25", "uh25s", "uh03", "uh03s", "uvv", "uvvs"].forEach(function (f) { NOTES.rrfs[f] += " Past +36 h the RRFS is published every 3 hours and each file's maximum covers only its last hour, so swaths there miss two hours in three."; });
+  // PV charts (2026-10-07)
+  var PVN = "Ertel potential vorticity computed here every 3 hours from the {M}'s temperature and wind on {L} pressure levels smoothed to {K} km (the same PV as the dynamic-tropopause map). ";
+  NOTES.hrrr.pvu = PVN.replace("{M}", "HRRR").replace("{L}", "22").replace("{K}", "12") + "Mean of 250, 275 and 300 hPa (the layer mean is less noisy than one level and spans where the jet-level tropopause usually sits). Air with more than 2 PVU (blue) is stratospheric: tropopause folds, troughs and the jet's cold side.";
+  NOTES.hrrr.pvl = PVN.replace("{M}", "HRRR").replace("{L}", "22").replace("{K}", "12") + "Mean of 700, 750, 800 and 850 hPa: low-level PV is made by latent heating, so it marks convective systems, mesoscale vortices, fronts and tropical cyclones. Blank where the surface pressure is below 850 hPa.";
+  [315, 320, 330, 340].forEach(function (t) { NOTES.hrrr["pv" + t] = PVN.replace("{M}", "HRRR").replace("{L}", "22").replace("{K}", "12") + "Interpolated to the " + t + " K isentrope (linear in θ, the first crossing above 700 hPa); blank where " + t + " K lies outside 100–700 hPa. Lower isentropes (315–320 K) suit the cold season, 330–340 K the warm season and the subtropical jet."; });
+  ["pvu", "pvl", "pv315", "pv320", "pv330", "pv340"].forEach(function (f) { NOTES.rdps[f] = NOTES.hrrr[f].replace(/HRRR/g, "RDPS").replace("on 22 pressure levels smoothed to 12 km", "on 19 pressure levels (100–850 hPa, on its rotated latitude-longitude grid) smoothed to 20 km"); });
+  NOTES.rdps.hpbl = "RDPS boundary-layer height (PlanetaryBoundaryLayerHeight), metres above ground, instantaneous, smoothed to 20 km.";
   NOTES.rrfs.ceil = NOTES.hrrr.ceil; NOTES.rrfs.vis = NOTES.hrrr.vis; NOTES.rrfs.sw = NOTES.hrrr.sw;
   var NA = { rdps: { ceil: "The RDPS output has no cloud ceiling.", vis: "The RDPS output has no visibility." } };
   // 2026-10-07, user: "Dont use nomads if we can" - the RRFS pressure-level files exist only on NOMADS (no real-time AWS
   // copy), so the upper-air maps come from the HRRR (AWS) and the RDPS (MSC Datamart) only
+  ["uh25", "uh25s", "uh03", "uh03s", "uvv", "uvvs", "etop"].forEach(function (f) { NA.rdps[f] = (FIELDS[f].label) + " is computed for the HRRR and the RRFS only: the RDPS output has no " + (f === "etop" ? "echo top." : FIELDS[f].enc === "uh" ? "updraft helicity." : "hourly maximum vertical velocity."); });
   NA.rrfs = {};
-  ["ua925", "ua250", "z500", "dt"].forEach(function (f) { NA.rrfs[f] = "Upper-air maps come from the HRRR and the RDPS: the RRFS's pressure-level files are only on NOMADS, which this page avoids."; });
+  ["ua925", "ua250", "z500", "dt", "pvu", "pvl", "pv315", "pv320", "pv330", "pv340"].forEach(function (f) { NA.rrfs[f] = "Upper-air maps come from the HRRR and the RDPS: the RRFS's pressure-level files are only on NOMADS, which this page avoids."; });
 
   // ── display projection: the HRRR's Lambert conformal (tangent at 38.5 N, 97.5 W, sphere 6371229 m) ────────────────
   var P = (function () {
@@ -786,6 +849,10 @@
     if (code === 255) return null;
     if (fd.enc === "lin") { var k = fd.off + code * fd.step; return fd.disp ? fd.disp(k) : k; }
     if (fd.enc === "linf") return q[0] + code * q[1];
+    if (fd.enc === "uh") return uhOf(code);
+    if (fd.enc === "pv") return pvOf(code);
+    if (fd.enc === "uvv") return code * 0.25;
+    if (fd.enc === "etop") return code;
     if (fd.enc === "log") { if (code === 0) return -1; return Math.exp(Math.log(fd.lo) + (code - 1) / 253 * (Math.log(fd.hi) - Math.log(fd.lo))); }
     return null;
   }
@@ -832,6 +899,10 @@
     if (name === "smoke" && (v < 2)) return null;
     if (name === "mslp") return stepColour(MSLP_LEVELS, MSLP_COLORS, v);
     if (name === "dt") return dtColour(v);
+    if (name === "pvl") return stepColour(PVL_LEV, PVL_COLS, v);
+    if (fd && fd.pv) return stepColour(PV_LEV, PV_COLS, v);
+    if (fd && fd.enc === "uh") return stepColour(UH_LEVELS, UH_COLORS, v);
+    if (name === "etop") return stepColour(ET_LEVELS, ET_COLORS, v);
     if (name === "ecape") {                                     // below 100 J/kg left clear (render_ecape.py paints it white)
       if (EC_SUBS[st.ec].kind === "ratio") return stepColour(RATIO_LEVELS, RATIO_COLORS, v);
       return v < 100 ? null : stepColour(CAPE_LEVELS, CAPE_COLORS, v);
@@ -889,7 +960,7 @@
   // the hours the slider walks: the run's, or for ECAPE the ECAPE job's (hourly to 18 h, then 3-hourly)
   function uiHours(c) {
     if (st.field === "ecape" && c && c.fields[EC_SUBS[st.ec].files[0]]) return c.fields[EC_SUBS[st.ec].files[0]].hours;
-    if (FIELDS[st.field] && FIELDS[st.field].ua && c && c.fields[st.field]) return c.fields[st.field].hours;   // every 3 hours
+    if (FIELDS[st.field] && (FIELDS[st.field].ua || FIELDS[st.field].own) && c && c.fields[st.field]) return c.fields[st.field].hours;   // upper air every 3 h; hourly maxima from +1 h
     return hoursOf(c);
   }
   function fileFields() { return st.field === "acc" ? [st.acc.type] : st.field === "ecape" ? EC_SUBS[st.ec].files : [st.field]; }
@@ -901,10 +972,12 @@
   // lo = the half-resolution copy (every 2nd point of the native grid, <fff>_lo.webp, manifest field "lo" names its grid)
   function relPath(model, c, field, h, lo) { return "assets/models/data/" + model + "/" + c.cycle + "/" + field + "/" + ("00" + h).slice(-3) + (lo ? "_lo" : "") + ".webp"; }
 
-  // ── data transport: raw.githubusercontent -> jsDelivr (pinned to the frames commit) ; same host logic as frameLoad ──
+  // ── data transport: Bunny CDN (frames.scorvec.com) -> raw.githubusercontent -> jsDelivr; same hosts as frameLoad ──
+  // assets/frames_root.js owns the host list and the per-tab CDN health check. The CDN is asked first for every file:
+  // pinned files as CDN/<sha>/<path> (cached a year), unpinned ones as CDN/frames/<path> (60 s edge TTL, so at most
+  // ~6 min old with raw's own 5 min). The GitHub hosts are silent fallbacks behind it.
   // A file's path names its run (model/cycle/field/hour), so its bytes never change: they are kept in Cache Storage and
-  // read back from there on a later visit without asking the network (raw.githubusercontent only allows a 5-minute
-  // browser cache, and jsDelivr's immutable copy is slow the first time a file is asked for). Old runs are pruned on load.
+  // read back from there on a later visit without asking the network. Old runs are pruned on load.
   var rawOk = false, CACHE_NAME = "mv-frames-v1", CACHE_HOST = "https://mv-frames.invalid/";
   var cacheP = null;
   function frameCache() {
@@ -931,26 +1004,32 @@
   }
   function getBytes(rel, sha, prio, sig) {
     var raw = window.FRAME_ROOT_RAW || "https://raw.githubusercontent.com/scorvec/scorvec.github.io/frames/";
-    var mir = MIRROR + (sha || "frames") + "/";
-    var hosts = LOCAL ? ["/"] : (window.frameHostIsMirror && window.frameHostIsMirror() ? [mir, raw] : [raw, mir]);
-    // Bunny CDN first for pinned files (2026-10-06; assets/frames_root.js holds the host and the per-tab health check)
-    var cdn = !LOCAL && window.FRAME_ROOT_CDN && /^[0-9a-f]{7,40}$/.test(sha || "") && (!window.frameCdnOk || window.frameCdnOk()) ? window.FRAME_ROOT_CDN + sha + "/" : null;
-    if (cdn) hosts.unshift(cdn);
+    var hosts = LOCAL ? ["/"] : (window.frameUrls ? window.frameUrls("", sha) : ["https://frames.scorvec.com/" + (sha || "frames") + "/", raw, MIRROR + (sha || "frames") + "/"]);
+    var cdn = !LOCAL && /^https:\/\/frames\.scorvec\.com\//.test(hosts[0]) ? hosts[0] : null, cdnErr = false;
     var k = 0;
     function next() {
       if (sig && sig.aborted) return Promise.reject(new Error("cancelled"));   // cancelled: no other host either
       if (k >= hosts.length) return Promise.reject(new Error("unavailable"));
       var h = hosts[k++];
       return fetchT(h + rel, h === raw && !rawOk ? 7000 : (h === cdn ? 8000 : 30000), prio, sig).then(function (r) {
-        if (!r.ok) { if (h === cdn && window.frameCdnFailed) window.frameCdnFailed(); return next(); }
+        if (!r.ok) { if (h === cdn && r.status !== 404) cdnErr = true; return next(); }   // a 404 is the origin's own answer
         if (h === raw) rawOk = true;
+        if (h === cdn) { if (window.frameCdnServed) window.frameCdnServed(); }
+        else if (cdn) {
+          if (window.frameOtherServed) window.frameOtherServed();
+          if (cdnErr && window.frameCdnFailed) window.frameCdnFailed();                // the CDN failed where another host had it
+        }
         var th = performance.now();                         // headers in: the body time measures bandwidth, not latency
         return r.arrayBuffer().then(function (buf) {
           buf._tb = performance.now() - th;
           frameCache().then(function (cc) { if (cc) cc.put(CACHE_HOST + rel, new Response(buf.slice(0), { headers: { "Content-Type": "image/webp" } })).catch(function () {}); });
           return buf;
         });
-      }, function () { if (h === cdn && !(sig && sig.aborted) && window.frameCdnFailed) window.frameCdnFailed(); return next(); });
+      }, function (e) {
+        // no headers within 8 s: probe before blaming the CDN (a busy link answers a HEAD at once); a refusal is an error
+        if (h === cdn && !(sig && sig.aborted)) { if (e && e.name === "AbortError") { if (window.frameCdnStalled) window.frameCdnStalled(h + rel); } else cdnErr = true; }
+        return next();
+      });
     }
     return frameCache().then(function (cc) { return cc ? cc.match(CACHE_HOST + rel) : null; }).catch(function () { return null; })
       .then(function (hit) { return hit ? hit.arrayBuffer().then(function (b) { b._cached = true; return b; }) : next(); });
@@ -1465,7 +1544,7 @@
   function dropTex(e) {
     if (!e || !gl) return;
     if (e.tex) { gl.deleteTexture(e.tex); e.tex = null; }
-    if (e.ctex) { gl.deleteTexture(e.ctex); e.ctex = null; e.ckeyG = null; }
+    if (e.cmap) { Object.keys(e.cmap).forEach(function (k) { gl.deleteTexture(e.cmap[k].tex); }); e.cmap = null; }
   }
   function texOf(e, ch) {
     if (e.tex) return e.tex;
@@ -1484,10 +1563,12 @@
   // D x D block lattice, rows in IMAGE order (row 0 = north) exactly as the worker's lattice. -> {tex, D, ctr, W2, H2}
   var GPU_MS = [];
   function ctexOf(e, ch, spec, dec, gkey) {
-    if (e.ctex && e.ckeyG === gkey) return e.cinfo;
+    // one smoothed texture per frame and contour spec (a frame can carry two sets of lines: PV and the isentrope's pressure)
+    if (e.cmap && e.cmap[gkey]) return e.cmap[gkey];
     var t0 = performance.now();
     if (pre.link) pre.link();
-    if (e.ctex) { gl.deleteTexture(e.ctex); e.ctex = null; }
+    if (!e.cmap) e.cmap = {};
+    var ks = Object.keys(e.cmap); if (ks.length >= 2) { gl.deleteTexture(e.cmap[ks[0]].tex); delete e.cmap[ks[0]]; }
     var W = e.dec.w, H = e.dec.h, D = dec || 1, W2 = D === 1 ? W : Math.floor(W / D), H2 = D === 1 ? H : Math.floor(H / D);
     var src = texOf(e, ch);
     // decode table: code -> value (missing = -1e30)
@@ -1521,9 +1602,9 @@
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
     gl.activeTexture(gl.TEXTURE5); gl.bindTexture(gl.TEXTURE_2D, null);
     gl.useProgram(prog); gl.enable(gl.BLEND);
-    e.ctex = out; e.ckeyG = gkey; e.cinfo = { tex: out, D: D, ctr: (D - 1) / 2, W2: W2, H2: H2 };
+    e.cmap[gkey] = { tex: out, D: D, ctr: (D - 1) / 2, W2: W2, H2: H2 };
     GPU_MS.push(Math.round((performance.now() - t0) * 10) / 10); if (GPU_MS.length > 50) GPU_MS.shift();
-    return e.cinfo;
+    return e.cmap[gkey];
   }
   function rgba01(s) {                                             // "rgba(r,g,b,a)" / "#rrggbb" -> [r, g, b, a] in 0..1
     var m = /rgba?\(([^)]+)\)/.exec(s);
@@ -1862,6 +1943,7 @@
     if ((st.field === "wind80" || st.field === "wind10" || FIELDS[st.field].barbs) && drawn && drawn.e && drawn.e.dec && drawn.field === st.field && !drawn.diff) drawBarbs(ctx, drawn);
     if (st.field === "gust" && drawn && drawn.field === "gust" && !drawn.diff) { var bw = windFor(drawn); if (bw) drawBarbs(ctx, bw); }
     if (st.field === "z500" && drawn && drawn.field === "z500") { var b5 = windFor(drawn, "w500"); if (b5) drawBarbs(ctx, b5); }
+    if (drawn && drawn.field === st.field && (st.field === "pvu" || FIELDS[st.field].theta)) { var bp = windFor(drawn, st.field === "pvu" ? "ua250" : "w" + FIELDS[st.field].theta); if (bp) drawBarbs(ctx, bp); }
     ovView = { cx: view.cx, cy: view.cy, s: view.s };
     var t1 = performance.now();
     cancelAnimationFrame(labT);
@@ -2001,6 +2083,16 @@
         style: function (v) { return ["rgba(255,255,255,0.97)", v === 50 ? 2.6 : 1.8]; },
         gl: Object.assign({ list: [gm[0], gm[1]], special: [[gm[2], 2.6, "rgba(255,255,255,0.97)"]] }, WIND_GL) }); }
     if (field === "refl" || field === "mslp") return isoSpec(field);
+    // PV: the 2-PVU line bold (the dynamic tropopause) on the upper-level and isentropic maps; 1 PVU on the low-level map
+    if (FIELDS[field] && FIELDS[field].pv) { var Lv = new Float32Array(256); for (var cv = 0; cv < 256; cv++) Lv[cv] = cv === 255 ? NaN : pvOf(cv);
+      var low = field === "pvl", lvv = low ? [1] : [2];
+      return { rad: 1, rad2: 0, dec: 1, minPts: 6, lut: Lv, nblur: true, ch: 0, stride: FIELDS[field].ch, levels: lvv, values: lvv, fmt: function (v) { return v + " PVU"; },
+        style: function () { return ["rgba(5,5,5,0.95)", low ? 1.4 : 2.2]; }, gl: { list: [], col: "rgba(5,5,5,0.95)", w: 1, special: [[lvv[0], low ? 1.4 : 2.2, "rgba(5,5,5,0.95)"]] } }; }
+    // updraft helicity: the 75 m2/s2 outline (the conventional supercell-track threshold), on the raw 3 km grid (tracks are a
+    // few cells wide; any smoothing would erase them); not labelled
+    if (FIELDS[field] && FIELDS[field].enc === "uh") { var Lu = new Float32Array(256); for (var cu = 0; cu < 256; cu++) Lu[cu] = cu === 255 ? NaN : uhOf(cu);
+      return { rad: 0, rad2: 0, dec: 1, minPts: 3, lut: Lu, levels: [75], values: [75], fmt: function (v) { return String(v); }, lab: function () { return false; },
+        style: function () { return ["rgba(10,10,10,0.95)", 1.3]; }, gl: { list: [75], col: "rgba(10,10,10,0.95)", w: 1.3, hw: 0.6 } }; }
     // upper air: heights (925 every 30 m, labelled in metres; 250 every 120 m and 500 every 60 m, labelled in decametres)
     // from the frame's height channel; the dynamic tropopause: theta every 10 K. Grids already 6-20 km: no block mean.
     if (field === "ua925" || field === "ua250" || field === "z500") {
@@ -2025,7 +2117,22 @@
   }
   // a second set of lines on some maps: isobars (and highs and lows) over the 10 m wind and the gust (2026-10-06, user: "add
   // mslp contours to the 10m wind plot")
-  function extraSpec(field) { return field === "wind10" || field === "gust" ? isoSpec(field) : null; }
+  function extraSpec(field, q) {
+    if (field === "wind10" || field === "gust") return isoSpec(field);
+    if (field === "pvu") {                                         // 250 hPa heights from the ua250 frame (its B channel)
+      var Lz = new Float32Array(256); q = q && q.join ? q : [0, 1]; for (var c = 0; c < 256; c++) Lz[c] = c === 255 ? NaN : q[0] + c * q[1];
+      var lz = range(8400, 11400, 120);
+      return { rad: 2, rad2: 1, dec: 1, minPts: 6, lut: Lz, nblur: true, src: "ua250", ch: 2, stride: 3, levels: lz, values: lz, fmt: function (v) { return String(v / 10); },
+        style: function () { return ["rgba(12,12,12,0.85)", 0.9]; }, gl: { reg: [8400, 120, 8400, 11400], col: "rgba(12,12,12,0.85)", w: 0.9 } };
+    }
+    if (FIELDS[field] && FIELDS[field].theta) {                    // the isentrope's pressure, every 50 hPa (own G channel)
+      var Lp = new Float32Array(256); for (var cp = 0; cp < 256; cp++) Lp[cp] = cp === 255 ? NaN : 100 + 2.5 * cp;
+      var lp = range(150, 700, 50);
+      return { rad: 1, rad2: 0, dec: 1, minPts: 6, lut: Lp, nblur: true, ch: 1, stride: 2, levels: lp, values: lp, fmt: function (v) { return v + " hPa"; },
+        style: function () { return ["rgba(40,40,40,0.7)", 0.7]; }, gl: { reg: [150, 50, 150, 700], col: "rgba(40,40,40,0.7)", w: 0.7, hw: 0.5 } };
+    }
+    return null;
+  }
   var CONT = new Map(), contBusy = {};
   var CPU_LINES = /[?&]cpulines=1/.test(location.search);          // testing: the old worker-traced lines on top, in red
   var scrubbing = false, scrubT = 0;
@@ -2052,7 +2159,7 @@
     if (d.field === "ecape" && d.ecSub !== st.ec) return;
     var S = specSrc(d, spec0); if (!S) return;
     var e = S.e, q = specQ(d, spec0, S);
-    var spec = suffix ? extraSpec(d.field) : contourSpec(d.field, d.model, q), g = S.g, dec = spec.dec;
+    var spec = suffix ? extraSpec(d.field, q) : contourSpec(d.field, d.model, q), g = S.g, dec = spec.dec;
     if (S.own && e.lo) dec = Math.max(1, Math.round(dec / 2));
     contBusy[key] = 1;
     var cellKm = g.type === "lcc" ? g.dx / 1000 : g.di * 111.2, ext = null;
@@ -2096,10 +2203,10 @@
   // GPU layers for the frame on screen: A = the field's own lines (refl and mslp: the isobars), B = isobars over the wind maps
   function gpuLayer(d, spec, suffix) {
     var S = specSrc(d, spec); if (!S) return null;
-    var q = specQ(d, spec, S), sp = suffix ? extraSpec(d.field) : contourSpec(d.field, d.model, q), dec = sp.dec;
+    var q = specQ(d, spec, S), sp = suffix ? extraSpec(d.field, q) : contourSpec(d.field, d.model, q), dec = sp.dec;
     if (S.own && S.e.lo) dec = Math.max(1, Math.round(dec / 2));
     var ch = S.own ? (d.field === "acc" || d.field === "ecape" ? 1 : chOf(d.field)) : chOf(spec.src);
-    var gkey = (S.own ? d.field + "|" + (d.field === "acc" ? st.acc.type : d.field === "ecape" ? st.ec : "") : spec.src) + "|" + (q && q.join ? q.join(",") : q) + "|" + dec;
+    var gkey = (S.own ? d.field + "|" + (d.field === "acc" ? st.acc.type : d.field === "ecape" ? st.ec : "") : spec.src) + "|" + (q && q.join ? q.join(",") : q) + "|" + dec + "|c" + (sp.ch || 0);
     return { spec: sp, g: S.g, info: ctexOf(S.e, ch, sp, dec, gkey) };
   }
   function gpuLayers(d) {
@@ -2421,6 +2528,17 @@
     var last = -1e9;
     for (i = 1; i < L.length; i++) { var x = x0 + i * bw; ctx.fillRect(x - 0.5, y + bh, 1, 4); if (x - last < 34) continue; ctx.fillText(lab(i), x, y + bh + 5); last = x; }
   }
+  function drawLegendClasses(L, C, cap, lab) {                       // one equal box per class, labelled at the lower edges
+    $("legT").textContent = cap;
+    var n = C.length, g = legSetup(38);
+    if (g.vert) { vBar(g, function (t) { return C[Math.min(n - 1, Math.floor(t * n))]; }, L.map(function (v, i) { return [i / n, lab(v)]; })); return; }
+    var ctx = g.ctx, x0 = 6, x1 = g.w - 6, bh = 14, y = 4, bw = (x1 - x0) / n;
+    for (var i = 0; i < n; i++) { ctx.fillStyle = C[i]; ctx.fillRect(x0 + i * bw, y, Math.ceil(bw), bh); }
+    ctx.strokeStyle = "#8c918b"; ctx.lineWidth = 1; ctx.strokeRect(x0 + 0.5, y + 0.5, x1 - x0 - 1, bh - 1);
+    ctx.fillStyle = "#3d4540"; ctx.font = "13.5px 'Source Sans 3', Arial, sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "top";
+    var last = -1e9;
+    for (i = 0; i < L.length; i++) { var x = x0 + i * bw; ctx.fillRect(x - 0.5, y + bh, 1, 4); if (x - last < 30) continue; ctx.fillText(lab(L[i]), Math.max(x, x0 + 8), y + bh + 5); last = x; }
+  }
   function drawLegendDT() {                                       // 5 K classes as the site's DT maps; labels every 20 K
     $("legT").textContent = "Potential temperature on the dynamic tropopause (the 2-PVU surface), K, in 5 K classes · barbs: the wind on it, knots · lines every 10 K · low θ (purple, blue): troughs and stratospheric air brought down; high θ (orange, red): ridges and tropical air";
     var L = DT_LEV, C = DT_COLS, n = C.length, g = legSetup(38);
@@ -2437,6 +2555,16 @@
   function drawLegend() {
     if (diffOn()) { drawLegendDiff(); return; }
     if (st.field === "dt") { drawLegendDT(); return; }
+    var fdl = FIELDS[st.field];
+    if (fdl && fdl.enc === "uh") { var sw = fdl.swath, lay = st.field.indexOf("uh25") === 0 ? "2–5 km" : "0–3 km";
+      drawLegendClasses(UH_LEVELS, UH_COLORS, "Updraft helicity " + lay + " above ground, m²/s², " + (sw ? "the run swath: the largest hourly maximum since the run started" : "the model's maximum over the hour ending at the time shown") +
+        " · black outline 75 m²/s² (the usual supercell-track threshold) · blank below 25" + (st.model === "rrfs" ? " · RRFS past +36 h: every 3rd hour only" : ""), String); return; }
+    if (fdl && fdl.pv) {
+      if (st.field === "pvl") drawLegendClasses(PVL_LEV, PVL_COLS, "Potential vorticity, 850–700 hPa layer mean, PVU (made by latent heating in convection, fronts, MCS and tropical vortices) · line: 1 PVU · barbs: 850 hPa wind, knots · blank below 0.5 PVU and where the ground is above 850 hPa", String);
+      else drawLegendClasses(PV_LEV, PV_COLS, st.field === "pvu" ? "Potential vorticity, 300–250 hPa layer mean, PVU (1 PVU = 10⁻⁶ K m² kg⁻¹ s⁻¹) · bold line: 2 PVU, the dynamic tropopause (blue: stratospheric air) · thin lines: 250 hPa height every 120 m (dam) · barbs: 250 hPa wind, knots"
+        : "Potential vorticity on the " + fdl.theta + " K isentrope, PVU · bold line: 2 PVU (blue: stratospheric air - troughs, jets' cold side) · thin lines: the pressure of the " + fdl.theta + " K surface every 50 hPa · barbs: the wind on it, knots · blank where " + fdl.theta + " K is outside 100–700 hPa", String);
+      return; }
+    if (st.field === "etop") { drawLegendClasses(ET_LEVELS, ET_COLORS, "Echo tops (the model's 18.3 dBZ echo top), thousands of feet above sea level, 5,000 ft classes · blank: no echo", function (v) { return v === 50 ? "50+" : String(v); }); return; }
     if (st.field === "refl") { drawLegendRefl(); return; }
     if (st.field === "ecape") { drawLegendSteps(); return; }
     if (st.field === "mslp") { drawLegendMslp(); return; }
@@ -2449,6 +2577,7 @@
     if (name === "ir") { lo = 45; hi = -95; } else if (name === "t2m") { lo = -40; hi = 125; } else if (name === "td2m") { lo = -20; hi = 82; }
     else if (name === "ceil") { lo = 50; hi = 30000; } else if (name === "vis") { lo = 0.05; hi = 10; } else if (name === "smoke") { lo = 2; hi = 1500; }
     else if (name === "wind80" || name === "wind10") { lo = 0; hi = 40; } else if (name === "gust") { lo = 0; hi = 55; }
+    else if (name === "uvv" || name === "uvvs") { lo = 0; hi = 55; } else if (name === "hpbl") { lo = 0; hi = 5000; }
     else if (name === "ua925") { lo = 0; hi = 95 / KT; } else if (name === "ua250") { lo = 40 / KT; hi = 195 / KT; } else if (name === "z500") { lo = 8; hi = 52; } else if (name === "acc") { lo = fd._lo; hi = fd._hi; } else { lo = 0; hi = 1050; }
     function tOf(v) { return logx ? (Math.log(v) - Math.log(lo)) / (Math.log(hi) - Math.log(lo)) : (v - lo) / (hi - lo); }
     function xOf(v) { return x0 + tOf(v) * (x1 - x0); }
@@ -2480,6 +2609,9 @@
                       vis: "Visibility, miles, in flight-category colours (no shading: 10 mi or more)", t2m: "Temperature 2 m above ground, °F (blue line: freezing)", td2m: "Dewpoint 2 m above ground, °F",
                       smoke: "Smoke, mg per m², vertically integrated", wind80: "Wind speed 80 m above ground, m/s (barbs in knots)",
                       wind10: "Wind speed 10 m above ground, knots (barbs: half barb 5, full 10, pennant 50) · white lines 20, 30, 40 kt · black lines: isobars every 2 hPa (4 hPa zoomed out), H/L = highs and lows",
+                      uvv: "Maximum upward vertical velocity in the hour ending at the time shown (100–1000 hPa), m/s · blank below 2 m/s",
+                      uvvs: "Run swath of the maximum upward vertical velocity: the largest hourly maximum since the run started, m/s · blank below 2 m/s",
+                      hpbl: "Height of the planetary boundary layer (the mixed layer), metres above ground",
                       ua925: "Wind speed at 925 hPa (about 750 m above sea level), knots · barbs in knots · lines: 925 hPa height every 30 m · blank where the ground rises above the 925 hPa level",
                       ua250: "Wind speed at 250 hPa (jet level, about 10.5 km), knots, shaded from 50 kt · barbs in knots · lines: 250 hPa height every 120 m, labelled in decametres",
                       z500: "Absolute vorticity at 500 hPa, 10⁻⁵ s⁻¹, shaded from 12 · lines: 500 hPa height every 30 m, the 60 m lines bold and labelled in decametres (e.g. 576 = 5,760 m) · barbs: 500 hPa wind, knots",
@@ -2495,11 +2627,13 @@
   // 2026-10-04), the 10 m wind and gust in runs made before they were added. Accumulation and ECAPE explain themselves.
   function fieldGone(model, f) {
     var c = cycleObj(model, st.ci) || cycleObj(model, 0);
+    if (NA[model] && NA[model][f]) return false;                    // shown disabled with the reason
     if (FIELDS[f] && FIELDS[f].ua && c && c.fields && !c.fields[f])        // upper air: keep the button while another model has it
       return !MODEL_ORDER.some(function (m) { var c2 = cycleObj(m, 0); return c2 && c2.fields && c2.fields[f]; });
     return !!(c && c.fields && f !== "acc" && f !== "ecape" && !c.fields[f]);
   }
-  function labelOf(model, f) { return model === "rdps" && f === "ir" ? "IR proxy (OLR)" : model === "rdps" && f === "refl" ? "Precip rate + type" : FIELDS[f].label; }
+  function labelOf(model, f) { if (FIELDS[f] && FIELDS[f].btn && FAM[f] === f) return FIELDS[f].btn; return model === "rdps" && f === "ir" ? "IR proxy (OLR)" : model === "rdps" && f === "refl" ? "Precip rate + type" : FIELDS[f].label + (FIELDS[f].sub && FAM[f] !== f && FIELDS[f].sub !== "echo tops" ? " (" + FIELDS[f].sub + ")" : ""); }
+  function subLabel(model, f) { return f === "refl" ? (model === "rdps" ? "Precipitation rate" : "Reflectivity") : f === "etop" ? "Echo tops" : FIELDS[f].sub.replace(/^./, function (c) { return c.toUpperCase(); }); }
   function fmtTime(ms) {
     var d = new Date(ms);
     var utc = d.toLocaleString("en-US", { timeZone: "UTC", weekday: "short", day: "numeric", month: "short" }) + ", " +
@@ -2514,7 +2648,7 @@
     var vt = Date.parse(c.init) + st.hour * 3600e3, t = fmtTime(vt);
     var init = src.init.replace(/T(\d\d):00Z/, " $1Z").slice(5).replace("-", "/");
     $("badge").innerHTML = "<b>" + MODELS[st.model] + "</b> " + (st.model === "rdps" && st.field === "ir" ? "OLR-derived brightness temperature (proxy for IR)" : labelOf(st.model, st.field)) + " · run " + init + " +" + h + " h" + (st.field === "acc" ? " · " + ACC_TYPES[st.acc.type].label.replace(/^./, function (c) { return c.toLowerCase(); }) + (drawn && drawn.accLabel ? ", " + drawn.accLabel : "") : "") +
-      (st.field === "ecape" ? " · " + EC_SUBS[st.ec].long : "") + (diffOn() ? " · <b>minus " + MODELS[diffOther(st.model)] + "</b> at the same valid time" : "");
+      (st.field === "ecape" ? " · " + EC_SUBS[st.ec].long : "") + (FIELDS[st.field].sub && st.field !== "etop" ? " · " + FIELDS[st.field].sub : "") + (diffOn() ? " · <b>minus " + MODELS[diffOther(st.model)] + "</b> at the same valid time" : "");
     $("valid").innerHTML = "<span class=\"vt\">" + t[0] + "</span> <span class=\"loc\">· " + t[1] + " your time</span><span class=\"fh\">+" + h + " h</span>";
   }
   function setButtons() {
@@ -2545,9 +2679,19 @@
       eb.appendChild(b);
     });
     $("ecBar").hidden = st.field !== "ecape";
-    if (fieldGone(st.model, st.field)) st.field = "ir";
+    if (fieldGone(st.model, st.field) || (NA[st.model] && NA[st.model][st.field] && !FIELDS[st.field].conv)) st.field = "ir";
+    var fh = SUBF[famOf(st.field)], sb = $("subSeg"); sb.innerHTML = ""; $("subBar").hidden = !fh;
+    famLast[famOf(st.field)] = st.field;
+    if (fh) fh.forEach(function (f) {
+      if (fieldGone(st.model, f)) return;
+      var b = document.createElement("button"); b.type = "button"; b.textContent = subLabel(st.model, f);
+      b.setAttribute("aria-pressed", String(f === st.field));
+      var na1 = NA[st.model] && NA[st.model][f]; if (na1) b.title = na1;
+      b.onclick = function () { pick(f); };
+      sb.appendChild(b);
+    });
     var fb = $("fields"), fs = $("fieldSel"); fb.innerHTML = ""; fs.innerHTML = "";
-    function pick(f) { st.field = f; var c1 = cycleObj(st.model, st.ci); if (c1) st.hour = nearestHour(c1, st.hour); setButtons(); onChange(); }
+    function pick(f) { if (SUBF[f] && famOf(st.field) !== f && famLast[f]) f = famLast[f]; st.field = f; var c1 = cycleObj(st.model, st.ci); if (c1) st.hour = nearestHour(c1, st.hour); setButtons(); onChange(); }
     FIELD_GROUPS.forEach(function (grp) {
       var wrap = document.createElement("div"), cap = document.createElement("span"), seg = document.createElement("div"), og = document.createElement("optgroup");
       wrap.className = "mv-grp"; cap.textContent = grp[0]; seg.className = "seg"; seg.setAttribute("role", "group"); seg.setAttribute("aria-label", grp[0]); og.label = grp[0];
@@ -2555,11 +2699,12 @@
         if (fieldGone(st.model, f)) return;                         // not in this run: no button (smoke is seasonal)
         var b = document.createElement("button"); b.type = "button"; b.textContent = labelOf(st.model, f);
         var u = document.createElement("small"); u.textContent = FIELD_UNIT[f]; b.appendChild(u);
-        b.setAttribute("aria-pressed", String(f === st.field));
+        b.setAttribute("aria-pressed", String(f === famOf(st.field)));
         var na = NA[st.model] && NA[st.model][f], o = document.createElement("option");
-        o.value = f; o.textContent = labelOf(st.model, f) + " (" + FIELD_UNIT[f] + ")" + (na ? " - not in this model" : ""); o.selected = f === st.field; o.disabled = !!na; og.appendChild(o);
+        if (na && FIELDS[f].conv) { b.title = na; na = null; }       // kept clickable: the map explains (like ECAPE)
+        o.value = f; o.textContent = labelOf(st.model, f) + " (" + FIELD_UNIT[f] + ")" + (na ? " - not in this model" : ""); o.selected = f === famOf(st.field); o.disabled = !!na; og.appendChild(o);
         if (na) { b.disabled = true; b.title = na; }
-        b.onclick = function () { pick(f); };
+        b.onclick = function () { if (famOf(st.field) !== f) pick(f); };
         seg.appendChild(b);
       });
       wrap.appendChild(cap); wrap.appendChild(seg); fb.appendChild(wrap); fs.appendChild(og);
@@ -2584,7 +2729,7 @@
     if (!man[m] || !man[m].cycles || !man[m].cycles.length) return;
     var oldValid = cycleObj(st.model, st.ci) ? Date.parse(cycleObj(st.model, st.ci).init) + st.hour * 3600e3 : Date.now();
     st.model = m; st.ci = 0;
-    if (NA[m] && NA[m][st.field]) st.field = "ir";
+    if (NA[m] && NA[m][st.field] && !FIELDS[st.field].conv) st.field = "ir";   // convection maps stay and say "HRRR and RRFS only" (as ECAPE)
     var c = cycleObj(m, 0);
     st.hour = nearestHour(c, Math.round((oldValid - Date.parse(c.init)) / 3600e3));
     setButtons(); onChange();
@@ -2639,10 +2784,16 @@
       if (d <= back && i0 - d >= 0) list.push([st.model, c, pf, hs[i0 - d], lo]);
     }
     if (!slow) for (var d2 = 4; i0 - d2 >= 0; d2++) list.push([st.model, c, pf, hs[i0 - d2], lo]);
-    if ((st.field === "refl" || extraSpec(st.field)) && $("cont").checked && c.fields.mslp) {       // the isobars' small grid rides along
+    if ((st.field === "refl" || st.field === "wind10" || st.field === "gust") && $("cont").checked && c.fields.mslp) {       // the isobars' small grid rides along
       var ms = c.fields.mslp.hours, out = [], n0 = nU;            // n0: urgency is decided on the list as it was (nU grows below)
       list.forEach(function (a, i) { if (ms.indexOf(a[3]) >= 0) { out.push(a, [st.model, c, "mslp", a[3], false]); if (i < n0) nU++; } else out.push(a); });
       list = out;
+    }
+    var ride = st.field === "pvu" ? "ua250" : FIELDS[st.field] && FIELDS[st.field].theta ? "w" + FIELDS[st.field].theta : null;
+    if (ride && c.fields[ride]) {                                   // PV maps: barbs (and 250 hPa heights) from their companion frame
+      var wr = c.fields[ride].hours, outr = [], nr = nU;
+      list.forEach(function (a, i) { outr.push(a); if (wr.indexOf(a[3]) >= 0) { outr.push([st.model, c, ride, a[3], false]); if (i < nr) nU++; } });
+      list = outr;
     }
     if (st.field === "z500" && c.fields.w500) {                     // the 500 hPa barbs' wind rides along (small, 12-20 km)
       var w5 = c.fields.w500.hours, out5 = [], n5 = nU;
@@ -2901,7 +3052,17 @@
       var zq = d.fm.q && d.fm.q[d.fm.hours.indexOf(d.hour)];
       var wtxt = function (cu, cv, off, stp) { if (cu === null || cv === null) return null; var uu = off + cu * stp, vv = off + cv * stp, spd = Math.sqrt(uu * uu + vv * vv);
         return Math.round(spd * KT) + " kt (" + spd.toFixed(1) + " m/s) from " + Math.round((Math.atan2(-uu, -vv) / D2R + 360) % 360) + "°"; };
-      if (d.field === "dt") {
+      if (fd.pv) {
+        var pc = bl(0), pvv = pc === null ? null : pvOf(pc), ex = "";
+        if (d.field === "pvl") { var wl = wtxt(bl(1), bl(2), fd.uv[0], fd.uv[1]); if (wl) ex = "<br>850 hPa wind " + wl; }
+        else if (fd.theta) { var pp = bl(1); if (pp !== null) ex = "<br>the " + fd.theta + " K surface at " + Math.round(100 + 2.5 * pp) + " hPa";
+          var wq = windFor(d, "w" + fd.theta), sq = wq && sample(wq, px, py); if (sq && sq[0] !== 255) ex += "<br>wind on it " + wtxt(sq[0], sq[1], -101.6, 0.8); }
+        else { var wu = windFor(d, "ua250"), su = wu && sample(wu, px, py);
+          if (su && su[0] !== 255) { var uq = wu.e && d.c.fields.ua250.q && d.c.fields.ua250.q[d.c.fields.ua250.hours.indexOf(d.hour)];
+            ex = "<br>250 hPa wind " + wtxt(su[0], su[1], -101.6, 0.8) + (uq && su[3] !== 255 ? ", height " + Math.round(uq[0] + su[3] * uq[1]).toLocaleString("en-US") + " m" : ""); } }
+        txt = pvv === null ? (d.field === "pvl" ? "masked: the ground is above 850 hPa" : fd.theta ? "masked: " + fd.theta + " K is outside 100–700 hPa here" : "no data")
+          : (pc === 254 ? "≥ " : "") + pvv.toFixed(2) + " PVU" + (pvv >= 2 && !fd.theta && d.field === "pvu" ? " (stratospheric air)" : "") + ex;
+      } else if (d.field === "dt") {
         var tc = bl(0), wt = wtxt(bl(1), bl(2), fd.uv[0], fd.uv[1]);
         txt = tc === null ? "no data" : "θ " + (250 + 0.6 * tc).toFixed(1) + " K on the 2-PVU surface" + (wt ? "<br>wind on it " + wt : "");
       } else if (d.field === "z500") {
@@ -2927,11 +3088,14 @@
                      : sp.toFixed(1) + " m/s · " + Math.round(sp * 2.236936) + " mph · " + Math.round(sp * KT) + " kt") + "<br>from " + Math.round(dir) + "°"; }
     } else {
       var val = valueOf(fd, s[0], d.q);
-      if (val === null) txt = d.field === "ceil" ? "no ceiling" : "no data";
+      if (val === null) txt = d.field === "ceil" ? "no ceiling" : d.field === "etop" ? "no echo" : "no data";
       else if (d.field === "ceil" && s[0] === 0) txt = "below 50 ft";
       else if (d.field === "vis" && s[0] === 254) txt = "10+ mi";
       else if (d.field === "vis" && s[0] === 0) txt = "below 0.03 mi";
       else if (d.field === "smoke" && s[0] === 0) txt = "below 0.1 mg/m²";
+      else if (fd.enc === "uh" && s[0] === 0) txt = "below 1 m²/s²";
+      else if (fd.enc === "uh" && s[0] === 254) txt = "400 m²/s² or more";
+      else if (fd.enc === "uvv" && s[0] === 0) txt = "below 2 m/s";
       else if (d.field === "ir") txt = fd.fmt(val, val + 273.15);
       else txt = fd.fmt(val);
     }
@@ -3589,7 +3753,7 @@
     var c = cycleObj(st.model, st.ci);
     if (!c) { $("msg").textContent = MODEL_ORDER.some(function (m) { return man[m]; }) ? "No model run has been published yet." : "The list of model runs could not be loaded. Check your connection and reload the page."; return; }
     $("msg").textContent = "";
-    if (NA[st.model] && NA[st.model][st.field]) st.field = "ir";
+    if (NA[st.model] && NA[st.model][st.field] && !FIELDS[st.field].conv) st.field = "ir";
     if (!hadHour) st.hour = Math.round((Date.now() - Date.parse(c.init)) / 3600e3);
     st.hour = nearestHour(c, st.hour);
     setButtons();

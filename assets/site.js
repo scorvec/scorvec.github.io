@@ -93,6 +93,9 @@
 // catalogue page filters with exactly the same matching.
 (function () {
   var CAT_URL = '/assets/site/catalog.json';
+  // frames-branch hosts: the Bunny CDN first (frames.scorvec.com, 60 s edge TTL on /frames/*, see assets/frames_root.js),
+  // then GitHub raw and jsDelivr as silent fallbacks (raw.githubusercontent.com is blocked on many work networks)
+  var CDN = 'https://frames.scorvec.com/frames/';
   var RAW = 'https://raw.githubusercontent.com/scorvec/scorvec.github.io/frames/';
   var MIRROR = 'https://cdn.jsdelivr.net/gh/scorvec/scorvec.github.io@frames/';
   var MAC = /Mac|iPhone|iPad|iPod/.test(navigator.platform || navigator.userAgent || '');
@@ -267,18 +270,21 @@
   }
   // Figures. An item's `thumb` and each option view's third element are keys into cat.thumbs, one entry per distinct
   // figure: s = the source (a file on main, or with f=1 a loop frame on the frames branch), t = its ~360 px thumbnail
-  // on the frames branch (build_thumbs.py) once one exists. Loaders walk thumbnail -> figure, RAW -> jsDelivr.
+  // on the frames branch (build_thumbs.py) once one exists. Loaders walk thumbnail -> figure, CDN -> RAW -> jsDelivr.
   function figRec(key) {
     if (!key) return null;
     if (typeof key === 'object') return key.src ? { s: key.src } : key.frame ? { s: key.frame, f: 1 } : null;   // older index
     return cat && cat.thumbs ? cat.thumbs[key] || null : null;
   }
   function figUrls(rec, full) {
-    var first = window.frameHostIsMirror && window.frameHostIsMirror() ? MIRROR : RAW, second = first === RAW ? MIRROR : RAW;
+    // frames_root.js (when the page loads it) knows whether the CDN failed in this tab and whether raw is blocked
+    var cdnOk = !window.frameCdnOk || window.frameCdnOk();
+    var gh = window.frameHostIsMirror && window.frameHostIsMirror() ? [MIRROR, RAW] : [RAW, MIRROR];
+    var hosts = cdnOk ? [CDN].concat(gh) : gh;
     var out = [];
     var t = rec.t ? 'assets/site/thumbs/' + rec.t + '.webp' : null;
-    if (t && !full) out.push(first + t, second + t);
-    if (rec.f) out.push(first + rec.s, second + rec.s);
+    if (t && !full) hosts.forEach(function (h) { out.push(h + t); });
+    if (rec.f) hosts.forEach(function (h) { out.push(h + rec.s); });
     else out.push('/' + rec.s);
     return out;
   }
@@ -286,9 +292,15 @@
   function thumbInto(im, key, onFail, full) {
     var rec = figRec(key);
     if (!rec) { if (onFail) onFail(); return; }
-    var tries = figUrls(rec, full), k = 0;
-    im.onerror = function () { k++; if (k < tries.length) im.src = tries[k]; else if (onFail) onFail(); };
-    im.src = tries[0];
+    var tries = figUrls(rec, full), k = 0, tm = null, tok = im._thumbTok = {};
+    // a CDN that a filter silently drops would hold the thumbnail until the browser gives up: move on after 6 s
+    function go() {
+      clearTimeout(tm); im.src = tries[k];
+      if (tries[k].indexOf(CDN) === 0 && k + 1 < tries.length) { var at = k; tm = setTimeout(function () { if (im._thumbTok === tok && k === at && !im.complete) { k++; go(); } }, 6000); }
+    }
+    im.onerror = function () { clearTimeout(tm); k++; if (k < tries.length) go(); else if (onFail) onFail(); };
+    im.addEventListener('load', function () { clearTimeout(tm); }, { once: true });
+    go();
   }
   // the figure a result shows: the matched option's own (null when that option draws in the browser), else the default
   // (null: drawn in the browser; '': a figure not published yet)
