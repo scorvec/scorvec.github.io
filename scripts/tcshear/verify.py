@@ -117,28 +117,33 @@ def gfs_uv(date, hh, step, cent):
     return boxes
 
 
-def stats(a, b, n_boot=2000, seed=1):
-    a, b = np.asarray(a, float), np.asarray(b, float)
+def stats(a, b, n_boot=2000, seed=1, groups=None):
+    """Bias, RMSD, Pearson r with 95 % bootstrap intervals. None/NaN pairs dropped. groups: resample whole groups
+    (cases that share one model value, e.g. several radar analyses at one synoptic time) instead of single cases."""
+    a = np.array([np.nan if x is None else x for x in a], float)
+    b = np.array([np.nan if x is None else x for x in b], float)
+    g = np.array(groups if groups is not None else np.arange(len(a)))
     ok = np.isfinite(a) & np.isfinite(b)
-    a, b = a[ok], b[ok]
+    a, b, g = a[ok], b[ok], g[ok]
     n = len(a)
     if n < 5:
         return dict(n=int(n))
+    ug = np.unique(g)
+    idx = {k: np.where(g == k)[0] for k in ug}
     rng = np.random.default_rng(seed)
-    r = float(np.corrcoef(a, b)[0, 1])
-    bs = []
-    for _ in range(n_boot):
-        i = rng.integers(0, n, n)
-        if np.std(a[i]) > 0 and np.std(b[i]) > 0:
-            bs.append(np.corrcoef(a[i], b[i])[0, 1])
-    lo, hi = np.percentile(bs, [2.5, 97.5])
     d = a - b
-    bb = [np.mean(d[rng.integers(0, n, n)]) for _ in range(n_boot)]
+    rs, bb = [], []
+    for _ in range(n_boot):
+        i = np.concatenate([idx[k] for k in rng.choice(ug, len(ug))])
+        bb.append(d[i].mean())
+        if np.std(a[i]) > 0 and np.std(b[i]) > 0:
+            rs.append(np.corrcoef(a[i], b[i])[0, 1])
+    lo, hi = np.percentile(rs, [2.5, 97.5])
     blo, bhi = np.percentile(bb, [2.5, 97.5])
     from scipy.stats import spearmanr
-    return dict(n=int(n), bias=round(float(d.mean()), 2), bias_ci=[round(float(blo), 2), round(float(bhi), 2)],
+    return dict(n=int(n), n_groups=int(len(ug)), bias=round(float(d.mean()), 2), bias_ci=[round(float(blo), 2), round(float(bhi), 2)],
                 rmsd=round(float(np.sqrt((d ** 2).mean())), 2), mad=round(float(np.median(np.abs(d))), 2),
-                r=round(r, 3), r_ci=[round(float(lo), 3), round(float(hi), 3)],
+                r=round(float(np.corrcoef(a, b)[0, 1]), 3), r_ci=[round(float(lo), 3), round(float(hi), 3)],
                 spearman=round(float(spearmanr(a, b).statistic), 3))
 
 
@@ -196,9 +201,11 @@ def part_ships(max_cases=None):
     for k in ("shrd", "shdc", "shrs", "shrg", "shgc"):
         summ[k] = stats([r["ours"][k] for r in rows], [r["ships"][k] for r in rows])
     # vortex-removal effect: (ours SHDC - ours SHRD) vs (SHIPS SHDC - SHIPS SHRD)
-    summ["removal_effect"] = stats([r["ours"]["shdc"] - r["ours"]["shrd"] for r in rows if r["ours"]["shdc"] is not None],
-                                   [r["ships"]["shdc"] - r["ships"]["shrd"] for r in rows if r["ours"]["shdc"] is not None])
-    dd = [ang(r["ours"]["sddc"], r["ships"]["sddc"]) for r in rows if r["ours"]["sddc"] is not None and r["ships"]["shdc"] >= 10]
+    full = [r for r in rows if None not in (r["ours"]["shdc"], r["ours"]["shrd"], r["ships"]["shdc"], r["ships"]["shrd"])]
+    summ["removal_effect"] = stats([r["ours"]["shdc"] - r["ours"]["shrd"] for r in full],
+                                   [r["ships"]["shdc"] - r["ships"]["shrd"] for r in full])
+    dd = [ang(r["ours"]["sddc"], r["ships"]["sddc"]) for r in rows
+          if r["ours"]["sddc"] is not None and r["ships"]["sddc"] is not None and (r["ships"]["shdc"] or 0) >= 10]
     summ["sddc_diff_deg_shear_ge10kt"] = dict(n=len(dd), median_abs=round(float(np.median(np.abs(dd))), 1) if dd else None,
                                               p90_abs=round(float(np.percentile(np.abs(dd), 90)), 1) if dd else None)
     # by intensity (the vortex matters most for strong storms)
@@ -284,7 +291,8 @@ def part_tdr():
     summ = {}
     for model in ("gfs", "ifs", "aifs-single"):
         sub = [r for r in out if model in r["models"]]
-        summ[model] = dict(magnitude=stats([r["models"][model]["tilt"] for r in sub], [r["tilt"] for r in sub]))
+        summ[model] = dict(magnitude=stats([r["models"][model]["tilt"] for r in sub], [r["tilt"] for r in sub],
+                                           groups=[r["syn"] + r["sid"] for r in sub]))
         big = [r for r in sub if r["tilt"] >= 20]
         dd = [ang(r["models"][model]["dir"], r["dir"]) for r in big]
         summ[model]["direction_tdr_ge20km"] = dict(n=len(dd), median_abs=round(float(np.median(np.abs(dd))), 1) if dd else None)
@@ -303,9 +311,13 @@ def main():
     a = ap.parse_args()
     T0 = time.time()
     doc = dict(v=1, built=f"{dt.datetime.now(dt.timezone.utc):%Y-%m-%dT%H:%MZ}")
+    def save():
+        Path(a.out).parent.mkdir(parents=True, exist_ok=True)
+        Path(a.out).write_text(json.dumps(doc, separators=(",", ":"), allow_nan=False, default=str))
     if not a.skip_tdr:
         doc["tdr"] = part_tdr()
         log(json.dumps(doc["tdr"]["summary"], indent=1))
+        save()
     if not a.skip_ships:
         doc["ships"] = part_ships(a.max_cases or None)
         log(json.dumps(doc["ships"]["summary"], indent=1))
