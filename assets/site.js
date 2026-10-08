@@ -30,25 +30,66 @@
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(fitHeader);
   window.addEventListener('load', fitHeader);
   var wide = function () { return window.matchMedia('(min-width: 861px)').matches && !header.classList.contains('sh--compact'); };
+  // the stacked menu scrolls inside what is left of the window below the header (2026-10-08 sweep: a fixed
+  // calc(100vh - 64px) ran past the bottom of the screen under the taller homepage header and on iOS, whose 100vh
+  // is the toolbar-less height, so the last links could not be reached)
+  function fitNav() {
+    if (!nav) return;
+    if (!header.classList.contains('is-open')) { nav.style.maxHeight = ''; return; }
+    nav.style.maxHeight = Math.max(160, Math.floor(window.innerHeight - header.getBoundingClientRect().bottom)) + 'px';
+  }
   if (toggle && nav) {
     toggle.addEventListener('click', function () {
       var open = header.classList.toggle('is-open');
       toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
       toggle.lastChild.nodeValue = open ? 'Close' : 'Menu';
+      fitNav();
     });
+    window.addEventListener('resize', fitNav);
   }
 
-  header.querySelectorAll('.sh-has-menu').forEach(function (item) {
+  // a dropdown that would cross the window's edge slides back inside it (2026-10-08 sweep: the two-column
+  // "Studies and verification" panel opened rightwards from its button and ran ~20 px past the right edge on
+  // 1366 and 1920 px screens; the CSS anchors cannot know how far the button sits from the edge)
+  function keepOnScreen(menu) {
+    if (!menu) return;
+    menu.style.transform = '';
+    if (!wide()) return;
+    var r = menu.getBoundingClientRect(), vw = document.documentElement.clientWidth, dx = 0;
+    if (r.right > vw - 8) dx = vw - 8 - r.right;
+    if (r.left + dx < 8) dx = 8 - r.left;
+    if (dx) menu.style.transform = 'translateX(' + Math.round(dx) + 'px)';
+  }
+  var groups = header.querySelectorAll('.sh-has-menu');
+  groups.forEach(function (item) {
     var btn = item.querySelector('.sh-menubtn');
     if (!btn) return;
+    var byHover = false;
     function setOpen(open) {
+      if (open) groups.forEach(function (o) {           // one menu at a time (taps on a wide tablet left two open)
+        if (o !== item && o.classList.contains('is-open')) {
+          o.classList.remove('is-open');
+          var b = o.querySelector('.sh-menubtn'); if (b) b.setAttribute('aria-expanded', 'false');
+        }
+      });
       item.classList.toggle('is-open', open);
       btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+      if (!open) byHover = false;
+      if (open) keepOnScreen(item.querySelector('.sh-menu'));
     }
-    btn.addEventListener('click', function () { setOpen(!item.classList.contains('is-open')); });
-    // desktop: open on hover, close when the pointer leaves the item
-    item.addEventListener('mouseenter', function () { if (wide()) setOpen(true); });
-    item.addEventListener('mouseleave', function () { if (wide()) setOpen(false); });
+    // a click on a menu the pointer has just opened by hovering keeps it open (it used to toggle it shut again: hover
+    // opened it, the click closed it, 2026-10-08 sweep); otherwise a click toggles
+    btn.addEventListener('click', function () {
+      if (byHover && item.classList.contains('is-open')) { byHover = false; return; }
+      setOpen(!item.classList.contains('is-open'));
+    });
+    // desktop: open on hover, close when the pointer leaves the item. A real mouse only: a tap on a touch screen
+    // fires emulated mouse events first, which opened the menu and then let the tap's click close it.
+    item.addEventListener('pointerenter', function (e) {
+      if (e.pointerType !== 'mouse' || !wide() || item.classList.contains('is-open')) return;
+      setOpen(true); byHover = true;
+    });
+    item.addEventListener('pointerleave', function (e) { if (e.pointerType === 'mouse' && wide()) setOpen(false); });
     // keyboard: close when focus leaves the item
     item.addEventListener('focusout', function (e) { if (!item.contains(e.relatedTarget)) setOpen(false); });
   });
