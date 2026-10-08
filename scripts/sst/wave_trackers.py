@@ -168,6 +168,7 @@ def main(argv=None) -> int:
 
     fig, axes = plt.subplots(1, 2, figsize=(13.6, 8.8), sharey=True)
     now = None
+    any_fc = False
     for ax, (wave, cfg) in zip(axes, PANELS.items()):
         anom = _anomaly_rt(rt, clim, cfg["band"])
         lons = anom["lon"].values
@@ -190,6 +191,7 @@ def main(argv=None) -> int:
                 n_fc = ext.shape[0]
                 avals = np.vstack([avals, ext])
                 ftimes = fdates[keep]
+        any_fc = any_fc or n_fc > 0
         filt_all = wk_filter_padded(avals, wave)
         filt = filt_all[:len(times)]                  # observed part (for fits)
 
@@ -214,7 +216,9 @@ def main(argv=None) -> int:
                     else "constant-phase-speed extrapolation",
                     xy=(0.985, 0.028), xycoords="axes fraction", ha="right",
                     fontsize=8, color="0.25" if n_fc else "0.35",
-                    fontweight="bold" if n_fc else "normal")
+                    fontweight="bold" if n_fc else "normal", zorder=6,
+                    bbox=dict(boxstyle="round,pad=0.15", facecolor="0.94",
+                              edgecolor="none", alpha=0.9))   # the characteristics cross it
 
         c = phase_speed(filt, dlon, cfg["cexp"])
         deg_day = c * 86400.0 / M_PER_DEG
@@ -230,9 +234,12 @@ def main(argv=None) -> int:
             for s in seg:
                 ll2[s + 1:] = ll2[s + 1:]        # (kept simple: draw as points)
             ax.plot(ll, tt, ls="none", marker=".", ms=2.6, color="#111111")
+            # a white ground: the label sat on its own dotted line and on the field
             ax.annotate(f"{c:+.0f} m/s", xy=(lon0, now + pd.Timedelta(days=2)),
                         fontsize=8, fontweight="bold", color="#111111",
-                        ha="center", clip_on=True)
+                        ha="center", clip_on=True, zorder=5,
+                        bbox=dict(boxstyle="round,pad=0.15", facecolor="white",
+                                  edgecolor="none", alpha=0.8))
 
         ax.set_title(cfg["title"], fontsize=11, fontweight="bold", loc="left")
         ax.set_xticks([0, 60, 120, 180, 240, 300])
@@ -247,12 +254,13 @@ def main(argv=None) -> int:
 
     fig.suptitle(f"Equatorial wave trackers — through {now:%b %d %Y}\n"
                  "Wheeler–Kiladis bandpass of the GMGSI OLR proxy · dotted: fitted "
-                 "phase-speed characteristics · below the line: AIFS-ENS forecast",
+                 "phase-speed characteristics · below the line: "
+                 + ("AIFS-ENS forecast" if any_fc else "constant-phase-speed extrapolation"),
                  fontsize=11.5, fontweight="bold", y=0.995)
     fig.subplots_adjust(top=0.90, bottom=0.10, left=0.06, right=0.99, wspace=0.06)
     out = Path(args.out)
     out.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(out, dpi=120, pad_inches=0.1)
+    fig.savefig(out, dpi=120, bbox_inches="tight", pad_inches=0.1)   # tight: no empty strip under the colour bars
     plt.close(fig)
     print(f"wrote {out}")
     return 0

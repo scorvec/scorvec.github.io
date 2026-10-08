@@ -325,11 +325,13 @@ def main() -> int:
     for k, d in enumerate(days):
         hl = {"H": hl_centers(spaS[k], "H"), "L": hl_centers(spaS[k], "L")}
         fig = plt.figure(figsize=(9.6, 9.4))
-        gs = GridSpec(2, 2, width_ratios=[7, 1], wspace=0.11, hspace=0.09,
-                      left=0.012, right=0.965, top=0.935, bottom=0.05)
+        # hspace 0.09 -> 0.2 and bottom 0.05 -> 0.075 (2026-10-08 sweep): the upper profile's tick labels ran into the
+        # lower profile's title, and the footnote into the lower profile's tick labels
+        gs = GridSpec(2, 2, width_ratios=[7, 1], wspace=0.11, hspace=0.2,
+                      left=0.012, right=0.965, top=0.935, bottom=0.075)
         for row, (arr, lim, zlim, ttl) in enumerate(
                 [(fa.sel(day=d).values, fl, zf, "Friction torque density anomaly  (−ρC$_d$|V|u·a cosφ)"),
-                 (ma.sel(day=d).values, ml, zm, "Mountain form-drag torque anomaly  (h ∂p$_s$/∂λ — terrain height × east–west pressure gradient)")]):
+                 (ma.sel(day=d).values, ml, zm, "Mountain form-drag torque anomaly\n(h ∂p$_s$/∂λ — terrain height × east–west pressure gradient)")]):   # one line overran the colour bar
             ax = fig.add_subplot(gs[row, 0], projection=ccrs.PlateCarree(central_longitude=180))
             # smooth the coarse (~5°) field and draw it as filled contours instead of
             # raw grid boxes: gaussian in longitude (periodic) + latitude, then contourf.
@@ -370,7 +372,7 @@ def main() -> int:
                         ax.text(plon, plat, sym + "′", color=col, fontsize=8.5, fontweight="bold",
                                 ha="center", va="center", transform=ccrs.PlateCarree(), clip_on=True,
                                 path_effects=[pe.withStroke(linewidth=1.8, foreground="white")])
-                        ax.text(plon, plat - 3.2, hlfmt % pval, color=col, fontsize=4.8,
+                        ax.text(plon, plat - 3.2, hlfmt % pval, color=col, fontsize=6.0,
                                 ha="center", va="top", transform=ccrs.PlateCarree(), clip_on=True,
                                 path_effects=[pe.withStroke(linewidth=1.2, foreground="white")])
             ax.coastlines(resolution="110m", lw=0.55, color="#4a4744"); ax.set_global()

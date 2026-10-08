@@ -49,7 +49,7 @@ WREF = REF / "walker_basins_clim.nc"
 HIST = ASSETS / "anim" / "walker" / wc.HIST_NAME
 NWEEKS = 4
 STAT_LAT = 15.0
-INK, MUTED, NAVY, RED, GREEN, ORANGE = "#1a1a1a", "#8a8680", "#1b365d", "#b4453c", "#2b7a3d", "#d0801a"
+INK, MUTED, NAVY, RED, GREEN, ORANGE = "#1a1a1a", "#6f6b64", "#1b365d", "#b4453c", "#2b7a3d", "#d0801a"
 GROUPS = {"enso": ["n34", "n34_lag3"], "indian": ["dmi", "iob"], "atlantic": ["atl3", "tna"]}
 
 
@@ -195,7 +195,7 @@ def render(out: Path, weeks: list, month_sst: dict, gill: dict, lat, lon, clim_r
     gs = GridSpec(nrow, 4, hspace=0.95, wspace=0.05, left=0.03, right=0.99, top=1 - 1.0 / fig.get_figheight(), bottom=0.72 / fig.get_figheight())
     pc = ccrs.PlateCarree(central_longitude=180)
     lev = np.array(VP_LEVELS, float); norm = BoundaryNorm(lev, VP_CMAP.N, extend="both")
-    cols = ["Observed χ200 anomaly", "Pacific part (ENSO regression)", "Departure = observed − Pacific part", "Indian + Atlantic SST part (regression, ENSO removed)"]
+    cols = ["Observed χ200 anomaly", "Pacific part (ENSO regression)", "Departure = observed − Pacific part", "Indian + Atlantic SST part (ENSO removed)"]  # the longer title ran off the right edge
 
     def panel(r, c, field, title=None, note=None, glat=lat, glon=lon, rowlab=None, cmap=VP_CMAP, levels=lev, nrm=norm, scale=1e6):
         ax = fig.add_subplot(gs[r, c], projection=pc)

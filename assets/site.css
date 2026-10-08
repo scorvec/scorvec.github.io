@@ -259,7 +259,10 @@ html .sh--overlay.sh--compact .sh-menu li.sh-subitem a { color: rgba(255,255,255
 
 /* ── Footer ──────────────────────────────────────────────────────────── */
 .sf {
-  margin-top: 3rem;
+  /* a page's own bare `footer { … }` rules (flex-centred, a max-width, padding) squeezed the site footer into a narrow
+     centred column on the publications, resume, stats, ENSO forecasts and sounding pages (2026-10-08 sweep) */
+  display: block; max-width: none; width: auto; padding: 0; text-align: left; white-space: normal;
+  margin: 3rem 0 0;
   border-top: 1px solid var(--c-rule);
   background: var(--c-bg);
   color: var(--c-muted);
