@@ -1524,6 +1524,18 @@ window.STAGE.onRender = function (sel) {
 
 
 <script>
+/* Shared by the three per-system Plotly cards below (2026-10-08 sweep): the CDS tables give both CanSIPS
+   components one colour (they are merged into one CanSIPS in the Niño-3.4 plume), but here they are separate
+   lines, so CanESM5 gets its own; and on narrow screens the nine-entry legend goes UNDER the plot (above it,
+   it wrapped to five rows and sat on the lines) with the figure made taller to keep the plot area. */
+window.C3S_LINE_COLOUR = function (m) { return ({ eccc_5: "#e377c2" })[m.id] || m.color || "#8a8378"; };
+window.C3S_LEGEND = function (host, size) {
+  // the cards are first drawn while parked (hidden, clientWidth 0), so the window decides, not the host
+  var w = Math.min((host && host.clientWidth) || innerWidth, innerWidth), narrow = w < 640;
+  // narrow: the legend sits at the very bottom of the figure, in a bottom margin sized for it plus the rotated ticks
+  return narrow ? { legend: { orientation: "h", x: 0, xref: "container", y: 0, yref: "container", yanchor: "bottom", font: { size: size } }, extra: 260, r: 28, b: 290 }
+                : { legend: { orientation: "h", y: 1.16, x: 0, font: { size: size } }, extra: 0, r: 12, b: 38 };
+};
 /* Ocean indices for every system (assets/sst/data/c3s_indices.json). One line per model,
    the multi-model mean in black and thicker; the picker chooses the index. Plotly is
    already on the page for the member-level cards. */
@@ -1549,16 +1561,17 @@ window.STAGE.onRender = function (sel) {
         var y = (J.values[m.id] || {})[cur];
         if (!y) return null;
         var isMean = m.id === "mmm";
-        var col = isMean ? "#111111" : (m.color || PAL[k++ % PAL.length]);
+        var col = isMean ? "#111111" : (m.color ? C3S_LINE_COLOUR(m) : PAL[k++ % PAL.length]);
         return { x: J.months, y: y, name: m.label, type: "scatter", mode: "lines+markers",
                  line: { color: col, width: isMean ? 3.4 : 1.6, dash: isMean ? "solid" : "solid" },
                  marker: { size: isMean ? 7 : 4.5, color: col }, hovertemplate: "%{y:.2f}<extra>" + m.label + "</extra>" };
       }).filter(Boolean);
-      var lay = { margin: { l: 52, r: 12, t: 8, b: 38 }, height: 400,
+      var LG = C3S_LEGEND(plot, 11);
+      var lay = { margin: { l: 52, r: LG.r, t: 8, b: LG.b }, height: 400 + LG.extra,
                   paper_bgcolor: "rgba(0,0,0,0)", plot_bgcolor: "rgba(0,0,0,0)",
                   hovermode: "x unified",
-                  legend: { orientation: "h", y: 1.16, x: 0, font: { size: 11 } },
-                  xaxis: { showgrid: false, tickfont: { size: 11 } },
+                  legend: LG.legend,
+                  xaxis: { showgrid: false, tickfont: { size: 11 }, automargin: true },
                   yaxis: { title: { text: meta.units, font: { size: 11 } }, zeroline: true,
                            zerolinecolor: "#b9b4aa", gridcolor: "#ece9e2", tickfont: { size: 11 } } };
       Plotly.react(plot, traces, lay, { displayModeBar: false, responsive: true });
@@ -1611,16 +1624,17 @@ window.STAGE.onRender = function (sel) {
       if (sel.m === "mmm") {
         J.models.filter(function (m) { return m.id !== "mmm" && R.values[m.id]; }).forEach(function (m) {
           traces.push({ x: x, y: R.values[m.id][kind === "anom" ? "mean_anom" : "mean_raw"], type: "scatter",
-                        mode: "lines", name: m.label, line: { color: m.color || "#8a8378", width: 1.1 },
+                        mode: "lines", name: m.label, line: { color: C3S_LINE_COLOUR(m), width: 1.1 },
                         opacity: 0.75, hovertemplate: "%{y:.2f}<extra>" + m.label + "</extra>" });
         });
       }
       var lab = kind === "anom" ? "anomaly (" + unit + ")" : unit;
+      var LG = C3S_LEGEND(host, 10.5);
       Plotly.react(host, traces, {
-        margin: { l: 54, r: 12, t: 8, b: 38 }, height: 400,
+        margin: { l: 54, r: LG.r, t: 8, b: LG.b }, height: 400 + LG.extra,
         paper_bgcolor: "rgba(0,0,0,0)", plot_bgcolor: "rgba(0,0,0,0)", hovermode: "x unified",
-        legend: { orientation: "h", y: 1.16, x: 0, font: { size: 10.5 } },
-        xaxis: { showgrid: false, tickfont: { size: 11 }, type: "category",
+        legend: LG.legend,
+        xaxis: { showgrid: false, tickfont: { size: 11 }, type: "category", automargin: true,
                  categoryorder: "array", categoryarray: cats },
         yaxis: { title: { text: lab, font: { size: 11 } }, zeroline: kind === "anom",
                  zerolinecolor: "#b9b4aa", gridcolor: "#ece9e2", tickfont: { size: 11 } }
@@ -1723,18 +1737,19 @@ window.STAGE.onRender = function (sel) {
       if (sel.m === "mmm") {
         J.models.filter(function (m) { return m.id !== "mmm" && R.values[m.id]; }).forEach(function (m) {
           traces.push({ x: x, y: R.values[m.id][sel.k].p50, type: "scatter", mode: "lines", name: m.label,
-                        line: { color: m.color || "#8a8378", width: 1.1 }, opacity: 0.75,
+                        line: { color: C3S_LINE_COLOUR(m), width: 1.1 }, opacity: 0.75,
                         hovertemplate: "%{y:.1f}<extra>" + m.label + " median</extra>" });
         });
       }
+      var LG = C3S_LEGEND(host, 10.5);
       Plotly.react(host, traces, {
-        margin: { l: 54, r: 12, t: 8, b: 38 }, height: 400,
+        margin: { l: 54, r: LG.r, t: 8, b: LG.b }, height: 400 + LG.extra,
         paper_bgcolor: "rgba(0,0,0,0)", plot_bgcolor: "rgba(0,0,0,0)", hovermode: "x unified",
-        legend: { orientation: "h", y: 1.16, x: 0, font: { size: 10.5 } },
+        legend: LG.legend,
         // the axis is categorical, and Plotly orders categories by first appearance — the
         // forecast traces are built first, so without this the observed months landed AFTER
         // February 2027 instead of before September 2026
-        xaxis: { showgrid: false, tickfont: { size: 11 }, type: "category",
+        xaxis: { showgrid: false, tickfont: { size: 11 }, type: "category", automargin: true,
                  categoryorder: "array", categoryarray: cats },
         yaxis: { title: { text: sel.k === "anom" ? "anomaly (" + unit + ")" : unit, font: { size: 11 } },
                  zeroline: sel.k === "anom", zerolinecolor: "#b9b4aa", gridcolor: "#ece9e2", tickfont: { size: 11 } }

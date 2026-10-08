@@ -175,7 +175,15 @@ def render(country: str, label: str, series_now: dict, series_prev: dict | None,
     vm = valid_months(ym)[:nl]
     vmp = valid_months(prev)[:series_prev[next(iter(series_prev))][0].shape[1]] if series_prev else []
     ncol = len(vm)
-    fig, axes = plt.subplots(len(regions), ncol, figsize=(3.05 * ncol + 1.1, 2.55 * len(regions) + (1.9 if len(regions) > 1 else 2.4)), squeeze=False)
+    # fixed inches per panel (2026-10-08: with lead 7 the bottom row's stat lines ran under the legend)
+    pw, gap, ah, below, top_in, bot_in, left_in = 3.2, 0.30, 1.85, 1.02, 1.05, 0.45, 0.55
+    fw = left_in + ncol * pw + (ncol - 1) * gap + 0.2
+    fh = top_in + len(regions) * (ah + below) + bot_in
+    fig = plt.figure(figsize=(fw, fh))
+    axes = np.empty((len(regions), ncol), dtype=object)
+    for r_ in range(len(regions)):
+        for c_ in range(ncol):
+            axes[r_, c_] = fig.add_axes([(left_in + c_ * (pw + gap)) / fw, (fh - top_in - r_ * (ah + below) - ah) / fh, pw / fw, ah / fh])
     summary = {}
     for r, name in enumerate(regions):
         fcn, hcn = series_now[name]
@@ -212,34 +220,36 @@ def render(country: str, label: str, series_now: dict, series_prev: dict | None,
             elif series_prev and mon not in vmp:
                 lines.append(f"No change: the {calendar.month_abbr[int(prev[4:])]} issue did not reach this month")
             lines.append(f"Drier than normal: {p_dry:.0%} of members")
-            ax.text(0.0, -0.22, "\n".join(lines), transform=ax.transAxes, ha="left", va="top", fontsize=7.2, color="#222", linespacing=1.35)
+            ax.text(0.0, -0.20, "\n".join(lines), transform=ax.transAxes, ha="left", va="top", fontsize=7.8, color="#222", linespacing=1.4)
             summary[name][mon] = dict(normal=round(float(clim[c]), 3), normal_sd=round(float(csd[c]), 3), mean=round(float(cur.mean()), 3),
                                       p10=round(float(np.percentile(cur, 10)), 3), p90=round(float(np.percentile(cur, 90)), 3), p_dry=round(p_dry, 3),
                                       prev_mean=(round(float(prv.mean()), 3) if prv is not None else None))
     handles = [Line2D([], [], color="#b8860b", lw=1.6), Line2D([], [], color="#3f7fbf", lw=1.6), Line2D([], [], color="#222", lw=1.0),
                plt.Rectangle((0, 0), 1, 1, color="#000", alpha=0.06)]
     labels = [f"{calendar.month_abbr[int(ym[4:])]} issue (51 members)", f"{calendar.month_abbr[int(prev[4:])]} issue", "normal (hindcast mean)", "normal year-to-year range (±1σ)"]
-    fig.legend(handles, labels, loc="lower center", ncol=4, fontsize=8.5, frameon=False, bbox_to_anchor=(0.5, 0.012))
-    fig.suptitle(f"{label}: SEAS5 forecast of monthly P − E{' by region' if len(regions) > 1 else ''} (mm/day), {calendar.month_name[int(ym[4:])]} {ym[:4]} issue", x=0.02, y=0.995, ha="left", fontsize=13)
-    fig.text(0.02, 1 - 0.42 / fig.get_figheight(), "Each curve is the spread of the 51 members' monthly precipitation minus evaporation, averaged over the region (gold: this issue; blue: last month's). "
-             "Negative values are net drying. Black: the model's normal for that month, with its year-to-year range shaded.", fontsize=8.6, color="#444", va="top")
-    top = 1 - 0.95 / fig.get_figheight(); bottom = (1.15 if len(regions) > 1 else 1.55) / fig.get_figheight()
-    fig.subplots_adjust(left=0.06, right=0.99, top=top, bottom=bottom, hspace=0.62, wspace=0.14)
+    fig.legend(handles, labels, loc="lower center", ncol=4, fontsize=9, frameon=False, bbox_to_anchor=(0.5, 0.05 / fh))
+    fig.suptitle(f"{label}: SEAS5 forecast of monthly P − E{' by region' if len(regions) > 1 else ''} (mm/day), {calendar.month_name[int(ym[4:])]} {ym[:4]} issue",
+                 x=0.2 / fw, y=1 - 0.1 / fh, ha="left", va="top", fontsize=14)
+    fig.text(0.2 / fw, 1 - 0.46 / fh, "Each curve is the spread of the 51 members' monthly precipitation minus evaporation, averaged over the region (gold: this issue; blue: last month's). "
+             "Negative values are net drying. Black: the model's normal for that month, with its year-to-year range shaded.", fontsize=9, color="#444", va="top")
     fig.savefig(out, dpi=105, pil_kwargs={"quality": 84, "method": 6}); plt.close(fig)
     print(f"  wrote {out.name}", flush=True)
     return summary
 
 
-def build(ym: str) -> None:
+def build(ym: str, replot: bool = False) -> None:
     """Reads this issue's sfc/water forecast GRIBs, hc_pme_regions_{MM} and is_pme_regions_{previous issue};
-    writes is_pme_regions_{ym} for next month."""
+    writes is_pme_regions_{ym} for next month. replot: this issue from its own is_pme_regions_{ym} (no GRIBs)."""
     import seas5_ref as R
     t0 = time.time()
     prev = previous_issues(ym, 1)[0]
-    now = _series(ym)
-    if now is None:
-        raise SystemExit("P − E fields for this issue are not on disk")
-    _save(R.is_ref("pme_regions", ym), now)
+    if replot:
+        now = _load(R.need(R.is_ref("pme_regions", ym), "this issue's P − E region series"))
+    else:
+        now = _series(ym)
+        if now is None:
+            raise SystemExit("P − E fields for this issue are not on disk")
+        _save(R.is_ref("pme_regions", ym), now)
     hc = _load(R.need(R.hc_ref("pme_regions", ym[4:]), "SEAS5 P − E hindcast region series"))
     before = _load(R.load(R.is_ref("pme_regions", prev)))
     if before is None:
@@ -257,5 +267,12 @@ def build(ym: str) -> None:
 
 
 if __name__ == "__main__":
-    ap = argparse.ArgumentParser(); ap.add_argument("--issue", required=True)
-    build(ap.parse_args().issue)
+    ap = argparse.ArgumentParser(); ap.add_argument("--issue")
+    ap.add_argument("--replot", action="store_true", help="redraw the published issue from the release tables (no GRIBs, no CDS)")
+    a = ap.parse_args()
+    if a.replot:
+        build(a.issue or json.loads(OUT_JSON.read_text())["issue"], replot=True)
+    elif not a.issue:
+        ap.error("--issue is required")
+    else:
+        build(a.issue)

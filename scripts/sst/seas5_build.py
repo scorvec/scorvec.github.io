@@ -405,7 +405,6 @@ def render_terciles(ym: str, fields: dict, out_dir: Path) -> dict:
             h1 = [Patch(color=c, label=f"{int(bins[k]*100)}–{int(min(bins[k+1],1)*100)}%") for k, c in enumerate(above_c)]
             h2 = [Patch(color=c, label=f"{int(bins[k]*100)}–{int(min(bins[k+1],1)*100)}%") for k, c in enumerate(below_c)]
             l1 = fig.legend(handles=h1, loc="lower left", bbox_to_anchor=(0.04, 0.004), ncol=6, frameon=False, title=top_lab, fontsize=8, title_fontsize=8.5)
-            fig.add_artist(l1)
             fig.legend(handles=h2, loc="lower right", bbox_to_anchor=(0.96, 0.004), ncol=6, frameon=False, title=bot_lab, fontsize=8, title_fontsize=8.5)
             MS.heading(fig, H, f"SEAS5 {titles[var]}: most likely tercile · {lab} {yv} · {calendar.month_name[m0]} {y0} issue",
                        "Terciles from SEAS5's own 1993–2016 hindcast at each grid point (24 years × 25 members); the 51 members are counted against them, so bias and spread drift are removed first. "
