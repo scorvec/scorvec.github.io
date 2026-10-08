@@ -188,6 +188,41 @@
       return '<figure><a href="assets/sst/' + F[k] + v + '" target="_blank" rel="noopener"><img src="assets/sst/' + F[k] + v + '" alt="SEAS5 polar vortex ' + k + '" loading="lazy"></a><figcaption>' + caps[k] + "</figcaption></figure>";
     }).join("");
     $(ids.updated).textContent = "built " + J.generated;
+    if (document.getElementById("sswSkill")) getJSON("assets/sst/data/seas5_ssw_skill.json").then(sswSkill);
+  }
+
+  /* "Skill by ENSO and by signal strength" (scripts/sst/seas5_ssw_skill.py, 2026-10-08): six tests fixed before computing,
+     Holm-corrected as one family; a result is called significant only when its corrected p is below 0.05. */
+  function sswSkill(K) {
+    var el = document.getElementById("sswSkill");
+    if (!el || !K || !K.tests) return;
+    var T = K.tests, sigAny = Object.keys(T).some(function (k) { return T[k].significant; });
+    function ci(t) { var c = t.ci95 || t.ci90; return c ? (t.ci95 ? "95 % CI " : "90 % CI ") + c[0] + " to " + c[1] : "–"; }
+    var h = '<h3 class="method-head">Skill by ENSO and by signal strength</h3><p class="note">' + K.n + " October starts, " + K.years +
+      " (SEAS5 hindcast 1981–2016, 25 members; operational forecasts 2017–2025, members 0–24 of 51 so every winter has 25), against MERRA-2 (" +
+      Math.round(100 * K.obs_rate) + " % of winters had a major SSW; SEAS5's own rate " + Math.round(100 * K.model_base) + " %). Six tests were fixed before anything was computed and are " +
+      "Holm-corrected as one family. " + (sigAny ? "" : "<b>None is significant: the sample cannot show skill by signal strength or by ENSO amplitude.</b> ");
+    var mde = K.mde; if (mde) h += "With " + K.n + " winters, a calibrated SSW forecast is detected with 80 % power only if its Brier skill is about " + mde.bss.toFixed(2) + " (ROC area " + mde.auc.toFixed(2) + ") or better; smaller real skill would go unseen. ";
+    var sg = K.groups && K.groups["strong El Niño (ONI ≥ 1.5)"]; if (sg) h += "Strong El Niño winters number " + sg.n + " (" + sg.years.map(function (y) { return y + "/" + String((y + 1) % 100).padStart(2, "0"); }).join(", ") + "): SEAS5 put an SSW in " + Math.round(100 * sg.frac) + " % of members, " + Math.round(sg.obs_rate * sg.n) + " of the " + sg.n + " winters had one — too few winters to test.";
+    if (K.current) h += " This winter's " + Math.round(100 * K.current.frac) + " % (the star) is therefore the model's view, with no demonstrated skill behind it in any of the subsets tested.";
+    h += "</p>";
+    var rows = ["<tr><th>Pre-registered test</th><th>n</th><th>Result</th><th>Interval</th><th>p</th><th>p (Holm)</th></tr>"];
+    ["T1", "T2", "T3", "T4", "T5", "T6"].forEach(function (k) {
+      var t = T[k]; if (!t) return;
+      var v = Array.isArray(t.value) ? "top " + Math.round(100 * t.value[0]) + " % vs bottom " + Math.round(100 * t.value[1]) + " % (n " + t.n_groups.join(", ") + ")" : (t.value == null ? "–" : t.stat + " " + t.value);
+      rows.push("<tr><td>" + k + " " + t.name + "</td><td>" + t.n + "</td><td>" + v + "</td><td>" + ci(t) + "</td><td>" + t.p.toFixed(3) + '</td><td class="' + (t.significant ? "up" : "flat") + '">' + t.p_holm.toFixed(3) + (t.significant ? "" : " n.s.") + "</td></tr>");
+    });
+    rows.push("<tr><th>ENSO group (DJF ONI)</th><th>n</th><th>Model SSW share</th><th>Observed SSW rate</th><th>BSS (90 % CI)</th><th>ROC area (90 % CI)</th></tr>");
+    Object.keys(K.groups || {}).forEach(function (g) {
+      var e = K.groups[g];
+      rows.push("<tr><td>" + g + "</td><td>" + e.n + "</td><td>" + (e.frac == null ? "–" : Math.round(100 * e.frac) + " %") + "</td><td>" + (e.obs_rate == null ? "–" : Math.round(100 * e.obs_rate) + " %") + "</td><td>" +
+        (e.bss == null ? "n too small" : e.bss + " (" + e.bss_ci90.join(" to ") + ")") + "</td><td>" + (e.auc == null ? "–" : e.auc + " (" + e.auc_ci90.join(" to ") + ")") + "</td></tr>");
+    });
+    var v = "?v=" + encodeURIComponent(K.generated);
+    el.innerHTML = h + '<div style="overflow-x:auto"><table class="chg">' + rows.join("") + "</table></div>" +
+      '<div class="map-grid"><figure><a href="assets/sst/' + K.figure + v + '" target="_blank" rel="noopener"><img src="assets/sst/' + K.figure + v + '" alt="SEAS5 SSW fraction against observed SSWs, coloured by ENSO" loading="lazy"></a>' +
+      "<figcaption><b>Forecast against outcome.</b> Each dot a winter, coloured by DJF ONI; outlined: operational years; star: this winter. Group BSS/ROC values are descriptive (not in the corrected family). " +
+      "For the continuous vortex (T3, T4) the literature reports modest seasonal skill in some systems (Scaife et al. 2016, Atmos. Sci. Lett.; Portal et al. 2022, Clim. Dyn.); in SEAS5's October starts it is not significant here.</figcaption></figure></div>";
   }
 
   function getJSON(url) { return fetch(url + "?v=" + Date.now()).then(function (r) { return r.ok ? r.json() : null; }).catch(function () { return null; }); }
