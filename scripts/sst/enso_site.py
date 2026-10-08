@@ -50,9 +50,11 @@ PAGES = [
     dict(slug="stratosphere", out="stratosphere.html", active="A_ATMOSPHERE", layout="stage",
          title="Stratosphere and the Polar Vortex &mdash; SSW Forecast, E&ndash;P Flux, Heat Flux and "
                "Every Sudden Warming Since 1980 &middot; Shawn Corvec",
-         desc="Daily AIFS-ENS polar vortex forecast (60N zonal wind at 10 and 100 hPa, polar-cap height), "
-              "GEFS E-P flux and wave driving to 1 hPa, stationary wave-1 and the 100 hPa eddy heat flux, with a MERRA-2 "
-              "catalogue of every major sudden stratospheric warming since 1980 and what followed at the surface.",
+         # every stratosphere product on one page since 2026-10-08 (GEPS/GEFS/SEAS5 vortex products and the QBO tracker moved in)
+         desc="Every stratosphere product in one place, by timescale: GEOS FP analyses and the QBO from radiosondes; "
+              "AIFS-ENS, IFS-ENS and GEFS polar vortex, 100 hPa eddy heat flux and E-P flux for the next two weeks; GEPS and "
+              "GEFS to day 35; SEAS5 vortex, QBO and sudden-warming risk for the season; and a MERRA-2 catalogue of every "
+              "major sudden stratospheric warming since 1980 and what followed at the surface.",
          canonical="https://scorvec.com/stratosphere.html"),
     # 2026-10-03 (user): every tropical-wave product on one page, under Tropics
     dict(slug="waves", out="tropical-waves.html", active="A_ATMOSPHERE", layout="stage",

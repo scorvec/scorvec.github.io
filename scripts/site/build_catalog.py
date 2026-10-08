@@ -56,7 +56,7 @@ THUMB_INDEX_URL = "https://raw.githubusercontent.com/scorvec/scorvec.github.io/f
 TOPICS = [   # 2026-10-03: the theme-first menus (ids unchanged; labels = apply_chrome.PRODUCTS titles, in menu order)
     ("weather", "Mid-latitude weather", "The next two weeks: storms, hazards and the flow aloft"),
     ("drivers", "Tropics", "ENSO, the MJO, tropical cyclones and the tropical circulation"),
-    ("circulation", "Stratosphere", "The polar vortex and the waves going up into it, the QBO, and the atmosphere's angular momentum"),
+    ("circulation", "Stratosphere", "The polar vortex and the waves going up into it, from today's analysis to the season, the QBO, and the atmosphere's angular momentum"),
     ("outlooks", "Weeks to seasons", "From weeks two to five out to the coming seasons"),
     ("research", "Studies and verification", "What the record and the models say, and how the forecasts score"),
     ("tools", "Tools", "Explore the data yourself"),
@@ -80,10 +80,15 @@ PAGES = {
                                                                region=["North America", "South America"], tier=1, prio=20)}),
     "/tropical-waves.html": dict(kind="stage", file="tropical-waves.html", topic="drivers", title="Tropical waves",
                                  tier=0, prio=3, models=["ERA5", "IFS-ENS", "AIFS-ENS"], horizon="Days 1–15", region=["Tropics"]),
+    # the stratosphere hub (2026-10-08): every stratosphere product, grouped by timescale; the GEPS/GEFS vortex items,
+    # the SEAS5 stratosphere cards and the QBO tracker moved in from subseasonal/gefs/seasonal.html and /qbo/
     "/stratosphere.html": dict(kind="stage", file="stratosphere.html", topic="circulation", title="Stratosphere and polar vortex",
                                tier=0, prio=1, models=["AIFS-ENS"], horizon="Days 1–15", region=["Northern Hemisphere"],
-                               groups={"Stratosphere history": dict(topic="research", horizon="Climate record", models=["MERRA-2"],
-                                                                    tier=1, prio=21)}),
+                               groups={"Now: analyses and observations": dict(models=["GEOS FP"], horizon="Observed"),
+                                       "Weeks 3–6": dict(models=["GEPS", "GEFS"], horizon="Weeks 1–5", prio=3),
+                                       "Season": dict(models=["SEAS5"], horizon="Seasons", tier=2, prio=30),
+                                       "History and studies": dict(topic="research", horizon="Climate record", models=["MERRA-2"],
+                                                                   tier=1, prio=21)}),
     # circulation.html's groups follow the theme-first menus (2026-10-03): its days 1-15 maps under Days 1-15, the
     # tropical-cyclone and tropical-circulation items under Tropics, angular momentum under Stratosphere
     "/circulation.html": dict(kind="stage", file="circulation.html", topic="drivers", title="Jets, Walker and Hadley cells",
@@ -113,8 +118,7 @@ PAGES = {
                      region=["North America", "Pacific"]),
     # "/ecape.html" retired 2026-09-30: its ECAPE grids are a field of /models.html
     # "/cities/" paused 2026-09-27 (city forecasts turned off); restore from git history
-    "/qbo/": dict(kind="stage", file="qbo/index.html", topic="circulation", title="QBO tracker", tier=0, prio=9,
-                  models=["Radiosondes"], horizon="Observed", region=["Tropics"]),
+    # "/qbo/" folded into /stratosphere.html#qbo 2026-10-08 (qbo/index.html is a redirect stub)
     "/enso-forecasts.html": dict(kind="stage", file="enso-forecasts.html", topic="outlooks", title="ENSO forecasts", tier=2, prio=29,
                                  models=["C3S", "Multi-model"], horizon="Seasons", region=["Tropical Pacific"]),
     # "/cities/verify.html" paused 2026-09-27
@@ -175,6 +179,9 @@ THUMBS = {
     "/seasonal.html#snowCard": "assets/sst/seas5_snowtot_pct_*.webp",
     "/seasonal.html#windCard": "assets/sst/seas5_wind_vanom_*.webp",
     "/enso-forecasts.html#plume": "assets/sst/c3s_nino34.webp",
+    # the SEAS5 stratosphere cards, moved to the stratosphere hub 2026-10-08
+    "/stratosphere.html#s5vortex": "assets/sst/seas5_strat_series.webp",
+    "/stratosphere.html#s5ssw": "assets/sst/seas5_ssw_risk*.webp|assets/sst/seas5_ssw_*.webp",
 }
 # forecast systems: on a page that is one system's own product (own_models=True) the captions name the others only to
 # compare ("unlike GEPS's"), so they are not tagged from the text there
@@ -337,6 +344,8 @@ def stage_items(href: str, cfg: dict) -> list:
         for pid, _lbl, *_ in g["items"]:
             p = spec["products"].get(pid)
             if not p or text_of(p.get("label") or "") == "About this page":
+                continue
+            if "moved to the stratosphere page" in text_of(p.get("label") or ""):   # link cards left behind (2026-10-08)
                 continue
             about = tpl.get(p.get("about") or "", "")
             figs = p.get("figBy", {})

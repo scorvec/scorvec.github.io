@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Subseasonal Outlook &mdash; GEPS Weeks 1&ndash;5 for the Americas, with MJO Tracking</title>
-<meta name="description" content="Days 1-35 anomaly forecasts for North and South America from the ECCC GEPS extended ensemble, taken against a purpose-built 2001-2020 GEPS hindcast climatology at matching lead so model drift is removed. Daily animations and weekly means for eight fields, plus run-over-run change panels, a full three-field Wheeler-Hendon RMM phase diagram, a tropical convection Hovmoller, polar-vortex diagnostics and probabilistic teleconnection indices (AO, NAO, PNA, AAO and the CPC set) from all 21 members.">
+<meta name="description" content="Days 1-35 anomaly forecasts for North and South America from the ECCC GEPS extended ensemble, taken against a purpose-built 2001-2020 GEPS hindcast climatology at matching lead so model drift is removed. Daily animations and weekly means for eight fields, plus run-over-run change panels, a full three-field Wheeler-Hendon RMM phase diagram, a tropical convection Hovmoller and probabilistic teleconnection indices (AO, NAO, PNA, AAO and the CPC set) from all 21 members.">
 <link rel="canonical" href="https://scorvec.com/subseasonal.html">
 <meta property="og:type" content="website">
 <meta property="og:title" content="Subseasonal Outlook &mdash; GEPS Weeks 1&ndash;5 for the Americas">
@@ -46,6 +46,14 @@
 <link rel="stylesheet" href="/assets/site.css">
 <script src="/assets/site.js" defer></script>
 <script src="/assets/rail.js" defer></script>
+<script>
+// The polar-vortex products moved to the stratosphere page (2026-10-08): forward old deep links (#vortex/nh, #vloop, #drip)
+(function () { var m = {vortex: "vortex35/geps", vloop: "vloop35/geps", drip: "fdrip/geps"};
+  var h = location.hash.replace(/^#/, "").split("/"); if (!m[h[0]]) return;
+  var rest = h[0] === "vortex" ? h.slice(1, 2) : [];
+  location.replace("/stratosphere.html#" + [m[h[0]]].concat(rest).join("/")); })();
+</script>
+<style>.strat-links { margin: 0.6rem 0 0.2rem 1.1rem; line-height: 1.9; font-size: 0.95rem; }</style>
 </head>
 <body>
 
@@ -114,18 +122,20 @@
           <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g2">Stratosphere</button>
           <div class="sh-menu sh-menu--cols" id="sh-g2">
             <div>
-              <h3>Polar vortex</h3>
+              <h3>Polar vortex and QBO</h3>
               <ul>
                 <li><a href="/stratosphere.html">Stratosphere and polar vortex</a></li>
-                <li class="sh-subitem"><a href="/stratosphere.html#heatflux">Eddy heat flux</a></li>
-                <li class="sh-subitem"><a href="/stratosphere.html#pv">Potential vorticity</a></li>
-                <li class="sh-subitem"><a href="/stratosphere.html#bdc">Brewer–Dobson circulation</a></li>
+                <li class="sh-subitem"><a href="/stratosphere.html#pv">Now: analyses and observations</a></li>
+                <li class="sh-subitem"><a href="/stratosphere.html#vortex">Next two weeks</a></li>
+                <li class="sh-subitem"><a href="/stratosphere.html#vortex35">Weeks 3–6</a></li>
+                <li class="sh-subitem"><a href="/stratosphere.html#s5vortex">Season</a></li>
+                <li class="sh-subitem"><a href="/stratosphere.html#shwinters">History and studies</a></li>
+                <li class="sh-subitem"><a href="/stratosphere.html#qbo">QBO tracker</a></li>
               </ul>
             </div>
             <div>
-              <h3>QBO and momentum</h3>
+              <h3>Momentum</h3>
               <ul>
-                <li><a href="/qbo/">QBO tracker</a></li>
                 <li><a href="/circulation.html#aam">Angular momentum and torques</a></li>
               </ul>
             </div>
@@ -209,7 +219,8 @@
     <h1>GEPS subseasonal outlook</h1>
     <p class="sub">Anomalies against the <b>1991&ndash;2020 normal</b>, with the model's own drift removed first using a
     purpose-built GEPS8 hindcast. Weekly maps, tercile odds, the change since the last run, teleconnection
-    plumes, weather regimes, MJO and the polar vortex &mdash; one figure at a time, picked from the menu.</p>
+    plumes, weather regimes and the MJO &mdash; one figure at a time, picked from the menu; its polar vortex is on the
+    <a href="/stratosphere.html#vortex35/geps">stratosphere page</a>.</p>
     <div class="chips">
       <div class="chip"><div class="l">cycle</div><div class="v">2026-10-08 00Z</div><div class="s">extended run</div></div>
       <div class="chip"><div class="l">valid</div><div class="v"><b data-valid>Oct 8 &ndash; Nov 11</b></div><div class="s">days 1&ndash;35</div></div>
@@ -243,6 +254,20 @@
     </section>
   </div>
   <div class="lightbox" id="lightbox"><img alt=""></div>
+  <div class="dom-holder">
+    <div id="dom-stratlink" class="card" hidden>
+      <h2>GEPS stratosphere: on the stratosphere page</h2>
+      <p class="note">This page&rsquo;s polar-vortex products moved on 8 October 2026 to the <a href="/stratosphere.html#vortex35/geps">stratosphere page</a>,
+      under &ldquo;Weeks 3&ndash;6&rdquo;, side by side with the other model there and with every other model&rsquo;s vortex forecast from the
+      next two weeks out to the season. The figures are the same files, updated by the same GEPS run.</p>
+      <ul class="strat-links">
+        <li><a href="/stratosphere.html#vortex35/geps">Polar vortex diagnostics, days 1&ndash;35 &rarr;</a></li>
+        <li><a href="/stratosphere.html#vloop35/geps">Polar vortex loop, 10 and 100&nbsp;hPa &rarr;</a></li>
+        <li><a href="/stratosphere.html#fdrip/geps">Dripping paint, ground to 10&nbsp;hPa &rarr;</a></li>
+        <li><a href="/stratosphere.html#heatflux/nh/geps">100&nbsp;hPa eddy heat flux &rarr;</a></li>
+      </ul>
+    </div>
+  </div>
 
   <section class="method-note">
     <h2>How it is built</h2>
@@ -331,18 +356,7 @@ var P = {
         ratio: function (a) { return a==="na" ? "760/640"
                              : (a==="sa" ? "760/1041" : "1191/700"); },
         cap: function () { return "One frame per forecast day, eight fields. 24-hour means."; }},
-  vortex: {label: "Polar vortex \u2014 diagnostics",
-        a: {label:"Hemisphere", items:[["nh","Northern"],["sh","Southern"]]},
-        img: function (a) { return "assets/geps/strat_" + a + "_series.webp"; },
-        cap: function () { return "u(60\u00B0) at 10 and 100 hPa, polar-cap T and height. Ensemble spread, 14-day analysis tail, previous run\u2019s mean dashed on the common days."; }},
-  drip: {label: "Polar vortex \u2014 dripping paint",
-        img: function () { return "assets/geps/geps_drip.webp"; },
-        cap: function () { return "Standardised polar-cap height from 1000 to 10 hPa: 60 days observed (GEOS FP), then the GEPS ensemble mean with its reforecast drift removed; hatched levels are not drift-corrected. The same scale as the history drips on the stratosphere page."; }},
-  vloop: {label: "Polar vortex \u2014 daily loop",
-        a: {label:"", items:[["all","10 and 100 hPa"]]},
-        frame: function () { return "sst_anim.html?base=assets/geps/anim&manifest=geps_strat_manifest.json&embed=1"; },
-        ratio: function () { return "1189/555"; },
-        cap: function () { return "Temperature anomaly, total wind and height anomaly at 10 and 100 hPa, analysis to day 35, both hemispheres. Anomalies against ERA5 1991\u20132020 with the model\u2019s drift removed using GEPS reforecasts."; }}
+  stratlink: {label: "Stratosphere: moved to the stratosphere page", dom: function () { return "dom-stratlink"; }}
 };
 var MASKABLE = ["t2m","pr","zg500","mslp"];   // fields with a hindcast skill file
 var TELE_IDS = [["board","All indices (board)"],["ao","AO \u2014 Arctic Oscillation"],["nao","NAO \u2014 North Atlantic Oscillation"],
@@ -354,7 +368,7 @@ var TELE_IDS = [["board","All indices (board)"],["ao","AO \u2014 Arctic Oscillat
 var GROUPS = [["Maps", "\u{1F5FA}", [["weekly","Weekly means","weeks 1\u20135, nine fields"],["probs","Weekly terciles","temperature and precipitation"],["change","Change vs previous run","this run minus the last"],["daily","Daily animation","eight fields, day by day"]]],
               ["Patterns", "\u2699", [["telecon","Teleconnections","AO, NAO, PNA, EPO \u2026"],["regimes","Weather regimes","Euro-Atlantic, N. America"],["clusters","500 hPa scenarios","ensemble clusters by week"]]],
               ["Tropics", "\u{1F30A}", [["mjo","MJO","RMM plume, propagation, skill"]]],
-              ["Stratosphere", "\u2744", [["vortex","Polar vortex diagnostics","u(60\u00B0), cap T and Z"],["vloop","Polar vortex loop","10 and 100 hPa, daily"],["drip","Dripping paint","polar cap, ground to 10 hPa"]]]];
+              ["Stratosphere", "\u2744", [["stratlink","Polar vortex","on the stratosphere page"]]]];
 // One viewer for the site (assets/stage.js, navigation phase 2, 2026-09-27): the same #product/a/b/c hash as
 // before, now also followed on hashchange (the finder's same-page jumps); the tables follow the selection.
 var sel = { p: null, a: null, b: null, c: null };

@@ -108,25 +108,34 @@ PRODUCTS = [
              "Twice daily"),
         ]),
     ]),
-    ("Stratosphere", "The polar vortex and the waves going up into it, the QBO, and the atmosphere's angular momentum", [
-        ("Polar vortex", [
+    # one hub since 2026-10-08 (user: "put all the strat stuff in one place and consolidate"): stratosphere.html holds
+    # every stratosphere product by timescale (the GEPS/GEFS/SEAS5 vortex products and the QBO tracker moved in), and
+    # this menu lists its sections
+    ("Stratosphere", "The polar vortex and the waves going up into it, from today's analysis to the season, the QBO, and the atmosphere's angular momentum", [
+        ("Polar vortex and QBO", [
             ("/stratosphere.html", "Stratosphere and polar vortex",
-             "Will the vortex weaken? AIFS, GEPS and GEFS 60°N winds, heat flux and wave driving, potential vorticity, the Brewer–Dobson circulation, and every sudden warming since 1980 with what followed.",
+             "Every stratosphere product in one place, by timescale: analyses and the QBO now; AIFS-ENS, IFS-ENS and GEFS vortex, heat flux and wave driving for the next two weeks; GEPS and GEFS to day 35; SEAS5's vortex and sudden-warming risk for the season; and every sudden warming since 1980 with what followed.",
              "Twice daily"),
-            ("/stratosphere.html#heatflux", "Eddy heat flux",
-             "100 hPa poleward heat flux, the wave activity going up into the vortex, from AIFS-ENS, GEPS and GEFS.",
+            ("/stratosphere.html#pv", "Now: analyses and observations",
+             "GEOS FP potential vorticity, the momentum budget and the Brewer–Dobson circulation, the water-vapour tape recorder, and the QBO from radiosondes.",
+             "Daily"),
+            ("/stratosphere.html#vortex", "Next two weeks",
+             "AIFS-ENS, IFS-ENS and GEFS: vortex winds, 100 hPa heat flux, E–P flux, wave-1 and the upper stratosphere.",
              "Twice daily"),
-            ("/stratosphere.html#pv", "Potential vorticity",
-             "GEOS FP Ertel PV on the 475 and 850 K surfaces.",
+            ("/stratosphere.html#vortex35", "Weeks 3–6",
+             "GEPS and GEFS to day 35, drift-corrected: vortex diagnostics, loops and the dripping paint.",
              "Daily"),
-            ("/stratosphere.html#bdc", "Brewer–Dobson circulation",
-             "Tropical upwelling and the residual circulation from GEOS FP and MERRA-2.",
-             "Daily"),
-        ]),
-        ("QBO and momentum", [
-            ("/qbo/", "QBO tracker",
+            ("/stratosphere.html#s5vortex", "Season",
+             "SEAS5's vortex, QBO and annular mode, sudden-warming risk against its own normal, and the polar-cap heights.",
+             "Monthly"),
+            ("/stratosphere.html#shwinters", "History and studies",
+             "Every winter and sudden warming since 1980 in MERRA-2 and 15,000 more in CMIP6, with what followed at the surface.",
+             "Static"),
+            ("/stratosphere.html#qbo", "QBO tracker",
              "Equatorial stratospheric winds at 10 to 100 hPa from radiosondes, 1950 to the present.",
              "Weekly"),
+        ]),
+        ("Momentum", [
             ("/circulation.html#aam", "Angular momentum and torques",
              "Global atmospheric angular momentum and the mountain and friction torques that change it.",
              "Daily"),
@@ -135,16 +144,16 @@ PRODUCTS = [
     ("Weeks to seasons", "From weeks two to five out to the coming seasons", [
         ("Weeks 2–5", [
             ("/subseasonal.html", "GEPS extended ensemble",
-             "Environment Canada's extended ensemble to day 35 for the Americas, the tropics and the polar vortex: weekly anomalies against its own reforecast, terciles, teleconnections, regimes and change since the previous run.",
+             "Environment Canada's extended ensemble to day 35 for the Americas and the tropics: weekly anomalies against its own reforecast, terciles, teleconnections, regimes and change since the previous run (its polar vortex is on the stratosphere page).",
              "Mondays and Thursdays"),
             ("/gefs.html", "GEFS extended ensemble",
-             "NOAA's GEFS extended ensemble to day 35 in the same layout: weekly anomalies against its own reforecast, the change since a week earlier, and a drift-corrected polar vortex.",
+             "NOAA's GEFS extended ensemble to day 35 in the same layout: weekly anomalies against its own reforecast and the change since a week earlier (its drift-corrected polar vortex is on the stratosphere page).",
              "Daily"),
         ]),
         ("Seasons", [
             # renamed from "Eight C3S seasonal models" and the NOAA SFS page folded in (2026-10-06, user)
             ("/seasonal.html", "Seasonal model forecasts",
-             "Eight C3S systems from seven centres plus NOAA's SFS beta: anomaly maps and tercile probabilities for every C3S model and their mean, the member-level ECMWF SEAS5 outlook (indices, teleconnections, the stratosphere, impacts) and the 31-member SFS plumes and monthly maps.",
+             "Eight C3S systems from seven centres plus NOAA's SFS beta: anomaly maps and tercile probabilities for every C3S model and their mean, the member-level ECMWF SEAS5 outlook (indices, teleconnections, impacts; its stratosphere is on the stratosphere page) and the 31-member SFS plumes and monthly maps.",
              "Monthly"),
             ("/enso-forecasts.html", "ENSO forecasts",
              "Every member of seven centres' seasonal models for Niño-3.4, with percentile fans and a record of how past forecasts did.",
@@ -290,7 +299,7 @@ PAGES = [
                r'\s*<a href="\.\./index\.html" class="back">← HOME</a>']),
     dict(path="skewt/methodology.html", mode="nav", tabs="skewt"),
     dict(path="skewt/gaps.html", mode="nav", tabs="skewt"),
-    dict(path="qbo/index.html", mode="nav"),
+    # qbo/index.html: folded into stratosphere.html 2026-10-08 ("QBO from radiosondes"), now a redirect stub (no chrome)
     dict(path="midterms/index.html", mode="after-body", footer=True),   # 2026 midterm forecast (synced daily from github.com/scorvec/midterms-2026 by midterms-sync.yml)
     dict(path="midterms/about.html", mode="after-body", footer=True),   # how the midterm forecast works + sources
     dict(path="midterms/polls.html", mode="after-body", footer=True),   # every poll in the midterm forecast and its weight

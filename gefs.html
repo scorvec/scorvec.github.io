@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>GEFS Subseasonal Outlook &mdash; NOAA GEFS Weeks 1&ndash;5, Anomalies Against Its Own Reforecast &middot; Shawn Corvec</title>
-<meta name="description" content="NOAA GEFS extended ensemble, weeks 1 to 5: weekly anomaly maps of temperature, precipitation, pressure, 500 hPa height, OLR and winds for North America, South America and the globe, taken against the GEFSv12 reforecast so the model drift is removed, the change since the run a week earlier, and a bias-corrected polar vortex forecast.">
+<meta name="description" content="NOAA GEFS extended ensemble, weeks 1 to 5: weekly anomaly maps of temperature, precipitation, pressure, 500 hPa height, OLR and winds for North America, South America and the globe, taken against the GEFSv12 reforecast so the model drift is removed, and the change since the run a week earlier.">
 <link rel="canonical" href="https://scorvec.com/gefs.html">
 <meta property="og:type" content="website">
 <meta property="og:title" content="GEFS subseasonal outlook, weeks 1–5">
@@ -46,6 +46,14 @@
 <link rel="stylesheet" href="/assets/site.css">
 <script src="/assets/site.js" defer></script>
 <script src="/assets/rail.js" defer></script>
+<script>
+// The polar-vortex products moved to the stratosphere page (2026-10-08): forward old deep links (#vortex/nh, #vloop, #drip)
+(function () { var m = {vortex: "vortex35/gefs", vloop: "vloop35/gefs", drip: "fdrip/gefs"};
+  var h = location.hash.replace(/^#/, "").split("/"); if (!m[h[0]]) return;
+  var rest = h[0] === "vortex" ? h.slice(1, 2) : [];
+  location.replace("/stratosphere.html#" + [m[h[0]]].concat(rest).join("/")); })();
+</script>
+<style>.strat-links { margin: 0.6rem 0 0.2rem 1.1rem; line-height: 1.9; font-size: 0.95rem; }</style>
 </head>
 <body>
 
@@ -114,18 +122,20 @@
           <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g2">Stratosphere</button>
           <div class="sh-menu sh-menu--cols" id="sh-g2">
             <div>
-              <h3>Polar vortex</h3>
+              <h3>Polar vortex and QBO</h3>
               <ul>
                 <li><a href="/stratosphere.html">Stratosphere and polar vortex</a></li>
-                <li class="sh-subitem"><a href="/stratosphere.html#heatflux">Eddy heat flux</a></li>
-                <li class="sh-subitem"><a href="/stratosphere.html#pv">Potential vorticity</a></li>
-                <li class="sh-subitem"><a href="/stratosphere.html#bdc">Brewer–Dobson circulation</a></li>
+                <li class="sh-subitem"><a href="/stratosphere.html#pv">Now: analyses and observations</a></li>
+                <li class="sh-subitem"><a href="/stratosphere.html#vortex">Next two weeks</a></li>
+                <li class="sh-subitem"><a href="/stratosphere.html#vortex35">Weeks 3–6</a></li>
+                <li class="sh-subitem"><a href="/stratosphere.html#s5vortex">Season</a></li>
+                <li class="sh-subitem"><a href="/stratosphere.html#shwinters">History and studies</a></li>
+                <li class="sh-subitem"><a href="/stratosphere.html#qbo">QBO tracker</a></li>
               </ul>
             </div>
             <div>
-              <h3>QBO and momentum</h3>
+              <h3>Momentum</h3>
               <ul>
-                <li><a href="/qbo/">QBO tracker</a></li>
                 <li><a href="/circulation.html#aam">Angular momentum and torques</a></li>
               </ul>
             </div>
@@ -209,8 +219,8 @@
     <h1>GEFS subseasonal outlook</h1>
     <p class="sub">Anomalies against the <b>1991&ndash;2020 normal</b>, with the model's own drift removed first using
     <b>GEFS's 2000&ndash;2019 reforecast</b> at the same lead and time of year, so drift is not read as a forecast. Weekly
-    maps and terciles, the change since the previous run, the daily animation, teleconnections, regimes, the MJO and the
-    polar vortex &mdash; one figure at a time, picked from the menu. The same products as the
+    maps and terciles, the change since the previous run, the daily animation, teleconnections, regimes and the MJO
+    &mdash; one figure at a time, picked from the menu; its polar vortex is on the <a href="/stratosphere.html#vortex35/gefs">stratosphere page</a>. The same products as the
     <a href="/subseasonal.html">GEPS subseasonal outlook</a>, for comparing the two models.</p>
     <div class="chips">
       <div class="chip"><div class="l">cycle</div><div class="v" id="g-cycle">&ndash;</div><div class="s">extended run</div></div>
@@ -244,6 +254,20 @@
     </section>
   </div>
   <div class="lightbox" id="lightbox"><img alt=""></div>
+  <div class="dom-holder">
+    <div id="dom-stratlink" class="card" hidden>
+      <h2>GEFS stratosphere: on the stratosphere page</h2>
+      <p class="note">This page&rsquo;s polar-vortex products moved on 8 October 2026 to the <a href="/stratosphere.html#vortex35/gefs">stratosphere page</a>,
+      under &ldquo;Weeks 3&ndash;6&rdquo;, side by side with the other model there and with every other model&rsquo;s vortex forecast from the
+      next two weeks out to the season. The figures are the same files, updated by the same GEFS run.</p>
+      <ul class="strat-links">
+        <li><a href="/stratosphere.html#vortex35/gefs">Polar vortex diagnostics, days 1&ndash;35 &rarr;</a></li>
+        <li><a href="/stratosphere.html#vloop35/gefs">Polar vortex loop, 10 and 100&nbsp;hPa &rarr;</a></li>
+        <li><a href="/stratosphere.html#fdrip/gefs">Dripping paint, ground to 10&nbsp;hPa &rarr;</a></li>
+        <li><a href="/stratosphere.html#heatflux/nh/gefs">100&nbsp;hPa eddy heat flux &rarr;</a></li>
+      </ul>
+    </div>
+  </div>
 
   <section class="method-note">
     <h2>How it is built</h2>
@@ -333,18 +357,7 @@ var P = {
         a: {label:"", items:[["zm","Zonal mean by lead"]]},
         img: function () { return "assets/gefs/gefs_drift.webp"; },
         cap: function () { return "Today’s GEFS does not drift the way its 2000–2019 reforecast did: verified against its own analyses it runs cooler at long lead in the northern mid-latitudes and at 10 hPa. This is the difference, from the 45 most recent runs whose 35 days have been observed, and every product on this page has it removed. Updated daily."; }},
-  vortex: {label: "Polar vortex — diagnostics",
-        a: {label:"Hemisphere", items:[["nh","Northern"],["sh","Southern"]]},
-        img: function (a) { return "assets/gefs/gefs_strat_" + a + "_series.webp"; },
-        cap: function () { return "u(60°) at 10 and 100 hPa, polar-cap T and height. Every member corrected for GEFS’s drift with lead against its own 2000–2019 reforecast — which reaches 10 hPa, unlike GEPS’s — then referenced to ERA5 1991–2020; ensemble spread, 14-day GEFS analysis tail, previous run’s mean dashed on the common days."; }},
-  drip: {label: "Polar vortex \u2014 dripping paint",
-        img: function () { return "assets/gefs/gefs_drip.webp"; },
-        cap: function () { return "Standardised polar-cap height from 1000 to 10 hPa: 60 days observed (GEOS FP), then the GEFS ensemble mean with its reforecast drift removed; hatched levels are not drift-corrected. The same scale as the history drips on the stratosphere page."; }},
-  vloop: {label: "Polar vortex — daily loop",
-        a: {label:"", items:[["all","10 and 100 hPa"]]},
-        frame: function () { return "sst_anim.html?base=assets/gefs/anim&manifest=gefs_strat_manifest.json&embed=1"; },
-        ratio: function () { return "1189/615"; },
-        cap: function () { return "Days 1–35, both hemispheres and levels: temperature and height anomaly against the lead-matched reforecast (height relative to the hemisphere poleward of 20°), total wind with heights. At 10 hPa the model’s own drift reaches about 4 K in the tropics by week 3, so long-lead 10 hPa temperature anomalies equatorward of the vortex carry that much uncertainty."; }}
+  stratlink: {label: "Stratosphere: moved to the stratosphere page", dom: function () { return "dom-stratlink"; }}
 };
 var MASKABLE = ["t2m","pr","zg500","mslp"];   // fields with a reforecast skill file
 var TELE_IDS = [["board","All indices (board)"],["ao","AO — Arctic Oscillation"],["nao","NAO — North Atlantic Oscillation"],
@@ -356,7 +369,7 @@ var TELE_IDS = [["board","All indices (board)"],["ao","AO — Arctic Oscillation
 var GROUPS = [["Maps", "\u{1F5FA}", [["weekly","Weekly means","weeks 1–5, nine fields"],["probs","Weekly terciles","temperature and precipitation"],["change","Change vs previous run","this run minus the last"],["daily","Daily animation","nine fields, day by day"],["drift","Drift correction","operational vs reforecast"]]],
               ["Patterns", "⚙", [["telecon","Teleconnections","AO, NAO, PNA, EPO …"],["regimes","Weather regimes","Euro-Atlantic, N. America"],["clusters","500 hPa scenarios","ensemble clusters by week"]]],
               ["Tropics", "\u{1F30A}", [["mjo","MJO","RMM plume, propagation, skill"]]],
-              ["Stratosphere", "❄", [["vortex","Polar vortex diagnostics","u(60°), cap T and Z"],["vloop","Polar vortex loop","10 and 100 hPa, daily"],["drip","Dripping paint","polar cap, ground to 10 hPa"]]]];
+              ["Stratosphere", "\u2744", [["stratlink","Polar vortex","on the stratosphere page"]]]];
 // One viewer for the site (assets/stage.js, navigation phase 2, 2026-09-27): the same #product/a/b/c hash as
 // before, now also followed on hashchange (the finder's same-page jumps); the tables follow the selection.
 var sel = { p: null, a: null, b: null, c: null };

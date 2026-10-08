@@ -1,8 +1,8 @@
 <main>
   <div class="page-header">
-    <p class="eyebrow">Daily from the ECMWF AIFS ensemble, against MERRA-2 and ERA5; the history from MERRA-2, 1980&ndash;2026</p>
+    <p class="eyebrow">Every stratosphere product on the site, from today&rsquo;s analysis to the coming season, and the record since 1980</p>
     <h1>Stratosphere and the polar vortex</h1>
-    <p class="sub">Whether the winter polar vortex is about to weaken, and what that has meant at the surface before. The forecast side follows the vortex winds, the planetary waves driving them and the heat flux carrying those waves upward, member by member through the 15-day AIFS ensemble. The history side is every winter and every major sudden warming since 1980 from MERRA-2, with only the statistically significant results shown. Background on each diagnostic is in the <a href="/topics/sudden-stratospheric-warming.html">sudden stratospheric warming</a>, <a href="/topics/ep-flux.html">E&ndash;P flux</a> and <a href="/topics/eddy-heat-flux.html">eddy heat flux</a> explainers. The tropospheric circulation is on <a href="/circulation.html">Global circulation and jets</a>.</p>
+    <p class="sub">Whether the winter polar vortex is about to weaken, and what that has meant at the surface before, in one place and ordered by how far ahead each product looks. <b>Now</b>: analyses and observations &mdash; the QBO from radiosondes, potential vorticity, the momentum budget and the Brewer&ndash;Dobson circulation. <b>Next two weeks</b>: the vortex, the 100&nbsp;hPa heat flux, the E&ndash;P flux and the planetary waves from AIFS-ENS, IFS-ENS and GEFS, member by member. <b>Weeks 3&ndash;6</b>: the GEPS and GEFS extended runs, drift-corrected. <b>Season</b>: SEAS5&rsquo;s vortex, QBO and sudden-warming risk against its own hindcast. <b>History and studies</b>: every winter and every major sudden warming since 1980 from MERRA-2, with only the statistically significant results shown. Where several models answer the same question they share one figure slot with a model switch. Background on each diagnostic is in the <a href="/topics/sudden-stratospheric-warming.html">sudden stratospheric warming</a>, <a href="/topics/ep-flux.html">E&ndash;P flux</a> and <a href="/topics/eddy-heat-flux.html">eddy heat flux</a> explainers. The tropospheric circulation is on <a href="/circulation.html">Global circulation and jets</a>.</p>
 
   </div>
   <div class="ss-layout">
@@ -49,6 +49,42 @@
         <div class="sh-tablewrap"><table class="sh-table" id="shs-sv"><thead><tr><th scope="col">Date</th><th scope="col">Peak 10 hPa index</th><th scope="col">Strongest wind<br><small>m/s, days 0–30</small></th><th scope="col">AO before → after</th></tr></thead><tbody></tbody></table></div>
       </details>
       <p class="note" id="shs-note"></p>
+    </div>
+    <!-- the SEAS5 stratosphere cards, moved from seasonal.html 2026-10-08 (#stratCard, #sswCard, #polar-stratosphere); drawn
+         by /assets/seas5-cards.js from the same JSON, loaded on the Season group's first visit -->
+    <div id="dom-s5vortex" class="card s5card" hidden>
+      <div class="map-grid" id="stratFigs" style="margin-bottom:1rem"></div>
+      <div class="controls" id="stratPills"></div>
+      <div class="idx-note" id="stratNote">Loading the SEAS5 indices&hellip;</div>
+      <div id="stratChart" class="plot" style="height:460px"></div>
+      <div style="overflow-x:auto"><table class="chg" id="stratTable"></table></div>
+      <div class="chart-card-footer">
+        <span class="chart-sources">ECMWF SEAS5 u and z at 10&ndash;1000 hPa, 2&deg; &middot; anomalies and spreads vs the 1993&ndash;2016 hindcast &middot; skill: hindcast ensemble mean vs ERA5</span>
+        <span class="chart-updated" id="stratUpdated">&mdash;</span>
+      </div>
+    </div>
+    <div id="dom-s5ssw" class="card s5card" hidden>
+      <div class="idx-note" id="sswVerdict">Loading&hellip;</div>
+      <div style="overflow-x:auto"><table class="chg" id="sswTable"></table></div>
+      <div class="map-grid" id="sswFigs"></div>
+      <div class="chart-card-footer">
+        <span class="chart-sources">ECMWF SEAS5: daily u 10 hPa (CDS sub-daily, 51 members; hindcast from the AWS SEAS5 daily copy, 1981&ndash;2016), monthly u 100 hPa (CDS, 1993&ndash;2016 hindcast) &middot; observed: MERRA-2 (NASA GMAO) 1980&ndash;2026, GEOS FP analyses this season</span>
+        <span class="chart-updated" id="sswUpdated">&mdash;</span>
+      </div>
+    </div>
+    <div id="dom-s5cap" class="card s5card" hidden>
+      <div class="controls" id="polarPills"></div>
+      <div id="polarChart" class="plot" style="height:460px"></div>
+      <div class="chart-card-footer">
+        <span class="chart-sources">ECMWF SEAS5 geopotential, 2&deg; grid, cosine-weighted 60&ndash;90&deg; cap mean &middot; anomalies vs the 1993&ndash;2016 hindcast&rsquo;s linear trend at the valid year</span>
+        <span class="chart-updated" id="polarUpdated">&mdash;</span>
+      </div>
+    </div>
+    <!-- the QBO tracker's station table, moved from /qbo/ 2026-10-08 (qbo.yml still writes qbo/qbo.json) -->
+    <div id="dom-qbostations" class="card" hidden>
+      <div class="chips" id="qboChips"></div>
+      <div class="sh-tablewrap"><table class="sh-table qbo-table" id="qboStns"></table></div>
+      <p class="note" id="qboMethod"></p>
     </div>
   </div>
 <template id="about-vortex">
@@ -594,13 +630,38 @@ $$\frac{\partial\bar u}{\partial t} \;=\; \hat f\,\bar v^{*} \;-\; \bar w^{*}\fr
 <p class="chart-sources">NASA GMAO MERRA-2 GMI replay (merra2_gmi inst3_3d_met_Np 00Z and tavg24_3d_dad_Np, NCCS OPeNDAP) &middot; NASA GMAO GEOS FP assimilation (inst3_3d_asm_Np, tavg3_3d_udt_Cp) &middot; operator: <code>momentum_budget.tem_terms</code> &middot; warming catalogue: MERRA-2 (this group) &middot; static reference, built 2026-09-27</p>
 </template>
 </main>
+<template id="about-qbo">
+<p>The Quasi-Biennial Oscillation &mdash; the ~28-month heartbeat of the equatorial stratosphere &mdash; read directly from balloons. Within ~10&deg; of the equator the annual cycle in stratospheric zonal wind nearly vanishes, so a monthly multi-station mean of radiosonde winds at 10&ndash;100&nbsp;hPa <i>is</i> the QBO: westerly and easterly regimes descending about 1&nbsp;km/month. Built from 13 stations (Singapore, Kuala Lumpur, Bintulu, the Micronesia chain, six Amazon stations, Nairobi) &mdash; the same raw archive behind the <a href="/skewt/">Sounding Explorer</a>. This was the QBO tracker page (/qbo/) until 8 October 2026.</p>
+<p class="chart-sources">Data: NOAA <a href="https://www.ncei.noaa.gov/products/weather-balloon/integrated-global-radiosonde-archive">IGRA v2</a> period-of-record + year-to-date files &middot; monthly station means need &ge;3 soundings per level; the plotted value is the unweighted mean across reporting stations. Built the same way from the same radiosonde network as the CPC/FU-Berlin indices, but not the official index &middot; updated weekly (<a href="/skewt/methodology.html">sounding methodology</a>)</p>
+</template>
+<template id="about-vortex35">
+<p>The 35-day extended ensembles&rsquo; own view of the vortex: u(60&deg;) at 10 and 100&nbsp;hPa, polar-cap temperature and height for each hemisphere, with the ensemble spread, a 14-day analysis tail and the previous run&rsquo;s mean dashed on the common days. These were the &ldquo;Polar vortex&rdquo; items of the <a href="/gefs.html">GEFS</a> and <a href="/subseasonal.html">GEPS</a> subseasonal pages until 8 October 2026; the figures are the same files, updated by the same runs.</p>
+<p><b>GEFS</b> (daily 00Z, 31 members): because GEFS&rsquo;s reforecast reaches 10&nbsp;hPa, every member is corrected for the model&rsquo;s drift with lead against its own 2000&ndash;2019 reforecast, then referenced to ERA5 1991&ndash;2020. <b>GEPS</b> (Mondays and Thursdays, 21 members): the stratosphere, which the GEPS8 hindcast does not cover, is taken against ERA5 and de-drifted with the GEPS reforecasts in the ECMWF S2S archive.</p>
+<p class="chart-sources">NOAA GEFS extended ensemble and GEFSv12 reforecast (AWS open data) &middot; Environment and Climate Change Canada, GEPS extended ensemble (MSC Datamart; <a href="https://open.canada.ca/en/open-government-licence-canada">Open Government Licence &ndash; Canada</a>) and the ECMWF S2S GEPS reforecasts &middot; ERA5 (Copernicus C3S)</p>
+</template>
+<template id="about-vloop35">
+<p>The extended ensembles&rsquo; daily maps of the stratosphere at 10 and 100&nbsp;hPa, both hemispheres, from the analysis to day 35: temperature anomaly, total wind and height anomaly. <b>GEFS</b>: anomalies against the lead-matched GEFSv12 reforecast (height relative to the hemisphere poleward of 20&deg;). <b>GEPS</b>: anomalies against ERA5 1991&ndash;2020 with the model&rsquo;s drift removed using the GEPS reforecasts in the ECMWF S2S archive (zonal mean, by latitude and lead; the 10&nbsp;hPa cap-temperature drift reaches about +7&nbsp;K by day 35). These loops were on the <a href="/gefs.html">GEFS</a> and <a href="/subseasonal.html">GEPS</a> pages until 8 October 2026.</p>
+<p class="chart-sources">NOAA GEFS extended ensemble and GEFSv12 reforecast (AWS open data) &middot; Environment and Climate Change Canada, GEPS extended ensemble (MSC Datamart; <a href="https://open.canada.ca/en/open-government-licence-canada">Open Government Licence &ndash; Canada</a>) and the ECMWF S2S GEPS reforecasts &middot; ERA5 (Copernicus C3S)</p>
+</template>
+<template id="about-s5vortex">
+<p>The zonal-mean 10&nbsp;hPa wind at 60&deg;N is the standard vortex-strength measure (its 60&deg;S twin covers the southern spring breakdown); the probability of an easterly reading is the sudden-warming side of the distribution. The equatorial 10, 30 and 50&nbsp;hPa winds are SEAS5&rsquo;s own QBO, which sets the Holton&ndash;Tan tilt on the vortex. The NAM-by-level indices are polar-cap height anomalies standardised by the hindcast and signed so that positive is a strong vortex, from 10&nbsp;hPa down to the surface &mdash; read them top to bottom for downward coupling. Wave-1 and wave-2 amplitudes at 100&nbsp;hPa are the planetary-wave forcing that precedes a warming.</p>
+<p>Moved from the <a href="/seasonal.html">seasonal model forecasts</a> page on 8 October 2026 (it was the &ldquo;Vortex, QBO, annular mode&rdquo; card there); the teleconnection indices from the same SEAS5 members stay on that page.</p>
+</template>
+<template id="about-s5ssw">
+<p>The vortex day by day: the zonal-mean wind at 60&deg;N and 10&nbsp;hPa for each of the 51 members, against SEAS5&rsquo;s <b>own</b> normal for the same start date and lead &mdash; its hindcast, 25 members &times; 36 winters (1981&ndash;2016) &mdash; so the model&rsquo;s drift and bias are in the reference, not in the anomaly. A <b>major sudden stratospheric warming</b> is counted the standard way (Charlton &amp; Polvani 2007): the daily wind turns easterly between 1&nbsp;November and 31&nbsp;March, 20 westerly days separate two events, and a reversal that never recovers for 10 days before 30&nbsp;April is the final warming, not an SSW. The risk index is the share of members with at least one, set against the model&rsquo;s base rate (same start, same rule) and the observed rate (MERRA-2). Its skill is tested on the hindcast: each winter&rsquo;s member fraction against what MERRA-2 observed. 100&nbsp;hPa is monthly only: the daily hindcast at that level is not in the AWS copy and would take hundreds of thousands of CDS fields per start month.</p>
+<p>Moved from the <a href="/seasonal.html">seasonal model forecasts</a> page on 8 October 2026 (the &ldquo;Polar vortex and SSW risk&rdquo; card there).</p>
+</template>
+<template id="about-s5cap">
+<p>The 60&ndash;90&deg; polar-cap mean geopotential height at 100, 50 and 10&nbsp;hPa, as an anomaly against the hindcast&rsquo;s <b>linear trend</b> at each lead, extrapolated to the forecast year &mdash; heights carry the warming trend, so an anomaly against the 1993&ndash;2016 mean would read high before any circulation signal. A <b>high</b> cap at 100&nbsp;hPa is a weak, warm vortex (the SSW-side reading); a low cap is a strong, cold one. The hindcast &plusmn;1&sigma; band shows how far a seasonal model normally strays, which at these levels is not far &mdash; read the sign of the tilt and whether the members agree, not the amplitude. Both hemispheres; the 60&deg;S twin shows the southern vortex&rsquo;s own cycle at the same leads.</p>
+<p>Moved from the <a href="/seasonal.html">seasonal model forecasts</a> page on 8 October 2026 (the &ldquo;Polar stratosphere&rdquo; card there).</p>
+</template>
 <script type="application/ld+json">
     {
       "@context": "https://schema.org",
       "@type": "WebPage",
       "name": "Stratosphere and the polar vortex: sudden stratospheric warming forecast, E-P flux, eddy heat flux and every warming since 1980",
       "url": "https://scorvec.com/stratosphere.html",
-      "description": "Daily AIFS-ENS forecasts of the stratospheric polar vortex (zonal-mean wind at 60N 10 and 100 hPa, polar-cap height), GEFS E-P flux and wave driving to 1 hPa, stationary wave-1 and the 100 hPa eddy heat flux, with a MERRA-2 catalogue of every major sudden stratospheric warming since 1980, dripping-paint composites and their surface impacts.",
+      "description": "Every stratosphere product on the site, from analyses to the season: daily AIFS-ENS, IFS-ENS and GEFS forecasts of the stratospheric polar vortex (zonal-mean wind at 60N 10 and 100 hPa, polar-cap height), GEFS E-P flux and wave driving to 1 hPa, stationary wave-1 and the 100 hPa eddy heat flux, with a MERRA-2 catalogue of every major sudden stratospheric warming since 1980, dripping-paint composites and their surface impacts.",
       "isPartOf": {"@type": "WebSite", "name": "Shawn Corvec", "url": "https://scorvec.com/"},
       "author": {"@id": "https://scorvec.com/#person"},
       "about": [
@@ -613,10 +674,39 @@ $$\frac{\partial\bar u}{\partial t} \;=\; \hat f\,\bar v^{*} \;-\; \bar w^{*}\fr
 <script>
 window.STAGE = {
   groups: [
-  {label: "Stratosphere", ico: "\u2744", items: [["vortex","Polar vortex diagnostics","u(60°N), polar-cap height"],["upperstrat","Upper stratosphere","GEFS, GFS, GEOS FP, GDPS up to 1 hPa"],["vwinds","Vortex winds","10 and 100 hPa, both hemispheres"],["pv","Potential vorticity","GEOS FP, 475 and 850 K"],["epflux","E–P flux","GEFS wave driving to 1 hPa, k = 1–3"],["qbozl","QBO zero-wind line","where the waves meet easterlies, 70–10 hPa"],["wave1","Stationary wave-1","100 and 500 hPa"],["heatflux","Eddy heat flux","100 hPa [v′T′], is it going up?"],["fdrip","Forecast dripping paint","GEPS, GEFS, AIFS-ENS, IFS-ENS: is it reaching down?"],["bdc","Brewer–Dobson circulation","tropical upwelling, downward control"],["aoa","Age of stratospheric air","MERRA-2 GMI, 1980–2019"],["tape","Water-vapour tape recorder","Aura MLS + GEOS FP, how fast air rises"],["mbudget","Momentum budget","what drives the vortex and the upwelling"]]},
-  {label: "Stratosphere history", ico: "\u231B", items: [["shwinters","Every winter since 1980","pick any winter, compare"],["shssw","Sudden warmings since 1980","timeline, catalogue, vortex shapes"],["shdrip","Dripping paint","how an event reaches the surface"],["shfollow","What usually follows","AO, NAO, temperature, by region; CMIP6"],["shtiming","Who moves first","waves, vortex, tropical upwelling"],["shqbo","The QBO and the vortex","observed and CMIP6"],["shenso","El Niño and sudden warmings","CMIP6, 25,000 winters"],["shseason","This winter's odds","QBO and ENSO, model-based"],["shmbudget","Momentum budget of past warmings","every term, 24 warmings"]]}
+  {label: "Now: analyses and observations", ico: "\u{1F6F0}", items: [["pv","Potential vorticity","GEOS FP, 475 and 850 K"],["mbudget","Momentum budget","what drives the vortex and the upwelling"],["bdc","Brewer–Dobson circulation","tropical upwelling, downward control"],["tape","Water-vapour tape recorder","Aura MLS + GEOS FP, how fast air rises"],["qbo","QBO from radiosondes","13 equatorial stations, the whole record"],["qbozl","QBO zero-wind line","where the waves meet easterlies, 70–10 hPa"]]},
+  {label: "Next two weeks", ico: "\u2744", items: [["vortex","Polar vortex diagnostics","AIFS-ENS, IFS-ENS, GEPS, GDPS: u(60°N), cap height"],["heatflux","Eddy heat flux","100 hPa [v′T′]: AIFS-ENS, IFS-ENS, GEFS, GEPS"],["epflux","E–P flux","GEFS wave driving to 1 hPa, k = 1–3"],["wave1","Stationary wave-1","AIFS-ENS and IFS-ENS, 100 and 500 hPa"],["vwinds","Vortex winds","AIFS-ENS and IFS-ENS, 10 and 100 hPa"],["upperstrat","Upper stratosphere","GEFS, GFS, GEOS FP, GDPS up to 1 hPa"]]},
+  {label: "Weeks 3–6", ico: "\u{1F4C5}", items: [["vortex35","Polar vortex, days 1–35","GEFS and GEPS, drift-corrected"],["vloop35","Polar vortex loop, days 1–35","GEFS and GEPS, 10 and 100 hPa"],["fdrip","Forecast dripping paint","GEPS, GEFS to day 35; AIFS-ENS, IFS-ENS to day 15"]]},
+  {label: "Season", ico: "\u{1F5D3}", items: [["s5vortex","SEAS5: vortex, QBO, annular mode","51 members, seven months, hindcast skill"],["s5ssw","SEAS5: sudden-warming risk","against the model's own normal"],["s5cap","SEAS5: polar-cap heights","100, 50 and 10 hPa, both hemispheres"],["shseason","This winter's odds","QBO and ENSO, model-based"]]},
+  {label: "History and studies", ico: "\u231B", items: [["shwinters","Every winter since 1980","pick any winter, compare"],["shssw","Sudden warmings since 1980","timeline, catalogue, vortex shapes"],["shdrip","Dripping paint","how an event reaches the surface"],["shfollow","What usually follows","AO, NAO, temperature, by region; CMIP6"],["shtiming","Who moves first","waves, vortex, tropical upwelling"],["shqbo","The QBO and the vortex","observed and CMIP6"],["shenso","El Niño and sudden warmings","CMIP6, 25,000 winters"],["shmbudget","Momentum budget of past warmings","every term, 24 warmings"],["aoa","Age of stratospheric air","MERRA-2 GMI, 1980–2019"]]}
 ],
   products: {
+  qbo: {label: "QBO from radiosondes", a: {label: "View", items: [["section","Time–height section"],["phase","Where the cycle is now"],["descent","How fast it descends"],["cycles","This cycle against the record"],["stations","Latest month by station"]]},
+          dom: function (a) { return a === "stations" ? "dom-qbostations" : null; },
+          img: function (a) { return "/assets/qbo/qbo_" + (a || "section") + ".webp"; }, bust: "hourly", about: "about-qbo",
+          cap: function (a) {
+            if (a === "phase") return "The two leading EOFs of the wind profile, which between them carry most of the variance. One full QBO cycle is one loop around the origin and the radius is the strength of the oscillation — so a loop that shrinks toward the centre without closing is a <em>disruption</em>, the QBO stalling mid-descent. That is visible here and almost nowhere else.";
+            if (a === "descent") return "Every regime onset, followed level by level as it arrives lower and lower. Tracking a single u&nbsp;=&nbsp;0 height per month does <em>not</em> work — the QBO carries two or three crossings at once — but when each level changes regime is unambiguous, and chaining those gives one line per onset whose slope is a real descent rate. A line that stops before reaching 50–70&nbsp;hPa is an onset that never made it down.";
+            if (a === "cycles") return "Every cycle since the record begins, aligned on the month the 30&nbsp;hPa wind turned westerly, with the current one drawn over the top. \"Unusually long\" or \"stalled\" becomes something you can see rather than something a caption asserts.";
+            if (a === "stations") return "Monthly mean zonal wind at each station for its latest reported month; red westerly, blue easterly.";
+            return "The QBO is a <em>descending</em> pattern, so this is the only honest primary view: height against time, with the u&nbsp;=&nbsp;0 contour drawn heavy. Its downward slope <em>is</em> the descent — read the rate straight off it. A flat stretch is a shear zone that has stalled, which is how both the 2016 and 2020 disruptions announce themselves."; }},
+  vortex35: {label: "Polar vortex, days 1–35 (GEFS and GEPS)", a: {label: "Model", items: [["gefs","GEFS, daily"],["geps","GEPS, Mon/Thu"]]},
+          b: {label: "Hemisphere", items: [["nh","Northern"],["sh","Southern"]]},
+          img: function (a, b) { var h = b === "sh" ? "sh" : "nh"; return a === "geps" ? "assets/geps/strat_" + h + "_series.webp" : "assets/gefs/gefs_strat_" + h + "_series.webp"; },
+          bust: "hourly", about: "about-vortex35",
+          cap: function (a) { return a === "geps" ? "GEPS: u(60°) at 10 and 100 hPa, polar-cap T and height. Ensemble spread, 14-day analysis tail, previous run’s mean dashed on the common days."
+                                                  : "GEFS: u(60°) at 10 and 100 hPa, polar-cap T and height. Every member corrected for GEFS’s drift with lead against its own 2000–2019 reforecast — which reaches 10 hPa, unlike GEPS’s — then referenced to ERA5 1991–2020; ensemble spread, 14-day GEFS analysis tail, previous run’s mean dashed on the common days."; }},
+  vloop35: {label: "Polar vortex loop, days 1–35 (GEFS and GEPS)", a: {label: "Model", items: [["gefs","GEFS"],["geps","GEPS"]]},
+          frame: function (a) { var m = a === "geps" ? "geps" : "gefs"; return "sst_anim.html?base=assets/" + m + "/anim&manifest=" + m + "_strat_manifest.json&embed=1"; },
+          ratio: function (a) { return a === "geps" ? "1189/555" : "1189/615"; }, about: "about-vloop35",
+          cap: function (a) { return a === "geps" ? "GEPS: temperature anomaly, total wind and height anomaly at 10 and 100 hPa, analysis to day 35, both hemispheres. Anomalies against ERA5 1991–2020 with the model’s drift removed using GEPS reforecasts."
+                                                  : "GEFS: days 1–35, both hemispheres and levels: temperature and height anomaly against the lead-matched reforecast (height relative to the hemisphere poleward of 20°), total wind with heights. At 10 hPa the model’s own drift reaches about 4 K in the tropics by week 3, so long-lead 10 hPa temperature anomalies equatorward of the vortex carry that much uncertainty."; }},
+  s5vortex: {label: "SEAS5: vortex, QBO and annular mode", dom: function () { return "dom-s5vortex"; }, about: "about-s5vortex",
+          cap: function () { return "SEAS5 member plumes for the 60°N and 60°S vortex winds, the equatorial QBO winds, the annular mode level by level and the 100 hPa planetary waves, against the 1993–2016 hindcast, with each month's hindcast skill."; }},
+  s5ssw: {label: "SEAS5: polar vortex and sudden-warming risk", dom: function () { return "dom-s5ssw"; }, about: "about-s5ssw",
+          cap: function () { return "The share of the 51 members with a major sudden warming this winter, against SEAS5's own base rate and the observed rate, with the hindcast's verdict on whether the index has skill."; }},
+  s5cap: {label: "SEAS5: polar-cap heights", dom: function () { return "dom-s5cap"; }, about: "about-s5cap",
+          cap: function () { return "60–90° polar-cap height anomaly at 100, 50 and 10 hPa, every member against the hindcast's linear trend; a high cap is a weak, warm vortex."; }},
   vortex: {label: "Northern polar vortex", img: function () { return "assets/sst/nh_vortex.webp?v=__CACHE__"; }, about: "about-vortex", fit: false,
           cap: function () { return "Zonal-mean wind at 60°N at 10 and 100 hPa and the 100 hPa polar-cap height, members against the MERRA-2 percentile bands."; }},
   upperstrat: {label: "Upper stratosphere (GEFS, GFS, GEOS FP, GDPS)",
@@ -750,7 +840,81 @@ window.STAGE = {
 }
 };
 </script>
+<script>
+/* Hub extras (2026-10-08): the SEAS5 cards and the QBO station table load on their first visit, not with the page. */
+(function () {
+  "use strict";
+  function $(id) { return document.getElementById(id); }
+  var s5 = false, qbo = false;
+  function startS5() {
+    if (s5) return; s5 = true;
+    var go = function () {
+      var C = window.SEAS5Cards; if (!C) { $("stratNote").textContent = $("sswVerdict").textContent = "This product could not be loaded just now; try reloading in a minute."; return; }
+      C.ensure(function () {
+        Promise.all([C.getJSON("assets/sst/data/seas5_tele.json"), C.getJSON("assets/sst/data/seas5_outlook.json"), C.getJSON("assets/sst/data/seas5_ssw.json")]).then(function (r) {
+          var T = r[0], J = r[1], W = r[2];
+          if (T) { C.stratFigs(T, "stratFigs"); C.indexCard(T, "strat", "stratPills", "stratNote", "stratChart", "stratTable", "stratUpdated", "u60n10"); }
+          else $("stratNote").textContent = "The SEAS5 stratosphere indices could not be loaded just now; try reloading in a minute.";
+          if (J && J.polar) C.polarCard(J, { pills: "polarPills", chart: "polarChart", updated: "polarUpdated" });
+          else $("polarChart").textContent = "The SEAS5 polar-cap heights could not be loaded just now; try reloading in a minute.";
+          C.sswCard(W, { verdict: "sswVerdict", table: "sswTable", figs: "sswFigs", updated: "sswUpdated" });
+          window.dispatchEvent(new Event("resize"));
+        });
+      });
+    };
+    if (window.SEAS5Cards) return go();
+    var sc = document.createElement("script"); sc.src = "/assets/seas5-cards.js"; sc.onload = go; sc.onerror = go; document.head.appendChild(sc);
+  }
+  function startQBO() {
+    if (qbo) return; qbo = true;
+    fetch("/qbo/qbo.json").then(function (r) { return r.json(); }).then(function (d) {
+      var levels = d.levels, months = d.months, u = d.u, latest = d.latest;
+      var li30 = levels.indexOf(30), li50 = levels.indexOf(50);
+      var lastIdx = function (li) { for (var i = months.length - 1; i >= 0; i--) if (u[li][i] !== null) return i; };
+      var i30 = lastIdx(li30), i50 = lastIdx(li50), u30 = u[li30][i30], u50 = u[li50][i50], run = 0;
+      for (var i = i30; i >= 0 && u[li30][i] !== null && (u[li30][i] > 0) === (u30 > 0); i--) run++;
+      var desc = (u30 > 0) !== (u50 > 0) ? " · descending (opposite sign below)" : "";
+      var sg = function (v) { return (v > 0 ? "+" : "") + v; };
+      $("qboChips").innerHTML =
+        '<div class="chip"><div class="l">Phase (30 hPa)</div><div class="v ' + (u30 > 0 ? "w" : "e") + '">' + (u30 > 0 ? "Westerly" : "Easterly") + '</div><div class="s">' + run + " month" + (run > 1 ? "s" : "") + " and counting" + desc + "</div></div>" +
+        '<div class="chip"><div class="l">u 30 hPa · ' + months[i30] + '</div><div class="v">' + sg(u30) + ' m/s</div><div class="s">index level</div></div>' +
+        '<div class="chip"><div class="l">u 50 hPa · ' + months[i50] + '</div><div class="v">' + sg(u50) + ' m/s</div><div class="s">index level</div></div>' +
+        '<div class="chip"><div class="l">Record</div><div class="v">' + months[0].slice(0, 4) + '–</div><div class="s">' + months.length + " months · updated " + d.updated.slice(0, 10) + "</div></div>";
+      var names = { 48698: "Singapore", 48650: "Kuala Lumpur", 96441: "Bintulu", 91334: "Chuuk", 91348: "Pohnpei", 91413: "Yap", 82022: "Boa Vista",
+                    82099: "Macapá", 82107: "São Gabriel", 82244: "Santarém", 82332: "Manaus", 82411: "Tabatinga", 63741: "Nairobi" };
+      $("qboStns").innerHTML = "<thead><tr><th>Station</th><th>Month</th>" + levels.map(function (l) { return "<th>" + l + " hPa</th>"; }).join("") + "</tr></thead><tbody>" +
+        Object.keys(latest).map(function (w) { var o = latest[w];
+          return '<tr><td>' + (names[w] || w) + ' <small>' + w + '</small></td><td>' + o.month + "</td>" + levels.map(function (l) {
+            var v = o.u[l]; return v === undefined ? "<td>—</td>" : '<td class="' + (v > 0 ? "w" : "e") + '">' + sg(v) + "</td>"; }).join("") + "</tr>"; }).join("") + "</tbody>";
+      $("qboMethod").textContent = "Red = westerly, blue = easterly. Regimes form near 10 hPa and descend at roughly 1 km/month; " +
+        "the westerly shear zone descends faster and more regularly than the easterly one. The 30 hPa wind is the conventional single-number index. " +
+        "Station means use every available sounding in the month (≥3 required); the cross-station mean currently draws on up to " + Object.keys(latest).length +
+        " stations spanning Africa, the Maritime Continent, the western Pacific and the Amazon.";
+    }).catch(function () { $("qboMethod").textContent = "The station table could not be loaded just now; try reloading in a minute."; });
+  }
+  window.STAGE.onRender = function (sel) {
+    if (sel.p === "s5vortex" || sel.p === "s5ssw" || sel.p === "s5cap") startS5();
+    if (sel.p === "qbo" && sel.a === "stations") startQBO();
+  };
+})();
+</script>
 <style>
+/* SEAS5 cards (moved from seasonal.html 2026-10-08) and the QBO station table (moved from /qbo/) */
+.s5card .idx-note { font-size: 0.8rem; color: var(--ink2); margin: 0.2rem 0 0.6rem; min-height: 1.2em; }
+.s5card .map-grid { display: grid; gap: 1rem; }
+.s5card .map-grid figure { margin: 0; background: #fff; border: 1px solid var(--rule); padding: 0.5rem; }
+.s5card .map-grid img { display: block; width: 100%; height: auto; }
+.s5card .map-grid figcaption { font-size: 0.8rem; color: var(--ink2); padding: 0.5rem 0.3rem 0.2rem; line-height: 1.5; }
+.s5card table.chg { border-collapse: collapse; width: 100%; max-width: 46rem; font-size: 0.9rem; margin: 0.4rem 0 0.6rem; }
+.s5card table.chg th, .s5card table.chg td { text-align: right; padding: 0.42rem 0.7rem; border-bottom: 1px solid var(--rule); white-space: nowrap; }
+.s5card table.chg th:first-child, .s5card table.chg td:first-child { text-align: left; }
+.s5card table.chg th { font-weight: 600; color: var(--ink2); font-size: 0.78rem; letter-spacing: 0.02em; }
+.s5card table.chg td.up { color: var(--warm); font-weight: 600; }
+.s5card table.chg td.down { color: var(--cool); font-weight: 600; }
+.s5card table.chg td.flat { color: var(--muted); }
+.qbo-table td, .qbo-table th { text-align: right; } .qbo-table td:first-child, .qbo-table th:first-child { text-align: left; }
+.qbo-table td.w { color: #a33a26; font-weight: 600; } .qbo-table td.e { color: #2b5f8a; font-weight: 600; }
+#dom-qbostations .chip .v.w { color: #a33a26; } #dom-qbostations .chip .v.e { color: #2b5f8a; }
 .sh-hist .controls { display: flex; flex-wrap: wrap; gap: 0.35rem; align-items: center; margin-bottom: 0.45rem; }
 .sh-pick { margin-left: auto; font-size: 0.85rem; color: var(--muted); display: inline-flex; gap: 0.4rem; align-items: center; }
 .sh-pick select { font: inherit; color: var(--ink, #1c2430); padding: 0.22rem 0.4rem; border: 1px solid #c9c5bb; border-radius: 4px; background: #fff; }

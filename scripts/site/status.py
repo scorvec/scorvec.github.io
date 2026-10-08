@@ -33,7 +33,6 @@ RAW_FRAMES = "https://raw.githubusercontent.com/" + REPO + "/frames/"
 PRODUCTS = {
     "/enso.html":            (24,  {"path": "assets/sst/data/enso_daily.json"}),
     "/skewt/":               (6,   {"branch": "skewt-data"}),
-    "/qbo/":                 (168, {"path": "qbo/qbo.json"}),
     "/climate.html":         (744, {"json": "assets/climate/anim/data/meta.json", "field": "generated"}),
     "/ar.html":              (12,  {"path": "assets/ar/anim/ar_det_manifest.json"}),
     "/mjo.html":             (12,  {"path": "assets/mjo/rmm_manifest.json"}),

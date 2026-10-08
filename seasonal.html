@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Seasonal Model Forecasts — Eight C3S Systems, ECMWF SEAS5 Members and NOAA SFS · Shawn Corvec</title>
-<meta name="description" content="Seasonal model forecasts: anomaly maps and tercile probabilities for eight Copernicus C3S systems from seven centres and their multi-model mean, the member-level ECMWF SEAS5 outlook — ENSO and ocean indices, teleconnections, the stratosphere and impacts — and NOAA's SFS beta: 31-member Niño-3.4 plumes, climate indices and monthly anomaly maps.">
+<meta name="description" content="Seasonal model forecasts: anomaly maps and tercile probabilities for eight Copernicus C3S systems from seven centres and their multi-model mean, the member-level ECMWF SEAS5 outlook — ENSO and ocean indices, teleconnections and impacts — and NOAA's SFS beta: 31-member Niño-3.4 plumes, climate indices and monthly anomaly maps.">
 <meta name="keywords" content="seasonal forecast, seasonal model forecasts, C3S, ECMWF SEAS5, multi-model seasonal ensemble, tercile probabilities, NOAA SFS, SFS model, Seasonal Forecast System, CFSv2 successor, ENSO forecast, Nino 3.4">
 <link rel="canonical" href="https://scorvec.com/seasonal.html">
 <meta property="og:type" content="website">
@@ -18,7 +18,13 @@
 <link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;1,400&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/assets/outlook.css">
 <link rel="stylesheet" href="/assets/stage.css">
+<script>
+// SEAS5 stratosphere cards moved to the stratosphere page (2026-10-08): forward old deep links before the stage reads the hash
+(function () { var m = {"stratCard": "s5vortex", "sswCard": "s5ssw", "polar-stratosphere": "s5cap"};
+  var id = location.hash.replace(/^#/, "").split("/")[0]; if (m[id]) location.replace("/stratosphere.html#" + m[id]); })();
+</script>
 <style>
+  .strat-links { margin: 0.6rem 0 0.2rem 1.1rem; line-height: 1.9; font-size: 0.95rem; }
   .idx-note { font-size: 0.8rem; color: var(--ink2); margin: 0.2rem 0 0.6rem; min-height: 1.2em; }
   .map-grid { display: grid; gap: 1rem; }
   .map-grid figure { margin: 0; background: #fff; border: 1px solid var(--rule); padding: 0.5rem; }
@@ -131,18 +137,20 @@
           <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g2">Stratosphere</button>
           <div class="sh-menu sh-menu--cols" id="sh-g2">
             <div>
-              <h3>Polar vortex</h3>
+              <h3>Polar vortex and QBO</h3>
               <ul>
                 <li><a href="/stratosphere.html">Stratosphere and polar vortex</a></li>
-                <li class="sh-subitem"><a href="/stratosphere.html#heatflux">Eddy heat flux</a></li>
-                <li class="sh-subitem"><a href="/stratosphere.html#pv">Potential vorticity</a></li>
-                <li class="sh-subitem"><a href="/stratosphere.html#bdc">Brewer–Dobson circulation</a></li>
+                <li class="sh-subitem"><a href="/stratosphere.html#pv">Now: analyses and observations</a></li>
+                <li class="sh-subitem"><a href="/stratosphere.html#vortex">Next two weeks</a></li>
+                <li class="sh-subitem"><a href="/stratosphere.html#vortex35">Weeks 3–6</a></li>
+                <li class="sh-subitem"><a href="/stratosphere.html#s5vortex">Season</a></li>
+                <li class="sh-subitem"><a href="/stratosphere.html#shwinters">History and studies</a></li>
+                <li class="sh-subitem"><a href="/stratosphere.html#qbo">QBO tracker</a></li>
               </ul>
             </div>
             <div>
-              <h3>QBO and momentum</h3>
+              <h3>Momentum</h3>
               <ul>
-                <li><a href="/qbo/">QBO tracker</a></li>
                 <li><a href="/circulation.html#aam">Angular momentum and torques</a></li>
               </ul>
             </div>
@@ -221,14 +229,15 @@
 <!-- sh:end -->
 <script src="https://cdn.jsdelivr.net/npm/plotly.js-cartesian-dist-min@2.35.2/plotly-cartesian.min.js"></script>
 <script src="/assets/outlook-charts.js"></script>
+<script src="/assets/seas5-cards.js"></script>
 <main>
   <header>
     <div class="eyebrow">Monthly, from the Copernicus C3S multi-system seasonal ensemble, the NOAA SFS beta and ECCC CanSIPS, <span id="issueLabel">latest issue</span></div>
     <h1>Seasonal model forecasts</h1>
     <p class="sub">Eight C3S seasonal systems from seven centres, each read against <b>its own 1993&ndash;2016 hindcast</b>
     so the models compare even though their biases do not. Every system carries the global maps and the tercile
-    probabilities; ECMWF SEAS5 carries the member-level work as well &mdash; ENSO and ocean indices, teleconnections,
-    the stratosphere and the impact products &mdash; because its full ensemble is the one held locally. NOAA&rsquo;s
+    probabilities; ECMWF SEAS5 carries the member-level work as well &mdash; ENSO and ocean indices, teleconnections
+    and the impact products, with its stratosphere on the <a href="/stratosphere.html#s5vortex">stratosphere page</a> &mdash; because its full ensemble is the one held locally. NOAA&rsquo;s
     SFS beta, the successor to CFSv2, has its own group: 31 members against its own 1991&ndash;2020 reforecast. Canada&rsquo;s
     CanSIPS has a group read straight from Environment and Climate Change Canada that runs for <b>twelve months</b>; its
     months 7&ndash;12 are CanSIPS alone. Pick a figure from the rail.</p>
@@ -466,7 +475,7 @@
       <span class="chart-updated" id="mapUpdated">&mdash;</span>
     </div>
   </div>
-  <div class="card" id="teleCard" data-label="Teleconnection indices" data-group="SEAS5 &middot; Teleconnections &amp; stratosphere">
+  <div class="card" id="teleCard" data-label="Teleconnection indices" data-group="SEAS5 &middot; Teleconnections &amp; regimes">
     <h2>Teleconnection indices, member by member</h2>
     <p class="note">The CPC patterns &mdash; NAO, PNA, AO, the East Atlantic, West Pacific and the rest &mdash;
     read from each member&rsquo;s monthly 500&nbsp;hPa height (sea-level pressure for the AO) with the same
@@ -490,44 +499,17 @@
       <span class="chart-updated" id="teleUpdated">&mdash;</span>
     </div>
   </div>
-  <div class="card" id="stratCard" data-label="Vortex, QBO, annular mode" data-group="SEAS5 &middot; Teleconnections &amp; stratosphere">
-    <h2>Vortex, QBO and annular mode</h2>
-    <p class="note">The zonal-mean 10&nbsp;hPa wind at 60&deg;N is the standard vortex-strength measure
-    (its 60&deg;S twin covers the southern spring breakdown); the probability of an easterly
-    reading is the sudden-warming side of the distribution. The equatorial 10, 30 and 50&nbsp;hPa
-    winds are SEAS5&rsquo;s own QBO, which sets the Holton&ndash;Tan tilt on the vortex. The
-    NAM-by-level indices are polar-cap height anomalies standardised by the hindcast and
-    signed so that positive is a strong vortex, from 10&nbsp;hPa down to the surface &mdash; read
-    them top to bottom for downward coupling. Wave-1 and wave-2 amplitudes at 100&nbsp;hPa are the
-    planetary-wave forcing that precedes a warming.</p>
-    <div class="map-grid" id="stratFigs" style="margin-bottom:1rem"></div>
-    <div class="controls" id="stratPills"></div>
-    <div class="idx-note" id="stratNote"></div>
-    <div id="stratChart" class="plot" style="height:460px"></div>
-    <div style="overflow-x:auto"><table class="chg" id="stratTable"></table></div>
-    <div class="chart-card-footer">
-      <span class="chart-sources">ECMWF SEAS5 u and z at 10&ndash;1000 hPa, 2&deg; &middot; anomalies and spreads vs the 1993&ndash;2016 hindcast &middot; skill: hindcast ensemble mean vs ERA5</span>
-      <span class="chart-updated" id="stratUpdated">&mdash;</span>
-    </div>
-  </div>
-  <div class="card" id="sswCard" hidden data-label="Polar vortex and SSW risk" data-group="SEAS5 &middot; Teleconnections &amp; stratosphere">
-    <h2>Polar vortex and sudden-warming risk, against the model&rsquo;s own normal</h2>
-    <p class="note">The vortex day by day: the zonal-mean wind at 60&deg;N and 10&nbsp;hPa for each of the 51 members,
-    against SEAS5&rsquo;s <b>own</b> normal for the same start date and lead &mdash; its hindcast, 25 members &times; 36 winters
-    (1981&ndash;2016) &mdash; so the model&rsquo;s drift and bias are in the reference, not in the anomaly. A <b>major sudden
-    stratospheric warming</b> is counted the standard way (Charlton &amp; Polvani 2007): the daily wind turns easterly between
-    1&nbsp;November and 31&nbsp;March, 20 westerly days separate two events, and a reversal that never recovers for 10 days before
-    30&nbsp;April is the final warming, not an SSW. The risk index is the share of members with at least one, set against the
-    model&rsquo;s base rate (same start, same rule) and the observed rate (MERRA-2). Its skill is tested on the hindcast: each
-    winter&rsquo;s member fraction against what MERRA-2 observed. 100&nbsp;hPa is monthly only: the daily hindcast at that level is
-    not in the AWS copy and would take hundreds of thousands of CDS fields per start month.</p>
-    <div class="idx-note" id="sswVerdict"></div>
-    <div style="overflow-x:auto"><table class="chg" id="sswTable"></table></div>
-    <div class="map-grid" id="sswFigs"></div>
-    <div class="chart-card-footer">
-      <span class="chart-sources">ECMWF SEAS5: daily u 10 hPa (CDS sub-daily, 51 members; hindcast from the AWS SEAS5 daily copy, 1981&ndash;2016), monthly u 100 hPa (CDS, 1993&ndash;2016 hindcast) &middot; observed: MERRA-2 (NASA GMAO) 1980&ndash;2026, GEOS FP analyses this season</span>
-      <span class="chart-updated" id="sswUpdated">&mdash;</span>
-    </div>
+  <div class="card" id="stratLinkCard" data-label="Stratosphere" data-group="SEAS5 &middot; Teleconnections &amp; regimes">
+    <h2>SEAS5 stratosphere: on the stratosphere page</h2>
+    <p class="note">The SEAS5 stratosphere products from this page &mdash; the vortex, QBO and annular-mode plumes, the polar vortex
+    and sudden-warming risk against the model&rsquo;s own normal, and the polar-cap heights &mdash; moved on 8 October 2026 to the
+    <a href="/stratosphere.html#s5vortex">stratosphere page</a>, where they sit beside every other model&rsquo;s vortex forecast,
+    from the next two weeks out to the season.</p>
+    <ul class="strat-links">
+      <li><a href="/stratosphere.html#s5vortex">Vortex, QBO and annular mode &rarr;</a></li>
+      <li><a href="/stratosphere.html#s5ssw">Polar vortex and sudden-warming risk &rarr;</a></li>
+      <li><a href="/stratosphere.html#s5cap">Polar-cap heights &rarr;</a></li>
+    </ul>
   </div>
   <div class="card" id="popCard" data-label="Population-weighted, daily" data-group="SEAS5 &middot; Impacts">
     <h2>Population-weighted temperature: the forecast for each month, against normal and record</h2>
@@ -662,24 +644,7 @@
       <span class="chart-updated" id="normUpdated">&mdash;</span>
     </div>
   </div>
-  <div class="card" id="polar-stratosphere" data-label="Polar stratosphere" data-group="SEAS5 &middot; Teleconnections &amp; stratosphere">
-    <h2>Polar stratosphere &mdash; cap-mean heights</h2>
-    <p class="note">The 60&ndash;90&deg; polar-cap mean geopotential height at 100, 50 and 10&nbsp;hPa, as an
-    anomaly against the hindcast&rsquo;s <b>linear trend</b> at each lead, extrapolated to the forecast
-    year &mdash; heights carry the warming trend, so an anomaly against the 1993&ndash;2016 mean would
-    read high before any circulation signal. A <b>high</b> cap at 100&nbsp;hPa is a weak, warm
-    vortex (the SSW-side reading); a low cap is a strong, cold one. The hindcast &plusmn;1&sigma; band
-    shows how far a seasonal model normally strays, which at these levels is not far &mdash; read
-    the sign of the tilt and whether the members agree, not the amplitude. Both hemispheres;
-    the 60°S twin shows the southern vortex&rsquo;s own cycle at the same leads.</p>
-    <div class="controls" id="polarPills"></div>
-    <div id="polarChart" class="plot" style="height:460px"></div>
-    <div class="chart-card-footer">
-      <span class="chart-sources">ECMWF SEAS5 geopotential, 2&deg; grid, cosine-weighted 60&ndash;90&deg; cap mean &middot; anomalies vs the 1993&ndash;2016 hindcast&rsquo;s linear trend at the valid year</span>
-      <span class="chart-updated" id="polarUpdated">&mdash;</span>
-    </div>
-  </div>
-  <div class="card" id="regimeCard" hidden data-label="Weather regimes" data-group="SEAS5 &middot; Teleconnections &amp; stratosphere">
+  <div class="card" id="regimeCard" hidden data-label="Weather regimes" data-group="SEAS5 &middot; Teleconnections &amp; regimes">
     <h2>Weather regimes: how often each circulation pattern occurs, against SEAS5&rsquo;s own climate</h2>
     <p class="note">The four winter weather regimes of the <a href="subseasonal.html">subseasonal pages</a> &mdash; the same
     k-means clusters of 5-day-mean 500&nbsp;hPa anomalies (NCEP/NCAR R1 1991&ndash;2020), for North America and the
@@ -782,8 +747,8 @@
     <p class="note" style="max-width:80ch;font-size:0.9rem;line-height:1.65">ECMWF&rsquo;s seasonal system, read in full and checked against observations: the ENSO
     indices from the coastal Ni&ntilde;o-1+2 to the central-Pacific Ni&ntilde;o-4, each against the
     previous three issues; the Pacific, Atlantic and Indian Ocean indices from the same fields;
-    what changed since last month; the CPC teleconnection patterns and the stratosphere, each
-    with the model&rsquo;s own hindcast skill; anomaly and tercile maps against the hindcast and
+    what changed since last month; the CPC teleconnection patterns, with the model&rsquo;s own hindcast skill (the stratosphere,
+    tested the same way, is on the <a href="/stratosphere.html#s5vortex">stratosphere page</a>); anomaly and tercile maps against the hindcast and
     against observed normals; and the forecast for population-weighted temperature in the United
     States and Brazil set against normals and records. Model drift is removed everywhere by
     anomalising each member against SEAS5&rsquo;s own 1993&ndash;2016 hindcast for the same start
@@ -853,7 +818,7 @@
   </div>
 <script>
 window.STAGE = {
-  groups: [{"label": "Every model", "items": [["c3sMapCard", "Anomaly maps", ""], ["c3sTercCard", "Tercile probabilities", ""], ["c3sIdxCard", "Ocean indices", ""], ["c3sPopCard", "Population-weighted, monthly", ""], ["c3sDayCard", "Population-weighted, daily", ""], ["ni-o-3-4-every-member", "Niño-3.4, every member", ""]]}, {"label": "SEAS5 · ENSO & oceans", "items": [["enso-indices", "ENSO indices", ""], ["pdo-amo-iod-atlantic-ni-o", "PDO, AMO, IOD, Atlantic Niño", ""]]}, {"label": "SEAS5 · Maps", "items": [["changeCard", "Maps and changes", ""], ["calibrated-terciles", "Calibrated terciles", ""], ["normCard", "Against observed normals", ""]]}, {"label": "SEAS5 · Teleconnections & stratosphere", "items": [["teleCard", "Teleconnection indices", ""], ["stratCard", "Vortex, QBO, annular mode", ""], ["sswCard", "Polar vortex and SSW risk", ""], ["polar-stratosphere", "Polar stratosphere", ""], ["regimeCard", "Weather regimes", ""]]}, {"label": "SEAS5 · Impacts", "items": [["popCard", "Population-weighted, daily", ""], ["xdaysCard", "Threshold days", ""], ["runsCard", "Cold-snap risk", ""], ["windCard", "Wind events", ""], ["snowCard", "Snowfall", ""], ["pmeCard", "P − E by region", ""]]}, {"label": "NOAA SFS (beta)", "items": [["sfs-plume", "Niño-3.4 plume", "all 31 members"], ["sfs-indices", "Climate indices", "IOD, SASD, Niño flavours, PDO"], ["sfs-maps", "Monthly anomaly maps", "eight fields, every lead"]]}, {"label": "CanSIPS (Environment Canada, 12 months)", "items": [["cs-plume", "Niño-3.4 plume", "40 members, 12 months"], ["cs-maps", "Anomaly maps", "nine fields, monthly and 3-month"], ["cs-terc", "Tercile probabilities", "ECCC's own: temperature, rain, snow"], ["cs-tails", "Decile tails", "ECCC's own: warmest, coldest, wettest, driest 10%"]]}, {"label": "About", "items": [["aboutCard", "About this page", ""]]}],
+  groups: [{"label": "Every model", "items": [["c3sMapCard", "Anomaly maps", ""], ["c3sTercCard", "Tercile probabilities", ""], ["c3sIdxCard", "Ocean indices", ""], ["c3sPopCard", "Population-weighted, monthly", ""], ["c3sDayCard", "Population-weighted, daily", ""], ["ni-o-3-4-every-member", "Niño-3.4, every member", ""]]}, {"label": "SEAS5 · ENSO & oceans", "items": [["enso-indices", "ENSO indices", ""], ["pdo-amo-iod-atlantic-ni-o", "PDO, AMO, IOD, Atlantic Niño", ""]]}, {"label": "SEAS5 · Maps", "items": [["changeCard", "Maps and changes", ""], ["calibrated-terciles", "Calibrated terciles", ""], ["normCard", "Against observed normals", ""]]}, {"label": "SEAS5 · Teleconnections & regimes", "items": [["teleCard", "Teleconnection indices", ""], ["stratLinkCard", "Stratosphere", "moved to the stratosphere page"], ["regimeCard", "Weather regimes", ""]]}, {"label": "SEAS5 · Impacts", "items": [["popCard", "Population-weighted, daily", ""], ["xdaysCard", "Threshold days", ""], ["runsCard", "Cold-snap risk", ""], ["windCard", "Wind events", ""], ["snowCard", "Snowfall", ""], ["pmeCard", "P − E by region", ""]]}, {"label": "NOAA SFS (beta)", "items": [["sfs-plume", "Niño-3.4 plume", "all 31 members"], ["sfs-indices", "Climate indices", "IOD, SASD, Niño flavours, PDO"], ["sfs-maps", "Monthly anomaly maps", "eight fields, every lead"]]}, {"label": "CanSIPS (Environment Canada, 12 months)", "items": [["cs-plume", "Niño-3.4 plume", "40 members, 12 months"], ["cs-maps", "Anomaly maps", "nine fields, monthly and 3-month"], ["cs-terc", "Tercile probabilities", "ECCC's own: temperature, rain, snow"], ["cs-tails", "Decile tails", "ECCC's own: warmest, coldest, wettest, driest 10%"]]}, {"label": "About", "items": [["aboutCard", "About this page", ""]]}],
   products: {
     "c3sMapCard": { label: "Anomaly maps", gated: true, dom: function () { return "c3sMapCard"; } },
     "c3sTercCard": { label: "Tercile probabilities", gated: true, dom: function () { return "c3sTercCard"; } },
@@ -866,8 +831,7 @@ window.STAGE = {
     "changeCard": { label: "Maps and changes", gated: true, dom: function () { return "changeCard"; } },
     "calibrated-terciles": { label: "Calibrated terciles", gated: true, dom: function () { return "calibrated-terciles"; } },
     "teleCard": { label: "Teleconnection indices", gated: true, dom: function () { return "teleCard"; } },
-    "stratCard": { label: "Vortex, QBO, annular mode", gated: true, dom: function () { return "stratCard"; } },
-    "sswCard": { label: "Polar vortex and SSW risk", gated: true, dom: function () { return "sswCard"; } },
+    "stratLinkCard": { label: "Stratosphere: moved to the stratosphere page", dom: function () { return "stratLinkCard"; } },
     "popCard": { label: "Population-weighted, daily", gated: true, dom: function () { return "popCard"; } },
     "xdaysCard": { label: "Threshold days", gated: true, dom: function () { return "xdaysCard"; } },
     "runsCard": { label: "Cold-snap risk", gated: true, dom: function () { return "runsCard"; } },
@@ -875,7 +839,6 @@ window.STAGE = {
     "snowCard": { label: "Snowfall", gated: true, dom: function () { return "snowCard"; } },
     "pmeCard": { label: "P − E by region", gated: true, dom: function () { return "pmeCard"; } },
     "normCard": { label: "Against observed normals", gated: true, dom: function () { return "normCard"; } },
-    "polar-stratosphere": { label: "Polar stratosphere", gated: true, dom: function () { return "polar-stratosphere"; } },
     "regimeCard": { label: "Weather regimes", gated: true, dom: function () { return "regimeCard"; } },
     "sfs-plume": { label: "SFS Niño-3.4 — all 31 members", dom: function () { return "dom-sfs-plume"; }, about: "about-sfs",
                    cap: function () { return ""; } },
@@ -1005,18 +968,6 @@ window.STAGE.onRender = function (sel) {
     var m = meta(state.other);
     document.getElementById("otherNote").textContent = m.note;
     OC.react("otherChart", indexTraces(state.other, false, m.units), { title: m.label + (state.sm ? ", 3-month running mean" : ""), yunits: m.units, xrange: xrange(state.other, false) });
-  }
-  function drawPolar() {
-    var key = state.hemi + "_z" + state.lev, e = J.polar[key]; if (!e) { document.getElementById("polarChart").textContent = "no data for " + key; return; }
-    var valid = J.indices[J.issue].valid, x = valid.map(monthDate), tr = [], hv = { units: "m", digits: 0, signed: true };
-    tr = tr.concat(OC.climBand(x, e.clim_sd, null, "hindcast ±1σ"));
-    var pe = J.polar_previous && J.polar_previous[key];
-    if (pe) tr = tr.concat(OC.prevTraces([{ x: pe.valid.map(monthDate), y: pe.mean, name: issueLabel(J.previous) + " issue mean" }], hv));
-    tr = tr.concat(OC.fanTraces(x, e));
-    tr.push(OC.memberTrace(x, OC.memberRows(e.members, x.length)));
-    tr.push(OC.meanTrace(x, e.mean, issueLabel(J.issue) + " issue mean", hv));
-    var title = (state.hemi === "nh" ? "Northern" : "Southern") + " polar cap, " + state.lev + " hPa height anomaly";
-    OC.react("polarChart", tr, { title: title, yunits: "m", xrange: OC.monthRange(valid, []) });
   }
 
   function pills(elId, keys, cur, onpick) {
@@ -1384,86 +1335,12 @@ window.STAGE.onRender = function (sel) {
     document.getElementById("changeUpdated").textContent = "built " + J.generated;
   }
 
-  // generic member-index plume for the teleconnection / stratosphere JSON
-  var IDX_MODE = { cal: true };   // calibrated view first where the hindcast regression exists (user 2026-09-07: SOI)
-  function hasCal(e) { return !!(e.cal && e.cal.some(function (c) { return c && c.mu != null && c.s != null && !c.no_skill; })); }
-  function idxTraces(T, key) {
-    var e = T.indices[key], pe = T.previous_indices && T.previous_indices[key], x = e.valid.map(monthDate), tr = [];
-    var absolute = !!e.absolute, base = absolute ? e.clim_mean : null, hv = { units: e.units, digits: 2, signed: !absolute };
-    var calOn = IDX_MODE.cal && hasCal(e) && !absolute;
-    tr = tr.concat(OC.climBand(x, e.clim_sd, base, absolute ? "hindcast mean ±1σ" : "hindcast ±1σ"));
-    if (absolute) tr.push(OC.hindMeanTrace(x, e.clim_mean, "hindcast mean"));
-    if (pe) tr = tr.concat(OC.prevTraces([{ x: pe.valid.map(monthDate), y: pe.mean, name: issueLabel(T.previous) + " issue mean (raw)" }], hv));
-    if (calOn) {
-      // calibrated: N(a·x̄ + b, s²) per lead from the 24 hindcast years; bands at the 10–90 and 25–75 % quantiles
-      var mu = e.cal.map(function (c, i) { return c && c.mu != null && !c.no_skill ? c.mu : e.mean[i]; }), sd = e.cal.map(function (c) { return c && c.s != null ? c.s : null; });
-      var q = function (z) { return mu.map(function (m, i) { return sd[i] == null ? null : m + z * sd[i]; }); };
-      tr = tr.concat(OC.fanTraces(x, { p10: q(-1.2816), p90: q(1.2816), p25: q(-0.6745), p75: q(0.6745) }));
-      tr.push(OC.meanTrace(x, mu, issueLabel(T.issue) + " issue, calibrated to observations", hv));
-      tr.push({ x: x, y: e.mean, mode: "lines", line: { color: "#8a4b2a", width: 1.6, dash: "dot" }, name: "raw model mean", hovertemplate: "%{y:+.2f}<extra>raw model mean</extra>" });
-    } else {
-      tr = tr.concat(OC.fanTraces(x, e));
-      if (e.members) tr.push(OC.memberTrace(x, OC.memberRows(e.members, x.length)));
-      tr.push(OC.meanTrace(x, e.mean, issueLabel(T.issue) + " issue mean", hv));
-    }
-    if (e.obs_tail && e.obs_tail.length) tr.push(OC.obsTrace(e.obs_tail.map(function (r) { return monthDate(r[0]); }), e.obs_tail.map(function (r) { return r[1]; }), e.obs_source === "CPC" ? "observed (CPC index)" : "observed (ERA5, same projection)", hv));
-    if (e.cpc_tail && e.cpc_tail.length && e.obs_source !== "CPC") tr.push(OC.markerTrace(e.cpc_tail.map(function (r) { return monthDate(r[0]); }), e.cpc_tail.map(function (r) { return r[1]; }), "published index (CPC), its own scale", hv));
-    if (key.indexOf("u60") === 0) tr.push({x: [x[0], x[x.length - 1]], y: [0, 0], mode: "lines", line: {color: "#c2185b", width: 1.4, dash: "dash"}, name: "easterly below", hoverinfo: "skip"});
-    return tr;
-  }
-  function idxRange(T, key) {
-    var e = T.indices[key];
-    var tails = [].concat(e.obs_tail || [], e.cpc_tail || []).map(function (r) { return r[0]; }).sort();
-    return OC.monthRange(e.valid, tails);
-  }
-  function idxTable(T, key) {
-    var e = T.indices[key], pe = T.previous_indices && T.previous_indices[key];
-    var thr = T.thr || 0.5, hasCal = !!(e.cal && e.cal.some(function (c) { return c && c.p_neg != null; }));
-    var head = '<tr><th>Month</th><th>Mean</th><th>P10–P90</th>' + (e.p_easterly ? '<th>P(easterly)</th>' : (e.p_neg05 ? '<th>Members ≤ −' + thr + 'σ / ≥ +' + thr + 'σ</th>' : '<th>P(+)</th><th>P(−)</th>')) + (hasCal ? '<th>Calibrated ≤ −' + thr + 'σ / ≥ +' + thr + 'σ</th>' : '') + (pe ? '<th>' + issueLabel(T.previous) + ' mean</th>' : '') + '<th>Skill r</th></tr>';
-    var rows = e.valid.map(function (v, i) {
-      if (e.mean[i] == null) return '<tr><td>' + mmm(v) + '</td><td colspan="7" class="flat">not defined by CPC in this month</td></tr>';
-      var pv = pe ? pe.valid.indexOf(v) : -1, sk = e.skill && e.skill[i] != null ? e.skill[i].toFixed(2) : "—", c = e.cal ? e.cal[i] : null;
-      var skc = e.skill && e.skill[i] != null ? (e.skill[i] >= 0.5 ? "up" : e.skill[i] < (T.skill_min || 0.25) ? "flat" : "") : "flat";
-      var pct = function (x) { return x == null ? "—" : Math.round(x * 100) + "%"; };
-      return '<tr><td>' + mmm(v) + '</td><td>' + fmt(e.mean[i], 2) + '</td><td>' + fmt(e.p10[i], 2) + ' … ' + fmt(e.p90[i], 2) + '</td>' +
-        (e.p_easterly ? '<td>' + pct(e.p_easterly[i]) + '</td>' : (e.p_neg05 ? '<td>' + pct(e.p_neg05[i]) + ' / ' + pct(e.p_pos05[i]) + '</td>' : '<td>' + pct(e.p_pos[i]) + '</td><td>' + pct(e.p_neg[i]) + '</td>')) +
-        (hasCal ? '<td class="' + (c && c.no_skill ? "flat" : "") + '">' + (c && c.p_neg != null ? pct(c.p_neg) + ' / ' + pct(c.p_pos) + (c.no_skill ? " (no skill)" : "") : "—") + '</td>' : '') +
-        (pe ? '<td>' + (pv >= 0 && pe.mean[pv] != null ? fmt(pe.mean[pv], 2) : "—") + '</td>' : '') + '<td class="' + skc + '">' + sk + '</td></tr>';
-    }).join("");
-    return head + rows;
-  }
-  function indexCard(T, group, pillsId, noteId, chartId, tableId, updId, first) {
-    var keys = T.groups[group]; if (!keys || !keys.length) { document.getElementById(chartId).closest(".card").hidden = true; return; }
-    var cur = first && keys.indexOf(first) >= 0 ? first : keys[0];
-    var modeId = pillsId + "Mode", modeEl = document.getElementById(modeId);
-    if (!modeEl) { modeEl = document.createElement("div"); modeEl.className = "controls"; modeEl.id = modeId; document.getElementById(pillsId).insertAdjacentElement("afterend", modeEl); }
-    function draw(k) {
-      var e = T.indices[k];
-      document.getElementById(noteId).textContent = e.note + (T.skill_note ? "  Skill r: " + T.skill_note + "." : "") + (hasCal(e) && IDX_MODE.cal ? "  Calibrated view: the observed index regressed on the hindcast ensemble mean for this month and lead (24 years); mean and spread from that fit" + (e.obs_source === "CPC" ? ", against CPC's published index." : ".") : "");
-      OC.react(chartId, idxTraces(T, k), { title: e.label + (hasCal(e) && IDX_MODE.cal && !e.absolute ? " (calibrated)" : ""), yunits: e.units, xrange: idxRange(T, k), includeZero: !e.absolute || /^(u60|qbo)/.test(k) });
-      document.getElementById(tableId).innerHTML = idxTable(T, k);
-      modeEl.hidden = !hasCal(e) || !!e.absolute;
-      modeEl.innerHTML = modeEl.hidden ? "" : '<span class="ctlsep">View</span><button class="pill' + (IDX_MODE.cal ? " on" : "") + '" data-mode="cal">Calibrated to observations</button><button class="pill' + (!IDX_MODE.cal ? " on" : "") + '" data-mode="raw">Raw model members</button>';
-      modeEl.onclick = function (ev) { var b = ev.target.closest("button"); if (!b) return; IDX_MODE.cal = b.dataset.mode === "cal"; draw(k); };
-    }
-    pills(pillsId, keys.map(function (k) { return {key: k, label: T.indices[k].label}; }), cur, draw);
-    draw(cur);
-    document.getElementById(updId).textContent = "built " + T.generated;
-  }
-  function teleFigs(T) {
-    var F = T.figures || {}, v = "?v=" + encodeURIComponent(T.generated);
-    function fig(file, alt, cap) { return '<figure><a href="assets/sst/' + file + v + '" target="_blank" rel="noopener"><img src="assets/sst/' + file + v + '" alt="' + alt + '" loading="lazy"></a><figcaption>' + cap + '</figcaption></figure>'; }
-    var t = "";
-    if (F.tele_probs) t += fig(F.tele_probs, "SEAS5 teleconnection phase probabilities by month", "<b>Phase probabilities by month.</b> Upper bar: the share of the 51 members at or beyond ±" + (T.thr || 0.5) + "σ. Thin lower bar: the same after hindcast calibration. Hatched cells have no usable hindcast skill (r below " + (T.skill_min || 0.25) + ").");
-    if (F.tele_series) t += fig(F.tele_series, "SEAS5 teleconnection indices with the observed ERA5 tail", "<b>Each index against its observed record.</b> Black: ERA5 through the last month in the local store; red crosses: CPC's published index; bands and navy line: this issue; dashed: last month's. Small r values are the hindcast skill for each month.");
-    document.getElementById("teleFigs").innerHTML = t;
-    document.getElementById("stratFigs").innerHTML = F.strat_series ? fig(F.strat_series, "SEAS5 stratosphere and annular-mode indices with the observed ERA5 tail", "<b>Vortex, QBO, NAM by level and 100 hPa waves</b> against ERA5 where the local store holds the field (the 10–50 hPa winds await the CDS pull, so those panels have no observed tail yet).") : "";
-  }
+  // the member-index plume and its table live in /assets/seas5-cards.js since 2026-10-08 (shared with the stratosphere
+  // page, which hosts the SEAS5 stratosphere cards that used to be here)
   function teleView(T) {
-    if (!T) { document.getElementById("teleCard").hidden = true; document.getElementById("stratCard").hidden = true; return; }
-    teleFigs(T);
-    indexCard(T, "tele", "telePills", "teleNote", "teleChart", "teleTable", "teleUpdated", "pna");
-    indexCard(T, "strat", "stratPills", "stratNote", "stratChart", "stratTable", "stratUpdated", "u60n10");
+    if (!T) { document.getElementById("teleCard").hidden = true; return; }
+    SEAS5Cards.teleFigs(T, "teleFigs");
+    SEAS5Cards.indexCard(T, "tele", "telePills", "teleNote", "teleChart", "teleTable", "teleUpdated", "pna");
   }
 
   function normView(N) {
@@ -1578,24 +1455,13 @@ window.STAGE.onRender = function (sel) {
     J = d;
     popP.then(popView); pmeP.then(pmeView); teleP.then(teleView); normP.then(normView);
     document.getElementById("issueLabel").textContent = issueLabel(J.issue) + " issue";
-    ["ensoUpdated", "otherUpdated", "mapUpdated", "polarUpdated"].forEach(function (id) { document.getElementById(id).textContent = "built " + J.generated; });
+    ["ensoUpdated", "otherUpdated", "mapUpdated"].forEach(function (id) { document.getElementById(id).textContent = "built " + J.generated; });
     pills("ensoPills", J.enso_keys.map(function (k) { return {key: k, label: meta(k).label}; }), state.enso, function (k) { state.enso = k; drawEnso(); });
     pills("otherPills", J.other_keys.map(function (k) { return {key: k, label: meta(k).label}; }), state.other, function (k) { state.other = k; drawOther(); });
-    var pp = [{key: "nh", label: "Northern cap"}, {key: "sh", label: "Southern cap"}];
-    var el = document.getElementById("polarPills"); el.innerHTML = "";
-    pp.forEach(function (k) { var b = document.createElement("button"); b.className = "pill" + (k.key === state.hemi ? " on" : ""); b.textContent = k.label; b.dataset.hemi = k.key; el.appendChild(b); });
-    var sep = document.createElement("span"); sep.className = "ctlsep"; sep.textContent = "·"; el.appendChild(sep);
-    ["100", "50", "10"].forEach(function (lv) { var b = document.createElement("button"); b.className = "pill" + (lv === state.lev ? " on" : ""); b.textContent = lv + " hPa"; b.dataset.lev = lv; el.appendChild(b); });
-    el.addEventListener("click", function (ev) {
-      var b = ev.target.closest("button"); if (!b) return;
-      if (b.dataset.hemi) { state.hemi = b.dataset.hemi; } else { state.lev = b.dataset.lev; }
-      Array.prototype.forEach.call(el.querySelectorAll("button"), function (c) { c.classList.toggle("on", (c.dataset.hemi && c.dataset.hemi === state.hemi) || (c.dataset.lev && c.dataset.lev === state.lev)); });
-      drawPolar();
-    });
     document.getElementById("membersPill").addEventListener("click", function () { state.members = !state.members; this.classList.toggle("on", state.members); drawEnso(); });
     document.getElementById("smMonthly").addEventListener("click", function () { state.sm = 0; this.classList.add("on"); document.getElementById("sm3").classList.remove("on"); drawEnso(); drawOther(); });
     document.getElementById("sm3").addEventListener("click", function () { state.sm = 1; this.classList.add("on"); document.getElementById("smMonthly").classList.remove("on"); drawEnso(); drawOther(); });
-    chips(); drawEnso(); drawOther(); changeView(); xdaysView(); runsView(); windView(); snowView(); maps(); drawPolar();
+    chips(); drawEnso(); drawOther(); changeView(); xdaysView(); runsView(); windView(); snowView(); maps();
   }).catch(function (e) {
     document.getElementById("chips").innerHTML = '<div class="chip"><div class="l">Forecast feed</div><div class="v neut">unavailable</div><div class="s">' + String(e).slice(0, 80) + '</div></div>';
   });
@@ -2250,56 +2116,6 @@ window.STAGE.onRender = function (sel) {
   </div>
 </footer>
 <!-- sf:end -->
-<script>
-/* SEAS5 polar vortex and SSW risk (scripts/sst/seas5_ssw.py, 2026-10-07). Every claim is printed with its test:
-   the risk index is called skilful only when the hindcast BSS 90 % interval excludes zero. */
-(function () {
-  function pc(x) { return x == null ? "–" : Math.round(100 * x) + "%"; }
-  function f2(x) { return x == null ? "n/a" : x.toFixed(2); }
-  function mm(ym) { var m = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"]; return m[parseInt(ym.slice(5), 10) - 1] + " " + ym.slice(0, 4); }
-  fetch("assets/sst/data/seas5_ssw.json?v=" + Date.now()).then(function (r) { return r.ok ? r.json() : null; }).then(function (J) {
-    var card = document.getElementById("sswCard"); card.hidden = false;
-    if (!J || !J.windows) {                       // 2026-10-08: no build yet - say so instead of a dead menu link
-      document.getElementById("sswVerdict").innerHTML = "The first build of this product is still running: the daily 10&nbsp;hPa winds of all 51 October members come from the Copernicus data store, where requests queue for hours. The risk index, its skill test and the charts appear here once that run finishes.";
-      return;
-    }
-    var W = J.windows, A = W["Nov–Mar"], S = A.skill, E = J.enso || {}, v = "?v=" + encodeURIComponent(J.generated);
-    var sig = A.p_vs_model_base < 0.05;
-    var t = "<b>" + pc(A.forecast) + " of the 51 members</b> (" + A.forecast_k + ") have a major SSW between November and March, against the model&rsquo;s own base rate of " +
-      pc(A.model_base) + " (90 % interval " + pc(A.model_base_ci90[0]) + "–" + pc(A.model_base_ci90[1]) + ") and an observed rate of " + pc(A.obs_base_long) + " (MERRA-2, " + A.obs_long_years + "). " +
-      (sig ? "The departure from the model base rate is significant (binomial p " + f2(A.p_vs_model_base) + ")." : "The departure from the model base rate is not significant (binomial p " + f2(A.p_vs_model_base) + "): the members are consistent with the model&rsquo;s normal SSW rate.") + " ";
-    t += S.skilful ? "In the hindcast the index has skill beyond climatology: Brier skill score " + f2(S.bss) + " (90 % CI " + f2(S.bss_ci90[0]) + " to " + f2(S.bss_ci90[1]) + ", " + S.n + " winters)."
-      : "<b>In the hindcast the index carries no skill beyond climatology</b> (Brier skill score " + f2(S.bss) + ", 90 % CI " + f2(S.bss_ci90[0]) + " to " + f2(S.bss_ci90[1]) + "; ROC area " + f2(S.auc) + ", " + S.n + " winters, MERRA-2 as truth): read it as the model&rsquo;s view, not as a forecast with a track record.";
-    if (E.hindcast && E.observed) {
-      var h = E.hindcast, o = E.observed;
-      t += " ENSO context: in the hindcast, El Niño winters (DJF ONI ≥ 0.5, " + h.n_nino + " of them) average " + pc(h.rate_nino) + " of members with an SSW against " + pc(h.rate_other) + " in the rest (" + (h.p < 0.05 ? "significant, p " + h.p.toFixed(3) : "not significant, p " + h.p.toFixed(2)) + "); observed " + o.years + ": " + pc(o.rate_nino) + " against " + pc(o.rate_other) + " (" + (o.p < 0.05 ? "significant, p " + o.p.toFixed(3) : "not significant, p " + o.p.toFixed(2)) + ").";
-    }
-    if (J.timing && J.timing.fw_before_march) { var f = J.timing.fw_before_march; t += " Final warming before 1 March: " + pc(f.forecast) + " of members, " + pc(f.hindcast) + " in the hindcast, " + pc(f.observed) + " observed."; }
-    document.getElementById("sswVerdict").innerHTML = t;
-    var rows = ["<tr><th>Window</th><th>This issue</th><th>Model base rate</th><th>Observed (MERRA-2)</th><th>Hindcast skill (BSS, 90 % CI)</th></tr>"];
-    Object.keys(W).forEach(function (k) {
-      var e = W[k], s = e.skill;
-      rows.push("<tr><td>" + k + "</td><td>" + pc(e.forecast) + "</td><td>" + pc(e.model_base) + "</td><td>" + pc(e.obs_base_long) + "</td><td class=\"" + (s.skilful ? "up" : "flat") + "\">" +
-        (s.skilful ? f2(s.bss) + " (" + f2(s.bss_ci90[0]) + " to " + f2(s.bss_ci90[1]) + ")" : "n.s. (" + f2(s.bss_ci90[0]) + " to " + f2(s.bss_ci90[1]) + ")") + "</td></tr>");
-    });
-    if (J.monthly_u10 && J.monthly_u10.length) {
-      rows.push("<tr><th>Month</th><th>u60N 10 hPa, mean (P10–P90)</th><th>Model normal (P10–P90)</th><th>Anomaly</th><th>Chance of an easterly monthly mean (normal)</th></tr>");
-      J.monthly_u10.forEach(function (e) {
-        rows.push("<tr><td>" + mm(e.month) + "</td><td>" + e.mean.toFixed(1) + " (" + e.p10.toFixed(0) + "–" + e.p90.toFixed(0) + ") m/s</td><td>" + e.normal.toFixed(1) + " (" + e.normal_p10.toFixed(0) + "–" + e.normal_p90.toFixed(0) + ")</td><td>" + (e.z >= 0 ? "+" : "") + e.z.toFixed(1) + "σ</td><td>" + pc(e.p_easterly) + " (" + pc(e.p_easterly_normal) + ")</td></tr>");
-      });
-    }
-    document.getElementById("sswTable").innerHTML = rows.join("");
-    var F = J.figures || {}, caps = { u10: "<b>Daily vortex wind against the model normal.</b> Thin lines: members; band: their 10–90 %; brown: ensemble mean; grey: the hindcast normal; black: GEOS FP analyses so far. Lower panel: anomaly in σ of the hindcast spread.",
-      section: "<b>Where the vortex departs from normal</b>, 30–90°N at 10 hPa; inside the black contour the ensemble-mean anomaly is beyond 2 standard errors.",
-      u100: "<b>100 hPa, monthly</b>: the lower-stratospheric vortex, members against the 1993–2016 hindcast normal (leads 1–6; no daily or lead-7 hindcast at this level).",
-      risk: "<b>Risk, timing and reliability.</b> Bars: share of members with an SSW, against the model and observed base rates with 90 % intervals; histogram: when the first SSW falls; right: hindcast reliability against MERRA-2." };
-    document.getElementById("sswFigs").innerHTML = ["risk", "u10", "section", "u100"].filter(function (k) { return F[k]; }).map(function (k) {
-      return '<figure><a href="assets/sst/' + F[k] + v + '" target="_blank" rel="noopener"><img src="assets/sst/' + F[k] + v + '" alt="SEAS5 polar vortex ' + k + '" loading="lazy"></a><figcaption>' + caps[k] + "</figcaption></figure>";
-    }).join("");
-    document.getElementById("sswUpdated").textContent = "built " + J.generated;
-  }).catch(function () { var c = document.getElementById("sswCard"); c.hidden = false; document.getElementById("sswVerdict").textContent = "This product could not be loaded just now; try reloading in a minute."; });
-})();
-</script>
 <script src="/assets/stage.js" defer></script>
 </body>
 </html>
