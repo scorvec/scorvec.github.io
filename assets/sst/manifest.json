@@ -1,9 +1,9 @@
 {
-  "generated": "2026-10-08 15:05 UTC",
+  "generated": "2026-10-08 19:38 UTC",
   "sst_valid_day": "2026-10-07",
   "roni_latest_month": "2026-09",
-  "roni_latest_value": 2.189,
-  "oni_latest_value": 2.955,
+  "roni_latest_value": 2.192,
+  "oni_latest_value": 2.957,
   "daily_nino34_anom": 3.328,
   "daily_tropical_anom": 1.071,
   "daily_relative": 2.256,
@@ -13,7 +13,7 @@
   "daily_atl3": 0.479,
   "daily_tna": 0.847,
   "anim_days": 90,
-  "ver": 1791471927,
+  "ver": 1791488339,
   "files": {
     "global": "global_sst_anom.webp",
     "tropical": "tropical_sst_anom.webp",
