@@ -3489,7 +3489,10 @@ function drawSkewT(prof, res) {
     while (usedY.some(u => Math.abs(u - ly) < 13)) ly += 14;
     usedY.push(ly);
     ctx.fillStyle = col;
-    ctx.fillText(`${lab} ${hm === null ? "" : Math.round(hm) + "m"}`, SK.l + pw - 30, ly);
+    // a dark halo: on a narrow diagram the label sits on the temperature and parcel traces
+    const ltxt = `${lab} ${hm === null ? "" : Math.round(hm) + "m"}`;
+    ctx.save(); ctx.lineWidth = 3.5; ctx.lineJoin = "round"; ctx.strokeStyle = TH.bg; ctx.strokeText(ltxt, SK.l + pw - 30, ly); ctx.restore();
+    ctx.fillText(ltxt, SK.l + pw - 30, ly);
   }
   ctx.textAlign = "left";
   // tropopause (WMO lapse-rate definition): dashed line across the diagram
@@ -3500,17 +3503,21 @@ function drawSkewT(prof, res) {
     ctx.beginPath(); ctx.moveTo(SK.l + 2, yT); ctx.lineTo(SK.l + pw - 2, yT); ctx.stroke();
     ctx.setLineDash([]); ctx.lineWidth = 1;
     ctx.fillStyle = "rgba(214,150,255,0.95)"; ctx.font = "600 11px Inter";
-    ctx.fillText(`TROP ${(tpM.wmoZ / 1000).toFixed(1)} km · ${(tpM.wmoZ * 3.28084 / 1000).toFixed(1)} kft · ${Math.round(tpM.wmoP / 100)} hPa`,
-      SK.l + 48, yT < SK.t + 20 ? yT + 14 : yT - 5);
+    // the longest form that fits the diagram (on a phone the full line ran past the frame and was clipped)
+    const tKm = (tpM.wmoZ / 1000).toFixed(1), tHpa = Math.round(tpM.wmoP / 100);
+    const tTxt = [`TROP ${tKm} km · ${(tpM.wmoZ * 3.28084 / 1000).toFixed(1)} kft · ${tHpa} hPa`, `TROP ${tKm} km · ${tHpa} hPa`, `TROP ${tKm} km`]
+      .find(t => ctx.measureText(t).width <= pw - 56) || `TROP ${tKm} km`;
+    ctx.fillText(tTxt, SK.l + 48, yT < SK.t + 20 ? yT + 14 : yT - 5);
     ctx.font = "700 12px Inter";
   }
+  let eilLabY = null;                                // the EIL label's y: a km tick label there is skipped (they overlapped)
   if (o[28] !== MISSING && o[29] !== MISSING) {
-    const y0 = yOf(o[28]), y1 = yOf(o[29]);
+    const y0 = yOf(o[28]), y1 = yOf(o[29]); eilLabY = (y0 + y1) / 2 + 4;
     ctx.strokeStyle = TH.eil; ctx.lineWidth = 2;
     ctx.beginPath();
     ctx.moveTo(SK.l + 14, y0); ctx.lineTo(SK.l + 5, y0);
     ctx.lineTo(SK.l + 5, y1); ctx.lineTo(SK.l + 14, y1); ctx.stroke();
-    ctx.fillStyle = TH.eil; ctx.fillText("EIL", SK.l + 8, (y0 + y1) / 2 + 4);
+    ctx.fillStyle = TH.eil; ctx.fillText("EIL", SK.l + 17, (y0 + y1) / 2 + 4);   // right of the bracket (a thin layer's ticks struck through it)
   }
   ctx.restore();
 
@@ -3540,7 +3547,7 @@ function drawSkewT(prof, res) {
     if (pAt && pAt > SK.pTop) {
       const y = yOf(pAt);
       ctx.fillRect(SK.l, y - 0.5, 8, 1);
-      ctx.fillText(km + "km", SK.l + 10, y + 3.5);
+      if (eilLabY === null || Math.abs(y + 3.5 - eilLabY) > 13) ctx.fillText(km + "km", SK.l + 10, y + 3.5);
     }
   }
   ctx.font = "12px Inter"; ctx.fillStyle = TH.muted;
@@ -3732,9 +3739,19 @@ function drawHodo(prof, res) {
   const uMin = Math.min(...us), uMax = Math.max(...us);
   const vMin = Math.min(...vs), vMax = Math.max(...vs);
   const span = Math.max(uMax - uMin, vMax - vMin, 30) * 1.25;
-  const scale = (Math.min(W, H) - 30) / span;
+  // the legend rows at the top and the critical-angle line at the bottom get their own bands (2026-10-08 sweep: the
+  // trace and the storm-motion labels ran under the legend text in the narrow panels)
+  const segs = [[0, 1000, "#ff453a"], [1000, 3000, "#ff9f0a"],
+                [3000, 6000, "#30d158"], [6000, 9000, "#ffd60a"], [9000, 12000, "#bf5af2"]];
+  ctx.font = "600 15px Inter";
+  let legRows = 1;
+  { let lx = 12 + ctx.measureText("km AGL:").width + 10;
+    for (const [b2, t2] of segs) { const wItem = 20 + ctx.measureText(`${b2 / 1000}–${t2 / 1000}`).width;
+      if (lx + wItem > W - 8 && lx > 12) { lx = 12; legRows++; } lx += wItem + 14; } }
+  const topBand = 22 + (legRows - 1) * 20 + 12, botBand = 22;   // the two small note lines under the key are haloed instead
+  const scale = Math.min(W - 30, H - topBand - botBand - 6) / span;
   const cx = W / 2 - ((uMin + uMax) / 2) * scale;
-  const cy = H / 2 + ((vMin + vMax) / 2) * scale;
+  const cy = topBand + (H - topBand - botBand) / 2 + ((vMin + vMax) / 2) * scale;
   const X = u => cx + u * scale, Y = v => cy - v * scale;
 
   // rings + crosshair
@@ -3742,15 +3759,13 @@ function drawHodo(prof, res) {
   const rMax = Math.ceil((span * 0.75) / 10) * 10 + 20;
   for (let r = 10; r <= rMax; r += 10) {
     ctx.beginPath(); ctx.arc(X(0), Y(0), r * scale, 0, 7); ctx.stroke();
-    ctx.fillText(r, X(r) - 7, Y(0) + 14);
+    if (10 * scale >= 26 || r % 20 === 0) ctx.fillText(r, X(r) - 7, Y(0) + 14);   // every other ring when they crowd
   }
   ctx.strokeStyle = "#34345a"; ctx.lineWidth = 1.2;
   ctx.beginPath(); ctx.moveTo(0, Y(0)); ctx.lineTo(W, Y(0)); ctx.stroke();
   ctx.beginPath(); ctx.moveTo(X(0), 0); ctx.lineTo(X(0), H); ctx.stroke();
 
-  // trace segments by height
-  const segs = [[0, 1000, "#ff453a"], [1000, 3000, "#ff9f0a"],
-                [3000, 6000, "#30d158"], [6000, 9000, "#ffd60a"], [9000, 12000, "#bf5af2"]];
+  // trace segments by height (segs, above)
   // resample on regular height steps (interpolating across level voids) so the
   // trace is continuous regardless of native level spacing
   const topAgl = Math.min(12000, agl[n - 1] ?? 12000);
@@ -3802,6 +3817,11 @@ function drawHodo(prof, res) {
     ctx.stroke(); ctx.setLineDash([]);
   }
 
+  // text with a background-coloured halo, so labels stay legible where they cross the trace or the rings
+  const halo = (txt, x, y) => {
+    ctx.save(); ctx.lineWidth = 4; ctx.lineJoin = "round"; ctx.strokeStyle = TH.bg; ctx.strokeText(txt, x, y); ctx.restore();
+    ctx.fillText(txt, x, y);
+  };
   // storm motion + mean wind markers, SHARPpy-style dir/spd labels
   const markUsed = [];                  // placed label boxes; nudge collisions down
   const mark = (uMs, vMs, lab, col, hollow) => {
@@ -3814,10 +3834,11 @@ function drawHodo(prof, res) {
     const txt = `${Math.round(dirOf(uMs, vMs))}/${Math.round(Math.hypot(u, v))} ${lab}`;
     const tw = ctx.measureText(txt).width;
     let tx = X(u) + 9, ty = Y(v) + 4.5;
+    if (tx + tw > W - 4) tx = X(u) - 9 - tw;          // near the right edge: label on the left of the marker (was cut off)
     while (markUsed.some(([ux, uy, mw]) => Math.abs(uy - ty) < 17 && tx < ux + mw && ux < tx + tw))
       ty += 18;
     markUsed.push([tx, ty, tw]);
-    ctx.fillText(txt, tx, ty);
+    halo(txt, tx, ty);
   };
   mark(o[22], o[23], "RM", "#ff453a", false);
   mark(o[24], o[25], "LM", "#64d2ff", true);
@@ -3842,25 +3863,28 @@ function drawHodo(prof, res) {
     if (mag > 0.1) {
       const ang = Math.acos(Math.max(-1, Math.min(1, dot / mag))) * 180 / Math.PI;
       ctx.fillStyle = "#ffd60a"; ctx.font = "700 16px Inter";
-      ctx.fillText(`Critical angle = ${ang.toFixed(0)}°`, 12, H - 12);
+      halo(`Critical angle = ${ang.toFixed(0)}°`, 12, H - 12);
     }
   }
-  // height-band legend (labeled colors)
+  // height-band legend (labeled colors); wraps onto a second row in a narrow panel instead of running off the edge
   ctx.font = "600 15px Inter";
-  let lx = 12;
-  ctx.fillStyle = "#9d9dbb"; ctx.fillText("km AGL:", lx, 22);
+  let lx = 12, ly = 22;
+  ctx.fillStyle = "#9d9dbb"; halo("km AGL:", lx, ly);
   lx += ctx.measureText("km AGL:").width + 10;
   for (const [b2, t2, col] of segs) {
-    const lab2 = `${b2 / 1000}–${t2 / 1000}`;
+    const lab2 = `${b2 / 1000}–${t2 / 1000}`, wItem = 20 + ctx.measureText(lab2).width;
+    if (lx + wItem > W - 8 && lx > 12) { lx = 12; ly += 20; }
     ctx.fillStyle = col;
-    ctx.fillRect(lx, 13, 16, 5);
-    ctx.fillText(lab2, lx + 20, 22);
-    lx += 20 + ctx.measureText(lab2).width + 14;
+    ctx.fillRect(lx, ly - 9, 16, 5);
+    halo(lab2, lx + 20, ly);
+    lx += wItem + 14;
   }
   ctx.fillStyle = "#9d9dbb"; ctx.font = "13px Inter";
-  ctx.fillText("rings: knots", 12, 40);
+  halo("rings: knots", 12, ly + 18);
   ctx.fillStyle = "rgba(100,210,255,0.85)"; ctx.font = "600 13px Inter";
-  ctx.fillText("▬ effective inflow layer (air the storm ingests)", 12, 60);
+  const eilLab = ["▬ effective inflow layer (air the storm ingests)", "▬ effective inflow layer", "▬ eff. inflow layer"]
+    .find(t => ctx.measureText(t).width <= W - 20) || "▬ eff. inflow layer";
+  halo(eilLab, 12, ly + 38);
 }
 
 // ---------- tables ----------
