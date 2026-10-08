@@ -467,9 +467,11 @@ def render_phase(model, init, valid, pcs, ref, month, dlabel, out, other=None):
         ax.plot(x, y, color="#9e9e9e", lw=0.8); ax.plot(-x, -y, color="#9e9e9e", lw=0.8)
     for name, (x, y, ha, va) in {"extension": (lim * 0.97, 0, "right", "center"), "poleward": (0, lim * 0.97, "center", "top"),
                                  "retraction": (-lim * 0.97, 0, "left", "center"), "equatorward": (0, -lim * 0.97, "center", "bottom")}.items():
-        ax.text(x, y, PC.PHASE_LABEL[name], ha=ha, va=va, fontsize=11, fontweight="bold", color=PH_COL[name],
+        ax.text(x, y, PC.PHASE_LABEL[name], ha=ha, va=va, fontsize=11, fontweight="bold", color=PH_COL[name], zorder=8,
                 bbox=dict(facecolor="white", edgecolor="none", alpha=0.85, pad=1.5))
-    ax.text(0, 0, "neutral", ha="center", va="center", fontsize=9.5, color=MUTED)
+    # above the member lines and dots (the label used to sit under them, unreadable once the tracks crossed the centre)
+    ax.text(0, 0, "neutral", ha="center", va="center", fontsize=9.5, color=MUTED, zorder=8,
+            bbox=dict(facecolor="#f2f2f2", edgecolor="none", alpha=0.75, pad=1.0))
     for i in range(nmem):
         ax.plot(pcs[i, :, 0], pcs[i, :, 1], color=MCOL[model], lw=0.5, alpha=0.12, zorder=2)
     for d, col in ((5, "#9ecae1"), (10, "#4292c6"), (15, "#08306b")):

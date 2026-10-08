@@ -91,7 +91,8 @@
     min-height: calc(100vh - 57px);
   }
 
-  /* SIDEBAR */
+  /* SIDEBAR (2026-10-08 sweep: labels, schools, years and links were 0.25-0.4 white on #131410, 2-3:1;
+     now >= 0.62 white, >= 5:1) */
   .sidebar {
     background: var(--dark);
     color: rgba(255,255,255,0.85);
@@ -110,19 +111,19 @@
     color: #fff;
   }
   .sidebar-title {
-    font-size: 0.7rem; letter-spacing: 0.1em; text-transform: uppercase;
-    color: rgba(255,255,255,0.4); margin-bottom: 2.5rem;
+    font-size: 0.78rem; letter-spacing: 0.1em; text-transform: uppercase;
+    color: rgba(255,255,255,0.66); margin-bottom: 2.5rem;
     line-height: 1.6;
   }
   .sidebar-section { margin-bottom: 2.5rem; }
   .sidebar-section-label {
-    font-size: 0.75rem; letter-spacing: 0.14em; text-transform: uppercase;
-    color: rgba(255,255,255,0.3); margin-bottom: 1rem;
+    font-size: 0.78rem; letter-spacing: 0.14em; text-transform: uppercase;
+    color: rgba(255,255,255,0.62); margin-bottom: 1rem;
     padding-bottom: 0.5rem;
     border-bottom: 1px solid rgba(255,255,255,0.08);
   }
   .sidebar-location {
-    font-size: 0.8rem; color: rgba(255,255,255,0.55);
+    font-size: 0.85rem; color: rgba(255,255,255,0.72);
     display: flex; align-items: center; gap: 0.5rem;
     margin-bottom: 0.5rem;
   }
@@ -131,14 +132,14 @@
   /* SKILLS */
   .skill-group { margin-bottom: 1.2rem; }
   .skill-group-name {
-    font-size: 0.75rem; letter-spacing: 0.08em; text-transform: uppercase;
-    color: rgba(255,255,255,0.3); margin-bottom: 0.5rem;
+    font-size: 0.78rem; letter-spacing: 0.08em; text-transform: uppercase;
+    color: rgba(255,255,255,0.62); margin-bottom: 0.5rem;
   }
   .skill-tags { display: flex; flex-wrap: wrap; gap: 0.35rem; }
   .skill-tag {
-    font-size: 0.78rem; padding: 0.25rem 0.6rem;
+    font-size: 0.82rem; padding: 0.25rem 0.6rem;
     background: rgba(255,255,255,0.07);
-    color: rgba(255,255,255,0.6);
+    color: rgba(255,255,255,0.78);
     border: 1px solid rgba(255,255,255,0.1);
     border-radius: 2px; letter-spacing: 0.02em;
   }
@@ -146,17 +147,17 @@
   /* EDUCATION in sidebar */
   .edu-item { margin-bottom: 1.2rem; }
   .edu-degree {
-    font-size: 0.78rem; color: rgba(255,255,255,0.8);
+    font-size: 0.85rem; color: rgba(255,255,255,0.86);
     font-weight: 500; margin-bottom: 0.15rem;
     line-height: 1.4;
   }
   .edu-school {
-    font-size: 0.72rem; color: rgba(255,255,255,0.4);
+    font-size: 0.82rem; color: rgba(255,255,255,0.66);
     margin-bottom: 0.1rem;
   }
   .edu-year {
-    font-family: var(--mono); font-size: 0.75rem;
-    color: rgba(255,255,255,0.25); letter-spacing: 0.04em;
+    font-family: var(--mono); font-size: 0.78rem;
+    color: rgba(255,255,255,0.62); letter-spacing: 0.04em;
   }
 
   .sidebar-footer {
@@ -166,17 +167,19 @@
   }
   .sidebar-footer a {
     display: flex; align-items: center; gap: 0.5rem;
-    font-size: 0.7rem; color: rgba(255,255,255,0.35);
+    font-size: 0.82rem; color: rgba(255,255,255,0.66);
     text-decoration: none; margin-bottom: 0.6rem;
     transition: color 0.2s; letter-spacing: 0.03em;
   }
-  .sidebar-footer a:hover { color: rgba(255,255,255,0.7); }
+  .sidebar-footer a:hover { color: #fff; }
   .sidebar-footer svg { flex-shrink: 0; }
 
   /* MAIN CONTENT */
   .content {
     padding: 3.5rem 3.5rem 5rem;
     max-width: 980px;
+    margin: 0 auto;   /* centred in the column: on wide screens it sat at the left with half the window empty */
+    width: 100%;
   }
 
   .content-section { margin-bottom: 4rem; }
@@ -266,13 +269,13 @@
   }
 
   /* FOOTER */
-  footer {
+  footer:not(.sf) {
     padding: 1.2rem 3rem;
     border-top: 1px solid var(--rule);
     display: flex; justify-content: center; align-items: center;
   }
   .counter {
-    font-size: 0.72rem; letter-spacing: 0.08em;
+    font-size: 0.9rem; letter-spacing: 0.04em;
     color: var(--muted); text-transform: uppercase;
   }
   .counter span { color: var(--ink); font-weight: 500; }
@@ -287,7 +290,7 @@
       padding: 2.5rem 1.5rem 2rem;
     }
     .content { padding: 2.5rem 1.5rem 3rem; }
-    footer { padding: 1rem 1.5rem; }
+    footer:not(.sf) { padding: 1rem 1.5rem; }
   }
 @media (max-width: 480px) {
   nav { flex-wrap: wrap; gap: 0.5rem; padding: 0.85rem 1.1rem; }

@@ -27,6 +27,7 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from matplotlib.colors import LogNorm
+from matplotlib.ticker import FuncFormatter
 import cartopy.crs as ccrs
 import cartopy.io.shapereader as shpreader
 
@@ -93,7 +94,7 @@ def draw_panel(ax, counts: dict[str, int], title: str):
     ax.set_global(); ax.set_frame_on(False)
     total = sum(counts.values())
     ax.set_title(f"{title} — {total:,} visitors · {len(counts)} countries",
-                 fontsize=10.5, fontweight="bold", loc="left")
+                 fontsize=11.5, fontweight="bold", loc="left")
     return plt.cm.ScalarMappable(norm=norm, cmap=cmap)
 
 
@@ -108,19 +109,22 @@ def main() -> int:
     top_pages = [{"path": p["path"], "count": int(p["count"])}
                  for p in pages.get("hits", [])][:10]
 
-    fig = plt.figure(figsize=(12.6, 4.6))
-    ax1 = fig.add_subplot(1, 2, 1, projection=ccrs.Robinson())
-    ax2 = fig.add_subplot(1, 2, 2, projection=ccrs.Robinson())
+    # Fixed axes boxes sized to the Robinson map's ~2:1 aspect (2026-10-08 sweep): with add_subplot the maps
+    # floated in the middle of a taller figure and left a wide empty band under the title
+    fig = plt.figure(figsize=(12.6, 4.25))
+    ax1 = fig.add_axes([0.005, 0.2, 0.49, 0.66], projection=ccrs.Robinson())
+    ax2 = fig.add_axes([0.505, 0.2, 0.49, 0.66], projection=ccrs.Robinson())
     draw_panel(ax1, loc30, "Last 30 days")
     sm = draw_panel(ax2, loc_all, "All time")
-    cax = fig.add_axes([0.35, 0.12, 0.3, 0.03])            # above the source line, which sits at y=0.005
+    cax = fig.add_axes([0.35, 0.155, 0.3, 0.03])           # above the source line, which sits at y=0.005
     cb = fig.colorbar(sm, cax=cax, orientation="horizontal")
-    cb.set_label("unique visitors (log scale)", fontsize=8)
-    cb.ax.tick_params(labelsize=7)
-    fig.suptitle("Where scorvec.com's visitors come from", fontsize=13,
-                 fontweight="bold", y=0.99)
+    cb.set_label("unique visitors (log scale)", fontsize=9)
+    cb.ax.xaxis.set_major_formatter(FuncFormatter(lambda v, _: f"{v:,.0f}"))   # 1, 10, 100 rather than 10^0 ...
+    cb.ax.tick_params(labelsize=8.5)
+    fig.suptitle("Where scorvec.com's visitors come from", fontsize=14,
+                 fontweight="bold", y=0.985)
     fig.text(0.5, 0.005, "GoatCounter (privacy-friendly, cookie-free) · country-level "
-             "IP geolocation · updated daily", ha="center", fontsize=7.5, color="0.4")
+             "IP geolocation · updated daily", ha="center", fontsize=8.5, color="#6f6b64")
     OUTDIR.mkdir(parents=True, exist_ok=True)
     fig.savefig(OUTDIR / "visitor_map.webp", dpi=115, bbox_inches="tight",
                 facecolor="white")

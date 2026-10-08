@@ -151,13 +151,13 @@
   .colophon a:hover { border-bottom-color: var(--accent); }
 
   /* FOOTER */
-  footer {
+  footer:not(.sf) {
     padding: 1.2rem 3rem;
     border-top: 1px solid var(--rule);
     display: flex; justify-content: center;
   }
   .counter {
-    font-size: 0.72rem; letter-spacing: 0.08em;
+    font-size: 0.9rem; letter-spacing: 0.04em;
     color: var(--muted); text-transform: uppercase;
   }
   .counter span { color: var(--ink); font-weight: 500; }
@@ -175,7 +175,7 @@
     .chart-card-footer { padding: 0.75rem 1.3rem; }
     .chart-frame { height: 480px; }
     .chart-frame.map { height: 600px; }
-    footer { padding: 1rem 1.5rem; }
+    footer:not(.sf) { padding: 1rem 1.5rem; }
   }
 
   /* PHONE */
@@ -199,7 +199,7 @@
     .chart-frame { height: 460px; }
     .chart-frame.map { height: 560px; }
     .colophon { margin-top: 2.5rem; }
-    footer { padding: 0.9rem 1.1rem; }
+    footer:not(.sf) { padding: 0.9rem 1.1rem; }
   }
 
   /* VERY NARROW */

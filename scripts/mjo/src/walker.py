@@ -135,6 +135,18 @@ def clim_psi(coeffs: xr.DataArray, doy: float) -> np.ndarray:
     return np.tensordot(basis, coeffs.values, axes=(0, 0))
 
 
+def nice_lim(x):
+    """Round a colour-scale half-range up to 10 x a round step, so the 21 levels and the colour-bar ticks (every
+    second level) are round numbers (2026-10-08 sweep: the raw percentile gave ticks like 0.222, 0.444, 0.666)."""
+    if not np.isfinite(x) or x <= 0:
+        return 1.0
+    k = 10.0 ** np.floor(np.log10(x / 10.0))
+    for m in (1.0, 1.5, 2.0, 2.5, 3.0, 4.0, 5.0, 7.5, 10.0):
+        if 10 * m * k >= x * (1 - 1e-9):
+            return float(10 * m * k)
+    return float(100 * k)
+
+
 def plot_psi(psi, p_hpa, lon, out: Path, title: str, vlim, psi_abs, pidx, pclim,
              psi_clim=None):
     fig, ax = plt.subplots(figsize=(14.5, 5.1))
@@ -183,7 +195,7 @@ def plot_psi(psi, p_hpa, lon, out: Path, title: str, vlim, psi_abs, pidx, pclim,
     for x, lab in ((120, "Maritime\nContinent"), (255, "E Pacific"), (293, "S America")):
         ax.text(x, 118, lab, ha="center", va="top", fontsize=8.5, color="0.45", style="italic")
     ax.set_title(title, fontsize=13.5, fontweight="bold")
-    cb = fig.colorbar(cf, ax=ax, pad=0.015)
+    cb = fig.colorbar(cf, ax=ax, pad=0.015, ticks=levs[::2])
     cb.set_label("Ψ_W anomaly  (10¹⁰ kg s⁻¹)", fontsize=10.5)
     cb.ax.tick_params(labelsize=9.5)
     fig.text(0.5, 0.005,
@@ -283,7 +295,7 @@ def build_anim(hist: xr.DataArray, anim_dir: Path, manifest: Path, static_out: P
         pcls.append(cl)
         pidx.append(pac_index(psi, p_pa / 100, lon))
         pcl.append(pac_index(cl, p_pa / 100, lon))
-    vlim = float(np.nanpercentile(np.abs(np.stack(psip)), 99.0)) or 1.0
+    vlim = nice_lim(float(np.nanpercentile(np.abs(np.stack(psip)), 99.0)) or 1.0)
 
     anim_dir = Path(anim_dir); anim_dir.mkdir(parents=True, exist_ok=True)
     for old in anim_dir.glob("F*.webp"):
