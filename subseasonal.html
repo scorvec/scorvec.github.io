@@ -222,7 +222,7 @@
     plumes, weather regimes and the MJO &mdash; one figure at a time, picked from the menu; its polar vortex is on the
     <a href="/stratosphere.html#vortex35/geps">stratosphere page</a>.</p>
     <div class="chips">
-      <div class="chip"><div class="l">cycle</div><div class="v">2026-10-08 00Z</div><div class="s">extended run</div></div>
+      <div class="chip"><div class="l">cycle</div><div class="v" data-cycle>2026-10-08 00Z</div><div class="s">extended run</div></div>
       <div class="chip"><div class="l">valid</div><div class="v"><b data-valid>Oct 8 &ndash; Nov 11</b></div><div class="s">days 1&ndash;35</div></div>
       <div class="chip"><div class="l">members</div><div class="v">21</div><div class="s">GEPS extended</div></div>
       <div class="chip"><div class="l">anomaly base</div><div class="v">1991&ndash;2020</div><div class="s">via the 2001&ndash;2020 GEPS8 hindcast</div></div>
@@ -249,7 +249,7 @@
       <p class="hint"><span class="kbd">&larr;</span> <span class="kbd">&rarr;</span> step through the last option row &middot; <span class="kbd">&uarr;</span> <span class="kbd">&darr;</span> change product &middot; click a map to enlarge &middot; the address bar carries the selection, so a view can be linked.</p>
       <div class="chart-card-footer">
         <span class="chart-sources">Data: Environment and Climate Change Canada, GEPS extended ensemble (MSC Datamart); contains information licensed under the <a href="https://open.canada.ca/en/open-government-licence-canada">Open Government Licence &ndash; Canada</a> &middot; GEPS8 hindcast 2001&ndash;2020 &middot; ERA5 1991&ndash;2020</span>
-        <span class="chart-updated">init 2026-10-08 00Z</span>
+        <span class="chart-updated" data-init>init 2026-10-08 00Z</span>
       </div>
     </section>
   </div>
@@ -453,6 +453,23 @@ function mjoTable(show) {
   h += "</tbody></table><p class=\"cap\">GEPS8 hindcast, 2001\u20132020, four-member ensemble mean, verified against BoM\u2019s RMM on the valid date. \u201Cnow\u201D is the starts within \u00B145 days of day-of-year " + MJOS.doy_now + ". The operational 21-member mean should reach each threshold two to three days later than these hindcast numbers.</p>";
   host.innerHTML = h;
 }
+
+// Cycle stamp. geps.yml writes assets/geps/cycle.json and NEVER commits this page (2026-10-08: a run that started
+// before a hand edit used to commit its stale copy of the whole page and revert the edit). The text in the markup is
+// only the no-JS fallback.
+(function () {
+  var M = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+  function md(iso) { var d = new Date(iso + "T00:00:00Z"); return M[d.getUTCMonth()] + " " + d.getUTCDate(); }
+  fetch("assets/geps/cycle.json", { cache: "no-cache" }).then(function (r) { if (!r.ok) throw r.status; return r.json(); })
+    .then(function (j) {
+      if (!j || !/^\d{4}-\d{2}-\d{2}$/.test(j.init_date || "")) return;
+      var t = j.init_date + " " + (j.init_hour || "00") + "Z";
+      document.querySelectorAll("[data-cycle]").forEach(function (e) { e.textContent = t; });
+      document.querySelectorAll("[data-init]").forEach(function (e) { e.textContent = "init " + t; });
+      if (j.valid_from && j.valid_to)
+        document.querySelectorAll("[data-valid]").forEach(function (e) { e.textContent = md(j.valid_from) + " \u2013 " + md(j.valid_to); });
+    }).catch(function () {});
+})();
 
 </script>
 <!-- sf:start -->

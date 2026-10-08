@@ -137,12 +137,14 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: scripts/lib/publish_frames_ci.sh assets/geps/anim scripts/geps/state
 
-      - name: Commit & push (page assets, page stamp, MJO observed channels)
+      - name: Commit & push (page assets incl. the cycle stamp, MJO observed channels)
         if: steps.run.outputs.new == '1'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          OUT="assets/geps subseasonal.html scripts/mjo/data/reference/era5_olr_band.nc scripts/mjo/data/reference/era5_eq_uv_recent.nc"
+          # NEVER subseasonal.html: the page is static and reads assets/geps/cycle.json. Committing this checkout's
+          # copy of a page reverts any hand edit that landed on main while the build ran (2026-10-08).
+          OUT="assets/geps scripts/mjo/data/reference/era5_olr_band.nc scripts/mjo/data/reference/era5_eq_uv_recent.nc"
           # snapshot + clean resync each attempt (the sfs/gefs pattern): never a rebase, never a reset that could
           # silently discard the render
           SNAP=$(mktemp -d)

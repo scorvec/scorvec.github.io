@@ -126,6 +126,9 @@ jobs:
             if ! timeout 120 git fetch origin main; then echo "fetch $i failed"; sleep 5; continue; fi
             git reset --hard origin/main
             tar xf "$SNAP/outs.tar" 2>/dev/null || true
+            # the pages come from the model repo, but their chrome is the site's: re-stamp it from main's CURRENT
+            # apply_chrome.py so a menu change pushed during this run is not reverted (2026-10-08)
+            python -c "import sys; sys.path.insert(0, 'scripts/site'); import apply_chrome as A; A.stamp_all(only={'midterms/index.html', 'midterms/about.html', 'midterms/polls.html', 'midterms/whatif.html', 'midterms/legislatures.html'}, quiet=True)" || echo "::warning::chrome re-stamp failed"
             git add -A midterms
             if git diff --staged --quiet; then echo "No changes; skipping commit."; echo "PUSHED=0" >> "$GITHUB_ENV"; exit 0; fi
             git commit -q -m "midterms: forecast update $asof" -- midterms

@@ -50,6 +50,7 @@ jobs:
             tar xf "$SNAP/outs.tar"
             ls assets/mjo/rmm_*z.png 2>/dev/null | sort -r | tail -n +61 | xargs -r rm
             ls assets/mjo/rmmclean_*z.png 2>/dev/null | sort -r | tail -n +61 | xargs -r rm
+            scripts/lib/mjo_page_at_tip.sh "$GITHUB_SHA"   # never restore a page built from a stale generator
             git add -A $OUT
             if git diff --staged --quiet; then echo "No changes."; exit 0; fi
             git commit -m "MJO loop: restore frames dropped by the old mtime pruning (newest 60 cycles by name)"

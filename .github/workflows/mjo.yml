@@ -238,6 +238,7 @@ jobs:
             tar xf "$SNAP/outs.tar"
             ls assets/mjo/rmm_*z.png 2>/dev/null | sort -r | tail -n +61 | xargs -r rm
             ls assets/mjo/rmmclean_*z.png 2>/dev/null | sort -r | tail -n +61 | xargs -r rm
+            scripts/lib/mjo_page_at_tip.sh "$GITHUB_SHA"   # never restore a page built from a stale generator
             git add $OUT
             if git diff --staged --quiet; then echo "No changes."; exit 0; fi
             git commit -m "data update: ${{ needs.check.outputs.compact }}"
@@ -495,6 +496,7 @@ jobs:
             perl -0pi -e "s/((?:kelvin_hov|ocean_kelvin)\.webp)\?v=\w+/\${1}?v=$CB/g" enso.html
             git add enso.html circulation.html
             ls assets/mjo/rmm_*z.png 2>/dev/null | sort -r | tail -n +61 | xargs -r rm   # re-apply pruning
+            scripts/lib/mjo_page_at_tip.sh "$GITHUB_SHA"   # never restore a page built from a stale generator
             for f in $OUT; do [ -e "$f" ] && git add "$f"; done
             if git diff --staged --quiet; then echo "No changes; skipping commit."; exit 0; fi
             git commit -m "data update: ${{ needs.check.outputs.compact }}"

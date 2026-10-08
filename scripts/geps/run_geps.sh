@@ -17,7 +17,7 @@
 set -uo pipefail
 HERE="$(cd "$(dirname "$0")" && pwd)"
 SITE="$(cd "$HERE/../.." && pwd)"
-OUTROOT="${SITE_ROOT:-$SITE}"          # where assets/geps and subseasonal.html are written (a scratch copy for checks)
+OUTROOT="${SITE_ROOT:-$SITE}"          # where assets/geps is written (a scratch copy for checks)
 export SITE_ROOT="$OUTROOT"
 PY="${PY:-python}"
 cd "$HERE" || exit 1
@@ -95,14 +95,17 @@ for d in "$FIGS"/anim/*/; do
   cp "$d"*.webp "$OUTROOT/assets/geps/anim/$r/"
 done
 cp "$FIGS"/anim/*.json "$OUTROOT/assets/geps/anim/"
-"$PY" - "$CYCLE" "$OUTROOT/subseasonal.html" <<'PYEOF'
-import re, sys, datetime as dt
+# The cycle stamp is DATA, not a page edit: subseasonal.html reads assets/geps/cycle.json and this job never writes or
+# commits the page (2026-10-08 - a run that started before a hand edit committed its stale copy of the whole page and
+# reverted the edit). Lead day L is valid on the UTC day init + (L - 1), so days 1-35 run init .. init + 34.
+"$PY" - "$CYCLE" "$OUTROOT/assets/geps/cycle.json" <<'PYEOF'
+import json, sys, datetime as dt
 from pathlib import Path
 c = sys.argv[1]; d = dt.date(int(c[:4]), int(c[4:6]), int(c[6:8]))
-p = Path(sys.argv[2]); s = p.read_text()
-s = re.sub(r"\d{4}-\d{2}-\d{2} 00Z", f"{d:%Y-%m-%d} 00Z", s)
-s = re.sub(r'<b data-valid>[^<]*</b>', f'<b data-valid>{d:%b %-d} &ndash; {d + dt.timedelta(days=34):%b %-d}</b>', s)
-p.write_text(s); print(f"  page stamped {d}")
+Path(sys.argv[2]).write_text(json.dumps({"cycle": c, "init_date": f"{d:%Y-%m-%d}", "init_hour": "00",
+                                         "valid_from": f"{d:%Y-%m-%d}", "valid_to": f"{d + dt.timedelta(days=34):%Y-%m-%d}",
+                                         "lead_days": 35}) + "\n")
+print(f"  cycle stamp {d} -> {sys.argv[2]}")
 PYEOF
 
 step "archive this cycle for the next run's comparisons" "$PY" archive.py --cycle "$CYCLE" || echo "::warning::archive failed"
