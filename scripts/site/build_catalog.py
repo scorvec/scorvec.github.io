@@ -109,7 +109,8 @@ PAGES = {
     "/models.html": dict(kind="page", topic="weather", tier=0, prio=4, models=["HRRR", "RRFS", "RDPS"], horizon="Days 1–15",
                          region=["North America"], variable=["Temperature", "Wind", "Convection", "Precipitation"]),
     "/ar.html": dict(kind="stage", file="ar.html", topic="weather", title="Atmospheric rivers", tier=0, prio=6,
-                     models=["AIFS-ENS"], horizon="Days 1–15", region=["North America", "Pacific"]),
+                     models=["AIFS", "IFS", "GFS", "GDPS", "AIFS-ENS", "IFS-ENS", "GEFS", "GEPS"], horizon="Days 1–15",
+                     region=["North America", "Pacific"]),
     # "/ecape.html" retired 2026-09-30: its ECAPE grids are a field of /models.html
     # "/cities/" paused 2026-09-27 (city forecasts turned off); restore from git history
     "/qbo/": dict(kind="stage", file="qbo/index.html", topic="circulation", title="QBO tracker", tier=0, prio=9,

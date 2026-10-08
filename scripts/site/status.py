@@ -35,7 +35,7 @@ PRODUCTS = {
     "/skewt/":               (6,   {"branch": "skewt-data"}),
     "/qbo/":                 (168, {"path": "qbo/qbo.json"}),
     "/climate.html":         (744, {"json": "assets/climate/anim/data/meta.json", "field": "generated"}),
-    "/ar.html":              (12,  {"path": "assets/ar/ar_monitor.json"}),
+    "/ar.html":              (12,  {"path": "assets/ar/anim/ar_det_manifest.json"}),
     "/mjo.html":             (12,  {"path": "assets/mjo/rmm_manifest.json"}),
     "/circulation.html":     (24,  {"path": "assets/sst/aam.webp"}),
     "/stratosphere.html":    (12,  {"path": "assets/sst/nh_vortex.webp"}),

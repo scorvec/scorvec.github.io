@@ -158,8 +158,12 @@ catalog.yml|07:05|
 catalog.yml|19:05|
 aam.yml|09:20|
 aam.yml|21:20|
-ar.yml|09:05|
-ar.yml|21:05|
+ar-det.yml|08:20|
+ar-det.yml|20:20|
+ar-ens.yml|09:05|
+ar-ens.yml|21:05|
+ar-ext.yml|05:10|
+ar-ext.yml|10:10|
 # Columbia basin: the four schedule-only callers were cron-only and ran 1-6 h
 # late every cycle (audit 2026-09-07); dispatch them at their cron minute.
 aifs-compare.yml|09:45|

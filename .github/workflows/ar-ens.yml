@@ -98,7 +98,8 @@ jobs:
           D="assets/ar/anim/ens_mm_p250 assets/ar/anim/ens_mm_p500 assets/ar/anim/ens_data"
           for s in aifs ifs gefs geps; do D="$D assets/ar/anim/ens_${s}_p250"; done
           for s in aifs ifs; do D="$D assets/ar/anim/pwat_${s} assets/ar/anim/pwatanom_${s}"; done
-          scripts/lib/publish_frames_ci.sh $D
+          # the retired AIFS-ENS-only monitor's loops (ar_monitor.py, removed 2026-10-07) are pruned from the branch
+          PRUNE="assets/ar/anim/ar_ivt assets/ar/anim/ar_prob assets/ar/anim/ar_ctrl" scripts/lib/publish_frames_ci.sh $D
       - name: Commit & push
         run: |
           git config user.name "github-actions[bot]"
