@@ -233,9 +233,8 @@ def lon_interp(filled: pd.DataFrame, min_moorings: int = MIN_MOORINGS) -> pd.Dat
 
 
 def fill_from(df: pd.DataFrame, g: pd.DataFrame | None) -> pd.DataFrame | None:
-    """Reanalysis anomaly at each mooring + that mooring's TAO-minus-reanalysis offset over the
-    365 days BEFORE each day (min 120 paired days; the last offset is carried through long gaps,
-    the whole-record mean before the first one). The offset absorbs the different climatologies
+    """Reanalysis anomaly at each mooring + that mooring's TAO-minus-reanalysis offset (365-day
+    window, >= 120 paired days; see below). The offset absorbs the different climatologies
     (TAO 1991-2020 vs GLORYS 1993-2020) and slow model drift (GLORYS ran ~0.2 C warm of TAO in
     2024-25)."""
     if g is None:
@@ -244,7 +243,11 @@ def fill_from(df: pd.DataFrame, g: pd.DataFrame | None) -> pd.DataFrame | None:
     df = df.reindex(idx)
     g = g.reindex(index=idx, columns=df.columns)
     diff = df - g
-    off = diff.rolling(365, min_periods=120).mean().shift(1).ffill()
+    # centred 365-d window where it has >= 120 pairs (history: brackets a gap from both sides, so
+    # a drifting model is tied to TAO before AND after); else the last such offset carried forward
+    # (real time: only the past exists); else the first one carried back; else the record mean
+    cen = diff.rolling(365, center=True, min_periods=120).mean()
+    off = cen.ffill().fillna(cen.bfill())
     return g + off.fillna(diff.mean())
 
 
