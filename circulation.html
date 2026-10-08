@@ -75,6 +75,7 @@
                 <li><a href="/circulation.html#tcjet">Tropical cyclones and the jet</a></li>
                 <li><a href="/circulation.html#tcens">Tropical cyclone ensembles</a></li>
                 <li><a href="/circulation.html#tcphase">Cyclone phase space</a></li>
+                <li><a href="/circulation.html#tcshear">Shear and environment</a></li>
                 <li><a href="/recon.html">Hurricane reconnaissance</a></li>
               </ul>
             </div>
@@ -273,6 +274,51 @@
 <p><b>Left</b>: B against the lower-level thermal wind. A tropical cyclone sits top left (symmetric, warm core); a completed extratropical cyclone bottom right (asymmetric, cold core). <b>Right</b>: lower against upper thermal wind; deep warm core top right, deep cold core bottom left, and a storm with a warm core only near the surface (a hybrid, or one losing its upper warm core during transition) bottom right. Each path is coloured by forecast day, from the circle (start) to the cross (where the tracker last finds the storm). Following Evans and Hart (2003), transition <b>begins</b> when B first exceeds 10&nbsp;m and is <b>complete</b> when the lower-level thermal wind turns negative.</p>
 <p class="chart-sources">Track: ECMWF's tropical-cyclone tracker on AIFS-ENS, control member; geopotential from the same control run (open data, CC&nbsp;BY&nbsp;4.0), 12-hourly to day 15 &middot; Hart (2003), MWR 131, 585&ndash;616; Evans &amp; Hart (2003), MWR 131, 909&ndash;925 &middot; approximation: the open data carry 925/850/700/600 and 600/500/400/300&nbsp;hPa only (Hart used 900&ndash;600 every 25&nbsp;hPa), so B uses 925&ndash;600&nbsp;hPa; parameters smoothed over 24&nbsp;h as in Hart &middot; one deterministic member: the timing of transition is uncertain beyond a few days &middot; updated each 00/12Z cycle</p>
 </template>
+<template id="about-tcshear">
+<p>Most shear products quote one number: the 200&ndash;850&nbsp;hPa wind difference around the storm (SHIPS, CIMSS), and how it is computed alone changes it by several knots (Velden &amp; Sears 2014). This product looks at the whole environmental wind profile instead: where in the column the shear sits, what the vortex is doing about it, how much dry air it drives into the core, and which trough is causing it. It does this along every AIFS-ENS member's own track and in four deterministic models.</p>
+<p><b>Removing the storm.</b> At each level the storm's own circulation is the wind induced by the relative vorticity and divergence within 500&nbsp;km of its centre. It is recovered by inverting them (free-space Green's function) and subtracted. The environmental wind is the mean of what remains within 500&nbsp;km. This is the method of Galarneau &amp; Davis (2013), after Davis, Snyder &amp; Didlake (2008), with the 500&nbsp;km radius Rios-Berrios &amp; Torn (2017) used for shear. A plain ring mean cancels the storm's symmetric winds but not its asymmetries. SHIPS's vortex-removed shear (SHDC) subtracts the symmetric vortex only (operational code). The 200&ndash;800&nbsp;km ring mean of the total wind (SHIPS's SHRD) is kept for comparison.</p>
+<p><b>The profile.</b> The hodograph shows the environmental wind at 1000, 925, 850, 700, 600, 500, 400, 300, 250, 200, 150 and 100&nbsp;hPa. From it come:</p>
+<ul>
+<li>the standard 200&ndash;850&nbsp;hPa shear, plus the lower (850&ndash;500) and upper (500&ndash;200) layers;</li>
+<li><b>generalized shear</b>: 4&nbsp;&times; the mass-weighted mean departure of the wind from its column mean over 1000&ndash;100&nbsp;hPa (Knaff, Sampson &amp; DeMaria 2005; the SHIPS form). For a straight-line profile it equals the two-level shear. It is larger when the shear is packed into one layer or the wind turns with height;</li>
+<li>the shear's <b>height and depth</b> (Finocchio &amp; Majumdar 2017).</li>
+</ul>
+<p>In idealized runs, shallower, lower shear tilts the vortex further and does more damage than the same 200&ndash;850&nbsp;hPa shear spread through a deep layer (Finocchio et al. 2016). In the observed climatology, neither height nor depth explains more than 5&nbsp;% of intensity change (Finocchio &amp; Majumdar 2017). They are therefore shown as structure, not as a forecast.</p>
+<p><b>Shear relative to the storm.</b> In TRMM rain, the inner-core maximum sits downshear-left in the Northern Hemisphere once the shear exceeds about 7.5&nbsp;m/s (15&nbsp;kt), whatever the storm's motion. Below 5&nbsp;m/s, motion-related asymmetries compete (Chen, Knaff &amp; Marks 2006; lightning: Corbosiero &amp; Molinari 2002, 2003; Ueno 2007).</p>
+<p><b>Tilt.</b> A sheared vortex first tilts downshear, then the tilt rotates cyclonically (Jones 1995). A resilient vortex settles into a downshear-left tilt (Reasor, Montgomery &amp; Grasso 2004). Intensification usually follows a large drop in tilt, which comes once the mid-level vortex has rotated to the left or upshear-left of the shear (Rios-Berrios, Davis &amp; Torn 2018). Their 2024 review adds that there is no consensus on how tilt relates to intensity change. In airborne radar, tilt falls as intensity rises (rank correlation &minus;0.69; major hurricanes never above 25&nbsp;km; Fischer et al. 2022). Weak storms that intensified rapidly had tilts below 30&nbsp;km (Fischer et al. 2024).</p>
+<p>Here the model tilt is the offset of the 500&nbsp;hPa vorticity centroid from the 850&nbsp;hPa one. Each centroid is of positive relative vorticity within 150&nbsp;km, iterated outward from the surface centre. The observed tilt is HRD's 2&ndash;6&nbsp;km tail-Doppler tilt, from the <a href="/recon.html">recon page</a>'s mirror. A 0.25&deg; model grid (~28&nbsp;km) cannot resolve a 10&ndash;20&nbsp;km tilt; the Validation tab shows what the models do capture.</p>
+<p><b>Ventilation.</b> Tang &amp; Emanuel (2012, TE12) define VI&nbsp;=&nbsp;u<sub>shear</sub>&nbsp;&chi;<sub>m</sub>&nbsp;/&nbsp;u<sub>PI</sub>, with &chi;<sub>m</sub>&nbsp;=&nbsp;(s*<sub>m</sub>&nbsp;&minus;&nbsp;s<sub>m</sub>)&nbsp;/&nbsp;(s*<sub>SST</sub>&nbsp;&minus;&nbsp;s<sub>b</sub>). Here:</p>
+<ul>
+<li>u<sub>shear</sub> is the vortex-removed 200&ndash;850&nbsp;hPa shear;</li>
+<li>s*<sub>m</sub> is the 600&nbsp;hPa saturation entropy in the inner core (0&ndash;100&nbsp;km), and s<sub>m</sub> the 600&nbsp;hPa entropy in the 100&ndash;300&nbsp;km annulus, both from TE12's eq.&nbsp;3;</li>
+<li>the denominator is evaluated, as in TE12, at the radius of maximum wind of a storm at its potential intensity, from the same Bister&ndash;Emanuel calculation: (s*<sub>SST</sub>&nbsp;&minus;&nbsp;s<sub>b</sub>)&nbsp;=&nbsp;V<sup>2</sup>/[(C<sub>k</sub>/C<sub>D</sub>)(T<sub>s</sub>/T<sub>o</sub>)(T<sub>s</sub>&nbsp;&minus;&nbsp;T<sub>o</sub>)];</li>
+<li>u<sub>PI</sub> is the Bister &amp; Emanuel (2002) potential intensity, pseudoadiabatic as in TE12, computed with tcpyPI (Gilford 2021) from the 200&ndash;800&nbsp;km environmental sounding and the NOAA OISST under the storm. The forecast does not include a cold wake, and VI is undefined over land.</li>
+</ul>
+<p>TE12's thresholds come from reanalysis and storm lifetimes:</p>
+<ul>
+<li>with few exceptions, strengthening storms had a VI below about 0.1;</li>
+<li>storms tend to strengthen below about 0.03;</li>
+<li>above 0.1, the chance of genesis falls below 10&nbsp;%.</li>
+</ul>
+<p>Their reanalysis barely resolved a warm core, while a 0.25&deg; model does, which raises s*<sub>m</sub>. The bracketed &ldquo;env.&rdquo; value takes the core at the environmental temperature, which is closer to TE12's data. Use the thresholds as a guide, not a cut-off.</p>
+<p><b>Where the shear comes from.</b> The trough is air above 2&nbsp;PVU on the 330&nbsp;K isentrope. The PV is smoothed over about 1&deg; so that convective PV blobs do not count, and the storm's own core within 400&nbsp;km is excluded. The product gives the distance to the nearest such air and the strongest 330&nbsp;K PV gradient within 1,000&nbsp;km. The PV is the same Ertel PV as the models page's isentropic PV charts (scripts/models/upper.py) and the dynamic-tropopause maps. These numbers are descriptive only.</p>
+<p><b>Models.</b></p>
+<ul>
+<li>AIFS-ENS: the control and 50 members on ECMWF's own tracker positions, 6-hourly for the control and 12-hourly for the members, to day 5;</li>
+<li>AIFS single and IFS HRES, on their own trackers;</li>
+<li>GFS, tracked here as the closed MSLP low near the members' median position;</li>
+<li>HRRR, coarsened to 12&nbsp;km, used only where it covers the whole 0&ndash;500&nbsp;km disc.</li>
+</ul>
+<p>SHIPS (NHC real time, GFS-based) is drawn with the 200&ndash;850&nbsp;hPa shear and the PI.</p>
+<p><b>Validation</b> (the tab above) has two parts:</p>
+<ul>
+<li>the ring, layer and generalized shears against SHIPS's own inputs, at SHIPS's own positions, this season;</li>
+<li>the model tilt against every NOAA tail-Doppler analysis with HRD centres: Melissa 2025 and this season.</li>
+</ul>
+<p>A full hindcast of Melissa is selectable as a validation case.</p>
+<p class="chart-sources">Data: ECMWF AIFS-ENS, AIFS single and IFS HRES open data (CC BY 4.0, Google Cloud mirror) &middot; NOAA GFS and HRRR (AWS open data) &middot; NOAA OISST v2.1 (NCEI) &middot; NOAA AOML/HRD real-time TDR centres &middot; NHC ATCF best track, vortex messages and SHIPS (provided as-is) &middot; updated every 6 hours while a storm is active.<br>
+References: Bister &amp; Emanuel 2002, <i>JGR</i> 107(D24), 4801 &middot; Chen, Knaff &amp; Marks 2006, <i>MWR</i> 134, 3190&ndash;3208 &middot; Corbosiero &amp; Molinari 2002, <i>MWR</i> 130, 2110&ndash;2123; 2003, <i>JAS</i> 60, 366&ndash;376 &middot; Davis, Snyder &amp; Didlake 2008, <i>MWR</i> 136, 2461&ndash;2477 &middot; Finocchio, Majumdar, Nolan &amp; Iskandarani 2016, <i>MWR</i> 144, 2155&ndash;2175 &middot; Finocchio &amp; Majumdar 2017, <i>MWR</i> 145, 361&ndash;378 &middot; Fischer, Reasor, Rogers &amp; Gamache 2022, <i>MWR</i> 150, 2255&ndash;2278 &middot; Fischer, Rogers, Reasor &amp; Dunion 2024, <i>MWR</i> 152, 203&ndash;225 &middot; Galarneau &amp; Davis 2013, <i>MWR</i> 141, 405&ndash;430 &middot; Gilford 2021, <i>GMD</i> 14, 2351&ndash;2369 &middot; Jones 1995, <i>QJRMS</i> 121, 821&ndash;851 &middot; Knaff, Sampson &amp; DeMaria 2005, <i>WAF</i> 20, 688&ndash;699 &middot; Reasor, Montgomery &amp; Grasso 2004, <i>JAS</i> 61, 3&ndash;22 &middot; Rios-Berrios &amp; Torn 2017, <i>MWR</i> 145, 1717&ndash;1738 &middot; Rios-Berrios, Davis &amp; Torn 2018, <i>JAS</i> 75, 4149&ndash;4173 &middot; Rios-Berrios et al. 2024, <i>JAS</i> 81, 713&ndash;741 &middot; Tang &amp; Emanuel 2012, <i>BAMS</i> 93, 1901&ndash;1912 &middot; Ueno 2007, <i>JMSJ</i> 85, 115&ndash;136 &middot; Velden &amp; Sears 2014, <i>WAF</i> 29, 1169&ndash;1180.</p>
+</template>
 <template id="about-tcjet">
 <p>Diagnostics of tropical cyclones near the jet stream, from the AIFS-ENS control. A storm's upper-level outflow (the divergent, or <i>irrotational</i>, wind) carries air of low potential vorticity away from the storm; where that outflow reaches the strong PV gradient at the jet, it appears as <b>negative PV advection by the irrotational wind</b>, &minus;<b>v</b><sub>&chi;</sub>&middot;&nabla;PV, in the 300&ndash;200&nbsp;hPa layer &mdash; the outflow&ndash;jet interaction measure of Archambault et al. (2013, 2015, <i>Monthly Weather Review</i>).</p>
 <p><b>Top</b>: for each Northern-Hemisphere storm, the area mean of that advection within 500&nbsp;km of the centre (only the negative part, sign flipped, PVU per day) through the forecast; &#9733; marks recurvature (where the storm stops moving west and starts moving east; storms heading north or east from the start get no star). ECMWF's tracker usually stops at or near extratropical transition, often just before a storm phasing with a trough deepens most, so after its last fix the storm is followed on as the control's surface low: that part is dashed with open circles here, dashed on the bottom panel, and a purple dot labelled &ldquo;post-tropical&rdquo; on the dynamic tropopause maps. A storm far from the jet scores near zero however strong it is; the index rises as its outflow reaches the PV gradient. <b>Bottom</b>: the wave packets along the jet. Longitude runs left to right starting at 100&deg;E (the North Pacific first, then North America, the Atlantic and Europe) and forecast time runs down the page. The shading is the <i>strength</i> of the trough-and-ridge pattern along the jet (35&ndash;60&deg;N): the envelope of the 250&nbsp;hPa north&ndash;south wind for zonal wavenumbers 4&ndash;15 (Zimin et al. 2003), so a train of strong troughs and ridges shows as one bright streak, slanting down and to the right as it moves east. The coloured lines are the storms' longitudes once they are north of 25&deg;N (dashed after the tracker's last fix), with &#9733; at recurvature. The same storms, their tracks and contours of the outflow PV advection (magenta, &minus;1 and &minus;2&nbsp;PVU/day, drawn within 1,500&nbsp;km of a storm) are on the <a href="#dt">dynamic tropopause</a> maps.</p>
@@ -353,6 +399,61 @@
       ]
     }
     </script>
+<!-- TC shear and environment (2026-10-07, scripts/tcshear/, tcshear.yml). Mounted by the tcshear product; state in the hash
+     #tcshear/<SID>/<fc|val>/<hour>/<measure>. Data: assets/sst/anim/tcshear_manifest.json -> per-storm JSON and 330 K PV maps on
+     the frames branch (sha-pinned), assets/sst/data/tcshear_validation.json. -->
+<div id="tcs-view" class="tcs" hidden>
+<style>
+.tcs{--tk:#1b1d22;--tm:#6f6b64;--tr:#e3e1db}
+.tcs-row{display:flex;flex-wrap:wrap;gap:6px;margin:4px 0 10px}
+.tcs-row button{font:inherit;font-size:.98rem;border:1px solid var(--tr);background:#fff;border-radius:999px;padding:5px 12px;cursor:pointer;color:var(--tk)}
+.tcs-row button[aria-pressed="true"]{background:var(--tk);color:#fff;border-color:var(--tk)}
+.tcs-row button.hc span{color:inherit;opacity:.8;font-size:.86rem}
+.tcs-now{margin:6px 0 12px;color:var(--tk);font-size:1.02rem;line-height:1.5}
+.tcs-hour{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin:6px 0 8px;color:var(--tk)}
+.tcs-hour input{width:min(420px,70vw)}
+.tcs-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(290px,450px));justify-content:center;gap:14px;margin:6px 0}
+.tcs figure{margin:0}
+.tcs figcaption{color:var(--tm);font-size:.93rem;margin:4px 0 0}
+.tcs h4{margin:14px 0 4px;font-size:1.02rem;color:var(--tk)}
+.tcs svg{display:block;width:100%;height:auto;background:#fff;border:1px solid var(--tr);border-radius:8px}
+.tcs svg .ring{fill:none;stroke:#d6dde4;stroke-width:1}
+.tcs svg .axis,.tcs svg .grid{stroke:#e2e6ea;stroke-width:1}
+.tcs svg .now{stroke:#6f6b64;stroke-width:1;stroke-dasharray:3 3}
+.tcs svg .sel{stroke:#1b1d22;stroke-width:1.2;opacity:.55}
+.tcs svg .thr{stroke:#8a5a00;stroke-width:1.2;stroke-dasharray:6 4}
+.tcs svg .tm{font:12px "Source Sans 3",sans-serif;fill:#6f6b64}
+.tcs svg .tl{font:600 12px "Source Sans 3",sans-serif;fill:#1b1d22;paint-order:stroke;stroke:#fff;stroke-width:3px}
+.tcs svg .thrl{fill:#7a4f00;font-weight:600}
+.tcs svg .tq{font:600 11.5px "Source Sans 3",sans-serif;fill:#4b4740;letter-spacing:.04em}
+.tcs-key{display:flex;flex-wrap:wrap;gap:4px 14px;margin:6px 0;color:var(--tk);font-size:.93rem}
+.tcs-key i,.tcs-tab i{display:inline-block;width:14px;height:4px;border-radius:2px;margin-right:6px;vertical-align:middle}
+.tcs-tabw{overflow-x:auto}
+.tcs-tab{border-collapse:collapse;font-size:.92rem;min-width:640px;width:100%;margin:6px 0}
+.tcs-tab th,.tcs-tab td{border-bottom:1px solid var(--tr);padding:5px 7px;text-align:left;vertical-align:top}
+.tcs-tab thead th{color:var(--tm);font-weight:600}
+.tcs-tab .mu,.tcs .mu{color:var(--tm)}
+.tcs-map img{display:block;width:100%;max-width:900px;margin:0 auto;height:auto;border:1px solid var(--tr);border-radius:8px;background:#fff}
+</style>
+<div class="tcs-row" id="tcs-storms" role="group" aria-label="Storms"></div>
+<div class="tcs-row" id="tcs-views" role="group" aria-label="View"></div>
+<p class="tcs-now" id="tcs-now">Loading the storms…</p>
+<div id="tcs-fc">
+ <div id="tcs-body">
+  <div class="tcs-hour"><label for="tcs-h">Forecast hour</label><input type="range" id="tcs-h" min="0" max="120" step="6" value="0"><b id="tcs-hlab"></b></div>
+  <div class="tcs-grid">
+   <figure><div id="tcs-hodo"></div><figcaption>Environmental hodograph (storm's own circulation removed), 1000→100 hPa: bold = AIFS-ENS control coloured low (warm) to high (blue), thin = other models, grey = the 50 members. Red dashed: the 200–850 hPa shear vector; black: storm motion.</figcaption></figure>
+   <figure><div id="tcs-tilt"></div><figcaption>Vortex tilt (850→500 hPa vorticity centroids) in the shear's frame, downshear up: each run's path to day 5, the dot at the chosen hour, grey dots = members, red diamonds = the observed 2–6 km tilt from NOAA's tail Doppler radar, rotated by the analysed shear.</figcaption></figure>
+  </div>
+  <div class="tcs-row" id="tcs-meas" role="group" aria-label="Measure"></div>
+  <figure><div id="tcs-ts"></div><div class="tcs-key" id="tcs-key"></div></figure>
+  <div class="tcs-tabw" id="tcs-tab"></div>
+  <figure class="tcs-map"><img id="tcs-map" alt="" hidden><figcaption>Where the shear comes from: PV on the 330 K isentrope (black line 2 PVU: stratospheric air, the trough), 200–850 hPa shear of the total wind (grey) and the storm's environmental shear (red), AIFS-ENS control, 6-hourly.</figcaption></figure>
+ </div>
+</div>
+<div id="tcs-val" hidden></div>
+</div>
+<script src="/assets/tcshear/tcshear.js?v=20261008a" defer></script>
 <!-- Storm picker (2026-10-03, user: "For the cyclone phase space and ensemble tracks, would be better if you could click on a
      map and select the storm"). Mounted by the tcens and tcphase products; reads assets/sst/data/tcens.json + tcphase.json
      (per-storm figures in assets/sst/tc/, written by tc_ens.py / tc_phase.py). State in the hash: #tcens/<id>[/depth], #tcphase/<id>. -->
@@ -580,7 +681,7 @@
 window.STAGE = {
   groups: [
   {label: "Mid-latitude weather", ico: "\u{1F5FA}", items: [["mslp","MSLP and 10 m wind","ensemble mean, days 0–15"],["dt","Dynamic tropopause","θ on 2 PVU, five regions, storms"],["pacjet","North Pacific jet","250 hPa maps, jet axis, phases"],["waf","Wave activity flux","Rossby packets, 250 hPa"],["gdps_ir","GDPS simulated IR","forecast satellite loop"],["gdps150","GDPS 150 hPa","wind and height"]]},
-  {label: "Tropical cyclones", ico: "\u{1F300}", items: [["tcjet","Tropical cyclones and the jet","outflow, wave packets, recurvature watch"],["tcens","TC ensembles","tracks, recurvature, depth after transition"],["tcphase","Cyclone phase space","warm core to extratropical (Hart)"]]},
+  {label: "Tropical cyclones", ico: "\u{1F300}", items: [["tcjet","Tropical cyclones and the jet","outflow, wave packets, recurvature watch"],["tcens","TC ensembles","tracks, recurvature, depth after transition"],["tcphase","Cyclone phase space","warm core to extratropical (Hart)"],["tcshear","Shear and environment","profile, tilt, ventilation, trough"]]},
   {label: "Tropical circulation", ico: "\u{1F327}", items: [["walker","Walker circulation","loop, by basin, weekly departure"],["hadley","Hadley cells","meridional streamfunction"],["vpot","Velocity potential","200 hPa, irrotational wind"],["gillrain","Rain-forced circulation","Gill model vs the observed χ200"],["jets","Subtropical jets","strength and position"]]},
   {label: "Angular momentum & torques", ico: "\u2696", items: [["aam","Atmospheric angular momentum","series, trend, phase, by latitude"],["torque","Surface torques","friction and mountain"]]}
 ],
@@ -601,6 +702,8 @@ window.STAGE = {
           cap: function () { return "Pick a storm on the map: every AIFS-ENS and IFS-ENS member's track coloured by the day it recurves, with the odds and timing of recurvature, and how deep the AIFS-ENS members' low gets once the storm reaches the mid-latitudes."; }},
   tcphase: {label: "Cyclone phase space", dom: function () { return "tc-picker"; }, ownHash: true, about: "about-tcphase",
           cap: function () { return "Pick a storm on the map: where it sits between tropical (warm, symmetric) and extratropical (cold, frontal) structure through the AIFS-ENS control forecast."; }},
+  tcshear: {label: "Shear and environment", dom: function () { return "tcs-view"; }, ownHash: true, about: "about-tcshear",
+          cap: function () { return "Pick a storm: the vortex-removed wind profile and its shears, the vortex tilt against the shear and the radar, the ventilation index and the 330 K trough behind the shear, along every AIFS-ENS member and four deterministic models, to day 5."; }},
   tcjet: {label: "Tropical cyclones and the jet", img: function () { return "assets/sst/tcjet.webp"; }, bust: "hourly", about: "about-tcjet",
           cap: function () { return "How strongly each storm's upper-level outflow meets the jet (top), and the wave packets along the jet with the storms' positions (bottom); AIFS-ENS control to day 10."; }},
   aam: {label: "Atmospheric angular momentum", a: {label: "View", items: [["series","Series and forecast"],["trend","Run-to-run trend"],["phase","Phase"],["zonal","By latitude (loop)"]]},

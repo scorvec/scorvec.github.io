@@ -1,0 +1,139 @@
+name: AR deterministic IVT (AIFS, IFS, GFS, GDPS, days 1-7)
+
+# ar.html, first section: integrated vapour transport 1000-300 hPa computed from q/u/v on each model's own pressure
+# levels (scripts/ar/arlib.py), 6-hourly to +168 h, two map domains, coastline IVT and AR-scale ranks per model.
+# One job per model (sources: ECMWF open data from the Google Cloud mirror ONLY; GFS from AWS S3 byte ranges; GDPS
+# from the MSC Datamart), then one combine job publishes the frames and commits the manifest. A model whose cycle is
+# not out keeps its previous run on the page for up to 30 h (flagged). Fired by the laptop dispatcher at 08:20/20:20.
+on:
+  schedule:
+    - cron: '20 8 * * *'
+    - cron: '20 20 * * *'
+  workflow_dispatch:
+    inputs:
+      date:
+        description: 'Cycle date YYYYMMDD (blank = the newest 00/12Z cycle at least 8 h old)'
+        default: ''
+      time:
+        description: 'Cycle hour 00 or 12'
+        default: ''
+
+permissions:
+  contents: write
+
+concurrency:
+  group: ar-det
+  cancel-in-progress: false
+
+env:
+  ECMWF_SOURCES: google
+
+jobs:
+  cycle:
+    runs-on: ubuntu-latest
+    outputs:
+      date: ${{ steps.c.outputs.date }}
+      time: ${{ steps.c.outputs.time }}
+    steps:
+      - id: c
+        run: |
+          D="${{ github.event.inputs.date }}"; T="${{ github.event.inputs.time }}"
+          if [ -z "$D" ] || [ -z "$T" ]; then
+            H=$(date -u -d '-8 hours' +%H); D=$(date -u -d '-8 hours' +%Y%m%d)
+            if [ "$H" -ge 12 ]; then T=12; else T=00; fi
+          fi
+          echo "date=$D" >> "$GITHUB_OUTPUT"; echo "time=$T" >> "$GITHUB_OUTPUT"; echo "cycle $D ${T}Z"
+
+  model:
+    needs: cycle
+    runs-on: ubuntu-latest
+    timeout-minutes: 75
+    strategy:
+      fail-fast: false
+      matrix:
+        model: [aifs, ifs, gfs, gdps]
+    env:
+      MPLBACKEND: Agg
+      SST_SITE_ROOT: ${{ github.workspace }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+      - uses: actions/cache@v6
+        with:
+          path: ~/.cache/pip
+          key: pip-mjo-${{ runner.os }}-${{ hashFiles('scripts/mjo/requirements-mjo.txt') }}
+          restore-keys: |
+            pip-mjo-${{ runner.os }}-
+      - name: System libs
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends libeccodes0 libgeos-dev libproj-dev proj-bin
+      - name: Python dependencies
+        run: pip install -r scripts/mjo/requirements-mjo.txt
+      - name: IVT for ${{ matrix.model }}
+        run: python scripts/ar/ar_det.py model --model ${{ matrix.model }} --date ${{ needs.cycle.outputs.date }} --time ${{ needs.cycle.outputs.time }} --work out/work --procs 4
+      - name: Hand over
+        run: |
+          mkdir -p out/assets/ar/anim
+          cp -r assets/ar/anim/det_${{ matrix.model }}_* out/assets/ar/anim/
+          cp assets/ar/det_coast_${{ matrix.model }}.webp out/assets/ar/
+      - uses: actions/upload-artifact@v4
+        with:
+          name: det-${{ matrix.model }}
+          path: out/
+          retention-days: 2
+
+  publish:
+    needs: [cycle, model]
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      SST_SITE_ROOT: ${{ github.workspace }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+      - run: pip install --quiet numpy pandas
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: det-*
+          path: art
+          merge-multiple: true
+      - name: Combine the models
+        run: |
+          set -euo pipefail
+          [ -d art/work ] || { echo "::error::no model produced output"; exit 1; }
+          cp -r art/assets/ar/. assets/ar/
+          python - <<'PY'
+          import sys; sys.path.insert(0, "scripts/ar")
+          import ar_det, pathlib
+          ar_det.combine(pathlib.Path("art/work"))
+          PY
+          for f in art/work/det_*.json; do python -c "import json,sys; d=json.load(open('$f')); print(d['model'], 'download', d['download'], 'runtime', d['runtime_s'], 'frames bytes', d['bytes_frames'], 'level bias', d['level_bias'])"; done
+      - name: Publish frames
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          D=""; for m in aifs ifs gfs gdps; do for r in pac na; do D="$D assets/ar/anim/det_${m}_${r}"; done; done
+          scripts/lib/publish_frames_ci.sh $D
+      - name: Commit & push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          OUT="assets/ar/anim/ar_det_manifest.json $(ls assets/ar/det_coast_*.webp 2>/dev/null | tr '\n' ' ')"
+          SNAP=$(mktemp -d); tar cf "$SNAP/outs.tar" --ignore-failed-read $OUT 2>/dev/null || true
+          for i in 1 2 3 4 5; do
+            if ! timeout 120 git fetch origin main; then echo "fetch $i failed"; sleep 5; continue; fi
+            git reset --hard origin/main
+            tar xf "$SNAP/outs.tar"
+            for f in $OUT; do [ -e "$f" ] && git add "$f"; done
+            if git diff --staged --quiet; then echo "No changes; skipping commit."; exit 0; fi
+            git commit -m "data update: AR deterministic ${{ needs.cycle.outputs.date }}_${{ needs.cycle.outputs.time }}z"
+            if timeout 180 git push; then echo "Pushed on attempt $i."; exit 0; fi
+            sleep 5
+          done
+          echo "push failed after retries"; exit 1

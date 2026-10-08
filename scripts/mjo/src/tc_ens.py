@@ -72,9 +72,11 @@ def fetch(model: str, date: str, hour: int) -> Path | None:
     return fp
 
 
-def decode_all(fp: Path) -> list[dict]:
+def decode_all(fp: Path, types=(1, 4)) -> list[dict]:
     """Every storm message with all ensemble members (types 1 and 4): {id, name, named, tracks: {member: track}}.
-    The control is member 0 here (51 in the file); track = dict(steps, lat, lon(-180..180), pmsl hPa, wind m/s)."""
+    The control is member 0 here (51 in the file); track = dict(steps, lat, lon(-180..180), pmsl hPa, wind m/s).
+    types=(0,): the deterministic run instead (AIFS single / IFS HRES oper tf files, or the type-0 subset), as member 0
+    (scripts/tcshear, 2026-10-07)."""
     import eccodes as ec
     out = []
     with open(fp, "rb") as f:
@@ -103,13 +105,13 @@ def decode_all(fp: Path) -> list[dict]:
                                  arr(f"#{i + 1}#pressureReducedToMeanSeaLevel"), arr(f"#{i + 1}#windSpeedAt10M")))
                 tracks = {}
                 for j in range(n):
-                    if ft[j] not in (1, 4):
+                    if ft[j] not in types:
                         continue                                         # type 0 = the deterministic run
                     rows = [(c[0][j], c[1][j], c[2][j], c[3][j], c[4][j]) for c in cols if c[1][j] > MISSING and c[0][j] > MISSING]
                     if not rows:
                         continue
                     st, la, lo, p, w = (np.array(x, float) for x in zip(*rows))
-                    m = 0 if ft[j] == 1 else int(mem[j])
+                    m = 0 if ft[j] in (0, 1) else int(mem[j])
                     tracks[m] = dict(steps=st.astype(int), lat=la, lon=(lo + 180) % 360 - 180,
                                      pmsl=np.where(p > MISSING, p / 100.0, np.nan), wind=np.where(w > MISSING, w, np.nan))
                 named = not (sid[:2].isdigit() and int(sid[:2]) >= 70)

@@ -264,7 +264,10 @@ def _cds_hindcast(kind: str, key: str, month: str, lat, lon) -> np.ndarray | Non
         dest.unlink()
     fields = _CDS_FIELDS[rk]
     mvar, _, lev = key.partition("_")
-    v, flat, flon = fields[(mvar, int(lev) if lev else None)]
+    fk = (mvar, int(lev) if lev else None)
+    if fk not in fields and (mvar, None) in fields and levels and len(levels) == 1:
+        fk = (mvar, None)                     # a one-level request: cfgrib keeps the level as a scalar, not a dimension
+    v, flat, flon = fields[fk]
     out = np.full((v.shape[0], len(LEADS), len(lat), len(lon)), np.nan, dtype=np.float32)
     ii = [int(np.argmin(np.abs(lat - x))) for x in flat]
     lonn = ((np.asarray(lon) + 180) % 360) - 180

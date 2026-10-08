@@ -240,7 +240,7 @@ class Ledger:
 LEDGER = Ledger()
 
 
-def http_get(url, rng=None, tries=4, timeout=90, src="http"):
+def http_get(url, rng=None, tries=4, timeout=90, src="http", backoff=3.0):
     import requests
     h = {"User-Agent": UA}
     if rng:
@@ -248,7 +248,7 @@ def http_get(url, rng=None, tries=4, timeout=90, src="http"):
     last = None
     for k in range(tries):
         try:
-            r = requests.get(url, headers=h, timeout=(10, timeout))
+            r = requests.get(url, headers=h, timeout=(20, timeout))
             if r.status_code in (200, 206):
                 LEDGER.add(src, len(r.content))
                 return r.content
@@ -257,7 +257,7 @@ def http_get(url, rng=None, tries=4, timeout=90, src="http"):
             last = RuntimeError(f"HTTP {r.status_code}")
         except Exception as e:                                  # noqa: BLE001
             last = e
-        time.sleep(2 + 3 * k)
+        time.sleep(2 + backoff * k)
     raise RuntimeError(f"{url}: {last}")
 
 
@@ -375,7 +375,8 @@ def gdps_step(date, hh, step, levels=GDPS_LEVELS, crop=CROP, workers=8):
 
     def one(j):
         k, L, var = j
-        b = http_get(gdps_url(date, hh, step, var), src="datamart", timeout=120)
+        # the Datamart drops connections under load (connect timeouts seen 2026-10-07): more and longer retries
+        b = http_get(gdps_url(date, hh, step, var), src="datamart", timeout=120, tries=7, backoff=10.0)
         if b is None:
             return (k, L), None
         meta, v, la, lo = decode(b, crop)
@@ -503,6 +504,8 @@ def ivt_frame(out, lat, lon, ivt, ivte, ivtn, dom, title, sub, msl=None, cb_labe
     sk = dom["sk"]; d = abs(lo[1] - lo[0]); st = max(1, int(round(sk / d)))
     ue, un, mg = sub_(ivte)[::st, ::st], sub_(ivtn)[::st, ::st], mag[::st, ::st]
     ok = mg >= 250
+    # arrow length capped at 1000 (direction kept) so tropical cyclones, 2000-4000, do not cover the map
+    cap = np.where(mg > 1000, 1000.0 / np.maximum(mg, 1e-6), 1.0); ue, un = ue * cap, un * cap
     if ok.any():
         X, Y = np.meshgrid(lo[::st], la[::st])
         ax.quiver(X[ok], Y[ok], ue[ok], un[ok], transform=pc, scale=26000, width=0.0018, headwidth=3.6, color="#111",
@@ -514,7 +517,7 @@ def ivt_frame(out, lat, lon, ivt, ivte, ivtn, dom, title, sub, msl=None, cb_labe
     cax = fig.add_axes([0.2, 0.36 / H, 0.6, 0.13 / H])
     cb = fig.colorbar(pm, cax=cax, orientation="horizontal", extend="max", ticks=IVT_LEV)
     cb.ax.tick_params(labelsize=7.5)
-    cb.set_label(cb_label or "IVT (kg m⁻¹ s⁻¹): AR threshold 250 · Ralph-scale steps 250 / 500 / 750 / 1000 / 1250 · arrows: IVT vector where ≥ 250",
+    cb.set_label(cb_label or "IVT (kg m⁻¹ s⁻¹): AR threshold 250 · Ralph-scale steps 250 / 500 / 750 / 1000 / 1250 · arrows: IVT vector where ≥ 250 (length capped at 1000)",
                  fontsize=8)
     fig.savefig(out, dpi=100, facecolor="white", pil_kwargs={"quality": 65, "method": 6})
     plt.close(fig)
