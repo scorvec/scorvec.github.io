@@ -6,9 +6,15 @@ name: TAO heat-content audit (diagnostic, no commit)
 # GLORYS point series are slow (~7 min per mooring per product), so one matrix job per mooring.
 on:
   workflow_dispatch:
+    inputs:
+      glorys_run:
+        description: 'reuse the gl-* artifacts of this earlier run id instead of fetching GLORYS again'
+        required: false
+        default: ''
 
 permissions:
   contents: read
+  actions: read
 
 concurrency:
   group: tao-hc-audit
@@ -16,6 +22,7 @@ concurrency:
 
 jobs:
   glorys:
+    if: inputs.glorys_run == ''
     runs-on: ubuntu-latest
     timeout-minutes: 40
     strategy:
@@ -79,6 +86,8 @@ jobs:
           pattern: gl-*
           merge-multiple: true
           path: scripts/sst/data/hc_audit_cache
+          run-id: ${{ inputs.glorys_run || github.run_id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
       - name: Audit
         working-directory: scripts/sst
         run: ls -la data/hc_audit_cache; python tao_hc_audit.py 2>&1 | tee "$AUDIT_OUT.log"; exit ${PIPESTATUS[0]}

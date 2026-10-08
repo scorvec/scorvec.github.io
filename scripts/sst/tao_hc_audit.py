@@ -128,22 +128,24 @@ def _fetch_one(tag, dsid, var, lo):
     t0 = _t.time()
     kw = dict(dataset_id=dsid, variables=[var], minimum_longitude=glon, maximum_longitude=glon,
               minimum_latitude=-0.25, maximum_latitude=0.25, minimum_depth=0, maximum_depth=330,
-              output_filename=fn + ".part", output_directory=str(CACHE), overwrite=True,
+              output_filename=fn, output_directory=str(CACHE), overwrite=True,
               coordinates_selection_method="nearest", disable_progress_bar=True)
     if tag == "anfc":
         kw.update(start_datetime="2022-06-01", end_datetime=NOW.strftime("%Y-%m-%d"))
     try:
         cm.subset(**kw)
-        (CACHE / (fn + ".part")).replace(CACHE / fn)
         log(f"  fetched {fn} in {_t.time() - t0:.0f} s")
     except Exception as e:  # noqa: BLE001
         log(f"GLORYS {tag} {lo} failed: {e}")
+        (CACHE / fn).unlink(missing_ok=True)
 
 
 def glorys_series(fetch: bool = False):
     """Daily 0-300 m T profile (5-m grid) at each mooring, 0.25S-0.25N, from my (reanalysis, which
     now runs to ~6 weeks ago) and anfc (analysis)."""
     CACHE.mkdir(parents=True, exist_ok=True)
+    for p in CACHE.glob("gl_*.nc.part.nc"):          # files from the 2026-10-08 01:29Z run
+        p.replace(CACHE / p.name.replace(".nc.part.nc", ".nc"))
     if fetch:
         # sequential: six parallel subsets from one runner never finished in 70 min (2026-10-08);
         # the workflow runs one mooring per matrix job instead
@@ -472,6 +474,20 @@ def main() -> int:
                 res[k]["n_2023on"] = int(len(e2))
         drop[name] = res
     summary["dropout_tests"] = drop
+    # carry-forward error: replace one mooring by its own value k days earlier (8-live days only)
+    cf = {}
+    for k in (1, 3, 5, 7, 10, 15):
+        errs = []
+        for c in H.LONS:
+            prev = strict[c].shift(k, freq="D").reindex(S8.index)
+            est = S8.copy(); est[c] = prev
+            e = (est.mean(axis=1) - truth).dropna()
+            errs.append(e)
+        e = pd.concat(errs)
+        cf[k] = {"n": int(len(e)), "rmse": round(float(np.sqrt((e ** 2).mean())), 3),
+                 "p95_abs": round(float(e.abs().quantile(0.95)), 3)}
+    summary["carry_tests_single_mooring"] = cf
+    log("carry-forward (one mooring, k days old) index error: " + json.dumps(cf))
     log("dropout tests:\n" + json.dumps(drop, indent=1))
 
     # ---- monthly comparison with CPC / PMEL --------------------------------------

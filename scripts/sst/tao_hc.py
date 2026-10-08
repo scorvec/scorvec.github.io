@@ -17,8 +17,9 @@ Definition
     harmonic climatology (sst_subsurface.tao_eq_clim_coeffs.nc, same 8 moorings), mean over depth;
   * index = FIXED 1/8 weight per mooring (never a nanmean over whoever reports - see the memory
     note tao-hc-index-coverage). A silent mooring is carried at its own last REPORTED anomaly for
-    at most PERSIST_DAYS days (age counted from the last real report, so nothing can chain); with
-    fewer than MIN_MOORINGS reporting-or-carried the TAO index is NaN for that day;
+    at most PERSIST_DAYS days (age counted from the last real report, so nothing can chain); past
+    that, with >= MIN_MOORINGS reporting-or-carried, it is interpolated in longitude from its
+    neighbours; with fewer the TAO index is NaN for that day;
   * optional reanalysis fill (fill_df): a mooring silent for longer than PERSIST_DAYS takes the
     reanalysis anomaly at its own location (offset-adjusted, see glorys_fill) - flagged per day.
 """
@@ -215,18 +216,38 @@ def carry(df: pd.DataFrame, persist: int = PERSIST_DAYS):
     return filled, age
 
 
+def lon_interp(filled: pd.DataFrame, min_moorings: int = MIN_MOORINGS) -> pd.DataFrame:
+    """Silent moorings estimated by linear interpolation in longitude between the nearest reporting
+    (or carried) neighbours - the end moorings take their neighbour's value - on days with at least
+    min_moorings present. The audit (dropping moorings on fully covered days, 1993-2026) measured
+    RMSE 0.04-0.07 C for any one mooring this way against 0.08-0.17 C for averaging the rest."""
+    lon = np.array(LONS)
+    out = filled.copy()
+    n = filled.notna().sum(axis=1)
+    rows = n.index[(n >= min_moorings) & (n < len(LONS))]
+    for t in rows:
+        r = filled.loc[t].values.astype(float)
+        m = np.isfinite(r)
+        out.loc[t] = np.where(m, r, np.interp(lon, lon[m], r[m]))
+    return out
+
+
 def index(df: pd.DataFrame, persist: int = PERSIST_DAYS, min_moorings: int = MIN_MOORINGS,
           fill_df: pd.DataFrame | None = None) -> pd.DataFrame:
-    """Daily index frame: hc (TAO only, NaN below min_moorings), hc_filled (TAO + reanalysis fill
-    for moorings silent > persist days; NaN only if the fill is missing too), n_live, n_carried,
-    n_fill, and max_age (oldest carried value used)."""
+    """Daily index frame.
+
+    hc        TAO only: mean over the 8 FIXED longitudes, each mooring live, carried <= persist days,
+              or (when >= min_moorings are present) interpolated in longitude; NaN otherwise
+    hc_filled TAO live/carried + reanalysis fill (fill_df) for every other mooring; NaN unless all 8
+    n_live, n_carried, n_interp, n_fill, max_age (oldest carried value used, days)"""
     filled, age = carry(df, persist)
     live = (age == 0)
     used = filled.notna()
     n_used = used.sum(axis=1)
-    hc = filled.mean(axis=1).where(n_used >= min_moorings)
+    est = lon_interp(filled, min_moorings)
+    hc = est.mean(axis=1).where(n_used >= min_moorings)
     out = pd.DataFrame({"hc": hc, "n_live": live.sum(axis=1), "n_carried": (used & ~live).sum(axis=1),
-                        "max_age": age.max(axis=1)})
+                        "n_interp": (len(LONS) - n_used).where(hc.notna(), 0), "max_age": age.max(axis=1)})
     if fill_df is not None:
         f = fill_df.reindex(filled.index)
         comb = filled.where(used, f)
