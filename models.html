@@ -1956,9 +1956,20 @@
     ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, labc.width, labc.height);
     if (!view || interacting) return;
     ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
-    drawContourLabels(ctx);
+    // one occupancy grid for all label text (2026-10-08 sweep: contour labels ran over airport codes, and airport codes
+    // sat under the title badge and the zoom buttons): the floating controls first, then the airports, then the contour
+    // labels, which slide along their line to a free spot
+    var occ = labOcc();
+    var mr = mapEl.getBoundingClientRect();
+    [".mv-badge", ".mv-zoom", ".mv-sndhint"].forEach(function (sel) {
+      var el = document.querySelector(sel); if (!el || el.hidden || el.offsetParent === null) return;
+      var r = el.getBoundingClientRect(); if (!r.width || !r.height) return;
+      occ.add([r.left - mr.left - 3, r.top - mr.top - 3, r.right - mr.left + 3, r.bottom - mr.top + 3]);
+    });
+    hlBoxes(occ);                                                  // H/L symbols are drawn with the contour labels: keep their spot
     drawFarms(ctx);
-    drawAirports(ctx);
+    drawAirports(ctx, occ);
+    drawContourLabels(ctx, occ);
     drawSndMark(ctx);
     labc.style.visibility = "";
   }
@@ -2248,7 +2259,28 @@
   }
   var TW = new Map();                                              // text widths, per font + text
   function textW(ctx, font, txt) { var k = font + "|" + txt, w = TW.get(k); if (w === undefined) { w = ctx.measureText(txt).width; TW.set(k, w); } return w; }
-  function drawContourLabels(ctx) {
+  // label collision boxes [x0, y0, x1, y1] (CSS px) in a 48 px hash grid
+  function labOcc() {
+    var G = 48, grid = new Map();
+    return {
+      hits: function (b) {
+        for (var gx = Math.floor(b[0] / G); gx <= Math.floor(b[2] / G); gx++) for (var gy = Math.floor(b[1] / G); gy <= Math.floor(b[3] / G); gy++) {
+          var L = grid.get(gx * 4096 + gy); if (!L) continue;
+          for (var m = 0; m < L.length; m++) { var o = L[m]; if (b[0] < o[2] && b[2] > o[0] && b[1] < o[3] && b[3] > o[1]) return true; } }
+        return false;
+      },
+      add: function (b) {
+        for (var gx = Math.floor(b[0] / G); gx <= Math.floor(b[2] / G); gx++) for (var gy = Math.floor(b[1] / G); gy <= Math.floor(b[3] / G); gy++) {
+          var k = gx * 4096 + gy, L = grid.get(k); if (!L) grid.set(k, L = []); L.push(b); }
+      } };
+  }
+  function hlBoxes(occ) {
+    if (GPUC && (st.playing || scrubbing)) return;
+    contAll().forEach(function (C) { (C.ext || []).forEach(function (x) {
+      var px = W / 2 + (x[1] - view.cx) / view.s, py = H / 2 - (x[2] - view.cy) / view.s;
+      if (px > -20 && px < W + 20 && py > -20 && py < H + 20) occ.add([px - 11, py - 12, px + 11, py + 22]); }); });
+  }
+  function drawContourLabels(ctx, occ) {
     if (GPUC && (st.playing || scrubbing)) return;                 // the lines are on the GPU; their labels wait for the map to rest
     var all = contAll(); if (!all.length) return;
     var x0 = view.cx - W / 2 * view.s, x1 = view.cx + W / 2 * view.s, y0 = view.cy - H / 2 * view.s, y1 = view.cy + H / 2 * view.s;
@@ -2271,6 +2303,10 @@
         var r = Math.max(tw, 16) / 2 + 2, hit = false;
         for (var b = 0; b < boxes.length; b++) { var bx = boxes[b]; if (Math.abs(bx[0] - cx) < bx[2] + r && Math.abs(bx[1] - cy) < 9 + r * Math.abs(Math.sin(ang)) + 4) { hit = true; break; } }
         if (hit) continue;
+        // the rotated label's axis-aligned box against the airports and the controls on the map
+        var ca = Math.abs(Math.cos(ang)), sa = Math.abs(Math.sin(ang)), hx = r * ca + 7 * sa, hy = r * sa + 7 * ca, ab = [cx - hx, cy - hy, cx + hx, cy + hy];
+        if (occ && occ.hits(ab)) continue;
+        if (occ) occ.add(ab);
         boxes.push([cx, cy, r]); acc = 0;
         ctx.save(); ctx.translate(cx, cy); ctx.rotate(ang);
         ctx.lineWidth = 3.2; ctx.strokeStyle = "rgba(255,255,255,0.92)"; ctx.strokeText(txt, 0, 0);
@@ -2328,7 +2364,7 @@
     }
     return doc._td[k];
   }
-  function drawAirports(ctx) {
+  function drawAirports(ctx, occ) {
     aptShown = [];
     if (!$("sta").checked) return;
     if (!APTS) { loadApts(); return; }
@@ -2336,18 +2372,10 @@
     // label size follows the zoom (2026-10-04, user: on a big laptop screen "the city font size is tiny ... and it doesn't
     // change when I zoom"): 13 px at the national view up to 19 px zoomed into a city, +1 on very wide windows
     var LS = Math.round(Math.max(13, Math.min(19, 13 + 1.7 * Math.log2(Math.max(1, 3.2 / (view.s / 1000))))) + (W >= 1500 ? 1 : 0)), K = LS / 11;
-    var FONT = "600 " + LS + "px 'Source Sans 3', Arial, sans-serif", G = 48, grid = new Map();
+    var FONT = "600 " + LS + "px 'Source Sans 3', Arial, sans-serif";
     var TDF = "700 " + (LS + 1) + "px 'Source Sans 3', Arial, sans-serif";
-    function hits(b) {
-      for (var gx = Math.floor(b[0] / G); gx <= Math.floor(b[2] / G); gx++) for (var gy = Math.floor(b[1] / G); gy <= Math.floor(b[3] / G); gy++) {
-        var L = grid.get(gx * 4096 + gy); if (!L) continue;
-        for (var m = 0; m < L.length; m++) { var o = L[m]; if (b[0] < o[2] && b[2] > o[0] && b[1] < o[3] && b[3] > o[1]) return true; } }
-      return false;
-    }
-    function add(b) {
-      for (var gx = Math.floor(b[0] / G); gx <= Math.floor(b[2] / G); gx++) for (var gy = Math.floor(b[1] / G); gy <= Math.floor(b[3] / G); gy++) {
-        var k = gx * 4096 + gy, L = grid.get(k); if (!L) grid.set(k, L = []); L.push(b); }
-    }
+    occ = occ || labOcc();
+    var hits = occ.hits, add = occ.add;
     ctx.font = FONT; ctx.textBaseline = "middle";
     var tdv = aptTd();                                    // {id: [T, Td]} at the hour shown (2026-10-04, user: temp/dewpoint above each label)
     var vis = [];
@@ -2357,6 +2385,9 @@
       if (px < -20 || px > W + 20 || py < -20 || py > H + 20) continue;
       vis.push([px, py, a]);
     }
+    // every marker blocks label text (a label used to avoid only the markers placed before it, so codes ran over later
+    // diamonds in clusters)
+    vis.forEach(function (v) { add([v[0] - 5, v[1] - 5, v[0] + 5, v[1] + 5]); });
     // markers in one path
     ctx.beginPath();
     vis.forEach(function (v) { var px = v[0], py = v[1]; ctx.moveTo(px, py - 4); ctx.lineTo(px + 4, py); ctx.lineTo(px, py + 4); ctx.lineTo(px - 4, py); ctx.closePath(); });
@@ -2389,7 +2420,6 @@
           break;
         }
       }
-      add([px - 5, py - 5, px + 5, py + 5]);
     });
   }
   function nearestApt(px, py, r2) {
@@ -2454,6 +2484,13 @@
     var ctx = cv.getContext("2d"); ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, r.width, r.height);
     ctx.font = "13.5px 'Source Sans 3', Arial, sans-serif"; return { ctx: ctx, w: r.width, h: r.height, vert: vert };
   }
+  // a horizontal bar's tick label, skipped when its measured text would touch the previous one (2026-10-08 sweep: the
+  // fixed 24-34 px spacing let "100 250" and "1.5k 2k" run together on phones), kept inside the bar's ends
+  function hLab(ctx, txt, x, x0, x1, yy, S) {
+    var w = ctx.measureText(txt).width, cx = Math.min(Math.max(x, x0 + w / 2), x1 - w / 2);
+    if (cx - w / 2 < S.r + 7) return false;
+    ctx.fillText(txt, cx, yy); S.r = cx + w / 2; return true;
+  }
   function rgbaStr(c) { return typeof c === "string" ? c : "rgba(" + Math.round(c[0]) + "," + Math.round(c[1]) + "," + Math.round(c[2]) + "," + (c[3] == null ? 1 : c[3]) + ")"; }
   // colAt(t): colour at fraction t (0 bottom .. 1 top) or null; ticks: [[t, label]]
   function vBar(g, colAt, ticks, x0, bw) {
@@ -2473,8 +2510,10 @@
     var g = legSetup(92), rate = st.model === "rdps", vt = rate ? [0.1, 0.5, 1, 2.5, 5, 10, 25, 50] : [10, 20, 30, 40, 50, 60, 70];
     $("legT").textContent = rate ? "Precipitation rate, mm/h (not reflectivity), coloured by type · isobars every 2 hPa (4 hPa zoomed out)" : "Simulated reflectivity, dBZ, 1 km above ground, coloured by precipitation type at the surface · isobars every 2 hPa (4 hPa zoomed out)";
     if (g.vert) {                                   // five type columns, names written up the column heads, dBZ (or mm/h) ticks on the right
-      var ctx = g.ctx, top = 74, lo5 = 5, hi72 = 72, cw = 10, xs = 6, y0 = g.h - 12;
-      ctx.save(); ctx.font = "12.5px 'Source Sans 3', Arial, sans-serif"; ctx.fillStyle = "#3d4540"; ctx.textAlign = "left"; ctx.textBaseline = "middle";
+      var ctx = g.ctx, lo5 = 5, hi72 = 72, cw = 10, xs = 6, y0 = g.h - 12;
+      ctx.save(); ctx.font = "12.5px 'Source Sans 3', Arial, sans-serif";
+      // column heads tall enough for the longest name ("Rain/snow mix" was cut at a fixed 74 px)
+      var top = Math.ceil(Math.max.apply(null, [1, 2, 3, 4, 5].map(function (t) { return ctx.measureText(PT_NAMES[t]).width; }))) + 14; ctx.fillStyle = "#3d4540"; ctx.textAlign = "left"; ctx.textBaseline = "middle";
       [1, 2, 3, 4, 5].forEach(function (t, k) { ctx.save(); ctx.translate(xs + k * (cw + 1) + cw / 2, top - 6); ctx.rotate(-Math.PI / 2);
         ctx.fillText(PT_NAMES[t].replace(/^./, function (a) { return a.toUpperCase(); }), 0, 0); ctx.restore(); });
       ctx.restore();
@@ -2486,9 +2525,11 @@
       return;
     }
     var cv = $("leg"), r = { width: g.w }, ctx = g.ctx;
-    var lab = r.width < 500 ? 78 : 92, x0 = 6 + lab, x1 = r.width - 6, lo = 5, hi = 72, bh = 11;
-    function xOf(dbz) { return x0 + (dbz - lo) / (hi - lo) * (x1 - x0); }
     ctx.font = "13.5px 'Source Sans 3', Arial, sans-serif"; ctx.textBaseline = "middle"; ctx.textAlign = "right";
+    // the type names' column fits the longest name ("Rain/snow mix" was clipped at a fixed 78 px on phones)
+    var lab = Math.ceil(Math.max.apply(null, [1, 2, 3, 4, 5].map(function (t) { return ctx.measureText(PT_NAMES[t]).width; }))) + 8,
+        x0 = 6 + lab, x1 = r.width - 6, lo = 5, hi = 72, bh = 11;
+    function xOf(dbz) { return x0 + (dbz - lo) / (hi - lo) * (x1 - x0); }
     [1, 2, 3, 4, 5].forEach(function (t, row) {
       var y = 2 + row * (bh + 3);
       for (var px = x0; px < x1; px++) { var c = interp(PT_RAMPS[t], lo + (px - x0) / (x1 - x0) * (hi - lo));
@@ -2496,7 +2537,8 @@
       ctx.fillStyle = "#3d4540"; ctx.fillText(PT_NAMES[t].replace(/^./, function (a) { return a.toUpperCase(); }), x0 - 6, y + bh / 2);
     });
     var yT = 2 + 5 * (bh + 3); ctx.textAlign = "center"; ctx.textBaseline = "top"; ctx.fillStyle = "#3d4540";
-    vt.forEach(function (tv) { var x = xOf(rate ? rateEq(tv) : tv); if (x < x0 || x > x1) return; ctx.fillRect(x - 0.5, yT, 1, 4); ctx.fillText(String(tv), x, yT + 5); });
+    var S = { r: -1e9 };
+    vt.forEach(function (tv) { var x = xOf(rate ? rateEq(tv) : tv); if (x < x0 || x > x1) return; ctx.fillRect(x - 0.5, yT, 1, 4); hLab(ctx, String(tv), x, x0, x1, yT + 5, S); });
   }
   function drawLegendSteps() {                                    // stepped colour bar, one equal box per class (as the old ECAPE maps)
     var ratio = EC_SUBS[st.ec].kind === "ratio", L = ratio ? RATIO_LEVELS : CAPE_LEVELS.slice(1), C = ratio ? RATIO_COLORS : CAPE_COLORS.slice(1);
@@ -2510,11 +2552,11 @@
     for (var i = 0; i < n; i++) { ctx.fillStyle = C[i]; ctx.fillRect(x0 + i * bw, y, Math.ceil(bw), bh); }
     ctx.strokeStyle = "#8c918b"; ctx.lineWidth = 1; ctx.strokeRect(x0 + 0.5, y + 0.5, x1 - x0 - 1, bh - 1);
     ctx.fillStyle = "#3d4540"; ctx.font = "13.5px 'Source Sans 3', Arial, sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "top";
-    var last = -1e9;
+    var S = { r: -1e9 };
     for (i = 0; i < L.length; i++) {
       var x = x0 + i * bw; ctx.fillRect(x - 0.5, y + bh, 1, 4);
       var lab = ratio ? String(L[i]) : L[i] >= 1000 ? (L[i] / 1000) + "k" : String(L[i]);
-      if (x - last < 24) continue; ctx.fillText(lab, Math.min(Math.max(x, x0 + 8), x1 - 8), y + bh + 5); last = x;
+      hLab(ctx, lab, x, x0, x1, y + bh + 5, S);
     }
   }
   function drawLegendMslp() {                                     // one equal box per 4 hPa class, labelled at the class edges
@@ -2527,8 +2569,8 @@
     for (var i = 0; i < n; i++) { ctx.fillStyle = C[i]; ctx.fillRect(x0 + i * bw, y, Math.ceil(bw), bh); }
     ctx.strokeStyle = "#8c918b"; ctx.lineWidth = 1; ctx.strokeRect(x0 + 0.5, y + 0.5, x1 - x0 - 1, bh - 1);
     ctx.fillStyle = "#3d4540"; ctx.font = "13.5px 'Source Sans 3', Arial, sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "top";
-    var last = -1e9;
-    for (i = 1; i < L.length; i++) { var x = x0 + i * bw; ctx.fillRect(x - 0.5, y + bh, 1, 4); if (x - last < 34) continue; ctx.fillText(lab(i), x, y + bh + 5); last = x; }
+    var S = { r: -1e9 };
+    for (i = 1; i < L.length; i++) { var x = x0 + i * bw; ctx.fillRect(x - 0.5, y + bh, 1, 4); hLab(ctx, lab(i), x, x0, x1, y + bh + 5, S); }
   }
   function drawLegendClasses(L, C, cap, lab) {                       // one equal box per class, labelled at the lower edges
     $("legT").textContent = cap;
@@ -2538,8 +2580,8 @@
     for (var i = 0; i < n; i++) { ctx.fillStyle = C[i]; ctx.fillRect(x0 + i * bw, y, Math.ceil(bw), bh); }
     ctx.strokeStyle = "#8c918b"; ctx.lineWidth = 1; ctx.strokeRect(x0 + 0.5, y + 0.5, x1 - x0 - 1, bh - 1);
     ctx.fillStyle = "#3d4540"; ctx.font = "13.5px 'Source Sans 3', Arial, sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "top";
-    var last = -1e9;
-    for (i = 0; i < L.length; i++) { var x = x0 + i * bw; ctx.fillRect(x - 0.5, y + bh, 1, 4); if (x - last < 30) continue; ctx.fillText(lab(L[i]), Math.max(x, x0 + 8), y + bh + 5); last = x; }
+    var S = { r: -1e9 };
+    for (i = 0; i < L.length; i++) { var x = x0 + i * bw; ctx.fillRect(x - 0.5, y + bh, 1, 4); hLab(ctx, lab(L[i]), x, x0, x1, y + bh + 5, S); }
   }
   function drawLegendDT() {                                       // 5 K classes as the site's DT maps; labels every 20 K
     $("legT").textContent = "Potential temperature on the dynamic tropopause (the 2-PVU surface), K, in 5 K classes · barbs: the wind on it, knots · lines every 10 K · low θ (purple, blue): troughs and stratospheric air brought down; high θ (orange, red): ridges and tropical air";
@@ -2551,8 +2593,8 @@
     for (var i = 0; i < n; i++) { ctx.fillStyle = C[i]; ctx.fillRect(x0 + i * bw, y, Math.ceil(bw), bh); }
     ctx.strokeStyle = "#8c918b"; ctx.lineWidth = 1; ctx.strokeRect(x0 + 0.5, y + 0.5, x1 - x0 - 1, bh - 1);
     ctx.fillStyle = "#3d4540"; ctx.font = "13.5px 'Source Sans 3', Arial, sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "top";
-    var last = -1e9;
-    for (i = 1; i < n; i++) { var x = x0 + i * bw; if (!lab(i)) continue; ctx.fillRect(x - 0.5, y + bh, 1, 4); if (x - last < 30) continue; ctx.fillText(lab(i), x, y + bh + 5); last = x; }
+    var S = { r: -1e9 };
+    for (i = 1; i < n; i++) { var x = x0 + i * bw; if (!lab(i)) continue; ctx.fillRect(x - 0.5, y + bh, 1, 4); hLab(ctx, lab(i), x, x0, x1, y + bh + 5, S); }
   }
   function drawLegend() {
     if (diffOn()) { drawLegendDiff(); return; }
@@ -2597,13 +2639,11 @@
     }
     ctx.strokeStyle = "#8c918b"; ctx.lineWidth = 1; ctx.strokeRect(x0 + 0.5, y + 0.5, x1 - x0 - 1, bh - 1);
     ctx.fillStyle = "#3d4540"; ctx.font = "13.5px 'Source Sans 3', Arial, sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "top";
-    var last = -1e9;
+    var S = { r: -1e9 };
     tks.forEach(function (tk) {
       var tv = tk[0], x = xOf(tv); if (x < x0 - 1 || x > x1 + 1) return;
       ctx.fillRect(x - 0.5, y + bh, 1, 4);
-      var lab = tk[1];
-      if (Math.abs(x - last) < 26) return;
-      ctx.fillText(lab, Math.min(Math.max(x, x0 + 8), x1 - 8), y + bh + 5); last = x;
+      hLab(ctx, tk[1], x, x0, x1, y + bh + 5, S);
     });
   }
   function legCaption(name) {
@@ -2634,7 +2674,9 @@
       return !MODEL_ORDER.some(function (m) { var c2 = cycleObj(m, 0); return c2 && c2.fields && c2.fields[f]; });
     return !!(c && c.fields && f !== "acc" && f !== "ecape" && !c.fields[f]);
   }
-  function labelOf(model, f) { if (FIELDS[f] && FIELDS[f].btn && FAM[f] === f) return FIELDS[f].btn; return model === "rdps" && f === "ir" ? "IR proxy (OLR)" : model === "rdps" && f === "refl" ? "Precip rate + type" : FIELDS[f].label + (FIELDS[f].sub && FAM[f] !== f && FIELDS[f].sub !== "echo tops" ? " (" + FIELDS[f].sub + ")" : ""); }
+  function labelOf(model, f) { if (FIELDS[f] && FIELDS[f].btn && FAM[f] === f) return FIELDS[f].btn; return model === "rdps" && f === "ir" ? "IR proxy (OLR)" : model === "rdps" && f === "refl" ? "Precip rate + type" : FIELDS[f].label + (FIELDS[f].sub && FAM[f] !== f && FIELDS[f].label.toLowerCase().indexOf(FIELDS[f].sub.toLowerCase()) < 0 ? " (" + FIELDS[f].sub + ")" : ""); }
+  // the button's unit: the RDPS "radar" map is a precipitation RATE, not reflectivity
+  function unitOf(model, f) { return model === "rdps" && f === "refl" ? "mm/h" : FIELD_UNIT[f]; }
   function subLabel(model, f) { return f === "refl" ? (model === "rdps" ? "Precipitation rate" : "Reflectivity") : f === "etop" ? "Echo tops" : FIELDS[f].sub.replace(/^./, function (c) { return c.toUpperCase(); }); }
   function fmtTime(ms) {
     var d = new Date(ms);
@@ -2650,7 +2692,7 @@
     var vt = Date.parse(c.init) + st.hour * 3600e3, t = fmtTime(vt);
     var init = src.init.replace(/T(\d\d):00Z/, " $1Z").slice(5).replace("-", "/");
     $("badge").innerHTML = "<b>" + MODELS[st.model] + "</b> " + (st.model === "rdps" && st.field === "ir" ? "OLR-derived brightness temperature (proxy for IR)" : labelOf(st.model, st.field)) + " · run " + init + " +" + h + " h" + (st.field === "acc" ? " · " + ACC_TYPES[st.acc.type].label.replace(/^./, function (c) { return c.toLowerCase(); }) + (drawn && drawn.accLabel ? ", " + drawn.accLabel : "") : "") +
-      (st.field === "ecape" ? " · " + EC_SUBS[st.ec].long : "") + (FIELDS[st.field].sub && st.field !== "etop" ? " · " + FIELDS[st.field].sub : "") + (diffOn() ? " · <b>minus " + MODELS[diffOther(st.model)] + "</b> at the same valid time" : "");
+      (st.field === "ecape" ? " · " + EC_SUBS[st.ec].long : "") + (FIELDS[st.field].sub && labelOf(st.model, st.field).toLowerCase().indexOf(FIELDS[st.field].sub.toLowerCase()) < 0 ? " · " + FIELDS[st.field].sub : "") + (diffOn() ? " · <b>minus " + MODELS[diffOther(st.model)] + "</b> at the same valid time" : "");
     $("valid").innerHTML = "<span class=\"vt\">" + t[0] + "</span> <span class=\"loc\">· " + t[1] + " your time</span><span class=\"fh\">+" + h + " h</span>";
   }
   function setButtons() {
@@ -2700,11 +2742,11 @@
       grp[1].forEach(function (f) {
         if (fieldGone(st.model, f)) return;                         // not in this run: no button (smoke is seasonal)
         var b = document.createElement("button"); b.type = "button"; b.textContent = labelOf(st.model, f);
-        var u = document.createElement("small"); u.textContent = FIELD_UNIT[f]; b.appendChild(u);
+        var u = document.createElement("small"); u.textContent = unitOf(st.model, f); b.appendChild(u);
         b.setAttribute("aria-pressed", String(f === famOf(st.field)));
         var na = NA[st.model] && NA[st.model][f], o = document.createElement("option");
         if (na && FIELDS[f].conv) { b.title = na; na = null; }       // kept clickable: the map explains (like ECAPE)
-        o.value = f; o.textContent = labelOf(st.model, f) + " (" + FIELD_UNIT[f] + ")" + (na ? " - not in this model" : ""); o.selected = f === famOf(st.field); o.disabled = !!na; og.appendChild(o);
+        o.value = f; o.textContent = labelOf(st.model, f) + " (" + unitOf(st.model, f) + ")" + (na ? " - not in this model" : ""); o.selected = f === famOf(st.field); o.disabled = !!na; og.appendChild(o);
         if (na) { b.disabled = true; b.title = na; }
         b.onclick = function () { if (famOf(st.field) !== f) pick(f); };
         seg.appendChild(b);
@@ -3237,7 +3279,7 @@
       : "HRRR forecast soundings for the " + hr.init.slice(11, 13) + "Z run are still being computed (about an hour after its maps)";
     el.hidden = false;
   }
-  $("sndHX").addEventListener("click", function (e) { e.stopPropagation(); try { localStorage.setItem(SND_HINT_KEY, "1"); } catch (_) {} $("sndH").hidden = true; });
+  $("sndHX").addEventListener("click", function (e) { e.stopPropagation(); try { localStorage.setItem(SND_HINT_KEY, "1"); } catch (_) {} $("sndH").hidden = true; drawLabels(); });
   ["dblclick", "pointerdown", "wheel"].forEach(function (ev) { $("sndH").addEventListener(ev, function (e) { e.stopPropagation(); }); });
   // map gestures give soundings only while the HRRR is on screen (user 2026-10-04: other models' maps showed HRRR soundings)
   function sndOn() { return st.model === "hrrr" ? sndMeta() : null; }
@@ -3507,9 +3549,12 @@
     }
     if (y) {
       ctx.textAlign = "right"; ctx.textBaseline = "middle";
-      y.ticks.forEach(function (v) { var yy = y.f(v); if (yy < top - 1 || yy > bot + 1) return;
+      var lastY = -1e9;                                            // top tick first; a label that would touch the one above is skipped
+      y.ticks.slice().reverse().forEach(function (v) { var yy = y.f(v); if (yy < top - 1 || yy > bot + 1) return;
         ctx.strokeStyle = "#eceee9"; ctx.beginPath(); ctx.moveTo(MGL, Math.round(yy) + 0.5); ctx.lineTo(w - MGR, Math.round(yy) + 0.5); ctx.stroke();
-        ctx.fillText(y.lab ? y.lab(v) : String(v), MGL - 4, yy); });
+        var ly = Math.min(Math.max(yy, top + MGF * 0.55), bot - MGF * 0.55);   // kept inside the canvas (the top tick's label was half cut off)
+        if (Math.abs(ly - lastY) < MGF * 1.05) return;
+        ctx.fillText(y.lab ? y.lab(v) : String(v), MGL - 4, ly); lastY = ly; });
     }
     var now = Date.now();
     if (now >= X.t0 && now <= X.t1 && !opt.noNow) { var xn = X.f(now); ctx.strokeStyle = "rgba(200,40,30,0.75)"; ctx.setLineDash([4, 3]); ctx.lineWidth = 1.3;
@@ -3654,10 +3699,14 @@
         y6.f = function (v) { return 4 + (1 - (Math.log(v) - L0) / (L1 - L0)) * ph6; }; }
       else { if (sp.id === "a" || sp.id === "s" || sp.id === "k" || sp.id === "sw") lo = 0; var pad = (hi - lo) * 0.08 || 1; var ylo = lo - (lo === 0 ? 0 : pad), yhi = hi + pad;
         y6 = { ticks: niceTicks(ylo, yhi, 4), lab: sp.id === "a" ? function (v) { return v.toFixed(2); } : null }; y6.f = function (v) { return 4 + (1 - (v - ylo) / (yhi - ylo)) * ph6; }; }
-      if (sp.bands) sp.bands.forEach(function (b) { var ya = y6.f(b[1]), yb2 = y6.f(b[0]); c6.fillStyle = FLT[b[2]][1]; c6.globalAlpha = 0.16; c6.fillRect(MGL, ya, g6.w - MGL - MGR, yb2 - ya); c6.globalAlpha = 1;
-        c6.fillStyle = FLT[b[2]][1]; c6.font = "600 " + (MGF - 1.5) + "px 'Source Sans 3', Arial, sans-serif"; c6.textAlign = "right"; c6.textBaseline = "middle"; if (yb2 - ya > 11) c6.fillText(FLT[b[2]][0], g6.w - MGR - 3, (ya + yb2) / 2); });
+      if (sp.bands) sp.bands.forEach(function (b) { var ya = y6.f(b[1]), yb2 = y6.f(b[0]); c6.fillStyle = FLT[b[2]][1]; c6.globalAlpha = 0.16; c6.fillRect(MGL, ya, g6.w - MGL - MGR, yb2 - ya); c6.globalAlpha = 1; });
       mgFrame(c6, g6.w, sp.h, X, y6, {});
       SER.forEach(function (a) { mgPath(c6, X, y6, a[1], a[2], a[3], MG_COL[a[0]]); });
+      // category names over the lines with a halo (drawn under them they were struck through by any line at the right edge)
+      if (sp.bands) sp.bands.forEach(function (b) { var ya = y6.f(b[1]), yb2 = y6.f(b[0]); if (yb2 - ya <= 11) return;
+        c6.font = "600 " + (MGF - 1.5) + "px 'Source Sans 3', Arial, sans-serif"; c6.textAlign = "right"; c6.textBaseline = "middle";
+        c6.lineWidth = 3; c6.strokeStyle = "rgba(255,255,255,0.9)"; c6.strokeText(FLT[b[2]][0], g6.w - MGR - 3, (ya + yb2) / 2);
+        c6.fillStyle = FLT[b[2]][1]; c6.fillText(FLT[b[2]][0], g6.w - MGR - 3, (ya + yb2) / 2); });
       last = g6;
     });
     // the time axis, once, under the last chart
