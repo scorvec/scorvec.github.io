@@ -330,7 +330,7 @@ def to_unit(k_arr, unit):
 
 
 # ── build ────────────────────────────────────────────────────────────────────
-def build(ym: str) -> None:
+def build(ym: str, replot: bool = False) -> None:
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
@@ -341,8 +341,10 @@ def build(ym: str) -> None:
     summary = {"generated": time.strftime("%Y-%m-%d %H:%M UTC", time.gmtime()), "issue": ym, "previous": prev, "regions": {}}
     ASSETS.mkdir(parents=True, exist_ok=True); (ASSETS / "data").mkdir(parents=True, exist_ok=True)
 
-    # this issue from its chunks (and saved for next month); the previous issue from its saved summary
-    cur_all, prev_all = issue_summary(ym), load_issue_summary(prev)
+    # this issue from its chunks (and saved for next month); the previous issue from its saved summary.
+    # replot: this issue from its saved summary too (is_popT_issue_{ym}, release seas5-ref-v1) -- no chunks, no CDS.
+    cur_all = load_issue_summary(ym) if replot else issue_summary(ym)
+    prev_all = load_issue_summary(prev)
     for region, (label, cc, area, unit) in REGIONS.items():
         # gather: {calendar month: {issue: (daily_values_unit, monthly_means_unit, clim_unit or None)}}
         data = {}
@@ -354,7 +356,18 @@ def build(ym: str) -> None:
             print(f"  {region}: nothing to draw", flush=True); continue
 
         ref = observed_reference(region)
-        fig, axes = plt.subplots(1, len(months), figsize=(3.1 * len(months) + 1, 5.6), squeeze=False)
+        # Panels wrap at four per row (2026-10-08: lead 7 made a 7-wide strip ~2,500 px whose stat lines ran into the
+        # next panel and were unreadable at page width). Fixed inches per panel, so the layout holds for any lead count.
+        n = len(months); ncol = n if n <= 4 else 4; nrow = -(-n // ncol)
+        pw, gap, ah, below, top_in, bot_in, left_in = 3.45, 0.42, 2.45, 1.60, 1.25, 0.30, 0.55
+        fw = left_in + ncol * pw + (ncol - 1) * gap + 0.25
+        fh = top_in + nrow * (ah + below) + bot_in
+        fig = plt.figure(figsize=(fw, fh))
+        axes = np.empty((1, n), dtype=object)
+        for i in range(n):
+            r_, c_ = divmod(i, ncol)
+            x0 = left_in + c_ * (pw + gap); y0 = fh - top_in - r_ * (ah + below) - ah
+            axes[0, i] = fig.add_axes([x0 / fw, y0 / fh, pw / fw, ah / fh])
         reg = {"label": label, "unit": unit, "months": {}, "observed_space": ref is not None}
         conv = (9 / 5) if unit == "F" else 1.0
         for col, mon in enumerate(months):
@@ -362,7 +375,7 @@ def build(ym: str) -> None:
             rm = ref["by_month"][cm] if ref else None
             for row, mode in enumerate(("monthly",)):
                 ax = axes[row, col]
-                xs_all = []
+                xs_all, stat_lines = [], []
                 for iss, colr, name, z in ((prev, "#3f7fbf", f"{calendar.month_abbr[int(prev[4:])]} issue", 1), (ym, "#b8860b", f"{calendar.month_abbr[int(ym[4:])]} issue", 2)):
                     if iss not in entry:
                         continue
@@ -411,13 +424,15 @@ def build(ym: str) -> None:
                     ax.axvline(n10, color="#222", lw=1.0, ls=(0, (4, 3)), zorder=4)
                     ax.axvline(rw, color="#b0352a", lw=0.9, ls=":", zorder=4)
                     ax.axvline(rc, color="#2a5da8", lw=0.9, ls=":", zorder=4)
-                    ylim = ax.get_ylim()[1]
-                    ax.text(rw, ylim * 0.96, yw, color="#b0352a", fontsize=7, ha="center", va="top")
-                    ax.text(rc, ylim * 0.96, yc, color="#2a5da8", fontsize=7, ha="center", va="top")
+                    # record-year labels in a headroom band above the curves (they sat on the peaks before)
+                    ylim = ax.get_ylim()[1]; ax.set_ylim(top=ylim * 1.14)
+                    ax.text(rw, ylim * 1.12, yw, color="#b0352a", fontsize=7.4, ha="center", va="top")
+                    ax.text(rc, ylim * 1.12, yc, color="#2a5da8", fontsize=7.4, ha="center", va="top")
                     if mode == "monthly" and len(xs_all):
                         cur = xs_all[-1]
-                        ax.text(0.0, -0.44, f"Warmer than the 1991–2020 normal: {np.mean(cur > n30):.0%} of members\nWarmer than the 2016–2025 normal: {np.mean(cur > n10):.0%}\nWarmer than the record month: {np.mean(cur > rw):.0%}",
-                                transform=ax.transAxes, ha="left", va="top", fontsize=7.6, color="#333", linespacing=1.4)
+                        stat_lines = [f"Warmer than the 1991–2020 normal: {np.mean(cur > n30):.0%} of members",
+                                      f"Warmer than the 2016–2025 normal: {np.mean(cur > n10):.0%}",
+                                      f"Warmer than the record month: {np.mean(cur > rw):.0%}"]
                     reg["months"].setdefault(mon, {})["reference"] = dict(normal30=round(float(to_unit(rm["normal30"], unit)), 2), normal10=round(float(to_unit(rm["normal10"], unit)), 2),
                                                                         record_warm_month=[round(float(to_unit(rm["record_warm"][0], unit)), 2), rm["record_warm"][1]],
                                                                         record_cold_month=[round(float(to_unit(rm["record_cold"][0], unit)), 2), rm["record_cold"][1]],
@@ -430,7 +445,7 @@ def build(ym: str) -> None:
                         lines.append(f"Change since the {calendar.month_abbr[int(prev[4:])]} issue: {cur.mean() - xs_all[0].mean():+.1f}°{unit}")
                     elif mon not in vm_prev:
                         lines.append(f"No change: the {calendar.month_abbr[int(prev[4:])]} issue did not reach this month")
-                    ax.text(0.0, -0.20, "\n".join(lines), transform=ax.transAxes, ha="left", va="top", fontsize=7.8, color="#222", linespacing=1.4)
+                    ax.text(0.0, -0.16, "\n".join(lines + stat_lines), transform=ax.transAxes, ha="left", va="top", fontsize=7.8, color="#222", linespacing=1.45)
                 if row == 0:
                     ax.set_title(f"{calendar.month_abbr[int(mon[5:])]} {mon[:4]}", fontsize=12, loc="left")
 
@@ -438,24 +453,23 @@ def build(ym: str) -> None:
                 ax.tick_params(labelsize=8.5)
                 if mode == "monthly" and ref is None:
                     ax.axvline(0, color="#666", lw=0.8)
-                if col == 0:
+                if col % ncol == 0:
                     ax.set_ylabel("share of members", fontsize=9)
         handles, labels = axes[0, 0].get_legend_handles_labels()
         if ref is not None:
             from matplotlib.lines import Line2D
             handles += [Line2D([], [], color="#222", lw=1.0), Line2D([], [], color="#222", lw=1.0, ls=(0, (4, 3))), Line2D([], [], color="#b0352a", lw=0.9, ls=":"), Line2D([], [], color="#2a5da8", lw=0.9, ls=":")]
             labels += ["1991–2020 normal", "2016–2025 normal", "warmest month on record", "coldest month on record"]
-        fig.legend(handles, labels, loc="lower center", ncol=len(labels), fontsize=8.5, frameon=False, bbox_to_anchor=(0.5, 0.01))
+        fig.legend(handles, labels, loc="lower center", ncol=len(labels), fontsize=8.5, frameon=False, bbox_to_anchor=(0.5, 0.06 / fh))
         fig.suptitle(f"{label}: SEAS5 forecast of the monthly mean population-weighted temperature (°{unit}), {calendar.month_name[int(ym[4:])]} {ym[:4]} issue",
-                     x=0.02, y=0.99, ha="left", fontsize=13)
+                     x=0.2 / fw, y=1 - 0.12 / fh, ha="left", va="top", fontsize=13)
         if ref is not None:
             note = (f"Each curve is the spread of the 51 members' monthly means (gold: this issue; blue: last month's issue), built from the 6-hourly member fields, population-weighted, "
                     f"bias-corrected to observations. Black lines: what a normal month is, 1991–2020 (solid) and 2016–2025 (dashed). Dotted: the warmest and coldest month on record in ERA5 {ref['daily_years']}, year labelled.")
         else:
             note = "Each curve is the spread of the 51 members' monthly means (gold: this issue; blue: last month's issue) in the model's own temperature."
         import textwrap
-        fig.text(0.02, 0.925, "\n".join(textwrap.wrap(note, 210)), fontsize=8.8, color="#444", va="top", linespacing=1.35)
-        fig.subplots_adjust(left=0.05, right=0.99, top=0.78, bottom=0.36, wspace=0.12)
+        fig.text(0.2 / fw, 1 - 0.46 / fh, "\n".join(textwrap.wrap(note, int(fw * 14.5))), fontsize=8.8, color="#444", va="top", linespacing=1.35)
         out = ASSETS / f"seas5_popT_{region}.webp"
         fig.savefig(out, dpi=110, pil_kwargs={"quality": 84, "method": 6}); plt.close(fig)
         reg["file"] = out.name
@@ -476,8 +490,12 @@ def main(argv=None) -> int:
     ap.add_argument("--issue", default=None)
     ap.add_argument("--region", choices=list(REGIONS), help="fetch only this region (parallel workers)")
     ap.add_argument("--only-issue", help="fetch only this issue YYYYMM (parallel workers)")
+    ap.add_argument("--replot", action="store_true", help="build: redraw from the saved issue summaries only (no chunks, no CDS)")
     a = ap.parse_args(argv)
     import datetime as _dt
+    if a.replot:                                  # the published issue, redrawn from its saved summary
+        build(a.issue or json.loads(OUT_JSON.read_text())["issue"], replot=True)
+        return 0
     ym = a.issue or _dt.datetime.utcnow().strftime("%Y%m")
     if a.cmd in ("fetch", "all"):
         got = fetch(ym, [a.region] if a.region else None, [a.only_issue] if a.only_issue else None)

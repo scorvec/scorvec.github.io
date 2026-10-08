@@ -171,8 +171,9 @@ def plot(obs: pd.DataFrame, normals: dict, diff: xr.DataArray,
     for y in (7, -7):
         ax.axhline(y, color="0.6", lw=0.7, ls="--")
     ax.axhline(0, color="0.5", lw=0.8)
-    ax.text(p0, 9, "La Niña", fontsize=8, color="#2c4a72")
-    ax.text(p0, -11, "El Niño", fontsize=8, color="#9a2c2c")
+    # just inside the ±7 lines, nudged off the y axis (at y=9 the label was clipped by the top of the axes)
+    ax.text(p0 + pd.Timedelta(days=1), 7.6, "La Niña", fontsize=8, color="#2c4a72", va="bottom")
+    ax.text(p0 + pd.Timedelta(days=1), -7.6, "El Niño", fontsize=8, color="#9a2c2c", va="top")
 
     # observed: faint daily + bold 30-day
     od = obs_soi.loc[p0:init_d]
@@ -201,6 +202,11 @@ def plot(obs: pd.DataFrame, normals: dict, diff: xr.DataArray,
                  f"{diff.sizes['number']}-member combined ensemble",
                  fontsize=11, fontweight="bold", loc="left")
     ax.legend(fontsize=8, loc="upper right", ncol=2, framealpha=0.92)
+    # headroom for the two-row legend: the forecast's 10-90% band ran up underneath it
+    y0, y1 = ax.get_ylim()
+    vals = np.concatenate([np.ravel(v) for v in (od.values, ro.values, fwin.values, hi, lo)])
+    vmax = float(np.nanmax(vals)) if np.isfinite(vals).any() else y1
+    ax.set_ylim(y0, max(y1, 11.0, vmax + 0.04 * (vmax - y0) + 0.17 * (vmax - y0) / 0.83))
     ax.grid(True, alpha=0.2)
     fig.text(0.01, -0.01, ("Model Tahiti−Darwin pressure mapped to the stations by a fixed per-month ERA5 1991–2020 calibration with the cycle-hour tide removed — no per-run offset, so the level is comparable from cycle to cycle."
                            if mode.startswith("calibrated") else "Forecast anchored to the observed 30-day running SOI at initialisation."),

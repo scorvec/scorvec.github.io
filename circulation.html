@@ -147,7 +147,7 @@
             <div>
               <h3>Verification</h3>
               <ul>
-                <li><a href="/aifs-verify.html">AIFS single versus member 0</a></li>
+                <li><a href="/aifs-verify.html">AIFS single versus member 0</a></li>
               </ul>
             </div>
           </div>
@@ -463,6 +463,8 @@ References: Bister &amp; Emanuel 2002, <i>JGR</i> 107(D24), 4801 &middot; Chen, 
   .tcs-bar b{font-size:.9rem}
   .tcs-bar input{order:5;flex-basis:100%}
 }
+/* phones: the hodograph and tilt one above the other (side by side their 12 px labels drew at ~4 px) */
+@media (max-width:560px){.tcs-side{grid-template-columns:1fr}}
 </style>
 <div class="tcs-row" id="tcs-storms" role="group" aria-label="Storms"></div>
 <div class="tcs-row" id="tcs-views" role="group" aria-label="View"></div>
@@ -497,7 +499,7 @@ References: Bister &amp; Emanuel 2002, <i>JGR</i> 107(D24), 4801 &middot; Chen, 
 </div>
 <div id="tcs-val" hidden></div>
 </div>
-<script src="/assets/tcshear/tcshear.js?v=20261008g" defer></script>
+<script src="/assets/tcshear/tcshear.js?v=20261008h" defer></script>
 <!-- Storm picker (2026-10-03, user: "For the cyclone phase space and ensemble tracks, would be better if you could click on a
      map and select the storm"). Mounted by the tcens and tcphase products; reads assets/sst/data/tcens.json + tcphase.json
      (per-storm figures in assets/sst/tc/, written by tc_ens.py / tc_phase.py). State in the hash: #tcens/<id>[/depth], #tcphase/<id>. -->
@@ -600,7 +602,7 @@ References: Bister &amp; Emanuel 2002, <i>JGR</i> 107(D24), 4801 &middot; Chen, 
     var X = function (r) { return ((r - x0) * k * sc).toFixed(1); }, Y = function (la) { return ((y1 - la) * sc).toFixed(1); };
     var svg = '<svg viewBox="0 0 ' + W + " " + H + '" role="img" aria-label="Storm tracks"><defs><clipPath id="tcp-clip"><rect width="' + W + '" height="' + H + '"/></clipPath></defs><g clip-path="url(#tcp-clip)">';
     for (var g = Math.ceil(y0 / 10) * 10; g <= y1; g += 10) svg += '<line class="grid" x1="0" x2="' + W + '" y1="' + Y(g) + '" y2="' + Y(g) + '"/><text class="gl" x="4" y="' + (Y(g) - 3) + '">' + Math.abs(g) + (g > 0 ? "°N" : g < 0 ? "°S" : "°") + "</text>";
-    for (var gx = Math.ceil((x0 + c) / 20) * 20; gx <= x1 + c; gx += 20) { var r = wrap(gx - c), lab = ((gx % 360) + 360) % 360; svg += '<line class="grid" y1="0" y2="' + H + '" x1="' + X(r) + '" x2="' + X(r) + '"/><text class="gl" x="' + (+X(r) + 3) + '" y="' + (H - 4) + '">' + (lab > 180 ? (360 - lab) + "°W" : lab + (lab && lab < 180 ? "°E" : "°")) + "</text>"; }
+    for (var gx = Math.ceil((x0 + c) / 20) * 20; gx <= x1 + c; gx += 20) { var r = wrap(gx - c), lab = ((gx % 360) + 360) % 360; svg += '<line class="grid" y1="0" y2="' + H + '" x1="' + X(r) + '" x2="' + X(r) + '"/>' + (+X(r) > W - 46 ? "" : '<text class="gl" x="' + (+X(r) + 3) + '" y="' + (H - 4) + '">' + (lab > 180 ? (360 - lab) + "°W" : lab + (lab && lab < 180 ? "°E" : "°")) + "</text>"); }   // no label the right edge would cut
     if (land) {
       var d = "";
       land.forEach(function (ring) {

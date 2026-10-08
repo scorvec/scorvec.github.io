@@ -37,7 +37,7 @@
   #map path.state { fill: none; stroke: #fff; stroke-width: 0.6; pointer-events: none; }
   #map path.county.sig { stroke: none; }
   .legend { display: flex; align-items: center; gap: 0.6rem; font-size: 0.82rem; color: #444; margin: 0.4rem 0 0; flex-wrap: wrap; }
-  .legend .bar { display: flex; height: 12px; max-width: 100%; }
+  .legend .bar { display: flex; height: 12px; flex: 0 1 300px; width: 300px; max-width: 100%; }   /* a width: its swatches have flex-basis 0, so without one the bar collapsed to nothing (2026-10-08) */
   .legend .bar span { flex: 1 1 0; min-width: 0; max-width: 24px; height: 12px; }
   .bar { display: flex; max-width: 100%; } .bar span { flex: 1 1 0; min-width: 0; max-width: 24px; }
   .tip { position: absolute; pointer-events: none; background: #fff; border: 1px solid var(--rule); border-radius: 6px; padding: 0.4rem 0.6rem; font-size: 0.82rem; box-shadow: 0 6px 18px rgba(0,0,0,0.08); display: none; z-index: 20; max-width: 22rem; }
@@ -183,7 +183,7 @@
             <div>
               <h3>Verification</h3>
               <ul>
-                <li><a href="/aifs-verify.html">AIFS single versus member 0</a></li>
+                <li><a href="/aifs-verify.html">AIFS single versus member 0</a></li>
               </ul>
             </div>
           </div>

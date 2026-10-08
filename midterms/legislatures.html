@@ -185,7 +185,7 @@ path.so{fill:none;stroke:#5c5a55;stroke-width:.8;vector-effect:non-scaling-strok
             <div>
               <h3>Verification</h3>
               <ul>
-                <li><a href="/aifs-verify.html">AIFS single versus member 0</a></li>
+                <li><a href="/aifs-verify.html">AIFS single versus member 0</a></li>
               </ul>
             </div>
           </div>
@@ -269,7 +269,7 @@ signal; they did not improve the backtest and are not used.) Multi-member distri
 <a href="about.html#legislatures">about the forecast</a>.</p>
 </main>
 <script>
-const pct=x=>x==null?"–":(x<0.005?"<1":x>0.995?">99":Math.round(100*x))+"%";
+const pct=x=>x==null?"–":(x<0.005?"<1":x>0.995?">99":Math.min(99,Math.max(1,Math.round(100*x))))+"%";   // 0.995 read "100%" beside "1%" (Texas Senate)
 fetch("data/model.json?"+Date.now()).then(r=>r.json()).then(M=>{
   const L=M.state_legislatures; const g=document.getElementById("grid");
   if(!L){g.innerHTML="<p class='note'>The state-legislature forecast is not published yet.</p>";return;}
@@ -287,7 +287,7 @@ fetch("data/model.json?"+Date.now()).then(r=>r.json()).then(M=>{
       <div class="ol"><span class="dcol"><b>${pct(c.p_d)}</b> Democratic</span>${c.p_shared>0.005?`<span style="color:var(--muted)">${pct(c.p_shared)} tied</span>`:""}<span class="rcol" style="text-align:right"><b>${pct(c.p_r)}</b> Republican</span></div>
       <div class="odds" role="img" aria-label="Control: Democratic ${pct(c.p_d)}, Republican ${pct(c.p_r)}"><span style="width:${100*c.p_d}%;background:var(--d)"></span><span style="width:${100*c.p_shared}%;background:var(--sh)"></span><span style="width:${100*c.p_r}%;background:var(--r)"></span></div>
       <p class="sub">Democratic seats: ${c.mean_d.toFixed(0)} on average, 80% range ${c.p10}–${c.p90}; majority ${maj}${sup}</p>
-      <svg viewBox="0 0 ${W} ${H+14}" aria-label="Distribution of Democratic seats">${bars}<line x1="${mxl}" x2="${mxl}" y1="0" y2="${H}" stroke="#1b1d22" stroke-dasharray="3 2"/><text x="${mxl}" y="${H+12}" font-size="11" text-anchor="middle" fill="#6f6b64">${maj}</text></svg>
+      <svg viewBox="0 0 ${W} ${H+19}" aria-label="Distribution of Democratic seats">${bars}<line x1="${mxl}" x2="${mxl}" y1="0" y2="${H}" stroke="#1b1d22" stroke-dasharray="3 2"/><text x="${Math.min(W-12,Math.max(12,+mxl))}" y="${H+16}" font-size="14" text-anchor="middle" fill="#6f6b64">${maj}</text></svg>
       ${c.experimental?`<p class="exp">Experimental: ${c.experimental}.</p>`:""}
       <details><summary>${(c.tipping||[]).length&&c.tipping[0].p_tip!=null?"Tipping-point seats":"Closest seats"}</summary><table><thead><tr><th>District</th><th>Member</th><th class="n">2024 lean</th><th class="n">D win</th>${(c.tipping||[]).length&&c.tipping[0].p_tip!=null?"<th class='n'>Decides control</th>":""}</tr></thead><tbody>${tip}</tbody></table></details>
       <p class="ml"><a href="#maps" data-map="${c.state}_${c.chamber}">District map</a></p>`;
@@ -306,7 +306,7 @@ const NEU="#e6e6e6", DC="#0b3d91", RC="#a32215", mix=(a,b,t)=>d3.interpolateRgb(
 const CLS=[{lo:.95,lab:"Safe D",c:DC,t:"≥95"},{lo:.85,lab:"Likely D",c:mix(NEU,DC,.68),t:"85–95"},{lo:.65,lab:"Lean D",c:mix(NEU,DC,.38),t:"65–85"},
   {lo:.35,lab:"Toss-up",c:NEU,t:"35–65"},{lo:.15,lab:"Lean R",c:mix(NEU,RC,.38),t:"65–85"},{lo:.05,lab:"Likely R",c:mix(NEU,RC,.68),t:"85–95"},{lo:-1,lab:"Safe R",c:RC,t:"≥95"}];
 const cls=p=>CLS.find(c=>p>=c.lo&&(c.lo!==.35||p<=.65))||CLS[6];
-const pct=x=>x==null?"–":(x<0.005?"<1":x>=0.995?">99":Math.round(100*x))+"%";
+const pct=x=>x==null?"–":(x<0.005?"<1":x>0.995?">99":Math.min(99,Math.max(1,Math.round(100*x))))+"%";
 const mg=(v,d=1)=>Math.abs(v)<0.05?"even":(v>0?"D+":"R+")+Math.abs(v).toFixed(d);
 const esc=t=>String(t).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const who=t=>esc(t).replace(/\((O)\)/g,"(independent)");

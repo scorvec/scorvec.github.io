@@ -82,7 +82,7 @@ tbody tr{cursor:pointer}tbody tr:hover{background:#f3f2ee}
 .mt-more{border:0;background:none;color:var(--d);font:inherit;font-size:16px;padding:6px 0;cursor:pointer}
 .mt-tw{overflow-x:auto}
 .mt-hist{width:100%;height:auto;display:block}
-.mt-hist text{font-size:11px;fill:var(--muted)}
+.mt-hist text{font-size:12.5px;fill:var(--muted)}
 .mt-sum{font-size:17px;margin:0 0 6px}
 .charts2{display:grid;grid-template-columns:1fr 1fr;gap:22px}@media(max-width:900px){.charts2{grid-template-columns:1fr}}
 .ci{font-size:16px;margin:0 0 4px}.ci b{font-size:19px}
@@ -226,7 +226,7 @@ tbody tr{cursor:pointer}tbody tr:hover{background:#f3f2ee}
             <div>
               <h3>Verification</h3>
               <ul>
-                <li><a href="/aifs-verify.html">AIFS single versus member 0</a></li>
+                <li><a href="/aifs-verify.html">AIFS single versus member 0</a></li>
               </ul>
             </div>
           </div>
@@ -510,7 +510,7 @@ function shist(sel,h2,Hh){const svg=$(sel),W=360;const P=Object.entries(h2).map(
  const tot=P.reduce((a,p)=>a+p.v,0),byD={};P.forEach(p=>{(byD[p.d]=byD[p.d]||[]).push(p)});const ks=Object.keys(byD).map(Number).sort((a,b)=>a-b);
  const sum=k=>byD[k].reduce((a,p)=>a+p.v,0);let c=0,lo=ks[0],hi=ks[ks.length-1];for(const k of ks){c+=sum(k);if(c/tot>0.005){lo=k;break}}c=0;for(const k of [...ks].reverse()){c+=sum(k);if(c/tot>0.005){hi=k;break}}
  const who=(d,i)=>{const r=100-d-i;return d>r+i?'d':(d+i>r?'x':'r')},fill={d:'#1f5fbf',r:'#b3261e',x:'#7b4fa6'};
- const x0=lo-1,x1=hi+1,mx=Math.max(...ks.filter(k=>k>=lo&&k<=hi).map(sum)),base=Hh-52,sx=v=>12+(v-x0)/(x1-x0)*(W-24),sy=v=>(v/mx)*(base-24),bw=Math.max(1,(W-24)/(x1-x0)-1);
+ const x0=lo-1,x1=hi+1,mx=Math.max(...ks.filter(k=>k>=lo&&k<=hi).map(sum)),base=Hh-58,sx=v=>12+(v-x0)/(x1-x0)*(W-24),sy=v=>(v/mx)*(base-24),bw=Math.max(1,(W-24)/(x1-x0)-1);
  let s='',share={d:0,r:0,x:0};P.forEach(p=>share[who(p.d,p.i)]+=p.v/tot);
  ks.filter(k=>k>=lo&&k<=hi).forEach(k=>{let y=base;byD[k].sort((a,b)=>a.i-b.i).forEach(p=>{const hgt=sy(p.v);y-=hgt;
   s+=`<rect x="${sx(k)-bw/2}" y="${y}" width="${bw}" height="${hgt}" fill="${fill[who(p.d,p.i)]}" opacity="${p.i?.95:.85}" stroke="${p.i?'#fff':'none'}" stroke-width=".6"><title>${k} Democrats, ${p.i} independent${p.i==1?'':'s'}, ${100-k-p.i} Republicans: ${(100*p.v/tot).toFixed(1)}% of simulations</title></rect>`})});
