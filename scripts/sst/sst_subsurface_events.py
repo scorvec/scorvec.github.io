@@ -364,7 +364,7 @@ def heat_content(frames: dict, cur_year: int, out: Path, meta: dict, detr: bool 
     lines = []
     if v.get("summary_line"):
         lines.append(v["summary_line"])
-    cl = _cpc_latest(frames[cur_year], meta)
+    cl = "" if detr else _cpc_latest(frames[cur_year], meta)     # the check is on the raw index
     if cl:
         lines.append(cl)
     if lines:
