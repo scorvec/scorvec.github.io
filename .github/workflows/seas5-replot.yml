@@ -1,0 +1,55 @@
+name: SEAS5 teleconnection board redraw (no data access)
+
+# Redraws assets/sst/seas5_tele_probs.webp from the published assets/sst/data/seas5_tele.json
+# (scripts/sst/seas5_tele.py --replot). For layout fixes between monthly issues: no CDS key, no downloads, so it runs
+# outside the `seas5` concurrency group. 2026-10-08: lead 7 (April) made the six-column layout's labels overlap.
+
+on:
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+concurrency:
+  group: seas5-replot
+  cancel-in-progress: false
+
+env:
+  MPLBACKEND: Agg
+  PYTHONUNBUFFERED: '1'
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      SST_SITE_ROOT: ${{ github.workspace }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+      - name: Install dependencies
+        run: |
+          pip install --quiet numpy pandas scipy xarray netCDF4 h5netcdf 'pyproj>=3.7.2' matplotlib==3.10.9 Pillow cfgrib eccodes
+      - name: Redraw
+        run: python scripts/sst/seas5_tele.py --replot
+      - name: Commit & push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          SNAP=$(mktemp -d)
+          git add -A assets/sst/seas5_tele_probs.webp
+          git diff --staged --name-only -z | tar cf "$SNAP/outs.tar" --null -T -
+          git reset -q
+          for i in 1 2 3 4 5; do
+            if ! timeout 120 git fetch origin main; then sleep 5; continue; fi
+            git reset --hard origin/main
+            tar xf "$SNAP/outs.tar"
+            git add -A assets/sst/seas5_tele_probs.webp
+            if git diff --staged --quiet; then echo "No changes"; exit 0; fi
+            git commit -q -m "data update: SEAS5 teleconnection board redraw"
+            if timeout 180 git push; then echo "Pushed on attempt $i."; exit 0; fi
+            sleep 5
+          done
+          exit 1

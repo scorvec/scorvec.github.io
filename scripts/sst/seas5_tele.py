@@ -723,9 +723,12 @@ def plot_probs(doc: dict, out: Path) -> None:
     from matplotlib.patches import Patch, Rectangle
     keys = [k for k in doc["groups"]["tele"] if doc["indices"][k].get("p_neg05")]
     n = len(keys); vm = max((doc["indices"][k]["valid"] for k in keys), key=len); W = len(vm)
-    fig = plt.figure(figsize=(13.6, 0.80 * n + 2.6))
-    ax = fig.add_axes([0.205, 0.075, 0.765, 0.79])
-    bw = 0.78
+    # width grows with the number of months (lead 7 since 2026-10-08 made the six-month layout's labels collide)
+    lab_in, col_in = 2.75, 1.95
+    fw = lab_in + col_in * W + 0.35
+    fig = plt.figure(figsize=(fw, 0.80 * n + 2.6))
+    ax = fig.add_axes([lab_in / fw, 0.075, col_in * W / fw, 0.79])
+    bw = 0.74
 
     def bar(y, h, pn, pp, x0, txt=True):
         pz = max(0.0, 1.0 - pn - pp)
@@ -743,28 +746,28 @@ def plot_probs(doc: dict, out: Path) -> None:
         for L, v in enumerate(vm):
             x0 = L - bw / 2
             if L >= len(e["mean"]):
-                ax.text(L, y, "no hindcast at this lead", ha="center", va="center", fontsize=7, color=MUTED, style="italic"); continue
+                ax.text(L, y, "no hindcast\nat this lead", ha="center", va="center", fontsize=7, color=MUTED, style="italic"); continue
             if e["mean"][L] is None:
-                ax.text(L, y, "not defined by CPC in this month", ha="center", va="center", fontsize=7, color=MUTED, style="italic"); continue
+                ax.text(L, y, "not defined by CPC\nin this month", ha="center", va="center", fontsize=7, color=MUTED, style="italic"); continue
             c = (e.get("cal") or [None] * W)[L]
             if e["p_neg05"][L] is None:
-                ax.text(L, y, "not defined by CPC in this month", ha="center", va="center", fontsize=7, color=MUTED, style="italic"); continue
+                ax.text(L, y, "not defined by CPC\nin this month", ha="center", va="center", fontsize=7, color=MUTED, style="italic"); continue
             bar(y + 0.10, 0.44, e["p_neg05"][L], e["p_pos05"][L], x0, txt=not (c and c.get("no_skill")))
             dm = ""
             if pe and v in pe["valid"] and pe["mean"][pe["valid"].index(v)] is not None:
-                dm = f"  Δ{e['mean'][L] - pe['mean'][pe['valid'].index(v)]:+.1f}"
+                dm = f" · Δ{e['mean'][L] - pe['mean'][pe['valid'].index(v)]:+.1f}"
             line = f"mean {e['mean'][L]:+.1f}{dm}"
             if c and "p_neg" in c:
                 bar(y - 0.24, 0.16, c["p_neg"], c["p_pos"], x0, txt=False)
                 ax.text(x0 + bw + 0.02, y - 0.24, f"{c['p_neg']*100:.0f}/{c['p_pos']*100:.0f}", ha="left", va="center", fontsize=7.0, color=INK)
-                line += f"  ·  skill r {e['skill'][L]:+.2f}"
+                line += f" · r {e['skill'][L]:+.2f}"
                 if c.get("no_skill"):
                     ax.add_patch(Rectangle((x0 - 0.02, y - 0.36), bw + 0.04, 0.72, facecolor="white", alpha=0.55, edgecolor="#8a8680", hatch="////", lw=0.6, zorder=5))
                     ax.text(L, y + 0.10, f"no skill  ({e['p_neg05'][L]*100:.0f}% / {e['p_pos05'][L]*100:.0f}%)", ha="center", va="center", fontsize=7.4, fontweight="bold", color=INK, zorder=6,
                             bbox=dict(facecolor="white", edgecolor="none", alpha=0.85, pad=1.0))
             else:
                 ax.text(x0 + bw / 2, y - 0.24, "no ERA5 reference — uncalibrated", ha="center", va="center", fontsize=6.8, color=MUTED, style="italic")
-            ax.text(L, y - 0.43, line, ha="center", va="center", fontsize=7.3, color=INK)
+            ax.text(L, y - 0.43, line, ha="center", va="center", fontsize=7.1, color=INK)
     ax.set_xlim(-0.5, W - 0.5); ax.set_ylim(-0.7, n - 0.4)
     ax.set_yticks(range(n)); ax.set_yticklabels([doc["indices"][k]["label"] for k in keys][::-1], fontsize=8.8)
     ax.set_xticks(range(W)); ax.set_xticklabels([f"{calendar.month_name[int(v[5:])]} {v[:4]}" for v in vm], fontsize=9)
@@ -773,13 +776,13 @@ def plot_probs(doc: dict, out: Path) -> None:
         ax.spines[sp].set_visible(False)
     ax.xaxis.set_ticks_position("top")
     handles = [Patch(color="#2c5fa8", label=f"P(monthly index ≤ −{THR}σ)"), Patch(color="#d9d6d0", label="neutral"), Patch(color="#b4453c", label=f"P(monthly index ≥ +{THR}σ)")]
-    fig.legend(handles=handles, loc="upper center", bbox_to_anchor=(0.59, 0.945), ncol=3, fontsize=8.4, frameon=False)
+    fig.legend(handles=handles, loc="upper center", bbox_to_anchor=((lab_in + col_in * W / 2) / fw, 0.945), ncol=3, fontsize=8.4, frameon=False)
     il = lambda ym: f"{calendar.month_abbr[int(ym[4:])]} {ym[:4]}"
     fig.suptitle(f"Teleconnection phase probabilities by month — SEAS5, 51 members, {il(doc['issue'])} issue  ·  Δ = change in the mean vs the {il(doc['previous'])} issue",
                  fontsize=12.5, fontweight="bold", y=0.985, va="top")
     note = ("upper bar: raw member fractions (51 members → 2% steps; 0% = no member, not certainty)\n"
             "thin lower bar: hindcast-calibrated probabilities — the observed monthly index (ERA5) regressed on the hindcast ensemble mean over the 24 hindcast years 1993–2016 for this calendar month and lead, "
-            f"Gaussian with the residual spread;\nskill r = correlation of the hindcast mean with ERA5; hatched = r below {SKILL_MIN}, no usable skill (the calibrated bar is then climatology by construction)")
+            f"Gaussian with the residual spread;\nr = skill: correlation of the hindcast mean with ERA5; hatched = r below {SKILL_MIN}, no usable skill (the calibrated bar is then climatology by construction)")
     fig.text(0.5, 0.006, note, ha="center", va="bottom", fontsize=7.8, color=MUTED)
     fig.savefig(out, dpi=105, facecolor="white", pil_kwargs={"quality": 88, "method": 6}); plt.close(fig)
     print(f"  wrote {out.name}", flush=True)
@@ -825,8 +828,15 @@ OBS_UNITS = {"tele_patterns": derive_obs_patterns, "tele_era5": derive_obs_era5}
 
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--issue", required=True)
+    ap.add_argument("--issue")
+    ap.add_argument("--replot", action="store_true", help="redraw the phase-probability board from the published seas5_tele.json (no data access)")
     a = ap.parse_args(argv)
+    if a.replot:
+        doc = json.loads(OUT_JSON.read_text())
+        plot_probs(doc, Path(os.environ.get("REPLOT_OUT") or ASSETS / "seas5_tele_probs.webp"))
+        return 0
+    if not a.issue:
+        ap.error("--issue is required")
     t0 = time.time()
     pats = Patterns()
     ym = a.issue; prev = previous_issues(ym, 1)[0]
