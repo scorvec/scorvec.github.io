@@ -76,6 +76,18 @@ def _core_lab(s, z):
     return "indistinct" if not np.isfinite(s) else f"{s:.0f} m/s ({z:+.1f}σ)"
 
 
+def _nice_lim(x):
+    """Round a colour-scale half-range up to 10 x a round step, so the 21 levels and the colour-bar ticks
+    (every second level) are round numbers (the raw percentile gave ticks like 3.87, 7.74, 11.61)."""
+    if not np.isfinite(x) or x <= 0:
+        return 1.0
+    k = 10.0 ** np.floor(np.log10(x / 10.0))
+    for m in (1.0, 1.5, 2.0, 2.5, 3.0, 4.0, 5.0, 7.5, 10.0):
+        if 10 * m * k >= x * (1 - 1e-9):
+            return float(10 * m * k)
+    return float(100 * k)
+
+
 def _xsec_frame(ubar_k, anom_k, lat, p_hpa, lim, title, cores, clim_cores, out_fp):
     """One [u](φ,p) cross-section frame: anomaly shading, absolute contours,
     ▼ = forecast cores, ▽ = climatological core positions."""
@@ -96,7 +108,7 @@ def _xsec_frame(ubar_k, anom_k, lat, p_hpa, lim, title, cores, clim_cores, out_f
     ax.set_xlim(-75, 75); ax.set_xticks(range(-75, 76, 15))
     ax.set_ylabel("pressure (hPa)")
     ax.set_title(title, fontsize=10.6, fontweight="bold", linespacing=1.4)
-    cb = fig.colorbar(cf, ax=ax, pad=0.012)
+    cb = fig.colorbar(cf, ax=ax, pad=0.012, ticks=np.linspace(-lim, lim, 21)[::2])
     cb.set_label("[u] anomaly (m/s)", fontsize=8.5); cb.ax.tick_params(labelsize=7.5)
     fig.tight_layout()
     out_fp.parent.mkdir(parents=True, exist_ok=True)
@@ -122,7 +134,7 @@ def build_anim(ub, steps_h, p_hpa, lat, init, c, met_cl, sig_cl,
                            ).interp(latitude=lat, kwargs={"fill_value": None}).values
         anoms.append(ubm[k] - ucl)
         cores_fc.append(jet_metrics(ubm[k, k200], lat))          # (nh_s, nh_l, sh_s, sh_l)
-    lim = float(np.ceil(max(float(np.nanpercentile(np.abs(np.stack(anoms)), 99.5)), 4.0)))
+    lim = _nice_lim(max(float(np.nanpercentile(np.abs(np.stack(anoms)), 99.5)), 4.0))
 
     anim_dir = Path(anim_dir); anim_dir.mkdir(parents=True, exist_ok=True)
     for old in anim_dir.glob("F*.webp"):
@@ -199,7 +211,7 @@ def main() -> int:
                           left=0.065, right=0.985, top=0.94, bottom=0.075)
 
     ax = fig.add_subplot(gs[0, :])
-    lim = max(float(np.nanpercentile(np.abs(anom0), 99.5)), 2.0)
+    lim = _nice_lim(max(float(np.nanpercentile(np.abs(anom0), 99.5)), 2.0))
     cf = ax.contourf(lat, p_hpa, anom0, levels=np.linspace(-lim, lim, 21),
                      cmap="RdBu_r", extend="both")
     cs = ax.contour(lat, p_hpa, ubar0, levels=np.arange(10, 91, 10), colors="k", linewidths=0.8)
@@ -220,7 +232,7 @@ def main() -> int:
                  f"anomaly vs ERA5 1991–2020 normal\n▼ = subtropical cores:  "
                  f"NH {_core_lab(nh_s, zs_n)} · SH {_core_lab(sh_s, zs_s)}",
                  fontsize=10.6, fontweight="bold", linespacing=1.4)
-    cb = fig.colorbar(cf, ax=ax, pad=0.012)
+    cb = fig.colorbar(cf, ax=ax, pad=0.012, ticks=np.linspace(-lim, lim, 21)[::2])
     cb.set_label("[u] anomaly (m/s)", fontsize=8.5); cb.ax.tick_params(labelsize=7.5)
 
     panels = [("NH jet-core speed", 0, "m/s"), ("SH jet-core speed", 2, "m/s"),

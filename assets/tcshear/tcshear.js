@@ -115,8 +115,14 @@
       for (var i = 1; i < ctl.env.length; i++) { var a = ctl.env[i - 1], b = ctl.env[i]; if (!a || !b) continue;
         s += '<line x1="' + X(a[0]).toFixed(1) + '" y1="' + Y(a[1]).toFixed(1) + '" x2="' + X(b[0]).toFixed(1) + '" y2="' + Y(b[1]).toFixed(1) + '" stroke="' + cols[i] + '" stroke-width="3.2" stroke-linecap="round"/>'; }
       ctl.env.forEach(function (p, i) { if (!p) return; var L = lev[i];
-        s += '<circle cx="' + X(p[0]).toFixed(1) + '" cy="' + Y(p[1]).toFixed(1) + '" r="' + ([850, 500, 200].indexOf(L) >= 0 ? 4.5 : 2.6) + '" fill="#fff" stroke="' + cols[i] + '" stroke-width="1.6"/>';
-        if ([1000, 850, 700, 500, 300, 200, 100].indexOf(L) >= 0) s += txt(X(p[0]) + 6, Y(p[1]) - 5, String(L), null, "tl lev"); });
+        s += '<circle cx="' + X(p[0]).toFixed(1) + '" cy="' + Y(p[1]).toFixed(1) + '" r="' + ([850, 500, 200].indexOf(L) >= 0 ? 4.5 : 2.6) + '" fill="#fff" stroke="' + cols[i] + '" stroke-width="1.6"/>'; });
+      // level labels, 850/500/200 first; one that would overlap a label already drawn is left out (2026-10-08 sweep: with
+      // a weak low-level flow 1000/850/700 sat on top of each other at the centre)
+      var placed = [];
+      [850, 500, 200, 1000, 700, 300, 100].forEach(function (L) { var i = lev.indexOf(L), p = i >= 0 ? ctl.env[i] : null; if (!p) return;
+        var x = X(p[0]) + 6, y = Y(p[1]) - 5, w = 7 * String(L).length + 4;
+        if (placed.some(function (q) { return x < q[0] + q[2] && q[0] < x + w && Math.abs(y - q[1]) < 13; })) return;
+        placed.push([x, y, w]); s += txt(x, y, String(L), null, "tl lev"); });
       // 200-850 shear vector (850 -> 200), the storm motion from the origin
       var i8 = lev.indexOf(850), i2 = lev.indexOf(200);
       if (ctl.env[i8] && ctl.env[i2]) s += '<line x1="' + X(ctl.env[i8][0]) + '" y1="' + Y(ctl.env[i8][1]) + '" x2="' + X(ctl.env[i2][0]) + '" y2="' + Y(ctl.env[i2][1]) + '" stroke="#d1352b" stroke-width="2" stroke-dasharray="5 3" marker-end="url(#tcsArr)"/>';
@@ -162,7 +168,11 @@
 
   // Time series of one measure along the runs, with the AIFS-ENS fan, SHIPS and the TDR.
   function series(doc, m, h) {
-    var W = 860, H = 330, L = 58, Rm = 16, T = 14, B = 34, tm0 = t0(doc), rs = runs(doc), meas = MEAS.filter(function (x) { return x[0] === m; })[0];
+    // 2026-10-08 sweep: a fixed 860-wide viewBox shrank the 12 px axis text to ~5 px on a phone. The chart now takes the
+    // width it is shown at (min 360, max 860), so its text stays near 12 px; on a narrow chart the date ticks go 48-hourly.
+    var cw = ($("tcs-ts") || {}).clientWidth || 860;
+    var W = Math.max(360, Math.min(860, Math.round(cw))), H = W < 600 ? 300 : 330, L = 58, Rm = 16, T = 14, B = 34, tm0 = t0(doc), rs = runs(doc), meas = MEAS.filter(function (x) { return x[0] === m; })[0];
+    var tstep = W < 600 ? 48 : 24;
     var fan = ((doc.models["aifs-ens"] || {}).fan || {})[FANKEY[m] ? FANKEY[m][0] : m] || {}, fk = FANKEY[m] ? FANKEY[m][1] : 1;
     var xs = [-12, 120];
     var obs = [];
@@ -191,7 +201,7 @@
     if (logy) [0.001, 0.003, 0.01, 0.03, 0.1, 0.3, 1].forEach(function (v) { if (v >= ylo && v <= yhi) ticks.push(v); });
     else { var st = niceStep((yhi - ylo) / 5); for (var v = Math.ceil(ylo / st) * st; v <= yhi; v += st) ticks.push(+v.toFixed(6)); }
     ticks.forEach(function (v) { s += '<line x1="' + L + '" x2="' + (W - Rm) + '" y1="' + Y(v).toFixed(1) + '" y2="' + Y(v).toFixed(1) + '" class="grid"/>' + txt(L - 6, Y(v) + 4, fmtNum(v), "end", "tm"); });
-    for (var hh = Math.ceil(xs[0] / 24) * 24; hh <= xs[1]; hh += 24) {
+    for (var hh = Math.ceil(xs[0] / tstep) * tstep; hh <= xs[1]; hh += tstep) {
       s += '<line x1="' + X(hh).toFixed(1) + '" x2="' + X(hh).toFixed(1) + '" y1="' + T + '" y2="' + (H - B) + '" class="grid"/>' + txt(X(hh), H - B + 15, fmtT(tm0 + hh * 3600000).replace(/ 00Z$/, ""), hh + 12 > xs[1] ? "end" : "middle", "tm"); }
     s += txt(L - 44, T + 4, meas[2], null, "tm");
     s += '<line x1="' + X(0).toFixed(1) + '" x2="' + X(0).toFixed(1) + '" y1="' + T + '" y2="' + (H - B) + '" class="now"/>' + txt(X(0) + 4, H - B - 6, "run start", null, "tm");
@@ -409,6 +419,11 @@
   });
   window.addEventListener("hashchange", render);
   window.addEventListener("popstate", render);
+  var lastCw = 0, rzq = null;                          // the series chart is drawn at its shown width: redraw when that changes
+  window.addEventListener("resize", function () {
+    clearTimeout(rzq); rzq = setTimeout(function () {
+      var cw = ($("tcs-ts") || {}).clientWidth || 0;
+      if (cw && Math.abs(cw - lastCw) > 40 && root.offsetParent) { lastCw = cw; render(); } }, 200); });
   var shown = false;
   if (window.MutationObserver) new MutationObserver(function () {
     var vis = !!root.offsetParent; if (vis && !shown) render(); shown = vis;

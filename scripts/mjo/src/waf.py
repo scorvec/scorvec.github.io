@@ -314,7 +314,7 @@ def main() -> int:
     basic = (f"ERA5 clim + 30-day mean anomaly of the AIFS 0-h analyses ({n_an} analyses)" if anom else "ERA5 climatology (analysis history too short)")
     sub = (f"arrows = Takaya–Nakamura (2001) wave-activity flux, mean of {len(members)} members' fluxes · basic state and ψ′ reference = {basic} "
            f"({TSMOOTH}-day running mean of ψ′ along the lead) · shading = −∇·W at planetary scale (T15; red ⇒ downstream amplification), "
-           "hatched where fewer than 60% of members agree on the sign\n"
+           "hatched where fewer than 60% of members agree on the sign · "   # (a "\n" here was folded by the wrap and read "the sign green = …")
            f"green = the ensemble-mean {LEVEL} hPa jet at this lead (25/35/45 m/s) — the waveguide the packets follow · "
            "masked equatorward of 20° / basic-state wind < 3 m/s · each row is one hemisphere's 20–80° belt")
     frames = []

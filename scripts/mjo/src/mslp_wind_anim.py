@@ -175,7 +175,10 @@ def _hl(p2d, lat, lon, ax, proj):
         ext = filt(s, size=28, mode=("nearest", "wrap"))
         ys, xs = np.where(op(s, ext))
         seen = []
-        for y, x in zip(ys, xs):
+        ny, nx = s.shape; m = 6                      # the field is cut to the map: a "centre" on the cut is only the
+        for y, x in zip(ys, xs):                     # field rising off the edge, and its H/L sat on the frame and title
+            if y < m or y >= ny - m or x < m or x >= nx - m:
+                continue
             if any(abs(y - yy) < 18 and abs(x - xx) < 18 for yy, xx in seen):
                 continue
             seen.append((y, x))

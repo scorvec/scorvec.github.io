@@ -131,8 +131,16 @@ def place_labels(fig, ax, labels, caps):
     and the labels already placed (2026-10-03: fixed offsets ran off the frame and into each other)."""
     ren = fig.canvas.get_renderer(); frame = ax.get_window_extent(ren)
     taken = [c.get_window_extent(ren).expanded(1.02, 1.1) for c in caps]
+    # 2026-10-08 sweep: eight spots were not enough on a looping track - labels fell back onto each other ("end, 23 Oct"
+    # over "18 Oct · 974 hPa", "merges…" under "10 Oct · 990 hPa"). Now three rings plus straight left/right/up/down, and
+    # a DATED label (the every-second-day marks) that finds no clear spot is left out rather than drawn over another;
+    # the dots keep their date through the colour bar. start / end / tracker's last fix / merges are always drawn.
     spots = [(12, 12, "left", "bottom"), (-12, 12, "right", "bottom"), (12, -12, "left", "top"), (-12, -12, "right", "top"),
-             (26, 28, "left", "bottom"), (-26, 28, "right", "bottom"), (26, -28, "left", "top"), (-26, -28, "right", "top")]
+             (26, 28, "left", "bottom"), (-26, 28, "right", "bottom"), (26, -28, "left", "top"), (-26, -28, "right", "top"),
+             (16, 0, "left", "center"), (-16, 0, "right", "center"), (0, 22, "center", "bottom"), (0, -22, "center", "top"),
+             (44, 46, "left", "bottom"), (-44, 46, "right", "bottom"), (44, -46, "left", "top"), (-44, -46, "right", "top"),
+             (40, 0, "left", "center"), (-40, 0, "right", "center"), (0, 50, "center", "bottom"), (0, -50, "center", "top")]
+    dated = __import__("re").compile(r"^\d{1,2} [A-Z][a-z]{2}")
     box = dict(boxstyle="round,pad=0.15", fc="#fff", ec="none", alpha=0.85)
     for text, xy, leader in labels:
         kw = dict(textcoords="offset points", fontsize=8.3 if leader else 8.5, color="#444" if leader else "#000", bbox=box, zorder=6)
@@ -146,6 +154,8 @@ def place_labels(fig, ax, labels, caps):
             if inside and fallback is None: fallback = spot          # inside the frame, though touching something
             a.remove()
         if chosen is None:
+            if dated.match(text):
+                continue                                             # crowded: skip this date rather than overlap
             dx, dy, ha, va = fallback or spots[0]
             chosen = ax.annotate(text, xy, xytext=(dx, dy), ha=ha, va=va, **kw).get_window_extent(ren)
         taken.append(chosen)
@@ -250,13 +260,15 @@ def render(rows, init, out_png):
             ax.invert_yaxis(); ax.set_ylabel("central pressure (hPa)", fontsize=9.5, color="#1b3a5c")
             jmin = int(np.nanargmin(pv)); ax.annotate(f"deepest {pv[jmin]:.0f} hPa\n{TC.date_lab(init, d[jmin], 'short')}", (d[jmin], pv[jmin]),
                                                       xytext=(8, -10), textcoords="offset points", va="top", fontsize=8.6, fontweight="bold", color="#1b3a5c", zorder=6, bbox=dict(boxstyle="round,pad=0.15", fc="#fff", ec="none", alpha=0.85))
+        tax = ax                                               # the top-most axes of the panel carries the ET labels
         if np.isfinite(wv).any():
-            a2 = ax.twinx(); a2.plot(d, wv * 1.943844, color="#c2394b", lw=1.4, alpha=0.85)
+            a2 = ax.twinx(); tax = a2; a2.plot(d, wv * 1.943844, color="#c2394b", lw=1.4, alpha=0.85)
             a2.set_ylabel("max 10-m wind, tracker (kt)", fontsize=9, color="#c2394b"); a2.tick_params(labelsize=8, colors="#c2394b")
             a2.axhline(64, color="#c2394b", lw=0.7, ls=":", alpha=0.7); a2.text(d[0], 64, " hurricane / typhoon (64 kt)", fontsize=7.5, color="#c2394b", va="bottom")
         for hv, lab_ in ((onset, "ET onset"), (comp, "ET complete")):
             if hv is not None:
-                ax.axvline(hv / 24, color="#6f6b64", lw=1, ls="--"); ax.text(hv / 24, 0.02, " " + lab_, transform=ax.get_xaxis_transform(), fontsize=8, color="#6f6b64", rotation=90, va="bottom")
+                ax.axvline(hv / 24, color="#6f6b64", lw=1, ls="--"); tax.text(hv / 24, 0.02, lab_, transform=tax.get_xaxis_transform(), fontsize=8, color="#6f6b64", rotation=90, va="bottom", ha="center", zorder=7,
+                                                 bbox=dict(boxstyle="round,pad=0.12", fc="#fff", ec="none", alpha=0.85))   # readable over the wind line
         ax.set_xlabel("forecast day", fontsize=9.5); ax.grid(alpha=0.3); ax.tick_params(labelsize=8.5)
         ax.set_title("Intensity", loc="left", fontsize=10.5, fontweight="bold")
         et = []

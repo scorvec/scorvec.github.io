@@ -165,8 +165,14 @@ def _frame():
 RG_W, RG_H = 11.8, 8.6           # 8.6 (was 7.9): a band under the map for the storm key (2026-10-04)
 
 
-def _frame_region(rg):
-    """A wide figure with one regional map (Lambert, or plate carree for South America) and the colour-bar axes under it."""
+RG_TOP, RG_BOT_KEY, RG_BOT = 0.40, 1.48, 0.80   # inches: title band; band under the map with / without the storm key
+
+
+def _frame_region(rg, key=True):
+    """A wide figure with one regional map (Lambert, or plate carree for South America) and the colour-bar axes under it.
+    The figure height follows the map's own aspect (2026-10-08 sweep): a fixed 11.8 x 8.6 canvas left ~0.5 in of white
+    above the title and, on the frames without the storm key (PV maps, South America), an empty 1.3 in band under the
+    map. The size depends only on the region and on whether the key is drawn, so every frame of one loop is the same."""
     import cartopy.crs as ccrs
     import matplotlib.pyplot as plt
     R = REGIONS[rg]
@@ -180,7 +186,13 @@ def _frame_region(rg):
     ax = fig.add_axes([0.012, 0.172, 0.976, 0.777], projection=proj)
     lo0, lo1 = R["lon"]; span = (lo1 - lo0) % 360
     ax.set_extent([lo0 - 360 if lo0 > 180 else lo0, (lo0 - 360 if lo0 > 180 else lo0) + span, R["lat"][0], R["lat"][1]], crs=ccrs.PlateCarree())
-    cax = fig.add_axes([0.2, 0.042, 0.6, 0.02])
+    x0, x1, y0, y1 = ax.get_extent()
+    map_w = 0.976 * RG_W; map_h = map_w * abs(y1 - y0) / abs(x1 - x0)
+    bot = RG_BOT_KEY if key else RG_BOT
+    H = map_h + bot + RG_TOP
+    fig.set_size_inches(RG_W, H)
+    ax.set_position([0.012, bot / H, 0.976, map_h / H])
+    cax = fig.add_axes([0.2, 0.36 / H, 0.6, 0.172 / H])
     return fig, ax, cax
 
 
@@ -310,7 +322,7 @@ def _key(ax, polar):
          "Storm, median of the members\n(red: hurricane strength)", f"Cone: {CONE_Q:.0f} % of AIFS-ENS members"]
     # in the band between the map and the colour bar, never on the data
     h = [h[0], h[1], h[3], h[2], h[4]]; t = [t[0], t[1], t[3], t[2], t[4]]
-    ax.figure.legend(h, t, loc="center", bbox_to_anchor=(0.5, 0.76 / FIG_H if polar else 0.118), ncol=3,
+    ax.figure.legend(h, t, loc="center", bbox_to_anchor=(0.5, 0.76 / FIG_H if polar else 1.0 / ax.figure.get_figheight()), ncol=3,
                      fontsize=7.8 if polar else 9.0, frameon=False, columnspacing=1.4 if polar else 1.8, handlelength=2.0)
 
 
@@ -554,7 +566,7 @@ def main() -> int:
                     la_, lo_ = lat[jn], lon                              # points project to non-finite coordinates)
                     arrs = tuple(None if a_ is None else a_[jn] for a_ in (fld, pc, uu, vv, av))
                 else:
-                    fig, ax, cax = _frame_region(rg)
+                    fig, ax, cax = _frame_region(rg, key=(kind == "dt" and bool(storms_ens) and not sh))
                     la_, lo_, arrs = _subset(rg, lat, lon, fld, pc if pc is not None else fld, uu, vv, av if av is not None else fld)
                     if pc is None: arrs[1] = None
                     if av is None: arrs[4] = None

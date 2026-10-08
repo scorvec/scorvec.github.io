@@ -236,13 +236,19 @@ def render_hov(days, lon, sla_eq, filt, wdays, wlon, uanom, u_src_edges, today, 
     ticks = pd.date_range(days[0].normalize() + pd.offsets.MonthBegin(0), today + pd.Timedelta(days=DAYS_AHEAD), freq="MS")
     axL.set_yticks(mdates(ticks)); axL.set_yticklabels([f"{d:%b %Y}" if d.month == 1 else f"{d:%b}" for d in ticks], fontsize=9)
     plt.setp(axR.get_yticklabels(), visible=False)
-    lab = dict(fontsize=8.5, fontweight="bold", color="#1c2430", bbox=dict(boxstyle="round,pad=0.2", fc="white", ec="none", alpha=0.85))
+    lab = dict(fontsize=8.5, fontweight="bold", color="#1c2430", zorder=6, bbox=dict(boxstyle="round,pad=0.2", fc="white", ec="none", alpha=0.85))
     axL.text(278, mdates([today])[0] - 1, "▲ observed", ha="right", va="bottom", **lab)
-    axL.text(278, mdates([today])[0] + 2, "▼ projected at each wave's own speed", ha="right", va="top", **lab)
+    # left-aligned: on the right it hid the 120°W arrival circle (projections run east, the west end stays clear)
+    axL.text(FILT_LON[0] + 1.5, mdates([today])[0] + 2, "▼ projected at each wave's own speed", ha="left", va="top", **lab)
     axR.text(278, mdates([today])[0] + 2, "▼ AIFS-ENS forecast", ha="right", va="top", **lab)
     for e, name in u_src_edges:
         axR.axhline(mdates([e])[0], color="#6f6b64", lw=0.8, ls=":")
         axR.text(131, mdates([e])[0] - 0.8, name, fontsize=7.5, color="#6f6b64", va="bottom")
+    if len(wdays) and wdays[0] > days[0] + pd.Timedelta(days=10):
+        # the observed-wind leg failed on this run: say so in the empty part of the panel instead of leaving it blank
+        why = "" if u_src_edges else "NCEI Blended Sea Winds unavailable on this run;\n"
+        axR.text(205, (y[0] + mdates([wdays[0]])[0]) / 2, f"no wind data before {wdays[0]:%b %-d}\n" + why
+                 + "AIFS-ENS 0-h analyses only", ha="center", va="center", fontsize=8.5, color="#6f6b64", linespacing=1.4)
     axL.set_title("Sea level anomaly, 2°S–2°N (shading, cm); black: Kelvin-band part every 1.5 cm (solid +, dashed −)", loc="left", fontsize=10, fontweight="bold")
     axR.set_title("10 m zonal wind anomaly, 5°S–5°N (m/s)", loc="left", fontsize=10, fontweight="bold")
     c1 = fig.add_axes([0.06, 0.18, 0.52, 0.013]); fig.colorbar(cf, cax=c1, orientation="horizontal").set_label("sea level anomaly (cm)", fontsize=8.5)
@@ -259,7 +265,9 @@ def render_hov(days, lon, sla_eq, filt, wdays, wlon, uanom, u_src_edges, today, 
     fig.text(0.06, 0.128, "Waves in the basin on " + f"{sla_last:%b %-d}:", fontsize=9.5, fontweight="bold", va="top")
     fig.text(0.06, 0.108, "\n".join(rows[:4]), fontsize=8.8, family="monospace", va="top", color="#1c2430", linespacing=1.45)
     fig.text(0.06, 0.012, textwrap.fill("Sea level: NOAA CoastWatch blended altimetry, anomaly vs its own 2017–2025 mean, trend and seasonal cycle. "
-             "Wind: NCEI Blended Sea Winds, then AIFS-ENS 0-h analyses, then the AIFS-ENS ensemble-mean forecast; anomalies vs ERA5 1991–2020. "
+             + ("Wind: NCEI Blended Sea Winds, then AIFS-ENS 0-h analyses, then the AIFS-ENS ensemble-mean forecast; " if u_src_edges else
+                "Wind: AIFS-ENS 0-h analyses (NCEI Blended Sea Winds unavailable on this run), then the AIFS-ENS ensemble-mean forecast; ")
+             + "anomalies vs ERA5 1991–2020. "
              "Kelvin band: eastward, 1.5–3.5 m/s, 15–150 days.", 200), fontsize=7.6, color="#6f6b64", va="bottom", linespacing=1.3)
     fig.savefig(out, dpi=110, facecolor="white", pil_kwargs={"quality": 86, "method": 6})
     plt.close(fig)

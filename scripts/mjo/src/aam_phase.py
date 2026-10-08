@@ -260,7 +260,9 @@ def main() -> int:
                     negative_linestyles="dashed")
     ax.clabel(cs, levels=[-10, -5, 5, 10], fmt="%d", fontsize=6, inline=True)
     ax.axvline(init, color="k", lw=1.4, ls="--")
-    ax.text(init, latc_show[-1] + 1.5, "forecast →", fontsize=8, va="bottom", ha="left")
+    # inside the panel: above it, the label ran into the end of the panel title
+    ax.text(init, 0.985, " forecast →", fontsize=8, va="top", ha="left", transform=ax.get_xaxis_transform(),
+            bbox=dict(facecolor="white", edgecolor="none", alpha=0.8, pad=1.2), zorder=6)
     ax.set_yticks(range(-75, 76, 15))
     for yl in range(-75, 76, 15):
         ax.axhline(yl, color="0.4", lw=0.7 if yl == 0 else 0.3,
@@ -298,7 +300,7 @@ def main() -> int:
         axp.plot(ms[n_o - 1], dm[n_o - 1], marker="o", ms=8, color="k", zorder=6)
         for xf, yf, s in ((0.97, 0.97, "high & rising"), (0.03, 0.97, "low & rising"),
                           (0.97, 0.03, "high & falling"), (0.03, 0.03, "low & falling")):
-            axp.text(xf, yf, s, transform=axp.transAxes, fontsize=7.5, color="0.55",
+            axp.text(xf, yf, s, transform=axp.transAxes, fontsize=7.5, color="#6f6b64",
                      ha="right" if xf > 0.5 else "left",
                      va="top" if yf > 0.5 else "bottom", style="italic")
         axp.set_title(hemi, fontsize=10.5, fontweight="bold")
@@ -308,8 +310,9 @@ def main() -> int:
         axp.tick_params(labelsize=7.5)
         axp.grid(True, alpha=0.2)
 
-    fig.suptitle("Hemispheric AAM phase — " + "   ·   ".join(head),
-                 fontsize=12, fontweight="bold")
+    # two lines: the two hemispheres' headlines on one line ran edge to edge (and off it for longer phrases)
+    fig.suptitle("Hemispheric AAM phase\n" + "   ·   ".join(head),
+                 fontsize=12, fontweight="bold", linespacing=1.35)
     fig.text(0.5, 0.008,
              "orbit: grey = observed trail (75 days, darker = recent, ● = today) · red = AIFS-ENS mean forecast (★ = day 15) · "
              "headline bands from the forecast day-12–15 minus day-0–2 band-AAM change",
