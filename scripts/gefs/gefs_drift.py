@@ -293,7 +293,7 @@ def figure(Dr: Drift, today: dt.date, out: Path):
     show = [("t2m", "2 m temperature", "K"), ("zg500", "500 hPa height", "m"), ("mslp", "sea-level pressure", "hPa"),
             ("t100", "100 hPa temperature", "K"), ("t10", "10 hPa temperature", "K"), ("u10", "10 hPa zonal wind", "m/s")]
     fig, axes = plt.subplots(2, 3, figsize=(13.5, 7.6), sharex=True, sharey=True)
-    fig.subplots_adjust(left=0.06, right=0.98, top=0.86, bottom=0.12, hspace=0.32, wspace=0.12)
+    fig.subplots_adjust(left=0.06, right=0.955, top=0.86, bottom=0.12, hspace=0.32, wspace=0.14)   # right 0.98 clipped the last colour bar's labels
     days = np.arange(1, 36)
     for ax, (t, name, unit) in zip(axes.ravel(), show):
         d = Dr.zonal(t) * (0.01 if t == "mslp" else 1.0)
