@@ -1910,6 +1910,41 @@ window.STAGE = {
     });
     return out;
   }
+  // Past-El-Nino labels: each one takes the first side (right, left, above, below...) where its box clears every
+  // other event's dot, this year's observed path and the labels already placed, or is left to the hover. Fixed
+  // "middle right" labels sat on the dots of the crowded weak events (1986-87, 2002-03) and on the 2026 path (2004-05).
+  function placeEventLabels(t, ev, s, xr, yr, lay, path) {
+    var W = el("ecChart").offsetWidth || 600, H = narrow() ? 440 : 640;
+    var pw = W - lay.margin.l - lay.margin.r, ph = H - lay.margin.t - lay.margin.b - (lay.showlegend ? 90 : 0);
+    function px(x, y) { return [(x - xr[0]) / (xr[1] - xr[0]) * pw, (yr[1] - y) / (yr[1] - yr[0]) * ph]; }
+    var fs = narrow() ? 10.5 : 12, obst = [], boxes = [];
+    ev.forEach(function (e, i) { var p = px(e[s].C, e[s].E), r = t.marker.size[i] / 2 + 1; obst.push([p[0] - r, p[1] - r, p[0] + r, p[1] + r, i]); });
+    for (var k = 0; k < path.length; k++) {                       // the observed path, points and segments
+      var a = px(path[k].C, path[k].E), b = k + 1 < path.length ? px(path[k + 1].C, path[k + 1].E) : a;
+      for (var f = 0; f <= 1; f += 0.125) { var q = [a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f]; obst.push([q[0] - 3, q[1] - 3, q[0] + 3, q[1] + 3, -1]); }
+    }
+    function hit(bx, own) {
+      if (bx[0] < 0 || bx[2] > pw || bx[1] < 0 || bx[3] > ph) return true;
+      for (var j = 0; j < obst.length; j++) { var o = obst[j]; if (o[4] !== own && bx[0] < o[2] && bx[2] > o[0] && bx[1] < o[3] && bx[3] > o[1]) return true; }
+      for (j = 0; j < boxes.length; j++) { o = boxes[j]; if (bx[0] < o[2] && bx[2] > o[0] && bx[1] < o[3] && bx[3] > o[1]) return true; }
+      return false;
+    }
+    var pos = t.text.map(function () { return "middle right"; });
+    var order = ev.map(function (e, i) { return i; }).filter(function (i) { return t.text[i]; })
+                  .sort(function (a, b) { return (ev[b].peak_oni || 0) - (ev[a].peak_oni || 0); });   // strongest events first
+    order.forEach(function (i) {
+      var p = px(ev[i][s].C, ev[i][s].E), r = t.marker.size[i] / 2 + 2, w = t.text[i].length * fs * 0.55, h = fs * 1.15, done = false;
+      [["middle right", r, -h / 2], ["middle left", -r - w, -h / 2], ["top center", -w / 2, -r - h], ["bottom center", -w / 2, r],
+       ["top right", r * 0.7, -r * 0.7 - h], ["bottom right", r * 0.7, r * 0.7], ["top left", -r * 0.7 - w, -r * 0.7 - h], ["bottom left", -r * 0.7 - w, r * 0.7]]
+        .some(function (c) {
+          var bx = [p[0] + c[1], p[1] + c[2], p[0] + c[1] + w, p[1] + c[2] + h];
+          if (hit(bx, i)) return false;
+          pos[i] = c[0]; boxes.push(bx); done = true; return true;
+        });
+      if (!done) t.text[i] = "";
+    });
+    t.textposition = pos;
+  }
   function drawEC(s, S) {
     var fl = D.fl, tr = [], mdl = flModels();
     // past El Niños
@@ -1985,7 +2020,7 @@ window.STAGE = {
     ];
     var ann = [
       { x: S.mmm.C, y: S.mmm.E, text: "<b>this forecast</b>", showarrow: true, arrowhead: 0, arrowwidth: 1.4, arrowcolor: ACCENT,
-        ax: 70, ay: 34, font: { color: ACCENT, size: 13 }, bgcolor: "rgba(255,255,255,0.9)" },
+        ax: narrow() ? 20 : 70, ay: narrow() ? 75 : 34, font: { color: ACCENT, size: 13 }, bgcolor: "rgba(255,255,255,0.9)" },   // on a phone +70 px ran off the right edge
       { x: x0 + 0.1, y: y1 - 0.2, xanchor: "left", yanchor: "top", text: "East-based", showarrow: false, font: { color: "#8f3f14", size: 13 } },
       { x: x1 - 0.1, y: y0 + 0.15, xanchor: "right", yanchor: "bottom", text: "Central Pacific", showarrow: false, font: { color: "#4a3c75", size: 13 } },
     ];
@@ -1996,6 +2031,7 @@ window.STAGE = {
     lay.legend = { orientation: "h", x: 0, y: -0.16, yanchor: "top", font: { size: 11.5 } };
     lay.showlegend = !narrow();          // on a phone the colours are keyed by the table below
     el("ecChart").style.height = (narrow() ? 440 : 640) + "px";
+    placeEventLabels(tr[0], ev, s, [x0, x1], [y0, y1], lay, er.concat(oi || [], weeks || []));
     Plotly.react("ecChart", tr, lay, CONFIG);
     var lastP = track[track.length - 1];
     el("ec-cap").innerHTML = "Each grey dot is one past El Niño in " + SEASON_NAME[s] + " (sized by its peak ONI); small coloured dots are model members" +
