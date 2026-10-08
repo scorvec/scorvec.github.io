@@ -41,7 +41,7 @@ REF = HERE.parents[1] / "scripts" / "mjo" / "data" / "reference"
 CLIM = REF / "walker_basins_clim.nc"
 HIST = REF / "walker_ud_history.nc"
 PAC_BOX = (140.0, 200.0)                                            # the walker.py Pacific-cell box, in longitude
-INK, MUTED, NAVY, RED, GREEN, ORANGE = "#1a1a1a", "#8a8680", "#1b365d", "#b4453c", "#2b7a3d", "#d0801a"
+INK, MUTED, NAVY, RED, GREEN, ORANGE = "#1a1a1a", "#6f6b64", "#1b365d", "#b4453c", "#2b7a3d", "#d0801a"
 GROUPS = {"enso": ["n34", "n34_lag3"], "indian": ["dmi", "iob"], "atlantic": ["atl3", "tna"]}
 LABEL = {"n34": "Niño-3.4", "n34_lag3": "Niño-3.4, 3 months ago", "dmi": "IOD (DMI)", "iob": "Indian Ocean basin", "atl3": "Atlantic Niño (ATL3)", "tna": "Tropical N. Atlantic"}
 

@@ -91,6 +91,18 @@ def zonal_aam_density(up_rest: Path, up_rmm: Path, sp_path: Path):
     return aam, p_hpa, lat, steps_h, ubar_zm
 
 
+def _nice_lim(x):
+    """Round a colour-scale half-range up to 10 x a round step: the 21 levels and the colour-bar ticks (every second
+    level) are then round numbers (2026-10-08 sweep: ticks read 23.7, 47.5, 71.2 and 6.45, 12.90, 19.35)."""
+    if not np.isfinite(x) or x <= 0:
+        return 1.0
+    k = 10.0 ** np.floor(np.log10(x / 10.0))
+    for m in (1.0, 1.5, 2.0, 2.5, 3.0, 4.0, 5.0, 7.5, 10.0):
+        if 10 * m * k >= x * (1 - 1e-9):
+            return float(10 * m * k)
+    return float(100 * k)
+
+
 def _xsec(ax, lat, p_hpa, dens, ubar, lim, label):
     """One latitude–pressure cross-section: filled density + zonal-mean-u contours."""
     levels = np.linspace(-lim, lim, 21)
@@ -103,7 +115,7 @@ def _xsec(ax, lat, p_hpa, dens, ubar, lim, label):
     ax.set_yticklabels([1000, 850, 700, 500, 300, 200, 100, 50], fontsize=7)
     ax.set_xlim(-90, 90); ax.set_xticks(np.arange(-90, 91, 30))
     ax.set_ylabel("Pressure (hPa)", fontsize=8)
-    ax.text(0.012, 0.91, label, transform=ax.transAxes, fontsize=9, fontweight="bold",
+    ax.text(0.012, 0.91, label, transform=ax.transAxes, fontsize=9, fontweight="bold", zorder=10,   # above the contour labels
             bbox=dict(fc="white", ec="0.7", alpha=0.85, pad=2))
     return cf
 
@@ -128,10 +140,11 @@ def _frame(fields, lat, p_hpa, ubar, lims, head, out_fp):
         ax.set_ylabel("")
     for ax in (axes[2], axes[3]):
         ax.set_xlabel("Latitude", fontsize=8)
-    fig.colorbar(cfs[0], cax=fig.add_axes([0.915, 0.55, 0.013, 0.33]), extend="both"
-                 ).set_label("abs (10²⁰/°·hPa)", fontsize=7)
-    fig.colorbar(cfs[1], cax=fig.add_axes([0.915, 0.10, 0.013, 0.33]), extend="both"
-                 ).set_label("departure (10²⁰/°·hPa)", fontsize=7)
+    # the upper bar is the ABSOLUTE panel's only; it sits beside the anomaly panel, so each bar says which panels it keys
+    fig.colorbar(cfs[0], cax=fig.add_axes([0.915, 0.55, 0.013, 0.33]), extend="both", ticks=np.linspace(-lim_a, lim_a, 21)[::2]
+                 ).set_label("ABSOLUTE panel (10²⁰/°·hPa)", fontsize=7)
+    fig.colorbar(cfs[1], cax=fig.add_axes([0.915, 0.10, 0.013, 0.33]), extend="both", ticks=np.linspace(-lim_d, lim_d, 21)[::2]
+                 ).set_label("the other three panels (10²⁰/°·hPa)", fontsize=7)
     fig.suptitle(head, fontsize=11, fontweight="bold")
     fig.savefig(out_fp, dpi=110); plt.close(fig)
 
@@ -161,8 +174,8 @@ def animate(aam, p_hpa, lat, steps_h, ubar_zm, init, anim_dir: Path, manifest: P
     tend = densf - densf[0]                                  # change vs analysis
     tanom = tend - (clead - c0)                              # tendency anomaly (de-seasonalised)
 
-    lim_a = float(np.nanpercentile(np.abs(absd), 99.5)) or 1.0
-    lim_d = float(np.nanpercentile(np.abs(np.concatenate([anom, tend, tanom])), 99.5)) or 1.0
+    lim_a = _nice_lim(float(np.nanpercentile(np.abs(absd), 99.5)) or 1.0)
+    lim_d = _nice_lim(float(np.nanpercentile(np.abs(np.concatenate([anom, tend, tanom])), 99.5)) or 1.0)
 
     anim_dir = Path(anim_dir); anim_dir.mkdir(parents=True, exist_ok=True)
     for old in anim_dir.glob("F*.webp"):
