@@ -348,7 +348,8 @@ def summary(per_member):
     """Percentiles across members per step for the fan: {field: {h: [p10, p25, p50, p75, p90, n]}}."""
     out = {}
     fields = {"deep": lambda r: r.get("deep", [None])[0], "gs": lambda r: r.get("gs"), "vi": lambda r: r.get("vi"), "vi_env": lambda r: r.get("vi_env"),
-              "tilt": lambda r: (r.get("tilt") or [None])[0], "pi": lambda r: r.get("pi"), "chi": lambda r: r.get("chi"),
+              "tilt": lambda r: (r.get("tilt") or [None])[0] if r.get("sst") is not None else None,      # over water only
+              "pi": lambda r: r.get("pi"), "chi": lambda r: r.get("chi"),
               "low": lambda r: r.get("low", [None])[0], "up": lambda r: r.get("up", [None])[0],
               "d2pvu": lambda r: r.get("d2pvu"), "rh600": lambda r: r.get("rh600")}
     for f, get in fields.items():
