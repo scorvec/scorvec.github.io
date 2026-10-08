@@ -185,7 +185,7 @@
     if (m === "tilt") yhi = Math.min(yhi, 160);
     function X(hh) { return L + (hh - xs[0]) / (xs[1] - xs[0]) * (W - L - Rm); }
     function Y(v) { if (logy) { v = Math.min(Math.max(v, ylo), yhi); return T + (1 - (Math.log(v) - Math.log(ylo)) / (Math.log(yhi) - Math.log(ylo))) * (H - T - B); } return T + (1 - (Math.min(v, yhi) - ylo) / (yhi - ylo)) * (H - T - B); }
-    var s = svgOpen(W, H, meas[1] + " along the forecast, " + doc.name);
+    var s = svgOpen(W, H, meas[1] + " along the forecast, " + doc.name).replace("<svg ", '<svg data-x0="' + xs[0] + '" data-x1="' + xs[1] + '" data-l="' + L + '" data-w="' + W + '" data-r="' + Rm + '" ');
     // grid
     var ticks = [];
     if (logy) [0.001, 0.003, 0.01, 0.03, 0.1, 0.3, 1].forEach(function (v) { if (v >= ylo && v <= yhi) ticks.push(v); });
@@ -324,15 +324,42 @@
     return out;
   }
 
+  // ── time controls (2026-10-08): play/step, frame prefetch, the sticky bar under the site header ──────────────
+  var PLAY = null, PRE = {};
+  function stop() { if (PLAY) { clearTimeout(PLAY); PLAY = null; var b = $("tcs-play"); if (b) b.textContent = "▶ Play"; } }
+  function play(st, doc, s) {
+    if (st.h >= 120) st.h = 0;
+    prefetch(doc, s, st.h, true);
+    function step() { PLAY = setTimeout(function () { if (!root.offsetParent || state().sid !== st.sid && st.sid) { stop(); return; }
+      if (st.h >= 120) { stop(); return; } st.h += 6; go(st); step(); }, 750); }
+    PLAY = 1; go(st); step();
+  }
+  function prefetch(doc, s, h, all) {                  // warm the map frames ahead of the slider so stepping does not blank
+    if (!window.frameLoad) return;
+    var base = s.json.replace(/[^/]+$/, "");
+    (doc.frames || []).forEach(function (f) { var fh = +f.slice(-8, -5), rel = base + f;
+      if (PRE[rel] || !(all || (fh > h && fh <= h + 12) || (fh < h && fh >= h - 6))) return;
+      var im = new Image(); PRE[rel] = im; window.frameLoad(im, rel, "", null, null, s.sha); });
+  }
+  function stickTop() {                                // clear the sticky site header, and on phones the stage's sticky plot picker
+    var hd = document.querySelector("header"), rl = document.getElementById("rail"), t = 0;
+    if (hd && getComputedStyle(hd).position === "sticky") t = Math.max(0, hd.getBoundingClientRect().bottom);   // the header hides on scroll-down
+    if (rl && getComputedStyle(rl).position === "sticky" && rl.offsetWidth > 0.6 * window.innerWidth) t = Math.max(t, (parseFloat(getComputedStyle(rl).top) || 0) + rl.offsetHeight);
+    root.style.setProperty("--tcs-top", (t + 4) + "px"); }
+  window.addEventListener("resize", stickTop);
+  var stq = false;
+  window.addEventListener("scroll", function () { if (stq || !root.offsetParent) return; stq = true; requestAnimationFrame(function () { stq = false; stickTop(); }); }, { passive: true });
+
   // ── render ────────────────────────────────────────────────────────────────────────────────────────────────
   function render() {
-    if (!ready || !root.offsetParent) return;
+    if (!ready || !root.offsetParent) { stop(); return; }
+    stickTop();
     var st = state(), list = storms();
     var s = list.filter(function (x) { return x.sid === st.sid; })[0] || list[0];
     $("tcs-storms").innerHTML = list.length ? list.map(function (x) {
       return '<button type="button" data-sid="' + esc(x.sid) + '" aria-pressed="' + (s && x.sid === s.sid) + '"' + (x.live ? "" : ' class="hc"') + ">" + esc(x.name) +
         (x.live ? "" : " <span>validation case, " + esc((x.hcInit || "").slice(0, 10)) + "</span>") + "</button>"; }).join("") : "";
-    root.querySelectorAll("#tcs-storms button").forEach(function (b) { b.onclick = function () { st.sid = b.getAttribute("data-sid"); st.h = 0; go(st); }; });
+    root.querySelectorAll("#tcs-storms button").forEach(function (b) { b.onclick = function () { stop(); st.sid = b.getAttribute("data-sid"); st.h = 0; go(st); }; });
     $("tcs-views").innerHTML = [["fc", "Forecast"], ["val", "Validation"]].map(function (v) { return '<button type="button" data-v="' + v[0] + '" aria-pressed="' + (st.view === v[0]) + '">' + v[1] + "</button>"; }).join("");
     root.querySelectorAll("#tcs-views button").forEach(function (b) { b.onclick = function () { st.view = b.getAttribute("data-v"); if (!st.sid && s) st.sid = s.sid; go(st); }; });
     $("tcs-val").hidden = st.view !== "val"; $("tcs-fc").hidden = st.view === "val";
@@ -348,21 +375,31 @@
     var tm0 = t0(doc), h = Math.max(0, Math.min(120, st.h - st.h % 6));
     $("tcs-now").innerHTML = now(doc, s.live);
     var sl = $("tcs-h"); sl.value = h;
-    sl.oninput = function () { st.h = +sl.value; go(st); };
+    sl.oninput = function () { stop(); st.h = +sl.value; go(st); };
+    $("tcs-prev").onclick = function () { stop(); st.h = Math.max(0, h - 6); go(st); };
+    $("tcs-next").onclick = function () { stop(); st.h = Math.min(120, h + 6); go(st); };
+    $("tcs-play").onclick = function () { if (PLAY) { stop(); return; } play(st, doc, s); };
+    $("tcs-play").textContent = PLAY ? "❚❚ Pause" : "▶ Play";
     $("tcs-hlab").textContent = "+" + h + " h · " + fmtT(tm0 + h * 3600000, true);
     $("tcs-hodo").innerHTML = hodograph(doc, h);
     $("tcs-tilt").innerHTML = tiltPlot(doc, h, tm0);
     $("tcs-meas").innerHTML = MEAS.map(function (q) { return '<button type="button" data-m="' + q[0] + '" aria-pressed="' + (st.m === q[0]) + '">' + q[1] + "</button>"; }).join("");
     root.querySelectorAll("#tcs-meas button").forEach(function (b) { b.onclick = function () { st.m = b.getAttribute("data-m"); go(st); }; });
     $("tcs-ts").innerHTML = series(doc, st.m, h);
+    var sv = $("tcs-ts").querySelector("svg");
+    if (sv) sv.onclick = function (ev) {               // click the chart: jump to that hour
+      var b = sv.getBoundingClientRect(), W = +sv.getAttribute("data-w"), L = +sv.getAttribute("data-l"), R = +sv.getAttribute("data-r"),
+          x0 = +sv.getAttribute("data-x0"), x1 = +sv.getAttribute("data-x1"), xv = (ev.clientX - b.left) / b.width * W;
+      var hh = Math.round((x0 + (xv - L) / (W - L - R) * (x1 - x0)) / 6) * 6; stop(); st.h = Math.max(0, Math.min(120, hh)); go(st); };
     $("tcs-key").innerHTML = legend(doc, st.m);
     $("tcs-tab").innerHTML = table(doc, h);
     // the 330 K PV map of this hour (6-hourly control frames, frames branch)
     var fr = (doc.frames || []).filter(function (f) { return +f.slice(-8, -5) <= h; }).pop();
     var im = $("tcs-map");
-    if (fr) { var rel = s.json.replace(/[^/]+$/, "") + fr; im.hidden = false; im.alt = doc.name + ": 330 K PV and shear, " + fr.slice(-8, -5) + " h";
+    if (fr) { var rel = s.json.replace(/[^/]+$/, "") + fr; im.hidden = false; $("tcs-nomap").hidden = true; im.alt = doc.name + ": 330 K PV and shear, " + fr.slice(-8, -5) + " h";
       if (im.getAttribute("data-rel") !== rel) { im.setAttribute("data-rel", rel); if (window.frameLoad) window.frameLoad(im, rel, "", null, null, s.sha); else im.src = rel; } }
-    else im.hidden = true;
+    else { im.hidden = true; $("tcs-nomap").hidden = false; }
+    prefetch(doc, s, h);
   }
 
   Promise.all([J("assets/sst/anim/tcshear_manifest.json"), J("assets/sst/anim/tcshear_hc_manifest.json")]).then(function (r) {

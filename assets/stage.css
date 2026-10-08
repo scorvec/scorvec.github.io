@@ -21,7 +21,7 @@
 .rail-group button.on { background: var(--accent-light); color: var(--accent); border-left-color: var(--accent); font-weight: 600; }
 .rail-group button .ico { width: 1.1rem; text-align: center; font-size: 0.9rem; opacity: 0.85; }
 .rail-group button small { display: block; font-weight: 400; font-size: 0.74rem; color: var(--muted); }
-.ss-main { background: var(--surface); border: 1.5px solid var(--edge); border-radius: 4px; overflow: hidden; min-width: 0; }
+.ss-main { background: var(--surface); border: 1.5px solid var(--edge); border-radius: 4px; overflow: hidden; overflow: clip; min-width: 0; }   /* clip, not hidden: hidden makes a scroll container and breaks position:sticky inside (the TC shear time bar, 2026-10-08) */
 .crumb { display: flex; align-items: center; justify-content: space-between; gap: 0.6rem; flex-wrap: wrap; padding: 0.7rem 1.2rem; border-bottom: 1px solid var(--rule); background: #fbfaf7; }
 .crumb .path { font-family: var(--serif); font-size: 1.1rem; color: var(--ink); }
 .crumb .path span { color: var(--muted); margin: 0 0.35rem; }
