@@ -310,10 +310,12 @@
   .feature--enso h2, .feature--enso .stats b { color: #9a3f14; }
   .feature--enso .go { color: #9a3f14; text-decoration-color: rgba(154, 63, 20, 0.4); }
   .feature--enso:hover .go { text-decoration-color: #9a3f14; }
-  .feature .alt { position: relative; z-index: 1; margin-left: 1.1rem; font-weight: 500; color: #9a3f14;
+  .feature .alt { display: inline-block; white-space: nowrap; position: relative; z-index: 1; margin-left: 1.1rem; font-weight: 500; color: #9a3f14;
                   text-underline-offset: 0.22em; }
   .spark { display: block; width: 100%; max-width: 30rem; height: auto; margin-top: 1.1rem; }
   .spark text { font-family: var(--sans); font-size: 10px; fill: var(--storm); }
+  /* the chart is drawn 320 units wide and shrinks to the card: on a phone 10 units came out at ~9 px */
+  @media (max-width: 600px) { .spark text { font-size: 12.5px; } }
 
   /* ── About ───────────────────────────────────────────────────────────── */
   .about {
@@ -473,7 +475,7 @@
             <div>
               <h3>Verification</h3>
               <ul>
-                <li><a href="/aifs-verify.html">AIFS single versus member 0</a></li>
+                <li><a href="/aifs-verify.html">AIFS single versus member 0</a></li>
               </ul>
             </div>
           </div>
@@ -626,7 +628,7 @@
         <li class="row"><a href="/aifs-aam-budget.html">AINWP and conservation</a><span class="what">Do AI weather models obey the conservation laws? ECMWF's AI ensemble (AIFS-ENS), the single AIFS and the physics ensemble against angular momentum and its torques, dry-air mass, water and energy. Winter 2025–26, days 1–15.</span><span class="when">Static</span></li>
         <li class="row"><a href="/topics/">Explainers</a><span class="what">How to read the products: the equations and the physics behind each diagnostic.</span><span class="when">As written</span></li>
         <li class="sub">Verification</li>
-        <li class="row"><a href="/aifs-verify.html">AIFS single versus member 0</a><span class="what">The two ECMWF AIFS configurations compared as deterministic models against radiosondes and ERA5, with the ensemble member spectrally matched to the single model and the ensemble mean for reference.</span><span class="when">Every 00Z and 12Z run</span></li>
+        <li class="row"><a href="/aifs-verify.html">AIFS single versus member 0</a><span class="what">The two ECMWF AIFS configurations compared as deterministic models against radiosondes and ERA5, with the ensemble member spectrally matched to the single model and the ensemble mean for reference.</span><span class="when">Every 00Z and 12Z run</span></li>
       </ul>
     </div>
 
@@ -744,10 +746,13 @@
           (fcp.length > 1 ? `<path d="${path(fcp)}" fill="none" stroke="#9a3f14" stroke-width="1.6" stroke-dasharray="4 3"/>` : '') +
           `<circle cx="${X(last[0]).toFixed(1)}" cy="${Y(last[1]).toFixed(1)}" r="2.8" fill="#9a3f14"/>` +
           `<text x="4" y="88">${new Date(x0).toLocaleDateString('en-US', { month: 'short', year: 'numeric', timeZone: 'UTC' })}</text>` +
-          `<text x="${X(last[0]).toFixed(1)}" y="88" text-anchor="middle">today</text>` +
+          `<text x="${X(last[0]).toFixed(1)}" y="88" text-anchor="middle" class="sp-today">today</text>` +
           (fcp.length > 1 ? `<text x="316" y="88" text-anchor="end">models to ${new Date(x1).toLocaleDateString('en-US', { month: 'short', timeZone: 'UTC' })}</text>` : '') +
           `<text x="8" y="${(Y(0) - 3).toFixed(1)}">0</text>`;
         svg.hidden = false;
+        // "today" gives way when it would run into the date or the "models to" label beside it
+        const td = svg.querySelector('.sp-today'), lab = [...svg.querySelectorAll('text[y="88"]')].filter(e => e !== td);
+        if (td && lab.some(e => { const a = td.getBBox(), b = e.getBBox(); return a.x < b.x + b.width + 3 && b.x < a.x + a.width + 3; })) td.remove();
       }
     })
     .catch(() => {});

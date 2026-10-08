@@ -176,7 +176,6 @@ def draw(pr: dict, lat, lon, var: str, title: str, sub: str, out: Path) -> None:
                 for k, c in enumerate(cols)]
     l1 = fig.legend(handles=patches(above_c), loc="lower left", bbox_to_anchor=(0.04, 0.004), ncol=6,
                     frameon=False, title=top_lab, fontsize=8, title_fontsize=8.5)
-    fig.add_artist(l1)
     fig.legend(handles=patches(below_c), loc="lower right", bbox_to_anchor=(0.96, 0.004), ncol=6,
                frameon=False, title=bot_lab, fontsize=8, title_fontsize=8.5)
     MS.heading(fig, H, title, sub, wrap=190)

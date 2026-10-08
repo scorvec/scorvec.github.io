@@ -315,7 +315,6 @@ def draw_terciles(key, ym, idx, above, below, normal, out: Path):
         return [Patch(color=c, label=f"{int(TERC_BINS[k] * 100)}–{int(min(TERC_BINS[k + 1], 1) * 100)}%") for k, c in enumerate(cols)]
     l1 = fig.legend(handles=patches(PAL[pu]), loc="lower left", bbox_to_anchor=(0.04, 0.004), ncol=6, frameon=False,
                     title=labs[0], fontsize=8, title_fontsize=8.5)
-    fig.add_artist(l1)
     fig.legend(handles=patches(PAL[pl]), loc="lower right", bbox_to_anchor=(0.96, 0.004), ncol=6, frameon=False,
                title=labs[1], fontsize=8, title_fontsize=8.5)
     MS.heading(fig, H, f"{title}: most likely tercile — CanSIPS · {_heading_text(ym, idx)} · {MONTHS[int(ym[4:]) - 1]} {ym[:4]} issue",
