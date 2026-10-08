@@ -177,7 +177,6 @@ def merge_l7(base: dict, ext: dict, name: str = "") -> dict:
             meta[k] = {**meta[k], **v}
     if ep:
         meta["periods"] = [list(p) for p in ep]
-    meta["lead7"] = True
     out["meta"] = meta
     return out
 

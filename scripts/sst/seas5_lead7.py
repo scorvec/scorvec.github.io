@@ -69,7 +69,31 @@ GROUPS = {
     "strat_u": [(PRESSURE, ["u_component_of_wind"], ["10", "30", "50"], 12)],
     "water": [(SINGLE, ["evaporation"], None, "acc")],
 }
-SUBSET_OF = {"sfc": "gl"}                 # the Americas t2m/tp kind is a cut of the global 1° kind (same grid points)
+SUBSET_OF = {"sfc": "gl"}
+# The CDS queue charges per REQUEST, not per byte (2026-10-08: one pressure-level request waited 230 min), so the
+# pressure-level kinds that share a grid are fetched together and cut per kind: the polar caps and the NH heights are
+# all on the 2° grid (one global z request, 5 levels), the 850 hPa winds both on the global 1° grid (u and v in one).
+# MARS interpolates to the target grid and then crops to the area, so a kind's points are the same in either request.
+COMBINED = {
+    "z2": dict(dataset=PRESSURE, variables=["geopotential"], levels=["10", "50", "100", "500", "1000"], area=[90, -180, -90, 180],
+               grid=[2.0, 2.0], cadence=12, kinds={"polar_n": {"z": [10, 50, 100]}, "polar_s": {"z": [10, 50, 100]}, "nh_z": {"z": [500, 1000]}}),
+    "uv850": dict(dataset=PRESSURE, variables=["u_component_of_wind", "v_component_of_wind"], levels=["850"], area=[90, -180, -90, 180],
+                  grid=[1.0, 1.0], cadence=12, kinds={"gl_u850": {"u": [None, 850]}, "gl_v850": {"v": [None, 850]}}),
+}
+
+
+def _cut(fields: dict, keep: dict, lat_t, lon_t) -> dict:
+    """The kind's variables/levels of a combined request, on the kind's own points."""
+    out = {}
+    for (mvar, lev), (v, lat, lon) in fields.items():
+        if mvar not in keep or lev not in keep[mvar]:
+            continue
+        ii = [int(np.where(np.isclose(lat, x))[0][0]) for x in lat_t]
+        lon_n = ((lon + 180) % 360) - 180
+        jj = [int(np.where(np.isclose(lon_n, ((x + 180) % 360) - 180))[0][0]) for x in lon_t]
+        key = (mvar, lev if len([l for l in keep[mvar] if l is not None]) > 1 else None)
+        out[key] = (v[..., ii, :][..., jj], np.asarray(lat_t), np.asarray(lon_t))
+    return out                 # the Americas t2m/tp kind is a cut of the global 1° kind (same grid points)
 
 # sub-daily GRIB shortName → (monthly-product variable name as load_field asks for it, kind of reduction)
 SHORT = {"2t": ("t2m", "mean"), "sst": ("sst", "mean"), "tp": ("tprate", "rate"), "z": ("z", "mean"),
@@ -121,7 +145,7 @@ def _cds(dataset: str, req: dict, dest: Path, label: str) -> bool:
     for attempt in range(4):
         t0 = time.time()
         try:
-            print(f"  CDS {label}: {len(req['leadtime_hour'])} steps × {len(req['year'])} yr → {dest.name} …", flush=True)
+            print(f"  CDS {label}: {len(req.get('leadtime_hour', req.get('leadtime_month', [])))} steps × {len(req['year'])} yr → {dest.name} …", flush=True)
             _client().retrieve(dataset, req, str(tmp))
             if tmp.exists() and tmp.stat().st_size > 0:
                 os.replace(tmp, dest)
@@ -317,7 +341,36 @@ def forecast(ym: str, lead: int = LEAD, kinds=None, tag: str | None = None, keep
     want = [k for k in KINDS if k not in UNUSED_KINDS and (kinds is None or k in kinds)]
     got = {}
     cache: dict = {}
+    dest_of = lambda k: l7_path(k, ym) if lead == LEAD else DATA / "forecast" / f"fc_{k}_{ym}_m{lead}chk.npz"
+    combined_done = set()
+    for name, c in COMBINED.items():
+        todo = [k for k in c["kinds"] if k in want and not dest_of(k).exists()]
+        if not todo:
+            continue
+        if budget_min is not None and (time.time() - t_start) / 60 > budget_min:
+            print(f"  {name}: lead-7 fetch budget ({budget_min:.0f} min) spent — left for the next run", flush=True); continue
+        win = _windows([ym[:4]], ym[4:], [lead])
+        req = {"originating_centre": CENTRE, "system": SYSTEM, "variable": c["variables"], "pressure_level": c["levels"],
+               "year": [ym[:4]], "month": [ym[4:]], "day": ["01"], "leadtime_hour": [str(h) for h in _hours(win, c["cadence"])],
+               "area": c["area"], "grid": c["grid"], "data_format": "grib"}
+        dest = RAW / f"{tag}_{name}.grib"
+        if not _cds(c["dataset"], req, dest, f"{tag} {name} (for {', '.join(todo)})"):
+            continue
+        fields = {k: (v[:, 0], la, lo) for k, (v, la, lo) in reduce_group(dest, None, ym[4:], [lead]).items()}
+        for kind in todo:
+            g = grid_of(kind, ym)
+            if g is None:
+                print(f"  {kind}: monthly grid missing — skipped", flush=True); continue
+            H0, H1 = month_window(ym, lead)
+            save_supplement(dest_of(kind), _cut(fields, c["kinds"][kind], g[0], g[1]),
+                            dict(issue=ym, lead=lead, window_h=[H0, H1], rule=STEP_RULE, request=name,
+                                 source="CDS seasonal-original-pressure-levels (sub-daily), reduced to the monthly-product definition"))
+            combined_done.add(kind)
+        if not keep_raw:
+            dest.unlink()
     for kind in [k for k in want if k in GROUPS] + [k for k in want if k in SUBSET_OF]:
+        if any(kind in c["kinds"] for c in COMBINED.values()):
+            got[kind] = dest_of(kind).exists(); continue
         dest = l7_path(kind, ym) if lead == LEAD else DATA / "forecast" / f"fc_{kind}_{ym}_m{lead}chk.npz"
         if dest.exists():
             got[kind] = True; continue
