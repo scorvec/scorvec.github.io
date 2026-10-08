@@ -59,7 +59,10 @@ VARS = {
     "tp": ("Precipitation", "gl", "tprate", "gl_t", "tp", 1.0, "mm/day", True),
     "z500": ("500 hPa height", "gl_z500", "z", "gl_z", "z", 1.0 / G0, "m", False),
     "si10": ("10 m wind speed", "energy", "si10", "am_sfc", "si10", 1.0, "m/s", False),
-    "ssrd": ("Surface solar radiation", "energy", "ssrd", "am_sfc", "ssrd", 1.0, "W/m²", True),
+    # model field msdsrf (2026-10-08): the energy GRIB holds si10 + msdsrf ("Time-mean surface downward short-wave
+    # radiation flux", already W m-2); asking for "ssrd" fell back to the file's FIRST variable, si10, so the solar
+    # normals maps were 10 m wind speed (/86400). The ERA5 reference keeps ssrd (J m-2 per day, converted in _era).
+    "ssrd": ("Surface solar radiation", "energy", "msdsrf", "am_sfc", "ssrd", 1.0, "W/m²", True),
     # derived: precipitation minus evaporation, the surface water balance (mm/day; negative = net drying)
     "pme": ("P − E water balance", "water", "e", "am_e", "e", 1.0, "mm/day", False),
 }
@@ -214,7 +217,7 @@ def references(var: str, month: int, year: int) -> dict | None:
 # ── model fields ─────────────────────────────────────────────────────────────
 # hindcast tables: one per group of variables that share a raw hindcast kind
 HC_GROUPS = {"normals_gl": (["t2m", "tp"], ["m:gl"]), "normals_gl_z500": (["z500"], ["m:gl_z500"]),
-             "normals_energy": (["si10", "ssrd"], ["m:energy"]), "normals_pme": (["pme"], ["m:water", "m:sfc"])}
+             "normals_energy_v2": (["si10", "ssrd"], ["m:energy"]), "normals_pme": (["pme"], ["m:water", "m:sfc"])}
 VAR_GROUP = {v: g for g, (vs, _) in HC_GROUPS.items() for v in vs}
 
 
@@ -222,7 +225,7 @@ def _to_units(var: str, a: np.ndarray) -> np.ndarray:
     if var == "tp":
         return a * 86400.0 * 1000
     if var == "ssrd":
-        return a / 86400.0
+        return a                                                      # msdsrf is already a mean flux, W m-2
     if var == "t2m":
         return a - 273.15
     return a * VARS[var][5]

@@ -98,6 +98,8 @@ def load_field(path: Path, var: str, lead7: bool = True, **filt) -> tuple[np.nda
     ds = _open(path, **filt)
     asked = var
     if var not in ds.data_vars:                                   # e.g. a single-variable file under another name
+        if len(ds.data_vars) != 1:                                # 2026-10-08: never guess in a multi-variable file
+            raise KeyError(f"{path.name}: no variable {var!r} (has {list(ds.data_vars)})")
         var = list(ds.data_vars)[0]
     da = _stack_samples(ds[var])
     vals = da.values.astype(np.float32)

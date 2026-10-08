@@ -395,7 +395,7 @@ def check(month: str, out: Path | None = None) -> dict:
         return np.load(p) if p.exists() else None
 
     # 1. mean fields of the global kinds (hc_build_{kind}: hcm_{var} [lead, lat, lon]) and the interannual σ (normals)
-    ng = R.load(R.hc_ref("normals_gl", month)); nz = R.load(R.hc_ref("normals_gl_z500", month)); ne = R.load(R.hc_ref("normals_energy", month))
+    ng = R.load(R.hc_ref("normals_gl", month)); nz = R.load(R.hc_ref("normals_gl_z500", month)); ne = R.load(R.hc_ref("normals_energy_v2", month))
     for kind, var, key, fac, nt, nvar in (("gl", "t2m", "t2m", 1.0, ng, "t2m"), ("gl", "tp", "tprate", 86400e3, ng, "tp"), ("gl", "sst", "sst", 1.0, None, None),
                                           ("gl_z500", "z500", "z", 1 / 9.80665, nz, "z500"), ("gl_u850", "u850", "u", 1.0, None, None),
                                           ("gl_v850", "v850", "v", 1.0, None, None), ("na_snowdepth", "sd", "sd", 1000.0, None, None),
