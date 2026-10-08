@@ -227,7 +227,7 @@ a:focus-visible,button:focus-visible,summary:focus-visible,input:focus-visible{o
 <script>
 const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
 const NAMES={AL:'Alabama',AK:'Alaska',AZ:'Arizona',AR:'Arkansas',CA:'California',CO:'Colorado',CT:'Connecticut',DE:'Delaware',FL:'Florida',GA:'Georgia',HI:'Hawaii',ID:'Idaho',IL:'Illinois',IN:'Indiana',IA:'Iowa',KS:'Kansas',KY:'Kentucky',LA:'Louisiana',ME:'Maine',MD:'Maryland',MA:'Massachusetts',MI:'Michigan',MN:'Minnesota',MS:'Mississippi',MO:'Missouri',MT:'Montana',NE:'Nebraska',NV:'Nevada',NH:'New Hampshire',NJ:'New Jersey',NM:'New Mexico',NY:'New York',NC:'North Carolina',ND:'North Dakota',OH:'Ohio',OK:'Oklahoma',OR:'Oregon',PA:'Pennsylvania',RI:'Rhode Island',SC:'South Carolina',SD:'South Dakota',TN:'Tennessee',TX:'Texas',UT:'Utah',VT:'Vermont',VA:'Virginia',WA:'Washington',WV:'West Virginia',WI:'Wisconsin',WY:'Wyoming'};
-const mg=v=>v==null?'–':(v>=0?'D+':'R+')+Math.abs(v).toFixed(1);
+const mg=(v,ind)=>v==null?'–':(v>=0?(ind?'I+':'D+'):'R+')+Math.abs(v).toFixed(1);   // ind: independent challenger -> I+
 const sg=v=>v==null||Math.abs(v)<0.05?'–':(v>0?'+':'−')+Math.abs(v).toFixed(1);
 const pc=v=>(100*v).toFixed(0)+'%';
 const PN={yougov:'YouGov','yougov/cbs':'CBS News/YouGov','yougov/yahoo':'Yahoo News/YouGov','ft/yougov':'Financial Times/YouGov','cnn/ssrs':'CNN/SSRS',nbc:'NBC News',rmg:'RMG Research',ppp:'Public Policy Polling',harrisx:'HarrisX','ipsos/wapo':'Washington Post/Ipsos',tipp:'TIPP',siena:'New York Times/Siena','jl partners':'J.L. Partners',atlasintel:'AtlasIntel',quantus:'Quantus Insights',echelon:'Echelon Insights',bullfinch:'The Bullfinch Group',marquette:'Marquette Law School',verasight:'Strength in Numbers/Verasight','big data poll':'Big Data Poll','morning consult':'Morning Consult','fox news':'Fox News'};
@@ -255,14 +255,14 @@ fetch('data/polls.json').then(r=>r.json()).then(D=>{
 function tab(p){$$('.tabs button').forEach(b=>b.setAttribute('aria-selected',b.dataset.p===p));$$('.pane').forEach(x=>x.classList.toggle('on',x.id==='p-'+p));if(!location.hash.startsWith('#'+p+':'))history.replaceState(null,'','#'+p)}
 function title(r,off){if(off==='house')return `${r.seat} <small>${r.label||''}</small>`;return `${NAMES[r.seat]||r.seat} <small>${r.label||''}</small>`}
 function raceHTML(r,off){
- const P=r.polls.slice().sort((a,b)=>b.share-a.share), mx=Math.max(...P.map(p=>p.share),0.01);
+ const P=r.polls.slice().sort((a,b)=>b.share-a.share), mx=Math.max(...P.map(p=>p.share),0.01), ind=/\(I\) v /.test(r.label||'');
  const s=(r.seat+' '+(NAMES[r.seat]||'')+' '+(r.label||'')).toLowerCase();
- const rows=P.map(p=>`<tr><td class="pol">${p.pollster}${p.sponsor?` <span class="dim">(${p.sponsor}-sponsored)</span>`:''}</td><td>${p.end}</td>
-  <td class="n">${mg(p.published)}</td><td class="n">${sg(-p.lean)}</td><td class="n">${sg(-p.state_corr)}</td><td class="n"><b>${mg(p.adjusted)}</b></td>
+ const rows=P.map(p=>`<tr><td class="pol">${p.pollster}${p.sponsor?` <span class="dim">(${ind&&p.sponsor==='D'?'independent\'s side':p.sponsor+'-sponsored'})</span>`:''}</td><td>${p.end}</td>
+  <td class="n">${mg(p.published,ind)}</td><td class="n">${sg(-p.lean)}</td><td class="n">${sg(-p.state_corr)}</td><td class="n"><b>${mg(p.adjusted,ind)}</b></td>
   <td class="n">${p.und==null?'–':p.und.toFixed(0)+'%'}</td><td class="n">${p.age} d</td><td class="n">${p.precision.toFixed(2)}</td>
   <td class="n ${p.discount<0.8?'hi':''}">${p.discount.toFixed(2)}</td><td class="n">${pc(p.share)}<span class="wbar" style="width:${Math.round(46*p.share/mx)}px"></span></td></tr>`).join('');
- return `<details class="race" id="${off}:${r.seat}" data-s="${s}"><summary><span class="t">${title(r,off)}</span><span class="r">${r.polls.length} poll${r.polls.length>1?'s':''} · polls carry ${pc(r.polls_share)} · ${mg(r.posterior)}</span></summary>
- <div class="inner"><p class="flow">Fundamentals alone: <b>${mg(r.prior)}</b> (±${r.prior_sd.toFixed(1)}). With the polls: <b>${mg(r.posterior)}</b> (±${r.posterior_sd.toFixed(1)}). The polls carry ${pc(r.polls_share)} of the estimate${Math.abs(r.shared_miss)>=0.5?`; together they read ${sg(r.shared_miss)} away from where the blend lands, treated as a polling miss they share`:''}.</p>
+ return `<details class="race" id="${off}:${r.seat}" data-s="${s}"><summary><span class="t">${title(r,off)}</span><span class="r">${r.polls.length} poll${r.polls.length>1?'s':''} · polls carry ${pc(r.polls_share)} · ${mg(r.posterior,ind)}</span></summary>
+ <div class="inner"><p class="flow">Fundamentals alone: <b>${mg(r.prior,ind)}</b> (±${r.prior_sd.toFixed(1)}). With the polls: <b>${mg(r.posterior,ind)}</b> (±${r.posterior_sd.toFixed(1)}). The polls carry ${pc(r.polls_share)} of the estimate${Math.abs(r.shared_miss)>=0.5?`; together they read ${sg(r.shared_miss)} away from where the blend lands, treated as a polling miss they share`:''}.</p>
  <table><thead><tr><th>Pollster</th><th>Field ended</th><th class="n">Published</th><th class="n">Lean fix</th><th class="n">State fix</th><th class="n">Adjusted</th><th class="n">Undecided</th><th class="n">Age</th><th class="n">Precision</th><th class="n">Outlier discount</th><th class="n">Share</th></tr></thead><tbody>${rows}</tbody></table></div></details>`;
 }
 function natTable(sel,P,what){
