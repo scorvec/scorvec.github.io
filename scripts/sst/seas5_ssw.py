@@ -588,7 +588,8 @@ def render(ym, dates, f60, cm, q10, q90, z, fsec, hsec, lats, tail, doc) -> dict
         cx.annotate(f"n={r['n']}", (r["p_mean"], r["o_freq"]), textcoords="offset points", xytext=(6, -10), fontsize=7.5, color=MUTED)
     cx.set_xlim(0, 1); cx.set_ylim(-0.02, 1.02); cx.set_xlabel("hindcast probability"); cx.set_ylabel("observed frequency")
     cx.spines[["top", "right"]].set_visible(False)
-    verdict = "skill beyond climatology" if S["skilful"] else "NO skill beyond climatology"
+    verdict = ("skill beyond climatology" if S["skilful"] else
+               "WORSE than climatology" if (S["bss_ci90"][1] is not None and S["bss_ci90"][1] < 0) else "NO skill beyond climatology")
     cx.set_title(f"Hindcast reliability, Nov–Mar ({verdict})", loc="left", fontsize=10.5)
     cx.text(0.02, 0.98, f"BSS {S['bss']:+.2f} (90 % CI {S['bss_ci90'][0]:+.2f} to {S['bss_ci90'][1]:+.2f})\nROC area {S['auc']:.2f} "
             f"({S['auc_ci90'][0]:.2f}–{S['auc_ci90'][1]:.2f}), {S['n']} winters", transform=cx.transAxes, va="top", fontsize=8, color=INK)

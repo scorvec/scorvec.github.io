@@ -149,6 +149,9 @@
      J = seas5_ssw.json, or null before its first build. */
   function pc(x) { return x == null ? "–" : Math.round(100 * x) + "%"; }
   function f2(x) { return x == null ? "n/a" : x.toFixed(2); }
+  function fp(x) { return x == null ? "n/a" : x < 0.001 ? "< 0.001" : x.toFixed(3); }
+  // a BSS interval wholly below zero is a significant LOSS against climatology, not "no skill"
+  function bssWord(s) { return s.skilful ? "skill beyond climatology" : (s.bss_ci90 && s.bss_ci90[1] != null && s.bss_ci90[1] < 0) ? "worse than climatology" : "no skill beyond climatology"; }
   function sswCard(J, ids) {
     if (!J || !J.windows) {                       // 2026-10-08: no build yet - say so instead of a dead menu link
       $(ids.verdict).innerHTML = "The first build of this product is still running: the daily 10&nbsp;hPa winds of all 51 October members come from the Copernicus data store, where requests queue for hours. The risk index, its skill test and the charts appear here once that run finishes.";
@@ -158,9 +161,10 @@
     var sig = A.p_vs_model_base < 0.05;
     var t = "<b>" + pc(A.forecast) + " of the 51 members</b> (" + A.forecast_k + ") have a major SSW between November and March, against the model&rsquo;s own base rate of " +
       pc(A.model_base) + " (90 % interval " + pc(A.model_base_ci90[0]) + "–" + pc(A.model_base_ci90[1]) + ") and an observed rate of " + pc(A.obs_base_long) + " (MERRA-2, " + A.obs_long_years + "). " +
-      (sig ? "The departure from the model base rate is significant (binomial p " + f2(A.p_vs_model_base) + ")." : "The departure from the model base rate is not significant (binomial p " + f2(A.p_vs_model_base) + "): the members are consistent with the model&rsquo;s normal SSW rate.") + " ";
+      (sig ? "The departure from the model base rate is significant (binomial p " + fp(A.p_vs_model_base) + ")." : "The departure from the model base rate is not significant (binomial p " + fp(A.p_vs_model_base) + "): the members are consistent with the model&rsquo;s normal SSW rate.") + " ";
     t += S.skilful ? "In the hindcast the index has skill beyond climatology: Brier skill score " + f2(S.bss) + " (90 % CI " + f2(S.bss_ci90[0]) + " to " + f2(S.bss_ci90[1]) + ", " + S.n + " winters)."
-      : "<b>In the hindcast the index carries no skill beyond climatology</b> (Brier skill score " + f2(S.bss) + ", 90 % CI " + f2(S.bss_ci90[0]) + " to " + f2(S.bss_ci90[1]) + "; ROC area " + f2(S.auc) + ", " + S.n + " winters, MERRA-2 as truth): read it as the model&rsquo;s view, not as a forecast with a track record.";
+      : "<b>In the hindcast the index " + (bssWord(S) === "worse than climatology" ? "does significantly worse than climatology" : "carries no skill beyond climatology") + "</b> (Brier skill score " + f2(S.bss) + ", 90 % CI " + f2(S.bss_ci90[0]) + " to " + f2(S.bss_ci90[1]) + "; ROC area " + f2(S.auc) + ", " + S.n + " winters, MERRA-2 as truth): read it as the model&rsquo;s view, not as a forecast with a track record." +
+        (A.model_base > A.obs_base_hc_years + 0.1 ? " Part of the loss is calibration: SEAS5 puts a major SSW in " + pc(A.model_base) + " of its hindcast member-winters, against " + pc(A.obs_base_hc_years) + " of the same winters observed." : "");
     if (E.hindcast && E.observed) {
       var h = E.hindcast, o = E.observed;
       t += " ENSO context: in the hindcast, El Niño winters (DJF ONI ≥ 0.5, " + h.n_nino + " of them) average " + pc(h.rate_nino) + " of members with an SSW against " + pc(h.rate_other) + " in the rest (" + (h.p < 0.05 ? "significant, p " + h.p.toFixed(3) : "not significant, p " + h.p.toFixed(2)) + "); observed " + o.years + ": " + pc(o.rate_nino) + " against " + pc(o.rate_other) + " (" + (o.p < 0.05 ? "significant, p " + o.p.toFixed(3) : "not significant, p " + o.p.toFixed(2)) + ").";
@@ -171,7 +175,7 @@
     Object.keys(W).forEach(function (k) {
       var e = W[k], s = e.skill;
       rows.push("<tr><td>" + k + "</td><td>" + pc(e.forecast) + "</td><td>" + pc(e.model_base) + "</td><td>" + pc(e.obs_base_long) + "</td><td class=\"" + (s.skilful ? "up" : "flat") + "\">" +
-        (s.skilful ? f2(s.bss) + " (" + f2(s.bss_ci90[0]) + " to " + f2(s.bss_ci90[1]) + ")" : "n.s. (" + f2(s.bss_ci90[0]) + " to " + f2(s.bss_ci90[1]) + ")") + "</td></tr>");
+        (s.skilful ? f2(s.bss) + " (" + f2(s.bss_ci90[0]) + " to " + f2(s.bss_ci90[1]) + ")" : (bssWord(s) === "worse than climatology" ? "worse: " + f2(s.bss) : "n.s.") + " (" + f2(s.bss_ci90[0]) + " to " + f2(s.bss_ci90[1]) + ")") + "</td></tr>");
     });
     if (J.monthly_u10 && J.monthly_u10.length) {
       rows.push("<tr><th>Month</th><th>u60N 10 hPa, mean (P10–P90)</th><th>Model normal (P10–P90)</th><th>Anomaly</th><th>Chance of an easterly monthly mean (normal)</th></tr>");
