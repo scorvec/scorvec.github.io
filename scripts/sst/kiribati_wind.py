@@ -131,7 +131,8 @@ def plot(hist: pd.DataFrame, out: Path):
         series[key] = (name, u, u.resample("1D").mean(), u.resample("1D").count())
     if series["tarawa"][1].dropna().empty:
         print("  no Tarawa wind in the plot window — skipping render", flush=True); return
-    W, top, bot = 14.0, 1.0, 0.55; ph = 2.6; gap = 0.35; H = top + 2 * ph + gap + bot
+    # 11 in, not 14: the stage shows it ~900 px wide, where the 14 in figure's ticks came out ~7 px
+    W, top, bot = 11.0, 1.05, 0.55; ph = 2.4; gap = 0.4; H = top + 2 * ph + gap + bot
     fig = plt.figure(figsize=(W, H))
     valid = pd.concat([series["tarawa"][1].dropna(), series["christmas"][1].dropna()])
     x_start = max(valid.index.min(), t0) if not valid.empty else t0
@@ -142,32 +143,34 @@ def plot(hist: pd.DataFrame, out: Path):
     for k, key in enumerate(("tarawa", "christmas")):
         name, u, ud, nd = series[key]
         y0 = (bot + (ph + gap) * (1 - k)) / H
-        ax = fig.add_axes([0.06, y0, 0.905, ph / H]); axes.append(ax)
+        ax = fig.add_axes([0.075, y0, 0.885, ph / H]); axes.append(ax)
         ok = nd >= 4                                                        # a daily mean needs a few obs
         col = np.where(ud.values > 0, "#c0392b", "#3f6f8f")
         ax.bar(ud.index[ok] + pd.Timedelta(hours=12), ud.values[ok], width=0.9, color=col[ok], alpha=0.55, lw=0, label="daily mean", zorder=2)
         ax.scatter(u.index, u.values, s=5, color="#222", alpha=0.45, lw=0, label="hourly METAR", zorder=3)
         ax.axhline(0, color="#666", lw=1.0, zorder=1)
         ax.axhline(WWB_THRESH, color="#c0392b", lw=0.9, ls="--", zorder=1)
-        ax.text(x_start - pd.Timedelta(hours=6), WWB_THRESH + 0.25, "WWB threshold", color="#c0392b", fontsize=7.5, va="bottom", ha="left", zorder=4)
+        ax.text(x_start - pd.Timedelta(hours=6), WWB_THRESH + 0.25, "WWB threshold", color="#c0392b", fontsize=8, va="bottom", ha="left", zorder=7,
+                bbox=dict(boxstyle="round,pad=0.12", fc="white", ec="none", alpha=0.85))   # bars and dots ran through it
         last = u.dropna()
         if len(last):
             ax.scatter([last.index[-1]], [last.iloc[-1]], s=46, color="#c0392b" if last.iloc[-1] > 0 else "#3f6f8f", zorder=6, edgecolor="#fff", lw=1)
-            ax.annotate(f"{last.iloc[-1]:+.1f}", (last.index[-1], last.iloc[-1]), xytext=(6, 0), textcoords="offset points", fontsize=8, va="center", color="#222")
+            ax.annotate(f"{last.iloc[-1]:+.1f}", (last.index[-1], last.iloc[-1]), xytext=(6, 0), textcoords="offset points", fontsize=8.5, va="center", color="#222",
+                        zorder=7, bbox=dict(boxstyle="round,pad=0.1", fc="white", ec="none", alpha=0.85))
         ax.set_ylim(lo, hi + 2.2)
         bb = h[h.index.minute == 0].iloc[::12].dropna(subset=[f"{key}_dir", f"{key}_spd"])   # barbs every 12 h
         if len(bb):
             ub = -bb[f"{key}_spd"] * np.sin(np.deg2rad(bb[f"{key}_dir"])); vb = -bb[f"{key}_spd"] * np.cos(np.deg2rad(bb[f"{key}_dir"]))
             ax.barbs(mdates.date2num(bb.index), np.full(len(bb), hi + 1.2), ub.values, vb.values, length=5, lw=0.5, color="#444", clip_on=True, zorder=5)
         ax.set_xlim(x_start - pd.Timedelta(hours=12), x_end)
-        ax.set_ylabel("zonal wind (m s⁻¹)\nwesterly +", fontsize=8.5)
-        ax.set_title(name, fontsize=9.5, loc="left", pad=3)
+        ax.set_ylabel("zonal wind (m s⁻¹)\nwesterly +", fontsize=9)
+        ax.set_title(name, fontsize=10, loc="left", pad=3)
         ax.xaxis.set_major_locator(mdates.DayLocator(interval=2)); ax.xaxis.set_major_formatter(mdates.DateFormatter("%b %-d"))
-        ax.tick_params(labelsize=8); ax.grid(axis="y", color="#e8e6e0", lw=0.6); ax.set_axisbelow(True)
+        ax.tick_params(labelsize=8.5); ax.grid(axis="y", color="#e8e6e0", lw=0.6); ax.set_axisbelow(True)
         for sp in ("top", "right"): ax.spines[sp].set_visible(False)
         if k == 0:
             ax.tick_params(labelbottom=False)
-            ax.legend(loc="lower left", fontsize=7.5, frameon=False, ncol=2)
+            ax.legend(loc="lower left", fontsize=8, frameon=False, ncol=2)
     fig.text(0.02, 1 - 0.14 / H, "Equatorial westerly-wind-burst monitor · Tarawa and Christmas Island METAR", fontsize=13.5, fontweight="bold", va="top")
     fig.text(0.02, 1 - 0.50 / H, f"Bars: daily-mean zonal wind (red westerly, blue easterly; days with fewer than 4 obs are left blank); dots: hourly reports; dashed: +{WWB_THRESH:.0f} m/s daily mean, the westerly-burst threshold; barbs: the reported wind every 12 h (kt). A westerly burst over Tarawa pushes warm water east and favours El Niño.",
              fontsize=8.4, color="#444", va="top", wrap=True)

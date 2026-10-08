@@ -179,7 +179,7 @@ PRODUCTS = [
              "As written"),
         ]),
         ("Verification", [
-            ("/aifs-verify.html", "AIFS single versus member 0",
+            ("/aifs-verify.html", "AIFS single versus member\u00a00",   # no-break space: no lone "0" on its own line
              "The two ECMWF AIFS configurations compared as deterministic models against radiosondes and ERA5, with the ensemble member spectrally matched to the single model and the ensemble mean for reference.",
              "Every 00Z and 12Z run"),
         ]),
@@ -311,7 +311,7 @@ PAGES = [
     dict(path="404.html", mode="after-body", footer=False, fixes=[
         ("display:flex;\nmin-height:100vh;align-items:center;justify-content:center;margin:0;",
          "display:flex;flex-direction:column;\nmin-height:100vh;margin:0;"),
-        ("p{color:#8b8ba3}a{color:#64d2ff}", "p{color:#8b8ba3}a{color:#64d2ff}body>div{margin:auto;padding:2rem}"),
+        ("p{color:#8b8ba3}a{color:#64d2ff}", "p{color:#8b8ba3}a{color:#64d2ff}body>div:not(.fp){margin:auto;padding:2rem}"),
     ]),
 ]
 # topic explainers (written by scripts/site/topics.py, 2026-09-26): every page in topics/ gets the header and footer

@@ -227,10 +227,16 @@
 .sh--overlay .sh-toggle { font-size: 1.1rem; padding: 0.65rem 1.1rem; }
 .sh--overlay .sh-menu { --c-ink: #29321f; --c-accent: #274b7a; --c-muted: #5c6b73; --c-rule: #dfe3dc; text-shadow: none; }
 .sh--overlay .sh-toggle { border-color: rgba(255, 255, 255, 0.55); }
+/* the stacked menu over the hero: opaque (at 0.94 the hero's title read through the links, 2026-10-08 sweep), and the
+   same dark sheet when a mid-width window collapses the row (it was a light sheet with white group titles and About) */
 @media (max-width: 860px) {
-  .sh--overlay nav.sh-nav { background: rgba(18, 26, 14, 0.94); border-bottom: 0; --c-rule: rgba(255, 255, 255, 0.16); }
+  .sh--overlay nav.sh-nav { background: #121a0e; border-bottom: 0; --c-rule: rgba(255, 255, 255, 0.16); --c-muted: rgba(255, 255, 255, 0.72); }
   .sh--overlay .sh-menu { --c-ink: #ffffff; --c-accent: #ffffff; --c-muted: rgba(255,255,255,0.7); --c-rule: rgba(255,255,255,0.16); }
+  html .sh--overlay .sh-menu li.sh-subitem a { color: rgba(255,255,255,0.7); }
 }
+.sh--overlay.sh--compact nav.sh-nav { background: #121a0e; border-bottom: 0; --c-rule: rgba(255, 255, 255, 0.16); --c-muted: rgba(255, 255, 255, 0.72); }
+.sh--overlay.sh--compact .sh-menu { --c-ink: #ffffff; --c-accent: #ffffff; --c-muted: rgba(255,255,255,0.7); --c-rule: rgba(255,255,255,0.16); }
+html .sh--overlay.sh--compact .sh-menu li.sh-subitem a { color: rgba(255,255,255,0.7); }
 
 /* ── Section tabs (a product family's pages) ─────────────────────────── */
 .st {

@@ -709,11 +709,50 @@ def mark_prelim(ax, label=True):
     ax.axvspan(xf, x1, color="#c9a227", alpha=0.10, zorder=0, lw=0)
     ax.axvline(xf, color="#a8871f", lw=0.9, ls=(0, (4, 3)), alpha=0.8, zorder=1)
     if label:
-        ax.text(xf + (x1 - xf) / 2, ax.get_ylim()[1], "preliminary",
-                ha="center", va="top", fontsize=7.2, color="#7a6210", zorder=6,
+        # x in data, y in axes fraction: placed at the data ylim the label rode up over the top
+        # spine (fill_between to 0 pins the limit afterwards); right-aligned so it never leaves the axes
+        import matplotlib.transforms as mtrans
+        ax.text(min(xf + (x1 - xf) / 2, x1 - 0.004 * (x1 - x0)), 0.975, "preliminary",
+                transform=mtrans.blended_transform_factory(ax.transData, ax.transAxes),
+                ha="right" if (x1 - xf) / (x1 - x0) < 0.08 else "center", va="top",
+                fontsize=7.2, color="#7a6210", zorder=6,
                 bbox=dict(boxstyle="round,pad=0.2", facecolor="white",
                           edgecolor="none", alpha=0.75))
     ax.set_xlim(x0, x1)
+
+
+def legend_headroom(ax, leg, pad_frac=0.03):
+    """Raise the y top until no plotted line passes under the legend box.
+
+    The daily mode charts put a two- or three-column legend inside the upper-left
+    corner; a strong month (SASD +1.2 in Nov 2025) ran underneath it and was hidden.
+    """
+    fig = ax.figure
+    for _ in range(3):
+        fig.canvas.draw()
+        bb = leg.get_window_extent().transformed(ax.transAxes.inverted())   # axes fraction
+        (lx0, ly0), (lx1, _ly1) = bb.get_points()
+        y0, y1 = ax.get_ylim()
+        to_x = ax.transData.inverted()
+        dx0 = to_x.transform(ax.transAxes.transform((lx0, 0)))[0]
+        dx1 = to_x.transform(ax.transAxes.transform((lx1, 0)))[0]
+        top = -np.inf
+        for ln in ax.get_lines():
+            xd, yd = ln.get_xdata(orig=False), ln.get_ydata(orig=False)
+            try:
+                xd = np.asarray(ax.convert_xunits(xd), float); yd = np.asarray(yd, float)
+            except Exception:                            # noqa: BLE001
+                continue
+            if xd.size < 3:                              # axhline/axvline: 2 points
+                continue
+            m = (xd >= dx0) & (xd <= dx1) & np.isfinite(yd)
+            if m.any():
+                top = max(top, float(yd[m].max()))
+        need = top + pad_frac * (y1 - y0)
+        floor = y0 + (ly0 - 0.01) * (y1 - y0)            # data value at the legend's lower edge
+        if not np.isfinite(top) or need <= floor:
+            return
+        ax.set_ylim(y0, y0 + (need - y0) / max(ly0 - 0.01, 0.2))
 
 
 def render_daily_three_metrics(n34, trop, out_path):
@@ -741,7 +780,7 @@ def render_daily_three_metrics(n34, trop, out_path):
                  fontsize=11, loc="left", pad=8)
     ax.grid(axis="y", alpha=0.2)
     ax.margins(x=0.01)
-    ax.legend(loc="upper left", fontsize=8, framealpha=0.85, ncols=3)
+    legend_headroom(ax, ax.legend(loc="upper left", fontsize=8, framealpha=0.85, ncols=3))
     fig.autofmt_xdate()
     fig.text(0.005, 0.005,
              "Daily values from NOAA OISST v2.1 daily means, anomalies vs "
@@ -927,7 +966,7 @@ def render_pdo_daily(pdo, out_path):
     span = f"{t[0]:%b %Y} – {t[-1]:%b %d, %Y}"
     ax.set_title(f"Daily Pacific Decadal Oscillation — {span}",
                  fontsize=11, loc="left", pad=8)
-    ax.legend(loc="upper left", fontsize=8, framealpha=0.85, ncols=2)
+    legend_headroom(ax, ax.legend(loc="upper left", fontsize=8, framealpha=0.85, ncols=2))
     ax.text(0.995, 0.04, f"latest daily {pdo.iloc[-1]:+.2f}   "
             f"31-day {sm.dropna().iloc[-1]:+.2f}",
             transform=ax.transAxes, fontsize=8, va="bottom", ha="right",
@@ -964,7 +1003,7 @@ def render_iod_daily(w_ser, e_ser, out_path):
     span = f"{t[0]:%b %Y} – {t[-1]:%b %d, %Y}"
     ax.set_title(f"Daily Indian Ocean Dipole — {span}",
                  fontsize=11, loc="left", pad=8)
-    ax.legend(loc="upper left", fontsize=8, framealpha=0.85, ncols=3)
+    legend_headroom(ax, ax.legend(loc="upper left", fontsize=8, framealpha=0.85, ncols=3))
     ax.text(0.995, 0.04, f"latest DMI {dmi.iloc[-1]:+.2f} °C",
             transform=ax.transAxes, fontsize=8, va="bottom", ha="right",
             family="monospace",
@@ -1000,7 +1039,7 @@ def render_satl_daily(atl3, tsa, sasd, tna, out_path):
     span = f"{t[0]:%b %Y} – {t[-1]:%b %d, %Y}"
     ax.set_title(f"Daily Atlantic Indices — {span}",
                  fontsize=11, loc="left", pad=8)
-    ax.legend(loc="upper left", fontsize=8, framealpha=0.85, ncols=2)
+    legend_headroom(ax, ax.legend(loc="upper left", fontsize=8, framealpha=0.85, ncols=2))
     readout = (f"latest  ATL3 {atl3.iloc[-1]:+.2f}   TSA {tsa.iloc[-1]:+.2f}   "
                f"SASD {sasd.iloc[-1]:+.2f}   TNA {tna.iloc[-1]:+.2f}  °C")
     ax.text(0.995, 0.04, readout,
@@ -1112,7 +1151,14 @@ def render_roni(df: pd.DataFrame, out_path: Path,
     ax.set_xticks(x); ax.set_xticklabels(lab, fontsize=8.2)
     ax.set_xlim(-0.7, n - 0.3)
     vals = np.concatenate([v[np.isfinite(v)] for v in (o_roni, o_oni, est_roni, est_oni)])
-    ax.set_ylim(min(vals.min(), -0.6) - 0.22, max(vals.max(), 0.6) + 0.42)
+    y_top = max(vals.max(), 0.6) + 0.42
+    if first_est < n:
+        # the two-line "not yet published" label sits at the top of the estimate band: keep the
+        # band's own bars below it (a +2.96 estimate ran into "published" in Oct 2026)
+        est_vals = np.concatenate([v[first_est:][np.isfinite(v[first_est:])] for v in (est_roni, est_oni)])
+        if est_vals.size:
+            y_top = max(y_top, est_vals.max() + 0.16 * (y_top - min(vals.min(), -0.6) + 0.22) + 0.25)
+    ax.set_ylim(min(vals.min(), -0.6) - 0.22, y_top)
     ax.set_ylabel("°C", fontsize=11)
     ax.grid(axis="y", alpha=0.18)
     for s in ("top", "right"):
@@ -1138,10 +1184,24 @@ def render_roni(df: pd.DataFrame, out_path: Path,
     if box:
         # kept short deliberately: a wider box reaches left over the bars
         box.append("both still subject to revision")
-        ax.text(0.988, 0.045, "\n".join(box), transform=ax.transAxes, fontsize=8.6,
-                va="bottom", ha="right", family="monospace", zorder=7,
-                bbox=dict(boxstyle="round,pad=0.45", facecolor="white",
-                          edgecolor="#bbb", alpha=0.94))
+        tb = ax.text(0.988, 0.045, "\n".join(box), transform=ax.transAxes, fontsize=8.6,
+                     va="bottom", ha="right", family="monospace", zorder=7,
+                     bbox=dict(boxstyle="round,pad=0.45", facecolor="white",
+                               edgecolor="#bbb", alpha=0.94))
+        # The box covered the negative bars under it (Mar-Apr 2026): lower the floor until the
+        # lowest bar in the box's span ends above the box.
+        fig.canvas.draw()
+        bb = tb.get_bbox_patch().get_window_extent().transformed(ax.transAxes.inverted())
+        (bx0, _by0), (bx1, by1) = bb.get_points()
+        y0, y1 = ax.get_ylim()
+        xs0, xs1 = (ax.get_xlim()[0] + f * (ax.get_xlim()[1] - ax.get_xlim()[0]) for f in (bx0, bx1))
+        lows = [min(0.0, np.nanmin([a[i], b[i]]) if np.isfinite([a[i], b[i]]).any() else 0.0)
+                for i in range(n) if xs0 - 0.4 <= i <= xs1 + 0.4
+                for a, b in [((o_roni if has_off[i] else est_roni), (o_oni if has_off[i] else est_oni))]]
+        if lows:
+            m = min(lows) - 0.06 * (y1 - y0)                 # a clear gap above the box
+            if y0 + by1 * (y1 - y0) > m:
+                ax.set_ylim((m - by1 * y1) / (1 - by1), y1)
 
     ax.set_title("RONI — CPC's official ENSO index since February 2026 — against the older ONI\n"
                  "Solid = CPC's published values.  Hatched on grey = our unofficial OISST estimate, "

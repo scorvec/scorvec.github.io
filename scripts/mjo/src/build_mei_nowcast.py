@@ -354,8 +354,9 @@ def render_analogs(info, daily, cur_year):
     labs = list("JFMAMJJASOND") + list("JFMAMJ")
     ax.set_xticks(range(1, 19)); ax.set_xticklabels(labs)
     ax.set_xlim(0.5, 18.5)
-    ax.text(6.5, ax.get_ylim()[1], "onset year", ha="center", va="top", fontsize=8, color="0.5")
-    ax.text(15, ax.get_ylim()[1], "year +1", ha="center", va="top", fontsize=8, color="0.5")
+    # along the bottom: at the top, "onset year" sat under the two-column legend
+    ax.text(6.5, ax.get_ylim()[0], "onset year", ha="center", va="bottom", fontsize=8, color="#6f6b64")
+    ax.text(15, ax.get_ylim()[0], "year +1", ha="center", va="bottom", fontsize=8, color="#6f6b64")
     ax.set_ylabel("MEI.v2 (std units)")
     ax.set_title(f"MEI.v2 onset-year analogs — is {cur_year} tracking the big El Niños?", fontsize=11)
     ax.legend(loc="upper left", fontsize=8.5, ncol=2, framealpha=0.9)

@@ -147,7 +147,7 @@
             <div>
               <h3>Verification</h3>
               <ul>
-                <li><a href="/aifs-verify.html">AIFS single versus member 0</a></li>
+                <li><a href="/aifs-verify.html">AIFS single versus member 0</a></li>
               </ul>
             </div>
           </div>
@@ -473,7 +473,7 @@
 <p class="chart-sources">NOAA CPC Equatorial SOI (reqsoi.for) &middot; ECMWF AIFS-ENS and IFS-ENS MSL (open data, CC&nbsp;BY&nbsp;4.0) &middot; ERA5 1991&ndash;2020 standardisation &middot; updated each 00/12Z cycle</p>
 </template>
 <template id="about-soi_seas">
-<p>ECMWF SEAS5&rsquo;s 51 members carried through the coming six months as the Southern Oscillation Index (Tahiti minus Darwin) and CPC&rsquo;s Equatorial SOI (east-minus-west equatorial box pressure), in seasonal standard deviations. The <b>calibrated</b> view regresses CPC&rsquo;s observed index on the model&rsquo;s ensemble mean over the 1993&ndash;2016 hindcast, lead by lead: the mean is shrunk or stretched to the model&rsquo;s demonstrated skill and the band is the residual spread (10&ndash;90% and 25&ndash;75%), so a lead with no skill shows climatology rather than a confident wrong answer. The <b>raw</b> view is the members as they come. CPC&rsquo;s last four monthly values are drawn in black.</p>
+<p>ECMWF SEAS5&rsquo;s 51 members carried through the coming six months as the Southern Oscillation Index (Tahiti minus Darwin) and CPC&rsquo;s Equatorial SOI (east-minus-west equatorial box pressure), in seasonal standard deviations. The <b>calibrated</b> view regresses CPC&rsquo;s observed index on the model&rsquo;s ensemble mean over the 1993&ndash;2016 hindcast, lead by lead: the mean is shrunk or stretched to the model&rsquo;s demonstrated skill and the band is the residual spread (10&ndash;90% and 25&ndash;75%), so a lead with no skill shows climatology rather than a confident wrong answer. The <b>raw</b> view is the members as they come. The last observed monthly values are drawn in black when the issue file carries them; the thin line is the previous issue&rsquo;s mean.</p>
 <p class="chart-sources">ECMWF SEAS5 via the Copernicus Climate Data Store (issue from the SEAS5 page) &middot; NOAA CPC SOI and Equatorial SOI &middot; calibration: 1993&ndash;2016 hindcast, 24 years</p>
 </template>
 <template id="about-imp_reg">
@@ -742,7 +742,7 @@ window.STAGE = {
 ],
   products: {
   sstmaps: {label: "SST anomaly maps", a: {label: "Field", items: [["anomaly","Anomaly"],["absolute","Absolute SST"],["relative","Global mean removed"],["tropical_rel","Tropics, tropical mean removed"]]},
-          frame: function (a) { return "sst_anim.html?embed=1&region=" + a + "&regions=anomaly,absolute,relative,tropical_rel"; }, about: "about-sstmaps",
+          frame: function (a) { return "sst_anim.html?embed=1&region=" + a + "&regions=" + a; }, about: "about-sstmaps",
           cap: function (a) { return {anomaly: "NOAA OISST v2.1 daily anomaly against 1991–2020, global and tropical Pacific, animated over the last 90 days with each day's ONI, tropical-mean and RONI readout.", absolute: "The raw sea-surface temperature over the last 90 days.", relative: "The anomaly with the global mean removed: the ENSO pattern without the background warming.", tropical_rel: "30°S–30°N with the 20°S–20°N mean subtracted — RONI's arithmetic drawn as a map."}[a]; }},
   indices: {label: "Daily ENSO indices", dom: function () { return "dom-indices"; }, about: "about-indices",
           cap: function () { return "Daily area-weighted SST indices: Niño-3.4, the daily relative Niño-3.4 (the quantity RONI is built from — there is no official daily RONI) and the 90-day running ONI estimate; toggle absolute values and the range, click legend entries for the other regions."; }},
@@ -775,7 +775,7 @@ window.STAGE = {
           cap: function (a) { return a === "map" ? "Equatorial Pacific sea level anomaly from satellite altimetry, every second day for the last 200 days; K marks each Kelvin wave crest (red warm, blue cold)."
                                                 : "Sea level along the equator with its Kelvin-wave part, the winds that launch the waves, and each current wave projected to Niño-3 and the coast at its measured speed."; }},
   kelvin: {label: "Kelvin wave tracker (AIFS-ENS)", a: {label: "View", items: [["map","Map, day by day"],["hov","Along the equator"]]},
-          frame: function (a) { return a === "hov" ? null : "sst_anim.html?embed=1&manifest=kelvin_manifest.json&region=kelvin&start=10"; },
+          frame: function (a) { return a === "hov" ? null : "sst_anim.html?embed=1&manifest=kelvin_manifest.json&region=kelvin&start=manifest"; },
           img: function () { return "assets/sst/kelvin_hov.webp?v=202610082122"; }, ratio: function () { return "1652/560"; },
           about: "about-kelvin", fit: false,
           cap: function (a) { return a === "hov" ? "Kelvin-filtered 200 hPa velocity potential along the equator: the last 45 days of analyses, then the AIFS-ENS forecast to day 15."
@@ -791,7 +791,7 @@ window.STAGE = {
           about: function (a) { return a === "eqsoi" ? "about-eqsoi" : a === "forecast" ? "about-soi_f" : "about-soi_h"; },
           cap: function (a) { return a === "hourly" ? "Darwin minus Tahiti pressure from hourly METARs, on the BoM 1887–1989 base, so the index exists today rather than at month end." : a === "forecast" ? "The same index carried through the AIFS-ENS and IFS-ENS 15-day forecasts, member by member." : "CPC's Equatorial SOI — the east-minus-west equatorial Pacific box pressure difference, standardised — monthly to the last complete month, with the ensembles' daily 15-day forecast on the same scale; negative favours El Niño."; }},
   soi_seas: {label: "Seasonal SOI outlook", dom: function () { return "dom-soi-seas"; }, about: "about-soi_seas",
-          cap: function () { return "ECMWF SEAS5's monthly Southern Oscillation and Equatorial SOI for the coming six months, calibrated against CPC's published series on the 1993–2016 hindcast; the raw ensemble mean is dotted, CPC's last four months in black."; }},
+          cap: function () { return "ECMWF SEAS5's monthly Southern Oscillation and Equatorial SOI for the coming six months, calibrated against CPC's published series on the 1993–2016 hindcast; the raw ensemble mean is dotted, the previous issue's mean is the thin line, and the last observed months are in black when the issue file carries them."; }},
   wwb: {label: "Westerly wind bursts", a: {label: "View", items: [["tarawa","Tarawa monitor"],["onsets","Against past onsets"]]},
           dom: function (a) { return a === "tarawa" ? "dom-wwb" : null; }, img: function () { return "assets/sst/kiribati_history.webp"; }, bust: "hourly",
           about: function (a) { return a === "tarawa" ? "about-wwb_t" : "about-wwb_o"; }, cap: function (a) { return a === "tarawa" ? "Hourly surface wind at Tarawa and Kiritimati: westerlies at the dateline are the trigger for oceanic Kelvin waves. Live arrows below the chart." : "This year's westerly-burst activity against the onset years of past El Niños."; }},
@@ -799,7 +799,7 @@ window.STAGE = {
           img: function (a) { return a === "det" ? "assets/sst/eq_wind_hovmoller_det.webp?v=202610082122" : "assets/sst/eq_wind_hovmoller.webp?v=202610082122"; }, about: "about-wind10",
           cap: function (a) { return a === "det" ? "The same anomaly from single runs: AIFS-ENS member 0, AIFS single, IFS HRES (to day 15) and GDPS (to day 10)." : "Forecast zonal wind along the equator, AIFS-ENS and IFS-ENS ensemble means, anomaly and full wind, out to day 15."; }},
   subtemp: {label: "Subsurface temperature section", a: {label: "Field", items: [["equatorial","Temperature and anomaly"],["equatorial_dt","Anomaly, trend removed"]]},
-          frame: function (a) { return "sst_anim.html?embed=1&region=" + a + "&regions=equatorial,equatorial_dt"; }, about: "about-subtemp",
+          frame: function (a) { return "sst_anim.html?embed=1&region=" + a + "&regions=" + a; }, about: "about-subtemp",
           cap: function (a) { return a === "equatorial" ? "TAO/TRITON depth–longitude section along the equator, 5-day average: temperature on top, the anomaly against 1991–2020 below; the 20 °C isotherm is the thermocline proxy." : "The same anomaly with the 1991–2020 linear trend removed at each depth and longitude, so the warming ocean is not read as an event."; }},
   hc: {label: "Heat content against analogs", img: function () { return "assets/sst/subsurface_events_hc.webp?v=941738f85bda"; }, about: "about-hc", fit: false,
           cap: function () { return "Equatorial 0–300 m temperature anomaly from the eight TAO moorings, this event against 1997, 2015 and 2023 on a common calendar. Dashed where fewer than six moorings report and the GLORYS12 fill carries the day; the strip shows coverage. Tracks NOAA CPC's GODAS index at r = 0.99."; }},
@@ -1011,8 +1011,10 @@ window.STAGE = {
   function prelimAnnotation(lastX) {
     var ft = state.data && state.data.final_through;
     if (!ft || ft >= lastX) return [];
-    return [{ xref: "x", yref: "paper", x: ft, y: 1, xanchor: "left", yanchor: "top",
-              text: " preliminary", showarrow: false,
+    // anchored at the right end, inside the band: a left-anchored label at the band start ran past the last
+    // day and stretched the x axis by its own width (two empty months on a phone)
+    return [{ xref: "x", yref: "paper", x: lastX, y: 1, xanchor: "right", yanchor: "top",
+              text: "preliminary ", showarrow: false,
               font: { size: 10, color: "#7a6210" } }];
   }
 
@@ -1053,8 +1055,17 @@ window.STAGE = {
     var lay = layout({ shapes: shapes.concat(prelimShapes(lastX)),
                        annotations: prelimAnnotation(lastX) });
     if (state.mode === "abs") lay.yaxis.title.text = "SST (°C)";
+    lay.xaxis.range = [x[0], lastX];
+    // narrow screens: the seven-entry legend wrapped into a column over the plot; put it under the axis
+    var cw = document.getElementById("dailyChart").offsetWidth;
+    state.narrow = cw > 0 && cw < 600;
+    if (state.narrow) lay.legend = { orientation: "h", x: 0, xanchor: "left", y: -0.1, yanchor: "top", font: { size: 11 } };
     Plotly.react("dailyChart", traces, lay, CONFIG);
   }
+  window.addEventListener("resize", function () {
+    var cw = document.getElementById("dailyChart").offsetWidth;
+    if (state.data && cw > 0 && (cw < 600) !== !!state.narrow) drawDaily();
+  });
 
   // pills
   document.querySelectorAll(".pill[data-mode]").forEach(function (b) {
@@ -1120,10 +1131,10 @@ window.STAGE = {
     }
     var prev = T.previous_indices && T.previous_indices[st.index];
     if (prev && prev.valid) tr = tr.concat(OC.prevTraces([{ x: prev.valid.map(function (m) { return m + "-15"; }), y: prev.mean, name: (T.previous || "previous") + " issue" }]));
-    if (s.obs_tail) tr.push(OC.obsTrace(s.obs_tail.map(function (o) { return o[0] + "-15"; }), s.obs_tail.map(function (o) { return o[1]; }), "CPC observed", { digits: 1, signed: true }));
+    if (s.obs_tail && s.obs_tail.length) tr.push(OC.obsTrace(s.obs_tail.map(function (o) { return o[0] + "-15"; }), s.obs_tail.map(function (o) { return o[1]; }), "observed (" + (s.obs_source || "CPC") + ")", { digits: 1, signed: true }));
     OC.react("soiSeasChart", tr, { title: (s.label || st.index.toUpperCase()) + " — SEAS5 " + (T.issue ? String(T.issue).slice(0, 4) + "-" + String(T.issue).slice(4) : "") + " issue", yunits: s.units || "σ", includeZero: true });
     var ns = (s.cal || []).map(function (c, i) { return c && c.no_skill ? s.valid[i] : null; }).filter(Boolean);
-    document.getElementById("soiSeasNote").textContent = (s.note ? s.note + " " : "") + (ns.length ? "No hindcast skill (r below " + (T.skill_min || 0.25) + ") for: " + ns.join(", ") + " — the calibrated band is climatology there." : "");
+    document.getElementById("soiSeasNote").textContent = (s.note ? s.note + " " : "") + (s.obs_tail && s.obs_tail.length ? "" : "No observed months in this issue's file. ") + (ns.length ? "No hindcast skill (r below " + (T.skill_min || 0.25) + ") for: " + ns.join(", ") + " — the calibrated band is climatology there." : "");
   }
   document.querySelectorAll("#dom-soi-seas .pill[data-ss-index]").forEach(function (b) { b.addEventListener("click", function () { st.index = b.dataset.ssIndex; document.querySelectorAll("#dom-soi-seas .pill[data-ss-index]").forEach(function (o) { o.classList.toggle("on", o === b); }); draw(); }); });
   document.querySelectorAll("#dom-soi-seas .pill[data-ss-view]").forEach(function (b) { b.addEventListener("click", function () { st.view = b.dataset.ssView; document.querySelectorAll("#dom-soi-seas .pill[data-ss-view]").forEach(function (o) { o.classList.toggle("on", o === b); }); draw(); }); });
