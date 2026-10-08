@@ -461,7 +461,7 @@ def plot_phase(cycle: str, base: pd.Timestamp):
     # the FIGURE width and happily ran this caption off both edges
     fig.text(0.5, 0.022, "Three-field RMM (OLR + U850 + U200) · 21 members",
              ha="center",
-             va="bottom", fontsize=9, color="#8a8680")
+             va="bottom", fontsize=9, color="#6f6b64")
     FIGS.mkdir(parents=True, exist_ok=True)
     p = FIGS / "geps_mjo_phase.webp"
     fig.savefig(p, dpi=110, facecolor="white", pil_kwargs={"quality": 90, "method": 6})
