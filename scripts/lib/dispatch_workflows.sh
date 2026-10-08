@@ -200,7 +200,7 @@ seas5.yml|18:40|-f window=true
 c3s.yml|03:20|-f window=true
 c3s.yml|09:20|-f window=true
 qbo.yml|mon@07:15|
-sst-events.yml|mon@18:41|
+sst-events.yml|15:41|
 skewt-gaps.yml|tue,fri@08:40|
 # Daily frames-branch GC. Waits for a quiet moment itself and skips rather
 # than racing a publisher, so a late firing costs nothing.

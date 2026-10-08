@@ -91,6 +91,11 @@ jobs:
             sleep 5
           done
           exit 1
+      - name: Rebuild the heat-content / analog charts (sst-events.yml)
+        if: success() && steps.tao.outputs.skip != 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh workflow run sst-events.yml --ref main -R "$GITHUB_REPOSITORY" || echo "::warning::could not dispatch sst-events.yml"
       - name: Deploy the site
         if: success() && steps.tao.outputs.skip != 'true'
         env:

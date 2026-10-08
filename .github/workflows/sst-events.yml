@@ -1,14 +1,22 @@
-name: SST event comparisons (weekly)
+name: SST event comparisons (daily)
 
-# These El Niño event-comparison products compare the current ENSO evolution
-# against the 1997/2015/2023 analogs at 7-day (weekly) resolution, built from
-# the OISST daily-anomaly per-year files for just the event years (~3 GB of
-# downloads). They change slowly, so a weekly refresh is enough — kept out of
-# the daily SST workflow to avoid the bulk download.
+# Subsurface El Niño analog products (enso-subsurface.html, enso.html): the equatorial
+# 0-300 m heat-content index (tao_hc.py) and the matching-phase cross-sections, current
+# event vs 1997/2015/2023, from PMEL TAO DISDEL + the GLORYS12 fill for silent moorings.
+# (The OISST event products this workflow was built for retired 2026-08-28.)
 on:
+  # DAILY since 2026-10-07: the heat-content chart had looked frozen for a week at a time (built
+  # Mondays only, and PMEL's DISDEL lag was ~6 days on the 2026-10-06 build, so the line ended
+  # Sep 30 until the following Monday). tao-subsurface.yml also dispatches this after each TAO
+  # refresh; the cron is the backstop.
   schedule:
-  - cron: '41 18 * * 1'      # Mondays ~18:41 UTC — after PSL's ~16:30 UTC update, with slack for scheduler delay
+  - cron: '41 15 * * *'
   workflow_dispatch:
+    inputs:
+      commit:
+        description: 'commit the charts (false = build and upload them as an artifact only)'
+        required: false
+        default: 'true'
 
 permissions:
   contents: write
@@ -51,6 +59,13 @@ jobs:
             scripts/sst/data/sst.day.mean.2024.nc
             scripts/sst/data/sst.day.mean.ltm.1991-2020.nc
           key: oisst-static-event-years-v1
+      # GLORYS12 analysis (anfc) anomaly store for the heat-content fill: each run adds only new days
+      - uses: actions/cache@v6
+        with:
+          path: scripts/sst/data/cmems_hc/anfc_store.csv
+          key: hc-anfc-store-v1-${{ github.run_id }}
+          restore-keys: |
+            hc-anfc-store-v1-
       - name: Install cartopy system libs
         run: |
           sudo apt-get update -qq
@@ -66,9 +81,23 @@ jobs:
 
       - name: Build subsurface analog comparison (TAO moorings, 1997/2015/2023)
         working-directory: scripts/sst
-        run: python sst_subsurface_events.py || echo "subsurface analog build failed; continuing"
+        env:
+          # the GLORYS12 analysis fill for silent moorings (tao_hc_validation.json switches it on)
+          COPERNICUSMARINE_SERVICE_USERNAME: ${{ secrets.COPERNICUSMARINE_SERVICE_USERNAME }}
+          COPERNICUSMARINE_SERVICE_PASSWORD: ${{ secrets.COPERNICUSMARINE_SERVICE_PASSWORD }}
+        run: python sst_subsurface_events.py || echo "::warning::subsurface analog build failed; previous charts kept"
+
+      - name: Upload the charts (validation runs)
+        if: inputs.commit == 'false'
+        uses: actions/upload-artifact@v4
+        with:
+          name: subsurface-hc
+          path: |
+            assets/sst/subsurface_events_*.webp
+            assets/sst/data/subsurface_hc.json
 
       - name: Commit & push
+        if: inputs.commit != 'false'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
@@ -79,16 +108,17 @@ jobs:
           # nothing). Snapshot+restore makes losing the outputs structurally impossible.
           OUT="assets/sst/events_nino34.webp assets/sst/events_bars.webp assets/sst/events_maps.webp \
                assets/sst/subsurface_events_hc.webp assets/sst/subsurface_events_xsec.webp \
-               assets/sst/subsurface_events_hc_detrended.webp assets/sst/subsurface_events_xsec_detrended.webp"
+               assets/sst/subsurface_events_hc_detrended.webp assets/sst/subsurface_events_xsec_detrended.webp \
+               assets/sst/data/subsurface_hc.json"
           SNAP=$(mktemp -d)
           for f in $OUT; do [ -f "$f" ] && install -D "$f" "$SNAP/$f"; done
           for i in 1 2 3 4 5; do
             if ! timeout 120 git fetch origin main; then echo "fetch $i failed"; sleep 5; continue; fi   # falling through would hit "no changes" and fake success
             git reset --hard origin/main
             (cd "$SNAP" && find . -type f -exec install -D {} "$GITHUB_WORKSPACE/{}" \;)
-            git add $OUT
+            for f in $OUT; do if [ -f "$f" ]; then git add "$f"; fi; done
             if git diff --staged --quiet; then echo "no changes"; exit 0; fi
-            git commit -m "data update (weekly)"
+            git commit -m "data update: subsurface heat content $(date -u +%Y-%m-%dT%H:%MZ)"
             if timeout 180 git push; then echo "pushed (attempt $i)"; exit 0; fi
             sleep 5
           done
