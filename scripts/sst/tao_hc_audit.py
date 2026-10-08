@@ -145,11 +145,13 @@ def glorys_series(fetch: bool = False):
     now runs to ~6 weeks ago) and anfc (analysis)."""
     CACHE.mkdir(parents=True, exist_ok=True)
     if fetch:
-        from concurrent.futures import ThreadPoolExecutor
-        jobs = [(tag, dsid, var, lo) for tag, dsid, var in GLORYS for lo in H.LONS
-                if not (CACHE / f"gl_{tag}_{int(lo)}.nc").exists()]
-        with ThreadPoolExecutor(max_workers=6) as ex:
-            list(ex.map(lambda j: _fetch_one(*j), jobs))
+        # sequential: six parallel subsets from one runner never finished in 70 min (2026-10-08);
+        # the workflow runs one mooring per matrix job instead
+        lons = [float(fetch)] if not isinstance(fetch, bool) else H.LONS
+        for tag, dsid, var in GLORYS:
+            for lo in lons:
+                if not (CACHE / f"gl_{tag}_{int(lo)}.nc").exists():
+                    _fetch_one(tag, dsid, var, lo)
         return None
     res = {}
     for tag, dsid, var in GLORYS:
@@ -174,6 +176,9 @@ def glorys_series(fetch: bool = False):
     return res
 
 
+ANFC_OFFSET: dict = {}
+
+
 def harmonic_fit(t: pd.DatetimeIndex, Y: np.ndarray):
     w = 2 * np.pi * t.dayofyear.values / 365.25
     X = np.column_stack([np.ones_like(w), np.cos(w), np.sin(w), np.cos(2 * w), np.sin(2 * w)])
@@ -193,6 +198,7 @@ def glorys_anomaly(gl):
     my+myint form one record; anfc gets its own constant offset vs myint on the overlap."""
     coeffs = {}
     anom = {}
+    ANFC_OFFSET.clear()
     for lo in H.LONS:
         parts = [gl[k][lo] for k in ("my",) if lo in gl.get(k, {})]
         if not parts:
@@ -211,6 +217,7 @@ def glorys_anomaly(gl):
             ov = a_af.index.intersection(a_rea.index)
             off = float((a_rea[ov] - a_af[ov]).mean()) if len(ov) > 60 else 0.0
             r = float(np.corrcoef(a_rea[ov], a_af[ov])[0, 1]) if len(ov) > 60 else np.nan
+            ANFC_OFFSET[H.LON_LABEL[lo]] = {"offset": round(off, 4), "r": round(r, 4), "n": int(len(ov))}
             log(f"  anfc vs my {H.LON_LABEL[lo]}: {len(ov)} d overlap, offset {off:+.3f}, r {r:.3f}")
             s = pd.concat([a_rea, (a_af + off)[a_af.index > a_rea.index.max()]])
         anom[lo] = s
@@ -377,7 +384,8 @@ def main() -> int:
     except Exception as e:      # noqa: BLE001
         log(f"GLORYS failed entirely: {e}")
         g_anom = pd.DataFrame(columns=H.LONS, dtype=float)
-    g_anom.to_csv(OUT / "glorys_mooring_anom.csv")
+    g_anom.to_csv(OUT / "glorys_mooring_anom.csv.gz", float_format="%.4f")
+    summary["anfc_offset"] = dict(ANFC_OFFSET)
     strict.to_csv(OUT / "tao_mooring_anom_strict.csv")
     strict4.to_csv(OUT / "tao_mooring_anom_q1234.csv")
     loose.to_csv(OUT / "tao_mooring_anom_old.csv")
@@ -568,6 +576,7 @@ def main() -> int:
 
 if __name__ == "__main__":
     if "--glorys-fetch" in sys.argv:
-        glorys_series(fetch=True)
+        i = sys.argv.index("--glorys-fetch")
+        glorys_series(fetch=sys.argv[i + 1] if len(sys.argv) > i + 1 else True)
         sys.exit(0)
     sys.exit(main())
