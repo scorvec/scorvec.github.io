@@ -17,10 +17,11 @@ Definition
     harmonic climatology (sst_subsurface.tao_eq_clim_coeffs.nc, same 8 moorings), mean over depth;
   * index = FIXED 1/8 weight per mooring (never a nanmean over whoever reports - see the memory
     note tao-hc-index-coverage). A silent mooring is carried at its own last REPORTED anomaly for
-    at most PERSIST_DAYS days (age counted from the last real report, so nothing can chain); with
-    fewer than MIN_MOORINGS reporting-or-carried the TAO index is NaN for that day;
-  * optional reanalysis fill (fill_df): a mooring silent for longer than PERSIST_DAYS takes the
-    reanalysis anomaly at its own location (offset-adjusted, see glorys_fill) - flagged per day.
+    at most PERSIST_DAYS days (age counted from the last real report, so nothing can chain); past
+    that, with >= MIN_MOORINGS reporting-or-carried, it is interpolated in longitude from its
+    neighbours; with fewer the TAO index is NaN for that day;
+  * reanalysis fill (fill_df, see fill_from): a silent mooring takes the GLORYS12 anomaly at its own
+    location, offset-corrected to its own TAO record; this outranks carry-forward (index() docstring).
 """
 from __future__ import annotations
 
@@ -41,8 +42,7 @@ MIN_MOORINGS = 6
 PROFILE_TOP = 25.0          # m: shallowest screened sensor must be at or above this
 PROFILE_BOTTOM = 300.0      # m: a screened sensor must exist at or below this
 PROFILE_MAX_GAP = 150.0     # m: largest allowed vertical gap between screened sensors (0-300 m + next deeper)
-GOOD_Q = set("123")
-GOOD_S = set("1256")
+QSET = (1, 2, 3)            # quality codes kept (see audit: Q4 "lower quality" decision)
 MISSING = -9.99
 
 
@@ -121,33 +121,42 @@ def concat(dss: list[xr.Dataset]) -> xr.Dataset:
 
 
 # ── screening ─────────────────────────────────────────────────────────────────
-def screened_temp(ds: xr.DataArray | xr.Dataset, strict: bool = True) -> xr.DataArray:
-    """Temperature with failed / lower-quality / interpolated values removed (strict=True).
+def screened_temp(ds: xr.DataArray | xr.Dataset, strict: bool = True, qset=QSET) -> xr.DataArray:
+    """Temperature with failed / interpolated values (and quality codes outside qset) removed.
     strict=False returns the raw temperatures (the pre-2026-10-07 behaviour)."""
     t = ds["temp"]
     if not strict:
         return t
-    qok = np.isin(ds["q"].values, [1, 2, 3])
+    qok = np.isin(ds["q"].values, list(qset))
     sok = np.isin(ds["s"].values, [1, 2, 5, 6])
     return t.where(qok & sok)
 
 
-def profile_ok(temp: np.ndarray, depths: np.ndarray) -> bool:
+def profile_reason(temp: np.ndarray, depths: np.ndarray) -> str:
+    """'ok' or why a screened profile cannot give a 0-300 m mean: none / few / bottom / top / gap."""
     m = np.isfinite(temp)
+    if not m.any():
+        return "none"
     if m.sum() < 3:
-        return False
+        return "few"
     d = np.sort(depths[m])
-    if d.min() > PROFILE_TOP or d.max() < PROFILE_BOTTOM:
-        return False
-    d = d[d <= d[np.searchsorted(d, PROFILE_BOTTOM)]] if (d >= PROFILE_BOTTOM).any() else d
-    return bool(np.diff(d).max(initial=0) <= PROFILE_MAX_GAP)
+    if d.max() < PROFILE_BOTTOM:
+        return "bottom"
+    if d.min() > PROFILE_TOP:
+        return "top"
+    d = d[d <= d[np.searchsorted(d, PROFILE_BOTTOM)]]
+    return "ok" if np.diff(d).max(initial=0) <= PROFILE_MAX_GAP else "gap"
 
 
-def mooring_anomaly(ds: xr.Dataset, strict: bool = True, detrend: bool = False):
+def profile_ok(temp: np.ndarray, depths: np.ndarray) -> bool:
+    return profile_reason(temp, depths) == "ok"
+
+
+def mooring_anomaly(ds: xr.Dataset, strict: bool = True, detrend: bool = False, qset=QSET):
     """Per-mooring daily 0-300 m mean anomaly.
 
     Returns (anom DataFrame time x LONS, info dict of DataFrames: nsens, deepest, ok)."""
-    t = screened_temp(ds, strict)
+    t = screened_temp(ds, strict, qset)
     depths = ds.depth.values.astype(float)
     times = pd.to_datetime(ds.time.values)
     lons = [l for l in LONS if l in set(ds.longitude.values.astype(float))]
@@ -155,6 +164,7 @@ def mooring_anomaly(ds: xr.Dataset, strict: bool = True, detrend: bool = False):
     ok = np.zeros((len(times), len(lons)), bool)
     nsens = np.zeros((len(times), len(lons)), int)
     deepest = np.full((len(times), len(lons)), np.nan)
+    reason = np.full((len(times), len(lons)), "none", dtype=object)
     for j, lo in enumerate(lons):
         col = t.sel(longitude=lo).values
         for i in range(len(times)):
@@ -163,7 +173,8 @@ def mooring_anomaly(ds: xr.Dataset, strict: bool = True, detrend: bool = False):
             nsens[i, j] = int((fin & (depths <= 300)).sum())
             if fin.any():
                 deepest[i, j] = depths[fin].max()
-            if strict and not profile_ok(p, depths):
+            reason[i, j] = profile_reason(p, depths)
+            if strict and reason[i, j] != "ok":
                 continue
             g = ss._vinterp(depths, p)
             if np.isfinite(g).any():
@@ -184,7 +195,8 @@ def mooring_anomaly(ds: xr.Dataset, strict: bool = True, detrend: bool = False):
     df = pd.DataFrame(col.values, index=times, columns=lons).reindex(columns=LONS)
     info = {"nsens": pd.DataFrame(nsens, index=times, columns=lons).reindex(columns=LONS),
             "deepest": pd.DataFrame(deepest, index=times, columns=lons).reindex(columns=LONS),
-            "ok": df.notna()}
+            "ok": df.notna(),
+            "reason": pd.DataFrame(reason, index=times, columns=lons).reindex(columns=LONS)}
     return df, info
 
 
@@ -204,25 +216,79 @@ def carry(df: pd.DataFrame, persist: int = PERSIST_DAYS):
     return filled, age
 
 
+def lon_interp(filled: pd.DataFrame, min_moorings: int = MIN_MOORINGS) -> pd.DataFrame:
+    """Silent moorings estimated by linear interpolation in longitude between the nearest reporting
+    (or carried) neighbours - the end moorings take their neighbour's value - on days with at least
+    min_moorings present. The audit (dropping moorings on fully covered days, 1993-2026) measured
+    RMSE 0.04-0.07 C for any one mooring this way against 0.08-0.17 C for averaging the rest."""
+    lon = np.array(LONS)
+    out = filled.copy()
+    n = filled.notna().sum(axis=1)
+    rows = n.index[(n >= min_moorings) & (n < len(LONS))]
+    for t in rows:
+        r = filled.loc[t].values.astype(float)
+        m = np.isfinite(r)
+        out.loc[t] = np.where(m, r, np.interp(lon, lon[m], r[m]))
+    return out
+
+
+def fill_from(df: pd.DataFrame, g: pd.DataFrame | None) -> pd.DataFrame | None:
+    """Reanalysis anomaly at each mooring + that mooring's TAO-minus-reanalysis offset (365-day
+    window, >= 120 paired days; see below). The offset absorbs the different climatologies
+    (TAO 1991-2020 vs GLORYS 1993-2020) and slow model drift (GLORYS ran ~0.2 C warm of TAO in
+    2024-25)."""
+    if g is None:
+        return None
+    idx = pd.date_range(df.index.min(), df.index.max(), freq="D")
+    df = df.reindex(idx)
+    g = g.reindex(index=idx, columns=df.columns)
+    diff = df - g
+    # centred 365-d window where it has >= 120 pairs (history: brackets a gap from both sides, so
+    # a drifting model is tied to TAO before AND after); else the last such offset carried forward
+    # (real time: only the past exists); else the first one carried back; else the record mean
+    cen = diff.rolling(365, center=True, min_periods=120).mean()
+    off = cen.ffill().fillna(cen.bfill())
+    return g + off.fillna(diff.mean())
+
+
 def index(df: pd.DataFrame, persist: int = PERSIST_DAYS, min_moorings: int = MIN_MOORINGS,
           fill_df: pd.DataFrame | None = None) -> pd.DataFrame:
-    """Daily index frame: hc (TAO only, NaN below min_moorings), hc_filled (TAO + reanalysis fill
-    for moorings silent > persist days; NaN only if the fill is missing too), n_live, n_carried,
-    n_fill, and max_age (oldest carried value used)."""
+    """Daily index frame - mean over the 8 FIXED longitudes, each mooring taken, in order, from
+
+      1. its own screened TAO profile that day (live),
+      2. the offset-corrected reanalysis at its location (fill_df, when given),
+      3. its own last report, carried <= persist days,
+      4. longitude interpolation from its neighbours, only when >= min_moorings have 1-3;
+    NaN when fewer than min_moorings have 1-3. Audit 2026-10-07 (withholding moorings on fully
+    covered days): reanalysis RMSE 0.03 C for one mooring, carry 0.03 (1 d) - 0.07 C (10 d),
+    longitude interpolation 0.04-0.09 C.
+
+    cat: 0 all 8 live; 1 >= min_moorings live, or (no reanalysis used) live + carried >=
+    min_moorings; 2 complete only through the reanalysis (fewer than min_moorings live); 3 none."""
+    idx = pd.date_range(df.index.min(), df.index.max(), freq="D")
+    df = df.reindex(idx)
     filled, age = carry(df, persist)
-    live = (age == 0)
-    used = filled.notna()
-    n_used = used.sum(axis=1)
-    hc = filled.mean(axis=1).where(n_used >= min_moorings)
-    out = pd.DataFrame({"hc": hc, "n_live": live.sum(axis=1), "n_carried": (used & ~live).sum(axis=1),
-                        "max_age": age.max(axis=1)})
+    live = df.notna()
     if fill_df is not None:
-        f = fill_df.reindex(filled.index)
-        comb = filled.where(used, f)
-        n_comb = comb.notna().sum(axis=1)
-        out["hc_filled"] = comb.mean(axis=1).where(n_comb == len(LONS))
-        out["n_fill"] = (~used & f.notna()).sum(axis=1)
-    return out
+        f = fill_df.reindex(index=idx, columns=df.columns)
+        src_fill = ~live & f.notna()
+        comp = df.where(live, f)
+    else:
+        src_fill = pd.DataFrame(False, index=idx, columns=df.columns)
+        comp = df.copy()
+    src_carry = comp.isna() & filled.notna()
+    comp = comp.where(comp.notna(), filled)
+    n_have = comp.notna().sum(axis=1)
+    est = lon_interp(comp, min_moorings)
+    hc = est.mean(axis=1).where(n_have >= min_moorings)
+    n_live, n_fill, n_carr = live.sum(axis=1), src_fill.sum(axis=1), src_carry.sum(axis=1)
+    ok = hc.notna()
+    cat = np.select([ok & (n_live == len(LONS)),
+                     ok & ((n_live >= min_moorings) | ((n_fill == 0) & (n_live + n_carr >= min_moorings))),
+                     ok], [0, 1, 2], 3)
+    return pd.DataFrame({"hc": hc, "n_live": n_live, "n_fill": n_fill, "n_carried": n_carr,
+                         "n_interp": (len(LONS) - n_have).where(ok, 0), "cat": cat,
+                         "max_age": age.where(src_carry).max(axis=1)})
 
 
 def smooth(s: pd.Series, n: int = 15) -> pd.Series:

@@ -180,6 +180,8 @@ recon.yml|*:45|
 # (steps to day 5 are on the Google mirror by then); with no storm active anywhere the run ends in seconds.
 tcshear.yml|*/6:10|
 tcshear.yml|*/6:40|
+# weekly re-validation against the season's SHIPS inputs and every new TDR tilt (~30 min, ~15 GB of GFS from S3)
+tcshear.yml|mon@15:30|-f mode=verify
 # skewt-data hourly again 2026-10-06 (user): off-hour specials (06Z/18Z) must reach the map within ~2-3 h, not ~5
 skewt-data.yml|*:50|
 olr-waves.yml|02:40|
@@ -198,7 +200,7 @@ seas5.yml|18:40|-f window=true
 c3s.yml|03:20|-f window=true
 c3s.yml|09:20|-f window=true
 qbo.yml|mon@07:15|
-sst-events.yml|mon@18:41|
+sst-events.yml|15:41|
 skewt-gaps.yml|tue,fri@08:40|
 # Daily frames-branch GC. Waits for a quiet moment itself and skips rather
 # than racing a publisher, so a late firing costs nothing.

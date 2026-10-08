@@ -336,12 +336,12 @@ const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];let
 const col=p=>{const t=Math.max(0,Math.min(1,p));if(t>=.5)return mix('#e6e6e6','#0b3d91',(t-.5)/.5);return mix('#e6e6e6','#a32215',(.5-t)/.5)};
 function mix(a,b,k){const h=x=>[1,3,5].map(i=>parseInt(x.slice(i,i+2),16));const A=h(a),B=h(b);return '#'+A.map((v,i)=>Math.round(v+(B[i]-v)*k).toString(16).padStart(2,'0')).join('')}
 const pct=p=>p>=.995?'>99%':p<=.005?'<1%':(100*p).toFixed(0)+'%';
-const mg=v=>v==null?'–':(v>=0?'D+':'R+')+Math.abs(v).toFixed(1);
+const mg=(v,pt)=>v==null?'–':(v>=0?(pt&&pt!=='D'?'I+':'D+'):'R+')+Math.abs(v).toFixed(1);   // pt: the challenger's party ('I' -> I+)
 const pvi=v=>v==null?'':(v>=0?'D+':'R+')+Math.abs(v);
 const pc=p=>`<td class="n pd" style="color:${p>=.5?'#0b3d91':'#a32215'}">${pct(p)}</td>`;
 const who=s=>/^none|new seat/i.test(s.member||'')||!s.member?'New seat':s.open?`Open seat (${s.member} not running)`:s.member;
 const rcvTxt=r=>r.rcv?`<p class="mt-note">Ranked-choice: ${r.rcv} · <a href="about.html#rcv">how</a></p>`:'';
-const pollTxt=r=>r.n_polls?`${r.n_polls} poll${r.n_polls>1?'s':''}, average ${mg(r.poll_margin)}`:'no polls';
+const pollTxt=r=>r.n_polls?`${r.n_polls} poll${r.n_polls>1?'s':''}, average ${mg(r.poll_margin,r.dem_party)}`:'no polls';
 fetch('data/model.json').then(r=>r.json()).then(j=>{D=j;init();if(RH)histReady()});
 let RH=null;fetch('data/race_history.json').then(r=>r.ok?r.json():null).then(j=>{RH=j;if(D&&RH)histReady()}).catch(()=>{});
 
@@ -379,7 +379,7 @@ function panel(sec){const el=$('#race-'+sec);const key=SEL[sec];if(!key)return;
  const S=sec==='senate'?D.senate:D.governor,[st,sp]=String(key).split('|');const r=S.races.find(x=>x.state===st&&(!!x.special)===(sp==='sp'))||S.races.find(x=>x.state===st);if(!r)return;
  const slope=sec==='senate'?S.nat_slope:S.slope,m=r.mu+(E-S.E_now)*slope,p=r.p[gi],ind=r.dem_party&&r.dem_party!=='D';
  el.innerHTML=`<h3>${NAMES[r.state]||r.state} ${sec==='senate'?'Senate':'Governor'}${r.special?' (special)':''}</h3><p class="who">${r.dem||'?'} (${r.dem_party||'D'}) v ${r.rep||'?'} (R)${r.inc?'':' · open seat'}</p>${bar(p,ind?'Independent':'Democrat','Republican')}
-  <dl><dt>Expected margin</dt><dd>${mg(m)}</dd>${r.cook_pvi!=null?`<dt>Partisan lean</dt><dd>${pvi(r.cook_pvi)} (Cook PVI)</dd>`:''}<dt>Polls</dt><dd>${pollTxt(r)}${r.n_polls?` · <a href="polls.html#${sec==='senate'?'senate':'governor'}:${r.state}">see them</a>`:''}</dd>${r.cook?`<dt>Cook rating</dt><dd>${r.cook}</dd>`:''}</dl>${r.prior_note?`<p class="mt-note">${r.prior_note}</p>`:''}${rcvTxt(r)}`;trend(el,sec,r.state+(r.special?'|sp':''),ind?'Independent':'Democrat')}
+  <dl><dt>Expected margin</dt><dd>${mg(m,r.dem_party)}</dd>${r.cook_pvi!=null?`<dt>Partisan lean</dt><dd>${pvi(r.cook_pvi)} (Cook PVI)</dd>`:''}<dt>Polls</dt><dd>${pollTxt(r)}${r.n_polls?` · <a href="polls.html#${sec==='senate'?'senate':'governor'}:${r.state}">see them</a>`:''}</dd>${r.cook?`<dt>Cook rating</dt><dd>${r.cook}</dd>`:''}</dl>${r.prior_note?`<p class="mt-note">${r.prior_note}</p>`:''}${rcvTxt(r)}`;trend(el,sec,r.state+(r.special?'|sp':''),ind?'Independent':'Democrat')}
 // Chance of winning over time (race_history.json, midterms/race_history.py + backfill.py): the CURRENT model reconstructed
 // as of each past date with only the polls released by then (weekly to June, daily after), then each day's own run; the
 // faint dashed line is what the board showed at the time (since 16 Sep). Independent of the slider. Days that modelled a
@@ -415,7 +415,7 @@ function trend(el,sec,key,dn,big){if(!RH||!RH[sec])return;const nat=sec==='nat',
  const g=svg.append('g').style('display','none');g.append('line').attr('y1',m.t).attr('y2',Hh-m.b).attr('stroke','#9a978e');
  const cd=g.append('circle').attr('r',3.5).attr('fill','#1f5fbf'),cr=g.append('circle').attr('r',3.5).attr('fill','#b3261e');
  const mv=e=>{const[mx]=d3.pointer(e);const i=d3.bisector(p=>p.d).center(pts,xs.invert(mx)),p=pts[i],q=iby.get(+p.d);g.style('display',null).attr('transform',`translate(${xs(p.d)},0)`);cd.attr('cy',ys(p.p));cr.attr('cy',ys(1-p.p));
-  tipAt(e,`<b>${fmtD(p.d)}</b> <span style="opacity:.8">${p.src==='r'?'reconstructed':'as issued'}</span><br>${dn} ${pct(p.p)}<br>Republican ${pct(1-p.p)}${p.m!=null?`<br>Expected ${mg(p.m)}`:''}${q&&p.src==='r'?`<br><span style="opacity:.8">As issued that day: ${dn} ${pct(q.p)}</span>`:''}`)},
+  tipAt(e,`<b>${fmtD(p.d)}</b> <span style="opacity:.8">${p.src==='r'?'reconstructed':'as issued'}</span><br>${dn} ${pct(p.p)}<br>Republican ${pct(1-p.p)}${p.m!=null?`<br>Expected ${mg(p.m,dn==='Independent'?'I':'D')}`:''}${q&&p.src==='r'?`<br><span style="opacity:.8">As issued that day: ${dn} ${pct(q.p)}</span>`:''}`)},
   out=()=>{g.style('display','none');$('#tip').style.display='none'};
  svg.append('rect').attr('x',m.l).attr('y',m.t).attr('width',W-m.l-m.r+30).attr('height',Hh-m.t-m.b).attr('fill','transparent').on('pointermove',mv).on('pointerdown',mv).on('pointerleave',out)}
 // Enlarged chart (2026-09-30, user: "click on the graphs of the model changes over time and see a much larger version"): the
@@ -490,7 +490,7 @@ function render(){const H=D.house;E=+$('#E').value;gi=H.grid.reduce((b,x,i)=>Mat
  $$('#close tbody tr').forEach(tr=>tr.addEventListener('click',()=>{pick('house',tr.dataset.k);$('#race-house').scrollIntoView({block:'nearest',behavior:'smooth'})}));
  // Senate
  const S=D.senate,sr=S.races.map(r=>({...r,pp:r.p[gi]})).sort((a,b)=>Math.abs(a.pp-.5)-Math.abs(b.pp-.5)),scomp=sr.filter(r=>r.pp>0.03&&r.pp<0.97),sshow=SHOW.sen?sr:scomp;
- $('#sen').innerHTML='<thead><tr><th>State</th><th>Race</th><th class="n">Polls</th><th class="n">Expected</th><th class="n">Chance D/I</th></tr></thead><tbody>'+sshow.map(r=>`<tr data-k="${r.state}${r.special?'|sp':''}"><td><b>${NAMES[r.state]||r.state}</b>${r.special?' (special)':''}</td><td>${r.dem||'?'}${r.dem_party&&r.dem_party!=='D'?' (I)':''} v ${r.rep||'?'}</td><td class="n">${r.n_polls?mg(r.poll_margin):'–'}</td><td class="n">${mg(r.mu+(E-S.E_now)*S.nat_slope)}</td>${pc(r.pp)}</tr>`).join('')+'</tbody>';
+ $('#sen').innerHTML='<thead><tr><th>State</th><th>Race</th><th class="n">Polls</th><th class="n">Expected</th><th class="n">Chance D/I</th></tr></thead><tbody>'+sshow.map(r=>`<tr data-k="${r.state}${r.special?'|sp':''}"><td><b>${NAMES[r.state]||r.state}</b>${r.special?' (special)':''}</td><td>${r.dem||'?'}${r.dem_party&&r.dem_party!=='D'?' (I)':''} v ${r.rep||'?'}</td><td class="n">${r.n_polls?mg(r.poll_margin,r.dem_party):'–'}</td><td class="n">${mg(r.mu+(E-S.E_now)*S.nat_slope,r.dem_party)}</td>${pc(r.pp)}</tr>`).join('')+'</tbody>';
  $('#senMore').textContent=SHOW.sen?`Show competitive races only`:`Show all ${sr.length} races (${sr.length-scomp.length} safe)`;
  $$('#sen tbody tr').forEach(tr=>tr.addEventListener('click',()=>{pick('senate',tr.dataset.k);$('#race-senate').scrollIntoView({block:'nearest',behavior:'smooth'})}));
  // governors

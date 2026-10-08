@@ -236,6 +236,8 @@ def ext_figure(out, title, sub, anom, sig, clim_f, n_sig, n_test):
     nm = BoundaryNorm(lev, cm.N)
     a = np.where(sig, anom, np.nan)
     pm = ax.pcolormesh(LON1, LAT1, a, cmap=cm, norm=nm, transform=pc, shading="nearest", rasterized=True, zorder=2)
+    clim_f = np.where(LAT1[:, None] >= 20.0, clim_f, np.nan)
+    ax.plot([LON1[0], LON1[-1]], [20.0, 20.0], color="#6f6b64", lw=0.6, ls=":", transform=pc, zorder=4)
     cs = ax.contour(LON1, LAT1, clim_f, levels=[5, 10, 20, 30], colors="#555", linewidths=[0.5, 0.7, 0.9, 1.1], transform=pc, zorder=4)
     ax.clabel(cs, fmt="%d%%", fontsize=6.5)
     A.map_features(ax)
@@ -282,18 +284,22 @@ def live(date, work: Path, procs: int):
     for key, wk in views.items():
         f = F[:, wk].mean(1); c = Cf[:, wk].mean(1)                     # member / sample frequency over the window
         a, b = f.reshape(f.shape[0], -1), c.reshape(c.shape[0], -1)
-        test = (a.std(0) > 0) | (b.std(0) > 0)
+        # 20N and north only: in the deep tropics IVT >= 250 is the trade-wind moisture flux most of the time, not
+        # atmospheric rivers, and a frequency anomaly there says nothing about ARs
+        north = np.repeat((LAT1 >= 20.0)[:, None], len(LON1), axis=1).ravel()
+        test = ((a.std(0) > 0) | (b.std(0) > 0)) & north
         p = np.full(a.shape[1], np.nan)
         if test.any():
             p[test] = mannwhitneyu(a[:, test], b[:, test], axis=0, alternative="two-sided").pvalue
         sig = bh(p).reshape(f.shape[1:])
         anom = 100.0 * (f.mean(0) - c.mean(0))
+        anom[LAT1 < 20.0] = np.nan
         n_sig, n_test = int(sig.sum()), int(test.sum())
         d0 = init + dt.timedelta(days=WEEKS["w3" if key == "w34" else key][0] - 1)
         d1 = init + dt.timedelta(days=(WEEKS["w4"] if key == "w34" else WEEKS[key])[1] - 1)
         ttl = f"AR frequency anomaly, {names[key]} ({d0:%d %b}–{d1:%d %b}) — GEFS {len(got)} members, init {init:%d %b %Y} 00Z"
-        sub = (f"Share of 6-hourly times with IVT* = {k_ext():.2f}·PWAT·|V850| ≥ 250, minus GEFSv12 reforecast 2000–2019 at the same lead "
-               f"({Cn.shape[0]} starts within ±15 days × 5 members) · Mann–Whitney U, Benjamini–Hochberg FDR 10 %")
+        sub = (f"IVT* = {k_ext():.2f}·PWAT·|V850| ≥ 250, minus the GEFSv12 reforecast 2000–2019 at the same lead ({Cn.shape[0]} starts "
+               f"× 5 members) · Mann–Whitney U, FDR 10 % · 20°N and north")
         out = ASSETS / f"ext_{key}.webp"
         ext_figure(out, ttl, sub, anom, sig, 100.0 * c.mean(0), n_sig, n_test)
         doc["weeks"][key] = {"label": names[key], "from": d0.isoformat(), "to": d1.isoformat(), "n_sig": n_sig, "n_test": n_test,

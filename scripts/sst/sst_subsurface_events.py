@@ -16,6 +16,7 @@ longitudes / periods are missing — shown as gaps.
 """
 from __future__ import annotations
 
+import json
 import os
 from datetime import datetime
 from pathlib import Path
@@ -30,6 +31,7 @@ import matplotlib.colors as mcolors
 
 import tao_subsurface as tao
 import sst_subsurface as ss
+import tao_hc as H
 
 HERE = Path(__file__).resolve().parent
 SITE_ROOT = Path(os.environ["SST_SITE_ROOT"]).resolve() if os.environ.get("SST_SITE_ROOT") else HERE
@@ -50,58 +52,41 @@ def _anomaly(grid: xr.DataArray) -> xr.DataArray:
                         dims=grid.dims, coords=grid.coords)
 
 
-def current_ds() -> xr.Dataset:
-    """Current-year equatorial TAO temps — reuse the daily cache if present
-    (produced by the daily sst job), else fetch year-to-date from DISDEL."""
-    p = DATA / "tao_eq_temp.nc"
-    if p.exists():
-        return xr.open_dataset(p)
-    import re
+def event_year(latest: pd.Timestamp) -> int:
+    """Development year (Yr0) of the CURRENT event. Through June of Yr1 the chart stays on the event
+    that started the year before (the old code switched to the new calendar year on 1 January and
+    would have restarted the red line at "Jan Yr0" with a few days of data)."""
+    return latest.year if latest.month >= 7 else latest.year - 1
+
+
+def fetch_event(year: int, current: bool) -> xr.Dataset:
+    """DISDEL delivery Jan (Yr0-1) .. Dec Yr1 (or today), parsed WITH quality/source codes.
+    The year before Yr0 is there so carry-forward and the reanalysis offset have history."""
     from datetime import timezone
-    now = datetime.now(timezone.utc)
     EVDIR.mkdir(parents=True, exist_ok=True)
-    ap = EVDIR / f"tao_{now.year}_cur.ascii"
-    # Re-fetch the current-year TAO whenever the cache lags the main subsurface file
-    # (tao_eq_recent.nc, which run_local_sst re-downloads every run). The old "fetched
-    # today" check pinned the analog's "current" panel to a stale date when the first
-    # daily run fetched before DISDEL had posted the new day (TAO lags ~2 days). The
-    # analog-year ascii are fixed history and stay cached.
-    def _last(path: Path):
-        try:
-            ms = re.findall(r"^\s*(\d{8})\s", path.read_text(errors="replace"), re.M)
-            return pd.to_datetime(ms[-1], format="%Y%m%d").date() if ms else None
-        except Exception:
-            return None
-    target = None
-    recent = DATA / "tao_eq_recent.nc"
-    if recent.exists():
-        try:
-            target = pd.to_datetime(xr.open_dataset(recent).time.values[-1]).date()
-        except Exception:
-            target = None
-    cached = _last(ap) if (ap.exists() and ap.stat().st_size > 0) else None
-    fresh = cached is not None and target is not None and cached >= target
-    if not fresh:
-        tao.deliver(datetime(now.year, 1, 1), now, ap)
-    return tao.parse(ap)
-
-
-def event_anom(year: int, cur_year: int, cur_ds: xr.Dataset) -> xr.DataArray:
-    """Regridded temperature ANOMALY (time, depth, lon) for one event.
-    Current year reuses cur_ds; analogs fetch Yr0+Yr1 from DISDEL."""
-    if year == cur_year:
-        ds = cur_ds
+    now = datetime.now(timezone.utc)
+    if current:
+        p = EVDIR / f"tao_{year - 1}_cur.ascii"
+        tao.deliver(datetime(year - 1, 1, 1), now, p)        # always fresh: PMEL posts and backfills late
     else:
-        EVDIR.mkdir(parents=True, exist_ok=True)
-        p = EVDIR / f"tao_{year}_{year + 1}.ascii"
+        p = EVDIR / f"tao_{year - 1}_{year + 1}.ascii"
         if not (p.exists() and p.stat().st_size > 0):
-            tao.deliver(datetime(year, 1, 1), datetime(year + 1, 12, 31), p)
-        ds = tao.parse(p)
-    return _anomaly(ss.to_depth_grid(ds))
+            tao.deliver(datetime(year - 1, 1, 1), datetime(year + 1, 12, 31), p)
+    return H.parse_qc(p)
+
+
+def event_anom(ds: xr.Dataset) -> xr.DataArray:
+    """Regridded temperature ANOMALY (time, depth, lon) from the screened temperatures."""
+    scr = xr.Dataset({"temp": H.screened_temp(ds)})
+    return _anomaly(ss.to_depth_grid(scr))
+
+
+def _same_day(yr: int, match: pd.Timestamp) -> pd.Timestamp:
+    return pd.Timestamp(yr, match.month, min(match.day, 28) if match.month == 2 else match.day)
 
 
 # ── 1. matching-phase cross-sections ──────────────────────────────────────────
-def xsec(events: dict, cur_year: int, match: pd.Timestamp, out: Path, detr: bool = False):
+def xsec(events: dict, cur_year: int, match: pd.Timestamp, out: Path, detr: bool = False, yoff: int = 0):
     years = [cur_year] + ANALOGS
     labels = [f"{cur_year} (current)"] + [f"{y}–{str(y + 1)[2:]}" for y in ANALOGS]
     # Set the shared anomaly scale from THESE panels' data.
@@ -115,7 +100,7 @@ def xsec(events: dict, cur_year: int, match: pd.Timestamp, out: Path, detr: bool
     allA = []
     for yr in years:
         a = events[yr]
-        end = pd.Timestamp(yr, match.month, match.day)
+        end = _same_day(yr + yoff, match)
         w = a.sel(time=slice(end - pd.Timedelta(days=XSEC_WIN - 1), end)).mean("time")
         allA.append(np.asarray(w.values, float))
     ss.set_anom_scale(np.concatenate([x.ravel() for x in allA]))
@@ -123,7 +108,7 @@ def xsec(events: dict, cur_year: int, match: pd.Timestamp, out: Path, detr: bool
     im = None
     for ax, yr, lab in zip(axes.ravel(), years, labels):
         a = events[yr]
-        end = pd.Timestamp(yr, match.month, match.day)
+        end = _same_day(yr + yoff, match)
         win = a.sel(time=slice(end - pd.Timedelta(days=XSEC_WIN - 1), end)).mean("time")
         lons = win.longitude.values
         if len(lons) >= 2:
@@ -159,73 +144,182 @@ def xsec(events: dict, cur_year: int, match: pd.Timestamp, out: Path, detr: bool
 
 
 # ── 2. heat-content (0–300 m T anomaly) evolution overlay ─────────────────────
-# A mooring that stops reporting is carried forward at its last anomaly for at
-# most this many days, then the index goes to NaN rather than silently
-# re-weighting itself onto whichever moorings are left.
-HC_PERSIST_DAYS = 10
-HC_MIN_MOORINGS = 6                       # of the 8 equatorial TAO/TRITON sites
+# The index itself lives in tao_hc.py (screened profiles, fixed mooring set, carry-forward
+# <= tao_hc.PERSIST_DAYS counted from the last REAL report, NaN below tao_hc.MIN_MOORINGS).
+# Validation against NOAA CPC's GODAS index and GLORYS12 is tao_hc_audit.py (tao-hc-audit.yml);
+# its numbers are frozen in reference/tao_hc_validation.json, which also switches the
+# reanalysis fill on or off.
+REF = HERE / "reference"
+VALIDATION = REF / "tao_hc_validation.json"
+FILL_CSV = REF / "glorys_eq_moorings_anom.csv.gz"        # GLORYS12 0-300 m anomaly at the 8 moorings
+FILL_COEFFS = REF / "glorys_eq_clim_coeffs.npz"            # its 1993-2020 harmonic climatology
+CPC_URL = "https://www.cpc.ncep.noaa.gov/products/analysis_monitoring/ocean/index/heat_content_index.txt"
+ANFC = "cmems_mod_glo_phy-thetao_anfc_0.083deg_P1D-m"
+CAT_COLORS = ["#ffffff", "#c8c8c8", "#e3a33b", "#4a4a4a"]
+CAT_LABELS = ["all 8 TAO moorings reporting", "6–7 reporting; silent ones from GLORYS12 (or carried ≤10 d)",
+              "fewer than 6 reporting: rests on GLORYS12 (dashed)", "no estimate"]
 
 
-def heat_content(events: dict, cur_year: int, out: Path, detr: bool = False):
-    def hc(a: xr.DataArray):
-        """0-300 m anomaly index with FIXED mooring weights.
+def _meta() -> dict:
+    try:
+        return json.loads(VALIDATION.read_text())
+    except Exception:            # noqa: BLE001
+        return {}
 
-        The old version was mean(depth) then a plain nanmean over whichever
-        moorings reported. That is not a coverage-robust estimator: the
-        anomaly has a strong zonal gradient in an ENSO year (warm at depth in
-        the east, cool in the shoaling west), so when the western moorings
-        drop out the mean silently moves onto the eastern ones and reads warm.
-        Measured 2026-09-06: 165E/180/170W went dark on Sep 1; the east-only
-        mean ran +0.9 to +1.0 C above the all-mooring mean all August, and the
-        published index jumped +0.74 C in the five days the west was missing.
 
-        So each mooring keeps a fixed 1/8 weight. A silent mooring is carried
-        forward at its own last anomaly (subsurface anomalies change slowly)
-        for up to HC_PERSIST_DAYS; with fewer than HC_MIN_MOORINGS live or
-        persisted the index is NaN. The returned `persisted` series marks days
-        that used any carried value, so the plot can show them as such.
-        """
-        col = a.sel(depth=slice(0, 300)).mean("depth", skipna=True)   # (time, lon)
-        df = pd.DataFrame(col.values, index=pd.to_datetime(a.time.values),
-                          columns=[float(x) for x in col.longitude.values])
-        live = df.notna()
-        filled = df.ffill(limit=HC_PERSIST_DAYS)
-        used = filled.notna()
-        s = filled.mean(axis=1, skipna=True)
-        s[used.sum(axis=1) < HC_MIN_MOORINGS] = np.nan
-        persisted = (used.sum(axis=1) > live.sum(axis=1)) & s.notna()
-        # Centred running mean where the full window exists; at the tail a centred window with a
-        # low min_periods under-smooths the newest days and draws a hook (the 2026-09 chart ran
-        # +0.3 C above the fixed-weight value on its last week), so the tail falls back to the
-        # trailing mean, which lags a little but cannot hook.
-        centred = s.rolling(HC_SMOOTH, center=True, min_periods=HC_SMOOTH).mean()
-        trailing = s.rolling(HC_SMOOTH, min_periods=HC_SMOOTH // 2 + 1).mean()
-        s = centred.fillna(trailing)
-        return s, persisted.reindex(s.index).fillna(False)
+def _anfc_recent(start: pd.Timestamp, meta: dict) -> pd.DataFrame | None:
+    """GLORYS-family ANALYSIS (anfc) anomaly at the 8 moorings from `start` to yesterday, put on the
+    reanalysis' footing with the per-mooring anfc-vs-reanalysis offset measured in the audit.
+    Kept in data/cmems_hc/anfc_store.csv (actions/cache in sst-events.yml); each run re-pulls only
+    the last 10 days (the analysis is revised as newer runs arrive) and anything newer."""
+    store = DATA / "cmems_hc" / "anfc_store.csv"
+    have = None
+    if store.exists():
+        try:
+            have = pd.read_csv(store, index_col=0, parse_dates=True)
+            have.columns = [float(c) for c in have.columns]
+        except Exception:        # noqa: BLE001
+            have = None
+    if not os.environ.get("COPERNICUSMARINE_SERVICE_USERNAME") or not FILL_COEFFS.exists():
+        print("reanalysis fill: no Copernicus Marine credentials or coefficients; reanalysis record only")
+        return have
+    import copernicusmarine as cm
+    from datetime import timezone
+    z = np.load(FILL_COEFFS)
+    coeffs = {float(l): c for l, c in zip(z["lons"], z["coeffs"])}
+    off = meta.get("fill", {}).get("anfc_offset", {})
+    yday = pd.Timestamp(datetime.now(timezone.utc).date()) - pd.Timedelta(days=1)
+    t0 = start if have is None or have.empty else max(start, have.index.max() - pd.Timedelta(days=10))
+    if t0 > yday:
+        return have
+    cache = DATA / "cmems_hc"
+    cache.mkdir(parents=True, exist_ok=True)
+    cols = {}
+    for lo in H.LONS:
+        glon = lo if lo < 180 else lo - 360
+        fn = f"anfc_{int(lo)}.nc"
+        try:
+            cm.subset(dataset_id=ANFC, variables=["thetao"], minimum_longitude=glon, maximum_longitude=glon,
+                      minimum_latitude=-0.25, maximum_latitude=0.25, minimum_depth=0, maximum_depth=330,
+                      start_datetime=t0.strftime("%Y-%m-%d"), end_datetime=yday.strftime("%Y-%m-%d"),
+                      coordinates_selection_method="nearest", output_filename=fn,
+                      output_directory=str(cache), overwrite=True, disable_progress_bar=True)
+            d = xr.open_dataset(cache / fn)["thetao"].load()
+        except Exception as e:   # noqa: BLE001
+            print(f"::warning::reanalysis fill: anfc {H.LON_LABEL[lo]} failed ({e}); that mooring has no new fill")
+            continue
+        d = d.mean([c for c in ("latitude", "longitude") if c in d.dims]).transpose("time", "depth")
+        dep = d.depth.values.astype(float)
+        V = d.values
+        t = pd.to_datetime(d.time.values).normalize()
+        w = 2 * np.pi * t.dayofyear.values / 365.25
+        X = np.column_stack([np.ones_like(w), np.cos(w), np.sin(w), np.cos(2 * w), np.sin(2 * w)])
+        clim = X @ coeffs[lo]
+        a = np.full(len(t), np.nan)
+        for i in range(len(t)):
+            m = np.isfinite(V[i])
+            if m.sum() >= 3 and dep[m].max() >= 300:
+                a[i] = (np.interp(ss.DEPTH_GRID, dep[m], V[i][m]) - clim[i]).mean()
+        cols[lo] = pd.Series(a, index=t) + float(off.get(H.LON_LABEL[lo], 0.0))
+    new = pd.DataFrame(cols).reindex(columns=H.LONS) if cols else None
+    if new is None:
+        return have
+    out = new if have is None else new.combine_first(have)
+    out = out[out.index <= yday].sort_index()
+    out.to_csv(store, float_format="%.4f")
+    print(f"reanalysis fill: anfc {t0:%Y-%m-%d} -> {yday:%Y-%m-%d} fetched; store {out.index.min():%Y-%m-%d} -> {out.index.max():%Y-%m-%d}")
+    return out
 
-    fig, ax = plt.subplots(figsize=(9.5, 5.2))
+
+def reanalysis_fill(meta: dict) -> pd.DataFrame | None:
+    """Daily GLORYS12 0-300 m anomaly at the 8 moorings (reanalysis record + recent analysis), or
+    None when the audit did not validate the fill."""
+    if not meta.get("fill", {}).get("use") or not FILL_CSV.exists():
+        return None
+    g = pd.read_csv(FILL_CSV, index_col=0, parse_dates=True)
+    g.columns = [float(c) for c in g.columns]
+    rec = _anfc_recent(g.index.max() - pd.Timedelta(days=5), meta)
+    if rec is not None:
+        g = pd.concat([g, rec[rec.index > g.index.max()]])
+    return g.reindex(columns=H.LONS)
+
+
+def hc_frame(ds: xr.Dataset, g: pd.DataFrame | None, detr: bool) -> pd.DataFrame:
+    df, _ = H.mooring_anomaly(ds, strict=True, detrend=detr)
+    ix = H.index(df, fill_df=H.fill_from(df, g))
+    ix["best"] = ix["hc"]
+    ix["smooth"] = H.smooth(ix["hc"], HC_SMOOTH)
+    return ix
+
+
+def _cpc_latest(cur: pd.DataFrame, meta: dict) -> str:
+    """One line: this event's newest complete month on our index vs CPC's GODAS 180-100W value
+    mapped onto our scale with the frozen audit regression."""
+    fit = meta.get("validation", {}).get("cpc_fit")
+    if not fit:
+        return ""
+    try:
+        import urllib.request
+        req = urllib.request.Request(CPC_URL, headers={"User-Agent": "scorvec.com data pipeline"})
+        txt = urllib.request.urlopen(req, timeout=60).read().decode("latin-1")
+        rows = {}
+        for ln in txt.splitlines():
+            p = ln.split()
+            if len(p) == 5 and p[0].isdigit():
+                rows[pd.Timestamp(int(p[0]), int(p[1]), 1)] = float(p[3 if fit.get("column") == "160E-80W" else 4])
+        b = cur["best"].where(cur["cat"] <= 1)
+        g = b.groupby(b.index.to_period("M"))
+        mon = g.mean().where(g.count() >= 20)
+        mon.index = mon.index.to_timestamp()
+        both = [m for m in mon.dropna().index if m in rows]
+        if not both:
+            return ""
+        m = both[-1]
+        est = fit["slope"] * rows[m] + fit["intercept"]
+        dom = "160°E–80°W" if fit.get("column") == "160E-80W" else "180°–100°W"
+        return (f"Latest month, {m:%b %Y}: this index {mon[m]:+.2f} °C; CPC GODAS {dom} {rows[m]:+.2f} °C, "
+                f"{est:+.2f} °C on this index's scale (difference {mon[m] - est:+.2f}, fit RMSE "
+                f"{fit.get('rmse_after_fit', float('nan')):.2f}).")
+    except Exception as e:      # noqa: BLE001
+        print(f"CPC check skipped: {e}")
+        return ""
+
+
+def heat_content(frames: dict, cur_year: int, out: Path, meta: dict, detr: bool = False):
+    fig = plt.figure(figsize=(9.5, 6.6))
+    gs = fig.add_gridspec(2, 1, height_ratios=[5, 1.05], hspace=0.08)
+    ax = fig.add_subplot(gs[0])
+    axc = fig.add_subplot(gs[1], sharex=ax)
+
     def devdays(idx, yr):
         return (idx - pd.Timestamp(yr, 1, 1)).days
-    for yr in ANALOGS:
-        s, _ = hc(events[yr])
-        ax.plot(devdays(s.index, yr), s.values, color=ANALOG_COLORS[yr], lw=1.8,
-                label=f"{yr}–{str(yr + 1)[2:]}")
-    cur, pers = hc(events[cur_year])
-    ax.plot(devdays(cur.index, cur_year), cur.values, color="#d62728", lw=3.0,
-            label=f"{cur_year} (current)", zorder=5)
-    # days where a silent mooring was carried forward: same line, hollow
-    # markers, so a reader can see which part of the tail rests on persistence
-    if pers.any():
-        pi = cur.index[pers.values]
-        ax.plot(devdays(pi, cur_year), cur.loc[pi].values, "o", ms=4.5, mfc="white",
-                mec="#d62728", mew=1.4, zorder=6,
-                label=f"{cur_year}: a mooring carried forward (≤{HC_PERSIST_DAYS} d)")
+
+    def window(ix, yr):
+        return ix[(ix.index >= pd.Timestamp(yr, 1, 1)) & (ix.index <= pd.Timestamp(yr + 1, 12, 31))]
+
+    order = [cur_year] + ANALOGS
+    for yr in order:
+        ix = window(frames[yr], yr)
+        col = "#d62728" if yr == cur_year else ANALOG_COLORS[yr]
+        lw = 3.0 if yr == cur_year else 1.8
+        lab = f"{yr}–{str(yr + 1)[2:]}" + (" (current)" if yr == cur_year else "")
+        x = devdays(ix.index, yr)
+        solid = ix["smooth"].where(ix["cat"] <= 1)
+        dashed = ix["smooth"].where(ix["cat"] == 2)
+        ax.plot(x, solid.values, color=col, lw=lw, label=lab, zorder=5 if yr == cur_year else 3)
+        if dashed.notna().any():
+            # bridge one day either side so the dashed piece meets the solid line
+            d2 = ix["smooth"].where((ix["cat"] == 2) | (ix["cat"].shift(1) == 2) | (ix["cat"].shift(-1) == 2))
+            ax.plot(x, d2.values, color=col, lw=lw * 0.6, ls=(0, (3, 2)), zorder=4 if yr == cur_year else 2)
+        if yr == cur_year:
+            pi = ix.index[(ix["n_carried"] > 0).values & solid.notna().values]
+            if len(pi):
+                ax.plot(devdays(pi, yr), ix.loc[pi, "smooth"].values, "o", ms=4.5, mfc="white",
+                        mec="#d62728", mew=1.4, zorder=6,
+                        label=f"{yr}: a silent mooring carried (≤{H.PERSIST_DAYS} d)")
+    if any((window(frames[y], y)["cat"] == 2).any() for y in order):
+        ax.plot([], [], color="0.3", lw=1.2, ls=(0, (3, 2)), label="dashed: TAO + GLORYS12 fill")
     ax.axhline(0, color="0.6", lw=0.8)
-    ticks = [pd.Timestamp(2001, m, 1).dayofyear - 1 for m in (1, 4, 7, 10)]
-    ticks = ticks + [t + 365 for t in ticks]
-    ax.set_xticks(ticks)
-    ax.set_xticklabels([f"{m}\nYr0" for m in ("Jan", "Apr", "Jul", "Oct")] +
-                       [f"{m}\nYr1" for m in ("Jan", "Apr", "Jul", "Oct")], fontsize=8)
     ax.set_xlim(0, 730)
     ax.set_ylabel("Equatorial 0–300 m temperature anomaly (°C)")
     if detr:
@@ -236,28 +330,107 @@ def heat_content(events: dict, cur_year: int, out: Path, detr: bool = False):
         title = "Subsurface heat content (eq. Pacific 0–300 m T anomaly): current vs. 1997, 2015, 2023"
         fs = 11.5
     ax.set_title(title, fontsize=fs, fontweight="bold", loc="left")
-    ax.legend(fontsize=9, loc="lower left", framealpha=0.9)    # lower left is empty: every event is positive in its first half-year
+    ax.legend(fontsize=8.5, loc="lower left", framealpha=0.9)
     ax.grid(True, alpha=0.25)
-    fig.tight_layout()
+    plt.setp(ax.get_xticklabels(), visible=False)
+
+    # coverage strip: one row per event, coloured by what the day's value rests on
+    cmap = mcolors.ListedColormap(CAT_COLORS)
+    M = np.full((len(order), 731), np.nan)
+    for r, yr in enumerate(order):
+        ix = window(frames[yr], yr)
+        d = devdays(ix.index, yr)
+        ok = (d >= 0) & (d <= 730)
+        M[r, d[ok]] = ix["cat"].values[ok]
+    axc.imshow(np.ma.masked_invalid(M), aspect="auto", cmap=cmap, vmin=-0.5, vmax=3.5,
+               interpolation="nearest", extent=(-0.5, 730.5, len(order) - 0.5, -0.5))
+    axc.set_yticks(range(len(order)))
+    axc.set_yticklabels([f"{y}" for y in order], fontsize=7.5)
+    for r in range(len(order) + 1):
+        axc.axhline(r - 0.5, color="0.75", lw=0.5)
+    ticks = [pd.Timestamp(2001, m, 1).dayofyear - 1 for m in (1, 4, 7, 10)]
+    ticks = ticks + [t + 365 for t in ticks]
+    axc.set_xticks(ticks)
+    axc.set_xticklabels([f"{m}\nYr0" for m in ("Jan", "Apr", "Jul", "Oct")] +
+                        [f"{m}\nYr1" for m in ("Jan", "Apr", "Jul", "Oct")], fontsize=8)
+    axc.set_xlim(0, 730)
+    from matplotlib.patches import Patch
+    used = sorted({int(v) for v in np.unique(M[np.isfinite(M)])})
+    axc.legend(handles=[Patch(facecolor=CAT_COLORS[k], edgecolor="0.5", label=CAT_LABELS[k]) for k in used],
+               fontsize=7, ncol=2, loc="upper center", bbox_to_anchor=(0.5, -0.42), frameon=False)
+    axc.set_ylabel("coverage", fontsize=7.5)
+
+    v = meta.get("validation", {})
+    lines = []
+    if v.get("summary_line"):
+        lines.append(v["summary_line"])
+    cl = "" if detr else _cpc_latest(frames[cur_year], meta)     # the check is on the raw index
+    if cl:
+        lines.append(cl)
+    if lines:
+        import textwrap
+        txt = "\n".join(textwrap.fill(l, 150) for l in lines)
+        fig.text(0.01, -0.035, txt, fontsize=7.6, color="#4a4744", ha="left", va="top")
     fig.savefig(out, dpi=120, bbox_inches="tight")
     plt.close(fig)
-    print(f"wrote {out} (current latest {cur.dropna().index[-1]:%b %d} {cur.dropna().iloc[-1]:+.2f}°C"
-          f"{', ' + str(int(pers.sum())) + ' day(s) with a mooring carried forward' if pers.any() else ''})")
+    cur = frames[cur_year]
+    last = cur["smooth"].last_valid_index()
+    rl = cur["best"].last_valid_index()
+    print(f"wrote {out} (current: last day {rl:%Y-%m-%d} raw {cur.at[rl, 'best']:+.2f} °C "
+          f"[{int(cur.at[rl, 'n_live'])} live, {int(cur.at[rl, 'n_carried'])} carried, cat {int(cur.at[rl, 'cat'])}], "
+          f"15-d {cur.at[last, 'smooth']:+.2f} °C on {last:%Y-%m-%d})")
+    return cur
+
+
+def write_json(frames: dict, cur_year: int, meta: dict) -> None:
+    """Small companion JSON (latest value, coverage of the last 60 days) for the page and for checks."""
+    cur = frames[cur_year]
+    tail = cur[cur.index >= cur.index.max() - pd.Timedelta(days=59)]
+    rl = cur["best"].last_valid_index()
+    out = {"generated": datetime.utcnow().strftime("%Y-%m-%dT%H:%MZ"),
+           "event_year": cur_year, "last_day": rl.strftime("%Y-%m-%d"),
+           "value_raw": round(float(cur.at[rl, "best"]), 3),
+           "value_15d": round(float(cur["smooth"].dropna().iloc[-1]), 3),
+           "rule": {"persist_days": H.PERSIST_DAYS, "min_moorings": H.MIN_MOORINGS,
+                    "moorings": [H.LON_LABEL[l] for l in H.LONS], "quality_codes": list(H.QSET),
+                    "profile": f"screened sensors spanning <= {H.PROFILE_TOP:.0f} m to >= {H.PROFILE_BOTTOM:.0f} m, "
+                               f"gaps <= {H.PROFILE_MAX_GAP:.0f} m"},
+           "validation": meta.get("validation", {}),
+           "fill_used": bool(meta.get("fill", {}).get("use")),
+           "recent": [{"date": d.strftime("%Y-%m-%d"), "n_live": int(r["n_live"]), "n_fill": int(r["n_fill"]),
+                       "n_carried": int(r["n_carried"]), "cat": int(r["cat"]),
+                       "raw": None if pd.isna(r["best"]) else round(float(r["best"]), 3)}
+                      for d, r in tail.iterrows()]}
+    p = ASSETS / "data" / "subsurface_hc.json"
+    p.parent.mkdir(parents=True, exist_ok=True)
+    p.write_text(json.dumps(out, indent=1))
+    print(f"wrote {p}")
 
 
 def main() -> int:
-    cur_ds = current_ds()
-    match = pd.to_datetime(cur_ds.time.values[-1])
-    cur_year = int(match.year)
-    events = {y: event_anom(y, cur_year, cur_ds) for y in [cur_year] + ANALOGS}
-    xsec(events, cur_year, match, ASSETS / "subsurface_events_xsec.webp")
-    heat_content(events, cur_year, ASSETS / "subsurface_events_hc.webp")
+    from datetime import timezone
+    meta = _meta()
+    now = pd.Timestamp(datetime.now(timezone.utc).date())
+    cur_year = event_year(now)
+    dss = {cur_year: fetch_event(cur_year, current=True)}
+    for y in ANALOGS:
+        dss[y] = fetch_event(y, current=False)
+    match = pd.to_datetime(dss[cur_year].time.values[-1])
+    events = {y: event_anom(d) for y, d in dss.items()}
+    # the cross-section sits at the latest DATA day's position in the event (Yr0 or Yr1)
+    yoff = int(match.year - cur_year)
+    xsec(events, cur_year, match, ASSETS / "subsurface_events_xsec.webp", yoff=yoff)
+    g = reanalysis_fill(meta)
+    frames = {y: hc_frame(d, g, False) for y, d in dss.items()}
+    heat_content(frames, cur_year, ASSETS / "subsurface_events_hc.webp", meta)
+    write_json(frames, cur_year, meta)
 
     # de-trended companions: remove the 1991–2020 secular trend so the analog
     # comparison isolates the ENSO signal from the background ocean warming/cooling.
     events_dt = {y: ss.detrend(a) for y, a in events.items()}
-    xsec(events_dt, cur_year, match, ASSETS / "subsurface_events_xsec_detrended.webp", detr=True)
-    heat_content(events_dt, cur_year, ASSETS / "subsurface_events_hc_detrended.webp", detr=True)
+    xsec(events_dt, cur_year, match, ASSETS / "subsurface_events_xsec_detrended.webp", detr=True, yoff=yoff)
+    frames_dt = {y: hc_frame(d, g, True) for y, d in dss.items()}
+    heat_content(frames_dt, cur_year, ASSETS / "subsurface_events_hc_detrended.webp", meta, detr=True)
     return 0
 
 

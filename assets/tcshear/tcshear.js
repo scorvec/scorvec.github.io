@@ -68,7 +68,7 @@
       case "deep": case "low": case "up": return r[m] ? r[m][0] * KT : null;
       case "gs": return r.gs != null ? r.gs * KT : null;
       case "pi": return r.pi != null ? r.pi * KT : null;
-      case "tilt": return r.tilt ? r.tilt[0] : null;
+      case "tilt": return r.tilt && r.sst != null ? r.tilt[0] : null;          // over water only: an inland remnant's tilt means nothing
       default: return r[m] != null ? r[m] : null;
     }
   }
@@ -131,7 +131,7 @@
   // Tilt in the shear frame: downshear up, left of shear to the left (NH).
   function tiltPlot(doc, h, tm0) {
     var W = 420, H = 420, cx = W / 2, cy = H / 2 + 6, R = 170, rs = runs(doc), lim = 100;
-    rs.forEach(function (x) { x[1].forEach(function (r) { if (r.tilt && r.h <= 120) lim = Math.max(lim, Math.min(200, r.tilt[0])); }); });
+    rs.forEach(function (x) { x[1].forEach(function (r) { if (r.tilt && r.sst != null && r.h <= 120) lim = Math.max(lim, Math.min(200, r.tilt[0])); }); });
     lim = lim > 150 ? 200 : lim > 100 ? 150 : 100;
     var sc = R / lim, sh = doc.basin === "SH" ? -1 : 1;
     function P(km, rel) { var a = rel * Math.PI / 180; km = Math.min(km, lim); return [cx - sh * km * sc * Math.sin(a), cy - km * sc * Math.cos(a)]; }
@@ -144,7 +144,7 @@
     members(doc).forEach(function (recs) { var r = at(recs, h); if (!r || !r.tilt || r.tilt_rel == null) return; var p = P(r.tilt[0], r.tilt_rel);
       s += '<circle cx="' + p[0].toFixed(1) + '" cy="' + p[1].toFixed(1) + '" r="2.6" fill="#7c8da6" opacity="0.55"/>'; });
     rs.forEach(function (x, j) {
-      var pts = x[1].filter(function (r) { return r.tilt && r.tilt_rel != null && r.h <= 120; });
+      var pts = x[1].filter(function (r) { return r.tilt && r.tilt_rel != null && r.sst != null && r.h <= 120; });
       s += line(pts.map(function (r) { return P(r.tilt[0], r.tilt_rel); }), x[2], j ? 1.2 : 2, 'opacity="' + (j ? 0.7 : 0.95) + '"');
       var r = at(x[1], h); if (r && r.tilt && r.tilt_rel != null) { var p = P(r.tilt[0], r.tilt_rel);
         s += '<circle cx="' + p[0].toFixed(1) + '" cy="' + p[1].toFixed(1) + '" r="' + (j ? 4.5 : 6) + '" fill="' + x[2] + '" stroke="#fff" stroke-width="1.5"><title>' + esc(MLAB[x[0]]) + ": " + r.tilt[0] + " km, " + quadrant(r.tilt_rel) + "</title></circle>"; }
@@ -182,8 +182,9 @@
     if (logy) { yhi = Math.min(1, Math.max(0.3, yhi * 1.2)); ylo = Math.min(0.003, Math.max(0.0005, Math.min.apply(null, ys.filter(function (v) { return v > 0; })) || 0.003)); }
     else yhi = yhi * 1.08 || 1;
     if (m === "rh600") { ylo = 0; yhi = 100; }
+    if (m === "tilt") yhi = Math.min(yhi, 160);
     function X(hh) { return L + (hh - xs[0]) / (xs[1] - xs[0]) * (W - L - Rm); }
-    function Y(v) { if (logy) { v = Math.max(v, ylo); return T + (1 - (Math.log(v) - Math.log(ylo)) / (Math.log(yhi) - Math.log(ylo))) * (H - T - B); } return T + (1 - (v - ylo) / (yhi - ylo)) * (H - T - B); }
+    function Y(v) { if (logy) { v = Math.min(Math.max(v, ylo), yhi); return T + (1 - (Math.log(v) - Math.log(ylo)) / (Math.log(yhi) - Math.log(ylo))) * (H - T - B); } return T + (1 - (Math.min(v, yhi) - ylo) / (yhi - ylo)) * (H - T - B); }
     var s = svgOpen(W, H, meas[1] + " along the forecast, " + doc.name);
     // grid
     var ticks = [];
@@ -191,7 +192,7 @@
     else { var st = niceStep((yhi - ylo) / 5); for (var v = Math.ceil(ylo / st) * st; v <= yhi; v += st) ticks.push(+v.toFixed(6)); }
     ticks.forEach(function (v) { s += '<line x1="' + L + '" x2="' + (W - Rm) + '" y1="' + Y(v).toFixed(1) + '" y2="' + Y(v).toFixed(1) + '" class="grid"/>' + txt(L - 6, Y(v) + 4, fmtNum(v), "end", "tm"); });
     for (var hh = Math.ceil(xs[0] / 24) * 24; hh <= xs[1]; hh += 24) {
-      s += '<line x1="' + X(hh).toFixed(1) + '" x2="' + X(hh).toFixed(1) + '" y1="' + T + '" y2="' + (H - B) + '" class="grid"/>' + txt(X(hh), H - B + 15, fmtT(tm0 + hh * 3600000).replace(/ 00Z$/, ""), "middle", "tm"); }
+      s += '<line x1="' + X(hh).toFixed(1) + '" x2="' + X(hh).toFixed(1) + '" y1="' + T + '" y2="' + (H - B) + '" class="grid"/>' + txt(X(hh), H - B + 15, fmtT(tm0 + hh * 3600000).replace(/ 00Z$/, ""), hh + 12 > xs[1] ? "end" : "middle", "tm"); }
     s += txt(L - 44, T + 4, meas[2], null, "tm");
     s += '<line x1="' + X(0).toFixed(1) + '" x2="' + X(0).toFixed(1) + '" y1="' + T + '" y2="' + (H - B) + '" class="now"/>' + txt(X(0) + 4, H - B - 6, "run start", null, "tm");
     // thresholds (literature)
@@ -207,8 +208,11 @@
       s += band(0, 4, 0.18) + band(1, 3, 0.3);
       s += line(fh.map(function (k) { return [X(k), Y(fan[k][2] * fk)]; }), "#4b5d78", 1.4, 'stroke-dasharray="4 3"');
     }
-    rs.forEach(function (x, j) { var pts = x[1].filter(function (r) { return val(r, m) != null; }).map(function (r) { return [X(r.h), Y(val(r, m))]; });
-      s += line(pts, x[2], j ? 1.6 : 2.4); });
+    rs.forEach(function (x, j) {                       // a gap (no value: over land, out of the domain) breaks the line
+      var seg = [];
+      x[1].forEach(function (r) { var v = val(r, m); if (v == null) { s += line(seg, x[2], j ? 1.6 : 2.4); seg = []; } else seg.push([X(r.h), Y(v)]); });
+      s += line(seg, x[2], j ? 1.6 : 2.4);
+      if (seg.length === 1) s += '<circle cx="' + seg[0][0].toFixed(1) + '" cy="' + seg[0][1].toFixed(1) + '" r="2.5" fill="' + x[2] + '"/>'; });
     shipsPts.forEach(function (p) { s += '<rect x="' + (X(p[0]) - 3.5).toFixed(1) + '" y="' + (Y(p[1]) - 3.5).toFixed(1) + '" width="7" height="7" fill="' + COL.ships + '"><title>SHIPS ' + key + ": " + p[1] + "</title></rect>"; });
     if (shipsPts.length) s += line(shipsPts.map(function (p) { return [X(p[0]), Y(p[1])]; }), COL.ships, 1, 'stroke-dasharray="2 2"');
     obs.forEach(function (o) { s += '<path d="M' + X(o[0]).toFixed(1) + "," + (Y(o[1]) - 6).toFixed(1) + 'l6,6l-6,6l-6,-6z" fill="' + COL.tdr + '" stroke="#fff"><title>TDR ' + fmtT(o[2][0] * 1000) + ": " + o[1] + " km</title></path>"; });
@@ -251,7 +255,7 @@
   }
 
   // Plain-language summary of the analysis (descriptive only)
-  function now(doc) {
+  function now(doc, live) {
     var rs = runs(doc), c = rs.length ? at(rs[0][1], 0) : null, tm0 = t0(doc);
     if (!c || !c.deep) return "";
     var s = "<b>" + esc(doc.name) + "</b>, AIFS-ENS run of " + fmtT(tm0, true) + ": environmental 200–850 hPa shear <b>" + Math.round(c.deep[0] * KT) + " kt from " + compass(c.deep[1]) +
@@ -260,7 +264,7 @@
     s += ". ";
     var mx = rs[0][1].reduce(function (b, r) { return r.deep && r.h <= 72 && (!b || r.deep[0] > b.deep[0]) ? r : b; }, null);
     if (mx && mx.h > 0) s += "The control's shear peaks at " + Math.round(mx.deep[0] * KT) + " kt at +" + mx.h + " h (" + fmtT(tm0 + mx.h * 3600000, true) + "). ";
-    var td = (doc.obs.tdr || []).filter(function (o) { return o[0] * 1000 <= tm0 + 3 * 3600000; }).slice(-1)[0];
+    var td = (doc.obs.tdr || []).filter(function (o) { return live || o[0] * 1000 <= tm0 + 3 * 3600000; }).slice(-1)[0];
     if (td) s += "Latest radar tilt (" + fmtT(td[0] * 1000) + "): <b>" + td[1] + " km toward " + compass(td[2]) + "</b>, " + quadrant(relOf(td[2], c.deep[1])) + " of the analysed shear. ";
     if (c.vi != null) s += "Ventilation index " + c.vi.toFixed(3) + " (environmental-temperature core: " + (c.vi_env != null ? c.vi_env.toFixed(3) : "—") + "). ";
     if (c.d2pvu != null) s += "Nearest 2-PVU air on 330 K: " + c.d2pvu.toLocaleString() + " km to the " + compass(c.b2pvu) + ".";
@@ -305,8 +309,10 @@
              "<figure>" + scatter(pr.map(function (r) { return [r.ships.shdc, r.ours.shdc, r.vmax >= 64 ? "#c2410c" : "#2a6fdb"]; }), "SHIPS SHDC (kt)", "ours, vortex removed (kt)", lim) + "<figcaption>Vortex-removed shear: the methods differ (orange = hurricanes).</figcaption></figure></div>";
     }
     if (td && td.summary) {
-      out += "<h4>Model vortex tilt against the NOAA tail Doppler radar (" + td.rows.length + " radar analyses)</h4>" +
-        "<p>Each radar analysis with HRD's 2- and 6-km centres against the 850→500 hPa vorticity-centroid tilt of each model's analysis at the nearest synoptic time (within 3 h; a 6-hour forecast where the analysis is not published). Model minus radar, km.</p>" +
+      var ng = ((td.summary.gfs || {}).magnitude || {}).n_groups;
+      out += "<h4>Model vortex tilt against the NOAA tail Doppler radar (" + td.rows.length + " radar analyses" + (ng ? " at " + ng + " synoptic times" : "") + ")</h4>" +
+        "<p>Each radar analysis with HRD's 2- and 6-km centres against the 850→500 hPa vorticity-centroid tilt of each model's analysis at the nearest synoptic time (within 3 h; a 6-hour forecast where the analysis is not published). Model minus radar, km. " +
+        "Several radar analyses share one model time, so the 95 % intervals resample whole synoptic times; with this few independent cases, read the intervals, not the point values. The models resolve large tilts (30 km and more) but put a floor of roughly 10–25 km under small ones, so their small tilts are not evidence of misalignment.</p>" +
         "<table class='tcs-tab'><thead><tr><th>Model</th><th>n</th><th>Bias</th><th>RMS difference</th><th>Correlation</th><th>Direction, radar tilt ≥ 20 km</th><th>Radar ≥ 30 km / model ≥ 30 km / both</th></tr></thead><tbody>" +
         ["gfs", "ifs", "aifs-single"].map(function (k) { var q = td.summary[k] || {}, dr = q.direction_tdr_ge20km || {}, tt = q.tilted_ge30km || {};
           return "<tr><th>" + ({ gfs: "GFS", ifs: "IFS HRES", "aifs-single": "AIFS single" }[k]) + "</th>" + fmtStat(q.magnitude, "km") + "<td>" + (dr.n ? "median |error| " + dr.median_abs + "° (n = " + dr.n + ")" : "—") + "</td><td>" + (tt.n ? tt.n_tdr + " / " + tt.n_model + " / " + tt.both : "—") + "</td></tr>"; }).join("") + "</tbody></table>";
@@ -340,7 +346,7 @@
       return;
     }
     var tm0 = t0(doc), h = Math.max(0, Math.min(120, st.h - st.h % 6));
-    $("tcs-now").innerHTML = now(doc);
+    $("tcs-now").innerHTML = now(doc, s.live);
     var sl = $("tcs-h"); sl.value = h;
     sl.oninput = function () { st.h = +sl.value; go(st); };
     $("tcs-hlab").textContent = "+" + h + " h · " + fmtT(tm0 + h * 3600000, true);
