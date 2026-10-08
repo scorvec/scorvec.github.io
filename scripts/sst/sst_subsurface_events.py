@@ -368,8 +368,9 @@ def heat_content(frames: dict, cur_year: int, out: Path, meta: dict, detr: bool 
     if cl:
         lines.append(cl)
     if lines:
-        fig.text(0.01, -0.035 - 0.0 * len(lines), "\n".join(lines), fontsize=7.6, color="#4a4744",
-                 ha="left", va="top")
+        import textwrap
+        txt = "\n".join(textwrap.fill(l, 150) for l in lines)
+        fig.text(0.01, -0.035, txt, fontsize=7.6, color="#4a4744", ha="left", va="top")
     fig.savefig(out, dpi=120, bbox_inches="tight")
     plt.close(fig)
     cur = frames[cur_year]
@@ -396,8 +397,9 @@ def write_json(frames: dict, cur_year: int, meta: dict) -> None:
                                f"gaps <= {H.PROFILE_MAX_GAP:.0f} m"},
            "validation": meta.get("validation", {}),
            "fill_used": bool(meta.get("fill", {}).get("use")),
-           "recent": [{"date": d.strftime("%Y-%m-%d"), "n_live": int(r.n_live), "n_carried": int(r.n_carried),
-                       "cat": int(r.cat), "raw": None if pd.isna(r.best) else round(float(r.best), 3)}
+           "recent": [{"date": d.strftime("%Y-%m-%d"), "n_live": int(r["n_live"]), "n_fill": int(r["n_fill"]),
+                       "n_carried": int(r["n_carried"]), "cat": int(r["cat"]),
+                       "raw": None if pd.isna(r["best"]) else round(float(r["best"]), 3)}
                       for d, r in tail.iterrows()]}
     p = ASSETS / "data" / "subsurface_hc.json"
     p.parent.mkdir(parents=True, exist_ok=True)
