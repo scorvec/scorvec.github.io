@@ -77,8 +77,11 @@ SUBSET_OF = {"sfc": "gl"}
 COMBINED = {
     "z2": dict(dataset=PRESSURE, variables=["geopotential"], levels=["10", "50", "100", "500", "1000"], area=[90, -180, -90, 180],
                grid=[2.0, 2.0], cadence=12, kinds={"polar_n": {"z": [10, 50, 100]}, "polar_s": {"z": [10, 50, 100]}, "nh_z": {"z": [500, 1000]}}),
-    "uv850": dict(dataset=PRESSURE, variables=["u_component_of_wind", "v_component_of_wind"], levels=["850"], area=[90, -180, -90, 180],
-                  grid=[1.0, 1.0], cadence=12, kinds={"gl_u850": {"u": [None, 850]}, "gl_v850": {"v": [None, 850]}}),
+    # the 1° global kinds: z 500, u 850, v 850 in one request (MARS takes the variable × level product, so z 850 and
+    # u/v 500 come along unused — cheaper than a second queue wait; 2026-10-08 the z2 request waited 270 min)
+    "p1": dict(dataset=PRESSURE, variables=["geopotential", "u_component_of_wind", "v_component_of_wind"], levels=["500", "850"],
+               area=[90, -180, -90, 180], grid=[1.0, 1.0], cadence=12,
+               kinds={"gl_z500": {"z": [None, 500]}, "gl_u850": {"u": [None, 850]}, "gl_v850": {"v": [None, 850]}}),
 }
 
 
@@ -343,6 +346,10 @@ def forecast(ym: str, lead: int = LEAD, kinds=None, tag: str | None = None, keep
     cache: dict = {}
     dest_of = lambda k: l7_path(k, ym) if lead == LEAD else DATA / "forecast" / f"fc_{k}_{ym}_m{lead}chk.npz"
     combined_done = set()
+    # single-level kinds first: they come back in minutes, the pressure-level requests can queue for hours
+    single = [k for k in want if k in GROUPS and all(g[0] == SINGLE for g in GROUPS[k])]
+    if single or any(k in SUBSET_OF for k in want):
+        got.update(_per_kind(ym, lead, single + [k for k in want if k in SUBSET_OF], tag, keep_raw, budget_min, t_start, cache, dest_of))
     for name, c in COMBINED.items():
         todo = [k for k in c["kinds"] if k in want and not dest_of(k).exists()]
         if not todo:
@@ -368,10 +375,18 @@ def forecast(ym: str, lead: int = LEAD, kinds=None, tag: str | None = None, keep
             combined_done.add(kind)
         if not keep_raw:
             dest.unlink()
-    for kind in [k for k in want if k in GROUPS] + [k for k in want if k in SUBSET_OF]:
+    for kind in want:
         if any(kind in c["kinds"] for c in COMBINED.values()):
-            got[kind] = dest_of(kind).exists(); continue
-        dest = l7_path(kind, ym) if lead == LEAD else DATA / "forecast" / f"fc_{kind}_{ym}_m{lead}chk.npz"
+            got[kind] = dest_of(kind).exists()
+    rest = [k for k in want if k in GROUPS and k not in got and not any(k in c["kinds"] for c in COMBINED.values())]
+    got.update(_per_kind(ym, lead, rest, tag, keep_raw, budget_min, t_start, cache, dest_of))
+    return got
+
+
+def _per_kind(ym, lead, kinds, tag, keep_raw, budget_min, t_start, cache, dest_of) -> dict:
+    got = {}
+    for kind in kinds:
+        dest = dest_of(kind)
         if dest.exists():
             got[kind] = True; continue
         if budget_min is not None and kind not in SUBSET_OF and (time.time() - t_start) / 60 > budget_min:

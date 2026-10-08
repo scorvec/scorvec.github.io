@@ -149,13 +149,13 @@ jobs:
           SEAS5_REF_UPLOAD_TAG: ${{ env.REF_TAG }}
         run: |
           cd scripts/sst
-          M=${{ steps.gate.outputs.month }}
+          export M=${{ steps.gate.outputs.month }}
           L7=$(python - <<'EOF'
           import seas5_ref as R
-          print(" ".join(u for u, (m, s) in R.units("REF_UNITS").items() if s.get("l7")))
+          import os; print(" ".join(R.missing(os.environ["M"])))          # every missing unit of the start month (lead-7 and the vortex tables)
           EOF
           )
-          echo "lead-7 units: $L7"
+          echo "missing units: $L7"; [ -n "$L7" ] || exit 0
           TL=$(( 340 - ( $(date +%s) - ${JOB_T0} ) / 60 - 25 ))
           timeout --signal=INT "${TL}m" python seas5_ref.py hindcast --month "$M" --only $L7 --fetch --discard-raw --budget-min $((TL - 30)) \
             || echo "::warning::some lead-7 tables are still missing"
@@ -167,7 +167,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          NEW=$(find "$SEAS5_REF_DIR" -name 'hc_*_L7_*.npz' -newer "$RUNNER_TEMP/ref_marker" | sort)
+          NEW=$(find "$SEAS5_REF_DIR" -name 'hc_*.npz' -newer "$RUNNER_TEMP/ref_marker" | sort)
           if [ -z "$NEW" ]; then echo "no new tables"; exit 0; fi
           ls -la $NEW
           gh release upload "$REF_TAG" --repo "$GITHUB_REPOSITORY" --clobber $NEW
