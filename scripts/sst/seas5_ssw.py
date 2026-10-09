@@ -480,6 +480,14 @@ def u100_monthly(ym: str) -> list:
 INK, MUTED, FAN, MEAN, CLIM, OBS = "#222", "#6f6b64", "#3f5f8f", "#8a4b2a", "#8a8680", "#111"
 
 
+def _foot(fig, y, text, size=7.8):
+    """A footnote wrapped to the figure's width (2026-10-08 sweep: one long line under bbox_inches="tight" widened the
+    saved image to the text, leaving the u100 chart in the left two-thirds of a mostly empty picture)."""
+    import textwrap
+    n = max(60, int(fig.get_figwidth() * 0.97 * 72 / (size * 0.53)))
+    fig.text(0.01, y, textwrap.fill(text, n), fontsize=size, color=MUTED, va="top", linespacing=1.35)
+
+
 def render(ym, dates, f60, cm, q10, q90, z, fsec, hsec, lats, tail, doc) -> dict:
     import matplotlib
     matplotlib.use("Agg")
@@ -514,9 +522,8 @@ def render(ym, dates, f60, cm, q10, q90, z, fsec, hsec, lats, tail, doc) -> dict
     bx.xaxis.set_major_locator(mdates.MonthLocator()); bx.xaxis.set_major_formatter(mdates.DateFormatter("%b\n%Y"))
     for a in (ax, bx):
         a.spines[["top", "right"]].set_visible(False); a.grid(axis="y", color="#e6e3dc", lw=0.6)
-    fig.text(0.01, 0.005, "Daily means. Normal = SEAS5's own hindcast for the same start date and lead (25 members × 36 winters). Shaded: Nov–Mar, "
-             "the SSW window. σ = the hindcast's member spread at each lead (15-day smoothed). Contains modified Copernicus Climate Change Service information 2026.",
-             fontsize=7.8, color=MUTED)
+    _foot(fig, -0.02, "Daily means. Normal = SEAS5's own hindcast for the same start date and lead (25 members × 36 winters). Shaded: Nov–Mar, "
+             "the SSW window. σ = the hindcast's member spread at each lead (15-day smoothed). Contains modified Copernicus Climate Change Service information 2026.")
     out = ASSETS / "seas5_ssw_u10.webp"; fig.savefig(out, dpi=105, bbox_inches="tight", pil_kwargs={"quality": 86, "method": 6}); plt.close(fig)
     figs["u10"] = out.name
     # 2. latitude–time section of the ensemble-mean anomaly vs the model normal
@@ -531,8 +538,8 @@ def render(ym, dates, f60, cm, q10, q90, z, fsec, hsec, lats, tail, doc) -> dict
     ax.xaxis.set_major_locator(mdates.MonthLocator()); ax.xaxis.set_major_formatter(mdates.DateFormatter("%b\n%Y"))
     cb = fig.colorbar(cs, ax=ax, pad=0.01); cb.set_label("ensemble-mean anomaly (m/s)")
     ax.set_title(f"SEAS5 zonal-mean wind at 10 hPa, anomaly against the model normal · {issue}", loc="left", fontsize=12.5)
-    fig.text(0.01, -0.02, "Black contour: the ensemble mean lies 2 standard errors from the normal (51 members, hindcast spread) — outside it the anomaly "
-             "is within sampling noise. Purple = weaker westerlies (easterly anomaly), orange = stronger.", fontsize=7.8, color=MUTED)
+    _foot(fig, -0.02, "Black contour: the ensemble mean lies 2 standard errors from the normal (51 members, hindcast spread) — outside it the anomaly "
+             "is within sampling noise. Purple = weaker westerlies (easterly anomaly), orange = stronger.")
     out = ASSETS / "seas5_ssw_section.webp"; fig.savefig(out, dpi=105, bbox_inches="tight", pil_kwargs={"quality": 86, "method": 6}); plt.close(fig)
     figs["section"] = out.name
     # 3. u100 monthly
@@ -554,9 +561,8 @@ def render(ym, dates, f60, cm, q10, q90, z, fsec, hsec, lats, tail, doc) -> dict
         ax.set_xticks(xs); ax.set_xticklabels([f"{calendar.month_abbr[int(e['month'][5:])]}\n{e['month'][:4]}" for e in U])
         ax.set_ylabel("u at 60°N, 100 hPa (m/s)"); ax.spines[["top", "right"]].set_visible(False); ax.grid(axis="y", color="#e6e3dc", lw=0.6)
         ax.set_title(f"SEAS5 lower-stratospheric vortex: monthly u at 60°N, 100 hPa · {issue}", loc="left", fontsize=12.5)
-        fig.text(0.01, -0.03, "Dots: the 51 members' monthly means; brown bar: ensemble mean; grey: model normal (1993–2016 hindcast mean, dashed, and "
-                 "10–90 % range); label: ensemble-mean anomaly in σ of the hindcast spread. Monthly only (no daily 100 hPa hindcast), leads 1–6.",
-                 fontsize=7.8, color=MUTED)
+        _foot(fig, -0.03, "Dots: the 51 members' monthly means; brown bar: ensemble mean; grey: model normal (1993–2016 hindcast mean, dashed, and "
+                 "10–90 % range); label: ensemble-mean anomaly in σ of the hindcast spread. Monthly only (no daily 100 hPa hindcast), leads 1–6.")
         out = ASSETS / "seas5_ssw_u100.webp"; fig.savefig(out, dpi=105, bbox_inches="tight", pil_kwargs={"quality": 86, "method": 6}); plt.close(fig)
         figs["u100"] = out.name
     # 4. risk: forecast vs model base vs observed, timing histogram, reliability
@@ -594,9 +600,8 @@ def render(ym, dates, f60, cm, q10, q90, z, fsec, hsec, lats, tail, doc) -> dict
     cx.text(0.02, 0.98, f"BSS {S['bss']:+.2f} (90 % CI {S['bss_ci90'][0]:+.2f} to {S['bss_ci90'][1]:+.2f})\nROC area {S['auc']:.2f} "
             f"({S['auc_ci90'][0]:.2f}–{S['auc_ci90'][1]:.2f}), {S['n']} winters", transform=cx.transAxes, va="top", fontsize=8, color=INK)
     fig.suptitle(f"SEAS5 sudden-warming risk · {issue}" + ("" if S["skilful"] else "  —  no hindcast skill: the model's view, not a forecast"), x=0.01, ha="left", fontsize=13)
-    fig.text(0.01, -0.04, "Major SSW: Charlton & Polvani (2007) on daily u60N 10 hPa, Nov–Mar, 20-day separation, final warmings excluded. Error bars: "
-             "90 % block-bootstrap intervals over winters. Reliability: the hindcast's yearly member fraction against MERRA-2 occurrence, 1981/82–2016/17.",
-             fontsize=7.8, color=MUTED)
+    _foot(fig, -0.04, "Major SSW: Charlton & Polvani (2007) on daily u60N 10 hPa, Nov–Mar, 20-day separation, final warmings excluded. Error bars: "
+             "90 % block-bootstrap intervals over winters. Reliability: the hindcast's yearly member fraction against MERRA-2 occurrence, 1981/82–2016/17.")
     fig.subplots_adjust(wspace=0.32)
     out = ASSETS / "seas5_ssw_risk.webp"; fig.savefig(out, dpi=105, bbox_inches="tight", pil_kwargs={"quality": 86, "method": 6}); plt.close(fig)
     figs["risk"] = out.name

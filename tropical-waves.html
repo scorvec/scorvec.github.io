@@ -3,17 +3,17 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Tropical Waves &mdash; Wheeler&ndash;Kiladis Spectrum, Kelvin and Rossby Wave Trackers &middot; Shawn Corvec</title>
-<meta name="description" content="Which convectively coupled equatorial waves are active: a daily Wheeler-Kiladis wavenumber-frequency spectrum of satellite-measured OLR (NASA CERES), with Kelvin, equatorial Rossby and MJO filtered Hovmollers, wave trackers and ocean Kelvin waves.">
+<title>Tropical Waves &mdash; Kelvin and Rossby Wave Trackers, OLR Wave Decomposition &middot; Shawn Corvec</title>
+<meta name="description" content="Where the convectively coupled equatorial waves are: Kelvin, equatorial Rossby and MJO filtered Hovmollers of satellite OLR, wave trackers with the AIFS-ENS forecast, and ocean Kelvin waves.">
 <link rel="canonical" href="https://scorvec.com/tropical-waves.html">
 <meta property="og:type" content="website">
-<meta property="og:title" content="Tropical Waves &mdash; Wheeler&ndash;Kiladis Spectrum, Kelvin and Rossby Wave Trackers &middot; Shawn Corvec">
-<meta property="og:description" content="Which convectively coupled equatorial waves are active: a daily Wheeler-Kiladis wavenumber-frequency spectrum of satellite-measured OLR (NASA CERES), with Kelvin, equatorial Rossby and MJO filtered Hovmollers, wave trackers and ocean Kelvin waves.">
+<meta property="og:title" content="Tropical Waves &mdash; Kelvin and Rossby Wave Trackers, OLR Wave Decomposition &middot; Shawn Corvec">
+<meta property="og:description" content="Where the convectively coupled equatorial waves are: Kelvin, equatorial Rossby and MJO filtered Hovmollers of satellite OLR, wave trackers with the AIFS-ENS forecast, and ocean Kelvin waves.">
 <meta property="og:url" content="https://scorvec.com/tropical-waves.html">
 <meta property="og:site_name" content="Shawn Corvec &mdash; Weather &amp; Climate Monitors">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="Tropical Waves &mdash; Wheeler&ndash;Kiladis Spectrum, Kelvin and Rossby Wave Trackers &middot; Shawn Corvec">
-<meta name="twitter:description" content="Which convectively coupled equatorial waves are active: a daily Wheeler-Kiladis wavenumber-frequency spectrum of satellite-measured OLR (NASA CERES), with Kelvin, equatorial Rossby and MJO filtered Hovmollers, wave trackers and ocean Kelvin waves.">
+<meta name="twitter:title" content="Tropical Waves &mdash; Kelvin and Rossby Wave Trackers, OLR Wave Decomposition &middot; Shawn Corvec">
+<meta name="twitter:description" content="Where the convectively coupled equatorial waves are: Kelvin, equatorial Rossby and MJO filtered Hovmollers of satellite OLR, wave trackers with the AIFS-ENS forecast, and ocean Kelvin waves.">
 <link rel="stylesheet" href="/assets/outlook.css">
 <link rel="stylesheet" href="/assets/stage.css">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
@@ -98,7 +98,7 @@
                 <li><a href="/stratosphere.html">Stratosphere and polar vortex</a></li>
                 <li class="sh-subitem"><a href="/stratosphere.html#pv">Now: analyses and observations</a></li>
                 <li class="sh-subitem"><a href="/stratosphere.html#vortex">Next two weeks</a></li>
-                <li class="sh-subitem"><a href="/stratosphere.html#vortex35">Weeks 3–6</a></li>
+                <li class="sh-subitem"><a href="/stratosphere.html#vortex35">Weeks 3–5</a></li>
                 <li class="sh-subitem"><a href="/stratosphere.html#s5vortex">Season</a></li>
                 <li class="sh-subitem"><a href="/stratosphere.html#shwinters">History and studies</a></li>
                 <li class="sh-subitem"><a href="/stratosphere.html#qbo">QBO tracker</a></li>
@@ -188,7 +188,7 @@
     <p class="eyebrow">Daily from satellite OLR and the ECMWF ensembles</p>
     <h1>Tropical waves</h1>
     <p class="sub">The waves that organise tropical rain: Kelvin waves, equatorial Rossby waves, mixed Rossby&ndash;gravity
-      waves and the MJO. The spectrum shows how the last 96 days of tropical cloudiness divide among them; the Hovm&ouml;llers and trackers
+      waves and the MJO. The Hovm&ouml;llers and trackers
       show where each one is along the equator and where the forecast takes it. The MJO has its own page,
       <a href="/mjo.html">MJO forecast</a>.</p>
   </div>
@@ -202,38 +202,11 @@
       <p class="cap" id="cap"></p>
       <div id="about"></div>
       <p class="hint"><span class="kbd">&larr;</span> <span class="kbd">&rarr;</span> step through the options &middot; <span class="kbd">&uarr;</span> <span class="kbd">&darr;</span> change figure &middot; click a still to enlarge</p>
-      <div class="chart-card-footer"><span class="chart-sources">NASA CERES FLASHFlux &middot; NOAA GMGSI infrared mosaic &middot; ECMWF AIFS-ENS and IFS-ENS open data (CC BY 4.0) &middot; NOAA CoastWatch altimetry</span></div>
+      <div class="chart-card-footer"><span class="chart-sources">NOAA GMGSI infrared mosaic &middot; ECMWF AIFS-ENS and IFS-ENS open data (CC BY 4.0) &middot; NOAA CoastWatch altimetry</span></div>
     </section>
   </div>
   <div class="lightbox" id="lightbox"><img alt=""></div>
   <div class="dom-holder" id="dom-holder"></div>
-<template id="about-wk">
-<p>The <b>Wheeler&ndash;Kiladis spectrum</b> (Wheeler &amp; Kiladis 1999) sorts tropical cloudiness by how big it is
-        (zonal wavenumber: how many crests fit around the Earth, eastward to the right) and how fast it changes (frequency,
-        cycles per day). Each kind of equatorial wave lives in its own part of that plane, along the curves drawn from
-        shallow-water theory: <b>Kelvin</b> waves eastward and fast, <b>equatorial Rossby</b> waves westward and slow, the
-        <b>MJO</b> eastward at the largest scales and 30&ndash;90 days, <b>mixed Rossby&ndash;gravity</b> waves in the
-        antisymmetric half. Outgoing longwave radiation between 15&deg;S and 15&deg;N is split into the part symmetric
-        about the equator (Kelvin, Rossby, MJO) and the antisymmetric part (mixed Rossby&ndash;gravity).</p>
-<p>Raw power always rises toward low frequencies and large scales, so on its own it mostly shows that red background.
-        As in the original paper, each spectrum is divided by a <b>background</b>: the mean power of every 96-day window
-        in the satellite record, heavily smoothed so that only its broad shape remains. <b>Top row</b>: the record mean
-        over that background, the waves that are there on average. <b>Bottom row</b>: the last 96 days over the same
-        background, what is active now. Only bins whose excess is <b>statistically significant</b> (chi-square,
-        Benjamini&ndash;Hochberg false discovery rate 10&nbsp;%) are shaded; the record mean is credited only with the
-        record's independent length, not with the overlap of its windows. Because a single 96-day window has few degrees of freedom per bin, each panel also tests the classic <b>wave
-        bands</b> (the Wheeler&ndash;Kiladis filter regions: Kelvin, n=1 equatorial Rossby and MJO in the symmetric half, mixed
-        Rossby&ndash;gravity and n=0 eastward inertio-gravity in the antisymmetric half) as a whole: band-summed power over
-        band-summed background, chi-square, Benjamini&ndash;Hochberg over the five bands. Significant bands are outlined
-        (blue dashed) and their ratio listed; a band can be significantly active while no single bin is. Each grid point's mean and trend over a window are
-        removed first, so a standing anomaly (the seasonal cycle, or one an El Ni&ntilde;o keeps over the central Pacific)
-        does not appear. The record is short (from 2024) next to the 18 years WK99 used, so the top row will sharpen as the
-        archive grows; the background is rebuilt from it.</p>
-<p class="chart-sources">NASA CERES FLASHFlux daily gridded TOA longwave flux from NOAA-20 (FLASH_TISA_NOAA20, 1&deg;; NASA Langley ASDC),
-        about four days behind, archived daily from 2024 &middot; method as NCL wkSpaceTime: 96-day windows (60-day overlap
-        for the background), mean and trend removed, 10&nbsp;% taper, symmetric/antisymmetric split, power summed over
-        latitude, 1-2-1 smoothing &middot; updated daily</p>
-</template>
 <template id="about-olr">
 <p>A longitude &times; time Hovm&ouml;ller of deep convection along the equator. NOAA's interpolated-OLR product ended in 2022, so this derives an OLR proxy in real time from the <b>GMGSI</b> global longwave-IR satellite mosaic: the IR brightness temperature (cold cloud tops) is converted to outgoing longwave radiation, and the 5&deg;S&ndash;5&deg;N zonal mean is stacked over time. <span style="color:#e07b00">Yellow to red is low OLR (deep convection)</span>; blue is high OLR (suppressed or clear sky). An eastward (top to bottom-right) tilt is the MJO propagating east; convection parked at the dateline reflects the El&nbsp;Ni&ntilde;o-shifted warm pool. Newest day at the bottom.</p>
 <p class="chart-sources">NOAA GMGSI longwave-IR global mosaic &middot; McIDAS T_b + Ohring-Gruber OLR &middot; 5&deg;S&ndash;5&deg;N daily mean</p>
@@ -307,9 +280,9 @@
     {
       "@context": "https://schema.org",
       "@type": "WebPage",
-      "name": "Tropical waves: Wheeler-Kiladis spectrum, Kelvin and Rossby wave trackers, OLR wave decomposition",
+      "name": "Tropical waves: Kelvin and Rossby wave trackers, OLR wave decomposition, ocean Kelvin waves",
       "url": "https://scorvec.com/tropical-waves.html",
-      "description": "Which convectively coupled equatorial waves are active now: a daily Wheeler-Kiladis wavenumber-frequency spectrum of OLR of satellite-measured OLR (CERES), with Kelvin, equatorial Rossby and MJO filtered Hovmollers, wave trackers and ocean Kelvin waves.",
+      "description": "Where the convectively coupled equatorial waves are now: Kelvin, equatorial Rossby and MJO filtered Hovmollers of satellite OLR, wave trackers with the AIFS-ENS forecast, and ocean Kelvin waves.",
       "isPartOf": {"@type": "WebSite", "name": "Shawn Corvec", "url": "https://scorvec.com/"},
       "author": {"@id": "https://scorvec.com/#person"},
       "about": [
@@ -321,13 +294,10 @@
 <script>
 window.STAGE = {
   groups: [
-  {label: "Which waves are active", ico: "\u{1F4CA}", items: [["wk","Wheeler\u2013Kiladis spectrum","observed OLR, last 96 days"]]},
   {label: "Along the equator", ico: "\u{1F30A}", items: [["waves","Wave decomposition","Kelvin, Rossby, MJO bands"],["trackers","Kelvin and Rossby trackers","with the forecast"],["kelvin","Kelvin wave tracker, AIFS-ENS","map + 15-day forecast"],["olr","OLR Hovm\u00f6ller","synthetic, equatorial"]]},
   {label: "Ocean", ico: "\u{1F30A}", items: [["okelvin","Ocean Kelvin waves","sea level, arrival dates"]]}
 ],
   products: {
-  wk: {label: "Wheeler\u2013Kiladis spectrum", img: function () { return "assets/sst/wk_spectrum.webp"; }, bust: "hourly", about: "about-wk", fit: false,
-          cap: function () { return "Last 96 days of satellite-measured OLR, 15\u00b0S\u201315\u00b0N, against the background of the whole record; only significant bins shaded. Top: the record mean; bottom: now. Left: symmetric (Kelvin, Rossby, MJO); right: antisymmetric (mixed Rossby\u2013gravity)."; }},
   olr: {label: "Synthetic OLR Hovmöller", img: function () { return "assets/sst/olr_hovmoller.webp"; }, bust: "hourly", about: "about-olr", fit: false,
           cap: function () { return "Equatorial convection against time from the infrared composite: low OLR (yellow to red) is deep convection, blue is suppressed or clear; eastward-moving bands are the MJO."; }},
   waves: {label: "Tropical wave decomposition", img: function () { return "assets/sst/olr_waves.webp"; }, bust: "hourly", about: "about-waves", fit: false,

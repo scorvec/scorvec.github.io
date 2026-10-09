@@ -44,6 +44,17 @@ LEADS = list(range(0, 841, 24))
 MAPBIAS = sm.DATA / "geps_s2s"
 
 
+def zero_ticks(levels, every=4):
+    """Every n-th contour level, phased so that 0 is one of them (2026-10-08 sweep: levels[::4] from -440 read
+    -440/-280/-120/40/200/360, and -6.6/-4.2/-1.8/0.6 for temperature, with no zero on the bar)."""
+    import numpy as _np
+    lv = _np.asarray(levels, float)
+    if not len(lv):
+        return lv
+    k = int(_np.argmin(_np.abs(lv)))
+    return lv[k % every::every]
+
+
 def map_bias(hemi, base, halfwin=8):
     """The GEPS drift of the anomaly maps, from the ECMWF S2S archive's GEPS reforecasts (geps_s2s_hindcast.py mapbias;
     2026-09-27, user: "Now that we have the 10mb hindcasts for the geps, can we update the stratosphere maps to look
@@ -226,7 +237,7 @@ def main() -> int:
                                             span * 0.63, 0.020])
                         cb = fig.colorbar(msh, cax=cax, orientation="horizontal", extend="both",
                                           ticks=sm.WLEV[::2] if mode == "speed"
-                                          else msh.levels[::4])
+                                          else zero_ticks(msh.levels, 4))
                         cb.set_label(unit, fontsize=8, labelpad=1)
                         cb.ax.tick_params(labelsize=7, pad=1)
                 valid = base + pd.Timedelta(hours=L)

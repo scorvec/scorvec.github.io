@@ -58,10 +58,10 @@ PAGES = [
          canonical="https://scorvec.com/stratosphere.html"),
     # 2026-10-03 (user): every tropical-wave product on one page, under Tropics
     dict(slug="waves", out="tropical-waves.html", active="A_ATMOSPHERE", layout="stage",
-         title="Tropical Waves &mdash; Wheeler&ndash;Kiladis Spectrum, Kelvin and Rossby Wave Trackers &middot; Shawn Corvec",
-         desc="Which convectively coupled equatorial waves are active: a daily Wheeler-Kiladis wavenumber-frequency "
-              "spectrum of satellite-measured OLR (NASA CERES), "
-              "with Kelvin, equatorial Rossby and MJO filtered Hovmollers, wave trackers and ocean Kelvin waves.",
+         # the Wheeler-Kiladis spectrum was removed 2026-10-08 (user: "doesn't really explain or help anything")
+         title="Tropical Waves &mdash; Kelvin and Rossby Wave Trackers, OLR Wave Decomposition &middot; Shawn Corvec",
+         desc="Where the convectively coupled equatorial waves are: Kelvin, equatorial Rossby and MJO filtered Hovmollers "
+              "of satellite OLR, wave trackers with the AIFS-ENS forecast, and ocean Kelvin waves.",
          canonical="https://scorvec.com/tropical-waves.html"),
 ]
 
