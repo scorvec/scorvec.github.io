@@ -27,7 +27,7 @@ import time
 from pathlib import Path
 
 POLL = float(os.environ.get("CDS_SEQ_POLL", "45"))
-REPO = Path(__file__).resolve().parents[2]
+REPO = Path(os.environ.get("CDS_SEQ_REPO", Path(__file__).resolve().parents[2]))   # where .github/workflows lives
 GH = os.environ.get("GH_BIN", "/opt/homebrew/bin/gh" if Path("/opt/homebrew/bin/gh").exists() else "gh")
 GH_REPO = os.environ.get("GITHUB_REPOSITORY", "scorvec/scorvec.github.io")
 IN_ACTIONS = os.environ.get("GITHUB_ACTIONS") == "true"

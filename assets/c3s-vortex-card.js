@@ -215,5 +215,49 @@
       });
     });
   }
-  window.C3SVortex = { draw: draw };
+
+  /* the daily follow-up (scripts/sst/c3s_vortex_daily.py): member plumes, section, risk/timing and the hindcast, with the
+     pre-registered daily tests. A probability is a forecast only when its test passed; otherwise the models' view. */
+  function drawDaily(ids) {
+    fetch("assets/sst/data/c3s_vortex_daily.json?v=" + Date.now()).then(function (r) { return r.ok ? r.json() : null; }).catch(function () { return null; }).then(function (J) {
+      var V = $(ids.verdict);
+      if (!J) { V.innerHTML = "The daily follow-up has not been built yet: its daily hindcast (one Copernicus data-store request per centre and winter) is still being fetched."; return; }
+      $(ids.updated).textContent = "built " + J.generated;
+      if (J.state === "assembling") {
+        V.innerHTML = '<div class="chipnote" style="margin:0 0 0.8rem;max-width:none"><b>Being assembled.</b> The daily hindcast this product is tested on is ' + J.hindcast_held + " of " + J.hindcast_units +
+          " Copernicus data-store requests in (one per centre and winter, 1993&ndash;2016, sequential on one key; each queues for several minutes). The tests were fixed before any of it was read; " +
+          "they, the charts and this winter&rsquo;s numbers appear when the sample is complete.</div>";
+        return;
+      }
+      var S = J.skill, T = S.tests, F = J.forecast, h = "";
+      var sigAny = ["T1", "T3", "T4"].some(function (k) { return T[k] && T[k].significant; });
+      if (!sigAny) h += '<div class="chipnote" style="margin:0 0 0.8rem;max-width:none"><b>No track record: read these as the models&rsquo; view, not a forecast.</b> In the 1993&ndash;2016 hindcast none of the daily event probabilities (a December weak spell, a December sudden warming, a sudden warming in December&ndash;February) passed its pre-registered test against MERRA-2' +
+        (T.T3 && T.T3.untestable ? "; December sudden warmings were too rare to test at all (" + T.T3.obs_events + " in " + S.n + " winters)" : "") + ". The December <i>mean</i> is the forecast with demonstrated skill: see the <a href=\"#c3svortex\">monthly card</a>.</div>";
+      if (J.state === "waiting") h += '<p class="idx-note">Waiting for the ' + issueName(J.issue) + " issue of the daily data (" + (J.centres_present.length ? J.centres_present.join(", ") + " in so far" : "no centre yet") + "); the hindcast and its tests are complete.</p>";
+      if (F) {
+        var m = F.mmm, br = S.base_rates;
+        h += '<p class="idx-note">' + issueName(J.issue) + " issue, " + F.members + " members from " + J.centres_present.length + " centres (equal weight per centre): <b>" + pc(m.t1) + "</b> have a December weak spell (7+ days in the lower third; hindcast rate " + pc(br.model_t1) + ", observed " + pc(br.obs_t1) + "), " +
+          "<b>" + pc(m.t3) + "</b> a major sudden warming in December (" + pc(br.model_t3) + " / " + pc(br.obs_t3) + "), <b>" + pc(m.t4) + "</b> one between December and February (" + pc(br.model_t4) + " / " + pc(br.obs_t4) + ").</p>";
+      }
+      var rows = ["<tr><th>Pre-registered test (24 winters)</th><th>Observed events</th><th>Result</th><th>95 % CI</th><th>p</th><th>Holm p</th><th>Detectable at 80 % power</th></tr>"];
+      ["T1", "T2", "T3", "T4"].forEach(function (k) {
+        var t = T[k]; if (!t) return;
+        if (t.untestable) { rows.push("<tr><td>" + k + " " + t.name + "</td><td>" + t.obs_events + '</td><td class="flat" colspan="5">untestable: fewer than 5 events (pre-registered rule); model member rate ' + pc(t.model_rate) + "</td></tr>"); return; }
+        var stat = t.auc != null ? "ROC area " + f2(t.auc) : "r " + f2(t.r), c = t.auc != null ? t.auc_ci95 : t.r_ci95;
+        rows.push("<tr><td>" + k + " " + t.name + "</td><td>" + (t.obs_events != null ? t.obs_events : "–") + "</td><td>" + stat + "</td><td>" + c[0].toFixed(2) + " to " + c[1].toFixed(2) + "</td><td>" + fp(t.p) + '</td><td class="' + (t.significant ? "up" : "flat") + '">' + fp(t.p_holm) + (t.significant ? "" : " n.s.") + "</td><td>" + (t.auc80 != null ? "ROC " + f2(t.auc80) : "r " + f2(t.r80)) + "</td></tr>");
+      });
+      h += '<div style="overflow-x:auto"><table class="chg vx-table">' + rows.join("") + "</table></div>";
+      h += '<p class="note vx-note">One family of ' + S.family_size + " tests, Holm-corrected; p one-sided from 20,000 permutations of the outcomes. Centres: " + Object.keys(S.centres).join(", ") + (S.qc_excluded && S.qc_excluded.length ? "; left out by the data check: " + S.qc_excluded.join(", ") : "") + ". Each model&rsquo;s normal and its weak-spell threshold come from the other 23 winters.</p>";
+      V.innerHTML = h;
+      var Fg = J.figures || {}, v = "?v=" + encodeURIComponent(J.generated), caps = {
+        u10: "<b>The vortex day by day.</b> Each member&rsquo;s departure from its own model&rsquo;s hindcast normal, placed on MERRA-2&rsquo;s normal so the models can share one axis (their raw winds differ by up to 12&nbsp;m/s). Band: members 10&ndash;90&nbsp;%; lower panel: each centre&rsquo;s ensemble-mean anomaly.",
+        section: "<b>Where the anomaly sits</b>, 30&ndash;90&deg;N at 10&nbsp;hPa: the multi-model mean anomaly; dotted where all but one of the centres agree on its sign (a description of the models, not a test).",
+        risk: "<b>Risk and timing.</b> Shares of members with each event against the models&rsquo; hindcast rate and the observed rate, and when the first major sudden warming falls.",
+        hindcast: "<b>The hindcast, winter by winter.</b> Left: the December mean from the daily data against MERRA-2 (the monthly result, reproduced). Right: the weak-spell probability, winters sorted, orange where a spell happened." };
+      $(ids.figs).innerHTML = ["u10", "risk", "section", "hindcast"].filter(function (k) { return Fg[k]; }).map(function (k) {
+        return '<figure><a href="assets/sst/' + Fg[k] + v + '" target="_blank" rel="noopener"><img src="assets/sst/' + Fg[k] + v + '" alt="C3S multi-model daily vortex: ' + k + '" loading="lazy"></a><figcaption>' + caps[k] + "</figcaption></figure>";
+      }).join("");
+    });
+  }
+  window.C3SVortex = { draw: draw, drawDaily: drawDaily };
 })();

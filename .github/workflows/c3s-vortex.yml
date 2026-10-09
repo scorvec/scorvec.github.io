@@ -7,6 +7,12 @@ name: C3S December polar vortex (multi-model, monthly + daily)
 #   part `vortex`  scripts/sst/c3s_vortex.py: each centre's current system, monthly u 60N 10 hPa of the issue (one small
 #                  sequential CDS request each; ECMWF from seas5.yml's cached fc_strat_u, never fetched twice), calibrated
 #                  on the hindcast tables of c3s-u10-v1 -> assets/sst/data/c3s_vortex.json.
+#   part `daily`   scripts/sst/c3s_vortex_daily.py (October issues only): the daily u 10 hPa, 30-90N of each centre's
+#                  issue (one request each; SEAS5 from seas5.yml's cached fc_u10), against the daily hindcast tables of
+#                  release c3s-daily-u10-v1 (fetched on the laptop, sequential, by run_c3s_vortex_daily.sh) -> member
+#                  plumes, section, risk/timing and hindcast figures + assets/sst/data/c3s_vortex_daily.json, with the
+#                  pre-registered daily tests in it. Until every hindcast table is in, the JSON says the product is
+#                  being assembled and nothing is fetched for the issue.
 # Issues with a December ahead only (Aug-Dec starts). The centres publish around the 10th-13th; cron twice a day on the
 # 9th-20th until every centre is in, then each run exits at the gate in seconds.
 #
@@ -71,7 +77,15 @@ jobs:
               J = json.load(open("assets/sst/data/c3s_vortex.json"))
           except Exception:
               print(0); sys.exit()
-          print(1 if J.get("issue") == key and set(J.get("centres_present", [])) >= set(J.get("centres_expected", ["?"])) else 0)
+          v = J.get("issue") == key and set(J.get("centres_present", [])) >= set(J.get("centres_expected", ["?"]))
+          d = True
+          if i[4:] == "10":
+              try:
+                  D = json.load(open("assets/sst/data/c3s_vortex_daily.json"))
+                  d = D.get("issue") == key and D.get("state") == "complete"
+              except Exception:
+                  d = False
+          print(1 if (v and d) else 0)
           EOF
           )
           if [ "$DONE" = "1" ] && [ "${{ inputs.force }}" != "true" ]; then echo "run=0" >> "$GITHUB_OUTPUT"; echo "Issue $I complete on the card."; exit 0; fi
@@ -92,7 +106,7 @@ jobs:
     needs: gate
     if: needs.gate.outputs.run == '1'
     runs-on: ubuntu-latest
-    timeout-minutes: 120
+    timeout-minutes: 300
     concurrency:
       group: seas5
       cancel-in-progress: false
@@ -116,7 +130,7 @@ jobs:
                sudo timeout 300 apt-get install -y --no-install-recommends -o Acquire::Retries=3 libeccodes0; then break; fi
             echo "apt attempt $i failed; retrying"; sleep 10
           done
-          pip install --quiet numpy pandas scipy xarray netCDF4 h5netcdf 'pyproj>=3.7.2' matplotlib==3.10.9 cfgrib eccodes cdsapi requests
+          pip install --quiet numpy pandas scipy xarray netCDF4 h5netcdf 'pyproj>=3.7.2' matplotlib==3.10.9 cfgrib eccodes cdsapi requests Pillow
 
       - name: CDS credentials
         env:
@@ -158,19 +172,46 @@ jobs:
           else echo "::warning::vortex card build failed; keeping the previous one"; fi
           cat "$RUNNER_TEMP/cds_seq.jsonl" 2>/dev/null || true
 
+      - name: Daily charts and tests (October issues)
+        id: daily
+        if: always() && endsWith(needs.gate.outputs.issue, '10')
+        env:
+          C3SVD_DIR: ${{ github.workspace }}/c3s_vd
+          C3SVD_TAG: c3s-daily-u10-v1
+          SEAS5_REF_DIR: ${{ github.workspace }}/c3s_vd/seas5
+          CDS_SEQ_LOG: ${{ runner.temp }}/cds_seq_daily.jsonl
+        run: |
+          I=${{ needs.gate.outputs.issue }}
+          mkdir -p "$C3SVD_DIR/seas5"
+          gh release download c3s-daily-u10-v1 --repo "$GITHUB_REPOSITORY" -D "$C3SVD_DIR" --clobber -p 'ud_*.npz' || echo "no daily tables yet"
+          gh release download seas5-ref-v1 --repo "$GITHUB_REPOSITORY" -D "$C3SVD_DIR/seas5" --clobber -p 'hc_ssw_10.npz'
+          NH=$(python scripts/sst/c3s_vortex_daily.py units | grep -c held || true)
+          NU=$(python scripts/sst/c3s_vortex_daily.py units | wc -l)
+          echo "daily hindcast tables: $NH of $NU"
+          if [ "$NH" -ge "$NU" ]; then
+            python scripts/sst/c3s_vortex_daily.py fetch-issue --issue "$I" || echo "::warning::daily issue fetch failed"
+          else
+            echo "hindcast incomplete: the issue is not fetched yet"
+          fi
+          ls scripts/sst/data/seas5/ssw 2>/dev/null || echo "no cached SEAS5 daily u10 for $I"
+          if python scripts/sst/c3s_vortex_daily.py build --issue "$I"; then echo "built=1" >> "$GITHUB_OUTPUT"
+          else echo "::warning::daily build failed; keeping the previous product"; fi
+          cat "$RUNNER_TEMP/cds_seq_daily.jsonl" 2>/dev/null || true
+
       - name: Commit & push
-        if: steps.vortex.outputs.built == '1'
+        if: always() && (steps.vortex.outputs.built == '1' || steps.daily.outputs.built == '1')
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          OUTS="assets/sst/data/c3s_vortex.json"
+          OUTS="assets/sst/data/c3s_vortex.json assets/sst/data/c3s_vortex_daily.json assets/sst/c3s_vortex_daily_*.webp"
+          have() { for f in $OUTS; do [ -e "$f" ] && echo "$f"; done; }
           # snapshot + clean resync each attempt (the mjo.yml pattern); merges, never rebases
-          SNAP=$(mktemp -d); cp $OUTS "$SNAP/"
+          SNAP=$(mktemp -d); tar cf "$SNAP/outs.tar" $(have)
           for i in 1 2 3 4 5; do
             if ! timeout 120 git fetch origin main; then echo "fetch $i failed"; sleep 5; continue; fi
             git reset -q --hard origin/main
-            cp "$SNAP/c3s_vortex.json" assets/sst/data/c3s_vortex.json
-            git add $OUTS
+            tar xf "$SNAP/outs.tar"
+            git add $(have)
             if git diff --staged --quiet; then echo "No changes."; exit 0; fi
             I="${{ needs.gate.outputs.issue }}"
             git commit -q -m "data update: C3S December vortex ${I:0:4}-${I:4:2}"

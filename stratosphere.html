@@ -273,6 +273,14 @@
         <span class="chart-updated" id="vxUpdated">&mdash;</span>
       </div>
     </div>
+    <div id="dom-c3svdaily" class="card s5card vx-card" hidden>
+      <div id="vdVerdict">Loading the daily follow-up&hellip;</div>
+      <div class="map-grid" id="vdFigs"></div>
+      <div class="chart-card-footer">
+        <span class="chart-sources">Copernicus Climate Change Service (C3S) seasonal multi-system, daily (00&nbsp;UTC) u at 10&nbsp;hPa, 30&ndash;90&deg;N on 2&deg; rows (CDS seasonal-original-pressure-levels; ECMWF SEAS5 hindcast from the AWS daily copy): ECMWF, Met Office, M&eacute;t&eacute;o-France, DWD, CMCC, ECCC, JMA, BoM &mdash; contains modified Copernicus Climate Change Service information 2026 &middot; truth: MERRA-2 (NASA GMAO) &middot; tests: scripts/sst/c3s_vortex_daily.py</span>
+        <span class="chart-updated" id="vdUpdated">&mdash;</span>
+      </div>
+    </div>
     <div id="dom-s5cap" class="card s5card" hidden>
       <div class="controls" id="polarPills"></div>
       <div id="polarChart" class="plot" style="height:460px"></div>
@@ -850,6 +858,11 @@ $$\frac{\partial\bar u}{\partial t} \;=\; \hat f\,\bar v^{*} \;-\; \bar w^{*}\fr
 <p><b>What it does not say.</b> A December-mean wind is not a sudden-warming forecast: the same tests found no skill for SEAS5&rsquo;s sudden-warming risk (the <a href="#s5ssw">SEAS5 item</a> carries a no-track-record banner), and January&ndash;February are not predictable this way. The card updates with each C3S issue from August to December (December is then 5 months ahead to 1 month ahead; only the October start was in the pre-registered test, the others are reported with the study&rsquo;s descriptive false-discovery-rate grid). From January to July there is no December ahead and the card keeps its last issue.</p>
 <p class="chart-sources">C3S seasonal multi-system (CDS seasonal-monthly-pressure-levels): ECMWF SEAS5, Met Office GloSea (610), M&eacute;t&eacute;o-France 9, DWD GCFS 2.2, CMCC SPS4, ECCC CanSIPS (GEM5-NEMO + CanESM5 as one centre), JMA CPS4, BoM ACCESS-S2; NCEP CFSv2 publishes no 10&nbsp;hPa wind there &middot; Copernicus licence &middot; MERRA-2 (NASA GMAO) &middot; built in GitHub Actions with each C3S issue (c3s-vortex.yml)</p>
 </template>
+<template id="about-c3svdaily">
+<p>The daily follow-up to the December card: the same eight C3S centres from their October starts, but day by day, so the charts can show what a monthly mean hides &mdash; spells of weak vortex, sudden warmings and when they fall. Each centre&rsquo;s members are measured against that model&rsquo;s own 1993&ndash;2016 daily hindcast normal (models disagree by up to 12&nbsp;m/s on the strength of the vortex), and the multi-model numbers weight every centre equally.</p>
+<p><b>Tested before it was looked at.</b> Four tests were written into the code before any daily hindcast was fetched: (T1) the probability of a December weak spell &mdash; at least 7 consecutive days below the lower third of December&rsquo;s daily winds, each model judged on its own lower third &mdash; scored by ROC area against MERRA-2; (T2) the December mean from the daily data, which should reproduce the monthly result; (T3) a major sudden warming (Charlton &amp; Polvani 2007) in December, tested only if at least 5 of the 24 winters had one; (T4) one between December and February. Holm correction over the tests that could be run; the power of each is printed. A probability is called a forecast only if its test passed; otherwise the chart is the models&rsquo; view under a no-track-record banner, like the SEAS5 sudden-warming item.</p>
+<p>The data are the 00&nbsp;UTC daily fields (the 12&nbsp;UTC steps exist for only some systems); SEAS5&rsquo;s hindcast comes from the daily-mean copy already on file, so it is not downloaded again. The lagged centres use exactly the initialisations of their monthly product (Met Office 9, 17, 25 September + 1 October; JMA 13 + 28 September; BoM 23 September&ndash;1 October).</p>
+</template>
 <template id="about-s5vortex">
 <p>The zonal-mean 10&nbsp;hPa wind at 60&deg;N is the standard vortex-strength measure (its 60&deg;S twin covers the southern spring breakdown); the probability of an easterly reading is the sudden-warming side of the distribution. The equatorial 10, 30 and 50&nbsp;hPa winds are SEAS5&rsquo;s own QBO, which sets the Holton&ndash;Tan tilt on the vortex. The NAM-by-level indices are polar-cap height anomalies standardised by the hindcast and signed so that positive is a strong vortex, from 10&nbsp;hPa down to the surface &mdash; read them top to bottom for downward coupling. Wave-1 and wave-2 amplitudes at 100&nbsp;hPa are the planetary-wave forcing that precedes a warming.</p>
 <p>Moved from the <a href="/seasonal.html">seasonal model forecasts</a> page on 8 October 2026 (it was the &ldquo;Vortex, QBO, annular mode&rdquo; card there); the teleconnection indices from the same SEAS5 members stay on that page.</p>
@@ -884,7 +897,7 @@ window.STAGE = {
   {label: "Now: analyses and observations", ico: "\u{1F6F0}", items: [["pv","Potential vorticity","GEOS FP, 475 and 850 K"],["mbudget","Momentum budget","what drives the vortex and the upwelling"],["bdc","Brewer–Dobson circulation","tropical upwelling, downward control"],["tape","Water-vapour tape recorder","Aura MLS + GEOS FP, how fast air rises"],["qbo","QBO from radiosondes","13 equatorial stations, the whole record"],["qbozl","QBO zero-wind line","where the waves meet easterlies, 70–10 hPa"]]},
   {label: "Next two weeks", ico: "\u2744", items: [["vortex","Polar vortex diagnostics","AIFS-ENS, IFS-ENS, GEPS, GDPS: u(60°N), cap height"],["heatflux","Eddy heat flux","100 hPa [v′T′]: AIFS-ENS, IFS-ENS, GEFS, GEPS"],["epflux","E–P flux","GEFS wave driving to 1 hPa, k = 1–3"],["wave1","Stationary wave-1","AIFS-ENS and IFS-ENS, 100 and 500 hPa"],["vwinds","Vortex winds","AIFS-ENS and IFS-ENS, 10 and 100 hPa"],["upperstrat","Upper stratosphere","GEFS, GFS, GEOS FP, GDPS up to 1 hPa"]]},
   {label: "Weeks 3–5", ico: "\u{1F4C5}", items: [["vortex35","Polar vortex, days 1–35","GEFS and GEPS, drift-corrected"],["vloop35","Polar vortex loop, days 1–35","GEFS and GEPS, 10 and 100 hPa"],["fdrip","Forecast dripping paint","GEPS, GEFS to day 35; AIFS-ENS, IFS-ENS to day 15"]]},
-  {label: "Season", ico: "\u{1F5D3}", items: [["c3svortex","December vortex: C3S multi-model","calibrated; hindcast r 0.66, significant"],["s5vortex","SEAS5: vortex, QBO, annular mode","51 members, seven months, hindcast skill"],["s5ssw","SEAS5: sudden-warming risk","no demonstrated skill: the model's view"],["s5cap","SEAS5: polar-cap heights","100, 50 and 10 hPa, both hemispheres"],["shseason","This winter's odds","QBO and ENSO, model-based"]]},
+  {label: "Season", ico: "\u{1F5D3}", items: [["c3svortex","December vortex: C3S multi-model","calibrated; hindcast r 0.66, significant"],["c3svdaily","December vortex, day by day","C3S members, spells and sudden warmings"],["s5vortex","SEAS5: vortex, QBO, annular mode","51 members, seven months, hindcast skill"],["s5ssw","SEAS5: sudden-warming risk","no demonstrated skill: the model's view"],["s5cap","SEAS5: polar-cap heights","100, 50 and 10 hPa, both hemispheres"],["shseason","This winter's odds","QBO and ENSO, model-based"]]},
   {label: "History and studies", ico: "\u231B", items: [["shwinters","Every winter since 1980","pick any winter, compare"],["shssw","Sudden warmings since 1980","timeline, catalogue, vortex shapes"],["shdrip","Dripping paint","how an event reaches the surface"],["shfollow","What usually follows","AO, NAO, temperature, by region; CMIP6"],["shtiming","Who moves first","waves, vortex, tropical upwelling"],["shqbo","The QBO and the vortex","observed and CMIP6"],["shenso","El Niño and sudden warmings","CMIP6, 25,000 winters"],["shmbudget","Momentum budget of past warmings","every term, 24 warmings"],["aoa","Age of stratospheric air","MERRA-2 GMI, 1980–2019"]]}
 ],
   products: {
@@ -910,6 +923,8 @@ window.STAGE = {
                                                   : "GEFS: days 1–35, both hemispheres and levels: temperature and height anomaly against the lead-matched reforecast (height relative to the hemisphere poleward of 20°), total wind with heights. At 10 hPa the model’s own drift reaches about 4 K in the tropics by week 3, so long-lead 10 hPa temperature anomalies equatorward of the vortex carry that much uncertainty."; }},
   c3svortex: {label: "December polar vortex, C3S multi-model", dom: function () { return "dom-c3svortex"; }, about: "about-c3svortex",
           cap: function () { return "The eight C3S centres' December-mean wind at 60°N, 10 hPa, as a multi-model anomaly calibrated on the 1993–2016 hindcast against MERRA-2: tercile probabilities, the forecast distribution and the hindcast it rests on."; }},
+  c3svdaily: {label: "December vortex day by day, C3S multi-model", dom: function () { return "dom-c3svdaily"; }, about: "about-c3svdaily",
+          cap: function () { return "Daily 10 hPa wind of every C3S member from the October start against its own model's normal, the 30–90°N section, weak-spell and sudden-warming shares, and the hindcast that tests them."; }},
   s5vortex: {label: "SEAS5: vortex, QBO and annular mode", dom: function () { return "dom-s5vortex"; }, about: "about-s5vortex",
           cap: function () { return "SEAS5 member plumes for the 60°N and 60°S vortex winds, the equatorial QBO winds, the annular mode level by level and the 100 hPa planetary waves, against the 1993–2016 hindcast, with each month's hindcast skill."; }},
   s5ssw: {label: "SEAS5: polar vortex and sudden-warming risk", dom: function () { return "dom-s5ssw"; }, about: "about-s5ssw",
@@ -1074,15 +1089,16 @@ window.STAGE = {
     if (window.SEAS5Cards) return go();
     var sc = document.createElement("script"); sc.src = "/assets/seas5-cards.js"; sc.onload = go; sc.onerror = go; document.head.appendChild(sc);
   }
-  var vx = false;
-  function startVX() {                       // the C3S December vortex card (2026-10-09), drawn once on first visit
-    if (vx) return; vx = true;
+  var vx = {};
+  function startVX(daily) {                  // the C3S December vortex cards (2026-10-09), each drawn once on first visit
+    var k = daily ? "d" : "m"; if (vx[k]) return; vx[k] = true;
     var go = function () {
-      if (!window.C3SVortex) { $("vxVerdict").textContent = "This product could not be loaded just now; try reloading in a minute."; return; }
-      window.C3SVortex.draw({ verdict: "vxVerdict", dist: "vxDist", hind: "vxHind", table: "vxTable", rel: "vxRel", updated: "vxUpdated" });
+      if (!window.C3SVortex) { $(daily ? "vdVerdict" : "vxVerdict").textContent = "This product could not be loaded just now; try reloading in a minute."; return; }
+      if (daily) window.C3SVortex.drawDaily({ verdict: "vdVerdict", figs: "vdFigs", updated: "vdUpdated" });
+      else window.C3SVortex.draw({ verdict: "vxVerdict", dist: "vxDist", hind: "vxHind", table: "vxTable", rel: "vxRel", updated: "vxUpdated" });
     };
     if (window.C3SVortex) return go();
-    var sc = document.createElement("script"); sc.src = "/assets/c3s-vortex-card.js?v=20261009a"; sc.onload = go; sc.onerror = go; document.head.appendChild(sc);
+    var sc = document.createElement("script"); sc.src = "/assets/c3s-vortex-card.js?v=20261009b"; sc.onload = go; sc.onerror = go; document.head.appendChild(sc);
   }
   function startQBO() {
     if (qbo) return; qbo = true;
@@ -1114,6 +1130,7 @@ window.STAGE = {
   window.STAGE.onRender = function (sel) {
     if (sel.p === "s5vortex" || sel.p === "s5ssw" || sel.p === "s5cap") startS5();
     if (sel.p === "c3svortex") startVX();
+    if (sel.p === "c3svdaily") startVX(true);
     if (sel.p === "qbo" && sel.a === "stations") startQBO();
   };
 })();
