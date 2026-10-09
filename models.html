@@ -55,6 +55,7 @@
   .mv-row { display: flex; flex-wrap: wrap; align-items: center; gap: 0.45rem 0.9rem; flex: 1 1 100%; }
   .mv-show { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem 1.3rem; margin: 0.45rem 0 0; font-size: 1.12rem; color: var(--ink); }
   .mv-show > b { font-weight: 600; color: var(--ink); }
+  a.mv-obs { font-size: 1.08rem; font-weight: 600; color: var(--accent); text-decoration: underline; text-underline-offset: 3px; display: inline-flex; align-items: center; min-height: 40px; }
   .mv-keys { margin-left: auto; font-size: 0.92rem; color: var(--muted); }
   .mv-keys kbd { font: inherit; font-size: 0.78rem; border: 1px solid var(--rule); border-bottom-width: 2px; border-radius: 4px; padding: 0 0.3em; background: var(--panel); }
   .mv-legT { margin: 0.1rem 0 0; font-size: 0.97rem; color: var(--muted); }
@@ -262,6 +263,7 @@
               <h3>Surface and hazards</h3>
               <ul>
                 <li><a href="/models.html" aria-current="page">Short-range model maps</a></li>
+                <li><a href="/radar.html">US Radar Explorer</a></li>
                 <li><a href="/snowbands.html">Snow-band diagnostics</a></li>
                 <li><a href="/ar.html">Atmospheric rivers</a></li>
               </ul>
@@ -453,6 +455,7 @@
     <label class="chk" id="diffL" hidden title="The other 3 km model's value subtracted at the same valid time, on the shared grid (HRRR and RRFS use the identical grid)"><input type="checkbox" id="diff"> <span id="diffT">Difference</span></label>
     <label class="chk" id="farmsL" hidden title="US wind projects (USGS Wind Turbine Database) or large-scale solar plants (USGS Solar PV Database), sized by capacity"><input type="checkbox" id="farms" checked> <span id="farmsT">Wind farms</span></label>
     <span class="mv-keys" id="sndL" hidden><b>Sounding:</b> double-click the map (on a phone, double-tap or press and hold) for that spot's HRRR forecast sounding</span>
+    <a class="mv-obs" id="obsL" href="/radar.html" title="The observed NEXRAD radar composite (US Radar Explorer) for this map's area, at this map's valid time when it is in the past">Observed radar at this time</a>
     <span class="mv-keys">Keys: <kbd>&larr;</kbd> <kbd>&rarr;</kbd> change hour &middot; <kbd>Space</kbd> play or pause &middot; scroll to zoom, drag to pan</span>
   </div>
   <p class="mv-note" id="note"></p>
@@ -607,6 +610,7 @@
     [S(5, "#fde3bd"), S(15, "#f8bb72"), S(25, "#ef8c35"), S(35, "#d45f16"), S(48, "#8f3406")],
     [S(5, "#e6d3f7"), S(15, "#c09ae8"), S(25, "#9660d2"), S(35, "#6c35b0"), S(48, "#40157a")]];
   PT_RAMPS[0] = PT_RAMPS[1];                   // echo with no surface type flag: drawn as rain, hover says so
+  // radar.html (US Radar Explorer, 2026-10-09) draws the observed composite with PT_RAMPS[1]: keep its RAMP in step
   function rateEq(mmh) { return 10 * Math.log10(200 * Math.pow(Math.max(mmh, 1e-6), 1.6)); }   // colour index only (Marshall-Palmer)
   // precipitation accumulation (2026-09-30, user: "add precip accumulation plots (and have a selector for the various ptypes)"):
   // the files hold the total since the run started (16-bit, 0.01 in / snow 0.1 in); the page subtracts two hours for the
@@ -3752,6 +3756,15 @@
       if (!first && MG.id) { clearTimeout(mgRT); mgRT = setTimeout(drawMg, 120); } }).observe($("mgC")); }
 
   // ── URL hash: #model/field/+hour ───────────────────────────────────────────────────────────────────────────────
+  function obsHref() {
+    var tok = "";
+    if (view) { var ll = P.inv(view.cx, view.cy); tok = "v=" + ll[0].toFixed(3) + "," + ll[1].toFixed(3) + "," + (view.s / 1000).toFixed(3); }
+    var c = cycleObj(st.model, st.ci), vt = c ? Date.parse(c.init) + st.hour * 3600e3 : NaN, t = "";
+    if (vt === vt && vt < Date.now() - 10 * 60e3) { var d = new Date(vt), z = function (n) { return (n < 10 ? "0" : "") + n; };
+      t = "&t=" + d.getUTCFullYear() + z(d.getUTCMonth() + 1) + z(d.getUTCDate()) + z(d.getUTCHours()) + z(d.getUTCMinutes()); }
+    return "/radar.html#" + tok + t;
+  }
+  ["mousedown", "focus", "touchstart", "click"].forEach(function (ev) { $("obsL").addEventListener(ev, function () { this.href = obsHref(); }, { passive: true }); });
   function writeHash() { try { history.replaceState(null, "", "#" + st.model + "/" + st.field + "/" + st.hour + (st.ci ? "/r" + st.ci : "") +
     (st.field === "acc" ? "/" + st.acc.type + "-" + st.acc.win : "") + (st.field === "ecape" ? "/" + st.ec : "") + (MG.id ? "/@" + MG.id : "")); } catch (e) {} }
   function readHash() {
@@ -3763,7 +3776,8 @@
     var am = (p[3] && /^[a-z][a-z0-9]*-\d+$/.test(p[3]) ? p[3] : p[4] || "").match(/^([a-z][a-z0-9]*)-(\d+)$/);   // "as10-6"
     if (am && ACC_TYPES[am[1]]) { st.acc.type = am[1]; st.acc.win = +am[2]; }
     [p[3], p[4]].forEach(function (x) { if (x && EC_SUBS[x]) st.ec = x; });
-    p.forEach(function (x) { if (/^@[A-Z0-9]{3,5}$/.test(x)) hashStation = x.slice(1); });
+    p.forEach(function (x) { if (/^@[A-Z0-9]{3,5}$/.test(x)) hashStation = x.slice(1);
+      var vm = /^v=(-?[\d.]+),(-?[\d.]+),([\d.]+)$/.exec(x); if (vm) hashView = [+vm[1], +vm[2], +vm[3]]; });
     return p.length >= 3 && p[2] !== "";
   }
 
@@ -3786,7 +3800,7 @@
   MV.initMs = Math.round((performance.now() - tInit) * 10) / 10;
   if (!glOk) $("msg").textContent = "This page needs WebGL 2, which this browser does not provide.";
   var bust = "?v=" + Math.floor(Date.now() / 60000);
-  var hashStation = null;
+  var hashStation = null, hashView = null;
   var hadHour = readHash();
   if (glOk) $("msg").textContent = "Loading the newest runs…";
   var GEO = "/assets/models/geo.json";
@@ -3811,6 +3825,7 @@
     fitBox(prepGrid(c.grids.main)); fitBoxW = window.innerWidth;
     resize();
     fit(prepGrid(c.grids.main));
+    if (hashView) { var hv = P.fwd(hashView[0], hashView[1]); view.cx = hv[0]; view.cy = hv[1]; view.s = hashView[2] * 1000; clampView(); }   // from radar.html
     onChange();
     var runs = MODEL_ORDER.filter(function (m) { return man[m]; }).map(function (m) {
       return MODELS[m] + ": " + man[m].cycles.map(function (x) { return x.init.slice(5, 10).replace("-", "/") + " " + x.init.slice(11, 13) + "Z"; }).join(", ");

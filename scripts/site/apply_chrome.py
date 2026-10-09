@@ -45,6 +45,11 @@ PRODUCTS = [
             ("/models.html", "Short-range model maps",
              "Zoomable maps of the newest HRRR, RRFS and RDPS runs for aviation, severe and winter weather and renewables: radar with precipitation type, accumulation, ceiling, visibility, temperature, dewpoint, wind, HRRR entraining CAPE (ECAPE), smoke and sunshine, with contours and hover values.",
              "Four times daily"),
+            # 2026-10-09, user: a real-time national NEXRAD composite that runs entirely in the browser ("something that
+            # wouldnt rely on actions to generate the data"): IEM's N0Q composite fetched and recoloured client-side
+            ("/radar.html", "US Radar Explorer",
+             "The national NEXRAD reflectivity composite, live every five minutes and drawn in the browser: zoom from the whole country to a city, loop the last hours, read the dBZ anywhere, on the same colour scale as the HRRR maps.",
+             "Every five minutes"),
             ("/snowbands.html", "Snow-band diagnostics",
              "Where HRRR, RRFS and RDPS set up mesoscale snow bands: 700 hPa frontogenesis and deformation, EPV* and slantwise instability, lift through the dendritic growth zone, the model's own bands and where the ingredients overlap. November to mid-April, with case studies against the radar.",
              "Every run in season"),
@@ -271,7 +276,8 @@ PAGES = [
     dict(path="recon.html", mode="after-body"),         # Atlantic recon plotter (scripts/recon, recon.yml -> recon-data branch), 2026-10-07
     # sfs.html: folded into seasonal.html 2026-10-06, now a redirect stub (no chrome)
     dict(path="ar.html", mode="after-body"),
-    dict(path="models.html", mode="after-body"),                   # short-range model viewer (scripts/models, models*.yml), WebGL data page
+    dict(path="models.html", mode="after-body"),
+    dict(path="radar.html", mode="after-body"),                    # US Radar Explorer (2026-10-09): IEM N0Q composite, client-side only                   # short-range model viewer (scripts/models, models*.yml), WebGL data page
     dict(path="snowbands.html", mode="after-body"),                # snow-band diagnostics (scripts/snowband, snowband.yml), stage viewer
     dict(path="catalog.html", mode="after-body"),
     dict(path="aifs-aam-budget.html", mode="after-body"),         # static study (2026-10-01), built from ~/aam_budget/scripts/build_page.py

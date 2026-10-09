@@ -1,0 +1,1476 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>US Radar Explorer &middot; Shawn Corvec</title>
+<meta name="description" content="The national NEXRAD base-reflectivity composite, live every five minutes, drawn in your browser: zoom from the whole US to a metro area, loop the last hours, read the dBZ at any point, and compare with the HRRR on the same colour scale.">
+<link rel="canonical" href="https://scorvec.com/radar.html">
+<meta property="og:type" content="website">
+<meta property="og:title" content="US Radar Explorer">
+<meta property="og:description" content="Live national NEXRAD reflectivity composite, drawn in the browser: zoom, loop, dBZ readout, and the same colour scale as the HRRR maps.">
+<meta property="og:url" content="https://scorvec.com/radar.html">
+<meta property="og:site_name" content="Shawn Corvec &mdash; Weather &amp; Climate Monitors">
+<meta name="twitter:card" content="summary">
+<script data-goatcounter="https://scorvec.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
+<link rel="preconnect" href="https://mesonet.agron.iastate.edu" crossorigin>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,500;0,8..60,600;1,8..60,400&family=Source+Sans+3:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/site.css">
+<script src="/assets/site.js" defer></script>
+<script src="/assets/rail.js" defer></script>
+<style>
+  /* radar.html (2026-10-09): the national NEXRAD composite, fetched by the browser straight from the Iowa Environmental
+     Mesonet and drawn with WebGL. Nothing is built on this site's side: no workflow, no data in the repo. The look and the
+     map code follow models.html (same projection, boundaries, colour table for reflectivity, gestures). */
+  :root { --bg: #f5f6f3; --panel: #ffffff; --ink: #1f261c; --ink2: #3d4540; --muted: #6f6b64; --rule: #dfe3dc;
+          --accent: #274b7a; --accent-soft: rgba(39, 75, 122, 0.09); --map: #e9ebe6; --shh: 64px;
+          --ok: #23763a; --late: #8a5a00; --stale: #b3261e;
+          --serif: 'Source Serif 4', Georgia, serif; --sans: 'Source Sans 3', 'Helvetica Neue', Arial, sans-serif; }
+  *, *::before, *::after { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--sans); line-height: 1.5; }
+  main.mv { max-width: none; margin: 0 auto; padding: 1.2rem clamp(0.75rem, 3vw, 3.5rem) 3rem; }
+  .kicker { font-size: 0.88rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); margin: 0.2rem 0 0; }
+  h1 { font-family: var(--serif); font-weight: 500; font-size: clamp(1.6rem, 3.2vw, 2.3rem); line-height: 1.15; margin: 0.25rem 0 0.4rem; }
+  h2 { font-family: var(--serif); font-weight: 500; font-size: 1.3rem; margin: 1.8rem 0 0.5rem; }
+  main.mv > .lede { color: var(--ink); font-size: 1.16rem; max-width: 80ch; margin: 0.7rem auto 1.1rem; }
+  .lede a, .mv-about a, .mv-note a { color: var(--accent); }
+
+  .mv-panel { background: #e6edf4; border: 1px solid #c9d6e3; border-radius: 10px; padding: 0.7rem 0.85rem 0.55rem; margin: 0 0 0.6rem; }
+  .mv-bar { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 0.45rem 0.9rem; }
+  .mv-grp { display: flex; flex-direction: column; gap: 0.15rem; }
+  .mv-grp > span { font-size: 0.86rem; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; color: var(--muted); padding-left: 2px; }
+  .seg { display: inline-flex; flex-wrap: wrap; border: 1px solid var(--rule); border-radius: 7px; background: var(--panel); overflow: hidden; }
+  .seg button { font: inherit; font-size: 1.1rem; font-weight: 600; border: 0; border-right: 1px solid var(--rule); background: transparent; color: var(--ink);
+                padding: 0.55rem 0.95rem; min-height: 46px; cursor: pointer; white-space: nowrap; }
+  .seg button:last-child { border-right: 0; }
+  .seg button[aria-pressed="true"] { background: var(--accent); color: #fff; }
+  .seg button:not([aria-pressed="true"]):hover { background: var(--accent-soft); }
+  .runsel { display: inline-flex; align-items: center; gap: 0.45rem; font-size: 1.08rem; font-weight: 600; color: var(--ink); }
+  .runsel select { font: inherit; font-size: 1.08rem; font-weight: 600; padding: 0.5rem 0.55rem; min-height: 46px; border: 1px solid var(--rule); border-radius: 6px; background: var(--panel); color: var(--ink); max-width: 100%; }
+  .runsel input[type=range] { width: 8.5rem; accent-color: var(--accent); }
+  .runsel output { min-width: 2.8em; font-variant-numeric: tabular-nums; }
+  .mv-regsel { display: none; }
+  .mv-more > summary { display: none; }
+  .mv-opts { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem 1.2rem; margin: 0.55rem 0 0; }
+  .chk { display: inline-flex; align-items: center; gap: 0.5rem; font-size: 1.08rem; font-weight: 600; color: var(--ink); cursor: pointer; user-select: none; min-height: 40px; }
+  .chk input { width: 1.25rem; height: 1.25rem; accent-color: var(--accent); margin: 0; }
+  a.mv-cmp { display: inline-flex; align-items: center; min-height: 40px; font-size: 1.08rem; font-weight: 600; color: var(--accent); text-decoration: underline; text-underline-offset: 3px; }
+
+  /* the time bar sticks under the site header so the slider and the map stay on screen together */
+  .mv-time { position: sticky; top: var(--shh); z-index: 20; display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;
+             background: var(--bg); padding: 0.35rem 0 0.45rem; margin: 0 0 0.25rem; }
+  .mv-time button { font: inherit; font-size: 1.35rem; font-weight: 700; min-width: 3.3rem; height: 3rem; border: 1px solid var(--rule); border-radius: 6px; background: var(--panel);
+                    color: var(--ink); cursor: pointer; }
+  .mv-time button#play { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .mv-time button.txt { font-size: 1.02rem; padding: 0 0.8rem; }
+  .mv-time button:disabled { opacity: 0.45; cursor: default; }
+  .mv-time input[type=range] { flex: 1 1 14rem; min-width: 10rem; height: 3rem; margin: 0; background: transparent; cursor: pointer;
+                                -webkit-appearance: none; appearance: none; touch-action: manipulation; }
+  .mv-time input[type=range]::-webkit-slider-runnable-track { height: 14px; border-radius: 7px; background: #cfd5cc; border: 1px solid #b8beb5; }
+  .mv-time input[type=range]::-moz-range-track { height: 14px; border-radius: 7px; background: #cfd5cc; border: 1px solid #b8beb5; }
+  .mv-time input[type=range]::-moz-range-progress { height: 14px; border-radius: 7px; background: var(--accent); }
+  .mv-time input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 30px; height: 30px; margin-top: -9px;
+      border-radius: 50%; background: var(--accent); border: 3px solid #fff; box-shadow: 0 0 0 1px var(--accent), 0 1px 4px rgba(0,0,0,0.35); }
+  .mv-time input[type=range]::-moz-range-thumb { width: 26px; height: 26px; border-radius: 50%; background: var(--accent); border: 3px solid #fff;
+      box-shadow: 0 0 0 1px var(--accent), 0 1px 4px rgba(0,0,0,0.35); }
+  .mv-time input[type=range]:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; border-radius: 8px; }
+  .mv-slider { flex: 1 1 14rem; min-width: 10rem; position: relative; display: flex; }
+  .mv-slider input[type=range] { flex: 1 1 auto; min-width: 0; }
+  /* one tick per frame under the track: filled = loaded, hollow = not yet, red = missing at the source */
+  .mv-ticks { position: absolute; left: 15px; right: 15px; bottom: 2px; height: 6px; pointer-events: none; }
+  .mv-ticks i { position: absolute; top: 0; width: 6px; height: 6px; margin-left: -3px; border-radius: 50%; border: 1px solid #7d847b; background: transparent; }
+  .mv-ticks i.ok { background: #7d847b; }
+  .mv-ticks i.miss { background: var(--stale); border-color: var(--stale); }
+  .mv-valid { font-size: 1.05rem; color: var(--ink); min-width: 17rem; line-height: 1.3; }
+  .mv-valid .vt { font-size: 1.22rem; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .mv-valid .loc { color: var(--ink2); }
+  .chip { display: inline-block; margin-left: 0.35rem; padding: 0 0.45rem; border-radius: 4px; font-weight: 700; font-size: 0.9rem; color: #fff; vertical-align: 1px; }
+  .chip.ok { background: var(--ok); } .chip.late { background: var(--late); } .chip.stale { background: var(--stale); }
+  .chip.past { background: var(--accent-soft); color: var(--accent); }
+
+  .mv-mapwrap { display: flex; gap: 8px; align-items: stretch; position: relative; }
+  .mv-map { position: relative; flex: 1 1 auto; min-width: 0; height: max(340px, calc(100vh - var(--shh) - 150px)); background: var(--map); border: 1px solid var(--rule);
+            border-radius: 8px; overflow: hidden; touch-action: none; cursor: grab;
+            -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; }
+  .mv-map.drag { cursor: grabbing; }
+  .mv-map canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+  .mv-map canvas#ov { transform-origin: 0 0; will-change: transform; pointer-events: none; }
+  .mv-map canvas#lab { pointer-events: none; }
+  .mv-zoom { position: absolute; right: 8px; top: 8px; display: flex; flex-direction: column; gap: 4px; z-index: 3; }
+  .mv-zoom button { width: 48px; height: 48px; font: 700 1.5rem var(--sans); border: 1px solid var(--rule); border-radius: 6px;
+                    background: rgba(255,255,255,0.92); color: var(--ink); cursor: pointer; }
+  .mv-zoom button.txt { font-size: 0.98rem; }
+  .mv-badge { position: absolute; left: 8px; top: 8px; z-index: 3; background: rgba(255,255,255,0.93); border: 1px solid var(--rule); border-radius: 6px;
+              padding: 0.3rem 0.6rem; font-size: 0.95rem; color: var(--ink); max-width: calc(100% - 70px); pointer-events: none; }
+  .mv-badge b { font-weight: 600; }
+  .mv-badge.stale { border: 2px solid var(--stale); }
+  .mv-load { position: absolute; left: 8px; bottom: 8px; z-index: 3; background: rgba(255,255,255,0.93); border: 1px solid var(--rule); border-radius: 6px;
+             padding: 0.2rem 0.5rem; font-size: 0.88rem; color: var(--ink2); pointer-events: none; max-width: calc(100% - 16px); }
+  .mv-load:empty { display: none; }
+  .mv-msg { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 2; max-width: min(34rem, 90%); text-align: center;
+            background: rgba(255,255,255,0.96); border: 1.5px dashed #b9beb6; border-radius: 8px; padding: 1.1rem 1.3rem; font-size: 0.97rem; color: var(--ink2); }
+  .mv-msg:empty { display: none; }
+  .mv-tip { position: absolute; z-index: 4; pointer-events: none; background: rgba(20, 24, 22, 0.92); color: #fff; font-size: 0.88rem; line-height: 1.35;
+            padding: 0.32rem 0.55rem; border-radius: 5px; white-space: nowrap; transform: translate(12px, 12px); display: none; }
+  .mv-tip .v { font-weight: 700; font-size: 1rem; }
+  .mv-tip .ll { color: #d3dad3; }
+  .mv-legend { flex: 0 0 84px; margin: 0; position: relative; }
+  .mv-legend canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+  .mv-legT { margin: 0.35rem 0 0; font-size: 0.97rem; color: var(--muted); }
+  .mv-note { margin: 0.5rem 0 0; padding: 0.55rem 0.8rem; background: var(--panel); border: 1px solid var(--rule); border-left: 4px solid var(--accent);
+             border-radius: 4px; font-size: 1.02rem; color: var(--ink2); max-width: 80rem; }
+  .mv-note.warn { border-left-color: var(--stale); }
+  .mv-note:empty { display: none; }
+  .mv-note b { color: var(--ink); font-weight: 600; }
+  .mv-about { max-width: 80rem; color: var(--ink2); font-size: 1.04rem; margin-top: 1.4rem; border-top: 1px solid var(--rule); padding-top: 0.6rem; }
+  .mv-about > summary { cursor: pointer; font-family: var(--serif); font-size: 1.25rem; color: var(--ink); padding: 0.3rem 0; }
+  .mv-about h2 { font-size: 1.12rem; margin: 1.1rem 0 0.4rem; }
+  .mv-about table { border-collapse: collapse; width: 100%; font-size: 0.98rem; margin: 0.4rem 0 0.8rem; background: var(--panel); }
+  .mv-about th, .mv-about td { border: 1px solid var(--rule); padding: 0.35rem 0.5rem; text-align: left; vertical-align: top; }
+  .mv-about th { background: #eef1ec; font-weight: 600; color: var(--ink); }
+  .mv-about .tbl { overflow-x: auto; }
+  .mv-about code { font-size: 0.92em; background: #eef1ec; padding: 0 0.25em; border-radius: 3px; overflow-wrap: anywhere; }
+  .mv-perf { font-size: 0.92rem; color: var(--muted); }
+
+  @media (max-width: 900px) {
+    .mv-regseg { display: none; }
+    .mv-regsel { display: inline-flex; }
+  }
+  @media (max-width: 640px) {
+    main.mv { padding-top: 0.6rem; }
+    h1 { font-size: 1.45rem; margin: 0.1rem 0 0.25rem; }
+    .kicker { display: none; }
+    main.mv > .lede { font-size: 1.02rem; padding: 0.7rem 0.85rem; margin: 0.4rem 0 0.7rem; }
+    .mv-panel { padding: 0.5rem 0.55rem 0.35rem; }
+    .mv-bar { gap: 0.4rem 0.6rem; }
+    .runsel, .runsel select, .chk, a.mv-cmp { font-size: 1.02rem; }
+    .mv-regsel { flex: 1 1 100%; }
+    .mv-more > summary { display: list-item; cursor: pointer; font-size: 1.02rem; font-weight: 600; color: var(--accent); padding: 0.45rem 0 0.2rem; }
+    .mv-opts { gap: 0.2rem 1rem; margin-top: 0.3rem; }
+    .mv-regsel select { flex: 1 1 auto; min-width: 0; }
+    .runsel input[type=range] { width: 6.5rem; }
+    .mv-time button { min-width: 2.9rem; }
+    .mv-time button.txt { padding: 0 0.55rem; }
+    .mv-valid { min-width: 0; flex: 1 1 100%; font-size: 0.95rem; order: -1; }
+    .mv-valid .vt { font-size: 1.08rem; }
+    .mv-slider { flex: 1 1 5rem; min-width: 5rem; }
+    .mv-map { height: clamp(300px, calc(100svh - var(--shh) - 190px), 640px); }
+    .mv-mapwrap { flex-direction: column; gap: 0.3rem; }
+    .mv-legend { flex: 0 0 auto; }
+    .mv-legend canvas { position: static; height: 40px; }
+    .mv-badge { font-size: 0.86rem; padding: 0.22rem 0.5rem; }
+  }
+</style>
+</head>
+<body>
+<!-- sh:start -->
+<header class="sh" id="site-header">
+  <div class="sh-in">
+    <a class="sh-brand" href="/">Shawn Corvec</a>
+    <button class="sh-find" type="button" aria-haspopup="dialog" aria-keyshortcuts="Control+K Meta+K" title="Find a plot (Ctrl K)"><svg viewBox="0 0 20 20" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true" focusable="false"><circle cx="8.5" cy="8.5" r="5.5" style="fill:none;stroke:currentColor"/><path d="M12.6 12.6 17 17" style="fill:none;stroke:currentColor"/></svg><span class="sh-find-t">Find a plot</span><kbd>Ctrl K</kbd></button>
+    <button class="sh-toggle" type="button" aria-expanded="false" aria-controls="sh-menu">Menu</button>
+    <nav class="sh-nav" id="sh-menu" aria-label="Site">
+      <ul class="sh-list">
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g0" aria-current="page">Mid-latitude weather</button>
+          <div class="sh-menu sh-menu--cols" id="sh-g0">
+            <div>
+              <h3>Surface and hazards</h3>
+              <ul>
+                <li><a href="/models.html">Short-range model maps</a></li>
+                <li><a href="/radar.html" aria-current="page">US Radar Explorer</a></li>
+                <li><a href="/snowbands.html">Snow-band diagnostics</a></li>
+                <li><a href="/ar.html">Atmospheric rivers</a></li>
+              </ul>
+            </div>
+            <div>
+              <h3>Upper air</h3>
+              <ul>
+                <li><a href="/circulation.html#dt">Dynamic tropopause</a></li>
+                <li><a href="/circulation.html#pacjet">North Pacific jet</a></li>
+                <li><a href="/circulation.html#waf">Wave activity flux</a></li>
+              </ul>
+            </div>
+          </div>
+        </li>
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g1">Tropics</button>
+          <div class="sh-menu sh-menu--cols" id="sh-g1">
+            <div>
+              <h3>ENSO and the MJO</h3>
+              <ul>
+                <li><a href="/enso.html">El Niño monitor</a></li>
+                <li><a href="/circulation.html#mslp">Pacific pressure and wind</a></li>
+                <li><a href="/mjo.html">MJO forecast</a></li>
+                <li><a href="/tropical-waves.html">Tropical waves</a></li>
+              </ul>
+            </div>
+            <div>
+              <h3>Tropical cyclones</h3>
+              <ul>
+                <li><a href="/circulation.html#tcjet">Tropical cyclones and the jet</a></li>
+                <li><a href="/circulation.html#tcens">Tropical cyclone ensembles</a></li>
+                <li><a href="/circulation.html#tcphase">Cyclone phase space</a></li>
+                <li><a href="/circulation.html#tcshear">Shear and environment</a></li>
+                <li><a href="/recon.html">Hurricane reconnaissance</a></li>
+              </ul>
+            </div>
+            <div>
+              <h3>Tropical circulation</h3>
+              <ul>
+                <li><a href="/circulation.html#walker">Walker and Hadley cells</a></li>
+                <li><a href="/circulation.html#vpot">Velocity potential</a></li>
+                <li><a href="/circulation.html#gillrain">Rain-forced circulation (Gill model)</a></li>
+              </ul>
+            </div>
+          </div>
+        </li>
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g2">Stratosphere</button>
+          <div class="sh-menu sh-menu--cols" id="sh-g2">
+            <div>
+              <h3>Polar vortex and QBO</h3>
+              <ul>
+                <li><a href="/stratosphere.html">Stratosphere and polar vortex</a></li>
+                <li class="sh-subitem"><a href="/stratosphere.html#pv">Now: analyses and observations</a></li>
+                <li class="sh-subitem"><a href="/stratosphere.html#vortex">Next two weeks</a></li>
+                <li class="sh-subitem"><a href="/stratosphere.html#vortex35">Weeks 3–5</a></li>
+                <li class="sh-subitem"><a href="/stratosphere.html#s5vortex">Season</a></li>
+                <li class="sh-subitem"><a href="/stratosphere.html#shwinters">History and studies</a></li>
+                <li class="sh-subitem"><a href="/stratosphere.html#qbo">QBO tracker</a></li>
+              </ul>
+            </div>
+            <div>
+              <h3>Momentum</h3>
+              <ul>
+                <li><a href="/circulation.html#aam">Angular momentum and torques</a></li>
+              </ul>
+            </div>
+          </div>
+        </li>
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g3">Weeks to seasons</button>
+          <div class="sh-menu sh-menu--cols" id="sh-g3">
+            <div>
+              <h3>Weeks 2–5</h3>
+              <ul>
+                <li><a href="/subseasonal.html">GEPS extended ensemble</a></li>
+                <li><a href="/gefs.html">GEFS extended ensemble</a></li>
+              </ul>
+            </div>
+            <div>
+              <h3>Seasons</h3>
+              <ul>
+                <li><a href="/seasonal.html">Seasonal model forecasts</a></li>
+                <li><a href="/enso-forecasts.html">ENSO forecasts</a></li>
+              </ul>
+            </div>
+          </div>
+        </li>
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g4"><span class="sh-lf">Studies and verification</span><span class="sh-ls">Studies/verification</span></button>
+          <div class="sh-menu sh-menu--cols" id="sh-g4">
+            <div>
+              <h3>Studies</h3>
+              <ul>
+                <li><a href="/enso.html#imp_reg">ENSO impacts on the Americas</a></li>
+                <li><a href="/mjo.html#mi">MJO impacts</a></li>
+                <li><a href="/stratosphere.html#shwinters">Stratosphere history</a></li>
+                <li><a href="/aifs-aam-budget.html">AINWP and conservation</a></li>
+                <li><a href="/topics/">Explainers</a></li>
+              </ul>
+            </div>
+            <div>
+              <h3>Verification</h3>
+              <ul>
+                <li><a href="/aifs-verify.html">AIFS single versus member 0</a></li>
+              </ul>
+            </div>
+          </div>
+        </li>
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g5">Tools</button>
+          <div class="sh-menu sh-menu--list" id="sh-g5">
+            <ul>
+              <li><a href="/catalog.html">Every plot on the site</a></li>
+              <li><a href="/skewt/">Sounding explorer</a></li>
+              <li><a href="/asos5.html">Five-minute airport observations</a></li>
+              <li><a href="/climate.html">US climate trends</a></li>
+              <li><a href="/fci.html">US credit conditions</a></li>
+            </ul>
+          </div>
+        </li>
+        <li class="sh-item sh-item--special"><a class="sh-special" href="/midterms/">2026 Midterms</a></li>
+        <li class="sh-item sh-has-menu sh-item--me">
+          <button class="sh-link sh-menubtn sh-me" type="button" aria-expanded="false" aria-controls="sh-me">About</button>
+          <div class="sh-menu sh-menu--list sh-menu--me" id="sh-me">
+            <ul>
+              <li><a href="/about.html">About me</a></li>
+              <li><a href="/resume.html">Resume</a></li>
+              <li><a href="/research.html">Publications</a></li>
+              <li class="sh-me-ext"><a href="https://github.com/scorvec">GitHub</a></li>
+              <li><a href="https://scholar.google.com/citations?user=EYLRCJIAAAAJ&amp;hl=en">Google Scholar</a></li>
+              <li><a href="https://www.linkedin.com/in/shawn-corvec-35895b231/">LinkedIn</a></li>
+            </ul>
+          </div>
+        </li>
+      </ul>
+    </nav>
+  </div>
+</header>
+<!-- sh:end -->
+<main class="mv">
+  <p class="kicker">Observations &middot; live every five minutes</p>
+  <h1>US Radar Explorer</h1>
+  <p class="lede">The national NEXRAD radar picture, refreshed every five minutes: base reflectivity from every WSR-88D in the lower 48, merged by the <a href="https://mesonet.agron.iastate.edu/docs/nexrad_mosaic/">Iowa Environmental Mesonet</a>. Zoom from the whole country to a single city, loop the last hours, and hover or tap for the reflectivity in dBZ. The colours are the ones the <a href="/models.html#hrrr/refl">short-range model maps</a> use for simulated reflectivity, so the radar and the HRRR can be compared directly.</p>
+
+  <div class="mv-panel">
+    <div class="mv-bar">
+      <div class="mv-grp mv-regseg"><span>Region</span><div class="seg" id="regs" role="group" aria-label="Region"></div></div>
+      <label class="runsel mv-regsel">Region <select id="regSel" aria-label="Region"></select></label>
+      <label class="runsel mv-regseg">City <select id="metro" aria-label="City view"></select></label>
+      <label class="runsel">Loop <select id="loopSel" aria-label="Loop length and step"></select></label>
+    </div>
+    <details class="mv-more" id="more"><summary>Map options: floor, opacity, layers, source</summary>
+    <div class="mv-opts">
+      <label class="runsel" title="Echo weaker than this is not drawn (clear-air returns from insects, birds and ground clutter are mostly below 10 dBZ)">Hide below <select id="floor" aria-label="Lowest reflectivity drawn">
+        <option value="5">5 dBZ</option><option value="10" selected>10 dBZ</option><option value="15">15 dBZ</option><option value="20">20 dBZ</option><option value="30">30 dBZ</option><option value="40">40 dBZ</option></select></label>
+      <label class="runsel">Opacity <input type="range" id="alpha" min="20" max="100" step="5" value="85" aria-label="Radar opacity"><output id="alphaV">85%</output></label>
+      <label class="chk"><input type="checkbox" id="cty" checked> Counties</label>
+      <label class="chk"><input type="checkbox" id="sta" checked> Airports</label>
+      <a class="mv-cmp" id="cmp" href="/models.html#hrrr/refl">Compare with the HRRR at this time</a>
+      <label class="runsel" title="IEM: the composite's own numbers (dBZ), recoloured here. NOAA MRMS: NOAA's rendered image, used if IEM is down">Source <select id="src" aria-label="Data source">
+        <option value="iem">IEM NEXRAD composite</option><option value="mrms">NOAA MRMS (fallback)</option></select></label>
+    </div>
+    </details>
+  </div>
+
+  <div class="mv-time" id="timebar">
+    <button type="button" id="play" aria-label="Play the loop">&#9654;</button>
+    <button type="button" id="back" aria-label="Previous frame">&lsaquo;</button>
+    <div class="mv-slider"><input type="range" id="slider" min="0" max="0" value="0" aria-label="Frame time"><div class="mv-ticks" id="ticks"></div></div>
+    <button type="button" id="fwd" aria-label="Next frame">&rsaquo;</button>
+    <button type="button" class="txt" id="now" aria-label="Latest frame">Latest</button>
+    <span class="mv-valid" id="valid" aria-live="polite"></span>
+  </div>
+  <div class="mv-mapwrap">
+    <div class="mv-map" id="map" aria-label="Radar map. Scroll or pinch to zoom, drag to pan, hover or tap for the reflectivity.">
+      <canvas id="gl"></canvas>
+      <canvas id="ov"></canvas>
+      <canvas id="lab"></canvas>
+      <div class="mv-badge" id="badge"></div>
+      <div class="mv-zoom"><button type="button" id="zin" aria-label="Zoom in">+</button><button type="button" id="zout" aria-label="Zoom out">&minus;</button><button type="button" class="txt" id="zfit" aria-label="Whole country">US</button></div>
+      <div class="mv-msg" id="msg"></div>
+      <div class="mv-load" id="load"></div>
+      <div class="mv-tip" id="tip"></div>
+    </div>
+    <div class="mv-legend"><canvas id="leg" aria-label="Colour scale, dBZ"></canvas></div>
+  </div>
+  <p class="mv-legT" id="legT"></p>
+  <p class="mv-note" id="note"></p>
+
+  <details class="mv-about">
+    <summary>About this radar map: data, decoding, timing and limits</summary>
+    <h2>What the map shows</h2>
+    <p>The <b>N0Q national composite</b> from the Iowa Environmental Mesonet (IEM) at Iowa State University: base reflectivity (the lowest elevation scan, 0.5&deg; on most radars) from the WSR-88D network of the lower 48, merged onto a 0.005&deg; latitude&ndash;longitude grid (about 550&nbsp;m north&ndash;south) every five minutes, 126&deg;W&ndash;65&deg;W and 23&deg;N&ndash;50&deg;N. IEM builds it from the NWS Level&nbsp;III N0B products and removes most ground clutter and anomalous propagation. Each frame is one 8-bit PNG (about 2.2&ndash;2.5&nbsp;MB) whose pixel values are the reflectivity itself: value <i>k</i> = <i>k</i>&nbsp;&times;&nbsp;0.5&nbsp;&minus;&nbsp;32.5&nbsp;dBZ (0.5&nbsp;dBZ steps from &minus;32&nbsp;dBZ; 0 = no echo or no coverage). The page decodes those values itself and colours them, so the hover readout is the composite's own number.</p>
+    <p>Checked on 9 October 2026 against IEM's own documentation (&ldquo;&minus;32&nbsp;dBZ through 90&nbsp;dBZ, 0.5&nbsp;dBZ increment&rdquo;) and against IEM's 5-dBZ N0R composite of the same time, which IEM derives from N0Q: in every N0R class from 0 to 60&nbsp;dBZ (class <i>k</i> = &minus;30&nbsp;+&nbsp;5<i>k</i>&nbsp;dBZ, about 650,000 echo pixels) the N0Q values begin at 10<i>k</i>&nbsp;+&nbsp;5, the class's lower edge by the formula. The page's own decoding matches an independent decode of the same file value for value.</p>
+    <h2>Colours</h2>
+    <p>The colour table is the rain ramp of the <a href="/models.html#hrrr/refl">model maps</a> (light green from 5&nbsp;dBZ, dark green to 32, yellow at 35, orange, red from 48, magenta at 62, pale pink past 70), the one the HRRR and RRFS simulated reflectivity is drawn with. Radar reflectivity carries no precipitation type, so snow and ice are drawn in the rain colours here, while the model maps colour them by the model's surface type. The model maps show simulated reflectivity 1&nbsp;km above the ground; the radar's lowest scan rises with distance from each radar (at 0.5&deg;, about 0.7&nbsp;km above the radar at 60&nbsp;km range and 3&nbsp;km at 160&nbsp;km), so far from a radar it sees higher in the cloud and can overshoot shallow snow and drizzle.</p>
+    <h2>Loops, resolution and your connection</h2>
+    <p>Opening the page loads one frame (the newest, about 2.3&nbsp;MB). A loop is downloaded only when you play, step or drag the slider: 2&nbsp;hours every 10&nbsp;minutes is 12&ndash;13 frames, about 28&ndash;32&nbsp;MB, fetched two at a time, newest first, each file requested once and kept in memory for the visit. Files of past times do not change at IEM, so the browser's own cache can answer a reload (IEM confirms them as unchanged without sending them again).</p>
+    <p>The full grid is 12,200&nbsp;&times;&nbsp;5,400 values. Loop frames are kept as a 0.02&deg; grid (the strongest echo in each 4&nbsp;&times;&nbsp;4 block, so cores are not lost), which is finer than a screen shows at the national view; when you stop on a frame zoomed in past that, the page decodes the full 0.005&deg; grid of that frame from the copy already in memory and draws it at native resolution. The hover readout uses the full grid once it is decoded (otherwise it says the value is the block maximum).</p>
+    <h2>Timing and freshness</h2>
+    <p>The time shown is the composite's nominal time from IEM (UTC, and your local time). IEM finishes a composite about two minutes after the scans that go into it; the badge shows how many radars contributed. While this tab is visible the page checks IEM's small status file once per expected update (about every five minutes) and adds the new frame; nothing is downloaded while the tab is hidden. The time chip turns amber (&ldquo;late&rdquo;) when the newest composite is more than 12&nbsp;minutes old and red (&ldquo;stale&rdquo;) past 25&nbsp;minutes. Archive frames that IEM does not have are marked in red under the slider and skipped by the loop. A time in the address (<code>#t=YYYYMMDDHHMM</code>, UTC) opens the loop ending then, back to November 2010; the model maps link here that way.</p>
+    <h2>If IEM is down</h2>
+    <p>The page falls back to NOAA's MRMS base reflectivity image service (<a href="https://mapservices.weather.noaa.gov/eventdriven/rest/services/radar/radar_base_reflectivity_time/ImageServer">mapservices.weather.noaa.gov</a>, the last four hours). Those images arrive already coloured in NOAA's own scale (shown as received, not recoloured) and carry no dBZ values, so there is no readout and no floor in that mode, and the colours do not match the model maps.</p>
+    <h2>Credits</h2>
+    <p>Radar composite: <a href="https://mesonet.agron.iastate.edu/">Iowa Environmental Mesonet</a>, Iowa State University (N0Q national composite and archive), from NOAA National Weather Service WSR-88D data. Fallback: NOAA/NWS Multi-Radar Multi-Sensor (MRMS) via the NWS map services. Boundaries: Natural Earth and US Census (us-atlas). Airports: OurAirports (public domain). Your browser downloads the radar files directly from IEM (or NOAA); this site stores and processes none of them.</p>
+    <p class="mv-perf" id="perf"></p>
+  </details>
+</main>
+<script>
+(function () {
+  "use strict";
+  var $ = function (id) { return document.getElementById(id); };
+  var D2R = Math.PI / 180;
+  var IEM = "https://mesonet.agron.iastate.edu";
+  var CUR_JSON = IEM + "/data/gis/images/4326/USCOMP/n0q_0.json";
+  var CUR_PNG = IEM + "/data/gis/images/4326/USCOMP/n0q_0.png";
+  var NOAA_IS = "https://mapservices.weather.noaa.gov/eventdriven/rest/services/radar/radar_base_reflectivity_time/ImageServer";
+  // N0Q grid (n0q_0.wld): 0.005 deg, centre of the upper-left pixel at 126.0 W, 50.0 N; size from the PNG header
+  var G = { lon0: -126.0, lat0: 50.0, res: 0.005 };
+  var OVF = 4;                                                     // loop frames: max over 4 x 4 blocks = 0.02 deg
+  var MRMS_BOX = [-126, 20, -65, 50], MRMS_W = 3050, MRMS_H = 1500;  // fallback image: 0.02 deg, edges = the bbox
+  var FORCE_MRMS = /[?&]src=mrms/.test(location.search);           // testing: start on the NOAA fallback
+  var NETC = navigator.connection || {};
+  var SLOW = !!(NETC.saveData || /(^|-)2g|3g/.test(NETC.effectiveType || ""));
+  var MEM = navigator.deviceMemory || 8, CORES = navigator.hardwareConcurrency || 4;
+  var DETAIL_F = MEM <= 2 ? 2 : 1;                                 // low-memory devices: the detail grid at 0.01 deg
+
+  // ── colours: the RAIN ramp of models.html (PT_RAMPS[1], simulated reflectivity) - keep the two in step ────────────
+  function S(v, c, a) { return [v, parseInt(c.slice(1, 3), 16), parseInt(c.slice(3, 5), 16), parseInt(c.slice(5, 7), 16), a == null ? 1 : a]; }
+  var RAMP = [S(5, "#a6e3a0"), S(15, "#4cc24f"), S(25, "#1c992c"), S(32, "#0e6e1e"), S(35, "#f2e23a"), S(42, "#f2a12a"), S(48, "#e2381f"), S(55, "#ae1229"), S(62, "#d433d4"), S(72, "#f5dcf5")];
+  function interp(stops, v) {
+    if (v <= stops[0][0]) return stops[0].slice(1);
+    for (var i = 1; i < stops.length; i++) {
+      var a = stops[i - 1], b = stops[i];
+      if (v <= b[0]) { var t = (v - a[0]) / (b[0] - a[0]); return [a[1] + t * (b[1] - a[1]), a[2] + t * (b[2] - a[2]), a[3] + t * (b[3] - a[3]), a[4] + t * (b[4] - a[4])]; }
+    }
+    return stops[stops.length - 1].slice(1);
+  }
+  function dbzOf(k) { return k * 0.5 - 32.5; }
+
+  // ── display projection: the HRRR's Lambert conformal (tangent at 38.5 N, 97.5 W, sphere 6371229 m), as models.html ──
+  var P = (function () {
+    var R = 6371229, phi = 38.5 * D2R, lon0 = -97.5 * D2R;
+    var n = Math.sin(phi), t = Math.tan(Math.PI / 4 + phi / 2);
+    var F = Math.cos(phi) * Math.pow(t, n) / n, RF = R * F, rho0 = RF / Math.pow(t, n);
+    return { n: n, RF: RF, rho0: rho0, lon0: lon0,
+      fwd: function (lon, lat) {
+        var rho = RF / Math.pow(Math.tan(Math.PI / 4 + lat * D2R / 2), n);
+        var d = lon * D2R - lon0; d = Math.atan2(Math.sin(d), Math.cos(d));
+        var th = n * d; return [rho * Math.sin(th), rho0 - rho * Math.cos(th)];
+      },
+      inv: function (x, y) {
+        var dy = rho0 - y, rho = Math.sign(n) * Math.sqrt(x * x + dy * dy), th = Math.atan2(x, dy);
+        return [(lon0 + th / n) / D2R, (2 * Math.atan(Math.pow(RF / rho, 1 / n)) - Math.PI / 2) / D2R];
+      } };
+  })();
+
+  // ── regions ────────────────────────────────────────────────────────────────────────────────────────────────────
+  // [id, label, lon0, lat0, lon1, lat1]; the NWS regions are approximate boxes around each region's offices
+  var REGIONS = [
+    ["us", "Lower 48", -124.8, 24.3, -66.9, 49.4],
+    ["east", "Eastern", -84.9, 32.0, -66.9, 47.6],
+    ["south", "Southern", -107.0, 24.3, -79.8, 37.1],
+    ["central", "Central", -111.5, 35.5, -82.0, 49.4],
+    ["west", "Western", -124.8, 31.2, -103.9, 49.2]];
+  // the lower 48 is fitted to its outline, not its lat/lon box (the box's southern corners are empty on a Lambert map)
+  var US_OUTLINE = [[-124.7, 48.4], [-124.4, 40.4], [-117.1, 32.5], [-106.5, 31.8], [-97.2, 25.9], [-80.4, 25.1], [-81.3, 30.7], [-75.5, 35.2], [-70.0, 41.7], [-67.0, 44.8], [-69.2, 47.4], [-83.0, 46.0], [-95.2, 49.4], [-123.0, 49.0]];
+  var METROS = [
+    ["nyc", "New York", -73.95, 40.72], ["bos", "Boston", -71.06, 42.36], ["dc", "Washington", -77.03, 38.9], ["atl", "Atlanta", -84.39, 33.75],
+    ["mia", "Miami", -80.25, 25.9], ["chi", "Chicago", -87.75, 41.88], ["msp", "Minneapolis", -93.27, 44.98], ["stl", "St. Louis", -90.2, 38.63],
+    ["dfw", "Dallas–Fort Worth", -97.04, 32.82], ["hou", "Houston", -95.37, 29.76], ["okc", "Oklahoma City", -97.52, 35.47], ["den", "Denver", -104.99, 39.74],
+    ["phx", "Phoenix", -112.07, 33.45], ["lax", "Los Angeles", -118.24, 34.05], ["sfo", "San Francisco", -122.27, 37.8], ["sea", "Seattle", -122.33, 47.6]];
+  var METRO_KM = 320;                                               // width of a city view
+
+  // ── state ──────────────────────────────────────────────────────────────────────────────────────────────────────
+  var LOOPS = [[60, 5], [60, 10], [120, 5], [120, 10], [180, 10], [180, 15], [360, 30]];
+  var st = { floor: 10, alpha: 0.85, loop: SLOW ? [60, 10] : [120, 10], idx: 0, playing: false, live: true, anchor: 0, src: "iem", region: "us", engaged: false };
+  var view = null;                                                  // {cx, cy, s: metres per CSS px}
+  var frames = [], FR = new Map();                                  // frames on the slider (ascending time); all frame objects by key
+  var latest = null;                                                // {t, quorum, proc}
+  var shown = null;                                                 // the frame on screen (may lag frames[st.idx] while it loads)
+  var detail = null;                                                // the full-resolution grid of one frame: {key, f, w, h, stride, off, data, tex}
+  var NET = { bytes: 0, ms: 0, n: 0 };
+  var PERF = { dec: [], up: [], full: [], fullUp: [], firstFrame: 0, t0: performance.now(), dl: [] };
+  var mapEl = $("map"), glc = $("gl"), ovc = $("ov"), labc = $("lab"), tip = $("tip");
+
+  // ── worker: PNG decode (palette indices = dBZ codes) and the boundaries ─────────────────────────────────────────
+  async function inflate(parts) {
+    var ds = new DecompressionStream("deflate");
+    var ab = await new Response(new Blob(parts).stream().pipeThrough(ds)).arrayBuffer();
+    return new Uint8Array(ab);
+  }
+  // 8-bit palette PNG -> the raw index rows (stride w + 1, filter byte first) + the overview (max of F x F blocks)
+  async function decodePng(buf, F, full) {
+    var t0 = performance.now(), b = new Uint8Array(buf), dv = new DataView(buf), p = 8, w = 0, h = 0, bd = 0, ct = 0, il = 0, idat = [];
+    if (b[0] !== 0x89 || b[1] !== 0x50) throw new Error("not a PNG");
+    while (p + 8 <= b.length) {
+      var n = dv.getUint32(p), ty = String.fromCharCode(b[p + 4], b[p + 5], b[p + 6], b[p + 7]);
+      if (ty === "IHDR") { w = dv.getUint32(p + 8); h = dv.getUint32(p + 12); bd = b[p + 16]; ct = b[p + 17]; il = b[p + 20]; }
+      else if (ty === "IDAT") idat.push(b.subarray(p + 8, p + 8 + n));
+      else if (ty === "IEND") break;
+      p += 12 + n;
+    }
+    if (bd !== 8 || ct !== 3 || il !== 0 || !w || !h) throw new Error("unexpected PNG layout " + [w, h, bd, ct, il].join(","));
+    var raw = await inflate(idat), t1 = performance.now(), Sd = w + 1, x, y;
+    if (raw.length < Sd * h) throw new Error("truncated PNG");
+    for (y = 0; y < h; y++) {                                        // PNG row filters (IEM writes filter 0 everywhere; handled anyway)
+      var f = raw[y * Sd]; if (!f) continue;
+      var r0 = y * Sd + 1, pr = r0 - Sd;
+      for (x = 0; x < w; x++) {
+        var a = x ? raw[r0 + x - 1] : 0, up = y ? raw[pr + x] : 0, c = x && y ? raw[pr + x - 1] : 0, pv;
+        if (f === 1) pv = a; else if (f === 2) pv = up; else if (f === 3) pv = (a + up) >> 1;
+        else { var pp = a + up - c, pa = Math.abs(pp - a), pb = Math.abs(pp - up), pc = Math.abs(pp - c); pv = pa <= pb && pa <= pc ? a : pb <= pc ? up : c; }
+        raw[r0 + x] = (raw[r0 + x] + pv) & 255;
+      }
+      raw[y * Sd] = 0;
+    }
+    var ow = Math.ceil(w / F), oh = Math.ceil(h / F), ov = new Uint8Array(ow * oh), xm = new Int32Array(w), echo = 0;
+    for (x = 0; x < w; x++) xm[x] = (x / F) | 0;
+    for (y = 0; y < h; y++) {
+      var o = ((y / F) | 0) * ow, s0 = y * Sd + 1;
+      for (x = 0; x < w; x++) { var v = raw[s0 + x]; if (v) { echo++; var k = o + xm[x]; if (v > ov[k]) ov[k] = v; } }
+    }
+    var res = { w: w, h: h, ow: ow, oh: oh, ov: ov, echo: echo, ms: { inflate: t1 - t0, total: 0 } }, tr = [ov.buffer];
+    if (full === 1) { res.full = { f: 1, w: w, h: h, stride: Sd, off: 1, data: raw }; tr.push(raw.buffer); }
+    else if (full === 2) {                                           // 0.01 deg (max of 2 x 2) for low-memory devices
+      var w2 = Math.ceil(w / 2), h2 = Math.ceil(h / 2), d2 = new Uint8Array(w2 * h2);
+      for (y = 0; y < h; y++) { var o2 = (y >> 1) * w2, s2 = y * Sd + 1; for (x = 0; x < w; x++) { var v2 = raw[s2 + x]; if (v2 > d2[o2 + (x >> 1)]) d2[o2 + (x >> 1)] = v2; } }
+      res.full = { f: 2, w: w2, h: h2, stride: w2, off: 0, data: d2 }; tr.push(d2.buffer);
+    }
+    res.ms.total = performance.now() - t0;
+    return [res, tr];
+  }
+  function workerMain() {
+    self.onmessage = function (e) {
+      var d = e.data;
+      var job = d.op === "png" ? decodePng(d.buf, d.F, d.full)
+        : fetch(d.url).then(function (r) { if (!r.ok) throw new Error("http " + r.status); return r.json(); }).then(function (j) {
+            var L = geoProcess(j, d.P, d.tols), bufs = []; L.forEach(function (x) { x.lods.forEach(function (o) { bufs.push(o.xy.buffer, o.off.buffer); }); });
+            return [{ layers: L }, bufs]; });
+      job.then(function (r) { r[0].id = d.id; self.postMessage(r[0], r[1]); }, function (err) { self.postMessage({ id: d.id, err: String(err && err.message || err) }); });
+    };
+  }
+  // boundaries (from models.html): unpack the delta-coded lon/lat lines, project to the display projection (km) and simplify
+  function simplifyLine(xy, a, b, tol, out) {
+    var m = b - a; if (m < 2) return;
+    var keep = new Uint8Array(m), stk = [0, m - 1], t2 = tol * tol; keep[0] = keep[m - 1] = 1;
+    while (stk.length) {
+      var j = stk.pop(), i = stk.pop(), x0 = xy[2 * (a + i)], y0 = xy[2 * (a + i) + 1], dx = xy[2 * (a + j)] - x0, dy = xy[2 * (a + j) + 1] - y0;
+      var L2 = dx * dx + dy * dy, best = -1, bd = t2;
+      for (var k = i + 1; k < j; k++) {
+        var px = xy[2 * (a + k)] - x0, py = xy[2 * (a + k) + 1] - y0, d;
+        if (L2 > 0) { var cr = px * dy - py * dx; d = cr * cr / L2; var tt = (px * dx + py * dy) / L2; if (tt < 0) d = px * px + py * py; else if (tt > 1) { var ex = px - dx, ey = py - dy; d = ex * ex + ey * ey; } }
+        else d = px * px + py * py;
+        if (d > bd) { bd = d; best = k; }
+      }
+      if (best > 0) { keep[best] = 1; stk.push(i, best, best, j); }
+    }
+    for (var q = 0; q < m; q++) if (keep[q]) out.push(xy[2 * (a + q)], xy[2 * (a + q) + 1]);
+  }
+  function geoProcess(d, Pp, tols) {
+    var n = Pp[0], RF = Pp[1], rho0 = Pp[2], lon0 = Pp[3], D = Math.PI / 180, res = [];
+    Object.keys(d.layers).forEach(function (name) {
+      var L = d.layers[name], q = L.q, li, k, j, step = 0.25 * q;
+      // long segments (the 49th-parallel border is a few vertices 10+ degrees apart) are densified every 0.25 deg so they
+      // follow the parallel on the Lambert map instead of cutting a straight chord
+      var pts = [], offs = [];
+      for (li = 0; li < L.lines.length; li++) {
+        var ln = L.lines[li], x = ln[0], y = ln[1], m = ln.length / 2, px0 = x, py0 = y; offs.push(pts.length / 2);
+        for (k = 0; k < m; k++) {
+          if (k) { x += ln[2 * k]; y += ln[2 * k + 1]; }
+          var ns = k ? Math.ceil(Math.max(Math.abs(x - px0), Math.abs(y - py0)) / step) : 1;
+          for (j = 1; j <= ns; j++) pts.push(px0 + (x - px0) * j / ns, py0 + (y - py0) * j / ns);
+          px0 = x; py0 = y;
+        }
+      }
+      var np = pts.length / 2, xy = new Float64Array(np * 2), off = new Int32Array(L.lines.length + 1), p = 0;
+      for (li = 0; li < L.lines.length; li++) off[li] = offs[li];
+      for (p = 0; p < np; p++) {
+        var X0 = pts[2 * p], Y0 = pts[2 * p + 1];
+        var rho = RF / Math.pow(Math.tan(Math.PI / 4 + Y0 / q * D / 2), n), dl = X0 / q * D - lon0; dl = Math.atan2(Math.sin(dl), Math.cos(dl));
+        xy[2 * p] = rho * Math.sin(n * dl) / 1000; xy[2 * p + 1] = (rho0 - rho * Math.cos(n * dl)) / 1000;
+      }
+      off[L.lines.length] = np;
+      var lods = [{ tol: 0, xy: Float32Array.from(xy), off: off }];
+      tols.forEach(function (t) {
+        var o = [], of = [0];
+        for (li = 0; li < L.lines.length; li++) {
+          var a = off[li], b = off[li + 1], x0 = 1e9, x1 = -1e9, y0 = 1e9, y1 = -1e9;
+          for (k = a; k < b; k++) { var X = xy[2 * k], Y = xy[2 * k + 1]; if (X < x0) x0 = X; if (X > x1) x1 = X; if (Y < y0) y0 = Y; if (Y > y1) y1 = Y; }
+          if (x1 - x0 < t && y1 - y0 < t) continue;
+          simplifyLine(xy, a, b, t, o); of.push(o.length / 2);
+        }
+        lods.push({ tol: t, xy: Float32Array.from(o), off: Int32Array.from(of) });
+      });
+      res.push({ name: name, maxKmPerPx: L.maxKmPerPx, lods: lods });
+    });
+    return res;
+  }
+  var HAS_DS = typeof DecompressionStream === "function";
+  var workers = [], wcb = {}, wid = 0, wnext = 0;
+  try {
+    if (typeof Worker === "function" && HAS_DS && !/[?&]wk=0/.test(location.search)) {   // ?wk=0: decode on the page (testing)
+      var wurl = URL.createObjectURL(new Blob([inflate.toString() + "\n" + decodePng.toString() + "\n" + simplifyLine.toString() + "\n" + geoProcess.toString() + "\n(" + workerMain.toString() + ")();"], { type: "text/javascript" }));
+      var nW = CORES >= 6 && MEM >= 4 && !SLOW ? 2 : 1;
+      for (var wi = 0; wi < nW; wi++) {
+        var w = new Worker(wurl);
+        w.onmessage = function (e) { var cb = wcb[e.data.id]; delete wcb[e.data.id]; if (cb) cb(e.data); };
+        workers.push(w);
+      }
+    }
+  } catch (e) { workers = []; }
+  function workerCall(msg, which) {
+    return new Promise(function (res, rej) {
+      var id = ++wid; msg.id = id;
+      wcb[id] = function (d) { if (d.err) rej(new Error(d.err)); else res(d); };
+      workers[which != null ? which : wnext++ % workers.length].postMessage(msg);   // the bytes are copied, not transferred: they stay cached
+    });
+  }
+  function decodeBytes(buf, full) {
+    if (!workers.length) return decodePng(buf.slice(0), OVF, full || 0).then(function (r) { return r[0]; });   // no worker: on the page
+    return workerCall({ op: "png", buf: buf, F: OVF, full: full || 0 });
+  }
+
+  // ── WebGL ──────────────────────────────────────────────────────────────────────────────────────────────────────
+  var gl = null;
+  try { gl = glc.getContext("webgl2", { premultipliedAlpha: true, antialias: false, alpha: true }); } catch (e) { gl = null; }
+  var VS = "#version 300 es\nin vec2 p;void main(){gl_Position=vec4(p,0.,1.);}";
+  var FS = ["#version 300 es", "precision highp float;precision highp int;precision highp sampler2D;precision highp sampler2DArray;",
+    "uniform sampler2D uOv;uniform highp sampler2DArray uFull;uniform sampler2D uLut;uniform sampler2D uRgba;",
+    "uniform vec2 uC;uniform float uS;uniform vec2 uWH;uniform vec4 uP;uniform vec3 uG;uniform ivec2 uOvN;uniform int uF;uniform int uFf;",
+    "uniform ivec4 uFN;uniform int uMode;uniform float uAlpha;uniform vec4 uRg;out vec4 o;",
+    "void main(){",
+    " vec2 xy=uC+(gl_FragCoord.xy-0.5*uWH)*uS;",
+    // display metres (Lambert) -> lon/lat
+    " float dy=uP.z-xy.y;float rho=sign(uP.x)*sqrt(xy.x*xy.x+dy*dy);float th=atan(xy.x,dy);",
+    " float lon=degrees(uP.w+th/uP.x);float lat=degrees(2.*atan(pow(uP.y/rho,1./uP.x))-1.5707963267948966);",
+    " vec4 c=vec4(0.);",
+    " if(uMode==1){vec2 t=vec2((lon-uRg.x)/uRg.z,(uRg.y-lat)/uRg.w);if(t.x<0.||t.y<0.||t.x>=1.||t.y>=1.)discard;",
+    "  ivec2 sz=textureSize(uRgba,0);c=texelFetch(uRgba,ivec2(t*vec2(sz)),0);if(c.a<0.02)discard;o=vec4(c.rgb*c.a*uAlpha,c.a*uAlpha);return;}",
+    // full-grid pixel (edges: uG = lon of the left edge, lat of the top edge, resolution)
+    " float fi=(lon-uG.x)/uG.z,fj=(uG.y-lat)/uG.z;if(fi<0.||fj<0.)discard;",
+    " int i=int(fi),j=int(fj);int code=0;",
+    " if(uF==1){int ii=i/uFf,jj=j/uFf;if(ii>=uFN.x||jj>=uFN.y)discard;int tx=ii/uFN.z,ty=jj/uFN.w;int nx=(uFN.x+uFN.z-1)/uFN.z;",
+    "  code=int(texelFetch(uFull,ivec3(ii-tx*uFN.z,jj-ty*uFN.w,ty*nx+tx),0).r*255.+0.5);}",
+    " else{int ii=i/" + OVF + ",jj=j/" + OVF + ";if(ii>=uOvN.x||jj>=uOvN.y)discard;code=int(texelFetch(uOv,ivec2(ii,jj),0).r*255.+0.5);}",
+    " if(code==0)discard;c=texelFetch(uLut,ivec2(code,0),0);if(c.a<0.01)discard;",
+    " o=vec4(c.rgb*uAlpha,uAlpha);",
+    "}"].join("\n");
+  var prog = null, loc = {}, lutTex = null, MAXT = 0, emptyArr = null, emptyTex = null;
+  function initGL() {
+    if (!gl) return false;
+    function sh(type, src) { var s = gl.createShader(type); gl.shaderSource(s, src); gl.compileShader(s);
+      if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(s)); return s; }
+    prog = gl.createProgram(); gl.attachShader(prog, sh(gl.VERTEX_SHADER, VS)); gl.attachShader(prog, sh(gl.FRAGMENT_SHADER, FS));
+    gl.bindAttribLocation(prog, 0, "p"); gl.linkProgram(prog);
+    if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(prog));
+    gl.useProgram(prog);
+    ["uOv", "uFull", "uLut", "uRgba", "uC", "uS", "uWH", "uP", "uG", "uOvN", "uF", "uFf", "uFN", "uMode", "uAlpha", "uRg"].forEach(function (n) { loc[n] = gl.getUniformLocation(prog, n); });
+    var b = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, b);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW);
+    gl.enableVertexAttribArray(0); gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
+    gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
+    gl.uniform1i(loc.uOv, 0); gl.uniform1i(loc.uFull, 1); gl.uniform1i(loc.uLut, 2); gl.uniform1i(loc.uRgba, 3);
+    gl.uniform4f(loc.uP, P.n, P.RF, P.rho0, P.lon0);
+    gl.uniform3f(loc.uG, G.lon0 - G.res / 2, G.lat0 + G.res / 2, G.res);
+    MAXT = gl.getParameter(gl.MAX_TEXTURE_SIZE);
+    lutTex = mkTex(gl.TEXTURE2);
+    // placeholders so every sampler has a texture of its own type bound
+    emptyArr = gl.createTexture(); gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D_ARRAY, emptyArr);
+    gl.texImage3D(gl.TEXTURE_2D_ARRAY, 0, gl.R8, 1, 1, 1, 0, gl.RED, gl.UNSIGNED_BYTE, new Uint8Array(1)); nearest(gl.TEXTURE_2D_ARRAY);
+    emptyTex = mkTex(gl.TEXTURE3); gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, new Uint8Array(4));
+    gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, emptyTex);
+    gl.enable(gl.BLEND); gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
+    buildLut();
+    return true;
+  }
+  function nearest(target) { [gl.TEXTURE_MIN_FILTER, gl.TEXTURE_MAG_FILTER].forEach(function (p) { gl.texParameteri(target, p, gl.NEAREST); });
+    [gl.TEXTURE_WRAP_S, gl.TEXTURE_WRAP_T].forEach(function (p) { gl.texParameteri(target, p, gl.CLAMP_TO_EDGE); }); }
+  function mkTex(unit) { var t = gl.createTexture(); gl.activeTexture(unit); gl.bindTexture(gl.TEXTURE_2D, t); nearest(gl.TEXTURE_2D); return t; }
+  function lutColour(k) { if (!k) return null; var d = dbzOf(k); if (d < st.floor || d < 5) return null; return interp(RAMP, d); }
+  function buildLut() {
+    var lut = new Uint8Array(256 * 4);
+    for (var k = 1; k < 256; k++) { var c = lutColour(k); if (c) { lut[4 * k] = c[0]; lut[4 * k + 1] = c[1]; lut[4 * k + 2] = c[2]; lut[4 * k + 3] = 255; } }
+    gl.activeTexture(gl.TEXTURE2); gl.bindTexture(gl.TEXTURE_2D, lutTex);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, 256, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, lut);
+  }
+  function uploadOv(fr) {
+    var t0 = performance.now();
+    fr.tex = mkTex(gl.TEXTURE0);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.R8, fr.ov.w, fr.ov.h, 0, gl.RED, gl.UNSIGNED_BYTE, fr.ov.data);
+    PERF.up.push(performance.now() - t0);
+  }
+  function uploadRgba(fr, bmp) {
+    fr.tex = mkTex(gl.TEXTURE3);
+    gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, false);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, gl.RGBA, gl.UNSIGNED_BYTE, bmp);
+  }
+  // the detail grid as a texture array: tiles no larger than the device's texture limit
+  function uploadDetail(d) {
+    if (d.tex) return;
+    var t0 = performance.now(), lim = Math.min(MAXT, 4096), nx = Math.ceil(d.w / lim), ny = Math.ceil(d.h / lim);
+    var tw = Math.ceil(d.w / nx), th = Math.ceil(d.h / ny);
+    d.tex = gl.createTexture(); gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D_ARRAY, d.tex); nearest(gl.TEXTURE_2D_ARRAY);
+    gl.texStorage3D(gl.TEXTURE_2D_ARRAY, 1, gl.R8, tw, th, nx * ny);
+    gl.pixelStorei(gl.UNPACK_ROW_LENGTH, d.stride); gl.pixelStorei(gl.UNPACK_IMAGE_HEIGHT, d.h);   // 3D uploads: skip rows + height must fit the image height
+    for (var ty = 0; ty < ny; ty++) for (var tx = 0; tx < nx; tx++) {
+      var cw = Math.min(tw, d.w - tx * tw), ch = Math.min(th, d.h - ty * th); if (cw <= 0 || ch <= 0) continue;
+      gl.pixelStorei(gl.UNPACK_SKIP_PIXELS, d.off + tx * tw); gl.pixelStorei(gl.UNPACK_SKIP_ROWS, ty * th);
+      gl.texSubImage3D(gl.TEXTURE_2D_ARRAY, 0, 0, 0, ty * nx + tx, cw, ch, 1, gl.RED, gl.UNSIGNED_BYTE, d.data);
+    }
+    gl.pixelStorei(gl.UNPACK_ROW_LENGTH, 0); gl.pixelStorei(gl.UNPACK_IMAGE_HEIGHT, 0); gl.pixelStorei(gl.UNPACK_SKIP_PIXELS, 0); gl.pixelStorei(gl.UNPACK_SKIP_ROWS, 0);
+    d.tw = tw; d.th = th;
+    PERF.fullUp.push(performance.now() - t0);
+  }
+  function dropDetail() { if (detail && detail.tex) gl.deleteTexture(detail.tex); detail = null; }
+
+  // ── view ───────────────────────────────────────────────────────────────────────────────────────────────────────
+  var W = 0, H = 0, DPR = 1, DPR_CAP = (CORES <= 4 || MEM <= 4) ? 1.5 : 2;
+  function resize() {
+    var r = mapEl.getBoundingClientRect();
+    DPR = Math.min(window.devicePixelRatio || 1, DPR_CAP);
+    W = r.width; H = r.height;
+    [glc, ovc, labc].forEach(function (c) { c.width = Math.round(W * DPR); c.height = Math.round(H * DPR); });
+    ovView = null; drawLegend(); render();
+  }
+  function boxView(lon0, lat0, lon1, lat1, pts) {
+    var xs = [], ys = [], N = 12;
+    if (pts) pts.forEach(function (ll) { var q = P.fwd(ll[0], ll[1]); xs.push(q[0]); ys.push(q[1]); });
+    else for (var k = 0; k <= N; k++) {
+      [[lon0 + (lon1 - lon0) * k / N, lat0], [lon0 + (lon1 - lon0) * k / N, lat1], [lon0, lat0 + (lat1 - lat0) * k / N], [lon1, lat0 + (lat1 - lat0) * k / N]].forEach(function (ll) {
+        var q = P.fwd(ll[0], ll[1]); xs.push(q[0]); ys.push(q[1]); });
+    }
+    var x0 = Math.min.apply(0, xs), x1 = Math.max.apply(0, xs), y0 = Math.min.apply(0, ys), y1 = Math.max.apply(0, ys);
+    return { cx: (x0 + x1) / 2, cy: (y0 + y1) / 2, s: Math.max((x1 - x0) / W, (y1 - y0) / H) * (pts ? 1.07 : 1.03) };
+  }
+  function goRegion(id) {
+    var r = REGIONS.filter(function (x) { return x[0] === id; })[0], m = METROS.filter(function (x) { return x[0] === id; })[0];
+    if (!W) return;
+    fitBox(r);
+    if (r) view = boxView(r[2], r[3], r[4], r[5], r[0] === "us" ? US_OUTLINE : null);
+    else if (m) { var q = P.fwd(m[2], m[3]); view = { cx: q[0], cy: q[1], s: METRO_KM * 1000 / Math.min(W, H * 1.4) }; }
+    else return;
+    st.region = id; syncRegionUI(); clampView(); onView(); render(); writeHash();
+  }
+  function boxH(r) { var ys = (r[0] === "us" ? US_OUTLINE : [[r[2], r[3]], [r[4], r[5]], [r[2], r[5]], [r[4], r[3]], [(r[2] + r[4]) / 2, r[5]], [(r[2] + r[4]) / 2, r[3]]]).map(function (ll) { return P.fwd(ll[0], ll[1])[1]; });
+    return Math.max.apply(0, ys) - Math.min.apply(0, ys); }
+  function fitBox(r) {
+    var was = mapEl.style.height; mapEl.style.height = "";
+    if (r && window.innerWidth <= 640) {
+      var rect = mapEl.getBoundingClientRect(), v = { W: W, H: H }; W = rect.width; H = 1e9;
+      var bv = boxView(r[2], r[3], r[4], r[5], r[0] === "us" ? US_OUTLINE : null); W = v.W; H = v.H;   // width-limited scale
+      var need = Math.ceil(boxH(r) / bv.s * 1.04);
+      if (need < rect.height) mapEl.style.height = Math.max(300, need) + "px";
+    }
+    if (mapEl.style.height !== was) resize();
+  }
+  function toXY(px, py) { return [view.cx + (px - W / 2) * view.s, view.cy - (py - H / 2) * view.s]; }
+  function clampView() { view.s = Math.max(15, Math.min(view.s, 30000)); }
+  function kmPerDevPx() { return view.s / 1000 / DPR; }
+  // the detail grid is worth it when a 0.02 deg block (about 1.7-2.2 km) would span more than ~1.4 device pixels
+  function needDetail() { return !!view && kmPerDevPx() < 1.4; }
+
+  // ── boundaries and airports (overlay) ──────────────────────────────────────────────────────────────────────────
+  var geo = {}, GEO_TOLS = [0.1, 0.3, 0.9, 2.7];
+  var GEO_STYLE = { coast: [1.1, 1], lakes: [0.9, 0.9], countries: [1.5, 1], provinces: [1.0, 0.85], states: [1.1, 0.95], counties: [0.5, 0.5] };
+  function loadGeo(url) {
+    var abs = new URL(url, location.href).href, Pp = [P.n, P.RF, P.rho0, P.lon0];
+    var job = workers.length ? workerCall({ op: "geo", url: abs, P: Pp, tols: GEO_TOLS }, workers.length - 1).then(function (r) { return r.layers; })
+      : fetch(abs).then(function (r) { return r.ok ? r.json() : null; }).then(function (d) { return d ? geoProcess(d, Pp, GEO_TOLS) : []; });
+    return job.then(function (L) { L.forEach(function (x) { geo[x.name] = { lods: x.lods, maxKmPerPx: x.maxKmPerPx }; }); ovView = null; drawOverlay(); })
+      .catch(function (e) { console.warn("boundaries", e); });
+  }
+  function buildTiles(xy, off, cellKm) {
+    var cells = new Map(), li, k, a, b;
+    for (li = 0; li + 1 < off.length; li++) {
+      for (a = off[li]; a < off[li + 1] - 1; a = b - 1) {
+        b = Math.min(off[li + 1], a + 200);
+        var x0 = 1e9, x1 = -1e9, y0 = 1e9, y1 = -1e9;
+        for (k = a; k < b; k++) { var X = xy[2 * k], Y = xy[2 * k + 1]; if (X < x0) x0 = X; if (X > x1) x1 = X; if (Y < y0) y0 = Y; if (Y > y1) y1 = Y; }
+        var key = Math.floor((x0 + x1) / 2 / cellKm) + "," + Math.floor((y0 + y1) / 2 / cellKm), t = cells.get(key);
+        if (!t) { t = { bb: [x0, x1, y0, y1], path: new Path2D() }; cells.set(key, t); }
+        else { if (x0 < t.bb[0]) t.bb[0] = x0; if (x1 > t.bb[1]) t.bb[1] = x1; if (y0 < t.bb[2]) t.bb[2] = y0; if (y1 > t.bb[3]) t.bb[3] = y1; }
+        t.path.moveTo(xy[2 * a], xy[2 * a + 1]);
+        for (k = a + 1; k < b; k++) t.path.lineTo(xy[2 * k], xy[2 * k + 1]);
+      }
+    }
+    return Array.from(cells.values());
+  }
+  function geoLod(L) {
+    var tmax = 0.6 * view.s / 1000 / DPR, best = L.lods[0];
+    L.lods.forEach(function (o) { if (o.tol <= tmax && o.tol >= best.tol) best = o; });
+    if (!best.tiles) best.tiles = buildTiles(best.xy, best.off, 400);
+    return best;
+  }
+  var ovView = null, ovMoved = false, interacting = false, settleT = 0, labT = 0;
+  function moveOverlay() {
+    if (!ovView) return;
+    var k = ovView.s / view.s, tx = W / 2 * (1 - k) + (ovView.cx - view.cx) / view.s, ty = H / 2 * (1 - k) - (ovView.cy - view.cy) / view.s;
+    ovc.style.transform = "matrix(" + k + ",0,0," + k + "," + tx + "," + ty + ")"; ovMoved = true;
+    if (labc.style.visibility !== "hidden") { labc.style.visibility = "hidden"; tip.style.display = "none"; }
+  }
+  function drawOverlay() {
+    if (interacting && ovView && view) { moveOverlay(); return; }
+    var ctx = ovc.getContext("2d");
+    if (ovMoved) { ovc.style.transform = ""; ovMoved = false; }
+    ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, ovc.width, ovc.height);
+    if (!view) { ovView = null; return; }
+    var kpp = view.s / 1000;
+    var x0 = (view.cx - W / 2 * view.s) / 1000, x1 = (view.cx + W / 2 * view.s) / 1000, y0 = (view.cy - H / 2 * view.s) / 1000, y1 = (view.cy + H / 2 * view.s) / 1000;
+    var k = DPR * 1000 / view.s; ctx.setTransform(k, 0, 0, -k, DPR * W / 2 - k * view.cx / 1000, DPR * H / 2 + k * view.cy / 1000);
+    ctx.lineJoin = "round"; ctx.strokeStyle = "rgba(28,30,28,0.8)";
+    ["counties", "lakes", "coast", "provinces", "states", "countries"].forEach(function (name) {
+      var L = geo[name]; if (!L) return;
+      if (name === "counties" && (!$("cty").checked || kpp > 2.2)) return;
+      var sty = GEO_STYLE[name]; ctx.globalAlpha = sty[1]; ctx.lineWidth = sty[0] * kpp;
+      var tiles = geoLod(L).tiles;
+      for (var i = 0; i < tiles.length; i++) { var bb = tiles[i].bb; if (bb[1] < x0 || bb[0] > x1 || bb[3] < y0 || bb[2] > y1) continue; ctx.stroke(tiles[i].path); }
+    });
+    ctx.globalAlpha = 1;
+    ovView = { cx: view.cx, cy: view.cy, s: view.s };
+    cancelAnimationFrame(labT); labT = requestAnimationFrame(function () { labT = 0; drawLabels(); });
+  }
+  var APTS = null, aptsP = null, aptShown = [];
+  function loadApts() {
+    if (aptsP) return;
+    aptsP = fetch("/data/models_airports.json").then(function (r) { return r.json(); }).then(function (d) {
+      d.airports.forEach(function (a) { var q = P.fwd(a[0], a[1]); a.x = q[0]; a.y = q[1]; }); APTS = d.airports; drawLabels(); }).catch(function () { aptsP = null; });
+  }
+  function drawLabels() {
+    var ctx = labc.getContext("2d");
+    ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, labc.width, labc.height);
+    aptShown = [];
+    if (!view || interacting) return;
+    labc.style.visibility = "";
+    if (!$("sta").checked) return;
+    if (!APTS) { loadApts(); return; }
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+    var kpp = view.s / 1000, maxTier = kpp > 2.2 ? 1 : 2, labTier = kpp > 1.2 ? 1 : 2;
+    var LS = Math.round(Math.max(13, Math.min(18, 13 + 1.7 * Math.log2(Math.max(1, 3.2 / kpp))))), FONT = "600 " + LS + "px 'Source Sans 3', Arial, sans-serif";
+    var occ = [], mr = mapEl.getBoundingClientRect();
+    [".mv-badge", ".mv-zoom", ".mv-load"].forEach(function (sel) { var el = mapEl.querySelector(sel); if (!el || !el.offsetParent) return;
+      var r = el.getBoundingClientRect(); if (r.width && r.height) occ.push([r.left - mr.left - 3, r.top - mr.top - 3, r.right - mr.left + 3, r.bottom - mr.top + 3]); });
+    function hit(b) { for (var i = 0; i < occ.length; i++) { var o = occ[i]; if (b[0] < o[2] && b[2] > o[0] && b[1] < o[3] && b[3] > o[1]) return true; } return false; }
+    var vis = [];
+    for (var i = 0; i < APTS.length; i++) {
+      var a = APTS[i]; if (a[4] > maxTier) continue;
+      var px = W / 2 + (a.x - view.cx) / view.s, py = H / 2 - (a.y - view.cy) / view.s;
+      if (px < -10 || px > W + 10 || py < -10 || py > H + 10) continue;
+      vis.push([px, py, a]);
+    }
+    vis.sort(function (p, q) { return p[2][4] - q[2][4]; });
+    // at the national scale of a phone (> 6 km/px) only the markers whose label fits are drawn: the rest is clutter
+    var sparse = kpp > 6, labs = [];
+    vis.forEach(function (v) { occ.push([v[0] - 5, v[1] - 5, v[0] + 5, v[1] + 5]); });
+    ctx.font = FONT;
+    vis.forEach(function (v) {
+      if (v[2][4] > labTier) { if (!sparse) aptShown.push(v); return; }
+      var t = v[2][2].length === 4 && v[2][2][0] === "K" ? v[2][2].slice(1) : v[2][2], tw = ctx.measureText(t).width;
+      var cands = [[v[0] + 7, v[1], "left"], [v[0] - 7, v[1], "right"], [v[0], v[1] - LS + 1, "center"], [v[0], v[1] + LS - 1, "center"]];
+      for (var c = 0; c < cands.length; c++) {
+        var x = cands[c][0], y = cands[c][1], al = cands[c][2], bx0 = al === "left" ? x : al === "right" ? x - tw : x - tw / 2;
+        var bb = [bx0 - 2, y - LS / 2 - 1, bx0 + tw + 2, y + LS / 2 + 1];
+        if (bb[0] < 0 || bb[2] > W || bb[1] < 0 || bb[3] > H || hit(bb)) continue;
+        var L = [t, x, y, al]; L.v = v; labs.push(L); occ.push(bb); break;
+      }
+      if (!sparse || (labs.length && labs[labs.length - 1].v === v)) aptShown.push(v);
+    });
+    ctx.beginPath();
+    aptShown.forEach(function (v) { ctx.moveTo(v[0], v[1] - 4); ctx.lineTo(v[0] + 4, v[1]); ctx.lineTo(v[0], v[1] + 4); ctx.lineTo(v[0] - 4, v[1]); ctx.closePath(); });
+    ctx.fillStyle = "#ffffff"; ctx.fill(); ctx.lineWidth = 1.4; ctx.strokeStyle = "#1a1a1a"; ctx.stroke();
+    ctx.textBaseline = "middle"; ctx.lineWidth = 3; ctx.strokeStyle = "rgba(255,255,255,0.92)"; ctx.fillStyle = "#141614"; ctx.lineJoin = "round";
+    labs.forEach(function (l) { ctx.textAlign = l[3]; ctx.strokeText(l[0], l[1], l[2]); ctx.fillText(l[0], l[1], l[2]); });
+  }
+  function nearestApt(px, py, r2) {
+    var best = null, bd = r2 || 64;
+    aptShown.forEach(function (v) { var d = (v[0] - px) * (v[0] - px) + (v[1] - py) * (v[1] - py); if (d < bd) { bd = d; best = v; } });
+    return best;
+  }
+
+  // ── drawing ────────────────────────────────────────────────────────────────────────────────────────────────────
+  var raf = 0;
+  function render() { if (!raf) raf = requestAnimationFrame(function () { raf = 0; draw(); }); }
+  function draw() {
+    if (!gl || !view || !prog) return;
+    gl.viewport(0, 0, glc.width, glc.height); gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT);
+    var fr = frames[st.idx];
+    if (fr && fr.tex) shown = fr;
+    var s = shown;
+    if (s && s.tex) {
+      gl.uniform2f(loc.uC, view.cx, view.cy); gl.uniform1f(loc.uS, view.s / DPR); gl.uniform2f(loc.uWH, glc.width, glc.height);
+      gl.uniform1f(loc.uAlpha, st.alpha);
+      if (s.rgba) {
+        gl.uniform1i(loc.uMode, 1); gl.activeTexture(gl.TEXTURE3); gl.bindTexture(gl.TEXTURE_2D, s.tex);
+        gl.uniform4f(loc.uRg, MRMS_BOX[0], MRMS_BOX[3], MRMS_BOX[2] - MRMS_BOX[0], MRMS_BOX[3] - MRMS_BOX[1]);
+      } else {
+        gl.uniform1i(loc.uMode, 0);
+        gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, s.tex); gl.uniform2i(loc.uOvN, s.ov.w, s.ov.h);
+        var d = detail && detail.key === s.key && needDetail() && !interacting ? detail : null;
+        if (d && !d.tex) uploadDetail(d);
+        if (d && d.tex) { gl.uniform1i(loc.uF, 1); gl.uniform1i(loc.uFf, d.f); gl.uniform4i(loc.uFN, d.w, d.h, d.tw, d.th); gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D_ARRAY, d.tex); }
+        else if (detail && detail.key === s.key && detail.tex && needDetail()) {   // keep the sharp grid while the map moves
+          gl.uniform1i(loc.uF, 1); gl.uniform1i(loc.uFf, detail.f); gl.uniform4i(loc.uFN, detail.w, detail.h, detail.tw, detail.th); gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D_ARRAY, detail.tex); }
+        else gl.uniform1i(loc.uF, 0);
+      }
+      gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+    }
+    if (interacting) moveOverlay(); else drawOverlay();
+    if (!interacting) badge();
+  }
+
+  // ── time ───────────────────────────────────────────────────────────────────────────────────────────────────────
+  function p2(n) { return n < 10 ? "0" + n : "" + n; }
+  function stamp(t) { var d = new Date(t); return d.getUTCFullYear() + p2(d.getUTCMonth() + 1) + p2(d.getUTCDate()) + p2(d.getUTCHours()) + p2(d.getUTCMinutes()); }
+  function parseStamp(s) { var m = /^(\d{4})(\d\d)(\d\d)(\d\d)(\d\d)$/.exec(s || ""); return m ? Date.UTC(+m[1], +m[2] - 1, +m[3], +m[4], +m[5]) : NaN; }
+  function arcUrl(t) { var d = new Date(t), y = d.getUTCFullYear(), mo = p2(d.getUTCMonth() + 1), da = p2(d.getUTCDate());
+    return IEM + "/archive/data/" + y + "/" + mo + "/" + da + "/GIS/uscomp/n0q_" + stamp(t) + ".png"; }
+  function hhmm(t) { var d = new Date(t); return p2(d.getUTCHours()) + ":" + p2(d.getUTCMinutes()); }
+  var MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+  function dayWords(t) { var d = new Date(t); return d.getUTCDate() + " " + MONTHS[d.getUTCMonth()] + " " + d.getUTCFullYear(); }
+  function localTime(t) { try { return new Date(t).toLocaleTimeString([], { hour: "numeric", minute: "2-digit", timeZoneName: "short" }); } catch (e) { return ""; } }
+  function ageMin(t) { return (Date.now() - t) / 60000; }
+  function freshness(t) { var a = ageMin(t); return a > 25 ? "stale" : a > 12 ? "late" : "ok"; }
+  function ageText(a) { a = Math.max(0, Math.round(a)); return a < 1 ? "just now" : a < 90 ? a + " min ago" : a < 2880 ? Math.round(a / 60) + " h ago" : Math.round(a / 1440) + " days ago"; }
+
+  // frames on the slider: every step-minute mark in (anchor - loop, anchor) plus the anchor itself
+  function frameTimes(anchor) {
+    var len = st.loop[0] * 60e3, step = st.loop[1] * 60e3, out = [];
+    for (var g = Math.ceil((anchor - len) / step) * step; g < anchor; g += step) out.push(g);
+    out.push(anchor); return out;
+  }
+  function frameObj(t, kind) {
+    var key = (kind || st.src) + ":" + t, fr = FR.get(key);
+    if (!fr) { fr = { key: key, t: t, src: kind || st.src, state: "idle" }; FR.set(key, fr); }
+    return fr;
+  }
+  function rebuildFrames(keepT) {
+    var times = st.src === "mrms" ? mrmsFrameTimes() : frameTimes(st.anchor);
+    frames = times.map(function (t) { var fr = frameObj(t); if (st.src === "iem") { fr.url = arcUrl(t); fr.alt = st.live && t === st.anchor ? CUR_PNG : null; } return fr; });
+    var want = keepT != null ? keepT : st.anchor, best = frames.length - 1;
+    frames.forEach(function (f, i) { if (Math.abs(f.t - want) < Math.abs(frames[best].t - want)) best = i; });
+    st.idx = best;
+    // free the GPU copies of frames that left the slider (the bytes go with them)
+    var keep = new Set(frames.map(function (f) { return f.key; }));
+    FR.forEach(function (f, k) { if (!keep.has(k) && f !== shown) { if (f.tex) gl.deleteTexture(f.tex); FR.delete(k); } });
+    var sl = $("slider"); sl.max = Math.max(0, frames.length - 1); sl.value = st.idx;
+    ticks(); timeText();
+  }
+  function ticks() {
+    var el = $("ticks"), n = frames.length, h = "";
+    frames.forEach(function (f, i) { h += '<i class="' + (f.state === "ok" ? "ok" : f.state === "missing" ? "miss" : "") + '" style="left:' + (n > 1 ? i / (n - 1) * 100 : 100) + '%"></i>'; });
+    el.innerHTML = h;
+  }
+  function timeText() {
+    var fr = frames[st.idx]; if (!fr) { $("valid").innerHTML = ""; return; }
+    var newest = frames[frames.length - 1], chip;
+    if (st.src === "iem" && !st.live) chip = '<span class="chip past">archive</span>';
+    else if (fr === newest) { var f = freshness(fr.t); chip = '<span class="chip ' + f + '">' + (f === "ok" ? "latest · " + ageText(ageMin(fr.t)) : (f === "late" ? "late · " : "stale · ") + ageText(ageMin(fr.t))) + "</span>"; }
+    else chip = '<span class="chip past">' + Math.round((fr.t - newest.t) / 60000) + " min</span>";
+    var miss = fr.state === "missing" ? ' <b style="color:var(--stale)">· missing at the source</b>' : "";
+    $("valid").innerHTML = '<span class="vt">' + hhmm(fr.t) + " UTC</span> " + chip + '<br><span class="loc">' + localTime(fr.t) + " · " + dayWords(fr.t) + "</span>" + miss;
+    $("now").disabled = st.idx === frames.length - 1 && st.live;
+  }
+  function badge() {
+    var b = $("badge"), s = shown;
+    if (!s) { b.textContent = ""; return; }
+    var narrow = W < 560, src = st.src === "mrms" ? (narrow ? "NOAA MRMS (fallback)" : "NOAA MRMS base reflectivity · NOAA colours") : (narrow ? "IEM composite" : "NEXRAD base reflectivity · IEM composite");
+    var extra = "";
+    if (st.src === "iem" && latest && s.t === latest.t && latest.quorum) extra = " · " + (narrow ? latest.quorum : latest.quorum.replace("/", " of ")) + " radars";
+    var res = st.src === "iem" ? (detail && detail.key === s.key && needDetail() && detail.tex ? (detail.f === 1 ? (narrow ? " · full grid" : " · full 0.005° grid") : " · 0.01° grid") : needDetail() ? " · 0.02° grid" : "") : "";
+    var lag = frames[st.idx] && frames[st.idx] !== s ? " · loading " + hhmm(frames[st.idx].t) + "…" : "";
+    var html = "<b>" + hhmm(s.t) + " UTC</b> · " + src + extra + res + lag;
+    if (b.innerHTML !== html) b.innerHTML = html;
+    var stale = st.live && frames.length && s === frames[frames.length - 1] && freshness(s.t) === "stale";
+    b.classList.toggle("stale", stale);
+  }
+  setInterval(function () { timeText(); if (frames.length) noteText(); }, 20000);
+
+  // ── loading ────────────────────────────────────────────────────────────────────────────────────────────────────
+  function loadMsg() {
+    var n = frames.length, ok = frames.filter(function (f) { return f.state === "ok"; }).length, busy = frames.filter(function (f) { return f.state === "loading"; }).length;
+    var mb = frames.reduce(function (a, f) { return a + (f.size || 0); }, 0) / 1048576;
+    $("load").textContent = busy ? "Loading frames: " + ok + " of " + n + " (" + mb.toFixed(1) + " MB so far)" : detailBusy ? "Decoding the full-resolution grid…" : "";
+  }
+  function fetchBytes(fr, urgent) {
+    if (fr.bytes) return Promise.resolve(fr.bytes);
+    if (fr.bytesP) return fr.bytesP;
+    var t0 = performance.now();
+    var get = function (u) { return fetch(u, { mode: "cors", priority: urgent ? "high" : "low" }).then(function (r) { if (!r.ok) throw Object.assign(new Error("HTTP " + r.status), { status: r.status }); return r.arrayBuffer(); }); };
+    fr.bytesP = get(fr.url).catch(function (e) { if (fr.alt) return get(fr.alt); throw e; }).then(function (buf) {
+      fr.bytes = buf; fr.size = buf.byteLength; fr.dlMs = performance.now() - t0; NET.bytes += buf.byteLength; NET.ms += fr.dlMs; NET.n++;
+      PERF.dl.push([Math.round(buf.byteLength / 1024), Math.round(fr.dlMs)]); return buf; });
+    fr.bytesP.catch(function () { fr.bytesP = null; });
+    return fr.bytesP;
+  }
+  function loadFrame(fr, urgent) {
+    if (fr.state === "ok") return Promise.resolve(fr);
+    if (fr.loadP) return fr.loadP;
+    fr.state = "loading"; loadMsg();
+    var wantFull = urgent && st.src === "iem" && needDetail() && !st.playing ? DETAIL_F : 0;
+    fr.loadP = (fr.src === "mrms" ? loadMrms(fr) : fetchBytes(fr, urgent).then(function (buf) {
+      return decodeBytes(buf, wantFull).then(function (r) {
+        fr.ov = { w: r.ow, h: r.oh, data: r.ov }; fr.grid = [r.w, r.h]; fr.echo = r.echo; PERF.dec.push(r.ms.total);
+        if (r.full) { setDetail(fr, r.full); PERF.full.push(r.ms.total); }
+        uploadOv(fr);
+      });
+    })).then(function () {
+      fr.state = "ok"; fr.loadP = null;
+      if (!PERF.firstFrame) PERF.firstFrame = performance.now() - PERF.t0;
+      ticks(); loadMsg(); render(); timeText(); noteText();
+      if (frames[st.idx] === fr) { $("msg").textContent = ""; scheduleDetail(); }
+      return fr;
+    }, function (e) {
+      fr.loadP = null; fr.state = e && (e.status === 404 || e.status === 422 || e.status === 400) ? "missing" : "error"; fr.err = String(e && e.message || e);
+      if (fr.state === "error") setTimeout(function () { if (fr.state === "error") fr.state = "idle"; }, 60000);   // a network error: try again later
+      ticks(); loadMsg(); timeText();
+      if (frames[st.idx] === fr && !shown) $("msg").textContent = "The radar frame for " + hhmm(fr.t) + " UTC could not be loaded (" + fr.err + ").";
+      throw e;
+    });
+    return fr.loadP;
+  }
+  // the loop: on demand only (play, step, the slider), newest first, 2 at a time (1 on a slow line)
+  var loopRun = 0;
+  function engage() {
+    if (st.engaged) { pumpLoop(); return; }
+    st.engaged = true; pumpLoop();
+  }
+  function pumpLoop() {
+    var lanes = SLOW ? 1 : 2, busy = frames.filter(function (f) { return f.state === "loading"; }).length;
+    var cur = frames[st.idx];
+    if (cur && cur.state === "idle") { loadFrame(cur, true).catch(function () {}).then(pumpLoop); busy++; }
+    if (!st.engaged) return;
+    for (var i = frames.length - 1; i >= 0 && busy < lanes; i--) {
+      var f = frames[i]; if (f.state !== "idle") continue;
+      busy++; loadFrame(f, false).catch(function () {}).then(pumpLoop);
+    }
+  }
+  // full-resolution grid of the frame on screen: when paused (not playing or scrubbing) and zoomed in, or on the first hover
+  var detailT = 0, detailBusy = false, wantHoverDetail = false;
+  function setDetail(fr, full) { dropDetail(); detail = Object.assign({ key: fr.key, t: fr.t }, full); }
+  function scheduleDetail(soon) {
+    clearTimeout(detailT);
+    detailT = setTimeout(function () {
+      var fr = frames[st.idx]; if (!fr || fr.src !== "iem" || fr.state !== "ok" || st.playing || interacting || detailBusy) return;
+      if (detail && detail.key === fr.key) { if (needDetail()) render(); return; }
+      if (!needDetail() && !wantHoverDetail) return;
+      detailBusy = true; loadMsg();
+      var t0 = performance.now();
+      fetchBytes(fr, true).then(function (buf) { return decodeBytes(buf, DETAIL_F); }).then(function (r) {
+        detailBusy = false; PERF.full.push(performance.now() - t0);
+        if (r.full) setDetail(fr, r.full);
+        loadMsg(); render(); if (lastHover) hover(lastHover[0], lastHover[1]);
+      }, function () { detailBusy = false; loadMsg(); });
+    }, soon ? 30 : 350);
+  }
+
+  // ── IEM: the newest composite, checked once per expected update while the tab is visible ────────────────────────
+  var refreshT = 0, lastCheck = 0, iemFails = 0;
+  function scheduleRefresh(ms) { clearTimeout(refreshT); if (!st.live) return; refreshT = setTimeout(checkLatest, ms); }
+  function checkLatest() {
+    if (document.hidden) return;                                   // resumed by visibilitychange
+    lastCheck = Date.now();
+    if (st.src === "mrms") return checkMrms();
+    return fetch(CUR_JSON, { cache: "no-cache" }).then(function (r) { return r.ok ? r.json() : null; }).catch(function () { return null; }).then(function (j) {
+      var t = j && j.meta && Date.parse(j.meta.valid);
+      if (!t) {
+        iemFails++;
+        if (!latest && iemFails >= 2) { setSource("mrms", "IEM did not answer, so the page switched to NOAA's MRMS image service."); return; }
+        if (!latest) { setTimeout(checkLatest, 4000); return; }
+        scheduleRefresh(120e3); return;
+      }
+      iemFails = 0;
+      var isNew = !latest || t > latest.t;
+      latest = { t: t, quorum: j.meta.radar_quorum, proc: j.meta.processing_time_secs };
+      if (isNew && st.live) {
+        var following = !frames.length || st.idx === frames.length - 1;
+        st.anchor = t; rebuildFrames(following ? t : frames[st.idx].t);
+        var cur = frames[st.idx];
+        loadFrame(cur, true).catch(function () { if (cur === frames[frames.length - 1] && frames.length > 1 && !shown) { st.idx--; $("slider").value = st.idx; timeText(); loadFrame(frames[st.idx], true).catch(function () {}); } });
+        if (st.engaged) pumpLoop();
+        writeHash(); cmpLink();
+      }
+      noteText();
+      var next = t + 6 * 60e3 - Date.now();                           // the next composite is due 5 min after this one
+      scheduleRefresh(next < 60e3 ? 120e3 : next);
+    });
+  }
+  document.addEventListener("visibilitychange", function () {
+    if (document.hidden) { if (st.playing) togglePlay(); return; }
+    if (st.live && Date.now() - lastCheck > 4 * 60e3) checkLatest();
+    timeText();
+  });
+
+  // ── NOAA MRMS fallback (rendered colours, no values) ───────────────────────────────────────────────────────────
+  var mrmsT = [];
+  function mrmsFrameTimes() {
+    if (!mrmsT.length) return [];
+    var newest = mrmsT[mrmsT.length - 1], grid = frameTimes(newest), out = [];
+    grid.forEach(function (g) { var b = null; mrmsT.forEach(function (t) { if (Math.abs(t - g) <= st.loop[1] * 30e3 && (b === null || Math.abs(t - g) < Math.abs(b - g))) b = t; });
+      if (b !== null && out.indexOf(b) < 0) out.push(b); });
+    return out;
+  }
+  function checkMrms() {
+    var since = new Date(Date.now() - (st.loop[0] + 20) * 60e3).toISOString().slice(0, 19).replace("T", " ");
+    var u = NOAA_IS + "/query?where=" + encodeURIComponent("idp_validtime >= timestamp '" + since + "'") + "&outFields=idp_validtime&returnGeometry=false&orderByFields=idp_validtime%20DESC&resultRecordCount=500&f=json";
+    return fetch(u, { cache: "no-cache" }).then(function (r) { return r.json(); }).then(function (j) {
+      var set = {}; (j.features || []).forEach(function (f) { var t = f.attributes && f.attributes.idp_validtime; if (t) set[Math.round(t / 1000) * 1000] = 1; });
+      var ts = Object.keys(set).map(Number).sort(function (a, b) { return a - b; });
+      // the service keeps several rasters per time (lower 48, Alaska, ...); stamps within 2 min are one composite
+      mrmsT = []; ts.forEach(function (t) { if (!mrmsT.length || t - mrmsT[mrmsT.length - 1] > 120e3) mrmsT.push(t); else mrmsT[mrmsT.length - 1] = t; });
+      if (!mrmsT.length) throw new Error("no times");
+      var following = !frames.length || st.idx === frames.length - 1, keep = frames[st.idx] && frames[st.idx].t;
+      st.anchor = mrmsT[mrmsT.length - 1]; rebuildFrames(following ? st.anchor : keep);
+      loadFrame(frames[st.idx], true).catch(function () {}); if (st.engaged) pumpLoop();
+      noteText(); scheduleRefresh(5 * 60e3);
+    }).catch(function (e) { $("msg").textContent = shown ? "" : "Neither IEM nor NOAA's radar service answered. Check your connection; the page tries again in two minutes."; scheduleRefresh(120e3); });
+  }
+  function loadMrms(fr) {
+    var u = NOAA_IS + "/exportImage?bbox=" + MRMS_BOX.join(",") + "&bboxSR=4326&imageSR=4326&size=" + MRMS_W + "," + MRMS_H +
+            "&format=png32&interpolation=RSP_NearestNeighbor&time=" + fr.t + "&f=image";
+    var t0 = performance.now();
+    return fetch(u).then(function (r) { if (!r.ok) throw new Error("HTTP " + r.status); return r.blob(); }).then(function (b) {
+      fr.size = b.size; fr.dlMs = performance.now() - t0; return createImageBitmap(b, { premultiplyAlpha: "none", colorSpaceConversion: "none" });
+    }).then(function (bmp) { uploadRgba(fr, bmp); fr.rgba = true; bmp.close && bmp.close(); });
+  }
+  function setSource(src, why) {
+    if (st.src === src) return;
+    st.src = src; $("src").value = src; if (st.playing) togglePlay();
+    shown = null; dropDetail();
+    FR.forEach(function (f) { if (f.tex) gl.deleteTexture(f.tex); }); FR.clear(); frames = [];
+    st.live = true; srcWhy = why || "";
+    $("floor").disabled = src === "mrms";
+    drawLegend(); checkLatest();
+  }
+  var srcWhy = "";
+
+  // ── notes, legend ──────────────────────────────────────────────────────────────────────────────────────────────
+  function noteText() {
+    var n = $("note"), h = "";
+    n.classList.remove("warn");
+    if (st.src === "mrms") { h = "<b>Fallback source.</b> " + (srcWhy ? srcWhy + " " : "") + "These are NOAA's MRMS base-reflectivity images in NOAA's own colours (not the model maps' scale) and carry no dBZ values: no readout and no floor. Switch the source back to IEM under the map options when it returns."; n.classList.add("warn"); }
+    else if (!st.live) h = "<b>Archive view</b> of the loop ending " + hhmm(st.anchor) + " UTC, " + dayWords(st.anchor) + ". <a href=\"#\" id=\"golive\">Back to the live radar</a>.";
+    else if (latest && freshness(latest.t) !== "ok") { h = "<b>IEM's newest composite is " + ageText(ageMin(latest.t)).replace(" ago", " old") + "</b> (" + hhmm(latest.t) + " UTC). New frames normally arrive every five minutes; the page keeps checking."; n.classList.add("warn"); }
+    if (n.innerHTML !== h) { n.innerHTML = h; var g = $("golive"); if (g) g.onclick = function (e) { e.preventDefault(); goLive(); }; }
+  }
+  function goLive() { st.live = true; latest = null; st.anchor = 0; if (st.playing) togglePlay(); frames = []; shown = null; dropDetail(); writeHash(); noteText(); checkLatest(); }
+  function legSetup(hpx) {
+    var cv = $("leg"), dpr = Math.min(window.devicePixelRatio || 1, 2), vert = getComputedStyle(document.querySelector(".mv-mapwrap")).flexDirection === "row";
+    cv.style.height = vert ? "100%" : hpx + "px";
+    var r = cv.getBoundingClientRect(); cv.width = Math.round(r.width * dpr); cv.height = Math.round(r.height * dpr);
+    var ctx = cv.getContext("2d"); ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, r.width, r.height);
+    ctx.font = "13.5px 'Source Sans 3', Arial, sans-serif"; return { ctx: ctx, w: r.width, h: r.height, vert: vert };
+  }
+  function drawLegend() {
+    var g = legSetup(40), ctx = g.ctx, lo = 0, hi = 75, ticksV = [5, 10, 20, 30, 40, 50, 60, 70];
+    if (st.src === "mrms") {
+      $("legT").textContent = "NOAA MRMS base reflectivity, drawn in NOAA's own colours as received (fallback; no colour scale is published with the images).";
+      return;
+    }
+    $("legT").textContent = "Base reflectivity, dBZ (the lowest scan of each radar) · colours as the HRRR/RRFS rain ramp on the model maps · faded: hidden below " + st.floor + " dBZ";
+    function col(d) { if (d < 5) return null; var c = interp(RAMP, d); return d < st.floor ? [c[0], c[1], c[2], 0.18] : c; }
+    var cs = function (c) { return "rgba(" + Math.round(c[0]) + "," + Math.round(c[1]) + "," + Math.round(c[2]) + "," + (c[3] == null ? 1 : c[3]) + ")"; };
+    ctx.fillStyle = "#3d4540"; ctx.textBaseline = "middle";
+    if (g.vert) {
+      var x0 = 10, bw = 22, y0 = g.h - 12, y1 = 12;
+      ctx.fillStyle = "#e9ebe6"; ctx.fillRect(x0, y1, bw, y0 - y1);
+      for (var py = y1; py < y0; py++) { var c = col(lo + (y0 - py) / (y0 - y1) * (hi - lo)); if (c) { ctx.fillStyle = cs(c); ctx.fillRect(x0, py, bw, 1.2); } }
+      ctx.strokeStyle = "#8c918b"; ctx.lineWidth = 1; ctx.strokeRect(x0 + 0.5, y1 + 0.5, bw - 1, y0 - y1 - 1);
+      ctx.fillStyle = "#3d4540"; ctx.textAlign = "left";
+      ticksV.forEach(function (v) { var y = y0 - (v - lo) / (hi - lo) * (y0 - y1); ctx.fillRect(x0 + bw, y - 0.5, 4, 1); ctx.fillText(String(v), x0 + bw + 7, y); });
+      ctx.save(); ctx.translate(g.w - 8, (y0 + y1) / 2); ctx.rotate(-Math.PI / 2); ctx.textAlign = "center"; ctx.fillText("dBZ", 0, 0); ctx.restore();
+      var yf = y0 - (st.floor - lo) / (hi - lo) * (y0 - y1); ctx.fillStyle = "#1f261c"; ctx.fillRect(x0 - 4, yf - 1, bw + 8, 2);
+    } else {
+      var xa = 6, xb = g.w - 40, bh = 14;
+      for (var px = xa; px < xb; px++) { var c2 = col(lo + (px - xa) / (xb - xa) * (hi - lo)); if (c2) { ctx.fillStyle = cs(c2); ctx.fillRect(px, 2, 1.2, bh); } }
+      ctx.strokeStyle = "#8c918b"; ctx.lineWidth = 1; ctx.strokeRect(xa + 0.5, 2.5, xb - xa - 1, bh - 1);
+      ctx.fillStyle = "#3d4540"; ctx.textAlign = "center"; ctx.textBaseline = "top";
+      ticksV.forEach(function (v) { if (v === 5) return; var x = xa + (v - lo) / (hi - lo) * (xb - xa); ctx.fillRect(x - 0.5, bh + 2, 1, 4); ctx.fillText(String(v), x, bh + 7); });
+      ctx.textAlign = "left"; ctx.textBaseline = "middle"; ctx.fillText("dBZ", xb + 6, 2 + bh / 2);
+      var xf = xa + (st.floor - lo) / (hi - lo) * (xb - xa); ctx.fillStyle = "#1f261c"; ctx.fillRect(xf - 1, 0, 2, bh + 4);
+    }
+  }
+
+  // ── hover / tap readout ────────────────────────────────────────────────────────────────────────────────────────
+  var lastHover = null;
+  function sampleCode(lon, lat) {
+    var s = shown; if (!s || !s.ov || s.rgba) return null;
+    var i = Math.floor((lon - (G.lon0 - G.res / 2)) / G.res), j = Math.floor((G.lat0 + G.res / 2 - lat) / G.res);
+    if (i < 0 || j < 0 || i >= s.grid[0] || j >= s.grid[1]) return { out: true };
+    if (detail && detail.key === s.key) { var ii = Math.floor(i / detail.f), jj = Math.floor(j / detail.f); return { code: detail.data[jj * detail.stride + detail.off + ii], exact: detail.f === 1, f: detail.f }; }
+    return { code: s.ov.data[Math.floor(j / OVF) * s.ov.w + Math.floor(i / OVF)], exact: false, f: OVF };
+  }
+  function hover(px, py, sticky) {
+    lastHover = sticky ? null : [px, py];
+    if (!view || !shown) { tip.style.display = "none"; return; }
+    var apt = nearestApt(px, py, sticky ? 196 : 64), head = "";
+    if (apt) { px = apt[0]; py = apt[1]; head = "<b>" + apt[2][2] + "</b> " + String(apt[2][3]).replace(/[&<>]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]; }) + "<br>"; }
+    var xy = toXY(px, py), ll = P.inv(xy[0], xy[1]), txt;
+    if (st.src === "mrms") txt = "No values in the NOAA fallback images";
+    else {
+      var s = sampleCode(ll[0], ll[1]);
+      if (!s || s.out) txt = "Outside the composite";
+      else {
+        if (!s.exact && st.src === "iem" && !st.playing) { wantHoverDetail = true; scheduleDetail(true); }
+        var d = dbzOf(s.code), approx = s.exact ? "" : ' <span class="ll">(strongest in the ' + (s.f === 2 ? "1 km" : "2 km") + " block" + (detailBusy ? "; full grid loading" : "") + ")</span>";
+        txt = s.code === 0 ? "No echo" + (s.exact ? "" : approx) : '<span class="v">' + d.toFixed(1) + " dBZ</span>" + (d < st.floor ? ' <span class="ll">(below the ' + st.floor + " dBZ floor)</span>" : "") + approx;
+      }
+    }
+    tip.innerHTML = head + txt + '<br><span class="ll">' + Math.abs(ll[1]).toFixed(2) + "°" + (ll[1] >= 0 ? "N" : "S") + " " + Math.abs(ll[0]).toFixed(2) + "°" + (ll[0] >= 0 ? "E" : "W") + " · " + hhmm(shown.t) + " UTC</span>";
+    tip.style.display = "block";
+    var tw = tip.offsetWidth, th = tip.offsetHeight, x = px, y = py;
+    if (x + 12 + tw > W) x = px - tw - 24; if (y + 12 + th > H) y = py - th - 24;
+    tip.style.left = Math.max(0, x) + "px"; tip.style.top = Math.max(0, y) + "px";
+    if (sticky) { clearTimeout(tip._t); tip._t = setTimeout(function () { tip.style.display = "none"; }, 5000); }
+  }
+
+  // ── gestures (models.html: smooth zoom, pinch, flick, overlay moved by the compositor while the map moves) ────────
+  var zA = null;
+  function beginInteract() { interacting = true; clearTimeout(settleT); }
+  function settleSoon(ms) { clearTimeout(settleT); settleT = setTimeout(function () { interacting = false; onView(); render(); writeHash(); }, ms || 140); }
+  function onView() { scheduleDetail(); if (st.region && !regionMatches()) { st.region = ""; syncRegionUI(); } }
+  function regionMatches() { return regionView && view && Math.abs(regionView.cx - view.cx) < view.s * 2 && Math.abs(regionView.s / view.s - 1) < 0.02; }
+  var regionView = null;
+  function zoomBy(px, py, f, tau) {
+    if (!view) return;
+    var w = toXY(px, py);
+    if (!zA) zA = { target: view.s, raf: 0 };
+    zA.target = Math.max(15, Math.min(30000, zA.target * f)); zA.px = px; zA.py = py; zA.wx = w[0]; zA.wy = w[1]; zA.tau = tau || 45;
+    beginInteract();
+    if (!zA.raf) { zA.last = performance.now(); zA.raf = requestAnimationFrame(zStep); }
+  }
+  function zStep(t) {
+    var z = zA; if (!z) return;
+    var dt = Math.max(1, Math.min(t - z.last, 50)); z.last = t;
+    var ls = Math.log(view.s), lt = Math.log(z.target), nl = ls + (lt - ls) * (1 - Math.exp(-dt / z.tau));
+    if (Math.abs(lt - nl) < 0.003) nl = lt;
+    view.s = Math.exp(nl); view.cx = z.wx - (z.px - W / 2) * view.s; view.cy = z.wy + (z.py - H / 2) * view.s;
+    draw();
+    if (nl !== lt) z.raf = requestAnimationFrame(zStep); else { zA = null; settleSoon(120); }
+  }
+  mapEl.addEventListener("wheel", function (e) {
+    if (!view) return; e.preventDefault(); var r = mapEl.getBoundingClientRect();
+    var dy = e.deltaY * (e.deltaMode === 1 ? 33 : e.deltaMode === 2 ? 400 : 1), k = e.ctrlKey ? 0.01 : 0.0016;
+    dy = Math.max(-300, Math.min(300, dy));
+    zoomBy(e.clientX - r.left, e.clientY - r.top, Math.exp(dy * k), Math.abs(dy) >= 40 ? 45 : 30);
+  }, { passive: false });
+  var gS = 0;
+  mapEl.addEventListener("gesturestart", function (e) { e.preventDefault(); gS = view ? view.s : 0; beginInteract(); });
+  mapEl.addEventListener("gesturechange", function (e) { e.preventDefault(); if (!view || !gS) return; var r = mapEl.getBoundingClientRect(), px = e.clientX - r.left, py = e.clientY - r.top;
+    var a = toXY(px, py); view.s = gS / e.scale; clampView(); var b = toXY(px, py); view.cx += a[0] - b[0]; view.cy += a[1] - b[1]; render(); });
+  mapEl.addEventListener("gestureend", function (e) { e.preventDefault(); settleSoon(120); });
+  $("zin").onclick = function () { zoomBy(W / 2, H / 2, 0.6, 45); };
+  $("zout").onclick = function () { zoomBy(W / 2, H / 2, 1 / 0.6, 45); };
+  $("zfit").onclick = function () { zA = null; goRegion("us"); };
+  var ptrs = new Map(), pinch = null, moved = false, vel = [0, 0, 0], glide = 0, gest = { pinched: false, start: null };
+  mapEl.addEventListener("contextmenu", function (e) { if (e.pointerType && e.pointerType !== "mouse") e.preventDefault(); });
+  mapEl.addEventListener("pointerdown", function (e) {
+    if (e.target.closest("button")) return;
+    if (!ptrs.size) gest = { pinched: false, start: [e.clientX, e.clientY] };
+    mapEl.setPointerCapture(e.pointerId); ptrs.set(e.pointerId, [e.clientX, e.clientY]); moved = false;
+    cancelAnimationFrame(glide); if (zA) { cancelAnimationFrame(zA.raf); zA = null; } vel = [0, 0, performance.now()]; beginInteract();
+    if (ptrs.size === 2) { var p = Array.from(ptrs.values()); pinch = { d: Math.hypot(p[0][0] - p[1][0], p[0][1] - p[1][1]), s: view.s }; }
+    mapEl.classList.add("drag");
+  });
+  mapEl.addEventListener("pointermove", function (e) {
+    var r = mapEl.getBoundingClientRect(), px = e.clientX - r.left, py = e.clientY - r.top;
+    if (ptrs.has(e.pointerId) && view) {
+      var old = ptrs.get(e.pointerId); ptrs.set(e.pointerId, [e.clientX, e.clientY]);
+      if (ptrs.size === 2 && pinch) {
+        var p = Array.from(ptrs.values()), d = Math.hypot(p[0][0] - p[1][0], p[0][1] - p[1][1]);
+        var mx = (p[0][0] + p[1][0]) / 2 - r.left, my = (p[0][1] + p[1][1]) / 2 - r.top;
+        var a = toXY(mx, my); view.s = pinch.s * pinch.d / Math.max(d, 1); clampView(); var b = toXY(mx, my);
+        view.cx += a[0] - b[0]; view.cy += a[1] - b[1];
+        view.cx -= (e.clientX - old[0]) * view.s / 2; view.cy += (e.clientY - old[1]) * view.s / 2;
+        moved = true; gest.pinched = true; render(); return;
+      }
+      if (ptrs.size === 1 && !moved && !gest.pinched && gest.start) {
+        if (Math.hypot(e.clientX - gest.start[0], e.clientY - gest.start[1]) < (e.pointerType === "mouse" ? 4 : 10)) { ptrs.set(e.pointerId, old); return; }
+        moved = true;
+      }
+      if (Math.abs(e.clientX - old[0]) + Math.abs(e.clientY - old[1]) > 0) {
+        view.cx -= (e.clientX - old[0]) * view.s; view.cy += (e.clientY - old[1]) * view.s; moved = true;
+        var now = performance.now(), dt = Math.max(now - vel[2], 1), a8 = Math.min(dt / 40, 1);
+        vel = [vel[0] * (1 - a8) + (e.clientX - old[0]) / dt * a8, vel[1] * (1 - a8) + (e.clientY - old[1]) / dt * a8, now]; render();
+      }
+      return;
+    }
+    if (e.pointerType === "mouse" && !interacting) hover(px, py);
+  });
+  function endPtr(e) {
+    var r = mapEl.getBoundingClientRect(), isTap = e.type === "pointerup" && !moved && !gest.pinched;
+    if (ptrs.has(e.pointerId) && isTap && e.pointerType !== "mouse") hover(e.clientX - r.left, e.clientY - r.top, true);
+    var wasPan = ptrs.size === 1 && !pinch && moved && !gest.pinched;
+    ptrs.delete(e.pointerId); if (ptrs.size < 2) pinch = null; if (!ptrs.size) mapEl.classList.remove("drag");
+    if (ptrs.size) return;
+    if (!moved && !gest.pinched) { interacting = false; clearTimeout(settleT); if (!ovView) render(); return; }   // a click: nothing moved
+    if (wasPan && performance.now() - vel[2] < 80 && Math.hypot(vel[0], vel[1]) > 0.15) {
+      var last = performance.now();
+      var step_ = function (t) {
+        var dt = Math.min(t - last, 40); last = t; var f = Math.pow(0.94, dt / 16.7);
+        vel[0] *= f; vel[1] *= f; view.cx -= vel[0] * dt * view.s; view.cy += vel[1] * dt * view.s; draw();
+        if (Math.hypot(vel[0], vel[1]) > 0.02) glide = requestAnimationFrame(step_); else settleSoon(60);
+      };
+      glide = requestAnimationFrame(step_);
+    } else settleSoon(60);
+  }
+  mapEl.addEventListener("pointerup", endPtr); mapEl.addEventListener("pointercancel", endPtr);
+  mapEl.addEventListener("pointerleave", function (e) { if (e.pointerType === "mouse") { tip.style.display = "none"; lastHover = null; } });
+  mapEl.addEventListener("dblclick", function (e) { var r = mapEl.getBoundingClientRect(); zoomBy(e.clientX - r.left, e.clientY - r.top, 0.5, 45); });
+
+  // ── time controls ──────────────────────────────────────────────────────────────────────────────────────────────
+  var playT = 0;
+  function show(i) {
+    if (!frames.length) return;
+    st.idx = Math.max(0, Math.min(frames.length - 1, i)); $("slider").value = st.idx;
+    var fr = frames[st.idx];
+    if (fr.state === "idle") loadFrame(fr, !st.playing).catch(function () {});
+    timeText(); render(); writeHash(); cmpLink();
+    if (!st.playing) scheduleDetail();
+    if (lastHover && !st.playing) setTimeout(function () { if (lastHover) hover(lastHover[0], lastHover[1]); }, 30);
+  }
+  function step(d) {
+    engage();
+    if (!frames.length) return;
+    var i = st.idx;
+    for (var k = 0; k < frames.length; k++) {                        // skip frames the source does not have
+      i = (i + d + frames.length) % frames.length;
+      if (frames[i].state !== "missing") break;
+    }
+    show(i);
+  }
+  function tick() {
+    playT = 0; if (!st.playing) return;
+    var n = frames.length, i = st.idx, nxt = -1;
+    for (var k = 1; k <= n; k++) { var j = (i + k) % n; if (frames[j].state === "ok") { nxt = j; break; } }
+    if (nxt >= 0 && nxt !== i) show(nxt);
+    playT = setTimeout(tick, st.idx === n - 1 ? 1500 : 420);
+  }
+  function togglePlay() {
+    st.playing = !st.playing; var b = $("play");
+    b.innerHTML = st.playing ? "&#10074;&#10074;" : "&#9654;"; b.setAttribute("aria-label", st.playing ? "Pause the loop" : "Play the loop");
+    clearTimeout(playT);
+    if (st.playing) { engage(); playT = setTimeout(tick, 200); } else { show(st.idx); }
+  }
+  $("play").onclick = togglePlay;
+  $("back").onclick = function () { if (st.playing) togglePlay(); step(-1); };
+  $("fwd").onclick = function () { if (st.playing) togglePlay(); step(1); };
+  $("now").onclick = function () { if (st.playing) togglePlay(); if (!st.live) goLive(); else show(frames.length - 1); };
+  $("slider").addEventListener("input", function () { if (st.playing) togglePlay(); engage(); show(+this.value); });
+  document.addEventListener("keydown", function (e) {
+    if (e.target && /INPUT|SELECT|TEXTAREA/.test(e.target.tagName) && e.target.type !== "range") return;
+    if (e.key === "ArrowRight") { if (st.playing) togglePlay(); step(1); e.preventDefault(); }
+    else if (e.key === "ArrowLeft") { if (st.playing) togglePlay(); step(-1); e.preventDefault(); }
+    else if ((e.key === " " || e.key === "Spacebar") && !(e.target && /^(BUTTON|A|SUMMARY)$/.test(e.target.tagName))) { togglePlay(); e.preventDefault(); }
+  });
+
+  // ── options ────────────────────────────────────────────────────────────────────────────────────────────────────
+  function syncRegionUI() {
+    Array.prototype.forEach.call($("regs").children, function (b) { b.setAttribute("aria-pressed", b.dataset.id === st.region ? "true" : "false"); });
+    $("regSel").value = st.region || ""; $("metro").value = METROS.some(function (m) { return m[0] === st.region; }) ? st.region : "";
+    if (st.region) regionView = { cx: view.cx, cy: view.cy, s: view.s };
+  }
+  (function buildUI() {
+    var regs = $("regs"), sel = $("regSel"), met = $("metro");
+    REGIONS.forEach(function (r) { var b = document.createElement("button"); b.type = "button"; b.dataset.id = r[0]; b.textContent = r[1]; b.onclick = function () { goRegion(r[0]); }; regs.appendChild(b); });
+    var o0 = document.createElement("option"); o0.value = ""; o0.textContent = "Custom view"; o0.hidden = true; sel.appendChild(o0);
+    var g1 = document.createElement("optgroup"); g1.label = "Country and NWS regions";
+    REGIONS.forEach(function (r) { var o = document.createElement("option"); o.value = r[0]; o.textContent = r[0] === "us" ? r[1] : r[1] + " Region"; g1.appendChild(o); });
+    var g2 = document.createElement("optgroup"); g2.label = "Cities";
+    var m0 = document.createElement("option"); m0.value = ""; m0.textContent = "Pick a city…"; met.appendChild(m0);
+    METROS.forEach(function (m) { var o = document.createElement("option"); o.value = m[0]; o.textContent = m[1]; g2.appendChild(o); met.appendChild(o.cloneNode(true)); });
+    sel.appendChild(g1); sel.appendChild(g2);
+    sel.onchange = function () { if (this.value) goRegion(this.value); };
+    met.onchange = function () { if (this.value) goRegion(this.value); };
+    var ls = $("loopSel");
+    LOOPS.forEach(function (l) { var o = document.createElement("option"); o.value = l.join("/");
+      o.textContent = (l[0] < 60 ? l[0] + " min" : l[0] / 60 + " h") + ", every " + l[1] + " min (" + (Math.floor(l[0] / l[1]) + 1) + " frames)"; ls.appendChild(o); });
+    ls.value = st.loop.join("/");
+    ls.onchange = function () { st.loop = this.value.split("/").map(Number); var keep = frames[st.idx] && frames[st.idx].t; if (st.src === "mrms") { checkMrms(); return; } if (st.anchor) rebuildFrames(keep); if (st.engaged) pumpLoop(); render(); writeHash(); };
+    $("floor").onchange = function () { st.floor = +this.value; buildLut(); drawLegend(); render(); if (lastHover) hover(lastHover[0], lastHover[1]); writeHash(); };
+    $("alpha").oninput = function () { st.alpha = +this.value / 100; $("alphaV").textContent = this.value + "%"; render(); };
+    $("cty").onchange = function () { ovView = null; render(); };
+    $("sta").onchange = function () { drawLabels(); };
+    $("src").onchange = function () { setSource(this.value, this.value === "mrms" ? "Chosen by you." : ""); };
+  })();
+
+  // ── links with the model maps ──────────────────────────────────────────────────────────────────────────────────
+  function viewToken() { if (!view) return ""; var ll = P.inv(view.cx, view.cy); return "v=" + ll[0].toFixed(3) + "," + ll[1].toFixed(3) + "," + (view.s / 1000).toFixed(3); }
+  var HRRR = null, hrrrP = null;
+  function loadHrrr() { if (hrrrP) return hrrrP; hrrrP = fetch("/assets/models/hrrr.json?v=" + Math.floor(Date.now() / 600e3)).then(function (r) { return r.ok ? r.json() : null; }).then(function (d) { HRRR = d; cmpLink(); return d; }).catch(function () { return null; }); return hrrrP; }
+  // the HRRR run on the model page that covers this time (newest first), as models.html's hash: #hrrr/refl/<hour>[/r<run>]/v=lon,lat,km
+  function cmpLink() {
+    var a = $("cmp"), fr = frames[st.idx], tok = viewToken();
+    if (!fr) return;
+    var href = "/models.html#hrrr/refl", t = fr.t, label = "Compare with the HRRR at this time";
+    if (HRRR && HRRR.cycles) {
+      var cs = HRRR.cycles.slice().sort(function (p, q) { return p.cycle < q.cycle ? 1 : -1; }), hit = null;
+      cs.some(function (c, ci) {
+        var h = Math.round((t - Date.parse(c.init)) / 3600e3), f = c.fields && c.fields.refl;
+        if (h >= 0 && f && f.hours && f.hours.indexOf(h) >= 0) { hit = [ci, h, c]; return true; } return false; });
+      if (hit) { href += "/" + hit[1] + (hit[0] ? "/r" + hit[0] : ""); label = "Compare with the HRRR at " + hhmm(Date.parse(hit[2].init) + hit[1] * 3600e3) + " UTC (+" + hit[1] + " h)"; }
+      else label = "HRRR maps (no run on the page covers this time)";
+    }
+    a.href = href + (tok ? "/" + tok : "");
+    if (a.textContent !== label) a.textContent = label;
+  }
+  ["mousedown", "focus", "touchstart"].forEach(function (ev) { $("cmp").addEventListener(ev, cmpLink, { passive: true }); });
+
+  // ── URL hash: #r=<region> | v=lon,lat,km  &t=YYYYMMDDHHMM (archive) &f=<floor> ──────────────────────────────────
+  function writeHash() {
+    var parts = [];
+    if (st.region) parts.push("r=" + st.region); else if (view) parts.push(viewToken());
+    if (!st.live && st.anchor) parts.push("t=" + stamp(st.anchor));
+    else if (frames.length && st.idx < frames.length - 1 && !st.playing) parts.push("at=" + stamp(frames[st.idx].t));
+    if (st.floor !== 10) parts.push("f=" + st.floor);
+    try { history.replaceState(null, "", "#" + parts.join("&")); } catch (e) {}
+    cmpLink();
+  }
+  function readHash() {
+    var h = {}; location.hash.replace(/^#/, "").split(/[&/]/).forEach(function (kv) { var i = kv.indexOf("="); if (i > 0) h[kv.slice(0, i)] = decodeURIComponent(kv.slice(i + 1)); });
+    return h;
+  }
+
+  // ── start ──────────────────────────────────────────────────────────────────────────────────────────────────────
+  function headerH() { var sh = document.querySelector(".sh"); var hgt = sh ? Math.round(sh.getBoundingClientRect().height) : 0; document.documentElement.style.setProperty("--shh", hgt + "px"); }
+  headerH(); window.addEventListener("load", headerH);
+  if (window.innerWidth > 640) $("more").open = true;                  // phones: the options start folded
+  window.addEventListener("resize", function () { if (window.innerWidth > 640 && !$("more").open) $("more").open = true; });
+  var glOk = false;
+  try { glOk = initGL(); } catch (e) { console.error(e); }
+  if (!glOk) { $("msg").textContent = "This page needs WebGL 2, which this browser does not provide."; return; }
+  if (!HAS_DS) $("msg").textContent = "This browser cannot unpack the radar files (it lacks DecompressionStream; Safari 16.4 or newer, Chrome 80 or newer and Firefox 113 or newer have it).";
+  resize();
+  var H0 = readHash();
+  if (H0.f && +H0.f >= 5 && +H0.f <= 40) { st.floor = +H0.f; $("floor").value = String(st.floor); if ($("floor").value !== String(st.floor)) { var o = document.createElement("option"); o.value = st.floor; o.textContent = st.floor + " dBZ"; $("floor").appendChild(o); $("floor").value = st.floor; } buildLut(); drawLegend(); }
+  var vm = /^(-?[\d.]+),(-?[\d.]+),([\d.]+)$/.exec(H0.v || "");
+  if (vm) { var q0 = P.fwd(+vm[1], +vm[2]); view = { cx: q0[0], cy: q0[1], s: +vm[3] * 1000 }; clampView(); st.region = ""; syncRegionUI(); }
+  else goRegion(REGIONS.concat(METROS).some(function (r) { return r[0] === H0.r; }) ? H0.r : "us");
+  if (FORCE_MRMS) { st.src = "mrms"; $("src").value = "mrms"; $("floor").disabled = true; drawLegend(); }
+  var tA = parseStamp(H0.t);
+  if (st.src === "iem" && tA && tA < Date.now() - 15 * 60e3 && tA > Date.UTC(2010, 10, 13, 17)) {      // archive view (e.g. from the model maps)
+    st.live = false; st.anchor = Math.floor(tA / 300e3) * 300e3; rebuildFrames(st.anchor);
+    loadFrame(frames[st.idx], true).catch(function () { $("msg").textContent = "IEM has no composite for " + hhmm(st.anchor) + " UTC " + dayWords(st.anchor) + "."; });
+    noteText();
+  } else {
+    var tAt = parseStamp(H0.at);
+    $("msg").textContent = "Loading the newest radar composite…";
+    var p = checkLatest();
+    if (tAt && p) p.then(function () { if (frames.length && st.src === "iem") { var best = -1; frames.forEach(function (f, i) { if (f.t === tAt) best = i; }); if (best >= 0 && best < frames.length - 1) { engage(); show(best); } } });
+  }
+  render();
+  setTimeout(function () { loadGeo("/assets/models/geo.json").then(function () { setTimeout(function () { loadGeo("/assets/models/geo_counties.json"); }, 600); }); }, 0);
+  setTimeout(loadHrrr, 2500);
+  if (typeof ResizeObserver === "function") { var rw = 0, rh = 0; new ResizeObserver(function () { var r = mapEl.getBoundingClientRect(); if (r.width === rw && r.height === rh) return; rw = r.width; rh = r.height;
+    if (view) { var s = view.s; resize(); view.s = s; render(); } }).observe(mapEl); }
+  else window.addEventListener("resize", resize);
+
+  window.RX = { st: st, get frames() { return frames; }, get detail() { return detail; }, get view() { return view; }, P: P, PERF: PERF, NET: NET, dbzOf: dbzOf, sampleCode: sampleCode,
+    perf: function () { var r = function (a) { return a.length ? Math.round(a.reduce(function (x, y) { return x + y; }, 0) / a.length) : null; };
+      return { firstFrameMs: Math.round(PERF.firstFrame), decodeOvMs: r(PERF.dec), uploadOvMs: Math.round((r(PERF.up.map(function (x) { return x * 10; })) || 0)) / 10, fullMs: r(PERF.full), fullUploadMs: r(PERF.fullUp),
+        dl: PERF.dl, netMBps: NET.ms ? Math.round(NET.bytes / NET.ms / 1048.576 * 10) / 10 : null, dpr: DPR, maxTex: MAXT, workers: workers.length, detailF: DETAIL_F }; } };
+})();
+</script>
+<!-- sf:start -->
+<footer class="sf">
+  <div class="sf-in">
+    <div class="sf-group">
+      <p class="sf-h" role="heading" aria-level="2">This site</p>
+      <ul>
+        <li><a href="/">Home</a></li>
+        <li><a href="/catalog.html">Every plot</a></li>
+        <li><a href="/topics/">Explainers</a></li>
+        <li><a href="/stats.html">Visitor stats</a></li>
+      </ul>
+      <p class="sf-disclaimer">This site is under constant development. Nothing here is checked before publication and there is no expectation of accuracy, completeness or availability; do not rely on it for decisions. Built from open data; sources are credited on each page.</p>
+    </div>
+    <div class="sf-group sf-group--me">
+      <p class="sf-h" role="heading" aria-level="2">Shawn Corvec</p>
+      <ul>
+        <li><a href="/about.html">About</a></li>
+        <li><a href="/resume.html">Resume</a></li>
+        <li><a href="/research.html">Publications</a></li>
+        <li><a href="https://github.com/scorvec" rel="noopener">GitHub</a></li>
+        <li><a href="https://www.linkedin.com/in/shawn-corvec-35895b231/" rel="noopener">LinkedIn</a></li>
+        <li><a href="https://scholar.google.com/citations?user=EYLRCJIAAAAJ&amp;hl=en" rel="noopener">Google Scholar</a></li>
+      </ul>
+    </div>
+  </div>
+</footer>
+<!-- sf:end -->
+</body>
+</html>
