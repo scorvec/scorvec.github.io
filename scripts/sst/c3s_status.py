@@ -8,6 +8,8 @@ Parts and what "done" means:
   maps    c3s_maps.json holds this issue with every system x field (8 x 4)
   terc    every system x variable has its issue table (c3s_ref is_terc, 8 x 2)
   sixh    every system x region x forecast month has its daily table (c3s_ref is_sixh, 8 x 2 x 6)
+  vortex  c3s_vortex.json holds this issue with every centre that has a hindcast for the start month (8 Aug-Oct, 7 Nov-Dec;
+          nothing to do for Jan-Jul starts, which have no December target) - the December polar-vortex card
 
     python scripts/sst/c3s_status.py --issue 202610 [--write]
 """
@@ -62,9 +64,12 @@ def status(issue: str) -> dict:
     terc = sum(CR.is_terc(c, s, v, issue).exists() for c, s in systems for v in ("t2m", "tp"))
     sixh = sum(CR.is_sixh(c, s, r, issue, k).exists() for c, s in systems for r in REGIONS
                for k in range(1, NMONTH + 1))
+    V = _json("c3s_vortex.json")
+    vwant = (8 if int(issue[4:6]) <= 10 else 7) if int(issue[4:6]) >= 8 else 0
+    vhave = len(V.get("centres_present", [])) if V.get("issue") == key else 0
     want = {"plume": expected_plume(), "maps": len(systems) * 4, "terc": len(systems) * 2,
-            "sixh": len(systems) * len(REGIONS) * NMONTH}
-    have = {"plume": plume, "maps": maps, "terc": terc, "sixh": sixh}
+            "sixh": len(systems) * len(REGIONS) * NMONTH, "vortex": vwant}
+    have = {"plume": plume, "maps": maps, "terc": terc, "sixh": sixh, "vortex": vhave}
     done = {k: have[k] >= want[k] for k in want}
     done["plume"] = done["plume"] and flav
     return {"issue": key, "have": have, "want": want, "done": done, "complete": all(done.values())}
