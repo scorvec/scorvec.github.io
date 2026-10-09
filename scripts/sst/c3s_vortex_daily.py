@@ -843,7 +843,7 @@ def render(issue, A, R, U, AN, W, CEN, corr, pc, mm, present, dates) -> dict:
     sig = {k: bool(T[k].get("significant")) for k in ("T1", "T2", "T3", "T4")}
     nots = "No demonstrated daily skill: the models' view, not a forecast" if not any(sig[k] for k in ("T1", "T3", "T4")) else ""
     O = A["O"]
-    clim = np.nanpercentile(O, [10, 50, 90], axis=0)
+    clim = smooth(np.nanpercentile(O, [10, 50, 90], axis=0), axis=1)
     # ── A: plume on MERRA-2's normal + anomaly panel ──
     fig, (ax, bx) = plt.subplots(2, 1, figsize=(12, 8.2), sharex=True, gridspec_kw=dict(height_ratios=[2.2, 1]))
     ax.fill_between(x, clim[0], clim[2], color="#bdb8ae", alpha=0.45, lw=0, label="MERRA-2 1993–2016, 10–90 %")
@@ -855,10 +855,10 @@ def render(issue, A, R, U, AN, W, CEN, corr, pc, mm, present, dates) -> dict:
     ax.plot(x, np.nansum(corr * W[:, None], 0) / np.nansum(np.isfinite(corr) * W[:, None], 0), color="#8a4b2a", lw=2.8, label="multi-model mean")
     ax.axhline(0, color="#c2185b", lw=1.4, ls="--"); ax.text(x[2], 1.0, "easterly below", color="#c2185b", fontsize=9, va="bottom")
     ax.axvspan(x[61], x[91], color="#f3e9d8", alpha=0.6, lw=0, zorder=0)
-    ax.text(x[76], ax.get_ylim()[1] if False else 0.98, "December", transform=ax.get_xaxis_transform(), ha="center", va="top", fontsize=9.5, color="#8a4b2a")
+    ax.text(x[76], 0.015, "December", transform=ax.get_xaxis_transform(), ha="center", va="bottom", fontsize=9.5, color="#8a4b2a")
     ax.set_ylabel("u, 60°N 10 hPa (m/s)")
-    ax.set_title(f"C3S multi-model, {dates[0]:%B %Y} start: daily vortex wind, each member's anomaly from its own model's normal "
-                 f"placed on MERRA-2's normal ({len(present)} centres, {len(U)} members)", loc="left", fontsize=11.5)
+    ax.set_title(f"C3S multi-model, {dates[0]:%B %Y} start: daily wind at 60°N, 10 hPa ({len(present)} centres, {len(U)} members)\n"
+                 f"each member's anomaly from its own model's normal, placed on MERRA-2's normal", loc="left", fontsize=11.5)
     if nots:
         ax.text(0.995, 0.02, nots, transform=ax.transAxes, ha="right", va="bottom", fontsize=9.5, color="#7a2e12",
                 bbox=dict(boxstyle="round,pad=0.3", fc="#fff6e8", ec="#c9a227"))
@@ -872,7 +872,7 @@ def render(issue, A, R, U, AN, W, CEN, corr, pc, mm, present, dates) -> dict:
     bx.plot(x, amm, color="#1a1a1a", lw=2.6, label="multi-model mean")
     bx.axhline(0, color="#999", lw=0.8); bx.axvspan(x[61], x[91], color="#f3e9d8", alpha=0.6, lw=0, zorder=0)
     bx.set_ylabel("anomaly (m/s)")
-    bx.set_title("Ensemble-mean anomaly by centre, each against its own 1993–2016 hindcast normal (11-day smoothed)", loc="left", fontsize=10.5)
+    bx.set_title("Ensemble-mean anomaly by centre, each against its own 1993–2016 hindcast normal (the normal smoothed over 11 days)", loc="left", fontsize=10.5)
     bx.legend(loc="lower left", fontsize=8.5, frameon=False, ncol=5)
     bx.grid(axis="y", color="#e8e6e0", lw=0.6)
     bx.xaxis.set_major_locator(mdates.MonthLocator()); bx.xaxis.set_major_formatter(mdates.DateFormatter("%b"))
@@ -897,8 +897,8 @@ def render(issue, A, R, U, AN, W, CEN, corr, pc, mm, present, dates) -> dict:
     ax.axhline(60, color="#1a1a1a", lw=0.8, ls=":")
     cb = fig.colorbar(cf, ax=ax, pad=0.01); cb.set_label("m/s")
     ax.set_ylabel("latitude (°N)"); ax.xaxis.set_major_locator(mdates.MonthLocator()); ax.xaxis.set_major_formatter(mdates.DateFormatter("%b"))
-    ax.set_title(f"Multi-model mean anomaly of the zonal-mean wind at 10 hPa, 30–90°N ({len(present)} centres, each against its own normal); "
-                 f"dotted inside the black contour: at least {max(len(present) - 1, 1)} of {len(present)} centres agree on the sign", loc="left", fontsize=10.5)
+    ax.set_title(f"Multi-model mean anomaly of the zonal-mean wind at 10 hPa, 30–90°N ({len(present)} centres, each against its own normal)\n"
+                 f"dotted inside the black contour: at least {max(len(present) - 1, 1)} of the {len(present)} centres agree on the sign", loc="left", fontsize=10.5)
     fig.text(0.01, 0.005, "Agreement is a description of the models, not a significance test · C3S seasonal multi-system · scorvec.com", fontsize=8, color="#6f6b64")
     fig.tight_layout(rect=(0, 0.02, 1, 1))
     figs["section"] = _save(fig, "c3s_vortex_daily_section.webp")
@@ -915,7 +915,7 @@ def render(issue, A, R, U, AN, W, CEN, corr, pc, mm, present, dates) -> dict:
         t = T[k]
         lab = "untestable (too few events)" if t.get("untestable") else (f"skill: AUC {t['auc']:.2f}, Holm p {t['p_holm']:.2f}" + ("" if t["significant"] else " (n.s.)"))
         ax.text(i, -0.12, lab, ha="center", va="top", fontsize=8.5, color="#1a1a1a" if t.get("significant") else "#6f6b64", transform=ax.get_xaxis_transform())
-    ax.set_xticks(xx); ax.set_xticklabels(labs); ax.set_ylim(0, 1); ax.yaxis.set_major_formatter(matplotlib.ticker.PercentFormatter(1.0))
+    ax.set_xticks(xx); ax.set_xticklabels(labs); ax.set_ylim(0, 1); ax.yaxis.set_major_formatter(matplotlib.ticker.PercentFormatter(1.0, decimals=0))
     ax.set_ylabel("share of members / of winters"); ax.legend(fontsize=8.5, frameon=False, loc="upper left")
     ax.set_title("Event probabilities, multi-model (equal weight per centre)", loc="left", fontsize=10.5)
     ax.grid(axis="y", color="#e8e6e0", lw=0.6)
@@ -928,7 +928,7 @@ def render(issue, A, R, U, AN, W, CEN, corr, pc, mm, present, dates) -> dict:
     bx.hist(firsts, bins=bins, weights=fw, color="#8a4b2a", alpha=0.85)
     bx.xaxis.set_major_locator(matplotlib.ticker.FixedLocator([(pd.Timestamp(f"{dates[0].year + (m < 10)}-{m:02d}-01") - dates[0]).days for m in (11, 12, 1, 2, 3)]))
     bx.xaxis.set_major_formatter(matplotlib.ticker.FixedFormatter(["Nov", "Dec", "Jan", "Feb", "Mar"]))
-    bx.yaxis.set_major_formatter(matplotlib.ticker.PercentFormatter(1.0))
+    bx.yaxis.set_major_formatter(matplotlib.ticker.PercentFormatter(1.0, decimals=0))
     bx.set_title("When the first major SSW falls (share of members, weekly)", loc="left", fontsize=10.5)
     bx.grid(axis="y", color="#e8e6e0", lw=0.6)
     if nots:
@@ -945,7 +945,7 @@ def render(issue, A, R, U, AN, W, CEN, corr, pc, mm, present, dates) -> dict:
     for w in wv:
         ax.annotate(str(w["year"])[2:], (w["dec_anom"], w["obs_dec_anom"]), fontsize=7, color="#6f6b64", xytext=(3, 2), textcoords="offset points")
     t2 = T["T2"]
-    ax.set_title(f"December mean from the daily data: r {t2['r']:.2f} (95 % CI {t2['r_ci95'][0]:.2f} to {t2['r_ci95'][1]:.2f}), "
+    ax.set_title(f"December mean from the daily data (T2)\nr {t2['r']:.2f} (95 % CI {t2['r_ci95'][0]:.2f} to {t2['r_ci95'][1]:.2f}), "
                  f"Holm p {t2['p_holm']:.3f}" + ("" if t2["significant"] else " n.s."), loc="left", fontsize=10)
     ax.set_xlabel("multi-model December anomaly (m/s)"); ax.set_ylabel("MERRA-2 December anomaly (m/s)")
     ax.axhline(0, color="#bbb", lw=0.8); ax.axvline(0, color="#bbb", lw=0.8); ax.grid(color="#eee", lw=0.5)
@@ -953,8 +953,8 @@ def render(issue, A, R, U, AN, W, CEN, corr, pc, mm, present, dates) -> dict:
     order = np.argsort([w["t1"] for w in wv])
     bx.scatter(np.arange(N), [wv[i]["t1"] for i in order], s=38, c=["#b4541f" if wv[i]["obs_t1"] else "#9fb6c8" for i in order], edgecolor="white", lw=0.6)
     bx.set_xticks(np.arange(N)); bx.set_xticklabels([str(wv[i]["year"])[2:] for i in order], fontsize=7, rotation=90)
-    bx.set_ylabel("multi-model probability of a weak spell"); bx.yaxis.set_major_formatter(matplotlib.ticker.PercentFormatter(1.0))
-    bx.set_title(f"Weak-spell probability, winters sorted; orange = a spell happened. AUC {t1['auc']:.2f}, Holm p {t1['p_holm']:.2f}"
+    bx.set_ylabel("multi-model P(weak spell)"); bx.yaxis.set_major_formatter(matplotlib.ticker.PercentFormatter(1.0, decimals=0))
+    bx.set_title(f"December weak-spell probability (T1), winters sorted; orange = a spell happened\nROC area {t1['auc']:.2f}, Holm p {t1['p_holm']:.3f}"
                  + ("" if t1["significant"] else " n.s."), loc="left", fontsize=10)
     bx.grid(axis="y", color="#eee", lw=0.5)
     fig.text(0.01, 0.005, "Hindcast 1993/94–2016/17, October starts, leave-one-winter-out normals and thresholds · scorvec.com", fontsize=8, color="#6f6b64")
