@@ -7,7 +7,7 @@ other target and all of 100 hPa insignificant): "use multi-model mean for decemb
 
 WHAT IT DOES, per C3S issue (start month S = Aug ... Dec, December = lead month 12 - S + 1):
   1. FETCH the issue's monthly-mean u at 10 hPa on the 60°N ring (2° grid, the c3s_u10_skill request with the year set to
-     the issue) for each centre's CURRENT system, one sequential CDS request each (cds_seq; c3s.yml, `seas5` group):
+     the issue) for each centre's CURRENT system, one sequential CDS request each (cds_seq; c3s-vortex.yml, `seas5` group):
      ECMWF 51 (from seas5.yml's cached fc_strat_u when present - never fetched twice), UKMO 610, Météo-France 9, DWD 22,
      CMCC 4, ECCC 4 + 5, JMA 4, BoM 2. CMCC and JMA changed system after the test's hindcast versions (CMCC 35 -> 4 from
      the Aug 2025 start, JMA 3 -> 4 from Mar 2026), so their current systems' Aug-Dec hindcasts (1993-2016, leads 1-6) are

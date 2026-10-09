@@ -32,11 +32,6 @@ name: C3S multi-system seasonal (monthly)
 # entry is built by cansips.yml already (it posts on the last day of the previous month). After a new C3S issue is
 # committed here, cansips.yml is dispatched (maps=false, ~2 min) so its C3S validation block follows the new issue.
 #
-# DECEMBER POLAR VORTEX (part `vortex`, 2026-10-09; user: "use multi-model mean for december"): the monthly u 60N 10 hPa of
-# each centre's current system for the issue (one small sequential request each; ECMWF from seas5.yml's cached fc_strat_u),
-# calibrated on the hindcast tables of release c3s-u10-v1 (scripts/sst/c3s_vortex.py -> assets/sst/data/c3s_vortex.json,
-# drawn on stratosphere.html). It does not wait for the plume quorum: the card fills in as centres publish.
-#
 # Secrets: CDSAPI_URL, CDSAPI_KEY (the same as seas5.yml). Licence: Copernicus; NOAA CPC/OISST via PSL; GeoNames CC BY.
 
 on:
@@ -58,9 +53,9 @@ on:
         required: false
         default: 'false'
       parts:
-        description: 'Comma list of enso,maps,terc,sixh,vortex'
+        description: 'Comma list of enso,maps,terc,sixh'
         required: false
-        default: 'enso,maps,terc,sixh,vortex'
+        default: 'enso,maps,terc,sixh'
       budget_min:
         description: 'Minutes the tercile and 6-hourly steps may spend starting downloads (each capped by the job time left)'
         required: false
@@ -123,7 +118,7 @@ jobs:
             elif [ "$SISSUE" = "$I" ] && [ $D -le 20 ]; then WHY="$I started but incomplete - continuing (day $D)"
             else RUN=0; WHY="outside the 9th-16th window (day $D)"; fi
           fi
-          PARTS="${{ inputs.parts }}"; [ -n "$PARTS" ] || PARTS="enso,maps,terc,sixh,vortex"
+          PARTS="${{ inputs.parts }}"; [ -n "$PARTS" ] || PARTS="enso,maps,terc,sixh"
           echo "Issue $I (previous $P1); status issue=$SISSUE complete=$COMPLETE -> run=$RUN ($WHY); parts $PARTS"
           { echo "issue=$I"; echo "month=${I:4:2}"; echo "p1=$P1"; echo "run=$RUN"; echo "why=$WHY"; echo "parts=,$PARTS,"; } >> "$GITHUB_OUTPUT"
 
@@ -185,7 +180,7 @@ jobs:
           ST=$(python scripts/sst/c3s_status.py --issue "${{ steps.gate.outputs.issue }}")
           echo "$ST" | tee -a "$GITHUB_OUTPUT"
           F="${{ inputs.force }}"; P="${{ steps.gate.outputs.parts }}"
-          for k in enso maps terc sixh vortex; do
+          for k in enso maps terc sixh; do
             key=$k; [ $k = enso ] && key=plume
             d=$(echo "$ST" | sed -n "s/^${key}_done=//p")
             if [[ "$P" == *",$k,"* ]] && { [ "$d" != "1" ] || [ "$F" = "true" ]; }; then echo "do_$k=1"; else echo "do_$k=0"; fi
@@ -208,7 +203,7 @@ jobs:
       # ECMWF's tercile forecast (fc_gl) and 6-hourly members (sixh): seas5.yml's cache of this issue, read-only. The path
       # list must stay IDENTICAL to seas5.yml's (the cache version is a hash of it); a miss just means the CDS below.
       - name: Restore SEAS5's copy of this issue (ECMWF members)
-        if: steps.gate.outputs.run == '1' && (steps.parts.outputs.do_terc == '1' || steps.parts.outputs.do_sixh == '1' || steps.parts.outputs.do_vortex == '1')
+        if: steps.gate.outputs.run == '1' && (steps.parts.outputs.do_terc == '1' || steps.parts.outputs.do_sixh == '1')
         uses: actions/cache/restore@v4
         with:
           path: |
@@ -249,28 +244,6 @@ jobs:
           python scripts/sst/c3s_enso_flavour.py --issue "$I" || echo "::warning::east/central build failed; keeping the previous issue"
           # the strips are reduced to the committed JSON; never kept
           rm -rf scripts/sst/data/c3s/strip/hindcast
-
-      # the December vortex card: small requests, independent of the plume quorum (the card fills in as centres publish)
-      - name: December polar vortex (multi-model mean, monthly u 60N 10 hPa)
-        id: vortex
-        if: always() && steps.gate.outputs.run == '1' && steps.parts.outputs.do_vortex == '1'
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          C3SU10_DIR: ${{ github.workspace }}/c3s_u10
-          C3SU10_TAG: c3s-u10-v1
-          CDS_SEQ_LOG: ${{ runner.temp }}/cds_seq.jsonl
-          CDS_MAX_WAIT_H: '0.4'
-        run: |
-          I=${{ steps.gate.outputs.issue }}
-          mkdir -p "$C3SU10_DIR"
-          gh release download c3s-u10-v1 --repo "$GITHUB_REPOSITORY" -D "$C3SU10_DIR" --clobber \
-            -p 'u60_*.npz' -p "u60fc_*_${I}.npz" -p 'c3s_u10_skill.json' || echo "::warning::c3s-u10-v1 download incomplete"
-          ls "$C3SU10_DIR"
-          python scripts/sst/c3s_vortex.py fetch-hc || echo "::warning::CMCC 4 / JMA 4 hindcast tables incomplete; those centres wait"
-          python scripts/sst/c3s_vortex.py fetch --issue "$I" || echo "::warning::vortex forecast fetch failed"
-          if python scripts/sst/c3s_vortex.py build --issue "$I"; then echo "built=1" >> "$GITHUB_OUTPUT"
-          else echo "::warning::vortex card build failed; keeping the previous one"; fi
-          cat "$RUNNER_TEMP/cds_seq.jsonl" 2>/dev/null || true
 
       - name: Anomaly maps and ocean indices (postprocessed ensemble means)
         id: maps
@@ -373,7 +346,6 @@ jobs:
             assets/sst/data/c3s_popt.json
             assets/sst/data/c3s_popt_daily.json
             assets/sst/data/c3s_status.json
-            assets/sst/data/c3s_vortex.json
             assets/sst/c3s/
             scripts/sst/c3s_nino34_clim.csv
             scripts/sst/reference/oisst_box_monthly.json
@@ -383,7 +355,7 @@ jobs:
 
       - name: Commit & push (generated outputs)
         id: commit
-        if: always() && steps.gate.outputs.run == '1' && (steps.enso.outputs.ready == '1' || steps.vortex.outputs.built == '1') && inputs.commit != 'false'
+        if: always() && steps.gate.outputs.run == '1' && steps.enso.outputs.ready == '1' && inputs.commit != 'false'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
@@ -391,7 +363,7 @@ jobs:
                 assets/sst/data/c3s_evolution.json assets/sst/data/enso_flavour.json scripts/sst/reference/enso_flavour_eof.npz
                 scripts/sst/reference/enso_flavour_hindcast_*.json scripts/sst/reference/oisst_box_monthly.json assets/sst/c3s
                 assets/sst/data/c3s_maps.json assets/sst/data/c3s_indices.json assets/sst/data/c3s_popt.json
-                assets/sst/data/c3s_popt_daily.json assets/sst/data/c3s_status.json assets/sst/data/c3s_vortex.json"
+                assets/sst/data/c3s_popt_daily.json assets/sst/data/c3s_status.json"
           # snapshot + clean resync each attempt (the mjo.yml pattern); merges, never rebases
           # `git add` aborts on a pathspec that matches nothing, so only existing paths are passed
           have() { for f in $OUTS; do [ -e "$f" ] && echo "$f"; done; }
@@ -430,6 +402,5 @@ jobs:
             echo "- gate: ${{ steps.gate.outputs.why }}"
             echo "- issue on the CDS (quorum): ${{ steps.enso.outputs.ready || 'not checked' }}"
             [ -f assets/sst/data/c3s_status.json ] && echo "- status: $(cat assets/sst/data/c3s_status.json)"
-            echo "- December vortex card built: ${{ steps.vortex.outputs.built || 'no' }}"
-            echo "- Pages: [/enso-forecasts.html](https://scorvec.com/enso-forecasts.html), [/seasonal.html](https://scorvec.com/seasonal.html), [/stratosphere.html#c3svortex](https://scorvec.com/stratosphere.html#c3svortex)"
+            echo "- Pages: [/enso-forecasts.html](https://scorvec.com/enso-forecasts.html), [/seasonal.html](https://scorvec.com/seasonal.html)"
           } >> "$GITHUB_STEP_SUMMARY"

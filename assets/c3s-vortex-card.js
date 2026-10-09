@@ -1,5 +1,5 @@
 /* c3s-vortex-card.js — "December polar vortex, C3S multi-model" on stratosphere.html (2026-10-09).
-   Draws assets/sst/data/c3s_vortex.json (scripts/sst/c3s_vortex.py, built in c3s.yml each C3S issue): the multi-model
+   Draws assets/sst/data/c3s_vortex.json (scripts/sst/c3s_vortex.py, built by c3s-vortex.yml each C3S issue): the multi-model
    mean's December u(60°N, 10 hPa), calibrated on the 1993–2016 hindcast against MERRA-2, as tercile probabilities and a
    forecast distribution, with the hindcast skill printed beside it (the site's rule: every claim with its test).
    Plotly (cartesian bundle) is loaded on first draw. window.C3SVortex.draw(ids) */
@@ -203,7 +203,7 @@
 
   function draw(ids) {
     fetch("assets/sst/data/c3s_vortex.json?v=" + Date.now()).then(function (r) { return r.ok ? r.json() : null; }).catch(function () { return null; }).then(function (J) {
-      if (!J) { $(ids.verdict).innerHTML = "The December vortex outlook has not been built yet: its first build runs with the next C3S job (the 9th–16th of each month)."; return; }
+      if (!J) { $(ids.verdict).innerHTML = "The December vortex outlook has not been built yet: its first build runs with the next C3S issue (the 9th–20th of each month)."; return; }
       $(ids.verdict).innerHTML = verdict(J);
       $(ids.table).innerHTML = sysTable(J);
       $(ids.rel).innerHTML = relTable(J);

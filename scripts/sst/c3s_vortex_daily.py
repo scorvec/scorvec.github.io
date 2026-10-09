@@ -57,7 +57,7 @@ is presented as a finding.
 
     python c3s_vortex_daily.py units                  # list every CDS unit and whether its table is held
     python c3s_vortex_daily.py fetch [--only KEY]     # sequential CDS → raw GRIB → QC'd table (+ release upload)
-    python c3s_vortex_daily.py fetch-issue --issue 202610   # the issue's forecast units (Actions, c3s.yml)
+    python c3s_vortex_daily.py fetch-issue --issue 202610   # the issue's forecast units (Actions, c3s-vortex.yml)
     python c3s_vortex_daily.py test                   # the pre-registered family → data/c3s_vortex_daily_skill.json
     python c3s_vortex_daily.py build --issue 202610   # figures + assets/sst/data/c3s_vortex_daily.json (Actions)
 """
