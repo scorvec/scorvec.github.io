@@ -257,6 +257,8 @@
   function drawTrack() {
     lyr.track.clearLayers();
     S.ve = effVar();
+    // the pressed button is the variable drawn (SFMR stayed pressed while a flight without SFMR was coloured by FL wind)
+    $("segVar").querySelectorAll("button").forEach(x => x.classList.toggle("on", x.dataset.v === S.ve));
     const ix = S.col, rows = S.rows, col = colourFn(S.ve), cas = css("--track-case");
     // casing under the whole track (legible on both basemaps), then one coloured segment per ob pair
     let run = [];
