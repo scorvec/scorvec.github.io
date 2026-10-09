@@ -4,16 +4,17 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>US Radar Explorer &middot; Shawn Corvec</title>
-<meta name="description" content="The national NEXRAD base-reflectivity composite, live every five minutes, drawn in your browser: zoom from the whole US to a metro area, loop the last hours, read the dBZ at any point, and compare with the HRRR on the same colour scale.">
+<meta name="description" content="The national NEXRAD base-reflectivity composite, live every five minutes, with GOES lightning flashes, drawn in your browser: zoom from the whole US to a metro area, loop the last hours, read the dBZ at any point, and compare with the HRRR on the same colour scale.">
 <link rel="canonical" href="https://scorvec.com/radar.html">
 <meta property="og:type" content="website">
 <meta property="og:title" content="US Radar Explorer">
-<meta property="og:description" content="Live national NEXRAD reflectivity composite, drawn in the browser: zoom, loop, dBZ readout, and the same colour scale as the HRRR maps.">
+<meta property="og:description" content="Live national NEXRAD reflectivity composite with GOES GLM lightning, drawn in the browser: zoom, loop, dBZ readout, and the same colour scale as the HRRR maps.">
 <meta property="og:url" content="https://scorvec.com/radar.html">
 <meta property="og:site_name" content="Shawn Corvec &mdash; Weather &amp; Climate Monitors">
 <meta name="twitter:card" content="summary">
 <script data-goatcounter="https://scorvec.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
 <link rel="preconnect" href="https://mesonet.agron.iastate.edu" crossorigin>
+<link rel="preconnect" href="https://noaa-goes19.s3.amazonaws.com" crossorigin>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,500;0,8..60,600;1,8..60,400&family=Source+Sans+3:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
@@ -98,6 +99,7 @@
   .mv-map canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
   .mv-map canvas#ov { transform-origin: 0 0; will-change: transform; pointer-events: none; }
   .mv-map canvas#lab { pointer-events: none; }
+  .mv-map canvas#lx { transform-origin: 0 0; will-change: transform; pointer-events: none; }
   .mv-zoom { position: absolute; right: 8px; top: 8px; display: flex; flex-direction: column; gap: 4px; z-index: 3; }
   .mv-zoom button { width: 48px; height: 48px; font: 700 1.5rem var(--sans); border: 1px solid var(--rule); border-radius: 6px;
                     background: rgba(255,255,255,0.92); color: var(--ink); cursor: pointer; }
@@ -109,6 +111,17 @@
   .mv-load { position: absolute; left: 8px; bottom: 8px; z-index: 3; background: rgba(255,255,255,0.93); border: 1px solid var(--rule); border-radius: 6px;
              padding: 0.2rem 0.5rem; font-size: 0.88rem; color: var(--ink2); pointer-events: none; max-width: calc(100% - 16px); }
   .mv-load:empty { display: none; }
+  /* lightning (GOES GLM): status chip bottom right, legend line under the dBZ scale */
+  .mv-lx { position: absolute; right: 8px; bottom: 8px; z-index: 3; background: rgba(255,255,255,0.94); border: 1px solid var(--rule); border-radius: 6px;
+           padding: 0.2rem 0.5rem; font-size: 0.88rem; color: var(--ink); max-width: min(30rem, calc(100% - 16px)); line-height: 1.35; }
+  .mv-lx:empty { display: none; }
+  .mv-lx.warn { border: 2px solid var(--stale); }
+  .mv-lx b { font-weight: 600; }
+  .mv-lx button { font: inherit; font-weight: 600; color: var(--accent); background: none; border: 0; padding: 0 0 0 0.3rem; text-decoration: underline; cursor: pointer; min-height: 28px; }
+  .mv-lxleg { display: flex; flex-wrap: wrap; align-items: center; gap: 0.15rem 0.9rem; color: var(--ink2); }
+  .mv-lxleg:empty { display: none; }
+  .mv-lxleg .k { display: inline-flex; align-items: center; gap: 0.35rem; white-space: nowrap; }
+  .mv-lxleg svg { flex: 0 0 auto; }
   .mv-msg { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 2; max-width: min(34rem, 90%); text-align: center;
             background: rgba(255,255,255,0.96); border: 1.5px dashed #b9beb6; border-radius: 8px; padding: 1.1rem 1.3rem; font-size: 0.97rem; color: var(--ink2); }
   .mv-msg:empty { display: none; }
@@ -161,6 +174,8 @@
     .mv-legend { flex: 0 0 auto; }
     .mv-legend canvas { position: static; height: 40px; }
     .mv-badge { font-size: 0.86rem; padding: 0.22rem 0.5rem; }
+    .mv-lx { font-size: 0.84rem; max-width: calc(100% - 16px); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .mv-map.lxon .mv-load { bottom: 2.4rem; }
   }
 </style>
 </head>
@@ -324,7 +339,7 @@
 <main class="mv">
   <p class="kicker">Observations &middot; live every five minutes</p>
   <h1>US Radar Explorer</h1>
-  <p class="lede">The national NEXRAD radar picture, refreshed every five minutes: base reflectivity from every WSR-88D in the lower 48, merged by the <a href="https://mesonet.agron.iastate.edu/docs/nexrad_mosaic/">Iowa Environmental Mesonet</a>. Zoom from the whole country to a single city, loop the last hours, and hover or tap for the reflectivity in dBZ. The colours are the ones the <a href="/models.html#hrrr/refl">short-range model maps</a> use for simulated reflectivity, so the radar and the HRRR can be compared directly.</p>
+  <p class="lede">The national NEXRAD radar picture, refreshed every five minutes: base reflectivity from every WSR-88D in the lower 48, merged by the <a href="https://mesonet.agron.iastate.edu/docs/nexrad_mosaic/">Iowa Environmental Mesonet</a>. Lightning flashes seen from space by the GOES satellites are drawn on top. Zoom from the whole country to a single city, loop the last hours, and hover or tap for the reflectivity in dBZ or a flash's time. The colours are the ones the <a href="/models.html#hrrr/refl">short-range model maps</a> use for simulated reflectivity, so the radar and the HRRR can be compared directly.</p>
 
   <div class="mv-panel">
     <div class="mv-bar">
@@ -332,6 +347,8 @@
       <label class="runsel mv-regsel">Region <select id="regSel" aria-label="Region"></select></label>
       <label class="runsel mv-regseg">City <select id="metro" aria-label="City view"></select></label>
       <label class="runsel">Loop <select id="loopSel" aria-label="Loop length and step"></select></label>
+      <label class="runsel" title="GOES Geostationary Lightning Mapper flashes in the minutes before the radar frame">Lightning <select id="lxSel" aria-label="Lightning flashes before the frame">
+        <option value="0">Off</option><option value="5">last 5 min</option><option value="10">last 10 min</option><option value="15">last 15 min</option></select></label>
     </div>
     <details class="mv-more" id="more"><summary>Map options: floor, opacity, layers, source</summary>
     <div class="mv-opts">
@@ -359,16 +376,19 @@
     <div class="mv-map" id="map" aria-label="Radar map. Scroll or pinch to zoom, drag to pan, hover or tap for the reflectivity.">
       <canvas id="gl"></canvas>
       <canvas id="ov"></canvas>
+      <canvas id="lx"></canvas>
       <canvas id="lab"></canvas>
       <div class="mv-badge" id="badge"></div>
       <div class="mv-zoom"><button type="button" id="zin" aria-label="Zoom in">+</button><button type="button" id="zout" aria-label="Zoom out">&minus;</button><button type="button" class="txt" id="zfit" aria-label="Whole country">US</button></div>
       <div class="mv-msg" id="msg"></div>
       <div class="mv-load" id="load"></div>
+      <div class="mv-lx" id="lxChip" aria-live="off"></div>
       <div class="mv-tip" id="tip"></div>
     </div>
     <div class="mv-legend"><canvas id="leg" aria-label="Colour scale, dBZ"></canvas></div>
   </div>
   <p class="mv-legT" id="legT"></p>
+  <p class="mv-legT mv-lxleg" id="lxLeg"></p>
   <p class="mv-note" id="note"></p>
 
   <details class="mv-about">
@@ -383,13 +403,20 @@
     <p>The full grid is 12,200&nbsp;&times;&nbsp;5,400 values. Loop frames are kept as a 0.02&deg; grid (the strongest echo in each 4&nbsp;&times;&nbsp;4 block, so cores are not lost), which is finer than a screen shows at the national view; when you stop on a frame zoomed in past that, the page decodes the full 0.005&deg; grid of that frame from the copy already in memory and draws it at native resolution. The hover readout uses the full grid once it is decoded (otherwise it says the value is the block maximum).</p>
     <h2>Timing and freshness</h2>
     <p>The time shown is the composite's nominal time from IEM (UTC, and your local time). IEM finishes a composite about two minutes after the scans that go into it; the badge shows how many radars contributed. While this tab is visible the page checks IEM's small status file once per expected update (about every five minutes) and adds the new frame; nothing is downloaded while the tab is hidden. The time chip turns amber (&ldquo;late&rdquo;) when the newest composite is more than 12&nbsp;minutes old and red (&ldquo;stale&rdquo;) past 25&nbsp;minutes. Archive frames that IEM does not have are marked in red under the slider and skipped by the loop. A time in the address (<code>#t=YYYYMMDDHHMM</code>, UTC) opens the loop ending then, back to November 2010; the model maps link here that way.</p>
+    <h2>Lightning</h2>
+    <p>The dots are lightning flashes from the <b>Geostationary Lightning Mapper</b> (GLM) on GOES-19 (GOES-East, over 75.2&deg;W) and GOES-18 (GOES-West, over 137.0&deg;W). GLM is an optical sensor: it sees the light of lightning at the cloud top, in-cloud and cloud-to-ground alike, day and night, and NOAA&rsquo;s Level&nbsp;2 product groups its 2-millisecond detections into flashes, one file every 20&nbsp;seconds per satellite. For the frame on screen the map shows the flashes whose first light came in the 5, 10 or 15&nbsp;minutes before the frame&rsquo;s time (10 by default, 5 on phones and with Save-Data), coloured by 5-minute age, the newest on top. The chip at the bottom right counts the flashes inside the map. Hover or tap a flash for its time to the second, its optical energy in femtojoules (the light that reached the satellite, not the electrical energy of the flash) and the satellite.</p>
+    <p><b>Two satellites, one flash.</b> Both satellites see the central US, so every flash there is reported twice. Each flash is taken only from the satellite whose sub-satellite point is nearer in longitude: GOES-East east of 106.1&deg;W, GOES-West west of it (the meridian halfway between the two). The nearer satellite looks at the storm more steeply, so its position error is the smaller. A satellite&rsquo;s files are downloaded only when the view reaches its side of that line (with a 1.5&deg; margin); if one satellite&rsquo;s listing fails, the other covers the whole view and the chip names the satellite. Archive times use the satellite operational then (GOES-16 as East before 7 April 2025, GOES-17 as West from February 2019 to January 2023); GLM data begin in December 2017.</p>
+    <p><b>Quality and position.</b> Only flashes with <code>flash_quality_flag</code> = 0 (good) are drawn. The product marks a few percent as degraded &mdash; mostly the largest and longest flashes, which the algorithm splits at its event-count and 3-second limits, and flashes whose events arrive out of time order &mdash; and those are left out rather than drawn as if they were complete flashes. A flash&rsquo;s position is the energy-weighted centre of its events, navigated to an assumed cloud-top height: GLM pixels are about 8&nbsp;km across under the satellite and 10&ndash;14&nbsp;km over the US, and storms much taller or shallower than the assumed height appear shifted by a few kilometres (away from the sub-satellite point for tall storms). At these latitudes the offset is small against the pixel size, but a flash can sit a few kilometres from the radar core it belongs to: read the dots at storm scale, not cell by cell. GLM does not see every flash: it misses more in the brightest daytime storms and toward the edge of each satellite&rsquo;s view.</p>
+    <p><b>How it is read.</b> Your browser lists NOAA&rsquo;s <code>GLM-L2-LCFA</code> files on the AWS Open Data buckets (<code>noaa-goes19</code>, <code>noaa-goes18</code>) and reads each netCDF-4 file with HTTP range requests: only the flash variables (count, time of the first event, latitude, longitude, energy and quality flag), 1&ndash;10&nbsp;KB of a 170&ndash;650&nbsp;KB file. Once per satellite per visit the first file is parsed with <a href="https://github.com/usnistgov/jsfive">jsfive</a>, an open-source HDF5 reader in JavaScript, to learn where those variables sit and how they are scaled (<code>scale_factor</code>, <code>add_offset</code>, <code>_FillValue</code>, <code>_Unsigned</code>); the same file is then decoded a second time by the range reader and the two must agree value for value. Every later file is checked against the learned layout (index signatures, chunk sizes, value ranges, the file&rsquo;s start time) and the layout is learned again if anything differs. Checked on 9 October 2026 against netCDF4 and xarray reads of the same GOES-18 and GOES-19 files (69 to 789 flashes each): identical flash counts, latitudes, longitudes and quality flags, energies equal to float32 precision and times within 0.002&nbsp;ms.</p>
+    <p><b>Your connection.</b> A 10-minute window over the whole country is 64 files (32 per satellite), roughly 250&ndash;500&nbsp;KB in about 470 small requests, taking 3&ndash;6&nbsp;seconds; the first window of a visit adds about 0.3&nbsp;MB to learn the layout. Zoomed in on one satellite&rsquo;s side it is half that. Lightning is fetched only for frames that are shown, newest files first; it never holds up the radar or the loop (a playing loop shows each frame&rsquo;s lightning once it has arrived), and it pauses at 40&nbsp;MB per visit (15&nbsp;MB on phones, 6&nbsp;MB with Save-Data) until you choose to continue.</p>
     <h2>If IEM is down</h2>
     <p>The page falls back to NOAA's MRMS base reflectivity image service (<a href="https://mapservices.weather.noaa.gov/eventdriven/rest/services/radar/radar_base_reflectivity_time/ImageServer">mapservices.weather.noaa.gov</a>, the last four hours). Those images arrive already coloured in NOAA's own scale (shown as received, not recoloured) and carry no dBZ values, so there is no readout and no floor in that mode, and the colours do not match the model maps.</p>
     <h2>Credits</h2>
-    <p>Radar composite: <a href="https://mesonet.agron.iastate.edu/">Iowa Environmental Mesonet</a>, Iowa State University (N0Q national composite and archive), from NOAA National Weather Service WSR-88D data. Fallback: NOAA/NWS Multi-Radar Multi-Sensor (MRMS) via the NWS map services. Boundaries: Natural Earth and US Census (us-atlas). Airports: OurAirports (public domain). Your browser downloads the radar files directly from IEM (or NOAA); this site stores and processes none of them.</p>
+    <p>Radar composite: <a href="https://mesonet.agron.iastate.edu/">Iowa Environmental Mesonet</a>, Iowa State University (N0Q national composite and archive), from NOAA National Weather Service WSR-88D data. Fallback: NOAA/NWS Multi-Radar Multi-Sensor (MRMS) via the NWS map services. Boundaries: Natural Earth and US Census (us-atlas). Airports: OurAirports (public domain). Lightning: NOAA GOES-R Geostationary Lightning Mapper (GLM) Level&nbsp;2 flashes, via the NOAA Open Data Dissemination program (AWS); HDF5 reading with jsfive (NIST). Your browser downloads the radar and lightning files directly from IEM, NOAA and AWS; this site stores and processes none of them.</p>
     <p class="mv-perf" id="perf"></p>
   </details>
 </main>
+<script src="/assets/radar_glm.js?v=20261009a"></script>
 <script>
 (function () {
   "use strict";
@@ -459,6 +486,11 @@
   // ── state ──────────────────────────────────────────────────────────────────────────────────────────────────────
   var LOOPS = [[60, 5], [60, 10], [120, 5], [120, 10], [180, 10], [180, 15], [360, 30]];
   var st = { floor: 10, alpha: 0.85, loop: SLOW ? [60, 10] : [120, 10], idx: 0, playing: false, live: true, anchor: 0, src: "iem", region: "us", engaged: false };
+  // lightning: on by default (a window costs a few hundred KB, a fraction of one radar frame); phones and Save-Data
+  // get the 5-minute window and a smaller download limit for the visit
+  var PHONE = !!(window.matchMedia && (matchMedia("(max-width: 640px)").matches || (matchMedia("(pointer: coarse)").matches && Math.min(screen.width, screen.height) < 500)));
+  var LX_DEF = SLOW || PHONE ? 5 : 10, LX_CAP = (SLOW ? 6 : PHONE ? 15 : 40) * 1048576;
+  st.lx = window.GLM ? LX_DEF : 0;
   var view = null;                                                  // {cx, cy, s: metres per CSS px}
   var frames = [], FR = new Map();                                  // frames on the slider (ascending time); all frame objects by key
   var latest = null;                                                // {t, quorum, proc}
@@ -466,7 +498,7 @@
   var detail = null;                                                // the full-resolution grid of one frame: {key, f, w, h, stride, off, data, tex}
   var NET = { bytes: 0, ms: 0, n: 0 };
   var PERF = { dec: [], up: [], full: [], fullUp: [], firstFrame: 0, t0: performance.now(), dl: [] };
-  var mapEl = $("map"), glc = $("gl"), ovc = $("ov"), labc = $("lab"), tip = $("tip");
+  var mapEl = $("map"), glc = $("gl"), ovc = $("ov"), labc = $("lab"), lxc = $("lx"), tip = $("tip");
 
   // ── worker: PNG decode (palette indices = dBZ codes) and the boundaries ─────────────────────────────────────────
   async function inflate(parts) {
@@ -705,7 +737,8 @@
     var r = mapEl.getBoundingClientRect();
     DPR = Math.min(window.devicePixelRatio || 1, DPR_CAP);
     W = r.width; H = r.height;
-    [glc, ovc, labc].forEach(function (c) { c.width = Math.round(W * DPR); c.height = Math.round(H * DPR); });
+    [glc, ovc, labc, lxc].forEach(function (c) { c.width = Math.round(W * DPR); c.height = Math.round(H * DPR); });
+    lxSpr = null;
     ovView = null; drawLegend(); render();
   }
   function boxView(lon0, lat0, lon1, lat1, pts) {
@@ -782,6 +815,7 @@
     if (!ovView) return;
     var k = ovView.s / view.s, tx = W / 2 * (1 - k) + (ovView.cx - view.cx) / view.s, ty = H / 2 * (1 - k) - (ovView.cy - view.cy) / view.s;
     ovc.style.transform = "matrix(" + k + ",0,0," + k + "," + tx + "," + ty + ")"; ovMoved = true;
+    if (lxView) { var k2 = lxView.s / view.s; lxc.style.transform = "matrix(" + k2 + ",0,0," + k2 + "," + (W / 2 * (1 - k2) + (lxView.cx - view.cx) / view.s) + "," + (H / 2 * (1 - k2) - (lxView.cy - view.cy) / view.s) + ")"; lxMoved = true; }
     if (labc.style.visibility !== "hidden") { labc.style.visibility = "hidden"; tip.style.display = "none"; }
   }
   function drawOverlay() {
@@ -803,6 +837,7 @@
     });
     ctx.globalAlpha = 1;
     ovView = { cx: view.cx, cy: view.cy, s: view.s };
+    drawLx();
     cancelAnimationFrame(labT); labT = requestAnimationFrame(function () { labT = 0; drawLabels(); });
   }
   var APTS = null, aptsP = null, aptShown = [];
@@ -860,6 +895,90 @@
     var best = null, bd = r2 || 64;
     aptShown.forEach(function (v) { var d = (v[0] - px) * (v[0] - px) + (v[1] - py) * (v[1] - py); if (d < bd) { bd = d; best = v; } });
     return best;
+  }
+
+  // ── lightning (GOES GLM, assets/radar_glm.js): flashes of the N minutes before the frame on screen ─────────────────
+  // age classes of 5 minutes before the frame's time; drawn oldest first so the newest sit on top
+  var LX_COL = [["#14e4ff", 1, "0–5 min"], ["#2f7cf0", 1, "5–10 min"], ["#1b2a78", 0.88, "10–15 min"]];
+  var lxView = null, lxMoved = false, lxVis = null, lxSpr = null, lxLast = null;
+  function lxRadius() { var kpp = view.s / 1000; return kpp > 4 ? 2.4 : kpp > 1.5 ? 2.8 : kpp > 0.5 ? 3.3 : 3.9; }
+  function lxSprites(r) {
+    if (lxSpr && lxSpr.r === r && lxSpr.dpr === DPR) return lxSpr;
+    var sz = Math.ceil((2 * r + 3) * DPR), out = { r: r, dpr: DPR, sz: sz, c: [] };
+    LX_COL.forEach(function (col) {
+      var cv = document.createElement("canvas"); cv.width = cv.height = sz;
+      var g = cv.getContext("2d"), rc = r * [1, 0.86, 0.72][out.c.length]; g.globalAlpha = col[1]; g.beginPath(); g.arc(sz / 2, sz / 2, rc * DPR, 0, 2 * Math.PI);
+      g.fillStyle = col[0]; g.fill(); g.lineWidth = 1.2 * DPR; g.strokeStyle = "#101210"; g.stroke(); out.c.push(cv);
+    });
+    return (lxSpr = out);
+  }
+  // the view's longitude span (corners and edge midpoints of the Lambert view) decides which satellites are needed
+  function viewLons() {
+    var a = 180, b = -180;
+    [[0, 0], [W / 2, 0], [W, 0], [W, H / 2], [W, H], [W / 2, H], [0, H], [0, H / 2]].forEach(function (p) { var ll = P.inv.apply(null, toXY(p[0], p[1])); if (ll[0] < a) a = ll[0]; if (ll[0] > b) b = ll[0]; });
+    return [a, b];
+  }
+  function lxChip(html, warn) {
+    var c = $("lxChip"); if (c.innerHTML !== html) c.innerHTML = html;
+    c.classList.toggle("warn", !!warn); mapEl.classList.toggle("lxon", !!html);
+    var b = c.querySelector("button"); if (b) b.onclick = function () { GLM.setCap(GLM.S.cap + LX_CAP); };
+  }
+  function lxStatus(r, nIn, T, N, slots) {
+    var narrow = W < 560, S_ = GLM.S, span = hhmm(T - N * 60e3) + "–" + hhmm(T) + " UTC";
+    if (r.none.length === slots.length) return ["Lightning unavailable: GOES GLM data begin in December 2017", 1];
+    if (S_.libErr && !r.filesOk) return ["Lightning unavailable: " + S_.libErr, 1];
+    if (r.listErr.length && !r.files) return ["Lightning unavailable: the NOAA bucket listing failed (" + r.listErr[0] + ")", 1];
+    if (r.files && r.filesErr + r.filesMissing === r.files) return ["Lightning unavailable: " + (r.err || "no GLM files at NOAA for this time"), 1];
+    if (r.loading && S_.capped) return ["Lightning paused at the " + Math.round(S_.cap / 1048576) + " MB limit for this visit.<button type=\"button\">Continue</button>", 0];
+    if (r.loading) return [(narrow ? "Lightning: " : "Lightning: loading ") + (r.files ? r.filesOk + " of " + r.files + " files" : "listing files") + "…", 0];
+    var miss = r.filesMissing + r.filesErr, alone = slots.length === 2 && Object.keys(r.sats).length === 1;
+    var h = "<b>" + nIn.toLocaleString() + "</b> flash" + (nIn === 1 ? "" : "es") + " in view · " + span;
+    if (miss) h += " · " + miss + " of " + r.files + " files " + (r.filesErr ? "failed" : "missing");
+    if (alone) h += " · " + Object.keys(r.sats)[0] + " only";
+    return [h, miss > r.files / 4 || alone ? 1 : 0];
+  }
+  function drawLx() {
+    var ctx = lxc.getContext("2d");
+    if (lxMoved) { lxc.style.transform = ""; lxMoved = false; }
+    ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, lxc.width, lxc.height);
+    lxVis = null; lxView = view ? { cx: view.cx, cy: view.cy, s: view.s } : null;
+    if (!st.lx || !view || !shown || !window.GLM) { lxChip(""); return; }
+    var T = shown.t, N = st.lx, ll = viewLons(), slots = GLM.slotsFor(ll[0], ll[1]);
+    GLM.want(T, N, slots, !st.playing);
+    var r = GLM.collect(T, N, slots), idx = [], px = [], py = [], M = 8;
+    for (var i = 0; i < r.n; i++) {
+      var x = W / 2 + (r.x[i] - view.cx) / view.s, y = H / 2 - (r.y[i] - view.cy) / view.s;
+      if (x < -M || x > W + M || y < -M || y > H + M) continue;
+      idx.push(i); px[i] = x; py[i] = y;
+    }
+    idx.sort(function (a, b) { return r.t[a] - r.t[b]; });
+    var spr = lxSprites(lxRadius()), h2 = spr.sz / 2, nIn = 0;
+    for (var k = 0; k < idx.length; k++) {
+      var j = idx[k], cls = Math.min(2, Math.floor((T - r.t[j]) / 300e3));
+      if (px[j] >= 0 && px[j] <= W && py[j] >= 0 && py[j] <= H) nIn++;
+      ctx.drawImage(spr.c[cls], Math.round(px[j] * DPR - h2), Math.round(py[j] * DPR - h2));
+    }
+    lxVis = { r: r, idx: idx, px: px, py: py, T: T };
+    var stt = lxStatus(r, nIn, T, N, slots); lxChip(stt[0], stt[1]);
+    lxLast = { T: T, N: N, n: nIn, slots: slots.join("+") };
+  }
+  function nearestFlash(x, y, r2) {
+    if (!lxVis) return null;
+    var best = -1, bd = r2;
+    for (var k = 0; k < lxVis.idx.length; k++) { var j = lxVis.idx[k], d = (lxVis.px[j] - x) * (lxVis.px[j] - x) + (lxVis.py[j] - y) * (lxVis.py[j] - y); if (d <= bd) { bd = d; best = j; } }
+    return best < 0 ? null : { j: best, px: lxVis.px[best], py: lxVis.py[best], r: lxVis.r, T: lxVis.T };
+  }
+  function lxLegend() {
+    var el = $("lxLeg"); if (!st.lx) { el.innerHTML = ""; return; }
+    var h = "<span>Lightning (GOES GLM flashes, good quality only), by time before the frame:</span>";
+    for (var c = 0; c < Math.ceil(st.lx / 5); c++)
+      h += '<span class="k"><svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><circle cx="7" cy="7" r="4.6" fill="' + LX_COL[c][0] + '" fill-opacity="' + LX_COL[c][1] + '" stroke="#101210" stroke-width="1.3"/></svg>' + LX_COL[c][2] + "</span>";
+    el.innerHTML = h + "<span>hover or tap a flash for its time and energy</span>";
+  }
+  if (window.GLM) {
+    GLM.projector = function (lon, lat) { return P.fwd(lon, lat); };
+    GLM.onUpdate = function () { if (!interacting && st.lx) drawLx(); };
+    GLM.setCap(LX_CAP);
   }
 
   // ── drawing ────────────────────────────────────────────────────────────────────────────────────────────────────
@@ -1177,8 +1296,16 @@
   function hover(px, py, sticky) {
     lastHover = sticky ? null : [px, py];
     if (!view || !shown) { tip.style.display = "none"; return; }
+    var fl = st.lx ? nearestFlash(px, py, sticky ? 196 : 64) : null;
     var apt = nearestApt(px, py, sticky ? 196 : 64), head = "";
     if (apt) { px = apt[0]; py = apt[1]; head = "<b>" + apt[2][2] + "</b> " + String(apt[2][3]).replace(/[&<>]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]; }) + "<br>"; }
+    else if (fl) { px = fl.px; py = fl.py; }
+    if (fl) {
+      var ft = fl.r.t[fl.j], fd = new Date(ft), fe = fl.r.e[fl.j] * 1e15, ago = (fl.T - ft) / 60e3;
+      head += '<span class="v">Lightning flash</span> ' + p2(fd.getUTCHours()) + ":" + p2(fd.getUTCMinutes()) + ":" + p2(fd.getUTCSeconds()) + " UTC" +
+        ' <span class="ll">(' + (ago < 1 ? Math.round(ago * 60) + " s" : ago.toFixed(1) + " min") + " before the frame)</span><br>" +
+        (isNaN(fe) ? "Energy not reported" : "Optical energy " + (fe >= 10 ? Math.round(fe) : fe.toFixed(1)) + " fJ") + ' <span class="ll">· ' + fl.r.sat[fl.j] + "</span><br>";
+    }
     var xy = toXY(px, py), ll = P.inv(xy[0], xy[1]), txt;
     if (st.src === "mrms") txt = "No values in the NOAA fallback images";
     else {
@@ -1366,6 +1493,10 @@
     $("cty").onchange = function () { ovView = null; render(); };
     $("sta").onchange = function () { drawLabels(); };
     $("src").onchange = function () { setSource(this.value, this.value === "mrms" ? "Chosen by you." : ""); };
+    var lxs = $("lxSel");
+    if (!window.GLM) { lxs.disabled = true; lxs.title = "The lightning reader did not load"; }
+    lxs.value = String(st.lx);
+    lxs.onchange = function () { st.lx = +this.value; if (!st.lx && window.GLM) GLM.clearQueue(); lxLegend(); drawLx(); if (lastHover) hover(lastHover[0], lastHover[1]); writeHash(); };
   })();
 
   // ── links with the model maps ──────────────────────────────────────────────────────────────────────────────────
@@ -1397,6 +1528,7 @@
     if (!st.live && st.anchor) parts.push("t=" + stamp(st.anchor));
     else if (frames.length && st.idx < frames.length - 1 && !st.playing) parts.push("at=" + stamp(frames[st.idx].t));
     if (st.floor !== 10) parts.push("f=" + st.floor);
+    if (st.lx !== (window.GLM ? LX_DEF : 0)) parts.push("lx=" + st.lx);
     try { history.replaceState(null, "", "#" + parts.join("&")); } catch (e) {}
     cmpLink();
   }
@@ -1417,6 +1549,8 @@
   resize();
   var H0 = readHash();
   if (H0.f && +H0.f >= 5 && +H0.f <= 40) { st.floor = +H0.f; $("floor").value = String(st.floor); if ($("floor").value !== String(st.floor)) { var o = document.createElement("option"); o.value = st.floor; o.textContent = st.floor + " dBZ"; $("floor").appendChild(o); $("floor").value = st.floor; } buildLut(); drawLegend(); }
+  if (H0.lx != null && window.GLM && /^(0|5|10|15)$/.test(H0.lx)) { st.lx = +H0.lx; $("lxSel").value = H0.lx; }
+  lxLegend();
   var vm = /^(-?[\d.]+),(-?[\d.]+),([\d.]+)$/.exec(H0.v || "");
   if (vm) { var q0 = P.fwd(+vm[1], +vm[2]); view = { cx: q0[0], cy: q0[1], s: +vm[3] * 1000 }; clampView(); st.region = ""; syncRegionUI(); }
   else goRegion(REGIONS.concat(METROS).some(function (r) { return r[0] === H0.r; }) ? H0.r : "us");
@@ -1439,10 +1573,12 @@
     if (view) { var s = view.s; resize(); view.s = s; render(); } }).observe(mapEl); }
   else window.addEventListener("resize", resize);
 
-  window.RX = { st: st, get frames() { return frames; }, get detail() { return detail; }, get view() { return view; }, P: P, PERF: PERF, NET: NET, dbzOf: dbzOf, sampleCode: sampleCode,
+  window.RX = { st: st, get lx() { return lxVis; }, get frames() { return frames; }, get detail() { return detail; }, get view() { return view; }, P: P, PERF: PERF, NET: NET, dbzOf: dbzOf, sampleCode: sampleCode,
     perf: function () { var r = function (a) { return a.length ? Math.round(a.reduce(function (x, y) { return x + y; }, 0) / a.length) : null; };
       return { firstFrameMs: Math.round(PERF.firstFrame), decodeOvMs: r(PERF.dec), uploadOvMs: Math.round((r(PERF.up.map(function (x) { return x * 10; })) || 0)) / 10, fullMs: r(PERF.full), fullUploadMs: r(PERF.fullUp),
-        dl: PERF.dl, netMBps: NET.ms ? Math.round(NET.bytes / NET.ms / 1048.576 * 10) / 10 : null, dpr: DPR, maxTex: MAXT, workers: workers.length, detailF: DETAIL_F }; } };
+        dl: PERF.dl, netMBps: NET.ms ? Math.round(NET.bytes / NET.ms / 1048.576 * 10) / 10 : null, dpr: DPR, maxTex: MAXT, workers: workers.length, detailF: DETAIL_F,
+        glm: window.GLM ? { kb: Math.round(GLM.S.bytes / 1024), requests: GLM.S.req, files: GLM.S.files, wholeFiles: GLM.S.full, learnMs: GLM.S.learnMs,
+          fileMsMedian: GLM.S.fileMs.length ? GLM.S.fileMs.slice().sort(function (a, b) { return a - b; })[GLM.S.fileMs.length >> 1] : null, windows: GLM.S.windows, last: lxLast, capMB: GLM.S.cap / 1048576 } : null }; } };
 })();
 </script>
 <!-- sf:start -->
