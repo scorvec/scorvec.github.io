@@ -57,20 +57,33 @@ def seas5_group_workflows() -> list[str]:
     return out
 
 
-def group_busy() -> list[str]:
-    """Runs of the seas5 concurrency group that are not finished (laptop only; in Actions we ARE the group)."""
+def _workflow_names() -> dict:
+    """{display name: file} of the seas5-group workflows (gh run list reports the display name)."""
+    out = {}
+    for w in seas5_group_workflows():
+        m = re.search(r"^name:\s*(.+?)\s*$", (REPO / ".github" / "workflows" / w).read_text(), re.M)
+        out[(m.group(1).strip("'\"") if m else w)] = w
+    return out
+
+
+def group_busy(strict: bool = True) -> list[str]:
+    """Runs of the seas5 concurrency group that are not finished (laptop only; in Actions we ARE the group).
+    strict: a failed gh call counts as busy (before submitting); not strict: it is ignored (while a request is in flight,
+    so a GitHub API hiccup does not throw away a queue position - 2026-10-09: a 504 cost one)."""
     if IN_ACTIONS:
         return []
+    names = _workflow_names()
     busy = []
-    for w in seas5_group_workflows():
-        for st in ("in_progress", "queued", "waiting", "pending", "requested"):
-            r = subprocess.run([GH, "run", "list", "--repo", GH_REPO, "-w", w, "-s", st, "--limit", "5",
-                                "--json", "databaseId,status"], capture_output=True, text=True, timeout=60)
-            if r.returncode != 0:
-                busy.append(f"{w}: gh failed ({r.stderr.strip()[:80]})")      # cannot tell: treat as busy
-                break
-            for run in json.loads(r.stdout or "[]"):
-                busy.append(f"{w} run {run['databaseId']} {run['status']}")
+    for st in ("in_progress", "queued", "waiting", "pending", "requested"):
+        r = subprocess.run([GH, "run", "list", "--repo", GH_REPO, "-s", st, "--limit", "100",
+                            "--json", "databaseId,status,workflowName"], capture_output=True, text=True, timeout=90)
+        if r.returncode != 0:
+            if strict:
+                busy.append(f"gh failed ({r.stderr.strip()[:80]})")
+            continue
+        for run in json.loads(r.stdout or "[]"):
+            if run.get("workflowName") in names:
+                busy.append(f"{names[run['workflowName']]} run {run['databaseId']} {run['status']}")
     return busy
 
 
@@ -170,7 +183,7 @@ def retrieve(dataset: str, req: dict, dest: Path, label: str, tries: int = 4, ma
                 break
             if st in ("failed", "rejected", "dismissed", "deleted"):
                 break
-            why = group_busy()
+            why = group_busy(strict=False)
             if why:                                                      # an Actions CDS job started: step aside
                 print(f"  {label}: yielding to {'; '.join(why)[:160]} - deleting {rid}", flush=True)
                 try:
