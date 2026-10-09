@@ -277,7 +277,7 @@ PAGES = [
     # sfs.html: folded into seasonal.html 2026-10-06, now a redirect stub (no chrome)
     dict(path="ar.html", mode="after-body"),
     dict(path="models.html", mode="after-body"),
-    dict(path="radar.html", mode="after-body"),                    # US Radar Explorer (2026-10-09): IEM N0Q composite, client-side only                   # short-range model viewer (scripts/models, models*.yml), WebGL data page
+    dict(path="radar.html", mode="after-body"),                    # US Radar Explorer (2026-10-09): NOAA MRMS base reflectivity (IEM N0Q fallback), client-side only                   # short-range model viewer (scripts/models, models*.yml), WebGL data page
     dict(path="snowbands.html", mode="after-body"),                # snow-band diagnostics (scripts/snowband, snowband.yml), stage viewer
     dict(path="catalog.html", mode="after-body"),
     dict(path="aifs-aam-budget.html", mode="after-body"),         # static study (2026-10-01), built from ~/aam_budget/scripts/build_page.py

@@ -113,7 +113,7 @@ PAGES = {
                       thumb_manifest=("assets/mjo", "rmm_manifest.json", "mjo", "last"), variable=["Convection"]),
     "/models.html": dict(kind="page", topic="weather", tier=0, prio=4, models=["HRRR", "RRFS", "RDPS"], horizon="Days 1–15",
                          region=["North America"], variable=["Temperature", "Wind", "Convection", "Precipitation"]),
-    # US Radar Explorer (2026-10-09): the IEM NEXRAD composite drawn in the browser, nothing built on our side
+    # US Radar Explorer (2026-10-09): NOAA MRMS base reflectivity (GRIB2 from AWS) decoded in the browser, nothing built on our side
     "/radar.html": dict(kind="page", topic="weather", tier=0, prio=5, models=["NEXRAD"], horizon="Observed",
                         region=["North America"], variable=["Precipitation", "Convection"]),
     "/ar.html": dict(kind="stage", file="ar.html", topic="weather", title="Atmospheric rivers", tier=0, prio=6,

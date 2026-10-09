@@ -4,15 +4,16 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>US Radar Explorer &middot; Shawn Corvec</title>
-<meta name="description" content="The national NEXRAD base-reflectivity composite, live every five minutes, with GOES lightning flashes, drawn in your browser: zoom from the whole US to a metro area, loop the last hours, read the dBZ at any point on the traditional NWS colour scale, and jump to the HRRR for the same time.">
+<meta name="description" content="The national NEXRAD base-reflectivity mosaic from NOAA MRMS, live every two minutes, with GOES lightning flashes, decoded and drawn in your browser: zoom from the whole US to a metro area, loop the last hours at your own speed, read the dBZ at any point on the traditional NWS colour scale, and jump to the HRRR for the same time.">
 <link rel="canonical" href="https://scorvec.com/radar.html">
 <meta property="og:type" content="website">
 <meta property="og:title" content="US Radar Explorer">
-<meta property="og:description" content="Live national NEXRAD reflectivity composite with GOES GLM lightning, drawn in the browser: zoom, loop, dBZ readout, on the traditional NWS colour scale.">
+<meta property="og:description" content="Live NOAA MRMS base reflectivity (every radar's lowest scan, merged) with GOES GLM lightning, decoded in the browser: zoom, loop, dBZ readout, on the traditional NWS colour scale.">
 <meta property="og:url" content="https://scorvec.com/radar.html">
 <meta property="og:site_name" content="Shawn Corvec &mdash; Weather &amp; Climate Monitors">
 <meta name="twitter:card" content="summary">
 <script data-goatcounter="https://scorvec.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
+<link rel="preconnect" href="https://noaa-mrms-pds.s3.amazonaws.com" crossorigin>
 <link rel="preconnect" href="https://mesonet.agron.iastate.edu" crossorigin>
 <link rel="preconnect" href="https://noaa-goes19.s3.amazonaws.com" crossorigin>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -22,8 +23,8 @@
 <script src="/assets/site.js" defer></script>
 <script src="/assets/rail.js" defer></script>
 <style>
-  /* radar.html (2026-10-09): the national NEXRAD composite, fetched by the browser straight from the Iowa Environmental
-     Mesonet and drawn with WebGL. Nothing is built on this site's side: no workflow, no data in the repo. The look and the
+  /* radar.html (2026-10-09): the national NEXRAD base-reflectivity mosaic, fetched by the browser straight from NOAA's MRMS
+     bucket on AWS (GRIB2, decoded here; the IEM N0Q mosaic is the fallback) and drawn with WebGL. Nothing is built on this site's side: no workflow, no data in the repo. The look and the
      map code follow models.html (same projection, boundaries, colour table for reflectivity, gestures). */
   :root { --bg: #f5f6f3; --panel: #ffffff; --ink: #1f261c; --ink2: #3d4540; --muted: #6f6b64; --rule: #dfe3dc;
           --accent: #274b7a; --accent-soft: rgba(39, 75, 122, 0.09); --map: #e9ebe6; --shh: 64px;
@@ -84,6 +85,9 @@
   .mv-ticks i { position: absolute; top: 0; width: 6px; height: 6px; margin-left: -3px; border-radius: 50%; border: 1px solid #7d847b; background: transparent; }
   .mv-ticks i.ok { background: #7d847b; }
   .mv-ticks i.miss { background: var(--stale); border-color: var(--stale); }
+  .mv-speed { display: inline-flex; align-items: center; gap: 0.35rem; font-size: 1.02rem; font-weight: 600; color: var(--ink); white-space: nowrap; }
+  .mv-speed select { font: inherit; font-size: 1.1rem; font-weight: 700; height: 3rem; padding: 0 0.4rem; border: 1px solid var(--rule); border-radius: 6px;
+                     background: var(--panel); color: var(--ink); cursor: pointer; }
   .mv-valid { font-size: 1.05rem; color: var(--ink); min-width: 17rem; line-height: 1.3; }
   .mv-valid .vt { font-size: 1.22rem; font-weight: 600; font-variant-numeric: tabular-nums; }
   .mv-valid .loc { color: var(--ink2); }
@@ -166,7 +170,11 @@
     .runsel input[type=range] { width: 6.5rem; }
     .mv-time button { min-width: 2.9rem; }
     .mv-time button.txt { padding: 0 0.55rem; }
-    .mv-valid { min-width: 0; flex: 1 1 100%; font-size: 0.95rem; order: -1; }
+    /* phones: the time text and the speed share the first row, the buttons and the slider the second */
+    .mv-valid { min-width: 0; flex: 1 1 0; font-size: 0.95rem; order: -3; }
+    .mv-speed { order: -2; font-size: 0.95rem; }
+    .mv-speed select { height: 2.6rem; }
+    .mv-time::before { content: ""; order: -1; flex: 0 0 100%; height: 0; }
     .mv-valid .vt { font-size: 1.08rem; }
     .mv-slider { flex: 1 1 5rem; min-width: 5rem; }
     .mv-map { height: clamp(300px, calc(100svh - var(--shh) - 190px), 640px); }
@@ -337,9 +345,9 @@
 </header>
 <!-- sh:end -->
 <main class="mv">
-  <p class="kicker">Observations &middot; live every five minutes</p>
+  <p class="kicker">Observations &middot; live every two minutes</p>
   <h1>US Radar Explorer</h1>
-  <p class="lede">The national NEXRAD radar picture, refreshed every five minutes: base reflectivity from every WSR-88D in the lower 48, merged by the <a href="https://mesonet.agron.iastate.edu/docs/nexrad_mosaic/">Iowa Environmental Mesonet</a>. Lightning flashes seen from space by the GOES satellites are drawn on top. Zoom from the whole country to a single city, loop the last hours, and hover or tap for the reflectivity in dBZ or a flash's time. Colours follow the traditional NWS reflectivity scale; the <a href="/models.html#hrrr/refl">short-range model maps</a> are one click away for comparing with the HRRR.</p>
+  <p class="lede">The national NEXRAD radar picture, refreshed every two minutes: base reflectivity, the lowest scan of every WSR-88D in the lower 48, merged into one map by NOAA's <a href="https://www.nssl.noaa.gov/projects/mrms/">Multi-Radar Multi-Sensor system</a> (MRMS). Your browser reads NOAA's own data files and decodes them, so the hover readout is MRMS's number. Lightning flashes seen from space by the GOES satellites are drawn on top. Zoom from the whole country to a single city, loop the last hours at the speed you like, and hover or tap for the reflectivity in dBZ or a flash's time. Colours follow the traditional NWS reflectivity scale; the <a href="/models.html#hrrr/refl">short-range model maps</a> are one click away for comparing with the HRRR.</p>
 
   <div class="mv-panel">
     <div class="mv-bar">
@@ -354,12 +362,15 @@
     <div class="mv-opts">
       <label class="runsel" title="Echo weaker than this is not drawn (clear-air returns from insects, birds and ground clutter are mostly below 10 dBZ)">Hide below <select id="floor" aria-label="Lowest reflectivity drawn">
         <option value="5">5 dBZ</option><option value="10" selected>10 dBZ</option><option value="15">15 dBZ</option><option value="20">20 dBZ</option><option value="30">30 dBZ</option><option value="40">40 dBZ</option></select></label>
+      <label class="runsel" title="How long a playing loop holds the newest frame before it starts again">Hold last frame <select id="dwell" aria-label="Pause on the last frame of the loop">
+        <option value="0">no pause</option><option value="0.5">0.5 s</option><option value="1.5" selected>1.5 s</option><option value="3">3 s</option><option value="5">5 s</option></select></label>
       <label class="runsel">Opacity <input type="range" id="alpha" min="20" max="100" step="5" value="85" aria-label="Radar opacity"><output id="alphaV">85%</output></label>
       <label class="chk"><input type="checkbox" id="cty" checked> Counties</label>
       <label class="chk"><input type="checkbox" id="sta" checked> Airports</label>
+      <label class="chk" title="Faint diagonal lines where no radar sees (MRMS only: the IEM mosaic does not separate no coverage from no echo)"><input type="checkbox" id="nc" checked> Hatch no coverage</label>
       <a class="mv-cmp" id="cmp" href="/models.html#hrrr/refl">Compare with the HRRR at this time</a>
-      <label class="runsel" title="IEM: the composite's own numbers (dBZ), recoloured here. NOAA MRMS: NOAA's rendered image, used if IEM is down">Source <select id="src" aria-label="Data source">
-        <option value="iem">IEM NEXRAD composite</option><option value="mrms">NOAA MRMS (fallback)</option></select></label>
+      <label class="runsel" title="NOAA MRMS and IEM N0Q: the mosaic's own numbers (dBZ), decoded and coloured here. NOAA images: rendered pictures in NOAA's colours, used if both are down">Source <select id="src" aria-label="Data source">
+        <option value="mrms">NOAA MRMS base reflectivity (every radar's 0.5° scan, merged)</option><option value="iem">IEM N0Q mosaic (base reflectivity, max of overlapping radars)</option><option value="img">NOAA rendered images (fallback, no values)</option></select></label>
     </div>
     </details>
   </div>
@@ -370,6 +381,8 @@
     <div class="mv-slider"><input type="range" id="slider" min="0" max="0" value="0" aria-label="Frame time"><div class="mv-ticks" id="ticks"></div></div>
     <button type="button" id="fwd" aria-label="Next frame">&rsaquo;</button>
     <button type="button" class="txt" id="now" aria-label="Latest frame">Latest</button>
+    <label class="mv-speed" title="Loop speed (keys: [ slower, ] faster)">Speed <select id="speed" aria-label="Loop speed">
+      <option value="0.5">½×</option><option value="1" selected>1×</option><option value="2">2×</option><option value="4">4×</option></select></label>
     <span class="mv-valid" id="valid" aria-live="polite"></span>
   </div>
   <div class="mv-mapwrap">
@@ -394,25 +407,29 @@
   <details class="mv-about">
     <summary>About this radar map: data, decoding, timing and limits</summary>
     <h2>What the map shows</h2>
-    <p>The <b>N0Q national composite</b> from the Iowa Environmental Mesonet (IEM) at Iowa State University: base reflectivity (the lowest elevation scan, 0.5&deg; on most radars) from the WSR-88D network of the lower 48, merged onto a 0.005&deg; latitude&ndash;longitude grid (about 550&nbsp;m north&ndash;south) every five minutes, 126&deg;W&ndash;65&deg;W and 23&deg;N&ndash;50&deg;N. IEM builds it from the NWS Level&nbsp;III N0B products and removes most ground clutter and anomalous propagation. Each frame is one 8-bit PNG (about 2.2&ndash;2.5&nbsp;MB) whose pixel values are the reflectivity itself: value <i>k</i> = <i>k</i>&nbsp;&times;&nbsp;0.5&nbsp;&minus;&nbsp;32.5&nbsp;dBZ (0.5&nbsp;dBZ steps from &minus;32&nbsp;dBZ; 0 = no echo or no coverage). The page decodes those values itself and colours them, so the hover readout is the composite's own number.</p>
-    <p>Checked on 9 October 2026 against IEM's own documentation (&ldquo;&minus;32&nbsp;dBZ through 90&nbsp;dBZ, 0.5&nbsp;dBZ increment&rdquo;) and against IEM's 5-dBZ N0R composite of the same time, which IEM derives from N0Q: in every N0R class from 0 to 60&nbsp;dBZ (class <i>k</i> = &minus;30&nbsp;+&nbsp;5<i>k</i>&nbsp;dBZ, about 650,000 echo pixels) the N0Q values begin at 10<i>k</i>&nbsp;+&nbsp;5, the class's lower edge by the formula. The page's own decoding matches an independent decode of the same file value for value.</p>
+    <p><b>MRMS merged base reflectivity</b> (<code>MergedBaseReflectivityQC</code>) from NOAA&rsquo;s Multi-Radar Multi-Sensor system, run by NOAA/NSSL and the National Weather Service: the lowest elevation scan of every WSR-88D (0.5&deg; on most radars) and of the Canadian radars near the border, quality-controlled to remove ground clutter, anomalous propagation, birds and other non-weather echo, and merged onto a 0.01&deg; latitude&ndash;longitude grid (about 1.1&nbsp;km north&ndash;south, 0.7&ndash;1.0&nbsp;km east&ndash;west) from 130&deg;W to 60&deg;W and 20&deg;N to 55&deg;N. A new mosaic is made about every two minutes. Where radars overlap, NSSL describes the mosaic as taking the lowest-altitude observation where there is precipitation and otherwise a weighted mean of the radars, weighted by distance from each radar and the height of the beam; it is not the strongest value of the column (that product, MRMS&rsquo;s composite reflectivity, is not used here). Grid cells no radar can see are marked as having no coverage, separately from cells with no echo, and the page hatches them faintly (Map options: &ldquo;Hatch no coverage&rdquo;).</p>
+    <p><b>How your browser reads it.</b> Each mosaic is one gzipped GRIB2 file on NOAA&rsquo;s Open Data Dissemination bucket on AWS (<code>noaa-mrms-pds</code>), 0.45&ndash;1.8&nbsp;MB depending on how much rain there is. The page lists the bucket for the file times, downloads each file once, and decodes it itself in a background worker: it unzips it, reads the grid from section&nbsp;3 of the GRIB2 message (template 3.0, 7000&nbsp;&times;&nbsp;3500 points, first point 54.995&deg;N, 129.995&deg;W) and the scaling from section&nbsp;5 (template 5.41: the values are packed as a 16-bit greyscale PNG image, value = (<i>R</i>&nbsp;+&nbsp;<i>X</i>&nbsp;&middot;&nbsp;2<sup><i>E</i></sup>)&nbsp;/&nbsp;10<sup><i>D</i></sup>, with <i>R</i>&nbsp;=&nbsp;&minus;9990, <i>E</i>&nbsp;=&nbsp;0, <i>D</i>&nbsp;=&nbsp;1 so far), then inflates and unfilters the PNG row by row. &minus;999 means no coverage and &minus;99 no echo; reflectivity comes in 0.5&nbsp;dBZ steps and is kept exactly. If a file ever arrives in a layout the page does not expect (another grid or packing template, a bitmap, several fields), the page says so and switches to the IEM mosaic rather than guessing.</p>
+    <p><b>Checked</b> on 9 October 2026 against <code>eccodes</code> (the ECMWF GRIB library) reading the same four files, from the bucket&rsquo;s first day (14 October 2020) to today, including the outbreaks of 7 May 2024 and 14&ndash;15 March 2025: the grid, corners and spacing, the number of no-coverage, no-echo and echo points (for example 8,192,739, 15,294,167 and 1,013,094 at 15:06 UTC on 9 October 2026) and all 24.5&nbsp;million values (histogram and a position-weighted checksum of the whole grid, plus 801 single points per file) are identical. Every file since October 2020 uses the same grid and packing.</p>
+    <h2>Why not the IEM mosaic</h2>
+    <p>Until 9 October 2026 this page drew the <b>N0Q national composite</b> of the Iowa Environmental Mesonet (IEM): also each radar&rsquo;s lowest scan, merged onto a 0.005&deg; grid every five minutes. IEM does not document how it combines overlapping radars; the result looks like the strongest value wins, and it has one code for both no echo and no coverage. Measured on the page&rsquo;s own decodes at three times (7 May 2024 03:00&nbsp;UTC, 15 March 2025 00:30&nbsp;UTC and 9 October 2026 15:00&nbsp;UTC; lower 48, 126&ndash;66&deg;W, 24&ndash;50&deg;N, IEM taken as the maximum of the four 0.005&deg; cells in each 0.01&deg; cell), where both show 20&nbsp;dBZ or more IEM&rsquo;s N0Q read a median 5.5&ndash;7&nbsp;dBZ higher than MRMS base reflectivity, and 3.5&ndash;4.5&nbsp;dBZ higher than even MRMS&rsquo;s column-maximum composite at the same minute; it covered 3.4&ndash;4.9 times MRMS base&rsquo;s area of 35&nbsp;dBZ or more and, on the two storm days, 6.5 and 9 times its area of 50&nbsp;dBZ or more (2.6&ndash;7 times even the composite&rsquo;s). That is why the old map looked like composite reflectivity. These are three times, not a climatology. The IEM mosaic stays as a choice under Map options (&ldquo;IEM N0Q mosaic&rdquo;) and as the automatic fallback; its pixel values are decoded as <i>k</i>&nbsp;&times;&nbsp;0.5&nbsp;&minus;&nbsp;32.5&nbsp;dBZ, checked against IEM&rsquo;s documentation and its 5-dBZ N0R composite.</p>
     <h2>Colours</h2>
-    <p>The colour table is the traditional NWS base-reflectivity scale in 5&nbsp;dBZ steps: cyan and blues from 5 to 19&nbsp;dBZ, greens 20&ndash;34, yellow and orange 35&ndash;49, reds 50&ndash;64, magenta and purple 65&ndash;74, white from 75. The <a href="/models.html#hrrr/refl">model maps</a> draw HRRR and RRFS simulated reflectivity with their own rain ramp and colour snow and ice by the model's surface type; radar reflectivity carries no precipitation type, so every echo here uses the one NWS scale. The model maps show simulated reflectivity 1&nbsp;km above the ground; the radar's lowest scan rises with distance from each radar (at 0.5&deg;, about 0.7&nbsp;km above the radar at 60&nbsp;km range and 3&nbsp;km at 160&nbsp;km), so far from a radar it sees higher in the cloud and can overshoot shallow snow and drizzle.</p>
-    <h2>Loops, resolution and your connection</h2>
-    <p>Opening the page loads one frame (the newest, about 2.3&nbsp;MB). A loop is downloaded only when you play, step or drag the slider: 2&nbsp;hours every 10&nbsp;minutes is 12&ndash;13 frames, about 28&ndash;32&nbsp;MB, fetched two at a time, newest first, each file requested once and kept in memory for the visit. Files of past times do not change at IEM, so the browser's own cache can answer a reload (IEM confirms them as unchanged without sending them again).</p>
-    <p>The full grid is 12,200&nbsp;&times;&nbsp;5,400 values. Loop frames are kept as a 0.02&deg; grid (the strongest echo in each 4&nbsp;&times;&nbsp;4 block, so cores are not lost), which is finer than a screen shows at the national view; when you stop on a frame zoomed in past that, the page decodes the full 0.005&deg; grid of that frame from the copy already in memory and draws it at native resolution. The hover readout uses the full grid once it is decoded (otherwise it says the value is the block maximum).</p>
+    <p>The colour table is the traditional NWS base-reflectivity scale in 5&nbsp;dBZ steps: cyan and blues from 5 to 19&nbsp;dBZ, greens 20&ndash;34, yellow and orange 35&ndash;49, reds 50&ndash;64, magenta and purple 65&ndash;74, white from 75. The <a href="/models.html#hrrr/refl">model maps</a> draw HRRR and RRFS simulated reflectivity with their own rain ramp and colour snow and ice by the model's surface type; radar reflectivity carries no precipitation type, so every echo here uses the one NWS scale. The model maps show simulated reflectivity 1&nbsp;km above the ground; the radar's lowest scan rises with distance from each radar (at 0.5&deg;, about 0.7&nbsp;km above the radar at 60&nbsp;km range and 3&nbsp;km at 160&nbsp;km), so far from every radar the mosaic sees higher in the cloud and can overshoot shallow snow and drizzle; MRMS's merging favours the lowest beam wherever radars overlap.</p>
+    <h2>Loops, speed, resolution and your connection</h2>
+    <p>Opening the page loads one file listing (about 25&nbsp;KB) and one frame (the newest, about 1&nbsp;MB on a quiet day). A loop is downloaded only when you play, step or drag the slider: 2&nbsp;hours every 10&nbsp;minutes is 12&ndash;13 files, the file nearest each 10-minute mark, about 13&nbsp;MB on a quiet day and up to about 23&nbsp;MB on a stormy one (the IEM mosaic: about 26&ndash;32&nbsp;MB). They are fetched two at a time, newest first, each requested once and kept in memory for the visit. The loop menu also offers every file of the last hour (about 30 frames two minutes apart, about 30&nbsp;MB). The speed control next to the time slider plays the loop at &frac12;&times;, 1&times;, 2&times; or 4&times; (1&times; is 2.4 frames a second; the keys [ and ] change it), and &ldquo;Hold last frame&rdquo; sets how long the newest frame stays before the loop starts again; both are kept in the address.</p>
+    <p>Measured on 9 October 2026 (headless Chrome, browser cache off, lightning off): on a desktop connection the first frame was on screen 0.6&nbsp;s after the page started (IEM: 1.2&nbsp;s) and the whole 2-hour loop in 3&nbsp;s (IEM: 6&nbsp;s); on a simulated phone (9&nbsp;Mbit/s, 100&nbsp;ms latency, processor slowed four times) 2.1&nbsp;s (IEM: 2.8&nbsp;s) and 13&nbsp;s (IEM: 23&nbsp;s). Decoding one MRMS file takes about 0.17&nbsp;s on a laptop.</p>
+    <p>Loop frames are kept as a 0.02&deg; grid (the strongest value in each 2&nbsp;&times;&nbsp;2 block, so cores are not lost; 0.03&deg; on phones and devices with 4&nbsp;GB of memory or less), which is finer than a screen shows at the national view; when you stop on a frame zoomed in past that, the page decodes the full 0.01&deg; grid of that frame from the copy already in memory and draws it at native resolution. The hover readout uses the full grid once it is decoded (otherwise it says the value is the block maximum).</p>
     <h2>Timing and freshness</h2>
-    <p>The time shown is the composite's nominal time from IEM (UTC, and your local time). IEM finishes a composite about two minutes after the scans that go into it; the badge shows how many radars contributed. While this tab is visible the page checks IEM's small status file once per expected update (about every five minutes) and adds the new frame; nothing is downloaded while the tab is hidden. The time chip turns amber (&ldquo;late&rdquo;) when the newest composite is more than 12&nbsp;minutes old and red (&ldquo;stale&rdquo;) past 25&nbsp;minutes. Archive frames that IEM does not have are marked in red under the slider and skipped by the loop. A time in the address (<code>#t=YYYYMMDDHHMM</code>, UTC) opens the loop ending then, back to November 2010; the model maps link here that way.</p>
+    <p>The time shown is the mosaic's own time, from the file name (UTC, and your local time); it matches the reference time inside the file. MRMS files reach the bucket about a minute after their time. While this tab is visible the page lists the bucket for new files about every two minutes, just after each new file is due (a few hundred bytes when nothing is new) and adds the newest frame; nothing is downloaded while the tab is hidden. The time chip turns amber (&ldquo;late&rdquo;) when the newest file is more than 8&nbsp;minutes old and red (&ldquo;stale&rdquo;) past 20&nbsp;minutes (12 and 25 for the five-minute IEM mosaic). A loop mark with no file within half a step of it is marked in red under the slider and skipped by the loop. A time in the address (<code>#t=YYYYMMDDHHMM</code>, UTC) opens the loop ending at the last file at or before it, back to 14 October 2020 (the first MRMS file in the bucket); earlier times, back to November 2010, come from the IEM mosaic. The model maps link here that way.</p>
     <h2>Lightning</h2>
     <p>The dots are lightning flashes from the <b>Geostationary Lightning Mapper</b> (GLM) on GOES-19 (GOES-East, over 75.2&deg;W) and GOES-18 (GOES-West, over 137.0&deg;W). GLM is an optical sensor: it sees the light of lightning at the cloud top, in-cloud and cloud-to-ground alike, day and night, and NOAA&rsquo;s Level&nbsp;2 product groups its 2-millisecond detections into flashes, one file every 20&nbsp;seconds per satellite. For the frame on screen the map shows the flashes whose first light came in the 5, 10 or 15&nbsp;minutes before the frame&rsquo;s time (10 by default, 5 on phones and with Save-Data), coloured by 5-minute age, the newest on top. The chip at the bottom right counts the flashes inside the map. Hover or tap a flash for its time to the second, its optical energy in femtojoules (the light that reached the satellite, not the electrical energy of the flash) and the satellite.</p>
     <p><b>Two satellites, one flash.</b> Both satellites see the central US, so every flash there is reported twice. Each flash is taken only from the satellite whose sub-satellite point is nearer in longitude: GOES-East east of 106.1&deg;W, GOES-West west of it (the meridian halfway between the two). The nearer satellite looks at the storm more steeply, so its position error is the smaller. A satellite&rsquo;s files are downloaded only when the view reaches its side of that line (with a 1.5&deg; margin); if one satellite&rsquo;s listing fails, the other covers the whole view and the chip names the satellite. Archive times use the satellite operational then (GOES-16 as East before 7 April 2025, GOES-17 as West from February 2019 to January 2023); GLM data begin in December 2017.</p>
     <p><b>Quality and position.</b> Only flashes with <code>flash_quality_flag</code> = 0 (good) are drawn. The product marks a few percent as degraded &mdash; mostly the largest and longest flashes, which the algorithm splits at its event-count and 3-second limits, and flashes whose events arrive out of time order &mdash; and those are left out rather than drawn as if they were complete flashes. A flash&rsquo;s position is the energy-weighted centre of its events, navigated to an assumed cloud-top height: GLM pixels are about 8&nbsp;km across under the satellite and 10&ndash;14&nbsp;km over the US, and storms much taller or shallower than the assumed height appear shifted by a few kilometres (away from the sub-satellite point for tall storms). At these latitudes the offset is small against the pixel size, but a flash can sit a few kilometres from the radar core it belongs to: read the dots at storm scale, not cell by cell. GLM does not see every flash: it misses more in the brightest daytime storms and toward the edge of each satellite&rsquo;s view.</p>
     <p><b>How it is read.</b> Your browser lists NOAA&rsquo;s <code>GLM-L2-LCFA</code> files on the AWS Open Data buckets (<code>noaa-goes19</code>, <code>noaa-goes18</code>) and reads each netCDF-4 file with HTTP range requests: only the flash variables (count, time of the first event, latitude, longitude, energy and quality flag), 1&ndash;10&nbsp;KB of a 170&ndash;650&nbsp;KB file. Once per satellite per visit the first file is parsed with <a href="https://github.com/usnistgov/jsfive">jsfive</a>, an open-source HDF5 reader in JavaScript, to learn where those variables sit and how they are scaled (<code>scale_factor</code>, <code>add_offset</code>, <code>_FillValue</code>, <code>_Unsigned</code>); the same file is then decoded a second time by the range reader and the two must agree value for value. Every later file is checked against the learned layout (index signatures, chunk sizes, value ranges, the file&rsquo;s start time) and the layout is learned again if anything differs. Checked on 9 October 2026 against netCDF4 and xarray reads of the same GOES-18 and GOES-19 files (69 to 789 flashes each): identical flash counts, latitudes, longitudes and quality flags, energies equal to float32 precision and times within 0.002&nbsp;ms.</p>
     <p><b>Your connection.</b> A 10-minute window over the whole country is 64 files (32 per satellite), roughly 250&ndash;500&nbsp;KB in about 470 small requests, taking 3&ndash;6&nbsp;seconds; the first window of a visit adds about 0.3&nbsp;MB to learn the layout. Zoomed in on one satellite&rsquo;s side it is half that. Lightning is fetched only for frames that are shown, newest files first; it never holds up the radar or the loop (a playing loop shows each frame&rsquo;s lightning once it has arrived), and it pauses at 40&nbsp;MB per visit (15&nbsp;MB on phones, 6&nbsp;MB with Save-Data) until you choose to continue.</p>
-    <h2>If IEM is down</h2>
-    <p>The page falls back to NOAA's MRMS base reflectivity image service (<a href="https://mapservices.weather.noaa.gov/eventdriven/rest/services/radar/radar_base_reflectivity_time/ImageServer">mapservices.weather.noaa.gov</a>, the last four hours). Those images arrive already coloured in NOAA's own scale (shown as received, not recoloured) and carry no dBZ values, so there is no readout and no floor in that mode, and the colours do not match the model maps.</p>
+    <h2>If a source is down</h2>
+    <p>If NOAA's bucket cannot be listed or a file cannot be decoded, the page switches to the IEM N0Q mosaic and says why. If IEM is down too, it falls back to NOAA's rendered base-reflectivity images (<a href="https://mapservices.weather.noaa.gov/eventdriven/rest/services/radar/radar_base_reflectivity_time/ImageServer">mapservices.weather.noaa.gov</a>, the last four hours). Those arrive already coloured in NOAA's own scale (shown as received, not recoloured) and carry no dBZ values, so there is no readout and no floor in that mode. An automatic fallback is not written into the address, so a reload tries MRMS again.</p>
     <h2>Credits</h2>
-    <p>Radar composite: <a href="https://mesonet.agron.iastate.edu/">Iowa Environmental Mesonet</a>, Iowa State University (N0Q national composite and archive), from NOAA National Weather Service WSR-88D data. Fallback: NOAA/NWS Multi-Radar Multi-Sensor (MRMS) via the NWS map services. Boundaries: Natural Earth and US Census (us-atlas). Airports: OurAirports (public domain). Lightning: NOAA GOES-R Geostationary Lightning Mapper (GLM) Level&nbsp;2 flashes, via the NOAA Open Data Dissemination program (AWS); HDF5 reading with jsfive (NIST). Your browser downloads the radar and lightning files directly from IEM, NOAA and AWS; this site stores and processes none of them.</p>
+    <p>Radar mosaic: NOAA/NSSL MRMS via NOAA Open Data Dissemination (AWS), from NOAA National Weather Service WSR-88D and Environment and Climate Change Canada radar data. Alternative and fallback: <a href="https://mesonet.agron.iastate.edu/">Iowa Environmental Mesonet</a>, Iowa State University (N0Q national composite and archive), and NOAA/NWS map services (rendered images). Boundaries: Natural Earth and US Census (us-atlas). Airports: OurAirports (public domain). Lightning: NOAA GOES-R Geostationary Lightning Mapper (GLM) Level&nbsp;2 flashes, via the NOAA Open Data Dissemination program (AWS); HDF5 reading with jsfive (NIST). Your browser downloads the radar and lightning files directly from AWS, IEM and NOAA; this site stores and processes none of them.</p>
     <p class="mv-perf" id="perf"></p>
   </details>
 </main>
@@ -428,13 +445,19 @@
   var NOAA_IS = "https://mapservices.weather.noaa.gov/eventdriven/rest/services/radar/radar_base_reflectivity_time/ImageServer";
   // N0Q grid (n0q_0.wld): 0.005 deg, centre of the upper-left pixel at 126.0 W, 50.0 N; size from the PNG header
   var G = { lon0: -126.0, lat0: 50.0, res: 0.005 };
-  var OVF = 4;                                                     // loop frames: max over 4 x 4 blocks = 0.02 deg
-  var MRMS_BOX = [-126, 20, -65, 50], MRMS_W = 3050, MRMS_H = 1500;  // fallback image: 0.02 deg, edges = the bbox
-  var FORCE_MRMS = /[?&]src=mrms/.test(location.search);           // testing: start on the NOAA fallback
+  var OVF = 4;                                                     // IEM loop frames: max over 4 x 4 blocks = 0.02 deg
+  var IMG_BOX = [-126, 20, -65, 50], IMG_W = 3050, IMG_H = 1500;   // NOAA image fallback: 0.02 deg, edges = the bbox
+  // NOAA MRMS MergedBaseReflectivityQC_00.50 on the NOAA Open Data bucket (AWS): one gzipped GRIB2 file every ~2 minutes,
+  // 7000 x 3500 at 0.01 deg (grid read from each file), PNG packing (template 5.41), -999 = no coverage, -99 = no echo.
+  // Since 2026-10-09 the primary source (user: "the radar mosaic might be using composite reflectivity, not base?").
+  var MR = { base: "https://noaa-mrms-pds.s3.amazonaws.com", pfx: "CONUS/MergedBaseReflectivityQC_00.50/", name: "MRMS_MergedBaseReflectivityQC_00.50_",
+             start: Date.UTC(2020, 9, 14, 21, 15) };                // the bucket's first file of this product
+  var IEM_START = Date.UTC(2010, 10, 13, 17);
+  var FORCE_SRC = (/[?&]src=(mrms|iem|img)\b/.exec(location.search) || [])[1];   // testing: start on a given source
   var NETC = navigator.connection || {};
   var SLOW = !!(NETC.saveData || /(^|-)2g|3g/.test(NETC.effectiveType || ""));
   var MEM = navigator.deviceMemory || 8, CORES = navigator.hardwareConcurrency || 4;
-  var DETAIL_F = MEM <= 2 ? 2 : 1;                                 // low-memory devices: the detail grid at 0.01 deg
+  var DETAIL_F = MEM <= 2 ? 2 : 1;                                 // low-memory devices: the IEM detail grid at 0.01 deg
 
   // ── colours: the traditional NWS reflectivity table, discrete 5-dBZ bins (user 2026-10-09: "use the more traditional
   //    NWS color table for the radar"). RAMP (the models.html rain ramp) is kept for reference only. ─────────────────────
@@ -490,11 +513,14 @@
   var METRO_KM = 320;                                               // width of a city view
 
   // ── state ──────────────────────────────────────────────────────────────────────────────────────────────────────
-  var LOOPS = [[60, 5], [60, 10], [120, 5], [120, 10], [180, 10], [180, 15], [360, 30]];
-  var st = { floor: 10, alpha: 0.85, loop: SLOW ? [60, 10] : [120, 10], idx: 0, playing: false, live: true, anchor: 0, src: "iem", region: "us", engaged: false };
+  var LOOPS = [[60, 2], [60, 5], [60, 10], [120, 5], [120, 10], [180, 10], [180, 15], [360, 30]];   // [60, 2]: MRMS only (every file)
+  var SPEEDS = [0.5, 1, 2, 4], DWELLS = [0, 0.5, 1.5, 3, 5], BASE_MS = 420;                        // 1x = 420 ms a frame
+  var st = { floor: 10, alpha: 0.85, loop: SLOW ? [60, 10] : [120, 10], idx: 0, playing: false, live: true, anchor: 0, src: "mrms", region: "us", engaged: false,
+             speed: 1, dwell: 1.5, nc: true };
   // lightning: on by default (a window costs a few hundred KB, a fraction of one radar frame); phones and Save-Data
   // get the 5-minute window and a smaller download limit for the visit
   var PHONE = !!(window.matchMedia && (matchMedia("(max-width: 640px)").matches || (matchMedia("(pointer: coarse)").matches && Math.min(screen.width, screen.height) < 500)));
+  var MR_OVF = PHONE || MEM <= 4 ? 3 : 2;                         // MRMS loop frames: max over 2 x 2 blocks = 0.02 deg (phones 0.03)
   var LX_DEF = SLOW || PHONE ? 5 : 10, LX_CAP = (SLOW ? 6 : PHONE ? 15 : 40) * 1048576;
   st.lx = window.GLM ? LX_DEF : 0;
   var view = null;                                                  // {cx, cy, s: metres per CSS px}
@@ -553,10 +579,112 @@
     res.ms.total = performance.now() - t0;
     return [res, tr];
   }
+  // MRMS: gzipped GRIB2 (one message) -> grid from section 3 (template 3.0), scaling from section 5 (template 5.41, PNG),
+  // no bitmap (section 6 = 255), section 7 = a greyscale PNG of the packed integers X; value = (R + X 2^E) / 10^D.
+  // Codes (8 bit, same dBZ ladder as N0Q: k * 0.5 - 32.5): 0 = no coverage (-999), 1 = no echo (-99), 2..255 = -31.5..95 dBZ.
+  // The PNG is inflated as a stream and unfiltered row by row, so the 49 MB of 16-bit rows never sit in memory at once.
+  async function decodeGrib(buf, F, full) {
+    var t0 = performance.now(), b = new Uint8Array(buf), ms = {};
+    if (b[0] === 0x1f && b[1] === 0x8b) b = new Uint8Array(await new Response(new Blob([b]).stream().pipeThrough(new DecompressionStream("gzip"))).arrayBuffer());
+    ms.gunzip = performance.now() - t0;
+    var dv = new DataView(b.buffer, b.byteOffset, b.byteLength);
+    if (b.length < 16 || b[0] !== 0x47 || b[1] !== 0x52 || b[2] !== 0x49 || b[3] !== 0x42) throw new Error("not a GRIB file");
+    if (b[7] !== 2) throw new Error("GRIB edition " + b[7] + " (expected 2)");
+    var sm32 = function (o) { var v = dv.getUint32(o); return v & 0x80000000 ? -(v & 0x7fffffff) : v; };   // GRIB2 signed = sign and magnitude
+    var sm16 = function (o) { var v = dv.getUint16(o); return v & 0x8000 ? -(v & 0x7fff) : v; };
+    var p = 16, g = null, rep = null, png = null, bitmap = -1, ref = 0, nmsg = 0;
+    while (p + 5 <= b.length) {
+      if (b[p] === 0x37 && b[p + 1] === 0x37 && b[p + 2] === 0x37 && b[p + 3] === 0x37) break;
+      var L = dv.getUint32(p), n = b[p + 4];
+      if (L < 5 || p + L > b.length) throw new Error("truncated GRIB2 section " + n);
+      if (n === 1) ref = Date.UTC(dv.getUint16(p + 12), b[p + 14] - 1, b[p + 15], b[p + 16], b[p + 17], b[p + 18]);
+      else if (n === 3) {
+        var tpl = dv.getUint16(p + 12); if (tpl !== 0) throw new Error("grid template 3." + tpl + " (expected 3.0, latitude-longitude)");
+        var ni = dv.getUint32(p + 30), nj = dv.getUint32(p + 34), ba = dv.getUint32(p + 38), bs = dv.getUint32(p + 42);
+        var u = !ba || ba === 0xffffffff || !bs || bs === 0xffffffff ? 1e-6 : ba / bs;
+        var la1 = sm32(p + 46) * u, lo1 = dv.getUint32(p + 50) * u, la2 = sm32(p + 55) * u, lo2 = dv.getUint32(p + 59) * u;
+        var di = dv.getUint32(p + 63) * u, dj = dv.getUint32(p + 67) * u, scan = b[p + 71];
+        if (scan !== 0) throw new Error("scanning mode " + scan + " (expected 0: west to east, north to south)");
+        if (lo1 > 180) lo1 -= 360; if (lo2 > 180) lo2 -= 360;
+        if (Math.abs(di - dj) > 1e-7) throw new Error("grid spacing differs east-west and north-south");
+        if (Math.abs(la1 - (nj - 1) * dj - la2) > dj * 0.51 || Math.abs(lo1 + (ni - 1) * di - lo2) > di * 0.51) throw new Error("grid corners do not match its size");
+        g = { w: ni, h: nj, res: di, x0: lo1 - di / 2, y0: la1 + dj / 2, la1: la1, lo1: lo1, la2: la2, lo2: lo2 };
+      } else if (n === 5) {
+        rep = { tpl: dv.getUint16(p + 9), n: dv.getUint32(p + 5), R: dv.getFloat32(p + 11), E: sm16(p + 15), D: sm16(p + 17), nb: b[p + 19] };
+        if (rep.tpl !== 41) throw new Error("data template 5." + rep.tpl + " (expected 5.41, PNG)");
+      } else if (n === 6) bitmap = b[p + 5];
+      else if (n === 7) { png = b.subarray(p + 5, p + L); nmsg++; }
+      p += L;
+    }
+    if (!g || !rep || !png) throw new Error("GRIB2 message incomplete");
+    if (nmsg !== 1) throw new Error(nmsg + " fields in one file (expected 1)");
+    if (bitmap !== 255) throw new Error("bitmap " + bitmap + " (expected none)");
+    if (rep.n !== g.w * g.h) throw new Error("value count " + rep.n + " differs from the grid " + g.w + " x " + g.h);
+    if (rep.nb !== 8 && rep.nb !== 16) throw new Error(rep.nb + "-bit packing (expected 8 or 16)");
+    // the look-up table from packed integer to code
+    var nv = 1 << rep.nb, lut = new Uint8Array(nv), sE = Math.pow(2, rep.E), sD = Math.pow(10, rep.D), X;
+    for (X = 0; X < nv; X++) {
+      var Y = (rep.R + X * sE) / sD;
+      lut[X] = Y < -998.95 ? 0 : Math.abs(Y + 99) < 0.05 ? 1 : Y < -99 ? 0 : Math.max(2, Math.min(255, Math.round((Y + 32.5) * 2)));
+    }
+    // PNG chunks
+    var pd = new DataView(png.buffer, png.byteOffset, png.byteLength), q = 8, w = 0, h = 0, bd = 0, ct = 0, il = 0, idat = [];
+    if (png[0] !== 0x89 || png[1] !== 0x50 || png[2] !== 0x4e || png[3] !== 0x47) throw new Error("section 7 is not a PNG");
+    while (q + 8 <= png.length) {
+      var cn = pd.getUint32(q), cty = String.fromCharCode(png[q + 4], png[q + 5], png[q + 6], png[q + 7]);
+      if (cty === "IHDR") { w = pd.getUint32(q + 8); h = pd.getUint32(q + 12); bd = png[q + 16]; ct = png[q + 17]; il = png[q + 20]; }
+      else if (cty === "IDAT") idat.push(png.subarray(q + 8, q + 8 + cn));
+      else if (cty === "IEND") break;
+      q += 12 + cn;
+    }
+    if (w !== g.w || h !== g.h) throw new Error("PNG " + w + " x " + h + " differs from the grid");
+    if (ct !== 0 || il !== 0 || bd !== rep.nb) throw new Error("unexpected PNG layout " + [bd, ct, il].join(","));
+    var bpp = bd >> 3, S = w * bpp, cur = new Uint8Array(S), prev = new Uint8Array(S), tmp;
+    var ow = Math.ceil(w / F), oh = Math.ceil(h / F), ov = new Uint8Array(ow * oh), xm = new Int32Array(w), fullD = full ? new Uint8Array(w * h) : null;
+    var cnt = [0, 0, 0], x, y = 0, filt = -1, pos = 0;
+    for (x = 0; x < w; x++) xm[x] = (x / F) | 0;
+    var row = function () {
+      var k;
+      if (filt === 1) { for (k = bpp; k < S; k++) cur[k] += cur[k - bpp]; }
+      else if (filt === 2) { for (k = 0; k < S; k++) cur[k] += prev[k]; }
+      else if (filt === 3) { for (k = 0; k < bpp; k++) cur[k] += prev[k] >> 1; for (k = bpp; k < S; k++) cur[k] += (cur[k - bpp] + prev[k]) >> 1; }
+      else if (filt === 4) {
+        for (k = 0; k < bpp; k++) cur[k] += prev[k];
+        for (k = bpp; k < S; k++) {
+          var a = cur[k - bpp], up = prev[k], c = prev[k - bpp], pp = a + up - c, pa = pp > a ? pp - a : a - pp, pb = pp > up ? pp - up : up - pp, pc = pp > c ? pp - c : c - pp;
+          cur[k] += pa <= pb && pa <= pc ? a : pb <= pc ? up : c;
+        }
+      } else if (filt !== 0) throw new Error("PNG filter " + filt);
+      var o = ((y / F) | 0) * ow, fo = y * w, v;
+      for (x = 0; x < w; x++) {
+        v = lut[bpp === 2 ? (cur[2 * x] << 8) | cur[2 * x + 1] : cur[x]];
+        if (fullD) fullD[fo + x] = v;
+        cnt[v > 1 ? 2 : v]++;
+        if (v > ov[o + xm[x]]) ov[o + xm[x]] = v;
+      }
+    };
+    var t1 = performance.now(), rd = new Blob(idat).stream().pipeThrough(new DecompressionStream("deflate")).getReader();
+    for (;;) {
+      var r = await rd.read(); if (r.done) break;
+      var ch = r.value, i = 0, cl = ch.length;
+      while (i < cl && y < h) {
+        if (filt < 0) { filt = ch[i++]; pos = 0; continue; }
+        var take = Math.min(S - pos, cl - i);
+        cur.set(ch.subarray(i, i + take), pos); pos += take; i += take;
+        if (pos === S) { row(); tmp = prev; prev = cur; cur = tmp; filt = -1; y++; }
+      }
+    }
+    if (y < h) throw new Error("PNG ended after " + y + " of " + h + " rows");
+    ms.png = performance.now() - t1; ms.total = performance.now() - t0;
+    g.f = F;
+    var res = { w: w, h: h, ow: ow, oh: oh, ov: ov, echo: cnt[2], nocov: cnt[0], noecho: cnt[1], g: g, ref: ref, rep: rep, ms: ms }, tr = [ov.buffer];
+    if (fullD) { res.full = { f: 1, w: w, h: h, stride: w, off: 0, data: fullD }; tr.push(fullD.buffer); }
+    return [res, tr];
+  }
   function workerMain() {
     self.onmessage = function (e) {
       var d = e.data;
-      var job = d.op === "png" ? decodePng(d.buf, d.F, d.full)
+      var job = d.op === "png" ? decodePng(d.buf, d.F, d.full) : d.op === "grib" ? decodeGrib(d.buf, d.F, d.full)
         : fetch(d.url).then(function (r) { if (!r.ok) throw new Error("http " + r.status); return r.json(); }).then(function (j) {
             var L = geoProcess(j, d.P, d.tols), bufs = []; L.forEach(function (x) { x.lods.forEach(function (o) { bufs.push(o.xy.buffer, o.off.buffer); }); });
             return [{ layers: L }, bufs]; });
@@ -623,7 +751,7 @@
   var workers = [], wcb = {}, wid = 0, wnext = 0;
   try {
     if (typeof Worker === "function" && HAS_DS && !/[?&]wk=0/.test(location.search)) {   // ?wk=0: decode on the page (testing)
-      var wurl = URL.createObjectURL(new Blob([inflate.toString() + "\n" + decodePng.toString() + "\n" + simplifyLine.toString() + "\n" + geoProcess.toString() + "\n(" + workerMain.toString() + ")();"], { type: "text/javascript" }));
+      var wurl = URL.createObjectURL(new Blob([inflate.toString() + "\n" + decodePng.toString() + "\n" + decodeGrib.toString() + "\n" + simplifyLine.toString() + "\n" + geoProcess.toString() + "\n(" + workerMain.toString() + ")();"], { type: "text/javascript" }));
       var nW = CORES >= 6 && MEM >= 4 && !SLOW ? 2 : 1;
       for (var wi = 0; wi < nW; wi++) {
         var w = new Worker(wurl);
@@ -639,10 +767,13 @@
       workers[which != null ? which : wnext++ % workers.length].postMessage(msg);   // the bytes are copied, not transferred: they stay cached
     });
   }
-  function decodeBytes(buf, full) {
-    if (!workers.length) return decodePng(buf.slice(0), OVF, full || 0).then(function (r) { return r[0]; });   // no worker: on the page
-    return workerCall({ op: "png", buf: buf, F: OVF, full: full || 0 });
+  function decodeBytes(buf, full, src) {
+    var grib = src === "mrms", F = grib ? MR_OVF : OVF;
+    if (!workers.length) return (grib ? decodeGrib : decodePng)(buf.slice(0), F, full || 0).then(function (r) { return r[0]; });   // no worker: on the page
+    return workerCall({ op: grib ? "grib" : "png", buf: buf, F: F, full: full || 0 });
   }
+  // the grid of a decoded frame: edges (lon of the left edge, lat of the top edge), resolution, size and the loop block factor
+  function iemGrid(w, h) { return { x0: G.lon0 - G.res / 2, y0: G.lat0 + G.res / 2, res: G.res, w: w, h: h, f: OVF }; }
 
   // ── WebGL ──────────────────────────────────────────────────────────────────────────────────────────────────────
   var gl = null;
@@ -651,7 +782,7 @@
   var FS = ["#version 300 es", "precision highp float;precision highp int;precision highp sampler2D;precision highp sampler2DArray;",
     "uniform sampler2D uOv;uniform highp sampler2DArray uFull;uniform sampler2D uLut;uniform sampler2D uRgba;",
     "uniform vec2 uC;uniform float uS;uniform vec2 uWH;uniform vec4 uP;uniform vec3 uG;uniform ivec2 uOvN;uniform int uF;uniform int uFf;",
-    "uniform ivec4 uFN;uniform int uMode;uniform float uAlpha;uniform vec4 uRg;out vec4 o;",
+    "uniform ivec4 uFN;uniform int uMode;uniform float uAlpha;uniform vec4 uRg;uniform int uOvF;uniform int uNc;uniform float uHs;out vec4 o;",
     "void main(){",
     " vec2 xy=uC+(gl_FragCoord.xy-0.5*uWH)*uS;",
     // display metres (Lambert) -> lon/lat
@@ -665,8 +796,10 @@
     " int i=int(fi),j=int(fj);int code=0;",
     " if(uF==1){int ii=i/uFf,jj=j/uFf;if(ii>=uFN.x||jj>=uFN.y)discard;int tx=ii/uFN.z,ty=jj/uFN.w;int nx=(uFN.x+uFN.z-1)/uFN.z;",
     "  code=int(texelFetch(uFull,ivec3(ii-tx*uFN.z,jj-ty*uFN.w,ty*nx+tx),0).r*255.+0.5);}",
-    " else{int ii=i/" + OVF + ",jj=j/" + OVF + ";if(ii>=uOvN.x||jj>=uOvN.y)discard;code=int(texelFetch(uOv,ivec2(ii,jj),0).r*255.+0.5);}",
-    " if(code==0)discard;c=texelFetch(uLut,ivec2(code,0),0);if(c.a<0.01)discard;",
+    " else{int ii=i/uOvF,jj=j/uOvF;if(ii>=uOvN.x||jj>=uOvN.y)discard;code=int(texelFetch(uOv,ivec2(ii,jj),0).r*255.+0.5);}",
+    // MRMS code 0 = no radar coverage: a faint diagonal hatch (uHs = spacing in device pixels); IEM code 0 = nothing drawn
+    " if(code==0){if(uNc==1&&mod(gl_FragCoord.x+gl_FragCoord.y,uHs)<uHs*0.14){float a=0.2*uAlpha;o=vec4(vec3(0.24)*a,a);return;}discard;}",
+    " c=texelFetch(uLut,ivec2(code,0),0);if(c.a<0.01)discard;",
     " o=vec4(c.rgb*uAlpha,uAlpha);",
     "}"].join("\n");
   var prog = null, loc = {}, lutTex = null, MAXT = 0, emptyArr = null, emptyTex = null;
@@ -678,14 +811,13 @@
     gl.bindAttribLocation(prog, 0, "p"); gl.linkProgram(prog);
     if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(prog));
     gl.useProgram(prog);
-    ["uOv", "uFull", "uLut", "uRgba", "uC", "uS", "uWH", "uP", "uG", "uOvN", "uF", "uFf", "uFN", "uMode", "uAlpha", "uRg"].forEach(function (n) { loc[n] = gl.getUniformLocation(prog, n); });
+    ["uOv", "uFull", "uLut", "uRgba", "uC", "uS", "uWH", "uP", "uG", "uOvN", "uF", "uFf", "uFN", "uMode", "uAlpha", "uRg", "uOvF", "uNc", "uHs"].forEach(function (n) { loc[n] = gl.getUniformLocation(prog, n); });
     var b = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, b);
     gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW);
     gl.enableVertexAttribArray(0); gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
     gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
     gl.uniform1i(loc.uOv, 0); gl.uniform1i(loc.uFull, 1); gl.uniform1i(loc.uLut, 2); gl.uniform1i(loc.uRgba, 3);
     gl.uniform4f(loc.uP, P.n, P.RF, P.rho0, P.lon0);
-    gl.uniform3f(loc.uG, G.lon0 - G.res / 2, G.lat0 + G.res / 2, G.res);
     MAXT = gl.getParameter(gl.MAX_TEXTURE_SIZE);
     lutTex = mkTex(gl.TEXTURE2);
     // placeholders so every sampler has a texture of its own type bound
@@ -781,8 +913,10 @@
   function toXY(px, py) { return [view.cx + (px - W / 2) * view.s, view.cy - (py - H / 2) * view.s]; }
   function clampView() { view.s = Math.max(15, Math.min(view.s, 30000)); }
   function kmPerDevPx() { return view.s / 1000 / DPR; }
-  // the detail grid is worth it when a 0.02 deg block (about 1.7-2.2 km) would span more than ~1.4 device pixels
-  function needDetail() { return !!view && kmPerDevPx() < 1.4; }
+  // the detail grid is worth it when a loop block (0.02 deg, about 1.7-2.2 km; 0.03 deg for MRMS on phones) would span
+  // more than ~1.6 device pixels
+  function blockDeg() { var s = shown || frames[st.idx]; return s && s.g ? s.g.f * s.g.res : st.src === "mrms" ? MR_OVF * 0.01 : OVF * G.res; }
+  function needDetail() { return !!view && kmPerDevPx() < 1.4 * blockDeg() / 0.02; }
 
   // ── boundaries and airports (overlay) ──────────────────────────────────────────────────────────────────────────
   var geo = {}, GEO_TOLS = [0.1, 0.3, 0.9, 2.7];
@@ -1001,9 +1135,11 @@
       gl.uniform1f(loc.uAlpha, st.alpha);
       if (s.rgba) {
         gl.uniform1i(loc.uMode, 1); gl.activeTexture(gl.TEXTURE3); gl.bindTexture(gl.TEXTURE_2D, s.tex);
-        gl.uniform4f(loc.uRg, MRMS_BOX[0], MRMS_BOX[3], MRMS_BOX[2] - MRMS_BOX[0], MRMS_BOX[3] - MRMS_BOX[1]);
+        gl.uniform4f(loc.uRg, IMG_BOX[0], IMG_BOX[3], IMG_BOX[2] - IMG_BOX[0], IMG_BOX[3] - IMG_BOX[1]);
       } else {
         gl.uniform1i(loc.uMode, 0);
+        gl.uniform3f(loc.uG, s.g.x0, s.g.y0, s.g.res); gl.uniform1i(loc.uOvF, s.g.f);
+        gl.uniform1i(loc.uNc, s.src === "mrms" && st.nc ? 1 : 0); gl.uniform1f(loc.uHs, 8 * DPR);
         gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, s.tex); gl.uniform2i(loc.uOvN, s.ov.w, s.ov.h);
         var d = detail && detail.key === s.key && needDetail() && !interacting ? detail : null;
         if (d && !d.tex) uploadDetail(d);
@@ -1024,13 +1160,18 @@
   function parseStamp(s) { var m = /^(\d{4})(\d\d)(\d\d)(\d\d)(\d\d)$/.exec(s || ""); return m ? Date.UTC(+m[1], +m[2] - 1, +m[3], +m[4], +m[5]) : NaN; }
   function arcUrl(t) { var d = new Date(t), y = d.getUTCFullYear(), mo = p2(d.getUTCMonth() + 1), da = p2(d.getUTCDate());
     return IEM + "/archive/data/" + y + "/" + mo + "/" + da + "/GIS/uscomp/n0q_" + stamp(t) + ".png"; }
+  function ymd(t) { var d = new Date(t); return d.getUTCFullYear() + p2(d.getUTCMonth() + 1) + p2(d.getUTCDate()); }
+  function mrKey(t) { var d = new Date(t); return MR.pfx + ymd(t) + "/" + MR.name + ymd(t) + "-" + p2(d.getUTCHours()) + p2(d.getUTCMinutes()) + p2(d.getUTCSeconds()) + ".grib2.gz"; }
+  function mrUrl(t) { return MR.base + "/" + mrKey(t); }
+  function keyTime(k) { var m = /_(\d{4})(\d\d)(\d\d)-(\d\d)(\d\d)(\d\d)\.grib2\.gz$/.exec(k); return m ? Date.UTC(+m[1], +m[2] - 1, +m[3], +m[4], +m[5], +m[6]) : NaN; }
   function hhmm(t) { var d = new Date(t); return p2(d.getUTCHours()) + ":" + p2(d.getUTCMinutes()); }
   var MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
   function dayWords(t) { var d = new Date(t); return d.getUTCDate() + " " + MONTHS[d.getUTCMonth()] + " " + d.getUTCFullYear(); }
   function localDay(t) { try { return new Date(t).toLocaleDateString([], { day: "numeric", month: "long", year: "numeric" }); } catch (e) { return dayWords(t); } }   // the viewer's own date, to go with localTime (2026-10-09: 00 UTC read "8:00 PM EDT · 9 October")
   function localTime(t) { try { return new Date(t).toLocaleTimeString([], { hour: "numeric", minute: "2-digit", timeZoneName: "short" }); } catch (e) { return ""; } }
   function ageMin(t) { return (Date.now() - t) / 60000; }
-  function freshness(t) { var a = ageMin(t); return a > 25 ? "stale" : a > 12 ? "late" : "ok"; }
+  // MRMS files arrive every ~2 minutes (about a minute after their time); IEM composites every 5
+  function freshness(t) { var a = ageMin(t), m = st.src === "mrms"; return a > (m ? 20 : 25) ? "stale" : a > (m ? 8 : 12) ? "late" : "ok"; }
   function ageText(a) { a = Math.max(0, Math.round(a)); return a < 1 ? "just now" : a < 90 ? a + " min ago" : a < 2880 ? Math.round(a / 60) + " h ago" : Math.round(a / 1440) + " days ago"; }
 
   // frames on the slider: every step-minute mark in (anchor - loop, anchor) plus the anchor itself
@@ -1045,8 +1186,13 @@
     return fr;
   }
   function rebuildFrames(keepT) {
-    var times = st.src === "mrms" ? mrmsFrameTimes() : frameTimes(st.anchor);
-    frames = times.map(function (t) { var fr = frameObj(t); if (st.src === "iem") { fr.url = arcUrl(t); fr.alt = st.live && t === st.anchor ? CUR_PNG : null; } return fr; });
+    var times = st.src === "img" ? imgFrameTimes() : st.src === "mrms" ? mrFrameTimes(st.anchor) : frameTimes(st.anchor);
+    frames = times.map(function (t) {
+      if (st.src === "mrms") {                                       // MRMS: [file time] or [mark time, missing]
+        var f0 = frameObj(t[0]); if (t[1]) { f0.url = null; if (f0.state === "idle") f0.state = "missing"; } else f0.url = mrUrl(t[0]);
+        return f0;
+      }
+      var fr = frameObj(t); if (st.src === "iem") { fr.url = arcUrl(t); fr.alt = st.live && t === st.anchor ? CUR_PNG : null; } return fr; });
     var want = keepT != null ? keepT : st.anchor, best = frames.length - 1;
     frames.forEach(function (f, i) { if (Math.abs(f.t - want) < Math.abs(frames[best].t - want)) best = i; });
     st.idx = best;
@@ -1064,7 +1210,7 @@
   function timeText() {
     var fr = frames[st.idx]; if (!fr) { $("valid").innerHTML = ""; return; }
     var newest = frames[frames.length - 1], chip;
-    if (st.src === "iem" && !st.live) chip = '<span class="chip past">archive</span>';
+    if (st.src !== "img" && !st.live) chip = '<span class="chip past">archive</span>';
     else if (fr === newest) { var f = freshness(fr.t); chip = '<span class="chip ' + f + '">' + (f === "ok" ? "latest · " + ageText(ageMin(fr.t)) : (f === "late" ? "late · " : "stale · ") + ageText(ageMin(fr.t))) + "</span>"; }
     else chip = '<span class="chip past">' + Math.round((fr.t - newest.t) / 60000) + " min</span>";
     var miss = fr.state === "missing" ? ' <b style="color:var(--stale)">· missing at the source</b>' : "";
@@ -1074,10 +1220,12 @@
   function badge() {
     var b = $("badge"), s = shown;
     if (!s) { b.textContent = ""; return; }
-    var narrow = W < 560, src = st.src === "mrms" ? (narrow ? "NOAA MRMS (fallback)" : "NOAA MRMS base reflectivity · NOAA colours") : (narrow ? "IEM composite" : "NEXRAD base reflectivity · IEM composite");
+    var narrow = W < 560, src = st.src === "img" ? (narrow ? "NOAA images (fallback)" : "NOAA rendered images · NOAA colours (fallback)")
+      : st.src === "mrms" ? (narrow ? "MRMS base refl." : "Base reflectivity · NOAA MRMS") : (narrow ? "IEM N0Q" : "Base reflectivity · IEM N0Q mosaic");
     var extra = "";
     if (st.src === "iem" && latest && s.t === latest.t && latest.quorum) extra = " · " + (narrow ? latest.quorum : latest.quorum.replace("/", " of ")) + " radars";
-    var res = st.src === "iem" ? (detail && detail.key === s.key && needDetail() && detail.tex ? (detail.f === 1 ? (narrow ? " · full grid" : " · full 0.005° grid") : " · 0.01° grid") : needDetail() ? " · 0.02° grid" : "") : "";
+    var dg = function (x) { return (Math.round(x * 1000) / 1000) + "°"; };
+    var res = s.g && st.src !== "img" ? (detail && detail.key === s.key && needDetail() && detail.tex ? (detail.f === 1 ? (narrow ? " · full grid" : " · full " + dg(s.g.res) + " grid") : " · " + dg(s.g.res * detail.f) + " grid") : needDetail() ? " · " + dg(s.g.res * s.g.f) + " grid" : "") : "";
     var lag = frames[st.idx] && frames[st.idx] !== s ? " · loading " + hhmm(frames[st.idx].t) + "…" : "";
     var html = "<b>" + hhmm(s.t) + " UTC</b> · " + src + extra + res + lag;
     if (b.innerHTML !== html) b.innerHTML = html;
@@ -1107,10 +1255,13 @@
     if (fr.state === "ok") return Promise.resolve(fr);
     if (fr.loadP) return fr.loadP;
     fr.state = "loading"; loadMsg();
-    var wantFull = urgent && st.src === "iem" && needDetail() && !st.playing ? DETAIL_F : 0;
-    fr.loadP = (fr.src === "mrms" ? loadMrms(fr) : fetchBytes(fr, urgent).then(function (buf) {
-      return decodeBytes(buf, wantFull).then(function (r) {
+    var wantFull = urgent && fr.src !== "img" && needDetail() && !st.playing ? (fr.src === "mrms" ? 1 : DETAIL_F) : 0;
+    fr.loadP = (fr.src === "img" ? loadImg(fr) : fetchBytes(fr, urgent).then(function (buf) {
+      return decodeBytes(buf, wantFull, fr.src).then(function (r) {
         fr.ov = { w: r.ow, h: r.oh, data: r.ov }; fr.grid = [r.w, r.h]; fr.echo = r.echo; PERF.dec.push(r.ms.total);
+        fr.g = r.g || iemGrid(r.w, r.h);
+        if (r.g) { fr.cnt = { echo: r.echo, noecho: r.noecho, nocov: r.nocov }; fr.ref = r.ref; PERF.ms = r.ms;
+          if (r.ref && Math.abs(r.ref - fr.t) > 60e3) console.warn("MRMS file time and GRIB reference time differ", fr.key, new Date(r.ref).toISOString()); }
         if (r.full) { setDetail(fr, r.full); PERF.full.push(r.ms.total); }
         uploadOv(fr);
       });
@@ -1124,6 +1275,8 @@
       fr.loadP = null; fr.state = e && (e.status === 404 || e.status === 422 || e.status === 400) ? "missing" : "error"; fr.err = String(e && e.message || e);
       if (fr.state === "error") setTimeout(function () { if (fr.state === "error") fr.state = "idle"; }, 60000);   // a network error: try again later
       ticks(); loadMsg(); timeText();
+      // an MRMS file that downloaded but does not decode (a format change at NOAA): use the IEM mosaic instead
+      if (fr.src === "mrms" && fr.bytes && !shown && st.src === "mrms") { console.error(e); setSource("iem", "NOAA's MRMS file for " + hhmm(fr.t) + " UTC could not be decoded (" + fr.err + "), so the page switched to the IEM N0Q mosaic."); throw e; }
       if (frames[st.idx] === fr && !shown) $("msg").textContent = "The radar frame for " + hhmm(fr.t) + " UTC could not be loaded (" + fr.err + ").";
       throw e;
     });
@@ -1151,12 +1304,12 @@
   function scheduleDetail(soon) {
     clearTimeout(detailT);
     detailT = setTimeout(function () {
-      var fr = frames[st.idx]; if (!fr || fr.src !== "iem" || fr.state !== "ok" || st.playing || interacting || detailBusy) return;
+      var fr = frames[st.idx]; if (!fr || fr.src === "img" || fr.state !== "ok" || st.playing || interacting || detailBusy) return;
       if (detail && detail.key === fr.key) { if (needDetail()) render(); return; }
       if (!needDetail() && !wantHoverDetail) return;
       detailBusy = true; loadMsg();
       var t0 = performance.now();
-      fetchBytes(fr, true).then(function (buf) { return decodeBytes(buf, DETAIL_F); }).then(function (r) {
+      fetchBytes(fr, true).then(function (buf) { return decodeBytes(buf, fr.src === "mrms" ? 1 : DETAIL_F, fr.src); }).then(function (r) {
         detailBusy = false; PERF.full.push(performance.now() - t0);
         if (r.full) setDetail(fr, r.full);
         loadMsg(); render(); if (lastHover) hover(lastHover[0], lastHover[1]);
@@ -1170,12 +1323,13 @@
   function checkLatest() {
     if (document.hidden) return;                                   // resumed by visibilitychange
     lastCheck = Date.now();
-    if (st.src === "mrms") return checkMrms();
+    if (st.src === "img") return checkImg();
+    if (st.src === "mrms") return checkMr();
     return fetch(CUR_JSON, { cache: "no-cache" }).then(function (r) { return r.ok ? r.json() : null; }).catch(function () { return null; }).then(function (j) {
       var t = j && j.meta && Date.parse(j.meta.valid);
       if (!t) {
         iemFails++;
-        if (!latest && iemFails >= 2) { setSource("mrms", "IEM did not answer, so the page switched to NOAA's MRMS image service."); return; }
+        if (!latest && iemFails >= 2) { setSource("img", "IEM did not answer, so the page switched to NOAA's rendered radar images."); return; }
         if (!latest) { setTimeout(checkLatest, 4000); return; }
         scheduleRefresh(120e3); return;
       }
@@ -1201,56 +1355,153 @@
     timeText();
   });
 
-  // ── NOAA MRMS fallback (rendered colours, no values) ───────────────────────────────────────────────────────────
-  var mrmsT = [];
-  function mrmsFrameTimes() {
-    if (!mrmsT.length) return [];
-    var newest = mrmsT[mrmsT.length - 1], grid = frameTimes(newest), out = [];
-    grid.forEach(function (g) { var b = null; mrmsT.forEach(function (t) { if (Math.abs(t - g) <= st.loop[1] * 30e3 && (b === null || Math.abs(t - g) < Math.abs(b - g))) b = t; });
+  // ── NOAA MRMS on AWS: the bucket listing gives the file times; frames are the files nearest each loop mark ──────────
+  var mrT = [], mrSet = new Set(), mrCov = [], mrFails = 0, LIST = { n: 0, bytes: 0 };
+  function mrAdd(t) { if (!mrSet.has(t)) { mrSet.add(t); mrT.push(t); } }
+  function mrCovered(a, b) { return mrCov.some(function (c) { return c[0] <= a && c[1] >= b; }); }
+  // list the files with times in [a, b]: one request per UTC day (start-after the key for a, max-keys sized to the span)
+  function mrList(a, b) {
+    var jobs = [], DAY = 86400e3;
+    for (var d0 = Math.floor(a / DAY) * DAY; d0 <= b; d0 += DAY) {
+      (function (d0) {
+        var lo = Math.max(a, d0), hi = Math.min(b, d0 + DAY - 1), n = Math.max(5, Math.min(1000, Math.ceil((hi - lo) / 100e3) + 6));
+        var q = "?list-type=2&prefix=" + encodeURIComponent(MR.pfx + ymd(d0) + "/") + "&max-keys=" + n + (lo > d0 ? "&start-after=" + encodeURIComponent(mrKey(lo - 1000)) : "");
+        var page = function (tok) {
+          return fetch(MR.base + "/" + q + (tok ? "&continuation-token=" + encodeURIComponent(tok) : ""), { cache: "no-store" }).then(function (r) {
+            if (!r.ok) throw Object.assign(new Error("listing HTTP " + r.status), { status: r.status }); return r.text(); }).then(function (x) {
+            LIST.n++; LIST.bytes += x.length;
+            var re = /<Key>([^<]+)<\/Key>/g, m, last = 0;
+            while ((m = re.exec(x))) { var t = keyTime(m[1]); if (t) { last = t; if (t >= a - 1000 && t <= b) mrAdd(t); } }
+            var more = /<IsTruncated>true<\/IsTruncated>/.test(x), nt = /<NextContinuationToken>([^<]+)<\/NextContinuationToken>/.exec(x);
+            if (more && nt && last && last < hi) return page(nt[1]);
+          });
+        };
+        jobs.push(page(null));
+      })(d0);
+    }
+    return Promise.all(jobs).then(function () {
+      mrT.sort(function (p, q) { return p - q; });
+      mrCov.push([a, Math.min(b, Date.now())]); mrCov.sort(function (p, q) { return p[0] - q[0]; });
+      mrCov = mrCov.reduce(function (o, c) { var l = o[o.length - 1]; if (l && c[0] <= l[1] + 2000) l[1] = Math.max(l[1], c[1]); else o.push(c.slice()); return o; }, []);
+      return mrT; });
+  }
+  function mrNeed(anchor) {                                        // the span the loop ending at anchor needs listed
+    var a = anchor - (st.loop[0] + st.loop[1]) * 60e3 - 60e3;
+    return mrCovered(a, anchor) ? Promise.resolve(mrT) : mrList(a, anchor + 60e3);
+  }
+  // [time, missing?] per frame: every file for a 2-minute loop, otherwise the file nearest each step mark (within half a step)
+  function mrFrameTimes(anchor) {
+    if (!anchor) return [];
+    var len = st.loop[0] * 60e3, step = st.loop[1] * 60e3, out = [], used = new Set([anchor]);
+    var ts = mrT.filter(function (t) { return t <= anchor && t >= anchor - len - step; });
+    if (st.loop[1] <= 2) { ts.forEach(function (t) { if (t > anchor - len - 30e3) out.push([t]); }); return out.length ? out : [[anchor]]; }
+    var nominal = anchor % step < 90e3 ? anchor - anchor % step : anchor;   // a file seconds after a mark stands for that mark (00:30:13 -> 00:30)
+    frameTimes(nominal).forEach(function (g, i, all) {
+      if (i === all.length - 1) { out.push([anchor]); return; }
+      var b = null; ts.forEach(function (t) { if (Math.abs(t - g) <= step / 2 && (b === null || Math.abs(t - g) < Math.abs(b - g))) b = t; });
+      if (b === null) out.push([g, 1]); else if (!used.has(b)) { used.add(b); out.push([b]); }
+    });
+    return out;
+  }
+  function checkMr() {
+    var now = Date.now(), from = latest ? latest.t + 1000 : now - (st.loop[0] + st.loop[1] + 6) * 60e3;
+    return mrList(from, now + 600e3).then(function () {
+      var t = mrT.length ? mrT[mrT.length - 1] : 0;
+      if (!t || t < now - 6 * 3600e3) throw new Error(t ? "the newest file is " + ageText(ageMin(t)).replace(" ago", " old") : "no files listed");
+      mrFails = 0;
+      var isNew = !latest || t > latest.t;
+      latest = { t: t };
+      if (isNew && st.live) {
+        var following = !frames.length || st.idx === frames.length - 1;
+        st.anchor = t; rebuildFrames(following ? t : frames[st.idx].t);
+        var cur = frames[st.idx];
+        loadFrame(cur, true).catch(function () { if (st.src === "mrms" && !shown && frames.length > 1 && cur === frames[frames.length - 1]) { st.idx--; $("slider").value = st.idx; timeText(); loadFrame(frames[st.idx], true).catch(function () {}); } });
+        if (st.engaged) pumpLoop();
+        writeHash(); cmpLink();
+      }
+      noteText();
+      var next = t + 170e3 - Date.now();                            // the next file is due ~2 min after this one, listed ~1 min later
+      scheduleRefresh(Math.max(next, 45e3) + (SLOW ? 120e3 : 0));
+    }).catch(function (e) {
+      mrFails++;
+      if (!latest && mrFails >= 2) { setSource("iem", "NOAA's MRMS bucket on AWS did not answer (" + (e && e.message || e) + "), so the page switched to the IEM N0Q mosaic."); return; }
+      if (!latest) { setTimeout(checkLatest, 4000); return; }
+      scheduleRefresh(90e3);
+    });
+  }
+  // an archive time (#t=): the loop ending at the newest file at or before it
+  function startArchive(tA) {
+    st.live = false; clearTimeout(refreshT);
+    if (st.src === "iem") {
+      st.anchor = Math.floor(tA / 300e3) * 300e3; rebuildFrames(st.anchor);
+      loadFrame(frames[st.idx], true).catch(function () { $("msg").textContent = "IEM has no composite for " + hhmm(st.anchor) + " UTC " + dayWords(st.anchor) + "."; });
+      noteText(); writeHash(); return Promise.resolve();
+    }
+    $("msg").textContent = "Listing NOAA's MRMS files for " + hhmm(tA) + " UTC " + dayWords(tA) + "…";
+    return mrList(tA - (st.loop[0] + st.loop[1]) * 60e3 - 60e3, tA + 60e3).then(function () {
+      var best = 0; mrT.forEach(function (t) { if (t <= tA + 60e3) best = t; });
+      if (!best || best < tA - 30 * 60e3) { setSource("iem", "NOAA's MRMS bucket has no file within 30 minutes before " + hhmm(tA) + " UTC " + dayWords(tA) + ", so this time comes from the IEM N0Q mosaic.", tA); return; }
+      st.anchor = best; rebuildFrames(best); $("msg").textContent = "";
+      loadFrame(frames[st.idx], true).catch(function () {}); noteText(); writeHash();
+    }, function (e) { setSource("iem", "NOAA's MRMS bucket listing failed (" + (e && e.message || e) + "), so this time comes from the IEM N0Q mosaic.", tA); });
+  }
+
+  // ── NOAA rendered images (last fallback: NOAA's colours, no values) ──────────────────────────────────────────────
+  var imgT = [];
+  function imgFrameTimes() {
+    if (!imgT.length) return [];
+    var newest = imgT[imgT.length - 1], grid = frameTimes(newest), out = [];
+    grid.forEach(function (g) { var b = null; imgT.forEach(function (t) { if (Math.abs(t - g) <= st.loop[1] * 30e3 && (b === null || Math.abs(t - g) < Math.abs(b - g))) b = t; });
       if (b !== null && out.indexOf(b) < 0) out.push(b); });
     return out;
   }
-  function checkMrms() {
+  function checkImg() {
     var since = new Date(Date.now() - (st.loop[0] + 20) * 60e3).toISOString().slice(0, 19).replace("T", " ");
     var u = NOAA_IS + "/query?where=" + encodeURIComponent("idp_validtime >= timestamp '" + since + "'") + "&outFields=idp_validtime&returnGeometry=false&orderByFields=idp_validtime%20DESC&resultRecordCount=500&f=json";
     return fetch(u, { cache: "no-cache" }).then(function (r) { return r.json(); }).then(function (j) {
       var set = {}; (j.features || []).forEach(function (f) { var t = f.attributes && f.attributes.idp_validtime; if (t) set[Math.round(t / 1000) * 1000] = 1; });
       var ts = Object.keys(set).map(Number).sort(function (a, b) { return a - b; });
       // the service keeps several rasters per time (lower 48, Alaska, ...); stamps within 2 min are one composite
-      mrmsT = []; ts.forEach(function (t) { if (!mrmsT.length || t - mrmsT[mrmsT.length - 1] > 120e3) mrmsT.push(t); else mrmsT[mrmsT.length - 1] = t; });
-      if (!mrmsT.length) throw new Error("no times");
+      imgT = []; ts.forEach(function (t) { if (!imgT.length || t - imgT[imgT.length - 1] > 120e3) imgT.push(t); else imgT[imgT.length - 1] = t; });
+      if (!imgT.length) throw new Error("no times");
       var following = !frames.length || st.idx === frames.length - 1, keep = frames[st.idx] && frames[st.idx].t;
-      st.anchor = mrmsT[mrmsT.length - 1]; rebuildFrames(following ? st.anchor : keep);
+      st.anchor = imgT[imgT.length - 1]; rebuildFrames(following ? st.anchor : keep);
       loadFrame(frames[st.idx], true).catch(function () {}); if (st.engaged) pumpLoop();
       noteText(); scheduleRefresh(5 * 60e3);
-    }).catch(function (e) { $("msg").textContent = shown ? "" : "Neither IEM nor NOAA's radar service answered. Check your connection; the page tries again in two minutes."; scheduleRefresh(120e3); });
+    }).catch(function (e) { $("msg").textContent = shown ? "" : "None of NOAA's MRMS files, IEM or NOAA's radar image service answered. Check your connection; the page tries again in two minutes."; scheduleRefresh(120e3); });
   }
-  function loadMrms(fr) {
-    var u = NOAA_IS + "/exportImage?bbox=" + MRMS_BOX.join(",") + "&bboxSR=4326&imageSR=4326&size=" + MRMS_W + "," + MRMS_H +
+  function loadImg(fr) {
+    var u = NOAA_IS + "/exportImage?bbox=" + IMG_BOX.join(",") + "&bboxSR=4326&imageSR=4326&size=" + IMG_W + "," + IMG_H +
             "&format=png32&interpolation=RSP_NearestNeighbor&time=" + fr.t + "&f=image";
     var t0 = performance.now();
     return fetch(u).then(function (r) { if (!r.ok) throw new Error("HTTP " + r.status); return r.blob(); }).then(function (b) {
       fr.size = b.size; fr.dlMs = performance.now() - t0; return createImageBitmap(b, { premultiplyAlpha: "none", colorSpaceConversion: "none" });
     }).then(function (bmp) { uploadRgba(fr, bmp); fr.rgba = true; bmp.close && bmp.close(); });
   }
-  function setSource(src, why) {
+  // switch the source; an archive time (archT, or the archive loop on screen) stays an archive view where the source has it
+  function setSource(src, why, archT) {
     if (st.src === src) return;
+    var arch = archT || (!st.live && st.anchor ? (frames[frames.length - 1] || {}).t || st.anchor : 0);
     st.src = src; $("src").value = src; if (st.playing) togglePlay();
-    shown = null; dropDetail();
+    shown = null; dropDetail(); clearTimeout(refreshT);
     FR.forEach(function (f) { if (f.tex) gl.deleteTexture(f.tex); }); FR.clear(); frames = [];
-    st.live = true; srcWhy = why || "";
-    $("floor").disabled = src === "mrms";
-    drawLegend(); checkLatest();
+    latest = null; iemFails = 0; mrFails = 0; srcWhy = why || "";
+    $("floor").disabled = src === "img"; $("nc").disabled = src !== "mrms";
+    syncLoopOpts(); drawLegend(); render();
+    if (arch && src !== "img" && (src !== "mrms" || arch >= MR.start)) { startArchive(arch); writeHash(); return; }
+    st.live = true; st.anchor = 0; writeHash(); checkLatest();
   }
   var srcWhy = "";
 
   // ── notes, legend ──────────────────────────────────────────────────────────────────────────────────────────────
+  var SRC_NAME = { mrms: "NOAA MRMS", iem: "IEM N0Q mosaic", img: "NOAA image service" };
   function noteText() {
     var n = $("note"), h = "";
     n.classList.remove("warn");
-    if (st.src === "mrms") { h = "<b>Fallback source.</b> " + (srcWhy ? srcWhy + " " : "") + "These are NOAA's MRMS base-reflectivity images in NOAA's own colours (not the model maps' scale) and carry no dBZ values: no readout and no floor. Switch the source back to IEM under the map options when it returns."; n.classList.add("warn"); }
-    else if (!st.live) h = "<b>Archive view</b> of the loop ending " + hhmm(st.anchor) + " UTC, " + dayWords(st.anchor) + ". <a href=\"#\" id=\"golive\">Back to the live radar</a>.";
-    else if (latest && freshness(latest.t) !== "ok") { h = "<b>IEM's newest composite is " + ageText(ageMin(latest.t)).replace(" ago", " old") + "</b> (" + hhmm(latest.t) + " UTC). New frames normally arrive every five minutes; the page keeps checking."; n.classList.add("warn"); }
+    if (st.src === "img") { h = "<b>Fallback source.</b> " + (srcWhy ? srcWhy + " " : "") + "These are NOAA's rendered base-reflectivity images in NOAA's own colours (not the NWS scale used here) and carry no dBZ values: no readout and no floor. Switch the source back to NOAA MRMS under the map options when it returns."; n.classList.add("warn"); }
+    else if (st.src === "iem" && srcWhy) { h = "<b>IEM N0Q mosaic.</b> " + srcWhy + " Where radars overlap it appears to keep the strongest value, and it does not separate no echo from no coverage."; if (!/^Chosen/.test(srcWhy)) n.classList.add("warn"); }
+    if (!st.live) h += (h ? " " : "") + "<b>Archive view</b> of the loop ending " + hhmm(st.anchor) + " UTC, " + dayWords(st.anchor) + " (" + SRC_NAME[st.src] + "). <a href=\"#\" id=\"golive\">Back to the live radar</a>.";
+    else if (latest && freshness(latest.t) !== "ok" && st.src !== "img") { h += (h ? " " : "") + "<b>" + (st.src === "mrms" ? "NOAA's newest MRMS file is " : "IEM's newest composite is ") + ageText(ageMin(latest.t)).replace(" ago", " old") + "</b> (" + hhmm(latest.t) + " UTC). New frames normally arrive every " + (st.src === "mrms" ? "two" : "five") + " minutes; the page keeps checking."; n.classList.add("warn"); }
     if (n.innerHTML !== h) { n.innerHTML = h; var g = $("golive"); if (g) g.onclick = function (e) { e.preventDefault(); goLive(); }; }
   }
   function goLive() { st.live = true; latest = null; st.anchor = 0; if (st.playing) togglePlay(); frames = []; shown = null; dropDetail(); writeHash(); noteText(); checkLatest(); }
@@ -1263,11 +1514,12 @@
   }
   function drawLegend() {
     var g = legSetup(40), ctx = g.ctx, lo = 0, hi = 75, ticksV = [5, 10, 20, 30, 40, 50, 60, 70];
-    if (st.src === "mrms") {
-      $("legT").textContent = "NOAA MRMS base reflectivity, drawn in NOAA's own colours as received (fallback; no colour scale is published with the images).";
+    if (st.src === "img") {
+      $("legT").textContent = "NOAA base reflectivity images, drawn in NOAA's own colours as received (fallback; no colour scale is published with the images).";
       return;
     }
-    $("legT").textContent = "Base reflectivity, dBZ (the lowest scan of each radar) · NWS colour table (5-dBZ steps) · faded: hidden below " + st.floor + " dBZ";
+    $("legT").textContent = (st.src === "mrms" ? "Base reflectivity, dBZ (NOAA MRMS: the lowest scan of each radar, merged on a 0.01° grid)" : "Base reflectivity, dBZ (IEM N0Q: the lowest scan of each radar; the strongest where radars overlap)") +
+      " · NWS colour table (5-dBZ steps) · faded: hidden below " + st.floor + " dBZ" + (st.src === "mrms" && st.nc ? " · hatched: no radar coverage" : "");
     function col(d) { if (d < 5) return null; var c = nwsColour(d); return d < st.floor ? [c[0], c[1], c[2], 0.18] : c; }
     var cs = function (c) { return "rgba(" + Math.round(c[0]) + "," + Math.round(c[1]) + "," + Math.round(c[2]) + "," + (c[3] == null ? 1 : c[3]) + ")"; };
     ctx.fillStyle = "#3d4540"; ctx.textBaseline = "middle";
@@ -1294,11 +1546,11 @@
   // ── hover / tap readout ────────────────────────────────────────────────────────────────────────────────────────
   var lastHover = null;
   function sampleCode(lon, lat) {
-    var s = shown; if (!s || !s.ov || s.rgba) return null;
-    var i = Math.floor((lon - (G.lon0 - G.res / 2)) / G.res), j = Math.floor((G.lat0 + G.res / 2 - lat) / G.res);
+    var s = shown; if (!s || !s.ov || s.rgba || !s.g) return null;
+    var g = s.g, i = Math.floor((lon - g.x0) / g.res), j = Math.floor((g.y0 - lat) / g.res);
     if (i < 0 || j < 0 || i >= s.grid[0] || j >= s.grid[1]) return { out: true };
-    if (detail && detail.key === s.key) { var ii = Math.floor(i / detail.f), jj = Math.floor(j / detail.f); return { code: detail.data[jj * detail.stride + detail.off + ii], exact: detail.f === 1, f: detail.f }; }
-    return { code: s.ov.data[Math.floor(j / OVF) * s.ov.w + Math.floor(i / OVF)], exact: false, f: OVF };
+    if (detail && detail.key === s.key) { var ii = Math.floor(i / detail.f), jj = Math.floor(j / detail.f); return { code: detail.data[jj * detail.stride + detail.off + ii], exact: detail.f === 1, km: detail.f * g.res * 111.2, i: i, j: j }; }
+    return { code: s.ov.data[Math.floor(j / g.f) * s.ov.w + Math.floor(i / g.f)], exact: false, km: g.f * g.res * 111.2, i: i, j: j };
   }
   function hover(px, py, sticky) {
     lastHover = sticky ? null : [px, py];
@@ -1314,14 +1566,16 @@
         (isNaN(fe) ? "Energy not reported" : "Optical energy " + (fe >= 10 ? Math.round(fe) : fe.toFixed(1)) + " fJ") + ' <span class="ll">· ' + fl.r.sat[fl.j] + "</span><br>";
     }
     var xy = toXY(px, py), ll = P.inv(xy[0], xy[1]), txt;
-    if (st.src === "mrms") txt = "No values in the NOAA fallback images";
+    if (st.src === "img") txt = "No values in the NOAA fallback images";
     else {
-      var s = sampleCode(ll[0], ll[1]);
-      if (!s || s.out) txt = "Outside the composite";
+      var s = sampleCode(ll[0], ll[1]), mr = shown.src === "mrms";
+      if (!s || s.out) txt = "Outside the " + (mr ? "MRMS grid" : "composite");
       else {
-        if (!s.exact && st.src === "iem" && !st.playing) { wantHoverDetail = true; scheduleDetail(true); }
-        var d = dbzOf(s.code), approx = s.exact ? "" : ' <span class="ll">(strongest in the ' + (s.f === 2 ? "1 km" : "2 km") + " block" + (detailBusy ? "; full grid loading" : "") + ")</span>";
-        txt = s.code === 0 ? "No echo" + (s.exact ? "" : approx) : '<span class="v">' + d.toFixed(1) + " dBZ</span>" + (d < st.floor ? ' <span class="ll">(below the ' + st.floor + " dBZ floor)</span>" : "") + approx;
+        if (!s.exact && !st.playing) { wantHoverDetail = true; scheduleDetail(true); }
+        var d = dbzOf(s.code), approx = s.exact ? "" : ' <span class="ll">(strongest in the ' + Math.round(s.km) + " km block" + (detailBusy ? "; full grid loading" : "") + ")</span>";
+        if (mr && s.code === 0) txt = "No radar coverage" + (s.exact ? "" : ' <span class="ll">(in the whole ' + Math.round(s.km) + " km block)</span>");
+        else if (s.code === 0 || (mr && s.code === 1)) txt = "No echo" + (s.exact ? "" : approx);
+        else txt = '<span class="v">' + d.toFixed(1) + " dBZ</span>" + (d < st.floor ? ' <span class="ll">(below the ' + st.floor + " dBZ floor)</span>" : "") + approx;
       }
     }
     tip.innerHTML = head + txt + '<br><span class="ll">' + Math.abs(ll[1]).toFixed(2) + "°" + (ll[1] >= 0 ? "N" : "S") + " " + Math.abs(ll[0]).toFixed(2) + "°" + (ll[0] >= 0 ? "E" : "W") + " · " + hhmm(shown.t) + " UTC</span>";
@@ -1452,7 +1706,13 @@
     var n = frames.length, i = st.idx, nxt = -1;
     for (var k = 1; k <= n; k++) { var j = (i + k) % n; if (frames[j].state === "ok") { nxt = j; break; } }
     if (nxt >= 0 && nxt !== i) show(nxt);
-    playT = setTimeout(tick, st.idx === n - 1 ? 1500 : 420);
+    var dt = BASE_MS / st.speed;                                     // speed scales the frame interval; the hold on the newest frame is in seconds
+    playT = setTimeout(tick, st.idx === n - 1 ? Math.max(dt, st.dwell * 1000) : dt);
+  }
+  function setSpeed(v, write) {
+    st.speed = SPEEDS.indexOf(v) >= 0 ? v : 1; $("speed").value = String(st.speed);
+    if (st.playing) { clearTimeout(playT); playT = setTimeout(tick, Math.min(BASE_MS / st.speed, 250)); }
+    if (write) writeHash();
   }
   function togglePlay() {
     st.playing = !st.playing; var b = $("play");
@@ -1470,7 +1730,11 @@
     if (e.key === "ArrowRight") { if (st.playing) togglePlay(); step(1); e.preventDefault(); }
     else if (e.key === "ArrowLeft") { if (st.playing) togglePlay(); step(-1); e.preventDefault(); }
     else if ((e.key === " " || e.key === "Spacebar") && !(e.target && /^(BUTTON|A|SUMMARY)$/.test(e.target.tagName))) { togglePlay(); e.preventDefault(); }
+    else if ((e.key === "]" || e.key === "[") && !e.ctrlKey && !e.metaKey && !e.altKey) {     // loop speed
+      var si = SPEEDS.indexOf(st.speed) + (e.key === "]" ? 1 : -1); setSpeed(SPEEDS[Math.max(0, Math.min(SPEEDS.length - 1, si))], true); e.preventDefault(); }
   });
+  $("speed").onchange = function () { setSpeed(+this.value, true); };
+  $("dwell").onchange = function () { st.dwell = +this.value; writeHash(); };
 
   // ── options ────────────────────────────────────────────────────────────────────────────────────────────────────
   function syncRegionUI() {
@@ -1494,17 +1758,29 @@
     LOOPS.forEach(function (l) { var o = document.createElement("option"); o.value = l.join("/");
       o.textContent = (l[0] < 60 ? l[0] + " min" : l[0] / 60 + " h") + ", every " + l[1] + " min (" + (Math.floor(l[0] / l[1]) + 1) + " frames)"; ls.appendChild(o); });
     ls.value = st.loop.join("/");
-    ls.onchange = function () { st.loop = this.value.split("/").map(Number); var keep = frames[st.idx] && frames[st.idx].t; if (st.src === "mrms") { checkMrms(); return; } if (st.anchor) rebuildFrames(keep); if (st.engaged) pumpLoop(); render(); writeHash(); };
+    ls.onchange = function () {
+      st.loop = this.value.split("/").map(Number); var keep = frames[st.idx] && frames[st.idx].t;
+      if (st.src === "img") { checkImg(); return; }
+      var go = function () { if (st.anchor) rebuildFrames(keep); if (st.engaged) pumpLoop(); render(); writeHash(); };
+      if (st.src === "mrms" && st.anchor) mrNeed(st.anchor).then(go, go); else go();
+    };
     $("floor").onchange = function () { st.floor = +this.value; buildLut(); drawLegend(); render(); if (lastHover) hover(lastHover[0], lastHover[1]); writeHash(); };
     $("alpha").oninput = function () { st.alpha = +this.value / 100; $("alphaV").textContent = this.value + "%"; render(); };
     $("cty").onchange = function () { ovView = null; render(); };
     $("sta").onchange = function () { drawLabels(); };
-    $("src").onchange = function () { setSource(this.value, this.value === "mrms" ? "Chosen by you." : ""); };
+    $("src").onchange = function () { setSource(this.value, this.value === "mrms" ? "" : "Chosen by you."); };
+    $("nc").onchange = function () { st.nc = this.checked; drawLegend(); render(); writeHash(); };
     var lxs = $("lxSel");
     if (!window.GLM) { lxs.disabled = true; lxs.title = "The lightning reader did not load"; }
     lxs.value = String(st.lx);
     lxs.onchange = function () { st.lx = +this.value; if (!st.lx && window.GLM) GLM.clearQueue(); lxLegend(); drawLx(); if (lastHover) hover(lastHover[0], lastHover[1]); writeHash(); };
   })();
+  // the 2-minute loop exists only for MRMS (IEM composites are 5 minutes apart)
+  function syncLoopOpts() {
+    var ls = $("loopSel"), mr = st.src === "mrms";
+    Array.prototype.forEach.call(ls.options, function (o) { if (o.value === "60/2") { o.disabled = !mr; o.hidden = !mr; } });
+    if (!mr && st.loop[1] < 5) { st.loop = [60, 5]; ls.value = "60/5"; }
+  }
 
   // ── links with the model maps ──────────────────────────────────────────────────────────────────────────────────
   function viewToken() { if (!view) return ""; var ll = P.inv(view.cx, view.cy); return "v=" + ll[0].toFixed(3) + "," + ll[1].toFixed(3) + "," + (view.s / 1000).toFixed(3); }
@@ -1528,7 +1804,8 @@
   }
   ["mousedown", "focus", "touchstart"].forEach(function (ev) { $("cmp").addEventListener(ev, cmpLink, { passive: true }); });
 
-  // ── URL hash: #r=<region> | v=lon,lat,km  &t=YYYYMMDDHHMM (archive) &f=<floor> ──────────────────────────────────
+  // ── URL hash: #r=<region> | v=lon,lat,km  &t=YYYYMMDDHHMM (archive) &f=<floor> &lx= &src=iem|img &sp=<speed>
+  //    &dw=<hold, s> &nc=0 (no hatch) &l=<minutes>-<step> ─────────────────────────────────────────────────────────────
   function writeHash() {
     var parts = [];
     if (st.region) parts.push("r=" + st.region); else if (view) parts.push(viewToken());
@@ -1536,6 +1813,11 @@
     else if (frames.length && st.idx < frames.length - 1 && !st.playing) parts.push("at=" + stamp(frames[st.idx].t));
     if (st.floor !== 10) parts.push("f=" + st.floor);
     if (st.lx !== (window.GLM ? LX_DEF : 0)) parts.push("lx=" + st.lx);
+    if (st.src !== "mrms" && /^Chosen/.test(srcWhy)) parts.push("src=" + st.src);   // an automatic fallback is not written: a reload tries MRMS again
+    if (st.speed !== 1) parts.push("sp=" + st.speed);
+    if (st.dwell !== 1.5) parts.push("dw=" + st.dwell);
+    if (!st.nc) parts.push("nc=0");
+    if (st.loop.join("/") !== (SLOW ? "60/10" : "120/10")) parts.push("l=" + st.loop.join("-"));
     try { history.replaceState(null, "", "#" + parts.join("&")); } catch (e) {}
     cmpLink();
   }
@@ -1561,17 +1843,28 @@
   var vm = /^(-?[\d.]+),(-?[\d.]+),([\d.]+)$/.exec(H0.v || "");
   if (vm) { var q0 = P.fwd(+vm[1], +vm[2]); view = { cx: q0[0], cy: q0[1], s: +vm[3] * 1000 }; clampView(); st.region = ""; syncRegionUI(); }
   else goRegion(REGIONS.concat(METROS).some(function (r) { return r[0] === H0.r; }) ? H0.r : "us");
-  if (FORCE_MRMS) { st.src = "mrms"; $("src").value = "mrms"; $("floor").disabled = true; drawLegend(); }
+  // settings from the hash: source, loop, speed, hold, hatch
+  var src0 = FORCE_SRC || (/^(mrms|iem|img)$/.test(H0.src || "") ? H0.src : "mrms");
+  if (!HAS_DS && src0 !== "img") { src0 = "img"; srcWhy = "This browser cannot unpack NOAA's or IEM's radar files (it lacks DecompressionStream; Safari 16.4 or newer, Chrome 80 or newer and Firefox 113 or newer have it)."; $("msg").textContent = ""; }
+  else if (src0 !== "mrms" && !FORCE_SRC) srcWhy = src0 === "iem" ? "Chosen in the link." : "";
+  st.src = src0; $("src").value = src0; $("floor").disabled = src0 === "img"; $("nc").disabled = src0 !== "mrms";
+  var lm = /^(\d+)-(\d+)$/.exec(H0.l || "");
+  if (lm && LOOPS.some(function (l) { return l[0] === +lm[1] && l[1] === +lm[2]; })) { st.loop = [+lm[1], +lm[2]]; $("loopSel").value = st.loop.join("/"); }
+  syncLoopOpts();
+  if (H0.sp != null && SPEEDS.indexOf(+H0.sp) >= 0) setSpeed(+H0.sp);
+  if (H0.dw != null && DWELLS.indexOf(+H0.dw) >= 0) { st.dwell = +H0.dw; $("dwell").value = String(st.dwell); }
+  if (H0.nc === "0") { st.nc = false; $("nc").checked = false; }
+  drawLegend();
   var tA = parseStamp(H0.t);
-  if (st.src === "iem" && tA && tA < Date.now() - 15 * 60e3 && tA > Date.UTC(2010, 10, 13, 17)) {      // archive view (e.g. from the model maps)
-    st.live = false; st.anchor = Math.floor(tA / 300e3) * 300e3; rebuildFrames(st.anchor);
-    loadFrame(frames[st.idx], true).catch(function () { $("msg").textContent = "IEM has no composite for " + hhmm(st.anchor) + " UTC " + dayWords(st.anchor) + "."; });
-    noteText();
+  if (tA && tA < Date.now() - 15 * 60e3 && st.src !== "img" && tA > IEM_START) {      // archive view (e.g. from the model maps)
+    if (st.src === "mrms" && tA < MR.start) { st.src = "iem"; $("src").value = "iem"; $("nc").disabled = true; syncLoopOpts(); drawLegend();
+      srcWhy = "NOAA's MRMS archive on AWS begins on 14 October 2020, so this earlier time comes from IEM, whose archive goes back to November 2010."; }
+    startArchive(tA);
   } else {
     var tAt = parseStamp(H0.at);
-    $("msg").textContent = "Loading the newest radar composite…";
+    $("msg").textContent = HAS_DS || st.src === "img" ? "Loading the newest radar mosaic…" : $("msg").textContent;
     var p = checkLatest();
-    if (tAt && p) p.then(function () { if (frames.length && st.src === "iem") { var best = -1; frames.forEach(function (f, i) { if (f.t === tAt) best = i; }); if (best >= 0 && best < frames.length - 1) { engage(); show(best); } } });
+    if (tAt && p) p.then(function () { if (frames.length && st.src !== "img") { var best = -1; frames.forEach(function (f, i) { if (Math.abs(f.t - tAt) < 60e3 && (best < 0 || Math.abs(f.t - tAt) < Math.abs(frames[best].t - tAt))) best = i; }); if (best >= 0 && best < frames.length - 1) { engage(); show(best); } } });
   }
   render();
   setTimeout(function () { loadGeo("/assets/models/geo.json").then(function () { setTimeout(function () { loadGeo("/assets/models/geo_counties.json"); }, 600); }); }, 0);
@@ -1580,10 +1873,12 @@
     if (view) { var s = view.s; resize(); view.s = s; render(); } }).observe(mapEl); }
   else window.addEventListener("resize", resize);
 
-  window.RX = { st: st, get lx() { return lxVis; }, get frames() { return frames; }, get detail() { return detail; }, get view() { return view; }, P: P, PERF: PERF, NET: NET, dbzOf: dbzOf, sampleCode: sampleCode,
+  window.RX = { st: st, get lx() { return lxVis; },
+    decode: function (url, src) { return fetch(url).then(function (r) { return r.arrayBuffer(); }).then(function (b) { return decodeBytes(b, 1, src || "mrms"); }); },   /* testing */ get frames() { return frames; }, get detail() { return detail; }, get view() { return view; }, P: P, PERF: PERF, NET: NET, dbzOf: dbzOf, sampleCode: sampleCode,
     perf: function () { var r = function (a) { return a.length ? Math.round(a.reduce(function (x, y) { return x + y; }, 0) / a.length) : null; };
       return { firstFrameMs: Math.round(PERF.firstFrame), decodeOvMs: r(PERF.dec), uploadOvMs: Math.round((r(PERF.up.map(function (x) { return x * 10; })) || 0)) / 10, fullMs: r(PERF.full), fullUploadMs: r(PERF.fullUp),
         dl: PERF.dl, netMBps: NET.ms ? Math.round(NET.bytes / NET.ms / 1048.576 * 10) / 10 : null, dpr: DPR, maxTex: MAXT, workers: workers.length, detailF: DETAIL_F,
+        src: st.src, mrOvf: MR_OVF, lastDecode: PERF.ms || null, listing: { requests: LIST.n, kb: Math.round(LIST.bytes / 102.4) / 10 }, netMB: Math.round(NET.bytes / 104857.6) / 10,
         glm: window.GLM ? { kb: Math.round(GLM.S.bytes / 1024), requests: GLM.S.req, files: GLM.S.files, wholeFiles: GLM.S.full, learnMs: GLM.S.learnMs,
           fileMsMedian: GLM.S.fileMs.length ? GLM.S.fileMs.slice().sort(function (a, b) { return a - b; })[GLM.S.fileMs.length >> 1] : null, windows: GLM.S.windows, last: lxLast, capMB: GLM.S.cap / 1048576 } : null }; } };
 })();
