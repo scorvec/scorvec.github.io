@@ -181,7 +181,7 @@
       if (!t) sk = '<td class="flat">no hindcast at this start</td>';
       else if (t.significant) sk = '<td class="up">r ' + f2(t.r) + (t.p_holm != null ? " (Holm p " + fp(t.p_holm) + ")" : " (q " + fp(t.q_bh) + ")") + "</td>";
       else sk = '<td class="flat">n.s.</td>';
-      var note = t && t.system_changed && t.system_changed.length ? '<br><small>tested on the previous system; current ' + (c.current_hindcast ? "hindcast r " + f2(c.current_hindcast.r) + " (p " + fp(c.current_hindcast.p) + ", descriptive)" : "system not tested") + "</small>" : "";
+      var note = t && t.system_changed && t.system_changed.length ? '<br><small>tested on the previous system; current ' + (c.current_hindcast ? (c.current_hindcast.p < 0.05 ? "hindcast r " + f2(c.current_hindcast.r) + " (single test, p " + fp(c.current_hindcast.p) + ", outside the corrected family)" : "hindcast n.s.") : "system not tested") + "</small>" : "";
       rows.push("<tr><td>" + c.centre + " <small>(" + label + ")</small>" + note + "</td><td>" + (c.has_issue ? mem : "–") + "</td><td>" + (c.has_issue ? sg(c.anom, 1) + " m/s" : '<span class="flat">not yet published</span>') + "</td><td>" +
         (c.has_issue ? sg(lo, 0) + " to " + sg(hi, 0) : "–") + "</td>" + sk + "</tr>");
     });
