@@ -22,7 +22,7 @@
   }
   *, *::before, *::after { box-sizing: border-box; }
   body { margin: 0; background: var(--bg); color: var(--ink); }
-  main { max-width: min(94vw, 1800px); margin: 0 auto; padding: 1.6rem clamp(1rem, 3vw, 2.5rem) 3rem; }
+  main { max-width: min(94vw, 2000px);   /* as wide as the header: wide screens get another column, not more margin */ margin: 0 auto; padding: 1.6rem clamp(1rem, 3vw, 2.5rem) 3rem; }
   h1 { margin: 0.6rem 0 0.4rem; }
   main > .lede { max-width: 100ch; }
   .vh { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }

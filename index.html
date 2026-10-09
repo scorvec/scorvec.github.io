@@ -230,6 +230,17 @@
   /* wide screens: the product list runs in two or three columns of compact cards (title, cadence,
      description underneath) instead of one long ledger (user 2026-09-08: "too long ... make it
      multi-column if screen size allows") */
+  /* tablets too (2026-10-08 sweep): from 640 px the cards run two to a row, so an 820 px tablet no longer scrolls through
+     one long single column */
+  @media (min-width: 640px) {
+    .rows { display: grid; grid-template-columns: repeat(auto-fill, minmax(17rem, 1fr)); gap: 0 2rem; align-items: start; }
+    .rows .sub { grid-column: 1 / -1; padding-top: 1.3rem; }
+    .row { grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "title when" "what what"; gap: 0.3rem 1rem; padding: 0.9rem 0.6rem; }
+    .row a { grid-area: title; }
+    .row .when { grid-area: when; align-self: baseline; text-align: right; }
+    .row .what { grid-area: what; font-size: 0.94rem; line-height: 1.45; }
+    .row, .row + .row { border-top: 1px solid var(--cloud-2); }
+  }
   @media (min-width: 1100px) {
     /* the product ledger may run wider than the reading measure: up to 94 % of the viewport */
     main.wrap { max-width: min(94vw, 1800px); }
@@ -278,7 +289,7 @@
   .feature h2 a { text-decoration: none; }
   .feature h2 a::after { content: ''; position: absolute; inset: 0; border-radius: 10px; }   /* the whole panel is the link */
   .feature p { color: var(--storm); max-width: 34rem; }
-  .feature .go { display: inline-block; margin-top: 0.9rem; font-weight: 500; color: var(--sky-deep);
+  .feature .go { display: inline-block; margin-top: 0.9rem; margin-right: 1.1rem; font-weight: 500; color: var(--sky-deep);
                  text-decoration: underline; text-underline-offset: 0.22em; text-decoration-color: rgba(39, 75, 122, 0.4); }
   .feature:hover .go { text-decoration-color: var(--sky-deep); }
   .feature .asof { display: block; margin-top: 0.5rem; font-size: 0.86rem; color: var(--storm); }
@@ -293,6 +304,10 @@
   .stats small { display: block; margin-top: 0.3rem; font-size: 0.86rem; color: var(--storm); }
   @media (max-width: 860px) {
     .feature { grid-template-columns: 1fr; }
+  }
+  @media (max-width: 639px) {
+    .row { grid-template-columns: 1fr; gap: 0.25rem; padding: 0.95rem 0; }
+    .row .when { text-align: left; }
   }
   @media (max-width: 520px) {
     .stats { grid-template-columns: 1fr; }
@@ -310,7 +325,7 @@
   .feature--enso h2, .feature--enso .stats b { color: #9a3f14; }
   .feature--enso .go { color: #9a3f14; text-decoration-color: rgba(154, 63, 20, 0.4); }
   .feature--enso:hover .go { text-decoration-color: #9a3f14; }
-  .feature .alt { display: inline-block; white-space: nowrap; position: relative; z-index: 1; margin-left: 1.1rem; font-weight: 500; color: #9a3f14;
+  .feature .alt { display: inline-block; white-space: nowrap; position: relative; z-index: 1; margin-top: 0.9rem; font-weight: 500; color: #9a3f14;
                   text-underline-offset: 0.22em; }
   .spark { display: block; width: 100%; max-width: 30rem; height: auto; margin-top: 1.1rem; }
   .spark text { font-family: var(--sans); font-size: 10px; fill: var(--storm); }
@@ -341,8 +356,7 @@
   @media (max-width: 860px) {
     .index-head { grid-template-columns: 1fr; gap: 1rem; }
     .group { grid-template-columns: 1fr; gap: 0.4rem; }
-    .row { grid-template-columns: 1fr; gap: 0.25rem; padding: 0.95rem 0; }
-    .row .when { text-align: left; }
+
     .about { grid-template-columns: 1fr; }
     .about img { width: 5.5rem; height: 5.5rem; }
   }
