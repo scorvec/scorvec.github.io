@@ -291,16 +291,16 @@
 <p class="chart-sources">NOAA OISST v2.1 daily &middot; cosine-weighted box means &middot; base 1991&ndash;2020 &middot; RONI scale: per-month &sigma;(ONI)/&sigma;(relative), CPC/ECMWF method &middot; monthly: NOAA CPC ERSSTv5 Ni&ntilde;o indices, CPC ONI and RONI</p>
 </template>
 <template id="about-onironi">
-<p class="note">Every index is a daily area-weighted SST average, so today's value exists
-    today &mdash; no waiting for the month to close. <b style="color:#1a1a1a">Ni&ntilde;o-3.4</b>
-    is the raw material of ONI; the <b style="color:var(--aqua)">daily relative Ni&ntilde;o-3.4</b>
-    subtracts the same day's 20&deg;S&ndash;20&deg;N tropical mean and rescales by the CPC/ECMWF
-    &sigma;-factor, so it reads on ONI's &plusmn;0.5&thinsp;&deg;C thresholds. <b>There is no official
-    daily RONI</b>: RONI is a 3-month index, and what is drawn here is the daily quantity it is
-    built from &mdash; useful because it moves today, not a published number. The
-    <b style="color:#e8c04d">90-day mean</b> is likewise an estimate of ONI, not ONI itself. Click legend entries to add
-    Ni&ntilde;o-1+2 / 3 / 4 and the tropical mean; drag to zoom, double-click to reset.</p>
-<p class="chart-sources">NOAA OISST v2.1 daily &middot; cosine-weighted box means &middot; base 1991&ndash;2020 &middot; RONI scale: per-month &sigma;(ONI)/&sigma;(relative), CPC/ECMWF method</p>
+<p class="note">Each pair of bars is one centred three-month season (the bar at Jul is June&ndash;August), ONI on
+    the left in gold and <b>RONI</b> on the right, coloured red above +0.5&thinsp;&deg;C, blue below &minus;0.5 and grey between.
+    <b>Solid bars are CPC&rsquo;s published values</b>: RONI, CPC&rsquo;s official ENSO index since February 2026, is ERSSTv6
+    on a fixed 1991&ndash;2020 base; CPC&rsquo;s ONI uses centred 30-year bases that shift every five years.
+    <b>Hatched bars on the grey ground are our unofficial estimate</b> from NOAA OISST v2.1 (1991&ndash;2020 base), drawn only
+    for the seasons CPC has not reached yet. RONI is the Ni&ntilde;o-3.4 anomaly minus the 20&deg;S&ndash;20&deg;N tropical-mean
+    anomaly, rescaled to ONI&rsquo;s variance, so a uniformly warmer tropics does not read as El Ni&ntilde;o.</p>
+<p class="note">Nothing on the chart is final: CPC revises its own ONI for up to two months after first posting, the newest
+    estimated season leans on a month that has not closed, and OISST daily values are preliminary for about two weeks.</p>
+<p class="chart-sources">NOAA CPC ONI and RONI tables (ERSSTv6) &middot; NOAA OISST v2.1 daily for the estimate &middot; base 1991&ndash;2020</p>
 </template>
 <template id="about-beyond">
 <p class="note">The same daily-OISST machinery pointed at the other basins.
