@@ -53,6 +53,7 @@ G, A_EARTH, DAY = 9.81, 6.371e6, 86400.0
 KMIN, KMAX, PMIN, PMAX, HMIN, HMAX = 1, 14, 2.5, 20.0, 8.0, 90.0
 CLIM = HERE.parent / "data" / "reference" / "walker_chi_clim.nc"
 MAP_DAYS_BACK, HOV_DAYS_BACK = 10, 45
+MIN_SEG = 60                     # days: shortest contiguous record the filter runs on alone after an archive gap
 LAT_MAP = 25.0
 TRAP_LAT = 15.0                  # Kelvin waves are equatorially trapped: the filtered field fades out poleward of this
 VP_CMAP = LinearSegmentedColormap.from_list("vpot", ["#1b5e20", "#43a047", "#86c98a", "#cfe8cf", "#ffffff",
@@ -205,8 +206,8 @@ def render_hov(kf_eq, anom_eq, lon, days, init_day, levels, out: Path):
     lab = dict(fontsize=9, fontweight="bold", color="#1c2430", zorder=6, bbox=dict(boxstyle="round,pad=0.2", fc="white", ec="none", alpha=0.85))
     ax.text(357, i0 + 0.1, "▲ analysis", ha="right", va="bottom", **lab)
     ax.text(357, i0 + 0.9, "▼ forecast (AIFS-ENS ensemble mean)", ha="right", va="top", **lab)
-    # rows are days present, not calendar days: a hole in the analysis archive (Sep 7 - Oct 7 2026) closed up
-    # silently and Sep 6 sat flush against Oct 8. Mark every such join so the axis cannot be misread.
+    # rows are days present, not calendar days: a hole in the analysis archive closes up silently (Sep 6 sat flush
+    # against Oct 8 2026 until the archive was restored on Oct 9). Mark every such join so the axis cannot be misread.
     for k in range(1, len(days)):
         gap = (days[k] - days[k - 1]).days
         if gap > 1:
@@ -271,6 +272,14 @@ def main() -> int:
     da = xr.DataArray(chi, dims=("time", "latitude", "longitude"), coords={"time": days, "latitude": lat, "longitude": lon})
     da = da.reindex(time=full).interpolate_na("time", limit=3).dropna("time", how="all")
     days = pd.DatetimeIndex(da.time.values)
+    # A hole longer than the interpolation limit would stack the days either side flush and the FFT filter would
+    # run across the splice. Filter only the newest contiguous stretch when it is long enough for the 20-day band
+    # (MIN_SEG days); otherwise keep the whole record and let the Hovmoller mark the join.
+    brk = np.flatnonzero(np.diff(days.values).astype("timedelta64[D]").astype(int) > 1)
+    if brk.size and len(days) - (brk[-1] + 1) >= MIN_SEG:
+        print(f"  kelvin: analysis gap {days[brk[-1]]:%Y-%m-%d} -> {days[brk[-1] + 1]:%Y-%m-%d}; filtering from "
+              f"{days[brk[-1] + 1]:%Y-%m-%d} only", flush=True)
+        da = da.isel(time=slice(brk[-1] + 1, None)); days = days[brk[-1] + 1:]
     if dup:
         da = da.isel(longitude=slice(0, -1)); lon = lon[:-1]
     clim = xr.open_dataset(CLIM)
