@@ -601,16 +601,25 @@
   var MSLP_COLORS = ["#3b0f5c", "#56258a", "#6a3fb0", "#4c50c4", "#3769c9", "#3f86cf", "#5aa2d8", "#80bce2", "#a9d3ea", "#d3e7ef",
                      "#f1ead6", "#f6d8a4", "#f3be78", "#ec9c52", "#df7638", "#c9512b", "#a53024", "#7c1a20", "#560e1d"];
   var PT_NAMES = ["no surface type", "rain", "snow", "freezing rain", "sleet", "rain/snow mix"];
-  // radar-style ramps per type, stops in dBZ
+  // radar-style ramps per type, stops in dBZ. Rain = the traditional NWS reflectivity table in discrete 5-dBZ bins (2026-10-09,
+  // user: "use the more traditional NWS color table" on radar.html, then "switch those too"); each bin is a pair of equal stops so
+  // interp() steps instead of blending. Was the green-yellow-red rain ramp.
+  var NWS_RAIN = (function () {
+    var bins = [[5, "#04e9e7"], [10, "#019ff4"], [15, "#0300f4"], [20, "#02fd02"], [25, "#01c501"], [30, "#008e00"], [35, "#fdf802"],
+                [40, "#e5bc00"], [45, "#fd9500"], [50, "#fd0000"], [55, "#d40000"], [60, "#bc0000"], [65, "#f800fd"], [70, "#9854c6"], [75, "#fdfdfd"]];
+    var out = [];
+    bins.forEach(function (b, i) { out.push(S(b[0], b[1])); out.push(S(i + 1 < bins.length ? bins[i + 1][0] - 0.001 : 95, b[1])); });
+    return out;
+  })();
   var PT_RAMPS = [
     null,
-    [S(5, "#a6e3a0"), S(15, "#4cc24f"), S(25, "#1c992c"), S(32, "#0e6e1e"), S(35, "#f2e23a"), S(42, "#f2a12a"), S(48, "#e2381f"), S(55, "#ae1229"), S(62, "#d433d4"), S(72, "#f5dcf5")],
+    NWS_RAIN,
     [S(5, "#cfe9fb"), S(15, "#8cc3f0"), S(25, "#4b8fe0"), S(33, "#1f5cc2"), S(40, "#12398c"), S(52, "#241766")],
     [S(5, "#f9d3e5"), S(15, "#f09fc6"), S(25, "#e0639f"), S(35, "#c02b7b"), S(48, "#7e0e4a")],
     [S(5, "#fde3bd"), S(15, "#f8bb72"), S(25, "#ef8c35"), S(35, "#d45f16"), S(48, "#8f3406")],
     [S(5, "#e6d3f7"), S(15, "#c09ae8"), S(25, "#9660d2"), S(35, "#6c35b0"), S(48, "#40157a")]];
   PT_RAMPS[0] = PT_RAMPS[1];                   // echo with no surface type flag: drawn as rain, hover says so
-  // radar.html (US Radar Explorer) used PT_RAMPS[1] until 2026-10-09; it now draws the observed composite with the traditional NWS table (user request)
+  // radar.html (US Radar Explorer) draws the observed composite with the same NWS table: keep the two in step
   function rateEq(mmh) { return 10 * Math.log10(200 * Math.pow(Math.max(mmh, 1e-6), 1.6)); }   // colour index only (Marshall-Palmer)
   // precipitation accumulation (2026-09-30, user: "add precip accumulation plots (and have a selector for the various ptypes)"):
   // the files hold the total since the run started (16-bit, 0.01 in / snow 0.1 in); the page subtracts two hours for the
