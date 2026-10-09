@@ -1021,6 +1021,7 @@
   function hhmm(t) { var d = new Date(t); return p2(d.getUTCHours()) + ":" + p2(d.getUTCMinutes()); }
   var MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
   function dayWords(t) { var d = new Date(t); return d.getUTCDate() + " " + MONTHS[d.getUTCMonth()] + " " + d.getUTCFullYear(); }
+  function localDay(t) { try { return new Date(t).toLocaleDateString([], { day: "numeric", month: "long", year: "numeric" }); } catch (e) { return dayWords(t); } }   // the viewer's own date, to go with localTime (2026-10-09: 00 UTC read "8:00 PM EDT · 9 October")
   function localTime(t) { try { return new Date(t).toLocaleTimeString([], { hour: "numeric", minute: "2-digit", timeZoneName: "short" }); } catch (e) { return ""; } }
   function ageMin(t) { return (Date.now() - t) / 60000; }
   function freshness(t) { var a = ageMin(t); return a > 25 ? "stale" : a > 12 ? "late" : "ok"; }
@@ -1061,7 +1062,7 @@
     else if (fr === newest) { var f = freshness(fr.t); chip = '<span class="chip ' + f + '">' + (f === "ok" ? "latest · " + ageText(ageMin(fr.t)) : (f === "late" ? "late · " : "stale · ") + ageText(ageMin(fr.t))) + "</span>"; }
     else chip = '<span class="chip past">' + Math.round((fr.t - newest.t) / 60000) + " min</span>";
     var miss = fr.state === "missing" ? ' <b style="color:var(--stale)">· missing at the source</b>' : "";
-    $("valid").innerHTML = '<span class="vt">' + hhmm(fr.t) + " UTC</span> " + chip + '<br><span class="loc">' + localTime(fr.t) + " · " + dayWords(fr.t) + "</span>" + miss;
+    $("valid").innerHTML = '<span class="vt">' + hhmm(fr.t) + " UTC</span> " + chip + '<br><span class="loc">' + localTime(fr.t) + " · " + localDay(fr.t) + "</span>" + miss;
     $("now").disabled = st.idx === frames.length - 1 && st.live;
   }
   function badge() {
