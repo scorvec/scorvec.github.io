@@ -136,7 +136,7 @@
     if (J.state === "waiting") {
       var n = J.centres_present.length;
       h += '<div class="chipnote" style="margin:0 0 0.8rem;max-width:none"><b>Waiting for the ' + issueName(J.issue) + " C3S issue.</b> Checked " + J.generated + ": " +
-        (n ? n + " of the " + J.centres_expected.length + " centres (" + J.centres_present.join(", ") + ") have it on the Copernicus data store" : "no centre has it on the Copernicus data store yet") +
+        (n ? n + " of the " + J.centres_expected.length + " centres (" + J.centres_present.join(", ") + ") " + (n === 1 ? "has" : "have") + " it on the Copernicus data store" : "no centre has it on the Copernicus data store yet") +
         ". The centres publish around the 10th–13th of the month; the forecast appears here once at least " + J.quorum + " of them are in, and fills in as the rest arrive. The skill below is what it will be judged by.</div>";
     } else if (J.state === "no_skill") {
       h += '<div class="chipnote" style="margin:0 0 0.8rem;max-width:none"><b>No forecast this issue:</b> the centres that have published (' + J.centres_present.join(", ") +
@@ -161,7 +161,7 @@
     pre += "With the centres used here (" + J.centres_used.join(", ") + ", current systems) r is " + f2(S.r) + " (" + ci(S.r_ci95) + ", one-sided permutation p " + fp(S.p) + "). " +
       "The raw models are far too timid: their ensemble-mean anomalies span about " + Math.round(100 * S.sd_ratio) + " % of the observed year-to-year spread, so a raw member count would understate every signal. " +
       "That is why the forecast is <b>recalibrated</b>: the observed December is regressed on the multi-model anomaly over the 24 hindcast winters (slope " + f2(S.regression.b) + ", residual " + f1(S.regression.s) + " m/s), and the probabilities come from that fit. " +
-      "<b>Reliability, leave one winter out:</b> ranked probability skill " + f2(L.rpss) + " (" + ci(L.rpss_ci95) + ", permutation p " + fp(L.rpss_p) + (L.rpss_significant ? ", significant" : ", not significant") + "); the 80 % range held the observed December in " + L.cover80 + " of " + L.cover80_n +
+      "<b>Reliability, leave one winter out:</b> ranked probability skill " + f2(L.rpss) + " (" + ci(L.rpss_ci95) + ", permutation p " + fp(L.rpss_p) + (L.rpss_significant ? (L.rpss_ci95[0] < 0 ? ": significant by the permutation test, though the bootstrap interval reaches zero" : ", significant") : ", not significant") + "); the 80 % range held the observed December in " + L.cover80 + " of " + L.cover80_n +
       " winters (" + (L.cover80_p >= 0.05 ? "consistent with 80 %, binomial p " + f2(L.cover80_p) : "inconsistent with 80 %, binomial p " + fp(L.cover80_p)) + "). With 24 winters the probabilities are coarse: read a 50 % as clearly above 33 %, not as an exact number.";
     h += '<p class="idx-note vx-skill">' + pre + "</p>";
     return h;
