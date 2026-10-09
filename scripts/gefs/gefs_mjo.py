@@ -397,7 +397,7 @@ def _hov_panel(ax, lon, L, F, cmap, lim, init, dates_on_right):
     ax.set_xticklabels(["0°", "60°E", "120°E", "180°", "120°W", "60°W"], fontsize=9)
     for x in (100, 150):                                                       # Indian | Maritime | Pacific
         ax.axvline(x, color="#00000033", lw=0.8, ls=(0, (4, 3)))
-    for x, t in ((62, "Indian Ocean"), (125, "Maritime"), (215, "Pacific"), (310, "Atlantic")):
+    for x, t in ((58, "Indian Ocean"), (132, "Maritime"), (215, "Pacific"), (310, "Atlantic")):
         ax.text(x, 1.4, t, ha="center", va="top", fontsize=8.5, color="#4a453f", fontweight="bold", zorder=6,
                 bbox=dict(boxstyle="round,pad=0.18", fc="white", ec="none", alpha=0.78))
     ax.tick_params(labelsize=9)
