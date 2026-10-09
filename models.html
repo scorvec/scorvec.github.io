@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Short-Range Model Maps: HRRR, RRFS and RDPS &middot; Shawn Corvec</title>
-<meta name="description" content="Zoomable maps of the newest HRRR, RRFS and RDPS forecasts for aviation, severe weather, winter weather and renewables: radar and precipitation type, accumulation, cloud ceiling, visibility, temperature, dewpoint, wind, ECAPE and CAPE, smoke and sunshine. Updated four times a day; hover anywhere for the model's value.">
+<meta name="description" content="Zoomable maps of the newest HRRR, RRFS and RDPS forecasts for aviation, severe weather, winter weather and renewables: radar and precipitation type, accumulation, snow-band diagnostics (frontogenesis, EPV*, dendritic-zone lift), cloud ceiling, visibility, temperature, dewpoint, wind, ECAPE and CAPE, smoke and sunshine. Updated four times a day; hover anywhere for the model's value.">
 <link rel="canonical" href="https://scorvec.com/models.html">
 <meta property="og:type" content="website">
 <meta property="og:title" content="Short-range model maps: HRRR, RRFS and RDPS">
@@ -151,6 +151,9 @@
   .mv-about th { background: #eef1ec; font-weight: 600; color: var(--ink); }
   .mv-about td.na { color: #6f6b64; font-style: italic; }
   .mv-about .tbl { overflow-x: auto; }
+  /* snow-band case studies (moved here from snowbands.html, 2026-10-09): the site's loop player in an iframe */
+  .mv-cases { display: flex; flex-wrap: wrap; gap: 0.5rem 1.2rem; margin: 0.4rem 0 0.6rem; }
+  .mv-casef iframe { display: block; width: 100%; border: 1px solid var(--rule); border-radius: 8px; background: #fcfcfa; }
   .mv-runs { font-size: 0.88rem; color: var(--muted); margin: 0.2rem 0 0; }
   /* meteogram (click an airport or city) (2026-10-01): plain canvases, drawn by the page.
      2026-10-02 (user: "plots too small and font too small ... take up more of the browser's window"): a DOCK - a panel
@@ -264,7 +267,6 @@
               <ul>
                 <li><a href="/models.html" aria-current="page">Short-range model maps</a></li>
                 <li><a href="/radar.html">US Radar Explorer</a></li>
-                <li><a href="/snowbands.html">Snow-band diagnostics</a></li>
                 <li><a href="/ar.html">Atmospheric rivers</a></li>
               </ul>
             </div>
@@ -407,7 +409,7 @@
 <main class="mv">
   <p class="kicker">Newest run of each model &middot; updated four times a day</p>
   <h1>Short-range model maps</h1>
-  <p class="lede">Zoomable maps of the newest HRRR, RRFS and RDPS forecasts, out to two to three and a half days, for aviation, severe and winter weather, and wind and solar power. Pick a map, scrub through the hours, and hover or tap anywhere for the model's value. <b>Click or tap an airport</b> for its forecast from all three models, and compare the HRRR and RRFS with <b>Minus</b>.</p>
+  <p class="lede">Zoomable maps of the newest HRRR, RRFS and RDPS forecasts, out to two to three and a half days, for aviation, severe and winter weather (including snow-band diagnostics), and wind and solar power. Pick a map, scrub through the hours, and hover or tap anywhere for the model's value. <b>Click or tap an airport</b> for its forecast from all three models, and compare the HRRR and RRFS with <b>Minus</b>.</p>
 
   <div class="mv-panel">
   <div class="mv-bar">
@@ -506,6 +508,7 @@
       <tr><td>925 and 250&nbsp;hPa wind</td><td>Wind speed (knots) with barbs and the height of the pressure level (contours every 30&nbsp;m at 925&nbsp;hPa, 120&nbsp;m at 250&nbsp;hPa), from the pressure-level file (wrfprs), every 3 hours, on every 2nd grid point (6&nbsp;km); 925&nbsp;hPa left blank where the ground is above that level</td><td>As HRRR (prslev)</td><td>As HRRR, on the 10&nbsp;km grid</td></tr>
       <tr><td>500&nbsp;hPa vorticity</td><td>Absolute vorticity computed from the 500&nbsp;hPa wind smoothed to 12&nbsp;km (with the grid's map factor), heights every 30&nbsp;m (60&nbsp;m bold), 500&nbsp;hPa wind barbs</td><td>As HRRR</td><td>The model's own absolute vorticity, smoothed to 20&nbsp;km</td></tr>
       <tr><td>Dynamic tropopause</td><td>Potential temperature and wind on the 2-PVU surface, computed here: Ertel PV on 19 pressure levels (100&ndash;700&nbsp;hPa, fields smoothed to 12&nbsp;km), the 2-PVU crossing searched downward from 100&nbsp;hPa; 100&nbsp;hPa values where PV is below 2 PVU even there; colours as the site's dynamic-tropopause maps</td><td>As HRRR, from 11 pressure levels (100&ndash;700&nbsp;hPa every 50, 600 and 700: the RRFS file comes from NOMADS)</td><td>The model's own 2-PVU pressure (Pressure_PVU-2), with potential temperature and wind interpolated to it from the pressure levels; 20&nbsp;km</td></tr>
+      <tr><td>Snow bands<br><small>1 October&ndash;30 April</small></td><td>From the pressure-level file every 3 hours from +3&nbsp;h, smoothed (Gaussian, &sigma;&nbsp;=&nbsp;18&nbsp;km) on the 3&nbsp;km grid and evaluated on 12&nbsp;km: 700&nbsp;hPa Petterssen frontogenesis with &theta;, height and the axes of dilatation; EPV* (750&ndash;500&nbsp;hPa, where saturated over ice) with upright CI hatched; the strongest lift in the saturated &minus;12 to &minus;18&nbsp;&deg;C layer; and where those three overlap, with the model&rsquo;s own snow (&ge;&nbsp;25&nbsp;dBZ composite reflectivity, snow type) outlined. Pressure levels 950&ndash;450&nbsp;hPa every 25</td><td class="na">Not shown: the RRFS pressure-level files are only on NOMADS</td><td>As HRRR, on its own 10&nbsp;km grid, levels 950&ndash;450&nbsp;hPa (25&ndash;50&nbsp;hPa apart); vertical velocity exists only at 850, 700 and 500&nbsp;hPa, so the dendritic-zone lift is interpolated between them; the model&rsquo;s snow outline is 1&nbsp;mm or more in the hour where its type is snow</td></tr>
       <tr><td>Incoming shortwave</td><td>Downward shortwave at the surface, instantaneous at the valid time</td><td>As HRRR (instantaneous)</td><td>Mean over the hour ending at the valid time (the difference of the model's accumulated flux)</td></tr>
     </table></div>
     <h2>Runs and timing</h2>
@@ -517,7 +520,17 @@
     <p>&ldquo;Minus RRFS&rdquo; / &ldquo;Minus HRRR&rdquo; subtracts the other 3&nbsp;km model at the same valid time; the HRRR and RRFS share an identical grid, so the difference is cell by cell (temperature, dewpoint, 10&nbsp;m and 80&nbsp;m wind speed, gusts, IR and shortwave).</p>
     <h2>How the page works</h2>
     <p>Nothing on this page is a picture. Each field and hour is shipped as the model's own numbers, rounded to 256 levels (0.625&nbsp;K for infrared, 0.5&nbsp;&deg;F for temperature and dewpoint, 0.4&nbsp;m/s for wind, 0.25&nbsp;m/s for gusts, 0.5&nbsp;hPa for sea-level pressure, 0.5&nbsp;m/s for the 925&nbsp;hPa and 0.8&nbsp;m/s for the 250&nbsp;hPa wind, a few metres for heights, 0.6&nbsp;K for the dynamic tropopause, 5&nbsp;W&nbsp;m<sup>&minus;2</sup> for shortwave, 2&ndash;3&nbsp;% steps on logarithmic scales for ceiling, visibility and smoke, and a square-root scale for ECAPE and CAPE: within &plusmn;4&nbsp;J/kg at 100, &plusmn;11 at 1,000 and &plusmn;20 at 3,000) on the native model grid, and your browser colours, projects, contours and reads it: zooming shows the model's grid cells, and the hover value is the stored one, within those steps. Maps are drawn on the HRRR's Lambert conformal projection for all three models, so switching model keeps the view. Contours (every 10&nbsp;&deg;F with the freezing line in blue; dewpoint every 10&nbsp;&deg;F with 60 and 70 emphasised; 80&nbsp;m wind 10/15/20&nbsp;m/s; 10&nbsp;m wind 20/30/40&nbsp;kt; gusts 30/40/50&nbsp;kt; isobars every 2&nbsp;hPa, 4&nbsp;hPa zoomed out, on the radar, pressure, 10&nbsp;m wind and gust maps) are drawn by your graphics card in the same pass as the colours, from the same numbers after a light smoothing (to about 6&nbsp;km on the 3&nbsp;km grids), so they show the pattern, not every 3&nbsp;km wiggle, and move with the map; their labels and the highs and lows are placed once the map is at rest. Boundaries: Natural Earth; US states and counties: US Census via us-atlas.</p>
-    <p>Related: <a href="/ecape.html">entraining CAPE from the HRRR</a> and <a href="/snowbands.html">snow-band diagnostics from the HRRR, RRFS and RDPS</a>. Data: NOAA HRRR and RRFS (AWS open data; NOMADS for the RRFS), ECCC RDPS and RAQDPS-FireWork (MSC Datamart). Model output as published, uncorrected.</p>
+    <h2 id="snowbands">Snow bands: what the four maps are</h2>
+    <p>A <b>mesoscale snow band</b> is a stripe of heavy snow, typically 20&ndash;100&nbsp;km wide and hundreds of kilometres long, that can drop 2&ndash;4&nbsp;inches an hour for several hours while places 50&nbsp;km away get a fraction of that. Most cold-season bands form on the poleward side of a cyclone where the middle troposphere is <b>frontogenetic</b> (the flow packs the temperature gradient together), the air above is <b>weakly stable to slantwise motion</b>, and the column is saturated through the <b>dendritic growth zone</b> (Nicosia and Grumm 1999; Novak et al. 2004). The four maps under <b>Winter: snow bands</b> show those ingredients and their overlap; the model&rsquo;s own bands are on the <b>Radar + type</b> map (snow in blue).</p>
+    <p><b>How they are computed.</b> Every field is smoothed with a Gaussian filter (&sigma;&nbsp;=&nbsp;18&nbsp;km) on the model&rsquo;s own grid before any derivative, and the diagnostics are evaluated on a 12&nbsp;km grid (10&nbsp;km for the RDPS): frontogenesis and EPV are second order in the wind and temperature, and on a raw 3&nbsp;km grid they are dominated by convective-scale noise. Derivatives use grid-relative winds and the true grid spacing; levels within 25&nbsp;hPa of the ground are masked. Frontogenesis: the rate of change of |&nabla;&theta;| following the flow, from the 2-D kinematic (Petterssen 1936) form, K per 100&nbsp;km per 3&nbsp;h. EPV*: saturated equivalent potential vorticity in pressure coordinates with the full wind and &theta;<sub>es</sub> from Bolton (1980), averaged over 750&ndash;500&nbsp;hPa where that layer&rsquo;s relative humidity (over ice below 0&nbsp;&deg;C) is 80&nbsp;% or more; hatched where &theta;<sub>es</sub> at 500&nbsp;hPa is lower than at 750&nbsp;hPa. DGZ lift: the column sampled every 5&nbsp;hPa, the strongest &minus;&omega; (10&nbsp;&micro;b/s &asymp; 10&nbsp;cm/s) where it is &minus;12 to &minus;18&nbsp;&deg;C and saturated over ice. Ingredients: frontogenesis &ge;&nbsp;4, EPV* &le;&nbsp;0.25&nbsp;PVU in saturated air, DGZ lift &ge;&nbsp;10&nbsp;&micro;b/s &mdash; round numbers in the range reported for northeast US banded storms, loose enough to keep the weakly stable cases a strict EPV*&nbsp;&lt;&nbsp;0 rule would miss (Schultz and Schumacher 1999). The axes of dilatation are drawn where the total deformation is in the top 15&nbsp;% of the map in view and at least 6&nbsp;&times;&nbsp;10<sup>&minus;5</sup>&nbsp;s<sup>&minus;1</sup>. The code is the same as the site&rsquo;s former snow-band page&rsquo;s (scripts/snowband/snowband.py), now run on the whole model domain. Checked against the former page&rsquo;s own output on the same HRRR hours (the Binghamton storm, 16 December 2020 18Z +3&nbsp;h, and the 27 September 2026 nor&rsquo;easter): every field agrees to r&nbsp;&ge;&nbsp;0.99 on the snowstorm (0.95&ndash;1.00 on the rain case, where frontogenesis was weak), the peaks within about 5&nbsp;%, and the ingredient count matches in 99&nbsp;% of cells; the small differences come from the 12&nbsp;km grid being offset by one 3&nbsp;km cell and from the stored precision.</p>
+    <p><b>Known limits.</b> These are only as good as the model&rsquo;s placement of the system, and band placement errors of 50&ndash;100&nbsp;km are normal: on the Binghamton case below the HRRR&rsquo;s one-hour frontogenesis and lift axis sat 35&ndash;75&nbsp;km south of the observed band, and its 12Z run&rsquo;s band was 80&ndash;150&nbsp;km south 14&ndash;16 hours out. Negative EPV* is necessary, not sufficient (it also flags upright and inertial instability and means nothing in unsaturated air): read it as &ldquo;the atmosphere would not resist a band here&rdquo;, never &ldquo;a band is here&rdquo;. The ingredient overlap is not a probability and has not been calibrated against observed bands. The HRRR&rsquo;s analysis hour has no usable vertical motion, so the maps start at +3&nbsp;h. Computed 1&nbsp;October to 30&nbsp;April; outside that the maps say so.</p>
+    <p class="mv-runs">Petterssen, S., 1936, Geofys. Publ. 11(6) &middot; Bolton, D., 1980, Mon. Wea. Rev. 108, 1046&ndash;1053 &middot; Nicosia, D. J., and R. H. Grumm, 1999, Wea. Forecasting 14, 346&ndash;368 &middot; Schultz, D. M., and P. N. Schumacher, 1999, Mon. Wea. Rev. 127, 2709&ndash;2732 &middot; Waldstreicher, J. S., 2001, Third Northeast Operational Workshop &middot; Novak, D. R., L. F. Bosart, D. Keyser and J. S. Waldstreicher, 2004, Wea. Forecasting 19, 993&ndash;1010</p>
+    <h2 id="snowband-cases">Snow-band case studies, against the radar</h2>
+    <p>Every diagnostic from the HRRR&rsquo;s one-hour forecast of each hourly cycle (f01, the first hour with usable vertical motion) beside the NEXRAD base-reflectivity mosaic at the same hour, so the diagnosed band axis can be checked against the bands the radar saw with almost no forecast error in the large-scale pattern. The <b>16&ndash;17 December 2020</b> nor&rsquo;easter put a nearly stationary band over the Southern Tier of New York for about ten hours: Binghamton recorded <b>40.2 inches</b>, its biggest snowstorm on record, while places 60&nbsp;km south got under a foot. The frontogenesis maximum, the weakly stable EPV* and the dendritic-zone lift line up along a southwest&ndash;northeast axis about 35&ndash;75&nbsp;km south of the observed band, and the HRRR&rsquo;s own band sits with them. The <b>27 September 2026</b> nor&rsquo;easter (rain) is the method on a warm-season storm: the model&rsquo;s reflectivity matched the radar (r&nbsp;0.71&ndash;0.87) and its lift through the &minus;12 to &minus;18&nbsp;&deg;C layer aloft correlated with the radar at r&nbsp;0.5&ndash;0.7, while 700&nbsp;hPa frontogenesis was not aligned with the bands &mdash; they were not mid-level frontal bands. (Rendered by the former snow-band page in September 2026; figures from the same code as the maps above.)</p>
+    <div class="mv-cases"><label class="runsel">Case <select id="sbCase" aria-label="Case study"><option value="c2020121613">Binghamton band, 16–17 December 2020</option><option value="c2026092700">Nor'easter, 27 September 2026 (rain)</option></select></label>
+      <label class="runsel">View <select id="sbView" aria-label="Case study view"><option value="ov">Overview: the four diagnostics</option><option value="radar">Against NEXRAD</option><option value="ing">Band ingredients</option><option value="fg">Frontogenesis</option><option value="epv">EPV* and CSI</option><option value="dgz">Lift in the DGZ</option><option value="bands">The HRRR's own bands</option></select></label></div>
+    <div class="mv-casef" id="sbCaseW"></div>
+    <p>Related: <a href="/ecape.html">entraining CAPE from the HRRR</a>. Data: NOAA HRRR and RRFS (AWS open data; NOMADS for the RRFS), ECCC RDPS and RAQDPS-FireWork (MSC Datamart). Model output as published, uncorrected.</p>
   </details>
 </main>
 
@@ -738,6 +751,36 @@
     FIELDS["pv" + t] = { label: "PV on " + t + " K", sub: t + " K", enc: "pv", unit: "PVU", bil: true, ch: 2, ua: true, pv: true, theta: t };
     if (t === 330) FIELDS.pv330.btn = "Isentropic PV";
     FIELDS["w" + t] = { label: "Wind on " + t + " K", enc: "lin2", off: -101.6, step: 0.8, unit: "kt", kt: true, smax: 100, ch: 2, barbs: true, companion: true }; });
+  // ── snow-band diagnostics (2026-10-09, user: "fold in the snowband diagnostics into the short-term model viewer"; they
+  // replace snowbands.html). Computed in models.py by scripts/snowband/snowband.py itself (smooth_diagnose, ingredients):
+  // every field Gaussian-smoothed (sigma 18 km) on the model's grid before any derivative, evaluated on 12 km (HRRR, the
+  // "sub" grid) or 10 km (RDPS), every 3 h from +3 h, 1 October - 30 April. Colours = snowband.py's matplotlib classes.
+  // sbfg R FG (-20.125 + 0.25), G theta700 (240.2 + 0.4 K), B z700 (2402.5 + 5 m; offsets half a step so no code equals a contour level); sbdef R axis (2 deg, from east), G deformation
+  // (2e-6 s-1); sbepv R EPV* where saturated (-2.5 + 0.025 PVU), G RH % (+128 = upright CI), B 800-600 hPa FG; sbdgz R lift
+  // (-20 + 0.5 ub/s), G DGZ depth (5 hPa); sbing R 60 x count, G flags (1 FG, 2 EPV*, 4 lift), B 250 x model-snow fraction
+  var SB = { fg: 4.0, epv: 0.25, lift: 10.0, dmin: 6e-5,                                   // snowband.py ING; the axes' floor
+    FG_LEV: [0.5, 1, 2, 3, 4, 6, 8, 10, 12, 15, 20], FG_COL: ["#ffffcc", "#ffefa5", "#fede80", "#febf5a", "#fd9e43", "#fd7234", "#f43d25", "#db141e", "#b70026", "#800026", "#800026"],
+    EPV_LEV: [-1e9, -1.0, -0.5, -0.25, -0.1, 0, 0.1, 0.25, 0.5, 1.0, 1.5],
+    EPV_COL: ["#5b2a86", "#5b2a86", "#8a4fb8", "#b889d6", "#e3d0f0", "#f4f1e8", "#d9e8d2", "#a8cfa0", "#6aa36a", "#3c7040", "#3c7040"],
+    DGZ_LEV: [2, 5, 10, 15, 20, 30, 40, 60], DGZ_COL: ["#fff7fb", "#e3e0ee", "#b4c4df", "#75a9cf", "#2685bb", "#046299", "#023858", "#023858"],
+    ING_COL: ["#f4d9a6", "#c2410c"], GROUND: [217, 214, 207, 0.85] };
+  var SB_FIELDS = ["sbing", "sbfg", "sbepv", "sbdgz"];
+  FIELDS.sbfg = { label: "700 hPa frontogenesis", enc: "sbfg", unit: "K/100 km/3 h", bil: true, ch: 3, sb: true, own: true, conv: true, lines: "rgba(28,30,28,0.7)" };
+  FIELDS.sbepv = { label: "EPV* / CSI", enc: "sbepv", unit: "PVU", bil: true, ch: 3, sb: true, own: true, conv: true };
+  FIELDS.sbdgz = { label: "DGZ lift", enc: "sbdgz", unit: "µb/s", bil: true, ch: 2, sb: true, own: true, conv: true };
+  FIELDS.sbing = { label: "Band ingredients", enc: "sbing", unit: "of 3", bil: true, ch: 3, sb: true, own: true, conv: true };
+  FIELDS.sbdef = { label: "Deformation", enc: "sbdef", ch: 2, companion: true };
+  function sbVal(enc, c) {                                          // R channel code -> value (null = masked)
+    if (c === 255) return null;
+    return enc === "sbfg" ? -20.125 + 0.25 * c : enc === "sbepv" ? -2.5 + 0.025 * c : enc === "sbdgz" ? -20 + 0.5 * c : enc === "sbing" ? c / 60 : null;
+  }
+  function sbColour(name, v) {
+    if (name === "sbfg") return stepColour(SB.FG_LEV, SB.FG_COL, v);
+    if (name === "sbepv") return stepColour(SB.EPV_LEV, SB.EPV_COL, v);
+    if (name === "sbdgz") return stepColour(SB.DGZ_LEV, SB.DGZ_COL, v);
+    if (name === "sbing") return v >= 2.5 ? stepColour([0], [SB.ING_COL[1]], 1) : v >= 1.5 ? stepColour([0], [SB.ING_COL[0]], 1) : null;
+    return null;
+  }
   // sub-options of one button (like ECAPE's): the button shows the family head; the bar under the field picker switches member
   var SUBF = { pv330: ["pv315", "pv320", "pv330", "pv340"], refl: ["refl", "etop"], uh25: ["uh25", "uh25s", "uh03", "uh03s"], uvv: ["uvv", "uvvs"] };
   var FAM = {}; Object.keys(SUBF).forEach(function (h) { SUBF[h].forEach(function (f) { FAM[f] = h; }); });
@@ -745,10 +788,12 @@
   var famLast = {};                                                 // the member last shown per family
   // the field picker, grouped by what people use the maps for (2026-09-30 redesign); units shown on the buttons
   var FIELD_GROUPS = [["Clouds & visibility", ["ir", "ceil", "vis"]], ["Surface", ["t2m", "td2m", "mslp", "wind10", "gust"]], ["Precipitation", ["refl", "acc"]],
+                      ["Winter: snow bands", SB_FIELDS],
                       ["Convection", ["ecape", "uh25", "uvv"]], ["Upper air", ["ua925", "ua250", "z500", "dt", "pvu", "pv330", "pvl"]], ["Air quality & energy", ["wind80", "smoke", "sw", "hpbl"]]];
   var FIELD_ORDER = [].concat.apply([], FIELD_GROUPS.map(function (g) { return g[1]; }));
   var FIELD_UNIT = { ir: "°C", ceil: "ft", vis: "mi", t2m: "°F", td2m: "°F", mslp: "hPa", wind10: "kt", gust: "kt", wind80: "m/s", refl: "dBZ", acc: "in", ecape: "J/kg", smoke: "mg/m²", sw: "W/m²",
-                     ua925: "kt", ua250: "kt", z500: "10⁻⁵/s", dt: "K", uh25: "m²/s²", uvv: "m/s", hpbl: "m", etop: "kft", pvu: "PVU", pv330: "PVU", pvl: "PVU" };
+                     ua925: "kt", ua250: "kt", z500: "10⁻⁵/s", dt: "K", uh25: "m²/s²", uvv: "m/s", hpbl: "m", etop: "kft", pvu: "PVU", pv330: "PVU", pvl: "PVU",
+                     sbing: "of 3", sbfg: "K/100 km/3 h", sbepv: "PVU", sbdgz: "µb/s" };
   function encOf(f, fm) { return (fm && fm.enc) || FIELDS[f].enc; }
   function accValue(type, c) { var vm = ACC_TYPES[type].vmax, t = c / 254; return vm * t * t; }
   function chOf(f) { if (FIELDS[f] && FIELDS[f].ch) return FIELDS[f].ch; return f === "wind80" || f === "wind10" || f === "refl" || f === "mslp" || !!ACC_TYPES[f] ? 2 : 1; }
@@ -808,6 +853,20 @@
   ["uh25", "uh25s", "uh03", "uh03s", "uvv", "uvvs", "etop"].forEach(function (f) { NA.rdps[f] = (FIELDS[f].label) + " is computed for the HRRR and the RRFS only: the RDPS output has no " + (f === "etop" ? "echo top." : FIELDS[f].enc === "uh" ? "updraft helicity." : "hourly maximum vertical velocity."); });
   NA.rrfs = {};
   ["ua925", "ua250", "z500", "dt", "pvu", "pvl", "pv315", "pv320", "pv330", "pv340"].forEach(function (f) { NA.rrfs[f] = "Upper-air maps come from the HRRR and the RDPS: the RRFS's pressure-level files are only on NOMADS, which this page avoids."; });
+  // snow-band diagnostics (2026-10-09)
+  var SBN = "Smoothed with a Gaussian filter (σ = 18 km) on the {M}'s own grid before any derivative and evaluated on {K} km, every 3 hours from +3 h: the same computation as the site's former snow-band page (the code is shared). ";
+  NOTES.hrrr.sbfg = "<b>700 hPa frontogenesis</b> (2-D kinematic, Petterssen), K per 100 km per 3 h: where the flow is packing the temperature gradient together. Bands form on the warm side of a mid-level frontogenesis maximum, under the rising branch of the circulation it forces (Novak et al. 2004); 2–10 is typical of banded snowstorms. Brown lines: 700 hPa θ every 2 K; black: 700 hPa height every 30 m (dam); short navy segments: the axes of dilatation where the total deformation is in the top 15 % of the map in view (and at least 6 × 10⁻⁵ s⁻¹) - isentropes at a small angle to them are being packed together. Grey: 700 hPa within 25 hPa of the ground. " + SBN;
+  NOTES.hrrr.sbepv = "<b>Saturated equivalent potential vorticity</b> (EPV*), 750–500 hPa mean, PVU, drawn only where that layer is saturated (relative humidity 80 % or more, over ice below 0 °C; grey outline). Negative EPV* in saturated air means a slantwise parcel would keep accelerating: conditional symmetric instability (CSI), under which a frontal circulation collapses into a narrow, strong band. <b>Hatched</b>: θ<sub>es</sub> falls with height, so the negative EPV* there is ordinary upright instability, not CSI. Magenta lines: 800–600 hPa frontogenesis 2, 4, 8, 16. Caveat (Schultz and Schumacher 1999): negative EPV* is necessary, not sufficient - read purple as \"the atmosphere would not resist a band here\", never \"a band is here\". " + SBN;
+  NOTES.hrrr.sbdgz = "<b>Lift in the dendritic growth zone</b>: the strongest upward motion (−ω, microbars per second; 10 µb/s is about 10 cm/s) anywhere in the column where it is −12 to −18 °C and saturated with respect to ice. Strong lift through a deep saturated DGZ is the \"crosshair\" (Waldstreicher 2001) behind 2–4 in/h snowfall rates. Brown lines: the depth of the −12 to −18 °C layer, 50 / 100 / 150 hPa. The column is sampled every 5 hPa from the model's 25 hPa levels. " + SBN;
+  NOTES.hrrr.sbing = "<b>Band ingredients</b>: where 700 hPa frontogenesis ≥ 4 K/100 km/3 h, EPV* ≤ 0.25 PVU in saturated air (750–500 hPa) and DGZ lift ≥ 10 µb/s overlap - pale orange two of the three, dark orange all three. Navy outline: the model's own snow at 25 dBZ or more (composite reflectivity where its precipitation type is snow); grey lines: 700 hPa height. <b>An overlap of ingredients, not a probability</b>: not calibrated against observed bands, says nothing about rain or snow, and placement errors of 50–100 km are normal. " + SBN;
+  SB_FIELDS.forEach(function (f) {
+    NOTES.hrrr[f] = NOTES.hrrr[f].replace("{M}", "HRRR").replace("{K}", "12");
+    NOTES.rdps[f] = NOTES.hrrr[f].replace(/HRRR/g, "RDPS").replace("evaluated on 12 km", "evaluated on its 10 km grid")
+      .replace("from the model's 25 hPa levels", "from the RDPS's 25–50 hPa levels; it publishes vertical velocity only at 850, 700 and 500 hPa, so the lift is interpolated linearly in pressure between them and cannot show a narrow maximum between levels")
+      .replace("the model's own snow at 25 dBZ or more (composite reflectivity where its precipitation type is snow)", "the model's own snow at 1 mm or more in the hour (the RDPS has no reflectivity)");
+  });
+  NA.rrfs = NA.rrfs || {};
+  SB_FIELDS.forEach(function (f) { NA.rrfs[f] = "The snow-band diagnostics come from the HRRR and the RDPS: they need the RRFS's pressure-level files, which are only on NOMADS (no real-time AWS copy), and this page avoids NOMADS for anything but the RRFS's surface maps."; });
 
   // ── display projection: the HRRR's Lambert conformal (tangent at 38.5 N, 97.5 W, sphere 6371229 m) ────────────────
   var P = (function () {
@@ -866,6 +925,7 @@
     if (fd.enc === "linf") return q[0] + code * q[1];
     if (fd.enc === "uh") return uhOf(code);
     if (fd.enc === "pv") return pvOf(code);
+    if (fd.sb) return sbVal(fd.enc, code);
     if (fd.enc === "uvv") return code * 0.25;
     if (fd.enc === "etop") return code;
     if (fd.enc === "log") { if (code === 0) return -1; return Math.exp(Math.log(fd.lo) + (code - 1) / 253 * (Math.log(fd.hi) - Math.log(fd.lo))); }
@@ -918,6 +978,7 @@
     if (fd && fd.pv) return stepColour(PV_LEV, PV_COLS, v);
     if (fd && fd.enc === "uh") return stepColour(UH_LEVELS, UH_COLORS, v);
     if (name === "etop") return stepColour(ET_LEVELS, ET_COLORS, v);
+    if (fd && fd.sb) return sbColour(name, v);
     if (name === "ecape") {                                     // below 100 J/kg left clear (render_ecape.py paints it white)
       if (EC_SUBS[st.ec].kind === "ratio") return stepColour(RATIO_LEVELS, RATIO_COLORS, v);
       return v < 100 ? null : stepColour(CAPE_LEVELS, CAPE_COLORS, v);
@@ -949,6 +1010,7 @@
       else if (name === "ecape") v = enc === "ratio" ? (c === 0 ? null : (c - 1) / 100) : capeOf(c, q || 2.8);
       else v = valueOf(fd, c, q);
       var col = colourOf(name, v);
+      if (name === "sbfg" && c === 255) col = SB.GROUND;               // 700 hPa within 25 hPa of the ground (snowband.py's grey)
       if (col) { lut[4 * c] = col[0]; lut[4 * c + 1] = col[1]; lut[4 * c + 2] = col[2]; lut[4 * c + 3] = Math.round(255 * col[3]); }
     }
     return lut;
@@ -1453,7 +1515,7 @@
   var FS = [
     "#version 300 es", "precision highp float;precision highp int;precision highp sampler2D;",
     "uniform sampler2D uData;uniform sampler2D uLut;uniform vec2 uC;uniform float uS;uniform vec2 uWH;",
-    "uniform int uType;uniform vec4 uL;uniform vec4 uR1;uniform vec4 uR2;uniform ivec2 uN;uniform int uMode;uniform vec3 uW;uniform vec4 uP;",
+    "uniform int uType;uniform vec4 uL;uniform vec4 uR1;uniform vec4 uR2;uniform ivec2 uN;uniform int uMode;uniform vec3 uW;uniform vec4 uP;uniform int uHatch;uniform float uHatchP;",
     "out vec4 o;",
     // display metres (HRRR Lambert) -> fractional grid index of a Lambert (type 0) or rotated lat-lon (type 1) grid
     "vec2 gIdx(vec2 xy,int ty,vec4 L,vec4 R1,vec4 R2){",
@@ -1482,13 +1544,15 @@
     "  int row=0;float fade=1.;",
     "  if(uMode==0){code=floor(t2.r*255.+0.5);}",
     "  else if(uMode==3){code=floor(t2.r*255.+0.5);if(code>254.5)code=-1.;else{if(t2.g>0.002)fade=0.45;float b=bil(g,0);if(b>=0.)code=floor(b+0.5);}}",
-    "  else if(uMode==4){float b=bil(g,0);code=b<0.?-1.:floor(b+0.5);}",
+    "  else if(uMode==4){float b=bil(g,0);code=b<0.?255.:floor(b+0.5);}",
     "  else if(uMode==2){code=floor(t2.r*255.+0.5);if(code<0.5)code=-1.;row=int(floor(t2.g*255.+0.5));if(row>5)row=0;}",
     "  else if(uMode==5){float x=clamp(fi,0.,float(uN.x-1)),y=clamp(fj,0.,float(uN.y-1));int i0=int(floor(x)),j0=int(floor(y));int i1=min(i0+1,uN.x-1),j1=min(j0+1,uN.y-1);float sp[4];bool bad=false;",
     "   for(int k=0;k<4;k++){vec4 q=texelFetch(uData,ivec2(k==1||k==3?i1:i0,uN.y-1-(k>=2?j1:j0)),0);float cu=floor(q.r*255.+0.5),cv=floor(q.g*255.+0.5);if(cu>254.5)bad=true;float u=uW.x+cu*uW.y,v=uW.x+cv*uW.y;sp[k]=sqrt(u*u+v*v);}",
     "   if(!bad){float fx=x-float(i0),fy=y-float(j0);code=min(254.,floor(mix(mix(sp[0],sp[1],fx),mix(sp[2],sp[3],fx),fy)/uW.z*254.+0.5));}}",
     "  else{float cu=floor(t2.r*255.+0.5),cv=floor(t2.g*255.+0.5);if(cu<254.5){float u=uW.x+cu*uW.y,v=uW.x+cv*uW.y;code=min(254.,floor(sqrt(u*u+v*v)/uW.z*254.+0.5));}}",
     "  if(code>=0.){c=texelFetch(uLut,ivec2(int(code),row),0);c.a*=fade;c=vec4(c.rgb*c.a,c.a);}",
+    // EPV* map: hatching where the nearest cell is saturated (R < 255) and theta_es falls with height (G >= 128): upright CI
+    "  if(uHatch==1&&code<254.5&&code>=0.&&t2.r<0.999&&t2.g>=0.5){float hp=mod(gl_FragCoord.x+gl_FragCoord.y,uHatchP);if(hp<uHatchP*0.2)c=ov(c,vec4(0.12,0.1,0.16,0.85),1.);}",
     " }",
     " c=clB(c,vB,fB);c=clA(c,vA,fA);",
     " if(c.a<0.004)discard;o=c;",
@@ -1520,7 +1584,7 @@
       gl.bindAttribLocation(p, 0, "p"); gl.linkProgram(p); if (!gl.getProgramParameter(p, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(p)); return p; }
     prog = link(FS);
     gl.useProgram(prog);
-    ["uData", "uLut", "uC", "uS", "uWH", "uType", "uL", "uR1", "uR2", "uN", "uMode", "uW", "uP"].forEach(function (n) { loc[n] = gl.getUniformLocation(prog, n); });
+    ["uData", "uLut", "uC", "uS", "uWH", "uType", "uL", "uR1", "uR2", "uN", "uMode", "uW", "uP", "uHatch", "uHatchP"].forEach(function (n) { loc[n] = gl.getUniformLocation(prog, n); });
     ["A", "B"].forEach(function (X) { C_UNI.forEach(function (n) { cLoc[X][n] = gl.getUniformLocation(prog, n + X + (n === "uClv" || n === "uCsp" || n === "uCspc" ? "[0]" : "")); }); });
     var b = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, b);
     gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW);
@@ -1861,6 +1925,7 @@
     var df = !na && diffOn() ? diffFrame(st.model, c, st.field, cc.hour) : null;
     if (df && df.msg) na = df.msg;
     if (na) msg = na;
+    else if (!fm && FIELDS[st.field].sb) msg = sbMissing(c);
     else if (!fm) msg = FIELDS[st.field].ua ? "The upper-air maps are not in this " + MODELS[st.model] + " run (" + c.init.slice(5, 10).replace("-", "/") + " " + c.init.slice(11, 13) + "Z): they come from the model's pressure-level output, every 3 hours, and appear with its next run."
       : FIELDS[st.field].label + " is missing from this run.";
     else if (fm.hours.indexOf(cc.hour) < 0) msg = FIELDS[st.field].label + " is not available at +" + cc.hour + " h in this run" +
@@ -1902,6 +1967,7 @@
       if (g.type === "lcc") { gl.uniform1i(loc.uType, 0); gl.uniform4f(loc.uL, g._x1, g._y1, g.dx, g.dy); }
       else { gl.uniform1i(loc.uType, 1); gl.uniform4f(loc.uR1, g.splat, g.splon, g.lo1, g.la1); gl.uniform4f(loc.uR2, g.di, g.dj, g.i0 || 0, g.j0 || 0); }
       gl.uniform1i(loc.uMode, modeOf(st.field, ch)); gl.uniform3f(loc.uW, fd.off || 0, fd.step || 1, fd.smax || 1);
+      gl.uniform1i(loc.uHatch, st.field === "sbepv" ? 1 : 0); gl.uniform1f(loc.uHatchP, Math.max(6, Math.round(8 * DPR)));
       setLayer("A", lay[0]); setLayer("B", lay[1]); dd.zs = zoomSide(lay);
       gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
     }
@@ -1958,6 +2024,7 @@
     if ((st.field === "wind80" || st.field === "wind10" || FIELDS[st.field].barbs) && drawn && drawn.e && drawn.e.dec && drawn.field === st.field && !drawn.diff) drawBarbs(ctx, drawn);
     if (st.field === "gust" && drawn && drawn.field === "gust" && !drawn.diff) { var bw = windFor(drawn); if (bw) drawBarbs(ctx, bw); }
     if (st.field === "z500" && drawn && drawn.field === "z500") { var b5 = windFor(drawn, "w500"); if (b5) drawBarbs(ctx, b5); }
+    if (st.field === "sbfg" && drawn && drawn.field === "sbfg") { var bd = windFor(drawn, "sbdef"); if (bd) drawAxes(ctx, bd); }
     if (drawn && drawn.field === st.field && (st.field === "pvu" || FIELDS[st.field].theta)) { var bp = windFor(drawn, st.field === "pvu" ? "ua250" : "w" + FIELDS[st.field].theta); if (bp) drawBarbs(ctx, bp); }
     ovView = { cx: view.cx, cy: view.cy, s: view.s };
     var t1 = performance.now();
@@ -2135,6 +2202,7 @@
         fmt: field === "ua925" ? function (v) { return String(v); } : function (v) { return String(v / 10); },
         style: function () { return ["rgba(12,12,12,0.9)", 1.1]; }, gl: { reg: [zs[0], zs[1], zs[0], zs[2]], col: "rgba(12,12,12,0.9)", w: 1.1 } };
     }
+    if (FIELDS[field] && FIELDS[field].sb) return sbSpec(field, false);
     if (field === "dt") { var Lt = new Float32Array(256); for (var ct = 0; ct < 256; ct++) Lt[ct] = ct === 255 ? NaN : 250 + 0.6 * ct;
       var lvt = range(260, 400, 10);
       return { rad: 1, rad2: 0, dec: 1, minPts: 6, lut: Lt, ch: 0, stride: 3, levels: lvt, values: lvt, fmt: function (v) { return String(v); },
@@ -2145,6 +2213,7 @@
   // mslp contours to the 10m wind plot")
   function extraSpec(field, q) {
     if (field === "wind10" || field === "gust") return isoSpec(field);
+    if (FIELDS[field] && FIELDS[field].sb) return sbSpec(field, true);
     if (field === "pvu") {                                         // 250 hPa heights from the ua250 frame (its B channel)
       var Lz = new Float32Array(256); q = q && q.join ? q : [0, 1]; for (var c = 0; c < 256; c++) Lz[c] = c === 255 ? NaN : q[0] + c * q[1];
       var lz = range(8400, 11400, 120);
@@ -2157,6 +2226,37 @@
       return { rad: 1, rad2: 0, dec: 1, minPts: 6, lut: Lp, nblur: true, ch: 1, stride: 2, levels: lp, values: lp, fmt: function (v) { return v + " hPa"; },
         style: function () { return ["rgba(40,40,40,0.7)", 0.7]; }, gl: { reg: [150, 50, 150, 700], col: "rgba(40,40,40,0.7)", w: 0.7, hw: 0.5 } };
     }
+    return null;
+  }
+  // snow-band lines (snowband.py's figures): A = the field's own, B (extra) = a second set
+  //   sbfg  A theta every 2 K (G), B 700 hPa height every 30 m (B)      sbepv  A 800-600 hPa frontogenesis 2/4/8/16 (B), B the 80 % RH outline (G)
+  //   sbdgz A DGZ depth 50/100/150 hPa (G)                              sbing  A the model's snow outline (B), B 700 hPa height from the sbfg frame
+  function sbLut(f) { var L = new Float32Array(256); for (var c = 0; c < 256; c++) L[c] = f(c); return L; }
+  function sbSpec(f, extra) {
+    var base = { rad: 1, rad2: 0, dec: 1, minPts: 6, nblur: true };
+    var zl = range(2400, 3400, 30), lin = function (off, step) { return sbLut(function (c) { return c === 255 ? NaN : off + step * c; }); };
+    if (f === "sbfg" && !extra) { var lt = range(250, 330, 2);
+      return Object.assign(base, { rad2: 1, lut: lin(240.2, 0.4), ch: 1, stride: 3, levels: lt, values: lt, fmt: String, lab: function (v) { return v % 4 === 0; },
+        style: function () { return ["#b04a1f", 0.9]; }, gl: { reg: [250, 2, 250, 330], col: "rgba(176,74,31,0.92)", w: 0.9, hw: 0.6 } }); }
+    if ((f === "sbfg" || f === "sbing") && extra) {
+      var sz = Object.assign(base, { rad2: 1, lut: lin(2402.5, 5), ch: 2, stride: 3, levels: zl, values: zl, fmt: function (v) { return String(v / 10); }, lab: function (v) { return v % 60 === 0; },
+        style: function () { return ["rgba(12,12,12,0.9)", 1.1]; }, gl: { reg: [2400, 30, 2400, 3400], col: "rgba(12,12,12,0.9)", w: 1.1 } });
+      if (f === "sbing") { sz.src = "sbfg"; sz.lab = function () { return false; }; sz.gl = { reg: [2400, 30, 2400, 3400], col: "rgba(111,107,100,0.9)", w: 0.7, hw: 0.4 }; }
+      return sz; }
+    if (f === "sbepv" && !extra) { var lf = [2, 4, 8, 16];
+      return Object.assign(base, { lut: lin(-20.125, 0.25), ch: 2, stride: 3, levels: lf, values: lf, fmt: String,
+        style: function (v) { return ["#d4145a", { 2: 0.9, 4: 1.3, 8: 1.8, 16: 2.3 }[v]]; },
+        gl: { list: [2], col: "rgba(212,20,90,0.95)", w: 0.9, special: [[4, 1.3, "rgba(212,20,90,0.95)"], [8, 1.8, "rgba(212,20,90,0.95)"], [16, 2.3, "rgba(212,20,90,0.95)"]] } }); }
+    if (f === "sbepv" && extra)
+      return { rad: 0, rad2: 0, dec: 1, minPts: 4, lut: sbLut(function (c) { var r = c & 127; return r === 127 ? NaN : r; }), ch: 1, stride: 3, levels: [79.5], values: [80],
+        fmt: String, lab: function () { return false; }, style: function () { return ["rgba(85,85,85,0.9)", 1.0]; }, gl: { list: [79.5], col: "rgba(85,85,85,0.9)", w: 1.0, hw: 0.5 } };
+    if (f === "sbdgz" && !extra) { var ld = [50, 100, 150];                // the depth is a count of 5 hPa steps: lines between the steps
+      return Object.assign(base, { rad2: 1, lut: sbLut(function (c) { return c === 255 ? NaN : 5 * c; }), ch: 1, stride: 2, levels: [47.5, 97.5, 147.5], values: ld, fmt: function (v) { return v + " hPa"; },
+        style: function (v) { return ["#7a5c00", { 50: 0.9, 100: 1.4, 150: 1.9 }[v]]; },
+        gl: { list: [47.5], col: "rgba(122,92,0,0.95)", w: 0.9, special: [[97.5, 1.4, "rgba(122,92,0,0.95)"], [147.5, 1.9, "rgba(122,92,0,0.95)"]] } }); }
+    if (f === "sbing" && !extra)
+      return { rad: 0, rad2: 0, dec: 1, minPts: 3, lut: sbLut(function (c) { return c / 250; }), ch: 2, stride: 3, levels: [0.5], values: [0.5], fmt: String,
+        lab: function () { return false; }, style: function () { return ["#1d3f8f", 1.6]; }, gl: { list: [0.5], col: "rgba(29,63,143,0.95)", w: 1.6, hw: 0.6 } };
     return null;
   }
   var CONT = new Map(), contBusy = {};
@@ -2472,6 +2572,27 @@
       barb(ctx, px, py, su, sv, kt, L);
     }
   }
+  // axes of dilatation (snowband.py's quiver): sampled on a screen lattice; drawn where the deformation is in the top 15 % of
+  // what is in view (the old figures took the 85th percentile over their region) and never below 6e-5 s-1 (code 30)
+  function drawAxes(ctx, d) {
+    var sp = Math.round((W < 640 ? 22 : 26) * Q.barb[Q.lvl]), pts = [], Ds = [];
+    for (var py = sp / 2; py < H; py += sp) for (var px = sp / 2; px < W; px += sp) {
+      var s = sample(d, px, py); if (!s || s[1] === 255) continue;
+      Ds.push(s[1]); if (s[0] !== 255) pts.push([px, py, s[0], s[1], s[2]]);
+    }
+    if (!pts.length) return;
+    Ds.sort(function (a, b) { return a - b; });
+    var thr = Math.max(Ds[Math.floor(0.85 * (Ds.length - 1))], SB.dmin / 2e-6), L = 8;
+    ctx.strokeStyle = "rgba(31,59,115,0.88)"; ctx.lineWidth = 1.7; ctx.lineCap = "round"; ctx.beginPath();
+    pts.forEach(function (p) {
+      if (p[3] < thr) return;
+      var a = p[2] * 2 * D2R, ue = Math.cos(a), vn = Math.sin(a), ll = P.inv(p[4][0], p[4][1]);
+      var d0 = ll[0] * D2R - P.lon0; d0 = Math.atan2(Math.sin(d0), Math.cos(d0));
+      var th = P.n * d0, su = ue * Math.cos(th) - vn * Math.sin(th), sv = ue * Math.sin(th) + vn * Math.cos(th);   // earth -> map frame
+      ctx.moveTo(p[0] - su * L, p[1] + sv * L); ctx.lineTo(p[0] + su * L, p[1] - sv * L);
+    });
+    ctx.stroke(); ctx.lineCap = "butt";
+  }
   function barb(ctx, x, y, su, sv, kt, L) {
     var m = Math.sqrt(su * su + sv * sv);
     if (kt < 2.5 || m === 0) { ctx.beginPath(); ctx.arc(x, y, 2.4, 0, 2 * Math.PI); ctx.stroke(); return; }
@@ -2609,6 +2730,17 @@
     var S = { r: -1e9 };
     for (i = 1; i < n; i++) { var x = x0 + i * bw; if (!lab(i)) continue; ctx.fillRect(x - 0.5, y + bh, 1, 4); hLab(ctx, lab(i), x, x0, x1, y + bh + 5, S); }
   }
+  function drawLegendSB(f) {
+    var rd = st.model === "rdps";
+    if (f === "sbfg") drawLegendClasses(SB.FG_LEV, SB.FG_COL, "700 hPa frontogenesis, K per 100 km per 3 h (blank below 0.5) · brown lines: 700 hPa θ every 2 K · black lines: 700 hPa height every 30 m (dam) · navy segments: axes of dilatation where the deformation is in the top 15 % of the map in view · grey: 700 hPa within 25 hPa of the ground",
+      function (v) { return v === 20 ? "20+" : String(v); });
+    else if (f === "sbepv") drawLegendClasses(SB.EPV_LEV, SB.EPV_COL, "EPV*, 750–500 hPa mean, PVU, where that layer is saturated (RH ≥ 80 %, over ice below 0 °C; grey outline) · purple: negative (slantwise unstable) · hatched: θes falls with height (upright CI, not CSI) · magenta lines: 800–600 hPa frontogenesis 2, 4, 8, 16",
+      function (v) { return v === -1e9 ? "" : String(v).replace("-", "−"); });
+    else if (f === "sbdgz") drawLegendClasses(SB.DGZ_LEV, SB.DGZ_COL, "Strongest lift (−ω, µb/s) through the saturated −12 to −18 °C layer (blank below 2) · brown lines: that layer's depth, 50 / 100 / 150 hPa" + (rd ? " · RDPS lift interpolated from 850, 700 and 500 hPa" : ""),
+      function (v) { return v === 60 ? "60+" : String(v); });
+    else drawLegendClasses([2, 3], SB.ING_COL, "Band ingredients overlapping: 700 hPa frontogenesis ≥ 4, EPV* ≤ 0.25 PVU (saturated), DGZ lift ≥ 10 µb/s · navy outline: the model's snow " + (rd ? "≥ 1 mm in the hour" : "≥ 25 dBZ") + " · grey lines: 700 hPa height · an overlap of ingredients, not a probability",
+      function (v) { return v === 2 ? "2 of 3" : "all 3"; });
+  }
   function drawLegend() {
     if (diffOn()) { drawLegendDiff(); return; }
     if (st.field === "dt") { drawLegendDT(); return; }
@@ -2621,6 +2753,7 @@
       else drawLegendClasses(PV_LEV, PV_COLS, st.field === "pvu" ? "Potential vorticity, 300–250 hPa layer mean, PVU (1 PVU = 10⁻⁶ K m² kg⁻¹ s⁻¹) · bold line: 2 PVU, the dynamic tropopause (blue: stratospheric air) · thin lines: 250 hPa height every 120 m (dam) · barbs: 250 hPa wind, knots"
         : "Potential vorticity on the " + fdl.theta + " K isentrope, PVU · bold line: 2 PVU (blue: stratospheric air - troughs, jets' cold side) · thin lines: the pressure of the " + fdl.theta + " K surface every 50 hPa · barbs: the wind on it, knots · blank where " + fdl.theta + " K is outside 100–700 hPa", String);
       return; }
+    if (fdl && fdl.sb) { drawLegendSB(st.field); return; }
     if (st.field === "etop") { drawLegendClasses(ET_LEVELS, ET_COLORS, "Echo tops (the model's 18.3 dBZ echo top), thousands of feet above sea level, 5,000 ft classes · blank: no echo", function (v) { return v === 50 ? "50+" : String(v); }); return; }
     if (st.field === "refl") { drawLegendRefl(); return; }
     if (st.field === "ecape") { drawLegendSteps(); return; }
@@ -2682,6 +2815,7 @@
   // 2026-10-04), the 10 m wind and gust in runs made before they were added. Accumulation and ECAPE explain themselves.
   function fieldGone(model, f) {
     var c = cycleObj(model, st.ci) || cycleObj(model, 0);
+    if (FIELDS[f] && FIELDS[f].sb) return false;                     // snow bands: the group stays all year; the map says when they run
     if (NA[model] && NA[model][f]) return false;                    // shown disabled with the reason
     if (FIELDS[f] && FIELDS[f].ua && c && c.fields && !c.fields[f])        // upper air: keep the button while another model has it
       return !MODEL_ORDER.some(function (m) { var c2 = cycleObj(m, 0); return c2 && c2.fields && c2.fields[f]; });
@@ -2808,6 +2942,8 @@
         : sub1.files[0].indexOf("ecape") === 0 ? "CAPE an updraft of finite width actually gets once it entrains environmental air (Peters et al. 2023), from the thermodynamic profile and the storm-relative wind. " : "The textbook, undiluted CAPE of the same parcel, for comparison with ECAPE. ") +
         "Computed with SHARPlib on every column of the HRRR's native levels (1.9 million soundings per hour), hourly to +18 h and 3-hourly to +48 h; stored to within ±√(J/kg)/2.8 (±4 J/kg at 100, ±11 at 1,000, ±20 at 3,000).";
     }
+    var cN = cycleObj(st.model, st.ci);
+    if (FIELDS[st.field] && FIELDS[st.field].sb && cN && cN.snowband && cN.snowband.forced && fm) n = "<b>Test run outside the season (" + cN.snowband.window + ").</b> " + n;
     $("note").innerHTML = n;
     drawLegend();
     prefetch();
@@ -2846,7 +2982,8 @@
       list.forEach(function (a, i) { if (ms.indexOf(a[3]) >= 0) { out.push(a, [st.model, c, "mslp", a[3], false]); if (i < n0) nU++; } else out.push(a); });
       list = out;
     }
-    var ride = st.field === "pvu" ? "ua250" : FIELDS[st.field] && FIELDS[st.field].theta ? "w" + FIELDS[st.field].theta : null;
+    var ride = st.field === "pvu" ? "ua250" : FIELDS[st.field] && FIELDS[st.field].theta ? "w" + FIELDS[st.field].theta
+      : st.field === "sbfg" ? "sbdef" : st.field === "sbing" ? "sbfg" : null;          // snow bands: the axes; the ingredients' heights
     if (ride && c.fields[ride]) {                                   // PV maps: barbs (and 250 hPa heights) from their companion frame
       var wr = c.fields[ride].hours, outr = [], nr = nU;
       list.forEach(function (a, i) { outr.push(a); if (wr.indexOf(a[3]) >= 0) { outr.push([st.model, c, ride, a[3], false]); if (i < nr) nU++; } });
@@ -3101,6 +3238,8 @@
       var cm = function (i, j) { return am[2 * ((gm.ny - 1 - j) * gm.nx + i)]; }, q4 = [cm(i0m, j0m), cm(i1m, j0m), cm(i0m, j1m), cm(i1m, j1m)];
       var fxm = xm - i0m, fym = ym - j0m, cmv = q4.indexOf(255) >= 0 ? s[0] : (q4[0] * (1 - fxm) + q4[1] * fxm) * (1 - fym) + (q4[2] * (1 - fxm) + q4[3] * fxm) * fym;
       txt = cmv === 255 ? "no data" : fd.fmt(940 + 0.5 * cmv) + (s[1] ? "<br><span class=\"ll\">high terrain: sea-level reduction unreliable</span>" : "");
+    } else if (fd.sb) {
+      txt = sbHover(d, px, py, s);
     } else if (FIELDS[d.field] && FIELDS[d.field].ua) {                  // upper air: bilinear, as the shader draws it
       var iju = MV_ij(d, px, py), gu = d.g, xu = Math.max(0, Math.min(gu.nx - 1, iju[0])), yu = Math.max(0, Math.min(gu.ny - 1, iju[1]));
       var iu0 = Math.floor(xu), ju0 = Math.floor(yu), iu1 = Math.min(iu0 + 1, gu.nx - 1), ju1 = Math.min(ju0 + 1, gu.ny - 1), au = d.e.dec.data, ncu = chOf(d.field);
@@ -3164,6 +3303,49 @@
     if (sticky) { clearTimeout(tip._t); tip._t = setTimeout(function () { tip.style.display = "none"; }, 4000); }
   }
 
+  // snow-band hover: bilinear values as the shader draws them, flags from the nearest cell
+  function bilAt(d, px, py, ch, f) {                               // f(code) -> value or null; null if a corner is missing
+    var ij = MV_ij(d, px, py), g = d.g, x = Math.max(0, Math.min(g.nx - 1, ij[0])), y = Math.max(0, Math.min(g.ny - 1, ij[1]));
+    var i0 = Math.floor(x), j0 = Math.floor(y), i1 = Math.min(i0 + 1, g.nx - 1), j1 = Math.min(j0 + 1, g.ny - 1), a = d.e.dec.data, nc = chOf(d.field);
+    var q = [[i0, j0], [i1, j0], [i0, j1], [i1, j1]].map(function (p) { return f(a[nc * ((g.ny - 1 - p[1]) * g.nx + p[0]) + ch]); });
+    if (q.some(function (v) { return v === null; })) return null;
+    var fx = x - i0, fy = y - j0; return (q[0] * (1 - fx) + q[1] * fx) * (1 - fy) + (q[2] * (1 - fx) + q[3] * fx) * fy;
+  }
+  function sbHover(d, px, py, s) {
+    var M = function (c) { return c === 255 ? null : c; }, fmt1 = function (v) { return (v < 0 ? "−" : "") + Math.abs(v).toFixed(1); };
+    var lin = function (off, step) { return function (c) { return c === 255 ? null : off + step * c; }; };
+    if (d.field === "sbfg") {
+      var fg = bilAt(d, px, py, 0, lin(-20.125, 0.25)), th = bilAt(d, px, py, 1, lin(240.2, 0.4)), z = bilAt(d, px, py, 2, lin(2402.5, 5));
+      var t = fg === null ? "700 hPa is within 25 hPa of the ground here: no frontogenesis shown" : "700 hPa frontogenesis " + fmt1(fg) + " K per 100 km per 3 h" + (fg < 0 ? " (frontolysis)" : "");
+      t += "<br><span class=\"ll\">θ " + (th === null ? "–" : th.toFixed(1) + " K") + " · height " + (z === null ? "–" : Math.round(z).toLocaleString("en-US") + " m");
+      var w = windFor(d, "sbdef"), sd = w && sample(w, px, py);
+      if (sd && sd[1] !== 255) t += "<br>deformation " + (sd[1] === 0 ? "below 6" : (sd[1] * 0.2).toFixed(1)) + " × 10⁻⁵ s⁻¹" + (sd[0] !== 255 ? ", dilatation axis " + (sd[0] * 2) + "° from east" : "");
+      return t + "</span>";
+    }
+    if (d.field === "sbepv") {
+      var rc = s[1] & 127, rh = rc === 127 ? null : rc, ci = s[1] >= 128, fgl = bilAt(d, px, py, 2, lin(-20.125, 0.25));
+      var rhs = rh === null ? "–" : (rh <= 50 ? "50 % or less" : rh + " %"), ex = fgl === null ? "" : "<br><span class=\"ll\">800–600 hPa frontogenesis " + fmt1(fgl) + "</span>";
+      if (s[0] === 255) return "not saturated: 750–500 hPa RH " + rhs + " (EPV* is shown only at 80 % or more)" + ex;
+      var e = bilAt(d, px, py, 0, lin(-2.5, 0.025));
+      return (e === null ? "EPV* at the edge of the saturated air" : "EPV* " + (s[0] === 0 ? "≤ " : s[0] === 254 ? "≥ " : "") + (e < 0 ? "−" : "") + Math.abs(e).toFixed(2) + " PVU") + " · RH " + rhs +
+        (ci ? "<br>θ<sub>es</sub> falls with height: upright instability, not CSI" : e !== null && e < 0 ? "<br>negative in saturated, upright-stable air: CSI" : "") + ex;
+    }
+    if (d.field === "sbdgz") {
+      var dep = s[1] === 255 ? null : 5 * s[1], lf = bilAt(d, px, py, 0, lin(-20, 0.5));
+      var ds = "<br><span class=\"ll\">−12 to −18 °C layer " + (dep ? dep + " hPa deep" : "absent") + "</span>";
+      if (s[0] === 255 || lf === null) return "no saturated −12 to −18 °C layer here" + ds;
+      return "lift " + (s[0] === 0 ? "≤ " : "") + (lf < 0 ? "−" : "") + Math.abs(lf).toFixed(1) + " µb/s in the saturated DGZ" + (lf < 0 ? " (sinking)" : "") + ds;
+    }
+    var fl = s[1], n = (fl & 1) + (fl >> 1 & 1) + (fl >> 2 & 1), yn = function (b) { return b ? "yes" : "no"; };
+    return n + " of 3 ingredients<br><span class=\"ll\">frontogenesis ≥ " + SB.fg + ": " + yn(fl & 1) + " · EPV* ≤ " + SB.epv + " PVU, saturated: " + yn(fl & 2) +
+      " · DGZ lift ≥ " + SB.lift + " µb/s: " + yn(fl & 4) + (s[3] >= 125 ? "<br>model snow " + (d.model === "rdps" ? "≥ 1 mm in the hour" : "≥ 25 dBZ") : "") + "</span>";
+  }
+  function sbMissing(c) {
+    var sbm = c && c.snowband, when = c.init.slice(5, 10).replace("-", "/") + " " + c.init.slice(11, 13) + "Z", M = MODELS[st.model];
+    if (sbm && !sbm.active && !sbm.computed) return "The snow-band diagnostics are computed in season, " + sbm.window + "; this " + M + " run (" + when + ") is outside it. The case studies (Binghamton, December 2020) are under \"About these maps\" below.";
+    if (!sbm) return "The snow-band diagnostics start with the runs made from 9 October 2026; this " + M + " run (" + when + ") is older. They appear with the next run.";
+    return "The snow-band diagnostics are missing from this " + M + " run (" + when + "): its pressure-level files could not be read. The next run tries again.";
+  }
   // ── model difference (2026-10-01, user "model-difference toggle"): HRRR minus RRFS (or the reverse) at the same valid
   // time, worked out here from the two frames the page already decodes - the two models share the identical 3 km grid
   // (same grid description in both manifests), so it is a cell-by-cell subtraction. 1-byte code 127 + d / step (0 = none).
@@ -3790,6 +3972,33 @@
     return p.length >= 3 && p[2] !== "";
   }
 
+  // snow-band case studies in About (2026-10-09, moved from snowbands.html): sst_anim.html in an iframe, created only when
+  // "About these maps" is opened (or the page is opened on #snowband-cases); sized by the player's own height message
+  var SBC = { man: null, on: false };
+  function sbCaseShow() {
+    var cid = $("sbCase").value, v = $("sbView").value, id = "case_" + cid + "_" + v, w = $("sbCaseW");
+    var reg = SBC.man && SBC.man.regions && SBC.man.regions[id];
+    var f = w.querySelector("iframe"); if (!f) { f = document.createElement("iframe"); f.title = "Snow-band case study loop"; w.appendChild(f); }
+    f.style.height = ""; f.style.aspectRatio = reg && reg.w ? reg.w + "/" + (reg.h + 46) : (v === "ov" || v === "radar" ? "1166/1261" : "964/1046");
+    f.src = "/sst_anim.html?embed=1&base=assets/snowband/anim&manifest=snowband_case_manifest.json&region=" + id + "&regions=" + id + "&start=0";
+  }
+  function sbCases() {
+    if (SBC.on) return; SBC.on = true;
+    fetch("/assets/snowband/anim/snowband_case_manifest.json?v=" + Math.floor(Date.now() / 3600e3)).then(function (r) { return r.ok ? r.json() : null; })
+      .catch(function () { return null; }).then(function (m) { SBC.man = m; sbCaseShow(); });
+  }
+  $("sbCase").onchange = sbCaseShow; $("sbView").onchange = sbCaseShow;
+  addEventListener("message", function (e) {
+    var x = e.data, f = $("sbCaseW").querySelector("iframe"); if (!x || x.type !== "sstAnimHeight" || !f || f.contentWindow !== e.source) return;
+    f.style.height = x.h + "px"; f.style.aspectRatio = "auto";
+  });
+  var aboutEl = document.querySelector(".mv-about");
+  aboutEl.addEventListener("toggle", function () { if (aboutEl.open) sbCases(); });
+  if (/^#snowband/.test(location.hash)) {
+    var cm = /^#snowband-cases(?:\/(c\d{10}))?(?:\/([a-z]+))?/.exec(location.hash);
+    if (cm && cm[1]) $("sbCase").value = cm[1]; if (cm && cm[2]) $("sbView").value = cm[2];
+    aboutEl.open = true; sbCases(); setTimeout(function () { var t = $(location.hash.indexOf("cases") > 0 ? "snowband-cases" : "snowbands"); if (t) t.scrollIntoView(); }, 300);
+  }
   window.MV = { st: st, man: man, frames: frames, CONT: CONT, get view() { return view; }, get drawn() { return drawn; }, P: P, gridIJ: gridIJ,   // for testing from the console
     Q: Q, NET: NET, geo: geo, gpuMs: GPU_MS, get gpuc() { return GPUC; }, render: render,
     // GPU cost of the pan path: n map frames (view nudged each time) with and without the contour layers, each waited for (readPixels)

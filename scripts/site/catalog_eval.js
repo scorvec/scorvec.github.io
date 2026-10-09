@@ -21,7 +21,7 @@ process.on("unhandledRejection", () => {});
 process.on("uncaughtException", () => {});
 const ROOT = path.resolve(__dirname, "..", "..");
 const html = fs.readFileSync(PAGE, "utf8");
-// Pages that build their spec after fetching status/manifests (snowbands.html) get the repo's own files:
+// Pages that build their spec after fetching status/manifests get the repo's own files:
 // same-origin relative URLs resolve against the page's directory, root-relative ones against the repo.
 function localFetch(u) {
   u = String(u).split("?")[0].split("#")[0];

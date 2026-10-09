@@ -149,7 +149,27 @@ FIELDS = {
     "pvl": dict(enc="pv3", off=-2.0, step=0.0625, uv=(-63.5, 0.5)),
     **{f"pv{int(t)}": dict(enc="pvth", off=-2.0, step=0.0625, p=(100.0, 2.5)) for t in UPR.THETAS},
     **{f"w{int(t)}": dict(enc="lin2", off=-101.6, step=0.8) for t in UPR.THETAS},
+    # snow-band diagnostics (2026-10-09, user: "fold in the snowband diagnostics into the short-term model viewer"): the SAME
+    # computation as the retired snowbands.html (scripts/snowband/snowband.py smooth_diagnose / ingredients: Gaussian
+    # sigma 18 km on the native grid, evaluated on 12 km - the HRRR's "sub" grid - or the RDPS's own 10 km grid), every
+    # 3 h from +3 h, in season (SB_SEASON). 255 = missing / masked in every channel unless said otherwise.
+    #   sbfg   R = 700 hPa Petterssen frontogenesis, K per 100 km per 3 h, -20.125 + 0.25 * code (255: 700 hPa within 25 hPa
+    #          of the ground); G = 700 hPa theta, 240.2 + 0.4 K * code; B = 700 hPa height, 2402.5 + 5 m * code (offsets half a
+    #          step off round numbers: no code equals a contour level)
+    #   sbdef  R = axis of dilatation, counter-clockwise from EAST (earth-relative), 2 degrees * code (0-89; 255 where 700 hPa is
+    #          near the ground or the deformation is below 6e-5 s-1, where no axis is drawn); G = total deformation, 2e-6 s-1 * code (the page draws the axes where it is in the top
+    #          15 % of the area in view and >= 6e-5 s-1, as snowband.py did per region)
+    #   sbepv  R = EPV* 750-500 hPa layer mean, PVU, -2.5 + 0.025 * code, only where the layer is saturated (RH >= 80 %,
+    #          over ice below 0 C; 255 elsewhere); G = that layer's RH in % (50 = 50 or less, to 126; 127 = none) + 128 where theta_es falls
+    #          with height (upright CI); B = 800-600 hPa frontogenesis as sbfg R
+    #   sbdgz  R = max -omega in the saturated -12..-18 C layer, microbar/s, -20 + 0.5 * code (255: no saturated DGZ);
+    #          G = DGZ depth, 5 hPa * code
+    #   sbing  R = 60 x the number of ingredients (0-3; bilinear on the page, so the 1.5 / 2.5 edges are smooth as a
+    #          contourf), G = which: 1 frontogenesis, 2 EPV*, 4 DGZ lift; B = 250 x the fraction of the cell with model
+    #          snow at >= 25 dBZ composite reflectivity (RDPS: >= 1 mm in the hour)
+    **{f: dict(enc=f) for f in ("sbfg", "sbdef", "sbepv", "sbdgz", "sbing")},
 }
+SB_FIELDS = ("sbfg", "sbdef", "sbepv", "sbdgz", "sbing")
 ACC_METHOD = {
     "hrrr": dict(apcp="APCP", asnow="ASNOW, the HRRR's own snowfall (variable snow density)",
                  afzra="FRZR, the model's accumulated freezing rain (liquid equivalent, not ice accretion)",
@@ -174,7 +194,7 @@ ACC_METHOD["rrfs"].update(afram=_FRAM.format(src="FRZR; 3-hourly past 36 h"), as
 ACC_METHOD["rdps"].update(afram=_FRAM.format(src="FreezingRain-Accum"), asnod=_SNOD.format(src="SnowDepth"))
 ORDER = ["ir", "refl", "ceil", "vis", "t2m", "td2m", "smoke", "wind80", "wind10", "gust", "sw", "mslp", "apcp", "asnow", "afzra", "aip",
          "uh25", "uh25s", "uh03", "uh03s", "uvv", "uvvs", "etop", "hpbl",
-         "ua925", "ua250", "dt", "z500", "w500", "pvu", "pvl", *[f"{k}{int(t)}" for k in ("pv", "w") for t in UPR.THETAS], "afram", "acobb", "as10", "asnod"]
+         "ua925", "ua250", "dt", "z500", "w500", "pvu", "pvl", *[f"{k}{int(t)}" for k in ("pv", "w") for t in UPR.THETAS], "afram", "acobb", "as10", "asnod", *SB_FIELDS]
 PV_FIELDS = ("pvu", "pvl") + tuple(f"{k}{int(t)}" for k in ("pv", "w") for t in UPR.THETAS)
 UA_FIELDS = ("ua925", "ua250", "dt", "z500", "w500") + PV_FIELDS
 UA_ON = os.environ.get("MV_UA", "0") == "1"            # models.yml sets MV_UA=1 (the switch for the upper-air fetch)
@@ -195,6 +215,42 @@ SUB = {"hrrr": 4, "rrfs": 4, "rdps": 2}
 SMOKE_SEASON = (4, 1, 9, 30)
 
 
+# Snow-band diagnostics: a season gate on the run's UTC date, inclusive (month, day, month, day). User 2026-10-09: "it's
+# fine, you can start showing them now it's almost november anyway" - so 1 October to 30 April (snowbands.html ran
+# 1 November - 15 April). MV_SB_SEASON="MM-DD:MM-DD" overrides; MV_SB=force computes them out of season (testing,
+# models.yml input "snowband"), MV_SB=off never. HRRR (AWS) and RDPS (Datamart) only: the RRFS pressure-level files are
+# only on NOMADS (user 2026-10-07: "Dont use nomads if we can").
+SB_MODELS = ("hrrr", "rdps")
+SB_GRID = {"hrrr": "sub", "rdps": "main"}          # the 12 km "sub" grid = snowband.py's evaluation grid; RDPS 10 km as is
+
+
+def sb_season():
+    a, b = os.environ.get("MV_SB_SEASON", "10-01:04-30").split(":")
+    return tuple(int(x) for x in a.split("-")) + tuple(int(x) for x in b.split("-"))
+
+
+def sb_in_season(cyc_dt):
+    m0, d0, m1, d1 = sb_season()
+    md = (cyc_dt.month, cyc_dt.day)
+    return (md >= (m0, d0) or md <= (m1, d1)) if (m0, d0) > (m1, d1) else ((m0, d0) <= md <= (m1, d1))
+
+
+def sb_on(model, cyc_dt):
+    mode = os.environ.get("MV_SB", "auto")
+    return model in SB_MODELS and mode != "off" and (mode == "force" or sb_in_season(cyc_dt))
+
+
+def sb_hour(lead):
+    """every 3 h from +3 h (the HRRR's analysis hour has no usable vertical motion; snowband.py likewise)"""
+    return lead >= 3 and lead % 3 == 0
+
+
+def sb_window_text():
+    m0, d0, m1, d1 = sb_season()
+    mon = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"]
+    return f"{d0} {mon[m0 - 1]} – {d1} {mon[m1 - 1]}"
+
+
 def smoke_on(cyc_dt):
     m0, d0, m1, d1 = SMOKE_SEASON
     return (m0, d0) <= (cyc_dt.month, cyc_dt.day) <= (m1, d1)
@@ -207,7 +263,7 @@ def smoke_on(cyc_dt):
 LO = {"hrrr": 2, "rrfs": 2}
 CONV_MAX = ("uh25", "uh03", "uvv")            # hourly-max fields: no f00, and a run swath each
 HPBL_GRID = {"hrrr": "lo", "rrfs": "lo", "rdps": "sub"}
-LO_SKIP = {*PV_FIELDS, "hpbl", "uh25", "uh25s", "uh03", "uh03s", "uvv", "uvvs",   # narrow tracks: every-2nd-point copies would drop them (tiny anyway)
+LO_SKIP = {*PV_FIELDS, *SB_FIELDS, "hpbl", "uh25", "uh25s", "uh03", "uh03s", "uvv", "uvvs",   # narrow tracks: every-2nd-point copies would drop them (tiny anyway)
            "mslp", "ua925", "ua250", "dt", "z500", "w500"}
 
 
@@ -290,6 +346,8 @@ def encode(name, x):
             c = np.dstack([pv, q_lin(x[2], *f["p"]), np.zeros(pv.shape, np.uint8)])
         c[..., 1:][pv == 255] = 255
         return c[::-1], None
+    if f["enc"] in SB_FIELDS:
+        return encode_sb(f["enc"], x), None
     if f["enc"] in ("uvz", "dt", "vz"):
         z3 = np.zeros(x[1].shape, np.uint8)
         if f["enc"] == "uvz":                                      # ("uvz", u, v, height)
@@ -327,6 +385,43 @@ def encode(name, x):
         c = np.dstack([q_lin(u, f["off"], f["step"]), q_lin(v, f["off"], f["step"]), np.zeros(u.shape, np.uint8)])
         p = None
     return c[::-1], p
+
+
+def encode_sb(kind, x):
+    """snow-band fields (see FIELDS) -> uint8 image, row 0 north"""
+    z = lambda a: np.zeros(a.shape, np.uint8)                       # noqa: E731
+    if kind == "sbfg":
+        fg, th, zz = x[1:]
+        # offsets half a step off the round numbers (2026-10-09): no stored value then equals a contour level (theta every
+        # 2 K, height every 30 m, frontogenesis 2/4/8/16), so a flat field cannot make a plateau AT a level - those drew
+        # rectangular staircase lines round the plateau's cells
+        c = np.dstack([q_lin(fg, -20.125, 0.25), q_lin(th, 240.2, 0.4), q_lin(zz, 2402.5, 5.0)])
+    elif kind == "sbdef":
+        ang, D = x[1:]
+        ok = np.isfinite(ang) & np.isfinite(D)
+        # the angle only where an axis can be drawn (D >= 6e-5 s-1, the page's floor): elsewhere it is noise that tripled
+        # the file (96 -> ~30 KB/h on the HRRR, measured 2026-10-09)
+        # and the deformation below that floor as 0: the page's threshold is max(85th percentile in view, 6e-5), which
+        # values below the floor can never change (a quantile above the floor is the same with them clamped)
+        big = ok & (np.nan_to_num(D) >= 6e-5)
+        r = np.where(big, np.mod(np.rint(np.nan_to_num(ang) / 2.0), 90), 255).astype(np.uint8)        # 2-degree steps
+        g = np.where(ok, np.where(big, np.clip(np.rint(np.nan_to_num(D) / 2e-6), 30, 254), 0), 255).astype(np.uint8)
+        c = np.dstack([r, g, z(r)])
+    elif kind == "sbepv":
+        epv, rh, ci, fgl = x[1:]
+        # RH below 50 % stored as 50 ("50 % or less"): only the 80 % outline and the hover use it; the dry noise below
+        # cost a third of the RDPS file
+        g = np.where(np.isfinite(rh), np.clip(np.rint(np.nan_to_num(rh)), 50, 126), 127) + 128 * (np.asarray(ci) > 0)
+        c = np.dstack([q_lin(epv, -2.5, 0.025), g.astype(np.uint8), q_lin(fgl, -20.125, 0.25)])
+    elif kind == "sbdgz":
+        lift, depth = x[1:]
+        g = np.where(np.isfinite(depth), np.clip(np.rint(np.nan_to_num(depth) / 5.0), 0, 254), 255).astype(np.uint8)
+        c = np.dstack([q_lin(lift, -20.0, 0.5), g, z(g)])
+    else:                                                           # sbing
+        n, flags, snow = x[1:]
+        c = np.dstack([(60 * np.asarray(n)).astype(np.uint8), np.asarray(flags).astype(np.uint8),
+                       np.clip(np.rint(250 * np.nan_to_num(snow)), 0, 250).astype(np.uint8)])
+    return c[::-1]
 
 
 def webp(arr):
@@ -424,6 +519,34 @@ def rdps_ua_jobs(date, cyc, lead):
         j[f"ua:Z:{p}"] = rdps_url(date, cyc, lead, f"GeopotentialHeight_IsbL-{p:04d}")
     j["ua:AV:500"] = rdps_url(date, cyc, lead, "AbsoluteVorticity_IsbL-0500")
     j["ua:PDT"] = rdps_url(date, cyc, lead, "Pressure_PVU-2")
+    return j
+
+
+def sb_want_lcc():
+    """.idx regexes of the snow-band columns in HRRR wrfprs (snowband.py read_levels): T, u, v, omega, q on sb.LEVS
+    (950-450 hPa every 25) and the 700 hPa height. Keys shared with the upper-air (ua:) and Cobb (cb:VVEL) sets, so a
+    message wanted by two is fetched once."""
+    w = {}
+    for p in sb.LEVS:
+        for v, k in (("TMP", "ua:TMP"), ("UGRD", "ua:UGRD"), ("VGRD", "ua:VGRD"), ("VVEL", "cb:VVEL"), ("SPFH", "sb:SPFH")):
+            w[f"{k}:{p}"] = rf"^{v}:{p} mb:(anl|\d+ hour fcst):?$"
+    w["ua:HGT:700"] = r"^HGT:700 mb:(anl|\d+ hour fcst):?$"
+    return w
+
+
+def rdps_sb_jobs(date, cyc, lead):
+    """the RDPS snow-band inputs (snowband.py read_levels / read_surface): T, u, v, q on sb.LEVS_RDPS, omega at 850/700/
+    500 hPa, the 700 hPa height and the 1-h precipitation (keys shared with the upper-air set)"""
+    j = {}
+    for p in sb.LEVS_RDPS:
+        j[f"ua:T:{p}"] = rdps_url(date, cyc, lead, f"AirTemp_IsbL-{p:04d}")
+        j[f"ua:U:{p}"] = rdps_url(date, cyc, lead, f"WindU_IsbL-{p:04d}")
+        j[f"ua:V:{p}"] = rdps_url(date, cyc, lead, f"WindV_IsbL-{p:04d}")
+        j[f"sb:Q:{p}"] = rdps_url(date, cyc, lead, f"SpecificHumidity_IsbL-{p:04d}")
+    for p in sb.RDPS_W_LEVS:
+        j[f"sb:W:{p}"] = rdps_url(date, cyc, lead, f"VerticalVelocity_IsbL-{p:04d}")
+    j["ua:Z:700"] = rdps_url(date, cyc, lead, "GeopotentialHeight_IsbL-0700")
+    j["sb:PA1"] = rdps_url(date, cyc, lead, "Precip-Accum1h_Sfc")
     return j
 
 
@@ -734,6 +857,80 @@ def ua_rdps(blobs, crop):
     return out
 
 
+def sb_grid(model):
+    """snowband.Grid over the whole viewer grid (no crop), built once per worker"""
+    if "_sbgrid" not in _CTX:
+        _CTX["_sbgrid"] = sb.Grid(dict(lat=_CTX["sb_lat"], lon=_CTX["sb_lon"], grid_rel=bool(_CTX.get("grid_rel"))),
+                                  sb.SRC_DX[model], box=None)
+    return _CTX["_sbgrid"]
+
+
+def sb_fields(model, blobs, crop):
+    """The snow-band diagnostics of one hour -> {field: tuple for encode()}, computed by snowband.py itself
+    (smooth_diagnose, ingredients); this only feeds it the fields and re-expresses the dilatation axis earth-relative."""
+    gr = sb_grid(model)
+    if model == "rdps":
+        levs = list(sb.LEVS_RDPS)
+        need = ([f"ua:{c}:{p}" for c in "TUV" for p in levs] + [f"sb:Q:{p}" for p in levs]
+                + [f"sb:W:{p}" for p in sb.RDPS_W_LEVS] + ["ua:Z:700", "psfc"])
+        miss = [k for k in need if k not in blobs]
+        if miss:
+            print(f"  snow-band: missing {miss[:6]}", flush=True)
+            return {}
+        W3 = {p: dec(blobs[f"sb:W:{p}"], crop) for p in sb.RDPS_W_LEVS}
+        key = dict(T="ua:T", u="ua:U", v="ua:V", q="sb:Q")
+
+        def level(name, k):
+            p = levs[k]
+            if name == "w":
+                return sb.rdps_omega(W3, p)
+            a = dec(blobs[f"{key[name]}:{p}"], crop)
+            return sb.rdps_kelvin(a) if name == "T" else a
+        z7 = sb.rdps_z_m(dec(blobs["ua:Z:700"], crop))
+        ps = dec(blobs["psfc"], crop)
+        ps = ps if np.nanmean(ps) > 5000 else ps * 100.0
+    else:
+        levs = list(sb.LEVS)
+        need = [f"{k}:{p}" for k in ("ua:TMP", "ua:UGRD", "ua:VGRD", "cb:VVEL", "sb:SPFH") for p in levs] + ["ua:HGT:700", "psfc"]
+        miss = [k for k in need if k not in blobs]
+        if miss:
+            print(f"  snow-band: missing {miss[:6]}", flush=True)
+            return {}
+        key = dict(T="ua:TMP", u="ua:UGRD", v="ua:VGRD", w="cb:VVEL", q="sb:SPFH")
+
+        def level(name, k):
+            return dec(blobs[f"{key[name]}:{levs[k]}"])
+        z7 = height_m(blobs["ua:HGT:700"], None, 700)
+        ps = dec(blobs["psfc"])
+    d = sb.smooth_diagnose(gr, levs, level, z7, ps)
+    f32 = lambda a: np.asarray(a, np.float32)                        # noqa: E731
+    # the axis of dilatation: snowband.py gives its angle from the grid's +i axis; + the angle of that axis from east
+    ang = np.degrees(d["alpha"] + gr.alpha[::gr.step, ::gr.step])
+    D = np.where(d["ground700"], np.nan, d["D"])
+    ang = np.where(np.isfinite(D), ang, np.nan)
+    n, fl, el, ll = sb.ingredients(d)
+    if model == "rdps":
+        if "sb:PA1" in blobs and "ptype" in blobs:
+            snow = ((np.rint(np.nan_to_num(dec(blobs["ptype"], crop), nan=6)) == 5)
+                    & (np.nan_to_num(dec(blobs["sb:PA1"], crop)) >= 1.0)).astype(np.float32)
+        else:
+            snow = np.full(n.shape, np.nan, np.float32)
+    else:
+        if "sb:REFC" in blobs and "csnow" in blobs:
+            hit = ((dec(blobs["csnow"]) >= 0.5) & (np.nan_to_num(dec(blobs["sb:REFC"])) >= 25.0)).astype(np.float32)
+            snow = UPR.smooth_dec(hit, gr.step)                       # fraction of the 12 km cell (block centred on it)
+        else:
+            snow = np.full(n.shape, np.nan, np.float32)
+    if snow.shape != n.shape:
+        raise ValueError(f"snow mask {snow.shape} vs diagnostics {n.shape}")
+    epv = np.where(d["sat"], d["epv"], np.nan)
+    return {"sbfg": ("sbfg", f32(d["fg"]), f32(d["th7"]), f32(d["z7"])),
+            "sbdef": ("sbdef", f32(ang), f32(D)),
+            "sbepv": ("sbepv", f32(epv), f32(d["rh_l"]), np.asarray(d["ci"], bool), f32(d["fg_layer"])),
+            "sbdgz": ("sbdgz", f32(d["dgz_lift"]), f32(d["dgz_depth"])),
+            "sbing": ("sbing", n.astype(np.uint8), (fl + 2 * el + 4 * ll).astype(np.uint8), f32(snow))}
+
+
 def winter_hour(blobs, crop, pt, apcp, phys):
     """This hour's inputs to the winter accumulations (winter.py), for the sequential pass: freezing-rain liquid so far
     (mm), 2 m wet-bulb (C) and 10 m wind (kt) where freezing rain has fallen or is falling, snow depth (in), and on the
@@ -846,6 +1043,13 @@ def process_hour(model, lead, blobs, outdir):
                 import traceback
                 traceback.print_exc()
                 print(f"::warning::{model} f{lead:03d}: upper air failed ({e!r})", flush=True)
+        if any(k.startswith("sb:") for k in blobs):
+            try:
+                phys.update(sb_fields(model, blobs, None))
+            except Exception as e:                              # noqa: BLE001
+                import traceback
+                traceback.print_exc()
+                print(f"::warning::{model} f{lead:03d}: snow-band diagnostics failed ({e!r})", flush=True)
     else:
         if "ir" in blobs:
             olr = dec(blobs["ir"], crop)
@@ -909,6 +1113,13 @@ def process_hour(model, lead, blobs, outdir):
                 import traceback
                 traceback.print_exc()
                 print(f"::warning::{model} f{lead:03d}: upper air failed ({e!r})", flush=True)
+        if any(k.startswith("sb:") for k in blobs):
+            try:
+                phys.update(sb_fields(model, blobs, crop))
+            except Exception as e:                              # noqa: BLE001
+                import traceback
+                traceback.print_exc()
+                print(f"::warning::{model} f{lead:03d}: snow-band diagnostics failed ({e!r})", flush=True)
     pts = {}
     try:                                        # meteogram points + county temperatures: never fail the maps for them
         if _CTX.get("ps") is not None:
@@ -997,6 +1208,12 @@ def fetch_hour(model, date, cyc, lead, cyc_dt):
                 pw[f"ua:TMP:{p}"] = rf"^TMP:{p} mb:(anl|\d+ hour fcst):?$"
                 pw[f"cb:RH:{p}"] = rf"^RH:{p} mb:(anl|\d+ hour fcst):?$"
                 pw[f"cb:VVEL:{p}"] = rf"^VVEL:{p} mb:(anl|\d+ hour fcst):?$"
+        if sb_on(model, cyc_dt) and sb_hour(lead):
+            pw.update(sb_want_lcc())
+            try:                                                 # composite reflectivity for the model-snow outline
+                out.update(fetch_idx_fields(model, file_url(model, date, cyc, lead), {"sb:REFC": r"^REFC:entire atmosphere"}))
+            except Exception as e:                               # noqa: BLE001
+                print(f"::warning::{model} f{lead:03d}: no REFC for the snow-band outline ({e!r})", flush=True)
         if pw:
             # upper air from the isobaric file: never fails the hour (the surface maps are the core product)
             for k in range(2):
@@ -1018,6 +1235,8 @@ def fetch_hour(model, date, cyc, lead, cyc_dt):
         jobs["swacc_prev"] = rdps_url(date, cyc, lead - 1, RDPS_VARS["swacc"])
     if UPR.ua_hour(lead) and ua_on("rdps"):
         jobs.update(rdps_ua_jobs(date, cyc, lead))
+    if sb_on("rdps", cyc_dt) and sb_hour(lead):
+        jobs.update(rdps_sb_jobs(date, cyc, lead))
     r_dt, off = raq_for(cyc_dt)
     if smoke and lead + off <= 72:
         jobs["smoke"] = raq_url(r_dt.strftime("%Y%m%d"), r_dt.hour, lead + off)
@@ -1140,6 +1359,8 @@ def cmd_run(a):
         grids["main"] = grid_desc(z)
         ctx.update(ua_levs=UPR.levs_of(model), lat_sub=lat[::SUB[model], ::SUB[model]].astype(np.float64), lat1=grids["main"]["lat1"],
                    lat2=grids["main"]["lat2"], dx=grids["main"]["dx"])
+        if sb_on(model, cyc_dt):
+            ctx.update(sb_lat=np.asarray(lat, np.float64), sb_lon=np.asarray(lon, np.float64))
         del lat, lon
     else:
         f = fetcher("rdps")
@@ -1155,6 +1376,8 @@ def cmd_run(a):
         ny0 = -(-gm["ny"] // F0)
         ctx.update(rd_grid=gm, rd_rlat=gm["la1"] + (gm.get("j0", 0) + F0 * np.arange(ny0)) * gm["dj"],
                    lat_sub=UPR.smooth_dec(lat[sl], F0).astype(np.float64))
+        if sb_on(model, cyc_dt):
+            ctx.update(sb_lat=np.asarray(lat[sl], np.float64), sb_lon=np.asarray(lon[sl], np.float64))
         r_dt, off = raq_for(cyc_dt)
         try:
             if not smoke_on(cyc_dt):
@@ -1325,7 +1548,10 @@ def cmd_run(a):
         if not hrs:
             continue
         e = dict(hours=hrs, grid="raq" if (model == "rdps" and name == "smoke") else "sub" if name == "mslp"
-                 else UA_GRID[model].get(name, "sub") if name in UA_FIELDS else HPBL_GRID[model] if name == "hpbl" else "main")
+                 else UA_GRID[model].get(name, "sub") if name in UA_FIELDS else HPBL_GRID[model] if name == "hpbl"
+                 else SB_GRID[model] if name in SB_FIELDS else "main")
+        if name in SB_FIELDS:
+            e["enc"] = name
         fd = FIELDS[name]
         if fd["enc"] in ("uvz", "vz"):
             e.update(enc=fd["enc"], q=[per_field[name][h] for h in hrs])
@@ -1358,6 +1584,10 @@ def cmd_run(a):
                  missing_hours=failed, bytes=total_bytes, fetch=fetch_stats, wall_s=round(wall, 1),
                  made=dt.datetime.utcnow().strftime("%Y-%m-%dT%H:%MZ"))
     entry.update(extra_files)                                   # "points": {...}, "dd": {...}
+    # the snow-band season as this run saw it: the page says "in season 1 October - 30 April" instead of an empty map
+    entry["snowband"] = dict(models=list(SB_MODELS), window=sb_window_text(), active=sb_in_season(cyc_dt),
+                             forced=os.environ.get("MV_SB", "auto") == "force" and not sb_in_season(cyc_dt),
+                             computed=any(f in fields for f in SB_FIELDS))
     # the run may not publish a cycle that lost hours in the middle (a partial run would be kept for two cycles)
     ok = not failed or failed == [0]
     print(f"{model} {key}: {total_bytes / 1e6:.1f} MB in {sum(len(f['hours']) for f in fields.values())} files, "
