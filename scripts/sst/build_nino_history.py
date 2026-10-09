@@ -276,43 +276,62 @@ def main() -> int:
     # OISST daily anomalies use the SAME 1991-2020 base (oisst9120 rebase), so
     # completed calendar months missing from ERSST are appended provisionally.
     provisional_from = None
+    regional_from = None
     try:
         efeed = json.loads((OUT.parent / "enso_daily.json").read_text())
         daily = efeed["daily"]
         ddates = [d[:7] for d in daily["dates"]]
         import calendar as _cal
-        last_hist = months[-1]
+        # The bridge starts after the last month of the FROZEN ERSST TABLE, not after months[-1]: the CPC-official
+        # ONI/RONI months appended above (2026-07, -08) carry null regional values, and starting after them left the
+        # four Niño boxes blank for July and August 2026 (observed lines stopped in June on the forecasts page).
+        # Those months now get their regional values from the bridge; CPC's ONI/RONI stay where CPC published.
+        last_table = f"{df.index[-1]:%Y-%m}"
         DMAP = {("nino34", "anom"): "nino34", ("nino34", "abs"): "nino34_abs",
-                ("nino3", "anom"): "nino3",
-                ("nino4", "anom"): "nino4", ("nino4", "abs"): "nino4_abs"}
+                ("nino3", "anom"): "nino3", ("nino3", "abs"): "nino3_abs",
+                ("nino4", "anom"): "nino4", ("nino4", "abs"): "nino4_abs",
+                ("nino12", "anom"): "nino12", ("nino12", "abs"): "nino12_abs"}   # 1+2 and the Nino-3 SST were missing
         mon = efeed.get("monthly", {})
-        for m in sorted({x for x in ddates if x > last_hist}):
+        for m in sorted({x for x in ddates if x > last_table}):
             idx = [i for i, mm in enumerate(ddates) if mm == m]
             y, mo = int(m[:4]), int(m[5:7])
             if len(idx) < _cal.monthrange(y, mo)[1]:
                 continue                                   # incomplete month
-            months.append(m)
+            if m in months:
+                i = months.index(m)                        # an official ONI/RONI month: fill only what is empty
+            else:
+                months.append(m)
+                for k, sub in series.items():
+                    for part in sub:
+                        sub[part].append(None)
+                i = len(months) - 1
             for k, sub in series.items():
                 for part in sub:
+                    if sub[part][i] is not None:
+                        continue
                     val = None
                     dk = DMAP.get((k, part))
                     if dk and daily.get(dk):
-                        val = round(sum(daily[dk][i] for i in idx) / len(idx), 2)
-                    elif k in ("oni", "roni") and part == "anom" and                             m in mon.get("months", []):
+                        vals = [daily[dk][j] for j in idx if daily[dk][j] is not None]
+                        if len(vals) == len(idx):          # a whole month of days or nothing
+                            val = round(sum(vals) / len(vals), 2)
+                    elif k in ("oni", "roni") and part == "anom" and m in mon.get("months", []):
                         val = mon[k][mon["months"].index(m)]
-                    sub[part].append(val)
-            provisional_from = provisional_from or (official_through or last_hist)
+                    sub[part][i] = val
+            regional_from = regional_from or last_table
+            provisional_from = provisional_from or (official_through or last_table)
     except Exception as _e:                                # noqa: BLE001
         print(f"  provisional bridge skipped: {_e}")
 
     out = {
         "generated": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC"),
-        "provisional_after": provisional_from,
+        "provisional_after": provisional_from,             # ONI/RONI: months past this are our OISST estimate
+        "regional_provisional_after": regional_from,       # Nino boxes: months past this are OISST monthly means
         "source": ("ONI/RONI: CPC's published tables (official; RONI is ERSSTv6 and has "
-                   "been CPC's official ENSO index since Feb 2026). Regional Niño series: "
-                   "CPC ERSSTv5 monthly table, 1991–2020 base — that file froze on "
-                   "2026-08-05, so the regional series stop there. Months past "
-                   "provisional_after are bridged from OISST v2.1."),
+                   "been CPC's official ENSO index since Feb 2026); months past provisional_after "
+                   "are our OISST v2.1 estimate. Regional Niño series: CPC ERSSTv5 monthly table, "
+                   "1991–2020 base, which froze on 2026-08-05; months past regional_provisional_after "
+                   "are OISST v2.1 monthly means on the same 1991–2020 base."),
         "latest_month": months[-1],
         "metrics": {
             "nino12": "Niño-1+2", "nino3": "Niño-3",

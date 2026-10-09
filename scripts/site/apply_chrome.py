@@ -122,7 +122,7 @@ PRODUCTS = [
             ("/stratosphere.html#vortex", "Next two weeks",
              "AIFS-ENS, IFS-ENS and GEFS: vortex winds, 100 hPa heat flux, E–P flux, wave-1 and the upper stratosphere.",
              "Twice daily"),
-            ("/stratosphere.html#vortex35", "Weeks 3–6",
+            ("/stratosphere.html#vortex35", "Weeks 3–5",
              "GEPS and GEFS to day 35, drift-corrected: vortex diagnostics, loops and the dripping paint.",
              "Daily"),
             ("/stratosphere.html#s5vortex", "Season",

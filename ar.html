@@ -137,7 +137,7 @@
                 <li><a href="/stratosphere.html">Stratosphere and polar vortex</a></li>
                 <li class="sh-subitem"><a href="/stratosphere.html#pv">Now: analyses and observations</a></li>
                 <li class="sh-subitem"><a href="/stratosphere.html#vortex">Next two weeks</a></li>
-                <li class="sh-subitem"><a href="/stratosphere.html#vortex35">Weeks 3–6</a></li>
+                <li class="sh-subitem"><a href="/stratosphere.html#vortex35">Weeks 3–5</a></li>
                 <li class="sh-subitem"><a href="/stratosphere.html#s5vortex">Season</a></li>
                 <li class="sh-subitem"><a href="/stratosphere.html#shwinters">History and studies</a></li>
                 <li class="sh-subitem"><a href="/stratosphere.html#qbo">QBO tracker</a></li>
@@ -437,10 +437,16 @@
       var top = Math.max.apply(null, M.map(function (r) { return Math.max.apply(null, r); }));
       var shapes = [250, 500, 750, 1000].filter(function (v) { return v === 250 || v <= Math.max(400, top * 1.1); }).map(function (v) { return { type: "line", xref: "paper", x0: 0, x1: 1, y0: v, y1: v, line: { color: v === 250 ? "#333" : "#9a958c", width: v === 250 ? 1.2 : 0.8, dash: "dot" } }; });
       var p = d.points[ip];
-      window.Plotly.react("plumeChart", tr, { margin: { l: 52, r: 12, t: 36, b: 40 }, paper_bgcolor: "#fff", plot_bgcolor: "#fff", shapes: shapes,
-        title: { text: S.label + " · " + p.name + " (" + p.lat + "°N, " + Math.abs(p.lon) + "°W) · run " + hm(S.init), font: { size: 13 }, x: 0.01 },
+      // narrow screens: the title on two lines and the key under the plot (on a phone the one-line title ran under the
+      // key and off the right edge)
+      var el = document.getElementById("plumeChart"), cw = el.clientWidth || 800, narrow = cw < 720, tiny = cw < 520;
+      var ttl = S.label + (narrow ? "<br>" : " · ") + p.name + (tiny ? "<br>" : " ") + "(" + p.lat + "°N, " + Math.abs(p.lon) + "°W) · run " + hm(S.init);
+      window.Plotly.react("plumeChart", tr, { margin: { l: 52, r: 12, t: tiny ? 70 : narrow ? 52 : 36, b: narrow ? 72 : 40 }, paper_bgcolor: "#fff", plot_bgcolor: "#fff", shapes: shapes,
+        title: { text: ttl, font: { size: 13 }, x: 0.01, xanchor: "left" },
         yaxis: { title: "IVT (kg m⁻¹ s⁻¹)", rangemode: "tozero", gridcolor: "#eee" }, xaxis: { gridcolor: "#eee" },
-        legend: { orientation: "h", y: 1.0, x: 1, xanchor: "right", yanchor: "bottom", font: { size: 11 } }, font: { family: "Schibsted Grotesk, sans-serif", color: "#1c1c1a" } },
+        legend: narrow ? { orientation: "h", y: -0.14, x: 0, xanchor: "left", yanchor: "top", font: { size: 12 } }
+                       : { orientation: "h", y: 1.0, x: 1, xanchor: "right", yanchor: "bottom", font: { size: 11 } },
+        font: { family: "'Source Sans 3', sans-serif", color: "#1c1c1a" } },
         { displayModeBar: false, responsive: true });
       note.textContent = n + " members, 6-hourly. Dotted lines: AR-scale steps 250 / 500 / 750 / 1000.";
     }).catch(function () { note.textContent = "The member data could not be loaded."; });
