@@ -433,7 +433,7 @@
     <p class="mv-perf" id="perf"></p>
   </details>
 </main>
-<script src="/assets/radar_glm.js?v=20261009a"></script>
+<script src="/assets/radar_glm.js?v=20261009b"></script>
 <script>
 (function () {
   "use strict";
@@ -1879,7 +1879,7 @@
       return { firstFrameMs: Math.round(PERF.firstFrame), decodeOvMs: r(PERF.dec), uploadOvMs: Math.round((r(PERF.up.map(function (x) { return x * 10; })) || 0)) / 10, fullMs: r(PERF.full), fullUploadMs: r(PERF.fullUp),
         dl: PERF.dl, netMBps: NET.ms ? Math.round(NET.bytes / NET.ms / 1048.576 * 10) / 10 : null, dpr: DPR, maxTex: MAXT, workers: workers.length, detailF: DETAIL_F,
         src: st.src, mrOvf: MR_OVF, lastDecode: PERF.ms || null, listing: { requests: LIST.n, kb: Math.round(LIST.bytes / 102.4) / 10 }, netMB: Math.round(NET.bytes / 104857.6) / 10,
-        glm: window.GLM ? { kb: Math.round(GLM.S.bytes / 1024), requests: GLM.S.req, files: GLM.S.files, wholeFiles: GLM.S.full, learnMs: GLM.S.learnMs,
+        glm: window.GLM ? { kb: Math.round(GLM.S.bytes / 1024), requests: GLM.S.req, files: GLM.S.files, wholeFiles: GLM.S.full, learned: GLM.S.learned, retries: GLM.S.retries, attrChecks: GLM.S.attrChecks, learnMs: GLM.S.learnMs,
           fileMsMedian: GLM.S.fileMs.length ? GLM.S.fileMs.slice().sort(function (a, b) { return a - b; })[GLM.S.fileMs.length >> 1] : null, windows: GLM.S.windows, last: lxLast, capMB: GLM.S.cap / 1048576 } : null }; } };
 })();
 </script>

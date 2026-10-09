@@ -8,11 +8,25 @@
             lazy-loaded from jsDelivr), which gives each flash variable's chunk-index (v1 B-tree) address, chunk size,
             filters (shuffle + deflate), type and CF attributes (scale_factor, add_offset, _FillValue, _Unsigned);
             the same file is then decoded again by the range reader below and the two must agree value for value.
-     read   (every file): round 1 fetches flash_count, product_time and the five B-tree nodes (the netCDF writer puts
-            the metadata and the chunk indexes at the same offsets in every file of a product version); round 2
-            fetches the chunks those nodes point to. Every node is checked (signature, type, level, entry count,
-            chunk offsets), every chunk must inflate to its exact size, and every value must be in range; any
-            failure re-learns the layout from that file. About 10 requests and 5-15 KB per file instead of the file.
+     read   (every file): round 1 fetches flash_count, product_time and the five B-tree nodes; round 2 fetches the
+            chunks those nodes point to. Every node is checked (signature, type, level, entry count = the chunks
+            flash_count needs, chunk offsets), product_time must be the file name's start, every chunk must inflate
+            to its exact size, and every value must be in range. About 10 requests and 5-15 KB per file.
+   Where the addresses sit depends on the ground-system build that wrote the file, so a satellite keeps a few layout
+   VARIANTS (keyed by a signature of the flash variables: types, chunking, filters, CF packing, the nodes' spacing),
+   and each variant keeps candidate addresses for flash_count, product_time and the first node, each either
+   absolute or counted back from the end of the file (the size comes from the bucket listing):
+     2026 builds (shuffle + deflate, 2048/4096-element chunks): everything at fixed absolute offsets;
+     2018-mid 2026 (no filters, 256-element chunks): product_time absolute, the B-tree nodes usually 26864 bytes
+            before the end (a few files 20720 / 22768 before the end, or at 58930 from the start), flash_count
+            79158-ish before the end until early 2024 and at 2939 since.
+   The most recently successful candidates are tried first; if they fail, every known candidate is tried at once;
+   if none fits, the file is learned (a sparse copy, else the whole file) and its addresses join the candidates.
+   A wrong flash_count cannot slip through: the node entry counts must match it, and the element after it in the
+   last chunk must be the fill value. The packing attributes (scale_factor, add_offset, _FillValue, _Unsigned) are
+   another candidate address, compared byte for byte with the learned file's whenever no file of the variant within
+   the hour had them checked (flash_energy's packing changed between 2019 and 2020 with nothing else moving).
+   Early 2018 files count the time offsets in milliseconds, and late-2018 files lack _Unsigned on them.
    No DOM here: radar.html draws. Exposed as window.GLM. */
 (function (root) {
   "use strict";
@@ -31,9 +45,10 @@
   var VARS = ["flash_lat", "flash_lon", "flash_time_offset_of_first_event", "flash_energy", "flash_quality_flag"];
   var MERGE_GAP = 2048;                                                  // ranges closer than this are fetched as one
 
-  var S = { bytes: 0, req: 0, files: 0, full: 0, fullBytes: 0, cap: 40 * 1048576, capped: false, err: null, lib: null, libErr: null,
+  var S = { bytes: 0, req: 0, files: 0, full: 0, fullBytes: 0, learned: 0, retries: 0, attrChecks: 0, cap: 40 * 1048576, capped: false, err: null, lib: null, libErr: null,
             learnMs: [], fileMs: [], windows: [] };
-  var layouts = {};                                                      // sat id -> {vars, cnt, ptime, ok, relearn, p}
+  var layouts = {};                                                      // sat id -> {ok, learning, variants: [newest success first], n}
+  var MAX_HYP = 8, MAX_VAR = 6, NC_FILL_FLOAT = Math.fround(9.9692099683868690e36);
   var byUrl = {}, files = new Map();                                               // "G19:<s ms>" -> file record
   var wins = new Map();                                                  // "T|N" -> window
   var version = 0, onUpdate = null, updT = 0, projector = null;
@@ -76,7 +91,7 @@
     queue = queue.filter(function (q) { if (q.alive()) return true; q.drop(); return false; });
     queue.sort(function (a, b) { return a.prio() - b.prio() || b.t - a.t; });
     for (var i = 0; i < queue.length; i++) {
-      var q = queue[i], k = q.sat.bucket, Ls = layouts[q.sat.id] || (layouts[q.sat.id] = { ok: false, n: 0 });
+      var q = queue[i], k = q.sat.bucket, Ls = satLayouts(q.sat);
       if ((busy[k] || 0) >= LANES) continue;
       if (!Ls.ok) {
         if (Ls.failAt && Date.now() - Ls.failAt < 60e3) { queue.splice(i--, 1); q.fail(Ls.err); continue; }
@@ -106,13 +121,14 @@
     return o;
   }
   // v1 B-tree node of raw-data chunks, rank 1 (+ the element dimension): 24-byte header, then per entry a key
-  // (chunk size u32, filter mask u32, 2 x u64 offsets) and a child address u64
+  // (chunk size u32, filter mask u32, 2 x u64 offsets) and a child address u64. The writer stores exactly the chunks
+  // the data fill (checked on 755 nodes of 151 files, 2018-2026), so the entry count also checks flash_count.
   function btreeNode(bytes, nNeed) {
     var dv = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
-    if (String.fromCharCode(bytes[0], bytes[1], bytes[2], bytes[3]) !== "TREE") throw new Error("no B-tree node at the learned address");
+    if (bytes.length < 24 || String.fromCharCode(bytes[0], bytes[1], bytes[2], bytes[3]) !== "TREE") throw new Error("no B-tree node at the learned address");
     if (bytes[4] !== 1 || bytes[5] !== 0) throw new Error("unexpected B-tree node (type " + bytes[4] + ", level " + bytes[5] + ")");
     var n = dv.getUint16(6, true), out = [];
-    if (n < nNeed) throw new Error("B-tree node lists " + n + " chunks, " + nNeed + " needed");
+    if (n !== nNeed) throw new Error("B-tree node lists " + n + " chunks, " + nNeed + " needed");
     if (24 + nNeed * 32 > bytes.length) return { more: 24 + n * 32 };
     for (var i = 0; i < nNeed; i++) {
       var k = 24 + i * 32;
@@ -141,10 +157,11 @@
     if (kind === "u") return esz === 2 ? dv.getUint16(o, le) : esz === 4 ? dv.getUint32(o, le) : dv.getUint8(o);
     return esz === 2 ? dv.getInt16(o, le) : esz === 4 ? dv.getInt32(o, le) : dv.getInt8(o);
   }
-  // CF decoding of a raw value: _Unsigned, _FillValue (compared on the stored bits), scale_factor, add_offset
+  // CF decoding of a raw value: _Unsigned, _FillValue (compared on the stored bits), scale_factor, add_offset, and
+  // the unit factor `mul` (milliseconds -> seconds for the time offsets of early 2018 files)
   function cf(v, L, raw) {
     if (L.fill != null && raw === L.fill) return NaN;
-    return L.scale != null ? v * L.scale + (L.offset || 0) : v + (L.offset || 0);
+    return (L.scale != null ? v * L.scale + (L.offset || 0) : v + (L.offset || 0)) * (L.mul || 1);
   }
 
   // decode one variable from its chunks; `read(addr, n)` returns stored bytes
@@ -162,6 +179,10 @@
       if (b.length !== L.chunk * L.esz) throw new Error(L.name + ": chunk inflates to " + b.length + " bytes, expected " + L.chunk * L.esz);
       if (ch.off !== c * L.chunk) throw new Error(L.name + ": chunk offset " + ch.off);
       var dv = new DataView(b.buffer, b.byteOffset, b.byteLength), n = Math.min(L.chunk, N - ch.off);
+      // the writer leaves the rest of the last chunk at the fill value: for the float positions (no _FillValue, so
+      // netCDF's default 9.96921e36) the element after the count must be fill, which pins flash_count exactly
+      if (n < L.chunk && L.kind === "f" && L.esz === 4 && L.fill == null && readNum(dv, n * 4, "f", 4, L.le) !== NC_FILL_FLOAT)
+        throw new Error(L.name + ": data continue past flash_count");
       for (var i = 0; i < n; i++) {
         var raw = readNum(dv, i * L.esz, L.kind, L.esz, L.le), v = raw;
         if (L.unsigned && L.kind === "i") v = raw < 0 ? raw + Math.pow(2, 8 * L.esz) : raw;
@@ -171,8 +192,11 @@
     return out;
   }
   function pack(file, N, lat, lon, dt, e, q, ptime) {
+    var sub = file.sat && file.sat.sub != null ? file.sat.sub * Math.PI / 180 : null, R = Math.PI / 180, cosMax = Math.cos(84 * R);
     for (var i = 0; i < N; i++) {                                        // plausibility of every value (NaN fails too)
       if (!(lat[i] >= -90 && lat[i] <= 90 && lon[i] >= -180 && lon[i] <= 180)) throw new Error("flash position out of range");
+      // within the satellite's disk (the limb is 81.3 degrees of arc from the sub-satellite point)
+      if (sub != null && !(Math.cos(lat[i] * R) * Math.cos(lon[i] * R - sub) >= cosMax)) throw new Error("flash outside the satellite's view");
       if (!(dt[i] > -6 && dt[i] < 30)) throw new Error("flash time offset out of range (" + dt[i] + " s)");
       if (!(q[i] === 0 || q[i] === 1 || q[i] === 3 || q[i] === 5)) throw new Error("unknown quality flag " + q[i]);
       if (!(e[i] > 0 && e[i] < 1e-9) && !isNaN(e[i])) throw new Error("flash energy out of range (" + e[i] + " J)");
@@ -187,29 +211,102 @@
     return r;
   }
 
-  // the range reader
-  async function readFast(file, L, hi) {
-    var url = bucketUrl(file.sat) + file.key;
-    var r1 = [[L.cnt, L.cnt + 4], [L.ptime, L.ptime + 8]];
-    VARS.forEach(function (v) { r1.push([L.vars[v].btree, L.vars[v].btree + 24 + 2 * 32]); });
-    var rd = await fetchRanges(url, r1, hi);
-    var dvc = new DataView(rd(L.cnt, 4).slice().buffer), N = dvc.getInt32(0, true);
-    var ptime = new DataView(rd(L.ptime, 8).slice().buffer).getFloat64(0, true);
-    if (!(N >= 0 && N < 200000)) throw new Error("flash_count " + N);
-    if (N === 0) return pack(file, 0, [], [], [], [], [], ptime);
-    var plan = {}, r2 = [], extra = [];
-    VARS.forEach(function (v) {
-      var Lv = L.vars[v], need = Math.ceil(N / Lv.chunk), node = btreeNode(rd(Lv.btree, 24 + 2 * 32), need);
-      if (node.more) extra.push([v, Lv.btree, node.more, need]); else plan[v] = node.chunks;
+  // ── layout variants and their candidate addresses ───────────────────────────────────────────────────────────────
+  // a candidate ("hypothesis") is {end, v}: the address is v, or size - v when end is set
+  function satLayouts(sat) { return layouts[sat.id] || (layouts[sat.id] = { ok: false, n: 0, learning: false, variants: [], sparseMiss: 0 }); }
+  function at(h, size, len) { var a = h.end ? size - h.v : h.v; return a >= 0 && a + len <= size ? a : -1; }
+  function hypIndex(list, h) { for (var i = 0; i < list.length; i++) if (list[i].end === h.end && list[i].v === h.v) return i; return -1; }
+  function promote(list, h) { var i = hypIndex(list, h); if (i > 0) { list.splice(i, 1); list.unshift(h); } }
+  function addHyps(list, abs, size) {                                    // the learned file's address, both ways, in front
+    [{ end: true, v: size - abs }, { end: false, v: abs }].forEach(function (h) {
+      var i = hypIndex(list, h); if (i >= 0) list.splice(i, 1);
+      list.unshift(h);
     });
-    if (extra.length) {                                                  // > 2 chunks (over 4096 flashes in 20 s): read the full nodes
-      var rx = await fetchRanges(url, extra.map(function (x) { return [x[1], x[1] + x[2]]; }), hi);
-      extra.forEach(function (x) { plan[x[0]] = btreeNode(rx(x[1], x[2]), x[3]).chunks; });
+    if (list.length > MAX_HYP) list.length = MAX_HYP;
+  }
+  // the signature of a layout: everything about the flash variables except where they are (the packing attributes'
+  // messages byte for byte, and their spacing)
+  function signature(L) {
+    var b0 = L.vars.flash_lat.btree;
+    return JSON.stringify([VARS.map(function (v) { var x = L.vars[v]; return [v, x.btree - b0, x.chunk, x.kind, x.esz, x.le, x.filters, x.scale, x.offset, x.fill, x.unsigned, x.mul || 1]; }),
+      L.attrs.map(function (x) { return [x[0] - L.attr0, Array.prototype.join.call(x[1], ",")]; })]);
+  }
+  // round 1 for a set of candidates: read them all, keep the combination that validates. Returns null if none does.
+  function nodeLen(Lv) { return 24 + 32 * Math.max(2, Math.ceil(1024 / Lv.chunk)); }   // up to 1024 flashes in one read
+  async function tryLayout(file, V, H, hi, checkAttrs) {
+    var url = bucketUrl(file.sat) + file.key, S = file.size, b0 = V.vars.flash_lat.btree, rs = [];
+    function cands(list, len) { var out = [], seen = {}; list.forEach(function (h) { var a = at(h, S, len); if (a >= 0 && !seen[a]) { seen[a] = 1; out.push([h, a]); } }); return out; }
+    var cC = cands(H.cnt, 4), cP = cands(H.ptime, 8), cA = checkAttrs ? cands(H.at, V.attrSpan) : [], cB = cands(H.bt, 24).filter(function (x) {
+      return VARS.every(function (v) { var a = x[1] + V.vars[v].btree - b0; return a >= 0 && a + 24 <= S; }); });
+    if (!cC.length || !cP.length || !cB.length || (checkAttrs && !cA.length)) return null;
+    cC.forEach(function (x) { rs.push([x[1], x[1] + 4]); });
+    cP.forEach(function (x) { rs.push([x[1], x[1] + 8]); });
+    cA.forEach(function (x) { V.attrs.forEach(function (m) { rs.push([x[1] + m[0], x[1] + m[0] + m[1].length]); }); });
+    cB.forEach(function (x) { VARS.forEach(function (v) { var a = x[1] + V.vars[v].btree - b0; rs.push([a, Math.min(S, a + nodeLen(V.vars[v]))]); }); });
+    var rd = await fetchRanges(url, rs, hi);
+    // product_time: seconds since 2000-01-01 12:00 that must be the start in the file name
+    var hp = null, ptime;
+    for (var i = 0; i < cP.length && !hp; i++) { var t = new DataView(rd(cP[i][1], 8).slice().buffer).getFloat64(0, true); if (Math.abs(J2000 + t * 1000 - file.s) <= 60) { hp = cP[i][0]; ptime = t; } }
+    if (!hp) return null;
+    // the packing attributes (scale_factor, add_offset, _FillValue, _Unsigned of the flash variables) must be the
+    // learned file's byte for byte: the same layout has carried different packings (flash_energy changed in 2019-20)
+    var ha = checkAttrs ? null : true;
+    for (i = 0; i < cA.length && !ha; i++) {
+      if (V.attrs.every(function (m) { var b = rd(cA[i][1] + m[0], m[1].length); for (var j = 0; j < b.length; j++) if (b[j] !== m[1][j]) return false; return true; })) ha = cA[i][0];
     }
-    VARS.forEach(function (v) { plan[v].forEach(function (c) { if (!(c.addr > 0 && c.size > 0 && c.size < 1e6)) throw new Error("bad chunk record"); r2.push([c.addr, c.addr + c.size]); }); });
-    var rd2 = await fetchRanges(url, r2, hi), vals = {};
-    for (var k = 0; k < VARS.length; k++) vals[VARS[k]] = await decodeVar(L.vars[VARS[k]], plan[VARS[k]], rd2, N);
+    if (!ha) return null;
+    // flash_count and the nodes: the node entry counts must be exactly the chunks the count needs, and round 2 then
+    // checks the count against the fill after it. A count of 0 has nothing to check it against, so it is not taken
+    // from a candidate (the file is learned instead). At most 4 combinations go to round 2.
+    var tries = 0;
+    for (var c = 0; c < cC.length && tries < 4; c++) {
+      var N = new DataView(rd(cC[c][1], 4).slice().buffer).getInt32(0, true);
+      if (!(N > 0 && N < 200000)) continue;
+      for (var b = 0; b < cB.length && tries < 4; b++) {
+        var plan = {}, extra = [], ok = true;
+        for (var k = 0; k < VARS.length && ok; k++) {
+          var Lv = V.vars[VARS[k]], a = cB[b][1] + Lv.btree - b0, need = Math.ceil(N / Lv.chunk);
+          try { var node = btreeNode(rd(a, Math.min(S, a + nodeLen(Lv)) - a), need); if (node.more) extra.push([VARS[k], a, node.more, need]); else plan[VARS[k]] = node.chunks; }
+          catch (e) { ok = false; }
+        }
+        if (!ok) continue;
+        tries++;
+        try {
+          if (extra.length) {                                            // more chunks than one read covers: the full nodes
+            var rx = await fetchRanges(url, extra.map(function (x) { return [x[1], x[1] + x[2]]; }), hi);
+            extra.forEach(function (x) { plan[x[0]] = btreeNode(rx(x[1], x[2]), x[3]).chunks; });
+          }
+          var r = await readChunks(file, V, N, plan, ptime, hi);
+          return { r: r, hc: cC[c][0], hp: hp, hb: cB[b][0], ha: ha };
+        } catch (e) { if (e.status) throw e; }
+      }
+    }
+    return null;
+  }
+  // round 2: the chunks, decoded and checked
+  async function readChunks(file, V, N, plan, ptime, hi) {
+    var r2 = [], vals = {};
+    VARS.forEach(function (v) { plan[v].forEach(function (c) { if (!(c.addr > 0 && c.size > 0 && c.size < 1e6 && c.addr + c.size <= file.size)) throw new Error("bad chunk record"); r2.push([c.addr, c.addr + c.size]); }); });
+    var rd2 = await fetchRanges(bucketUrl(file.sat) + file.key, r2, hi);
+    for (var k = 0; k < VARS.length; k++) vals[VARS[k]] = await decodeVar(V.vars[VARS[k]], plan[VARS[k]], rd2, N);
     return pack(file, N, vals.flash_lat, vals.flash_lon, vals.flash_time_offset_of_first_event, vals.flash_energy, vals.flash_quality_flag, ptime);
+  }
+  function needLearn(msg) { var e = new Error(msg); e.learn = true; return e; }
+  // the range reader: the most recently successful candidates first, then every known candidate of every variant.
+  // The packing attributes are checked unless a file of this variant within the hour had them checked (packings
+  // change with ground-system builds, months apart): about one extra check an hour on the live path.
+  var ATTR_TRUST = 3600e3;
+  async function readFast(file, Ls, hi) {
+    var Vs = Ls.variants.filter(function (v) { return v.fast; }), V = Vs[0], got = null, chk;
+    if (!V) throw needLearn("no range-readable layout");
+    chk = !(file.s >= V.ver[0] - ATTR_TRUST && file.s <= V.ver[1] + ATTR_TRUST);
+    got = await tryLayout(file, V, { cnt: V.cnt.slice(0, 1), ptime: V.ptime.slice(0, 1), bt: V.bt.slice(0, 1), at: V.at.slice(0, 1) }, hi, chk);
+    for (var i = 0; !got && i < Vs.length; i++) { V = Vs[i]; chk = true; got = await tryLayout(file, V, V, hi, true); if (got) S.retries++; }
+    if (!got) throw needLearn("no known layout fits");
+    promote(V.cnt, got.hc); promote(V.ptime, got.hp); promote(V.bt, got.hb); V.uses++;
+    if (chk) { promote(V.at, got.ha); V.ver[0] = Math.min(V.ver[0], file.s); V.ver[1] = Math.max(V.ver[1], file.s); S.attrChecks++; }
+    var vi = Ls.variants.indexOf(V); if (vi > 0) { Ls.variants.splice(vi, 1); Ls.variants.unshift(V); }
+    return got.r;
   }
 
   // ── learning a layout from one whole file (jsfive) ───────────────────────────────────────────────────────────────
@@ -282,11 +379,34 @@
   }
   // returns [layout, reference flashes decoded by jsfive]
   // jsfive: the layout and CF attributes of the flash variables (reads metadata only)
+  // the byte length of an attribute message (v1: name, datatype and dataspace padded to 8; v2/v3: unpadded, v3 with
+  // an encoding byte), so its exact bytes can be compared in other files
+  function attrMsgLen(dv, off) {
+    var ver = dv.getUint8(off), nn = dv.getUint16(off + 2, true), nt = dv.getUint16(off + 4, true), ns = dv.getUint16(off + 6, true);
+    var p8 = function (n) { return ver === 1 ? Math.ceil(n / 8) * 8 : n; }, h = ver === 3 ? 9 : 8;
+    if (ver < 1 || ver > 3) throw new Error("attribute message v" + ver);
+    var t = off + h + p8(nn), s = t + p8(nt), d = s + p8(ns), esz = dv.getUint32(t + 4, true);
+    var sver = dv.getUint8(s), rank = dv.getUint8(s + 1), dims = s + (sver === 1 ? 8 : 4), n = 1;
+    if (sver === 2 && dv.getUint8(s + 3) === 2) n = 0;                   // null dataspace
+    for (var i = 0; i < rank; i++) n *= u64(dv, dims + 8 * i);
+    return d - off + n * esz;
+  }
+  var PACKING = ["scale_factor", "add_offset", "_FillValue", "_Unsigned"];
   function learnLayout(buf, file) {
-    var lib = S.lib, f = new lib.File(buf, file.key), L = { vars: {} };
+    var lib = S.lib, f = new lib.File(buf, file.key), L = { vars: {}, attrs: [] }, dv = new DataView(buf);
     VARS.forEach(function (name) {
       var d = f.get(name); if (!d) throw new Error(name + " missing");
-      var o = d._dataobjects, a = Object.assign({}, d.attrs, denseAttrs(o, buf)), dt = String(d.dtype);
+      var o = d._dataobjects, orig = o.unpack_attribute;
+      // where the packing attributes' messages are (compact ones in the object header, dense ones in the fractal heap)
+      o.unpack_attribute = function (off) {
+        var nv = orig.call(o, off);
+        if (PACKING.indexOf(nv[0]) >= 0 && !L.attrs.some(function (x) { return x[0] === off; })) {
+          var len = attrMsgLen(dv, off); L.attrs.push([off, new Uint8Array(buf.slice(off, off + len)), name + ":" + nv[0]]);
+        }
+        return nv;
+      };
+      var a = Object.assign({}, d.attrs, denseAttrs(o, buf)), dt = String(d.dtype);
+      o.unpack_attribute = orig;
       o._get_chunk_params();
       var m = /^([<>|])([fiu])(\d)$/.exec(dt); if (!m) throw new Error(name + ": dtype " + dt);
       var fp = o.filter_pipeline || [];
@@ -296,12 +416,21 @@
       if (!(Lv.chunk > 0)) throw new Error(name + " is not chunked");
       L.vars[name] = Lv;
       if (name === "flash_time_offset_of_first_event") {
-        var u = String(attr(a, "units") || ""), mu = /since (\d{4})-(\d\d)-(\d\d)[ T](\d\d):(\d\d):(\d\d(?:\.\d+)?)/.exec(u);
-        if (!mu || Math.abs(Date.UTC(+mu[1], +mu[2] - 1, +mu[3], +mu[4], +mu[5]) + parseFloat(mu[6]) * 1000 - file.s) > 60) throw new Error("time units '" + u + "' do not match the file start");
+        var u = String(attr(a, "units") || ""), mu = /^\s*(seconds|milliseconds) since (\d{4})-(\d\d)-(\d\d)[ T](\d\d):(\d\d):(\d\d(?:\.\d+)?)/.exec(u);
+        if (!mu || Math.abs(Date.UTC(+mu[2], +mu[3] - 1, +mu[4], +mu[5], +mu[6]) + parseFloat(mu[7]) * 1000 - file.s) > 60) throw new Error("time units '" + u + "' do not match the file start");
+        if (mu[1] === "milliseconds") Lv.mul = 1e-3;                     // early 2018 files (2 ms steps)
+        // late-2018 files pack the offsets as unsigned 16-bit (add_offset -5 s, 0.38 ms steps, so -5 to +20 s) but
+        // lack the _Unsigned attribute; read as signed, the second half of the file comes out at -17 to -5 s
+        if (Lv.kind === "i" && !Lv.unsigned && Lv.offset < 0 && Lv.scale > 0 && Lv.offset + Lv.scale * Math.pow(2, 8 * Lv.esz) > 0) Lv.unsigned = true;
       }
     });
     var fc = f.get("flash_count"), pt = f.get("product_time");
     L.cnt = contigAddr(fc._dataobjects, buf); L.ptime = contigAddr(pt._dataobjects, buf);
+    // the packing every era has: energy scaled, time offsets scaled and offset
+    var E = L.vars.flash_energy, T = L.vars.flash_time_offset_of_first_event;
+    if (E.scale == null || T.scale == null || T.offset == null || L.attrs.length < 4) throw new Error("packing attributes missing");
+    L.attrs.sort(function (x, y) { return x[0] - y[0]; });
+    L.attr0 = L.attrs[0][0];
     return { f: f, L: L };
   }
   // jsfive: the flash values (the reference the range reader is checked against)
@@ -328,11 +457,12 @@
     }
     return true;
   }
-  function layoutReady(sat) { var L = layouts[sat.id]; return !!(L && L.ok); }
   // learn from `file`; its flashes are used as that file's result. First from a sparse copy (the metadata and chunk
   // indexes in the first 144 KB, the object-header continuations in the last 16 KB, the flash chunks), and if that
   // does not parse or the two readers disagree, from the whole file.
   var HEAD = 147456, TAIL = 16384;
+  var SPARSE_NEEDS = ["flash_energy:scale_factor", "flash_energy:add_offset", "flash_energy:_FillValue", "flash_energy:_Unsigned", "flash_quality_flag:_FillValue",
+                      "flash_quality_flag:_Unsigned", "flash_time_offset_of_first_event:scale_factor", "flash_time_offset_of_first_event:add_offset"];
   async function learnSparse(file, hi) {
     var url = bucketUrl(file.sat) + file.key, size = file.size;
     if (!(size > HEAD + TAIL)) throw new Error("small file");
@@ -340,6 +470,10 @@
     var buf = new ArrayBuffer(size), u = new Uint8Array(buf);
     u.set(parts[0], 0); u.set(parts[1], size - TAIL);
     var lay = learnLayout(buf, file), L = lay.L, N = new DataView(buf).getInt32(L.cnt, true), rs = [];
+    // the gap reads as zeros: every packing attribute every era has must have been found, inside the copy
+    var tags = L.attrs.map(function (x) { return x[2]; });
+    if (!SPARSE_NEEDS.every(function (t) { return tags.indexOf(t) >= 0; }) || !L.attrs.every(function (x) { return x[0] + x[1].length <= HEAD || x[0] >= size - TAIL; }))
+      throw new Error("packing attributes outside the sparse copy");
     if (N > 0) VARS.forEach(function (v) {
       var Lv = L.vars[v], need = Math.ceil(N / Lv.chunk);
       if (Lv.btree + 24 + need * 32 > HEAD) throw new Error("chunk index beyond the head");
@@ -350,9 +484,8 @@
     return [buf, lay];
   }
   async function learn(file, hi) {
-    var t0 = performance.now(), sat = file.sat;
-    var cur = layouts[sat.id] || (layouts[sat.id] = { ok: false, n: 0 });
-    cur.n = (cur.n || 0) + 1; cur.learning = true; cur.ok = false;
+    var t0 = performance.now(), sat = file.sat, cur = satLayouts(sat);
+    cur.n++; cur.learning = true;
     var buf, lay, ref, mine, how = "sparse";
     async function check() {
       ref = refValues(lay, buf, file);
@@ -363,25 +496,46 @@
     try {
       await loadLib();
       var same = false;
-      try { var sp = await learnSparse(file, hi); buf = sp[0]; lay = sp[1]; same = await check(); }
-      catch (e) { if (e.status) throw e; }
+      // the sparse copy only helps when the chunk indexes sit in the head (2026 builds); after two misses in a row
+      // (older builds keep them near the end) go straight to the whole file, until a whole file shows them in the head
+      if (cur.sparseMiss < 2) {
+        try { var sp = await learnSparse(file, hi); buf = sp[0]; lay = sp[1]; same = await check(); }
+        catch (e) { if (e.status) throw e; }
+        if (!same) cur.sparseMiss++; else cur.sparseMiss = 0;
+      }
       if (!same) {
         how = "whole";
         buf = (await get(bucketUrl(sat) + file.key, null, hi)).buffer;
         S.full++; S.fullBytes += buf.byteLength;
         lay = learnLayout(buf, file); same = await check();
+        if (same && headOnly(lay.L, buf)) cur.sparseMiss = 0;
       }
     } catch (e) {
       cur.learning = false;
-      if (!e.status) { cur.failAt = Date.now(); cur.err = e.message || String(e); }   // not the file's fault: hold the others a minute
+      if (!e.status && !cur.ok) { cur.failAt = Date.now(); cur.err = e.message || String(e); }   // not the file's fault: hold the others a minute
       throw e;
     }
-    var L = lay.L;
-    L.fast = same;
-    if (!L.fast) console.warn("GLM: range reader disagrees with jsfive on " + file.key + "; whole files from now on");
-    L.ok = true; L.n = cur.n; L.learnedFrom = file.key; L.how = how; layouts[sat.id] = L;
-    S.learnMs.push(Math.round(performance.now() - t0));
+    // file it under its variant (same signature, same verdict on the range reader), its addresses in front
+    var L = lay.L, sig = signature(L), V = null;
+    for (var i = 0; i < cur.variants.length; i++) if (cur.variants[i].sig === sig && cur.variants[i].fast === same) V = cur.variants[i];
+    if (V) cur.variants.splice(cur.variants.indexOf(V), 1);
+    else {
+      V = { sig: sig, vars: L.vars, fast: same, cnt: [], ptime: [], bt: [], at: [], uses: 0, learned: 0,
+            attrs: L.attrs.map(function (x) { return [x[0] - L.attr0, x[1]]; }) };
+      V.attrSpan = Math.max.apply(null, V.attrs.map(function (m) { return m[0] + m[1].length; }));
+    }
+    cur.variants.unshift(V); if (cur.variants.length > MAX_VAR) cur.variants.length = MAX_VAR;
+    addHyps(V.cnt, L.cnt, file.size); addHyps(V.ptime, L.ptime, file.size); addHyps(V.bt, L.vars.flash_lat.btree, file.size); addHyps(V.at, L.attr0, file.size);
+    V.learned++; V.learnedFrom = file.key; V.how = how;
+    V.ver = V.ver ? [Math.min(V.ver[0], file.s), Math.max(V.ver[1], file.s)] : [file.s, file.s];   // file times with checked packing
+    if (!same) console.warn("GLM: range reader disagrees with jsfive on " + file.key + "; whole files for this layout");
+    cur.ok = true; cur.learning = false; cur.failAt = 0;
+    S.learned++; S.learnMs.push(Math.round(performance.now() - t0));
     return ref;
+  }
+  function headOnly(L, buf) {
+    var N = new DataView(buf).getInt32(L.cnt, true);
+    return L.cnt < HEAD && L.ptime < HEAD && VARS.every(function (v) { return L.vars[v].btree + 24 + Math.ceil(N / L.vars[v].chunk) * 32 <= HEAD; });
   }
   // the range reader against bytes already in memory (the self-check, and the tests)
   async function readFastLocal(file, L, rd) {
@@ -415,18 +569,17 @@
   }
   async function run(f, task) {
     f.state = "loading"; bump();
-    var t0 = performance.now(), b0 = S.bytes, hi = task.prio() === 0;
+    var t0 = performance.now(), hi = task.prio() === 0;
     try {
-      var L = layouts[f.sat.id], r;
-      if (task.learner || !L || !L.ok) r = await learn(f, hi);
-      else if (!L.fast) r = await readWhole(f, hi);
+      var Ls = satLayouts(f.sat), r;
+      if (task.learner || !Ls.ok) r = await learn(f, hi);
+      else if (!Ls.variants.some(function (v) { return v.fast; })) r = await readWhole(f, hi);
       else {
-        try { r = await readFast(f, L, hi); }
+        try { r = await readFast(f, Ls, hi); }
         catch (e) {
           if (e.status) throw e;                                         // HTTP trouble is not a layout change
-          console.warn("GLM: range read of " + f.key + " failed (" + e.message + "); re-learning the layout");
-          if (L.n >= 4) throw new Error("GLM file layout keeps changing: " + e.message);
-          r = await learn(f, hi);
+          console.info("GLM: " + f.key + ": " + e.message + "; learning its layout");
+          r = await learn(f, hi);                                        // this file's flashes then come from jsfive
         }
       }
       if (projector) { r.x = new Float32Array(r.n); r.y = new Float32Array(r.n);
@@ -556,6 +709,6 @@
     setCap: function (b) { S.cap = b; S.capped = S.bytes >= b; pump(); bump(); },
     clearQueue: function () { queue.forEach(function (q) { q.drop(); }); queue = []; },
     layouts: layouts, files: files,
-    _t: { sStamp: sStamp, parseS: parseS, learnFrom: learnFrom, readFastLocal: readFastLocal, fileObj: fileObj, loadLib: loadLib, btreeNode: btreeNode, mergeRanges: mergeRanges }
+    _t: { sStamp: sStamp, parseS: parseS, learnFrom: learnFrom, readFastLocal: readFastLocal, fileObj: fileObj, loadLib: loadLib, btreeNode: btreeNode, mergeRanges: mergeRanges, run: run, denseAttrs: denseAttrs }
   };
 })(typeof window !== "undefined" ? window : globalThis);
