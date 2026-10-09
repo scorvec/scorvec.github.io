@@ -115,20 +115,21 @@ def render(out: Path, ref, ssta, ssta_res, window, month, idx, idx_sig, w7, w30,
     import matplotlib.pyplot as plt
     from matplotlib.gridspec import GridSpec
     import cartopy.crs as ccrs
-    import cartopy.feature as cfeature
     import textwrap
     fig = plt.figure(figsize=(13.4, 11.8))
     gs = GridSpec(6, 2, height_ratios=[0.44, 0.02, 1.2, 1.0, 0.44, 0.8], hspace=0.5, wspace=0.1, left=0.055, right=0.985, top=0.932, bottom=0.02)
     pc = ccrs.PlateCarree(central_longitude=180)
     boxes = json.loads(ref.attrs["boxes"]); basins = json.loads(ref.attrs["basin_lon"])
-    lev = np.arange(-2.4, 2.41, 0.3)
+    import mapstyle as MS                                               # the site's shared SST palette (scripts/sst/mapstyle.py)
+    sty = MS.sst_anom_style(3.0)                                        # white band +-0.2, 0.2 degC classes to +-3
 
     def sst_panel(k, field, title):
         ax = fig.add_subplot(gs[0, k], projection=pc)
-        cf = ax.contourf(LON2, LAT2, field, levels=lev, cmap="RdBu_r", extend="both", transform=ccrs.PlateCarree())
-        ax.coastlines(lw=0.5, color="#555"); ax.add_feature(cfeature.LAND, facecolor="#ece9e1", zorder=2)
+        cf = ax.contourf(LON2, LAT2, field, levels=sty["levels"], cmap=sty["cmap"], norm=sty["norm"], extend="both",
+                         transform=ccrs.PlateCarree())
+        MS.sst_features(ax, scale="110m", coast_lw=0.45)
         for name, ((la0, la1), (lo0, lo1)) in boxes.items():
-            colr = {"n34": RED, "dmi_w": GREEN, "dmi_e": GREEN, "iob": GREEN, "atl3": ORANGE, "tna": ORANGE}[name]
+            colr = {"n34": "#141414", "dmi_w": GREEN, "dmi_e": GREEN, "iob": GREEN, "atl3": ORANGE, "tna": ORANGE}[name]
             ax.add_patch(plt.Rectangle((lo0, la0), lo1 - lo0, la1 - la0, fill=False, ec=colr, lw=1.1, ls=("--" if name in ("iob",) else "-"), transform=ccrs.PlateCarree(), zorder=5))
         for b, (lo0, lo1) in basins.items():
             ax.plot([lo0, lo0], [-30, 30], color="#333", lw=0.6, ls=":", transform=ccrs.PlateCarree(), zorder=5)
@@ -141,7 +142,8 @@ def render(out: Path, ref, ssta, ssta_res, window, month, idx, idx_sig, w7, w30,
     sst_panel(1, ssta_res, "The same field with the ENSO regression pattern removed")
     fig.canvas.draw()                                                   # cartopy fixes the map aspect at draw time
     b0 = min((a.get_position() for a in fig.axes if getattr(a, "projection", None) is not None), key=lambda b: b.y0)
-    cax = fig.add_axes([0.40, b0.y0 - 0.022, 0.20, 0.006]); cb = fig.colorbar(cf, cax=cax, orientation="horizontal"); cb.ax.tick_params(labelsize=6.5); cb.set_label("°C   ·   boxes: red Niño-3.4, green IOD poles and basin (dashed), orange ATL3 and TNA", fontsize=7)
+    cax = fig.add_axes([0.40, b0.y0 - 0.022, 0.20, 0.006]); cb = fig.colorbar(cf, cax=cax, orientation="horizontal", spacing="uniform")
+    MS.sst_colorbar(cb, sty, "°C   ·   boxes: black Niño-3.4, green IOD poles and basin (dashed), orange ATL3 and TNA", size=7, tick_size=6.5)
 
     # W profile
     ax = fig.add_subplot(gs[2, :])
@@ -232,7 +234,8 @@ def render(out: Path, ref, ssta, ssta_res, window, month, idx, idx_sig, w7, w30,
     fig.text(0.055, 0.966, f"Observed: AIFS-ENS 0-h analyses, divergent wind at 200 minus 850 hPa over 5°S–5°N, anomaly against ERA5 1991–2020 · latest analysis {tlast:%Y-%m-%d %HZ} · SST: OISST last 30 days, detrended",
              fontsize=8, color=MUTED, va="top")
     out.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(out, dpi=105, facecolor="white", pil_kwargs={"quality": 86, "method": 6}); plt.close(fig)
+    # 140 dpi (was 105): the 13.4 in figure is ~1880 px, sharp at the width the deck shows it on a retina screen
+    fig.savefig(out, dpi=140, facecolor="white", pil_kwargs={"quality": 88, "method": 6}); plt.close(fig)
     print(f"saved {out}", flush=True)
 
 
