@@ -88,7 +88,7 @@ jobs:
           gh release view "$REL" >/dev/null 2>&1 || gh release create "$REL" --title "Skew-T fog verification dataset" \
             --notes "IGRA v2 00/12Z soundings x IEM routine METARs (2010-2025) at co-located raob/airport sites, built by .github/workflows/skewt-fog-verify.yml. pairs.parquet = one row per launch (rule calls, sweeps, fog-model p, METAR truth); profiles_npz.tar = processed profiles <= 6 km AGL (float32; P Pa, H m, T K, Td K, U/V m/s; offsets index rows of pairs per station in date order); metar_csv.tgz = raw IEM pulls."
           gh release upload "$REL" --clobber pairs.parquet stations.json stations.md qc.json jstest.json metar_csv.tgz profiles_npz.tar
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@v6
         if: always()
         with:
           name: skewt-fog-summary-${{ inputs.stage }}
