@@ -76,7 +76,7 @@ PRODUCTS = [
              "Real-time multivariate MJO index from the ECMWF AIFS ensemble, with the observed phase-space track, an ENSO-removed version, and what each phase has meant for temperature and rain.",
              "Twice daily"),
             ("/tropical-waves.html", "Tropical waves",
-             "Which equatorial waves are active now (a Wheeler–Kiladis spectrum, observed and forecast), with Kelvin and Rossby wave trackers along the equator and ocean Kelvin waves.",
+             "Where the equatorial waves are now: Kelvin and Rossby wave trackers along the equator with the forecast, the OLR wave decomposition and ocean Kelvin waves.",
              "Daily"),
         ]),
         ("Tropical cyclones", [
