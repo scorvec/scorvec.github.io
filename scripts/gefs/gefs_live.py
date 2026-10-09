@@ -44,6 +44,17 @@ S3 = "https://noaa-gefs-pds.s3.amazonaws.com"
 CLIM_URL = "https://github.com/scorvec/scorvec.github.io/releases/download/gefs-clim-v1/gefs_clim_{c:03d}.npz"
 
 
+def zero_ticks(levels, every=4):
+    """Every n-th contour level, phased so that 0 is one of them (2026-10-08 sweep: levels[::4] from -440 read
+    -440/-280/-120/40/200/360, and -6.6/-4.2/-1.8/0.6 for temperature, with no zero on the bar)."""
+    import numpy as _np
+    lv = _np.asarray(levels, float)
+    if not len(lv):
+        return lv
+    k = int(_np.argmin(_np.abs(lv)))
+    return lv[k % every::every]
+
+
 def get(url, rng=None):
     return R.get(url, rng)
 
@@ -649,7 +660,7 @@ def _vloop_job(spec):
                     ax.contour(lo_, lat, gz_, levels=8, colors="#333", linewidths=0.45, transform=ccrs.PlateCarree())
                 cav = float((A[capm].mean(1) * wc).sum() / wc.sum())
                 note = f"cap {cav:+.1f}" + (" m" if key == "Z" else " K")
-                ticks = msh.levels[::4]
+                ticks = zero_ticks(msh.levels, 4)
             ax.set_title(lab + ("" if key == "W" else " anomaly"), fontsize=11, fontweight="bold", pad=4)
             ax.text(0.5, -0.055, note, transform=ax.transAxes, ha="center", va="top", fontsize=8.5, color="#2c4a72", fontweight="bold")
             cax = fig.add_axes([0.014 + col * span + span * 0.16, 0.072, span * 0.63, 0.020])

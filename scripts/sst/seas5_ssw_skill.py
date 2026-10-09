@@ -290,9 +290,24 @@ def render(df, res) -> str:
     jit = np.random.default_rng(3).uniform(-0.06, 0.06, len(df))
     sc = ax.scatter(df.frac, df.obs + jit, c=df.oni, cmap="RdBu_r", norm=TwoSlopeNorm(0, -2.5, 2.5), s=[60 if s == "operational" else 42 for s in df.src],
                     marker="o", edgecolors=["#222" if s == "operational" else "none" for s in df.src], linewidths=0.8, zorder=3)
-    for r, j in zip(df.itertuples(), jit):
+    # winter labels placed clear of each other (2026-10-08 sweep: three strong-ENSO winters at the same share printed on
+    # top of one another at the no-SSW row)
+    ax.set_xlim(-0.02, 1.02); ax.set_ylim(-0.12, 1.12)
+    ren = fig.canvas.get_renderer(); placed = []
+    spots = [(5, 4, "left"), (5, -10, "left"), (-5, 4, "right"), (-5, -10, "right"), (5, 14, "left"), (5, -20, "left"),
+             (-5, 14, "right"), (-5, -20, "right")]
+    for r, j in sorted(zip(df.itertuples(), jit), key=lambda t: t[0].frac):
         if abs(r.oni) >= 1.5:
-            ax.annotate(f"{r.year}/{(r.year + 1) % 100:02d}", (r.frac, r.obs + j), textcoords="offset points", xytext=(5, 4), fontsize=7.5, color="#444")
+            for dx, dy, ha in spots:
+                t_ = ax.annotate(f"{r.year}/{(r.year + 1) % 100:02d}", (r.frac, r.obs + j), textcoords="offset points", xytext=(dx, dy),
+                                 ha=ha, fontsize=7.5, color="#444")
+                bb = t_.get_window_extent(ren); fr = ax.get_window_extent(ren)
+                if bb.y0 >= fr.y0 and bb.y1 <= fr.y1 and bb.x1 <= fr.x1 and not any(bb.overlaps(o) for o in placed):
+                    placed.append(bb); break
+                t_.remove()
+            else:
+                placed.append(ax.annotate(f"{r.year}/{(r.year + 1) % 100:02d}", (r.frac, r.obs + j), textcoords="offset points",
+                                          xytext=(5, 4), fontsize=7.5, color="#444").get_window_extent(ren))
     t1 = res["tests"]["T1"]
     xs = np.linspace(0, 1, 100)
     X = np.column_stack([np.ones(len(df)), df.frac.values]); b, _, _ = logit_fit(X, df.obs.values)
@@ -304,11 +319,13 @@ def render(df, res) -> str:
     ax.set_xlim(-0.02, 1.02); ax.set_yticks([0, 0.5, 1]); ax.set_yticklabels(["no SSW", "", "SSW"])
     ax.set_xlabel("share of 25 SEAS5 members with a major SSW, Nov–Mar (October start)")
     cb = fig.colorbar(sc, ax=ax, pad=0.01); cb.set_label("DJF ONI (CPC)")
-    ax.legend(fontsize=7.8, frameon=False, loc="center left")
+    ax.legend(fontsize=7.8, frameon=True, framealpha=0.9, edgecolor="none", loc="center left")   # the rate line ran through it
     ax.spines[["top", "right"]].set_visible(False)
     ax.set_title(f"SEAS5 SSW fraction against what happened, {res['years']} ({res['n']} winters)", loc="left", fontsize=12)
-    fig.text(0.01, -0.03, "Each dot is a winter: the October-start ensemble's SSW share against the MERRA-2 outcome (jittered), coloured by DJF ONI; "
-             "outlined dots are the operational years 2017–2025 (members 0–24). Labelled: ONI ≥ 1.5.", fontsize=7.6, color="#6f6b64")
+    import textwrap                                       # wrapped: one line widened the saved picture past the chart
+    fig.text(0.01, -0.03, textwrap.fill("Each dot is a winter: the October-start ensemble's SSW share against the MERRA-2 outcome (jittered), "
+             "coloured by DJF ONI; outlined dots are the operational years 2017–2025 (members 0–24). Labelled: ONI ≥ 1.5.", 175),
+             fontsize=7.6, color="#6f6b64", va="top", linespacing=1.35)
     out = ASSETS / "seas5_ssw_skill.webp"
     fig.savefig(out, dpi=105, bbox_inches="tight", pil_kwargs={"quality": 86, "method": 6}); plt.close(fig)
     return out.name
