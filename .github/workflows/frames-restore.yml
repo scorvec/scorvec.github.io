@@ -11,6 +11,10 @@ on:
       good_sha:
         description: 'Full sha of the last good frames commit'
         required: true
+      paths:
+        description: 'Optional: space-separated folders to MERGE file by file (put back files missing from the tip, never overwrite). Empty = restore whole missing top-level folders.'
+        required: false
+        default: ''
 
 permissions:
   contents: write
@@ -28,6 +32,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GOOD: ${{ inputs.good_sha }}
+          PATHS: ${{ inputs.paths }}
         run: |
           set -euo pipefail
           URL="https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
@@ -38,6 +43,16 @@ jobs:
             BASE=$(git rev-parse HEAD)
             git fetch -q --depth 1 origin "$GOOD"
             # candidate paths in the good commit: assets/<x>, scripts/<a>/<b>, and any other top-level entry
+            if [ -n "$PATHS" ]; then
+              # file-level merge under the given folders: every file the good commit has there and the tip lacks
+              git ls-tree -r --name-only "$GOOD" -- $PATHS | sort > ../g.txt
+              git ls-tree -r --name-only HEAD -- $PATHS | sort > ../n.txt
+              comm -23 ../g.txt ../n.txt > ../restore.txt
+              echo "== merging $(wc -l < ../restore.txt) missing file(s) under: $PATHS"
+              for d in $PATHS; do echo "  $d: $(grep -c "^$d/" ../restore.txt || true)"; done
+              [ -s ../restore.txt ] || { echo "nothing missing"; exit 0; }
+              git checkout -q "$GOOD" --pathspec-from-file=../restore.txt
+            else
             git ls-tree -r --name-only "$GOOD" | awk -F/ '
               $1=="assets"  && NF>=3 {print $1"/"$2; next}
               $1=="scripts" && NF>=4 {print $1"/"$2"/"$3; next}
@@ -49,6 +64,7 @@ jobs:
             echo "== restoring $(wc -l < ../restore.txt) path(s):"; cat ../restore.txt
             [ -s ../restore.txt ] || { echo "nothing missing"; exit 0; }
             while read -r p; do git checkout -q "$GOOD" -- "$p"; done < ../restore.txt
+            fi
             git config user.name "Shawn Corvec"
             git config user.email "26825570+scorvec@users.noreply.github.com"
             git checkout -q --orphan fresh
