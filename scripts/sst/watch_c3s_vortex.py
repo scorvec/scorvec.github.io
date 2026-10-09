@@ -4,7 +4,7 @@
 Every 30 min: which centres have the issue in the CDS catalogue (cds_seq.available, no key used), against the centres
 the published card already holds (assets/sst/data/c3s_vortex.json on main via raw GitHub API). When the catalogue has
 more, and no seas5-group run is queued or running, dispatch c3s-vortex.yml once. For the October issue it also waits for
-the daily product (c3s_vortex_daily.json) to reach "complete". Exits when the card is complete or after the 20th.
+the daily product (c3s_vortex_daily.json) to reach "complete". Exits when the card is complete, or after the 20th once the daily product is complete (October), at most 75 days.
 
     nohup python scripts/sst/watch_c3s_vortex.py --issue 202610 >> watch.log 2>&1 &
 """
@@ -45,10 +45,12 @@ def main() -> int:
     y, s = int(a.issue[:4]), int(a.issue[4:])
     key = f"{a.issue[:4]}-{a.issue[4:]}"
     last_dispatch = 0.0
+    t_start = time.time()
     while True:
         now = time.gmtime()
-        if now.tm_mday > 20 or (now.tm_year, now.tm_mon) != (y, s):
-            print(time.strftime("%FT%TZ", now), "window over; exiting", flush=True); return 0
+        in_window = now.tm_mday <= 20 and (now.tm_year, now.tm_mon) == (y, s)
+        if time.time() - t_start > 75 * 86400:
+            print(time.strftime("%FT%TZ", now), "75 days; exiting", flush=True); return 0
         C._CONSTRAINTS.clear()
         cat = [c for c, ks in V.CENTRES if all(C.available("seasonal-monthly-pressure-levels", V._req(V.CUR[k][1], V.CUR[k][2], [y], [s])) for k in ks)]
         J = published("assets/sst/data/c3s_vortex.json")
@@ -58,11 +60,12 @@ def main() -> int:
             D = published("assets/sst/data/c3s_vortex_daily.json")
             daily_done = D.get("issue") == key and D.get("state") == "complete"
         msg = f"{time.strftime('%FT%TZ', now)} catalogue {cat}; card {have}; daily done {daily_done}"
-        if set(have) >= {c for c, _ in V.CENTRES} and daily_done:
-            print(msg, "- complete; exiting", flush=True); return 0
+        if (set(have) >= {c for c, _ in V.CENTRES} or not in_window) and daily_done:
+            print(msg, "- complete" if in_window else "- window over, daily done", "; exiting", flush=True); return 0
         busy = C.group_busy()
         nd = sum((DAILY / f"ud_{u['unit']}.npz").exists() for u in VD.units())  # the laptop's daily hindcast tables (240 when whole)
-        want = (set(cat) - set(have)) or (s == 10 and not daily_done and nd >= len(VD.units()) and time.time() - last_dispatch > 6 * 3600)
+        # after the 20th only the daily product is waited for (the laptop's hindcast fetch may run past the window)
+        want = (in_window and set(cat) - set(have)) or (s == 10 and not daily_done and nd >= len(VD.units()) and time.time() - last_dispatch > 6 * 3600)
         if want and not busy and time.time() - last_dispatch > 3600:
             r = subprocess.run([GH, "workflow", "run", "c3s-vortex.yml", "--repo", REPO, "-f", f"issue={a.issue}"], capture_output=True, text=True)
             print(msg, "- dispatched" if r.returncode == 0 else f"- dispatch failed {r.stderr[:120]}", flush=True)
