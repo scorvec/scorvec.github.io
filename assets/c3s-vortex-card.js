@@ -203,7 +203,7 @@
 
   function draw(ids) {
     fetch("assets/sst/data/c3s_vortex.json?v=" + Date.now()).then(function (r) { return r.ok ? r.json() : null; }).catch(function () { return null; }).then(function (J) {
-      if (!J) { $(ids.verdict).innerHTML = "The December vortex outlook has not been built yet: its first build runs with the next C3S issue (the 9th–20th of each month)."; return; }
+      if (!J) { $(ids.verdict).innerHTML = "The December vortex outlook has not been built yet: its first build runs with the next C3S issue (the 9th–20th of each month)."; var c = $(ids.dist).parentNode; c.style.display = "none"; Array.prototype.forEach.call(c.parentNode.querySelectorAll(".method-head, .vx-note, .vx-table"), function (e) { e.style.display = "none"; }); return; }
       $(ids.verdict).innerHTML = verdict(J);
       $(ids.table).innerHTML = sysTable(J);
       $(ids.rel).innerHTML = relTable(J);
