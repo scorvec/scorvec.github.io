@@ -219,7 +219,7 @@ def reduce(unit: str) -> dict:
 
 
 # ── fetch ────────────────────────────────────────────────────────────────────
-BATCH = int(os.environ.get("C3SVD_BATCH", "4"))
+BATCH = int(os.environ.get("C3SVD_BATCH", "8"))
 
 
 def _split(batch_raw: Path, members: list[dict]) -> None:
