@@ -673,7 +673,7 @@ def plot_series(doc: dict, group: str, out: Path) -> None:
         if e.get("obs_tail"):
             ox = [_month_num(t) for t, _ in e["obs_tail"]]; oy = [v for _, v in e["obs_tail"]]
             ax.plot(ox, oy, color="#333", lw=1.4, marker="o", ms=3, zorder=6)
-        if e.get("cpc_tail"):
+        if e.get("cpc_tail") and e.get("obs_source") != "CPC":         # CPC-sourced: the tail above IS CPC's index
             ax.plot([_month_num(t) for t, _ in e["cpc_tail"]], [v for _, v in e["cpc_tail"]], ls="none", marker="x", ms=5, mew=1.2, color="#8b1a1a", zorder=7)
         if key.startswith("u60"):
             ax.axhline(0, color="#c2185b", lw=1.0, ls="--", zorder=3)
@@ -692,6 +692,9 @@ def plot_series(doc: dict, group: str, out: Path) -> None:
         ax.set_ylabel(e["units"], fontsize=8)
         for sp in ("top", "right"):
             ax.spines[sp].set_visible(False)
+        if e.get("obs_tail") and e.get("obs_source") == "CPC":
+            ax.text(0.98, 0.96, "observed and skill r: CPC's published index", transform=ax.transAxes, fontsize=7, color=MUTED,
+                    va="top", ha="right", style="italic")
         if not e.get("obs_tail"):
             ax.text(0.98, 0.96, ("ERA5 series not in the local store; CPC's published index shown" if e.get("cpc_tail") else "no ERA5 reference in the local store"),
                     transform=ax.transAxes, fontsize=7, color=MUTED, va="top", ha="right", style="italic")
@@ -702,12 +705,16 @@ def plot_series(doc: dict, group: str, out: Path) -> None:
     handles = [Line2D([], [], color="#333", lw=1.4, marker="o", ms=3), Line2D([], [], ls="none", marker="x", color="#8b1a1a", mew=1.2),
                Line2D([], [], color="#1b365d", lw=2.2, marker="o", ms=3.5), Line2D([], [], color="#d0801a", lw=1.6, ls="--"),
                plt.Rectangle((0, 0), 1, 1, color="#3f5f8f", alpha=0.16), plt.Rectangle((0, 0), 1, 1, color="#3f5f8f", alpha=0.30), plt.Rectangle((0, 0), 1, 1, color="#000", alpha=0.05)]
-    labels = ["observed, ERA5 (same projection)", "published index (CPC), its own scale", f"{il(issue)} issue: ensemble mean", f"{il(prev)} issue mean",
+    via_cpc = [doc["indices"][k]["label"] for k in keys if doc["indices"][k].get("obs_source") == "CPC"]
+    labels = ["observed, ERA5 (same projection)" + ("; SOI panels: CPC" if via_cpc else ""), "published index (CPC), its own scale", f"{il(issue)} issue: ensemble mean", f"{il(prev)} issue mean",
               "p10–p90", "p25–p75", ("hindcast mean ±1σ" if group == "strat" else f"neutral, ±{THR}σ")]
     fig.legend(handles, labels, loc="lower center", ncol=4, fontsize=8.2, frameon=False, bbox_to_anchor=(0.5, 0.0))
     fig.suptitle(("Teleconnection indices" if group == "tele" else "Stratosphere and annular-mode indices") + f" — SEAS5, 51 members, {il(issue)} issue", x=0.01, ha="left", fontsize=13, fontweight="bold", y=0.995)
-    fig.text(0.01, 1 - 0.36 / fig.get_figheight(), "Monthly means. Anomalies against the 1993–2016 hindcast (model) and the 1993–2016 ERA5 mean (observed); r = correlation of the 24 hindcast years' ensemble mean with ERA5 for that "
-             "calendar month and lead (grey below 0.25). Dotted line: last observed month in the store.", fontsize=8, color=MUTED, va="top")
+    import textwrap
+    fig.text(0.01, 1 - 0.36 / fig.get_figheight(), textwrap.fill(
+             "Monthly means. Anomalies against the 1993–2016 hindcast (model) and the 1993–2016 ERA5 mean (observed); r = correlation of the 24 hindcast years' ensemble mean with ERA5 for that "
+             "calendar month and lead (grey below 0.25)" + (f"; {' and '.join(via_cpc)}: observed and r from CPC's published index" if via_cpc else "")
+             + ". Dotted line: issue start.", 260), fontsize=8, color=MUTED, va="top", linespacing=1.3)
     fig.subplots_adjust(left=0.045, right=0.99, top=1 - 0.85 / fig.get_figheight(), bottom=1.3 / fig.get_figheight(), hspace=0.78, wspace=0.22)
     fig.savefig(out, dpi=105, facecolor="white", pil_kwargs={"quality": 86, "method": 6}); plt.close(fig)
     print(f"  wrote {out.name}", flush=True)
@@ -807,6 +814,57 @@ def load_issue_summary(ym: str) -> dict:
     return t["meta"]["indices"]
 
 
+def skill_note(idx: dict, era) -> str | None:
+    if not era:
+        return None
+    cpc_keys = [idx[k]["label"] for k in idx if idx[k].get("obs_source") == "CPC"]
+    return ("correlation of the 24 hindcast years' ensemble mean with ERA5 (local store) at the valid month"
+            + (f"; {' and '.join(cpc_keys)} with CPC's published index" if cpc_keys else "")
+            + "; blank where ERA5 lacks the field (stratospheric winds)")
+
+
+def refresh_obs(doc: dict) -> dict:
+    """Re-attach the observed references to a published seas5_tele.json without the forecast GRIBs: CPC's
+    published indices (cpc_tail everywhere; for the CPC-calibrated SOI/EqSOI also the observed tail, skill and
+    calibration, recomputed exactly as add_skill does from the members in the JSON and the hindcast series in
+    the derived table hc_tele_nh_{MM}). The other indices keep their ERA5 tail, skill and calibration untouched.
+    Needed because the October 2026 build ran offline with no CPC files on the runner (obs_tail [] for SOI/EqSOI)."""
+    ym = doc["issue"]
+    cpc = cpc_published()
+    if not any(cpc.get(k) for k in CPC_CALIBRATED):
+        raise SystemExit("CPC SOI / equatorial SOI files unavailable — nothing to refresh")
+    era, scale = era5_indices(None)
+    T = _hct("tele_nh", ym)
+    if T is None:
+        raise SystemExit("hindcast table hc_tele_nh missing — cannot recompute the SOI calibration")
+    y0, m0 = int(ym[:4]), int(ym[4:])
+    tail = [((y0 * 12 + m0 - 1 - k) // 12, (y0 * 12 + m0 - 1 - k) % 12 + 1) for k in range(TAIL_MONTHS, 0, -1)]
+    sub = {}
+    for key, tab in (("soi", "soi_ht"), ("eqsoi", "eqsoi_he")):
+        e = doc["indices"].get(key)
+        if e is None or not cpc.get(key):
+            continue
+        L = len(e["valid"]); ms = [int(v[5:]) for v in e["valid"]]
+        h = np.asarray(T[tab], dtype=float)
+        h = ((h - h.mean(0)) / 100.0)[:, :L]                       # compute(): anomaly vs the hindcast mean per lead, hPa
+        if "ERA5 1991–2020 standard deviation" in e["note"]:          # compute()'s to_sigma, whichever unit the build used
+            h = h / np.array([scale[key][m] for m in ms])[None]
+        else:
+            sd = np.nanstd(h, axis=0); h = h / np.where(sd > 0, sd, np.nan)
+        e["_hc"] = h; sub[key] = e
+    add_skill(sub, ym, era, cpc)                                     # the same code path as the monthly build
+    for key, e in doc["indices"].items():
+        if key in sub:
+            continue
+        pub = cpc.get(key)
+        e["cpc_tail"] = [[f"{y}-{m:02d}", round(pub[(y, m)], 2)] for (y, m) in tail if (y, m) in pub] if pub else None
+    doc["skill_note"] = skill_note(doc["indices"], era)
+    for key in sub:
+        e = doc["indices"][key]
+        print(f"  {key}: observed {e['obs_source']} {e['obs_tail']}; skill {e['skill']}", flush=True)
+    return doc
+
+
 def derive_issue(ym: str) -> None:
     """is_tele_{ym} from that issue's forecast GRIBs + the derived tables (the laptop transition)."""
     pats = Patterns()
@@ -826,13 +884,43 @@ ISSUE_UNITS = {"tele": derive_issue}
 OBS_UNITS = {"tele_patterns": derive_obs_patterns, "tele_era5": derive_obs_era5}
 
 
+def _clean(o):                                                     # NaN is not JSON; browsers reject the whole file
+    if isinstance(o, dict):
+        return {k: _clean(v) for k, v in o.items()}
+    if isinstance(o, (list, tuple)):
+        return [_clean(v) for v in o]
+    if isinstance(o, (float, np.floating)):
+        return None if not np.isfinite(o) else float(o)
+    if isinstance(o, (np.integer,)):
+        return int(o)
+    if isinstance(o, np.ndarray):
+        return _clean(o.tolist())
+    return o
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--issue")
     ap.add_argument("--replot", action="store_true", help="redraw the phase-probability board from the published seas5_tele.json (no data access)")
+    ap.add_argument("--fetch-cpc", action="store_true",
+                    help="download CPC's published index files into the cache (network; seas5.yml runs it before the offline build)")
+    ap.add_argument("--refresh-obs", action="store_true",
+                    help="with --replot: re-attach CPC's published indices to the published JSON (SOI/EqSOI tail, skill and "
+                         "calibration against CPC) and redraw the series figure too; needs network + the hc_tele_nh table")
     a = ap.parse_args(argv)
+    if a.fetch_cpc:
+        got = cpc_published()
+        print("  CPC indices: " + ", ".join(f"{k} to {max(v)[0]}-{max(v)[1]:02d}" for k, v in sorted(got.items()) if v), flush=True)
+        return 0 if any(got.get(k) for k in CPC_CALIBRATED) else 1
     if a.replot:
         doc = json.loads(OUT_JSON.read_text())
+        if a.refresh_obs:
+            doc = refresh_obs(doc)
+            doc["generated"] = time.strftime("%Y-%m-%d %H:%M UTC", time.gmtime())
+            plot_series(doc, "tele", Path(os.environ.get("REPLOT_DIR") or ASSETS) / "seas5_tele_series.webp")
+            out_json = Path(os.environ["REPLOT_DIR"]) / OUT_JSON.name if os.environ.get("REPLOT_DIR") else OUT_JSON
+            out_json.write_text(json.dumps(_clean(doc), separators=(",", ":")))
+            print(f"  wrote {out_json}", flush=True)
         plot_probs(doc, Path(os.environ.get("REPLOT_OUT") or ASSETS / "seas5_tele_probs.webp"))
         return 0
     if not a.issue:
@@ -861,7 +949,7 @@ def main(argv=None) -> int:
            "indices": cur, "previous_indices": pv,
            "figures": {"tele_series": "seas5_tele_series.webp", "tele_probs": "seas5_tele_probs.webp", "strat_series": "seas5_strat_series.webp"},
            "thr": THR, "skill_min": SKILL_MIN,
-           "skill_note": "correlation of the 24 hindcast years' ensemble mean with ERA5 (local store) at the valid month; blank where ERA5 lacks the field (stratospheric winds)" if era else None}
+           "skill_note": skill_note(cur, era)}
     for group, name in (("tele", "seas5_tele_series.webp"), ("strat", "seas5_strat_series.webp")):
         try:
             plot_series(doc, group, ASSETS / name)
@@ -871,19 +959,7 @@ def main(argv=None) -> int:
         plot_probs(doc, ASSETS / "seas5_tele_probs.webp")
     except Exception as e:                                             # noqa: BLE001
         print(f"  seas5_tele_probs.webp FAILED ({str(e)[:100]})", flush=True); doc["figures"].pop("tele_probs", None)
-    def clean(o):                                                  # NaN is not JSON; browsers reject the whole file
-        if isinstance(o, dict):
-            return {k: clean(v) for k, v in o.items()}
-        if isinstance(o, (list, tuple)):
-            return [clean(v) for v in o]
-        if isinstance(o, (float, np.floating)):
-            return None if not np.isfinite(o) else float(o)
-        if isinstance(o, (np.integer,)):
-            return int(o)
-        if isinstance(o, np.ndarray):
-            return clean(o.tolist())
-        return o
-    OUT_JSON.write_text(json.dumps(clean(doc), separators=(",", ":")))
+    OUT_JSON.write_text(json.dumps(_clean(doc), separators=(",", ":")))
     print(f"wrote {OUT_JSON} ({OUT_JSON.stat().st_size / 1e3:.0f} kB, {len(cur)} indices) in {(time.time() - t0) / 60:.1f} min", flush=True)
     return 0
 

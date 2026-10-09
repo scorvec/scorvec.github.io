@@ -289,6 +289,13 @@ jobs:
           echo "$NEW"
           gh release upload "$REF_TAG" --repo "$GITHUB_REPOSITORY" --clobber $NEW
 
+      # CPC's published SOI / equatorial SOI (+ NAO..POL, AO) are the observed reference and calibration target of the
+      # SOI cards; the build below is offline (SEAS5_OFFLINE=1), so they are fetched here first (Oct 2026 issue: none on
+      # the runner -> empty SOI observed tail, ERA5 calibration). Non-fatal: without them the build says so.
+      - name: Fetch CPC's published teleconnection indices (network)
+        if: steps.gate.outputs.run == '1' && steps.fetch.outputs.ready == '1'
+        run: python scripts/sst/seas5_tele.py --fetch-cpc || echo "::warning::CPC index files not fetched; SOI cards fall back to ERA5"
+
       - name: Build the products (forecasts + derived tables only, no network)
         if: steps.gate.outputs.run == '1' && steps.fetch.outputs.ready == '1'
         run: SEAS5_OFFLINE=1 scripts/sst/run_seas5.sh build "${{ steps.gate.outputs.issue }}"
