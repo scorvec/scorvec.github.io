@@ -64,7 +64,7 @@
   .mi-ctl label { display: flex; flex-direction: column; gap: 0.2rem; color: var(--muted); }
   .mi-ctl select { font: inherit; color: var(--ink); padding: 0.3rem 0.4rem; border: 1px solid var(--rule);
                    border-radius: 4px; background: #fff; max-width: 100%; }
-  .mi-embed { aspect-ratio: 1056 / 900; }
+  .mi-embed { aspect-ratio: 1056 / 900; max-width: 100%; }   /* not the RMM wheel's height-derived cap */
   .mi-embed + .mi-embed { margin-top: 0.8rem; }
   .mi-embed[hidden] { display: none; }
   .mi-ctl select:disabled { color: var(--muted); background: transparent; }

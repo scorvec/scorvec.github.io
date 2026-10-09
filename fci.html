@@ -72,6 +72,12 @@
     .spreads { grid-template-columns: 1fr; }
     .chart { height: 340px; }
   }
+  /* phones (2026-10-08 sweep): the stacked legends took half of a 340 px chart, so the charts get taller instead of shorter */
+  @media (max-width: 640px) {
+    .chart, .chart.short { height: 440px; }
+    .spreads .chart { height: 280px; }
+    .pc-grid .chart { height: 360px; }
+  }
 </style>
 <script src="https://cdn.jsdelivr.net/npm/plotly.js-cartesian-dist-min@2.35.2/plotly-cartesian.min.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -518,11 +524,20 @@
   function col(z) { return z > 0.25 ? TIGHT : z < -0.25 ? LOOSE : "#6f6b64"; }
   function ord(p) { var n = Math.round(100 * p); return n + (n % 10 === 1 && n !== 11 ? "st" : n % 10 === 2 && n !== 12 ? "nd" : n % 10 === 3 && n !== 13 ? "rd" : "th"); }
   function xy(a) { return { x: a.map(function (r) { return r[0]; }), y: a.map(function (r) { return r[1]; }) }; }
-  var LAY = { margin: { l: 52, r: 18, t: 10, b: 40 }, paper_bgcolor: "#fff", plot_bgcolor: "#fff", font: { family: "Schibsted Grotesk, Inter, sans-serif", size: 13, color: "#1c1c1a" },
+  var LAY = { margin: { l: 52, r: 18, t: 10, b: 40 }, paper_bgcolor: "#fff", plot_bgcolor: "#fff", font: { family: "'Source Sans 3', 'Helvetica Neue', Arial, sans-serif", size: 13, color: "#1c1c1a" },
               hovermode: "x unified", legend: { orientation: "h", y: 1.1, x: 0 }, xaxis: { gridcolor: "#eee" },
               yaxis: { gridcolor: "#eee", zeroline: true, zerolinecolor: "#888", title: { text: "sd (+ tighter)" } } };
   var CFG = { displaylogo: false, responsive: true, modeBarButtonsToRemove: ["lasso2d", "select2d", "autoScale2d"] };
-  function L(extra) { return Object.assign(JSON.parse(JSON.stringify(LAY)), extra || {}); }
+  // phones: no tool bar (it sat on top of the legend), a smaller legend and tighter margins
+  if (window.matchMedia("(max-width: 640px)").matches) {
+    CFG.displayModeBar = false;
+    LAY.font.size = 13.5; LAY.margin = { l: 48, r: 10, t: 10, b: 38 };
+  }
+  var NARROW = window.matchMedia("(max-width: 640px)").matches;
+  // on phones every legend starts at the left edge of the chart, not of the plot area, so long names are not cut off
+  function L(extra) { var o = Object.assign(JSON.parse(JSON.stringify(LAY)), extra || {});
+    if (NARROW && o.legend) o.legend = Object.assign({}, o.legend, { x: -0.13, xanchor: "left", font: { family: LAY.font.family, size: 13 } });
+    return o; }
   function ranges(id, opts, def, apply) {
     var el = document.getElementById(id);
     el.innerHTML = opts.map(function (o) { return '<button type="button" data-y="' + o[0] + '" aria-pressed="' + (o[0] === def) + '">' + o[1] + "</button>"; }).join("");

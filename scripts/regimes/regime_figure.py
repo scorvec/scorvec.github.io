@@ -91,6 +91,16 @@ def render(out: Path, ref: RC.Ref, sk: str, init, P, *, title: str, subtitle: st
     n_mod = len(models) if models else 0
     W = 12.0
     items = [f for f in present if f != F] + [F]
+    # the observed tail can sit in the other season (late-September analyses before an October forecast) and use a
+    # family the forecast's sets do not have; it was drawn in a colour the legend never named (2026-10-08). Legend only:
+    # the weekly grid stays the forecast's families.
+    if obs is not None:
+        tail_fams = sorted({int(fam) for d, fam in zip(*obs) if fam >= 0 and fam < F and fam not in present
+                            and -TAIL <= (RC.parse_date(d) - init).days < 0})
+        for f in tail_fams:
+            tail_s = [s for s in ("cold", "warm") if RC.FAMILIES[sk][f].get(s) is not None] if isinstance(RC.FAMILIES[sk][f], dict) else []
+            names[f] = ref.family_name(sk, f, tail_s or seasons_present) + " (observed tail)"
+        items = [f for f in present if f != F] + tail_fams + [F]
     per_row = 4 if max(len(names[f]) for f in items) <= 24 else 3
     n_leg_rows = int(np.ceil((len(items) + (1 if prev is not None and prev_label else 0)) / per_row))
     import textwrap
@@ -187,7 +197,8 @@ def render(out: Path, ref: RC.Ref, sk: str, init, P, *, title: str, subtitle: st
         xx, yy = lx + c * colw, ly - r * 0.3 / H
         fig.lines.append(plt.Line2D([xx, xx + 0.22 / W], [yy - 0.05 / H] * 2, transform=fig.transFigure, color="#111",
                                     lw=1.0))
-        fig.text(xx + 0.3 / W, yy - 0.05 / H, prev_label + " (outline)", fontsize=FONT, va="center", color=RC.INK)
+        fig.text(xx + 0.3 / W, yy - 0.05 / H, prev_label if "outline" in prev_label else prev_label + " (outline)",
+                 fontsize=FONT, va="center", color=RC.INK)
     for j, f in enumerate(items):
         r, c = divmod(j, per_row)
         xx, yy = lx + c * colw, ly - r * 0.3 / H
@@ -240,10 +251,11 @@ def render(out: Path, ref: RC.Ref, sk: str, init, P, *, title: str, subtitle: st
     for c, w in enumerate(wk):
         d0 = init + dt.timedelta(days=w["w0"] - 1)
         d1 = init + dt.timedelta(days=w["w0"] - 2 + w["ndays"])
-        axg.text(c + 0.5, 0.42, f"Week {c + 1}", ha="center", va="bottom", fontsize=FONT, fontweight="bold",
+        axg.text(c + 0.5, 0.14, f"Week {c + 1}", ha="center", va="bottom", fontsize=FONT, fontweight="bold",
                  color=RC.INK)
-        axg.text(c + 0.5, 0.46, f"{d0:%b %-d}–{d1:%-d}" if d0.month == d1.month else f"{d0:%b %-d}–{d1:%b %-d}",
-                 ha="center", va="top", fontsize=FONT - 1.5, color=RC.MUTED)
+        # a week across a month end takes two lines ("Oct 22–28Oct 29–Nov 4" ran together on one, 2026-10-08)
+        axg.text(c + 0.5, 0.18, f"{d0:%b %-d}–{d1:%-d}" if d0.month == d1.month else f"{d0:%b %-d}–\n{d1:%b %-d}",
+                 ha="center", va="top", fontsize=FONT - 1.5, color=RC.MUTED, linespacing=1.0)
         ok = sig.get(w["w0"])
         skilful = ok is not None and any(ok)
         best = int(np.argmax(w["p"]))

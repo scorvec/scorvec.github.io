@@ -1,0 +1,63 @@
+name: Restore frames-branch directories
+
+# 2026-10-08: a failed clone in publish_frames_ci.sh was taken for "no branch yet" and an empty branch was force-pushed
+# (mur-sst, 14:08Z), deleting every other product's frames and state. This puts back, from a known-good commit, every
+# directory that is MISSING from the current tip (assets/<product>, scripts/<a>/<b>, other top-level paths) and leaves
+# everything the tip already has untouched, so frames published since then win. Same lease rule as publish_frames_ci.sh.
+
+on:
+  workflow_dispatch:
+    inputs:
+      good_sha:
+        description: 'Full sha of the last good frames commit'
+        required: true
+
+permissions:
+  contents: write
+
+concurrency:
+  group: frames-restore
+  cancel-in-progress: false
+
+jobs:
+  restore:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Restore missing directories
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GOOD: ${{ inputs.good_sha }}
+        run: |
+          set -euo pipefail
+          URL="https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          for attempt in 1 2 3 4 5; do
+            rm -rf f
+            git clone --depth 1 --branch frames --single-branch -q "$URL" f || { echo "clone failed, retrying"; sleep 20; continue; }
+            cd f
+            BASE=$(git rev-parse HEAD)
+            git fetch -q --depth 1 origin "$GOOD"
+            # candidate paths in the good commit: assets/<x>, scripts/<a>/<b>, and any other top-level entry
+            git ls-tree -r --name-only "$GOOD" | awk -F/ '
+              $1=="assets"  && NF>=3 {print $1"/"$2; next}
+              $1=="scripts" && NF>=4 {print $1"/"$2"/"$3; next}
+              {print $1}' | sort -u > ../cand.txt
+            : > ../restore.txt
+            while read -r p; do
+              [ -z "$(git ls-tree HEAD -- "$p")" ] && echo "$p" >> ../restore.txt || true
+            done < ../cand.txt
+            echo "== restoring $(wc -l < ../restore.txt) path(s):"; cat ../restore.txt
+            [ -s ../restore.txt ] || { echo "nothing missing"; exit 0; }
+            while read -r p; do git checkout -q "$GOOD" -- "$p"; done < ../restore.txt
+            git config user.name "Shawn Corvec"
+            git config user.email "26825570+scorvec@users.noreply.github.com"
+            git checkout -q --orphan fresh
+            git add -A
+            git commit -q -m "animation frames $(date -u +%Y-%m-%dT%H:%MZ) (restored missing dirs from ${GOOD:0:10})"
+            git config http.postBuffer 524288000
+            if git push -q --force-with-lease="frames:$BASE" origin "fresh:frames"; then
+              echo "pushed $(git rev-parse HEAD)"; exit 0
+            fi
+            cd ..; echo "branch moved - retrying ($attempt)"; sleep $((attempt * 10))
+          done
+          exit 1

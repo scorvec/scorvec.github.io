@@ -92,9 +92,23 @@ if git clone --depth 1 --branch "$BRANCH" --single-branch -q "$URL" "$TMP/f"; th
   echo "  cloned $BRANCH ($(du -sh "$TMP/f" | cut -f1))"
   BASE=$(git -C "$TMP/f" rev-parse HEAD)
 else
-  echo "  no $BRANCH yet - creating it"
-  mkdir -p "$TMP/f" && git -C "$TMP/f" init -q && git -C "$TMP/f" remote add origin "$URL"
-  BASE=""
+  # A FAILED CLONE IS NOT A MISSING BRANCH (2026-10-08). mur-sst's clone died with "early EOF" mid-transfer, this branch
+  # took it for "no branch yet", started an empty one and force-pushed it: every other product's frames (cansips, climate,
+  # gefs, mjo, sfs, snowband, site, the scripts/ state) vanished from the branch. Create only when the remote says the
+  # branch does not exist; anything else is a transient failure - retry, never push.
+  rm -rf "$TMP/f"
+  rc=0; out=$(git ls-remote --exit-code --heads "$URL" "$BRANCH" 2>&1) || rc=$?
+  if [ "$rc" -eq 0 ]; then
+    echo "::warning::clone of $BRANCH failed but the branch exists - retrying, not publishing"
+    return 75
+  elif [ "$rc" -eq 2 ] && [ -z "$out" ]; then          # 2 = the remote answered and has no such ref
+    echo "  no $BRANCH yet - creating it"
+    mkdir -p "$TMP/f" && git -C "$TMP/f" init -q && git -C "$TMP/f" remote add origin "$URL"
+    BASE=""
+  else
+    echo "::warning::cannot reach the remote to check $BRANCH ($out) - retrying, not publishing"
+    return 75
+  fi
 fi
 
 # Two modes per argument:
