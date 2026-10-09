@@ -486,7 +486,6 @@ def render(ym: str, var: str, ref: str, kind: str, panels, lat, lon, out_dir: Pa
             h1 = [Patch(color=c, label=f"{int(bins[i]*100)}–{int(min(bins[i+1],1)*100)}%") for i, c in enumerate(warm)]
             h2 = [Patch(color=c, label=f"{int(bins[i]*100)}–{int(min(bins[i+1],1)*100)}%") for i, c in enumerate(cool)]
             l1 = fig.legend(handles=h1, loc="lower left", bbox_to_anchor=(0.04, 0.004), ncol=6, frameon=False, title="Above normal most likely", fontsize=8, title_fontsize=8.5)
-            fig.add_artist(l1)
             fig.legend(handles=h2, loc="lower right", bbox_to_anchor=(0.96, 0.004), ncol=6, frameon=False, title="Below normal most likely", fontsize=8, title_fontsize=8.5)
         out = out_dir / f"seas5_norm_{var}_{ref}_{kind}_{pnl['key']}.webp"
         fig.savefig(out, dpi=110, pil_kwargs={"quality": 84, "method": 6}); plt.close(fig)

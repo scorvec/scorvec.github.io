@@ -97,11 +97,25 @@ def draw(v, lat, lon, key: str, title: str, sub: str, out: Path):
     # dateline, which on a Pacific-centred map runs straight through the subject.
     from cartopy.util import add_cyclic_point
     v, lon = add_cyclic_point(v, coord=lon)
+    out.parent.mkdir(parents=True, exist_ok=True)
+    if key == "sst":
+        # the site's shared SST palette and ladder (white +-0.2, 0.2 degC classes; same colours as SEAS5, SFS and the
+        # OISST loops) instead of thirds of a degree to +-2; land colour behind the field so coastal no-data cells
+        # read as land, not as white slivers
+        sty = mapstyle.sst_anom_style(5.0)
+        ax.set_facecolor(mapstyle.SST_LAND)
+        m = ax.contourf(lon, lat, np.ma.masked_invalid(v), levels=sty["levels"], cmap=sty["cmap"], norm=sty["norm"],
+                        extend="both", transform=pc)
+        mapstyle.features(ax, states=False, land_color=mapstyle.SST_LAND)
+        mapstyle.heading(fig, H, title, sub)
+        cb = mapstyle.colorbar(fig, H, m, f"{label} anomaly ({units})")
+        mapstyle.sst_colorbar(cb, sty, f"{label} anomaly ({units})", size=8.5, tick_size=7)
+        mapstyle.save_webp_palette(fig, out, dpi=125)
+        return out
     m = ax.contourf(lon, lat, v, levels=lv, cmap=cmap, extend="both", transform=pc)
     mapstyle.features(ax)
     mapstyle.heading(fig, H, title, sub)
     mapstyle.colorbar(fig, H, m, f"{label} anomaly ({units})", levels=lv)
-    out.parent.mkdir(parents=True, exist_ok=True)
     mapstyle.save(fig, out)
     return out
 

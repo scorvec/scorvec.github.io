@@ -111,7 +111,9 @@ def main() -> int:
                             xy=(1.0, v), xycoords=("axes fraction", "data"),
                             xytext=(-4, 2 if key == "hi" else -9),
                             textcoords="offset points", fontsize=6.8, color=COL[name],
-                            ha="right", va="bottom" if key == "hi" else "top")
+                            ha="right", va="bottom" if key == "hi" else "top", zorder=6,
+                            # a white ground: the 2026 bars and lines ran through the min labels
+                            bbox=dict(boxstyle="round,pad=0.12", fc="white", ec="none", alpha=0.8))
 
     # ── monthly record since 1893 ──
     aM.plot(mon.index, mon.values, color=CM, lw=0.55, alpha=0.8, label="monthly SOI")
@@ -132,8 +134,9 @@ def main() -> int:
     a0.axhline(0, color="0.4", lw=0.8)
     for y, lab in ((8, "sustained > +8 ⇒ La Niña"), (-8, "sustained < −8 ⇒ El Niño")):
         a0.axhline(y, color="0.65", lw=0.8, ls="--")
-        a0.text(m30.index[0], y, " " + lab, fontsize=6.8, color="0.45",
-                va="bottom" if y > 0 else "top")
+        a0.text(m30.index[0], y, " " + lab, fontsize=6.8, color="0.4", zorder=6,
+                va="bottom" if y > 0 else "top",
+                bbox=dict(boxstyle="round,pad=0.12", fc="white", ec="none", alpha=0.8))
     rec_lines(a0, ("30", "90"))
     a0.set_ylim(recs["30"]["lo"] - 6, recs["30"]["hi"] + 6)     # room for record labels
     a0.set_xlim(m30.index[0], m30.index[-1] + pd.Timedelta(days=120))

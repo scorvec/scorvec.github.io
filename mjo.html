@@ -64,7 +64,7 @@
   .mi-ctl label { display: flex; flex-direction: column; gap: 0.2rem; color: var(--muted); }
   .mi-ctl select { font: inherit; color: var(--ink); padding: 0.3rem 0.4rem; border: 1px solid var(--rule);
                    border-radius: 4px; background: #fff; max-width: 100%; }
-  .mi-embed { aspect-ratio: 1056 / 900; }
+  .mi-embed { aspect-ratio: 1056 / 900; max-width: 100%; }   /* not the RMM wheel's height-derived cap */
   .mi-embed + .mi-embed { margin-top: 0.8rem; }
   .mi-embed[hidden] { display: none; }
   .mi-ctl select:disabled { color: var(--muted); background: transparent; }
@@ -161,7 +161,7 @@
                 <li><a href="/stratosphere.html">Stratosphere and polar vortex</a></li>
                 <li class="sh-subitem"><a href="/stratosphere.html#pv">Now: analyses and observations</a></li>
                 <li class="sh-subitem"><a href="/stratosphere.html#vortex">Next two weeks</a></li>
-                <li class="sh-subitem"><a href="/stratosphere.html#vortex35">Weeks 3–6</a></li>
+                <li class="sh-subitem"><a href="/stratosphere.html#vortex35">Weeks 3–5</a></li>
                 <li class="sh-subitem"><a href="/stratosphere.html#s5vortex">Season</a></li>
                 <li class="sh-subitem"><a href="/stratosphere.html#shwinters">History and studies</a></li>
                 <li class="sh-subitem"><a href="/stratosphere.html#qbo">QBO tracker</a></li>
@@ -210,7 +210,7 @@
             <div>
               <h3>Verification</h3>
               <ul>
-                <li><a href="/aifs-verify.html">AIFS single versus member 0</a></li>
+                <li><a href="/aifs-verify.html">AIFS single versus member 0</a></li>
               </ul>
             </div>
           </div>
@@ -412,12 +412,12 @@
   Amplitude is the radial distance (rings at 1, 2, 3).
   Observed track is recent ERA5/AIFS analysis (wind-only, verified within a few
   degrees of the official BoM RMM phase).</p>
-  <p class="chart-sources">Updated 2026-10-08 20:54Z · Auto-generated from the AIFS-ENS open-data
+  <p class="chart-sources">Updated 2026-10-08 21:22Z · Auto-generated from the AIFS-ENS open-data
   feed. Methodology: NOAA CPC / Wheeler &amp; Hendon (2004), EOFs from NOAA OLR +
   NCEP wind with the 120-day low-frequency filter removed; pseudo-OLR from
   &minus;standardized daily precip vs an ERA5 1991&ndash;2020 band climatology.</p>
   </template>
-  <p class="meta">Updated 2026-10-08 20:54Z · Auto-generated from the AIFS-ENS open-data feed.</p>
+  <p class="meta">Updated 2026-10-08 21:22Z · Auto-generated from the AIFS-ENS open-data feed.</p>
 </main>
 <script>
 window.STAGE = { groups: [{"label": "Forecast", "items": [["rmm", "RMM forecast", "AIFS-ENS against IFS-ENS, 15 days"], ["clean", "ENSO-removed index", "the El Ni\u00f1o signal taken out"]]}, {"label": "Impacts", "items": [["mi", "Impacts by phase and season", "CMIP6 and observed composites"]]}],

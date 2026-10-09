@@ -341,8 +341,12 @@ if (document.fonts && document.fonts.ready) document.fonts.ready.then(postHeight
 function fitWide() {
   const wrap = imgEl.closest(".frame-wrap");
   if (!wrap || !imgEl.naturalWidth) return;
-  const wide = imgEl.naturalWidth / imgEl.naturalHeight > 2.4
-    && Math.min(window.innerWidth, document.body.clientWidth) < 700;
+  // "narrow screen" means the DEVICE, not this iframe: an embed pinned to ~670 px on a laptop (mjo.html's
+  // all-eight-phases grid) went into pan mode and showed three of its four columns with no visible way to pan
+  let vw = window.innerWidth;
+  try { vw = Math.min(vw, window.top.innerWidth); } catch (e) {}
+  if (window !== window.top) { try { vw = window.top.innerWidth; } catch (e) {} }
+  const wide = imgEl.naturalWidth / imgEl.naturalHeight > 2.4 && vw < 700;
   wrap.classList.toggle("panwide", wide);
 }
 imgEl.addEventListener("load", () => { fitWide(); postHeight(); });
@@ -455,7 +459,10 @@ function setupRegion() {
   // forecast-style embeds can ask to open on a specific frame (?start=0) and
   // roll on load (?autoplay=1); observation loops keep the newest-frame default
   const P = new URLSearchParams(location.search);
-  const s = P.get("start");
+  // ?start=manifest opens on the frame the producer marks as "now" (manifest.start, the Kelvin tracker's init
+  // day): a fixed ?start=10 assumed ten analysis days and opened on day +10 when the archive had fewer
+  let s = P.get("start");
+  if (s === "manifest") s = Number.isInteger(manifest.start) ? String(manifest.start) : null;
   idx = s !== null ? Math.min(Math.max(parseInt(s) || 0, 0), frames.length - 1)
                    : frames.length - 1;     // default: most recent
   // The frame on screen and NOTHING else (2026-10-05, user: "Don't load unnecessary frames in the background

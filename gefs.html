@@ -37,7 +37,8 @@
   .method-note a { color: var(--accent); text-decoration: none; border-bottom: 1px solid var(--accent-light); white-space: nowrap; }
   .method-note a:hover { border-bottom-color: var(--accent); }
   /* the viewer is /assets/stage.css (navigation phase 2, 2026-09-27); the number tables sit under the caption */
-  #tele-table, #mjo-table { padding: 0 1.2rem; }
+  #tele-table, #mjo-table { padding: 0 1.2rem; overflow-x: auto; }   /* phones: the five-week table scrolls inside the card (it was clipped) */
+  @media (max-width: 640px) { #tele-table, #mjo-table { padding: 0 0.5rem; } }
 </style>
 <script data-goatcounter="https://scorvec.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -127,7 +128,7 @@
                 <li><a href="/stratosphere.html">Stratosphere and polar vortex</a></li>
                 <li class="sh-subitem"><a href="/stratosphere.html#pv">Now: analyses and observations</a></li>
                 <li class="sh-subitem"><a href="/stratosphere.html#vortex">Next two weeks</a></li>
-                <li class="sh-subitem"><a href="/stratosphere.html#vortex35">Weeks 3–6</a></li>
+                <li class="sh-subitem"><a href="/stratosphere.html#vortex35">Weeks 3–5</a></li>
                 <li class="sh-subitem"><a href="/stratosphere.html#s5vortex">Season</a></li>
                 <li class="sh-subitem"><a href="/stratosphere.html#shwinters">History and studies</a></li>
                 <li class="sh-subitem"><a href="/stratosphere.html#qbo">QBO tracker</a></li>
@@ -176,7 +177,7 @@
             <div>
               <h3>Verification</h3>
               <ul>
-                <li><a href="/aifs-verify.html">AIFS single versus member 0</a></li>
+                <li><a href="/aifs-verify.html">AIFS single versus member 0</a></li>
               </ul>
             </div>
           </div>
@@ -258,7 +259,7 @@
     <div id="dom-stratlink" class="card" hidden>
       <h2>GEFS stratosphere: on the stratosphere page</h2>
       <p class="note">This page&rsquo;s polar-vortex products moved on 8 October 2026 to the <a href="/stratosphere.html#vortex35/gefs">stratosphere page</a>,
-      under &ldquo;Weeks 3&ndash;6&rdquo;, side by side with the other model there and with every other model&rsquo;s vortex forecast from the
+      under &ldquo;Weeks 3&ndash;5&rdquo;, side by side with the other model there and with every other model&rsquo;s vortex forecast from the
       next two weeks out to the season. The figures are the same files, updated by the same GEFS run.</p>
       <ul class="strat-links">
         <li><a href="/stratosphere.html#vortex35/gefs">Polar vortex diagnostics, days 1&ndash;35 &rarr;</a></li>

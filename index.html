@@ -230,6 +230,17 @@
   /* wide screens: the product list runs in two or three columns of compact cards (title, cadence,
      description underneath) instead of one long ledger (user 2026-09-08: "too long ... make it
      multi-column if screen size allows") */
+  /* tablets too (2026-10-08 sweep): from 640 px the cards run two to a row, so an 820 px tablet no longer scrolls through
+     one long single column */
+  @media (min-width: 640px) {
+    .rows { display: grid; grid-template-columns: repeat(auto-fill, minmax(17rem, 1fr)); gap: 0 2rem; align-items: start; }
+    .rows .sub { grid-column: 1 / -1; padding-top: 1.3rem; }
+    .row { grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "title when" "what what"; gap: 0.3rem 1rem; padding: 0.9rem 0.6rem; }
+    .row a { grid-area: title; }
+    .row .when { grid-area: when; align-self: baseline; text-align: right; }
+    .row .what { grid-area: what; font-size: 0.94rem; line-height: 1.45; }
+    .row, .row + .row { border-top: 1px solid var(--cloud-2); }
+  }
   @media (min-width: 1100px) {
     /* the product ledger may run wider than the reading measure: up to 94 % of the viewport */
     main.wrap { max-width: min(94vw, 1800px); }
@@ -278,7 +289,7 @@
   .feature h2 a { text-decoration: none; }
   .feature h2 a::after { content: ''; position: absolute; inset: 0; border-radius: 10px; }   /* the whole panel is the link */
   .feature p { color: var(--storm); max-width: 34rem; }
-  .feature .go { display: inline-block; margin-top: 0.9rem; font-weight: 500; color: var(--sky-deep);
+  .feature .go { display: inline-block; margin-top: 0.9rem; margin-right: 1.1rem; font-weight: 500; color: var(--sky-deep);
                  text-decoration: underline; text-underline-offset: 0.22em; text-decoration-color: rgba(39, 75, 122, 0.4); }
   .feature:hover .go { text-decoration-color: var(--sky-deep); }
   .feature .asof { display: block; margin-top: 0.5rem; font-size: 0.86rem; color: var(--storm); }
@@ -293,6 +304,10 @@
   .stats small { display: block; margin-top: 0.3rem; font-size: 0.86rem; color: var(--storm); }
   @media (max-width: 860px) {
     .feature { grid-template-columns: 1fr; }
+  }
+  @media (max-width: 639px) {
+    .row { grid-template-columns: 1fr; gap: 0.25rem; padding: 0.95rem 0; }
+    .row .when { text-align: left; }
   }
   @media (max-width: 520px) {
     .stats { grid-template-columns: 1fr; }
@@ -310,10 +325,12 @@
   .feature--enso h2, .feature--enso .stats b { color: #9a3f14; }
   .feature--enso .go { color: #9a3f14; text-decoration-color: rgba(154, 63, 20, 0.4); }
   .feature--enso:hover .go { text-decoration-color: #9a3f14; }
-  .feature .alt { position: relative; z-index: 1; margin-left: 1.1rem; font-weight: 500; color: #9a3f14;
+  .feature .alt { display: inline-block; white-space: nowrap; position: relative; z-index: 1; margin-top: 0.9rem; font-weight: 500; color: #9a3f14;
                   text-underline-offset: 0.22em; }
   .spark { display: block; width: 100%; max-width: 30rem; height: auto; margin-top: 1.1rem; }
   .spark text { font-family: var(--sans); font-size: 10px; fill: var(--storm); }
+  /* the chart is drawn 320 units wide and shrinks to the card: on a phone 10 units came out at ~9 px */
+  @media (max-width: 600px) { .spark text { font-size: 12.5px; } }
 
   /* ── About ───────────────────────────────────────────────────────────── */
   .about {
@@ -339,8 +356,7 @@
   @media (max-width: 860px) {
     .index-head { grid-template-columns: 1fr; gap: 1rem; }
     .group { grid-template-columns: 1fr; gap: 0.4rem; }
-    .row { grid-template-columns: 1fr; gap: 0.25rem; padding: 0.95rem 0; }
-    .row .when { text-align: left; }
+
     .about { grid-template-columns: 1fr; }
     .about img { width: 5.5rem; height: 5.5rem; }
   }
@@ -424,7 +440,7 @@
                 <li><a href="/stratosphere.html">Stratosphere and polar vortex</a></li>
                 <li class="sh-subitem"><a href="/stratosphere.html#pv">Now: analyses and observations</a></li>
                 <li class="sh-subitem"><a href="/stratosphere.html#vortex">Next two weeks</a></li>
-                <li class="sh-subitem"><a href="/stratosphere.html#vortex35">Weeks 3–6</a></li>
+                <li class="sh-subitem"><a href="/stratosphere.html#vortex35">Weeks 3–5</a></li>
                 <li class="sh-subitem"><a href="/stratosphere.html#s5vortex">Season</a></li>
                 <li class="sh-subitem"><a href="/stratosphere.html#shwinters">History and studies</a></li>
                 <li class="sh-subitem"><a href="/stratosphere.html#qbo">QBO tracker</a></li>
@@ -473,7 +489,7 @@
             <div>
               <h3>Verification</h3>
               <ul>
-                <li><a href="/aifs-verify.html">AIFS single versus member 0</a></li>
+                <li><a href="/aifs-verify.html">AIFS single versus member 0</a></li>
               </ul>
             </div>
           </div>
@@ -582,7 +598,7 @@
         <li class="row"><a href="/enso.html">El Niño monitor</a><span class="what">Daily ONI and RONI, Niño-region sea surface temperatures, the subsurface, winds and convection, with SST anomaly maps and animation.</span><span class="when">Daily</span></li>
         <li class="row"><a href="/circulation.html#mslp">Pacific pressure and wind</a><span class="what">Sea-level pressure and 10 m wind over the Pacific from the AIFS and IFS ensembles, separately and blended, to day 15.</span><span class="when">Twice daily</span></li>
         <li class="row"><a href="/mjo.html">MJO forecast</a><span class="what">Real-time multivariate MJO index from the ECMWF AIFS ensemble, with the observed phase-space track, an ENSO-removed version, and what each phase has meant for temperature and rain.</span><span class="when">Twice daily</span></li>
-        <li class="row"><a href="/tropical-waves.html">Tropical waves</a><span class="what">Which equatorial waves are active now (a Wheeler–Kiladis spectrum, observed and forecast), with Kelvin and Rossby wave trackers along the equator and ocean Kelvin waves.</span><span class="when">Daily</span></li>
+        <li class="row"><a href="/tropical-waves.html">Tropical waves</a><span class="what">Where the equatorial waves are now: Kelvin and Rossby wave trackers along the equator with the forecast, the OLR wave decomposition and ocean Kelvin waves.</span><span class="when">Daily</span></li>
         <li class="sub">Tropical cyclones</li>
         <li class="row"><a href="/circulation.html#tcjet">Tropical cyclones and the jet</a><span class="what">How strongly each storm's outflow meets the jet stream, the wave packets along the jet with the storms' positions, and a watch when a recurvature looks likely.</span><span class="when">Daily</span></li>
         <li class="row"><a href="/circulation.html#tcens">Tropical cyclone ensembles</a><span class="what">Every AIFS and IFS ensemble member's track, the odds and timing of recurvature, and how deep the storm gets once it becomes extratropical.</span><span class="when">Daily</span></li>
@@ -626,7 +642,7 @@
         <li class="row"><a href="/aifs-aam-budget.html">AINWP and conservation</a><span class="what">Do AI weather models obey the conservation laws? ECMWF's AI ensemble (AIFS-ENS), the single AIFS and the physics ensemble against angular momentum and its torques, dry-air mass, water and energy. Winter 2025–26, days 1–15.</span><span class="when">Static</span></li>
         <li class="row"><a href="/topics/">Explainers</a><span class="what">How to read the products: the equations and the physics behind each diagnostic.</span><span class="when">As written</span></li>
         <li class="sub">Verification</li>
-        <li class="row"><a href="/aifs-verify.html">AIFS single versus member 0</a><span class="what">The two ECMWF AIFS configurations compared as deterministic models against radiosondes and ERA5, with the ensemble member spectrally matched to the single model and the ensemble mean for reference.</span><span class="when">Every 00Z and 12Z run</span></li>
+        <li class="row"><a href="/aifs-verify.html">AIFS single versus member 0</a><span class="what">The two ECMWF AIFS configurations compared as deterministic models against radiosondes and ERA5, with the ensemble member spectrally matched to the single model and the ensemble mean for reference.</span><span class="when">Every 00Z and 12Z run</span></li>
       </ul>
     </div>
 
@@ -744,10 +760,13 @@
           (fcp.length > 1 ? `<path d="${path(fcp)}" fill="none" stroke="#9a3f14" stroke-width="1.6" stroke-dasharray="4 3"/>` : '') +
           `<circle cx="${X(last[0]).toFixed(1)}" cy="${Y(last[1]).toFixed(1)}" r="2.8" fill="#9a3f14"/>` +
           `<text x="4" y="88">${new Date(x0).toLocaleDateString('en-US', { month: 'short', year: 'numeric', timeZone: 'UTC' })}</text>` +
-          `<text x="${X(last[0]).toFixed(1)}" y="88" text-anchor="middle">today</text>` +
+          `<text x="${X(last[0]).toFixed(1)}" y="88" text-anchor="middle" class="sp-today">today</text>` +
           (fcp.length > 1 ? `<text x="316" y="88" text-anchor="end">models to ${new Date(x1).toLocaleDateString('en-US', { month: 'short', timeZone: 'UTC' })}</text>` : '') +
           `<text x="8" y="${(Y(0) - 3).toFixed(1)}">0</text>`;
         svg.hidden = false;
+        // "today" gives way when it would run into the date or the "models to" label beside it
+        const td = svg.querySelector('.sp-today'), lab = [...svg.querySelectorAll('text[y="88"]')].filter(e => e !== td);
+        if (td && lab.some(e => { const a = td.getBBox(), b = e.getBBox(); return a.x < b.x + b.width + 3 && b.x < a.x + a.width + 3; })) td.remove();
       }
     })
     .catch(() => {});

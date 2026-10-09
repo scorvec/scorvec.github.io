@@ -74,8 +74,10 @@ jobs:
         run: |
           sudo apt-get update -qq && sudo apt-get install -y --no-install-recommends libgeos-dev libproj-dev proj-bin
           # netCDF4/h5netcdf are xarray BACKEND plugins (no import names them); zarr+gcsfs read ARCO ERA5 for the MJO
-          # channels (fetch_arco_*); cartopy 0.25 pinned (0.26 collapses dateline-centred extents, 2026-09-18)
-          pip install --quiet numpy scipy pandas xarray dask netCDF4 h5netcdf zarr gcsfs cfgrib eccodes \
+          # channels (fetch_arco_*); cartopy 0.25 pinned (0.26 collapses dateline-centred extents, 2026-09-18).
+          # eofs: mjo_geps -> scripts/mjo/src/recent_analysis -> setup_reference imports eofs.standard; without it the
+          # MJO phase/Hovmoller/skill steps died with ModuleNotFoundError on every run since the 2026-10-04 move.
+          pip install --quiet numpy scipy pandas xarray dask netCDF4 h5netcdf zarr gcsfs cfgrib eccodes eofs \
             matplotlib==3.10.9 cartopy==0.25.0 'shapely>=2.1.2' 'pyproj>=3.7.2' requests
       # coastlines/borders are fetched by cartopy on first use; keep them between runs
       - uses: actions/cache@v6

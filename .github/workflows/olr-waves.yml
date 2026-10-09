@@ -36,9 +36,13 @@ jobs:
       # grows every run; it is what the background is rebuilt from (wk_spectrum.py --build-bg, laptop). The publish
       # swaps the directory in WHOLESALE, so a run that could not seed it backfills the whole record first and never
       # publishes a short archive over a long one.
+      # 2026-10-08 (user): the Wheeler-Kiladis spectrum was taken off tropical-waves.html ("doesn't really explain or
+      # help anything"). Its three steps are disabled, not deleted; wk_spectrum.py and the frames-branch archive stay.
       - name: Seed the OLR archive from the frames branch
+        if: false
         run: scripts/lib/fetch_frames_ci.sh assets/sst/anim/wk_olr || true
       - name: Wheeler-Kiladis spectrum
+        if: false
         id: wk
         env:
           EARTHDATA_USERNAME: ${{ secrets.EARTHDATA_USERNAME }}
@@ -68,9 +72,9 @@ jobs:
           git config user.name "Shawn Corvec"
           git config user.email "26825570+scorvec@users.noreply.github.com"
           git add assets/sst/olr_waves.webp assets/sst/wave_tracker.webp scripts/sst/metar/olr_rt.nc
-          git add assets/sst/wk_spectrum.webp assets/sst/data/wk_spectrum.json 2>/dev/null || true
           # earlier versions (2026-10-03): the normalised first one, then raw power; replaced by wk_spectrum.webp
           git rm -q --ignore-unmatch assets/sst/wk_raw.webp assets/sst/wk_now.webp assets/sst/wk_gmgsi.webp assets/sst/wk_clim.webp
+          git rm -q --ignore-unmatch assets/sst/wk_spectrum.webp assets/sst/data/wk_spectrum.json   # product removed 2026-10-08
           if git diff --staged --quiet; then echo "no changes"; exit 0; fi
           git commit -m "data update: $(date -u +%Y-%m-%dT%H:%MZ)"
           for i in 1 2 3 4 5; do

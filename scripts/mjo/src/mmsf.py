@@ -334,11 +334,24 @@ def strength_texts(hs):
     return txt
 
 
+
+def nice_lim(x):
+    """Round a colour-scale half-range up to 10 x a round step, so the 21 levels and the colour-bar ticks (every
+    second level) are round numbers (2026-10-08 sweep: the raw percentile gave ticks like 0.222, 0.444, 0.666)."""
+    if not np.isfinite(x) or x <= 0:
+        return 1.0
+    k = 10.0 ** np.floor(np.log10(x / 10.0))
+    for m in (1.0, 1.5, 2.0, 2.5, 3.0, 4.0, 5.0, 7.5, 10.0):
+        if 10 * m * k >= x * (1 - 1e-9):
+            return float(10 * m * k)
+    return float(100 * k)
+
+
 def plot_psi(psi, p_hpa, lat, out: Path, title: str, anom=False, vlim=None, psi_abs=None,
              texts=None):
     fig, ax = plt.subplots(figsize=(10, 5.2))
     mlat = (lat >= -45) & (lat <= 45)                      # tropics/subtropics focus
-    lim = vlim if vlim is not None else float(np.nanpercentile(np.abs(psi[:, mlat]), 99.5))
+    lim = vlim if vlim is not None else nice_lim(float(np.nanpercentile(np.abs(psi[:, mlat]), 99.5)))
     levs = np.linspace(-lim, lim, 21)
     cf = ax.contourf(lat[mlat], p_hpa, psi[:, mlat], levels=levs, cmap="RdBu_r", extend="both")
     if psi_abs is not None:
@@ -362,10 +375,11 @@ def plot_psi(psi, p_hpa, lat, out: Path, title: str, anom=False, vlim=None, psi_
         ax.contour(lat[mlat], p_hpa, psi[:, mlat], levels=[0], colors="0.3", linewidths=0.7)
     ax.set_ylim(1000, 100); ax.set_yscale("log")
     ax.set_yticks([1000, 850, 700, 500, 300, 200, 100]); ax.set_yticklabels([1000, 850, 700, 500, 300, 200, 100])
+    ax.minorticks_off()                                    # the log axis also labelled its minor ticks ("4×10²", "6×10²")
     ax.set_xlabel("latitude"); ax.set_ylabel("pressure (hPa)")
     ax.set_xlim(-45, 45); ax.set_xticks([-45, -30, -15, 0, 15, 30, 45]); ax.axvline(0, color="0.6", lw=0.6)
     ax.set_title(title, fontsize=12, fontweight="bold")
-    cb = fig.colorbar(cf, ax=ax, pad=0.02)
+    cb = fig.colorbar(cf, ax=ax, pad=0.02, ticks=levs[::2])
     cb.set_label(("Ψ anomaly" if anom else "Ψ") + "  (10¹⁰ kg s⁻¹)", fontsize=9)
     for t in (texts or []):
         ax.text(t["x"], t["y"], t["s"], ha="center", va="top", fontsize=t["size"],
@@ -465,7 +479,7 @@ def build_anim(hist: xr.DataArray, anim_dir: Path, manifest: Path, static_out: P
         hstr.append(hadley_strength(psi, pc, p_pa / 100, lat,
                                     doy=int((st[i] - pd.Timedelta(days=3.5)).dayofyear)))
     mlat = (lat >= -45) & (lat <= 45)
-    vlim = float(np.nanpercentile(np.abs(np.stack(psip)[:, :, mlat]), 99.0)) or 1.0
+    vlim = nice_lim(float(np.nanpercentile(np.abs(np.stack(psip)[:, :, mlat]), 99.0)) or 1.0)
 
     anim_dir = Path(anim_dir); anim_dir.mkdir(parents=True, exist_ok=True)
     for old in anim_dir.glob("F*.webp"):

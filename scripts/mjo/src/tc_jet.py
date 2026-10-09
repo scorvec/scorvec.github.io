@@ -206,7 +206,9 @@ def within(lat, lon, clat, clon, r_km) -> np.ndarray:
     return cosd >= np.cos(r_km / (A_EARTH / 1000))
 
 
-COLS = ["#c0392b", "#1f5fa8", "#23874f", "#8e44ad", "#d35400", "#16a085", "#7f8c8d", "#b7950b"]
+# 12 colours: with 9 storms on the chart (2026-10-08) the 8-colour cycle gave two storms the same red
+COLS = ["#c0392b", "#1f5fa8", "#23874f", "#8e44ad", "#d35400", "#16a085", "#7f8c8d", "#b7950b",
+        "#e84393", "#2c3e50", "#7cb342", "#6d4c41"]
 
 
 def date_lab(init, d, fmt="two"):
@@ -244,7 +246,7 @@ def render_card(storms, idx, v250, lat, lon, steps, init, out_png: Path, out_jso
     out_png.parent.mkdir(parents=True, exist_ok=True); out_json.parent.mkdir(parents=True, exist_ok=True)
     days = np.asarray(steps, float) / 24.0
     fig = plt.figure(figsize=(12.6, 11.2))
-    gs = fig.add_gridspec(2, 1, height_ratios=[1.0, 1.9], hspace=0.40, left=0.115, right=0.97, top=0.905, bottom=0.11)
+    gs = fig.add_gridspec(2, 1, height_ratios=[1.0, 1.9], hspace=0.40, left=0.115, right=0.955, top=0.905, bottom=0.11)
     ax1, ax2 = fig.add_subplot(gs[0]), fig.add_subplot(gs[1])
     fig.suptitle(f"Tropical cyclones and the jet — AIFS-ENS control, init {init:%d %b %Y %HZ}", fontsize=14, fontweight="bold",
                  x=0.07, ha="left")
@@ -295,7 +297,7 @@ def render_card(storms, idx, v250, lat, lon, steps, init, out_png: Path, out_jso
     from matplotlib.colors import LinearSegmentedColormap
     cmap = LinearSegmentedColormap.from_list("pk", ["#ffffff", "#fde9b6", "#fbbf5e", "#f08a2c", "#d4501f", "#9e2117", "#5c0d17"])
     cf = ax2.contourf(lon_s[o], days, hov[:, o], levels=np.arange(0, 41, 4), cmap=cmap, extend="max")
-    date_axis(ax2, init, days[-1], "y")
+    date_axis(ax2, init, days[-1], "y", fmt="two")          # two lines: one-line dates ran off the left edge
     ax2.set_ylim(days[-1], 0)
     tick = np.arange(lon0, lon0 + 361, 30)
     ax2.set_xticks(tick); ax2.set_xticklabels([f"{int(((t + 180) % 360) - 180)}°" for t in tick])

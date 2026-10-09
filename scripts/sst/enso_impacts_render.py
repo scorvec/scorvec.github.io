@@ -80,7 +80,7 @@ def draw_map(path, field, sig, lat, lon, levels, cmap, unit, title, sub, foot, d
     W = 7.6
     AX0, AXW = 0.075, 0.905
     mh = W * AXW * (ext[3] - ext[2]) / (ext[1] - ext[0])
-    titl = textwrap.wrap(title, 68); subl = textwrap.wrap(sub, 92); footl = textwrap.wrap(foot, 118)
+    titl = textwrap.wrap(title.replace("2 m ", "2\u00a0m\u00a0"), 68); subl = textwrap.wrap(sub, 92); footl = textwrap.wrap(foot, 118)
     top = 0.42 + 0.24 * (len(titl) - 1) + 0.19 * len(subl) + 0.1
     fh = 0.14 * len(footl) + 0.1                       # footnote block, then tick labels + unit label, then the bar
     bar_y = fh + 0.46
@@ -314,7 +314,7 @@ def draw_nh(path, field, sig, clim, lat, lon, levels, unit, title, sub, foot, no
     pc = ccrs.PlateCarree(); proj = ccrs.PlateCarree(central_longitude=180)
     W = 11.0; AX0, AXW = 0.05, 0.93
     mh = W * AXW * 90 / 360
-    titl = textwrap.wrap(title, 100); subl = textwrap.wrap(sub, 135); footl = textwrap.wrap(foot, 170)
+    titl = textwrap.wrap(title.replace("2 m ", "2\u00a0m\u00a0"), 100); subl = textwrap.wrap(sub, 135); footl = textwrap.wrap(foot, 170)
     top = 0.42 + 0.24 * (len(titl) - 1) + 0.19 * len(subl) + 0.08
     fh = 0.14 * len(footl) + 0.1; bar_y = fh + 0.46; bot = bar_y + 0.12 + 0.3
     H = mh + top + bot

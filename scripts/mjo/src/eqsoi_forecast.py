@@ -27,7 +27,7 @@ CLIM = json.loads((REF / "eqsoi_clim.json").read_text())
 HIST = REF / "eqsoi_history.json"
 TIDE = json.loads((REF / "eqsoi_tide.json").read_text())["offset"] if (REF / "eqsoi_tide.json").exists() else None
 CPC = "https://www.cpc.ncep.noaa.gov/data/indices/reqsoi.for"
-INK, MUTED, NAVY, RED = "#1a1a1a", "#8a8680", "#1b365d", "#b4453c"
+INK, MUTED, NAVY, RED = "#1a1a1a", "#6f6b64", "#1b365d", "#b4453c"
 
 
 def cpc_series() -> pd.Series:
@@ -112,12 +112,20 @@ def main() -> int:
     axf.axhline(float(c.values[-1]), color="#7a5c4a", lw=1.0, ls="--", label=f"CPC {c.index[-1]:%b %Y}: {c.values[-1]:+.1f}", zorder=2)
     axf.axhline(0, color="#555", lw=0.8); axf.grid(True, alpha=0.2)
     axf.set_xlim(valid[0] - pd.Timedelta(days=(len(tail) if len(tail) > 1 else 1)), valid[-1] + pd.Timedelta(days=1))
-    axf.set_title(f"{' + '.join(included)} daily forecast, init {init:%Y-%m-%d %HZ}", fontsize=9.5, loc="left", fontweight="bold")
-    axf.tick_params(axis="x", labelsize=8); axf.legend(fontsize=7.5, loc="lower right", framealpha=0.9)
+    # two-line title: on one line it ran past the narrow panel and the tight bbox left a wide empty strip
+    axf.set_title(f"{' + '.join(included)} daily forecast\ninit {init:%Y-%m-%d %HZ}", fontsize=9.5, loc="left", fontweight="bold")
+    # legend beside the panel: inside it covered the observed tail (lower right, Oct 2026)
+    axf.tick_params(axis="x", labelsize=8); axf.legend(fontsize=7.5, loc="upper left", bbox_to_anchor=(1.02, 1.0), framealpha=0.9, borderaxespad=0)
+    import matplotlib.dates as mdates
+    axf.xaxis.set_major_locator(mdates.AutoDateLocator(minticks=3, maxticks=6))
+    axf.xaxis.set_major_formatter(mdates.DateFormatter("%b %d"))
     for lab in axf.get_xticklabels(): lab.set_rotation(30); lab.set_ha("right")
+    # quarterly ticks that stop short of the panel edge (an "2026-10" tick ran into the forecast panel's first date)
+    qt = [d for d in pd.date_range(t0.normalize().replace(day=1), c.index[-1], freq="MS") if d.month in (1, 4, 7, 10) and d > t0]
+    axm.set_xticks(qt); axm.set_xticklabels([f"{d:%b}\n{d:%Y}" if d.month == 1 or d is qt[0] else f"{d:%b}" for d in qt], fontsize=8.5)
     fig.suptitle("Equatorial SOI — east minus west equatorial Pacific pressure, observed and forecast", fontsize=12, fontweight="bold", x=0.01, ha="left", y=0.995)
-    fig.text(0.01, -0.02, "East (5°N–5°S, 130–80°W) minus west (5°N–5°S, 90–140°E) box-mean SLP, tide-corrected for the cycle hour, standardised with ERA5 1991–2020 monthly statistics and calibrated to CPC's series "
-             f"(r {CLIM['cpc_fit']['r']:.2f}); negative = El Niño. Daily values scatter more than the monthly index they are drawn against.", fontsize=7.2, color=MUTED, va="top")
+    fig.text(0.01, -0.03, "East (5°N–5°S, 130–80°W) minus west (5°N–5°S, 90–140°E) box-mean SLP, tide-corrected for the cycle hour, standardised with ERA5 1991–2020 monthly statistics\n"
+             f"and calibrated to CPC's series (r {CLIM['cpc_fit']['r']:.2f}); negative = El Niño. Daily values scatter more than the monthly index they are drawn against.", fontsize=7.2, color=MUTED, va="top")
     out = Path(a.out); out.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(out, dpi=140, bbox_inches="tight", facecolor="white"); plt.close(fig)
     (out.parent / "data").mkdir(exist_ok=True)

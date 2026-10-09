@@ -202,9 +202,19 @@ def render_hov(kf_eq, anom_eq, lon, days, init_day, levels, out: Path):
     ax.contour(lon_p, y, anp / 1e6, levels=cl, colors="#3b3b3b", linewidths=0.5, alpha=0.5)
     i0 = int(np.flatnonzero(days <= init_day)[-1])
     ax.axhline(i0 + 0.5, color="#1c2430", lw=1.8)
-    lab = dict(fontsize=9, fontweight="bold", color="#1c2430", bbox=dict(boxstyle="round,pad=0.2", fc="white", ec="none", alpha=0.85))
+    lab = dict(fontsize=9, fontweight="bold", color="#1c2430", zorder=6, bbox=dict(boxstyle="round,pad=0.2", fc="white", ec="none", alpha=0.85))
     ax.text(357, i0 + 0.1, "▲ analysis", ha="right", va="bottom", **lab)
     ax.text(357, i0 + 0.9, "▼ forecast (AIFS-ENS ensemble mean)", ha="right", va="top", **lab)
+    # rows are days present, not calendar days: a hole in the analysis archive (Sep 7 - Oct 7 2026) closed up
+    # silently and Sep 6 sat flush against Oct 8. Mark every such join so the axis cannot be misread.
+    for k in range(1, len(days)):
+        gap = (days[k] - days[k - 1]).days
+        if gap > 1:
+            ax.axhline(k - 0.5, color="#9a2c2c", lw=1.2, ls=(0, (5, 3)), zorder=4)
+            ax.text(3, k - 0.5, f"{gap - 1} analysis days missing ({days[k - 1] + pd.Timedelta(days=1):%b %-d} – "
+                    f"{days[k] - pd.Timedelta(days=1):%b %-d}): rows either side are not contiguous",
+                    ha="left", va="bottom", fontsize=8.2, color="#9a2c2c", zorder=5,
+                    bbox=dict(boxstyle="round,pad=0.2", fc="white", ec="none", alpha=0.9))
     ax.set_ylim(len(days) - 0.5, -0.5)                      # time runs DOWN, the usual Hovmoller
     ticks = [i for i, d in enumerate(days) if d.day in (1, 8, 15, 22)]
     ax.set_yticks(ticks); ax.set_yticklabels([days[i].strftime("%b %-d") for i in ticks], fontsize=9)

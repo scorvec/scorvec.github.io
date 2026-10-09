@@ -110,7 +110,7 @@
                 <li><a href="/stratosphere.html">Stratosphere and polar vortex</a></li>
                 <li class="sh-subitem"><a href="/stratosphere.html#pv">Now: analyses and observations</a></li>
                 <li class="sh-subitem"><a href="/stratosphere.html#vortex">Next two weeks</a></li>
-                <li class="sh-subitem"><a href="/stratosphere.html#vortex35">Weeks 3–6</a></li>
+                <li class="sh-subitem"><a href="/stratosphere.html#vortex35">Weeks 3–5</a></li>
                 <li class="sh-subitem"><a href="/stratosphere.html#s5vortex">Season</a></li>
                 <li class="sh-subitem"><a href="/stratosphere.html#shwinters">History and studies</a></li>
                 <li class="sh-subitem"><a href="/stratosphere.html#qbo">QBO tracker</a></li>
@@ -159,7 +159,7 @@
             <div>
               <h3>Verification</h3>
               <ul>
-                <li><a href="/aifs-verify.html">AIFS single versus member 0</a></li>
+                <li><a href="/aifs-verify.html">AIFS single versus member 0</a></li>
               </ul>
             </div>
           </div>
@@ -434,7 +434,7 @@
       return B + ": waiting for its first run";
     });
     var off = ST.season && !ST.season.active;
-    el.innerHTML = (off && ST.forced ? "<b>Idle until 1 November.</b> The loops below are a labelled test, not a forecast in season. " : "")
+    el.innerHTML = (off && ST.forced ? "<b>Idle until 1 November.</b> The loops on this page are a labelled test, not a forecast in season. " : "")
       + (ST.forced ? "<b>" + (ST.test_label || "Test run") + ".</b> A forced run: the season and snow gates were bypassed, so the chosen regions are drawn whatever falls. " : "")
       + "Latest runs &mdash; " + parts.join("; ") + ". <span class=\"when\">Checked " + when(ST.updated) + ".</span>";
   }

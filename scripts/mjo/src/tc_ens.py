@@ -623,11 +623,11 @@ def render_tracks(storms: list[dict], st: dict, init, out_png: Path):
     from matplotlib.colors import BoundaryNorm, ListedColormap
     rows = storms[:4]
     nrow = max(1, len(rows))
-    H = 4.6 * nrow + 1.6
+    H = 4.6 * nrow + 1.7
     fig = plt.figure(figsize=(16.5, H))
     fig.suptitle(f"Tropical-cyclone track ensembles — AIFS-ENS (51) and IFS-ENS (50), init {init:%d %b %Y %HZ}",
                  fontsize=14, fontweight="bold", x=0.02, ha="left", y=1 - 0.25 / H)
-    top, bot = 1 - 0.75 / H, 1.1 / H                                       # figure fractions for the storm rows
+    top, bot = 1 - 0.85 / H, 1.1 / H       # figure fractions for the storm rows (0.75 -> 0.85: the first storm's name touched the title)
     rh = (top - bot) / nrow
     cmap = ListedColormap(["#3b0f70", "#6a2c91", "#9a3f8f", "#c9517f", "#ec6a5b", "#f9944a", "#fbc04b", "#f2e86d"])
     bounds = [0, 2, 4, 6, 8, 10, 12, 14, 16]; norm = BoundaryNorm(bounds, cmap.N)
@@ -716,8 +716,11 @@ def render_tracks(storms: list[dict], st: dict, init, out_png: Path):
                 frac = [100 * np.sum(endd < N) / q["n_members"] for N in range(16)]
                 ax.plot(range(16), frac, color=colr, lw=1.6, ls="--", label=f"{MLAB[m]} track ended (cumulative)")
         ax.set_xlim(0, 15); ax.set_ylim(0, 100 if s["named"] else max(10, ax.get_ylim()[1])); ax.set_ylabel("% of members")
-        TC.date_axis(ax, init, 15, "x", step=2, fmt="stack")
-        ax.grid(alpha=0.3); ax.legend(fontsize=8.2, loc="upper left" if s["named"] else "upper right", frameon=False)
+        # every 3 days (2026-10-08 sweep): eight two-line dates ran into each other in this narrow panel. Legend "best":
+        # upper left sat on the early-recurvature bars and the steep cumulative lines
+        TC.date_axis(ax, init, 15, "x", step=3, fmt="stack")
+        ax.grid(alpha=0.3); ax.legend(fontsize=8.2, loc="best" if s["named"] else "upper right", frameon=True, framealpha=0.85,
+                                      edgecolor="none")
         ax.set_title("Recurvature date (bars) · track ended (lines)" if s["named"] else
                      "When members reach tropical-storm strength (17 m/s)", fontsize=10.5, loc="left")
 

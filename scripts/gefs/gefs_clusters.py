@@ -153,7 +153,9 @@ def main() -> int:
         Y = lambda f: (f * H0 + extra) / H                               # noqa: E731  (GEPS fractions -> this height)
         fig = plt.figure(figsize=(3.9 * ncol, H))
         lim = float(np.nanpercentile(np.abs(np.stack([c["mean"] for r in rows for c in r["clusters"]])), 99))
-        levels = np.linspace(-lim, lim, 21)
+        # a nice contour step (10, 15, 20 ... m) so the colour bar reads in round numbers (it showed -138.2, -92.1, 46.1)
+        step = next((s for s in (5, 10, 15, 20, 25, 30, 40, 50, 60, 80, 100) if s * 10 >= lim), 100)
+        levels = np.arange(-10, 11) * step
         for ri, r in enumerate(rows):
             panels = [("ensemble mean", r["ens"], None)] + [
                 (f"scenario {c + 1} · {cl['n']} members ({cl['n'] / len(r['lab']) * 100:.0f}%)", cl["mean"], cl)

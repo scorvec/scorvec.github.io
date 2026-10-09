@@ -43,14 +43,12 @@ import pandas as pd
 
 import matplotlib
 matplotlib.use("Agg")
-import matplotlib.colors as mcolors
 import matplotlib.pyplot as plt
-from matplotlib.colors import LinearSegmentedColormap
 import cartopy.crs as ccrs
-import cartopy.feature as cfeature
 import xarray as xr
 
 import oisst9120
+import mapstyle as MS     # the site's one SST palette / land / encoding (scripts/sst/mapstyle.py)
 
 HERE = Path(__file__).resolve().parent          # wherever this script lives
 # Self-contained by default (assets/html under HERE). When embedded in the
@@ -164,24 +162,19 @@ def _lon_name(ds) -> str:
 # Colormap: diverging blue-white-red for SST anomaly
 # ----------------------------------------------------------------------
 def sst_anom_cmap():
-    # Perceptually balanced cold->warm with a clean white center.
-    stops = [
-        (0.00, "#1a3a8f"),
-        (0.15, "#2b6fd6"),
-        (0.32, "#7db8e8"),
-        (0.46, "#cfe6f5"),
-        (0.50, "#ffffff"),
-        (0.54, "#fbe3d0"),
-        (0.68, "#f3a072"),
-        (0.85, "#d9402a"),
-        (1.00, "#7a0d18"),
-    ]
-    return LinearSegmentedColormap.from_list("sst_anom", stops)
+    """The shared SST anomaly palette (mapstyle.sst_anom_style), +-7 °C."""
+    return MS.sst_anom_style(7.0)["cmap"]
 
 
 # ----------------------------------------------------------------------
 # Map rendering
 # ----------------------------------------------------------------------
+def _halo(lw=2.2):
+    """White casing for black map text: the Niño labels sit on the event's darkest classes."""
+    import matplotlib.patheffects as pe
+    return [pe.withStroke(linewidth=lw, foreground="white")]
+
+
 def _draw_box(ax, lat_rng, lon_rng, color="black", lw=1.1):
     """Outline a lat/lon box (plain, no white casing — 2026-07-17). Edges are
     dense point sequences along the parallels and meridians so the rectangle
@@ -197,7 +190,7 @@ def _draw_box(ax, lat_rng, lon_rng, color="black", lw=1.1):
             zorder=5.05, solid_capstyle="round")
 
 
-# Region extent rulers: dimension-style |\u2014\u2014| lines under the boxes, staggered
+# Region extent rulers: dimension-style |——| lines under the boxes, staggered
 # in latitude so the three overlapping equatorial regions read separately.
 # (lat of the ruler, lat of its label, label above the line?)
 _RULER_ROWS = {"nino4": (-6.6, -7.4, False), "nino3": (-6.6, -7.4, False),
@@ -213,15 +206,15 @@ def _draw_ruler(ax, lon0, lon1, lat, text, lab_lat, lab_above, fontsize=7.5):
                 lw=1.0, zorder=6)
     ax.text((lon0 + lon1) / 2.0, lab_lat, text, transform=PC,
             fontsize=fontsize, ha="center", va="bottom" if lab_above else "top",
-            color="black", zorder=6, fontweight="bold")
+            color="black", zorder=6, fontweight="bold", path_effects=_halo())
 
 
-def _draw_nino_boxes(ax, label=True):
+def _draw_nino_boxes(ax, label=True, fontsize=7.5):
     """Outline all four CPC ENSO regions in plain black (coloured, overlapping
     outlines were unreadable), with capped extent rulers under the equator
-    identifying each region: Ni\u00f1o-4 and Ni\u00f1o-3 share the shallow row (they
-    abut at 150\u00b0W), Ni\u00f1o-3.4 \u2014 which overlaps both \u2014 gets its own deeper row,
-    and Ni\u00f1o-1+2's small coastal box is labelled beneath itself."""
+    identifying each region: Niño-4 and Niño-3 share the shallow row (they
+    abut at 150°W), Niño-3.4 — which overlaps both — gets its own deeper row,
+    and Niño-1+2's small coastal box is labelled beneath itself."""
     for key, r in NINO_REGIONS.items():
         _draw_box(ax, r["lat"], r["lon"], lw=1.4 if key == "nino34" else 1.0)
     if not label:
@@ -229,12 +222,15 @@ def _draw_nino_boxes(ax, label=True):
     for key, (row, lab_lat, above) in _RULER_ROWS.items():
         r = NINO_REGIONS[key]
         pad = 0.8                              # abutting rulers don't touch
-        _draw_ruler(ax, r["lon"][0] + pad, r["lon"][1] - pad, row,
-                    r["label"], lab_lat, above)
+        x1 = r["lon"][1] - pad
+        if key == "nino3":                     # stop short of the Niño-1+2 box, which hangs below 5°S at 90°W
+            x1 = NINO_REGIONS["nino12"]["lon"][0] - 1.6
+        _draw_ruler(ax, r["lon"][0] + pad, x1, row, r["label"], lab_lat, above, fontsize=fontsize)
     r12 = NINO_REGIONS["nino12"]
-    ax.text((r12["lon"][0] + r12["lon"][1]) / 2.0, r12["lat"][0] - 1.2,
-            r12["label"], transform=PC, fontsize=7.5, ha="center", va="top",
-            color="black", zorder=6, fontweight="bold")
+    # right-aligned under the box's east edge: centred, the label ran into the end of the Niño-3 ruler
+    ax.text(r12["lon"][1] + 0.5, r12["lat"][0] - 1.2,
+            r12["label"], transform=PC, fontsize=fontsize, ha="right", va="top",
+            color="black", zorder=6, fontweight="bold", path_effects=_halo())
 
 
 def set_extent_safe(ax, extent):
@@ -251,109 +247,27 @@ def set_extent_safe(ax, extent):
         ax.set_extent(extent, crs=PC)
 
 
-def render_sst_map(anom2d, lat_name, lon_name, extent, title, out_path,
-                   figsize, central_lon=0.0, vmin=None, vmax=None,
-                   annotation=None, nino_box=True,
-                   png_path=None, png_dpi=180):
-    # Same scale as the animation frames (see _kind_style): asinh to +-7 unless a caller pins a range.
-    style = _kind_style("anom")
-    cmap = style["cmap"]
-    pc_kw = ({"norm": style["norm"]} if vmin is None and vmax is None
-             else {"vmin": -5.0 if vmin is None else vmin, "vmax": 5.0 if vmax is None else vmax})
-    proj = ccrs.PlateCarree(central_longitude=central_lon)
-    fig, ax = plt.subplots(figsize=figsize, dpi=100,
-                           subplot_kw=dict(projection=proj))
-    # set_extent takes geographic (PlateCarree) coords, so the same
-    # -180..180 span works regardless of the projection's central
-    # longitude; the dateline-centering just rolls the Pacific to the
-    # middle. For the near-global map we trim the polar caps for aspect.
-    set_extent_safe(ax, extent)
-
-    lons = anom2d[lon_name].values
-    lats = anom2d[lat_name].values
-    vals = anom2d.values
-
-    im = ax.pcolormesh(lons, lats, vals, cmap=cmap, transform=PC,
-                       shading="auto", rasterized=True, zorder=1, **pc_kw)
-    ax.add_feature(cfeature.LAND.with_scale("110m"),
-                   facecolor="#d9d6cf", zorder=2)
-    ax.add_feature(cfeature.COASTLINE.with_scale("110m"),
-                   edgecolor="#555", linewidth=0.4, zorder=3)
-
-    if nino_box:
-        _draw_nino_boxes(ax)
-
-    cbar = plt.colorbar(im, ax=ax, orientation="vertical",
-                        pad=0.015, shrink=0.85, fraction=0.030,
-                        extend="both")
-    if "norm" in pc_kw and style.get("ticks"):
-        cbar.set_ticks(style["ticks"]); cbar.ax.set_yticklabels([f"{t:g}" for t in style["ticks"]])
-    cbar.set_label("SST anomaly (\u00b0C)", fontsize=10)
-    cbar.ax.tick_params(labelsize=9)
-
-    ax.set_title(title, fontsize=12, loc="left", pad=8)
-
-    if annotation:
-        ax.text(0.015, 0.04, annotation, transform=ax.transAxes,
-                fontsize=10, va="bottom", ha="left", zorder=6,
-                family="monospace",
-                bbox=dict(boxstyle="round,pad=0.4", facecolor="white",
-                          edgecolor="#bbb", alpha=0.85))
-
-    fig.savefig(out_path, dpi=FRAME_DPI, facecolor="white", edgecolor="none",
-                bbox_inches="tight", pad_inches=0.08,
-                pil_kwargs={"quality": FRAME_QUALITY, "method": 6})
-    if png_path is not None:                    # high-res PNG for the overview hero
-        fig.savefig(png_path, dpi=png_dpi, facecolor="white", edgecolor="none",
-                    bbox_inches="tight", pad_inches=0.08)
-        print(f"  wrote {Path(png_path).name} (dpi {png_dpi})")
-    plt.close(fig)
-    print(f"  wrote {Path(out_path).name}")
-
-
-def render_anim_frames(full_anom, la, lo, region_id, extent, central_lon,
-                       figsize, n_days=60):
-    """Render the last n_days daily anomaly frames for one region.
-
-    Writes F00.webp ... F<n-1>.webp into assets/sst/anim/<region_id>/ and
-    returns a list of per-frame dicts for the manifest. Frame 0 is the
-    oldest, last frame is the most recent (natural play direction).
-    """
-    out_dir = ASSETS / "anim" / region_id
-    out_dir.mkdir(parents=True, exist_ok=True)
-    # Clear stale frames so a shorter run doesn't leave old ones behind.
-    for old in out_dir.glob("F*.webp"):
-        old.unlink()
-
-    times = pd.to_datetime(full_anom["time"].values)
-    n = min(n_days, len(times))
-    sel = full_anom.isel(time=slice(len(times) - n, len(times)))
-    sel_times = pd.to_datetime(sel["time"].values)
-
-    frames = []
-    for i in range(n):
-        day = sel.isel(time=i)
-        valid = sel_times[i]
-        out_path = out_dir / f"F{i:02d}.webp"
-        render_sst_map(
-            day, la, lo, extent,
-            f"SST Anomaly \u2014 {valid:%Y-%m-%d}",
-            out_path, figsize=figsize, central_lon=central_lon,
-            nino_box=True, annotation=None,
-        )
-        frames.append({
-            "idx": i,
-            "file": f"F{i:02d}.webp",
-            "date": f"{valid:%Y-%m-%d}",
-            "label": f"{valid:%a %b %d, %Y}",
-        })
-    print(f"  region '{region_id}': {n} frames -> {out_dir}")
-    return frames
-
-
 # ----------------------------------------------------------------------
-# Two-panel (global + tropical Pacific) animated products
+# SST map look: every OISST map/frame here draws through _draw_map_ax with the
+# shared mapstyle palette (discrete classes, white neutral band, the same colour
+# for the same value on every SST product), 50 m land and coast, and the frame
+# layout below (bold title + grey source line, no dead margins).
 # ----------------------------------------------------------------------
+# Map-frame resolution: the 10.5 in frames come out ~1785 px wide, about 2x the width the stage shows them at,
+# so they stay sharp on retina screens.
+FRAME_DPI = 170
+# Encoding (2026-10-08 study on real OISST frames, scratch renders): the discrete-class maps are flat colour areas, so
+# they are saved LOSSLESS on a palette of their 256 most frequent colours (mapstyle.save_webp_palette): every class
+# colour exact, no chroma smearing of class edges, coastlines or text. See the report in mapstyle for the numbers.
+
+
+def save_frame(fig, out_path, dpi=None):
+    # defensive: a concurrent pipeline's `git reset --hard` can briefly remove the anim
+    # dir mid-render — recreate it so the worker never dies with FileNotFoundError.
+    Path(out_path).parent.mkdir(parents=True, exist_ok=True)
+    MS.save_webp_palette(fig, out_path, dpi=dpi or FRAME_DPI, edgecolor="none")
+
+
 PRODUCTS = {
     "anomaly":  dict(kind="anom", label="SST Anomaly — Global & Tropical Pacific"),
     "absolute": dict(kind="abs",  label="Absolute SST — Global & Tropical Pacific"),
@@ -369,129 +283,133 @@ _KIND_TITLE = {"anom": "SST Anomaly", "abs": "Absolute SST",
                "trel": "Tropical SST Anomaly (tropical-mean removed)"}
 # Products drawn as one tropical-belt panel instead of the global+Pacific pair.
 _ONE_PANEL_KINDS = {"trel"}
-# Map-frame resolution. 125 dpi made the 10.5x8.2 in anomaly frame 1312x1025; 170 gives 1785x1394,
-# which is what the eye wants on a retina display. webp quality up with it so the extra pixels are
-# not spent on compression artefacts.
-FRAME_DPI = 170
-FRAME_QUALITY = 70     # 88 until 2026-10-05; encode study: ~45 % fewer bytes, no visible change at 1x on the 170-dpi frames
+
+
+def _kind_sub(kind):
+    """The grey source line under each frame's title: dataset, grid and baseline."""
+    base = f"NOAA OISST v2.1 daily, 0.25°, anomaly against the {oisst9120.BASE_LABEL} daily climatology"
+    return {"abs": "NOAA OISST v2.1 daily mean, 0.25° · contours at 26.5, 28 and 30 °C",
+            "rel": base + " · the day's area-weighted global ocean mean removed",
+            "trel": base + " · the day's 20°S–20°N mean removed"}.get(kind, base)
 
 
 def _kind_style(kind):
     if kind == "abs":
-        return dict(cmap=plt.get_cmap("turbo"), vmin=-2.0, vmax=32.0,
-                    cbar="SST (°C)")
+        return dict(MS.sst_abs_style(), cbar="SST (°C)", isotherms=MS.SST_ABS_ISOTHERMS)
     if kind == "trel":
         # ±4: ±3 pinned the Niño-3 core of the 2026 event and pushed ordinary
         # noise to the ends of the ramp (user, 2026-09-03); ±5 like the global
         # products would wash the belt out again.
-        return dict(cmap=sst_anom_cmap(), vmin=-4.0, vmax=4.0,
-                    cbar="SST anomaly − tropical mean (°C)")
-    # +-5 linear saturated the event: on 2026-09-18 Nino-1+2 averaged +4.8 with 44% of its cells
-    # above +5 (max +6.7), so its whole core drew as one flat dark red. The scale now runs to +-7
-    # through an asinh norm with a 3 degC linear core, which keeps the mid-range contrast of the old
-    # +-5 ramp (3 degC sits at 0.78 of the half-ramp vs 0.80 before) and spends the ends on the tail.
-    return dict(cmap=sst_anom_cmap(), vmin=-7.0, vmax=7.0,
-                norm=mcolors.AsinhNorm(linear_width=3.0, vmin=-7.0, vmax=7.0),
-                ticks=[-7, -5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5, 7],
-                cbar="SST anomaly (°C)")
+        return dict(MS.sst_anom_style(4.0), cbar="SST anomaly − tropical mean (°C)")
+    # ±7: a ±5 ramp saturated the event (2026-09-18: Niño-1+2 averaged +4.8 with 44 % of its cells above +5, max
+    # +6.7), so the shared ladder runs 0.2 °C classes to ±3, 0.5 °C to ±5, then 6 and 7.
+    return dict(MS.sst_anom_style(7.0), cbar="SST anomaly (°C)" if kind == "anom" else "SST anomaly − global mean (°C)")
 
 
 def _draw_map_ax(ax, field, la, lo, extent, style, nino_box,
-                 isotherms=None, annotation=None):
+                 isotherms=None, annotation=None, ann_size=8.5, label_size=7.5):
     set_extent_safe(ax, extent)
-    kw = ({"norm": style["norm"]} if style.get("norm") is not None
-          else {"vmin": style["vmin"], "vmax": style["vmax"]})
     im = ax.pcolormesh(field[lo].values, field[la].values, field.values,
-                       cmap=style["cmap"], transform=PC, shading="auto",
-                       rasterized=True, zorder=1, **kw)
-    ax.add_feature(cfeature.LAND.with_scale("110m"), facecolor="#d9d6cf", zorder=2)
-    ax.add_feature(cfeature.COASTLINE.with_scale("110m"), edgecolor="#555",
-                   linewidth=0.4, zorder=3)
+                       cmap=style["cmap"], norm=style["norm"], transform=PC, shading="auto",
+                       rasterized=True, antialiased=False, edgecolors="none", zorder=1)
+    MS.sst_features(ax, scale="50m", coast_lw=0.4)
     if isotherms is not None:
         cs = ax.contour(field[lo].values, field[la].values, field.values,
-                        levels=isotherms, colors="k", linewidths=0.6,
+                        levels=isotherms, colors="k", linewidths=0.55,
                         transform=PC, zorder=4)
-        ax.clabel(cs, fmt="%d°C", fontsize=7, inline=True, inline_spacing=2)
+        ax.clabel(cs, fmt=lambda v: f"{v:g}°C", fontsize=6.5, inline=True, inline_spacing=2)
     if nino_box:
         # label here: in the 2-panel products only the tropical panel passes
         # nino_box=True (the global panel is nino_box=False), so labels land on the
         # roomy tropical map and never clutter the global one.
-        _draw_nino_boxes(ax, label=True)
+        _draw_nino_boxes(ax, label=True, fontsize=label_size)
     if annotation:
-        ax.text(0.012, 0.05, annotation, transform=ax.transAxes, fontsize=8.5,
+        ax.text(0.012, 0.04, annotation, transform=ax.transAxes, fontsize=ann_size,
                 va="bottom", ha="left", family="monospace", zorder=6,
                 bbox=dict(boxstyle="round,pad=0.35", facecolor="white",
-                          edgecolor="#bbb", alpha=0.85))
+                          edgecolor="#bbb", alpha=0.9))
+    for sp in ax.spines.values():
+        sp.set_linewidth(0.6); sp.set_edgecolor("#333")
     return im
 
 
-def render_2panel_frame(field, la, lo, kind, title, out_path, annotation=None):
+def _heading(fig, H, title, sub):
+    fig.text(0.02, 1 - 0.12 / H, title, fontsize=13, fontweight="bold", ha="left", va="top")
+    fig.text(0.02, 1 - 0.45 / H, sub, fontsize=8.6, color="#444", ha="left", va="top")
+
+
+def _cbar(fig, im, style, rect, label):
+    cb = fig.colorbar(im, cax=fig.add_axes(rect), extend="both", spacing="uniform")
+    return MS.sst_colorbar(cb, style, label, size=9.5, tick_size=8.5)
+
+
+def render_2panel_frame(field, la, lo, kind, title, out_path, annotation=None, sub=None):
     """Global (top) + tropical Pacific (bottom) map of one field in one figure.
-    Equal-height panels; absolute SST gets 26/28/30 °C isotherm contours; the
-    anomaly product shows the ONI/tropical-mean/RONI readout on the tropical panel."""
+    The figure height follows the two panels' map aspect (no letterbox margins); absolute SST gets
+    26.5 / 28 / 30 °C isotherms; the anomaly product carries the ONI / tropical-mean / RONI readout."""
     style = _kind_style(kind)
-    isos = [26, 28, 30] if kind == "abs" else None
-    fig = plt.figure(figsize=(10.5, 8.2), dpi=FRAME_DPI)
-    gs = fig.add_gridspec(2, 1, height_ratios=[1, 1], hspace=0.10,
-                          left=0.02, right=0.9, top=0.92, bottom=0.03)
-    ax1 = fig.add_subplot(gs[0], projection=ccrs.PlateCarree(central_longitude=GLOBAL_CENTRAL_LON))
-    ax2 = fig.add_subplot(gs[1], projection=ccrs.PlateCarree(central_longitude=TROPICAL_CENTRAL_LON))
-    im = _draw_map_ax(ax1, field, la, lo, GLOBAL_EXTENT, style,
-                      nino_box=False, isotherms=isos)
-    _draw_map_ax(ax2, field, la, lo, TROPICAL_EXTENT, style,
-                 nino_box=True, isotherms=isos, annotation=annotation)
-    ax1.set_title("Global", fontsize=10, loc="left")
-    ax2.set_title("Tropical Pacific", fontsize=10, loc="left")
-    fig.suptitle(title, fontsize=13, fontweight="bold", x=0.02, ha="left")
-    cax = fig.add_axes([0.915, 0.12, 0.016, 0.74])
-    cb = fig.colorbar(im, cax=cax, extend="both")
-    if style.get("ticks"):
-        cb.set_ticks(style["ticks"]); cb.ax.set_yticklabels([f"{t:g}" for t in style["ticks"]])
-    cb.set_label(style["cbar"], fontsize=10)
-    cb.ax.tick_params(labelsize=9)
-    # defensive: a concurrent pipeline's `git reset --hard` can briefly remove the anim
-    # dir mid-render — recreate it so the worker never dies with FileNotFoundError.
-    Path(out_path).parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(out_path, dpi=FRAME_DPI, facecolor="white",
-                pil_kwargs={"quality": FRAME_QUALITY, "method": 6})
-    plt.close(fig)
+    W, L, R = 10.5, 0.02, 0.895                       # inches; axes span L..R of the width
+    aw = (R - L) * W
+    h1 = aw * (GLOBAL_EXTENT[3] - GLOBAL_EXTENT[2]) / (GLOBAL_EXTENT[1] - GLOBAL_EXTENT[0])
+    h2 = aw * (TROPICAL_EXTENT[3] - TROPICAL_EXTENT[2]) / (TROPICAL_EXTENT[1] - TROPICAL_EXTENT[0])
+    top, gap, lab, bot = 0.78, 0.12, 0.26, 0.10       # heading band, panel gap, panel-label band, bottom margin
+    H = top + lab + h1 + gap + lab + h2 + bot
+    fig = plt.figure(figsize=(W, H), dpi=FRAME_DPI)
+    y2 = bot / H; y1 = (bot + h2 + gap + lab) / H
+    ax1 = fig.add_axes([L, y1, R - L, h1 / H], projection=ccrs.PlateCarree(central_longitude=GLOBAL_CENTRAL_LON))
+    ax2 = fig.add_axes([L, y2, R - L, h2 / H], projection=ccrs.PlateCarree(central_longitude=TROPICAL_CENTRAL_LON))
+    im = _draw_map_ax(ax1, field, la, lo, GLOBAL_EXTENT, style, nino_box=False, isotherms=style.get("isotherms"))
+    _draw_map_ax(ax2, field, la, lo, TROPICAL_EXTENT, style, nino_box=True,
+                 isotherms=style.get("isotherms"), annotation=annotation)
+    ax1.set_title("Global, 65°S–65°N", fontsize=10, loc="left", pad=4)
+    ax2.set_title("Tropical Pacific, 120°E–70°W", fontsize=10, loc="left", pad=4)
+    _heading(fig, H, title, sub or _kind_sub(kind))
+    _cbar(fig, im, style, [0.915, y2 + 0.04 * h2 / H, 0.016, (y1 + h1 / H) - y2 - 0.08 * h2 / H], style["cbar"])
+    save_frame(fig, out_path)
 
 
-def render_1panel_frame(field, la, lo, kind, title, out_path, annotation=None):
+def render_1panel_frame(field, la, lo, kind, title, out_path, annotation=None, sub=None):
     """One tropical-belt panel (30S-30N, all longitudes) of one field.
 
     The tropical-mean-removed product uses this rather than the global+Pacific
     pair: the belt IS the domain the mean was taken over, so keeping every
     longitude in frame shows where the compensating warm/cool signal sits."""
     style = _kind_style(kind)
-    # Size the figure to the domain: the belt is 360 deg x 60 deg, so the axes must
-    # be 6:1 or cartopy's equal aspect letterboxes it with dead space. axes width =
-    # (right-left)*W = 0.88*12.5 = 11.0 in, so axes height = 11.0/6 = 1.83 in, and
-    # H = 1.83/(top-bottom) leaves just enough above for the title.
-    style_w, gs_l, gs_r, gs_t, gs_b = 12.5, 0.02, 0.90, 0.82, 0.06
-    aspect = (TROPICS_BELT_EXTENT[1] - TROPICS_BELT_EXTENT[0]) / \
-             (TROPICS_BELT_EXTENT[3] - TROPICS_BELT_EXTENT[2])
-    ax_h = (gs_r - gs_l) * style_w / aspect
-    fig = plt.figure(figsize=(style_w, ax_h / (gs_t - gs_b)), dpi=FRAME_DPI)
-    gs = fig.add_gridspec(1, 1, left=gs_l, right=gs_r, top=gs_t, bottom=gs_b)
-    ax = fig.add_subplot(gs[0],
-                         projection=ccrs.PlateCarree(central_longitude=GLOBAL_CENTRAL_LON))
-    im = _draw_map_ax(ax, field, la, lo, TROPICS_BELT_EXTENT, style,
-                      nino_box=True, annotation=annotation)
-    fig.suptitle(title, fontsize=13, fontweight="bold", x=0.02, ha="left")
-    cax = fig.add_axes([0.915, gs_b, 0.012, gs_t - gs_b])
-    cb = fig.colorbar(im, cax=cax, extend="both")
-    if style.get("ticks"):
-        cb.set_ticks(style["ticks"]); cb.ax.set_yticklabels([f"{t:g}" for t in style["ticks"]])
-    # The belt panel is only ~2.4 in tall, so the full "SST anomaly - tropical
-    # mean (degC)" label overruns the figure. The title already names the field;
-    # the bar only needs units.
-    cb.set_label("°C", fontsize=10, rotation=0, labelpad=8, va="center")
-    cb.ax.tick_params(labelsize=9)
-    Path(out_path).parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(out_path, dpi=FRAME_DPI, facecolor="white",
-                pil_kwargs={"quality": FRAME_QUALITY, "method": 6})
-    plt.close(fig)
+    # Size the figure to the domain: the belt is 360 x 60 deg, so the axes are 6:1 and the figure height is the axes
+    # height plus the heading band - no letterboxing.
+    W, L, R = 12.5, 0.02, 0.90
+    aspect = (TROPICS_BELT_EXTENT[1] - TROPICS_BELT_EXTENT[0]) / (TROPICS_BELT_EXTENT[3] - TROPICS_BELT_EXTENT[2])
+    ah = (R - L) * W / aspect
+    top, bot = 0.78, 0.10
+    H = top + ah + bot
+    fig = plt.figure(figsize=(W, H), dpi=FRAME_DPI)
+    ax = fig.add_axes([L, bot / H, R - L, ah / H], projection=ccrs.PlateCarree(central_longitude=GLOBAL_CENTRAL_LON))
+    im = _draw_map_ax(ax, field, la, lo, TROPICS_BELT_EXTENT, style, nino_box=True, annotation=annotation,
+                      ann_size=8.0, label_size=7.0)
+    _heading(fig, H, title, sub or _kind_sub(kind))
+    # the panel is only ~1.9 in tall: the title names the field, the bar carries the unit
+    cb = _cbar(fig, im, style, [0.915, bot / H, 0.011, ah / H], "°C")
+    cb.set_label("°C", fontsize=9.5, rotation=0, labelpad=10, va="center")
+    save_frame(fig, out_path)
+
+
+def render_sst_map(anom2d, lat_name, lon_name, extent, title, out_path,
+                   figsize=None, central_lon=0.0, annotation=None, nino_box=True, sub=None):
+    """A single static anomaly map (global_sst_anom / tropical_sst_anom; no page shows them since the loops replaced
+    them, but the manifest still lists them). Same palette, land and encoding as the loop frames."""
+    style = _kind_style("anom")
+    W, L, R = 14.0, 0.02, 0.91
+    aw = (R - L) * W
+    ah = aw * (extent[3] - extent[2]) / (extent[1] - extent[0])
+    top, bot = 0.78, 0.10
+    H = top + ah + bot
+    fig = plt.figure(figsize=(W, H), dpi=100)
+    ax = fig.add_axes([L, bot / H, R - L, ah / H], projection=ccrs.PlateCarree(central_longitude=central_lon))
+    im = _draw_map_ax(ax, anom2d, lat_name, lon_name, extent, style, nino_box=nino_box, annotation=annotation, ann_size=10)
+    _heading(fig, H, title, sub or _kind_sub("anom"))
+    _cbar(fig, im, style, [0.925, bot / H + 0.05 * ah / H, 0.012, 0.9 * ah / H], style["cbar"])
+    save_frame(fig, out_path, dpi=125)
+    print(f"  wrote {Path(out_path).name}")
 
 
 def _frame_task(args):
@@ -511,7 +429,8 @@ def render_product_anim(field_full, la, lo, product_id, n_days=ANIM_DAYS,
     """Render one product's frames. `annotator` is an optional callable
     (timestamp) -> str for products whose readout can't be derived from the
     plotted field itself (the tropical-mean-removed field no longer contains
-    the mean that was taken out of it)."""
+    the mean that was taken out of it). Title = field + valid day; the source
+    line under it (_kind_sub) names the dataset, grid and baseline."""
     cfg = PRODUCTS[product_id]
     out_dir = ASSETS / "anim" / product_id
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -536,12 +455,8 @@ def render_product_anim(field_full, la, lo, product_id, n_days=ANIM_DAYS,
             ann = (f"Daily Ocean Niño Index: {n34:+.2f} °C\n"
                    f"Daily Tropical Mean SST: {trop:+.2f} °C\n"
                    f"Daily Relative Oceanic Niño Index: {roni_d:+.2f} °C")
-            title = (f"{pfx} — {st[i]:%Y-%m-%d} "
-                     f"(OISST v2.1, anomalies vs {oisst9120.BASE_LABEL})")
         elif annotator is not None:
             ann = annotator(st[i])
-            title = (f"{pfx} — {st[i]:%Y-%m-%d} "
-                     f"(OISST v2.1, anomalies vs {oisst9120.BASE_LABEL})")
         tasks.append((sel.isel(time=i).values, lat_vals, lon_vals, la, lo, cfg["kind"],
                       title, str(out_dir / f"F{i:02d}.webp"), ann))
         frames.append({"idx": i, "file": f"F{i:02d}.webp",
@@ -709,11 +624,50 @@ def mark_prelim(ax, label=True):
     ax.axvspan(xf, x1, color="#c9a227", alpha=0.10, zorder=0, lw=0)
     ax.axvline(xf, color="#a8871f", lw=0.9, ls=(0, (4, 3)), alpha=0.8, zorder=1)
     if label:
-        ax.text(xf + (x1 - xf) / 2, ax.get_ylim()[1], "preliminary",
-                ha="center", va="top", fontsize=7.2, color="#7a6210", zorder=6,
+        # x in data, y in axes fraction: placed at the data ylim the label rode up over the top
+        # spine (fill_between to 0 pins the limit afterwards); right-aligned so it never leaves the axes
+        import matplotlib.transforms as mtrans
+        ax.text(min(xf + (x1 - xf) / 2, x1 - 0.004 * (x1 - x0)), 0.975, "preliminary",
+                transform=mtrans.blended_transform_factory(ax.transData, ax.transAxes),
+                ha="right" if (x1 - xf) / (x1 - x0) < 0.08 else "center", va="top",
+                fontsize=7.2, color="#7a6210", zorder=6,
                 bbox=dict(boxstyle="round,pad=0.2", facecolor="white",
                           edgecolor="none", alpha=0.75))
     ax.set_xlim(x0, x1)
+
+
+def legend_headroom(ax, leg, pad_frac=0.03):
+    """Raise the y top until no plotted line passes under the legend box.
+
+    The daily mode charts put a two- or three-column legend inside the upper-left
+    corner; a strong month (SASD +1.2 in Nov 2025) ran underneath it and was hidden.
+    """
+    fig = ax.figure
+    for _ in range(3):
+        fig.canvas.draw()
+        bb = leg.get_window_extent().transformed(ax.transAxes.inverted())   # axes fraction
+        (lx0, ly0), (lx1, _ly1) = bb.get_points()
+        y0, y1 = ax.get_ylim()
+        to_x = ax.transData.inverted()
+        dx0 = to_x.transform(ax.transAxes.transform((lx0, 0)))[0]
+        dx1 = to_x.transform(ax.transAxes.transform((lx1, 0)))[0]
+        top = -np.inf
+        for ln in ax.get_lines():
+            xd, yd = ln.get_xdata(orig=False), ln.get_ydata(orig=False)
+            try:
+                xd = np.asarray(ax.convert_xunits(xd), float); yd = np.asarray(yd, float)
+            except Exception:                            # noqa: BLE001
+                continue
+            if xd.size < 3:                              # axhline/axvline: 2 points
+                continue
+            m = (xd >= dx0) & (xd <= dx1) & np.isfinite(yd)
+            if m.any():
+                top = max(top, float(yd[m].max()))
+        need = top + pad_frac * (y1 - y0)
+        floor = y0 + (ly0 - 0.01) * (y1 - y0)            # data value at the legend's lower edge
+        if not np.isfinite(top) or need <= floor:
+            return
+        ax.set_ylim(y0, y0 + (need - y0) / max(ly0 - 0.01, 0.2))
 
 
 def render_daily_three_metrics(n34, trop, out_path):
@@ -741,7 +695,7 @@ def render_daily_three_metrics(n34, trop, out_path):
                  fontsize=11, loc="left", pad=8)
     ax.grid(axis="y", alpha=0.2)
     ax.margins(x=0.01)
-    ax.legend(loc="upper left", fontsize=8, framealpha=0.85, ncols=3)
+    legend_headroom(ax, ax.legend(loc="upper left", fontsize=8, framealpha=0.85, ncols=3))
     fig.autofmt_xdate()
     fig.text(0.005, 0.005,
              "Daily values from NOAA OISST v2.1 daily means, anomalies vs "
@@ -927,7 +881,7 @@ def render_pdo_daily(pdo, out_path):
     span = f"{t[0]:%b %Y} – {t[-1]:%b %d, %Y}"
     ax.set_title(f"Daily Pacific Decadal Oscillation — {span}",
                  fontsize=11, loc="left", pad=8)
-    ax.legend(loc="upper left", fontsize=8, framealpha=0.85, ncols=2)
+    legend_headroom(ax, ax.legend(loc="upper left", fontsize=8, framealpha=0.85, ncols=2))
     ax.text(0.995, 0.04, f"latest daily {pdo.iloc[-1]:+.2f}   "
             f"31-day {sm.dropna().iloc[-1]:+.2f}",
             transform=ax.transAxes, fontsize=8, va="bottom", ha="right",
@@ -964,7 +918,7 @@ def render_iod_daily(w_ser, e_ser, out_path):
     span = f"{t[0]:%b %Y} – {t[-1]:%b %d, %Y}"
     ax.set_title(f"Daily Indian Ocean Dipole — {span}",
                  fontsize=11, loc="left", pad=8)
-    ax.legend(loc="upper left", fontsize=8, framealpha=0.85, ncols=3)
+    legend_headroom(ax, ax.legend(loc="upper left", fontsize=8, framealpha=0.85, ncols=3))
     ax.text(0.995, 0.04, f"latest DMI {dmi.iloc[-1]:+.2f} °C",
             transform=ax.transAxes, fontsize=8, va="bottom", ha="right",
             family="monospace",
@@ -1000,7 +954,7 @@ def render_satl_daily(atl3, tsa, sasd, tna, out_path):
     span = f"{t[0]:%b %Y} – {t[-1]:%b %d, %Y}"
     ax.set_title(f"Daily Atlantic Indices — {span}",
                  fontsize=11, loc="left", pad=8)
-    ax.legend(loc="upper left", fontsize=8, framealpha=0.85, ncols=2)
+    legend_headroom(ax, ax.legend(loc="upper left", fontsize=8, framealpha=0.85, ncols=2))
     readout = (f"latest  ATL3 {atl3.iloc[-1]:+.2f}   TSA {tsa.iloc[-1]:+.2f}   "
                f"SASD {sasd.iloc[-1]:+.2f}   TNA {tna.iloc[-1]:+.2f}  °C")
     ax.text(0.995, 0.04, readout,
@@ -1112,7 +1066,14 @@ def render_roni(df: pd.DataFrame, out_path: Path,
     ax.set_xticks(x); ax.set_xticklabels(lab, fontsize=8.2)
     ax.set_xlim(-0.7, n - 0.3)
     vals = np.concatenate([v[np.isfinite(v)] for v in (o_roni, o_oni, est_roni, est_oni)])
-    ax.set_ylim(min(vals.min(), -0.6) - 0.22, max(vals.max(), 0.6) + 0.42)
+    y_top = max(vals.max(), 0.6) + 0.42
+    if first_est < n:
+        # the two-line "not yet published" label sits at the top of the estimate band: keep the
+        # band's own bars below it (a +2.96 estimate ran into "published" in Oct 2026)
+        est_vals = np.concatenate([v[first_est:][np.isfinite(v[first_est:])] for v in (est_roni, est_oni)])
+        if est_vals.size:
+            y_top = max(y_top, est_vals.max() + 0.16 * (y_top - min(vals.min(), -0.6) + 0.22) + 0.25)
+    ax.set_ylim(min(vals.min(), -0.6) - 0.22, y_top)
     ax.set_ylabel("°C", fontsize=11)
     ax.grid(axis="y", alpha=0.18)
     for s in ("top", "right"):
@@ -1138,10 +1099,24 @@ def render_roni(df: pd.DataFrame, out_path: Path,
     if box:
         # kept short deliberately: a wider box reaches left over the bars
         box.append("both still subject to revision")
-        ax.text(0.988, 0.045, "\n".join(box), transform=ax.transAxes, fontsize=8.6,
-                va="bottom", ha="right", family="monospace", zorder=7,
-                bbox=dict(boxstyle="round,pad=0.45", facecolor="white",
-                          edgecolor="#bbb", alpha=0.94))
+        tb = ax.text(0.988, 0.045, "\n".join(box), transform=ax.transAxes, fontsize=8.6,
+                     va="bottom", ha="right", family="monospace", zorder=7,
+                     bbox=dict(boxstyle="round,pad=0.45", facecolor="white",
+                               edgecolor="#bbb", alpha=0.94))
+        # The box covered the negative bars under it (Mar-Apr 2026): lower the floor until the
+        # lowest bar in the box's span ends above the box.
+        fig.canvas.draw()
+        bb = tb.get_bbox_patch().get_window_extent().transformed(ax.transAxes.inverted())
+        (bx0, _by0), (bx1, by1) = bb.get_points()
+        y0, y1 = ax.get_ylim()
+        xs0, xs1 = (ax.get_xlim()[0] + f * (ax.get_xlim()[1] - ax.get_xlim()[0]) for f in (bx0, bx1))
+        lows = [min(0.0, np.nanmin([a[i], b[i]]) if np.isfinite([a[i], b[i]]).any() else 0.0)
+                for i in range(n) if xs0 - 0.4 <= i <= xs1 + 0.4
+                for a, b in [((o_roni if has_off[i] else est_roni), (o_oni if has_off[i] else est_oni))]]
+        if lows:
+            m = min(lows) - 0.06 * (y1 - y0)                 # a clear gap above the box
+            if y0 + by1 * (y1 - y0) > m:
+                ax.set_ylim((m - by1 * y1) / (1 - by1), y1)
 
     ax.set_title("RONI — CPC's official ENSO index since February 2026 — against the older ONI\n"
                  "Solid = CPC's published values.  Hatched on grey = our unofficial OISST estimate, "
@@ -1345,8 +1320,7 @@ def main(argv=None) -> int:
 
     # --- Maps (dateline-centered; asinh +/-7 degC scale, shared with the frames) ---
     render_sst_map(latest, la, lo, GLOBAL_EXTENT,
-                   f"Global SST Anomaly \u2014 {valid:%Y-%m-%d} "
-                   f"(OISST v2.1, anomalies vs {oisst9120.BASE_LABEL})",
+                   f"Global SST Anomaly \u2014 {valid:%Y-%m-%d}",
                    ASSETS / "global_sst_anom.webp",
                    figsize=(14, 7), central_lon=GLOBAL_CENTRAL_LON,
                    annotation=annotation)

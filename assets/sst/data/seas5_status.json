@@ -1,1 +1,1 @@
-{"issue":"202610","generated":"2026-10-08 09:50 UTC","missing_tables":["ssw","ssw_u100"],"missing_lead7_forecast":["sst","gl","gl_z500","gl_u850","gl_v850","na_snow","na_snowdepth","nh_msl","strat_u","water","sfc"],"failed":["polar vortex / SSW risk"],"complete":false}
+{"issue":"202610","generated":"2026-10-08 22:48 UTC","missing_tables":[],"missing_lead7_forecast":[],"failed":[],"complete":true}

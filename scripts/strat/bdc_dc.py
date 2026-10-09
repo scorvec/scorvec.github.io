@@ -1005,7 +1005,7 @@ def fig_section(C, sec, lat, cyc, off, path):
     fig.text(0.065, 0.922, f"Residual streamfunction by downward control, mean of {sec['n']} analyses {d0:%b %-d}–{d1:%b %-d}, "
              "10⁹ kg s⁻¹ · solid: NH cell · dashed: SH cell · arrows: flow direction", fontsize=10, color=MUTED, va="top")
     nsig = int(sec["sig"].sum())
-    cax = fig.add_axes([0.30, 0.155, 0.45, 0.023])
+    cax = fig.add_axes([0.30, 0.178, 0.45, 0.023])          # was 0.155: its label touched the footnote
     cb = fig.colorbar(cf, cax=cax, orientation="horizontal", ticks=lv)
     cb.ax.tick_params(labelsize=8.5, colors=INK); cb.outline.set_visible(False)
     cb.set_label("weaker ← circulation strength, % of MERRA-2 normal → stronger", fontsize=9.5, color=INK)

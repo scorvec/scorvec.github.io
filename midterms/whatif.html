@@ -41,7 +41,7 @@ a:focus-visible,button:focus-visible,input:focus-visible{outline:2px solid var(-
 .tk{position:absolute;top:18px;transform:translateX(-50%);font-size:13.5px;color:var(--muted);white-space:nowrap;pointer-events:none}
 .tk::before{content:"";display:block;width:1px;height:7px;background:var(--muted);margin:0 auto 1px}
 .tk.m{color:var(--ink);font-weight:600}.tk.m::before{width:2px;background:var(--ink)}
-.sl.yrs{padding-top:34px;padding-bottom:30px}.sl.yrs .tk:not(.yr){top:52px}.sl.yrs .tk.yr{top:2px}.sl.yrs .tk.yr.hi{top:-13px}.sl.yrs input{margin-top:0}.tk.yr{top:2px;font-size:13px;color:var(--ink)}.tk.yr.hi{top:-14px}.tk.yr::before{display:none}.tk.yr::after{content:"";display:block;width:1px;height:6px;background:var(--muted);margin:0 auto}
+.sl.yrs{padding-top:34px;padding-bottom:30px}.sl.yrs .tk:not(.yr){top:52px}.sl.yrs .tk.yr{top:2px}.sl.yrs .tk.yr.hi{top:-13px}.sl.yrs input{margin-top:0}.tk.yr{top:2px;font-size:13px;color:var(--ink)}.tk.yr.hi{top:-14px}.sl.yrs .tk.yr.hi2{top:-28px}.tk.yr.hi::after,.tk.yr.hi2::after{display:none}.tk.yr::before{display:none}.tk.yr::after{content:"";display:block;width:1px;height:6px;background:var(--muted);margin:0 auto}
 .ends{display:flex;justify-content:space-between;font-size:14.5px;color:var(--muted);margin-top:-4px}
 .btn{border:1px solid var(--rule);background:#fff;border-radius:6px;padding:5px 12px;font:inherit;font-size:16px;cursor:pointer}
 .btn:hover{border-color:var(--muted)}
@@ -67,7 +67,8 @@ td.nm{min-width:180px}td.nm small{display:block;color:var(--muted);font-size:14p
 .call button.on.d{background:var(--d);color:#fff}.call button.on.r{background:var(--r);color:#fff}.call button.on.n{background:var(--soft);color:var(--ink)}
 .more{margin-top:8px}
 .note{margin-top:28px;padding-top:12px;border-top:1px solid var(--rule);color:var(--muted);font-size:15.5px;max-width:900px}
-@media(max-width:640px){td.pbc{display:none}.wi-head h1{font-size:26px}}
+@media(max-width:640px){td.pbc,th.pbc{display:none}.wi-head h1{font-size:26px}td.nm{min-width:0}th,td{padding-left:5px;padding-right:5px}}
+#tbl{max-width:100%;overflow-x:auto}
 </style><link rel="stylesheet" href="/assets/site.css">
 <script src="/assets/site.js" defer></script>
 <script src="/assets/rail.js" defer></script>
@@ -142,7 +143,7 @@ td.nm{min-width:180px}td.nm small{display:block;color:var(--muted);font-size:14p
                 <li><a href="/stratosphere.html">Stratosphere and polar vortex</a></li>
                 <li class="sh-subitem"><a href="/stratosphere.html#pv">Now: analyses and observations</a></li>
                 <li class="sh-subitem"><a href="/stratosphere.html#vortex">Next two weeks</a></li>
-                <li class="sh-subitem"><a href="/stratosphere.html#vortex35">Weeks 3–6</a></li>
+                <li class="sh-subitem"><a href="/stratosphere.html#vortex35">Weeks 3–5</a></li>
                 <li class="sh-subitem"><a href="/stratosphere.html#s5vortex">Season</a></li>
                 <li class="sh-subitem"><a href="/stratosphere.html#shwinters">History and studies</a></li>
                 <li class="sh-subitem"><a href="/stratosphere.html#qbo">QBO tracker</a></li>
@@ -191,7 +192,7 @@ td.nm{min-width:180px}td.nm small{display:block;color:var(--muted);font-size:14p
             <div>
               <h3>Verification</h3>
               <ul>
-                <li><a href="/aifs-verify.html">AIFS single versus member 0</a></li>
+                <li><a href="/aifs-verify.html">AIFS single versus member 0</a></li>
               </ul>
             </div>
           </div>
@@ -294,6 +295,15 @@ td.nm{min-width:180px}td.nm small{display:block;color:var(--muted);font-size:14p
     const lo = +input.min, hi = +input.max, x = (v - lo) / (hi - lo);
     const el = document.createElement("span"); el.className = "tk " + (cls || ""); el.textContent = lab; el.style.left = (x * 100) + "%"; host.appendChild(el);
   }
+  // the past-miss years sit on two rows; each year takes the low row unless it would touch the year before it there
+  // (a fixed odd/even stagger let 2014 and 2016 run together on phones)
+  function layoutYears(host) {
+    const ys = [...host.querySelectorAll(".tk.yr")]; ys.forEach(e => e.classList.remove("hi", "hi2"));
+    const pos = ys.map(e => { const r = e.getBoundingClientRect(); return { e, l: r.left, r: r.right }; }).sort((a, b) => a.l - b.l);
+    const end = [-1e9, -1e9, -1e9];
+    for (const p of pos) { let row = end.findIndex(x => p.l >= x + 8); if (row < 0) row = end.indexOf(Math.min(...end));
+      if (row) p.e.classList.add(row === 1 ? "hi" : "hi2"); end[row] = p.r; }
+  }
   function readHash() { try { const h = new URLSearchParams(location.hash.slice(1)); const s = def();
     for (const k of Object.keys(s)) if (h.has(k)) s[k] = +h.get(k);
     if (h.has("p")) h.get("p").split(",").filter(Boolean).forEach(x => { const [k, v] = x.split("="); if (v === "D" || v === "R") picks[k] = v; });
@@ -359,7 +369,9 @@ td.nm{min-width:180px}td.nm small{display:block;color:var(--muted);font-size:14p
     tick($("tkE"), $("E"), D.E0, "today's polls " + mg(D.E0), "m"); tick($("tkE"), $("E"), 0, "even");
     tick($("tkM"), $("M"), 0, "no direction (model)", "m");
     Object.entries(D.hist_miss).filter(([y, v]) => Math.abs(v) >= 0.8).sort((a, b) => a[1] - b[1])
-      .forEach(([y, v], i) => tick($("tkM"), $("M"), Math.max(-8, Math.min(8, v)), y, "yr" + (i % 2 ? " hi" : "")));
+      .forEach(([y, v]) => tick($("tkM"), $("M"), Math.max(-8, Math.min(8, v)), y, "yr"));
+    layoutYears($("tkM")); addEventListener("resize", () => layoutYears($("tkM")));
+    if (document.fonts) document.fonts.ready.then(() => layoutYears($("tkM")));
     tick($("tkZ"), $("Z"), 1, "model", "m"); tick($("tkC"), $("C"), 1, "model (measured)", "m"); tick($("tkW"), $("W"), 1, "model", "m"); tick($("tkT"), $("T"), 0, "model", "m");
     $("gen").textContent = `Data as of ${D.generated.slice(0, 10)}.`;
     update();

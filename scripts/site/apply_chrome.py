@@ -76,7 +76,7 @@ PRODUCTS = [
              "Real-time multivariate MJO index from the ECMWF AIFS ensemble, with the observed phase-space track, an ENSO-removed version, and what each phase has meant for temperature and rain.",
              "Twice daily"),
             ("/tropical-waves.html", "Tropical waves",
-             "Which equatorial waves are active now (a Wheeler–Kiladis spectrum, observed and forecast), with Kelvin and Rossby wave trackers along the equator and ocean Kelvin waves.",
+             "Where the equatorial waves are now: Kelvin and Rossby wave trackers along the equator with the forecast, the OLR wave decomposition and ocean Kelvin waves.",
              "Daily"),
         ]),
         ("Tropical cyclones", [
@@ -122,7 +122,7 @@ PRODUCTS = [
             ("/stratosphere.html#vortex", "Next two weeks",
              "AIFS-ENS, IFS-ENS and GEFS: vortex winds, 100 hPa heat flux, E–P flux, wave-1 and the upper stratosphere.",
              "Twice daily"),
-            ("/stratosphere.html#vortex35", "Weeks 3–6",
+            ("/stratosphere.html#vortex35", "Weeks 3–5",
              "GEPS and GEFS to day 35, drift-corrected: vortex diagnostics, loops and the dripping paint.",
              "Daily"),
             ("/stratosphere.html#s5vortex", "Season",
@@ -179,7 +179,7 @@ PRODUCTS = [
              "As written"),
         ]),
         ("Verification", [
-            ("/aifs-verify.html", "AIFS single versus member 0",
+            ("/aifs-verify.html", "AIFS single versus member\u00a00",   # no-break space: no lone "0" on its own line
              "The two ECMWF AIFS configurations compared as deterministic models against radiosondes and ERA5, with the ensemble member spectrally matched to the single model and the ensemble mean for reference.",
              "Every 00Z and 12Z run"),
         ]),
@@ -311,7 +311,7 @@ PAGES = [
     dict(path="404.html", mode="after-body", footer=False, fixes=[
         ("display:flex;\nmin-height:100vh;align-items:center;justify-content:center;margin:0;",
          "display:flex;flex-direction:column;\nmin-height:100vh;margin:0;"),
-        ("p{color:#8b8ba3}a{color:#64d2ff}", "p{color:#8b8ba3}a{color:#64d2ff}body>div{margin:auto;padding:2rem}"),
+        ("p{color:#8b8ba3}a{color:#64d2ff}", "p{color:#8b8ba3}a{color:#64d2ff}body>div:not(.fp){margin:auto;padding:2rem}"),
     ]),
 ]
 # topic explainers (written by scripts/site/topics.py, 2026-09-26): every page in topics/ gets the header and footer

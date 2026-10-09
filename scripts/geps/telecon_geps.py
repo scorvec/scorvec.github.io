@@ -555,7 +555,8 @@ def _plume_panel(ax, pat, sid, base, prev_cycle, fc, pfc, obs, cpc, big=False):
             color=MUTED, bbox=dict(facecolor="white", edgecolor="none", alpha=0.85, pad=1.2))
     ax.tick_params(labelsize=8 * fs)
     ax.xaxis.set_major_formatter(mdates.DateFormatter("%b %d"))
-    ax.xaxis.set_major_locator(mdates.DayLocator(interval=10 if not big else 5))
+    # every 14 days on the 4-column board: at 10 the last label ran into the next panel's first (2026-10-08)
+    ax.xaxis.set_major_locator(mdates.DayLocator(interval=14 if not big else 5))
     ax.grid(alpha=0.25, lw=0.5)
 
 
@@ -598,14 +599,19 @@ def plot_series(pat, cycle, prev_cycle, fc, pfc, obs, cpc):
                            PW * 0.86, PH * 0.74])
         _plume_panel(ax, pat, sid, base, prev_cycle, fc, pfc, obs, cpc)
         if i == 0:
-            ax.legend(fontsize=6.4, ncol=2, loc="lower left", framealpha=0.92)
+            lh, ll = ax.get_legend_handles_labels()
+    # one figure-level legend under the title (inside the AO panel it sat on the plume's lower half)
+    fig.legend(lh, ll, loc="upper center", bbox_to_anchor=(0.5, 0.958), ncol=len(ll), fontsize=8.2, frameon=False,
+               handlelength=2.2, columnspacing=1.6)
     fig.suptitle(f"Teleconnection indices — GEPS extended ensemble, 21 members · "
                  f"init {base:%Y-%m-%d} 00Z"
                  f"{'  ·  dashed: previous run ' + pd.Timestamp(prev_cycle).strftime('%b %d') if prev_cycle else ''}",
                  fontsize=13.5, fontweight="bold", y=0.985, va="top")
-    fig.text(0.5, 0.012, "seasonal standard deviations of the daily index (std within ±15 d of the date, 1991–2020; NCEP/NCAR R1, CPC-style "
+    import textwrap                                     # one unwrapped line ran off both edges of the figure
+    fig.text(0.5, 0.008, "\n".join(textwrap.wrap(
+             "seasonal standard deviations of the daily index (std within ±15 d of the date, 1991–2020; NCEP/NCAR R1, CPC-style "
              "patterns); shaded band ±0.5 sd = neutral; forecast anomalies are de-drifted against the "
-             "lead-matched GEPS hindcast climatology (NAM 100: plain anomaly vs NCEP, no 100 hPa hindcast)",
+             "lead-matched GEPS hindcast climatology (NAM 100: plain anomaly vs NCEP, no 100 hPa hindcast)", 230)),
              ha="center", va="bottom", fontsize=8.2, color=MUTED)
     for d in (FIGS, SITE):
         d.mkdir(parents=True, exist_ok=True)

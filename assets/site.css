@@ -227,10 +227,16 @@
 .sh--overlay .sh-toggle { font-size: 1.1rem; padding: 0.65rem 1.1rem; }
 .sh--overlay .sh-menu { --c-ink: #29321f; --c-accent: #274b7a; --c-muted: #5c6b73; --c-rule: #dfe3dc; text-shadow: none; }
 .sh--overlay .sh-toggle { border-color: rgba(255, 255, 255, 0.55); }
+/* the stacked menu over the hero: opaque (at 0.94 the hero's title read through the links, 2026-10-08 sweep), and the
+   same dark sheet when a mid-width window collapses the row (it was a light sheet with white group titles and About) */
 @media (max-width: 860px) {
-  .sh--overlay nav.sh-nav { background: rgba(18, 26, 14, 0.94); border-bottom: 0; --c-rule: rgba(255, 255, 255, 0.16); }
+  .sh--overlay nav.sh-nav { background: #121a0e; border-bottom: 0; --c-rule: rgba(255, 255, 255, 0.16); --c-muted: rgba(255, 255, 255, 0.72); }
   .sh--overlay .sh-menu { --c-ink: #ffffff; --c-accent: #ffffff; --c-muted: rgba(255,255,255,0.7); --c-rule: rgba(255,255,255,0.16); }
+  html .sh--overlay .sh-menu li.sh-subitem a { color: rgba(255,255,255,0.7); }
 }
+.sh--overlay.sh--compact nav.sh-nav { background: #121a0e; border-bottom: 0; --c-rule: rgba(255, 255, 255, 0.16); --c-muted: rgba(255, 255, 255, 0.72); }
+.sh--overlay.sh--compact .sh-menu { --c-ink: #ffffff; --c-accent: #ffffff; --c-muted: rgba(255,255,255,0.7); --c-rule: rgba(255,255,255,0.16); }
+html .sh--overlay.sh--compact .sh-menu li.sh-subitem a { color: rgba(255,255,255,0.7); }
 
 /* ── Section tabs (a product family's pages) ─────────────────────────── */
 .st {
@@ -253,7 +259,10 @@
 
 /* ── Footer ──────────────────────────────────────────────────────────── */
 .sf {
-  margin-top: 3rem;
+  /* a page's own bare `footer { … }` rules (flex-centred, a max-width, padding) squeezed the site footer into a narrow
+     centred column on the publications, resume, stats, ENSO forecasts and sounding pages (2026-10-08 sweep) */
+  display: block; max-width: none; width: auto; padding: 0; text-align: left; white-space: normal;
+  margin: 3rem 0 0;
   border-top: 1px solid var(--c-rule);
   background: var(--c-bg);
   color: var(--c-muted);

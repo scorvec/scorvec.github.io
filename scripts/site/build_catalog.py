@@ -85,7 +85,7 @@ PAGES = {
     "/stratosphere.html": dict(kind="stage", file="stratosphere.html", topic="circulation", title="Stratosphere and polar vortex",
                                tier=0, prio=1, models=["AIFS-ENS"], horizon="Days 1–15", region=["Northern Hemisphere"],
                                groups={"Now: analyses and observations": dict(models=["GEOS FP"], horizon="Observed"),
-                                       "Weeks 3–6": dict(models=["GEPS", "GEFS"], horizon="Weeks 1–5", prio=3),
+                                       "Weeks 3–5": dict(models=["GEPS", "GEFS"], horizon="Weeks 1–5", prio=3),
                                        "Season": dict(models=["SEAS5"], horizon="Seasons", tier=2, prio=30),
                                        "History and studies": dict(topic="research", horizon="Climate record", models=["MERRA-2"],
                                                                    tier=1, prio=21)}),

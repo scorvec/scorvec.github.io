@@ -276,8 +276,12 @@ def draw_field(key, ym, idx, A, sig, comps, out: Path, nsig: float):
     pc_kind = "sst" if kind == "sst" else "atm"
     fig, ax, H, pc = MS.open_map(kind=pc_kind)
     shade = np.where(sig, A[0] if len(vs) == 2 else A, np.nan)
-    cm = plt.get_cmap(cmap, len(levels) - 1)
-    pm = ax.pcolormesh(LON_E, LAT_E, np.ma.masked_invalid(shade), cmap=cm, norm=BoundaryNorm(levels, len(levels) - 1),
+    sst_sty = MS.sst_anom_style(5.0) if key == "sst" else None    # the site's shared SST palette and ladder
+    if sst_sty is not None:
+        levels = sst_sty["levels"]; cm = sst_sty["cmap"]; nrm = sst_sty["norm"]
+    else:
+        cm = plt.get_cmap(cmap, len(levels) - 1); nrm = BoundaryNorm(levels, len(levels) - 1)
+    pm = ax.pcolormesh(LON_E, LAT_E, np.ma.masked_invalid(shade), cmap=cm, norm=nrm,
                        transform=pc, shading="flat", rasterized=True, zorder=1)
     if len(vs) == 2:
         st = 8
@@ -286,14 +290,20 @@ def draw_field(key, ym, idx, A, sig, comps, out: Path, nsig: float):
         uu = np.where(keep, u, np.nan)[st // 2::st, st // 2::st]; vv = np.where(keep, v, np.nan)[st // 2::st, st // 2::st]
         LO, LA = np.meshgrid(DDM.LON[st // 2::st], DDM.LAT[st // 2::st])
         ax.quiver(LO, LA, uu, vv, transform=pc, color="k", scale=VMAX_ARROW[key] * 30, width=0.0016, alpha=0.75, zorder=3)
-    MS.features(ax, land_only=(dom == "land"), states=(kind != "sst"))
+    MS.features(ax, land_only=(dom == "land"), states=(kind != "sst"),
+                land_color=MS.SST_LAND if key == "sst" else "#f1f0eb")   # SST: land darker than the white 'no shift'
     MS.heading(fig, H, f"CanSIPS {title} · {_heading_text(ym, idx)} · {MONTHS[int(ym[4:]) - 1]} {ym[:4]} issue",
                _beyond_note(idx) + "Mean of 40 members (GEM5.2-NEMO + CanESM5) minus CanSIPS's own 1993–2016 hindcast for the same start month and "
                "lead, each model against its own. Shaded only where the shift is significant (Welch t-test, FDR q = 0.10; "
                f"{nsig:.0%} of the map); blank = no significant shift. Data Source: Environment and Climate Change Canada.",
                wrap=205)
-    MS.colorbar(fig, H, pm, f"anomaly ({units})", levels)
     out.parent.mkdir(parents=True, exist_ok=True)
+    if sst_sty is not None:
+        cb = MS.colorbar(fig, H, pm, f"anomaly ({units})")
+        MS.sst_colorbar(cb, sst_sty, f"anomaly ({units})", size=8.5, tick_size=7)
+        MS.save_webp_palette(fig, out, dpi=110)                  # flat 1-degree classes: lossless, sharp
+        return
+    MS.colorbar(fig, H, pm, f"anomaly ({units})", levels)
     MS.save(fig, out, dpi=100, quality=78)
 
 
@@ -315,7 +325,6 @@ def draw_terciles(key, ym, idx, above, below, normal, out: Path):
         return [Patch(color=c, label=f"{int(TERC_BINS[k] * 100)}–{int(min(TERC_BINS[k + 1], 1) * 100)}%") for k, c in enumerate(cols)]
     l1 = fig.legend(handles=patches(PAL[pu]), loc="lower left", bbox_to_anchor=(0.04, 0.004), ncol=6, frameon=False,
                     title=labs[0], fontsize=8, title_fontsize=8.5)
-    fig.add_artist(l1)
     fig.legend(handles=patches(PAL[pl]), loc="lower right", bbox_to_anchor=(0.96, 0.004), ncol=6, frameon=False,
                title=labs[1], fontsize=8, title_fontsize=8.5)
     MS.heading(fig, H, f"{title}: most likely tercile — CanSIPS · {_heading_text(ym, idx)} · {MONTHS[int(ym[4:]) - 1]} {ym[:4]} issue",

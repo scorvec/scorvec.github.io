@@ -98,7 +98,7 @@
                 <li><a href="/stratosphere.html">Stratosphere and polar vortex</a></li>
                 <li class="sh-subitem"><a href="/stratosphere.html#pv">Now: analyses and observations</a></li>
                 <li class="sh-subitem"><a href="/stratosphere.html#vortex">Next two weeks</a></li>
-                <li class="sh-subitem"><a href="/stratosphere.html#vortex35">Weeks 3–6</a></li>
+                <li class="sh-subitem"><a href="/stratosphere.html#vortex35">Weeks 3–5</a></li>
                 <li class="sh-subitem"><a href="/stratosphere.html#s5vortex">Season</a></li>
                 <li class="sh-subitem"><a href="/stratosphere.html#shwinters">History and studies</a></li>
                 <li class="sh-subitem"><a href="/stratosphere.html#qbo">QBO tracker</a></li>
@@ -147,7 +147,7 @@
             <div>
               <h3>Verification</h3>
               <ul>
-                <li><a href="/aifs-verify.html">AIFS single versus member 0</a></li>
+                <li><a href="/aifs-verify.html">AIFS single versus member 0</a></li>
               </ul>
             </div>
           </div>
@@ -406,28 +406,37 @@ References: Bister &amp; Emanuel 2002, <i>JGR</i> 107(D24), 4801 &middot; Chen, 
      the frames branch (sha-pinned), assets/sst/data/tcshear_validation.json. -->
 <div id="tcs-view" class="tcs" hidden>
 <style>
-.tcs{--tk:#1b1d22;--tm:#6f6b64;--tr:#e3e1db}
+.tcs{--tk:#1b1d22;--tm:#6f6b64;--tr:#e3e1db;--tbg:#fff}
 .tcs-row{display:flex;flex-wrap:wrap;gap:6px;margin:4px 0 10px}
-.tcs-row button{font:inherit;font-size:.98rem;border:1px solid var(--tr);background:#fff;border-radius:999px;padding:5px 12px;cursor:pointer;color:var(--tk)}
+.tcs-row button,.tcs-bar button{font:inherit;font-size:.98rem;border:1px solid var(--tr);background:#fff;border-radius:999px;padding:5px 12px;cursor:pointer;color:var(--tk)}
 .tcs-row button[aria-pressed="true"]{background:var(--tk);color:#fff;border-color:var(--tk)}
 .tcs-row button.hc span{color:inherit;opacity:.8;font-size:.86rem}
 .tcs-now{margin:6px 0 12px;color:var(--tk);font-size:1.02rem;line-height:1.5}
-.tcs-hour{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin:6px 0 8px;color:var(--tk)}
-.tcs-hour input{width:min(420px,70vw)}
-.tcs-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(290px,450px));justify-content:center;gap:14px;margin:6px 0}
+/* 2026-10-08 overhaul (user: "the slider controls a bunch of images that you can't see unless you scroll"): the time bar
+   sticks under the site header, and every panel the slider drives sits in one block sized to the viewport height. */
+.tcs-bar{position:sticky;top:var(--tcs-top,64px);z-index:5;display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;margin:4px 0 10px;
+  padding:8px 10px;background:var(--tbg);border:1px solid var(--tr);border-radius:10px;box-shadow:0 2px 8px rgba(0,0,0,.06);color:var(--tk)}
+.tcs-bar button{padding:4px 10px;min-width:2.4em}
+.tcs-bar button.play{min-width:5.2em}
+.tcs-bar input{flex:1 1 260px;min-width:160px}
+.tcs-bar b{font-variant-numeric:tabular-nums;white-space:nowrap}
+.tcs-dash{max-width:min(100%,calc((100vh - 190px) * 1.55),1500px);margin:0 auto}
+.tcs-panels{display:grid;grid-template-columns:minmax(0,2.25fr) minmax(0,1fr);gap:12px;align-items:start}
+.tcs-side{display:grid;grid-template-rows:auto auto;gap:12px}
 .tcs figure{margin:0}
-.tcs figcaption{color:var(--tm);font-size:.93rem;margin:4px 0 0}
+.tcs figcaption{color:var(--tm);font-size:.9rem;margin:3px 0 0;line-height:1.35}
 .tcs h4{margin:14px 0 4px;font-size:1.02rem;color:var(--tk)}
 .tcs svg{display:block;width:100%;height:auto;background:#fff;border:1px solid var(--tr);border-radius:8px}
 .tcs svg .ring{fill:none;stroke:#d6dde4;stroke-width:1}
 .tcs svg .axis,.tcs svg .grid{stroke:#e2e6ea;stroke-width:1}
 .tcs svg .now{stroke:#6f6b64;stroke-width:1;stroke-dasharray:3 3}
-.tcs svg .sel{stroke:#1b1d22;stroke-width:1.2;opacity:.55}
+.tcs svg .sel{stroke:#1b1d22;stroke-width:1.6;opacity:.6}
 .tcs svg .thr{stroke:#8a5a00;stroke-width:1.2;stroke-dasharray:6 4}
 .tcs svg .tm{font:12px "Source Sans 3",sans-serif;fill:#6f6b64}
 .tcs svg .tl{font:600 12px "Source Sans 3",sans-serif;fill:#1b1d22;paint-order:stroke;stroke:#fff;stroke-width:3px}
 .tcs svg .thrl{fill:#7a4f00;font-weight:600}
 .tcs svg .tq{font:600 11.5px "Source Sans 3",sans-serif;fill:#4b4740;letter-spacing:.04em}
+#tcs-ts svg{cursor:crosshair}
 .tcs-key{display:flex;flex-wrap:wrap;gap:4px 14px;margin:6px 0;color:var(--tk);font-size:.93rem}
 .tcs-key i,.tcs-tab i{display:inline-block;width:14px;height:4px;border-radius:2px;margin-right:6px;vertical-align:middle}
 .tcs-tabw{overflow-x:auto}
@@ -435,27 +444,62 @@ References: Bister &amp; Emanuel 2002, <i>JGR</i> 107(D24), 4801 &middot; Chen, 
 .tcs-tab th,.tcs-tab td{border-bottom:1px solid var(--tr);padding:5px 7px;text-align:left;vertical-align:top}
 .tcs-tab thead th{color:var(--tm);font-weight:600}
 .tcs-tab .mu,.tcs .mu{color:var(--tm)}
-.tcs-map img{display:block;width:100%;max-width:900px;margin:0 auto;height:auto;border:1px solid var(--tr);border-radius:8px;background:#fff}
+.tcs-map{position:relative}
+.tcs-map img{display:block;width:100%;height:auto;aspect-ratio:1000/894;object-fit:contain;border:1px solid var(--tr);border-radius:8px;background:#fff}
+.tcs-map .nomap[hidden]{display:none}
+.tcs-map .nomap{display:flex;align-items:center;justify-content:center;aspect-ratio:1000/894;border:1px dashed var(--tr);border-radius:8px;color:var(--tm)}
+.tcs-read{margin:12px 0;color:var(--tk);font-size:.95rem}
+.tcs-read summary{cursor:pointer;font-weight:600}
+.tcs-read li{margin:4px 0;line-height:1.45}
+@media (max-width:820px){
+  .tcs-dash{max-width:100%}
+  .tcs-panels{grid-template-columns:1fr}
+  .tcs-side{grid-template-columns:1fr 1fr;grid-template-rows:auto}
+  .tcs-side figcaption{font-size:.82rem}
+  .tcs-bar{gap:6px 8px;padding:6px 8px}
+  .tcs-bar label{display:none}
+  .tcs-bar button{padding:3px 8px;min-width:2em;font-size:.92rem}
+  .tcs-bar button.play{min-width:4.6em}
+  .tcs-bar b{font-size:.9rem}
+  .tcs-bar input{order:5;flex-basis:100%}
+}
+/* phones: the hodograph and tilt one above the other (side by side their 12 px labels drew at ~4 px) */
+@media (max-width:560px){.tcs-side{grid-template-columns:1fr}}
 </style>
 <div class="tcs-row" id="tcs-storms" role="group" aria-label="Storms"></div>
 <div class="tcs-row" id="tcs-views" role="group" aria-label="View"></div>
 <p class="tcs-now" id="tcs-now">Loading the storms…</p>
 <div id="tcs-fc">
  <div id="tcs-body">
-  <div class="tcs-hour"><label for="tcs-h">Forecast hour</label><input type="range" id="tcs-h" min="0" max="120" step="6" value="0"><b id="tcs-hlab"></b></div>
-  <div class="tcs-grid">
-   <figure><div id="tcs-hodo"></div><figcaption>Environmental hodograph (storm's own circulation removed), 1000→100 hPa: bold = AIFS-ENS control coloured low (warm) to high (blue), thin = other models, grey = the 50 members. Red dashed: the 200–850 hPa shear vector; black: storm motion.</figcaption></figure>
-   <figure><div id="tcs-tilt"></div><figcaption>Vortex tilt (850→500 hPa vorticity centroids) in the shear's frame, downshear up: each run's path to day 5, the dot at the chosen hour, grey dots = members, red diamonds = the observed 2–6 km tilt from NOAA's tail Doppler radar, rotated by the analysed shear.</figcaption></figure>
+  <div class="tcs-bar" id="tcs-bar">
+   <button type="button" id="tcs-prev" aria-label="Back 6 hours">◀</button>
+   <button type="button" id="tcs-play" class="play" aria-label="Play the forecast">▶ Play</button>
+   <button type="button" id="tcs-next" aria-label="Forward 6 hours">▶︎|</button>
+   <label for="tcs-h" class="mu">Forecast hour</label><input type="range" id="tcs-h" min="0" max="120" step="6" value="0"><b id="tcs-hlab"></b>
   </div>
-  <div class="tcs-row" id="tcs-meas" role="group" aria-label="Measure"></div>
-  <figure><div id="tcs-ts"></div><div class="tcs-key" id="tcs-key"></div></figure>
+  <div class="tcs-dash">
+   <div class="tcs-panels">
+    <figure class="tcs-map"><img id="tcs-map" alt="" hidden><div class="nomap" id="tcs-nomap" hidden>No map for this hour</div><figcaption>330 K PV (black: 2 PVU, the trough), total shear (grey), the storm's environmental shear (red); AIFS-ENS control.</figcaption></figure>
+    <div class="tcs-side">
+     <figure><div id="tcs-hodo"></div><figcaption>Environmental hodograph, 1000→100 hPa. Red dashed: 200–850 hPa shear; black: storm motion.</figcaption></figure>
+     <figure><div id="tcs-tilt"></div><figcaption>Vortex tilt 850→500 hPa, downshear up. Red diamonds: radar-observed tilt.</figcaption></figure>
+    </div>
+   </div>
+   <div class="tcs-row" id="tcs-meas" role="group" aria-label="Measure" style="margin-top:12px"></div>
+   <figure><div id="tcs-ts"></div><div class="tcs-key" id="tcs-key"></div><figcaption>Click the chart to jump to that hour.</figcaption></figure>
+  </div>
   <div class="tcs-tabw" id="tcs-tab"></div>
-  <figure class="tcs-map"><img id="tcs-map" alt="" hidden><figcaption>Where the shear comes from: PV on the 330 K isentrope (black line 2 PVU: stratospheric air, the trough), 200–850 hPa shear of the total wind (grey) and the storm's environmental shear (red), AIFS-ENS control, 6-hourly.</figcaption></figure>
+  <details class="tcs-read"><summary>How to read the panels</summary><ul>
+   <li><b>Map</b>: potential vorticity on the 330 K isentrope; the black line is 2 PVU, so inside it is stratospheric air, the upper trough. Grey arrows: 200–850 hPa shear of the total wind; red: the storm's environmental shear (its own circulation removed). AIFS-ENS control, 6-hourly.</li>
+   <li><b>Hodograph</b>: the environmental wind (storm's own circulation removed) at every level from 1000 to 100 hPa. Bold: AIFS-ENS control, coloured from low levels (warm) to high (blue); thin: other models; grey: the 50 members. Red dashed: the 200–850 hPa shear vector; black: storm motion.</li>
+   <li><b>Tilt</b>: the 850→500 hPa vorticity-centroid displacement in the shear's frame, downshear up. Lines: each run's path to day 5, the dot at the chosen hour; grey dots: members; red diamonds: the observed 2–6 km tilt from NOAA's tail Doppler radar, rotated by the analysed shear.</li>
+   <li><b>Time series</b>: the chosen measure along every run, with the AIFS-ENS member spread; the dark vertical line is the hour on the slider. Keyboard: the arrow keys step the slider once it has focus.</li>
+  </ul></details>
  </div>
 </div>
 <div id="tcs-val" hidden></div>
 </div>
-<script src="/assets/tcshear/tcshear.js?v=20261008e" defer></script>
+<script src="/assets/tcshear/tcshear.js?v=20261008h" defer></script>
 <!-- Storm picker (2026-10-03, user: "For the cyclone phase space and ensemble tracks, would be better if you could click on a
      map and select the storm"). Mounted by the tcens and tcphase products; reads assets/sst/data/tcens.json + tcphase.json
      (per-storm figures in assets/sst/tc/, written by tc_ens.py / tc_phase.py). State in the hash: #tcens/<id>[/depth], #tcphase/<id>. -->
@@ -558,7 +602,7 @@ References: Bister &amp; Emanuel 2002, <i>JGR</i> 107(D24), 4801 &middot; Chen, 
     var X = function (r) { return ((r - x0) * k * sc).toFixed(1); }, Y = function (la) { return ((y1 - la) * sc).toFixed(1); };
     var svg = '<svg viewBox="0 0 ' + W + " " + H + '" role="img" aria-label="Storm tracks"><defs><clipPath id="tcp-clip"><rect width="' + W + '" height="' + H + '"/></clipPath></defs><g clip-path="url(#tcp-clip)">';
     for (var g = Math.ceil(y0 / 10) * 10; g <= y1; g += 10) svg += '<line class="grid" x1="0" x2="' + W + '" y1="' + Y(g) + '" y2="' + Y(g) + '"/><text class="gl" x="4" y="' + (Y(g) - 3) + '">' + Math.abs(g) + (g > 0 ? "°N" : g < 0 ? "°S" : "°") + "</text>";
-    for (var gx = Math.ceil((x0 + c) / 20) * 20; gx <= x1 + c; gx += 20) { var r = wrap(gx - c), lab = ((gx % 360) + 360) % 360; svg += '<line class="grid" y1="0" y2="' + H + '" x1="' + X(r) + '" x2="' + X(r) + '"/><text class="gl" x="' + (+X(r) + 3) + '" y="' + (H - 4) + '">' + (lab > 180 ? (360 - lab) + "°W" : lab + (lab && lab < 180 ? "°E" : "°")) + "</text>"; }
+    for (var gx = Math.ceil((x0 + c) / 20) * 20; gx <= x1 + c; gx += 20) { var r = wrap(gx - c), lab = ((gx % 360) + 360) % 360; svg += '<line class="grid" y1="0" y2="' + H + '" x1="' + X(r) + '" x2="' + X(r) + '"/>' + (+X(r) > W - 46 ? "" : '<text class="gl" x="' + (+X(r) + 3) + '" y="' + (H - 4) + '">' + (lab > 180 ? (360 - lab) + "°W" : lab + (lab && lab < 180 ? "°E" : "°")) + "</text>"); }   // no label the right edge would cut
     if (land) {
       var d = "";
       land.forEach(function (ring) {
@@ -688,7 +732,7 @@ window.STAGE = {
   {label: "Angular momentum & torques", ico: "\u2696", items: [["aam","Atmospheric angular momentum","series, trend, phase, by latitude"],["torque","Surface torques","friction and mountain"]]}
 ],
   products: {
-  gillrain: {label: "Rain-forced circulation (Gill model)", img: function () { return "assets/sst/gill_rain.webp?v=941738f85bda"; }, fit: false,
+  gillrain: {label: "Rain-forced circulation (Gill model)", img: function () { return "assets/sst/gill_rain.webp?v=202610082122"; }, fit: false,
           about: "about-gillrain", cap: function () { return "How much of the tropical upper-level circulation the rain itself explains: the Gill (1980) model forced by the observed rain of the last four weeks (IMERG Late) and by the AIFS-ENS forecast rain of weeks 1 and 2, against the observed and forecast 200 hPa velocity potential."; }},
   mslp: {label: "MSLP and 10 m wind", a: {label: "Model", items: [["mslp_wind","Blend (AIFS-ENS + IFS-ENS)"],["mslp_wind_aifs","AIFS-ENS mean"],["mslp_wind_ifs","IFS-ENS mean"],["mslp_wind_aifs0","AIFS-ENS member 0"],["mslp_wind_aifs1","AIFS single"],["mslp_wind_hres","IFS HRES"],["mslp_wind_gdps","GDPS"]]},
           frame: function (a) { return (function (r) { return "sst_anim.html?embed=1&manifest=mslp_wind_manifest.json&region=" + r + "&regions=" + r; })(a || "mslp_wind"); }, about: "about-mslp", cap: function (a) { return /aifs0|aifs1|hres|gdps/.test(a || "") ? "One model run's sea-level pressure and 10 m wind, days 1–15 (GDPS to day 10): sharper than an ensemble mean, and only one of the possible outcomes." : "Ensemble-mean sea-level pressure and 10 m wind, days 0–15."; }},
@@ -722,7 +766,7 @@ window.STAGE = {
           img: function (a) { return "assets/sst/walker_" + (a === "basins" ? "basins" : "chi_weekly") + ".webp?v=941738f85bda"; },
           about: "about-walker", cap: function (a) { return a === "loop" ? "Zonal overturning streamfunction along the equator, 7-day trailing mean, anomaly against ERA5." : a === "basins" ? "What the Indian and Atlantic Oceans are doing to the overturning once ENSO is removed: regression and Gill model side by side." : "Weekly χ200 departure from the Pacific-forced part, and how much of it the Indian and Atlantic SST can claim."; }},
   jets: {label: "Subtropical jets", a: {label: "View", items: [["loop","Cross-section loop"],["series","Strength and position"]]},
-          frame: function (a) { return a === "loop" ? "sst_anim.html?embed=1&manifest=jets_manifest.json&region=jets" : null; }, img: function () { return "assets/sst/jets.webp?v=941738f85bda"; },
+          frame: function (a) { return a === "loop" ? "sst_anim.html?embed=1&manifest=jets_manifest.json&region=jets" : null; }, img: function () { return "assets/sst/jets.webp?v=202610082221"; },
           about: "about-jets", cap: function (a) { return a === "loop" ? "Zonal-mean zonal wind anomaly cross-section through the 15-day forecast, cores marked." : "Speed and latitude of each hemisphere's subtropical jet core, members and mean against the normal band."; }},
   pacjet: {label: "North Pacific jet", a: {label: "View", items: [["maps","Jet maps"],["axis","Jet axis"],["phase","Phase & impacts"],["torque","Torque (research)"]]},
           b: function (a) { return a === "maps" ? {label: "Period", items: [["wk1","Week 1"],["wk2","Week 2"],["loop","Day by day (loop)"]]}

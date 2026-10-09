@@ -22,6 +22,7 @@ Nothing above 1 hPa is drawn: GEFS and GDPS publish nothing higher, and the top 
 from __future__ import annotations
 
 import argparse
+import textwrap
 import json
 import sys
 from pathlib import Path
@@ -225,7 +226,7 @@ def render_ts(M, tail, clim, offs, which, hemi, path):
     x0, x1 = init - pd.Timedelta(days=TAIL_TS), init + pd.Timedelta(days=X_AHEAD)
     span = pd.date_range(x0, x1)
     fig = plt.figure(figsize=(13.2, 10.6), dpi=110)
-    gs = fig.add_gridspec(3, 2, hspace=0.34, wspace=0.13, left=0.055, right=0.945, top=0.835, bottom=0.055)
+    gs = fig.add_gridspec(3, 2, hspace=0.34, wspace=0.2, left=0.055, right=0.945, top=0.835, bottom=0.055)   # wspace 0.13 -> 0.2: the left panels' end labels ("GEFS") ran into the right panels' tick labels
     title = (f"{NAME[which]} · upper stratosphere, {hemi_word(hemi)} Hemisphere" if which == "all"
              else f"{NAME[which]} {init:%d %b %Y} 00Z · upper stratosphere, {hemi_word(hemi)} Hemisphere")
     fig.suptitle(title, x=0.055, y=0.985, ha="left", fontsize=15, fontweight="bold", color=INK)
@@ -377,7 +378,7 @@ def render_sec(M, tail, clim, which, hemi, path):
     else:
         m = which
         fig = plt.figure(figsize=(13.2, 8.8), dpi=110)
-        gs = fig.add_gridspec(2, 1, hspace=0.25, left=0.07, right=0.9, top=0.855, bottom=0.07)
+        gs = fig.add_gridspec(2, 1, hspace=0.25, left=0.07, right=0.9, top=0.835, bottom=0.07)
         au, at = fig.add_subplot(gs[0]), fig.add_subplot(gs[1])
         cu, ct = section_panel(au, at, M, m, tail, clim, hemi, TAIL_SEC, cm_u=cm_u, cm_t=cm_t)
         au.set_title(f"Zonal-mean wind at 60°{ns(hemi)}{', ensemble mean' if m == 'gefs' else ''} (black contour: u = 0)",
@@ -390,8 +391,10 @@ def render_sec(M, tail, clim, which, hemi, path):
                  f"{hemi_word(hemi)} Hemisphere")
         sub = (f"Left of the black line: GEOS FP analyses, last {TAIL_SEC} days; right: {NAME[m]} to day {int(M[m]['days'][-1])}"
                f"{' (ensemble mean of ' + str(len(M[m]['members'])) + ' members)' if m == 'gefs' else ''}.\n"
-               f"Ticks on the right edge = the model's output levels (between them the shading is interpolated). "
+               f"Ticks on the right edge = the model's output levels (between them the shading is interpolated).\n"
                f"Raw output, not drift-corrected · {NAME[m]}: {TOPS[m]}." + (f" {M[m]['note'].capitalize()}." if M[m]["note"] else ""))
+        # one line per sentence group, wrapped to the figure (2026-10-08 sweep: the second line ran off the right edge)
+        sub = "\n".join(textwrap.fill(x, 150) for x in sub.split("\n"))
     fig.suptitle(title, x=0.045 if which == "all" else 0.07, y=0.985, ha="left", fontsize=14.5, fontweight="bold", color=INK)
     fig.text(0.045 if which == "all" else 0.07, 0.95, sub, fontsize=10, color=MUTED, va="top", linespacing=1.5)
     right = 0.925 if which == "all" else 0.915
