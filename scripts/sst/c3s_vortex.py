@@ -186,7 +186,7 @@ def fetch_hc() -> int:
 
 
 def fetch(issue: str) -> int:
-    from cds_seq import retrieve
+    from cds_seq import available, retrieve
     y, s = int(issue[:4]), int(issue[4:])
     missing = []
     for key, centre, system, _, _, _ in CURRENT:
@@ -201,6 +201,8 @@ def fetch(issue: str) -> int:
                 except Exception as e:                         # noqa: BLE001
                     print(f"::warning::SEAS5 cached strat_u unusable ({e}); asking the CDS", flush=True)
         raw = RAW / f"u60fc_{key}_{issue}.grib"
+        if available("seasonal-monthly-pressure-levels", _req(centre, system, [y], [s])) is False:
+            print(f"  {key}: issue {issue} not in the CDS catalogue yet", flush=True); missing.append(key); continue
         ok = retrieve("seasonal-monthly-pressure-levels", _req(centre, system, [y], [s]), raw, f"u60 {key} {issue}",
                       tries=2, max_wait_h=float(os.environ.get("CDS_MAX_WAIT_H", "0.5")))
         if not ok:

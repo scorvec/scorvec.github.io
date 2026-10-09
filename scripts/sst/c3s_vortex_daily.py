@@ -311,11 +311,13 @@ def issue_units(issue: str) -> list[dict]:
 
 
 def fetch_issue(issue: str) -> int:
-    from cds_seq import retrieve
+    from cds_seq import available, retrieve
     miss = []
     for u in issue_units(issue):
         if table_path(u["unit"]).exists():
             continue
+        if available(DATASET, u["req"]) is False:
+            print(f"  {u['unit']}: not in the CDS catalogue yet", flush=True); miss.append(u["system"]); continue
         if not retrieve(DATASET, u["req"], raw_path(u["unit"]), u["unit"], tries=2,
                         max_wait_h=float(os.environ.get("CDS_MAX_WAIT_H", "0.5"))):
             print(f"  {u['unit']}: not on the CDS yet (or the request failed)", flush=True); miss.append(u["system"]); continue

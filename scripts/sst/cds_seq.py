@@ -113,6 +113,30 @@ def _log(**kw) -> None:
         pass
 
 
+_CONSTRAINTS: dict = {}
+KEYS = ("originating_centre", "system", "year", "month", "day", "product_type", "variable", "pressure_level")
+
+
+def available(dataset: str, req: dict) -> bool | None:
+    """Does the CDS catalogue's constraints list hold this request's (centre, system, year, month, day, product, variable,
+    level)? A catalogue read, not a request: no queue, no key. None when the catalogue cannot be read. 2026-10-09: an
+    unpublished issue costs no data but sat 30 min in the queue before failing, so the issue fetchers ask this first."""
+    import urllib.request
+    if dataset not in _CONSTRAINTS:
+        try:
+            d = json.load(urllib.request.urlopen(f"https://cds.climate.copernicus.eu/api/catalogue/v1/collections/{dataset}", timeout=60))
+            url = [l["href"] for l in d["links"] if l["rel"] == "constraints"][0]
+            _CONSTRAINTS[dataset] = json.load(urllib.request.urlopen(url, timeout=120))
+        except Exception as e:                                           # noqa: BLE001
+            print(f"  constraints for {dataset} unreadable ({str(e)[:100]})", flush=True)
+            return None
+    want = {k: [str(v) for v in (req[k] if isinstance(req[k], list) else [req[k]])] for k in KEYS if k in req}
+    for e in _CONSTRAINTS[dataset]:
+        if all(set(v) <= set(e.get(k, v)) for k, v in want.items()):
+            return True
+    return False
+
+
 def retrieve(dataset: str, req: dict, dest: Path, label: str, tries: int = 4, max_wait_h: float = 30.0) -> bool:
     """dest written atomically; False when the CDS has no such data or every try failed."""
     if dest.exists() and dest.stat().st_size > 0:
