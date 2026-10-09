@@ -48,7 +48,7 @@ PRODUCTS = [
             # 2026-10-09, user: a real-time national NEXRAD composite that runs entirely in the browser ("something that
             # wouldnt rely on actions to generate the data"): IEM's N0Q composite fetched and recoloured client-side
             ("/radar.html", "US Radar Explorer",
-             "The national NEXRAD reflectivity composite with GOES lightning flashes, live every five minutes and drawn in the browser: zoom from the whole country to a city, loop the last hours, read the dBZ anywhere, on the same colour scale as the HRRR maps.",
+             "The national NEXRAD reflectivity composite with GOES lightning flashes, live every five minutes and drawn in the browser: zoom from the whole country to a city, loop the last hours, read the dBZ anywhere, on the traditional NWS colour scale.",
              "Every five minutes"),
             ("/snowbands.html", "Snow-band diagnostics",
              "Where HRRR, RRFS and RDPS set up mesoscale snow bands: 700 hPa frontogenesis and deformation, EPV* and slantwise instability, lift through the dendritic growth zone, the model's own bands and where the ingredients overlap. November to mid-April, with case studies against the radar.",

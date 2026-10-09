@@ -610,7 +610,7 @@
     [S(5, "#fde3bd"), S(15, "#f8bb72"), S(25, "#ef8c35"), S(35, "#d45f16"), S(48, "#8f3406")],
     [S(5, "#e6d3f7"), S(15, "#c09ae8"), S(25, "#9660d2"), S(35, "#6c35b0"), S(48, "#40157a")]];
   PT_RAMPS[0] = PT_RAMPS[1];                   // echo with no surface type flag: drawn as rain, hover says so
-  // radar.html (US Radar Explorer, 2026-10-09) draws the observed composite with PT_RAMPS[1]: keep its RAMP in step
+  // radar.html (US Radar Explorer) used PT_RAMPS[1] until 2026-10-09; it now draws the observed composite with the traditional NWS table (user request)
   function rateEq(mmh) { return 10 * Math.log10(200 * Math.pow(Math.max(mmh, 1e-6), 1.6)); }   // colour index only (Marshall-Palmer)
   // precipitation accumulation (2026-09-30, user: "add precip accumulation plots (and have a selector for the various ptypes)"):
   // the files hold the total since the run started (16-bit, 0.01 in / snow 0.1 in); the page subtracts two hours for the
