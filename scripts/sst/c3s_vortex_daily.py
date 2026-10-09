@@ -219,23 +219,75 @@ def reduce(unit: str) -> dict:
 
 
 # ── fetch ────────────────────────────────────────────────────────────────────
+BATCH = int(os.environ.get("C3SVD_BATCH", "4"))
+
+
+def _split(batch_raw: Path, members: list[dict]) -> None:
+    """A multi-winter GRIB → one raw file per unit (by the initialisation year), message bytes unchanged."""
+    import eccodes
+    out = {u["year"]: open(raw_path(u["unit"]).with_suffix(".grib.tmp"), "wb") for u in members}
+    n = {y: 0 for y in out}
+    with open(batch_raw, "rb") as fh:
+        while True:
+            h = eccodes.codes_grib_new_from_file(fh)
+            if h is None:
+                break
+            try:
+                y = int(eccodes.codes_get(h, "dataDate")) // 10000
+                if y not in out:
+                    raise ValueError(f"unexpected initialisation year {y} in {batch_raw.name}")
+                out[y].write(eccodes.codes_get_message(h)); n[y] += 1
+            finally:
+                eccodes.codes_release(h)
+    for y, f in out.items():
+        f.close()
+    for u in members:
+        tmp = raw_path(u["unit"]).with_suffix(".grib.tmp")
+        if n[u["year"]] == 0:
+            tmp.unlink(); raise ValueError(f"{u['unit']}: no fields in the batch")
+        os.replace(tmp, raw_path(u["unit"]))
+    print(f"  split {batch_raw.name}: {n}", flush=True)
+
+
 def fetch(only: str | None, years=None) -> int:
+    """Sequential; consecutive winters of one system and one initialisation group go in batches of BATCH winters per
+    request (2026-10-09: a one-winter request queued ~7 min and ran ~7 min, so the queue was half the cost), split
+    back into the per-winter raw files and tables."""
     from cds_seq import retrieve
     t0 = time.time(); missing = []
-    todo = [u for u in units(years) if (only is None or u["system"] == only)]
-    for i, u in enumerate(todo):
-        if table_path(u["unit"]).exists():
-            continue
-        print(f"[{i + 1}/{len(todo)}] {u['unit']}: {len(u['req']['leadtime_hour'])} steps, days {','.join(u['req']['day'])}/{u['req']['month'][0]}", flush=True)
-        ok = retrieve(DATASET, u["req"], raw_path(u["unit"]), u["unit"])
-        if not ok:
-            print(f"::warning::{u['unit']}: CDS request failed or no data", flush=True); missing.append(u["unit"]); continue
-        try:
-            reduce(u["unit"])
-        except Exception as e:                                           # noqa: BLE001
-            print(f"::warning::{u['unit']}: QC/decode failed ({e}); raw GRIB kept", flush=True)
-            missing.append(u["unit"]); continue
-        upload(table_path(u["unit"]))
+    todo = [u for u in units(years) if (only is None or u["system"] == only) and not table_path(u["unit"]).exists()]
+    groups = {}
+    for u in todo:
+        groups.setdefault((u["system"], u["unit"].rsplit("_g", 1)[1] if "_g" in u["unit"] else ""), []).append(u)
+    batches = []
+    for _, us in groups.items():
+        us = [u for u in us if not raw_path(u["unit"]).exists()] + [u for u in us if raw_path(u["unit"]).exists()]
+        for k in range(0, len(us), BATCH):
+            batches.append(us[k:k + BATCH])
+    for bi, b in enumerate(batches):
+        need = [u for u in b if not raw_path(u["unit"]).exists()]
+        if need:
+            req = dict(need[0]["req"])
+            req["year"] = [str(u["year"]) for u in need]
+            req["leadtime_hour"] = max((u["req"]["leadtime_hour"] for u in need), key=len)
+            name = need[0]["unit"] if len(need) == 1 else f"{need[0]['unit']}..{need[-1]['year']}"
+            dest = raw_path(need[0]["unit"]) if len(need) == 1 else RAW / f"batch_{name}.grib"
+            print(f"[{bi + 1}/{len(batches)}] {name}: {len(need)} winter(s), {len(req['leadtime_hour'])} steps, days {','.join(req['day'])}/{req['month'][0]}", flush=True)
+            ok = retrieve(DATASET, req, dest, name)
+            if not ok:
+                print(f"::warning::{name}: CDS request failed or no data", flush=True); missing += [u["unit"] for u in need]; continue
+            if len(need) > 1:
+                try:
+                    _split(dest, need); dest.unlink()
+                except Exception as e:                                   # noqa: BLE001
+                    print(f"::warning::{name}: split failed ({e}); batch GRIB kept", flush=True); missing += [u["unit"] for u in need]; continue
+        for u in b:
+            try:
+                reduce(u["unit"])
+            except Exception as e:                                       # noqa: BLE001
+                print(f"::warning::{u['unit']}: QC/decode failed ({e}); raw GRIB kept", flush=True)
+                missing.append(u["unit"]); continue
+            upload(table_path(u["unit"]))
     print(f"fetch done in {(time.time() - t0) / 3600:.2f} h; missing: {missing or 'none'}", flush=True)
     return 0 if not missing else 2
 

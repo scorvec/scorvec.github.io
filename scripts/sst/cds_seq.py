@@ -212,7 +212,15 @@ def retrieve(dataset: str, req: dict, dest: Path, label: str, tries: int = 4, ma
                 os.replace(tmp, dest)
                 dt = (time.time() - t0) / 60
                 print(f"  {label}: {dest.stat().st_size / 1e6:.1f} MB in {dt:.1f} min", flush=True)
-                _log(label=label, dataset=dataset, result="ok", mb=round(dest.stat().st_size / 1e6, 2), minutes=round(dt, 1))
+                q = {}
+                try:                                                     # queue vs run time, for sizing requests
+                    from datetime import datetime
+                    J = remote.json
+                    c, s0, f = (datetime.fromisoformat(J[k]) for k in ("created", "started", "finished"))
+                    q = dict(queue_min=round((s0 - c).total_seconds() / 60, 1), run_min=round((f - s0).total_seconds() / 60, 1))
+                except Exception:                                        # noqa: BLE001
+                    pass
+                _log(label=label, dataset=dataset, result="ok", mb=round(dest.stat().st_size / 1e6, 2), minutes=round(dt, 1), **q)
                 try:
                     remote.delete()                                      # tidy the key's job list
                 except Exception:                                        # noqa: BLE001
