@@ -631,10 +631,9 @@
 <p><b>Result.</b> In winter the patterns correlate 0.85; the models&rsquo; Aleutian low (median 163&deg;W) and Canadian ridge
         (107&deg;W) sit 10&ndash;13&deg; west of the observed ones (153&deg;W, 94&deg;W), and their low is weaker (&minus;28
         against &minus;38&nbsp;gpm per K). That is the same direction as the models&rsquo; El Ni&ntilde;o rainfall, which sits
-        13&deg; west of the observed in every model. <b>But across models the two are not significantly linked:</b> a
-        model&rsquo;s super El Ni&ntilde;o Aleutian low moves only 0.45&deg; per degree of its rain centroid (r&nbsp;=&nbsp;+0.33
-        across 14 models, p&nbsp;=&nbsp;0.25). The spread in where models put the low is mostly not about where they rain, and
-        in the super El Ni&ntilde;o composite the models&rsquo; low (150&deg;W) sits where the three observed events put it
+        13&deg; west of the observed in every model. The scatter on the right shows where each model puts its super
+        El Ni&ntilde;o Aleutian low and its equatorial rain, next to the observed composite; it is a description of where the
+        models sit, and no relation between the two is fitted or claimed. In the super El Ni&ntilde;o composite the models&rsquo; low (150&deg;W) sits where the three observed events put it
         (152&deg;W). The westward offset is a feature of the models&rsquo; ordinary, linear El Ni&ntilde;o response.</p>
 <p class="chart-sources">CMIP6 historical, 16 models, 147 members (Amon <code>zg</code> 500&nbsp;hPa, up to 10 per model) via
         the Pangeo archive on Google Cloud &middot; ERA5 500&nbsp;hPa height (Copernicus C3S) &middot; GPCP v2.3 (NOAA NCEI) and
@@ -886,7 +885,7 @@ window.STAGE = {
                                   : "Forced response of " + IMP_VN[b] + " to the " + (a.indexOf("coast") >= 0 ? "coastal North Pacific SST" : "ENSO-free PDO") + ", shaded only where significant; blank = no significant forced response."; }},
   imp_wave: {label: "Where the ENSO wave train sits", img: function () { return "assets/sst/enso_imp_wave_position.webp?v=941738f85bda"; },
           about: "about-imp_wave", fit: false,
-          cap: function () { return "The Aleutian low and Canadian ridge of the ENSO wave train at 500 hPa in ERA5 and the CMIP6 models, season by season, and whether the models' super El Niño Aleutian low moves with where they rain."; }},
+          cap: function () { return "The Aleutian low and Canadian ridge of the ENSO wave train at 500 hPa in ERA5 and the CMIP6 models, season by season, and where each model's super El Niño Aleutian low sits against where it rains along the equator (descriptive)."; }},
   imp_regions: {label: "ENSO impacts by region", a: IMP_VT, b: IMP_S,
           img: function (a, b) { return "assets/sst/enso_imp_regions_" + a + "_" + b + ".webp?v=941738f85bda"; }, about: "about-imp_regions", fit: false,
           cap: function (a, b) { return b + " " + IMP_VN[a] + " for 20 regions of the Americas, CMIP6 and observed; values printed only where significant."; }}

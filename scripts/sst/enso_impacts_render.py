@@ -798,23 +798,24 @@ def wave_fig(meta, made, index):
     if sd.get("obs_aleutian_low") is not None:
         ax.scatter([sd["obs_rain_centroid"]], [sd["obs_aleutian_low"]], s=120, marker="*", c="#c0392b", edgecolors="white",
                    linewidths=0.6, label="observed (3 events)", zorder=5)
-    k = np.polyfit(rain, alv, 1); xx = np.linspace(rain.min() - 2, max(rain.max(), sd["obs_rain_centroid"]) + 2, 10)
-    ax.plot(xx, np.polyval(k, xx), color="#1f4e79", lw=0.9, ls="--")
+    # descriptive only: no fitted line, r or p (the cross-model relation is not significant; no n.s. results on the site)
+    ax.set_xlim(rain.min() - 2, max(rain.max(), sd.get("obs_rain_centroid") or rain.max()) + 2)
     ax.set_xlabel("equatorial rain centroid (°E)", fontsize=8.2); ax.set_ylabel("Aleutian low centre (°E)", fontsize=8.2)
     ax.tick_params(labelsize=7.5); ax.grid(lw=0.3, color="#ddd"); ax.legend(fontsize=7.0, frameon=False, loc="upper left")
-    sig = "significant" if sd["p_rain_vs_aleutian_low"] < 0.05 else "not significant"
-    ax.set_title(f"Super El Niño: r = {sd['r_rain_vs_aleutian_low']:+.2f}, {sd['models']} models\n"
-                 f"(p = {sd['p_rain_vs_aleutian_low']:.2f}, {sig})", fontsize=8.4, loc="left")
+    ax.set_title(f"Super El Niño: where each model's Aleutian low and\nrain sit ({sd['models']} models; observed starred)",
+                 fontsize=8.4, loc="left")
     fig.text(0.02, 0.025, "\n".join(textwrap.wrap(
         "Aleutian low: minimum, 30–65°N 150°E–130°W; Canadian ridge: maximum, 40–70°N 130–60°W; strength: the extreme of the "
         "map (gpm per K). Pattern r over 20–90°N, cos-weighted, on the unmasked maps. CMIP6: 16 models, 147 members; ERA5 "
         "1959–2026 on CPC's ONI. The positions are descriptive: the ERA5 value is one realisation and the CMIP6 range is the "
         "spread between models, so no test is implied. Super El Niño row: the observed composite is 3 winters (1982/83, "
         "1997/98, 2015/16). Rain centroid: longitude centroid of the positive equatorial (5°S–5°N) DJF rain anomaly, 150°E–90°W; "
-        "observed from GPCP. p: two-sided Pearson test across models.", 175)), fontsize=7.0, color=MUTED, va="bottom", linespacing=1.3)
+        "observed from GPCP. The scatter is descriptive: no relation is fitted.", 175)), fontsize=7.0, color=MUTED, va="bottom", linespacing=1.3)
     name = "enso_imp_wave_position"
     fig.savefig(OUT / f"{name}.webp", dpi=110, facecolor="white", pil_kwargs={"quality": 86, "method": 6}); plt.close(fig)
-    made.append(name); index["maps"][name] = {"position": pos}
+    pos_out = dict(pos)                  # the published index carries no r/p either
+    pos_out["super_DJF"] = {k_: v_ for k_, v_ in sd.items() if not k_.startswith(("r_rain", "p_rain", "slope"))}
+    made.append(name); index["maps"][name] = {"position": pos_out}
 
 
 def render_modes(made, index):
