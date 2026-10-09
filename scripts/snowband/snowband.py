@@ -4,6 +4,11 @@ diagnostics for winter-time snow band potential. We could look at things like de
 (using EPV), etc. we could use the hrrr, rrfs and rdps data" and "For the snowbands, build the page now. And use
 NOMADS if you need to").
 
+2026-10-09: snowbands.html and snowband.yml are retired (user: "fold in the snowband diagnostics into the short-term model
+viewer", then "remove the old snowbands page"). The diagnostics now run in scripts/models/models.py for models.html, which
+imports THIS module's smooth_diagnose / ingredients / Grid / transport - keep them the one implementation. The `run` and
+`case` commands below still work by hand (the case-study loops models.html shows were made with `case`).
+
 Products, one frame per lead per region (`assets/snowband/anim/{model}_{product}_{region}/Fnn.webp`):
 
   ov    overview: the four diagnostics below side by side
@@ -484,7 +489,7 @@ def read_levels(src, date, cyc, lead):
         col["w"] = w
         return col, list(levs), grid
     names = [(v, p) for v in ("AirTemp", "WindU", "WindV", "SpecificHumidity") for p in LEVS_RDPS]
-    names += [("VerticalVelocity", p) for p in (850, 700, 500)] + [("GeopotentialHeight", 700)]
+    names += [("VerticalVelocity", p) for p in RDPS_W_LEVS] + [("GeopotentialHeight", 700)]
 
     def one(vp):
         v, p = vp
@@ -497,23 +502,34 @@ def read_levels(src, date, cyc, lead):
             else:
                 raw[vp] = decode(buf)
     st = lambda v: np.stack([raw[(v, p)] for p in LEVS_RDPS])                  # noqa: E731
-    T = st("AirTemp")
-    T = T + 273.15 if np.nanmean(T) < 150 else T                               # the Datamart serves deg C
-    wl = np.array([850.0, 700.0, 500.0])
-    W3 = np.stack([raw[("VerticalVelocity", int(p))] for p in wl])
-    w = np.empty_like(T)
-    for k, p in enumerate(LEVS_RDPS):                                          # linear in p between 850/700/500
-        if p >= 850:
-            w[k] = W3[0]
-        elif p <= 500:
-            w[k] = W3[2]
-        else:
-            i = 0 if p > 700 else 1
-            fr = (wl[i] - p) / (wl[i] - wl[i + 1])
-            w[k] = (1 - fr) * W3[i] + fr * W3[i + 1]
-    z7 = raw[("GeopotentialHeight", 700)]
+    T = rdps_kelvin(st("AirTemp"))
+    W3 = {p: raw[("VerticalVelocity", p)] for p in RDPS_W_LEVS}
+    w = np.stack([rdps_omega(W3, p) for p in LEVS_RDPS])
     return dict(T=T, u=st("WindU"), v=st("WindV"), q=st("SpecificHumidity"), w=w,
-                z700=z7 * 10.0 if np.nanmean(z7) < 1000 else z7), list(LEVS_RDPS), grid
+                z700=rdps_z_m(raw[("GeopotentialHeight", 700)])), list(LEVS_RDPS), grid
+
+
+RDPS_W_LEVS = (850, 700, 500)                    # the RDPS publishes vertical velocity at these (and 250) hPa only
+
+
+def rdps_kelvin(T):
+    return T + 273.15 if np.nanmean(T) < 150 else T                           # the Datamart serves deg C
+
+
+def rdps_z_m(z):
+    return z * 10.0 if np.nanmean(z) < 1000 else z                            # dam -> m
+
+
+def rdps_omega(W3, p):
+    """omega at p hPa from the RDPS's 850/700/500 hPa values ({hPa: 2-D}): linear in p between them, the end values
+    outside"""
+    if p >= 850:
+        return W3[850]
+    if p <= 500:
+        return W3[500]
+    a, b = (850, 700) if p > 700 else (700, 500)
+    fr = (a - p) / (a - b)
+    return (1 - fr) * W3[a] + fr * W3[b]
 
 
 # ── grid handling ───────────────────────────────────────────────────────────────────────────────────────────────────
@@ -522,14 +538,19 @@ class Grid:
     Grid-relative winds stay grid-relative (consistent with differencing along i and j); earth-relative winds are
     rotated into the grid frame."""
 
-    def __init__(self, g, dx_km):
+    def __init__(self, g, dx_km, box=MASTER):
+        """box: [lon0, lon1, lat0, lat1] to crop to (default MASTER), or None for the whole grid (models.html: the
+        diagnostics on the viewer's own 12 km "sub" grid of the HRRR, the RDPS's cropped 10 km grid)."""
         lat, lon = g["lat"], g["lon"]
         self.flip_j = lat[-1].mean() < lat[0].mean()
         self.flip_i = np.nanmedian(np.diff(lon, axis=1)) < 0
         lat, lon = self._orient(lat), self._orient(lon)
-        m = (lon >= MASTER[0]) & (lon <= MASTER[1]) & (lat >= MASTER[2]) & (lat <= MASTER[3])
-        jj, ii = np.where(m)
-        self.sl = (slice(jj.min(), jj.max() + 1), slice(ii.min(), ii.max() + 1))
+        if box is None:
+            self.sl = (slice(None), slice(None))
+        else:
+            m = (lon >= box[0]) & (lon <= box[1]) & (lat >= box[2]) & (lat <= box[3])
+            jj, ii = np.where(m)
+            self.sl = (slice(jj.min(), jj.max() + 1), slice(ii.min(), ii.max() + 1))
         self.lat, self.lon = lat[self.sl], lon[self.sl]
         self.dx_km = dx_km
         self.sig = SIGMA_KM / dx_km
@@ -693,13 +714,26 @@ def lead_fields(src, date, cyc, lead, sfc=None):
     R, S, PS, g0 = sfc
     col, levs, g = read_levels(src, date, cyc, lead)
     gr = Grid(g, SRC_DX[src])
-    u, v = gr.winds(col["u"], col["v"])
-    sm = dict(T=gr.smooth12(col["T"]), q=gr.smooth12(col["q"]), w=gr.smooth12(col["w"]), z700=gr.smooth12(col["z700"]),
-              u=_smooth_cropped(gr, u), v=_smooth_cropped(gr, v))
-    psfc = gr.smooth12(PS)
-    d = diagnose(sm, levs, psfc, gr)
+    d = smooth_diagnose(gr, levs, lambda name, k: col[name][k], col["z700"], PS)
     return dict(d=d, lat=gr.lat12, lon=gr.lon12, latf=gr.lat, lonf=gr.lon, refc=gr.crop(R), snow=gr.crop(S),
                 dx_eval=gr.dx_km * gr.step)
+
+
+def smooth_diagnose(gr: Grid, levs, level, z700, psfc):
+    """THE diagnostics of one forecast hour, from native-grid fields: each level smoothed (Gaussian, sigma SIGMA_KM)
+    and subsampled to the evaluation grid, then diagnose(). level(name, k) -> the native 2-D field name in T (K), u, v
+    (as the file has them: grid- or earth-relative, gr.grid_rel says which), w (omega, Pa/s), q (kg/kg) at levs[k];
+    z700 (m) and psfc (Pa) native 2-D. Level by level, so a 3 km grid never sits in memory as a whole column stack
+    (models.py runs this on the full HRRR domain for models.html; lead_fields above for the regional figures)."""
+    n = len(levs)
+    sm = {name: np.stack([gr.smooth12(level(name, k)) for k in range(n)]) for name in ("T", "q", "w")}
+    uu, vv = [], []
+    for k in range(n):
+        u, v = gr.winds(level("u", k), level("v", k))
+        uu.append(_smooth_cropped(gr, u))
+        vv.append(_smooth_cropped(gr, v))
+    sm.update(u=np.stack(uu), v=np.stack(vv), z700=gr.smooth12(z700))
+    return diagnose(sm, levs, gr.smooth12(psfc), gr)
 
 
 def _smooth_cropped(gr, a):

@@ -65,12 +65,6 @@ HORIZONS = ["Observed", "Days 1–15", "Weeks 1–5", "Seasons", "Climate record
 TIERS = ["Live forecasts and monitors", "Research, history and tools", "Seasonal and out of season"]
 
 
-def snow_season(today: dt.date | None = None) -> bool:
-    """The snow-band products run November to mid-April (snowband.yml); outside that they are case studies."""
-    d = today or dt.date.today()
-    return d.month in (11, 12, 1, 2, 3) or (d.month == 4 and d.day <= 15)
-
-
 # page -> kind, topic, default tags, tier/prio; `groups` overrides them for one rail group on that page.
 # `region` is the page's default region, used only when a product's own label, options and caption name none.
 PAGES = {
@@ -97,9 +91,7 @@ PAGES = {
                                       "Tropical cyclones": dict(topic="drivers", region=["Pacific", "North America"], prio=3),
                                       "Tropical circulation": dict(topic="drivers", models=["AIFS-ENS", "IMERG", "ERA5"], region=["Tropics"]),
                                       "Angular momentum & torques": dict(topic="circulation", region=["Global"])}),
-    "/snowbands.html": dict(kind="stage", file="snowbands.html", topic="weather", title="Snow-band diagnostics",
-                            tier=0 if snow_season() else 2, prio=5 if snow_season() else 40,
-                            models=["HRRR", "RRFS", "RDPS"], horizon="Days 1–15", region=["North America"]),
+    # "/snowbands.html" retired 2026-10-09: its diagnostics are the "Winter: snow bands" maps of /models.html
     "/subseasonal.html": dict(kind="stage", file="subseasonal.html", topic="outlooks", title="GEPS extended ensemble", tier=0, prio=3,
                               models=["GEPS"], horizon="Weeks 1–5", region=["North America"], own_models=True),
     "/gefs.html": dict(kind="stage", file="gefs.html", topic="outlooks", title="GEFS extended ensemble", tier=0, prio=3,
@@ -113,6 +105,9 @@ PAGES = {
                       thumb_manifest=("assets/mjo", "rmm_manifest.json", "mjo", "last"), variable=["Convection"]),
     "/models.html": dict(kind="page", topic="weather", tier=0, prio=4, models=["HRRR", "RRFS", "RDPS"], horizon="Days 1–15",
                          region=["North America"], variable=["Temperature", "Wind", "Convection", "Precipitation"]),
+    # US Radar Explorer (2026-10-09): NOAA MRMS base reflectivity (GRIB2 from AWS) decoded in the browser, nothing built on our side
+    "/radar.html": dict(kind="page", topic="weather", tier=0, prio=5, models=["NEXRAD"], horizon="Observed",
+                        region=["North America"], variable=["Precipitation", "Convection"]),
     "/ar.html": dict(kind="stage", file="ar.html", topic="weather", title="Atmospheric rivers", tier=0, prio=6,
                      models=["AIFS", "IFS", "GFS", "GDPS", "AIFS-ENS", "IFS-ENS", "GEFS", "GEPS"], horizon="Days 1–15",
                      region=["North America", "Pacific"]),

@@ -43,11 +43,15 @@ PRODUCTS = [
     ("Mid-latitude weather", "The next two weeks: storms, hazards and the flow aloft", [
         ("Surface and hazards", [
             ("/models.html", "Short-range model maps",
-             "Zoomable maps of the newest HRRR, RRFS and RDPS runs for aviation, severe and winter weather and renewables: radar with precipitation type, accumulation, ceiling, visibility, temperature, dewpoint, wind, HRRR entraining CAPE (ECAPE), smoke and sunshine, with contours and hover values.",
+             "Zoomable maps of the newest HRRR, RRFS and RDPS runs for aviation, severe and winter weather and renewables: radar with precipitation type, accumulation, snow-band diagnostics (frontogenesis, EPV*, dendritic-zone lift), ceiling, visibility, temperature, dewpoint, wind, HRRR entraining CAPE (ECAPE), smoke and sunshine, with contours and hover values.",
              "Four times daily"),
-            ("/snowbands.html", "Snow-band diagnostics",
-             "Where HRRR, RRFS and RDPS set up mesoscale snow bands: 700 hPa frontogenesis and deformation, EPV* and slantwise instability, lift through the dendritic growth zone, the model's own bands and where the ingredients overlap. November to mid-April, with case studies against the radar.",
-             "Every run in season"),
+            # 2026-10-09, user: a real-time national NEXRAD composite that runs entirely in the browser ("something that
+            # wouldnt rely on actions to generate the data"): IEM's N0Q composite fetched and recoloured client-side
+            ("/radar.html", "US Radar Explorer",
+             "The national NEXRAD base-reflectivity mosaic from NOAA MRMS with GOES lightning flashes, live every two minutes and decoded in the browser: zoom from the whole country to a city, loop the last hours at your own speed, read the dBZ anywhere, on the traditional NWS colour scale.",
+             "Every two minutes"),
+            # snowbands.html retired 2026-10-09 (user: "fold in the snowband diagnostics into the short-term model viewer",
+            # then "remove the old snowbands page"): its maps are the "Winter: snow bands" group of /models.html
             ("/ar.html", "Atmospheric rivers",
              "Integrated vapour transport maps to day 7 from AIFS, IFS, GFS and GDPS; West Coast landfall and AR-scale ranks; AR probabilities to day 15 from four ensembles and their blend; GEFS weeks 3–5 AR-frequency anomalies where significant.",
              "Twice daily"),
@@ -271,8 +275,9 @@ PAGES = [
     dict(path="recon.html", mode="after-body"),         # Atlantic recon plotter (scripts/recon, recon.yml -> recon-data branch), 2026-10-07
     # sfs.html: folded into seasonal.html 2026-10-06, now a redirect stub (no chrome)
     dict(path="ar.html", mode="after-body"),
-    dict(path="models.html", mode="after-body"),                   # short-range model viewer (scripts/models, models*.yml), WebGL data page
-    dict(path="snowbands.html", mode="after-body"),                # snow-band diagnostics (scripts/snowband, snowband.yml), stage viewer
+    dict(path="models.html", mode="after-body"),
+    dict(path="radar.html", mode="after-body"),                    # US Radar Explorer (2026-10-09): NOAA MRMS base reflectivity (IEM N0Q fallback), client-side only                   # short-range model viewer (scripts/models, models*.yml), WebGL data page
+    # snowbands.html: retired 2026-10-09, now a noindex redirect stub to models.html#hrrr/sbing (no chrome)
     dict(path="catalog.html", mode="after-body"),
     dict(path="aifs-aam-budget.html", mode="after-body"),         # static study (2026-10-01), built from ~/aam_budget/scripts/build_page.py
     dict(path="about.html", mode="after-body"),                    # the person: bio, resume, publications, profiles                  # every plot on the site (scripts/site/build_catalog.py)
