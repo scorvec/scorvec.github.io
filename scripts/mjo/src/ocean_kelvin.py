@@ -28,10 +28,8 @@ from __future__ import annotations
 import argparse
 import json
 import sys
-import tempfile
 import textwrap
 import time as _time
-import urllib.request
 from pathlib import Path
 
 import numpy as np
@@ -160,13 +158,28 @@ def u_clim(doy) -> np.ndarray:
 
 
 def nbs_band(t0: pd.Timestamp) -> xr.DataArray:
-    """NCEI Blended Sea Winds 10 m u, 5S-5N cos-weighted, 1 deg, from t0 to the newest day published."""
-    q = (f"{NBS}?u_wind%5B({t0:%Y-%m-%d}T09:00:00Z):1:(last)%5D%5B(10.0)%5D"
-         f"%5B(-{U_LAT}):4:({U_LAT})%5D%5B(0.0):4:(359.75)%5D")
-    with tempfile.NamedTemporaryFile(suffix=".nc", delete=False) as f:
-        urllib.request.urlretrieve(q, f.name)
-        d = xr.open_dataset(f.name).load()
-    u = d["u_wind"].squeeze("zlev", drop=True)
+    """NCEI Blended Sea Winds 10 m u, 5S-5N cos-weighted, 1 deg, from t0 to the newest day published.
+
+    One request for the whole window now draws a 502 from CoastWatch's proxy (~10 s limit), so the window is read
+    in 10-day pieces, NEWEST first; a piece that still fails after its retries ends the read and the panel keeps
+    the contiguous stretch up to the newest day (older days show as 'no wind data before ...')."""
+    from build_sla_clim import last_time, time_chunks, get_nc
+    t1 = last_time(NBS)
+    if t1 < t0:
+        raise RuntimeError(f"NBS ends {t1:%Y-%m-%d}, before the window starts {t0:%Y-%m-%d}")
+    parts = []
+    for a, b in reversed(time_chunks(t0, t1, 10)):              # 15-day wind pieces still drew the odd 502
+        q = (f"{NBS}?u_wind%5B({a:%Y-%m-%d}T00:00:00Z):1:({b:%Y-%m-%d}T00:00:00Z)%5D%5B(10.0)%5D"
+             f"%5B(-{U_LAT}):4:({U_LAT})%5D%5B(0.0):4:(359.75)%5D")
+        try:
+            parts.append(get_nc(q, what=f"NBS {a:%Y-%m-%d}")["u_wind"])
+        except Exception as e:                                       # noqa: BLE001
+            if not parts:
+                raise
+            print(f"  NBS: stopped at {a:%Y-%m-%d}..{b:%Y-%m-%d} ({type(e).__name__}); keeping "
+                  f"{pd.Timestamp(parts[-1].time.values[0]):%Y-%m-%d}..{t1:%Y-%m-%d}", flush=True)
+            break
+    u = xr.concat(parts[::-1], "time").squeeze("zlev", drop=True)
     w = np.cos(np.deg2rad(u.latitude))
     b = u.weighted(w).mean("latitude")
     b = b.assign_coords(time=pd.DatetimeIndex(b.time.values).normalize()).interp(longitude=np.arange(360.0))
@@ -324,6 +337,13 @@ def main() -> int:
                 except Exception as e:                               # noqa: BLE001
                     print(f"  {d:%Y-%m-%d} {hh}Z: {type(e).__name__} {str(e)[:60]}", flush=True)
         return 0
+    # the AIFS 0-h wind archive is appended FIRST, so a sea-level or NBS failure later in the run cannot cost it a
+    # cycle (the 502s of Sep-Oct 2026 left 2-day holes in it)
+    try:
+        hist = update_u_history(a.date, a.time)
+    except Exception as e:                                           # noqa: BLE001
+        print(f"  u10 analysis {a.date} {a.time}Z not appended ({type(e).__name__}: {str(e)[:60]})", flush=True)
+        hist = xr.open_dataarray(U_HIST).load()
     # ---- sea level
     sla = sla_recent(today, DAYS_BACK)
     sla_last = pd.Timestamp(sla.time.values[-1])
@@ -364,7 +384,6 @@ def main() -> int:
     except Exception as e:                                           # noqa: BLE001
         print(f"  NBS winds unavailable ({type(e).__name__}: {str(e)[:60]})", flush=True)
         nb_days, nb_anom = pd.DatetimeIndex([]), np.zeros((0, 360))
-    hist = update_u_history(a.date, a.time)
     hd = hist.groupby(hist.time.dt.floor("D")).mean("time").rename({"floor": "time"})
     hdays = pd.DatetimeIndex(hd.time.values)
     keep = hdays > (nb_days[-1] if len(nb_days) else full[0] - pd.Timedelta(days=1))

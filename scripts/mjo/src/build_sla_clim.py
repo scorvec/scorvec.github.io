@@ -31,29 +31,64 @@ T0 = 2021.5                                             # trend origin, mid-reco
 NHARM = 3
 
 
+# CoastWatch's ERDDAP sits behind a proxy that answers 502 to any request running longer than ~10 s
+# (measured 2026-10-09: 205 days of SLA or NBS wind = 502 every time, 30 days of SLA 7 s, 15 days 2-4 s), so
+# every read is cut into CHUNK_DAYS pieces with explicit end dates.
+CHUNK_DAYS = 15
+
+
+def last_time(dataset_nc: str) -> pd.Timestamp:
+    """Newest time step a CoastWatch griddap dataset has published (a ~100-byte request)."""
+    import urllib.request
+    base = dataset_nc.rsplit(".", 1)[0]
+    with urllib.request.urlopen(f"{base}.csv?time%5B(last)%5D", timeout=60) as r:
+        rows = r.read().decode().split()
+    return pd.Timestamp(rows[-1]).tz_localize(None).normalize()
+
+
+def time_chunks(t0, t1, days: int = CHUNK_DAYS) -> list[tuple[pd.Timestamp, pd.Timestamp]]:
+    a, b = pd.Timestamp(t0).normalize(), pd.Timestamp(t1).normalize()
+    out = []
+    while a <= b:
+        e = min(a + pd.Timedelta(days=days - 1), b); out.append((a, e)); a = e + pd.Timedelta(days=1)
+    return out
+
+
+def get_nc(q: str, tries: int = 4, what: str = "") -> xr.Dataset:
+    """Download one griddap .nc subset with retries; raises the last error."""
+    import tempfile, urllib.request
+    for attempt in range(tries):
+        try:
+            with tempfile.NamedTemporaryFile(suffix=".nc", delete=False) as f:
+                urllib.request.urlretrieve(q, f.name)
+                return xr.open_dataset(f.name).load()
+        except Exception as e:                                       # noqa: BLE001
+            print(f"    {what} retry {attempt + 1}: {str(e)[:80]}", flush=True)
+            if attempt + 1 == tries:
+                raise
+            time.sleep(5 * (attempt + 1))
+
+
 def url(t0: str, t1: str, lon0: float, lon1: float, lat=LAT, stride=2) -> str:
-    end = "last" if t1 == "last" else f"({t1}T00:00:00Z)"                  # "last" = the newest day published
-    return (f"{ERDDAP}?sla%5B({t0}T00:00:00Z):1:{end}%5D"
+    return (f"{ERDDAP}?sla%5B({t0}T00:00:00Z):1:({t1}T00:00:00Z)%5D"
             f"%5B({lat[0]}):{stride}:({lat[1]})%5D%5B({lon0}):{stride}:({lon1})%5D")
 
 
 def fetch(t0: str, t1: str, lat=LAT, stride=2) -> xr.DataArray:
-    """SLA over 120E-70W for [t0, t1], longitudes as 0-360, in metres."""
-    import tempfile, urllib.request
-    parts = []
-    for lo0, lo1 in ((120.125, 179.875), (-179.875, -70.125)):
-        for attempt in range(4):
+    """SLA over 120E-70W for [t0, t1] ("last" = the newest day published), longitudes as 0-360, in metres."""
+    if t1 == "last":
+        t1 = f"{last_time(ERDDAP):%Y-%m-%d}"
+    pieces = []
+    for a, b in time_chunks(t0, t1):
+        parts = []
+        for lo0, lo1 in ((120.125, 179.875), (-179.875, -70.125)):
             try:
-                with tempfile.NamedTemporaryFile(suffix=".nc", delete=False) as f:
-                    urllib.request.urlretrieve(url(t0, t1, lo0, lo1, lat, stride), f.name)
-                    d = xr.open_dataset(f.name).load()
-                break
+                d = get_nc(url(f"{a:%Y-%m-%d}", f"{b:%Y-%m-%d}", lo0, lo1, lat, stride), what=f"SLA {a:%Y-%m-%d}")
             except Exception as e:                                   # noqa: BLE001
-                print(f"    retry {attempt + 1}: {str(e)[:80]}", flush=True); time.sleep(10 * (attempt + 1))
-        else:
-            raise SystemExit(f"could not fetch {t0}..{t1}")
-        parts.append(d["sla"])
-    s = xr.concat(parts, "longitude")
+                raise SystemExit(f"could not fetch SLA {a:%Y-%m-%d}..{b:%Y-%m-%d} ({str(e)[:60]})")
+            parts.append(d["sla"])
+        pieces.append(xr.concat(parts, "longitude"))
+    s = xr.concat(pieces, "time")
     s = s.assign_coords(longitude=(s.longitude % 360)).sortby("longitude").sortby("latitude")
     return s.where(np.abs(s) < 3)
 
