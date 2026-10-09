@@ -604,7 +604,7 @@
       if (hi - lo < (p.unit === "hPa" ? 4 : 10)) { const c = (hi + lo) / 2, h = p.unit === "hPa" ? 2 : 5; lo = p.unit === "kt" ? 0 : c - h; hi = c + h; }
       const pad = (hi - lo) * 0.06; hi += pad; if (p.unit !== "kt") lo -= pad;
       p.lo = lo; p.hi = hi; p.Y = v => p.y1 - (v - lo) / (hi - lo) * (p.y1 - p.y0);
-      const step = niceStep((hi - lo) / 4);
+      const step = tickStep(hi - lo, p.y1 - p.y0);   // as many labels as the panel height holds (the hPa and m panels were stacked solid)
       ctx.fillStyle = fg; ctx.textAlign = "right"; ctx.textBaseline = "middle";
       for (let v = Math.ceil(lo / step) * step; v <= hi; v += step) {
         const y = p.Y(v); ctx.strokeStyle = grid; ctx.beginPath(); ctx.moveTo(L0, y); ctx.lineTo(R0, y); ctx.stroke();
@@ -642,6 +642,13 @@
     }
     TS = { X, t0, t1, L0, R0, pan, W, H };
     if (S.hoverI >= 0) crosshair(S.hoverI);
+  }
+  // tick step for a panel px tall: about one label per 22 px, never closer than 13 px (11 px text)
+  function niceUp(x) { const p = Math.pow(10, Math.floor(Math.log10(x))), f = x / p; return (f <= 1 ? 1 : f <= 2 ? 2 : f <= 5 ? 5 : 10) * p; }
+  function tickStep(span, px) {
+    px = Math.abs(px); let st = niceStep(span / Math.max(3, Math.min(5, Math.floor(px / 22))));
+    while (st / span * px < 13) st = niceUp(st * 1.01);
+    return st;
   }
   function niceStep(x) { const p = Math.pow(10, Math.floor(Math.log10(x))), f = x / p; return (f < 1.5 ? 1 : f < 3.5 ? 2 : f < 7.5 ? 5 : 10) * p; }
   function crosshair(i) {
@@ -1111,7 +1118,7 @@
     return { c, W, H };
   }
   function axisY(c, Y, lo, hi, x0, x1, unit, fmt) {
-    const step = niceStep((hi - lo) / 4);
+    const step = tickStep(hi - lo, Y(hi) - Y(lo));
     c.fillStyle = css("--axis"); c.textAlign = "right"; c.textBaseline = "middle";
     for (let v = Math.ceil(lo / step) * step; v <= hi + 1e-9; v += step) {
       const y = Y(v); c.strokeStyle = css("--grid"); c.beginPath(); c.moveTo(x0, y); c.lineTo(x1, y); c.stroke();
@@ -1280,7 +1287,14 @@
     if (!ts.length) return;
     const t0 = Math.min(...ts) - 6 * 3600, t1 = Math.max(...ts) + 6 * 3600;
     const L0 = 50, R0 = W - 12, X = t => L0 + (t - t0) / (t1 - t0) * (R0 - L0);
-    const P1 = [8, H * 0.42], P2 = [H * 0.47, H * 0.76], P3 = [H * 0.81, H - 24];
+    // the key gets its own rows above the panels (it was drawn over the pressure panel, and left out below 640 px)
+    const grey = dark() ? "#9aa0aa" : "#7a7f86", mband = dark() ? "rgba(124,180,255,0.10)" : "rgba(39,75,122,0.08)";
+    const key = [["#b3261e", "fix (filled measured, hollow extrapolated)"], [dark() ? "#e6e8ec" : "#1f2620", "eye-sonde estimate"], [css("--s-fl"), "max FL wind per leg"],
+                 [css("--s-sfmr"), "max SFMR per leg"], [grey, "best track"], [mband, "this mission", 1]];
+    c.font = "11px 'Source Sans 3', sans-serif";
+    const kRows = [[]]; { let kx = L0 + 6; for (const k of key) { const w = c.measureText(k[1]).width + 30; if (kx + w > R0 && kRows[kRows.length - 1].length) { kRows.push([]); kx = L0 + 6; } kRows[kRows.length - 1].push([k, kx]); kx += w; } }
+    const KH = kRows.length * 16 + 4;
+    const P1 = [8 + KH, H * 0.42], P2 = [H * 0.47, H * 0.76], P3 = [H * 0.81, H - 24];
     const bt = D.bt.filter(r => r[0] >= t0 && r[0] <= t1);
     // pressure panel
     const ps = [...D.fx.map(f => f.p), ...D.eye.map(e => e.est ?? e.p), ...bt.map(r => r[4]).filter(x => x)];
@@ -1304,12 +1318,11 @@
     const span = t1 - t0, st = span > 6 * 86400 ? 86400 : span > 2 * 86400 ? 43200 : span > 86400 ? 21600 : 10800;
     c.textAlign = "center"; c.textBaseline = "top";
     for (let t = Math.ceil(t0 / st) * st; t <= t1; t += st) {
-      const x = X(t); c.strokeStyle = css("--grid"); c.beginPath(); c.moveTo(x, 8); c.lineTo(x, H - 24); c.stroke();
+      const x = X(t); c.strokeStyle = css("--grid"); c.beginPath(); c.moveTo(x, P1[0]); c.lineTo(x, H - 24); c.stroke();
       const d = new Date(t * 1000); c.fillStyle = css("--axis");
       if (t % (st * (W < 600 ? 2 : 1)) === 0) c.fillText(`${d.getUTCDate()} ${MON[d.getUTCMonth()]}${d.getUTCHours() ? " " + p2(d.getUTCHours()) + "Z" : ""}`, x, H - 20);
     }
     HI.pts = [];
-    const grey = dark() ? "#9aa0aa" : "#7a7f86";
     const line = (pts, Y, k) => { c.strokeStyle = grey; c.lineWidth = 1.6; c.beginPath(); let on = false; for (const r of pts) { if (r[k] == null) { on = false; continue; } const x = X(r[0]), y = Y(r[k]); on ? c.lineTo(x, y) : c.moveTo(x, y); on = true; } c.stroke(); };
     line(bt, YP, 4); line(bt, YW, 3);
     for (const r of bt) { if (r[4]) HI.pts.push([X(r[0]), YP(r[4]), `Best track ${dayhm(r[0])}: ${r[4]} hPa, ${r[3] ?? "—"} kt`]); }
@@ -1338,12 +1351,12 @@
     }
     // key
     c.textAlign = "left"; c.textBaseline = "top"; c.font = "11px 'Source Sans 3', sans-serif";
-    const key = [["#b3261e", "fix (filled measured, hollow extrapolated)"], [dark() ? "#e6e8ec" : "#1f2620", "eye-sonde estimate"], [css("--s-fl"), "max FL wind per leg"], [css("--s-sfmr"), "max SFMR per leg"], [grey, "best track"]];
-    let kx = L0 + 6;
-    if (W > 640) for (const [col, lab] of key) { c.fillStyle = col; c.fillRect(kx, P1[0] + 2, 10, 10); c.fillStyle = css("--axis"); c.fillText(lab, kx + 14, P1[0] + 1); kx += c.measureText(lab).width + 30; }
+    kRows.forEach((row, ri) => { const ky = 6 + ri * 16; for (const [[col, lab, box], kx] of row) {
+      c.fillStyle = col; c.fillRect(kx, ky + 1, 10, 10); if (box) { c.strokeStyle = css("--axis"); c.lineWidth = 0.6; c.strokeRect(kx + 0.5, ky + 1.5, 9, 9); }
+      c.fillStyle = css("--axis"); c.fillText(lab, kx + 14, ky); } });
     // current mission span
     const m = S.man.missions[S.key];
-    if (m && m.first) { c.fillStyle = dark() ? "rgba(124,180,255,0.10)" : "rgba(39,75,122,0.08)"; c.fillRect(X(m.first), 8, X(m.last) - X(m.first), H - 32); }
+    if (m && m.first) { c.fillStyle = mband; c.fillRect(X(m.first), P1[0], X(m.last) - X(m.first), H - 24 - P1[0]); }
   }
   function histPointer(e) {
     const b = $("histCv").getBoundingClientRect(), x = e.clientX - b.left, y = e.clientY - b.top;
@@ -1404,7 +1417,7 @@
       `${pts.length.toLocaleString("en-US")} ${use === "sfmr" ? "SFMR surface winds" : "flight-level winds reduced to the surface"} from this flight placed around the centre interpolated to each observation's time` +
       `${hdg != null ? `; storm motion ${Math.round(hdg)}° at ${Math.round(spd)} kt (best track)` : ""}. Dashed arcs: NHC's wind radii${nt ? ` at ${dayhm(nt)} (ATCF best track)` : " (none within 4 h of this flight)"}.`;
     $("srOri").innerHTML = segHTML([["north", "North up"], ["motion", "Motion up"]], SR.ori);
-    $("srVar").innerHTML = segHTML([["sfmr", "SFMR"], ["fl", "Flight level reduced"]], SR.v);
+    $("srVar").innerHTML = segHTML([["sfmr", "SFMR"], ["fl", "Flight level reduced"]], SR.auto ? "fl" : SR.v);   // the pressed button is what is drawn
     const cell = (o, n) => `<td>${o.s === "not sampled" ? '<span class="mu">not sampled</span>' : o.s}</td><td class="mu">${n == null ? "—" : n === 0 ? "0" : n}</td>`;
     $("srTbl").innerHTML = `<table><thead><tr><th>Wind</th>${Q.map(q => `<th colspan="2">${q} (obs · NHC)</th>`).join("")}</tr></thead><tbody>` +
       [34, 50, 64].map(thr => `<tr><td>${thr} kt</td>${Q.map((q, k) => cell(ext[thr][k], nhc[thr] ? nhc[thr][k] : null)).join("")}</tr>`).join("") + "</tbody></table>";
@@ -1420,11 +1433,16 @@
     const cv = $("srCv"); cv.style.height = cv.clientWidth + "px";
     const g0 = cvSetup(cv); if (!g0) return;
     const { c, W, H } = g0, cx = W / 2, cy = H / 2;
-    const rmaxD = Math.max(50, ...SR.pts.map(p => p.r)), RM = rmaxD > 110 ? 150 : rmaxD > 60 ? 100 : 60, s = (Math.min(W, H) / 2 - 18) / RM;
+    // the range reaches the farthest observation kept (srBuild keeps 250 n mi; at a fixed 150 the outer legs fell off the canvas)
+    const rmaxD = Math.max(50, ...SR.pts.map(p => p.r)), RM = rmaxD > 200 ? 250 : rmaxD > 150 ? 200 : rmaxD > 110 ? 150 : rmaxD > 60 ? 100 : 60, s = (Math.min(W, H) / 2 - 18) / RM;
     const rot = SR.ori === "motion" && SR.hdg != null ? SR.hdg * rad : 0;
     const P = (dx, dy) => { const x = dx * Math.cos(rot) - dy * Math.sin(rot), y = dx * Math.sin(rot) + dy * Math.cos(rot); return [cx + x * s, cy - y * s]; };
-    c.strokeStyle = css("--grid"); c.fillStyle = css("--axis"); c.textAlign = "left"; c.textBaseline = "bottom";
-    for (const r of [25, 50, 100, 150]) if (r <= RM) { c.beginPath(); c.arc(cx, cy, r * s, 0, 2 * Math.PI); c.stroke(); c.fillText(r + " n mi", cx + r * s * 0.71 + 2, cy - r * s * 0.71); }
+    // ring labels on the diagonal farthest from the motion arrow (at 45 deg they sat on a north-east-moving storm's arrow)
+    const arrowB = SR.hdg != null ? ((SR.hdg - (rot ? SR.hdg : 0)) % 360 + 360) % 360 : null;
+    const labB = arrowB == null ? 45 : [45, 135, 225, 315].sort((a, b) => Math.abs(((b - arrowB + 540) % 360) - 180) - Math.abs(((a - arrowB + 540) % 360) - 180))[0];
+    const lsx = Math.sin(labB * rad), lsy = Math.cos(labB * rad);
+    c.strokeStyle = css("--grid"); c.fillStyle = css("--axis"); c.textAlign = lsx >= 0 ? "left" : "right"; c.textBaseline = lsy >= 0 ? "bottom" : "top";
+    for (const r of [25, 50, 100, 150, 200, 250]) if (r <= RM && (RM < 200 || r !== 25)) { c.beginPath(); c.arc(cx, cy, r * s, 0, 2 * Math.PI); c.stroke(); c.fillText(r + " n mi", cx + r * s * lsx + (lsx >= 0 ? 2 : -2), cy - r * s * lsy); }
     for (let k = 0; k < 4; k++) { const a = k * 90 * rad; const [x, y] = P(Math.sin(a) * RM, Math.cos(a) * RM); c.beginPath(); c.moveTo(cx, cy); c.lineTo(x, y); c.stroke(); }
     // north arrow / motion arrow
     const [nx, ny] = P(0, RM * 0.97); c.fillStyle = css("--axis"); c.textAlign = "center"; c.textBaseline = "middle"; c.fillText("N", nx, ny);
