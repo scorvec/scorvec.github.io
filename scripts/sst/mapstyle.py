@@ -40,9 +40,9 @@ def open_map(kind: str = "atm", extent=None, central: float | None = None, width
     return fig, ax, H, pc
 
 
-def features(ax, land_only: bool = False, states: bool = True, gridlines: bool = True):
+def features(ax, land_only: bool = False, states: bool = True, gridlines: bool = True, land_color: str = "#f1f0eb"):
     import cartopy.feature as cfeature
-    ax.add_feature(cfeature.LAND, facecolor="#f1f0eb", zorder=0)
+    ax.add_feature(cfeature.LAND, facecolor=land_color, zorder=0)
     if land_only:
         ax.add_feature(cfeature.OCEAN, facecolor="#ffffff", zorder=2); ax.add_feature(cfeature.LAKES, facecolor="#ffffff", zorder=2)
     ax.coastlines(resolution="50m", linewidth=0.45, color="#222", zorder=3)
@@ -142,6 +142,33 @@ def sst_anom_style(vmax: float = 7.0, levels=None):
     step = 1.0 if big > 3.01 else 0.5 if big > 1.51 else 0.2          # whole degrees on a +-7 bar, halves on +-3
     ticks = [0.0] + [x for x in lv if abs(x / step - round(x / step)) < 1e-6]
     return dict(levels=lv, cmap=cmap, norm=norm, ticks=sorted(set(ticks)))
+
+
+# Change maps (forecast minus the previous issue) use a finer ladder of their own - white +-0.1 °C, 0.1 °C classes to
+# +-1.5, then 2 and 2.5 - drawn on the same ramps, so they read as the same family without claiming a shared scale.
+SST_CHANGE_POS = [0.1] + [round(0.1 * k, 1) for k in range(2, 16)] + [2.0, 2.5]
+SST_CHANGE_LEVELS = [-x for x in SST_CHANGE_POS[::-1]] + SST_CHANGE_POS
+
+
+def sst_change_style(levels=None):
+    """-> dict(levels, cmap, norm, ticks) for a symmetric change ladder with a white neutral class in the middle."""
+    from matplotlib.colors import ListedColormap, BoundaryNorm
+    lv = list(levels or SST_CHANGE_LEVELS)
+    n = len(lv) - 1; side = (n - 1) // 2
+    warm, cool = _ramp(_WARM, side + 1), _ramp(_COOL, side + 1)
+    cmap = ListedColormap(cool[:side][::-1] + [SST_NEUTRAL] + warm[:side], name="sst_change")
+    cmap.set_under(cool[side]); cmap.set_over(warm[side]); cmap.set_bad(alpha=0.0)
+    ticks = sorted({0.0} | {x for x in lv if abs(x * 2 - round(x * 2)) < 1e-6})
+    return dict(levels=lv, cmap=cmap, norm=BoundaryNorm(lv, n), ticks=ticks)
+
+
+def sst_style_for(levels):
+    """The anomaly style when `levels` is a run of the shared anomaly ladder, else a change style on those levels."""
+    lv = [round(float(x), 6) for x in levels]
+    full = [round(x, 6) for x in SST_ANOM_LEVELS]
+    if all(x in full for x in lv):
+        return sst_anom_style(levels=[SST_ANOM_LEVELS[full.index(x)] for x in lv])
+    return sst_change_style(lv)
 
 
 # Absolute SST: 4 °C classes to 16 °C, 2 °C to 24, then 0.5 °C classes 24-31 °C so the 26.5 / 27 / 27.5 / 28 °C steps
