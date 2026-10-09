@@ -22,6 +22,7 @@ warnings.filterwarnings("ignore", category=RuntimeWarning)
 from seas5_outlook import (ASSETS, DATA, HERE, MAXLEAD, MONTHLY_LEADS, PDO_PATTERN, SIGMA_PATH,   # noqa: E402
                            fc_path, hc_path, nleads, previous_issues)
 import seas5_ref as R                                                                 # noqa: E402
+import mapstyle as MS                                                                 # noqa: E402
 
 OUT_JSON = ASSETS / "data" / "seas5_outlook.json"
 G0 = 9.80665
@@ -433,8 +434,9 @@ MAP_SPEC = {
              [-2, -1.5, -1, -0.75, -0.5, -0.25, 0.25, 0.5, 0.75, 1, 1.5, 2], "RdBu_r", None, None),
     # SST: fine steps and labelled isolines (user 2026-09-07: "make it highly detailed")
     # ±3 °C at 0.2 steps saturated on the 2026 El Niño (user 2026-09-07): 0.2 steps to ±3, then 0.5 steps to ±5
-    "sst": ("Sea surface temperature", "°C", [-5, -4.5, -4, -3.5] + [round(x, 2) for x in np.arange(-3.0, 3.01, 0.2)] + [3.5, 4, 4.5, 5],
-            [-2.5, -2] + [round(x, 2) for x in np.arange(-1.5, 1.51, 0.1)] + [2, 2.5], "RdBu_r", 0.5, 0.25),
+    # 2026-10-08: the site's shared SST ladders (mapstyle): the same 0.2 / 0.1 steps with a white neutral class around
+    # zero instead of a boundary at 0, on the SST ramp every other SST map uses
+    "sst": ("Sea surface temperature", "°C", MS.sst_anom_style(5.0)["levels"], MS.SST_CHANGE_LEVELS, "sst", 0.5, 0.25),
     # 850 hPa zonal wind (user 2026-09-07): positive = westerly anomaly; the trade-wind / jet signal of ENSO
     "u850": ("850 hPa zonal wind", "m/s", [-8, -6, -4, -3, -2, -1, -0.5, 0.5, 1, 2, 3, 4, 6, 8],
              [-4, -3, -2, -1, -0.5, 0.5, 1, 2, 3, 4], "PuOr_r", None, None),
@@ -631,9 +633,20 @@ def _global_map(field, lat, lon, var, levels, cmap, cstep, title, sub, cb_label,
         ax.set_extent([ext[0], ext[1], lat0, lat1], crs=pc)
     else:
         ax.set_extent([-180, 180, lat0, lat1], crs=proj)
-    ax.add_feature(cfeature.LAND, facecolor="#f1f0eb", zorder=0)
-    norm = BoundaryNorm(levels, len(levels) - 1)
-    m = ax.contourf(lon_c, lat, np.ma.masked_invalid(d_c), levels=levels, cmap=plt.get_cmap(cmap, len(levels) - 1), norm=norm,
+    sst_style = None
+    if var == "sst":
+        # the site's shared SST palette (scripts/sst/mapstyle.py): anomalies on its ladder (white +-0.2 band, 0.2 degC
+        # classes to +-3, the same colour for the same value as the OISST loops); the change map keeps its finer
+        # 0.1 degC ladder but on the same ramp. The axes background is the SST land colour so the 1-degree grid's
+        # coastal no-data cells read as land instead of white slivers along every coast.
+        sst_style = MS.sst_style_for(levels)
+        ax.set_facecolor(MS.SST_LAND)
+        ax.add_feature(cfeature.LAND, facecolor=MS.SST_LAND, zorder=0)
+        norm, cmap_obj = sst_style["norm"], sst_style["cmap"]
+    else:
+        ax.add_feature(cfeature.LAND, facecolor="#f1f0eb", zorder=0)
+        norm, cmap_obj = BoundaryNorm(levels, len(levels) - 1), plt.get_cmap(cmap, len(levels) - 1)
+    m = ax.contourf(lon_c, lat, np.ma.masked_invalid(d_c), levels=levels, cmap=cmap_obj, norm=norm,
                     extend="both", transform=proj, zorder=1)
     if cstep:
         cl = [x for x in np.arange(-6, 6.01, cstep) if abs(x) > 1e-9]
@@ -650,7 +663,13 @@ def _global_map(field, lat, lon, var, levels, cmap, cstep, title, sub, cb_label,
     fig.text(0.03, 1 - 0.14 / H, title, fontsize=13.5, fontweight="bold", va="top")
     fig.text(0.03, 1 - 0.50 / H, sub, fontsize=8.6, color="#444", va="top")
     cax = fig.add_axes([0.25, 0.42 / H, 0.50, 0.14 / H])
-    cb = fig.colorbar(m, cax=cax, orientation="horizontal", extend="both", spacing="uniform"); cb.set_label(cb_label, fontsize=8.5)
+    cb = fig.colorbar(m, cax=cax, orientation="horizontal", extend="both", spacing="uniform")
+    if sst_style is not None:
+        MS.sst_colorbar(cb, sst_style, cb_label, size=8.5, tick_size=7)
+        # flat contourf classes: lossless on the frame's own most frequent colours (sharp class edges and labels)
+        MS.save_webp_palette(fig, out, dpi=125)
+        return
+    cb.set_label(cb_label, fontsize=8.5)
     cb.ax.tick_params(labelsize=7)
     if len(levels) > 16:                                                        # fine steps: label whole degrees only
         cb.set_ticks([x for x in levels if abs(x - round(x)) < 1e-6])

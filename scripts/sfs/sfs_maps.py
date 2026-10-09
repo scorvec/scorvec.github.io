@@ -62,7 +62,8 @@ VLIM = {"sst": 4.0, "t2m": 5.0, "precip": 6.0, "mslp": 6.0, "z500": 9.0,
         "wind850": 6.0, "wind200": 12.0, "chi200": 6.0}
 # discrete colour steps, the same construction as the SEAS5 maps (SST identical to seas5_build.MAP_SPEC)
 LEVELS = {
-    "sst": [-5, -4.5, -4, -3.5] + [round(x, 2) for x in np.arange(-3.0, 3.01, 0.2)] + [3.5, 4, 4.5, 5],
+    # SST: the site's shared ladder (scripts/sst/mapstyle.py, = the SEAS5 SST map): white +-0.2, 0.2 steps to +-3, to +-5
+    "sst": [-5, -4.5, -4, -3.5] + [round(x, 1) for x in np.arange(-3.0, -0.19, 0.2)] + [round(x, 1) for x in np.arange(0.2, 3.01, 0.2)] + [3.5, 4, 4.5, 5],
     "t2m": [-5, -4, -3, -2, -1.5, -1, -0.5, 0.5, 1, 1.5, 2, 3, 4, 5],
     "precip": [-6, -4, -3, -2, -1, -0.5, 0.5, 1, 2, 3, 4, 6],
     "mslp": [-6, -4, -3, -2, -1, -0.5, 0.5, 1, 2, 3, 4, 6],
@@ -183,8 +184,10 @@ def main():
             from cartopy.util import add_cyclic_point
             lon1d = LONg[0, :]; order = np.argsort(lon1d); fld = a[vs[0]][:, order]
             fld_c, lon_c = add_cyclic_point(fld, coord=lon1d[order])
-            pm = ax.contourf(lon_c, LATg[:, 0], np.ma.masked_invalid(fld_c), levels=levels, cmap=plt.get_cmap(cmap, len(levels) - 1),
-                             norm=BoundaryNorm(levels, len(levels) - 1), extend="both", transform=pc, zorder=1)
+            sty = MS.sst_style_for(levels)                         # the site's shared SST palette (white +-0.2 band)
+            ax.set_facecolor(MS.SST_LAND)                           # coastal no-data cells read as land, not as white slivers
+            pm = ax.contourf(lon_c, LATg[:, 0], np.ma.masked_invalid(fld_c), levels=sty["levels"], cmap=sty["cmap"],
+                             norm=sty["norm"], extend="both", transform=pc, zorder=1)
             cl = [x for x in np.arange(-6, 6.01, 0.5) if abs(x) > 1e-9]
             cs = ax.contour(lon_c, LATg[:, 0], np.ma.masked_invalid(fld_c), levels=cl, colors="#333", linewidths=0.35, transform=pc, zorder=2)
             ax.clabel(cs, fontsize=5.5, fmt=lambda v: f"{v:+.2g}", inline=True, inline_spacing=2)
@@ -205,13 +208,18 @@ def main():
             st = 18
             ax.quiver(LONg[::st, ::st], LATg[::st, ::st], a[vs[0]][::st, ::st], a[vs[1]][::st, ::st],
                       transform=pc, color="k", scale=vmax * 30, width=0.0016, alpha=0.75, zorder=3)
-        MS.features(ax, land_only=(key == "t2m"), states=not is_sst)
+        MS.features(ax, land_only=(key == "t2m"), states=not is_sst, land_color=MS.SST_LAND if is_sst else "#f1f0eb")
         mon = t0 + pd.DateOffset(months=L)
         MS.heading(fig, H, f"SFS beta {title} · {mon:%b %Y} (lead {L}) · {t0:%B %Y} issue",
                    f"Ensemble mean of 31 members minus the model's own {CLIM_Y0}–{CLIM_Y1} reforecast mean (11 members × 30 years) for the same start month and lead, "
                    + ("1° grid." if is_sst else "0.5° grid."))
-        MS.colorbar(fig, H, pm, f"anomaly ({units})", levels)
-        MS.save(fig, out)
+        if is_sst:
+            cb = MS.colorbar(fig, H, pm, f"anomaly ({units})")
+            MS.sst_colorbar(cb, sty, f"anomaly ({units})", size=8.5, tick_size=7)
+            MS.save_webp_palette(fig, out, dpi=125)                # flat classes: lossless, sharp class edges and labels
+        else:
+            MS.colorbar(fig, H, pm, f"anomaly ({units})", levels)
+            MS.save(fig, out)
         print(f"wrote {out.relative_to(REPO)}", flush=True)
 
     import time as _time
