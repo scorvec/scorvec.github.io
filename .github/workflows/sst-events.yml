@@ -79,7 +79,9 @@ jobs:
         # to enso-subsurface.html rather than being retired.
         run: 'true'
 
-      - name: Build subsurface analog comparison (TAO moorings, 1997/2015/2023)
+      # 1982-83 (pre-TAO) is drawn from scripts/sst/reference/reanalysis_hc_monthly.csv (ORAS5 + GODAS, built once
+      # on the laptop by reanalysis_hc.py) - nothing is fetched for it here.
+      - name: Build subsurface analog comparison (TAO moorings, 1997/2015/2023; 1982 from reanalyses)
         working-directory: scripts/sst
         env:
           # the GLORYS12 analysis fill for silent moorings (tao_hc_validation.json switches it on)

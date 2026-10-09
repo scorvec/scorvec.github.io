@@ -9,7 +9,9 @@ Products (assets/sst/):
   subsurface_events_xsec.webp  matching-phase depth×lon temperature-anomaly
                                cross-sections (2×2: current vs analogs)
   subsurface_events_hc.webp    equatorial 0–300 m temperature-anomaly index
-                               through each event's development year + next
+                               through each event's development year + next;
+                               1982-83 (before TAO) from two monthly ocean
+                               reanalyses, ORAS5 and GODAS (reanalysis_hc.py)
 
 TAO mooring coverage varies by year (1997 and 2023 are gappier), so some
 longitudes / periods are missing — shown as gaps.
@@ -155,9 +157,17 @@ FILL_CSV = REF / "glorys_eq_moorings_anom.csv.gz"        # GLORYS12 0-300 m anom
 FILL_COEFFS = REF / "glorys_eq_clim_coeffs.npz"            # its 1993-2020 harmonic climatology
 CPC_URL = "https://www.cpc.ncep.noaa.gov/products/analysis_monitoring/ocean/index/heat_content_index.txt"
 ANFC = "cmems_mod_glo_phy-thetao_anfc_0.083deg_P1D-m"
-CAT_COLORS = ["#ffffff", "#c8c8c8", "#e3a33b", "#4a4a4a"]
+CAT_COLORS = ["#ffffff", "#c8c8c8", "#e3a33b", "#4a4a4a", "#c9b3a6"]
 CAT_LABELS = ["all 8 TAO moorings reporting", "6–7 reporting; silent ones from GLORYS12 (or carried ≤10 d)",
-              "fewer than 6 reporting: rests on GLORYS12 (dashed)", "no estimate"]
+              "fewer than 6 reporting: rests on GLORYS12 (dashed)", "no estimate",
+              "before TAO: monthly reanalyses only (ORAS5, GODAS)"]
+
+# Pre-TAO events from two MONTHLY ocean reanalyses, the index rebuilt on the same 8 points (reanalysis_hc.py,
+# run on the laptop; the small monthly table and its validation are committed, nothing is fetched here).
+RA_CSV = REF / "reanalysis_hc_monthly.csv"
+RA_VALIDATION = REF / "reanalysis_hc_validation.json"
+RA_EVENTS = [1982]
+RA_COLOR = "#8c564b"
 
 
 def _meta() -> dict:
@@ -285,7 +295,61 @@ def _cpc_latest(cur: pd.DataFrame, meta: dict) -> str:
         return ""
 
 
-def heat_content(frames: dict, cur_year: int, out: Path, meta: dict, detr: bool = False):
+def reanalysis_events() -> tuple[pd.DataFrame | None, dict]:
+    """Monthly ORAS5 / GODAS versions of the index (deg C, own 1991-2020 climatologies) + validation."""
+    try:
+        ra = pd.read_csv(RA_CSV, index_col=0, parse_dates=True)[["oras5", "godas"]]
+        rv = json.loads(RA_VALIDATION.read_text()).get("validation", {})
+        return ra, rv
+    except Exception as e:      # noqa: BLE001
+        print(f"::warning::reanalysis events unavailable ({e}); chart drawn without 1982-83")
+        return None, {}
+
+
+def _ra_detrend(ra: pd.DataFrame) -> pd.DataFrame:
+    """The detrended chart's own trend (TAO 1991-2020 slope, per mooring and depth, sst_subsurface.detrend)
+    applied at index level: the 8-point, 0-300 m mean slope x (decimal year - pivot). Before 1991 this
+    extends the 1991-2020 trend backwards."""
+    sl = ss.load_or_build_trend().reindex(longitude=H.LONS, depth=ss.DEPTH_GRID).fillna(0.0)
+    k = float(sl.mean(["depth", "longitude"]))
+    mid = ra.index + pd.Timedelta(days=14)
+    return ra.sub(k * (ss.decimal_year(mid) - ss.TREND_REF), axis=0)
+
+
+def _ra_note(rv: dict, years: list, detr: bool) -> str:
+    """Footnote for the reanalysis lines: what they are, how certain, and how they score against TAO."""
+    ev = ", ".join(f"{y}–{str(y + 1)[2:]}" for y in years)
+    txt = (f"{ev} (brown, before the TAO array): the same index rebuilt from two MONTHLY ocean reanalyses, ECMWF ORAS5 "
+           "and NOAA NCEP GODAS – same 8 equatorial points (±0.5°), 0–300 m mean potential temperature, anomaly vs "
+           "each reanalysis' own 1991–2020 monthly climatology, plotted mid-month; shading = the spread between the two. "
+           "Before TAO (1985–94) the reanalyses rest mostly on XBTs; 1982/83 is less certain.")
+    o, g = rv.get("oras5_vs_tao6_1993on"), rv.get("godas_vs_tao6_1993on")
+    if o and g:
+        txt += (f" Check against this TAO index, monthly 1993–2026 (≥6 moorings live): ORAS5 r {o['r']:.2f}, "
+                f"RMS {o['rms']:.2f} °C (n {o['n']}); GODAS r {g['r']:.2f}, RMS {g['rms']:.2f} °C.")
+    sp, mx = rv.get("oras5_vs_godas_1982_83"), rv.get("oras5_minus_godas_1982_83_maxabs")
+    if sp and mx and 1982 in years:
+        m = pd.Timestamp(mx["month"] + "-01")
+        txt += (f" In 1982–83 the two differ by up to {abs(mx['value']):.1f} °C ({m:%b %Y}; RMS {sp['rms']:.2f} °C, "
+                f"against {rv.get('oras5_vs_godas_1993on', {}).get('rms', float('nan')):.2f} °C since 1993).")
+    e = {k: rv.get(f"events_{k}", {}) for k in ("oras5", "godas", "tao6")}
+    try:
+        if detr:
+            raise KeyError("peaks are quoted on the raw chart only")
+        txt += (f" Same basis, peak monthly value 1982–83: ORAS5 {e['oras5']['1982']['max']:+.2f}, GODAS "
+                f"{e['godas']['1982']['max']:+.2f} °C; 1997–98: ORAS5 {e['oras5']['1997']['max']:+.2f}, GODAS "
+                f"{e['godas']['1997']['max']:+.2f}, TAO {e['tao6']['1997']['max']:+.2f} °C.")
+    except (KeyError, TypeError):
+        pass
+    if detr:
+        txt += " Detrended with the TAO 1991–2020 trend (8-point, 0–300 m mean), extended back before 1991."
+    txt += (" ORAS5: generated using Copernicus Climate Change Service information "
+            f"{datetime.utcnow():%Y}; GODAS: NOAA NCEP via NOAA PSL.")
+    return txt
+
+
+def heat_content(frames: dict, cur_year: int, out: Path, meta: dict, detr: bool = False,
+                 ra: pd.DataFrame | None = None, rv: dict | None = None):
     fig = plt.figure(figsize=(9.5, 6.6))
     gs = fig.add_gridspec(2, 1, height_ratios=[5, 1.05], hspace=0.08)
     ax = fig.add_subplot(gs[0])
@@ -317,6 +381,16 @@ def heat_content(frames: dict, cur_year: int, out: Path, meta: dict, detr: bool 
                 ax.plot(devdays(pi, yr), ix.loc[pi, "smooth"].values, "o", ms=4.5, mfc="white",
                         mec="#d62728", mew=1.4, zorder=6,
                         label=f"{yr}: a silent mooring carried (≤{H.PERSIST_DAYS} d)")
+    ra_years = [y for y in RA_EVENTS if ra is not None and not ra.loc[f"{y}-01-01":f"{y + 1}-12-01"].dropna().empty]
+    for yr in ra_years:
+        w = ra.loc[f"{yr}-01-01":f"{yr + 1}-12-01"]
+        x = devdays(w.index + pd.Timedelta(days=14), yr)          # mid-month
+        lab = f"{yr}–{str(yr + 1)[2:]}"
+        ax.fill_between(x, w.min(axis=1).values, w.max(axis=1).values, color=RA_COLOR, alpha=0.18, lw=0, zorder=1)
+        ax.plot(x, w["oras5"].values, color=RA_COLOR, lw=1.5, marker="o", ms=3.2, zorder=3,
+                label=f"{lab} ECMWF ORAS5 (monthly reanalysis)")
+        ax.plot(x, w["godas"].values, color=RA_COLOR, lw=1.2, ls=(0, (1.5, 1.5)), marker="s", ms=2.8,
+                mfc="white", zorder=3, label=f"{lab} NOAA GODAS (monthly reanalysis)")
     if any((window(frames[y], y)["cat"] == 2).any() for y in order):
         ax.plot([], [], color="0.3", lw=1.2, ls=(0, (3, 2)), label="dashed: TAO + GLORYS12 fill")
     ax.axhline(0, color="0.6", lw=0.8)
@@ -327,7 +401,8 @@ def heat_content(frames: dict, cur_year: int, out: Path, meta: dict, detr: bool 
                  "detrended with data from 1991–2020")
         fs = 10.5
     else:
-        title = "Subsurface heat content (eq. Pacific 0–300 m T anomaly): current vs. 1997, 2015, 2023"
+        title = ("Subsurface heat content (eq. Pacific 0–300 m T anomaly): current vs. "
+                 + ", ".join(str(y) for y in sorted(ra_years + ANALOGS)))
         fs = 11.5
     ax.set_title(title, fontsize=fs, fontweight="bold", loc="left")
     ax.legend(fontsize=8.5, loc="lower left", framealpha=0.9)
@@ -336,13 +411,17 @@ def heat_content(frames: dict, cur_year: int, out: Path, meta: dict, detr: bool 
 
     # coverage strip: one row per event, coloured by what the day's value rests on
     cmap = mcolors.ListedColormap(CAT_COLORS)
-    M = np.full((len(order), 731), np.nan)
+    rows = order + ra_years
+    M = np.full((len(rows), 731), np.nan)
     for r, yr in enumerate(order):
         ix = window(frames[yr], yr)
         d = devdays(ix.index, yr)
         ok = (d >= 0) & (d <= 730)
         M[r, d[ok]] = ix["cat"].values[ok]
-    axc.imshow(np.ma.masked_invalid(M), aspect="auto", cmap=cmap, vmin=-0.5, vmax=3.5,
+    for r, yr in enumerate(ra_years, start=len(order)):
+        M[r, :] = 4
+    order = rows
+    axc.imshow(np.ma.masked_invalid(M), aspect="auto", cmap=cmap, vmin=-0.5, vmax=len(CAT_COLORS) - 0.5,
                interpolation="nearest", extent=(-0.5, 730.5, len(order) - 0.5, -0.5))
     axc.set_yticks(range(len(order)))
     axc.set_yticklabels([f"{y}" for y in order], fontsize=7.5)
@@ -362,6 +441,8 @@ def heat_content(frames: dict, cur_year: int, out: Path, meta: dict, detr: bool 
 
     v = meta.get("validation", {})
     lines = []
+    if ra_years:
+        lines.append(_ra_note(rv or {}, ra_years, detr))
     if v.get("summary_line"):
         lines.append(v["summary_line"])
     cl = "" if detr else _cpc_latest(frames[cur_year], meta)     # the check is on the raw index
@@ -422,7 +503,8 @@ def main() -> int:
     xsec(events, cur_year, match, ASSETS / "subsurface_events_xsec.webp", yoff=yoff)
     g = reanalysis_fill(meta)
     frames = {y: hc_frame(d, g, False) for y, d in dss.items()}
-    heat_content(frames, cur_year, ASSETS / "subsurface_events_hc.webp", meta)
+    ra, rv = reanalysis_events()
+    heat_content(frames, cur_year, ASSETS / "subsurface_events_hc.webp", meta, ra=ra, rv=rv)
     write_json(frames, cur_year, meta)
 
     # de-trended companions: remove the 1991–2020 secular trend so the analog
@@ -430,7 +512,8 @@ def main() -> int:
     events_dt = {y: ss.detrend(a) for y, a in events.items()}
     xsec(events_dt, cur_year, match, ASSETS / "subsurface_events_xsec_detrended.webp", detr=True, yoff=yoff)
     frames_dt = {y: hc_frame(d, g, True) for y, d in dss.items()}
-    heat_content(frames_dt, cur_year, ASSETS / "subsurface_events_hc_detrended.webp", meta, detr=True)
+    heat_content(frames_dt, cur_year, ASSETS / "subsurface_events_hc_detrended.webp", meta, detr=True,
+                 ra=None if ra is None else _ra_detrend(ra), rv=rv)
     return 0
 
 
