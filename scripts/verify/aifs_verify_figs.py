@@ -132,8 +132,8 @@ def lead_fig(R, row, out: Path, D):
         ax.set_title(lab, loc="left", fontsize=11, fontweight="bold", color="#1c1c1a")
         ax.set_xticks(range(1, 11)); ax.set_xlim(0.7, 10.3); ax.set_xlabel("lead (days)", fontsize=9.5)
     n = int(P["single"]["n"].median())
-    fig.suptitle(f"{vlab} vs {tlab}, {rlab} — mean over the same {n} runs at each lead (median)", x=0.01, ha="left",
-                 fontsize=13.5, fontweight="bold", y=0.995)
+    _fit_width(fig, fig.suptitle(f"{vlab} vs {tlab}, {rlab} — mean over the same runs at each lead (median {n} runs per lead)", x=0.01,
+                                 ha="left", fontsize=13.5, fontweight="bold", y=0.995))
     h, l = axs[0, 0].get_legend_handles_labels()
     fig.legend(h, l, loc="upper right", ncol=4, frameon=False, fontsize=10, bbox_to_anchor=(0.995, 0.955))
     fig.text(0.01, 0.005, f"AIFS single and AIFS-ENS, 00Z + 12Z runs {D['_first']}–{D['_last']}; all series truncated at "
@@ -142,6 +142,14 @@ def lead_fig(R, row, out: Path, D):
     fig.tight_layout(rect=(0, 0.02, 1, 0.93))
     fig.savefig(out, dpi=110, facecolor="white", pil_kwargs={"quality": 88, "method": 6}); plt.close(fig)
     return True
+
+
+def _fit_width(fig, t, frac=0.975, minsize=10):
+    """Shrink a figure title until it fits (the longest lead-figure titles ran to the right edge)."""
+    r = fig.canvas.get_renderer()
+    while t.get_window_extent(r).width > frac * fig.bbox.width and t.get_fontsize() > minsize:
+        t.set_fontsize(t.get_fontsize() - 0.5)
+    return t
 
 
 def spectra_fig(D, out: Path):
@@ -174,6 +182,8 @@ def spectra_fig(D, out: Path):
         ax.set_xlabel("total wavenumber l (log)", fontsize=9.5); ax.set_ylabel("power / single's power", fontsize=9.5)
     if not ok:
         plt.close(fig); return False
+    for ax in axs[0]:
+        ax.tick_params(labelbottom=True)              # sharex hid the top row's wavenumbers under its own axis label
     h, lab = axs[0, 0].get_legend_handles_labels()
     fig.legend(h, lab, loc="upper right", ncol=3, frameon=False, fontsize=9.3, bbox_to_anchor=(0.995, 0.955))
     fig.suptitle("Power spectra: member 0's power relative to the single (red line = the single)", x=0.01, ha="left",
