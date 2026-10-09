@@ -538,7 +538,7 @@ def render(res: dict) -> str:
         truth = "MERRA-2" if lev == "10" else "ERA5"
         ax.set_title(f"{lev} hPa: correlation of the October-start ensemble-mean anomaly with {truth} (95 % CI)", loc="left", fontsize=10.5)
         ax.set_xlabel("r (filled = Holm-significant within the 36-test family; dotted / dashed = r at 80 % power, raw / Holm α)")
-        ax.legend(fontsize=8, frameon=False, loc="upper left", ncol=4)
+        ax.legend(fontsize=8, frameon=False, loc="lower right", ncol=4, bbox_to_anchor=(1.0, 1.06))
         ax.spines[["top", "right"]].set_visible(False); ax.grid(axis="x", color="#e6e3dc", lw=0.6)
         for i, c in enumerate(names):
             d = fam["DJF"].get(c)
