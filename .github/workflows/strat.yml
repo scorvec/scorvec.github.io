@@ -281,7 +281,7 @@ jobs:
 
       - name: Hand off to publish
         if: always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v6
         with:
           name: strat-light
           path: /tmp/strat-light.tgz
@@ -401,7 +401,7 @@ jobs:
 
       - name: Hand off to publish
         if: always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v6
         with:
           name: strat-heavy
           path: /tmp/strat-heavy.tgz
@@ -466,7 +466,7 @@ jobs:
 
       - name: Hand off to publish
         if: always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v6
         with:
           name: strat-epflux
           path: /tmp/strat-epflux.tgz

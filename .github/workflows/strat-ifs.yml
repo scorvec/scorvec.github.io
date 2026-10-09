@@ -238,7 +238,7 @@ jobs:
 
       - name: Hand off to publish
         if: always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v6
         with:
           name: strat-ifs-maps
           path: /tmp/strat-ifs-maps.tgz
@@ -329,7 +329,7 @@ jobs:
 
       - name: Hand off to publish
         if: always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v6
         with:
           name: strat-ifs-zmu
           path: /tmp/strat-ifs-zmu.tgz

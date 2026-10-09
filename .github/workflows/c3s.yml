@@ -189,7 +189,7 @@ jobs:
       # the issue's small forecast files (plume boxes, flavour strips, postprocessed maps) between runs of one issue
       - name: Restore this issue's small C3S files from earlier runs
         if: steps.gate.outputs.run == '1'
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v6
         with:
           path: |
             scripts/sst/data/c3s/forecast/*_${{ steps.gate.outputs.issue }}*.grib
@@ -204,7 +204,7 @@ jobs:
       # list must stay IDENTICAL to seas5.yml's (the cache version is a hash of it); a miss just means the CDS below.
       - name: Restore SEAS5's copy of this issue (ECMWF members)
         if: steps.gate.outputs.run == '1' && (steps.parts.outputs.do_terc == '1' || steps.parts.outputs.do_sixh == '1')
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v6
         with:
           path: |
             scripts/sst/data/seas5/forecast/*_${{ steps.gate.outputs.issue }}.grib
@@ -260,7 +260,7 @@ jobs:
       # also after a cancelled or failed step: whatever was fetched is kept (2026-10-07: a run cancelled mid-plume kept nothing)
       - name: Save this issue's small C3S files now
         if: always() && steps.gate.outputs.run == '1'
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v6
         with:
           path: |
             scripts/sst/data/c3s/forecast/*_${{ steps.gate.outputs.issue }}*.grib
@@ -333,7 +333,7 @@ jobs:
 
       - name: Keep the outputs as an artifact (validation, commit=false)
         if: always() && steps.gate.outputs.run == '1' && inputs.commit == 'false'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: c3s-outputs-${{ steps.gate.outputs.issue }}
           path: |

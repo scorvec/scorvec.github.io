@@ -144,7 +144,7 @@ jobs:
       # seas5.yml's cache of the issue, read-only (ECMWF's monthly u 10 hPa = its fc_strat_u). The path list must stay
       # IDENTICAL to seas5.yml's (the cache version is a hash of it); a miss just means one small CDS request.
       - name: Restore SEAS5's copy of this issue
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v6
         with:
           path: |
             scripts/sst/data/seas5/forecast/*_${{ needs.gate.outputs.issue }}.grib
