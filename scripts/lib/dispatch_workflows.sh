@@ -288,6 +288,7 @@ GRACE_MIN=10
 yesterday=$(date -u -v-1d +%Y-%m-%d 2>/dev/null || date -u -d "yesterday" +%Y-%m-%d)
 
 while IFS='|' read -r wf hhmm extra; do
+  case "$wf" in ''|'#'*|' '*'#'*) continue ;; esac   # blank and commented-out slots (2026-10-10: '# c3s.yml' was being dispatched)
   [ -z "$wf" ] && continue
   # Consider today's slot AND yesterday's. Without the latter, a 19:23 slot that
   # the laptop slept through is simply lost once UTC midnight passes - the exact
