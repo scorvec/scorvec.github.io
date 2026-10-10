@@ -1,7 +1,8 @@
 /* What-if engine (2026-10-03): re-runs the forecast's simulation in the browser with the reader's assumptions.
    Data: data/whatif.json (midterms/whatif.py). The draws are generated ONCE from a fixed seed, so moving a slider changes the
    answer only through the assumption, never through new random noise. Error structure as the model's:
-     House    margin = mu + nat*s_nat + state[s]*s_state + urban*u + groups + res*own      (model.simulate)
+     House    margin = mu + nat*s_nat + state[s]*s_state + urban*u + groups + res*own      (model.simulate; group and urban sds are the
+              POSTERIOR sds of run2026's factor update, incl. the regional Hispanic factors)
      Senate/  margin = mu + shared*state_miss*el + groups + wnc*z + res*sd                  (senate2026.simulate_senate)
      governor
    The House national draw and the statewide draw are correlated rho (0.3).
@@ -39,7 +40,7 @@
     this.nH = H.seats.length; this.nS = S.races.length; this.nG = Gv ? Gv.races.length : 0;
     const F = (n) => new Float32Array(n);
     // House draws
-    this.hNat = F(N); this.hSt = F(N * H.states.length); this.hUrb = F(N); this.hG = [F(N), F(N), F(N), F(N)]; this.hRes = F(N * this.nH);
+    this.hNat = F(N); this.hSt = F(N * H.states.length); this.hUrb = F(N); this.hG = [F(N), F(N), F(N), F(N), F(N), F(N), F(N)]; this.hRes = F(N * this.nH);
     // statewide draws (Senate + governors share them, as in the model)
     this.sNat = F(N); this.sG = [F(N), F(N), F(N)]; this.sW = F(N); this.sRes = F(N * (this.nS + this.nG));
     const rho = D.shared.rho, k2 = Math.sqrt(1 - rho * rho);
@@ -53,7 +54,9 @@
     for (let i = 0; i < this.sRes.length; i++) this.sRes[i] = t();
     // per-race error components at the model's settings (sd of each piece)
     const hs = H.sd;
-    this.hPart = H.seats.map(s => ({ shared: [hs.nat, hs.state, hs.urban * s.u, hs.hisp * s.h, hs.cuban * s.c, hs.asian * s.a, hs.wnc * s.w], own: s.res }));
+    // regional Hispanic factors (Texas / Florida / West; whatif.json from 2026-10-09 on - older files lack them and read as 0)
+    this.hPart = H.seats.map(s => ({ shared: [hs.nat, hs.state, hs.urban * s.u, hs.hisp * s.h, hs.cuban * s.c, hs.asian * s.a, hs.wnc * s.w,
+                                              (hs.htx || 0) * (s.htx || 0), (hs.hfl || 0) * (s.hfl || 0), (hs.hwest || 0) * (s.hwe || 0)], own: s.res }));
     const sh = D.shared, gs = sh.group_sd;
     const sw = (x) => ({ shared: [sh.state_miss * x.el, gs.hisp * x.h, gs.cuban * x.c, gs.asian * x.a, sh.wnc_sd * x.z], own: x.sd });
     this.sPart = S.races.map(sw); this.gPart = Gv ? Gv.races.map(sw) : [];
@@ -112,7 +115,8 @@
       for (let j = 0; j < nH; j++) {
         const s = H.seats[j];
         if (s.fix) { hm[j] = s.fix === "D" ? 50 : -50; continue; }
-        hm[j] = hMu[j] + nat + this.hSt[i * nSt + s.st] * hs.state * ksH + urb * s.u + ksH * (g[0][i] * hs.hisp * s.h + g[1][i] * hs.cuban * s.c + g[2][i] * hs.asian * s.a + g[3][i] * hs.wnc * s.w)
+        hm[j] = hMu[j] + nat + this.hSt[i * nSt + s.st] * hs.state * ksH + urb * s.u + ksH * (g[0][i] * hs.hisp * s.h + g[1][i] * hs.cuban * s.c + g[2][i] * hs.asian * s.a + g[3][i] * hs.wnc * s.w
+          + g[4][i] * (hs.htx || 0) * (s.htx || 0) + g[5][i] * (hs.hfl || 0) * (s.hfl || 0) + g[6][i] * (hs.hwest || 0) * (s.hwe || 0))
           + this.hRes[i * nH + j] * hOwn[j];
       }
       const shr = this.sNat[i] * sh.state_miss * ksS, sg = this.sG, wz = this.sW[i] * sh.wnc_sd * ksS;
