@@ -71,6 +71,8 @@ tao-subsurface.yml|09:10|
 tao-subsurface.yml|14:40|
 fci.yml|21:50|
 daily.yml|02:35|-R scorvec/midterms-2026
+# early-vote diagnostics (NC by race, FL vs 2024): own workflow, commits data/early only, never the forecast
+early-diag.yml|01:55|-R scorvec/midterms-2026
 midterms-sync.yml|03:15|
 midterms-sync.yml|05:15|
 ecape.yml|00:58|-f publish=true
