@@ -1053,7 +1053,7 @@ window.STAGE = {
       <h3>The static figure</h3>
       <p>The same forecast as a four-panel image (Ni&ntilde;o-3.4 and relative Ni&ntilde;o-3.4, monthly and
       three-month), for saving or sharing:</p>
-      <a href="assets/sst/c3s_nino34.webp?v=d18a99278dbc"><img src="assets/sst/c3s_nino34.webp?v=d18a99278dbc" loading="lazy" alt="Static four-panel C3S multi-model ENSO forecast figure" width="1512" height="1164"></a>
+      <a href="assets/sst/c3s_nino34.webp?v=95f20c39e350"><img src="assets/sst/c3s_nino34.webp?v=95f20c39e350" loading="lazy" alt="Static four-panel C3S multi-model ENSO forecast figure" width="1512" height="1164"></a>
       <h3>Sources</h3>
       <ul>
         <li>Copernicus Climate Change Service (C3S) seasonal forecast single-level data, monthly means and anomalies. Contains modified Copernicus Climate Change Service information 2026.</li>
@@ -2389,13 +2389,13 @@ window.STAGE = {
     return optional ? p.catch(function () { return null; }) : p;
   }
   Promise.all([
-    get("assets/sst/data/enso_forecast.json?v=d18a99278dbc"),
-    get("assets/sst/data/nino_history.json?v=d18a99278dbc", true),
-    get("assets/sst/data/enso_daily.json?v=d18a99278dbc", true),
-    get("assets/sst/data/c3s_evolution.json?v=d18a99278dbc", true),
-    get("assets/sst/data/enso_flavour.json?v=d18a99278dbc", true),
-    get("assets/sst/data/cpc_official.json?v=d18a99278dbc", true),
-    get("assets/sst/data/enso_flavour_obs.json?v=d18a99278dbc", true),
+    get("assets/sst/data/enso_forecast.json?v=95f20c39e350"),
+    get("assets/sst/data/nino_history.json?v=95f20c39e350", true),
+    get("assets/sst/data/enso_daily.json?v=95f20c39e350", true),
+    get("assets/sst/data/c3s_evolution.json?v=95f20c39e350", true),
+    get("assets/sst/data/enso_flavour.json?v=95f20c39e350", true),
+    get("assets/sst/data/cpc_official.json?v=95f20c39e350", true),
+    get("assets/sst/data/enso_flavour_obs.json?v=95f20c39e350", true),
     get("assets/sst/data/cansips_dd.json?h=" + Math.floor(Date.now() / 3.6e6), true)   // written monthly by cansips.yml, not by the page build,
   ]).then(function (res) {
     D.fc = res[0]; D.hist = res[1]; D.daily = res[2]; D.evo = res[3]; D.fl = res[4]; D.cpc = res[5]; D.flo = res[6]; D.cd = res[7];
