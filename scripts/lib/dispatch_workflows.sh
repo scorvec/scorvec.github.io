@@ -75,6 +75,11 @@ daily.yml|02:35|-R scorvec/midterms-2026
 early-diag.yml|01:55|-R scorvec/midterms-2026
 midterms-sync.yml|03:15|
 midterms-sync.yml|05:15|
+# 2026-10-10: daytime model reruns (new polls, fixes) sat unsynced until the next night - four more cheap sync slots
+midterms-sync.yml|10:15|
+midterms-sync.yml|14:15|
+midterms-sync.yml|18:15|
+midterms-sync.yml|22:15|
 ecape.yml|00:58|-f publish=true
 ecape.yml|06:58|-f publish=true
 ecape.yml|12:58|-f publish=true
