@@ -1,5 +1,5 @@
 {
- "made": "2026-10-11T22:18Z",
+ "made": "2026-10-11T22:32Z",
  "last_mls_day": "2026-09-17",
  "last_geosfp_day": "2026-10-11",
  "band": "10S-10N",
@@ -501,6 +501,42 @@
   "20": 0.429
  },
  "w_star": {
+  "merra2_dc_100": {
+   "annual": 0.272,
+   "djf": 0.35,
+   "jja": 0.258,
+   "years": "1991-2009 (15 years)"
+  },
+  "merra2_dc_70": {
+   "annual": 0.222,
+   "djf": 0.255,
+   "jja": 0.233,
+   "years": "1991-2009 (15 years)"
+  },
+  "merra2_dc_50": {
+   "annual": 0.231,
+   "djf": 0.266,
+   "jja": 0.24,
+   "years": "1991-2009 (15 years)"
+  },
+  "bdc_dc_100": {
+   "geosfp_30d": 0.224,
+   "merra2_normal_same_days": 0.202,
+   "p": 0.451,
+   "window": [
+    "2026-09-12",
+    "2026-10-11"
+   ]
+  },
+  "bdc_dc_70": {
+   "geosfp_30d": 0.234,
+   "merra2_normal_same_days": 0.183,
+   "p": 0.113,
+   "window": [
+    "2026-09-12",
+    "2026-10-11"
+   ]
+  },
   "geosfp_direct_70": 0.193,
   "geosfp_dc_70": 0.204,
   "geosfp_direct_100": 0.198,
