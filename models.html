@@ -142,6 +142,10 @@
   .mv-note { margin: 0.5rem 0 0; padding: 0.55rem 0.8rem; background: var(--panel); border: 1px solid var(--rule); border-left: 4px solid var(--accent);
              border-radius: 4px; font-size: 1.02rem; color: var(--ink2); max-width: 80rem; }
   .mv-note:empty { display: none; }
+  /* data-use warning (user 2026-10-10: "uses a lot of data ... for instance on mobile"); sizes measured on the 2026-10-10 18Z cycles */
+  .mv-data { max-width: calc(80ch * 1.16 / 0.98); margin: -0.4rem auto 1rem; padding: 0.55rem 1.1rem; background: #fdf6e7; border: 1px solid #ecdcb8;
+             border-left: 4px solid #b26b00; border-radius: 8px; font-size: 0.98rem; color: var(--ink2); }   /* width = the lede box (80ch at 1.16rem) */
+  .mv-data b { color: var(--ink); font-weight: 600; }
   .mv-note b { color: var(--ink); font-weight: 600; }
   .mv-about { max-width: 80rem; color: var(--ink2); font-size: 1.04rem; margin-top: 1.4rem; border-top: 1px solid var(--rule); padding-top: 0.6rem; }
   .mv-about > summary { cursor: pointer; font-family: var(--serif); font-size: 1.25rem; color: var(--ink); padding: 0.3rem 0; }
@@ -217,6 +221,7 @@
     main.mv { padding-top: 0.6rem; }
     h1 { font-size: 1.45rem; margin: 0.1rem 0 0.25rem; }
     main.mv > .lede { font-size: 1.04rem; padding: 0.75rem 0.9rem; margin: 0.4rem 0 0.8rem; }
+    .mv-data { font-size: 0.97rem; margin: -0.2rem 0 0.8rem; }
     .seg button { padding: 0.55rem 0.72rem; font-size: 1.06rem; min-height: 46px; }
     .runsel, .runsel select, .chk { font-size: 1.04rem; }
     .mv-time button { min-width: 2.9rem; }
@@ -410,6 +415,7 @@
   <p class="kicker">Newest run of each model &middot; updated four times a day</p>
   <h1>Short-range model maps</h1>
   <p class="lede">Zoomable maps of the newest HRRR, RRFS and RDPS forecasts, out to two to three and a half days, for aviation, severe and winter weather (including snow-band diagnostics), and wind and solar power. Pick a map, scrub through the hours, and hover or tap anywhere for the model's value. <b>Click or tap an airport</b> for its forecast from all three models, and compare the HRRR and RRFS with <b>Minus</b>.</p>
+  <p class="mv-data" role="note"><b>Heavy on data, especially on mobile.</b> Opening a map loads only the hour on screen (0.05&ndash;0.6&nbsp;MB). Once you play, step or drag the time slider, the viewer downloads every hour of that map so the loop never stalls: typically 5&ndash;30&nbsp;MB a map, twice that with <b>Minus</b>, and 100&nbsp;MB or more after a dozen maps. It holds back to the next few hours only on a slow connection, not on a good 4G or 5G signal. On a capped data plan, look at single hours or wait for Wi&#8209;Fi.</p>
 
   <div class="mv-panel">
   <div class="mv-bar">
