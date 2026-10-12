@@ -467,6 +467,8 @@
   }
   addEventListener("hashchange", follow);
   addEventListener("popstate", follow);
+  // a page whose products depend on data it loads after the first paint (the SFS page's data check, 2026-10-12) redraws with this
+  S.refresh = function () { closeSheet(); render(); };
   buildRail();
   wireSwipe();
   clampIntro();

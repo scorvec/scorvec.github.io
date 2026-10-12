@@ -153,6 +153,11 @@ PRODUCTS = [
             ("/gefs.html", "GEFS extended ensemble",
              "NOAA's GEFS extended ensemble to day 35 in the same layout: weekly anomalies against its own reforecast and the change since a week earlier (its drift-corrected polar vortex is on the stratosphere page).",
              "Daily"),
+            # 2026-10-12, user: "make an SFS-beta 2 page like what we have for the GEPS/GEFS"; its daily products are gated on a
+            # data check (NOAA's beta2 daily forecast store was defective in its first two issues)
+            ("/sfs-subseasonal.html", "SFS extended (experimental)",
+             "NOAA's experimental SFS beta2, 31 members from the first of each month, weeks 1–6 in the same layout against its own 1991–2020 reforecast, with its hindcast skill against GEFS and GEPS.",
+             "Monthly"),
         ]),
         ("Seasons", [
             # renamed from "Eight C3S seasonal models" and the NOAA SFS page folded in (2026-10-06, user)
@@ -263,7 +268,8 @@ PAGES = [
     dict(path="stratosphere.html", mode="after-body", tabs="enso"),   # split out of circulation.html 2026-09-26
     dict(path="tropical-waves.html", mode="after-body", tabs="enso"),   # every tropical-wave product, 2026-10-03
     dict(path="subseasonal.html", mode="site-header", fixes=[]),   # page restyled 2026-09-07 on /assets/outlook.css; no padding patches needed
-    dict(path="gefs.html", mode="site-header"),                    # GEFS extended page (scripts/gefs, gefs.yml), GEPS layout
+    dict(path="gefs.html", mode="site-header"),
+    dict(path="sfs-subseasonal.html", mode="site-header"),        # SFS beta2 subseasonal page (scripts/sfs/sfs_sub.py, sfs.yml), GEFS layout                    # GEFS extended page (scripts/gefs, gefs.yml), GEPS layout
     dict(path="subseasonal-method.html", mode="site-header"),      # methodology note split out of subseasonal.html; linked from there only, not in PRODUCTS
     dict(path="mjo.html", mode="nav"),
     # ecape.html: retired 2026-09-30, now a redirect stub to models.html#hrrr/ecape (no chrome)

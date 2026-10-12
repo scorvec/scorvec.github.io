@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SFS Subseasonal Outlook &mdash; NOAA SFS beta2 Weeks 1&ndash;6, Against Its Own Reforecast &middot; Shawn Corvec</title>
+<meta name="description" content="NOAA's experimental Seasonal Forecast System (SFS beta2), weeks 1 to 6: weekly anomaly maps, tercile probabilities and a daily animation for North America, South America and the globe, against its own 1991-2020 reforecast, with a hindcast comparison against GEFS and GEPS.">
+<link rel="canonical" href="https://scorvec.com/sfs-subseasonal.html">
+<meta property="og:type" content="website">
+<meta property="og:title" content="SFS subseasonal outlook, weeks 1–6">
+<meta property="og:description" content="NOAA SFS beta2 weeks 1-6 against its own 1991-2020 reforecast, with its hindcast skill against GEFS and GEPS.">
+<meta property="og:url" content="https://scorvec.com/sfs-subseasonal.html">
+<meta property="og:site_name" content="Shawn Corvec &mdash; Weather &amp; Climate Monitors">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="SFS subseasonal outlook, weeks 1–6">
+<meta name="twitter:description" content="NOAA SFS beta2 weeks 1-6 against its own 1991-2020 reforecast, with its hindcast skill against GEFS and GEPS.">
+<link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;1,400&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/outlook.css">
+<link rel="stylesheet" href="/assets/stage.css">
+<style>
+  /* sfs-subseasonal.html (2026-10-12) — the GEFS page's rules, page-specific rules on top of /assets/outlook.css (shared with seas5 and sfs).
+     Redesigned 2026-09-07: the product dropdown became a menu rail (user: "too much is hidden in a
+     drop-down ... redesign with menus and buttons ... a more advanced design"). */
+  table.tele { width: 100%; border-collapse: collapse; margin: 0.9rem 0 0.3rem; font-size: 0.78rem; }
+  table.tele th, table.tele td { padding: 0.35rem 0.4rem; text-align: center; border-bottom: 1px solid var(--rule); }
+  table.tele thead th { font-weight: 600; color: var(--ink); }
+  table.tele tbody th { text-align: left; font-weight: 600; white-space: nowrap; }
+  table.tele th span, table.tele td span { display: block; font-weight: 400; font-size: 0.7rem; color: var(--muted); }
+  table.tele td i { font-style: normal; color: #4a4640; }
+  table.tele td.r { color: var(--muted); font-size: 0.72rem; white-space: nowrap; }
+  table.tele td.noskill { background-image: repeating-linear-gradient(135deg, rgba(255,255,255,0.55) 0 4px, rgba(140,136,128,0.35) 4px 6px) !important; color: var(--muted); }
+  table.tele td.noskill b { color: var(--muted); }
+  .method-note { margin-top: 2rem; border-top: 1px solid var(--rule); padding-top: 1.2rem; }
+  .method-note h2 { font-family: var(--serif); font-weight: 500; font-size: 1rem; color: var(--ink); margin-bottom: 0.5rem; }
+  .method-note p { font-size: 0.82rem; color: var(--ink2); line-height: 1.7; max-width: 62rem; }
+  .method-note b { color: var(--ink); font-weight: 500; }
+  .method-note a { color: var(--accent); text-decoration: none; border-bottom: 1px solid var(--accent-light); white-space: nowrap; }
+  .method-note a:hover { border-bottom-color: var(--accent); }
+  /* the viewer is /assets/stage.css (navigation phase 2, 2026-09-27); the number tables sit under the caption */
+  #tele-table, #mjo-table { padding: 0 1.2rem; overflow-x: auto; }   /* phones: the five-week table scrolls inside the card (it was clipped) */
+  @media (max-width: 640px) { #tele-table, #mjo-table { padding: 0 0.5rem; } }
+  .gate { border: 1px solid var(--rule); border-left: 4px solid #b4572a; border-radius: 8px; padding: 1rem 1.2rem; background: #fffaf6; }
+  .gate h2 { font-family: var(--serif); font-weight: 500; font-size: 1.05rem; margin: 0 0 0.4rem; }
+  .gate p, .gate li { font-size: 0.86rem; line-height: 1.6; color: var(--ink2); }
+  .gate ul { margin: 0.4rem 0 0.4rem 1.1rem; }
+  .gate .ok { color: #2f6b3a; font-weight: 600; } .gate .bad { color: #9a3412; font-weight: 600; }
+</style>
+<script data-goatcounter="https://scorvec.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400&family=Schibsted+Grotesk:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/site.css">
+<script src="/assets/site.js" defer></script>
+<script src="/assets/rail.js" defer></script>
+</head>
+<body>
+
+<!-- sh:start -->
+<header class="sh" id="site-header">
+  <div class="sh-in">
+    <a class="sh-brand" href="/">Shawn Corvec</a>
+    <button class="sh-find" type="button" aria-haspopup="dialog" aria-keyshortcuts="Control+K Meta+K" title="Find a plot (Ctrl K)"><svg viewBox="0 0 20 20" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true" focusable="false"><circle cx="8.5" cy="8.5" r="5.5" style="fill:none;stroke:currentColor"/><path d="M12.6 12.6 17 17" style="fill:none;stroke:currentColor"/></svg><span class="sh-find-t">Find a plot</span><kbd>Ctrl K</kbd></button>
+    <button class="sh-toggle" type="button" aria-expanded="false" aria-controls="sh-menu">Menu</button>
+    <nav class="sh-nav" id="sh-menu" aria-label="Site">
+      <ul class="sh-list">
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g0">Mid-latitude weather</button>
+          <div class="sh-menu sh-menu--cols" id="sh-g0">
+            <div>
+              <h3>Surface and hazards</h3>
+              <ul>
+                <li><a href="/models.html">Short-range model maps</a></li>
+                <li><a href="/radar.html">US Radar Explorer</a></li>
+                <li><a href="/ar.html">Atmospheric rivers</a></li>
+              </ul>
+            </div>
+            <div>
+              <h3>Upper air</h3>
+              <ul>
+                <li><a href="/circulation.html#dt">Dynamic tropopause</a></li>
+                <li><a href="/circulation.html#pacjet">North Pacific jet</a></li>
+                <li><a href="/circulation.html#waf">Wave activity flux</a></li>
+              </ul>
+            </div>
+          </div>
+        </li>
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g1">Tropics</button>
+          <div class="sh-menu sh-menu--cols" id="sh-g1">
+            <div>
+              <h3>ENSO and the MJO</h3>
+              <ul>
+                <li><a href="/enso.html">El Niño monitor</a></li>
+                <li><a href="/circulation.html#mslp">Pacific pressure and wind</a></li>
+                <li><a href="/mjo.html">MJO forecast</a></li>
+                <li><a href="/tropical-waves.html">Tropical waves</a></li>
+              </ul>
+            </div>
+            <div>
+              <h3>Tropical cyclones</h3>
+              <ul>
+                <li><a href="/circulation.html#tcjet">Tropical cyclones and the jet</a></li>
+                <li><a href="/circulation.html#tcens">Tropical cyclone ensembles</a></li>
+                <li><a href="/circulation.html#tcphase">Cyclone phase space</a></li>
+                <li><a href="/circulation.html#tcshear">Shear and environment</a></li>
+                <li><a href="/recon.html">Hurricane reconnaissance</a></li>
+              </ul>
+            </div>
+            <div>
+              <h3>Tropical circulation</h3>
+              <ul>
+                <li><a href="/circulation.html#walker">Walker and Hadley cells</a></li>
+                <li><a href="/circulation.html#vpot">Velocity potential</a></li>
+                <li><a href="/circulation.html#gillrain">Rain-forced circulation (Gill model)</a></li>
+              </ul>
+            </div>
+          </div>
+        </li>
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g2">Stratosphere</button>
+          <div class="sh-menu sh-menu--cols" id="sh-g2">
+            <div>
+              <h3>Polar vortex and QBO</h3>
+              <ul>
+                <li><a href="/stratosphere.html">Stratosphere and polar vortex</a></li>
+                <li class="sh-subitem"><a href="/stratosphere.html#pv">Now: analyses and observations</a></li>
+                <li class="sh-subitem"><a href="/stratosphere.html#vortex">Next two weeks</a></li>
+                <li class="sh-subitem"><a href="/stratosphere.html#vortex35">Weeks 3–5</a></li>
+                <li class="sh-subitem"><a href="/stratosphere.html#s5vortex">Season</a></li>
+                <li class="sh-subitem"><a href="/stratosphere.html#shwinters">History and studies</a></li>
+                <li class="sh-subitem"><a href="/stratosphere.html#qbo">QBO tracker</a></li>
+              </ul>
+            </div>
+            <div>
+              <h3>Momentum</h3>
+              <ul>
+                <li><a href="/circulation.html#aam">Angular momentum and torques</a></li>
+              </ul>
+            </div>
+          </div>
+        </li>
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g3" aria-current="page">Weeks to seasons</button>
+          <div class="sh-menu sh-menu--cols" id="sh-g3">
+            <div>
+              <h3>Weeks 2–5</h3>
+              <ul>
+                <li><a href="/subseasonal.html">GEPS extended ensemble</a></li>
+                <li><a href="/gefs.html">GEFS extended ensemble</a></li>
+                <li><a href="/sfs-subseasonal.html" aria-current="page">SFS extended (experimental)</a></li>
+              </ul>
+            </div>
+            <div>
+              <h3>Seasons</h3>
+              <ul>
+                <li><a href="/seasonal.html">Seasonal model forecasts</a></li>
+                <li><a href="/enso-forecasts.html">ENSO forecasts</a></li>
+              </ul>
+            </div>
+          </div>
+        </li>
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g4"><span class="sh-lf">Studies and verification</span><span class="sh-ls">Studies/verification</span></button>
+          <div class="sh-menu sh-menu--cols" id="sh-g4">
+            <div>
+              <h3>Studies</h3>
+              <ul>
+                <li><a href="/enso.html#imp_reg">ENSO impacts on the Americas</a></li>
+                <li><a href="/mjo.html#mi">MJO impacts</a></li>
+                <li><a href="/stratosphere.html#shwinters">Stratosphere history</a></li>
+                <li><a href="/aifs-aam-budget.html">AINWP and conservation</a></li>
+                <li><a href="/topics/">Explainers</a></li>
+              </ul>
+            </div>
+            <div>
+              <h3>Verification</h3>
+              <ul>
+                <li><a href="/aifs-verify.html">AIFS single versus member 0</a></li>
+              </ul>
+            </div>
+          </div>
+        </li>
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g5">Tools</button>
+          <div class="sh-menu sh-menu--list" id="sh-g5">
+            <ul>
+              <li><a href="/catalog.html">Every plot on the site</a></li>
+              <li><a href="/skewt/">Sounding explorer</a></li>
+              <li><a href="/asos5.html">Five-minute airport observations</a></li>
+              <li><a href="/climate.html">US climate trends</a></li>
+              <li><a href="/fci.html">US credit conditions</a></li>
+            </ul>
+          </div>
+        </li>
+        <li class="sh-item sh-item--special"><a class="sh-special" href="/midterms/">2026 Midterms</a></li>
+        <li class="sh-item sh-has-menu sh-item--me">
+          <button class="sh-link sh-menubtn sh-me" type="button" aria-expanded="false" aria-controls="sh-me">About</button>
+          <div class="sh-menu sh-menu--list sh-menu--me" id="sh-me">
+            <ul>
+              <li><a href="/about.html">About me</a></li>
+              <li><a href="/resume.html">Resume</a></li>
+              <li><a href="/research.html">Publications</a></li>
+              <li class="sh-me-ext"><a href="https://github.com/scorvec">GitHub</a></li>
+              <li><a href="https://scholar.google.com/citations?user=EYLRCJIAAAAJ&amp;hl=en">Google Scholar</a></li>
+              <li><a href="https://www.linkedin.com/in/shawn-corvec-35895b231/">LinkedIn</a></li>
+            </ul>
+          </div>
+        </li>
+      </ul>
+    </nav>
+  </div>
+</header>
+<!-- sh:end -->
+
+<main>
+  <div class="page-header">
+    <p class="eyebrow">Days 1 to 42, from NOAA's experimental SFS beta2, once a month</p>
+    <h1>SFS subseasonal outlook</h1>
+    <p class="sub">NOAA's <b>Seasonal Forecast System</b> &mdash; the coupled UFS successor to CFSv2, still experimental (beta2) &mdash;
+    runs 31 members from the first of each month. Anomalies are against <b>its own 1991&ndash;2020 reforecast</b> for the same
+    start month and lead, so the model's drift is not read as a forecast. Weekly maps and terciles for weeks 1&ndash;6 and the daily
+    animation, in the same layout as the <a href="/gefs.html">GEFS</a> and <a href="/subseasonal.html">GEPS</a> pages, and how its
+    hindcasts score against those two. Its monthly and seasonal forecast is on the <a href="/seasonal.html#sfs">seasonal page</a>.</p>
+    <div class="chips">
+      <div class="chip"><div class="l">issue</div><div class="v" id="g-cycle">&ndash;</div><div class="s">first of the month, 00Z</div></div>
+      <div class="chip"><div class="l">valid</div><div class="v"><b id="g-valid">&ndash;</b></div><div class="s">weeks 1&ndash;6</div></div>
+      <div class="chip"><div class="l">members</div><div class="v" id="g-members">31</div><div class="s">SFS beta2</div></div>
+      <div class="chip"><div class="l">daily data check</div><div class="v" id="g-gate">&ndash;</div><div class="s">NOAA's daily forecast store</div></div>
+    </div>
+  </div>
+  <div class="ss-layout">
+    <aside class="ss-rail" id="rail" aria-label="Products"></aside>
+    <section class="ss-main">
+      <div class="crumb">
+        <div class="path" id="crumb"></div>
+        <div class="nav"><button type="button" id="prevBtn" title="previous (&larr;)">&larr; prev</button><button type="button" id="nextBtn" title="next (&rarr;)">next &rarr;</button></div>
+      </div>
+      <div class="opts">
+        <div class="controls" id="opts-a"></div>
+        <div class="controls" id="opts-b"></div>
+        <div class="controls" id="opts-c"></div>
+      </div>
+      <div class="stage" id="stage"></div>
+      <p class="cap" id="cap"></p>
+      <div id="about"></div>
+      <p class="hint"><span class="kbd">&larr;</span> <span class="kbd">&rarr;</span> step through the last option row &middot; <span class="kbd">&uarr;</span> <span class="kbd">&darr;</span> change product &middot; click a figure to enlarge</p>
+      <div class="chart-card-footer">
+        <span class="chart-sources">NOAA SFS beta2 forecast and reforecast (NODD, AWS open data) &middot; ERA5 (Copernicus C3S) &middot; GEFSv12 reforecast (NOAA) &middot; GEPS hindcast (ECCC, S2S)</span>
+        <span class="chart-updated" id="g-updated">&ndash;</span>
+      </div>
+    </section>
+  </div>
+  <div class="lightbox" id="lightbox"><img alt=""></div>
+  <div class="dom-holder">
+    <div id="dom-status" class="gate" hidden>
+      <h2>This issue's daily forecasts did not pass the data check</h2>
+      <p id="gate-lead">Checking NOAA's daily forecast store for this issue&hellip;</p>
+      <ul id="gate-why"></ul>
+      <p>Every issue is checked before anything is drawn: all forecast days filled, the 35&ndash;65&deg;N temperature trend across the
+      forecast close to the reforecast's for the same start month, and the daily fields averaged over the first month matching the issue's
+      own monthly mean. The weekly maps, terciles and animation appear here by themselves the first month NOAA's daily store passes.
+      The monthly forecast, which is sound, is on the <a href="/seasonal.html#sfs">seasonal page</a>; the hindcast comparison (Verification, in the menu)
+      uses the reforecast, which is sound too.</p>
+    </div>
+  </div>
+  <section class="method-note">
+    <h2>How it is built</h2>
+    <p>On the first of each month NOAA's SFS beta2 runs 31 members to day 46; NOAA publishes them about five days later. Each field is
+    regridded to the GEFS page's 1.5&deg; grid and every forecast day is differenced from the mean of SFS's own reforecast at the same lead
+    &mdash; 11 members from the same start date of every year 1991&ndash;2020, which removes the model's drift and its mean bias together;
+    because the reforecast spans the normal period itself, no further re-basing is needed. 500 hPa height has its global mean removed so
+    the circulation shows. The tercile maps count the 31 members against the terciles of the reforecast's own weekly anomalies
+    (330 per gridpoint and week). The skill masks hatch wherever the reforecast ensemble mean's anomaly correlation with ERA5, over the
+    1991&ndash;2025 starts of the same month with a leave-one-year-out climatology, is below 0.25 (temperature worldwide; precipitation over
+    the Northern Hemisphere only, where the local ERA5 record has it). NOAA's own published climatology files are not used: the October one
+    was found to be a copy of September's. The hindcast comparison scores SFS, GEFSv12 and GEPS on the same 38 start dates (1 September and
+    1 October, 2001&ndash;2019) as four-member means against ERA5.</p>
+  </section>
+</main>
+
+<footer><span class="counter">GEFS days 1&ndash;35</span></footer>
+
+<script>
+// SFS subseasonal page (2026-10-12): the GEFS page's viewer and figures for NOAA's SFS beta2. Everything that needs the daily
+// forecast store is shown only when this issue passed the data check (assets/sfs/data/sfs_sub.json, scripts/sfs/sfs_sub.py);
+// until then those products show the check's result instead.
+var SUB = null;
+var FIELDS = [["t2m","2 m temp"],["pr","Precip"],["mslp","MSLP"],["zg500","500 hPa Z"],
+              ["olr","OLR"],["u850","850 u"],["u200","200 u"],["v850","850 v"],["v200","200 v"]];
+var DOMAINS = {label:"Domain", items:[["na","North America"],["sa","South America"],["glb","Global (Mercator)"]]};
+var MASKABLE = ["t2m","pr"];
+var gated = function () { return SUB && !SUB.ok ? "dom-status" : null; };
+var P = {
+  weekly: {label: "Weekly means, weeks 1–6", fit: false, a: DOMAINS, b: {label:"Field", items: FIELDS},
+        c: function (a,b) { return MASKABLE.indexOf(b) >= 0 ? {label:"Skill mask", items:[["off","Off"],["on","On"]]} : null; },
+        dom: gated,
+        img: function (a,b,c) { return "assets/sfs/sub/sfs_" + a + "_" + b + "_weekly" + (c==="on" ? "_masked" : "") + ".webp"; },
+        cap: function (a,b,c) { if (gated()) return ""; return "Six seven-day means of the 31-member ensemble mean, anomaly against SFS's own 1991–2020 reforecast at the same lead."
+          + (c==="on" ? " Hatched where the reforecast's anomaly correlation with ERA5 is below 0.25 for this week and start month; cross-hatched where there is no ERA5 truth." : ""); }},
+  probs: {label: "Weekly terciles — temperature & precipitation", fit: false, a: DOMAINS,
+        b: {label:"Field", items:[["t2m","2 m temp"],["pr","Precip"]]},
+        dom: gated,
+        img: function (a,b) { return "assets/sfs/sub/sfs_" + a + "_" + b + "_prob_raw.webp"; },
+        cap: function (a,b) { if (gated()) return ""; return "Most likely tercile by week: colour is the category (blue below, grey near, red above normal), intensity its probability, from the fraction of the 31 members in each tercile of the reforecast's own weekly anomalies. Hatched: reforecast skill below 0.25."
+          + (b==="pr" ? " Cross-hatched: no ERA5 precipitation truth (Southern Hemisphere) or a dry climatological week." : ""); }},
+  daily: {label: "Daily animation", a: DOMAINS,
+        dom: gated,
+        frame: function (a) { return "sst_anim.html?base=assets/sfs/anim/sub&manifest=sfs_sub_" + a + "_manifest.json&embed=1"; },
+        ratio: function (a) { return a==="na" ? "760/640" : (a==="sa" ? "760/1041" : "760/557"); },
+        cap: function () { if (gated()) return ""; return "One frame per forecast day, nine fields: the ensemble mean of the day, anomaly against the lead-matched SFS reforecast."; }},
+  skill: {label: "Hindcast skill vs GEFS and GEPS", fit: false,
+        a: {label:"", items:[["acc","Anomaly correlation by week"]]},
+        img: function () { return "assets/sfs/sub/sfs_hindcast_skill.webp"; },
+        cap: function () { return "SFS beta2, GEFSv12 and GEPS hindcasts on the same 38 starts (1 September and 1 October, 2001–2019), each a four-member mean against its own hindcast climatology, verified against ERA5. SFS is clearly behind both in weeks 1–2; from week 3 the three are statistically indistinguishable and all near the limit of skill for these start months."; }},
+  status: {label: "Daily data check", dom: function () { return "dom-status"; },
+        cap: function () { return ""; }}
+};
+var GROUPS = [["Maps", "\u{1F5FA}", [["weekly","Weekly means","weeks 1–6, nine fields"],["probs","Weekly terciles","temperature and precipitation"],["daily","Daily animation","one frame per day"]]],
+              ["Verification", "✓", [["skill","Hindcast skill","against GEFS and GEPS"],["status","Daily data check","this issue"]]]];
+var $ = function (id) { return document.getElementById(id); };
+fetch("assets/sfs/data/sfs_sub.json", {cache: "no-cache"}).then(function (r) { return r.json(); }).then(function (m) {
+  SUB = m;
+  var set = function (id, t) { var e = $(id); if (e && t != null) e.textContent = t; };
+  set("g-cycle", m.init); set("g-valid", m.valid || "–"); set("g-members", m.members || 31); set("g-updated", "issue " + (m.issue || ""));
+  var g = $("g-gate"); if (g) { g.textContent = m.ok ? "passed" : "failed"; g.className = "v " + (m.ok ? "ok" : "bad"); }
+  var ck = m.check || {};
+  var lead = $("gate-lead");
+  if (lead) lead.innerHTML = m.ok ? "<span class=\"ok\">The " + (m.issue || "") + " issue passed.</span>"
+    : "<span class=\"bad\">The " + (m.issue || "") + " issue failed</span>, so its daily products are not drawn:";
+  var ul = $("gate-why"); if (ul) ul.innerHTML = (ck.why || []).map(function (w) { return "<li>" + w + "</li>"; }).join("");
+  var box = $("dom-status"); if (box && m.ok) box.querySelector("h2").textContent = "This issue's daily forecasts passed the data check";
+  if (window.STAGE && window.STAGE.refresh) window.STAGE.refresh();   // redraw with the check's result
+}).catch(function () {});
+window.STAGE = { groups: GROUPS.map(function (g) { return { label: g[0], ico: g[1], items: g[2] }; }), products: P };
+</script>
+<!-- sf:start -->
+<footer class="sf">
+  <div class="sf-in">
+    <div class="sf-group">
+      <p class="sf-h" role="heading" aria-level="2">This site</p>
+      <ul>
+        <li><a href="/">Home</a></li>
+        <li><a href="/catalog.html">Every plot</a></li>
+        <li><a href="/topics/">Explainers</a></li>
+        <li><a href="/stats.html">Visitor stats</a></li>
+      </ul>
+      <p class="sf-disclaimer">This site is under constant development. Nothing here is checked before publication and there is no expectation of accuracy, completeness or availability; do not rely on it for decisions. Built from open data; sources are credited on each page.</p>
+    </div>
+    <div class="sf-group sf-group--me">
+      <p class="sf-h" role="heading" aria-level="2">Shawn Corvec</p>
+      <ul>
+        <li><a href="/about.html">About</a></li>
+        <li><a href="/resume.html">Resume</a></li>
+        <li><a href="/research.html">Publications</a></li>
+        <li><a href="https://github.com/scorvec" rel="noopener">GitHub</a></li>
+        <li><a href="https://www.linkedin.com/in/shawn-corvec-35895b231/" rel="noopener">LinkedIn</a></li>
+        <li><a href="https://scholar.google.com/citations?user=EYLRCJIAAAAJ&amp;hl=en" rel="noopener">Google Scholar</a></li>
+      </ul>
+    </div>
+  </div>
+</footer>
+<!-- sf:end -->
+<script src="/assets/stage.js" defer></script>
+</body>
+</html>

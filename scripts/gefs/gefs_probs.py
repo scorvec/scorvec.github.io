@@ -221,6 +221,12 @@ def _grid(stack, asp, n=5):
     return fig, rects, [0.36, 0.44 / fig_h, 0.28, 0.15 / fig_h], 0.06 / fig_h, 1.0 - 0.18 / fig_h
 
 
+# Label, file prefix and the tercile note: GEFS by default; scripts/sfs/sfs_sub.py (2026-10-12) sets its own.
+MODEL, PREFIX = "GEFS", "gefs"
+TERC_NOTE = "2016–2025 terciles"
+CAL_NOTE = "calibrated, 2000–2019 hindcast"
+
+
 def draw(tag, base, weeks, kind, n_members, out: Path):
     plt = _plt()
     import cartopy.crs as ccrs
@@ -287,15 +293,15 @@ def draw(tag, base, weeks, kind, n_members, out: Path):
             cb.ax.xaxis.set_label_position("bottom")
             cb.set_label(f"{cat} normal (%)", fontsize=9.2, labelpad=2)
             cb.ax.tick_params(labelsize=7.8, pad=1.2)
-        fig.suptitle(f"{dom['label']} — {title}: most likely tercile by week · GEFS init {base:%Y-%m-%d} · "
-                     f"{f'raw, {n_members} members' if kind == 'raw' else 'calibrated, 2000–2019 hindcast'}",
+        fig.suptitle(f"{dom['label']} — {title}: most likely tercile by week · {MODEL} init {base:%Y-%m-%d} · "
+                     f"{f'raw, {n_members} members' if kind == 'raw' else CAL_NOTE}",
                      fontsize=12.5, fontweight="bold", y=title_y, va="top")
-        note = (f"2016–2025 terciles · colour = most likely tercile, intensity = its probability "
+        note = (f"{TERC_NOTE} · colour = most likely tercile, intensity = its probability "
                 f"(33% = no signal) · hatched = hindcast r < {SKILL_MIN} (no skill)"
                 + (" · cross-hatched = no gauge truth / dry week" if tag == "pr" else "")
                 + (f" · raw: {100 / n_members:.0f}% steps" if kind == "raw" else " · calibrated: no skill → ⅓ each"))
         fig.text(0.5, 0.004, note, ha="center", va="bottom", fontsize=7.0, color="#5a5650")
-        p = out / f"gefs_{key}_{tag}_prob_{kind}.webp"
+        p = out / f"{PREFIX}_{key}_{tag}_prob_{kind}.webp"
         fig.savefig(p, dpi=105, facecolor="white", pil_kwargs={"quality": 88, "method": 6})
         plt.close(fig)
         names.append(p.name)

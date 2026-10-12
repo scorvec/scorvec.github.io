@@ -96,6 +96,8 @@ PAGES = {
                               models=["GEPS"], horizon="Weeks 1–5", region=["North America"], own_models=True),
     "/gefs.html": dict(kind="stage", file="gefs.html", topic="outlooks", title="GEFS extended ensemble", tier=0, prio=3,
                        models=["GEFS"], horizon="Weeks 1–5", region=["North America"], own_models=True),
+    "/sfs-subseasonal.html": dict(kind="stage", file="sfs-subseasonal.html", topic="outlooks", title="SFS extended (experimental)", tier=0, prio=4,
+                                  models=["SFS"], horizon="Weeks 1–5", region=["North America"], own_models=True),
     "/seasonal.html": dict(kind="stage", file="seasonal.html", topic="outlooks", title="Seasonal model forecasts", tier=2, prio=30,
                            models=["C3S", "SEAS5"], horizon="Seasons", region=["Global"],
                            # the NOAA SFS page, folded in 2026-10-06 (sfs.html is a redirect stub)
