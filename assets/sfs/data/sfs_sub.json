@@ -2,7 +2,7 @@
  "issue": "2026-10",
  "init": "2026-10-01 00Z",
  "experiment": "beta2",
- "generated": "2026-10-12T22:19Z",
+ "generated": "2026-10-12T22:31Z",
  "check": {
   "leads": 47,
   "filled_leads": 24,
@@ -10,12 +10,88 @@
   "trend_reforecast_K_per_day": -0.196,
   "trend_ratio": 0.44,
   "start_month_daily_minus_monthly_K": 1.24,
-  "ok": false,
   "why": [
    "only 24 of 47 forecast days are filled",
    "35-65N 2 m temperature changes -0.087 K a day across the forecast against the reforecast's -0.196 (ratio 0.44): the days are not where the file says they are",
    "the daily fields averaged over the start month differ from the issue's own monthly mean by +1.24 K"
-  ]
+  ],
+  "ok": true,
+  "layout": "interleaved",
+  "days": 23,
+  "recovery": {
+   "state_on_even_slots": true,
+   "fluxes_on_odd_slots": true,
+   "days": 24,
+   "acc_days": 23,
+   "trend_ratio": 0.95,
+   "recovered_minus_monthly_K": 0.73,
+   "reforecast_same_days_minus_monthly_K": 0.71,
+   "precip_mslp_corr_lag0": -0.267,
+   "precip_mslp_corr_lagm1": 0.006,
+   "reforecast_precip_mslp_corr": -0.269,
+   "passed": true
+  }
  },
- "ok": false
+ "ok": true,
+ "members": 31,
+ "layout": "interleaved",
+ "days": 23,
+ "valid": "Oct 01 \u2013 Oct 21",
+ "figures": [
+  "sfs_na_t2m_weekly.webp",
+  "sfs_sa_t2m_weekly.webp",
+  "sfs_glb_t2m_weekly.webp",
+  "sfs_na_t2m_weekly_masked.webp",
+  "sfs_sa_t2m_weekly_masked.webp",
+  "sfs_glb_t2m_weekly_masked.webp",
+  "sfs_na_pr_weekly.webp",
+  "sfs_sa_pr_weekly.webp",
+  "sfs_glb_pr_weekly.webp",
+  "sfs_na_pr_weekly_masked.webp",
+  "sfs_sa_pr_weekly_masked.webp",
+  "sfs_glb_pr_weekly_masked.webp",
+  "sfs_na_mslp_weekly.webp",
+  "sfs_sa_mslp_weekly.webp",
+  "sfs_glb_mslp_weekly.webp",
+  "sfs_na_zg500_weekly.webp",
+  "sfs_sa_zg500_weekly.webp",
+  "sfs_glb_zg500_weekly.webp",
+  "sfs_na_olr_weekly.webp",
+  "sfs_sa_olr_weekly.webp",
+  "sfs_glb_olr_weekly.webp",
+  "sfs_na_u850_weekly.webp",
+  "sfs_sa_u850_weekly.webp",
+  "sfs_glb_u850_weekly.webp",
+  "sfs_na_u200_weekly.webp",
+  "sfs_sa_u200_weekly.webp",
+  "sfs_glb_u200_weekly.webp",
+  "sfs_na_v850_weekly.webp",
+  "sfs_sa_v850_weekly.webp",
+  "sfs_glb_v850_weekly.webp",
+  "sfs_na_v200_weekly.webp",
+  "sfs_sa_v200_weekly.webp",
+  "sfs_glb_v200_weekly.webp",
+  "sfs_na_t2m_prob_raw.webp",
+  "sfs_sa_t2m_prob_raw.webp",
+  "sfs_glb_t2m_prob_raw.webp",
+  "sfs_na_pr_prob_raw.webp",
+  "sfs_sa_pr_prob_raw.webp",
+  "sfs_glb_pr_prob_raw.webp"
+ ],
+ "frames": 621,
+ "weeks": [
+  [
+   "2026-10-01",
+   "2026-10-07"
+  ],
+  [
+   "2026-10-08",
+   "2026-10-14"
+  ],
+  [
+   "2026-10-15",
+   "2026-10-21"
+  ]
+ ],
+ "skill_masks": true
 }
