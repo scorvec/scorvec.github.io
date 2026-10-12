@@ -136,6 +136,42 @@ MIN_COMPANION = 3                    # a group under min_frac is kept only as th
                                      # passes there ("IFS-ENS: 14 of 50 members", not "not in IFS-ENS"); never on its own
 
 
+MATCH_H = 72                         # hours of shared median track compared when pairing the two models' developing systems
+
+
+def median_track(s: dict) -> dict:
+    """Lead hour -> median member (lat, lon) where at least a quarter of the members (and 3) have a position. Longitudes are
+    unwrapped about the first member before the median, so a system on the dateline is not averaged to the far side."""
+    tr = list(s["tracks"].values())
+    need = max(3, 0.25 * len(tr))
+    out = {}
+    for h in np.unique(np.concatenate([t["steps"] for t in tr])):
+        ps = [q for q in (TC.at(t, int(h)) for t in tr) if q is not None]
+        if len(ps) >= need:
+            lo0 = ps[0][1]
+            out[int(h)] = (float(np.median([q[0] for q in ps])),
+                           float(np.median([(q[1] - lo0 + 180) % 360 - 180 + lo0 for q in ps])))
+    return out
+
+
+def gen_h(s: dict) -> float:
+    """Median hour at which a developing system's members reach tropical-storm strength."""
+    return float(np.median([g for g in (genesis_h(t) for t in s["tracks"].values()) if g is not None] or [0]))
+
+
+def track_gap(sa: dict, si: dict) -> float:
+    """Median distance (km) between two systems' median tracks over the MATCH_H hours after the earlier of their median
+    genesis hours (inf if fewer than 3 shared steps there). Anchored at genesis because the tracker also follows the
+    pre-genesis disturbances, which scatter: 8 Oct 00Z AIFS 72W / IFS 73W were 736 km apart over their first shared
+    hours (h48-96) but 86-90 km apart once both had developed (h120-144)."""
+    h0 = min(gen_h(sa), gen_h(si))
+    ma, mi = median_track(sa), median_track(si)
+    common = [h for h in sorted(set(ma) & set(mi)) if h0 <= h <= h0 + MATCH_H]
+    if len(common) < 3:
+        return np.inf
+    return float(np.median([TC._km(*ma[h], *mi[h]) for h in common]))
+
+
 def region_of(lat, lon):
     """A plain-language place for a developing system (Atlantic and eastern Pacific; None elsewhere)."""
     lo = (lon + 180) % 360 - 180
@@ -582,7 +618,8 @@ def _pcs_of(X3, lat, k=K_PCS):
 def _stormlab(s):
     if s["named"]:
         return s["name"].title()
-    return f"possible new storm, {s['region']} ({s['id']})" if s.get("region") else f"possible new storm ({s['id']})"
+    tag = s.get("tag", "") + s["id"]                     # "IFS-ENS 71W": the two trackers number systems independently
+    return f"possible new storm, {s['region']} ({tag})" if s.get("region") else f"possible new storm ({tag})"
 
 
 def genesis_h(t):
@@ -640,6 +677,7 @@ def render_tracks(storms: list[dict], st: dict, init, out_png: Path):
         clon = float(np.median(lo360))
         rel = (lo360 - clon + 180) % 360 - 180
         ext = [clon + rel.min() - 4, clon + rel.max() + 4, max(-5, la.min() - 4), min(75, la.max() + 5)]
+        fig.text(0.035, top - i * rh + 0.3 / H, _stormlab(s), fontsize=12.5, fontweight="bold", va="top")   # once per row
         for c, m in enumerate(("aifs", "ifs")):
             ax = fig.add_axes([0.035 + c * 0.33, top - (i + 1) * rh + 0.04 * rh, 0.30, 0.86 * rh],
                               projection=ccrs.PlateCarree(central_longitude=clon))
@@ -690,8 +728,6 @@ def render_tracks(storms: list[dict], st: dict, init, out_png: Path):
             q = st[s["key"]][m]
             ax.set_title(f"{MLAB[m]}: {q['n_tracked']} of {q['n_members']} members tracked, "
                          f"{100 * q['p_recurve']:.0f}% recurve", fontsize=10.5, loc="left")
-            if c == 0:                                  # the storm's name once per row, above both maps
-                fig.text(0.035, top - i * rh + 0.3 / H, _stormlab(s), fontsize=12.5, fontweight="bold", va="top")
         ax = fig.add_axes([0.71, top - (i + 1) * rh + 0.16 * rh, 0.27, 0.70 * rh])
         width = 0.42
         gtxt = []
@@ -989,18 +1025,29 @@ def main() -> int:
         ps = [TC.at(t, h) for t in s["tracks"].values() if TC.at(t, h) is not None]
         return h, float(np.median([q[0] for q in ps])), float(np.median([q[1] for q in ps]))
     # developing systems: the two trackers number the same system differently (2026-10-04: AIFS 71L = IFS 70L), so they
-    # are matched by WHERE they develop (genesis medians within GEN_KM), not by id; the AIFS id names the pair
+    # are matched by WHERE they are, not by id; the AIFS id names the pair. Genesis medians alone are not enough: on
+    # 2026-10-12 12Z the West Pacific 71W reached 17 m/s ~2 days later in AIFS-ENS than in IFS-ENS, so its genesis medians
+    # sat 1,091 km apart along one track (median tracks 12 km apart at the closest) and the two were published as two
+    # storms that each said "not in" the other ensemble. Nor did the genesis test look at WHEN: on 10 Oct 00Z AIFS 73W
+    # formed at the spot IFS 70W had formed seven days earlier, while its own track ran 159 km from IFS 72W's. A pair is
+    # now judged on the median tracks after genesis (track_gap) wherever they share 3 steps there, on the genesis points
+    # (within GEN_KM and GEN_H) only where they do not; closest pairs are matched first.
     gen = {m: [s for s in lst if not s["named"]] for m, lst in per.items()}
-    pair = {}                                                            # id(ifs system) -> aifs system
+    cand = []
     for sa in gen.get("aifs", []):
-        best = None
         for si in gen.get("ifs", []):
-            d = TC._km(*sa["genesis"], *si["genesis"])
-            if d < GEN_KM and sa["basin"] == si["basin"] and not (sa.get("weak") and si.get("weak")) and id(si) not in pair \
-               and (best is None or d < best[0]):
-                best = (d, si)
-        if best:
-            pair[id(best[1])] = sa
+            if sa["basin"] != si["basin"] or (sa.get("weak") and si.get("weak")):
+                continue
+            d = track_gap(sa, si)
+            if not np.isfinite(d) and abs(gen_h(sa) - gen_h(si)) <= GEN_H:
+                d = TC._km(*sa["genesis"], *si["genesis"])
+            if d < GEN_KM:
+                cand.append((d, sa, si))
+    pair, taken = {}, set()                                              # id(ifs system) -> aifs system
+    for d, sa, si in sorted(cand, key=lambda c: c[0]):
+        if id(si) in pair or id(sa) in taken:
+            continue
+        pair[id(si)] = sa; taken.add(id(sa))
     for m, lst in per.items():
         for s in lst:
             if s["named"]:
@@ -1011,7 +1058,7 @@ def main() -> int:
                 key = ("gen:" if m == "aifs" else f"{m}:") + s["id"]
             ref = pair[id(s)] if (m == "ifs" and id(s) in pair) else s
             storms.setdefault(key, dict(key=key, id=ref["id"], name=ref["name"], named=s["named"], region=ref.get("region"),
-                                        models={}))["models"][m] = s
+                                        tag="IFS-ENS " if key.startswith("ifs:") else "", models={}))["models"][m] = s
     for key in [k for k, v in storms.items() if all(x.get("weak") for x in v["models"].values())]:
         del storms[key]                                                  # below the bar in every model: not shown
     st = {k: {m: stats(s["models"][m], nm[m]) for m in s["models"]} for k, s in storms.items()}
@@ -1068,7 +1115,8 @@ def main() -> int:
                                        + (" (deepens after day 10)" if v[1] else "") for k, v in depth.items()), flush=True)
     js = {"init": f"{init:%Y-%m-%dT%H:%MZ}", "models": {m: {"members": nm[m]} for m in nm}, "depth_storms": ok[:2], "storms": []}
     for s in order:
-        e = {"key": s["key"], "id": s["id"], "name": _stormlab(s), "named": s["named"], "models": {}, "slug": slug(s["key"])}
+        e = {"key": s["key"], "id": slug(s["key"]) if s["key"].startswith("ifs:") else s["id"],    # unique: an IFS-only
+             "name": _stormlab(s), "named": s["named"], "models": {}, "slug": slug(s["key"])}       # system can share the AIFS id
         if (out / "tc" / f"tracks_{e['slug']}.webp").exists(): e["tracks_file"] = f"tc/tracks_{e['slug']}.webp"
         if (out / "tc" / f"depth_{e['slug']}.webp").exists(): e["depth_file"] = f"tc/depth_{e['slug']}.webp"
         mdl = "aifs" if "aifs" in s["models"] else "ifs"                       # a reference track for the map: the

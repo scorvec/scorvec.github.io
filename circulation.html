@@ -569,7 +569,10 @@ References: Bister &amp; Emanuel 2002, <i>JGR</i> 107(D24), 4801 &middot; Chen, 
       var gen = {}; Object.keys(s.models || {}).forEach(function (m) { if (s.models[m].genesis_h_p10_p50_p90) gen[m] = s.models[m].genesis_h_p10_p50_p90; });
       var o = { id: s.id, key: s.key, name: s.name, named: s.named !== false, short: s.named === false ? "new " + s.id : s.name,
                 track: s.track || null, files: { tracks: s.tracks_file, depth: s.depth_file }, p: p, gen: gen };
-      if (!by[s.id]) { by[s.id] = o; out.push(o); }
+      // ids are unique since 2026-10-12 (an IFS-ENS-only system is "ifs-71W"); an older file repeated "71W" for gen:71W
+      // and ifs:71W and the second storm could not be reached. A repeat takes its key instead of being dropped
+      if (by[o.id]) o.id = String(s.key || s.id).replace(/[^A-Za-z0-9_-]+/g, "-");
+      if (!by[o.id]) { by[o.id] = o; out.push(o); }
     });
     (ph && ph.storms || []).forEach(function (s) {
       var o = by[s.id];
