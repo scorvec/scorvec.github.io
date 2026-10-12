@@ -297,10 +297,10 @@ def _kind_style(kind):
     if kind == "abs":
         return dict(MS.sst_abs_style(), cbar="SST (°C)", isotherms=MS.SST_ABS_ISOTHERMS)
     if kind == "trel":
-        # ±4: ±3 pinned the Niño-3 core of the 2026 event and pushed ordinary
-        # noise to the ends of the ramp (user, 2026-09-03); ±5 like the global
-        # products would wash the belt out again.
-        return dict(MS.sst_anom_style(4.0), cbar="SST anomaly − tropical mean (°C)")
+        # the main map's +-7 cut (2026-10-12, user: it "is using a different color scale than the main plot"): every
+        # product takes its colours from the one ladder, so +1.4 °C is the same red either way - the ±4 cut only gave
+        # it a different bar and lumped everything past ±4 into the end colour
+        return dict(MS.sst_anom_style(7.0), cbar="SST anomaly − tropical mean (°C)")
     # ±7: a ±5 ramp saturated the event (2026-09-18: Niño-1+2 averaged +4.8 with 44 % of its cells above +5, max
     # +6.7), so the shared ladder runs 0.2 °C classes to ±3, 0.5 °C to ±5, then 6 and 7.
     return dict(MS.sst_anom_style(7.0), cbar="SST anomaly (°C)" if kind == "anom" else "SST anomaly − global mean (°C)")
@@ -368,28 +368,44 @@ def render_2panel_frame(field, la, lo, kind, title, out_path, annotation=None, s
     save_frame(fig, out_path)
 
 
-def render_1panel_frame(field, la, lo, kind, title, out_path, annotation=None, sub=None):
-    """One tropical-belt panel (30S-30N, all longitudes) of one field.
+# The tropical belt as two stacked 180-degree panels (2026-10-12, user: the one 6:1 strip "does not show well on mobile"
+# - ~65 px tall on a phone). The splits sit over land - the Maritime Continent (120E) and South America (60W) - so the
+# Pacific panel keeps every Nino box whole and no ocean basin is cut.
+BELT_PANELS = [("Pacific, 120°E–60°W", (120, 300, -30, 30), 210.0, True),
+               ("Atlantic and Indian Ocean, 60°W–120°E", (-60, 120, -30, 30), 30.0, False)]
 
-    The tropical-mean-removed product uses this rather than the global+Pacific
-    pair: the belt IS the domain the mean was taken over, so keeping every
-    longitude in frame shows where the compensating warm/cool signal sits."""
+
+def render_1panel_frame(field, la, lo, kind, title, out_path, annotation=None, sub=None):
+    """The tropical belt (30S-30N, every longitude) of one field, as two stacked half-belt panels.
+
+    The tropical-mean-removed product uses this rather than the global+Pacific pair: the belt IS the domain the mean
+    was taken over, so every longitude stays in frame to show where the compensating warm/cool signal sits. Layout,
+    width and colour bar follow render_2panel_frame, so it reads as the same family as the main anomaly map; the day's
+    removed tropical mean goes in the heading instead of a box over the map."""
     style = _kind_style(kind)
-    # Size the figure to the domain: the belt is 360 x 60 deg, so the axes are 6:1 and the figure height is the axes
-    # height plus the heading band - no letterboxing.
-    W, L, R = 12.5, 0.02, 0.90
-    aspect = (TROPICS_BELT_EXTENT[1] - TROPICS_BELT_EXTENT[0]) / (TROPICS_BELT_EXTENT[3] - TROPICS_BELT_EXTENT[2])
-    ah = (R - L) * W / aspect
-    top, bot = 0.78, 0.10
-    H = top + ah + bot
+    W, L, R = 10.5, 0.02, 0.895
+    aw = (R - L) * W
+    hs = [aw * (e[3] - e[2]) / (e[1] - e[0]) for _, e, _, _ in BELT_PANELS]
+    top = 0.78 + (0.26 if annotation else 0.0)
+    gap, lab, bot = 0.12, 0.26, 0.10
+    H = top + sum(lab + h for h in hs) + gap * (len(hs) - 1) + bot
     fig = plt.figure(figsize=(W, H), dpi=FRAME_DPI)
-    ax = fig.add_axes([L, bot / H, R - L, ah / H], projection=ccrs.PlateCarree(central_longitude=GLOBAL_CENTRAL_LON))
-    im = _draw_map_ax(ax, field, la, lo, TROPICS_BELT_EXTENT, style, nino_box=True, annotation=annotation,
-                      ann_size=8.0, label_size=7.0)
+    y = H - top
+    axes, im = [], None
+    for (name, ext, clon, boxes), h in zip(BELT_PANELS, hs):
+        y -= lab + h
+        ax = fig.add_axes([L, y / H, R - L, h / H], projection=ccrs.PlateCarree(central_longitude=clon))
+        m = _draw_map_ax(ax, field, la, lo, ext, style, nino_box=boxes)
+        im = im or m
+        ax.set_title(name, fontsize=10, loc="left", pad=4)
+        axes.append((ax, y, h))
+        y -= gap
     _heading(fig, H, title, sub or _kind_sub(kind))
-    # the panel is only ~1.9 in tall: the title names the field, the bar carries the unit
-    cb = _cbar(fig, im, style, [0.915, bot / H, 0.011, ah / H], "°C")
-    cb.set_label("°C", fontsize=9.5, rotation=0, labelpad=10, va="center")
+    if annotation:
+        fig.text(0.02, 1 - 0.70 / H, annotation.replace("\n", " "), fontsize=9.2, color="#222", ha="left", va="top",
+                 family="monospace")
+    y_lo = axes[-1][1] / H; y_hi = (axes[0][1] + axes[0][2]) / H
+    _cbar(fig, im, style, [0.915, y_lo + 0.02, 0.016, y_hi - y_lo - 0.04], style["cbar"])
     save_frame(fig, out_path)
 
 
