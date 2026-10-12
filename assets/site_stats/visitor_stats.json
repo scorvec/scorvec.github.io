@@ -1,8 +1,8 @@
 {
  "updated": "2026-10-12",
- "total_30d": 343,
+ "total_30d": 347,
  "countries_30d": 21,
- "total_all": 1099,
+ "total_all": 1103,
  "countries_all": 24,
  "top_pages_30d": [
   {
@@ -11,11 +11,15 @@
   },
   {
    "path": "/models.html",
-   "count": 40
+   "count": 42
   },
   {
    "path": "/mjo.html",
-   "count": 33
+   "count": 34
+  },
+  {
+   "path": "/subseasonal.html",
+   "count": 20
   },
   {
    "path": "/aifs-verify.html",
@@ -23,10 +27,6 @@
   },
   {
    "path": "/recon.html",
-   "count": 19
-  },
-  {
-   "path": "/subseasonal.html",
    "count": 19
   },
   {
