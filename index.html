@@ -190,6 +190,10 @@
   .hero-text .hero-find:hover { background: rgba(255, 255, 255, 0.22); }
 
   .wrap { max-width: 74rem; margin: 0 auto; padding: 0 clamp(1rem, 4vw, 3rem); }
+  /* wide screens (2026-10-12, user: "the cards on the homepage on my monitor leave a lot of horizontal space on either
+     side"): the content takes the header's width and padding (site.css .sh-in), so its edges line up with the search
+     box and the About menu instead of a 74rem column with ~430 px empty on each side at 2160 px */
+  @media (min-width: 1100px) { .wrap { max-width: min(94vw, 2000px); padding: 0 clamp(1rem, 3vw, 2.5rem); } }
 
   /* ── Right now (2026-10-12, user: "a litany of different cards ... a lot of clutter"): three compact live readings in
      place of the two big feature panels. Every number is read live (midterms summary.json, the ENSO feeds, the MJO
@@ -218,9 +222,10 @@
   .nc--mt { --acc: #274b7a; }
   .nc--en { --acc: #9a3f14; }
   .nc--mjo { --acc: #3f6b3a; }
-  .spark { display: block; width: 100%; height: auto; margin-top: 0.5rem; }
-  .spark text { font-family: var(--sans); font-size: 10px; fill: var(--storm); }
-  @media (max-width: 600px) { .spark text { font-size: 12.5px; } }
+  /* drawn at its real pixel width (viewBox = the element's width, height fixed) since the wide-screen layout of
+     2026-10-12: a fixed 320-wide viewBox stretched to a 560 px card blew the labels up to ~17 px and the chart to 160 px */
+  .spark { display: block; width: 100%; height: 92px; margin-top: 0.5rem; }
+  .spark text { font-family: var(--sans); font-size: 12px; fill: var(--storm); }
 
   /* ── The themes: the menus' six groups as tiles, their key pages as plain links (the descriptions are tooltips and
      live on the pages and in the catalogue); the rest of a theme's pages sit behind "n more". ── */
@@ -672,18 +677,24 @@
       const last = obs[obs.length - 1], fcp = fc.length ? [last].concat(fc.filter(p => p[0] > last[0])) : [];
       const all = obs.concat(fcp), x0 = all[0][0], x1 = all[all.length - 1][0];
       const ys = all.map(p => p[1]), y0 = Math.min(-0.5, ...ys), y1 = Math.max(1, ...ys);
-      const X = x => 4 + 312 * (x - x0) / (x1 - x0), Y = y => 8 + 66 * (y1 - y) / (y1 - y0);
-      const path = pts => pts.map((p, i) => (i ? 'L' : 'M') + X(p[0]).toFixed(1) + ' ' + Y(p[1]).toFixed(1)).join('');
       const svg = document.getElementById('en-spark');
+      svg.hidden = false;
+      const draw = () => {
+      const W = Math.max(200, Math.round(svg.getBoundingClientRect().width) || 320);
+      svg.setAttribute('viewBox', `0 0 ${W} 92`);
+      const X = x => 4 + (W - 8) * (x - x0) / (x1 - x0), Y = y => 8 + 64 * (y1 - y) / (y1 - y0);
+      const path = pts => pts.map((p, i) => (i ? 'L' : 'M') + X(p[0]).toFixed(1) + ' ' + Y(p[1]).toFixed(1)).join('');
       svg.innerHTML =
-        `<line x1="4" x2="316" y1="${Y(0).toFixed(1)}" y2="${Y(0).toFixed(1)}" stroke="#c9ccc4" stroke-width="1"/>` +
+        `<line x1="4" x2="${W - 4}" y1="${Y(0).toFixed(1)}" y2="${Y(0).toFixed(1)}" stroke="#c9ccc4" stroke-width="1"/>` +
         `<path d="${path(obs)}" fill="none" stroke="#9a3f14" stroke-width="1.6" stroke-linejoin="round"/>` +
         (fcp.length > 1 ? `<path d="${path(fcp)}" fill="none" stroke="#9a3f14" stroke-width="1.6" stroke-dasharray="4 3"/>` : '') +
         `<circle cx="${X(last[0]).toFixed(1)}" cy="${Y(last[1]).toFixed(1)}" r="2.8" fill="#9a3f14"/>` +
         `<text x="4" y="88">${new Date(x0).toLocaleDateString('en-US', { month: 'short', year: 'numeric', timeZone: 'UTC' })}</text>` +
-        (fcp.length > 1 ? `<text x="316" y="88" text-anchor="end">models to ${new Date(x1).toLocaleDateString('en-US', { month: 'short', timeZone: 'UTC' })}</text>` : '') +
+        (fcp.length > 1 ? `<text x="${W - 4}" y="88" text-anchor="end">models to ${new Date(x1).toLocaleDateString('en-US', { month: 'short', timeZone: 'UTC' })}</text>` : '') +
         `<text x="8" y="${(Y(0) - 3).toFixed(1)}">0</text>`;
-      svg.hidden = false;
+      };
+      draw();
+      let rt; addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(draw, 150); });
     }
   });
 
