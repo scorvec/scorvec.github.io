@@ -55,7 +55,7 @@ THUMB_INDEX_URL = "https://raw.githubusercontent.com/scorvec/scorvec.github.io/f
 # ids stay stable (they are in catalogue URLs, ?topic=...); labels are the menu group titles in apply_chrome.PRODUCTS
 TOPICS = [   # 2026-10-03: the theme-first menus (ids unchanged; labels = apply_chrome.PRODUCTS titles, in menu order)
     ("weather", "Mid-latitude weather", "The next two weeks: storms, hazards and the flow aloft"),
-    ("drivers", "Tropics", "ENSO, the MJO, tropical cyclones and the tropical circulation"),
+    ("drivers", "Global circulation and tropics", "ENSO, the MJO, tropical cyclones, the jets and the atmosphere's angular momentum"),
     ("circulation", "Stratosphere", "The polar vortex and the waves going up into it, from today's analysis to the season, the QBO, and the atmosphere's angular momentum"),
     ("outlooks", "Weeks to seasons", "From weeks two to five out to the coming seasons"),
     ("research", "Studies and verification", "What the record and the models say, and how the forecasts score"),
@@ -90,7 +90,10 @@ PAGES = {
                               groups={"Mid-latitude weather": dict(topic="weather", region=["Pacific", "Northern Hemisphere"]),
                                       "Tropical cyclones": dict(topic="drivers", region=["Pacific", "North America"], prio=3),
                                       "Tropical circulation": dict(topic="drivers", models=["AIFS-ENS", "IMERG", "ERA5"], region=["Tropics"]),
-                                      "Angular momentum & torques": dict(topic="circulation", region=["Global"])}),
+                                      "Angular momentum & torques": dict(topic="drivers", region=["Global"])},
+                              # per-product topic over the rail group's (2026-10-12: the North Pacific jet sits in the page's
+                              # "Mid-latitude weather" group but in the menus' "Global circulation and tropics")
+                              products={"pacjet": dict(topic="drivers")}),
     # "/snowbands.html" retired 2026-10-09: its diagnostics are the "Winter: snow bands" maps of /models.html
     "/subseasonal.html": dict(kind="stage", file="subseasonal.html", topic="outlooks", title="GEPS extended ensemble", tier=0, prio=3,
                               models=["GEPS"], horizon="Weeks 1–5", region=["North America"], own_models=True),
@@ -391,18 +394,19 @@ def stage_items(href: str, cfg: dict) -> list:
                     if thumb is None and fr:
                         src = frame_source(H.unescape(fr.group(1)), path.parent)
                         thumb = thumb_key(*src) if src else None
+            pcfg = {**gcfg, **cfg.get("products", {}).get(pid, {})}          # a product's own override, if any
             opts_text = " ".join(v[0] for v in variants)
             shows = " ".join([p["label"], g["label"], p.get("sub", ""), p.get("cap", ""), opts_text])
             blob = shows + " " + (about or elem)[:1500]
             items.append(dict(
                 id=f"{href}#{pid}", page=href, page_title=cfg["title"], group=text_of(g["label"]),
                 label=text_of(p["label"]), sub=text_of(p.get("sub", "")), url=f"{href}#{pid}",
-                topic=gcfg.get("topic", cfg["topic"]), horizon=gcfg.get("horizon", cfg["horizon"]),
-                models=tags(MODEL_RX, shows, gcfg.get("models", cfg["models"]), cfg.get("own_models", False)),
-                regions=regions_of(shows, gcfg.get("region", cfg["region"])),
+                topic=pcfg.get("topic", cfg["topic"]), horizon=pcfg.get("horizon", cfg["horizon"]),
+                models=tags(MODEL_RX, shows, pcfg.get("models", cfg["models"]), cfg.get("own_models", False)),
+                regions=regions_of(shows, pcfg.get("region", cfg["region"])),
                 variables=tags(VAR_RX, blob), thumb=thumb, cap=text_of(p.get("cap", ""))[:240],
                 kw=public(about or elem)[:600], variants=variants, live=True,
-                tier=gcfg.get("tier", cfg["tier"]), prio=gcfg.get("prio", cfg["prio"]),
+                tier=pcfg.get("tier", cfg["tier"]), prio=pcfg.get("prio", cfg["prio"]),
                 kind="chart" if p["kind"] == "dom" else "fig"))
     return items
 

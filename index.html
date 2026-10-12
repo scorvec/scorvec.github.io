@@ -230,7 +230,9 @@
   /* ── The themes: the menus' six groups as tiles, their key pages as plain links (the descriptions are tooltips and
      live on the pages and in the catalogue); the rest of a theme's pages sit behind "n more". ── */
   .themes { padding: clamp(2.5rem, 6vw, 4rem) 0 clamp(2rem, 5vw, 3rem); }
-  .themes-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 0.5rem 2rem; margin-bottom: 1.25rem; }
+  /* heading with its note underneath (2026-10-12, user: "a random piece of hanging text": spread to opposite ends, the
+     note floated ~1,000 px from its heading once the content took the header's width) */
+  .themes-head { display: flex; flex-direction: column; align-items: flex-start; gap: 0.35rem; margin-bottom: 1.25rem; }
   .themes-head h2 {
     font-family: var(--serif); font-weight: 400; font-size: clamp(1.7rem, 3vw, 2.3rem); line-height: 1.1;
     letter-spacing: -0.01em; font-variation-settings: 'opsz' 60;
@@ -300,6 +302,11 @@
   @media (max-width: 520px) {
     .hero img { object-position: 40% 55%; }
   }
+  /* wide screens (2026-10-12, user: "the font size of the new cards is pretty small for this screen size"): the homepage
+     scales as a whole - rem-sized type and spacing together - up from site.css's 110 % (html:root:root outranks its
+     html:root, which loads after this block) */
+  @media (min-width: 1700px) { html:root:root { font-size: 122%; } .spark text { font-size: 13.5px; } }
+  @media (min-width: 2000px) { html:root:root { font-size: 130%; } .spark text { font-size: 14.5px; } }
 </style>
 <link rel="stylesheet" href="/assets/site.css">
 <script src="/assets/site.js" defer></script>
@@ -330,14 +337,13 @@
               <h3>Upper air</h3>
               <ul>
                 <li><a href="/circulation.html#dt">Dynamic tropopause</a></li>
-                <li><a href="/circulation.html#pacjet">North Pacific jet</a></li>
                 <li><a href="/circulation.html#waf">Wave activity flux</a></li>
               </ul>
             </div>
           </div>
         </li>
         <li class="sh-item sh-has-menu">
-          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g1">Tropics</button>
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g1"><span class="sh-lf">Global circulation and tropics</span><span class="sh-ls">Circulation/tropics</span></button>
           <div class="sh-menu sh-menu--cols" id="sh-g1">
             <div>
               <h3>ENSO and the MJO</h3>
@@ -359,7 +365,15 @@
               </ul>
             </div>
             <div>
-              <h3>Tropical circulation</h3>
+              <h3>Jets and momentum</h3>
+              <ul>
+                <li><a href="/circulation.html#pacjet">North Pacific jet</a></li>
+                <li><a href="/circulation.html#jets">Subtropical jets</a></li>
+                <li><a href="/circulation.html#aam">Angular momentum and torques</a></li>
+              </ul>
+            </div>
+            <div>
+              <h3>Tropical overturning</h3>
               <ul>
                 <li><a href="/circulation.html#walker">Walker and Hadley cells</a></li>
                 <li><a href="/circulation.html#vpot">Velocity potential</a></li>
@@ -381,12 +395,6 @@
                 <li class="sh-subitem"><a href="/stratosphere.html#s5vortex">Season</a></li>
                 <li class="sh-subitem"><a href="/stratosphere.html#shwinters">History and studies</a></li>
                 <li class="sh-subitem"><a href="/stratosphere.html#qbo">QBO tracker</a></li>
-              </ul>
-            </div>
-            <div>
-              <h3>Momentum</h3>
-              <ul>
-                <li><a href="/circulation.html#aam">Angular momentum and torques</a></li>
               </ul>
             </div>
           </div>
@@ -525,28 +533,30 @@
           <li data-href="/radar.html"><a href="/radar.html" title="The national NEXRAD base-reflectivity mosaic from NOAA MRMS with GOES lightning flashes, live every two minutes and decoded in the browser: zoom from the whole country to a city, loop the last hours at your own speed, read the dBZ anywhere, on the traditional NWS colour scale.">US Radar Explorer</a></li>
           <li data-href="/ar.html"><a href="/ar.html" title="Integrated vapour transport maps to day 7 from AIFS, IFS, GFS and GDPS; West Coast landfall and AR-scale ranks; AR probabilities to day 15 from four ensembles and their blend; GEFS weeks 3–5 AR-frequency anomalies where significant.">Atmospheric rivers</a></li>
           <li data-href="/circulation.html#dt"><a href="/circulation.html#dt" title="The 2-PVU surface and PV on the 330 and 350 K isentropes from the AIFS ensemble: the hemisphere and four regions, with tropical storms and their outflow marked.">Dynamic tropopause</a></li>
-          <li data-href="/circulation.html#pacjet"><a href="/circulation.html#pacjet" title="250 hPa jet maps, the jet axis from every member, and the jet's extension and shift phases with what they usually bring downstream.">North Pacific jet</a></li>
           <li data-href="/circulation.html#waf"><a href="/circulation.html#waf" title="Takaya–Nakamura wave activity flux at 250 hPa, the ensemble's quasi-stationary wave trains.">Wave activity flux</a></li>
         </ul>
         <a class="sg-all" href="/catalog.html?topic=weather">All plots in this theme</a>
       </section>
       <section class="sg" data-topic="drivers">
-        <h3>Tropics</h3>
-        <p>El Niño, the MJO, tropical waves and cyclones</p>
+        <h3>Global circulation and tropics</h3>
+        <p>El Niño, the MJO, cyclones, the jets and the atmosphere's momentum</p>
         <ul>
           <li data-href="/enso.html"><a href="/enso.html" title="Daily ONI and RONI, Niño-region sea surface temperatures, the subsurface, winds and convection, with SST anomaly maps and animation.">El Niño monitor</a></li>
           <li data-href="/mjo.html"><a href="/mjo.html" title="Real-time multivariate MJO index from the ECMWF AIFS ensemble, with the observed phase-space track, an ENSO-removed version, and what each phase has meant for temperature and rain.">MJO forecast</a></li>
           <li data-href="/tropical-waves.html"><a href="/tropical-waves.html" title="Where the equatorial waves are now: Kelvin and Rossby wave trackers along the equator with the forecast, the OLR wave decomposition and ocean Kelvin waves.">Tropical waves</a></li>
           <li data-href="/circulation.html#tcens"><a href="/circulation.html#tcens" title="Every AIFS and IFS ensemble member's track, the odds and timing of recurvature, and how deep the storm gets once it becomes extratropical.">Tropical cyclone ensembles</a></li>
-          <li data-href="/recon.html"><a href="/recon.html" title="Atlantic hurricane hunter flights decoded and mapped: the track by SFMR or flight-level wind, dropsonde skew-Ts, vortex fixes, best track and forecast, with the aircraft's quality flags respected.">Hurricane reconnaissance</a></li>
+          <li data-href="/circulation.html#pacjet"><a href="/circulation.html#pacjet" title="250 hPa jet maps, the jet axis from every member, and the jet's extension and shift phases with what they usually bring downstream.">North Pacific jet</a></li>
+          <li data-href="/circulation.html#jets"><a href="/circulation.html#jets" title="Speed and latitude of each hemisphere's subtropical jet core in the AIFS ensemble against the normal, and the zonal-mean wind cross-section through the 15-day forecast.">Subtropical jets</a></li>
+          <li data-href="/circulation.html#aam"><a href="/circulation.html#aam" title="Global atmospheric angular momentum and the mountain and friction torques that change it.">Angular momentum and torques</a></li>
           <li data-href="/circulation.html#walker"><a href="/circulation.html#walker" title="The tropical overturning circulation from the AIFS ensemble: the Walker circulation by ocean basin and the Hadley cells.">Walker and Hadley cells</a></li>
         </ul>
-        <details class="sg-more"><summary>6 more</summary>
+        <details class="sg-more"><summary>7 more</summary>
           <ul>
             <li data-href="/circulation.html#mslp"><a href="/circulation.html#mslp" title="Sea-level pressure and 10 m wind over the Pacific from the AIFS and IFS ensembles, separately and blended, to day 15.">Pacific pressure and wind</a></li>
             <li data-href="/circulation.html#tcjet"><a href="/circulation.html#tcjet" title="How strongly each storm's outflow meets the jet stream, the wave packets along the jet with the storms' positions, and a watch when a recurvature looks likely.">Tropical cyclones and the jet</a></li>
             <li data-href="/circulation.html#tcphase"><a href="/circulation.html#tcphase" title="Hart's diagrams: whether each storm is still a warm-core tropical cyclone or turning into a cold-core extratropical low, and when.">Cyclone phase space</a></li>
             <li data-href="/circulation.html#tcshear"><a href="/circulation.html#tcshear" title="Each storm's full environmental wind profile with the storm removed: layer and generalized shear, vortex tilt against the shear and the radar, the ventilation index and the trough causing the shear, across 51 ensemble members and four models.">Shear and environment</a></li>
+            <li data-href="/recon.html"><a href="/recon.html" title="Atlantic hurricane hunter flights decoded and mapped: the track by SFMR or flight-level wind, dropsonde skew-Ts, vortex fixes, best track and forecast, with the aircraft's quality flags respected.">Hurricane reconnaissance</a></li>
             <li data-href="/circulation.html#vpot"><a href="/circulation.html#vpot" title="200 hPa velocity potential and the irrotational wind: where the tropics are venting and where they are subsiding.">Velocity potential</a></li>
             <li data-href="/circulation.html#gillrain"><a href="/circulation.html#gillrain" title="How much of the tropical upper-level circulation the rain itself explains: the Gill (1980) model forced by IMERG and AIFS-ENS rainfall against the observed and forecast velocity potential.">Rain-forced circulation (Gill model)</a></li>
           </ul>
@@ -562,11 +572,10 @@
           <li data-href="/stratosphere.html#vortex35"><a href="/stratosphere.html#vortex35" title="GEPS and GEFS to day 35, drift-corrected: vortex diagnostics, loops and the dripping paint.">Weeks 3–5</a></li>
           <li data-href="/stratosphere.html#s5vortex"><a href="/stratosphere.html#s5vortex" title="SEAS5's vortex, QBO and annular mode, sudden-warming risk against its own normal, and the polar-cap heights.">Season</a></li>
           <li data-href="/stratosphere.html#qbo"><a href="/stratosphere.html#qbo" title="Equatorial stratospheric winds at 10 to 100 hPa from radiosondes, 1950 to the present.">QBO tracker</a></li>
-          <li data-href="/circulation.html#aam"><a href="/circulation.html#aam" title="Global atmospheric angular momentum and the mountain and friction torques that change it.">Angular momentum and torques</a></li>
+          <li data-href="/stratosphere.html#pv"><a href="/stratosphere.html#pv" title="GEOS FP potential vorticity, the momentum budget and the Brewer–Dobson circulation, the water-vapour tape recorder, and the QBO from radiosondes.">Now: analyses and observations</a></li>
         </ul>
-        <details class="sg-more"><summary>2 more</summary>
+        <details class="sg-more"><summary>1 more</summary>
           <ul>
-            <li data-href="/stratosphere.html#pv"><a href="/stratosphere.html#pv" title="GEOS FP potential vorticity, the momentum budget and the Brewer–Dobson circulation, the water-vapour tape recorder, and the QBO from radiosondes.">Now: analyses and observations</a></li>
             <li data-href="/stratosphere.html#shwinters"><a href="/stratosphere.html#shwinters" title="Every winter and sudden warming since 1980 in MERRA-2 and 15,000 more in CMIP6, with what followed at the surface.">History and studies</a></li>
           </ul>
         </details>

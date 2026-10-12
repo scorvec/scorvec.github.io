@@ -60,15 +60,15 @@ PRODUCTS = [
             ("/circulation.html#dt", "Dynamic tropopause",
              "The 2-PVU surface and PV on the 330 and 350 K isentropes from the AIFS ensemble: the hemisphere and four regions, with tropical storms and their outflow marked.",
              "Daily"),
-            ("/circulation.html#pacjet", "North Pacific jet",
-             "250 hPa jet maps, the jet axis from every member, and the jet's extension and shift phases with what they usually bring downstream.",
-             "Twice daily"),
             ("/circulation.html#waf", "Wave activity flux",
              "Takaya–Nakamura wave activity flux at 250 hPa, the ensemble's quasi-stationary wave trains.",
              "Daily"),
         ]),
     ]),
-    ("Tropics", "ENSO, the MJO, tropical cyclones and the tropical circulation", [
+    # 2026-10-12, user: "On the homepage I would change tropics to 'Global circulation and tropics' and throw anything
+    # related to momentum and jets in there": the North Pacific jet (from Mid-latitude weather) and angular momentum
+    # (from Stratosphere) moved here with the subtropical jets; the menu keeps a short label
+    ("Global circulation and tropics", "ENSO, the MJO, tropical cyclones, the jets and the atmosphere's angular momentum", [
         ("ENSO and the MJO", [
             ("/enso.html", "El Niño monitor",
              "Daily ONI and RONI, Niño-region sea surface temperatures, the subsurface, winds and convection, with SST anomaly maps and animation.",
@@ -100,7 +100,18 @@ PRODUCTS = [
              "Atlantic hurricane hunter flights decoded and mapped: the track by SFMR or flight-level wind, dropsonde skew-Ts, vortex fixes, best track and forecast, with the aircraft's quality flags respected.",
              "Live during flights"),
         ]),
-        ("Tropical circulation", [
+        ("Jets and momentum", [
+            ("/circulation.html#pacjet", "North Pacific jet",
+             "250 hPa jet maps, the jet axis from every member, and the jet's extension and shift phases with what they usually bring downstream.",
+             "Twice daily"),
+            ("/circulation.html#jets", "Subtropical jets",
+             "Speed and latitude of each hemisphere's subtropical jet core in the AIFS ensemble against the normal, and the zonal-mean wind cross-section through the 15-day forecast.",
+             "Daily"),
+            ("/circulation.html#aam", "Angular momentum and torques",
+             "Global atmospheric angular momentum and the mountain and friction torques that change it.",
+             "Daily"),
+        ]),
+        ("Tropical overturning", [
             ("/circulation.html#walker", "Walker and Hadley cells",
              "The tropical overturning circulation from the AIFS ensemble: the Walker circulation by ocean basin and the Hadley cells.",
              "Daily"),
@@ -111,11 +122,11 @@ PRODUCTS = [
              "How much of the tropical upper-level circulation the rain itself explains: the Gill (1980) model forced by IMERG and AIFS-ENS rainfall against the observed and forecast velocity potential.",
              "Twice daily"),
         ]),
-    ]),
+    ], "Circulation/tropics"),
     # one hub since 2026-10-08 (user: "put all the strat stuff in one place and consolidate"): stratosphere.html holds
     # every stratosphere product by timescale (the GEPS/GEFS/SEAS5 vortex products and the QBO tracker moved in), and
     # this menu lists its sections
-    ("Stratosphere", "The polar vortex and the waves going up into it, from today's analysis to the season, the QBO, and the atmosphere's angular momentum", [
+    ("Stratosphere", "The polar vortex and the waves going up into it, from today's analysis to the season, and the QBO", [
         ("Polar vortex and QBO", [
             ("/stratosphere.html", "Stratosphere and polar vortex",
              "Every stratosphere product in one place, by timescale: analyses and the QBO now; AIFS-ENS, IFS-ENS and GEFS vortex, heat flux and wave driving for the next two weeks; GEPS and GEFS to day 35; SEAS5's vortex and sudden-warming risk for the season; and every sudden warming since 1980 with what followed.",
@@ -138,11 +149,6 @@ PRODUCTS = [
             ("/stratosphere.html#qbo", "QBO tracker",
              "Equatorial stratospheric winds at 10 to 100 hPa from radiosondes, 1950 to the present.",
              "Weekly"),
-        ]),
-        ("Momentum", [
-            ("/circulation.html#aam", "Angular momentum and torques",
-             "Global atmospheric angular momentum and the mountain and friction torques that change it.",
-             "Daily"),
         ]),
     ]),
     ("Weeks to seasons", "From weeks two to five out to the coming seasons", [
@@ -408,12 +414,14 @@ def header_html(page: str, skin: str) -> str:
 # features its first six pages.
 HOME = {
     "Mid-latitude weather": ("weather", "Storms, hazards and the flow aloft over the next two weeks",
-                             ["/models.html", "/radar.html", "/ar.html", "/circulation.html#dt", "/circulation.html#pacjet", "/circulation.html#waf"]),
-    "Tropics": ("drivers", "El Niño, the MJO, tropical waves and cyclones",
-                ["/enso.html", "/mjo.html", "/tropical-waves.html", "/circulation.html#tcens", "/recon.html", "/circulation.html#walker"]),
+                             ["/models.html", "/radar.html", "/ar.html", "/circulation.html#dt", "/circulation.html#waf"]),
+    "Global circulation and tropics": ("drivers", "El Niño, the MJO, cyclones, the jets and the atmosphere's momentum",
+                                       ["/enso.html", "/mjo.html", "/tropical-waves.html", "/circulation.html#tcens",
+                                        "/circulation.html#pacjet", "/circulation.html#jets", "/circulation.html#aam",
+                                        "/circulation.html#walker"]),
     "Stratosphere": ("circulation", "The polar vortex from today's analysis to the season, and the QBO",
                      ["/stratosphere.html", "/stratosphere.html#vortex", "/stratosphere.html#vortex35", "/stratosphere.html#s5vortex",
-                      "/stratosphere.html#qbo", "/circulation.html#aam"]),
+                      "/stratosphere.html#qbo", "/stratosphere.html#pv"]),
     "Weeks to seasons": ("outlooks", "Extended ensembles to day 35 and the seasonal models",
                          ["/subseasonal.html", "/gefs.html", "/seasonal.html", "/enso-forecasts.html"]),
     "Studies and verification": ("research", "What the record and the models say, and how forecasts score",

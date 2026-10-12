@@ -9,11 +9,16 @@
   // Collapse to the compact menu whenever the full one does not fit on one line (2026-09-25). Measured, not a
   // breakpoint: the header scales with each page's own root font size. Phones (<= 860 px) use the CSS rule.
   // First step down (2026-09-27): drop the tagline and shrink the finder to its icon; only then collapse the menu.
+  // Against the header's own content box, not just the window (2026-10-12): .sh-in is capped at min(94vw, 2000px) and
+  // the page content lines up with it, so a menu that spilled past its padding (the longer "Circulation/tropics" label,
+  // 22-49 px at 1440-1920 px) still "fitted" the window while the About menu stuck out past the content edge.
+  var inner = header.querySelector('.sh-in');
   function overflows() {
     var items = header.querySelectorAll('.sh-brand, .sh-find, .sh-list > li');
-    var right = 0;
+    var right = 0, lim = document.documentElement.clientWidth - 4;
     for (var i = 0; i < items.length; i++) right = Math.max(right, items[i].getBoundingClientRect().right);
-    return right > document.documentElement.clientWidth - 4;
+    if (inner) lim = Math.min(lim, inner.getBoundingClientRect().right - (parseFloat(getComputedStyle(inner).paddingRight) || 0) + 1);
+    return right > lim;
   }
   function fitHeader() {
     header.classList.remove('sh--compact', 'sh--tight', 'sh--tighter');
