@@ -18,8 +18,31 @@ const MIME = { html: 'text/html; charset=utf-8', js: 'text/javascript; charset=u
 
 self.addEventListener('install', () => self.skipWaiting());
 self.addEventListener('activate', e => e.waitUntil(self.clients.claim()));
+// Every await on storage or the network is bounded, so a stalled step shows an error instead of a blank page.
+function within(p, ms, what) {
+  return Promise.race([p, new Promise((_, rej) => setTimeout(() => rej(new Error(`Timed out ${what}.`)), ms))]);
+}
 self.addEventListener('message', e => {
-  if (e.data && e.data.type === 'reset') { CFG = undefined; TREE = null; TREE_AT = 0; }
+  const d = e.data || {};
+  if (d.type === 'reset') { CFG = undefined; TREE = null; TREE_AT = 0; }
+  // the sign-in page asks the worker to open the board's first page before navigating to it, so any failure is
+  // reported on that page in words (2026-10-12: the board came up blank for the user, cause not visible)
+  if (d.type === 'probe' && e.ports && e.ports[0]) {
+    const port = e.ports[0];
+    e.waitUntil((async () => {
+      try {
+        CFG = undefined; TREE = null; TREE_AT = 0;
+        const c = await within(cfg(), 10e3, 'reading the saved sign-in');
+        if (!c || !c.repo || !c.token) throw new Error('The board cannot see the saved sign-in: this browser may be blocking site storage for scorvec.com.');
+        const t = await within(tree(c), 30e3, 'listing the board on GitHub');
+        if (!t.has('board.json')) throw new Error(`${c.repo} has no board in it (no board.json at its root). Sign out and check the repository name.`);
+        const path = d.path || 'web/index.html', ent = t.get(path);
+        if (!ent) throw new Error(`${path} is not in ${c.repo}.`);
+        const buf = await within(blob(c, ent.sha), 30e3, 'downloading the first page from GitHub');
+        port.postMessage({ ok: true, files: t.size, bytes: buf.byteLength });
+      } catch (err) { port.postMessage({ ok: false, error: String((err && err.message) || err) }); }
+    })());
+  }
 });
 
 // ---- the viewer's credentials, written by /board/index.html into the same IndexedDB ----
@@ -107,10 +130,11 @@ async function serve(req, url) {
   let path = decodeURIComponent(url.pathname.slice(PREFIX.length));
   const nav = req.mode === 'navigate';
   if (!path || path.endsWith('/')) path += 'index.html';
-  const c = await cfg();
+  let c;
+  try { c = await within(cfg(), 10e3, 'reading the saved sign-in'); } catch (e) { c = null; }
   if (!c || !c.repo || !c.token) return nav ? page(401, 'Sign in first', 'This board needs a read-only token.') : json(401, { error: 'not signed in' });
   let t;
-  try { t = await tree(c); }
+  try { t = await within(tree(c), 30e3, 'listing the board on GitHub'); }
   catch (e) { return nav ? page(e.status || 502, 'The board could not be opened', e.message) : json(e.status || 502, { error: e.message }); }
   const ent = t.get(path);
   if (!ent) {
@@ -118,7 +142,7 @@ async function serve(req, url) {
     return nav ? page(404, 'Not in this snapshot', `<code>${path.replace(/[<&]/g, '')}</code> is not in the board.`) : new Response('not in the board snapshot', { status: 404 });
   }
   let buf;
-  try { buf = await blob(c, ent.sha); }
+  try { buf = await within(blob(c, ent.sha), 120e3, `downloading ${path} from GitHub`); }
   catch (e) { return nav ? page(e.status || 502, 'Could not load this page', e.message) : json(e.status || 502, { error: e.message }); }
   const ext = path.includes('/') && path.startsWith('api/') ? 'json' : (path.split('.').pop() || '').toLowerCase();
   const h = { 'Content-Type': MIME[ext] || 'application/octet-stream', 'Cache-Control': 'no-store', 'X-Robots-Tag': 'noindex' };
