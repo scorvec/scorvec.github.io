@@ -126,12 +126,14 @@ jobs:
       # ── the SFS subseasonal page (sfs-subseasonal.html, 2026-10-12). sfs_sub.py checks the issue's daily forecast store first
       # and draws weeks 1-6 only when it passes (beta2's first two issues failed: 24 days spread over 47 slots); it always writes
       # assets/sfs/data/sfs_sub.json, which the page reads. The ERA5 truth for its skill masks is the release sfs-ref-v1.
-      - name: Subseasonal page (weeks 1-6, gated on the daily-store check)
+      - name: Subseasonal page (up to 6 weeks, gated on the daily-store check)
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: python scripts/sfs/sfs_sub.py --issue "${{ steps.iss.outputs.issue }}" --site . --procs 4 --cache /tmp/sfs_ref || echo "::warning::SFS subseasonal page failed"
       - name: Hindcast skill figure (SFS vs GEFS and GEPS, from the committed table)
         run: python scripts/sfs/sfs_skillfig.py --site . || echo "::warning::SFS hindcast skill figure failed"
+      - name: Hindcast skill figures (SFS vs CFSv2, weekly and seasonal, from the committed tables)
+        run: python scripts/sfs/sfs_cfsfig.py --site . || echo "::warning::SFS vs CFSv2 skill figures failed"
       - name: Publish the loop frames to the frames branch
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

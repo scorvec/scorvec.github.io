@@ -4,16 +4,16 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>SFS Subseasonal Outlook &mdash; NOAA SFS beta2 Weeks 1&ndash;6, Against Its Own Reforecast &middot; Shawn Corvec</title>
-<meta name="description" content="NOAA's experimental Seasonal Forecast System (SFS beta2), weeks 1 to 6: weekly anomaly maps, tercile probabilities and a daily animation for North America, South America and the globe, against its own 1991-2020 reforecast, with a hindcast comparison against GEFS and GEPS.">
+<meta name="description" content="NOAA's experimental Seasonal Forecast System (SFS beta2), up to six weeks: weekly anomaly maps, tercile probabilities and a daily animation for North America, South America and the globe, against its own 1991-2020 reforecast, with hindcast comparisons against GEFS, GEPS and CFSv2.">
 <link rel="canonical" href="https://scorvec.com/sfs-subseasonal.html">
 <meta property="og:type" content="website">
 <meta property="og:title" content="SFS subseasonal outlook, weeks 1–6">
-<meta property="og:description" content="NOAA SFS beta2 weeks 1-6 against its own 1991-2020 reforecast, with its hindcast skill against GEFS and GEPS.">
+<meta property="og:description" content="NOAA SFS beta2 for up to six weeks against its own 1991-2020 reforecast, with its hindcast skill against GEFS, GEPS and CFSv2.">
 <meta property="og:url" content="https://scorvec.com/sfs-subseasonal.html">
 <meta property="og:site_name" content="Shawn Corvec &mdash; Weather &amp; Climate Monitors">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="SFS subseasonal outlook, weeks 1–6">
-<meta name="twitter:description" content="NOAA SFS beta2 weeks 1-6 against its own 1991-2020 reforecast, with its hindcast skill against GEFS and GEPS.">
+<meta name="twitter:description" content="NOAA SFS beta2 for up to six weeks against its own 1991-2020 reforecast, with its hindcast skill against GEFS, GEPS and CFSv2.">
 <link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;1,400&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/assets/outlook.css">
 <link rel="stylesheet" href="/assets/stage.css">
@@ -309,15 +309,15 @@ var P = {
         frame: function (a) { return "sst_anim.html?base=assets/sfs/anim/sub&manifest=sfs_sub_" + a + "_manifest.json&embed=1"; },
         ratio: function (a) { return a==="na" ? "760/640" : (a==="sa" ? "760/1041" : "760/557"); },
         cap: function () { if (gated()) return ""; return "One frame per forecast day, nine fields: the ensemble mean of the day, anomaly against the lead-matched SFS reforecast."; }},
-  skill: {label: "Hindcast skill vs GEFS and GEPS", fit: false,
-        a: {label:"", items:[["acc","Anomaly correlation by week"]]},
-        img: function () { return "assets/sfs/sub/sfs_hindcast_skill.webp"; },
-        cap: function () { return "SFS beta2, GEFSv12 and GEPS hindcasts on the same 38 starts (1 September and 1 October, 2001–2019), each a four-member mean against its own hindcast climatology, verified against ERA5. SFS is clearly behind both in weeks 1–2; from week 3 the three are statistically indistinguishable and all near the limit of skill for these start months."; }},
+  skill: {label: "Hindcast skill", fit: false,
+        a: {label:"Against", items:[["acc","GEFS and GEPS"],["cfs","CFSv2"]]},
+        img: function (a) { return a === "cfs" ? "assets/sfs/sub/sfs_cfs_weekly_skill.webp" : "assets/sfs/sub/sfs_hindcast_skill.webp"; },
+        cap: function (a) { if (a === "cfs") return "SFS beta2 against CFSv2, the system it is meant to replace, on 1 September and 1 October starts 1999–2025 (no 2017), each against its own hindcast climatology, verified against ERA5. CFSv2 is significantly better in weeks 1–2 for temperature, 500 hPa height and precipitation (▲); from week 3 there is no significant difference. The seasonal comparison (Niño-3.4, 3-month temperature and precipitation) is on the seasonal page, NOAA SFS group."; return "SFS beta2, GEFSv12 and GEPS hindcasts on the same 38 starts (1 September and 1 October, 2001–2019), each a four-member mean against its own hindcast climatology, verified against ERA5. SFS is clearly behind both in weeks 1–2; from week 3 the three are statistically indistinguishable and all near the limit of skill for these start months."; }},
   status: {label: "Daily data check", dom: function () { return "dom-status"; },
         cap: function () { return ""; }}
 };
 var GROUPS = [["Maps", "\u{1F5FA}", [["weekly","Weekly means","nine fields"],["probs","Weekly terciles","temperature and precipitation"],["daily","Daily animation","one frame per day"]]],
-              ["Verification", "✓", [["skill","Hindcast skill","against GEFS and GEPS"],["status","Daily data check","this issue"]]]];
+              ["Verification", "✓", [["skill","Hindcast skill","against GEFS, GEPS and CFSv2"],["status","Daily data check","this issue"]]]];
 var $ = function (id) { return document.getElementById(id); };
 fetch("assets/sfs/data/sfs_sub.json", {cache: "no-cache"}).then(function (r) { return r.json(); }).then(function (m) {
   SUB = m;

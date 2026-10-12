@@ -156,7 +156,7 @@ PRODUCTS = [
             # 2026-10-12, user: "make an SFS-beta 2 page like what we have for the GEPS/GEFS"; its daily products are gated on a
             # data check (NOAA's beta2 daily forecast store was defective in its first two issues)
             ("/sfs-subseasonal.html", "SFS extended (experimental)",
-             "NOAA's experimental SFS beta2, 31 members from the first of each month, weeks 1–6 in the same layout against its own 1991–2020 reforecast, with its hindcast skill against GEFS and GEPS.",
+             "NOAA's experimental SFS beta2, 31 members from the first of each month, up to six weeks in the same layout against its own 1991–2020 reforecast, with its hindcast skill against GEFS, GEPS and CFSv2.",
              "Monthly"),
         ]),
         ("Seasons", [
