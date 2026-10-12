@@ -1,0 +1,21 @@
+{
+ "issue": "2026-10",
+ "init": "2026-10-01 00Z",
+ "experiment": "beta2",
+ "generated": "2026-10-12T22:19Z",
+ "check": {
+  "leads": 47,
+  "filled_leads": 24,
+  "trend_forecast_K_per_day": -0.087,
+  "trend_reforecast_K_per_day": -0.196,
+  "trend_ratio": 0.44,
+  "start_month_daily_minus_monthly_K": 1.24,
+  "ok": false,
+  "why": [
+   "only 24 of 47 forecast days are filled",
+   "35-65N 2 m temperature changes -0.087 K a day across the forecast against the reforecast's -0.196 (ratio 0.44): the days are not where the file says they are",
+   "the daily fields averaged over the start month differ from the issue's own monthly mean by +1.24 K"
+  ]
+ },
+ "ok": false
+}
