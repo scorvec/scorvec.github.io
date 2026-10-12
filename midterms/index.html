@@ -86,7 +86,7 @@ tbody tr{cursor:pointer}tbody tr:hover{background:#f3f2ee}
 .mt-sum{font-size:17px;margin:0 0 6px}
 .charts2{display:grid;grid-template-columns:1fr 1fr;gap:22px}@media(max-width:900px){.charts2{grid-template-columns:1fr}}
 .ci{font-size:16px;margin:0 0 4px}.ci b{font-size:19px}
-.tsc{width:100%;height:auto;display:block;overflow:visible}.tsc text{font-size:12px;fill:#6f6b64}.tsc .ax line,.tsc .ax path{stroke:#d8d6cf}.tsc .grid line{stroke:#eeece6}
+.tsc{width:100%;height:auto;display:block;overflow:visible}.gdist text{font-size:13px}.gdist .lab{fill:#1b1d22;font-weight:600}#toDist{color:var(--d)}.tsc text{font-size:12px;fill:#6f6b64}.tsc .ax line,.tsc .ax path{stroke:#d8d6cf}.tsc .grid line{stroke:#eeece6}
 .tip{position:fixed;pointer-events:none;background:#1b1d22;color:#fff;font-size:14.5px;padding:6px 9px;border-radius:6px;display:none;max-width:320px;z-index:9}
 .mt-foot{margin-top:26px;padding-top:14px;border-top:1px solid var(--rule);font-size:17px}
 .mt-foot a{color:var(--d)}
@@ -279,6 +279,7 @@ tbody tr{cursor:pointer}tbody tr:hover{background:#f3f2ee}
   <div><b id="oB">–</b><span>chance Democrats win both</span><small id="oBs"></small></div>
   <div><b id="oG">–</b><span>Democratic governors, of 50</span><small id="oGs"></small></div>
  </div>
+ <p class="mt-cap" style="margin:10px 0 0"><a href="#polls" id="toDist">Where the national House vote could land: the full range of outcomes</a></p>
 </section>
 
 <div class="mt-bar2">
@@ -323,7 +324,11 @@ tbody tr{cursor:pointer}tbody tr:hover{background:#f3f2ee}
 </section>
 
 <section class="mt-pane" id="p-polls" role="tabpanel">
- <div class="mt-card"><h2>National polls</h2>
+ <div class="mt-card" id="gdcard"><h2>Where the national House vote could land</h2>
+  <p class="mt-sum" id="gdsum"></p>
+  <svg id="gdist" class="tsc gdist" viewBox="0 0 960 360" role="img" aria-label="Probability distribution of the national House vote margin on Election Day"></svg>
+  <p class="mt-note" id="gdnote"></p></div>
+ <div class="mt-card" style="margin-top:16px"><h2>National polls</h2>
   <div class="charts2"><div><p class="ci" id="gci"></p><svg id="gchart" class="tsc" viewBox="0 0 640 320" aria-label="Generic ballot trend"></svg><p class="mt-note">Generic ballot, Democrats minus Republicans. Dots are single polls, adjusted for pollster lean; diamonds are published averages.</p></div>
   <div><p class="ci" id="aci"></p><svg id="achart" class="tsc" viewBox="0 0 640 320" aria-label="Presidential approval trend"></svg><p class="mt-note">Trump's net job approval, approve minus disapprove.</p></div></div>
   <p class="mt-note"><a href="polls.html#national">Every national poll and its weight</a> · <a href="about.html#polls">How the poll trend is built</a></p></div>
@@ -361,7 +366,7 @@ function init(){const H=D.house;
 function preselect(){const near=a=>a.slice().sort((x,y)=>Math.abs(x.p[gi]-.5)-Math.abs(y.p[gi]-.5))[0];
  SEL.house=near(D.house.seats).seat;const s=near(D.senate.races);SEL.senate=s.state+(s.special?'|sp':'');if(D.governor)SEL.gov=near(D.governor.races).state;for(const k of ['house','senate','gov'])if(SEL[k])panel(k)}
 
-function tab(p){$$('.mt-tabs button').forEach(b=>b.setAttribute('aria-selected',b.dataset.p===p));$$('.mt-pane').forEach(x=>x.classList.toggle('on',x.id==='p-'+p));history.replaceState(null,'','#'+p);if(RH&&D&&gi!=null){const k=p==='gov'?'gov':p;if(SEL[k])panel(k)}}   // hidden panels drew their chart at a guessed width
+function tab(p){$$('.mt-tabs button').forEach(b=>b.setAttribute('aria-selected',b.dataset.p===p));$$('.mt-pane').forEach(x=>x.classList.toggle('on',x.id==='p-'+p));history.replaceState(null,'','#'+p);if(RH&&D&&gi!=null){const k=p==='gov'?'gov':p;if(SEL[k])panel(k)}if(p==='polls'&&D&&D.national_vote)genDist(D.national_vote)}   // hidden panels drew their chart at a guessed width
 
 const NAMES={AL:'Alabama',AK:'Alaska',AZ:'Arizona',AR:'Arkansas',CA:'California',CO:'Colorado',CT:'Connecticut',DE:'Delaware',FL:'Florida',GA:'Georgia',HI:'Hawaii',ID:'Idaho',IL:'Illinois',IN:'Indiana',IA:'Iowa',KS:'Kansas',KY:'Kentucky',LA:'Louisiana',ME:'Maine',MD:'Maryland',MA:'Massachusetts',MI:'Michigan',MN:'Minnesota',MS:'Mississippi',MO:'Missouri',MT:'Montana',NE:'Nebraska',NV:'Nevada',NH:'New Hampshire',NJ:'New Jersey',NM:'New Mexico',NY:'New York',NC:'North Carolina',ND:'North Dakota',OH:'Ohio',OK:'Oklahoma',OR:'Oregon',PA:'Pennsylvania',RI:'Rhode Island',SC:'South Carolina',SD:'South Dakota',TN:'Tennessee',TX:'Texas',UT:'Utah',VT:'Vermont',VA:'Virginia',WA:'Washington',WV:'West Virginia',WI:'Wisconsin',WY:'Wyoming'};
 function find(v){v=(v||'').trim();if(!v)return;const H=D.house;
@@ -431,7 +436,7 @@ function closeBig(){const o=$('#bigc');if(!o)return;o.classList.remove('on');doc
 addEventListener('resize',()=>{const o=$('#bigc');if(o&&o.classList.contains('on')&&o._args){clearTimeout(o._t);o._t=setTimeout(()=>bigChart(...o._args),200)}});
 // National chances over time under the House and Senate boxes (the boxes themselves follow the slider): the reconstruction,
 // with the as-issued values faint.
-let rsz;addEventListener('resize',()=>{clearTimeout(rsz);rsz=setTimeout(()=>{if(RH&&D)for(const k of ['house','senate','gov'])if(SEL[k])panel(k)},200)});
+let rsz;addEventListener('resize',()=>{clearTimeout(rsz);rsz=setTimeout(()=>{if(RH&&D)for(const k of ['house','senate','gov'])if(SEL[k])panel(k);if(D&&D.national_vote)genDist(D.national_vote)},200)});
 function histReady(){for(const k of ['house','senate','gov'])if(SEL[k])panel(k);spark('#spH','h','Democrats win the House');spark('#spS','s','Democrats control the Senate')}
 function spark(sel,k,name){const el=$(sel),v=RH.nat&&RH.nat[k];if(!el||!v)return;const pts=RH.dates.map((d,i)=>({d:new Date(d+'T12:00:00'),p:v[i]==null?null:v[i]/1000,src:RH.src?RH.src[i]:'i'})).filter(x=>x.p!=null);if(pts.length<2)return;
  const IB=RH.issued,iv=IB&&IB.nat&&IB.nat[k],ipts=iv?IB.dates.map((d,i)=>({d:new Date(d+'T12:00:00'),p:iv[i]==null?null:iv[i]/1000})).filter(x=>x.p!=null):[],iby=new Map(ipts.map(q=>[+q.d,q])),rec=!!(RH.method&&RH.method.reconstructed_from);
@@ -467,6 +472,53 @@ function buildMaps(){fetch('data/districts_2026.topo.json').then(r=>r.json()).th
    .on('mousemove',(e,d)=>{const r=races[d.st];if(r)tipAt(e,`<b>${NAMES[d.st]||d.st}</b><br>${r.dem||'?'} v ${r.rep||'?'}<br>${r.dem_party&&r.dem_party!=='D'?'Independent':'Democrat'} ${pct(r.p[gi])}`)})
    .on('mouseleave',()=>{$('#tip').style.display='none'}).on('click',(e,d)=>{if(races[d.st])pick(key,d.st)})}
  render();for(const k of ['house','senate','gov'])if(SEL[k])pick(k,SEL[k])})}
+// The national House vote on Election Day (user 2026-10-12: "a big distribution ... for the national generic ballot this
+// election", "may not be perfectly gaussian (fat tails?)"): the model's own 20,000 draws (build_web.national_vote), smoothed,
+// with a normal of the same spread dashed for comparison. Hover for the chance of at least that margin.
+function genDist(N){const svg=d3.select('#gdist');svg.selectAll('*').remove();if(!N||!N.grid)return;
+ const mg=v=>Math.abs(v)<.05?'Even':(v>0?'D+':'R+')+Math.abs(v).toFixed(1),q=N.q;
+ // drawn at the card's own width so text stays readable on a phone (a 960-wide viewBox shrank it to ~5 px); redrawn when the tab opens
+ const cw=$('#gdist').getBoundingClientRect().width||960,W=Math.round(Math.max(340,Math.min(1100,cw))),Hh=W<600?300:360,M={l:W<600?14:46,r:W<600?10:18,t:22,b:84};
+ svg.attr('viewBox',`0 0 ${W} ${Hh}`);
+ const pts=N.grid.map((x,i)=>({x,y:N.dens[i],n:N.normal[i]}));
+ const x0=Math.max(N.grid[0],Math.min(Math.floor(q['1']-4),-8)),x1=Math.min(N.grid[N.grid.length-1],Math.ceil(q['99']+4)),P=pts.filter(p=>p.x>=x0&&p.x<=x1);
+ const xs=d3.scaleLinear().domain([x0,x1]).range([M.l,W-M.r]),ymax=d3.max(P,p=>Math.max(p.y,p.n))*1.15,ys=d3.scaleLinear().domain([0,ymax]).range([Hh-M.b,M.t]);
+ // cumulative from the right: P(margin >= x)
+ const cum=[];let acc=0;for(let i=pts.length-1;i>=0;i--){acc+=pts[i].y*.25;cum[i]=acc}const tot=acc,atLeast=x=>{const i=Math.max(0,Math.min(pts.length-1,Math.round((x-N.grid[0])/.25)));return cum[i]/tot};
+ const area=(lo,hi,fill,op)=>svg.append('path').attr('d',d3.area().x(p=>xs(p.x)).y0(ys(0)).y1(p=>ys(p.y)).curve(d3.curveBasis)(P.filter(p=>p.x>=lo-1e-9&&p.x<=hi+1e-9))).attr('fill',fill).attr('fill-opacity',op);
+ svg.append('g').attr('class','grid').selectAll('line').data(ys.ticks(4).slice(1)).join('line').attr('x1',M.l).attr('x2',W-M.r).attr('y1',ys).attr('y2',ys);
+ area(x0,Math.min(0,x1),'#b3261e',.55);                                   // Republicans win the vote
+ area(Math.max(0,x0),x1,'#1f5fbf',.18);                                    // Democrats win it
+ area(Math.max(q['10'],x0),Math.min(q['90'],x1),'#1f5fbf',.22);           // middle 80%
+ area(Math.max(q['25'],x0),Math.min(q['75'],x1),'#1f5fbf',.25);           // middle 50%
+ svg.append('path').attr('d',d3.line().x(p=>xs(p.x)).y(p=>ys(p.y)).curve(d3.curveBasis)(P)).attr('fill','none').attr('stroke','#0b3d91').attr('stroke-width',2.2);
+ svg.append('path').attr('d',d3.line().x(p=>xs(p.x)).y(p=>ys(p.n)).curve(d3.curveBasis)(P)).attr('fill','none').attr('stroke','#6f6b64').attr('stroke-width',1.3).attr('stroke-dasharray','5,4');
+ const ax=svg.append('g').attr('class','ax').attr('transform',`translate(0,${Hh-M.b})`).call(d3.axisBottom(xs).ticks(Math.max(4,Math.round(W/95))).tickFormat(v=>v===0?'Even':(v>0?'D+':'R+')+Math.abs(v)));
+ ax.selectAll('text').attr('font-size',13);
+ const vline=(v,lab,col,dash,dy)=>{if(v<x0||v>x1)return;svg.append('line').attr('x1',xs(v)).attr('x2',xs(v)).attr('y1',ys(0)).attr('y2',M.t+dy).attr('stroke',col).attr('stroke-width',1.4).attr('stroke-dasharray',dash||null);
+  svg.append('text').attr('class','lab').attr('x',xs(v)).attr('y',M.t+dy-6).attr('text-anchor','middle').attr('fill',col).text(lab)};
+ vline(q['50'],'Median '+mg(q['50']),'#0b3d91',null,0);
+ if(x0<0)vline(0,'Even','#6f6b64','3,3',22);
+ // past midterms: national House vote (Clerk of the House)
+ const PAST=[[2006,8.0],[2010,-6.8],[2014,-5.7],[2018,8.6],[2022,-2.8]];
+ const g=svg.append('g').attr('transform',`translate(0,${Hh-M.b+34})`);
+ // labels stacked in rows so close results (2006 D+8.0, 2018 D+8.6) do not print on top of each other
+ const rowEnd=[];PAST.filter(([,v])=>v>=x0&&v<=x1).sort((a,b)=>a[1]-b[1]).forEach(([y,v])=>{const X=xs(v),lab=`${y} ${mg(v)}`,half=lab.length*3.4;
+  let r=0;while(rowEnd[r]!=null&&X-half<rowEnd[r]+6)r++;rowEnd[r]=X+half;
+  g.append('path').attr('d',`M${X},-6l-4,-7h8z`).attr('fill','#6f6b64');
+  g.append('text').attr('x',Math.max(half,Math.min(W-half,X))).attr('y',8+r*15).attr('text-anchor','middle').attr('font-size',12).attr('fill','#6f6b64').text(lab)});
+ // hover: the chance of at least this margin
+ const hv=svg.append('line').attr('y1',ys(0)).attr('y2',M.t).attr('stroke','#1b1d22').attr('stroke-width',1).style('display','none');
+ svg.append('rect').attr('x',M.l).attr('y',M.t).attr('width',W-M.l-M.r).attr('height',Hh-M.b-M.t).attr('fill','transparent')
+  .on('pointermove pointerdown',e=>{const[mx]=d3.pointer(e),v=Math.round(xs.invert(mx)*2)/2;hv.style('display',null).attr('x1',xs(v)).attr('x2',xs(v));
+   const pa=atLeast(v);tipAt(e,v>0?`<b>Democrats by ${v.toFixed(1)} or more</b>: ${pct(pa)}<br>Democrats by less, or Republicans win the vote: ${pct(1-pa)}`
+    :v<0?`<b>Republicans by ${(-v).toFixed(1)} or more</b>: ${pct(1-pa)}`:`<b>Democrats win the national vote</b>: ${pct(N.p.dem)}`)})
+  .on('pointerleave',()=>{hv.style('display','none');$('#tip').style.display='none'});
+ $('#gdsum').innerHTML=`Democrats win the national House vote in <b>${pct(N.p.dem)}</b> of the simulated elections. The middle 80% runs from <b>${mg(q['10'])}</b> to <b>${mg(q['90'])}</b>, the median is ${mg(q['50'])}; `
+  +`Democrats by 10 or more ${pct(N.p.d10)}, by 15 or more ${pct(N.p.d15)}; Republicans by 5 or more ${pct(N.p.r5)}.`;
+ $('#gdnote').innerHTML=`Each of the ${N.n.toLocaleString()} simulated elections draws the national vote around today's poll trend (${mg(N.center)}) with the size of past generic-ballot misses at this distance, ${N.lead} days out (sd ${N.sd.toFixed(1)} points), in either direction: no direction is assumed for the miss`
+  +(N.early_vote?', and the part of it that is late movement is narrowed by the votes already banked':'')+`. The draws are Student-t with ${N.t_df} degrees of freedom, so the tails are fatter than a normal curve with the same spread (dashed): a miss beyond 3 sd happens in ${(100*N.p.beyond3sd).toFixed(1)}% of draws, against ${(100*N.p.beyond3sd_normal).toFixed(1)}% under the normal. `
+  +`Shading: <span style="color:var(--d)">middle 50% and 80%</span>; <span style="color:var(--r)">red</span> where Republicans win the vote. Triangles: the national House vote in past midterms. Hover for the chance of at least a given margin.`}
 function tipAt(e,h){const t=$('#tip');t.style.display='block';t.style.left=(e.clientX+14)+'px';t.style.top=(e.clientY+14)+'px';t.innerHTML=h}
 
 function render(){const H=D.house;E=+$('#E').value;gi=H.grid.reduce((b,x,i)=>Math.abs(x-E)<Math.abs(H.grid[b]-E)?i:b,0);E=H.grid[gi];
@@ -527,6 +579,8 @@ function hist(sel,h,thr,Hh){const svg=$(sel),W=360;const ks=Object.keys(h).map(N
  [lo,Math.round((lo+hi)/2),hi].forEach(t=>{s+=`<text x="${sx(t)}" y="${Hh-6}" text-anchor="middle">${t}</text>`});svg.innerHTML=s}
 
 function pollsTab(){const P=D.polls;if(!P)return;
+ if(D.national_vote)genDist(D.national_vote);else{$('#gdcard').hidden=true;$('#toDist').parentNode.hidden=true}
+ $('#toDist').onclick=e=>{e.preventDefault();tab('polls');$('#gdcard').scrollIntoView({behavior:'smooth',block:'start'})};
  tsChart('#gchart','#gci',P.generic_trend,P.generic_band,P.generic_polls,P.generic_ci,P.generic_t1,D.generic.map(a=>({label:a.source,v:a.margin})),{col:'#1f5fbf'},'Generic ballot');
  tsChart('#achart','#aci',P.approval_trend,P.approval_band,P.approval_polls,P.approval_ci,P.approval_t1,[],{col:'#8a2d1c'},'Net approval');
  const he=Object.entries(P.house_effects).sort((a,b)=>b[1].effect-a[1].effect);
