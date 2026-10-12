@@ -20,7 +20,7 @@
   var ORDER = []; GROUPS.forEach(function (g) { g.items.forEach(function (p) { ORDER.push(p[0]); }); });
   var sel = { p: ORDER[0], a: null, b: null, c: null };
   var $ = function (id) { return document.getElementById(id); };
-  var mounted = null, mountedHome = null, pinMax = 0, wanted = null, deferHash = null;
+  var mounted = null, mountedHome = null, mountedShown = false, pinMax = 0, wanted = null, deferHash = null;
   addEventListener("load", function () {
     if (deferHash && !location.hash) history.replaceState(null, "", deferHash);
     deferHash = null;
@@ -246,7 +246,13 @@
   function labelOf(group, v) { if (!group) return null; for (var i = 0; i < group.items.length; i++) if (group.items[i][0] === v) return group.items[i][1]; return null; }
   function hourKey() { return new Date().toISOString().slice(0, 13); }
   function unmount() {
-    if (mounted) { mountedHome.parent.insertBefore(mounted, mountedHome.next && mountedHome.parent.contains(mountedHome.next) ? mountedHome.next : null); mounted = null; }
+    if (mounted) {
+      mountedHome.parent.insertBefore(mounted, mountedHome.next && mountedHome.parent.contains(mountedHome.next) ? mountedHome.next : null);
+      // hide again what the mount showed (2026-10-12 TC audit): circulation.html's storm picker and shear dashboard live
+      // outside the hidden .dom-holder, so once visited they stayed on the page under every other product
+      if (mountedShown) mounted.hidden = true;
+      mounted = null; mountedShown = false;
+    }
   }
   var PAGE_NAME = ((document.querySelector(".page-header h1") || {}).textContent || "").trim() || document.title;
   var titled = !!location.hash.replace(/^#/, "");
@@ -269,7 +275,7 @@
     if (domId) {
       var el = $(domId);
       // a gated block's own script decides whether it has anything to show (its hidden attribute); others are shown
-      if (el) { mountedHome = { parent: el.parentNode, next: el.nextSibling }; mounted = el; st.appendChild(el); if (!p.gated) el.hidden = false;
+      if (el) { mountedHome = { parent: el.parentNode, next: el.nextSibling }; mounted = el; st.appendChild(el); mountedShown = !p.gated; if (!p.gated) el.hidden = false;
         if (window.Plotly) Array.prototype.forEach.call(el.querySelectorAll(".js-plotly-plot"), function (g) { try { window.Plotly.Plots.resize(g); } catch (e) {} }); }
     } else if (p.frame && p.frame(sel.a, sel.b, sel.c)) {          // frame() may return null for an option that is a still
       var f = document.createElement("iframe"); f.title = p.label; f.loading = "lazy";
@@ -463,6 +469,9 @@
     var h = hashParts(); if (!(h[0] && P[h[0]])) return;
     var n = { p: h[0], a: h[1] || null, b: h[2] || null, c: h[3] || null };
     if (n.p === sel.p && n.a === sel.a && n.b === sel.b && n.c === sel.c) return;
+    // a block that keeps its own state in the hash handles its own changes; rebuilding the stage on each of them
+    // remounted it twice per click and closed an open "About" (2026-10-12 TC audit)
+    if (n.p === sel.p && P[n.p] && P[n.p].ownHash) return;
     sel = n; closeSheet(); render();
   }
   addEventListener("hashchange", follow);
