@@ -56,7 +56,8 @@ REF_RELEASE = "sfs-ref-v1"
 CLIM_Y0, CLIM_Y1 = 1991, 2020
 SKILL_MIN = 0.25
 DRY_MM = 0.5
-WEEKS = [(1, 7), (8, 14), (15, 21), (22, 28), (29, 35), (36, 42)]
+WEEKS_ALL = [(1, 7), (8, 14), (15, 21), (22, 28), (29, 35), (36, 42)]
+WEEKS = list(WEEKS_ALL)                        # the complete weeks the issue holds (main() trims it for a recovered issue)
 # page tag -> (SFS daily variable, factor to the GEFS page's units: K, mm/day, Pa, m, W m-2, m/s)
 VARS = {"t2m": ("TMP_2maboveground", 1.0), "pr": ("PRATE_surface", 86400.0), "mslp": ("PRMSL_meansealevel", 1.0),
         "zg500": ("HGT_500mb", 1.0), "olr": ("ULWRF_topofatmosphere", 1.0), "u850": ("UGRD_850mb", 1.0),
@@ -100,26 +101,54 @@ def _band(a, lat):
     return (np.nanmean(a[..., sel, :], axis=-1) * w).sum(-1) / w.sum()
 
 
+def _patcorr(P, M):
+    """Mean pattern correlation of day-to-day anomalies (time mean removed per gridpoint) of two (day, lat, lon) stacks."""
+    P = P - np.nanmean(P, 0); M = M - np.nanmean(M, 0); cs = []
+    for p, m in zip(P, M):
+        ok = np.isfinite(p) & np.isfinite(m)
+        if ok.sum() > 100:
+            cs.append(np.corrcoef(p[ok], m[ok])[0, 1])
+    return float(np.mean(cs)) if cs else float("nan")
+
+
+def _mid(a, lat):
+    return a[..., (lat >= 30) & (lat <= 60), :]
+
+
 def check_daily(issue: str, month: int) -> dict:
+    """The daily forecast store's layout and soundness. Two layouts pass:
+    'daily'        every lead filled, the 35-65N 2 m temperature trend across the leads within 0.75-1.33x the reforecast's,
+                   and the start-month daily mean within 0.5 K of the issue's own monthly mean;
+    'interleaved'  beta2's defect (2026-10-12): NOAA builds the atmosphere file from an instantaneous stream (state fields)
+                   and an accumulated one (precipitation, longwave, fluxes), and in the published forecasts the two
+                   were merged onto one time axis with two entries per day - day k's state in slot 2k, its fluxes in slot
+                   2k+1 - and only the first 47 slots kept (~23 days). Accepted only when RE-INDEXED it passes all three:
+                   the 35-65N temperature trend within 0.85-1.15x the reforecast's; the mean of the recovered days minus
+                   the issue's monthly mean of the start month within 0.3 K of the same difference in the reforecast; and
+                   precipitation-vs-MSLP day-to-day pattern correlation at lag 0 within 0.08 of the reforecast's, with
+                   the lag -1 one near zero (the fingerprint that slot 2k+1 is day k, not day k+1 or k-1).
+    Anything else fails, and nothing is drawn."""
     ds = _open(f"{BASE}/forecast/{issue}/atm_daily.zarr")
     lat = ds["lat"].values
+    rf = _open(f"{BASE}/reforecast/{month:02d}/atm_daily.zarr")
     v = ds["TMP_2maboveground"].isel(member=0).values.astype(np.float64)            # (lead, lat, lon), one chunk
     filled = [int(i) for i in range(v.shape[0]) if np.isfinite(v[i]).any()]
-    f = _band(v, lat)
-    rf = _open(f"{BASE}/reforecast/{month:02d}/atm_daily.zarr")["TMP_2maboveground"]
-    rr = np.mean([_band(rf.isel(member=0, init=i).values.astype(np.float64), lat) for i in range(-5, 0)], axis=0)
-    L = np.arange(len(f)); ok = np.isfinite(f)
-    sf = float(np.polyfit(L[ok], f[ok], 1)[0]) if ok.sum() > 2 else float("nan")
-    sr = float(np.polyfit(L, rr, 1)[0])
-    ratio = sf / sr if sr else float("nan")
-    m = _open(f"{BASE}/forecast/{issue}/atm_monthly.zarr")["tmp2m"].isel(member=0, lead=0)
-    mm = float(_band(m.values.astype(np.float64), m["lat"].values))
+    rr = np.mean([_band(rf["TMP_2maboveground"].isel(member=0, init=i).values.astype(np.float64), lat) for i in range(-5, 0)], axis=0)
+    sr = float(np.polyfit(np.arange(len(rr)), rr, 1)[0])
+    mon = _open(f"{BASE}/forecast/{issue}/atm_monthly.zarr")["tmp2m"].isel(member=0, lead=0)
+    mm = float(_band(mon.values.astype(np.float64), mon["lat"].values))
     nd = calendar.monthrange(int(issue[:4]), int(issue[4:]))[1]
+    f = _band(v, lat)
+    L = np.arange(len(f)); okf = np.isfinite(f)
+    sf = float(np.polyfit(L[okf], f[okf], 1)[0]) if okf.sum() > 2 else float("nan")
+    ratio = sf / sr if sr else float("nan")
     dm = float(np.nanmean(f[:nd]))
     res = {"leads": int(v.shape[0]), "filled_leads": len(filled), "trend_forecast_K_per_day": round(sf, 3),
            "trend_reforecast_K_per_day": round(sr, 3), "trend_ratio": round(ratio, 2),
            "start_month_daily_minus_monthly_K": round(dm - mm, 2)}
-    res["ok"] = bool(len(filled) == v.shape[0] and 0.75 <= ratio <= 1.33 and abs(dm - mm) < 0.5)
+    if len(filled) == v.shape[0] and 0.75 <= ratio <= 1.33 and abs(dm - mm) < 0.5:
+        res.update(ok=True, layout="daily", days=int(v.shape[0]), why=[])
+        return res
     why = []
     if len(filled) != v.shape[0]:
         why.append(f"only {len(filled)} of {v.shape[0]} forecast days are filled")
@@ -127,9 +156,45 @@ def check_daily(issue: str, month: int) -> dict:
         why.append(f"35-65N 2 m temperature changes {sf:+.3f} K a day across the forecast against the reforecast's "
                    f"{sr:+.3f} (ratio {ratio:.2f}): the days are not where the file says they are")
     if abs(dm - mm) >= 0.5:
-        why.append(f"the daily fields averaged over the start month differ from the issue's own monthly mean by "
-                   f"{dm - mm:+.2f} K")
+        why.append(f"the daily fields averaged over the start month differ from the issue's own monthly mean by {dm - mm:+.2f} K")
     res["why"] = why
+    # ── the interleaved layout, tested on the re-indexed data ──
+    pr0 = ds["PRATE_surface"].isel(member=0).values
+    even_state = filled == list(range(0, v.shape[0], 2))
+    odd_acc = [int(i) for i in range(pr0.shape[0]) if np.isfinite(pr0[i]).any()] == list(range(1, pr0.shape[0], 2))
+    rec = {"state_on_even_slots": bool(even_state), "fluxes_on_odd_slots": bool(odd_acc)}
+    if even_state and odd_acc:
+        fi = np.mean([_band(ds["TMP_2maboveground"].isel(member=m).values.astype(np.float64)[0::2], lat) for m in range(4)], 0)
+        n = len(fi); k = np.arange(n)
+        s2 = float(np.polyfit(k, fi, 1)[0]); r2 = s2 / float(np.polyfit(k, rr[:n], 1)[0])
+        rmon = _open(f"{BASE}/reforecast/{month:02d}/atm_monthly.zarr")["tmp2m"]
+        rd, rmv = [], []
+        for i in range(-6, 0):
+            rd.append(_band(rf["TMP_2maboveground"].isel(member=0, init=i).values.astype(np.float64), lat)[:n].mean())
+            mo_r = rmon.isel(init=i, member=0, lead=0); rmv.append(float(_band(mo_r.values.astype(np.float64), mo_r["lat"].values)))
+        off_f = float(fi.mean() - np.mean([_band(_open(f"{BASE}/forecast/{issue}/atm_monthly.zarr")["tmp2m"].isel(member=m, lead=0).values.astype(np.float64), mon["lat"].values) for m in range(4)]))
+        off_r = float(np.mean(rd) - np.mean(rmv))
+        cf = {o: [] for o in (-1, 0)}
+        n_acc = len(range(1, pr0.shape[0], 2))
+        for m in range(4):
+            M = _mid(ds["PRMSL_meansealevel"].isel(member=m).values, lat)[0::2]
+            P = _mid(ds["PRATE_surface"].isel(member=m).values, lat)[1::2]
+            q = min(len(M), len(P))
+            cf[0].append(_patcorr(P[:q], M[:q])); cf[-1].append(_patcorr(P[1:q], M[:q - 1]))
+        cr = []
+        for i in range(-4, 0):
+            P = _mid(rf["PRATE_surface"].isel(member=0, init=i).values, lat)[:24]; M = _mid(rf["PRMSL_meansealevel"].isel(member=0, init=i).values, lat)[:24]
+            cr.append(_patcorr(P, M))
+        c0, cm1, cref = float(np.mean(cf[0])), float(np.mean(cf[-1])), float(np.mean(cr))
+        rec.update(days=int(n), acc_days=int(n_acc), trend_ratio=round(r2, 2), recovered_minus_monthly_K=round(off_f, 2),
+                   reforecast_same_days_minus_monthly_K=round(off_r, 2), precip_mslp_corr_lag0=round(c0, 3),
+                   precip_mslp_corr_lagm1=round(cm1, 3), reforecast_precip_mslp_corr=round(cref, 3))
+        passed = 0.85 <= r2 <= 1.15 and abs(off_f - off_r) <= 0.3 and abs(c0 - cref) <= 0.08 and abs(cm1) < 0.1
+        rec["passed"] = bool(passed)
+        if passed:
+            res.update(ok=True, layout="interleaved", days=int(min(n, n_acc)))
+    res["recovery"] = rec
+    res.setdefault("ok", False); res.setdefault("layout", "bad")
     return res
 
 
@@ -218,7 +283,7 @@ def build_ref(month: int, years=(CLIM_Y0, CLIM_Y1), members=None, threads=8, tru
 
 
 # ── the forecast ───────────────────────────────────────────────────────────────────────────────────────────────
-def load_forecast(issue: str, threads=8, test_year: int | None = None, month: int | None = None):
+def load_forecast(issue: str, threads=8, test_year: int | None = None, month: int | None = None, layout="daily", days=47):
     """{tag: (member, 47, lat, lon) float32 on the page grid}, plus the member count. --test-from-reforecast reads one
     reforecast start instead (dev only: exercises the figures while NOAA's daily forecast store is defective)."""
     if test_year is None:
@@ -233,16 +298,21 @@ def load_forecast(issue: str, threads=8, test_year: int | None = None, month: in
         da = ds[var].isel(**sel) if sel else ds[var]
         with ThreadPoolExecutor(threads) as ex:
             arrs = list(ex.map(lambda m: regrid(da.isel(member=m).values) * fac, range(nm)))
-        F[tag] = np.stack(arrs).astype(np.float32)
-        print(f"  forecast {tag}: {nm} members", flush=True)
+        a = np.stack(arrs).astype(np.float32)
+        if layout == "interleaved":
+            # day k's state fields sit in slot 2k, its accumulated/averaged fields (precipitation, longwave) in slot 2k+1
+            first = 0 if np.isfinite(a[0, 0]).any() else 1
+            a = a[:, first::2][:, :days]
+        F[tag] = a
+        print(f"  forecast {tag}: {nm} members, {a.shape[1]} days" + (" (re-indexed)" if layout == "interleaved" else ""), flush=True)
     return F, nm
 
 
 def anomalies(F, ref):
     A, E = {}, {}
     for tag in VARS:
-        e = np.nanmean(F[tag], axis=0)                                   # ensemble mean (47, lat, lon)
-        a = e - ref[f"d_{tag}"]
+        e = np.nanmean(F[tag], axis=0)                                   # ensemble mean (days, lat, lon)
+        a = e - ref[f"d_{tag}"][:e.shape[0]]
         if GL.FIELDS[tag][3]:                                            # 500 hPa: daily global mean removed
             a = a - np.array([GL.global_mean(np.nan_to_num(x)) for x in a])[:, None, None]
         A[tag], E[tag] = a, e
@@ -275,6 +345,7 @@ def render(issue, base, F, nm, ref, site: Path, procs: int):
         for old in out.glob(pat):
             old.unlink()
     A, E = anomalies(F, ref)
+    nday = next(iter(A.values())).shape[0]
     days = [base + dt.timedelta(days=d) for d in range(47)]
     titles = [f"Week {k + 1}   {days[a - 1]:%b %d} – {days[b - 1]:%b %d}" for k, (a, b) in enumerate(WEEKS)]
     names = []
@@ -293,7 +364,7 @@ def render(issue, base, F, nm, ref, site: Path, procs: int):
                                            hatcher=skill_hatcher(ref[f"r_{tag}"]), suffix="_masked"))
     # terciles: raw member fractions against the reforecast's own weekly anomaly terciles
     for tag in TERC:
-        Wm = weekly(F[tag], axis=1) - weekly(ref[f"d_{tag}"])[None]       # (member, 6, lat, lon) member anomalies
+        Wm = weekly(F[tag], axis=1) - weekly(ref[f"d_{tag}"][:nday])[None]   # (member, weeks, lat, lon) member anomalies
         q33, q67 = ref[f"q33_{tag}"], ref[f"q67_{tag}"]
         r = ref.get(f"r_{tag}", np.full(q33.shape, np.nan, np.float32))
         dry = (ref["wclim_pr"] < DRY_MM) if tag == "pr" else np.zeros(q33.shape, bool)
@@ -305,7 +376,7 @@ def render(issue, base, F, nm, ref, site: Path, procs: int):
             weeks.append(dict(k=k + 1, raw=raw, r=r[k], dry=dry[k], d0=days[WEEKS[k][0] - 1], d1=days[WEEKS[k][1] - 1]))
         names += GP.draw(tag, base, weeks, "raw", nm, out)
     nd = GL.daily_loops({t: A[t] for t in GL.ANIM_ORDER}, {f"e_{t}": E[t] for t in GL.ANIM_ORDER}, base, anim, procs,
-                        model=LABEL, prefix="sfs_sub", days=list(range(1, 48)))
+                        model=LABEL, prefix="sfs_sub", days=list(range(1, nday + 1)))
     return names, nd
 
 
@@ -334,10 +405,13 @@ def main() -> int:
     if status["ok"] and not a.check_only:
         truth = ref_truth(month, Path(a.cache))
         ref = build_ref(month, tuple(a.years), a.members, a.threads, truth)
-        F, nm = load_forecast(a.issue, a.threads, a.test_from_reforecast, month)
+        layout, nday = status["check"].get("layout", "daily"), int(status["check"].get("days", 47))
+        global WEEKS
+        WEEKS = [w for w in WEEKS_ALL if w[1] <= nday]
+        F, nm = load_forecast(a.issue, a.threads, a.test_from_reforecast, month, layout, nday)
         names, nd = render(a.issue, base, F, nm, ref, site, a.procs)
         days = [base + dt.timedelta(days=d) for d in range(47)]
-        status.update({"members": nm, "valid": f"{days[0]:%b %d} – {days[WEEKS[-1][1] - 1]:%b %d}", "figures": names,
+        status.update({"members": nm, "layout": layout, "days": nday, "valid": f"{days[0]:%b %d} – {days[WEEKS[-1][1] - 1]:%b %d}", "figures": names,
                        "frames": nd, "weeks": [[f"{days[a_ - 1]:%Y-%m-%d}", f"{days[b - 1]:%Y-%m-%d}"] for a_, b in WEEKS],
                        "skill_masks": any(k.startswith("r_") for k in ref)})
     (data / "sfs_sub.json").write_text(json.dumps(status, indent=1))
