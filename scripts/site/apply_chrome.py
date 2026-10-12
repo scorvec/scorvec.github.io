@@ -395,26 +395,54 @@ def header_html(page: str, skin: str) -> str:
     return "\n".join(out).replace(' aria-current=page', ' aria-current="page"')
 
 
+# The homepage shows the menus' six themes as tiles (user 2026-10-12: "a litany of different cards ... remove all these and
+# come up with some 'super groups' ... there's a lot of clutter"): per theme a one-line purpose, its key pages as plain
+# links (the long descriptions live in the menus' pages and the catalogue) and a link to the theme's plots in the
+# catalogue. HOME: group title -> (catalogue topic id, short purpose, featured hrefs in order). A group missing here
+# features its first six pages.
+HOME = {
+    "Mid-latitude weather": ("weather", "Storms, hazards and the flow aloft over the next two weeks",
+                             ["/models.html", "/radar.html", "/ar.html", "/circulation.html#dt", "/circulation.html#pacjet", "/circulation.html#waf"]),
+    "Tropics": ("drivers", "El Niño, the MJO, tropical waves and cyclones",
+                ["/enso.html", "/mjo.html", "/tropical-waves.html", "/circulation.html#tcens", "/recon.html", "/circulation.html#walker"]),
+    "Stratosphere": ("circulation", "The polar vortex from today's analysis to the season, and the QBO",
+                     ["/stratosphere.html", "/stratosphere.html#vortex", "/stratosphere.html#vortex35", "/stratosphere.html#s5vortex",
+                      "/stratosphere.html#qbo", "/circulation.html#aam"]),
+    "Weeks to seasons": ("outlooks", "Extended ensembles to day 35 and the seasonal models",
+                         ["/subseasonal.html", "/gefs.html", "/seasonal.html", "/enso-forecasts.html"]),
+    "Studies and verification": ("research", "What the record and the models say, and how forecasts score",
+                                 ["/enso.html#imp_reg", "/mjo.html#mi", "/stratosphere.html#shwinters", "/aifs-aam-budget.html",
+                                  "/aifs-verify.html", "/topics/"]),
+    "Tools": ("tools", "Explore the data yourself",
+              ["/catalog.html", "/skewt/", "/asos5.html", "/climate.html", "/fci.html"]),
+}
+
+
 def homepage_rows() -> str:
-    """The homepage product list (index.html, between <!-- hp:start --> and <!-- hp:end -->), from PRODUCTS: the
-    same classes as the hand-written rows it replaced (.group / .rows / .sub / .row / .what / .when), so the
-    homepage CSS and its freshness script (status.json keyed by href) work unchanged."""
-    out = ["<!-- hp:start -->"]
+    """The homepage theme tiles (index.html, between <!-- hp:start --> and <!-- hp:end -->), from PRODUCTS + HOME. Each
+    link carries its page's one-line description as a tooltip; the freshness script decorates `li[data-href]` from
+    /status.json."""
+    esc = lambda t: t.replace("&", "&amp;").replace('"', "&quot;").replace("<", "&lt;")
+    out = ["<!-- hp:start -->", '    <div class="sgs">']
     for title, blurb, items, *_ in PRODUCTS:
-        out.append(f'    <div class="group">\n      <h3>{title}<small>{blurb}</small></h3>\n      <ul class="rows">')
-        cols = bool(items) and isinstance(items[0][1], list)
-        # a menu sub-item (a "#" link under its own page) is covered by its page's row
-        colrows = [(sub, [it for it in its if not ("#" in it[0] and it[0].split("#")[0] in {h for h, *_ in its if "#" not in h})])
-                   for sub, its in (items if cols else [(None, items)])]
-        if cols and all(len(r) <= 1 for _, r in colrows):
-            colrows = [(None, [it for _, r in colrows for it in r])]   # one row per column: no subheadings, one grid
-        for sub, its in colrows:
-            if sub:
-                out.append(f'        <li class="sub">{sub}</li>')
-            for href, label, what, when in its:
-                out.append(f'        <li class="row"><a href="{href}">{label}</a><span class="what">{what}</span>'
-                           f'<span class="when">{when}</span></li>')
-        out.append("      </ul>\n    </div>\n")
+        allit = group_items(items)
+        by = {h: (lab, what) for h, lab, what, _ in allit}
+        topic, short, feat = HOME.get(title, (None, blurb, [h for h, *_ in allit if "#" not in h][:6]))
+        feat = [h for h in feat if h in by]
+        rest = [h for h, *_ in allit if h not in feat]
+        li = lambda h: f'          <li data-href="{h}"><a href="{h}" title="{esc(by[h][1])}">{by[h][0]}</a></li>'
+        out.append(f'      <section class="sg" data-topic="{topic or ""}">')
+        out.append(f'        <h3>{title}</h3>\n        <p>{short}</p>\n        <ul>')
+        out += [li(h) for h in feat]
+        out.append("        </ul>")
+        if rest:   # the theme's other pages, one tap away instead of on show
+            out.append(f'        <details class="sg-more"><summary>{len(rest)} more</summary>\n          <ul>')
+            out += ["  " + li(h) for h in rest]
+            out.append("          </ul>\n        </details>")
+        if topic and topic != "tools":
+            out.append(f'        <a class="sg-all" href="/catalog.html?topic={topic}">All plots in this theme</a>')
+        out.append("      </section>")
+    out.append("    </div>")
     out.append("    <!-- hp:end -->")
     return "\n".join(out)
 
