@@ -508,6 +508,7 @@ def vortex_series(z, C2, base, hemi, prev, tail, out: Path, Dr=None):
         ax.plot(t, corr.mean(0), "#16335c", lw=2.2, label="ensemble mean, bias-corrected")
         ax.plot(t, rawm, color="#16335c", lw=1.1, ls=(0, (1, 1.6)), alpha=0.75, label="raw GEFS mean (model drift left in)")
         tv = tail.get(name) if tail else None
+        tt = []
         if tv:
             tt = [dt.datetime.fromisoformat(x) for x in tv["t"]]
             vv = np.array(tv["v"], float)
@@ -526,14 +527,15 @@ def vortex_series(z, C2, base, hemi, prev, tail, out: Path, Dr=None):
         if as_anom:
             ax.axhline(0, color="#8a8680", lw=0.9)
         else:
-            ax.plot(t, normal, ls="--", color="#b4453c", lw=1.5, label="1991–2020 normal (ERA5)")
+            # the normal under the analysis days too, so the observed tail can be read against it (user 2026-10-12)
+            ax.plot(tt + t, list(_normal(vref, name, [x.date() for x in tt])) + list(normal), ls="--", color="#b4453c",
+                    lw=1.5, label="1991–2020 normal (ERA5)")
             ax.axhline(0, color="k", lw=1.6)
         if kind == "u60" and lev == 10:
+            # beside the panel title, where the legend cannot cover it (it hid the note inside the axes, 2026-10-12)
             frac = float((corr.min(1) < 0).mean())
-            lo, hi = ax.get_ylim()
-            ax.set_ylim(min(lo, -0.12 * (hi - min(lo, 0.0))), hi)          # room under the zero line for the note
-            ax.text(0.99, 0.02, f"{frac:.0%} of members reverse to easterlies within 35 days", transform=ax.transAxes,
-                    ha="right", va="bottom", fontsize=8.5, color="#a33", style="italic")
+            ax.set_title(f"{frac:.0%} of members reverse to easterlies within 35 days", loc="right", pad=4,
+                         fontsize=8.5, color="#a33", style="italic")
         ax.axvline(dt.datetime.combine(base, dt.time(0)), color="#8a8680", lw=0.8, ls=":")
         ax.set_ylabel(unit, fontsize=9.5)
         ax.set_title(title.format(h=H), fontsize=11, fontweight="bold", loc="left", pad=4)

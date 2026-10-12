@@ -363,7 +363,9 @@ def main() -> int:
         if as_anom:
             ax.axhline(0, color="#8a8680", lw=0.9)
         else:
-            ax.plot(ft, fc_clim, ls="--", color="#b4453c", lw=1.5,
+            # the normal under the analysis days too, so the observed tail can be read against it (user 2026-10-12)
+            tc = [clim_value(c, tr, ckey, lev, kind, x, north) for x in tt]
+            ax.plot(list(tt) + list(ft), tc + list(fc_clim), ls="--", color="#b4453c", lw=1.5,
                     label="1991–2020 normal")
             ax.axhline(0, color="k", lw=1.6)          # the SSW threshold itself
         ax.axvline(base, color="#8a8680", lw=0.8, ls=":")
