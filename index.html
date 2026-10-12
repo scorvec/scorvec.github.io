@@ -495,7 +495,7 @@
       <span class="k">Madden–Julian Oscillation</span>
       <span class="v" aria-live="polite">
         <span><b id="mj-ph">–</b><small id="mj-phl">phase</small></span>
-        <span><b id="mj-amp">–</b><small>amplitude</small></span>
+        <span><b id="mj-amp">–</b><small id="mj-ampl">amplitude</small></span>
       </span>
       <span class="s" id="mj-sub">Where the tropics' main intraseasonal signal is, and where the AIFS ensemble takes it.</span>
       <span class="go">MJO forecast</span>
@@ -681,17 +681,19 @@
     }
   });
 
-  // MJO card: the observed phase and amplitude (ROMI) and what the AIFS ensemble does with it over 15 days
+  // MJO card: is there an MJO now (ROMI amplitude >= 1) and does the AIFS ensemble have one over 15 days. Below
+  // amplitude 1 there is no MJO, so the card says so instead of quoting a phase (user 2026-10-12)
   getJSON('/assets/mjo/rmm_clean_status.json').then(m => {
     if (!m || !m.romi) return;
-    const r = m.romi, f = m.forecast || {}, act = r.amp >= 1;
-    $set('mj-ph', String(r.phase)); $set('mj-phl', act ? 'phase, active' : 'phase, weak');
-    $set('mj-amp', r.amp.toFixed(1));
+    const r = m.romi, f = m.forecast || {}, act = r.amp >= 1, days = f.days || 15;
+    if (act) { $set('mj-ph', String(r.phase)); $set('mj-phl', 'phase, active'); }
+    else { $set('mj-ph', 'None'); $set('mj-phl', 'no active MJO'); }
+    $set('mj-amp', r.amp.toFixed(1)); $set('mj-ampl', 'amplitude (1 = active)');
     let txt = `Observed ${day(r.date)} (ROMI). `;
-    if (m.coherent_mjo_forecast === false) txt += `No coherent MJO in the ${f.days || 15}-day AIFS-ENS forecast`;
-    else if (f.phase_end != null) txt += `AIFS-ENS takes it to phase ${f.phase_end} in ${f.days || 15} days`;
-    if (f.amp_mean != null) txt += ` (mean amplitude ${f.amp_mean.toFixed(1)})`;
-    $set('mj-sub', txt + '.');
+    if (m.coherent_mjo_forecast) txt += act ? `AIFS-ENS takes it to phase ${f.phase_end} in ${days} days.`
+                                            : `AIFS-ENS develops one over the next ${days} days (phase ${f.phase_end}).`;
+    else txt += act ? `AIFS-ENS loses it within ${days} days.` : `None in the ${days}-day AIFS-ENS forecast either.`;
+    $set('mj-sub', txt);
   });
 
   // "3 h ago" beside each theme link, from /status.json (built by the deploy); a page past twice its normal interval

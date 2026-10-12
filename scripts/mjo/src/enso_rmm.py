@@ -149,7 +149,10 @@ def status_sentence(st: dict) -> str:
              f"+7&deg;/day.")
     r = st.get("romi")
     if r:
-        s += (f" NOAA&rsquo;s OLR-based ROMI on {r['date']}: amplitude {r['amp']:.2f} (phase {r['phase']}); over the last "
+        # below amplitude 1 there is no MJO to have a phase: say so rather than quote one (user 2026-10-12)
+        now = (f"amplitude {r['amp']:.2f}, phase {r['phase']}" if r["amp"] >= 1.0
+               else f"amplitude {r['amp']:.2f}, below the 1.0 of an active MJO, so there is no MJO right now")
+        s += (f" NOAA&rsquo;s OLR-based ROMI on {r['date']}: {now}; over the last "
               f"60 days {int(round(100 * r['active_60d']))}&nbsp;% of days reached amplitude 1.")
     s += f" Correction applied: &Delta;Ni&ntilde;o-3.4 = {st['dn34']:+.2f}&nbsp;K."
     return s
