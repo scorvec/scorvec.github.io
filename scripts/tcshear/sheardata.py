@@ -352,24 +352,38 @@ OISST = "https://www.ncei.noaa.gov/data/sea-surface-temperature-optimum-interpol
 
 def oisst(init: dt.datetime, cache: Path):
     """(lat, lon 0..360, sst degC [lat, lon] with NaN over land/ice, date used). The newest day <= init - 1 day,
-    final or preliminary; looks back up to 10 days."""
+    final or preliminary; looks back up to 10 days. A failed fetch or an unreadable file moves on to the next candidate
+    (logged as a workflow warning); None if nothing could be read (then no SST, PI or VI, but the cycle still runs)."""
     import netCDF4
     cache.mkdir(parents=True, exist_ok=True)
+    errors = 0
     for back in range(1, 11):
         d = init - dt.timedelta(days=back)
         for suf in ("", "_preliminary"):
             name = f"oisst-avhrr-v02r01.{d:%Y%m%d}{suf}.nc"
             fp = cache / name
             if not fp.exists():
-                b = http_get(f"{OISST}/{d:%Y%m}/{name}", src="ncei", tries=2)
+                if errors >= 2:                                        # NCEI is down: do not walk ten days of 503s
+                    continue
+                try:
+                    b = http_get(f"{OISST}/{d:%Y%m}/{name}", src="ncei", tries=2)
+                except Exception as e:                                 # noqa: BLE001
+                    errors += 1
+                    print(f"::warning::OISST {name}: {e}", flush=True)
+                    continue
                 if b is None:
                     continue
                 fp.write_bytes(b)
-            with netCDF4.Dataset(fp) as nc:
-                sst = np.array(nc["sst"][0, 0], dtype=float)
-                sst = np.where(sst < -50, np.nan, sst)
-                ice = np.array(nc["ice"][0, 0], dtype=float) if "ice" in nc.variables else None
-                lat = np.array(nc["lat"][:]); lon = np.array(nc["lon"][:])
+            try:
+                with netCDF4.Dataset(fp) as nc:
+                    sst = np.array(nc["sst"][0, 0], dtype=float)
+                    sst = np.where(sst < -50, np.nan, sst)
+                    ice = np.array(nc["ice"][0, 0], dtype=float) if "ice" in nc.variables else None
+                    lat = np.array(nc["lat"][:]); lon = np.array(nc["lon"][:])
+            except Exception as e:                                     # noqa: BLE001
+                print(f"::warning::OISST {name} unreadable: {e}", flush=True)
+                fp.unlink(missing_ok=True)
+                continue
             if ice is not None:
                 sst = np.where(np.isfinite(ice) & (ice > 0.15), np.nan, sst)
             return lat, lon, sst, f"{d:%Y-%m-%d}" + (" (preliminary)" if suf else "")
@@ -377,7 +391,10 @@ def oisst(init: dt.datetime, cache: Path):
 
 
 def sst_at(oi, clat, clon, r_km=100.0):
-    """Mean SST (degC) within r_km of the centre; NaN if fewer than half of those cells are ocean (landfall)."""
+    """Mean SST (degC) within r_km of the centre; NaN if fewer than half of those cells are ocean (landfall), or if no
+    OISST could be read (oi None)."""
+    if oi is None:
+        return np.nan
     lat, lon, sst, _ = oi
     j = np.where(np.abs(lat - clat) <= 1.5)[0]
     dl = (lon - clon + 180) % 360 - 180

@@ -15,8 +15,11 @@ are taken on the sphere first (vorticity, divergence) and interpolated afterward
    km). For reference the plain 200-800 km annulus mean of the total wind (SHRD) is kept too: a centred annulus mean
    already cancels the storm's axisymmetric wind, but not its asymmetries or the projection of a tilted vortex.
 2. The environmental hodograph is that wind at every level 1000-100 hPa. Shear measures from it (shear()).
-3. Vortex tilt: vorticity centroids at 850 and 500 hPa (centroid of positive relative vorticity within R_CENTROID_KM,
-   iterated from the surface centre), tilt = 500 minus 850 hPa centre.
+3. Vortex tilt: vorticity centroids at 850 and 500 hPa (centroid of CYCLONIC relative vorticity, zeta x sign(lat),
+   within R_CENTROID_KM, iterated from the surface centre), tilt = 500 minus 850 hPa centre. A centroid whose walk ends
+   more than R_CENTROID_KM from where it started has left its own vortex: no tilt then.
+Hemispheres: relative vorticity and Ertel PV are signed (negative for a Southern Hemisphere cyclone and for its
+stratospheric air), so every vorticity / PV threshold here is applied to the field times sign(lat) (hemi()).
 4. Ventilation (Tang & Emanuel 2012, BAMS 93, 1901-1912): VI = shear x entropy deficit / potential intensity, with
    moist entropy as their eq. 3 (Bryan 2008) and PI from tcpyPI (Gilford 2021, GMD 14, 2351-2369; Bister & Emanuel
    2002).
@@ -38,8 +41,20 @@ R_ENV_KM = 500.0                     # environmental wind = mean of the residual
 ANN_KM = (200.0, 800.0)              # SHIPS SHRD annulus (total wind)
 R_CENTROID_KM = 150.0
 CENT_DX_KM = 5.0
+MAX_WALK_KM = R_CENTROID_KM          # a centroid that wanders further than its own search radius is another vortex
 
 LEVELS = (1000, 925, 850, 700, 600, 500, 400, 300, 250, 200, 150, 100)
+SHIPS_GS_LEVELS = (1000, 850, 700, 500, 400, 300, 250, 200, 150, 100)    # SHIPS lsdiag.f gshear levels (no 925 / 600)
+
+
+def hemi(lat) -> float:
+    """+1 in the Northern Hemisphere, -1 in the Southern: cyclonic vorticity and stratospheric PV times hemi() > 0."""
+    return -1.0 if float(lat) < 0 else 1.0
+
+
+def norm_lon(lon):
+    """Longitude in -180..180."""
+    return (np.asarray(lon, float) + 180.0) % 360.0 - 180.0
 
 
 # ── geometry ──────────────────────────────────────────────────────────────────────────────────────────────────────
@@ -86,12 +101,12 @@ class Plane:
         self.lat, self.lon = aeqd_inverse(clat, clon, self.x, self.y)
 
     def sample(self, box_lat, box_lon, field):
-        """Bilinear interpolation of field[..., lat, lon] (box_lat ascending, box_lon ascending -180..180 continuous)
-        onto the plane. NaN outside the box."""
+        """Bilinear interpolation of field[..., lat, lon] (box_lat ascending, box_lon ascending and continuous, in any
+        360-degree window, e.g. -197..-158 for a box across the dateline) onto the plane. NaN outside the box."""
         from scipy.ndimage import map_coordinates
-        lon = self.lon.copy()
-        lo0 = box_lon[0]
-        lon = np.where(lon < lo0 - 1e-6, lon + 360.0, lon)
+        lo0 = float(box_lon[0])
+        # every plane longitude into [lo0, lo0 + 360): a storm at -178 has plane points at +179 that the box holds as -181
+        lon = lo0 + np.mod(self.lon - lo0 + 1e-6, 360.0) - 1e-6
         fj = (self.lat - box_lat[0]) / (box_lat[1] - box_lat[0])
         fi = (lon - lo0) / (box_lon[1] - box_lon[0])
         out_of = (fj < 0) | (fj > len(box_lat) - 1) | (fi < 0) | (fi > len(box_lon) - 1)
@@ -206,8 +221,10 @@ def generalized_shear(env, levels, p_top=100.0, p_bot=1000.0):
     operational SHIPS code, lsdiag.f gshear): 4 x the mass-weighted mean magnitude of the wind's departure from its
     mass-weighted column mean,
         GS = 4 sum_p w_p |V_p - Vbar|,   Vbar = sum_p w_p V_p,   w_p = trapezoidal dp / (p_bot - p_top).
-    For a wind that changes linearly with pressure it equals the shear across the column; a profile with its shear
-    concentrated in one layer, or turning with height, scores higher than its two-level shear."""
+    For a wind that changes linearly with pressure it equals the wind difference across the WHOLE 1000-100 hPa column,
+    i.e. 900/650 = 1.38 times its 200-850 hPa shear (10 m/s of 200-850 hPa shear -> 13.8 m/s; the trapezoid weights on
+    the SHIPS levels give 14.4); a profile with its shear concentrated in one layer, or turning with height, scores
+    higher relative to its two-level shear. The product uses the SHIPS levels (SHIPS_GS_LEVELS), as validated."""
     p = np.asarray(levels, float)
     sel = (p <= p_bot) & (p >= p_top) & np.isfinite(env[:, 0])
     p, U = p[sel], env[sel]
@@ -265,20 +282,26 @@ def shear_height_depth(env, levels):
 
 
 # ── tilt ──────────────────────────────────────────────────────────────────────────────────────────────────────────
-def centroid(box_lat, box_lon, zeta, clat, clon, r_km=R_CENTROID_KM, iters=25):
-    """Centroid of positive relative vorticity within r_km, iterated from (clat, clon). -> (lat, lon, moved_km) or None."""
+def centroid(box_lat, box_lon, zeta, clat, clon, r_km=R_CENTROID_KM, iters=25, max_walk_km=MAX_WALK_KM):
+    """Centroid of CYCLONIC relative vorticity (zeta x sign(clat) > 0) within r_km, iterated from (clat, clon).
+    The walk is capped: once the centroid is more than max_walk_km from where it started it has locked onto another
+    vorticity feature (or this level has no coherent vortex), and the result is None, not a 300-700 km 'tilt'.
+    -> (lat, lon, moved_km) or None."""
+    sgn = hemi(clat)
     la, lo = clat, clon
     tot = 0.0
     for _ in range(iters):
         pl = Plane(la, lo, radius_km=r_km + 2 * CENT_DX_KM, dx_km=CENT_DX_KM)
         z = pl.sample(box_lat, box_lon, zeta)
         m = (pl.r <= r_km) & np.isfinite(z)
-        w = np.where(m, np.maximum(z, 0.0), 0.0)
+        w = np.where(m, np.maximum(sgn * z, 0.0), 0.0)
         if w.sum() <= 0:
             return None
         cx, cy = (w * pl.x).sum() / w.sum(), (w * pl.y).sum() / w.sum()
         la, lo = step_km(la, lo, cx, cy)
         tot = float(gc_km(clat, clon, la, lo))
+        if tot > max_walk_km:
+            return None
         if math.hypot(cx, cy) < 0.5:
             break
     return la, lo, tot
@@ -403,12 +426,16 @@ R_CORE_KM = 400.0                    # the storm's own diabatic PV tower reaches
 
 
 def trough_metrics(pv, lat, lon, clat, clon, thr=2.0, r_max=1700.0):
-    """Nearest stratospheric air on 330 K (PV >= thr) and the strongest 330 K PV gradient between R_CORE_KM and 1000 km
-    (the storm's own core PV excluded): the upstream trough as the shear's source.
-    -> dict(d2pvu km or None beyond r_max / the box, b2pvu bearing, gmax PVU per 100 km)."""
+    """Nearest stratospheric air on 330 K (|PV| >= thr: PV x sign(lat), PV is negative in the Southern Hemisphere) and
+    the strongest 330 K PV gradient between R_CORE_KM and 1000 km (the storm's own core PV excluded): the upstream
+    trough as the shear's source.
+    -> dict(d2pvu km or None, b2pvu bearing, gmax PVU per 100 km, and d2far=True only when there is truly no such air
+       within r_max: the PV is defined over at least 95 % of the R_CORE_KM..r_max disc and the box reaches r_max.
+       d2pvu None without d2far = not determined (box edge, missing PV), never 'beyond r_max')."""
     from scipy.ndimage import gaussian_filter
     LA, LO = np.meshgrid(lat, lon, indexing="ij")
     d = gc_km(clat, clon, LA, LO)
+    pv = hemi(clat) * np.asarray(pv, float)
     # smooth ~1 deg first: isolated convective (diabatic) PV blobs on 330 K are not the trough
     ok = np.isfinite(pv)
     w = gaussian_filter(ok.astype(float), 3.0)
@@ -419,6 +446,11 @@ def trough_metrics(pv, lat, lon, clat, clon, thr=2.0, r_max=1700.0):
         k = np.argmin(np.where(hit, d, np.inf))
         x, y = offset_km(clat, clon, LA.flat[k], LO.flat[k])
         out["d2pvu"] = round(float(d.flat[k])); out["b2pvu"] = round(bearing_of(float(x), float(y)))
+    else:
+        disc = (d >= R_CORE_KM) & (d <= r_max)
+        edge = min(d[0].min(), d[-1].min(), d[:, 0].min(), d[:, -1].min())
+        if disc.any() and np.isfinite(pv[disc]).mean() >= 0.95 and edge >= r_max:
+            out["d2far"] = True
     dy = (lat[1] - lat[0]) * 111.2
     dx = (lon[1] - lon[0]) * 111.2 * np.cos(np.radians(LA))
     gy, gx = np.gradient(pv, axis=0) / dy, np.gradient(pv, axis=1) / dx
@@ -438,7 +470,7 @@ def analyze(box, clat, clon, sst_c, levels=LEVELS, want_pv=True):
     U = pl.sample(lat, lon, np.stack([u, v, z, d]))
     E = environment(U[0], U[1], U[2], U[3], pl)
     env, ann = E["env"], E["ann"]
-    rec = dict(lat=round(clat, 2), lon=round(clon, 2))
+    rec = dict(lat=round(clat, 2), lon=round(float(norm_lon(clon)), 2))
     if not np.isfinite(env[levels.index(850)]).all() or not np.isfinite(env[levels.index(200)]).all():
         rec["cov"] = round(float(np.nanmin(E["cov"])), 2)
         return rec
@@ -449,9 +481,10 @@ def analyze(box, clat, clon, sst_c, levels=LEVELS, want_pv=True):
         rec[name] = [round(mag, 1), round(frm)]
     mag, frm = vec(*layer_shear(ann, levels, 200, 850))
     rec["shrd"] = [round(mag, 1), round(frm)] if np.isfinite(mag) else None
-    gs = generalized_shear(env, levels)
+    gsel = [list(levels).index(p) for p in SHIPS_GS_LEVELS]                # the SHIPS form, as validated (verify.py)
+    gs = generalized_shear(env[gsel], SHIPS_GS_LEVELS)
     rec["gs"] = round(gs, 1) if np.isfinite(gs) else None
-    gr = generalized_shear(ann, levels)
+    gr = generalized_shear(ann[gsel], SHIPS_GS_LEVELS)
     rec["gsr"] = round(gr, 1) if np.isfinite(gr) else None              # SHIPS SHRG analogue (200-800 km, total wind)
     if rec["shrd"] is not None:
         rec["shrs"] = [round(x) if i else round(x, 1) for i, x in enumerate(vec(*layer_shear(ann, levels, 500, 850)))]
@@ -516,6 +549,7 @@ def find_centre(box, glat, glon, r_search_km=300.0, ring=(300.0, 500.0), min_dep
         return None
     la, lo, p = float(LA.flat[k]), float(LO.flat[k]), float(m.flat[k])
     dd = gc_km(la, lo, LA, LO)
+    lo = float(norm_lon(lo))                                           # a box across the dateline holds e.g. -181
     rm = sm[(dd >= ring[0]) & (dd <= ring[1])]
     if np.isfinite(rm).mean() < 0.7 or np.nanmean(rm) - float(sm.flat[k]) < min_depth:
         return None

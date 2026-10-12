@@ -11,7 +11,9 @@ Writes (repo-relative):
   assets/sst/anim/tcshear/<SID>_F<hhh>.webp  330 K PV + shear map per 6 h (AIFS-ENS control)    -> frames branch
   assets/sst/anim/tcshear_manifest.json     the storm list (main; stamped with frames_sha by the publisher)
   assets/sst/data/tcshear_verify.json       running verification archive (analysis shear vs SHIPS, tilt vs TDR)
-Exits in seconds with an empty storm list when no named storm exists.
+Exits in seconds with an empty storm list when no named storm exists. A cycle built before IFS HRES or AIFS single was
+fully on the Google mirror is published with complete=false, pending=[model] and rebuilt by a later dispatch once the
+model is there (closed without it at T+DET_WAIT_H).
 """
 from __future__ import annotations
 
@@ -50,6 +52,11 @@ def log(*a):
 
 
 # ── cycles ────────────────────────────────────────────────────────────────────────────────────────────────────────
+def age_h(init):
+    """Hours since the cycle's initial time (now, UTC)."""
+    return (dt.datetime.now(dt.timezone.utc).replace(tzinfo=None) - init).total_seconds() / 3600.0
+
+
 def resolve_cycle(date=None, hh=None, back=4):
     """Newest AIFS-ENS cycle (00/06/12/18Z) whose tracker file and cf/pf steps to 120 h are all on the Google mirror."""
     import cycles
@@ -72,7 +79,8 @@ def resolve_cycle(date=None, hh=None, back=4):
 
 
 def oper_tf(model, d, h):
-    """The deterministic run's tracker file on the Google mirror (name carries the run length)."""
+    """The deterministic run's tracker file on the Google mirror (name carries the run length). None when it is not
+    there or cannot be fetched (a flaky fetch degrades to 'this model missing', never fails the cycle)."""
     import cycles
     names = cycles._list_names(f"{d}/{h}z/{model}/0p25/oper/") or []
     tf = [n for n in names if n.endswith("-oper-tf.bufr")]
@@ -80,7 +88,11 @@ def oper_tf(model, d, h):
         return None
     fp = CACHE / f"{model}_{d}{h}_tf.bufr"
     if not fp.exists():
-        b = D.http_get(f"{GOOGLE}/{tf[0]}", src="ecmwf-google")
+        try:
+            b = D.http_get(f"{GOOGLE}/{tf[0]}", src="ecmwf-google")
+        except Exception as e:                                         # noqa: BLE001
+            log(f"::warning::{model} tracker file {d} {h}Z: {e}")
+            return None
         if b is None:
             return None
         fp.write_bytes(b)
@@ -88,10 +100,48 @@ def oper_tf(model, d, h):
 
 
 def oper_steps(model, d, h, steps):
-    """Steps of a deterministic ECMWF run that are on the mirror (06/18Z IFS HRES stops at 90 h)."""
+    """Steps of a deterministic ECMWF run fully on the mirror (.index and .grib2). IFS HRES runs to 144 h at 06/18Z and
+    360 h at 00/12Z, AIFS single to 360 h: every step to 120 h exists once the run is uploaded. A listing failure
+    returns no steps (counted as missing, so the cycle is retried)."""
     import cycles
     names = set(cycles._list_names(f"{d}/{h}z/{model}/0p25/oper/") or [])
-    return [s for s in steps if f"{d}/{h}z/{model}/0p25/oper/{d}{h}0000-{s}h-oper-fc.grib2" in names]
+    base = f"{d}/{h}z/{model}/0p25/oper/{d}{h}0000"
+    return [s for s in steps if f"{base}-{s}h-oper-fc.grib2" in names and f"{base}-{s}h-oper-fc.index" in names]
+
+
+# The deterministic ECMWF runs reach the Google mirror later than AIFS-ENS: 00/12Z IFS HRES (to 360 h) lands ~T+7.5 h
+# (12Z: ~19:34Z) while AIFS-ENS is complete ~T+6.2 h, when the run starts. A cycle built without one of them is published
+# with complete=false and pending=[model]; a later dispatch (01:50/07:50/13:50/19:50 UTC) rebuilds it once the model is on
+# the mirror. Past T+DET_WAIT_H the cycle is closed without it (2026-10-12: 12 of 13 00/12Z cycles had no IFS).
+DET = (("ifs", "ifs"), ("aifs-single", "aifs"))
+DET_WAIT_H = 9.0
+
+
+def close_cycle(man, det_full, init):
+    """complete / pending / missing in the manifest from which deterministic runs were read in full. A run not yet (fully)
+    on the mirror keeps the cycle open (complete=false, pending=[model]) for a later dispatch, up to T+DET_WAIT_H."""
+    missing = [m for m, ok in det_full.items() if not ok]
+    man.pop("pending", None); man.pop("missing", None)
+    if missing and age_h(init) < DET_WAIT_H:
+        man["complete"] = False
+        man["pending"] = missing
+        log(f"  published without {', '.join(missing)} (not fully on the Google mirror yet): the cycle stays open "
+            f"until T+{DET_WAIT_H:.0f} h")
+    else:
+        man["complete"] = True
+        if missing:
+            man["missing"] = missing
+            log(f"::warning::{init:%Y%m%d %H}Z published without {', '.join(missing)}")
+    return man
+
+
+def det_on_mirror(model, d, h):
+    """True when the run's tracker file and every step of CTRL_STEPS are on the Google mirror."""
+    import cycles
+    names = cycles._list_names(f"{d}/{h}z/{model}/0p25/oper/")
+    if not names or not any(n.endswith("-oper-tf.bufr") for n in names):
+        return False
+    return len(oper_steps(model, d, h, CTRL_STEPS)) == len(CTRL_STEPS)
 
 
 # ── tracks ────────────────────────────────────────────────────────────────────────────────────────────────────────
@@ -163,7 +213,10 @@ def run_ecmwf_ens(d, h, storms, oi, members, maps):
                             cbm.setdefault(m, []).append(((m, s["sid"], "g"), g[0], g[1]))
             if not cbm:
                 continue
-            extra = {("map", s["sid"]): s["mapbox"] for s in storms} if (kind == "cf" and maps) else None
+            extra = None
+            if kind == "cf" and maps:                                  # a map only where THIS storm's control is tracked
+                ctl = {key[1] for key, _, _ in cbm.get(0, [])}
+                extra = {("map", s["sid"]): s["mapbox"] for s in storms if s["sid"] in ctl} or None
             boxes = D.ecmwf_boxes("aifs-ens", d, h, step, kind, "enfo", cbm, extra=extra)
             if boxes is None:
                 log(f"  aifs-ens {kind} +{step}h not on the mirror")
@@ -193,9 +246,11 @@ def run_ecmwf_ens(d, h, storms, oi, members, maps):
 
 
 def run_ecmwf_det(model, d, h, storms, tracks, oi):
-    """AIFS single ('aifs-single') or IFS HRES ('ifs') along the run's own tracker positions."""
+    """AIFS single ('aifs-single') or IFS HRES ('ifs') along the run's own tracker positions.
+    -> ({sid: records}, full: every step of CTRL_STEPS was on the mirror and read without error)."""
     res = {}
     steps = oper_steps(model, d, h, CTRL_STEPS)
+    full = len(steps) == len(CTRL_STEPS)
     for step in steps:
         cbm = {0: []}
         for s in storms:
@@ -205,16 +260,22 @@ def run_ecmwf_det(model, d, h, storms, tracks, oi):
                 cbm[0].append(((0, s["sid"]), p[0], p[1]))
         if not cbm[0]:
             continue
-        boxes = D.ecmwf_boxes(model, d, h, step, "fc", "oper", cbm)
+        try:
+            boxes = D.ecmwf_boxes(model, d, h, step, "fc", "oper", cbm)
+        except Exception as e:                                         # noqa: BLE001
+            log(f"::warning::{model} +{step}h: {e}")
+            full = False
+            continue
         if boxes is None:
+            full = False
             continue
         for (_, sid), la, lo in cbm[0]:
             r = analyse_box(boxes.get((0, sid)), la, lo, oi)
             if r:
                 r["h"] = step
                 res.setdefault(sid, []).append(r)
-    log(f"  {model}: {len(steps)} steps  {D.LEDGER.report()}")
-    return res
+    log(f"  {model}: {len(steps)} of {len(CTRL_STEPS)} steps on the mirror  {D.LEDGER.report()}")
+    return res, full
 
 
 def _extrap(found, step):
@@ -372,9 +433,14 @@ def mapbox_for(s):
     sel = st <= 72
     la, lo = la[sel], lo[sel]
     lo = lo[0] + ((lo - lo[0] + 180) % 360 - 180)
-    a0, a1 = max(-70.0, la.min() - 9.0), min(70.0, la.max() + 13.0)
-    if a1 - a0 < 26:
-        a1 = a0 + 26
+    if np.nanmean(la) >= 0:                                            # 13 deg poleward (the trough), 9 equatorward
+        a0, a1 = max(-70.0, la.min() - 9.0), min(70.0, la.max() + 13.0)
+        if a1 - a0 < 26:
+            a1 = a0 + 26
+    else:                                                              # Southern Hemisphere: poleward is south
+        a0, a1 = max(-70.0, la.min() - 13.0), min(70.0, la.max() + 9.0)
+        if a1 - a0 < 26:
+            a0 = a1 - 26
     b0, b1 = lo.min() - 24.0, lo.max() + 14.0
     if b1 - b0 > 60:
         b0 = b1 - 60
@@ -405,8 +471,21 @@ def main() -> int:
     d, h = resolve_cycle(a.date, a.time)
     init = dt.datetime.strptime(d + h, "%Y%m%d%H")
     prev = json.loads(MANIFEST.read_text()) if MANIFEST.exists() else {}
-    if prev.get("init") == f"{init:%Y-%m-%dT%H:00Z}" and not a.force and prev.get("complete"):
-        log(f"{d} {h}Z already published; nothing to do"); return 0
+    if prev.get("init") == f"{init:%Y-%m-%dT%H:00Z}" and not a.force:
+        if prev.get("complete"):
+            log(f"{d} {h}Z already published; nothing to do"); return 0
+        pend = prev.get("pending") or []
+        if pend and not any(det_on_mirror(m, d, h) for m in pend):
+            if age_h(init) < DET_WAIT_H:
+                log(f"{d} {h}Z published without {', '.join(pend)}; still not on the Google mirror, nothing to do yet")
+                return 0
+            prev["complete"] = True
+            prev["missing"] = pend
+            prev.pop("pending", None)
+            MANIFEST.write_text(json.dumps(prev, separators=(",", ":")))
+            log(f"::warning::{d} {h}Z closed without {', '.join(pend)}: not on the Google mirror by T+{DET_WAIT_H:.0f} h")
+            return 0
+        log(f"{d} {h}Z was published without {', '.join(pend) or 'some models'}; rebuilding it now")
 
     import tc_ens as TE
     fp = CACHE / f"aifs_ens_tf_{d}{h}.bufr"
@@ -445,17 +524,22 @@ def main() -> int:
     oi = D.oisst(init, CACHE / "oisst")
     obs0 = {s["sid"]: O.observed_position(s, active) for s in storms}
     ens, mapbox = run_ecmwf_ens(d, h, storms, oi, a.members, not a.no_maps)
-    det = {}
-    for model, key in (("ifs", "ifs"), ("aifs-single", "aifs")):
+    det, det_full = {}, {}
+    for model, key in DET:
+        det_full[model] = False
         fpt = oper_tf(model, d, h)
         if fpt is None:
             log(f"  {model}: no tracker file for {d} {h}Z"); continue
         tr = {}
-        for m in storms_from(TE.decode_all(fpt, types=(0,)), nmem=1):
-            for s in storms:
-                if m["tid"] == s["tid"] and 0 in m["tracks"]:
-                    tr[s["sid"]] = m["tracks"][0]
-        det[key] = run_ecmwf_det(model, d, h, storms, tr, oi)
+        try:
+            for m in storms_from(TE.decode_all(fpt, types=(0,)), nmem=1):
+                for s in storms:
+                    if m["tid"] == s["tid"] and 0 in m["tracks"]:
+                        tr[s["sid"]] = m["tracks"][0]
+        except Exception as e:                                         # noqa: BLE001
+            log(f"::warning::{model} tracker file {d} {h}Z unreadable: {e}")
+            fpt.unlink(missing_ok=True); continue
+        det[key], det_full[model] = run_ecmwf_det(model, d, h, storms, tr, oi)
     det["gfs"], gtrk = run_gfs(d, h, storms, oi, obs0)
     if not a.no_hrrr:
         det["hrrr"] = run_hrrr(d, h, storms, oi, gtrk)
@@ -468,7 +552,11 @@ def main() -> int:
         for key, rr in det.items():
             if rr.get(sid):
                 models[key] = {"run": add_motion(sorted(rr[sid], key=lambda r: r["h"]))}
-        obs = O.observations(sid, init)
+        try:
+            obs = O.observations(sid, init)
+        except Exception as e:                                         # noqa: BLE001
+            log(f"::warning::observations for {sid}: {e}")
+            obs = dict(btk=[], fcst=None, vdm=[], tdr=[], ships=None, src=[])
         frames = []
         if not a.no_maps and mapbox[sid]:
             import shearmaps as M
@@ -488,7 +576,7 @@ def main() -> int:
                 O.update_verify(VERIFY, sid, s["name"], init, models, obs)
         except Exception as e:                                         # noqa: BLE001
             log(f"  verify archive: {e}")
-    man["complete"] = True
+    close_cycle(man, det_full, init)
     man["built"] = built
     man["bytes"] = D.LEDGER.report()
     man["runtime_s"] = round(time.time() - T0)

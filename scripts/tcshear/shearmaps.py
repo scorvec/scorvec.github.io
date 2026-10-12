@@ -7,6 +7,8 @@ Each frame: 330 K Ertel PV (tropospheric air warm, the 2-PVU line black, stratos
 the 200-850 hPa shear of the TOTAL wind smoothed over ~300 km (grey arrows: the large-scale shear field), the storm's
 environmental (vortex-removed) shear vector at its centre (red arrow), the control's track, and a dashed line to the
 nearest 2-PVU air on 330 K outside 400 km (the trough's distance).
+Southern Hemisphere storms: PV is negative there, so the map shows -PV (stratospheric air is PV <= -2 PVU) and says so.
+Longitudes are unwrapped around the map's centre so a track across the dateline is drawn the short way.
 """
 from __future__ import annotations
 
@@ -52,8 +54,13 @@ def render(storm, boxes, ctrl, init, out_dir: Path, obs=None):
     mh = W * 0.98 * asp
     H = mh + 1.55
     cmap = ListedColormap(PV_COLS); norm = BoundaryNorm(PV_LEV, len(PV_COLS), extend="max")
+    sgn = S.hemi(ctrl[0]["lat"] if ctrl else (a0 + a1) / 2.0)        # PV x sign(lat): stratospheric air >= 2 either side
+    mid = (b0 + b1) / 2.0
+
+    def ulon(x):                                                       # unwrap around the map centre (dateline)
+        return float(mid + ((x - mid + 180.0) % 360.0 - 180.0))
     byh = {r["h"]: r for r in ctrl}
-    trk = [(r["h"], r["lat"], r["lon"]) for r in ctrl]
+    trk = [(r["h"], r["lat"], ulon(r["lon"])) for r in ctrl]
     files = []
     for step in sorted(boxes):
         b = boxes[step]
@@ -61,6 +68,7 @@ def render(storm, boxes, ctrl, init, out_dir: Path, obs=None):
             pv, lat, lon = S.pv330(b)
         except Exception as e:                                         # noqa: BLE001
             print(f"  map +{step}h: {e}"); continue
+        pv = sgn * pv
         du, dv = _shear_field(b)
         fig = plt.figure(figsize=(W, H))
         ax = TC.sector_axes(fig, [0.01, 1.0 / H, 0.98, mh / H], b0, b1, a0, a1, land=False)
@@ -81,19 +89,20 @@ def render(storm, boxes, ctrl, init, out_dir: Path, obs=None):
         r = byh.get(step)
         note = ""
         if r:
-            ax.plot(r["lon"], r["lat"], marker="o", ms=9, mfc="#d1352b", mec="#fff", mew=1.5, transform=ccrs.PlateCarree(), zorder=8)
+            rlon = ulon(r["lon"])
+            ax.plot(rlon, r["lat"], marker="o", ms=9, mfc="#d1352b", mec="#fff", mew=1.5, transform=ccrs.PlateCarree(), zorder=8)
             if r.get("deep"):
                 mag, frm = r["deep"]
                 to = math.radians((frm + 180) % 360)
                 L = mag / 10.0 * 2.2                                    # degrees of arrow per 10 m/s
-                ax.annotate("", xy=(r["lon"] + L * math.sin(to) / math.cos(math.radians(r["lat"])), r["lat"] + L * math.cos(to)),
-                            xytext=(r["lon"], r["lat"]), xycoords=ccrs.PlateCarree()._as_mpl_transform(ax),
+                ax.annotate("", xy=(rlon + L * math.sin(to) / math.cos(math.radians(r["lat"])), r["lat"] + L * math.cos(to)),
+                            xytext=(rlon, r["lat"]), xycoords=ccrs.PlateCarree()._as_mpl_transform(ax),
                             arrowprops=dict(arrowstyle="-|>", color="#d1352b", lw=2.6, mutation_scale=18), zorder=9)
                 note = f"Run {init:%d %b %H}Z.  Environmental shear {mag:.0f} m/s ({mag * S.KT:.0f} kt) from {frm:.0f}°"
             if r.get("d2pvu") is not None and r.get("b2pvu") is not None:
                 la2, lo2 = S.step_km(r["lat"], r["lon"], r["d2pvu"] * math.sin(math.radians(r["b2pvu"])),
                                      r["d2pvu"] * math.cos(math.radians(r["b2pvu"])))
-                ax.plot([r["lon"], lo2], [r["lat"], la2], color="#1f3f8f", lw=1.4, ls=(0, (4, 2)), transform=ccrs.PlateCarree(), zorder=8)
+                ax.plot([rlon, ulon(lo2)], [r["lat"], la2], color="#1f3f8f", lw=1.4, ls=(0, (4, 2)), transform=ccrs.PlateCarree(), zorder=8)
                 note += f";  2-PVU air on 330 K {r['d2pvu']:,} km to the {_compass(r['b2pvu'])}"
         valid = init + dt.timedelta(hours=step)
         top = 1 - 0.12 / H
@@ -102,7 +111,9 @@ def render(storm, boxes, ctrl, init, out_dir: Path, obs=None):
         fig.text(0.012, top - 0.3 / H, note or " ", fontsize=10, color=TEXT, va="top")
         cax = fig.add_axes([0.04, 0.42 / H, 0.44, 0.17 / H])
         cb = fig.colorbar(m, cax=cax, orientation="horizontal", ticks=PV_LEV)
-        cb.set_label("PV on 330 K (PVU); black line = 2 PVU", fontsize=9, color=TEXT)
+        cb.set_label("PV on 330 K (PVU); black line = 2 PVU" if sgn > 0 else
+                     "−PV on 330 K (PVU; SH: PV < 0); black line = −2 PVU",
+                     fontsize=9, color=TEXT)
         cb.ax.tick_params(labelsize=8)
         fig.text(0.52, 0.55 / H, "grey arrows: 200–850 hPa shear of the total wind, smoothed ~300 km\n"
                                  "red arrow: the storm's vortex-removed shear (10 m/s per 2.2°)\n"

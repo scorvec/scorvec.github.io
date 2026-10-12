@@ -97,13 +97,13 @@
 <p><b>The profile.</b> The hodograph shows the environmental wind at 1000, 925, 850, 700, 600, 500, 400, 300, 250, 200, 150 and 100&nbsp;hPa. From it come:</p>
 <ul>
 <li>the standard 200&ndash;850&nbsp;hPa shear, plus the lower (850&ndash;500) and upper (500&ndash;200) layers;</li>
-<li><b>generalized shear</b>: 4&nbsp;&times; the mass-weighted mean departure of the wind from its column mean over 1000&ndash;100&nbsp;hPa (Knaff, Sampson &amp; DeMaria 2005; the SHIPS form). For a straight-line profile it equals the two-level shear. It is larger when the shear is packed into one layer or the wind turns with height;</li>
+<li><b>generalized shear</b>: 4&nbsp;&times; the mass-weighted mean departure of the wind from its column mean over 1000&ndash;100&nbsp;hPa (Knaff, Sampson &amp; DeMaria 2005; the SHIPS form). For a wind that changes linearly with pressure it equals the wind difference across the whole 1000&ndash;100&nbsp;hPa column, about 1.4&nbsp;&times; that profile's 200&ndash;850&nbsp;hPa shear. Compared with the two-level shear it is larger when the shear is packed into one layer or the wind turns with height. It is computed on SHIPS's ten pressure levels, the form checked in the Validation tab;</li>
 <li>the shear's <b>height and depth</b> (Finocchio &amp; Majumdar 2017).</li>
 </ul>
 <p>In idealized runs, shallower, lower shear tilts the vortex further and does more damage than the same 200&ndash;850&nbsp;hPa shear spread through a deep layer (Finocchio et al. 2016). In the observed climatology, neither height nor depth explains more than 5&nbsp;% of intensity change (Finocchio &amp; Majumdar 2017). They are therefore shown as structure, not as a forecast.</p>
 <p><b>Shear relative to the storm.</b> In TRMM rain, the inner-core maximum sits downshear-left in the Northern Hemisphere once the shear exceeds about 7.5&nbsp;m/s (15&nbsp;kt), whatever the storm's motion. Below 5&nbsp;m/s, motion-related asymmetries compete (Chen, Knaff &amp; Marks 2006; lightning: Corbosiero &amp; Molinari 2002, 2003; Ueno 2007).</p>
 <p><b>Tilt.</b> A sheared vortex first tilts downshear, then the tilt rotates cyclonically (Jones 1995). A resilient vortex settles into a downshear-left tilt (Reasor, Montgomery &amp; Grasso 2004). Intensification usually follows a large drop in tilt, which comes once the mid-level vortex has rotated to the left or upshear-left of the shear (Rios-Berrios, Davis &amp; Torn 2018). Their 2024 review adds that there is no consensus on how tilt relates to intensity change. In airborne radar, tilt falls as intensity rises (rank correlation &minus;0.69; major hurricanes never above 25&nbsp;km; Fischer et al. 2022). Weak storms that intensified rapidly had tilts below 30&nbsp;km (Fischer et al. 2024).</p>
-<p>Here the model tilt is the offset of the 500&nbsp;hPa vorticity centroid from the 850&nbsp;hPa one. Each centroid is of positive relative vorticity within 150&nbsp;km, iterated outward from the surface centre. The observed tilt is HRD's 2&ndash;6&nbsp;km tail-Doppler tilt, from the <a href="/recon.html">recon page</a>'s mirror. A 0.25&deg; model grid (~28&nbsp;km) cannot resolve a 10&ndash;20&nbsp;km tilt; the Validation tab shows what the models do capture.</p>
+<p>Here the model tilt is the offset of the 500&nbsp;hPa vorticity centroid from the 850&nbsp;hPa one. Each centroid is of cyclonic relative vorticity (positive in the Northern Hemisphere, negative in the Southern) within 150&nbsp;km, iterated outward from the surface centre. A centroid that wanders more than 150&nbsp;km from where it started has left the vortex, and no tilt is given. The observed tilt is HRD's 2&ndash;6&nbsp;km tail-Doppler tilt, from the <a href="/recon.html">recon page</a>'s mirror. A 0.25&deg; model grid (~28&nbsp;km) cannot resolve a 10&ndash;20&nbsp;km tilt; the Validation tab shows what the models do capture.</p>
 <p><b>Ventilation.</b> Tang &amp; Emanuel (2012, TE12) define VI&nbsp;=&nbsp;u<sub>shear</sub>&nbsp;&chi;<sub>m</sub>&nbsp;/&nbsp;u<sub>PI</sub>, with &chi;<sub>m</sub>&nbsp;=&nbsp;(s*<sub>m</sub>&nbsp;&minus;&nbsp;s<sub>m</sub>)&nbsp;/&nbsp;(s*<sub>SST</sub>&nbsp;&minus;&nbsp;s<sub>b</sub>). Here:</p>
 <ul>
 <li>u<sub>shear</sub> is the vortex-removed 200&ndash;850&nbsp;hPa shear;</li>
@@ -118,11 +118,11 @@
 <li>above 0.1, the chance of genesis falls below 10&nbsp;%.</li>
 </ul>
 <p>Their reanalysis barely resolved a warm core, while a 0.25&deg; model does, which raises s*<sub>m</sub>. The bracketed &ldquo;env.&rdquo; value takes the core at the environmental temperature, which is closer to TE12's data. Use the thresholds as a guide, not a cut-off.</p>
-<p><b>Where the shear comes from.</b> The trough is air above 2&nbsp;PVU on the 330&nbsp;K isentrope. The PV is smoothed over about 1&deg; so that convective PV blobs do not count, and the storm's own core within 400&nbsp;km is excluded. The product gives the distance to the nearest such air and the strongest 330&nbsp;K PV gradient within 1,000&nbsp;km. The PV is the same Ertel PV as the models page's isentropic PV charts (scripts/models/upper.py) and the dynamic-tropopause maps. These numbers are descriptive only.</p>
+<p><b>Where the shear comes from.</b> The trough is air above 2&nbsp;PVU on the 330&nbsp;K isentrope (below &minus;2&nbsp;PVU in the Southern Hemisphere, where PV is negative; the maps there show &minus;PV). The PV is smoothed over about 1&deg; so that convective PV blobs do not count, and the storm's own core within 400&nbsp;km is excluded. The product gives the distance to the nearest such air and the strongest 330&nbsp;K PV gradient within 1,000&nbsp;km. &ldquo;&gt;&nbsp;1,700&nbsp;km&rdquo; means the PV was searched to 1,700&nbsp;km and none was found; a dash means it could not be determined. The PV is the same Ertel PV as the models page's isentropic PV charts (scripts/models/upper.py) and the dynamic-tropopause maps. These numbers are descriptive only.</p>
 <p><b>Models.</b></p>
 <ul>
 <li>AIFS-ENS: the control and 50 members on ECMWF's own tracker positions, 6-hourly for the control and 12-hourly for the members, to day 5;</li>
-<li>AIFS single and IFS HRES, on their own trackers;</li>
+<li>AIFS single and IFS HRES, on their own trackers. The 00 and 12&nbsp;UTC IFS HRES reaches ECMWF's open-data mirror about 7&frac12; hours after the run starts, after AIFS-ENS; the run is shown without it until then and rebuilt when it arrives;</li>
 <li>GFS, tracked here as the closed MSLP low near the members' median position;</li>
 <li>HRRR, coarsened to 12&nbsp;km, used only where it covers the whole 0&ndash;500&nbsp;km disc.</li>
 </ul>
@@ -297,7 +297,7 @@ References: Bister &amp; Emanuel 2002, <i>JGR</i> 107(D24), 4801 &middot; Chen, 
     <figure class="tcs-map"><img id="tcs-map" alt="" hidden><div class="nomap" id="tcs-nomap" hidden>No map for this hour</div><figcaption>330 K PV (black: 2 PVU, the trough), total shear (grey), the storm's environmental shear (red); AIFS-ENS control.</figcaption></figure>
     <div class="tcs-side">
      <figure><div id="tcs-hodo"></div><figcaption>Environmental hodograph, 1000→100 hPa. Red dashed: 200–850 hPa shear; black: storm motion.</figcaption></figure>
-     <figure><div id="tcs-tilt"></div><figcaption>Vortex tilt 850→500 hPa, downshear up. Red diamonds: radar-observed tilt.</figcaption></figure>
+     <figure><div id="tcs-tilt"></div><figcaption>Vortex tilt 850→500 hPa, downshear up. Red diamonds: radar-observed tilt, against the shear of its own time.</figcaption></figure>
     </div>
    </div>
    <div class="tcs-row" id="tcs-meas" role="group" aria-label="Measure" style="margin-top:12px"></div>
@@ -307,14 +307,14 @@ References: Bister &amp; Emanuel 2002, <i>JGR</i> 107(D24), 4801 &middot; Chen, 
   <details class="tcs-read"><summary>How to read the panels</summary><ul>
    <li><b>Map</b>: potential vorticity on the 330 K isentrope; the black line is 2 PVU, so inside it is stratospheric air, the upper trough. Grey arrows: 200–850 hPa shear of the total wind; red: the storm's environmental shear (its own circulation removed). AIFS-ENS control, 6-hourly.</li>
    <li><b>Hodograph</b>: the environmental wind (storm's own circulation removed) at every level from 1000 to 100 hPa. Bold: AIFS-ENS control, coloured from low levels (warm) to high (blue); thin: other models; grey: the 50 members. Red dashed: the 200–850 hPa shear vector; black: storm motion.</li>
-   <li><b>Tilt</b>: the 850→500 hPa vorticity-centroid displacement in the shear's frame, downshear up. Lines: each run's path to day 5, the dot at the chosen hour; grey dots: members; red diamonds: the observed 2–6 km tilt from NOAA's tail Doppler radar, rotated by the analysed shear.</li>
+   <li><b>Tilt</b>: the 850→500 hPa vorticity-centroid displacement in the shear's frame, downshear up. Lines: each run's path to day 5, the dot at the chosen hour; grey dots: members; red diamonds: the observed 2–6 km tilt from NOAA's tail Doppler radar, rotated by the control's shear within 3 hours of the radar time (radar analyses from before the run are left out here; the time series shows them).</li>
    <li><b>Time series</b>: the chosen measure along every run, with the AIFS-ENS member spread; the dark vertical line is the hour on the slider. Keyboard: the arrow keys step the slider once it has focus.</li>
   </ul></details>
  </div>
 </div>
 <div id="tcs-val" hidden></div>
 </div>
-<script src="/assets/tcshear/tcshear.js?v=20261008h" defer></script>
+<script src="/assets/tcshear/tcshear.js?v=20261012a" defer></script>
 <!-- Storm picker (2026-10-03, user: "For the cyclone phase space and ensemble tracks, would be better if you could click on a
      map and select the storm"). Mounted by the tcens and tcphase products; reads assets/sst/data/tcens.json + tcphase.json
      (per-storm figures in assets/sst/tc/, written by tc_ens.py / tc_phase.py). State in the hash: #tcens/<id>[/depth], #tcphase/<id>. -->

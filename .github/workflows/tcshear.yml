@@ -8,6 +8,8 @@ name: TC shear and environment
 # Cadence: every AIFS-ENS cycle (00/06/12/18Z); the laptop dispatcher fires it at :10 and :40 past 00/06/12/18 UTC
 # (scripts/lib/dispatch_workflows.sh), the cron below is the backstop. A first stdlib-only step asks NHC and JTWC whether
 # any storm is active and ends the run in seconds when none is; a cycle already published also exits early.
+# The 00/12Z IFS HRES reaches the Google mirror ~T+7.5 h, after the AIFS-ENS-driven run: that cycle is published with
+# pending=["ifs"] and the 01:50/07:50/13:50/19:50 slots (dispatcher + this cron) rebuild it once IFS is there.
 # Data: ECMWF open data from the Google Cloud mirror ONLY; GFS / HRRR from the AWS S3 open-data buckets; OISST from NCEI.
 # Maps and per-storm JSON go to the frames branch (sha-pinned via publish_frames_ci.sh); the manifest and the
 # verification archive to main.
@@ -120,18 +122,26 @@ jobs:
           done
           exit 1
 
+      # Only the files THIS mode writes: the three modes run in separate concurrency groups, so a verify or hindcast run
+      # that also snapshotted the live manifest / verify archive (stale checkout copies) could commit them over a live
+      # run's newer ones (2026-10-12 review).
       - name: Commit & push
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          OUT="assets/sst/anim/tcshear_manifest.json assets/sst/anim/tcshear_hc_manifest.json assets/sst/data/tcshear_verify.json assets/sst/data/tcshear_validation.json"
+          case "$MODE" in
+            live)     OUT="assets/sst/anim/tcshear_manifest.json assets/sst/data/tcshear_verify.json" ;;
+            verify)   OUT="assets/sst/data/tcshear_validation.json" ;;
+            hindcast) OUT="assets/sst/anim/tcshear_hc_manifest.json" ;;
+            *)        echo "::error::unknown mode '$MODE'"; exit 1 ;;
+          esac
           SNAP=$(mktemp -d)
           tar cf "$SNAP/outs.tar" --ignore-failed-read $OUT 2>/dev/null || true
           for i in 1 2 3 4 5; do
             if ! timeout 120 git fetch origin main; then echo "fetch $i failed"; sleep 5; continue; fi
             git reset --hard origin/main
             tar xf "$SNAP/outs.tar" 2>/dev/null || true
-            for f in $OUT; do [ -e "$f" ] && git add "$f"; done
+            for f in $OUT; do if [ -e "$f" ]; then git add "$f"; fi; done
             if git diff --staged --quiet; then echo "No changes; skipping commit."; exit 0; fi
             git commit -m "data update: tc shear ($MODE) $(date -u +%Y%m%d_%H%MZ)"
             if timeout 180 git push; then echo "Pushed on attempt $i."; exit 0; fi
