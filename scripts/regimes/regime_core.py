@@ -269,6 +269,37 @@ def weekly(P, days=None):
     return rows
 
 
+# ── the observed base rate ────────────────────────────────────────────────────────────────────────────────────────
+R1_LABELS = DATA / "r1_labels.npz"
+CLIM_WINDOW = 15                                      # +- calendar days around each valid date
+
+
+def climatology(ref: Ref, sk, dates, window: int = CLIM_WINDOW, n_boot: int = 1000, seed: int = 13):
+    """The observed share of days in each family around each valid date: the base rate a forecast probability is read
+    against (2026-10-12, user: "show what the deviation in the % of members from their seasonal climo % would be for
+    each regime"). NCEP R1 1991-2020, days within +-window calendar days of the date, every R1 day in its OWN season's
+    set (own_<sk>: the centred 5-day mean, as the members are classified) and only days of the valid date's own season,
+    so near the Oct 1 / Apr 1 switch the normal is one set's and sums to 1. Returns C (F+1, N) and B (n_boot, F+1, N),
+    B from resampling the 30 years with replacement (whole years: regime days cluster within a season)."""
+    z = np.load(R1_LABELS)
+    t = [parse_date(str(x)) for x in z["t"]]
+    fam = family_of_labels(ref, sk, z[f"own_{sk}"][:, None], t)[:, 0]
+    F1 = len(FAMILIES[sk]) + 1
+    yr = np.array([d.year for d in t]); uy = np.unique(yr); yi = np.searchsorted(uy, yr)
+    dy = np.array([doy(d) for d in t]); cold = np.array([season_of(d.month) == "cold" for d in t])
+    cnt = np.zeros((uy.size, F1, len(dates))); tot = np.zeros((uy.size, len(dates)))
+    for i, d in enumerate(dates):
+        m = (np.abs(((dy - doy(parse_date(d)) + 183) % 366) - 183) <= window) & (fam >= 0) \
+            & (cold == (season_of_date(d) == "cold"))
+        tot[:, i] = np.bincount(yi[m], minlength=uy.size)
+        for f in range(F1):
+            cnt[:, f, i] = np.bincount(yi[m & (fam == f)], minlength=uy.size)
+    C = cnt.sum(0) / tot.sum(0)[None]
+    idx = np.random.default_rng(seed).integers(0, uy.size, (n_boot, uy.size))
+    B = cnt[idx].sum(1) / tot[idx].sum(1)[:, None, :]
+    return C, B
+
+
 # ── hindcast skill ────────────────────────────────────────────────────────────────────────────────────────────────
 HINDCAST = {"geps": DATA / "regime_hindcast_geps.npz", "gefs": DATA / "regime_hindcast_gefs.npz"}
 HINDCAST_LABEL = {"geps": "GEPS8 hindcast 2001–2020 (4-member mean)",

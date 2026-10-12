@@ -45,10 +45,11 @@ def _ink_on(hexcol, alpha):
 
 def render(out: Path, ref: RC.Ref, sk: str, init, P, *, title: str, subtitle: str, obs=None, obs_label="observed",
            prev=None, prev_label=None, models=None, skills=None, footer: str = "", n_label: str = "% of members",
-           dpi: int = 120):
+           dpi: int = 120, vs_clim=None):
     """P (F+1, N) family probabilities for forecast days 1..N (day d valid init + d - 1), NaN where missing.
     obs: (dates, family slots) observed tail; prev: (dates, P') previous run; models: [(label, Pm (F+1, N'))] for the
-    agreement strip; skills: [hindcast_skill() dicts] (their sector entry is used)."""
+    agreement strip; skills: [hindcast_skill() dicts] (their sector entry is used); vs_clim: [{w0, clim, dev, sig}] per
+    week (regimes_combined.weekly_vs_clim) adds the forecast minus the normal to each weekly cell."""
     plt = _mpl()
     from matplotlib.patches import Rectangle
     init = RC.parse_date(init)
@@ -107,7 +108,7 @@ def render(out: Path, ref: RC.Ref, sk: str, init, P, *, title: str, subtitle: st
     subtitle = textwrap.fill(subtitle, 128)
     h_title, h_leg, h_main = 0.8 + 0.2 * subtitle.count("\n") + 0.15, 0.3 * n_leg_rows + (0.3 if minor_note else 0.0) + 0.3, 3.35
     h_agree = (0.34 + 0.27 * n_mod) if n_mod else 0.0
-    h_bottom = 0.62 + 0.42 * len(present) + (0.2 if n_mod else 0.0)
+    h_bottom = 0.62 + (0.56 if vs_clim else 0.42) * len(present) + (0.2 if n_mod else 0.0)
     h_foot = (0.25 + 0.155 * (len(footer) // 170 + 1)) if footer else 0.15
     H = h_title + h_leg + h_main + h_agree + (0.3 if n_mod else 0) + 0.5 + h_bottom + h_foot
     fig = plt.figure(figsize=(W, H))
@@ -274,10 +275,22 @@ def render(out: Path, ref: RC.Ref, sk: str, init, P, *, title: str, subtitle: st
                 vals = [m[c]["p"][f] for m in wk_models if c < len(m) and m[c]["w0"] == w["w0"]]
                 if len(vals) > 1:
                     rng = f"{min(vals) * 100:.0f}–{max(vals) * 100:.0f}"
-            axg.text(c + 0.5, r + 1.5 - (0.12 if rng else 0), f"{p * 100:.0f}%", ha="center", va="center",
-                     fontsize=FONT + 1, fontweight="bold", color=ink)
-            if rng:
-                axg.text(c + 0.5, r + 1.78, rng, ha="center", va="center", fontsize=FONT - 2.5, color=ink)
+            vw = next((v for v in (vs_clim or []) if v["w0"] == w["w0"]), None)
+            if vw is None:
+                axg.text(c + 0.5, r + 1.5 - (0.12 if rng else 0), f"{p * 100:.0f}%", ha="center", va="center",
+                         fontsize=FONT + 1, fontweight="bold", color=ink)
+                if rng:
+                    axg.text(c + 0.5, r + 1.78, rng, ha="center", va="center", fontsize=FONT - 2.5, color=ink)
+            else:                                       # percent / model range / forecast minus normal (2026-10-12)
+                axg.text(c + 0.5, r + (1.33 if rng else 1.4), f"{p * 100:.0f}%", ha="center", va="center",
+                         fontsize=FONT + 1, fontweight="bold", color=ink)
+                if rng:
+                    axg.text(c + 0.5, r + 1.6, rng, ha="center", va="center", fontsize=FONT - 2.5, color=ink)
+                dv, cv = vw["dev"][f] * 100, vw["clim"][f] * 100
+                txt = (f"{'+' if dv > 0 else '−'}{abs(dv):.0f} vs {cv:.0f}" if vw["sig"][f] and round(abs(dv)) >= 1
+                       else f"n.s. · {cv:.0f}")
+                axg.text(c + 0.5, r + (1.82 if rng else 1.72), txt, ha="center", va="center", fontsize=FONT - 2.3,
+                         color=ink, fontweight="bold" if vw["sig"][f] else "normal")
         foot = ("skill ✓" if skilful else "n.s.") if ok is not None else "no hindcast"
         if wk_models:
             tops = [int(np.argmax(m[c]["p"])) for m in wk_models if c < len(m) and m[c]["w0"] == w["w0"]]
@@ -286,7 +299,10 @@ def render(out: Path, ref: RC.Ref, sk: str, init, P, *, title: str, subtitle: st
                  color=RC.INK if skilful else RC.MUTED, linespacing=1.15)
     for r, f in enumerate(rows):
         axg.text(-0.08, r + 1.5, names[f], ha="right", va="center", fontsize=FONT - 0.5, color=RC.INK, wrap=True)
-    axg.text(-0.08, 0.95, "Weekly regime\nprobability" + ("\n(small: model range)" if wk_models else ""),
+    hdr = "Weekly regime\nprobability" + ("\n(small: model range,\nvs 1991–2020 normal)" if wk_models and vs_clim
+                                          else "\n(small: model range)" if wk_models
+                                          else "\n(small: vs 1991–2020\nnormal)" if vs_clim else "")
+    axg.text(-0.08, 0.95, hdr,
              ha="right", va="bottom", fontsize=FONT - 0.5, color=RC.INK, fontweight="bold")
 
     # ── hindcast skill strip ──────────────────────────────────────────────────────────────────────────────────────
