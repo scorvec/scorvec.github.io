@@ -23,6 +23,7 @@ import argparse
 import json
 import sys
 from datetime import datetime, timezone
+import os
 from pathlib import Path
 
 import numpy as np
@@ -31,8 +32,13 @@ import pandas as pd
 HERE = Path(__file__).resolve().parent
 REPO = HERE.parent.parent
 OUT = REPO / "assets" / "sfs" / "data" / "sfs_indices.json"
-CLIMDIR = HERE / "data"
-BASE = "https://noaa-oar-sfsdev-pds.s3.amazonaws.com/experiments/beta1"
+CLIMDIR = HERE / "data" / os.environ.get("SFS_EXP", "beta2")
+# Which SFS experiment the site reads (2026-10-12: beta2 - beta1 stopped at the 2026-09 issue; beta2 adds daily stores to
+# day 46 and a 1991-2025 DAILY reforecast). Model-derived caches live under data/<experiment>/, so one experiment's
+# climatology is never applied to another's forecasts. NOAA's own *_clim_1991-2020 stores are NOT used: beta2's
+# October one is a copy of September's (verified 2026-10-12); every climatology here is built from the reforecast.
+SFS_EXP = os.environ.get("SFS_EXP", "beta2")
+BASE = f"https://noaa-oar-sfsdev-pds.s3.amazonaws.com/experiments/{SFS_EXP}"
 CLIM_Y0, CLIM_Y1 = 1991, 2020
 LEADS = list(range(0, 10))
 

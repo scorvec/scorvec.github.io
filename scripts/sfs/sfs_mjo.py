@@ -25,6 +25,7 @@ import argparse
 import json
 import sys
 from datetime import datetime, timezone
+import os
 from pathlib import Path
 
 import numpy as np
@@ -40,7 +41,12 @@ REPO = HERE.parent.parent
 MREF = REPO / "scripts" / "mjo" / "data" / "reference"
 OUTPNG = REPO / "assets" / "sfs" / "mjo_rmm.webp"
 OUTJSON = REPO / "assets" / "sfs" / "data" / "sfs_mjo.json"
-BASE = "https://noaa-oar-sfsdev-pds.s3.amazonaws.com/experiments/beta1"
+# Which SFS experiment the site reads (2026-10-12: beta2 - beta1 stopped at the 2026-09 issue; beta2 adds daily stores to
+# day 46 and a 1991-2025 DAILY reforecast). Model-derived caches live under data/<experiment>/, so one experiment's
+# climatology is never applied to another's forecasts. NOAA's own *_clim_1991-2020 stores are NOT used: beta2's
+# October one is a copy of September's (verified 2026-10-12); every climatology here is built from the reforecast.
+SFS_EXP = os.environ.get("SFS_EXP", "beta2")
+BASE = f"https://noaa-oar-sfsdev-pds.s3.amazonaws.com/experiments/{SFS_EXP}"
 
 
 
@@ -109,7 +115,7 @@ def mjo_prate_clim(month, psel, elon, to_eof):
     channel: tropical precip and OLR anticorrelate tightly, so
     −(standardized precip anomaly) stands in for olr_anom/std_olr in the
     full three-channel WH04 projection. Cached per init month."""
-    f = HERE / "data" / f"mjo_prate_clim_{month:02d}.npz"
+    f = HERE / "data" / SFS_EXP / f"mjo_prate_clim_{month:02d}.npz"
     if f.exists():
         z = np.load(f)
         return z["mu"], z["sd"]
@@ -254,7 +260,7 @@ def main():
     for i in range(0, len(valid), 4):
         ax.annotate(f"{valid[i]:%b %d}", (mm1[i], mm2[i]), fontsize=8,
                     color="#7a1d1d", xytext=(5, 5), textcoords="offset points")
-    ax.set_title(f"SFS beta — MJO (RMM), 31 members to day "
+    ax.set_title(f"SFS {SFS_EXP} — MJO (RMM), 31 members to day "
                  f"{int(lead_days[sel][-1])} · issue {t0:%b %Y}\n"
                  "full WH04: U850 + U200 + precip pseudo-OLR · raw winds, "
                  "no drift adjustment", fontsize=11, fontweight="bold",

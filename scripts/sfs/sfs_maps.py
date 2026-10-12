@@ -21,6 +21,7 @@ import argparse
 import json
 import sys
 from datetime import datetime, timezone
+import os
 from pathlib import Path
 
 import numpy as np
@@ -35,8 +36,13 @@ import cartopy.feature as cfeature
 HERE = Path(__file__).resolve().parent
 REPO = HERE.parent.parent
 ASSETS = REPO / "assets" / "sfs"
-CLIMDIR = HERE / "data"
-BASE = "https://noaa-oar-sfsdev-pds.s3.amazonaws.com/experiments/beta1"
+CLIMDIR = HERE / "data" / os.environ.get("SFS_EXP", "beta2")
+# Which SFS experiment the site reads (2026-10-12: beta2 - beta1 stopped at the 2026-09 issue; beta2 adds daily stores to
+# day 46 and a 1991-2025 DAILY reforecast). Model-derived caches live under data/<experiment>/, so one experiment's
+# climatology is never applied to another's forecasts. NOAA's own *_clim_1991-2020 stores are NOT used: beta2's
+# October one is a copy of September's (verified 2026-10-12); every climatology here is built from the reforecast.
+SFS_EXP = os.environ.get("SFS_EXP", "beta2")
+BASE = f"https://noaa-oar-sfsdev-pds.s3.amazonaws.com/experiments/{SFS_EXP}"
 CLIM_Y0, CLIM_Y1 = 1991, 2020
 LEADS = list(range(0, 10))                       # month 1 + three seasons
 
@@ -210,7 +216,7 @@ def main():
                       transform=pc, color="k", scale=vmax * 30, width=0.0016, alpha=0.75, zorder=3)
         MS.features(ax, land_only=(key == "t2m"), states=not is_sst, land_color=MS.SST_LAND if is_sst else "#f1f0eb")
         mon = t0 + pd.DateOffset(months=L)
-        MS.heading(fig, H, f"SFS beta {title} · {mon:%b %Y} (lead {L}) · {t0:%B %Y} issue",
+        MS.heading(fig, H, f"SFS {SFS_EXP} {title} · {mon:%b %Y} (lead {L}) · {t0:%B %Y} issue",
                    f"Ensemble mean of 31 members minus the model's own {CLIM_Y0}–{CLIM_Y1} reforecast mean (11 members × 30 years) for the same start month and lead, "
                    + ("1° grid." if is_sst else "0.5° grid."))
         if is_sst:
@@ -235,7 +241,7 @@ def main():
                            "label": f"{mon:%b %Y} · lead {L}"})
         (ASSETS / "anim" / f"{name}_manifest.json").write_text(json.dumps(
             {"ver": int(_time.time()), "days": len(frames),
-             "regions": {name: {"label": f"SFS beta · {title} · monthly",
+             "regions": {name: {"label": f"SFS {SFS_EXP} · {title} · monthly",
                                 "n_frames": len(frames), "frames": frames}}}))
         print(f"loop {name}: {len(frames)} frames", flush=True)
     return 0

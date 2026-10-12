@@ -20,6 +20,7 @@ import json
 import sys
 import time as _time
 from datetime import datetime, timezone
+import os
 from pathlib import Path
 
 import numpy as np
@@ -35,9 +36,14 @@ import cartopy.feature as cfeature
 
 HERE = Path(__file__).resolve().parent
 REPO = HERE.parent.parent
-CLIMDIR = HERE / "data"
+CLIMDIR = HERE / "data" / os.environ.get("SFS_EXP", "beta2")
 ANIM = REPO / "assets" / "sfs" / "anim"
-BASE = "https://noaa-oar-sfsdev-pds.s3.amazonaws.com/experiments/beta1"
+# Which SFS experiment the site reads (2026-10-12: beta2 - beta1 stopped at the 2026-09 issue; beta2 adds daily stores to
+# day 46 and a 1991-2025 DAILY reforecast). Model-derived caches live under data/<experiment>/, so one experiment's
+# climatology is never applied to another's forecasts. NOAA's own *_clim_1991-2020 stores are NOT used: beta2's
+# October one is a copy of September's (verified 2026-10-12); every climatology here is built from the reforecast.
+SFS_EXP = os.environ.get("SFS_EXP", "beta2")
+BASE = f"https://noaa-oar-sfsdev-pds.s3.amazonaws.com/experiments/{SFS_EXP}"
 LAT0 = 20          # plot + load domain: 20N poleward
 
 
@@ -180,7 +186,7 @@ def main():
         anom = z[i] - base[i]
         render_polar(
             lat, lon, z[i], anom, u[i], v[i],
-            f"SFS beta 100 hPa height anomaly · {valid:%b %d %Y} (day {int(lead_days[k])}) · {t0:%b %Y} issue\n"
+            f"SFS {SFS_EXP} 100 hPa height anomaly · {valid:%b %d %Y} (day {int(lead_days[k])}) · {t0:%b %Y} issue\n"
             f"Ensemble mean of 31 members against the model's own 1991–2020 reforecast per-lead mean plus trend at {t0.year}; contours the mean 100 hPa height (dam), arrows the mean wind.",
             "anomaly (dam)",
             outdir / f"F{i:02d}.webp", np.arange(-24, 24.1, 3.0))

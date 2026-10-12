@@ -39,6 +39,11 @@ concurrency:
 # Google-only since 2026-09-29 and it ignores any other mirror name; this is belt and braces.
 env:
   ECMWF_SOURCES: google
+  # NOAA SFS experiment (2026-10-12: beta2; beta1 stopped at the 2026-09 issue). The scripts default to it as well and keep
+  # model-derived climatologies under scripts/sfs/data/<experiment>/. beta2's DAILY forecast stores are not used: in both the
+  # 2026-09 and 2026-10 issues they hold 24 consecutive days written into every other slot of a 47-day axis (their seasonal
+  # cooling runs at half the reforecast's rate; the "November" half matches late October) - see .claude-notes/seasonal.md.
+  SFS_EXP: beta2
 
 jobs:
   build:
@@ -83,7 +88,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: scripts/sfs/data
-          key: sfs-clim-${{ steps.iss.outputs.month }}-v1
+          key: sfs-clim-${{ env.SFS_EXP }}-${{ steps.iss.outputs.month }}-v2
 
       # publish_frames_ci.sh swaps the directories you hand it in WHOLESALE. A run that renders
       # only the monthly loops must therefore start from the branch's existing frames, or it
@@ -99,7 +104,7 @@ jobs:
       - name: Which stores has NOAA published for this issue?
         id: stores
         run: |
-          ROOT="https://noaa-oar-sfsdev-pds.s3.amazonaws.com/experiments/beta1/forecast"
+          ROOT="https://noaa-oar-sfsdev-pds.s3.amazonaws.com/experiments/${SFS_EXP}/forecast"
           B="$ROOT/${{ steps.iss.outputs.issue }}"
           # NB: a bare `[ x = y ] && echo ...` as the last statement returns 1 when the test is
           # false, and the step dies under `bash -e`. Use an if, not a short-circuit.

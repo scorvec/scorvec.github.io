@@ -28,6 +28,7 @@ import argparse
 import json
 import sys
 from datetime import datetime, timezone
+import os
 from pathlib import Path
 
 import numpy as np
@@ -36,8 +37,13 @@ import pandas as pd
 HERE = Path(__file__).resolve().parent
 REPO = HERE.parent.parent
 OUT = REPO / "assets" / "sfs" / "data" / "sfs_daily.json"
-CLIMDIR = HERE / "data"
-BASE = "https://noaa-oar-sfsdev-pds.s3.amazonaws.com/experiments/beta1"
+CLIMDIR = HERE / "data" / os.environ.get("SFS_EXP", "beta2")
+# Which SFS experiment the site reads (2026-10-12: beta2 - beta1 stopped at the 2026-09 issue; beta2 adds daily stores to
+# day 46 and a 1991-2025 DAILY reforecast). Model-derived caches live under data/<experiment>/, so one experiment's
+# climatology is never applied to another's forecasts. NOAA's own *_clim_1991-2020 stores are NOT used: beta2's
+# October one is a copy of September's (verified 2026-10-12); every climatology here is built from the reforecast.
+SFS_EXP = os.environ.get("SFS_EXP", "beta2")
+BASE = f"https://noaa-oar-sfsdev-pds.s3.amazonaws.com/experiments/{SFS_EXP}"
 CLIM_Y0, CLIM_Y1 = 1991, 2020
 NDAYS = 47
 
@@ -306,7 +312,7 @@ def render_chi_loop(issue, t0, lead_days):
         st = max(1, len(dlat) // 28)
         ax.quiver(dlon[::st], dlat[::st], uchi[::st, ::st], vchi[::st, ::st], transform=pc, color="k", scale=140, width=0.0015, alpha=0.8, zorder=3)
         MS.features(ax, states=False)
-        MS.heading(fig, H, f"SFS beta 200 hPa velocity potential anomaly · {valid:%a %b %d %Y} (day {int(lead_days[k])}) · {t0:%B %Y} issue",
+        MS.heading(fig, H, f"SFS {SFS_EXP} 200 hPa velocity potential anomaly · {valid:%a %b %d %Y} (day {int(lead_days[k])}) · {t0:%B %Y} issue",
                    "Ensemble mean of 31 members against the ERA5 1991–2020 harmonic normal; shading and contours in 10⁶ m² s⁻¹, arrows the anomalous divergent wind; negative = outflow, enhanced convection.")
         MS.colorbar(fig, H, cf, "χ anomaly (10⁶ m² s⁻¹)")
         fn = f"F{i:02d}.webp"
@@ -323,7 +329,7 @@ def render_chi_loop(issue, t0, lead_days):
 def era5_daily_clim():
     """ERA5 1991-2020 day-of-year climatology (±7 d window) for t2m/z500,
     NH 1.5° from the local WB2 store; cached once, month-independent."""
-    f = CLIMDIR / "era5_daily_clim.npz"
+    f = HERE / "data" / "era5_daily_clim.npz"   # ERA5, not model-derived: shared across experiments
     if f.exists():
         return dict(np.load(f))
     import xarray as xr
@@ -346,7 +352,7 @@ def era5_daily_clim():
         out["lat"] = da.latitude.values.astype(np.float32)
         out["lon"] = da.longitude.values.astype(np.float32)
         print(f"era5 clim {v}: built", flush=True)
-    CLIMDIR.mkdir(parents=True, exist_ok=True)
+    f.parent.mkdir(parents=True, exist_ok=True)
     np.savez_compressed(f, **out)
     return out
 
@@ -441,7 +447,7 @@ def render_daily_maps(issue, t0, sel, lead_days, t2, z5, F, lat, lon):
             else:
                 unit0 = "°C" if key == "t2md" else "dam"
                 sub = f"Ensemble mean of 31 members against the ERA5 1991–2020 daily normal ({unit0})" + (" · contours: ensemble-mean 500 hPa height (dam)." if zabs is not None else ".")
-            MS.heading(fig, H, f"SFS beta {label} anomaly · {valid:%a %b %d %Y} (day {int(lead_days[ksel][i])}) · {t0:%B %Y} issue", sub)
+            MS.heading(fig, H, f"SFS {SFS_EXP} {label} anomaly · {valid:%a %b %d %Y} (day {int(lead_days[ksel][i])}) · {t0:%B %Y} issue", sub)
             MS.colorbar(fig, H, pm0, f"anomaly ({unit0})", levels)
             fn = f"F{i:02d}.webp"
             MS.save(fig, outdir / fn, quality=65)   # loop frames: WebP q65 (2026-10-05 encode study)

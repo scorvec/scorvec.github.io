@@ -27,6 +27,7 @@ import argparse
 import json
 import sys
 from datetime import datetime, timezone
+import os
 from pathlib import Path
 
 import numpy as np
@@ -35,9 +36,14 @@ import pandas as pd
 HERE = Path(__file__).resolve().parent
 REPO = HERE.parent.parent
 OUT = REPO / "assets" / "sfs" / "data" / "sfs_nino34.json"
-CLIMDIR = HERE / "data"
+CLIMDIR = HERE / "data" / os.environ.get("SFS_EXP", "beta2")
 
-BASE = "https://noaa-oar-sfsdev-pds.s3.amazonaws.com/experiments/beta1"
+# Which SFS experiment the site reads (2026-10-12: beta2 - beta1 stopped at the 2026-09 issue; beta2 adds daily stores to
+# day 46 and a 1991-2025 DAILY reforecast). Model-derived caches live under data/<experiment>/, so one experiment's
+# climatology is never applied to another's forecasts. NOAA's own *_clim_1991-2020 stores are NOT used: beta2's
+# October one is a copy of September's (verified 2026-10-12); every climatology here is built from the reforecast.
+SFS_EXP = os.environ.get("SFS_EXP", "beta2")
+BASE = f"https://noaa-oar-sfsdev-pds.s3.amazonaws.com/experiments/{SFS_EXP}"
 CLIM_Y0, CLIM_Y1 = 1991, 2020
 
 # Niño-3.4: 5S-5N, 170W-120W (190-240E on the 0-359 ocean grid)
@@ -125,7 +131,7 @@ def main():
     OUT.write_text(json.dumps({
         "issue": f"{issue[:4]}-{issue[4:6]}",
         "generated": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC"),
-        "system": "NOAA SFS beta v1.0 prototype (UFS coupled)",
+        "system": f"NOAA SFS {SFS_EXP} (UFS coupled, experimental)",
         "clim": f"own reforecast {CLIM_Y0}-{CLIM_Y1}, 11 members, per init month & lead",
         "valid_months": valid,
         "members": np.round(anom[ok], 3).tolist(),
