@@ -352,6 +352,24 @@ def main() -> int:
     lr = pd.read_csv(D / "q2_era5_lagreg.csv")
     aamr = lr[lr.series == "aam_glob"].set_index("lag")
     aam_peak_lag = int(aamr.slope.idxmax()); aam_peak = float(aamr.slope.max())
+
+    def sig_span(s, frame=lr, col="sig"):
+        g = frame[frame.series == s].set_index("lag").sort_index()
+        L = g.index[g[col]].tolist()
+        return (min(L), max(L), int(g.index.min())) if L else None
+    span_AND, span_mtn, span_fric = sig_span("mtn5_AND"), sig_span("mtn_glob"), sig_span("fric_glob")
+    span_cmtn = sig_span("mtn_glob", pd.read_csv(D / "q2_cmip6_slopes_summary.csv"), "robust")
+
+    WORDS = {1: "one", 2: "two", 3: "three", 4: "four", 5: "five", 6: "six", 7: "seven", 8: "eight", 9: "nine"}
+
+    def span_txt(sp):
+        a, b, first = sp
+        lead = f"{'at least ' if a == first else ''}{WORDS.get(abs(a), abs(a))} month{'s' if abs(a) != 1 else ''} before"
+        return f"from {lead} the Niño-3.4 peak to {WORDS.get(b, b)} month{'s' if b != 1 else ''} after"
+
+    def span_lags(sp):
+        a, b, first = sp
+        return f"{'−' if a < 0 else '+'}{abs(a)} to {'−' if b < 0 else '+'}{abs(b)} months"
     LODMS = 1e25 / 5.2092e33 * 86400 * 1e3                               # ms of length of day per 1e25 kg m2/s
     # GFZ global AAM by ENSO phase (torque_gfz_enso.py), the explainer's opening figure
     GZ = json.loads((D / "gfz_enso.json").read_text())
@@ -377,22 +395,29 @@ def main() -> int:
   spins up and the solid Earth slows. The extra spin can only come from the ground. When surface pressure is higher on the east side
   of a mountain range than on its west side, the air presses westward on the mountains; by Newton&rsquo;s third law the mountains push
   the air eastward, adding westerly angular momentum to the atmosphere and taking the same amount from the solid Earth, whose rotation
-  slows very slightly. This study measures where El Niño's extra momentum comes from, and why a reanalysis cannot fully account for it:
+  slows very slightly. In El Niño the warm ocean reshapes the pressure pattern around South America: the southeast Pacific high west
+  of the Andes weakens and pressure rises over the continent, so pressure stays higher on the east side of the range for months. That
+  standing difference keeps the mountain torque positive month after month and brings the extra westerly momentum in; friction,
+  through weaker trade winds, works against it. This study measures that chain, and why a reanalysis cannot fully account for it:
   ERA5 four times a day from 1959 to 2026, {n_models} CMIP6 models, and an hour-by-hour budget of the 2026 rise.</p>
 
   <section class="lede">
   <h2>The short answer</h2>
   <ul>
-    <li><b>1. The Andes torque supplies it.</b> The El Niño rise in the atmosphere's angular momentum comes in through mountain
-    torque: {num(mt['est'], 2)} {ci(mt['lo'], mt['hi'], 2)} ×10²⁵ kg m² s⁻¹ per kelvin of Niño-3.4 over the six months before the peak
-    in ERA5, and {num(cmt['median'], 2)} with all {int(cmt.n)} CMIP6 models of one sign. The Andes are the largest single source
-    ({num(ce['mtn5_AND']['est'], 2)} in ERA5, {num(cAND['median'], 2)} in CMIP6 with every model agreeing), then the Rockies. What
-    El Niño changes there is the standing pressure difference across the range, the part that lasts 30 days and more: the southeast
-    Pacific high to the west weakens and pressure rises over South America, so the Andes torque in December–February is
-    {num(lpA['diff'])} Hadley higher than in neutral winters ({pval(lpA['p'])}; in CMIP6 {num(cA['median'], 2)}, all {int(cA.n)} models with
-    daily data of one sign). It does not make the individual east-side highs more frequent or stronger: none of 24 range–season tests
-    of their number, strength or variance is significant. In May 2026 the Andes torque was {num(may26)} Hadley above normal,
-    second since 1959 only to May {may_first[0]}.</li>
+    <li><b>1. The Andes torque supplies it; friction brakes it.</b> The El Niño rise in the atmosphere's angular momentum starts in the
+    ocean and comes in through mountain torque. As the eastern Pacific warms, the southeast Pacific high west of the Andes weakens and
+    pressure rises over South America: a pressure difference across the range that lasts for months (the part of the torque that
+    lasts 30 days and more), not more weather events. In December–February the Andes torque is {abs(lpA['diff']):.1f} Hadley higher than in
+    neutral winters ({pval(lpA['p'])}; in CMIP6 {num(cA['median'], 2)}, all {int(cA.n)} models with daily data of one sign), and the Andes
+    torque regressed on Niño-3.4 is significantly positive {span_txt(span_AND)}: a long, steady push. Over the six months before the
+    peak the mountain torque supplies {num(mt['est'], 2)} {ci(mt['lo'], mt['hi'], 2)} ×10²⁵ kg m² s⁻¹ per kelvin of Niño-3.4 in ERA5,
+    and {num(cmt['median'], 2)} with all {int(cmt.n)} CMIP6 models of one sign. The Andes are the largest single source
+    ({num(ce['mtn5_AND']['est'], 2)} in ERA5, {num(cAND['median'], 2)} in CMIP6 with every model agreeing), then the Rockies. Friction is
+    not the driver: the weaker trade winds hand the atmosphere less westerly momentum from the spinning Earth, so friction works against
+    the rise, taking back about {abs(cfr['median'] / cmt['median']):.0%} of the mountain torque in the models and, in ERA5, more than
+    all of it (result 2). The individual east-side highs are no more frequent or stronger: none of 24 range–season tests of their
+    number, strength or variance is significant. In May 2026 the Andes torque was {abs(may26):.1f} Hadley above normal, second since 1959
+    only to May {may_first[0]}.</li>
     <li><b>2. ERA5's model loses westerly momentum, and the analysis puts it back.</b> At each of ERA5's twice-daily 4D-Var window
     starts the analysis adds westerly angular momentum: {num(g10['mean'], 3)} and {num(g22['mean'], 3)} ×10²⁵ kg m² s⁻¹ at 09 and 21 UTC,
     about {num(per_day / S.HADLEY_DAY_TO_AAM, 0)} Hadley held all day, every day, in every month of 2025–26. ERA5's own torques, sampled
@@ -409,7 +434,7 @@ def main() -> int:
     <i>weakens</i> the westerlies; it adds westerly momentum above the boundary layer and over the storm-track oceans
     ({share('amC', 'ALL', 'OCX')} of the whole-column increment). The pattern is an oceanic boundary layer that carries too much
     momentum to the surface and an extratropical free troposphere short of westerlies, not excess form drag over the ranges.</li>
-    <li><b>Which comes first.</b> High mountain torque comes before the rise in global angular momentum and the subtropical jet, not
+    <li><b>Which comes first.</b> Day to day, high mountain torque comes before the rise in global angular momentum and the subtropical jet, not
     after it, and the 500 hPa pattern that sets up an east-side high (a ridge upstream, a trough downstream) is the same in El Niño
     and neutral years.</li>
   </ul>
@@ -430,6 +455,15 @@ def main() -> int:
   westerlies in the upper troposphere strengthen there, in both hemispheres. In ERA5 the global angular momentum regressed on Niño-3.4
   peaks {abs(aam_peak_lag)} month{'' if abs(aam_peak_lag) == 1 else 's'} {'after' if aam_peak_lag > 0 else 'before'} the Niño-3.4 anomaly at {num(aam_peak, 2)} ×10²⁵ kg m² s⁻¹ per kelvin, about
   {aam_peak * LODMS:.2f} ms of length of day per kelvin.</p>
+  <p><b>From warm ocean to faster winds.</b> The thermal-wind change says where the westerlies strengthen, not where their momentum
+  comes from: angular momentum is conserved, so stronger jets with no torque would have to be paid for by easterlies somewhere else.
+  The momentum is drawn from the solid Earth, mostly across the Andes, in four steps. (1) The central and eastern Pacific warm.
+  (2) The pressure pattern responds: the southeast Pacific high, which normally sits west of the Andes, weakens and pressure rises over
+  South America; in northern winter the deeper Aleutian low does the same west of the Rockies (Figure {FN['slp']}). (3) Pressure is then
+  higher on the east side of both ranges, not for a few days but for months, so their mountain torque stays positive month after month.
+  (4) That torque moves westerly angular momentum from the Earth to the atmosphere. Friction is the brake: the trade winds normally
+  hand the atmosphere westerly momentum from the spinning Earth, and in El Niño they weaken, so less comes in. The rise is what the
+  mountain torque supplies minus what friction holds back (section 3).</p>
   <p><b>What the record shows.</b> GFZ Potsdam's record of the atmosphere's angular momentum, computed from ECMWF's analyses
   separately from the ERA5 calculation used in the rest of this study, shows the rise plainly (Figure {FN['gfz']}). Since 1979 global
   angular momentum has been above normal in {100 * go['share_EN_above']:.0f}% of El Niño seasons and below normal in
@@ -515,6 +549,10 @@ def main() -> int:
   {num(q2['aam_regression_change_lag0_minus_lagm6'], 2)} between those lags; the two differ because one sums monthly tendencies taken
   across month edges and the other differences monthly means.) The mass term's share is negligible (its regression is about +0.02
   per kelvin).</p>
+  <p>The mountain torque is the source and friction the brake, and both act for a long time. Regressed on Niño-3.4 at lags from −6
+  to +12 months (Figure {FN['q2lag']} shows the global terms), the Andes torque is significantly positive at every lag from {span_lags(span_AND)} (the global
+  mountain torque {span_lags(span_mtn)}; robust in CMIP6 from {span_lags(span_cmtn)}), and friction is significantly negative from
+  {span_lags(span_fric)}, mostly in the tropics, where the trades weaken (the 30°S–0 and 0–30°N friction rows of the table).</p>
   {fig("q2lag", "q2_lag_regression.webp", "Lagged regressions on Niño-3.4 of the global mountain, friction and gravity-wave-drag torques, their sum and the angular momentum tendency, ERA5 above and the CMIP6 median and interquartile range below", "Regression of each monthly global term on Niño-3.4 (detrended anomalies) against lag. Top: ERA5 1979–2025, filled dots significant (FDR over lags). Bottom: CMIP6 1950–2014, median and interquartile range over models, filled dots robust.")}
   {fig("q2con", "q2_contributions.webp", "Horizontal bars of the angular momentum each term supplies before the Niño-3.4 anomaly, ERA5 bars with confidence intervals and CMIP6 diamonds with interquartile ranges, globally, by range and by latitude band", "Angular momentum supplied in the six months before the Niño-3.4 anomaly, per kelvin. Bars: ERA5 with 95% joint block-bootstrap intervals, pale where not significant after the FDR. Diamonds: CMIP6 median with interquartile range, filled where robust.")}
   {t_q2}
@@ -539,6 +577,8 @@ def main() -> int:
   ({num(ccf['median'], 2)}, {ccf.agree:.0%} agreement) is not robust.</p>
 
   <h2>4. The Andes: a standing shift, not more events</h2>
+  <p>This is the pressure difference of section 1 seen range by range: a slow shift that forms as the Pacific warms and lasts the
+  season, so the torque it makes is positive day after day, rather than more or stronger weather events.</p>
   {fig("q1grid", "q1_shift_vs_events.webp", "Grid of six mountain ranges by four seasons showing the El Niño minus neutral difference in the standing torque, the number of positive torque events and their amplitude; only the Andes in DJF and the Himalaya in MAM are significant, and only in the standing part", "El Niño minus neutral seasons, ERA5 1979–2025, for each range and season. Top: the standing (30-day and longer) part of the torque. Middle and bottom: the number and the amplitude of positive synoptic events. Coloured cells are significant at a false discovery rate of 10% (permutation of season-years); grey cells, marked n.s., are not. A black frame marks a change that is robust in the CMIP6 models with daily data (significant across models and at least 80% of models of one sign).")}
   <p>The synoptic events do not change with El Niño (Figure {FN['q1grid']}, middle and bottom). Positive Andes events in DJF average
   {npA['ma']:.2f} a season in El Niño winters and {npA['mb']:.2f} in neutral ones ({num(npA['diff'], 2)} {ci(npA['lo'], npA['hi'], 2)},
