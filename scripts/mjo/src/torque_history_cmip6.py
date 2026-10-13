@@ -140,6 +140,22 @@ def pick(cat, model):
     return dict(members=mems, amon=amon, orog=orog, cfday=cfd, ogw=ogw)
 
 
+def nearest_idx(src, dst, periodic=False):
+    """Index of the nearest source coordinate for each destination coordinate (lon periodic)."""
+    src = np.asarray(src, float); dst = np.asarray(dst, float)
+    if periodic:
+        d = np.abs(((dst[:, None] - src[None, :]) + 180.0) % 360.0 - 180.0)
+    else:
+        d = np.abs(dst[:, None] - src[None, :])
+    return d.argmin(1)
+
+
+def regrid_nearest(field, slat, slon, dlat, dlon):
+    """(..., slat, slon) -> (..., dlat, dlon) by nearest neighbour (half-cell staggering, masks)."""
+    iy = nearest_idx(slat, dlat); ix = nearest_idx(slon, dlon, periodic=True)
+    return field[..., iy, :][..., ix]
+
+
 def load_orog(paths, lat, lon):
     for p in paths:
         try:
@@ -150,8 +166,8 @@ def load_orog(paths, lat, lon):
                 np.allclose(o.lat.values, lat, atol=0.05) and np.allclose(o.lon.values, lon, atol=0.05)
             if same:
                 return np.nan_to_num(o.values.astype(float)), p, "same grid"
-            oi = o.interp(lat=lat, lon=lon, method="linear", kwargs={"fill_value": None})
-            return np.nan_to_num(oi.values.astype(float)), p, "INTERPOLATED to the ps grid"
+            oi = regrid_nearest(np.nan_to_num(o.values.astype(float)), o.lat.values, o.lon.values, lat, lon)
+            return oi, p, "REGRIDDED (nearest) to the ps grid"
         except Exception as e:                                                 # noqa: BLE001
             print(f"  orog {p}: {e}", flush=True)
     raise RuntimeError("no usable orog")
@@ -177,7 +193,8 @@ def monthly_member(sel, mem, hgt_paths, log):
     tu = tu.isel(time=np.where(mk)[0])
     assert np.array_equal(yt[mk], yr) and np.array_equal(mt_[mk], mo), "tauu months differ from ps"
     gt = Geom(tu.lat.values, tu.lon.values)
-    T = np.nan_to_num(tu.values.astype(float))
+    T = tu.values.astype(float)
+    T = np.where(np.isfinite(T) & (np.abs(T) < 50.0), T, 0.0)          # fill values -> 0
     gt.regions(-T * (A ** 3) * (gt.cos * gt.dsin)[:, None] * gt.dlam / HU, "fric", out)
     log["tauu_comment"] = str(tu.attrs.get("comment", ""))[:200]
     # Nino-3.4 from ts
@@ -202,14 +219,14 @@ def monthly_member(sel, mem, hgt_paths, log):
     if len(gu.lat) == len(gp.lat) and np.allclose(gu.lat, gp.lat) and np.allclose(gu.lon, gp.lon):
         Pu = P
     else:                                                      # staggered (UM) grids: ps to the u points
-        Pu = ps.copy(data=P).interp(lat=gu.lat, lon=gu.lon, method="linear",
-                                    kwargs={"fill_value": None}).values
+        Pu = regrid_nearest(P, gp.lat, gp.lon, gu.lat, gu.lon)
     edges = np.empty(len(p) + 1)
     edges[1:-1] = 0.5 * (p[1:] + p[:-1]); edges[0] = 0.0; edges[-1] = p[-1] + 0.5 * (p[-1] - p[-2])
     aam = np.empty((len(yr), len(gu.lat), len(gu.lon)))
     wlat = (A ** 3 / G) * (gu.cos * gu.dsin)[:, None] * gu.dlam / MU
     for i0 in range(0, len(yr), 24):
-        u = np.nan_to_num(ua.isel(time=slice(i0, i0 + 24)).values.astype(float))   # (t, lev, lat, lon)
+        u = ua.isel(time=slice(i0, i0 + 24)).values.astype(float)       # (t, lev, lat, lon)
+        u = np.where(np.isfinite(u) & (np.abs(u) < 500.0), u, 0.0)      # below-ground fill values -> 0
         sp = Pu[i0:i0 + 24][:, None]
         lo = np.minimum(edges[:-1][None, :, None, None], sp)
         hi = np.minimum(edges[1:][None, :, None, None], sp)
@@ -241,7 +258,8 @@ def gwd_member(path):
     W = band_weights(lat)
     vals = []
     for i0 in range(0, da.sizes["time"], 3650):
-        x = np.nan_to_num(da.isel(time=slice(i0, i0 + 3650)).values.astype(float))   # (t, lev, lat)
+        x = da.isel(time=slice(i0, i0 + 3650)).values.astype(float)     # (t, lev, lat)
+        x = np.where(np.isfinite(x) & (np.abs(x) < 0.1), x, 0.0)        # fill values (1e20/1e36) -> 0
         col = (x * dp[None, :, None]).sum(1)                                         # int u_t dp
         tq = 2 * np.pi * (A ** 3 / G) * col * (np.cos(np.deg2rad(lat)) * dsin)[None, :] / HU
         vals.append(tq @ W.T)

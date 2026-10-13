@@ -1,14 +1,18 @@
 name: ERA5 torque history (one-off study input)
 
 # One-off: streams ARCO-ERA5 (Google public bucket, anonymous) surface pressure, turbulent and
-# gravity-wave surface stress and the vertical integral of eastward mass flux at 00/06/12/18 UTC
-# for every day 1959 -> latest ERA5T, and reduces each time on the fly to mountain / friction /
-# GWD torques and relative AAM (global, six latitude bands, the site's six RANGES boxes). Input
-# for scripts/mjo/src/torque_enso_study.py (the El Nino mountain-torque study, 2026-10-12).
+# gravity-wave surface stress and the vertical integral of eastward mass flux, and reduces each
+# time on the fly to mountain / friction / GWD torques and relative (motion) + mass-term AAM
+# (global, six latitude bands, the site's six RANGES boxes). Input for
+# scripts/mjo/src/torque_enso_study.py (the El Nino mountain-torque study, 2026-10-12).
 #
+# Two modes:
+#   daily (default)  00/06/12/18 UTC for every day 1959 -> latest ERA5T, daily means
+#                    -> scripts/mjo/data/reference/torque_daily_era5.csv.gz
+#   per_time=true    one row per sampled time, e.g. start=2026-03-01, hours=0..23 (hourly) for the
+#                    high-fidelity 2026 AAM budget -> scripts/mjo/data/reference/<out>
 # One matrix job per chunk of years (each writes a CSV artifact), then one job concatenates them
-# and commits ONE file: scripts/mjo/data/reference/torque_daily_era5.csv.gz. Dispatch only, no
-# cron. Nothing here downloads on the laptop.
+# and commits ONE file. Dispatch only, no cron. Nothing here downloads on the laptop.
 
 on:
   workflow_dispatch:
@@ -21,6 +25,10 @@ on:
         description: 'Last year (clipped to the latest ERA5T day)'
         required: false
         default: '2026'
+      start:
+        description: 'Optional first date YYYY-MM-DD (overrides Jan 1 of y0)'
+        required: false
+        default: ''
       chunk:
         description: 'Years per matrix job'
         required: false
@@ -29,6 +37,14 @@ on:
         description: 'UTC hours sampled per day'
         required: false
         default: '0,6,12,18'
+      per_time:
+        description: 'true = one row per sampled time (no daily means)'
+        required: false
+        default: 'false'
+      out:
+        description: 'Output file name under scripts/mjo/data/reference/'
+        required: false
+        default: 'torque_daily_era5.csv.gz'
       test_days:
         description: 'If > 0, only the first N days of each chunk and NO commit (timing test)'
         required: false
@@ -50,17 +66,18 @@ jobs:
       - id: m
         run: |
           python3 - <<'EOF' >> "$GITHUB_OUTPUT"
-          import json
+          import datetime as dt, json
           y0, y1, c = int("${{ inputs.y0 }}"), int("${{ inputs.y1 }}"), int("${{ inputs.chunk }}")
           n = int("${{ inputs.test_days }}")
+          first = "${{ inputs.start }}".strip()
           inc = []
           for a in range(y0, y1 + 1, c):
               b = min(a + c - 1, y1)
+              start = first if (first and a == y0) else f"{a}-01-01"
               end = f"{b}-12-31"
               if n > 0:
-                  import datetime as dt
-                  end = (dt.date(a, 1, 1) + dt.timedelta(days=n - 1)).isoformat()
-              inc.append({"start": f"{a}-01-01", "end": end, "tag": f"{a}_{b}"})
+                  end = (dt.date.fromisoformat(start) + dt.timedelta(days=n - 1)).isoformat()
+              inc.append({"start": start, "end": end, "tag": f"{a}_{b}"})
           print("matrix=" + json.dumps({"include": inc}))
           EOF
 
@@ -85,8 +102,10 @@ jobs:
       - run: pip install --quiet numpy pandas xarray "zarr>=3" gcsfs netCDF4 h5netcdf
       - name: Stream and reduce ${{ matrix.start }} .. ${{ matrix.end }}
         run: |
+          PT=""
+          if [ "${{ inputs.per_time }}" = "true" ]; then PT="--per-time"; fi
           python scripts/mjo/src/torque_history_era5.py --start ${{ matrix.start }} --end ${{ matrix.end }} \
-            --hours "${{ inputs.hours }}" --workers 24 --out out/torque_${{ matrix.tag }}.csv
+            --hours "${{ inputs.hours }}" --workers 24 $PT --out out/torque_${{ matrix.tag }}.csv
       - uses: actions/upload-artifact@v7
         with:
           name: torque_${{ matrix.tag }}
@@ -102,7 +121,7 @@ jobs:
       - uses: actions/checkout@v7
         with:
           sparse-checkout: |
-            scripts/mjo/data/reference/torque_daily_era5.csv.gz
+            scripts/mjo/data/reference/${{ inputs.out }}
           sparse-checkout-cone-mode: false
       - uses: actions/download-artifact@v7
         with:
@@ -116,17 +135,20 @@ jobs:
           import glob, os, pandas as pd
           os.makedirs("scripts/mjo/data/reference", exist_ok=True)
           fs = sorted(glob.glob("parts/torque_*.csv"))
-          df = pd.concat([pd.read_csv(f) for f in fs]).drop_duplicates("date").sort_values("date")
-          full = pd.date_range(df.date.iloc[0], df.date.iloc[-1], freq="D").strftime("%Y-%m-%d")
-          miss = sorted(set(full) - set(df.date))
-          print(f"{len(fs)} chunks, {len(df)} days {df.date.iloc[0]}..{df.date.iloc[-1]}, "
-                f"{len(miss)} missing days, {int((df.nh < df.nh.max()).sum())} incomplete days")
-          if miss:
-              print("::warning::missing days: " + ", ".join(miss[:20]) + (" ..." if len(miss) > 20 else ""))
-          df.to_csv("scripts/mjo/data/reference/torque_daily_era5.csv.gz", index=False,
-                    float_format="%.6g", compression={"method": "gzip", "mtime": 0})
+          df = pd.concat([pd.read_csv(f) for f in fs])
+          key = "time" if "time" in df.columns else "date"
+          df = df.drop_duplicates(key).sort_values(key)
+          print(f"{len(fs)} chunks, {len(df)} rows {df[key].iloc[0]}..{df[key].iloc[-1]}")
+          if key == "date":
+              full = pd.date_range(df.date.iloc[0], df.date.iloc[-1], freq="D").strftime("%Y-%m-%d")
+              miss = sorted(set(full) - set(df.date))
+              print(f"{len(miss)} missing days, {int((df.nh < df.nh.max()).sum())} incomplete days")
+              if miss:
+                  print("::warning::missing days: " + ", ".join(miss[:20]) + (" ..." if len(miss) > 20 else ""))
+          df.to_csv("scripts/mjo/data/reference/${{ inputs.out }}", index=False,
+                    float_format="%.9g", compression={"method": "gzip", "mtime": 0})
           EOF
-          ls -la scripts/mjo/data/reference/torque_daily_era5.csv.gz
+          ls -la scripts/mjo/data/reference/${{ inputs.out }}
       - name: Commit & push
         if: ${{ inputs.test_days == '0' }}
         run: |
@@ -134,7 +156,7 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           # snapshot + clean resync each attempt (mjo.yml / sfs.yml pattern); merges never rebases
           SNAP=$(mktemp -d)
-          OUT=scripts/mjo/data/reference/torque_daily_era5.csv.gz
+          OUT=scripts/mjo/data/reference/${{ inputs.out }}
           git add -f "$OUT"
           git diff --staged --name-only -z | tar cf "$SNAP/outs.tar" --null -T - 2>/dev/null || true
           git reset -q
@@ -144,7 +166,7 @@ jobs:
             tar xf "$SNAP/outs.tar" 2>/dev/null || true
             git add -f "$OUT"
             if git diff --staged --quiet; then echo "No changes; skipping commit."; exit 0; fi
-            git commit -q -m "torque study: ERA5 daily torque + AAM history ${{ inputs.y0 }}-${{ inputs.y1 }}"
+            git commit -q -m "torque study: ERA5 torque + AAM history ${{ inputs.start || inputs.y0 }}-${{ inputs.y1 }} (${{ inputs.out }})"
             if timeout 180 git push; then echo "Pushed on attempt $i."; exit 0; fi
             echo "Push $i rejected; resyncing and retrying…"
             sleep 5

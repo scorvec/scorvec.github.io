@@ -26,7 +26,10 @@ cells. `mtn1_*` and `mtn25_*` recompute the mountain torque after block-averagin
 to 1 and 2.5 degrees - the resolution-sensitivity check for the CMIP6 comparison (CMIP6 models
 carry their own ~1-2 degree orography).
 
-Units: torques in Hadley (1e18 N m); AAM in 1e25 kg m^2 s^-1.
+  AAM mass term   M_m = Omega a^4/g sum p_s cos^3(phi) dlam dphi     (`aamm_*`)
+
+Units: torques in Hadley (1e18 N m); AAM in 1e25 kg m^2 s^-1. `--per-time` writes one row per sampled
+time (hourly 2026 for the high-fidelity budget) instead of daily means.
 
     python scripts/mjo/src/torque_history_era5.py --start 1979-01-01 --end 1980-12-31 --out chunk.csv
 """
@@ -47,6 +50,8 @@ REF = Path(__file__).resolve().parent.parent / "data" / "reference"
 OROG = REF / "era5_orography.nc"
 STORE = "gs://gcp-public-data-arco-era5/ar/full_37-1h-0p25deg-chunk-1.zarr-v3"
 A = 6.371e6
+G0 = 9.80665
+OMEGA = 7.292115e-5
 HU = 1e18
 MU = 1e25
 DEG = np.pi / 180.0
@@ -81,6 +86,7 @@ class Grid:
         cos = np.cos(np.deg2rad(self.lat))
         self.cellA = (A ** 2) * cos[:, None] * self.dl * self.dl  # m^2
         self.cos2A3 = (A ** 3) * (cos ** 2)[:, None] * self.dl * self.dl
+        self.cos3mass = OMEGA * (A ** 4) / G0 * (cos ** 3)[:, None] * self.dl * self.dl   # mass-term AM weight
         self.W = band_weights(self.lat)
         # 5-degree blocks exactly as torque_map_anim (coarsen 20, boundary trim -> drops lat=90 row)
         self.clat = self.lat[:720].reshape(36, 20).mean(1)
@@ -136,21 +142,30 @@ def one(t: pd.Timestamp, G: Grid, t0: pd.Timestamp):
             f[k] = np.asarray(ds[v].isel(time=i).values, dtype=np.float64)[::-1, :]   # ARCO lat descending
     except Exception as e:                                                             # noqa: BLE001
         return t, None, f"{type(e).__name__}: {e}"[:160]
+    nfill = 0
     for k, a in f.items():
-        if not np.isfinite(a).all():
-            return t, None, f"{k} has {np.isnan(a).mean():.3f} NaN"
+        bad = ~np.isfinite(a)
+        if bad.any():
+            # a handful of NaN cells occur in ARCO's vertical-integral fields (seen 1959-2019, < 0.05%);
+            # fill them with their latitude row's mean rather than lose the whole time
+            if bad.mean() > 5e-4:
+                return t, None, f"{k} has {bad.mean():.4f} NaN"
+            rowm = np.nanmean(np.where(bad, np.nan, a), axis=1)
+            a[bad] = np.broadcast_to(rowm[:, None], a.shape)[bad]
+            nfill += int(bad.sum())
     sp = f["sp"]
     if not (40000 < sp.min() and sp.max() < 110000):
         return t, None, f"sp out of range {sp.min():.0f}..{sp.max():.0f}"
-    out = {}
+    out = {"nfill": nfill}
     dpd = (np.roll(sp, -1, axis=1) - np.roll(sp, 1, axis=1)) / (2 * G.dl)
     dens = {"mtn": G.h * dpd * G.cellA / HU, "fric": -f["tt"] * G.cos2A3 / HU,
-            "gwd": -f["tg"] * G.cos2A3 / HU, "aam": f["mf"] * G.cos2A3 / MU}
+            "gwd": -f["tg"] * G.cos2A3 / HU, "aam": f["mf"] * G.cos2A3 / MU,
+            "aamm": sp * G.cos3mass / MU}
     for term, d in dens.items():
         z = d.sum(1)
         for b, v in zip(BANDS, G.W @ z):
             out[f"{term}_{b}"] = float(v)
-        if term != "aam":
+        if term not in ("aam", "aamm"):
             for r, (yi, xi) in G.box.items():
                 out[f"{term}_{r}"] = float(d[np.ix_(yi, xi)].sum())
     # site-exact 5-degree box sums (torque_map_anim.box_net5)
@@ -178,6 +193,8 @@ def main() -> int:
     ap.add_argument("--hours", default="0,6,12,18")
     ap.add_argument("--workers", type=int, default=16)
     ap.add_argument("--out", required=True)
+    ap.add_argument("--per-time", action="store_true",
+                    help="one row per sampled time instead of daily means (the 2026 high-fidelity budget)")
     a = ap.parse_args()
 
     G = Grid()
@@ -210,6 +227,14 @@ def main() -> int:
                 print(f"  {n}/{len(times)} {t:%Y-%m-%d %HZ}  {el / 60:.1f} min, "
                       f"{el / max(n, 1):.2f} s/time", flush=True)
 
+    if a.per_time:
+        df = pd.DataFrame([{"time": t.strftime("%Y-%m-%dT%H:%M")} | res[t] for t in times if t in res])
+        Path(a.out).parent.mkdir(parents=True, exist_ok=True)
+        df.to_csv(a.out, index=False, float_format="%.9g")
+        print(f"wrote {a.out}: {len(df)} of {len(times)} times, {len(bad)} bad, "
+              f"{(time.time() - tstart) / 60:.1f} min", flush=True)
+        return 0 if len(bad) < 0.02 * len(times) else 1
+
     rows = []
     for d in days:
         got = [res[d + pd.Timedelta(hours=h)] for h in hours if (d + pd.Timedelta(hours=h)) in res]
@@ -220,12 +245,12 @@ def main() -> int:
                 r.update({k: float(np.mean([g[k] for g in got])) for k in keys})
             for h in hours:
                 g = res.get(d + pd.Timedelta(hours=h))
-                for term in ("mtn", "fric", "gwd", "aam"):
+                for term in ("mtn", "fric", "gwd", "aam", "aamm"):
                     r[f"{term}_glob_h{h:02d}"] = g[f"{term}_glob"] if g else np.nan
         rows.append(r)
     df = pd.DataFrame(rows)
     Path(a.out).parent.mkdir(parents=True, exist_ok=True)
-    df.to_csv(a.out, index=False, float_format="%.6g")
+    df.to_csv(a.out, index=False, float_format="%.9g")
     print(f"wrote {a.out}: {len(df)} days, {int((df.nh == len(hours)).sum())} complete, {len(bad)} bad times, "
           f"{(time.time() - tstart) / 60:.1f} min", flush=True)
     return 0 if len(bad) < 0.02 * len(times) else 1
