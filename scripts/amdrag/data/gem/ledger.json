@@ -1,6 +1,6 @@
 {
  "bytes_by_day": {
-  "2026-10-13": 10745930798
+  "2026-10-13": 18704702531
  },
  "inits": {
   "gdps:20260914": {
@@ -57,6 +57,51 @@
    "runs": 1,
    "seconds": 545.1
   },
+  "gdps:20260920": {
+   "attempts": 1,
+   "bytes": 729948323,
+   "complete": true,
+   "kb": 129,
+   "missing": 0,
+   "runs": 1,
+   "seconds": 483.8
+  },
+  "gdps:20260921": {
+   "attempts": 1,
+   "bytes": 730176645,
+   "complete": true,
+   "kb": 129,
+   "missing": 0,
+   "runs": 1,
+   "seconds": 487.0
+  },
+  "gdps:20260922": {
+   "attempts": 1,
+   "bytes": 727312335,
+   "complete": true,
+   "kb": 129,
+   "missing": 0,
+   "runs": 1,
+   "seconds": 723.9
+  },
+  "gdps:20260923": {
+   "attempts": 1,
+   "bytes": 727235951,
+   "complete": true,
+   "kb": 129,
+   "missing": 0,
+   "runs": 1,
+   "seconds": 486.8
+  },
+  "gdps:20260924": {
+   "attempts": 1,
+   "bytes": 728889945,
+   "complete": true,
+   "kb": 129,
+   "missing": 0,
+   "runs": 1,
+   "seconds": 441.7
+  },
   "geps:20260914": {
    "attempts": 1,
    "bytes": 2088901223,
@@ -83,6 +128,24 @@
    "missing": 0,
    "runs": 5,
    "seconds": 421.3
+  },
+  "geps:20260920": {
+   "attempts": 1,
+   "bytes": 2161091886,
+   "complete": true,
+   "kb": 368,
+   "missing": 0,
+   "runs": 5,
+   "seconds": 464.5
+  },
+  "geps:20260922": {
+   "attempts": 1,
+   "bytes": 2154116648,
+   "complete": true,
+   "kb": 368,
+   "missing": 0,
+   "runs": 5,
+   "seconds": 456.7
   }
  }
 }
