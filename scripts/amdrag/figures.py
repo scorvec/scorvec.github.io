@@ -107,7 +107,7 @@ def fig_budget(R, out):
         ax.set_ylabel("dM/dt − torques (Hadley)")
     if e:
         axes[2].axhline(e["explained_bulk"], color=INK, lw=1.2, label="ERA5 (analysis days)")
-    axes[0].set_title("(a) budget residual, common bulk friction\nM = 11 common levels + mass term", fontsize=10)
+    axes[0].set_title("(a) budget residual, common bulk friction\nM = all own levels + mass term (mass drift removed)", fontsize=10)
     axes[1].set_title("(b) budget residual, the model's own published stress\nGFS, GEFS: turbulent + GWD; IFS: turbulent only",
                       fontsize=10)
     axes[2].set_title("(c) share of the daily AAM change explained\nby mountain + bulk friction torque", fontsize=10)
