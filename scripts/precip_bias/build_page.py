@@ -43,64 +43,81 @@ def comp_label(S, ck):
     return f"{C['label']} ({C[m0]['first']} to {C[m0]['last']}, {C[m0]['runs']} runs)"
 
 
-def region_table(S, comp, lk):
-    """Rows of regional biases; 'n.s.' where the 95 % interval includes zero."""
+WEEKS = (("wk1", "week 1"), ("wk2", "week 2"))
+
+
+def region_table(S, comp, leads=WEEKS):
+    """Rows of regional biases for weeks 1 and 2 side by side; 'n.s.' where the 95 % interval includes zero."""
     C = S["comparisons"].get(comp, {})
     ms = [m for m in MODELS if m in C]
     if not ms:
         return ""
-    head = "".join(f"<th>{MODELS[m]} {C[m]['cycle']}</th>" for m in ms)
+    head1 = "".join(f'<th colspan="{len(leads)}">{MODELS[m]} {C[m]["cycle"]}</th>' for m in ms)
+    head2 = "".join(f"<th>{lab}</th>" for _ in ms for _, lab in leads)
     rows = []
     for reg in REGIONS:
         cells, obs = [], None
         for m in ms:
-            r = C[m]["leads"].get(lk, {}).get("all", {}).get("regions", {}).get(reg)
-            if not r:
-                cells.append("<td>-</td>"); continue
-            obs = r["obs"] if obs is None else obs
-            if r["sig"]:
-                rel = f" ({100 * r['rel']:+.0f} %)".replace("-", "−") if r.get("rel") is not None else ""
-                cells.append(f"<td>{f2(r['bias'])}{rel}</td>")
-            else:
-                cells.append('<td class="ns">n.s.</td>')
+            for lk, _ in leads:
+                r = C[m]["leads"].get(lk, {}).get("all", {}).get("regions", {}).get(reg)
+                if not r:
+                    cells.append("<td>-</td>"); continue
+                obs = r["obs"] if obs is None else obs
+                if r["sig"]:
+                    rel = f" ({100 * r['rel']:+.0f} %)".replace("-", "−") if r.get("rel") is not None else ""
+                    cells.append(f"<td>{f2(r['bias'])}{rel}</td>")
+                else:
+                    cells.append('<td class="ns">n.s.</td>')
         if obs is not None:
             rows.append(f'<tr><td class="l">{reg}</td><td>{obs:.1f}</td>{"".join(cells)}</tr>')
-    return (f'<div class="tw"><table class="res"><thead><tr><th class="l">Region</th><th>Observed (mm/day)</th>{head}</tr></thead>'
+    return (f'<div class="tw"><table class="res"><thead><tr><th class="l" rowspan="2">Region</th>'
+            f'<th rowspan="2">Observed, week 1 (mm/day)</th>{head1}</tr><tr>{head2}</tr></thead>'
             f'<tbody>{"".join(rows)}</tbody></table></div>')
+
+
+def _dm(c):
+    if c and c["sig"]:
+        return f"changed by {f2(c['mean'])} mm/day [{f2(c['lo'])}, {f2(c['hi'])}]"
+    if c:
+        return f"not significantly changed ({f2(c['mean'])} [{f2(c['lo'])}, {f2(c['hi'])}] mm/day)"
+    return "too few runs to test"
 
 
 def upgrade_section(S, lead_opts):
     ups = [(k, v) for k, v in S.get("upgrades", {}).items() if v.get("leads")]
     lines = []
     for k, v in ups:
-        m, ch = k.split("|"); old, new = ch.split("->"); u = v["leads"].get("wk1")
-        if u:
-            c = u.get("domain_change_test")
-            if c and c["sig"]:
-                dm = f"the domain-mean bias changed by {f2(c['mean'])} mm/day [{f2(c['lo'])}, {f2(c['hi'])}]"
-            elif c:
-                dm = f"no significant change in the domain-mean bias ({f2(c['mean'])} [{f2(c['lo'])}, {f2(c['hi'])}] mm/day)"
-            else:
-                dm = "too few runs to test the domain mean"
-            lines.append(f"<li><strong>{MODELS[m]} {old} to {new}</strong> ({v['runs']} matched runs, week 1): bias pattern "
-                         f"correlation r = {u['pattern_r']:.2f}; {100 * u['frac_sig']:.0f} % of cells changed significantly; {dm}.</li>")
-    did = S.get("upgrade_did", {}).get("leads", {}).get("wk1")
+        m, ch = k.split("|"); old, new = ch.split("->")
+        parts = []
+        for lk, lab in WEEKS:
+            u = v["leads"].get(lk)
+            if u:
+                parts.append(f"{lab}: bias pattern correlation r = {u['pattern_r']:.2f}, {100 * u['frac_sig']:.0f} % of cells "
+                             f"changed significantly, domain-mean bias {_dm(u.get('domain_change_test'))}")
+        if parts:
+            txt = "; ".join(parts)
+            lines.append(f"<li><strong>{MODELS[m]} {old} to {new}</strong> ({v['runs']} matched runs). " + txt[0].upper() + txt[1:] + ".</li>")
     ups_ = S.get("upgrades", {})
-    ca = (ups_.get("ifs|49r1->50r1", {}).get("leads", {}).get("wk1", {}) or {}).get("domain_change_test")
-    cb = (ups_.get("aifs-ens|v1->v2", {}).get("leads", {}).get("wk1", {}) or {}).get("domain_change_test")
-    if did and ca and cb:
+    dparts, shared_all, small_all, any_sig = [], [], [], False
+    for lk, lab in WEEKS:
+        did = S.get("upgrade_did", {}).get("leads", {}).get(lk)
+        ca = (ups_.get("ifs|49r1->50r1", {}).get("leads", {}).get(lk, {}) or {}).get("domain_change_test")
+        cb = (ups_.get("aifs-ens|v1->v2", {}).get("leads", {}).get(lk, {}) or {}).get("domain_change_test")
+        if not (did and ca and cb):
+            continue
         shared = 0.5 * (abs(ca["mean"]) + abs(cb["mean"]))
-        small = abs(did["mean"]) < 0.3 * shared                      # the difference is a small part of the common change
-        if not did["sig"]:
-            verdict = "so the change both models share is the weather year (or a change in IMERG Late), not either upgrade"
-        elif small:
-            verdict = (f"a small part of the {shared:.2f} mm/day both models share, so most of that change is the weather year "
-                       f"(or a change in IMERG Late), not either upgrade")
+        shared_all.append(shared); small_all.append(abs(did["mean"]) < 0.3 * shared); any_sig |= did["sig"]
+        dparts.append(f"{lab} {f2(did['mean'])} mm/day [{f2(did['lo'])}, {f2(did['hi'])}]{', not significant' if not did['sig'] else ''},"
+                      f" while each model changed by about {shared:.2f}")
+    if dparts:
+        if not any_sig:
+            verdict = "the change both models share is the weather year (or a change in IMERG Late), not either upgrade"
+        elif all(small_all):                                         # the difference is a small part of the common change
+            verdict = "most of the change both models share is the weather year (or a change in IMERG Late), not either upgrade"
         else:
-            verdict = "so the two upgrades changed the bias by different amounts"
-        lines.append(f"<li><strong>The two May 2026 upgrades on the same days</strong> ({did['n']} runs, week 1): IFS-ENS's change "
-                     f"minus AIFS-ENS's is {f2(did['mean'])} mm/day [{f2(did['lo'])}, {f2(did['hi'])}]"
-                     f"{' (not significant)' if not did['sig'] else ''}. The weather year cancels in this difference: {verdict}.</li>")
+            verdict = "the two upgrades changed the bias by different amounts"
+        lines.append(f"<li><strong>The two May 2026 upgrades on the same days</strong>, IFS-ENS's change minus AIFS-ENS's: "
+                     + "; ".join(dparts) + f". The weather year cancels in this difference, so {verdict}.</li>")
     out = [
         "<p>IFS went from cycle 48r1 to 49r1 on 12 November 2024 and to 50r1 on 12 May 2026, when AIFS-ENS also went from v1 to v2. "
         "No field on this page mixes cycles. To see what an upgrade changed, the new cycle's runs are set against the old cycle's "
@@ -126,7 +143,7 @@ def body(S):
     cyc_txt = "; ".join(f"{MODELS[m]} " + ", ".join(f"{c['cycle']} {c['from']} to {c['to'] or 'now'}" for c in cl if c["runs"])
                         for m, cl in cyc.items())
     tf = S.get("imerg_final") or ["-", "-"]
-    tables = "".join(f"<h3>{html.escape(comp_label(S, k))}</h3>{region_table(S, k, 'wk1')}" for k in comps if k != "ifs49")
+    tables = "".join(f"<h3>{html.escape(comp_label(S, k))}</h3>{region_table(S, k)}" for k in comps if k != "ifs49")
     charts = [k for k in comps if f"leads_regions_{k}.webp" in figs]
     l0 = charts[0] if charts else c0
     return f"""
@@ -155,7 +172,8 @@ archive: every 00Z run, six members, one model cycle at a time.</p>
 <figure><img id="rb-limg" src="/assets/precip_bias/leads_regions_{l0}.webp" alt="Regional rain bias by lead" loading="lazy">
 <figcaption><label>Models <select id="rb-lcomp">{opts([(k, comp_label(S, k)) for k in charts], l0)}</select></label>
 Area means in the dashed boxes on the maps.</figcaption></figure>
-<p>Week 1 (days 1-7), all seasons in the sample, mm/day (percent of observed); "n.s." = the 95 % interval includes zero.</p>
+<p>Weeks 1 (days 1-7) and 2 (days 8-14), all seasons in the sample, mm/day (percent of observed); "n.s." = the 95 % interval
+includes zero.</p>
 {tables}
 </section>
 
