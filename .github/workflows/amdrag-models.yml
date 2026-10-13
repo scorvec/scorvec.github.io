@@ -31,6 +31,10 @@ on:
         description: "inits per matrix job"
         required: false
         default: "3"
+      mode:
+        description: "window (0-15 day inits from start) | d1 (first 24 h only, control, Jan + Jul 2026: the WGNE-comparable day-1 stress)"
+        required: false
+        default: "window"
 
 permissions:
   contents: write
@@ -55,6 +59,7 @@ jobs:
           END: ${{ inputs.end }}
           MODELS: ${{ inputs.models || 'gfs,gefs,aigfs,ifs-ens,aifs-ens,aifs-single,era5' }}
           CHUNK: ${{ inputs.chunk || '3' }}
+          MODE: ${{ inputs.mode || 'window' }}
         run: |
           python3 - <<'EOF' >> "$GITHUB_OUTPUT"
           import datetime as dt, json, os
@@ -66,6 +71,19 @@ jobs:
           if dt.datetime.utcnow().hour < 10:
               e = min(e, today - dt.timedelta(days=1))
           inc = []
+          if os.environ["MODE"] == "d1":
+              # January and July 2026, first 24 h of every 00Z control forecast: the season of the WGNE drag project's
+              # Jan/Jul 2012 comparison. Models that publish their own surface stress, plus ERA5.
+              for m in ("gfs", "gefs", "ifs-ens", "era5"):
+                  for y, mo in ((2026, 1), (2026, 7)):
+                      days = [f"{y}{mo:02d}{d:02d}" for d in range(1, 32)]
+                      sub = "era5" if m == "era5" else f"{m}_d1"
+                      todo = [x for x in days if not Path(f"scripts/amdrag/data/{sub}/{x}.npz").exists()]
+                      for i in range(0, len(todo), 8):
+                          inc.append({"model": m, "dates": " ".join(todo[i:i + 8]), "tag": f"{sub}_{todo[i]}", "d1": "1"})
+              print("matrix=" + json.dumps({"include": inc}))
+              print(f"n={len(inc)}")
+              raise SystemExit(0)
           for m in os.environ["MODELS"].split(","):
               last = min(e, today - dt.timedelta(days=6)) if m == "era5" else e
               d, todo = s, []
@@ -76,7 +94,7 @@ jobs:
               k = int(os.environ["CHUNK"]) * (4 if m == "era5" else 1)
               for i in range(0, len(todo), k):
                   part = todo[i:i + k]
-                  inc.append({"model": m, "dates": " ".join(part), "tag": f"{m}_{part[0]}"})
+                  inc.append({"model": m, "dates": " ".join(part), "tag": f"{m}_{part[0]}", "d1": "0"})
           print("matrix=" + json.dumps({"include": inc}))
           print(f"n={len(inc)}")
           EOF
@@ -123,14 +141,17 @@ jobs:
             set -- ${{ matrix.dates }}
             S="$1"; for x in "$@"; do E="$x"; done
             python scripts/amdrag/era5_collect.py --start "${S:0:4}-${S:4:2}-${S:6:2}" --end "${E:0:4}-${E:4:2}-${E:6:2}" --workers 3
+          elif [ "${{ matrix.d1 }}" = "1" ]; then
+            AMDRAG_LAST=24 AMDRAG_LEVELS=0 AMDRAG_MEMBERS=0 \
+              python scripts/amdrag/collect_models.py --model ${{ matrix.model }} --dates ${{ matrix.dates }} --tag d1
           else
             python scripts/amdrag/collect_models.py --model ${{ matrix.model }} --dates ${{ matrix.dates }}
           fi
-          ls -la scripts/amdrag/data/${{ matrix.model }}/ | tail -8
+          ls -la scripts/amdrag/data/ | tail -12
       - uses: actions/upload-artifact@v7
         with:
           name: amdrag_${{ matrix.tag }}
-          path: scripts/amdrag/data/${{ matrix.model }}/*.npz
+          path: scripts/amdrag/data/${{ matrix.model }}${{ matrix.d1 == '1' && matrix.model != 'era5' && '_d1' || '' }}/*.npz
           if-no-files-found: ignore
           retention-days: 7
 

@@ -314,7 +314,7 @@ class Reducer:
         self.coarse = {r: Coarsener(g, r) for r in (0.5, 1.5)}
         self.hc = {r: c(self.h) for r, c in self.coarse.items()}
 
-    def torque_step(self, month: int, sp, u10, v10, tau_turb=None, tau_gwd=None, tcwv=None, maps=False):
+    def torque_step(self, month: int, sp, u10, v10, tau_turb=None, tau_gwd=None, tcwv=None, maps=False, xmaps=True):
         g = self.g
         out = {}
         out["mass_b"] = g.bands(g.mass_cells(sp).sum(1))
@@ -352,8 +352,9 @@ class Reducer:
             out["Tg_land_b"] = g.bands((tg * land).sum(1))
         if tcwv is not None:
             out["wv_b"] = g.bands((tcwv * g.area[:, None]).sum(1))      # kg of water vapour per band
-        out["xmap_Tm"] = g.map5(tm, "sum")                               # forecast-mean maps (packed as means)
-        out["xmap_Tfb"] = g.map5(tb, "sum")
+        if xmaps:                                                        # forecast-mean maps (packed as means)
+            out["xmap_Tm"] = g.map5(tm, "sum")
+            out["xmap_Tfb"] = g.map5(tb, "sum")
         if maps:
             out["map_u10"] = g.map5(u10)
         return out

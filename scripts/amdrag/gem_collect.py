@@ -206,7 +206,8 @@ def work_step(step: int, levels: bool):
             if bad:
                 res["nan"][f"{m}:sfc"] = bad
                 continue
-            res["T"][m] = red.torque_step(mon, s_, a_, b_, maps=step in C.MAP_STEPS)
+            res["T"][m] = red.torque_step(mon, s_, a_, b_, maps=step in C.MAP_STEPS and m == runs[0],
+                                          xmaps=m == runs[0])
             if levels:
                 if any(U[L] is None or m not in U[L][0] for L in M["ulev"]):
                     continue
@@ -217,7 +218,7 @@ def work_step(step: int, levels: bool):
                     uu = np.nan_to_num(uu)
                 vv = {L: np.nan_to_num(V[L][0][m]) for L in M["vlev"] if V[L] is not None and m in V[L][0]}
                 res["L"][m] = red.level_step(M["ulev"], uu, vv, s_, lb=step in C.LB_STEPS,
-                                             maps=step in C.MAP_STEPS)
+                                             maps=step in C.MAP_STEPS and m == runs[0])
     except Exception:                                                  # noqa: BLE001
         res["error"] = traceback.format_exc()[-600:]
     res["sec"] = time.time() - t0
@@ -237,7 +238,11 @@ def process(model: str, d: str) -> dict:
     h = fld[min(fld)]
     g = C.Grid(hlat, hlon)
     hm = float((h * g.area[:, None]).sum() / (g.area.sum() * len(hlon)))
-    meta["oro"] = {"area_mean_m": hm, "max_m": float(np.nanmax(h)), "min_m": float(np.nanmin(h)),
+    dam = 15.0 < hm < 33.0 and np.nanmax(h) < 1000.0                  # GEPS HGT_SFC_0 is in decametres
+    if dam:
+        h = h * 10.0
+        hm *= 10.0
+    meta["oro"] = {"area_mean_m": hm, "decametres_fixed": dam, "max_m": float(np.nanmax(h)), "min_m": float(np.nanmin(h)),
                    "nlat": len(hlat), "nlon": len(hlon), "lon0": float(hlon[0]), "dlon": float(hlon[1] - hlon[0]),
                    "scales": C.orography_stats(g, h)}
     print(f"  {model} {d}: orography {len(hlat)}x{len(hlon)}, area-mean {hm:.1f} m, max {np.nanmax(h):.0f} m",

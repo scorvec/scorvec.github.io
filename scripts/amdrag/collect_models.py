@@ -41,7 +41,8 @@ sys.path.insert(0, str(HERE.parents[0] / "ecmwf"))
 import common as C                                                     # noqa: E402
 
 os.environ.setdefault("ECMWF_SOURCES", "google")
-LAST = 360
+LAST = int(os.environ.get("AMDRAG_LAST", "360"))   # 24 = the day-1 (WGNE-comparable) mode
+LEVELS_ON = os.environ.get("AMDRAG_LEVELS", "1") == "1"
 DT = 6
 WORKERS = int(os.environ.get("AMDRAG_WORKERS", "4"))
 S3 = {"gfs": "https://noaa-gfs-bdp-pds.s3.amazonaws.com", "gefs": "https://noaa-gefs-pds.s3.amazonaws.com",
@@ -52,7 +53,7 @@ GEFS_A = [10, 50, 100, 200, 250, 300, 400, 500, 700, 850, 925, 1000]
 GEFS_B = [1, 2, 3, 5, 7, 20, 30, 70, 150, 350, 450, 550, 600, 650, 750, 800, 900, 950, 975]
 EC_LEVELS = C.C14
 AIGFS_LEVELS = C.C13
-ENS_MEMBERS = [0, 1, 2, 3, 4]
+ENS_MEMBERS = [int(x) for x in os.environ.get("AMDRAG_MEMBERS", "0,1,2,3,4").split(",")]
 SPEC = {
     "gfs": dict(members=[0], last=LAST),
     "gefs": dict(members=ENS_MEMBERS, last=LAST),
@@ -401,7 +402,7 @@ def work(s):
     stats = {"bytes": 0}
     res = {"step": s, "T": {}, "L": {}, "chk": {}, "err": None}
     try:
-        T, L = fetch_step(model, d, s, s % 24 == 0, stats)
+        T, L = fetch_step(model, d, s, LEVELS_ON and s % 24 == 0, stats)
         mon = (dt.datetime.strptime(d, "%Y%m%d") + dt.timedelta(hours=s)).month
         for m, t in (T or {}).items():
             red = _red(t["grid"], True)
@@ -415,8 +416,9 @@ def work(s):
                 tt = np.nan_to_num(tt)
             if tg is not None and not np.isfinite(tg).all():
                 tg = np.nan_to_num(tg)
+            first = m == min(T)
             res["T"][m] = red.torque_step(mon, sp, t["u10"], t["v10"], tau_turb=tt, tau_gwd=tg,
-                                          tcwv=t.get("tcwv"), maps=s in C.MAP_STEPS)
+                                          tcwv=t.get("tcwv"), maps=s in C.MAP_STEPS and first, xmaps=first)
             msk = g.masks()
             wa = g.area[:, None]
             if tt is not None:                       # sign checks: stress ON the surface has the sign of the wind
@@ -429,7 +431,7 @@ def work(s):
             u = np.nan_to_num(ll["u"])
             v = {int(k) if float(k).is_integer() else k: np.nan_to_num(x) for k, x in ll["v"].items()}
             levs = [int(l) if float(l).is_integer() else l for l in ll["levels"]]
-            res["L"][m] = red.level_step(levs, u, v, sp, lb=s in C.LB_STEPS, maps=s in C.MAP_STEPS)
+            res["L"][m] = red.level_step(levs, u, v, sp, lb=s in C.LB_STEPS, maps=s in C.MAP_STEPS and m == min(L))
     except Exception:                                                  # noqa: BLE001
         res["err"] = traceback.format_exc()[-800:]
     res["bytes"] = stats["bytes"]
@@ -505,7 +507,9 @@ def process(model, d, out: Path):
     meta["n_L"] = {str(m): len(L.get(m, {})) for m in T}
     meta["seconds"] = round(time.time() - t0, 1)
     meta["complete"] = (not meta["errors"] and not meta["missing"] and len(runs) == len(SPEC[model]["members"])
-                        and all(len(T[m]) == len(steps) and len(L.get(m, {})) == len(steps[::4]) for m in T))
+                        and all(len(T[m]) == len(steps) and (not LEVELS_ON or len(L.get(m, {})) == len(steps[::4]))
+                                for m in T))
+    meta["last"] = LAST
     out.parent.mkdir(parents=True, exist_ok=True)
     np.savez_compressed(out, meta=json.dumps(meta), **pack)
     print(f"  saved {out.relative_to(HERE)} {out.stat().st_size / 1e3:.0f} kB, {meta['bytes'] / 1e9:.2f} GB, "
@@ -518,10 +522,11 @@ def main():
     ap.add_argument("--model", required=True, choices=list(SPEC))
     ap.add_argument("--dates", nargs="+", required=True)
     ap.add_argument("--force", action="store_true")
+    ap.add_argument("--tag", default="", help="output subdirectory suffix, e.g. d1 -> data/<model>_d1/")
     a = ap.parse_args()
     bad = 0
     for d in a.dates:
-        out = C.DATA / a.model / f"{d}.npz"
+        out = C.DATA / (a.model + (f"_{a.tag}" if a.tag else "")) / f"{d}.npz"
         if out.exists() and not a.force:
             print(f"{a.model} {d}: exists")
             continue
