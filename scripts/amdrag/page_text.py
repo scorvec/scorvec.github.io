@@ -670,6 +670,7 @@ def body(R, Mo, keys, L, fig, t_models, made):
   GitHub Actions; only the reduced diagnostics are kept (<a href="https://github.com/scorvec/scorvec.github.io/tree/main/scripts/amdrag">scripts/amdrag</a>).</p>
   <p class="byline">By <a href="/about.html">Shawn Corvec</a>, meteorologist. Published 13 October 2026; rebuilt daily as the
   sample grows (last rebuilt {made}).</p>
+  <p class="byline">Authored by Claude, Anthropic's AI model, at the direction of Shawn Corvec.</p>
 </article>
 """
 
