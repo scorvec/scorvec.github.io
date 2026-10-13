@@ -316,6 +316,11 @@ def main() -> int:
                 "</tr></thead><tbody>" + "".join(f"<tr><th scope='row'>{lab}</th>{wl_cell(wlr['trop'][k])}{wl_cell(wlr['extra'][k])}</tr>"
                                                   for k, lab in wl_names) + "</tbody></table></div>")
     trop_off = abs(wlr["trop"]["850-700"]["mean"]) / abs(wlr["trop"]["1000-875"]["mean"])
+    # where the column's wind-term increment goes (both window starts, every cell of Figure incsection)
+    _z = np.load(D / "inc_section.npz"); _J = np.nan_to_num(_z["J10_mean"] + _z["J22_mean"]); _lv, _la = _z["level"], _z["lat"]
+    col_ext = _J[:, np.abs(_la) >= 30].sum() / _J.sum()
+    ext_free = _J[(_lv >= 100) & (_lv <= 650)][:, np.abs(_la) >= 30].sum() / _J[:, np.abs(_la) >= 30].sum()
+    trop_low, trop_mid = _J[_lv >= 875][:, np.abs(_la) < 30].sum(), _J[(_lv >= 700) & (_lv <= 850)][:, np.abs(_la) < 30].sum()
     wg = WS.get("grid", {})
     ws_grid = "; ".join(f"{lv} hPa {100 * wg[lv]['trop']['strengthen']:.0f}% and {100 * wg[lv]['extra']['strengthen']:.0f}%"
                         for lv in ("1000", "925", "850", "700") if lv in wg)
@@ -454,7 +459,9 @@ def main() -> int:
     {abs(fsum):.1f} Hadley short of the annual budget. At each of its twice-daily 4D-Var window starts the analysis adds angular momentum, about
     {abs(per_day / S.HADLEY_DAY_TO_AAM):.0f} Hadley on average, in every month of 2025–26. The physics ensemble IFS-ENS loses angular
     momentum in free forecasts through its own torques; the data-driven AIFS-ENS does not. Too much drag in ERA5's model (IFS cycle
-    41r2, before ECMWF's 2022 drag retuning) is the leading candidate, not the only one.</li>
+    41r2, before ECMWF's 2022 drag retuning) is the leading candidate, not the only one. About {100 * col_ext:.0f}% of the momentum
+    the analysis adds goes into mid-latitude westerlies, {100 * ext_free:.0f}% of that between 650 and 100 hPa; in the tropics the
+    gain below 875 hPa and the loss at 850–700 hPa nearly cancel.</li>
     <li><b>3. Too much drag, but not over the mountains.</b> Operational experience with GEM and ECMWF's own record (Kanehama et al.,
     2022) show models tuned toward more drag because it improves scores. Yet only {share('amL', 'ALL', 'ORO')} of the momentum the analysis adds below
     850 hPa lands over or just downstream of rough terrain, which covers {100 * area['ORO']:.0f}% of the globe;
