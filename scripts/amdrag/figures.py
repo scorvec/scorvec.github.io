@@ -314,9 +314,13 @@ def fig_wgne(R, out):
                                            alpha=0.45, lw=0, label="2012 high-resolution models, peak range"))
                 ax.plot([32, 46], [w["IFS"]] * 2, color=COL["ifs-ens"], lw=3, alpha=0.5, label="2012 IFS peak")
                 ax.plot([32, 46], [w["GDPS"]] * 2, color=COL["gdps"], lw=3, alpha=0.5, label="2012 GDPS peak")
+                lo_, hi_ = ax.get_ylim()
+                ax.set_ylim(lo_, max(hi_, w["others"][1] * 1.08))
             if mon == 7 and part == "total":                       # July 2012 SH peak range (WGNE Report 1, Fig. 14)
                 ax.add_patch(plt.Rectangle((-55, 2.2), 15, 0.3, color="#c3c2b7", alpha=0.45, lw=0,
                                            label="2012 high-resolution models, peak range"))
+                lo_, hi_ = ax.get_ylim()
+                ax.set_ylim(lo_, max(hi_, 2.65))
             ax.set_title(f"{ttl}\n{'January' if mon == 1 else 'July'} 2026, first 24 h", fontsize=9.5)
             ax.set_xlim(-90, 90)
             if col == 0:
