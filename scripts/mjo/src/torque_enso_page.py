@@ -277,7 +277,9 @@ def main() -> int:
 
     def share(var, s, r):
         v = sp_[f"{var}_{s}_{r}"]
-        return f"{100 * v['share']:.0f}% [{100 * v['lo']:.0f}, {100 * v['hi']:.0f}]"
+        def pc(x):
+            return f"{round(100 * x) + 0:.0f}".replace("-", "−")
+        return f"{pc(v['share'])}% [{pc(v['lo'])}, {pc(v['hi'])}]"
     import xarray as xr
     zm = xr.open_dataset(S.REF / "torque_u37maps_2025_2026.nc")
     zlat = zm.lat.values
@@ -410,7 +412,7 @@ def main() -> int:
   the middle latitudes of both hemispheres, from the surface to the tropopause (Seager et al., 2003). By the thermal-wind relation a
   warmer tropics against cooler subtropics means stronger westerly shear on the equatorward side of the subtropical jets, so the
   westerlies in the upper troposphere strengthen there, in both hemispheres. In ERA5 the global angular momentum regressed on Niño-3.4
-  peaks {dd(aam_peak_lag)} after the Niño-3.4 anomaly at {num(aam_peak, 2)} ×10²⁵ kg m² s⁻¹ per kelvin, about
+  peaks {abs(aam_peak_lag)} month{'' if abs(aam_peak_lag) == 1 else 's'} {'after' if aam_peak_lag > 0 else 'before'} the Niño-3.4 anomaly at {num(aam_peak, 2)} ×10²⁵ kg m² s⁻¹ per kelvin, about
   {aam_peak * LODMS:.2f} ms of length of day per kelvin.</p>
   <p><b>How the momentum gets in.</b> All of it has to come through the surface:</p>
   <p>$$\\frac{{dM}}{{dt}} = T_{{\\text{{mountain}}}} + T_{{\\text{{friction}}}} + T_{{\\text{{gravity-wave drag}}}},\\qquad
@@ -629,7 +631,7 @@ def main() -> int:
   {fig("incsection", "inc_section.webp", "Latitude by pressure sections of the wind-term angular momentum increment per layer at the two window starts, troposphere and stratosphere on separate scales", "The wind-term increment by latitude and layer at the two window starts: the angular momentum each 5° band and pressure layer gains, in units that sum to the column. Below: 1000–100 hPa on an axis linear in pressure (so in mass); above it, 100–1 hPa on its own scale. Hatched where not significant (10-day block bootstrap, FDR 10% over the cells with data).")}
   <p><b>By height.</b> The vertical sum of the 37-level increment follows the column estimate from the surface fields closely (correlation
   {u10['corr_column_vs_2d']:.3f} across bands and days) but is about {100 * (col37 / col2d - 1):.0f}% larger ({num(col37, 3)} against
-  {num(col2d, 3)} per window), as expected from summing 37 pressure levels with their lowest layer clipped at the surface rather than
+  {num(col2d, 3)} per window), probably from summing 37 pressure levels with their lowest layer clipped at the surface rather than
   integrating the model levels exactly. Of the wind-term increment, the largest share goes into the layers below 850 hPa
   ({fsec.get('J10', 0):.0%} and {fsec.get('J22', 0):.0%} of the section's cells with data are significant):</p>
   {t_lay}
@@ -643,15 +645,15 @@ def main() -> int:
   <h3>Where the low-level increment goes</h3>
   {fig("mapsu", "inc_maps_u.webp", "World maps of the mean zonal-wind increment at 925 and 850 hPa with terrain contours", "The mean increment of the zonal wind at 925 hPa (top) and 850 hPa (bottom), both window starts together, per day; shaded only where significant (t-test with an effective sample size from the lag-one autocorrelation, FDR 10% over the map). Contours: terrain at 500, 1500 and 3000 m.")}
   {fig("mapsseason", "inc_maps_amL_season.webp", "World maps of the angular momentum increment of the layers at and below 850 hPa in December to February and June to August", "The angular momentum increment of the layers at and below 850 hPa, per 2.5° cell and day, in DJF (top) and JJA (bottom); shaded only where significant (FDR 10%). Terrain contours as in the previous figure.")}
-  <p>The maps test the user-facing hypothesis directly: if ERA5's model lost momentum mainly to excess low-level orographic drag
+  <p>The maps test the drag hypothesis directly: if ERA5's model lost momentum mainly to excess low-level orographic drag
   (blocking and turbulent orographic form drag), the low-level increments would sit over and just downstream of the Rockies, the Andes,
   Tibet, the East African highlands and the Antarctic margins. They do not. At 925 hPa the analysis adds westerly momentum over most of
-  the trade-wind oceans and the Southern Ocean; at 850 hPa it removes it over the subtropical oceans, the upper half of the dipole in
+  the trade-wind oceans and around Antarctica; at 850 hPa it removes it over the subtropical oceans, the upper half of the dipole in
   Figure {FN['incsection']}. In the zonal mean the 1000 hPa wind is increased by {num(u1000_trop, 2)} m s⁻¹ a day at 10–30° (weaker trade
   easterlies) and decreased by {num(u1000_mid, 2)} m s⁻¹ at 40–60° (weaker surface westerlies); the 10 m wind likewise
   ({num(u10_trop, 2)} and {num(u10_mid, 2)}). Over the mid-latitude oceans the analysis adds westerlies from 925 hPa up
   ({num(u925_mid, 2)} m s⁻¹ a day at 40–60°), while at 850 hPa between 40 and 55°N it removes them ({num(u850_nh, 2)}).</p>
-  {fig("mapssplit", "inc_maps_split.webp", "Bar chart of the share of the global low-level angular momentum increment falling in four regions, for all days, DJF and JJA, against each region's share of the Earth's area", "The share of the global increment of angular momentum below 850 hPa that falls in each region, all days and by season, with 95% block-bootstrap intervals over days; the black ticks mark each region's share of the Earth's area. Regions are defined at 0.25° from ERA5's orography, its subgrid-orography standard deviation and its land-sea mask.")}
+  {fig("mapssplit", "inc_maps_split.webp", "Bar chart of the share of the global low-level angular momentum increment falling in four regions, for all days, DJF and JJA, against each region's share of the Earth's area", "The share of the global increment of angular momentum below 850 hPa that falls in each region, all days and by season, with 95% block-bootstrap intervals over days; the dashed lines mark each region's share of the Earth's area. Regions are defined at 0.25° from ERA5's orography, its subgrid-orography standard deviation and its land-sea mask.")}
   {t_split}
   <p class="tcap">"Rough terrain" is terrain above 1000 m or an ERA5 subgrid-orography standard deviation above 100 m, extended 500 km
   east (downstream); the four regions add up to the globe. With terrain above 1000 m alone the low-level share is
@@ -882,6 +884,9 @@ def main() -> int:
         page = page.replace("<body>\n", "<body>\n" + old.split("<body>\n", 1)[1].split("<!-- sh:end -->", 1)[0] + "<!-- sh:end -->\n", 1)
     out.write_text(page)
     print("wrote", out)
+    sys.path.insert(0, str(site / "scripts" / "site"))
+    import apply_chrome                                                  # noqa: E402  (footer, rail.js, menus)
+    apply_chrome.stamp_all(only={"torque-enso.html"})
     return 0
 
 

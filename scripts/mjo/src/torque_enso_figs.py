@@ -872,14 +872,14 @@ def site_increment_maps(data: Path, dest: Path):
                 ax.barh(yy, 100 * d["share"], height=0.22, color=cols[s], label={"ALL": "all days"}.get(s, s) if yi == y[0] else None)
                 ax.plot([100 * d["lo"], 100 * d["hi"]], [yy] * 2, color=INK, lw=1)
         for yi, (rk, lab) in zip(y, regs):
-            ax.scatter([100 * r["area"][rk]], [yi], marker="|", s=420, color=INK, zorder=4,
-                       label="share of the Earth's area" if yi == y[0] else None)
+            ax.plot([100 * r["area"][rk]] * 2, [yi - 0.42, yi + 0.42], ls="--", lw=1.3, color=INK, zorder=4,
+                    label="share of the Earth's area" if yi == y[0] else None)
         ax.set_yticks(y); ax.set_yticklabels([lab for _, lab in regs])
         ax.axvline(0, color="#c3c2b7", lw=1)
         ax.set_xlabel("share of the global increment below 850 hPa (%)")
         fig.legend(*ax.get_legend_handles_labels(), loc="outside lower center", ncol=4, frameon=False, fontsize=9.5)
         fig.suptitle("Where ERA5's low-level angular momentum increment goes", fontsize=12, color=INK, x=0.02, ha="left")
-        ax.set_title("bars: share with 95% interval; black tick: share of the Earth's area", loc="left", fontsize=10)
+        ax.set_title("bars: share with 95% interval; dashed: share of the area", loc="left", fontsize=10)
         fig.savefig(dest / "inc_maps_split.webp", **WEBP)
         plt.close(fig)
 
