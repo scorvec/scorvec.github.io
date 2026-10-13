@@ -373,8 +373,9 @@ def main() -> int:
 <article class="study">
   <p class="crumbs"><a href="/">Home</a> › Studies › El Niño and mountain torque</p>
   <h1>{H1}</h1>
-  <p class="dek">Surface highs that build on the east side of the Andes, the Rockies and the Himalaya push the atmosphere eastward
-  and raise its angular momentum, and they seem to come thick and fast in El Niño years. Does El Niño make more of them, or does it
+  <p class="dek">When surface pressure is higher on the east side of the Andes, the Rockies or the Himalaya than on the west, the air presses
+  westward on the mountains; by Newton&rsquo;s third law the mountains push the air eastward, adding westerly angular momentum to the
+  atmosphere (and taking it from the solid Earth). Those east-side highs seem to come thick and fast in El Niño years. Does El Niño make more of them, or does it
   shift the pressure across the mountains as a whole? ERA5 four times a day from 1959 to 2026, {n_models} CMIP6 models, and an
   hourly budget of the 2026 rise.</p>
 
