@@ -154,6 +154,15 @@ def median_track(s: dict) -> dict:
     return out
 
 
+def lon_median(lons) -> float:
+    """Median longitude (-180..180) that is safe across the dateline and 0 deg: the median offset from the circular mean.
+    (2026-10-12 review: np.median put the live AIFS 70C genesis at 168.2E, its circular centre is 177.6E.)"""
+    lo = np.asarray(lons, float)
+    a = np.deg2rad(lo)
+    c = float(np.rad2deg(np.arctan2(np.sin(a).mean(), np.cos(a).mean())))
+    return float((c + np.median((lo - c + 180) % 360 - 180) + 180) % 360 - 180)
+
+
 def gen_h(s: dict) -> float:
     """Median hour at which a developing system's members reach tropical-storm strength."""
     return float(np.median([g for g in (genesis_h(t) for t in s["tracks"].values()) if g is not None] or [0]))
@@ -212,7 +221,7 @@ def nh_storms(msgs: list[dict], min_frac: float = 0.4, nmem: int = 51) -> list[d
     for m in named:
         tr = {k: t for k, t in m["tracks"].items() if (t["lat"] > 0).any() and len(t["steps"]) > 1}
         if tr:
-            keep.append(dict(m, tracks=tr))
+            keep.append(dict(m, tracks=tr, ctl_ids=[m["id"]] if 0 in tr else []))
     pts = []                                                              # (id, member, track, lat, lon, step) at genesis
     for m in msgs:
         if m["named"]:
@@ -258,8 +267,11 @@ def nh_storms(msgs: list[dict], min_frac: float = 0.4, nmem: int = 51) -> list[d
         while main_id in used:
             main_id = f"{max(ids, key=ids.get)}-{n_}"; n_ += 1
         used.add(main_id)
-        gla = float(np.median([v[2] for v in best.values()])); glo = float(np.median([v[3] for v in best.values()]))
-        keep.append(dict(id=main_id, name=main_id, named=False, weak=weak, ids=sorted(ids), region=region_of(gla, glo),
+        gla = float(np.median([v[2] for v in best.values()])); glo = lon_median([v[3] for v in best.values()])
+        # the control's own tracker id(s) in this cluster: the control track tc_phase / the TC-jet card carry under its id
+        # can sit in a cluster named after another id (12 Oct 12Z: control 72L is member 0 of cluster 73L)
+        ctl_ids = sorted({sid for sid, k, _, _, _, _ in g if k == 0})
+        keep.append(dict(id=main_id, name=main_id, named=False, weak=weak, ids=sorted(ids), ctl_ids=ctl_ids, region=region_of(gla, glo),
                          basin=basin_of(main_id[:3], gla, glo),
                          genesis=(round(gla, 1), round(glo, 1)), tracks={k: v[1] for k, v in best.items()}))
     return keep
@@ -450,20 +462,21 @@ SYS_H = 72                   # ... from the tracker's last fix to this many hour
 EXTRAP_H = 48                # once the track ends, the search centre moves on with its last motion for up to this long
 
 
-def et_depth(s: dict, M: dict, lat, lon, steps) -> dict:
+def et_depth(s: dict, M: dict, lat, lon, steps, land=None) -> dict:
     """Per member: the track extended past the tracker (tc_jet.follow_low) and the depth of the SYSTEM it becomes.
 
     During phasing the low is often double-centred and ECMWF's tracker can stay with a decaying southern remnant while the
     main low re-forms 1000+ km to the north (Choi-Wan, 2 Oct 00Z: 20 of 21 "shallow" members had a 935-955 hPa low next to
     their followed path). Depth is therefore the lowest central pressure, north of ET_LAT, of the storm's own track and of
     any closed low within SYS_KM of its latest position over SYS_H hours from the tracker's last fix: the remnant together
-    with whatever low it merges into. {member: dict(ext, pmin, h, lat, lon, on_track, n_followed)}."""
+    with whatever low it merges into. A weak low (>= tc_jet.FOLLOW_WEAK_HPA) over land is not part of it (heat / lee lows;
+    land: tc_jet.LandMask, None = everywhere). {member: dict(ext, pmin, h, lat, lon, on_track, n_followed)}."""
     res = {}
     stl = list(np.asarray(steps, int))
     for k, tr in s["tracks"].items():
         if k not in M:
             continue
-        cont = TC.follow_low(M[k], lat, lon, steps, tr, h_max=ET_H_MAX)
+        cont = TC.follow_low(M[k], lat, lon, steps, tr, h_max=ET_H_MAX, land=land)
         ext = TC.extended(tr, cont)
         cands = []                                                          # (p, h, lat, lon, on_track)
         m = (ext["lat"] >= ET_LAT) & (ext["steps"] <= ET_H_MAX) & np.isfinite(ext["pmsl"])
@@ -471,9 +484,9 @@ def et_depth(s: dict, M: dict, lat, lon, steps) -> dict:
             cands.append((float(ext["pmsl"][i]), int(ext["steps"][i]), float(ext["lat"][i]), float(ext["lon"][i]), True))
         on = [int(h) for h in tr["steps"] if int(h) in set(stl)]
         if on:
-            h_end = on[-1]
+            h_beg, h_end = on[-1], int(tr["steps"][-1])                    # SYS_H after the LAST fix (often +6 h off-grid)
             for h in stl:
-                if h < h_end or h > min(h_end + SYS_H, ET_H_MAX):
+                if h < h_beg or h > min(h_end + SYS_H, ET_H_MAX):
                     continue
                 before = np.where(ext["steps"] <= h)[0]
                 c_la, c_lo = float(ext["lat"][before[-1]]), float(ext["lon"][before[-1]])
@@ -485,7 +498,7 @@ def et_depth(s: dict, M: dict, lat, lon, steps) -> dict:
                     c_la = float(np.clip(c_la + f_ * (ext["lat"][j1] - ext["lat"][j0]), -80, 80))
                     c_lo = float(((c_lo + f_ * (((ext["lon"][j1] - ext["lon"][j0] + 180) % 360) - 180) + 180) % 360) - 180)
                 for la, lo, p, _ in TC.closed_lows(M[k][stl.index(h)], lat, lon, (c_la, c_lo), SYS_KM):
-                    if la >= ET_LAT:
+                    if la >= ET_LAT and not (p >= TC.FOLLOW_WEAK_HPA and (land is None or land(la, lo))):
                         cands.append((float(p), int(h), float(la), float(lo), False))
         if not cands:
             continue
@@ -628,29 +641,37 @@ def genesis_h(t):
     return int(t["steps"][int(np.argmax(w >= TS_WIND))]) if (w >= TS_WIND).any() else None
 
 
+REF_COVER = 0.75                     # ref_member: share of the ensemble's 24-h leads a member must carry
+
+
 def ref_member(tracks):
-    """The member drawn thick and dated: the AIFS control where there is one, else the member nearest the others
-    (mean distance over the 24-hourly positions it shares with them) - IFS-ENS open data carries no control track."""
+    """The member drawn thick and dated: the AIFS control where there is one, else the member nearest the ensemble's
+    median track (IFS-ENS open data carries no control track): mean distance from the members' median position at every
+    24-h lead after t=0 where at least half of the members (and 3) carry the storm, among the members that carry it at
+    >= REF_COVER of those leads (fewest-gaps fallback). 2026-10-12 review: the old rule averaged distances to every other
+    member INCLUDING t=0, where all members sit at one point, and its "> 10 distances" gate was met by t=0 alone, so a
+    member with almost no fixes won (AIFS 28W: member 33, whose only 24-h fix was t=0; IFS 20E: member 21, ended by 48 h)."""
     if 0 in tracks:
         return 0
     keys = list(tracks)
     if len(keys) < 3:
-        return keys[0]
-    best, bd = keys[0], np.inf
+        return max(keys, key=lambda k: len(tracks[k]["steps"]))
+    hmax = max(int(t["steps"][-1]) for t in tracks.values())
+    med = {}
+    for h in range(24, hmax + 1, 24):
+        ps = [q for q in (TC.at(tracks[k], h) for k in keys) if q is not None]
+        if len(ps) >= max(3, 0.5 * len(keys)):
+            med[h] = (float(np.median([q[0] for q in ps])), lon_median([q[1] for q in ps]))
+    if not med:
+        return max(keys, key=lambda k: len(tracks[k]["steps"]))
+    score = {}
     for k in keys:
-        ds = []
-        for h in range(0, int(tracks[k]["steps"][-1]) + 1, 24):
-            a = TC.at(tracks[k], h)
-            if a is None:
-                continue
-            for o in keys:
-                if o != k:
-                    b = TC.at(tracks[o], h)
-                    if b is not None:
-                        ds.append(TC._km(a[0], a[1], b[0], b[1]))
-        if len(ds) > 10 and np.mean(ds) < bd:
-            best, bd = k, float(np.mean(ds))
-    return best
+        ds = [TC._km(*a, *med[h]) for h in med for a in [TC.at(tracks[k], h)] if a is not None]
+        score[k] = (len(ds) / len(med), float(np.mean(ds)) if ds else np.inf)
+    ok = [k for k in keys if score[k][0] >= REF_COVER]
+    if ok:
+        return min(ok, key=lambda k: score[k][1])
+    return min(keys, key=lambda k: (-score[k][0], score[k][1]))
 
 
 def render_tracks(storms: list[dict], st: dict, init, out_png: Path):
@@ -673,15 +694,14 @@ def render_tracks(storms: list[dict], st: dict, init, out_png: Path):
     for i, s in enumerate(rows):
         allt = [t for m in ("aifs", "ifs") for t in s["models"].get(m, {"tracks": {}})["tracks"].values()]
         la = np.concatenate([t["lat"] for t in allt]); lo = np.concatenate([t["lon"] for t in allt])
-        lo360 = lo % 360
-        clon = float(np.median(lo360))
-        rel = (lo360 - clon + 180) % 360 - 180
-        ext = [clon + rel.min() - 4, clon + rel.max() + 4, max(-5, la.min() - 4), min(75, la.max() + 5)]
+        clon = lon_median(lo)                     # safe across the dateline and 0 deg (a plain median of lon % 360 was not)
+        rel = (lo - clon + 180) % 360 - 180
+        ext = [rel.min() - 4, rel.max() + 4, max(-5, la.min() - 4), min(75, la.max() + 5)]   # in the map's own frame
         fig.text(0.035, top - i * rh + 0.3 / H, _stormlab(s), fontsize=12.5, fontweight="bold", va="top")   # once per row
         for c, m in enumerate(("aifs", "ifs")):
             ax = fig.add_axes([0.035 + c * 0.33, top - (i + 1) * rh + 0.04 * rh, 0.30, 0.86 * rh],
                               projection=ccrs.PlateCarree(central_longitude=clon))
-            ax.set_extent(ext, crs=ccrs.PlateCarree())
+            ax.set_extent(ext, crs=ccrs.PlateCarree(central_longitude=clon))
             ax.add_feature(cfeature.LAND.with_scale("50m"), facecolor="#efece4"); ax.coastlines("50m", lw=0.6, color="#555")
             ax.gridlines(draw_labels=dict(bottom="x", left="y"), lw=0.3, color="#999", alpha=0.6, x_inline=False, y_inline=False)
             S = s["models"].get(m)
@@ -764,7 +784,7 @@ def render_tracks(storms: list[dict], st: dict, init, out_png: Path):
     cb = fig.colorbar(plt.cm.ScalarMappable(norm=norm, cmap=cmap), cax=cax, orientation="horizontal", ticks=bounds)
     cb.set_ticklabels([TC.date_lab(init, b, "short") for b in bounds], fontsize=8)
     cb.set_label("member colour = recurvature date (dot = the turn) · grey = no recurvature · small dots every 24 h · X = start\n"
-                 "thick dated line: AIFS control (IFS-ENS has no control: the member nearest the others)"
+                 "thick dated line: AIFS control (IFS-ENS has no control: the member nearest the median track)"
                  + ("" if all(x["named"] for x in rows) else " · ◇ where a member first reaches 17 m/s"), fontsize=8.6)
     fig.savefig(out_png, dpi=90, facecolor="white", pil_kwargs={"quality": 85, "method": 6}); plt.close(fig)
 
@@ -924,7 +944,7 @@ def render_depth(s: dict, et: dict, init, out_png: Path, note: str | None = None
              + (f" The control: {et[0]['pmin']:.0f} hPa." if 0 in et else ""),
              f"• The deepest point comes around day {np.median(dmin):.1f} (10th–90th percentile day {np.percentile(dmin, 10):.1f}–"
              f"{np.percentile(dmin, 90):.1f}), near {np.median([e['lat'] for e in et.values()]):.0f}°N "
-             f"{_lonlab((np.median([e['lon'] % 360 for e in et.values()]) + 180) % 360 - 180)} (median over members).",
+             f"{_lonlab(lon_median([e['lon'] for e in et.values()]))} (median over members).",
              f"• {n_merge} of {n} members reach their deepest point in a low the storm merges with (◆), not on its own followed path: "
              f"during the transition the centre often re-forms along the jet, and ECMWF's tracker stops at that point."]
     H = 1.25 + 4.6 + 0.6 + 0.35 + 0.42 * len(lines) + 0.25 + 0.8
@@ -990,8 +1010,9 @@ def render_depth(s: dict, et: dict, init, out_png: Path, note: str | None = None
         yy += 0.22 * (wrapped.count("\n") + 1) + 0.18
     fig.text(0.02, fy(H - 0.12), "Tracks: ECMWF tropical-cyclone tracker on AIFS-ENS (open data, CC BY 4.0), control + 50 members, continued as the "
              "surface-pressure minimum (closed lows at least 2 hPa below their surroundings; jumps of up to 1,800 km in 12 h only along the\n"
-             "motion and while the low is not decaying; never onto a low that already existed as a separate system; a briefly double-centred "
-             "low is one system). Pressure: AIFS-ENS mean sea-level pressure, 12-hourly, 0.5°.", fontsize=8.8, color="#6f6b64", va="bottom")
+             "motion, while the low is not decaying and onto a low below 1000 hPa; never onto a low that already existed as a separate system; "
+             "a briefly double-centred low is one system; a low of 1000 hPa or more\nonly over the sea north of 30°N; at most 72 h past the "
+             "tracker's last fix). Pressure: AIFS-ENS mean sea-level pressure, 12-hourly, 0.5°.", fontsize=8.8, color="#6f6b64", va="bottom")
     fig.savefig(out_png, dpi=80, facecolor="white", pil_kwargs={"quality": 86, "method": 6}); plt.close(fig)
 
 
@@ -1017,13 +1038,6 @@ def main() -> int:
             print(f"  {MLAB[m]} tracks failed ({e})", flush=True); per[m] = []
     # merge the two models: named storms by id; genesis clusters stay per model
     storms = {}
-    def med_pos(s):
-        """median member position at the earliest step most members share (for matching genesis clusters)"""
-        hs = np.concatenate([t["steps"] for t in s["tracks"].values()])
-        vals, cnt = np.unique(hs, return_counts=True)
-        h = int(vals[np.argmax(cnt)])
-        ps = [TC.at(t, h) for t in s["tracks"].values() if TC.at(t, h) is not None]
-        return h, float(np.median([q[0] for q in ps])), float(np.median([q[1] for q in ps]))
     # developing systems: the two trackers number the same system differently (2026-10-04: AIFS 71L = IFS 70L), so they
     # are matched by WHERE they are, not by id; the AIFS id names the pair. Genesis medians alone are not enough: on
     # 2026-10-12 12Z the West Pacific 71W reached 17 m/s ~2 days later in AIFS-ENS than in IFS-ENS, so its genesis medians
@@ -1084,9 +1098,11 @@ def main() -> int:
     cand = [s for s in order if "aifs" in s["models"] and s["named"]]
     if not a.no_z500 and cand:
         try:
+            import store as ecmwf
             M, mlat, mlon, msteps = load_msl(a.date, a.time)
+            land = TC.load_land(ecmwf.Cycle(a.date, a.time))               # the follower's land rule (heat / lee lows)
             for s in cand:
-                et = et_depth(s["models"]["aifs"], M, mlat, mlon, msteps)
+                et = et_depth(s["models"]["aifs"], M, mlat, mlon, msteps, land=land)
                 if len(et) < MIN_ET_MEMBERS:
                     continue
                 dm = np.median([e["h"] for e in et.values()]) / 24
@@ -1116,7 +1132,11 @@ def main() -> int:
     js = {"init": f"{init:%Y-%m-%dT%H:%MZ}", "models": {m: {"members": nm[m]} for m in nm}, "depth_storms": ok[:2], "storms": []}
     for s in order:
         e = {"key": s["key"], "id": slug(s["key"]) if s["key"].startswith("ifs:") else s["id"],    # unique: an IFS-only
-             "name": _stormlab(s), "named": s["named"], "models": {}, "slug": slug(s["key"])}       # system can share the AIFS id
+             "name": _stormlab(s), "named": s["named"], "models": {}, "slug": slug(s["key"]),      # system can share the AIFS id
+             # the AIFS-ENS control's tracker id(s) for this system: the id tc_phase and the TC-jet card (tcphase.json,
+             # tcjet.json) use. The picker and tc_alert match through it, never by id string (2026-10-12 review: 12 Oct
+             # 12Z control 72L is member 0 of cluster 73L; on 2 Oct 12Z control 71L sat in "71L-2" and 72L in "71L")
+             "control_ids": list(s["models"]["aifs"].get("ctl_ids", [])) if "aifs" in s["models"] else []}
         if (out / "tc" / f"tracks_{e['slug']}.webp").exists(): e["tracks_file"] = f"tc/tracks_{e['slug']}.webp"
         if (out / "tc" / f"depth_{e['slug']}.webp").exists(): e["depth_file"] = f"tc/depth_{e['slug']}.webp"
         mdl = "aifs" if "aifs" in s["models"] else "ifs"                       # a reference track for the map: the

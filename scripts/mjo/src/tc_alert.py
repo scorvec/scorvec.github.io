@@ -2,7 +2,8 @@
 """Recurvature watch for live storms (user 2026-10-02; diagnostic only since 2026-10-03).
 
 Rule: a Northern-Hemisphere storm is on WATCH when at least WATCH_P of the members of EVERY ensemble that tracks it
-(AIFS-ENS and IFS-ENS, from data/tcens.json) recurve, with the median recurvature by day WATCH_DAY.
+(AIFS-ENS and IFS-ENS, from data/tcens.json) recurve, with the median recurvature by day WATCH_DAY. North Pacific and
+North Atlantic only: a North Indian storm (id letter A/B, or the control west of 100E) is listed, never on watch.
 2026-10-03 (user: "keep the TC-jet stuff as diagnostic as possible, leave out the stuff about how the flow could be changed
 by the recurving storm"): the banner no longer quotes the 1991-2020 record of what followed past recurvatures; it says
 which storms are likely to recurve, in how many members, and when - nothing about consequences.
@@ -22,8 +23,9 @@ import pandas as pd
 
 WATCH_P = 0.5
 WATCH_DAY = 10.0
-BASIN_OF = {"W": "WP", "E": "EP", "C": "EP", "L": "NA"}
-BASIN_LAB = {"WP": "western North Pacific", "EP": "eastern North Pacific", "NA": "North Atlantic"}
+BASIN_OF = {"W": "WP", "E": "EP", "C": "EP", "L": "NA", "A": "NI", "B": "NI"}
+BASIN_LAB = {"WP": "western North Pacific", "EP": "eastern North Pacific", "NA": "North Atlantic", "NI": "North Indian Ocean"}
+NI_LON = 100.0               # west of 100E the control's position is in the North Indian Ocean (Arabian Sea / Bay of Bengal)
 MLAB = {"aifs": "AIFS-ENS", "ifs": "IFS-ENS", "aifs-ens": "AIFS-ENS", "ifs-ens": "IFS-ENS"}
 
 
@@ -67,7 +69,8 @@ def main() -> int:
     ens = json.loads(ens_f.read_text())
     jet = json.loads(jet_f.read_text()) if jet_f.exists() else {"storms": []}
     init = pd.Timestamp(ens["init"].rstrip("Z"))
-    ctl = {s["id"]: s for s in jet.get("storms", [])}
+    # the control's tracks only from the SAME cycle (2026-10-12 review: a stale file must never be combined with a new one)
+    ctl = {s["id"]: s for s in jet.get("storms", [])} if jet.get("init") == ens["init"] else {}
     alerts, others = [], []
     for s in ens["storms"]:
         sid = str(s.get("id") or "")
@@ -83,12 +86,23 @@ def main() -> int:
         # 168E: its downstream is the western Pacific's); the id letter only when the control does not carry the storm
         core = sid[4:] if sid.startswith("ifs-") else sid             # an IFS-ENS-only system is "ifs-71W" (tc_ens, 2026-10-12)
         basin = BASIN_OF.get(core.split("-")[0][-1:].upper())         # tc_ens names a 2nd group under one id "72E-2"
-        tr = ctl.get(sid, {}).get("track") or []
+        # the control's track through the cluster's own control ids (tc_ens "control_ids"): the control's tracker id can
+        # differ from the cluster's (12 Oct 12Z: control 72L is in cluster 73L). An older tcens.json without the field: the
+        # id itself, as before
+        cids = s["control_ids"] if "control_ids" in s else ([core] if not sid.startswith("ifs-") else [])
+        tr = next((ctl[c]["track"] for c in cids if c in ctl and ctl[c].get("track")), [])
         if tr:
             k = int(np.argmin([abs(t["h"] - 24 * (mday if mday is not None else 0)) for t in tr]))
             lon360 = tr[k]["lon"] % 360
-            basin = "WP" if lon360 < 180 else ("EP" if lon360 < 260 else "NA")
+            basin = "NI" if lon360 < NI_LON else "WP" if lon360 < 180 else ("EP" if lon360 < 260 else "NA")
         if basin is None:
+            continue
+        if basin == "NI":
+            # handled explicitly: a North Indian storm that "recurves" turns into the subcontinent or Myanmar, not into
+            # the mid-latitude westerlies the watch is about; it is listed, never put on watch
+            others.append(dict(id=sid, name=s["name"], basin=basin, watch=False, p_recurve=ps, median_recurve_day=mday,
+                               recurve_date=when.strftime("%Y-%m-%d") if mday is not None else None,
+                               note="North Indian Ocean: not part of the recurvature watch"))
             continue
         e = dict(id=sid, name=s["name"], basin=basin, watch=bool(on), p_recurve=ps,
                  median_recurve_day=mday, recurve_date=when.strftime("%Y-%m-%d") if mday is not None else None)
@@ -96,11 +110,13 @@ def main() -> int:
     level = "watch" if alerts else "none"
     lines = []
     if alerts:
-        lines.append("Recurvature watch (share of AIFS-ENS / IFS-ENS members recurving, median date): " + "; ".join(
-            f"{x['name']} {' / '.join(f'{100 * p:.0f}%' for p in x['p_recurve'].values())}, ~{pd.Timestamp(x['recurve_date']):%d %b}"
-            for x in alerts))
+        # each share labelled with its ensemble (2026-10-12 review: a storm in one ensemble showed one % under
+        # "AIFS-ENS / IFS-ENS")
+        lines.append("Recurvature watch (share of members recurving, median date): " + "; ".join(
+            f"{x['name']} " + ", ".join(f"{MLAB.get(m, m)} {100 * p:.0f}%" for m, p in x["p_recurve"].items())
+            + f", ~{pd.Timestamp(x['recurve_date']):%d %b}" for x in alerts))
     else:
-        lines.append(f"No recurvature watch: no Northern-Hemisphere storm has ≥ {100 * WATCH_P:.0f}% of members recurving in every "
+        lines.append(f"No recurvature watch: no North Pacific or North Atlantic storm has ≥ {100 * WATCH_P:.0f}% of members recurving in every "
                      f"ensemble by day {WATCH_DAY:.0f}.")
     js = dict(init=ens["init"], level=level, rule=dict(p_recurve_min=WATCH_P, by_day=WATCH_DAY, every_ensemble=True),
               watch=alerts, not_on_watch=others, lines=lines)

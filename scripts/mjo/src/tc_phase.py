@@ -120,9 +120,13 @@ def phase_series(z, lat, lon, steps, s):
 
 
 def et_times(ser):
-    """Evans & Hart (2003): onset = first B > 10 m; completion = first -VT_L < 0 at or after onset."""
+    """Evans & Hart (2003): onset = first B > 10 m; completion = first -VT_L < 0 at or after onset. No onset, no
+    completion (2026-10-12 review: a developing disturbance with -VT_L slightly negative at t=0 and B never above 10 m was
+    titled "ET complete" at +0 h)."""
     onset = next((h for h, b in zip(ser["h"], ser["B"]) if b > 10), None)
-    comp = next((h for h, v in zip(ser["h"], ser["VTL"]) if v < 0 and (onset is None or h >= onset)), None)
+    if onset is None:
+        return None, None
+    comp = next((h for h, v in zip(ser["h"], ser["VTL"]) if v < 0 and h >= onset), None)
     return onset, comp
 
 
@@ -161,7 +165,7 @@ def place_labels(fig, ax, labels, caps):
         taken.append(chosen)
 
 
-def render(rows, init, out_png):
+def render(rows, init, out_png, note=None):
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
@@ -190,7 +194,7 @@ def render(rows, init, out_png):
     if not rows:
         for ax in axs[0]:
             ax.axis("off")
-        axs[0][0].text(0.5, 0.5, "No Northern-Hemisphere tropical storm in the control run", transform=fig.transFigure,
+        axs[0][0].text(0.5, 0.5, note or "No Northern-Hemisphere tropical storm in the control run", transform=fig.transFigure,
                        ha="center", fontsize=13, color="#555")
     for r, (s, ser, onset, comp) in enumerate(rows):
         d = np.array(ser["h"]) / 24.0
@@ -284,7 +288,8 @@ def render(rows, init, out_png):
     fig.text(0.075, 0.004, "Axes fitted to each storm's track. Thermal wind = slope of the height perturbation (max − min within 500 km) against ln p; "
              "positive = warm core; 24-h running mean. Point size = central pressure (bigger = deeper).\nLevels 925/850/700/600 and 600/500/400/300 hPa (open data; Hart used 900–600 every 25 hPa).\n"
              "Solid: ECMWF's tracker. Dashed, open dots: the low followed on as the surface-pressure minimum after the tracker's last fix,\n"
-             "or the low it merges into (the tracker usually stops at extratropical transition).", fontsize=8, color="#6f6b64")
+             "or the low it merges into (the tracker usually stops at extratropical transition), for up to 72 h and to day 10; a low of "
+             "1000 hPa or more only over the sea north of 30°N.", fontsize=8, color="#6f6b64")
     out_png.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(out_png, dpi=125, facecolor="white", bbox_inches="tight", pad_inches=0.12, pil_kwargs={"quality": 85, "method": 6}); plt.close(fig)
 
@@ -298,21 +303,34 @@ def main() -> int:
     cyc = ecmwf.Cycle(a.date, a.time); init = pd.Timestamp(f"{a.date}T{a.time}:00")
     fp = TC.fetch(a.date, int(a.time), Path(__file__).resolve().parents[2] / "ecmwf" / "cache" / "tc")
     storms = TC.nh_storms(TC.decode(fp)) if fp else []
-    # named storms first, then the strongest
-    storms = sorted(storms, key=lambda s: (not s["named"], -np.nanmax(np.r_[s["wind"], 0])))[:MAX_STORMS]
+    # named storms first, then the strongest; MAX_STORMS is taken AFTER the storms without a diagram (fewer than two
+    # 12-hourly points) are left out, so a short-lived one no longer takes a place from a storm further down the list
+    storms = sorted(storms, key=lambda s: (not s["named"], -np.nanmax(np.r_[s["wind"], 0])))
     rows = []
+    z = None
     if storms:
-        z, zp = load_z(cyc)
-        print(f"  z {zp.name}: {zp.stat().st_size / 1e6:.0f} MB, loaded in {time.time() - t0:.0f} s", flush=True)
+        try:
+            z, zp = load_z(cyc)
+            print(f"  z {zp.name}: {zp.stat().st_size / 1e6:.0f} MB, loaded in {time.time() - t0:.0f} s", flush=True)
+        except Exception as e:
+            # 2026-10-12 review: an unhandled failure here left last cycle's tcphase.json next to this cycle's tcens.json;
+            # now this cycle's (empty) JSON and figure are written, and the page / tc_alert only combine files of one init
+            print(f"  geopotential unavailable ({e!r}); no phase-space diagrams this cycle", flush=True)
+    if z is not None:
         lat, lon = z.latitude.values, z.longitude.values
         steps = (z.step / np.timedelta64(1, "h")).values.astype(int)
+        land = None
         try:
             msl, mlat, mlon, msteps = load_msl(cyc)
+            land = TC.load_land(cyc)                                     # the follower's land rule (heat / lee lows)
         except Exception as e:                                           # the extension is a bonus: never lose the chart for it
             print(f"  control msl unavailable ({e}); phase paths end at the tracker's last fix", flush=True); msl = None
         for s in storms:
+            if len(rows) >= MAX_STORMS:
+                break
             if msl is not None:
-                cont = TC.follow_low(msl, mlat, mlon, msteps, s, merge=True)
+                # day 10 at most, the same rules as the DT maps / TC-jet card (dt_charts) and the depth chart (tc_ens)
+                cont = TC.follow_low(msl, mlat, mlon, msteps, s, h_max=TC.FOLLOW_H_MAX, merge=True, land=land)
                 if len(cont["steps"]):
                     mg = f", merged into another low at +{int(cont['steps'][cont['merged']][0])} h" if cont["merged"].any() else ""
                     print(f"  {TC.label(s)}: followed past the tracker's last fix (+{int(s['steps'][-1])} h) to +{int(cont['steps'][-1])} h, "
@@ -325,7 +343,8 @@ def main() -> int:
                 print(f"  {TC.label(s)}: start B {ser['B'][0]:+.0f} m, -VTL {ser['VTL'][0]:+.0f}, -VTU {ser['VTU'][0]:+.0f}; "
                       f"end +{ser['h'][-1]} h B {ser['B'][-1]:+.0f}, -VTL {ser['VTL'][-1]:+.0f}, -VTU {ser['VTU'][-1]:+.0f}; "
                       f"ET onset {on}, complete {co}", flush=True)
-    render(rows, init, Path(a.out))
+    render(rows, init, Path(a.out), note=None if (z is not None or not storms) else
+           "Phase space unavailable this cycle (the control's geopotential could not be loaded)")
     # one diagram per storm for the page's storm picker (2026-10-03); stale storms' files removed first
     tcd = Path(a.out).parent / "tc"; tcd.mkdir(parents=True, exist_ok=True)
     for f in tcd.glob("phase_*.webp"): f.unlink()

@@ -350,6 +350,7 @@ def _at(s, h):
 # outflow contours and the TC-jet card stay on member 0 - they are computed from member 0's fields.
 ENS_MIN_FRAC, ENS_MIN_N, CONE_Q = 0.5, 5, 67
 CONE_FC, CONE_ALPHA = "#ffffff", 0.28
+ENS_SIZE = 51                # AIFS-ENS: control + 50 members; the labels count members out of the whole ensemble
 
 
 def ens_mean_tracks(fp, steps):
@@ -393,6 +394,26 @@ def _cone(s, k):
     return unary_union(parts)
 
 
+def _drawn_k(s, h):
+    """Index of the AIFS-ENS mean-track position the maps draw for storm s at lead h, or None (not drawn then)."""
+    st = s["steps"]
+    if h < st[0] or h > st[-1]:
+        return None
+    return min(int(np.searchsorted(st, h)), len(st) - 1)
+
+
+def _map_x(ax, lon, lat, polar):
+    """Axes x (0..1) of (lon, lat) if it falls inside the map - the circle of the polar view (_frame's boundary), the frame of
+    a regional one - else None."""
+    import cartopy.crs as ccrs
+    xy = ax.projection.transform_point(float(lon), float(lat), ccrs.PlateCarree())
+    if not np.all(np.isfinite(xy)):
+        return None
+    x, y = ax.transAxes.inverted().transform(ax.transData.transform(xy))
+    inside = np.hypot(x - 0.5, y - 0.5) <= 0.5 if polar else (0.0 <= x <= 1.0 and 0.0 <= y <= 1.0)
+    return float(x) if inside else None
+
+
 def _storms_ens(ax, storms, h, polar):
     """AIFS-ENS mean tracks and cones at lead h: the last TRACK_HIST_H hours solid, the mean ahead dashed, the cone shaded,
     a dot at the mean position sized/coloured by the members' median wind, labelled with the median central pressure."""
@@ -400,9 +421,9 @@ def _storms_ens(ax, storms, h, polar):
     halo = [pe.Stroke(linewidth=3.2, foreground="#000"), pe.Normal()]
     for s in storms:
         st = s["steps"]
-        if h < st[0] or h > st[-1]:
+        k = _drawn_k(s, h)
+        if k is None:
             continue
-        k = int(np.searchsorted(st, h)); k = min(k, len(st) - 1)
         try:
             ax.add_geometries([_cone(s, k)], crs=ccrs.PlateCarree(central_longitude=180), facecolor=CONE_FC, alpha=CONE_ALPHA,
                               edgecolor="#ffffff", linewidth=0.8, zorder=7.5)
@@ -414,8 +435,15 @@ def _storms_ens(ax, storms, h, polar):
         w = s["wind"][k]; strong = np.isfinite(w) and w >= 33
         ax.scatter([s["lon"][k]], [s["lat"][k]], s=120 if strong else 70, c="#e8000b" if strong else "#ff9f1c", edgecolors="#fff",
                    linewidths=1.6, transform=ccrs.PlateCarree(), zorder=9)
-        lab = TC.label(s) + (f" {s['pmsl'][k]:.0f} hPa" if np.isfinite(s["pmsl"][k]) else "") + f" ({s['n'][k]}/{s['n0']} members)"
-        ax.text(s["lon"][k], s["lat"][k], "  " + lab, transform=ccrs.PlateCarree(), fontsize=8.6 if polar else 9.6, fontweight="bold",
+        # "n of 51": members carrying the storm at this lead out of the whole ensemble (it was n of the members that EVER
+        # track it, 2026-10-12 review); no label for a storm off the map (it hung at the frame edge: "Pa (15/24 members)")
+        x = _map_x(ax, s["lon"][k], s["lat"][k], polar)
+        if x is None:
+            continue
+        lab = TC.label(s) + (f" {s['pmsl'][k]:.0f} hPa" if np.isfinite(s["pmsl"][k]) else "") + f" ({s['n'][k]} of {ENS_SIZE} members)"
+        left = x > 0.72                                                     # near the right edge: the label goes left of the dot
+        ax.text(s["lon"][k], s["lat"][k], lab + "  " if left else "  " + lab, ha="right" if left else "left",
+                transform=ccrs.PlateCarree(), fontsize=8.6 if polar else 9.6, fontweight="bold",
                 color="#fff", va="center", zorder=10, path_effects=[pe.Stroke(linewidth=2.6, foreground="#000"), pe.Normal()], clip_on=True)
 
 
@@ -493,9 +521,10 @@ def main() -> int:
     if storms:
         try:
             msl, mlat, mlon, msteps = load_msl_control(cyc)
+            land = TC.load_land(cyc)                                     # the follower's land rule (heat / lee lows)
             ext = []
             for x in storms:
-                cont = TC.follow_low(msl, mlat, mlon, msteps, x, h_max=int(STEPS[-1]), merge=True)
+                cont = TC.follow_low(msl, mlat, mlon, msteps, x, h_max=min(int(STEPS[-1]), TC.FOLLOW_H_MAX), merge=True, land=land)
                 if len(cont["steps"]):
                     mg = f", merged into another low at +{int(cont['steps'][cont['merged']][0])} h" if cont["merged"].any() else ""
                     print(f"  {TC.label(x)}: followed past the tracker's last fix (+{int(x['steps'][-1])} h) to "
@@ -527,14 +556,23 @@ def main() -> int:
             uc, vc = TC.irrotational(d["u_layer"].isel(step=k), d["v_layer"].isel(step=k), lat, lon)
             adv = TC.pv_advection(uc, vc, pv[[LEVS.index(300), LEVS.index(250), LEVS.index(200)]].mean(0), lat, lon)
             adv[lat > 85] = np.nan                                       # the pole row's PV is singular
-            near = np.zeros(adv.shape, bool)
+            # 2026-10-12 review: the magenta was masked around the CONTROL's (followed) storms while the maps draw the
+            # AIFS-ENS mean tracks (since 2026-10-05), so it showed over Nevada/Utah/Wyoming with no storm drawn. Now it is
+            # shown within 1,500 km of a storm the map draws AND of the control's own storm (the field is member 0's)
+            near_ctl = np.zeros(adv.shape, bool)
             for x in storms:
                 pos, _ = _at(x, int(h))
                 if pos is None or pos[0] <= 0:
                     continue
                 if TC.at(x, int(h)) is not None:                         # the TC-jet card: exact fixes only, as before
                     idx[x["id"]][int(h)] = TC.disc_index(adv, lat, lon, *pos)
-                near |= TC.within(lat, lon, *pos, 1500.0)
+                near_ctl |= TC.within(lat, lon, *pos, 1500.0)
+            near_drawn = np.zeros(adv.shape, bool)
+            for x in storms_ens:
+                kd = _drawn_k(x, int(h))
+                if kd is not None and x["lat"][kd] > 0:
+                    near_drawn |= TC.within(lat, lon, float(x["lat"][kd]), float(x["lon"][kd]), 1500.0)
+            near = near_ctl & near_drawn
             if near.any():
                 adv_show = np.where(near, adv, np.nan)
         except Exception as e:
