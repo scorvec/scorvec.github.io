@@ -1,0 +1,75 @@
+# The Americas model-rain bias field (2026-10-13): unpack the monthly archive of release precip-bias-arch-v1, compute the
+# bias fields (scripts/precip_bias/build_bias.py), draw the maps and rebuild rain-bias.html (UNLINKED until the user has
+# reviewed it). Runs after each archive backfill and on dispatch. Site deploy is batched (the dispatcher deploys within 15 min).
+name: Model rain bias - build
+
+on:
+  workflow_dispatch:
+  workflow_run:
+    workflows: ["Model rain bias - archive backfill"]
+    types: [completed]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: precip-bias-build
+  cancel-in-progress: false
+
+jobs:
+  build:
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    env:
+      GH_TOKEN: ${{ github.token }}
+      MPLBACKEND: Agg
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 1
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+      - name: Install dependencies
+        run: pip install --quiet numpy matplotlib==3.10.9 cartopy==0.25.0 'shapely>=2.1.2' 'pyproj>=3.7.2' Pillow
+      - name: Unpack the archive
+        run: |
+          mkdir -p arch
+          gh release download precip-bias-arch-v1 -D arch --clobber
+          ls arch | wc -l; du -sh arch
+      - name: Bias fields
+        run: |
+          python scripts/precip_bias/build_bias.py --data arch --out fields/bias_fields.npz --json assets/precip_bias/bias_summary.json
+      - name: Maps and page
+        run: |
+          python scripts/precip_bias/render_bias.py --fields fields/bias_fields.npz --json assets/precip_bias/bias_summary.json --out assets/precip_bias
+          python scripts/precip_bias/build_page.py --json assets/precip_bias/bias_summary.json --site .
+      - name: Keep the fields as an artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: precip-bias-fields
+          path: fields/bias_fields.npz
+          retention-days: 30
+      - name: Commit & push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          OUTS="assets/precip_bias rain-bias.html"
+          SNAP=$(mktemp -d)
+          git add -A $OUTS 2>/dev/null || true
+          git diff --staged --name-only -z | tar cf "$SNAP/outs.tar" --null -T - 2>/dev/null || true
+          git reset -q
+          for i in 1 2 3 4 5; do
+            if ! timeout 120 git fetch origin main; then echo "fetch $i failed"; sleep 5; continue; fi
+            git reset --hard origin/main
+            tar xf "$SNAP/outs.tar" 2>/dev/null || true
+            git add -A $OUTS
+            if git diff --staged --quiet; then echo "No changes; skipping commit."; exit 0; fi
+            git commit -q -m "data update: model rain bias (Americas) $(date -u +%Y-%m-%dT%H:%MZ)"
+            if timeout 180 git push; then echo "Pushed on attempt $i."; exit 0; fi
+            echo "Push $i rejected; resyncing and retrying…"
+            sleep 5
+          done
+          echo "ERROR: could not push after 5 attempts." >&2
+          exit 1

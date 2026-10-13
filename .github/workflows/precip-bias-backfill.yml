@@ -3,9 +3,12 @@
 # IMERG V07 Late and Final daily rain on the same grid. Each month is uploaded to release precip-bias-arch-v1 as soon
 # as it is built, so a job that hits its time limit keeps what it made and the next dispatch resumes: complete months
 # already in the release are skipped, the current (partial) month is rebuilt. ECMWF reads the Google Cloud mirror only.
+# Weekly (Monday) it tops the archive up with the new runs and days; "Model rain bias - build" runs after it.
 name: Model rain bias - archive backfill
 
 on:
+  schedule:
+    - cron: '20 7 * * 1'
   workflow_dispatch:
     inputs:
       only:
@@ -43,7 +46,7 @@ jobs:
       - name: Skip sources not asked for
         id: gate
         run: |
-          o="${{ github.event.inputs.only }}"
+          o="${{ github.event.inputs.only || 'all' }}"
           if [ "$o" = "all" ] || [ "$o" = "${{ matrix.src }}" ]; then echo "run=1" >> "$GITHUB_OUTPUT"; else echo "run=0" >> "$GITHUB_OUTPUT"; fi
       - uses: actions/checkout@v7
         if: steps.gate.outputs.run == '1'

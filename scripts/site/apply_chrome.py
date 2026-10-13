@@ -299,6 +299,9 @@ PAGES = [
     # UNLINKED until the user has reviewed it (2026-10-13): stamped here for the header/footer only - it is in no PRODUCTS
     # menu, no HOME tile, not in sitemap.xml or the catalogue, and carries noindex. scripts/amdrag/build_page.py, rebuilt daily.
     dict(path="model-drag-intercomparison.html", mode="after-body"),
+    # UNLINKED until the user has reviewed it (2026-10-13), same terms as above: the Americas model-rain bias field
+    # (scripts/precip_bias/build_page.py, precip-bias-build.yml).
+    dict(path="rain-bias.html", mode="after-body"),
     dict(path="about.html", mode="after-body"),                    # the person: bio, resume, publications, profiles                  # every plot on the site (scripts/site/build_catalog.py)
     dict(path="climate.html", mode="after-body"),
     dict(path="fci.html", mode="after-body"),

@@ -6,9 +6,11 @@ Two products, kept apart:
                        up with the forecasts, so the bias field is measured against it;
   final  GPM_3IMERGDF  monthly GPCC gauge adjustment over land, but it lags (V07 Final ended 2025-09-30 on 2026-10-13):
                        used over the overlap to measure Late's own error, which the bias page shows beside the model bias.
-Days are UTC days, as the 00Z model accumulations are. Access as imerg_tropics.py: GES DISC OPeNDAP, one request per day
-for `precipitation` over 60°S-60°N, 170°W-30°W at 0.1° (~4 MB), 1° box means; Earthdata login from ~/.netrc or
-EARTHDATA_USERNAME / EARTHDATA_PASSWORD (earthaccess).
+Days are UTC days, as the 00Z model accumulations are. Access: GES DISC OPeNDAP, one request per day for `precipitation`
+over 60°S-60°N, 170°W-30°W at 0.1° (~4 MB), and when OPeNDAP answers 5xx (it did for a whole month on 2026-10-13) the
+whole daily file over HTTPS (~27 MB) cut to the same box; 1° box means. Earthdata login from ~/.netrc or
+EARTHDATA_USERNAME / EARTHDATA_PASSWORD (earthaccess), over IPv4 only: on the Actions runner the login host resolved to an
+IPv6 route that is not there ("Network is unreachable", 2026-10-13).
 
     python scripts/precip_bias/imerg_americas.py --product late --month 2024-03 --out DIR
 -> DIR/imerg_{product}_{YYYYMM}.npz: dates (YYYYMMDD), pr (day, lat, lon) float32 mm/day, missing
@@ -35,11 +37,25 @@ _EA = None
 _S = None
 
 
+def _ipv4_only():
+    import urllib3.util.connection as uc
+    uc.HAS_IPV6 = False                     # urllib3 then resolves A records only (allowed_gai_family -> AF_INET)
+
+
 def _login():
     global _EA
     if _EA is None:
+        _ipv4_only()
         import earthaccess
-        earthaccess.login(strategy="environment" if os.environ.get("EARTHDATA_USERNAME") else "netrc")
+        for k in range(4):
+            try:
+                if earthaccess.login(strategy="environment" if os.environ.get("EARTHDATA_USERNAME") else "netrc"):
+                    break
+            except Exception as ex:                                          # noqa: BLE001
+                if k == 3:
+                    raise
+                print(f"  Earthdata login failed ({repr(ex)[:60]}); retrying", flush=True)
+            time.sleep(10 * (k + 1))
         _EA = earthaccess
     return _EA
 
@@ -52,7 +68,7 @@ def _session():
 
 
 def granule_urls(product: str, d0: date, d1: date) -> dict:
-    """{date: OPeNDAP base url} from one CMR search (retried)."""
+    """{date: (OPeNDAP base url, HTTPS file url)} from one CMR search (retried)."""
     short, stem = PRODUCTS[product]
     ea = _login(); res = []
     for k in range(5):
@@ -68,23 +84,42 @@ def granule_urls(product: str, d0: date, d1: date) -> dict:
         for link in r.data_links():
             name = link.rsplit("/", 1)[-1]
             if link.startswith("https") and link.endswith(".nc4") and name.startswith(stem):
-                out[datetime.strptime(name.split(".3IMERG.")[1][:8], "%Y%m%d").date()] = link.replace(DATA, OPENDAP)
+                out[datetime.strptime(name.split(".3IMERG.")[1][:8], "%Y%m%d").date()] = (link.replace(DATA, OPENDAP), link)
     return out
 
 
-def fetch_day(url: str, tries: int = 4):
-    """(NY, NX) mm/day, validated: domain mean 0.8-8 mm/day, >= 95 % valid cells, max < 1500 mm/day."""
+def _read(content: bytes, subset: bool) -> np.ndarray:
     import netCDF4                          # not h5py - two HDF5 libraries in one process abort on the runner
-    w = G.area_weights()
+    with netCDF4.Dataset("imerg.nc4", mode="r", memory=content) as f:
+        v = f.variables["precipitation"]; v.set_auto_maskandscale(False)
+        a = np.asarray(v[0] if subset else v[0, G.IM_LON0:G.IM_LON1 + 1, G.IM_LAT0:G.IM_LAT1 + 1]).astype("float32")   # (lon, lat)
+    if a.shape != (G.IM_LON1 - G.IM_LON0 + 1, G.IM_LAT1 - G.IM_LAT0 + 1):
+        raise ValueError(f"shape {a.shape}")
+    return a
+
+
+def fetch_day(urls, tries: int = 4):
+    """(NY, NX) mm/day, validated: domain mean 0.8-8 mm/day, >= 95 % valid cells, max < 1500 mm/day.
+    OPeNDAP subset first; on a 5xx or a timeout the whole daily file."""
+    import requests
+    dap, full = urls
+    w = G.area_weights(); use_full = False
     for k in range(tries):
         try:
-            r = _session().get(url + ".nc4?" + QUERY, timeout=180)
-            r.raise_for_status()
-            with netCDF4.Dataset("imerg.nc4", mode="r", memory=r.content) as f:
-                v = f.variables["precipitation"]; v.set_auto_maskandscale(False)
-                a = np.asarray(v[0]).astype("float32")                                         # (lon, lat)
-            if a.shape != (G.IM_LON1 - G.IM_LON0 + 1, G.IM_LAT1 - G.IM_LAT0 + 1):
-                raise ValueError(f"shape {a.shape}")
+            if not use_full:
+                try:
+                    r = _session().get(dap + ".nc4?" + QUERY, timeout=120)
+                    r.raise_for_status()
+                    a = _read(r.content, subset=True)
+                except (requests.HTTPError, requests.Timeout, requests.ConnectionError) as ex:
+                    code = getattr(getattr(ex, "response", None), "status_code", None)
+                    if code is not None and code < 500:
+                        raise
+                    use_full = True
+            if use_full:
+                r = _session().get(full, timeout=300)
+                r.raise_for_status()
+                a = _read(r.content, subset=False)
             g = G.imerg_to_1deg(a)
             ok = np.isfinite(g); mu = float(np.nansum(g * w) / (w * ok).sum()); mx = float(np.nanmax(g))
             if ok.mean() < 0.95 or not (0.8 < mu < 8.0) or mx > 1500:
@@ -92,7 +127,7 @@ def fetch_day(url: str, tries: int = 4):
             return g
         except Exception as ex:                                              # noqa: BLE001
             if k == tries - 1:
-                print(f"  {url.rsplit('/', 1)[-1][:40]} failed: {repr(ex)[:90]}", flush=True)
+                print(f"  {full.rsplit('/', 1)[-1][:40]} failed: {repr(ex)[:90]}", flush=True)
                 return None
             time.sleep(4 * (k + 1))
     return None
