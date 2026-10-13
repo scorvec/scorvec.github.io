@@ -719,6 +719,84 @@ def site_increments(data: Path, dest: Path):
             plt.close(fig)
 
 
+def site_increment_maps(data: Path, dest: Path):
+    """Low-level increment maps (u37maps mode) and the regional split."""
+    import cartopy.crs as ccrs
+    import xarray as xr
+    f = S.REF / "torque_u37maps_2025_2026.nc"
+    if not f.exists() or not (data / "inc_maps_sig.nc").exists():
+        return
+    z = xr.open_dataset(f); sg = xr.open_dataset(data / "inc_maps_sig.nc")
+    r = json.loads((data / "increments_maps.json").read_text())
+    lat, lon = z.lat.values, z.lon.values
+    lonc = np.concatenate([lon, [lon[0] + 360]])
+
+    def cyc(F):
+        return np.concatenate([F, F[:, :1]], axis=1)
+    hm = z["h_mean"].values
+
+    def draw(ax, F, S_, lev, ttl):
+        cf = ax.contourf(lonc, lat, cyc(np.where(S_, F, np.nan)), levels=lev, cmap=DIV, extend="both", transform=ccrs.PlateCarree())
+        ax.contour(lonc, lat, cyc(hm), levels=[500, 1500, 3000], colors=[INK2, INK2, INK], linewidths=[0.4, 0.7, 1.0],
+                   transform=ccrs.PlateCarree())
+        ax.coastlines(lw=0.4, color="#8a877f")
+        ax.set_global()
+        ax.set_title(ttl, loc="left", fontsize=10.5)
+        return cf
+    with plt.rc_context(SITE_RC):
+        # (1) u at 925 and 850 hPa, both window starts (per day)
+        fig, axes = plt.subplots(2, 1, figsize=(7.0, 7.6), subplot_kw=dict(projection=ccrs.Robinson(central_longitude=10)),
+                                 constrained_layout=True)
+        lev = np.linspace(-0.5, 0.5, 11)
+        for ax, L in zip(axes, ("925", "850")):
+            k = f"u{L}_both_ALL"
+            fs_ = r.get(f"frac_sig_{k}", 0)
+            cf = draw(ax, z[f"{k}_mean"].values, sg[f"{k}_sig"].values, lev,
+                      f"{L} hPa zonal wind: shaded where significant ({fs_:.0%} of cells, FDR 10%)")
+        cb = fig.colorbar(cf, ax=axes, orientation="horizontal", fraction=0.04, pad=0.02, aspect=40)
+        cb.set_label("increment of u per day (m/s, both window starts); contours: terrain 500, 1500, 3000 m")
+        fig.suptitle(f"ERA5 low-level wind increments, {r['days'][:21]}", fontsize=12, color=INK, x=0.02, ha="left")
+        fig.savefig(dest / "inc_maps_u.webp", **WEBP)
+        plt.close(fig)
+        # (2) the >=850 hPa angular momentum increment, DJF vs JJA
+        fig, axes = plt.subplots(2, 1, figsize=(7.0, 7.6), subplot_kw=dict(projection=ccrs.Robinson(central_longitude=10)),
+                                 constrained_layout=True)
+        V = np.concatenate([z[f"amL_both_{s}_mean"].values.ravel() for s in ("DJF", "JJA")])
+        lim = float(np.nanpercentile(np.abs(V), 98))
+        lev = np.linspace(-lim, lim, 11)
+        for ax, s in zip(axes, ("DJF", "JJA")):
+            k = f"amL_both_{s}"
+            cf = draw(ax, z[f"{k}_mean"].values, sg[f"{k}_sig"].values, lev,
+                      f"{s}: shaded where significant ({r.get('frac_sig_' + k, 0):.0%} of cells, FDR 10%)")
+        cb = fig.colorbar(cf, ax=axes, orientation="horizontal", fraction=0.04, pad=0.02, aspect=40)
+        cb.set_label("angular momentum increment of the layers at and below 850 hPa (10²⁰ kg m² s⁻¹ per 2.5° cell per day)")
+        fig.suptitle("ERA5 low-level angular momentum increments by season", fontsize=12, color=INK, x=0.02, ha="left")
+        fig.savefig(dest / "inc_maps_amL_season.webp", **WEBP)
+        plt.close(fig)
+        # (3) the regional split
+        sp = r["split"]
+        regs = [("ORO", "terrain and 500 km downstream"), ("OCX", "ocean 30–65°"), ("OCO", "other ocean"), ("LND", "other land")]
+        fig, ax = plt.subplots(figsize=(6.8, 4.6), constrained_layout=True)
+        y = np.arange(len(regs))[::-1].astype(float)
+        cols = {"ALL": INK2, "DJF": C_MTN, "JJA": C_FRIC}
+        for j, s in enumerate(("ALL", "DJF", "JJA")):
+            for yi, (rk, lab) in zip(y, regs):
+                d = sp[f"amL_{s}_{rk}"]
+                yy = yi + 0.25 - 0.25 * j
+                ax.barh(yy, 100 * d["share"], height=0.22, color=cols[s], label=s if yi == y[0] else None)
+                ax.plot([100 * d["lo"], 100 * d["hi"]], [yy] * 2, color=INK, lw=1)
+        for yi, (rk, lab) in zip(y, regs):
+            ax.scatter([100 * r["area"][rk]], [yi], marker="|", s=420, color=INK, zorder=4,
+                       label="share of the Earth's area" if yi == y[0] else None)
+        ax.set_yticks(y); ax.set_yticklabels([lab for _, lab in regs])
+        ax.axvline(0, color="#c3c2b7", lw=1)
+        ax.set_xlabel("share of the global increment below 850 hPa (%), 95% block-bootstrap interval")
+        ax.legend(frameon=False, fontsize=9, loc="lower right")
+        fig.suptitle("Where ERA5's low-level angular momentum increment goes", fontsize=12, color=INK, x=0.02, ha="left")
+        fig.savefig(dest / "inc_maps_split.webp", **WEBP)
+        plt.close(fig)
+
+
 def num_(x, d=0):
     return (f"{x:+.{d}f}").replace("-", "−")
 
@@ -726,7 +804,7 @@ def num_(x, d=0):
 def site_all(site: Path, data: Path = DATA):
     dest = site / "studies" / "torque-enso"
     dest.mkdir(parents=True, exist_ok=True)
-    for f in (site_q1, site_slp, site_q2, site_q3, site_2026, site_increments):
+    for f in (site_q1, site_slp, site_q2, site_q3, site_2026, site_increments, site_increment_maps):
         f(data, dest)
         print("ok", f.__name__)
     return dest

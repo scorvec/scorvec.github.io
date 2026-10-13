@@ -214,16 +214,16 @@ jobs:
           SNAP=$(mktemp -d)
           OUT=scripts/mjo/data/reference/${{ inputs.out }}
           OUT2="${OUT%.nc}_regions.csv"
-          git add -f "$OUT"
-          if [ -f "$OUT2" ]; then git add -f "$OUT2"; fi
+          git add --sparse -f "$OUT"
+          if [ -f "$OUT2" ]; then git add --sparse -f "$OUT2"; fi
           git diff --staged --name-only -z | tar cf "$SNAP/outs.tar" --null -T - 2>/dev/null || true
           git reset -q
           for i in 1 2 3 4 5; do
             if ! timeout 120 git fetch origin main; then echo "fetch $i failed"; sleep 5; continue; fi
             git reset --hard origin/main
             tar xf "$SNAP/outs.tar" 2>/dev/null || true
-            git add -f "$OUT"
-            if [ -f "$OUT2" ]; then git add -f "$OUT2"; fi
+            git add --sparse -f "$OUT"
+            if [ -f "$OUT2" ]; then git add --sparse -f "$OUT2"; fi
             if git diff --staged --quiet; then echo "No changes; skipping commit."; exit 0; fi
             git commit -q -m "torque study: ERA5 ${{ inputs.mode }} ${{ inputs.start || inputs.y0 }}-${{ inputs.y1 }} (${{ inputs.out }})"
             if timeout 180 git push; then echo "Pushed on attempt $i."; exit 0; fi

@@ -91,12 +91,76 @@ def band_jumps():
     return pd.DataFrame(rows).set_index("day")
 
 
+MAPS = REF / "torque_u37maps_2025_2026.nc"
+MAPS_REG = REF / "torque_u37maps_2025_2026_regions.csv"
+
+
+def maps_analysis(od: Path):
+    """Low-level increment maps: FDR significance per cell and the regional split of the >=850 hPa AM increment."""
+    import xarray as xr
+    from scipy import stats
+    if not MAPS.exists():
+        return None
+    z = xr.open_dataset(MAPS)
+    out = {"days": z.attrs.get("days"), "area": {k[5:]: float(v) for k, v in z.attrs.items() if k.startswith("area_")}}
+    sig = {}
+    for var in ("u1000", "u925", "u850", "u700", "u10", "amL", "amC"):
+        for combo in ("10_ALL", "22_ALL", "both_ALL", "both_DJF", "both_JJA"):
+            k = f"{var}_{combo}"
+            if f"{k}_mean" not in z:
+                continue
+            t = z[f"{k}_t"].values; neff = z[f"{k}_neff"].values
+            p = 2 * stats.t.sf(np.abs(t), np.maximum(neff - 1, 1))
+            s = S.bh_fdr(np.where(np.isfinite(p), p, np.nan).ravel()).reshape(p.shape)
+            sig[f"{k}_sig"] = (("lat", "lon"), s)
+            out[f"frac_sig_{k}"] = float(np.nanmean(s[np.isfinite(t)]))
+    xr.Dataset(sig, coords={"lat": z.lat, "lon": z.lon}).to_netcdf(od / "inc_maps_sig.nc")
+    tab = pd.read_csv(MAPS_REG, parse_dates=["day"]).set_index("day").sort_index()
+    regs = ("ORO", "OCX", "OCO", "LND", "HGT", "SDO", "GLB")
+    split = {}
+    for var in ("amL", "amC"):
+        X = {r: (tab[f"{var}_10_{r}"] + tab[f"{var}_22_{r}"]).values for r in regs}
+        m = tab.index.month.values
+        for sname, sel in (("ALL", np.ones(len(tab), bool)), ("DJF", np.isin(m, (12, 1, 2))), ("JJA", np.isin(m, (6, 7, 8)))):
+            N = int(sel.sum())
+            g = X["GLB"][sel]
+            blk = 3                                                            # 3 sampled days = 9 calendar days
+            nb = int(np.ceil(N / blk))
+            st = RNG.integers(0, max(N - blk + 1, 1), (4000, nb))
+            idx = (st[:, :, None] + np.arange(blk)[None, None, :]).reshape(4000, -1)[:, :N]
+            for r in regs:
+                x = X[r][sel]
+                share = x.mean() / g.mean()
+                bs = x[idx].mean(1) / g[idx].mean(1)
+                split[f"{var}_{sname}_{r}"] = dict(mean=float(x.mean()), share=float(share),
+                                                   lo=float(np.percentile(bs, 2.5)), hi=float(np.percentile(bs, 97.5)),
+                                                   n=N, area=out["area"].get(r))
+    out["split"] = split
+    # ocean vs land 10 m wind increment (cell means, all days, both windows), area-weighted
+    u10 = z["u10_both_ALL_mean"].values; lsm = z["lsm"].values
+    w = np.cos(np.deg2rad(z.lat.values))[:, None] * np.ones_like(u10)
+    for nm, mk in (("ocean", lsm < 0.5), ("land", lsm >= 0.5)):
+        ok = mk & np.isfinite(u10)
+        out[f"u10_{nm}"] = float((u10 * w)[ok].sum() / w[ok].sum())
+    (od / "increments_maps.json").write_text(json.dumps(out, indent=1, default=float))
+    return out
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--out", required=True)
+    ap.add_argument("--maps-only", action="store_true")
     a = ap.parse_args()
     od = Path(a.out); od.mkdir(parents=True, exist_ok=True)
+    if a.maps_only:
+        r = maps_analysis(od)
+        print(json.dumps({k: v for k, v in (r or {}).items() if k != "split"}, indent=1, default=float))
+        if r:
+            for k, v in r["split"].items():
+                print(k, {kk: (round(vv, 3) if isinstance(vv, float) else vv) for kk, vv in v.items()})
+        return 0
     res = {}
+    maps_analysis(od)
     # ---------------- (a) latitude structure from the 5-degree bands
     J = band_jumps()
     J.to_csv(od / "inc_band_jumps.csv.gz")
