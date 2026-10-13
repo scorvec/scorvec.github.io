@@ -535,7 +535,7 @@ References: Bister &amp; Emanuel 2002, <i>JGR</i> 107(D24), 4801 &middot; Chen, 
 </style>
 <div class="tcp-map" id="tcp-map" aria-label="Map of the active tropical storms; select one to see its forecasts"><div class="tcp-empty">Loading the storms…</div></div>
 <p class="tcp-when" id="tcp-when"></p>
-<p class="tcp-hint">Click or tap a storm on the map (or a name below) to see its forecasts. Lines: the AIFS-ENS control's track (IFS-ENS: the member nearest the ensemble's median track), small dots every 24 hours, dates on the selected storm. Filled dot: where the storm is now; hollow dot: where a developing system is first tracked, later in the forecast.</p>
+<p class="tcp-hint">Click or tap a storm on the map (or a name below) to see its forecasts. Lines: each storm's reference track - the AIFS-ENS control where it carries the storm, otherwise the member nearest the ensemble's median track (the line under the map says which) - small dots every 24 hours, dates on the selected storm. Filled dot: where the storm is now; hollow dot: where a developing system is first tracked, later in the forecast.</p>
 <div class="tcp-row" id="tcp-storms" role="group" aria-label="Storms"></div>
 <div class="tcp-row" id="tcp-views" role="group" aria-label="View"></div>
 <div class="tcp-fig" id="tcp-fig"></div>
@@ -553,15 +553,22 @@ References: Bister &amp; Emanuel 2002, <i>JGR</i> 107(D24), 4801 &middot; Chen, 
     var hh = t.getUTCHours() ? " " + String(t.getUTCHours()).padStart(2, "0") + "Z" : "";
     return (long ? D[t.getUTCDay()] + " " : "") + t.getUTCDate() + " " + M[t.getUTCMonth()] + (long ? (hh || " 00Z") : hh);
   }
-  function J(u) { return fetch(u + bust).then(function (r) { return r.ok ? r.json() : null; }).catch(function () { return null; }); }
+  // a missing file (404) is "no data"; any other failure is a load error and says so (2026-10-12 audit: a 500 read as
+  // "No tropical storms in the Northern Hemisphere")
+  var ERR = { err: true };
+  function J(u) { return fetch(u + bust).then(function (r) { return r.ok ? r.json() : (r.status === 404 ? null : ERR); }).catch(function () { return ERR; }); }
   function script(src) { return new Promise(function (ok, no) { var s = document.createElement("script"); s.src = src; s.onload = ok; s.onerror = no; document.head.appendChild(s); }); }
   function state() {   // #tcens/<id>[/depth] or #tcphase/<id>
     var h = decodeURIComponent(location.hash.slice(1)).split("/"), v = h[0] === "tcphase" ? "phase" : (h[2] === "depth" ? "depth" : "tracks");
     return { prod: h[0], id: h[1] || null, view: v };
   }
-  function go(id, view) {
-    var h = view === "phase" ? "#tcphase/" + id : "#tcens/" + id + (view === "depth" ? "/depth" : "");
+  function hashOf(id, view) { return view === "phase" ? "#tcphase/" + id : "#tcens/" + id + (view === "depth" ? "/depth" : ""); }
+  function go(id, view) {                              // a user's choice: a history entry
+    var h = hashOf(id, view);
     if (location.hash !== h) location.hash = h; else render();
+  }
+  function fix(id, view) {                             // filling in a missing/unknown id: no history entry (2026-10-12
+    history.replaceState(null, "", hashOf(id, view)); render();      // audit: Back from #tcens/20E re-pushed it forever)
   }
   function merge(ens, ph) {
     var by = {}, ctl = {}, hasCtl = false, out = [];
@@ -571,7 +578,9 @@ References: Bister &amp; Emanuel 2002, <i>JGR</i> 107(D24), 4801 &middot; Chen, 
     (ens && ens.storms || []).forEach(function (s) {
       var p = {}; Object.keys(s.models || {}).forEach(function (m) { p[m] = s.models[m].p_recurve; });
       var gen = {}; Object.keys(s.models || {}).forEach(function (m) { if (s.models[m].genesis_h_p10_p50_p90) gen[m] = s.models[m].genesis_h_p10_p50_p90; });
-      var o = { id: s.id, key: s.key, name: s.name, named: s.named !== false, short: s.named === false ? "new " + s.id : s.name,
+      var sid = String(s.id || ""), ifs = /^ifs-/.test(sid);
+      var o = { id: s.id, key: s.key, name: s.name, named: s.named !== false,
+                short: s.named === false ? "new " + sid.replace(/^ifs-/, "") + (ifs ? " (IFS)" : "") : s.name,
                 track: s.track || null, files: { tracks: s.tracks_file, depth: s.depth_file }, p: p, gen: gen };
       // ids are unique since 2026-10-12 (an IFS-ENS-only system is "ifs-71W"); an older file repeated "71W" for gen:71W
       // and ifs:71W and the second storm could not be reached. A repeat takes its key instead of being dropped
@@ -608,18 +617,28 @@ References: Bister &amp; Emanuel 2002, <i>JGR</i> 107(D24), 4801 &middot; Chen, 
   function drawMap() {
     var host = document.getElementById("tcp-map");
     if (!S.length) { host.innerHTML = '<div class="tcp-empty">No tropical storms in the Northern Hemisphere in this cycle.</div>'; return; }
-    // centre on the storms (circular mean of the current positions), equirectangular with cos(latitude) scaling
-    var sx = 0, sy = 0; S.forEach(function (s) { var a = s.track.lon[0] * Math.PI / 180; sx += Math.cos(a); sy += Math.sin(a); });
-    var c = Math.atan2(sy, sx) * 180 / Math.PI, xs = [], ys = [];
-    S.forEach(function (s) { s.rel = s.track.lon.map(function (l) { return wrap(l - c); }); xs = xs.concat(s.rel); ys = ys.concat(s.track.lat); });
+    // centre on the middle of the arc the storms occupy (opposite the widest empty longitude gap) and unwrap each track
+    // point by point from its start; equirectangular with cos(latitude) scaling (2026-10-12 audit: the circular mean plus
+    // per-point wrapping drew a track that crossed the far side of the map as a line across the whole map)
+    var L0 = S.map(function (s) { return ((s.track.lon[0] % 360) + 360) % 360; }).sort(function (a, b) { return a - b; });
+    var gi = 0, gw = -1;
+    L0.forEach(function (v, i) { var nx = i + 1 < L0.length ? L0[i + 1] : L0[0] + 360; if (nx - v > gw) { gw = nx - v; gi = i; } });
+    var c = L0.length > 1 ? wrap(L0[(gi + 1) % L0.length] + (360 - gw) / 2) : wrap(L0[0]), xs = [], ys = [];
+    S.forEach(function (s) {
+      var r = []; s.track.lon.forEach(function (l, j) { r.push(j ? r[j - 1] + wrap(l - s.track.lon[j - 1]) : wrap(l - c)); });
+      s.rel = r; xs = xs.concat(r); ys = ys.concat(s.track.lat); });
     var x0 = Math.min.apply(null, xs) - 8, x1 = Math.max.apply(null, xs) + 8, y0 = Math.max(-5, Math.min.apply(null, ys) - 6), y1 = Math.min(78, Math.max.apply(null, ys) + 6);
     if (x1 - x0 < 50) { var m = (x0 + x1) / 2; x0 = m - 25; x1 = m + 25; }
     if (y1 - y0 < 28) { var n = (y0 + y1) / 2; y0 = Math.max(-5, n - 14); y1 = y0 + 28; }
-    var k = Math.cos((y0 + y1) / 2 * Math.PI / 180), W = 1000, sc = W / ((x1 - x0) * k), H = Math.round((y1 - y0) * sc);
+    // drawn at the block's real pixel width (2026-10-12 audit: a fixed 1000-unit viewBox shrank labels and dots to ~4 px on
+    // a phone); 1000 only before the block has a width
+    var k = Math.cos((y0 + y1) / 2 * Math.PI / 180), W = host.clientWidth ? Math.max(300, Math.round(host.clientWidth)) : 1000;
+    var sc = W / ((x1 - x0) * k), H = Math.round((y1 - y0) * sc);
     var X = function (r) { return ((r - x0) * k * sc).toFixed(1); }, Y = function (la) { return ((y1 - la) * sc).toFixed(1); };
     var svg = '<svg viewBox="0 0 ' + W + " " + H + '" role="img" aria-label="Storm tracks"><defs><clipPath id="tcp-clip"><rect width="' + W + '" height="' + H + '"/></clipPath></defs><g clip-path="url(#tcp-clip)">';
-    for (var g = Math.ceil(y0 / 10) * 10; g <= y1; g += 10) svg += '<line class="grid" x1="0" x2="' + W + '" y1="' + Y(g) + '" y2="' + Y(g) + '"/><text class="gl" x="4" y="' + (Y(g) - 3) + '">' + Math.abs(g) + (g > 0 ? "°N" : g < 0 ? "°S" : "°") + "</text>";
-    for (var gx = Math.ceil((x0 + c) / 20) * 20; gx <= x1 + c; gx += 20) { var r = wrap(gx - c), lab = ((gx % 360) + 360) % 360; svg += '<line class="grid" y1="0" y2="' + H + '" x1="' + X(r) + '" x2="' + X(r) + '"/>' + (+X(r) > W - 46 ? "" : '<text class="gl" x="' + (+X(r) + 3) + '" y="' + (H - 4) + '">' + (lab > 180 ? (360 - lab) + "°W" : lab + (lab && lab < 180 ? "°E" : "°")) + "</text>"); }   // no label the right edge would cut
+    var gl = "";                                       // grid labels go on top of the land (2026-10-12 audit: "30°N" read "°N")
+    for (var g = Math.ceil(y0 / 10) * 10; g <= y1; g += 10) { svg += '<line class="grid" x1="0" x2="' + W + '" y1="' + Y(g) + '" y2="' + Y(g) + '"/>'; gl += '<text class="gl" x="4" y="' + (Y(g) - 3) + '">' + Math.abs(g) + (g > 0 ? "°N" : g < 0 ? "°S" : "°") + "</text>"; }
+    for (var gx = Math.ceil((x0 + c) / 20) * 20; gx <= x1 + c; gx += 20) { var r = gx - c, lab = ((gx % 360) + 360) % 360; svg += '<line class="grid" y1="0" y2="' + H + '" x1="' + X(r) + '" x2="' + X(r) + '"/>'; gl += (+X(r) > W - 46 ? "" : '<text class="gl" x="' + (+X(r) + 3) + '" y="' + (H - 4) + '">' + (lab > 180 ? (360 - lab) + "°W" : lab + (lab && lab < 180 ? "°E" : "°")) + "</text>"); }   // no label the right edge would cut
     if (land) {
       var d = "";
       land.forEach(function (ring) {
@@ -632,6 +651,7 @@ References: Bister &amp; Emanuel 2002, <i>JGR</i> 107(D24), 4801 &middot; Chen, 
       });
       svg += '<path class="land" d="' + d + '"/>';
     }
+    svg += gl;
     var st = state();
     // 2026-10-04 (user: "be careful with the overlapping labels"): map labels are SHORT (named storms by name, developing
     // systems "new 71L"; the full name is in the buttons and the tooltip) and placed greedily - the selected storm first,
@@ -660,16 +680,22 @@ References: Bister &amp; Emanuel 2002, <i>JGR</i> 107(D24), 4801 &middot; Chen, 
       if (!best) { var x1 = Math.min(Math.max(d[0] + 10, 2), W - w - 2); best = { x: x1, y: d[1] + 4, b: [x1, d[1] - 7, x1 + w, d[1] + 7], far: false }; }
       boxes.push(best.b); labs[i] = best;
     });
-    S.forEach(function (s, i) {
+    // two layers (2026-10-12 audit: a later storm's wide invisible hit line covered earlier storms' dots, so a click on a
+    // dot could open another storm): every track and hit line first, then every dot and label; the selected storm last
+    var under = "", over = "";
+    S.map(function (s, i) { return i; }).sort(function (a, b) { return (S[a].id === st.id) - (S[b].id === st.id) || a - b; }).forEach(function (i) {
+      var s = S[i];
       var col = COLORS[i % COLORS.length], sel = s.id === st.id, pts = s.rel.map(function (r, j) { return X(r) + "," + Y(s.track.lat[j]); }).join(" ");
       var L = labs[i], d = dots[i], lx = Math.min(Math.max(d[0], L.b[0]), L.b[2]), ly = Math.min(Math.max(d[1], L.b[1]), L.b[3]);
       var hs = s.track.h || [], dd = "", later = (hs[0] || 0) > 0;
       hs.forEach(function (h, j) { if (h > 0 && h % 24 === 0) dd += '<circle class="dd" r="' + (sel ? 3.6 : 2.6) + '" fill="' + col + '" cx="' + X(s.rel[j]) + '" cy="' + Y(s.track.lat[j]) + '"/>'; });
-      svg += '<g data-id="' + s.id + '"><title>' + s.name + (later ? " (first tracked " + when(hs[0], true) + ")" : "") + '</title><polyline class="hit" points="' + pts + '"/><polyline class="trk' + (sel ? " sel" : "") + '" stroke="' + col + '" points="' + pts + '"/>' + dd +
-             (L.far ? '<line class="lead" x1="' + d[0] + '" y1="' + d[1] + '" x2="' + lx.toFixed(1) + '" y2="' + ly.toFixed(1) + '" stroke="' + col + '"/>' : "") +
-             '<circle class="dot" r="' + (sel ? 8 : 6) + '" fill="' + (later ? "#fff" : col) + '"' + (later ? ' style="stroke:' + col + ';stroke-width:2.6"' : "") + ' cx="' + d[0] + '" cy="' + d[1] + '"/>' +
+      var tt = '<title>' + s.name + (later ? " (first tracked " + when(hs[0], true) + ")" : "") + '</title>';
+      under += '<g data-id="' + s.id + '">' + tt + '<polyline class="hit" points="' + pts + '"/><polyline class="trk' + (sel ? " sel" : "") + '" stroke="' + col + '" points="' + pts + '"/>' + dd +
+             (L.far ? '<line class="lead" x1="' + d[0] + '" y1="' + d[1] + '" x2="' + lx.toFixed(1) + '" y2="' + ly.toFixed(1) + '" stroke="' + col + '"/>' : "") + "</g>";
+      over += '<g data-id="' + s.id + '">' + tt + '<circle class="dot" r="' + (sel ? 8 : 6) + '" fill="' + (later ? "#fff" : col) + '"' + (later ? ' style="stroke:' + col + ';stroke-width:2.6"' : "") + ' cx="' + d[0] + '" cy="' + d[1] + '"/>' +
              '<text class="lab" x="' + L.x.toFixed(1) + '" y="' + L.y.toFixed(1) + '">' + s.short + "</text></g>";
     });
+    svg += under + over;
     // dates along the selected storm's track, wherever they clear the labels already placed
     var ss = S.filter(function (x) { return x.id === st.id; })[0] || S[0];
     if (ss && INIT !== null) {
@@ -694,8 +720,11 @@ References: Bister &amp; Emanuel 2002, <i>JGR</i> 107(D24), 4801 &middot; Chen, 
     // the stage switches products with pushState/replaceState (no hashchange), so the hash may still name
     // another product, or carry no storm id yet: draw with the first storm and only fix the hash when it is ours
     var st = state(), mine = st.prod === "tcens" || st.prod === "tcphase";
-    var s = S.filter(function (x) { return x.id === st.id; })[0] || S[0];
-    if (s && mine && s.id !== st.id) { go(s.id, st.view); return; }
+    var s = S.filter(function (x) { return x.id === st.id; })[0] ||
+            (st.view === "phase" ? S.filter(function (x) { return x.files.phase; })[0] : null) || S[0];
+    if (s && mine && s.id !== st.id) { fix(s.id, st.view); return; }
+    // a storm without this cycle's depth chart opens on its tracks rather than a pressed-but-empty view
+    if (s && mine && st.view === "depth" && !s.files.depth && s.files.tracks) { fix(s.id, "tracks"); return; }
     if (!mine) st = { prod: "tcens", id: s ? s.id : null, view: "tracks" };
     drawMap();
     document.getElementById("tcp-storms").innerHTML = S.map(function (x, i) {
@@ -719,6 +748,8 @@ References: Bister &amp; Emanuel 2002, <i>JGR</i> 107(D24), 4801 &middot; Chen, 
       (pr ? "<p>Share of members that recurve: " + pr + ".</p>" : "");
   }
   Promise.all([J("assets/sst/data/tcens.json"), J("assets/sst/data/tcphase.json")]).then(function (r) {
+    if (r[0] === ERR) { var hm = document.getElementById("tcp-map"); if (hm) hm.innerHTML = '<div class="tcp-empty">Could not load the storm list. Reload the page to try again.</div>'; return; }
+    if (r[1] === ERR) r[1] = null;
     var ini = (r[0] && r[0].init) || (r[1] && r[1].init); INIT = ini ? Date.parse(ini.replace("Z", ":00Z").replace(/:00:00Z$/, ":00Z")) : null;
     if (INIT !== null && isNaN(INIT)) INIT = Date.parse(ini);
     S = merge(r[0], r[1]); ready = true; render();
@@ -731,10 +762,15 @@ References: Bister &amp; Emanuel 2002, <i>JGR</i> 107(D24), 4801 &middot; Chen, 
   }).catch(function () { var h = document.getElementById("tcp-map"); if (h && !S.length) h.innerHTML = '<div class="tcp-empty">Could not load the storm list. Reload the page to try again.</div>'; });
   window.addEventListener("hashchange", render);
   window.addEventListener("popstate", render);
+  var rzT; window.addEventListener("resize", function () { clearTimeout(rzT); rzT = setTimeout(function () { if (root.offsetParent) render(); }, 200); });
   // the block is mounted into the stage later than it loads: redraw whenever it becomes visible
   var shown = false;
-  if (window.MutationObserver) new MutationObserver(function () {
-    var vis = !!root.offsetParent; if (vis && !shown) render(); shown = vis;    // hidden -> visible only (render itself mutates the DOM)
+  // and whenever the stage re-mounts it (tcens <-> tcphase unmounts and mounts the same block in one pass, so it never
+  // looks hidden to this observer; 2026-10-12 audit: the stage then showed the other product's figure)
+  if (window.MutationObserver) new MutationObserver(function (recs) {
+    var vis = !!root.offsetParent, again = recs.some(function (r) {
+      return (r.target === root && r.attributeName === "hidden") || Array.prototype.indexOf.call(r.addedNodes, root) >= 0; });
+    if (vis && (!shown || again)) render(); shown = vis;    // render itself only mutates inside the block
   }).observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ["hidden", "class", "style"] });
 })();
 </script>
