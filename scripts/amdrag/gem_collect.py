@@ -393,7 +393,16 @@ def main():
         expiring = d == dates[0] or d == dates[min(1, len(dates) - 1)]
         if meta["complete"] or rec["attempts"] >= 2 or expiring:
             (OUT / model).mkdir(parents=True, exist_ok=True)
-            np.savez_compressed(OUT / model / f"{d}.npz", meta=json.dumps(meta, default=_jsonable), **pack)
+            try:
+                np.savez_compressed(OUT / model / f"{d}.npz", meta=json.dumps(meta, default=_jsonable), **pack)
+            except Exception as e:                                     # noqa: BLE001  (never kill the loop)
+                traceback.print_exc()
+                (OUT / model / f"{d}.npz").unlink(missing_ok=True)
+                rec["last_error"] = f"save: {str(e)[:200]}"
+                rec["failed_run"] = RUN_ID
+                save_ledger(lg)
+                print(f"BYTES {meta['bytes']}")
+                return 4
             sz = (OUT / model / f"{d}.npz").stat().st_size
             rec["kb"] = sz // 1024
             print(f"  saved {model}/{d}.npz ({sz / 1e3:.0f} kB): {meta['bytes'] / 1e9:.2f} GB fetched in "
