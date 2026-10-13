@@ -212,6 +212,33 @@ def body(R, Mo, keys, L, fig, t_models, made):
               "<th>bulk friction d6–10</th><th>own stress d1</th><th>own stress d6–10</th></tr></thead><tbody>" +
               "".join(row_bias(k) for k in keys) + "</tbody></table></div>")
 
+    # friction torque by region (days 1-10 mean): the common bulk law for all, own stresses where published
+    RHK = ["ORO_N", "ORO_S", "OCX_N", "OCX_S", "OCO_N", "OCO_S", "LND_N", "LND_S"]
+
+    def row_reg(k, term, label):
+        v = g(k, "regions", term, "d1_10")
+        if not v:
+            return ""
+        return f"<tr><th scope='row'>{label}</th>" + "".join(f"<td>{num(x, 1)}</td>" for x in v) + "</tr>"
+    rr_rows = "".join(row_reg(k, "Tfb_rh", L[k]) for k in keys)
+    er = era.get("regions", {})
+    if er.get("Tfb_rh"):
+        rr_rows += ("<tr class='diff'><th scope='row'>ERA5</th>" + "".join(f"<td>{num(x, 1)}</td>" for x in er["Tfb_rh"]) +
+                    "</tr>")
+    own_rows = ""
+    for k in ("gfs", "gefs", "ifs-ens"):
+        if k in Mo:
+            own_rows += row_reg(k, "Tft_rh", f"{L[k]} turbulent") + row_reg(k, "Tg_rh", f"{L[k]} GWD + blocking")
+    for term, nm in (("Tft_rh", "turbulent"), ("Tg_rh", "GWD + blocking")):
+        if er.get(term):
+            own_rows += (f"<tr class='diff'><th scope='row'>ERA5 {nm}</th>" + "".join(f"<td>{num(x, 1)}</td>" for x in er[term])
+                         + "</tr>")
+    head_r = "".join(f"<th>{REG[r.split('_')[0]]}, {r.split('_')[1]}H</th>" for r in RHK)
+    t_reg = ("<div class='tw'><table class='res'><thead><tr><th>friction torque, days 1–10 (Hadley)</th>" + head_r +
+             "</tr></thead><tbody><tr class='grp'><th scope='row'>common bulk law</th></tr>" + rr_rows +
+             ("<tr class='grp'><th scope='row'>own published stress</th></tr>" + own_rows if own_rows else "") +
+             "</tbody></table></div>")
+
     # WGNE
     W = R.get("wgne", {})
 
@@ -468,6 +495,9 @@ def body(R, Mo, keys, L, fig, t_models, made):
   Hadley from day to day with the weather; friction is steadier.</p>
   {fig("torques", "torque_bias.webp", "Global mountain, bulk friction and own-stress torques minus ERA5, day 1 and days 6 to 10", "Global torques minus ERA5's on the same valid days: mountain torque on each model's own grid, the common bulk friction, and the model's own published stress against ERA5's own (turbulent + gravity-wave). Pale: day 1; solid: days 6–10. n.s. = not significant after the FDR.")}
   {t_bias}
+  <p>Where the drag acts: the friction torque summed over each region (negative = the surface takes westerly momentum out).
+  ERA5 is the mean over its analysis days in the window. Descriptive (means over inits and days 1–10).</p>
+  {t_reg}
   <h3>Day-1 stresses in the WGNE form</h3>
   <p>The 2012 project plotted the zonal-mean stress times $a^3\\cos^2\\varphi$ (N m) averaged over the first 24 hours of each 00Z
   forecast. The same quantity for January and July 2026, from the models that publish their stress, puts the 2026 models on the
