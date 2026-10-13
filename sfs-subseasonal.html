@@ -247,7 +247,7 @@
       <div id="about"></div>
       <p class="hint"><span class="kbd">&larr;</span> <span class="kbd">&rarr;</span> step through the last option row &middot; <span class="kbd">&uarr;</span> <span class="kbd">&darr;</span> change product &middot; click a figure to enlarge</p>
       <div class="chart-card-footer">
-        <span class="chart-sources">NOAA SFS beta2 forecast and reforecast (NODD, AWS open data) &middot; ERA5 (Copernicus C3S) &middot; GEFSv12 reforecast (NOAA) &middot; GEPS hindcast (ECCC, S2S)</span>
+        <span class="chart-sources">NOAA SFS beta2 forecast and reforecast (NOAA NWS/EMC and OAR/PSL; NODD open data on AWS) &middot; ERA5 (Copernicus C3S) &middot; GEFSv12 reforecast (NOAA) &middot; GEPS hindcast (ECCC) &middot; CFSv2 (NOAA, via IRI) &middot; <a href="#credits">details</a></span>
         <span class="chart-updated" id="g-updated">&ndash;</span>
       </div>
     </section>
@@ -278,9 +278,39 @@
     was found to be a copy of September's. The hindcast comparison scores SFS, GEFSv12 and GEPS on the same 38 start dates (1 September and
     1 October, 2001&ndash;2019) as four-member means against ERA5.</p>
   </section>
+  <style>#credits a, #credits code { white-space: normal; overflow-wrap: anywhere; }</style>
+  <section class="method-note" id="credits">
+    <h2>Where the data come from</h2>
+    <p><b>The model.</b> NOAA's <b>Seasonal Forecast System (SFS)</b> is a fully coupled Earth-system model built on the
+    <a href="https://ufs.epic.noaa.gov/">Unified Forecast System</a> (UFS) and the planned successor to the Climate Forecast System,
+    version 2 (CFSv2). NOAA describes the SFS beta as an FV3 atmosphere (hydrostatic) with Common Community Physics Package physics
+    largely from GFSv17, the MOM6 ocean model, the CICE6 sea-ice model and the Noah-MP land model. It is developed by NOAA's National
+    Weather Service (NCEP Environmental Modeling Center) and Office of Oceanic and Atmospheric Research (Physical Sciences Laboratory)
+    together with many developers across NOAA and the wider community &mdash; application-team co-leads Neil Barton (EMC), Phil Pegion
+    (PSL) and Xiaqiong (Kate) Zhou (EMC) &mdash; with funding from the NWS Office of Science and Technology Integration Modeling Program
+    and the OAR Weather Program Office's Subseasonal-to-Seasonal Program. The beta has run in near-real time since March 2026 as
+    experimental guidance for NOAA's Climate Prediction Center. This page uses <b>beta2</b>, NOAA's second experimental configuration:
+    it is a research prototype, not an operational NOAA forecast.</p>
+    <p><b>The files.</b> NOAA publishes the forecasts and reforecasts through its
+    <a href="https://www.noaa.gov/information-technology/open-data-dissemination">Open Data Dissemination (NODD)</a> program on Amazon
+    Web Services, in the bucket <a href="https://noaa-oar-sfsdev-pds.s3.amazonaws.com/index.html#experiments/beta2/"><code>noaa-oar-sfsdev-pds</code></a>,
+    folder <code>experiments/beta2/</code>: <code>forecast/YYYYMM/</code> holds each issue (atmosphere and ocean, daily and monthly Zarr
+    stores, 31 members from the first of the month) and <code>reforecast/MM/</code> the reforecasts (11 members, every year 1991&ndash;2025;
+    so far for September and October starts only). This site reads those Zarr stores anonymously over HTTPS in GitHub Actions, keeps only
+    the fields and regions it draws, and builds its own reforecast climatology from them rather than using NOAA's climatology files.</p>
+    <p><b>Terms.</b> NOAA data distributed through NODD are free and open to the public; credit NOAA when reusing them. Everything done to
+    them here &mdash; regridding, anomalies, terciles, skill masks, the daily-store check and the recovery of interleaved issues &mdash; is this
+    site's own processing, not NOAA's, and NOAA has not reviewed it. More about the system:
+    <a href="https://epic.noaa.gov/?p=37688">NOAA EPIC: the SFS beta near-real-time launch</a> (2026).</p>
+    <p><b>The other data on this page.</b> ERA5 reanalysis (Copernicus Climate Change Service, ECMWF), the truth for the skill masks and
+    the hindcast scores; the GEFSv12 reforecast (NOAA, NODD); the GEPS hindcast (Environment and Climate Change Canada); and CFSv2
+    (NOAA NCEP) from the IRI Data Library's SubX and NMME archives and NOAA's operational CFSv2 files on AWS, for the comparison with the
+    system SFS is meant to replace. Contains modified Copernicus Climate Change Service information 2026. Neither the European Commission
+    nor ECMWF is responsible for any use of this information.</p>
+  </section>
 </main>
 
-<footer><span class="counter">GEFS days 1&ndash;35</span></footer>
+<footer><span class="counter">SFS beta2, up to six weeks</span></footer>
 
 <script>
 // SFS subseasonal page (2026-10-12): the GEFS page's viewer and figures for NOAA's SFS beta2. Everything that needs the daily
