@@ -312,6 +312,9 @@ def render_card(storms, idx, v250, lat, lon, steps, init, out_png: Path, out_jso
         ls = (s["lon"][m] - lon0) % 360 + lon0
         tt = s["steps"][m] / 24.0
         fl = s["followed"][m] if "followed" in s else np.zeros(int(m.sum()), bool)
+        if len(ls) == 1:                                  # one point north of MIDLAT draws no line: a marker carries the
+            ax2.plot(ls, tt, ls="none", marker="o", ms=8, color=c if not fl[0] else "#fff", mec=c if fl[0] else "#111",
+                     mew=1.6, zorder=6)                  # label (2026-10-12 review: "Simon" floated with nothing under it)
         brk = np.where(np.abs(np.diff(ls)) > 180)[0] + 1
         for part, sty in ((~fl, "-"), (fl, (0, (2.2, 1.4)))):          # the tracker solid, the followed low dashed
             if not part.any():
@@ -347,9 +350,9 @@ def render_card(storms, idx, v250, lat, lon, steps, init, out_png: Path, out_jso
     cb = fig.colorbar(cf, ax=ax2, orientation="horizontal", fraction=0.04, pad=0.09)
     cb.set_label("wave-packet amplitude: envelope of the 250 hPa north–south wind, zonal wavenumbers 4–15 (m/s)")
     fig.text(0.07, 0.008, "Tracks: ECMWF tropical-cyclone tracker on AIFS-ENS (open data, CC BY 4.0), control member; after the tracker's last "
-             "fix the storm is followed on as the control's surface low.\n"
-             "Metric after Archambault et al. (2013, 2015, Mon. Wea. Rev.). Index = area mean of the negative part of −v_χ·∇PV "
-             "(sign flipped), irrotational wind from the 300–200 hPa layer (T106),\n"
+             "fix the storm is followed on as the control's surface low\n(for up to 72 h; a low of 1000 hPa or more only over the sea "
+             "north of 30°N). Metric after Archambault et al. (2013, 2015, Mon. Wea. Rev.).\n"
+             "Index = area mean of the negative part of −v_χ·∇PV (sign flipped), irrotational wind from the 300–200 hPa layer (T106), "
              "PV smoothed 1°. ★ = the turn from westward to eastward motion.", fontsize=8.4, color="#6f6b64", va="bottom")
     fig.savefig(out_png, dpi=100, facecolor="white", pil_kwargs={"quality": 85, "method": 6}); plt.close(fig)
     js = {"init": f"{init:%Y-%m-%dT%H:%MZ}", "radius_km": R_KM, "units": "PVU/day",
@@ -400,6 +403,47 @@ FOLLOW_MERGE_KM = 1500.0     # merge=True: when the storm's own low is gone, a l
                              # distance of it, north of FOLLOW_MIDLAT, along the motion and within reach, has absorbed it
                              # (extratropical transition by merger: Choi-Wan 2026-10-02 12Z ran into a 988 hPa low 1,300 km
                              # downstream at +108 h, which became 943 hPa by +132 h)
+# 2026-10-12 review: the follower walked weak lows onto the continents. 12 Oct 12Z: Koguma, dropped by the tracker at +66 h
+# (995 hPa), was carried as a 998-1006 hPa low across the Pacific, then hopped 1,061 km from eastern Washington into the
+# Colorado lee lows and sat there to day 10; Simon (dropped at 1007 hPa off Sinaloa) was followed into the Sonoran heat
+# low, whose outflow index was the card's highest. The three rules below stop that and keep every Choi-Wan run (2 Oct 00Z /
+# 12Z, 4 Oct 00Z: the deepest point came 18-36 h after the tracker's last fix, 929-948 hPa, and is still reached).
+FOLLOW_MAX_H = 72            # no continuation more than this long after the tracker's last fix: the re-intensification after
+                             # transition comes within 1-2 days, after that the low is an ordinary extratropical cyclone
+                             # (tc_ens's system window SYS_H is the same 72 h)
+FOLLOW_WEAK_HPA = 1000.0     # a low at or above this central pressure is followed only over the sea north of FOLLOW_MIDLAT
+                             # (over land it is a heat or lee low; in the tropics, where the tracker dropped a weak storm, a
+                             # dissipating remnant: Simon), and is never the target of a long jump (> FOLLOW_SLOW_KM: only a
+                             # real cyclone re-forms downstream along the jet)
+FOLLOW_H_MAX = 240           # every caller follows to day 10 at most (DT maps, TC-jet card, phase space, depth chart)
+
+
+class LandMask:
+    """is_land(lat, lon) from a land-sea mask on a regular grid (nearest point; lat ascending, lon 0..360)."""
+
+    def __init__(self, land, lat, lon):
+        self.land, self.lat0, self.dlat = np.asarray(land, bool), float(lat[0]), float(lat[1] - lat[0])
+        self.lon0, self.dlon, self.nlon = float(lon[0]), float(lon[1] - lon[0]), len(lon)
+
+    def __call__(self, lat, lon) -> bool:
+        j = int(np.clip(round((lat - self.lat0) / self.dlat), 0, self.land.shape[0] - 1))
+        i = int(round(((lon % 360.0) - self.lon0) / self.dlon)) % self.nlon
+        return bool(self.land[j, i])
+
+
+def load_land(cyc) -> LandMask | None:
+    """The AIFS-ENS land-sea mask (control, step 0: 1 MB from the Google mirror through the shared ECMWF store) for
+    follow_low's land rule; None if it cannot be had (follow_low then treats every weak low as over land)."""
+    try:
+        import xarray as xr
+        import store as ecmwf
+        p = ecmwf.ensure(cyc, ecmwf.Spec("aifs-ens", "cf", "lsm", "sfc", (), (0,)))
+        da = xr.open_dataset(p, engine="cfgrib", backend_kwargs={"indexpath": ""})["lsm"].squeeze(drop=True)
+        da = da.assign_coords(longitude=da.longitude % 360).sortby("longitude").sortby("latitude")
+        return LandMask(da.values >= 0.5, da.latitude.values, da.longitude.values)
+    except Exception as e:                                                # never let the mask take a product down
+        print(f"  land-sea mask unavailable ({e}); weak lows are not followed anywhere", flush=True)
+        return None
 
 
 def _gc_km(lat, lon, clat, clon):
@@ -452,67 +496,94 @@ def _step_to(lat0, lon0, dlat, dlon_deg):
     return lat0 + dlat, ((lon0 + dlon_deg + 180) % 360) - 180
 
 
-def follow_low(msl, lat, lon, steps_h, track, h_max=None, merge=False):
+def follow_low(msl, lat, lon, steps_h, track, h_max=FOLLOW_H_MAX, merge=False, land=None):
     """Continue `track` (dict steps/lat/lon[/pmsl]) beyond its last fix as a surface low, every field step.
 
     msl: (len(steps_h), nlat, nlon) hPa, lat ascending, lon 0..360; steps_h: lead hours (12-hourly). Starts at the
-    tracker's last fix that falls on a field step. Each step: the candidates are the closed lows within FOLLOW_REACH_KM
-    (scaled by the time step) of the previous position; a candidate further than FOLLOW_SLOW_KM must lie within
-    FOLLOW_CONE_DEG of the previous motion (a centre re-forming downstream along the jet, as in a phasing transition, is
-    allowed; a jump sideways or backwards is not); a candidate that is the continuation of ANOTHER low already present a
-    step earlier (within FOLLOW_OTHER_KM of it, and closer to it than our storm was) is excluded. The survivor nearest to
-    the persistence first guess (previous position + previous displacement) is taken; none = the end of the track.
+    tracker's LAST fix (6-hourly, so the first field step can be 6 h on) and goes to h_max, at most FOLLOW_MAX_H past that
+    fix. Each step: the candidates are the closed lows within reach of the previous position (FOLLOW_SLOW_KM of motion per
+    12 h, scaled with the step, plus FOLLOW_REACH_KM - FOLLOW_SLOW_KM for a centre re-forming downstream); a candidate
+    further than FOLLOW_SLOW_KM (scaled) must lie north of FOLLOW_MIDLAT, within FOLLOW_CONE_DEG of the previous motion and
+    be deeper than FOLLOW_WEAK_HPA, and the low must not have filled FOLLOW_DECAY_HPA (a cyclone re-forming downstream
+    along the jet, as in a phasing transition, is allowed; a jump sideways or backwards, or onto a weak low, is not); a weak
+    candidate (>= FOLLOW_WEAK_HPA) is excluded over land and south of FOLLOW_MIDLAT (land: a LandMask; None = treat every
+    point as land, i.e. weak lows are never followed); a candidate that is the continuation of ANOTHER low already present
+    a field step earlier (within FOLLOW_OTHER_KM of it, and closer to it than our storm was) is excluded. The survivor
+    nearest to the persistence first guess (previous position + previous displacement) is taken; none = the end of the
+    track.
     merge=True: if no candidate survives but one was excluded only as another system's continuation, and that system lay
     within FOLLOW_MERGE_KM of our storm a step earlier, both north of FOLLOW_MIDLAT, the storm has merged into it: the
     track continues with the merged low (flagged in `merged` from that step on).
-    Returns the CONTINUATION only: dict(steps, lat, lon, pmsl, merged)."""
+    Returns the CONTINUATION only: dict(steps, lat, lon, pmsl, merged), every step after the tracker's last fix."""
     steps_h = np.asarray(steps_h, int)
     empty = dict(steps=np.array([], int), lat=np.array([]), lon=np.array([]), pmsl=np.array([]), merged=np.array([], bool))
-    fstep = set(steps_h.tolist())
-    on = [int(h) for h in track["steps"] if int(h) in fstep]
-    if not on:
+    st = np.asarray(track["steps"], int)
+    if not len(st):
         return empty
-    h0 = on[-1]
-    k0 = int(np.where(track["steps"] == h0)[0][0])
+    # 2026-10-12 review: the follower used to start at the last fix ON A FIELD STEP (12-hourly), not at the last fix, so a
+    # track ending at +66 h was continued from +60 h and extended() ran back in time (36 42 48 54 66 60 72; 2,265 of 22,893
+    # cached member tracks); measured from the earlier fix, 71E (12 Oct 12Z, last fix +150 h) could hop 528 km in the 6 h
+    # after its last fix onto a low over Sonora
+    h0 = int(st[-1]); k0 = len(st) - 1
     la, lo = float(track["lat"][k0]), float(track["lon"][k0])
-    prev = np.where(track["steps"] <= h0 - 12)[0]
+    p_last = float(np.asarray(track["pmsl"], float)[-1]) if "pmsl" in track else np.nan
+    prev = np.where(st <= h0 - 12)[0]
     if len(prev):
-        kp = prev[-1]; dt = (h0 - int(track["steps"][kp])) / 12.0
+        kp = prev[-1]; dt = (h0 - int(st[kp])) / 12.0
         v_lat = (la - float(track["lat"][kp])) / dt
         v_lon = (((lo - float(track["lon"][kp]) + 180) % 360) - 180) / dt
     else:
         v_lat = v_lon = 0.0
+    h_stop = h0 + FOLLOW_MAX_H if h_max is None else min(int(h_max), h0 + FOLLOW_MAX_H)
     out = {"steps": [], "lat": [], "lon": [], "pmsl": [], "merged": []}
     h_last = h0
     merged = False
     for k in np.where(steps_h > h0)[0]:
         h = int(steps_h[k])
-        if h_max is not None and h > h_max:
+        if h > h_stop:
             break
         dt12 = (h - h_last) / 12.0
-        reach = FOLLOW_REACH_KM * dt12
+        # reach = the storm's own motion (FOLLOW_SLOW_KM per 12 h, scaled with the step) plus the offset of a centre
+        # re-forming downstream (the rest of FOLLOW_REACH_KM, not scaled): 1,800 km in 12 h as before, 1,350 km in the 6 h
+        # after a last fix between field steps (Choi-Wan 2 Oct 12Z: last fix +114 h, merges at +120 h into a low 929 km
+        # downstream; a linear 900 km lost it, an unscaled 1,800 km let 2 Oct 00Z member 50 hop 1,604 km NNW in 6 h)
+        reach = FOLLOW_SLOW_KM * dt12 + (FOLLOW_REACH_KM - FOLLOW_SLOW_KM)
         cands = closed_lows(msl[k], lat, lon, (la, lo), reach)
         if not cands:
             break
         mot = _bearing(la, lo, *_step_to(la, lo, v_lat, v_lon)) if (abs(v_lat) + abs(v_lon)) > 0.2 else None
-        kp_ = np.where(steps_h == h_last)[0]
-        before = closed_lows(msl[kp_[0]], lat, lon, (la, lo), reach + FOLLOW_OTHER_KM) if len(kp_) else []
+        # the lows of the previous FIELD step (12 h before this one), with our storm's position at that time: the last fix
+        # can fall between field steps (+66 h), and the tracker's own fix at the field step is then the right reference
+        kb = np.where(steps_h <= h_last)[0]
+        if len(kb):
+            hb = int(steps_h[kb[-1]]); pb = at(track, hb) if hb < h0 else None
+            o_la, o_lo = pb if pb is not None else (la, lo)
+            before = closed_lows(msl[kb[-1]], lat, lon, (o_la, o_lo), reach + FOLLOW_OTHER_KM)
+        else:
+            before, o_la, o_lo = [], la, lo
         g_la, g_lo = _step_to(la, lo, v_lat * dt12, v_lon * dt12)
+        # decay guard: filled FOLLOW_DECAY_HPA from the deepest of the followed lows and the tracker's last fix
+        ref = [p for p in [p_last] + out["pmsl"] if np.isfinite(p)]
+        p_now = out["pmsl"][-1] if out["pmsl"] else p_last
+        decayed = bool(ref) and np.isfinite(p_now) and p_now - min(ref) >= FOLLOW_DECAY_HPA
         best, bd = None, np.inf
         mbest, mbd = None, np.inf                                          # merger candidates (merge=True only)
         for c_la, c_lo, pmin, depth in cands:
             dist = _km(la, lo, c_la, c_lo)
             if pmin >= FOLLOW_FILLED_HPA:
                 continue
+            if pmin >= FOLLOW_WEAK_HPA and (c_la < FOLLOW_MIDLAT or land is None or land(c_la, c_lo)):
+                continue                                                   # weak: over land a heat / lee low, in the
+                                                                           # tropics a dissipating remnant
             if dist > FOLLOW_SLOW_KM * dt12:
-                if mot is None or min(la, c_la) < FOLLOW_MIDLAT or (out["pmsl"] and out["pmsl"][-1] - min(out["pmsl"]) >= FOLLOW_DECAY_HPA):
+                if mot is None or min(la, c_la) < FOLLOW_MIDLAT or decayed or pmin >= FOLLOW_WEAK_HPA:
                     continue
                 dang = abs(((_bearing(la, lo, c_la, c_lo) - mot + 180) % 360) - 180)
                 if dang > FOLLOW_CONE_DEG:
                     continue
             other, absorber = False, False
             for b_la, b_lo, _, _ in before:
-                d_ours = _km(b_la, b_lo, la, lo)
+                d_ours = _km(b_la, b_lo, o_la, o_lo)
                 if d_ours < FOLLOW_SAME_KM:
                     continue                                               # our own storm (or its second centre) a step earlier
                 dbc = _km(b_la, b_lo, c_la, c_lo)
@@ -542,9 +613,15 @@ def follow_low(msl, lat, lon, steps_h, track, h_max=None, merge=False):
 
 
 def extended(track, cont):
-    """The tracker's track followed by its continuation, as one track dict (pmsl NaN where the tracker had none)."""
+    """The tracker's track followed by its continuation, as one track dict (pmsl NaN where the tracker had none).
+    Continuation steps at or before the tracker's last fix are dropped, so the steps always increase."""
     if cont is None or not len(cont["steps"]):
         return track
+    keep = np.asarray(cont["steps"]) > int(np.max(track["steps"]))
+    if not keep.all():
+        cont = {k: (np.asarray(v)[keep] if hasattr(v, "__len__") and len(v) == len(keep) else v) for k, v in cont.items()}
+        if not len(cont["steps"]):
+            return track
     p = track.get("pmsl", np.full(len(track["steps"]), np.nan))
     out = dict(steps=np.r_[track["steps"], cont["steps"]].astype(int), lat=np.r_[track["lat"], cont["lat"]],
                lon=np.r_[track["lon"], cont["lon"]], pmsl=np.r_[p, cont["pmsl"]],

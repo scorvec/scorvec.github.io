@@ -348,7 +348,7 @@ References: Bister &amp; Emanuel 2002, <i>JGR</i> 107(D24), 4801 &middot; Chen, 
 </style>
 <div class="tcp-map" id="tcp-map" aria-label="Map of the active tropical storms; select one to see its forecasts"><div class="tcp-empty">Loading the storms…</div></div>
 <p class="tcp-when" id="tcp-when"></p>
-<p class="tcp-hint">Click or tap a storm on the map (or a name below) to see its forecasts. Lines: the AIFS-ENS control's track (IFS-ENS: the member nearest the others), small dots every 24 hours, dates on the selected storm. Filled dot: where the storm is now; hollow dot: where a developing system is first tracked, later in the forecast.</p>
+<p class="tcp-hint">Click or tap a storm on the map (or a name below) to see its forecasts. Lines: the AIFS-ENS control's track (IFS-ENS: the member nearest the ensemble's median track), small dots every 24 hours, dates on the selected storm. Filled dot: where the storm is now; hollow dot: where a developing system is first tracked, later in the forecast.</p>
 <div class="tcp-row" id="tcp-storms" role="group" aria-label="Storms"></div>
 <div class="tcp-row" id="tcp-views" role="group" aria-label="View"></div>
 <div class="tcp-fig" id="tcp-fig"></div>
@@ -377,7 +377,10 @@ References: Bister &amp; Emanuel 2002, <i>JGR</i> 107(D24), 4801 &middot; Chen, 
     if (location.hash !== h) location.hash = h; else render();
   }
   function merge(ens, ph) {
-    var by = {}, out = [];
+    var by = {}, ctl = {}, hasCtl = false, out = [];
+    // only files of ONE cycle are combined (2026-10-12 review: a failed phase-space run left the previous cycle's
+    // tcphase.json next to the new tcens.json)
+    if (ens && ph && ens.init && ph.init && ens.init !== ph.init) ph = null;
     (ens && ens.storms || []).forEach(function (s) {
       var p = {}; Object.keys(s.models || {}).forEach(function (m) { p[m] = s.models[m].p_recurve; });
       var gen = {}; Object.keys(s.models || {}).forEach(function (m) { if (s.models[m].genesis_h_p10_p50_p90) gen[m] = s.models[m].genesis_h_p10_p50_p90; });
@@ -386,11 +389,20 @@ References: Bister &amp; Emanuel 2002, <i>JGR</i> 107(D24), 4801 &middot; Chen, 
       // ids are unique since 2026-10-12 (an IFS-ENS-only system is "ifs-71W"); an older file repeated "71W" for gen:71W
       // and ifs:71W and the second storm could not be reached. A repeat takes its key instead of being dropped
       if (by[o.id]) o.id = String(s.key || s.id).replace(/[^A-Za-z0-9_-]+/g, "-");
-      if (!by[o.id]) { by[o.id] = o; out.push(o); }
+      if (by[o.id]) return;
+      by[o.id] = o; out.push(o);
+      // the AIFS-ENS control's own tracker id(s) for this system (tc_ens "control_ids", 2026-10-12): the phase diagrams
+      // are filed under them, and they need not be the system's id (12 Oct 12Z: control 72L is member 0 of cluster 73L)
+      if (s.control_ids) { hasCtl = true; s.control_ids.forEach(function (c) { if (!ctl[c]) ctl[c] = o; }); }
     });
     (ph && ph.storms || []).forEach(function (s) {
-      var o = by[s.id];
-      if (!o) { o = by[s.id] = { id: s.id, name: s.name, named: true, short: s.name, files: {}, p: {} }; out.push(o); }
+      var o = hasCtl ? ctl[s.id] : by[s.id];          // an older tcens.json without control_ids: by id, as before
+      if (o) {
+        if (o.files.phase) return;                     // the control tracked this system twice: the first diagram stays
+      } else {
+        var pid = by[s.id] ? "ctl-" + s.id : s.id;     // the control's storm is in no ensemble system: its own entry
+        o = by[pid] = { id: pid, name: s.name, named: true, short: s.name, files: {}, p: {} }; out.push(o);
+      }
       o.files.phase = s.file;
       if (!o.track && s.series) o.track = { lat: s.series.lat, lon: s.series.lon, h: s.series.h, model: "aifs", member: 0 };
     });
@@ -399,7 +411,7 @@ References: Bister &amp; Emanuel 2002, <i>JGR</i> 107(D24), 4801 &middot; Chen, 
   function wrap(d) { return ((d + 540) % 360) - 180; }
   function timeline(s) {
     var hs = s.track.h || [], mdl = s.track.model === "ifs" ? "IFS-ENS" : "AIFS-ENS",
-        ref = s.track.member ? "an " + mdl + " member (the one nearest the others)" : "the " + mdl + " control";
+        ref = s.track.member ? "an " + mdl + " member (the one nearest the ensemble's median track)" : "the " + mdl + " control";
     var txt = "<b>" + s.name + "</b>: the line is " + ref + ", " + when(hs[0], true) + " to " + when(hs[hs.length - 1], true) + ".";
     var g = Object.keys(s.gen || {});
     if (g.length) txt += " Reaches tropical-storm strength (17 m/s) " + g.map(function (m) {
