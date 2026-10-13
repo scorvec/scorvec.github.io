@@ -144,6 +144,15 @@ def decode(blob: bytes, members=None):
     return out, lat, lon
 
 
+def _jsonable(x):
+    """numpy scalars / arrays in the metadata -> plain Python (a crash here would lose a reduced init)."""
+    if isinstance(x, np.generic):
+        return x.item()
+    if isinstance(x, np.ndarray):
+        return x.tolist()
+    return str(x)
+
+
 def month_of(d: str, step: int) -> int:
     t = dt.datetime.strptime(d, "%Y%m%d") + dt.timedelta(hours=step)
     return t.month
@@ -241,7 +250,7 @@ def process(model: str, d: str) -> dict:
     h = fld[min(fld)]
     g = C.Grid(hlat, hlon)
     hm = float((h * g.area[:, None]).sum() / (g.area.sum() * len(hlon)))
-    dam = 15.0 < hm < 33.0 and np.nanmax(h) < 1000.0                  # GEPS HGT_SFC_0 is in decametres
+    dam = bool(15.0 < hm < 33.0 and np.nanmax(h) < 1000.0)            # GEPS HGT_SFC_0 is in decametres
     if dam:
         h = h * 10.0
         hm *= 10.0
@@ -384,7 +393,7 @@ def main():
         expiring = d == dates[0] or d == dates[min(1, len(dates) - 1)]
         if meta["complete"] or rec["attempts"] >= 2 or expiring:
             (OUT / model).mkdir(parents=True, exist_ok=True)
-            np.savez_compressed(OUT / model / f"{d}.npz", meta=json.dumps(meta), **pack)
+            np.savez_compressed(OUT / model / f"{d}.npz", meta=json.dumps(meta, default=_jsonable), **pack)
             sz = (OUT / model / f"{d}.npz").stat().st_size
             rec["kb"] = sz // 1024
             print(f"  saved {model}/{d}.npz ({sz / 1e3:.0f} kB): {meta['bytes'] / 1e9:.2f} GB fetched in "

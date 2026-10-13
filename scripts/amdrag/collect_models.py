@@ -528,7 +528,7 @@ def process(model, d, out: Path):
                                 for m in T))
     meta["last"] = LAST
     out.parent.mkdir(parents=True, exist_ok=True)
-    np.savez_compressed(out, meta=json.dumps(meta), **pack)
+    np.savez_compressed(out, meta=json.dumps(meta, default=lambda x: x.item() if isinstance(x, np.generic) else str(x)), **pack)
     print(f"  saved {out.relative_to(HERE)} {out.stat().st_size / 1e3:.0f} kB, {meta['bytes'] / 1e9:.2f} GB, "
           f"{meta['seconds']:.0f} s, complete={meta['complete']} signs={signs}", flush=True)
     return meta
