@@ -186,6 +186,50 @@ def one(t: pd.Timestamp, G: Grid, t0: pd.Timestamp):
     return t, out, None
 
 
+def band5_weights(lat):
+    """(36, nlat): 5-degree latitude bands from 90S, rows on a band edge split half to each side."""
+    edges = np.arange(-90, 91, 5)
+    W = np.zeros((36, len(lat)))
+    for i in range(36):
+        s, n = edges[i], edges[i + 1]
+        w = ((lat > s) & (lat < n)).astype(float)
+        w[np.isclose(lat, s)] = 0.5 if s > -90 else 1.0
+        w[np.isclose(lat, n)] = 0.5 if n < 90 else 1.0
+        W[i] = w
+    return W
+
+
+def one_bands5(t: pd.Timestamp, G: Grid, t0: pd.Timestamp):
+    """Zonal integrals in 5-degree latitude bands (k = 0 is 90-85S) of the motion and mass AAM and the three
+    torques, for the zonal-mean increment study (jumps at the 4D-Var window starts)."""
+    ds = _open()
+    i = int((t - t0) / pd.Timedelta(hours=1))
+    f = {}
+    try:
+        for k, v in FIELDS.items():
+            f[k] = np.asarray(ds[v].isel(time=i).values, dtype=np.float64)[::-1, :]
+    except Exception as e:                                                             # noqa: BLE001
+        return t, None, f"{type(e).__name__}: {e}"[:160]
+    for k, a in f.items():
+        bad = ~np.isfinite(a)
+        if bad.any():
+            if bad.mean() > 5e-4:
+                return t, None, f"{k} has {bad.mean():.4f} NaN"
+            rowm = np.nanmean(np.where(bad, np.nan, a), axis=1)
+            a[bad] = np.broadcast_to(rowm[:, None], a.shape)[bad]
+    sp = f["sp"]
+    if not hasattr(G, "W5"):
+        G.W5 = band5_weights(G.lat)
+    dpd = (np.roll(sp, -1, axis=1) - np.roll(sp, 1, axis=1)) / (2 * G.dl)
+    dens = {"mtn": G.h * dpd * G.cellA / HU, "fric": -f["tt"] * G.cos2A3 / HU, "gwd": -f["tg"] * G.cos2A3 / HU,
+            "aam": f["mf"] * G.cos2A3 / MU, "aamm": sp * G.cos3mass / MU}
+    out = {}
+    for term, d in dens.items():
+        for k, v in enumerate(G.W5 @ d.sum(1)):
+            out[f"{term}_{k:02d}"] = float(v)
+    return t, out, None
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--start", required=True)
@@ -195,7 +239,12 @@ def main() -> int:
     ap.add_argument("--out", required=True)
     ap.add_argument("--per-time", action="store_true",
                     help="one row per sampled time instead of daily means (the 2026 high-fidelity budget)")
+    ap.add_argument("--bands5", action="store_true",
+                    help="per time, 5-degree latitude-band integrals of AAM (motion, mass) and the torques (implies --per-time)")
     a = ap.parse_args()
+    fn = one_bands5 if a.bands5 else one
+    if a.bands5:
+        a.per_time = True
 
     G = Grid()
     print("block-aligned range edges (lat0, lat1, lon0, lon1):", G.edges, flush=True)
@@ -216,7 +265,7 @@ def main() -> int:
 
     res, bad, tstart = {}, [], time.time()
     with ThreadPoolExecutor(max_workers=a.workers) as ex:
-        for n, (t, row, err) in enumerate(ex.map(lambda tt: one(tt, G, t0), times)):
+        for n, (t, row, err) in enumerate(ex.map(lambda tt: fn(tt, G, t0), times)):
             if row is None:
                 bad.append((t, err))
                 print(f"  skip {t}: {err}", flush=True)

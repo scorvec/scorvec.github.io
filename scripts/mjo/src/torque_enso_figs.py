@@ -287,11 +287,460 @@ def fig_slp(out: Path):
     plt.close(fig)
 
 
+# ============================================================================ site figures (phone-width layouts)
+DATA = S.REF / "torque_enso_study"                       # the committed study tables
+WEBP = dict(dpi=110, pil_kwargs={"quality": 88})
+SITE_RC = {"font.size": 11, "axes.titlesize": 11.5, "axes.labelsize": 10.5, "xtick.labelsize": 10, "ytick.labelsize": 10,
+           "legend.fontsize": 9.5}
+SHORT = {"HIM": "Himalaya/Tibet", "ROC": "Rockies", "AND": "Andes", "GRL": "Greenland", "ANT": "Antarctica", "ALP": "Alps"}
+
+
+def _grid_panel(ax, M, SG, title, unit, robust=None, fmt="{:+.1f}"):
+    lim = np.nanmax(np.abs(M)) or 1
+    ax.imshow(np.zeros_like(M), cmap=LinearSegmentedColormap.from_list("g", ["#f0efec", "#f0efec"]), aspect="auto")
+    ax.imshow(np.where(SG, M, np.nan), cmap=DIV, vmin=-lim, vmax=lim, aspect="auto")
+    for i in range(M.shape[0]):
+        for j in range(M.shape[1]):
+            if not np.isfinite(M[i, j]):
+                continue
+            if SG[i, j]:
+                col = INK if abs(M[i, j]) < 0.6 * lim else "white"
+                ax.text(j, i, fmt.format(M[i, j]), ha="center", va="center", fontsize=11, color=col, fontweight="bold")
+            else:
+                ax.text(j, i - 0.13, fmt.format(M[i, j]), ha="center", va="center", fontsize=9.5, color=MUTED)
+                ax.text(j, i + 0.22, "n.s.", ha="center", va="center", fontsize=8.5, color=MUTED)
+            if robust is not None and robust[i, j]:
+                ax.add_patch(plt.Rectangle((j - 0.46, i - 0.46), 0.92, 0.92, fill=False, ec=INK, lw=1.8))
+    ax.set_xticks(range(4)); ax.set_xticklabels(SE)
+    ax.set_yticks(range(len(S.RANGES))); ax.set_yticklabels([SHORT[r] for r in S.RANGES])
+    ax.tick_params(length=0)
+    ax.grid(False)
+    for s_ in ax.spines.values():
+        s_.set_visible(False)
+    ax.set_title(f"{title} ({unit})", loc="left", fontsize=11.5)
+
+
+def _cells(comp, cm, metric, cmp_="EN-NEU"):
+    M = np.full((len(S.RANGES), 4), np.nan); SG = np.zeros_like(M, bool); RB = np.zeros_like(M, bool)
+    for i, r in enumerate(S.RANGES):
+        for j, se in enumerate(SE):
+            c = comp[(comp.range == r) & (comp.season == se) & (comp.cmp == cmp_) & (comp.metric == metric)]
+            if len(c):
+                M[i, j] = c["diff"].iloc[0]; SG[i, j] = bool(c["sig"].iloc[0])
+            if cm is not None:
+                q = cm[(cm.metric == metric) & (cm.range == r) & (cm.season == se)]
+                RB[i, j] = bool(len(q) and q.robust.iloc[0])
+    return M, SG, RB
+
+
+def site_q1(data: Path, dest: Path):
+    comp = pd.read_csv(data / "q1_compare.csv")
+    cm = pd.read_csv(data / "q1_cmip6_summary.csv")
+    sh = json.loads((data / "q1_shift_test.json").read_text())
+    with plt.rc_context(SITE_RC):
+        fig, axes = plt.subplots(3, 1, figsize=(6.6, 10.4), constrained_layout=True)
+        for ax, (mt, ttl, unit) in zip(axes, [("lp_mean", "Standing shift: the 30-day and longer part", "Hadley"),
+                                              ("n_pos", "Positive events per season: <30-day part > +1 sd", "events"),
+                                              ("amp_pos", "Amplitude of those events", "Hadley")]):
+            M, SG, RB = _cells(comp, cm, mt)
+            _grid_panel(ax, M, SG, ttl, unit, RB)
+        fig.suptitle("ERA5 1979–2025 range torque: El Niño minus neutral", fontsize=12.5,
+                     color=INK, x=0.02, ha="left")
+        fig.savefig(dest / "q1_shift_vs_events.webp", **WEBP)
+        plt.close(fig)
+        fig, axes = plt.subplots(2, 1, figsize=(6.6, 7.0), constrained_layout=True)
+        M, SG, RB = _cells(comp, cm, "nx_pos")
+        _grid_panel(axes[0], M, SG, "Events on the total anomaly (> +1 sd)", "events", RB)
+        E = np.full((len(S.RANGES), 4), np.nan); ESG = np.zeros_like(E, bool)
+        for i, r in enumerate(S.RANGES):
+            for j, se in enumerate(SE):
+                d = sh.get(r, {}).get(se)
+                if d:
+                    E[i, j] = d["excess"]; ESG[i, j] = bool(d.get("fdr", False))
+        _grid_panel(axes[1], E, ESG, "Those events beyond the pure-shift prediction", "events")
+        fig.suptitle("ERA5 1979–2025: threshold events and the shift test", fontsize=12.5, color=INK,
+                     x=0.02, ha="left")
+        fig.savefig(dest / "q1_threshold_events.webp", **WEBP)
+        plt.close(fig)
+
+
+def site_slp(data: Path, dest: Path):
+    import cartopy.crs as ccrs
+    z = np.load(data / "slp_enso_maps.npz")
+    lat, lon = z["lat"], z["lon"]
+    with plt.rc_context(SITE_RC):
+        fig, axes = plt.subplots(2, 1, figsize=(7.0, 7.4), subplot_kw=dict(projection=ccrs.PlateCarree(central_longitude=200)),
+                                 constrained_layout=True)
+        lev = np.linspace(-3, 3, 13)
+        for ax, se in zip(axes, ["DJF", "MAM"]):
+            F = z[f"{se}__slope"]; SG = z[f"{se}__sig_slope"]
+            cf = ax.contourf(lon, lat, np.where(SG, F, np.nan), levels=lev, cmap=DIV, extend="both", transform=ccrs.PlateCarree())
+            ax.contour(lon, lat, F, levels=[l for l in lev if abs(l) > 1e-9], colors=INK2, linewidths=0.35,
+                       transform=ccrs.PlateCarree())
+            ax.coastlines(lw=0.5, color=INK2)
+            ax.set_extent([60, 345, -70, 75], crs=ccrs.PlateCarree())
+            for r, (lo0, lo1, la0, la1) in {"HIM": (70, 105, 25, 45), "ROC": (230, 260, 30, 60), "AND": (280, 295, -55, 10)}.items():
+                ax.plot([lo0, lo1, lo1, lo0, lo0], [la0, la0, la1, la1, la0], color=INK, lw=1.3, transform=ccrs.PlateCarree())
+                ax.text(lo1 + 2, la1 - 3, SHORT[r], fontsize=9, color=INK, transform=ccrs.PlateCarree())
+            ax.set_title(f"{se}: shaded where FDR 10% significant ({float(np.mean(SG)):.0%} of cells)", loc="left", fontsize=11)
+        cb = fig.colorbar(cf, ax=axes, orientation="horizontal", fraction=0.04, pad=0.02, aspect=40)
+        cb.set_label("hPa per unit ONI")
+        fig.suptitle("ERA5 1991–2020 seasonal-mean sea-level pressure regressed on the ONI", fontsize=12.5, color=INK,
+                     x=0.02, ha="left")
+        fig.savefig(dest / "slp_on_oni.webp", **WEBP)
+        plt.close(fig)
+
+
+def site_q2(data: Path, dest: Path):
+    lr = pd.read_csv(data / "q2_era5_lagreg.csv")
+    cs = pd.read_csv(data / "q2_cmip6_slopes_summary.csv")
+    r = json.loads((data / "results.json").read_text())
+    tend = r["q2_era5"]["tendency_column"]
+    with plt.rc_context(SITE_RC):
+        fig, axes = plt.subplots(2, 1, figsize=(6.8, 8.6), sharex=True, sharey=True, constrained_layout=True)
+        ax = axes[0]
+        for k, lab, col in [("mtn_glob", "mountain", C_MTN), ("fric_glob", "friction", C_FRIC), ("gwd_glob", "gravity-wave drag", C_GWD),
+                            ("T_glob", "sum of the torques", C_NET), (tend, "dM/dt", INK), ("R_glob", "dM/dt minus torques", C_RES)]:
+            g = lr[lr.series == k].sort_values("lag")
+            ax.plot(g.lag, g.slope, color=col, lw=2.2, label=lab)
+            ax.scatter(g.lag[g.sig], g.slope[g.sig], color=col, s=24, zorder=3)
+            ax.scatter(g.lag[~g.sig], g.slope[~g.sig], facecolor=SURF, edgecolor=col, s=20, zorder=3)
+        ax.axhline(0, color="#c3c2b7", lw=1)
+        ax.set_title("ERA5 1979–2025 (filled dots: FDR-significant)", loc="left")
+        ax.set_ylabel("Hadley per K of Niño-3.4")
+        ax.legend(ncol=2, frameon=False, loc="lower left")
+        ax = axes[1]
+        for k, lab, col in [("mtn_glob", "mountain", C_MTN), ("fric_glob", "surface stress (tauu)", C_FRIC),
+                            ("gwd_glob", "orographic GWD (13 models)", C_GWD), ("T_mf_glob", "mountain + tauu", C_NET),
+                            ("dmdt_glob", "dM/dt", INK)]:
+            g = cs[cs.series == k].sort_values("lag")
+            ax.fill_between(g.lag, g.q25, g.q75, color=col, alpha=0.16, lw=0)
+            ax.plot(g.lag, g["median"], color=col, lw=2.2, label=lab)
+            ax.scatter(g.lag[g.robust], g["median"][g.robust], color=col, s=24, zorder=3)
+            ax.scatter(g.lag[~g.robust], g["median"][~g.robust], facecolor=SURF, edgecolor=col, s=20, zorder=3)
+        ax.axhline(0, color="#c3c2b7", lw=1)
+        ax.set_title(f"CMIP6 historical 1950–2014, {r['q2_cmip6']['n_models']} models: median and IQR (filled: robust)",
+                     loc="left")
+        ax.set_ylabel("Hadley per K of Niño-3.4")
+        ax.set_xlabel("lag in months (positive: the torque comes after Niño-3.4)")
+        ax.legend(ncol=2, frameon=False, loc="lower left")
+        fig.suptitle("Global AAM budget terms regressed on Niño-3.4", fontsize=12.5, color=INK, x=0.02, ha="left")
+        fig.savefig(dest / "q2_lag_regression.webp", **WEBP)
+        plt.close(fig)
+        # contributions
+        ce = r["q2_era5"]["contributions_lags_m6_m1"]
+        csum = pd.read_csv(data / "q2_cmip6_contrib_summary.csv").set_index("series")
+        rows = [("dM/dt", tend, "dmdt_glob", INK), ("sum of torques", "T_glob", "T_mf_glob", C_NET),
+                ("mountain", "mtn_glob", "mtn_glob", C_MTN), ("friction", "fric_glob", "fric_glob", C_FRIC),
+                ("gravity-wave drag", "gwd_glob", "gwd_glob", C_GWD), ("ERA5 residual", "R_glob", None, C_RES),
+                ("Andes", "mtn5_AND", "mtn_AND", C_MTN), ("Rockies", "mtn5_ROC", "mtn_ROC", C_MTN),
+                ("Himalaya/Tibet", "mtn5_HIM", "mtn_HIM", C_MTN), ("Greenland", "mtn5_GRL", "mtn_GRL", C_MTN),
+                ("Antarctica", "mtn5_ANT", "mtn_ANT", C_MTN), ("Alps", "mtn5_ALP", "mtn_ALP", C_MTN),
+                ("mountain 30S–0", "mtn_b3000s", "mtn_b3000s", C_MTN), ("mountain 0–30N", "mtn_b0030n", "mtn_b0030n", C_MTN),
+                ("mountain 30–60N", "mtn_b3060n", "mtn_b3060n", C_MTN), ("friction 30S–0", "fric_b3000s", "fric_b3000s", C_FRIC),
+                ("friction 0–30N", "fric_b0030n", "fric_b0030n", C_FRIC), ("friction 30–60N", "fric_b3060n", "fric_b3060n", C_FRIC),
+                ("friction 60–30S", "fric_b6030s", "fric_b6030s", C_FRIC)]
+        fig, ax = plt.subplots(figsize=(6.8, 8.4), constrained_layout=True)
+        y = np.arange(len(rows))[::-1].astype(float)
+        for yi, (lab, ke, kc, col) in zip(y, rows):
+            e = ce.get(ke)
+            if e:
+                sig = e.get("fdr", False)
+                ax.barh(yi + 0.18, e["est"], height=0.34, color=col if sig else "#e4e3dd", edgecolor=col, lw=1)
+                ax.plot([e["lo"], e["hi"]], [yi + 0.18] * 2, color=INK2, lw=1)
+            if kc and kc in csum.index:
+                c = csum.loc[kc]
+                ax.plot([c.q25, c.q75], [yi - 0.18] * 2, color=INK, lw=2.2)
+                ax.scatter([c["median"]], [yi - 0.18], marker="D", s=36, color=col if c.robust else SURF, edgecolor=INK, zorder=3)
+        ax.set_yticks(y); ax.set_yticklabels([r_[0] for r_ in rows])
+        for yy in (12.5, 6.5):
+            ax.axhline(yy, color="#c3c2b7", lw=0.8)
+        ax.axvline(0, color="#c3c2b7", lw=1)
+        ax.set_xlabel("AAM supplied in the six months before Niño-3.4 (10²⁵ kg m² s⁻¹ per K)")
+        ax.set_title("Bars: ERA5 1979–2025 with 95% CI (pale = not significant)\n"
+                     "Diamonds: CMIP6 median with IQR (filled = robust)", loc="left", fontsize=10.5)
+        fig.suptitle("Where the El Niño AAM rise comes from", fontsize=12.5, color=INK, x=0.02, ha="left")
+        fig.savefig(dest / "q2_contributions.webp", **WEBP)
+        plt.close(fig)
+
+
+def site_q3(data: Path, dest: Path):
+    import cartopy.crs as ccrs
+    ll = pd.read_csv(data / "q3_leadlag.csv")
+    cases = [("HIM", "DJF"), ("ROC", "DJF"), ("AND", "DJF"), ("AND", "JJA")]
+    with plt.rc_context(SITE_RC):
+        fig, axes = plt.subplots(2, 2, figsize=(6.8, 6.4), sharex=True, sharey=True, constrained_layout=True)
+        for ax, (r, se) in zip(axes.ravel(), cases):
+            for k, lab, col in [("dMdt", "global dM/dt", INK), ("M", "global AAM", C_NET),
+                                ("u200jet", "subtropical u200", C_FRIC)]:
+                g = ll[(ll.range == r) & (ll.season == se) & (ll.series == k)].sort_values("lag")
+                ax.plot(g.lag, g.r, color=col, lw=2, label=lab)
+                ax.scatter(g.lag[g.sig], g.r[g.sig], color=col, s=12, zorder=3)
+            ax.axhline(0, color="#c3c2b7", lw=1); ax.axvline(0, color="#c3c2b7", lw=1)
+            ax.set_title(f"{SHORT[r]}, {se}", loc="left")
+        for ax in axes[1]:
+            ax.set_xlabel("lag (days after the torque)")
+        for ax in axes[:, 0]:
+            ax.set_ylabel("correlation")
+        axes[0, 0].legend(frameon=False, loc="upper left", fontsize=9)
+        fig.suptitle("ERA5 1979–2025: <30-day mountain torque against AAM and the jet", fontsize=12.5, color=INK,
+                     x=0.02, ha="left")
+        fig.savefig(dest / "q3_lead_lag.webp", **WEBP)
+        plt.close(fig)
+        z = np.load(data / "q3_z500_composites.npz")
+        cz = [("HIM_DJF", "Himalaya/Tibet, DJF"), ("ROC_DJF", "Rockies, DJF"), ("AND_DJF", "Andes, DJF")]
+        asp = []
+        for c, _ in cz:
+            la_, lo_ = z[f"{c}__lat"], z[f"{c}__lon"]
+            asp.append((la_.max() - la_.min()) / (lo_.max() - lo_.min()))
+        mapw = 3.35
+        fig = plt.figure(figsize=(7.0, sum(a_ * mapw for a_ in asp) + 3.3), constrained_layout=True)
+        gs = fig.add_gridspec(3, 2, height_ratios=asp)
+        lev = np.linspace(-60, 60, 13)
+        cf = None
+        for i, (c, nm) in enumerate(cz):
+            lat = z[f"{c}__lat"]; lon = z[f"{c}__lon"]
+            for j, (k, ttl) in enumerate([("all", "all positive events"), ("diff", "El Niño minus neutral")]):
+                ax = fig.add_subplot(gs[i, j], projection=ccrs.PlateCarree(central_longitude=float(np.mean([lon.min(), lon.max()]))))
+                F = z[f"{c}__{k}"]; SG = z[f"{c}__sig_{k}"]
+                cf = ax.contourf(lon, lat, np.where(SG, F, np.nan), levels=lev, cmap=DIV, extend="both", transform=ccrs.PlateCarree())
+                ax.contour(lon, lat, F, levels=[l for l in lev if l != 0], colors=INK2, linewidths=0.45, transform=ccrs.PlateCarree())
+                ax.coastlines(lw=0.5, color=INK2)
+                ax.set_extent([lon.min(), lon.max(), lat.min(), lat.max()], crs=ccrs.PlateCarree())
+                n = z[f"{c}__n_all"] if k == "all" else f"{z[f'{c}__n_en']} v {z[f'{c}__n_neu']}"
+                frac = float(np.mean(SG))
+                sub = f"{frac:.0%} of cells significant" if frac > 0 else "no significant cells"
+                ax.set_title(f"{nm}: {ttl}\nn = {n}; {sub}", loc="left", fontsize=10)
+        cb = fig.colorbar(cf, ax=fig.axes, orientation="horizontal", fraction=0.03, pad=0.02, aspect=40)
+        cb.set_label("z500, <30-day part (m); shaded where FDR 10% significant; contours every 10 m")
+        fig.suptitle("ERA5: 500 hPa height 1–3 days before positive torque events", fontsize=12.5, color=INK,
+                     x=0.02, ha="left")
+        fig.savefig(dest / "q3_z500_precursors.webp", **WEBP)
+        plt.close(fig)
+
+
+def site_2026(data: Path, dest: Path):
+    import torque_budget_2026 as B
+    b = json.loads((data / "budget2026.json").read_text())
+    g = pd.DataFrame(b["hourly_residual_by_end_hour"])
+    sp = pd.read_csv(data / "budget2026_spectrum.csv")
+    with plt.rc_context(SITE_RC):
+        fig, axes = plt.subplots(2, 1, figsize=(6.8, 7.8), constrained_layout=True)
+        ax = axes[0]
+        ax.bar(g["time"], g["mean"], color=[C_RES if h in (10, 22) else C_MTN for h in g["time"]], width=0.75)
+        ax.errorbar(g["time"], g["mean"], yerr=g["std"], fmt="none", ecolor=INK2, lw=1)
+        ax.set_yscale("symlog", linthresh=10)
+        ax.set_xticks(range(0, 24, 3))
+        ax.set_xlabel("end of the one-hour interval (UTC)"); ax.set_ylabel("dM/dt minus torques (Hadley)")
+        wt = b["window_test"]
+        ax.set_title(f"Inside 4D-Var windows {wt['inside_mean']:+.1f} ± {wt['inside_sd']:.1f} Hadley; "
+                     f"09→10 and 21→22 UTC {wt['across_mean']:+.0f} ± {wt['across_sd']:.0f}", loc="left", fontsize=10.5)
+        ax = axes[1]
+        m = sp.cpd > 0
+        ax.loglog(sp.cpd[m], sp.psd_dMdt[m], color=INK, lw=1.4, label="dM/dt")
+        ax.loglog(sp.cpd[m], sp.psd_T[m], color=C_NET, lw=1.4, label="sum of torques")
+        ax.loglog(sp.cpd[m], sp.psd_R[m], color=C_RES, lw=1.6, label="dM/dt minus torques")
+        ax.set_xlabel("frequency (cycles per day)"); ax.set_ylabel("power (Hadley² per cpd)")
+        ax.set_title("Spectra: the residual is a comb of lines at whole cycles per day", loc="left", fontsize=10.5)
+        ax.legend(frameon=False, loc="lower left")
+        fig.suptitle("ERA5 hourly, 1 March – 3 October 2026: the AAM budget hour by hour", fontsize=12.5, color=INK,
+                     x=0.02, ha="left")
+        fig.savefig(dest / "b2026_hourly.webp", **WEBP)
+        plt.close(fig)
+        # cumulative anomalies since 15 April (descriptive)
+        h = B.load_hourly()
+        dh = S.load_era5()
+        cols = ["mtn_glob", "fric_glob", "gwd_glob", "aam_glob", "aamm_glob", "mtn_AND"] + [f"mtn_{r}" for r in B.OTHER]
+        hd = h[cols].resample("D").mean()
+        an = {c: hd[c] - B.clim_on(dh, c, hd.index) for c in cols}
+        w0 = pd.Timestamp(B.W0)
+        sl = slice(w0, hd.index[-1])
+        Mt = (an["aam_glob"] + an["aamm_glob"]).loc[sl]
+        other = sum(an[f"mtn_{r}"] for r in B.OTHER)
+        rest = an["mtn_glob"] - an["mtn_AND"] - other
+        cum = lambda s: s.loc[sl].cumsum() * S.HADLEY_DAY_TO_AAM          # noqa: E731
+        T = an["mtn_glob"] + an["fric_glob"] + an["gwd_glob"]
+        fig, ax = plt.subplots(figsize=(6.8, 4.6), constrained_layout=True)
+        ax.plot(Mt.index, Mt - Mt.iloc[0], color=INK, lw=2.6, label="AAM anomaly change (motion + mass)")
+        ax.plot(Mt.index, cum(T), color=C_NET, lw=2.4, label="sum of the torque anomalies")
+        ax.plot(Mt.index, cum(an["mtn_AND"]), color=C_MTN, lw=1.8, label="Andes")
+        ax.plot(Mt.index, cum(other + rest), color=C_MTN, lw=1.4, ls="--", label="all other mountain")
+        ax.plot(Mt.index, cum(an["fric_glob"]), color=C_FRIC, lw=1.8, label="friction")
+        ax.plot(Mt.index, cum(an["gwd_glob"]), color=C_GWD, lw=1.4, label="gravity-wave drag")
+        ax.axhline(0, color="#c3c2b7", lw=1)
+        ax.axvline(pd.Timestamp(B.W1), color=GRID, lw=1)
+        ax.set_ylabel("10²⁵ kg m² s⁻¹ since 15 April")
+        ax.legend(frameon=False, fontsize=9, loc="upper left")
+        import matplotlib.dates as mdates
+        ax.xaxis.set_major_formatter(mdates.DateFormatter("%b"))
+        fig.suptitle("ERA5 2026: the AAM rise against the torques that should explain it", fontsize=12.5, color=INK,
+                     x=0.02, ha="left")
+        fig.savefig(dest / "b2026_cumulative.webp", **WEBP)
+        plt.close(fig)
+        att = b["attribution"]
+        names = list(att)
+        fig, ax = plt.subplots(figsize=(6.8, 4.8), constrained_layout=True)
+        yy = np.arange(len(names))[::-1].astype(float)
+        cols_ = [C_MTN if k in ("Andes", "other ranges", "rest of mountain") else (C_GWD if k == "GWD" else C_FRIC) for k in names]
+        ax.barh(yy, [att[k]["hist_sd"] * 2 for k in names], left=[-att[k]["hist_sd"] for k in names], height=0.7,
+                color="#ecebe5", lw=0, label="±1 sd of the same window, 1979–2025")
+        ax.barh(yy + 0.15, [att[k]["v2026"] for k in names], height=0.3, color=cols_, label="2026")
+        ax.barh(yy - 0.15, [att[k]["v2026_detrended"] for k in names], height=0.3, color=cols_, alpha=0.45,
+                label="2026, ERA5 trend removed")
+        labs = {"Andes": "Andes", "other ranges": "other five ranges", "rest of mountain": "mountain elsewhere",
+                "friction tropics": "friction, tropics", "friction NH ext": "friction, NH extratropics",
+                "friction SH ext": "friction, SH extratropics", "GWD": "gravity-wave drag"}
+        ax.set_yticks(yy); ax.set_yticklabels([f"{labs[k]} ({att[k]['rank_of_48']} of 48)" for k in names])
+        ax.axvline(0, color="#c3c2b7", lw=1)
+        ax.set_xlabel("15 Apr – 19 Sep integral (10²⁵ kg m² s⁻¹)")
+        from matplotlib.patches import Patch
+        ax.legend(handles=[Patch(color=INK2, label="2026"), Patch(color=INK2, alpha=0.45, label="2026, ERA5 trend removed"),
+                           Patch(color="#ecebe5", label="±1 sd of the window, 1979–2025")], frameon=False, fontsize=9,
+                  loc="lower left")
+        fig.suptitle("ERA5 2026: each term's share against its own history", fontsize=12.5, color=INK, x=0.02, ha="left")
+        fig.savefig(dest / "b2026_attribution.webp", **WEBP)
+        plt.close(fig)
+
+
+def site_increments(data: Path, dest: Path):
+    r = json.loads((data / "increments.json").read_text())
+    lat = -87.5 + 5 * np.arange(36)
+    U = 1e3                                                     # 1e25 -> 1e22 kg m2/s
+    with plt.rc_context(SITE_RC):
+        fig, axes = plt.subplots(2, 1, figsize=(6.8, 7.6), sharex=True, constrained_layout=True)
+        ax = axes[0]
+        for k, lab, col in (("10", "09 UTC window start", C_MTN), ("22", "21 UTC window start", C_FRIC)):
+            p = r["profile"][k]
+            m = np.array(p["mean"]) * U; lo = np.array(p["lo"]) * U; hi = np.array(p["hi"]) * U; sg = np.array(p["sig"])
+            ax.fill_between(lat, lo, hi, color=col, alpha=0.18, lw=0)
+            g = p["global"]
+            ax.plot(lat, m, color=col, lw=2.2, label=f"{lab}: global {num_(g['mean'] * U)} [{num_(g['lo'] * U)}, {num_(g['hi'] * U)}]")
+            ax.scatter(lat[sg], m[sg], color=col, s=18, zorder=3)
+            ax.scatter(lat[~sg], m[~sg], facecolor=SURF, edgecolor=col, s=16, zorder=3)
+        ax.axhline(0, color="#c3c2b7", lw=1)
+        ax.set_ylabel("10²² kg m² s⁻¹ per 5° band")
+        ax.set_title("Total (wind + mass term), torques across the jump removed", loc="left")
+        ax.legend(frameon=False, loc="lower left", fontsize=9)
+        ax = axes[1]
+        for k, lab, col, ls in (("r", "wind (motion) term", C_MTN, "-"), ("m", "mass term", C_GWD, "-")):
+            m = (np.array(r["profile"]["10" + k]["mean"]) + np.array(r["profile"]["22" + k]["mean"])) * U
+            ax.plot(lat, m, color=col, lw=2.2, ls=ls, label=lab)
+        ax.axhline(0, color="#c3c2b7", lw=1)
+        ax.set_ylabel("10²² kg m² s⁻¹ per band, per day")
+        ax.set_xlabel("latitude")
+        ax.set_xticks(range(-90, 91, 30)); ax.set_xticklabels(["90S", "60S", "30S", "EQ", "30N", "60N", "90N"])
+        ax.set_title("Both window starts together, split into wind and mass terms", loc="left")
+        ax.legend(frameon=False, loc="lower left", fontsize=9)
+        d0, d1, n = r["days"]
+        fig.suptitle(f"ERA5 AAM increments by latitude, {d0[:7]} to {d1[:7]}",
+                     fontsize=12, color=INK, x=0.02, ha="left")
+        fig.savefig(dest / "inc_profile.webp", **WEBP)
+        plt.close(fig)
+        # seasonal cycle
+        Mm = pd.read_csv(data / "inc_season_mean.csv", index_col=0)
+        SG = pd.read_csv(data / "inc_season_sig.csv", index_col=0).values.astype(bool)
+        months = Mm.index.tolist()
+        V = Mm.values * U
+        fig, axes = plt.subplots(2, 1, figsize=(6.8, 7.4), constrained_layout=True, gridspec_kw=dict(height_ratios=[1, 2.3]))
+        ax = axes[0]
+        gm = r["global_by_month"]
+        x = np.arange(len(months))
+        ax.bar(x, [gm[m]["mean"] * U for m in months], color=C_NET, width=0.75)
+        ax.errorbar(x, [gm[m]["mean"] * U for m in months],
+                    yerr=[1.96 * gm[m]["sd"] / np.sqrt(gm[m]["n"]) * U for m in months], fmt="none", ecolor=INK2, lw=1)
+        ax.set_xticks(x[::3]); ax.set_xticklabels([m for m in months][::3], fontsize=9)
+        ax.set_ylabel("10²² per day")
+        ax.set_title("Global increment per day, by month (±95%)", loc="left")
+        ax = axes[1]
+        lim = np.nanpercentile(np.abs(V), 98)
+        lev = np.linspace(-lim, lim, 13)
+        ax.contourf(x, lat, np.where(SG, V, np.nan).T, levels=lev, cmap=DIV, extend="both")
+        cs = ax.contour(x, lat, V.T, levels=[l for l in lev if abs(l) > 1e-9], colors=INK2, linewidths=0.4)
+        ax.set_xticks(x[::3]); ax.set_xticklabels([m for m in months][::3], fontsize=9)
+        ax.set_yticks(range(-90, 91, 30)); ax.set_yticklabels(["90S", "60S", "30S", "EQ", "30N", "60N", "90N"])
+        ax.set_title("By latitude: shaded where significant (t-test over days, FDR 10%)", loc="left")
+        import matplotlib.cm as mcm
+        from matplotlib.colors import BoundaryNorm as BN
+        sm = mcm.ScalarMappable(norm=BN(lev, DIV.N), cmap=DIV)
+        cb = fig.colorbar(sm, ax=ax, orientation="horizontal", fraction=0.05, pad=0.08, aspect=40)
+        cb.set_label("10²² kg m² s⁻¹ per 5° band per day")
+        fig.suptitle("ERA5 increments of angular momentum: the seasonal cycle", fontsize=12, color=INK, x=0.02, ha="left")
+        fig.savefig(dest / "inc_season.webp", **WEBP)
+        plt.close(fig)
+        # vertical section
+        sec = data / "inc_section.npz"
+        if sec.exists():
+            z = np.load(sec)
+            levs = z["level"]
+            e = np.empty(len(levs) + 1); e[1:-1] = 0.5 * (levs[1:] + levs[:-1]); e[0] = 0; e[-1] = levs[-1] + 0.5 * (levs[-1] - levs[-2])
+            thick = np.diff(e)                                    # hPa
+            fig, axes = plt.subplots(2, 1, figsize=(6.8, 8.4), sharex=True, constrained_layout=True)
+            vals = [z[f"J10_mean"] * U * 100 / thick[:, None], z[f"J22_mean"] * U * 100 / thick[:, None]]
+            lim = np.nanpercentile(np.abs(np.concatenate([v.ravel() for v in vals])), 98)
+            lev = np.linspace(-lim, lim, 13)
+            for ax, (w, ttl), V2 in zip(axes, (("J10", "09 UTC window start"), ("J22", "21 UTC window start")), vals):
+                sg = z[f"{w}_sig"]
+                ax.contourf(lat, levs, np.where(sg, V2, np.nan), levels=lev, cmap=DIV, extend="both")
+                ax.contour(lat, levs, V2, levels=[l for l in lev if abs(l) > 1e-9], colors=INK2, linewidths=0.4)
+                ax.set_yscale("log"); ax.set_ylim(1000, 1)
+                ax.set_yticks([1000, 500, 200, 100, 50, 20, 10, 5, 1]); ax.set_yticklabels(["1000", "500", "200", "100", "50", "20", "10", "5", "1"])
+                ax.set_ylabel("pressure (hPa)")
+                ax.set_title(f"{ttl}: shaded where significant ({float(np.mean(sg)):.0%} of cells, FDR 10%)", loc="left")
+                ax.grid(False)
+            axes[1].set_xticks(range(-90, 91, 30)); axes[1].set_xticklabels(["90S", "60S", "30S", "EQ", "30N", "60N", "90N"])
+            import matplotlib.cm as mcm
+            from matplotlib.colors import BoundaryNorm as BN
+            sm = mcm.ScalarMappable(norm=BN(lev, DIV.N), cmap=DIV)
+            cb = fig.colorbar(sm, ax=axes, orientation="horizontal", fraction=0.04, pad=0.02, aspect=40)
+            cb.set_label("10²² kg m² s⁻¹ per 5° band per 100 hPa (wind term)")
+            n = int(json.loads((data / "increments.json").read_text())["u37_J10"]["n_days"])
+            fig.suptitle(f"ERA5 AAM increments by latitude and height ({n} days)", fontsize=12,
+                         color=INK, x=0.02, ha="left")
+            fig.savefig(dest / "inc_section.webp", **WEBP)
+            plt.close(fig)
+        # AIFS-ENS forecast drift
+        fd = r.get("fc_drift")
+        if fd:
+            fig, ax = plt.subplots(figsize=(6.8, 4.4), constrained_layout=True)
+            for reg, lab, col in (("global", "global", INK), ("nh", "Northern Hemisphere", C_MTN), ("sh", "Southern Hemisphere", C_FRIC)):
+                d = pd.DataFrame(fd["by_region"][reg])
+                ax.fill_between(d.lead, d.lo, d.hi, color=col, alpha=0.14, lw=0)
+                ax.plot(d.lead, d["mean"], color=col, lw=2.2, label=lab)
+                ax.scatter(d.lead[d.sig], d["mean"][d.sig], color=col, s=20, zorder=3)
+                ax.scatter(d.lead[~d.sig], d["mean"][~d.sig], facecolor=SURF, edgecolor=col, s=16, zorder=3)
+            ax.axhline(0, color="#c3c2b7", lw=1)
+            ax.set_xlabel("lead (days)"); ax.set_ylabel("forecast minus verifying analysis (10²⁵ kg m² s⁻¹)")
+            ax.legend(frameon=False, loc="lower left")
+            i0, i1, n = fd["inits"]
+            ax.set_title(f"{n} inits, {i0[:10]} to {i1[:10]}; filled: 95% interval\nexcludes zero (weekly-block bootstrap)",
+                         loc="left", fontsize=10)
+            fig.suptitle("AIFS-ENS ensemble-mean angular momentum drift", fontsize=12, color=INK, x=0.02, ha="left")
+            fig.savefig(dest / "fc_drift.webp", **WEBP)
+            plt.close(fig)
+
+
+def num_(x, d=0):
+    return (f"{x:+.{d}f}").replace("-", "−")
+
+
+def site_all(site: Path, data: Path = DATA):
+    dest = site / "studies" / "torque-enso"
+    dest.mkdir(parents=True, exist_ok=True)
+    for f in (site_q1, site_slp, site_q2, site_q3, site_2026, site_increments):
+        f(data, dest)
+        print("ok", f.__name__)
+    return dest
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--out", required=True)
+    ap.add_argument("--out", default=None, help="study output dir (scratch figures)")
+    ap.add_argument("--site", default=None, help="site root: write the study page figures to studies/torque-enso/")
     ap.add_argument("--only", default="q1,q2lag,q2c,2026,q3maps,q3ll,slp")
     a = ap.parse_args()
+    if a.site:
+        site_all(Path(a.site))
+        return 0
     out = Path(a.out)
     fn = {"q1": fig_q1, "q2lag": fig_q2_lag, "q2c": fig_q2_contrib, "2026": fig_2026, "q3maps": fig_q3_maps,
           "q3ll": fig_q3_leadlag, "slp": fig_slp}

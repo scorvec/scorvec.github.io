@@ -126,6 +126,8 @@ PAGES = {
                               prio=23, models=["AIFS", "AIFS-ENS", "ERA5"], horizon="Days 1–15", region=["Northern Hemisphere"]),
     "/aifs-aam-budget.html": dict(kind="page", topic="research", tier=1, prio=22, models=["AIFS-ENS", "AIFS", "IFS", "ERA5"],
                                   horizon="Days 1–15", region=["Global"], thumb="studies/aifs-aam-budget/closure_global.webp"),
+    "/torque-enso.html": dict(kind="page", topic="research", tier=1, prio=22, models=["ERA5", "CMIP6", "AIFS-ENS"],
+                              horizon="Climate record", region=["Global"], thumb="studies/torque-enso/q1_shift_vs_events.webp"),
     "/topics/": dict(kind="page", topic="research", tier=1, prio=26, models=[], horizon=None, region=[]),
     "/research.html": dict(kind="page", topic="research", tier=1, prio=27, models=[], horizon=None, region=[]),
     "/catalog.html": dict(kind="page", topic="tools", tier=1, prio=28, models=[], horizon=None, region=[]),

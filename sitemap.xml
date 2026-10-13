@@ -76,6 +76,11 @@
     <priority>0.7</priority>
   </url>
   <url>
+    <loc>https://scorvec.com/torque-enso.html</loc>
+    <lastmod>2026-10-13</lastmod>
+    <priority>0.7</priority>
+  </url>
+  <url>
     <loc>https://scorvec.com/ar.html</loc>
     <lastmod>2026-09-06</lastmod>
     <changefreq>daily</changefreq>

@@ -189,6 +189,9 @@ PRODUCTS = [
             ("/aifs-aam-budget.html", "AINWP and conservation",
              "Do AI weather models obey the conservation laws? ECMWF's AI ensemble (AIFS-ENS), the single AIFS and the physics ensemble against angular momentum and its torques, dry-air mass, water and energy. Winter 2025–26, days 1–15.",
              "Static"),
+            ("/torque-enso.html", "El Niño and mountain torque",
+             "Does El Niño raise the atmosphere's angular momentum through more mountain-torque events east of the Andes, Rockies and Himalaya, or through a standing shift? ERA5 1959–2026, 41 CMIP6 models, the 2026 budget hour by hour and ERA5's analysis increments. Significant results only.",
+             "Static"),
             ("/topics/", "Explainers",
              "How to read the products: the equations and the physics behind each diagnostic.",
              "As written"),
@@ -292,6 +295,7 @@ PAGES = [
     # snowbands.html: retired 2026-10-09, now a noindex redirect stub to models.html#hrrr/sbing (no chrome)
     dict(path="catalog.html", mode="after-body"),
     dict(path="aifs-aam-budget.html", mode="after-body"),         # static study (2026-10-01), built from ~/aam_budget/scripts/build_page.py
+    dict(path="torque-enso.html", mode="after-body"),             # static study (2026-10-13), scripts/mjo/src/torque_enso_page.py
     dict(path="about.html", mode="after-body"),                    # the person: bio, resume, publications, profiles                  # every plot on the site (scripts/site/build_catalog.py)
     dict(path="climate.html", mode="after-body"),
     dict(path="fci.html", mode="after-body"),
@@ -426,6 +430,7 @@ HOME = {
                          ["/subseasonal.html", "/gefs.html", "/seasonal.html", "/enso-forecasts.html"]),
     "Studies and verification": ("research", "What the record and the models say, and how forecasts score",
                                  ["/enso.html#imp_reg", "/mjo.html#mi", "/stratosphere.html#shwinters", "/aifs-aam-budget.html",
+                                  "/torque-enso.html",
                                   "/aifs-verify.html", "/topics/"]),
     "Tools": ("tools", "Explore the data yourself",
               ["/catalog.html", "/skewt/", "/asos5.html", "/climate.html", "/fci.html"]),
