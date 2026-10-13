@@ -396,7 +396,7 @@ class Reducer:
         return out
 
 
-def pack_run(prefix: str, T: dict, L: dict, dt: int = 6, interval_keys: tuple = ()) -> dict:
+def pack_run(prefix: str, T: dict, L: dict, dt: int = 6, interval_keys: tuple = (), lean: bool = False) -> dict:
     """One run's step dicts -> compact arrays {prefix|name}:
       D|<torque>  daily means over day d = [24d, 24d+24] h, trapezoid of the dt-hourly samples (NaN if one is missing)
       A|<torque>  the step-0 (analysis) value;  H|<x>  every dt-hourly step, (SH, NH) sums of the band arrays
@@ -462,9 +462,13 @@ def pack_run(prefix: str, T: dict, L: dict, dt: int = 6, interval_keys: tuple = 
                 res[f"{prefix}|M|{k[4:]}"] = arr.astype(np.float16)
                 continue
             if k.endswith("_lb"):
+                # lean (perturbed members): only the common-level profile at day 10 is kept - it is all the analysis
+                # uses from them, and it keeps the archive small (NaN rows compress to nothing)
+                if lean and k != "MrC11_lb":
+                    continue
                 arr = np.full((len(LB_STEPS),) + ex.shape, np.nan)
                 for i, s in enumerate(LB_STEPS):
-                    if s in L and k in L[s]:
+                    if s in L and k in L[s] and (not lean or s == 240):
                         arr[i] = L[s][k]
                 res[f"{prefix}|L|{k}"] = arr.astype(np.float32)
                 continue
