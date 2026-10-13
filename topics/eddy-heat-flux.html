@@ -94,8 +94,8 @@
   onload="renderMathInElement(document.body,{delimiters:[{left:'$$',right:'$$',display:true},{left:'$',right:'$',display:false}],throwOnError:false});"></script>
 <style>
   body { background: var(--c-bg, #f5f6f3); color: var(--c-ink, #29321f); margin: 0; }
-  .topic { font-size: clamp(1.06rem, 0.78rem + 0.5vw, 1.35rem); max-width: min(70rem, 100%); margin: 0 auto; padding: 2rem 1.25rem 3.5rem; }
-  .topic figcaption, .figs figcaption { font-size: clamp(0.9rem, 0.62rem + 0.36vw, 1.14rem); }   /* scale with the text (site.css pins rem) */
+  .topic { font-size: clamp(1rem, 0.94rem + 0.2vw, 1.08rem); max-width: 46rem; margin: 0 auto; padding: 2rem clamp(1rem, 4vw, 3rem) 3.5rem; }   /* ~19 px text on an ~810 px column (content-box): reads the same on any monitor */
+  .topic figcaption, .figs figcaption { font-size: clamp(0.88rem, 0.84rem + 0.15vw, 0.95rem); }   /* a step below the text (site.css pins rem) */
   .topic .crumbs { font-size: 0.92em; color: var(--c-muted, #5c6b73); margin-bottom: 1.2rem; }
   .topic .crumbs a { color: inherit; }
   .topic h1 { text-align: left; margin: 0 0 0.4rem; }
@@ -106,9 +106,9 @@
   .topic li { margin: 0.45rem 0; }
   .topic a { color: var(--c-accent, #274b7a); text-underline-offset: 0.2em; }
   .topic .katex-display { overflow-x: auto; overflow-y: hidden; padding: 0.2rem 0; }
-  .figs { max-width: min(88rem, 100%); margin: 1.6rem auto 0; padding: 0 1.25rem; }
+  .figs { max-width: 62rem; margin: 1.6rem auto 0; padding: 0 clamp(1rem, 4vw, 3rem); }   /* wider than the text: the live charts are dense */
   .figs figure { margin: 0 0 2rem; }
-  .figs img { display: block; width: 100%; height: auto; border: 1px solid var(--c-rule, #dfe3dc); background: #fff; }
+  .figs img { display: block; width: auto; max-width: 100%; height: auto; margin: 0 auto; border: 1px solid var(--c-rule, #dfe3dc); background: #fff; }   /* never wider than the file */
   .figs iframe { display: block; width: 100%; aspect-ratio: 16 / 10; border: 1px solid var(--c-rule, #dfe3dc); background: #fff; }
   .figs figcaption { color: var(--c-muted, #5c6b73); margin-top: 0.5rem; }
   .live { display: inline-block; margin: 0.6rem 0 0; font-weight: 600; }
