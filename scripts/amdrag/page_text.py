@@ -367,6 +367,19 @@ def body(R, Mo, keys, L, fig, t_models, made):
         return f"{L[k]}: day 10 " + ", ".join(parts) + "."
     drift_list = "<ul>" + "".join(f"<li>{drift_sentence(k)}</li>" for k in keys) + "</ul>"
 
+    def layer_sentence(k):
+        rows = [r for r in (g(k, "level_drift_d10") or []) if sig(r)]
+        out = []
+        for part, nm in (("S", "SH"), ("N", "NH")):
+            rr = [r for r in rows if r["part"] == part]
+            if rr:
+                r = max(rr, key=lambda x: abs(x["mean"]))
+                out.append(f"{nm} {num(r['mean'], 3)} at {r['level']} hPa")
+        return f"{L[k]}: " + ", ".join(out) if out else None
+    ls_ = [x for x in (layer_sentence(k) for k in keys) if x]
+    layer_txt = ("The largest significant single-layer change at day 10 (×10²⁵ kg m² s⁻¹; FDR over levels × hemispheres): "
+                 + "; ".join(ls_) + ".") if ls_ else ""
+
     ev = era.get("levels", {})
     gd_rank = ""
     sc_all = {k: g(k, "orography", "scales", "land", "rms_fine05") for k in keys}
@@ -517,6 +530,7 @@ def body(R, Mo, keys, L, fig, t_models, made):
   {drift_list}
   {fig("drifte", "aam_drift_era5.webp", "Wind-term AAM drift against ERA5 by forecast day", "As Figure 3 but against ERA5 valid the same day, after removing each model's day-0 difference from ERA5. Shorter sample: ERA5 ends about six days before today.")}
   {t_drifte}
+  <p>{layer_txt}</p>
   {fig("levels", "level_drift.webp", "Day-10 AAM drift by pressure level and hemisphere", "Where the day-10 drift sits: the angular momentum of each of the 11 common layers, forecast minus own analysis, by hemisphere. Dots: significant after the FDR over levels × hemispheres.")}
 
   <h2>5. Drag: how strong, against ERA5 and against each other</h2>

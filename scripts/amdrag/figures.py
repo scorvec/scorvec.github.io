@@ -351,8 +351,10 @@ def fig_levels(R, out):
         ax.set_xlabel("relative AAM in the layer, day 10 − own analysis (10²⁵ kg m² s⁻¹)")
     axes[0].invert_yaxis()
     axes[0].set_yscale("log")
-    axes[0].set_yticks(C.C11)
-    axes[0].set_yticklabels([str(x) for x in C.C11])
+    tk = [50, 100, 200, 300, 500, 700, 850, 1000]
+    axes[0].set_yticks(tk)
+    axes[0].set_yticklabels([str(x) for x in tk])
+    axes[0].minorticks_off()
     axes[0].set_ylabel("pressure (hPa)")
     fig.suptitle("Where in the column the day-10 AAM drift sits (11 common levels; dots = significant, FDR 10 %)",
                  fontsize=11.5, color=INK, x=0.01, ha="left")
