@@ -3,10 +3,10 @@
 
   {comp}_{lead}_{season}_{abs|rel}.webp   one per comparison of build_bias.COMPARISONS (each model in ONE cycle: "current"
                                           IFS-ENS 50r1 + AIFS-ENS v2, "previous" 49r1 + v1, "ifs49" IFS-ENS 49r1 alone);
-                                          shaded only where significant (block bootstrap, BH-FDR q 0.10), grey elsewhere
+                                          shaded only where significant (block bootstrap, BH-FDR q 0.20 since 2026-10-13), grey elsewhere
   change_{model}_{old}_{new}_{lead}.webp  bias change across an upgrade (matched calendar days a year apart)
   truth_{season}.webp                     IMERG Late minus Final (Late's own error, the truth adjustment)
-  leads_regions_{comp}.webp               regional mean bias by lead, 95 % intervals
+  leads_regions_{comp}.webp               regional mean bias by lead, 90 % intervals
 
     python scripts/precip_bias/render_bias.py --fields scripts/precip_bias/data/bias_fields.npz \
         --json assets/precip_bias/bias_summary.json --out assets/precip_bias
@@ -37,6 +37,7 @@ CHG_LEV = [-3, -2, -1.5, -1, -0.5, -0.25, 0.25, 0.5, 1, 1.5, 2, 3]
 INSIG = "#dcdcdc"
 SEASON_TXT = {"all": "all seasons", "DJF": "Dec-Feb", "MAM": "Mar-May", "JJA": "Jun-Aug", "SON": "Sep-Nov"}
 EXTENT = [-170, -30, -60, 60]
+DEG, QTXT, CITXT = 1, "BH-FDR q 0.10", "95 %"                    # set from the summary in main()
 SHORT = {"Southeast South America": "SE South America", "Northeast Brazil": "NE Brazil", "East Pacific ITCZ": "E Pacific ITCZ"}
 
 
@@ -54,7 +55,8 @@ def cmap_for(levels):
 
 def draw(ax, data, sig, levels, title, dry=None):
     cm, nm = cmap_for(levels)
-    lon_e = np.append(G.LON - 0.5, G.LON[-1] + 0.5); lat_e = np.append(G.LAT - 0.5, G.LAT[-1] + 0.5)
+    h = 0.5 * (G.LAT[1] - G.LAT[0])                                  # half a box (the grid comes from the fields file)
+    lon_e = np.append(G.LON - h, G.LON[-1] + h); lat_e = np.append(G.LAT - h, G.LAT[-1] + h)
     show = np.where(sig & np.isfinite(data), data, np.nan)
     grey = np.where(~sig & np.isfinite(data), 1.0, np.nan)
     ax.set_extent(EXTENT, ccrs.PlateCarree())
@@ -96,7 +98,7 @@ def map_fig(panels, levels, unit, suptitle, foot, path):
     cb_y = 0.13 * len(lines) + 0.42
     cax = fig.add_axes([0.5 - 2.6 / W, cb_y / H, 5.2 / W, 0.12 / H])
     cb = fig.colorbar(pm, cax=cax, orientation="horizontal", ticks=levels)
-    cb.ax.tick_params(labelsize=7, pad=1.5)
+    cb.ax.tick_params(labelsize=7, pad=1.5); cb.ax.set_xticklabels([f"{l:g}".replace("-", "−") for l in levels])
     fig.text(0.5, (cb_y + 0.17) / H, unit, fontsize=8, ha="center", va="bottom")
     fig.text(0.1 / W, 0.06 / H, "\n".join(lines), fontsize=7, color="#444", ha="left", va="bottom", linespacing=1.25)
     fig.savefig(path, format="webp", pil_kwargs={"quality": 88})
@@ -140,7 +142,7 @@ def lead_chart(summary, ck, path):
     fig.suptitle(f"Rain bias by lead, regional means vs gauge-adjusted IMERG - {who}\n{same}{first['runs']} 00Z runs "
                  f"({first['first']} to {first['last']})", fontsize=10, x=0.01, ha="left", weight="bold")
     axs.ravel()[0].legend(fontsize=7.5, loc="best", frameon=False)
-    fig.text(0.01, 0.005, "Bars: 95 % interval (21-day block bootstrap). Filled marker: significant (|z| > 1.96); hollow: not.",
+    fig.text(0.01, 0.005, f"Bars: {CITXT} interval (21-day block bootstrap). Filled marker: significant (interval excludes 0); hollow: not.",
              fontsize=7, color="#444")
     fig.tight_layout(rect=(0, 0.02, 1, 0.93))
     fig.savefig(path, format="webp", pil_kwargs={"quality": 88})
@@ -152,6 +154,9 @@ def main() -> int:
     ap.add_argument("--fields", required=True); ap.add_argument("--json", required=True); ap.add_argument("--out", required=True)
     a = ap.parse_args()
     z = np.load(a.fields); S = json.loads(Path(a.json).read_text()); out = Path(a.out); out.mkdir(parents=True, exist_ok=True)
+    G.LAT, G.LON = z["lat"], z["lon"]; G.NY, G.NX = len(G.LAT), len(G.LON)
+    global DEG, QTXT, CITXT
+    DEG = S.get("grid_deg", 1); QTXT = f"BH-FDR q {S.get('q_fdr', 0.10):.2f}"; CITXT = f"{100 * S.get('ci_level', 0.95):.0f} %"
     keys = set(str(k) for k in z["keys"])
     get = lambda k, v: z[f"{k}#{v}"]
     made = []
@@ -167,9 +172,9 @@ def main() -> int:
                 period = f"{infos[0]['first']} to {infos[0]['last']}"
                 sig_txt = ", ".join(f"{MODELS[m]} {100 * i['frac_sig']:.0f} %" for m, i in zip(ms, infos))
                 foot = (f"{'The same ' if len(ms) > 1 else ''}{infos[0]['runs']} 00Z runs{' for both models' if len(ms) > 1 else ''}, "
-                        f"members 1-6, 1° boxes; one model cycle each (never pooled across upgrades). Truth: IMERG V07 Late adjusted "
+                        f"members 1-6, {DEG}° boxes; one model cycle each (never pooled across upgrades). Truth: IMERG V07 Late adjusted "
                         f"by its seasonal difference from the gauge-adjusted Final. Grey: not significant (21-day block bootstrap, "
-                        f"BH-FDR q 0.10); significant cells {sig_txt}. Percent maps: hatched where the observed mean is below 0.5 mm/day.")
+                        f"{QTXT}); significant cells {sig_txt}. Percent maps: hatched where the observed mean is below 0.5 mm/day.")
                 for kind, lev, unit in (("abs", ABS_LEV, "forecast minus observed rain (mm/day)"), ("rel", REL_LEV, "forecast / observed - 1 (%)")):
                     pan = []
                     for m, k in zip(ms, ks):
@@ -190,7 +195,7 @@ def main() -> int:
             u = U["leads"][lk]
             foot = (f"{U['runs']} pairs of 00Z runs on the same calendar day a year apart ({new}: {U['new'][0]} to {U['new'][1]}; "
                     f"{old}: {U['old'][0]} to {U['old'][1]}). Green: the new cycle rains more relative to IMERG. Grey: no "
-                    f"significant change (BH-FDR q 0.10); {100 * u['frac_sig']:.0f} % of cells changed. The two years had different "
+                    f"significant change ({QTXT}); {100 * u['frac_sig']:.0f} % of cells changed. The two years had different "
                     f"weather, so part of any change is the weather, not the model. Pattern correlation of the two bias fields "
                     f"r = {u['pattern_r']:.2f}.")
             pth = out / f"change_{m}_{old}_{new}_{lk}.webp"
@@ -204,7 +209,7 @@ def main() -> int:
             p = out / f"truth_{sk}.webp"
             map_fig([(get(k, "bias"), get(k, "sig"), f"IMERG Late minus Final, {SEASON_TXT[sk]}")], ABS_LEV, "Late minus Final (mm/day)",
                     f"IMERG V07 Late minus gauge-adjusted Final - {SEASON_TXT[sk]}, {n} days, {S['imerg_final'][0]} to {S['imerg_final'][1]}",
-                    "Late's own error: added to every forecast-minus-Late bias on this page. Grey: not significant (BH-FDR q 0.10).", p)
+                    f"Late's own error: added to every forecast-minus-Late bias on this page. Grey: not significant ({QTXT}).", p)
             made.append(p.name)
     S["figures"] = sorted(made)
     Path(a.json).write_text(json.dumps(S, indent=1))

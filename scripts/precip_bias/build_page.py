@@ -28,6 +28,10 @@ LEAD_ORDER = ["day1", "d2_3", "d4_7", "d8_10", "d11_14", "wk1", "wk2"]
 COMP_ORDER = ["current", "previous", "ifs49"]
 
 
+def CI(S):
+    return f"{100 * S.get('ci_level', 0.95):.0f} %"
+
+
 def f2(x, d=2):
     if round(x, d) == 0:                                             # no "+0.00" / "−0.00"
         return f"{0:.{d}f}"
@@ -47,7 +51,7 @@ WEEKS = (("wk1", "week 1"), ("wk2", "week 2"))
 
 
 def region_table(S, comp, leads=WEEKS):
-    """Rows of regional biases for weeks 1 and 2 side by side; 'n.s.' where the 95 % interval includes zero."""
+    """Rows of regional biases for weeks 1 and 2 side by side; 'n.s.' where the interval (S['ci_level']) includes zero."""
     C = S["comparisons"].get(comp, {})
     ms = [m for m in MODELS if m in C]
     if not ms:
@@ -122,7 +126,7 @@ def upgrade_section(S, lead_opts):
         "<p>IFS went from cycle 48r1 to 49r1 on 12 November 2024 and to 50r1 on 12 May 2026, when AIFS-ENS also went from v1 to v2. "
         "No field on this page mixes cycles. To see what an upgrade changed, the new cycle's runs are set against the old cycle's "
         "runs on the same calendar days a year earlier. The weather differed between the two years, so part of any change is the "
-        "weather; intervals are 95 % (21-day block bootstrap over the matched days).</p>",
+        f"weather; intervals are {CI(S)} (21-day block bootstrap over the matched days).</p>",
         f"<ul>{''.join(lines) or '<li>Not enough matched runs yet.</li>'}</ul>"]
     if ups:
         up_opts = [(k.replace("|", "_").replace("->", "_"), f"{MODELS[k.split('|')[0]]} {k.split('|')[1].replace('->', ' to ')}") for k, _ in ups]
@@ -174,7 +178,7 @@ mostly the warm season and more of them is grey.</figcaption></figure>
 <figure><img id="rb-limg" src="/assets/precip_bias/leads_regions_{l0}.webp" alt="Regional rain bias by lead" loading="lazy">
 <figcaption><label>Models <select id="rb-lcomp">{opts([(k, comp_label(S, k)) for k in charts], l0)}</select></label>
 Area means in the dashed boxes on the maps.</figcaption></figure>
-<p>Weeks 1 (days 1-7) and 2 (days 8-14), all seasons in the sample, mm/day (percent of observed); "n.s." = the 95 % interval
+<p>Weeks 1 (days 1-7) and 2 (days 8-14), all seasons in the sample, mm/day (percent of observed); "n.s." = the {CI(S)} interval
 includes zero.</p>
 {tables}
 </section>
@@ -187,13 +191,17 @@ includes zero.</p>
 <section>
 <h2>How it is measured</h2>
 <ul>
-<li><strong>Forecast</strong>: the mean of members 1-6 of each 00Z run, accumulated over the lead band, as 1° box means.
+<li><strong>Forecast</strong>: the mean of members 1-6 of each 00Z run, accumulated over the lead band, as {S.get('grid_deg', 1)}° box
+means (forecast and observations both averaged to the same boxes before anything is compared).
 Cycles: {cyc_txt}.</li>
 <li><strong>Truth</strong>: IMERG V07 Late, the satellite record that keeps up with the forecasts, corrected by its own seasonal
 difference from IMERG Final, which carries the monthly gauge adjustment over land ({tf[0]} to {tf[1]}). The size of that
 correction is on the <a href="#truth">last map</a>.</li>
 <li><strong>Significance</strong>: runs a few days apart share their weather, so each mean's uncertainty comes from resampling
-whole 21-day blocks of start dates; a cell is shaded only if it passes a false-discovery-rate test at q = 0.10 across the map.</li>
+whole 21-day blocks of start dates; a box is shaded only if it passes a false-discovery-rate test at q = {S.get('q_fdr', 0.10):.2f}
+across the map: on average no more than {'one in five' if abs(S.get('q_fdr', 0.10) - 0.2) < 1e-9 else f"{100 * S.get('q_fdr', 0.10):.0f} %"}
+of the shaded boxes is a false positive, about a {50 * S.get('q_fdr', 0.10):.0f} % chance of a false finding anywhere on a map
+this spatially correlated (Wilks 2016). Regional values and upgrade changes carry {CI(S)} intervals.</li>
 <li><strong>Domain</strong>: 60°S-60°N, 170°W-30°W. IMERG is unreliable over snow and ice and poleward of 60°, so Alaska and
 northern Canada are left out.</li>
 </ul>

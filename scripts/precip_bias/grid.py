@@ -49,3 +49,29 @@ def imerg_to_1deg(p: np.ndarray) -> np.ndarray:
 
 def area_weights() -> np.ndarray:
     return np.repeat(np.cos(np.deg2rad(LAT))[:, None], NX, axis=1)
+
+
+def coarsen(a: np.ndarray, k: int) -> np.ndarray:
+    """(..., NY, NX) on the CURRENT grid -> (..., NY/k, NX/k) area-weighted box means of k x k cells (2026-10-13, user:
+    "coarse graining for the bias maps is a good idea"); a box needs at least half its cells valid. Call before set_coarse."""
+    if k == 1:
+        return a
+    ny, nx = a.shape[-2:]
+    if ny % k or nx % k:
+        raise ValueError(f"grid {ny}x{nx} not divisible by {k}")
+    w = np.cos(np.deg2rad(LAT))[:, None] * np.ones((1, nx))
+    b = a.reshape(a.shape[:-2] + (ny // k, k, nx // k, k))
+    ww = w.reshape(ny // k, k, nx // k, k)
+    ok = np.isfinite(b)
+    s = (np.where(ok, b, 0.0) * ww).sum(axis=(-3, -1)); d = (ok * ww).sum(axis=(-3, -1)); n = ok.sum(axis=(-3, -1))
+    with np.errstate(invalid="ignore", divide="ignore"):
+        return np.where(n >= (k * k + 1) // 2, s / d, np.nan).astype(a.dtype)
+
+
+def set_coarse(k: int) -> None:
+    """Rebind LAT / LON / NY / NX to the k-degree box grid (after the data have been coarsened)."""
+    global LAT, LON, NY, NX
+    if k == 1:
+        return
+    LAT = LAT.reshape(-1, k).mean(1); LON = LON.reshape(-1, k).mean(1)
+    NY, NX = len(LAT), len(LON)

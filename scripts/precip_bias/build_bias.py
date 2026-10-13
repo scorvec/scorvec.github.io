@@ -16,7 +16,7 @@ Method, per model, lead band and season (season of the band's middle valid day):
 
 Significance (USER RULE: nothing insignificant on the site): consecutive runs share weather, so the standard error of
 each mean comes from a block bootstrap over 21-day blocks of start dates (1000 draws, multinomial block weights), the
-two terms' variances added; two-sided normal p; Benjamini-Hochberg FDR at q = 0.10 across the cells of each map
+two terms' variances added; two-sided normal p; Benjamini-Hochberg FDR at q = Q_FDR (0.20) across the cells of each map
 (Wilks 2016). Cells that fail are left blank on the maps and counted in the JSON.
 
 Two comparisons: IFS-ENS over its whole record (2024-03 on, the most precise field), and IFS-ENS vs AIFS-ENS over the
@@ -43,7 +43,12 @@ LEADS = {"day1": (0, 1, "day 1"), "d2_3": (1, 3, "days 2-3"), "d4_7": (3, 7, "da
          "wk2": (7, 14, "week 2 (days 8-14)")}
 SEASONS = {"all": tuple(range(1, 13)), "DJF": (12, 1, 2), "MAM": (3, 4, 5), "JJA": (6, 7, 8), "SON": (9, 10, 11)}
 MODELS = {"ifs": "IFS-ENS", "aifs-ens": "AIFS-ENS"}
-BLOCK_DAYS, NBOOT, Q_FDR, REL_MIN = 21, 1000, 0.10, 0.5
+BLOCK_DAYS, NBOOT, REL_MIN = 21, 1000, 0.5
+# Significance levels (2026-10-13, user: "coarse graining for the bias maps is a good idea. Maybe relax the significance criteria
+# as well"): maps at FDR q = 0.20 (was 0.10) - on average at most one shaded cell in five is a false positive, about a 10 %
+# field-wide test for fields this spatially correlated (Wilks 2016: alpha_FDR = 2 alpha_global); intervals 90 % (was 95 %);
+# statistics on 2-degree boxes (COARSE, --coarse).
+Q_FDR, Z_CI, CI_LEVEL, COARSE = 0.20, 1.645, 0.90, 2
 # Model cycles (2026-10-13, user: "There have been a few ifs upgrades since then, use with care"). IFS 48r1 -> 49r1 on
 # 2024-11-12 and 49r1 -> 50r1 with AIFS-ENS v1 -> v2 on 2026-05-12, both at the 06 UTC run, so a cycle starts with the next
 # day's 00Z run. Runs are NEVER pooled across cycles: every field below belongs to one cycle of each model.
@@ -76,30 +81,30 @@ REGIONS = {                                               # (lat0, lat1, lon0, l
 def _d(s): return datetime.strptime(str(s), "%Y%m%d").date()
 
 
-def load_obs(data: Path, product: str):
-    """{date: row}, (days, NY, NX) mm/day - or (None, None)."""
+def load_obs(data: Path, product: str, k: int = 1):
+    """{date: row}, (days, NY, NX) mm/day on k-degree boxes - or (None, None)."""
     files = sorted(data.glob(f"imerg_{product}_*.npz"))
     if not files:
         return None, None
     dates, arr = [], []
     for f in files:
         z = np.load(f)
-        dates += [_d(s) for s in z["dates"]]; arr.append(z["pr"].astype("float32"))
+        dates += [_d(s) for s in z["dates"]]; arr.append(G.coarsen(z["pr"].astype("float32"), k))
     pr = np.concatenate(arr)
     order = np.argsort(np.array(dates, dtype="datetime64[D]"))
     dates = [dates[i] for i in order]; pr = pr[order]
     return {d: i for i, d in enumerate(dates)}, pr
 
 
-def load_model(data: Path, model: str):
-    """inits (sorted dates), ensemble-mean accumulations (run, step, NY, NX) mm."""
+def load_model(data: Path, model: str, k: int = 1):
+    """inits (sorted dates), ensemble-mean accumulations (run, step, NY, NX) mm on k-degree boxes."""
     inits, acc = [], []
     for f in sorted(data.glob(f"{model}_*.npz")):
         z = np.load(f)
         if tuple(z["steps"]) != STEPS:
             raise ValueError(f"{f.name}: steps {tuple(z['steps'])} != {STEPS}")
         inits += [_d(s) for s in z["inits"]]
-        acc.append(z["acc"].mean(axis=2).astype("float32"))           # mean over the members
+        acc.append(G.coarsen(z["acc"].mean(axis=2).astype("float32"), k))   # mean over the members, then k-degree boxes
     if not inits:
         return [], None
     acc = np.concatenate(acc)
@@ -224,7 +229,7 @@ def field(inits, F, L, Fin, rng, d_start: date, mids=None, D=None):
 
 
 def region_stats(inits, F, L, Fin, rng, d_start, mids=None, D=None):
-    """Area-mean bias per region with a block-bootstrap 95 % interval (same truth adjustment)."""
+    """Area-mean bias per region with a block-bootstrap CI_LEVEL interval (same truth adjustment)."""
     w = G.area_weights(); out = {}
     blocks = np.array([(d - d_start).days // BLOCK_DAYS for d in inits])
     for name, (y0, y1, x0, x1) in REGIONS.items():
@@ -246,8 +251,8 @@ def region_stats(inits, F, L, Fin, rng, d_start, mids=None, D=None):
         m_o, _, _ = _boot_mean_se(o[:, None], blocks, rng)
         ob = float(m_o[0] - (m_t[0] if np.isfinite(m_t[0]) else 0.0))
         z = b / s if s > 0 else np.nan
-        out[name] = {"bias": round(b, 3), "lo": round(b - 1.96 * s, 3), "hi": round(b + 1.96 * s, 3), "obs": round(ob, 3),
-                     "rel": round(b / ob, 3) if ob >= REL_MIN else None, "sig": bool(np.isfinite(z) and abs(z) > 1.96),
+        out[name] = {"bias": round(b, 3), "lo": round(b - Z_CI * s, 3), "hi": round(b + Z_CI * s, 3), "obs": round(ob, 3),
+                     "rel": round(b / ob, 3) if ob >= REL_MIN else None, "sig": bool(np.isfinite(z) and abs(z) > Z_CI),
                      "truth_adjusted": bool(np.isfinite(m_t[0])), "n_runs": int(n_e[0])}
     return out
 
@@ -262,14 +267,14 @@ def run_errors(ini, acc, idx, la, lb, li, lp):
 
 
 def paired_change(d_new, d_old, dates, rng):
-    """Mean of the paired difference with a 21-day block bootstrap 95 % interval (blocks of matched days)."""
+    """Mean of the paired difference with a 21-day block bootstrap CI_LEVEL interval (blocks of matched days)."""
     x = d_new - d_old; ok = np.isfinite(x)
     x = x[ok]; dd = [d for d, k in zip(dates, ok) if k]
     if len(x) < 40:
         return None
     blocks = np.array([(d - dd[0]).days // BLOCK_DAYS for d in dd])
     m, se, _ = _boot_mean_se(x[:, None], blocks, rng)
-    lo, hi = float(m[0] - 1.96 * se[0]), float(m[0] + 1.96 * se[0])
+    lo, hi = float(m[0] - Z_CI * se[0]), float(m[0] + Z_CI * se[0])
     return {"mean": round(float(m[0]), 3), "lo": round(lo, 3), "hi": round(hi, 3), "sig": bool(lo > 0 or hi < 0), "n": int(len(x))}
 
 
@@ -278,20 +283,22 @@ def main() -> int:
     ap.add_argument("--data", required=True)
     ap.add_argument("--out", required=True, help="npz of the fields (input of render_bias.py)")
     ap.add_argument("--json", required=True, help="summary JSON for the page")
+    ap.add_argument("--coarse", type=int, default=COARSE, help="box size in degrees (1, 2, 4, 5)")
     a = ap.parse_args()
     data = Path(a.data); rng = np.random.default_rng(20261013)
-    li, lp = load_obs(data, "late"); fi, fp = load_obs(data, "final")
+    li, lp = load_obs(data, "late", a.coarse); fi, fp = load_obs(data, "final", a.coarse)
     if li is None:
         print("no IMERG Late in", data); return 1
     print(f"IMERG Late {min(li)}..{max(li)} ({len(li)} days); Final {min(fi) if fi else '-'}..{max(fi) if fi else '-'} ({len(fi or {})} days)", flush=True)
+    M = {m: load_model(data, m, a.coarse) for m in MODELS}
+    G.set_coarse(a.coarse)                                       # every statistic below is on the k-degree boxes
     D = truth_terms(li, lp, fi, fp, rng)
     print("truth term (Late - Final) seasons:", {k: v[2] for k, v in D.items()}, flush=True)
-    M = {m: load_model(data, m) for m in MODELS}
     for m, (ini, _) in M.items():
         print(f"{MODELS[m]}: {len(ini)} runs {ini[0] if ini else '-'}..{ini[-1] if ini else '-'}", flush=True)
     fields, summary = {}, {"generated": datetime.utcnow().strftime("%Y-%m-%dT%H:%MZ"), "leads": {k: v[2] for k, v in LEADS.items()},
                            "models": MODELS, "imerg_late": [str(min(li)), str(max(li))],
-                           "imerg_final": [str(min(fi)), str(max(fi))] if fi else None, "q_fdr": Q_FDR, "block_days": BLOCK_DAYS,
+                           "imerg_final": [str(min(fi)), str(max(fi))] if fi else None, "q_fdr": Q_FDR, "ci_level": CI_LEVEL, "grid_deg": a.coarse, "block_days": BLOCK_DAYS,
                            "comparisons": {}}
     def sample(model, idx, comp, lk_list=LEADS, seasons=SEASONS, store=True):
         """Bias fields for runs idx of one model (one cycle) - per lead and season; returns {(lk, sk): field}."""
