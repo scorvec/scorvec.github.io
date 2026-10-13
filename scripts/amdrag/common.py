@@ -75,12 +75,19 @@ def layer_weights(p_pa: np.ndarray, sp: np.ndarray) -> np.ndarray:
     return np.clip(hi - lo, 0.0, None)
 
 
+def row_edges(lat: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+    """Cell edges of each latitude row (ascending): mid-points between rows, the outermost edges at -90 / +90.
+    Works for regular and Gaussian grids alike (a regular grid's pole rows get a half cell, whose area is zero)."""
+    lat = np.asarray(lat, float)
+    mid = 0.5 * (lat[1:] + lat[:-1])
+    lo = np.concatenate([[-90.0], mid])
+    hi = np.concatenate([mid, [90.0]])
+    return lo, hi
+
+
 def band_rows(lat: np.ndarray) -> np.ndarray:
     """(NB, nlat) fraction of each row's cell inside each 5-degree band (rows sum to 1)."""
-    lat = np.asarray(lat, float)
-    d = abs(lat[1] - lat[0])
-    lo = np.clip(lat - d / 2, -90, 90)
-    hi = np.clip(lat + d / 2, -90, 90)
+    lo, hi = row_edges(lat)
     W = np.zeros((NB, len(lat)))
     for b in range(NB):
         e0, e1 = BAND_EDGES[b], BAND_EDGES[b + 1]
@@ -97,7 +104,8 @@ def hemi_rows(lat: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
 
 
 class Grid:
-    """A regular global lat-lon grid, latitude ASCENDING (callers flip), any longitude origin."""
+    """A global lat-lon grid, regular or Gaussian in latitude (ASCENDING; callers flip), regular in longitude with
+    any origin. Row widths come from row_edges, so every quadrature below is sum f cos(phi) dlam dphi_row."""
 
     def __init__(self, lat: np.ndarray, lon: np.ndarray):
         self.lat = np.asarray(lat, float)
@@ -107,7 +115,8 @@ class Grid:
         assert abs(abs(dl) * len(self.lon) - 360.0) < 1e-3, f"not a global longitude circle ({len(self.lon)} x {dl})"
         self.lonsign = np.sign(dl)
         self.dlam = np.deg2rad(abs(dl))
-        self.dphi = np.deg2rad(self.lat[1] - self.lat[0])
+        lo, hi = row_edges(self.lat)
+        self.dphi = np.deg2rad(hi - lo)                           # (nlat,) row widths
         self.cos = np.cos(np.deg2rad(self.lat))
         self.cos[np.abs(self.lat) >= 90.0 - 1e-9] = 0.0
         self.WB = band_rows(self.lat)                         # (NB, nlat)
@@ -228,11 +237,12 @@ class Grid:
 
     def eq_flux(self, u, v, p_pa, sp):
         """Relative-AAM flux into the NH across the equator, (a^2/g) sum_lam int u v dp dlam (N m = kg m2 s-2)."""
-        if not self.has_eq:
-            return np.nan
-        i = self.ieq
-        w = layer_weights(p_pa, sp[i:i + 1, :])[:, 0, :]
-        return float((A ** 2 / G) * (u[:, i, :] * v[:, i, :] * w).sum() * self.dlam)
+        rows = [self.ieq] if self.has_eq else [int(np.where(self.lat < 0)[0][-1]), int(np.where(self.lat > 0)[0][0])]
+        out = 0.0
+        for i in rows:                                            # Gaussian grid: mean of the two rows astride 0
+            w = layer_weights(p_pa, sp[i:i + 1, :])[:, 0, :]
+            out += float((A ** 2 / G) * (u[:, i, :] * v[:, i, :] * w).sum() * self.dlam) / len(rows)
+        return out
 
 
 def coarse_grid(res: float):
@@ -326,7 +336,7 @@ class Reducer:
     def level_step(self, levels, u: np.ndarray, v: dict | None, sp, lb=False, maps=False):
         """u: (nlev, lat, lon) on `levels` (any order); v: {level: 2-D} on (at least) the level sets' levels."""
         g = self.g
-        levels = [int(l) for l in levels]
+        levels = [float(l) for l in levels]
         order = np.argsort(levels)
         lev = np.array(levels)[order]
         u = u[order]
@@ -335,11 +345,11 @@ class Reducer:
         out["Mr_b"] = full.sum(0)
         if lb:
             out["Mr_lb"] = full
-        pos = {int(l): i for i, l in enumerate(lev)}
+        pos = {float(l): i for i, l in enumerate(lev)}
         for nm, ls in LEVEL_SETS.items():
-            if not all(l in pos for l in ls):
+            if not all(float(l) in pos for l in ls):
                 continue
-            ii = [pos[l] for l in ls]
+            ii = [pos[float(l)] for l in ls]
             lbs = g.rel_aam_lb(u[ii], np.array(ls) * 100.0, sp)
             out[f"Mr{nm}_b"] = lbs.sum(0)
             if nm == "C11" and lb:
@@ -348,23 +358,27 @@ class Reducer:
                 vv = np.stack([v[l] for l in ls])
                 out[f"F{nm}"] = g.eq_flux(u[ii], vv, np.array(ls) * 100.0, sp)
         for L in LOWLEV:
-            if L in pos:
+            if float(L) in pos:
+                uL = u[pos[float(L)]]
                 ok = sp > L * 100.0
-                out[f"u{L}_rh"] = g.region_mean(u[pos[L]], ok)
-                out[f"u{L}_b"] = g.bands((u[pos[L]] * ok * g.area[:, None]).sum(1))
+                out[f"u{L}_rh"] = g.region_mean(uL, ok)
+                out[f"u{L}_b"] = g.bands((uL * ok * g.area[:, None]).sum(1))
                 out[f"a{L}_b"] = g.bands((ok * g.area[:, None]).sum(1))
                 if maps and L == 850:
-                    out["map_u850"] = g.map5(u[pos[L]], valid=ok)
+                    out["map_u850"] = g.map5(uL, valid=ok)
         return out
 
 
-def pack_run(prefix: str, T: dict, L: dict, dt: int = 6) -> dict:
+def pack_run(prefix: str, T: dict, L: dict, dt: int = 6, interval_keys: tuple = ()) -> dict:
     """One run's step dicts -> compact arrays {prefix|name}:
       D|<torque>  daily means over day d = [24d, 24d+24] h, trapezoid of the dt-hourly samples (NaN if one is missing)
       A|<torque>  the step-0 (analysis) value;  H|<x>  every dt-hourly step, (SH, NH) sums of the band arrays
       S|<state>   instantaneous at the 24-h steps (mass, mass AAM, 10 m wind ...);  L|<x>  at the 24-h level steps
       M|<map>     5-degree maps at MAP_STEPS (float16);  X|<map>  mean over days 1-10 of the torque maps
-    Band arrays are float32 (36 bands; relative precision 6e-8 is far below every signal here)."""
+    Band arrays are float32 (36 bands; relative precision 6e-8 is far below every signal here).
+    interval_keys: prefixes of torques whose step-s value is already the MEAN over (s - dt, s] (the models' own
+    published stresses: GFS/GEFS 6-h averages, IFS accumulations differenced); their daily mean is the plain mean of
+    the dt-hourly intervals in the day and they have no step-0 value."""
     res = {}
     tsteps = sorted(T)
     if tsteps:
@@ -389,7 +403,12 @@ def pack_run(prefix: str, T: dict, L: dict, dt: int = 6) -> dict:
                 continue
             def at(s):
                 return np.asarray(T[s][k], dtype=np.float64) if (s in T and k in T[s]) else np.full(ex.shape, np.nan)
-            if k.startswith(TORQUE_PREFIX):
+            if interval_keys and k.startswith(tuple(interval_keys)):
+                D = np.full((nd,) + ex.shape, np.nan)
+                for d in range(nd):
+                    D[d] = sum(at(24 * d + j * dt) for j in range(1, 24 // dt + 1)) / (24 // dt)
+                res[f"{prefix}|D|{k}"] = D.astype(np.float32)
+            elif k.startswith(TORQUE_PREFIX):
                 w = np.array([0.5] + [1.0] * (24 // dt - 1) + [0.5]) / (24 // dt)
                 D = np.full((nd,) + ex.shape, np.nan)
                 for d in range(nd):

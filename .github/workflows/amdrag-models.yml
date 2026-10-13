@@ -1,0 +1,173 @@
+name: AAM conservation and drag - US, ECMWF and ERA5 collectors
+
+# The non-GEM half of the model intercomparison (scripts/amdrag/, page model-drag-intercomparison.html; GEM is
+# amdrag-gem.yml). For every 00Z init from 2026-09-14 that is not yet reduced, one matrix job per (model, chunk of
+# inits) byte-ranges ONLY the needed messages - NOAA GFS / GEFS / AIGFS from the AWS S3 open-data buckets, ECMWF
+# IFS-ENS / AIFS-ENS / AIFS from the Google Cloud mirror ONLY (ECMWF_SOURCES=google) - reduces them in the runner with
+# scripts/amdrag/common.py and uploads one small .npz per init; ERA5 days come from ARCO-ERA5 (no CDS). One final job
+# commits the .npz files (snapshot + resync, merge never rebase). Never any GRIB in the repo.
+#
+# Data: NOAA/NCEP (GFS, GEFS, AIGFS) via NOAA Open Data Dissemination on AWS; ECMWF open data (CC BY 4.0);
+# ERA5 (Contains modified Copernicus Climate Change Service information).
+
+on:
+  schedule:
+    - cron: "10 11 * * *"
+  workflow_dispatch:
+    inputs:
+      start:
+        description: "first init YYYYMMDD"
+        required: false
+        default: "20260914"
+      end:
+        description: "last init YYYYMMDD (default: today)"
+        required: false
+        default: ""
+      models:
+        description: "comma list: gfs,gefs,aigfs,ifs-ens,aifs-ens,aifs-single,era5"
+        required: false
+        default: "gfs,gefs,aigfs,ifs-ens,aifs-ens,aifs-single,era5"
+      chunk:
+        description: "inits per matrix job"
+        required: false
+        default: "3"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: amdrag-models
+  cancel-in-progress: false
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.m.outputs.matrix }}
+      n: ${{ steps.m.outputs.n }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          sparse-checkout: scripts/amdrag/data
+      - id: m
+        env:
+          START: ${{ inputs.start || '20260914' }}
+          END: ${{ inputs.end }}
+          MODELS: ${{ inputs.models || 'gfs,gefs,aigfs,ifs-ens,aifs-ens,aifs-single,era5' }}
+          CHUNK: ${{ inputs.chunk || '3' }}
+        run: |
+          python3 - <<'EOF' >> "$GITHUB_OUTPUT"
+          import datetime as dt, json, os
+          from pathlib import Path
+          s = dt.datetime.strptime(os.environ["START"], "%Y%m%d").date()
+          today = dt.datetime.utcnow().date()
+          e = dt.datetime.strptime(os.environ["END"], "%Y%m%d").date() if os.environ["END"] else today
+          # a 00Z init is complete on every mirror by ~09 UTC; ERA5T lags ~5 days
+          if dt.datetime.utcnow().hour < 10:
+              e = min(e, today - dt.timedelta(days=1))
+          inc = []
+          for m in os.environ["MODELS"].split(","):
+              last = min(e, today - dt.timedelta(days=6)) if m == "era5" else e
+              d, todo = s, []
+              while d <= last:
+                  if not Path(f"scripts/amdrag/data/{m}/{d:%Y%m%d}.npz").exists():
+                      todo.append(f"{d:%Y%m%d}")
+                  d += dt.timedelta(days=1)
+              k = int(os.environ["CHUNK"]) * (4 if m == "era5" else 1)
+              for i in range(0, len(todo), k):
+                  part = todo[i:i + k]
+                  inc.append({"model": m, "dates": " ".join(part), "tag": f"{m}_{part[0]}"})
+          print("matrix=" + json.dumps({"include": inc}))
+          print(f"n={len(inc)}")
+          EOF
+          cat "$GITHUB_OUTPUT"
+
+  reduce:
+    needs: plan
+    if: needs.plan.outputs.n != '0'
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    strategy:
+      fail-fast: false
+      max-parallel: 12
+      matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
+    env:
+      ECMWF_SOURCES: google
+      AMDRAG_WORKERS: "4"
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          sparse-checkout: |
+            scripts/amdrag
+            scripts/ecmwf/rangefetch.py
+            scripts/ecmwf/budget.py
+            scripts/lib/webget.py
+            scripts/mjo/data/reference/drag_cd_field.nc
+            scripts/mjo/data/reference/era5_orography.nc
+          sparse-checkout-cone-mode: false
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - uses: actions/cache@v6
+        with:
+          path: ~/.cache/pip
+          key: amdrag-pip-v1
+      - name: Install Python dependencies
+        run: pip install --quiet numpy xarray netCDF4 h5netcdf eccodes requests "zarr>=3" gcsfs numcodecs
+      - name: Reduce ${{ matrix.model }} ${{ matrix.dates }}
+        run: |
+          df -h / | tail -1
+          if [ "${{ matrix.model }}" = "era5" ]; then
+            set -- ${{ matrix.dates }}
+            S="$1"; for x in "$@"; do E="$x"; done
+            python scripts/amdrag/era5_collect.py --start "${S:0:4}-${S:4:2}-${S:6:2}" --end "${E:0:4}-${E:4:2}-${E:6:2}" --workers 3
+          else
+            python scripts/amdrag/collect_models.py --model ${{ matrix.model }} --dates ${{ matrix.dates }}
+          fi
+          ls -la scripts/amdrag/data/${{ matrix.model }}/ | tail -8
+      - uses: actions/upload-artifact@v7
+        with:
+          name: amdrag_${{ matrix.tag }}
+          path: scripts/amdrag/data/${{ matrix.model }}/*.npz
+          if-no-files-found: ignore
+          retention-days: 7
+
+  commit:
+    needs: [plan, reduce]
+    if: ${{ !cancelled() && needs.plan.outputs.n != '0' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          sparse-checkout: scripts/amdrag/data
+      - uses: actions/download-artifact@v7
+        with:
+          pattern: amdrag_*
+          path: parts
+      - name: Commit & push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          shopt -s nullglob
+          for d in parts/amdrag_*; do
+            m=$(basename "$d"); m=${m#amdrag_}; m=${m%_*}
+            mkdir -p "scripts/amdrag/data/$m"; cp -n "$d"/*.npz "scripts/amdrag/data/$m/" 2>/dev/null || true
+          done
+          OUT="scripts/amdrag/data"
+          SNAP=$(mktemp -d)
+          git add --sparse -A "$OUT"
+          git diff --staged --name-only -z | tar cf "$SNAP/outs.tar" --null -T -
+          N=$(git diff --staged --name-only | grep -c '\.npz$' || true)
+          git reset -q
+          for i in 1 2 3 4 5; do
+            if ! timeout 120 git fetch origin main; then echo "fetch $i failed"; sleep 5; continue; fi
+            git reset -q --hard origin/main
+            tar xf "$SNAP/outs.tar"
+            git add --sparse -A "$OUT"
+            if git diff --staged --quiet; then echo "No changes."; exit 0; fi
+            git commit -q -m "amdrag: reduced US/ECMWF/ERA5 inits ($N files)"
+            if timeout 180 git push; then echo "Pushed on attempt $i."; exit 0; fi
+            echo "Push $i rejected; resyncing"; sleep 5
+          done
+          exit 1
