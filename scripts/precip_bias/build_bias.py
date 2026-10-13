@@ -252,6 +252,27 @@ def region_stats(inits, F, L, Fin, rng, d_start, mids=None, D=None):
     return out
 
 
+def run_errors(ini, acc, idx, la, lb, li, lp):
+    """Area-mean (F - IMERG Late) per run over the cells valid in that run, mm/day (NaN if the run has no truth)."""
+    w = G.area_weights()
+    F = lead_rate(acc[idx], la, lb); L = obs_rate(li, lp, [ini[i] for i in idx], la, lb)
+    e = F - L; ok = np.isfinite(e)
+    with np.errstate(invalid="ignore"):
+        return np.where(ok.any(axis=(1, 2)), np.nansum(np.where(ok, e, 0) * w, axis=(1, 2)) / (w * ok).sum(axis=(1, 2)), np.nan)
+
+
+def paired_change(d_new, d_old, dates, rng):
+    """Mean of the paired difference with a 21-day block bootstrap 95 % interval (blocks of matched days)."""
+    x = d_new - d_old; ok = np.isfinite(x)
+    x = x[ok]; dd = [d for d, k in zip(dates, ok) if k]
+    if len(x) < 40:
+        return None
+    blocks = np.array([(d - dd[0]).days // BLOCK_DAYS for d in dd])
+    m, se, _ = _boot_mean_se(x[:, None], blocks, rng)
+    lo, hi = float(m[0] - 1.96 * se[0]), float(m[0] + 1.96 * se[0])
+    return {"mean": round(float(m[0]), 3), "lo": round(lo, 3), "hi": round(hi, 3), "sig": bool(lo > 0 or hi < 0), "n": int(len(x))}
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--data", required=True)
@@ -321,6 +342,7 @@ def main() -> int:
     # Did an upgrade change the bias? The new cycle's runs against the old cycle's runs on the SAME calendar days one year
     # earlier (so the season mix matches; the weather year does not, so part of any difference is the weather).
     summary["upgrades"] = {}
+    pair_err = {}
     for m, old, new in UPGRADES:
         ini = M[m][0]; pos = {d: i for i, d in enumerate(ini)}
         pairs = []
@@ -339,6 +361,8 @@ def main() -> int:
         f_old = sample(m, [j for j, _ in pairs], None, seasons=("all",), store=False)
         f_new = sample(m, [i for _, i in pairs], None, seasons=("all",), store=False)
         res = {"runs": len(pairs), "old": [str(ini[pairs[0][0]]), str(ini[pairs[-1][0]])], "new": [str(ini[pairs[0][1]]), str(ini[pairs[-1][1]])], "leads": {}}
+        pdates = [ini[i] for _, i in pairs]
+        pair_err[key] = {}
         for lk in LEADS:
             if (lk, "all") not in f_old or (lk, "all") not in f_new:
                 continue
@@ -350,14 +374,32 @@ def main() -> int:
             ok = np.isfinite(fa["bias"]) & np.isfinite(fb["bias"])
             r = float(np.corrcoef(fa["bias"][ok], fb["bias"][ok])[0, 1])
             w = G.area_weights()
+            la, lb, _ = LEADS[lk]
+            e_old = run_errors(ini, M[m][1], [j for j, _ in pairs], la, lb, li, lp)
+            e_new = run_errors(ini, M[m][1], [i for _, i in pairs], la, lb, li, lp)
+            pair_err[key][lk] = dict(zip(pdates, e_new - e_old))
+            chg = paired_change(e_new, e_old, pdates, rng)
             fields[f"change|{key}|{lk}"] = {"bias": dlt, "sig": sg, "rel": np.full_like(dlt, np.nan), "truth": np.full_like(dlt, np.nan),
                                             "obs": np.full_like(dlt, np.nan), "bias_late": dlt}
             res["leads"][lk] = {"frac_sig": round(float(sg[np.isfinite(p.reshape(dlt.shape))].mean()), 3), "pattern_r": round(r, 3),
                                 "domain_change": round(float(np.nansum(dlt * w) / np.sum(w * np.isfinite(dlt))), 3),
                                 "domain_old": round(float(np.nansum(fa["bias"] * w) / np.sum(w * np.isfinite(fa["bias"]))), 3),
-                                "domain_new": round(float(np.nansum(fb["bias"] * w) / np.sum(w * np.isfinite(fb["bias"]))), 3)}
+                                "domain_new": round(float(np.nansum(fb["bias"] * w) / np.sum(w * np.isfinite(fb["bias"]))), 3),
+                                "domain_change_test": chg}
             print(f"  upgrade {key:16s} {lk:6s} runs {len(pairs):4d}  bias pattern r {r:.2f}  cells changed (FDR) {100 * res['leads'][lk]['frac_sig']:5.1f} %", flush=True)
         summary["upgrades"][key] = res
+    did = {}
+    a_k, b_k = "ifs|49r1->50r1", "aifs-ens|v1->v2"
+    if a_k in pair_err and b_k in pair_err:
+        for lk in LEADS:
+            A, B = pair_err[a_k].get(lk, {}), pair_err[b_k].get(lk, {})
+            common = sorted(set(A) & set(B))
+            if len(common) >= 40:
+                did[lk] = paired_change(np.array([A[d] for d in common]), np.array([B[d] for d in common]), common, rng)
+        summary["upgrade_did"] = {"label": "IFS-ENS 49r1->50r1 change minus AIFS-ENS v1->v2 change, same days (the weather year cancels)",
+                                  "leads": did}
+        if "wk1" in did and did["wk1"]:
+            print(f"  difference-in-differences wk1: {did['wk1']}", flush=True)
     for sk, (m, se, n) in D.items():
         fields[f"truth|{sk}"] = {"bias": m, "sig": bh_fdr(pvals((m / se).ravel())).reshape(m.shape), "rel": np.full_like(m, np.nan),
                                  "truth": m, "obs": np.full_like(m, np.nan), "bias_late": m}

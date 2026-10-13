@@ -29,6 +29,8 @@ COMP_ORDER = ["current", "previous", "ifs49"]
 
 
 def f2(x, d=2):
+    if round(x, d) == 0:                                             # no "+0.00" / "−0.00"
+        return f"{0:.{d}f}"
     return f"{x:+.{d}f}".replace("-", "−")
 
 
@@ -73,14 +75,27 @@ def upgrade_section(S, lead_opts):
     for k, v in ups:
         m, ch = k.split("|"); old, new = ch.split("->"); u = v["leads"].get("wk1")
         if u:
-            lines.append(f"<li><strong>{MODELS[m]} {old} to {new}</strong> ({v['runs']} matched runs): week-1 bias pattern "
-                         f"correlation r = {u['pattern_r']:.2f}; {100 * u['frac_sig']:.0f} % of cells changed significantly; "
-                         f"domain-mean bias {f2(u['domain_old'])} to {f2(u['domain_new'])} mm/day.</li>")
+            c = u.get("domain_change_test")
+            if c and c["sig"]:
+                dm = f"the domain-mean bias changed by {f2(c['mean'])} mm/day [{f2(c['lo'])}, {f2(c['hi'])}]"
+            elif c:
+                dm = f"no significant change in the domain-mean bias ({f2(c['mean'])} [{f2(c['lo'])}, {f2(c['hi'])}] mm/day)"
+            else:
+                dm = "too few runs to test the domain mean"
+            lines.append(f"<li><strong>{MODELS[m]} {old} to {new}</strong> ({v['runs']} matched runs, week 1): bias pattern "
+                         f"correlation r = {u['pattern_r']:.2f}; {100 * u['frac_sig']:.0f} % of cells changed significantly; {dm}.</li>")
+    did = S.get("upgrade_did", {}).get("leads", {}).get("wk1")
+    if did:
+        verdict = ("so the shared part is the weather year, not either upgrade" if not did["sig"]
+                   else "so the two upgrades changed the bias by different amounts")
+        lines.append(f"<li><strong>The two May 2026 upgrades on the same days</strong> ({did['n']} runs, week 1): IFS-ENS's change "
+                     f"minus AIFS-ENS's is {f2(did['mean'])} mm/day [{f2(did['lo'])}, {f2(did['hi'])}]"
+                     f"{' (not significant)' if not did['sig'] else ''}. The weather year cancels in this difference, {verdict}.</li>")
     out = [
         "<p>IFS went from cycle 48r1 to 49r1 on 12 November 2024 and to 50r1 on 12 May 2026, when AIFS-ENS also went from v1 to v2. "
         "No field on this page mixes cycles. To see what an upgrade changed, the new cycle's runs are set against the old cycle's "
         "runs on the same calendar days a year earlier. The weather differed between the two years, so part of any change is the "
-        "weather.</p>",
+        "weather; intervals are 95 % (21-day block bootstrap over the matched days).</p>",
         f"<ul>{''.join(lines) or '<li>Not enough matched runs yet.</li>'}</ul>"]
     if ups:
         up_opts = [(k.replace("|", "_").replace("->", "_"), f"{MODELS[k.split('|')[0]]} {k.split('|')[1].replace('->', ' to ')}") for k, _ in ups]
