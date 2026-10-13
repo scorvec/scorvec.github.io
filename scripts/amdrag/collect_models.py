@@ -254,24 +254,32 @@ def aigfs_step(d, s, levels, stats):
     return T, L
 
 
-EC = {"ifs-ens": ("ifs", "enfo", "ef"), "aifs-ens": ("aifs-ens", "enfo", None), "aifs-single": ("aifs-single", "oper", "fc")}
+# (model path, stream, file kind) per source file. The open-data IFS ensemble file (-enfo-ef) holds the 50 perturbed
+# members only; the control is published as the deterministic run (-oper-fc, 9 km, identical configuration since cycle
+# 48r1), which is therefore member 0 of "ifs-ens" here (to 240 h only: the 00Z oper run stops at day 10).
+EC = {"ifs-ens": [("ifs", "oper", "fc"), ("ifs", "enfo", "ef")], "aifs-ens": [("aifs-ens", "enfo", "cf"),
+      ("aifs-ens", "enfo", "pf")], "aifs-single": [("aifs-single", "oper", "fc")]}
 
 
 def ec_step(model, d, s, levels, stats):
     import rangefetch as rf
-    mdl, stream, kind = EC[model]
     sfc = ["sp", "10u", "10v", "tcw"] + (["ewss"] if model == "ifs-ens" else [])
-    kinds = [kind] if kind else ["cf", "pf"]
     T, L = {}, {}
-    for kd in kinds:
-        idx = rf.fetch_index(d, "00", mdl, s, kd, stream=stream)
+    for mdl, stream, kd in EC[model]:
+        try:
+            idx = rf.fetch_index(d, "00", mdl, s, kd, stream=stream)
+        except Exception as ex:                                        # noqa: BLE001
+            if getattr(ex, "not_found", False) and kd == "fc" and model == "ifs-ens":
+                continue                                               # oper run beyond 240 h
+            raise
+
         def mem_of(e):
-            if e.get("type") == "cf" or kd in ("cf", "fc") and model != "ifs-ens":
+            if kd in ("cf", "fc") or e.get("type") == "cf":
                 return 0
             try:
                 return int(e.get("number"))
             except (TypeError, ValueError):
-                return 0
+                return -1
         want = []
         for e in idx:
             m = mem_of(e)
