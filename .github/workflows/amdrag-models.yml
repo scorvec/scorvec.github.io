@@ -85,7 +85,7 @@ jobs:
               print(f"n={len(inc)}")
               raise SystemExit(0)
           for m in os.environ["MODELS"].split(","):
-              last = min(e, today - dt.timedelta(days=6)) if m == "era5" else e
+              last = min(e, today - dt.timedelta(days=7)) if m == "era5" else e   # day d needs d+1 00Z in ERA5T
               d, todo = s, []
               while d <= last:
                   if not Path(f"scripts/amdrag/data/{m}/{d:%Y%m%d}.npz").exists():
