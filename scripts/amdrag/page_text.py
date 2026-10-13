@@ -82,20 +82,31 @@ def body(R, Mo, keys, L, fig, t_models, made):
                   "global budget (change in angular momentum minus the torques) is " + "; ".join(t for t in own_txt if t) +
                   ". GFS and GEFS publish the turbulent and the orographic gravity-wave/blocking stress; the open IFS "
                   "data carry only the turbulent part (with turbulent orographic form drag), so an IFS residual includes its "
-                  "missing blocking and gravity-wave drag. ERA5 for comparison: " +
-                  (E(era.get("budget", {}).get("resid_own"), 1) + " Hadley, the analysis increments" if era.get("budget") else "–") + ".")
+                  "missing blocking and gravity-wave drag." +
+                  (" ERA5 on the same days, with its own turbulent and gravity-wave stress, misses " +
+                   E(era["budget"]["resid_own"], 1) + " Hadley: its analysis increments, which no torque supplies."
+                   if era.get("budget") else ""))
     # 2 mass
-    mt = []
-    for k in keys:
-        m = mass(k, 10)
-        if m and m.get("mean") is not None:
-            mt.append((abs(m["mean"]), k, m))
-    mt.sort()
-    if mt:
-        best = ", ".join(f"{L[k]} {E(m, 3)}" for _, k, m in mt[:3])
-        worst = ", ".join(f"{L[k]} {E(m, 3)}" for _, k, m in mt[-2:])
-        bl.append(f"<b>Mass.</b> By day 10 the global-mean surface pressure has moved least in {best} hPa and most in {worst} "
-                  "hPa. The physics models carry mass fixers; the AI models do not, and their surface pressure is free to drift.")
+    def mfmt(b_, what):
+        if b_.get("lo") is not None and b_.get("hi") is not None and abs(b_["mean"]) < 0.0005 and abs(b_["hi"] - b_["lo"]) < 0.001:
+            return f"{what} constant to within 0.001"
+        return f"{what} {E(b_, 3)}"
+
+    def mstr(k):
+        t, d_, t1 = mass(k, 10), mass(k, 10, True), mass(k, 1)
+        if not t or t.get("mean") is None:
+            return None
+        tt = mfmt(t, "total")
+        if (t1 and t1.get("mean") is not None and abs(t1["mean"]) > 0.01 and abs(t["mean"] - t1["mean"]) < 0.003
+                and sig(t1)):
+            tt += f" (a step of {num(t1['mean'], 3)} on day 1, then constant)"
+        return f"{L[k]} {tt}" + (f", {mfmt(d_, 'dry air')}" if d_ and d_.get("mean") is not None else "")
+    ph = [mstr(k) for k in keys if k not in AI and mstr(k)]
+    ai = [mstr(k) for k in keys if k in AI and mstr(k)]
+    if ph or ai:
+        bl.append("<b>Mass.</b> Global-mean surface-pressure change by day 10, in hPa. Physics models: " + "; ".join(ph) +
+                  ". AI models: " + "; ".join(ai) + " (all hPa). The physics models constrain their mass (IFS and GDPS total mass, "
+                  "GFS, GEFS and GEPS dry air); an AI model has no such constraint and its surface pressure is free to drift.")
     # 3 drift vs own analysis day 10
     dr = []
     for k in keys:
@@ -113,9 +124,10 @@ def body(R, Mo, keys, L, fig, t_models, made):
         bl.append("<b>Free-forecast drift.</b> Against its own analysis valid the same day, the wind-term angular momentum "
                   "(11 common levels) at day 10 changes significantly in " + ("; ".join(dr) if dr else "none of the models") +
                   " ×10²⁵ kg m² s⁻¹" + (f"; the change is not significant in {', '.join(nd)}" if nd else "") +
-                  ". For scale, ERA5's analysis adds about +0.07 ×10²⁵ a day through its increments (the "
-                  "<a href='/torque-enso.html'>torque study</a>), and IFS-ENS lost −0.31 by day 15 in "
-                  "<a href='/aifs-aam-budget.html'>winter 2025–26</a>.")
+                  ". For scale, ERA5's increments on these days add " +
+                  (f"{era['budget']['resid_own']['mean'] * 86400 * 1e18 / 1e25:.2f}" if era.get("budget") else "about 0.1") +
+                  " ×10²⁵ a day (the <a href='/torque-enso.html'>torque study</a> measured the increments directly), and "
+                  "IFS-ENS lost −0.31 by day 15 in <a href='/aifs-aam-budget.html'>winter 2025–26</a>.")
     # 4 drag against ERA5
     fb = []
     for k in keys:
@@ -146,14 +158,17 @@ def body(R, Mo, keys, L, fig, t_models, made):
                   "westerlies).")
     # 6 GEM: what the 2019 changes can show (GEPS = the clean GEM physics; GDPS nudged toward GEML since May 2026)
     gem = []
+
+    def Eg(b_, d=2):
+        return E(b_, d) if (b_ and b_.get("mean") is not None) else "not yet testable"
     if "geps" in Mo:
         gem.append(f"GEPS (the unnudged GEM, {Mo['geps']['n_inits']} inits): day-10 angular-momentum drift against its own "
-                   f"analysis {E(drift('geps', 'G', 10))} ×10²⁵ (SH {E(drift('geps', 'S', 10))}, NH "
-                   f"{E(drift('geps', 'N', 10))}); 850 hPa wind over ocean 30–65°S {E(wind('geps', 'u850_rh', 10, 'OCX_S'))} "
-                   f"and over rough terrain {E(wind('geps', 'u850_rh', 10, 'ORO_N'))} (NH) m s⁻¹")
+                   f"analysis {Eg(drift('geps', 'G', 10))} (×10²⁵; SH {Eg(drift('geps', 'S', 10))}, NH "
+                   f"{Eg(drift('geps', 'N', 10))}); 850 hPa wind over ocean 30–65°S {Eg(wind('geps', 'u850_rh', 10, 'OCX_S'))} "
+                   f"and over rough terrain {Eg(wind('geps', 'u850_rh', 10, 'ORO_N'))} (NH) (m s⁻¹)")
     if "gdps" in Mo:
         gem.append(f"GDPS ({Mo['gdps']['n_inits']} inits, nudged toward GEML between 850 and 250 hPa): day-10 drift "
-                   f"{E(drift('gdps', 'G', 10))}")
+                   f"{Eg(drift('gdps', 'G', 10))}, bulk budget residual on day 1 {Eg(bulk('gdps', 1), 1)} Hadley")
     sc = {k: g(k, "orography", "scales", "land", "rms_fine05") for k in keys}
     sc = {k: v for k, v in sc.items() if v}
     if "gdps" in sc:
@@ -277,6 +292,27 @@ def body(R, Mo, keys, L, fig, t_models, made):
         return f"<td>{x['sh_peak']:.2f} <span class='sig'>({abs(x['sh_peak_lat']):.0f}°S, n={d['n']})</span></td>"
     wrows += ("<tr class='grp'><th scope='row'>July, SH peak</th></tr><tr><th scope='row'>total subgrid stress, all "
               "surfaces</th><td></td><td></td><td>2.20–2.50</td><td></td>" + wsh("gfs") + wsh("gefs") + wsh("era5") + "</tr>")
+    def pk(m, mon, part, hemi="nh"):
+        d = W.get(f"{m}|{mon}")
+        return d[part][f"{hemi}_peak"] if d and part in d else None
+    if pk("ifs-ens", 1, "pbl_land") is not None and pk("gfs", 1, "sgo") is not None and pk("era5", 1, "total") is not None:
+        wgne_txt = (f"In January 2026 the IFS's boundary-layer stress over land peaks at {pk('ifs-ens', 1, 'pbl_land'):.2f} "
+                    f"×10¹⁹ N m (2012: 0.85), ERA5's at {pk('era5', 1, 'pbl_land'):.2f}, GFS's at {pk('gfs', 1, 'pbl_land'):.2f} "
+                    f"and GEFS's at {pk('gefs', 1, 'pbl_land'):.2f} (the 2012 range of the other high-resolution models was "
+                    f"0.33–0.55). GFS and GEFS put {pk('gfs', 1, 'sgo'):.2f} and {pk('gefs', 1, 'sgo'):.2f} into their "
+                    f"subgrid-orography schemes, against ERA5's {pk('era5', 1, 'sgo'):.2f} (2012: IFS 0.20, the others "
+                    f"0.4–1.25). " + ("IFS still carries most of its land drag in its boundary layer, as in 2012, while GFS, "
+                    "which was not in the 2012 comparison, carries more in its orographic schemes than in its boundary layer, "
+                    "the split the Met Office, JMA and Bureau models had then. " if pk('gfs', 1, 'sgo') > pk('gfs', 1, 'pbl_land')
+                    and pk('ifs-ens', 1, 'pbl_land') > 0.6 else "") +
+                    f"GFS's and GEFS's totals over all surfaces, {pk('gfs', 1, 'total'):.2f} "
+                    f"(GFS) and {pk('gefs', 1, 'total'):.2f} (GEFS), compare with ERA5's {pk('era5', 1, 'total'):.2f} on the same "
+                    f"days. Over the oceans the 2026 models agree as closely as in 2012 (boundary-layer stress over water, "
+                    f"NH peak: GFS {pk('gfs', 1, 'pbl_water'):.2f}, IFS {pk('ifs-ens', 1, 'pbl_water'):.2f}, ERA5 "
+                    f"{pk('era5', 1, 'pbl_water'):.2f}). Different winters weigh in as well as different models, so the "
+                    "same-month ERA5 values are the reference, not the 2012 numbers.")
+    else:
+        wgne_txt = ""
     t_wgne = ("<div class='tw'><table class='res'><thead><tr><th>January, NH peak, 10¹⁹ N m</th><th>IFS 2012</th>"
               "<th>GDPS 2012</th><th>2012 high-resolution range</th><th>IFS 2026</th><th>GFS 2026</th><th>GEFS 2026</th>"
               "<th>ERA5 2026</th></tr></thead><tbody>" + wrows + "</tbody></table></div>")
@@ -351,6 +387,19 @@ def body(R, Mo, keys, L, fig, t_models, made):
             return f"{L[k]}: no significant day-10 change against its own analysis."
         return f"{L[k]}: day 10 " + ", ".join(parts) + "."
     drift_list = "<ul>" + "".join(f"<li>{drift_sentence(k)}</li>" for k in keys) + "</ul>"
+
+    def layer_sentence(k):
+        rows = [r for r in (g(k, "level_drift_d10") or []) if sig(r)]
+        out = []
+        for part, nm in (("S", "SH"), ("N", "NH")):
+            rr = [r for r in rows if r["part"] == part]
+            if rr:
+                r = max(rr, key=lambda x: abs(x["mean"]))
+                out.append(f"{nm} {num(r['mean'], 3)} at {r['level']} hPa")
+        return f"{L[k]}: " + ", ".join(out) if out else None
+    ls_ = [x for x in (layer_sentence(k) for k in keys) if x]
+    layer_txt = ("The largest significant single-layer change at day 10 (×10²⁵ kg m² s⁻¹; FDR over levels × hemispheres): "
+                 + "; ".join(ls_) + ".") if ls_ else ""
 
     ev = era.get("levels", {})
     gd_rank = ""
@@ -502,6 +551,7 @@ def body(R, Mo, keys, L, fig, t_models, made):
   {drift_list}
   {fig("drifte", "aam_drift_era5.webp", "Wind-term AAM drift against ERA5 by forecast day", "As Figure 3 but against ERA5 valid the same day, after removing each model's day-0 difference from ERA5. Shorter sample: ERA5 ends about six days before today.")}
   {t_drifte}
+  <p>{layer_txt}</p>
   {fig("levels", "level_drift.webp", "Day-10 AAM drift by pressure level and hemisphere", "Where the day-10 drift sits: the angular momentum of each of the 11 common layers, forecast minus own analysis, by hemisphere. Dots: significant after the FDR over levels × hemispheres.")}
 
   <h2>5. Drag: how strong, against ERA5 and against each other</h2>
@@ -522,6 +572,7 @@ def body(R, Mo, keys, L, fig, t_models, made):
   <p class="tcap">2012 values read off Figure 13 of the WGNE Drag Project report (Zadra et al., 2013), January 2012, first
   24 h, to about ±0.05 ×10¹⁹ N m; "high-resolution range" spans the eight models other than CPTEC's two AGCMs. 2026: mean
   of the 00Z forecasts of the month, northern peak between 25 and 65°N. The 2012 GDPS and IFS are not today's models.</p>
+  <p>{wgne_txt}</p>
 
   <h2>6. Low-level winds: do they weaken or strengthen as the forecast runs?</h2>
   <p>In the torque study ERA5's analysis weakened both the trades and the mid-latitude surface westerlies. Here the same
@@ -573,6 +624,10 @@ def body(R, Mo, keys, L, fig, t_models, made):
     for GEPS, every second day. Winter results can differ (the earlier IFS test was in December–February).</li>
     <li><b>GDPS is a hybrid since May 2026</b>: its large scales between 850 and 250 hPa follow an AI model, so its drift and
     budget are not GEM's physics alone. GEPS is the cleaner measure of GEM's physics.</li>
+    <li><b>Published orography.</b> Each mountain torque uses the orography the model publishes with its surface pressure.
+    GEM's fields are interpolated from its Yin-Yang grid to the output grid; if its published orography and surface pressure
+    were interpolated or filtered differently, a spurious torque would follow, and the published fields cannot rule that out.
+    The same holds, to a smaller degree, for every model published on a grid other than its own.</li>
     <li><b>Members.</b> GEPS members perturb drag parameters by design; IFS-ENS member 0 stops at day 10; ensembles use control + 4.</li>
   </ul>
 

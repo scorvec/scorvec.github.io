@@ -287,7 +287,7 @@ def process(model: str, d: str) -> dict:
     runs = sorted(T)
     for m in runs:
         run = model if M["members"] is None else f"{model}:{m}"
-        pack.update(C.pack_run(run, T[m], L.get(m, {})))
+        pack.update(C.pack_run(run, T[m], L.get(m, {}), lean=m != runs[0]))
     meta["runs"] = [model if M["members"] is None else f"{model}:{m}" for m in runs]
     meta["levels_u"] = M["ulev"]
     meta["levels_v"] = M["vlev"]

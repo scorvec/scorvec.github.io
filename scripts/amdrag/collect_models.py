@@ -518,7 +518,7 @@ def process(model, d, out: Path):
     for m in sorted(T):
         run = model if SPEC[model]["members"] == [0] else f"{model}:{m}"
         runs.append(run)
-        pack.update(C.pack_run(run, T[m], L.get(m, {}), interval_keys=("Tft", "Tg")))
+        pack.update(C.pack_run(run, T[m], L.get(m, {}), interval_keys=("Tft", "Tg"), lean=m != min(T)))
     meta["runs"] = runs
     meta["n_T"] = {str(m): len(T[m]) for m in T}
     meta["n_L"] = {str(m): len(L.get(m, {})) for m in T}

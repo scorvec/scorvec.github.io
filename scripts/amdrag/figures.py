@@ -168,7 +168,8 @@ def fig_torques(R, out):
     fig.subplots_adjust(left=0.05, right=0.99, top=0.82, bottom=0.27, wspace=0.18)
     for ax, (tk, ttl) in zip(axes, terms):
         xs = []
-        for i, k in enumerate(keys):
+        kk = [k for k in keys if f"{tk}|G" in R["models"][k]["torque_bias_agg"]]
+        for i, k in enumerate(kk):
             ag = R["models"][k]["torque_bias_agg"].get(f"{tk}|G")
             if not ag:
                 continue
@@ -185,8 +186,8 @@ def fig_torques(R, out):
                             fontsize=7, color=MUTED)
             xs.append(i)
         ax.axhline(0, color=INK2, lw=0.8)
-        ax.set_xticks(range(len(keys)))
-        ax.set_xticklabels([LBL[k].replace(" (AI)", "\n(AI)").replace(" (hybrid)", "\n(hybrid)") for k in keys],
+        ax.set_xticks(range(len(kk)))
+        ax.set_xticklabels([LBL[k].replace(" (AI)", "\n(AI)").replace(" (hybrid)", "\n(hybrid)") for k in kk],
                            fontsize=8)
         ax.set_title(ttl, fontsize=10)
         ax.grid(axis="x", visible=False)
@@ -313,9 +314,13 @@ def fig_wgne(R, out):
                                            alpha=0.45, lw=0, label="2012 high-resolution models, peak range"))
                 ax.plot([32, 46], [w["IFS"]] * 2, color=COL["ifs-ens"], lw=3, alpha=0.5, label="2012 IFS peak")
                 ax.plot([32, 46], [w["GDPS"]] * 2, color=COL["gdps"], lw=3, alpha=0.5, label="2012 GDPS peak")
+                lo_, hi_ = ax.get_ylim()
+                ax.set_ylim(lo_, max(hi_, w["others"][1] * 1.08))
             if mon == 7 and part == "total":                       # July 2012 SH peak range (WGNE Report 1, Fig. 14)
                 ax.add_patch(plt.Rectangle((-55, 2.2), 15, 0.3, color="#c3c2b7", alpha=0.45, lw=0,
                                            label="2012 high-resolution models, peak range"))
+                lo_, hi_ = ax.get_ylim()
+                ax.set_ylim(lo_, max(hi_, 2.65))
             ax.set_title(f"{ttl}\n{'January' if mon == 1 else 'July'} 2026, first 24 h", fontsize=9.5)
             ax.set_xlim(-90, 90)
             if col == 0:
@@ -350,8 +355,10 @@ def fig_levels(R, out):
         ax.set_xlabel("relative AAM in the layer, day 10 − own analysis (10²⁵ kg m² s⁻¹)")
     axes[0].invert_yaxis()
     axes[0].set_yscale("log")
-    axes[0].set_yticks(C.C11)
-    axes[0].set_yticklabels([str(x) for x in C.C11])
+    tk = [50, 100, 200, 300, 500, 700, 850, 1000]
+    axes[0].set_yticks(tk)
+    axes[0].set_yticklabels([str(x) for x in tk])
+    axes[0].minorticks_off()
     axes[0].set_ylabel("pressure (hPa)")
     fig.suptitle("Where in the column the day-10 AAM drift sits (11 common levels; dots = significant, FDR 10 %)",
                  fontsize=11.5, color=INK, x=0.01, ha="left")

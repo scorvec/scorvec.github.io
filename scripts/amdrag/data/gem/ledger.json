@@ -1,6 +1,6 @@
 {
  "bytes_by_day": {
-  "2026-10-13": 7848144582
+  "2026-10-13": 10745930798
  },
  "inits": {
   "gdps:20260914": {
@@ -48,6 +48,15 @@
    "runs": 1,
    "seconds": 434.1
   },
+  "gdps:20260919": {
+   "attempts": 1,
+   "bytes": 732111244,
+   "complete": true,
+   "kb": 129,
+   "missing": 0,
+   "runs": 1,
+   "seconds": 545.1
+  },
   "geps:20260914": {
    "attempts": 1,
    "bytes": 2088901223,
@@ -65,6 +74,15 @@
    "missing": 0,
    "runs": 5,
    "seconds": 429.5
+  },
+  "geps:20260918": {
+   "attempts": 1,
+   "bytes": 2165674972,
+   "complete": true,
+   "kb": 447,
+   "missing": 0,
+   "runs": 5,
+   "seconds": 421.3
   }
  }
 }

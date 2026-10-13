@@ -1,8 +1,8 @@
 {
  "updated": "2026-10-13",
- "total_30d": 370,
+ "total_30d": 376,
  "countries_30d": 21,
- "total_all": 1131,
+ "total_all": 1137,
  "countries_all": 24,
  "top_pages_30d": [
   {
@@ -11,7 +11,7 @@
   },
   {
    "path": "/models.html",
-   "count": 43
+   "count": 44
   },
   {
    "path": "/mjo.html",
@@ -26,16 +26,16 @@
    "count": 20
   },
   {
+   "path": "/gefs.html",
+   "count": 20
+  },
+  {
    "path": "/aifs-verify.html",
    "count": 20
   },
   {
    "path": "/asos5.html",
    "count": 20
-  },
-  {
-   "path": "/gefs.html",
-   "count": 19
   },
   {
    "path": "/skewt",
