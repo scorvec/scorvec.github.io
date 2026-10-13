@@ -1,5 +1,5 @@
 {
- "generated": "2026-10-13T23:02Z",
+ "generated": "2026-10-13T23:09Z",
  "leads": {
   "day1": "day 1",
   "d2_3": "days 2-3",
@@ -14897,49 +14897,98 @@
      "pattern_r": 0.576,
      "domain_change": 0.045,
      "domain_old": 0.352,
-     "domain_new": 0.397
+     "domain_new": 0.397,
+     "domain_change_test": {
+      "mean": 0.045,
+      "lo": -0.056,
+      "hi": 0.146,
+      "sig": false,
+      "n": 257
+     }
     },
     "d2_3": {
      "frac_sig": 0.0,
      "pattern_r": 0.558,
      "domain_change": 0.058,
      "domain_old": 0.261,
-     "domain_new": 0.32
+     "domain_new": 0.32,
+     "domain_change_test": {
+      "mean": 0.058,
+      "lo": -0.04,
+      "hi": 0.157,
+      "sig": false,
+      "n": 257
+     }
     },
     "d4_7": {
      "frac_sig": 0.0,
      "pattern_r": 0.544,
      "domain_change": 0.069,
      "domain_old": 0.276,
-     "domain_new": 0.345
+     "domain_new": 0.345,
+     "domain_change_test": {
+      "mean": 0.069,
+      "lo": -0.012,
+      "hi": 0.15,
+      "sig": false,
+      "n": 257
+     }
     },
     "d8_10": {
      "frac_sig": 0.005,
      "pattern_r": 0.507,
      "domain_change": 0.073,
      "domain_old": 0.265,
-     "domain_new": 0.338
+     "domain_new": 0.338,
+     "domain_change_test": {
+      "mean": 0.073,
+      "lo": -0.01,
+      "hi": 0.156,
+      "sig": false,
+      "n": 257
+     }
     },
     "d11_14": {
      "frac_sig": 0.002,
      "pattern_r": 0.512,
      "domain_change": 0.089,
      "domain_old": 0.276,
-     "domain_new": 0.365
+     "domain_new": 0.365,
+     "domain_change_test": {
+      "mean": 0.089,
+      "lo": 0.005,
+      "hi": 0.173,
+      "sig": true,
+      "n": 257
+     }
     },
     "wk1": {
      "frac_sig": 0.0,
      "pattern_r": 0.558,
      "domain_change": 0.063,
      "domain_old": 0.282,
-     "domain_new": 0.345
+     "domain_new": 0.345,
+     "domain_change_test": {
+      "mean": 0.063,
+      "lo": -0.026,
+      "hi": 0.151,
+      "sig": false,
+      "n": 257
+     }
     },
     "wk2": {
      "frac_sig": 0.005,
      "pattern_r": 0.517,
      "domain_change": 0.082,
      "domain_old": 0.271,
-     "domain_new": 0.353
+     "domain_new": 0.353,
+     "domain_change_test": {
+      "mean": 0.082,
+      "lo": -0.001,
+      "hi": 0.165,
+      "sig": false,
+      "n": 257
+     }
     }
    }
   },
@@ -14955,53 +15004,102 @@
    ],
    "leads": {
     "day1": {
-     "frac_sig": 0.034,
+     "frac_sig": 0.036,
      "pattern_r": 0.574,
      "domain_change": 0.171,
      "domain_old": 0.384,
-     "domain_new": 0.555
+     "domain_new": 0.555,
+     "domain_change_test": {
+      "mean": 0.172,
+      "lo": 0.122,
+      "hi": 0.221,
+      "sig": true,
+      "n": 152
+     }
     },
     "d2_3": {
-     "frac_sig": 0.056,
+     "frac_sig": 0.058,
      "pattern_r": 0.46,
      "domain_change": 0.219,
      "domain_old": 0.303,
-     "domain_new": 0.521
+     "domain_new": 0.521,
+     "domain_change_test": {
+      "mean": 0.221,
+      "lo": 0.183,
+      "hi": 0.259,
+      "sig": true,
+      "n": 150
+     }
     },
     "d4_7": {
-     "frac_sig": 0.055,
+     "frac_sig": 0.057,
      "pattern_r": 0.417,
      "domain_change": 0.182,
      "domain_old": 0.332,
-     "domain_new": 0.513
+     "domain_new": 0.513,
+     "domain_change_test": {
+      "mean": 0.189,
+      "lo": 0.134,
+      "hi": 0.244,
+      "sig": true,
+      "n": 146
+     }
     },
     "d8_10": {
-     "frac_sig": 0.053,
+     "frac_sig": 0.054,
      "pattern_r": 0.374,
      "domain_change": 0.207,
      "domain_old": 0.319,
-     "domain_new": 0.527
+     "domain_new": 0.527,
+     "domain_change_test": {
+      "mean": 0.221,
+      "lo": 0.117,
+      "hi": 0.325,
+      "sig": true,
+      "n": 143
+     }
     },
     "d11_14": {
-     "frac_sig": 0.064,
+     "frac_sig": 0.068,
      "pattern_r": 0.374,
      "domain_change": 0.213,
      "domain_old": 0.326,
-     "domain_new": 0.538
+     "domain_new": 0.538,
+     "domain_change_test": {
+      "mean": 0.23,
+      "lo": 0.105,
+      "hi": 0.354,
+      "sig": true,
+      "n": 139
+     }
     },
     "wk1": {
-     "frac_sig": 0.062,
+     "frac_sig": 0.064,
      "pattern_r": 0.453,
      "domain_change": 0.19,
      "domain_old": 0.331,
-     "domain_new": 0.52
+     "domain_new": 0.52,
+     "domain_change_test": {
+      "mean": 0.194,
+      "lo": 0.154,
+      "hi": 0.234,
+      "sig": true,
+      "n": 146
+     }
     },
     "wk2": {
-     "frac_sig": 0.071,
+     "frac_sig": 0.072,
      "pattern_r": 0.382,
      "domain_change": 0.208,
      "domain_old": 0.323,
-     "domain_new": 0.531
+     "domain_new": 0.531,
+     "domain_change_test": {
+      "mean": 0.221,
+      "lo": 0.106,
+      "hi": 0.335,
+      "sig": true,
+      "n": 139
+     }
     }
    }
   },
@@ -15017,54 +15115,157 @@
    ],
    "leads": {
     "day1": {
-     "frac_sig": 0.084,
+     "frac_sig": 0.088,
      "pattern_r": 0.57,
      "domain_change": 0.154,
      "domain_old": 0.035,
-     "domain_new": 0.189
+     "domain_new": 0.189,
+     "domain_change_test": {
+      "mean": 0.155,
+      "lo": 0.084,
+      "hi": 0.227,
+      "sig": true,
+      "n": 102
+     }
     },
     "d2_3": {
-     "frac_sig": 0.078,
+     "frac_sig": 0.077,
      "pattern_r": 0.537,
      "domain_change": 0.223,
      "domain_old": 0.035,
-     "domain_new": 0.258
+     "domain_new": 0.258,
+     "domain_change_test": {
+      "mean": 0.226,
+      "lo": 0.153,
+      "hi": 0.298,
+      "sig": true,
+      "n": 100
+     }
     },
     "d4_7": {
-     "frac_sig": 0.087,
+     "frac_sig": 0.09,
      "pattern_r": 0.517,
      "domain_change": 0.226,
      "domain_old": 0.054,
-     "domain_new": 0.281
+     "domain_new": 0.281,
+     "domain_change_test": {
+      "mean": 0.235,
+      "lo": 0.138,
+      "hi": 0.331,
+      "sig": true,
+      "n": 96
+     }
     },
     "d8_10": {
-     "frac_sig": 0.103,
+     "frac_sig": 0.101,
      "pattern_r": 0.49,
      "domain_change": 0.207,
      "domain_old": 0.057,
-     "domain_new": 0.263
+     "domain_new": 0.263,
+     "domain_change_test": {
+      "mean": 0.223,
+      "lo": 0.054,
+      "hi": 0.393,
+      "sig": true,
+      "n": 93
+     }
     },
     "d11_14": {
-     "frac_sig": 0.1,
+     "frac_sig": 0.099,
      "pattern_r": 0.477,
      "domain_change": 0.191,
      "domain_old": 0.064,
-     "domain_new": 0.254
+     "domain_new": 0.254,
+     "domain_change_test": {
+      "mean": 0.215,
+      "lo": 0.059,
+      "hi": 0.37,
+      "sig": true,
+      "n": 89
+     }
     },
     "wk1": {
-     "frac_sig": 0.098,
+     "frac_sig": 0.1,
      "pattern_r": 0.546,
      "domain_change": 0.213,
      "domain_old": 0.046,
-     "domain_new": 0.258
+     "domain_new": 0.258,
+     "domain_change_test": {
+      "mean": 0.216,
+      "lo": 0.132,
+      "hi": 0.299,
+      "sig": true,
+      "n": 96
+     }
     },
     "wk2": {
-     "frac_sig": 0.111,
+     "frac_sig": 0.113,
      "pattern_r": 0.493,
      "domain_change": 0.193,
      "domain_old": 0.06,
-     "domain_new": 0.253
+     "domain_new": 0.253,
+     "domain_change_test": {
+      "mean": 0.21,
+      "lo": 0.054,
+      "hi": 0.366,
+      "sig": true,
+      "n": 89
+     }
     }
+   }
+  }
+ },
+ "upgrade_did": {
+  "label": "IFS-ENS 49r1->50r1 change minus AIFS-ENS v1->v2 change, same days (the weather year cancels)",
+  "leads": {
+   "day1": {
+    "mean": -0.006,
+    "lo": -0.024,
+    "hi": 0.013,
+    "sig": false,
+    "n": 102
+   },
+   "d2_3": {
+    "mean": -0.029,
+    "lo": -0.048,
+    "hi": -0.009,
+    "sig": true,
+    "n": 100
+   },
+   "d4_7": {
+    "mean": -0.053,
+    "lo": -0.08,
+    "hi": -0.025,
+    "sig": true,
+    "n": 96
+   },
+   "d8_10": {
+    "mean": -0.001,
+    "lo": -0.032,
+    "hi": 0.03,
+    "sig": false,
+    "n": 93
+   },
+   "d11_14": {
+    "mean": -0.003,
+    "lo": -0.041,
+    "hi": 0.035,
+    "sig": false,
+    "n": 89
+   },
+   "wk1": {
+    "mean": -0.037,
+    "lo": -0.054,
+    "hi": -0.02,
+    "sig": true,
+    "n": 96
+   },
+   "wk2": {
+    "mean": -0.002,
+    "lo": -0.034,
+    "hi": 0.031,
+    "sig": false,
+    "n": 89
    }
   }
  },
