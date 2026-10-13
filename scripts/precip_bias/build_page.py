@@ -85,12 +85,22 @@ def upgrade_section(S, lead_opts):
             lines.append(f"<li><strong>{MODELS[m]} {old} to {new}</strong> ({v['runs']} matched runs, week 1): bias pattern "
                          f"correlation r = {u['pattern_r']:.2f}; {100 * u['frac_sig']:.0f} % of cells changed significantly; {dm}.</li>")
     did = S.get("upgrade_did", {}).get("leads", {}).get("wk1")
-    if did:
-        verdict = ("so the shared part is the weather year, not either upgrade" if not did["sig"]
-                   else "so the two upgrades changed the bias by different amounts")
+    ups_ = S.get("upgrades", {})
+    ca = (ups_.get("ifs|49r1->50r1", {}).get("leads", {}).get("wk1", {}) or {}).get("domain_change_test")
+    cb = (ups_.get("aifs-ens|v1->v2", {}).get("leads", {}).get("wk1", {}) or {}).get("domain_change_test")
+    if did and ca and cb:
+        shared = 0.5 * (abs(ca["mean"]) + abs(cb["mean"]))
+        small = abs(did["mean"]) < 0.3 * shared                      # the difference is a small part of the common change
+        if not did["sig"]:
+            verdict = "so the change both models share is the weather year (or a change in IMERG Late), not either upgrade"
+        elif small:
+            verdict = (f"a small part of the {shared:.2f} mm/day both models share, so most of that change is the weather year "
+                       f"(or a change in IMERG Late), not either upgrade")
+        else:
+            verdict = "so the two upgrades changed the bias by different amounts"
         lines.append(f"<li><strong>The two May 2026 upgrades on the same days</strong> ({did['n']} runs, week 1): IFS-ENS's change "
                      f"minus AIFS-ENS's is {f2(did['mean'])} mm/day [{f2(did['lo'])}, {f2(did['hi'])}]"
-                     f"{' (not significant)' if not did['sig'] else ''}. The weather year cancels in this difference, {verdict}.</li>")
+                     f"{' (not significant)' if not did['sig'] else ''}. The weather year cancels in this difference: {verdict}.</li>")
     out = [
         "<p>IFS went from cycle 48r1 to 49r1 on 12 November 2024 and to 50r1 on 12 May 2026, when AIFS-ENS also went from v1 to v2. "
         "No field on this page mixes cycles. To see what an upgrade changed, the new cycle's runs are set against the old cycle's "
