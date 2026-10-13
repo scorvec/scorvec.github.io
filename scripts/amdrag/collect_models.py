@@ -356,10 +356,19 @@ def orography(model, d, stats):
 def aigfs_orog(d, stats):
     """'orog' (m) from the AIGFS init dataset (anemoi zarr, one chunk holds every variable of one time)."""
     import requests
-    base = f"{S3['aigfs']}/aigfs.{d}/00/model/atmos/init/"
     import re
-    x = requests.get(f"{S3['aigfs']}/?list-type=2&prefix=aigfs.{d}/00/model/atmos/init/&delimiter=/", timeout=60).text
-    zp = re.findall(r"<Prefix>(aigfs[^<]+\.zarr/)</Prefix>", x)[0]
+    # the orography is static: when this init's dataset is not on the bucket (seen 2026-09-21), take a neighbour's
+    zp = None
+    d0 = dt.datetime.strptime(d, "%Y%m%d")
+    for off in (0, -1, 1, -2, 2, -3, 3, -5, 5, -8, 8):
+        dd = (d0 + dt.timedelta(days=off)).strftime("%Y%m%d")
+        x = requests.get(f"{S3['aigfs']}/?list-type=2&prefix=aigfs.{dd}/00/model/atmos/init/&delimiter=/", timeout=60).text
+        found = re.findall(r"<Prefix>(aigfs[^<]+\.zarr/)</Prefix>", x)
+        if found:
+            zp = found[0]
+            break
+    if zp is None:
+        raise RuntimeError(f"no AIGFS init dataset near {d}")
     meta = requests.get(f"{S3['aigfs']}/{zp}.zmetadata", timeout=60).json()["metadata"]
     names = meta[".zattrs"]["variables"]
     za = meta["data/.zarray"]

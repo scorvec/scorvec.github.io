@@ -113,8 +113,9 @@ def body(R, Mo, keys, L, fig, t_models, made):
         bl.append("<b>Free-forecast drift.</b> Against its own analysis valid the same day, the wind-term angular momentum "
                   "(11 common levels) at day 10 changes significantly in " + ("; ".join(dr) if dr else "none of the models") +
                   " ×10²⁵ kg m² s⁻¹" + (f"; the change is not significant in {', '.join(nd)}" if nd else "") +
-                  ". For scale, ERA5's analysis adds about +0.07 ×10²⁵ a day through its increments (the earlier study), and "
-                  "IFS-ENS lost −0.31 by day 15 in winter 2025–26.")
+                  ". For scale, ERA5's analysis adds about +0.07 ×10²⁵ a day through its increments (the "
+                  "<a href='/torque-enso.html'>torque study</a>), and IFS-ENS lost −0.31 by day 15 in "
+                  "<a href='/aifs-aam-budget.html'>winter 2025–26</a>.")
     # 4 drag against ERA5
     fb = []
     for k in keys:
