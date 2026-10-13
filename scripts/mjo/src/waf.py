@@ -14,6 +14,13 @@ members disagree on the sign; (5) the basic state is the ERA5 day-of-year climat
 same low-passed flow, so perturbation and basic state are consistent — in a year with a displaced
 jet the packets are steered by the waveguide that is actually there.
 
+Since 2026-10-12: W and its T15 divergence come from quantmet.waf.tn01_flux (0.4.1,
+div_method="zero"): the masked cells' divergence is set to zero before the truncation, where the
+old local copy truncated it as computed and let the outer half of the mask-edge step into the
+filter. Synthetic and live tests (scorvec/quantmet-tools#1): known-divergence error 0.19 -> 0.16,
+spurious divergence of a divergence-free flux 0.12 -> 0.06 (live 250 hPa flux, real mask); the
+shading changes by ~8 % rms. The arrows (W itself) and the mask are unchanged.
+
 W is the phase-independent flux of quasi-stationary Rossby wave activity: its
 vectors point along the group velocity (where packet energy is HEADING, ducted
 along the jet waveguides), and its convergence marks where the downstream flow
@@ -55,12 +62,16 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "ecmwf"))
 import store as ecmwf
 from wind200_vpot import _ens_mean, _to_0360, _padded, _ddlon
 import waf_basic as wb
+# The flux and its T15 divergence come from quantmet (0.4.1; until 2026-10-12 a local copy that truncated the
+# divergence as computed, quantmet's div_method="as_computed"). div_method="zero" (sets the masked cells' divergence
+# to zero before the truncation) had the smaller error in quantmet's synthetic tests: tests/test_waf_divergence.py,
+# CHANGELOG 0.4.1, scorvec/quantmet-tools#1.
+from quantmet.waf import tn01_flux
 
 A = 6.371e6
 LMAX = 63                                    # ψ truncation (~2.8°): synoptic + planetary
 LFILT = 15                                   # ∇·W shown at planetary scale (T15, ≳2500 km)
 LEVEL = int(os.environ.get("WAF_LEVEL", "250"))
-PHAT = LEVEL / 1000.0                        # p/p0 factor
 UMIN, LATMIN = 3.0, 20.0                     # basic-state westerly / tropics mask
 NMEMBERS = int(os.environ.get("WAF_MEMBERS", "25"))   # perturbed members for the flux average
 TSMOOTH = 5                                  # days: running mean of ψ′ along the lead (quasi-stationary)
@@ -83,61 +94,6 @@ def streamfunction_psi(u2d: xr.DataArray, v2d: xr.DataArray, lmax: int = LMAX):
     psi_clm = clm.copy(); psi_clm.coeffs *= fac[None, :, None]
     g = psi_clm.expand(grid="DH2")
     return g.data, np.array(g.lats()), np.array(g.lons())
-
-
-def _dlon(f: np.ndarray, lonr: np.ndarray) -> np.ndarray:
-    """Centred λ-derivative that wraps around the globe. The extended DH2 grid is
-    closed (last column = 360° = the first), so the difference is taken on the open
-    circle and the seam column re-appended; np.gradient's one-sided difference at
-    0°/360° put a first-order error and a spurious divergence along the seam."""
-    closed = np.isclose(np.rad2deg(lonr[-1] - lonr[0]), 360.0)
-    g = f[..., :-1] if closed else f
-    d = (np.roll(g, -1, axis=-1) - np.roll(g, 1, axis=-1)) / (2.0 * (lonr[1] - lonr[0]))
-    return np.concatenate([d, d[..., :1]], axis=-1) if closed else d
-
-
-# Not quantmet.waf.tn01_flux: on this closed DH2 grid quantmet zeroes the masked cells before the T15 divergence
-# filter, this filters the divergence as computed (wx, wy identical; div W differs ~5-6 % rms) - kept, 2026-10-12.
-def tn01_flux(psi_a: np.ndarray, U: np.ndarray, V: np.ndarray,
-              lat: np.ndarray, lon: np.ndarray):
-    """Horizontal TN01 W = (Wx, Wy) from ψ′ and the basic state, all on one grid.
-    Written in the angle derivatives exactly as TN01 eq. 38 (λ lon, φ lat):
-        Wx ∝ U/(a²cos²φ)(ψ_λ² − ψψ_λλ) + V/(a²cosφ)(ψ_λψ_φ − ψψ_λφ)
-        Wy ∝ U/(a²cosφ)(ψ_λψ_φ − ψψ_λφ) + V/a²(ψ_φ² − ψψ_φφ)
-    The cross term uses the plain ψ_λφ. (Until 2026-09-28 it was ∂y of
-    ψ_x = ψ_λ/(a cosφ), which adds ψ_λ tanφ/a² — a term oscillating at twice the
-    wavenumber that broke phase independence by ~tanφ/(2n), 5-10 % of the cross
-    term for synoptic waves at 45°.) λ-derivatives are periodic. Mirrors
-    quantmet.waf.tn01_flux. Masked outside the westerly waveguide."""
-    latr = np.deg2rad(lat); lonr = np.deg2rad(lon)
-    cosp = np.clip(np.cos(latr), 1e-3, None)[:, None]
-    a2 = A * A
-    pl = _dlon(psi_a, lonr)
-    pp = np.gradient(psi_a, latr, axis=0)
-    pll = _dlon(pl, lonr)
-    plp = np.gradient(pl, latr, axis=0)
-    ppp = np.gradient(pp, latr, axis=0)
-    spd = np.hypot(U, V)
-    pref = PHAT * cosp / (2.0 * np.maximum(spd, 1e-6))
-    xx = pl * pl - psi_a * pll
-    xy = pl * pp - psi_a * plp
-    yy = pp * pp - psi_a * ppp
-    wx = pref * (U * xx / (a2 * cosp ** 2) + V * xy / (a2 * cosp))
-    wy = pref * (U * xy / (a2 * cosp) + V * yy / a2)
-    bad = (spd < UMIN) | (np.abs(lat)[:, None] < LATMIN)
-    wx[bad] = np.nan; wy[bad] = np.nan
-    # flux divergence ∇·W: NEGATIVE (convergence) marks where wave activity
-    # piles up — the downstream-amplification precursor. Spectrally truncated
-    # to planetary/synoptic scales (l ≤ LFILT): second derivatives of the flux
-    # carry gridscale ripple that a light gaussian cannot tame.
-    wx0 = np.nan_to_num(wx); wy0 = np.nan_to_num(wy)
-    divw = (_dlon(wx0, lonr) + np.gradient(wy0 * cosp, latr, axis=0)) / (A * cosp)
-    g = pysh.SHGrid.from_array(divw, grid="DH")
-    clm = g.expand()
-    clm.coeffs[:, LFILT + 1:, :] = 0.0
-    divw = clm.expand(grid="DH2").data
-    divw[bad] = np.nan
-    return wx, wy, divw
 
 
 def _seam_filled(c: xr.Dataset) -> xr.Dataset:
@@ -319,8 +275,9 @@ def main() -> int:
         Uc, Vc = U_ref(doy), V_ref(doy)
         WX, WY, DV = [], [], []
         for m in range(len(members)):
-            wx, wy, divw = tn01_flux(psi_s[m, i].astype("float64"), Uc, Vc, clat, clon)
-            WX.append(wx); WY.append(wy); DV.append(divw)
+            r = tn01_flux(psi_s[m, i].astype("float64"), Uc, Vc, clat, clon, p_hpa=LEVEL, umin=UMIN,
+                          lat_min=LATMIN, div_lmax=LFILT, div_method="zero")
+            WX.append(r.wx); WY.append(r.wy); DV.append(r.div)
         WX, WY, DV = np.stack(WX), np.stack(WY), np.stack(DV)
         with np.errstate(all="ignore"), warnings.catch_warnings():
             warnings.simplefilter("ignore", RuntimeWarning)          # all-NaN masked cells

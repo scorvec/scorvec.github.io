@@ -51,7 +51,7 @@ jobs:
           WK_CACHE: /home/runner/wk_flashflux
         working-directory: scripts/mjo/src
         run: |
-          pip install --quiet earthaccess "quantmet @ git+https://github.com/scorvec/quantmet-tools@v0.4.0"   # wk_spectrum.py imports quantmet (BH-FDR)
+          pip install --quiet earthaccess "quantmet @ git+https://github.com/scorvec/quantmet-tools@v0.4.1"   # wk_spectrum.py imports quantmet (BH-FDR)
           n=$(python -c "import wk_spectrum as w; print(len(w.archive_read()[0]))" 2>/dev/null || echo 0)
           echo "archive days before: $n"
           if [ "$n" -lt 900 ]; then

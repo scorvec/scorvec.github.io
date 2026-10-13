@@ -138,7 +138,7 @@ jobs:
           pip install --quiet numpy pandas scipy xarray cfgrib eccodes cdsapi requests \
             matplotlib==3.10.9 cartopy==0.25.0 'shapely>=2.1.2' 'pyproj>=3.7.2' Pillow netCDF4 h5netcdf \
             'icechunk==2.2.2' 'zarr>=3'
-          pip install --quiet "quantmet @ git+https://github.com/scorvec/quantmet-tools@v0.4.0"   # shared diagnostics (BH-FDR, QBO zero line, PV, ...), pinned to the tag (seas5_regimes.py)
+          pip install --quiet "quantmet @ git+https://github.com/scorvec/quantmet-tools@v0.4.1"   # shared diagnostics (BH-FDR, QBO zero line, PV, ...), pinned to the tag (seas5_regimes.py)
 
       - name: Free runner disk (raw hindcast kinds are up to ~3 GB each)
         if: steps.gate.outputs.run == '1'

@@ -20,4 +20,4 @@ cartopy==0.25.0  # 0.26.0 collapses set_extent((-180, 180, ...)) on a dateline-c
 shapely>=2.1.2
 pyproj>=3.7.2
 pyshtools>=4.13   # velocity-potential spherical-harmonic inversion (wind200_vpot.py); prebuilt wheels
-quantmet @ git+https://github.com/scorvec/quantmet-tools@v0.4.0   # shared diagnostics (BH-FDR, QBO zero line, PV, ...), pinned to the tag
+quantmet @ git+https://github.com/scorvec/quantmet-tools@v0.4.1   # shared diagnostics (BH-FDR, QBO zero line, PV, ...), pinned to the tag

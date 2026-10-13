@@ -30,7 +30,7 @@ jobs:
       - run: |
           sudo apt-get update -qq && sudo apt-get install -y --no-install-recommends libeccodes0
           pip install --quiet numpy pandas scipy requests eccodes
-          pip install --quiet "quantmet @ git+https://github.com/scorvec/quantmet-tools@v0.4.0"   # shared diagnostics (BH-FDR, QBO zero line, PV, ...), pinned to the tag
+          pip install --quiet "quantmet @ git+https://github.com/scorvec/quantmet-tools@v0.4.1"   # shared diagnostics (BH-FDR, QBO zero line, PV, ...), pinned to the tag
       - run: python scripts/ar/ar_ext.py clim ${{ matrix.year }} --out out --procs 6
       - uses: actions/upload-artifact@v4
         with:

@@ -56,7 +56,7 @@ jobs:
             echo "apt attempt $i failed; retrying"; sleep 10
           done
           pip install --quiet numpy pandas scipy xarray netCDF4 h5netcdf 'pyproj>=3.7.2' matplotlib==3.10.9 cfgrib eccodes cdsapi requests
-          pip install --quiet "quantmet @ git+https://github.com/scorvec/quantmet-tools@v0.4.0"   # shared diagnostics (BH-FDR, QBO zero line, PV, ...), pinned to the tag
+          pip install --quiet "quantmet @ git+https://github.com/scorvec/quantmet-tools@v0.4.1"   # shared diagnostics (BH-FDR, QBO zero line, PV, ...), pinned to the tag
 
       - name: CDS credentials
         env:

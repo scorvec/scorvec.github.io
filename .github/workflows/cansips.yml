@@ -60,7 +60,7 @@ jobs:
           # cartopy pinned at 0.25: 0.26 blanks full-longitude maps (dateline collapse, 2026-09-18)
           pip install --quiet numpy pandas requests eccodes global-land-mask scipy pyproj \
             matplotlib==3.10.9 cartopy==0.25.0 pillow
-          pip install --quiet "quantmet @ git+https://github.com/scorvec/quantmet-tools@v0.4.0"   # shared diagnostics (BH-FDR, QBO zero line, PV, ...), pinned to the tag
+          pip install --quiet "quantmet @ git+https://github.com/scorvec/quantmet-tools@v0.4.1"   # shared diagnostics (BH-FDR, QBO zero line, PV, ...), pinned to the tag
 
       - name: Probe the Datamart GRIB encoding
         if: inputs.mode == 'probe'

@@ -15,4 +15,4 @@ shapely>=2.1.2
 pyproj>=3.7.2
 Pillow
 copernicusmarine>=2.0
-quantmet @ git+https://github.com/scorvec/quantmet-tools@v0.4.0   # shared diagnostics (BH-FDR, QBO zero line, PV, ...), pinned to the tag
+quantmet @ git+https://github.com/scorvec/quantmet-tools@v0.4.1   # shared diagnostics (BH-FDR, QBO zero line, PV, ...), pinned to the tag

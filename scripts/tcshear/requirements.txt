@@ -8,4 +8,4 @@ cartopy==0.25.0     # 0.26.0 collapses dateline-centred extents (2026-09-18)
 shapely>=2.1.2
 pyproj>=3.7.2
 tcpyPI>=1.4         # Bister-Emanuel potential intensity (Gilford 2021, GMD 14, 2351-2369)
-quantmet @ git+https://github.com/scorvec/quantmet-tools@v0.4.0   # shared diagnostics (BH-FDR, QBO zero line, PV, ...), pinned to the tag (tc_ens.py)
+quantmet @ git+https://github.com/scorvec/quantmet-tools@v0.4.1   # shared diagnostics (BH-FDR, QBO zero line, PV, ...), pinned to the tag (tc_ens.py)
