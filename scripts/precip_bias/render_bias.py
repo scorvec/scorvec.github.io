@@ -52,7 +52,7 @@ def cmap_for(levels):
     return ListedColormap(cols), BoundaryNorm(levels, n, extend="both")
 
 
-def draw(ax, data, sig, levels, title):
+def draw(ax, data, sig, levels, title, dry=None):
     cm, nm = cmap_for(levels)
     lon_e = np.append(G.LON - 0.5, G.LON[-1] + 0.5); lat_e = np.append(G.LAT - 0.5, G.LAT[-1] + 0.5)
     show = np.where(sig & np.isfinite(data), data, np.nan)
@@ -60,6 +60,9 @@ def draw(ax, data, sig, levels, title):
     ax.set_extent(EXTENT, ccrs.PlateCarree())
     ax.pcolormesh(lon_e, lat_e, grey, cmap=ListedColormap([INSIG]), vmin=0, vmax=2, transform=ccrs.PlateCarree(), rasterized=True)
     pm = ax.pcolormesh(lon_e, lat_e, show, cmap=cm, norm=nm, transform=ccrs.PlateCarree(), rasterized=True)
+    if dry is not None and dry.any():                      # too dry to express as a percent: hatched, not white
+        plt.rcParams["hatch.color"] = "#9a9a9a"; plt.rcParams["hatch.linewidth"] = 0.5
+        ax.contourf(G.LON, G.LAT, dry.astype(float), levels=[0.5, 1.5], colors="none", hatches=["////"], transform=ccrs.PlateCarree())
     ax.add_feature(cfeature.COASTLINE.with_scale("50m"), linewidth=0.5, edgecolor="#333")
     ax.add_feature(cfeature.BORDERS.with_scale("50m"), linewidth=0.3, edgecolor="#555")
     ax.add_feature(cfeature.STATES.with_scale("50m"), linewidth=0.15, edgecolor="#777")
@@ -85,9 +88,10 @@ def map_fig(panels, levels, unit, suptitle, foot, path):
     fig = plt.figure(figsize=(W, H), dpi=150)
     gs = fig.add_gridspec(1, n, left=0.1 / W, right=1 - 0.1 / W, top=1 - TOP / H, bottom=BOT / H, wspace=0.15 / w_panel)
     pm = None
-    for i, (d, s, t) in enumerate(panels):
+    for i, pan in enumerate(panels):
+        d, s, t = pan[:3]
         ax = fig.add_subplot(gs[0, i], projection=ccrs.PlateCarree())
-        pm = draw(ax, d, s, levels, t)
+        pm = draw(ax, d, s, levels, t, dry=pan[3] if len(pan) > 3 else None)
     fig.text(0.1 / W, 1 - 0.1 / H, suptitle, fontsize=10.5, ha="left", va="top", weight="bold")
     cb_y = 0.13 * len(lines) + 0.42
     cax = fig.add_axes([0.5 - 2.6 / W, cb_y / H, 5.2 / W, 0.12 / H])
@@ -133,12 +137,12 @@ def lead_chart(summary, ck, path):
     first = comp[next(m for m in MODELS if m in comp)]
     who = " and ".join(f"{MODELS[m]} {comp[m]['cycle']}" for m in MODELS if m in comp)
     same = "the same " if sum(m in comp for m in MODELS) > 1 else ""
-    fig.suptitle(f"Rain bias by lead, regional means vs gauge-adjusted IMERG - {who}, {same}{first['runs']} 00Z runs "
+    fig.suptitle(f"Rain bias by lead, regional means vs gauge-adjusted IMERG - {who}\n{same}{first['runs']} 00Z runs "
                  f"({first['first']} to {first['last']})", fontsize=10, x=0.01, ha="left", weight="bold")
     axs.ravel()[0].legend(fontsize=7.5, loc="best", frameon=False)
     fig.text(0.01, 0.005, "Bars: 95 % interval (21-day block bootstrap). Filled marker: significant (|z| > 1.96); hollow: not.",
              fontsize=7, color="#444")
-    fig.tight_layout(rect=(0, 0.02, 1, 0.95))
+    fig.tight_layout(rect=(0, 0.02, 1, 0.93))
     fig.savefig(path, format="webp", pil_kwargs={"quality": 88})
     plt.close(fig)
 
@@ -165,12 +169,13 @@ def main() -> int:
                 foot = (f"{'The same ' if len(ms) > 1 else ''}{infos[0]['runs']} 00Z runs{' for both models' if len(ms) > 1 else ''}, "
                         f"members 1-6, 1° boxes; one model cycle each (never pooled across upgrades). Truth: IMERG V07 Late adjusted "
                         f"by its seasonal difference from the gauge-adjusted Final. Grey: not significant (21-day block bootstrap, "
-                        f"BH-FDR q 0.10); significant cells {sig_txt}.")
+                        f"BH-FDR q 0.10); significant cells {sig_txt}. Percent maps: hatched where the observed mean is below 0.5 mm/day.")
                 for kind, lev, unit in (("abs", ABS_LEV, "forecast minus observed rain (mm/day)"), ("rel", REL_LEV, "forecast / observed - 1 (%)")):
                     pan = []
                     for m, k in zip(ms, ks):
                         d = get(k, "bias") if kind == "abs" else 100 * get(k, "rel")
-                        pan.append((d, get(k, "sig") & np.isfinite(d), f"{MODELS[m]} {C[m]['cycle']} {ltxt}, {SEASON_TXT[sk]}"))
+                        dry = (np.isfinite(get(k, "bias")) & ~np.isfinite(d)) if kind == "rel" else None
+                        pan.append((d, get(k, "sig") & np.isfinite(d), f"{MODELS[m]} {C[m]['cycle']} {ltxt}, {SEASON_TXT[sk]}", dry))
                     pth = out / f"{ck}_{lk}_{sk}_{kind}.webp"
                     map_fig(pan, lev, unit, f"{who}: rain bias vs IMERG - {ltxt}, {SEASON_TXT[sk]}, {period}", foot, pth)
                     made.append(pth.name)
