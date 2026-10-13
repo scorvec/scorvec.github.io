@@ -42,6 +42,20 @@ LATC = -87.5 + 5 * np.arange(36)
 RNG = np.random.default_rng(20261013)
 
 
+def effn_ttest(X):
+    """Two-sided p of mean != 0 per column of X (time, ...), with N_eff = N (1 - r1) / (1 + r1) from the lag-1
+    autocorrelation of each column (r1 clipped to [0, 0.9])."""
+    from scipy import stats
+    X = np.asarray(X, float)
+    n = np.isfinite(X).sum(0)
+    m = np.nanmean(X, 0); v = np.nanvar(X, 0, ddof=1)
+    a = X - m
+    r1 = np.clip(np.nan_to_num(np.nanmean(a[:-1] * a[1:], 0) / np.where(v > 0, v, np.nan)), 0, 0.9)
+    neff = np.maximum(n * (1 - r1) / (1 + r1), 2)
+    t = m / np.sqrt(np.where(v > 0, v, np.nan) / neff)
+    return 2 * stats.t.sf(np.abs(t), neff - 1)
+
+
 def block_boot_mean(X, block=10, n=4000, rng=RNG):
     """X (days, ...): mean, 95% CI and two-sided p of the mean, moving blocks of `block` days."""
     X = np.asarray(X, float)
@@ -176,6 +190,10 @@ def main() -> int:
             g = X.sum(1)
             gm, glo, ghi, gp = block_boot_mean(g[:, None])
             prof[f"{w}{part}"]["global"] = dict(mean=float(gm[0]), lo=float(glo[0]), hi=float(ghi[0]), p=float(gp[0]))
+    for part in ("", "r", "m"):                                          # both window starts together (per day)
+        X = sum(J[[f"J{w}{part}_{k:02d}" if part else f"J{w}_{k:02d}" for k in range(36)]].values for w in ("10", "22"))
+        m, lo, hi, p = block_boot_mean(X)
+        prof[f"both{part}"] = dict(mean=m.tolist(), lo=lo.tolist(), hi=hi.tolist(), p=p.tolist(), sig=S.bh_fdr(p).tolist())
     res["profile"] = prof
     # hemispheric and belt sums of the total increment per window
     belts = {"90-60S": (0, 6), "60-30S": (6, 12), "30S-0": (12, 18), "0-30N": (18, 24), "30-60N": (24, 30), "60-90N": (30, 36)}
@@ -192,12 +210,16 @@ def main() -> int:
     # seasonal cycle: month x band of the daily total (J10 + J22), t-test per cell, FDR over cells
     from scipy import stats
     tot = pd.DataFrame({k: J[f"J10_{k:02d}"] + J[f"J22_{k:02d}"] for k in range(36)}, index=J.index)
+    full = tot.groupby(tot.index.to_period("M")).size()
+    tot = tot[tot.index.to_period("M").isin(full[full >= 20].index)]   # complete months only (drops the 3-day October 2026)
     mon = tot.groupby(tot.index.to_period("M"))
     Mm = mon.mean()
     P = np.full(Mm.shape, np.nan)
     for i, (per, g) in enumerate(mon):
         if len(g) >= 15:
-            P[i] = stats.ttest_1samp(g.values, 0.0, axis=0).pvalue
+            P[i] = effn_ttest(g.values)
+    nodata = ~np.isfinite(Mm.values) | (np.abs(Mm.values) < 1e-12)
+    P[nodata] = np.nan                                                # no-data cells are not tested
     SG = S.bh_fdr(P.ravel()).reshape(P.shape)
     pd.DataFrame(Mm.values, index=Mm.index.astype(str), columns=[f"{c:.1f}" for c in LATC]).to_csv(od / "inc_season_mean.csv")
     pd.DataFrame(SG, index=Mm.index.astype(str), columns=[f"{c:.1f}" for c in LATC]).to_csv(od / "inc_season_sig.csv")
@@ -211,10 +233,12 @@ def main() -> int:
         sec = {}
         for w in ("J10", "J22"):
             X = u[w].values                                              # (day, level, band)
-            t, p = stats.ttest_1samp(X, 0.0, axis=0)
-            m = X.mean(0)
+            m, lo, hi, p = block_boot_mean(X, block=10, n=4000)          # 10-day blocks respect the day-to-day memory
+            nodata = np.all(np.abs(X) < 1e-12, axis=0)                   # layers below the ground (no mass)
+            p = np.where(nodata, np.nan, p)
             sig = S.bh_fdr(p.ravel()).reshape(p.shape)
-            sec[w] = dict(mean=m, sig=sig)
+            sec[w] = dict(mean=m, sig=sig, nodata=nodata)
+            res.setdefault("u37_frac_sig_with_data", {})[w] = float(sig[~nodata].mean())
             layers = {"stratosphere (<100 hPa)": lev < 100, "upper troposphere (100-400 hPa)": (lev >= 100) & (lev < 400),
                       "mid troposphere (400-850 hPa)": (lev >= 400) & (lev < 850), "lowest layers (>=850 hPa)": lev >= 850}
             lay = {}

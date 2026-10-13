@@ -17,6 +17,7 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from matplotlib.colors import LinearSegmentedColormap, BoundaryNorm
+from matplotlib.lines import Line2D
 
 sys.path.insert(0, str(Path(__file__).parent))
 import torque_enso_study as S                                           # noqa: E402
@@ -289,13 +290,18 @@ def fig_slp(out: Path):
 
 # ============================================================================ site figures (phone-width layouts)
 DATA = S.REF / "torque_enso_study"                       # the committed study tables
-WEBP = dict(dpi=110, pil_kwargs={"quality": 88})
+WEBP = dict(dpi=110, pil_kwargs={"quality": 88}, bbox_inches="tight", pad_inches=0.06)
 SITE_RC = {"font.size": 11, "axes.titlesize": 11.5, "axes.labelsize": 10.5, "xtick.labelsize": 10, "ytick.labelsize": 10,
            "legend.fontsize": 9.5}
 SHORT = {"HIM": "Himalaya/Tibet", "ROC": "Rockies", "AND": "Andes", "GRL": "Greenland", "ANT": "Antarctica", "ALP": "Alps"}
 
 
-def _grid_panel(ax, M, SG, title, unit, robust=None, fmt="{:+.1f}"):
+def f1(x):
+    t = f"{x:+.1f}"
+    return "0.0" if t in ("+0.0", "-0.0") else t.replace("-", "\u2212")
+
+
+def _grid_panel(ax, M, SG, title, unit, robust=None, fmt=None):
     lim = np.nanmax(np.abs(M)) or 1
     ax.imshow(np.zeros_like(M), cmap=LinearSegmentedColormap.from_list("g", ["#f0efec", "#f0efec"]), aspect="auto")
     ax.imshow(np.where(SG, M, np.nan), cmap=DIV, vmin=-lim, vmax=lim, aspect="auto")
@@ -305,9 +311,9 @@ def _grid_panel(ax, M, SG, title, unit, robust=None, fmt="{:+.1f}"):
                 continue
             if SG[i, j]:
                 col = INK if abs(M[i, j]) < 0.6 * lim else "white"
-                ax.text(j, i, fmt.format(M[i, j]), ha="center", va="center", fontsize=11, color=col, fontweight="bold")
+                ax.text(j, i, f1(M[i, j]), ha="center", va="center", fontsize=11, color=col, fontweight="bold")
             else:
-                ax.text(j, i - 0.13, fmt.format(M[i, j]), ha="center", va="center", fontsize=9.5, color=MUTED)
+                ax.text(j, i - 0.13, f1(M[i, j]), ha="center", va="center", fontsize=9.5, color=MUTED)
                 ax.text(j, i + 0.22, "n.s.", ha="center", va="center", fontsize=8.5, color=MUTED)
             if robust is not None and robust[i, j]:
                 ax.add_patch(plt.Rectangle((j - 0.46, i - 0.46), 0.92, 0.92, fill=False, ec=INK, lw=1.8))
@@ -340,7 +346,7 @@ def site_q1(data: Path, dest: Path):
     with plt.rc_context(SITE_RC):
         fig, axes = plt.subplots(3, 1, figsize=(6.6, 10.4), constrained_layout=True)
         for ax, (mt, ttl, unit) in zip(axes, [("lp_mean", "Standing shift: the 30-day and longer part", "Hadley"),
-                                              ("n_pos", "Positive events per season: <30-day part > +1 sd", "events"),
+                                              ("n_pos", "Synoptic events per season, peaks above +1 sd", "number"),
                                               ("amp_pos", "Amplitude of those events", "Hadley")]):
             M, SG, RB = _cells(comp, cm, mt)
             _grid_panel(ax, M, SG, ttl, unit, RB)
@@ -350,7 +356,7 @@ def site_q1(data: Path, dest: Path):
         plt.close(fig)
         fig, axes = plt.subplots(2, 1, figsize=(6.6, 7.0), constrained_layout=True)
         M, SG, RB = _cells(comp, cm, "nx_pos")
-        _grid_panel(axes[0], M, SG, "Events on the total anomaly (> +1 sd)", "events", RB)
+        _grid_panel(axes[0], M, SG, "Events on the total anomaly (peaks above +1 sd)", "events", RB)
         E = np.full((len(S.RANGES), 4), np.nan); ESG = np.zeros_like(E, bool)
         for i, r in enumerate(S.RANGES):
             for j, se in enumerate(SE):
@@ -408,7 +414,6 @@ def site_q2(data: Path, dest: Path):
         ax.axhline(0, color="#c3c2b7", lw=1)
         ax.set_title("ERA5 1979–2025 (filled dots: FDR-significant)", loc="left")
         ax.set_ylabel("Hadley per K of Niño-3.4")
-        ax.legend(ncol=2, frameon=False, loc="lower left")
         ax = axes[1]
         for k, lab, col in [("mtn_glob", "mountain", C_MTN), ("fric_glob", "surface stress (tauu)", C_FRIC),
                             ("gwd_glob", "orographic GWD (13 models)", C_GWD), ("T_mf_glob", "mountain + tauu", C_NET),
@@ -423,7 +428,13 @@ def site_q2(data: Path, dest: Path):
                      loc="left")
         ax.set_ylabel("Hadley per K of Niño-3.4")
         ax.set_xlabel("lag in months (positive: the torque comes after Niño-3.4)")
-        ax.legend(ncol=2, frameon=False, loc="lower left")
+        ax.set_xticks([-6, -3, 0, 3, 6, 9, 12])
+        ngw = r["q2_cmip6"].get("n_models_with_gwd", 13)
+        hs = [Line2D([], [], color=c_, lw=2.2, label=l_) for c_, l_ in (
+            (C_MTN, "mountain"), (C_FRIC, "friction (CMIP6: surface stress tauu)"),
+            (C_GWD, f"gravity-wave drag (CMIP6: orographic, {ngw} models)"), (C_NET, "sum of the torques (CMIP6: mountain + tauu)"),
+            (INK, "dM/dt"), (C_RES, "dM/dt minus torques (ERA5 only)"))]
+        fig.legend(handles=hs, loc="outside lower center", ncol=2, frameon=False, fontsize=9.5)
         fig.suptitle("Global AAM budget terms regressed on Niño-3.4", fontsize=12.5, color=INK, x=0.02, ha="left")
         fig.savefig(dest / "q2_lag_regression.webp", **WEBP)
         plt.close(fig)
@@ -439,7 +450,7 @@ def site_q2(data: Path, dest: Path):
                 ("mountain 30S–0", "mtn_b3000s", "mtn_b3000s", C_MTN), ("mountain 0–30N", "mtn_b0030n", "mtn_b0030n", C_MTN),
                 ("mountain 30–60N", "mtn_b3060n", "mtn_b3060n", C_MTN), ("friction 30S–0", "fric_b3000s", "fric_b3000s", C_FRIC),
                 ("friction 0–30N", "fric_b0030n", "fric_b0030n", C_FRIC), ("friction 30–60N", "fric_b3060n", "fric_b3060n", C_FRIC),
-                ("friction 60–30S", "fric_b6030s", "fric_b6030s", C_FRIC)]
+                ("friction 30–60S", "fric_b6030s", "fric_b6030s", C_FRIC)]
         fig, ax = plt.subplots(figsize=(6.8, 8.4), constrained_layout=True)
         y = np.arange(len(rows))[::-1].astype(float)
         for yi, (lab, ke, kc, col) in zip(y, rows):
@@ -482,7 +493,7 @@ def site_q3(data: Path, dest: Path):
             ax.set_xlabel("lag (days after the torque)")
         for ax in axes[:, 0]:
             ax.set_ylabel("correlation")
-        axes[0, 0].legend(frameon=False, loc="upper left", fontsize=9)
+        fig.legend(*axes[0, 0].get_legend_handles_labels(), loc="outside lower center", ncol=3, frameon=False, fontsize=9.5)
         fig.suptitle("ERA5 1979–2025: <30-day mountain torque against AAM and the jet", fontsize=12.5, color=INK,
                      x=0.02, ha="left")
         fig.savefig(dest / "q3_lead_lag.webp", **WEBP)
@@ -493,15 +504,21 @@ def site_q3(data: Path, dest: Path):
         for c, _ in cz:
             la_, lo_ = z[f"{c}__lat"], z[f"{c}__lon"]
             asp.append((la_.max() - la_.min()) / (lo_.max() - lo_.min()))
-        mapw = 3.35
-        fig = plt.figure(figsize=(7.0, sum(a_ * mapw for a_ in asp) + 3.3), constrained_layout=True)
-        gs = fig.add_gridspec(3, 2, height_ratios=asp)
+        mapw = 3.3; gap = 0.15; left = 0.12; tit = 0.52; top = 0.45; cbh = 1.0
+        Wf = left + 2 * mapw + gap + 0.12
+        Hf = top + sum(tit + a_ * mapw for a_ in asp) + cbh
+        fig = plt.figure(figsize=(Wf, Hf))
         lev = np.linspace(-60, 60, 13)
         cf = None
+        ycur = Hf - top
         for i, (c, nm) in enumerate(cz):
             lat = z[f"{c}__lat"]; lon = z[f"{c}__lon"]
+            hmap = asp[i] * mapw
+            ycur -= tit + hmap
             for j, (k, ttl) in enumerate([("all", "all positive events"), ("diff", "El Niño minus neutral")]):
-                ax = fig.add_subplot(gs[i, j], projection=ccrs.PlateCarree(central_longitude=float(np.mean([lon.min(), lon.max()]))))
+                x0 = left + j * (mapw + gap)
+                ax = fig.add_axes([x0 / Wf, ycur / Hf, mapw / Wf, hmap / Hf],
+                                  projection=ccrs.PlateCarree(central_longitude=float(np.mean([lon.min(), lon.max()]))))
                 F = z[f"{c}__{k}"]; SG = z[f"{c}__sig_{k}"]
                 cf = ax.contourf(lon, lat, np.where(SG, F, np.nan), levels=lev, cmap=DIV, extend="both", transform=ccrs.PlateCarree())
                 ax.contour(lon, lat, F, levels=[l for l in lev if l != 0], colors=INK2, linewidths=0.45, transform=ccrs.PlateCarree())
@@ -511,10 +528,11 @@ def site_q3(data: Path, dest: Path):
                 frac = float(np.mean(SG))
                 sub = f"{frac:.0%} of cells significant" if frac > 0 else "no significant cells"
                 ax.set_title(f"{nm}: {ttl}\nn = {n}; {sub}", loc="left", fontsize=10)
-        cb = fig.colorbar(cf, ax=fig.axes, orientation="horizontal", fraction=0.03, pad=0.02, aspect=40)
+        cax = fig.add_axes([left / Wf, 0.55 / Hf, (2 * mapw + gap) / Wf, 0.14 / Hf])
+        cb = fig.colorbar(cf, cax=cax, orientation="horizontal")
         cb.set_label("z500, <30-day part (m); shaded where FDR 10% significant; contours every 10 m")
         fig.suptitle("ERA5: 500 hPa height 1–3 days before positive torque events", fontsize=12.5, color=INK,
-                     x=0.02, ha="left")
+                     x=0.02, y=1 - 0.12 / Hf, ha="left", va="top")
         fig.savefig(dest / "q3_z500_precursors.webp", **WEBP)
         plt.close(fig)
 
@@ -527,14 +545,20 @@ def site_2026(data: Path, dest: Path):
     with plt.rc_context(SITE_RC):
         fig, axes = plt.subplots(2, 1, figsize=(6.8, 7.8), constrained_layout=True)
         ax = axes[0]
-        ax.bar(g["time"], g["mean"], color=[C_RES if h in (10, 22) else C_MTN for h in g["time"]], width=0.75)
-        ax.errorbar(g["time"], g["mean"], yerr=g["std"], fmt="none", ecolor=INK2, lw=1)
-        ax.set_yscale("symlog", linthresh=10)
+        jump = g["time"].isin([10, 22])
+        ax.bar(g["time"], np.where(jump, 17.0, g["mean"]), color=[C_RES if h in (10, 22) else C_MTN for h in g["time"]], width=0.75)
+        ax.errorbar(g["time"][~jump], g["mean"][~jump], yerr=g["std"][~jump], fmt="none", ecolor=INK2, lw=1)
+        for _, rr in g[jump].iterrows():
+            right = rr["time"] < 20
+            ax.text(rr["time"] + (0.55 if right else -0.55), 15.6, f"{rr['mean']:+.0f} ± {rr['std']:.0f}".replace("-", "\u2212"),
+                    ha="left" if right else "right", va="center", fontsize=9.5, color=INK,
+                    bbox=dict(facecolor=SURF, edgecolor="none", pad=1.5))
+        ax.set_ylim(0, 17)
         ax.set_xticks(range(0, 24, 3))
         ax.set_xlabel("end of the one-hour interval (UTC)"); ax.set_ylabel("dM/dt minus torques (Hadley)")
         wt = b["window_test"]
-        ax.set_title(f"Inside 4D-Var windows {wt['inside_mean']:+.1f} ± {wt['inside_sd']:.1f} Hadley; "
-                     f"09→10 and 21→22 UTC {wt['across_mean']:+.0f} ± {wt['across_sd']:.0f}", loc="left", fontsize=10.5)
+        ax.set_title(f"Inside the 4D-Var windows {wt['inside_mean']:+.1f} ± {wt['inside_sd']:.1f} Hadley an hour;\n"
+                     "the 09→10 and 21→22 UTC bars (window starts) are cut off and labelled", loc="left", fontsize=10.5)
         ax = axes[1]
         m = sp.cpd > 0
         ax.loglog(sp.cpd[m], sp.psd_dMdt[m], color=INK, lw=1.4, label="dM/dt")
@@ -542,7 +566,7 @@ def site_2026(data: Path, dest: Path):
         ax.loglog(sp.cpd[m], sp.psd_R[m], color=C_RES, lw=1.6, label="dM/dt minus torques")
         ax.set_xlabel("frequency (cycles per day)"); ax.set_ylabel("power (Hadley² per cpd)")
         ax.set_title("Spectra: the residual is a comb of lines at whole cycles per day", loc="left", fontsize=10.5)
-        ax.legend(frameon=False, loc="lower left")
+        fig.legend(*ax.get_legend_handles_labels(), loc="outside lower center", ncol=3, frameon=False, fontsize=9.5)
         fig.suptitle("ERA5 hourly, 1 March – 3 October 2026: the AAM budget hour by hour", fontsize=12.5, color=INK,
                      x=0.02, ha="left")
         fig.savefig(dest / "b2026_hourly.webp", **WEBP)
@@ -560,7 +584,7 @@ def site_2026(data: Path, dest: Path):
         rest = an["mtn_glob"] - an["mtn_AND"] - other
         cum = lambda s: s.loc[sl].cumsum() * S.HADLEY_DAY_TO_AAM          # noqa: E731
         T = an["mtn_glob"] + an["fric_glob"] + an["gwd_glob"]
-        fig, ax = plt.subplots(figsize=(6.8, 4.6), constrained_layout=True)
+        fig, ax = plt.subplots(figsize=(6.8, 5.6), constrained_layout=True)
         ax.plot(Mt.index, Mt - Mt.iloc[0], color=INK, lw=2.6, label="AAM anomaly change (motion + mass)")
         ax.plot(Mt.index, cum(T), color=C_NET, lw=2.4, label="sum of the torque anomalies")
         ax.plot(Mt.index, cum(an["mtn_AND"]), color=C_MTN, lw=1.8, label="Andes")
@@ -570,7 +594,7 @@ def site_2026(data: Path, dest: Path):
         ax.axhline(0, color="#c3c2b7", lw=1)
         ax.axvline(pd.Timestamp(B.W1), color=GRID, lw=1)
         ax.set_ylabel("10²⁵ kg m² s⁻¹ since 15 April")
-        ax.legend(frameon=False, fontsize=9, loc="upper left")
+        fig.legend(*ax.get_legend_handles_labels(), loc="outside lower center", ncol=2, frameon=False, fontsize=9.5)
         import matplotlib.dates as mdates
         ax.xaxis.set_major_formatter(mdates.DateFormatter("%b"))
         fig.suptitle("ERA5 2026: the AAM rise against the torques that should explain it", fontsize=12.5, color=INK,
@@ -579,7 +603,7 @@ def site_2026(data: Path, dest: Path):
         plt.close(fig)
         att = b["attribution"]
         names = list(att)
-        fig, ax = plt.subplots(figsize=(6.8, 4.8), constrained_layout=True)
+        fig, ax = plt.subplots(figsize=(6.8, 5.4), constrained_layout=True)
         yy = np.arange(len(names))[::-1].astype(float)
         cols_ = [C_MTN if k in ("Andes", "other ranges", "rest of mountain") else (C_GWD if k == "GWD" else C_FRIC) for k in names]
         ax.barh(yy, [att[k]["hist_sd"] * 2 for k in names], left=[-att[k]["hist_sd"] for k in names], height=0.7,
@@ -590,13 +614,19 @@ def site_2026(data: Path, dest: Path):
         labs = {"Andes": "Andes", "other ranges": "other five ranges", "rest of mountain": "mountain elsewhere",
                 "friction tropics": "friction, tropics", "friction NH ext": "friction, NH extratropics",
                 "friction SH ext": "friction, SH extratropics", "GWD": "gravity-wave drag"}
-        ax.set_yticks(yy); ax.set_yticklabels([f"{labs[k]} ({att[k]['rank_of_48']} of 48)" for k in names])
+        def rk(n):
+            top_ = 49 - n
+            if top_ <= n:
+                return f"{ordn(top_)} highest of 48"
+            return f"{ordn(n)} lowest of 48"
+        ax.set_yticks(yy); ax.set_yticklabels([f"{labs[k]} ({rk(att[k]['rank_of_48'])})" for k in names])
         ax.axvline(0, color="#c3c2b7", lw=1)
         ax.set_xlabel("15 Apr – 19 Sep integral (10²⁵ kg m² s⁻¹)")
         from matplotlib.patches import Patch
-        ax.legend(handles=[Patch(color=INK2, label="2026"), Patch(color=INK2, alpha=0.45, label="2026, ERA5 trend removed"),
-                           Patch(color="#ecebe5", label="±1 sd of the window, 1979–2025")], frameon=False, fontsize=9,
-                  loc="lower left")
+        fig.legend(handles=[Patch(color=C_MTN, label="2026 (mountain blue, friction orange)"),
+                           Patch(color=C_MTN, alpha=0.45, label="2026, ERA5 trend removed"),
+                           Patch(color="#ecebe5", label="±1 sd of the window, 1979–2025")], frameon=False, fontsize=9.5,
+                  loc="outside lower center", ncol=1)
         fig.suptitle("ERA5 2026: each term's share against its own history", fontsize=12.5, color=INK, x=0.02, ha="left")
         fig.savefig(dest / "b2026_attribution.webp", **WEBP)
         plt.close(fig)
@@ -613,35 +643,41 @@ def site_increments(data: Path, dest: Path):
             p = r["profile"][k]
             m = np.array(p["mean"]) * U; lo = np.array(p["lo"]) * U; hi = np.array(p["hi"]) * U; sg = np.array(p["sig"])
             ax.fill_between(lat, lo, hi, color=col, alpha=0.18, lw=0)
-            g = p["global"]
-            ax.plot(lat, m, color=col, lw=2.2, label=f"{lab}: global {num_(g['mean'] * U)} [{num_(g['lo'] * U)}, {num_(g['hi'] * U)}]")
+            ax.plot(lat, m, color=col, lw=2.2, label=f"{lab} (upper panel)")
             ax.scatter(lat[sg], m[sg], color=col, s=18, zorder=3)
             ax.scatter(lat[~sg], m[~sg], facecolor=SURF, edgecolor=col, s=16, zorder=3)
         ax.axhline(0, color="#c3c2b7", lw=1)
         ax.set_ylabel("10²² kg m² s⁻¹ per 5° band")
-        ax.set_title("Total (wind + mass term), torques across the jump removed", loc="left")
-        ax.legend(frameon=False, loc="lower left", fontsize=9)
+        g1, g2 = r["profile"]["10"]["global"], r["profile"]["22"]["global"]
+        ax.set_title("Total (wind + mass term) per window; global sum\n"
+                     f"09 UTC {num_(g1['mean'] * U)} [{num_(g1['lo'] * U)}, {num_(g1['hi'] * U)}], "
+                     f"21 UTC {num_(g2['mean'] * U)} [{num_(g2['lo'] * U)}, {num_(g2['hi'] * U)}] ×10²² kg m² s⁻¹", loc="left", fontsize=10.5)
         ax = axes[1]
-        for k, lab, col, ls in (("r", "wind (motion) term", C_MTN, "-"), ("m", "mass term", C_GWD, "-")):
-            m = (np.array(r["profile"]["10" + k]["mean"]) + np.array(r["profile"]["22" + k]["mean"])) * U
-            ax.plot(lat, m, color=col, lw=2.2, ls=ls, label=lab)
+        for k, lab, col in (("r", "wind (motion) term (lower panel)", INK), ("m", "mass term (lower panel)", C_GWD)):
+            p = r["profile"]["both" + k]
+            m = np.array(p["mean"]) * U; lo = np.array(p["lo"]) * U; hi = np.array(p["hi"]) * U; sg = np.array(p["sig"])
+            ax.fill_between(lat, lo, hi, color=col, alpha=0.18, lw=0)
+            ax.plot(lat, m, color=col, lw=2.2, label=lab)
+            ax.scatter(lat[sg], m[sg], color=col, s=18, zorder=3)
+            ax.scatter(lat[~sg], m[~sg], facecolor=SURF, edgecolor=col, s=16, zorder=3)
         ax.axhline(0, color="#c3c2b7", lw=1)
         ax.set_ylabel("10²² kg m² s⁻¹ per band, per day")
         ax.set_xlabel("latitude")
         ax.set_xticks(range(-90, 91, 30)); ax.set_xticklabels(["90S", "60S", "30S", "EQ", "30N", "60N", "90N"])
         ax.set_title("Both window starts together, split into wind and mass terms", loc="left")
-        ax.legend(frameon=False, loc="lower left", fontsize=9)
+        h1, l1 = axes[0].get_legend_handles_labels(); h2, l2 = axes[1].get_legend_handles_labels()
+        fig.legend(h1 + h2, l1 + l2, loc="outside lower center", ncol=2, frameon=False, fontsize=9.5)
         d0, d1, n = r["days"]
         fig.suptitle(f"ERA5 AAM increments by latitude, {d0[:7]} to {d1[:7]}",
                      fontsize=12, color=INK, x=0.02, ha="left")
         fig.savefig(dest / "inc_profile.webp", **WEBP)
         plt.close(fig)
-        # seasonal cycle
+        # seasonal cycle (blocks: month x 5-degree band; hatched = not significant; grey = no data)
         Mm = pd.read_csv(data / "inc_season_mean.csv", index_col=0)
         SG = pd.read_csv(data / "inc_season_sig.csv", index_col=0).values.astype(bool)
         months = Mm.index.tolist()
         V = Mm.values * U
-        fig, axes = plt.subplots(2, 1, figsize=(6.8, 7.4), constrained_layout=True, gridspec_kw=dict(height_ratios=[1, 2.3]))
+        fig, axes = plt.subplots(2, 1, figsize=(6.8, 7.6), constrained_layout=True, gridspec_kw=dict(height_ratios=[1, 2.4]))
         ax = axes[0]
         gm = r["global_by_month"]
         x = np.arange(len(months))
@@ -652,56 +688,107 @@ def site_increments(data: Path, dest: Path):
         ax.set_ylabel("10²² per day")
         ax.set_title("Global increment per day, by month (±95%)", loc="left")
         ax = axes[1]
-        lim = np.nanpercentile(np.abs(V), 98)
-        lev = np.linspace(-lim, lim, 13)
-        ax.contourf(x, lat, np.where(SG, V, np.nan).T, levels=lev, cmap=DIV, extend="both")
-        cs = ax.contour(x, lat, V.T, levels=[l for l in lev if abs(l) > 1e-9], colors=INK2, linewidths=0.4)
+        lev = nice_levels(np.nanpercentile(np.abs(V), 98))
+        norm = BoundaryNorm(lev, DIV.N, extend="both")
+        xe = np.arange(len(months) + 1) - 0.5
+        ye = np.arange(-90, 91, 5)
+        nod = ~np.isfinite(V) | (np.abs(V) < 1e-9)
+        ax.pcolormesh(xe, ye, np.where(nod, 1.0, np.nan).T, cmap=LinearSegmentedColormap.from_list("nd", ["#d9d8d2"] * 2), shading="flat")
+        ax.pcolormesh(xe, ye, np.where(nod, np.nan, V).T, cmap=DIV, norm=norm, shading="flat")
+        ns = np.where(~SG & ~nod, 1.0, np.nan)
+        ax.pcolor(xe, ye, ns.T, hatch="////", alpha=0.0, shading="flat")
         ax.set_xticks(x[::3]); ax.set_xticklabels([m for m in months][::3], fontsize=9)
         ax.set_yticks(range(-90, 91, 30)); ax.set_yticklabels(["90S", "60S", "30S", "EQ", "30N", "60N", "90N"])
-        ax.set_title("By latitude: shaded where significant (t-test over days, FDR 10%)", loc="left")
+        ax.grid(False)
+        ax.set_title(f"By latitude: hatched = not significant (effective-n t-test, FDR 10%; {float(SG[~nod].mean()):.0%} of cells significant)",
+                     loc="left", fontsize=9.5)
         import matplotlib.cm as mcm
-        from matplotlib.colors import BoundaryNorm as BN
-        sm = mcm.ScalarMappable(norm=BN(lev, DIV.N), cmap=DIV)
-        cb = fig.colorbar(sm, ax=ax, orientation="horizontal", fraction=0.05, pad=0.08, aspect=40)
+        cb = fig.colorbar(mcm.ScalarMappable(norm=norm, cmap=DIV), ax=ax, orientation="horizontal", fraction=0.05, pad=0.08,
+                          aspect=40, ticks=lev[::2])
         cb.set_label("10²² kg m² s⁻¹ per 5° band per day")
         fig.suptitle("ERA5 increments of angular momentum: the seasonal cycle", fontsize=12, color=INK, x=0.02, ha="left")
         fig.savefig(dest / "inc_season.webp", **WEBP)
         plt.close(fig)
-        # vertical section
+        # vertical section: AM density per 100 hPa (colour x area = momentum on linear-pressure axes), blocks
         sec = data / "inc_section.npz"
         if sec.exists():
             z = np.load(sec)
             levs = z["level"]
-            e = np.empty(len(levs) + 1); e[1:-1] = 0.5 * (levs[1:] + levs[:-1]); e[0] = 0; e[-1] = levs[-1] + 0.5 * (levs[-1] - levs[-2])
-            thick = np.diff(e)                                    # hPa
-            fig, axes = plt.subplots(2, 1, figsize=(6.8, 8.4), sharex=True, constrained_layout=True)
-            vals = [z[f"J10_mean"] * U * 100 / thick[:, None], z[f"J22_mean"] * U * 100 / thick[:, None]]
-            lim = np.nanpercentile(np.abs(np.concatenate([v.ravel() for v in vals])), 98)
-            lev = np.linspace(-lim, lim, 13)
-            for ax, (w, ttl), V2 in zip(axes, (("J10", "09 UTC window start"), ("J22", "21 UTC window start")), vals):
-                sg = z[f"{w}_sig"]
-                ax.contourf(lat, levs, np.where(sg, V2, np.nan), levels=lev, cmap=DIV, extend="both")
-                ax.contour(lat, levs, V2, levels=[l for l in lev if abs(l) > 1e-9], colors=INK2, linewidths=0.4)
-                ax.set_yscale("log"); ax.set_ylim(1000, 1)
-                ax.set_yticks([1000, 500, 200, 100, 50, 20, 10, 5, 1]); ax.set_yticklabels(["1000", "500", "200", "100", "50", "20", "10", "5", "1"])
-                ax.set_ylabel("pressure (hPa)")
-                ax.set_title(f"{ttl}: shaded where significant ({float(np.mean(sg)):.0%} of cells, FDR 10%)", loc="left")
-                ax.grid(False)
-            axes[1].set_xticks(range(-90, 91, 30)); axes[1].set_xticklabels(["90S", "60S", "30S", "EQ", "30N", "60N", "90N"])
+            e = np.empty(len(levs) + 1); e[1:-1] = 0.5 * (levs[1:] + levs[:-1]); e[0] = 0.0
+            e[-1] = levs[-1] + 0.5 * (levs[-1] - levs[-2])             # the layer edges used by torque_increments_u37.py
+            dpn = np.diff(e)                                              # nominal layer thickness (hPa)
+            ye = np.arange(-90, 91, 5)
+            fr = json.loads((data / "increments.json").read_text())
+            fig = plt.figure(figsize=(6.8, 9.8), constrained_layout=True)
+            gs = fig.add_gridspec(4, 1, height_ratios=[1.0, 2.6, 1.0, 2.6])
+            tro = levs > 100; stra = levs <= 100
+            dens = {w: z[f"{w}_mean"] * U / (dpn[:, None] / 100.0) for w in ("J10", "J22")}
+            # grey: more than half of the layer below ground in that band (surface pressure estimated from ERA5's
+            # orography on the 2.5-degree maps grid with a standard atmosphere)
+            below = np.zeros((len(levs), 36), bool)
+            fm = S.REF / "torque_u37maps_2025_2026.nc"
+            if fm.exists():
+                import xarray as xr
+                hz = xr.open_dataset(fm)["h_mean"]
+                psf = 1013.25 * (1 - 2.25577e-5 * np.clip(hz.values, 0, None)) ** 5.25588
+                la_ = hz.lat.values; wcos = np.cos(np.deg2rad(la_))
+                for jb in range(36):
+                    rows = (la_ >= -90 + 5 * jb) & (la_ < -85 + 5 * jb)
+                    if not rows.any():
+                        continue
+                    pr = psf[rows]; wr = np.repeat(wcos[rows][:, None], pr.shape[1], 1)
+                    for kk in range(len(levs)):
+                        f_ = np.clip(np.minimum(e[kk + 1], pr) - np.minimum(e[kk], pr), 0, None) / dpn[kk]
+                        below[kk, jb] = (f_ * wr).sum() / wr.sum() < 0.5
+            allv = np.concatenate([dens[w][tro].ravel() for w in dens])
+            lev_t = nice_levels(np.nanpercentile(np.abs(allv), 98))
+            alls = np.concatenate([dens[w][stra].ravel() for w in dens])
+            lev_s = nice_levels(np.nanpercentile(np.abs(alls), 98))
+            nt, ns_ = BoundaryNorm(lev_t, DIV.N, extend="both"), BoundaryNorm(lev_s, DIV.N, extend="both")
             import matplotlib.cm as mcm
-            from matplotlib.colors import BoundaryNorm as BN
-            sm = mcm.ScalarMappable(norm=BN(lev, DIV.N), cmap=DIV)
-            cb = fig.colorbar(sm, ax=axes, orientation="horizontal", fraction=0.04, pad=0.02, aspect=40)
-            cb.set_label("10²² kg m² s⁻¹ per 5° band per 100 hPa (wind term)")
-            n = int(json.loads((data / "increments.json").read_text())["u37_J10"]["n_days"])
-            fig.suptitle(f"ERA5 AAM increments by latitude and height ({n} days)", fontsize=12,
-                         color=INK, x=0.02, ha="left")
+            for j, (w, ttl) in enumerate((("J10", "09 UTC window start"), ("J22", "21 UTC window start"))):
+                V2 = dens[w]; sg = z[f"{w}_sig"]; nod = z[f"{w}_nodata"] | below
+                for k, (mk, norm, axrow) in enumerate(((stra, ns_, 2 * j), (tro, nt, 2 * j + 1))):
+                    ax = fig.add_subplot(gs[axrow])
+                    idx = np.where(mk)[0]
+                    pe = np.concatenate([e[idx], [e[idx[-1] + 1]]])
+                    Vm = V2[idx]; Sm = sg[idx]; Nm = nod[idx]
+                    ax.pcolormesh(ye, pe, np.where(Nm, 1.0, np.nan), cmap=LinearSegmentedColormap.from_list("nd", ["#d9d8d2"] * 2), shading="flat")
+                    ax.pcolormesh(ye, pe, np.where(Nm, np.nan, Vm), cmap=DIV, norm=norm, shading="flat")
+                    ax.pcolor(ye, pe, np.where(~Sm & ~Nm, 1.0, np.nan), hatch="////", alpha=0.0, shading="flat")
+                    ax.grid(False)
+                    if k == 0:
+                        ax.set_ylim(e[idx[-1] + 1], 0)
+                        ax.set_yticks([100, 50, 0])
+                        fs = fr["u37_frac_sig_with_data"][w]
+                        ax.set_title(f"{ttl}: 100–1 hPa levels, own scale, drawn 3× taller than its mass; "
+                                     f"{fs:.0%} of cells with data significant", loc="left", fontsize=9)
+                        ax.set_xticklabels([])
+                        cb = fig.colorbar(mcm.ScalarMappable(norm=ns_, cmap=DIV), ax=ax, orientation="vertical", fraction=0.04,
+                                          pad=0.01, ticks=lev_s[::2])
+                    else:
+                        ax.set_ylim(e[-1], e[idx[0]])
+                        ax.set_yticks([1000, 850, 700, 500, 300, 125])
+                        ax.set_title(f"{ttl}: 1000–125 hPa levels", loc="left", fontsize=9.5)
+                        cb = fig.colorbar(mcm.ScalarMappable(norm=nt, cmap=DIV), ax=ax, orientation="vertical", fraction=0.04,
+                                          pad=0.01, ticks=lev_t[::2])
+                        if j == 1:
+                            ax.set_xticks(range(-90, 91, 30)); ax.set_xticklabels(["90S", "60S", "30S", "EQ", "30N", "60N", "90N"])
+                        else:
+                            ax.set_xticklabels([])
+                    ax.set_ylabel("hPa")
+                    cb.ax.tick_params(labelsize=8)
+            n = int(fr["u37_J10"]["n_days"])
+            fig.suptitle(f"ERA5 wind-term AAM increments by latitude and pressure ({n} days)\n"
+                         "10²² kg m² s⁻¹ per 5° band per 100 hPa, per window; axes linear in pressure;\n"
+                         "hatched = not significant; grey = more than half the layer below ground",
+                         fontsize=10, color=INK, x=0.02, ha="left")
             fig.savefig(dest / "inc_section.webp", **WEBP)
             plt.close(fig)
         # AIFS-ENS forecast drift
         fd = r.get("fc_drift")
         if fd:
-            fig, ax = plt.subplots(figsize=(6.8, 4.4), constrained_layout=True)
+            fig, ax = plt.subplots(figsize=(6.8, 4.8), constrained_layout=True)
             for reg, lab, col in (("global", "global", INK), ("nh", "Northern Hemisphere", C_MTN), ("sh", "Southern Hemisphere", C_FRIC)):
                 d = pd.DataFrame(fd["by_region"][reg])
                 ax.fill_between(d.lead, d.lo, d.hi, color=col, alpha=0.14, lw=0)
@@ -710,7 +797,7 @@ def site_increments(data: Path, dest: Path):
                 ax.scatter(d.lead[~d.sig], d["mean"][~d.sig], facecolor=SURF, edgecolor=col, s=16, zorder=3)
             ax.axhline(0, color="#c3c2b7", lw=1)
             ax.set_xlabel("lead (days)"); ax.set_ylabel("forecast minus verifying analysis (10²⁵ kg m² s⁻¹)")
-            ax.legend(frameon=False, loc="lower left")
+            fig.legend(*ax.get_legend_handles_labels(), loc="outside lower center", ncol=3, frameon=False, fontsize=9.5)
             i0, i1, n = fd["inits"]
             ax.set_title(f"{n} inits, {i0[:10]} to {i1[:10]}; filled: 95% interval\nexcludes zero (weekly-block bootstrap)",
                          loc="left", fontsize=10)
@@ -755,46 +842,61 @@ def site_increment_maps(data: Path, dest: Path):
                       f"{L} hPa zonal wind: shaded where significant ({fs_:.0%} of cells, FDR 10%)")
         cb = fig.colorbar(cf, ax=axes, orientation="horizontal", fraction=0.04, pad=0.02, aspect=40)
         cb.set_label("increment of u per day (m/s, both window starts); contours: terrain 500, 1500, 3000 m")
-        fig.suptitle(f"ERA5 low-level wind increments, {r['days'][:21]}", fontsize=12, color=INK, x=0.02, ha="left")
+        fig.suptitle(f"ERA5 low-level wind increments, {r['days'].split(' (')[0].replace('..', ' to ')}", fontsize=12, color=INK, x=0.02, ha="left")
         fig.savefig(dest / "inc_maps_u.webp", **WEBP)
         plt.close(fig)
         # (2) the >=850 hPa angular momentum increment, DJF vs JJA
         fig, axes = plt.subplots(2, 1, figsize=(7.0, 7.6), subplot_kw=dict(projection=ccrs.Robinson(central_longitude=10)),
                                  constrained_layout=True)
         V = np.concatenate([z[f"amL_both_{s}_mean"].values.ravel() for s in ("DJF", "JJA")])
-        lim = float(np.nanpercentile(np.abs(V), 98))
-        lev = np.linspace(-lim, lim, 11)
+        lev = nice_levels(float(np.nanpercentile(np.abs(V), 98)))
         for ax, s in zip(axes, ("DJF", "JJA")):
             k = f"amL_both_{s}"
             cf = draw(ax, z[f"{k}_mean"].values, sg[f"{k}_sig"].values, lev,
                       f"{s}: shaded where significant ({r.get('frac_sig_' + k, 0):.0%} of cells, FDR 10%)")
         cb = fig.colorbar(cf, ax=axes, orientation="horizontal", fraction=0.04, pad=0.02, aspect=40)
-        cb.set_label("angular momentum increment of the layers at and below 850 hPa (10²⁰ kg m² s⁻¹ per 2.5° cell per day)")
+        cb.set_label("AM increment at and below 850 hPa (10²⁰ kg m² s⁻¹ per 2.5° cell per day)")
         fig.suptitle("ERA5 low-level angular momentum increments by season", fontsize=12, color=INK, x=0.02, ha="left")
         fig.savefig(dest / "inc_maps_amL_season.webp", **WEBP)
         plt.close(fig)
         # (3) the regional split
         sp = r["split"]
         regs = [("ORO", "terrain and 500 km downstream"), ("OCX", "ocean 30–65°"), ("OCO", "other ocean"), ("LND", "other land")]
-        fig, ax = plt.subplots(figsize=(6.8, 4.6), constrained_layout=True)
+        fig, ax = plt.subplots(figsize=(6.8, 5.0), constrained_layout=True)
         y = np.arange(len(regs))[::-1].astype(float)
         cols = {"ALL": INK2, "DJF": C_MTN, "JJA": C_FRIC}
         for j, s in enumerate(("ALL", "DJF", "JJA")):
             for yi, (rk, lab) in zip(y, regs):
                 d = sp[f"amL_{s}_{rk}"]
                 yy = yi + 0.25 - 0.25 * j
-                ax.barh(yy, 100 * d["share"], height=0.22, color=cols[s], label=s if yi == y[0] else None)
+                ax.barh(yy, 100 * d["share"], height=0.22, color=cols[s], label={"ALL": "all days"}.get(s, s) if yi == y[0] else None)
                 ax.plot([100 * d["lo"], 100 * d["hi"]], [yy] * 2, color=INK, lw=1)
         for yi, (rk, lab) in zip(y, regs):
             ax.scatter([100 * r["area"][rk]], [yi], marker="|", s=420, color=INK, zorder=4,
                        label="share of the Earth's area" if yi == y[0] else None)
         ax.set_yticks(y); ax.set_yticklabels([lab for _, lab in regs])
         ax.axvline(0, color="#c3c2b7", lw=1)
-        ax.set_xlabel("share of the global increment below 850 hPa (%), 95% block-bootstrap interval")
-        ax.legend(frameon=False, fontsize=9, loc="lower right")
+        ax.set_xlabel("share of the global increment below 850 hPa (%)")
+        fig.legend(*ax.get_legend_handles_labels(), loc="outside lower center", ncol=4, frameon=False, fontsize=9.5)
         fig.suptitle("Where ERA5's low-level angular momentum increment goes", fontsize=12, color=INK, x=0.02, ha="left")
+        ax.set_title("bars: share with 95% interval; black tick: share of the Earth's area", loc="left", fontsize=10)
         fig.savefig(dest / "inc_maps_split.webp", **WEBP)
         plt.close(fig)
+
+
+def nice_levels(lim, n=10):
+    """Round symmetric colour levels around zero."""
+    if not np.isfinite(lim) or lim <= 0:
+        lim = 1.0
+    raw = lim / (n / 2)
+    mag = 10 ** np.floor(np.log10(raw))
+    step = min((1, 2, 2.5, 5, 10), key=lambda c: abs(c * mag - raw)) * mag
+    k = int(np.ceil(lim / step))
+    return np.arange(-k, k + 1) * step
+
+
+def ordn(n):
+    return f"{n}{'th' if 10 <= n % 100 <= 20 else {1: 'st', 2: 'nd', 3: 'rd'}.get(n % 10, 'th')}"
 
 
 def num_(x, d=0):
