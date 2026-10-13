@@ -1,0 +1,699 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>El Niño and mountain torque · Shawn Corvec</title>
+<meta name="description" content="Does El Niño raise the atmosphere's angular momentum through more mountain-torque events east of the Andes, Rockies and Himalaya? ERA5 four times a day 1959–2026, 41 CMIP6 models, and an hourly budget of the 2026 rise.">
+<link rel="canonical" href="https://scorvec.com/torque-enso.html">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<meta name="author" content="Shawn Corvec">
+<meta property="og:type" content="article">
+<meta property="og:title" content="El Niño and the mountain torque: a standing shift across the Andes, not more events">
+<meta property="og:description" content="Does El Niño raise the atmosphere's angular momentum through more mountain-torque events east of the Andes, Rockies and Himalaya? ERA5 four times a day 1959–2026, 41 CMIP6 models, and an hourly budget of the 2026 rise.">
+<meta property="og:url" content="https://scorvec.com/torque-enso.html">
+<meta property="og:image" content="https://scorvec.com/studies/torque-enso/q1_shift_vs_events.webp">
+<meta property="og:site_name" content="Shawn Corvec">
+<meta name="twitter:card" content="summary_large_image">
+<script type="application/ld+json">
+{
+ "@context": "https://schema.org",
+ "@type": "ScholarlyArticle",
+ "headline": "El Niño and the mountain torque: a standing shift across the Andes, not more events",
+ "name": "El Niño and mountain torque",
+ "description": "Does El Niño raise the atmosphere's angular momentum through more mountain-torque events east of the Andes, Rockies and Himalaya? ERA5 four times a day 1959–2026, 41 CMIP6 models, and an hourly budget of the 2026 rise.",
+ "url": "https://scorvec.com/torque-enso.html",
+ "inLanguage": "en",
+ "datePublished": "2026-10-13",
+ "dateModified": "2026-10-13",
+ "author": {
+  "@id": "https://scorvec.com/#person"
+ },
+ "image": [
+  "https://scorvec.com/studies/torque-enso/q1_shift_vs_events.webp"
+ ],
+ "keywords": "El Niño, ENSO, mountain torque, atmospheric angular momentum, Andes, Rockies, Himalaya, friction torque, ERA5, CMIP6"
+}
+</script>
+<script data-goatcounter="https://scorvec.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
+<link rel="stylesheet" href="/assets/site.css">
+<script src="/assets/site.js" defer></script>
+<script src="/assets/rail.js" defer></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
+  onload="renderMathInElement(document.body,{delimiters:[{left:'$$',right:'$$',display:true},{left:'$',right:'$',display:false}],throwOnError:false});"></script>
+<style>
+  body { background: var(--c-bg, #f5f6f3); color: var(--c-ink, #29321f); margin: 0; }
+  .study { font-size: clamp(1.06rem, 0.78rem + 0.5vw, 1.35rem); max-width: min(76rem, 100%); margin: 0 auto; padding: 2rem 1.25rem 3.5rem; }
+  .study figcaption, .study .tcap { font-size: 0.86em; }   /* beats site.css "html figcaption" (rem) so captions scale with the text */
+  .study .crumbs { font-size: 0.92em; color: var(--c-muted, #5c6b73); margin-bottom: 1.2rem; }
+  .study .crumbs a { color: inherit; }
+  .study h1 { text-align: left; margin: 0 0 0.5rem; }
+  .study .dek { color: var(--c-muted, #5c6b73); font-size: 1.05em; margin: 0 0 1.4rem; }
+  .study h2 { margin: 2.4rem 0 0.7rem; text-align: left; }
+  .study h3 { margin: 1.8rem 0 0.5rem; text-align: left; }
+  .study p, .study li { line-height: 1.6; }
+  .study ul { padding-left: 1.2rem; }
+  .study li { margin: 0.45rem 0; }
+  .study a { color: var(--c-accent, #274b7a); text-underline-offset: 0.2em; }
+  .study .katex-display { overflow-x: auto; overflow-y: hidden; padding: 0.2rem 0; }
+  .lede { border: 1px solid var(--c-rule, #dfe3dc); border-left: 4px solid var(--c-accent, #274b7a); background: #fff;
+          padding: 0.2rem 1.2rem 0.4rem; margin: 0 0 1.6rem; }
+  .lede h2 { margin-top: 0.9rem; }
+  figure { margin: 1.6rem 0 2rem; }
+  figure img { display: block; width: 100%; height: auto; border: 1px solid var(--c-rule, #dfe3dc); background: #fff; }
+  figcaption, .tcap { color: #6f6b64; font-size: 0.92em; margin-top: 0.5rem; line-height: 1.5; }
+  .tw { overflow-x: auto; margin: 0.8rem 0 0; }
+  table.res { border-collapse: collapse; width: 100%; font-size: 0.92em; font-variant-numeric: tabular-nums; }
+  table.res th, table.res td { padding: 0.35rem 0.55rem; border-bottom: 1px solid var(--c-rule, #dfe3dc); text-align: right; white-space: nowrap; }
+  table.res th[scope=row], table.res thead th:first-child, table.res tr.grp th { text-align: left; }
+  table.res thead th { border-bottom: 2px solid #29321f; }
+  table.res tr.grp th { padding-top: 0.8rem; font-weight: 700; border-bottom: none; }
+  table.res tr.diff th, table.res tr.diff td { font-weight: 600; }
+  .ns { color: #6f6b64; font-style: italic; font-weight: 400 !important; }
+  .sig { color: #6f6b64; font-weight: 400; font-size: 0.85em; }
+  .refs { font-size: 0.95em; } .refs li { margin: 0.4rem 0; }
+  .credits { font-size: 0.92em; }
+  .byline { color: #6f6b64; font-size: 0.92em; margin-top: 2.2rem; }
+  #lb { position: fixed; inset: 0; background: rgba(20, 22, 18, 0.88); display: none; align-items: center; justify-content: center;
+        z-index: 1000; cursor: zoom-out; padding: 1rem; }
+  #lb.on { display: flex; }
+  #lb img { max-width: 100%; max-height: 100%; background: #fff; }
+  @media (max-width: 600px) { .study { padding: 1.2rem 1rem 2.5rem; } table.res { font-size: 0.85em; } }
+
+  .study code { font-size: 0.9em; }
+</style>
+</head>
+<body>
+<!-- sh:start -->
+<header class="sh" id="site-header">
+  <div class="sh-in">
+    <a class="sh-brand" href="/">Shawn Corvec</a>
+    <button class="sh-find" type="button" aria-haspopup="dialog" aria-keyshortcuts="Control+K Meta+K" title="Find a plot (Ctrl K)"><svg viewBox="0 0 20 20" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true" focusable="false"><circle cx="8.5" cy="8.5" r="5.5" style="fill:none;stroke:currentColor"/><path d="M12.6 12.6 17 17" style="fill:none;stroke:currentColor"/></svg><span class="sh-find-t">Find a plot</span><kbd>Ctrl K</kbd></button>
+    <button class="sh-toggle" type="button" aria-expanded="false" aria-controls="sh-menu">Menu</button>
+    <nav class="sh-nav" id="sh-menu" aria-label="Site">
+      <ul class="sh-list">
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g0">Mid-latitude weather</button>
+          <div class="sh-menu sh-menu--cols" id="sh-g0">
+            <div>
+              <h3>Surface and hazards</h3>
+              <ul>
+                <li><a href="/models.html">Short-range model maps</a></li>
+                <li><a href="/radar.html">US Radar Explorer</a></li>
+                <li><a href="/ar.html">Atmospheric rivers</a></li>
+              </ul>
+            </div>
+            <div>
+              <h3>Upper air</h3>
+              <ul>
+                <li><a href="/circulation.html#dt">Dynamic tropopause</a></li>
+                <li><a href="/circulation.html#waf">Wave activity flux</a></li>
+              </ul>
+            </div>
+          </div>
+        </li>
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g1"><span class="sh-lf">Global circulation and tropics</span><span class="sh-ls">Circulation/tropics</span></button>
+          <div class="sh-menu sh-menu--cols" id="sh-g1">
+            <div>
+              <h3>ENSO and the MJO</h3>
+              <ul>
+                <li><a href="/enso.html">El Niño monitor</a></li>
+                <li><a href="/circulation.html#mslp">Pacific pressure and wind</a></li>
+                <li><a href="/mjo.html">MJO forecast</a></li>
+                <li><a href="/tropical-waves.html">Tropical waves</a></li>
+              </ul>
+            </div>
+            <div>
+              <h3>Tropical cyclones</h3>
+              <ul>
+                <li><a href="/circulation.html#tcjet">Tropical cyclones and the jet</a></li>
+                <li><a href="/circulation.html#tcens">Tropical cyclone ensembles</a></li>
+                <li><a href="/circulation.html#tcphase">Cyclone phase space</a></li>
+                <li><a href="/circulation.html#tcshear">Shear and environment</a></li>
+                <li><a href="/recon.html">Hurricane reconnaissance</a></li>
+              </ul>
+            </div>
+            <div>
+              <h3>Jets and momentum</h3>
+              <ul>
+                <li><a href="/circulation.html#pacjet">North Pacific jet</a></li>
+                <li><a href="/circulation.html#jets">Subtropical jets</a></li>
+                <li><a href="/circulation.html#aam">Angular momentum and torques</a></li>
+              </ul>
+            </div>
+            <div>
+              <h3>Tropical overturning</h3>
+              <ul>
+                <li><a href="/circulation.html#walker">Walker and Hadley cells</a></li>
+                <li><a href="/circulation.html#vpot">Velocity potential</a></li>
+                <li><a href="/circulation.html#gillrain">Rain-forced circulation (Gill model)</a></li>
+              </ul>
+            </div>
+          </div>
+        </li>
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g2">Stratosphere</button>
+          <div class="sh-menu sh-menu--cols" id="sh-g2">
+            <div>
+              <h3>Polar vortex and QBO</h3>
+              <ul>
+                <li><a href="/stratosphere.html">Stratosphere and polar vortex</a></li>
+                <li class="sh-subitem"><a href="/stratosphere.html#pv">Now: analyses and observations</a></li>
+                <li class="sh-subitem"><a href="/stratosphere.html#vortex">Next two weeks</a></li>
+                <li class="sh-subitem"><a href="/stratosphere.html#vortex35">Weeks 3–5</a></li>
+                <li class="sh-subitem"><a href="/stratosphere.html#s5vortex">Season</a></li>
+                <li class="sh-subitem"><a href="/stratosphere.html#shwinters">History and studies</a></li>
+                <li class="sh-subitem"><a href="/stratosphere.html#qbo">QBO tracker</a></li>
+              </ul>
+            </div>
+          </div>
+        </li>
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g3">Weeks to seasons</button>
+          <div class="sh-menu sh-menu--cols" id="sh-g3">
+            <div>
+              <h3>Weeks 2–5</h3>
+              <ul>
+                <li><a href="/subseasonal.html">GEPS extended ensemble</a></li>
+                <li><a href="/gefs.html">GEFS extended ensemble</a></li>
+                <li><a href="/sfs-subseasonal.html">SFS extended (experimental)</a></li>
+              </ul>
+            </div>
+            <div>
+              <h3>Seasons</h3>
+              <ul>
+                <li><a href="/seasonal.html">Seasonal model forecasts</a></li>
+                <li><a href="/enso-forecasts.html">ENSO forecasts</a></li>
+              </ul>
+            </div>
+          </div>
+        </li>
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g4" aria-current="page"><span class="sh-lf">Studies and verification</span><span class="sh-ls">Studies/verification</span></button>
+          <div class="sh-menu sh-menu--cols" id="sh-g4">
+            <div>
+              <h3>Studies</h3>
+              <ul>
+                <li><a href="/enso.html#imp_reg">ENSO impacts on the Americas</a></li>
+                <li><a href="/mjo.html#mi">MJO impacts</a></li>
+                <li><a href="/stratosphere.html#shwinters">Stratosphere history</a></li>
+                <li><a href="/aifs-aam-budget.html">AINWP and conservation</a></li>
+                <li><a href="/torque-enso.html" aria-current="page">El Niño and mountain torque</a></li>
+                <li><a href="/topics/">Explainers</a></li>
+              </ul>
+            </div>
+            <div>
+              <h3>Verification</h3>
+              <ul>
+                <li><a href="/aifs-verify.html">AIFS single versus member 0</a></li>
+              </ul>
+            </div>
+          </div>
+        </li>
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g5">Tools</button>
+          <div class="sh-menu sh-menu--list" id="sh-g5">
+            <ul>
+              <li><a href="/catalog.html">Every plot on the site</a></li>
+              <li><a href="/skewt/">Sounding explorer</a></li>
+              <li><a href="/asos5.html">Five-minute airport observations</a></li>
+              <li><a href="/climate.html">US climate trends</a></li>
+              <li><a href="/fci.html">US credit conditions</a></li>
+            </ul>
+          </div>
+        </li>
+        <li class="sh-item sh-item--special"><a class="sh-special" href="/midterms/">2026 Midterms</a></li>
+        <li class="sh-item sh-has-menu sh-item--me">
+          <button class="sh-link sh-menubtn sh-me" type="button" aria-expanded="false" aria-controls="sh-me">About</button>
+          <div class="sh-menu sh-menu--list sh-menu--me" id="sh-me">
+            <ul>
+              <li><a href="/about.html">About me</a></li>
+              <li><a href="/resume.html">Resume</a></li>
+              <li><a href="/research.html">Publications</a></li>
+              <li class="sh-me-ext"><a href="https://github.com/scorvec">GitHub</a></li>
+              <li><a href="https://scholar.google.com/citations?user=EYLRCJIAAAAJ&amp;hl=en">Google Scholar</a></li>
+              <li><a href="https://www.linkedin.com/in/shawn-corvec-35895b231/">LinkedIn</a></li>
+            </ul>
+          </div>
+        </li>
+      </ul>
+    </nav>
+  </div>
+</header>
+<!-- sh:end -->
+<main>
+
+<article class="study">
+  <p class="crumbs"><a href="/">Home</a> › Studies › El Niño and mountain torque</p>
+  <h1>El Niño and the mountain torque: a standing shift across the Andes, not more events</h1>
+  <p class="dek">Surface highs that build on the east side of the Andes, the Rockies and the Himalaya push the atmosphere eastward
+  and raise its angular momentum, and they seem to come thick and fast in El Niño years. Does El Niño make more of them, or does it
+  shift the pressure across the mountains as a whole? ERA5 four times a day from 1959 to 2026, 41 CMIP6 models, and an
+  hourly budget of the 2026 rise.</p>
+
+  <section class="lede">
+  <h2>The short answer</h2>
+  <ul>
+    <li><b>Not more events.</b> The synoptic torque events (the &lt;30-day part above +1 standard deviation) are neither more
+    frequent nor stronger in El Niño seasons than in neutral ones, for any of six ranges in any season: none of 24
+    range–season tests is significant for the count, the amplitude or the variance (permutation of season-years, false discovery
+    rate 10%). In the 19 CMIP6 models with daily surface pressure, none of those changes is robust either.</li>
+    <li><b>A standing shift.</b> What El Niño changes is the slowly varying pressure difference across the ranges. In December to
+    February the Andes torque is +2.9 Hadley higher in El Niño than in neutral winters (p = 0.007); per unit
+    of the ONI it is +1.9 Hadley [+1.2, +2.4], and +1.1 [+0.6, +1.6] over
+    the Rockies. The Himalaya/Tibet torque falls in spring (−1.5 Hadley, p = 0.008). CMIP6 agrees: Andes
+    +1.46 Hadley in DJF, with all 19 models of one sign. Because the whole distribution moves, more days
+    clear any fixed threshold, which is why El Niño winters <i>look</i> eventful; a pure-shift test accounts for the extra Andes
+    days (excess +0.65 [−0.47, +1.47] per season, not significant).</li>
+    <li><b>Mountain torque builds the El Niño rise in angular momentum and friction takes most of it back.</b> Over the six months
+    before a Niño-3.4 anomaly, per kelvin: mountain torque +1.44 [+0.44, +2.50] and friction
+    −1.86 [−2.89, −1.14] ×10²⁵ kg m² s⁻¹ in ERA5; +1.54 (all 41 models agree)
+    and −0.89 (85% agree) in CMIP6. Gravity-wave drag adds nothing significant. The Andes are the
+    largest single source, then the Rockies; the Himalaya works against.</li>
+    <li><b>The events lead; El Niño does not change their trigger.</b> Global angular momentum rises in the 1–4 days after a
+    positive event and the subtropical jet follows weakly. The 500 hPa pattern that precedes the events, a ridge upstream and a
+    trough downstream, is the same in El Niño and neutral years and no more frequent.</li>
+    <li><b>2026.</b> The Andes torque in May 2026 was +13.3 Hadley above normal, second since 1959 only to May
+    1997 (+14.0). Over 15 April – 19 September the Andes added +5.6 ×10²⁵ kg m² s⁻¹,
+    47th of 48 years. But ERA5's own torques do not close the 2026 rise: their anomalies sum to
+    −0.9 against an angular momentum rise of +6.0, and a
+    five-month window of ERA5 leaves a residual of +2.2 ± 4.6 in any year.</li>
+    <li><b>The analysis supplies what the torques miss.</b> At each of ERA5's twice-daily 4D-Var window starts the analysis adds
+    westerly angular momentum (+0.048 and +0.022 ×10²⁵ kg m² s⁻¹, both significant), to both extratropical
+    belts, with the largest share near the surface, while removing it from the deep tropics, in every month of 2025–26. That is the pattern too
+    much surface drag would demand. The physics ensemble IFS-ENS loses angular momentum in free forecasts; the data-driven
+    AIFS-ENS does not, but moves it between the hemispheres.</li>
+  </ul>
+  </section>
+
+  <figure id='fig1'><a href='/studies/torque-enso/q1_shift_vs_events.webp' class='zoom'><img src='/studies/torque-enso/q1_shift_vs_events.webp' alt="Grid of six mountain ranges by four seasons showing the El Niño minus neutral difference in the standing torque, the number of positive torque events and their amplitude; only the Andes in DJF and the Himalaya in MAM are significant, and only in the standing part" loading='lazy'></a><figcaption><b>Figure 1.</b> El Niño minus neutral seasons, ERA5 1979–2025, for each range and season. Top: the standing (30-day and longer) part of the torque. Middle and bottom: the number and the amplitude of positive synoptic events. Coloured cells are significant at a false discovery rate of 10% (permutation of season-years); grey cells, marked n.s., are not. A black frame marks a change that is robust in the CMIP6 models with daily data (significant across models and at least 80% of models of one sign).</figcaption></figure>
+
+  <h2>1. Background</h2>
+  <p>About the Earth's axis the atmosphere's angular momentum $M$, the winds' part plus the part carried round by the rotating
+  Earth in the mass field, changes only through torques at the ground:</p>
+  <p>$$\frac{dM}{dt} = T_{\text{mountain}} + T_{\text{friction}} + T_{\text{gravity-wave drag}},\qquad
+  T_{\text{mountain}} = -\iint p_s\,\frac{\partial h}{\partial\lambda}\,dA = \iint h\,\frac{\partial p_s}{\partial \lambda}\,dA .$$</p>
+  <p>Torques are in Hadley (10¹⁸ N m); one Hadley held for a day changes $M$ by 0.0086 ×10²⁵ kg m² s⁻¹. The mountain torque on the
+  atmosphere is <b>positive when pressure is higher on the east slope of a range than on the west</b>: the air then pushes the
+  mountain, and the Earth, westward, and the Earth pushes the atmosphere eastward, adding westerly momentum. A cold anticyclone
+  banked against the east side of a range does exactly that, and those are familiar weather: cold surges down the lee of the
+  Rockies (Colle and Mass, 1995), cold-air incursions east of the Andes (Garreaud, 2000) and the East Asian surges that follow the
+  Siberian high. Such events supply most of the day-to-day mountain torque and much of the swing in angular momentum over weeks
+  (Iskenderian and Salstein, 1998; Weickmann et al., 1997; Lott et al., 2004). See the
+  <a href="/topics/mountain-torque.html">mountain torque</a> and <a href="/topics/atmospheric-angular-momentum.html">angular
+  momentum</a> explainers.</p>
+  <p>That angular momentum rises during El Niño has been known since the 1980s (Rosen et al., 1984; reviewed by Egger et al.,
+  2007). Two things are less settled: whether the rise arrives through a change in the statistics of the synoptic events or
+  through the time-mean pressure pattern, and how it divides between mountain and friction torque. Reanalysis budgets do not
+  close exactly (Huang et al., 1999; Egger et al., 2007), which limits what a reanalysis alone can say; climate models, which
+  have no analysis increments, are the natural cross-check.</p>
+
+  <h2>2. Data and method</h2>
+  <ul>
+    <li><b>ERA5</b> (Hersbach et al., 2020) from the ARCO-ERA5 store on Google Cloud, read in GitHub Actions: surface pressure, the
+    turbulent and gravity-wave surface stresses and the vertical integral of eastward mass flux (an exact full-column wind term),
+    at 00, 06, 12 and 18 UTC every day from 1 January 1959 to 3 October 2026, 24,748 days, none missing. Four times a day, not
+    two: at 00 and 12 UTC the semidiurnal pressure tide has the same phase, so a twice-daily mean keeps its alias. The daily
+    value is the mean of the four. The mass term of $M$ comes from surface pressure. For 2026 the same fields were read every hour
+    from 1 March. The analysis period is 1979–2025; 1959–2025 is a sensitivity test.</li>
+    <li><b>Torques</b> are the site's: friction $-a^3\cos^2\varphi\,\tau_\lambda$, gravity-wave drag likewise from ERA5's own
+    stress, mountain torque $h\,\partial p_s/\partial\lambda$ on the 0.25° grid with ERA5's orography, summed over the site's six
+    boxes (5° cells; table below), over six latitude bands and over the globe.</li>
+  </ul>
+  <div class='tw'><table class='res'><thead><tr><th>range</th><th>longitude</th><th>latitude</th></tr></thead><tbody><tr><th scope='row'>Himalaya/Tibet</th><td>70–105°E</td><td>25–45°N</td></tr><tr><th scope='row'>Rockies</th><td>130–100°W</td><td>30–60°N</td></tr><tr><th scope='row'>Andes</th><td>80–65°W</td><td>55°S–10°N</td></tr><tr><th scope='row'>Greenland</th><td>60–15°W</td><td>60–85°N</td></tr><tr><th scope='row'>Antarctica</th><td>all</td><td>south of 65°S</td></tr><tr><th scope='row'>Alps</th><td>0–45°E</td><td>35–50°N</td></tr></tbody></table></div>
+  <ul>
+    <li><b>Anomalies</b>: each daily series minus its 1991–2020 seasonal cycle (mean and four harmonics), with the 1979–2025
+    linear trend removed (ERA5's torques drift, while angular momentum does not; section 9). A Lanczos filter splits each range's
+    torque into a standing part (periods of 30 days and longer, 121-day window; Duchon, 1979) and a synoptic part (the rest).</li>
+    <li><b>Events</b>: local peaks of the synoptic part above +1 standard deviation (one per range and season), at least 5 days
+    apart; negative events likewise. The same rule applied to the total anomaly gives the "days above threshold" events a
+    forecaster sees. About seven events per range per season.</li>
+    <li><b>ENSO phase</b> from CPC's official ONI for each season (El Niño ≥ +0.5, La Niña ≤ −0.5, otherwise neutral). Season-years
+    1979–2025: DJF 16 El Niño, 15 neutral, 16 La Niña; MAM 9,
+    30, 8; JJA 8, 34, 5; SON 15,
+    17, 15.</li>
+    <li><b>Tests</b>: each season-year is one unit. El Niño minus neutral differences are tested by permuting the phase labels
+    (20,000 draws) with bootstrap 95% intervals; regressions on the ONI use a moving-block bootstrap (blocks of three
+    season-years). Across the 24 range–season cells of each statistic the false discovery rate is held at 10% (Benjamini and
+    Hochberg, 1995; Wilks, 2016). Monthly regressions on the detrended ERSSTv6 Niño-3.4 anomaly at lags of −6 to +12 months use a
+    24-month block bootstrap (2,000 draws), with the FDR across lags. Map tests are per grid cell with the FDR over the field.</li>
+    <li><b>CMIP6</b> historical runs 1950–2014 from the Pangeo Google Cloud mirror (Eyring et al., 2016): 41 models,
+    103 members (up to three per model), each on its own grid with its own orography: monthly mountain torque from surface
+    pressure (the torque is linear in $p_s$, so the torque of the monthly mean is the monthly-mean torque), surface stress
+    <code>tauu</code>, angular momentum from <code>ua</code> masked by surface pressure, and Niño-3.4 from <code>ts</code>.
+    13 models also publish the orographic gravity-wave-drag tendency <code>utendogw</code> (Gerber and Manzini, 2016) and
+    19 have daily surface pressure, which gives event statistics on each model's own ENSO (ONI-like index of its detrended
+    Niño-3.4). A model result is <b>robust</b> when the across-model test passes the FDR and at least 80% of models share the sign.</li>
+  </ul>
+
+  <h2>3. Result 1: a standing shift, not more events</h2>
+  <p>The synoptic events do not change with El Niño (Figure 1, middle and bottom). Positive Andes events in DJF average
+  7.00 a season in El Niño winters and 7.07 in neutral ones (−0.07 [−0.72, +0.59],
+  p = 0.85); the Rockies differ by −0.60 (p = 0.27) and the Himalaya by +0.96
+  (p = 0.07, not significant after the FDR). Their amplitude does not change either (Andes DJF −0.12 Hadley,
+  p = 0.87). Across all 24 cells, 0 event-count, 0 amplitude and 0 variance
+  differences are significant. Against the ONI as a continuous index, 3 of 24 cells show a significant change in event
+  count, all small and of mixed sign
+  (Himalaya/Tibet MAM −0.75 per unit ONI; Andes SON +0.35 per unit ONI; Alps/Europe MAM +0.60 per unit ONI).</p>
+  <p>The standing part does change (Figure 1, top). Against the ONI it is significant in
+  7 cells: the Andes in DJF
+  (+1.9 Hadley per unit ONI [+1.2, +2.4]) and JJA (+2.3 [+1.1, +4.2]), the
+  Rockies in DJF (+1.1 [+0.6, +1.6]) and MAM (+1.1 [+0.6, +1.8]), and the
+  Himalaya/Tibet in MAM (−1.2 [−1.9, −0.6]) and SON (−0.8 [−1.4, −0.3]).
+  Nearly all of the El Niño difference in the seasonal-mean torque is this standing part; the windows around positive events
+  contribute nothing significant:</p>
+  <div class='tw'><table class='res'><thead><tr><th>El Niño minus neutral (Hadley)</th><th>seasonal mean</th><th>standing part (≥30 d)</th><th>synoptic part (&lt;30 d)</th><th>event windows</th><th>CMIP6 standing part</th></tr></thead><tbody><tr><th scope='row'>Andes, DJF</th><td>+3.06</td><td>+2.90</td><td>+0.16</td><td class='ns'>+0.30 n.s.</td><td>+1.46 <span class='sig'>(100%)</span></td></tr><tr><th scope='row'>Rockies, DJF</th><td>+2.10</td><td>+2.19</td><td>−0.09</td><td class='ns'>−0.25 n.s.</td><td>+1.62 <span class='sig'>(79%)</span></td></tr><tr><th scope='row'>Himalaya/Tibet, MAM</th><td>−1.70</td><td>−1.51</td><td>−0.19</td><td class='ns'>−0.30 n.s.</td><td>−0.96 <span class='sig'>(95%)</span></td></tr></tbody></table></div>
+  <p class="tcap">The CMIP6 column is the median over the 19 models with daily surface pressure, with the share of models of
+  the median's sign; Andes and Himalaya are robust, the Rockies in DJF (79%) is not. CMIP6 is also robust for the Rockies
+  in MAM (+1.13) and JJA (+0.56) and the Himalaya in SON (−0.62). The ERA5
+  Rockies DJF difference (+2.2, p = 0.02) does not survive the FDR.</p>
+
+  <figure id='fig2'><a href='/studies/torque-enso/q1_threshold_events.webp' class='zoom'><img src='/studies/torque-enso/q1_threshold_events.webp' alt="Two grids of ranges by seasons: the El Niño minus neutral change in days-above-threshold torque events, and the part of that change not explained by a pure shift of the distribution" loading='lazy'></a><figcaption><b>Figure 2.</b> Top: events counted on the total anomaly, as a forecaster sees them. Bottom: the pure-shift test, the El Niño count minus the count obtained by shifting each neutral season by the El Niño–neutral difference in the standing part. Colours and frames as in Figure 1.</figcaption></figure>
+  <p><b>Why El Niño winters look eventful.</b> Counted on the total anomaly, Andes DJF has 7.25 positive events per
+  season in El Niño winters against 5.33 in neutral ones (p = 0.009, just short of the FDR) and
+  −2.3 negative ones (p &lt; 0.001). Shifting each neutral winter by the El Niño–neutral difference in the
+  standing part predicts 6.60; the excess, +0.65 [−0.47, +1.47], is not
+  significant (p = 0.31), nor is it for the Rockies (−0.17, p = 0.73). In the models the extra
+  threshold events are robust (Andes DJF +0.90 a season, 100% of models; Rockies DJF
+  +0.75, 84%) while the synoptic counts are not (the strongest, Himalaya DJF, +0.42
+  with 79% agreement). Two cells go the other way: in El Niño springs the Himalaya/Tibet has fewer events than the
+  shift alone gives (−1.69 [−2.50, −0.78], significant after the FDR), as does Greenland in SON
+  (−1.33).</p>
+
+  <figure id='fig3'><a href='/studies/torque-enso/slp_on_oni.webp' class='zoom'><img src='/studies/torque-enso/slp_on_oni.webp' alt="Global maps of seasonal-mean sea-level pressure regressed on the ONI for DJF and MAM, with the Himalaya, Rockies and Andes boxes outlined" loading='lazy'></a><figcaption><b>Figure 3.</b> The mechanism. ERA5 1991–2020 seasonal-mean sea-level pressure regressed on the ONI, shaded only where significant (FDR 10%). In DJF the deeper Aleutian low lowers pressure west of the Rockies and the weaker southeast Pacific high lowers it west of the Andes, while pressure rises over South America: higher on the east side of both ranges, a positive torque. In MAM, pressure rises over India and the Philippine Sea.</figcaption></figure>
+
+  <h2>4. Result 2: how the El Niño rise in angular momentum divides</h2>
+  <p>Between six months before and the month of a Niño-3.4 anomaly, ERA5's global angular momentum regression rises by
+  +0.42 ×10²⁵ kg m² s⁻¹ per kelvin. Summing each term's regression over lags −6 to
+  −1 gives the angular momentum it supplies over that time (Figure 5 and the table). The mass term's share is negligible
+  (its regression is about +0.02 per kelvin).</p>
+  <figure id='fig4'><a href='/studies/torque-enso/q2_lag_regression.webp' class='zoom'><img src='/studies/torque-enso/q2_lag_regression.webp' alt="Lagged regressions on Niño-3.4 of the global mountain, friction and gravity-wave-drag torques, their sum and the angular momentum tendency, ERA5 above and the CMIP6 median and interquartile range below" loading='lazy'></a><figcaption><b>Figure 4.</b> Regression of each monthly global term on Niño-3.4 (detrended anomalies) against lag. Top: ERA5 1979–2025, filled dots significant (FDR over lags). Bottom: CMIP6 1950–2014, median and interquartile range over models, filled dots robust.</figcaption></figure>
+  <figure id='fig5'><a href='/studies/torque-enso/q2_contributions.webp' class='zoom'><img src='/studies/torque-enso/q2_contributions.webp' alt="Horizontal bars of the angular momentum each term supplies before the Niño-3.4 anomaly, ERA5 bars with confidence intervals and CMIP6 diamonds with interquartile ranges, globally, by range and by latitude band" loading='lazy'></a><figcaption><b>Figure 5.</b> Angular momentum supplied in the six months before the Niño-3.4 anomaly, per kelvin. Bars: ERA5 with 95% joint block-bootstrap intervals, pale where not significant after the FDR. Diamonds: CMIP6 median with interquartile range, filled where robust.</figcaption></figure>
+  <div class='tw'><table class='res'><thead><tr><th>10²⁵ kg m² s⁻¹ per K of Niño-3.4</th><th>ERA5 1979–2025 [95% CI]</th><th>CMIP6, 41 models: median</th></tr></thead><tbody><tr><th scope='row'>AAM tendency dM/dt</th><td>+0.47 <span class='sig'>[+0.32, +0.63]</span></td><td>+0.42 <span class='sig'>(100% agree)</span></td></tr><tr><th scope='row'>sum of the torques</th><td class='ns'>−0.33 n.s.</td><td>+0.66 <span class='sig'>(93% agree)</span></td></tr><tr><th scope='row'>mountain torque</th><td>+1.44 <span class='sig'>[+0.44, +2.50]</span></td><td>+1.54 <span class='sig'>(100% agree)</span></td></tr><tr><th scope='row'>friction (ERA5 turbulent stress; CMIP6 tauu)</th><td>−1.86 <span class='sig'>[−2.89, −1.14]</span></td><td>−0.89 <span class='sig'>(85% agree)</span></td></tr><tr><th scope='row'>gravity-wave drag (CMIP6: 13 models)</th><td class='ns'>+0.09 n.s.</td><td class='ns'>+0.04 not robust</td></tr><tr><th scope='row'>ERA5: dM/dt minus torques</th><td class='ns'>+0.80 n.s.</td><td></td></tr><tr><th scope='row'>Andes</th><td>+1.92 <span class='sig'>[+1.28, +2.67]</span></td><td>+0.98 <span class='sig'>(100% agree)</span></td></tr><tr><th scope='row'>Rockies</th><td>+0.71 <span class='sig'>[+0.46, +0.96]</span></td><td>+0.58 <span class='sig'>(100% agree)</span></td></tr><tr><th scope='row'>Himalaya/Tibet</th><td class='ns'>−0.35 n.s.</td><td>−0.37 <span class='sig'>(100% agree)</span></td></tr><tr><th scope='row'>Greenland</th><td class='ns'>−0.05 n.s.</td><td>+0.10 <span class='sig'>(90% agree)</span></td></tr><tr><th scope='row'>Antarctica</th><td class='ns'>−0.08 n.s.</td><td class='ns'>+0.03 not robust</td></tr><tr><th scope='row'>Alps</th><td class='ns'>−0.06 n.s.</td><td>+0.09 <span class='sig'>(85% agree)</span></td></tr><tr><th scope='row'>mountain, 30S–0</th><td class='ns'>+0.66 n.s.</td><td>+0.75 <span class='sig'>(100% agree)</span></td></tr><tr><th scope='row'>mountain, 0–30N</th><td>+0.58 <span class='sig'>[+0.26, +0.82]</span></td><td>+0.25 <span class='sig'>(98% agree)</span></td></tr><tr><th scope='row'>mountain, 30–60N</th><td>+0.54 <span class='sig'>[+0.22, +0.88]</span></td><td>+0.28 <span class='sig'>(85% agree)</span></td></tr><tr><th scope='row'>friction, 30S–0</th><td>−1.47 <span class='sig'>[−2.23, −0.80]</span></td><td>−0.78 <span class='sig'>(88% agree)</span></td></tr><tr><th scope='row'>friction, 0–30N</th><td>−0.78 <span class='sig'>[−1.27, −0.29]</span></td><td>−0.85 <span class='sig'>(88% agree)</span></td></tr><tr><th scope='row'>friction, 30–60N</th><td class='ns'>−0.03 n.s.</td><td class='ns'>+0.21 not robust</td></tr><tr><th scope='row'>friction, 60–30S</th><td class='ns'>+0.66 n.s.</td><td>+0.28 <span class='sig'>(80% agree)</span></td></tr></tbody></table></div>
+  <p class="tcap">ERA5 cells show the estimate and 95% interval where significant after the FDR, otherwise "n.s.". CMIP6 cells
+  show the median and the share of models of its sign where robust.</p>
+  <p>The two data sets agree on the mountain torque and its geography: Andes +1.92 in ERA5 and
+  +0.98 in CMIP6 (100% of models), Rockies +0.71 and
+  +0.58, Himalaya/Tibet −0.37 in CMIP6 (not significant in ERA5). They differ on friction.
+  In the models friction takes back about 58% of the mountain torque and the remainder,
+  +0.66, is close to the models' tendency, +0.42. In ERA5 friction takes back more than all of it,
+  −1.86 against +1.44, so the torques sum to −0.33 (not significant) while
+  angular momentum rises significantly (+0.47 [+0.32, +0.63]); the difference sits in
+  ERA5's residual (+0.80, not significant on its own), that is, in the analysis increments. ERA5's monthly
+  budget otherwise closes reasonably (correlation of tendency with summed torques 0.87, slope 0.74), but its
+  residual is slow (lag-one autocorrelation 0.90), which is what an interannual imbalance looks like.</p>
+  <p>Composites of El Niño onsets tell the same story without reaching significance in ERA5's small sample
+  (13 onsets against 14 neutral years, April–December): the change in angular momentum, the summed torques and the mountain torque
+  differ by +0.56, +3.65 and +3.46 with
+  p = 0.37, p = 0.22 and p = 0.15; only gravity-wave drag is significant
+  (+0.65, p &lt; 0.001) and it is small. In CMIP6 the onset composites are robust:
+  angular momentum +1.01, mountain torque +2.52 and the Andes +1.23; friction
+  (−0.93, 75% agreement) is not robust.</p>
+
+  <h2>5. Result 3: cause and response</h2>
+  <figure id='fig6'><a href='/studies/torque-enso/q3_lead_lag.webp' class='zoom'><img src='/studies/torque-enso/q3_lead_lag.webp' alt="Four panels of lagged correlation between each range's synoptic mountain torque and the global angular momentum tendency, the global angular momentum and the zonal-mean subtropical 200 hPa wind" loading='lazy'></a><figcaption><b>Figure 6.</b> Lagged correlation of each range's synoptic torque with the global tendency of angular momentum, global angular momentum and the zonal-mean 200 hPa wind at 25–40° in the same hemisphere (all &lt;30-day parts). Dots: significant, with effective sample size after Bretherton et al. (1999) and the FDR over lags.</figcaption></figure>
+  <p>Positive events come after a few days of low global angular momentum (lowest correlation −0.18 to
+  −0.30 at lags of −2 to −4 days) and are
+  followed by a rise (up to +0.45 at +2 days). The
+  subtropical jet in the zonal mean follows weakly: +0.15 1 day after Rockies events in DJF,
+  +0.14 5 days after Andes events and +0.08 6 days after Himalayan events in MAM; in
+  DJF the Himalayan torque shows nothing in the zonal mean (largest −0.07). Before Andes events the jet is, if anything,
+  slightly weaker (−0.11 1 day before). The events lead; they are not a response to a jet that is already
+  stronger.</p>
+  <figure id='fig7'><a href='/studies/torque-enso/q3_z500_precursors.webp' class='zoom'><img src='/studies/torque-enso/q3_z500_precursors.webp' alt="Maps of 500 hPa height one to three days before positive torque events over the Himalaya, Rockies and Andes in DJF, for all events and for El Niño minus neutral" loading='lazy'></a><figcaption><b>Figure 7.</b> The precursor. 500 hPa height (&lt;30-day part) averaged 3 to 1 days before positive events, all events (left) and El Niño minus neutral (right), shaded only where significant (FDR 10% over the map; contours every 10 m show all values).</figcaption></figure>
+  <p>The precursor is the textbook one for a lee-side surge: a ridge upstream and poleward of the range and a trough downstream,
+  over the Urals and northern China for the Himalaya, Alaska and the central United States for the Rockies, and southern Chile
+  and the southwest Atlantic for the Andes (57%, 50% and
+  47% of each map significant). El Niño does not change it: no cell of the El Niño minus neutral
+  difference is significant for any of the three ranges in DJF (3% of the map for the Andes in
+  JJA). Projecting each day's 500 hPa field on the precursor pattern and counting its peaks, El Niño seasons have
+  no significantly different number of precursors and no different share that are
+  followed by an event within four days (all 10 tests not significant after the FDR; the closest are
+  −1.01 precursors a season over the Himalaya in MAM, p = 0.05, and a −0.16 hit rate over
+  the Rockies in DJF, p = 0.04).</p>
+
+  <h2>6. The 2026 event</h2>
+  <p>By the CPC ONI, 2026's El Niño grew from +0.46 in MAM to +2.16 in JAS. In May the Andes torque was
+  +13.3 Hadley above its seasonal normal, the second-largest May
+  since 1959 after May 1997 (+14.0), the start of that year's very strong El Niño. Over 15 April – 19 September
+  the Andes torque anomaly added +5.6 ×10²⁵ kg m² s⁻¹ (47th of 48 years,
+  z = +1.8; +4.4 with ERA5's torque trend removed), against
+  +1.0 in the average El Niño onset.</p>
+  <figure id='fig8'><a href='/studies/torque-enso/b2026_cumulative.webp' class='zoom'><img src='/studies/torque-enso/b2026_cumulative.webp' alt="Lines of the cumulative 2026 change in angular momentum anomaly and of the cumulative torque anomalies by term since 15 April" loading='lazy'></a><figcaption><b>Figure 8.</b> ERA5, from hourly fields: the change in the angular momentum anomaly (motion plus mass term) since 15 April and the cumulative torque anomalies that should explain it. Descriptive.</figcaption></figure>
+  <p>The budget does not close. The angular momentum anomaly rose by +6.0 ×10²⁵ kg m² s⁻¹ over
+  the window while the torque anomalies summed to −0.9: the Andes term ran close to the angular
+  momentum curve, but the other five ranges (−3.9) and friction in the tropics
+  (−4.5) worked against it (Figure 8). That residual, +6.9, is not unusual for
+  ERA5: the same window leaves +2.2 ± 4.6 in 1979–2025, so 2026 sits +1.0 standard deviations from the
+  usual. The honest reading is that ERA5 cannot attribute the 2026 rise: the Andes signal is real and among the largest on record,
+  but in ERA5 the torques as a whole explain none of the rise, and the analysis increments carry it. In the models, where nothing
+  is added between time steps, friction gives back only about 58% of a mountain torque of this
+  kind.</p>
+  <figure id='fig9'><a href='/studies/torque-enso/b2026_attribution.webp' class='zoom'><img src='/studies/torque-enso/b2026_attribution.webp' alt="Horizontal bars of each torque term's 2026 integral against the interannual spread of the same window" loading='lazy'></a><figcaption><b>Figure 9.</b> Each term's anomaly integrated over 15 April – 19 September 2026 (dark: as observed; pale: with ERA5's 1979–2025 trend removed), against ± one standard deviation of the same window in 1979–2025 (grey). Rank 48 = largest.</figcaption></figure>
+  <div class='tw'><table class='res'><thead><tr><th>15 Apr – 19 Sep, 10²⁵ kg m² s⁻¹</th><th>2026</th><th>trend removed</th><th>1979–2025 sd</th><th>z</th><th>rank of 48</th><th>El Niño onsets, mean</th></tr></thead><tbody><tr><th scope='row'>Andes</th><td>+5.6</td><td>+4.4</td><td>3.5</td><td>+1.8</td><td>47</td><td>+1.0</td></tr><tr><th scope='row'>the other five ranges</th><td>−3.9</td><td>−3.7</td><td>2.0</td><td>−1.8</td><td>3</td><td>+0.7</td></tr><tr><th scope='row'>mountain outside the six boxes</th><td>+3.4</td><td>+3.9</td><td>2.0</td><td>+1.8</td><td>46</td><td>−1.1</td></tr><tr><th scope='row'>friction, 30S–30N</th><td>−4.5</td><td>−8.0</td><td>4.6</td><td>−0.8</td><td>12</td><td>−3.1</td></tr><tr><th scope='row'>friction, north of 30N</th><td>−0.6</td><td>+0.0</td><td>1.3</td><td>−0.4</td><td>19</td><td>−0.2</td></tr><tr><th scope='row'>friction, south of 30S</th><td>−1.0</td><td>+0.4</td><td>3.6</td><td>−0.3</td><td>20</td><td>+1.2</td></tr><tr><th scope='row'>gravity-wave drag</th><td>+0.2</td><td>−0.0</td><td>0.3</td><td>+0.6</td><td>33</td><td>+0.1</td></tr><tr class='diff'><th scope='row'>sum of the torques</th><td>−0.9</td><td></td><td></td><td></td><td></td><td></td></tr><tr class='diff'><th scope='row'>AAM anomaly change (motion + mass)</th><td>+6.0</td><td></td><td></td><td></td><td></td><td></td></tr></tbody></table></div>
+  <p class="tcap">Anomalies against ERA5's 1991–2020 climatology at four times a day; 2026 daily means from hourly fields. The
+  trend-removed column is a sensitivity, not a correction: ERA5's tropical friction drifts by
+  +1.41 Hadley per decade.</p>
+  <p><b>The analysis-increment floor.</b> With every hour of 2026 the budget can be followed through ERA5's twelve-hour 4D-Var
+  windows (Figure 10). Inside a window the residual is +6.3 ± 2.4 Hadley each hour. In the hour
+  from 09 to 10 UTC it jumps to +173 ± 87 and from 21 to 22 UTC to +62 ±
+  93: the analysis adds on average +0.060 and +0.020 ×10²⁵ kg m² s⁻¹ of angular momentum
+  at each start. A three-hourly product sees the same thing (+42 ± 35 Hadley across
+  window starts against +7.0 ± 2.9 inside). Daily, the residual is +15.6 ±
+  4.4 Hadley with almost no memory from day to day (lag-one correlation 0.10); its spectrum is a comb
+  of lines at whole cycles per day on a low floor, and at periods longer than about two days the torques carry nearly all of the
+  variance of the tendency.</p>
+  <figure id='fig10'><a href='/studies/torque-enso/b2026_hourly.webp' class='zoom'><img src='/studies/torque-enso/b2026_hourly.webp' alt="Bar chart of the hourly budget residual by hour of day with large bars at 10 and 22 UTC, and spectra of the tendency, the summed torques and the residual" loading='lazy'></a><figcaption><b>Figure 10.</b> Top: the hourly residual (tendency minus torques) by the hour that ends each interval, mean ± sd over 1 March – 3 October 2026 (symmetric log scale). Bottom: spectra of the tendency, the summed torques and the residual.</figcaption></figure>
+  <p><b>GFZ as a check.</b> The GFZ effective angular momentum functions (Dobslaw et al., 2010), built from ECMWF's operational
+  analysis every three hours with the pressure tides removed and an inverted-barometer ocean, put the absolute change over the
+  window at +1.73 ×10²⁵ kg m² s⁻¹ (wind term +0.83, mass term
+  +0.90) against ERA5's +2.79; their daily tendencies correlate at
+  0.90. The mass terms are not the same quantity: GFZ's includes the ocean's inverted-barometer
+  response.</p>
+
+
+  <h2>7. The increments by latitude and height</h2>
+  <p>ERA5's open archive carries no analysis-increment fields, but its hourly fields jump at each 4D-Var window start, so the
+  increment can be estimated from the jump. For any band's angular momentum $X$ with torques $T$, let
+  $R(h) = X(h) - X(h-1) - T(h)\,\Delta t$ be the residual of the hour ending at $h$; the increment at the 09 UTC window start is</p>
+  <p>$$J_{10} = R(10) - \tfrac{1}{2}\left[R(09) + R(11)\right],$$</p>
+  <p>and likewise $J_{22}$ from 20–23 UTC: the window-start hour minus the mean of the hours either side, which removes the
+  smooth part of everything that is not an increment (the transport of angular momentum between bands, the tides, the local
+  trend). The torques themselves barely change across the jump (−0.0005 ×10²⁵ kg m² s⁻¹, negligible). The surface
+  fields were read at 08–11 and 20–23 UTC for every day from 2025-01-01 to 2026-10-03 (641 days) and integrated in
+  5° bands; the 37-level winds at the same hours give the vertical structure (640 days). Intervals are 10-day block bootstraps
+  over days; the FDR is held at 10% across bands, and across levels and bands for the section. A jump is not purely an
+  increment: it is the step between two consecutive analysis trajectories, so it also contains any adjustment of the model in the
+  first hour of the new trajectory. And ERA5 is IFS cycle 41r2 (Hersbach et al., 2020): the increments describe that model,
+  before ECMWF's 2022 revision of orographic drag (Kanehama et al., 2022).</p>
+  <figure id='fig11'><a href='/studies/torque-enso/inc_profile.webp' class='zoom'><img src='/studies/torque-enso/inc_profile.webp' alt="Latitude profile of the mean angular momentum increment in 5-degree bands for the 09 and 21 UTC window starts, and its split into wind and mass terms" loading='lazy'></a><figcaption><b>Figure 11.</b> Top: the mean increment in each 5° band at the 09 UTC (blue) and 21 UTC (orange) window starts, with 95% intervals; filled dots are significant after the FDR. Bottom: both window starts together, split into the wind (motion) and mass terms.</figcaption></figure>
+  <p><b>How much and where.</b> Summed over the bands, the analysis adds +0.048 [+0.044, +0.052] ×10²⁵ kg m² s⁻¹ of angular momentum at the
+  09 UTC start and +0.022 [+0.016, +0.027] at 21 UTC, about +0.070 a day, the equivalent of a steady torque of
+  +8.1 Hadley. (The global series of section 6, with the in-window mean as the baseline, gave
+  +0.060 and +0.020; the two estimators differ in the baseline, not in substance.) The <b>wind term is the
+  same at both starts</b>, +0.050 [+0.046, +0.054] and +0.050 [+0.045, +0.055]; the difference between them is in the <b>mass term</b>, −0.002 [−0.004, −0.001] at 09 UTC
+  against −0.029 [−0.030, −0.027] at 21 UTC, a surface-pressure increment. By latitude the analysis adds westerly angular momentum to both
+  extratropical belts and removes it from the deep tropics, and every belt is significant:</p>
+  <div class='tw'><table class='res'><thead><tr><th>total increment, 10²⁵ kg m² s⁻¹ per window</th><th>09 UTC start</th><th>21 UTC start</th></tr></thead><tbody><tr><th scope='row'>90–60S</th><td>+0.003</td><td>+0.002</td></tr><tr><th scope='row'>60–30S</th><td>+0.032</td><td>+0.031</td></tr><tr><th scope='row'>30S–0</th><td>+0.008</td><td>−0.018</td></tr><tr><th scope='row'>0–30N</th><td>−0.014</td><td>−0.016</td></tr><tr><th scope='row'>30–60N</th><td>+0.017</td><td>+0.020</td></tr><tr><th scope='row'>60–90N</th><td>+0.002</td><td>+0.002</td></tr><tr class='diff'><th scope='row'>global</th><td>+0.048</td><td>+0.022</td></tr></tbody></table></div>
+  <p class="tcap">Belts are sums of the 5° bands; all twelve belt means are significant after the FDR. Most of the tropical removal is
+  in the mass term (Figure 11, bottom), the redistribution of surface pressure between the equator and the subtropics.</p>
+  <figure id='fig12'><a href='/studies/torque-enso/inc_season.webp' class='zoom'><img src='/studies/torque-enso/inc_season.webp' alt="Monthly global increment per day and a month by latitude diagram of the increment" loading='lazy'></a><figcaption><b>Figure 12.</b> Top: the global increment per day, month by month, with 95% intervals. Bottom: the same by latitude, shaded only where significant.</figcaption></figure>
+  <p><b>Through the year.</b> The global increment is smallest in northern summer (2025-07: +0.024 ×10²⁵ a day) and
+  largest in northern winter and spring (2026-03: +0.111); the latitude pattern of extratropical gain and tropical
+  loss is there in every month (Figure 12).</p>
+  <figure id='fig13'><a href='/studies/torque-enso/inc_section.webp' class='zoom'><img src='/studies/torque-enso/inc_section.webp' alt="Latitude by pressure sections of the wind-term angular momentum increment at the two window starts" loading='lazy'></a><figcaption><b>Figure 13.</b> The wind-term increment by latitude and pressure at the two window starts, per 5° band and per 100 hPa of depth (so the thin layers near the model top read large), shaded only where significant (FDR 10% over the section). Red adds westerly angular momentum.</figcaption></figure>
+  <p><b>By height.</b> The vertical sum of the 37-level increment matches the column estimate from the surface fields (correlation
+  0.997 across bands and days). The largest share of the wind-term increment goes into the layers below 850 hPa:</p>
+  <div class='tw'><table class='res'><thead><tr><th>wind-term increment, 10²⁵ kg m² s⁻¹ per window</th><th>09 UTC start</th><th>21 UTC start</th></tr></thead><tbody><tr><th scope='row'>stratosphere (above 100 hPa)</th><td>+0.005 <span class='sig'>[+0.004, +0.006]</span></td><td>+0.005 <span class='sig'>[+0.004, +0.006]</span></td></tr><tr><th scope='row'>upper troposphere (100–400 hPa)</th><td>+0.011 <span class='sig'>[+0.008, +0.014]</span></td><td>+0.017 <span class='sig'>[+0.014, +0.020]</span></td></tr><tr><th scope='row'>middle troposphere (400–850 hPa)</th><td>+0.011 <span class='sig'>[+0.007, +0.014]</span></td><td>+0.013 <span class='sig'>[+0.008, +0.019]</span></td></tr><tr><th scope='row'>below 850 hPa</th><td>+0.030 <span class='sig'>[+0.028, +0.032]</span></td><td>+0.022 <span class='sig'>[+0.020, +0.025]</span></td></tr><tr class='diff'><th scope='row'>all 37 levels</th><td>+0.057</td><td>+0.058</td></tr></tbody></table></div>
+  <p>The section (Figure 13) has more structure than the sums: westerly momentum is added near the surface at most latitudes, at
+  150–200 hPa in the northern subtropical jet and in the tropical lower stratosphere, and removed in the tropical boundary layer
+  around 850–925 hPa, near 200 hPa just south of the equator, and in the northern middle and upper stratosphere (20–1 hPa). The last
+  is the largest feature per unit mass, in layers where the model is least constrained by observations.</p>
+  <p><b>A test of the compensating-drag picture.</b> COORDE found that the IFS, like several other models, underestimates orographic
+  gravity-wave drag in the lower stratosphere (Kanehama et al., 2022). On its own that would leave too much westerly momentum there and
+  the analysis would have to remove it. Over 25–50°N between 50 and 150 hPa, the latitudes of the Himalaya and the Rockies, the
+  increments instead <b>add</b> westerly momentum: +0.0031 [+0.0027, +0.0036] at 09 UTC and +0.0042 [+0.0037, +0.0048] at 21 UTC, against
+  +0.0065 [+0.0052, +0.0077] and +0.0095 [+0.0085, +0.0105] in the troposphere below 400 hPa. The zonal mean does not show "too little
+  drag aloft, too much below"; it shows too little westerly momentum at both heights. A zonal mean cannot isolate the air over and
+  downstream of the ranges, which is where COORDE looked, so this is a test of the zonal-mean budget, not of COORDE's regional result.</p>
+  <p><b>The steady residual inside the windows.</b> Within a window the hourly residual is +6.3 Hadley. Regressing
+  it on each range's mountain torque, the friction and the gravity-wave drag (2026, 4,773 hours, day-block bootstrap)
+  explains 17% of its variance:</p>
+  <div class='tw'><table class='res'><thead><tr><th>in-window hourly residual regressed on</th><th>coefficient</th><th>share of the mean residual (Hadley)</th></tr></thead><tbody><tr><th scope='row'>Andes</th><td>+1.1% <span class='sig'>[+0.1, +2.0]</span></td><td>−2.3</td></tr><tr><th scope='row'>Alps</th><td class='ns'>+5.5% n.s.</td><td>−2.5</td></tr><tr><th scope='row'>Rockies</th><td>+2.1% <span class='sig'>[+0.5, +3.7]</span></td><td>−0.4</td></tr><tr><th scope='row'>Greenland</th><td>−4.5% <span class='sig'>[−8.3, −1.2]</span></td><td>−0.4</td></tr><tr><th scope='row'>Himalaya/Tibet</th><td class='ns'>+1.1% n.s.</td><td>+0.1</td></tr><tr><th scope='row'>Antarctica</th><td class='ns'>+1.0% n.s.</td><td>+0.0</td></tr><tr><th scope='row'>other mountain</th><td class='ns'>+0.3% n.s.</td><td>+0.9</td></tr><tr><th scope='row'>friction</th><td>−1.3% <span class='sig'>[−2.3, −0.1]</span></td><td>+0.2</td></tr><tr><th scope='row'>gravity-wave drag</th><td>+29.2% <span class='sig'>[+20.6, +36.1]</span></td><td>−0.6</td></tr><tr class='diff'><th scope='row'>constant</th><td>+11.3 Hadley <span class='sig'>[+7.0, +15.8]</span></td><td>+11.3</td></tr></tbody></table></div>
+  <p class="tcap">A coefficient of +1% means the residual behaves as if the model's own torque were 1% larger than the one recomputed
+  here from the 0.25° output. The "share" is the coefficient times that term's mean torque.</p>
+  <p>The residual is mostly a constant (+11.3 Hadley), not a scaled copy of any range's torque: the largest
+  significant range coefficients are a few per cent and of both signs, and together with friction and gravity-wave drag they account
+  for −5.0 Hadley of the mean. A constant offset between the
+  model's own mountain torque on its N320 grid and the torque recomputed from 0.25° output is plausible, since the mean mountain
+  torque changes by tens of Hadley between 0.25° and 1° (section 9), and so is non-conservation in the semi-Lagrangian dynamics; the
+  vertical integrals cannot tell them apart. Nor can they give the latitude structure of this in-window residual: a band's budget also
+  contains the transport of angular momentum across its edges, which needs the 3-D wind.</p>
+  <p><b>Drag in the literature.</b> The direction of the increments, adding westerly momentum at the surface and in the extratropics,
+  is what too much surface drag would demand. Parametrised surface stress is among the least constrained parts of these models:
+  weather models of comparable resolution differ over land by up to 20% in zonal-mean subgrid surface stress, and more in how it is
+  split between schemes (Sandu et al., 2016); resolved torques grow and parametrised ones shrink as resolution increases, with the
+  parametrised orographic torque apparently excessive at low resolution between 20 and 50°N in winter (Brown, 2004; also van Niekerk
+  and Shepherd, 2016, in the Met Office model). Increments and initial tendencies have long been read as diagnostics of model error
+  in exactly this way (Klinker and Sardeshmukh, 1992; Rodwell and Palmer, 2007).</p>
+
+  <h3>The forecast side</h3>
+  <figure id='fig14'><a href='/studies/torque-enso/fc_drift.webp' class='zoom'><img src='/studies/torque-enso/fc_drift.webp' alt="AIFS-ENS ensemble-mean angular momentum minus the verifying analysis by lead day, globally and by hemisphere" loading='lazy'></a><figcaption><b>Figure 14.</b> AIFS-ENS ensemble-mean relative angular momentum (14 levels) minus the same calculation for the verifying analysis, by lead, with 95% weekly-block bootstrap intervals; filled where the interval excludes zero.</figcaption></figure>
+  <p>A physics model whose drag is too strong should lose angular momentum in free forecasts, and IFS-ENS does: in the site's
+  winter 2025–26 test it loses angular momentum steadily, −0.31 ×10²⁵ kg m² s⁻¹ by day 15, while closing its own torque budget
+  almost exactly (<a href="/aifs-aam-budget.html">Do AI weather models conserve angular momentum?</a>): its torques take the momentum
+  out. That is the forecast-side counterpart of ERA5's positive increments. The data-driven AIFS-ENS, trained on analyses that already
+  contain the increments' correction, shows no global drain in this site's archive (119 to 145
+  forecasts per lead, inits from 20 July to 11 October 2026): +0.021 [+0.007, +0.039] ×10²⁵ at day 1, then about −0.03 and not significant
+  through day 15 (−0.033 [−0.189, +0.125]). It redistributes angular momentum between the hemispheres instead: the Northern Hemisphere gains
+  (+0.102 [+0.027, +0.175] at day 15, significant from day 14) and the Southern loses (−0.042 [−0.068, −0.016] at day 7, significant at 7 of the 13
+  leads from day 3; −0.136 [−0.298, +0.024] at day 15). The comparison is not like for like: different seasons (December–February against
+  July–October), different IFS cycles (ERA5 is cycle 41r2), and an increment is not a free-forecast drift.</p>
+
+  <h2>8. What closes the budget and what does not</h2>
+  <p>Two choices matter for closure. Sampling: the summed torques and the tendency correlate at 0.50 hour by
+  hour, because the increments dominate single hours, and at 0.95 day by day. The mass term: without it
+  the day-to-day residual is 14.0 Hadley instead of 8.5, because the tidal pressure
+  waves that drive the mountain torque within a day are balanced by the mass term, not by the winds.</p>
+  <div class='tw'><table class='res'><thead><tr><th>ERA5 2026, sampled every</th><th>corr(dM/dt, torques)</th><th>mean residual</th><th>residual sd</th><th>sd, motion term only</th></tr></thead><tbody><tr><th scope='row'>1 hour</th><td>0.50</td><td>+15.6</td><td>43.3</td><td>65.2</td></tr><tr><th scope='row'>3 hours</th><td>0.76</td><td>+15.8</td><td>23.3</td><td>43.3</td></tr><tr><th scope='row'>6 hours</th><td>0.91</td><td>+15.7</td><td>12.5</td><td>33.9</td></tr><tr><th scope='row'>12 hours</th><td>0.95</td><td>+13.8</td><td>8.5</td><td>16.9</td></tr><tr><th scope='row'>24 hours</th><td>0.95</td><td>+16.9</td><td>8.5</td><td>14.0</td></tr></tbody></table></div>
+  <p>For the 2026 window, sampling more often and adding the mass term make the closure worse rather than better. The once-daily
+  12Z wind-term budget (the version first used for 2026) leaves +3.75; adding the mass term raises the angular
+  momentum change by +1.48, and four- or 24-times-daily torques lower the torque integral by about
+  1.9. Absolute budgets at one and three hours agree with each other to
+  0.4, and both miss by about +15 Hadley on average.</p>
+  <div class='tw'><table class='res'><thead><tr><th>15 Apr – 19 Sep 2026</th><th>∫ torques</th><th>ΔM</th><th>residual</th><th>residual, mean Hadley</th></tr></thead><tbody><tr><th scope='row'>12Z once daily, motion term only, anomaly</th><td>+0.76</td><td>+4.52</td><td>+3.75</td><td>+2.7</td></tr><tr><th scope='row'>12Z, motion + mass, anomaly</th><td>+0.76</td><td>+6.00</td><td>+5.24</td><td>+3.8</td></tr><tr><th scope='row'>00/06/12/18Z, motion + mass, anomaly</th><td>−1.16</td><td>+6.00</td><td>+7.16</td><td>+5.2</td></tr><tr><th scope='row'>hourly daily means, motion + mass, anomaly</th><td>−0.89</td><td>+5.97</td><td>+6.87</td><td>+5.0</td></tr><tr><th scope='row'>3-hourly, motion + mass, absolute</th><td>−17.80</td><td>+2.91</td><td>+20.71</td><td>+15.2</td></tr><tr><th scope='row'>hourly, motion + mass, absolute</th><td>−17.41</td><td>+2.86</td><td>+20.27</td><td>+14.8</td></tr></tbody></table></div>
+  <p><b>The persistent residual, and the −4.5 Hadley figure.</b> Averaged over 1991–2020 at four times a day, ERA5's torques sum to
+  −11.3 Hadley while angular momentum has no trend; hourly in 2026 the residual is +15.6 Hadley. Until
+  12 October 2026 the site's torque products (<code>build_torque_clim.py</code> and the
+  <a href="/topics/mountain-torque.html">mountain torque explainer</a>) quoted an annual-mean non-closure of −4.5 ± 0.7 Hadley, from
+  a sample at 12 UTC only. At that hour the semidiurnal tide adds about +4 Hadley to the mountain torque and the friction torque is
+  far weaker than at 06 UTC, when the daytime boundary layer over Asia is at its strongest:</p>
+  <div class='tw'><table class='res'><thead><tr><th>ERA5 1991–2020 mean (Hadley)</th><th>00Z</th><th>06Z</th><th>12Z</th><th>18Z</th><th>mean of the four</th></tr></thead><tbody><tr><th scope='row'>mountain</th><td>−1.3</td><td>+1.0</td><td>+5.0</td><td>−0.5</td><td>+1.1</td></tr><tr><th scope='row'>friction</th><td>−9.6</td><td>−14.0</td><td>−5.9</td><td>−8.7</td><td>−9.6</td></tr><tr><th scope='row'>gravity-wave drag</th><td>−2.8</td><td>−2.0</td><td>−3.2</td><td>−3.1</td><td>−2.8</td></tr><tr class='diff'><th scope='row'>sum (should be ≈ 0)</th><td>−13.7</td><td>−15.0</td><td>−4.1</td><td>−12.3</td><td>−11.3</td></tr></tbody></table></div>
+  <p>The imbalance of ERA5's resolved torques is therefore about two and a half times the figure once quoted. It sits in the mean and
+  cancels in anomalies, so the anomaly products were never affected.</p>
+
+  <h2>9. Caveats</h2>
+  <ul>
+    <li><b>The mean mountain torque is not resolution-converged.</b> Averaging orography and surface pressure together to 1° or
+    2.5° moves the global mean from about +1 to −26 and −33 Hadley and the Andes box from −223 to −148, while the anomalies
+    correlate at 0.96 or better with the 0.25° values and their ENSO regressions barely change (global +1.00, +1.07 and +0.99 Hadley
+    per kelvin). Anomalies from CMIP6's 1–2.5° grids are therefore comparable with ERA5's; absolute values are not. The Andes DJF
+    standing shift at 2.5° is +2.1 Hadley (p = 0.009), short of the FDR.</li>
+    <li><b>Tide aliasing.</b> Twice-daily sampling at 00 and 12 UTC does not remove the semidiurnal tide; four times a day does,
+    and hourly removes the rest (the four-versus-24 offsets are below 0.2 Hadley).</li>
+    <li><b>What CMIP6's <code>tauu</code> is.</b> It is the surface (boundary-layer) stress. The Met Office models state that it
+    includes turbulent form drag from small hills; parameterised orographic gravity-wave drag is reported separately
+    (<code>utendogw</code>, in 13 models). ERA5's turbulent stress likewise includes turbulent orographic form drag. Because the
+    gravity-wave-drag contribution to the El Niño rise is not significant in either data set, the answer does not depend on where it
+    is booked.</li>
+    <li><b>ERA5's torques drift.</b> The global mountain and friction torques trend by +0.5 and +0.8 Hadley per decade over
+    1979–2025 with no matching trend in angular momentum, so they are detrended for the ENSO analysis; the 2026 attribution is
+    shown both ways.</li>
+    <li><b>ENSO phase</b> is the ONI of each season against fixed thresholds, not CPC's rule of five overlapping seasons, and the
+    CMIP6 models use ±0.5 K on their own index whatever the size of their ENSO.</li>
+    <li><b>Model independence.</b> Several CMIP6 models share code (four CESM2 variants, NorESM2 and others built on CAM, three MPI
+    models), so "41 models" overstates the independent evidence; a one-model-per-centre check was not made.</li>
+    <li><b>Samples.</b> Super El Niños (ONI ≥ 2.0; three DJFs) are too few to test and are not used as evidence. The zonal-mean jet
+    comes from the local ERA5 store, northern hemisphere 1979–2023 and southern 1991–2020. The torque boxes are the site's and do
+    not close the terrain at their edges, so a box's mean includes part of the large-scale pressure gradient over high ground.</li>
+  </ul>
+
+  <h2>10. Data and code</h2>
+  <ul>
+    <li>Daily ERA5 torques and angular momentum, 1959–2026: <a href="https://github.com/scorvec/scorvec.github.io/blob/main/scripts/mjo/data/reference/torque_daily_era5.csv.gz">torque_daily_era5.csv.gz</a>;
+    hourly 2026: <a href="https://github.com/scorvec/scorvec.github.io/blob/main/scripts/mjo/data/reference/torque_1h_2026.csv.gz">torque_1h_2026.csv.gz</a>; both written by
+    <a href="https://github.com/scorvec/scorvec.github.io/blob/main/scripts/mjo/src/torque_history_era5.py">torque_history_era5.py</a> in the
+    <a href="https://github.com/scorvec/scorvec.github.io/blob/main/.github/workflows/torque-history.yml">torque-history</a> workflow.</li>
+    <li>CMIP6 monthly table: <a href="https://github.com/scorvec/scorvec.github.io/blob/main/scripts/mjo/data/reference/torque_cmip6_monthly.csv.gz">torque_cmip6_monthly.csv.gz</a>
+    from <a href="https://github.com/scorvec/scorvec.github.io/blob/main/scripts/mjo/src/torque_history_cmip6.py">torque_history_cmip6.py</a> in the
+    <a href="https://github.com/scorvec/scorvec.github.io/blob/main/.github/workflows/torque-cmip6.yml">torque-cmip6</a> workflow (the daily range torques are a run artifact).</li>
+    <li>Analysis: <a href="https://github.com/scorvec/scorvec.github.io/blob/main/scripts/mjo/src/torque_enso_study.py">torque_enso_study.py</a> and
+    <a href="https://github.com/scorvec/scorvec.github.io/blob/main/scripts/mjo/src/torque_budget_2026.py">torque_budget_2026.py</a>; results:
+    <a href="https://github.com/scorvec/scorvec.github.io/blob/main/scripts/mjo/data/reference/torque_enso_study">torque_enso_study/</a>; figures
+    <a href="https://github.com/scorvec/scorvec.github.io/blob/main/scripts/mjo/src/torque_enso_figs.py">torque_enso_figs.py</a>; this page
+    <a href="https://github.com/scorvec/scorvec.github.io/blob/main/scripts/mjo/src/torque_enso_page.py">torque_enso_page.py</a>.</li>
+  </ul>
+
+  <h2>References</h2>
+  <ol class="refs">
+    <li>Benjamini, Y., and Y. Hochberg, 1995: Controlling the false discovery rate: a practical and powerful approach to multiple testing. <i>J. R. Stat. Soc. B</i>, 57, 289–300.</li>
+    <li>Bretherton, C. S., M. Widmann, V. P. Dymnikov, J. M. Wallace and I. Bladé, 1999: The effective number of spatial degrees of freedom of a time-varying field. <i>J. Climate</i>, 12, 1990–2009.</li>
+    <li>Brown, A. R., 2004: Resolution dependence of orographic torques. ECMWF Technical Memorandum 433 (submitted to <i>Q. J. R. Meteorol. Soc.</i>). <a href="https://www.ecmwf.int/sites/default/files/elibrary/2004/8400-resolution-dependence-orographic-torques.pdf">ECMWF</a></li>
+    <li>Colle, B. A., and C. F. Mass, 1995: The structure and evolution of cold surges east of the Rocky Mountains. <i>Mon. Wea. Rev.</i>, 123, 2577–2610.</li>
+    <li>Dobslaw, H., R. Dill, A. Grötzsch, A. Brzeziński and M. Thomas, 2010: Seasonal polar motion excitation from numerical models of atmosphere, ocean, and continental hydrosphere. <i>J. Geophys. Res.</i>, 115, B10406. <a href="https://doi.org/10.1029/2009JB007127">doi:10.1029/2009JB007127</a></li>
+    <li>Duchon, C. E., 1979: Lanczos filtering in one and two dimensions. <i>J. Appl. Meteor.</i>, 18, 1016–1022.</li>
+    <li>Egger, J., K. Weickmann and K.-P. Hoinka, 2007: Angular momentum in the global atmospheric circulation. <i>Rev. Geophys.</i>, 45, RG4007. <a href="https://doi.org/10.1029/2006RG000213">doi:10.1029/2006RG000213</a></li>
+    <li>Eyring, V., and co-authors, 2016: Overview of the Coupled Model Intercomparison Project Phase 6 (CMIP6) experimental design and organization. <i>Geosci. Model Dev.</i>, 9, 1937–1958.</li>
+    <li>Garreaud, R. D., 2000: Cold air incursions over subtropical South America: mean structure and dynamics. <i>Mon. Wea. Rev.</i>, 128, 2544–2559.</li>
+    <li>Gerber, E. P., and E. Manzini, 2016: The Dynamics and Variability Model Intercomparison Project (DynVarMIP) for CMIP6. <i>Geosci. Model Dev.</i>, 9, 3413–3425.</li>
+    <li>Hersbach, H., and co-authors, 2020: The ERA5 global reanalysis. <i>Q. J. R. Meteorol. Soc.</i>, 146, 1999–2049. <a href="https://doi.org/10.1002/qj.3803">doi:10.1002/qj.3803</a></li>
+    <li>Huang, H.-P., P. D. Sardeshmukh and K. M. Weickmann, 1999: The balance of global angular momentum in a long-term atmospheric data set. <i>J. Geophys. Res.</i>, 104, 2031–2040. <a href="https://doi.org/10.1029/1998JD200068">doi:10.1029/1998JD200068</a></li>
+    <li>Iskenderian, H., and D. A. Salstein, 1998: Regional sources of mountain torque variability and high-frequency fluctuations in atmospheric angular momentum. <i>Mon. Wea. Rev.</i>, 126, 1681–1694.</li>
+    <li>Kanehama, T., I. Sandu, A. Beljaars, A. van Niekerk, N. Wedi, S. Boussetta, S. Lang, S. Johnson and L. Magnusson, 2022: Evaluation and optimization of orographic drag in the IFS. ECMWF Technical Memorandum 893. <a href="https://www.ecmwf.int/sites/default/files/elibrary/2022/20333-evaluation-and-optimizaton-orographic-drag-ifs.pdf">ECMWF</a></li>
+    <li>Klinker, E., and P. D. Sardeshmukh, 1992: The diagnosis of mechanical dissipation in the atmosphere from large-scale balance requirements. <i>J. Atmos. Sci.</i>, 49, 608–627.</li>
+    <li>Lott, F., A. W. Robertson and M. Ghil, 2004: Mountain torques and Northern Hemisphere low-frequency variability. Part I: Hemispheric aspects. <i>J. Atmos. Sci.</i>, 61, 1259–1271.</li>
+    <li>van Niekerk, A., and T. G. Shepherd, 2016: Sensitivity of resolved and parameterized surface drag to changes in resolution and parameterization. ECMWF workshop presentation. <a href="https://www.ecmwf.int/sites/default/files/elibrary/2016/16619-sensitivity-resolved-and-parametrized-surface-drag-changes-resolution-and-parametrization.pdf">ECMWF</a></li>
+    <li>Rodwell, M. J., and T. N. Palmer, 2007: Using numerical weather prediction to assess climate models. <i>Q. J. R. Meteorol. Soc.</i>, 133, 129–146.</li>
+    <li>Rosen, R. D., D. A. Salstein, T. M. Eubanks, J. O. Dickey and J. A. Steppe, 1984: An El Niño signal in atmospheric angular momentum and Earth rotation. <i>Science</i>, 225, 411–414.</li>
+    <li>Sandu, I., P. Bechtold, A. Beljaars, A. Bozzo, F. Pithan, T. G. Shepherd and A. Zadra, 2016: Impacts of parameterized orographic drag on the Northern Hemisphere winter circulation. <i>J. Adv. Model. Earth Syst.</i>, 8, 196–211. <a href="https://doi.org/10.1002/2015MS000564">doi:10.1002/2015MS000564</a></li>
+    <li>Weickmann, K. M., G. N. Kiladis and P. D. Sardeshmukh, 1997: The dynamics of intraseasonal atmospheric angular momentum oscillations. <i>J. Atmos. Sci.</i>, 54, 1445–1461.</li>
+    <li>Wilks, D. S., 2016: "The stippling shows statistically significant grid points": how research results are routinely overstated and overinterpreted, and what to do about it. <i>Bull. Amer. Meteor. Soc.</i>, 97, 2263–2273.</li>
+  </ol>
+
+  <h2>Data credits</h2>
+  <p class="credits">ERA5 (Hersbach et al., 2020), Copernicus Climate Change Service (C3S) / ECMWF, via the ARCO-ERA5 store on
+  Google Cloud; contains modified Copernicus Climate Change Service information 2026. Neither ECMWF nor the European Commission is
+  responsible for any use of this information. CMIP6 output from the modelling centres via the Pangeo CMIP6 mirror on Google
+  Cloud (WCRP CMIP6, CC BY 4.0 where so licensed). ONI and ERSSTv6 Niño-3.4: NOAA CPC and PSL. Effective angular momentum
+  functions: GFZ Potsdam (ESMGFZ). About 400 GB of ERA5 and 450 GB of CMIP6 fields were read, in GitHub Actions.</p>
+  <p class="byline">By <a href="/about.html">Shawn Corvec</a>, meteorologist. Published 13 October 2026. A static study: it is not
+  updated.</p>
+</article>
+
+</main>
+<div id="lb" role="dialog" aria-label="Enlarged figure"><img alt=""></div>
+<script>
+(function () {
+  var lb = document.getElementById("lb"), im = lb.querySelector("img");
+  document.querySelectorAll("a.zoom").forEach(function (a) {
+    a.addEventListener("click", function (e) {
+      if (innerWidth < 700) return;            // phones: open the image itself (pinch-zoom)
+      e.preventDefault(); im.src = a.href; im.alt = a.querySelector("img").alt; lb.classList.add("on");
+    });
+  });
+  lb.addEventListener("click", function () { lb.classList.remove("on"); });
+  addEventListener("keydown", function (e) { if (e.key === "Escape") lb.classList.remove("on"); });
+})();
+</script>
+<!-- sf:start -->
+<footer class="sf">
+  <div class="sf-in">
+    <div class="sf-group">
+      <p class="sf-h" role="heading" aria-level="2">This site</p>
+      <ul>
+        <li><a href="/">Home</a></li>
+        <li><a href="/catalog.html">Every plot</a></li>
+        <li><a href="/topics/">Explainers</a></li>
+        <li><a href="/stats.html">Visitor stats</a></li>
+      </ul>
+      <p class="sf-disclaimer">This site is under constant development. Nothing here is checked before publication and there is no expectation of accuracy, completeness or availability; do not rely on it for decisions. Built from open data; sources are credited on each page.</p>
+    </div>
+    <div class="sf-group sf-group--me">
+      <p class="sf-h" role="heading" aria-level="2">Shawn Corvec</p>
+      <ul>
+        <li><a href="/about.html">About</a></li>
+        <li><a href="/resume.html">Resume</a></li>
+        <li><a href="/research.html">Publications</a></li>
+        <li><a href="https://github.com/scorvec" rel="noopener">GitHub</a></li>
+        <li><a href="https://www.linkedin.com/in/shawn-corvec-35895b231/" rel="noopener">LinkedIn</a></li>
+        <li><a href="https://scholar.google.com/citations?user=EYLRCJIAAAAJ&amp;hl=en" rel="noopener">Google Scholar</a></li>
+      </ul>
+    </div>
+  </div>
+</footer>
+<!-- sf:end -->
+</body>
+</html>
