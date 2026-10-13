@@ -22,6 +22,7 @@ from pathlib import Path
 import numpy as np
 import scipy.fft
 import scipy.stats as stats
+from quantmet.dct_spectra import ke_spectrum as _ke_spectrum
 
 HRRR_BASE = "https://noaa-hrrr-bdp-pds.s3.amazonaws.com"
 RRFS_BASE = "https://noaa-rrfs-pds.s3.amazonaws.com/rrfs_a"
@@ -151,26 +152,9 @@ def interior(a: np.ndarray, center: tuple, n: int = BOX) -> np.ndarray:
 
 
 def ke_spectrum(u: np.ndarray, v: np.ndarray, res_km: float = 3.0):
-    """1D KE spectrum via 2D DCT + elliptic-ring binning (nwp_power_spectra)."""
-    du = np.abs(scipy.fft.dctn(u, norm="ortho") / np.sqrt(u.size)) ** 2
-    dv = np.abs(scipy.fft.dctn(v, norm="ortho") / np.sqrt(v.size)) ** 2
-    p2 = 0.5 * (du + dv)
-    s0, s1 = p2.shape
-    nbwv = min(s0, s1); nbwx = max(s0, s1)
-    fr = np.arange(s0)[:, None] / s0
-    fc = np.arange(s1)[None, :] / s1
-    knrm = (np.sqrt(fr ** 2 + fc ** 2) * nbwv).flatten()
-    eps = 0.1 * np.sqrt(1 / nbwx)
-    kbins = np.arange(-1.0 + eps, nbwv + eps, 1.0)
-    abins, _, _ = stats.binned_statistic(knrm, p2.flatten(),
-                                         statistic=np.nansum, bins=kbins)
-    p1 = abins[1:]
-    p1 = p1[0::2][:len(p1[1::2])] + p1[1::2]          # pair-sum: pair k = DCT indices 2k-1, 2k = wavenumber k
-    # 2026-10-12 (quantmet 0.3.1 fix): pair k is p1[k-1]. This used arange(1, len(p1)) with p1[1:], labelling
-    # every bin one wavenumber too long (an exact 192 km mode plotted at 256 km) and dropping k = 1.
-    wavenumbers = np.arange(1, len(p1) + 1)
-    wavelengths = res_km * nbwv / wavenumbers
-    return wavelengths, p1
+    """1D KE spectrum via 2D DCT + elliptic-ring binning (nwp_power_spectra): quantmet.dct_spectra.ke_spectrum, which
+    carries the 0.3.1 wavenumber fix this copy had since 2026-10-12 (identical output)."""
+    return _ke_spectrum(u, v, res_km)
 
 
 def main() -> int:

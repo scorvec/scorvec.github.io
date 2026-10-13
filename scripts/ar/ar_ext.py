@@ -34,6 +34,7 @@ from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor
 from pathlib import Path
 
 import numpy as np
+from quantmet.stats import benjamini_hochberg as bh   # BH-FDR mask; was a local copy, identical (2026-10-12)
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
@@ -209,17 +210,6 @@ def load_clim(init: dt.date, cache: Path, window=15):
             if min(dd, 365 - dd) <= window:
                 samples.append(z["counts"][i]); ys.append(y)
     return np.stack(samples), ys                                         # (start, member, week, lat, lon)
-
-
-def bh(p, alpha=0.10):
-    """Benjamini-Hochberg: boolean mask of discoveries over the finite p-values."""
-    flat = p[np.isfinite(p)]
-    if flat.size == 0:
-        return np.zeros_like(p, bool)
-    o = np.sort(flat); m = o.size
-    ok = o <= alpha * np.arange(1, m + 1) / m
-    thr = o[np.nonzero(ok)[0].max()] if ok.any() else -1.0
-    return np.isfinite(p) & (p <= thr)
 
 
 def ext_figure(out, title, sub, anom, sig, clim_f, n_sig, n_test):

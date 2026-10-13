@@ -36,6 +36,7 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 from scipy import stats
+from quantmet.stats import benjamini_hochberg   # BH-FDR mask; was a local copy, identical (2026-10-12)
 
 HERE = Path(__file__).resolve().parent
 REPO = HERE.parents[1]
@@ -106,16 +107,10 @@ def episodes(lab_ok):
 
 def fdr(p, alpha=ALPHA_FDR):
     """Benjamini-Hochberg over the finite p-values -> boolean mask of discoveries (Wilks 2016)."""
-    q = p[np.isfinite(p)]
-    if q.size == 0:
-        return np.zeros_like(p, dtype=bool)
-    s = np.sort(q)
-    k = np.flatnonzero(s <= alpha * np.arange(1, s.size + 1) / s.size)
-    thr = s[k.max()] if k.size else -1.0
-    return np.isfinite(p) & (p <= thr)
+    return benjamini_hochberg(p, alpha)
 
 
-def fdr_threshold_pass(p, p_in):
+def fdr_threshold_pass(p, p_in):   # kept local: the TESTED domain's BH cut applied to untested frame points
     """Grid points outside the tested domain (the map's frame corners) are coloured by the same p threshold."""
     q = p_in[np.isfinite(p_in)]
     if q.size == 0:

@@ -108,6 +108,7 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
+from quantmet.stats import acf_inflation as _acf_inflation, benjamini_hochberg as bh_fdr   # were local copies; identical (2026-10-12)
 
 HERE = Path(__file__).resolve().parent
 M2DIR = HERE / "data" / "m2gmi_tem"                      # MERRA-2 GMI tem_YYYY.npz + gwd_YYYY.npz (fetch_m2gmi_*.py)
@@ -736,28 +737,7 @@ def acf_inflation(res, times, lags=ACF_LAGS):
     from the analysis residuals (axis 0) put on a daily grid; clipped to [1, 5]. Measured on 107 daily GEOS FP analyses
     (2026-09-27) the 70 hPa index has rho_1 = 0.59 but a ~6-day oscillation (rho_3 = -0.44, rho_6 = +0.31), so an AR(1)
     model (inflation 3.9) would overstate the noise of a 30-day mean about threefold; the Bartlett sum gives ~1.3."""
-    t = pd.DatetimeIndex(times)
-    grid = pd.date_range(t.min(), t.max(), freq="D")
-    R = np.full((len(grid),) + res.shape[1:], np.nan)
-    R[grid.get_indexer(t)] = res
-    R = R - np.nanmean(R, 0)
-    v = np.nanmean(R * R, 0)
-    infl = np.ones(res.shape[1:])
-    for k in range(1, lags + 1):
-        rk = np.nanmean(R[k:] * R[:-k], 0) / v
-        infl = infl + 2 * (1 - k / (lags + 1)) * np.nan_to_num(rk)
-    return np.clip(infl, 1, 5)
-
-
-def bh_fdr(p, alpha=0.10):
-    """Benjamini-Hochberg: boolean mask of discoveries among finite p (Wilks 2016, alpha_FDR)."""
-    p = np.asarray(p, float); ok = np.isfinite(p)
-    ps = np.sort(p[ok]); n = ps.size
-    if n == 0:
-        return np.zeros_like(p, bool)
-    below = ps <= alpha * np.arange(1, n + 1) / n
-    thr = ps[below].max() if below.any() else -1
-    return ok & (p <= thr)
+    return _acf_inflation(res, pd.DatetimeIndex(times).values, lags=lags, clip=(1, 5))   # quantmet.stats (identical)
 
 
 def norm_p(z):

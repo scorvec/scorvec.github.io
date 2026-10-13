@@ -33,7 +33,7 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
-from scipy.ndimage import gaussian_filter1d
+from quantmet.qbo import zero_line, SIGMA, UMIN, START, BOUND   # the index; was a local copy, identical (2026-10-12)
 
 HERE = Path(__file__).resolve().parent
 REPO = HERE.parents[1]
@@ -41,7 +41,6 @@ REF = HERE / "reference" / "qbo_zeroline_ref.nc"
 TEST = HERE / "reference" / "qbo_zeroline_test.json"
 LEVELS = (70, 50, 30, 10)
 FC_LEVELS = (50, 10)
-SIGMA, UMIN, START, BOUND = 2.0, 1.0, (25.0, 45.0), 45.0
 LAT = np.arange(-50.0, 50.01, 1.0)                        # common 1 deg grid for sections
 MODEL = {"aifs": "AIFS-ENS", "ifs": "IFS-ENS"}
 INK, MUTED, GRID = "#1c2430", "#6f6b64", "#d9dde2"
@@ -49,52 +48,6 @@ COL = {"ana": "#eb6834", "aifs": "#4a3aa7", "ifs": "#138a5e", "clim": "#8a8780"}
 
 
 # ------------------------------------------------------------------------------------------------------------ index ---
-def zero_line(u, lat, hemi="nh", sigma=SIGMA, umin=UMIN, start=START, bound=BOUND):
-    """u (..., lat) on any latitude order -> (index lat, flag) with the leading shape. flag 0 ok, 1 undefined (no
-    winter westerlies), 2 censored at the far bound. SH = the same rule on the mirrored grid (index negative)."""
-    lat = np.asarray(lat, float)
-    u = np.asarray(u, float)
-    o = np.argsort(lat)
-    lat, u = lat[o], u[..., o]
-    if hemi == "sh":
-        lat, u = -lat[::-1], u[..., ::-1]
-    if sigma > 0:
-        u = gaussian_filter1d(u, sigma / abs(lat[1] - lat[0]), axis=-1, mode="nearest")
-    shp = u.shape[:-1]
-    U = u.reshape(-1, u.shape[-1])
-    keep = lat >= -bound
-    la, U = lat[keep], U[:, keep]
-    st = np.where((la >= start[0]) & (la <= start[1]))[0]
-    z = np.full(U.shape[0], np.nan)
-    fl = np.zeros(U.shape[0], int)
-    for k in range(U.shape[0]):
-        row = U[k]
-        if not np.isfinite(row).all():
-            fl[k] = 1; continue
-        j = st[np.argmax(row[st])]
-        if row[j] <= 0:
-            fl[k] = 1; continue
-        found = False
-        while j > 0:
-            if row[j - 1] <= 0 < row[j]:
-                jj = j - 1
-                while jj >= 0 and row[jj] <= 0:
-                    jj -= 1
-                if row[jj + 1:j].min() <= -umin:
-                    z[k] = la[j - 1] + (la[j] - la[j - 1]) * (0 - row[j - 1]) / (row[j] - row[j - 1])
-                    found = True
-                    break
-                if jj < 0:
-                    break
-                j = jj + 1
-                continue
-            j -= 1
-        if not found:
-            z[k], fl[k] = -bound, 2
-    z = z.reshape(shp)
-    return (-z if hemi == "sh" else z), fl.reshape(shp)
-
-
 def to_grid(u, lat, grid=LAT):
     """Interpolate (..., lat) onto the common grid (ascending)."""
     lat = np.asarray(lat, float)

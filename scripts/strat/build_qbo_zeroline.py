@@ -26,6 +26,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import xarray as xr
+from quantmet.stats import benjamini_hochberg as fdr   # BH-FDR mask; was a local copy, identical (2026-10-12)
 
 HERE = Path(__file__).resolve().parent
 REPO = HERE.parents[1]
@@ -200,15 +201,6 @@ def clean(o):
     if isinstance(o, np.bool_):
         return bool(o)
     return o
-
-
-def fdr(ps, q=0.10):
-    ps = np.asarray(ps, float); o = np.argsort(ps); m = len(ps)
-    thr = q * (np.arange(1, m + 1)) / m
-    ok = ps[o] <= thr
-    k = np.max(np.where(ok)[0]) + 1 if ok.any() else 0
-    passed = np.zeros(m, bool); passed[o[:k]] = True
-    return passed
 
 
 # ----------------------------------------------------------------------------------------------------------- main ---

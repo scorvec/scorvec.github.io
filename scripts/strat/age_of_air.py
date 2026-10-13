@@ -27,6 +27,7 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from matplotlib.colors import BoundaryNorm, ListedColormap
+from quantmet.stats import benjamini_hochberg as _bh   # BH-FDR mask; was a local copy, identical (2026-10-12)
 
 HERE = Path(__file__).resolve().parent
 REPO = HERE.parent.parent
@@ -204,17 +205,6 @@ def _edges(x):
     x = np.asarray(x, float)
     mid = (x[1:] + x[:-1]) / 2
     return np.r_[x[0] - (mid[0] - x[0]), mid, x[-1] + (x[-1] - mid[-1])]
-
-
-def _bh(p, alpha=0.10):
-    flat = np.sort(p[np.isfinite(p)])
-    out = np.zeros(p.shape, bool)
-    if not flat.size:
-        return out
-    ok = flat <= alpha * np.arange(1, flat.size + 1) / flat.size
-    if ok.any():
-        out = np.isfinite(p) & (p <= flat[np.where(ok)[0].max()])
-    return out
 
 
 def section(ax, ds, name, scale, lv, cbl=None, fig=None, cax=None):

@@ -31,6 +31,7 @@ import pandas as pd
 import xarray as xr
 from scipy import stats
 from scipy.ndimage import uniform_filter1d
+from quantmet.stats import benjamini_hochberg
 
 HERE = Path(__file__).resolve().parent
 REPO = HERE.parents[2]
@@ -95,11 +96,7 @@ def episodes(mask):
 
 
 def fdr(p):
-    q = np.sort(p[np.isfinite(p)])
-    if q.size == 0:
-        return np.zeros_like(p, bool)
-    k = np.flatnonzero(q <= ALPHA * np.arange(1, q.size + 1) / q.size)
-    return np.isfinite(p) & (p <= (q[k.max()] if k.size else -1.0))
+    return benjamini_hochberg(p, ALPHA)                                  # quantmet.stats (was a local copy; identical)
 
 
 TAGS = (("lag0", (0,), "on the days the jet is in the phase"), ("lag3_7", (3, 4, 5, 6, 7), "3–7 days after the jet is in the phase"))

@@ -28,6 +28,7 @@ import time
 from pathlib import Path
 
 import numpy as np
+from quantmet.stats import benjamini_hochberg as bh   # BH-FDR mask; was a local copy, identical (2026-10-12)
 
 sys.path.insert(0, str(Path(__file__).parent))
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "ecmwf"))
@@ -310,23 +311,6 @@ def load_z500(date: str, hh: str, steps_h=STEPS_H):
             out[0] = z.values.astype("float32")
         lat, lon = z.latitude.values, z.longitude.values
     return out, lat, lon
-
-
-def bh(p: np.ndarray, q: float = 0.10) -> np.ndarray:
-    """Benjamini-Hochberg: boolean mask of discoveries at FDR q (NaNs never significant)."""
-    flat = p.ravel(); ok = np.isfinite(flat)
-    sig = np.zeros(flat.shape, bool)
-    pv = flat[ok]
-    if not pv.size:
-        return sig.reshape(p.shape)
-    o = np.argsort(pv); m = pv.size
-    thr = q * np.arange(1, m + 1) / m
-    below = np.where(pv[o] <= thr)[0]
-    if below.size:
-        cut = pv[o][below[-1]]
-        idx = np.where(ok)[0]
-        sig[idx[pv <= cut]] = True
-    return sig.reshape(p.shape)
 
 
 def composite(s_aifs: dict, st: dict, Z: dict):

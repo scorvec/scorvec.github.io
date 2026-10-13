@@ -96,6 +96,8 @@ def _dlon(f: np.ndarray, lonr: np.ndarray) -> np.ndarray:
     return np.concatenate([d, d[..., :1]], axis=-1) if closed else d
 
 
+# Not quantmet.waf.tn01_flux: on this closed DH2 grid quantmet zeroes the masked cells before the T15 divergence
+# filter, this filters the divergence as computed (wx, wy identical; div W differs ~5-6 % rms) - kept, 2026-10-12.
 def tn01_flux(psi_a: np.ndarray, U: np.ndarray, V: np.ndarray,
               lat: np.ndarray, lon: np.ndarray):
     """Horizontal TN01 W = (Wx, Wy) from ψ′ and the basic state, all on one grid.

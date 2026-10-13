@@ -24,6 +24,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import xarray as xr
+from quantmet.pv import dynamic_tropopause, on_isentrope   # were local copies; identical on AIFS-ENS fields (2026-10-12)
 
 sys.path.insert(0, str(Path(__file__).parent))
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "ecmwf"))
@@ -97,44 +98,6 @@ def pv_step(T, U, V, p_pa, lat, lon):
     pv = (pv + np.roll(pv, 1, -1) + np.roll(pv, -1, -1)) / 3.0
     pv[:, 1:-1] = (pv[:, :-2] + pv[:, 1:-1] + pv[:, 2:]) / 3.0
     return pv, th
-
-
-def dynamic_tropopause(pv, th, U, V, p_pa, thr=2.0):
-    """θ, p (hPa), u, v on the thr-PVU surface, searching upward from the lowest level; NaN where
-    the column never reaches thr (deep tropics) — those points are masked in the maps."""
-    above = pv >= thr
-    nl = pv.shape[0]
-    idx = np.argmax(above, axis=0)                                       # first level at/above thr
-    never = ~above.any(axis=0)
-    k1 = np.clip(idx, 1, nl - 1); k0 = k1 - 1
-    jj, ii = np.meshgrid(np.arange(pv.shape[1]), np.arange(pv.shape[2]), indexing="ij")
-    pv0, pv1 = pv[k0, jj, ii], pv[k1, jj, ii]
-    w = np.clip((thr - pv0) / np.where(np.abs(pv1 - pv0) < 1e-6, 1e-6, pv1 - pv0), 0, 1)
-    w = np.where(idx == 0, 0.0, w)                                       # already above thr at 700 hPa: take the level itself
-    def interp(a):
-        return a[k0, jj, ii] * (1 - w) + a[k1, jj, ii] * w
-    lnp = np.log(p_pa)[:, None, None] * np.ones_like(pv)
-    out = {"theta": interp(th), "p": np.exp(interp(lnp)) / 100.0, "u": interp(U), "v": interp(V)}
-    # no 2 PVU below the data top (deep tropics): the tropopause is at or above 100 hPa, so use the 100 hPa values
-    # (a lower bound on its θ) instead of a hole in the map
-    top = {"theta": th[-1], "p": np.full(th.shape[1:], p_pa[-1] / 100.0), "u": U[-1], "v": V[-1]}
-    for k in out:
-        out[k] = np.where(never, top[k], out[k])
-    return out
-
-
-def on_isentrope(pv, th, U, V, theta):
-    """PV and wind interpolated linearly in θ onto one isentrope (θ increases with height here)."""
-    nl = pv.shape[0]
-    below = th <= theta
-    idx = np.clip(np.sum(below, axis=0) - 1, 0, nl - 2)
-    jj, ii = np.meshgrid(np.arange(pv.shape[1]), np.arange(pv.shape[2]), indexing="ij")
-    t0, t1 = th[idx, jj, ii], th[idx + 1, jj, ii]
-    w = np.clip((theta - t0) / np.where(np.abs(t1 - t0) < 1e-3, 1e-3, t1 - t0), 0, 1)
-    valid = (th[0] <= theta) & (th[-1] >= theta)
-    def interp(a):
-        return np.where(valid, a[idx, jj, ii] * (1 - w) + a[idx + 1, jj, ii] * w, np.nan)
-    return {"pv": interp(pv), "u": interp(U), "v": interp(V)}
 
 
 # ── rendering ────────────────────────────────────────────────────────────────

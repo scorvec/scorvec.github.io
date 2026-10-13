@@ -35,6 +35,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
 import matplotlib.path as mpath
+from quantmet.stats import benjamini_hochberg as fdr   # BH-FDR mask; was a local copy, identical (2026-10-12)
 matplotlib.rcParams["hatch.color"] = "#8a8f96"
 matplotlib.rcParams["hatch.linewidth"] = 0.5
 
@@ -250,16 +251,6 @@ SIG_NOTE = "Coloured only where significant: t-test across events, false-discove
 def pval(t, n):
     from scipy import stats
     return 2 * stats.t.sf(np.abs(np.asarray(t, float)), max(n - 1, 1))
-
-
-def fdr(p, alpha=0.10):
-    """Benjamini-Hochberg over every cell; alpha_FDR 0.10 holds the chance of any false positive in a spatially
-    correlated field near 0.05 (Wilks 2016). Returns a boolean mask of the significant cells."""
-    q = np.asarray(p, float); ok = np.isfinite(q); v = np.sort(q[ok]); n = v.size
-    if not n:
-        return np.zeros(q.shape, bool)
-    passed = v[v <= alpha * np.arange(1, n + 1) / n]
-    return ok & (q <= passed.max()) if passed.size else np.zeros(q.shape, bool)
 
 
 def ao_sig(A, base, win=7):

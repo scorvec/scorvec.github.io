@@ -35,6 +35,7 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
+from quantmet.stats import benjamini_hochberg as bh   # BH-FDR mask; was a local copy, identical (2026-10-12)
 
 NSEG = 96                                   # WK99 window
 KMAX, FMAX = 15, 0.5                        # daily data: 0.5 cycles per day is the Nyquist frequency
@@ -292,14 +293,6 @@ def build_bg() -> int:
                ).to_netcdf(BG)
     print(f"wrote {BG}: {n} segments, {t[0]:%Y-%m-%d} -> {t[-1]:%Y-%m-%d}, {ngap} missing days interpolated", flush=True)
     return 0
-
-
-def bh(p, q=0.10):
-    pf = p.ravel(); o = np.argsort(pf); n = len(pf)
-    ok = pf[o] <= q * np.arange(1, n + 1) / n
-    k = np.max(np.where(ok)[0]) + 1 if ok.any() else 0
-    out = np.zeros(n, bool); out[o[:k]] = True
-    return out.reshape(p.shape)
 
 
 def render(freq, kk, now, clim, t0, t1, out: Path, bands=None, masks=None):

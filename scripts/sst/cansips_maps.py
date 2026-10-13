@@ -38,6 +38,7 @@ import time
 from pathlib import Path
 
 import numpy as np
+from quantmet.stats import benjamini_hochberg
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
@@ -221,19 +222,8 @@ def forecast_members(var: str, ym: str) -> tuple[np.ndarray, str]:
 
 
 def bh_mask(p: np.ndarray, domain: np.ndarray, q: float = FDR_Q) -> np.ndarray:
-    """Benjamini-Hochberg over the finite p-values inside `domain`."""
-    sig = np.zeros(p.shape, bool)
-    ok = domain & np.isfinite(p)
-    pv = p[ok]
-    if pv.size == 0:
-        return sig
-    order = np.argsort(pv)
-    thr = q * (np.arange(1, pv.size + 1) / pv.size)
-    passed = pv[order] <= thr
-    if passed.any():
-        cut = pv[order][np.where(passed)[0].max()]
-        sig[ok] = pv <= cut
-    return sig
+    """Benjamini-Hochberg over the finite p-values inside `domain` (quantmet.stats; was a local copy)."""
+    return benjamini_hochberg(np.where(domain, p, np.nan), q)
 
 
 def anomaly_and_sig(X: np.ndarray, clim: dict, pi: int, domain: np.ndarray):

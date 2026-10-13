@@ -56,6 +56,7 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
+from quantmet.stats import benjamini_hochberg
 
 HERE = Path(__file__).resolve().parent
 REF = HERE.parent / "data" / "reference"
@@ -261,16 +262,7 @@ def events(ph, active):
 
 
 def bh(p, alpha=ALPHA):
-    p = np.asarray(p, float); m = np.isfinite(p); out = np.zeros(p.shape, bool)
-    if m.sum() == 0:
-        return out
-    q = p[m]; o = np.argsort(q); n = len(q)
-    thr = alpha * np.arange(1, n + 1) / n
-    ok = q[o] <= thr
-    if ok.any():
-        k = np.max(np.flatnonzero(ok)); sel = np.zeros(n, bool); sel[o[: k + 1]] = True
-        out[np.flatnonzero(m)[sel]] = True
-    return out
+    return benjamini_hochberg(p, alpha)                                  # quantmet.stats (was a local copy; identical)
 
 
 # ------------------------------------------------------------------------------------------------ ENSO removal

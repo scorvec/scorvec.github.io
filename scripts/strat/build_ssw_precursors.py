@@ -18,6 +18,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 from scipy import stats
+from quantmet.stats import benjamini_hochberg as fdr   # BH-FDR mask; was a local copy, identical (2026-10-12)
 
 HERE = Path(__file__).resolve().parent
 STUDY = Path.home() / "research" / "ssw_tropical_precursors" / "data"
@@ -34,12 +35,6 @@ def J(name):
 
 def r3(x):
     return None if x is None or (isinstance(x, float) and not np.isfinite(x)) else round(float(x), 3)
-
-
-def fdr(p, q=0.10):
-    p = np.asarray(p, float); o = np.sort(p); n = len(o)
-    ok = o[o <= q * np.arange(1, n + 1) / n]
-    return p <= (ok.max() if ok.size else -1)
 
 
 def share_ci(x, B=2000):

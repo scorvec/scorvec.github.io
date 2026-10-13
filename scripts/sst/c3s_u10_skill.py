@@ -59,6 +59,7 @@ import time
 from pathlib import Path
 
 import numpy as np
+from quantmet.stats import fdr_adjust
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
@@ -364,11 +365,10 @@ def holm(p: dict) -> dict:
 
 
 def bh(p: dict) -> dict:
-    keys = sorted(p, key=lambda k: p[k]); m = len(keys); q = {}
-    prev = 1.0
-    for i in range(m - 1, -1, -1):
-        prev = min(prev, p[keys[i]] * m / (i + 1)); q[keys[i]] = prev
-    return q
+    """Benjamini-Hochberg adjusted p (q-values) of a dict of p-values: quantmet.stats.fdr_adjust (was a local copy;
+    identical q-values, 2026-10-12)."""
+    keys = list(p)
+    return dict(zip(keys, (float(x) for x in fdr_adjust([p[k] for k in keys]))))
 
 
 def power_r(n: int, alpha: float, power: float = 0.8) -> float:

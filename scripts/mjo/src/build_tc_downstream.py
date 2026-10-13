@@ -31,6 +31,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import xarray as xr
+from quantmet.stats import benjamini_hochberg as bh   # BH-FDR mask; was a local copy, identical (2026-10-12)
 
 sys.path.insert(0, str(Path(__file__).parent))
 import tc_jet as TJ                                                       # noqa: E402
@@ -171,18 +172,6 @@ def anomalies(var: str) -> xr.DataArray:
     beta, *_ = np.linalg.lstsq(X[fit_t], Y[fit_t], rcond=None)
     an = (Y - X @ beta).reshape(da.shape).astype("float32")
     return xr.DataArray(an, dims=da.dims, coords=da.coords)
-
-
-def bh(p: np.ndarray, q=0.10) -> np.ndarray:
-    p = np.asarray(p, float); ok = np.isfinite(p); out = np.zeros(p.shape, bool)
-    if not ok.any():
-        return out
-    pv = p[ok]; o = np.argsort(pv); m = len(pv)
-    passed = pv[o] <= q * np.arange(1, m + 1) / m
-    if passed.any():
-        kmax = np.where(passed)[0].max(); sel = np.zeros(m, bool); sel[o[:kmax + 1]] = True
-        tmp = np.zeros(m, bool); tmp[:] = sel; out[ok] = tmp
-    return out
 
 
 def episodes(ev: pd.DataFrame) -> list[list[int]]:

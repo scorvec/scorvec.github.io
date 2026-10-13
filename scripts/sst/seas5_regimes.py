@@ -70,6 +70,7 @@ import time
 from pathlib import Path
 
 import numpy as np
+from quantmet.stats import benjamini_hochberg as bh   # BH-FDR mask; was a local copy, identical (2026-10-12)
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
@@ -512,18 +513,6 @@ def skill_stats(p, o, rng):
     slope = float(((p - p.mean()) * (o - o.mean())).sum() / ((p - p.mean()) ** 2).sum()) if sp > 0 else np.nan
     return dict(r=round(r, 3), r_lo=round(float(lo), 3), r_hi=round(float(hi), 3), p=round(float(pval), 4),
                 slope=round(slope, 2), sd_pred=round(float(p.std(ddof=1)) * 100, 2), sd_obs=round(float(o.std(ddof=1)) * 100, 2))
-
-
-def bh(pvals, q):
-    p = np.asarray(pvals, float)
-    n = p.size
-    o = np.argsort(p)
-    thr = q * np.arange(1, n + 1) / n
-    ok = p[o] <= thr
-    sig = np.zeros(n, bool)
-    if ok.any():
-        sig[o[:np.flatnonzero(ok).max() + 1]] = True
-    return sig
 
 
 # ── main computation ──────────────────────────────────────────────────────────

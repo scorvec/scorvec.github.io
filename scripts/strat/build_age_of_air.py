@@ -27,6 +27,8 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
+from quantmet.stats import benjamini_hochberg as bh, prais_winsten as _prais_winsten, segment_starts as segstart
+# (bh, prais_winsten and segstart were local copies; identical on this script's inputs, 2026-10-12)
 
 HERE = Path(__file__).resolve().parent
 REPO = HERE.parents[1]
@@ -86,52 +88,13 @@ def prais_winsten(y, X, start=None, iters=2):
     """GLS with AR(1) errors. y (n, m) for m series sharing the design X (n, k); `start` marks rows that begin a new
     contiguous segment (after an excluded window), which are scaled like the first row instead of differenced.
     Returns beta (k, m), se (k, m), rho (m,), dof."""
-    n, k = X.shape
-    st = np.zeros(n, bool) if start is None else np.asarray(start, bool).copy()
-    st[0] = True
-    pair = ~st[1:]                                   # rows i>0 whose predecessor is adjacent in time
-    beta = np.linalg.lstsq(X, y, rcond=None)[0]
-    rho = np.zeros(y.shape[1]); se = np.zeros_like(beta)
-    for _ in range(iters):
-        r = y - X @ beta
-        rho = np.clip((r[1:][pair] * r[:-1][pair]).sum(0) / (r[:-1][pair] ** 2).sum(0), -0.97, 0.97)
-        beta = np.empty((k, y.shape[1])); se = np.empty((k, y.shape[1]))
-        for j in range(y.shape[1]):
-            c = np.sqrt(1 - rho[j] ** 2)
-            ys = np.empty(n); Xs = np.empty_like(X, dtype=float)
-            ys[st] = c * y[st, j]; Xs[st] = c * X[st]
-            nx = np.where(~st)[0]
-            ys[nx] = y[nx, j] - rho[j] * y[nx - 1, j]; Xs[nx] = X[nx] - rho[j] * X[nx - 1]
-            b = np.linalg.lstsq(Xs, ys, rcond=None)[0]
-            e = ys - Xs @ b
-            s2 = (e @ e) / (n - k)
-            cov = s2 * np.linalg.inv(Xs.T @ Xs)
-            beta[:, j] = b; se[:, j] = np.sqrt(np.diag(cov))
-    return beta, se, rho, n - k
-
-
-def segstart(ok):
-    """For the retained rows of a monthly boolean mask: True where the previous month was not retained."""
-    idx = np.where(ok)[0]
-    return np.r_[True, np.diff(idx) > 1]
+    r = _prais_winsten(y, X, start=start, iters=iters)                 # quantmet.stats (identical to the old local copy)
+    return r.beta, r.se, r.rho, r.dof
 
 
 def tp(t, dof):
     from scipy import stats
     return 2 * stats.t.sf(np.abs(t), dof)
-
-
-def bh(p, alpha=0.10):
-    """Benjamini-Hochberg: boolean mask of discoveries among the finite p."""
-    flat = p[np.isfinite(p)]
-    out = np.zeros(p.shape, bool)
-    if not flat.size:
-        return out
-    s = np.sort(flat)
-    ok = s <= alpha * np.arange(1, len(s) + 1) / len(s)
-    if ok.any():
-        out = np.isfinite(p) & (p <= s[np.where(ok)[0].max()])
-    return out
 
 
 def main():

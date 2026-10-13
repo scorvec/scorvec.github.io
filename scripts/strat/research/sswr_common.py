@@ -14,6 +14,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import xarray as xr
+from quantmet.stats import benjamini_hochberg as fdr_bh   # BH-FDR mask; was a local copy, identical (2026-10-12)
 
 HOME = Path.home()
 SITE = HOME / "scorvec.github.io"
@@ -213,17 +214,6 @@ def refractory(u: pd.Series, onsets) -> pd.Series:
 
 
 # ------------------------------------------------------------------------------------------------ statistics
-def fdr_bh(p, q=0.10):
-    p = np.asarray(p, float)
-    flat = p[np.isfinite(p)]
-    if not flat.size:
-        return np.zeros(p.shape, bool)
-    o = np.sort(flat); n = len(o)
-    passed = o[o <= q * np.arange(1, n + 1) / n]
-    thr = passed.max() if passed.size else -1
-    return np.isfinite(p) & (p <= thr)
-
-
 def lag_matrix(s: pd.Series, dates, lags):
     idx = pd.DatetimeIndex([pd.Timestamp(d) for d in dates])
     out = np.full((len(idx), len(lags)), np.nan)

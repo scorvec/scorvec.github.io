@@ -31,6 +31,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import xarray as xr
+from quantmet.stats import benjamini_hochberg
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
@@ -86,11 +87,7 @@ def build_series():
 
 
 def bh(p, alpha=ALPHA):
-    q = np.sort(p[np.isfinite(p)])
-    if q.size == 0:
-        return np.zeros_like(p, bool)
-    k = np.flatnonzero(q <= alpha * np.arange(1, q.size + 1) / q.size)
-    return np.isfinite(p) & (p <= (q[k.max()] if k.size else -1))
+    return benjamini_hochberg(p, alpha)                                  # quantmet.stats (was a local copy; identical)
 
 
 def main() -> int:

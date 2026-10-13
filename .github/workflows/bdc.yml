@@ -62,7 +62,9 @@ jobs:
       - uses: actions/setup-python@v7
         with:
           python-version: "3.11"
-      - run: pip install --quiet numpy scipy pandas xarray netCDF4 matplotlib cartopy==0.25.0
+      - run: |
+          pip install --quiet numpy scipy pandas xarray netCDF4 matplotlib cartopy==0.25.0
+          pip install --quiet "quantmet @ git+https://github.com/scorvec/quantmet-tools@v0.4.0"   # shared diagnostics (BH-FDR, QBO zero line, PV, ...), pinned to the tag
       - name: Potential vorticity on 475 K and 850 K (GEOS FP)
         id: pv
         run: |
