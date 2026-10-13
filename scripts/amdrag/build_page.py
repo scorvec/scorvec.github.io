@@ -20,8 +20,11 @@ import common as C                                                     # noqa: E
 
 SLUG = "model-drag-intercomparison"
 # UNLINKED (user, 2026-10-13): published for review only - noindex, and no menu / homepage / sitemap / catalogue entry or
-# cross-link anywhere. To make it public: see the docstring of scripts/site/apply_chrome.py's PAGES entry and remove
-# the robots meta below.
+# cross-link anywhere. To make it public: (1) apply_chrome.py: a PRODUCTS row under "Studies" and the href in HOME's
+# "Studies and verification" list, then run apply_chrome.py (menus on every page + the homepage tile); (2) sitemap.xml
+# entry; (3) one cross-link sentence each in torque-enso.html (+ scripts/mjo/src/torque_enso_page.py) and
+# aifs-aam-budget.html; (4) delete the robots meta in wrap() below and rebuild; (5) build_catalog.py PAGES entry
+# (thumb studies/model-drag-intercomparison/aam_drift_own.webp).
 IMG = f"/studies/{SLUG}"
 URL = f"https://scorvec.com/{SLUG}.html"
 TITLE = "Model drag intercomparison"
