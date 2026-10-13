@@ -588,6 +588,10 @@ def body(R, Mo, keys, L, fig, t_models, made):
     for GEPS, every second day. Winter results can differ (the earlier IFS test was in December–February).</li>
     <li><b>GDPS is a hybrid since May 2026</b>: its large scales between 850 and 250 hPa follow an AI model, so its drift and
     budget are not GEM's physics alone. GEPS is the cleaner measure of GEM's physics.</li>
+    <li><b>Published orography.</b> Each mountain torque uses the orography the model publishes with its surface pressure.
+    GEM's fields are interpolated from its Yin-Yang grid to the output grid; if its published orography and surface pressure
+    were interpolated or filtered differently, a spurious torque would follow, and the published fields cannot rule that out.
+    The same holds, to a smaller degree, for every model published on a grid other than its own.</li>
     <li><b>Members.</b> GEPS members perturb drag parameters by design; IFS-ENS member 0 stops at day 10; ensembles use control + 4.</li>
   </ul>
 

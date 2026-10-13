@@ -168,7 +168,8 @@ def fig_torques(R, out):
     fig.subplots_adjust(left=0.05, right=0.99, top=0.82, bottom=0.27, wspace=0.18)
     for ax, (tk, ttl) in zip(axes, terms):
         xs = []
-        for i, k in enumerate(keys):
+        kk = [k for k in keys if f"{tk}|G" in R["models"][k]["torque_bias_agg"]]
+        for i, k in enumerate(kk):
             ag = R["models"][k]["torque_bias_agg"].get(f"{tk}|G")
             if not ag:
                 continue
@@ -185,8 +186,8 @@ def fig_torques(R, out):
                             fontsize=7, color=MUTED)
             xs.append(i)
         ax.axhline(0, color=INK2, lw=0.8)
-        ax.set_xticks(range(len(keys)))
-        ax.set_xticklabels([LBL[k].replace(" (AI)", "\n(AI)").replace(" (hybrid)", "\n(hybrid)") for k in keys],
+        ax.set_xticks(range(len(kk)))
+        ax.set_xticklabels([LBL[k].replace(" (AI)", "\n(AI)").replace(" (hybrid)", "\n(hybrid)") for k in kk],
                            fontsize=8)
         ax.set_title(ttl, fontsize=10)
         ax.grid(axis="x", visible=False)
