@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Model drag intercomparison · Shawn Corvec</title>
+<meta name="robots" content="noindex">
+<meta name="description" content="Eight global forecast systems through one angular-momentum budget: do they conserve angular momentum and mass, how much drag do they apply, and where do their low-level winds drift? GFS, GEFS, AIGFS, IFS-ENS, AIFS, AIFS-ENS, GDPS and GEPS against ERA5 and the 2012 WGNE Drag Project. Significant results only; the sample grows daily.">
+<link rel="canonical" href="https://scorvec.com/model-drag-intercomparison.html">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<meta name="author" content="Shawn Corvec">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Conservation and drag in the US, ECMWF and Canadian global models">
+<meta property="og:description" content="Eight global forecast systems through one angular-momentum budget: do they conserve angular momentum and mass, how much drag do they apply, and where do their low-level winds drift? GFS, GEFS, AIGFS, IFS-ENS, AIFS, AIFS-ENS, GDPS and GEPS against ERA5 and the 2012 WGNE Drag Project. Significant results only; the sample grows daily.">
+<meta property="og:url" content="https://scorvec.com/model-drag-intercomparison.html">
+<meta property="og:image" content="https://scorvec.com/studies/model-drag-intercomparison/aam_drift_own.webp">
+<meta property="og:site_name" content="Shawn Corvec">
+<meta name="twitter:card" content="summary_large_image">
+<script type="application/ld+json">
+{
+ "@context": "https://schema.org",
+ "@type": "ScholarlyArticle",
+ "headline": "Conservation and drag in the US, ECMWF and Canadian global models",
+ "name": "Model drag intercomparison",
+ "description": "Eight global forecast systems through one angular-momentum budget: do they conserve angular momentum and mass, how much drag do they apply, and where do their low-level winds drift? GFS, GEFS, AIGFS, IFS-ENS, AIFS, AIFS-ENS, GDPS and GEPS against ERA5 and the 2012 WGNE Drag Project. Significant results only; the sample grows daily.",
+ "url": "https://scorvec.com/model-drag-intercomparison.html",
+ "inLanguage": "en",
+ "datePublished": "2026-10-13",
+ "dateModified": "2026-10-13",
+ "author": {
+  "@id": "https://scorvec.com/#person"
+ },
+ "image": [
+  "https://scorvec.com/studies/model-drag-intercomparison/aam_drift_own.webp"
+ ],
+ "keywords": "atmospheric angular momentum, surface drag, mountain torque, friction torque, gravity-wave drag, conservation, mass conservation, GFS, GEFS, AIGFS, IFS, AIFS, GDPS, GEPS, GEM, ERA5, WGNE drag project"
+}
+</script>
+<script data-goatcounter="https://scorvec.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
+<link rel="stylesheet" href="/assets/site.css">
+<script src="/assets/site.js" defer></script>
+<script src="/assets/rail.js" defer></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
+  onload="renderMathInElement(document.body,{delimiters:[{left:'$$',right:'$$',display:true},{left:'$',right:'$',display:false}],throwOnError:false});"></script>
+<style>
+  body { background: var(--c-bg, #f5f6f3); color: var(--c-ink, #29321f); margin: 0; }
+  .study { font-size: clamp(1.06rem, 0.78rem + 0.5vw, 1.35rem); max-width: min(76rem, 100%); margin: 0 auto; padding: 2rem 1.25rem 3.5rem; }
+  .study figcaption, .study .tcap { font-size: 0.86em; }   /* beats site.css "html figcaption" (rem) so captions scale with the text */
+  .study .crumbs { font-size: 0.92em; color: var(--c-muted, #5c6b73); margin-bottom: 1.2rem; }
+  .study .crumbs a { color: inherit; }
+  .study h1 { text-align: left; margin: 0 0 0.5rem; }
+  .study .dek { color: var(--c-muted, #5c6b73); font-size: 1.05em; margin: 0 0 1.4rem; }
+  .study h2 { margin: 2.4rem 0 0.7rem; text-align: left; }
+  .study h3 { margin: 1.8rem 0 0.5rem; text-align: left; }
+  .study p, .study li { line-height: 1.6; }
+  .study ul { padding-left: 1.2rem; }
+  .study li { margin: 0.45rem 0; }
+  .study a { color: var(--c-accent, #274b7a); text-underline-offset: 0.2em; }
+  .study .katex-display { overflow-x: auto; overflow-y: hidden; padding: 0.2rem 0; }
+  .lede { border: 1px solid var(--c-rule, #dfe3dc); border-left: 4px solid var(--c-accent, #274b7a); background: #fff;
+          padding: 0.2rem 1.2rem 0.4rem; margin: 0 0 1.6rem; }
+  .lede h2 { margin-top: 0.9rem; }
+  figure { margin: 1.6rem 0 2rem; }
+  figure img { display: block; width: 100%; height: auto; border: 1px solid var(--c-rule, #dfe3dc); background: #fff; }
+  figcaption, .tcap { color: #6f6b64; font-size: 0.92em; margin-top: 0.5rem; line-height: 1.5; }
+  .tw { overflow-x: auto; margin: 0.8rem 0 0; }
+  table.res { border-collapse: collapse; width: 100%; font-size: 0.92em; font-variant-numeric: tabular-nums; }
+  table.res th, table.res td { padding: 0.35rem 0.55rem; border-bottom: 1px solid var(--c-rule, #dfe3dc); text-align: right; white-space: nowrap; }
+  table.res th[scope=row], table.res thead th:first-child, table.res tr.grp th { text-align: left; }
+  table.res thead th { border-bottom: 2px solid #29321f; }
+  table.res tr.grp th { padding-top: 0.8rem; font-weight: 700; border-bottom: none; }
+  table.res tr.diff th, table.res tr.diff td { font-weight: 600; }
+  .ns { color: #6f6b64; font-style: italic; font-weight: 400 !important; }
+  .sig { color: #6f6b64; font-weight: 400; font-size: 0.85em; }
+  .refs { font-size: 0.95em; } .refs li { margin: 0.4rem 0; }
+  .credits { font-size: 0.92em; }
+  .byline { color: #6f6b64; font-size: 0.92em; margin-top: 2.2rem; }
+  #lb { position: fixed; inset: 0; background: rgba(20, 22, 18, 0.88); display: none; align-items: center; justify-content: center;
+        z-index: 1000; cursor: zoom-out; padding: 1rem; }
+  #lb.on { display: flex; }
+  #lb img { max-width: 100%; max-height: 100%; background: #fff; }
+  @media (max-width: 600px) { .study { padding: 1.2rem 1rem 2.5rem; } table.res { font-size: 0.85em; } }
+
+  .study code { font-size: 0.9em; }
+  table.res td.l { text-align: left; white-space: normal; }
+</style>
+</head>
+<body>
+<!-- sh:start -->
+<header class="sh" id="site-header">
+  <div class="sh-in">
+    <a class="sh-brand" href="/">Shawn Corvec</a>
+    <button class="sh-find" type="button" aria-haspopup="dialog" aria-keyshortcuts="Control+K Meta+K" title="Find a plot (Ctrl K)"><svg viewBox="0 0 20 20" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true" focusable="false"><circle cx="8.5" cy="8.5" r="5.5" style="fill:none;stroke:currentColor"/><path d="M12.6 12.6 17 17" style="fill:none;stroke:currentColor"/></svg><span class="sh-find-t">Find a plot</span><kbd>Ctrl K</kbd></button>
+    <button class="sh-toggle" type="button" aria-expanded="false" aria-controls="sh-menu">Menu</button>
+    <nav class="sh-nav" id="sh-menu" aria-label="Site">
+      <ul class="sh-list">
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g0">Mid-latitude weather</button>
+          <div class="sh-menu sh-menu--cols" id="sh-g0">
+            <div>
+              <h3>Surface and hazards</h3>
+              <ul>
+                <li><a href="/models.html">Short-range model maps</a></li>
+                <li><a href="/radar.html">US Radar Explorer</a></li>
+                <li><a href="/ar.html">Atmospheric rivers</a></li>
+              </ul>
+            </div>
+            <div>
+              <h3>Upper air</h3>
+              <ul>
+                <li><a href="/circulation.html#dt">Dynamic tropopause</a></li>
+                <li><a href="/circulation.html#waf">Wave activity flux</a></li>
+              </ul>
+            </div>
+          </div>
+        </li>
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g1"><span class="sh-lf">Global circulation and tropics</span><span class="sh-ls">Circulation/tropics</span></button>
+          <div class="sh-menu sh-menu--cols" id="sh-g1">
+            <div>
+              <h3>ENSO and the MJO</h3>
+              <ul>
+                <li><a href="/enso.html">El Niño monitor</a></li>
+                <li><a href="/circulation.html#mslp">Pacific pressure and wind</a></li>
+                <li><a href="/mjo.html">MJO forecast</a></li>
+                <li><a href="/tropical-waves.html">Tropical waves</a></li>
+              </ul>
+            </div>
+            <div>
+              <h3>Tropical cyclones</h3>
+              <ul>
+                <li><a href="/circulation.html#tcjet">Tropical cyclones and the jet</a></li>
+                <li><a href="/circulation.html#tcens">Tropical cyclone ensembles</a></li>
+                <li><a href="/circulation.html#tcphase">Cyclone phase space</a></li>
+                <li><a href="/circulation.html#tcshear">Shear and environment</a></li>
+                <li><a href="/recon.html">Hurricane reconnaissance</a></li>
+              </ul>
+            </div>
+            <div>
+              <h3>Jets and momentum</h3>
+              <ul>
+                <li><a href="/circulation.html#pacjet">North Pacific jet</a></li>
+                <li><a href="/circulation.html#jets">Subtropical jets</a></li>
+                <li><a href="/circulation.html#aam">Angular momentum and torques</a></li>
+              </ul>
+            </div>
+            <div>
+              <h3>Tropical overturning</h3>
+              <ul>
+                <li><a href="/circulation.html#walker">Walker and Hadley cells</a></li>
+                <li><a href="/circulation.html#vpot">Velocity potential</a></li>
+                <li><a href="/circulation.html#gillrain">Rain-forced circulation (Gill model)</a></li>
+              </ul>
+            </div>
+          </div>
+        </li>
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g2">Stratosphere</button>
+          <div class="sh-menu sh-menu--cols" id="sh-g2">
+            <div>
+              <h3>Polar vortex and QBO</h3>
+              <ul>
+                <li><a href="/stratosphere.html">Stratosphere and polar vortex</a></li>
+                <li class="sh-subitem"><a href="/stratosphere.html#pv">Now: analyses and observations</a></li>
+                <li class="sh-subitem"><a href="/stratosphere.html#vortex">Next two weeks</a></li>
+                <li class="sh-subitem"><a href="/stratosphere.html#vortex35">Weeks 3–5</a></li>
+                <li class="sh-subitem"><a href="/stratosphere.html#s5vortex">Season</a></li>
+                <li class="sh-subitem"><a href="/stratosphere.html#shwinters">History and studies</a></li>
+                <li class="sh-subitem"><a href="/stratosphere.html#qbo">QBO tracker</a></li>
+              </ul>
+            </div>
+          </div>
+        </li>
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g3">Weeks to seasons</button>
+          <div class="sh-menu sh-menu--cols" id="sh-g3">
+            <div>
+              <h3>Weeks 2–5</h3>
+              <ul>
+                <li><a href="/subseasonal.html">GEPS extended ensemble</a></li>
+                <li><a href="/gefs.html">GEFS extended ensemble</a></li>
+                <li><a href="/sfs-subseasonal.html">SFS extended (experimental)</a></li>
+              </ul>
+            </div>
+            <div>
+              <h3>Seasons</h3>
+              <ul>
+                <li><a href="/seasonal.html">Seasonal model forecasts</a></li>
+                <li><a href="/enso-forecasts.html">ENSO forecasts</a></li>
+              </ul>
+            </div>
+          </div>
+        </li>
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g4"><span class="sh-lf">Studies and verification</span><span class="sh-ls">Studies/verification</span></button>
+          <div class="sh-menu sh-menu--cols" id="sh-g4">
+            <div>
+              <h3>Studies</h3>
+              <ul>
+                <li><a href="/enso.html#imp_reg">ENSO impacts on the Americas</a></li>
+                <li><a href="/mjo.html#mi">MJO impacts</a></li>
+                <li><a href="/stratosphere.html#shwinters">Stratosphere history</a></li>
+                <li><a href="/aifs-aam-budget.html">AINWP and conservation</a></li>
+                <li><a href="/torque-enso.html">El Niño and angular momentum</a></li>
+                <li><a href="/topics/">Explainers</a></li>
+              </ul>
+            </div>
+            <div>
+              <h3>Verification</h3>
+              <ul>
+                <li><a href="/aifs-verify.html">AIFS single versus member 0</a></li>
+              </ul>
+            </div>
+          </div>
+        </li>
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g5">Tools</button>
+          <div class="sh-menu sh-menu--list" id="sh-g5">
+            <ul>
+              <li><a href="/catalog.html">Every plot on the site</a></li>
+              <li><a href="/skewt/">Sounding explorer</a></li>
+              <li><a href="/asos5.html">Five-minute airport observations</a></li>
+              <li><a href="/climate.html">US climate trends</a></li>
+              <li><a href="/fci.html">US credit conditions</a></li>
+            </ul>
+          </div>
+        </li>
+        <li class="sh-item sh-item--special"><a class="sh-special" href="/midterms/">2026 Midterms</a></li>
+        <li class="sh-item sh-has-menu sh-item--me">
+          <button class="sh-link sh-menubtn sh-me" type="button" aria-expanded="false" aria-controls="sh-me">About</button>
+          <div class="sh-menu sh-menu--list sh-menu--me" id="sh-me">
+            <ul>
+              <li><a href="/about.html">About me</a></li>
+              <li><a href="/resume.html">Resume</a></li>
+              <li><a href="/research.html">Publications</a></li>
+              <li class="sh-me-ext"><a href="https://github.com/scorvec">GitHub</a></li>
+              <li><a href="https://scholar.google.com/citations?user=EYLRCJIAAAAJ&amp;hl=en">Google Scholar</a></li>
+              <li><a href="https://www.linkedin.com/in/shawn-corvec-35895b231/">LinkedIn</a></li>
+            </ul>
+          </div>
+        </li>
+      </ul>
+    </nav>
+  </div>
+</header>
+<!-- sh:end -->
+<main>
+
+<article class="study">
+  <p class="crumbs"><a href="/">Home</a> › Studies › Model drag intercomparison</p>
+  <h1>Conservation and drag in the US, ECMWF and Canadian global models</h1>
+  <p class="dek">Every global forecast model has to put angular momentum into the atmosphere and take it out again through
+  the ground: mountains push on the air where the surface pressure differs across them, and the surface, its roughness and
+  its unresolved hills drag on the wind. How strongly a model does this, and whether its angular momentum then changes by
+  exactly what its torques say, are questions about its drag and its conservation. This study runs eight global systems from
+  the United States, ECMWF and Canada through one angular-momentum budget, on each model's own grid and with one arithmetic,
+  against ERA5 and against the 2012 WGNE Drag Project. 00Z forecasts from 2026-09-14 to 2026-10-13; the sample grows daily.</p>
+
+  <section class="lede">
+  <h2>The short answer</h2>
+  <ul><li><b>Conservation of angular momentum.</b> With the stress each physics model publishes, the residual of its global budget (change in angular momentum minus the torques) is GFS +2.9 [+2.6, +3.6] Hadley on day 1 and +1.7 [+1.0, +2.3] on day 10 (its torques explain 99.7% of the day-1 variance); GEFS +11.2 [+8.6, +13.8] Hadley on day 1 and +14.6 [+12.6, +16.4] on day 10 (its torques explain 67% of the day-1 variance); IFS-ENS +3.0 [+1.6, +4.6] Hadley on day 1 and +3.0 [+1.9, +4.2] on day 10 (its torques explain 97.9% of the day-1 variance). GFS and GEFS publish the turbulent and the orographic gravity-wave/blocking stress; the open IFS data carry only the turbulent part (with turbulent orographic form drag), so an IFS residual includes its missing blocking and gravity-wave drag. ERA5 on the same days, with its own turbulent and gravity-wave stress, misses +17.2 [+16.1, +18.6] Hadley: its analysis increments, which no torque supplies.</li><li><b>Mass.</b> Global-mean surface-pressure change by day 10, in hPa. Physics models: GFS total <span class='ns'>+0.001 n.s.</span>, dry air −0.002 [−0.003, −0.002]; GEFS total −0.066 [−0.075, −0.057], dry air constant to within 0.001; IFS-ENS total constant to within 0.001, dry air +0.042 [+0.034, +0.050]; GDPS total −0.022 [−0.024, −0.022] (a step of −0.022 on day 1, then constant); GEPS total −0.012 (n = 2, too few to test). AI models: AIGFS total −0.065 [−0.124, −0.006]; AIFS total −0.252 [−0.306, −0.193], dry air −0.246 [−0.294, −0.183]; AIFS-ENS total <span class='ns'>−0.029 n.s.</span>, dry air <span class='ns'>−0.029 n.s.</span> (all hPa). The physics models constrain their mass (IFS and GDPS total mass, GFS, GEFS and GEPS dry air); an AI model has no such constraint and its surface pressure is free to drift.</li><li><b>Free-forecast drift.</b> Against its own analysis valid the same day, the wind-term angular momentum (11 common levels) at day 10 changes significantly in GFS −0.50 (SH −0.49); AIGFS −0.35 (SH −0.20, NH −0.15); IFS-ENS −0.18 (SH −0.17); AIFS +0.49 (SH +0.25, NH +0.24); AIFS-ENS +0.12 ×10²⁵ kg m² s⁻¹; the change is not significant in GEFS. For scale, ERA5's increments on these days add 0.15 ×10²⁵ a day (the <a href='/torque-enso.html'>torque study</a> measured the increments directly), and IFS-ENS lost −0.31 by day 15 in <a href='/aifs-aam-budget.html'>winter 2025–26</a>.</li><li><b>Surface drag against ERA5.</b> On days 6–10 the common bulk friction torque (which measures each model's near-surface wind, not its drag scheme) differs significantly from ERA5's in GFS +7.7; GEFS +7.7; AIGFS +8.0; IFS-ENS +7.6; AIFS +3.6; GDPS +4.5 Hadley (negative = more westerly drag than ERA5). On day 1 the models' own published stresses differ from ERA5's own (turbulent + gravity-wave) by GFS −3.2; GEFS −2.2; IFS-ENS +5.4 Hadley.</li><li><b>Low-level winds.</b> Over the Southern Ocean storm track (ocean 30–65°S) the 850 hPa westerlies at day 10 differ significantly from the model's own analysis in GFS −0.53; GEFS −0.60; AIGFS −0.46 m s⁻¹ (negative = weaker westerlies).</li><li><b>GEM after its 2019 drag changes.</b> GEPS (the unnudged GEM, 2 inits): day-10 angular-momentum drift against its own analysis not yet testable (×10²⁵; SH not yet testable, NH not yet testable); 850 hPa wind over ocean 30–65°S not yet testable and over rough terrain not yet testable (NH) (m s⁻¹); GDPS (5 inits, nudged toward GEML between 850 and 250 hPa): day-10 drift not yet testable, bulk budget residual on day 1 +19.1 [+17.3, +21.0] Hadley; on its 0.15° output the GDPS orography keeps 128 m RMS of sub-0.5° relief over land, rank 3 of 8 (GFS 131 m, IFS-ENS 131 m, AIGFS 114 m, AIFS 103 m, AIFS-ENS 103 m, GEFS 0 m, GEPS 0 m). GEM publishes no stress, so its blocking and boundary-layer changes show only in these totals, and the two cannot be separated; the finer grid and weaker orography filter show in the resolved mountain torque (section 7). The Canadian sample is the smallest and grows daily.</li><li><b>Sample.</b> 183 model-inits from 2026-09-14 to 2026-10-13 00Z (GFS 30, GEFS 30, AIGFS 26, IFS-ENS 30, AIFS 30, AIFS-ENS 30, GDPS 5, GEPS 2). The Canadian runs are collected daily from a 30-day public archive and their sample grows every day; this page is rebuilt daily (last rebuilt 2026-10-13).</li></ul>
+  </section>
+
+  <h2>1. What the 2012 drag intercomparison found, and what has changed since</h2>
+  <p>The WGNE Drag Project (Zadra et al., 2013; Sandu et al., 2016) asked ten models for their subgrid surface stress averaged
+  over the first 24 hours of a month of forecasts, January and July 2012. Over the oceans, where all the stress comes from the
+  boundary-layer scheme, the models largely agreed. Over land they did not: models of comparable resolution differed by as much
+  as 20% in zonal-mean total subgrid stress, and by a factor of two to three in its split between the boundary-layer and the
+  subgrid-orography schemes. IFS had the largest boundary-layer stress over mountains and the smallest orographic stress; the
+  Met Office, JMA and Bureau of Meteorology models had the opposite split; the Canadian GDPS (then 25 km) and Météo-France's
+  ARPEGE lay in between. The project began after the Canadian centre reported at WGNE in 2012 that adjusting its orographic
+  blocking and boundary-layer schemes had improved large-scale forecasts, and Sandu et al. (2016) showed that the partition
+  itself changes the circulation. Operational experience since has generally pointed the same way: more low-level drag has
+  tended to improve medium-range scores.</p>
+  <p>All three model families here have changed their drag since 2012:</p>
+  <ul>
+    <li><b>GEM (ECCC).</b> The 2019 upgrade touched every part of GEM's drag. The GDPS went from 25 to 15 km and from 80 to
+    84 levels in July 2019 (GDPS 7.0.0; ECCC, 2019). Its physics was rebuilt (McTaggart-Cowan et al., 2019), including the
+    low-level blocking, gravity-wave drag, boundary-layer and surface-layer schemes; the GDPS boundary layer became a revised
+    moist-TKE scheme with a new mixing length and boundary-layer clouds (ECCC, 2019). The orography filter was weakened: the old
+    smoother damped wavelengths out to about 20 grid lengths, the new scale-selective low-pass filter cuts off at 3 grid
+    lengths in the GDPS (Zadra, 2018; Zadra, 2022), giving a much sharper model orography. GEPS took the same GEM 5 physics and
+    the sharper orography in December 2021 (GEPS 7.0.0, 39 km, 84 levels), with its own critical phase for the blocking height
+    and a dry-air mass constraint where the GDPS conserves total mass (ECCC, 2021); it runs at 25 km since June 2024, with
+    stochastically perturbed parameters that include the strength of low-level blocking, the boundary layer's critical
+    Richardson number and the non-orographic gravity-wave source (ECCC, 2024). Since 26 May 2026 the GDPS is a hybrid: between
+    about 850 and 250 hPa its winds and temperature at scales longer than about 2,500 km are spectrally nudged toward ECCC's AI
+    model GEML (GDPS 10.0.0; ECCC, 2026). GEPS is not nudged, so GEPS is the cleaner test of the 2019 physics.</li>
+    <li><b>IFS (ECMWF).</b> Kanehama et al. (2022) rebuilt the subgrid-orography fields to represent scales below the model's
+    effective resolution, weakened turbulent orographic form drag and strengthened low-level flow blocking, which raised the
+    total parametrized stress in the northern mid-latitudes by 4–8% and made the momentum budget consistent across resolutions.
+    Cycle 48r1 (June 2023) introduced improved orographic fields for the drag and the 9 km ensemble.</li>
+    <li><b>GFS (NOAA).</b> GFS v16 (March 2021) replaced the boundary layer with a scale-aware TKE-EDMF scheme, added
+    non-stationary gravity-wave drag, and went to 127 levels with a model top near 80 km (NCEP EMC, 2021). GEFS is still v12
+    (September 2020), at C384 on 64 levels.</li>
+  </ul>
+  <p>What this study adds to the 2012 comparison: the 2026 versions; three AI models, which have no drag scheme at all and whose
+  torques are whatever their pressure and wind fields imply; a free-forecast budget that asks whether each model's drag drains
+  or feeds its angular momentum against its own analysis and ERA5, by lead and hemisphere; the resolved mountain torque on
+  each model's own grid, the place where GEM's 2019 change should show because GEM publishes no surface stress; and day-1
+  stresses in the WGNE form for the models that publish them, in January and July 2026, next to the 2012 values.</p>
+
+  <h2>2. Data and method</h2>
+  <div class='tw'><table class='res'><thead><tr><th>model</th><th>centre</th><th>resolution, grid used</th><th>levels (hPa)</th><th>members</th><th>00Z inits</th><th>first – last</th><th>own surface stress</th></tr></thead><tbody><tr><th scope='row'>GFS</th><td>NOAA/NCEP</td><td style='white-space:normal'>C768 (≈13 km); torque fields on its 3072×1536 Gaussian physics grid, winds 0.25°</td><td>41 (0.01–1000)</td><td>1</td><td>30</td><td>09-14 – 10-13</td><td style='white-space:normal'>turbulent (UFLX) + orographic GWD and blocking (U-GWD)</td></tr><tr><th scope='row'>GEFS</th><td>NOAA/NCEP</td><td style='white-space:normal'>C384 (≈25 km); 0.5° output</td><td>31 (1–1000)</td><td>control + 4</td><td>30</td><td>09-14 – 10-13</td><td style='white-space:normal'>turbulent + GWD/blocking</td></tr><tr><th scope='row'>AIGFS</th><td>NOAA/NCEP</td><td style='white-space:normal'>0.25° (an AI model initialised from GDAS)</td><td>13 (50–1000)</td><td>1</td><td>26</td><td>09-14 – 10-13</td><td style='white-space:normal'>none (AI)</td></tr><tr><th scope='row'>IFS-ENS</th><td>ECMWF</td><td style='white-space:normal'>TCo1279 (≈9 km); 0.25° output</td><td>14 (10–1000)</td><td>control (the 9 km deterministic run, to day 10) + 4</td><td>30</td><td>09-14 – 10-13</td><td style='white-space:normal'>turbulent incl. orographic form drag (ewss); no GWD/blocking stress</td></tr><tr><th scope='row'>AIFS</th><td>ECMWF</td><td style='white-space:normal'>N320 (≈31 km); 0.25° output</td><td>14 (10–1000)</td><td>1</td><td>30</td><td>09-14 – 10-13</td><td style='white-space:normal'>none (AI)</td></tr><tr><th scope='row'>AIFS-ENS</th><td>ECMWF</td><td style='white-space:normal'>N320 (≈31 km); 0.25° output</td><td>14 (10–1000)</td><td>control + 4</td><td>30</td><td>09-14 – 10-13</td><td style='white-space:normal'>none (AI)</td></tr><tr><th scope='row'>GDPS</th><td>ECCC</td><td style='white-space:normal'>Yin-Yang 15 km; 0.15° output</td><td>33 (1–1015)</td><td>1</td><td>5</td><td>09-14 – 09-18</td><td style='white-space:normal'>none published</td></tr><tr><th scope='row'>GEPS</th><td>ECCC</td><td style='white-space:normal'>Yin-Yang 25 km; 0.5° output</td><td>12 (10–1000)</td><td>control + 4</td><td>2</td><td>09-14 – 09-16</td><td style='white-space:normal'>none published</td></tr></tbody></table></div>
+  <p class="tcap">Inits used so far; "own surface stress" is what the model publishes in its open data. IFS-ENS member 0 is the
+  9 km deterministic run, identical in configuration to the ensemble control since cycle 48r1, which the open data publish to
+  day 10. GDPS forecasts run to day 10. Raw fields are read once and reduced on the fly; nothing is stored but the diagnostics.</p>
+  <ul>
+    <li><b>Angular momentum</b> $M = M_r + M_\Omega$: the wind term
+    $M_r = \frac{a^3}{g}\int u\cos^2\varphi\,d\lambda\,d\varphi\,dp$ between level mid-points, from 0 hPa to the surface
+    pressure (layers below ground removed), and the mass term $M_\Omega = \frac{\Omega a^4}{g}\int p_s\cos^3\varphi\,d\lambda\,
+    d\varphi$. The part of $M_\Omega$ that changes only because a model's total mass changes ($\tfrac23\Omega a^2\Delta m$) is
+    taken out of the budget, since no torque produces it. Comparisons between models use the <b>11 levels every model
+    publishes</b> (1000, 925, 850, 700, 500, 400, 300, 250, 200, 100, 50 hPa); each model's own budget uses all its levels.</li>
+    <li><b>Torques</b> on the atmosphere, positive when they add westerly momentum: mountain
+    $T_m = a^2\int h\,\partial p_s/\partial\lambda\,\cos\varphi\,d\lambda\,d\varphi$ from the model's <i>own</i> orography and
+    surface pressure on its own published grid, and again after averaging both to 0.5° and 1.5° (Brown, 2004); friction
+    $T_f = -a^3\int \tau_x\cos^2\varphi\,d\lambda\,d\varphi$ from (a) one <b>bulk law for every model</b>,
+    $\tau = C_d\,\rho\,|V_{10}|\,u_{10}$ with $C_d$ fitted per 5° cell and month to ERA5's turbulent stress 1991–2020
+    (the site's torque product), and (b) the model's own published stress where there is one. The bulk law cannot see a drag
+    scheme; its differences between models are differences in their 10 m wind. Torques are 6-hourly (so the daily and
+    semidiurnal tides cancel) and averaged over each forecast day; angular momentum is taken at the 24-hour steps.</li>
+    <li><b>References.</b> Each model's own analysis is its control member's step 0 on the verifying day (for the AI models
+    the analysis they start from: NOAA's GDAS for AIGFS, ECMWF's for AIFS and AIFS-ENS); ERA5 (ARCO-ERA5,
+    2026-09-14 to 2026-10-06) goes through the same code on 37 levels, with its own turbulent and gravity-wave stresses.
+    Drift against ERA5 is the forecast-minus-ERA5 difference at day d minus the same difference at day 0.</li>
+    <li><b>Regions</b> as in the torque study: rough terrain (above 1000 m, or subgrid orography standard deviation above 100 m)
+    plus 500 km downstream; ocean at 30–65°; other ocean; other land; each by hemisphere. One ERA5 land-sea mask for all models.</li>
+    <li><b>Statistics.</b> Members are averaged within an init, so an init is the unit. Means carry 95% moving-block bootstrap
+    intervals (blocks of 3 consecutive inits, 2,000 draws); model differences are paired on the same inits; each family of tests
+    (leads × hemispheres, leads × regions, ranges) is controlled with Benjamini–Hochberg at a 10% false-discovery rate. Values
+    that fail it are shown as n.s. and are not findings.</li>
+  </ul>
+
+  <h2>3. Conservation: does each model's angular momentum follow its torques, and does it keep its mass?</h2>
+  <figure id='fig1'><a href='/studies/model-drag-intercomparison/budget_residual.webp' class='zoom'><img src='/studies/model-drag-intercomparison/budget_residual.webp' alt="Budget residual by forecast day for each model, with the common bulk friction and with the model's own stress, and the explained fraction" loading='lazy'></a><figcaption><b>Figure 1.</b> Global budget residual, dM/dt minus the torques, by forecast day: (a) mountain torque plus the common bulk friction for every model, (b) mountain torque plus the model's own published stress (GFS and GEFS: turbulent and gravity-wave/blocking; IFS: turbulent only), (c) share of the daily change explained by mountain plus bulk friction torque. Mean and 95% interval over inits; filled where significant after the FDR. Grey band: ERA5 on the same days, whose residual is its analysis increments.</figcaption></figure>
+  <div class='tw'><table class='res'><thead><tr><th>dM/dt − torques (Hadley)</th><th>own, day 1</th><th>own, day 5</th><th>own, day 10</th><th>bulk, day 1</th><th>bulk, day 5</th><th>bulk, day 10</th><th>explained, day 1 (bulk)</th></tr></thead><tbody><tr><th scope='row'>GFS</th><td>+2.9 <span class='sig'>[+2.6, +3.6]</span></td><td>+2.0 <span class='sig'>[+1.5, +2.6]</span></td><td>+1.7 <span class='sig'>[+1.0, +2.3]</span></td><td>−2.8 <span class='sig'>[−5.4, −0.3]</span></td><td>−4.6 <span class='sig'>[−6.5, −3.0]</span></td><td>−5.2 <span class='sig'>[−6.3, −3.7]</span></td><td>97%</td></tr><tr><th scope='row'>GEFS</th><td>+11.2 <span class='sig'>[+8.6, +13.8]</span></td><td>+13.5 <span class='sig'>[+11.1, +16.6]</span></td><td>+14.6 <span class='sig'>[+12.6, +16.4]</span></td><td>+5.6 <span class='sig'>[+2.3, +8.0]</span></td><td>+8.0 <span class='sig'>[+5.7, +10.8]</span></td><td>+11.0 <span class='sig'>[+8.4, +14.1]</span></td><td>66%</td></tr><tr><th scope='row'>AIGFS</th><td class='ns'>no stress</td><td class='ns'>no stress</td><td class='ns'>no stress</td><td>+3.3 <span class='sig'>[+0.5, +5.9]</span></td><td>+7.8 <span class='sig'>[+3.7, +11.3]</span></td><td>+18.7 <span class='sig'>[+15.9, +21.8]</span></td><td>95%</td></tr><tr><th scope='row'>IFS-ENS</th><td>+3.0 <span class='sig'>[+1.6, +4.6]</span></td><td>+2.7 <span class='sig'>[+1.7, +3.8]</span></td><td>+3.0 <span class='sig'>[+1.9, +4.2]</span></td><td class='ns'>−0.5 n.s.</td><td class='ns'>−0.7 n.s.</td><td class='ns'>−0.3 n.s.</td><td>96%</td></tr><tr><th scope='row'>AIFS</th><td class='ns'>no stress</td><td class='ns'>no stress</td><td class='ns'>no stress</td><td>+12.8 <span class='sig'>[+9.7, +16.6]</span></td><td>+14.1 <span class='sig'>[+11.4, +17.2]</span></td><td>+12.6 <span class='sig'>[+8.6, +16.9]</span></td><td>94%</td></tr><tr><th scope='row'>AIFS-ENS</th><td class='ns'>no stress</td><td class='ns'>no stress</td><td class='ns'>no stress</td><td>+19.7 <span class='sig'>[+15.1, +24.4]</span></td><td>+17.7 <span class='sig'>[+14.7, +20.4]</span></td><td>+17.1 <span class='sig'>[+13.4, +20.8]</span></td><td>91%</td></tr><tr><th scope='row'>GDPS</th><td class='ns'>no stress</td><td class='ns'>no stress</td><td class='ns'>no stress</td><td>+19.1 <span class='sig'>[+17.3, +21.0]</span></td><td>+23.3 <span class='sig'>[+17.2, +28.1]</span></td><td>+26.8 <span class='sig'>[+23.5, +32.5]</span></td><td>91%</td></tr><tr><th scope='row'>GEPS</th><td class='ns'>no stress</td><td class='ns'>no stress</td><td class='ns'>no stress</td><td class='ns'>+6.7 (n=2)</td><td class='ns'>+10.2 (n=2)</td><td class='ns'>+8.8 (n=2)</td><td>72%</td></tr><tr class='diff'><th scope='row'>ERA5 (analysis days)</th><td>+17.2 <span class='sig'>[+16.1, +18.6]</span></td><td></td><td></td><td>+13.4 <span class='sig'>[+11.6, +15.5]</span></td><td></td><td></td><td>97%</td></tr></tbody></table></div>
+  <p class="tcap">"own" uses the model's published stress, "bulk" the common friction law; "explained" is one minus the residual
+  variance over the variance of dM/dt on day 1.</p>
+  <p>A model with complete published torques should close its budget to within its numerical errors. A residual with the
+  model's own stress therefore measures what its open data leave out (IFS's subgrid-orography stress; any non-orographic
+  gravity-wave momentum that leaves the top; momentum fixers) plus non-conservation in the dynamics. The bulk residual adds
+  the error of the common friction law, the same law for every model, so its <i>differences</i> between models are
+  differences in their 10 m winds and pressure. The GDPS residual also contains the nudging toward GEML, which adds or removes
+  momentum in the free troposphere without any torque.</p>
+  <figure id='fig2'><a href='/studies/model-drag-intercomparison/mass_drift.webp' class='zoom'><img src='/studies/model-drag-intercomparison/mass_drift.webp' alt="Global-mean surface pressure drift by forecast day for each model, total and dry air" loading='lazy'></a><figcaption><b>Figure 2.</b> Global-mean surface-pressure change since the analysis: (a) total mass, (b) dry air where the model publishes column water (GFS/GEFS precipitable water, ECMWF total column water). Mean and 95% interval over inits.</figcaption></figure>
+  <div class='tw'><table class='res'><thead><tr><th>global-mean p<sub>s</sub> change (hPa)</th><th>day 1</th><th>day 5</th><th>day 10</th><th>day 15</th><th>dry air, day 1</th><th>dry air, day 10</th></tr></thead><tbody><tr><th scope='row'>GFS</th><td class='ns'>+0.002 n.s.</td><td>+0.011 <span class='sig'>[+0.003, +0.017]</span></td><td class='ns'>+0.001 n.s.</td><td>−0.021 <span class='sig'>[−0.029, −0.012]</span></td><td>−0.002 <span class='sig'>[−0.002, −0.002]</span></td><td>−0.002 <span class='sig'>[−0.003, −0.002]</span></td></tr><tr><th scope='row'>GEFS</th><td>−0.011 <span class='sig'>[−0.013, −0.008]</span></td><td>−0.038 <span class='sig'>[−0.046, −0.032]</span></td><td>−0.066 <span class='sig'>[−0.075, −0.057]</span></td><td>−0.090 <span class='sig'>[−0.097, −0.084]</span></td><td class='ns'>+0.000 n.s.</td><td>+0.000 <span class='sig'>[+0.000, +0.000]</span></td></tr><tr><th scope='row'>AIGFS</th><td class='ns'>+0.010 n.s.</td><td class='ns'>−0.005 n.s.</td><td>−0.065 <span class='sig'>[−0.124, −0.006]</span></td><td>−0.181 <span class='sig'>[−0.233, −0.130]</span></td><td></td><td></td></tr><tr><th scope='row'>IFS-ENS</th><td class='ns'>−0.000 n.s.</td><td class='ns'>−0.000 n.s.</td><td>−0.000 <span class='sig'>[−0.000, −0.000]</span></td><td>−0.000 <span class='sig'>[−0.001, −0.000]</span></td><td class='ns'>+0.001 n.s.</td><td>+0.042 <span class='sig'>[+0.034, +0.050]</span></td></tr><tr><th scope='row'>AIFS</th><td class='ns'>−0.022 n.s.</td><td>−0.126 <span class='sig'>[−0.191, −0.068]</span></td><td>−0.252 <span class='sig'>[−0.306, −0.193]</span></td><td>−0.351 <span class='sig'>[−0.426, −0.290]</span></td><td>−0.023 <span class='sig'>[−0.055, −0.002]</span></td><td>−0.246 <span class='sig'>[−0.294, −0.183]</span></td></tr><tr><th scope='row'>AIFS-ENS</th><td class='ns'>−0.003 n.s.</td><td class='ns'>−0.022 n.s.</td><td class='ns'>−0.029 n.s.</td><td class='ns'>−0.005 n.s.</td><td class='ns'>+0.004 n.s.</td><td class='ns'>−0.029 n.s.</td></tr><tr><th scope='row'>GDPS</th><td>−0.022 <span class='sig'>[−0.024, −0.022]</span></td><td>−0.021 <span class='sig'>[−0.023, −0.021]</span></td><td>−0.022 <span class='sig'>[−0.024, −0.022]</span></td><td></td><td></td><td></td></tr><tr><th scope='row'>GEPS</th><td class='ns'>−0.002 (n=2)</td><td class='ns'>+0.003 (n=2)</td><td class='ns'>−0.012 (n=2)</td><td class='ns'>+0.001 (n=2)</td><td></td><td></td></tr></tbody></table></div>
+
+  <h2>4. Free-forecast drift: draining or feeding angular momentum</h2>
+  <p>The torque study found ERA5's analysis putting back westerly momentum that its forecast model loses, mostly below 850
+  hPa over the oceans and 83% of it in the Southern Hemisphere, and read that as boundary layers that mix too much momentum
+  down. The free-forecast counterpart is a drift of each model's angular momentum away from its own analysis.</p>
+  <figure id='fig3'><a href='/studies/model-drag-intercomparison/aam_drift_own.webp' class='zoom'><img src='/studies/model-drag-intercomparison/aam_drift_own.webp' alt="Wind-term AAM drift against the model's own analysis by forecast day, globally and by hemisphere" loading='lazy'></a><figcaption><b>Figure 3.</b> Wind-term angular momentum (11 common levels), forecast minus the model's own analysis valid the same day, by lead: global, Southern and Northern Hemisphere. Mean and 95% interval over inits; filled where significant after the FDR over leads × hemispheres.</figcaption></figure>
+  <div class='tw'><table class='res'><thead><tr><th>10²⁵ kg m² s⁻¹, vs own analysis</th><th>global d5</th><th>global d10</th><th>SH d5</th><th>SH d10</th><th>NH d5</th><th>NH d10</th></tr></thead><tbody><tr><th scope='row'>GFS</th><td>−0.38 <span class='sig'>[−0.42, −0.32]</span></td><td>−0.50 <span class='sig'>[−0.63, −0.30]</span></td><td>−0.25 <span class='sig'>[−0.29, −0.20]</span></td><td>−0.49 <span class='sig'>[−0.60, −0.37]</span></td><td>−0.13 <span class='sig'>[−0.15, −0.09]</span></td><td class='ns'>−0.01 n.s.</td></tr><tr><th scope='row'>GEFS</th><td>−0.15 <span class='sig'>[−0.22, −0.06]</span></td><td class='ns'>−0.05 n.s.</td><td>−0.09 <span class='sig'>[−0.15, −0.01]</span></td><td>−0.11 <span class='sig'>[−0.21, −0.01]</span></td><td>−0.06 <span class='sig'>[−0.09, −0.03]</span></td><td class='ns'>+0.06 n.s.</td></tr><tr><th scope='row'>AIGFS</th><td>−0.44 <span class='sig'>[−0.53, −0.36]</span></td><td>−0.35 <span class='sig'>[−0.51, −0.19]</span></td><td>−0.26 <span class='sig'>[−0.35, −0.18]</span></td><td>−0.20 <span class='sig'>[−0.33, −0.07]</span></td><td>−0.18 <span class='sig'>[−0.21, −0.15]</span></td><td>−0.15 <span class='sig'>[−0.19, −0.08]</span></td></tr><tr><th scope='row'>IFS-ENS</th><td>−0.14 <span class='sig'>[−0.20, −0.04]</span></td><td>−0.18 <span class='sig'>[−0.28, −0.06]</span></td><td>−0.11 <span class='sig'>[−0.18, −0.02]</span></td><td>−0.17 <span class='sig'>[−0.28, −0.05]</span></td><td class='ns'>−0.03 n.s.</td><td class='ns'>−0.01 n.s.</td></tr><tr><th scope='row'>AIFS</th><td>+0.10 <span class='sig'>[+0.04, +0.16]</span></td><td>+0.49 <span class='sig'>[+0.37, +0.69]</span></td><td class='ns'>+0.03 n.s.</td><td>+0.25 <span class='sig'>[+0.10, +0.43]</span></td><td>+0.07 <span class='sig'>[+0.03, +0.10]</span></td><td>+0.24 <span class='sig'>[+0.13, +0.36]</span></td></tr><tr><th scope='row'>AIFS-ENS</th><td class='ns'>+0.02 n.s.</td><td>+0.12 <span class='sig'>[−0.00, +0.23]</span></td><td>−0.06 <span class='sig'>[−0.09, −0.04]</span></td><td class='ns'>−0.01 n.s.</td><td>+0.08 <span class='sig'>[+0.02, +0.14]</span></td><td class='ns'>+0.12 n.s.</td></tr><tr><th scope='row'>GDPS</th><td></td><td></td><td></td><td></td><td></td><td></td></tr><tr><th scope='row'>GEPS</th><td></td><td></td><td></td><td></td><td></td><td></td></tr></tbody></table></div>
+  <ul><li>GFS: day 10 globally −0.50 [−0.63, −0.30], in the Southern Hemisphere −0.49 [−0.60, −0.37].</li><li>GEFS: day 10 in the Southern Hemisphere −0.11 [−0.21, −0.01].</li><li>AIGFS: day 10 globally −0.35 [−0.51, −0.19], in the Southern Hemisphere −0.20 [−0.33, −0.07], in the Northern Hemisphere −0.15 [−0.19, −0.08].</li><li>IFS-ENS: day 10 globally −0.18 [−0.28, −0.06], in the Southern Hemisphere −0.17 [−0.28, −0.05].</li><li>AIFS: day 10 globally +0.49 [+0.37, +0.69], in the Southern Hemisphere +0.25 [+0.10, +0.43], in the Northern Hemisphere +0.24 [+0.13, +0.36].</li><li>AIFS-ENS: day 10 globally +0.12 [−0.00, +0.23].</li><li>GDPS: no significant day-10 change against its own analysis.</li><li>GEPS: no significant day-10 change against its own analysis.</li></ul>
+  <figure id='fig4'><a href='/studies/model-drag-intercomparison/aam_drift_era5.webp' class='zoom'><img src='/studies/model-drag-intercomparison/aam_drift_era5.webp' alt="Wind-term AAM drift against ERA5 by forecast day" loading='lazy'></a><figcaption><b>Figure 4.</b> As Figure 3 but against ERA5 valid the same day, after removing each model's day-0 difference from ERA5. Shorter sample: ERA5 ends about six days before today.</figcaption></figure>
+  <div class='tw'><table class='res'><thead><tr><th>10²⁵ kg m² s⁻¹, vs ERA5</th><th>global d5</th><th>global d10</th><th>SH d5</th><th>SH d10</th><th>NH d5</th><th>NH d10</th></tr></thead><tbody><tr><th scope='row'>GFS</th><td>−0.36 <span class='sig'>[−0.39, −0.31]</span></td><td>−0.46 <span class='sig'>[−0.69, −0.20]</span></td><td>−0.23 <span class='sig'>[−0.27, −0.18]</span></td><td>−0.40 <span class='sig'>[−0.54, −0.31]</span></td><td>−0.13 <span class='sig'>[−0.15, −0.10]</span></td><td class='ns'>−0.06 n.s.</td></tr><tr><th scope='row'>GEFS</th><td>−0.11 <span class='sig'>[−0.16, −0.03]</span></td><td class='ns'>−0.09 n.s.</td><td class='ns'>−0.05 n.s.</td><td class='ns'>−0.06 n.s.</td><td>−0.07 <span class='sig'>[−0.10, −0.03]</span></td><td class='ns'>−0.02 n.s.</td></tr><tr><th scope='row'>AIGFS</th><td>−0.39 <span class='sig'>[−0.44, −0.35]</span></td><td>−0.26 <span class='sig'>[−0.40, −0.18]</span></td><td>−0.19 <span class='sig'>[−0.22, −0.15]</span></td><td>−0.12 <span class='sig'>[−0.26, −0.02]</span></td><td>−0.20 <span class='sig'>[−0.25, −0.18]</span></td><td>−0.15 <span class='sig'>[−0.19, −0.09]</span></td></tr><tr><th scope='row'>IFS-ENS</th><td>−0.07 <span class='sig'>[−0.12, −0.01]</span></td><td>−0.13 <span class='sig'>[−0.21, −0.08]</span></td><td class='ns'>−0.04 n.s.</td><td class='ns'>−0.04 n.s.</td><td>−0.03 <span class='sig'>[−0.06, −0.01]</span></td><td>−0.09 <span class='sig'>[−0.13, −0.07]</span></td></tr><tr><th scope='row'>AIFS</th><td>+0.13 <span class='sig'>[+0.10, +0.15]</span></td><td>+0.56 <span class='sig'>[+0.41, +0.76]</span></td><td>+0.07 <span class='sig'>[+0.04, +0.12]</span></td><td>+0.39 <span class='sig'>[+0.29, +0.51]</span></td><td>+0.06 <span class='sig'>[+0.01, +0.10]</span></td><td>+0.16 <span class='sig'>[+0.03, +0.29]</span></td></tr><tr><th scope='row'>AIFS-ENS</th><td class='ns'>−0.02 n.s.</td><td class='ns'>+0.02 n.s.</td><td>−0.07 <span class='sig'>[−0.10, −0.05]</span></td><td class='ns'>+0.06 n.s.</td><td class='ns'>+0.05 n.s.</td><td class='ns'>−0.04 n.s.</td></tr><tr><th scope='row'>GDPS</th><td class='ns'>+0.01 n.s.</td><td>+0.40 <span class='sig'>[+0.34, +0.63]</span></td><td class='ns'>−0.01 n.s.</td><td>+0.27 <span class='sig'>[+0.23, +0.39]</span></td><td class='ns'>+0.01 n.s.</td><td>+0.13 <span class='sig'>[+0.11, +0.24]</span></td></tr><tr><th scope='row'>GEPS</th><td class='ns'>+0.04 (n=2)</td><td class='ns'>+0.31 (n=2)</td><td class='ns'>−0.01 (n=2)</td><td class='ns'>+0.21 (n=2)</td><td class='ns'>+0.05 (n=2)</td><td class='ns'>+0.10 (n=2)</td></tr></tbody></table></div>
+  <p>The largest significant single-layer change at day 10 (×10²⁵ kg m² s⁻¹; FDR over levels × hemispheres): GFS: SH −0.118 at 700 hPa; GEFS: SH −0.066 at 700 hPa, NH +0.037 at 200 hPa; AIGFS: SH −0.099 at 700 hPa, NH −0.105 at 700 hPa; IFS-ENS: SH −0.055 at 500 hPa, NH +0.040 at 200 hPa; AIFS: SH +0.077 at 50 hPa, NH +0.125 at 50 hPa; AIFS-ENS: SH +0.016 at 50 hPa, NH +0.067 at 100 hPa.</p>
+  <figure id='fig5'><a href='/studies/model-drag-intercomparison/level_drift.webp' class='zoom'><img src='/studies/model-drag-intercomparison/level_drift.webp' alt="Day-10 AAM drift by pressure level and hemisphere" loading='lazy'></a><figcaption><b>Figure 5.</b> Where the day-10 drift sits: the angular momentum of each of the 11 common layers, forecast minus own analysis, by hemisphere. Dots: significant after the FDR over levels × hemispheres.</figcaption></figure>
+
+  <h2>5. Drag: how strong, against ERA5 and against each other</h2>
+  <div class='tw'><table class='res'><thead><tr><th>day-1 global torque (Hadley)</th><th>mountain</th><th>bulk friction</th><th>own turbulent</th><th>own GWD + blocking</th></tr></thead><tbody><tr><th scope='row'>GFS</th><td class='ns'>+14.6 n.s.</td><td class='ns'>−19.3 n.s.</td><td class='ns'>−16.5 n.s.</td><td class='ns'>−8.5 n.s.</td></tr><tr><th scope='row'>GEFS</th><td class='ns'>+4.5 n.s.</td><td class='ns'>−18.4 n.s.</td><td class='ns'>−15.2 n.s.</td><td class='ns'>−8.8 n.s.</td></tr><tr><th scope='row'>AIGFS</th><td class='ns'>+11.5 n.s.</td><td class='ns'>−20.0 n.s.</td><td></td><td></td></tr><tr><th scope='row'>IFS-ENS</th><td class='ns'>+14.2 n.s.</td><td class='ns'>−14.0 n.s.</td><td class='ns'>−17.5 n.s.</td><td></td></tr><tr><th scope='row'>AIFS</th><td class='ns'>+10.8 n.s.</td><td class='ns'>−17.8 n.s.</td><td></td><td></td></tr><tr><th scope='row'>AIFS-ENS</th><td class='ns'>+9.5 n.s.</td><td class='ns'>−18.3 n.s.</td><td></td><td></td></tr><tr><th scope='row'>GDPS</th><td class='ns'>+30.2 n.s.</td><td class='ns'>−14.4 n.s.</td><td></td><td></td></tr><tr><th scope='row'>GEPS</th><td class='ns'>+26.8 (n=2)</td><td class='ns'>−10.0 (n=2)</td><td></td><td></td></tr><tr class='diff'><th scope='row'>ERA5, same days</th><td class='ns'>+10.1 n.s.</td><td class='ns'>−19.2 n.s.</td><td class='ns'>−22.5 n.s.</td><td class='ns'>−0.6 n.s.</td></tr></tbody></table></div>
+  <p class="tcap">Day-1 global means over the inits (95% intervals where significant). Mountain torque swings by tens of
+  Hadley from day to day with the weather; friction is steadier.</p>
+  <figure id='fig6'><a href='/studies/model-drag-intercomparison/torque_bias.webp' class='zoom'><img src='/studies/model-drag-intercomparison/torque_bias.webp' alt="Global mountain, bulk friction and own-stress torques minus ERA5, day 1 and days 6 to 10" loading='lazy'></a><figcaption><b>Figure 6.</b> Global torques minus ERA5's on the same valid days: mountain torque on each model's own grid, the common bulk friction, and the model's own published stress against ERA5's own (turbulent + gravity-wave). Pale: day 1; solid: days 6–10. n.s. = not significant after the FDR.</figcaption></figure>
+  <div class='tw'><table class='res'><thead><tr><th>forecast − ERA5 (Hadley)</th><th>mountain d1</th><th>mountain d6–10</th><th>mountain 0.5° d1</th><th>mountain 0.5° d6–10</th><th>bulk friction d1</th><th>bulk friction d6–10</th><th>own stress d1</th><th>own stress d6–10</th></tr></thead><tbody><tr><th scope='row'>GFS</th><td>+2.8 <span class='sig'>[+2.1, +3.7]</span></td><td class='ns'>−1.6 n.s.</td><td>−3.3 <span class='sig'>[−4.1, −2.4]</span></td><td>−7.8 <span class='sig'>[−10.6, −4.4]</span></td><td class='ns'>+0.3 n.s.</td><td>+7.7 <span class='sig'>[+6.4, +9.0]</span></td><td>−3.2 <span class='sig'>[−4.6, −2.1]</span></td><td>+4.2 <span class='sig'>[+2.2, +5.5]</span></td></tr><tr><th scope='row'>GEFS</th><td>−7.2 <span class='sig'>[−8.4, −5.8]</span></td><td>−10.6 <span class='sig'>[−14.1, −8.4]</span></td><td>+3.4 <span class='sig'>[+2.4, +4.7]</span></td><td class='ns'>−0.2 n.s.</td><td class='ns'>+1.1 n.s.</td><td>+7.7 <span class='sig'>[+6.5, +8.2]</span></td><td>−2.2 <span class='sig'>[−3.5, −1.0]</span></td><td>+5.1 <span class='sig'>[+3.2, +6.2]</span></td></tr><tr><th scope='row'>AIGFS</th><td>−0.9 <span class='sig'>[−1.6, −0.0]</span></td><td>−10.4 <span class='sig'>[−17.6, −5.9]</span></td><td>−2.9 <span class='sig'>[−3.5, −2.1]</span></td><td>−12.2 <span class='sig'>[−18.7, −7.9]</span></td><td class='ns'>−0.6 n.s.</td><td>+8.0 <span class='sig'>[+6.8, +10.2]</span></td><td></td><td></td></tr><tr><th scope='row'>IFS-ENS</th><td>+2.5 <span class='sig'>[+1.8, +3.3]</span></td><td class='ns'>+0.5 n.s.</td><td>−1.1 <span class='sig'>[−1.7, −0.4]</span></td><td class='ns'>−3.0 n.s.</td><td>+5.2 <span class='sig'>[+4.8, +5.8]</span></td><td>+7.6 <span class='sig'>[+6.2, +9.0]</span></td><td>+5.4 <span class='sig'>[+4.3, +6.4]</span></td><td>+8.4 <span class='sig'>[+5.9, +10.4]</span></td></tr><tr><th scope='row'>AIFS</th><td>−1.1 <span class='sig'>[−1.9, −0.3]</span></td><td class='ns'>+0.1 n.s.</td><td>−1.8 <span class='sig'>[−2.6, −1.0]</span></td><td class='ns'>+0.3 n.s.</td><td>+1.0 <span class='sig'>[+0.7, +1.2]</span></td><td>+3.6 <span class='sig'>[+2.6, +4.8]</span></td><td></td><td></td></tr><tr><th scope='row'>AIFS-ENS</th><td>−2.1 <span class='sig'>[−2.7, −1.6]</span></td><td>−4.5 <span class='sig'>[−7.9, −1.4]</span></td><td>−2.9 <span class='sig'>[−3.4, −2.4]</span></td><td>−5.8 <span class='sig'>[−9.1, −2.7]</span></td><td>+0.6 <span class='sig'>[+0.2, +0.9]</span></td><td class='ns'>+0.8 n.s.</td><td></td><td></td></tr><tr><th scope='row'>GDPS</th><td>−16.0 <span class='sig'>[−16.8, −15.5]</span></td><td>−14.9 <span class='sig'>[−14.9, −10.2]</span></td><td>−11.8 <span class='sig'>[−12.2, −11.4]</span></td><td>−10.8 <span class='sig'>[−10.8, −6.3]</span></td><td>−2.9 <span class='sig'>[−4.4, −2.3]</span></td><td>+4.5 <span class='sig'>[+2.7, +4.5]</span></td><td></td><td></td></tr><tr><th scope='row'>GEPS</th><td class='ns'>−6.4 (n=2)</td><td class='ns'>−4.8 (n=2)</td><td class='ns'>+4.0 (n=2)</td><td class='ns'>+5.5 (n=2)</td><td class='ns'>+1.7 (n=2)</td><td class='ns'>+4.1 (n=2)</td><td></td><td></td></tr></tbody></table></div>
+  <p>Where the drag acts: the friction torque summed over each region (negative = the surface takes westerly momentum out).
+  ERA5 is the mean over its analysis days in the window. Descriptive (means over inits and days 1–10).</p>
+  <div class='tw'><table class='res'><thead><tr><th>friction torque, days 1–10 (Hadley)</th><th>rough terrain and 500 km downstream, NH</th><th>rough terrain and 500 km downstream, SH</th><th>ocean 30–65°, NH</th><th>ocean 30–65°, SH</th><th>other ocean, NH</th><th>other ocean, SH</th><th>other land, NH</th><th>other land, SH</th></tr></thead><tbody><tr class='grp'><th scope='row'>common bulk law</th></tr><tr><th scope='row'>GFS</th><td>−2.5</td><td>+7.1</td><td>−6.6</td><td>−54.8</td><td>+8.2</td><td>+30.1</td><td>−0.7</td><td>+5.5</td></tr><tr><th scope='row'>GEFS</th><td>−2.6</td><td>+7.0</td><td>−6.5</td><td>−55.6</td><td>+8.8</td><td>+31.7</td><td>−1.2</td><td>+5.7</td></tr><tr><th scope='row'>AIGFS</th><td>−2.6</td><td>+5.7</td><td>−7.2</td><td>−52.5</td><td>+10.5</td><td>+29.0</td><td>−1.2</td><td>+4.3</td></tr><tr><th scope='row'>IFS-ENS</th><td>−1.9</td><td>+8.4</td><td>−6.8</td><td>−55.2</td><td>+9.2</td><td>+30.8</td><td>−0.9</td><td>+4.4</td></tr><tr><th scope='row'>AIFS</th><td>−1.8</td><td>+7.3</td><td>−7.3</td><td>−54.8</td><td>+9.7</td><td>+28.0</td><td>−0.9</td><td>+4.0</td></tr><tr><th scope='row'>AIFS-ENS</th><td>−1.9</td><td>+7.6</td><td>−7.6</td><td>−56.8</td><td>+9.4</td><td>+27.8</td><td>−1.1</td><td>+4.0</td></tr><tr><th scope='row'>GDPS</th><td>−0.8</td><td>+10.1</td><td>−4.8</td><td>−57.2</td><td>+7.2</td><td>+24.3</td><td>−2.3</td><td>+6.5</td></tr><tr><th scope='row'>GEPS</th><td>−0.7</td><td>+9.8</td><td>−3.2</td><td>−57.1</td><td>+7.1</td><td>+25.1</td><td>−3.0</td><td>+7.2</td></tr><tr class='diff'><th scope='row'>ERA5</th><td>−1.7</td><td>+7.9</td><td>−5.7</td><td>−57.4</td><td>+6.6</td><td>+26.9</td><td>−0.9</td><td>+5.1</td></tr><tr class='grp'><th scope='row'>own published stress</th></tr><tr><th scope='row'>GFS turbulent</th><td>−0.6</td><td>+8.7</td><td>−5.4</td><td>−51.0</td><td>+6.5</td><td>+25.6</td><td>−0.9</td><td>+5.8</td></tr><tr><th scope='row'>GFS GWD + blocking</th><td>−7.4</td><td>−1.9</td><td>−0.0</td><td>−0.0</td><td>+0.0</td><td>+0.1</td><td>+0.1</td><td>+0.4</td></tr><tr><th scope='row'>GEFS turbulent</th><td>−0.5</td><td>+8.8</td><td>−5.2</td><td>−52.1</td><td>+7.2</td><td>+27.6</td><td>−1.2</td><td>+6.2</td></tr><tr><th scope='row'>GEFS GWD + blocking</th><td>−6.9</td><td>−1.7</td><td>+0.0</td><td>−0.0</td><td>−0.4</td><td>−0.1</td><td>+0.0</td><td>+0.5</td></tr><tr><th scope='row'>IFS-ENS turbulent</th><td>−4.8</td><td>+6.3</td><td>−5.7</td><td>−50.8</td><td>+8.4</td><td>+28.4</td><td>−2.4</td><td>+5.3</td></tr><tr class='diff'><th scope='row'>ERA5 turbulent</th><td>−5.3</td><td>+6.0</td><td>−4.7</td><td>−54.6</td><td>+5.7</td><td>+25.4</td><td>−2.5</td><td>+7.5</td></tr><tr class='diff'><th scope='row'>ERA5 GWD + blocking</th><td>−0.4</td><td>−0.3</td><td>−0.0</td><td>−0.0</td><td>−0.0</td><td>+0.0</td><td>+0.0</td><td>+0.1</td></tr></tbody></table></div>
+  <h3>Day-1 stresses in the WGNE form</h3>
+  <p>The 2012 project plotted the zonal-mean stress times $a^3\cos^2\varphi$ (N m) averaged over the first 24 hours of each 00Z
+  forecast. The same quantity for January and July 2026, from the models that publish their stress, puts the 2026 models on the
+  2012 axes:</p>
+  <figure id='fig7'><a href='/studies/model-drag-intercomparison/wgne_day1.webp' class='zoom'><img src='/studies/model-drag-intercomparison/wgne_day1.webp' alt="Zonal-mean day-1 surface stress over land, orographic stress and total, January and July 2026, with the 2012 peak values" loading='lazy'></a><figcaption><b>Figure 7.</b> Day-1 zonal-mean subgrid stress in the WGNE form, January (top) and July 2026 (bottom): boundary-layer stress over land, subgrid-orography stress, and the total over all surfaces. Grey box and coloured bars: the 2012 northern peak values read off the WGNE report's Figure 13 (January 2012). IFS publishes no orographic stress.</figcaption></figure>
+  <div class='tw'><table class='res'><thead><tr><th>January, NH peak, 10¹⁹ N m</th><th>IFS 2012</th><th>GDPS 2012</th><th>2012 high-resolution range</th><th>IFS 2026</th><th>GFS 2026</th><th>GEFS 2026</th><th>ERA5 2026</th></tr></thead><tbody><tr><th scope='row'>boundary-layer stress over land</th><td>0.85</td><td>0.52</td><td>0.33–0.55</td><td>0.90 <span class='sig'>(38°N, n=31)</span></td><td>0.46 <span class='sig'>(42°N, n=31)</span></td><td>0.45 <span class='sig'>(42°N, n=31)</span></td><td>0.99 <span class='sig'>(38°N, n=31)</span></td></tr><tr><th scope='row'>subgrid-orography stress</th><td>0.20</td><td>0.60</td><td>0.40–1.25</td><td></td><td>1.10 <span class='sig'>(38°N, n=31)</span></td><td>1.17 <span class='sig'>(38°N, n=31)</span></td><td>0.32 <span class='sig'>(38°N, n=31)</span></td></tr><tr><th scope='row'>total subgrid stress, all surfaces</th><td>1.85</td><td>1.90</td><td>1.60–2.35</td><td></td><td>2.70 <span class='sig'>(38°N, n=31)</span></td><td>2.74 <span class='sig'>(38°N, n=31)</span></td><td>2.52 <span class='sig'>(38°N, n=31)</span></td></tr><tr class='grp'><th scope='row'>July, SH peak</th></tr><tr><th scope='row'>total subgrid stress, all surfaces</th><td></td><td></td><td>2.20–2.50</td><td></td><td>1.73 <span class='sig'>(52°S, n=31)</span></td><td>1.77 <span class='sig'>(52°S, n=31)</span></td><td>1.77 <span class='sig'>(52°S, n=31)</span></td></tr></tbody></table></div>
+  <p class="tcap">2012 values read off Figure 13 of the WGNE Drag Project report (Zadra et al., 2013), January 2012, first
+  24 h, to about ±0.05 ×10¹⁹ N m; "high-resolution range" spans the eight models other than CPTEC's two AGCMs. 2026: mean
+  of the 00Z forecasts of the month, northern peak between 25 and 65°N. The 2012 GDPS and IFS are not today's models.</p>
+
+  <h2>6. Low-level winds: do they weaken or strengthen as the forecast runs?</h2>
+  <p>In the torque study ERA5's analysis weakened both the trades and the mid-latitude surface westerlies. Here the same
+  regions show how each model's low-level winds move away from its own analysis by day 10.</p>
+  <figure id='fig8'><a href='/studies/model-drag-intercomparison/wind_drift.webp' class='zoom'><img src='/studies/model-drag-intercomparison/wind_drift.webp' alt="Day-10 drift of 10 m wind speed and 850 hPa zonal wind by region and model" loading='lazy'></a><figcaption><b>Figure 8.</b> Day-10 forecast minus the model's own analysis, averaged over each region: 10 m wind speed (left) and 850 hPa zonal wind (right). Coloured where significant after the FDR over regions × leads.</figcaption></figure>
+  <div class='tw'><table class='res'><thead><tr><th>850 hPa u, day 10 − own analysis (m s⁻¹)</th><th>rough terrain and 500 km downstream, NH</th><th>rough terrain and 500 km downstream, SH</th><th>ocean 30–65°, NH</th><th>ocean 30–65°, SH</th><th>other ocean, NH</th><th>other ocean, SH</th><th>other land, NH</th><th>other land, SH</th></tr></thead><tbody><tr><th scope='row'>GFS</th><td class='ns'>+0.04 n.s.</td><td class='ns'>−0.18 n.s.</td><td>−1.23 <span class='sig'>[−1.57, −0.82]</span></td><td>−0.53 <span class='sig'>[−0.89, −0.22]</span></td><td class='ns'>+0.41 n.s.</td><td>−0.60 <span class='sig'>[−1.05, −0.16]</span></td><td class='ns'>−0.15 n.s.</td><td class='ns'>+0.03 n.s.</td></tr><tr><th scope='row'>GEFS</th><td class='ns'>+0.04 n.s.</td><td class='ns'>−0.11 n.s.</td><td>−0.92 <span class='sig'>[−1.33, −0.46]</span></td><td>−0.60 <span class='sig'>[−0.94, −0.31]</span></td><td class='ns'>+0.26 n.s.</td><td class='ns'>−0.34 n.s.</td><td class='ns'>−0.09 n.s.</td><td class='ns'>+0.11 n.s.</td></tr><tr><th scope='row'>AIGFS</th><td class='ns'>−0.04 n.s.</td><td class='ns'>−0.08 n.s.</td><td class='ns'>−0.55 n.s.</td><td>−0.46 <span class='sig'>[−0.69, −0.25]</span></td><td>−0.94 <span class='sig'>[−1.26, −0.53]</span></td><td>−0.59 <span class='sig'>[−0.87, −0.34]</span></td><td class='ns'>+0.14 n.s.</td><td>−0.44 <span class='sig'>[−0.87, −0.06]</span></td></tr><tr><th scope='row'>IFS-ENS</th><td>−0.11 <span class='sig'>[−0.23, −0.01]</span></td><td class='ns'>−0.06 n.s.</td><td>−0.66 <span class='sig'>[−0.98, −0.34]</span></td><td class='ns'>−0.20 n.s.</td><td class='ns'>−0.20 n.s.</td><td class='ns'>−0.27 n.s.</td><td class='ns'>−0.04 n.s.</td><td class='ns'>−0.18 n.s.</td></tr><tr><th scope='row'>AIFS</th><td class='ns'>+0.02 n.s.</td><td class='ns'>+0.12 n.s.</td><td>−0.43 <span class='sig'>[−0.74, −0.01]</span></td><td class='ns'>−0.30 n.s.</td><td>−0.33 <span class='sig'>[−0.59, −0.04]</span></td><td class='ns'>−0.10 n.s.</td><td class='ns'>−0.31 n.s.</td><td class='ns'>−0.37 n.s.</td></tr><tr><th scope='row'>AIFS-ENS</th><td>+0.14 <span class='sig'>[+0.04, +0.25]</span></td><td class='ns'>+0.13 n.s.</td><td class='ns'>−0.48 n.s.</td><td class='ns'>−0.12 n.s.</td><td class='ns'>−0.35 n.s.</td><td class='ns'>−0.02 n.s.</td><td class='ns'>+0.04 n.s.</td><td class='ns'>−0.30 n.s.</td></tr><tr><th scope='row'>GDPS</th><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr><tr><th scope='row'>GEPS</th><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr></tbody></table></div>
+  <div class='tw'><table class='res'><thead><tr><th>10 m speed, day 10 − own analysis (m s⁻¹)</th><th>rough terrain and 500 km downstream, NH</th><th>rough terrain and 500 km downstream, SH</th><th>ocean 30–65°, NH</th><th>ocean 30–65°, SH</th><th>other ocean, NH</th><th>other ocean, SH</th><th>other land, NH</th><th>other land, SH</th></tr></thead><tbody><tr><th scope='row'>GFS</th><td>+0.10 <span class='sig'>[+0.06, +0.19]</span></td><td class='ns'>+0.04 n.s.</td><td class='ns'>+0.18 n.s.</td><td class='ns'>−0.09 n.s.</td><td class='ns'>+0.05 n.s.</td><td class='ns'>+0.10 n.s.</td><td class='ns'>+0.03 n.s.</td><td>+0.26 <span class='sig'>[+0.09, +0.42]</span></td></tr><tr><th scope='row'>GEFS</th><td>+0.23 <span class='sig'>[+0.19, +0.28]</span></td><td>+0.11 <span class='sig'>[+0.01, +0.21]</span></td><td>+0.18 <span class='sig'>[+0.08, +0.34]</span></td><td>−0.24 <span class='sig'>[−0.50, −0.07]</span></td><td>+0.22 <span class='sig'>[+0.12, +0.33]</span></td><td class='ns'>+0.14 n.s.</td><td>+0.12 <span class='sig'>[+0.04, +0.18]</span></td><td>+0.29 <span class='sig'>[+0.15, +0.41]</span></td></tr><tr><th scope='row'>AIGFS</th><td>−0.41 <span class='sig'>[−0.45, −0.32]</span></td><td>−0.36 <span class='sig'>[−0.43, −0.24]</span></td><td>−0.43 <span class='sig'>[−0.55, −0.19]</span></td><td>−0.70 <span class='sig'>[−1.00, −0.53]</span></td><td>−0.17 <span class='sig'>[−0.29, −0.05]</span></td><td class='ns'>−0.01 n.s.</td><td>−0.47 <span class='sig'>[−0.60, −0.35]</span></td><td>−0.26 <span class='sig'>[−0.47, −0.02]</span></td></tr><tr><th scope='row'>IFS-ENS</th><td class='ns'>−0.00 n.s.</td><td>+0.17 <span class='sig'>[+0.05, +0.32]</span></td><td class='ns'>+0.06 n.s.</td><td class='ns'>−0.10 n.s.</td><td>−0.27 <span class='sig'>[−0.37, −0.12]</span></td><td>+0.24 <span class='sig'>[+0.07, +0.40]</span></td><td>−0.08 <span class='sig'>[−0.15, −0.01]</span></td><td>+0.12 <span class='sig'>[−0.00, +0.20]</span></td></tr><tr><th scope='row'>AIFS</th><td>−0.27 <span class='sig'>[−0.32, −0.22]</span></td><td>−0.19 <span class='sig'>[−0.32, −0.04]</span></td><td>−0.13 <span class='sig'>[−0.25, −0.05]</span></td><td>−0.24 <span class='sig'>[−0.50, −0.03]</span></td><td>−0.26 <span class='sig'>[−0.40, −0.11]</span></td><td class='ns'>−0.05 n.s.</td><td>−0.32 <span class='sig'>[−0.36, −0.24]</span></td><td>−0.18 <span class='sig'>[−0.30, −0.07]</span></td></tr><tr><th scope='row'>AIFS-ENS</th><td class='ns'>−0.00 n.s.</td><td class='ns'>+0.02 n.s.</td><td class='ns'>+0.19 n.s.</td><td class='ns'>−0.04 n.s.</td><td class='ns'>−0.02 n.s.</td><td class='ns'>+0.11 n.s.</td><td class='ns'>+0.01 n.s.</td><td class='ns'>+0.05 n.s.</td></tr><tr><th scope='row'>GDPS</th><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr><tr><th scope='row'>GEPS</th><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr></tbody></table></div>
+  <p class="tcap">Trade-wind regions have easterly (negative) u: there a positive change means weaker trades. Ocean 30–65° has
+  westerlies: a negative change means weaker westerlies.</p>
+
+  <h2>7. Mountain torque, resolution and GEM's 2019 changes</h2>
+  <p><b>What the GEM numbers can and cannot separate.</b> GEM publishes no surface stress, so the four 2019 changes show in
+  different places. Finer resolution and the weaker orography filter should show as a larger resolved mountain torque on the
+  native grid, in the part a 0.5° grid cannot see: compare the GDPS on its 0.15° output with itself averaged to 0.5°, with
+  GEPS (0.5° output), and with the other models on both grids. The blocking and boundary-layer changes show only in totals:
+  the drift of angular momentum against the model's own analysis and ERA5, by hemisphere (section 4), and the change of the
+  low-level wind with lead over the oceans and over rough terrain (section 6). This study cannot split blocking from the
+  boundary layer. And between 850 and 250 hPa the GDPS's large scales follow GEML, so its drift and budget are partly an AI
+  model's; GEPS is the cleaner GEM test.</p>
+  <p>Averaging $p_s$ and $h$ together to 0.5° removes exactly the torque carried at finer scales. The table gives each model's
+  mean torque on its own grid and at 0.5° and 1.5°, the fine-scale part (own grid minus 0.5°) by range, and how much sub-0.5°
+  relief its orography keeps.</p>
+  <figure id='fig9'><a href='/studies/model-drag-intercomparison/mountain_resolution.webp' class='zoom'><img src='/studies/model-drag-intercomparison/mountain_resolution.webp' alt="Mean mountain torque by range on each model's grid and at 0.5 and 1.5 degrees" loading='lazy'></a><figcaption><b>Figure 9.</b> Mean resolved mountain torque, days 1–10, by range: each model's own published grid (solid), and with surface pressure and orography averaged together to 0.5° (mid) and 1.5° (pale). ERA5 on its analysis days.</figcaption></figure>
+  <figure id='fig10'><a href='/studies/model-drag-intercomparison/orography_scales.webp' class='zoom'><img src='/studies/model-drag-intercomparison/orography_scales.webp' alt="Sub-0.5-degree relief kept by each model's orography, by range" loading='lazy'></a><figcaption><b>Figure 10.</b> RMS of each model's orography minus its 0.5° area mean, by range and over all land, as published on its output grid.</figcaption></figure>
+  <div class='tw'><table class='res'><thead><tr><th>mountain torque (Hadley)</th><th>global, own grid</th><th>global, 0.5°</th><th>global, 1.5°</th><th>Himalaya/Tibet: own − 0.5°</th><th>Rockies: own − 0.5°</th><th>Andes: own − 0.5°</th><th>Greenland: own − 0.5°</th><th>Antarctica: own − 0.5°</th><th>Alps/Europe: own − 0.5°</th><th>sub-0.5° relief over land (m RMS)</th></tr></thead><tbody><tr><th scope='row'>GFS</th><td>+10.3</td><td>−6.5</td><td>−32.7</td><td>+37.2 <span class='sig'>[+37.0, +37.3]</span></td><td>+5.9 <span class='sig'>[+5.9, +6.0]</span></td><td>+53.4 <span class='sig'>[+53.2, +53.6]</span></td><td>+0.1 <span class='sig'>[+0.1, +0.1]</span></td><td>−0.2 <span class='sig'>[−0.2, −0.1]</span></td><td>+0.2 <span class='sig'>[+0.1, +0.2]</span></td><td>131</td></tr><tr><th scope='row'>GEFS</th><td>+3.5</td><td>+3.5</td><td>−27.4</td><td class='ns'>+0.0 n.s.</td><td class='ns'>+0.0 n.s.</td><td class='ns'>+0.0 n.s.</td><td class='ns'>+0.0 n.s.</td><td class='ns'>+0.0 n.s.</td><td class='ns'>+0.0 n.s.</td><td>0</td></tr><tr><th scope='row'>AIGFS</th><td>+0.7</td><td>−11.2</td><td>−36.2</td><td>+36.4 <span class='sig'>[+36.1, +36.8]</span></td><td>+8.1 <span class='sig'>[+8.0, +8.2]</span></td><td>+44.1 <span class='sig'>[+44.0, +44.2]</span></td><td>+0.3 <span class='sig'>[+0.3, +0.4]</span></td><td class='ns'>−0.0 n.s.</td><td>+2.7 <span class='sig'>[+2.7, +2.7]</span></td><td>114</td></tr><tr><th scope='row'>IFS-ENS</th><td>+10.2</td><td>−3.9</td><td>−30.2</td><td>+38.0 <span class='sig'>[+37.8, +38.1]</span></td><td>+7.8 <span class='sig'>[+7.8, +7.9]</span></td><td>+45.3 <span class='sig'>[+45.1, +45.5]</span></td><td>+0.4 <span class='sig'>[+0.4, +0.4]</span></td><td>−0.3 <span class='sig'>[−0.3, −0.3]</span></td><td>+2.6 <span class='sig'>[+2.6, +2.7]</span></td><td>131</td></tr><tr><th scope='row'>AIFS</th><td>+10.4</td><td>+0.2</td><td>−26.9</td><td>+33.4 <span class='sig'>[+33.3, +33.6]</span></td><td>+7.4 <span class='sig'>[+7.4, +7.5]</span></td><td>+44.8 <span class='sig'>[+44.6, +44.9]</span></td><td>+0.5 <span class='sig'>[+0.5, +0.5]</span></td><td>−0.1 <span class='sig'>[−0.1, −0.0]</span></td><td>+2.5 <span class='sig'>[+2.5, +2.5]</span></td><td>103</td></tr><tr><th scope='row'>AIFS-ENS</th><td>+6.3</td><td>−5.6</td><td>−31.3</td><td>+33.8 <span class='sig'>[+33.6, +33.9]</span></td><td>+7.5 <span class='sig'>[+7.5, +7.6]</span></td><td>+45.4 <span class='sig'>[+45.3, +45.5]</span></td><td>+0.5 <span class='sig'>[+0.5, +0.5]</span></td><td>−0.1 <span class='sig'>[−0.1, −0.0]</span></td><td>+2.5 <span class='sig'>[+2.5, +2.6]</span></td><td>103</td></tr><tr><th scope='row'>GDPS</th><td>+1.3</td><td>−5.4</td><td>−22.3</td><td>+44.3 <span class='sig'>[+44.2, +44.3]</span></td><td>+5.5 <span class='sig'>[+5.4, +5.5]</span></td><td>+47.6 <span class='sig'>[+47.6, +47.7]</span></td><td>−0.1 <span class='sig'>[−0.1, −0.0]</span></td><td>+0.4 <span class='sig'>[+0.4, +0.4]</span></td><td>+2.3 <span class='sig'>[+2.2, +2.3]</span></td><td>128</td></tr><tr><th scope='row'>GEPS</th><td>+6.8</td><td>+6.8</td><td>−26.6</td><td class='ns'>+0.0 (n=2)</td><td class='ns'>+0.0 (n=2)</td><td class='ns'>+0.0 (n=2)</td><td class='ns'>+0.0 (n=2)</td><td class='ns'>+0.0 (n=2)</td><td class='ns'>+0.0 (n=2)</td><td>0</td></tr><tr class='diff'><th scope='row'>ERA5 (analysis days)</th><td>+10.1</td><td>−0.5</td><td>−25.9</td><td>+32.6</td><td>+7.5</td><td>+43.3</td><td>+0.4</td><td>−0.1</td><td>+2.9</td><td>89</td></tr></tbody></table></div>
+  <p>Within GEM, the GDPS-against-GEPS comparison on common inits needs at least four shared inits; it will appear as the Canadian sample grows.</p>
+  <p>Significant fine-scale (own grid minus 0.5°) mountain torque, FDR over ranges: Himalaya/Tibet: GFS +37.2, AIGFS +36.4, IFS-ENS +38.0, AIFS +33.4, AIFS-ENS +33.8, GDPS +44.3; Rockies: GFS +5.9, AIGFS +8.1, IFS-ENS +7.8, AIFS +7.4, AIFS-ENS +7.5, GDPS +5.5; Andes: GFS +53.4, AIGFS +44.1, IFS-ENS +45.3, AIFS +44.8, AIFS-ENS +45.4, GDPS +47.6; Greenland: GFS +0.1, AIGFS +0.3, IFS-ENS +0.4, AIFS +0.5, AIFS-ENS +0.5, GDPS −0.1; Antarctica: GFS −0.2, IFS-ENS −0.3, AIFS −0.1, AIFS-ENS −0.1, GDPS +0.4; Alps/Europe: GFS +0.2, AIGFS +2.7, IFS-ENS +2.6, AIFS +2.5, AIFS-ENS +2.5, GDPS +2.3 Hadley. The published grids are
+  interpolations of the models' native grids (0.15° for GDPS, 0.25° for the ECMWF models and AIGFS, 0.5° for GEFS and GEPS; only
+  GFS's torque fields are on its own Gaussian physics grid), so a fine-scale difference is the model's orography as seen at
+  the published resolution, not its native one. Vertical sampling: for ERA5 the 37-level wind term is on average +0.20 ×10²⁵ kg m² s⁻¹ larger than on the 11 common levels, while their daily tendencies differ with an sd of only 6.3 Hadley (correlation 0.961): the level set shifts the size of angular momentum far more than its change, which is why drifts and budgets compare well across models with different levels.</p>
+
+  <h2>8. Ranking</h2>
+  <div class='tw'><table class='res'><thead><tr><th>day 10 (smallest |value| = 1)</th><th>AAM drift vs own analysis</th><th>rank</th><th>mass drift (hPa)</th><th>rank</th><th>850 hPa u, ocean 30–65°S</th><th>rank</th></tr></thead><tbody><tr><th scope='row'>GFS</th><td>−0.50 <span class='sig'>[−0.63, −0.30]</span></td><td>6</td><td class='ns'>+0.001 n.s.</td><td>2</td><td>−0.53 <span class='sig'>[−0.89, −0.22]</span></td><td>5</td></tr><tr><th scope='row'>GEFS</th><td class='ns'>−0.05 n.s.</td><td>1</td><td>−0.066 <span class='sig'>[−0.075, −0.057]</span></td><td>7</td><td>−0.60 <span class='sig'>[−0.94, −0.31]</span></td><td>6</td></tr><tr><th scope='row'>AIGFS</th><td>−0.35 <span class='sig'>[−0.51, −0.19]</span></td><td>4</td><td>−0.065 <span class='sig'>[−0.124, −0.006]</span></td><td>6</td><td>−0.46 <span class='sig'>[−0.69, −0.25]</span></td><td>4</td></tr><tr><th scope='row'>IFS-ENS</th><td>−0.18 <span class='sig'>[−0.28, −0.06]</span></td><td>3</td><td>−0.000 <span class='sig'>[−0.000, −0.000]</span></td><td>1</td><td class='ns'>−0.20 n.s.</td><td>2</td></tr><tr><th scope='row'>AIFS</th><td>+0.49 <span class='sig'>[+0.37, +0.69]</span></td><td>5</td><td>−0.252 <span class='sig'>[−0.306, −0.193]</span></td><td>8</td><td class='ns'>−0.30 n.s.</td><td>3</td></tr><tr><th scope='row'>AIFS-ENS</th><td>+0.12 <span class='sig'>[−0.00, +0.23]</span></td><td>2</td><td class='ns'>−0.029 n.s.</td><td>5</td><td class='ns'>−0.12 n.s.</td><td>1</td></tr><tr><th scope='row'>GDPS</th><td></td><td></td><td>−0.022 <span class='sig'>[−0.024, −0.022]</span></td><td>4</td><td></td><td></td></tr><tr><th scope='row'>GEPS</th><td></td><td></td><td class='ns'>−0.012 (n=2)</td><td>3</td><td></td><td></td></tr></tbody></table></div>
+  <p class="tcap">Smallest absolute day-10 value ranks first. A rank is only meaningful where the paired difference is
+  significant; of the paired day-10 AAM drift differences on common inits, significant after the FDR: GFS − GEFS −0.45 [−0.57, −0.30]; GFS − AIGFS −0.18 [−0.40, +0.01]; GFS − IFS-ENS −0.32 [−0.47, −0.19]; GFS − AIFS −0.99 [−1.08, −0.91]; GFS − AIFS-ENS −0.61 [−0.77, −0.37]; GEFS − AIGFS +0.27 [−0.03, +0.54]; GEFS − IFS-ENS +0.13 [−0.02, +0.25]; GEFS − AIFS −0.55 [−0.74, −0.37]; GEFS − AIFS-ENS −0.17 [−0.27, −0.02]; AIGFS − IFS-ENS −0.15 [−0.31, −0.02]; AIGFS − AIFS −0.83 [−1.00, −0.65]; AIGFS − AIFS-ENS −0.44 [−0.64, −0.22]; IFS-ENS − AIFS −0.68 [−0.80, −0.53]; IFS-ENS − AIFS-ENS −0.30 [−0.43, −0.11]; AIFS − AIFS-ENS +0.38 [+0.18, +0.63].</p>
+
+  <h2>9. What is not like for like</h2>
+  <ul>
+    <li><b>Resolution and grids.</b> 9 to 31 km native grids, published on 0.15° to 0.5° grids by interpolation (GFS's torque fields
+    on its own Gaussian grid). Mountain torque is resolution-sensitive by tens of Hadley (Brown, 2004; the 0.5° and 1.5°
+    columns); the friction torque is not much.</li>
+    <li><b>Vertical sampling.</b> 12 to 41 published levels. The comparison uses the 11 common levels, which change the size of
+    angular momentum more than its change (section 7). Below-ground layers are removed by each model's own surface pressure.</li>
+    <li><b>Stress definitions.</b> GFS's UFLX is its turbulent stress and U-GWD its orographic gravity-wave and blocking stress;
+    IFS's ewss includes turbulent orographic form drag but not blocking or gravity-wave drag; ERA5's turbulent stress includes
+    form drag and its gravity-wave stress includes blocking. 2012 WGNE "PBL" and "SGO" follow each model's own split.</li>
+    <li><b>The bulk friction law</b> was fitted to ERA5; applied to another model it measures that model's 10 m wind, not its drag.</li>
+    <li><b>Sample and season.</b> Autumn 2026 (September–October), with El Niño developing; GEM inits only from 14 September and,
+    for GEPS, every second day. Winter results can differ (the earlier IFS test was in December–February).</li>
+    <li><b>GDPS is a hybrid since May 2026</b>: its large scales between 850 and 250 hPa follow an AI model, so its drift and
+    budget are not GEM's physics alone. GEPS is the cleaner measure of GEM's physics.</li>
+    <li><b>Published orography.</b> Each mountain torque uses the orography the model publishes with its surface pressure.
+    GEM's fields are interpolated from its Yin-Yang grid to the output grid; if its published orography and surface pressure
+    were interpolated or filtered differently, a spurious torque would follow, and the published fields cannot rule that out.
+    The same holds, to a smaller degree, for every model published on a grid other than its own.</li>
+    <li><b>Members.</b> GEPS members perturb drag parameters by design; IFS-ENS member 0 stops at day 10; ensembles use control + 4.</li>
+  </ul>
+
+  <h2>10. How this fits the earlier studies</h2>
+  <p><a href="/aifs-aam-budget.html">Do AI weather models conserve angular momentum?</a> tested AIFS-ENS, AIFS and IFS-ENS in
+  winter 2025–26 with the same budget; <a href="/torque-enso.html">Why the atmosphere spins up in El Niño</a> measured ERA5's
+  analysis increments and proposed that models' boundary layers mix too much westerly momentum down over the oceans. This study
+  extends the free-forecast side of that test to the US and Canadian systems and puts their drag next to the 2012 comparison.</p>
+
+  <h2>References</h2>
+  <ol class="refs">
+    <li>Beljaars, A. C. M., A. R. Brown and N. Wood, 2004: A new parametrization of turbulent orographic form drag. <i>Q. J. R. Meteorol. Soc.</i>, 130, 1327–1347.</li>
+    <li>Benjamini, Y., and Y. Hochberg, 1995: Controlling the false discovery rate. <i>J. R. Stat. Soc. B</i>, 57, 289–300.</li>
+    <li>Brown, A. R., 2004: Resolution dependence of orographic torques. <i>Q. J. R. Meteorol. Soc.</i>, 130, 3029–3046.</li>
+    <li>ECCC, 2019: Global Deterministic Prediction System (GDPS) version 7.0.0, technical note. Canadian Meteorological Centre. <a href="https://collaboration.cmc.ec.gc.ca/cmc/cmoi/product_guide/docs/tech_notes/technote_gdps-700_e.pdf">PDF</a></li>
+    <li>ECCC, 2021: Global Ensemble Prediction System (GEPS) version 7.0.0, technical note. <a href="https://collaboration.cmc.ec.gc.ca/cmc/cmoi/product_guide/docs/tech_notes/technote_geps-700_e.pdf">PDF</a></li>
+    <li>ECCC, 2024: Global Ensemble Prediction System (GEPS) version 8.0.0, technical note. <a href="https://collaboration.cmc.ec.gc.ca/cmc/cmoi/product_guide/docs/tech_notes/technote_geps-800_e.pdf">PDF</a></li>
+    <li>ECCC, 2026: Global Deterministic Prediction System (GDPS) version 10.0.0, technical note (spectral nudging toward GEML). <a href="https://collaboration.cmc.ec.gc.ca/cmc/cmoi/product_guide/docs/tech_notes/technote_gdps-1000_e.pdf">PDF</a></li>
+    <li>ECMWF, 2023: Implementation of IFS cycle 48r1. <a href="https://confluence.ecmwf.int/display/FCST/Implementation+of+IFS+Cycle+48r1">ECMWF</a></li>
+    <li>Egger, J., K. Weickmann and K.-P. Hoinka, 2007: Angular momentum in the global atmospheric circulation. <i>Rev. Geophys.</i>, 45, RG4007.</li>
+    <li>Hersbach, H., and co-authors, 2020: The ERA5 global reanalysis. <i>Q. J. R. Meteorol. Soc.</i>, 146, 1999–2049.</li>
+    <li>Kanehama, T., I. Sandu, A. Beljaars, A. van Niekerk, N. Wedi, S. Boussetta, S. Lang, S. Johnson and L. Magnusson, 2022: Evaluation and optimization of orographic drag in the IFS. <i>ECMWF Tech. Memo.</i> 893. <a href="https://doi.org/10.21957/fps6gngqe">doi:10.21957/fps6gngqe</a></li>
+    <li>McTaggart-Cowan, R., et al., 2019: Modernization of atmospheric physics parameterization in Canadian NWP. <i>J. Adv. Model. Earth Syst.</i>, 11, 3593–3635. <a href="https://doi.org/10.1029/2019MS001781">doi:10.1029/2019MS001781</a></li>
+    <li>NCEP EMC, 2021: GFS v16 implementation. <a href="https://www.emc.ncep.noaa.gov/users/impldocs/GFS.v16_Implementation.pdf">PDF</a></li>
+    <li>Sandu, I., P. Bechtold, A. Beljaars, A. Bozzo, F. Pithan, T. G. Shepherd and A. Zadra, 2016: Impacts of parameterized orographic drag on the Northern Hemisphere winter circulation. <i>J. Adv. Model. Earth Syst.</i>, 8, 196–211. <a href="https://doi.org/10.1002/2015MS000564">doi:10.1002/2015MS000564</a></li>
+    <li>Sandu, I., and co-authors, 2019: Impacts of orography on large-scale atmospheric circulation. <i>npj Clim. Atmos. Sci.</i>, 2, 10.</li>
+    <li>van Niekerk, A., and co-authors, 2020: Constraining Orographic Drag Effects (COORDE): a model comparison of resolved and parametrized orographic drag. <i>J. Adv. Model. Earth Syst.</i>, 12, e2020MS002160.</li>
+    <li>Wilks, D. S., 2016: "The stippling shows statistically significant grid points". <i>Bull. Amer. Meteor. Soc.</i>, 97, 2263–2273.</li>
+    <li>Zadra, A., 2018: Notes on the new low-pass filter for the orography field. Internal report, published with the WGNE Drag Project. <a href="https://collaboration.cmc.ec.gc.ca/science/rpn/drag_project/documents/topo_lowpass_filter.pdf">PDF</a></li>
+    <li>Zadra, A., 2022: Challenges representing orographic drag in (Canadian) numerical prediction systems. ECMWF Annual Seminar 2022. <a href="https://events.ecmwf.int/event/300/contributions/3292/attachments/1952/3525/AS2022_Zadra.pdf">PDF</a></li>
+    <li>Zadra, A., and contributors, 2013: WGNE Drag Project: an inter-model comparison of surface stresses. Report no. 1. <a href="https://collaboration.cmc.ec.gc.ca/science/rpn/drag_project/documents/wgne_drag_project_report01.pdf">PDF</a>; project pages: <a href="https://collaboration.cmc.ec.gc.ca/science/rpn/drag_project">WGNE Drag Project</a></li>
+  </ol>
+
+  <h2>Data credits</h2>
+  <p class="credits">GFS, GEFS and AIGFS: NOAA/NCEP, via the NOAA Open Data Dissemination programme on AWS. IFS, AIFS and
+  AIFS-ENS: ECMWF open data (CC BY 4.0), Google Cloud mirror. GDPS and GEPS: Environment and Climate Change Canada, MSC Datamart;
+  contains information licensed under the Open Government Licence – Canada. ERA5 (Hersbach et al., 2020), Copernicus Climate
+  Change Service (C3S) / ECMWF, via the ARCO-ERA5 store on Google Cloud; contains modified Copernicus Climate Change Service
+  information 2026. Neither ECMWF nor the European Commission is responsible for any use of this information. All downloads ran in
+  GitHub Actions; only the reduced diagnostics are kept (<a href="https://github.com/scorvec/scorvec.github.io/tree/main/scripts/amdrag">scripts/amdrag</a>).</p>
+  <p class="byline">By <a href="/about.html">Shawn Corvec</a>, meteorologist. Published 13 October 2026; rebuilt daily as the
+  sample grows (last rebuilt 2026-10-13).</p>
+</article>
+
+</main>
+<div id="lb" role="dialog" aria-label="Enlarged figure"><img alt=""></div>
+<script>
+(function () {
+  var lb = document.getElementById("lb"), im = lb.querySelector("img");
+  document.querySelectorAll("a.zoom").forEach(function (a) {
+    a.addEventListener("click", function (e) {
+      if (innerWidth < 700) return;            // phones: open the image itself (pinch-zoom)
+      e.preventDefault(); im.src = a.href; im.alt = a.querySelector("img").alt; lb.classList.add("on");
+    });
+  });
+  lb.addEventListener("click", function () { lb.classList.remove("on"); });
+  addEventListener("keydown", function (e) { if (e.key === "Escape") lb.classList.remove("on"); });
+})();
+</script>
+<!-- sf:start -->
+<footer class="sf">
+  <div class="sf-in">
+    <div class="sf-group">
+      <p class="sf-h" role="heading" aria-level="2">This site</p>
+      <ul>
+        <li><a href="/">Home</a></li>
+        <li><a href="/catalog.html">Every plot</a></li>
+        <li><a href="/topics/">Explainers</a></li>
+        <li><a href="/stats.html">Visitor stats</a></li>
+      </ul>
+      <p class="sf-disclaimer">This site is under constant development. Nothing here is checked before publication and there is no expectation of accuracy, completeness or availability; do not rely on it for decisions. Built from open data; sources are credited on each page.</p>
+    </div>
+    <div class="sf-group sf-group--me">
+      <p class="sf-h" role="heading" aria-level="2">Shawn Corvec</p>
+      <ul>
+        <li><a href="/about.html">About</a></li>
+        <li><a href="/resume.html">Resume</a></li>
+        <li><a href="/research.html">Publications</a></li>
+        <li><a href="https://github.com/scorvec" rel="noopener">GitHub</a></li>
+        <li><a href="https://www.linkedin.com/in/shawn-corvec-35895b231/" rel="noopener">LinkedIn</a></li>
+        <li><a href="https://scholar.google.com/citations?user=EYLRCJIAAAAJ&amp;hl=en" rel="noopener">Google Scholar</a></li>
+      </ul>
+    </div>
+  </div>
+</footer>
+<!-- sf:end -->
+</body>
+</html>
