@@ -19,6 +19,9 @@ sys.path.insert(0, str(HERE))
 import common as C                                                     # noqa: E402
 
 SLUG = "model-drag-intercomparison"
+# UNLINKED (user, 2026-10-13): published for review only - noindex, and no menu / homepage / sitemap / catalogue entry or
+# cross-link anywhere. To make it public: see the docstring of scripts/site/apply_chrome.py's PAGES entry and remove
+# the robots meta below.
 IMG = f"/studies/{SLUG}"
 URL = f"https://scorvec.com/{SLUG}.html"
 TITLE = "Model drag intercomparison"
@@ -143,6 +146,7 @@ def wrap(site: Path, body: str) -> str:
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>{TITLE} · Shawn Corvec</title>
+<meta name="robots" content="noindex">
 <meta name="description" content="{DESC}">
 <link rel="canonical" href="{URL}">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">

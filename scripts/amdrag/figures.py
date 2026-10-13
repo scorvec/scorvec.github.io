@@ -220,7 +220,8 @@ def fig_winds(R, out):
                     ax.text(j, i, f"{Mx[i, j]:+.2f}" + ("" if Sg[i, j] else "\nn.s."), ha="center", va="center",
                             fontsize=7.5, color=col, fontweight="bold" if Sg[i, j] else "normal")
         ax.set_xticks(range(8))
-        ax.set_xticklabels([f"{REGLBL[x.split('_')[0]]}\n{x.split('_')[1]}H" for x in C.RHKEYS], fontsize=7.5)
+        short = {"ORO": "rough\nterrain", "OCX": "ocean\n30-65°", "OCO": "other\nocean", "LND": "other\nland"}
+        ax.set_xticklabels([f"{short[x.split('_')[0]]}\n{x.split('_')[1]}H" for x in C.RHKEYS], fontsize=7.5)
         ax.set_yticks(range(len(keys)))
         ax.set_yticklabels([LBL[k] for k in keys], fontsize=8.5)
         ax.grid(False)
@@ -231,7 +232,7 @@ def fig_winds(R, out):
 
 
 def fig_mountain(R, out):
-    keys = [k for k in ORDER if k in R["models"]] + ["era5"]
+    keys = [k for k in ORDER if k in R["models"]] + (["era5"] if "ranges" in R.get("era5", {}) else [])
     fig, axes = plt.subplots(2, 3, figsize=(15, 7.2))
     fig.subplots_adjust(left=0.06, right=0.99, top=0.88, bottom=0.17, wspace=0.18, hspace=0.42)
     for r, ax in enumerate(axes.ravel()):
@@ -257,7 +258,7 @@ def fig_mountain(R, out):
 
 
 def fig_orography(R, out):
-    keys = [k for k in ORDER if k in R["models"]] + ["era5"]
+    keys = [k for k in ORDER if k in R["models"]] + (["era5"] if "orography" in R.get("era5", {}) else [])
     ranges = C.RKEYS + ["land"]
     fig, ax = plt.subplots(figsize=(13, 4.4))
     fig.subplots_adjust(left=0.07, right=0.99, top=0.84, bottom=0.27)
@@ -309,9 +310,12 @@ def fig_wgne(R, out):
             if mon == 1 and part in WGNE2012:
                 w = WGNE2012[part]
                 ax.add_patch(plt.Rectangle((32, w["others"][0]), 14, w["others"][1] - w["others"][0], color="#c3c2b7",
-                                           alpha=0.45, lw=0, label="2012 models, NH peak range"))
+                                           alpha=0.45, lw=0, label="2012 high-resolution models, peak range"))
                 ax.plot([32, 46], [w["IFS"]] * 2, color=COL["ifs-ens"], lw=3, alpha=0.5, label="2012 IFS peak")
                 ax.plot([32, 46], [w["GDPS"]] * 2, color=COL["gdps"], lw=3, alpha=0.5, label="2012 GDPS peak")
+            if mon == 7 and part == "total":                       # July 2012 SH peak range (WGNE Report 1, Fig. 14)
+                ax.add_patch(plt.Rectangle((-55, 2.2), 15, 0.3, color="#c3c2b7", alpha=0.45, lw=0,
+                                           label="2012 high-resolution models, peak range"))
             ax.set_title(f"{ttl}\n{'January' if mon == 1 else 'July'} 2026, first 24 h", fontsize=9.5)
             ax.set_xlim(-90, 90)
             if col == 0:

@@ -647,6 +647,9 @@ def main():
     R["wgne"] = wgne_day1(E)
     # paired model differences of the AAM drift at day 10 (C11, global), on common inits
     R["paired"] = paired(data)
+    # within GEM: GDPS (0.15 deg output, and averaged to 0.5) against GEPS (0.5 deg) mountain torque by range, days 1-10,
+    # paired on common inits - the resolution / orography part of the 2019 changes
+    R["gem_pair"] = gem_pair(data)
     out = C.DATA / "results.json"
     out.write_text(json.dumps(clean(R), indent=0, allow_nan=False))
     print("wrote", out)
@@ -668,6 +671,36 @@ def clean(x):
     if isinstance(x, np.ndarray):
         return clean(x.tolist())
     return x
+
+
+def gem_pair(data):
+    if "gdps" not in data or "geps" not in data:
+        return None
+    common = sorted(set(data["gdps"]) & set(data["geps"]))
+    out = {"n": len(common), "native": [], "at05": [], "global": {}}
+
+    def rng(run, key):
+        return run.D[key][:10] if key in run.D else None
+    for which, gk in (("native", "Tm_r"), ("at05", "Tm05_r")):
+        rows = []
+        for d in common:
+            a = rng(data["gdps"][d][0], gk)
+            b = [rng(r, "Tm_r") for r in data["geps"][d].values()]
+            b = [x for x in b if x is not None]
+            if a is None or not b:
+                continue
+            rows.append(np.nanmean(a, 0) - np.nanmean(np.nanmean(np.stack(b), 0), 0))
+        if rows:
+            A = np.stack(rows) / HU
+            out[which] = mark([block_boot(A[:, k]) | {"range": C.RKEYS[k]} for k in range(A.shape[1])])
+    for which, gk in (("native", "Tm_b"), ("at05", "Tm05_b")):
+        x = []
+        for d in common:
+            a = data["gdps"][d][0].torque(gk, "G", 10)
+            b = np.nanmean([r.torque("Tm_b", "G", 10) for r in data["geps"][d].values()], 0)
+            x.append(np.nanmean(a - b))
+        out["global"][which] = block_boot(np.array(x) / HU)
+    return out
 
 
 def paired(data, lead=10):
@@ -726,8 +759,10 @@ def wgne_day1(E):
                 m = a.mean(0)
                 nh = (lat > 25) & (lat < 65)
                 i = int(np.argmax(np.where(nh, m, -np.inf)))
+                sh = (lat < -25) & (lat > -65)
+                j = int(np.argmax(np.where(sh, m, -np.inf)))
                 res[k] = {"zonal": m.tolist(), "nh_peak": float(m[i]), "nh_peak_lat": float(lat[i]),
-                          "sd_nh_peak": float(a[:, i].std())}
+                          "sd_nh_peak": float(a[:, i].std()), "sh_peak": float(m[j]), "sh_peak_lat": float(lat[j])}
             res["has_sgo"] = model in ("gfs", "gefs", "era5")
             out[f"{model}|{mon}"] = res
     return out

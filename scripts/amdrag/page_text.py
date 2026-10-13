@@ -148,9 +148,10 @@ def body(R, Mo, keys, L, fig, t_models, made):
         sc = {k: g(k, "orography", "scales", "land", "rms_fine05") for k in keys}
         sc = {k: v for k, v in sc.items() if v}
         rk = sorted(sc, key=lambda k: -sc[k])
+        others = ", ".join(f"{L[k]} {sc[k]:.0f} m" for k in rk if k != "gdps")
         bl.append(f"<b>GEM's 2019 orography filter.</b> On the published grids, GDPS keeps {sc.get('gdps', 0):.0f} m RMS of "
-                  f"sub-0.5° relief over land, rank {rk.index('gdps') + 1} of {len(rk)} (IFS {sc.get('ifs-ens', 0):.0f} m, GFS "
-                  f"{sc.get('gfs', 0):.0f} m). Its resolved mountain torque is compared range by range in section 7.")
+                  f"sub-0.5° relief over land, rank {rk.index('gdps') + 1} of {len(rk)} ({others}). Its resolved mountain "
+                  "torque is compared range by range in section 7.")
     samp = ", ".join(L[k] + " " + str(Mo[k]["n_inits"]) for k in keys)
     bl.append(f"<b>Sample.</b> {n_tot} model-inits from {first} to {last} 00Z ({samp}). "
               "The Canadian runs are collected daily from a 30-day public archive and their sample grows every day; this page "
@@ -227,6 +228,14 @@ def body(R, Mo, keys, L, fig, t_models, made):
         wrows += (f"<tr><th scope='row'>{nm}</th><td>{w['IFS']:.2f}</td><td>{w['GDPS']:.2f}</td>"
                   f"<td>{w['lo']:.2f}–{w['hi']:.2f}</td>" + wv("ifs-ens", 1, part) + wv("gfs", 1, part) +
                   wv("gefs", 1, part) + wv("era5", 1, part) + "</tr>")
+    def wsh(m):
+        d = W.get(f"{m}|7")
+        if not d or not d.get("has_sgo"):
+            return "<td></td>"
+        x = d["total"]
+        return f"<td>{x['sh_peak']:.2f} <span class='sig'>({abs(x['sh_peak_lat']):.0f}°S, n={d['n']})</span></td>"
+    wrows += ("<tr class='grp'><th scope='row'>July, SH peak</th></tr><tr><th scope='row'>total subgrid stress, all "
+              "surfaces</th><td></td><td></td><td>2.20–2.50</td><td></td>" + wsh("gfs") + wsh("gefs") + wsh("era5") + "</tr>")
     t_wgne = ("<div class='tw'><table class='res'><thead><tr><th>January, NH peak, 10¹⁹ N m</th><th>IFS 2012</th>"
               "<th>GDPS 2012</th><th>2012 high-resolution range</th><th>IFS 2026</th><th>GFS 2026</th><th>GEFS 2026</th>"
               "<th>ERA5 2026</th></tr></thead><tbody>" + wrows + "</tbody></table></div>")
@@ -320,6 +329,28 @@ def body(R, Mo, keys, L, fig, t_models, made):
     gem_txt = ("; ".join(gem_lines) + " Hadley") if gem_lines else "no range with a significant difference"
 
     days_e = era.get("days") or ["–", "–", 0]
+    if ev.get("mean_37_minus_C11") is not None:
+        lev_txt = (f"Vertical sampling: for ERA5 the 37-level wind term is on average {num(ev['mean_37_minus_C11'], 2)} "
+                   f"×10²⁵ kg m² s⁻¹ larger than on the 11 common levels, while their daily tendencies differ with an sd of "
+                   f"only {ev['sd_daily_tendency_diff_H']:.1f} Hadley (correlation {ev['corr_tendency']:.3f}): the level "
+                   "set shifts the size of angular momentum far more than its change, which is why drifts and budgets "
+                   "compare well across models with different levels.")
+    else:
+        lev_txt = ""
+    gp = R.get("gem_pair") or {}
+    if gp and gp.get("n", 0) >= 4:
+        nat = [f"{RANGE[r['range']]} {E(r, 1)}" for r in gp.get("native", []) if sig(r)]
+        a05 = [f"{RANGE[r['range']]} {E(r, 1)}" for r in gp.get("at05", []) if sig(r)]
+        gem_pair_txt = (f"Within GEM, paired on the {gp['n']} inits both systems ran, the GDPS's mountain torque minus the GEPS "
+                        f"ensemble mean's (days 1–10) is {E(gp['global'].get('native'), 1)} Hadley globally on the GDPS's "
+                        f"0.15° grid and {E(gp['global'].get('at05'), 1)} with the GDPS averaged to the GEPS's 0.5°. "
+                        "Significant by range (FDR over ranges), 0.15°: " + ("; ".join(nat) if nat else "none") +
+                        "; at 0.5°: " + ("; ".join(a05) if a05 else "none") + ". The first difference includes the "
+                        "torque at scales the 0.5° output cannot carry; the second is the large-scale torque of a 15 km "
+                        "against a 25 km GEM (and of the nudged GDPS against the unnudged GEPS).")
+    else:
+        gem_pair_txt = ("Within GEM, the GDPS-against-GEPS comparison on common inits needs at least four shared inits; it "
+                        "will appear as the Canadian sample grows.")
     return f"""
 <article class="study">
   <p class="crumbs"><a href="/">Home</a> › Studies › {TITLE_()}</p>
@@ -349,16 +380,18 @@ def body(R, Mo, keys, L, fig, t_models, made):
   tended to improve medium-range scores.</p>
   <p>All three model families here have changed their drag since 2012:</p>
   <ul>
-    <li><b>GEM (ECCC).</b> The July 2019 upgrade (GDPS 7.0.0, 25 → 15 km, 84 levels) replaced most of the physics with a package
-    unified with the regional system: a revised moist-TKE boundary layer with a new mixing length and boundary-layer clouds,
-    and a new thermal roughness over water (McTaggart-Cowan et al., 2019; ECCC, 2019). It also replaced the orography smoother:
-    the old one damped wavelengths up to about 20 grid lengths, the new low-pass filter keeps everything longer than 3 grid
-    lengths in the GDPS (Zadra, 2018; Zadra, 2022). Damping less orography moves drag from the subgrid schemes to the resolved
-    mountain torque, which is why GEM's mountain torque is one of the questions below (section 7). GEPS runs the same GEM 5
-    model at 25 km since June 2024 (GEPS 8.0.0), with stochastically perturbed parameters that include the strength of
-    low-level flow blocking, the boundary layer's critical Richardson number and the non-orographic gravity-wave source (ECCC,
-    2024). Since 26 May 2026 the GDPS is a hybrid: between about 850 and 250 hPa its winds and temperature at scales longer
-    than about 2,500 km are spectrally nudged toward ECCC's AI model GEML (GDPS 10.0.0; ECCC, 2026). GEPS is not nudged.</li>
+    <li><b>GEM (ECCC).</b> The 2019 upgrade touched every part of GEM's drag. The GDPS went from 25 to 15 km and from 80 to
+    84 levels in July 2019 (GDPS 7.0.0; ECCC, 2019). Its physics was rebuilt (McTaggart-Cowan et al., 2019), including the
+    low-level blocking, gravity-wave drag, boundary-layer and surface-layer schemes; the GDPS boundary layer became a revised
+    moist-TKE scheme with a new mixing length and boundary-layer clouds (ECCC, 2019). The orography filter was weakened: the old
+    smoother damped wavelengths out to about 20 grid lengths, the new scale-selective low-pass filter cuts off at 3 grid
+    lengths in the GDPS (Zadra, 2018; Zadra, 2022), giving a much sharper model orography. GEPS took the same GEM 5 physics and
+    the sharper orography in December 2021 (GEPS 7.0.0, 39 km, 84 levels), with its own critical phase for the blocking height
+    and a dry-air mass constraint where the GDPS conserves total mass (ECCC, 2021); it runs at 25 km since June 2024, with
+    stochastically perturbed parameters that include the strength of low-level blocking, the boundary layer's critical
+    Richardson number and the non-orographic gravity-wave source (ECCC, 2024). Since 26 May 2026 the GDPS is a hybrid: between
+    about 850 and 250 hPa its winds and temperature at scales longer than about 2,500 km are spectrally nudged toward ECCC's AI
+    model GEML (GDPS 10.0.0; ECCC, 2026). GEPS is not nudged, so GEPS is the cleaner test of the 2019 physics.</li>
     <li><b>IFS (ECMWF).</b> Kanehama et al. (2022) rebuilt the subgrid-orography fields to represent scales below the model's
     effective resolution, weakened turbulent orographic form drag and strengthened low-level flow blocking, which raised the
     total parametrized stress in the northern mid-latitudes by 4–8% and made the momentum budget consistent across resolutions.
@@ -454,21 +487,26 @@ def body(R, Mo, keys, L, fig, t_models, made):
   <p class="tcap">Trade-wind regions have easterly (negative) u: there a positive change means weaker trades. Ocean 30–65° has
   westerlies: a negative change means weaker westerlies.</p>
 
-  <h2>7. Mountain torque, resolution and GEM's 2019 orography filter</h2>
-  <p>GEM publishes no surface stress, so its drag can only be seen through its winds and its resolved mountain torque. A
-  filter that keeps more small-scale orography should give a larger resolved torque at fine scales: averaging $p_s$ and $h$ to
-  0.5° removes exactly that part. The table gives each model's mean torque on its own grid and at 0.5° and 1.5°, the
-  fine-scale part (own grid minus 0.5°) by range, and how much sub-0.5° relief its orography keeps.</p>
+  <h2>7. Mountain torque, resolution and GEM's 2019 changes</h2>
+  <p><b>What the GEM numbers can and cannot separate.</b> GEM publishes no surface stress, so the four 2019 changes show in
+  different places. Finer resolution and the weaker orography filter should show as a larger resolved mountain torque on the
+  native grid, in the part a 0.5° grid cannot see: compare the GDPS on its 0.15° output with itself averaged to 0.5°, with
+  GEPS (0.5° output), and with the other models on both grids. The blocking and boundary-layer changes show only in totals:
+  the drift of angular momentum against the model's own analysis and ERA5, by hemisphere (section 4), and the change of the
+  low-level wind with lead over the oceans and over rough terrain (section 6). This study cannot split blocking from the
+  boundary layer. And between 850 and 250 hPa the GDPS's large scales follow GEML, so its drift and budget are partly an AI
+  model's; GEPS is the cleaner GEM test.</p>
+  <p>Averaging $p_s$ and $h$ together to 0.5° removes exactly the torque carried at finer scales. The table gives each model's
+  mean torque on its own grid and at 0.5° and 1.5°, the fine-scale part (own grid minus 0.5°) by range, and how much sub-0.5°
+  relief its orography keeps.</p>
   {fig("mountain", "mountain_resolution.webp", "Mean mountain torque by range on each model's grid and at 0.5 and 1.5 degrees", "Mean resolved mountain torque, days 1–10, by range: each model's own published grid (solid), and with surface pressure and orography averaged together to 0.5° (mid) and 1.5° (pale). ERA5 on its analysis days.")}
   {fig("oro", "orography_scales.webp", "Sub-0.5-degree relief kept by each model's orography, by range", "RMS of each model's orography minus its 0.5° area mean, by range and over all land, as published on its output grid.")}
   {t_mtn}
+  <p>{gem_pair_txt}</p>
   <p>Significant fine-scale (own grid minus 0.5°) mountain torque, FDR over ranges: {gem_txt}. The published grids are
   interpolations of the models' native grids (0.15° for GDPS, 0.25° for the ECMWF models and AIGFS, 0.5° for GEFS and GEPS; only
   GFS's torque fields are on its own Gaussian physics grid), so a fine-scale difference is the model's orography as seen at
-  the published resolution, not its native one. For ERA5 the 37-level wind term is on average
-  {num(ev.get('mean_37_minus_C11'), 2)} ×10²⁵ larger than on the 11 common levels, and their daily tendencies differ with an
-  sd of {(ev.get('sd_daily_tendency_diff_H') or 0):.1f} Hadley (correlation {(ev.get('corr_tendency') or 0):.3f}): level
-  sampling shifts the level of angular momentum much more than its change.</p>
+  the published resolution, not its native one. {lev_txt}</p>
 
   <h2>8. Ranking</h2>
   {t_rank}
@@ -505,6 +543,7 @@ def body(R, Mo, keys, L, fig, t_models, made):
     <li>Benjamini, Y., and Y. Hochberg, 1995: Controlling the false discovery rate. <i>J. R. Stat. Soc. B</i>, 57, 289–300.</li>
     <li>Brown, A. R., 2004: Resolution dependence of orographic torques. <i>Q. J. R. Meteorol. Soc.</i>, 130, 3029–3046.</li>
     <li>ECCC, 2019: Global Deterministic Prediction System (GDPS) version 7.0.0, technical note. Canadian Meteorological Centre. <a href="https://collaboration.cmc.ec.gc.ca/cmc/cmoi/product_guide/docs/tech_notes/technote_gdps-700_e.pdf">PDF</a></li>
+    <li>ECCC, 2021: Global Ensemble Prediction System (GEPS) version 7.0.0, technical note. <a href="https://collaboration.cmc.ec.gc.ca/cmc/cmoi/product_guide/docs/tech_notes/technote_geps-700_e.pdf">PDF</a></li>
     <li>ECCC, 2024: Global Ensemble Prediction System (GEPS) version 8.0.0, technical note. <a href="https://collaboration.cmc.ec.gc.ca/cmc/cmoi/product_guide/docs/tech_notes/technote_geps-800_e.pdf">PDF</a></li>
     <li>ECCC, 2026: Global Deterministic Prediction System (GDPS) version 10.0.0, technical note (spectral nudging toward GEML). <a href="https://collaboration.cmc.ec.gc.ca/cmc/cmoi/product_guide/docs/tech_notes/technote_gdps-1000_e.pdf">PDF</a></li>
     <li>ECMWF, 2023: Implementation of IFS cycle 48r1. <a href="https://confluence.ecmwf.int/display/FCST/Implementation+of+IFS+Cycle+48r1">ECMWF</a></li>
