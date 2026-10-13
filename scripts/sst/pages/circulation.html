@@ -325,7 +325,10 @@ References: Bister &amp; Emanuel 2002, <i>JGR</i> 107(D24), 4801 &middot; Chen, 
 .tcp-map svg{display:block;width:100%;height:auto}
 .tcp-map .land{fill:#e7e3d8;stroke:#b9b2a3;stroke-width:.6}
 .tcp-map .grid{stroke:#d6dde4;stroke-width:.6}
-.tcp-map .gl{font:11px "Source Sans 3",sans-serif;fill:#8a8a8a}
+.tcp-map .gl{font:11px "Source Sans 3",sans-serif;fill:#8a8a8a;paint-order:stroke;stroke:#f3f6f9;stroke-width:3px}
+.tcp-more{position:absolute;right:6px;top:4px;font-size:11.5px;color:var(--tm);background:rgba(255,255,255,.85);padding:1px 6px;border-radius:4px;pointer-events:none}
+.tcp-hint summary{cursor:pointer;color:var(--tk);font-weight:500}
+.tcp-row .nm-s{display:none}
 .tcp-map .trk{fill:none;stroke-width:2.2;opacity:.55;cursor:pointer}
 .tcp-map .trk.sel{stroke-width:3.6;opacity:1}
 .tcp-map .hit{fill:none;stroke:transparent;stroke-width:18;cursor:pointer}
@@ -345,10 +348,18 @@ References: Bister &amp; Emanuel 2002, <i>JGR</i> 107(D24), 4801 &middot; Chen, 
 .tcp-fig img{display:block;width:100%;height:auto;border:1px solid var(--tr);border-radius:6px;background:#fff}
 .tcp-fig p{margin:6px 0 0;color:var(--tm);font-size:.95rem}
 .tcp-empty{padding:24px;color:var(--tm);text-align:center}
+/* phones (2026-10-12, user: "This doesn't work very well on mobile"): the map zooms to the selected storm, the reading
+   notes fold away, and the storm and view buttons are one swipeable row of short names */
+@media (max-width:600px){
+  .tcp-row{flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch;padding-bottom:4px;scrollbar-width:thin}
+  .tcp-row button{flex:none;font-size:.92rem;padding:5px 11px;white-space:nowrap}
+  .tcp-row .nm-l{display:none}.tcp-row .nm-s{display:inline}
+  .tcp-when{font-size:.95rem;line-height:1.4}
+}
 </style>
 <div class="tcp-map" id="tcp-map" aria-label="Map of the active tropical storms; select one to see its forecasts"><div class="tcp-empty">Loading the storms…</div></div>
 <p class="tcp-when" id="tcp-when"></p>
-<p class="tcp-hint">Click or tap a storm on the map (or a name below) to see its forecasts. Lines: each storm's reference track - the AIFS-ENS control where it carries the storm, otherwise the member nearest the ensemble's median track (the line under the map says which) - small dots every 24 hours, dates on the selected storm. Filled dot: where the storm is now; hollow dot: where a developing system is first tracked, later in the forecast.</p>
+<details class="tcp-hint" id="tcp-hint"><summary>How to read the map</summary>Click or tap a storm on the map (or a name below) to see its forecasts. Lines: each storm's reference track - the AIFS-ENS control where it carries the storm, otherwise the member nearest the ensemble's median track (the line under the map says which) - small dots every 24 hours, dates on the selected storm. Filled dot: where the storm is now; hollow dot: where a developing system is first tracked, later in the forecast. On a phone the map zooms to the selected storm and its neighbours; every storm stays in the buttons.</details>
 <div class="tcp-row" id="tcp-storms" role="group" aria-label="Storms"></div>
 <div class="tcp-row" id="tcp-views" role="group" aria-label="View"></div>
 <div class="tcp-fig" id="tcp-fig"></div>
@@ -427,7 +438,19 @@ References: Bister &amp; Emanuel 2002, <i>JGR</i> 107(D24), 4801 &middot; Chen, 
       var q = s.gen[m]; return "around " + when(q[1], true) + " in " + (m === "aifs" ? "AIFS-ENS" : "IFS-ENS") + " (10–90 %: " + when(q[0]) + " – " + when(q[2]) + ")"; }).join("; ") + ".";
     return txt;
   }
+  // phones: draw only the selected storm and those whose current position is within 35 deg of longitude of it, so the
+  // map is a readable regional one instead of a 200-degree strip of overlapping labels (the buttons keep every storm)
   function drawMap() {
+    var host = document.getElementById("tcp-map"), all = S, hidden = 0;
+    if (S.length && host.clientWidth && host.clientWidth < 600) {
+      var st0 = state(), f = S.filter(function (x) { return x.id === st0.id; })[0] || S[0], c0 = f.track.lon[0];
+      S = S.filter(function (x) { return Math.abs(wrap(x.track.lon[0] - c0)) <= 35; });
+      hidden = all.length - S.length;
+    }
+    try { drawMapCore(); } finally { S = all; }
+    if (hidden) host.insertAdjacentHTML("beforeend", '<div class="tcp-more">+' + hidden + " more storm" + (hidden > 1 ? "s" : "") + " in the buttons below</div>");
+  }
+  function drawMapCore() {
     var host = document.getElementById("tcp-map");
     if (!S.length) { host.innerHTML = '<div class="tcp-empty">No tropical storms in the Northern Hemisphere in this cycle.</div>'; return; }
     // centre on the middle of the arc the storms occupy (opposite the widest empty longitude gap) and unwrap each track
@@ -498,7 +521,7 @@ References: Bister &amp; Emanuel 2002, <i>JGR</i> 107(D24), 4801 &middot; Chen, 
     var under = "", over = "";
     S.map(function (s, i) { return i; }).sort(function (a, b) { return (S[a].id === st.id) - (S[b].id === st.id) || a - b; }).forEach(function (i) {
       var s = S[i];
-      var col = COLORS[i % COLORS.length], sel = s.id === st.id, pts = s.rel.map(function (r, j) { return X(r) + "," + Y(s.track.lat[j]); }).join(" ");
+      var col = s.col, sel = s.id === st.id, pts = s.rel.map(function (r, j) { return X(r) + "," + Y(s.track.lat[j]); }).join(" ");
       var L = labs[i], d = dots[i], lx = Math.min(Math.max(d[0], L.b[0]), L.b[2]), ly = Math.min(Math.max(d[1], L.b[1]), L.b[3]);
       var hs = s.track.h || [], dd = "", later = (hs[0] || 0) > 0;
       hs.forEach(function (h, j) { if (h > 0 && h % 24 === 0) dd += '<circle class="dd" r="' + (sel ? 3.6 : 2.6) + '" fill="' + col + '" cx="' + X(s.rel[j]) + '" cy="' + Y(s.track.lat[j]) + '"/>'; });
@@ -541,8 +564,10 @@ References: Bister &amp; Emanuel 2002, <i>JGR</i> 107(D24), 4801 &middot; Chen, 
     if (!mine) st = { prod: "tcens", id: s ? s.id : null, view: "tracks" };
     drawMap();
     document.getElementById("tcp-storms").innerHTML = S.map(function (x, i) {
-      return '<button type="button" data-id="' + x.id + '" aria-pressed="' + (s && x.id === s.id) + '"><i style="background:' + COLORS[i % COLORS.length] + '"></i>' + x.name + "</button>"; }).join("");
+      return '<button type="button" data-id="' + x.id + '" title="' + x.name + '" aria-pressed="' + (s && x.id === s.id) + '"><i style="background:' + x.col + '"></i><span class="nm-l">' + x.name + '</span><span class="nm-s">' + x.short + "</span></button>"; }).join("");
     document.querySelectorAll("#tcp-storms button").forEach(function (b) { b.onclick = function () { go(b.getAttribute("data-id"), state().view); }; });
+    var pb = document.querySelector("#tcp-storms button[aria-pressed=true]"), row = document.getElementById("tcp-storms");
+    if (pb && row && row.scrollWidth > row.clientWidth) row.scrollLeft = Math.max(0, pb.offsetLeft - row.offsetLeft - 8);   // phone row: the selected storm in view
     document.getElementById("tcp-views").innerHTML = s ? VIEWS.map(function (v) {
       var has = !!s.files[v[0]]; return '<button type="button" data-v="' + v[0] + '" aria-pressed="' + (st.view === v[0]) + '"' + (has ? "" : " disabled title=\"Not available for this storm in this cycle\"") + ">" + v[1] + "</button>"; }).join("") : "";
     document.querySelectorAll("#tcp-views button").forEach(function (b) { b.onclick = function () { go(s.id, b.getAttribute("data-v")); }; });
@@ -557,7 +582,7 @@ References: Bister &amp; Emanuel 2002, <i>JGR</i> 107(D24), 4801 &middot; Chen, 
       return;
     }
     var pr = Object.keys(s.p).map(function (m) { return (m === "aifs" ? "AIFS-ENS" : "IFS-ENS") + " " + Math.round(100 * s.p[m]) + "%"; }).join(", ");
-    fig.innerHTML = '<img src="assets/sst/' + f + bust + '" alt="' + s.name + ": " + (VIEWS.filter(function (v) { return v[0] === st.view; })[0][1]) + '" loading="lazy">' +
+    fig.innerHTML = '<a href="assets/sst/' + f + bust + '" target="_blank" rel="noopener" title="Open the full-size figure"><img src="assets/sst/' + f + bust + '" alt="' + s.name + ": " + (VIEWS.filter(function (v) { return v[0] === st.view; })[0][1]) + '" loading="lazy"></a>' +
       (pr ? "<p>Share of members that recurve: " + pr + ".</p>" : "");
   }
   Promise.all([J("assets/sst/data/tcens.json"), J("assets/sst/data/tcphase.json")]).then(function (r) {
@@ -565,7 +590,9 @@ References: Bister &amp; Emanuel 2002, <i>JGR</i> 107(D24), 4801 &middot; Chen, 
     if (r[1] === ERR) r[1] = null;
     var ini = (r[0] && r[0].init) || (r[1] && r[1].init); INIT = ini ? Date.parse(ini.replace("Z", ":00Z").replace(/:00:00Z$/, ":00Z")) : null;
     if (INIT !== null && isNaN(INIT)) INIT = Date.parse(ini);
-    S = merge(r[0], r[1]); ready = true; render();
+    S = merge(r[0], r[1]); S.forEach(function (x, i) { x.col = COLORS[i % COLORS.length]; });   // one colour per storm, map and buttons
+    var hint = document.getElementById("tcp-hint"); if (hint && window.matchMedia && window.matchMedia("(min-width: 601px)").matches) hint.open = true;
+    ready = true; render();
     return script("https://cdn.jsdelivr.net/npm/topojson-client@3/dist/topojson-client.min.js").then(function () { return fetch("https://cdn.jsdelivr.net/npm/world-atlas@2/land-110m.json"); })
       .then(function (r) { return r.json(); }).then(function (t) {
         var f = topojson.feature(t, t.objects.land), rings = [];
