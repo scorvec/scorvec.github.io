@@ -884,6 +884,76 @@ def site_increment_maps(data: Path, dest: Path):
         plt.close(fig)
 
 
+def site_gfz(data: Path, dest: Path):
+    """The explainer's opening figure: GFZ global AAM by ENSO phase (torque_gfz_enso.py tables)."""
+    import matplotlib.dates as mdates
+    from matplotlib.patches import Patch
+    s = pd.read_csv(data / "gfz_enso_series.csv", parse_dates=["month"]).set_index("month")
+    r = json.loads((data / "gfz_enso.json").read_text())
+    o = r["oni"]
+    sl = o["slope_per_K"]["est"]
+    C_EN, C_LN, C_NE = "#d8423f", "#2a78d6", "#c3c2b7"
+    s = s[s.aam3.notna()]
+    ph = np.where(s.oni >= 0.5, "EN", np.where(s.oni <= -0.5, "LN", "NEU"))
+    lod = r["lod_ms_per_1e25"]
+    with plt.rc_context(SITE_RC):
+        fig, axes = plt.subplots(2, 1, figsize=(6.8, 8.4), constrained_layout=True, gridspec_kw={"height_ratios": [1, 1.15]})
+        ax = axes[0]
+        t0 = s.index.values                                              # each month drawn as a flat block, no seams
+        t1 = (s.index + pd.offsets.MonthBegin(1)).values
+        xs, ys = np.ravel(np.column_stack([t0, t1])), np.repeat(s.aam3.values, 2)
+        for k, c in (("EN", C_EN), ("NEU", C_NE), ("LN", C_LN)):
+            ax.fill_between(xs, 0, ys, where=np.repeat(ph == k, 2), color=c, lw=0)
+        ax.plot(s.index + pd.Timedelta(days=15), sl * s.oni, color=INK, lw=0.9)
+        ax.axhline(0, color=INK2, lw=0.8)
+        for lab, t_, up in (("1982–83", "1983-02", True), ("1997–98", "1997-09", True), ("2015–16", "2016-02", True),
+                            ("2026", "2026-08", True), ("1988–89", "1989-02", False), ("1999–2000", "2000-03", False),
+                            ("2010–11", "2010-08", False)):
+            v = float(s.aam3.loc[t_].iloc[0])
+            ax.annotate(lab, (pd.Timestamp(t_), v), xytext=(0, 4 if up else -4), textcoords="offset points",
+                        ha="right" if lab == "2026" else "center", va="bottom" if up else "top", fontsize=9, color=INK)
+        ax.set_ylim(-3.4, 4.2)
+        ax.set_xlim(pd.Timestamp("1978-09-01"), pd.Timestamp("2026-12-31"))
+        ax.xaxis.set_major_locator(mdates.YearLocator(10, month=1)); ax.xaxis.set_minor_locator(mdates.YearLocator(2))
+        ax.xaxis.set_major_formatter(mdates.DateFormatter("%Y"))
+        ax.set_ylabel("AAM anomaly (10²⁵ kg m² s⁻¹)")
+        sec = ax.secondary_yaxis("right", functions=(lambda x: x * lod, lambda y: y / lod))
+        sec.set_ylabel("length of day (ms)")
+        ax.set_title("3-month means, coloured by the ONI of the same season", loc="left")
+        ax = axes[1]
+        for k, c in (("EN", C_EN), ("NEU", C_NE), ("LN", C_LN)):
+            m_ = ph == k
+            ax.scatter(s.oni[m_], s.aam3[m_], s=11, color=c, alpha=0.45, lw=0)
+        xx = np.array([-2.2, 2.8])
+        ax.plot(xx, sl * xx, color=INK, lw=1.4)
+        for k, c in (("EN", C_EN), ("NEU", C_NE), ("LN", C_LN)):
+            m_ = ph == k
+            e_ = o[k]
+            ax.errorbar(float(s.oni[m_].mean()), e_["est"], yerr=[[e_["est"] - e_["lo"]], [e_["hi"] - e_["est"]]], fmt="o",
+                        ms=9, mfc=c, mec=INK, ecolor=INK, elinewidth=1.6, capsize=4, zorder=5)
+        y26 = s.loc["2026-05":]
+        ax.plot(y26.oni, y26.aam3, color=INK, lw=1, zorder=4)
+        ax.scatter(y26.oni, y26.aam3, s=26, facecolor=SURF, edgecolor=INK, lw=1.2, zorder=6)
+        ax.annotate("2026, AMJ to JAS", (float(y26.oni.iloc[-1]), float(y26.aam3.iloc[-1])), xytext=(-8, 2),
+                    textcoords="offset points", ha="right", va="center", fontsize=9, color=INK)
+        ax.axhline(0, color="#c3c2b7", lw=1); ax.axvline(0, color="#c3c2b7", lw=1)
+        ax.set_xlim(-2.2, 2.8); ax.set_ylim(-3.4, 4.2)
+        ax.set_xlabel("ONI (K)"); ax.set_ylabel("AAM anomaly (10²⁵ kg m² s⁻¹)")
+        ax.set_title(f"r = {o['r']['est']:.2f}; slope {num_(sl, 2)} {ci_(o['slope_per_K'])} ×10²⁵ per K;\n"
+                     "large dots: phase means with 95% intervals", loc="left")
+        hs = [Patch(color=C_EN, label="El Niño (ONI ≥ +0.5)"), Patch(color=C_NE, label="neutral"),
+              Patch(color=C_LN, label="La Niña (ONI ≤ −0.5)"), Line2D([], [], color=INK, lw=1.2, label=f"ONI × {sl:.2f} (the fit)")]
+        fig.legend(handles=hs, loc="outside lower center", ncol=2, frameon=False, fontsize=9.5)
+        fig.suptitle(f"GFZ (ECMWF analyses), {o['span'][0][:4]}–2026: global angular momentum\nis high in El Niño and low in La Niña",
+                     fontsize=12.5, color=INK, x=0.02, ha="left")
+        fig.savefig(dest / "gfz_aam_enso.webp", **WEBP)
+        plt.close(fig)
+
+
+def ci_(d, k=2):
+    return f"[{num_(d['lo'], k)}, {num_(d['hi'], k)}]"
+
+
 def nice_levels(lim, n=10):
     """Round symmetric colour levels around zero."""
     if not np.isfinite(lim) or lim <= 0:
@@ -906,7 +976,7 @@ def num_(x, d=0):
 def site_all(site: Path, data: Path = DATA):
     dest = site / "studies" / "torque-enso"
     dest.mkdir(parents=True, exist_ok=True)
-    for f in (site_q1, site_slp, site_q2, site_q3, site_2026, site_increments, site_increment_maps):
+    for f in (site_gfz, site_q1, site_slp, site_q2, site_q3, site_2026, site_increments, site_increment_maps):
         f(data, dest)
         print("ok", f.__name__)
     return dest

@@ -241,7 +241,7 @@ def main() -> int:
 
 
     # ---------------- figure numbering (in order of appearance)
-    FIGS = ["q2lag", "q2con", "q1grid", "q1thr", "slp", "q3ll", "q3z", "b26cum", "b26att", "b26hr",
+    FIGS = ["gfz", "q2lag", "q2con", "q1grid", "q1thr", "slp", "q3ll", "q3z", "b26cum", "b26att", "b26hr",
             "incprof", "incseason", "incsection", "mapsu", "mapsseason", "mapssplit", "fcdrift"]
     FN = {k: i + 1 for i, k in enumerate(FIGS)}
 
@@ -252,6 +252,9 @@ def main() -> int:
 
     def ordn(n):
         return f"{n}{'th' if 10 <= n % 100 <= 20 else {1: 'st', 2: 'nd', 3: 'rd'}.get(n % 10, 'th')}"
+
+    def rank_word(n):
+        return {2: "second", 3: "third", 4: "fourth", 5: "fifth"}.get(n, ordn(n))
 
     def rank_txt(n):
         top_ = 49 - n
@@ -350,6 +353,19 @@ def main() -> int:
     aamr = lr[lr.series == "aam_glob"].set_index("lag")
     aam_peak_lag = int(aamr.slope.idxmax()); aam_peak = float(aamr.slope.max())
     LODMS = 1e25 / 5.2092e33 * 86400 * 1e3                               # ms of length of day per 1e25 kg m2/s
+    # GFZ global AAM by ENSO phase (torque_gfz_enso.py), the explainer's opening figure
+    GZ = json.loads((D / "gfz_enso.json").read_text())
+    go = GZ["oni"]
+    gs = pd.read_csv(D / "gfz_enso_series.csv", parse_dates=["month"]).set_index("month")
+    g26 = float(gs.aam3.loc["2026-08-01"]); g26_oni = float(gs.oni.loc["2026-08-01"])
+    g26_rank = int((gs.aam3.dropna() > g26).sum() + 1)
+    g26_top = gs.aam3.drop(pd.Timestamp("2026-08-01")).dropna().idxmax()
+    g26_ratio = g26 / (go["slope_per_K"]["est"] * g26_oni)
+    g_off_pre = GZ["gfz_minus_era5_annual"]
+    off_pre = sum(g_off_pre[str(y)] for y in (1976, 1977, 1978)) / 3
+    off_post = [v for k, v in g_off_pre.items() if int(k) >= 1979]
+    off_post = (sum(off_post) / len(off_post))
+    off_dev = max(abs(v - off_post) for k, v in g_off_pre.items() if int(k) >= 1979)
     slp_all = comp[(comp.cmp == "ONI-slope") & (comp.metric == "lp_mean") & comp.sig]
     alpS = slp_all[(slp_all.range == "ALP") & (slp_all.season == "SON")]
 
@@ -414,6 +430,20 @@ def main() -> int:
   westerlies in the upper troposphere strengthen there, in both hemispheres. In ERA5 the global angular momentum regressed on Niño-3.4
   peaks {abs(aam_peak_lag)} month{'' if abs(aam_peak_lag) == 1 else 's'} {'after' if aam_peak_lag > 0 else 'before'} the Niño-3.4 anomaly at {num(aam_peak, 2)} ×10²⁵ kg m² s⁻¹ per kelvin, about
   {aam_peak * LODMS:.2f} ms of length of day per kelvin.</p>
+  <p><b>What the record shows.</b> GFZ Potsdam's record of the atmosphere's angular momentum, computed from ECMWF's analyses
+  separately from the ERA5 calculation used in the rest of this study, shows the rise plainly (Figure {FN['gfz']}). Since 1979 global
+  angular momentum has been above normal in {100 * go['share_EN_above']:.0f}% of El Niño seasons and below normal in
+  {100 * go['share_LN_below']:.0f}% of La Niña seasons. On average it is {num(go['EN']['est'], 2)} {ci(go['EN']['lo'], go['EN']['hi'], 2)}
+  ×10²⁵ kg m² s⁻¹ in El Niño seasons, {num(go['LN']['est'], 2)} {ci(go['LN']['lo'], go['LN']['hi'], 2)} in La Niña seasons and near
+  zero in neutral ones, a swing of about {go['EN_minus_LN']['est'] * LODMS:.2f} ms in the length of the day. It rises by
+  {num(go['slope_per_K']['est'], 2)} {ci(go['slope_per_K']['lo'], go['slope_per_K']['hi'], 2)} ×10²⁵ per kelvin of the ONI
+  (r = {go['r']['est']:.2f}, {pval(max(go['r']['p'], go['r']['p_bretherton']))}), and the GFZ and ERA5 monthly anomalies correlate
+  at {GZ['corr_monthly_anom_with_era5']:.2f}. The ONI does not explain everything: intraseasonal swings, the MJO's among them (Weickmann et
+  al., 1997), move angular momentum by a few tenths from month to month even in three-month means. 2026 stands out. In July–September angular momentum was
+  {g26:.1f} ×10²⁵ above normal, {'the highest in the record' if g26_rank == 1 else f'second in the record only to early {g26_top.year}' if g26_rank == 2 else rank_word(g26_rank) + ' highest in the record'},
+  and {'about twice' if 1.75 <= g26_ratio < 2.25 else f'{g26_ratio:.1f} times'} what an ONI of {g26_oni:.1f} K alone would
+  predict (section 6).</p>
+  {fig("gfz", "gfz_aam_enso.webp", "Top: monthly 3-month-mean global angular momentum anomalies from GFZ, 1979 to 2026, coloured red in El Niño seasons, blue in La Niña seasons and grey otherwise, with the ONI scaled by the regression overlaid. Bottom: the same anomalies against the ONI, with the regression line, the mean of each phase with its 95% interval, and the 2026 seasons marked", f"Global angular momentum (wind term) from GFZ's effective angular momentum functions, built from ECMWF's analyses: 3-month means of the monthly anomaly from 1991–2020, with the 1979–2025 trend removed, against CPC's official ONI for the same season, {go['span'][0][:4]}–{go['span'][1][:4]} ({go['n_months']} overlapping seasons). Top: the anomaly, coloured by ENSO phase; the black line is the ONI times the fitted slope; the right axis gives the change in the length of the day. Bottom: each season against its ONI. Large dots: phase means with 95% intervals (24-month block bootstrap, 2,000 draws); open circles: 2026.")}
   <p><b>How the momentum gets in.</b> All of it has to come through the surface:</p>
   <p>$$\\frac{{dM}}{{dt}} = T_{{\\text{{mountain}}}} + T_{{\\text{{friction}}}} + T_{{\\text{{gravity-wave drag}}}},\\qquad
   T_{{\\text{{mountain}}}} = -\\iint p_s\\,\\frac{{\\partial h}}{{\\partial\\lambda}}\\,dA = \\iint h\\,\\frac{{\\partial p_s}}{{\\partial \\lambda}}\\,dA .$$</p>
@@ -453,6 +483,13 @@ def main() -> int:
     <li><b>Events</b>: local peaks of the synoptic part above +1 standard deviation (one per range and season), at least 5 days
     apart; negative events likewise. The same rule applied to the total anomaly gives the "days above threshold" events a
     forecaster sees. About seven events per range per season.</li>
+    <li><b>GFZ</b> effective angular momentum functions (ESMGFZ v1.0; Dobslaw et al., 2010), the external check: the wind term,
+    3-hourly from ECMWF's analyses, as daily and then monthly means (complete months only), anomalies from 1991–2020 with the
+    1979–2025 trend removed, then 3-month means to match the ONI's seasons. The years 1976–78 are left out: the difference
+    GFZ minus ERA5 is {off_pre - off_post:.2f} ×10²⁵ larger then than its mean since 1979, against at most {off_dev:.2f} either
+    way in any later year, and it is not known which record is wrong. With CPC's relative ONI (RONI) instead of the ONI the slope is
+    {num(GZ['roni']['slope_per_K']['est'], 2)} {ci(GZ['roni']['slope_per_K']['lo'], GZ['roni']['slope_per_K']['hi'], 2)}; without the
+    trend removal, {num(GZ['oni_no_detrend']['slope_per_K']['est'], 2)} {ci(GZ['oni_no_detrend']['slope_per_K']['lo'], GZ['oni_no_detrend']['slope_per_K']['hi'], 2)}.</li>
     <li><b>ENSO phase</b> from CPC's official ONI for each season (El Niño ≥ +0.5, La Niña ≤ −0.5, otherwise neutral). Season-years
     1979–2025: DJF {nsy['EN']['DJF']} El Niño, {nsy['NEU']['DJF']} neutral, {nsy['LN']['DJF']} La Niña; MAM {nsy['EN']['MAM']},
     {nsy['NEU']['MAM']}, {nsy['LN']['MAM']}; JJA {nsy['EN']['JJA']}, {nsy['NEU']['JJA']}, {nsy['LN']['JJA']}; SON {nsy['EN']['SON']},
@@ -783,7 +820,8 @@ def main() -> int:
     from <a href="{GH}scripts/mjo/src/torque_history_cmip6.py">torque_history_cmip6.py</a> in the
     <a href="{GH}.github/workflows/torque-cmip6.yml">torque-cmip6</a> workflow (the daily range torques are a run artifact).</li>
     <li>Analysis: <a href="{GH}scripts/mjo/src/torque_enso_study.py">torque_enso_study.py</a> and
-    <a href="{GH}scripts/mjo/src/torque_budget_2026.py">torque_budget_2026.py</a>; results:
+    <a href="{GH}scripts/mjo/src/torque_budget_2026.py">torque_budget_2026.py</a>; GFZ by ENSO phase:
+    <a href="{GH}scripts/mjo/src/torque_gfz_enso.py">torque_gfz_enso.py</a>; results:
     <a href="{GH}scripts/mjo/data/reference/torque_enso_study">torque_enso_study/</a>; figures
     <a href="{GH}scripts/mjo/src/torque_enso_figs.py">torque_enso_figs.py</a>; this page
     <a href="{GH}scripts/mjo/src/torque_enso_page.py">torque_enso_page.py</a>.</li>
