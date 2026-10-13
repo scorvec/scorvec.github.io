@@ -603,7 +603,9 @@ def main():
         R["models"][key] = M
         print(f"{label}: {len(inits)} inits {inits[0]}..{inits[-1]}, {nm} members", flush=True)
     # ERA5 references
-    rows = era5_budget(E)
+    # ERA5 references over the forecast window only (the Jan / Jul 2026 days are there for the WGNE day-1 comparison)
+    Ew = {d: r for d, r in E.items() if d >= dt.date(2026, 9, 14)}
+    rows = era5_budget(Ew)
     if len(rows) > 3:
         dM = np.array([r[1] for r in rows]); tm = np.array([r[2] for r in rows])
         tf = np.array([r[3] for r in rows]); tb = np.array([r[4] for r in rows])
@@ -613,30 +615,30 @@ def main():
                                "explained_bulk": float(1 - np.var(dM - tm - tb) / np.var(dM)),
                                "mean_Tm": float(tm.mean()), "mean_Tf_own": float(tf.mean()),
                                "mean_Tfb": float(tb.mean()), "sd_dmdt": float(dM.std())}
-    if E:
-        d37 = np.array([E[d].state("Mr_b", "G", 1)[0] - E[d].state("MrC11_b", "G", 1)[0] for d in sorted(E)]) / MU
-        dd = np.diff(np.array([E[d].state("Mr_b", "G", 1)[0] for d in sorted(E)])) / DAY / HU
-        dc = np.diff(np.array([E[d].state("MrC11_b", "G", 1)[0] for d in sorted(E)])) / DAY / HU
+    if Ew:
+        d37 = np.array([Ew[d].state("Mr_b", "G", 1)[0] - Ew[d].state("MrC11_b", "G", 1)[0] for d in sorted(Ew)]) / MU
+        dd = np.diff(np.array([Ew[d].state("Mr_b", "G", 1)[0] for d in sorted(Ew)])) / DAY / HU
+        dc = np.diff(np.array([Ew[d].state("MrC11_b", "G", 1)[0] for d in sorted(Ew)])) / DAY / HU
         R["era5"]["levels"] = {"mean_37_minus_C11": float(np.nanmean(d37)), "sd": float(np.nanstd(d37)),
                                "sd_daily_tendency_diff_H": float(np.nanstd(dd - dc)),
                                "corr_tendency": float(np.corrcoef(dd[np.isfinite(dd - dc)], dc[np.isfinite(dd - dc)])[0, 1])}
-        tmv = {k: np.array([E[d].torque(k, "G", 1)[0] for d in sorted(E)]) / HU for k in ("Tm_b", "Tm05_b", "Tm15_b")}
+        tmv = {k: np.array([Ew[d].torque(k, "G", 1)[0] for d in sorted(Ew)]) / HU for k in ("Tm_b", "Tm05_b", "Tm15_b")}
         R["era5"]["mountain_resolution"] = {k: {"mean": float(np.nanmean(v)), "sd": float(np.nanstd(v))} for k, v in tmv.items()}
         rg = {}
         for tk in ("Tm_r", "Tm05_r", "Tm15_r", "Tfb_r", "Tft_r", "Tg_r"):
-            a = np.stack([E[d].D[tk][0] for d in sorted(E) if tk in E[d].D]) / HU
+            a = np.stack([Ew[d].D[tk][0] for d in sorted(Ew) if tk in Ew[d].D]) / HU
             rg[tk] = {"mean": a.mean(0).tolist(), "sd_daily": a.std(0).tolist()}
         R["era5"]["ranges"] = rg
-        win = [d for d in sorted(E) if d >= dt.date(2026, 9, 14)]
+        win = [d for d in sorted(Ew) if d >= dt.date(2026, 9, 14)]
         mt = {}
         for tk in ("Tm_b", "Tm05_b", "Tfb_b", "Tft_b", "Tg_b", "Tft_land_b", "Tg_land_b"):
             for part in ("G", "N", "S"):
-                v = np.array([E[d].torque(tk, part, 1)[0] for d in win]) / HU
+                v = np.array([Ew[d].torque(tk, part, 1)[0] for d in win]) / HU
                 mt[f"{tk}|{part}"] = block_boot(v)
         R["era5"]["torques"] = mt
         rh = {}
         for tk in ("Tfb_rh", "Tm_rh", "Tft_rh", "Tg_rh"):
-            a = np.stack([E[d].D[tk][0] for d in win if tk in E[d].D]) / HU
+            a = np.stack([Ew[d].D[tk][0] for d in win if tk in Ew[d].D]) / HU
             rh[tk] = a.mean(0).tolist()
         R["era5"]["regions"] = rh
         import xarray as xr
