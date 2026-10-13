@@ -172,8 +172,8 @@ def main() -> int:
                 period = f"{infos[0]['first']} to {infos[0]['last']}"
                 sig_txt = ", ".join(f"{MODELS[m]} {100 * i['frac_sig']:.0f} %" for m, i in zip(ms, infos))
                 foot = (f"{'The same ' if len(ms) > 1 else ''}{infos[0]['runs']} 00Z runs{' for both models' if len(ms) > 1 else ''}, "
-                        f"members 1-6, {DEG}° boxes; one model cycle each (never pooled across upgrades). Truth: IMERG V07 Late adjusted "
-                        f"by its seasonal difference from the gauge-adjusted Final. Grey: not significant (21-day block bootstrap, "
+                        f"members 1-6, {DEG}° boxes; one model cycle each (never pooled across upgrades). Truth: IMERG V07 Late scaled "
+                        f"by its seasonal ratio to the gauge-adjusted Final. Grey: not significant (21-day block bootstrap, "
                         f"{QTXT}); significant cells {sig_txt}. Percent maps: hatched where the observed mean is below 0.5 mm/day.")
                 for kind, lev, unit in (("abs", ABS_LEV, "forecast minus observed rain (mm/day)"), ("rel", REL_LEV, "forecast / observed - 1 (%)")):
                     pan = []
@@ -209,7 +209,7 @@ def main() -> int:
             p = out / f"truth_{sk}.webp"
             map_fig([(get(k, "bias"), get(k, "sig"), f"IMERG Late minus Final, {SEASON_TXT[sk]}")], ABS_LEV, "Late minus Final (mm/day)",
                     f"IMERG V07 Late minus gauge-adjusted Final - {SEASON_TXT[sk]}, {n} days, {S['imerg_final'][0]} to {S['imerg_final'][1]}",
-                    f"Late's own error: added to every forecast-minus-Late bias on this page. Grey: not significant ({QTXT}).", p)
+                    f"Late's own error. The page scales Late by Final / Late, per season and box. Grey: not significant ({QTXT}).", p)
             made.append(p.name)
     S["figures"] = sorted(made)
     Path(a.json).write_text(json.dumps(S, indent=1))

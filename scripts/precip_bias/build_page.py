@@ -194,9 +194,10 @@ includes zero.</p>
 <li><strong>Forecast</strong>: the mean of members 1-6 of each 00Z run, accumulated over the lead band, as {S.get('grid_deg', 1)}° box
 means (forecast and observations both averaged to the same boxes before anything is compared).
 Cycles: {cyc_txt}.</li>
-<li><strong>Truth</strong>: IMERG V07 Late, the satellite record that keeps up with the forecasts, corrected by its own seasonal
-difference from IMERG Final, which carries the monthly gauge adjustment over land ({tf[0]} to {tf[1]}). The size of that
-correction is on the <a href="#truth">last map</a>.</li>
+<li><strong>Truth</strong>: IMERG V07 Late, the satellite record that keeps up with the forecasts, scaled box by box by its
+seasonal ratio to IMERG Final, which carries the monthly gauge adjustment over land ({tf[0]} to {tf[1]}). A ratio rather than a
+shift, so the adjusted rain cannot go below zero in a dry season. How far Late and Final differ is on the
+<a href="#truth">last map</a>.</li>
 <li><strong>Significance</strong>: runs a few days apart share their weather, so each mean's uncertainty comes from resampling
 whole 21-day blocks of start dates; a box is shaded only if it passes a false-discovery-rate test at q = {S.get('q_fdr', 0.10):.2f}
 across the map: on average no more than {'one in five' if abs(S.get('q_fdr', 0.10) - 0.2) < 1e-9 else f"{100 * S.get('q_fdr', 0.10):.0f} %"}

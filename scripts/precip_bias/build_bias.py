@@ -7,6 +7,8 @@ Method, per model, lead band and season (season of the band's middle valid day):
   F  ensemble-mean rain rate of the 6 archived members over the band (mm/day, 1° box means)
   L  IMERG V07 Late over the same UTC days (every day present, or the cell is skipped for that run)
   bias vs IMERG Late          mean(F - L) over the runs
+  truth (since 2026-10-13)     Late x r_s, r_s = sum(Final) / sum(Late) over every day of season s in the Final record
+                               (multiplicative - the additive version below made dry-season truths negative). Formerly:
   truth term                   D_s = mean(Late - Final) over every day of season s in the Final record (to 2025-09-30):
                                IMERG Late is satellite-only with a climatological gauge calibration; Final carries the
                                monthly GPCC gauge adjustment, so D_s is Late's own error, assumed steady by season. A
@@ -167,64 +169,82 @@ def pvals(z):
 SEASON_OF = {m: k for k, v in SEASONS.items() if k != "all" for m in v}
 
 
+RATIO_MIN_LATE, RATIO_CLIP = 0.1, (0.25, 4.0)
+
+
 def truth_terms(li, lp, fi, fp, rng):
-    """{season: (mean (NY, NX), se (NY, NX), days)} of daily Late - Final over their overlap; {} without Final."""
+    """{season: {ratio, se_ratio, diff, se_diff, days}} from the days IMERG Late and Final share; {} without Final.
+    ratio = sum(Final) / sum(Late) per box: the truth is Late SCALED by its season's ratio (2026-10-13: the earlier ADDITIVE
+    shift, Late minus the seasonal mean of Late - Final, made the "observed" mean NEGATIVE over the dry-season high Andes and
+    inflated the bias there). Ratio 1 where Late averages under 0.1 mm/day, clipped to [0.25, 4]; its se from the 21-day block
+    bootstrap of both sums. diff = mean(Late - Final), kept for the truth maps."""
     if not fi:
         return {}
     days = sorted(set(li) & set(fi))
-    out = {}
-    d0 = days[0]
+    out, d0, cells = {}, days[0], G.NY * G.NX
     for sk in ("DJF", "MAM", "JJA", "SON"):
         dd = [d for d in days if d.month in SEASONS[sk]]
         if len(dd) < 30:
             continue
-        x = (lp[[li[d] for d in dd]] - fp[[fi[d] for d in dd]]).reshape(len(dd), -1)
-        blocks = np.array([(d - d0).days // BLOCK_DAYS for d in dd])
-        m, se, n = _boot_mean_se(x, blocks, rng)
-        out[sk] = (m.reshape(G.NY, G.NX), se.reshape(G.NY, G.NX), len(dd))
+        Lx = lp[[li[d] for d in dd]].reshape(len(dd), cells); Fx = fp[[fi[d] for d in dd]].reshape(len(dd), cells)
+        ok = np.isfinite(Lx) & np.isfinite(Fx)
+        blocks = np.array([(d - d0).days // BLOCK_DAYS for d in dd]); ub, inv = np.unique(blocks, return_inverse=True)
+        SL = np.zeros((len(ub), cells)); SF = np.zeros_like(SL); C = np.zeros_like(SL)
+        np.add.at(SL, inv, np.where(ok, Lx, 0.0)); np.add.at(SF, inv, np.where(ok, Fx, 0.0)); np.add.at(C, inv, ok)
+        W = rng.multinomial(len(ub), np.full(len(ub), 1.0 / len(ub)), size=NBOOT).astype("float64")
+        with np.errstate(invalid="ignore", divide="ignore"):
+            r = SF.sum(0) / SL.sum(0); se_r = np.nanstd((W @ SF) / (W @ SL), axis=0); mL = SL.sum(0) / C.sum(0)
+        wet = mL >= RATIO_MIN_LATE
+        r = np.where(wet, np.clip(np.nan_to_num(r, nan=1.0), *RATIO_CLIP), 1.0); se_r = np.where(wet, np.nan_to_num(se_r), 0.0)
+        m, se, _ = _boot_mean_se(Lx - Fx, blocks, rng)
+        out[sk] = {"ratio": r.reshape(G.NY, G.NX), "se_ratio": se_r.reshape(G.NY, G.NX), "diff": m.reshape(G.NY, G.NX),
+                   "se_diff": se.reshape(G.NY, G.NX), "days": len(dd)}
     return out
 
 
-def run_truth(inits, mids, D):
-    """Truth term of a sample: the seasonal D weighted by its runs' seasons (mean, se); NaN where a season is missing."""
-    nan = np.full((G.NY, G.NX), np.nan)
+def adjust_late(L, mids, D):
+    """(Late scaled by each run's season ratio, se of the sample-mean adjustment from the ratios' own uncertainty) or (None, None)
+    when a season has no ratio. L: (run, NY, NX); mids: the month of each run's band."""
     if not D:
-        return nan, nan
-    seas = [SEASON_OF[m] for m in mids]
-    m = np.zeros((G.NY, G.NX)); v = np.zeros((G.NY, G.NX))
-    for sk in set(seas):
-        if sk not in D:
-            return nan, nan
-        w = seas.count(sk) / len(seas)
-        m += w * D[sk][0]; v += (w * D[sk][1]) ** 2
-    return m, np.sqrt(v)
+        return None, None
+    seas = [SEASON_OF[int(m)] for m in mids]
+    if any(x not in D for x in set(seas)):
+        return None, None
+    La = L * np.stack([D[x]["ratio"] for x in seas])
+    v = np.zeros((G.NY, G.NX))
+    for x in set(seas):
+        k = [i for i, y in enumerate(seas) if y == x]
+        with np.errstate(invalid="ignore"):
+            mL = np.nanmean(L[k], axis=0)
+        v += (len(k) / len(seas) * np.nan_to_num(mL) * D[x]["se_ratio"]) ** 2
+    return La, np.sqrt(v)
 
 
 def field(inits, F, L, Fin, rng, d_start: date, mids=None, D=None):
-    """Bias statistics for one (model, lead, season) sample. F, L, Fin: (run, NY, NX)."""
+    """Bias statistics for one (model, lead, season) sample. F, L: (run, NY, NX); Fin unused (the truth comes from D)."""
     nr = len(inits)
     if nr < 20:
         return None
     blocks = np.array([(d - d_start).days // BLOCK_DAYS for d in inits])
     cells = G.NY * G.NX
-    e = (F - L).reshape(nr, cells)
-    m_e, se_e, n_e = _boot_mean_se(e, blocks, rng)
-    mt, st = run_truth(inits, mids, D)                                  # Late's own error, from the daily overlap
-    m_t, se_t = mt.ravel(), st.ravel()
+    La, se_tf = adjust_late(L, mids, D)
+    adjusted = La is not None
+    if not adjusted:
+        La, se_tf = L, np.zeros((G.NY, G.NX))
+    m_e, se_e, _ = _boot_mean_se((F - La).reshape(nr, cells), blocks, rng)       # bias vs the gauge-adjusted truth
+    m_late, _, _ = _boot_mean_se((F - L).reshape(nr, cells), blocks, rng)         # vs raw IMERG Late, for reference
     m_f, _, _ = _boot_mean_se(F.reshape(nr, cells), blocks, rng)
-    m_l, _, _ = _boot_mean_se(np.where(np.isfinite(L), L, np.nan).reshape(nr, cells), blocks, rng)
-    bias = m_e + m_t
-    se = np.sqrt(se_e ** 2 + se_t ** 2)
+    obs, _, _ = _boot_mean_se(La.reshape(nr, cells), blocks, rng)                  # gauge-adjusted observed mean
+    se = np.sqrt(se_e ** 2 + se_tf.ravel() ** 2)
     with np.errstate(invalid="ignore", divide="ignore"):
-        z = bias / se
+        z = m_e / se
     p = pvals(z); sig = bh_fdr(p)
-    obs = m_l - m_t                                                     # gauge-adjusted observed mean
     with np.errstate(invalid="ignore", divide="ignore"):
         rel = np.where(obs >= REL_MIN, (m_f - obs) / obs, np.nan)
     shp = (G.NY, G.NX)
-    return {"bias": bias.reshape(shp), "se": se.reshape(shp), "sig": sig.reshape(shp), "rel": rel.reshape(shp),
-            "bias_late": m_e.reshape(shp), "truth": m_t.reshape(shp), "obs": obs.reshape(shp), "fc": m_f.reshape(shp),
-            "n_runs": int(nr), "truth_adjusted": bool(np.isfinite(m_t).any()),
+    return {"bias": m_e.reshape(shp), "se": se.reshape(shp), "sig": sig.reshape(shp), "rel": rel.reshape(shp),
+            "bias_late": m_late.reshape(shp), "truth": (m_e - m_late).reshape(shp), "obs": obs.reshape(shp), "fc": m_f.reshape(shp),
+            "n_runs": int(nr), "truth_adjusted": bool(adjusted),
             "frac_sig": float(sig[np.isfinite(p)].mean()) if np.isfinite(p).any() else 0.0}
 
 
@@ -232,36 +252,36 @@ def region_stats(inits, F, L, Fin, rng, d_start, mids=None, D=None):
     """Area-mean bias per region with a block-bootstrap CI_LEVEL interval (same truth adjustment)."""
     w = G.area_weights(); out = {}
     blocks = np.array([(d - d_start).days // BLOCK_DAYS for d in inits])
+    La, se_tf = adjust_late(L, mids, D)
+    adjusted = La is not None
+    if not adjusted:
+        La, se_tf = L, np.zeros((G.NY, G.NX))
     for name, (y0, y1, x0, x1) in REGIONS.items():
         my = (G.LAT >= y0) & (G.LAT <= y1); mx = (G.LON >= x0) & (G.LON <= x1)
         ww = w[np.ix_(my, mx)]
         def amean(a):
-            s = a[:, my][:, :, mx]
-            ok = np.isfinite(s).all(axis=(1, 2))
-            v = np.where(ok, (s * ww).sum(axis=(1, 2)) / ww.sum(), np.nan)
-            return v
-        e = amean(F - L); o = amean(L)
-        m_e, se_e, n_e = _boot_mean_se(e[:, None], blocks, rng)
-        mt, st = run_truth(inits, mids, D)
-        mt_r = mt[np.ix_(my, mx)]; st_r = st[np.ix_(my, mx)]
-        m_t = np.array([(mt_r * ww).sum() / ww.sum()]) if np.isfinite(mt_r).all() else np.array([np.nan])
-        se_t = np.array([(st_r * ww).sum() / ww.sum()]) if np.isfinite(st_r).all() else np.array([np.nan])   # cells' errors taken as fully correlated (conservative)
-        b = float(m_e[0] + (m_t[0] if np.isfinite(m_t[0]) else 0.0))
-        s = float(np.sqrt(se_e[0] ** 2 + (se_t[0] ** 2 if np.isfinite(se_t[0]) else 0.0)))
-        m_o, _, _ = _boot_mean_se(o[:, None], blocks, rng)
-        ob = float(m_o[0] - (m_t[0] if np.isfinite(m_t[0]) else 0.0))
-        z = b / s if s > 0 else np.nan
-        out[name] = {"bias": round(b, 3), "lo": round(b - Z_CI * s, 3), "hi": round(b + Z_CI * s, 3), "obs": round(ob, 3),
+            s_ = a[:, my][:, :, mx]
+            ok = np.isfinite(s_).all(axis=(1, 2))
+            return np.where(ok, (np.nan_to_num(s_) * ww).sum(axis=(1, 2)) / ww.sum(), np.nan)
+        m_e, se_e, n_e = _boot_mean_se(amean(F - La)[:, None], blocks, rng)
+        m_o, _, _ = _boot_mean_se(amean(La)[:, None], blocks, rng)
+        se_t = float((se_tf[np.ix_(my, mx)] * ww).sum() / ww.sum())          # boxes' ratio errors taken as fully correlated
+        b = float(m_e[0]); s_ = float(np.sqrt(se_e[0] ** 2 + se_t ** 2)); ob = float(m_o[0])
+        z = b / s_ if s_ > 0 else np.nan
+        out[name] = {"bias": round(b, 3), "lo": round(b - Z_CI * s_, 3), "hi": round(b + Z_CI * s_, 3), "obs": round(ob, 3),
                      "rel": round(b / ob, 3) if ob >= REL_MIN else None, "sig": bool(np.isfinite(z) and abs(z) > Z_CI),
-                     "truth_adjusted": bool(np.isfinite(m_t[0])), "n_runs": int(n_e[0])}
+                     "truth_adjusted": bool(adjusted), "n_runs": int(n_e[0])}
     return out
 
 
-def run_errors(ini, acc, idx, la, lb, li, lp):
-    """Area-mean (F - IMERG Late) per run over the cells valid in that run, mm/day (NaN if the run has no truth)."""
+def run_errors(ini, acc, idx, la, lb, li, lp, D=None):
+    """Area-mean (F - gauge-adjusted IMERG) per run over the cells valid in that run, mm/day (NaN if the run has no truth)."""
     w = G.area_weights()
-    F = lead_rate(acc[idx], la, lb); L = obs_rate(li, lp, [ini[i] for i in idx], la, lb)
-    e = F - L; ok = np.isfinite(e)
+    inis = [ini[i] for i in idx]
+    F = lead_rate(acc[idx], la, lb); L = obs_rate(li, lp, inis, la, lb)
+    mids = np.array([(d + timedelta(days=(la + lb) / 2)).month for d in inis])
+    La, _ = adjust_late(L, mids, D)
+    e = F - (L if La is None else La); ok = np.isfinite(e)
     with np.errstate(invalid="ignore"):
         return np.where(ok.any(axis=(1, 2)), np.nansum(np.where(ok, e, 0) * w, axis=(1, 2)) / (w * ok).sum(axis=(1, 2)), np.nan)
 
@@ -293,7 +313,7 @@ def main() -> int:
     M = {m: load_model(data, m, a.coarse) for m in MODELS}
     G.set_coarse(a.coarse)                                       # every statistic below is on the k-degree boxes
     D = truth_terms(li, lp, fi, fp, rng)
-    print("truth term (Late - Final) seasons:", {k: v[2] for k, v in D.items()}, flush=True)
+    print("truth ratio (Final / Late) seasons:", {k: v["days"] for k, v in D.items()}, flush=True)
     for m, (ini, _) in M.items():
         print(f"{MODELS[m]}: {len(ini)} runs {ini[0] if ini else '-'}..{ini[-1] if ini else '-'}", flush=True)
     fields, summary = {}, {"generated": datetime.utcnow().strftime("%Y-%m-%dT%H:%MZ"), "leads": {k: v[2] for k, v in LEADS.items()},
@@ -382,8 +402,8 @@ def main() -> int:
             r = float(np.corrcoef(fa["bias"][ok], fb["bias"][ok])[0, 1])
             w = G.area_weights()
             la, lb, _ = LEADS[lk]
-            e_old = run_errors(ini, M[m][1], [j for j, _ in pairs], la, lb, li, lp)
-            e_new = run_errors(ini, M[m][1], [i for _, i in pairs], la, lb, li, lp)
+            e_old = run_errors(ini, M[m][1], [j for j, _ in pairs], la, lb, li, lp, D)
+            e_new = run_errors(ini, M[m][1], [i for _, i in pairs], la, lb, li, lp, D)
             pair_err[key][lk] = dict(zip(pdates, e_new - e_old))
             chg = paired_change(e_new, e_old, pdates, rng)
             fields[f"change|{key}|{lk}"] = {"bias": dlt, "sig": sg, "rel": np.full_like(dlt, np.nan), "truth": np.full_like(dlt, np.nan),
@@ -407,10 +427,13 @@ def main() -> int:
                                   "leads": did}
         if "wk1" in did and did["wk1"]:
             print(f"  difference-in-differences wk1: {did['wk1']}", flush=True)
-    for sk, (m, se, n) in D.items():
-        fields[f"truth|{sk}"] = {"bias": m, "sig": bh_fdr(pvals((m / se).ravel())).reshape(m.shape), "rel": np.full_like(m, np.nan),
-                                 "truth": m, "obs": np.full_like(m, np.nan), "bias_late": m}
-    summary["truth_days"] = {k: v[2] for k, v in D.items()}
+    for sk, t in D.items():
+        m, se = t["diff"], t["se_diff"]
+        with np.errstate(invalid="ignore", divide="ignore"):
+            sgt = bh_fdr(pvals((m / se).ravel())).reshape(m.shape)
+        fields[f"truth|{sk}"] = {"bias": m, "sig": sgt, "rel": np.full_like(m, np.nan), "truth": m, "obs": np.full_like(m, np.nan), "bias_late": m}
+    summary["truth_days"] = {k: v["days"] for k, v in D.items()}
+    summary["truth_method"] = "IMERG Late scaled by its seasonal ratio to IMERG Final (per box)"
     Path(a.out).parent.mkdir(parents=True, exist_ok=True)
     np.savez_compressed(a.out, keys=np.array(list(fields)), lat=G.LAT, lon=G.LON,
                         **{f"{k}#{v}": fields[k][v] for k in fields for v in ("bias", "sig", "rel", "truth", "obs", "bias_late")})
