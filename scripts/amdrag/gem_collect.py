@@ -62,9 +62,9 @@ MODELS = {
     "geps": dict(
         url=BASE + "/{d}/WXO-DD/ensemble/geps/grib2/raw/00/{L:03d}/CMC_geps-raw_{f}_latlon0p5x0p5_{d}00_P{L:03d}"
                    "_allmbrs.grib2",
-        sp="PRES_SFC_0", u10="UGRD_TGL_10m", v10="VGRD_TGL_10m", oro="HGT_SFC_0",
+        sp="PRES_SFC_0", u10="UGRD_TGL_10m", v10="VGRD_TGL_10m", oro="HGT_SFC_0", pw="PWAT_EATM_0",
         u="UGRD_ISBL_{L:04d}", v="VGRD_ISBL_{L:04d}", ulev=C.C12, vlev=C.C12, last=360, members=GEPS_MEMBERS,
-        est=2.2e9),
+        est=2.3e9),
 }
 
 
@@ -184,6 +184,8 @@ def work_step(step: int, levels: bool):
                 fld = {k: x.astype(np.float32) for k, x in fld.items()}
             return fld, lat, lon
         sp = get(M["sp"]); u10 = get(M["u10"]); v10 = get(M["v10"])
+        # column water once a day (GEPS only; GDPS publishes none): dry-air mass at the daily states
+        PW = get(M["pw"]) if (levels and M.get("pw")) else None
         U = V = None
         if levels:
             U = {L: get(M["u"].format(L=L)) for L in M["ulev"]}
@@ -206,7 +208,8 @@ def work_step(step: int, levels: bool):
             if bad:
                 res["nan"][f"{m}:sfc"] = bad
                 continue
-            res["T"][m] = red.torque_step(mon, s_, a_, b_, maps=step in C.MAP_STEPS and m == runs[0],
+            pw = PW[0].get(m) if PW is not None else None
+            res["T"][m] = red.torque_step(mon, s_, a_, b_, tcwv=pw, maps=step in C.MAP_STEPS and m == runs[0],
                                           xmaps=m == runs[0])
             if levels:
                 if any(U[L] is None or m not in U[L][0] for L in M["ulev"]):

@@ -453,7 +453,8 @@ def body(R, Mo, keys, L, fig, t_models, made):
     (the site's torque product), and (b) the model's own published stress where there is one. The bulk law cannot see a drag
     scheme; its differences between models are differences in their 10 m wind. Torques are 6-hourly (so the daily and
     semidiurnal tides cancel) and averaged over each forecast day; angular momentum is taken at the 24-hour steps.</li>
-    <li><b>References.</b> Each model's own analysis is its control member's step 0 on the verifying day; ERA5 (ARCO-ERA5,
+    <li><b>References.</b> Each model's own analysis is its control member's step 0 on the verifying day (for the AI models
+    the analysis they start from: NOAA's GDAS for AIGFS, ECMWF's for AIFS and AIFS-ENS); ERA5 (ARCO-ERA5,
     {days_e[0]} to {days_e[1]}) goes through the same code on 37 levels, with its own turbulent and gravity-wave stresses.
     Drift against ERA5 is the forecast-minus-ERA5 difference at day d minus the same difference at day 0.</li>
     <li><b>Regions</b> as in the torque study: rough terrain (above 1000 m, or subgrid orography standard deviation above 100 m)
