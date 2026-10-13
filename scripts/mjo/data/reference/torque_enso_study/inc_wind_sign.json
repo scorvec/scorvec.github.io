@@ -1,0 +1,174 @@
+{
+ "background": {
+  "source": "ERA5 u, 12 UTC, local store",
+  "days": 161,
+  "months": [
+   "2026-01",
+   "2026-08"
+  ]
+ },
+ "zonal": {
+  "1000": {
+   "trop": {
+    "strengthen": 0.0,
+    "cells": 24
+   },
+   "extra": {
+    "strengthen": 0.035,
+    "cells": 25
+   }
+  },
+  "975": {
+   "trop": {
+    "strengthen": 0.0,
+    "cells": 24
+   },
+   "extra": {
+    "strengthen": 0.46,
+    "cells": 28
+   }
+  },
+  "950": {
+   "trop": {
+    "strengthen": 0.0,
+    "cells": 24
+   },
+   "extra": {
+    "strengthen": 0.834,
+    "cells": 32
+   }
+  },
+  "925": {
+   "trop": {
+    "strengthen": 0.0,
+    "cells": 24
+   },
+   "extra": {
+    "strengthen": 0.956,
+    "cells": 33
+   }
+  },
+  "900": {
+   "trop": {
+    "strengthen": 0.0,
+    "cells": 21
+   },
+   "extra": {
+    "strengthen": 0.914,
+    "cells": 32
+   }
+  },
+  "875": {
+   "trop": {
+    "strengthen": 0.397,
+    "cells": 16
+   },
+   "extra": {
+    "strengthen": 0.573,
+    "cells": 35
+   }
+  },
+  "850": {
+   "trop": {
+    "strengthen": 0.934,
+    "cells": 16
+   },
+   "extra": {
+    "strengthen": 0.224,
+    "cells": 38
+   }
+  },
+  "825": {
+   "trop": {
+    "strengthen": 0.958,
+    "cells": 19
+   },
+   "extra": {
+    "strengthen": 0.165,
+    "cells": 40
+   }
+  },
+  "800": {
+   "trop": {
+    "strengthen": 0.897,
+    "cells": 20
+   },
+   "extra": {
+    "strengthen": 0.161,
+    "cells": 39
+   }
+  },
+  "775": {
+   "trop": {
+    "strengthen": 0.889,
+    "cells": 21
+   },
+   "extra": {
+    "strengthen": 0.176,
+    "cells": 34
+   }
+  },
+  "750": {
+   "trop": {
+    "strengthen": 0.864,
+    "cells": 21
+   },
+   "extra": {
+    "strengthen": 0.309,
+    "cells": 32
+   }
+  },
+  "700": {
+   "trop": {
+    "strengthen": 0.946,
+    "cells": 16
+   },
+   "extra": {
+    "strengthen": 0.955,
+    "cells": 36
+   }
+  }
+ },
+ "grid": {
+  "1000": {
+   "trop": {
+    "strengthen": 0.103,
+    "cells": 1865
+   },
+   "extra": {
+    "strengthen": 0.282,
+    "cells": 1825
+   }
+  },
+  "925": {
+   "trop": {
+    "strengthen": 0.155,
+    "cells": 2260
+   },
+   "extra": {
+    "strengthen": 0.681,
+    "cells": 2889
+   }
+  },
+  "850": {
+   "trop": {
+    "strengthen": 0.638,
+    "cells": 2029
+   },
+   "extra": {
+    "strengthen": 0.418,
+    "cells": 2838
+   }
+  },
+  "700": {
+   "trop": {
+    "strengthen": 0.695,
+    "cells": 1714
+   },
+   "extra": {
+    "strengthen": 0.732,
+    "cells": 3206
+   }
+  }
+ }
+}

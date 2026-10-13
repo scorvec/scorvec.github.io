@@ -292,6 +292,22 @@ def main() -> int:
     finits = I["fc_drift"]["inits"]
     MP = json.loads((D / "increments_maps.json").read_text())
     sp_ = MP["split"]; area = MP["area"]
+    WS = json.loads((D / "inc_wind_sign.json").read_text())             # torque_increments.py --wind-sign
+    wsb = WS["background"]
+
+    def ws_cell(r):
+        f = r["strengthen"]
+        if f is None or r["cells"] == 0:
+            return "<td>n.s.</td>"
+        word = "strengthens" if f >= 0.67 else ("weakens" if f <= 0.33 else "mixed")
+        return f"<td>{word} ({100 * f:.0f}%)</td>"
+    ws_rows = "".join(f"<tr><th scope='row'>{lv}</th>{ws_cell(WS['zonal'][lv]['trop'])}{ws_cell(WS['zonal'][lv]['extra'])}</tr>"
+                      for lv in ("1000", "975", "950", "925", "900", "875", "850", "800", "750", "700"))
+    t_sign = ("<div class='tw'><table class='res'><thead><tr><th>hPa</th><th>tropics, 30°S–30°N (easterly trades)</th>"
+              "<th>extratropics (mostly westerlies)</th></tr></thead><tbody>" + ws_rows + "</tbody></table></div>")
+    wg = WS.get("grid", {})
+    ws_grid = "; ".join(f"{lv} hPa {100 * wg[lv]['trop']['strengthen']:.0f}% and {100 * wg[lv]['extra']['strengthen']:.0f}%"
+                        for lv in ("1000", "925", "850", "700") if lv in wg)
 
     def share(var, s, r):
         v = sp_[f"{var}_{s}_{r}"]
@@ -431,9 +447,9 @@ def main() -> int:
     <li><b>3. Too much drag, but not over the mountains.</b> Operational experience with GEM and ECMWF's own record (Kanehama et al.,
     2022) show models tuned toward more drag because it improves scores. Yet only {share('amL', 'ALL', 'ORO')} of the momentum the analysis adds below
     850 hPa lands over or just downstream of rough terrain, which covers {100 * area['ORO']:.0f}% of the globe;
-    {share('amL', 'ALL', 'OCO')} lands over the tropical and other oceans. Near the surface the analysis weakens both the trades and
-    the mid-latitude westerlies and adds westerlies above. That fits an ocean boundary layer that mixes too much momentum down,
-    not excess form drag.</li>
+    {share('amL', 'ALL', 'OCO')} lands over the tropical and other oceans. The analysis slows the wind next to the surface (the trades
+    below about 900 hPa, the mid-latitude westerlies at 1000 hPa) and speeds it up just above (the trades at 850–700 hPa, the
+    westerlies at 950–900 hPa). The boundary layer carries too much momentum down to the surface; it is not losing it to mountains.</li>
     <li><b>Which comes first.</b> Day to day, mountain torque leads the rise in global angular momentum and the subtropical jet.
     The 500 hPa pattern that sets up an east-side high (a ridge upstream, a trough downstream) is the same in El Niño and neutral
     years.</li>
@@ -683,9 +699,22 @@ def main() -> int:
   {t_lay}
   <p>Between about 35°S and 35°N the analysis adds westerly momentum from the surface to about 900 hPa and removes it at
   850–700 hPa (Figure {FN['incsection']}; {fsec.get('J10', 0):.0%} and {fsec.get('J22', 0):.0%} of the cells with data are
-  significant). That dipole across the trade-wind boundary layer sits over the trade-wind oceans in the maps below. In the
-  extratropics the analysis adds westerly momentum through the middle troposphere (400–600 hPa, strongest at 30–55°S) and in the
-  northern subtropical jet at 100–200 hPa. Above 100 hPa the increments are small.</p>
+  significant). The trades are easterly, so that is a weaker trade wind below 900 hPa and a stronger one above; the dipole sits
+  over the trade-wind oceans in the maps below. In the extratropics the analysis adds westerly momentum through the middle
+  troposphere (400–600 hPa, strongest at 30–55°S) and in the northern subtropical jet at 100–200 hPa. Above 100 hPa the increments
+  are small.</p>
+  <p><b>Strengthened or weakened?</b> Because angular momentum counts westerlies as positive, its sign alone does not say whether
+  the model's wind was too strong or too weak. Too much drag would show as increments that strengthen the wind they act on. The
+  table gives, level by level, the share of the significant zonal-mean increment that has the sign of the background wind:</p>
+  {t_sign}
+  <p class="tcap">Share of the FDR-significant increment in Figure {FN['incsection']} (5° bands, both window starts, weighted by
+  size) that has the sign of the background zonal-mean wind; "strengthens" at 67% or more, "weakens" at 33% or less. Background:
+  ERA5 zonal wind at 12 UTC on {wsb['days']} days of {month_txt(wsb['months'][0])} to {month_txt(wsb['months'][1])}, log-pressure
+  interpolated from 1000, 925, 850 and 700 hPa, bands with |u| below 0.5 m s⁻¹ left out. The 2.5° maps give the same pattern
+  (share strengthening, tropics and extratropics): {ws_grid}.</p>
+  <p>In both regions the increments slow the wind in the lowest layers and speed it up just above, the trades from about 850 hPa
+  and the westerlies at 950–900 hPa. The boundary layer's interior is too slow and its lowest layer too fast: the model moves
+  momentum down to the surface too efficiently. Plain excess surface drag would slow both.</p>
 
   <h3>Where the low-level increment goes</h3>
   {fig("mapsu", "inc_maps_u.webp", "World maps of the mean zonal-wind increment at 925 and 850 hPa with terrain contours", "The mean increment of the zonal wind at 925 hPa (top) and 850 hPa (bottom), both window starts together, per day; shaded only where significant (t-test with an effective sample size from the lag-one autocorrelation, FDR 10% over the map). Contours: terrain at 500, 1500 and 3000 m.")}
@@ -718,9 +747,9 @@ def main() -> int:
   momentum budget, so the link to the lost westerly momentum is an inference, one that ERA5's increments are consistent with.</p>
   <p><b>But not as low-level orographic drag.</b> The increments weaken the surface winds over the oceans, both the trades and the
   westerlies, so the model's ocean surface winds are too strong, not too weak. Its northern mid-latitude 850 hPa westerlies are, if
-  anything, too strong as well, unlike the GEM experience. That points to an ocean boundary layer that carries too much momentum
-  down to the surface, below an extratropical free troposphere short of westerlies (scatterometer and buoy winds pulling the
-  surface winds down would look the same). Too-strong surface westerlies also mean too much friction torque, so boundary-layer
+  anything, too strong as well, unlike the GEM experience. With the too-slow boundary-layer interior above (the table above), that
+  points to an ocean boundary layer that carries too much momentum down to the surface. Scatterometer and buoy winds pulling the
+  surface winds down would look the same at 10 m and 1000 hPa, but would not by themselves speed up the wind at 950–900 hPa. Too-strong surface westerlies also mean too much friction torque, so boundary-layer
   drag, rather than orographic drag, remains a candidate for the lost momentum.</p>
   <p><b>Gravity-wave drag aloft.</b> COORDE (van Niekerk et al., 2020) found the IFS, like several other models, short of
   orographic gravity-wave drag in the lower stratosphere (as summarised by Kanehama et al., 2022), which would leave excess westerly

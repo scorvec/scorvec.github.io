@@ -18,6 +18,7 @@ the step between two analysis trajectories. Inputs (committed by torque-history.
   aam_forecast_archive.nc               AIFS-ENS ensemble-mean AAM forecasts (forecast drift)
 
     python scripts/mjo/src/torque_increments.py --out <dir>
+    python scripts/mjo/src/torque_increments.py --out <dir> --wind-sign     # only the strengthen / weaken test
 """
 from __future__ import annotations
 
@@ -160,12 +161,85 @@ def maps_analysis(od: Path):
     return out
 
 
+ERA5_U = Path.home() / "era5_store" / "arco_0p25" / "u"           # ERA5 u at 14 levels, 12 UTC, sampled days (local store)
+SIGN_LEVELS = (1000, 975, 950, 925, 900, 875, 850, 825, 800, 775, 750, 700)
+
+
+def wind_sign_test(od: Path):
+    """Does an increment strengthen or weaken the wind it acts on? (2026-10-13, user: "below 850mb there is not enough
+    momentum, too much drag in the pbl", then "Oh because the trade winds are easterly"). Angular momentum is signed
+    westerly-positive, so in the easterly trades an increment that ADDS angular momentum SLOWS the wind; "too much drag"
+    predicts increments that strengthen the wind. Per pressure level and region, the FDR-significant increments are split by
+    whether they share the sign of the background zonal wind (|u| > 0.5 m/s zonal mean, > 1 m/s per cell), weighted by
+    |increment|: (a) the 5-degree zonal-mean section (inc_section.npz, both window starts), the background zonal-mean u
+    log-p interpolated from 1000/925/850/700 hPa; (b) the 2.5-degree maps at 1000/925/850/700 hPa (MAPS means, inc_maps_sig.nc).
+    Background: ERA5 u from the local store, every sampled 2026 day that has the low levels."""
+    import glob
+    import xarray as xr
+    lv4 = [1000, 925, 850, 700]
+    acc, n, months = None, 0, set()
+    for fn in sorted(glob.glob(str(ERA5_U / "2026" / "u_*.nc"))):
+        d = xr.open_dataset(fn)
+        if not all(l in d.level.values for l in lv4):
+            continue
+        u = d["u"].sel(level=lv4).load()
+        acc = u if acc is None else acc + u.values
+        n += 1; months.add(str(d.time.values)[:7])
+    if acc is None:
+        print("no background wind in", ERA5_U); return None
+    ub = acc / n                                                         # (4, lat 90..-90, lon)
+    latq = ub.latitude.values
+    out = {"background": {"source": "ERA5 u, 12 UTC, local store", "days": n, "months": [min(months), max(months)]},
+           "zonal": {}, "grid": {}}
+    # (a) zonal-mean section
+    z = np.load(od / "inc_section.npz"); lev = z["level"]; lat5 = z["lat"]
+    zm = ub.mean("longitude").values
+    zm5 = np.array([[zm[k][(latq >= la - 2.5) & (latq < la + 2.5)].mean() for la in lat5] for k in range(4)])
+    lp = np.log(np.array(lv4, float))[::-1]
+    for p in SIGN_LEVELS:
+        k = int(np.where(lev == p)[0][0])
+        ubar = np.array([np.interp(np.log(p), lp, zm5[::-1, j]) for j in range(len(lat5))])
+        row = {}
+        for reg, band in (("trop", np.abs(lat5) < 30), ("extra", np.abs(lat5) >= 30)):
+            st = wk = 0.0; cells = 0
+            for w in ("10", "22"):
+                j = z[f"J{w}_mean"][k]; sg = z[f"J{w}_sig"][k] & band & (np.abs(ubar) > 0.5) & np.isfinite(j)
+                same = np.sign(j) == np.sign(ubar)
+                st += float(np.abs(j[sg & same]).sum()); wk += float(np.abs(j[sg & ~same]).sum()); cells += int(sg.sum())
+            row[reg] = {"strengthen": round(st / (st + wk), 3) if st + wk else None, "cells": cells}
+        out["zonal"][str(p)] = row
+    # (b) 2.5-degree maps
+    if MAPS.exists() and (od / "inc_maps_sig.nc").exists():
+        M = xr.open_dataset(MAPS); G = xr.open_dataset(od / "inc_maps_sig.nc")
+        lat, lon = M.lat.values, M.lon.values
+        cb = ub.coarsen(latitude=10, longitude=10, boundary="trim").mean()
+        cb = cb.interp(latitude=xr.DataArray(lat, dims="lat"), longitude=xr.DataArray(lon, dims="lon"), method="nearest")
+        wgt = np.cos(np.deg2rad(lat))[:, None] * np.ones((1, len(lon)))
+        for p in lv4:
+            inc = M[f"u{p}_both_ALL_mean"].values; sg = G[f"u{p}_both_ALL_sig"].values.astype(bool)
+            u0 = cb.sel(level=p).values; same = np.sign(inc) == np.sign(u0)
+            row = {}
+            for reg, m in (("trop", np.abs(lat) < 30), ("extra", np.abs(lat) >= 30)):
+                sel = sg & m[:, None] & (np.abs(u0) > 1.0) & np.isfinite(inc)
+                a = np.abs(inc[sel]) * wgt[sel]
+                row[reg] = {"strengthen": round(float(a[same[sel]].sum() / a.sum()), 3) if a.sum() else None, "cells": int(sel.sum())}
+            out["grid"][str(p)] = row
+    (od / "inc_wind_sign.json").write_text(json.dumps(out, indent=1))
+    for p, r in out["zonal"].items():
+        print(f"  {p:>4s} hPa  zonal mean: tropics {r['trop']['strengthen']}  extratropics {r['extra']['strengthen']}"
+              + (f"   | maps: {out['grid'][p]['trop']['strengthen']} / {out['grid'][p]['extra']['strengthen']}" if p in out["grid"] else ""))
+    return out
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--out", required=True)
     ap.add_argument("--maps-only", action="store_true")
+    ap.add_argument("--wind-sign", action="store_true", help="only the strengthen / weaken test (inc_wind_sign.json)")
     a = ap.parse_args()
     od = Path(a.out); od.mkdir(parents=True, exist_ok=True)
+    if a.wind_sign:
+        return 0 if wind_sign_test(od) else 1
     if a.maps_only:
         r = maps_analysis(od)
         print(json.dumps({k: v for k, v in (r or {}).items() if k != "split"}, indent=1, default=float))
@@ -330,6 +404,7 @@ def main() -> int:
             dr[reg_] = rows
         res["fc_drift"] = dict(inits=[str(inits[0]), str(inits[-1]), int(len(inits))], by_region=dr)
     (od / "increments.json").write_text(json.dumps(res, indent=1, default=float))
+    wind_sign_test(od)
     print(json.dumps({k: v for k, v in res.items() if k not in ("profile", "global_by_month")}, indent=1, default=float)[:6000])
     return 0
 
