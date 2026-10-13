@@ -144,15 +144,28 @@ def body(R, Mo, keys, L, fig, t_models, made):
         bl.append("<b>Low-level winds.</b> Over the Southern Ocean storm track (ocean 30–65°S) the 850 hPa westerlies at day 10 "
                   "differ significantly from the model's own analysis in " + "; ".join(wk) + " m s⁻¹ (negative = weaker "
                   "westerlies).")
-    # 6 GEM orography
-    if "gdps" in Mo and g("gdps", "orography", "scales"):
-        sc = {k: g(k, "orography", "scales", "land", "rms_fine05") for k in keys}
-        sc = {k: v for k, v in sc.items() if v}
+    # 6 GEM: what the 2019 changes can show (GEPS = the clean GEM physics; GDPS nudged toward GEML since May 2026)
+    gem = []
+    if "geps" in Mo:
+        gem.append(f"GEPS (the unnudged GEM, {Mo['geps']['n_inits']} inits): day-10 angular-momentum drift against its own "
+                   f"analysis {E(drift('geps', 'G', 10))} ×10²⁵ (SH {E(drift('geps', 'S', 10))}, NH "
+                   f"{E(drift('geps', 'N', 10))}); 850 hPa wind over ocean 30–65°S {E(wind('geps', 'u850_rh', 10, 'OCX_S'))} "
+                   f"and over rough terrain {E(wind('geps', 'u850_rh', 10, 'ORO_N'))} (NH) m s⁻¹")
+    if "gdps" in Mo:
+        gem.append(f"GDPS ({Mo['gdps']['n_inits']} inits, nudged toward GEML between 850 and 250 hPa): day-10 drift "
+                   f"{E(drift('gdps', 'G', 10))}")
+    sc = {k: g(k, "orography", "scales", "land", "rms_fine05") for k in keys}
+    sc = {k: v for k, v in sc.items() if v}
+    if "gdps" in sc:
         rk = sorted(sc, key=lambda k: -sc[k])
         others = ", ".join(f"{L[k]} {sc[k]:.0f} m" for k in rk if k != "gdps")
-        bl.append(f"<b>GEM's 2019 orography filter.</b> On the published grids, GDPS keeps {sc.get('gdps', 0):.0f} m RMS of "
-                  f"sub-0.5° relief over land, rank {rk.index('gdps') + 1} of {len(rk)} ({others}). Its resolved mountain "
-                  "torque is compared range by range in section 7.")
+        gem.append(f"on its 0.15° output the GDPS orography keeps {sc['gdps']:.0f} m RMS of sub-0.5° relief over land, rank "
+                   f"{rk.index('gdps') + 1} of {len(rk)} ({others})")
+    if gem:
+        bl.append("<b>GEM after its 2019 drag changes.</b> " + "; ".join(gem) + ". GEM publishes no stress, so its "
+                  "blocking and boundary-layer changes show only in these totals, and the two cannot be separated; the "
+                  "finer grid and weaker orography filter show in the resolved mountain torque (section 7). The Canadian "
+                  "sample is the smallest and grows daily.")
     samp = ", ".join(L[k] + " " + str(Mo[k]["n_inits"]) for k in keys)
     bl.append(f"<b>Sample.</b> {n_tot} model-inits from {first} to {last} 00Z ({samp}). "
               "The Canadian runs are collected daily from a 30-day public archive and their sample grows every day; this page "
