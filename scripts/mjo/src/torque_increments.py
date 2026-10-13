@@ -208,6 +208,26 @@ def wind_sign_test(od: Path):
                 st += float(np.abs(j[sg & same]).sum()); wk += float(np.abs(j[sg & ~same]).sum()); cells += int(sg.sum())
             row[reg] = {"strengthen": round(st / (st + wk), 3) if st + wk else None, "cells": cells}
         out["zonal"][str(p)] = row
+    # (c) layer-integrated: sum over each layer and region of the daily increment (both window starts) with the sign of the
+    # background wind, + = strengthens; 95 % intervals from the 10-day block bootstrap of block_boot_mean. Too little drag
+    # leaves the layer-integrated wind too fast; extra mixing only moves momentum between layers.
+    if U37.exists():
+        U = xr.open_dataset(U37); lat_b = U.band_lat.values
+        levs = [float(p) for p in U.level.values if 700 <= p <= 1000]
+        zmb = np.array([[zm[k][(latq >= la - 2.5) & (latq < la + 2.5)].mean() for la in lat_b] for k in range(4)])
+        sg = np.stack([np.where(np.abs(ub_ := np.array([np.interp(np.log(p), lp, zmb[::-1, j]) for j in range(len(lat_b))])) > 0.5,
+                                np.sign(ub_), 0.0) for p in levs])                                   # (level, band)
+        X = (U["J10"] + U["J22"]).sel(level=levs).values * sg[None]                                 # (day, level, band)
+        lev_a = np.array(levs)
+        out["layers"] = {"days": int(X.shape[0]), "units": "1e25 kg m2 s-1 per day, signed + = strengthens the wind", "regions": {}}
+        for reg, rm in (("trop", np.abs(lat_b) < 30), ("extra", (np.abs(lat_b) >= 30) & (np.abs(lat_b) <= 60))):
+            rr = {}
+            for name, (a, b) in (("1000-950", (950, 1000)), ("925-875", (875, 925)), ("1000-875", (875, 1000)),
+                                 ("850-700", (700, 850)), ("1000-700", (700, 1000))):
+                lm = (lev_a >= a) & (lev_a <= b)
+                m_, lo_, hi_, p_ = block_boot_mean(X[:, lm][:, :, rm].sum(axis=(1, 2))[:, None])
+                rr[name] = {"mean": float(m_[0]), "lo": float(lo_[0]), "hi": float(hi_[0]), "sig": bool(lo_[0] > 0 or hi_[0] < 0)}
+            out["layers"]["regions"][reg] = rr
     # (b) 2.5-degree maps
     if MAPS.exists() and (od / "inc_maps_sig.nc").exists():
         M = xr.open_dataset(MAPS); G = xr.open_dataset(od / "inc_maps_sig.nc")
@@ -225,6 +245,8 @@ def wind_sign_test(od: Path):
                 row[reg] = {"strengthen": round(float(a[same[sel]].sum() / a.sum()), 3) if a.sum() else None, "cells": int(sel.sum())}
             out["grid"][str(p)] = row
     (od / "inc_wind_sign.json").write_text(json.dumps(out, indent=1))
+    for reg, rr in out.get("layers", {}).get("regions", {}).items():
+        print("  layers", reg, {k: (round(v["mean"], 4), v["sig"]) for k, v in rr.items()})
     for p, r in out["zonal"].items():
         print(f"  {p:>4s} hPa  zonal mean: tropics {r['trop']['strengthen']}  extratropics {r['extra']['strengthen']}"
               + (f"   | maps: {out['grid'][p]['trop']['strengthen']} / {out['grid'][p]['extra']['strengthen']}" if p in out["grid"] else ""))
