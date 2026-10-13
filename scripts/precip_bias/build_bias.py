@@ -44,6 +44,27 @@ LEADS = {"day1": (0, 1, "day 1"), "d2_3": (1, 3, "days 2-3"), "d4_7": (3, 7, "da
 SEASONS = {"all": tuple(range(1, 13)), "DJF": (12, 1, 2), "MAM": (3, 4, 5), "JJA": (6, 7, 8), "SON": (9, 10, 11)}
 MODELS = {"ifs": "IFS-ENS", "aifs-ens": "AIFS-ENS"}
 BLOCK_DAYS, NBOOT, Q_FDR, REL_MIN = 21, 1000, 0.10, 0.5
+# Model cycles (2026-10-13, user: "There have been a few ifs upgrades since then, use with care"). IFS 48r1 -> 49r1 on
+# 2024-11-12 and 49r1 -> 50r1 with AIFS-ENS v1 -> v2 on 2026-05-12, both at the 06 UTC run, so a cycle starts with the next
+# day's 00Z run. Runs are NEVER pooled across cycles: every field below belongs to one cycle of each model.
+VERSIONS = {
+    "ifs": [("48r1", date(2024, 3, 1), date(2024, 11, 12)), ("49r1", date(2024, 11, 13), date(2026, 5, 12)),
+            ("50r1", date(2026, 5, 13), None)],
+    "aifs-ens": [("v1", date(2025, 7, 2), date(2026, 5, 12)), ("v2", date(2026, 5, 13), None)],
+}
+COMPARISONS = {                                           # key: (label, [(model, cycle)], the same runs for both)
+    "current": ("IFS-ENS 50r1 and AIFS-ENS v2, the systems running now", [("ifs", "50r1"), ("aifs-ens", "v2")]),
+    "previous": ("IFS-ENS 49r1 and AIFS-ENS v1", [("ifs", "49r1"), ("aifs-ens", "v1")]),
+    "ifs49": ("IFS-ENS 49r1, its whole operational life", [("ifs", "49r1")]),
+}
+UPGRADES = [("ifs", "48r1", "49r1"), ("ifs", "49r1", "50r1"), ("aifs-ens", "v1", "v2")]
+
+
+def cycle_of(model: str, d: date) -> str | None:
+    for name, a, b in VERSIONS[model]:
+        if d >= a and (b is None or d <= b):
+            return name
+    return None
 REGIONS = {                                               # (lat0, lat1, lon0, lon1), land or all cells
     "Eastern US": (30, 45, -95, -75), "Western US": (32, 49, -124, -105), "Mexico": (15, 30, -110, -95),
     "Amazon": (-12, 3, -72, -50), "Southeast South America": (-35, -22, -62, -47),
@@ -247,69 +268,96 @@ def main() -> int:
     M = {m: load_model(data, m) for m in MODELS}
     for m, (ini, _) in M.items():
         print(f"{MODELS[m]}: {len(ini)} runs {ini[0] if ini else '-'}..{ini[-1] if ini else '-'}", flush=True)
-    common_start = M["aifs-ens"][0][0] if M["aifs-ens"][0] else None
     fields, summary = {}, {"generated": datetime.utcnow().strftime("%Y-%m-%dT%H:%MZ"), "leads": {k: v[2] for k, v in LEADS.items()},
                            "models": MODELS, "imerg_late": [str(min(li)), str(max(li))],
                            "imerg_final": [str(min(fi)), str(max(fi))] if fi else None, "q_fdr": Q_FDR, "block_days": BLOCK_DAYS,
                            "comparisons": {}}
-    comps = {"ifs_full": [("ifs", None)]}
-    if common_start:
-        comps["common"] = [("ifs", common_start), ("aifs-ens", common_start)]
-    for comp, members in comps.items():
-        summary["comparisons"][comp] = {}
-        for model, start in members:
-            ini, acc = M[model]
-            if not ini:
-                continue
-            keep = [i for i, d in enumerate(ini) if start is None or d >= start]
-            # only runs common to both models in the common comparison
-            if comp == "common":
-                other = set(M["aifs-ens" if model == "ifs" else "ifs"][0])
-                keep = [i for i in keep if ini[i] in other]
-            ini_k = [ini[i] for i in keep]; acc_k = acc[keep]
-            d_start = ini_k[0]
-            summary["comparisons"][comp][model] = {"runs": len(ini_k), "first": str(ini_k[0]), "last": str(ini_k[-1]), "leads": {}}
-            for lk, (la, lb, _) in LEADS.items():
-                F = lead_rate(acc_k, la, lb)
-                L = obs_rate(li, lp, ini_k, la, lb)
-                Fin = obs_rate(fi, fp, ini_k, la, lb) if fi else np.full_like(L, np.nan)
-                mid = np.array([(d + timedelta(days=(la + lb) / 2)).month for d in ini_k])
-                ok_run = np.isfinite(L).any(axis=(1, 2))
-                for sk, months in SEASONS.items():
-                    sel = np.where(np.isin(mid, months) & ok_run)[0]
-                    if len(sel) < 20:
-                        continue
-                    ins = [ini_k[i] for i in sel]
-                    r = field(ins, F[sel], L[sel], Fin[sel], rng, d_start, mid[sel], D)
-                    if r is None:
-                        continue
-                    key = f"{comp}|{model}|{lk}|{sk}"
-                    fields[key] = r
-                    reg = region_stats(ins, F[sel], L[sel], Fin[sel], rng, d_start, mid[sel], D)
+    def sample(model, idx, comp, lk_list=LEADS, seasons=SEASONS, store=True):
+        """Bias fields for runs idx of one model (one cycle) - per lead and season; returns {(lk, sk): field}."""
+        ini, acc = M[model]
+        ini_k = [ini[i] for i in idx]; acc_k = acc[idx]
+        out = {}
+        for lk in lk_list:
+            la, lb, _ = LEADS[lk]
+            F = lead_rate(acc_k, la, lb)
+            L = obs_rate(li, lp, ini_k, la, lb)
+            mid = np.array([(d + timedelta(days=(la + lb) / 2)).month for d in ini_k])
+            ok_run = np.isfinite(L).any(axis=(1, 2))
+            for sk in seasons:
+                sel = np.where(np.isin(mid, SEASONS[sk]) & ok_run)[0]
+                if len(sel) < 20:
+                    continue
+                ins = [ini_k[i] for i in sel]
+                r = field(ins, F[sel], L[sel], None, rng, ini_k[0], mid[sel], D)
+                if r is None:
+                    continue
+                out[(lk, sk)] = r
+                if store:
+                    fields[f"{comp}|{model}|{lk}|{sk}"] = r
+                    reg = region_stats(ins, F[sel], L[sel], None, rng, ini_k[0], mid[sel], D)
                     summary["comparisons"][comp][model]["leads"].setdefault(lk, {})[sk] = {
                         "runs": r["n_runs"], "truth_adjusted": r["truth_adjusted"], "frac_sig": round(r["frac_sig"], 3),
                         "domain_bias": round(float(np.nansum(r["bias"] * G.area_weights()) / np.sum(G.area_weights() * np.isfinite(r["bias"]))), 3),
-                        "regions": reg}
-                    print(f"  {comp:8s} {model:8s} {lk:6s} {sk:3s} runs {r['n_runs']:4d}  "
-                          f"significant {100 * r['frac_sig']:5.1f} %", flush=True)
-    # stability across years (IFS, week 1, same calendar months of different years): pattern correlation of the bias
-    stab = {}
-    ini, acc = M["ifs"]
-    if ini:
-        F = lead_rate(acc, 0, 7); L = obs_rate(li, lp, ini, 0, 7)
-        years = sorted({d.year for d in ini})
-        per = {}
-        for y in years:
-            sel = [i for i, d in enumerate(ini) if d.year == y and 3 <= d.month <= 10]
-            if len(sel) >= 120:
-                with np.errstate(invalid="ignore"):
-                    per[y] = np.nanmean(F[sel] - L[sel], axis=0)
-        ys = sorted(per)
-        for i in range(len(ys)):
-            for j in range(i + 1, len(ys)):
-                aa, bb = per[ys[i]].ravel(), per[ys[j]].ravel(); ok = np.isfinite(aa) & np.isfinite(bb)
-                stab[f"{ys[i]} vs {ys[j]}"] = round(float(np.corrcoef(aa[ok], bb[ok])[0, 1]), 3)
-    summary["ifs_week1_year_to_year_pattern_r"] = stab
+                        "first": str(ins[0]), "last": str(ins[-1]), "regions": reg}
+                    print(f"  {comp:8s} {model:8s} {lk:6s} {sk:3s} runs {r['n_runs']:4d}  significant {100 * r['frac_sig']:5.1f} %", flush=True)
+        return out
+
+    seg = {m: {v: [i for i, d in enumerate(M[m][0]) if cycle_of(m, d) == v] for v, _, _ in VERSIONS[m]} for m in MODELS}
+    summary["cycles"] = {m: [{"cycle": v, "from": str(a), "to": str(b) if b else None, "runs": len(seg[m][v])} for v, a, b in VERSIONS[m]]
+                         for m in MODELS}
+    for comp, (label, members) in COMPARISONS.items():
+        dates = None
+        for m, v in members:                                  # the same runs for every member of the comparison
+            ds = {M[m][0][i] for i in seg[m][v]}
+            dates = ds if dates is None else dates & ds
+        if not dates or len(dates) < 20:
+            print(f"  {comp}: {len(dates or [])} common runs - skipped", flush=True); continue
+        summary["comparisons"][comp] = {"label": label}
+        for m, v in members:
+            idx = [i for i in seg[m][v] if M[m][0][i] in dates]
+            summary["comparisons"][comp][m] = {"cycle": v, "runs": len(idx), "first": str(M[m][0][idx[0]]), "last": str(M[m][0][idx[-1]]), "leads": {}}
+            sample(m, idx, comp)
+
+    # Did an upgrade change the bias? The new cycle's runs against the old cycle's runs on the SAME calendar days one year
+    # earlier (so the season mix matches; the weather year does not, so part of any difference is the weather).
+    summary["upgrades"] = {}
+    for m, old, new in UPGRADES:
+        ini = M[m][0]; pos = {d: i for i, d in enumerate(ini)}
+        pairs = []
+        for i in seg[m][new]:
+            d = ini[i]
+            try:
+                d0 = d.replace(year=d.year - 1)
+            except ValueError:                                # 29 February
+                continue
+            j = pos.get(d0)
+            if j is not None and cycle_of(m, d0) == old:
+                pairs.append((j, i))
+        key = f"{m}|{old}->{new}"
+        if len(pairs) < 40:
+            summary["upgrades"][key] = {"runs": len(pairs), "note": "too few matched runs"}; continue
+        f_old = sample(m, [j for j, _ in pairs], None, seasons=("all",), store=False)
+        f_new = sample(m, [i for _, i in pairs], None, seasons=("all",), store=False)
+        res = {"runs": len(pairs), "old": [str(ini[pairs[0][0]]), str(ini[pairs[-1][0]])], "new": [str(ini[pairs[0][1]]), str(ini[pairs[-1][1]])], "leads": {}}
+        for lk in LEADS:
+            if (lk, "all") not in f_old or (lk, "all") not in f_new:
+                continue
+            fa, fb = f_old[(lk, "all")], f_new[(lk, "all")]
+            dlt = fb["bias"] - fa["bias"]; se = np.sqrt(fa["se"] ** 2 + fb["se"] ** 2)
+            with np.errstate(invalid="ignore", divide="ignore"):
+                p = pvals((dlt / se).ravel())
+            sg = bh_fdr(p).reshape(dlt.shape)
+            ok = np.isfinite(fa["bias"]) & np.isfinite(fb["bias"])
+            r = float(np.corrcoef(fa["bias"][ok], fb["bias"][ok])[0, 1])
+            w = G.area_weights()
+            fields[f"change|{key}|{lk}"] = {"bias": dlt, "sig": sg, "rel": np.full_like(dlt, np.nan), "truth": np.full_like(dlt, np.nan),
+                                            "obs": np.full_like(dlt, np.nan), "bias_late": dlt}
+            res["leads"][lk] = {"frac_sig": round(float(sg[np.isfinite(p.reshape(dlt.shape))].mean()), 3), "pattern_r": round(r, 3),
+                                "domain_change": round(float(np.nansum(dlt * w) / np.sum(w * np.isfinite(dlt))), 3),
+                                "domain_old": round(float(np.nansum(fa["bias"] * w) / np.sum(w * np.isfinite(fa["bias"]))), 3),
+                                "domain_new": round(float(np.nansum(fb["bias"] * w) / np.sum(w * np.isfinite(fb["bias"]))), 3)}
+            print(f"  upgrade {key:16s} {lk:6s} runs {len(pairs):4d}  bias pattern r {r:.2f}  cells changed (FDR) {100 * res['leads'][lk]['frac_sig']:5.1f} %", flush=True)
+        summary["upgrades"][key] = res
     for sk, (m, se, n) in D.items():
         fields[f"truth|{sk}"] = {"bias": m, "sig": bh_fdr(pvals((m / se).ravel())).reshape(m.shape), "rel": np.full_like(m, np.nan),
                                  "truth": m, "obs": np.full_like(m, np.nan), "bias_late": m}
