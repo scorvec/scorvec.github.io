@@ -58,18 +58,66 @@ WIND_LEVELS = [15, 30, 40, 50, 60, 70]                           # 200 hPa wind-
 
 
 def _to_0360(da: xr.DataArray) -> xr.DataArray:
-    return da.assign_coords(longitude=da.longitude % 360).sortby("longitude")
+    """Longitudes mapped to [0, 360) and sorted; a repeated seam column (0 and 360) is dropped."""
+    da = da.assign_coords(longitude=da.longitude % 360).sortby("longitude")
+    keep = np.r_[True, np.diff(da.longitude.values) > 1e-9]
+    return da.isel(longitude=np.flatnonzero(keep))
+
+
+def _pole_row(row: np.ndarray) -> np.ndarray:
+    """A wind component at a pole keeps only zonal wavenumber 1 of the nearest row (cross-polar flow in local
+    east/north components)."""
+    c = np.fft.rfft(row)
+    keep = np.zeros_like(c); keep[1:2] = c[1:2]
+    return np.fft.irfft(keep, n=row.size)
+
+
+def _padded(da: xr.DataArray) -> xr.DataArray:
+    """2-D (latitude, longitude) field in [0, 360) padded with a column at lon - 360 and lon + 360 and, where the grid
+    stops short of the poles, pole rows, so interpolation to ANY Gauss-Legendre grid stays inside the data.
+    2026-10-12 (quantmet 0.3.1 fix): without the wrap, the GLQ columns past the input's last longitude came out NaN
+    (chi 100 % NaN for a 1.5 or 2.5 deg input at lmax >= 120)."""
+    da = da.sortby("latitude").transpose("latitude", "longitude")
+    lon = da.longitude.values
+    da = xr.concat([da.isel(longitude=[-1]).assign_coords(longitude=[lon[-1] - 360.0]), da,
+                    da.isel(longitude=[0]).assign_coords(longitude=[lon[0] + 360.0])], dim="longitude")
+    lat = da.latitude.values
+    rows, lats = [da.values], [lat]
+    if lat[0] > -90.0 + 1e-9:
+        rows.insert(0, _pole_row(da.values[0])[None]); lats.insert(0, [-90.0])
+    if lat[-1] < 90.0 - 1e-9:
+        rows.append(_pole_row(da.values[-1])[None]); lats.append([90.0])
+    return xr.DataArray(np.concatenate(rows, 0), dims=("latitude", "longitude"),
+                        coords={"latitude": np.concatenate(lats), "longitude": da.longitude.values})
+
+
+def _ddlon(f: np.ndarray, lon_deg) -> np.ndarray:
+    """d f / d lambda (per radian) on the last axis: periodic centred differences on a global uniform grid (the GLQ
+    grid, or the extended DH2 grid whose 360 column repeats 0), np.gradient on a regional one. 2026-10-12: replaces
+    np.gradient everywhere, whose one-sided differences at the 0/360 seam put a first-order error (and a spurious
+    line of divergence) along the prime meridian."""
+    lon = np.asarray(lon_deg, float)
+    d = np.diff(lon); dl = d.mean()
+    if np.allclose(d, dl, rtol=1e-6, atol=1e-9):
+        dlr = np.deg2rad(dl)
+        if np.isclose(lon[-1] - lon[0], 360.0, atol=1e-6):            # closed grid: last column = first
+            core = f[..., :-1]
+            g = (np.roll(core, -1, axis=-1) - np.roll(core, 1, axis=-1)) / (2 * dlr)
+            return np.concatenate([g, g[..., :1]], axis=-1)
+        if np.isclose(lon[-1] - lon[0] + dl, 360.0, atol=1e-6):       # full circle, open
+            return (np.roll(f, -1, axis=-1) - np.roll(f, 1, axis=-1)) / (2 * dlr)
+    return np.gradient(f, np.deg2rad(lon), axis=-1)
 
 
 def velocity_potential(u2d: xr.DataArray, v2d: xr.DataArray, lmax: int = LMAX):
     """χ (m² s⁻¹) on a regular DH2 grid from 2-D u, v, by inverting ∇²χ = δ with spherical
     harmonics on a pole-free Gauss-Legendre grid. Returns (chi, dlat, dlon)."""
-    u2d = _to_0360(u2d); v2d = _to_0360(v2d)
+    u2d = _padded(_to_0360(u2d)); v2d = _padded(_to_0360(v2d))
     glat, glon = pysh.expand.GLQGridCoord(lmax)         # Gauss-Legendre latitudes exclude the poles
-    ug = u2d.interp(latitude=glat, longitude=glon).transpose("latitude", "longitude").values
-    vg = v2d.interp(latitude=glat, longitude=glon).transpose("latitude", "longitude").values
-    latr = np.deg2rad(glat); lonr = np.deg2rad(glon); cosp = np.cos(latr)[:, None]
-    div = (np.gradient(ug, lonr, axis=1) + np.gradient(vg * cosp, latr, axis=0)) / (A * cosp)
+    ug = u2d.interp(latitude=glat, longitude=glon).values
+    vg = v2d.interp(latitude=glat, longitude=glon).values
+    latr = np.deg2rad(glat); cosp = np.cos(latr)[:, None]
+    div = (_ddlon(ug, glon) + np.gradient(vg * cosp, latr, axis=0)) / (A * cosp)
     clm = pysh.SHGrid.from_array(div, grid="GLQ").expand()
     l = np.arange(clm.lmax + 1, dtype=float)
     fac = np.zeros_like(l); fac[1:] = -(A ** 2) / (l[1:] * (l[1:] + 1))   # χ_lm = -a²/(l(l+1)) δ_lm
@@ -79,10 +127,10 @@ def velocity_potential(u2d: xr.DataArray, v2d: xr.DataArray, lmax: int = LMAX):
 
 
 def irrotational_wind(chi: np.ndarray, dlat: np.ndarray, dlon: np.ndarray):
-    """Irrotational (divergent) wind ∇χ on the χ grid: (1/(a cosφ) ∂χ/∂λ, 1/a ∂χ/∂φ)."""
-    latr = np.deg2rad(dlat); lonr = np.deg2rad(dlon)
+    """Irrotational (divergent) wind ∇χ on the χ grid: (1/(a cosφ) ∂χ/∂λ, 1/a ∂χ/∂φ); ∂/∂λ periodic on a global grid."""
+    latr = np.deg2rad(dlat)
     cosp = np.clip(np.cos(latr), 1e-3, None)[:, None]   # clip the poles so the vectors stay finite
-    uchi = np.gradient(chi, lonr, axis=1) / (A * cosp)
+    uchi = _ddlon(chi, dlon) / (A * cosp)
     vchi = np.gradient(chi, latr, axis=0) / A
     return uchi, vchi
 
