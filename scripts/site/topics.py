@@ -142,7 +142,9 @@ by a stronger jet exit over the North Pacific.</li>
 <h2>The live forecast</h2>
 <p>The friction and mountain torques are computed from the ECMWF AIFS ensemble for days 0–15 as anomalies from the
 ERA5 1991–2020 climatology for the same time of year. Anomalies are used on purpose: the absolute budget cannot be
-closed. ERA5's own terms sum to −4.5 ± 0.7 Hadleys in the annual mean where the answer must be zero, and the resolved
+closed. ERA5's own terms sum to −11 ± 0.6 Hadleys in the annual mean (sampled four times a day, 1991–2020) where the answer must be
+zero — an earlier figure of −4.5 came from sampling only at 12Z, which lets the twice-daily pressure tide leak into the mountain
+term — the reanalysis adds angular momentum at every assimilation cycle, and the resolved
 mountain torque changes with grid spacing. Both errors sit in the mean and cancel in an anomaly. The open forecast
 data carry no gravity-wave stress, so that term stays in the residual between the net torque and the actual change in
 angular momentum.</p>

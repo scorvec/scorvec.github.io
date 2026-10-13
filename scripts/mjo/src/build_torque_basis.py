@@ -14,7 +14,8 @@ Two defects were measured in the existing torque products (2026-08-28):
      happens over rough land.
   2. build_torque_clim.py samples 12Z only, which aliases the semidiurnal pressure
      tide into the mountain term: the global mountain torque is +4.85 Hadley at 12Z
-     but -0.73 at 00Z. That is most of the -4.5 Hadley annual non-closure.
+     but -0.73 at 00Z. That made the 12Z-only non-closure read -4.5 Hadley; sampled 4x daily the
+     1991-2020 sum is -11.3 +/- 0.6 Hadley (torque/ENSO study, 2026-10-12) - the 12Z figure was mostly aliasing.
 
 Both are fixed by one pass: sample 00Z AND 12Z, and store the friction density as a
 LINEAR BASIS in the unknown drag coefficients so they can be fitted (and refitted)

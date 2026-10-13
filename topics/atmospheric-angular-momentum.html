@@ -34,7 +34,7 @@
    "publisher": {
     "@id": "https://scorvec.com/#person"
    },
-   "dateModified": "2026-10-01",
+   "dateModified": "2026-10-12",
    "about": {
     "@type": "DefinedTerm",
     "name": "Atmospheric angular momentum",
@@ -329,7 +329,7 @@ tendency: the hemispheric version of the Global Wind Oscillation.</p>
 <div class="topic" style="padding-top:0">
   <section class="related"><h2>Related</h2><ul><li><a href="/topics/mountain-torque.html">Mountain torque</a></li><li><a href="/topics/hadley-cell.html">Hadley cell</a></li><li><a href="/topics/wave-activity-flux.html">Wave activity flux</a></li><li><a href="/topics/">All explainers</a></li></ul></section>
   <section><h2>References</h2><ol class="refs"><li>Rosen, R. D., and D. A. Salstein, 1983: Variations in atmospheric angular momentum on global and regional scales and the length of day. <i>J. Geophys. Res.</i>, 88, 5451–5470.</li><li>Weickmann, K. M., and P. D. Sardeshmukh, 1994: The atmospheric angular momentum cycle associated with a Madden–Julian oscillation. <i>J. Atmos. Sci.</i>, 51, 3194–3208.</li><li>Egger, J., K. Weickmann, and K.-P. Hoinka, 2007: Angular momentum in the global atmospheric circulation. <i>Rev. Geophys.</i>, 45, RG4007.</li><li>Weickmann, K., and E. Berry, 2009: The tropical Madden–Julian oscillation and the global wind oscillation. <i>Mon. Wea. Rev.</i>, 137, 1601–1614.</li></ol></section>
-  <p class="byline">By <a href="/">Shawn Corvec</a>, meteorologist. The figures on this page are live and update with each forecast cycle; the text was last revised 2026-10-01.</p>
+  <p class="byline">By <a href="/">Shawn Corvec</a>, meteorologist. The figures on this page are live and update with each forecast cycle; the text was last revised 2026-10-12.</p>
 </div>
 </main>
 <script>
@@ -339,6 +339,17 @@ addEventListener("message", function (e) {
     if (f.contentWindow === e.source) { f.style.height = x.h + "px"; f.style.aspectRatio = "auto"; }
   });
 });
+// The loop player loads once it is on screen (2026-10-05, user: no frames in the background). Native
+// loading="lazy" starts an iframe 1250-2500 px before it is visible, i.e. on page open for most readers.
+(function () {
+  var q = document.querySelectorAll(".figs iframe[data-src]");
+  function load(f) { var d = f.getAttribute("data-src"); if (d) { f.setAttribute("src", d); f.removeAttribute("data-src"); } }
+  if (!("IntersectionObserver" in window)) { Array.prototype.forEach.call(q, load); return; }
+  var io = new IntersectionObserver(function (es) {
+    es.forEach(function (e) { if (e.isIntersecting) { io.unobserve(e.target); load(e.target); } });
+  }, { rootMargin: "0px" });
+  Array.prototype.forEach.call(q, function (f) { io.observe(f); });
+})();
 </script>
 <!-- sf:start -->
 <footer class="sf">

@@ -33,27 +33,25 @@ STORE = "gs://gcp-public-data-arco-era5/ar/full_37-1h-0p25deg-chunk-1.zarr-v3"
 A = 6.371e6; HU = 1e18; DEG = np.pi / 180.0
 TERMS = ("friction", "mountain", "gwd")
 # Measured non-closure, stated on both figures rather than left for the reader to find.
-# The annual mean of friction+mountain+GWD must be zero (AAM has no trend); it comes out
-# at -4.48 +/- 0.65 Hadley (n=2192, 5-day stride) even though the SHAPE is right (r=0.90
-# against the tendency implied by the ERA5 AAM climatology). Verified NOT to be a coding
-# error -- the mountain formula reproduces an analytic ridge+pressure-wave case to
-# -0.000%, both null tests are exact, and the two equivalent discrete forms
-# (+h dp/dlam and -p dh/dlam) agree to machine precision on 120 real ERA5 fields.
-# Two physical/sampling contributors, each comparable to the residual itself:
-#   * the global-mean mountain torque is NOT resolution-converged. Coarsening h and p_s
-#     together gives +3.1 Hadley at 0.25 deg, -7.7 at 0.5 and -23.7 at 1.0, while the
-#     day-to-day sd barely moves (27.1 -> 26.7 -> 25.7). The mean lives in fine-scale
-#     h/p_s correlations; the variance does not.
-#   * 12Z-only sampling aliases the semidiurnal pressure tide into the mountain term --
-#     on the same 5-deg grid the global mountain torque is +4.85 Hadley at 12Z but
-#     -0.73 at 00Z. (build_torque_map_clim.py already samples 00Z+12Z; this one does
-#     not, because fixing it means re-streaming ERA5.)
-# Both sit in the MEAN, so the anomaly products are unaffected.
-NONCLOSURE = ("Annual-mean friction + mountain + GWD should be zero (AAM has no trend); measured -4.5 +/- 0.7 Hadley, "
-              "though the seasonal SHAPE matches the tendency implied by the ERA5 AAM climatology at r = 0.90.\n"
-              "The absolute level is not well determined: the global-mean mountain torque is not resolution-converged "
-              "(+3.1 Hadley at 0.25 deg, -7.7 at 0.5, -23.7 at 1.0, while its day-to-day sd holds at ~27),\n"
-              "and 12Z-only sampling aliases the semidiurnal pressure tide into it (+4.9 Hadley at 12Z vs -0.7 at 00Z). Read the seasonal structure, not the absolute level.")
+# CORRECTED 2026-10-12 (user approved, from the torque/ENSO study, torque_daily_era5.csv.gz): this script's
+# 12Z-only, 5-day-stride sample gave -4.48 +/- 0.65 Hadley for the annual mean of friction+mountain+GWD (which
+# must be ~zero: AAM has no trend). That figure is a SAMPLING ARTEFACT. Sampled 4x daily (00/06/12/18Z) over
+# 1991-2020 the same sum is -11.3 +/- 0.6 Hadley (friction -9.6, mountain +1.1, GWD -2.8; se from the 30 annual
+# means), against 12Z-only friction -6.1, mountain +4.8, GWD -3.2: the semidiurnal pressure tide aliases ~+4 Hadley
+# into the 12Z mountain torque and the land diurnal cycle ~+3.5 into the 12Z friction. Hourly ERA5 for 2026 gives a
+# near-constant residual dM/dt - torques of +15.6 Hadley (motion + mass AAM). The mean is also not resolution-
+# converged (global mountain torque +3.1 Hadley at 0.25 deg, -7.7 at 0.5, -23.7 at 1.0, while the day-to-day sd
+# barely moves), and ERA5's analysis increments add AAM at every 4D-Var window. The SHAPE of the seasonal cycle
+# still matches the tendency implied by the ERA5 AAM climatology (r = 0.90). All of this sits in the MEAN, so the
+# anomaly products are unaffected. Verified NOT to be a coding error -- the mountain formula reproduces an
+# analytic ridge+pressure-wave case to -0.000%, both null tests are exact, and +h dp/dlam and -p dh/dlam agree to
+# machine precision on 120 real ERA5 fields.
+NONCLOSURE = ("Annual-mean friction + mountain + GWD should be ~zero (AAM has no trend). Sampled 4x daily, ERA5 1991-2020 gives -11.3 +/- 0.6 Hadley; "
+              "this figure's 12Z-only sample shows -4.5 because the semidiurnal pressure tide aliases into the mountain term\n"
+              "(+4.8 Hadley at 12Z vs +1.1 for the 4x-daily mean) and the land diurnal cycle into friction. The seasonal SHAPE matches the tendency implied "
+              "by the ERA5 AAM climatology (r = 0.90), but the absolute level is not determined:\n"
+              "the global-mean mountain torque is not resolution-converged (+3.1 Hadley at 0.25 deg, -7.7 at 0.5, -23.7 at 1.0) and ERA5's analysis "
+              "increments add AAM every 12 h. Read the seasonal structure, not the absolute level.")
 
 
 def main() -> int:
