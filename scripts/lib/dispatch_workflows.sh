@@ -109,6 +109,9 @@ olr-hovmoller.yml|07:25|
 olr-hovmoller.yml|13:25|
 olr-hovmoller.yml|19:25|
 kiribati-wind.yml|*/6:18|
+# GEM collector for the AAM conservation/drag intercomparison: the Datamart drops one init date a day, so it must
+# not wait for GitHub's throttled cron (incremental + capped at 20 GB/day; a slot with nothing due exits in ~1 min)
+amdrag-gem.yml|*/6:41|
 # Added 2026-08-30. These eleven had NO trigger but cron, which was delivering
 # 36% of firings over the preceding 24 h and running 4-6 h late when it did.
 # The crons stay as the laptop-off backstop; these slots mirror them exactly.

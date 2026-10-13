@@ -1,0 +1,141 @@
+name: GEM collector (AAM conservation and drag intercomparison)
+
+# Collects the GEM half of the model intercomparison of angular-momentum conservation and drag
+# (scripts/amdrag/, page model-drag-intercomparison.html). The MSC Datamart keeps only 30 days, so every GDPS 00Z
+# init (0-240 h) and every 2nd GEPS 00Z init (0-360 h, control + 4 members) is fetched OLDEST FIRST, reduced in the
+# runner to the compact budget diagnostics of scripts/amdrag/common.py and committed as one small .npz per init
+# under scripts/amdrag/data/gem/ (never GRIB). Measured volume: GDPS ~0.7 GB per init, GEPS ~2.1 GB per init.
+#
+# Politeness: honest User-Agent, 4 files in flight at most, each file once, a committed byte ledger
+# (scripts/amdrag/data/gem/ledger.json) with a 20 GB/UTC-day cap. The loop pushes every ~15 min so an interrupted
+# run keeps what it reduced. While a backlog remains and the day's cap is not reached, the run re-dispatches itself.
+#
+# Data: ECCC GDPS/GEPS via the MSC Datamart. Contains information licensed under the Open Government Licence - Canada.
+# Region masks: ARCO-ERA5 static fields (Contains modified Copernicus Climate Change Service information).
+
+on:
+  schedule:
+    - cron: "41 */6 * * *"
+  workflow_dispatch:
+    inputs:
+      run_cap_gb:
+        description: "GB this run may fetch"
+        required: false
+        default: "20"
+      only:
+        description: "model:YYYYMMDD to (re)process (testing)"
+        required: false
+        default: ""
+
+permissions:
+  contents: write
+  actions: write
+
+concurrency:
+  group: amdrag-gem
+  cancel-in-progress: false
+
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 330
+    env:
+      AMDRAG_WORKERS: "4"
+      AMDRAG_DAY_CAP_GB: "20"
+      GEPS_EVERY: "2"
+      GEPS_MEMBERS: "0,1,2,3,4"
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          sparse-checkout: |
+            scripts/amdrag
+            scripts/lib/webget.py
+            scripts/mjo/data/reference/drag_cd_field.nc
+            scripts/mjo/data/reference/era5_orography.nc
+          sparse-checkout-cone-mode: false
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - uses: actions/cache@v6
+        with:
+          path: ~/.cache/pip
+          key: amdrag-pip-v1
+      - name: Install Python dependencies
+        run: pip install --quiet numpy xarray netCDF4 h5netcdf eccodes "zarr>=3" gcsfs
+
+      - name: Region masks (once)
+        run: |
+          if [ ! -f scripts/amdrag/data/region_masks_0p25.npz ]; then
+            python scripts/amdrag/build_masks.py
+          fi
+          ls -la scripts/amdrag/data/
+          python scripts/amdrag/gem_collect.py --list | head -60
+
+      - name: Collect (oldest init first), pushing as it goes
+        id: run
+        env:
+          ONLY: ${{ inputs.only }}
+          RUN_CAP: ${{ inputs.run_cap_gb || '20' }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          OUT="scripts/amdrag/data"
+          push_out() {
+            # snapshot + clean resync each attempt (the geps/sfs pattern): merges, never a rebase
+            git add --sparse -A "$OUT" 2>/dev/null || git add -A "$OUT"
+            if git diff --staged --quiet; then return 0; fi
+            SNAP=$(mktemp -d)
+            git diff --staged --name-only -z | tar cf "$SNAP/outs.tar" --null -T -
+            git reset -q
+            for i in 1 2 3 4 5; do
+              if ! timeout 120 git fetch origin main; then echo "fetch $i failed"; sleep 5; continue; fi
+              git reset -q --hard origin/main
+              tar xf "$SNAP/outs.tar"
+              git add --sparse -A "$OUT" 2>/dev/null || git add -A "$OUT"
+              if git diff --staged --quiet; then return 0; fi
+              git commit -q -m "amdrag: GEM collector $(date -u +%Y-%m-%dT%H:%MZ) ($(git diff --staged --name-only | grep -c '\.npz$' || true) inits)"
+              if timeout 180 git push; then echo "Pushed on attempt $i."; return 0; fi
+              echo "Push $i rejected; resyncing and retrying"
+              sleep 5
+            done
+            echo "::warning::could not push after 5 attempts"
+            return 1
+          }
+          T0=$(date +%s); LAST=$T0; RUNB=0; RC=0
+          while true; do
+            if [ -n "$ONLY" ]; then
+              set +e; python scripts/amdrag/gem_collect.py --only "$ONLY" --run-cap-gb "$RUN_CAP" | tee /tmp/c.log
+              RC=${PIPESTATUS[0]}; set -e; [ "$RC" = "0" ] && RC=5
+            else
+              set +e; python scripts/amdrag/gem_collect.py --next --run-cap-gb "$RUN_CAP" --run-bytes "$RUNB" | tee /tmp/c.log
+              RC=${PIPESTATUS[0]}; set -e
+            fi
+            B=$(sed -n 's/^BYTES \([0-9]*\)$/\1/p' /tmp/c.log | tail -1); RUNB=$((RUNB + ${B:-0}))
+            NOW=$(date +%s)
+            if [ "$RC" != "0" ] || [ $((NOW - LAST)) -ge 900 ]; then push_out || true; LAST=$(date +%s); fi
+            if [ "$RC" != "0" ] && [ "$RC" != "4" ]; then break; fi
+            if [ $((NOW - T0)) -ge 17400 ]; then echo "time budget used"; push_out || true; RC=6; break; fi
+          done
+          echo "rc=$RC" >> "$GITHUB_OUTPUT"
+          echo "gb=$((RUNB / 1000000000))" >> "$GITHUB_OUTPUT"
+          python scripts/amdrag/gem_collect.py --list | tee /tmp/due.log
+          echo "due=$(grep -c ' due ' /tmp/due.log || true)" >> "$GITHUB_OUTPUT"
+
+      - name: Re-dispatch while a backlog remains
+        # 6 = time budget used, 7 = run cap reached (8 = the day's cap: the next cron/dispatch slot continues)
+        if: steps.run.outputs.due != '0' && (steps.run.outputs.rc == '6' || steps.run.outputs.rc == '7')
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh workflow run amdrag-gem.yml --repo "$GITHUB_REPOSITORY" || echo "::warning::re-dispatch failed"
+
+      - name: Summary
+        if: always()
+        run: |
+          {
+            echo "### GEM collector"
+            echo "- fetched this run: ${{ steps.run.outputs.gb }} GB; exit ${{ steps.run.outputs.rc }}; still due: ${{ steps.run.outputs.due }}"
+            echo '```'
+            python -c "import json;l=json.load(open('scripts/amdrag/data/gem/ledger.json'));print(json.dumps(l['bytes_by_day'],indent=0))" 2>/dev/null || true
+            ls scripts/amdrag/data/gem/gdps scripts/amdrag/data/gem/geps 2>/dev/null | tail -80
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
