@@ -34,7 +34,7 @@
    "publisher": {
     "@id": "https://scorvec.com/#person"
    },
-   "dateModified": "2026-09-26",
+   "dateModified": "2026-10-12",
    "about": {
     "@type": "DefinedTerm",
     "name": "Sudden stratospheric warmings",
@@ -330,7 +330,7 @@ forecast major warming) can be read directly.</p>
 <div class="topic" style="padding-top:0">
   <section class="related"><h2>Related</h2><ul><li><a href="/topics/eddy-heat-flux.html">Eddy heat flux</a></li><li><a href="/topics/ep-flux.html">E–P flux</a></li><li><a href="/topics/wave-activity-flux.html">Wave activity flux</a></li><li><a href="/topics/">All explainers</a></li></ul></section>
   <section><h2>References</h2><ol class="refs"><li>Baldwin, M. P., and T. J. Dunkerton, 2001: Stratospheric harbingers of anomalous weather regimes. <i>Science</i>, 294, 581–584.</li><li>Charlton, A. J., and L. M. Polvani, 2007: A new look at stratospheric sudden warmings. Part I: Climatology and modeling benchmarks. <i>J. Climate</i>, 20, 449–469.</li><li>Butler, A. H., J. P. Sjoberg, D. J. Seidel, and K. H. Rosenlof, 2017: A sudden stratospheric warming compendium. <i>Earth Syst. Sci. Data</i>, 9, 63–76.</li><li>Baldwin, M. P., et al., 2021: Sudden stratospheric warmings. <i>Rev. Geophys.</i>, 59, e2020RG000708.</li></ol></section>
-  <p class="byline">By <a href="/">Shawn Corvec</a>, meteorologist. The figures on this page are live and update with each forecast cycle; the text was last revised 2026-09-26.</p>
+  <p class="byline">By <a href="/">Shawn Corvec</a>, meteorologist. The figures on this page are live and update with each forecast cycle; the text was last revised 2026-10-12.</p>
 </div>
 </main>
 <script>
@@ -340,6 +340,17 @@ addEventListener("message", function (e) {
     if (f.contentWindow === e.source) { f.style.height = x.h + "px"; f.style.aspectRatio = "auto"; }
   });
 });
+// The loop player loads once it is on screen (2026-10-05, user: no frames in the background). Native
+// loading="lazy" starts an iframe 1250-2500 px before it is visible, i.e. on page open for most readers.
+(function () {
+  var q = document.querySelectorAll(".figs iframe[data-src]");
+  function load(f) { var d = f.getAttribute("data-src"); if (d) { f.setAttribute("src", d); f.removeAttribute("data-src"); } }
+  if (!("IntersectionObserver" in window)) { Array.prototype.forEach.call(q, load); return; }
+  var io = new IntersectionObserver(function (es) {
+    es.forEach(function (e) { if (e.isIntersecting) { io.unobserve(e.target); load(e.target); } });
+  }, { rootMargin: "0px" });
+  Array.prototype.forEach.call(q, function (f) { io.observe(f); });
+})();
 </script>
 <!-- sf:start -->
 <footer class="sf">
