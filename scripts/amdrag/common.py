@@ -274,6 +274,31 @@ class Coarsener:
         return out.reshape(self.shape)
 
 
+def orography_stats(g: Grid, h: np.ndarray) -> dict:
+    """Static description of a model's own orography, per range box and globally over land-ish cells (h > 1 m):
+    area-weighted RMS height, and RMS of the part finer than a 0.5- and 1.5-degree area average (h minus its coarse
+    bin mean): how much small-scale relief the model's dynamics actually see (the 2019 GEM filter question)."""
+    out = {}
+    w = np.broadcast_to(g.area[:, None], h.shape)
+    fine = {}
+    for res in (0.5, 1.5):
+        c = Coarsener(g, res)
+        hc = c(h).ravel()[c.idx].reshape(h.shape)
+        fine[res] = h - hc
+    masks = {k: g.box[k] for k in RKEYS}
+    masks["land"] = h > 1.0
+    for k, m in masks.items():
+        ww = w * m
+        s = ww.sum()
+        if s <= 0:
+            continue
+        out[k] = {"rms_h": float(np.sqrt((h ** 2 * ww).sum() / s)),
+                  "rms_fine05": float(np.sqrt((fine[0.5] ** 2 * ww).sum() / s)),
+                  "rms_fine15": float(np.sqrt((fine[1.5] ** 2 * ww).sum() / s)),
+                  "max_h": float(h[m].max())}
+    return out
+
+
 # steps at which the per-level x band AAM arrays and the 5-degree maps are kept (the rest: totals only)
 LB_STEPS = (0, 24, 72, 120, 168, 240, 360)
 MAP_STEPS = (0, 120, 240, 360)

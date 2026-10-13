@@ -238,7 +238,8 @@ def process(model: str, d: str) -> dict:
     g = C.Grid(hlat, hlon)
     hm = float((h * g.area[:, None]).sum() / (g.area.sum() * len(hlon)))
     meta["oro"] = {"area_mean_m": hm, "max_m": float(np.nanmax(h)), "min_m": float(np.nanmin(h)),
-                   "nlat": len(hlat), "nlon": len(hlon), "lon0": float(hlon[0]), "dlon": float(hlon[1] - hlon[0])}
+                   "nlat": len(hlat), "nlon": len(hlon), "lon0": float(hlon[0]), "dlon": float(hlon[1] - hlon[0]),
+                   "scales": C.orography_stats(g, h)}
     print(f"  {model} {d}: orography {len(hlat)}x{len(hlon)}, area-mean {hm:.1f} m, max {np.nanmax(h):.0f} m",
           flush=True)
     if not (150 < hm < 330 and np.nanmax(h) > 5000):                 # T_m is linear in h: a unit slip is fixable

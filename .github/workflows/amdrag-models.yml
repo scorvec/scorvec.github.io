@@ -116,6 +116,8 @@ jobs:
         run: pip install --quiet numpy xarray netCDF4 h5netcdf eccodes requests "zarr>=3" gcsfs numcodecs
       - name: Reduce ${{ matrix.model }} ${{ matrix.dates }}
         run: |
+          # the region masks are committed by the GEM collector's first run; build them here if this checkout predates it
+          [ -f scripts/amdrag/data/region_masks_0p25.npz ] || python scripts/amdrag/build_masks.py
           df -h / | tail -1
           if [ "${{ matrix.model }}" = "era5" ]; then
             set -- ${{ matrix.dates }}

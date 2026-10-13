@@ -215,8 +215,8 @@ def gefs_step(d, s, levels, stats):
         a = f"{S3['gefs']}/gefs.{d}/00/atmos/pgrb2ap5/{mem}.t00z.pgrb2a.0p50.f{s:03d}"
         b = f"{S3['gefs']}/gefs.{d}/00/atmos/pgrb2bp5/{mem}.t00z.pgrb2b.0p50.f{s:03d}"
         wa = [("PRES", "surface"), ("UGRD", "10 m above ground"), ("VGRD", "10 m above ground"),
-              ("PWAT", "entire atmosphere (considered as a single layer)")]
-        wb = [("UFLX", "surface"), ("U-GWD", "surface")] + ([("HGT", "surface")] if s == 0 else [])
+              ("PWAT", "entire atmosphere (considered as a single layer)")] + ([("HGT", "surface")] if s == 0 else [])
+        wb = [("UFLX", "surface"), ("U-GWD", "surface")]                 # HGT is in pgrb2a at f000 only
         if levels:
             wa += [(v, f"{l} mb") for l in GEFS_A for v in ("UGRD", "VGRD")]
             wb += [(v, f"{l} mb") for l in GEFS_B for v in ("UGRD", "VGRD")]
@@ -370,6 +370,8 @@ def aigfs_orog(d, stats):
     o, la, lo = o.reshape(fs), la.reshape(fs)[:, 0], lo.reshape(fs)[0]
     if la[0] > la[-1]:
         o, la = o[::-1], la[::-1]
+    if np.nanmax(o) > 20000.0:                                         # anemoi 'orog' here is geopotential (m2 s-2)
+        o = o / C.G
     return o, la, lo
 
 
@@ -443,7 +445,8 @@ def process(model, d, out: Path):
     g = C.Grid(hlat, hlon)
     hm = float((h * g.area[:, None]).sum() / (g.area.sum() * len(hlon)))
     meta = {"model": model, "date": d, "bytes": stats["bytes"], "errors": [], "missing": [], "chk": {},
-            "oro": {"area_mean_m": hm, "max_m": float(np.nanmax(h)), "nlat": len(hlat), "nlon": len(hlon)}}
+            "oro": {"area_mean_m": hm, "max_m": float(np.nanmax(h)), "nlat": len(hlat), "nlon": len(hlon),
+                    "scales": C.orography_stats(g, h)}}
     print(f"  {model} {d}: orography {len(hlat)}x{len(hlon)} area-mean {hm:.1f} m max {np.nanmax(h):.0f} m", flush=True)
     steps = list(range(0, SPEC[model]["last"] + 1, DT))
     T, L = {}, {}
@@ -489,6 +492,8 @@ def process(model, d, out: Path):
                     else:
                         T[m][s][k] = (acc[s][k] - acc[s - DT][k]) / (DT * 3600.0)
     meta["signs"] = signs
+    if len(meta["errors"]) > 0.1 * len(steps) or not T:
+        raise RuntimeError(f"{model} {d}: {len(meta['errors'])} of {len(steps)} steps failed - nothing saved")
     pack = {"grid|area_b": g.bands(g.area * len(hlon))}
     runs = []
     for m in sorted(T):
