@@ -147,7 +147,7 @@ jobs:
       - uses: actions/upload-artifact@v7
         with:
           name: torque_${{ matrix.tag }}
-          path: out/torque_${{ matrix.tag }}.*
+          path: out/torque_${{ matrix.tag }}*
           retention-days: 14
 
   combine:
