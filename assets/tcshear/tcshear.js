@@ -16,7 +16,12 @@
     ["d2pvu", "Trough distance", "km"]];
   function $(id) { return document.getElementById(id); }
   function esc(s) { return String(s == null ? "" : s).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); }
-  function J(u) { return fetch(u + "?t=" + Math.floor(Date.now() / 300000)).then(function (r) { return r.ok ? r.json() : null; }).catch(function () { return null; }); }
+  // A missing file (404) is null; any other HTTP error, a network error or bad JSON is ERR, so that a failed load is
+  // never read as "no storms" (2026-10-12 audit: a 500 on the live manifest showed only the hindcast, both failing said
+  // "No tropical cyclone is active").
+  var ERR = { error: true };
+  function good(x) { return !!x && x !== ERR; }
+  function J(u) { return fetch(u + "?t=" + Math.floor(Date.now() / 300000)).then(function (r) { return r.ok ? r.json() : r.status === 404 ? null : ERR; }).catch(function () { return ERR; }); }
   // the per-storm JSON and the maps live on the frames branch: frames_root.js walks the CDN -> raw -> jsDelivr chain
   // (circulation.html does not load it itself; its loops do, inside their iframes)
   var FR = null;
@@ -32,9 +37,9 @@
     }).catch(function () { return null; });
   }
   function t0(doc) { return Date.parse(doc.init.replace(/:00Z$/, ":00:00Z")); }
-  function fmtT(ms, long) {
+  function fmtT(ms, long, year) {      // year: add it (a hindcast case, or a date outside the current year)
     var d = new Date(ms), D = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"], M = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-    return (long ? D[d.getUTCDay()] + " " : "") + d.getUTCDate() + " " + M[d.getUTCMonth()] + " " + String(d.getUTCHours()).padStart(2, "0") + "Z";
+    return (long ? D[d.getUTCDay()] + " " : "") + d.getUTCDate() + " " + M[d.getUTCMonth()] + (year ? " " + d.getUTCFullYear() : "") + " " + String(d.getUTCHours()).padStart(2, "0") + "Z";
   }
   function compass(b) { return ["N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE", "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW"][Math.floor(((b % 360) + 371.25) / 22.5) % 16]; }
   function quadrant(rel) {   // rel: angle from downshear, counter-clockwise positive (NH: + = left of shear)
@@ -46,9 +51,16 @@
   function relOf(bearing, from) { var down = (from + 180) % 360; return (((down - bearing) + 540) % 360) - 180; }
 
   // ── state ─────────────────────────────────────────────────────────────────────────────────────────────────
+  // A malformed deep link (#tcshear/NOPE/fc/500/xx) must still draw: an unknown measure falls back to the 200-850 hPa
+  // shear, a bad hour to 0 (and is clamped to 0-120 h on the 6-hour grid); an unknown storm is reported in render().
   function state() {
-    var h = decodeURIComponent(location.hash.slice(1)).split("/");
-    return { prod: h[0], sid: h[1] || null, view: h[2] === "val" ? "val" : "fc", h: h[3] != null && h[3] !== "" ? +h[3] : 0, m: h[4] || "deep" };
+    var raw = location.hash.slice(1), h;
+    try { h = decodeURIComponent(raw).split("/"); } catch (e) { h = raw.split("/"); }
+    var m = h[4] || "deep", hr = h[3] != null && h[3] !== "" ? +h[3] : 0;
+    if (!MEAS.some(function (q) { return q[0] === m; })) m = "deep";
+    if (!isFinite(hr)) hr = 0;
+    hr = Math.max(0, Math.min(120, Math.round(hr / 6) * 6));
+    return { prod: h[0], sid: h[1] || null, view: h[2] === "val" ? "val" : "fc", h: hr, m: m };
   }
   function go(st) {
     var h = "#tcshear/" + (st.sid || "") + "/" + st.view + "/" + st.h + "/" + st.m;
@@ -56,8 +68,8 @@
     render();
   }
   function storms() {
-    var a = (MAN && MAN.storms || []).map(function (s) { return Object.assign({ live: true, sha: MAN.frames_sha }, s); });
-    (HC && HC.storms || []).forEach(function (s) { a.push(Object.assign({ live: false, sha: HC.frames_sha, hcInit: HC.init }, s)); });
+    var a = (good(MAN) && MAN.storms || []).map(function (s) { return Object.assign({ live: true, sha: MAN.frames_sha }, s); });
+    (good(HC) && HC.storms || []).forEach(function (s) { a.push(Object.assign({ live: false, sha: HC.frames_sha, hcInit: HC.init }, s)); });
     return a;
   }
 
@@ -80,7 +92,14 @@
     return out;
   }
   function at(recs, h) { for (var i = 0; i < recs.length; i++) if (recs[i].h === h) return recs[i]; return null; }
-  function near(recs, h) { var b = null; recs.forEach(function (r) { if (r.h <= h && (!b || r.h > b.h)) b = r; }); return b; }
+  // The run's record with a shear valid within 3 h of time tms (ms), nearest first; null when the run has none then. A
+  // radar tilt is placed relative to the shear OF ITS OWN TIME only (2026-10-12 review: Melissa's radar analyses before
+  // the run start were rotated by the t = 0 shear, up to 37 deg off).
+  function shearAt(recs, tms, tm0) {
+    var b = null, bd = 3 * 3600000 + 1;
+    recs.forEach(function (r) { if (!r.deep) return; var dd = Math.abs(tm0 + r.h * 3600000 - tms); if (dd < bd) { b = r; bd = dd; } });
+    return b;
+  }
   function members(doc) { var m = (doc.models["aifs-ens"] || {}).members || {}; return Object.keys(m).filter(function (k) { return k !== "0"; }).map(function (k) { return m[k]; }); }
 
   // ── SVG primitives ────────────────────────────────────────────────────────────────────────────────────────
@@ -101,7 +120,8 @@
     var ringStep = vmax > 60 ? 20 : vmax > 30 ? 10 : 5, top = Math.ceil(vmax / ringStep) * ringStep, sc = R / top;
     function X(u) { return cx + u * KT * sc; } function Y(v) { return cy - v * KT * sc; }
     var s = svgOpen(W, H, "Environmental hodograph, " + doc.name + ", +" + h + " h");
-    for (var k = ringStep; k <= top; k += ringStep) s += '<circle cx="' + cx + '" cy="' + cy + '" r="' + (k * sc).toFixed(1) + '" class="ring"/>' + txt(cx + 3, cy - k * sc - 3, k + " kt", null, "tm");
+    for (var k = ringStep; k <= top; k += ringStep) s += '<circle cx="' + cx + '" cy="' + cy + '" r="' + (k * sc).toFixed(1) + '" class="ring"/>';
+    var placed = [], dots = [];                        // level labels and control points: the ring labels keep clear of them
     s += '<line x1="' + (cx - R) + '" y1="' + cy + '" x2="' + (cx + R) + '" y2="' + cy + '" class="axis"/><line x1="' + cx + '" y1="' + (cy - R) + '" x2="' + cx + '" y2="' + (cy + R) + '" class="axis"/>';
     s += txt(cx + R - 2, cy - 5, "u east", "end", "tm") + txt(cx + 5, cy - R + 12, "v north", null, "tm");
     // members: faint
@@ -114,11 +134,10 @@
       var cols = ["#b45309", "#c2410c", "#dc2626", "#be185d", "#9d174d", "#7e22ce", "#5b21b6", "#3730a3", "#1d4ed8", "#0369a1", "#0e7490", "#155e75"];
       for (var i = 1; i < ctl.env.length; i++) { var a = ctl.env[i - 1], b = ctl.env[i]; if (!a || !b) continue;
         s += '<line x1="' + X(a[0]).toFixed(1) + '" y1="' + Y(a[1]).toFixed(1) + '" x2="' + X(b[0]).toFixed(1) + '" y2="' + Y(b[1]).toFixed(1) + '" stroke="' + cols[i] + '" stroke-width="3.2" stroke-linecap="round"/>'; }
-      ctl.env.forEach(function (p, i) { if (!p) return; var L = lev[i];
+      ctl.env.forEach(function (p, i) { if (!p) return; var L = lev[i]; dots.push([X(p[0]), Y(p[1])]);
         s += '<circle cx="' + X(p[0]).toFixed(1) + '" cy="' + Y(p[1]).toFixed(1) + '" r="' + ([850, 500, 200].indexOf(L) >= 0 ? 4.5 : 2.6) + '" fill="#fff" stroke="' + cols[i] + '" stroke-width="1.6"/>'; });
       // level labels, 850/500/200 first; one that would overlap a label already drawn is left out (2026-10-08 sweep: with
       // a weak low-level flow 1000/850/700 sat on top of each other at the centre)
-      var placed = [];
       [850, 500, 200, 1000, 700, 300, 100].forEach(function (L) { var i = lev.indexOf(L), p = i >= 0 ? ctl.env[i] : null; if (!p) return;
         var x = X(p[0]) + 6, y = Y(p[1]) - 5, w = 7 * String(L).length + 4;
         if (placed.some(function (q) { return x < q[0] + q[2] && q[0] < x + w && Math.abs(y - q[1]) < 13; })) return;
@@ -128,6 +147,18 @@
       if (ctl.env[i8] && ctl.env[i2]) s += '<line x1="' + X(ctl.env[i8][0]) + '" y1="' + Y(ctl.env[i8][1]) + '" x2="' + X(ctl.env[i2][0]) + '" y2="' + Y(ctl.env[i2][1]) + '" stroke="#d1352b" stroke-width="2" stroke-dasharray="5 3" marker-end="url(#tcsArr)"/>';
       if (ctl.mot) { var ang = ctl.mot[1] * Math.PI / 180, mv = ctl.mot[0];
         s += '<line x1="' + cx + '" y1="' + cy + '" x2="' + X(mv * Math.sin(ang)) + '" y2="' + Y(mv * Math.cos(ang)) + '" stroke="#1b1d22" stroke-width="2" marker-end="url(#tcsArrK)"/>'; }
+    }
+    // ring labels last, on the first diagonal that clears the level labels and the control's points (2026-10-12 audit:
+    // the "10 kt" label sat on the "850" label); a ring whose label fits nowhere is left unlabelled
+    for (var kk = ringStep; kk <= top; kk += ringStep) {
+      var lab = kk + " kt", w = 6.5 * lab.length + 2, rr = kk * sc;
+      [[-0.7071, 0.7071], [0.7071, 0.7071], [-0.7071, -0.7071], [0, -1]].some(function (dv) {
+        var x = cx + dv[0] * rr + (dv[0] < 0 ? -w - 2 : 3), y = cy + dv[1] * rr + (dv[1] > 0 ? 12 : -3);
+        if (x < 2 || x + w > W - 2 || y < 12 || y > H - 2) return false;
+        if (placed.some(function (q) { return x < q[0] + q[2] && q[0] < x + w && Math.abs(y - q[1]) < 13; })) return false;
+        if (dots.some(function (q) { return q[0] > x - 5 && q[0] < x + w + 5 && q[1] > y - 16 && q[1] < y + 5; })) return false;
+        placed.push([x, y, w]);
+        s += '<text x="' + x.toFixed(1) + '" y="' + y.toFixed(1) + '" class="tm" paint-order="stroke" stroke="#fff" stroke-width="3">' + lab + "</text>"; return true; });
     }
     s += '<defs><marker id="tcsArr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0L10,5L0,10z" fill="#d1352b"/></marker>' +
          '<marker id="tcsArrK" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0L10,5L0,10z" fill="#1b1d22"/></marker></defs>';
@@ -139,7 +170,7 @@
     var W = 420, H = 420, cx = W / 2, cy = H / 2 + 6, R = 170, rs = runs(doc), lim = 100;
     rs.forEach(function (x) { x[1].forEach(function (r) { if (r.tilt && r.sst != null && r.h <= 120) lim = Math.max(lim, Math.min(200, r.tilt[0])); }); });
     lim = lim > 150 ? 200 : lim > 100 ? 150 : 100;
-    var sc = R / lim, sh = doc.basin === "SH" ? -1 : 1;
+    var c0 = rs.length ? rs[0][1][0] : null, sc = R / lim, sh = (c0 ? c0.lat < 0 : doc.basin === "SH") ? -1 : 1;
     function P(km, rel) { var a = rel * Math.PI / 180; km = Math.min(km, lim); return [cx - sh * km * sc * Math.sin(a), cy - km * sc * Math.cos(a)]; }
     var s = svgOpen(W, H, "Vortex tilt relative to the shear, " + doc.name);
     [25, 50, 100, 150, 200].forEach(function (k) { if (k <= lim) s += '<circle cx="' + cx + '" cy="' + cy + '" r="' + (k * sc).toFixed(1) + '" class="ring"/>' + txt(cx + 3, cy - k * sc + 12, k + " km", null, "tm"); });
@@ -155,13 +186,14 @@
       var r = at(x[1], h); if (r && r.tilt && r.tilt_rel != null) { var p = P(r.tilt[0], r.tilt_rel);
         s += '<circle cx="' + p[0].toFixed(1) + '" cy="' + p[1].toFixed(1) + '" r="' + (j ? 4.5 : 6) + '" fill="' + x[2] + '" stroke="#fff" stroke-width="1.5"><title>' + esc(MLAB[x[0]]) + ": " + r.tilt[0] + " km, " + quadrant(r.tilt_rel) + "</title></circle>"; }
     });
-    // observed (TDR 2-6 km), rotated by the control's analysed shear (or the nearest forecast hour)
+    // observed (TDR 2-6 km), rotated by the control's shear valid within 3 h of the radar time; a radar analysis with no
+    // such shear (before the run) is left out here (the time series still shows its magnitude)
     var ctl = rs.length ? rs[0][1] : [];
     (doc.obs.tdr || []).forEach(function (o) {
-      var hh = Math.round((o[0] * 1000 - tm0) / 3600000), r = near(ctl, Math.max(0, hh)) || ctl[0];
-      if (!r || !r.deep) return;
+      var r = shearAt(ctl, o[0] * 1000, tm0);
+      if (!r) return;
       var rel = relOf(o[2], r.deep[1]), p = P(o[1], rel);
-      s += '<path d="M' + p[0].toFixed(1) + "," + (p[1] - 6).toFixed(1) + "l6,6l-6,6l-6,-6z" + '" fill="' + COL.tdr + '" stroke="#fff" stroke-width="1.2"><title>TDR ' + fmtT(o[0] * 1000) + ": " + o[1] + " km toward " + o[2] + "° (" + quadrant(rel) + ")</title></path>";
+      s += '<path d="M' + p[0].toFixed(1) + "," + (p[1] - 6).toFixed(1) + "l6,6l-6,6l-6,-6z" + '" fill="' + COL.tdr + '" stroke="#fff" stroke-width="1.2"><title>TDR ' + fmtT(o[0] * 1000) + ": " + o[1] + " km toward " + o[2] + "° (" + quadrant(rel) + " of the +" + r.h + " h shear)</title></path>";
     });
     return s + "</svg>";
   }
@@ -206,9 +238,11 @@
     s += txt(L - 44, T + 4, meas[2], null, "tm");
     s += '<line x1="' + X(0).toFixed(1) + '" x2="' + X(0).toFixed(1) + '" y1="' + T + '" y2="' + (H - B) + '" class="now"/>' + txt(X(0) + 4, H - B - 6, "run start", null, "tm");
     // thresholds (literature)
-    if (m === "vi") [[0.03, "0.03: TCs tend to strengthen below (TE12)"], [0.1, "0.1: ~upper bound for strengthening (TE12)"]].forEach(function (q) {
+    // short labels on a narrow chart (2026-10-12 audit: the tilt label ran off the right edge of a 390 px phone)
+    var nar = W < 640;
+    if (m === "vi") [[0.03, nar ? "0.03: tend to strengthen (TE12)" : "0.03: TCs tend to strengthen below (TE12)"], [0.1, nar ? "0.1: upper bound (TE12)" : "0.1: ~upper bound for strengthening (TE12)"]].forEach(function (q) {
       s += '<line x1="' + L + '" x2="' + (W - Rm) + '" y1="' + Y(q[0]).toFixed(1) + '" y2="' + Y(q[0]).toFixed(1) + '" class="thr"/>' + txt(L + 6, Y(q[0]) - 5, q[1], null, "tl thrl"); });
-    if (m === "tilt") [[30, "30 km: weak storms that intensified rapidly stayed below (Fischer et al. 2024)"]].forEach(function (q) {
+    if (m === "tilt") [[30, nar ? "30 km (Fischer et al. 2024)" : "30 km: weak storms that intensified rapidly stayed below (Fischer et al. 2024)"]].forEach(function (q) {
       s += '<line x1="' + L + '" x2="' + (W - Rm) + '" y1="' + Y(q[0]).toFixed(1) + '" y2="' + Y(q[0]).toFixed(1) + '" class="thr"/>' + txt(L + 6, Y(q[0]) - 5, q[1], null, "tl thrl"); });
     // fan
     var fh = Object.keys(fan).map(Number).sort(function (a, b) { return a - b; });
@@ -250,7 +284,7 @@
         "</td><td>" + (r.sh_h != null ? (r.sh_h > 0 ? "upper " : "lower ") + f1(Math.abs(r.sh_h), 1) + " / " + f1(r.sh_d) + " hPa" : "—") +
         "</td><td>" + (r.tilt ? f1(r.tilt[0]) + " km <span class=mu>" + quadrant(r.tilt_rel) + "</span>" : "—") +
         "</td><td>" + (r.vi != null ? f1(r.vi, 3) + " <span class=mu>(" + f1(r.vi_env, 3) + ")</span>" : "—") + "</td><td>" + (r.pi != null ? f1(r.pi * KT) : "—") +
-        "</td><td>" + f1(r.rh600) + "</td><td>" + (r.d2pvu != null ? f1(r.d2pvu) + " km " + compass(r.b2pvu) : "&gt; 1,700 km") + "</td></tr>"; });
+        "</td><td>" + f1(r.rh600) + "</td><td>" + (r.d2pvu != null ? f1(r.d2pvu) + " km " + compass(r.b2pvu) : r.d2far ? "&gt; 1,700 km" : "—") + "</td></tr>"; });
     var mem = members(doc).map(function (recs) { return at(recs, h); }).filter(Boolean);
     if (mem.length >= 10) {
       function q(fn) { var v = mem.map(fn).filter(function (x) { return x != null; }).sort(function (a, b) { return a - b; }); if (v.length < 10) return "—";
@@ -268,16 +302,22 @@
   function now(doc, live) {
     var rs = runs(doc), c = rs.length ? at(rs[0][1], 0) : null, tm0 = t0(doc);
     if (!c || !c.deep) return "";
-    var s = "<b>" + esc(doc.name) + "</b>, AIFS-ENS run of " + fmtT(tm0, true) + ": environmental 200–850 hPa shear <b>" + Math.round(c.deep[0] * KT) + " kt from " + compass(c.deep[1]) +
-      "</b> (850–500 hPa " + Math.round(c.low[0] * KT) + " kt, 500–200 hPa " + Math.round(c.up[0] * KT) + " kt; generalized " + Math.round(c.gs * KT) + " kt)";
+    var yr = !live || new Date(tm0).getUTCFullYear() !== new Date().getUTCFullYear();     // a hindcast case names its year
+    var s = "<b>" + esc(doc.name) + "</b>, AIFS-ENS run of " + fmtT(tm0, true, yr) + (live ? "" : " (validation case)") + ": environmental 200–850 hPa shear <b>" + Math.round(c.deep[0] * KT) + " kt from " + compass(c.deep[1]) +
+      "</b> (850–500 hPa " + Math.round(c.low[0] * KT) + " kt, 500–200 hPa " + Math.round(c.up[0] * KT) + " kt" + (c.gs != null ? "; generalized " + Math.round(c.gs * KT) + " kt" : "") + ")";
     if (c.mot) s += ", storm moving toward " + compass(c.mot[1]) + " at " + Math.round(c.mot[0] * KT) + " kt";
     s += ". ";
     var mx = rs[0][1].reduce(function (b, r) { return r.deep && r.h <= 72 && (!b || r.deep[0] > b.deep[0]) ? r : b; }, null);
     if (mx && mx.h > 0) s += "The control's shear peaks at " + Math.round(mx.deep[0] * KT) + " kt at +" + mx.h + " h (" + fmtT(tm0 + mx.h * 3600000, true) + "). ";
     var td = (doc.obs.tdr || []).filter(function (o) { return live || o[0] * 1000 <= tm0 + 3 * 3600000; }).slice(-1)[0];
-    if (td) s += "Latest radar tilt (" + fmtT(td[0] * 1000) + "): <b>" + td[1] + " km toward " + compass(td[2]) + "</b>, " + quadrant(relOf(td[2], c.deep[1])) + " of the analysed shear. ";
+    if (td) { var rT = shearAt(rs[0][1], td[0] * 1000, tm0);   // relative to the shear of the radar's own time only
+      s += "Latest radar tilt (" + fmtT(td[0] * 1000, false, yr) + "): <b>" + td[1] + " km toward " + compass(td[2]) + "</b>" +
+        (rT ? ", " + quadrant(relOf(td[2], rT.deep[1])) + " of the " + (rT.h ? "+" + rT.h + " h" : "analysed") + " shear. " : " (before this run, so not placed relative to its shear). "); }
     if (c.vi != null) s += "Ventilation index " + c.vi.toFixed(3) + " (environmental-temperature core: " + (c.vi_env != null ? c.vi_env.toFixed(3) : "—") + "). ";
-    if (c.d2pvu != null) s += "Nearest 2-PVU air on 330 K: " + c.d2pvu.toLocaleString() + " km to the " + compass(c.b2pvu) + ".";
+    if (c.d2pvu != null) s += "Nearest 2-PVU air on 330 K: " + c.d2pvu.toLocaleString() + " km to the " + compass(c.b2pvu) + ". ";
+    if (live && good(MAN) && MAN.pending && MAN.pending.length && MAN.init === doc.init)
+      s += "<span class=mu>" + MAN.pending.map(function (k) { return MLAB[k === "aifs-single" ? "aifs" : k] || k; }).join(" and ") +
+        " for this run " + (MAN.pending.length > 1 ? "are" : "is") + " not on ECMWF's open-data mirror yet; " + (MAN.pending.length > 1 ? "they are" : "it is") + " added when " + (MAN.pending.length > 1 ? "they arrive" : "it arrives") + ".</span>";
     return s;
   }
 
@@ -299,6 +339,7 @@
     return s + "</svg>";
   }
   function validation() {
+    if (VAL === ERR) return "<p class=mu>The validation could not be loaded (network or server error). Reload to try again.</p>";
     if (!VAL) return "<p class=mu>The validation has not been published yet.</p>";
     var out = "", sh = VAL.ships, td = VAL.tdr;
     if (sh && sh.summary) {
@@ -307,12 +348,16 @@
         "<p>For every SHIPS run NHC publishes the model's input file (ATCF <i>lsdiag</i>). At the run's start it carries the storm position and the GFS shear SHIPS uses. " +
         "The same quantities were computed here from the GFS " + (sh.gfs_run === "anl" ? "analysis of the same cycle" : "6-hour forecast of the previous cycle") +
         " (the input that reproduces SHIPS's annulus shear SHRD, which involves no vortex removal: RMS difference " + sh.gfs_pick_rmsd[sh.gfs_run] + " kt, against " +
-        sh.gfs_pick_rmsd[sh.gfs_run === "anl" ? "f06" : "anl"] + " kt for the other run). Ours minus SHIPS, kt; 95 % bootstrap intervals.</p>" +
-        "<table class='tcs-tab'><thead><tr><th>Quantity</th><th>n</th><th>Bias</th><th>RMS difference</th><th>Correlation</th></tr></thead><tbody>" +
+        sh.gfs_pick_rmsd[sh.gfs_run === "anl" ? "f06" : "anl"] + " kt for the other run). Ours minus SHIPS, kt; " +
+        // one storm's consecutive runs share its environment and its errors: the intervals resample whole storms (verify.py
+        // since 2026-10-12); a file built before that resampled single runs, and says so
+        (S_.shdc && S_.shdc.n_groups && S_.shdc.n_groups < S_.shdc.n ? "95 % bootstrap intervals that resample whole storms (" + S_.shdc.n_groups + " storms), since one storm's consecutive runs are not independent."
+          : "95 % bootstrap intervals over single runs; consecutive runs of one storm are not independent, so these intervals are too narrow.") + "</p>" +
+        "<div class='tcs-tabw'><table class='tcs-tab'><thead><tr><th>Quantity</th><th>n</th><th>Bias</th><th>RMS difference</th><th>Correlation</th></tr></thead><tbody>" +
         [["shrd", "SHRD 200–850 hPa, 200–800 km annulus (no vortex removal)"], ["shrs", "SHRS 850–500 hPa, annulus"], ["shrg", "SHRG generalized shear, annulus"],
          ["shdc", "SHDC 200–850 hPa, vortex removed, 0–500 km"], ["shgc", "SHGC generalized, vortex removed"], ["removal_effect", "Effect of the vortex removal (SHDC − SHRD)"],
          ["shdc_vmax_lt64", "SHDC, storms below hurricane strength"], ["shdc_vmax_ge64", "SHDC, hurricanes"]].map(function (q) {
-          return "<tr><th>" + q[1] + "</th>" + fmtStat(S_[q[0]], "kt") + "</tr>"; }).join("") + "</tbody></table>";
+          return "<tr><th>" + q[1] + "</th>" + fmtStat(S_[q[0]], "kt") + "</tr>"; }).join("") + "</tbody></table></div>";
       if (S_.sddc_diff_deg_shear_ge10kt && S_.sddc_diff_deg_shear_ge10kt.n) out += "<p>Shear direction (SHDC ≥ 10 kt, n = " + S_.sddc_diff_deg_shear_ge10kt.n + "): median absolute difference " + S_.sddc_diff_deg_shear_ge10kt.median_abs + "°, 90th percentile " + S_.sddc_diff_deg_shear_ge10kt.p90_abs + "°.</p>";
       var lim = 60, pr = sh.rows.filter(function (r) { return r.ours.shdc != null; });
       out += "<div class='tcs-grid'><figure>" + scatter(pr.map(function (r) { return [r.ships.shrd, r.ours.shrd]; }), "SHIPS SHRD (kt)", "ours, annulus (kt)", lim) + "<figcaption>Annulus shear: the data and positions agree.</figcaption></figure>" +
@@ -320,27 +365,38 @@
     }
     if (td && td.summary) {
       var ng = ((td.summary.gfs || {}).magnitude || {}).n_groups;
+      // how many large radar tilts there are, and at how many synoptic times: too few to say the models capture them
+      // (2026-10-12 review: 6 radar analyses >= 30 km at 3 synoptic times; 4 of 16 model flags matched)
+      var big = td.rows.filter(function (r) { return r.tilt >= 30; }), bigT = {};
+      big.forEach(function (r) { bigT[(r.syn || "") + r.sid] = 1; });
+      var nbT = Object.keys(bigT).length;
       out += "<h4>Model vortex tilt against the NOAA tail Doppler radar (" + td.rows.length + " radar analyses" + (ng ? " at " + ng + " synoptic times" : "") + ")</h4>" +
         "<p>Each radar analysis with HRD's 2- and 6-km centres against the 850→500 hPa vorticity-centroid tilt of each model's analysis at the nearest synoptic time (within 3 h; a 6-hour forecast where the analysis is not published). Model minus radar, km. " +
-        "Several radar analyses share one model time, so the 95 % intervals resample whole synoptic times; with this few independent cases, read the intervals, not the point values. The models resolve large tilts (30 km and more) but put a floor of roughly 10–25 km under small ones, so their small tilts are not evidence of misalignment.</p>" +
-        "<table class='tcs-tab'><thead><tr><th>Model</th><th>n</th><th>Bias</th><th>RMS difference</th><th>Correlation</th><th>Direction, radar tilt ≥ 20 km</th><th>Radar ≥ 30 km / model ≥ 30 km / both</th></tr></thead><tbody>" +
+        "Several radar analyses share one model time, so the 95 % intervals resample whole synoptic times; with this few independent cases, read the intervals, not the point values. " +
+        (big.length ? "Only " + big.length + " radar analys" + (big.length === 1 ? "is" : "es") + " show" + (big.length === 1 ? "s" : "") + " a tilt of 30 km or more (at " + nbT + " synoptic time" + (nbT === 1 ? "" : "s") + "; last column), too few to say whether the models capture large tilts. " : "No radar analysis shows a tilt of 30 km or more, so whether the models capture large tilts is not tested. ") +
+        "Under small radar tilts the models put a floor of roughly 10–25 km, so a model tilt of that size is not evidence of misalignment.</p>" +
+        "<div class='tcs-tabw'><table class='tcs-tab'><thead><tr><th>Model</th><th>n</th><th>Bias</th><th>RMS difference</th><th>Correlation</th><th>Direction, radar tilt ≥ 20 km</th><th>Radar ≥ 30 km / model ≥ 30 km / both</th></tr></thead><tbody>" +
         ["gfs", "ifs", "aifs-single"].map(function (k) { var q = td.summary[k] || {}, dr = q.direction_tdr_ge20km || {}, tt = q.tilted_ge30km || {};
-          return "<tr><th>" + ({ gfs: "GFS", ifs: "IFS HRES", "aifs-single": "AIFS single" }[k]) + "</th>" + fmtStat(q.magnitude, "km") + "<td>" + (dr.n ? "median |error| " + dr.median_abs + "° (n = " + dr.n + ")" : "—") + "</td><td>" + (tt.n ? tt.n_tdr + " / " + tt.n_model + " / " + tt.both : "—") + "</td></tr>"; }).join("") + "</tbody></table>";
+          return "<tr><th>" + ({ gfs: "GFS", ifs: "IFS HRES", "aifs-single": "AIFS single" }[k]) + "</th>" + fmtStat(q.magnitude, "km") + "<td>" + (dr.n ? "median |error| " + dr.median_abs + "° (n = " + dr.n + ")" : "—") + "</td><td>" + (tt.n ? tt.n_tdr + " / " + tt.n_model + " / " + tt.both : "—") + "</td></tr>"; }).join("") + "</tbody></table></div>";
       var pts = [];
       td.rows.forEach(function (r) { ["gfs", "ifs", "aifs-single"].forEach(function (k) { if (r.models[k]) pts.push([r.tilt, r.models[k].tilt, COL[k === "aifs-single" ? "aifs" : k]]); }); });
       out += "<div class='tcs-grid'><figure>" + scatter(pts, "radar 2–6 km tilt (km)", "model 850→500 hPa tilt (km)", 120) + "<figcaption>Blue AIFS single, orange IFS HRES, green GFS.</figcaption></figure></div>";
     }
-    if (LIVE && LIVE.rows && LIVE.rows.length) out += "<p class=mu>Live archive: " + LIVE.rows.length + " storm-cycle-model rows of analysis shear against SHIPS and radar tilt kept since the product started.</p>";
+    if (good(LIVE) && LIVE.rows && LIVE.rows.length) out += "<p class=mu>Live archive: " + LIVE.rows.length + " storm-cycle-model rows of analysis shear against SHIPS and radar tilt kept since the product started.</p>";
     return out;
   }
 
   // ── time controls (2026-10-08): play/step, frame prefetch, the sticky bar under the site header ──────────────
   var PLAY = null, PRE = {};
   function stop() { if (PLAY) { clearTimeout(PLAY); PLAY = null; var b = $("tcs-play"); if (b) b.textContent = "▶ Play"; } }
+  // Play stops as soon as the product is left (2026-10-12 audit: with no storm in the hash the old check never fired and
+  // the timer kept rewriting the URL to #tcshear//fc/36/deep while another product was showing).
+  function mounted() { return !!root.offsetParent && state().prod === "tcshear" && (!document.getElementById("stage") || !!root.closest("#stage")); }
   function play(st, doc, s) {
     if (st.h >= 120) st.h = 0;
+    st.sid = s.sid;
     prefetch(doc, s, st.h, true);
-    function step() { PLAY = setTimeout(function () { if (!root.offsetParent || state().sid !== st.sid && st.sid) { stop(); return; }
+    function step() { PLAY = setTimeout(function () { if (!mounted() || state().sid !== st.sid) { stop(); return; }
       if (st.h >= 120) { stop(); return; } st.h += 6; go(st); step(); }, 750); }
     PLAY = 1; go(st); step();
   }
@@ -364,8 +420,14 @@
   function render() {
     if (!ready || !root.offsetParent) { stop(); return; }
     stickTop();
-    var st = state(), list = storms();
-    var s = list.filter(function (x) { return x.sid === st.sid; })[0] || list[0];
+    var st = state(), list = storms(), live = list.filter(function (x) { return x.live; });
+    // the storm in the hash; else the first LIVE storm, never the hindcast case (2026-10-12 review: Melissa 2025 is always
+    // listed, so quiet periods opened on it and "No tropical cyclone is active" never showed). A link to a storm that is
+    // not in the list (recon.js links #tcshear/<storm>) says so instead of silently showing another storm.
+    var want = st.sid ? list.filter(function (x) { return x.sid === st.sid; })[0] : null;
+    var s = want || live[0] || null, gone = st.sid && !want ? st.sid : null;
+    if (gone && s) st.sid = s.sid;
+    var note = gone ? "<b>" + esc(gone) + "</b> is not in " + (good(MAN) ? "this run's storm list" : "the storm list") + (s ? "; showing " + esc(s.name) + " instead" : "") + ". " : "";
     $("tcs-storms").innerHTML = list.length ? list.map(function (x) {
       return '<button type="button" data-sid="' + esc(x.sid) + '" aria-pressed="' + (s && x.sid === s.sid) + '"' + (x.live ? "" : ' class="hc"') + ">" + esc(x.name) +
         (x.live ? "" : " <span>validation case, " + esc((x.hcInit || "").slice(0, 10)) + "</span>") + "</button>"; }).join("") : "";
@@ -374,23 +436,27 @@
     root.querySelectorAll("#tcs-views button").forEach(function (b) { b.onclick = function () { st.view = b.getAttribute("data-v"); if (!st.sid && s) st.sid = s.sid; go(st); }; });
     $("tcs-val").hidden = st.view !== "val"; $("tcs-fc").hidden = st.view === "val";
     if (st.view === "val") { $("tcs-val").innerHTML = validation(); $("tcs-now").innerHTML = ""; return; }
-    if (!s) { $("tcs-now").innerHTML = "No tropical cyclone is active" + (MAN && MAN.built ? " (checked " + esc(MAN.built.replace("T", " ")) + ")" : "") + ". The forecast panels return with the next storm; the validation stays available."; $("tcs-body").hidden = true; return; }
+    if (!s) {
+      $("tcs-now").innerHTML = note + (MAN === ERR ? "Could not load the list of active storms (network or server error). Reload to try again; the validation case and the validation stay available."
+        : !MAN ? "The list of active storms has not been published yet."
+        : "No tropical cyclone is active" + (MAN.built ? " (checked " + esc(MAN.built.replace("T", " ")) + ")" : "") + ". The forecast panels return with the next storm; the validation stays available.");
+      $("tcs-body").hidden = true; return; }
     $("tcs-body").hidden = false;
     var doc = DOC[s.sid];
     if (!doc) {
-      $("tcs-now").innerHTML = "Loading " + esc(s.name) + "…";
+      $("tcs-now").innerHTML = note + "Loading " + esc(s.name) + "…";
       if (!loading[s.sid]) { loading[s.sid] = FJ(s.json, s.sha).then(function (d) { if (d) { DOC[s.sid] = d; render(); } else $("tcs-now").innerHTML = "Could not load the data for " + esc(s.name) + ". Reload to try again."; }); }
       return;
     }
     var tm0 = t0(doc), h = Math.max(0, Math.min(120, st.h - st.h % 6));
-    $("tcs-now").innerHTML = now(doc, s.live);
+    $("tcs-now").innerHTML = note + (MAN === ERR && !s.live ? "Could not load the list of active storms; showing the validation case. " : "") + now(doc, s.live);
     var sl = $("tcs-h"); sl.value = h;
     sl.oninput = function () { stop(); st.h = +sl.value; go(st); };
     $("tcs-prev").onclick = function () { stop(); st.h = Math.max(0, h - 6); go(st); };
     $("tcs-next").onclick = function () { stop(); st.h = Math.min(120, h + 6); go(st); };
     $("tcs-play").onclick = function () { if (PLAY) { stop(); return; } play(st, doc, s); };
     $("tcs-play").textContent = PLAY ? "❚❚ Pause" : "▶ Play";
-    $("tcs-hlab").textContent = "+" + h + " h · " + fmtT(tm0 + h * 3600000, true);
+    $("tcs-hlab").textContent = "+" + h + " h · " + fmtT(tm0 + h * 3600000, true, !s.live);
     $("tcs-hodo").innerHTML = hodograph(doc, h);
     $("tcs-tilt").innerHTML = tiltPlot(doc, h, tm0);
     $("tcs-meas").innerHTML = MEAS.map(function (q) { return '<button type="button" data-m="' + q[0] + '" aria-pressed="' + (st.m === q[0]) + '">' + q[1] + "</button>"; }).join("");
@@ -403,8 +469,9 @@
       var hh = Math.round((x0 + (xv - L) / (W - L - R) * (x1 - x0)) / 6) * 6; stop(); st.h = Math.max(0, Math.min(120, hh)); go(st); };
     $("tcs-key").innerHTML = legend(doc, st.m);
     $("tcs-tab").innerHTML = table(doc, h);
-    // the 330 K PV map of this hour (6-hourly control frames, frames branch)
-    var fr = (doc.frames || []).filter(function (f) { return +f.slice(-8, -5) <= h; }).pop();
+    // the 330 K PV map of THIS hour (6-hourly control frames, frames branch); none -> "No map for this hour" (2026-10-12
+    // review: the last frame at or before the hour put the +66 h map under a +72..+120 h label)
+    var fr = (doc.frames || []).filter(function (f) { return +f.slice(-8, -5) === h; })[0];
     var im = $("tcs-map");
     if (fr) { var rel = s.json.replace(/[^/]+$/, "") + fr; im.hidden = false; $("tcs-nomap").hidden = true; im.alt = doc.name + ": 330 K PV and shear, " + fr.slice(-8, -5) + " h";
       if (im.getAttribute("data-rel") !== rel) { im.setAttribute("data-rel", rel); if (window.frameLoad) window.frameLoad(im, rel, "", null, null, s.sha); else im.src = rel; } }

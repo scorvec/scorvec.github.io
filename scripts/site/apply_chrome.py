@@ -434,8 +434,8 @@ HOME = {
 
 def homepage_rows() -> str:
     """The homepage theme tiles (index.html, between <!-- hp:start --> and <!-- hp:end -->), from PRODUCTS + HOME. Each
-    link carries its page's one-line description as a tooltip; the freshness script decorates `li[data-href]` from
-    /status.json."""
+    link carries its page's one-line description as a tooltip (the per-link "3 h ago" freshness labels were removed
+    2026-10-12, user: "not really important")."""
     esc = lambda t: t.replace("&", "&amp;").replace('"', "&quot;").replace("<", "&lt;")
     out = ["<!-- hp:start -->", '    <div class="sgs">']
     for title, blurb, items, *_ in PRODUCTS:

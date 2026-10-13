@@ -104,7 +104,11 @@ def observations(sid, init):
     if st:
         obs["btk"] = st.get("btk", []); obs["fcst"] = st.get("fcst"); obs["src"].append("recon mirror (NHC ATCF)")
     elif sid[:2] in ("AL", "EP", "CP"):
-        obs["btk"] = _btk_deck(sid)
+        try:
+            obs["btk"] = _btk_deck(sid)
+        except Exception as e:                                         # noqa: BLE001  (NHC FTP flaky: no best track this cycle)
+            print(f"::warning::b-deck {sid}: {e}", flush=True)
+            obs["btk"] = []
         if obs["btk"]:
             obs["src"].append("NHC ATCF b-deck")
     if sid.startswith("AL"):

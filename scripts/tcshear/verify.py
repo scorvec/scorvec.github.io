@@ -13,7 +13,9 @@ A. Against SHIPS. NHC publishes the SHIPS model's input file for every real-time
 B. Against the TDR. Every NOAA tail-Doppler-radar analysis with HRD's 2- and 6-km centres in the tdr-data mirror (the
    2-6 km tilt): the model tilt (850 -> 500 hPa vorticity centroids) in the GFS, IFS HRES and AIFS single analyses at the
    synoptic time nearest the radar analysis (within 3 h; a 6 h forecast when the analysis itself is not published).
-Statistics: bias, RMSD, Pearson r with a 95 % bootstrap interval (2,000 resamples of cases), Spearman for tilt.
+Statistics: bias, RMSD, Pearson r with a 95 % CLUSTER bootstrap interval (2,000 resamples of whole groups: storms for
+SHIPS, whose ~800 runs come from ~30 storms and are serially correlated within each; synoptic times for the TDR, where
+several radar analyses share one model value), Spearman for tilt.
 """
 from __future__ import annotations
 
@@ -37,7 +39,7 @@ import sheardata as D                                                 # noqa: E4
 import shearlib as S                                                  # noqa: E402
 
 LSDIAG = "https://ftp.nhc.noaa.gov/atcf/lsdiag"
-SHIPS_GS_LEVELS = (1000, 850, 700, 500, 400, 300, 250, 200, 150, 100)    # lsdiag.f gshear
+SHIPS_GS_LEVELS = S.SHIPS_GS_LEVELS                                      # lsdiag.f gshear (the live product uses the same)
 RAW = "https://raw.githubusercontent.com/scorvec/scorvec.github.io"
 
 
@@ -197,13 +199,21 @@ def part_ships(max_cases=None):
             continue
         rows.append(dict(file=c["file"], sid=c["sid"], t0=f"{c['t0']:%Y-%m-%dT%HZ}", lat=c["lat"], lon=c["lon"], vmax=c["vmax"],
                          ships={k: c[k] for k in ("shdc", "sddc", "shrd", "shtd", "shrs", "shrg", "shgc")}, ours=q))
+    return dict(gfs_run=var, gfs_pick_rmsd={k: round(v, 2) for k, v in pick.items()}, n_files=len(names), rows=rows,
+                summary=ships_summary(rows))
+
+
+def ships_summary(rows):
+    """Ours vs SHIPS statistics from the per-run rows (also re-runnable on a published validation file's rows)."""
     summ = {}
+    # resample whole storms: consecutive SHIPS runs of one storm share its environment and errors (2026-10-12 review:
+    # 784 runs from 31 storms; the case bootstrap made the SHDC bias interval [1.16, 1.60] where storms give [0.89, 1.90])
     for k in ("shrd", "shdc", "shrs", "shrg", "shgc"):
-        summ[k] = stats([r["ours"][k] for r in rows], [r["ships"][k] for r in rows])
+        summ[k] = stats([r["ours"][k] for r in rows], [r["ships"][k] for r in rows], groups=[r["sid"] for r in rows])
     # vortex-removal effect: (ours SHDC - ours SHRD) vs (SHIPS SHDC - SHIPS SHRD)
     full = [r for r in rows if None not in (r["ours"]["shdc"], r["ours"]["shrd"], r["ships"]["shdc"], r["ships"]["shrd"])]
     summ["removal_effect"] = stats([r["ours"]["shdc"] - r["ours"]["shrd"] for r in full],
-                                   [r["ships"]["shdc"] - r["ships"]["shrd"] for r in full])
+                                   [r["ships"]["shdc"] - r["ships"]["shrd"] for r in full], groups=[r["sid"] for r in full])
     dd = [ang(r["ours"]["sddc"], r["ships"]["sddc"]) for r in rows
           if r["ours"]["sddc"] is not None and r["ships"]["sddc"] is not None and (r["ships"]["shdc"] or 0) >= 10]
     summ["sddc_diff_deg_shear_ge10kt"] = dict(n=len(dd), median_abs=round(float(np.median(np.abs(dd))), 1) if dd else None,
@@ -211,8 +221,9 @@ def part_ships(max_cases=None):
     # by intensity (the vortex matters most for strong storms)
     for lab, lo_, hi_ in (("vmax_lt64", 0, 64), ("vmax_ge64", 64, 999)):
         sub = [r for r in rows if lo_ <= r["vmax"] < hi_]
-        summ[f"shdc_{lab}"] = stats([r["ours"]["shdc"] for r in sub], [r["ships"]["shdc"] for r in sub])
-    return dict(gfs_run=var, gfs_pick_rmsd={k: round(v, 2) for k, v in pick.items()}, n_files=len(names), rows=rows, summary=summ)
+        summ[f"shdc_{lab}"] = stats([r["ours"]["shdc"] for r in sub], [r["ships"]["shdc"] for r in sub],
+                                    groups=[r["sid"] for r in sub])
+    return summ
 
 
 def synoptic_source(model, t):

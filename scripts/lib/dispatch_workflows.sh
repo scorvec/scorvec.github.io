@@ -180,6 +180,12 @@ recon.yml|*:45|
 # (steps to day 5 are on the Google mirror by then); with no storm active anywhere the run ends in seconds.
 tcshear.yml|*/6:10|
 tcshear.yml|*/6:40|
+# 00/12Z IFS HRES reaches the Google mirror only ~T+7.5 h (12Z: ~19:34Z), after the two slots above built the cycle from
+# AIFS-ENS: these rebuild a cycle still pending IFS (tcshear.py DET_WAIT_H) and end in ~1 min otherwise. Same as the cron.
+tcshear.yml|01:50|
+tcshear.yml|07:50|
+tcshear.yml|13:50|
+tcshear.yml|19:50|
 # weekly re-validation against the season's SHIPS inputs and every new TDR tilt (~30 min, ~15 GB of GFS from S3)
 tcshear.yml|mon@15:30|-f mode=verify
 # skewt-data hourly again 2026-10-06 (user): off-hour specials (06Z/18Z) must reach the map within ~2-3 h, not ~5
