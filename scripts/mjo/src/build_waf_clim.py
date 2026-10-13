@@ -19,7 +19,7 @@ import gcsfs
 import sys
 sys.path.insert(0, str(Path(__file__).parent))
 from waf import streamfunction_psi, LMAX
-from wind200_vpot import _to_0360
+from wind200_vpot import _to_0360, _padded
 
 REF = Path(__file__).resolve().parent.parent / "data" / "reference"
 OUT_TMPL = "waf_clim_coeffs{suffix}.nc"            # 200 hPa (legacy, no suffix) or _250
@@ -51,8 +51,10 @@ def _samples(a):
             try:
                 ut = uy.sel(time=t); vt = vy.sel(time=t)
                 psi, glat, glon = streamfunction_psi(ut, vt, lmax=LMAX)
-                Ug = (_to_0360(ut).interp(latitude=glat, longitude=glon).transpose("latitude", "longitude").values)
-                Vg = (_to_0360(vt).interp(latitude=glat, longitude=glon).transpose("latitude", "longitude").values)
+                # wrapped (2026-10-12): the DH2 grid runs to 360 and the 1.5 deg input stops at 358.5, so the
+                # unwrapped interp left the 358.6 and 360 columns NaN in waf_clim_coeffs*.nc
+                Ug = _padded(_to_0360(ut)).interp(latitude=glat, longitude=glon).values
+                Vg = _padded(_to_0360(vt)).interp(latitude=glat, longitude=glon).values
                 Ul.append(Ug); Vl.append(Vg); Pl.append(psi); tl.append(t)
             except Exception as e:                                     # noqa: BLE001
                 print(f"  skip {t:%Y-%m-%d}: {repr(e)[:60]}"); continue

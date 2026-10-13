@@ -165,10 +165,12 @@ def ke_spectrum(u: np.ndarray, v: np.ndarray, res_km: float = 3.0):
     abins, _, _ = stats.binned_statistic(knrm, p2.flatten(),
                                          statistic=np.nansum, bins=kbins)
     p1 = abins[1:]
-    p1 = p1[0::2][:len(p1[1::2])] + p1[1::2]          # pair-sum (as in the repo)
-    wavenumbers = np.arange(1, len(p1))
+    p1 = p1[0::2][:len(p1[1::2])] + p1[1::2]          # pair-sum: pair k = DCT indices 2k-1, 2k = wavenumber k
+    # 2026-10-12 (quantmet 0.3.1 fix): pair k is p1[k-1]. This used arange(1, len(p1)) with p1[1:], labelling
+    # every bin one wavenumber too long (an exact 192 km mode plotted at 256 km) and dropping k = 1.
+    wavenumbers = np.arange(1, len(p1) + 1)
     wavelengths = res_km * nbwv / wavenumbers
-    return wavelengths, p1[1:]
+    return wavelengths, p1
 
 
 def main() -> int:
