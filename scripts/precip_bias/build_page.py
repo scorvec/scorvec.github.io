@@ -163,8 +163,10 @@ archive: every 00Z run, six members, one model cycle at a time.</p>
 <label>Units <select id="rb-kind">{opts([("abs", "mm/day"), ("rel", "percent of observed")], "abs")}</select></label>
 </div>
 <figure><img id="rb-img" src="/assets/precip_bias/{c0}_wk1_all_abs.webp" alt="Model minus observed rain map" loading="lazy">
-<figcaption id="rb-cap">Brown: the model is too dry; green: too wet. Grey: not significant. Percent maps leave out cells drier than
-0.5 mm/day. The current systems have run only since 13 May 2026, so their fields are mostly the warm season.</figcaption></figure>
+<figcaption id="rb-cap">Brown: the model is too dry; green: too wet. Grey: not significant, so the bias cannot be told from zero with
+this many runs (not "no bias"). White: significant but within ±0.25 mm/day (±5 % on the percent maps). Hatched on the percent maps:
+drier than 0.5 mm/day, where a percentage means little. The current systems have run only since 13 May 2026, so their fields are
+mostly the warm season and more of them is grey.</figcaption></figure>
 </section>
 
 <section>
