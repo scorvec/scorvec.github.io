@@ -53,7 +53,7 @@ import cartopy.crs as ccrs
 sys.path.insert(0, str(Path(__file__).parent))
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "ecmwf"))
 import store as ecmwf
-from wind200_vpot import _ens_mean, _to_0360
+from wind200_vpot import _ens_mean, _to_0360, _padded, _ddlon
 import waf_basic as wb
 
 A = 6.371e6
@@ -71,12 +71,12 @@ CLIM = REF / ("waf_clim_coeffs.nc" if LEVEL == 200 else f"waf_clim_coeffs_{LEVEL
 def streamfunction_psi(u2d: xr.DataArray, v2d: xr.DataArray, lmax: int = LMAX):
     """ψ (m² s⁻¹) on a regular DH2 grid from 2-D u, v: invert ∇²ψ = ζ in spherical
     harmonics on a pole-free Gauss–Legendre grid (mirror of velocity_potential)."""
-    u2d = _to_0360(u2d); v2d = _to_0360(v2d)
+    u2d = _padded(_to_0360(u2d)); v2d = _padded(_to_0360(v2d))     # 2026-10-12: longitude wrap + pole rows
     glat, glon = pysh.expand.GLQGridCoord(lmax)
-    ug = u2d.interp(latitude=glat, longitude=glon).transpose("latitude", "longitude").values
-    vg = v2d.interp(latitude=glat, longitude=glon).transpose("latitude", "longitude").values
-    latr = np.deg2rad(glat); lonr = np.deg2rad(glon); cosp = np.cos(latr)[:, None]
-    vort = (np.gradient(vg, lonr, axis=1) - np.gradient(ug * cosp, latr, axis=0)) / (A * cosp)
+    ug = u2d.interp(latitude=glat, longitude=glon).values
+    vg = v2d.interp(latitude=glat, longitude=glon).values
+    latr = np.deg2rad(glat); cosp = np.cos(latr)[:, None]
+    vort = (_ddlon(vg, glon) - np.gradient(ug * cosp, latr, axis=0)) / (A * cosp)   # periodic at the seam
     clm = pysh.SHGrid.from_array(vort, grid="GLQ").expand()
     l = np.arange(clm.lmax + 1, dtype=float)
     fac = np.zeros_like(l); fac[1:] = -(A ** 2) / (l[1:] * (l[1:] + 1))
@@ -136,6 +136,28 @@ def tn01_flux(psi_a: np.ndarray, U: np.ndarray, V: np.ndarray,
     divw = clm.expand(grid="DH2").data
     divw[bad] = np.nan
     return wx, wy, divw
+
+
+def _seam_filled(c: xr.Dataset) -> xr.Dataset:
+    """waf_clim_coeffs*.nc built before 2026-10-12 hold NaN U, V coefficients in the two DH2 columns past the 1.5 deg
+    ERA5 input's last longitude (358.6 and 360 E): build_waf_clim.py interpolated without a longitude wrap, so the
+    basic state -- and with it the flux and its divergence -- had a NaN strip along the prime meridian. Fill them
+    periodically: linear in longitude across the seam on the open circle (as the builder's own interpolation), the
+    360 column then copying the 0 column it duplicates. A no-op for a clim rebuilt with the wrapped builder."""
+    c = c.load()
+    lon = c.longitude.values
+    closed = np.isclose(lon[-1] - lon[0], 360.0)
+    lc = lon[:-1] if closed else lon
+    for v in ("U", "V"):
+        a = c[v].values
+        core = (a[..., :-1] if closed else a).copy()
+        flat = core.reshape(-1, lc.size)
+        for r in np.flatnonzero(np.isnan(flat).any(1) & np.isfinite(flat).any(1)):
+            ok = np.isfinite(flat[r])
+            flat[r, ~ok] = np.interp(lc[~ok], lc[ok], flat[r, ok], period=360.0)
+        core = flat.reshape(core.shape)
+        c[v] = (c[v].dims, np.concatenate([core, core[..., :1]], axis=-1) if closed else core)
+    return c
 
 
 def eval_clim(coefs: np.ndarray, doy: float) -> np.ndarray:
@@ -235,7 +257,7 @@ def main() -> int:
     if not CLIM.exists():
         print(f"  clim {CLIM} missing — run build_waf_clim.py first; skipping.", file=sys.stderr)
         return 0
-    c = xr.open_dataset(CLIM)
+    c = _seam_filled(xr.open_dataset(CLIM))
     clat, clon = c.latitude.values, c.longitude.values
 
     import download_aifs

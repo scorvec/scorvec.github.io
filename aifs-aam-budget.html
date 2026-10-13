@@ -25,7 +25,7 @@
  "url": "https://scorvec.com/aifs-aam-budget.html",
  "inLanguage": "en",
  "datePublished": "2026-10-01",
- "dateModified": "2026-10-02",
+ "dateModified": "2026-10-12",
  "author": {
   "@id": "https://scorvec.com/#person"
  },
@@ -444,17 +444,26 @@
   <figure id="fig11"><a href="/studies/aifs-aam-budget/cons_water.webp" class="zoom"><img src="/studies/aifs-aam-budget/cons_water.webp" alt="Global precipitation, change in column water and implied evaporation by lead day for AIFS-ENS, IFS-ENS and AIFS single" loading="lazy"></a><figcaption><b>Figure 11.</b> The global water budget by lead day: precipitation (left), change in column water (middle) and the evaporation they imply (right).</figcaption></figure>
 
   <h3>Energy: drift against the analysis</h3>
-  <p>The total energy of the column, $\int (c_pT + \Phi + Lq)\,dp/g$, changes only through radiation and surface fluxes, which AIFS does not
+  <p>The total energy of the column (internal, potential and latent energy; kinetic energy is about 0.05% of it) is
+  $\int (c_vT + \Phi + Lq)\,dp/g$, which in hydrostatic balance equals $\int (c_pT + Lq)\,dp/g + \Phi_s p_s/g$, with $\Phi_s$ the
+  geopotential of the ground. It changes only through radiation and surface fluxes, which AIFS does not
   publish. The test that remains is drift: compare each control run with its own model's analysis at the valid time, possible at days 3, 6,
   9, 12 and 15 because a new cycle starts every third day. The analysis is not a conservation law, so this measures how far each model
   wanders from the observed energy state, not a budget residual.</p>
+  <p><b>Corrected 12 October 2026.</b> The first version of this section used $\int (c_pT + \Phi + Lq)\,dp/g$, which adds the
+  geopotential to the enthalpy and so counts the work done by pressure twice (about 28% too much energy, and its drift too large). The
+  drifts below use $\int (c_pT + Lq)\,dp/g$. The change in the surface term $\Phi_s p_s/g$ was not kept; spread like the atmosphere's
+  own mass, these runs' global-mean pressure changes (at most 20 Pa) make it below 0.01 W m<sup>−2</sup>, and the form
+  $\int (c_vT + \Phi + Lq)\,dp/g$, which needs no surface term, agrees within 0.15 W m<sup>−2</sup>. The day-15 losses were
+  -2.3, -1.8 and -3.5 W m<sup>−2</sup> before the correction; the conclusions are unchanged.</p>
   <ul>
-    <li><b>All three lose energy.</b> By day 15 the loss averages -2.3 W m<sup>−2</sup> for AIFS-ENS, -1.8 for
-    IFS-ENS and -3.5 for AIFS single over the 15 days, mostly as cooling (enthalpy -1.4,
+    <li><b>All three lose energy.</b> By day 15 the loss averages -2.0 W m<sup>−2</sup> for AIFS-ENS, -1.6 for
+    IFS-ENS and -2.8 for AIFS single over the 15 days, mostly as cooling (enthalpy -1.4,
     -1.2 and -2.4). A cooling drift of this size is a known IFS behaviour, so the physics model
     is no reference of perfection here.</li>
-    <li><b>AIFS-ENS drifts slightly faster than IFS-ENS</b>: -0.52 (95% interval -1.20 to -0.02) W m<sup>−2</sup> at day 15, significant at 4 of the
-    5 tested leads. <b>AIFS single drifts faster</b>: -1.74 (95% interval -2.41 to -0.95) W m<sup>−2</sup>.</li>
+    <li><b>AIFS-ENS drifts slightly faster than IFS-ENS</b>: -0.40 (95% interval -0.94 to -0.002) W m<sup>−2</sup> at day 15, only just significant
+    (p = 0.049; -0.48, p = 0.025, with the $c_v$ form of the total), and significant at 4 of the
+    5 tested leads (days 3, 6, 9 and 15). <b>AIFS single drifts faster</b>: -1.27 (95% interval -1.80 to -0.65) W m<sup>−2</sup>.</li>
     <li>AIFS-ENS's downward solar radiation at the surface is 3.1 W m<sup>−2</sup> lower than IFS-ENS's at every
     lead (significant); its downward thermal radiation is the same within 0.5 W m<sup>−2</sup>. Without net or top-of-atmosphere radiation,
     this cannot be tied to the energy drift.</li>
@@ -487,7 +496,7 @@
   contains modified Copernicus Climate Change Service information 2026. Neither ECMWF nor the European Commission is
   responsible for any use of this information. About 128 GB of forecast fields and 95 GB of ERA5 were read for the angular
   momentum study, and a further 28 GB of forecast fields for the mass, water and energy extension.</p>
-  <p class="byline">By <a href="/about.html">Shawn Corvec</a>, meteorologist. Published 1 October 2026; mass, water and energy added 2 October 2026. A static study: it is not updated.</p>
+  <p class="byline">By <a href="/about.html">Shawn Corvec</a>, meteorologist. Published 1 October 2026; mass, water and energy added 2 October 2026; energy totals corrected 12 October 2026. A static study: it is not updated.</p>
 </article>
 
 </main>
