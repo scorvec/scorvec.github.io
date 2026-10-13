@@ -82,20 +82,31 @@ def body(R, Mo, keys, L, fig, t_models, made):
                   "global budget (change in angular momentum minus the torques) is " + "; ".join(t for t in own_txt if t) +
                   ". GFS and GEFS publish the turbulent and the orographic gravity-wave/blocking stress; the open IFS "
                   "data carry only the turbulent part (with turbulent orographic form drag), so an IFS residual includes its "
-                  "missing blocking and gravity-wave drag. ERA5 for comparison: " +
-                  (E(era.get("budget", {}).get("resid_own"), 1) + " Hadley, the analysis increments" if era.get("budget") else "–") + ".")
+                  "missing blocking and gravity-wave drag." +
+                  (" ERA5 on the same days, with its own turbulent and gravity-wave stress, misses " +
+                   E(era["budget"]["resid_own"], 1) + " Hadley: its analysis increments, which no torque supplies."
+                   if era.get("budget") else ""))
     # 2 mass
-    mt = []
-    for k in keys:
-        m = mass(k, 10)
-        if m and m.get("mean") is not None:
-            mt.append((abs(m["mean"]), k, m))
-    mt.sort()
-    if mt:
-        best = ", ".join(f"{L[k]} {E(m, 3)}" for _, k, m in mt[:3])
-        worst = ", ".join(f"{L[k]} {E(m, 3)}" for _, k, m in mt[-2:])
-        bl.append(f"<b>Mass.</b> By day 10 the global-mean surface pressure has moved least in {best} hPa and most in {worst} "
-                  "hPa. The physics models carry mass fixers; the AI models do not, and their surface pressure is free to drift.")
+    def mfmt(b_, what):
+        if b_.get("lo") is not None and b_.get("hi") is not None and abs(b_["mean"]) < 0.0005 and abs(b_["hi"] - b_["lo"]) < 0.001:
+            return f"{what} constant to within 0.001"
+        return f"{what} {E(b_, 3)}"
+
+    def mstr(k):
+        t, d_, t1 = mass(k, 10), mass(k, 10, True), mass(k, 1)
+        if not t or t.get("mean") is None:
+            return None
+        tt = mfmt(t, "total")
+        if (t1 and t1.get("mean") is not None and abs(t1["mean"]) > 0.01 and abs(t["mean"] - t1["mean"]) < 0.003
+                and sig(t1)):
+            tt += f" (a step of {num(t1['mean'], 3)} on day 1, then constant)"
+        return f"{L[k]} {tt}" + (f", {mfmt(d_, 'dry air')}" if d_ and d_.get("mean") is not None else "")
+    ph = [mstr(k) for k in keys if k not in AI and mstr(k)]
+    ai = [mstr(k) for k in keys if k in AI and mstr(k)]
+    if ph or ai:
+        bl.append("<b>Mass.</b> Global-mean surface-pressure change by day 10, in hPa. Physics models: " + "; ".join(ph) +
+                  ". AI models: " + "; ".join(ai) + " (all hPa). The physics models constrain their mass (IFS and GDPS total mass, "
+                  "GFS, GEFS and GEPS dry air); an AI model has no such constraint and its surface pressure is free to drift.")
     # 3 drift vs own analysis day 10
     dr = []
     for k in keys:
@@ -113,9 +124,10 @@ def body(R, Mo, keys, L, fig, t_models, made):
         bl.append("<b>Free-forecast drift.</b> Against its own analysis valid the same day, the wind-term angular momentum "
                   "(11 common levels) at day 10 changes significantly in " + ("; ".join(dr) if dr else "none of the models") +
                   " ×10²⁵ kg m² s⁻¹" + (f"; the change is not significant in {', '.join(nd)}" if nd else "") +
-                  ". For scale, ERA5's analysis adds about +0.07 ×10²⁵ a day through its increments (the "
-                  "<a href='/torque-enso.html'>torque study</a>), and IFS-ENS lost −0.31 by day 15 in "
-                  "<a href='/aifs-aam-budget.html'>winter 2025–26</a>.")
+                  ". For scale, ERA5's increments on these days add " +
+                  (f"{era['budget']['resid_own']['mean'] * 86400 * 1e18 / 1e25:.2f}" if era.get("budget") else "about 0.1") +
+                  " ×10²⁵ a day (the <a href='/torque-enso.html'>torque study</a> measured the increments directly), and "
+                  "IFS-ENS lost −0.31 by day 15 in <a href='/aifs-aam-budget.html'>winter 2025–26</a>.")
     # 4 drag against ERA5
     fb = []
     for k in keys:
@@ -146,14 +158,17 @@ def body(R, Mo, keys, L, fig, t_models, made):
                   "westerlies).")
     # 6 GEM: what the 2019 changes can show (GEPS = the clean GEM physics; GDPS nudged toward GEML since May 2026)
     gem = []
+
+    def Eg(b_, d=2):
+        return E(b_, d) if (b_ and b_.get("mean") is not None) else "not yet testable"
     if "geps" in Mo:
         gem.append(f"GEPS (the unnudged GEM, {Mo['geps']['n_inits']} inits): day-10 angular-momentum drift against its own "
-                   f"analysis {E(drift('geps', 'G', 10))} ×10²⁵ (SH {E(drift('geps', 'S', 10))}, NH "
-                   f"{E(drift('geps', 'N', 10))}); 850 hPa wind over ocean 30–65°S {E(wind('geps', 'u850_rh', 10, 'OCX_S'))} "
-                   f"and over rough terrain {E(wind('geps', 'u850_rh', 10, 'ORO_N'))} (NH) m s⁻¹")
+                   f"analysis {Eg(drift('geps', 'G', 10))} (×10²⁵; SH {Eg(drift('geps', 'S', 10))}, NH "
+                   f"{Eg(drift('geps', 'N', 10))}); 850 hPa wind over ocean 30–65°S {Eg(wind('geps', 'u850_rh', 10, 'OCX_S'))} "
+                   f"and over rough terrain {Eg(wind('geps', 'u850_rh', 10, 'ORO_N'))} (NH) (m s⁻¹)")
     if "gdps" in Mo:
         gem.append(f"GDPS ({Mo['gdps']['n_inits']} inits, nudged toward GEML between 850 and 250 hPa): day-10 drift "
-                   f"{E(drift('gdps', 'G', 10))}")
+                   f"{Eg(drift('gdps', 'G', 10))}, bulk budget residual on day 1 {Eg(bulk('gdps', 1), 1)} Hadley")
     sc = {k: g(k, "orography", "scales", "land", "rms_fine05") for k in keys}
     sc = {k: v for k, v in sc.items() if v}
     if "gdps" in sc:

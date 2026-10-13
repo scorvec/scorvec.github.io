@@ -615,6 +615,7 @@ def main():
                                "explained_bulk": float(1 - np.var(dM - tm - tb) / np.var(dM)),
                                "mean_Tm": float(tm.mean()), "mean_Tf_own": float(tf.mean()),
                                "mean_Tfb": float(tb.mean()), "sd_dmdt": float(dM.std())}
+        mark([R["era5"]["budget"]["resid_own"], R["era5"]["budget"]["resid_bulk"]])
     if Ew:
         d37 = np.array([Ew[d].state("Mr_b", "G", 1)[0] - Ew[d].state("MrC11_b", "G", 1)[0] for d in sorted(Ew)]) / MU
         dd = np.diff(np.array([Ew[d].state("Mr_b", "G", 1)[0] for d in sorted(Ew)])) / DAY / HU
