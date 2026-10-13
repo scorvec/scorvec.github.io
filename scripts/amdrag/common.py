@@ -24,6 +24,7 @@ fields removes the sub-cell covariance of p_s and dh/dlam, i.e. the torque the c
 """
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
 import numpy as np
@@ -36,8 +37,8 @@ TREF = 288.0
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parents[1]
 REF = ROOT / "scripts" / "mjo" / "data" / "reference"
-DATA = HERE / "data"
-MASKS = DATA / "region_masks_0p25.npz"
+DATA = Path(os.environ.get("AMDRAG_DATA", str(HERE / "data")))     # override: analyse a scratch copy
+MASKS = HERE / "data" / "region_masks_0p25.npz"
 
 BAND_EDGES = np.arange(-90.0, 90.1, 5.0)                       # 36 bands of 5 degrees, south to north
 NB = len(BAND_EDGES) - 1
