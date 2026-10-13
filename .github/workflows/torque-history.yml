@@ -46,7 +46,7 @@ on:
         required: false
         default: '0,6,12,18'
       mode:
-        description: 'daily | per_time | bands5 | u37'
+        description: 'daily | per_time | bands5 | u37 | u37maps'
         required: false
         default: 'daily'
       step:
@@ -117,6 +117,7 @@ jobs:
           sparse-checkout: |
             scripts/mjo/src/torque_history_era5.py
             scripts/mjo/src/torque_increments_u37.py
+            scripts/mjo/src/torque_increments_maps.py
             scripts/mjo/data/reference/era5_orography.nc
           sparse-checkout-cone-mode: false
       - uses: actions/setup-python@v7
@@ -127,6 +128,9 @@ jobs:
         run: |
           mkdir -p out
           case "${{ inputs.mode }}" in
+            u37maps)
+              python scripts/mjo/src/torque_increments_maps.py --start ${{ matrix.start }} --end ${{ matrix.end }} \
+                --step ${{ inputs.step }} --workers 4 --out out/torque_${{ matrix.tag }}.nc ;;
             u37)
               python scripts/mjo/src/torque_increments_u37.py --start ${{ matrix.start }} --end ${{ matrix.end }} \
                 --step ${{ inputs.step }} --workers 8 --out out/torque_${{ matrix.tag }}.nc ;;
@@ -156,6 +160,7 @@ jobs:
         with:
           sparse-checkout: |
             scripts/mjo/data/reference/${{ inputs.out }}
+            scripts/mjo/src/torque_increments_maps.py
           sparse-checkout-cone-mode: false
       - uses: actions/download-artifact@v7
         with:
@@ -169,7 +174,11 @@ jobs:
           import glob, os, pandas as pd
           os.makedirs("scripts/mjo/data/reference", exist_ok=True)
           OUT = "scripts/mjo/data/reference/${{ inputs.out }}"
-          if "${{ inputs.mode }}" == "u37":
+          if "${{ inputs.mode }}" == "u37maps":
+              import subprocess
+              subprocess.run(["python3", "scripts/mjo/src/torque_increments_maps.py", "--combine", "parts", "--out", OUT,
+                              "--table", OUT.replace(".nc", "_regions.csv")], check=True)
+          elif "${{ inputs.mode }}" == "u37":
               import xarray as xr
               fs = sorted(glob.glob("parts/torque_*.nc"))
               parts = [xr.open_dataset(f).load() for f in fs]
@@ -204,7 +213,9 @@ jobs:
           # snapshot + clean resync each attempt (mjo.yml / sfs.yml pattern); merges never rebases
           SNAP=$(mktemp -d)
           OUT=scripts/mjo/data/reference/${{ inputs.out }}
+          OUT2="${OUT%.nc}_regions.csv"
           git add -f "$OUT"
+          if [ -f "$OUT2" ]; then git add -f "$OUT2"; fi
           git diff --staged --name-only -z | tar cf "$SNAP/outs.tar" --null -T - 2>/dev/null || true
           git reset -q
           for i in 1 2 3 4 5; do
@@ -212,6 +223,7 @@ jobs:
             git reset --hard origin/main
             tar xf "$SNAP/outs.tar" 2>/dev/null || true
             git add -f "$OUT"
+            if [ -f "$OUT2" ]; then git add -f "$OUT2"; fi
             if git diff --staged --quiet; then echo "No changes; skipping commit."; exit 0; fi
             git commit -q -m "torque study: ERA5 ${{ inputs.mode }} ${{ inputs.start || inputs.y0 }}-${{ inputs.y1 }} (${{ inputs.out }})"
             if timeout 180 git push; then echo "Pushed on attempt $i."; exit 0; fi
