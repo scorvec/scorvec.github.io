@@ -25,7 +25,7 @@
  "url": "https://scorvec.com/aifs-aam-budget.html",
  "inLanguage": "en",
  "datePublished": "2026-10-01",
- "dateModified": "2026-10-12",
+ "dateModified": "2026-10-13",
  "author": {
   "@id": "https://scorvec.com/#person"
  },
@@ -342,8 +342,18 @@
   significantly more than IFS-ENS's near-zero. ERA5, the reanalysis AIFS was trained on, shows a similar excess (+10 Hadley on
   the same days). This is expected in a reanalysis, because assimilating observations adds momentum that no torque supplies;
   Veerman and van Heerwaarden (2019) found the same in ERA-20C. One reading is that AIFS has learned the analysed evolution,
-  observation increments included, rather than a closed physical budget. <i>That is a hypothesis; it was not tested
-  here.</i></p>
+  observation increments included, rather than a closed physical budget.</p>
+  <p>A later study on this site measured those increments directly
+  (<a href="/torque-enso.html">Why the atmosphere spins up in El Niño</a>, section 7). At each of ERA5's twice-daily assimilation
+  windows the analysis adds westerly angular momentum: over December 2025 – February 2026, the same winter as here, the
+  equivalent of a torque of +9.6 Hadley held all day. That is about all of ERA5's excess on the 13 levels used here (+10.5,
+  table below) and about 60% of its excess with every term on all 37 levels (+15.7). AIFS-ENS's +4 to +7 Hadley has the same sign
+  and roughly half the size. In a separate archive of 156 AIFS-ENS forecasts from July to October 2026, its global angular
+  momentum does not drift away from the analysis (−0.03 ×10<sup>25</sup> kg m² s⁻¹ by day 15, n.s.), while in this winter's
+  test IFS-ENS, which closes its own budget, loses angular momentum steadily (below): its torques take out what the analysis
+  puts back. Both fit the hypothesis. Where the momentum goes does not: 83% of ERA5's increment goes into the Southern
+  Hemisphere, mostly over the oceans at 30–60°S, but AIFS-ENS loses Southern Hemisphere angular momentum against the analysis
+  (significant at days 3, 7 and 10) and gains it in the north. The hypothesis is better supported than before, not proven.</p>
 
   <h3>Cause 3: the Andes in week 2</h3>
   <p>On days 13–15 AIFS-ENS's global mountain torque is -19 Hadley below ERA5's on the same days
@@ -353,7 +363,10 @@
   by mountain range, -20 of the -20 Hadley sits over the Andes. AIFS-ENS builds
   too strong a high-to-the-west, low-to-the-east pressure contrast across the range, a pattern that should brake the
   westerlies. Its angular momentum change meanwhile stays unbiased against ERA5, so the torque has no effect on its own
-  winds. The per-range split is descriptive; only the global and hemispheric values were tested.</p>
+  winds. The per-range split is descriptive; only the global and hemispheric values were tested. For scale, the El Niño
+  shift in the December–February Andes torque found in the <a href="/torque-enso.html">later study</a> is +2.9 Hadley, about
+  a seventh of this week-2 bias, so an AIFS-ENS week-2 Andes torque cannot show it. This winter had weak La Niña to neutral
+  conditions; how the bias behaves in an El Niño has not been tested.</p>
   <figure id="fig6"><a href="/studies/aifs-aam-budget/mountain_ranges.webp" class="zoom"><img src="/studies/aifs-aam-budget/mountain_ranges.webp" alt="Mountain torque minus ERA5 by mountain range for days 1 to 3 and 13 to 15, AIFS-ENS, IFS-ENS and AIFS single" loading="lazy"></a><figcaption><b>Figure 6.</b> Mountain torque minus ERA5 at the same valid times, summed over each range: days 1–3 (left) and 13–15 (right). Descriptive.</figcaption></figure>
 
   <h2>Does it matter for accuracy?</h2>
@@ -388,7 +401,9 @@
     IFS's own stress it behaves the same at every lead (Figure 9).</li>
     <li>Gravity-wave drag is not available from either forecast and stays in the residual. ERA5 puts it at about −5 Hadley
     this winter, too small and too steady to explain the difference between the models.</li>
-    <li>The idea that AIFS reproduces the reanalysis's observation increments is an untested hypothesis.</li>
+    <li>That AIFS reproduces the reanalysis's observation increments is better supported since the increments were measured
+    (Cause 2), but it is not shown: that would need AIFS's excess to have the increments' pattern, and the hemispheric split
+    argues against it.</li>
     <li>The mass correction assumes the spurious air is spread like the real air. It is a diagnostic split, not an exact one.</li>
     <li>A literature search found no earlier angular momentum budget test of an AI weather model. That is a search result,
     not proof that none exists.</li>
@@ -497,7 +512,7 @@
   contains modified Copernicus Climate Change Service information 2026. Neither ECMWF nor the European Commission is
   responsible for any use of this information. About 128 GB of forecast fields and 95 GB of ERA5 were read for the angular
   momentum study, and a further 28 GB of forecast fields for the mass, water and energy extension.</p>
-  <p class="byline">By <a href="/about.html">Shawn Corvec</a>, meteorologist. Published 1 October 2026; mass, water and energy added 2 October 2026; energy totals corrected 12 October 2026. A static study: it is not updated.</p>
+  <p class="byline">By <a href="/about.html">Shawn Corvec</a>, meteorologist. Published 1 October 2026; mass, water and energy added 2 October 2026; energy totals corrected 12 October 2026; the measured ERA5 increments added to Cause 2, Cause 3 and the caveats 13 October 2026. A static study: it is not updated.</p>
 </article>
 
 </main>
