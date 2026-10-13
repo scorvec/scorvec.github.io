@@ -146,7 +146,8 @@ jobs:
               if miss:
                   print("::warning::missing days: " + ", ".join(miss[:20]) + (" ..." if len(miss) > 20 else ""))
           df.to_csv("scripts/mjo/data/reference/${{ inputs.out }}", index=False,
-                    float_format="%.9g", compression={"method": "gzip", "mtime": 0})
+                    float_format="%.9g" if key == "time" else "%.7g",   # 7 digits: mass-term AAM ~1018 to 0.001
+                    compression={"method": "gzip", "mtime": 0})
           EOF
           ls -la scripts/mjo/data/reference/${{ inputs.out }}
       - name: Commit & push
