@@ -1,0 +1,100 @@
+# Dispatch-only (2026-10-13): month-by-month archive for the Americas model-rain bias field - ECMWF IFS-ENS (from
+# 2024-03) and AIFS-ENS (from 2025-07-02) 00Z ensemble rain at six lead steps, members 1-6, on the 1° Americas grid, and
+# IMERG V07 Late and Final daily rain on the same grid. Each month is uploaded to release precip-bias-arch-v1 as soon
+# as it is built, so a job that hits its time limit keeps what it made and the next dispatch resumes: complete months
+# already in the release are skipped, the current (partial) month is rebuilt. ECMWF reads the Google Cloud mirror only.
+name: Model rain bias - archive backfill
+
+on:
+  workflow_dispatch:
+    inputs:
+      only:
+        description: "ifs | aifs-ens | late | final | all"
+        default: all
+      first_month:
+        description: "first month (YYYY-MM); empty = each source's start"
+        default: ""
+
+permissions:
+  contents: write
+
+concurrency:
+  group: precip-bias-backfill
+  cancel-in-progress: false
+
+env:
+  REL: precip-bias-arch-v1
+
+jobs:
+  archive:
+    strategy:
+      fail-fast: false
+      max-parallel: 4
+      matrix:
+        src: [ifs, aifs-ens, late, final]
+    runs-on: ubuntu-latest
+    timeout-minutes: 330
+    env:
+      GH_TOKEN: ${{ github.token }}
+      ECMWF_SOURCES: google
+      EARTHDATA_USERNAME: ${{ secrets.EARTHDATA_USERNAME }}
+      EARTHDATA_PASSWORD: ${{ secrets.EARTHDATA_PASSWORD }}
+    steps:
+      - name: Skip sources not asked for
+        id: gate
+        run: |
+          o="${{ github.event.inputs.only }}"
+          if [ "$o" = "all" ] || [ "$o" = "${{ matrix.src }}" ]; then echo "run=1" >> "$GITHUB_OUTPUT"; else echo "run=0" >> "$GITHUB_OUTPUT"; fi
+      - uses: actions/checkout@v7
+        if: steps.gate.outputs.run == '1'
+        with:
+          fetch-depth: 1
+      - uses: actions/setup-python@v7
+        if: steps.gate.outputs.run == '1'
+        with:
+          python-version: "3.11"
+      - name: Install dependencies
+        if: steps.gate.outputs.run == '1'
+        run: pip install --quiet numpy requests pyproj eccodes earthaccess netCDF4
+      - name: Release
+        if: steps.gate.outputs.run == '1'
+        run: |
+          gh release view "$REL" >/dev/null 2>&1 \
+            || gh release create "$REL" --title "Model rain bias archive (Americas, 1°)" \
+                 --notes "Monthly inputs of the Americas model-rain bias field: ECMWF IFS-ENS / AIFS-ENS 00Z rain accumulations (members 1-6, six lead steps) and IMERG V07 Late / Final daily rain on the 1° grid of scripts/precip_bias/grid.py." \
+            || true
+          gh release view "$REL" --json assets -q '.assets[].name' > have.txt || true
+          echo "assets already in the release: $(wc -l < have.txt)"
+      - name: Build and upload month by month
+        if: steps.gate.outputs.run == '1'
+        timeout-minutes: 310
+        run: |
+          set -u
+          src="${{ matrix.src }}"
+          case "$src" in
+            ifs) start=2024-03; pre=ifs ;;
+            aifs-ens) start=2025-07; pre=aifs-ens ;;
+            late) start=2024-03; pre=imerg_late ;;
+            final) start=2024-03; pre=imerg_final ;;
+          esac
+          [ -n "${{ github.event.inputs.first_month }}" ] && start="${{ github.event.inputs.first_month }}"
+          # ECMWF: runs up to yesterday (day 15 published); IMERG Late: up to 2 days ago (daily file on D+1 ~14 UTC)
+          if [ "$src" = "late" ] || [ "$src" = "final" ]; then last=$(date -u -d "2 days ago" +%F); else last=$(date -u -d "1 day ago" +%F); fi
+          cur=$(date -u +%Y-%m); m="$start"; fails=0
+          while [ "$(echo -e "$m\n$cur" | sort | head -1)" = "$m" ]; do
+            f="${pre}_${m/-/}.npz"
+            if grep -qx "$f" have.txt && [ "$m" != "$cur" ] && [ "$m" != "$(date -u -d "$(date -u +%Y-%m-01) -1 day" +%Y-%m)" ]; then
+              echo "skip $f (in the release)"
+            else
+              if [ "$src" = "ifs" ] || [ "$src" = "aifs-ens" ]; then
+                python scripts/precip_bias/ecmwf_tp.py --model "$src" --month "$m" --out out --last "$last" || fails=$((fails + 1))
+              else
+                python scripts/precip_bias/imerg_americas.py --product "$src" --month "$m" --out out --last "$last" || fails=$((fails + 1))
+              fi
+              if [ -s "out/$f" ]; then gh release upload "$REL" "out/$f" --clobber && rm -f "out/$f"; fi
+            fi
+            m=$(date -u -d "$m-01 +1 month" +%Y-%m)
+          done
+          echo "months that built nothing: $fails"
+          # IMERG Final stops a year behind: its empty months are expected, not a failure
+          if [ "$src" != "final" ] && [ "$fails" -gt 2 ]; then echo "::warning::$src: $fails months built nothing"; fi
