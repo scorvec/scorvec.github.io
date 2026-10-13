@@ -292,6 +292,27 @@ def body(R, Mo, keys, L, fig, t_models, made):
         return f"<td>{x['sh_peak']:.2f} <span class='sig'>({abs(x['sh_peak_lat']):.0f}°S, n={d['n']})</span></td>"
     wrows += ("<tr class='grp'><th scope='row'>July, SH peak</th></tr><tr><th scope='row'>total subgrid stress, all "
               "surfaces</th><td></td><td></td><td>2.20–2.50</td><td></td>" + wsh("gfs") + wsh("gefs") + wsh("era5") + "</tr>")
+    def pk(m, mon, part, hemi="nh"):
+        d = W.get(f"{m}|{mon}")
+        return d[part][f"{hemi}_peak"] if d and part in d else None
+    if pk("ifs-ens", 1, "pbl_land") is not None and pk("gfs", 1, "sgo") is not None and pk("era5", 1, "total") is not None:
+        wgne_txt = (f"In January 2026 the IFS's boundary-layer stress over land peaks at {pk('ifs-ens', 1, 'pbl_land'):.2f} "
+                    f"×10¹⁹ N m (2012: 0.85), ERA5's at {pk('era5', 1, 'pbl_land'):.2f}, GFS's at {pk('gfs', 1, 'pbl_land'):.2f} "
+                    f"and GEFS's at {pk('gefs', 1, 'pbl_land'):.2f} (the 2012 range of the other high-resolution models was "
+                    f"0.33–0.55). GFS and GEFS put {pk('gfs', 1, 'sgo'):.2f} and {pk('gefs', 1, 'sgo'):.2f} into their "
+                    f"subgrid-orography schemes, against ERA5's {pk('era5', 1, 'sgo'):.2f} (2012: IFS 0.20, the others "
+                    f"0.4–1.25). " + ("IFS still carries most of its land drag in its boundary layer, as in 2012, while GFS, "
+                    "which was not in the 2012 comparison, carries more in its orographic schemes than in its boundary layer, "
+                    "the split the Met Office, JMA and Bureau models had then. " if pk('gfs', 1, 'sgo') > pk('gfs', 1, 'pbl_land')
+                    and pk('ifs-ens', 1, 'pbl_land') > 0.6 else "") +
+                    f"GFS's and GEFS's totals over all surfaces, {pk('gfs', 1, 'total'):.2f} "
+                    f"(GFS) and {pk('gefs', 1, 'total'):.2f} (GEFS), compare with ERA5's {pk('era5', 1, 'total'):.2f} on the same "
+                    f"days. Over the oceans the 2026 models agree as closely as in 2012 (boundary-layer stress over water, "
+                    f"NH peak: GFS {pk('gfs', 1, 'pbl_water'):.2f}, IFS {pk('ifs-ens', 1, 'pbl_water'):.2f}, ERA5 "
+                    f"{pk('era5', 1, 'pbl_water'):.2f}). Different winters weigh in as well as different models, so the "
+                    "same-month ERA5 values are the reference, not the 2012 numbers.")
+    else:
+        wgne_txt = ""
     t_wgne = ("<div class='tw'><table class='res'><thead><tr><th>January, NH peak, 10¹⁹ N m</th><th>IFS 2012</th>"
               "<th>GDPS 2012</th><th>2012 high-resolution range</th><th>IFS 2026</th><th>GFS 2026</th><th>GEFS 2026</th>"
               "<th>ERA5 2026</th></tr></thead><tbody>" + wrows + "</tbody></table></div>")
@@ -551,6 +572,7 @@ def body(R, Mo, keys, L, fig, t_models, made):
   <p class="tcap">2012 values read off Figure 13 of the WGNE Drag Project report (Zadra et al., 2013), January 2012, first
   24 h, to about ±0.05 ×10¹⁹ N m; "high-resolution range" spans the eight models other than CPTEC's two AGCMs. 2026: mean
   of the 00Z forecasts of the month, northern peak between 25 and 65°N. The 2012 GDPS and IFS are not today's models.</p>
+  <p>{wgne_txt}</p>
 
   <h2>6. Low-level winds: do they weaken or strengthen as the forecast runs?</h2>
   <p>In the torque study ERA5's analysis weakened both the trades and the mid-latitude surface westerlies. Here the same
