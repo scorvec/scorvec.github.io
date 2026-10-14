@@ -16,8 +16,8 @@ Method:
      random into a fitting 70 % and a test 30 %.
   3. Blend over land = sum_k w_k P_k / sum_k w_k over the products present that day, w_k = 1 / MSE_k of the box's terrain class
      (fitted boxes). Over the ocean: the adjusted IMERG alone.
-  4. The blend is scored on the test boxes against each product; truth uncertainty per box and season = the spread (standard
-     deviation) of the products' seasonal means.
+  4. The blend and every product are scored on the test boxes, on the SAME box-months (all present); truth uncertainty per box
+     and season = the spread (standard deviation) of the products' seasonal means.
 
     python scripts/precip_bias/blend.py --data DIR --out DIR --json assets/precip_bias/truth_blend.json
 -> DIR/blend_{YYYYMM}.npz (dates, pr (day, lat, lon) mm/day, nprod), DIR/blend_spread.npz, the summary JSON
@@ -194,21 +194,29 @@ def main() -> int:
         blend = np.where(den > 0, num / den, np.nan)
     blend = np.where(land[None], blend, P["imerg"])                                   # ocean: the adjusted IMERG
     blend = np.where(np.isfinite(blend), blend, P["imerg"])                           # land days with no weighted product
-    # ---- test-box scores: blend vs each product
+    # ---- test-box scores on the SAME box-months for every product and the blend (all of them present)
     Bm = monthly(blend, days)
-    score = {}
-    for name, pm in list(Pm.items()) + [("blend", Bm)]:
-        x = pairs(pm, test)
-        score[name] = {}
-        for c, (_, _, lab) in enumerate(CLASS_EDGES):
-            sel = x[x[:, 2] == c] if len(x) else x
-            if len(sel) < 10:
+    allm = dict(Pm); allm["blend"] = Bm
+    rows = []
+    for ym, sv in Sm.items():
+        for i, j in test:
+            if not np.isfinite(sv[i, j]):
                 continue
-            score[name][lab] = {"n": int(len(sel)), "ratio": round(float(sel[:, 0].sum() / sel[:, 1].sum()), 3),
-                                "rmse": round(float(np.sqrt(np.mean((sel[:, 0] - sel[:, 1]) ** 2))), 3),
-                                "r": round(float(np.corrcoef(sel[:, 0], sel[:, 1])[0, 1]), 3)}
-    for name, s in score.items():
-        print(f"  test {name:7s} " + "  ".join(f"{lab.split(' ')[0]}: ratio {v['ratio']:.2f} rmse {v['rmse']:.2f} r {v['r']:.2f} (n {v['n']})" for lab, v in s.items()), flush=True)
+            vals = [allm[k].get(ym, np.full((G.NY, G.NX), np.nan))[i, j] for k in allm]
+            if np.all(np.isfinite(vals)):
+                rows.append([sv[i, j], cls[i, j]] + vals)
+    R = np.array(rows) if rows else np.zeros((0, 2 + len(allm)))
+    score = {k: {} for k in allm}
+    for c, (_, _, lab) in enumerate(CLASS_EDGES):
+        sel = R[R[:, 1] == c] if len(R) else R
+        if len(sel) < 10:
+            continue
+        for q, k in enumerate(allm):
+            x = sel[:, 2 + q]; y = sel[:, 0]
+            score[k][lab] = {"n": int(len(sel)), "ratio": round(float(x.sum() / y.sum()), 3),
+                             "rmse": round(float(np.sqrt(np.mean((x - y) ** 2))), 3), "r": round(float(np.corrcoef(x, y)[0, 1]), 3)}
+    for name, sc in score.items():
+        print(f"  test {name:7s} " + "  ".join(f"{lab.split(' ')[0]}: ratio {v['ratio']:.2f} rmse {v['rmse']:.2f} r {v['r']:.2f} (n {v['n']})" for lab, v in sc.items()), flush=True)
     # ---- truth spread by season (sd of the products' seasonal means, land; 0 over the sea)
     spread = {}
     for sk, months in B.SEASONS.items():
