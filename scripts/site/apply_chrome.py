@@ -135,7 +135,7 @@ PRODUCTS = [
              "GEOS FP potential vorticity, the momentum budget and the Brewer–Dobson circulation, the water-vapour tape recorder, and the QBO from radiosondes.",
              "Daily"),
             ("/stratosphere.html#vortex", "Next two weeks",
-             "AIFS-ENS, IFS-ENS and GEFS: vortex winds, 100 hPa heat flux, E–P flux, wave-1 and the upper stratosphere.",
+             "AIFS-ENS, IFS-ENS and GEFS: vortex winds, 100 hPa heat flux, E–P flux, wave-1, the upper stratosphere and the dripping paint to day 15.",
              "Twice daily"),
             ("/stratosphere.html#vortex35", "Weeks 3–5",
              "GEPS and GEFS to day 35, drift-corrected: vortex diagnostics, loops and the dripping paint.",
