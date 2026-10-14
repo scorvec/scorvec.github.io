@@ -298,17 +298,30 @@ def ideam_month(ym, out, page=50000):
     return f
 
 
-def ideam_stations(out):
-    """Station coordinates (the raw dataset carries lat/lon on every record)."""
+def ideam_stations(out, start=date(2024, 3, 1), every=4):
+    """Station coordinates (the raw dataset carries lat/lon on every record), gathered from one-day windows every fourth
+    day: one aggregate over the whole period times out on the portal (2026-10-14)."""
     import pandas as pd
-    q = {"$select": "codigoestacion,max(latitud) as lat,max(longitud) as lon,max(nombreestacion) as name,max(departamento) as dep",
-         "$where": "fechaobservacion > '2024-01-01T00:00:00'", "$group": "codigoestacion", "$limit": 50000}
-    r = get(IDEAM, params=q, timeout=600)
-    d = pd.DataFrame(r.json())
-    d["lat"] = pd.to_numeric(d.lat); d["lon"] = pd.to_numeric(d.lon)
+    seen, fails, d = {}, 0, start
+    while d <= date.today():
+        q = {"$select": "codigoestacion,max(latitud) as lat,max(longitud) as lon,max(nombreestacion) as name,max(departamento) as dep",
+             "$where": f"fechaobservacion between '{d:%Y-%m-%d}T00:00:00' and '{d:%Y-%m-%d}T23:59:59'",
+             "$group": "codigoestacion", "$limit": 50000}
+        r = get(IDEAM, params=q, tries=4, timeout=120)
+        if r is None or not isinstance(r.json(), list):
+            fails += 1
+        else:
+            for row in r.json():
+                seen.setdefault(row["codigoestacion"], row)
+        d += timedelta(days=every); time.sleep(0.3)
+    if not seen:
+        return False
+    st = pd.DataFrame(seen.values())
+    st["lat"] = pd.to_numeric(st.lat); st["lon"] = pd.to_numeric(st.lon)
     out.mkdir(parents=True, exist_ok=True)
-    d.rename(columns={"codigoestacion": "id"}).to_csv(out / "ideam_stations.csv", index=False)
-    print(f"ideam stations: {len(d)}")
+    st.rename(columns={"codigoestacion": "id"}).to_csv(out / "ideam_stations.csv", index=False)
+    print(f"ideam stations: {len(st)} (windows that failed: {fails})")
+    return True
 
 
 def main() -> int:
@@ -316,7 +329,7 @@ def main() -> int:
     ap.add_argument("src", choices=["ideam", "ideam-stations", "merge", "gpcc", "cpc", "chirps", "ghcn"])
     ap.add_argument("--month"); ap.add_argument("--year", type=int); ap.add_argument("--out", required=True)
     a = ap.parse_args(); out = Path(a.out)
-    fn = {"ideam": lambda: ideam_month(a.month, out), "ideam-stations": lambda: ideam_stations(out) or True,
+    fn = {"ideam": lambda: ideam_month(a.month, out), "ideam-stations": lambda: ideam_stations(out),
           "merge": lambda: merge_month(a.month, out), "gpcc": lambda: gpcc_month(a.month, out),
           "cpc": lambda: cpc_year(a.year, out), "chirps": lambda: chirps_year(a.year, out), "ghcn": lambda: ghcn_year(a.year, out)}[a.src]
     return 0 if fn() else 1
