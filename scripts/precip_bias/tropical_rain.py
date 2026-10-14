@@ -240,8 +240,13 @@ def main() -> int:
             for wk in weeks:
                 m = bmeta[f"{model}_{wk}"]; r2 = B[f"{model}_{wk}_ratio"]
                 panels.append((f"Week {wk[-1]} · {m['runs']} runs {m['first']} to {m['last']}", np.where(r2 != 1.0, 1.0 / r2, np.nan)))
+            band = []
+            for wk in weeks:                                       # the tested 30°S-30°N ratio (90 % interval) per week
+                r, lo, hi = bmeta[f"{model}_{wk}"]["tropics_fc_over_obs"]
+                band.append(f"week {wk[-1]} {r:.2f} ({lo:.2f}–{hi:.2f})" if (lo > 1 or hi < 1) else f"week {wk[-1]} no significant bias")
             draw(panels, "bias", dom, f"{MODELS[model]} {bmeta[f'{model}_wk1']['cycle']} · the rain bias removed",
-                 "Model week rain ÷ IMERG (adjusted to Final), season-weighted runs of this model cycle; only where significant (FDR 10 %), shrunk by its uncertainty. Green: model too wet, brown: too dry.",
+                 "Model week rain ÷ IMERG (adjusted to Final), season-weighted runs of this model cycle; only where significant (FDR 10 %), shrunk by its uncertainty. "
+                 f"Green: model too wet, brown: too dry. All of 30°S–30°N: {', '.join(band)} (90 % interval).",
                  "model ÷ observed rain", out / f"rainfc_{SHORT[model]}_bias_{dom}.webp", lat=B["lat"], lon=B["lon"])
     info.update(weeks={wk: [f"{d}", f"{d + timedelta(days=6)}"] for wk, d in weeks.items()}, stats=stats, bias=bmeta,
                 normal="GPCP V3.2 daily 2001-2020, 7-day totals", made=datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%MZ"))
