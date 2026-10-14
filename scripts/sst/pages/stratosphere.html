@@ -707,12 +707,15 @@ $$\frac{\partial\bar u}{\partial t} \;=\; \hat f\,\bar v^{*} \;-\; \bar w^{*}\fr
     }
     </script>
 <script>
-(function () { var m = location.hash.match(/^#fdrip\/(aifs|ifs)(\/|$)/); if (m) history.replaceState(null, "", location.pathname + location.search + "#fdrip15/" + m[1]); })();
+// old deep links to views that moved when the drips and the heat flux were split by range (2026-10-14)
+(function () { var h = location.hash, m = h.match(/^#fdrip\/(aifs|ifs)(\/|$)/), n = h.match(/^#heatflux\/(nh|sh)\/(geps|gefs)(\/|$)/);
+  var to = m ? "#fdrip15/" + m[1] : n ? "#heatflux35/" + n[1] + "/" + n[2] : null;
+  if (to) history.replaceState(null, "", location.pathname + location.search + to); })();
 window.STAGE = {
   groups: [
   {label: "Now: analyses and observations", ico: "\u{1F6F0}", items: [["pv","Potential vorticity","GEOS FP, 475 and 850 K"],["mbudget","Momentum budget","what drives the vortex and the upwelling"],["bdc","Brewer–Dobson circulation","tropical upwelling, downward control"],["tape","Water-vapour tape recorder","Aura MLS + GEOS FP, how fast air rises"],["qbo","QBO from radiosondes","13 equatorial stations, the whole record"],["qbozl","QBO zero-wind line","where the waves meet easterlies, 70–10 hPa"]]},
-  {label: "Next two weeks", ico: "\u2744", items: [["vortex","Polar vortex diagnostics","AIFS-ENS, IFS-ENS, GEPS, GDPS: u(60°N), cap height"],["heatflux","Eddy heat flux","100 hPa [v′T′]: AIFS-ENS, IFS-ENS, GEFS, GEPS"],["epflux","E–P flux","GEFS wave driving to 1 hPa, k = 1–3"],["wave1","Stationary wave-1","AIFS-ENS and IFS-ENS, 100 and 500 hPa"],["vwinds","Vortex winds","AIFS-ENS and IFS-ENS, 10 and 100 hPa"],["upperstrat","Upper stratosphere","GEFS, GFS, GEOS FP, GDPS up to 1 hPa"],["fdrip15","Forecast dripping paint, days 1–15","AIFS-ENS and IFS-ENS, ground to 10 hPa"]]},
-  {label: "Weeks 3–5", ico: "\u{1F4C5}", items: [["vortex35","Polar vortex, days 1–35","GEFS and GEPS, drift-corrected"],["vloop35","Polar vortex loop, days 1–35","GEFS and GEPS, 10 and 100 hPa"],["fdrip","Forecast dripping paint, days 1–35","GEPS and GEFS, drift-corrected"]]},
+  {label: "Next two weeks", ico: "\u2744", items: [["vortex","Polar vortex diagnostics","AIFS-ENS, IFS-ENS, GEPS, GDPS: u(60°N), cap height"],["heatflux","Eddy heat flux, days 1–15","100 hPa [v′T′]: AIFS-ENS and IFS-ENS"],["epflux","E–P flux","GEFS wave driving to 1 hPa, k = 1–3"],["wave1","Stationary wave-1","AIFS-ENS and IFS-ENS, 100 and 500 hPa"],["vwinds","Vortex winds","AIFS-ENS and IFS-ENS, 10 and 100 hPa"],["upperstrat","Upper stratosphere","GEFS, GFS, GEOS FP, GDPS up to 1 hPa"],["fdrip15","Forecast dripping paint, days 1–15","AIFS-ENS and IFS-ENS, ground to 10 hPa"]]},
+  {label: "Weeks 3–5", ico: "\u{1F4C5}", items: [["vortex35","Polar vortex, days 1–35","GEFS and GEPS, drift-corrected"],["vloop35","Polar vortex loop, days 1–35","GEFS and GEPS, 10 and 100 hPa"],["heatflux35","Eddy heat flux, days 1–35","100 hPa [v′T′]: GEPS and GEFS"],["fdrip","Forecast dripping paint, days 1–35","GEPS and GEFS, drift-corrected"]]},
   {label: "Season", ico: "\u{1F5D3}", items: [["c3svortex","December vortex: C3S multi-model","calibrated; hindcast r 0.66, significant"],["c3svdaily","December vortex, day by day","C3S members, spells and sudden warmings"],["s5vortex","SEAS5: vortex, QBO, annular mode","51 members, seven months, hindcast skill"],["s5ssw","SEAS5: sudden-warming risk","no demonstrated skill: the model's view"],["s5cap","SEAS5: polar-cap heights","100, 50 and 10 hPa, both hemispheres"],["shseason","This winter's odds","QBO and ENSO, model-based"]]},
   {label: "History and studies", ico: "\u231B", items: [["shwinters","Every winter since 1980","pick any winter, compare"],["shssw","Sudden warmings since 1980","timeline, catalogue, vortex shapes"],["shdrip","Dripping paint","how an event reaches the surface"],["shfollow","What usually follows","AO, NAO, temperature, by region; CMIP6"],["shtiming","Who moves first","waves, vortex, tropical upwelling"],["shqbo","The QBO and the vortex","observed and CMIP6"],["shenso","El Niño and sudden warmings","CMIP6, 25,000 winters"],["shmbudget","Momentum budget of past warmings","every term, 24 warmings"],["aoa","Age of stratospheric air","MERRA-2 GMI, 1980–2019"]]}
 ],
@@ -832,13 +835,20 @@ window.STAGE = {
           bust: "hourly", about: "about-fdrip", fit: false,
           cap: function (a) { return "Standardised polar-cap height from 1000 to 10 hPa: the last 60 days observed (GEOS FP), then the "
                                      + (a === "ifs" ? "IFS-ENS (50 members)" : "AIFS-ENS") + " ensemble mean to day 15 with the model's drift removed where it has been measured; hatched levels are not drift-corrected. Same scale as the history drips."; }},
-  heatflux: {label: "100 hPa eddy heat flux", a: {label: "Hemisphere", items: [["nh","Northern"],["sh","Southern"]]},
-          b: {label: "Model", items: [["aifs","AIFS-ENS, days 1–15"],["ifs","IFS-ENS, days 1–15"],["geps","GEPS, days 1–35"],["gefs","GEFS, days 1–35"]]},
+  // split 2026-10-14 by range (as the drips): heatflux = AIFS-ENS/IFS-ENS to day 15, heatflux35 = GEPS/GEFS to day 35
+  heatflux: {label: "100 hPa eddy heat flux, days 1–15", a: {label: "Hemisphere", items: [["nh","Northern"],["sh","Southern"]]},
+          b: {label: "Model", items: [["aifs","AIFS-ENS"],["ifs","IFS-ENS"]]},
           img: function (a, b) { var h = a === "sh" ? "sh" : "nh";
-                                 return b === "geps" ? "assets/geps/geps_heatflux100_" + h + ".webp" : b === "gefs" ? "assets/gefs/gefs_heatflux100_" + h + ".webp"
-                                      : b === "ifs" ? "assets/sst/ifs_heatflux100_" + h + ".webp" : "assets/sst/heatflux100_" + h + ".webp"; }, bust: "hourly", about: "about-heatflux", fit: false,
+                                 return b === "ifs" ? "assets/sst/ifs_heatflux100_" + h + ".webp" : "assets/sst/heatflux100_" + h + ".webp"; }, bust: "hourly", about: "about-heatflux", fit: false,
           cap: function (a, b) { return "Poleward eddy heat flux at 100 hPa, 45–75°" + (a === "sh" ? "S" : "N") + ", total and its wave-1 and wave-2 parts: the upward wave-activity flux into the stratosphere, "
-                                        + (b === "geps" ? "GEPS extended run (Mon/Thu, 21 members) to day 35" : b === "gefs" ? "GEFS (31 members) to day 35" : b === "ifs" ? "IFS-ENS (50 members) to day 15" : "AIFS-ENS (25 members + control) to day 15")
+                                        + (b === "ifs" ? "IFS-ENS (50 members) to day 15" : "AIFS-ENS (25 members + control) to day 15")
+                                        + ", members against the 1991–2020 climatology."; }},
+  heatflux35: {label: "100 hPa eddy heat flux, days 1–35", a: {label: "Hemisphere", items: [["nh","Northern"],["sh","Southern"]]},
+          b: {label: "Model", items: [["geps","GEPS"],["gefs","GEFS"]]},
+          img: function (a, b) { var h = a === "sh" ? "sh" : "nh";
+                                 return b === "gefs" ? "assets/gefs/gefs_heatflux100_" + h + ".webp" : "assets/geps/geps_heatflux100_" + h + ".webp"; }, bust: "hourly", about: "about-heatflux", fit: false,
+          cap: function (a, b) { return "Poleward eddy heat flux at 100 hPa, 45–75°" + (a === "sh" ? "S" : "N") + ", total and its wave-1 and wave-2 parts: the upward wave-activity flux into the stratosphere, "
+                                        + (b === "gefs" ? "GEFS (31 members) to day 35" : "GEPS extended run (Mon/Thu, 21 members) to day 35")
                                         + ", members against the 1991–2020 climatology."; }},
   shwinters: {label: "Every winter since 1980", dom: function () { return "dom-shwinters"; }, about: "about-shwinters",
           cap: function () { return "Every northern winter in MERRA-2, October to May, against the 1980–2026 range. Hover a line to name the winter; pick one to draw it in black."; }},

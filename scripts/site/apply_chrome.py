@@ -138,7 +138,7 @@ PRODUCTS = [
              "AIFS-ENS, IFS-ENS and GEFS: vortex winds, 100 hPa heat flux, E–P flux, wave-1, the upper stratosphere and the dripping paint to day 15.",
              "Twice daily"),
             ("/stratosphere.html#vortex35", "Weeks 3–5",
-             "GEPS and GEFS to day 35, drift-corrected: vortex diagnostics, loops and the dripping paint.",
+             "GEPS and GEFS to day 35: drift-corrected vortex diagnostics, loops and dripping paint, and the 100 hPa heat flux.",
              "Daily"),
             ("/stratosphere.html#s5vortex", "Season",
              "SEAS5's vortex, QBO and annular mode, sudden-warming risk against its own normal, and the polar-cap heights.",
