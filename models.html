@@ -271,7 +271,6 @@
               <h3>Surface and hazards</h3>
               <ul>
                 <li><a href="/models.html" aria-current="page">Short-range model maps</a></li>
-                <li><a href="/radar.html">US Radar Explorer</a></li>
                 <li><a href="/ar.html">Atmospheric rivers</a></li>
               </ul>
             </div>
@@ -467,7 +466,8 @@
     <label class="chk" id="diffL" hidden title="The other 3 km model's value subtracted at the same valid time, on the shared grid (HRRR and RRFS use the identical grid)"><input type="checkbox" id="diff"> <span id="diffT">Difference</span></label>
     <label class="chk" id="farmsL" hidden title="US wind projects (USGS Wind Turbine Database) or large-scale solar plants (USGS Solar PV Database), sized by capacity"><input type="checkbox" id="farms" checked> <span id="farmsT">Wind farms</span></label>
     <span class="mv-keys" id="sndL" hidden><b>Sounding:</b> double-click the map (on a phone, double-tap or press and hold) for that spot's HRRR forecast sounding</span>
-    <a class="mv-obs" id="obsL" href="/radar.html" title="The observed NEXRAD base-reflectivity mosaic (US Radar Explorer, NOAA MRMS) for this map's area, at this map's valid time when it is in the past">Observed radar at this time</a>
+    <!-- hidden 2026-10-14: the US Radar Explorer is paused (stub page); remove `hidden` when it returns -->
+    <a class="mv-obs" id="obsL" hidden href="/radar.html" title="The observed NEXRAD base-reflectivity mosaic (US Radar Explorer, NOAA MRMS) for this map's area, at this map's valid time when it is in the past">Observed radar at this time</a>
     <span class="mv-keys">Keys: <kbd>&larr;</kbd> <kbd>&rarr;</kbd> change hour &middot; <kbd>Space</kbd> play or pause &middot; scroll to zoom, drag to pan</span>
   </div>
   <p class="mv-note" id="note"></p>

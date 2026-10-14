@@ -111,8 +111,7 @@ PAGES = {
     "/models.html": dict(kind="page", topic="weather", tier=0, prio=4, models=["HRRR", "RRFS", "RDPS"], horizon="Days 1–15",
                          region=["North America"], variable=["Temperature", "Wind", "Convection", "Precipitation"]),
     # US Radar Explorer (2026-10-09): NOAA MRMS base reflectivity (GRIB2 from AWS) decoded in the browser, nothing built on our side
-    "/radar.html": dict(kind="page", topic="weather", tier=0, prio=5, models=["NEXRAD"], horizon="Observed",
-                        region=["North America"], variable=["Precipitation", "Convection"]),
+    # "/radar.html" paused 2026-10-14 (a stub page; full explorer at commit cf1c679e)
     "/ar.html": dict(kind="stage", file="ar.html", topic="weather", title="Atmospheric rivers", tier=0, prio=6,
                      models=["AIFS", "IFS", "GFS", "GDPS", "AIFS-ENS", "IFS-ENS", "GEFS", "GEPS"], horizon="Days 1–15",
                      region=["North America", "Pacific"]),

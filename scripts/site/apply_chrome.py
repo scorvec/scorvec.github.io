@@ -47,9 +47,8 @@ PRODUCTS = [
              "Four times daily"),
             # 2026-10-09, user: a real-time national NEXRAD composite that runs entirely in the browser ("something that
             # wouldnt rely on actions to generate the data"): IEM's N0Q composite fetched and recoloured client-side
-            ("/radar.html", "US Radar Explorer",
-             "The national NEXRAD base-reflectivity mosaic from NOAA MRMS with GOES lightning flashes, live every two minutes and decoded in the browser: zoom from the whole country to a city, loop the last hours at your own speed, read the dBZ anywhere, on the traditional NWS colour scale.",
-             "Every two minutes"),
+            # /radar.html PAUSED 2026-10-14 (user: "shut down the us radar explorer page for now, we may revisit later"): the
+            # page is a stub; the full explorer is radar.html at commit cf1c679e (git show cf1c679e:radar.html)
             # snowbands.html retired 2026-10-09 (user: "fold in the snowband diagnostics into the short-term model viewer",
             # then "remove the old snowbands page"): its maps are the "Winter: snow bands" group of /models.html
             ("/ar.html", "Atmospheric rivers",
@@ -427,7 +426,7 @@ def header_html(page: str, skin: str) -> str:
 # features its first six pages.
 HOME = {
     "Mid-latitude weather": ("weather", "Storms, hazards and the flow aloft over the next two weeks",
-                             ["/models.html", "/radar.html", "/ar.html", "/circulation.html#dt", "/circulation.html#waf"]),
+                             ["/models.html", "/ar.html", "/circulation.html#dt", "/circulation.html#waf"]),
     "Global circulation and tropics": ("drivers", "El Niño, the MJO, cyclones, the jets and the atmosphere's momentum",
                                        ["/enso.html", "/mjo.html", "/tropical-waves.html", "/circulation.html#tcens",
                                         "/circulation.html#pacjet", "/circulation.html#jets", "/circulation.html#aam",
