@@ -12,6 +12,10 @@ on:
       date:
         description: "init YYYYMMDD (empty = latest complete 00Z)"
         default: ""
+      force:
+        description: "re-render even if that run is already published"
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -51,7 +55,8 @@ jobs:
         if: steps.ref.outputs.ok == '1'
         run: |
           d="${{ github.event.inputs.date }}"
-          python scripts/precip_bias/tropical_rain.py --ref ref --out assets/sst --skip-if-current ${d:+--date "$d"}
+          skip="--skip-if-current"; [ "${{ github.event.inputs.force }}" = "true" ] && skip=""
+          python scripts/precip_bias/tropical_rain.py --ref ref --out assets/sst $skip ${d:+--date "$d"}
       - name: Commit
         if: steps.ref.outputs.ok == '1'
         run: |

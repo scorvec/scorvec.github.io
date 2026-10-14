@@ -170,7 +170,7 @@ def draw(panels, kind: str, dom: str, title: str, sub: str, cbar: str, out: Path
         MS.features(ax, states=False)
         ax.text(0.006, 0.965, lab, transform=ax.transAxes, fontsize=9.5, fontweight="bold", va="top", color=INK, zorder=6,
                 bbox=dict(boxstyle="square,pad=0.25", facecolor="white", edgecolor="none", alpha=0.85))
-    MS.heading(fig, H, title, sub)
+    MS.heading(fig, H, title, sub, wrap=205)                      # long subtitles wrap to a second line
     cb = MS.colorbar(fig, H, m, cbar, extend=ext)
     if kind == "terc":
         cb.set_ticks(lev); cb.set_ticklabels([f"{abs(x)}" for x in lev])
