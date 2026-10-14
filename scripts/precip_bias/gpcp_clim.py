@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import argparse
 import sys
+import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
 from datetime import date, timedelta
@@ -28,6 +29,8 @@ import imerg_americas as IM                               # noqa: E402  (Earthda
 URL = "https://measures.gesdisc.eosdis.nasa.gov/data/GPCP/GPCPDAY.3.2/{y}/GPCPDAY_L3_{d}_V3.2.nc4"
 Y0, Y1 = 2001, 2020
 HALF = 10                                                 # +- days around each pentad start
+_H5LOCK = threading.Lock()                                # HDF5/netCDF reads are not thread-safe (repo gotcha: the first
+                                                          # Actions run segfaulted in 7 s with 6 threads decoding at once)
 
 
 def fetch(d: date, tries: int = 5):
@@ -37,7 +40,7 @@ def fetch(d: date, tries: int = 5):
         try:
             r = IM._session().get(URL.format(y=d.year, d=f"{d:%Y%m%d}"), timeout=180)
             r.raise_for_status()
-            with netCDF4.Dataset("gpcp.nc4", mode="r", memory=r.content) as f:
+            with _H5LOCK, netCDF4.Dataset("gpcp.nc4", mode="r", memory=r.content) as f:     # download in threads, decode one at a time
                 v = f.variables["precip"]; v.set_auto_maskandscale(False)
                 a = np.asarray(v[0], dtype="float32"); la = np.asarray(f.variables["lat"][:]); lo = np.asarray(f.variables["lon"][:])
             if a.shape != (360, 720) or abs(la[0] - 89.75) > 1e-3 or abs(lo[0] + 179.75) > 1e-3:
