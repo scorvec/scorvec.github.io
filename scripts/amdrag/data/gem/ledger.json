@@ -1,6 +1,7 @@
 {
  "bytes_by_day": {
-  "2026-10-13": 18704702531
+  "2026-10-13": 18704702531,
+  "2026-10-14": 18092005518
  },
  "inits": {
   "gdps:20260914": {
@@ -102,6 +103,96 @@
    "runs": 1,
    "seconds": 441.7
   },
+  "gdps:20260925": {
+   "attempts": 1,
+   "bytes": 731917216,
+   "complete": true,
+   "kb": 129,
+   "missing": 0,
+   "runs": 1,
+   "seconds": 493.6
+  },
+  "gdps:20260926": {
+   "attempts": 1,
+   "bytes": 735622082,
+   "complete": true,
+   "kb": 129,
+   "missing": 0,
+   "runs": 1,
+   "seconds": 419.2
+  },
+  "gdps:20260927": {
+   "attempts": 1,
+   "bytes": 733364201,
+   "complete": true,
+   "kb": 129,
+   "missing": 0,
+   "runs": 1,
+   "seconds": 439.8
+  },
+  "gdps:20260928": {
+   "attempts": 1,
+   "bytes": 729030788,
+   "complete": true,
+   "kb": 129,
+   "missing": 0,
+   "runs": 1,
+   "seconds": 437.9
+  },
+  "gdps:20260929": {
+   "attempts": 1,
+   "bytes": 734065012,
+   "complete": true,
+   "kb": 129,
+   "missing": 0,
+   "runs": 1,
+   "seconds": 473.5
+  },
+  "gdps:20260930": {
+   "attempts": 1,
+   "bytes": 733601838,
+   "complete": true,
+   "kb": 129,
+   "missing": 0,
+   "runs": 1,
+   "seconds": 483.8
+  },
+  "gdps:20261001": {
+   "attempts": 1,
+   "bytes": 725661112,
+   "complete": true,
+   "kb": 129,
+   "missing": 0,
+   "runs": 1,
+   "seconds": 438.7
+  },
+  "gdps:20261002": {
+   "attempts": 1,
+   "bytes": 727471078,
+   "complete": true,
+   "kb": 129,
+   "missing": 0,
+   "runs": 1,
+   "seconds": 439.6
+  },
+  "gdps:20261003": {
+   "attempts": 1,
+   "bytes": 731928324,
+   "complete": true,
+   "kb": 129,
+   "missing": 0,
+   "runs": 1,
+   "seconds": 537.9
+  },
+  "gdps:20261004": {
+   "attempts": 1,
+   "bytes": 734767557,
+   "complete": true,
+   "kb": 129,
+   "missing": 0,
+   "runs": 1,
+   "seconds": 516.6
+  },
   "geps:20260914": {
    "attempts": 1,
    "bytes": 2088901223,
@@ -146,6 +237,51 @@
    "missing": 0,
    "runs": 5,
    "seconds": 456.7
+  },
+  "geps:20260924": {
+   "attempts": 1,
+   "bytes": 2149879782,
+   "complete": true,
+   "kb": 368,
+   "missing": 0,
+   "runs": 5,
+   "seconds": 441.8
+  },
+  "geps:20260926": {
+   "attempts": 1,
+   "bytes": 2158987465,
+   "complete": true,
+   "kb": 368,
+   "missing": 0,
+   "runs": 5,
+   "seconds": 445.4
+  },
+  "geps:20260928": {
+   "attempts": 1,
+   "bytes": 2151977590,
+   "complete": true,
+   "kb": 367,
+   "missing": 0,
+   "runs": 5,
+   "seconds": 488.9
+  },
+  "geps:20260930": {
+   "attempts": 1,
+   "bytes": 2156176293,
+   "complete": true,
+   "kb": 368,
+   "missing": 0,
+   "runs": 5,
+   "seconds": 444.6
+  },
+  "geps:20261002": {
+   "attempts": 1,
+   "bytes": 2157555180,
+   "complete": true,
+   "kb": 368,
+   "missing": 0,
+   "runs": 5,
+   "seconds": 447.2
   }
  }
 }
