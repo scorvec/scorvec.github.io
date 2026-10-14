@@ -138,6 +138,57 @@ def upgrade_section(S, lead_opts):
     return "\n".join(out)
 
 
+BL = {}          # truth_blend.json (blend.py), read in main()
+
+
+def truth_bullet(S, tf):
+    if S.get("truth_kind") == "blend":
+        return ("<li><strong>Truth</strong>: a blend of five rain products (gauge-adjusted IMERG, INPE's MERGE, CPC's and GPCC's gauge "
+                "analyses and CHIRPS), each weighted by how closely it matched IDEAM's Colombian gauges in that kind of terrain; "
+                "over the sea, gauge-adjusted IMERG alone. How far the products disagree is added to every interval, so a bias "
+                "must beat the uncertainty in the truth itself. Details and scores in <a href=\"#truth\">the rain truth</a>.</li>")
+    return (f"<li><strong>Truth</strong>: IMERG V07 Late, the satellite record that keeps up with the forecasts, scaled box by box by its "
+            f"seasonal ratio to IMERG Final, which carries the monthly gauge adjustment over land ({tf[0]} to {tf[1]}). A ratio rather "
+            f"than a shift, so the adjusted rain cannot go below zero in a dry season. How far Late and Final differ is on the "
+            f"<a href=\"#truth\">last map</a>.</li>")
+
+
+NAMES = {"imerg": "IMERG (gauge-adjusted)", "merge": "MERGE (INPE)", "cpc": "CPC gauges", "gpcc": "GPCC gauges", "chirps": "CHIRPS",
+         "blend": "<strong>Blend</strong>"}
+
+
+def blend_section(S, BL):
+    if S.get("truth_kind") != "blend" or not BL:
+        return ""
+    cls = BL["classes"]
+    wrows = "".join(f"<tr><td class=\"l\">{NAMES[k]}</td>" + "".join(f"<td>{100 * BL['weights'].get(c, {}).get(k, 0):.0f} %</td>" for c in cls) + "</tr>"
+                    for k in BL["products"])
+    t_w = (f'<div class="tw"><table class="res"><thead><tr><th class="l">Weight in the blend</th>' + "".join(f"<th>{c}</th>" for c in cls)
+           + f"</tr></thead><tbody>{wrows}</tbody></table></div>")
+    srows = []
+    for k in list(BL["products"]) + ["blend"]:
+        sc = BL["test"].get(k, {})
+        srows.append(f"<tr><td class=\"l\">{NAMES[k]}</td>" + "".join(
+            (f"<td>{sc[c]['ratio']:.2f} / {sc[c]['rmse']:.2f} / {sc[c]['r']:.2f}</td>" if c in sc else "<td>-</td>") for c in cls) + "</tr>")
+    n_t = next((BL["test"]["blend"][c]["n"] for c in cls if c in BL["test"].get("blend", {})), 0)
+    t_s = (f'<div class="tw"><table class="res"><thead><tr><th class="l">Against held-out IDEAM gauges</th>' + "".join(f"<th>{c}</th>" for c in cls)
+           + f"</tr></thead><tbody>{''.join(srows)}</tbody></table></div>")
+    return f"""<p>No single rain product is right everywhere: satellites miss warm rain over mountains, gauge analyses spread a few
+valley gauges over whole slopes, and the merged products inherit some of both. The truth here weights five products by how well
+each matched the Colombian national weather service's (IDEAM) automatic gauges, {BL['ideam_stations']} stations in
+{BL['station_boxes']} one-degree boxes, most of which are not exchanged internationally and so are not already inside the gauge
+analyses. Weights are fitted on 70 % of the boxes, terrain class by class:</p>
+{t_w}
+<p>and every product and the blend are then scored on the other 30 %, on the same box-months (monthly mean rain; product / gauge
+ratio, root-mean-square error in mm/day, correlation):</p>
+{t_s}
+<p class="tcap">Monthly means of {n_t if n_t else 'the'} test box-months per terrain class. The gauges themselves sample a box unevenly
+(towns and valleys), so their own error sets a floor no product can beat.</p>
+<figure><img src="/assets/precip_bias/spread_JJA.webp" id="rb-spread" alt="Spread of the rain products" loading="lazy">
+<figcaption><label>Season <select id="rb-sseason">{opts([x for x in SEAS if x[0] != "all"], "JJA")}</select></label>
+How far the products disagree. This is added to every bias interval on the page.</figcaption></figure>"""
+
+
 def body(S):
     figs = set(S.get("figures", []))
     comps = [k for k in COMP_ORDER if k in S["comparisons"]]
@@ -194,10 +245,7 @@ includes zero.</p>
 <li><strong>Forecast</strong>: the mean of members 1-6 of each 00Z run, accumulated over the lead band, as {S.get('grid_deg', 1)}° box
 means (forecast and observations both averaged to the same boxes before anything is compared).
 Cycles: {cyc_txt}.</li>
-<li><strong>Truth</strong>: IMERG V07 Late, the satellite record that keeps up with the forecasts, scaled box by box by its
-seasonal ratio to IMERG Final, which carries the monthly gauge adjustment over land ({tf[0]} to {tf[1]}). A ratio rather than a
-shift, so the adjusted rain cannot go below zero in a dry season. How far Late and Final differ is on the
-<a href="#truth">last map</a>.</li>
+{truth_bullet(S, tf)}
 <li><strong>Significance</strong>: runs a few days apart share their weather, so each mean's uncertainty comes from resampling
 whole 21-day blocks of start dates; a box is shaded only if it passes a false-discovery-rate test at q = {S.get('q_fdr', 0.10):.2f}
 across the map: on average no more than {'one in five' if abs(S.get('q_fdr', 0.10) - 0.2) < 1e-9 else f"{100 * S.get('q_fdr', 0.10):.0f} %"}
@@ -209,7 +257,9 @@ northern Canada are left out.</li>
 </section>
 
 <section id="truth">
-<h2>The truth adjustment</h2>
+<h2>The rain truth</h2>
+{blend_section(S, BL)}
+<h3>IMERG Late against Final</h3>
 <figure><img src="/assets/precip_bias/truth_JJA.webp" id="rb-truth" alt="IMERG Late minus Final" loading="lazy">
 <figcaption><label>Season <select id="rb-tseason">{opts([x for x in SEAS if x[0] != "all"], "JJA")}</select></label>
 IMERG Late minus Final. Where it is large, the gauge adjustment matters as much as the model.</figcaption></figure>
@@ -230,6 +280,7 @@ IMERG Late minus Final. Where it is large, the gauge adjustment matters as much 
   function uupd() {{ show($("rb-uimg"), "change_" + $("rb-up").value + "_" + $("rb-ulead").value + ".webp"); }}
   if ($("rb-up")) {{ $("rb-up").addEventListener("change", uupd); $("rb-ulead").addEventListener("change", uupd); }}
   $("rb-tseason").addEventListener("change", function () {{ $("rb-truth").src = "/assets/precip_bias/truth_" + this.value + ".webp"; }});
+  if ($("rb-sseason")) $("rb-sseason").addEventListener("change", function () {{ $("rb-spread").src = "/assets/precip_bias/spread_" + this.value + ".webp"; }});
 }})();
 </script>
 """
@@ -280,6 +331,9 @@ def main() -> int:
     ap.add_argument("--json", required=True); ap.add_argument("--site", default=".")
     a = ap.parse_args()
     site = Path(a.site); S = json.loads(Path(a.json).read_text())
+    tb = Path(a.json).with_name("truth_blend.json")
+    if tb.exists():
+        BL.update(json.loads(tb.read_text()))
     page = wrap(site, body(S))
     out = site / f"{SLUG}.html"
     old = out.read_text() if out.exists() else ""

@@ -37,7 +37,7 @@ CHG_LEV = [-3, -2, -1.5, -1, -0.5, -0.25, 0.25, 0.5, 1, 1.5, 2, 3]
 INSIG = "#dcdcdc"
 SEASON_TXT = {"all": "all seasons", "DJF": "Dec-Feb", "MAM": "Mar-May", "JJA": "Jun-Aug", "SON": "Sep-Nov"}
 EXTENT = [-170, -30, -60, 60]
-DEG, QTXT, CITXT = 1, "BH-FDR q 0.10", "95 %"                    # set from the summary in main()
+DEG, QTXT, CITXT, TRUTH_TXT = 1, "BH-FDR q 0.10", "95 %", "IMERG"                    # set from the summary in main()
 SHORT = {"Southeast South America": "SE South America", "Northeast Brazil": "NE Brazil", "East Pacific ITCZ": "E Pacific ITCZ"}
 
 
@@ -105,6 +105,37 @@ def map_fig(panels, levels, unit, suptitle, foot, path):
     plt.close(fig)
 
 
+SPREAD_LEV = [0.1, 0.25, 0.5, 0.75, 1, 1.5, 2, 3, 4]
+
+
+def spread_fig(sp, sk, S, path):
+    """Truth uncertainty: standard deviation of the blend's products' seasonal means (mm/day), land only."""
+    import textwrap
+    w_panel = 5.6; h_panel = w_panel * (EXTENT[3] - EXTENT[2]) / (EXTENT[1] - EXTENT[0])
+    foot = (f"Standard deviation across the products in the blend (gauge-adjusted IMERG, MERGE, CPC, GPCC, CHIRPS) of their "
+            f"{SEASON_TXT[sk]} mean, {DEG}° boxes, land only. It is added to every bias interval on this page.")
+    lines = textwrap.wrap(foot, width=int((w_panel + 0.2) * 17)); TOP, BOT = 0.62, 0.78 + 0.13 * len(lines)
+    W, H = w_panel + 0.2, h_panel + TOP + BOT
+    fig = plt.figure(figsize=(W, H), dpi=150)
+    ax = fig.add_axes([0.1 / W, BOT / H, w_panel / W, h_panel / H], projection=ccrs.PlateCarree())
+    cm = plt.get_cmap("PuRd"); cols = cm(np.linspace(0.12, 0.95, len(SPREAD_LEV) + 1)); cmap = ListedColormap(cols)
+    norm = BoundaryNorm(SPREAD_LEV, len(SPREAD_LEV) + 1, extend="both")
+    h = 0.5 * (G.LAT[1] - G.LAT[0]); lon_e = np.append(G.LON - h, G.LON[-1] + h); lat_e = np.append(G.LAT - h, G.LAT[-1] + h)
+    ax.set_extent(EXTENT, ccrs.PlateCarree())
+    pm = ax.pcolormesh(lon_e, lat_e, np.where(sp > 0, sp, np.nan), cmap=cmap, norm=norm, transform=ccrs.PlateCarree(), rasterized=True)
+    ax.add_feature(cfeature.COASTLINE.with_scale("50m"), linewidth=0.5, edgecolor="#333")
+    ax.add_feature(cfeature.BORDERS.with_scale("50m"), linewidth=0.3, edgecolor="#555")
+    ax.set_title(f"Truth uncertainty, {SEASON_TXT[sk]}", fontsize=9, loc="left", pad=3)
+    fig.text(0.1 / W, 1 - 0.1 / H, f"How far the rain truths disagree - {SEASON_TXT[sk]}", fontsize=10.5, ha="left", va="top", weight="bold")
+    cb_y = 0.13 * len(lines) + 0.42
+    cax = fig.add_axes([0.5 - 2.4 / W, cb_y / H, 4.8 / W, 0.12 / H])
+    cb = fig.colorbar(pm, cax=cax, orientation="horizontal", ticks=SPREAD_LEV); cb.ax.tick_params(labelsize=7)
+    cb.ax.set_xticklabels([f"{l:g}" for l in SPREAD_LEV])
+    fig.text(0.5, (cb_y + 0.17) / H, "standard deviation of the products' seasonal means (mm/day)", fontsize=8, ha="center", va="bottom")
+    fig.text(0.1 / W, 0.06 / H, "\n".join(lines), fontsize=7, color="#444", ha="left", va="bottom", linespacing=1.25)
+    fig.savefig(path, format="webp", pil_kwargs={"quality": 88}); plt.close(fig)
+
+
 def lead_chart(summary, ck, path):
     comp = summary["comparisons"][ck]
     leads = [k for k in ("day1", "d2_3", "d4_7", "d8_10", "d11_14")]
@@ -156,6 +187,9 @@ def main() -> int:
     z = np.load(a.fields); S = json.loads(Path(a.json).read_text()); out = Path(a.out); out.mkdir(parents=True, exist_ok=True)
     G.LAT, G.LON = z["lat"], z["lon"]; G.NY, G.NX = len(G.LAT), len(G.LON)
     global DEG, QTXT, CITXT
+    global TRUTH_TXT
+    TRUTH_TXT = ("the gauge-validated blend of IMERG, MERGE, CPC, GPCC and CHIRPS (IMERG alone over the sea)" if S.get("truth_kind") == "blend"
+                 else "IMERG V07 Late scaled by its seasonal ratio to the gauge-adjusted Final")
     DEG = S.get("grid_deg", 1); QTXT = f"BH-FDR q {S.get('q_fdr', 0.10):.2f}"; CITXT = f"{100 * S.get('ci_level', 0.95):.0f} %"
     keys = set(str(k) for k in z["keys"])
     get = lambda k, v: z[f"{k}#{v}"]
@@ -172,8 +206,7 @@ def main() -> int:
                 period = f"{infos[0]['first']} to {infos[0]['last']}"
                 sig_txt = ", ".join(f"{MODELS[m]} {100 * i['frac_sig']:.0f} %" for m, i in zip(ms, infos))
                 foot = (f"{'The same ' if len(ms) > 1 else ''}{infos[0]['runs']} 00Z runs{' for both models' if len(ms) > 1 else ''}, "
-                        f"members 1-6, {DEG}° boxes; one model cycle each (never pooled across upgrades). Truth: IMERG V07 Late scaled "
-                        f"by its seasonal ratio to the gauge-adjusted Final. Grey: not significant (21-day block bootstrap, "
+                        f"members 1-6, {DEG}° boxes; one model cycle each (never pooled across upgrades). Truth: {TRUTH_TXT}. Grey: not significant (21-day block bootstrap, "
                         f"{QTXT}); significant cells {sig_txt}. Percent maps: hatched where the observed mean is below 0.5 mm/day.")
                 for kind, lev, unit in (("abs", ABS_LEV, "forecast minus observed rain (mm/day)"), ("rel", REL_LEV, "forecast / observed - 1 (%)")):
                     pan = []
@@ -202,6 +235,12 @@ def main() -> int:
             map_fig([(get(k, "bias"), get(k, "sig"), f"{MODELS[m]} {new} minus {old}, {ltxt}")], CHG_LEV, "change in forecast minus observed rain (mm/day)",
                     f"{MODELS[m]} {old} -> {new}: change in rain bias - {ltxt}", foot, pth)
             made.append(pth.name)
+    for sk in ("DJF", "MAM", "JJA", "SON"):                         # truth uncertainty: the blend's products disagreeing
+        k = f"spread|{sk}"
+        if k in keys:
+            from matplotlib.colors import BoundaryNorm as _BN, ListedColormap as _LC
+            p = out / f"spread_{sk}.webp"
+            spread_fig(get(k, "bias"), sk, S, p); made.append(p.name)
     for sk in ("DJF", "MAM", "JJA", "SON"):
         k = f"truth|{sk}"
         if k in keys:

@@ -217,14 +217,20 @@ def main() -> int:
                              "rmse": round(float(np.sqrt(np.mean((x - y) ** 2))), 3), "r": round(float(np.corrcoef(x, y)[0, 1]), 3)}
     for name, sc in score.items():
         print(f"  test {name:7s} " + "  ".join(f"{lab.split(' ')[0]}: ratio {v['ratio']:.2f} rmse {v['rmse']:.2f} r {v['r']:.2f} (n {v['n']})" for lab, v in sc.items()), flush=True)
-    # ---- truth spread by season (sd of the products' seasonal means, land; 0 over the sea)
+    # ---- truth spread by season: sd of the products' seasonal means, each product on the SAME days (those on which every product
+    # covering the box has data), so a product with a shorter record does not pass off a different period as disagreement
     spread = {}
+    stack = np.stack([P[k] for k in P])                                              # (product, day, NY, NX)
     for sk, months in B.SEASONS.items():
-        k = [i for i, d in enumerate(days) if d.month in months]
-        means = np.stack([np.nanmean(x[k], 0) for x in P.values()])
-        with np.errstate(invalid="ignore"):
+        kd = [i for i, d in enumerate(days) if d.month in months]
+        x = stack[:, kd]; fin = np.isfinite(x)
+        avail = fin.mean(1) >= 0.5                                                   # products covering the box this season
+        okd = np.where(avail[:, None], fin, True).all(0) & (avail.sum(0) >= 2)[None]  # shared days
+        n = okd.sum(0)
+        with np.errstate(invalid="ignore", divide="ignore"):
+            means = np.where(avail & (n >= 20)[None], np.where(okd[None], np.nan_to_num(x), 0).sum(1) / n[None], np.nan)
             sd = np.nanstd(means, 0)
-        spread[sk] = np.where(land & (np.isfinite(means).sum(0) >= 2), sd, 0.0).astype("float32")
+        spread[sk] = np.where(land & np.isfinite(sd) & (np.isfinite(means).sum(0) >= 2), sd, 0.0).astype("float32")
     np.savez_compressed(out / "blend_spread.npz", lat=G.LAT, lon=G.LON, land=land, elev=elev, nst=nst, **spread,
                         **{f"w_{k}": v for k, v in wmap.items()})
     for ym in sorted({(d.year, d.month) for d in days}):

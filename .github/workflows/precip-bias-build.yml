@@ -1,12 +1,13 @@
 # The Americas model-rain bias field (2026-10-13): unpack the monthly archive of release precip-bias-arch-v1, compute the
 # bias fields (scripts/precip_bias/build_bias.py), draw the maps and rebuild rain-bias.html (UNLINKED until the user has
-# reviewed it). Runs after each archive backfill and on dispatch. Site deploy is batched (the dispatcher deploys within 15 min).
+# reviewed it). Runs after each archive backfill and on dispatch. The truth is blend.py's gauge-validated blend when the
+# rain-truth archive (rain-truth-backfill.yml) has IDEAM gauges, else the ratio-adjusted IMERG. Site deploy is batched (the dispatcher deploys within 15 min).
 name: Model rain bias - build
 
 on:
   workflow_dispatch:
   workflow_run:
-    workflows: ["Model rain bias - archive backfill"]
+    workflows: ["Model rain bias - archive backfill", "Rain truths - archive backfill"]
     types: [completed]
 
 permissions:
@@ -33,11 +34,19 @@ jobs:
           python-version: "3.11"
       - name: Install dependencies
         run: pip install --quiet numpy matplotlib==3.10.9 cartopy==0.25.0 'shapely>=2.1.2' 'pyproj>=3.7.2' Pillow
-      - name: Unpack the archive
+      - name: Unpack the archives
         run: |
           mkdir -p arch
           gh release download precip-bias-arch-v1 -D arch --clobber
+          gh release download rain-truth-arch-v1 -D arch --clobber || echo "::warning::no rain-truth archive yet - IMERG-only truth"
           ls arch | wc -l; du -sh arch
+      - name: Rain truth blend (IDEAM-validated)
+        run: |
+          if ls arch/ideam_2*.csv.gz >/dev/null 2>&1 && [ -s arch/ideam_stations.csv ]; then
+            pip install --quiet xarray netCDF4
+            python scripts/precip_bias/blend.py --data arch --out arch --json assets/precip_bias/truth_blend.json \
+              || { echo "::warning::blend failed - IMERG-only truth"; rm -f arch/blend_spread.npz; }
+          else echo "no IDEAM gauges yet - IMERG-only truth"; fi
       - name: Bias fields
         run: |
           python scripts/precip_bias/build_bias.py --data arch --out fields/bias_fields.npz --json assets/precip_bias/bias_summary.json

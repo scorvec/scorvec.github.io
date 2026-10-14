@@ -83,9 +83,9 @@ REGIONS = {                                               # (lat0, lat1, lon0, l
 def _d(s): return datetime.strptime(str(s), "%Y%m%d").date()
 
 
-def load_obs(data: Path, product: str, k: int = 1):
-    """{date: row}, (days, NY, NX) mm/day on k-degree boxes - or (None, None)."""
-    files = sorted(data.glob(f"imerg_{product}_*.npz"))
+def load_obs(data: Path, product: str, k: int = 1, prefix: str = "imerg_"):
+    """{date: row}, (days, NY, NX) mm/day on k-degree boxes - or (None, None). prefix "" for the blend (blend_YYYYMM.npz)."""
+    files = sorted(data.glob(f"{prefix}{product}_[0-9]*.npz"))
     if not files:
         return None, None
     dates, arr = [], []
@@ -202,6 +202,25 @@ def truth_terms(li, lp, fi, fp, rng):
     return out
 
 
+TRUTH = {"kind": "imerg", "spread": None}     # set in main(): "blend" uses blend.py's daily truth and its seasonal spread
+
+
+def truth_of(L, mids, D):
+    """The truth for runs whose bands sit in months `mids`: (field, se of its sample mean) or (None, None).
+    blend: L already IS the blend; its systematic uncertainty = the products' seasonal spread (sd of their seasonal means),
+    combined over the sample's seasons as fully correlated (sum of weighted sds - the conservative choice).
+    imerg: IMERG Late scaled by its seasonal ratio to IMERG Final (adjust_late)."""
+    if TRUTH["kind"] != "blend":
+        return adjust_late(L, mids, D)
+    seas = [SEASON_OF[int(m)] for m in mids]
+    sp = TRUTH["spread"] or {}
+    se = np.zeros((G.NY, G.NX))
+    for x in set(seas):
+        if x in sp:
+            se += seas.count(x) / len(seas) * sp[x]
+    return L, se
+
+
 def adjust_late(L, mids, D):
     """(Late scaled by each run's season ratio, se of the sample-mean adjustment from the ratios' own uncertainty) or (None, None)
     when a season has no ratio. L: (run, NY, NX); mids: the month of each run's band."""
@@ -227,7 +246,7 @@ def field(inits, F, L, Fin, rng, d_start: date, mids=None, D=None):
         return None
     blocks = np.array([(d - d_start).days // BLOCK_DAYS for d in inits])
     cells = G.NY * G.NX
-    La, se_tf = adjust_late(L, mids, D)
+    La, se_tf = truth_of(L, mids, D)
     adjusted = La is not None
     if not adjusted:
         La, se_tf = L, np.zeros((G.NY, G.NX))
@@ -252,7 +271,7 @@ def region_stats(inits, F, L, Fin, rng, d_start, mids=None, D=None):
     """Area-mean bias per region with a block-bootstrap CI_LEVEL interval (same truth adjustment)."""
     w = G.area_weights(); out = {}
     blocks = np.array([(d - d_start).days // BLOCK_DAYS for d in inits])
-    La, se_tf = adjust_late(L, mids, D)
+    La, se_tf = truth_of(L, mids, D)
     adjusted = La is not None
     if not adjusted:
         La, se_tf = L, np.zeros((G.NY, G.NX))
@@ -280,7 +299,7 @@ def run_errors(ini, acc, idx, la, lb, li, lp, D=None):
     inis = [ini[i] for i in idx]
     F = lead_rate(acc[idx], la, lb); L = obs_rate(li, lp, inis, la, lb)
     mids = np.array([(d + timedelta(days=(la + lb) / 2)).month for d in inis])
-    La, _ = adjust_late(L, mids, D)
+    La, _ = truth_of(L, mids, D)
     e = F - (L if La is None else La); ok = np.isfinite(e)
     with np.errstate(invalid="ignore"):
         return np.where(ok.any(axis=(1, 2)), np.nansum(np.where(ok, e, 0) * w, axis=(1, 2)) / (w * ok).sum(axis=(1, 2)), np.nan)
@@ -304,15 +323,23 @@ def main() -> int:
     ap.add_argument("--out", required=True, help="npz of the fields (input of render_bias.py)")
     ap.add_argument("--json", required=True, help="summary JSON for the page")
     ap.add_argument("--coarse", type=int, default=COARSE, help="box size in degrees (1, 2, 4, 5)")
+    ap.add_argument("--truth", choices=["auto", "blend", "imerg"], default="auto",
+                    help="blend = blend.py's truth (blend_YYYYMM.npz + blend_spread.npz in --data); auto = blend if present")
     a = ap.parse_args()
     data = Path(a.data); rng = np.random.default_rng(20261013)
     li, lp = load_obs(data, "late", a.coarse); fi, fp = load_obs(data, "final", a.coarse)
+    use_blend = a.truth == "blend" or (a.truth == "auto" and (data / "blend_spread.npz").exists())
+    li0, lp0 = li, lp                                         # raw IMERG Late: its ratio to Final and the Late-minus-Final maps
+    if use_blend:                                             # the truth fields replace IMERG Late everywhere below
+        li, lp = load_obs(data, "blend", a.coarse, prefix="")
+        zs = np.load(data / "blend_spread.npz")
+        TRUTH["kind"] = "blend"; TRUTH["spread"] = {k: G.coarsen(zs[k].astype("float32"), a.coarse) for k in ("DJF", "MAM", "JJA", "SON") if k in zs}
     if li is None:
         print("no IMERG Late in", data); return 1
     print(f"IMERG Late {min(li)}..{max(li)} ({len(li)} days); Final {min(fi) if fi else '-'}..{max(fi) if fi else '-'} ({len(fi or {})} days)", flush=True)
     M = {m: load_model(data, m, a.coarse) for m in MODELS}
     G.set_coarse(a.coarse)                                       # every statistic below is on the k-degree boxes
-    D = truth_terms(li, lp, fi, fp, rng)
+    D = truth_terms(li0, lp0, fi, fp, rng)
     print("truth ratio (Final / Late) seasons:", {k: v["days"] for k, v in D.items()}, flush=True)
     for m, (ini, _) in M.items():
         print(f"{MODELS[m]}: {len(ini)} runs {ini[0] if ini else '-'}..{ini[-1] if ini else '-'}", flush=True)
@@ -433,7 +460,13 @@ def main() -> int:
             sgt = bh_fdr(pvals((m / se).ravel())).reshape(m.shape)
         fields[f"truth|{sk}"] = {"bias": m, "sig": sgt, "rel": np.full_like(m, np.nan), "truth": m, "obs": np.full_like(m, np.nan), "bias_late": m}
     summary["truth_days"] = {k: v["days"] for k, v in D.items()}
-    summary["truth_method"] = "IMERG Late scaled by its seasonal ratio to IMERG Final (per box)"
+    for sk, sp in (TRUTH["spread"] or {}).items():
+        fields[f"spread|{sk}"] = {"bias": sp, "sig": np.isfinite(sp), "rel": np.full_like(sp, np.nan), "truth": sp,
+                                  "obs": np.full_like(sp, np.nan), "bias_late": sp}
+    summary["truth_method"] = ("blend of IMERG (gauge-adjusted), MERGE, CPC, GPCC and CHIRPS weighted by their skill against IDEAM gauges "
+                               "(scripts/precip_bias/blend.py); its products' spread is part of every interval" if TRUTH["kind"] == "blend"
+                               else "IMERG Late scaled by its seasonal ratio to IMERG Final (per box)")
+    summary["truth_kind"] = TRUTH["kind"]
     Path(a.out).parent.mkdir(parents=True, exist_ok=True)
     np.savez_compressed(a.out, keys=np.array(list(fields)), lat=G.LAT, lon=G.LON,
                         **{f"{k}#{v}": fields[k][v] for k in fields for v in ("bias", "sig", "rel", "truth", "obs", "bias_late")})
