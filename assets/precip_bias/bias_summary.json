@@ -1,5 +1,5 @@
 {
- "generated": "2026-10-13T23:55Z",
+ "generated": "2026-10-14T07:17Z",
  "leads": {
   "day1": "day 1",
   "d2_3": "days 2-3",
@@ -15278,6 +15278,7 @@
   "SON": 121
  },
  "truth_method": "IMERG Late scaled by its seasonal ratio to IMERG Final (per box)",
+ "truth_kind": "imerg",
  "figures": [
   "change_aifs-ens_v1_v2_d11_14.webp",
   "change_aifs-ens_v1_v2_d2_3.webp",

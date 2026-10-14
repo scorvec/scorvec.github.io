@@ -270,10 +270,7 @@ includes zero.</p>
 <li><strong>Forecast</strong>: the mean of members 1-6 of each 00Z run, accumulated over the lead band, as 2° box
 means (forecast and observations both averaged to the same boxes before anything is compared).
 Cycles: IFS-ENS 48r1 2024-03-01 to 2024-11-12, 49r1 2024-11-13 to 2026-05-12, 50r1 2026-05-13 to now; AIFS-ENS v1 2025-07-02 to 2026-05-12, v2 2026-05-13 to now.</li>
-<li><strong>Truth</strong>: IMERG V07 Late, the satellite record that keeps up with the forecasts, scaled box by box by its
-seasonal ratio to IMERG Final, which carries the monthly gauge adjustment over land (2024-03-01 to 2025-09-30). A ratio rather than a
-shift, so the adjusted rain cannot go below zero in a dry season. How far Late and Final differ is on the
-<a href="#truth">last map</a>.</li>
+<li><strong>Truth</strong>: IMERG V07 Late, the satellite record that keeps up with the forecasts, scaled box by box by its seasonal ratio to IMERG Final, which carries the monthly gauge adjustment over land (2024-03-01 to 2025-09-30). A ratio rather than a shift, so the adjusted rain cannot go below zero in a dry season. How far Late and Final differ is on the <a href="#truth">last map</a>.</li>
 <li><strong>Significance</strong>: runs a few days apart share their weather, so each mean's uncertainty comes from resampling
 whole 21-day blocks of start dates; a box is shaded only if it passes a false-discovery-rate test at q = 0.20
 across the map: on average no more than one in five
@@ -285,12 +282,14 @@ northern Canada are left out.</li>
 </section>
 
 <section id="truth">
-<h2>The truth adjustment</h2>
+<h2>The rain truth</h2>
+
+<h3>IMERG Late against Final</h3>
 <figure><img src="/assets/precip_bias/truth_JJA.webp" id="rb-truth" alt="IMERG Late minus Final" loading="lazy">
 <figcaption><label>Season <select id="rb-tseason"><option value="DJF">Dec-Feb</option><option value="MAM">Mar-May</option><option value="JJA" selected>Jun-Aug</option><option value="SON">Sep-Nov</option></select></label>
 IMERG Late minus Final. Where it is large, the gauge adjustment matters as much as the model.</figcaption></figure>
 </section>
-<p class="byline">Updated 2026-10-13T23:55Z UTC.</p>
+<p class="byline">Updated 2026-10-14T07:17Z UTC.</p>
 </article>
 <script>
 (function () {
@@ -306,6 +305,7 @@ IMERG Late minus Final. Where it is large, the gauge adjustment matters as much 
   function uupd() { show($("rb-uimg"), "change_" + $("rb-up").value + "_" + $("rb-ulead").value + ".webp"); }
   if ($("rb-up")) { $("rb-up").addEventListener("change", uupd); $("rb-ulead").addEventListener("change", uupd); }
   $("rb-tseason").addEventListener("change", function () { $("rb-truth").src = "/assets/precip_bias/truth_" + this.value + ".webp"; });
+  if ($("rb-sseason")) $("rb-sseason").addEventListener("change", function () { $("rb-spread").src = "/assets/precip_bias/spread_" + this.value + ".webp"; });
 })();
 </script>
 
