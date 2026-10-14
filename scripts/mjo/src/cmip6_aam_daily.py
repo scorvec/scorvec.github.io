@@ -8,7 +8,7 @@ mirror anonymously. Historical run, --y0..--y1 (default 1979-2014, the span of t
   M_band = 2 pi a^3 / g  sum_j cos(phi_j) w_j(band) (sin phi_n - sin phi_s)_j  sum_k [u]_jk dp_k
 
 [u] is the model's own daily zonal-mean u on its EdayZ pressure levels (Pa); dp_k are the layers between level midpoints,
-from the lowest level to zero pressure. Levels below the ground (NaN) count as zero, so the absolute value is low near
+from the lowest level to zero pressure. Levels below the ground (NaN, or an undecoded 1e20 fill as in CESM2) count as zero, so the absolute value is low near
 high terrain - the GWO uses anomalies only. w_j(band) is the fraction of row j's sin-latitude interval inside the band,
 so the bands add exactly to the global total. Units 1e25 kg m^2 s^-1, the ERA5 history's `aam_*` columns.
 
@@ -92,7 +92,8 @@ def main() -> int:
     rows = []
     for i0 in range(0, len(keep), 1000):
         idx = keep[i0:i0 + 1000]
-        X = np.nan_to_num(u.isel(time=idx).values.astype(float))          # (t, plev, lat)
+        X = u.isel(time=idx).values.astype(float)                          # (t, plev, lat)
+        X[~np.isfinite(X) | (np.abs(X) > 1e3)] = 0.0                       # NaN or an undecoded fill (CESM2: 1e20) below ground
         col = np.einsum("tkj,k->tj", X, dp)                                # integral of [u] dp per row
         tt = u.time.values[idx]
         d = {"date": [f"{x.year:04d}-{x.month:02d}-{x.day:02d}" for x in tt]}
