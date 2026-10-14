@@ -244,30 +244,37 @@ def ideam_month(ym, out, page=50000):
     # local-time window that covers the UTC days of the month: local = UTC - 5 h
     t0 = datetime.combine(days[0], datetime.min.time()) - timedelta(hours=5)
     t1 = datetime.combine(days[-1], datetime.min.time()) + timedelta(hours=19, minutes=59, seconds=59)
-    where = f"fechaobservacion between '{t0:%Y-%m-%dT%H:%M:%S}' and '{t1:%Y-%m-%dT%H:%M:%S}'"
-    rows, off = [], 0
-    while True:
-        q = {"$select": "codigoestacion,codigosensor,date_trunc_ymd(fechaobservacion) as d,date_extract_hh(fechaobservacion) as hh,"
-                        "sum(valorobservado) as p,count(*) as n,max(valorobservado) as vmax",
-             "$where": where, "$group": "codigoestacion,codigosensor,d,hh", "$order": "codigoestacion,codigosensor,d,hh",
-             "$limit": page, "$offset": off}
-        r = get(IDEAM, params=q, timeout=300)
-        if r is None:
-            print(f"  ideam {ym}: page at offset {off} failed - month incomplete, not saved"); return None
-        chunk = r.json()
-        if isinstance(chunk, dict):
-            print(f"  ideam {ym}: {str(chunk)[:200]}"); return None
-        rows += chunk; off += page
-        print(f"  ideam {ym}: {len(rows):,} station-hours", flush=True)
-        if len(chunk) < page:
-            break
-        time.sleep(1.0)
+    # one local day per query: a whole-month aggregate times out on the portal (2026-10-14: every month from 2024-10 hung
+    # for 5 x 300 s), a day takes ~2 s. Windows start on the hour, so no (day, hour) group straddles two windows.
+    rows = []
+    for k in range((t1 - t0).days + 1):
+        w0 = t0 + timedelta(days=k); w1 = min(w0 + timedelta(days=1) - timedelta(seconds=1), t1)
+        where = f"fechaobservacion between '{w0:%Y-%m-%dT%H:%M:%S}' and '{w1:%Y-%m-%dT%H:%M:%S}'"
+        off = 0
+        while True:
+            q = {"$select": "codigoestacion,codigosensor,date_trunc_ymd(fechaobservacion) as d,date_extract_hh(fechaobservacion) as hh,"
+                            "sum(valorobservado) as p,count(*) as n,max(valorobservado) as vmax",
+                 "$where": where, "$group": "codigoestacion,codigosensor,d,hh", "$order": "codigoestacion,codigosensor,d,hh",
+                 "$limit": page, "$offset": off}
+            r = get(IDEAM, params=q, tries=6, timeout=120)
+            if r is None:
+                print(f"  ideam {ym}: window {w0:%Y-%m-%d %H}h offset {off} failed - month incomplete, not saved"); return None
+            chunk = r.json()
+            if isinstance(chunk, dict):
+                print(f"  ideam {ym}: {str(chunk)[:200]}"); return None
+            rows += chunk; off += page
+            if len(chunk) < page:
+                break
+        time.sleep(0.5)
+    print(f"  ideam {ym}: {len(rows):,} station-hours", flush=True)
     if not rows:
         return None
     h = pd.DataFrame(rows)
     for c in ("p", "n", "vmax"):
         h[c] = pd.to_numeric(h[c], errors="coerce")
     h["hh"] = h.hh.astype(int)
+    # the same order a single month query returned, so ties (modal count, best sensor) break the same way
+    h = h.sort_values(["codigoestacion", "codigosensor", "d", "hh"], kind="stable").reset_index(drop=True)
     h["utc"] = pd.to_datetime(h.d.str[:10]) + pd.to_timedelta(h.hh + 5, unit="h")                 # local + 5 h = UTC
     h["day"] = h.utc.dt.floor("D")
     # QC per station-sensor-hour: no negatives, no hour above 150 mm, no 10-minute value above 60 mm
@@ -299,6 +306,7 @@ def ideam_stations(out):
     r = get(IDEAM, params=q, timeout=600)
     d = pd.DataFrame(r.json())
     d["lat"] = pd.to_numeric(d.lat); d["lon"] = pd.to_numeric(d.lon)
+    out.mkdir(parents=True, exist_ok=True)
     d.rename(columns={"codigoestacion": "id"}).to_csv(out / "ideam_stations.csv", index=False)
     print(f"ideam stations: {len(d)}")
 
