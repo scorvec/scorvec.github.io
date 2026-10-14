@@ -66,7 +66,8 @@ jobs:
         run: |
           set -u
           src="${{ matrix.src }}"; cur=$(date -u +%Y-%m); prev=$(date -u -d "$(date -u +%Y-%m-01) -1 day" +%Y-%m); fails=0
-          up() { for f in "$@"; do [ -s "$f" ] && gh release upload "$REL" "$f" --clobber && rm -f "$f"; done; }
+          # never a bare "[ -s f ] && ..." as the last command: under bash -e an unmatched glob would end the step (CLAUDE.md gotcha)
+          up() { for f in "$@"; do if [ -s "$f" ]; then gh release upload "$REL" "$f" --clobber && rm -f "$f"; fi; done; return 0; }
           case "$src" in
             ideam|merge|gpcc)
               [ "$src" = "ideam" ] && { python scripts/precip_bias/truth_sources.py ideam-stations --out out && up out/ideam_stations.csv; }
