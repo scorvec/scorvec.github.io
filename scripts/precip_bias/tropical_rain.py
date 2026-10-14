@@ -121,16 +121,17 @@ def tercile_test(X: np.ndarray, cl: dict, weights: np.ndarray):
 
 # ── drawing ───────────────────────────────────────────────────────────────────────────────────────────────────────────
 def palettes():
+    import matplotlib
     from matplotlib.colors import BoundaryNorm, ListedColormap
-    import matplotlib.cm as cm
+    brbg = lambda n, x: matplotlib.colormaps["BrBG"].resampled(n)(x)     # (cm.get_cmap is gone in matplotlib >= 3.9)
     rain_lev = [0.5, 1, 2, 4, 6, 8, 10, 15, 20, 30]
     rain_col = ["#e9f3e1", "#c7e4b6", "#94cf8f", "#5cb37c", "#2f9475", "#227a8e", "#2b5fa3", "#4a3f9e", "#6d2b8e", "#98207a", "#c2186a"]
     anom_lev = [-12, -8, -5, -3, -2, -1, -0.5, 0.5, 1, 2, 3, 5, 8, 12]
-    a = cm.get_cmap("BrBG", 15)(np.linspace(0, 1, 15)); a[7] = (1, 1, 1, 1)
+    a = brbg(15, np.linspace(0, 1, 15)); a[7] = (1, 1, 1, 1)
     terc_lev = [-100, -90, -80, -70, -60, -50, -40, 40, 50, 60, 70, 80, 90, 100]
-    t = cm.get_cmap("BrBG", 15)(np.linspace(0.02, 0.98, 15)); t = np.delete(t, 7, axis=0); t = np.insert(t, 6, (1, 1, 1, 1), axis=0)
+    t = brbg(15, np.linspace(0.02, 0.98, 15)); t = np.delete(t, 7, axis=0); t = np.insert(t, 6, (1, 1, 1, 1), axis=0)
     bias_lev = [1 / 3, 0.5, 0.67, 0.8, 0.9, 1 / 0.9, 1 / 0.8, 1 / 0.67, 2, 3]
-    b = cm.get_cmap("BrBG", 11)(np.linspace(0.05, 0.95, 11)); b[5] = (1, 1, 1, 1)
+    b = brbg(11, np.linspace(0.05, 0.95, 11)); b[5] = (1, 1, 1, 1)
     def mk(lev, cols, ext):
         cmap = ListedColormap(cols[1:-1] if ext == "both" else cols)
         if ext == "both":
