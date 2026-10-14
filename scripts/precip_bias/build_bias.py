@@ -202,7 +202,7 @@ def truth_terms(li, lp, fi, fp, rng):
     return out
 
 
-TRUTH = {"kind": "imerg", "spread": None}     # set in main(): "blend" uses blend.py's daily truth and its seasonal spread
+TRUTH = {"kind": "imerg", "spread": None, "w_imerg": None}     # set in main(): "blend" uses blend.py's daily truth and its seasonal spread
 
 
 def truth_of(L, mids, D):
@@ -214,11 +214,20 @@ def truth_of(L, mids, D):
         return adjust_late(L, mids, D)
     seas = [SEASON_OF[int(m)] for m in mids]
     sp = TRUTH["spread"] or {}
-    se = np.zeros((G.NY, G.NX))
+    se = np.zeros((G.NY, G.NX)); v = np.zeros((G.NY, G.NX))
+    w = TRUTH.get("w_imerg"); w = np.ones((G.NY, G.NX)) if w is None else w
     for x in set(seas):
         if x in sp:
             se += seas.count(x) / len(seas) * sp[x]
-    return L, se
+        # the adjusted IMERG inside the blend (all of it over the sea, where the spread is zero) carries the uncertainty of its
+        # Late-to-Final ratio, as in adjust_late; independent of the spread, so added in quadrature
+        if D and x in D:
+            k = [i for i, y in enumerate(seas) if y == x]
+            with np.errstate(invalid="ignore", divide="ignore"):
+                mL = np.nanmean(L[k], axis=0)
+                rel = np.where(D[x]["ratio"] > 0, D[x]["se_ratio"] / D[x]["ratio"], 0.0)
+            v += (len(k) / len(seas) * np.nan_to_num(mL) * np.nan_to_num(rel) * w) ** 2
+    return L, np.sqrt(se ** 2 + v)
 
 
 def adjust_late(L, mids, D):
@@ -334,6 +343,8 @@ def main() -> int:
         li, lp = load_obs(data, "blend", a.coarse, prefix="")
         zs = np.load(data / "blend_spread.npz")
         TRUTH["kind"] = "blend"; TRUTH["spread"] = {k: G.coarsen(zs[k].astype("float32"), a.coarse) for k in ("DJF", "MAM", "JJA", "SON") if k in zs}
+        if "w_imerg" in zs and "land" in zs:                    # IMERG's share of the blend: its weight on land, all of it at sea
+            TRUTH["w_imerg"] = G.coarsen(np.where(zs["land"], zs["w_imerg"], 1.0).astype("float32"), a.coarse)
     if li is None:
         print("no IMERG Late in", data); return 1
     print(f"IMERG Late {min(li)}..{max(li)} ({len(li)} days); Final {min(fi) if fi else '-'}..{max(fi) if fi else '-'} ({len(fi or {})} days)", flush=True)
