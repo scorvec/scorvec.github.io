@@ -1,8 +1,8 @@
 {
  "updated": "2026-10-14",
- "total_30d": 383,
+ "total_30d": 385,
  "countries_30d": 21,
- "total_all": 1146,
+ "total_all": 1148,
  "countries_all": 24,
  "top_pages_30d": [
   {
@@ -11,7 +11,7 @@
   },
   {
    "path": "/models.html",
-   "count": 45
+   "count": 46
   },
   {
    "path": "/mjo.html",
