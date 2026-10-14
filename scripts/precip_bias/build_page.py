@@ -157,33 +157,64 @@ NAMES = {"imerg": "IMERG (gauge-adjusted)", "merge": "MERGE (INPE)", "cpc": "CPC
          "blend": "<strong>Blend</strong>"}
 
 
+def _plain(k):
+    return NAMES[k].replace("<strong>", "").replace("</strong>", "")
+
+
+def blend_verdict(BL):
+    """One sentence from the tested blend-minus-product RMSE differences (95 % box-resampling intervals); untested claims none."""
+    vs, cls = BL.get("blend_vs") or {}, BL["classes"]
+    short = {c: {"lowland": "lowlands"}.get(c.split(" ")[0], c.split(" ")[0]) for c in cls}
+    better = {k: [short[c] for c in cls if vs.get(k, {}).get(c, {}).get("sig") and vs[k][c]["diff"] < 0] for k in vs}
+    worse = {k: [short[c] for c in cls if vs.get(k, {}).get(c, {}).get("sig") and vs[k][c]["diff"] > 0] for k in vs}
+    def where(xs):
+        return "in every terrain class" if len(xs) == len(cls) else ("in the " + " and ".join(xs) if xs else "")
+    parts = [f"{_plain(k)} {where(v)}" for k, v in better.items() if v]
+    tie = [_plain(k) for k, v in better.items() if not v and not worse[k]]
+    out = ("The blend's error is significantly smaller (95 % intervals from resampling boxes) than that of " + "; ".join(parts) + "."
+           if parts else "The blend's error is not significantly smaller than any single product's.")
+    if tie:
+        out += f" It cannot be told apart from {' or '.join(tie)} in any class, so {' and '.join(tie)} alone {'is' if len(tie) == 1 else 'are'} nearly as good."
+    bad = [f"{_plain(k)} ({where(v)})" for k, v in worse.items() if v]
+    if bad:
+        out += " It is significantly worse than " + "; ".join(bad) + "."
+    return out
+
+
 def blend_section(S, BL):
     if S.get("truth_kind") != "blend" or not BL:
         return ""
     cls = BL["classes"]
     wrows = "".join(f"<tr><td class=\"l\">{NAMES[k]}</td>" + "".join(f"<td>{100 * BL['weights'].get(c, {}).get(k, 0):.0f} %</td>" for c in cls) + "</tr>"
                     for k in BL["products"])
-    t_w = (f'<div class="tw"><table class="res"><thead><tr><th class="l">Weight in the blend</th>' + "".join(f"<th>{c}</th>" for c in cls)
+    t_w = (f'<div class="tw"><table class="res"><thead><tr><th class="l">Weight in the blend</th>' + "".join(f"<th>{html.escape(c)}</th>" for c in cls)
            + f"</tr></thead><tbody>{wrows}</tbody></table></div>")
     srows = []
     for k in list(BL["products"]) + ["blend"]:
         sc = BL["test"].get(k, {})
         srows.append(f"<tr><td class=\"l\">{NAMES[k]}</td>" + "".join(
             (f"<td>{sc[c]['ratio']:.2f} / {sc[c]['rmse']:.2f} / {sc[c]['r']:.2f}</td>" if c in sc else "<td>-</td>") for c in cls) + "</tr>")
-    n_t = next((BL["test"]["blend"][c]["n"] for c in cls if c in BL["test"].get("blend", {})), 0)
-    t_s = (f'<div class="tw"><table class="res"><thead><tr><th class="l">Against held-out IDEAM gauges</th>' + "".join(f"<th>{c}</th>" for c in cls)
+    bsc = BL["test"].get("blend", {})
+    nbox = "; ".join(f"{c.split(' ')[0]} {bsc[c]['boxes']} boxes, {bsc[c]['n']} box-months" for c in cls if c in bsc)
+    t_s = (f'<div class="tw"><table class="res"><thead><tr><th class="l">Against IDEAM gauges (cross-validated)</th>' + "".join(f"<th>{html.escape(c)}</th>" for c in cls)
            + f"</tr></thead><tbody>{''.join(srows)}</tbody></table></div>")
+    q = BL.get("ideam_qc") or {}
+    qc_txt = (f" IDEAM publishes these readings raw, and some sensors are stuck, accumulate or have died, so each station-month is first "
+              f"checked against the median of the nearest stations (gauges only, so no product is favoured): {q['station_months_flagged']:,} of "
+              f"{q['station_months_checked']:,} station-months and {q['stations_dropped']} whole stations fail and are left out."
+              if q.get("station_months_checked") else "")
+    k = BL.get("folds", 5)
     return f"""<p>No single rain product is right everywhere: satellites miss warm rain over mountains, gauge analyses spread a few
 valley gauges over whole slopes, and the merged products inherit some of both. The truth here weights five products by how well
-each matched the Colombian national weather service's (IDEAM) automatic gauges, {BL['ideam_stations']} stations in
+each matched the automatic gauges of Colombia's national weather service (IDEAM), {BL['ideam_stations']} stations in
 {BL['station_boxes']} one-degree boxes, most of which are not exchanged internationally and so are not already inside the gauge
-analyses. Weights are fitted on 70 % of the boxes, terrain class by class:</p>
+analyses.{qc_txt} Weights by terrain class:</p>
 {t_w}
-<p>and every product and the blend are then scored on the other 30 %, on the same box-months (monthly mean rain; product / gauge
-ratio, root-mean-square error in mm/day, correlation):</p>
+<p>Every product and the blend are scored box by box with weights fitted without that box ({k}-fold cross-validation), on the
+same box-months (monthly mean rain; product / gauge ratio, root-mean-square error in mm/day, correlation):</p>
 {t_s}
-<p class="tcap">Monthly means of {n_t if n_t else 'the'} test box-months per terrain class. The gauges themselves sample a box unevenly
-(towns and valleys), so their own error sets a floor no product can beat.</p>
+<p class="tcap">{nbox}. {blend_verdict(BL)} The gauges themselves sample a box unevenly (towns and valleys), so their own error sets a
+floor no product can beat, and part of a ratio above 1 in the mountains may be where the gauges stand rather than the product.</p>
 <figure><img src="/assets/precip_bias/spread_JJA.webp" id="rb-spread" alt="Spread of the rain products" loading="lazy">
 <figcaption><label>Season <select id="rb-sseason">{opts([x for x in SEAS if x[0] != "all"], "JJA")}</select></label>
 How far the products disagree. This is added to every bias interval on the page.</figcaption></figure>"""
