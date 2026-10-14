@@ -81,6 +81,7 @@ jobs:
           merge-multiple: true
       - name: Combine
         run: |
+          pip install --quiet pandas
           mkdir -p all
           python3 - <<'EOF'
           import glob, json, pandas as pd
