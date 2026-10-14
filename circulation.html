@@ -92,6 +92,7 @@
                 <li><a href="/circulation.html#walker">Walker and Hadley cells</a></li>
                 <li><a href="/circulation.html#vpot">Velocity potential</a></li>
                 <li><a href="/circulation.html#gillrain">Rain-forced circulation (Gill model)</a></li>
+                <li><a href="/circulation.html#rainfc">Rain forecast, weeks 1–2</a></li>
               </ul>
             </div>
           </div>
@@ -216,6 +217,14 @@
   <div class="lightbox" id="lightbox"><img alt=""></div>
   <div class="dom-holder" id="dom-holder">
   </div>
+<template id="about-rainfc">
+<p><b>What it shows.</b> Rain for the next two weeks from the two ECMWF ensembles, the physics-based IFS-ENS and the machine-learned AIFS-ENS (50 members each, latest 00Z run), after removing each model's measured rain bias. The anomaly and tercile views compare the corrected forecast with a normal week; the strip view is the tropics, the second view the 60°S–60°N band.</p>
+<p><b>The bias correction.</b> Every model rains too much in some places and too little in others (over the tropical Americas both ECMWF ensembles run too wet, IFS-ENS more than AIFS-ENS). For every 2° box, model and lead week we compare the ensemble mean of the model cycle running now with IMERG satellite rain over the same seven days (IMERG Late, scaled to the gauge-adjusted IMERG Final by season). Runs from other model cycles are never mixed in, and runs from the same time of year count most. A correction is applied only where the bias is statistically significant, and only as strongly as its uncertainty allows; each member's week total is then multiplied by it. The “Bias removed” view shows the correction in force.</p>
+<p><b>The normal week.</b> GPCP V3.2 daily rain, 2001–2020: the mean and terciles of seven-day totals starting within ten days of the same date (GPCP is built on IMERG Final, so the corrected forecast and the normal use the same yardstick). A week is “above normal” when it falls in the wettest third of normal weeks.</p>
+<p><b>When colour appears.</b> In the anomaly and tercile views a box is coloured only where the share of members in the wet or dry third differs from one in three by more than sampling noise (binomial test, false discovery rate 10 % over the map). Grey marks places where a normal week is nearly dry, so no tercile can be tested. With both ensembles pooled each counts half.</p>
+<p><b>Limits.</b> The correction scales the rain; it does not fix how spread out the members are, so the chances can still be over- or under-confident. The bias of the current cycles is estimated from runs since May 2026, so it improves as the archive grows.</p>
+<p><b>Sources.</b> ECMWF open data (IFS-ENS, AIFS-ENS; © ECMWF, CC BY 4.0), NASA GPM IMERG V07 and GPCP V3.2 (NASA GES DISC).</p>
+</template>
 <template id="about-gillrain">
 <p><b>The question.</b> Rain is the tropical atmosphere's main heat source: every millimetre per day releases about 29&nbsp;W&nbsp;m<sup>&minus;2</sup> of latent heat into the air column. Where it rains more than usual the air rises, spreads out near the tropopause and sinks somewhere else. That overturning is what the 200&nbsp;hPa velocity potential &chi;200 maps (<b style="color:#2e7d32">green</b> = air diverging aloft over rising motion, <b style="color:#b8520f">orange</b> = converging aloft over sinking). This figure asks, week by week, how much of the observed &chi;200 anomaly the rain anomaly alone accounts for &mdash; and, for the next two weeks, whether the AIFS ensemble's forecast rain and its forecast circulation tell the same story.</p>
 <p><b>The Gill model.</b> Gill (1980) is the simplest dynamical model of how the tropics respond to a heat source. It is a linear shallow-water model on an equatorial &beta;-plane (the Coriolis parameter growing in proportion to the distance from the equator), for the troposphere's first baroclinic mode &mdash; winds aloft opposite to the winds below, heating peaking in the middle troposphere &mdash; solved for the steady state, with the same damping &epsilon; on the winds and the temperature:</p>
@@ -811,10 +820,20 @@ window.STAGE = {
   groups: [
   {label: "Mid-latitude weather", ico: "\u{1F5FA}", items: [["mslp","MSLP and 10 m wind","ensemble mean, days 0–15"],["dt","Dynamic tropopause","θ on 2 PVU, five regions, storms"],["pacjet","North Pacific jet","250 hPa maps, jet axis, phases"],["waf","Wave activity flux","Rossby packets, 250 hPa"],["gdps_ir","GDPS simulated IR","forecast satellite loop"],["gdps150","GDPS 150 hPa","wind and height"]]},
   {label: "Tropical cyclones", ico: "\u{1F300}", items: [["tcjet","Tropical cyclones and the jet","outflow, wave packets, recurvature watch"],["tcens","TC ensembles","tracks, recurvature, depth after transition"],["tcphase","Cyclone phase space","warm core to extratropical (Hart)"],["tcshear","Shear and environment","profile, tilt, ventilation, trough"]]},
-  {label: "Tropical circulation", ico: "\u{1F327}", items: [["walker","Walker circulation","loop, by basin, weekly departure"],["hadley","Hadley cells","meridional streamfunction"],["vpot","Velocity potential","200 hPa, irrotational wind"],["gillrain","Rain-forced circulation","Gill model vs the observed χ200"],["jets","Subtropical jets","strength and position"]]},
+  {label: "Tropical circulation", ico: "\u{1F327}", items: [["walker","Walker circulation","loop, by basin, weekly departure"],["hadley","Hadley cells","meridional streamfunction"],["vpot","Velocity potential","200 hPa, irrotational wind"],["gillrain","Rain-forced circulation","Gill model vs the observed χ200"],["rainfc","Rain forecast, weeks 1–2","bias-adjusted IFS + AIFS ensembles"],["jets","Subtropical jets","strength and position"]]},
   {label: "Angular momentum & torques", ico: "\u2696", items: [["aam","Atmospheric angular momentum","series, trend, phase, by latitude"],["torque","Surface torques","friction and mountain"]]}
 ],
   products: {
+  rainfc: {label: "Rain forecast, weeks 1–2 (bias-adjusted)",
+          a: {label: "Show", items: [["anom","Anomaly"],["terc","Favoured tercile"],["rain","Rain"],["bias","Bias removed"]]},
+          b: function (a) { return a === "bias" ? {label: "Model", items: [["ifs","IFS-ENS"],["aifs","AIFS-ENS"]]}
+                                                : {label: "Ensemble", items: [["both","IFS-ENS + AIFS-ENS"],["ifs","IFS-ENS"],["aifs","AIFS-ENS"]]}; },
+          c: {label: "Area", items: [["tropics","Tropics, 30°S–30°N"],["global","60°S–60°N"]]},
+          img: function (a, b, c) { return "assets/sst/rainfc_" + b + "_" + a + "_" + c + ".webp"; }, bust: "hourly", fit: false,
+          about: "about-rainfc", cap: function (a) { return {anom: "Weeks 1 and 2 of the latest 00Z ensembles, each member's rain corrected for its model's measured bias, against the 2001–2020 normal week. Colour only where the members' shift away from a normal week is significant.",
+                                                          terc: "The tercile the bias-corrected members favour against a normal week, and its chance; colour only where it differs significantly from the climatological one in three.",
+                                                          rain: "The bias-corrected ensemble-mean rain rate for weeks 1 and 2.",
+                                                          bias: "The correction itself: this model cycle's week-1 and week-2 rain against IMERG, where significant. Green: the model rains too much there, brown: too little."}[a]; }},
   gillrain: {label: "Rain-forced circulation (Gill model)", img: function () { return "assets/sst/gill_rain.webp?v=202610140938"; }, fit: false,
           about: "about-gillrain", cap: function () { return "How much of the tropical upper-level circulation the rain itself explains: the Gill (1980) model forced by the observed rain of the last four weeks (IMERG Late) and by the AIFS-ENS forecast rain of weeks 1 and 2, against the observed and forecast 200 hPa velocity potential."; }},
   mslp: {label: "MSLP and 10 m wind", a: {label: "Model", items: [["mslp_wind","Blend (AIFS-ENS + IFS-ENS)"],["mslp_wind_aifs","AIFS-ENS mean"],["mslp_wind_ifs","IFS-ENS mean"],["mslp_wind_aifs0","AIFS-ENS member 0"],["mslp_wind_aifs1","AIFS single"],["mslp_wind_hres","IFS HRES"],["mslp_wind_gdps","GDPS"]]},

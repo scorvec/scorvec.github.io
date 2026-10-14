@@ -32,7 +32,10 @@ import grid as G                                          # noqa: E402
 PRODUCTS = {"late": ("GPM_3IMERGDL", "3B-DAY-L."), "final": ("GPM_3IMERGDF", "3B-DAY.")}
 DATA = "https://data.gesdisc.earthdata.nasa.gov/data/"
 OPENDAP = "https://gpm1.gesdisc.eosdis.nasa.gov/opendap/"
-QUERY = f"precipitation[0:0][{G.IM_LON0}:1:{G.IM_LON1}][{G.IM_LAT0}:1:{G.IM_LAT1}]"
+def query() -> str:
+    return f"precipitation[0:0][{G.IM_LON0}:1:{G.IM_LON1}][{G.IM_LAT0}:1:{G.IM_LAT1}]"     # read at call time (--domain)
+
+
 _EA = None
 _S = None
 
@@ -108,7 +111,7 @@ def fetch_day(urls, tries: int = 4):
         try:
             if not use_full:
                 try:
-                    r = _session().get(dap + ".nc4?" + QUERY, timeout=120)
+                    r = _session().get(dap + ".nc4?" + query(), timeout=120)
                     r.raise_for_status()
                     a = _read(r.content, subset=True)
                 except (requests.HTTPError, requests.Timeout, requests.ConnectionError) as ex:
@@ -167,7 +170,10 @@ def main() -> int:
     ap.add_argument("--month", required=True, help="YYYY-MM")
     ap.add_argument("--out", required=True)
     ap.add_argument("--last", help="last date to include (YYYY-MM-DD)")
+    ap.add_argument("--domain", default="americas", choices=["americas", "global"],
+                    help="global = 60°S-60°N at all longitudes (2026-10-14, tropical rainfall forecast)")
     a = ap.parse_args()
+    G.use_domain(a.domain)
     return 0 if month(a.product, a.month, Path(a.out), date.fromisoformat(a.last) if a.last else None) else 1
 
 

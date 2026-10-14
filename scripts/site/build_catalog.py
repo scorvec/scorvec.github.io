@@ -89,7 +89,7 @@ PAGES = {
                               tier=0, prio=4, models=["AIFS-ENS"], horizon="Days 1–15", region=["Global"],
                               groups={"Mid-latitude weather": dict(topic="weather", region=["Pacific", "Northern Hemisphere"]),
                                       "Tropical cyclones": dict(topic="drivers", region=["Pacific", "North America"], prio=3),
-                                      "Tropical circulation": dict(topic="drivers", models=["AIFS-ENS", "IMERG", "ERA5"], region=["Tropics"]),
+                                      "Tropical circulation": dict(topic="drivers", models=["AIFS-ENS", "IFS-ENS", "IMERG", "GPCP", "ERA5"], region=["Tropics"]),
                                       "Angular momentum & torques": dict(topic="drivers", region=["Global"])},
                               # per-product topic over the rail group's (2026-10-12: the North Pacific jet sits in the page's
                               # "Mid-latitude weather" group but in the menus' "Global circulation and tropics")

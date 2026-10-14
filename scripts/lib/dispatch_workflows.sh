@@ -161,6 +161,11 @@ catalog.yml|07:05|
 catalog.yml|19:05|
 aam.yml|09:20|
 aam.yml|21:20|
+# Tropical rain forecast (circulation.html#rainfc, 2026-10-14): daily once the 00Z ENS day 14 is up (the job skips a run
+# already published, so the 13:50 slot only fills a miss); its reference build (archive top-up, bias ratios) weekly.
+tropical-rain.yml|09:50|
+tropical-rain.yml|13:50|
+precip-global.yml|mon@07:50|
 ar-det.yml|08:20|
 ar-det.yml|20:20|
 ar-ens.yml|09:05|

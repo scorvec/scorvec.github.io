@@ -8,6 +8,10 @@ retrievals), so the domain stops there: Alaska and northern Canada are left out 
   ECMWF open data (0.25° points, 90°N -> 90°S, from 180°W): each box is the trapezoid-weighted mean of the 5 x 5 points on
   its edges and inside (edge points half weight), so the box is centred exactly on its cell centre.
   IMERG (0.1° cells, centres 89.95°S.. / 179.95°W..): the plain mean of the 10 x 10 cells inside, a cell needing >= 50 % valid.
+
+use_domain("global") (2026-10-14, user: "global bias-adjusted rainfall/rainfall anomaly plots from the aifs/ifs ensembles"
+for the tropics section) switches every function here to the global band: the same 120 rows, 360 columns 179.5°W..179.5°E;
+the box at 179.5°E takes its eastern edge points from the 180°W column (the seam wraps).
 """
 from __future__ import annotations
 
@@ -21,11 +25,16 @@ NY, NX = len(LAT), len(LON)
 _EJ0, _EJ1 = int((90 - 60) / 0.25), int((90 + 60) / 0.25)            # rows 120..600 = 60°N..60°S
 _EI0, _EI1 = int((-170 + 180) / 0.25), int((-30 + 180) / 0.25)        # columns 40..600 = 170°W..30°W
 _W5 = np.array([0.5, 1.0, 1.0, 1.0, 0.5]) / 4.0
+DOMAIN = "americas"
 
 
 def ecmwf_to_1deg(v: np.ndarray) -> np.ndarray:
     """(721, 1440) ECMWF 0.25° field -> (NY, NX) 1° box means, ascending latitude."""
-    a = np.asarray(v, dtype="float64").reshape(721, 1440)[_EJ0:_EJ1 + 1, _EI0:_EI1 + 1]          # (481, 561), 60°N first
+    full = np.asarray(v, dtype="float64").reshape(721, 1440)
+    if DOMAIN == "global":                                                                       # (481, 1441): 180°W .. 180°E
+        a = np.concatenate([full[_EJ0:_EJ1 + 1], full[_EJ0:_EJ1 + 1, :1]], axis=1)
+    else:
+        a = full[_EJ0:_EJ1 + 1, _EI0:_EI1 + 1]                                                   # (481, 561), 60°N first
     rows = sum(_W5[k] * a[k::4][:NY] for k in range(5))                                          # (120, 561)
     box = sum(_W5[k] * rows[:, k::4][:, :NX] for k in range(5))                                  # (120, 140)
     return box[::-1].astype("float32")                                                           # north-first -> ascending
@@ -45,6 +54,18 @@ def imerg_to_1deg(p: np.ndarray) -> np.ndarray:
         m = np.nanmean(blk, axis=(1, 3))
     m[n < 50] = np.nan
     return m.astype("float32")
+
+
+def use_domain(name: str) -> None:
+    """Rebind the grid to "americas" (the default) or "global" (60°S-60°N, all longitudes). Call before anything else."""
+    global DOMAIN, LON, NX, IM_LON0, IM_LON1
+    if name == "americas":
+        return
+    if name != "global":
+        raise ValueError(f"unknown domain {name!r}")
+    DOMAIN = "global"
+    LON = np.arange(-179.5, 180.0, 1.0); NX = len(LON)
+    IM_LON0, IM_LON1 = 0, 3599                 # 179.95°W .. 179.95°E
 
 
 def area_weights() -> np.ndarray:

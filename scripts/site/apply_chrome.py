@@ -121,6 +121,9 @@ PRODUCTS = [
             ("/circulation.html#gillrain", "Rain-forced circulation (Gill model)",
              "How much of the tropical upper-level circulation the rain itself explains: the Gill (1980) model forced by IMERG and AIFS-ENS rainfall against the observed and forecast velocity potential.",
              "Twice daily"),
+            ("/circulation.html#rainfc", "Rain forecast, weeks 1–2",
+             "Bias-adjusted IFS-ENS and AIFS-ENS rain for weeks 1 and 2 over the tropics and the globe: corrected rain, its anomaly and the favoured tercile against the GPCP normal, where significant.",
+             "Daily"),
         ]),
     ], "Circulation/tropics"),
     # one hub since 2026-10-08 (user: "put all the strat stuff in one place and consolidate"): stratosphere.html holds

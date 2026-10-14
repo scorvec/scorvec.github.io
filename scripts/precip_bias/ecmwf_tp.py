@@ -14,6 +14,10 @@ Each global field is reduced at once to the Americas 1° grid (grid.py) and stor
 IFS tp arrives in m, AIFS tp in kg m-2 (= mm); the GRIB `units` key decides, nothing is assumed.
 
     python scripts/precip_bias/ecmwf_tp.py --model ifs --month 2024-03 --out DIR
+    python scripts/precip_bias/ecmwf_tp.py --model ifs --month 2026-05 --out DIR --domain global
+
+--domain global (2026-10-14, the tropical rainfall forecast on circulation.html): the 60°S-60°N band at all longitudes and
+only the week-1 / week-2 bounds (168 h, 336 h) - ~10 MB a run.
 -> DIR/{model}_{YYYYMM}.npz: inits (YYYYMMDD), acc (run, step, member, lat, lon) float32 mm, steps, members, missing
 """
 from __future__ import annotations
@@ -36,6 +40,7 @@ import rangefetch as R                                    # noqa: E402
 import grid as G                                          # noqa: E402
 
 STEPS = (24, 72, 168, 240, 336, 360)
+STEPS_GLOBAL = (168, 336)
 BANDS = ((0, 24, "day 1"), (24, 72, "days 2-3"), (72, 168, "days 4-7"), (168, 240, "days 8-10"),
          (240, 336, "days 11-14"), (336, 360, "day 15"))
 MEMBERS = (1, 2, 3, 4, 5, 6)
@@ -93,11 +98,12 @@ def one_run(model: str, d: date, tries: int = 4):
                 if k == tries - 1:
                     return None, f"step {step}: {repr(ex)[:80]}"
             time.sleep(3 * (k + 1))
-    # plausibility: day-1 domain mean 0.3-15 mm, accumulations never fall (a packing wobble of 0.05 mm is clipped)
+    # plausibility: domain mean of the first accumulation 0.3-15 mm per day, accumulations never fall (a packing wobble
+    # of 0.05 mm is clipped)
     w = G.area_weights()
-    d1 = float(np.nansum(acc[0].mean(0) * w) / w.sum())
+    d1 = float(np.nansum(acc[0].mean(0) * w) / w.sum()) / (STEPS[0] / 24)
     if not (0.3 < d1 < 15.0):
-        return None, f"implausible day-1 domain mean {d1:.2f} mm"
+        return None, f"implausible first-step domain mean {d1:.2f} mm/day"
     drop = np.diff(acc, axis=0)
     if np.nanmin(drop) < -0.5:
         return None, f"accumulation falls by {-np.nanmin(drop):.2f} mm"
@@ -140,7 +146,11 @@ def main() -> int:
     ap.add_argument("--out", required=True)
     ap.add_argument("--threads", type=int, default=2)
     ap.add_argument("--last", help="last init date to include (YYYY-MM-DD); default: end of month")
+    ap.add_argument("--domain", default="americas", choices=["americas", "global"])
     a = ap.parse_args()
+    if a.domain == "global":
+        global STEPS
+        G.use_domain("global"); STEPS = STEPS_GLOBAL
     f = month(a.model, a.month, Path(a.out), a.threads, date.fromisoformat(a.last) if a.last else None)
     return 0 if f else 1
 
