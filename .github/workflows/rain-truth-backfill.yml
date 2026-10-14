@@ -1,0 +1,89 @@
+# Independent rain truths for the model-rain bias work (2026-10-13): IDEAM (Colombia gauges), GHCN-Daily (Latin America),
+# MERGE (INPE), CPC unified, GPCC First Guess Daily and CHIRPS, from 2024-03 on, on the 1-degree Americas grid
+# (scripts/precip_bias/truth_sources.py). Each month / year goes to release rain-truth-arch-v1 as soon as it is built; complete
+# months already there are skipped, so a dispatch resumes. Weekly with the model archive (Monday).
+name: Rain truths - archive backfill
+
+on:
+  schedule:
+    - cron: '50 7 * * 1'
+  workflow_dispatch:
+    inputs:
+      only:
+        description: "ideam | ghcn | merge | cpc | gpcc | chirps | all"
+        default: all
+
+permissions:
+  contents: write
+
+concurrency:
+  group: rain-truth-backfill
+  cancel-in-progress: false
+
+env:
+  REL: rain-truth-arch-v1
+
+jobs:
+  truth:
+    strategy:
+      fail-fast: false
+      max-parallel: 6
+      matrix:
+        src: [ideam, ghcn, merge, cpc, gpcc, chirps]
+    runs-on: ubuntu-latest
+    timeout-minutes: 330
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Skip sources not asked for
+        id: gate
+        run: |
+          o="${{ github.event.inputs.only || 'all' }}"
+          if [ "$o" = "all" ] || [ "$o" = "${{ matrix.src }}" ]; then echo "run=1" >> "$GITHUB_OUTPUT"; else echo "run=0" >> "$GITHUB_OUTPUT"; fi
+      - uses: actions/checkout@v7
+        if: steps.gate.outputs.run == '1'
+        with:
+          fetch-depth: 1
+      - uses: actions/setup-python@v7
+        if: steps.gate.outputs.run == '1'
+        with:
+          python-version: "3.11"
+      - name: Install dependencies
+        if: steps.gate.outputs.run == '1'
+        run: pip install --quiet numpy pandas requests pyproj eccodes netCDF4
+      - name: Release
+        if: steps.gate.outputs.run == '1'
+        run: |
+          gh release view "$REL" >/dev/null 2>&1 \
+            || gh release create "$REL" --title "Rain truths archive (Americas, 1 deg)" \
+                 --notes "Independent rain truths for the model-rain bias field: IDEAM and GHCN-Daily station-days (QC'd), MERGE, CPC unified, GPCC First Guess Daily and CHIRPS on the 1-degree grid of scripts/precip_bias/grid.py. Sources: IDEAM via datos.gov.co; NOAA NCEI GHCN-Daily; INPE/CPTEC MERGE; NOAA CPC via PSL; DWD GPCC; UCSB CHC CHIRPS." \
+            || true
+          gh release view "$REL" --json assets -q '.assets[].name' > have.txt || true
+          echo "assets already in the release: $(wc -l < have.txt)"
+      - name: Build and upload
+        if: steps.gate.outputs.run == '1'
+        timeout-minutes: 310
+        run: |
+          set -u
+          src="${{ matrix.src }}"; cur=$(date -u +%Y-%m); prev=$(date -u -d "$(date -u +%Y-%m-01) -1 day" +%Y-%m); fails=0
+          up() { for f in "$@"; do [ -s "$f" ] && gh release upload "$REL" "$f" --clobber && rm -f "$f"; done; }
+          case "$src" in
+            ideam|merge|gpcc)
+              [ "$src" = "ideam" ] && { python scripts/precip_bias/truth_sources.py ideam-stations --out out && up out/ideam_stations.csv; }
+              m=2024-03
+              while [ "$(echo -e "$m\n$cur" | sort | head -1)" = "$m" ]; do
+                f="${src}_${m/-/}"
+                if grep -q "^${f}\." have.txt && [ "$m" != "$cur" ] && [ "$m" != "$prev" ]; then echo "skip $f"
+                else python scripts/precip_bias/truth_sources.py "$src" --month "$m" --out out || fails=$((fails + 1)); up out/${f}.*; fi
+                m=$(date -u -d "$m-01 +1 month" +%Y-%m)
+              done ;;
+            cpc|chirps|ghcn)
+              for y in 2024 2025 2026; do
+                if [ "$src" = "ghcn" ] && grep -qx "ghcn_${y}.csv.gz" have.txt && [ "$y" != "$(date -u +%Y)" ]; then echo "skip ghcn $y"; continue; fi
+                if [ "$src" != "ghcn" ] && grep -q "^${src}_${y}12\." have.txt && [ "$y" != "$(date -u +%Y)" ]; then echo "skip $src $y"; continue; fi
+                python scripts/precip_bias/truth_sources.py "$src" --year "$y" --out out || fails=$((fails + 1))
+                up out/${src}_*.npz out/${src}_*.csv.gz out/${src}_stations.csv
+              done ;;
+          esac
+          echo "pieces that built nothing: $fails"
+          [ "$fails" -gt 3 ] && echo "::warning::$src: $fails pieces built nothing" || true
