@@ -235,6 +235,7 @@ def body(S):
     return f"""
 <article class="study">
 <p class="kicker">Verification</p>
+<p class="ai-note"><b>Made with Claude Code.</b> This study is a just-for-fun project: researched, coded and written entirely by Claude, Anthropic's AI model, working in Claude Code, to show what today's AI models can do with open meteorological data. It has not been peer reviewed.</p>
 <h1>{H1}</h1>
 <p class="lede">How much more or less rain the ECMWF ensembles forecast than fell, cell by cell over North and South America, by lead
 time and season. ECMWF publishes no reforecast with its open data, so each model's rain climate is built here from the operational

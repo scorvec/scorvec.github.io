@@ -444,6 +444,7 @@ def body(R, Mo, keys, L, fig, t_models, made):
     return f"""
 <article class="study">
   <p class="crumbs"><a href="/">Home</a> › Studies › {TITLE_()}</p>
+  <p class="ai-note"><b>Made with Claude Code.</b> This study is a just-for-fun project: researched, coded and written entirely by Claude, Anthropic's AI model, working in Claude Code, to show what today's AI models can do with open meteorological data. It has not been peer reviewed.</p>
   <h1>{H1_()}</h1>
   <p class="dek">Every global forecast model has to put angular momentum into the atmosphere and take it out again through
   the ground: mountains push on the air where the surface pressure differs across them, and the surface, its roughness and
