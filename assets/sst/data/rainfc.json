@@ -1,0 +1,123 @@
+{
+ "init": "2026-10-14",
+ "members": {
+  "ifs": 50,
+  "aifs-ens": 50
+ },
+ "weeks": {
+  "wk1": [
+   "2026-10-14",
+   "2026-10-20"
+  ],
+  "wk2": [
+   "2026-10-21",
+   "2026-10-27"
+  ]
+ },
+ "stats": {
+  "both_wk1": {
+   "tested_cells": 36193,
+   "sig_frac_tropics": 0.611,
+   "above_frac_tropics": 0.382,
+   "below_frac_tropics": 0.229
+  },
+  "both_wk2": {
+   "tested_cells": 36442,
+   "sig_frac_tropics": 0.603,
+   "above_frac_tropics": 0.353,
+   "below_frac_tropics": 0.25
+  },
+  "ifs_wk1": {
+   "tested_cells": 36193,
+   "sig_frac_tropics": 0.563,
+   "above_frac_tropics": 0.375,
+   "below_frac_tropics": 0.188
+  },
+  "ifs_wk2": {
+   "tested_cells": 36442,
+   "sig_frac_tropics": 0.529,
+   "above_frac_tropics": 0.343,
+   "below_frac_tropics": 0.186
+  },
+  "aifs_wk1": {
+   "tested_cells": 36193,
+   "sig_frac_tropics": 0.594,
+   "above_frac_tropics": 0.352,
+   "below_frac_tropics": 0.241
+  },
+  "aifs_wk2": {
+   "tested_cells": 36442,
+   "sig_frac_tropics": 0.558,
+   "above_frac_tropics": 0.297,
+   "below_frac_tropics": 0.261
+  }
+ },
+ "bias": {
+  "target": "2026-10-14",
+  "kernel_sd_days": 30.0,
+  "coarse_deg": 2,
+  "clip": [
+   0.3333333333333333,
+   3.0
+  ],
+  "dry_mm_day": 0.2,
+  "ifs_wk1": {
+   "runs": 147,
+   "eff_n": 47.3,
+   "first": "2026-05-13",
+   "last": "2026-10-06",
+   "cycle": "50r1",
+   "blocks": 7,
+   "sig_frac": 0.339,
+   "tropics_fc_over_obs": [
+    1.144,
+    1.13,
+    1.152
+   ]
+  },
+  "ifs_wk2": {
+   "runs": 140,
+   "eff_n": 42.5,
+   "first": "2026-05-13",
+   "last": "2026-09-29",
+   "cycle": "50r1",
+   "blocks": 7,
+   "sig_frac": 0.313,
+   "tropics_fc_over_obs": [
+    1.152,
+    1.141,
+    1.162
+   ]
+  },
+  "aifs-ens_wk1": {
+   "runs": 146,
+   "eff_n": 47.3,
+   "first": "2026-05-14",
+   "last": "2026-10-06",
+   "cycle": "v2",
+   "blocks": 7,
+   "sig_frac": 0.335,
+   "tropics_fc_over_obs": [
+    0.99,
+    0.977,
+    1.002
+   ]
+  },
+  "aifs-ens_wk2": {
+   "runs": 139,
+   "eff_n": 42.5,
+   "first": "2026-05-14",
+   "last": "2026-09-29",
+   "cycle": "v2",
+   "blocks": 7,
+   "sig_frac": 0.289,
+   "tropics_fc_over_obs": [
+    1.004,
+    0.995,
+    1.018
+   ]
+  }
+ },
+ "normal": "GPCP V3.2 daily 2001-2020, 7-day totals",
+ "made": "2026-10-14T23:01Z"
+}
