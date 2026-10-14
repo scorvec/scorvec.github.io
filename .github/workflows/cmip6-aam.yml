@@ -1,0 +1,100 @@
+name: CMIP6 daily AAM by band (one-off study input)
+
+# One-off (2026-10-14): daily relative AAM - global, NH, SH and six latitude bands - from each CMIP6 member's EdayZ
+# zonal-mean ua (public Pangeo CMIP6 Google Cloud mirror, anonymous), 1979-2014 historical, for the GWO tests in model
+# space (global and hemispheric GWO vs the MJO-impacts reductions on the laptop). scripts/mjo/src/cmip6_aam_daily.py.
+# One matrix job per member; the combined table stays a run artifact (cmip6_aam_daily, a few MB). Dispatch only, no cron.
+
+on:
+  workflow_dispatch:
+    inputs:
+      members:
+        description: 'Comma-separated model:member pairs'
+        required: false
+        default: 'CESM2:r1i1p1f1,CESM2:r2i1p1f1,CESM2-FV2:r1i1p1f1,CESM2-FV2:r2i1p1f1,CNRM-CM6-1:r1i1p1f2,CNRM-CM6-1:r2i1p1f2,CNRM-ESM2-1:r1i1p1f2,CNRM-ESM2-1:r2i1p1f2,GFDL-CM4:r1i1p1f1,MPI-ESM1-2-HR:r1i1p1f1,MPI-ESM1-2-HR:r2i1p1f1'
+      y0:
+        description: 'First year'
+        required: false
+        default: '1979'
+      y1:
+        description: 'Last year'
+        required: false
+        default: '2014'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cmip6-aam
+  cancel-in-progress: false
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.m.outputs.matrix }}
+    steps:
+      - id: m
+        run: |
+          python3 -c "import json; ps=[p.strip().split(':') for p in '${{ inputs.members }}'.split(',') if p.strip()]; print('matrix='+json.dumps({'include': [{'model': a, 'member': b} for a, b in ps]}))" >> "$GITHUB_OUTPUT"
+
+  member:
+    needs: plan
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      max-parallel: 12
+      matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          sparse-checkout: |
+            scripts/mjo/src/cmip6_aam_daily.py
+          sparse-checkout-cone-mode: false
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+      - run: pip install --quiet numpy pandas xarray "zarr>=3" gcsfs cftime
+      - name: Catalogue
+        run: curl -sSf --retry 3 -o /tmp/pangeo-cmip6.csv https://storage.googleapis.com/cmip6/pangeo-cmip6.csv
+      - name: Reduce ${{ matrix.model }} ${{ matrix.member }}
+        run: python scripts/mjo/src/cmip6_aam_daily.py --catalog /tmp/pangeo-cmip6.csv --model ${{ matrix.model }} --member ${{ matrix.member }} --y0 ${{ inputs.y0 }} --y1 ${{ inputs.y1 }} --out out
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: aam_${{ matrix.model }}_${{ matrix.member }}
+          path: out/
+          retention-days: 14
+          if-no-files-found: ignore
+
+  combine:
+    needs: member
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/download-artifact@v7
+        with:
+          pattern: aam_*
+          path: parts
+          merge-multiple: true
+      - name: Combine
+        run: |
+          mkdir -p all
+          python3 - <<'EOF'
+          import glob, json, pandas as pd
+          fs = sorted(glob.glob("parts/*_aam.csv"))
+          df = pd.concat([pd.read_csv(f) for f in fs], ignore_index=True)
+          df.to_csv("all/cmip6_aam_daily.csv.gz", index=False, float_format="%.7g", compression={"method": "gzip", "mtime": 0})
+          logs = {f.split("/")[-1][:-9]: json.load(open(f)) for f in sorted(glob.glob("parts/*_aam.json"))}
+          json.dump(logs, open("all/cmip6_aam_log.json", "w"), indent=1)
+          print(f"{len(fs)} members, {len(df)} rows")
+          for k, v in logs.items():
+              print(f"  {k}: {v['days']} days {v['first']}..{v['last']}, {v['nlev']} levels x {v['nlat']} lats, mean global {v['mean_glob']:.2f}e25, {v['seconds']} s")
+          EOF
+      - uses: actions/upload-artifact@v7
+        with:
+          name: cmip6_aam_daily
+          path: all/
+          retention-days: 90
