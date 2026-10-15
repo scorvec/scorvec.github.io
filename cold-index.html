@@ -68,16 +68,16 @@
   @media (max-width: 820px) { .hero .wrap { grid-template-columns: minmax(0, 1fr); } }
 
   /* clue cards */
-  .clues { display: grid; grid-template-columns: repeat(auto-fit, minmax(14.5rem, 1fr)); gap: 0.9rem; margin-top: 1.2rem; }
+  .clues { display: grid; grid-template-columns: repeat(auto-fit, minmax(11.2rem, 1fr)); gap: 0.9rem; margin-top: 1.2rem; }
   .clue { background: var(--panel); border: 1px solid var(--rule); border-radius: 8px; padding: 0.9rem 1rem 0.85rem; min-width: 0; position: relative; }
   .clue::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; border-radius: 8px 0 0 8px; background: var(--edge, var(--rule)); }
   .clue .nm { font-size: 0.8rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
-  .clue .st { font-family: var(--f-serif); font-size: 1.25em; margin-top: 0.25rem; line-height: 1.25; }
+  .clue .cs { font-family: var(--f-serif); font-size: 1.25em; margin-top: 0.25rem; line-height: 1.25; }
   .clue .rd { font-size: 0.86em; color: var(--muted); margin-top: 0.2rem; }
   .mbar { position: relative; height: 0.5rem; border-radius: 99px; background: #1b2b48; margin-top: 0.75rem; }
   .mbar .mid { position: absolute; left: 50%; top: -0.25rem; bottom: -0.25rem; border-left: 1.5px solid #5b6f8c; }
   .mbar .fill { position: absolute; top: 0; bottom: 0; border-radius: 99px; }
-  .mrow { display: flex; justify-content: space-between; align-items: baseline; margin-top: 0.45rem; font-size: 0.8rem; color: var(--faint); }
+  .mrow { display: flex; justify-content: space-between; align-items: baseline; gap: 0.3rem; margin-top: 0.45rem; font-size: 0.76rem; color: var(--faint); white-space: nowrap; }
   .mrow .x { font-size: 1.05rem; font-weight: 700; color: var(--ink); font-variant-numeric: tabular-nums; }
 
   /* panels and charts */
@@ -112,7 +112,7 @@
   .ladder .base { position: absolute; top: -0.3rem; bottom: -0.3rem; border-left: 1.5px dashed #6b7f9c; }
 
   /* method */
-  .method { display: grid; grid-template-columns: repeat(auto-fit, minmax(17rem, 1fr)); gap: 1rem 2rem; margin-top: 1rem; }
+  .method { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 24rem), 1fr)); gap: 1rem 2rem; margin-top: 1rem; }
   .method div { min-width: 0; }
   .method h3 { font-size: 1.02em; color: var(--ice2); }
   .method p { font-size: 0.94em; color: #c9d6e4; }
@@ -296,9 +296,9 @@
         <p class="ai-note"><b>Made with Claude Code.</b> A just-for-fun research project: designed, validated, coded and written entirely by Claude, Anthropic's AI model, working in Claude Code. It is not a forecast service and has not been peer reviewed.</p>
       </div>
       <div class="gauge-card" aria-live="polite">
-        <svg class="gauge" id="gauge" viewBox="0 0 320 178" role="img" aria-label="Cold-risk gauge"></svg>
+        <svg class="gauge" id="gauge" viewBox="-24 0 368 178" role="img" aria-label="Cold-risk gauge"></svg>
         <div class="g-big"><div class="pct num" id="g-pct">—</div><div class="lab" id="g-lab">loading…</div><div id="g-chip"></div></div>
-        <div class="g-meta"><span>Cold-spell window <b id="g-win">—</b></span><span>State as of <b id="g-iss">—</b></span></div>
+        <div class="g-meta"><span><span id="g-winlab">Cold-spell window</span> <b id="g-win">—</b></span><span><span id="g-isslab">State as of</span> <b id="g-iss">—</b></span></div>
       </div>
     </div>
   </section>
@@ -311,7 +311,7 @@
       <div class="panel">
         <h3>Clue barcode <span>· the last 45 days, one column per day</span></h3>
         <div class="scroll"><svg class="chart" id="barcode" viewBox="0 0 900 190" role="img" aria-label="Daily clue multipliers over the last 45 days"></svg></div>
-        <div class="legend"><span><i style="background:#2f7fd1"></i>toward cold</span><span><i style="background:#1b2b48;border:1px solid #2c3d5c"></i>no effect</span><span><i style="background:#c98a3a"></i>away from cold</span></div>
+        <div class="legend"><span><i style="background:#5caaf0"></i>toward cold</span><span><i style="background:#16243f;border:1px solid #2c3d5c"></i>no effect</span><span><i style="background:#e8a046"></i>away from cold</span><span>stronger colour = bigger multiplier</span></div>
       </div>
       <div class="panel" id="season-panel" hidden>
         <h3>This season <span>· the index on every issue day so far</span></h3>
@@ -350,7 +350,7 @@
         <div><h3>What it can’t do</h3><p>It isn't a yes/no forecast. On most days it sits near the 15% base. The average gain is small (Brier skill about +4%), and the value lies in the uncommon days that move the odds. Even trained on 24,000 model winters, these clues can’t do much better, so this is the limit of the observed state, not of the sample. By weeks 4–5 nearly all the signal is gone.</p></div>
       </div>
       <div class="panel">
-        <h3>Every multiplier in the index <span>· each bin's 95% interval excludes ×1; those that didn't are set to ×1</span></h3>
+        <h3>Every multiplier in the index <span>· a bin is applied only when its 95% interval excludes ×1</span></h3>
         <div class="scroll"><table class="lr" id="lrtab"></table></div>
         <p class="cap" id="gfsnote"></p>
       </div>
@@ -435,9 +435,9 @@
       var lo = Math.log(MULTI_MIN), hi = Math.log(MULTI_MAX), x = Math.log(m);
       var pos = function (v) { return 50 + 50 * Math.max(-1, Math.min(1, v < 0 ? -(v / lo) : v / hi)); };
       var a = Math.min(pos(0), pos(x)), b = Math.max(pos(0), pos(x));
-      out += '<div class="clue" style="--edge:' + multColor(m) + '"><div class="nm">' + c.name + '</div><div class="st">' + st + '</div><div class="rd">' + rd + "</div>" +
+      out += '<div class="clue" style="--edge:' + multColor(m) + '"><div class="nm">' + c.name + '</div><div class="cs">' + st + '</div><div class="rd">' + rd + "</div>" +
         '<div class="mbar"><span class="mid"></span><span class="fill" style="left:' + a.toFixed(1) + "%;width:" + Math.max(b - a, 0.8).toFixed(1) + "%;background:" + multColor(m) + '"></span></div>' +
-        '<div class="mrow"><span>away from cold</span><span class="x">×' + m.toFixed(2) + "</span><span>toward cold</span></div></div>";
+        '<div class="mrow"><span>← milder</span><span class="x">×' + m.toFixed(2) + "</span><span>colder →</span></div></div>";
     });
     $("clues").innerHTML = out;
   }
@@ -453,8 +453,8 @@
     keys.forEach(function (k, r) {
       s += '<text x="' + (L - 10) + '" y="' + (T + r * rh + rh / 2 + 4) + '" text-anchor="end" style="font-size:12px;fill:#9cb0c6">' + names[r] + "</text>";
       H.forEach(function (h, i) {
-        var m = mult(k, h.c[r]), lg = Math.log(m), a = Math.min(1, Math.abs(lg) / 0.28);
-        var col = m > 1.0001 ? "rgba(61,143,224," + (0.25 + 0.75 * a).toFixed(2) + ")" : m < 0.9999 ? "rgba(201,138,58," + (0.25 + 0.75 * a).toFixed(2) + ")" : "#16243f";
+        var m = mult(k, h.c[r]), lg = Math.log(m), a = Math.min(1, Math.abs(lg) / 0.25);
+        var col = m > 1.0001 ? "rgba(92,170,240," + (0.18 + 0.82 * a).toFixed(2) + ")" : m < 0.9999 ? "rgba(232,160,70," + (0.18 + 0.82 * a).toFixed(2) + ")" : "#16243f";
         s += '<rect x="' + (L + i * cw).toFixed(1) + '" y="' + (T + r * rh + 2) + '" width="' + Math.max(cw - 1.2, 1).toFixed(1) + '" height="' + (rh - 4) + '" rx="2" fill="' + col + '"><title>' + fmtDate(h.d) + " · " + names[r] + " ×" + m.toFixed(2) + "</title></rect>";
       });
     });
@@ -586,7 +586,8 @@
     });
     [["4", "Phases 6–7"], ["2", "Phases 2–3"], ["1", "Phases 8–1"], ["0", "No MJO or phases 4–5"]].forEach(function (m) {
       var c = ci["mjo|" + m[0]];
-      h += "<tr><td>MJO (observed winters)</td><td>" + m[1] + "</td><td>" + c[0].toFixed(2) + " (" + c[1].toFixed(2) + "–" + c[2].toFixed(2) + ")</td><td>" + (c[3] ? "×" + Math.pow(meta.mjo_lr[m[0]], sh).toFixed(2) : "×1 <span class=\"muted\">(not significant)</span>") + "</td></tr>";
+      h += "<tr><td>MJO (observed winters)</td><td>" + m[1] + "</td>" + (c[3] ? "<td>" + c[0].toFixed(2) + " (" + c[1].toFixed(2) + "–" + c[2].toFixed(2) + ")</td><td>×" + Math.pow(meta.mjo_lr[m[0]], sh).toFixed(2) :
+        '<td class="muted">no significant effect</td><td>×1') + "</td></tr>";
     });
     $("lrtab").innerHTML = h + "</tbody>";
     var g = meta.gfs_check, nm = { t2m_us: "US temperature", pch1000: "1000 hPa polar cap", pch100: "100 hPa polar cap", gb_raw: "Greenland block", nao_raw: "NAO" };
@@ -609,7 +610,14 @@
       $("g-lab").textContent = days > 0 ? "until the index opens for the winter (16 November)" : "the index runs 16 November – 31 January";
       $("g-chip").innerHTML = '<span class="tierchip" style="color:#9cb0c6">Pre-season · the clues below are live readings</span>';
     }
-    $("g-win").textContent = fmtDate(cur.target[0]) + " – " + fmtDateY(cur.target[1]);
+    if (cur.in_season) {
+      $("g-win").textContent = fmtDate(cur.target[0]) + " – " + fmtDateY(cur.target[1]);
+    } else {                      // off season: the first window the index will issue for (16 Nov + 15 .. + 28)
+      var f = new Date(cur.season.first + "T00:00:00Z"), a = new Date(f.getTime() + 15 * 864e5), b = new Date(f.getTime() + 28 * 864e5);
+      $("g-winlab").textContent = "First window";
+      $("g-win").textContent = fmtDate(a.toISOString().slice(0, 10)) + " – " + fmtDateY(b.toISOString().slice(0, 10));
+      $("g-isslab").textContent = "Readings as of";
+    }
     $("g-iss").textContent = fmtDateY(cur.issue);
     $("upd").textContent = "Last update " + cur.updated + ".";
   }

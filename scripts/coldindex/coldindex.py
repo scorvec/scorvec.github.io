@@ -36,7 +36,7 @@ sys.path.insert(0, str(HERE))
 import gfs_daily as GD                                                   # noqa: E402
 
 REF = json.loads((HERE / "reference" / "coldindex_ref.json").read_text())
-BACK = 45                                                                # days of inputs kept fresh (5/7-day means, 30-day SSW look-back)
+BACK = 60                                                                # days of inputs kept fresh (5/7-day means, 30-day SSW look-back)
 RETRY = 10                                                               # incomplete days are re-fetched while this young
 NAMES = {"block": "Atlantic block", "vortex": "Weak stratospheric vortex", "recent": "Recent US cold", "ssw": "Sudden stratospheric warming",
          "mjo": "MJO phase"}
@@ -224,7 +224,7 @@ def main() -> int:
            "clues": clue_list(r), "mjo_source": "site wind RMM, ENSO removed" if (mjo is not None and bool(mjo.cleaned.iloc[-1])) else ("site wind RMM" if mjo is not None else None),
            "ssw_onsets": F.attrs.get("ssw_onsets", []),
            "history": []}
-    since = pd.Timestamp(f"{yr}-10-01")
+    since = min(pd.Timestamp(f"{yr}-10-01"), last - pd.Timedelta(days=44))     # the season so far, and at least 45 days for the barcode
     for d, x in F[(F.index >= since) & ok].iterrows():
         cur["history"].append({"d": d.strftime("%Y-%m-%d"), "p": round(float(x.p) * 100, 1) if x.in_season else None,
                                "t": round(float(x.t2m_anom), 2) if np.isfinite(x.t2m_anom) else None,
