@@ -307,6 +307,9 @@ PAGES = [
     # UNLINKED (user 2026-10-15: "a nice flashy cold index page on my site and leave it unlinked"), same terms: header/footer
     # only, no PRODUCTS menu, no HOME tile, not in sitemap.xml or the catalogue, noindex. Data: coldindex.yml -> assets/coldindex.
     dict(path="cold-index.html", mode="after-body"),
+    # UNLINKED (user 2026-10-15: "charts comparing official vs our version on the site? (Unlinked)"), same terms. Built on the
+    # laptop by ~/data_archive/wn2_selfrun/build_compare_page.py (charts drawn in the browser from inline data; no images).
+    dict(path="wn2-compare.html", mode="after-body"),
     dict(path="about.html", mode="after-body"),                    # the person: bio, resume, publications, profiles                  # every plot on the site (scripts/site/build_catalog.py)
     dict(path="climate.html", mode="after-body"),
     dict(path="fci.html", mode="after-body"),
