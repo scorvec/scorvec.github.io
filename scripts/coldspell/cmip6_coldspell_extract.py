@@ -71,6 +71,12 @@ def boxw(lat, lon, la0, la1, lo0, lo1):
     return w / w.sum()
 
 
+def boxmean(field, w):
+    """(t, lat, lon) x box weights -> (t,). Cells outside the box are dropped before multiplying: a plain einsum gives
+    0 * NaN = NaN, so one below-ground point anywhere (500 hPa over high Tibet in the finer models) blanked every box."""
+    return np.einsum("tij,ij->t", np.where(w > 0, field, 0.0), w)
+
+
 def stream(zs, levels=None):
     """Open one zarr store and yield (dates, block float32 (t, [lev,] lat, lon), lat, lon) in chunk-aligned blocks."""
     ds = xr.open_zarr(FS.get_mapper(zs), consolidated=True, decode_times=xr.coders.CFDatetimeCoder(use_cftime=True),
@@ -191,7 +197,7 @@ def do_psl(zs, out, tag):
         nbytes += raw.nbytes
         nh = interp(raw / 100.0, lat, lon, glat, glon)
         for k, w in BW.items():
-            add(k, np.einsum("tij,ij->t", nh, w))
+            add(k, boxmean(nh, w))
         m = oct_mar(dates)
         if m.any():
             fd.append(dates[m]); fv.append((nh[m][:, ::2, ::2] - 1000.0).astype(np.float16))
@@ -221,9 +227,9 @@ def do_zg(zs, out, tag):
         nbytes += raw.nbytes
         z = {L: interp(raw[:, i], lat, lon, glat, glon) for i, L in enumerate((1000, 850, 500, 100, 50, 10))}
         for L in (1000, 500, 100, 50, 10):
-            add(f"pch{L}", np.einsum("tij,ij->t", z[L], cap))
+            add(f"pch{L}", boxmean(z[L], cap))
         for k, w in BW.items():
-            add(k, np.einsum("tij,ij->t", z[500], w))
+            add(k, boxmean(z[500], w))
         add("pna", 0.25 * sum(s * z[500][:, int(np.argmin(np.abs(glat - la))), int(np.argmin(np.abs(glon - lo)))]
                               for la, lo, s in pna_pts))
         for L in (100, 50, 10):
