@@ -282,9 +282,10 @@
   <p>About the Earth's axis, the atmosphere's angular momentum $M$ (the winds plus the mass carried round by the rotating Earth) obeys</p>
   <p>$$\frac{dM}{dt} = T_{\text{mountain}} + T_{\text{friction}} + T_{\text{gravity-wave drag}}$$</p>
   <p>(see the <a href="/topics/atmospheric-angular-momentum.html">angular momentum</a> and
-  <a href="/topics/mountain-torque.html">mountain torque</a> explainers). In a physics model this budget is built in: the
-  dynamics conserve momentum up to numerical error, and each surface stress is calculated. A data-driven model such as AIFS
-  has no conservation law. It learns to predict the next state from the last, and nothing ties the change in its winds to
+  <a href="/topics/mountain-torque.html">mountain torque</a> explainers; Egger et al., 2007). In a physics model this budget is built in: the
+  dynamics conserve momentum up to numerical error, which can be noticeable (Toniazzo et al., 2020), and each surface stress is
+  calculated. A data-driven model such as AIFS
+  has no conservation law, and such models can lack physical consistency (Bonavita, 2024). It learns to predict the next state from the last, and nothing ties the change in its winds to
   the pressure it places against the mountains or to the drag implied by its own surface winds. A budget test asks whether
   each forecast is consistent with itself, separately from whether it is accurate.</p>
 
@@ -344,7 +345,7 @@
 
   <h3>Cause 2: a steady excess on days 1–8</h3>
   <p>Even after the mass correction, AIFS-ENS's angular momentum rises by +4 to +7 Hadley a day more than its torques allow,
-  significantly more than IFS-ENS's near-zero. ERA5, the reanalysis AIFS was trained on, shows a similar excess (+10 Hadley on
+  significantly more than IFS-ENS's near-zero. ERA5, the reanalysis AIFS was trained on before fine-tuning on ECMWF's operational analyses (Lang et al., 2024a, b), shows a similar excess (+10 Hadley on
   the same days). This is expected in a reanalysis, because assimilating observations adds momentum that no torque supplies;
   Veerman and van Heerwaarden (2019) found the same in ERA-20C. One reading is that AIFS has learned the analysed evolution,
   observation increments included, rather than a closed physical budget.</p>
@@ -395,7 +396,8 @@
   angular momentum well. It matters for products that read the mechanism, such as this site's
   <a href="/circulation.html#torque">torque budget</a>, which is computed from AIFS-ENS. For those, an AIFS-ENS torque past
   about day 10 is not a cause of its angular momentum change in the way an IFS torque is. The largest contributor, mass
-  drift, is also the most fixable: global mass constraints of the kind Sha et al. (2025) added to another AI model would remove it.</p>
+  drift, is also the most fixable: global mass constraints of the kind Sha et al. (2025) added to another AI model would remove it,
+  though a hard corrector can also hide a degrading raw model (Chapman et al., 2026).</p>
 
   <h2>Caveats</h2>
   <ul>
@@ -411,7 +413,7 @@
     argues against it.</li>
     <li>The mass correction assumes the spurious air is spread like the real air. It is a diagnostic split, not an exact one.</li>
     <li>A literature search found no earlier angular momentum budget test of an AI weather model. That is a search result,
-    not proof that none exists.</li>
+    not proof that none exists; angular momentum has long been used to test physics-based models (Bell et al., 1991).</li>
     <li>ERA5 is the reference for accuracy, and it is itself an analysis made with the IFS.</li>
   </ul>
   <figure id="fig9"><a href="/studies/aifs-aam-budget/friction_proxy.webp" class="zoom"><img src="/studies/aifs-aam-budget/friction_proxy.webp" alt="Bulk friction torque against ERA5 turbulent stress torque, and against IFS's own surface stress torque by lead" loading="lazy"></a><figcaption><b>Figure 9.</b> The friction estimate: against ERA5's turbulent stress (left), and in IFS-ENS against the model's own stress by lead (middle, right).</figcaption></figure>
@@ -503,17 +505,21 @@
     <li>Hersbach, H., and co-authors, 2020: The ERA5 global reanalysis. <i>Q. J. R. Meteorol. Soc.</i>, 146, 1999–2049. <a href="https://doi.org/10.1002/qj.3803">doi:10.1002/qj.3803</a></li>
     <li>Egger, J., K. Weickmann and K.-P. Hoinka, 2007: Angular momentum in the global atmospheric circulation. <i>Rev. Geophys.</i>, 45, RG4007. <a href="https://doi.org/10.1029/2006RG000213">doi:10.1029/2006RG000213</a></li>
     <li>Bell, M. J., R. Hide and G. Sakellarides, 1991: Atmospheric angular momentum forecasts as novel tests of global numerical weather prediction models. <i>Phil. Trans. R. Soc. A</i>, 334, 55–92. <a href="https://doi.org/10.1098/rsta.1991.0003">doi:10.1098/rsta.1991.0003</a></li>
-    <li>Toniazzo, T., and co-authors, 2020: Enforcing conservation of axial angular momentum in the atmospheric general circulation model CAM6. <i>Geosci. Model Dev.</i>, 13, 685–705.</li>
-    <li>Lang, S., and co-authors, 2024: AIFS – ECMWF's data-driven forecasting system. <a href="https://arxiv.org/abs/2406.01465">arXiv:2406.01465</a>; and AIFS-CRPS: ensemble forecasting using a model trained with a loss function based on the CRPS. <a href="https://arxiv.org/abs/2412.15832">arXiv:2412.15832</a></li>
-    <li>Bonavita, M., 2024: On some limitations of current machine learning weather prediction models. <i>Geophys. Res. Lett.</i>, 51. <a href="https://doi.org/10.1029/2023GL107377">doi:10.1029/2023GL107377</a></li>
-    <li>Sha, Y., J. Schreck, W. Chapman and D. J. Gagne, 2025: Improving AI weather prediction models using global mass and energy conservation schemes. <i>J. Adv. Model. Earth Syst.</i>, 17. <a href="https://doi.org/10.1029/2025MS005138">doi:10.1029/2025MS005138</a></li>
+    <li>Toniazzo, T., and co-authors, 2020: Enforcing conservation of axial angular momentum in the atmospheric general circulation model CAM6. <i>Geosci. Model Dev.</i>, 13, 685–705. <a href="https://doi.org/10.5194/gmd-13-685-2020">doi:10.5194/gmd-13-685-2020</a></li>
+    <li>Lang, S., and co-authors, 2024a: AIFS – ECMWF's data-driven forecasting system. <a href="https://arxiv.org/abs/2406.01465">arXiv:2406.01465</a></li>
+    <li>Lang, S., and co-authors, 2024b: AIFS-CRPS: Ensemble forecasting using a model trained with a loss function based on the Continuous Ranked Probability Score. <a href="https://arxiv.org/abs/2412.15832">arXiv:2412.15832</a></li>
+    <li>Bonavita, M., 2024: On some limitations of current machine learning weather prediction models. <i>Geophys. Res. Lett.</i>, 51, e2023GL107377. <a href="https://doi.org/10.1029/2023GL107377">doi:10.1029/2023GL107377</a></li>
+    <li>Sha, Y., J. S. Schreck, W. Chapman and D. J. Gagne, 2025: Improving AI weather prediction models using global mass and energy conservation schemes. <i>J. Adv. Model. Earth Syst.</i>, 17, e2025MS005138. <a href="https://doi.org/10.1029/2025MS005138">doi:10.1029/2025MS005138</a></li>
+    <li>Carver, R. W., and A. Merose, 2023: ARCO-ERA5: An analysis-ready cloud-optimized reanalysis dataset. <i>22nd Conf. on Artificial Intelligence for Environmental Science</i>, Denver, CO, Amer. Meteor. Soc., 4A.1.</li>
     <li>Chapman, W. E., J. Schreck and Y. Sha, 2026: Hard conservation correctors can hide a degrading model when training autoregressive emulators. <a href="https://arxiv.org/abs/2607.18416">arXiv:2607.18416</a></li>
   </ol>
 
   <h2>Data</h2>
-  <p class="credits">Forecasts: ECMWF open data (AIFS-ENS, AIFS single, IFS-ENS), © ECMWF, licensed under
-  <a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a>, fetched from ECMWF's Google Cloud mirror. Reference:
-  ERA5 (Hersbach et al., 2020), Copernicus Climate Change Service (C3S) / ECMWF, via the ARCO-ERA5 store on Google Cloud;
+  <p class="credits">Forecasts: ECMWF open data (AIFS-ENS, AIFS single, IFS-ENS), fetched from ECMWF's Google Cloud mirror:
+  © 2025–2026 European Centre for Medium-Range Weather Forecasts (ECMWF), source <a href="https://www.ecmwf.int">www.ecmwf.int</a>, licensed under
+  <a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a>; reduced and modified for this study; ECMWF does not accept any liability whatsoever
+  for any error or omission in the data, their availability, or for any loss or damage arising from their use. Reference:
+  ERA5 (Hersbach et al., 2020), Copernicus Climate Change Service (C3S) / ECMWF, CC BY 4.0, via the ARCO-ERA5 store on Google Cloud (Carver and Merose, 2023);
   contains modified Copernicus Climate Change Service information 2026. Neither ECMWF nor the European Commission is
   responsible for any use of this information. About 128 GB of forecast fields and 95 GB of ERA5 were read for the angular
   momentum study, and a further 28 GB of forecast fields for the mass, water and energy extension.</p>
