@@ -1,7 +1,8 @@
 {
  "bytes_by_day": {
   "2026-10-13": 18704702531,
-  "2026-10-14": 18092005518
+  "2026-10-14": 18092005518,
+  "2026-10-15": 18139920797
  },
  "inits": {
   "gdps:20260914": {
@@ -193,6 +194,96 @@
    "runs": 1,
    "seconds": 516.6
   },
+  "gdps:20261005": {
+   "attempts": 1,
+   "bytes": 730037475,
+   "complete": true,
+   "kb": 129,
+   "missing": 0,
+   "runs": 1,
+   "seconds": 412.2
+  },
+  "gdps:20261006": {
+   "attempts": 1,
+   "bytes": 729559697,
+   "complete": true,
+   "kb": 129,
+   "missing": 0,
+   "runs": 1,
+   "seconds": 425.2
+  },
+  "gdps:20261007": {
+   "attempts": 1,
+   "bytes": 731233938,
+   "complete": true,
+   "kb": 129,
+   "missing": 0,
+   "runs": 1,
+   "seconds": 414.1
+  },
+  "gdps:20261008": {
+   "attempts": 1,
+   "bytes": 734031486,
+   "complete": true,
+   "kb": 129,
+   "missing": 0,
+   "runs": 1,
+   "seconds": 412.5
+  },
+  "gdps:20261009": {
+   "attempts": 1,
+   "bytes": 732594591,
+   "complete": true,
+   "kb": 129,
+   "missing": 0,
+   "runs": 1,
+   "seconds": 438.6
+  },
+  "gdps:20261010": {
+   "attempts": 1,
+   "bytes": 738892502,
+   "complete": true,
+   "kb": 129,
+   "missing": 0,
+   "runs": 1,
+   "seconds": 413.2
+  },
+  "gdps:20261011": {
+   "attempts": 1,
+   "bytes": 739204830,
+   "complete": true,
+   "kb": 129,
+   "missing": 0,
+   "runs": 1,
+   "seconds": 414.4
+  },
+  "gdps:20261012": {
+   "attempts": 1,
+   "bytes": 732348705,
+   "complete": true,
+   "kb": 129,
+   "missing": 0,
+   "runs": 1,
+   "seconds": 428.4
+  },
+  "gdps:20261013": {
+   "attempts": 1,
+   "bytes": 729589529,
+   "complete": true,
+   "kb": 129,
+   "missing": 0,
+   "runs": 1,
+   "seconds": 433.2
+  },
+  "gdps:20261014": {
+   "attempts": 1,
+   "bytes": 732300962,
+   "complete": true,
+   "kb": 129,
+   "missing": 0,
+   "runs": 1,
+   "seconds": 430.7
+  },
   "geps:20260914": {
    "attempts": 1,
    "bytes": 2088901223,
@@ -282,6 +373,51 @@
    "missing": 0,
    "runs": 5,
    "seconds": 447.2
+  },
+  "geps:20261004": {
+   "attempts": 1,
+   "bytes": 2157138046,
+   "complete": true,
+   "kb": 368,
+   "missing": 0,
+   "runs": 5,
+   "seconds": 439.0
+  },
+  "geps:20261006": {
+   "attempts": 1,
+   "bytes": 2156979313,
+   "complete": true,
+   "kb": 367,
+   "missing": 0,
+   "runs": 5,
+   "seconds": 424.5
+  },
+  "geps:20261008": {
+   "attempts": 1,
+   "bytes": 2161884673,
+   "complete": true,
+   "kb": 367,
+   "missing": 0,
+   "runs": 5,
+   "seconds": 417.6
+  },
+  "geps:20261010": {
+   "attempts": 1,
+   "bytes": 2166553029,
+   "complete": true,
+   "kb": 367,
+   "missing": 0,
+   "runs": 5,
+   "seconds": 456.3
+  },
+  "geps:20261012": {
+   "attempts": 1,
+   "bytes": 2167572021,
+   "complete": true,
+   "kb": 367,
+   "missing": 0,
+   "runs": 5,
+   "seconds": 417.4
   }
  }
 }
