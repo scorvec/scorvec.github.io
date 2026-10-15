@@ -195,10 +195,10 @@
      box and the About menu instead of a 74rem column with ~430 px empty on each side at 2160 px */
   @media (min-width: 1100px) { .wrap { max-width: min(94vw, 2000px); padding: 0 clamp(1rem, 3vw, 2.5rem); } }
 
-  /* ── Right now (2026-10-12, user: "a litany of different cards ... a lot of clutter"): three compact live readings in
-     place of the two big feature panels. Every number is read live (midterms summary.json, the ENSO feeds, the MJO
-     status); on any failure the dashes stay and the card still links. ── */
-  .now { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1rem; margin-top: clamp(1.75rem, 4vw, 2.75rem); }
+  /* ── Right now (2026-10-12, user: "a litany of different cards ... a lot of clutter"): compact live readings in
+     place of the two big feature panels. Every number is read live (midterms summary.json, the ENSO feeds); on any
+     failure the dashes stay and the card still links. The MJO card was removed 2026-10-15 (user). ── */
+  .now { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; margin-top: clamp(1.75rem, 4vw, 2.75rem); }
   .nc {
     position: relative; display: flex; flex-direction: column; min-width: 0;
     padding: 1.05rem 1.2rem 1rem; background: #fff; text-decoration: none;
@@ -221,7 +221,6 @@
   .nc:hover .go { text-decoration-color: currentColor; }
   .nc--mt { --acc: #274b7a; }
   .nc--en { --acc: #9a3f14; }
-  .nc--mjo { --acc: #3f6b3a; }
   /* drawn at its real pixel width (viewBox = the element's width, height fixed) since the wide-screen layout of
      2026-10-12: a fixed 320-wide viewBox stretched to a 560 px card blew the labels up to ~17 px and the chart to 160 px */
   .spark { display: block; width: 100%; height: 92px; margin-top: 0.5rem; }
@@ -283,12 +282,9 @@
 
   @media (max-width: 1020px) {
     .sgs { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-    .now { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-    .nc--mjo { grid-column: 1 / -1; }
   }
   @media (max-width: 640px) {
     .sgs, .now { grid-template-columns: 1fr; }
-    .nc--mjo { grid-column: auto; }
     .sg li a { padding: 0.62rem 0; }        /* 44 px touch rows */
   }
 
@@ -503,15 +499,6 @@
       <span class="s" id="en-sub">Sea temperatures, the official indices and the seasonal models.</span>
       <span class="go">El Niño monitor</span>
     </a>
-    <a class="nc nc--mjo" href="/mjo.html">
-      <span class="k">Madden–Julian Oscillation</span>
-      <span class="v" aria-live="polite">
-        <span><b id="mj-ph">–</b><small id="mj-phl">phase</small></span>
-        <span><b id="mj-amp">–</b><small id="mj-ampl">amplitude</small></span>
-      </span>
-      <span class="s" id="mj-sub">Where the tropics' main intraseasonal signal is, and where the AIFS ensemble takes it.</span>
-      <span class="go">MJO forecast</span>
-    </a>
   </section>
 
   <section class="themes" id="products" aria-labelledby="themes-title">
@@ -704,21 +691,6 @@
       draw();
       let rt; addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(draw, 150); });
     }
-  });
-
-  // MJO card: is there an MJO now (ROMI amplitude >= 1) and does the AIFS ensemble have one over 15 days. Below
-  // amplitude 1 there is no MJO, so the card says so instead of quoting a phase (user 2026-10-12)
-  getJSON('/assets/mjo/rmm_clean_status.json').then(m => {
-    if (!m || !m.romi) return;
-    const r = m.romi, f = m.forecast || {}, act = r.amp >= 1, days = f.days || 15;
-    if (act) { $set('mj-ph', String(r.phase)); $set('mj-phl', 'phase, active'); }
-    else { $set('mj-ph', 'None'); $set('mj-phl', 'no active MJO'); }
-    $set('mj-amp', r.amp.toFixed(1)); $set('mj-ampl', 'amplitude (1 = active)');
-    let txt = `Observed ${day(r.date)} (ROMI). `;
-    if (m.coherent_mjo_forecast) txt += act ? `AIFS-ENS takes it to phase ${f.phase_end} in ${days} days.`
-                                            : `AIFS-ENS develops one over the next ${days} days (phase ${f.phase_end}).`;
-    else txt += act ? `AIFS-ENS loses it within ${days} days.` : `None in the ${days}-day AIFS-ENS forecast either.`;
-    $set('mj-sub', txt);
   });
 
   // the per-link "3 h ago" freshness labels were removed 2026-10-12 (user: "it's not really important")
