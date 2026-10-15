@@ -181,7 +181,7 @@ jobs:
       # cached (their names carry no issue; they are deleted once reduced).
       - name: Restore this issue's forecast GRIBs from earlier runs
         if: steps.gate.outputs.run == '1'
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: |
             scripts/sst/data/seas5/forecast/*_${{ steps.gate.outputs.issue }}.grib
@@ -208,7 +208,7 @@ jobs:
       # later on runs no post steps, and the next run would download this issue's forecasts again
       - name: Save this issue's forecast GRIBs now
         if: steps.gate.outputs.run == '1' && steps.fetch.outputs.ready == '1'
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v6
         with:
           path: |
             scripts/sst/data/seas5/forecast/*_${{ steps.gate.outputs.issue }}.grib
@@ -250,7 +250,7 @@ jobs:
 
       - name: Save the lead-7 fields now
         if: steps.gate.outputs.run == '1' && steps.fetch.outputs.ready == '1'
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v6
         with:
           path: |
             scripts/sst/data/seas5/forecast/*_${{ steps.gate.outputs.issue }}.grib

@@ -40,7 +40,7 @@ jobs:
         run: python scripts/fci/fci_build.py --out assets/fci --cache "$RUNNER_TEMP/fred"
       - name: Keep the build
         if: ${{ github.event_name == 'workflow_dispatch' && !inputs.publish }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: fci-build
           path: assets/fci/
@@ -70,7 +70,7 @@ jobs:
           done
       - name: Keep the page check
         if: ${{ github.event_name == 'workflow_dispatch' && !inputs.publish }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: fci-page-check
           path: |

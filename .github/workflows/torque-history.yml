@@ -162,7 +162,7 @@ jobs:
             scripts/mjo/data/reference/${{ inputs.out }}
             scripts/mjo/src/torque_increments_maps.py
           sparse-checkout-cone-mode: false
-      - uses: actions/download-artifact@v7
+      - uses: actions/download-artifact@v8
         with:
           pattern: torque_*
           path: parts

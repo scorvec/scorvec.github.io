@@ -54,7 +54,7 @@ jobs:
           COPERNICUSMARINE_SERVICE_USERNAME: ${{ secrets.COPERNICUSMARINE_SERVICE_USERNAME }}
           COPERNICUSMARINE_SERVICE_PASSWORD: ${{ secrets.COPERNICUSMARINE_SERVICE_PASSWORD }}
         run: python tao_hc_audit.py --glorys-fetch ${{ matrix.lon }}
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: gl-${{ matrix.lon }}
           path: scripts/sst/data/hc_audit_cache/gl_*.nc
@@ -81,7 +81,7 @@ jobs:
             pip-sst-${{ runner.os }}-
       - name: Install
         run: pip install -r scripts/sst/requirements-sst.txt
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           pattern: gl-*
           merge-multiple: true
@@ -93,7 +93,7 @@ jobs:
         run: ls -la data/hc_audit_cache; python tao_hc_audit.py 2>&1 | tee "$AUDIT_OUT.log"; exit ${PIPESTATUS[0]}
       - name: Upload
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: hc-audit
           path: |

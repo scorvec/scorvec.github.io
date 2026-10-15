@@ -32,7 +32,7 @@ jobs:
           pip install --quiet numpy pandas scipy requests eccodes
           pip install --quiet "quantmet @ git+https://github.com/scorvec/quantmet-tools@v0.4.1"   # shared diagnostics (BH-FDR, QBO zero line, PV, ...), pinned to the tag
       - run: python scripts/ar/ar_ext.py clim ${{ matrix.year }} --out out --procs 6
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: arclim-${{ matrix.year }}
           path: out/arclim_${{ matrix.year }}.npz
@@ -43,7 +43,7 @@ jobs:
     if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           pattern: arclim-*
           path: rel
