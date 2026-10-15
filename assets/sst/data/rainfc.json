@@ -1,55 +1,55 @@
 {
- "init": "2026-10-14",
+ "init": "2026-10-15",
  "members": {
   "ifs": 50,
   "aifs-ens": 50
  },
  "weeks": {
   "wk1": [
-   "2026-10-14",
-   "2026-10-20"
+   "2026-10-15",
+   "2026-10-21"
   ],
   "wk2": [
-   "2026-10-21",
-   "2026-10-27"
+   "2026-10-22",
+   "2026-10-28"
   ]
  },
  "stats": {
   "both_wk1": {
-   "tested_cells": 36193,
-   "sig_frac_tropics": 0.611,
-   "above_frac_tropics": 0.382,
+   "tested_cells": 36252,
+   "sig_frac_tropics": 0.616,
+   "above_frac_tropics": 0.387,
    "below_frac_tropics": 0.229
   },
   "both_wk2": {
-   "tested_cells": 36442,
-   "sig_frac_tropics": 0.603,
-   "above_frac_tropics": 0.353,
-   "below_frac_tropics": 0.25
+   "tested_cells": 36460,
+   "sig_frac_tropics": 0.617,
+   "above_frac_tropics": 0.355,
+   "below_frac_tropics": 0.262
   },
   "ifs_wk1": {
-   "tested_cells": 36193,
-   "sig_frac_tropics": 0.563,
-   "above_frac_tropics": 0.375,
-   "below_frac_tropics": 0.188
+   "tested_cells": 36252,
+   "sig_frac_tropics": 0.571,
+   "above_frac_tropics": 0.384,
+   "below_frac_tropics": 0.187
   },
   "ifs_wk2": {
-   "tested_cells": 36442,
-   "sig_frac_tropics": 0.529,
-   "above_frac_tropics": 0.343,
-   "below_frac_tropics": 0.186
+   "tested_cells": 36460,
+   "sig_frac_tropics": 0.542,
+   "above_frac_tropics": 0.341,
+   "below_frac_tropics": 0.201
   },
   "aifs_wk1": {
-   "tested_cells": 36193,
-   "sig_frac_tropics": 0.594,
-   "above_frac_tropics": 0.352,
-   "below_frac_tropics": 0.241
+   "tested_cells": 36252,
+   "sig_frac_tropics": 0.582,
+   "above_frac_tropics": 0.344,
+   "below_frac_tropics": 0.237
   },
   "aifs_wk2": {
-   "tested_cells": 36442,
-   "sig_frac_tropics": 0.558,
-   "above_frac_tropics": 0.297,
-   "below_frac_tropics": 0.261
+   "tested_cells": 36460,
+   "sig_frac_tropics": 0.577,
+   "above_frac_tropics": 0.299,
+   "below_frac_tropics": 0.278
   }
  },
  "bias": {
@@ -119,5 +119,5 @@
   }
  },
  "normal": "GPCP V3.2 daily 2001-2020, 7-day totals",
- "made": "2026-10-14T23:04Z"
+ "made": "2026-10-15T10:00Z"
 }
