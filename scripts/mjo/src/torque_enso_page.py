@@ -463,8 +463,8 @@ def main() -> int:
     41r2, before the orographic-drag revision ECMWF made operational in cycle 48r1 in June 2023) is the leading candidate, not the only one. About {100 * col_ext:.0f}% of the momentum
     the analysis adds goes into mid-latitude westerlies, {100 * ext_free:.0f}% of that between 650 and 100 hPa; in the tropics the
     gain below 875 hPa and the loss at 850–700 hPa nearly cancel.</li>
-    <li><b>3. Too much drag, but not over the mountains.</b> ECMWF's own record (Kanehama et al., 2022) and
-    operational experience with GEM (unpublished) show models tuned toward more drag because it improves scores. Yet only {share('amL', 'ALL', 'ORO')} of the momentum the analysis adds below
+    <li><b>3. Too much drag, but not over the mountains.</b> ECMWF's own record (Kanehama et al., 2022) shows the
+    IFS tuned toward more drag because it improved scores. Yet only {share('amL', 'ALL', 'ORO')} of the momentum the analysis adds below
     850 hPa lands over or just downstream of rough terrain, which covers {100 * area['ORO']:.0f}% of the globe;
     {share('amL', 'ALL', 'OCO')} lands over the tropical and other oceans. In the tropics the whole trade-wind boundary layer is too fast: the
     analysis slows the trades from the surface to about 875 hPa, more than it speeds them up at 850–700 hPa. In mid-latitudes the
@@ -770,13 +770,11 @@ def main() -> int:
   optimise forecast skill", notably in cycle 40r1, which left the IFS with much more form-drag stress than the Met Office model; by 2022 its
   surface winds were also too weak over orography (Kanehama et al., 2022). ERA5's cycle 41r2 came between that change and the
   cycle 48r1 revision (operational June 2023) that reduced form drag again. Budget studies of model drift had earlier pushed models toward less stratospheric and more
-  low-level drag (Klinker and Sardeshmukh, 1992, as summarised by Brown, 2004), and operational experience with GEM (unpublished)
-  is similar: more drag gave
-  better scores at the cost of too-weak 850 hPa flow in places. No source measures what such tuning does to a model's angular
+  low-level drag (Klinker and Sardeshmukh, 1992, as summarised by Brown, 2004). No source measures what such tuning does to a model's angular
   momentum budget, so the link to the lost westerly momentum is an inference, one that ERA5's increments are consistent with.</p>
   <p><b>But not as low-level orographic drag.</b> The increments weaken the surface winds over the oceans, both the trades and the
   westerlies, so the model's ocean surface winds are too strong, not too weak. Its northern mid-latitude 850 hPa westerlies are, if
-  anything, too strong as well, unlike the GEM experience. Scatterometer and buoy winds pulling the surface winds down would look
+  anything, too strong as well. Scatterometer and buoy winds pulling the surface winds down would look
   the same at 10 m and 1000 hPa, but would not by themselves speed up the mid-latitude wind at 950–900 hPa. Too-strong surface westerlies also mean too much friction torque, so boundary-layer
   drag, rather than orographic drag, remains a candidate for the lost momentum.</p>
   <p><b>Gravity-wave drag aloft.</b> COORDE (van Niekerk et al., 2020) found the IFS, like several other models, short of
