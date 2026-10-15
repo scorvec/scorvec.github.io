@@ -1,0 +1,102 @@
+# US cold-risk index, weeks 3-4 (2026-10-15; user: "a nice flashy cold index page on my site and leave it unlinked").
+# daily:     GFS analyses (NOAA S3) -> rolling raw inputs (assets/coldindex/inputs.csv, missing days backfilled, so the
+#            cron's hours of queueing don't matter) + the site's ENSO-cleaned RMM -> the index (scripts/coldindex/coldindex.py)
+#            -> assets/coldindex/*.json, read by cold-index.html (UNLINKED, noindex).
+# calibrate: one-off GFS-analysis inputs for a past window, uploaded as an artifact, to fix the GFS-vs-ERA5 offsets that
+#            scripts/coldindex/build_reference.py writes into the reference (the index was trained on ERA5).
+name: Cold-risk index
+
+on:
+  schedule:
+    - cron: "40 5 * * *"
+    - cron: "40 11 * * *"
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "daily | calibrate"
+        default: daily
+      start:
+        description: "calibrate: first day (YYYY-MM-DD)"
+        default: "2025-11-01"
+      end:
+        description: "calibrate: last day (YYYY-MM-DD)"
+        default: "2026-03-31"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: coldindex
+  cancel-in-progress: false
+
+jobs:
+  calibrate:
+    if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.mode == 'calibrate' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 1
+          sparse-checkout: scripts/coldindex
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+      - name: Install dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends libeccodes0
+          pip install --quiet numpy eccodes
+      - name: GFS-analysis inputs for the window
+        run: |
+          python scripts/coldindex/gfs_daily.py --start "${{ github.event.inputs.start }}" --end "${{ github.event.inputs.end }}" \
+            --out gfs_calib.csv --workers 6
+          head -3 gfs_calib.csv; wc -l gfs_calib.csv
+      - uses: actions/upload-artifact@v7
+        with:
+          name: coldindex-gfs-calib
+          path: gfs_calib.csv
+          retention-days: 30
+
+  daily:
+    if: ${{ github.event_name == 'schedule' || github.event.inputs.mode == 'daily' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 1
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+      - name: Install dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends libeccodes0
+          pip install --quiet numpy pandas xarray netCDF4 eccodes
+      - name: Index
+        run: |
+          if [ ! -s scripts/coldindex/reference/coldindex_ref.json ]; then echo "::warning::no reference yet - nothing to do"; exit 0; fi
+          python scripts/coldindex/coldindex.py --out assets/coldindex
+      - name: Commit & push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          OUTS="assets/coldindex"
+          SNAP=$(mktemp -d)
+          git add -A $OUTS 2>/dev/null || true
+          git diff --staged --name-only -z | tar cf "$SNAP/outs.tar" --null -T - 2>/dev/null || true
+          git reset -q
+          for i in 1 2 3 4 5; do
+            if ! timeout 120 git fetch origin main; then echo "fetch $i failed"; sleep 5; continue; fi
+            git reset --hard origin/main
+            tar xf "$SNAP/outs.tar" 2>/dev/null || true
+            git add -A $OUTS
+            if git diff --staged --quiet; then echo "No changes; skipping commit."; exit 0; fi
+            git commit -q -m "data update: cold-risk index $(date -u +%Y-%m-%dT%H:%MZ)"
+            if timeout 180 git push; then echo "Pushed on attempt $i."; exit 0; fi
+            echo "Push $i rejected; resyncing and retrying…"
+            sleep 5
+          done
+          echo "ERROR: could not push after 5 attempts." >&2
+          exit 1
