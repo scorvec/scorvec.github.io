@@ -128,8 +128,13 @@ def palettes():
     rain_col = ["#e9f3e1", "#c7e4b6", "#94cf8f", "#5cb37c", "#2f9475", "#227a8e", "#2b5fa3", "#4a3f9e", "#6d2b8e", "#98207a", "#c2186a"]
     anom_lev = [-12, -8, -5, -3, -2, -1, -0.5, 0.5, 1, 2, 3, 5, 8, 12]
     a = brbg(15, np.linspace(0, 1, 15)); a[7] = (1, 1, 1, 1)
-    terc_lev = [-100, -90, -80, -70, -60, -50, -40, 40, 50, 60, 70, 80, 90, 100]
-    t = brbg(15, np.linspace(0.02, 0.98, 15)); t = np.delete(t, 7, axis=0); t = np.insert(t, 6, (1, 1, 1, 1), axis=0)
+    # favoured tercile = signed chance (- below normal, + above normal), 7 bins a side from the climatological 33.3 % to 100 %,
+    # white only on the (practically empty) middle bin. 2026-10-15 fix (user: "an issue with the color scale"): the old list
+    # put white on the 40-50 % below-normal bin and pale brown on the middle bin, which held significant 33-40 % cells of
+    # BOTH signs - dry signals of 40-50 % vanished and weak wet ones showed brown.
+    terc_lev = [-100, -90, -80, -70, -60, -50, -40, -100 / 3, 100 / 3, 40, 50, 60, 70, 80, 90, 100]
+    cm = matplotlib.colormaps["BrBG"]
+    t = np.vstack([cm(np.linspace(0.0, 0.40, 7)), [(1, 1, 1, 1)], cm(np.linspace(0.60, 1.0, 7))])          # 15 bins, 15 colours
     bias_lev = [1 / 3, 0.5, 0.67, 0.8, 0.9, 1 / 0.9, 1 / 0.8, 1 / 0.67, 2, 3]
     b = brbg(11, np.linspace(0.05, 0.95, 11)); b[5] = (1, 1, 1, 1)
     def mk(lev, cols, ext):
@@ -137,10 +142,12 @@ def palettes():
         if ext == "both":
             cmap.set_under(cols[0]); cmap.set_over(cols[-1])
         return lev, cmap, BoundaryNorm(lev, cmap.N)
-    rl = rain_lev; rc = ListedColormap(rain_col[1:]); rc.set_under("#ffffff"); rc.set_over(rain_col[-1])
+    # 9 bins + the "over 30" colour, all distinct (2026-10-15 fix: 10 colours for 9 bins made BoundaryNorm skip one, and
+    # "over 30" repeated the 20-30 colour)
+    rl = rain_lev; rc = ListedColormap(rain_col[1:10]); rc.set_under("#ffffff"); rc.set_over(rain_col[10])
     return {"rain": (rl, rc, BoundaryNorm(rl, rc.N), "max"),
             "anom": mk(anom_lev, a, "both") + ("both",),
-            "terc": (terc_lev, ListedColormap(t[1:-1]), BoundaryNorm(terc_lev, 13), "neither"),
+            "terc": (terc_lev, ListedColormap(t), BoundaryNorm(terc_lev, 15), "neither"),
             "bias": mk(bias_lev, b, "both") + ("both",)}
 
 
@@ -173,7 +180,9 @@ def draw(panels, kind: str, dom: str, title: str, sub: str, cbar: str, out: Path
     MS.heading(fig, H, title, sub, wrap=205)                      # long subtitles wrap to a second line
     cb = MS.colorbar(fig, H, m, cbar, extend=ext)
     if kind == "terc":
-        cb.set_ticks(lev); cb.set_ticklabels([f"{abs(x)}" for x in lev])
+        cb.set_ticks(lev); cb.set_ticklabels([f"{abs(x):.0f}" for x in lev])
+    if kind in ("anom", "rain"):                                   # every boundary labelled (the default skipped every other one)
+        cb.set_ticks(lev); cb.set_ticklabels([f"{x:g}".replace("-", "\u2212") for x in lev])
     if kind == "bias":
         cb.set_ticks(lev); cb.set_ticklabels(["⅓", "½", "⅔", "0.8", "0.9", "1.1", "1.25", "1.5", "2", "3"])
     MS.save(fig, out)
