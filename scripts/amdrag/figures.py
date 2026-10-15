@@ -281,8 +281,9 @@ def fig_orography(R, out):
     save(fig, out, "orography_scales")
 
 
-# WGNE Drag Project Report 1 (Zadra et al. 2013), Fig. 13, January 2012, 00-24 h: NH peak values (1e19 N m) read off
-# the published figure (+-0.05): PBL over land, SGO, total physics (all surfaces).
+# WGNE Drag Project Report 1 (Zadra 2013), Fig. 13, January 2012, 00-24 h: NH peak values (1e19 N m) read off
+# the published figure (+-0.05): PBL over land, SGO, total physics (all surfaces). "others" = GDPS, ARPEGE, UKMO GM,
+# JMA GSM, HMCR SL-AV and BoM ACCESS (IFS and CPTEC's two AGCMs left out; the report counts SL-AV among its coarser models).
 WGNE2012 = {"pbl_land": {"IFS": 0.85, "GDPS": 0.52, "others": (0.33, 0.55)},
             "sgo": {"IFS": 0.2, "GDPS": 0.6, "others": (0.4, 1.25)},
             "total": {"IFS": 1.85, "GDPS": 1.9, "others": (1.6, 2.35)}}
@@ -311,14 +312,14 @@ def fig_wgne(R, out):
             if mon == 1 and part in WGNE2012:
                 w = WGNE2012[part]
                 ax.add_patch(plt.Rectangle((32, w["others"][0]), 14, w["others"][1] - w["others"][0], color="#c3c2b7",
-                                           alpha=0.45, lw=0, label="2012 high-resolution models, peak range"))
+                                           alpha=0.45, lw=0, label="2012 other models, peak range"))
                 ax.plot([32, 46], [w["IFS"]] * 2, color=COL["ifs-ens"], lw=3, alpha=0.5, label="2012 IFS peak")
                 ax.plot([32, 46], [w["GDPS"]] * 2, color=COL["gdps"], lw=3, alpha=0.5, label="2012 GDPS peak")
                 lo_, hi_ = ax.get_ylim()
                 ax.set_ylim(lo_, max(hi_, w["others"][1] * 1.08))
             if mon == 7 and part == "total":                       # July 2012 SH peak range (WGNE Report 1, Fig. 14)
                 ax.add_patch(plt.Rectangle((-55, 2.2), 15, 0.3, color="#c3c2b7", alpha=0.45, lw=0,
-                                           label="2012 high-resolution models, peak range"))
+                                           label="2012 other models, peak range"))
                 lo_, hi_ = ax.get_ylim()
                 ax.set_ylim(lo_, max(hi_, 2.65))
             ax.set_title(f"{ttl}\n{'January' if mon == 1 else 'July'} 2026, first 24 h", fontsize=9.5)
@@ -327,7 +328,7 @@ def fig_wgne(R, out):
                 ax.set_ylabel("[τx] a³ cos²φ (10¹⁹ N m)")
             if row == 1:
                 ax.set_xlabel("latitude")
-    fig.suptitle("Day-1 subgrid surface stress in the WGNE Drag Project's form (Report 1, Fig. 13: Jan / Jul 2012), "
+    fig.suptitle("Day-1 subgrid surface stress in the WGNE Drag Project's form (Report 1, Figs. 13–14: Jan / Jul 2012), "
                  "2026 versions of the models that publish it", fontsize=11.5, color=INK, x=0.01, ha="left")
     legend_below(fig, axes.ravel(), ncol=4)
     save(fig, out, "wgne_day1")

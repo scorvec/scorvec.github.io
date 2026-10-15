@@ -16,7 +16,7 @@ name: GEPS days 1-35 (subseasonal)
 # waits up to 2 h for a late cycle); 10:20 and the next day's 07:20 are backstops that exit in about a minute once the
 # cycle is built (state/last_cycle.json on the frames branch). The laptop dispatcher fires the same slots.
 #
-# Data: ECCC GEPS via the MSC Datamart, Open Government Licence - Canada.
+# Data: ECCC GEPS via the MSC Datamart. Data Source: Environment and Climate Change Canada, under the ECCC Data Servers End-use Licence.
 
 on:
   schedule:

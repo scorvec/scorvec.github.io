@@ -15,8 +15,8 @@ each file fetched once, retries with backoff on 429/5xx only, a byte ledger per 
 daily cap (AMDRAG_DAY_CAP_GB, default 20) and a per-run cap; `--next` processes ONE init and exits 0, or exits 3 when
 nothing is due or a cap is reached (the workflow loops and pushes between inits).
 
-Data: ECCC GDPS and GEPS via the MSC Datamart. Contains information licensed under the Open Government Licence -
-Canada (https://eccc-msc.github.io/open-data/licence/readme_en/).
+Data: ECCC GDPS and GEPS via the MSC Datamart. Data Source: Environment and Climate Change Canada, under the ECCC Data Servers End-use Licence
+(https://eccc-msc.github.io/open-data/licence/readme_en/), not the Open Government Licence.
 """
 from __future__ import annotations
 

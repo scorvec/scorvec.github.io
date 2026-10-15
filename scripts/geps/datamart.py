@@ -9,8 +9,8 @@ strat_maps.fetch, the vortex, heat-flux and dripping-paint products), so that:
   - each request is written to WORK/fetch_ledger.tsv (bytes, url) so a run reports exactly what it downloaded
     (report_ledger at the end of the workflow).
 
-Data: ECCC GEPS, Open Government Licence - Canada (Contains information licensed under the Open Government Licence -
-Canada). https://eccc-msc.github.io/open-data/licence/readme_en/
+Data: ECCC GEPS. Data Source: Environment and Climate Change Canada, under the ECCC Data Servers End-use Licence
+(https://eccc-msc.github.io/open-data/licence/readme_en/), not the Open Government Licence.
 """
 from __future__ import annotations
 

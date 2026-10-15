@@ -10,7 +10,7 @@ name: GEM collector (AAM conservation and drag intercomparison)
 # (scripts/amdrag/data/gem/ledger.json) with a 20 GB/UTC-day cap. The loop pushes every ~15 min so an interrupted
 # run keeps what it reduced. While a backlog remains and the day's cap is not reached, the run re-dispatches itself.
 #
-# Data: ECCC GDPS/GEPS via the MSC Datamart. Contains information licensed under the Open Government Licence - Canada.
+# Data: ECCC GDPS/GEPS via the MSC Datamart. Data Source: Environment and Climate Change Canada, under the ECCC Data Servers End-use Licence.
 # Region masks: ARCO-ERA5 static fields (Contains modified Copernicus Climate Change Service information).
 
 on:

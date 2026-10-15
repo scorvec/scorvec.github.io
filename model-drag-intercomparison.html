@@ -26,7 +26,7 @@
  "url": "https://scorvec.com/model-drag-intercomparison.html",
  "inLanguage": "en",
  "datePublished": "2026-10-13",
- "dateModified": "2026-10-14",
+ "dateModified": "2026-10-15",
  "author": {
   "@id": "https://scorvec.com/#person"
  },
@@ -269,7 +269,7 @@
   </section>
 
   <h2>1. What the 2012 drag intercomparison found, and what has changed since</h2>
-  <p>The WGNE Drag Project (Zadra et al., 2013; Sandu et al., 2016) asked ten models for their subgrid surface stress averaged
+  <p>The WGNE Drag Project (Zadra, 2013; Sandu et al., 2016) asked ten models for their subgrid surface stress averaged
   over the first 24 hours of a month of forecasts, January and July 2012. Over the oceans, where all the stress comes from the
   boundary-layer scheme, the models largely agreed. Over land they did not: models of comparable resolution differed by as much
   as 20% in zonal-mean total subgrid stress, and by a factor of two to three in its split between the boundary-layer and the
@@ -277,8 +277,8 @@
   Met Office, JMA and Bureau of Meteorology models had the opposite split; the Canadian GDPS (then 25 km) and Météo-France's
   ARPEGE lay in between. The project began after the Canadian centre reported at WGNE in 2012 that adjusting its orographic
   blocking and boundary-layer schemes had improved large-scale forecasts, and Sandu et al. (2016) showed that the partition
-  itself changes the circulation. Operational experience since has generally pointed the same way: more low-level drag has
-  tended to improve medium-range scores.</p>
+  itself changes the circulation (see also Sandu et al., 2019). Operational experience since has generally pointed the same way: more low-level drag has
+  tended to improve medium-range scores (Zadra, 2013; Kanehama et al., 2022).</p>
   <p>All three model families here have changed their drag since 2012:</p>
   <ul>
     <li><b>GEM (ECCC).</b> The 2019 upgrade touched every part of GEM's drag. The GDPS went from 25 to 15 km and from 80 to
@@ -288,20 +288,20 @@
     smoother damped wavelengths out to about 20 grid lengths, the new scale-selective low-pass filter cuts off at 3 grid
     lengths in the GDPS (Zadra, 2018; Zadra, 2022), giving a much sharper model orography. GEPS took the same GEM 5 physics and
     the sharper orography in December 2021 (GEPS 7.0.0, 39 km, 84 levels), with its own critical phase for the blocking height
-    and a dry-air mass constraint where the GDPS conserves total mass (ECCC, 2021); it runs at 25 km since June 2024, with
-    stochastically perturbed parameters that include the strength of low-level blocking, the boundary layer's critical
-    Richardson number and the non-orographic gravity-wave source (ECCC, 2024). Since 26 May 2026 the GDPS is a hybrid: between
+    a dry-air mass constraint where the GDPS conserves total mass, and stochastically perturbed parameters that include the
+    strength of low-level blocking, the boundary layer's critical Richardson number and the non-orographic gravity-wave source
+    (ECCC, 2021); it runs at 25 km since June 2024 (GEPS 8.0.0; ECCC, 2024). Since 26 May 2026 the GDPS is a hybrid: between
     about 850 and 250 hPa its winds and temperature at scales longer than about 2,500 km are spectrally nudged toward ECCC's AI
     model GEML (GDPS 10.0.0; ECCC, 2026). GEPS is not nudged, so GEPS is the cleaner test of the 2019 physics.</li>
-    <li><b>IFS (ECMWF).</b> Kanehama et al. (2022) rebuilt the subgrid-orography fields to represent scales below the model's
+    <li><b>IFS (ECMWF).</b> Kanehama et al. (2022), building on the COORDE comparison (van Niekerk et al., 2020), rebuilt the subgrid-orography fields to represent scales below the model's
     effective resolution, weakened turbulent orographic form drag and strengthened low-level flow blocking, which raised the
     total parametrized stress in the northern mid-latitudes by 4–8% and made the momentum budget consistent across resolutions.
-    Cycle 48r1 (June 2023) introduced improved orographic fields for the drag and the 9 km ensemble.</li>
+    Cycle 48r1 (June 2023) introduced improved orographic fields for the drag and the 9 km ensemble (ECMWF, 2023).</li>
     <li><b>GFS (NOAA).</b> GFS v16 (March 2021) replaced the boundary layer with a scale-aware TKE-EDMF scheme, added
-    non-stationary gravity-wave drag, and went to 127 levels with a model top near 80 km (NCEP EMC, 2021). GEFS is still v12
-    (September 2020), at C384 on 64 levels.</li>
+    non-stationary gravity-wave drag, and went to 127 levels with a model top near 80 km (NCEP EMC, 2020; NWS, 2021). GEFS is still v12
+    (September 2020; Zhou et al., 2022), at C384 on 64 levels.</li>
   </ul>
-  <p>What this study adds to the 2012 comparison: the 2026 versions; three AI models, which have no drag scheme at all and whose
+  <p>What this study adds to the 2012 comparison: the 2026 versions; three AI models (AIGFS, and AIFS and AIFS-ENS: Lang et al., 2024a, b), which have no drag scheme at all and whose
   torques are whatever their pressure and wind fields imply; a free-forecast budget that asks whether each model's drag drains
   or feeds its angular momentum against its own analysis and ERA5, by lead and hemisphere; the resolved mountain torque on
   each model's own grid, the place where GEM's 2019 change should show because GEM publishes no surface stress; and day-1
@@ -310,10 +310,10 @@
   <h2>2. Data and method</h2>
   <div class='tw'><table class='res'><thead><tr><th>model</th><th>centre</th><th>resolution, grid used</th><th>levels (hPa)</th><th>members</th><th>00Z inits</th><th>first – last</th><th>own surface stress</th></tr></thead><tbody><tr><th scope='row'>GFS</th><td>NOAA/NCEP</td><td style='white-space:normal'>C768 (≈13 km); torque fields on its 3072×1536 Gaussian physics grid, winds 0.25°</td><td>41 (0.01–1000)</td><td>1</td><td>31</td><td>09-14 – 10-14</td><td style='white-space:normal'>turbulent (UFLX) + orographic GWD and blocking (U-GWD)</td></tr><tr><th scope='row'>GEFS</th><td>NOAA/NCEP</td><td style='white-space:normal'>C384 (≈25 km); 0.5° output</td><td>31 (1–1000)</td><td>control + 4</td><td>31</td><td>09-14 – 10-14</td><td style='white-space:normal'>turbulent + GWD/blocking</td></tr><tr><th scope='row'>AIGFS</th><td>NOAA/NCEP</td><td style='white-space:normal'>0.25° (an AI model initialised from GDAS)</td><td>13 (50–1000)</td><td>1</td><td>31</td><td>09-14 – 10-14</td><td style='white-space:normal'>none (AI)</td></tr><tr><th scope='row'>IFS-ENS</th><td>ECMWF</td><td style='white-space:normal'>TCo1279 (≈9 km); 0.25° output</td><td>14 (10–1000)</td><td>control (the 9 km deterministic run, to day 10) + 4</td><td>31</td><td>09-14 – 10-14</td><td style='white-space:normal'>turbulent incl. orographic form drag (ewss); no GWD/blocking stress</td></tr><tr><th scope='row'>AIFS</th><td>ECMWF</td><td style='white-space:normal'>N320 (≈31 km); 0.25° output</td><td>14 (10–1000)</td><td>1</td><td>31</td><td>09-14 – 10-14</td><td style='white-space:normal'>none (AI)</td></tr><tr><th scope='row'>AIFS-ENS</th><td>ECMWF</td><td style='white-space:normal'>N320 (≈31 km); 0.25° output</td><td>14 (10–1000)</td><td>control + 4</td><td>31</td><td>09-14 – 10-14</td><td style='white-space:normal'>none (AI)</td></tr><tr><th scope='row'>GDPS</th><td>ECCC</td><td style='white-space:normal'>Yin-Yang 15 km; 0.15° output</td><td>33 (1–1015)</td><td>1</td><td>21</td><td>09-14 – 10-04</td><td style='white-space:normal'>none published</td></tr><tr><th scope='row'>GEPS</th><td>ECCC</td><td style='white-space:normal'>Yin-Yang 25 km; 0.5° output</td><td>12 (10–1000)</td><td>control + 4</td><td>10</td><td>09-14 – 10-02</td><td style='white-space:normal'>none published</td></tr></tbody></table></div>
   <p class="tcap">Inits used so far; "own surface stress" is what the model publishes in its open data. IFS-ENS member 0 is the
-  9 km deterministic run, identical in configuration to the ensemble control since cycle 48r1, which the open data publish to
-  day 10. GDPS forecasts run to day 10. Raw fields are read once and reduced on the fly; nothing is stored but the diagnostics.</p>
+  9 km deterministic run, identical to the ensemble control since cycle 49r1 (November 2024; ECMWF, 2024) and the same run since
+  cycle 50r1 (May 2026; ECMWF, 2026), which the open data publish to day 10. GDPS forecasts run to day 10. Raw fields are read once and reduced on the fly; nothing is stored but the diagnostics.</p>
   <ul>
-    <li><b>Angular momentum</b> $M = M_r + M_\Omega$: the wind term
+    <li><b>Angular momentum</b> $M = M_r + M_\Omega$ (Egger et al., 2007): the wind term
     $M_r = \frac{a^3}{g}\int u\cos^2\varphi\,d\lambda\,d\varphi\,dp$ between level mid-points, from 0 hPa to the surface
     pressure (layers below ground removed), and the mass term $M_\Omega = \frac{\Omega a^4}{g}\int p_s\cos^3\varphi\,d\lambda\,
     d\varphi$. The part of $M_\Omega$ that changes only because a model's total mass changes ($\tfrac23\Omega a^2\Delta m$) is
@@ -321,21 +321,21 @@
     publishes</b> (1000, 925, 850, 700, 500, 400, 300, 250, 200, 100, 50 hPa); each model's own budget uses all its levels.</li>
     <li><b>Torques</b> on the atmosphere, positive when they add westerly momentum: mountain
     $T_m = a^2\int h\,\partial p_s/\partial\lambda\,\cos\varphi\,d\lambda\,d\varphi$ from the model's <i>own</i> orography and
-    surface pressure on its own published grid, and again after averaging both to 0.5° and 1.5° (Brown, 2004); friction
+    surface pressure on its own published grid, and again after averaging both to 0.5° and 1.5°, since the resolved torque grows with resolution (Brown, 2004); friction
     $T_f = -a^3\int \tau_x\cos^2\varphi\,d\lambda\,d\varphi$ from (a) one <b>bulk law for every model</b>,
     $\tau = C_d\,\rho\,|V_{10}|\,u_{10}$ with $C_d$ fitted per 5° cell and month to ERA5's turbulent stress 1991–2020
     (the site's torque product), and (b) the model's own published stress where there is one. The bulk law cannot see a drag
     scheme; its differences between models are differences in their 10 m wind. Torques are 6-hourly (so the daily and
     semidiurnal tides cancel) and averaged over each forecast day; angular momentum is taken at the 24-hour steps.</li>
     <li><b>References.</b> Each model's own analysis is its control member's step 0 on the verifying day (for the AI models
-    the analysis they start from: NOAA's GDAS for AIGFS, ECMWF's for AIFS and AIFS-ENS); ERA5 (ARCO-ERA5,
+    the analysis they start from: NOAA's GDAS for AIGFS, ECMWF's for AIFS and AIFS-ENS); ERA5 (ARCO-ERA5, Carver and Merose, 2023;
     2026-09-14 to 2026-10-07) goes through the same code on 37 levels, with its own turbulent and gravity-wave stresses.
     Drift against ERA5 is the forecast-minus-ERA5 difference at day d minus the same difference at day 0.</li>
     <li><b>Regions</b> as in the torque study: rough terrain (above 1000 m, or subgrid orography standard deviation above 100 m)
     plus 500 km downstream; ocean at 30–65°; other ocean; other land; each by hemisphere. One ERA5 land-sea mask for all models.</li>
     <li><b>Statistics.</b> Members are averaged within an init, so an init is the unit. Means carry 95% moving-block bootstrap
     intervals (blocks of 3 consecutive inits, 2,000 draws); model differences are paired on the same inits; each family of tests
-    (leads × hemispheres, leads × regions, ranges) is controlled with Benjamini–Hochberg at a 10% false-discovery rate. Values
+    (leads × hemispheres, leads × regions, ranges) is controlled with Benjamini–Hochberg at a 10% false-discovery rate (Benjamini and Hochberg, 1995; Wilks, 2016). Values
     that fail it are shown as n.s. and are not findings.</li>
   </ul>
 
@@ -378,12 +378,13 @@
   <p>The 2012 project plotted the zonal-mean stress times $a^3\cos^2\varphi$ (N m) averaged over the first 24 hours of each 00Z
   forecast. The same quantity for January and July 2026, from the models that publish their stress, puts the 2026 models on the
   2012 axes:</p>
-  <figure id='fig7'><a href='/studies/model-drag-intercomparison/wgne_day1.webp' class='zoom'><img src='/studies/model-drag-intercomparison/wgne_day1.webp' alt="Zonal-mean day-1 surface stress over land, orographic stress and total, January and July 2026, with the 2012 peak values" loading='lazy'></a><figcaption><b>Figure 7.</b> Day-1 zonal-mean subgrid stress in the WGNE form, January (top) and July 2026 (bottom): boundary-layer stress over land, subgrid-orography stress, and the total over all surfaces. Grey box and coloured bars: the 2012 northern peak values read off the WGNE report's Figure 13 (January 2012). IFS publishes no orographic stress.</figcaption></figure>
-  <div class='tw'><table class='res'><thead><tr><th>January, NH peak, 10¹⁹ N m</th><th>IFS 2012</th><th>GDPS 2012</th><th>2012 high-resolution range</th><th>IFS 2026</th><th>GFS 2026</th><th>GEFS 2026</th><th>ERA5 2026</th></tr></thead><tbody><tr><th scope='row'>boundary-layer stress over land</th><td>0.85</td><td>0.52</td><td>0.33–0.55</td><td>0.90 <span class='sig'>(38°N, n=31)</span></td><td>0.46 <span class='sig'>(42°N, n=31)</span></td><td>0.45 <span class='sig'>(42°N, n=31)</span></td><td>0.99 <span class='sig'>(38°N, n=31)</span></td></tr><tr><th scope='row'>subgrid-orography stress</th><td>0.20</td><td>0.60</td><td>0.40–1.25</td><td></td><td>1.10 <span class='sig'>(38°N, n=31)</span></td><td>1.17 <span class='sig'>(38°N, n=31)</span></td><td>0.32 <span class='sig'>(38°N, n=31)</span></td></tr><tr><th scope='row'>total subgrid stress, all surfaces</th><td>1.85</td><td>1.90</td><td>1.60–2.35</td><td></td><td>2.70 <span class='sig'>(38°N, n=31)</span></td><td>2.74 <span class='sig'>(38°N, n=31)</span></td><td>2.52 <span class='sig'>(38°N, n=31)</span></td></tr><tr class='grp'><th scope='row'>July, SH peak</th></tr><tr><th scope='row'>total subgrid stress, all surfaces</th><td></td><td></td><td>2.20–2.50</td><td></td><td>1.73 <span class='sig'>(52°S, n=31)</span></td><td>1.77 <span class='sig'>(52°S, n=31)</span></td><td>1.77 <span class='sig'>(52°S, n=31)</span></td></tr></tbody></table></div>
-  <p class="tcap">2012 values read off Figure 13 of the WGNE Drag Project report (Zadra et al., 2013), January 2012, first
-  24 h, to about ±0.05 ×10¹⁹ N m; "high-resolution range" spans the eight models other than CPTEC's two AGCMs. 2026: mean
+  <figure id='fig7'><a href='/studies/model-drag-intercomparison/wgne_day1.webp' class='zoom'><img src='/studies/model-drag-intercomparison/wgne_day1.webp' alt="Zonal-mean day-1 surface stress over land, orographic stress and total, January and July 2026, with the 2012 peak values" loading='lazy'></a><figcaption><b>Figure 7.</b> Day-1 zonal-mean subgrid stress in the WGNE form, January (top) and July 2026 (bottom): boundary-layer stress over land, subgrid-orography stress, and the total over all surfaces. Grey box and coloured bars: the 2012 northern peak values read off the WGNE report's Figures 13 (January 2012, northern peaks) and 14 (July 2012, southern peak). IFS publishes no orographic stress.</figcaption></figure>
+  <div class='tw'><table class='res'><thead><tr><th>January, NH peak, 10¹⁹ N m</th><th>IFS 2012</th><th>GDPS 2012</th><th>2012 range, other models</th><th>IFS 2026</th><th>GFS 2026</th><th>GEFS 2026</th><th>ERA5 2026</th></tr></thead><tbody><tr><th scope='row'>boundary-layer stress over land</th><td>0.85</td><td>0.52</td><td>0.33–0.55</td><td>0.90 <span class='sig'>(38°N, n=31)</span></td><td>0.46 <span class='sig'>(42°N, n=31)</span></td><td>0.45 <span class='sig'>(42°N, n=31)</span></td><td>0.99 <span class='sig'>(38°N, n=31)</span></td></tr><tr><th scope='row'>subgrid-orography stress</th><td>0.20</td><td>0.60</td><td>0.40–1.25</td><td></td><td>1.10 <span class='sig'>(38°N, n=31)</span></td><td>1.17 <span class='sig'>(38°N, n=31)</span></td><td>0.32 <span class='sig'>(38°N, n=31)</span></td></tr><tr><th scope='row'>total subgrid stress, all surfaces</th><td>1.85</td><td>1.90</td><td>1.60–2.35</td><td></td><td>2.70 <span class='sig'>(38°N, n=31)</span></td><td>2.74 <span class='sig'>(38°N, n=31)</span></td><td>2.52 <span class='sig'>(38°N, n=31)</span></td></tr><tr class='grp'><th scope='row'>July, SH peak</th></tr><tr><th scope='row'>total subgrid stress, all surfaces</th><td></td><td></td><td>2.20–2.50</td><td></td><td>1.73 <span class='sig'>(52°S, n=31)</span></td><td>1.77 <span class='sig'>(52°S, n=31)</span></td><td>1.77 <span class='sig'>(52°S, n=31)</span></td></tr></tbody></table></div>
+  <p class="tcap">2012 values read off Figures 13 (January 2012) and 14 (July 2012) of the WGNE Drag Project report (Zadra,
+  2013), first 24 h, to about ±0.05 ×10¹⁹ N m; "2012 range, other models" spans GDPS, ARPEGE, UKMO GM, JMA GSM, HMCR SL-AV and
+  BoM ACCESS, leaving out IFS and CPTEC's two AGCMs (the report counts SL-AV among its coarser models). 2026: mean
   of the 00Z forecasts of the month, northern peak between 25 and 65°N. The 2012 GDPS and IFS are not today's models.</p>
-  <p>In January 2026 the IFS's boundary-layer stress over land peaks at 0.90 ×10¹⁹ N m (2012: 0.85), ERA5's at 0.99, GFS's at 0.46 and GEFS's at 0.45 (the 2012 range of the other high-resolution models was 0.33–0.55). GFS and GEFS put 1.10 and 1.17 into their subgrid-orography schemes, against ERA5's 0.32 (2012: IFS 0.20, the others 0.4–1.25). IFS still carries most of its land drag in its boundary layer, as in 2012, while GFS, which was not in the 2012 comparison, carries more in its orographic schemes than in its boundary layer, the split the Met Office, JMA and Bureau models had then. GFS's and GEFS's totals over all surfaces, 2.70 (GFS) and 2.74 (GEFS), compare with ERA5's 2.52 on the same days. Over the oceans the 2026 models agree as closely as in 2012 (boundary-layer stress over water, NH peak: GFS 1.25, IFS 1.26, ERA5 1.22). Different winters weigh in as well as different models, so the same-month ERA5 values are the reference, not the 2012 numbers.</p>
+  <p>In January 2026 the IFS's boundary-layer stress over land peaks at 0.90 ×10¹⁹ N m (2012: 0.85), ERA5's at 0.99, GFS's at 0.46 and GEFS's at 0.45 (the 2012 range of the other models was 0.33–0.55). GFS and GEFS put 1.10 and 1.17 into their subgrid-orography schemes, against ERA5's 0.32 (2012: IFS 0.20, the others 0.4–1.25). IFS still carries most of its land drag in its boundary layer, as in 2012, while GFS, which was not in the 2012 comparison, carries more in its orographic schemes than in its boundary layer, the split the Met Office, JMA and Bureau models had then. GFS's and GEFS's totals over all surfaces, 2.70 (GFS) and 2.74 (GEFS), compare with ERA5's 2.52 on the same days. Over the oceans the 2026 models agree as closely as in 2012 (boundary-layer stress over water, NH peak: GFS 1.25, IFS 1.26, ERA5 1.22). Different winters weigh in as well as different models, so the same-month ERA5 values are the reference, not the 2012 numbers.</p>
 
   <h2>6. Low-level winds: do they weaken or strengthen as the forecast runs?</h2>
   <p>In the torque study ERA5's analysis weakened both the trades and the mid-latitude surface westerlies. Here the same
@@ -428,7 +429,7 @@
     <li><b>Vertical sampling.</b> 12 to 41 published levels. The comparison uses the 11 common levels, which change the size of
     angular momentum more than its change (section 7). Below-ground layers are removed by each model's own surface pressure.</li>
     <li><b>Stress definitions.</b> GFS's UFLX is its turbulent stress and U-GWD its orographic gravity-wave and blocking stress;
-    IFS's ewss includes turbulent orographic form drag but not blocking or gravity-wave drag; ERA5's turbulent stress includes
+    IFS's ewss includes turbulent orographic form drag (Beljaars et al., 2004) but not blocking or gravity-wave drag; ERA5's turbulent stress includes
     form drag and its gravity-wave stress includes blocking. 2012 WGNE "PBL" and "SGO" follow each model's own split.</li>
     <li><b>The bulk friction law</b> was fitted to ERA5; applied to another model it measures that model's 10 m wind, not its drag.</li>
     <li><b>Sample and season.</b> Autumn 2026 (September–October), with El Niño developing; GEM inits only from 14 September and,
@@ -450,33 +451,42 @@
 
   <h2>References</h2>
   <ol class="refs">
-    <li>Beljaars, A. C. M., A. R. Brown and N. Wood, 2004: A new parametrization of turbulent orographic form drag. <i>Q. J. R. Meteorol. Soc.</i>, 130, 1327–1347.</li>
-    <li>Benjamini, Y., and Y. Hochberg, 1995: Controlling the false discovery rate. <i>J. R. Stat. Soc. B</i>, 57, 289–300.</li>
-    <li>Brown, A. R., 2004: Resolution dependence of orographic torques. <i>Q. J. R. Meteorol. Soc.</i>, 130, 3029–3046.</li>
-    <li>ECCC, 2019: Global Deterministic Prediction System (GDPS) version 7.0.0, technical note. Canadian Meteorological Centre. <a href="https://collaboration.cmc.ec.gc.ca/cmc/cmoi/product_guide/docs/tech_notes/technote_gdps-700_e.pdf">PDF</a></li>
-    <li>ECCC, 2021: Global Ensemble Prediction System (GEPS) version 7.0.0, technical note. <a href="https://collaboration.cmc.ec.gc.ca/cmc/cmoi/product_guide/docs/tech_notes/technote_geps-700_e.pdf">PDF</a></li>
-    <li>ECCC, 2024: Global Ensemble Prediction System (GEPS) version 8.0.0, technical note. <a href="https://collaboration.cmc.ec.gc.ca/cmc/cmoi/product_guide/docs/tech_notes/technote_geps-800_e.pdf">PDF</a></li>
-    <li>ECCC, 2026: Global Deterministic Prediction System (GDPS) version 10.0.0, technical note (spectral nudging toward GEML). <a href="https://collaboration.cmc.ec.gc.ca/cmc/cmoi/product_guide/docs/tech_notes/technote_gdps-1000_e.pdf">PDF</a></li>
+    <li>Beljaars, A. C. M., A. R. Brown and N. Wood, 2004: A new parametrization of turbulent orographic form drag. <i>Q. J. R. Meteorol. Soc.</i>, 130, 1327–1347. <a href="https://doi.org/10.1256/qj.03.73">doi:10.1256/qj.03.73</a></li>
+    <li>Benjamini, Y., and Y. Hochberg, 1995: Controlling the false discovery rate: a practical and powerful approach to multiple testing. <i>J. R. Stat. Soc. B</i>, 57, 289–300. <a href="https://doi.org/10.1111/j.2517-6161.1995.tb02031.x">doi:10.1111/j.2517-6161.1995.tb02031.x</a></li>
+    <li>Brown, A. R., 2004: Resolution dependence of orographic torques. <i>Q. J. R. Meteorol. Soc.</i>, 130, 3029–3046. <a href="https://doi.org/10.1256/qj.04.21">doi:10.1256/qj.04.21</a></li>
+    <li>Carver, R. W., and A. Merose, 2023: ARCO-ERA5: An analysis-ready cloud-optimized reanalysis dataset. <i>22nd Conf. on Artificial Intelligence for Environmental Science</i>, Denver, CO, Amer. Meteor. Soc., 4A.1.</li>
+    <li>ECCC, 2019: GDPS: Update from version 6.1.0 to version 7.0.0. CMC Technical Note, 3 July 2019. <a href="https://collaboration.cmc.ec.gc.ca/cmc/cmoi/product_guide/docs/tech_notes/technote_gdps-700_e.pdf">PDF</a></li>
+    <li>ECCC, 2021: GEPS: Update from version 6.1 to version 7.0. CMC Technical Note, 1 December 2021. <a href="https://collaboration.cmc.ec.gc.ca/cmc/cmoi/product_guide/docs/tech_notes/technote_geps-700_e.pdf">PDF</a></li>
+    <li>ECCC, 2024: GEPS: Update from version 7.1.0 to version 8.0.0. CMC Technical Note, 11 June 2024. <a href="https://collaboration.cmc.ec.gc.ca/cmc/cmoi/product_guide/docs/tech_notes/technote_geps-800_e.pdf">PDF</a></li>
+    <li>ECCC, 2026: GDPS: Update from version 9.1 to 10.0 (spectral nudging toward GEML). CMC Technical Note, 26 May 2026. <a href="https://collaboration.cmc.ec.gc.ca/cmc/cmoi/product_guide/docs/tech_notes/technote_gdps-1000_e.pdf">PDF</a></li>
     <li>ECMWF, 2023: Implementation of IFS cycle 48r1. <a href="https://confluence.ecmwf.int/display/FCST/Implementation+of+IFS+Cycle+48r1">ECMWF</a></li>
-    <li>Egger, J., K. Weickmann and K.-P. Hoinka, 2007: Angular momentum in the global atmospheric circulation. <i>Rev. Geophys.</i>, 45, RG4007.</li>
-    <li>Hersbach, H., and co-authors, 2020: The ERA5 global reanalysis. <i>Q. J. R. Meteorol. Soc.</i>, 146, 1999–2049.</li>
-    <li>Kanehama, T., I. Sandu, A. Beljaars, A. van Niekerk, N. Wedi, S. Boussetta, S. Lang, S. Johnson and L. Magnusson, 2022: Evaluation and optimization of orographic drag in the IFS. <i>ECMWF Tech. Memo.</i> 893. <a href="https://doi.org/10.21957/fps6gngqe">doi:10.21957/fps6gngqe</a></li>
+    <li>ECMWF, 2024: Implementation of IFS cycle 49r1. <a href="https://confluence.ecmwf.int/display/FCST/Implementation+of+IFS+Cycle+49r1">ECMWF</a></li>
+    <li>ECMWF, 2026: Implementation of IFS cycle 50r1. <a href="https://confluence.ecmwf.int/display/FCST/Implementation+of+IFS+Cycle+50r1">ECMWF</a></li>
+    <li>Egger, J., K. Weickmann and K.-P. Hoinka, 2007: Angular momentum in the global atmospheric circulation. <i>Rev. Geophys.</i>, 45, RG4007. <a href="https://doi.org/10.1029/2006RG000213">doi:10.1029/2006RG000213</a></li>
+    <li>Hersbach, H., and co-authors, 2020: The ERA5 global reanalysis. <i>Q. J. R. Meteorol. Soc.</i>, 146, 1999–2049. <a href="https://doi.org/10.1002/qj.3803">doi:10.1002/qj.3803</a></li>
+    <li>Kanehama, T., I. Sandu, A. Beljaars, A. van Niekerk, N. Wedi, S. Boussetta, S. Lang, S. Johnson and L. Magnusson, 2022: Evaluation and optimization of orographic drag in the IFS. ECMWF Tech. Memo. 893. <a href="https://doi.org/10.21957/fps6gngqe">doi:10.21957/fps6gngqe</a></li>
+    <li>Lang, S., and co-authors, 2024a: AIFS – ECMWF's data-driven forecasting system. <a href="https://arxiv.org/abs/2406.01465">arXiv:2406.01465</a></li>
+    <li>Lang, S., and co-authors, 2024b: AIFS-CRPS: Ensemble forecasting using a model trained with a loss function based on the Continuous Ranked Probability Score. <a href="https://arxiv.org/abs/2412.15832">arXiv:2412.15832</a></li>
     <li>McTaggart-Cowan, R., et al., 2019: Modernization of atmospheric physics parameterization in Canadian NWP. <i>J. Adv. Model. Earth Syst.</i>, 11, 3593–3635. <a href="https://doi.org/10.1029/2019MS001781">doi:10.1029/2019MS001781</a></li>
-    <li>NCEP EMC, 2021: GFS v16 implementation. <a href="https://www.emc.ncep.noaa.gov/users/impldocs/GFS.v16_Implementation.pdf">PDF</a></li>
+    <li>NCEP EMC, 2020: EMC–NCO GFS.v16 implementation kick-off meeting (slides), 11 June 2020. <a href="https://www.emc.ncep.noaa.gov/users/impldocs/GFS.v16_Implementation.pdf">PDF</a></li>
+    <li>NWS, 2021: Service Change Notice 21-20 (updated): Upgrade NCEP Global Forecast Systems (GFS) to v16: effective March 22, 2021. <a href="https://www.weather.gov/media/notification/pdf2/scn21-20gfs_v16.0_aac.pdf">PDF</a></li>
     <li>Sandu, I., P. Bechtold, A. Beljaars, A. Bozzo, F. Pithan, T. G. Shepherd and A. Zadra, 2016: Impacts of parameterized orographic drag on the Northern Hemisphere winter circulation. <i>J. Adv. Model. Earth Syst.</i>, 8, 196–211. <a href="https://doi.org/10.1002/2015MS000564">doi:10.1002/2015MS000564</a></li>
-    <li>Sandu, I., and co-authors, 2019: Impacts of orography on large-scale atmospheric circulation. <i>npj Clim. Atmos. Sci.</i>, 2, 10.</li>
-    <li>van Niekerk, A., and co-authors, 2020: Constraining Orographic Drag Effects (COORDE): a model comparison of resolved and parametrized orographic drag. <i>J. Adv. Model. Earth Syst.</i>, 12, e2020MS002160.</li>
-    <li>Wilks, D. S., 2016: "The stippling shows statistically significant grid points". <i>Bull. Amer. Meteor. Soc.</i>, 97, 2263–2273.</li>
+    <li>Sandu, I., and co-authors, 2019: Impacts of orography on large-scale atmospheric circulation. <i>npj Clim. Atmos. Sci.</i>, 2, 10. <a href="https://doi.org/10.1038/s41612-019-0065-9">doi:10.1038/s41612-019-0065-9</a></li>
+    <li>van Niekerk, A., I. Sandu, A. Zadra, E. Bazile, T. Kanehama, M. Köhler, M.-S. Koo, H.-J. Choi, Y. Kuroki, M. D. Toy, S. B. Vosper and V. Yudin, 2020: COnstraining ORographic Drag Effects (COORDE): a model comparison of resolved and parametrized orographic drag. <i>J. Adv. Model. Earth Syst.</i>, 12, e2020MS002160. <a href="https://doi.org/10.1029/2020MS002160">doi:10.1029/2020MS002160</a></li>
+    <li>Wilks, D. S., 2016: "The stippling shows statistically significant grid points": how research results are routinely overstated and overinterpreted, and what to do about it. <i>Bull. Amer. Meteor. Soc.</i>, 97, 2263–2273. <a href="https://doi.org/10.1175/BAMS-D-15-00267.1">doi:10.1175/BAMS-D-15-00267.1</a></li>
     <li>Zadra, A., 2018: Notes on the new low-pass filter for the orography field. Internal report, published with the WGNE Drag Project. <a href="https://collaboration.cmc.ec.gc.ca/science/rpn/drag_project/documents/topo_lowpass_filter.pdf">PDF</a></li>
     <li>Zadra, A., 2022: Challenges representing orographic drag in (Canadian) numerical prediction systems. ECMWF Annual Seminar 2022. <a href="https://events.ecmwf.int/event/300/contributions/3292/attachments/1952/3525/AS2022_Zadra.pdf">PDF</a></li>
-    <li>Zadra, A., and contributors, 2013: WGNE Drag Project: an inter-model comparison of surface stresses. Report no. 1. <a href="https://collaboration.cmc.ec.gc.ca/science/rpn/drag_project/documents/wgne_drag_project_report01.pdf">PDF</a>; project pages: <a href="https://collaboration.cmc.ec.gc.ca/science/rpn/drag_project">WGNE Drag Project</a></li>
+    <li>Zadra, A., 2013: WGNE Drag Project – An inter-model comparison of surface stresses. Report no. 1, Environment Canada. <a href="https://collaboration.cmc.ec.gc.ca/science/rpn/drag_project/documents/wgne_drag_project_report01.pdf">PDF</a>; project pages: <a href="https://collaboration.cmc.ec.gc.ca/science/rpn/drag_project">WGNE Drag Project</a></li>
   </ol>
 
   <h2>Data credits</h2>
   <p class="credits">GFS, GEFS and AIGFS: NOAA/NCEP, via the NOAA Open Data Dissemination programme on AWS. IFS, AIFS and
-  AIFS-ENS: ECMWF open data (CC BY 4.0), Google Cloud mirror. GDPS and GEPS: Environment and Climate Change Canada, MSC Datamart;
-  contains information licensed under the Open Government Licence – Canada. ERA5 (Hersbach et al., 2020), Copernicus Climate
-  Change Service (C3S) / ECMWF, via the ARCO-ERA5 store on Google Cloud; contains modified Copernicus Climate Change Service
+  AIFS-ENS: ECMWF open data, Google Cloud mirror: © 2026 European Centre for Medium-Range Weather Forecasts (ECMWF), source <a href="https://www.ecmwf.int">www.ecmwf.int</a>,
+  licensed under <a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a>; reduced and modified for this study; ECMWF does not accept any
+  liability whatsoever for any error or omission in the data, their availability, or for any loss or damage arising from their use. GDPS and GEPS: Data Source: Environment and Climate
+  Change Canada (MSC Datamart), under the <a href="https://eccc-msc.github.io/open-data/licence/readme_en/">ECCC Data Servers
+  End-use Licence</a>. ERA5 (Hersbach et al., 2020), Copernicus Climate Change Service (C3S) / ECMWF, CC BY 4.0, via the
+  ARCO-ERA5 store on Google Cloud (Carver and Merose, 2023); contains modified Copernicus Climate Change Service
   information 2026. Neither ECMWF nor the European Commission is responsible for any use of this information. All downloads ran in
   GitHub Actions; only the reduced diagnostics are kept (<a href="https://github.com/scorvec/scorvec.github.io/tree/main/scripts/amdrag">scripts/amdrag</a>).</p>
   <p class="byline">Written by Claude, Anthropic's AI model, at the direction of <a href="/about.html">Shawn Corvec</a>, meteorologist. Published 13 October 2026; rebuilt daily as the
