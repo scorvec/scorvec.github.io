@@ -1,0 +1,76 @@
+name: CMIP6 cold-spell reductions (one-off study input)
+
+# One-off (2026-10-15): daily US population-weighted tas, psl/zg circulation and vortex indices, EdayZ 60N wind and the
+# 15S-15N pr/rlut ring from each CMIP6 historical member (public Pangeo CMIP6 Google Cloud mirror, anonymous), every year
+# in the store, for the cold-spell lead-time study in model space (scripts/coldspell/cmip6_coldspell_extract.py).
+# One matrix job per member; the reductions stay run artifacts (laptop analysis). Dispatch only, no cron.
+# members: comma-separated model:member[:vars] - vars '+'-separated (default tas+psl+zg+pr+rlut+ua).
+
+on:
+  workflow_dispatch:
+    inputs:
+      members:
+        description: 'model:member[:vars] list'
+        required: true
+        default: 'CanESM5:r1i1p1f1'
+      parallel:
+        description: 'Max parallel jobs'
+        required: false
+        default: '10'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cmip6-coldspell
+  cancel-in-progress: false
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.m.outputs.matrix }}
+    steps:
+      - id: m
+        run: |
+          python3 - <<'EOF' >> "$GITHUB_OUTPUT"
+          import json
+          inc = []
+          for p in "${{ inputs.members }}".split(","):
+              p = p.strip().split(":")
+              if len(p) < 2: continue
+              inc.append({"model": p[0], "member": p[1], "vars": (p[2] if len(p) > 2 else "tas+psl+zg+pr+rlut+ua").replace("+", ",")})
+          print("matrix=" + json.dumps({"include": inc}))
+          EOF
+
+  member:
+    needs: plan
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    strategy:
+      fail-fast: false
+      max-parallel: ${{ fromJSON(inputs.parallel) }}
+      matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          sparse-checkout: |
+            scripts/coldspell
+          sparse-checkout-cone-mode: false
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+      - run: pip install --quiet numpy pandas xarray "zarr>=3" gcsfs cftime dask
+      - name: Catalogue
+        run: curl -sSf --retry 3 -o /tmp/pangeo-cmip6.csv https://storage.googleapis.com/cmip6/pangeo-cmip6.csv
+      - name: Reduce ${{ matrix.model }} ${{ matrix.member }}
+        timeout-minutes: 330
+        run: python scripts/coldspell/cmip6_coldspell_extract.py --catalog /tmp/pangeo-cmip6.csv --model ${{ matrix.model }} --member ${{ matrix.member }} --vars ${{ matrix.vars }} --out out
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: cs_${{ matrix.model }}_${{ matrix.member }}
+          path: out/
+          retention-days: 30
+          if-no-files-found: ignore
+          compression-level: 0
