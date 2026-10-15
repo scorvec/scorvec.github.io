@@ -610,7 +610,7 @@ def topic_page(t: dict, today: str) -> str:
 <div class="topic" style="padding-top:0">
   <section class="related"><h2>Related</h2><ul>{related}<li><a href="/topics/">All explainers</a></li></ul></section>
   <section><h2>References</h2><ol class="refs">{refs}</ol></section>
-  <p class="byline">By <a href="/">Shawn Corvec</a>, meteorologist. The figures on this page are live and update with each forecast cycle; the text was last revised {today}.</p>
+  <p class="byline">Written by Claude, Anthropic's AI model, at the direction of <a href="/">Shawn Corvec</a>, meteorologist. The figures on this page are live and update with each forecast cycle; the text was last revised {today}.</p>
 </div>
 </main>
 {RESIZE}
@@ -639,7 +639,7 @@ def hub_page(today: str) -> str:
   shown with its current forecast. They are written for meteorologists and students who want to know what a chart is
   measuring before trusting it.</p>
   <ul class="hub-list">{items}</ul>
-  <p class="byline">By <a href="/">Shawn Corvec</a>, meteorologist. Last revised {today}.</p>
+  <p class="byline">Written by Claude, Anthropic's AI model, at the direction of <a href="/">Shawn Corvec</a>, meteorologist. Last revised {today}.</p>
 </article>
 </main>
 </body>

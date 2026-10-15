@@ -954,9 +954,7 @@ def main() -> int:
   responsible for any use of this information. CMIP6 output from the modelling centres via the Pangeo CMIP6 mirror on Google
   Cloud (WCRP CMIP6, CC BY 4.0 where so licensed). ONI and ERSSTv6 Niño-3.4: NOAA CPC and PSL. Effective angular momentum
   functions: GFZ Potsdam (ESMGFZ). About 400 GB of ERA5 and 450 GB of CMIP6 fields were read, in GitHub Actions.</p>
-  <p class="byline">By <a href="/about.html">Shawn Corvec</a>, meteorologist. Published 13 October 2026. A static study: it is not
-  updated.</p>
-  <p class="byline">Authored by Claude, Anthropic's AI model, at the direction of Shawn Corvec.</p>
+  <p class="byline">Written by Claude, Anthropic's AI model, at the direction of <a href="/about.html">Shawn Corvec</a>, meteorologist. Published 13 October 2026. Not updated since.</p>
 </article>
 """
     ld = {"@context": "https://schema.org", "@type": "ScholarlyArticle", "headline": H1, "name": TITLE, "description": DESC,
