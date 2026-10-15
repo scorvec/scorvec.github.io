@@ -148,7 +148,19 @@
   // A clear horizontal swipe on the figure steps the plot. Vertical scrolling and pinch-zoom are left alone:
   // one finger only, mostly sideways (|dx| > 2|dy|), far enough (60 px) and quick (< 700 ms), and never on
   // something that scrolls sideways or pans by itself (option rows, wide tables, Plotly charts, sliders).
-  function swipeable(t, root) {
+  // Animator sliders (2026-10-15, user: on a phone, sliding the animator "sometimes selects a new product"): a phone
+  // grabs a range thumb from a touch that lands just beside the thin input, so the target is the row, not the input.
+  // A touch within a finger's reach of any slider is never a swipe, and a gesture that moved a slider is dropped.
+  function nearSlider(root, x, y) {
+    var rs = root.querySelectorAll('input[type="range"]');
+    for (var i = 0; i < rs.length; i++) {
+      var r = rs[i].getBoundingClientRect();
+      if (r.width && x > r.left - 24 && x < r.right + 24 && y > r.top - 32 && y < r.bottom + 32) return true;
+    }
+    return false;
+  }
+  function swipeable(t, root, x, y) {
+    if (nearSlider(root, x, y)) return false;
     for (var el = t; el && el !== root; el = el.parentElement) {
       if (el.matches && el.matches("input, select, textarea, .js-plotly-plot, .controls, [data-noswipe]")) return false;
       if (el.scrollWidth > el.clientWidth + 2) { var ox = getComputedStyle(el).overflowX; if (ox === "auto" || ox === "scroll") return false; }
@@ -162,8 +174,10 @@
   function wireSwipe() {
     var st = $("stage"), t0 = null;
     st.addEventListener("touchstart", function (e) {
-      t0 = (e.touches.length === 1 && zoom() < 1.02 && swipeable(e.target, st)) ? { x: e.touches[0].clientX, y: e.touches[0].clientY, t: Date.now(), z: zoom() } : null;
+      var p = e.touches[0];
+      t0 = (e.touches.length === 1 && zoom() < 1.02 && swipeable(e.target, st, p.clientX, p.clientY)) ? { x: p.clientX, y: p.clientY, t: Date.now(), z: zoom() } : null;
     }, { passive: true });
+    st.addEventListener("input", function (e) { if (e.target && e.target.type === "range") t0 = null; }, true);
     st.addEventListener("touchmove", function (e) { if (e.touches.length > 1) t0 = null; }, { passive: true });
     st.addEventListener("touchend", function (e) {
       if (!t0 || !e.changedTouches.length) return;
