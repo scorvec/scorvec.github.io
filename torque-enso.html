@@ -275,11 +275,11 @@
     11.3 Hadley short of the annual budget. At each of its twice-daily 4D-Var window starts the analysis adds angular momentum, about
     8 Hadley on average, in every month of 2025–26. The physics ensemble IFS-ENS loses angular
     momentum in free forecasts through its own torques; the data-driven AIFS-ENS does not. Too much drag in ERA5's model (IFS cycle
-    41r2, before ECMWF's 2022 drag retuning) is the leading candidate, not the only one. About 74% of the momentum
+    41r2, before the orographic-drag revision ECMWF made operational in cycle 48r1 in June 2023) is the leading candidate, not the only one. About 74% of the momentum
     the analysis adds goes into mid-latitude westerlies, 87% of that between 650 and 100 hPa; in the tropics the
     gain below 875 hPa and the loss at 850–700 hPa nearly cancel.</li>
-    <li><b>3. Too much drag, but not over the mountains.</b> Operational experience with GEM and ECMWF's own record (Kanehama et al.,
-    2022) show models tuned toward more drag because it improves scores. Yet only 6% [4, 8] of the momentum the analysis adds below
+    <li><b>3. Too much drag, but not over the mountains.</b> ECMWF's own record (Kanehama et al., 2022) and
+    operational experience with GEM (unpublished) show models tuned toward more drag because it improves scores. Yet only 6% [4, 8] of the momentum the analysis adds below
     850 hPa lands over or just downstream of rough terrain, which covers 22% of the globe;
     89% [83, 96] lands over the tropical and other oceans. In the tropics the whole trade-wind boundary layer is too fast: the
     analysis slows the trades from the surface to about 875 hPa, more than it speeds them up at 850–700 hPa. In mid-latitudes the
@@ -295,7 +295,7 @@
   <p>Angular momentum about the Earth's axis measures how much faster than the planet the atmosphere turns. Most of it is in the
   westerly winds, weighted toward low latitudes, which are farther from the axis; a smaller mass term depends on how the air is spread
   between latitudes. The atmosphere can gain it only from the solid Earth and oceans, so when the atmosphere spins up the Earth slows
-  and the day lengthens. Rosen et al. (1984) first showed this happens in El Niño. Here 10²⁵ kg m² s⁻¹ of extra atmospheric
+  and the day lengthens. Rosen et al. (1984) showed this in the 1982–83 El Niño; Stefanick (1982) had already tied year-to-year swings in angular momentum and day length to the Southern Oscillation. Here 10²⁵ kg m² s⁻¹ of extra atmospheric
   angular momentum lengthens the day by about 0.17 ms.</p>
   <p><b>Why El Niño spins the atmosphere up.</b> El Niño warms the whole tropical troposphere, with bands of cooling in the middle
   latitudes of both hemispheres (Seager et al., 2003). By the thermal-wind relation the stronger temperature gradient strengthens
@@ -322,7 +322,7 @@
   second only to early 1983
   and about twice what an ONI of 2.2 K alone predicts
   (section 6).</p>
-  <figure id='fig1'><a href='/studies/torque-enso/gfz_aam_enso.webp' class='zoom'><img src='/studies/torque-enso/gfz_aam_enso.webp' alt="Top: monthly 3-month-mean global angular momentum anomalies from GFZ, 1979 to 2026, coloured red in El Niño seasons, blue in La Niña seasons and grey otherwise, with the ONI scaled by the regression overlaid. Bottom: the same anomalies against the ONI, with the regression line, the mean of each phase with its 95% interval, and the 2026 seasons marked" loading='lazy'></a><figcaption><b>Figure 1.</b> Global angular momentum (wind term) from GFZ's effective angular momentum functions, built from ECMWF's analyses: 3-month means of the monthly anomaly from 1991–2020, with the 1979–2025 trend removed, against CPC's official ONI for the same season, 1979–2026 (572 overlapping seasons). Top: the anomaly, coloured by ENSO phase; the black line is the ONI times the fitted slope; the right axis gives the change in the length of the day. Bottom: each season against its ONI. Large dots: phase means with 95% intervals (24-month block bootstrap, 2,000 draws); open circles: 2026.</figcaption></figure>
+  <figure id='fig1'><a href='/studies/torque-enso/gfz_aam_enso.webp' class='zoom'><img src='/studies/torque-enso/gfz_aam_enso.webp' alt="Top: monthly 3-month-mean global angular momentum anomalies from GFZ, 1979 to 2026, coloured red in El Niño seasons, blue in La Niña seasons and grey otherwise, with the ONI scaled by the regression overlaid. Bottom: the same anomalies against the ONI, with the regression line, the mean of each phase with its 95% interval, and the 2026 seasons marked" loading='lazy'></a><figcaption><b>Figure 1.</b> Global angular momentum (wind term) from GFZ's effective angular momentum functions, built from ECMWF's analyses: 3-month means of the monthly anomaly from 1991–2020, with the 1979–2025 trend removed, against CPC's ONI for the same season, 1979–2026 (572 overlapping seasons). Top: the anomaly, coloured by ENSO phase; the black line is the ONI times the fitted slope; the right axis gives the change in the length of the day. Bottom: each season against its ONI. Large dots: phase means with 95% intervals (24-month block bootstrap, 2,000 draws); open circles: 2026.</figcaption></figure>
   <p><b>How the momentum gets in.</b> All of it has to come through the surface:</p>
   <p>$$\frac{dM}{dt} = T_{\text{mountain}} + T_{\text{friction}} + T_{\text{gravity-wave drag}},\qquad
   T_{\text{mountain}} = -\iint p_s\,\frac{\partial h}{\partial\lambda}\,dA = \iint h\,\frac{\partial p_s}{\partial \lambda}\,dA .$$</p>
@@ -332,7 +332,7 @@
   and surface westerlies take it back. Gravity-wave drag is the model's account of unresolved mountains. Cold highs banked against
   the east side of a range, such as cold surges east of the Rockies (Colle and Mass, 1995), cold-air incursions east of the Andes
   (Garreaud, 2000) and the East Asian surges, supply most of the day-to-day mountain torque and much of the week-to-week swing in
-  angular momentum (Iskenderian and Salstein, 1998; Weickmann et al., 1997; Lott et al., 2004). See the <a href="/topics/mountain-torque.html">mountain torque</a> and
+  angular momentum (Iskenderian and Salstein, 1998; Weickmann, 2003; Lott et al., 2004). See the <a href="/topics/mountain-torque.html">mountain torque</a> and
   <a href="/topics/atmospheric-angular-momentum.html">angular momentum</a> explainers.</p>
   <p>Two questions are less settled. Does El Niño's extra momentum come through those weather events or through the time-mean
   pressure pattern? And how does it split between mountain and friction torque? Reanalysis budgets do not close exactly (Huang et al.,
@@ -340,7 +340,7 @@
 
   <h2>2. Data and method</h2>
   <ul>
-    <li><b>ERA5</b> (Hersbach et al., 2020) from the ARCO-ERA5 store on Google Cloud, read in GitHub Actions: surface pressure, the
+    <li><b>ERA5</b> (Hersbach et al., 2020) from the ARCO-ERA5 store on Google Cloud (Carver and Merose, 2023), read in GitHub Actions: surface pressure, the
     turbulent and gravity-wave surface stresses and the vertical integral of eastward mass flux (an exact full-column wind term).
     Data are at 00, 06, 12 and 18 UTC from 1 January 1959 to 3 October 2026 (24,748 days, none missing). Four times a day rather than
     two, because at 00 and 12 UTC the semidiurnal pressure tide has the same phase and a twice-daily mean aliases it. The mass term
@@ -362,19 +362,19 @@
     term from ECMWF's analyses is averaged to months (complete months only), taken as anomalies from 1991–2020 with the 1979–2025
     trend removed, then averaged over 3 months to match the ONI's seasons. The years 1976–78 are left out: GFZ minus ERA5 is
     0.48 ×10²⁵ larger then than its mean since 1979, against at most 0.18 in any later year, and which
-    record is wrong is unknown. With CPC's relative ONI (RONI) the slope is
+    record is wrong is unknown. With CPC's relative ONI (RONI; L'Heureux et al., 2024) the slope is
     +0.65 [+0.50, +0.77]; without the
     trend removal, +0.74 [+0.59, +0.85].</li>
-    <li><b>ENSO phase</b> from CPC's official ONI for each season (El Niño ≥ +0.5, La Niña ≤ −0.5, otherwise neutral). Season-years
+    <li><b>ENSO phase</b> from CPC's ONI for each season (El Niño ≥ +0.5, La Niña ≤ −0.5, otherwise neutral; CPC's official index is now the RONI, above). Season-years
     1979–2025: DJF 16 El Niño, 15 neutral, 16 La Niña; MAM 9,
     30, 8; JJA 8, 34, 5; SON 15,
     17, 15.</li>
     <li><b>Tests</b>: each season-year is one unit. El Niño minus neutral differences are tested by permuting the phase labels
-    (20,000 draws), with bootstrap 95% intervals; regressions on the ONI use a moving-block bootstrap (blocks of three season-years).
+    (20,000 draws), with bootstrap 95% intervals; regressions on the ONI use a moving-block bootstrap (blocks of three season-years; Künsch, 1989).
     The false discovery rate is held at 10% across the 24 range–season cells of each statistic (Benjamini and Hochberg, 1995; Wilks,
-    2016). Monthly regressions on the detrended ERSSTv6 Niño-3.4 anomaly at lags of −6 to +12 months use a 24-month block bootstrap
+    2016). Monthly regressions on the detrended ERSSTv6 (Huang et al., 2025) Niño-3.4 anomaly at lags of −6 to +12 months use a 24-month block bootstrap
     (2,000 draws), with the FDR across lags. Maps are tested per grid cell with the FDR over the field.</li>
-    <li><b>CMIP6</b> historical runs 1950–2014 from the Pangeo Google Cloud mirror (Eyring et al., 2016): 41 models and
+    <li><b>CMIP6</b> historical runs 1950–2014 from the Pangeo Google Cloud mirror (Eyring et al., 2016; Abernathey et al., 2021): 41 models and
     103 members (up to three per model), each on its own grid with its own orography. The fields are monthly mountain torque
     from surface pressure (the torque is linear in $p_s$, so monthly means suffice), surface stress <code>tauu</code>, angular momentum
     from <code>ua</code> masked by surface pressure, and Niño-3.4 from <code>ts</code>. 13 models also publish the orographic
@@ -514,7 +514,7 @@
   <p>and likewise $J_{22}$ at 21 UTC. Subtracting the hours either side removes whatever changes smoothly (transport between
   bands, the tides, trends); the torques barely change across the jump (−0.0005 ×10²⁵ kg m² s⁻¹). A jump also holds
   any model adjustment in the first hour of the new trajectory, and it describes ERA5's model, IFS cycle 41r2 (Hersbach et al.,
-  2020), before ECMWF's 2022 orographic-drag revision. Data and tests: section 2.</p>
+  2020), before the orographic-drag revision of IFS cycle 48r1 (operational June 2023; Kanehama et al., 2022). Data and tests: section 2.</p>
   <figure id='fig12'><a href='/studies/torque-enso/inc_profile.webp' class='zoom'><img src='/studies/torque-enso/inc_profile.webp' alt="Latitude profile of the mean angular momentum increment in 5-degree bands for the 09 and 21 UTC window starts, and its split into wind and mass terms" loading='lazy'></a><figcaption><b>Figure 12.</b> Top: the mean increment in each 5° band at the 09 UTC (blue) and 21 UTC (orange) window starts, with 95% intervals; filled dots are significant after the FDR. The legend's global totals are in 10²² kg m² s⁻¹ (48 ×10²² = 0.048 ×10²⁵). Bottom: both window starts together, split into the wind (motion) and mass terms, with intervals and significance as above.</figcaption></figure>
   <p><b>How much and where.</b> The analysis adds +0.048 [+0.044, +0.052] ×10²⁵ kg m² s⁻¹ at the 09 UTC start and +0.022 [+0.016, +0.027] at 21 UTC, about
   +0.070 a day, equal to a steady torque of +8.1 Hadley (section 6's in-window
@@ -581,11 +581,12 @@
 
   <h3>Possible explanations</h3>
   <p><b>Models are tuned toward more drag.</b> Surface-drag parameters "are poorly constrained and often tuned to obtain the
-  desired model behaviour" (Sandu et al., 2016, technical memorandum version). ECMWF raised its turbulent orographic form drag "to
-  optimise forecast skill", notably in cycle 40r1, which left the IFS with much more form-drag stress than the Met Office model and
-  with surface winds too weak over orography (Kanehama et al., 2022). ERA5's cycle 41r2 came between that change and the 2022
-  revision that reduced form drag again. Budget studies of model drift had earlier pushed models toward more low-level drag
-  (Klinker and Sardeshmukh, 1992, as summarised by Brown, 2004), and operational experience with GEM is similar: more drag gave
+  desired model behavior" (Sandu et al., 2016). ECMWF raised its turbulent orographic form drag "to
+  optimise forecast skill", notably in cycle 40r1, which left the IFS with much more form-drag stress than the Met Office model; by 2022 its
+  surface winds were also too weak over orography (Kanehama et al., 2022). ERA5's cycle 41r2 came between that change and the
+  cycle 48r1 revision (operational June 2023) that reduced form drag again. Budget studies of model drift had earlier pushed models toward less stratospheric and more
+  low-level drag (Klinker and Sardeshmukh, 1992, as summarised by Brown, 2004), and operational experience with GEM (unpublished)
+  is similar: more drag gave
   better scores at the cost of too-weak 850 hPa flow in places. No source measures what such tuning does to a model's angular
   momentum budget, so the link to the lost westerly momentum is an inference, one that ERA5's increments are consistent with.</p>
   <p><b>But not as low-level orographic drag.</b> The increments weaken the surface winds over the oceans, both the trades and the
@@ -652,9 +653,9 @@
   <h2>9. How this fits with earlier work</h2>
   <p><b>Mountain torque as the source.</b> This is the usual picture, drawn mostly from case studies of the largest events. The
   sharp rise in early 1983 came mostly from mountain torque over the American and Eurasian ranges (Ponte and Rosen, 1999).
-  Eastern-Pacific El Niños put low pressure west of the Andes, Rockies and Himalaya and lengthen the day about twice as much as
-  central-Pacific ones (de Viron and Dickey, 2014). In the El Niños after 1975 angular momentum rose by roughly 10²⁵ kg m² s⁻¹ per kelvin
-  of warming (Huang et al., 2003). This study differs in three ways. It uses every El Niño since 1979 through regressions, not single
+  Eastern-Pacific El Niños put low pressure west of the Andes, Rockies and Himalaya and lengthen the day more than twice as much as
+  central-Pacific ones (de Viron and Dickey, 2014). In most El Niños after 1975 angular momentum rose by roughly 10²⁵ kg m² s⁻¹ per kelvin
+  of Niño-3.4 (Huang et al., 2003). This study differs in three ways. It uses every El Niño since 1979 through regressions, not single
   events. It splits each range's torque into a standing part and synoptic events, and finds that only the standing part changes.
   And it checks the result in 41 CMIP6 models, which have no analysis increments.</p>
   <p><b>Friction as the brake.</b> Marcus et al. (2011) found the same pairing in the 1976–77 Pacific climate shift: mountain torque
@@ -671,8 +672,9 @@
   <p><b>Reanalysis budgets that do not close.</b> NCEP's torques fall about 10 Hadley short of its observed change (Huang et al.,
   1999), and ERA-20C's total torque has a strong negative bias (Veerman and van Heerwaarden, 2019). ERA5's fall 11.3
   Hadley short, the same sign and size. What is new is measuring the analysis increments directly from the jumps at ERA5's 4D-Var
-  window starts, about 8 Hadley, and mapping where they fall. A literature search found no
-  earlier estimate of this kind; that does not prove none exists.</p>
+  window starts, about 8 Hadley, and mapping where they fall. Veerman and van Heerwaarden (2019) inferred the
+  same correction indirectly in ERA-20C, whose forecasts lose about 9 Hadley that the analyses restore; a literature search found
+  no earlier direct estimate, which does not prove none exists.</p>
   <p><b>Surface winds over the oceans.</b> Extra mixing in stable boundary layers, although known to be wrong for those layers, has
   long been used to tune operational models and partly stands in for orographic drag (Sandu et al., 2013). Against ASCAT
   scatterometer winds, ERA5's mean surface westerlies over the mid-latitude oceans are too strong (Belmonte Rivas and Stoffelen,
@@ -681,7 +683,7 @@
 
   <h2>10. Caveats</h2>
   <ul>
-    <li><b>The mean mountain torque is not resolution-converged.</b> Averaging orography and surface pressure together to 1° or
+    <li><b>The mean mountain torque is not resolution-converged</b> (Brown, 2004; van Niekerk et al., 2016). Averaging orography and surface pressure together to 1° or
     2.5° moves the global mean from about +1 to −26 and −33 Hadley, and the Andes box from −223 to −148. The anomalies still
     correlate at 0.96 or better with the 0.25° values, and their ENSO regressions barely change (global +1.00, +1.07 and +0.99
     Hadley per kelvin). Anomalies from CMIP6's 1–2.5° grids are therefore comparable with ERA5's; absolute values are not. The Andes
@@ -729,45 +731,56 @@
 
   <h2>References</h2>
   <ol class="refs">
+    <li>Abernathey, R. P., and co-authors, 2021: Cloud-native repositories for big scientific data. <i>Comput. Sci. Eng.</i>, 23(2), 26–35. <a href="https://doi.org/10.1109/MCSE.2021.3059437">doi:10.1109/MCSE.2021.3059437</a></li>
     <li>Belmonte Rivas, M., and A. Stoffelen, 2019: Characterizing ERA-Interim and ERA5 surface wind biases using ASCAT. <i>Ocean Sci.</i>, 15, 831–852. <a href="https://doi.org/10.5194/os-15-831-2019">doi:10.5194/os-15-831-2019</a></li>
-    <li>Benjamini, Y., and Y. Hochberg, 1995: Controlling the false discovery rate: a practical and powerful approach to multiple testing. <i>J. R. Stat. Soc. B</i>, 57, 289–300.</li>
-    <li>Bretherton, C. S., M. Widmann, V. P. Dymnikov, J. M. Wallace and I. Bladé, 1999: The effective number of spatial degrees of freedom of a time-varying field. <i>J. Climate</i>, 12, 1990–2009.</li>
-    <li>Brown, A. R., 2004: Resolution dependence of orographic torques. ECMWF Technical Memorandum 433 (submitted to <i>Q. J. R. Meteorol. Soc.</i>). <a href="https://www.ecmwf.int/sites/default/files/elibrary/2004/8400-resolution-dependence-orographic-torques.pdf">ECMWF</a></li>
-    <li>Colle, B. A., and C. F. Mass, 1995: The structure and evolution of cold surges east of the Rocky Mountains. <i>Mon. Wea. Rev.</i>, 123, 2577–2610.</li>
+    <li>Benjamini, Y., and Y. Hochberg, 1995: Controlling the false discovery rate: a practical and powerful approach to multiple testing. <i>J. R. Stat. Soc. B</i>, 57, 289–300. <a href="https://doi.org/10.1111/j.2517-6161.1995.tb02031.x">doi:10.1111/j.2517-6161.1995.tb02031.x</a></li>
+    <li>Bretherton, C. S., M. Widmann, V. P. Dymnikov, J. M. Wallace and I. Bladé, 1999: The effective number of spatial degrees of freedom of a time-varying field. <i>J. Climate</i>, 12, 1990–2009. <a href="https://doi.org/10.1175/1520-0442(1999)012%3C1990:TENOSD%3E2.0.CO;2">doi:10.1175/1520-0442(1999)012&lt;1990:TENOSD&gt;2.0.CO;2</a></li>
+    <li>Brown, A. R., 2004: Resolution dependence of orographic torques. <i>Q. J. R. Meteorol. Soc.</i>, 130, 3029–3046. <a href="https://doi.org/10.1256/qj.04.21">doi:10.1256/qj.04.21</a></li>
+    <li>Carver, R. W., and A. Merose, 2023: ARCO-ERA5: An analysis-ready cloud-optimized reanalysis dataset. <i>22nd Conf. on Artificial Intelligence for Environmental Science</i>, Denver, CO, Amer. Meteor. Soc., 4A.1.</li>
+    <li>Colle, B. A., and C. F. Mass, 1995: The structure and evolution of cold surges east of the Rocky Mountains. <i>Mon. Wea. Rev.</i>, 123, 2577–2610. <a href="https://doi.org/10.1175/1520-0493(1995)123%3C2577:TSAEOC%3E2.0.CO;2">doi:10.1175/1520-0493(1995)123&lt;2577:TSAEOC&gt;2.0.CO;2</a></li>
     <li>Dobslaw, H., R. Dill, A. Grötzsch, A. Brzeziński and M. Thomas, 2010: Seasonal polar motion excitation from numerical models of atmosphere, ocean, and continental hydrosphere. <i>J. Geophys. Res.</i>, 115, B10406. <a href="https://doi.org/10.1029/2009JB007127">doi:10.1029/2009JB007127</a></li>
-    <li>Duchon, C. E., 1979: Lanczos filtering in one and two dimensions. <i>J. Appl. Meteor.</i>, 18, 1016–1022.</li>
+    <li>Duchon, C. E., 1979: Lanczos filtering in one and two dimensions. <i>J. Appl. Meteor.</i>, 18, 1016–1022. <a href="https://doi.org/10.1175/1520-0450(1979)018%3C1016:LFIOAT%3E2.0.CO;2">doi:10.1175/1520-0450(1979)018&lt;1016:LFIOAT&gt;2.0.CO;2</a></li>
     <li>Egger, J., K. Weickmann and K.-P. Hoinka, 2007: Angular momentum in the global atmospheric circulation. <i>Rev. Geophys.</i>, 45, RG4007. <a href="https://doi.org/10.1029/2006RG000213">doi:10.1029/2006RG000213</a></li>
-    <li>Eyring, V., and co-authors, 2016: Overview of the Coupled Model Intercomparison Project Phase 6 (CMIP6) experimental design and organization. <i>Geosci. Model Dev.</i>, 9, 1937–1958.</li>
-    <li>Garreaud, R. D., 2000: Cold air incursions over subtropical South America: mean structure and dynamics. <i>Mon. Wea. Rev.</i>, 128, 2544–2559.</li>
-    <li>Gerber, E. P., and E. Manzini, 2016: The Dynamics and Variability Model Intercomparison Project (DynVarMIP) for CMIP6. <i>Geosci. Model Dev.</i>, 9, 3413–3425.</li>
+    <li>Eyring, V., and co-authors, 2016: Overview of the Coupled Model Intercomparison Project Phase 6 (CMIP6) experimental design and organization. <i>Geosci. Model Dev.</i>, 9, 1937–1958. <a href="https://doi.org/10.5194/gmd-9-1937-2016">doi:10.5194/gmd-9-1937-2016</a></li>
+    <li>Garreaud, R. D., 2000: Cold air incursions over subtropical South America: mean structure and dynamics. <i>Mon. Wea. Rev.</i>, 128, 2544–2559. <a href="https://doi.org/10.1175/1520-0493(2000)128%3C2544:CAIOSS%3E2.0.CO;2">doi:10.1175/1520-0493(2000)128&lt;2544:CAIOSS&gt;2.0.CO;2</a></li>
+    <li>Gerber, E. P., and E. Manzini, 2016: The Dynamics and Variability Model Intercomparison Project (DynVarMIP) for CMIP6: assessing the stratosphere–troposphere system. <i>Geosci. Model Dev.</i>, 9, 3413–3425. <a href="https://doi.org/10.5194/gmd-9-3413-2016">doi:10.5194/gmd-9-3413-2016</a></li>
     <li>Hersbach, H., and co-authors, 2020: The ERA5 global reanalysis. <i>Q. J. R. Meteorol. Soc.</i>, 146, 1999–2049. <a href="https://doi.org/10.1002/qj.3803">doi:10.1002/qj.3803</a></li>
+    <li>Huang, B., X. Yin, T. Boyer, C. Liu, M. Menne, Y. D. Rao, T. Smith, R. Vose and H.-M. Zhang, 2025: Extended Reconstructed Sea Surface Temperature, Version 6 (ERSSTv6). Part I: An artificial neural network approach. <i>J. Climate</i>, 38, 1105–1121. <a href="https://doi.org/10.1175/JCLI-D-23-0707.1">doi:10.1175/JCLI-D-23-0707.1</a></li>
     <li>Huang, H.-P., P. D. Sardeshmukh and K. M. Weickmann, 1999: The balance of global angular momentum in a long-term atmospheric data set. <i>J. Geophys. Res.</i>, 104, 2031–2040. <a href="https://doi.org/10.1029/1998JD200068">doi:10.1029/1998JD200068</a></li>
-    <li>Huang, H.-P., K. M. Weickmann and R. D. Rosen, 2003: Unusual behavior in atmospheric angular momentum during the 1965 and 1972 El Niños. <i>J. Climate</i>, 16, 2526–2539.</li>
-    <li>Iskenderian, H., and D. A. Salstein, 1998: Regional sources of mountain torque variability and high-frequency fluctuations in atmospheric angular momentum. <i>Mon. Wea. Rev.</i>, 126, 1681–1694.</li>
-    <li>Kanehama, T., I. Sandu, A. Beljaars, A. van Niekerk, N. Wedi, S. Boussetta, S. Lang, S. Johnson and L. Magnusson, 2022: Evaluation and optimization of orographic drag in the IFS. ECMWF Technical Memorandum 893. <a href="https://www.ecmwf.int/sites/default/files/elibrary/2022/20333-evaluation-and-optimizaton-orographic-drag-ifs.pdf">ECMWF</a></li>
-    <li>Klinker, E., and P. D. Sardeshmukh, 1992: The diagnosis of mechanical dissipation in the atmosphere from large-scale balance requirements. <i>J. Atmos. Sci.</i>, 49, 608–627.</li>
+    <li>Huang, H.-P., K. M. Weickmann and R. D. Rosen, 2003: Unusual behavior in atmospheric angular momentum during the 1965 and 1972 El Niños. <i>J. Climate</i>, 16, 2526–2539. <a href="https://doi.org/10.1175/1520-0442(2003)016%3C2526:UBIAAM%3E2.0.CO;2">doi:10.1175/1520-0442(2003)016&lt;2526:UBIAAM&gt;2.0.CO;2</a></li>
+    <li>Iskenderian, H., and D. A. Salstein, 1998: Regional sources of mountain torque variability and high-frequency fluctuations in atmospheric angular momentum. <i>Mon. Wea. Rev.</i>, 126, 1681–1694. <a href="https://doi.org/10.1175/1520-0493(1998)126%3C1681:RSOMTV%3E2.0.CO;2">doi:10.1175/1520-0493(1998)126&lt;1681:RSOMTV&gt;2.0.CO;2</a></li>
+    <li>Kanehama, T., I. Sandu, A. Beljaars, A. van Niekerk, N. Wedi, S. Boussetta, S. Lang, S. Johnson and L. Magnusson, 2022: Evaluation and optimization of orographic drag in the IFS. ECMWF Tech. Memo. 893. <a href="https://doi.org/10.21957/fps6gngqe">doi:10.21957/fps6gngqe</a></li>
+    <li>Klinker, E., and P. D. Sardeshmukh, 1992: The diagnosis of mechanical dissipation in the atmosphere from large-scale balance requirements. <i>J. Atmos. Sci.</i>, 49, 608–627. <a href="https://doi.org/10.1175/1520-0469(1992)049%3C0608:TDOMDI%3E2.0.CO;2">doi:10.1175/1520-0469(1992)049&lt;0608:TDOMDI&gt;2.0.CO;2</a></li>
+    <li>Künsch, H. R., 1989: The jackknife and the bootstrap for general stationary observations. <i>Ann. Statist.</i>, 17, 1217–1241. <a href="https://doi.org/10.1214/aos/1176347265">doi:10.1214/aos/1176347265</a></li>
     <li>Lambert, S. B., S. L. Marcus and O. de Viron, 2017: Atmospheric torques and Earth's rotation: what drove the millisecond-level length-of-day response to the 2015–2016 El Niño? <i>Earth Syst. Dynam.</i>, 8, 1009–1017. <a href="https://doi.org/10.5194/esd-8-1009-2017">doi:10.5194/esd-8-1009-2017</a></li>
-    <li>Lott, F., A. W. Robertson and M. Ghil, 2004: Mountain torques and Northern Hemisphere low-frequency variability. Part I: Hemispheric aspects. <i>J. Atmos. Sci.</i>, 61, 1259–1271.</li>
-    <li>Marcus, S. L., O. de Viron and J. O. Dickey, 2011: Abrupt atmospheric torque changes and their role in the 1976–1977 climate regime shift. <i>J. Geophys. Res.</i>, 116. <a href="https://doi.org/10.1029/2010JD015032">doi:10.1029/2010JD015032</a></li>
-    <li>van Niekerk, A., and T. G. Shepherd, 2016: Sensitivity of resolved and parameterized surface drag to changes in resolution and parameterization. ECMWF workshop presentation. <a href="https://www.ecmwf.int/sites/default/files/elibrary/2016/16619-sensitivity-resolved-and-parametrized-surface-drag-changes-resolution-and-parametrization.pdf">ECMWF</a></li>
+    <li>L'Heureux, M. L., and co-authors, 2024: A relative sea surface temperature index for classifying ENSO events in a changing climate. <i>J. Climate</i>, 37, 1197–1211. <a href="https://doi.org/10.1175/JCLI-D-23-0406.1">doi:10.1175/JCLI-D-23-0406.1</a></li>
+    <li>Lott, F., A. W. Robertson and M. Ghil, 2004: Mountain torques and Northern Hemisphere low-frequency variability. Part I: Hemispheric aspects. <i>J. Atmos. Sci.</i>, 61, 1259–1271. <a href="https://doi.org/10.1175/1520-0469(2004)061%3C1259:MTANHL%3E2.0.CO;2">doi:10.1175/1520-0469(2004)061&lt;1259:MTANHL&gt;2.0.CO;2</a></li>
+    <li>Marcus, S. L., O. de Viron and J. O. Dickey, 2011: Abrupt atmospheric torque changes and their role in the 1976–1977 climate regime shift. <i>J. Geophys. Res.</i>, 116, D03107. <a href="https://doi.org/10.1029/2010JD015032">doi:10.1029/2010JD015032</a></li>
+    <li>van Niekerk, A., T. G. Shepherd, S. B. Vosper and S. Webster, 2016: Sensitivity of resolved and parametrized surface drag to changes in resolution and parametrization. <i>Q. J. R. Meteorol. Soc.</i>, 142, 2300–2313. <a href="https://doi.org/10.1002/qj.2821">doi:10.1002/qj.2821</a></li>
     <li>van Niekerk, A., I. Sandu, A. Zadra, E. Bazile, T. Kanehama, M. Köhler, M.-S. Koo, H.-J. Choi, Y. Kuroki, M. D. Toy, S. B. Vosper and V. Yudin, 2020: COnstraining ORographic Drag Effects (COORDE): a model comparison of resolved and parametrized orographic drag. <i>J. Adv. Model. Earth Syst.</i>, 12, e2020MS002160. <a href="https://doi.org/10.1029/2020MS002160">doi:10.1029/2020MS002160</a></li>
-    <li>Ponte, R. M., and R. D. Rosen, 1999: Torques responsible for evolution of atmospheric angular momentum during the 1982–83 El Niño. <i>J. Atmos. Sci.</i>, 56, 3457–3462.</li>
-    <li>Rodwell, M. J., and T. N. Palmer, 2007: Using numerical weather prediction to assess climate models. <i>Q. J. R. Meteorol. Soc.</i>, 133, 129–146.</li>
-    <li>Rosen, R. D., D. A. Salstein, T. M. Eubanks, J. O. Dickey and J. A. Steppe, 1984: An El Niño signal in atmospheric angular momentum and Earth rotation. <i>Science</i>, 225, 411–414.</li>
+    <li>Ponte, R. M., and R. D. Rosen, 1999: Torques responsible for evolution of atmospheric angular momentum during the 1982–83 El Niño. <i>J. Atmos. Sci.</i>, 56, 3457–3462. <a href="https://doi.org/10.1175/1520-0469(1999)056%3C3457:TRFEOA%3E2.0.CO;2">doi:10.1175/1520-0469(1999)056&lt;3457:TRFEOA&gt;2.0.CO;2</a></li>
+    <li>Rodwell, M. J., and T. N. Palmer, 2007: Using numerical weather prediction to assess climate models. <i>Q. J. R. Meteorol. Soc.</i>, 133, 129–146. <a href="https://doi.org/10.1002/qj.23">doi:10.1002/qj.23</a></li>
+    <li>Rosen, R. D., D. A. Salstein, T. M. Eubanks, J. O. Dickey and J. A. Steppe, 1984: An El Niño signal in atmospheric angular momentum and Earth rotation. <i>Science</i>, 225, 411–414. <a href="https://doi.org/10.1126/science.225.4660.411">doi:10.1126/science.225.4660.411</a></li>
     <li>Sandu, I., A. Beljaars, P. Bechtold, T. Mauritsen and G. Balsamo, 2013: Why is it so difficult to represent stably stratified conditions in numerical weather prediction (NWP) models? <i>J. Adv. Model. Earth Syst.</i>, 5, 117–133. <a href="https://doi.org/10.1002/jame.20013">doi:10.1002/jame.20013</a></li>
     <li>Sandu, I., P. Bechtold, A. Beljaars, A. Bozzo, F. Pithan, T. G. Shepherd and A. Zadra, 2016: Impacts of parameterized orographic drag on the Northern Hemisphere winter circulation. <i>J. Adv. Model. Earth Syst.</i>, 8, 196–211. <a href="https://doi.org/10.1002/2015MS000564">doi:10.1002/2015MS000564</a></li>
-    <li>Seager, R., N. Harnik, Y. Kushnir, W. Robinson and J. Miller, 2003: Mechanisms of hemispherically symmetric climate variability. <i>J. Climate</i>, 16, 2960–2978.</li>
-    <li>Veerman, M. A., and C. C. van Heerwaarden, 2019: Trends in and closure of the atmospheric angular momentum budget in the 20th century in ERA-20C. <i>Q. J. R. Meteorol. Soc.</i>, 145, 2990–3003.</li>
-    <li>de Viron, O., and J. O. Dickey, 2014: The two types of El Niño and their impacts on the length of day. <i>Geophys. Res. Lett.</i>, 41, 3407–3412. <a href="https://doi.org/10.1002/2014GL059948">doi:10.1002/2014GL059948</a></li>
-    <li>Weickmann, K. M., G. N. Kiladis and P. D. Sardeshmukh, 1997: The dynamics of intraseasonal atmospheric angular momentum oscillations. <i>J. Atmos. Sci.</i>, 54, 1445–1461.</li>
-    <li>Wilks, D. S., 2016: "The stippling shows statistically significant grid points": how research results are routinely overstated and overinterpreted, and what to do about it. <i>Bull. Amer. Meteor. Soc.</i>, 97, 2263–2273.</li>
+    <li>Seager, R., N. Harnik, Y. Kushnir, W. Robinson and J. Miller, 2003: Mechanisms of hemispherically symmetric climate variability. <i>J. Climate</i>, 16, 2960–2978. <a href="https://doi.org/10.1175/1520-0442(2003)016%3C2960:MOHSCV%3E2.0.CO;2">doi:10.1175/1520-0442(2003)016&lt;2960:MOHSCV&gt;2.0.CO;2</a></li>
+    <li>Stefanick, M., 1982: Interannual atmospheric angular momentum variability 1963–1973 and the Southern Oscillation. <i>J. Geophys. Res.</i>, 87, 428–432. <a href="https://doi.org/10.1029/JC087iC01p00428">doi:10.1029/JC087iC01p00428</a></li>
+    <li>Veerman, M. A., and C. C. van Heerwaarden, 2019: Trends in and closure of the atmospheric angular momentum budget in the 20th century in ERA-20C. <i>Q. J. R. Meteorol. Soc.</i>, 145, 2990–3003. <a href="https://doi.org/10.1002/qj.3600">doi:10.1002/qj.3600</a></li>
+    <li>de Viron, O., and J. O. Dickey, 2014: The two types of El-Niño and their impacts on the length of day. <i>Geophys. Res. Lett.</i>, 41, 3407–3412. <a href="https://doi.org/10.1002/2014GL059948">doi:10.1002/2014GL059948</a></li>
+    <li>Weickmann, K. M., 2003: Mountains, the global frictional torque, and the circulation over the Pacific–North American region. <i>Mon. Wea. Rev.</i>, 131, 2608–2622. <a href="https://doi.org/10.1175/1520-0493(2003)131%3C2608:MTGFTA%3E2.0.CO;2">doi:10.1175/1520-0493(2003)131&lt;2608:MTGFTA&gt;2.0.CO;2</a></li>
+    <li>Weickmann, K. M., G. N. Kiladis and P. D. Sardeshmukh, 1997: The dynamics of intraseasonal atmospheric angular momentum oscillations. <i>J. Atmos. Sci.</i>, 54, 1445–1461. <a href="https://doi.org/10.1175/1520-0469(1997)054%3C1445:TDOIAA%3E2.0.CO;2">doi:10.1175/1520-0469(1997)054&lt;1445:TDOIAA&gt;2.0.CO;2</a></li>
+    <li>Wilks, D. S., 2016: "The stippling shows statistically significant grid points": how research results are routinely overstated and overinterpreted, and what to do about it. <i>Bull. Amer. Meteor. Soc.</i>, 97, 2263–2273. <a href="https://doi.org/10.1175/BAMS-D-15-00267.1">doi:10.1175/BAMS-D-15-00267.1</a></li>
   </ol>
 
   <h2>Data credits</h2>
   <p class="credits">ERA5 (Hersbach et al., 2020), Copernicus Climate Change Service (C3S) / ECMWF, via the ARCO-ERA5 store on
-  Google Cloud; contains modified Copernicus Climate Change Service information 2026. Neither ECMWF nor the European Commission is
-  responsible for any use of this information. CMIP6 output from the modelling centres via the Pangeo CMIP6 mirror on Google
-  Cloud (WCRP CMIP6, CC BY 4.0 where so licensed). ONI and ERSSTv6 Niño-3.4: NOAA CPC and PSL. Effective angular momentum
+  Google Cloud (Carver and Merose, 2023), CC BY 4.0; contains modified Copernicus Climate Change Service information 2026. Neither ECMWF nor the European Commission is
+  responsible for any use of this information. CMIP6 output (CC BY 4.0) from the Pangeo CMIP6 mirror on Google
+  Cloud; models: ACCESS-CM2, ACCESS-ESM1-5, AWI-CM-1-1-MR, AWI-ESM-1-1-LR, BCC-ESM1, CESM2, CESM2-FV2, CESM2-WACCM, CESM2-WACCM-FV2, CMCC-CM2-HR4, CMCC-CM2-SR5, CMCC-ESM2, CNRM-CM6-1, CNRM-ESM2-1, CanESM5, E3SM-1-0, E3SM-1-1, FGOALS-f3-L, FGOALS-g3, GFDL-CM4, GFDL-ESM4, GISS-E2-1-G, GISS-E2-1-H, HadGEM3-GC31-LL, HadGEM3-GC31-MM, INM-CM4-8, INM-CM5-0, IPSL-CM6A-LR, MCM-UA-1-0, MIROC-ES2L, MIROC6, MPI-ESM-1-2-HAM, MPI-ESM1-2-HR, MPI-ESM1-2-LR, MRI-ESM2-0, NorCPM1, NorESM2-LM, NorESM2-MM, SAM0-UNICON, TaiESM1, UKESM1-0-LL. Each model's historical output can be cited through the
+  <a href="https://wdc-climate.de/ui/cmip6">CMIP6 data citation service</a>. We acknowledge the World Climate Research Programme,
+  which, through its Working Group on Coupled Modelling, coordinated and promoted CMIP6. We thank the climate modeling groups for
+  producing and making available their model output, the Earth System Grid Federation (ESGF) for archiving the data and providing
+  access, and the multiple funding agencies who support CMIP6 and ESGF. ONI and ERSSTv6 Niño-3.4: NOAA CPC and PSL. Effective angular momentum
   functions: GFZ Potsdam (ESMGFZ). About 400 GB of ERA5 and 450 GB of CMIP6 fields were read, in GitHub Actions.</p>
   <p class="byline">Written by Claude, Anthropic's AI model, at the direction of <a href="/about.html">Shawn Corvec</a>, meteorologist. Published 13 October 2026. Not updated since.</p>
 </article>
