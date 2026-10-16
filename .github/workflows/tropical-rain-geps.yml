@@ -1,0 +1,86 @@
+# GEPS member rain for the tropical rainfall forecast (circulation.html#rainfc), one 00Z cycle at a time, so it can be
+# dispatched the moment a GEPS cycle lands on the MSC Datamart. It writes that run's member windows
+# (scripts/precip_bias/ens_tp.py live: every member's week-1/2 rain and the same weeks as the next day's run will see them)
+# to release rainfc-state-v1, where the daily "Tropical rain forecast" run picks them up; that run fetches GEPS itself
+# when the file is not there, so nothing depends on this one. A cycle already in the release, a 12Z cycle (the product
+# uses 00Z runs) and a cycle not yet complete on the Datamart all end the run cleanly.
+name: Tropical rain forecast - GEPS cycle
+
+on:
+  workflow_dispatch:
+    inputs:
+      cycle:
+        description: "GEPS cycle YYYYMMDDHH or YYYYMMDD (empty = today's 00Z)"
+        default: ""
+
+permissions:
+  contents: write
+
+concurrency:
+  group: tropical-rain-geps
+  cancel-in-progress: false
+
+env:
+  PIP_CONSTRAINT: ${{ github.workspace }}/scripts/constraints.txt   # bounds every pip install (see the file)
+  STATE: rainfc-state-v1
+
+jobs:
+  geps:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Cycle
+        id: cyc
+        run: |
+          c="${{ github.event.inputs.cycle }}"; c="${c:-$(date -u +%Y%m%d)00}"
+          if ! [[ "$c" =~ ^[0-9]{8}([0-9]{2})?$ ]]; then echo "::error::cycle must be YYYYMMDD or YYYYMMDDHH, not '$c'"; exit 1; fi
+          d="${c:0:8}"; hh="${c:8:2}"; hh="${hh:-00}"
+          echo "date=$d" >> "$GITHUB_OUTPUT"
+          if [ "$hh" != "00" ]; then
+            echo "::notice::GEPS $d ${hh}Z: the rain forecast uses 00Z runs only - nothing to do"
+            echo "run=0" >> "$GITHUB_OUTPUT"
+          elif gh release view "$STATE" -R "$GITHUB_REPOSITORY" --json assets -q '.assets[].name' 2>/dev/null | grep -qx "rainfc_geps_$d.npz"; then
+            echo "::notice::rainfc_geps_$d.npz is already in $STATE - nothing to do"
+            echo "run=0" >> "$GITHUB_OUTPUT"
+          else
+            echo "run=1" >> "$GITHUB_OUTPUT"
+          fi
+      - uses: actions/checkout@v7
+        if: steps.cyc.outputs.run == '1'
+        with:
+          fetch-depth: 1
+          sparse-checkout: |
+            scripts/precip_bias
+            scripts/lib
+            scripts/constraints.txt
+          sparse-checkout-cone-mode: false
+      - uses: actions/setup-python@v7
+        if: steps.cyc.outputs.run == '1'
+        with:
+          python-version: "3.11"
+      - name: Install dependencies
+        if: steps.cyc.outputs.run == '1'
+        run: pip install --quiet numpy pyproj eccodes
+      - name: GEPS member windows
+        id: fetch
+        if: steps.cyc.outputs.run == '1'
+        run: |
+          d="${{ steps.cyc.outputs.date }}"
+          rc=0; python scripts/precip_bias/ens_tp.py live --model geps --date "$d" --out state || rc=$?
+          if [ "$rc" = "3" ]; then
+            echo "::notice::GEPS $d 00Z is not complete on the Datamart yet - nothing to do"
+            echo "up=0" >> "$GITHUB_OUTPUT"
+          elif [ "$rc" = "0" ]; then
+            echo "up=1" >> "$GITHUB_OUTPUT"
+          else
+            exit "$rc"
+          fi
+      - name: Upload
+        if: steps.fetch.outputs.up == '1'
+        run: |
+          gh release view "$STATE" >/dev/null 2>&1 \
+            || gh release create "$STATE" --title "Tropical rain forecast state" \
+                 --notes "Member rain windows of the last few 00Z runs of the four ensembles of the tropical rainfall forecast (scripts/precip_bias/ens_tp.py live): the next day's change maps compare against them." || true
+          gh release upload "$STATE" "state/rainfc_geps_${{ steps.cyc.outputs.date }}.npz" --clobber

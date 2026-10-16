@@ -4,8 +4,9 @@ Cells are 1° boxes with centres at half degrees: latitude 59.5°S..59.5°N (120
 169.5°W..30.5°W (140 columns). Poleward of 60° IMERG is unreliable (snow and ice surfaces, few passive-microwave
 retrievals), so the domain stops there: Alaska and northern Canada are left out on purpose.
 
-  ECMWF open data (0.25° points, 90°N -> 90°S, from 180°W): each box is the trapezoid-weighted mean of the 5 x 5 points on
-  its edges and inside (edge points half weight), so the box is centred exactly on its cell centre.
+  Model grids (regular, every 1/k degree with points on whole degrees: ECMWF open data 0.25°, GEFS and GEPS 0.5°): each box
+  is the trapezoid-weighted mean of the (k+1) x (k+1) points on its edges and inside (edge points half weight), so the box
+  is centred exactly on its cell centre. canonical() first brings a decoded field to rows 90°N -> 90°S, columns from 180°W.
   IMERG (0.1° cells, centres 89.95°S.. / 179.95°W..): the plain mean of the 10 x 10 cells inside, a cell needing >= 50 % valid.
 
 use_domain("global") (the tropical rainfall forecast) switches every function here to the global band: the same 120 rows,
@@ -20,23 +21,37 @@ LAT = np.arange(-59.5, 60.0, 1.0)  # 120 rows, ascending
 LON = np.arange(-169.5, -30.0, 1.0)  # 140 columns
 NY, NX = len(LAT), len(LON)
 
-# ECMWF 0.25° open-data grid: row j = 90 - 0.25 j (721), column i = -180 + 0.25 i (1440)
-_EJ0, _EJ1 = int((90 - 60) / 0.25), int((90 + 60) / 0.25)  # rows 120..600 = 60°N..60°S
-_EI0, _EI1 = int((-170 + 180) / 0.25), int((-30 + 180) / 0.25)  # columns 40..600 = 170°W..30°W
-_W5 = np.array([0.5, 1.0, 1.0, 1.0, 0.5]) / 4.0
 DOMAIN = "americas"
 
 
-def ecmwf_to_1deg(v: np.ndarray) -> np.ndarray:
-    """(721, 1440) ECMWF 0.25° field -> (NY, NX) 1° box means, ascending latitude."""
-    full = np.asarray(v, dtype="float64").reshape(721, 1440)
-    if DOMAIN == "global":  # (481, 1441): 180°W .. 180°E
-        a = np.concatenate([full[_EJ0 : _EJ1 + 1], full[_EJ0 : _EJ1 + 1, :1]], axis=1)
+def canonical(v: np.ndarray, lat_first: float, lon_first: float) -> np.ndarray:
+    """A decoded global regular field (rows from either pole, columns from any longitude) -> rows 90°N -> 90°S, columns
+    from 180°W. GEFS starts at 90°N 0°E, GEPS at 90°S 0°E, ECMWF open data at 90°N 180°."""
+    v = np.asarray(v)
+    if lat_first < 0:
+        v = v[::-1]
+    return np.roll(v, round(((lon_first + 180.0) % 360.0) * v.shape[1] / 360.0), axis=1)
+
+
+def to_1deg(full: np.ndarray, res: float) -> np.ndarray:
+    """(rows 90°N -> 90°S, columns from 180°W) global field every `res` degrees (0.25 or 0.5) -> (NY, NX) 1° box means,
+    ascending latitude."""
+    k = round(1 / res)  # points per degree
+    w = np.r_[0.5, np.ones(k - 1), 0.5] / k  # trapezoid weights of the k + 1 points across a box
+    full = np.asarray(full, dtype="float64")
+    j0, j1 = round(30 / res), round(150 / res)  # rows of 60°N .. 60°S
+    if DOMAIN == "global":  # 180°W .. 180°E: the 180°E column is the 180°W one again
+        a = np.concatenate([full[j0 : j1 + 1], full[j0 : j1 + 1, :1]], axis=1)
     else:
-        a = full[_EJ0 : _EJ1 + 1, _EI0 : _EI1 + 1]  # (481, 561), 60°N first
-    rows = sum(_W5[k] * a[k::4][:NY] for k in range(5))  # (120, 561)
-    box = sum(_W5[k] * rows[:, k::4][:, :NX] for k in range(5))  # (120, 140)
+        a = full[j0 : j1 + 1, round(10 / res) : round(150 / res) + 1]  # 170°W .. 30°W
+    rows = sum(w[i] * a[i::k][:NY] for i in range(k + 1))
+    box = sum(w[i] * rows[:, i::k][:, :NX] for i in range(k + 1))
     return box[::-1].astype("float32")  # north-first -> ascending
+
+
+def ecmwf_to_1deg(v: np.ndarray) -> np.ndarray:
+    """(721, 1440) ECMWF 0.25° open-data field (row j = 90 - 0.25 j, column i = -180 + 0.25 i) -> (NY, NX) 1° box means."""
+    return to_1deg(np.asarray(v).reshape(721, 1440), 0.25)
 
 
 # IMERG 0.1° cells: lat index k = (lat + 89.95) / 0.1, lon index m = (lon + 179.95) / 0.1
@@ -89,6 +104,20 @@ def coarsen(a: np.ndarray, k: int) -> np.ndarray:
     n = ok.sum(axis=(-3, -1))
     with np.errstate(invalid="ignore", divide="ignore"):
         return np.where(n >= (k * k + 1) // 2, s / d, np.nan).astype(a.dtype)
+
+
+def refine(r2: np.ndarray, lat2: np.ndarray, lon2: np.ndarray) -> np.ndarray:
+    """A positive 2° box field (a rain ratio) -> the 1° grid, bilinear in log, longitude periodic, latitude clamped at the
+    edges."""
+    from scipy.interpolate import RegularGridInterpolator
+
+    lr = np.log(np.where(np.isfinite(r2) & (r2 > 0), r2, 1.0))
+    lonp = np.concatenate([[lon2[-1] - 360], lon2, [lon2[0] + 360]])
+    lrp = np.concatenate([lr[:, -1:], lr, lr[:, :1]], axis=1)
+    f = RegularGridInterpolator((lat2, lonp), lrp, bounds_error=False, fill_value=None)
+    la = np.clip(LAT, lat2[0], lat2[-1])
+    pts = np.stack(np.meshgrid(la, LON, indexing="ij"), -1).reshape(-1, 2)
+    return np.exp(f(pts)).reshape(NY, NX).astype("float32")
 
 
 def set_coarse(k: int) -> None:

@@ -175,7 +175,7 @@ PRODUCTS = [
                     (
                         "/circulation.html#rainfc",
                         "Rain forecast, weeks 1–2",
-                        "Bias-adjusted IFS-ENS and AIFS-ENS rain for weeks 1 and 2 over the tropics and the globe: corrected rain, its anomaly and the favoured tercile against the GPCP normal, where significant.",
+                        "Bias-adjusted rain for weeks 1 and 2 from a blend of four ensembles (IFS-ENS, AIFS-ENS, GEFS, GEPS) over the tropics and the globe: corrected rain, its anomaly, the favoured tercile against the GPCP normal and the change since the previous day's runs, where significant.",
                         "Daily",
                     ),
                 ],
