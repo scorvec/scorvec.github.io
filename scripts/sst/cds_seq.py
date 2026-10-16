@@ -29,6 +29,7 @@ import time
 from pathlib import Path
 
 POLL = float(os.environ.get("CDS_SEQ_POLL", "45"))
+STATUS_FAILS = 30  # consecutive failed status checks after which a job is treated as lost
 REPO = Path(os.environ.get("CDS_SEQ_REPO", Path(__file__).resolve().parents[2]))  # where .github/workflows lives
 GH = os.environ.get("GH_BIN") or shutil.which("gh") or "gh"
 GH_REPO = os.environ.get("GITHUB_REPOSITORY", "scorvec/scorvec.github.io")
@@ -212,12 +213,20 @@ def retrieve(dataset: str, req: dict, dest: Path, label: str, tries: int = 4, ma
         rid = remote.request_id
         print(f"  {label}: submitted {rid}", flush=True)
         yielded = False
+        failures = 0  # consecutive status checks that raised
         while True:
             time.sleep(POLL)
             try:
                 st = remote.status
+                failures = 0
             except Exception as e:  # noqa: BLE001
+                failures += 1
                 print(f"  {label}: status check failed ({str(e)[:120]})", flush=True)
+                # a job the CDS no longer knows (404: deleted or expired on its side) never comes back, and nor does
+                # one that has not answered for STATUS_FAILS checks: count a failed try and submit it again
+                if "404" in str(e) or failures >= STATUS_FAILS:
+                    st = "lost"
+                    break
                 continue
             if st == "successful":
                 break
