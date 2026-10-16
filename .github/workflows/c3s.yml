@@ -6,9 +6,11 @@ name: C3S multi-system seasonal (monthly)
 #
 # DESIGN. Everything runs in Actions and nothing is downloaded twice:
 #   * every large input is reduced to a compact table the moment it lands and the raw GRIB is deleted (c3s_ref.py):
-#     per hindcast START MONTH (hc_terc_*: tercile bounds, population-weighted hindcast means -- ~9 GB of raw hindcast
-#     paid once per calendar month, ever) and per ISSUE (is_terc_*: tercile probabilities + member series;
-#     is_sixh_*: each member's population-weighted daily mean), kept as assets of the release `c3s-ref-v1`;
+#     per hindcast START MONTH (hc_terc_*: tercile bounds, population-weighted hindcast means; hc_anom_*: the
+#     hindcast spread the anomaly maps are tested against -- ~17 GB of raw hindcast paid once per calendar month,
+#     ever) and per ISSUE (is_terc_*: tercile probabilities + member series; is_anom_*: ensemble-mean anomaly and
+#     member spread; is_sixh_*: each member's population-weighted daily mean), kept as assets of the release
+#     `c3s-ref-v1`;
 #   * the static references (geonames places, the CPC 1993-2016 base) were built once offline from existing data stores;
 #   * the ENSO plume's hindcast climatology stays the committed c3s_nino34_clim.csv (a new start month adds rows);
 #     the flavour's hindcast test result is committed per start month (reference/enso_flavour_hindcast_MM.json).
@@ -55,7 +57,7 @@ on:
         required: false
         default: 'enso,maps,terc,sixh'
       budget_min:
-        description: 'Minutes the tercile and 6-hourly steps may spend starting downloads (each capped by the job time left)'
+        description: 'Minutes the map-hindcast, tercile and 6-hourly steps may each spend starting downloads (each capped by the job time left)'
         required: false
         default: '150'
       sixh_only:
@@ -167,7 +169,7 @@ jobs:
           fi
           I=${{ steps.gate.outputs.issue }}; M=${{ steps.gate.outputs.month }}
           gh release download "$REF_TAG" --repo "$GITHUB_REPOSITORY" -D "$C3S_REF_DIR" --clobber \
-            -p 'obs_*' -p "hc_terc_*_${M}.npz" -p "is_*_${I}*.npz" || true
+            -p 'obs_*' -p "hc_terc_*_${M}.npz" -p "hc_anom_*_${M}.npz" -p "is_*_${I}*.npz" || true
           touch "$RUNNER_TEMP/ref_marker"
           ls "$C3S_REF_DIR" | sed 's/_[0-9]*\.npz$//' | sort | uniq -c | head -40
           du -sh "$C3S_REF_DIR"
@@ -244,12 +246,20 @@ jobs:
           # the strips are reduced to the committed JSON; never kept
           rm -rf scripts/sst/data/c3s/strip/hindcast
 
-      - name: Anomaly maps and ocean indices (postprocessed ensemble means)
+      - name: Anomaly maps and ocean indices (postprocessed members, tested against each system's hindcast spread)
         id: maps
         if: steps.gate.outputs.run == '1' && steps.enso.outputs.ready == '1' && steps.parts.outputs.do_maps == '1'
         run: |
           I=${{ steps.gate.outputs.issue }}
-          if python scripts/sst/c3s_maps.py --issue "$I"; then
+          # members first (one small request per system and field), then the hindcast spread each map is tested with
+          # (once per start month: t2m and precipitation shared with the tercile tables, sea-level pressure and SST for
+          # the test alone) under the same budget rule as the tercile step; a field without it is left off the maps
+          LEFT=$(( 340 - ( $(date +%s) - JOB_T0 ) / 60 - 90 ))
+          B="${{ inputs.budget_min || '150' }}"; [ "$LEFT" -lt "$B" ] && B=$LEFT
+          [ "$B" -ge 1 ] || B=0.01
+          TL=$(( 340 - ( $(date +%s) - JOB_T0 ) / 60 - 60 ))
+          echo "map hindcast budget ${B} min, hard stop ${TL} min"
+          if timeout --signal=INT "${TL}m" python scripts/sst/c3s_maps.py --issue "$I" --budget-min "$B"; then
             python scripts/sst/c3s_maps_render.py --issue "$I" || echo "::warning::c3s map render failed; keeping the previous issue"
             python scripts/sst/c3s_indices.py --issue "$I" || echo "::warning::c3s indices failed; keeping the previous issue"
           else

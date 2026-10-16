@@ -14,6 +14,12 @@ moment it lands and then deleted:
   is_terc_{centre}_{system}_{var}_{YYYYMM}.npz   per issue: the tercile probabilities per period,
         member count, and for t2m each member's population-weighted monthly mean per region plus
         the start dates a lagged system's members carry (the 6-hourly request needs them).
+  hc_anom_{centre}_{system}_{var}_{MM}.npz   per system, map field (t2m, tp, mslp, sst) and START MONTH:
+        one hindcast member's spread of each period mean over the 1993-2016 years, the reference
+        the anomaly maps are tested against (c3s_maps.hindcast_spread). Built once per start month,
+        for t2m and tp from the same raw hindcast as hc_terc.
+  is_anom_{centre}_{system}_{var}_{YYYYMM}.npz   per issue: every system's ensemble-mean anomaly per
+        lead and its members' spread of each period mean (c3s_maps.issue_anom).
   is_sixh_{centre}_{system}_{region}_{YYYYMM}_m{k}.npz   per issue and forecast month: every
         member's population-weighted DAILY mean (c3s_popt_daily.daily_members), the only thing
         the daily card needs from a 6-hourly chunk.
@@ -31,7 +37,7 @@ The `obs` tables were built once, outside Actions, from files already held (geon
 the OISST file) -- the seas5-ref-v1 precedent -- and are never rebuilt in Actions.
 
     python c3s_ref.py obs               # one-off bootstrap: places + CPC clim + OISST box series
-    python c3s_ref.py hc --month 09     # one-off bootstrap: hc_terc tables from raw hindcasts on disk
+    python c3s_ref.py hc --month 09     # one-off bootstrap: hc_terc / hc_anom tables from raw hindcasts on disk
     python c3s_ref.py ls
     python c3s_ref.py oisst             # Actions: extend the OISST box series (PSL OPeNDAP)
     python c3s_ref.py cpc --issue 202610   # Actions: CPC daily for the six months before the issue
@@ -88,6 +94,14 @@ def hc_terc(centre: str, system: str, var: str, month: str) -> Path:
 
 def is_terc(centre: str, system: str, var: str, issue: str) -> Path:
     return REF / f"is_terc_{centre}_{system}_{var}_{issue}.npz"
+
+
+def hc_anom(centre: str, system: str, var: str, month: str) -> Path:
+    return REF / f"hc_anom_{centre}_{system}_{var}_{int(month):02d}.npz"
+
+
+def is_anom(centre: str, system: str, var: str, issue: str) -> Path:
+    return REF / f"is_anom_{centre}_{system}_{var}_{issue}.npz"
 
 
 def is_sixh(centre: str, system: str, region: str, issue: str, k: int) -> Path:
