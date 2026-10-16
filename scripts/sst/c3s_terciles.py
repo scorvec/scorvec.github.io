@@ -2,7 +2,7 @@
 """Fetch what the C3S tercile maps need: forecast members and the matching hindcast.
 
 The anomaly maps on seasonal.html come from the postprocessed collection, which already
-holds the anomaly against each centre's own hindcast and is tiny. Tercile probabilities
+holds every member's anomaly against its centre's own hindcast. Tercile probabilities
 cannot be taken from an anomaly alone -- they need the hindcast DISTRIBUTION per grid
 point (the 33rd and 67th percentiles of that model's own climate) and the spread of the
 live members around it. So this pulls the raw fields instead:
@@ -19,6 +19,9 @@ fetched like any other system.
 In c3s.yml (Actions) every raw file is reduced to a table the moment it lands
 (c3s_ref: hc_terc_* per start month, is_terc_* per issue) and deleted, so a start month's ~9 GB
 of hindcast is downloaded once, ever, and an interrupted issue resumes without fetching again.
+The same raw hindcast also gives the anomaly maps' test its spread (c3s_maps.hindcast_spread,
+hc_anom_*) before it goes; the maps' sea-level pressure and SST hindcasts come through fetch()
+here as well (RAW_VARS), for that test alone.
 The renderers (c3s_terciles_render, c3s_popt_monthly, c3s_popt_daily) read the tables.
 
     python scripts/sst/c3s_terciles.py --issue 202610 --budget-min 120   # Actions
@@ -46,11 +49,19 @@ DATASET = "seasonal-monthly-single-levels"
 HC_YEARS = [str(y) for y in range(1993, 2017)]  # the C3S common hindcast period
 LEADS = ["1", "2", "3", "4", "5", "6"]
 GRID = ["1", "1"]
-# variable -> (CDS name, grib short name, factor to display units)
+# variable -> (CDS name, grib short name, factor to display units): the tercile variables
 VARS = {
     "t2m": ("2m_temperature", "t2m", 1.0),
     "tp": ("total_precipitation", "tprate", 86400.0 * 1000.0),
 }
+# every raw field this module fetches: the tercile variables and the other anomaly-map fields, whose hindcasts the
+# maps' significance test needs (c3s_maps.hindcast_spread)
+RAW_VARS = {
+    **VARS,
+    "mslp": ("mean_sea_level_pressure", "msl", 0.01),
+    "sst": ("sea_surface_temperature", "sst", 1.0),
+}
+SEAS5_GL = ("t2m", "tp", "sst")  # what the SEAS5 page's global file holds
 POP_LEADS = {f"m{i + 1}": [i] for i in range(6)}  # one lead month per column (population cards)
 POP_REGIONS = ("us", "br")
 
@@ -65,7 +76,7 @@ def local_seas5(kind: str, issue: str) -> Path:
 
 
 def path_for(kind: str, centre: str, system: str, var: str, issue: str) -> Path:
-    if centre == "ecmwf" and local_seas5(kind, issue).exists():
+    if centre == "ecmwf" and var in SEAS5_GL and local_seas5(kind, issue).exists():
         return local_seas5(kind, issue)
     stem = f"{kind}_{centre}_{system}_{var}_" + (issue[4:6] if kind == "hc" else issue)
     return STORE / f"{stem}.grib"
@@ -73,7 +84,7 @@ def path_for(kind: str, centre: str, system: str, var: str, issue: str) -> Path:
 
 def fetch(kind: str, centre: str, system: str, var: str, issue: str, force: bool = False) -> bool:
     p = path_for(kind, centre, system, var, issue)
-    if centre == "ecmwf" and p == local_seas5(kind, issue):
+    if centre == "ecmwf" and var in SEAS5_GL and p == local_seas5(kind, issue):
         print(f"  {centre}/{system} {var} {kind}: local SEAS5 file", flush=True)
         return True
     if p.exists() and not force and p.stat().st_size > 1_000_000:
@@ -83,7 +94,7 @@ def fetch(kind: str, centre: str, system: str, var: str, issue: str, force: bool
     req = {
         "originating_centre": centre,
         "system": str(system),
-        "variable": [VARS[var][0]],
+        "variable": [RAW_VARS[var][0]],
         "product_type": ["monthly_mean"],
         "year": HC_YEARS if kind == "hc" else [issue[:4]],
         "month": [issue[4:6]],
@@ -246,19 +257,20 @@ def fc_pop_members(centre: str, system: str, region: str, issue: str):
 
 
 def derive_hc_tables(month: str) -> None:
-    """One-off bootstrap: hc_terc tables from whatever raw hindcasts are on disk for this start month."""
+    """One-off bootstrap: hc_terc and hc_anom tables from whatever raw hindcasts are on disk for this start month."""
+    from c3s_maps import hindcast_spread
+
     for entry in MODELS:
         centre, system = entry[0], str(entry[1])
-        for var in VARS:
-            if CR.load(CR.hc_terc(centre, system, var, month)) is not None:
-                print(f"  {centre}/{system} {var} {month}: table exists")
-                continue
+        for var in RAW_VARS:
             hp = path_for("hc", centre, system, var, f"2000{month}")
             if not hp.exists():
                 print(f"  {centre}/{system} {var} {month}: no raw hindcast here")
                 continue
             t0 = time.time()
-            derive_hc_table(centre, system, var, month, hp)
+            if var in VARS and CR.load(CR.hc_terc(centre, system, var, month)) is None:
+                derive_hc_table(centre, system, var, month, hp)
+            hindcast_spread(centre, system, var, f"2000{month}")
             print(f"  {centre}/{system} {var} {month}: {time.time() - t0:.0f}s", flush=True)
 
 
@@ -303,6 +315,10 @@ def main() -> int:
                     fetch("hc", centre, system, var, a.issue, a.force)
                     and hc_table(centre, system, var, a.issue) is not None
                 )
+                if ok:  # the anomaly maps' test reads the same raw hindcast: reduce it for them too before it goes
+                    from c3s_maps import hindcast_spread
+
+                    hindcast_spread(centre, system, var, a.issue)
                 _drop_raw(path_for("hc", centre, system, var, a.issue))
                 if not ok:
                     continue

@@ -33,7 +33,7 @@ import c3s_grib
 import mapstyle as MS
 from c3s_nino34 import MODELS
 from c3s_terciles import VARS, issue_table
-from c3s_maps_render import MONTHS, PERIODS, lead_note, period_label
+from c3s_maps_render import MONTHS, PERIODS, lead_note, on_grid, period_label
 from seas5_build import TERC_BINS, TERC_PALETTES, TERC_TEST_NOTE, tercile_signal
 
 SITE = Path(os.environ.get("SST_SITE_ROOT", HERE.parents[1]))
@@ -55,15 +55,7 @@ REF_LON = np.arange(0.5, 360.0, 1.0)
 
 def to_ref(a: np.ndarray, lat: np.ndarray, lon: np.ndarray) -> np.ndarray:
     """Bilinear onto the reference grid, wrapping in longitude."""
-    if a.shape == (REF_LAT.size, REF_LON.size) and np.allclose(lat, REF_LAT) and np.allclose(lon, REF_LON):
-        return a
-    from scipy.interpolate import RegularGridInterpolator
-
-    lon_e = np.concatenate([lon, lon[:1] + 360.0])
-    a_e = np.concatenate([a, a[:, :1]], axis=1)
-    f = RegularGridInterpolator((lat, lon_e), a_e, bounds_error=False, fill_value=None)
-    la, lo = np.meshgrid(REF_LAT, REF_LON, indexing="ij")
-    return f((la, lo)).astype(np.float32)
+    return on_grid(a, lat, lon, REF_LAT, REF_LON)
 
 
 def period_means(path: Path, short: str, fac: float, periods: dict):

@@ -8,6 +8,7 @@ for what each product is and why it is built the way it is.
 from __future__ import annotations
 
 import json
+import textwrap
 import time
 import warnings
 from pathlib import Path
@@ -410,6 +411,50 @@ def tercile_signal(pr: dict, n_eff) -> np.ndarray:
     return benjamini_hochberg(p, TERC_FDR_Q) & (p < TERC_ALPHA)
 
 
+# ── the anomaly and change maps' test: is an ensemble-mean shift more than sampling noise? ──
+SHIFT_FDR_Q = 0.10
+N_EFF_HC = 24  # a hindcast mean counts its 24 years, not its members: the members of one year share that year's ocean
+SHIFT_TEST_NOTE = "Shaded only where significant (Welch t-test, false-discovery rate 0.10 over the map)"
+
+
+def shift_signal(diff, terms, domain=None) -> np.ndarray:
+    """True where `diff` ([lat, lon], a difference of means) is further from zero than sampling noise allows:
+    t = diff / √Σv over the independent sampling variances of the means it is made of, `terms` = [(v, dof), ...] (v
+    scalar or [lat, lon]; a NaN v makes the cell untestable, a zero one is an absent term), Welch–Satterthwaite degrees
+    of freedom (Σv)² / Σ v²/dof, a two-sided p, and a Benjamini–Hochberg discovery at SHIFT_FDR_Q among the finite cells
+    inside `domain` (the cells the map shows). Cells with no spread at all are never significant."""
+    from scipy import stats
+    from quantmet.stats import benjamini_hochberg
+
+    d = np.asarray(diff, dtype=np.float64)
+    vs = [np.broadcast_to(np.asarray(v, dtype=np.float64), d.shape) for v, _ in terms]
+    se2 = np.sum(vs, axis=0)
+    den = np.sum([v * v / np.maximum(np.asarray(k, dtype=np.float64), 1.0) for v, (_, k) in zip(vs, terms)], axis=0)
+    with np.errstate(divide="ignore", invalid="ignore"):
+        t = d / np.sqrt(se2)
+        df = se2 * se2 / den
+    ok = np.isfinite(t) & np.isfinite(df) & (se2 > 0)
+    p = np.full(d.shape, np.nan)
+    p[ok] = 2.0 * stats.t.sf(np.abs(t[ok]), df[ok])
+    if domain is not None:
+        p = np.where(domain, p, np.nan)
+    return benjamini_hochberg(p, SHIFT_FDR_Q)
+
+
+def welch_terms(sd_f, n_f: int, sd_h, n_h: int = N_EFF_HC) -> list:
+    """shift_signal terms of a forecast-minus-hindcast mean: n_f members with spread sd_f, and the hindcast mean with
+    the single-member spread sd_h over n_h independent years (the CanSIPS maps' convention on the same page)."""
+    return [(np.asarray(sd_f, float) ** 2 / n_f, n_f - 1), (np.asarray(sd_h, float) ** 2 / n_h, n_h - 1)]
+
+
+def trend_read_var(s2, x0: float, n: int = N_EFF_HC):
+    """Sampling variance of a straight line fitted to n yearly values with residual variance s2 and read x0 years from
+    their mean year: s2 (1/n + x0² / Σ(x - x̄)²). A 24-year trend read 20 years out carries ~10× the variance of the
+    24-year mean, which is what testing a height anomaly against the extrapolated trend has to pay."""
+    yr = np.arange(n) - (n - 1) / 2.0
+    return np.asarray(s2, float) * (1.0 / n + x0 * x0 / float((yr**2).sum()))
+
+
 TERC_PALETTES = {
     "warm": ["#fde4cf", "#fbc39c", "#f59d68", "#e8703c", "#c8451c", "#8f2a0d"],
     "cool": ["#dbe9f6", "#b7d2ec", "#8ab6df", "#5c95cd", "#3672b6", "#1f4f8f"],
@@ -790,16 +835,71 @@ def _global_hc_table(kind: str, month: str) -> None:
     R.save(R.hc_ref(f"build_{kind}", month), meta=meta, **arrays)
 
 
+# Units of the hindcast spread tables: the display units, except snowfall, whose display factor depends on the
+# month's length (_snow_fac) -- its spread is kept in mm of water equivalent per day.
+SPREAD_UNITS = {"sf": 86400.0 * 1000.0}
+
+
+def _spread_fac(var: str, fac) -> float:
+    return SPREAD_UNITS.get(var, fac)
+
+
+def _global_spread_table(kind: str, month: str) -> None:
+    """hc_spread_{kind}_{MM}: what the anomaly and change maps' significance test needs from the raw hindcast, per
+    variable of the kind (units: _spread_fac):
+      sd_{var}_{lead set}  standard deviation of ONE member's lead-set mean (day-weighted in its own year) over the
+                           24 years x 25 members -- the spread the hindcast mean is tested with (welch_terms)
+      yd_{var}             [year, lead, lat, lon] float16: every year's ensemble mean minus the 24-year mean -- the
+                           year-by-year statistics: the residual scatter about a height trend (the reference of the
+                           standardised height maps, trend_term) and the year-to-year spread of the difference between
+                           two start months' hindcasts (a change map), which is only known year by year
+    Lead sets with no data (leads 1-4 of a lead-7 pseudo-raw hindcast) are left out."""
+    arrays, meta = {}, {"leadsets": [], "years": 24, "day_weighted": True}
+    for var, k, short, fac in GLOBAL_VARS:
+        if k != kind:
+            continue
+        hc, lat, lon = load_field(hc_path(kind, month), short)
+        ns, nl = hc.shape[:2]
+        if ns % 24:
+            print(f"  spread {var} {month}: {ns} samples are not members x 24 years; skipped", flush=True)
+            continue
+        hc *= np.float32(_spread_fac(var, fac))
+        arrays["lat"], arrays["lon"] = lat, lon
+        ym_ = np.nanmean(hc.reshape(ns // 24, 24, *hc.shape[1:]), axis=0)  # member-major, year fastest
+        arrays[f"yd_{var}"] = (ym_ - np.nanmean(ym_, axis=0, keepdims=True)).astype(np.float16)
+        have = [bool(np.isfinite(hc[:, L]).any()) for L in range(nl)]
+        for ls in leadsets_for(nl):
+            if not all(have[L - 1] for L in ls):
+                continue
+            h = _season_means(hc, ls, hindcast_lead_weights(month, ls, ns))  # [sample, lat, lon]
+            arrays[f"sd_{var}_{_ls_key(ls)}"] = np.nanstd(h, axis=0, ddof=1).astype(np.float32)
+            if _ls_key(ls) not in meta["leadsets"]:
+                meta["leadsets"].append(_ls_key(ls))
+            del h
+        del hc, ym_
+    if "lat" in arrays:
+        R.save(R.hc_ref(f"spread_{kind}", month), meta=meta, **arrays)
+
+
 def _global_issue_table(ym: str) -> None:
-    """is_build_maps_{ym}: this issue's ensemble means [lead, lat, lon] in display units — all the next
-    issue's change maps take from it."""
+    """is_build_maps_{ym}: this issue's ensemble means [lead, lat, lon] in display units and, per lead set, the
+    member count and the members' standard deviation of the lead-set mean (weighted as the maps are) -- what this
+    issue's anomaly maps are tested with and what the next issue's change maps take from it."""
     arrays = {}
     for var, kind, short, fac in GLOBAL_VARS:
         if not fc_path(kind, ym).exists():
             continue
-        fc, lat, lon = load_field(fc_path(kind, ym), short)
-        f = _snow_fac(ym, fc.shape[1]) if var == "sf" else fac
-        arrays[f"fcm_{var}"] = np.nanmean(fc * f, axis=0)
+        try:
+            fc, lat, lon = load_field(fc_path(kind, ym), short)
+        except Exception as e:  # noqa: BLE001
+            print(f"  global {var} {ym}: {str(e)[:100]}", flush=True)
+            continue
+        fc *= _snow_fac(ym, fc.shape[1]) if var == "sf" else np.float32(fac)
+        arrays[f"fcm_{var}"] = np.nanmean(fc, axis=0)
+        arrays[f"n_{var}"] = np.int32(fc.shape[0])
+        for ls in leadsets_for(fc.shape[1]):
+            w = lead_weights(ym, ls) if var != "sf" else np.full(len(ls), 1.0 / len(ls))
+            arrays[f"fsd_{var}_{_ls_key(ls)}"] = np.nanstd(_season_means(fc, ls, w), axis=0, ddof=1).astype(np.float32)
         arrays[f"lat_{var}"] = lat
         arrays[f"lon_{var}"] = lon
         del fc
@@ -808,49 +908,92 @@ def _global_issue_table(ym: str) -> None:
 
 
 def load_global(ym: str, current: bool = True) -> dict:
-    """{var: (fcm[lead, lat, lon], hc_mean[lead, lat, lon], lat, lon, ztrend|None)} for the single-map viewer.
-    The ensemble mean comes from this issue's GRIB (`current`) or, for the previous issue, from its
-    is_build_maps summary; the hindcast mean and the height trend from hc_build_{kind}_{MM}."""
+    """{var: dict(fcm, hcm [lead, lat, lon], lat, lon, ztr | None, fsd {lead set: [lat, lon]}, n, spread | None)} for
+    the single-map viewer, from the issue's is_build_maps summary (written first from this issue's GRIBs when
+    `current`); the hindcast mean and the height trend from hc_build_{kind}_{MM}, the hindcast spread from
+    hc_spread_{kind}_{MM}. A summary from before the member spread was kept has no fsd: its maps cannot be tested."""
     out = {}
-    summ = None if current else R.load(R.is_ref("build_maps", ym))
-    if not current and summ is None:
-        print(f"  global maps: no summary is_build_maps_{ym} — change maps skipped", flush=True)
+    if current:
+        _global_issue_table(ym)
+    summ = R.load(R.is_ref("build_maps", ym))
+    if summ is None:
+        print(f"  global maps: no summary is_build_maps_{ym} — skipped", flush=True)
         return out
-    tabs = {}
-    for var, kind, short, fac in GLOBAL_VARS:
+    tabs, spreads = {}, {}
+    for var, kind, _short, fac in GLOBAL_VARS:
         if kind not in tabs:
             tabs[kind] = R.load(R.hc_ref(f"build_{kind}", ym[4:]))
+            spreads[kind] = R.load(R.hc_ref(f"spread_{kind}", ym[4:]))
         tab = tabs[kind]
         if tab is None or f"hcm_{var}" not in tab:
             print(f"  global {var} {ym}: table hc_build_{kind}_{ym[4:]} missing — skipped", flush=True)
             continue
-        if current:
-            if not fc_path(kind, ym).exists():
-                continue
-            try:
-                fc, lat, lon = load_field(fc_path(kind, ym), short)
-            except Exception as e:  # noqa: BLE001
-                print(f"  global {var} {ym}: {str(e)[:100]}", flush=True)
-                continue
-            f = _snow_fac(ym, fc.shape[1]) if var == "sf" else fac
-            fcm = np.nanmean(fc * f, axis=0)
-            del fc
-        else:
-            if f"fcm_{var}" not in summ:
-                continue
-            fcm, lat, lon = summ[f"fcm_{var}"], summ[f"lat_{var}"], summ[f"lon_{var}"]
+        if f"fcm_{var}" not in summ:
+            continue
+        fcm, lat, lon = summ[f"fcm_{var}"], summ[f"lat_{var}"], summ[f"lon_{var}"]
+        sp = spreads[kind] if spreads[kind] is not None and f"yd_{var}" in spreads[kind] else None
+        if sp is None:
+            print(f"  global {var} {ym}: no hindcast spread (hc_spread_{kind}_{ym[4:]}) — maps untestable", flush=True)
+        pre = f"fsd_{var}_"
+        fsd = {k[len(pre) :]: v for k, v in summ.items() if k.startswith(pre)}
         nh = tab[f"hcm_{var}"].shape[0]
         hcm = tab[f"hcm_{var}"] * (_snow_fac(ym, nh)[0] if var == "sf" else fac)
         ztr = None
         if var == "z500" and "ztr_ny" in tab["meta"]:
             ztr = {k: tab[k] for k in tab if k.startswith("ztr_")}
             ztr["meta"] = tab["meta"]  # which lead sets are day-weighted (day_weighted)
-        out[var] = (fcm, hcm, lat, lon, ztr)
+        out[var] = dict(
+            fcm=fcm, hcm=hcm, lat=lat, lon=lon, ztr=ztr, fsd=fsd, n=int(summ.get(f"n_{var}", 0)), spread=sp, sv=var
+        )
         if var == "sd":
-            out["sdp"] = (fcm, hcm, lat, lon, None)
-    if current:
-        _global_issue_table(ym)
+            out["sdp"] = dict(out["sd"], ztr=None)  # the same field as % of normal: sd's spread (sv)
     return out
+
+
+def _land(lat, lon, sst) -> np.ndarray | None:
+    """Land cells of a (lat, lon) grid: where the hindcast SST of the global grid (sst = (field, lat, lon)) has no
+    data -- the t2m, precipitation and snow maps show land only, so their test counts land cells only."""
+    if sst is None:
+        return None
+    s, slat, slon = sst
+    i = np.abs(np.asarray(slat)[None, :] - np.asarray(lat)[:, None]).argmin(1)
+    j = np.abs(((np.asarray(slon)[None, :] - np.asarray(lon)[:, None] + 180.0) % 360.0) - 180.0).argmin(1)
+    return ~np.isfinite(s[np.ix_(i, j)])
+
+
+def trend_term(g: np.ndarray, x0: float) -> tuple:
+    """shift_signal term of a straight line fitted to the yearly values g [year, lat, lon] and read x0 years from
+    their mean year: the residual variance (n - 2 degrees of freedom) through trend_read_var."""
+    n = g.shape[0]
+    yr = np.arange(n) - (n - 1) / 2.0
+    gm = g.mean(0)
+    slope = (yr[:, None, None] * (g - gm)).sum(0) / (yr**2).sum()
+    s2 = ((g - gm - slope * yr[:, None, None]) ** 2).sum(0) / (n - 2)
+    return trend_read_var(s2, x0, n), n - 2
+
+
+def _year_devs(e: dict, month: str, leads, conv=None) -> np.ndarray | None:
+    """[year, lat, lon]: each hindcast year's ensemble-mean departure over a lead set, in display units -- day-weighted
+    in that year, or for snowfall (conv = the issue's days per month) the equal-weight mean of the monthly totals,
+    as the maps take it. None when the spread table does not reach the lead set."""
+    sp = e["spread"]
+    yd = sp[f"yd_{e['sv']}"] if sp is not None else None
+    if yd is None or max(leads) > yd.shape[1]:
+        return None
+    yd = yd.astype(np.float32)
+    if conv is not None:
+        return _season_means(yd, leads, np.asarray(conv, float) / len(leads))
+    return _season_means(yd, leads, hindcast_lead_weights(month, leads, yd.shape[0], yd.shape[0]))
+
+
+def _hindcast_sd(e: dict, leads, conv=None):
+    """The hindcast's single-member spread of a lead-set mean in display units, or None (no spread table / lead set).
+    conv: snowfall's days per month (the table holds mm w.e. per day)."""
+    sp = e["spread"]
+    k = f"sd_{e['sv']}_{_ls_key(leads)}"
+    if sp is None or k not in sp:
+        return None
+    return sp[k] * (float(np.mean(conv)) if conv is not None else 1.0)
 
 
 def _period_sets(ym: str, prev: str | None):
@@ -928,10 +1071,9 @@ def _global_map(field, lat, lon, var, levels, cmap, cstep, title, sub, cb_label,
     if var == "sst":
         # the site's shared SST palette (scripts/sst/mapstyle.py): anomalies on its ladder (white +-0.2 band, 0.2 degC
         # classes to +-3, the same colour for the same value as the OISST loops); the change map keeps its finer
-        # 0.1 degC ladder but on the same ramp. The axes background is the SST land colour so the 1-degree grid's
-        # coastal no-data cells read as land instead of white slivers along every coast.
+        # 0.1 degC ladder but on the same ramp. The axes background stays white: a blank ocean cell is one with no
+        # significant shift (render_global_maps), and land keeps the SST land colour.
         sst_style = MS.sst_style_for(levels)
-        ax.set_facecolor(MS.SST_LAND)
         ax.add_feature(cfeature.LAND, facecolor=MS.SST_LAND, zorder=0)
         norm, cmap_obj = sst_style["norm"], sst_style["cmap"]
     else:
@@ -973,7 +1115,7 @@ def _global_map(field, lat, lon, var, levels, cmap, cstep, title, sub, cb_label,
     gl.top_labels = gl.right_labels = False
     gl.xlabel_style = gl.ylabel_style = {"size": 7, "color": "#555"}
     fig.text(0.03, 1 - 0.14 / H, title, fontsize=13.5, fontweight="bold", va="top")
-    fig.text(0.03, 1 - 0.50 / H, sub, fontsize=8.6, color="#444", va="top")
+    fig.text(0.03, 1 - 0.50 / H, "\n".join(textwrap.wrap(sub, 215)), fontsize=8.6, color="#444", va="top")
     cax = fig.add_axes([0.25, 0.42 / H, 0.50, 0.14 / H])
     cb = fig.colorbar(m, cax=cax, orientation="horizontal", extend="both", spacing="uniform")
     if sst_style is not None:
@@ -989,10 +1131,33 @@ def _global_map(field, lat, lon, var, levels, cmap, cstep, title, sub, cb_label,
     plt.close(fig)
 
 
+LAND_VARS = ("t2m", "tp", "sf", "sd", "sdp")  # drawn over land only (_global_map paints the oceans white)
+
+
+def _test_sentence(frac: float, change: bool) -> str:
+    what = (
+        "against both issues' member spreads and the year-to-year spread of the difference between the two start "
+        "months' hindcast means"
+        if change
+        else "of the members against the hindcast's spread over its 24 years"
+    )
+    return f" Shaded only where the {'change' if change else 'shift'} is significant (Welch t-test {what}, false-discovery rate 0.10): {frac:.0%} of the map."
+
+
 def render_global_maps(ym: str, prev: str | None, out_dir: Path, only=None) -> dict:
-    """One image per (variable, period, kind): the ensemble-mean anomaly of this issue against its
-    own hindcast, and the change against the previous issue (each anomalised against its own
-    start-month hindcast). Plate carrée, most of the world. Files: seas5_map_{var}_{anom|chg}_{period}.webp."""
+    """One image per (variable, period, kind): the ensemble-mean anomaly of this issue against its own hindcast, and
+    the change against the previous issue (each anomalised against its own start-month hindcast), each shaded only
+    where it is significant (shift_signal, FDR over the cells the map shows):
+      anomaly  the 51 members' spread and the hindcast mean's, one member's spread over 24 independent years
+               (welch_terms, conservative); heights against the extrapolated trend, whose error at the valid year is
+               the fitted line's own, from its 24 yearly means (trend_term);
+      change   both issues' member spreads plus the year-to-year spread of the difference between the two start
+               months' yearly hindcast means (hc_spread yd). The two hindcasts share their 24 years, so their
+               difference is far better known than either mean: counted as independent, the hindcast terms come to
+               4-11 times the forecast terms and almost no change could pass; counted year by year they are 0.1-1.2
+               times (2 m temperature, August vs September starts).
+    A map whose test inputs are missing (no hc_spread table, a summary without member spread) is not drawn.
+    Plate carrée, most of the world. Files: seas5_map_{var}_{anom|chg}_{period}.webp."""
     import calendar
 
     now = load_global(ym)
@@ -1018,15 +1183,26 @@ def render_global_maps(ym: str, prev: str | None, out_dir: Path, only=None) -> d
         "vars": {},
         "previous": prev,
         "previous_last": (valid_months(prev)[-1] if prev else None),
+        "test": SHIFT_TEST_NOTE,
     }
-    for var, tup in now.items():
+    sst_ref = (now["sst"]["hcm"][0], now["sst"]["lat"], now["sst"]["lon"]) if "sst" in now else None
+    chg_wanted = chg_tested = 0
+    for var, e in now.items():
         if only and var not in only:
             continue
-        fcm, hcm, lat, lon, ztr = tup  # fcm: ensemble mean [lead, lat, lon]
+        fcm, hcm, lat, lon, ztr = e["fcm"], e["hcm"], e["lat"], e["lon"], e["ztr"]
         label, units, lv_a, lv_c, cmap, cs_a, cs_c = MAP_SPEC[var]
         entry = {"label": label, "units": units, "anom": {}, "chg": {}, "standardised": ztr is not None}
         pb = before.get(var)
         nl = min(fcm.shape[0], hcm.shape[0])  # 7 when the forecast supplement and the lead-7 table exist
+        base = np.ones(fcm.shape[1:], bool)
+        if var in LAND_VARS:
+            land = _land(lat, lon, sst_ref)
+            if land is None:
+                print(f"  global maps {var}: no SST table for a land mask; tested over every cell", flush=True)
+            else:
+                base = land
+        days = _snow_fac(ym, fcm.shape[0])[0, :, 0, 0] / SPREAD_UNITS["sf"] if var == "sf" else None
         for key, plabel, ln, lp in periods:
             if max(ln) > nl or (ztr is not None and f"ztr_mean_{_ls_key(ln)}" not in ztr):
                 continue
@@ -1034,15 +1210,16 @@ def render_global_maps(ym: str, prev: str | None, out_dir: Path, only=None) -> d
             # seasons: each month weighted by its length in the valid year (a leap February counts 29 days); snowfall
             # is already a monthly total (cm per month), so its seasonal ratio is of plain sums
             w = lead_weights(ym, ln) if var != "sf" else np.full(len(ln), 1.0 / len(ln))
+            conv = days[idx] if days is not None else None
 
             def mw(x, ii, ww):
                 return np.tensordot(ww, x[ii], axes=1)
 
-            a = mw(fcm, idx, w) - mw(hcm, idx, w)
+            fm, hm = mw(fcm, idx, w), mw(hcm, idx, w)
+            a = num = fm - hm  # num: the shift the test is about, in display units
             if var in ("sf", "sdp"):  # % of the hindcast normal, blank where it is tiny
-                nrm = mw(hcm, idx, w)
                 floor = 1.0 if var == "sf" else 10.0  # 1 cm/month of snowfall, 10 mm w.e. of snowpack
-                a = np.where(nrm >= floor, 100.0 * mw(fcm, idx, w) / np.maximum(nrm, 1e-6), np.nan)
+                a = np.where(hm >= floor, 100.0 * fm / np.maximum(hm, 1e-6), np.nan)
             if ztr is not None:
                 # heights carry the warming trend (+40–60 m over the tropics against a 1993–2016 mean, which is
                 # many σ where the year-to-year spread is small): the reference is the hindcast's linear trend
@@ -1057,10 +1234,23 @@ def render_global_maps(ym: str, prev: str | None, out_dir: Path, only=None) -> d
                 wz = (
                     w if day_weighted(ztr.get("meta"), ln) else np.full(len(ln), 1.0 / len(ln))
                 )  # as the table was built
-                a = (mw(fcm, idx, wz) - ref) / np.where(sd > 0, sd, np.nan)
+                num = mw(fcm, idx, wz) - ref
+                a = num / np.where(sd > 0, sd, np.nan)
+            ls = _ls_key(ln)
+            sh = _hindcast_sd(e, ln, conv)
+            yn = _year_devs(e, ym[4:], ln, conv)
+            if sh is None or yn is None or ls not in e["fsd"] or e["n"] < 2:
+                print(f"  global maps {var} {key}: no member or hindcast spread for the test — not drawn", flush=True)
+                continue
+            # the flat hindcast mean: one member's spread over 24 years (conservative); the trend read at the valid
+            # year: the fitted line's own error from its 24 yearly means (with one member's spread nothing would pass)
+            hterm = trend_term(yn, target) if ztr is not None else (sh**2 / N_EFF_HC, N_EFF_HC - 1)
+            dom = base & np.isfinite(a)
+            sig = shift_signal(num, [(e["fsd"][ls] ** 2 / e["n"], e["n"] - 1), hterm], dom)
+            frac = float(sig[dom].mean()) if dom.any() else 0.0
             out = out_dir / f"seas5_map_{var}_anom_{key}.webp"
             _global_map(
-                a,
+                np.where(sig, a, np.nan),
                 lat,
                 lon,
                 var,
@@ -1077,53 +1267,84 @@ def render_global_maps(ym: str, prev: str | None, out_dir: Path, only=None) -> d
                     if var == "sd"
                     else "Ensemble mean of 51 members minus the 1993–2016 start-month hindcast mean (25 members × 24 years), 1° grid."
                     + (
-                        " Heights: departure from the hindcast's linear trend at the valid year, in σ of the residual year-to-year spread; the whole tropical belt sits 3–4σ high in this El Niño."
+                        " Heights: departure from the hindcast's linear trend at the valid year, in σ of the residual year-to-year spread; the trend's error at the valid year is part of the test."
                         if ztr is not None
                         else ""
                     )
-                ),
+                )
+                + _test_sentence(frac, False),
                 ("% of the hindcast normal" if var in ("sf", "sdp") else f"anomaly ({units})"),
                 out,
             )
-            entry["anom"][key] = dict(file=out.name, mean=float(np.nanmean(a)))
-            if pb is not None and lp is not None:
-                fcmp, hcp, ztrp = pb[0], pb[1], pb[4]
-                ip = [L - 1 for L in lp]  # fcmp: previous ensemble mean
-                ap = mw(fcmp, ip, w) - mw(hcp, ip, w)  # the same valid months: the same weights
-                if var in ("sf", "sdp"):
-                    nrmp = mw(hcp, ip, w)
-                    floorp = 1.0 if var == "sf" else 10.0
-                    ap = np.where(nrmp >= floorp, 100.0 * mw(fcmp, ip, w) / np.maximum(nrmp, 1e-6), np.nan)
-                if ztr is not None and ztrp is not None:  # previous issue: its own trend reference, this σ
-                    kp = _ls_key(lp)
-                    nyp = 24
-                    refp = ztrp[f"ztr_mean_{kp}"] + ztrp[f"ztr_slope_{kp}"] * ((vyear - 1993) - (nyp - 1) / 2)
-                    wzp = w if day_weighted(ztrp.get("meta"), lp) else np.full(len(lp), 1.0 / len(lp))
-                    ap = (mw(fcmp, ip, wzp) - refp) / np.where(sd > 0, sd, np.nan)
-                c = a - ap
-                out = out_dir / f"seas5_map_{var}_chg_{key}.webp"
-                if max(lp) > pb[0].shape[0]:
-                    continue
-                _global_map(
-                    c,
-                    lat,
-                    lon,
-                    var,
-                    lv_c,
-                    cmap,
-                    cs_c,
-                    f"SEAS5 {label}: change since the {prev_lbl} · {plabel} · {issue_lbl}",
-                    "Each issue's ensemble mean anomalised against its own start-month hindcast, so this is the shift in the forecast, not drift. Periods the earlier issue does not cover are not drawn.",
-                    (
-                        f"change in % of normal (points), {issue_lbl} minus {prev_lbl}"
-                        if var in ("sf", "sdp")
-                        else f"change in ensemble-mean anomaly ({units}), {issue_lbl} minus {prev_lbl}"
-                    ),
-                    out,
-                )
-                entry["chg"][key] = dict(file=out.name, mean=float(np.nanmean(c)))
-        meta["vars"][var] = entry
+            entry["anom"][key] = dict(file=out.name, mean=float(np.nanmean(a)), sig=round(frac, 3))
+            if pb is None or lp is None or max(lp) > pb["fcm"].shape[0] or (ztr is not None and pb["ztr"] is None):
+                continue
+            chg_wanted += 1
+            fcmp, hcp, ztrp = pb["fcm"], pb["hcm"], pb["ztr"]
+            ip = [L - 1 for L in lp]  # fcmp: previous ensemble mean; the same valid months: the same weights
+            fmp, hmp = mw(fcmp, ip, w), mw(hcp, ip, w)
+            ap = nump = fmp - hmp
+            if var in ("sf", "sdp"):
+                floorp = 1.0 if var == "sf" else 10.0
+                ap = np.where(hmp >= floorp, 100.0 * fmp / np.maximum(hmp, 1e-6), np.nan)
+            if ztr is not None:  # previous issue: its own trend reference, this σ
+                kp = _ls_key(lp)
+                nyp = 24
+                refp = ztrp[f"ztr_mean_{kp}"] + ztrp[f"ztr_slope_{kp}"] * ((vyear - 1993) - (nyp - 1) / 2)
+                wzp = w if day_weighted(ztrp.get("meta"), lp) else np.full(len(lp), 1.0 / len(lp))
+                nump = mw(fcmp, ip, wzp) - refp
+                ap = nump / np.where(sd > 0, sd, np.nan)
+            c = a - ap
+            lsp = _ls_key(lp)
+            yp = _year_devs(pb, prev[4:], lp, conv)
+            if yp is None or lsp not in pb["fsd"] or pb["n"] < 2:
+                continue
+            chg_tested += 1
+            vn, vp = e["fsd"][ls] ** 2 / e["n"], pb["fsd"][lsp] ** 2 / pb["n"]
+            with np.errstate(divide="ignore", invalid="ignore"):
+                if var in (
+                    "sf",
+                    "sdp",
+                ):  # a change of % of normal: linearised in both forecast and normal (delta method)
+                    diff, g = c, 100.0 * (fmp / hmp**2 * yp - fm / hm**2 * yn)
+                    vn, vp = vn * (100.0 / hm) ** 2, vp * (100.0 / hmp) ** 2
+                else:
+                    diff, g = num - nump, yn - yp
+            # the two trend references, read at the same valid year, or the two flat hindcast means
+            hterm = (
+                trend_term(g, target) if ztr is not None else (np.var(g, axis=0, ddof=1) / g.shape[0], g.shape[0] - 1)
+            )
+            dom = base & np.isfinite(c)
+            sig = shift_signal(diff, [(vn, e["n"] - 1), (vp, pb["n"] - 1), hterm], dom)
+            frac = float(sig[dom].mean()) if dom.any() else 0.0
+            out = out_dir / f"seas5_map_{var}_chg_{key}.webp"
+            _global_map(
+                np.where(sig, c, np.nan),
+                lat,
+                lon,
+                var,
+                lv_c,
+                cmap,
+                cs_c,
+                f"SEAS5 {label}: change since the {prev_lbl} · {plabel} · {issue_lbl}",
+                "Each issue's ensemble mean anomalised against its own start-month hindcast, so this is the shift in the forecast, not drift. Periods the earlier issue does not cover are not drawn."
+                + _test_sentence(frac, True),
+                (
+                    f"change in % of normal (points), {issue_lbl} minus {prev_lbl}"
+                    if var in ("sf", "sdp")
+                    else f"change in ensemble-mean anomaly ({units}), {issue_lbl} minus {prev_lbl}"
+                ),
+                out,
+            )
+            entry["chg"][key] = dict(file=out.name, mean=float(np.nanmean(c)), sig=round(frac, 3))
+        if entry["anom"]:
+            meta["vars"][var] = entry
         print(f"  global maps {var}: {len(entry['anom'])} anomaly, {len(entry['chg'])} change", flush=True)
+    if chg_wanted and not chg_tested:
+        meta["chg_untested"] = (
+            f"No change maps for this issue: the {prev_lbl}'s stored forecast or its start month's hindcast carries "
+            "no spread, so a change cannot be tested."
+        )
     return meta
 
 
@@ -1251,7 +1472,7 @@ LEAD7_NOTE = (
     "on AWS (instantaneous fields, interpolated to the CDS grid) and the CDS sub-daily hindcast (accumulations, "
     "50 hPa height, 30/50 hPa wind). Skill is lower at lead 7; it goes through the same calibration and trend handling as "
     "leads 1–6, and the same tests where a product has one (the teleconnection skill test, the tercile maps' signal "
-    "test). The anomaly and change maps are ensemble means with no significance test, at any lead."
+    "test, the anomaly and change maps' Welch test)."
 )
 
 
@@ -1320,9 +1541,15 @@ def build(ym: str, n_prev: int = 3) -> None:
 # from this one. render_terciles / render_global_maps / sst_indices / polar_caps read only these.
 REF_UNITS = {
     "build_sst": dict(raw=["m:sst"], fn=_sst_hc_table),
+    # each kind's map statistics and the spread its maps are tested with, one after the other, so a raw kind is
+    # deleted (derive_hindcast --discard-raw) before the next is fetched
     **{
-        f"build_{k}": dict(raw=[f"m:{k}"], fn=(lambda month, k=k: _global_hc_table(k, month)))
+        u: spec
         for k in ("gl", "gl_z500", "gl_u850", "gl_v850", "na_snow", "na_snowdepth")
+        for u, spec in (
+            (f"build_{k}", dict(raw=[f"m:{k}"], fn=(lambda month, k=k: _global_hc_table(k, month)))),
+            (f"spread_{k}", dict(raw=[f"m:{k}"], fn=(lambda month, k=k: _global_spread_table(k, month)))),
+        )
     },
     "build_polar": dict(raw=["m:polar_n", "m:polar_s"], fn=_polar_hc_table),
 }

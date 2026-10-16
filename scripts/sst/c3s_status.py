@@ -5,7 +5,8 @@ checkout and this script, nothing else).
 
 Parts and what "done" means:
   plume   enso_forecast.json holds this issue with every system the page keeps (5 since 2026-09-27)
-  maps    c3s_maps.json holds this issue with every system x field (8 x 4)
+  maps    c3s_maps.json holds this issue with every system x field (8 x 4); a field is listed once it is
+          tested, i.e. once its start month's hindcast spread (c3s_ref hc_anom) is in
   terc    every system x variable has its issue table (c3s_ref is_terc, 8 x 2)
   sixh    every system x region x forecast month has its daily table (c3s_ref is_sixh, 8 x 2 x 6)
 

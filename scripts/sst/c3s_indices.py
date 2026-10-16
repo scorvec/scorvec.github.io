@@ -2,11 +2,11 @@
 """Ocean and ENSO indices for every C3S system, from the anomaly fields already on disk.
 
 The SEAS5 card behind these indices is member-level: it reads the full ensemble and can
-draw a fan. The other seven systems publish their members only as tens of gigabytes, and
-the postprocessed collection this page already caches carries the ENSEMBLE MEAN anomaly --
-against each centre's own 1993-2016 hindcast, which is exactly the reference an index
-wants. So every system gets its index CURVE here at no download cost, and only ECMWF keeps
-a spread; the card says so rather than implying eight fans.
+draw a fan. For the other seven systems the anomaly maps' issue table (c3s_maps.issue_anom)
+holds the ENSEMBLE MEAN of the postprocessed member anomalies -- against each centre's own
+1993-2016 hindcast, which is exactly the reference an index wants. So every system gets its
+index CURVE here at no download cost, and only ECMWF keeps a spread; the card says so rather
+than implying eight fans.
 
 Boxes, the PDO projection and the calibration all come from seas5_build so there is one
 definition of each index on the site.
@@ -28,7 +28,7 @@ import numpy as np
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
-from c3s_maps import path_for
+from c3s_maps import issue_anom
 from c3s_nino34 import MODELS
 from seas5_build import BOXES, box_mean, _pdo_index
 
@@ -58,25 +58,11 @@ INDICES = [
 
 
 def read_ssta(centre: str, system: str, issue: str):
-    """(lead, lat, lon) ensemble-mean SST anomaly, or None."""
-    import xarray as xr
-
-    p = path_for("sst", centre, system, issue)
-    if not p.exists():
+    """(lead, lat, lon) ensemble-mean SST anomaly (c3s_maps' issue table), or None."""
+    t = issue_anom(centre, system, "sst", issue)
+    if t is None:
         return None, None, None
-    try:
-        ds = xr.open_dataset(
-            p, engine="cfgrib", backend_kwargs={"indexpath": "", "time_dims": ("forecastMonth", "time")}
-        )
-    except Exception as e:  # noqa: BLE001
-        print(f"  {centre}/{system}: unreadable ({str(e)[:60]})", file=sys.stderr)
-        return None, None, None
-    da = ds[next(iter(ds.data_vars))]
-    if "forecastMonth" in da.dims:
-        da = da.transpose("forecastMonth", "latitude", "longitude")
-    v = da.values.astype("float32")
-    lat, lon = da.latitude.values, da.longitude.values
-    ds.close()
+    v, lat, lon = t["mean"].astype("float32"), t["lat"], t["lon"]
     # The CDS serves 0..360; every box on this site is written -180..180 (Niño-3.4 is
     # -170..-120), and box_mean's wrap branch cannot rescue a box whose BOTH edges are
     # negative. Convert once, here, rather than teaching every index about the grid.
