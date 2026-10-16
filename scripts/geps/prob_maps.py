@@ -22,7 +22,8 @@ Calibrated  standardised form (since 2026-09-26): x = (m - mean) / fsd, the
 Display     CPC-style: hue for the most likely tercile (blue below, grey
             near, red above), intensity for its probability from 33% up.
 Mask        hatched where the hindcast anomaly correlation for this month
-            and week is below SKILL_MIN; cross-hatched where there is no
+            and week is not significant skill (render_maps.noskill, tested
+            on the hindcast's own 2.5 deg grid); cross-hatched where there is no
             truth (precipitation over the ocean — the CPC gauge analysis is
             land only) or where the climatological week is dry (< DRY_MM
             mm/day: the terciles collapse onto zero and mean nothing, the
@@ -64,7 +65,6 @@ LIVE = paths.LIVE
 FIGS = paths.FIGS
 SITE = paths.SITE_ASSETS
 WEEKS = [(1, 7), (8, 14), (15, 21), (22, 28), (29, 35)]
-SKILL_MIN = 0.25
 DRY_MM = 0.5  # climatological weekly mean below this: terciles undefined
 P_LO, P_HI = 0.33, 0.70  # colour ramp of the most likely tercile
 Z3 = 0.4307272992954576  # the standard normal's upper tercile, Phi(Z3) = 2/3
@@ -145,6 +145,8 @@ def weekly_probs(tag, cycle, base, skill, recent):
         m = wk.mean(0)
         sk = skill.sel(month=base.month, week=wi + 1)
         R, FSD = (on_grid(sk[k], lat, lon) for k in ("r", "fsd"))
+        ns = sk["r"].copy(data=np.where(np.isfinite(sk["r"].values), rm.noskill(sk["r"].values), np.nan))
+        NS = on_grid(ns, lat, lon) >= 0.5  # the test on the hindcast grid, carried to the member grid
         # Standardised form (2026-09-26, found while porting to GEFS): the old median + a(m - median) against the
         # observed q33/q67 put ~40 % in "below" and ~20 % in "near" wherever skill is nil, because weekly
         # precipitation's terciles sit unevenly about its median - so weeks 3-5 read "below" almost everywhere,
@@ -160,7 +162,9 @@ def weekly_probs(tag, cycle, base, skill, recent):
         cal = np.stack([pb, 1.0 - pb - pa, pa])
         cal = np.where(np.isfinite(cal) & ok[None], cal, np.nan)
         dry = (cw < DRY_MM) if tag == "pr" else np.zeros_like(cw, bool)
-        out.append(dict(w0=w0, w1=w1, raw=raw, cal=cal, r=R, dry=dry, lat=lat, lon=lon, ndays=int(sel.sum())))
+        out.append(
+            dict(w0=w0, w1=w1, raw=raw, cal=cal, r=R, noskill=NS, dry=dry, lat=lat, lon=lon, ndays=int(sel.sum()))
+        )
     return out
 
 
@@ -218,7 +222,7 @@ def draw(tag, cycle, base, weeks, kind):
                 )
             ax.add_feature(cfeature.OCEAN.with_scale("50m"), facecolor="white", alpha=0.45, zorder=2)
             r = wrap(wk["r"])
-            noskill = (np.isfinite(r) & (r < SKILL_MIN)).astype(float)
+            noskill = (np.isfinite(r) & wrap(wk["noskill"])).astype(float)
             notruth = (~np.isfinite(r) | wrap(wk["dry"])).astype(float)
             for fld, hatch, col in ((noskill, "////", "#2f2c28"), (notruth, "xx", "#a6a29a")):
                 if fld.any():
@@ -270,7 +274,7 @@ def draw(tag, cycle, base, weeks, kind):
         )
         note = (
             f"2016–2025 terciles · colour = most likely tercile, intensity = its probability "
-            f"(33% = no signal) · hatched = hindcast r < {SKILL_MIN} (no skill)"
+            f"(33% = no signal) · hatched = skill not significant ({rm.TEST_NOTE})"
             + (" · cross-hatched = no gauge truth / dry week" if tag == "pr" else "")
             + (" · raw: 5% steps" if kind == "raw" else " · calibrated: no skill → ⅓ each")
         )
@@ -309,7 +313,7 @@ def main() -> int:
             share = {c: float(np.mean(best[fin] == i)) for i, (c, _) in enumerate(CATS)}
             print(
                 f"  {tag} week {wk['w0']}-{wk['w1']}: skill r median {np.nanmedian(r):.2f}, "
-                f"share r>={SKILL_MIN}: {np.nanmean(r >= SKILL_MIN) * 100:.0f}%, most likely (cal): "
+                f"share significant: {np.mean(~wk['noskill'][np.isfinite(r)]) * 100:.0f}%, most likely (cal): "
                 + " ".join(f"{c} {v * 100:.0f}%" for c, v in share.items())
             )
         for kind in ("raw", "cal"):

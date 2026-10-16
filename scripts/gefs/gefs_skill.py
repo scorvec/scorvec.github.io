@@ -8,6 +8,12 @@ days of the 15th, as GEPS pools them) and week 1-5, the gridpoint anomaly correl
 days - the truths the GEPS page uses: NCEP/NCAR R1 2 m air, 500 hPa height and sea-level pressure, CPC unified gauge
 precipitation (land only). Built once, offline, by build_gefs_mapskill.py; see its docstring for the arithmetic
 (leave-season-out model climatology, re-basing, conservative 1.5 deg remap of the gauge analysis).
+A cell is skilful only if r passes a one-sided t-test of r > 0 at ALPHA on N_EFF - 2 degrees of freedom AND survives a
+Benjamini-Hochberg false-discovery control at FDR_Q over its map (noskill). N_EFF is the number of reforecast YEARS,
+not the ~260 pairs behind r: the starts of one season are a week apart and serially correlated (and the GEPS
+hindcast's are 1-3 days apart, so its weekly windows overlap), and a season can be no more dependent than one sample a
+year, so the count of years bounds the effective sample size without an estimate of that correlation (one-sided 5 %
+at 20 years: r >= 0.378).
 
 Reference files (release gefs-ref-v1, downloaded by the daily job into one flat directory `ref_dir`):
   gefs_mapskill_{tag}.npz   r (12, 5, 121, 240) float16, NaN = no verification data (precipitation over the ocean);
@@ -28,7 +34,7 @@ Use from gefs_live.py's weekly figure (the `_masked` variants):
         SK.hatch(ax, R.LAT, R.LON, m[0][i], m[1][i], ccrs.PlateCarree())   # i = week index 0-4
     note: SK.MASK_NOTE[tag]
 
-Only numpy (and matplotlib for hatch) at run time.
+numpy, scipy and quantmet (the significance test), matplotlib for hatch.
 """
 
 from __future__ import annotations
@@ -40,16 +46,25 @@ import numpy as np
 
 from gefs_reforecast import noleap_doy  # the climatologies' day-of-year key (numpy only)
 
-SKILL_MIN = 0.25  # GEPS render_maps.SKILL_MIN / prob_maps.SKILL_MIN
+ALPHA = 0.05  # one-sided level of the gridpoint test of positive skill
+FDR_Q = 0.10  # Benjamini-Hochberg false discovery rate over each map (the site's map standard, as on the CanSIPS maps)
+N_EFF = 20  # effective sample size of a gridpoint r: the 2000-2019 reforecast years (see the docstring)
 WEEKS = [(1, 7), (8, 14), (15, 21), (22, 28), (29, 35)]
 CENTRES = np.arange(1, 366, 5)  # the 73 5-day day-of-year centres of the climatologies
 MASK_TAGS = ("t2m", "pr", "zg500", "mslp")
 LAT = np.arange(90.0, -90.0 - 1e-6, -1.5)  # gefs_reforecast.LAT (121, north first)
 LON = np.arange(0.0, 360.0 - 1e-6, 1.5)  # gefs_reforecast.LON (240)
+
+
+def test_note(n_eff: int = N_EFF, what: str = "yrs") -> str:
+    """The figures' wording of the noskill test."""
+    return f"one-sided {ALPHA:.0%}, {n_eff} {what}, FDR {FDR_Q:.2f}"
+
+
 # the footnote the GEPS weekly_masked figures carry (render_maps.weekly), GEFS facts
 MASK_NOTE = {
     t: (
-        f"hatched: hindcast anomaly correlation below {SKILL_MIN} for this week and season (no usable skill)"
+        f"hatched: no significant hindcast skill for this week and season ({test_note()})"
         + ("; cross-hatched: no gauge truth (ocean)" if t == "pr" else "")
     )
     for t in MASK_TAGS
@@ -102,6 +117,23 @@ def weekly_shift(s73, init) -> np.ndarray:
 
 
 # ── skill tables ─────────────────────────────────────────────────────────────────────────────────────────────────
+def noskill(r, n_eff: int = N_EFF) -> np.ndarray:
+    """True where a finite r is NOT significant skill: the one-sided p of r > 0 (t on n_eff - 2 degrees of freedom)
+    above ALPHA, or the cell not a Benjamini-Hochberg discovery at FDR_Q among the finite cells of its map. A map is
+    the last two axes (a 1-D input is one map); NaN (no truth) is never flagged here."""
+    from quantmet.stats import benjamini_hochberg
+    from scipy.stats import t as tdist
+
+    r = np.asarray(r, dtype=float)
+    df = n_eff - 2
+    ok = np.isfinite(r)
+    with np.errstate(invalid="ignore", divide="ignore"):
+        p = np.where(ok, tdist.sf(r * np.sqrt(df / np.clip(1.0 - r * r, 1e-12, None)), df), np.nan)
+    maps = p.reshape(-1, *p.shape[-2:]) if p.ndim >= 2 else p[None]
+    disc = np.stack([benjamini_hochberg(m, FDR_Q) for m in maps]).reshape(p.shape)
+    return ok & ~(disc & (p <= ALPHA))
+
+
 _SK: dict = {}
 
 
@@ -128,12 +160,11 @@ def skill(tag: str, init, ref_dir) -> np.ndarray | None:
 
 def mask(tag: str, init, week: int, ref_dir) -> np.ndarray | None:
     """(121, 240) bool on the 1.5 deg grid (gefs_reforecast.LAT 90 -> -90, LON 0 -> 358.5): True where the hindcast
-    anomaly correlation for this init month and week (1-5) is below SKILL_MIN - the cells GEPS hatches ////."""
+    anomaly correlation for this init month and week (1-5) is not significant skill (noskill) - the cells hatched ////."""
     r = skill(tag, init, ref_dir)
     if r is None:
         return None
-    r = r[week - 1]
-    return np.isfinite(r) & (r < SKILL_MIN)
+    return noskill(r[week - 1])
 
 
 def notruth(tag: str, init, week: int, ref_dir) -> np.ndarray | None:
@@ -150,7 +181,7 @@ def masks(tag: str, init, ref_dir):
     r = skill(tag, init, ref_dir)
     if r is None:
         return None
-    return np.isfinite(r) & (r < SKILL_MIN), ~np.isfinite(r)
+    return noskill(r), ~np.isfinite(r)
 
 
 def hatch(ax, lat, lon, mask_skill, mask_notruth, transform, zorder=None):

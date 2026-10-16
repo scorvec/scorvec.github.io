@@ -44,7 +44,12 @@ the regression obs = a*fcst + b and its residual spread s, and the live
 ensemble-mean weekly index m becomes P(week >= +0.5) = 1 - Phi((0.5-a*m-b)/s).
 With no skill that collapses to climatology, which is the honest week-5
 answer. The hindcast mean is 4 members against 21 live, so a is a touch
-conservative.
+conservative. A week counts as skilful only when r >= SKILL_MIN AND r is
+significant at P_MAX: a one-sided t-test on the effective sample size
+n (1 - r1 r2) / (1 + r1 r2), r1 r2 the lag-1 autocorrelations of the forecast
+and observed weekly series over consecutive hindcast starts (Bretherton et al.
+1999; the starts are 1-3 days apart, so their weeks overlap and n_eff is far
+below n) - the GEFS page's test (gefs_telecon.py).
 
 Everything is in standard deviations of the DAILY index over 1991-2020, so
 "+1" means a day at the 84th percentile of daily variability, and a WEEKLY
@@ -130,6 +135,7 @@ ORDER = [
     "aao",
 ]
 SKILL_MIN = 0.25  # hindcast anomaly correlation below this = "no skill", shaded
+P_MAX = 0.05  # ... and so is a correlation not significant at this level (one-sided, on n_eff)
 INK, MUTED = "#2f2c28", "#5a5650"  # annotation greys: the lighter ones were hard to read
 TAIL_DAYS = 45
 ANA = paths.ANA  # GEPS day-0 ensemble-mean fields at 2.5 deg, one npz per day
@@ -408,9 +414,24 @@ def phi(x):
     return 0.5 * (1.0 + erf(x / sqrt(2.0)))
 
 
+def lag1(x, nxt):
+    """Correlation of x with its value at the next hindcast start (pairs where one exists), 0 when too few."""
+    ok = nxt >= 0
+    if ok.sum() < 10:
+        return 0.0
+    a, b_ = x[ok], x[nxt[ok]]
+    good = np.isfinite(a) & np.isfinite(b_)
+    if good.sum() < 10 or np.std(a[good]) == 0 or np.std(b_[good]) == 0:
+        return 0.0
+    return float(np.corrcoef(a[good], b_[good])[0, 1])
+
+
 def calibration(pat, base):
     """Per index and week: skill and a regression calibration from the
-    hindcast starts within +-WINDOW_DOY days of the init day-of-year."""
+    hindcast starts within +-WINDOW_DOY days of the init day-of-year, with the
+    effective sample size and one-sided p of r (the skill test)."""
+    from scipy.stats import t as tdist
+
     q = TCR / "hindcast_indices.nc"
     if not q.exists():
         return {}
@@ -424,6 +445,8 @@ def calibration(pat, base):
         "datetime64[D]"
     )
     vdoy = refpack.noleap_doy(vdoy)
+    gap = np.diff(S[win].values).astype("timedelta64[D]").astype(int)
+    nxt = np.r_[np.where(gap <= 7, np.arange(1, len(gap) + 1), -1), -1]  # the next start of the same season
     out = {}
     for sid in ds.index.values:
         F = ds.fcst.sel(index=sid).values[win]
@@ -440,13 +463,19 @@ def calibration(pat, base):
             if ok.sum() < 30:
                 rows.append(None)
                 continue
+            r1, r2 = lag1(np.where(ok, f, np.nan), nxt), lag1(np.where(ok, o, np.nan), nxt)
             f, o = f[ok], o[ok]
             r = float(np.corrcoef(f, o)[0, 1])
             a, b = np.polyfit(f, o, 1)
             s_ = float(np.std(o - (a * f + b), ddof=2))
+            n = int(ok.sum())
+            neff = float(np.clip(n * (1 - r1 * r2) / (1 + r1 * r2), 3, n))
+            tt = r * np.sqrt(max(neff - 2, 1) / max(1 - r * r, 1e-9))
             rows.append(
                 dict(
-                    n=int(ok.sum()),
+                    n=n,
+                    n_eff=round(neff, 1),
+                    p=float(f"{tdist.sf(tt, max(neff - 2, 1)):.3g}"),
                     r=round(r, 2),
                     a=round(float(a), 2),
                     b=round(float(b), 2),
@@ -564,7 +593,9 @@ def weekly_stats(t, M, base, prev=None, cal=None):
             mu = c["a"] * row["mean"] + c["b"]
             row.update(
                 skill_r=c["r"],
-                no_skill=bool(c["r"] < SKILL_MIN),
+                no_skill=bool(c["r"] < SKILL_MIN or c["p"] > P_MAX),
+                skill_p=c["p"],
+                cal_n_eff=c["n_eff"],
                 cal_n=c["n"],
                 cal_a=c["a"],
                 cal_b=c["b"],
@@ -575,6 +606,8 @@ def weekly_stats(t, M, base, prev=None, cal=None):
                 cal_p_strong_pos=round(1.0 - phi((1.0 - mu) / c["s"]), 3),
                 cal_p_strong_neg=round(phi((-1.0 - mu) / c["s"]), 3),
             )
+        else:  # no hindcast to test the week against: masked as a week without skill
+            row["no_skill"] = True
         rows.append(row)
     return rows
 
@@ -860,15 +893,29 @@ def plot_probs(pat, cycle, prev_cycle, weeks):
                         bbox=dict(facecolor="white", edgecolor="none", alpha=0.85, pad=1.0),
                     )
             elif not has_hindcast(row):
+                ax.add_patch(
+                    Rectangle(
+                        (x0 - 0.02, y - 0.36),
+                        bw + 0.04,
+                        0.72,
+                        facecolor="white",
+                        alpha=0.55,
+                        edgecolor="#8a8680",
+                        hatch="////",
+                        lw=0.6,
+                        zorder=5,
+                    )
+                )
                 ax.text(
                     x0 + bw / 2,
                     y - 0.24,
-                    "no hindcast — uncalibrated",
+                    "no hindcast — skill untested",
                     ha="center",
                     va="center",
                     fontsize=6.8,
                     color=MUTED,
                     style="italic",
+                    zorder=6,
                 )
             ax.text(x, y - 0.43, line, ha="center", va="center", fontsize=7.3, color=INK)
     ax.set_xlim(-0.5, W - 0.5)
@@ -912,7 +959,7 @@ def plot_probs(pat, cycle, prev_cycle, weeks):
     note = "upper bar: raw member fractions (21 members → 5% steps; 0% = no member, not certainty)" + (
         "; index in seasonal sd for the time of year\nthin lower bar: hindcast-calibrated probabilities — observed weekly index regressed on the forecast one over\n"
         f"2001–2020 GEPS8 starts within ±45 d of this date; skill r = anomaly correlation of the hindcast mean; "
-        f"hatched = r below {SKILL_MIN}, no usable skill"
+        f"hatched = r below {SKILL_MIN} or not significant (one-sided {P_MAX:.0%}, effective n), no usable skill"
         if has_cal
         else ""
     )
@@ -1015,6 +1062,7 @@ def main() -> int:
         "generated": pd.Timestamp.utcnow().strftime("%Y-%m-%dT%H:%MZ"),
         "threshold": THR,
         "skill_min": SKILL_MIN,
+        "skill_p_max": P_MAX,
         "units": "seasonal sd: std of the 1991-2020 daily index within +-15 d of the day of year",
         "n_members": int(next(iter(fc.values()))[1].shape[1]),
         "indices": {},
