@@ -379,7 +379,7 @@
     coupling index, is the leading EOF of 100&nbsp;hPa height anomalies poleward of 20&deg;N with the
     hemispheric mean removed first (the +19&nbsp;m/decade height trend at that level would otherwise
     read as a permanently weak vortex), taken from the 21 members&rsquo; 100&nbsp;hPa heights; the
-    GEPS8 hindcast carries nothing above 200&nbsp;hPa, so it is a plain anomaly against the NCEP
+    GEPS8 hindcast carries no height above 200&nbsp;hPa, so it is a plain anomaly against the NCEP
     climatology and gets no calibration. Raw probabilities are member fractions, so they resolve to about 5% and 0% means
     &ldquo;no member&rdquo;, not certainty.</p>
     <p><b>Calibrated on the hindcast.</b> The same projectors are applied to every GEPS8 hindcast
@@ -389,7 +389,12 @@
     day-of-year (about a thousand) give the anomaly correlation of the hindcast ensemble mean
     (the <b>skill</b> quoted in the table) and a regression of the observed weekly index on the
     forecast one; today&rsquo;s ensemble-mean weekly index passed through that regression, with the
-    residual spread as the distribution, is the <b>calibrated probability</b>. Where the model has
+    regression&rsquo;s predictive distribution (Student&nbsp;t, the residual spread widened for the uncertainty of the fit
+    itself, both counted on the effective number of independent starts), is the <b>calibrated probability</b>. The
+    correlation involves no fit; what is in-sample is that each hindcast start is de-drifted against a climatology
+    that includes its own year (about 5&nbsp;% of the pool). A week counts as skilful only when its correlation is at
+    least 0.25 and significant (one-sided 5&nbsp;% on the effective sample size) and also survives a false discovery
+    rate of 10&nbsp;% over every index and week of the run. Where the model has
     no skill the regression slope goes to zero and the calibrated probability collapses to
     climatology, which is the honest statement for a week-5 NAO; where it has skill but too little
     amplitude, the slope restores it. The hindcast mean is four members against 21 live, so the
