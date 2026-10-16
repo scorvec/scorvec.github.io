@@ -40,6 +40,7 @@
   background: #274b7a; color: #fff; text-decoration: none;
 }
 .skip-link:focus { transform: none; outline: 2px solid #274b7a; outline-offset: 2px; box-shadow: 0 0 0 2px #fff; }
+#main { scroll-margin-top: 5rem; }   /* the sticky header must not cover where the skip link lands */
 @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto !important; } }
 
 /* ── Header ──────────────────────────────────────────────────────────── */
