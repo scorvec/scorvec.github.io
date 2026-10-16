@@ -35,16 +35,19 @@
     color: #3d4540; cursor: pointer; white-space: nowrap; }
   .ao-seg button + button { border-left: 1px solid #e3e6e0; }
   .ao-seg button.on { background: var(--accent); color: #fff; }
-  .ao-seg button:focus-visible { outline: 3px solid #7aa7e0; outline-offset: -3px; }
+  .ao-seg button:focus-visible { outline: 3px solid var(--accent); outline-offset: -3px; box-shadow: inset 0 0 0 5px var(--panel); }
   .ao-hint { text-align: center; font-size: 0.92rem; color: var(--muted); margin: 0.3rem 0 1rem; }
 
   .ao-cards { display: grid; gap: 0.6rem; grid-template-columns: repeat(auto-fill, minmax(176px, 1fr)); }
   .ao-card { text-align: left; font: inherit; color: inherit; background: var(--panel); border: 1px solid var(--rule); border-radius: 10px;
     padding: 0.65rem 0.75rem 0.6rem; cursor: pointer; transition: border-color .12s, opacity .12s; min-width: 0; }
   .ao-card:hover { border-color: var(--accent); }
-  .ao-card:focus-visible { outline: 3px solid #7aa7e0; outline-offset: 1px; }
+  .ao-card:focus-visible { outline: 3px solid var(--accent); outline-offset: 1px; }
   .ao-card.sel { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-soft); }
-  .ao-card.dim { opacity: 0.42; }
+  /* dimmed (another station isolated): the card recedes by its fill and graphics; its text keeps 4.5:1 */
+  .ao-card.dim { background: var(--bg); border-color: var(--rule); }
+  .ao-card.dim .now { color: var(--muted); }
+  .ao-card.dim svg, .ao-card.dim .sid i { opacity: 0.45; }
   .ao-card .r1 { display: flex; justify-content: space-between; align-items: center; gap: 0.3rem; }
   .ao-card .sid { font-weight: 700; font-size: 1.02rem; display: inline-flex; align-items: center; gap: 0.4em; }
   .ao-card .sid i { width: 0.62em; height: 0.62em; border-radius: 50%; background: var(--dot); display: inline-block; }
@@ -292,8 +295,8 @@
   <section class="ao-chart">
     <h2 class="ao-ctitle" id="ctitle"></h2>
     <p class="ao-ckey" id="ckey"></p>
-    <div class="ao-panel" id="p1"><canvas class="ao-cv"></canvas><canvas class="ao-ov"></canvas></div>
-    <div class="ao-panel ao-panel--dir" id="p2" hidden><canvas class="ao-cv"></canvas><canvas class="ao-ov"></canvas></div>
+    <div class="ao-panel" id="p1"><canvas class="ao-cv" role="img" aria-label="Chart of the chosen variable at every station, each trace labelled with its station; the cards above give each station's latest value and today's extremes"></canvas><canvas class="ao-ov" aria-hidden="true"></canvas></div>
+    <div class="ao-panel ao-panel--dir" id="p2" hidden><canvas class="ao-cv" role="img" aria-label="Wind direction at every station, one dot per observation"></canvas><canvas class="ao-ov" aria-hidden="true"></canvas></div>
     <div class="ao-tip" id="tip" hidden></div>
   </section>
 
@@ -754,7 +757,7 @@
     this.spec = spec; this.size();
     var c = this.ctx, W = this.w, H = this.h, dpr = this.dpr;
     c.setTransform(dpr, 0, 0, dpr, 0, 0); c.clearRect(0, 0, W, H);
-    var L = spec.left || 54, R = 12, Tp = 10, B = spec.bottom == null ? 34 : spec.bottom, pw = W - L - R, ph = H - Tp - B;
+    var L = spec.left || 54, R = spec.labels ? 48 : 12, Tp = 10, B = spec.bottom == null ? 34 : spec.bottom, pw = W - L - R, ph = H - Tp - B;
     var x0 = spec.xr[0], x1 = spec.xr[1], y0 = spec.yr[0], y1 = spec.yr[1];
     var sx = function (x) { return L + (x - x0) / (x1 - x0) * pw; }, sy = function (y) { return Tp + (1 - (y - y0) / (y1 - y0)) * ph; };
     this.sx = sx; this.sy = sy; this.box = [L, Tp, pw, ph]; this.ix = function (px) { return x0 + (px - L) / pw * (x1 - x0); };
@@ -798,6 +801,24 @@
     (spec.over || []).forEach(function (f) { f(c, sx, sy, pts); });
     c.restore();
     c.strokeStyle = "#cfd3cc"; c.strokeRect(L + 0.5, Tp + 0.5, pw, ph);
+    if (spec.labels) {                     // station ids in the right margin, nudged 13 px apart, a leader to each trace end
+      var labs = [];
+      spec.series.forEach(function (S) {
+        if (!S.label || S.mode === "points" || S.hover === false) return;
+        for (var k = S.x.length - 1; k >= 0; k--) { var yl = S.y[k];
+          if (yl == null || isNaN(yl) || S.x[k] < x0 || S.x[k] > x1) continue;
+          labs.push({ t: S.label, col: S.color, x: Math.min(sx(S.x[k]), L + pw), y: Math.max(Tp, Math.min(Tp + ph, sy(yl))) }); break; }
+      });
+      var gapY = Math.min(13, ph / Math.max(1, labs.length - 1));
+      labs.sort(function (a, b) { return a.y - b.y; });
+      labs.forEach(function (a, i) { a.ly = i ? Math.max(a.y, labs[i - 1].ly + gapY) : a.y; });
+      for (var j = labs.length - 1; j >= 0; j--) labs[j].ly = Math.min(labs[j].ly, j === labs.length - 1 ? Tp + ph : labs[j + 1].ly - gapY);
+      c.font = "600 11px " + getComputedStyle(document.body).fontFamily; c.textAlign = "left"; c.textBaseline = "middle"; c.lineWidth = 1;
+      labs.forEach(function (a) {
+        c.strokeStyle = a.col; c.globalAlpha = 0.6; c.beginPath(); c.moveTo(a.x, a.y); c.lineTo(L + pw + 4, a.ly); c.stroke(); c.globalAlpha = 1;
+        c.fillStyle = a.col; c.fillText(a.t, L + pw + 6, a.ly);
+      });
+    }
     if (spec.ylabel) { c.save(); c.translate(13, Tp + ph / 2); c.rotate(-Math.PI / 2); c.textAlign = "center"; c.fillStyle = "#5f6660"; c.fillText(spec.ylabel, 0, 0); c.restore(); }
     pts.sort(function (a, b) { return a[0] - b[0]; });
     this.clearOverlay();
@@ -843,7 +864,7 @@
       kinds.forEach(function (kd) {
         var S = seriesFor(st, kd);
         S.color = faint ? "#9aa19c" : st.s.color; S.alpha = faint ? 0.28 : 1; S.width = me ? 2.6 : (faint ? 1 : 1.5); S.st = st; S.kind = kd;
-        S.hover = !faint; S.gap = kd === "v" || kd === "c" ? 3 * 3600 : 2.2 * 3600;
+        S.hover = !faint; S.label = st.s.id; S.gap = kd === "v" || kd === "c" ? 3 * 3600 : 2.2 * 3600;
         if (vr === "v" || vr === "c") S.mode = "step";
         if (vr === "w") { S.mode = "points"; S.marker = me ? 6 : 4.5; }
         else S.marker = me ? 2.6 : 0;
@@ -867,7 +888,7 @@
         v: "Visibility " + (state.unit === "F" ? "mi" : "km"), c: "Ceiling " + (state.unit === "F" ? "ft" : "m") + " AGL (gaps = none)" }[vr];
     }
     if (isoSt) over = overlays(isoSt, vr);
-    P1.draw({ xr: xr, yr: yr, yticks: yticks, ylabel: ylabel, left: left, series: series, over: over });
+    P1.draw({ xr: xr, yr: yr, yticks: yticks, ylabel: ylabel, left: left, series: series, over: over, labels: vr !== "w" });
     // direction panel
     if (vr === "k") {
       P2.el.hidden = false;
@@ -948,7 +969,7 @@
     if (S.rep) { var r = S.rep; return "<b>" + S.st.s.id + " " + r.type + "</b> · " + hm(lx(r.e, S.st.s.tz)) + "<br><code>" + r.raw.replace(/</g, "&lt;") + "</code>"; }
     if (S.ext) { var x = S.x; return "<b>Today's " + (S.ext === "hi" ? "high" : "low") + "</b> " + fT(x.v) + state.unit + (x.e != null ? " (sampled)" : " (official 6-hour group)"); }
     var st = S.st, o = S.o[q], tz = st.s.tz, when = hm(lx(o[E], tz)) + " " + md(lx(o[E], tz));
-    var head = "<b style=\"color:" + st.s.color + "\">" + st.s.id + "</b> " + when + (o[REP] ? " <span style=\"color:#7d8079\">(report)</span>" : "") + "<br>";
+    var head = "<b style=\"color:" + st.s.color + "\">" + st.s.id + "</b> " + when + (o[REP] ? " <span style=\"color:#5f6660\">(report)</span>" : "") + "<br>";
     var wind = o[SPD] == null ? "" : (o[SPD] === 0 ? "calm" : (o[DIR] != null ? Math.round(o[DIR]) + "° " + dirName(o[DIR]) + " " : (o[VRB] ? "variable " : "")) + fW(o[SPD]) +
       (o[GST] != null ? " gusting " + fW(o[GST]) : "") + (o[VLO] != null ? " (varying " + o[VLO] + "°–" + o[VHI] + "°)" : ""));
     var t = o[T] != null ? fT(o[T]) + state.unit : "", d = o[D] != null ? " / dew " + fT(o[D]) + state.unit : "";
@@ -1003,7 +1024,7 @@
     if (tot) li.push("Calm or under 3 kt " + Math.round(calm / tot * 100) + "% of the last 24 h");
     if (pk) li.push("Peak wind today (METAR remark): <b>" + pk.dir + "° " + dirName(pk.dir) + " " + fW(pk.kt) + "</b> at " + hm(lx(pk.e, tz)));
     if (ws.length) li.push("Wind shift reported at " + ws.map(function (x) { return hm(lx(x.e, tz)) + (x.fropa ? " (frontal passage)" : ""); }).join(", "));
-    box.innerHTML = '<canvas width="220" height="220" style="width:220px;height:220px" aria-label="Wind rose, last 24 hours"></canvas><div class="tx"><h3>' + st.s.id +
+    box.innerHTML = '<canvas width="220" height="220" style="width:220px;height:220px" role="img" aria-label="Wind rose, last 24 hours"></canvas><div class="tx"><h3>' + st.s.id +
       " wind, last 24 hours</h3><ul><li>" + li.join("</li><li>") + "</li></ul><p class=\"mu\" style=\"margin-top:.4rem;font-size:.88rem\">Rose: share of observations by the direction the wind came from (16 sectors), " +
       "shaded by speed (light under 10 kt, mid 10–20, dark over 20).</p></div>";
     drawRose(box.querySelector("canvas"), st, e1 - 86400, e1);
@@ -1058,6 +1079,7 @@
   }
   function seg(id, key, cb) {
     var el = document.getElementById(id);
+    el.querySelectorAll("button").forEach(function (x) { x.setAttribute("aria-pressed", x.classList.contains("on") ? "true" : "false"); });
     el.addEventListener("click", function (ev) { var b = ev.target.closest("button"); if (!b) return;
       el.querySelectorAll("button").forEach(function (x) { x.classList.toggle("on", x === b); x.setAttribute("aria-pressed", x === b ? "true" : "false"); });
       cb(b.dataset[key]); });
