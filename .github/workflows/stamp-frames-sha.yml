@@ -1,0 +1,59 @@
+# One-off (dispatch only): stamp "frames_sha" = the current frames-branch commit into every loop manifest on main.
+#
+# Since 2026-10-05 publish_frames_ci.sh stamps the manifests it publishes, and the viewers ask the jsDelivr mirror for
+# that exact commit (@<sha>) instead of the branch (@frames), which jsDelivr caches for up to 12 h. Until each workflow has
+# republished, an unstamped manifest still falls back to @frames - and when a loop changed shape (the DT loops went from
+# 21 twelve-hourly to 41 six-hourly frames) the mirror served the old run's F00-F20 next to the new F21-F40: frames out of
+# order. The branch tip holds every loop's latest published frames, so stamping it everywhere is consistent; a manifest
+# that a workflow rewrites later gets its own stamp from that publish.
+name: stamp frames sha
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: stamp-frames-sha
+  cancel-in-progress: false
+
+jobs:
+  stamp:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Stamp and push
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          for i in 1 2 3 4 5; do
+            git fetch -q origin main && git reset -q --hard origin/main
+            SHA=$(git ls-remote origin refs/heads/frames | cut -f1)
+            [ -n "$SHA" ] || { echo "::error::no frames branch"; exit 1; }
+            python3 - "$SHA" <<'PY'
+          import json, sys, pathlib
+          sha, n = sys.argv[1], 0
+          for p in sorted(pathlib.Path("assets").rglob("*manifest*.json")):
+              try:
+                  m = json.loads(p.read_text())
+              except Exception as e:
+                  print(f"  skip {p} ({e})"); continue
+              if not isinstance(m, dict) or m.get("frames_sha") == sha:
+                  continue
+              m["frames_sha"] = sha
+              p.write_text(json.dumps(m, separators=(",", ":"))); n += 1
+          print(f"stamped {n} manifest(s) with frames_sha {sha[:10]}")
+          PY
+            git add -A assets
+            if git diff --staged --quiet; then echo "nothing to stamp"; exit 0; fi
+            git commit -q -m "manifests: frames_sha ${SHA:0:10} (pin the jsDelivr mirror)"
+            if git push -q; then echo "pushed on attempt $i"; exit 0; fi
+            sleep 5
+          done
+          exit 1

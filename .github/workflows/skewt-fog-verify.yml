@@ -1,0 +1,101 @@
+name: skewt-fog-verify
+# Dispatch-only: verify the Skew-T explorer's fog / ceiling estimate against METARs.
+# Builds a matched IGRA-sounding x IEM-METAR dataset, ports cloudLayers/estCeiling/fog model to Python
+# (checked against the real app.js under node), scores old/new/tuned rules with station-block bootstrap CIs.
+# stage=all     full rebuild (IEM pulls are sequential and backed off), dataset -> release skewt-fog-data-v1
+# stage=rescore re-score the dataset already on the release (no IGRA/IEM traffic)
+# stage=probe   source formats only
+on:
+  workflow_dispatch:
+    inputs:
+      stage:
+        description: "all | rescore | probe"
+        default: "all"
+
+permissions:
+  contents: write          # release asset for the dataset
+
+concurrency:
+  group: skewt-fog-verify
+  cancel-in-progress: false
+
+env:
+  OLD_APP_SHA: d9811797b364728dfa9a51ce91e090ec30469147   # c53ce78^ : the pre-change estCeiling
+  REL: skewt-fog-data-v1
+  GH_TOKEN: ${{ github.token }}
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - name: Install
+        run: pip install --quiet numpy pandas pyarrow
+      - name: Probe sources
+        if: inputs.stage == 'probe'
+        run: python scripts/skewt/verify_fog.py probe out
+      - name: Restore source cache (METAR pulls + IGRA files; keeps reruns off IEM)
+        if: inputs.stage == 'all'
+        uses: actions/cache/restore@v6
+        with:
+          path: |
+            out/metar
+            out/igra
+          key: skewt-fog-src-v1-${{ github.run_id }}
+          restore-keys: skewt-fog-src-v1-
+      - name: Stations (co-location check)
+        if: inputs.stage == 'all'
+        run: python scripts/skewt/verify_fog.py stations out
+      - name: METARs from IEM (sequential, backed off)
+        if: inputs.stage == 'all'
+        run: python scripts/skewt/verify_fog.py metar out
+      - name: Build matched pairs (IGRA v2)
+        if: inputs.stage == 'all'
+        run: python scripts/skewt/verify_fog.py build out
+      - name: Save source cache
+        if: always() && inputs.stage == 'all'
+        uses: actions/cache/save@v6
+        with:
+          path: |
+            out/metar
+            out/igra
+          key: skewt-fog-src-v1-${{ github.run_id }}
+      - name: Port check against the real app.js (node)
+        if: inputs.stage == 'all'
+        run: |
+          git fetch -q --depth=1 origin "$OLD_APP_SHA"
+          git show "$OLD_APP_SHA:skewt/app.js" > /tmp/app_old.js
+          node --version
+          python scripts/skewt/verify_fog.py jstest out skewt/app.js /tmp/app_old.js
+      - name: Fetch dataset from the release
+        if: inputs.stage == 'rescore'
+        run: |
+          mkdir -p out
+          gh release download "$REL" -p pairs.parquet -p stations.json -p qc.json -p jstest.json -D out
+      - name: Score
+        if: inputs.stage == 'all' || inputs.stage == 'rescore'
+        run: python scripts/skewt/verify_fog.py score out
+      - name: Publish dataset (release asset, not main)
+        if: inputs.stage == 'all'
+        run: |
+          cd out
+          tar czf metar_csv.tgz metar
+          tar cf profiles_npz.tar profiles
+          gh release view "$REL" >/dev/null 2>&1 || gh release create "$REL" --title "Skew-T fog verification dataset" \
+            --notes "IGRA v2 00/12Z soundings x IEM routine METARs (2010-2025) at co-located raob/airport sites, built by .github/workflows/skewt-fog-verify.yml. pairs.parquet = one row per launch (rule calls, sweeps, fog-model p, METAR truth); profiles_npz.tar = processed profiles <= 6 km AGL (float32; P Pa, H m, T K, Td K, U/V m/s; offsets index rows of pairs per station in date order); metar_csv.tgz = raw IEM pulls."
+          gh release upload "$REL" --clobber pairs.parquet stations.json stations.md qc.json jstest.json metar_csv.tgz profiles_npz.tar
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: skewt-fog-summary-${{ inputs.stage }}
+          path: |
+            out/*.md
+            out/summary.json
+            out/jstest.json
+            out/qc.json
+            out/stations.json
+          if-no-files-found: ignore

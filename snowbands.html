@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"><title>Snow-band diagnostics — moved to the short-range model maps</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex">
+<link rel="canonical" href="https://scorvec.com/models.html">
+<meta http-equiv="refresh" content="0; url=/models.html#hrrr/sbing">
+<script>
+  // The snow-band page is retired: the same diagnostics (scripts/snowband/snowband.py) are the "Winter: snow bands"
+  // maps of models.html, and the case studies are in its About section. Old deep links were the stage viewer's
+  // #<product>/<model>/<region> (products ov ing fg epv dgz bands; regions nema atl onq mw rk) and #case/<case id>/<view>.
+  (function () {
+    var P = { ov: "sbing", ing: "sbing", fg: "sbfg", epv: "sbepv", dgz: "sbdgz", bands: "refl" };
+    // each old region's centre and a scale that shows it (lon, lat, km per CSS pixel)
+    var R = { nema: "-75.0,41.8,2.2", atl: "-60.8,47.5,2.2", onq: "-74.0,46.2,2.4", mw: "-92.0,42.5,3.0", rk: "-107.0,40.7,2.2" };
+    var h = location.hash.replace(/^#/, "").split("/"), to = "/models.html#hrrr/sbing";
+    if (h[0] === "case") to = "/models.html#snowband-cases" + (/^c\d{10}$/.test(h[1] || "") ? "/" + h[1] + (/^[a-z]+$/.test(h[2] || "") ? "/" + h[2] : "") : "");
+    else if (P[h[0]]) {
+      // the RRFS has no snow-band maps on models.html; the HRRR does not reach Atlantic Canada (the RDPS does)
+      var m = h[1] === "rdps" || h[2] === "atl" ? "rdps" : "hrrr";
+      to = "/models.html#" + m + "/" + P[h[0]] + "/" + (R[h[2]] ? "/v=" + R[h[2]] : "");
+    }
+    location.replace(to);
+  })();
+</script>
+</head><body><p>The snow-band diagnostics are now the &ldquo;Winter: snow bands&rdquo; maps of the <a href="/models.html#hrrr/sbing">short-range model maps</a>, with the case studies under &ldquo;About these maps&rdquo;.</p></body></html>

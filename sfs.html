@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"><title>NOAA SFS seasonal — moved to Seasonal model forecasts</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="canonical" href="https://scorvec.com/seasonal.html">
+<meta http-equiv="refresh" content="0; url=/seasonal.html#sfs-plume">
+<script>
+  // Folded into seasonal.html on 2026-10-06 as the "NOAA SFS (beta)" group. Old deep links were #plume, #indices,
+  // #maps[/<field>] and the rail ids before them (#ni-o-3-4-plume, #climate-indices, #monthly-anomaly-maps, #aboutCard).
+  (function () {
+    var MAP = { "plume": "sfs-plume", "indices": "sfs-indices", "maps": "sfs-maps",
+                "ni-o-3-4-plume": "sfs-plume", "climate-indices": "sfs-indices", "monthly-anomaly-maps": "sfs-maps", "aboutCard": "sfs-plume" };
+    var h = location.hash.replace(/^#/, "").split("/"), id = MAP[h[0]] || "sfs-plume";
+    var field = id === "sfs-maps" && /^sfs_[a-z0-9]+$/.test(h[1] || "") ? "/" + h[1] : "";
+    location.replace("/seasonal.html#" + id + field);
+  })();
+</script>
+</head><body><p>The NOAA SFS seasonal outlook is now part of <a href="/seasonal.html#sfs-plume">Seasonal model forecasts</a> (the NOAA SFS group).</p></body></html>

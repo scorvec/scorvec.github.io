@@ -1,0 +1,270 @@
+{
+ "cycle": "20261014",
+ "init": "2026-10-14 00Z",
+ "members": 31,
+ "skill_min": 0.25,
+ "terciles": "2016-2025 observed weekly anomaly",
+ "calibration": "GEFSv12 reforecast 2000-2019, 4 members",
+ "fields": {
+  "t2m": [
+   {
+    "week": 1,
+    "valid": "2026-10-14/2026-10-20",
+    "skill_r_median": 0.83,
+    "share_skilful": 0.994,
+    "most_likely_cal": {
+     "below": 0.279,
+     "near": 0.3,
+     "above": 0.421
+    }
+   },
+   {
+    "week": 2,
+    "valid": "2026-10-21/2026-10-27",
+    "skill_r_median": 0.559,
+    "share_skilful": 0.986,
+    "most_likely_cal": {
+     "below": 0.251,
+     "near": 0.3,
+     "above": 0.449
+    }
+   },
+   {
+    "week": 3,
+    "valid": "2026-10-28/2026-11-03",
+    "skill_r_median": 0.318,
+    "share_skilful": 0.656,
+    "most_likely_cal": {
+     "below": 0.35,
+     "near": 0.143,
+     "above": 0.507
+    }
+   },
+   {
+    "week": 4,
+    "valid": "2026-11-04/2026-11-10",
+    "skill_r_median": 0.223,
+    "share_skilful": 0.452,
+    "most_likely_cal": {
+     "below": 0.383,
+     "near": 0.133,
+     "above": 0.485
+    }
+   },
+   {
+    "week": 5,
+    "valid": "2026-11-11/2026-11-17",
+    "skill_r_median": 0.192,
+    "share_skilful": 0.385,
+    "most_likely_cal": {
+     "below": 0.411,
+     "near": 0.135,
+     "above": 0.454
+    }
+   }
+  ],
+  "pr": [
+   {
+    "week": 1,
+    "valid": "2026-10-14/2026-10-20",
+    "skill_r_median": 0.463,
+    "share_skilful": 0.653,
+    "most_likely_cal": {
+     "below": 0.352,
+     "near": 0.305,
+     "above": 0.343
+    }
+   },
+   {
+    "week": 2,
+    "valid": "2026-10-21/2026-10-27",
+    "skill_r_median": 0.176,
+    "share_skilful": 0.322,
+    "most_likely_cal": {
+     "below": 0.414,
+     "near": 0.261,
+     "above": 0.325
+    }
+   },
+   {
+    "week": 3,
+    "valid": "2026-10-28/2026-11-03",
+    "skill_r_median": 0.067,
+    "share_skilful": 0.03,
+    "most_likely_cal": {
+     "below": 0.419,
+     "near": 0.244,
+     "above": 0.337
+    }
+   },
+   {
+    "week": 4,
+    "valid": "2026-11-04/2026-11-10",
+    "skill_r_median": 0.032,
+    "share_skilful": 0.01,
+    "most_likely_cal": {
+     "below": 0.379,
+     "near": 0.378,
+     "above": 0.243
+    }
+   },
+   {
+    "week": 5,
+    "valid": "2026-11-11/2026-11-17",
+    "skill_r_median": 0.026,
+    "share_skilful": 0.008,
+    "most_likely_cal": {
+     "below": 0.358,
+     "near": 0.375,
+     "above": 0.267
+    }
+   }
+  ]
+ },
+ "figures": [
+  "gefs_na_t2m_prob_raw.webp",
+  "gefs_sa_t2m_prob_raw.webp",
+  "gefs_glb_t2m_prob_raw.webp",
+  "gefs_na_t2m_prob_cal.webp",
+  "gefs_sa_t2m_prob_cal.webp",
+  "gefs_glb_t2m_prob_cal.webp",
+  "gefs_na_pr_prob_raw.webp",
+  "gefs_sa_pr_prob_raw.webp",
+  "gefs_glb_pr_prob_raw.webp",
+  "gefs_na_pr_prob_cal.webp",
+  "gefs_sa_pr_prob_cal.webp",
+  "gefs_glb_pr_prob_cal.webp"
+ ],
+ "calibration_test": {
+  "t2m": {
+   "test": "RPSS of the calibrated tercile probabilities vs one third each, every 2000-2019 reforecast start scored with its init month's table refitted without its season (starts within 60 d), categories = the fit years' observed terciles; area-weighted, cells with truth; 4-member hindcast means (the 31-member live mean is at least as skilful)",
+   "weeks": [
+    {
+     "week": 1,
+     "rpss": 0.456,
+     "rpss_unhatched": 0.459,
+     "rpss_hatched": 0.034,
+     "share_unhatched": 0.993,
+     "rpss_geps_form": 0.459,
+     "reliability_p_ge_0.4": {
+      "forecast": 0.709,
+      "observed": 0.716
+     }
+    },
+    {
+     "week": 2,
+     "rpss": 0.241,
+     "rpss_unhatched": 0.244,
+     "rpss_hatched": 0.04,
+     "share_unhatched": 0.983,
+     "rpss_geps_form": 0.244,
+     "reliability_p_ge_0.4": {
+      "forecast": 0.598,
+      "observed": 0.608
+     }
+    },
+    {
+     "week": 3,
+     "rpss": 0.133,
+     "rpss_unhatched": 0.165,
+     "rpss_hatched": 0.029,
+     "share_unhatched": 0.765,
+     "rpss_geps_form": 0.136,
+     "reliability_p_ge_0.4": {
+      "forecast": 0.543,
+      "observed": 0.553
+     }
+    },
+    {
+     "week": 4,
+     "rpss": 0.099,
+     "rpss_unhatched": 0.154,
+     "rpss_hatched": 0.019,
+     "share_unhatched": 0.592,
+     "rpss_geps_form": 0.102,
+     "reliability_p_ge_0.4": {
+      "forecast": 0.532,
+      "observed": 0.538
+     }
+    },
+    {
+     "week": 5,
+     "rpss": 0.077,
+     "rpss_unhatched": 0.138,
+     "rpss_hatched": 0.017,
+     "share_unhatched": 0.497,
+     "rpss_geps_form": 0.08,
+     "reliability_p_ge_0.4": {
+      "forecast": 0.521,
+      "observed": 0.525
+     }
+    }
+   ]
+  },
+  "pr": {
+   "test": "RPSS of the calibrated tercile probabilities vs one third each, every 2000-2019 reforecast start scored with its init month's table refitted without its season (starts within 60 d), categories = the fit years' observed terciles; area-weighted, cells with truth; 4-member hindcast means (the 31-member live mean is at least as skilful)",
+   "weeks": [
+    {
+     "week": 1,
+     "rpss": 0.182,
+     "rpss_unhatched": 0.223,
+     "rpss_hatched": 0.016,
+     "share_unhatched": 0.801,
+     "rpss_geps_form": 0.139,
+     "reliability_p_ge_0.4": {
+      "forecast": 0.562,
+      "observed": 0.631
+     }
+    },
+    {
+     "week": 2,
+     "rpss": 0.041,
+     "rpss_unhatched": 0.07,
+     "rpss_hatched": 0.02,
+     "share_unhatched": 0.422,
+     "rpss_geps_form": -0.004,
+     "reliability_p_ge_0.4": {
+      "forecast": 0.476,
+      "observed": 0.518
+     }
+    },
+    {
+     "week": 3,
+     "rpss": 0.006,
+     "rpss_unhatched": 0.027,
+     "rpss_hatched": 0.005,
+     "share_unhatched": 0.06,
+     "rpss_geps_form": -0.038,
+     "reliability_p_ge_0.4": {
+      "forecast": 0.45,
+      "observed": 0.447
+     }
+    },
+    {
+     "week": 4,
+     "rpss": 0.001,
+     "rpss_unhatched": 0.014,
+     "rpss_hatched": 0.001,
+     "share_unhatched": 0.02,
+     "rpss_geps_form": -0.043,
+     "reliability_p_ge_0.4": {
+      "forecast": 0.444,
+      "observed": 0.413
+     }
+    },
+    {
+     "week": 5,
+     "rpss": 0.0,
+     "rpss_unhatched": -0.001,
+     "rpss_hatched": 0.0,
+     "share_unhatched": 0.014,
+     "rpss_geps_form": -0.046,
+     "reliability_p_ge_0.4": {
+      "forecast": 0.442,
+      "observed": 0.398
+     }
+    }
+   ]
+  }
+ }
+}

@@ -1,0 +1,179 @@
+{
+ "test": "episode-mean t-test, BH FDR 0.10 over the map",
+ "months": [
+  1,
+  2,
+  3,
+  4,
+  5,
+  10,
+  11,
+  12
+ ],
+ "phases": {
+  "lag0": {
+   "extension": {
+    "z500": {
+     "episodes": 287,
+     "days": 1203,
+     "frac_significant": 0.796,
+     "max_abs_significant": 144.66
+    },
+    "t2m": {
+     "episodes": 287,
+     "days": 1203,
+     "frac_significant": 0.603,
+     "max_abs_significant": 2.03
+    },
+    "prcp": {
+     "episodes": 287,
+     "days": 1203,
+     "frac_significant": 0.302,
+     "max_abs_significant": 2.73
+    }
+   },
+   "poleward": {
+    "z500": {
+     "episodes": 316,
+     "days": 1140,
+     "frac_significant": 0.625,
+     "max_abs_significant": 107.49
+    },
+    "t2m": {
+     "episodes": 316,
+     "days": 1140,
+     "frac_significant": 0.579,
+     "max_abs_significant": 2.21
+    },
+    "prcp": {
+     "episodes": 316,
+     "days": 1140,
+     "frac_significant": 0.324,
+     "max_abs_significant": 2.88
+    }
+   },
+   "retraction": {
+    "z500": {
+     "episodes": 289,
+     "days": 1106,
+     "frac_significant": 0.693,
+     "max_abs_significant": 141.31
+    },
+    "t2m": {
+     "episodes": 289,
+     "days": 1106,
+     "frac_significant": 0.476,
+     "max_abs_significant": 1.69
+    },
+    "prcp": {
+     "episodes": 289,
+     "days": 1106,
+     "frac_significant": 0.242,
+     "max_abs_significant": 1.99
+    }
+   },
+   "equatorward": {
+    "z500": {
+     "episodes": 282,
+     "days": 1176,
+     "frac_significant": 0.603,
+     "max_abs_significant": 122.97
+    },
+    "t2m": {
+     "episodes": 282,
+     "days": 1176,
+     "frac_significant": 0.585,
+     "max_abs_significant": 3.03
+    },
+    "prcp": {
+     "episodes": 282,
+     "days": 1176,
+     "frac_significant": 0.232,
+     "max_abs_significant": 4.16
+    }
+   }
+  },
+  "lag3_7": {
+   "extension": {
+    "z500": {
+     "episodes": 287,
+     "days": 1203,
+     "frac_significant": 0.712,
+     "max_abs_significant": 60.57
+    },
+    "t2m": {
+     "episodes": 287,
+     "days": 1203,
+     "frac_significant": 0.639,
+     "max_abs_significant": 1.97
+    },
+    "prcp": {
+     "episodes": 287,
+     "days": 1203,
+     "frac_significant": 0.145,
+     "max_abs_significant": 1.15
+    }
+   },
+   "poleward": {
+    "z500": {
+     "episodes": 315,
+     "days": 1140,
+     "frac_significant": 0.558,
+     "max_abs_significant": 47.06
+    },
+    "t2m": {
+     "episodes": 315,
+     "days": 1140,
+     "frac_significant": 0.597,
+     "max_abs_significant": 1.69
+    },
+    "prcp": {
+     "episodes": 315,
+     "days": 1140,
+     "frac_significant": 0.163,
+     "max_abs_significant": 1.21
+    }
+   },
+   "retraction": {
+    "z500": {
+     "episodes": 289,
+     "days": 1106,
+     "frac_significant": 0.69,
+     "max_abs_significant": 49.49
+    },
+    "t2m": {
+     "episodes": 289,
+     "days": 1106,
+     "frac_significant": 0.601,
+     "max_abs_significant": 1.3
+    },
+    "prcp": {
+     "episodes": 289,
+     "days": 1106,
+     "frac_significant": 0.181,
+     "max_abs_significant": 1.03
+    }
+   },
+   "equatorward": {
+    "z500": {
+     "episodes": 282,
+     "days": 1176,
+     "frac_significant": 0.538,
+     "max_abs_significant": 46.43
+    },
+    "t2m": {
+     "episodes": 282,
+     "days": 1176,
+     "frac_significant": 0.531,
+     "max_abs_significant": 2.0
+    },
+    "prcp": {
+     "episodes": 282,
+     "days": 1176,
+     "frac_significant": 0.153,
+     "max_abs_significant": 1.46
+    }
+   }
+  }
+ }
+}

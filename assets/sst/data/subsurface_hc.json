@@ -1,0 +1,557 @@
+{
+ "generated": "2026-10-15T19:24Z",
+ "event_year": 2026,
+ "last_day": "2026-10-13",
+ "value_raw": 2.917,
+ "value_15d": 2.847,
+ "rule": {
+  "persist_days": 10,
+  "min_moorings": 6,
+  "moorings": [
+   "165E",
+   "180",
+   "170W",
+   "155W",
+   "140W",
+   "125W",
+   "110W",
+   "95W"
+  ],
+  "quality_codes": [
+   1,
+   2,
+   3
+  ],
+  "profile": "screened sensors spanning <= 25 m to >= 300 m, gaps <= 150 m"
+ },
+ "validation": {
+  "cpc_fit": {
+   "column": "160E-80W",
+   "slope": 0.968,
+   "intercept": -0.032,
+   "r": 0.991,
+   "n_months": 238,
+   "rmse_after_fit": 0.109,
+   "lag1_autocorr": 0.869,
+   "n_eff": 16.6
+  },
+  "cpc_180_100W": {
+   "n": 238,
+   "r": 0.987,
+   "bias": -0.021,
+   "rmse": 0.236,
+   "slope": 0.8,
+   "intercept": -0.002,
+   "rmse_after_fit": 0.127
+  },
+  "glorys_daily_all8": {
+   "n": 1704,
+   "r": 0.99,
+   "bias": -0.015,
+   "rmse": 0.139,
+   "slope": 1.03,
+   "intercept": -0.022,
+   "rmse_after_fit": 0.135
+  },
+  "old_index_vs_cpc_180_100W": {
+   "n": 354,
+   "r": 0.981,
+   "bias": -0.027,
+   "rmse": 0.227,
+   "slope": 0.846,
+   "intercept": -0.015,
+   "rmse_after_fit": 0.165
+  },
+  "flags_gt_3sd": {},
+  "trough_1998": {
+   "raw_min": -2.2,
+   "date": "1998-11-11",
+   "smoothed_min": -2.08,
+   "cpc160_implied_min": -1.94
+  },
+  "summary_line": "Check vs NOAA CPC GODAS 0\u2013300 m index (160\u00b0E\u201380\u00b0W), 238 months 1992\u20132026: r 0.99, RMSE 0.11 \u00b0C after a linear fit. GLORYS12 fill, moorings withheld on fully covered days: RMSE 0.03\u20130.09 \u00b0C (1\u20135 moorings)."
+ },
+ "fill_used": true,
+ "recent": [
+  {
+   "date": "2026-08-15",
+   "n_live": 8,
+   "n_fill": 0,
+   "n_carried": 0,
+   "cat": 0,
+   "raw": 2.91
+  },
+  {
+   "date": "2026-08-16",
+   "n_live": 8,
+   "n_fill": 0,
+   "n_carried": 0,
+   "cat": 0,
+   "raw": 2.894
+  },
+  {
+   "date": "2026-08-17",
+   "n_live": 8,
+   "n_fill": 0,
+   "n_carried": 0,
+   "cat": 0,
+   "raw": 2.898
+  },
+  {
+   "date": "2026-08-18",
+   "n_live": 8,
+   "n_fill": 0,
+   "n_carried": 0,
+   "cat": 0,
+   "raw": 2.726
+  },
+  {
+   "date": "2026-08-19",
+   "n_live": 8,
+   "n_fill": 0,
+   "n_carried": 0,
+   "cat": 0,
+   "raw": 2.751
+  },
+  {
+   "date": "2026-08-20",
+   "n_live": 8,
+   "n_fill": 0,
+   "n_carried": 0,
+   "cat": 0,
+   "raw": 2.804
+  },
+  {
+   "date": "2026-08-21",
+   "n_live": 8,
+   "n_fill": 0,
+   "n_carried": 0,
+   "cat": 0,
+   "raw": 2.848
+  },
+  {
+   "date": "2026-08-22",
+   "n_live": 8,
+   "n_fill": 0,
+   "n_carried": 0,
+   "cat": 0,
+   "raw": 2.827
+  },
+  {
+   "date": "2026-08-23",
+   "n_live": 8,
+   "n_fill": 0,
+   "n_carried": 0,
+   "cat": 0,
+   "raw": 2.693
+  },
+  {
+   "date": "2026-08-24",
+   "n_live": 8,
+   "n_fill": 0,
+   "n_carried": 0,
+   "cat": 0,
+   "raw": 2.666
+  },
+  {
+   "date": "2026-08-25",
+   "n_live": 8,
+   "n_fill": 0,
+   "n_carried": 0,
+   "cat": 0,
+   "raw": 2.734
+  },
+  {
+   "date": "2026-08-26",
+   "n_live": 8,
+   "n_fill": 0,
+   "n_carried": 0,
+   "cat": 0,
+   "raw": 2.868
+  },
+  {
+   "date": "2026-08-27",
+   "n_live": 7,
+   "n_fill": 1,
+   "n_carried": 0,
+   "cat": 1,
+   "raw": 2.943
+  },
+  {
+   "date": "2026-08-28",
+   "n_live": 8,
+   "n_fill": 0,
+   "n_carried": 0,
+   "cat": 0,
+   "raw": 2.825
+  },
+  {
+   "date": "2026-08-29",
+   "n_live": 8,
+   "n_fill": 0,
+   "n_carried": 0,
+   "cat": 0,
+   "raw": 2.947
+  },
+  {
+   "date": "2026-08-30",
+   "n_live": 8,
+   "n_fill": 0,
+   "n_carried": 0,
+   "cat": 0,
+   "raw": 2.998
+  },
+  {
+   "date": "2026-08-31",
+   "n_live": 8,
+   "n_fill": 0,
+   "n_carried": 0,
+   "cat": 0,
+   "raw": 2.976
+  },
+  {
+   "date": "2026-09-01",
+   "n_live": 8,
+   "n_fill": 0,
+   "n_carried": 0,
+   "cat": 0,
+   "raw": 3.111
+  },
+  {
+   "date": "2026-09-02",
+   "n_live": 8,
+   "n_fill": 0,
+   "n_carried": 0,
+   "cat": 0,
+   "raw": 2.901
+  },
+  {
+   "date": "2026-09-03",
+   "n_live": 8,
+   "n_fill": 0,
+   "n_carried": 0,
+   "cat": 0,
+   "raw": 2.778
+  },
+  {
+   "date": "2026-09-04",
+   "n_live": 8,
+   "n_fill": 0,
+   "n_carried": 0,
+   "cat": 0,
+   "raw": 2.852
+  },
+  {
+   "date": "2026-09-05",
+   "n_live": 8,
+   "n_fill": 0,
+   "n_carried": 0,
+   "cat": 0,
+   "raw": 2.853
+  },
+  {
+   "date": "2026-09-06",
+   "n_live": 8,
+   "n_fill": 0,
+   "n_carried": 0,
+   "cat": 0,
+   "raw": 2.979
+  },
+  {
+   "date": "2026-09-07",
+   "n_live": 7,
+   "n_fill": 1,
+   "n_carried": 0,
+   "cat": 1,
+   "raw": 2.99
+  },
+  {
+   "date": "2026-09-08",
+   "n_live": 8,
+   "n_fill": 0,
+   "n_carried": 0,
+   "cat": 0,
+   "raw": 2.809
+  },
+  {
+   "date": "2026-09-09",
+   "n_live": 8,
+   "n_fill": 0,
+   "n_carried": 0,
+   "cat": 0,
+   "raw": 2.923
+  },
+  {
+   "date": "2026-09-10",
+   "n_live": 8,
+   "n_fill": 0,
+   "n_carried": 0,
+   "cat": 0,
+   "raw": 2.94
+  },
+  {
+   "date": "2026-09-11",
+   "n_live": 8,
+   "n_fill": 0,
+   "n_carried": 0,
+   "cat": 0,
+   "raw": 2.809
+  },
+  {
+   "date": "2026-09-12",
+   "n_live": 8,
+   "n_fill": 0,
+   "n_carried": 0,
+   "cat": 0,
+   "raw": 2.847
+  },
+  {
+   "date": "2026-09-13",
+   "n_live": 8,
+   "n_fill": 0,
+   "n_carried": 0,
+   "cat": 0,
+   "raw": 2.854
+  },
+  {
+   "date": "2026-09-14",
+   "n_live": 8,
+   "n_fill": 0,
+   "n_carried": 0,
+   "cat": 0,
+   "raw": 2.884
+  },
+  {
+   "date": "2026-09-15",
+   "n_live": 8,
+   "n_fill": 0,
+   "n_carried": 0,
+   "cat": 0,
+   "raw": 2.889
+  },
+  {
+   "date": "2026-09-16",
+   "n_live": 8,
+   "n_fill": 0,
+   "n_carried": 0,
+   "cat": 0,
+   "raw": 2.832
+  },
+  {
+   "date": "2026-09-17",
+   "n_live": 8,
+   "n_fill": 0,
+   "n_carried": 0,
+   "cat": 0,
+   "raw": 2.922
+  },
+  {
+   "date": "2026-09-18",
+   "n_live": 8,
+   "n_fill": 0,
+   "n_carried": 0,
+   "cat": 0,
+   "raw": 2.735
+  },
+  {
+   "date": "2026-09-19",
+   "n_live": 8,
+   "n_fill": 0,
+   "n_carried": 0,
+   "cat": 0,
+   "raw": 2.823
+  },
+  {
+   "date": "2026-09-20",
+   "n_live": 8,
+   "n_fill": 0,
+   "n_carried": 0,
+   "cat": 0,
+   "raw": 2.79
+  },
+  {
+   "date": "2026-09-21",
+   "n_live": 8,
+   "n_fill": 0,
+   "n_carried": 0,
+   "cat": 0,
+   "raw": 2.822
+  },
+  {
+   "date": "2026-09-22",
+   "n_live": 8,
+   "n_fill": 0,
+   "n_carried": 0,
+   "cat": 0,
+   "raw": 2.845
+  },
+  {
+   "date": "2026-09-23",
+   "n_live": 8,
+   "n_fill": 0,
+   "n_carried": 0,
+   "cat": 0,
+   "raw": 2.924
+  },
+  {
+   "date": "2026-09-24",
+   "n_live": 8,
+   "n_fill": 0,
+   "n_carried": 0,
+   "cat": 0,
+   "raw": 2.953
+  },
+  {
+   "date": "2026-09-25",
+   "n_live": 8,
+   "n_fill": 0,
+   "n_carried": 0,
+   "cat": 0,
+   "raw": 2.832
+  },
+  {
+   "date": "2026-09-26",
+   "n_live": 8,
+   "n_fill": 0,
+   "n_carried": 0,
+   "cat": 0,
+   "raw": 2.868
+  },
+  {
+   "date": "2026-09-27",
+   "n_live": 8,
+   "n_fill": 0,
+   "n_carried": 0,
+   "cat": 0,
+   "raw": 2.849
+  },
+  {
+   "date": "2026-09-28",
+   "n_live": 8,
+   "n_fill": 0,
+   "n_carried": 0,
+   "cat": 0,
+   "raw": 2.829
+  },
+  {
+   "date": "2026-09-29",
+   "n_live": 8,
+   "n_fill": 0,
+   "n_carried": 0,
+   "cat": 0,
+   "raw": 2.812
+  },
+  {
+   "date": "2026-09-30",
+   "n_live": 8,
+   "n_fill": 0,
+   "n_carried": 0,
+   "cat": 0,
+   "raw": 2.877
+  },
+  {
+   "date": "2026-10-01",
+   "n_live": 8,
+   "n_fill": 0,
+   "n_carried": 0,
+   "cat": 0,
+   "raw": 2.949
+  },
+  {
+   "date": "2026-10-02",
+   "n_live": 8,
+   "n_fill": 0,
+   "n_carried": 0,
+   "cat": 0,
+   "raw": 2.815
+  },
+  {
+   "date": "2026-10-03",
+   "n_live": 8,
+   "n_fill": 0,
+   "n_carried": 0,
+   "cat": 0,
+   "raw": 2.733
+  },
+  {
+   "date": "2026-10-04",
+   "n_live": 8,
+   "n_fill": 0,
+   "n_carried": 0,
+   "cat": 0,
+   "raw": 2.728
+  },
+  {
+   "date": "2026-10-05",
+   "n_live": 8,
+   "n_fill": 0,
+   "n_carried": 0,
+   "cat": 0,
+   "raw": 2.86
+  },
+  {
+   "date": "2026-10-06",
+   "n_live": 8,
+   "n_fill": 0,
+   "n_carried": 0,
+   "cat": 0,
+   "raw": 2.839
+  },
+  {
+   "date": "2026-10-07",
+   "n_live": 8,
+   "n_fill": 0,
+   "n_carried": 0,
+   "cat": 0,
+   "raw": 2.774
+  },
+  {
+   "date": "2026-10-08",
+   "n_live": 8,
+   "n_fill": 0,
+   "n_carried": 0,
+   "cat": 0,
+   "raw": 2.787
+  },
+  {
+   "date": "2026-10-09",
+   "n_live": 8,
+   "n_fill": 0,
+   "n_carried": 0,
+   "cat": 0,
+   "raw": 2.872
+  },
+  {
+   "date": "2026-10-10",
+   "n_live": 8,
+   "n_fill": 0,
+   "n_carried": 0,
+   "cat": 0,
+   "raw": 3.002
+  },
+  {
+   "date": "2026-10-11",
+   "n_live": 8,
+   "n_fill": 0,
+   "n_carried": 0,
+   "cat": 0,
+   "raw": 2.929
+  },
+  {
+   "date": "2026-10-12",
+   "n_live": 8,
+   "n_fill": 0,
+   "n_carried": 0,
+   "cat": 0,
+   "raw": 2.816
+  },
+  {
+   "date": "2026-10-13",
+   "n_live": 8,
+   "n_fill": 0,
+   "n_carried": 0,
+   "cat": 0,
+   "raw": 2.917
+  }
+ ]
+}

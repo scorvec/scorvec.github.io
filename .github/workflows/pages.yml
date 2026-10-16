@@ -1,0 +1,91 @@
+name: Deploy to GitHub Pages
+
+# Replaces the legacy "deploy from a branch" Pages build. The site is pushed ~30x/day by
+# ~15 data-pipeline jobs; the legacy build has no concurrency control, so when two pushes
+# land within ~1 min their deploys race at the CDN "syncing_files" step and one fails with
+# "Deployment failed, try again later." The concurrency group below SERIALISES deploys
+# (a new one waits for the in-progress one to finish) so they queue instead of racing.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+  # 2026-10-04: deploys are BATCHED. Data workflows no longer dispatch this after each commit (that was ~170 deploys
+  # a day); the dispatcher (scripts/lib/dispatch_workflows.sh pages_if_stale) fires it every 15 min when main is
+  # ahead of the last deploy, and this cron is the backstop for when the dispatcher is off (skips when nothing changed).
+  schedule:
+    - cron: '17,47 * * * *'
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+  actions: read
+
+# One Pages deploy at a time. cancel-in-progress:false lets an in-flight deploy finish
+# (don't abort a CDN sync mid-way); subsequent pushes queue behind it.
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+jobs:
+  # scheduled backstop only: skip when the newest successful deploy already published this commit
+  check:
+    runs-on: ubuntu-latest
+    outputs:
+      stale: ${{ steps.c.outputs.stale }}
+    steps:
+      - id: c
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [ "${{ github.event_name }}" != "schedule" ]; then echo "stale=1" >> "$GITHUB_OUTPUT"; exit 0; fi
+          last=$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/pages.yml/runs?status=success&per_page=1" -q '.workflow_runs[0].head_sha' || echo "")
+          if [ -n "$last" ] && [ "$last" = "$GITHUB_SHA" ]; then echo "already deployed $GITHUB_SHA"; echo "stale=0" >> "$GITHUB_OUTPUT"
+          else echo "stale=1" >> "$GITHUB_OUTPUT"; fi
+  deploy:
+    needs: check
+    if: needs.check.outputs.stale == '1'
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy1.outputs.page_url || steps.deploy2.outputs.page_url || steps.deploy3.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+      - name: Configure Pages
+        uses: actions/configure-pages@v6
+      # Product freshness for the homepage (scripts/site/status.py): when each product last published, from
+      # its own data file's last commit. Written into the artifact only, never committed; a failure leaves the
+      # homepage without "updated ... ago" lines rather than failing the deploy.
+      - name: Product freshness (status.json)
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: python3 scripts/site/status.py --out status.json || echo "::warning::status.json not built"
+      - name: Upload site artifact
+        uses: actions/upload-pages-artifact@v5
+        with:
+          path: '.'
+      # GitHub's Pages CDN sync ("syncing_files") intermittently returns
+      # "Deployment failed, try again later" even for a single serialized deploy
+      # (~10% of runs). The artifact is already uploaded, so just retry the
+      # deployment a couple times with a backoff before failing the run for real.
+      - name: Deploy to GitHub Pages (attempt 1)
+        id: deploy1
+        uses: actions/deploy-pages@v5
+        continue-on-error: true
+      - name: Backoff before retry
+        if: steps.deploy1.outcome == 'failure'
+        run: sleep 45
+      - name: Deploy to GitHub Pages (attempt 2)
+        id: deploy2
+        if: steps.deploy1.outcome == 'failure'
+        uses: actions/deploy-pages@v5
+        continue-on-error: true
+      - name: Backoff before final retry
+        if: steps.deploy1.outcome == 'failure' && steps.deploy2.outcome == 'failure'
+        run: sleep 90
+      - name: Deploy to GitHub Pages (attempt 3)
+        id: deploy3
+        if: steps.deploy1.outcome == 'failure' && steps.deploy2.outcome == 'failure'
+        uses: actions/deploy-pages@v5

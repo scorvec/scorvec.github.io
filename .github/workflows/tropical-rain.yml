@@ -1,0 +1,81 @@
+# Daily bias-adjusted tropical rainfall forecast (circulation.html#rainfc, 2026-10-14): the latest complete 00Z IFS-ENS and
+# AIFS-ENS runs (all 50 members, week-1/2 rain, Google Cloud mirror only), corrected with the bias ratios and judged against
+# the GPCP normal from release precip-global-ref-v1 ("Tropical rain forecast - reference build"). Commits the maps and
+# assets/sst/data/rainfc.json; the stage spec busts the cache hourly, so no page edit is needed. Skips a run already published.
+name: Tropical rain forecast
+
+on:
+  schedule:
+    - cron: '50 9 * * *'
+  workflow_dispatch:
+    inputs:
+      date:
+        description: "init YYYYMMDD (empty = latest complete 00Z)"
+        default: ""
+      force:
+        description: "re-render even if that run is already published"
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+concurrency:
+  group: tropical-rain
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 75
+    env:
+      GH_TOKEN: ${{ github.token }}
+      ECMWF_SOURCES: google
+      MPLBACKEND: Agg
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 1
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+      - name: Install dependencies
+        run: pip install --quiet numpy scipy requests pyproj eccodes matplotlib cartopy
+      - name: Reference inputs
+        id: ref
+        run: |
+          if gh release download precip-global-ref-v1 -p bias_ratio_global.npz -p gpcp_clim_week_global.npz -D ref --clobber \
+             && [ -s ref/bias_ratio_global.npz ] && [ -s ref/gpcp_clim_week_global.npz ]; then
+            ls -la ref; echo "ok=1" >> "$GITHUB_OUTPUT"
+          else
+            echo "::notice::reference inputs not built yet (run 'Tropical rain forecast - reference build') - nothing to do"
+            echo "ok=0" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Forecast maps
+        if: steps.ref.outputs.ok == '1'
+        run: |
+          d="${{ github.event.inputs.date }}"
+          skip="--skip-if-current"; [ "${{ github.event.inputs.force }}" = "true" ] && skip=""
+          python scripts/precip_bias/tropical_rain.py --ref ref --out assets/sst $skip ${d:+--date "$d"}
+      - name: Commit
+        if: steps.ref.outputs.ok == '1'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          # Snapshot the outputs, then commit on a clean sync of origin/main each attempt (workflow-commit rule)
+          OUT="$(ls assets/sst/rainfc_*.webp 2>/dev/null | tr '\n' ' ') assets/sst/data/rainfc.json"
+          SNAP=$(mktemp -d)
+          tar cf "$SNAP/outs.tar" --ignore-failed-read $OUT 2>/dev/null || true
+          for i in 1 2 3 4 5; do
+            if ! timeout 120 git fetch origin main; then echo "fetch $i failed"; sleep 5; continue; fi
+            git reset --hard origin/main
+            tar xf "$SNAP/outs.tar"
+            for f in $OUT; do [ -e "$f" ] && git add "$f"; done
+            if git diff --staged --quiet; then echo "No changes; skipping commit."; exit 0; fi
+            git commit -m "tropical rain forecast: $(python3 -c 'import json; print(json.load(open("assets/sst/data/rainfc.json"))["init"])') 00Z"
+            if timeout 180 git push; then echo "Pushed on attempt $i."; exit 0; fi
+            echo "Push $i rejected; resyncing and retrying…"
+            sleep 5
+          done
+          echo "ERROR: could not push after 5 attempts." >&2
+          exit 1

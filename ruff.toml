@@ -1,0 +1,18 @@
+line-length = 120
+target-version = "py311"        # Actions runs the pipelines on Python 3.11 (some on 3.12)
+
+[lint]
+select = ["E", "W", "F", "B", "UP", "C4", "SIM", "PIE", "RUF", "PLE", "PLW", "PERF"]
+ignore = [
+    "E501",     # the formatter wraps code at 120; long URLs and literal strings are left intact
+    "E741",     # l, I and O follow the notation of the equations they implement
+    "B905",     # zip() over sequences that have equal lengths by construction
+    "C408",     # dict(key=value) is used deliberately for keyword-style tables
+    "RUF001", "RUF002", "RUF003",  # degree signs, minus signs and Greek letters are intended
+    "RUF022",   # __all__ grouped by topic
+    "E402",     # scripts put their own directory on sys.path before importing sibling modules, and import pyproj
+                # before xarray/eccodes (load order); matplotlib.use("Agg") precedes pyplot
+]
+# Deliberate catch-all handlers (one bad file or feed must not stop an unattended run) are marked `noqa: BLE001`;
+# the marks are kept as annotations although BLE itself is not enforced here.
+external = ["BLE001"]

@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"><title>QBO tracker — moved to the stratosphere page</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="canonical" href="https://scorvec.com/stratosphere.html">
+<meta http-equiv="refresh" content="0; url=/stratosphere.html#qbo">
+<script>
+  // The QBO tracker is the "QBO from radiosondes" item of the "Now" group on stratosphere.html, with every other
+  // stratosphere product. qbo.yml writes qbo/qbo.json and assets/qbo/*.webp, which the item reads.
+  // Old deep links were #section, #phase, #descent, #cycles and #stations.
+  (function () {
+    var V = { "section": 1, "phase": 1, "descent": 1, "cycles": 1, "stations": 1 };
+    var h = location.hash.replace(/^#/, "").split("/")[0];
+    location.replace("/stratosphere.html#qbo" + (V[h] ? "/" + h : ""));
+  })();
+</script>
+</head><body><p>The QBO tracker is now part of the <a href="/stratosphere.html#qbo">stratosphere page</a> (QBO from radiosondes).</p></body></html>

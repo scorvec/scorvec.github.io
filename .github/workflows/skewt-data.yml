@@ -1,0 +1,171 @@
+name: Skew-T sounding mirror
+
+# Mirrors recent radiosonde soundings to the `skewt-data` branch for the
+# client-side Skew-T Explorer at /skewt/. Real-time North America from the Iowa
+# Environmental Mesonet (IEM RAOB JSON, one request per launch hour, spaced 121 s
+# for IEM's robots.txt Crawl-delay, at most 6 per run). Real-time Canada from
+# Environment and Climate Change Canada's MSC Datamart (each station's own high-res
+# BUFR; today's and yesterday's directories, only changed ones re-listed, <= 200
+# small listings + 90 GETs per run, typically a few; non-fatal). Text-format GTS TEMP
+# (services with no BUFR, most of Africa) from DWD's WIS2 gateway U/{S,K,L,E} trees:
+# 8 ListObjects (~1.7 MB) + <= 600 small GETs (~0.5 KB each). Real-time rest of the
+# world from the WMO WIS 2.0 Global Cache on AWS Open Data (anonymous S3; ~35-40
+# ListObjects + at most 200 GETs of new BUFR messages per run, decoded with
+# ecCodes; failures there are non-fatal). Stations neither carries: one request
+# for NOAA NCEI's IGRA v2 y2d directory listing (at most every 3 h) says which got
+# new launches in NCEI's daily update, and the browser fetches a station's file
+# from NCEI when a visitor opens it. Honest User-Agent on every request. Each run
+# force-pushes ONE parentless commit to skewt-data (no main history growth, no
+# Pages rebuild); the push is seeded with the previous tip so only new files go up.
+
+on:
+  # backstop crons (2026-10-04: moved here from the per-hour caller files, which were deleted; the
+  # dispatcher, scripts/lib/dispatch_workflows.sh, fires this on time - these only matter when it is off)
+  schedule:
+    - cron: '50 */3 * * *'
+  # Triggered hourly by the dispatcher (:50) plus four once-a-day schedule
+  # callers as backstops. An hourly run is cheap: IEM is asked only about hour
+  # slots not yet asked (state.json on the data branch), at most 6 requests per
+  # run (~1-4 MB); ECCC lists only changed Datamart directories (~0-0.2 MB) and GETs
+  # only files that outrank what it holds (~0-5 MB); WIS2 fetches only keys not seen
+  # before (~3 MB of listings + ~5 MB of BUFR); the IGRA listing (~0.2 MB) at most every 3 h.
+  workflow_call:
+  workflow_dispatch:
+    inputs:
+      wis2_max_get:
+        description: WIS2 GET budget for this run (catch-up after an outage; default 200)
+        required: false
+        default: '200'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: skewt-data
+  # Queue overlapping runs, do NOT cancel (changed 2026-09-05). This used to be
+  # cancel-in-progress, on the reasoning that the newest data wins - but the two
+  # triggers land a minute apart by construction: the dispatcher fires this
+  # hourly at :50, while the four schedule-only callers ask for :35 and GitHub
+  # delays crons by hours, so a delayed caller regularly starts just before the
+  # :50 dispatch and gets killed by it. Each run force-pushes one parentless
+  # commit, so letting the older finish costs a few redundant minutes on a
+  # public repo and the final state is still the newest push. The cancellations
+  # were pure noise - a red run and a mail for work that was about to be redone.
+  cancel-in-progress: false
+
+jobs:
+  mirror:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          sparse-checkout: |
+            scripts/skewt
+            skewt/stations.json
+            skewt/iem_raob.json
+            skewt/sharplib.js
+            skewt/sharplib.wasm
+          sparse-checkout-cone-mode: false
+
+      - uses: actions/checkout@v7
+        with:
+          ref: skewt-data
+          path: prev-data
+        continue-on-error: true    # first run: branch may not exist
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+
+      - name: Install deps
+        run: |
+          pip install --quiet numpy      # flag_anomalies.py needs it
+          # ecCodes (the PyPI wheel bundles the library) decodes the WIS2 BUFR. Non-fatal:
+          # without it the mirror skips WIS2 and IEM/IGRA still publish.
+          pip install --quiet eccodes && python -c "import eccodes; print('ecCodes', eccodes.codes_get_api_version())" \
+            || echo "::warning::ecCodes unavailable — WIS2 and ECCC skipped this run"
+
+      - name: Mirror soundings
+        env:
+          SKEWT_WIS2_MAX_GET: ${{ inputs.wis2_max_get || '200' }}
+          # a catch-up run may spend longer on WIS2 (the job's 30-min timeout still bounds it)
+          SKEWT_WIS2_MAX_S: ${{ (inputs.wis2_max_get && inputs.wis2_max_get != '200') && '900' || '480' }}
+        run: python scripts/skewt/mirror_soundings.py /tmp/skewt-data prev-data
+
+      - uses: actions/checkout@v7
+        with:
+          ref: skewt-archive
+          path: archive-data
+        continue-on-error: true
+
+      - name: Bundle complete days into the permanent archive
+        run: |
+          python scripts/skewt/archive_days.py /tmp/skewt-data/soundings archive-data
+          cd archive-data
+          if [ ! -d .git ]; then git init -q -b skewt-archive; fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          if ! git diff --staged --quiet; then
+            git commit -q -m "Archive: $(date -u +%F)"
+            git push "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git" HEAD:skewt-archive || \
+            git push -f "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git" HEAD:skewt-archive
+          fi
+
+      - uses: actions/checkout@v7
+        with:
+          ref: skewt-climo
+          path: climo-data
+        continue-on-error: true
+
+      - name: Flag near-record soundings (record watch)
+        run: |
+          # Do NOT silently swallow a failure here: a bare '|| echo {}' hid a
+          # missing-numpy ImportError on every single run, so the record watch
+          # was quietly dead while looking healthy. Fail loudly, but still emit a
+          # valid file so the data push itself survives.
+          if ! python scripts/skewt/flag_anomalies.py /tmp/skewt-data/soundings \
+                 climo-data/climo /tmp/skewt-data/anomalies.json; then
+            echo "::warning::flag_anomalies FAILED — record watch empty this cycle (data still publishes)"
+            echo '{}' > /tmp/skewt-data/anomalies.json
+          fi
+
+      - name: Force-push data branch (single parentless commit)
+        run: |
+          cd /tmp/skewt-data
+          git init -q -b skewt-data
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -q -m "Sounding mirror: $(date -u +'%Y-%m-%d %H:%M UTC')"
+          URL="https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git"
+          # Seed the previous tip's objects (the prev-data checkout) so the push sends only
+          # new blobs: with WIS2 the branch holds ~4000 launch files, and a cold parentless
+          # push would re-upload all of them every hour.
+          git fetch -q --depth=1 "$GITHUB_WORKSPACE/prev-data" HEAD 2>/dev/null \
+            || echo "::warning::could not seed the push from prev-data — full push"
+          if ! git push -f "$URL" skewt-data; then
+            echo "::warning::seeded push failed — retrying as a plain full push"
+            rm -rf .git && git init -q -b skewt-data
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add -A && git commit -q -m "Sounding mirror: $(date -u +'%Y-%m-%d %H:%M UTC')"
+            git push -f "$URL" skewt-data
+          fi
+          # Purge the jsDelivr edge for the hot JSONs. jsDelivr is ghFetch's
+          # last-resort host (used when raw.githubusercontent is blocked and
+          # api.github.com is rate-limited, e.g. corporate networks); without
+          # a purge its branch cache can serve these up to ~12 h stale, which
+          # breaks the record map + "Extreme today" panel on those networks.
+          for f in manifest.json anomalies.json; do
+            curl -s "https://purge.jsdelivr.net/gh/${{ github.repository }}@skewt-data/$f" >/dev/null 2>&1 || true
+          done
+
+      - name: Summary
+        if: always()
+        run: |
+          echo "### Sounding mirror $(date -u +%F)" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Page: [/skewt/](https://scorvec.com/skewt/)" >> "$GITHUB_STEP_SUMMARY"
+          python -c "import json; m=json.load(open('/tmp/skewt-data/manifest.json')); print('- Stations by source:', m.get('sources'))" \
+            >> "$GITHUB_STEP_SUMMARY" 2>/dev/null || true

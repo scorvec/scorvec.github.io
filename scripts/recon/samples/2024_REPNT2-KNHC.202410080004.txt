@@ -1,0 +1,28 @@
+
+521 
+URNT12 KNHC 080004
+VORTEX DATA MESSAGE   AL142024
+A. 07/23:45:00Z
+B. 21.85 deg N 090.46 deg W
+C. 700 mb 2259 m
+D. 906 mb
+E. 075 deg 38 kt
+F. OPEN S
+G. CO5-24
+H. 142 kt
+I. 295 deg 3 nm 23:43:30Z
+J. 023 deg 138 kt
+K. 295 deg 3 nm 23:43:30Z
+L. 127 kt
+M. 095 deg 5 nm 23:46:30Z
+N. 181 deg 130 kt
+O. 095 deg 5 nm 23:46:30Z
+P. 12 C / 3043 m
+Q. 20 C / 3051 m
+R. 16 C / NA
+S. 12345 / 7
+T. 0.02 / 1 nm
+U. AF302 1114A MILTON    OB 04
+MAX FL WIND 138 KT 292 / 5 NM 23:43:30Z
+;
+

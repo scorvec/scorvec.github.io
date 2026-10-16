@@ -1,0 +1,757 @@
+{
+"transect": [
+{
+"lat": 24.0,
+"coast_lon": -110.75,
+"point_lon": -111.25
+},
+{
+"lat": 24.25,
+"coast_lon": -111.25,
+"point_lon": -111.75
+},
+{
+"lat": 24.5,
+"coast_lon": -111.5,
+"point_lon": -112.0
+},
+{
+"lat": 24.75,
+"coast_lon": -111.75,
+"point_lon": -112.25
+},
+{
+"lat": 25.0,
+"coast_lon": -112.0,
+"point_lon": -112.5
+},
+{
+"lat": 25.25,
+"coast_lon": -112.0,
+"point_lon": -112.5
+},
+{
+"lat": 25.5,
+"coast_lon": -112.0,
+"point_lon": -112.5
+},
+{
+"lat": 25.75,
+"coast_lon": -112.0,
+"point_lon": -112.5
+},
+{
+"lat": 26.0,
+"coast_lon": -112.0,
+"point_lon": -112.5
+},
+{
+"lat": 26.25,
+"coast_lon": -112.25,
+"point_lon": -112.75
+},
+{
+"lat": 26.5,
+"coast_lon": -112.75,
+"point_lon": -113.25
+},
+{
+"lat": 26.75,
+"coast_lon": -113.0,
+"point_lon": -113.5
+},
+{
+"lat": 27.0,
+"coast_lon": -114.0,
+"point_lon": -114.5
+},
+{
+"lat": 27.25,
+"coast_lon": -114.25,
+"point_lon": -114.75
+},
+{
+"lat": 27.5,
+"coast_lon": -114.5,
+"point_lon": -115.0
+},
+{
+"lat": 27.75,
+"coast_lon": -115.0,
+"point_lon": -115.5
+},
+{
+"lat": 28.0,
+"coast_lon": -114.0,
+"point_lon": -114.5
+},
+{
+"lat": 28.25,
+"coast_lon": -114.0,
+"point_lon": -114.5
+},
+{
+"lat": 28.5,
+"coast_lon": -114.0,
+"point_lon": -114.5
+},
+{
+"lat": 28.75,
+"coast_lon": -114.25,
+"point_lon": -114.75
+},
+{
+"lat": 29.0,
+"coast_lon": -114.5,
+"point_lon": -115.0
+},
+{
+"lat": 29.25,
+"coast_lon": -114.75,
+"point_lon": -115.25
+},
+{
+"lat": 29.5,
+"coast_lon": -115.25,
+"point_lon": -115.75
+},
+{
+"lat": 29.75,
+"coast_lon": -115.5,
+"point_lon": -116.0
+},
+{
+"lat": 30.0,
+"coast_lon": -115.75,
+"point_lon": -116.25
+},
+{
+"lat": 30.25,
+"coast_lon": -115.75,
+"point_lon": -116.25
+},
+{
+"lat": 30.5,
+"coast_lon": -116.0,
+"point_lon": -116.5
+},
+{
+"lat": 30.75,
+"coast_lon": -116.0,
+"point_lon": -116.5
+},
+{
+"lat": 31.0,
+"coast_lon": -116.25,
+"point_lon": -116.75
+},
+{
+"lat": 31.25,
+"coast_lon": -116.25,
+"point_lon": -116.75
+},
+{
+"lat": 31.5,
+"coast_lon": -116.5,
+"point_lon": -117.0
+},
+{
+"lat": 31.75,
+"coast_lon": -116.5,
+"point_lon": -117.0
+},
+{
+"lat": 32.0,
+"coast_lon": -116.75,
+"point_lon": -117.25
+},
+{
+"lat": 32.25,
+"coast_lon": -116.75,
+"point_lon": -117.25
+},
+{
+"lat": 32.5,
+"coast_lon": -117.0,
+"point_lon": -117.5
+},
+{
+"lat": 32.75,
+"coast_lon": -117.25,
+"point_lon": -117.75
+},
+{
+"lat": 33.0,
+"coast_lon": -117.25,
+"point_lon": -117.75
+},
+{
+"lat": 33.25,
+"coast_lon": -117.25,
+"point_lon": -117.75
+},
+{
+"lat": 33.5,
+"coast_lon": -117.5,
+"point_lon": -118.0
+},
+{
+"lat": 33.75,
+"coast_lon": -118.0,
+"point_lon": -118.5
+},
+{
+"lat": 34.0,
+"coast_lon": -118.25,
+"point_lon": -118.75
+},
+{
+"lat": 34.25,
+"coast_lon": -119.25,
+"point_lon": -119.75
+},
+{
+"lat": 34.5,
+"coast_lon": -120.5,
+"point_lon": -121.0
+},
+{
+"lat": 34.75,
+"coast_lon": -120.5,
+"point_lon": -121.0
+},
+{
+"lat": 35.0,
+"coast_lon": -120.5,
+"point_lon": -121.0
+},
+{
+"lat": 35.25,
+"coast_lon": -120.75,
+"point_lon": -121.25
+},
+{
+"lat": 35.5,
+"coast_lon": -121.0,
+"point_lon": -121.5
+},
+{
+"lat": 35.75,
+"coast_lon": -121.25,
+"point_lon": -121.75
+},
+{
+"lat": 36.0,
+"coast_lon": -121.5,
+"point_lon": -122.0
+},
+{
+"lat": 36.25,
+"coast_lon": -121.75,
+"point_lon": -122.25
+},
+{
+"lat": 36.5,
+"coast_lon": -121.75,
+"point_lon": -122.25
+},
+{
+"lat": 36.75,
+"coast_lon": -121.75,
+"point_lon": -122.25
+},
+{
+"lat": 37.0,
+"coast_lon": -122.0,
+"point_lon": -122.5
+},
+{
+"lat": 37.25,
+"coast_lon": -122.25,
+"point_lon": -122.75
+},
+{
+"lat": 37.5,
+"coast_lon": -122.25,
+"point_lon": -122.75
+},
+{
+"lat": 37.75,
+"coast_lon": -122.5,
+"point_lon": -123.0
+},
+{
+"lat": 38.0,
+"coast_lon": -122.75,
+"point_lon": -123.25
+},
+{
+"lat": 38.25,
+"coast_lon": -122.75,
+"point_lon": -123.25
+},
+{
+"lat": 38.5,
+"coast_lon": -123.0,
+"point_lon": -123.5
+},
+{
+"lat": 38.75,
+"coast_lon": -123.5,
+"point_lon": -124.0
+},
+{
+"lat": 39.0,
+"coast_lon": -123.5,
+"point_lon": -124.0
+},
+{
+"lat": 39.25,
+"coast_lon": -123.75,
+"point_lon": -124.25
+},
+{
+"lat": 39.5,
+"coast_lon": -123.75,
+"point_lon": -124.25
+},
+{
+"lat": 39.75,
+"coast_lon": -123.75,
+"point_lon": -124.25
+},
+{
+"lat": 40.0,
+"coast_lon": -124.0,
+"point_lon": -124.5
+},
+{
+"lat": 40.25,
+"coast_lon": -124.25,
+"point_lon": -124.75
+},
+{
+"lat": 40.5,
+"coast_lon": -124.25,
+"point_lon": -124.75
+},
+{
+"lat": 40.75,
+"coast_lon": -124.0,
+"point_lon": -124.5
+},
+{
+"lat": 41.0,
+"coast_lon": -124.0,
+"point_lon": -124.5
+},
+{
+"lat": 41.25,
+"coast_lon": -124.0,
+"point_lon": -124.5
+},
+{
+"lat": 41.5,
+"coast_lon": -124.0,
+"point_lon": -124.5
+},
+{
+"lat": 41.75,
+"coast_lon": -124.0,
+"point_lon": -124.5
+},
+{
+"lat": 42.0,
+"coast_lon": -124.0,
+"point_lon": -124.5
+},
+{
+"lat": 42.25,
+"coast_lon": -124.25,
+"point_lon": -124.75
+},
+{
+"lat": 42.5,
+"coast_lon": -124.25,
+"point_lon": -124.75
+},
+{
+"lat": 42.75,
+"coast_lon": -124.25,
+"point_lon": -124.75
+},
+{
+"lat": 43.0,
+"coast_lon": -124.25,
+"point_lon": -124.75
+},
+{
+"lat": 43.25,
+"coast_lon": -124.25,
+"point_lon": -124.75
+},
+{
+"lat": 43.5,
+"coast_lon": -124.25,
+"point_lon": -124.75
+},
+{
+"lat": 43.75,
+"coast_lon": -124.0,
+"point_lon": -124.5
+},
+{
+"lat": 44.0,
+"coast_lon": -124.0,
+"point_lon": -124.5
+},
+{
+"lat": 44.25,
+"coast_lon": -124.0,
+"point_lon": -124.5
+},
+{
+"lat": 44.5,
+"coast_lon": -124.0,
+"point_lon": -124.5
+},
+{
+"lat": 44.75,
+"coast_lon": -124.0,
+"point_lon": -124.5
+},
+{
+"lat": 45.0,
+"coast_lon": -124.0,
+"point_lon": -124.5
+},
+{
+"lat": 45.25,
+"coast_lon": -123.75,
+"point_lon": -124.25
+},
+{
+"lat": 45.5,
+"coast_lon": -123.75,
+"point_lon": -124.25
+},
+{
+"lat": 45.75,
+"coast_lon": -123.75,
+"point_lon": -124.25
+},
+{
+"lat": 46.0,
+"coast_lon": -123.75,
+"point_lon": -124.25
+},
+{
+"lat": 46.25,
+"coast_lon": -123.25,
+"point_lon": -123.75
+},
+{
+"lat": 46.5,
+"coast_lon": -124.0,
+"point_lon": -124.5
+},
+{
+"lat": 46.75,
+"coast_lon": -124.0,
+"point_lon": -124.5
+},
+{
+"lat": 47.0,
+"coast_lon": -124.0,
+"point_lon": -124.5
+},
+{
+"lat": 47.25,
+"coast_lon": -124.0,
+"point_lon": -124.5
+},
+{
+"lat": 47.5,
+"coast_lon": -124.25,
+"point_lon": -124.75
+},
+{
+"lat": 47.75,
+"coast_lon": -124.25,
+"point_lon": -124.75
+},
+{
+"lat": 48.0,
+"coast_lon": -124.5,
+"point_lon": -125.0
+},
+{
+"lat": 48.25,
+"coast_lon": -124.5,
+"point_lon": -125.0
+},
+{
+"lat": 48.5,
+"coast_lon": -124.25,
+"point_lon": -124.75
+},
+{
+"lat": 48.75,
+"coast_lon": -125.0,
+"point_lon": -125.5
+},
+{
+"lat": 49.0,
+"coast_lon": -125.5,
+"point_lon": -126.0
+},
+{
+"lat": 49.25,
+"coast_lon": -125.75,
+"point_lon": -126.25
+},
+{
+"lat": 49.5,
+"coast_lon": -126.5,
+"point_lon": -127.0
+},
+{
+"lat": 49.75,
+"coast_lon": -126.5,
+"point_lon": -127.0
+},
+{
+"lat": 50.0,
+"coast_lon": -127.0,
+"point_lon": -127.5
+},
+{
+"lat": 50.25,
+"coast_lon": -127.75,
+"point_lon": -128.25
+},
+{
+"lat": 50.5,
+"coast_lon": -128.0,
+"point_lon": -128.5
+},
+{
+"lat": 50.75,
+"coast_lon": -128.25,
+"point_lon": -128.75
+},
+{
+"lat": 51.0,
+"coast_lon": -127.25,
+"point_lon": -127.75
+},
+{
+"lat": 51.25,
+"coast_lon": -127.5,
+"point_lon": -128.0
+},
+{
+"lat": 51.5,
+"coast_lon": -127.5,
+"point_lon": -128.0
+},
+{
+"lat": 51.75,
+"coast_lon": -127.75,
+"point_lon": -128.25
+},
+{
+"lat": 52.0,
+"coast_lon": -128.0,
+"point_lon": -128.5
+},
+{
+"lat": 52.25,
+"coast_lon": -128.0,
+"point_lon": -128.5
+},
+{
+"lat": 52.5,
+"coast_lon": -128.0,
+"point_lon": -128.5
+},
+{
+"lat": 52.75,
+"coast_lon": -128.0,
+"point_lon": -128.5
+},
+{
+"lat": 53.0,
+"coast_lon": -128.25,
+"point_lon": -128.75
+},
+{
+"lat": 53.25,
+"coast_lon": -128.5,
+"point_lon": -129.0
+},
+{
+"lat": 53.5,
+"coast_lon": -132.0,
+"point_lon": -132.5
+},
+{
+"lat": 53.75,
+"coast_lon": -132.0,
+"point_lon": -132.5
+},
+{
+"lat": 54.0,
+"coast_lon": -133.0,
+"point_lon": -133.5
+},
+{
+"lat": 54.25,
+"coast_lon": -130.0,
+"point_lon": -130.5
+},
+{
+"lat": 54.5,
+"coast_lon": -130.25,
+"point_lon": -130.75
+},
+{
+"lat": 54.75,
+"coast_lon": -130.0,
+"point_lon": -130.5
+},
+{
+"lat": 55.0,
+"coast_lon": -132.5,
+"point_lon": -133.0
+},
+{
+"lat": 55.25,
+"coast_lon": -132.75,
+"point_lon": -133.25
+},
+{
+"lat": 55.5,
+"coast_lon": -133.0,
+"point_lon": -133.5
+},
+{
+"lat": 55.75,
+"coast_lon": -133.5,
+"point_lon": -134.0
+},
+{
+"lat": 56.0,
+"coast_lon": -133.75,
+"point_lon": -134.25
+},
+{
+"lat": 56.25,
+"coast_lon": -133.5,
+"point_lon": -134.0
+},
+{
+"lat": 56.5,
+"coast_lon": -132.25,
+"point_lon": -132.75
+},
+{
+"lat": 56.75,
+"coast_lon": -132.25,
+"point_lon": -132.75
+},
+{
+"lat": 57.0,
+"coast_lon": -132.75,
+"point_lon": -133.25
+},
+{
+"lat": 57.25,
+"coast_lon": -133.25,
+"point_lon": -133.75
+},
+{
+"lat": 57.5,
+"coast_lon": -135.75,
+"point_lon": -136.25
+},
+{
+"lat": 57.75,
+"coast_lon": -136.0,
+"point_lon": -136.5
+},
+{
+"lat": 58.0,
+"coast_lon": -136.5,
+"point_lon": -137.0
+}
+],
+"named": [
+{
+"name": "Baja / Ensenada",
+"lat": 31.75,
+"lon": -117.0
+},
+{
+"name": "San Diego",
+"lat": 32.75,
+"lon": -117.5
+},
+{
+"name": "Los Angeles",
+"lat": 34.0,
+"lon": -119.0
+},
+{
+"name": "Santa Barbara",
+"lat": 34.5,
+"lon": -120.5
+},
+{
+"name": "San Francisco Bay",
+"lat": 37.75,
+"lon": -123.0
+},
+{
+"name": "Eureka / North Coast",
+"lat": 40.75,
+"lon": -124.5
+},
+{
+"name": "Oregon coast",
+"lat": 44.5,
+"lon": -124.5
+},
+{
+"name": "Astoria / Columbia mouth",
+"lat": 46.25,
+"lon": -124.5
+},
+{
+"name": "Olympic Peninsula",
+"lat": 47.75,
+"lon": -125.0
+},
+{
+"name": "Vancouver Island",
+"lat": 49.25,
+"lon": -126.5
+},
+{
+"name": "Haida Gwaii",
+"lat": 53.25,
+"lon": -133.0
+},
+{
+"name": "Southeast Alaska",
+"lat": 57.0,
+"lon": -136.5
+},
+{
+"name": "Prince William Sound",
+"lat": 60.0,
+"lon": -147.0
+}
+],
+"note": "first land longitude (Natural Earth 50m pieces > 0.8 deg^2, so Vancouver Island / Haida Gwaii / SE Alaska islands count) scanning east per 0.25 deg latitude, 24-58N; point_lon = 0.5 deg offshore"
+}
