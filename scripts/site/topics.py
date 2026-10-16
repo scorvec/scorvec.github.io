@@ -685,7 +685,6 @@ def head(title: str, desc: str, url: str, ld: dict, math: bool) -> str:
 <script type="application/ld+json">
 {json.dumps(ld, indent=1, ensure_ascii=False)}
 </script>
-<script data-goatcounter="https://scorvec.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
 <link rel="stylesheet" href="/assets/site.css">
 <script src="/assets/site.js" defer></script>
 {KATEX if math else ""}{STYLE}

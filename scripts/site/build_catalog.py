@@ -528,7 +528,9 @@ def frame_source(url: str, page_dir: Path):
     fr = R["frames"]
     f = fr[0]["file"] if re.match(r"F\d+\.", fr[0]["file"]) else fr[-1]["file"]
     rel = f"{base}/{region}/{f}"
-    return rel, (base.endswith("/anim") and "//" not in base)
+    # frames-branch loops live under assets/<product>/anim or one directory below it (sfs/anim/sub), the same rule
+    # as sst_anim.html's ON_FRAMES_BRANCH
+    return rel, (re.search(r"/anim(/[\w-]+)?$", base) is not None and "//" not in base)
 
 
 def fig_key(fig: dict | None, page_dir: Path) -> str | None:

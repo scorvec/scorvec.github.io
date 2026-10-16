@@ -1179,7 +1179,7 @@ def main() -> int:
   Google Cloud (Carver and Merose, 2023), CC BY 4.0; contains modified Copernicus Climate Change Service information 2026. Neither ECMWF nor the European Commission is
   responsible for any use of this information. CMIP6 output (CC BY 4.0) from the Pangeo CMIP6 mirror on Google
   Cloud; models: {", ".join(R["q2_cmip6"]["models"])}. Each model's historical output can be cited through the
-  <a href="https://wdc-climate.de/ui/cmip6">CMIP6 data citation service</a>. We acknowledge the World Climate Research Programme,
+  <a href="https://www.wdc-climate.de/ui/project?acronym=CMIP6">CMIP6 data citation service</a>. We acknowledge the World Climate Research Programme,
   which, through its Working Group on Coupled Modelling, coordinated and promoted CMIP6. We thank the climate modeling groups for
   producing and making available their model output, the Earth System Grid Federation (ESGF) for archiving the data and providing
   access, and the multiple funding agencies who support CMIP6 and ESGF. ONI and ERSSTv6 Niño-3.4: NOAA CPC and PSL. Effective angular momentum
@@ -1225,7 +1225,6 @@ def main() -> int:
 <script type="application/ld+json">
 {json.dumps(ld, indent=1, ensure_ascii=False)}
 </script>
-<script data-goatcounter="https://scorvec.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
 <link rel="stylesheet" href="/assets/site.css">
 <script src="/assets/site.js" defer></script>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
