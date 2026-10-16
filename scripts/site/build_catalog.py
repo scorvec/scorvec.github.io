@@ -64,7 +64,7 @@ TOPICS = [  # the theme-first menus (ids stable; labels = apply_chrome.PRODUCTS 
     (
         "circulation",
         "Stratosphere",
-        "The polar vortex and the waves going up into it, from today's analysis to the season, the QBO, and the atmosphere's angular momentum",
+        "The polar vortex and the waves going up into it, from today's analysis to the season, and the QBO",
     ),
     ("outlooks", "Weeks to seasons", "From weeks two to five out to the coming seasons"),
     ("research", "Studies and verification", "What the record and the models say, and how the forecasts score"),
@@ -136,7 +136,7 @@ PAGES = {
         kind="stage",
         file="circulation.html",
         topic="drivers",
-        title="Jets, Walker and Hadley cells",
+        title="Global circulation and jets",
         tier=0,
         prio=4,
         models=["AIFS-ENS"],
