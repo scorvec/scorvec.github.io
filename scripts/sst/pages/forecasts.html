@@ -1,4 +1,15 @@
-    <script src="https://cdn.jsdelivr.net/npm/plotly.js-cartesian-dist-min@2.35.2/plotly-cartesian.min.js"></script>
+<script>
+// Plotly (the cartesian bundle) loads alongside the page instead of blocking it: every product on this page is a
+// chart, and the drawing script waits for it together with the data (window.plotlyP).
+// Integrity as in scripts/site/apply_chrome.py SRI.
+window.plotlyP = new Promise(function (ok, no) {
+  var s = document.createElement("script");
+  s.src = "https://cdn.jsdelivr.net/npm/plotly.js-cartesian-dist-min@2.35.2/plotly-cartesian.min.js";
+  s.integrity = "sha384-gKF7EaMDoWW1zLWkouldmVWF5jqEKrAswAciW73iNzqlomabVVPO60XkJvL5q/Ie"; s.crossOrigin = "anonymous";
+  s.onload = ok; s.onerror = no;
+  document.head.appendChild(s);
+});
+</script>
 <style>
   /* ── ENSO forecasts page ───────────────────────────────────────────────────
      Page-scoped: every rule is under main.ef so nothing leaks into the shared
@@ -1792,7 +1803,8 @@ window.STAGE = {
     get("assets/sst/data/enso_flavour.json?v=__CACHE__", true),
     get("assets/sst/data/cpc_official.json?v=__CACHE__", true),
     get("assets/sst/data/enso_flavour_obs.json?v=__CACHE__", true),
-    get("assets/sst/data/cansips_dd.json?h=" + Math.floor(Date.now() / 3.6e6), true)   // written monthly by cansips.yml, not by the page build,
+    get("assets/sst/data/cansips_dd.json?h=" + Math.floor(Date.now() / 3.6e6), true),   // written monthly by cansips.yml, not by the page build
+    window.plotlyP   // the chart library, loading since the top of the page
   ]).then(function (res) {
     D.fc = res[0]; D.hist = res[1]; D.daily = res[2]; D.evo = res[3]; D.fl = res[4]; D.cpc = res[5]; D.flo = res[6]; D.cd = res[7];
     if (cdCheckText()) el("m-cdcheck").innerHTML = cdCheckText();

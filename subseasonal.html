@@ -14,9 +14,11 @@
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Subseasonal Outlook &mdash; GEPS Weeks 1&ndash;5 for the Americas">
 <meta name="twitter:description" content="Days 1-35 anomalies for the Americas from the GEPS extended ensemble, expressed against the 1991-2020 normal, with model drift removed using a 2001-2020 GEPS hindcast.">
-<link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;1,400&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/assets/outlook.css">
-<link rel="stylesheet" href="/assets/stage.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,500;0,8..60,600;1,8..60,400&family=Source+Sans+3:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/outlook.css?v=7405633269">
+<link rel="stylesheet" href="/assets/stage.css?v=c5147546f0">
 <style>
   /* subseasonal.html — page-specific rules on top of /assets/outlook.css (shared with seas5 and sfs). */
   table.tele { width: 100%; border-collapse: collapse; margin: 0.9rem 0 0.3rem; font-size: 0.78rem; }
@@ -38,12 +40,9 @@
   #tele-table, #mjo-table { padding: 0 1.2rem; overflow-x: auto; }   /* phones: the five-week table scrolls inside the card (it was clipped) */
   @media (max-width: 640px) { #tele-table, #mjo-table { padding: 0 0.5rem; } }
 </style>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400&family=Schibsted+Grotesk:wght@400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/assets/site.css">
-<script src="/assets/site.js" defer></script>
-<script src="/assets/rail.js" defer></script>
+<link rel="stylesheet" href="/assets/site.css?v=4beb973a1e">
+<script src="/assets/site.js?v=043bcdece6" defer></script>
+<script src="/assets/rail.js?v=63d075c8d3" defer></script>
 <script>
 // The polar-vortex products live on the stratosphere page: forward old deep links (#vortex/nh, #vloop, #drip)
 (function () { var m = {vortex: "vortex35/geps", vloop: "vloop35/geps", drip: "fdrip/geps"};
@@ -507,6 +506,6 @@ function mjoTable(show) {
   </div>
 </footer>
 <!-- sf:end -->
-<script src="/assets/stage.js" defer></script>
+<script src="/assets/stage.js?v=bdcfc466b9" defer></script>
 </body>
 </html>

@@ -14,7 +14,6 @@
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="ENSO Forecasts &mdash; Peak Strength, Timing and How East-Based &middot; El Ni&ntilde;o Monitor">
 <meta name="twitter:description" content="The C3S multi-model El Niño outlook in plain language: seven seasonal models and every ensemble member, the chance of each peak strength on ONI and RONI, how east-based the event will be (Takahashi E and C indices), how the forecast has changed issue to issue, and how it compares with every El Niño since 1950.">
-<link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;1,400&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css" integrity="sha384-nB0miv6/jRmo5UMMR1wu3Gz6NLsoTkbqJghGIsx//Rlm+ZU03BU6SQNC66uf4l5+" crossorigin="anonymous">
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js" integrity="sha384-7zkQWkzuo3B5mTepMUcHkMB5jZaolc2xDwL6VFqjFALcbeS9Ggm/Yr2r3Dy4lfFg" crossorigin="anonymous"></script>
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
@@ -436,14 +435,14 @@
     .chip { min-width: 44%; }
   }
 </style>
-<link rel="stylesheet" href="/assets/lightbox.css">
-<script src="/assets/lightbox.js" defer></script>
+<link rel="stylesheet" href="/assets/lightbox.css?v=f28cd59002">
+<script src="/assets/lightbox.js?v=c9d5f3eb22" defer></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,500;0,8..60,600;1,8..60,400&family=Source+Sans+3:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/assets/site.css">
-<script src="/assets/site.js" defer></script>
-<script src="/assets/rail.js" defer></script>
+<link rel="stylesheet" href="/assets/site.css?v=4beb973a1e">
+<script src="/assets/site.js?v=043bcdece6" defer></script>
+<script src="/assets/rail.js?v=63d075c8d3" defer></script>
 <script data-goatcounter="https://scorvec.goatcounter.com/count" async src="https://gc.zgo.at/count.v4.js" integrity="sha384-nRw6qfbWyJha9LhsOtSb2YJDyZdKvvCFh0fJYlkquSFjUxp9FVNugbfy8q1jdxI+" crossorigin="anonymous"></script>
 </head>
 <body>
@@ -603,7 +602,18 @@
   </div>
 </header>
 <!-- sh:end -->
-    <script src="https://cdn.jsdelivr.net/npm/plotly.js-cartesian-dist-min@2.35.2/plotly-cartesian.min.js" integrity="sha384-gKF7EaMDoWW1zLWkouldmVWF5jqEKrAswAciW73iNzqlomabVVPO60XkJvL5q/Ie" crossorigin="anonymous"></script>
+<script>
+// Plotly (the cartesian bundle) loads alongside the page instead of blocking it: every product on this page is a
+// chart, and the drawing script waits for it together with the data (window.plotlyP).
+// Integrity as in scripts/site/apply_chrome.py SRI.
+window.plotlyP = new Promise(function (ok, no) {
+  var s = document.createElement("script");
+  s.src = "https://cdn.jsdelivr.net/npm/plotly.js-cartesian-dist-min@2.35.2/plotly-cartesian.min.js";
+  s.integrity = "sha384-gKF7EaMDoWW1zLWkouldmVWF5jqEKrAswAciW73iNzqlomabVVPO60XkJvL5q/Ie"; s.crossOrigin = "anonymous";
+  s.onload = ok; s.onerror = no;
+  document.head.appendChild(s);
+});
+</script>
 <style>
   /* ── ENSO forecasts page ───────────────────────────────────────────────────
      Page-scoped: every rule is under main.ef so nothing leaks into the shared
@@ -1061,8 +1071,8 @@ window.STAGE = {
     </div>
   </details>
 </main>
-<link rel="stylesheet" href="/assets/stage.css">
-<script src="/assets/stage.js" defer></script>
+<link rel="stylesheet" href="/assets/stage.css?v=c5147546f0">
+<script src="/assets/stage.js?v=bdcfc466b9" defer></script>
 
 <script>
 (function () {
@@ -2397,7 +2407,8 @@ window.STAGE = {
     get("assets/sst/data/enso_flavour.json?v=2e00951f6f0f", true),
     get("assets/sst/data/cpc_official.json?v=2e00951f6f0f", true),
     get("assets/sst/data/enso_flavour_obs.json?v=2e00951f6f0f", true),
-    get("assets/sst/data/cansips_dd.json?h=" + Math.floor(Date.now() / 3.6e6), true)   // written monthly by cansips.yml, not by the page build,
+    get("assets/sst/data/cansips_dd.json?h=" + Math.floor(Date.now() / 3.6e6), true),   // written monthly by cansips.yml, not by the page build
+    window.plotlyP   // the chart library, loading since the top of the page
   ]).then(function (res) {
     D.fc = res[0]; D.hist = res[1]; D.daily = res[2]; D.evo = res[3]; D.fl = res[4]; D.cpc = res[5]; D.flo = res[6]; D.cd = res[7];
     if (cdCheckText()) el("m-cdcheck").innerHTML = cdCheckText();

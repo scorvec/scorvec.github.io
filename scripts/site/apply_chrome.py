@@ -15,6 +15,8 @@ The look lives in assets/site.css; the menu behaviour in assets/site.js.
 from __future__ import annotations
 
 import argparse
+import functools
+import hashlib
 import re
 import sys
 from pathlib import Path
@@ -427,7 +429,7 @@ TABS = {
 #   before       insert before the literal `anchor`; optionally delete `drop` (a regex) first
 # fixes: literal (old, new) substrings — the top padding that used to clear a fixed nav.
 # synced: the page's <head> belongs to the repository it is synced from (the midterms pages): header and footer
-#   only, no analytics tag or integrity attributes stamped (see head_tags).
+#   only, no analytics tag, integrity attributes, font links or asset versions stamped (see head_tags).
 PAGES = [
     dict(path="index.html", mode="nav", skin="overlay", footer=False),
     dict(
@@ -565,13 +567,80 @@ PAGES += [
 ]
 
 HEAD_SNIPPET = (
-    '<link rel="preconnect" href="https://fonts.googleapis.com">\n'
-    '<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>\n'
-    '<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,500;0,8..60,600;1,8..60,400&family=Source+Sans+3:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">\n'
     '<link rel="stylesheet" href="/assets/site.css">\n'
     '<script src="/assets/site.js" defer></script>\n'
     '<script src="/assets/rail.js" defer></script>\n'
 )
+
+# ── web fonts: one Google Fonts request per page, for exactly the families it draws ─────────────────────────────
+# site.css sets the type on every page (Source Serif 4 for titles, Source Sans 3 for text), and its html-prefixed
+# rules outrank the families a page names itself, so those two are all most pages render. A page that draws another
+# family (a monospace column, canvas or chart text) lists it in FONT_EXTRA. Every other Google Fonts tag in the
+# head is dropped: the families a page still names but never renders cost a render-blocking request each.
+FONT_BASE = (
+    "Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,500;0,8..60,600;1,8..60,400",
+    "Source+Sans+3:ital,wght@0,400;0,500;0,600;1,400",
+)
+FONT_EXTRA = {
+    "resume.html": ("DM+Mono:wght@400",),  # the dates and tags column (--mono)
+    "skewt/index.html": ("Inter:wght@400;600;700", "Lora:wght@600"),  # the sounding canvas and its export (app.js)
+    "seasonal.html": ("Inter:wght@400;700",),  # the Plotly charts drawn by assets/outlook-charts.js
+}
+_FONT_TAG = re.compile(r'[ \t]*<link\b[^>]*\bhref="https://fonts\.(?:googleapis|gstatic)\.com[^"]*"[^>]*>[ \t]*\n?')
+
+
+def font_links(path: str) -> str:
+    fams = "&".join("family=" + f for f in FONT_BASE + FONT_EXTRA.get(path, ()))
+    return (
+        '<link rel="preconnect" href="https://fonts.googleapis.com">\n'
+        '<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>\n'
+        f'<link href="https://fonts.googleapis.com/css2?{fams}&display=swap" rel="stylesheet">\n'
+    )
+
+
+def with_fonts(html: str, path: str) -> str:
+    """The page's head with its one font block where its first font tag was (else right before the site
+    stylesheet); every other font tag removed."""
+    end = html.find("</head>")
+    head, rest = (html[:end], html[end:]) if end >= 0 else (html, "")
+    first = _FONT_TAG.search(head)
+    css = re.search(r'[ \t]*<link rel="stylesheet" href="/assets/site\.css', head)
+    at = first.start() if first else css.start() if css else len(head)  # no font tag before `at`
+    return head[:at] + font_links(path) + _FONT_TAG.sub("", head[at:]) + rest
+
+
+# ── cache-busting: the shared assets carry their content hash, so a new page never runs with yesterday's script ─
+# The query is ignored by the server; it only makes a changed file a new URL for browsers and the CDN. Re-stamped on
+# every run, so a page picks up a new hash whenever any workflow or edit re-applies the chrome.
+VERSIONED = (
+    "site.css",
+    "site.js",
+    "rail.js",
+    "stage.css",
+    "stage.js",
+    "outlook.css",
+    "outlook-charts.js",
+    "frames_root.js",
+    "lightbox.css",
+    "lightbox.js",
+    "seas5-cards.js",
+    "c3s-vortex-card.js",
+)
+_ASSET_REF = re.compile(r"""(["'])(/?assets/(""" + "|".join(map(re.escape, VERSIONED)) + r"""))(?:\?v=\w*)?\1""")
+
+
+@functools.cache
+def asset_hash(name: str) -> str:
+    return hashlib.sha256((REPO / "assets" / name).read_bytes()).hexdigest()[:10]
+
+
+def version_assets(html: str) -> str:
+    return _ASSET_REF.sub(lambda m: f"{m[1]}{m[2]}?v={asset_hash(m[3])}{m[1]}", html)
+
+
+# the loop embeds (in an iframe on most pages): no chrome, but their shared scripts carry the same versions
+EMBEDS = [dict(path="sst_anim.html", mode="embed"), dict(path="loop.html", mode="embed")]
+
 
 # ── analytics and third-party integrity, stamped into every page's <head> ─────────────────────────────────────
 # ONE GoatCounter tag for the whole site: the versioned script, pinned by its hash. Every other GoatCounter script
@@ -585,8 +654,8 @@ _GC_TAG = re.compile(r"[ \t]*<script\b[^>]*gc\.zgo\.at/count[^>]*>\s*</script>[ 
 # Subresource Integrity (sha384 of the exact file) for the pinned CDN files the pages load as tags: a <script> or
 # <link> with one of these URLs and no integrity attribute gets one, plus crossorigin, so the browser refuses a
 # changed copy. Code that loads one of them itself sets the same hash (assets/seas5-cards.js,
-# assets/c3s-vortex-card.js, ar.html, the stratosphere page's loadPlotly). A new library version is a new URL:
-# add its hash here or it simply loads without one.
+# assets/c3s-vortex-card.js, and the Plotly loaders of ar, climate, enso, enso-forecasts, fci, seasonal and
+# stratosphere). A new library version is a new URL: add its hash here or it simply loads without one.
 SRI = {
     "https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js": "sha384-7zkQWkzuo3B5mTepMUcHkMB5jZaolc2xDwL6VFqjFALcbeS9Ggm/Yr2r3Dy4lfFg",
     "https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js": "sha384-43gviWU0YVjaDtb/GhzOouOXtZMP/7XUzwPTstBeZFe/+rCMvRwr4yROQP43s0Xk",
@@ -878,6 +947,8 @@ def stamp(cfg: dict) -> tuple[str, str]:
     p = REPO / cfg["path"]
     html = p.read_text()
     orig = html
+    if cfg["mode"] == "embed":
+        return orig, version_assets(html)
     page = page_key(cfg["path"])
     dark = cfg.get("skin") == "dark" or (is_dark(html) and cfg.get("skin") != "overlay")
     skin = cfg.get("skin") or ("dark" if dark else "")
@@ -917,13 +988,10 @@ def stamp(cfg: dict) -> tuple[str, str]:
         html = html.replace(old, new)
 
     if "/assets/site.css" not in html:
-        snippet = HEAD_SNIPPET
-        if "family=Source+Serif+4" in html:  # the page already loads the fonts
-            snippet = "\n".join(l for l in snippet.splitlines() if "fonts.g" not in l) + "\n"
         if "</head>" in html:
-            html = html.replace("</head>", snippet + "</head>", 1)
+            html = html.replace("</head>", HEAD_SNIPPET + "</head>", 1)
         else:  # bare HTML5 document without <head> tags
-            html = html.replace("<!-- sh:start -->", snippet + "<!-- sh:start -->", 1)
+            html = html.replace("<!-- sh:start -->", HEAD_SNIPPET + "<!-- sh:start -->", 1)
 
     # rail.js (one-figure-at-a-time viewer) rides with the chrome; it does nothing unless the page
     # carries data-rail, so every page gets the include and pages opt in by markup alone.
@@ -935,6 +1003,7 @@ def stamp(cfg: dict) -> tuple[str, str]:
         )
     if not cfg.get("synced"):
         html = head_tags(html)
+        html = version_assets(with_fonts(html, cfg["path"]))
 
     if cfg.get("footer", True):
         foot = footer_html(dark)
@@ -952,7 +1021,7 @@ def stamp_all(check: bool = False, only: set | None = None, quiet: bool = False)
     Called by enso_site.render_all after it regenerates the ENSO pages from their partials —
     those partials carry no header, so without this every SST run shipped the old raw nav."""
     changed = 0
-    for cfg in PAGES:
+    for cfg in PAGES + EMBEDS:
         if only is not None and cfg["path"] not in only:
             continue
         if not (REPO / cfg["path"]).exists():
