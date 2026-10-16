@@ -1,4 +1,5 @@
-// Emit "MM ecape ship" per sounding for one IGRA period-of-record file, using
+// Emit "YYYY MM DD HH ecape ship" per sounding (HH = the header's nominal hour,
+// 99 when missing) for one IGRA period-of-record file, using
 // the SAME compute_sounding() as the WASM build so climo matches the live app.
 //   climo_cape GID < station.txt   (or)   climo_cape GID station.txt
 #include <cmath>
@@ -36,7 +37,7 @@ int main(int argc, char** argv) {
 
     std::string line;
     std::vector<std::string> block;
-    int year = 0, month = 0, day = 0, nlev = 0;
+    int year = 0, month = 0, day = 0, hour = 99, nlev = 0;
     auto flush = [&]() {
         if (block.empty() || month < 1) return;
         std::vector<float> P, H, T, D, U, V;
@@ -143,7 +144,7 @@ int main(int argc, char** argv) {
         if (!(mucape > -8888.0f)) return;
         const float ec = (out[42] > -8888.0f) ? out[42] : 0.0f;
         const float sh = (out[43] > -8888.0f) ? out[43] : 0.0f;
-        printf("%d %02d %02d %.1f %.3f\n", year, month, day, ec, sh);
+        printf("%d %02d %02d %02d %.1f %.3f\n", year, month, day, hour, ec, sh);
     };
 
     while (std::getline(*in, line)) {
@@ -155,8 +156,9 @@ int main(int argc, char** argv) {
                 year = std::stoi(line.substr(13, 4));
                 month = std::stoi(line.substr(18, 2));
                 day = std::stoi(line.substr(21, 2));
+                try { hour = std::stoi(line.substr(24, 2)); } catch (...) { hour = 99; }
                 nlev = std::stoi(line.substr(32, 4));
-            } catch (...) { year = month = day = 0; }
+            } catch (...) { year = month = day = 0; hour = 99; }
             (void)nlev;
         } else if (!line.empty() && line[0] != '#') {
             block.push_back(line);

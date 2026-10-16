@@ -240,8 +240,10 @@ terms.
 ## 4. Climatology — how the percentiles are built
 
 Every station's **entire period of record** is downloaded from IGRA (up to ~90 MB per station, back to
-the 1930s), every historical sounding is analyzed, and the results are reduced to **monthly percentile
-breakpoints** (1/5/10/25/50/75/90/95/99) plus **record extremes with their year**. The result is one
+the 1930s), every historical sounding is analyzed, and the results are reduced to **percentile
+breakpoints** (1/5/10/25/50/75/90/95/99) plus **record extremes with their year** at 73 day-of-year
+anchors (±10-day windows), **separately for 00Z and 12Z**. A sounding ranks only against launches at its
+own synoptic hour; launches more than 3 h from 00Z and 12Z are left out and not ranked. The result is one
 small JSON per station on the `skewt-climo` branch, which the browser fetches on demand.
 
 Indices ranked: PWAT, 850/700/500 hPa temperature, 500 hPa height, 1000–500 thickness, freezing level,
