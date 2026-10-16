@@ -715,21 +715,72 @@ def cpc_published() -> dict:
 
 THR = 0.5  # phase threshold in index units (σ)
 CPC_CALIBRATED = {"soi", "eqsoi"}  # indices whose observed reference for skill and calibration is CPC's own series
-SKILL_MIN = 0.25  # below this hindcast correlation the calibrated probabilities are climatology and the cell is hatched
+SKILL_ALPHA = 0.05  # one-sided level of the hindcast-skill test; a cell that fails it is climatology and is hatched
 TAIL_MONTHS = 4  # observed months drawn before the issue (the forecast is the subject)
+BAND_Q = (0.10, 0.25, 0.75, 0.90)  # quantiles of the calibrated band (the page draws 10–90 and 25–75 %)
 
 
-def _phi(x):
-    from math import erf, sqrt
+def skill_test(r: float, n: int) -> tuple[float, float]:
+    """(p, r_crit): one-sided t-test of r > 0 on n − 2 degrees of freedom, and the smallest r that passes at
+    SKILL_ALPHA. The n hindcast years are one start a year, so the samples are independent and n_eff = n
+    (n = 24: r_crit 0.344). One-sided because only a positive correlation is usable skill — the GEFS
+    teleconnection table tests the same way."""
+    from scipy.stats import t as tdist
 
-    return 0.5 * (1.0 + erf(x / sqrt(2.0)))
+    df = n - 2
+    tc = float(tdist.isf(SKILL_ALPHA, df))
+    p = 0.0 if r >= 1.0 else float(tdist.sf(r * np.sqrt(df / (1.0 - r * r)), df))
+    return p, tc / float(np.sqrt(df + tc * tc))
+
+
+def _r_crit24() -> float:
+    return round(skill_test(0.0, 24)[1], 2)
+
+
+def publish_cal(c: dict, r: float, x0: float, absolute: bool) -> None:
+    """Gate one calibration cell on the skill test and write what the page draws: mu, the band quantiles q and, for
+    anomaly indices, P(≤ −THR) / P(≥ +THR).
+    Skilful: the regression's predictive distribution at the forecast mean x0, Student t on n − 2 degrees of freedom
+    with scale s·√(1 + 1/n + (x0 − x̄)²/Sxx) — the fit is in-sample on the same years, so the uncertainty of its
+    slope and intercept widens the forecast. Not skilful: climatology, the observed mean and spread of those years
+    (t on n − 1 degrees of freedom, scale obs_sd·√(1 + 1/n))."""
+    from scipy.stats import t as tdist
+
+    n = c["n"]
+    p, rc = skill_test(r, n)
+    c["p"], c["r_crit"], c["no_skill"] = round(p, 4), round(rc, 3), bool(p > SKILL_ALPHA)
+    if c["no_skill"]:
+        mu, scale, df = c["clim_mu"], c["obs_sd"] * np.sqrt(1.0 + 1.0 / n), n - 1
+    else:
+        mu = c["a"] * x0 + c["b"]
+        scale, df = c["s"] * np.sqrt(1.0 + 1.0 / n + (x0 - c["xbar"]) ** 2 / c["sxx"]), n - 2
+    c["mu"] = round(float(mu), 3)
+    c["q"] = [round(float(mu + scale * tdist.ppf(q, df)), 3) for q in BAND_Q]
+    if not absolute:
+        c["p_neg"] = round(float(tdist.cdf((-THR - mu) / scale, df)), 3)
+        c["p_pos"] = round(float(tdist.sf((THR - mu) / scale, df)), 3)
+
+
+def regate(doc: dict) -> None:
+    """Re-apply publish_cal to every calibration cell of a published seas5_tele.json (--replot). A file written before
+    the cells carried clim_mu / xbar / sxx gets them from its own numbers: x̄ is the hindcast mean at the lead
+    (clim_mean, every member of every year), Sxx = (n − 1)·(r·obs_sd/a)² from the slope, clim_mu = b + a·x̄."""
+    for e in doc["indices"].values():
+        for L, c in enumerate(e.get("cal") or []):
+            if not c or e["skill"][L] is None or e["mean"][L] is None:
+                continue
+            r = e["skill"][L]
+            if "xbar" not in c:
+                c["xbar"] = e["clim_mean"][L]
+                c["clim_mu"] = round(c["b"] + c["a"] * c["xbar"], 3)
+                c["sxx"] = (c["n"] - 1) * (r * c["obs_sd"] / c["a"]) ** 2 if c["a"] and r else None
+            publish_cal(c, r, e["mean"][L], bool(e.get("absolute")))
 
 
 def add_skill(idx: dict, ym: str, era: dict | None, cpc: dict | None = None) -> None:
     """Per index and lead: hindcast skill and a regression calibration against ERA5 at the valid month.
-    The 24 hindcast years' ensemble mean x_y is regressed on the observed index o_y (o = a·x + b, residual
-    s); the calibrated forecast is N(a·x̄ + b, s²), so P(≥ +THR) and P(≤ −THR) collapse to climatology when
-    the slope is ~0. In-sample over 24 years (no cross-validation), which flatters r slightly at n = 24.
+    The 24 hindcast years' ensemble mean x_y is regressed on the observed index o_y (o = a·x + b, residual s); r is
+    tested by skill_test and publish_cal turns the cell into the published band and phase probabilities.
     Also attaches the last TAIL_MONTHS observed values (ERA5) and CPC's published index where one exists."""
     y0, m0 = int(ym[:4]), int(ym[4:])
     tail = [((y0 * 12 + m0 - 1 - k) // 12, (y0 * 12 + m0 - 1 - k) % 12 + 1) for k in range(TAIL_MONTHS, 0, -1)]
@@ -785,23 +836,20 @@ def add_skill(idx: dict, ym: str, era: dict | None, cpc: dict | None = None) -> 
                 cal.append(None)
                 continue
             x, oo = hmean[ok], o[ok]
-            rr = float(np.corrcoef(x, oo)[0, 1])
-            r.append(round(rr, 2))
+            rr = round(float(np.corrcoef(x, oo)[0, 1]), 2)  # tested as published, so a redraw (regate) agrees
+            r.append(rr)
             a, b = np.polyfit(x, oo, 1)
-            s_ = float(np.std(oo - (a * x + b), ddof=2))
-            mu = float(a * e["mean"][L] + b)
             c = dict(
                 n=int(ok.sum()),
-                a=round(float(a), 3),
-                b=round(float(b), 3),
-                s=round(s_, 3),
-                mu=round(mu, 3),
-                obs_sd=round(float(oo.std(ddof=1)), 3),
+                a=round(float(a), 4),
+                b=round(float(b), 4),
+                s=round(float(np.std(oo - (a * x + b), ddof=2)), 4),
+                obs_sd=round(float(oo.std(ddof=1)), 4),
+                clim_mu=round(float(oo.mean()), 4),
+                xbar=round(float(x.mean()), 4),
+                sxx=round(float(((x - x.mean()) ** 2).sum()), 4),
             )
-            if not e.get("absolute"):
-                c["p_neg"] = round(_phi((-THR - mu) / s_), 3)
-                c["p_pos"] = round(1.0 - _phi((THR - mu) / s_), 3)
-            c["no_skill"] = bool(rr < SKILL_MIN)
+            publish_cal(c, rr, e["mean"][L], bool(e.get("absolute")))
             cal.append(c)
         e["skill"] = r
         e["cal"] = cal
@@ -878,7 +926,8 @@ def plot_series(doc: dict, group: str, out: Path) -> None:
             ax.axhline(0, color="#c2185b", lw=1.0, ls="--", zorder=3)
         ax.axvline(xs[0] - 0.5, color="#6f6b64", lw=0.8, ls=":", zorder=3)
         if e.get("skill"):
-            for xv, rr in zip(xs, e["skill"]):
+            cal = e.get("cal") or [None] * len(xs)
+            for xv, rr, c in zip(xs, e["skill"], cal):
                 if rr is not None:
                     ax.text(
                         xv,
@@ -889,7 +938,7 @@ def plot_series(doc: dict, group: str, out: Path) -> None:
                         va="top",
                         fontsize=6.6,
                         rotation=90,
-                        color=(INK if rr >= SKILL_MIN else "#aaa"),
+                        color=(INK if c and not c["no_skill"] else "#aaa"),
                         fontweight=("bold" if rr >= 0.5 else "normal"),
                     )
             ax.text(
@@ -983,7 +1032,7 @@ def plot_series(doc: dict, group: str, out: Path) -> None:
         1 - 0.36 / fig.get_figheight(),
         textwrap.fill(
             "Monthly means. Anomalies against the 1993–2016 hindcast (model) and the 1993–2016 ERA5 mean (observed); r = correlation of the 24 hindcast years' ensemble mean with ERA5 for that "
-            "calendar month and lead (grey below 0.25)"
+            f"calendar month and lead (grey: not significant, one-sided {SKILL_ALPHA:.0%} test, r below {_r_crit24()} at n = 24)"
             + (f"; {' and '.join(via_cpc)}: observed and r from CPC's published index" if via_cpc else "")
             + ". Dotted line: issue start.",
             260,
@@ -1008,7 +1057,7 @@ def plot_series(doc: dict, group: str, out: Path) -> None:
 
 def plot_probs(doc: dict, out: Path) -> None:
     """Phase-probability board, index × month: raw member fractions (upper bar), hindcast-calibrated
-    probabilities (thin lower bar), mean, change vs the previous issue, skill; hatched where r < SKILL_MIN."""
+    probabilities (thin lower bar), mean, change vs the previous issue, skill; hatched where the skill test fails."""
     import calendar
     import matplotlib
 
@@ -1173,8 +1222,10 @@ def plot_probs(doc: dict, out: Path) -> None:
     )
     note = (
         "upper bar: raw member fractions (51 members → 2% steps; 0% = no member, not certainty)\n"
-        "thin lower bar: hindcast-calibrated probabilities — the observed monthly index (ERA5) regressed on the hindcast ensemble mean over the 24 hindcast years 1993–2016 for this calendar month and lead, "
-        f"Gaussian with the residual spread;\nr = skill: correlation of the hindcast mean with ERA5; hatched = r below {SKILL_MIN}, no usable skill (the calibrated bar is then climatology by construction)"
+        "thin lower bar: hindcast-calibrated probabilities — the observed monthly index (ERA5) regressed on the hindcast ensemble mean over the 24 years 1993–2016 for this calendar month and lead, "
+        "Student t, spread widened for the in-sample fit;\n"
+        f"r = skill: correlation of the hindcast mean with ERA5; hatched = not significant (one-sided {SKILL_ALPHA:.0%} test, r below {_r_crit24()} at n = 24), "
+        "no usable skill: the calibrated bar is then climatology"
     )
     fig.text(0.5, 0.006, note, ha="center", va="bottom", fontsize=7.8, color=MUTED)
     fig.savefig(out, dpi=105, facecolor="white", pil_kwargs={"quality": 88, "method": 6})
@@ -1293,7 +1344,7 @@ def main(argv=None) -> int:
     ap.add_argument(
         "--replot",
         action="store_true",
-        help="redraw the phase-probability board from the published seas5_tele.json (no data access)",
+        help="re-apply the skill test to the published seas5_tele.json and redraw its figures (no data access)",
     )
     ap.add_argument(
         "--fetch-cpc",
@@ -1303,8 +1354,8 @@ def main(argv=None) -> int:
     ap.add_argument(
         "--refresh-obs",
         action="store_true",
-        help="with --replot: re-attach CPC's published indices to the published JSON (SOI/EqSOI tail, skill and "
-        "calibration against CPC) and redraw the series figure too; needs network + the hc_tele_nh table",
+        help="with --replot: re-attach CPC's published indices to the published JSON first (SOI/EqSOI tail, skill "
+        "and calibration against CPC); needs network + the hc_tele_nh table",
     )
     a = ap.parse_args(argv)
     if a.fetch_cpc:
@@ -1318,11 +1369,16 @@ def main(argv=None) -> int:
         doc = json.loads(OUT_JSON.read_text())
         if a.refresh_obs:
             doc = refresh_obs(doc)
-            doc["generated"] = time.strftime("%Y-%m-%d %H:%M UTC", time.gmtime())
-            plot_series(doc, "tele", Path(os.environ.get("REPLOT_DIR") or ASSETS) / "seas5_tele_series.webp")
-            out_json = Path(os.environ["REPLOT_DIR"]) / OUT_JSON.name if os.environ.get("REPLOT_DIR") else OUT_JSON
-            out_json.write_text(json.dumps(_clean(doc), separators=(",", ":")))
-            print(f"  wrote {out_json}", flush=True)
+        regate(doc)
+        doc["skill_test"] = dict(alpha=SKILL_ALPHA, sided="one", r_crit_n24=_r_crit24())
+        doc.pop("skill_min", None)
+        doc["generated"] = time.strftime("%Y-%m-%d %H:%M UTC", time.gmtime())
+        for group, name in (("tele", "seas5_tele_series.webp"), ("strat", "seas5_strat_series.webp")):
+            if f"{group}_series" in doc["figures"]:
+                plot_series(doc, group, Path(os.environ.get("REPLOT_DIR") or ASSETS) / name)
+        out_json = Path(os.environ["REPLOT_DIR"]) / OUT_JSON.name if os.environ.get("REPLOT_DIR") else OUT_JSON
+        out_json.write_text(json.dumps(_clean(doc), separators=(",", ":")))
+        print(f"  wrote {out_json}", flush=True)
         plot_probs(doc, Path(os.environ.get("REPLOT_OUT") or ASSETS / "seas5_tele_probs.webp"))
         return 0
     if not a.issue:
@@ -1363,7 +1419,7 @@ def main(argv=None) -> int:
             "strat_series": "seas5_strat_series.webp",
         },
         "thr": THR,
-        "skill_min": SKILL_MIN,
+        "skill_test": dict(alpha=SKILL_ALPHA, sided="one", r_crit_n24=_r_crit24()),
         "skill_note": skill_note(cur, era),
     }
     for group, name in (("tele", "seas5_tele_series.webp"), ("strat", "seas5_strat_series.webp")):

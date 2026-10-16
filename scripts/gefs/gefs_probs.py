@@ -26,9 +26,11 @@ Calibrated  GEPS's gridpoint regression obs = a*m + b, fitted on the 2000-2019 r
             Tested out of sample on the reforecast (build_gefs_mapskill.py assess; numbers in gefs_probs.json):
             t2m RPSS +0.46/+0.24/+0.13/+0.10/+0.08 by week and reliable; pr +0.18/+0.04/+0.01/0/0 where GEPS's form
             scores -0.00/-0.04/-0.04/-0.05 from week 2.
-Mask        hatched where the hindcast anomaly correlation for this month and week is below 0.25; cross-hatched where
-            there is no gauge truth (precipitation over the ocean) or the climatological week is dry (< 0.5 mm/day:
-            the terciles collapse onto zero and mean nothing).
+Mask        hatched where the hindcast anomaly correlation for this month and week is not significant skill
+            (gefs_skill.noskill: one-sided 5 % t-test on the 20 reforecast years, Benjamini-Hochberg FDR q 0.10 over
+            the map); cross-hatched where there is no gauge truth (precipitation over the ocean) or the climatological
+            week is dry (< 0.5 mm/day: the terciles collapse onto zero and mean nothing). A week dict may carry its
+            own "neff" (the SFS page: one start a year).
 Display     CPC-style: hue for the most likely tercile, intensity for its probability from 33 % up; precipitation
             brown below / green above.
 
@@ -57,7 +59,6 @@ import gefs_skill as SK
 
 CLIM_URL = "https://github.com/scorvec/scorvec.github.io/releases/download/gefs-clim-v1/gefs_clim_{c:03d}.npz"
 LAT, LON = SK.LAT, SK.LON
-SKILL_MIN = SK.SKILL_MIN
 DRY_MM = 0.5  # climatological weekly mean below this: terciles undefined
 P_LO, P_HI = 0.33, 0.70  # colour ramp of the most likely tercile
 TAGS = {"t2m": "2 m temperature", "pr": "Precipitation"}
@@ -307,9 +308,8 @@ def draw(tag, base, weeks, kind, n_members, out: Path):
                     rasterized=True,
                 )
             ax.add_feature(cfeature.OCEAN.with_scale("50m"), facecolor="white", alpha=0.45, zorder=2)
-            r = wrap(wk["r"])
-            noskill = (np.isfinite(r) & (r < SKILL_MIN)).astype(float)
-            notruth = (~np.isfinite(r) | wrap(wk["dry"])).astype(float)
+            noskill = wrap(SK.noskill(wk["r"], wk.get("neff", SK.N_EFF))).astype(float)
+            notruth = wrap(~np.isfinite(wk["r"]) | wk["dry"]).astype(float)
             for fld, hatch, col in ((noskill, "////", "#2f2c28"), (notruth, "xx", "#a6a29a")):
                 if fld.any():
                     cs = ax.contourf(
@@ -361,7 +361,7 @@ def draw(tag, base, weeks, kind, n_members, out: Path):
         )
         note = (
             f"{TERC_NOTE} · colour = most likely tercile, intensity = its probability "
-            f"(33% = no signal) · hatched = hindcast r < {SKILL_MIN} (no skill)"
+            f"(33% = no signal) · hatched = skill not significant ({SK.test_note(weeks[0].get('neff', SK.N_EFF))})"
             + (" · cross-hatched = no gauge truth / dry week" if tag == "pr" else "")
             + (f" · raw: {100 / n_members:.0f}% steps" if kind == "raw" else " · calibrated: no skill → ⅓ each")
         )
@@ -393,7 +393,7 @@ def main() -> int:
         "cycle": a.date,
         "init": f"{base:%Y-%m-%d} 00Z",
         "members": M,
-        "skill_min": SKILL_MIN,
+        "skill_test": {"alpha": SK.ALPHA, "sided": "one", "n_eff": SK.N_EFF, "fdr_q": SK.FDR_Q},
         "terciles": "2016-2025 observed weekly anomaly",
         "calibration": "GEFSv12 reforecast 2000-2019, 4 members",
         "fields": {},
@@ -406,6 +406,7 @@ def main() -> int:
         rows = []
         for wk in weeks:
             r = wk["r"]
+            skl = ~SK.noskill(r)[np.isfinite(r)]
             fin = np.isfinite(wk["cal"]).all(0) & ~wk["dry"]
             best = most_likely(wk["cal"])
             share = {c: round(float(np.mean(best[fin] == i)), 3) for i, (c, _) in enumerate(CATS)}
@@ -414,13 +415,13 @@ def main() -> int:
                     "week": wk["k"],
                     "valid": f"{wk['d0']:%Y-%m-%d}/{wk['d1']:%Y-%m-%d}",
                     "skill_r_median": round(float(np.nanmedian(r)), 3),
-                    "share_skilful": round(float(np.mean(r[np.isfinite(r)] >= SKILL_MIN)), 3),
+                    "share_skilful": round(float(np.mean(skl)), 3),
                     "most_likely_cal": share,
                 }
             )
             print(
                 f"  {tag} week {wk['k']} {wk['d0']:%b %d}-{wk['d1']:%b %d}: skill r median {np.nanmedian(r):.2f}, "
-                f"share r>={SKILL_MIN}: {np.mean(r[np.isfinite(r)] >= SKILL_MIN) * 100:.0f}%, most likely (cal): "
+                f"share significant: {np.mean(skl) * 100:.0f}%, most likely (cal): "
                 + " ".join(f"{c} {v * 100:.0f}%" for c, v in share.items()),
                 flush=True,
             )

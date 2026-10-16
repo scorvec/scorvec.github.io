@@ -8,11 +8,21 @@ they are consistent with the division and state files in the same directory.
 
 For every county, month and season (DJF MAM JJA SON, annual) and each variable:
   normal        1991–2020 mean (°F, inches, degree days)
-  trend         OLS slope per decade from 1970, 1950 and 1895 to the last complete year
-                (precipitation as % of the 1991–2020 normal per decade), with the Theil–Sen slope
-                and a Mann–Kendall p-value (Kendall's tau) as the robustness / significance checks
-  adjusted      the "trend-adjusted normal": the 1970-start fit evaluated at the current year —
-                what normal is now, if the last five decades' trend continues
+  trend         Theil–Sen slope per decade from 1970, 1950 and 1895 to the last complete year
+                (precipitation as % of the 1991–2020 normal per decade)
+  p, sig        the Mann–Kendall test with the Yue & Wang (2004) effective-sample-size correction for
+                serial correlation: Var(S) times n/n* = 1 + 2 Σ (1 - k/n) ρ1^k, ρ1 the lag-1
+                autocorrelation of the Sen-detrended series with Kendall's (1954) bias correction,
+                clipped to [0, 0.95] so the test is never more liberal than the plain one. On AR(1)
+                red noise with no trend it keeps the false-positive rate at 0.045-0.074 for φ up to 0.7
+                (n 56 and 131), where the raw Kendall test reaches 0.39-0.41 and the Hamed-Rao and
+                trend-free-prewhitening variants 0.21-0.55. sig = p < 0.05 AND a Benjamini–Hochberg
+                discovery at FDR q = 0.10 across the counties (or states) of one map (variable × start ×
+                column); BH alone would pass p up to q·(share of discoveries), above 0.05 where most
+                of a map trends
+  adjusted      the "trend-adjusted normal": the 1970-start Theil–Sen line evaluated at the current
+                year (what normal is now, if the last five decades' trend continues), only where that
+                trend is significant; elsewhere null and the 1991–2020 normal stands
 Outputs (assets/climate/): trends_{var}_{start}.json, normals_{var}.json, regions.json (states ×
 months), series/{state fips}_{var}.json (per-county monthly series for the explorer), meta.json.
 
@@ -23,7 +33,9 @@ from __future__ import annotations
 
 import argparse
 import calendar
+import functools
 import json
+import math
 import os
 import re
 import time
@@ -31,7 +43,7 @@ import urllib.request
 from pathlib import Path
 
 import numpy as np
-from scipy import stats
+from quantmet.stats import benjamini_hochberg
 
 HERE = Path(__file__).resolve().parent
 DATA = HERE.parent / "data"
@@ -53,6 +65,13 @@ VARS = {
 }
 STARTS = (1970, 1950, 1895)
 NORMAL = (1991, 2020)
+ALPHA = 0.05  # every shown trend is significant at this level ...
+FDR_Q = 0.10  # ... and a Benjamini-Hochberg discovery at this FDR over the counties (states) of one map
+RHO_MAX = 0.95  # cap on the lag-1 autocorrelation in the variance correction
+TEST = (
+    "Mann–Kendall, Yue–Wang effective sample size for serial correlation; p < 0.05 and Benjamini–Hochberg FDR q = 0.10 "
+    "across the map"
+)
 SEASONS = {"DJF": (12, 1, 2), "MAM": (3, 4, 5), "JJA": (6, 7, 8), "SON": (9, 10, 11), "ANN": tuple(range(1, 13))}
 # NOAA climdiv state code → FIPS state code
 NOAA2FIPS = {
@@ -281,16 +300,61 @@ def season_values(m: np.ndarray, y0: int, var: str) -> np.ndarray:
     return out
 
 
+@functools.cache
+def _pairs(n: int):
+    """Index pairs i < j of a length-n series and the lag weights 1 - k/n, k = 1 ... n-1."""
+    return np.triu_indices(n, 1), 1.0 - np.arange(1, n) / n
+
+
+def mk_test(x: np.ndarray, v: np.ndarray) -> tuple[float, float, float]:
+    """(Theil–Sen slope per unit x, Sen intercept, two-sided p) of the Mann–Kendall trend test, Var(S) tie-corrected
+    and inflated by n/n* = 1 + 2 Σ (1 - k/n) ρ1^k (Yue & Wang 2004), ρ1 the bias-corrected lag-1 autocorrelation of
+    the series minus its Sen line."""
+    n = len(v)
+    (i, j), w = _pairs(n)
+    dv, dx = v[j] - v[i], x[j] - x[i]
+    s = float(np.sign(dv).sum())
+    b = float(np.median(dv / dx))
+    a = float(np.median(v) - b * np.median(x))  # scipy.stats.theilslopes' intercept
+    _, t = np.unique(v, return_counts=True)
+    var = (n * (n - 1) * (2 * n + 5) - np.sum(t * (t - 1) * (2 * t + 5))) / 18.0
+    d = v - b * x
+    d = d - d.mean()
+    dd = float(np.dot(d, d))
+    if var <= 0 or dd <= 0:  # a constant series
+        return b, a, 1.0
+    r1 = float(np.dot(d[:-1], d[1:])) / dd
+    r1 = min(max(r1 + (1.0 + 4.0 * r1) / n, 0.0), RHO_MAX)
+    ratio = 1.0 + 2.0 * float(np.sum(w * r1 ** np.arange(1, n)))
+    z = (s - np.sign(s)) / math.sqrt(var * ratio)
+    return b, a, math.erfc(abs(z) / math.sqrt(2.0))
+
+
 def trend_stats(y: np.ndarray, years: np.ndarray, start: int, last: int):
+    """(Theil–Sen slope per decade, two-sided p, the Sen line at last + 1) or None when too few years."""
     sel = (years >= start) & (years <= last) & np.isfinite(y)
     if sel.sum() < max(20, int(0.7 * (last - start + 1))):
         return None
-    x = years[sel].astype(float)
-    v = y[sel]
-    slope, intercept = np.polyfit(x, v, 1)
-    ts = stats.theilslopes(v, x)[0]
-    _tau, p = stats.kendalltau(x, v)
-    return slope * 10, ts * 10, p, intercept + slope * (last + 1)
+    b, a, p = mk_test(years[sel].astype(float), y[sel])
+    return b * 10, p, a + b * (last + 1)
+
+
+def fdr_flags(P: np.ndarray) -> np.ndarray:
+    """(units, 17) p-values -> 1 (p < ALPHA and a discovery at FDR_Q within its column), 0 (tested, not significant),
+    -1 (no test)."""
+    out = np.full(P.shape, -1, np.int8)
+    for c in range(P.shape[1]):
+        ok = np.isfinite(P[:, c])
+        out[ok, c] = (benjamini_hochberg(P[:, c], FDR_Q) & (P[:, c] < ALPHA))[ok]
+    return out
+
+
+def _flags(row) -> list:
+    return [None if f < 0 else int(f) for f in row]
+
+
+def _r(x, nd: int):
+    return None if x is None or not np.isfinite(x) else round(float(x), nd)
 
 
 def load_tdew():
@@ -373,67 +437,61 @@ def main() -> int:
             f"  {var}: {len(cy)} counties, {y0}–{ylast}, last complete year {last_full} ({time.time() - t0:.0f}s)",
             flush=True,
         )
-        normals, adjusted = {}, {}
-        trends = {s: {} for s in STARTS}
-        pvals = {s: {} for s in STARTS}
-        sens = {s: {} for s in STARTS}
+        normals = {}
+        sens = {st_: {} for st_ in STARTS}
+        pvals = {st_: {} for st_ in STARTS}  # unrounded, for the FDR step
+        fit_now = {}  # the 1970 Sen line at the current year
         per_state = {}
         for fips, ser in cy.items():
             m = to_matrix(ser, y0, ylast)
             sv = season_values(m, y0, var)
             nsel = (years >= NORMAL[0]) & (years <= NORMAL[1])
             nrm = np.nanmean(sv[nsel], axis=0)
-            normals[fips] = [None if not np.isfinite(x) else round(float(x), 2) for x in nrm]
-            adj = []
-            for s in STARTS:
-                tr, pv, tsl = [], [], []
+            normals[fips] = [_r(x, 2) for x in nrm]
+            for s0 in STARTS:
+                tsl, pv = [], np.full(17, np.nan)
                 for c in range(17):
-                    r = trend_stats(sv[:, c], years, s, last_full)
-                    if r is None:
-                        tr.append(None)
-                        pv.append(None)
-                        tsl.append(None)
-                        if s == 1970:
-                            adj.append(None)
-                        continue
-                    slope, ts, p, fit_now = r
-                    tr.append(
-                        None
-                        if not np.isfinite(build_units(var, nrm[c], slope))
-                        else round(float(build_units(var, nrm[c], slope)), 3)
-                    )
-                    tsl.append(
-                        None
-                        if not np.isfinite(build_units(var, nrm[c], ts))
-                        else round(float(build_units(var, nrm[c], ts)), 3)
-                    )
-                    pv.append(round(float(p), 3) if np.isfinite(p) else None)
-                    if s == 1970:
-                        adj.append(round(float(fit_now), 2) if np.isfinite(fit_now) else None)
-                trends[s][fips] = tr
-                pvals[s][fips] = pv
-                sens[s][fips] = tsl
-            adjusted[fips] = adj
+                    r = trend_stats(sv[:, c], years, s0, last_full)
+                    sl = build_units(var, nrm[c], r[0]) if r is not None else np.nan
+                    tsl.append(_r(sl, 3))
+                    if np.isfinite(sl):  # a trend that cannot be expressed (pcpn on a ~zero normal) is not tested
+                        pv[c] = r[1]
+                    if s0 == 1970:
+                        fit_now.setdefault(fips, [None] * 17)[c] = r[2] if r is not None else None
+                sens[s0][fips] = tsl
+                pvals[s0][fips] = pv
             per_state.setdefault(fips[:2], {})[fips] = m
-        doc = {"var": var, "normal": normals, "adjusted_1970": adjusted, "columns": meta["columns"]}
+        order = sorted(cy)
+        sig = {s0: dict(zip(order, fdr_flags(np.stack([pvals[s0][f] for f in order])))) for s0 in STARTS}
+        doc = {
+            "var": var,
+            "normal": normals,
+            "adjusted_1970": {
+                f: [_r(fit_now[f][c], 2) if sig[1970][f][c] == 1 else None for c in range(17)] for f in order
+            },
+            "sig_1970": {f: _flags(sig[1970][f]) for f in order},
+            "test": TEST,
+            "columns": meta["columns"],
+        }
         with open(OUT / f"normals_{var}.json", "w") as f:
             json.dump(doc, f, separators=(",", ":"))
-        for s in STARTS:
+        for s0 in STARTS:
             doc = {
                 "var": var,
-                "start": s,
+                "start": s0,
                 "end": int(last_full),
                 "units": (
                     "% of normal per decade"
                     if var == "pcpn"
                     else ("°F per decade" if var.startswith("t") else "degree days per decade")
                 ),
-                "ols": trends[s],
-                "sen": sens[s],
-                "p": pvals[s],
+                "sen": sens[s0],
+                "p": {f: [_r(x, 4) for x in pvals[s0][f]] for f in order},
+                "sig": {f: _flags(sig[s0][f]) for f in order},
+                "test": TEST,
                 "columns": meta["columns"],
             }
-            with open(OUT / f"trends_{var}_{s}.json", "w") as f:
+            with open(OUT / f"trends_{var}_{s0}.json", "w") as f:
                 json.dump(doc, f, separators=(",", ":"))
         for st, d in per_state.items():
             # Int16 x100 (°F, inches; degree days x1), little-endian, [county][year][month]; NaN -> -32768
@@ -444,33 +502,47 @@ def main() -> int:
             arr.tofile(SERIES / f"{st}_{var}.bin")
             series_index.setdefault(st, {"fips": fips_list, "years": [int(y0), int(ylast)]})
             series_index[st][f"scale_{var}"] = scale
-        # states (from the state files; dewpoint: cell-weighted county mean) for the heatmap
+        # states (from the state files; dewpoint: cell-weighted county mean) for the heatmap and the degree-day table,
+        # tested like the counties, the FDR family being the states of one map
         if var == "tdew" or (var, "st") in files:
             stt = st_series if var == "tdew" else parse(files[(var, "st")], county=False, var=var, scope="st")
+            spv = {s0: {} for s0 in STARTS}
+            snow = {}
             for st, ser in stt.items():
                 m = to_matrix(ser, y0, ylast)
                 sv = season_values(m, y0, var)
                 nsel = (years >= NORMAL[0]) & (years <= NORMAL[1])
                 nrm = np.nanmean(sv[nsel], axis=0)
                 rec = regions.setdefault(st, {"name": STATE_NAME.get(st, st)})
-                for s in STARTS:
-                    vals = []
+                for s0 in STARTS:
+                    vals, pv = [], np.full(17, np.nan)
                     for c in range(17):
-                        r = trend_stats(sv[:, c], years, s, last_full)
-                        vals.append(
-                            None
-                            if r is None or not np.isfinite(build_units(var, nrm[c], r[0]))
-                            else round(float(build_units(var, nrm[c], r[0])), 3)
-                        )
-                    rec[f"{var}_{s}"] = vals
-                rec[f"{var}_normal"] = [None if not np.isfinite(x) else round(float(x), 2) for x in nrm]
+                        r = trend_stats(sv[:, c], years, s0, last_full)
+                        sl = build_units(var, nrm[c], r[0]) if r is not None else np.nan
+                        vals.append(_r(sl, 3))
+                        if np.isfinite(sl):
+                            pv[c] = r[1]
+                        if s0 == 1970:
+                            snow.setdefault(st, [None] * 17)[c] = r[2] if r is not None else None
+                    rec[f"{var}_{s0}"] = vals
+                    spv[s0][st] = pv
+                rec[f"{var}_normal"] = [_r(x, 2) for x in nrm]
+            sorder = sorted(stt)
+            for s0 in STARTS:
+                flags = fdr_flags(np.stack([spv[s0][st] for st in sorder]))
+                for st, fl in zip(sorder, flags):
+                    regions[st][f"{var}_{s0}_sig"] = _flags(fl)
+                    if s0 == 1970:
+                        regions[st][f"{var}_adjusted_1970"] = [
+                            _r(snow[st][c], 2) if fl[c] == 1 else None for c in range(17)
+                        ]
         meta[f"last_month_{var}"] = (
             f"{ylast}-{int(np.where(np.isfinite(sample.get(ylast, np.full(12, np.nan))))[0].max() + 1):02d}"
             if ylast in sample
             else None
         )
         meta[f"last_full_year_{var}"] = int(last_full)
-    doc = {"states": regions, "regions": REGION}
+    doc = {"states": regions, "regions": REGION, "test": TEST}
     with open(OUT / "regions.json", "w") as f:
         json.dump(doc, f, separators=(",", ":"))
     with open(OUT / "series_index.json", "w") as f:

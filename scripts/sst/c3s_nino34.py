@@ -499,12 +499,21 @@ def observed_history(ym: str, months: int = OBS_MONTHS) -> dict | None:
     if not cut:
         return None
     keep = cut[-months:]
+    # where CPC's own values end and the site's OISST v2.1 estimate begins (nino_history.json): the regional table
+    # for Nino-3.4, CPC's ONI/RONI tables for the 3-month indices; the monthly relative index is OISST throughout
+    reg, off = d.get("regional_provisional_after"), d.get("provisional_after")
+
+    def est_from(after):
+        return next((k for k, i in enumerate(keep) if after and mo[i] > after), None)
+
     return {
         "dates": [pd.Timestamp(int(mo[i][:4]), int(mo[i][5:]), 1) for i in keep],
         "n34": anom[keep],
         "oni": oni_obs[keep],
         "roni": roni[keep],
         "rel": (rel[keep] if rel is not None else None),
+        "est_from": {"n34": est_from(reg), "oni": est_from(off), "roni": est_from(off)},
+        "cpc_through": {"n34": reg, "oni": off, "roni": off},
         "source": d.get("source", ""),
         "last": mo[keep[-1]],
     }
@@ -554,7 +563,13 @@ def _panel(ax, results, key, valid, smooth3, title, ylab, want_labels=False, obs
         and np.isfinite(np.asarray(obs[obs_key], float)).any()
     ):
         y = np.asarray(obs[obs_key], float)
-        (h_obs,) = ax.plot(obs["dates"], y, color="k", lw=2.0, marker="o", ms=3.2, zorder=6)
+        k0 = (obs.get("est_from") or {}).get(obs_key)  # the first month that is the site's estimate, not CPC's
+        k0 = len(y) if k0 is None else k0
+        (h_obs,) = ax.plot(obs["dates"][:k0], y[:k0], color="k", lw=2.0, marker="o", ms=3.2, zorder=6)
+        if k0 < len(y):  # the estimate: dashed, open markers, joined to CPC's last month
+            j0 = max(k0 - 1, 0)
+            ax.plot(obs["dates"][j0:], y[j0:], color="k", lw=1.6, ls="--", zorder=6)
+            ax.plot(obs["dates"][k0:], y[k0:], color="k", ls="none", marker="o", ms=3.6, mfc="white", zorder=7)
         # join the LAST OBSERVED month to the first forecast month so the eye does not read a
         # break where there is only a change of source. Series end at different months —
         # OISST's monthly file lags CPC's tables by one — so find the last real value.
@@ -660,7 +675,13 @@ def plot(ym: str, results, out: Path):
             0.008,
             "\n".join(
                 [
-                    "Observed: CPC monthly indices through " + obs["last"] + ".",
+                    "Observed: CPC's monthly indices (solid) through "
+                    + ", ".join(
+                        f"{k} {v}"
+                        for k, v in (("Niño-3.4", obs["cpc_through"]["n34"]), ("ONI/RONI", obs["cpc_through"]["oni"]))
+                        if v
+                    )
+                    + f"; later months to {obs['last']} are the site's OISST v2.1 estimate, not CPC's (dashed, open markers).",
                     "Niño-3.4 and ONI are re-based to the OBSERVED 1993–2016 mean, the same period as every model's hindcast;",
                     "CPC publishes them on 1991–2020, a shift of +0.05 °C in the annual mean and up to +0.10 in late winter.",
                     "RONI is CPC's published ERSSTv6 series on its own base; the shift largely cancels in a difference of two",

@@ -192,13 +192,13 @@
     <div class="chips" id="chips"><div class="chip"><div class="l">Loading daily indices&hellip;</div><div class="v neut">&mdash;</div></div></div>
     <p class="chipnote"><b>*</b> Graded on <b>RONI</b>: |RONI|&nbsp;&ge;&nbsp;0.5 El Ni&ntilde;o or La
       Ni&ntilde;a, &ge;&nbsp;1.0 moderate, &ge;&nbsp;1.5 strong, &ge;&nbsp;2.0 very strong.
-      <b>CPC adopted RONI as its official ENSO index in February 2026</b>, replacing ONI, whose fixed
-      30-year base cannot keep pace with tropical background warming &mdash; so grading on RONI follows
+      <b>CPC adopted RONI as its official ENSO index in February 2026</b>, replacing ONI, whose 30-year
+      base, updated only every five years, lags the tropical background warming &mdash; so grading on RONI follows
       CPC. What is <b>not</b> CPC's here: the value is computed from <b>NOAA OISST v2.1</b> on a fixed
       1991&ndash;2020 base, an <b>estimate</b> of CPC's official RONI, which uses ERSSTv6; and a single
       season is shown, where <b>CPC requires five consecutive overlapping seasons</b> past &plusmn;0.5
       before declaring an episode.
-      <b>Nothing here is final.</b> CPC revises its own ONI for up to <b>two months</b> after first
+      <span id="estOff"></span><b>Nothing here is final.</b> CPC revises its own ONI for up to <b>two months</b> after first
       posting; our newest season leans on a month that has not closed; and the OISST daily field is
       itself <b>preliminary for about two weeks</b> before it is archived as final.</p>
   </div>
@@ -300,7 +300,11 @@
     for the seasons CPC has not reached yet. RONI is the Ni&ntilde;o-3.4 anomaly minus the 20&deg;S&ndash;20&deg;N tropical-mean
     anomaly, rescaled to ONI&rsquo;s variance, so a uniformly warmer tropics does not read as El Ni&ntilde;o.</p>
 <p class="note">Nothing on the chart is final: CPC revises its own ONI for up to two months after first posting, the newest
-    estimated season leans on a month that has not closed, and OISST daily values are preliminary for about two weeks.</p>
+    estimated season leans on a month that has not closed, and OISST daily values are preliminary for about two weeks.
+    The whisker on each hatched bar is &plusmn;1&sigma; of the estimate: the root-mean-square difference between our
+    estimate and CPC&rsquo;s value over the last three seasons CPC has published, or 0.13&thinsp;&deg;C (the scatter of
+    OISST against ERSSTv6 on a matched base) if that is larger. The caption above gives how far each estimate has
+    run from CPC&rsquo;s published value in those seasons.</p>
 <p class="chart-sources">NOAA CPC ONI and RONI tables (ERSSTv6) &middot; NOAA OISST v2.1 daily for the estimate &middot; base 1991&ndash;2020</p>
 </template>
 <template id="about-beyond">
@@ -767,7 +771,7 @@ window.STAGE = {
   indices: {label: "Daily ENSO indices", dom: function () { return "dom-indices"; }, about: "about-indices",
           cap: function () { return "Daily area-weighted SST indices: Niño-3.4, the daily relative Niño-3.4 (the quantity RONI is built from — there is no official daily RONI) and the 90-day running ONI estimate. Switch to absolute SST, or to the monthly record over ten years or since 1970; click legend entries for the other regions."; }},
   onironi: {label: "ONI vs RONI", img: function () { return "assets/sst/roni.webp?v=2e00951f6f0f"; }, about: "about-onironi", fit: false,
-          cap: function () { return "RONI and ONI by season: CPC\u2019s published values (ERSSTv6) solid, and our OISST estimate, hatched, only for the seasons CPC has not reached yet. The newest season is preliminary: the convention is a centred 3-month mean, so it leans on a month that has not closed."; }},
+          cap: function () { return "RONI and ONI by season: CPC\u2019s published values (ERSSTv6) solid, and our OISST estimate, hatched, only for the seasons CPC has not reached yet \u2014 an estimate, not CPC\u2019s number. The newest season is preliminary: the convention is a centred 3-month mean, so it leans on a month that has not closed. " + '<span class="estoff">' + (window.ENSO_EST_OFF || "") + "</span>"; }},
   beyond: {label: "Beyond ENSO", a: {label: "Index", items: [["pdo","PDO"],["iod","Indian Ocean Dipole"],["satl","Atlantic indices"]]},
           img: function (a) { return "assets/sst/" + a + "_daily.webp?v=2e00951f6f0f"; }, about: "about-beyond",
           cap: function (a) { return {pdo: "Daily PDO from the ERSST North Pacific EOF pattern projected on OISST, calibrated to NCEI over 1950–present.", iod: "Daily Dipole Mode Index, Saji boxes.", satl: "Daily Atlantic indices: the Atlantic Niño (ATL3), the tropical South and North Atlantic (TSA, TNA) and the South Atlantic subtropical dipole (Morioka poles)."}[a]; }},
@@ -922,6 +926,40 @@ window.STAGE = {
     return { name: strength + name + "*", sub: "by RONI " + fmt(roni) + " · ONI " + fmt(oni) };
   }
 
+  // a centred-month key as CPC names the season: "2026-08" -> "JAS 2026"
+  function season(k) { return k ? "DJFMAMJJASONDJ".substr(+k.slice(5, 7) - 1, 3) + " " + k.slice(0, 4) : ""; }
+  // Our OISST estimate minus CPC's published value over the last three seasons both have, per index, from the two
+  // files the page already loads (enso_daily.json monthly, cpc_official.json): how far the estimate has been running
+  // from the official number, measured rather than assumed.
+  function estOffset(M, O) {
+    if (!M || !M.months || !O) return null;
+    var out = {};
+    ["oni", "roni"].forEach(function (k) {
+      var pub = O[k] || {}, est = M[k] || [], rows = [];
+      M.months.forEach(function (m, i) { if (pub[m] != null && est[i] != null) rows.push({ m: m, d: est[i] - pub[m] }); });
+      rows = rows.slice(-3);
+      if (!rows.length) return;
+      var ds = rows.map(function (r) { return r.d; });
+      out[k] = { m0: rows[0].m, m1: rows[rows.length - 1].m, last: ds[ds.length - 1],
+                 lo: Math.min.apply(null, ds), hi: Math.max.apply(null, ds) };
+    });
+    return out.oni || out.roni ? out : null;
+  }
+  function offTag(o, name) { return o ? " · ran " + fmt(o.last) + " vs CPC's " + name + " in " + season(o.m1).slice(0, 3) : ""; }
+  function offRange(o) { return o.lo === o.hi ? fmt(o.lo) : fmt(o.lo) + " to " + fmt(o.hi); }
+  // ±0.13 °C (1σ): the scatter of OISST against CPC's ERSSTv6 on a matched base, the estimate's stated uncertainty
+  function offSentence(E, lead) {
+    if (!E) return "";
+    var o = E.oni, r = E.roni, span = (o || r), parts = [];
+    if (o) parts.push("our ONI estimate ran " + offRange(o) + " °C against CPC's ONI");
+    if (r) parts.push("our RONI estimate " + offRange(r) + " °C against CPC's RONI");
+    var wide = o && Math.max(Math.abs(o.lo), Math.abs(o.hi)) > 0.26;
+    return (lead ? "<b>How far the estimate runs from CPC.</b> " : "") + "Over the last three seasons CPC has published (" +
+      season(span.m0).slice(0, 3) + "–" + season(span.m1) + "), " + parts.join(" and ") + ". " +
+      (wide ? "The ONI gap is more than twice the ±0.13 °C (1σ) scatter of OISST against CPC's ERSSTv6 on a matched base, so read the ONI estimate as running " + (o.hi > 0 ? "high" : "low") + " and quote CPC's values. "
+            : "The estimate's stated uncertainty is ±0.13 °C (1σ), the scatter of OISST against CPC's ERSSTv6 on a matched base. ");
+  }
+
   function buildChips(L) {
     var st = ensoState(L.oni, L.roni);
     // CPC's thresholds on |index|: 0.5 weak, 1.0 moderate, 1.5 strong, 2.0 very strong.
@@ -941,10 +979,10 @@ window.STAGE = {
     }
     var chips = [];
     // CPC's own latest, first: the official record, ahead of our estimate of it.
-    var O = window.CPCOFF;
+    var O = window.CPCOFF, EO = estOffset(state.data && state.data.monthly, O);
     if (O && O.roni) {
       var mk = Object.keys(O.roni).sort().pop();
-      if (mk) chips.push({ l: "CPC official · " + mk, v: fmt(O.roni[mk]) + " °C",
+      if (mk) chips.push({ l: "CPC official · " + season(mk), v: fmt(O.roni[mk]) + " °C",
         s: "RONI, CPC's official index" + (O.oni && O.oni[mk] != null
             ? " · ONI " + fmt(O.oni[mk]) : "") + " · " + strengthName(O.roni[mk]),
         cls: tone(O.roni[mk]), strength: strengthClass(O.roni[mk]) });
@@ -953,24 +991,24 @@ window.STAGE = {
       // The asterisk is explained under the strip: CPC made RONI its official
       // ENSO index in Feb 2026, so the grading follows CPC -- what is unofficial
       // here is the DATASET (OISST, not CPC's ERSST) and the unclosed month.
-      { l: "ENSO state · " + L.oni_month, v: st.name, s: st.sub,
+      { l: "ENSO state · " + season(L.oni_month), v: st.name, s: st.sub + " (estimates)",
         cls: tone(L.roni), prelim: true },
       { l: "Daily Niño-3.4", v: fmt(L.nino34) + " °C", s: "single day, " + L.date + arrow(L.nino34_d7),
         cls: tone(L.nino34) },
-      { l: "Daily RONI", v: fmt(L.roni_d) + " °C", s: "relative, σ-scaled" + arrow(L.roni_d_d7),
+      { l: "Daily relative Niño-3.4", v: fmt(L.roni_d) + " °C", s: "σ-scaled, what RONI is built from" + arrow(L.roni_d_d7),
         cls: tone(L.roni_d) },
-      { l: "ONI est. (90-day)", v: fmt(L.oni90) + " °C", s: "running daily estimate" + arrow(L.oni90_d7),
+      { l: "ONI est. (90-day)", v: fmt(L.oni90) + " °C", s: "running daily estimate · OISST, not CPC" + arrow(L.oni90_d7),
         cls: tone(L.oni90) },
       // NOT the official CPC ONI. CPC publishes ERSSTv5 against a base period that
       // shifts every five years; this is the same 3-month convention applied to
       // OISST v2.1 on a fixed 1991-2020 base, so it can differ from the official
       // number. It is also PRELIMINARY: the convention is a CENTRED 3-month mean,
       // so the month shown is built partly from the current, incomplete month.
-      { l: "ONI est. · " + L.oni_month, v: fmt(L.oni) + " °C",
-        s: "3-mo convention · OISST, not CPC official · preliminary",
+      { l: "ONI est. · " + season(L.oni_month), v: fmt(L.oni) + " °C",
+        s: "3-mo convention · OISST, not CPC official · preliminary" + offTag(EO && EO.oni, "ONI"),
         cls: tone(L.oni), prelim: true },
-      { l: "RONI est. · " + L.oni_month, v: fmt(L.roni) + " °C",
-        s: "3-mo, σ-scaled · OISST, not CPC official · preliminary",
+      { l: "RONI est. · " + season(L.oni_month), v: fmt(L.roni) + " °C",
+        s: "3-mo, σ-scaled · OISST, not CPC official · preliminary" + offTag(EO && EO.roni, "RONI"),
         cls: tone(L.roni), prelim: true },
       { l: "Tropical mean 20S–20N", v: fmt(L.trop) + " °C", s: "the warming background" + arrow(L.trop_d7),
         cls: "neut" },
@@ -978,6 +1016,9 @@ window.STAGE = {
     if (L.tni != null) chips.push(
       { l: "Trans-Niño index", v: fmt(L.tni) + " σ", s: (L.tni >= 0 ? "east-loaded" : "west-loaded") + " · σ(1+2) − σ(4)" + arrow(L.tni_d7),
         cls: "neut" });
+    window.ENSO_EST_OFF = offSentence(EO, false);
+    var eo = document.getElementById("estOff"); if (eo) eo.innerHTML = offSentence(EO, true);
+    document.querySelectorAll(".estoff").forEach(function (el) { el.innerHTML = window.ENSO_EST_OFF; });
     document.getElementById("chips").innerHTML = chips.map(function (c) {
       return '<div class="chip' + (c.prelim ? ' chip--prelim' : '') +
                     (c.strength ? ' ' + c.strength : '') + '">' +
@@ -1132,7 +1173,7 @@ window.STAGE = {
         line("nino3", x, s("nino3_abs"), "Niño-3", RC.nino3),
         line("nino12", x, s("nino12_abs"), "Niño-1+2", RC.nino12)
       ] : [
-        line("roni", x, s("roni_d"), "Daily RONI", RC.roni, { width: 2.6 }),
+        line("roni", x, s("roni_d"), "Daily relative Niño-3.4 (σ-scaled)", RC.roni, { width: 2.6 }),
         line("oni", x, s("oni90"), "ONI estimate (90-day)", RC.oni, { width: 2.4 }),
         line("nino34", x, s("nino34"), "Niño-3.4", RC.nino34, { width: 1.5 }),
         line("nino4", x, s("nino4"), "Niño-4", RC.nino4, { hidden: true }),
@@ -1244,9 +1285,11 @@ window.STAGE = {
     var x = s.valid.map(function (m) { return m + "-15"; });
     var tr = [];
     if (st.view === "cal" && s.cal) {
+      // c.q: the 10/25/75/90 % quantiles of the published calibration (climatology where the skill test fails);
+      // a file without it has the older Gaussian N(mu, s²)
       var mu = s.cal.map(function (c) { return c ? c.mu : null; }), sd = s.cal.map(function (c) { return c ? c.s : null; });
-      var f = function (k) { return mu.map(function (m, i) { return m == null || sd[i] == null ? null : m + k * sd[i]; }); };
-      tr = tr.concat(OC.fanTraces(x, { p10: f(-1.28), p25: f(-0.674), p75: f(0.674), p90: f(1.28) }, { outerName: "calibrated 10–90%", innerName: "calibrated 25–75%" }));
+      var f = function (k, j) { return mu.map(function (m, i) { var c = s.cal[i]; return c && c.q ? c.q[j] : m == null || sd[i] == null ? null : m + k * sd[i]; }); };
+      tr = tr.concat(OC.fanTraces(x, { p10: f(-1.28, 0), p25: f(-0.674, 1), p75: f(0.674, 2), p90: f(1.28, 3) }, { outerName: "calibrated 10–90%", innerName: "calibrated 25–75%" }));
       tr.push(OC.refTrace(x, s.mean, "raw ensemble mean", { dash: "dot" }));
       tr.push(OC.meanTrace(x, mu, "calibrated mean", { digits: 1, signed: true }));
     } else {
@@ -1258,7 +1301,7 @@ window.STAGE = {
     if (s.obs_tail && s.obs_tail.length) tr.push(OC.obsTrace(s.obs_tail.map(function (o) { return o[0] + "-15"; }), s.obs_tail.map(function (o) { return o[1]; }), "observed (" + (s.obs_source || "CPC") + ")", { digits: 1, signed: true }));
     OC.react("soiSeasChart", tr, { title: (s.label || st.index.toUpperCase()) + " — SEAS5 " + (T.issue ? String(T.issue).slice(0, 4) + "-" + String(T.issue).slice(4) : "") + " issue", yunits: s.units || "σ", includeZero: true });
     var ns = (s.cal || []).map(function (c, i) { return c && c.no_skill ? s.valid[i] : null; }).filter(Boolean);
-    document.getElementById("soiSeasNote").textContent = (s.note ? s.note + " " : "") + (s.obs_tail && s.obs_tail.length ? "" : "No observed months in this issue's file. ") + (ns.length ? "No hindcast skill (r below " + (T.skill_min || 0.25) + ") for: " + ns.join(", ") + " — the calibrated band is climatology there." : "");
+    document.getElementById("soiSeasNote").textContent = (s.note ? s.note + " " : "") + (s.obs_tail && s.obs_tail.length ? "" : "No observed months in this issue's file. ") + (ns.length ? (T.skill_test ? "No significant hindcast skill (one-sided " + Math.round(T.skill_test.alpha * 100) + " % test over the 24 hindcast years: r below " + T.skill_test.r_crit_n24 + ") for: " + ns.join(", ") + " — the calibrated band is climatology there." : "No hindcast skill (r below " + (T.skill_min || 0.25) + ") for: " + ns.join(", ") + ".") : "");
   }
   document.querySelectorAll("#dom-soi-seas .pill[data-ss-index]").forEach(function (b) { b.addEventListener("click", function () { st.index = b.dataset.ssIndex; document.querySelectorAll("#dom-soi-seas .pill[data-ss-index]").forEach(function (o) { o.classList.toggle("on", o === b); }); draw(); }); });
   document.querySelectorAll("#dom-soi-seas .pill[data-ss-view]").forEach(function (b) { b.addEventListener("click", function () { st.view = b.dataset.ssView; document.querySelectorAll("#dom-soi-seas .pill[data-ss-view]").forEach(function (o) { o.classList.toggle("on", o === b); }); draw(); }); });

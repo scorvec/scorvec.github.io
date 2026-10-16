@@ -214,6 +214,7 @@
   }
   .nc .v small { font-size: 0.86rem; color: var(--prairie); line-height: 1.3; }
   .nc .s { margin-top: 0.55rem; font-size: 0.88rem; line-height: 1.4; color: var(--storm); }
+  .nc .s.src { margin-top: 0.4rem; font-size: 0.76rem; }
   .nc .go { margin-top: auto; padding-top: 0.6rem; font-size: 0.9rem; font-weight: 500; color: var(--acc, var(--sky-deep));
             text-decoration: underline; text-underline-offset: 0.2em; text-decoration-color: transparent; }
   .nc:hover .go { text-decoration-color: currentColor; }
@@ -488,10 +489,11 @@
       <span class="k">El Niño 2026–27</span>
       <span class="v" aria-live="polite">
         <span><b id="en-now">–</b><small>Niño-3.4 today, °C</small></span>
-        <span><b id="en-pk">–</b><small id="en-pkl">expected peak</small></span>
+        <span><b id="en-pk">–</b><small id="en-pkl">expected Niño-3.4 peak, models</small></span>
       </span>
       <svg class="spark" id="en-spark" viewBox="0 0 320 92" role="img" aria-label="Niño-3.4 over the past year and the model forecast" hidden></svg>
       <span class="s" id="en-sub">Sea temperatures, the official indices and the seasonal models.</span>
+      <span class="s src">NOAA OISST v2.1 and CPC; C3S seasonal forecasts. Contains modified Copernicus Climate Change Service information 2026.</span>
       <span class="go">El Niño monitor</span>
     </a>
   </section>
@@ -629,29 +631,51 @@
                    `${s.senate.mean.toFixed(1)} Senate seats. Forecast of ${day(s.asof)}.`);
   });
 
-  // El Niño card: Niño-3.4 today, the model-mean peak (DWD and BoM left out, as on the ENSO forecasts page) and a
-  // year-plus-forecast sparkline
-  Promise.all(['/assets/sst/data/enso_daily.json', '/assets/sst/data/enso_forecast.json'].map(getJSON)).then(([D, F]) => {
+  // El Niño card: Niño-3.4 today; the model-mean Niño-3.4 peak with the range of the model means (DWD and BoM left
+  // out, as on the ENSO forecasts page) and its value on the RONI scale; our RONI estimate beside CPC's latest
+  // official season; a year-plus-forecast sparkline
+  Promise.all(['/assets/sst/data/enso_daily.json', '/assets/sst/data/enso_forecast.json', '/assets/sst/data/cpc_official.json'].map(getJSON)).then(([D, F, O]) => {
     const sg = v => (v >= 0 ? '+' : '−') + Math.abs(v).toFixed(1);
     const SEAS = 'JFMAMJJASONDJF';
     const season = ym => { const m = +ym.slice(5, 7), k = m - 2 < 0 ? 11 : m - 2; return SEAS.slice(k, k + 3); };
+    const nextMonth = ym => { const y = +ym.slice(0, 4), m = +ym.slice(5, 7); return m === 12 ? `${y + 1}-01` : `${y}-${String(m + 1).padStart(2, '0')}`; };
+    const mean = a => a.reduce((x, y) => x + y, 0) / a.length;
     let sub = '';
     if (D && D.latest) {
       const L = D.latest;
       $set('en-now', sg(L.nino34));
       sub = `${day(L.date)}, ${L.nino34_d30 >= 0 ? 'up' : 'down'} ${Math.abs(L.nino34_d30).toFixed(1)} in 30 days` +
             (D.final_through && L.date > D.final_through ? ' (preliminary)' : '');
-      if (L.roni != null) sub += `; RONI ${sg(L.roni)} for ${season(L.oni_month)}`;
+      // a centred season is still open until its last month has closed
+      if (L.roni != null) sub += `; RONI est. ${sg(L.roni)} for ${season(L.oni_month)}` +
+                                 `${L.date.slice(0, 7) <= nextMonth(L.oni_month) ? ' to date' : ''} (OISST, not CPC)`;
       sub += '.';
+    }
+    if (O && O.roni) {
+      const k = Object.keys(O.roni).sort().pop();
+      if (k) sub += ` CPC's official RONI: ${sg(O.roni[k])} for ${season(k)}.`;
     }
     let mmm = null;
     if (F && F.models) {
       const models = Object.entries(F.models).filter(([k]) => !/^(DWD|BoM)\b/.test(k)).map(([, v]) => v), nL = F.valid_months.length;
-      mmm = [...Array(nL).keys()].map(l => models.reduce((a, m) => a + m.n34[l].reduce((x, y) => x + y, 0) / m.n34[l].length, 0) / models.length);
+      const per = models.map(m => m.n34.map(mean));  // each model's ensemble mean by lead
+      mmm = [...Array(nL).keys()].map(l => mean(per.map(p => p[l])));
+      const s3 = (p, l) => (p[l] + p[l + 1] + p[l + 2]) / 3;
       let best = -1, bv = -9;
-      for (let l = 0; l + 2 < nL; l++) { const v = (mmm[l] + mmm[l + 1] + mmm[l + 2]) / 3; if (v > bv) { bv = v; best = l; } }
-      if (best >= 0) { $set('en-pk', sg(bv)); $set('en-pkl', `expected peak, ${season(F.valid_months[best + 1])}`); }
-      sub += ` Peak is the 3-month mean of ${models.length} models.`;
+      for (let l = 0; l + 2 < nL; l++) { const v = s3(mmm, l); if (v > bv) { bv = v; best = l; } }
+      if (best >= 0) {
+        const pk = per.map(p => s3(p, best));
+        $set('en-pk', sg(bv));
+        $set('en-pkl', `expected Niño-3.4 peak, ${season(F.valid_months[best + 1])} (models ${sg(Math.min(...pk))} to ${sg(Math.max(...pk))})`);
+        let rel = '';
+        if (models.every(m => m.rnino)) {
+          const rp = models.map(m => m.rnino.map(mean)), rm = [...Array(nL).keys()].map(l => mean(rp.map(p => p[l])));
+          let rb = 0;
+          for (let l = 1; l + 2 < nL; l++) if (s3(rm, l) > s3(rm, rb)) rb = l;
+          rel = `; ${sg(s3(rm, rb))} on the RONI scale` + (rb !== best ? ` (${season(F.valid_months[rb + 1])})` : '');
+        }
+        sub += ` Peak: 3-month mean of ${models.length} models' Niño-3.4, each against its own 1993–2016 hindcast${rel}.`;
+      }
     }
     if (sub) $set('en-sub', sub.trim());
     if (D && D.daily && D.daily.nino34) {

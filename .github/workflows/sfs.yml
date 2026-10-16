@@ -72,6 +72,7 @@ jobs:
           pip install --quiet numpy pandas xarray 'dask[array]' zarr s3fs fsspec \
             matplotlib==3.10.9 cartopy==0.25.0 pyshtools ecmwf-opendata multiurl requests cfgrib eccodes \
             netCDF4 h5netcdf scipy
+          pip install --quiet "quantmet @ git+https://github.com/scorvec/quantmet-tools@v0.4.2"   # shared diagnostics (BH-FDR, QBO zero line, PV, ...), pinned to the tag
           # netCDF4/h5netcdf are xarray backend plugins: nothing imports them by name, so an
           # import-closure scan cannot see them, and xr.open_dataset on a .nc dies with
           # "found the following matches ... in xarray's IO backends". The chi200 daily loop

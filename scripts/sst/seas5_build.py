@@ -390,6 +390,26 @@ def season_label(ym: str, leads) -> str:
 
 # Tercile probability bins: six steps to 100 % so a 95 % cell reads darker than an 82 % one.
 TERC_BINS = [0.40, 0.50, 0.60, 0.70, 0.80, 0.90, 1.001]
+TERC_ALPHA, TERC_FDR_Q = 0.05, 0.10  # the tercile maps' signal test (tercile_signal)
+TERC_TEST_NOTE = "and only where the members' split differs significantly from one third each (chi-square, p < 0.05 and FDR q 0.10 over the map)"
+
+
+def tercile_signal(pr: dict, n_eff) -> np.ndarray:
+    """True where the members' split into the three terciles differs from one third each by more than drawing n_eff
+    members from the model's own climate would give: Pearson's chi-square on 2 degrees of freedom,
+    X² = 3 n_eff Σ_k (p_k − 1/3)², p = exp(−X²/2), with p < TERC_ALPHA and a Benjamini–Hochberg discovery at TERC_FDR_Q
+    among the finite cells of the map. n_eff: one system's member count, or for an equal-weight mean of K systems
+    with n_k members 1 / Σ_k (1/K)² / n_k, the sample size with the mean's sampling variance (the members are taken
+    as independent). At 51 members a 40/33/27 split is p 0.5 and a 53/27/20 split p 0.01: the 40 % colour floor
+    alone is not a signal."""
+    from quantmet.stats import benjamini_hochberg
+
+    a, b = np.asarray(pr["above"], float), np.asarray(pr["below"], float)
+    x2 = 3.0 * np.asarray(n_eff, float) * ((a - 1 / 3) ** 2 + (b - 1 / 3) ** 2 + (1.0 - a - b - 1 / 3) ** 2)
+    p = np.where(np.isfinite(x2), np.exp(-x2 / 2.0), np.nan)
+    return benjamini_hochberg(p, TERC_FDR_Q) & (p < TERC_ALPHA)
+
+
 TERC_PALETTES = {
     "warm": ["#fde4cf", "#fbc39c", "#f59d68", "#e8703c", "#c8451c", "#8f2a0d"],
     "cool": ["#dbe9f6", "#b7d2ec", "#8ab6df", "#5c95cd", "#3672b6", "#1f4f8f"],
@@ -508,8 +528,9 @@ def render_terciles(ym: str, fields: dict, out_dir: Path) -> dict:
                 return a, lon_s
 
             normal = 1.0 - pr["above"] - pr["below"]
+            sig = tercile_signal(pr, fc.shape[0])
             for arr, other, cols in ((pr["above"], pr["below"], above_c), (pr["below"], pr["above"], below_c)):
-                show = np.where((arr >= 0.40) & (arr >= np.maximum(other, normal)), arr, np.nan)
+                show = np.where(sig & (arr >= 0.40) & (arr >= np.maximum(other, normal)), arr, np.nan)
                 a, lo = prep(show)
                 ax.pcolormesh(
                     lo,
@@ -556,7 +577,7 @@ def render_terciles(ym: str, fields: dict, out_dir: Path) -> dict:
                 H,
                 f"SEAS5 {titles[var]}: most likely tercile · {lab} {yv} · {calendar.month_name[m0]} {y0} issue",
                 "Terciles from SEAS5's own 1993–2016 hindcast at each grid point (24 years × 25 members); the 51 members are counted against them, so bias and spread drift are removed first. "
-                "White: no category reaches 40 %; near-normal is not drawn."
+                f"Coloured where a category reaches 40 % {TERC_TEST_NOTE}; near-normal is not drawn."
                 + (
                     "  Counted against the hindcast's linear trend extrapolated to the valid year, so the warming trend itself does not tilt the map."
                     if var in ("t2m", "z500")
@@ -573,8 +594,8 @@ def render_terciles(ym: str, fields: dict, out_dir: Path) -> dict:
                     leads=list(leads),
                     file=out.name,
                     lead7=max(leads) >= 7,
-                    frac_above=float(np.nanmean(pr["above"] >= 0.40)),
-                    frac_below=float(np.nanmean(pr["below"] >= 0.40)),
+                    frac_above=float(np.nanmean(sig & (pr["above"] >= 0.40))),
+                    frac_below=float(np.nanmean(sig & (pr["below"] >= 0.40))),
                 )
             )
         meta[var] = dict(
@@ -1199,13 +1220,19 @@ def polar_caps(ym: str, members: bool = True) -> dict:
 
 # ── observed context ─────────────────────────────────────────────────────────
 def observed_indices() -> dict:
-    """Last 18 observed months of the CPC indices already on the site (ERSSTv5)."""
+    """Last 18 observed months of the Niño indices already on the site (nino_history.json): CPC's ERSSTv5 regional
+    table and RONI, continued by the site's OISST v2.1 estimate after the two boundaries carried along, so the page can
+    draw the estimate as an estimate."""
     p = ASSETS / "data" / "nino_history.json"
     if not p.exists():
         return {}
     d = json.loads(p.read_text())
     months = d["months"][-18:]
-    out = {"months": months}
+    out = {
+        "months": months,
+        "provisional_after": d.get("provisional_after"),
+        "regional_provisional_after": d.get("regional_provisional_after"),
+    }
     for k in ("nino12", "nino3", "nino34", "nino4", "roni"):
         ser = d["series"].get(k)
         if isinstance(ser, dict):  # {"abs": [...], "anom": [...]}
@@ -1222,8 +1249,9 @@ LEAD7_NOTE = (
     "from 00 UTC on the 1st to the last step before the next month; accumulations: the month's total over its "
     "seconds). Hindcast reference: the same 1993–2016 hindcast, 25 members, from the daily copy of the C3S archive "
     "on AWS (instantaneous fields, interpolated to the CDS grid) and the CDS sub-daily hindcast (accumulations, "
-    "50 hPa height, 30/50 hPa wind). Skill is lower at lead 7, and the products apply the same calibration and "
-    "significance tests to it as to leads 1–6."
+    "50 hPa height, 30/50 hPa wind). Skill is lower at lead 7; it goes through the same calibration and trend handling as "
+    "leads 1–6, and the same tests where a product has one (the teleconnection skill test, the tercile maps' signal "
+    "test). The anomaly and change maps are ensemble means with no significance test, at any lead."
 )
 
 

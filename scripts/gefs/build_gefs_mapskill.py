@@ -39,9 +39,10 @@ members; for t2m the two agree to r 0.98-0.997 and within 0.01 K in the mean).
 
 CALIBRATION TEST (assess) - every start scored with its own init month's table refitted without its season, RPSS of
 the calibrated terciles vs one third each (2026-09-26, 1043 starts; area-weighted, cells with truth):
-    t2m  weeks 1-5  +0.46 +0.24 +0.13 +0.10 +0.08  (unhatched cells +0.46 ... +0.14, hatched +0.02 ... +0.04);
+    t2m  weeks 1-5  +0.46 +0.24 +0.13 +0.10 +0.08  (cells with r >= 0.25 +0.46 ... +0.14, the rest +0.02 ... +0.04);
          reliable: P >= 0.4 bins forecast 0.71/0.60/0.54/0.53/0.52 vs observed 0.72/0.61/0.55/0.54/0.53
-    pr   weeks 1-5  +0.18 +0.04 +0.01 +0.00 +0.00  (hatched cells ~0: the mask marks where there is nothing)
+    pr   weeks 1-5  +0.18 +0.04 +0.01 +0.00 +0.00  (cells with r < 0.25 ~0); the split was the mask of the time, r >= 0.25,
+         not the significance test (gefs_skill.noskill) the maps hatch with now - a rerun of assess splits by that
          GEPS's prob_maps form on the same pairs: +0.14 -0.00 -0.04 -0.04 -0.05 (worse than climatology from week 2 -
          the skewed-terciles artefact gefs_probs.py explains). t2m: the two forms agree to 0.003.
 Other checks: pass 1 reproduces gefs-clim-v1 exactly (n and means, max |d| 0.004 Pa); the re-based hindcast
@@ -542,7 +543,7 @@ def cmd_skill(a) -> int:
             model_clim=f"leave-season-out (starts within {LOSO} d of the verified start removed)",
             rebase="minus the 7-day valid-date mean of era5_shift.npz (ERA5 1991-2020 - 2001-2020)",
             grid="GEFS 1.5 deg, lat 90 -> -90, lon 0 -> 358.5",
-            skill_min=SK.SKILL_MIN,
+            skill_test=SK.test_note(),
             weeks="week k = init + 7k-7 ... init + 7k-1",
         )
         pub = {"r": r.astype("float16"), "n": np.clip(n, 0, 32767).astype("int16")}
@@ -571,15 +572,16 @@ def cmd_skill(a) -> int:
         )
         rows = (R.LAT >= 30) & (R.LAT <= 70)
 
-        def share(x):
-            return np.mean(x[np.isfinite(x)] >= SK.SKILL_MIN) * 100
+        def share(x, rows=rows):  # x one week's full map: the test runs over the map, the share over the rows
+            sk, ok = ~SK.noskill(x)[rows], np.isfinite(x[rows])
+            return np.mean(sk[ok]) * 100
 
         print(
             f"  {t}: gefs_mapskill_{t}.npz ({(out_dir / f'gefs_mapskill_{t}.npz').stat().st_size / 1e6:.1f} MB); "
             f"median r (Sep, 30-70N) by week: "
             + " ".join(f"{np.nanmedian(r[8, k][rows]):.2f}" for k in range(5))
-            + f"; share >= {SK.SKILL_MIN}: "
-            + " ".join(f"{share(r[8, k][rows]):.0f}%" for k in range(5)),
+            + "; share significant: "
+            + " ".join(f"{share(r[8, k]):.0f}%" for k in range(5)),
             flush=True,
         )
     return 0
@@ -666,7 +668,7 @@ def cmd_assess(a) -> int:
                     acc["rps_clim"][m, k, cols] += R_clim.sum(0)
                     acc["n"][m, k, cols] += len(sc)
                     w = np.broadcast_to(wt[cols], pb.shape)
-                    skl = np.nan_to_num(r) >= SK.SKILL_MIN
+                    skl = np.isfinite(r) & ~SK.noskill(r)
                     for j, msk in enumerate((~skl, skl)):
                         for name, X in (("rps_new", R_new), ("rps_geps", R_geps), ("rps_clim", R_clim)):
                             spl[name][k, j] += (X[:, msk] * wt[cols][msk]).sum()
@@ -691,7 +693,7 @@ def cmd_assess(a) -> int:
         )
         print(
             f"  {t}: cross-validated RPSS vs climatology (area-weighted, pooled over months, cells with truth; "
-            f"unhatched/hatched = out-of-sample r >= / < {SK.SKILL_MIN}):"
+            f"unhatched/hatched = out-of-sample r significant or not: {SK.test_note()}):"
         )
         test = {
             "test": "RPSS of the calibrated tercile probabilities vs one third each, every 2000-2019 reforecast start "

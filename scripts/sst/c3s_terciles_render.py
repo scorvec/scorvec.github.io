@@ -33,7 +33,7 @@ import mapstyle as MS
 from c3s_nino34 import MODELS
 from c3s_terciles import VARS, issue_table
 from c3s_maps_render import MONTHS, PERIODS, lead_note, period_label
-from seas5_build import TERC_BINS, TERC_PALETTES
+from seas5_build import TERC_BINS, TERC_PALETTES, TERC_TEST_NOTE, tercile_signal
 
 SITE = Path(os.environ.get("SST_SITE_ROOT", HERE.parents[1]))
 OUT = SITE / "assets" / "sst" / "c3s"
@@ -172,7 +172,9 @@ def probs(
     return probs_from_bounds(f, tb, target_year, min_spread)
 
 
-def draw(pr: dict, lat, lon, var: str, title: str, sub: str, out: Path) -> None:
+def draw(pr: dict, lat, lon, var: str, title: str, sub: str, out: Path, n_eff) -> None:
+    """The most likely tercile where it reaches the first colour bin and the split passes tercile_signal (n_eff
+    members)."""
     from matplotlib.colors import ListedColormap, BoundaryNorm
     from matplotlib.patches import Patch
     from cartopy.util import add_cyclic_point
@@ -180,8 +182,9 @@ def draw(pr: dict, lat, lon, var: str, title: str, sub: str, out: Path) -> None:
     above_c, below_c = (TERC_PALETTES[k] for k in PALETTES[var])
     fig, ax, H, pc = MS.open_map(kind="atm")
     normal = pr["normal"]
+    sig = tercile_signal(pr, n_eff)
     for arr, other, cols in ((pr["above"], pr["below"], above_c), (pr["below"], pr["above"], below_c)):
-        show = np.where((arr >= TERC_BINS[0]) & (arr >= np.maximum(other, normal)), arr, np.nan)
+        show = np.where(sig & (arr >= TERC_BINS[0]) & (arr >= np.maximum(other, normal)), arr, np.nan)
         a, lo = add_cyclic_point(show, coord=lon)
         ax.pcolormesh(
             lo,
@@ -257,7 +260,7 @@ def main() -> int:
                 sub = (
                     f"{label} · {pname} ({lead}) · {MONTHS[mo - 1]} {y} issue · {meta['nmem'][pid]} members counted "
                     f"against this system's own 1993–2016 hindcast ({meta['nsamp'][pid]} samples) at each grid point. "
-                    "White: no category reaches 40 %; near-normal is not drawn."
+                    f"Coloured where a category reaches 40 % {TERC_TEST_NOTE}; near-normal is not drawn."
                     + (
                         "  Counted against the hindcast's linear trend extrapolated to the valid year."
                         if var in DETREND
@@ -272,9 +275,10 @@ def main() -> int:
                     f"{TITLES[var]}: most likely tercile — {label}",
                     sub,
                     OUT / f"c3s_terc_{mid}_{var}_{pid}.webp",
+                    meta["nmem"][pid],
                 )
                 pool.setdefault((var, pid), []).append(
-                    {k: to_ref(pr[k], lat, lon) for k in ("above", "below", "normal")}
+                    {**{k: to_ref(pr[k], lat, lon) for k in ("above", "below", "normal")}, "n": meta["nmem"][pid]}
                 )
             del t
             have.append(var)
@@ -298,7 +302,7 @@ def main() -> int:
         sub = (
             f"{len(keep)} C3S systems, each weighted equally · {pname} ({lead}) · {MONTHS[mo - 1]} {y} issue · "
             "every system counted against its own 1993–2016 hindcast first. "
-            "White: no category reaches 40 %; near-normal is not drawn."
+            f"Coloured where a category reaches 40 % {TERC_TEST_NOTE}; near-normal is not drawn."
             + (
                 "  Counted against the hindcast's linear trend extrapolated to the valid year."
                 if var in DETREND
@@ -313,6 +317,7 @@ def main() -> int:
             f"{TITLES[var]}: most likely tercile — multi-model",
             sub,
             OUT / f"c3s_terc_mmm_{var}_{pid}.webp",
+            1.0 / sum(1.0 / (len(keep) ** 2 * p["n"]) for p in keep),  # the equal-weight mean's effective members
         )
         made += 1
     if made:
@@ -321,6 +326,8 @@ def main() -> int:
     doc_path = SITE / "assets" / "sst" / "data" / "c3s_maps.json"
     doc = json.loads(doc_path.read_text()) if doc_path.exists() else {}
     doc["terciles"] = {
+        "issue": f"{y}-{mo:02d}",
+        "issue_label": f"{MONTHS[mo - 1]} {y}",
         "models": models,
         "fields": {v: TITLES[v] for v in want},
         "detrended": list(DETREND),

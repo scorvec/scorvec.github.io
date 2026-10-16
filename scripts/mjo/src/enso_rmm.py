@@ -137,6 +137,8 @@ def diagnose(clean: xr.Dataset, clean_tail: xr.Dataset | None, dn: float, romi: 
         "speed": round(float(np.median(spd)), 1),
         "phase_start": int(phase_of(m1[:1], m2[:1])[0]),
         "phase_end": int(phase_of(m1[-1:], m2[-1:])[0]),
+        "amp_start": round(float(amp[0]), 2),
+        "amp_end": round(float(amp[-1]), 2),
         "days": int(np.rint(lead[-1])),
     }
     coherent = fc["amp_mean"] >= 1.0 and fc["speed"] >= 3.0
@@ -155,12 +157,49 @@ def diagnose(clean: xr.Dataset, clean_tail: xr.Dataset | None, dn: float, romi: 
     return out
 
 
+ENSO_STRONG_DN34 = 0.5  # |dN34| (K) above which the ENSO change visibly projects on the raw RMM: the cleaned view leads
+
+
+def _phases(fc: dict) -> str:
+    """' phase a -> b' for the coherent case, naming a phase only where the mean track's amplitude is at least 1 there
+    (below 1 there is no MJO to have a phase); '' when neither end qualifies or the status predates amp_start/amp_end."""
+    a0, a1 = fc.get("amp_start", 0.0), fc.get("amp_end", 0.0)
+    if a0 >= 1.0 and a1 >= 1.0:
+        return f", phase {fc['phase_start']} &rarr; {fc['phase_end']} over {fc['days']} days"
+    if a0 >= 1.0:
+        return f", from phase {fc['phase_start']}"
+    if a1 >= 1.0:
+        return f", reaching phase {fc['phase_end']} by day {fc['days']}"
+    return ""
+
+
+def raw_caption(st: dict) -> str:
+    """The lead sentence of the raw RMM view: the ENSO-removed verdict, so the standard index is never shown without
+    it. Names no phase (the cleaned view's status line does, under the amplitude rule)."""
+    fc, dn = st["forecast"], st["dn34"]
+    head = "<b>ENSO not removed.</b> "
+    if st["coherent_mjo_forecast"]:
+        return head + (
+            f"With the ENSO signal taken out (&Delta;Ni&ntilde;o-3.4 {dn:+.2f}&nbsp;K) the forecast still shows an MJO: "
+            f"ensemble-mean amplitude {fc['amp_mean']:.1f}, moving east at about {fc['speed']:+.0f}&deg;/day (see the "
+            "ENSO-removed index)."
+        )
+    s = head + (
+        f"With the ENSO signal taken out (&Delta;Ni&ntilde;o-3.4 {dn:+.2f}&nbsp;K) there is no coherent MJO in this "
+        f"forecast: ensemble-mean amplitude {fc['amp_mean']:.1f} and a phase speed of {fc['speed']:+.1f}&deg;/day, where "
+        "a real MJO moves at about +7&deg;/day."
+    )
+    if abs(dn) >= ENSO_STRONG_DN34:
+        s += " A large or slow track in this diagram is most likely the ENSO change projecting onto the index, not an MJO."
+    return s
+
+
 def status_sentence(st: dict) -> str:
     fc = st["forecast"]
     if st["coherent_mjo_forecast"]:
         s = (
             f"The ENSO-removed forecast shows an MJO: ensemble-mean amplitude {fc['amp_mean']:.1f} moving east at about "
-            f"{fc['speed']:+.0f}&deg;/day, phase {fc['phase_start']} &rarr; {fc['phase_end']} over {fc['days']} days."
+            f"{fc['speed']:+.0f}&deg;/day{_phases(fc)}."
         )
     else:
         s = (

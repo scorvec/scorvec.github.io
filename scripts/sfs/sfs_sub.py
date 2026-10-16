@@ -19,8 +19,10 @@ Weekly      weeks 1-6, days 1-7 ... 36-42 (day 1 = the start date = lead 0).
 Terciles    raw member fractions against the terciles of the reforecast's own weekly anomalies (330 per gridpoint and week).
 Skill mask  gridpoint anomaly correlation of the reforecast ensemble mean (11 members, leave-one-year-out climatology)
             with ERA5 over 1991-2025 for this start month and week (release sfs-ref-v1, scripts/sfs/sfs_truth.py: 2 m
-            temperature global, precipitation Northern Hemisphere only); hatched below 0.25, cross-hatched where there
-            is no truth or the week is climatologically dry.
+            temperature global, precipitation Northern Hemisphere only); hatched where r is not significant skill
+            (gefs_skill.noskill: one-sided 5 % t-test on the n years with truth - one start a year, so n_eff = n,
+            r >= 0.283 at 35 years - and Benjamini-Hochberg FDR q 0.10 over the map), cross-hatched where there is no
+            truth or the week is climatologically dry.
 Grid        the GEFS page's 1.5 deg grid; every figure is drawn by gefs_live / gefs_probs with this page's label.
 
     python scripts/sfs/sfs_sub.py --issue 202610 [--site .] [--procs 4] [--check-only]
@@ -46,6 +48,7 @@ REPO = HERE.parent.parent
 sys.path.insert(0, str(REPO / "scripts" / "gefs"))
 import gefs_reforecast as R
 import gefs_live as GL
+import gefs_skill as SK
 
 SFS_EXP = os.environ.get("SFS_EXP", "beta2")
 BASE = f"https://noaa-oar-sfsdev-pds.s3.amazonaws.com/experiments/{SFS_EXP}"
@@ -54,7 +57,7 @@ LABEL = f"SFS {SFS_EXP}"
 PREFIX = "sfs"
 REF_RELEASE = "sfs-ref-v1"
 CLIM_Y0, CLIM_Y1 = 1991, 2020
-SKILL_MIN = 0.25
+MIN_TRUTH_YEARS = 20  # a gridpoint r needs this many years with truth
 DRY_MM = 0.5
 WEEKS_ALL = [(1, 7), (8, 14), (15, 21), (22, 28), (29, 35), (36, 42)]
 WEEKS = list(WEEKS_ALL)  # the complete weeks the issue holds (main() trims it for a recovered issue)
@@ -337,7 +340,7 @@ def build_ref(month: int, years=(CLIM_Y0, CLIM_Y1), members=None, threads=8, tru
                     F.append(em[i] - base_c)
                     O.append(o)
                 F, O = np.array(F), np.array(O)
-                ok = np.isfinite(O).all(0) & np.isfinite(F).all(0) & (np.isfinite(O).sum(0) >= 20)
+                ok = np.isfinite(O).all(0) & np.isfinite(F).all(0) & (np.isfinite(O).sum(0) >= MIN_TRUTH_YEARS)
                 Fa = F - F.mean(0)
                 Oa = O - np.nanmean(O, 0)
                 with np.errstate(invalid="ignore", divide="ignore"):
@@ -395,13 +398,18 @@ def anomalies(F, ref):
 
 
 # ── figures ────────────────────────────────────────────────────────────────────────────────────────────────────
-def skill_hatcher(r_week):
+def n_years(ref, tag) -> int:
+    """The years behind a gridpoint r (one reforecast start a year); a reference without the count gets the minimum."""
+    return int(ref.get(f"n_{tag}", MIN_TRUTH_YEARS))
+
+
+def skill_hatcher(r_week, n_eff):
     import cartopy.crs as ccrs
 
     def h(ax, i):
         r = r_week[i]
         for fld, hatch, col in (
-            ((np.isfinite(r) & (r < SKILL_MIN)).astype(float), "////", "#2f2c28"),
+            (SK.noskill(r, n_eff).astype(float), "////", "#2f2c28"),
             ((~np.isfinite(r)).astype(float), "xx", "#a6a29a"),
         ):
             if fld.any():
@@ -452,8 +460,9 @@ def render(issue, base, F, nm, ref, site: Path, procs: int):
             )
         if f"r_{tag}" in ref:
             mnote = (note + "   ·   " if note else "") + (
-                f"hatched: reforecast anomaly correlation with ERA5 below {SKILL_MIN} for this week "
-                f"(1991–2025 starts{', Northern Hemisphere only' if tag == 'pr' else ''}); cross-hatched: no ERA5 truth"
+                f"hatched: no significant reforecast skill against ERA5 for this week "
+                f"({SK.test_note(n_years(ref, tag), 'yrs with truth')}{', Northern Hemisphere only' if tag == 'pr' else ''}); "
+                "cross-hatched: no ERA5 truth"
             )
             for key, dom in GL.DOMAINS.items():
                 names.append(
@@ -469,7 +478,7 @@ def render(issue, base, F, nm, ref, site: Path, procs: int):
                         titles,
                         mnote,
                         cb_label=cbl,
-                        hatcher=skill_hatcher(ref[f"r_{tag}"]),
+                        hatcher=skill_hatcher(ref[f"r_{tag}"], n_years(ref, tag)),
                         suffix="_masked",
                     )
                 )
@@ -490,7 +499,17 @@ def render(issue, base, F, nm, ref, site: Path, procs: int):
                     np.where(ok, (w > q67[k]).mean(0), np.nan),
                 ]
             )
-            weeks.append(dict(k=k + 1, raw=raw, r=r[k], dry=dry[k], d0=days[WEEKS[k][0] - 1], d1=days[WEEKS[k][1] - 1]))
+            weeks.append(
+                dict(
+                    k=k + 1,
+                    raw=raw,
+                    r=r[k],
+                    neff=n_years(ref, tag),
+                    dry=dry[k],
+                    d0=days[WEEKS[k][0] - 1],
+                    d1=days[WEEKS[k][1] - 1],
+                )
+            )
         names += GP.draw(tag, base, weeks, "raw", nm, out)
     nd = GL.daily_loops(
         {t: A[t] for t in GL.ANIM_ORDER},

@@ -51,10 +51,11 @@
     if (absolute) tr.push(oc.hindMeanTrace(x, e.clim_mean, "hindcast mean"));
     if (pe) tr = tr.concat(oc.prevTraces([{ x: pe.valid.map(monthDate), y: pe.mean, name: issueLabel(T.previous) + " issue mean (raw)" }], hv));
     if (calOn) {
-      // calibrated: N(a·x̄ + b, s²) per lead from the 24 hindcast years; bands at the 10–90 and 25–75 % quantiles
-      var mu = e.cal.map(function (c, i) { return c && c.mu != null && !c.no_skill ? c.mu : e.mean[i]; }), sd = e.cal.map(function (c) { return c && c.s != null ? c.s : null; });
-      var q = function (z) { return mu.map(function (m, i) { return sd[i] == null ? null : m + z * sd[i]; }); };
-      tr = tr.concat(oc.fanTraces(x, { p10: q(-1.2816), p90: q(1.2816), p25: q(-0.6745), p75: q(0.6745) }));
+      // calibrated: the regression's predictive band per lead from the 24 hindcast years (c.q = its 10/25/75/90 %
+      // quantiles), climatology where the skill test fails; a file without c.q has the older Gaussian N(mu, s²)
+      var mu = e.cal.map(function (c, i) { return c && c.mu != null && (c.q || !c.no_skill) ? c.mu : e.mean[i]; }), sd = e.cal.map(function (c) { return c && c.s != null ? c.s : null; });
+      var q = function (z, k) { return mu.map(function (m, i) { var c = e.cal[i]; return c && c.q ? c.q[k] : sd[i] == null ? null : m + z * sd[i]; }); };
+      tr = tr.concat(oc.fanTraces(x, { p10: q(-1.2816, 0), p90: q(1.2816, 3), p25: q(-0.6745, 1), p75: q(0.6745, 2) }));
       tr.push(oc.meanTrace(x, mu, issueLabel(T.issue) + " issue, calibrated to observations", hv));
       tr.push({ x: x, y: e.mean, mode: "lines", line: { color: "#8a4b2a", width: 1.6, dash: "dot" }, name: "raw model mean", hovertemplate: "%{y:+.2f}<extra>raw model mean</extra>" });
     } else {
@@ -79,11 +80,11 @@
     var rows = e.valid.map(function (v, i) {
       if (e.mean[i] == null) return '<tr><td>' + mmm(v) + '</td><td colspan="7" class="flat">not defined by CPC in this month</td></tr>';
       var pv = pe ? pe.valid.indexOf(v) : -1, sk = e.skill && e.skill[i] != null ? e.skill[i].toFixed(2) : "—", c = e.cal ? e.cal[i] : null;
-      var skc = e.skill && e.skill[i] != null ? (e.skill[i] >= 0.5 ? "up" : e.skill[i] < (T.skill_min || 0.25) ? "flat" : "") : "flat";
+      var skc = e.skill && e.skill[i] != null && c && !c.no_skill ? (e.skill[i] >= 0.5 ? "up" : "") : "flat";
       var pct = function (x) { return x == null ? "—" : Math.round(x * 100) + "%"; };
       return '<tr><td>' + mmm(v) + '</td><td>' + fmt(e.mean[i], 2) + '</td><td>' + fmt(e.p10[i], 2) + ' … ' + fmt(e.p90[i], 2) + '</td>' +
         (e.p_easterly ? '<td>' + pct(e.p_easterly[i]) + '</td>' : (e.p_neg05 ? '<td>' + pct(e.p_neg05[i]) + ' / ' + pct(e.p_pos05[i]) + '</td>' : '<td>' + pct(e.p_pos[i]) + '</td><td>' + pct(e.p_neg[i]) + '</td>')) +
-        (hasCal ? '<td class="' + (c && c.no_skill ? "flat" : "") + '">' + (c && c.p_neg != null ? pct(c.p_neg) + ' / ' + pct(c.p_pos) + (c.no_skill ? " (no skill)" : "") : "—") + '</td>' : '') +
+        (hasCal ? '<td class="' + (c && c.no_skill ? "flat" : "") + '">' + (c && c.p_neg != null ? pct(c.p_neg) + ' / ' + pct(c.p_pos) + (c.no_skill ? (c.q ? " (no skill: climatology)" : " (no skill)") : "") : "—") + '</td>' : '') +
         (pe ? '<td>' + (pv >= 0 && pe.mean[pv] != null ? fmt(pe.mean[pv], 2) : "—") + '</td>' : '') + '<td class="' + skc + '">' + sk + '</td></tr>';
     }).join("");
     return head + rows;
@@ -111,7 +112,7 @@
   // the teleconnection figures (seasonal.html) and the stratosphere one (stratosphere.html)
   function teleFigs(T, hostId) {
     var f = figs(T), F = f.F, t = "";
-    if (F.tele_probs) t += fig(F.tele_probs, f.v, "SEAS5 teleconnection phase probabilities by month", "<b>Phase probabilities by month.</b> Upper bar: the share of the 51 members at or beyond ±" + (T.thr || 0.5) + "σ. Thin lower bar: the same after hindcast calibration. Hatched cells have no usable hindcast skill (r below " + (T.skill_min || 0.25) + ").");
+    if (F.tele_probs) t += fig(F.tele_probs, f.v, "SEAS5 teleconnection phase probabilities by month", "<b>Phase probabilities by month.</b> Upper bar: the share of the 51 members at or beyond ±" + (T.thr || 0.5) + "σ. Thin lower bar: the same after hindcast calibration. " + (T.skill_test ? "Hatched cells have no significant hindcast skill (one-sided " + Math.round(T.skill_test.alpha * 100) + " % test over the 24 hindcast years: r below " + T.skill_test.r_crit_n24 + "); their lower bar is climatology." : "Hatched cells have no usable hindcast skill (r below " + (T.skill_min || 0.25) + ")."));
     if (F.tele_series) t += fig(F.tele_series, f.v, "SEAS5 teleconnection indices with the observed ERA5 tail", "<b>Each index against its observed record.</b> Black: ERA5 through the latest month available; red crosses: CPC's published index; bands and navy line: this issue; dashed: last month's. Small r values are the hindcast skill for each month.");
     $(hostId).innerHTML = t;
   }

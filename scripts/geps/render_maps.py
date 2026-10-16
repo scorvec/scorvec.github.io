@@ -450,29 +450,54 @@ def change(tag, cycle, base, base_kind="model", only=None, prev=None):
     return out
 
 
-SKILL_MIN = 0.25
 TC = paths.TC_REF
+# The skill test of a gridpoint anomaly correlation r: one-sided t-test of r > 0 at ALPHA on N_EFF - 2 degrees of
+# freedom, and a Benjamini-Hochberg discovery at FDR_Q over its map. N_EFF is the number of hindcast YEARS, not the
+# ~1,100 pairs behind r: the starts are 1-3 days apart, so their weekly windows overlap, and a season can be no more
+# dependent than one sample a year - the count of years bounds the effective sample size without an estimate of the
+# serial correlation (one-sided 5 % at 20 years: r >= 0.378). The GEFS page (gefs_skill.noskill) tests the same way.
+ALPHA = 0.05
+FDR_Q = 0.10
+N_EFF = 20  # 2001-2020
+TEST_NOTE = f"one-sided {ALPHA:.0%}, {N_EFF} hindcast yrs, FDR {FDR_Q:.2f}"
+
+
+def noskill(r, n_eff=N_EFF):
+    """True where a finite r is NOT significant skill (the test above); a map is the last two axes, NaN (no truth)
+    is never flagged."""
+    from quantmet.stats import benjamini_hochberg
+    from scipy.stats import t as tdist
+
+    r = np.asarray(r, dtype=float)
+    df = n_eff - 2
+    ok = np.isfinite(r)
+    with np.errstate(invalid="ignore", divide="ignore"):
+        p = np.where(ok, tdist.sf(r * np.sqrt(df / np.clip(1.0 - r * r, 1e-12, None)), df), np.nan)
+    maps = p.reshape(-1, *p.shape[-2:]) if p.ndim >= 2 else p[None]
+    disc = np.stack([benjamini_hochberg(m, FDR_Q) for m in maps]).reshape(p.shape)
+    return ok & ~(disc & (p <= ALPHA))
 
 
 def skill_mask(tag, base):
-    """(lat, lon, [week] -> (noskill, notruth) boolean fields) from
-    hindcast_maps.py, for this init month; None if the field was never
+    """(lat, lon, r, noskill), r and noskill (week, lat, lon), from
+    hindcast_maps.py for this init month; None if the field was never
     scored."""
     q = TC / f"map_skill_{tag}.nc"
     if not q.exists():
         return None
     ds = xr.open_dataset(q)
     r = ds["r"].sel(month=base.month).values  # (week, lat, lon)
-    return ds.lat.values, ds.lon.values, r
+    return ds.lat.values, ds.lon.values, r, noskill(r)
 
 
 def hatch_skill(ax, mask, i):
-    """Hatch a weekly panel where the hindcast says the week has no usable
-    skill (////) or no verification data at all (xxxx)."""
-    lat, lon, r = mask
+    """Hatch a weekly panel where the hindcast says the week has no
+    significant skill (////) or no verification data at all (xxxx)."""
+    lat, lon, r, ns = mask
     rw = np.concatenate([r[i], r[i][:, :1]], axis=1)
+    nsw = np.concatenate([ns[i], ns[i][:, :1]], axis=1)
     lon_w = np.r_[lon, 360.0]
-    for fld, hatch in ((np.isfinite(rw) & (rw < SKILL_MIN), "////"), (~np.isfinite(rw), "xxxx")):
+    for fld, hatch in ((nsw, "////"), (~np.isfinite(rw), "xxxx")):
         if fld.any():
             ax.contourf(
                 lon_w,
@@ -547,7 +572,7 @@ def weekly(tag, cycle, base, base_kind="model", only=None, masked=False):
         if mask is not None:
             note = (
                 (note + "   ·   " if note else "")
-                + f"hatched: hindcast anomaly correlation below {SKILL_MIN} for this week and season (no usable skill)"
+                + f"hatched: no significant hindcast skill for this week and season ({TEST_NOTE})"
                 + ("; cross-hatched: no gauge truth (ocean)" if tag == "pr" else "")
             )
         fig.suptitle(

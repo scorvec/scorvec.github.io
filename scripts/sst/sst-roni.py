@@ -1134,6 +1134,7 @@ def render_satl_daily(atl3, tsa, sasd, tna, out_path):
 
 # CPC overlapping-season labels for the centered 3-month mean, indexed by centre month (1=Jan).
 SEASONS = ["DJF", "JFM", "FMA", "MAM", "AMJ", "MJJ", "JJA", "JAS", "ASO", "SON", "OND", "NDJ"]
+EST_SIGMA = 0.13  # 1 sigma of the OISST estimate against CPC's ERSSTv6 on a matched base (deg C)
 
 
 def _cpc_official():
@@ -1178,6 +1179,17 @@ def render_roni(
     # Everything past CPC's last published season is ours, and is labelled so.
     first_est = int(np.argmax(~has_off)) if (~has_off).any() else n
 
+    # How far the estimate has run from CPC over the last three seasons both have. The whisker on each hatched bar is
+    # +-1 sigma: the RMS of that difference, or EST_SIGMA if larger.
+    def recent_diff(est, pub):
+        k = np.flatnonzero(np.isfinite(est) & np.isfinite(pub))[-3:]
+        return est[k] - pub[k]
+
+    d_oni, d_roni = recent_diff(est_oni, o_oni), recent_diff(est_roni, o_roni)
+    sig_oni, sig_roni = (
+        max(EST_SIGMA, float(np.sqrt(np.mean(d**2)))) if d.size else EST_SIGMA for d in (d_oni, d_roni)
+    )
+
     def bar_color(v):
         if not np.isfinite(v):
             return "#c8c8c4"
@@ -1196,12 +1208,14 @@ def render_roni(
         rv = o_roni[i] if official else est_roni[i]
         ov = o_oni[i] if official else est_oni[i]
         kw = dict(zorder=3, linewidth=0.6, edgecolor="#ffffff")
-        if not official:  # ours: hatched, dimmed, dark edge
+        ekw = {}
+        if not official:  # ours: hatched, dimmed, dark edge, +-1 sigma whisker
             kw.update(linewidth=1.0, edgecolor="#3a3a38", hatch="///", alpha=0.85)
+            ekw = dict(error_kw=dict(ecolor="#3a3a38", elinewidth=1.0, capsize=2.5, zorder=4))
         if np.isfinite(ov):
-            ax.bar(i - 0.20, ov, width=W, color=GOLD, **kw)
+            ax.bar(i - 0.20, ov, width=W, color=GOLD, yerr=sig_oni if ekw else None, **kw, **ekw)
         if np.isfinite(rv):
-            ax.bar(i + 0.20, rv, width=W, color=bar_color(rv), **kw)
+            ax.bar(i + 0.20, rv, width=W, color=bar_color(rv), yerr=sig_roni if ekw else None, **kw, **ekw)
 
     # legend built by hand: four states, and "official vs ours" is the axis that matters
     from matplotlib.patches import Patch
@@ -1246,7 +1260,9 @@ def render_roni(
     if first_est < n:
         # the two-line "not yet published" label sits at the top of the estimate band: keep the
         # band's own bars below it (a large estimate would otherwise run into the label)
-        est_vals = np.concatenate([v[first_est:][np.isfinite(v[first_est:])] for v in (est_roni, est_oni)])
+        est_vals = np.concatenate(
+            [v[first_est:][np.isfinite(v[first_est:])] + s for v, s in ((est_roni, sig_roni), (est_oni, sig_oni))]
+        )
         if est_vals.size:
             y_top = max(y_top, est_vals.max() + 0.16 * (y_top - min(vals.min(), -0.6) + 0.22) + 0.25)
     ax.set_ylim(min(vals.min(), -0.6) - 0.22, y_top)
@@ -1277,13 +1293,22 @@ def render_roni(
     lr_ = off.get("roni", {})
     ok = max(lr_) if lr_ else None
     box = []
+
+    def sname(k):  # centred-month key -> CPC's season name, "2026-08" -> "JAS 2026"
+        return f"{SEASONS[int(k[5:7]) - 1]} {k[:4]}"
+
     if ok:
-        box.append(f"CPC official  {ok}  RONI {lr_[ok]:+.2f}  ONI {lo_.get(ok, float('nan')):+.2f}")
+        box.append(f"CPC official  {sname(ok)}  RONI {lr_[ok]:+.2f}  ONI {lo_.get(ok, float('nan')):+.2f}")
     if latest_roni is not None:
         box.append(
-            f"OISST est.    {lastk}  RONI {latest_roni:+.2f}"
+            f"OISST est.    {sname(lastk)}  RONI {latest_roni:+.2f}"
             + (f"  ONI {latest_oni:+.2f}" if latest_oni is not None else "")
         )
+        if d_roni.size and d_oni.size:
+            box.append(
+                f"est. − CPC, last {d_roni.size}  RONI {d_roni.min():+.2f}…{d_roni.max():+.2f}"
+                f"  ONI {d_oni.min():+.2f}…{d_oni.max():+.2f}"
+            )
     if box:
         # kept short deliberately: a wider box reaches left over the bars
         box.append("both still subject to revision")
@@ -1334,7 +1359,9 @@ def render_roni(
         "posting; our newest season leans on a month that has not closed; and OISST daily is itself\n"
         "preliminary for about two weeks before it is archived as final. "
         "RONI = (Niño-3.4 − tropical-mean 20°S–20°N) anomaly rescaled to ONI's variance. "
-        "Red >+0.5, blue <−0.5, grey neutral; each bar is a centred season (Jul = JJA).",
+        "Red >+0.5, blue <−0.5, grey neutral; each bar is a centred season (Jul = JJA).\n"
+        "Whiskers on our bars: ±1σ, the RMS of our estimate minus CPC over the last three published seasons, at least "
+        f"{EST_SIGMA:.2f} °C (OISST vs ERSSTv6 on a matched base): ONI ±{sig_oni:.2f}, RONI ±{sig_roni:.2f} °C.",
         fontsize=7,
         color="#6f6b64",
     )
