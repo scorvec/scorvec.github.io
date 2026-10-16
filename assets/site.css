@@ -144,9 +144,11 @@
    groups open leftwards so nothing spills past the right edge of the page. */
 .sh-menu--list { left: 0; right: auto; width: max-content; min-width: 15rem; max-width: 24rem; grid-template-columns: 1fr; padding: 0.7rem 1.1rem 0.75rem; }
 .sh-item:nth-last-child(-n + 4) > .sh-menu--list { left: auto; right: 0; }
-.sh-menu--list a { padding: 0.42rem 0; white-space: nowrap; }
-.sh-menu--cols { left: 0; right: auto; width: max-content; min-width: 30rem; max-width: 48rem; grid-template-columns: repeat(2, minmax(14rem, 1fr)); gap: 0.6rem 2rem; padding: 0.9rem 1.2rem 0.8rem; }
-.sh-menu--cols a { padding: 0.36rem 0; white-space: nowrap; }
+.sh-menu--list a { padding: 0.3rem 0; white-space: nowrap; }
+.sh-menu--cols { left: 0; right: auto; width: max-content; min-width: 30rem; max-width: 48rem; grid-template-columns: repeat(2, minmax(14rem, auto)); gap: 0 2.2rem; padding: 0.8rem 1.2rem 0.7rem; }
+/* each column stacks its groups on its own (apply_chrome._split_columns), so a short group leaves no hole beside a long one */
+.sh-col { display: grid; align-content: start; gap: 0.7rem; }
+.sh-menu--cols a { padding: 0.26rem 0; white-space: nowrap; }
 .sh-menu--cols h3 { font-size: 1rem; font-family: var(--f-sans); font-weight: 500; letter-spacing: 0.04em; color: var(--c-muted); margin: 0 0 0.25rem; }
 
 /* mobile toggle */

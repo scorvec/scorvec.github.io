@@ -406,6 +406,16 @@ PROFILES = [
 PERSONAL = [("/about.html", "About me"), ("/resume.html", "Resume"), ("/research.html", "Publications"), *PROFILES]
 
 
+def _split_columns(items):
+    """A columned menu's (subtitle, items) groups in two stacks, in order, split where the stacks' heights (a heading
+    plus its links) come closest: each column then runs straight down, with no gap beside a shorter neighbour."""
+    if len(items) < 2:
+        return [items]
+    h = [1 + len(its) for _, its in items]
+    k = min(range(1, len(items)), key=lambda k: abs(sum(h[:k]) - sum(h[k:])))
+    return [items[:k], items[k:]]
+
+
 def group_items(items):
     """Flatten a group's items whether it is a flat list or (subtitle, items) columns."""
     if items and isinstance(items[0][1], list):
@@ -732,13 +742,16 @@ def header_html(page: str, skin: str, skip: bool = False) -> str:
         )
         if columns:
             out.append(f'          <div class="sh-menu sh-menu--cols" id="{mid}">')
-            for sub, its in items:
-                out.append(f"            <div>\n              <h3>{sub}</h3>\n              <ul>")
-                pages_here = {h for h, *_ in its if "#" not in h}
-                for href, text, *_ in its:
-                    cls = ' class="sh-subitem"' if "#" in href and href.split("#")[0] in pages_here else ""
-                    out.append(f'                <li{cls}><a href="{href}"{_current(href, page)}>{text}</a></li>')
-                out.append("              </ul>\n            </div>")
+            for col in _split_columns(items):
+                out.append('            <div class="sh-col">')
+                for sub, its in col:
+                    out.append(f"              <div>\n                <h3>{sub}</h3>\n                <ul>")
+                    pages_here = {h for h, *_ in its if "#" not in h}
+                    for href, text, *_ in its:
+                        cls = ' class="sh-subitem"' if "#" in href and href.split("#")[0] in pages_here else ""
+                        out.append(f'                  <li{cls}><a href="{href}"{_current(href, page)}>{text}</a></li>')
+                    out.append("                </ul>\n              </div>")
+                out.append("            </div>")
             out.append("          </div>\n        </li>")
         else:
             out.append(f'          <div class="sh-menu sh-menu--list" id="{mid}">\n            <ul>')

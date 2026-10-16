@@ -224,6 +224,7 @@
      a 560 px card would blow the labels up to ~17 px and the chart to 160 px */
   .spark { display: block; width: 100%; height: 92px; margin-top: 0.5rem; }
   .spark text { font-family: var(--sans); font-size: 12px; fill: var(--storm); }
+  .spark.seats { height: 68px; }
 
   /* ── The themes: the menus' six groups as tiles, their key pages as plain links (the descriptions are tooltips and
      live on the pages and in the catalogue); the rest of a theme's pages sit behind "n more". ── */
@@ -306,7 +307,7 @@
   @media (min-width: 1700px) { html:root:root { font-size: 122%; } .spark text { font-size: 13.5px; } }
   @media (min-width: 2000px) { html:root:root { font-size: 130%; } .spark text { font-size: 14.5px; } }
 </style>
-<link rel="stylesheet" href="/assets/site.css?v=03b67b2360">
+<link rel="stylesheet" href="/assets/site.css?v=aca24cbfc1">
 <script src="/assets/site.js?v=fe84a7e3e0" defer></script>
 <script data-goatcounter="https://scorvec.goatcounter.com/count" async src="https://gc.zgo.at/count.v4.js" integrity="sha384-nRw6qfbWyJha9LhsOtSb2YJDyZdKvvCFh0fJYlkquSFjUxp9FVNugbfy8q1jdxI+" crossorigin="anonymous"></script>
 </head>
@@ -324,118 +325,136 @@
         <li class="sh-item sh-has-menu">
           <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g0">Mid-latitude weather</button>
           <div class="sh-menu sh-menu--cols" id="sh-g0">
-            <div>
-              <h3>Surface and hazards</h3>
-              <ul>
-                <li><a href="/models.html">Short-range model maps</a></li>
-                <li><a href="/ar.html">Atmospheric rivers</a></li>
-              </ul>
+            <div class="sh-col">
+              <div>
+                <h3>Surface and hazards</h3>
+                <ul>
+                  <li><a href="/models.html">Short-range model maps</a></li>
+                  <li><a href="/ar.html">Atmospheric rivers</a></li>
+                </ul>
+              </div>
             </div>
-            <div>
-              <h3>Upper air</h3>
-              <ul>
-                <li><a href="/circulation.html#dt">Dynamic tropopause</a></li>
-                <li><a href="/circulation.html#pacjet">North Pacific jet</a></li>
-                <li><a href="/circulation.html#waf">Wave activity flux</a></li>
-              </ul>
+            <div class="sh-col">
+              <div>
+                <h3>Upper air</h3>
+                <ul>
+                  <li><a href="/circulation.html#dt">Dynamic tropopause</a></li>
+                  <li><a href="/circulation.html#pacjet">North Pacific jet</a></li>
+                  <li><a href="/circulation.html#waf">Wave activity flux</a></li>
+                </ul>
+              </div>
             </div>
           </div>
         </li>
         <li class="sh-item sh-has-menu">
           <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g1"><span class="sh-lf">Global circulation and tropics</span><span class="sh-ls">Circulation/tropics</span></button>
           <div class="sh-menu sh-menu--cols" id="sh-g1">
-            <div>
-              <h3>ENSO and the MJO</h3>
-              <ul>
-                <li><a href="/enso.html">El Niño monitor</a></li>
-                <li><a href="/circulation.html#mslp">Pacific pressure and wind</a></li>
-                <li><a href="/circulation.html#gdps_ir">Simulated satellite (GDPS)</a></li>
-                <li><a href="/mjo.html">MJO forecast</a></li>
-                <li><a href="/tropical-waves.html">Tropical waves</a></li>
-              </ul>
+            <div class="sh-col">
+              <div>
+                <h3>ENSO and the MJO</h3>
+                <ul>
+                  <li><a href="/enso.html">El Niño monitor</a></li>
+                  <li><a href="/circulation.html#mslp">Pacific pressure and wind</a></li>
+                  <li><a href="/circulation.html#gdps_ir">Simulated satellite (GDPS)</a></li>
+                  <li><a href="/mjo.html">MJO forecast</a></li>
+                  <li><a href="/tropical-waves.html">Tropical waves</a></li>
+                </ul>
+              </div>
+              <div>
+                <h3>Tropical cyclones</h3>
+                <ul>
+                  <li><a href="/circulation.html#tcshear">Shear and environment</a></li>
+                  <li><a href="/recon.html">Hurricane reconnaissance</a></li>
+                </ul>
+              </div>
             </div>
-            <div>
-              <h3>Tropical cyclones</h3>
-              <ul>
-                <li><a href="/circulation.html#tcshear">Shear and environment</a></li>
-                <li><a href="/recon.html">Hurricane reconnaissance</a></li>
-              </ul>
-            </div>
-            <div>
-              <h3>Jets and momentum</h3>
-              <ul>
-                <li><a href="/circulation.html#jets">Subtropical jets</a></li>
-                <li><a href="/circulation.html#aam">Angular momentum and torques</a></li>
-              </ul>
-            </div>
-            <div>
-              <h3>Tropical overturning</h3>
-              <ul>
-                <li><a href="/circulation.html#walker">Walker circulation</a></li>
-                <li><a href="/circulation.html#hadley">Hadley cells</a></li>
-                <li><a href="/circulation.html#vpot">Velocity potential</a></li>
-                <li><a href="/circulation.html#gdps150">Upper-level outflow (GDPS)</a></li>
-                <li><a href="/circulation.html#gillrain">Rain-forced circulation (Gill model)</a></li>
-                <li><a href="/circulation.html#rainfc">Rain forecast, weeks 1–2</a></li>
-              </ul>
+            <div class="sh-col">
+              <div>
+                <h3>Jets and momentum</h3>
+                <ul>
+                  <li><a href="/circulation.html#jets">Subtropical jets</a></li>
+                  <li><a href="/circulation.html#aam">Angular momentum and torques</a></li>
+                </ul>
+              </div>
+              <div>
+                <h3>Tropical overturning</h3>
+                <ul>
+                  <li><a href="/circulation.html#walker">Walker circulation</a></li>
+                  <li><a href="/circulation.html#hadley">Hadley cells</a></li>
+                  <li><a href="/circulation.html#vpot">Velocity potential</a></li>
+                  <li><a href="/circulation.html#gdps150">Upper-level outflow (GDPS)</a></li>
+                  <li><a href="/circulation.html#gillrain">Rain-forced circulation (Gill model)</a></li>
+                  <li><a href="/circulation.html#rainfc">Rain forecast, weeks 1–2</a></li>
+                </ul>
+              </div>
             </div>
           </div>
         </li>
         <li class="sh-item sh-has-menu">
           <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g2">Stratosphere</button>
           <div class="sh-menu sh-menu--cols" id="sh-g2">
-            <div>
-              <h3>Polar vortex and QBO</h3>
-              <ul>
-                <li><a href="/stratosphere.html">Stratosphere and polar vortex</a></li>
-                <li class="sh-subitem"><a href="/stratosphere.html#pv">Now: analyses and observations</a></li>
-                <li class="sh-subitem"><a href="/stratosphere.html#vortex">Next two weeks</a></li>
-                <li class="sh-subitem"><a href="/stratosphere.html#vortex35">Weeks 3–5</a></li>
-                <li class="sh-subitem"><a href="/stratosphere.html#s5vortex">Season</a></li>
-                <li class="sh-subitem"><a href="/stratosphere.html#shwinters">History and studies</a></li>
-                <li class="sh-subitem"><a href="/stratosphere.html#qbo">QBO tracker</a></li>
-              </ul>
+            <div class="sh-col">
+              <div>
+                <h3>Polar vortex and QBO</h3>
+                <ul>
+                  <li><a href="/stratosphere.html">Stratosphere and polar vortex</a></li>
+                  <li class="sh-subitem"><a href="/stratosphere.html#pv">Now: analyses and observations</a></li>
+                  <li class="sh-subitem"><a href="/stratosphere.html#vortex">Next two weeks</a></li>
+                  <li class="sh-subitem"><a href="/stratosphere.html#vortex35">Weeks 3–5</a></li>
+                  <li class="sh-subitem"><a href="/stratosphere.html#s5vortex">Season</a></li>
+                  <li class="sh-subitem"><a href="/stratosphere.html#shwinters">History and studies</a></li>
+                  <li class="sh-subitem"><a href="/stratosphere.html#qbo">QBO tracker</a></li>
+                </ul>
+              </div>
             </div>
           </div>
         </li>
         <li class="sh-item sh-has-menu">
           <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g3">Weeks to seasons</button>
           <div class="sh-menu sh-menu--cols" id="sh-g3">
-            <div>
-              <h3>Extended range</h3>
-              <ul>
-                <li><a href="/subseasonal.html">GEPS extended ensemble</a></li>
-                <li><a href="/gefs.html">GEFS extended ensemble</a></li>
-                <li><a href="/sfs-subseasonal.html">SFS extended (experimental)</a></li>
-              </ul>
+            <div class="sh-col">
+              <div>
+                <h3>Extended range</h3>
+                <ul>
+                  <li><a href="/subseasonal.html">GEPS extended ensemble</a></li>
+                  <li><a href="/gefs.html">GEFS extended ensemble</a></li>
+                  <li><a href="/sfs-subseasonal.html">SFS extended (experimental)</a></li>
+                </ul>
+              </div>
             </div>
-            <div>
-              <h3>Seasons</h3>
-              <ul>
-                <li><a href="/seasonal.html">Seasonal model forecasts</a></li>
-                <li><a href="/enso-forecasts.html">ENSO forecasts</a></li>
-              </ul>
+            <div class="sh-col">
+              <div>
+                <h3>Seasons</h3>
+                <ul>
+                  <li><a href="/seasonal.html">Seasonal model forecasts</a></li>
+                  <li><a href="/enso-forecasts.html">ENSO forecasts</a></li>
+                </ul>
+              </div>
             </div>
           </div>
         </li>
         <li class="sh-item sh-has-menu">
           <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g4"><span class="sh-lf">Studies and verification</span><span class="sh-ls">Studies/verification</span></button>
           <div class="sh-menu sh-menu--cols" id="sh-g4">
-            <div>
-              <h3>Studies</h3>
-              <ul>
-                <li><a href="/enso.html#imp_reg">ENSO impacts on the Americas</a></li>
-                <li><a href="/mjo.html#mi">MJO impacts</a></li>
-                <li><a href="/aifs-aam-budget.html">AI models and conservation laws</a></li>
-                <li><a href="/torque-enso.html">El Niño and angular momentum</a></li>
-                <li><a href="/topics/">Explainers</a></li>
-              </ul>
+            <div class="sh-col">
+              <div>
+                <h3>Studies</h3>
+                <ul>
+                  <li><a href="/enso.html#imp_reg">ENSO impacts on the Americas</a></li>
+                  <li><a href="/mjo.html#mi">MJO impacts</a></li>
+                  <li><a href="/aifs-aam-budget.html">AI models and conservation laws</a></li>
+                  <li><a href="/torque-enso.html">El Niño and angular momentum</a></li>
+                  <li><a href="/topics/">Explainers</a></li>
+                </ul>
+              </div>
             </div>
-            <div>
-              <h3>Verification</h3>
-              <ul>
-                <li><a href="/aifs-verify.html">AIFS single versus ensemble control</a></li>
-              </ul>
+            <div class="sh-col">
+              <div>
+                <h3>Verification</h3>
+                <ul>
+                  <li><a href="/aifs-verify.html">AIFS single versus ensemble control</a></li>
+                </ul>
+              </div>
             </div>
           </div>
         </li>
@@ -491,6 +510,8 @@
         <span><b id="mt-h">–</b><small>win the House</small></span>
         <span><b id="mt-s">–</b><small>control the Senate</small></span>
       </span>
+      <svg class="spark seats" id="mt-seats" viewBox="0 0 320 68" role="img" aria-label="Democratic House seats: the forecast range and the majority line" hidden></svg>
+      <span class="s src" id="mt-seats-cap" hidden>Democratic House seats: the bar is 10–90 % of the model's outcomes, the dashed line the 218 needed for a majority.</span>
       <span class="s" id="mt-sub">Democrats' chances, from the polls, fundraising and the national mood.</span>
       <span class="go">Every race</span>
     </a>
@@ -641,6 +662,27 @@
     $set('mt-h', pct(s.house.p)); $set('mt-s', pct(s.senate.p));
     $set('mt-sub', `Democrats' chances: ${Math.round(s.house.mean)} House seats expected (218 needed), ` +
                    `${Math.round(s.senate.mean)} Senate seats (51 needed; a 50–50 Senate stays Republican). Forecast of ${day(s.asof)}.`);
+    // the House seat range: the model's 10–90 % of outcomes, the expected count and the majority line
+    const H = s.house, MAJ = 218;
+    if (H.p10 == null || H.p90 == null) return;
+    const svg = document.getElementById('mt-seats');
+    svg.hidden = false;
+    document.getElementById('mt-seats-cap').hidden = false;
+    const lo0 = Math.min(H.p10, MAJ), hi0 = Math.max(H.p90, MAJ), pad = 0.15 * (hi0 - lo0), x0 = lo0 - pad, x1 = hi0 + pad;
+    const draw = () => {
+      const W = Math.max(200, Math.round(svg.getBoundingClientRect().width) || 320);
+      svg.setAttribute('viewBox', `0 0 ${W} 68`);
+      const X = v => (4 + (W - 8) * (v - x0) / (x1 - x0)).toFixed(1);
+      svg.innerHTML =
+        `<rect x="${X(H.p10)}" y="22" width="${(X(H.p90) - X(H.p10)).toFixed(1)}" height="22" rx="3" fill="#c9d6e6"/>` +
+        `<line x1="${X(MAJ)}" x2="${X(MAJ)}" y1="16" y2="50" stroke="#6f6b64" stroke-width="1.2" stroke-dasharray="3 2"/>` +
+        `<line x1="${X(H.mean)}" x2="${X(H.mean)}" y1="17" y2="49" stroke="#274b7a" stroke-width="2.4"/>` +
+        `<text x="${X(H.mean)}" y="13" text-anchor="middle" fill="#274b7a">${Math.round(H.mean)} expected</text>` +
+        `<text x="${X(H.p10)}" y="62" text-anchor="middle">${H.p10}</text>` +
+        `<text x="${X(H.p90)}" y="62" text-anchor="middle">${H.p90}</text>`;
+    };
+    draw();
+    let rt; addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(draw, 150); });
   });
 
   // El Niño card: Niño-3.4 today; the model-mean Niño-3.4 peak with the range of the model means (DWD and BoM left
