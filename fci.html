@@ -27,7 +27,7 @@
   .card { background: var(--panel); border: 1px solid var(--rule); border-radius: 10px; padding: 1.1rem 1.3rem 1rem; margin: 1.3rem 0; }
   .note { color: var(--ink2); font-size: 0.95rem; max-width: 72rem; margin: 0.1rem 0 0.8rem; }
   .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 0.8rem; margin: 1.2rem 0 0.4rem; }
-  .tile { background: var(--panel); border: 1px solid var(--rule); border-left: 6px solid var(--c, var(--accent)); border-radius: 10px; padding: 0.8rem 1rem; }
+  .tile { min-width: 0; overflow-wrap: break-word; background: var(--panel); border: 1px solid var(--rule); border-left: 6px solid var(--c, var(--accent)); border-radius: 10px; padding: 0.8rem 1rem; }
   .tile .k { font-size: 0.82rem; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; }
   .tile .v { font-family: var(--serif); font-size: clamp(1.9rem, 3vw, 2.6rem); line-height: 1.1; margin: 0.15rem 0; }
   .tile .v small { font-family: var(--sans); font-size: 0.95rem; color: var(--muted); margin-left: 0.3rem; }
@@ -67,7 +67,7 @@
   details.method p, details.method li { color: var(--ink2); font-size: 0.95rem; max-width: 72rem; }
   .src { font-size: 0.82rem; color: var(--muted); margin-top: 0.6rem; }
   @media (max-width: 900px) {
-    .tiles { grid-template-columns: 1fr 1fr; }
+    .tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .pc-grid { grid-template-columns: 1fr; }
     .tiles .tile:first-child { grid-column: 1 / -1; }
     .spreads { grid-template-columns: 1fr; }
@@ -79,6 +79,7 @@
     .spreads .chart { height: 280px; }
     .pc-grid .chart { height: 360px; }
   }
+  @media (max-width: 420px) { .tiles { grid-template-columns: minmax(0, 1fr); } }   /* two tiles abreast overflow a 320 px screen */
 </style>
 <script src="https://cdn.jsdelivr.net/npm/plotly.js-cartesian-dist-min@2.35.2/plotly-cartesian.min.js" integrity="sha384-gKF7EaMDoWW1zLWkouldmVWF5jqEKrAswAciW73iNzqlomabVVPO60XkJvL5q/Ie" crossorigin="anonymous"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">

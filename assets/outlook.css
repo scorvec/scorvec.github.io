@@ -289,7 +289,7 @@
     color: var(--accent);
     transition: background 0.15s, color 0.15s, border-color 0.15s;
   }
-  .plot-deck .deck-tabs button:hover { background: #ecdfd4; border-color: var(--accent-hi); color: var(--accent-hi); }
+  .plot-deck .deck-tabs button:hover { background: #ecdfd4; border-color: var(--accent-hi); color: var(--accent); }   /* --accent-hi text is 3.8:1 on the hover fill */
   .plot-deck .deck-tabs button.on {
     background: var(--accent); border-color: var(--accent); color: #fff;
     box-shadow: 0 1px 5px rgba(138,75,42,0.38);
@@ -404,7 +404,6 @@
   .colophon h3 { font-family: var(--serif); font-weight: 500; font-size: 0.88rem;
                  color: var(--ink2); margin-bottom: 0.35rem; }
   .colophon p { margin-bottom: 0.45rem; max-width: 110ch; }
-  footer .counter { opacity: 0.8; }
 
   @media (max-width: 700px) {
     h1 { font-size: 1.55rem; }

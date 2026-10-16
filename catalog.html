@@ -17,6 +17,7 @@
 <style>
   :root {
     --bg: #fcfcfa; --ink: #29321f; --muted: #6f6b64; --rule: #e3e1da; --panel: #ffffff; --accent: #274b7a;
+    --muted-tint: #625e58;   /* muted text on the topic tints below: #6f6b64 falls under 4.5:1 there */
     --accent-soft: rgba(39, 75, 122, 0.08);
     --t-weather: #e3ebf3; --t-drivers: #f1e9dc; --t-outlooks: #e2ede4; --t-research: #ebe5ef; --t-tools: #eae9e3;
   }
@@ -75,10 +76,10 @@
   .ct-tile { position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: space-between; gap: 0.5rem;
              padding: 0.9rem 1rem 1rem; text-align: left; background-color: var(--tint, var(--t-tools));
              background-image: repeating-linear-gradient(135deg, rgba(40, 50, 30, 0.045) 0 1px, transparent 1px 10px); }
-  .ct-tile i { font-style: normal; font-size: 0.9rem; color: var(--muted); }
+  .ct-tile i { font-style: normal; font-size: 0.9rem; color: var(--muted-tint); }
   .ct-tile b { font-family: var(--f-serif); font-weight: 500; font-size: 1.3rem; line-height: 1.2; color: var(--ink);
                display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
-  .ct-tile span { font-size: 0.9rem; line-height: 1.4; color: var(--muted); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .ct-tile span { font-size: 0.9rem; line-height: 1.4; color: var(--muted-tint); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
   .t-weather { --tint: var(--t-weather); } .t-drivers { --tint: var(--t-drivers); } .t-outlooks { --tint: var(--t-outlooks); }
   .t-research { --tint: var(--t-research); } .t-tools { --tint: var(--t-tools); }
   .ct-l { display: block; margin-top: 0.55rem; font-size: 1.02rem; font-weight: 600; line-height: 1.3; }
