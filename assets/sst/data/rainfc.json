@@ -20,17 +20,17 @@
  "stats": {
   "blend_wk1": {
    "tested_cells": 36295,
-   "sig_frac_tropics": 0.623,
-   "above_frac_tropics": 0.387,
-   "below_frac_tropics": 0.237,
-   "dod_sig_frac": 0.368
+   "sig_frac_tropics": 0.61,
+   "above_frac_tropics": 0.364,
+   "below_frac_tropics": 0.246,
+   "dod_sig_frac": 0.392
   },
   "blend_wk2": {
    "tested_cells": 36421,
-   "sig_frac_tropics": 0.655,
-   "above_frac_tropics": 0.379,
-   "below_frac_tropics": 0.276,
-   "dod_sig_frac": 0.099
+   "sig_frac_tropics": 0.638,
+   "above_frac_tropics": 0.347,
+   "below_frac_tropics": 0.29,
+   "dod_sig_frac": 0.11
   },
   "ifs_wk1": {
    "tested_cells": 36295,
@@ -210,20 +210,20 @@
  "blend": {
   "weights": {
    "wk1": {
-    "ifs": 0.0562,
-    "aifs-ens": 0.5063,
-    "gefs": 0.1875,
-    "geps": 0.25
+    "ifs": 0.075,
+    "aifs-ens": 0.675,
+    "gefs": 0.25,
+    "geps": 0.0
    },
    "wk2": {
-    "ifs": 0.11248875112488751,
-    "aifs-ens": 0.4687531246875312,
-    "gefs": 0.16878312168783122,
-    "geps": 0.24997500249975002
+    "ifs": 0.15,
+    "aifs-ens": 0.625,
+    "gefs": 0.225,
+    "geps": 0.0
    }
   },
   "fit": {
-   "made": "2026-10-16T20:34Z",
+   "made": "2026-10-16T20:57Z",
    "score": "fair RPS of weekly terciles vs GPCP 2001-2020, IMERG Late scaled to Final",
    "step": 0.025,
    "block_days": 21,
@@ -258,9 +258,9 @@
       0.407
      ],
      "fitted_weights": {
-      "gefs": 0.1875,
-      "ifs": 0.0562,
-      "aifs-ens": 0.5063
+      "gefs": 0.25,
+      "ifs": 0.075,
+      "aifs-ens": 0.675
      },
      "blend_vs_single": {
       "gefs": [
@@ -320,10 +320,10 @@
       }
      },
      "weights": {
-      "ifs": 0.0562,
-      "aifs-ens": 0.5063,
-      "gefs": 0.1875,
-      "geps": 0.25
+      "ifs": 0.075,
+      "aifs-ens": 0.675,
+      "gefs": 0.25,
+      "geps": 0.0
      }
     },
     "wk2": {
@@ -354,9 +354,9 @@
       0.2024
      ],
      "fitted_weights": {
-      "gefs": 0.1688,
-      "ifs": 0.1125,
-      "aifs-ens": 0.4688
+      "gefs": 0.225,
+      "ifs": 0.15,
+      "aifs-ens": 0.625
      },
      "blend_vs_single": {
       "gefs": [
@@ -416,10 +416,10 @@
       }
      },
      "weights": {
-      "ifs": 0.1125,
-      "aifs-ens": 0.4688,
-      "gefs": 0.1688,
-      "geps": 0.25
+      "ifs": 0.15,
+      "aifs-ens": 0.625,
+      "gefs": 0.225,
+      "geps": 0.0
      }
     }
    }
@@ -435,5 +435,5 @@
   ]
  },
  "normal": "GPCP V3.2 daily 2001-2020, 7-day totals",
- "made": "2026-10-16T20:43Z"
+ "made": "2026-10-16T21:01Z"
 }
