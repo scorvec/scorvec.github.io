@@ -91,7 +91,7 @@ KEEP int compute_sounding(const float* pres, const float* hght,
 // lowest 400 hPa (the MU search depth) and the 100-hPa mixed-layer parcel stay at least `g_screen_k` below the minimum
 // saturated theta-e above them, no parcel has CAPE: ML/MU CAPE are 0 and ECAPE is not computed - exactly what the full
 // path returns for such a column. The margin absorbs the lifter-vs-formula difference and the virtual-temperature effect.
-// Measured 2026-10-04 on two full HRRR hours (06Z F06, 12Z F06; 7.6 M values each): mismatches vs the unscreened kernel
+// Measured on two full HRRR hours (7.6 M values each): mismatches vs the unscreened kernel
 // 3,334 / 1,110 at 1 K, 202 / 12 at 2 K, 6 / 0 at 2.5 K, none at 3 K and 4 K. 4 K keeps a full kelvin of headroom and is
 // still exact; kernel time 54.8 s (full analysis) -> 48.7 s (lean) -> 43.5 s (lean + screen). < 0 = off.
 static float g_screen_k = 4.0f;

@@ -1,7 +1,7 @@
-// Execute the ENTIRE render path (drawSkewT, drawHodo, drawMSE, fillTables)
-// under node with stubbed canvas/DOM. A parse check cannot catch runtime
-// failures — a TDZ ("Cannot access 'o' before initialization") shipped through
-// one and blanked the page. This catches that class before push.
+// Execute the ENTIRE render path (drawSkewT, drawHodo, fillTables) under node
+// with stubbed canvas/DOM. A parse check cannot catch runtime failures (a TDZ
+// "Cannot access 'x' before initialization" passes one and blanks the page);
+// this catches that class before push.
 //
 //   node scripts/skewt/smoke_render.js path/to/sounding.csv
 "use strict";
@@ -54,30 +54,37 @@ const grab = n => {
     if (app[k] === "}") { d--; if (!d) return app.slice(i, k + 1); }
   }
 };
+// one-line `const NAME = ...;` declarations, taken from app.js itself so the
+// test never runs against a stale copy of the real plot geometry or thresholds
+const grabConst = n => {
+  const m = new RegExp(`^const ${n} = .*?;`, "m").exec(app);
+  if (!m) throw new Error("missing const " + n);
+  return m[0];
+};
 const NEED = ["parseCSV", "thin", "sanitizeHeights", "fillDewpoints", "fillWinds", "frostPtC", "cloudLayers", "estCeiling", "drawTempAdv", "meanSR", "brnShear",
-  "fitCanvas", "interpHagl", "interpP", "windAt", "meanWindAgl", "wetbulbC", "wbzAgl",
-  "freezingLvlAgl", "tropopause", "columnRH", "layerRH", "mseProfile", "precipType",
-  "kucheraRatio", "drawBarbs", "climoSlot", "climoPct", "pctColor", "climoCell", "doyOf",
-  "drawSkewT", "drawHodo", "drawMSE", "fillTables"];
-const preamble = `
-const MISSING = -9999, KT = 1.9438, RD = 287.05, CP = 1005.7, LV = 2.501e6, GRAV = 9.80665;
-const CLIMO_PCTS = [1,5,10,25,50,75,90,95,99], CLIMO_LO = 10, CLIMO_HI = 90, CLIMO_MIN_N = 30;
-const CLIMO_HIGH_ONLY = new Set(["ecape","ship"]);
-const CLIMO_FLOOR = { ecape: 100, ship: 0.5 };
-const MON = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
-const SK = { l: 58, r: 90, t: 48, b: 42, pBot: 105000, pTop: 10000, tL: -35, tR: 45 };
+  "fitCanvas", "plotBox", "prev12Live", "interpHagl", "interpP", "windAt", "meanWindAgl", "wetbulbC", "wbzAgl",
+  "freezingLvlAgl", "tropopause", "columnRH", "layerRH", "mseProfile", "thetaEK", "precipType",
+  "kucheraRatio", "drawBarbs", "climoSlot", "climoTab", "climoAllTime", "synClass", "climoPct", "pctColor",
+  "climoCell", "doyOf", "drawSkewT", "drawHodo", "fillTables"];
+const CONSTS = ["MISSING", "KT", "RD", "CP", "CLIMO_PCTS", "CLIMO_LO", "CLIMO_MIN_N", "CLIMO_HIGH_ONLY",
+  "CLIMO_FLOOR", "MON", "SK", "PLOT_ASPECT", "dirOf", "climoTabs"];
+const preamble = CONSTS.map(grabConst).join("\n") + `
 const TH = new Proxy({}, { get: () => "#888" });
+const MOBILE_MQ = { matches: false };
 let plotTitle = "smoke test", plotCoords = "0N 0E", plotNote = "";
 let EXPORT_PX = null, BARB_GAP = 22, lastProfFull = null;
-let pinned = null, climo = null, climoNow = {}, lastMonth = "07", lastDoy = 192;
+let pinned = null, climo = null, climoNow = {}, lastDoy = 192, lastHourZ = 12;
+let current = null, prev12 = null, lastValidDt = null;
 let anomalies = {}, entries = {}, byWmo = {}, igraStations = {};
-// traceAdiabat is a WASM bridge (tested separately) — stub it here
+// traceAdiabat is a WASM bridge (tested separately); the card layout, the
+// async 12-h trend fetch and the model-point chips are DOM/network side
+// effects of fillTables — stubbed here
 const traceAdiabat = () => new Float32Array(0);
-const dirOf = (u, v) => ((Math.atan2(-u, -v) * 180 / Math.PI) + 360) % 360;
+const fitLayout = () => {}, queuePrev12 = () => {}, modelPointChips = () => {};
 const fmt = (v, d) => (v === MISSING || !isFinite(v)) ? "—" : (+v).toFixed(d || 0);
 `;
 const src = preamble + NEED.map(grab).join("\n") +
-  "\nreturn { parseCSV, thin, sanitizeHeights, fillDewpoints, drawSkewT, drawHodo, drawMSE, fillTables };";
+  "\nreturn { parseCSV, thin, sanitizeHeights, fillDewpoints, drawSkewT, drawHodo, fillTables };";
 const fns = new Function("document", "window", src)(global.document, global);
 
 // ---- run it on a real sounding --------------------------------------------
@@ -93,7 +100,7 @@ const res = { rc: 0, o: new Array(64).fill(-9999),
 res.o[0] = 500; res.o[22] = 5; res.o[23] = 5; res.o[34] = prof.P[0];
 
 let failed = 0;
-for (const f of ["drawSkewT", "drawHodo", "drawMSE", "fillTables"]) {
+for (const f of ["drawSkewT", "drawHodo", "fillTables"]) {
   try { fns[f](prof, res); console.log(`  ${f}: OK`); }
   catch (e) { console.error(`  ${f}: THREW — ${e.message}`); failed++; }
 }

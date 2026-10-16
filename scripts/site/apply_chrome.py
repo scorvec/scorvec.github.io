@@ -544,6 +544,7 @@ PAGES = [
         anchor="<nav>",
         tabs="skewt",
         footer=False,
+        local_assets=("sharplib.js", "app.js"),  # the explorer's own scripts, versioned like the shared ones
         drop=[
             r'\s*<a href="\.\./index\.html" class="nav-name">Shawn Corvec</a>',
             r'\s*<a href="\.\./index\.html" class="back">← HOME</a>',
@@ -653,6 +654,14 @@ def asset_hash(name: str) -> str:
 
 def version_assets(html: str) -> str:
     return _ASSET_REF.sub(lambda m: f"{m[1]}{m[2]}?v={asset_hash(m[3])}{m[1]}", html)
+
+
+def version_local(html: str, page: str, names: tuple) -> str:
+    """Stamp a page's own scripts (`src="name"` beside the page, not under /assets/) with their content hash."""
+    for name in names:
+        digest = hashlib.sha256((REPO / page).parent.joinpath(name).read_bytes()).hexdigest()[:10]
+        html = re.sub(r'src="' + re.escape(name) + r'(?:\?v=\w*)?"', f'src="{name}?v={digest}"', html)
+    return html
 
 
 # the loop embeds (in an iframe on most pages): no chrome, but their shared scripts carry the same versions
@@ -1021,6 +1030,8 @@ def stamp(cfg: dict) -> tuple[str, str]:
     if not cfg.get("synced"):
         html = head_tags(html)
         html = version_assets(with_fonts(html, cfg["path"]))
+        if cfg.get("local_assets"):
+            html = version_local(html, cfg["path"], cfg["local_assets"])
 
     if cfg.get("footer", True):
         foot = footer_html(dark)

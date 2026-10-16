@@ -123,7 +123,7 @@ INPUTS = {
 }
 BASE = list(INPUTS)
 
-# CANDIDATES. DATA TERMS checked 2026-10-07 on each FRED series page: the ICE BofA high-yield OAS (BAMLH0A0HYM2)
+# CANDIDATES. DATA TERMS, from each FRED series page: the ICE BofA high-yield OAS (BAMLH0A0HYM2)
 # and CCC & lower OAS (BAMLH0A3HYC) are "Copyrighted: Pre-Approval Required" AND FRED now holds only their last 3 years
 # (from 2023-10-09) - they cannot be used. The free stand-in for a high-yield-inclusive spread is the Federal Reserve
 # Board's Gilchrist-Zakrajsek spread and excess bond premium (FEDS Note, Favara et al. 2016; monthly from 1973, posted on
@@ -190,7 +190,7 @@ CAND = {
     ),
 }
 CONTEXT = ["sloos_cre", "sloos_cc", "del_ci", "del_cc", "del_cre"]  # shown as context unless admitted
-# ADMITTED on the evidence of the 2026-10-07 admission test (see admission(); run 37687348415): against the 16-input base
+# ADMITTED on the evidence of the admission test (see admission()): against the 16-input base
 # (r NFCI credit 0.770, mean episode-peak percentile 0.855) the greedy path added the credit-card standards (r +0.016,
 # peaks +0.2 pp) and then the S&P 500 drawdown (r +0.008, peaks +1.0 pp). Every other candidate failed the gate: the GZ
 # spread, ERP, term premium and the three delinquency rates lower r and the episode peaks; CRE standards raise r (+0.044)
@@ -219,8 +219,8 @@ PRIVATE = {
         "minus the year-on-year % change in commercial banks' loans to nondepository financial institutions (H.8, LNFACBW027SBOG; one-off reclassification jumps chain-linked out)",
     ),
 }
-# HOUSEHOLD HOUSING FINANCE (refinancing and home-equity lines). DATA TERMS
-# checked 2026-10-07: the FRED series below are Federal Reserve Board data with no copyright notice (public domain, citation
+# HOUSEHOLD HOUSING FINANCE (refinancing and home-equity lines). DATA TERMS:
+# the FRED series below are Federal Reserve Board data with no copyright notice (public domain, citation
 # requested); FHFA's National Mortgage Database aggregates are a federal agency's public data; the New York Fed's Household
 # Debt and Credit workbook may be used and redistributed with its notice (housing.py). NOT USED: the MBA refinance index
 # (proprietary), Freddie Mac's cash-out refinance report (last issued for 2018Q4; its successor, the Refinance Transition
@@ -277,7 +277,7 @@ HCAND = {
 }
 HCONTEXT = ["del_mort", "del_heloc"]  # context unless admitted; del_heloc (2003) is chart and table only
 HSUB = ["heloc_g", "heloc_lim", "sloos_heloc", "heloc_dem", "sloos_mort", "sloos_mdem", "refi_cash", "lockin"]
-# ADMITTED on the evidence of stage 2 of the admission test (2026-10-07, run 37692314610): against the current 18-input headline
+# ADMITTED on the evidence of stage 2 of the admission test: against the current 18-input headline
 # (r NFCI credit 0.794, mean episode-peak percentile 0.867) only the cash-out refinance ratio clears the gate with a non-negative
 # gain, and only formally: loading +0.02, r and the peaks unchanged to three decimals (d_r 95 % CI -0.002..+0.002). The bank
 # HELOC growth loads the wrong way (-0.11; banks' home-equity balances rise when borrowers draw lines in a crunch) and fails;
@@ -931,6 +931,11 @@ def daily_index(raw, X, mu, sd, w, scale, days=400):
         return dl(raw["MORTGAGE30US"].reindex(raw["MORTGAGE30US"].index.union(bd)).ffill(limit=7))
 
     usd = raw["DTWEXBGS"]
+
+    def usd_ago():  # the dollar index a calendar year before each day of bd (the latest value within 5 days)
+        ago = bd - pd.DateOffset(years=1)  # 29 Feb and 28 Feb both map to 28 Feb: unique for the union
+        return usd.reindex(usd.index.union(ago.unique())).ffill(limit=5).reindex(ago)
+
     fast = {
         "baa": lambda: dl(raw["BAA10Y"]),
         "aaa": lambda: dl(raw["AAA10Y"]),
@@ -943,18 +948,7 @@ def daily_index(raw, X, mu, sd, w, scale, days=400):
         "vix": lambda: dl(raw["VIXCLS"]),
         "real10": lambda: dl(raw["DFII10"]),
         "tp": lambda: dl(raw["THREEFYTP10"]),
-        "usd": lambda: (
-            100.0
-            * (
-                dl(usd)
-                / dl(
-                    usd.reindex(usd.index.union(bd - pd.DateOffset(years=1)))
-                    .ffill()
-                    .reindex(bd - pd.DateOffset(years=1))
-                ).values
-                - 1.0
-            )
-        ),
+        "usd": lambda: 100.0 * (dl(usd) / usd_ago().values - 1.0),  # year-on-year % change
     }
     for k in keys:
         if k in fast:

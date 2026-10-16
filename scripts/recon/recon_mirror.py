@@ -433,7 +433,7 @@ def legs(rows, cf):
             rr[i] = km(r[ix["la"]], r[ix["lo"]], c[0], c[1]) / NM
     out, used = [], set()
     good = [i for i in range(len(rows)) if rr[i] is not None]
-    for _n, i in enumerate(good):
+    for i in good:
         if rr[i] > PASS_R or i in used:
             continue
         win = [j for j in good if abs(rows[j][0] - rows[i][0]) <= 600]
@@ -546,9 +546,8 @@ def merge(store, prod, name, rec, ft):
 
 # ──────────────────────────────────────────────────────────── run ──
 class Mirror:
-    def __init__(self, out, prev, workers=6):
+    def __init__(self, out, workers=6):
         self.out = Path(out)
-        self.prev = Path(prev) if prev else None
         self.workers = workers
         self.state = jload(self.out / "state.json", {})
         self.state.setdefault("v", 1)
@@ -934,21 +933,20 @@ def live(mx, days_back):
             except ValueError:
                 pass
         seen = seen_all.setdefault(f"{year}/{prod}", {})
-        new = []
+        new = {}
         for k in range(n, -1, -1):
             d = (NOW - timedelta(days=k)).strftime("%Y%m%d")
             if d[:4] != str(year):
                 continue
             pat = f"*.{d}*"
             lst = parse_listing(get(f"{NHC}/archive/recon/{year}/{prod}/?P={pat}"))
-            for name, sig in lst.items():
-                if seen.get(name) != sig:
-                    new.append(name)
-                    seen[name] = sig
+            new.update((name, sig) for name, sig in lst.items() if seen.get(name) != sig)
         if new:
             log(f"  {prod}: {len(new)} new file(s)")
-            files = mx.fetch_files(year, prod, new)
+            files = mx.fetch_files(year, prod, list(new))
             got = mx.ingest(year, prod, files)
+            # a bulletin whose fetch failed is not marked seen, so the next run asks for it again
+            seen.update((name, new[name]) for name, txt in files if txt is not None)
             mx.newfiles += len(new)
             log(f"    decoded {got}")
         sdirs[prod] = mt
@@ -1061,7 +1059,7 @@ def main():
         shutil.copytree(a.prev, out, ignore=shutil.ignore_patterns(".git"))
     out.mkdir(parents=True, exist_ok=True)
     t0 = time.time()
-    mx = Mirror(out, a.prev)
+    mx = Mirror(out)
     if a.backfill.strip():
         y, s = a.backfill.split()
         backfill(mx, int(y), s)

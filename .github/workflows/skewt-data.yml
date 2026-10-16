@@ -97,20 +97,29 @@ jobs:
         with:
           ref: skewt-archive
           path: archive-data
-        continue-on-error: true
+        continue-on-error: true    # first run: branch may not exist (checked below)
 
       - name: Bundle complete days into the permanent archive
         run: |
+          # skewt-archive is append-only: it is never force-pushed, and it is initialised only when the
+          # branch truly does not exist on the remote - a failed checkout of an existing branch stops here
+          # rather than starting a new history over it.
+          URL="https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git"
           python scripts/skewt/archive_days.py /tmp/skewt-data/soundings archive-data
           cd archive-data
-          if [ ! -d .git ]; then git init -q -b skewt-archive; fi
+          if [ ! -d .git ]; then
+            if [ -n "$(git ls-remote --heads "$URL" skewt-archive)" ]; then
+              echo "::error::skewt-archive exists on the remote but its checkout failed - not re-initialising the archive"
+              exit 1
+            fi
+            git init -q -b skewt-archive
+          fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A
           if ! git diff --staged --quiet; then
             git commit -q -m "Archive: $(date -u +%F)"
-            git push "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git" HEAD:skewt-archive || \
-            git push -f "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git" HEAD:skewt-archive
+            git push "$URL" HEAD:skewt-archive
           fi
 
       - uses: actions/checkout@v7
