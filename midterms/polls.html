@@ -59,6 +59,7 @@ a:focus-visible,button:focus-visible,summary:focus-visible,input:focus-visible{o
 <script src="/assets/rail.js" defer></script>
 </head><body>
 <!-- sh:start -->
+<a class="skip-link" href="#main">Skip to main content</a>
 <header class="sh" id="site-header">
   <div class="sh-in">
     <a class="sh-brand" href="/">Shawn Corvec</a>
@@ -213,7 +214,7 @@ a:focus-visible,button:focus-visible,summary:focus-visible,input:focus-visible{o
   </div>
 </header>
 <!-- sh:end -->
-<main class="pw">
+<main class="pw" id="main">
 <p class="back"><a href="./">Back to the forecast</a> &nbsp;·&nbsp; <a href="about.html">How the forecast works</a> &nbsp;·&nbsp; <a href="legislatures.html">State legislatures</a></p>
 <h1>Every poll, and how much it counts</h1>
 <p id="lede" class="dim">loading…</p>
@@ -234,6 +235,7 @@ a:focus-visible,button:focus-visible,summary:focus-visible,input:focus-visible{o
  <h2 style="font:600 20px 'Source Serif 4',Georgia,serif;margin:16px 0 6px">Generic ballot <small class="dim" id="gnow"></small></h2><div class="inner" style="padding:0"><table id="t-generic"></table></div>
  <h2 style="font:600 20px 'Source Serif 4',Georgia,serif;margin:22px 0 6px">Presidential approval <small class="dim" id="anow"></small></h2><div class="inner" style="padding:0"><table id="t-approval"></table></div>
 </section>
+<p class="key" style="margin-top:22px"><b>Sources.</b> Race polls come from the polling tables of <a href="https://en.wikipedia.org/wiki/2026_United_States_elections">Wikipedia</a>'s 2026 Senate, governor and House race pages, the VoteHub polling API, the pollresults.org race pages, the Polling USA and Political Poll Bot posts on Bluesky and pollster releases entered by hand; a poll carried by two sources is kept once. National polls come from the same sources except Wikipedia. The Wikipedia tables are licensed <a href="https://creativecommons.org/licenses/by-sa/4.0/">CC BY-SA 4.0</a>: the polls taken from them, as checked, corrected and weighted here, are shared on this page and in <a href="data/polls.json">data/polls.json</a> under the same licence. Every poll belongs to its pollster; <a href="about.html#sources">all sources</a>.</p>
 </main>
 <script>
 const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];

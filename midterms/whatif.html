@@ -81,6 +81,7 @@ td.nm{min-width:180px}td.nm small{display:block;color:var(--muted);font-size:14p
 <script src="/assets/rail.js" defer></script>
 </head><body>
 <!-- sh:start -->
+<a class="skip-link" href="#main">Skip to main content</a>
 <header class="sh" id="site-header">
   <div class="sh-in">
     <a class="sh-brand" href="/">Shawn Corvec</a>
@@ -235,7 +236,7 @@ td.nm{min-width:180px}td.nm small{display:block;color:var(--muted);font-size:14p
   </div>
 </header>
 <!-- sh:end -->
-<main class="wi">
+<main class="wi" id="main">
 <header class="wi-head"><h1>What if? Change the forecast's assumptions</h1>
  <div><a href="index.html">The forecast</a> &nbsp;<a href="about.html">How it works</a> &nbsp;<a href="legislatures.html">State legislatures</a></div></header>
 <p class="lede">A forecast is a set of assumptions plus the polls. Move a slider and every race is <b>simulated again in your browser</b>, 5,000 times, to show how much each assumption matters. The starting position is the model's own forecast; nothing here changes it. It is meant for exploring, not as a prediction.</p>
@@ -275,7 +276,7 @@ td.nm{min-width:180px}td.nm small{display:block;color:var(--muted);font-size:14p
   <div class="ends"><span>fundamentals only</span><span>polls count 4x</span></div></section>
 
  <section class="ctl"><h2>Trust the best pollsters more <output id="oT"></output></h2>
-  <p>Give more weight to pollsters whose past polls missed less than others in the same races (Selzer, Siena, Emerson...) and less to those that missed more. In testing on 2018-2024 this did not improve the forecast, so the model weights established pollsters equally.</p>
+  <p>Give more weight to pollsters whose past polls missed less than others in the same races (Cygnal, Emerson, Siena...) and less to those that missed more. In testing on 2018-2024 this did not improve the forecast, so the model weights established pollsters equally.</p>
   <div class="sl"><input type="range" id="T" min="0" max="1.5" step="0.05" aria-label="Trust in pollster track records"><div id="tkT"></div></div>
   <div class="ends"><span>all equal</span><span>strongly by track record</span></div></section>
 </div>

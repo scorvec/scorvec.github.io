@@ -15,6 +15,8 @@
 body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 "Source Sans 3",-apple-system,Helvetica,Arial,sans-serif}
 .mt-wrap{max-width:1180px;margin:0 auto;padding:18px 20px 48px}
 .mt-head{display:flex;align-items:baseline;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:14px}
+/* the site stylesheet centres a header inside <main>; this one stays left-aligned */
+.mt-wrap>.mt-head{text-align:left}
 .mt-head h1{font:600 30px/1.15 "Source Serif 4",Georgia,serif;margin:0}
 .mt-head .upd{color:var(--muted);font-size:15.5px}
 .mt-head a{color:var(--d);font-size:17px}
@@ -117,6 +119,7 @@ tbody tr{cursor:pointer}tbody tr:hover{background:#f3f2ee}
 <script src="/assets/rail.js" defer></script>
 </head><body>
 <!-- sh:start -->
+<a class="skip-link" href="#main">Skip to main content</a>
 <header class="sh" id="site-header">
   <div class="sh-in">
     <a class="sh-brand" href="/">Shawn Corvec</a>
@@ -271,7 +274,7 @@ tbody tr{cursor:pointer}tbody tr:hover{background:#f3f2ee}
   </div>
 </header>
 <!-- sh:end -->
-<div class="mt-wrap">
+<main class="mt-wrap" id="main">
 <header class="mt-head"><h1>2026 Midterm Forecast</h1>
  <div><span class="upd" id="upd">loading…</span> &nbsp;<a href="polls.html">Every poll and its weight</a> &nbsp;<a href="about.html">How the forecast works</a> &nbsp;<a href="whatif.html">What if? Test the assumptions</a> &nbsp;<a href="legislatures.html">State legislatures</a></div></header>
 
@@ -345,7 +348,7 @@ tbody tr{cursor:pointer}tbody tr:hover{background:#f3f2ee}
 </section>
 
 <footer class="mt-foot"><a href="about.html">How the forecast works, and sources</a></footer>
-</div>
+</main>
 <div class="tip" id="tip"></div>
 <script>
 const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];let D,gi,E=0,STATES=[],SEL={house:null,senate:null,gov:null},SHOW={close:18,sen:false,gov:false};

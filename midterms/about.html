@@ -36,6 +36,7 @@ a:focus-visible{outline:2px solid var(--d);outline-offset:2px}
 <script src="/assets/rail.js" defer></script>
 </head><body>
 <!-- sh:start -->
+<a class="skip-link" href="#main">Skip to main content</a>
 <header class="sh" id="site-header">
   <div class="sh-in">
     <a class="sh-brand" href="/">Shawn Corvec</a>
@@ -190,7 +191,7 @@ a:focus-visible{outline:2px solid var(--d);outline-offset:2px}
   </div>
 </header>
 <!-- sh:end -->
-<main class="ab">
+<main class="ab" id="main">
 <p class="back"><a href="./">Back to the forecast</a></p>
 <h1>How the forecast works</h1>
 <p id="lede">The forecast simulates the 2026 House, Senate and governor elections 20,000 times. Each simulation draws a national polling miss shared by every race, regional and demographic swings shared by similar places, and each race's own uncertainty, so close races tend to break together, as they do in real elections.</p>
@@ -236,10 +237,13 @@ district), adds the national mood at 0.77 strength and an incumbency effect of 6
 own Senate and governor polls were tested as an extra signal (their pull away from those races' fundamentals, at the fitted 0.07 share)
 and not adopted: they did not improve the backtest. All of these were fitted on
 past elections (Klarner's state legislative returns 1972-2022 and the 2018 and 2022 results). Tested on 2018 and 2022 with only the
-information available on October 1, the fourteen original chambers' chances scored a Brier score of 0.12 against 0.25 for assuming the
-current majority holds (calls right 79% v 75%); the seat count fell inside the 80% range in 23 of 24 chamber elections. The Georgia,
-Iowa and Texas Houses, tested separately, were called right in all 5 testable elections, as the naive rule also was; so were the
-California and Kentucky chambers and the Texas Senate (10 elections, seat counts inside the 80% range in 8). The New Hampshire House (400 seats, multi-member and
+information available on October 1, the fourteen original chambers' chances scored a Brier score of <span data-bt="original.brier">0.115</span> against
+<span data-bt="original.naive_brier">0.250</span> for assuming the current majority holds; the winner was called right in <span data-bt="original.calls">20</span> of
+<span data-bt="original.n">24</span> chamber elections (the naive rule: <span data-bt="original.naive_calls">18</span>) and the seat count fell inside the 80% range in
+<span data-bt="original.in80">23</span>. The Georgia, Iowa and Texas Houses, tested separately, were called right in <span data-bt="houses.calls">5</span> of
+<span data-bt="houses.n">5</span> testable elections (the naive rule: <span data-bt="houses.naive_calls">5</span>); the California and Kentucky chambers and the Texas
+Senate in <span data-bt="later.calls">10</span> of <span data-bt="later.n">10</span> (the naive rule: <span data-bt="later.naive_calls">10</span>), seat counts inside the
+80% range in <span data-bt="later.in80">8</span>. The New Hampshire House (400 seats, multi-member and
 floterial districts, no candidate lists) is experimental, and the Michigan Senate uses the 2022 district lines where a 2026 court-ordered
 redraw is not yet in the Census files. The Minnesota Senate has no candidate lists, so sitting senators are assumed to run unless
 they have announced their retirement.</p>
@@ -289,6 +293,8 @@ getJSON('data/model.json').then(D=>{const H=D.house,P=D.polls;
  $('#msen').innerHTML=`Seats not up this year: ${S.now_d-S.d_up} Democratic, ${S.now_r-S.r_up} Republican. <details><summary>Technical notes</summary><p>${esc(D.notes.senate)}.</p></details>`;
  if(D.governor){const G=D.governor;$('#mgov').innerHTML=`Today ${esc(G.now.now_d)} governors are Democrats and ${esc(G.now.now_r)} Republicans; ${esc(G.now.up_d)} Democratic and ${esc(G.now.up_r)} Republican seats are up. The prior is refitted on every governor race since 1998: ${esc(G.coef.lean_now ?? G.coef.lean)} times the state's lean in 2026 (less than the Senate's weight, since governors cross party lines more easily${G.coef.lean_t ? `; the weight has grown over time, by ${esc(G.coef.lean_t)} per decade, and the fit carries that trend` : ''}), ${esc(G.coef.inc)} points for an incumbent running${G.coef.succ ? ` (${esc(G.coef.succ)} for one who took office mid-term and runs for the first time)` : ''}${G.coef.qual ? `, ${esc(G.coef.qual)} points for a nominee who has held statewide elected office or a seat in Congress against one who has not` : ''}, and ${esc(G.coef.E)} times the national mood (backtested on every governor race 2006-2024 with only what was known at each date). Polls get the same corrections as in the Senate. Alaska's top-four ballot counts each party's candidates together.`}
 
+ const BT=D.state_legislatures&&D.state_legislatures.backtest;   // state-legislature backtest scores (stateleg_backtest.published), the run legislatures.html quotes too
+ if(BT)document.querySelectorAll('[data-bt]').forEach(e=>{const[grp,k]=e.dataset.bt.split('.'),v=BT[grp]&&BT[grp][k];if(v!=null)e.textContent=k.endsWith('brier')?v.toFixed(3):v});
  $('#mtests').innerHTML=esc(D.notes.backtests)+'.';
 }).catch(e=>{console.error(e);document.querySelectorAll('.dyn').forEach((el,i)=>{if(i)el.hidden=true;else el.textContent='The current figures could not be loaded. Reload the page to try again.'})});
 </script><!-- sf:start -->

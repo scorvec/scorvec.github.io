@@ -74,6 +74,7 @@ path.so{fill:none;stroke:#5c5a55;stroke-width:.8;vector-effect:non-scaling-strok
 <script src="/assets/rail.js" defer></script>
 </head><body>
 <!-- sh:start -->
+<a class="skip-link" href="#main">Skip to main content</a>
 <header class="sh" id="site-header">
   <div class="sh-in">
     <a class="sh-brand" href="/">Shawn Corvec</a>
@@ -227,18 +228,18 @@ path.so{fill:none;stroke:#5c5a55;stroke-width:.8;vector-effect:non-scaling-strok
     </nav>
   </div>
 </header>
-<!-- sh:end --><main class="wi">
+<!-- sh:end --><main class="wi" id="main">
 <div class="head"><h1>State legislatures, 2026</h1><a href="index.html">&larr; Congress and governors</a></div>
 <p class="lede" id="lede">Chances of control of twenty-two state legislative chambers.</p>
 <div class="xp"><b>Experimental.</b> This part of the forecast is new and rests on less evidence than the Congress and governor forecasts.
-Tested on 2018 and 2022 with only what was known on October 1, on the fourteen original chambers (24 chamber elections): the
-control chances scored a Brier score of 0.115, against 0.250 for simply assuming the current majority holds; the winner was called right
-in 20 of 24 (the naive rule: 18), and the final seat count fell inside the 80% range in 23 of 24 (these figures move by a chamber or so
+Tested on 2018 and 2022 with only what was known on October 1, on the fourteen original chambers (<span data-bt="original.n">24</span> chamber elections): the
+control chances scored a Brier score of <span data-bt="original.brier">0.115</span>, against <span data-bt="original.naive_brier">0.250</span> for simply assuming the current majority holds; the winner was called right
+in <span data-bt="original.calls">20</span> of <span data-bt="original.n">24</span> (the naive rule: <span data-bt="original.naive_calls">18</span>), and the final seat count fell inside the 80% range in <span data-bt="original.in80">23</span> of <span data-bt="original.n">24</span> (these figures move by a chamber or so
 between re-runs of the simulation, because two of the test chambers were near 50%). The Georgia, Iowa and
-Texas Houses were tested separately (5 chamber elections with complete district data; Georgia 2018 lacked two districts): all five
-called right, as the naive rule also did, Brier 0.006, seat counts inside the 80% range 5 of 5 - a test with no close chamber in it.
-The California Senate and Assembly, the Kentucky Senate and House and the Texas Senate, added later, were tested the same way (10 chamber
-elections): all called right, as the naive rule also did, seat counts inside the 80% range 8 of 10 (the 2018 California Assembly came in
+Texas Houses were tested separately (<span data-bt="houses.n">5</span> chamber elections with complete district data; Georgia 2018 lacked two districts): called right in
+<span data-bt="houses.calls">5</span> of <span data-bt="houses.n">5</span> (the naive rule: <span data-bt="houses.naive_calls">5</span>), Brier <span data-bt="houses.brier">0.007</span>, seat counts inside the 80% range <span data-bt="houses.in80">5</span> of <span data-bt="houses.n">5</span> - a test with no close chamber in it.
+The California Senate and Assembly, the Kentucky Senate and House and the Texas Senate, added later, were tested the same way (<span data-bt="later.n">10</span> chamber
+elections): called right in <span data-bt="later.calls">10</span> of <span data-bt="later.n">10</span> (the naive rule: <span data-bt="later.naive_calls">10</span>), seat counts inside the 80% range <span data-bt="later.in80">8</span> of <span data-bt="later.n">10</span> (the 2018 California Assembly came in
 6 seats more Republican than expected, the 2018 Kentucky House 12 seats more Democratic). Known gaps:
 <ul><li><b>New Hampshire House</b> (400 seats): no candidate lists are available, so every seat is treated as contested by full slates of
 both parties, and floterial districts are simulated as ordinary multi-member districts; it was not part of the 2018 test.</li>
@@ -281,6 +282,8 @@ const pct=x=>x==null?"–":(x<0.005?"<1":x>0.995?">99":Math.min(99,Math.max(1,Ma
 fetch("data/model.json?"+Date.now()).then(r=>{if(!r.ok)throw new Error("model.json: HTTP "+r.status);return r.json()}).then(M=>{
   const L=M.state_legislatures; const g=document.getElementById("grid");
   if(!L){g.innerHTML="<p class='note'>The state-legislature forecast is not published yet.</p>";return;}
+  const BT=L.backtest;   // backtest scores (stateleg_backtest.published), the run about.html quotes too
+  if(BT)document.querySelectorAll("[data-bt]").forEach(e=>{const[grp,k]=e.dataset.bt.split("."),v=BT[grp]&&BT[grp][k];if(v!=null)e.textContent=k.endsWith("brier")?v.toFixed(3):v});
   document.getElementById("note").textContent=`Updated ${M.asof}. National environment ${L.E>=0?"D+":"R+"}${Math.abs(L.E).toFixed(1)}.`;
   for(const c of L.chambers){
     const d=document.createElement("div"); d.className="card";
