@@ -6,13 +6,34 @@
 <title>Every plot on the site &middot; Shawn Corvec</title>
 <meta name="description" content="A searchable contact sheet of every figure and animation on scorvec.com: filter by topic, model, forecast range and region, and jump straight to the exact view.">
 <link rel="canonical" href="https://scorvec.com/catalog.html">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <meta property="og:type" content="website">
 <meta property="og:title" content="Every plot on the site">
 <meta property="og:description" content="Every figure and animation on scorvec.com in one searchable sheet, each linked to its exact view.">
 <meta property="og:url" content="https://scorvec.com/catalog.html">
+<meta property="og:image" content="https://scorvec.com/hero-supercell-1280.webp">
+<meta name="twitter:card" content="summary_large_image">
 <!-- The catalogue page (2026-09-27, the topic redesign). The index is assets/site/catalog.json, built from the pages
      themselves by scripts/site/build_catalog.py (catalog.yml); the search is the header finder's own (window.SiteFind in
      assets/site.js), so this page and Ctrl/Cmd-K always agree. -->
+<script type="application/ld+json">
+{
+ "@context": "https://schema.org",
+ "@type": "CollectionPage",
+ "name": "Every plot on the site",
+ "url": "https://scorvec.com/catalog.html",
+ "description": "A searchable contact sheet of every figure and animation on scorvec.com: filter by topic, model, forecast range and region, and jump straight to the exact view.",
+ "image": "https://scorvec.com/hero-supercell-1280.webp",
+ "isPartOf": {
+  "@type": "WebSite",
+  "name": "Shawn Corvec",
+  "url": "https://scorvec.com/"
+ },
+ "author": {
+  "@id": "https://scorvec.com/#person"
+ }
+}
+</script>
 <script src="/assets/frames_root.js"></script>
 <style>
   :root {

@@ -359,12 +359,30 @@ def main():
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>MJO Forecast — AIFS-ENS RMM | Shawn Corvec</title>
-<meta name="description" content="Real-time Multivariate MJO (RMM) phase-space forecast from the ECMWF AIFS-ENS ensemble — winds plus a precipitation-based pseudo-OLR channel, following Wheeler & Hendon (2004).">
+<meta name="description" content="Real-time Multivariate MJO (RMM) forecast from the ECMWF AIFS-ENS ensemble: winds plus a precipitation-based pseudo-OLR, after Wheeler &amp; Hendon (2004).">
 <meta name="robots" content="index, follow">
 <meta property="og:title" content="MJO Forecast — AIFS-ENS RMM">
 <meta property="og:description" content="Real-time MJO (RMM) phase-space forecast from the ECMWF AIFS-ENS ensemble.">
 <meta property="og:type" content="website">
 <link rel="canonical" href="https://scorvec.com/mjo.html">\n<link rel="icon" href="/favicon.svg" type="image/svg+xml">\n<meta property="og:url" content="https://scorvec.com/mjo.html">
+<meta name="twitter:card" content="summary">
+<script type="application/ld+json">
+{{
+ "@context": "https://schema.org",
+ "@type": "WebPage",
+ "name": "MJO forecast: AIFS-ENS RMM",
+ "url": "https://scorvec.com/mjo.html",
+ "description": "Real-time Multivariate MJO (RMM) forecast from the ECMWF AIFS-ENS ensemble: winds plus a precipitation-based pseudo-OLR, after Wheeler & Hendon (2004).",
+ "isPartOf": {{
+  "@type": "WebSite",
+  "name": "Shawn Corvec",
+  "url": "https://scorvec.com/"
+ }},
+ "author": {{
+  "@id": "https://scorvec.com/#person"
+ }}
+}}
+</script>
 <link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;1,400&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
 <style>
   *, *::before, *::after {{ box-sizing: border-box; margin: 0; padding: 0; }}
