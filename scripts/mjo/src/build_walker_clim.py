@@ -2,8 +2,9 @@
 """ERA5 climatology of the Walker (equatorial zonal) streamfunction Ψ_W(level, lon).
 
 Harmonic (mean + annual + semiannual) day-of-year fit per (level, longitude) over
-1991–2020 → data/reference/walker_clim_coeffs.nc, used by walker.py for the Ψ_W
-anomaly. Samples stream from the WeatherBench2 1.5° ERA5 store (u+v on the 13
+1991–2020 at 00 UTC → data/reference/walker_clim_coeffs.nc, the Ψ_W anomaly's reference
+(overturn_hist.py, overturn_fc.py). 00 UTC, as every analysis, forecast and drift it is
+compared with (the zonal-mean circulation has a diurnal cycle; see build_hadley_clim.py). Samples stream from the WeatherBench2 1.5° ERA5 store (u+v on the 13
 levels per sample is ~3 MB there — the 0.25° ARCO store would be ~100× that) and
 are reduced through the SAME χ→u_D→Ψ_W path as the live product (walker.py's
 solver and constants), then cached so a re-fit never re-downloads.
@@ -46,7 +47,7 @@ def _ud_of(u_da: xr.DataArray, v_da: xr.DataArray):
 
 def _samples(a):
     CACHE.mkdir(parents=True, exist_ok=True)
-    cpath = CACHE / f"walker_ud_{a.y0}-{a.y1}_s{a.stride}.nc"
+    cpath = CACHE / f"walker_ud_{a.y0}-{a.y1}_s{a.stride}_00z.nc"
     if cpath.exists():
         print(f"reusing cached ERA5 samples: {cpath}", flush=True)
         c = xr.open_dataset(cpath)
@@ -55,7 +56,7 @@ def _samples(a):
     ds = xr.open_zarr(fs.get_mapper(STORE), chunks=None)
     u = ds["u_component_of_wind"].sel(level=LEVELS).sortby("level")
     v = ds["v_component_of_wind"].sel(level=LEVELS).sortby("level")
-    want = pd.date_range(f"{a.y0}-01-01", f"{a.y1}-12-31", freq=f"{a.stride}D") + pd.Timedelta(hours=12)
+    want = pd.date_range(f"{a.y0}-01-01", f"{a.y1}-12-31", freq=f"{a.stride}D")  # 00 UTC
     times = want[want.isin(pd.to_datetime(ds.time.values))]
     print(f"sampling {len(times)} ERA5 times ({a.stride}-day stride, {a.y0}-{a.y1})", flush=True)
     ulist, tlist, lon = [], [], None
@@ -101,7 +102,7 @@ def main() -> int:
         name="psi_coeffs",
         attrs={
             "note": f"ERA5 {a.y0}-{a.y1} Walker Ψ_W harmonic clim "
-            f"(WB2 1.5°, 12Z, {a.stride}-day stride); same "
+            f"(WB2 1.5°, 00 UTC, {a.stride}-day stride); same "
             "χ→u_D→Ψ_W path and constants as walker.py"
         },
     )

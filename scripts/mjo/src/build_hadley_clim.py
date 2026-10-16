@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""Day-of-year climatology of the Hadley cell metrics: the metrics of ERA5's 7-DAY-MEAN circulation, 1991-2020.
+"""Day-of-year climatologies of the Hadley cells from ERA5 1991-2020 at 00 UTC: the metrics of the 7-DAY-MEAN
+circulation (hadley_clim.nc) and the harmonic Psi field the anomaly maps subtract (mmsf_clim_coeffs.nc).
 
 Every series this is scored against reads its cells off a 7-day-mean field: the intensity and edges of the cells in
 the zonal-mean v averaged over the week (overturn_hist.week, overturn_fc.windows). The climatology must be the same
@@ -7,18 +8,24 @@ statistic of ERA5, or the comparison is biased. Its first version averaged the m
 within +-7 days; measured against the 7-day-mean field on the AIFS analyses (2026-10-16, 43 days) that statistic read
 the southern cell 1.3 x 10^10 kg/s stronger (t = -3.2) and the northern edge 8 deg further equatorward (t = -11) -
 the peak of an average is not the average of the peaks. So here every day of 1991-2020 gets the centred 7-day mean of
-ERA5's daily-mean zonal-mean v (WeatherBench2: 6-hourly, 1.5 deg, conservative) and the metrics of that field; a day of
-year pools the 30 years and the days within +-POOL of it.
+ERA5's zonal-mean v and the metrics of that field; a day of year pools the 30 years and the days within +-POOL of it.
 
-The metrics of the harmonic Psi climatology (mmsf_clim_coeffs.nc) are not a substitute: that field is the 30-YEAR MEAN
-circulation, whose cells are smeared because their edges wander ~10 deg between years.
+ONE TIME OF DAY, 00 UTC, everywhere. The zonal-mean circulation has a diurnal cycle: on WeatherBench2, 7-day means of
+the 00 and 12 UTC fields differ from those of all four synoptic times by up to 2.9 deg in the northern edge (SON) and
+0.7 x 10^10 kg/s in the southern cell (JJA), well outside their standard errors. The forecasts are 00 UTC fields (daily
+steps of the 00Z runs), the drift is measured at 00 UTC, so the analyses (overturn_hist), the climatologies and the
+El Nino events (hadley_enso) are 00 UTC samples too.
 
-Every comparison is made on this grid: a series or forecast averages its zonal-mean v into the same 1.5 deg latitude
-bands (band_v) before its cells are read (metrics), so resolution does not enter either (at 0.25 deg the cells read
-~0.08 x 10^10 kg/s stronger).
+The harmonic map climatology is fitted on the same daily samples (mean + annual + semiannual per level and latitude).
+Its metrics are not a substitute for hadley_clim.nc: that field is the 30-YEAR MEAN circulation, whose cells are smeared
+because their edges wander ~10 deg between years.
 
-    python src/build_hadley_clim.py fetch --years 1991 1995 --out part.npz   # daily-mean vbar from WeatherBench2
-    python src/build_hadley_clim.py build part*.npz                          # -> data/reference/hadley_clim.nc
+Both are on the 1.5 deg latitude bands of WeatherBench2 (6-hourly, conservative), and every map and metric compared with
+them is read on the same bands (band_v; at 0.25 deg the cells read ~0.08 x 10^10 kg/s stronger).
+
+    python src/build_hadley_clim.py fetch --years 1991 1995 --out part.npz   # 00 UTC zonal-mean v from WeatherBench2
+    python src/build_hadley_clim.py fetch --start 2023-06-28 --end 2024-04-03 --source arco --out p.npz   # after 2022
+    python src/build_hadley_clim.py build part*.npz        # -> data/reference/hadley_clim.nc + mmsf_clim_coeffs.nc
 """
 
 from __future__ import annotations
@@ -38,7 +45,9 @@ from doycal import noleap_doy
 
 REF = Path(__file__).resolve().parent.parent / "data" / "reference"
 OUT = REF / "hadley_clim.nc"
+COEFFS = REF / "mmsf_clim_coeffs.nc"  # mmsf.CLIM
 WB2 = "gs://weatherbench2/datasets/era5/1959-2023_01_10-6h-240x121_equiangular_with_poles_conservative.zarr"
+ARCO = "gs://gcp-public-data-arco-era5/ar/full_37-1h-0p25deg-chunk-1.zarr-v3"  # 0.25 deg, to ~5 days ago
 LAT15 = np.linspace(90.0, -90.0, 121)  # WeatherBench2's rows, north to south as the analysis grid
 P_HPA = np.asarray(LEVELS, float)
 WIN = 7  # days in the window, centred
@@ -101,30 +110,50 @@ def metrics(vbar: np.ndarray, lat: np.ndarray) -> dict:
     return sample_metrics(psi, P_HPA, LAT15)
 
 
-def fetch(y0: int, y1: int) -> dict:
-    """Daily means of ERA5's zonal-mean v for [y0-01-01 - 3 d, y1-12-31 + 3 d] (the centred windows reach that far)."""
+def fetch_wb2(t0: pd.Timestamp, t1: pd.Timestamp) -> dict:
+    """ERA5's zonal-mean v at 00 UTC on LAT15 for the days t0..t1, from WeatherBench2."""
     ds = xr.open_zarr(WB2, storage_options={"token": "anon"})
-    t0, t1 = (
-        pd.Timestamp(f"{y0}-01-01") - pd.Timedelta(days=WIN // 2),
-        pd.Timestamp(f"{y1}-12-31 18:00") + pd.Timedelta(days=WIN // 2),
-    )
     v = ds["v_component_of_wind"].sel(time=slice(t0, t1), level=LEVELS)
+    v = v.isel(time=np.flatnonzero(pd.DatetimeIndex(v.time.values).hour == 0))
     days, rows = [], []
-    for m0 in pd.date_range(t0.normalize(), t1.normalize(), freq="MS").union([t0.normalize()]):
-        m1 = min(m0 + pd.offsets.MonthBegin(1), t1 + pd.Timedelta(hours=6))
-        part = v.sel(time=slice(m0, m1 - pd.Timedelta(hours=1)))
+    for m0 in pd.date_range(t0, t1, freq="MS").union([t0]):
+        part = v.sel(
+            time=slice(m0, min(m0 + pd.offsets.MonthBegin(1), t1 + pd.Timedelta(days=1)) - pd.Timedelta(hours=1))
+        )
         if not part.time.size:
             continue
-        zm = (
-            part.mean("longitude").transpose("time", "level", "latitude").load()
-        )  # transpose by NAME (dim order differs)
-        daily = zm.resample(time="1D").mean()
-        daily = daily.sortby("latitude", ascending=False)  # north to south, as LAT15
-        assert np.allclose(daily.latitude.values, LAT15, atol=1e-3), "WeatherBench2 rows are not the 1.5 deg grid"
-        days += list(pd.DatetimeIndex(daily.time.values))
-        rows.append(daily.values.astype(np.float32))
-        print(f"  {m0:%Y-%m}: {daily.time.size} days", flush=True)
+        zm = part.mean("longitude").transpose("time", "level", "latitude").load()  # by NAME: the store is lon-major
+        zm = zm.sortby("latitude", ascending=False)  # north to south, as LAT15
+        assert np.allclose(zm.latitude.values, LAT15, atol=1e-3), "WeatherBench2 rows are not the 1.5 deg grid"
+        days += list(pd.DatetimeIndex(zm.time.values).normalize())
+        rows.append(zm.values.astype(np.float32))
+        print(f"  {m0:%Y-%m}: {zm.time.size} days", flush=True)
     return {"date": np.array(days, "datetime64[D]"), "vbar": np.concatenate(rows)}
+
+
+def fetch_arco(t0: pd.Timestamp, t1: pd.Timestamp) -> dict:
+    """The same from ARCO-ERA5 (0.25 deg, after WeatherBench2 ends in January 2023): each day's 00 UTC zonal mean,
+    averaged into LAT15's bands, read straight from the store (one chunk holds all 37 levels, ~120 MB) and kept
+    nowhere (era5_store would cache ~30 MB per time on disk)."""
+    ds = xr.open_zarr(ARCO, chunks=None, storage_options={"token": "anon"})
+    days, rows = [], []
+    for d in pd.date_range(t0, t1):
+        v = ds["v_component_of_wind"].sel(time=d, level=LEVELS).load().sortby("level")
+        if bool(np.isnan(v.values).all()):  # ARCO pads days it has not published
+            continue
+        days.append(d)
+        rows.append(
+            band_v(v.transpose("level", "latitude", "longitude").values.mean(-1), v.latitude.values).astype(np.float32)
+        )
+        if d.day == 1:
+            print(f"  {d:%Y-%m}", flush=True)
+    return {"date": np.array(days, "datetime64[D]"), "vbar": np.asarray(rows)}
+
+
+def fetch(y0: int, y1: int) -> dict:
+    """The climatology's years, with the margins its centred windows reach into."""
+    half = pd.Timedelta(days=WIN // 2)
+    return fetch_wb2(pd.Timestamp(f"{y0}-01-01") - half, pd.Timestamp(f"{y1}-12-31") + half)
 
 
 def build(paths) -> xr.Dataset:
@@ -138,6 +167,20 @@ def build(paths) -> xr.Dataset:
     date, first = np.unique(date, return_index=True)
     vbar = vbar[first]
     days = pd.DatetimeIndex(date)
+    in_base = (days.year >= 1991) & (days.year <= 2020)
+    psi = np.stack([streamfunction(vbar[i], P_HPA * 100.0, LAT15) for i in np.flatnonzero(in_base)])
+    w = 2 * np.pi * noleap_doy(days[in_base]) / 365.25  # common-year day: 1 March = 60 every year
+    X = np.column_stack([np.ones_like(w), np.cos(w), np.sin(w), np.cos(2 * w), np.sin(2 * w)])
+    coef = np.linalg.lstsq(X, psi.reshape(len(psi), -1), rcond=None)[0].reshape(5, len(LEVELS), LAT15.size)
+    harmonic = xr.DataArray(
+        coef,
+        dims=("coef", "level", "latitude"),
+        coords={"coef": np.arange(5), "level": LEVELS, "latitude": LAT15},
+        attrs={
+            "units": "10^10 kg/s",
+            "note": "ERA5 1991-2020 00 UTC Psi harmonic clim (WeatherBench2 1.5 deg, every day)",
+        },
+    )
     pos = {d: i for i, d in enumerate(days)}
     rows, idx = [], []
     for d in days[(days.year >= 1991) & (days.year <= 2020)]:
@@ -172,7 +215,7 @@ def build(paths) -> xr.Dataset:
         {k: (("stat", "doy"), stats[k]) for k in METRICS},
         coords={"stat": ["mean", "sd"] + [f"p{q}" for q in PCTS], "doy": np.arange(1, 367)},
         attrs={
-            "source": "ERA5 1991-2020, WeatherBench2 6-hourly 1.5 deg conservative, daily means",
+            "source": "ERA5 1991-2020 at 00 UTC, WeatherBench2 1.5 deg conservative",
             "basis": "metrics of each day's CENTRED 7-day-mean zonal-mean v (the statistic every scored series uses), "
             f"pooled over the 30 years and +-{POOL} days of year",
             "grid": "1.5 deg latitude bands (build_hadley_clim.band_v); intensity 10^10 kg/s, latitudes degrees north",
@@ -181,24 +224,33 @@ def build(paths) -> xr.Dataset:
         },
     )
     out["n_pooled"] = ("doy", counts)
-    return out
+    return out, harmonic
 
 
 def main() -> int:
     ap = argparse.ArgumentParser()
     sub = ap.add_subparsers(dest="cmd", required=True)
     f = sub.add_parser("fetch")
-    f.add_argument("--years", type=int, nargs=2, required=True)
+    f.add_argument("--years", type=int, nargs=2, help="whole years (the climatology)")
+    f.add_argument("--start", help="or a date range, YYYY-MM-DD (an event)")
+    f.add_argument("--end")
+    f.add_argument("--source", choices=("wb2", "arco"), default="wb2")
     f.add_argument("--out", required=True)
     b = sub.add_parser("build")
     b.add_argument("parts", nargs="+")
     a = ap.parse_args()
     if a.cmd == "fetch":
-        np.savez_compressed(a.out, **fetch(*a.years))
+        if a.years:
+            doc = fetch(*a.years)
+        else:
+            doc = (fetch_arco if a.source == "arco" else fetch_wb2)(pd.Timestamp(a.start), pd.Timestamp(a.end))
+        np.savez_compressed(a.out, **doc)
         return 0
-    out = build(a.parts)
+    out, harmonic = build(a.parts)
     REF.mkdir(parents=True, exist_ok=True)
     out.to_netcdf(OUT)
+    harmonic.to_netcdf(COEFFS)
+    print(f"wrote {COEFFS}")
     print(f"wrote {OUT}  (pooled n/doy: {int(out.n_pooled.min())}–{int(out.n_pooled.max())})")
     for lab, d in (("1 Feb", 32), ("1 May", 121), ("1 Aug", 213), ("1 Nov", 305)):
         r = out.sel(doy=d)
