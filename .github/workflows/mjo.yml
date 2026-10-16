@@ -216,7 +216,8 @@ jobs:
           # the ENSO-removed wind-only RMM (src/enso_rmm.py) and its status line, when that best-effort stage ran
           if [ -f "scripts/mjo/plots/rmmclean_${{ needs.check.outputs.compact }}.webp" ]; then
             cp "scripts/mjo/plots/rmmclean_${{ needs.check.outputs.compact }}.webp" assets/mjo/
-            cp scripts/mjo/plots/rmm_clean_status.json assets/mjo/ || true
+            cp scripts/mjo/plots/rmm_clean_status.json assets/mjo/ \
+              || "$GITHUB_WORKSPACE/scripts/lib/degraded.sh" "ENSO-removed RMM status" "the homepage keeps the previous status line"
           fi
           # keep the most recent 60 archived plots of each, by cycle name (either format): checkout mtimes tie, and
           # `ls -t`'s name tie-break would prune the newest cycles
@@ -226,7 +227,7 @@ jobs:
       - name: Regenerate MJO page
         run: python scripts/mjo/generate_page.py
       - name: Re-apply the site chrome to the regenerated page
-        run: python scripts/site/apply_chrome.py || true
+        run: python scripts/site/apply_chrome.py || "$GITHUB_WORKSPACE/scripts/lib/degraded.sh" "Site chrome re-stamp" "mjo.html keeps the chrome generate_page.py stamped"
 
       - name: Commit & push (RMM forecast — goes live before the heavy fetches)
         run: |
@@ -259,7 +260,7 @@ jobs:
         run: |
           python src/ens_cycle.py --date "${{ needs.check.outputs.date }}" \
                                   --time "${{ needs.check.outputs.time }}" \
-            || echo "ens_cycle had issues; downstream builds use whatever cached"
+            || "$GITHUB_WORKSPACE/scripts/lib/degraded.sh" "ENS cycle fetch (heavy pass)" "the builders use whatever is cached"
 
       - name: Build equatorial 10m-wind Hovmöller (El Niño page)
         if: ${{ inputs.rmm_only != 'true' }}
@@ -272,7 +273,7 @@ jobs:
             --data-dir data/u10 \
             --out ../../assets/sst/eq_wind_hovmoller.webp \
             --det-out ../../assets/sst/eq_wind_hovmoller_det.webp \
-            || echo "Hovmöller build failed; continuing"
+            || "$GITHUB_WORKSPACE/scripts/lib/degraded.sh" "Equatorial 10 m wind Hovmöller"
 
       # Ocean Kelvin waves: altimetry sea level (NOAA CoastWatch ERDDAP, anonymous) + the equatorial 10 m wind
       # the Hovmöller above just fetched (store cache) + the AIFS 0-h wind history it appends to.
@@ -287,7 +288,7 @@ jobs:
           python src/ocean_kelvin.py --date "${{ needs.check.outputs.date }}" --time "${{ needs.check.outputs.time }}" \
             --out ../../assets/sst/ocean_kelvin.webp --anim-dir ../../assets/sst/anim/okelvin \
             --manifest ../../assets/sst/anim/okelvin_manifest.json --json ../../assets/sst/data/ocean_kelvin.json \
-            || echo "::warning::Ocean Kelvin tracker failed; keeping the previous figures"
+            || "$GITHUB_WORKSPACE/scripts/lib/degraded.sh" "Ocean Kelvin wave tracker" "the previous figures stay"
 
       - name: Build SOI forecast (El Niño page)
         if: ${{ inputs.rmm_only != 'true' }}
@@ -299,7 +300,7 @@ jobs:
             --time "${{ needs.check.outputs.time }}" \
             --data-dir data/msl \
             --out ../../assets/sst/soi_forecast.webp \
-            || echo "SOI build failed; continuing"
+            || "$GITHUB_WORKSPACE/scripts/lib/degraded.sh" "SOI forecast"
 
       - name: Build the Equatorial SOI (CPC boxes, ensembles' daily forecast)
         if: ${{ inputs.rmm_only != 'true' }}
@@ -309,7 +310,7 @@ jobs:
             --date "${{ needs.check.outputs.date }}" \
             --time "${{ needs.check.outputs.time }}" \
             --out ../../assets/sst/eqsoi_forecast.webp \
-            || echo "EQSOI build failed; continuing"
+            || "$GITHUB_WORKSPACE/scripts/lib/degraded.sh" "Equatorial SOI"
 
       - name: Build 200 hPa velocity potential (El Niño page)
         if: ${{ inputs.rmm_only != 'true' }}
@@ -323,7 +324,7 @@ jobs:
             --anim-dir ../../assets/sst/anim/wind200 \
             --manifest ../../assets/sst/anim/wind200_manifest.json \
             --out ../../assets/sst/wind200.webp \
-            || echo "200 hPa velocity potential build failed; continuing"
+            || "$GITHUB_WORKSPACE/scripts/lib/degraded.sh" "200 hPa velocity potential"
 
       - name: Build wave-activity flux (same u+v@200, clim is committed)
         if: ${{ inputs.rmm_only != 'true' }}
@@ -336,7 +337,7 @@ jobs:
             --anim-dir ../../assets/sst/anim/waf \
             --manifest ../../assets/sst/anim/waf_manifest.json \
             --out ../../assets/sst/waf.webp \
-            || echo "WAF build failed; continuing"
+            || "$GITHUB_WORKSPACE/scripts/lib/degraded.sh" "Wave-activity flux"
 
       # ── Products from the same data the steps above already pulled
       # (ens_cycle light: sfc + step-0 winds); every builder self-fetches
@@ -354,12 +355,12 @@ jobs:
           # waits up to 20 min for IFS-ENS day 15 on the Google mirror (never another mirror); else AIFS-ENS only, said so in the title
           python src/mslp_wind_anim.py --date "${{ needs.check.outputs.date }}" --time "${{ needs.check.outputs.time }}" --wait-ifs 20 \
             --anim-dir ../../assets/sst/anim/mslp_wind --manifest ../../assets/sst/anim/mslp_wind_manifest.json \
-            || echo "MSLP/wind loop failed; continuing"
+            || "$GITHUB_WORKSPACE/scripts/lib/degraded.sh" "MSLP and 10 m wind loops"
 
       - name: SOI history
         if: ${{ inputs.rmm_only != 'true' }}
         working-directory: scripts/mjo
-        run: python src/soi_history.py --out ../../assets/sst/soi_history.webp || echo "SOI history failed; continuing"
+        run: python src/soi_history.py --out ../../assets/sst/soi_history.webp || "$GITHUB_WORKSPACE/scripts/lib/degraded.sh" "SOI history"
 
       - name: Save the SOI inputs (when they changed)
         if: >-
@@ -375,7 +376,9 @@ jobs:
       # seed both so the appends have a past.
       - name: Seed the Walker and WAF frame dirs and their analysis histories from the frames branch
         if: ${{ inputs.rmm_only != 'true' }}
-        run: scripts/lib/fetch_frames_ci.sh assets/sst/anim/walker assets/sst/anim/waf assets/sst/anim/gillrain || true
+        run: |
+          scripts/lib/fetch_frames_ci.sh assets/sst/anim/walker assets/sst/anim/waf assets/sst/anim/gillrain \
+            || "$GITHUB_WORKSPACE/scripts/lib/degraded.sh" "Frame seeds (Walker, WAF, Gill rain)" "the loops rebuild what they do not find"
 
       - name: Walker + MMSF cross-sections
         if: ${{ inputs.rmm_only != 'true' }}
@@ -385,10 +388,10 @@ jobs:
           mkdir -p ../../assets/sst/anim/walker ../../assets/sst/anim/mmsf
           python src/walker.py --date "${{ needs.check.outputs.date }}" --time "${{ needs.check.outputs.time }}" \
             --anim-dir ../../assets/sst/anim/walker --manifest ../../assets/sst/anim/walker_manifest.json \
-            --out ../../assets/sst/walker_anom.webp || echo "Walker failed; continuing"
+            --out ../../assets/sst/walker_anom.webp || "$GITHUB_WORKSPACE/scripts/lib/degraded.sh" "Walker cross-section"
           python src/mmsf.py --date "${{ needs.check.outputs.date }}" --time "${{ needs.check.outputs.time }}" --data-dir data/mmsf \
             --anim-dir ../../assets/sst/anim/mmsf --manifest ../../assets/sst/anim/mmsf_manifest.json \
-            --out ../../assets/sst/mmsf_anom.webp || echo "MMSF failed; continuing"
+            --out ../../assets/sst/mmsf_anom.webp || "$GITHUB_WORKSPACE/scripts/lib/degraded.sh" "MMSF cross-section"
 
       # Kelvin wave tracker: reads the chi history walker.py just appended to and the ensemble-mean
       # u/v@200 wind200_vpot already fetched (store cache), so it downloads nothing new.
@@ -404,7 +407,7 @@ jobs:
             --history ../../assets/sst/anim/walker/walker_chi_history.nc \
             --anim-dir ../../assets/sst/anim/kelvin --manifest ../../assets/sst/anim/kelvin_manifest.json \
             --hov ../../assets/sst/kelvin_hov.webp --json ../../assets/sst/data/kelvin_tracker.json \
-            || echo "::warning::Kelvin tracker failed; keeping the previous figures"
+            || "$GITHUB_WORKSPACE/scripts/lib/degraded.sh" "Kelvin wave tracker" "the previous figures stay"
 
       # Kelvin and equatorial Rossby trackers (tropical-waves.html): the GMGSI OLR proxy store olr-waves.yml extends
       # daily (scripts/sst/metar/olr_rt.nc), with this cycle's AIFS-ENS ensemble-mean rain as the forecast strip, read
@@ -417,7 +420,7 @@ jobs:
           tp="scripts/mjo/data/aifs/aifs_${{ needs.check.outputs.compact }}.pf.tp.grib2"
           if [ ! -s "$tp" ]; then echo "::warning::no AIFS-ENS tp for this cycle; the wave trackers show the extrapolation only"; fi
           python scripts/sst/wave_trackers.py --out assets/sst/wave_tracker.webp \
-            || echo "::warning::wave trackers failed; keeping the previous figure"
+            || "$GITHUB_WORKSPACE/scripts/lib/degraded.sh" "Equatorial wave trackers" "the previous figure stays"
 
       # The Gill (1980) model forced by the observed (IMERG Late) and forecast (AIFS-ENS) tropical rain, against the
       # observed chi200: reads the chi history walker.py just appended, the AIFS-ENS tp and u/v 200 the RMM pull and
@@ -435,7 +438,7 @@ jobs:
           EARTHDATA_USERNAME: ${{ secrets.EARTHDATA_USERNAME }}
           EARTHDATA_PASSWORD: ${{ secrets.EARTHDATA_PASSWORD }}
         run: |
-          pip install --quiet earthaccess || true
+          pip install --quiet earthaccess || echo "::warning::earthaccess did not install; the IMERG fetch below needs it"
           J=assets/sst/data/gill_rain.json
           stamp() { python -c "import json, sys; d = json.load(open(sys.argv[1])); print(d['generated'].replace(' ', '_'), d['last_analysis'])" "$J" 2>/dev/null || echo "none none"; }
           read -r gen0 _ <<< "$(stamp)"
@@ -444,9 +447,9 @@ jobs:
           read -r gen1 last <<< "$(stamp)"
           D="${{ needs.check.outputs.date }}"; want="${D:0:4}-${D:4:2}-${D:6:2}T${{ needs.check.outputs.time }}Z"
           if [ "$gen1" = "$gen0" ] || [ "$gen1" = "none" ]; then
-            echo "::warning::gill_rain failed (exit $rc), nothing written; keeping the previous figure"
+            "$GITHUB_WORKSPACE/scripts/lib/degraded.sh" "Rain-forced circulation (Gill)" "exit $rc, nothing written; the previous figure stays"
           elif [ "$last" != "$want" ]; then
-            echo "::warning::gill_rain rebuilt, but its last analysis is $last, not this cycle's $want (chi history not appended)"
+            "$GITHUB_WORKSPACE/scripts/lib/degraded.sh" "Rain-forced circulation (Gill)" "it reached only the $last analysis, not this cycle's $want (chi history not appended)"
           else
             echo "gill_rain updated through the $last analysis"
             if [ "$rc" -ne 0 ]; then echo "::warning::gill_rain wrote its outputs but exited $rc"; fi
@@ -458,7 +461,7 @@ jobs:
         run: |
           mkdir -p ../../assets/sst/data
           python src/hadley_timeseries.py --out ../../assets/sst/hadley_timeseries.webp \
-            --json-out ../../assets/sst/data/hadley_timeseries.json || echo "Hadley series failed; continuing"
+            --json-out ../../assets/sst/data/hadley_timeseries.json || "$GITHUB_WORKSPACE/scripts/lib/degraded.sh" "Hadley intensity and edge series"
 
       # RMM low-frequency filter map: ARCO-ERA5 band means, persistent cache
       # arco_uwind_cache.nc is tracked so only the new days are read.
@@ -466,7 +469,7 @@ jobs:
         if: ${{ inputs.rmm_only != 'true' }}
         working-directory: scripts/mjo
         run: |
-          python src/refresh_map120.py || echo "map120 refresh failed; map left untouched"
+          python src/refresh_map120.py || "$GITHUB_WORKSPACE/scripts/lib/degraded.sh" "RMM 120-day filter map" "the map is left untouched"
 
       # Cache-bust the static <img>s this run rebuilt (enso.html / circulation.html
       # only re-stamp their own ?v= on the SST build otherwise).
@@ -561,3 +564,4 @@ jobs:
         run: |
           echo "### MJO RMM ${{ needs.check.outputs.compact }}" >> "$GITHUB_STEP_SUMMARY"
           echo "- Page: [/mjo.html](https://scorvec.com/mjo.html)" >> "$GITHUB_STEP_SUMMARY"
+          scripts/lib/degraded.sh --summary
