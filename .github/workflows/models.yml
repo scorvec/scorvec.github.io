@@ -52,7 +52,7 @@ jobs:
     env:
       MODEL: ${{ inputs.model }}
       # upper-air maps (2026-10-06): 925/250 hPa, dynamic tropopause, 500 hPa every 3 h from the pressure-level files
-      # (HRRR wrfprs on AWS, RRFS prslev on NOMADS - one more multi-range request per 3 h -, RDPS isobaric files)
+      # (HRRR wrfprs and RDPS isobaric files; RRFS prslev only when models.py UA_MODELS includes it)
       MV_UA: "1"
       # snow-band diagnostics (they replace snowbands.html): HRRR + RDPS every 3 h, 1 October - 30 April
       # (models.py SB_SEASON); "force" = also out of season (dispatch input)

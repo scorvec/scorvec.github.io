@@ -30,18 +30,18 @@ Encoding (codes 0-254 data, 255 = missing / "none"); the page holds the same tab
           the sea-level reduction makes fake highs and lows - the page places no H/L there), on every SUB-th grid point
 Every file is written with its image row 0 at the NORTH (grid row j = ny - 1 - image row).
 
-Sources (NOAA from the AWS open-data buckets byte-ranged via the .idx; RRFS v1 from NOMADS - there is no real-time S3
-copy - gently: one .idx + ONE multi-range request per file; ECCC from the MSC Datamart):
+Sources (NOAA from the AWS open-data buckets byte-ranged via the .idx; ECCC from the MSC Datamart):
   hrrr   noaa-hrrr-bdp-pds  hrrr.tHHz.wrfsfcfFF.grib2. 00/06/12/18Z to f48 only (the hourly 18-h runs are not used).
          IR = SBT124 (the GOES-East 10.3 um window band as UPP labels it; SBT114 is the GOES-West copy - verified by
          the limb darkening: SBT124 - SBT114 is +11 K at 70W and -1.4 K at 120W). Ceiling = HGT at "cloud ceiling"
          (geopotential metres ABOVE SEA LEVEL - it never falls below the terrain) minus HGT at the surface.
          Smoke = COLMD (column mass density of smoke). DSWRF is instantaneous.
-  rrfs   nomads .../rrfs/v1.0/rrfs.YYYYMMDD/HH/rrfs.tHHz.2dfld.3km.fFFF.conus.grib2 (the HRRR grid, identically).
+  rrfs   noaa-rrfs-ops-pds  rrfs.YYYYMMDD/HH/rrfs.tHHz.2dfld.3km.fFFF.conus.grib2 (the HRRR grid, identically).
          00/06/12/18Z to f84, published hourly to f36 then 3-hourly (storage); the other hours only write
          sub-hourly 2-D files to f15-18 (not used).
          IR = SBTA1613 (GOES-16 ABI band 13, 10.3 um). Ceiling as HRRR. Smoke = COLMD of "particulate organic matter
-         dry" (RRFS-SD's smoke tracer). DSWRF instantaneous (the file also has a 1-h mean).
+         dry" (RRFS-SD's smoke tracer). DSWRF instantaneous (the file also has a 1-h mean). The operational files
+         (from the 2026-10-15 12Z cycle) carry no FRZR: freezing rain is then derived like sleet (FZRA_DERIVED).
   rdps   dd.weather.gc.ca/{date}/WXO-DD/model_rdps/10km/HH/FFF/, 00/06/12/18Z to f84.
          No simulated brightness temperature, ceiling or visibility exist in the RDPS output. The IR slot shows the
          OLR-derived brightness temperature Tb = (OLR / sigma)^(1/4) from UpwardLongwaveRadiationFlux_NTAtm (an
@@ -76,7 +76,7 @@ import numpy as np
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE.parent / "snowband"))
-import snowband as sb  # the shared, validated transport (S3 / NOMADS / Datamart)
+import snowband as sb  # the shared, validated transport (S3 / Datamart)
 from manifest_merge import prune_ecape  # hrrr.json is shared with the ECAPE job
 import points as PTS  # meteogram point series (points.json)
 import upper as UPR
@@ -218,6 +218,15 @@ ACC_METHOD["rrfs"].update(
     as10=ACC_METHOD["hrrr"]["as10"],
 )
 ACC_METHOD["rdps"].update(afram=_FRAM.format(src="FreezingRain-Accum"), asnod=_SNOD.format(src="SnowDepth"))
+# Freezing rain for a cycle whose files carry no FRZR (the operational RRFS from the 2026-10-15 12Z cycle): APCP in the
+# periods whose precipitation type is freezing rain, accumulated like sleet; the FRAM ice uses that liquid. Checked per
+# cycle, so FRZR is used again if it comes back; any other model still requires its FRZR.
+FZRA_DERIVED = {
+    "rrfs": dict(
+        afzra="APCP accumulated in periods whose precipitation type is freezing rain (priority FZRA > IP > SN > RA; liquid equivalent; 3-hourly past 36 h; the operational RRFS writes no FRZR)",
+        afram=_FRAM.format(src="APCP in freezing-rain periods; 3-hourly past 36 h"),
+    ),
+}
 ORDER = [
     "ir",
     "refl",
@@ -260,8 +269,7 @@ ORDER = [
 PV_FIELDS = ("pvu", "pvl", *tuple(f"{k}{int(t)}" for k in ("pv", "w") for t in UPR.THETAS))
 UA_FIELDS = ("ua925", "ua250", "dt", "z500", "w500", *PV_FIELDS)
 UA_ON = os.environ.get("MV_UA", "0") == "1"  # models.yml sets MV_UA=1 (the switch for the upper-air fetch)
-# NOMADS is avoided where possible: upper air only where it comes from AWS (HRRR) or the Datamart (RDPS);
-# the RRFS prslev files exist only on NOMADS (noaa-rrfs-pds holds no real-time runs), so no RRFS upper air
+# models with upper air (MV_UA_MODELS); the RRFS prslev path (prs_url, UA_GRID, upper.UA_LEVS_RRFS) is off by default
 UA_MODELS = set(os.environ.get("MV_UA_MODELS", "hrrr,rdps").split(","))
 
 
@@ -286,8 +294,7 @@ SMOKE_SEASON = (4, 1, 9, 30)
 
 # Snow-band diagnostics: a season gate on the run's UTC date, inclusive (month, day, month, day): 1 October to
 # 30 April. MV_SB_SEASON="MM-DD:MM-DD" overrides; MV_SB=force computes them out of season (testing,
-# models.yml input "snowband"), MV_SB=off never. HRRR (AWS) and RDPS (Datamart) only: the RRFS pressure-level files are
-# only on NOMADS, which is avoided where possible.
+# models.yml input "snowband"), MV_SB=off never. HRRR and RDPS only.
 SB_MODELS = ("hrrr", "rdps")
 SB_GRID = {"hrrr": "sub", "rdps": "main"}  # the 12 km "sub" grid = snowband.py's evaluation grid; RDPS 10 km as is
 
@@ -561,7 +568,7 @@ MODELS = {
         every=6,
         length=lambda c: 84,
         lag_h=(3, 40),
-        source="NOAA RRFS v1.0 (NOMADS; no real-time S3 copy exists)",
+        source="NOAA RRFS v1.0 (AWS open data, noaa-rrfs-ops-pds)",
     ),
     "rdps": dict(
         label="RDPS",
@@ -673,7 +680,7 @@ def file_url(model, date, cyc, lead):
 
 
 def prs_url(model, date, cyc, lead):
-    """The isobaric-level file (upper air): HRRR wrfprs (S3), RRFS prslev (NOMADS)."""
+    """The isobaric-level file (upper air): HRRR wrfprs, RRFS prslev."""
     if model == "hrrr":
         return f"{sb.hrrr_base(date, cyc)}.wrfprsf{lead:02d}.grib2"
     return f"{sb.rrfs_base(date, cyc)}.prslev.3km.f{lead:03d}.conus.grib2"
@@ -768,7 +775,7 @@ def fetcher(model):
     if model not in _FETCH:
         _FETCH[model] = {
             "hrrr": lambda: sb.Fetcher("S3 HRRR", 16),
-            "rrfs": lambda: sb.Fetcher("NOMADS RRFS", 6, interval=1.1, throttle_host=True),
+            "rrfs": lambda: sb.Fetcher("S3 RRFS", 16),
             "rdps": lambda: sb.Fetcher("MSC Datamart", 12, interval=0.02),
         }[model]()
     return _FETCH[model]
@@ -794,8 +801,7 @@ def idx_lines(f, url):
 
 
 def fetch_idx_fields(model, url, want):
-    """{key: GRIB message bytes} for the first .idx line matching each regex. NOMADS: all of them in ONE multi-range
-    request (plus the .idx), to keep the load on NOMADS minimal; S3: one range per message, in parallel."""
+    """{key: GRIB message bytes} for the first .idx line matching each regex, one range per message in parallel."""
     f = fetcher(model)
     lines = idx_lines(f, url)
     sel = {}
@@ -808,14 +814,6 @@ def fetch_idx_fields(model, url, want):
     if missing:
         raise sb.Missing(f"{url}: no {sorted(missing)}")
     keys = sorted(sel, key=lambda k: sel[k][0])
-    if f.throttle_host and f.multi_ok and len(keys) > 1:
-        try:
-            bufs = f.get_multi(url, [sel[k] for k in keys])
-            return dict(zip(keys, bufs))
-        except sb.MultiRangeRefused:
-            f.multi_ok = False
-    if f.throttle_host:
-        return {k: f.get(url, sel[k]) for k in keys}
     with ThreadPoolExecutor(8) as ex:
         return dict(zip(keys, ex.map(lambda k: f.get(url, sel[k]), keys)))
 
@@ -1217,7 +1215,8 @@ def winter_hour(blobs, crop, pt, apcp, phys):
         else (np.zeros(shape, np.float32) if shape else None)
     )
     if fz is not None:
-        out["frzr"] = fz
+        if not _CTX.get("fzra_derived"):  # derived freezing rain reaches FRAM through the sequential pass instead
+            out["frzr"] = fz
         where = (fz > 0) | ((pt == 3) if pt is not None else False)
         if where.any() and "t2m" in phys and "td2m" in phys and "wind10" in phys:
             tc, tdc = (phys["t2m"] - 32) / 1.8, (phys["td2m"] - 32) / 1.8
@@ -1310,13 +1309,17 @@ def process_hour(model, lead, blobs, outdir):
         apcp = dec(blobs["apcp"]) if "apcp" in blobs else np.zeros(_CTX["zsfc"].shape, np.float32)
         phys["apcp"] = apcp * mm
         phys["asnow"] = dec(blobs["asnow"]) * 39.3701 if "asnow" in blobs else np.zeros_like(apcp)  # m of snow -> in
-        phys["afzra"] = dec(blobs["frzr"]) * mm if "frzr" in blobs else np.zeros_like(apcp)
-        # sleet: needs the previous processed hour, so the cumulative APCP and the sleet flag go to a side file for the
-        # sequential pass in cmd_run
+        fz_derived = _CTX.get("fzra_derived", False)
+        if not fz_derived:
+            phys["afzra"] = dec(blobs["frzr"]) * mm if "frzr" in blobs else np.zeros_like(apcp)
+        # sleet (and freezing rain without FRZR): needs the previous processed hour, so the cumulative APCP and the type
+        # flags go to a side file for the sequential pass in cmd_run
         seq = dict(
             apcp=apcp.astype(np.float32),
             ip=(pt == 4).astype(np.uint8) if pt is not None else np.zeros(apcp.shape, np.uint8),
         )
+        if fz_derived:
+            seq["fz"] = (pt == 3).astype(np.uint8) if pt is not None else np.zeros(apcp.shape, np.uint8)
         try:
             seq.update(winter_hour(blobs, None, pt, apcp, phys))
         except Exception as e:  # noqa: BLE001
@@ -1489,14 +1492,15 @@ def sample_points(model, phys, mfull, ps, rs=None):
 
 
 # ── fetch plans ─────────────────────────────────────────────────────────────────────────────────────────────────────
-def fetch_hour(model, date, cyc, lead, cyc_dt):
-    """-> {key: bytes} for one forecast hour (keys as in IDX_WANT / RDPS_VARS)."""
+def fetch_hour(model, date, cyc, lead, cyc_dt, skip=()):
+    """-> {key: bytes} for one forecast hour (keys as in IDX_WANT / RDPS_VARS, less `skip`)."""
     smoke = smoke_on(cyc_dt)
     if model in ("hrrr", "rrfs"):
         want = {
             k: v
             for k, v in IDX_WANT[model].items()
             if k != "zsfc"
+            and k not in skip
             and not (lead == 0 and (k in ACC or k in CONV_MAX))  # f00: no accumulations or hourly maxima
             and (smoke or k != "smoke")
         }
@@ -1564,20 +1568,8 @@ def complete(model, cyc_dt):
     """Is the cycle's LAST forecast hour published (for RDPS, and the matching RAQDPS run to f72)?"""
     date, cyc = cyc_dt.strftime("%Y%m%d"), cyc_dt.hour
     n = MODELS[model]["length"](cyc)
-    if model == "hrrr":
-        return head_ok(file_url("hrrr", date, cyc, n) + ".idx")
-    if model == "rrfs":
-        # one directory listing (NOMADS is asked for as little as possible; listings need --compressed there too)
-        try:
-            req = urllib.request.Request(
-                f"https://nomads.ncep.noaa.gov/pub/data/nccf/com/rrfs/v1.0/rrfs.{date}/{cyc:02d}/",
-                headers={**UA, "Accept-Encoding": "identity"},
-            )
-            with urllib.request.urlopen(req, timeout=60) as r:
-                body = r.read().decode("utf-8", "replace")
-        except Exception:  # noqa: BLE001
-            return False
-        return f"rrfs.t{cyc:02d}z.2dfld.3km.f{n:03d}.conus.grib2.idx" in body
+    if model in ("hrrr", "rrfs"):
+        return head_ok(file_url(model, date, cyc, n) + ".idx")
     ok = head_ok(rdps_url(date, cyc, n, RDPS_VARS["swacc"]))
     if not ok:
         return False
@@ -1653,10 +1645,6 @@ def cmd_run(a):
         shutil.rmtree(outdir)
     outdir.mkdir(parents=True)
     t_start = time.time()
-    if model == "rrfs":
-        fetcher("rrfs").budget = (
-            2 * len(leads) + 2 * ua_on("rrfs") * sum(UPR.ua_hour(h) for h in leads) + 30
-        )  # NOMADS: .idx + one multi-range request per file (2dfld, and prslev every 3 h), a few retries
 
     # static context: grid description, terrain (ceiling AGL), wind rotation, the RDPS crop
     ctx, grids = {}, {}
@@ -1675,6 +1663,14 @@ def cmd_run(a):
         if sb_on(model, cyc_dt):
             ctx.update(sb_lat=np.asarray(lat, np.float64), sb_lon=np.asarray(lon, np.float64))
         del lat, lon
+        h1 = next((h for h in leads if h > 0), None)
+        if model in FZRA_DERIVED and h1 is not None:
+            lines = idx_lines(fetcher(model), file_url(model, date, cyc, h1))
+            ctx["fzra_derived"] = not any(re.search(ACC["frzr"], desc) for _, _, desc in lines)
+            if ctx["fzra_derived"]:
+                print(
+                    f"  {model} {key}: no FRZR in the files; freezing rain derived from APCP and the type", flush=True
+                )
     else:
         f = fetcher("rdps")
         b = f.get(rdps_url(date, cyc, 1, RDPS_VARS["u80"]))
@@ -1737,22 +1733,23 @@ def cmd_run(a):
         flush=True,
     )
 
-    # fetch (threads; NOMADS paced inside the Fetcher) -> decode/quantise/encode (processes)
+    # fetch (threads) -> decode/quantise/encode (processes)
     per_field = {k: {} for k in ORDER}
     samples = {}  # lead -> {point field: values}
     total_bytes, failed = 0, []
     t_fetch = 0.0
-    hour_workers = 1 if model == "rrfs" else (4 if model == "hrrr" else 3)
+    hour_workers = 4 if model in ("hrrr", "rrfs") else 3
     with (
         ProcessPoolExecutor(a.procs, initializer=_init, initargs=(ctx,)) as pool,
         ThreadPoolExecutor(hour_workers) as fx,
     ):
+        skip = ("frzr",) if ctx.get("fzra_derived") else ()
 
         def fetch_one(lead):
             t = time.time()
             for k in range(3):
                 try:
-                    return lead, fetch_hour(model, date, cyc, lead, cyc_dt), time.time() - t
+                    return lead, fetch_hour(model, date, cyc, lead, cyc_dt, skip), time.time() - t
                 except (sb.Missing, sb.ShortRead) as e:
                     if k == 2:
                         print(f"  f{lead:03d}: {e}", flush=True)
@@ -1773,8 +1770,9 @@ def cmd_run(a):
             for name, p in meta.items():
                 per_field[name][lead] = p
     # sequential pass over the published hours in order: sleet = APCP fallen between consecutive hours while the sleet type
-    # is on (HRRR/RRFS), and the winter accumulations (winter.py): FRAM radial ice, snowfall with the Cobb ratio (HRRR) and at
-    # 10:1 (HRRR/RRFS), the snow-depth increase. Each is a running total written like the other accumulations.
+    # is on (HRRR/RRFS), freezing rain the same way where the files carry no FRZR (FZRA_DERIVED), and the winter
+    # accumulations (winter.py): FRAM radial ice, snowfall with the Cobb ratio (HRRR) and at 10:1 (HRRR/RRFS), the
+    # snow-depth increase. Each is a running total written like the other accumulations.
     seq = sorted(outdir.glob("_seq_*.npz"))
     if seq:
         prev, cums, plead = {}, {}, None
@@ -1809,12 +1807,19 @@ def cmd_run(a):
                 cums[name] = cums.get(name, 0) + x
                 return cums[name]
 
+            liq = None  # this period's freezing-rain liquid, in (FRAM)
             if "apcp" in z:
                 dap = inc("apcp") / 25.4  # in
                 cum = add("aip", dap * z["ip"])
                 emit("aip", cum, lead)
                 if ctx.get("ps") is not None:
                     samples.setdefault(lead, {})["aip"] = ctx["ps"].bilinear(cum)
+                if "fz" in z:
+                    liq = dap * z["fz"]
+                    cum = add("afzra", liq)
+                    emit("afzra", cum, lead)
+                    if ctx.get("ps") is not None:
+                        samples.setdefault(lead, {})["afzra"] = ctx["ps"].bilinear(cum)
                 if "sf" in z:
                     sl = dap * z["sf"] / 2.0  # snow-phase liquid, in
                     emit("as10", add("as10", 10.0 * sl), lead)
@@ -1833,6 +1838,7 @@ def cmd_run(a):
                             st["nsnow"] += int(z["slr_none"][1])
             if "frzr" in z:
                 liq = inc("frzr") / 25.4
+            if liq is not None:
                 if "tw" in z and (liq > 0).any():
                     rad = WIN.fram_radial(
                         liq,
@@ -1920,7 +1926,8 @@ def cmd_run(a):
         if fd["enc"] in ("uh", "uvv", "etop"):
             e["enc"] = fd["enc"]
         if FIELDS[name]["enc"] == "acc16":
-            e.update(enc="acc16", unit=FIELDS[name]["unit"], method=ACC_METHOD[model][name])
+            method = FZRA_DERIVED[model].get(name) if ctx.get("fzra_derived") else None
+            e.update(enc="acc16", unit=FIELDS[name]["unit"], method=method or ACC_METHOD[model][name])
         if LO.get(model) and name not in LO_SKIP and e["grid"] == "main":
             e["lo"] = "lo"
         fields[name] = e
