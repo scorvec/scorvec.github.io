@@ -14,6 +14,9 @@ concurrency:
   group: mjo-rmm          # same group as mjo.yml: never commits over an RMM run
   cancel-in-progress: false
 
+env:
+  PIP_CONSTRAINT: ${{ github.workspace }}/scripts/constraints.txt   # bounds every pip install (see the file)
+
 jobs:
   restore:
     runs-on: ubuntu-latest

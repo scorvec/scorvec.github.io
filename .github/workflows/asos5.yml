@@ -23,6 +23,9 @@ concurrency:
   group: asos5
   cancel-in-progress: false
 
+env:
+  PIP_CONSTRAINT: ${{ github.workspace }}/scripts/constraints.txt   # bounds every pip install (see the file)
+
 jobs:
   update:
     runs-on: ubuntu-latest

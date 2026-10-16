@@ -35,6 +35,7 @@ concurrency:
 # any other mirror name; pinning it here is belt and braces.
 env:
   ECMWF_SOURCES: google
+  PIP_CONSTRAINT: ${{ github.workspace }}/scripts/constraints.txt   # bounds every pip install (see the file)
 
 jobs:
   check:
