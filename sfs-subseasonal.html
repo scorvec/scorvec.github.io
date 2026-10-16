@@ -347,8 +347,9 @@ var P = {
 var GROUPS = [["Maps", "\u{1F5FA}", [["weekly","Weekly means","nine fields"],["probs","Weekly terciles","temperature and precipitation"],["daily","Daily animation","one frame per day"]]],
               ["Verification", "✓", [["skill","Hindcast skill","against GEFS, GEPS and CFSv2"],["status","Daily data check","this issue"]]]];
 var $ = function (id) { return document.getElementById(id); };
-fetch("assets/sfs/data/sfs_sub.json", {cache: "no-cache"}).then(function (r) { return r.json(); }).then(function (m) {
+fetch("assets/sfs/data/sfs_sub.json", {cache: "no-cache"}).then(function (r) { if (!r.ok) throw new Error("HTTP " + r.status); return r.json(); }).then(function (m) {
   SUB = m;
+  var ck = m.check || {};
   var set = function (id, t) { var e = $(id); if (e && t != null) e.textContent = t; };
   set("g-cycle", m.init); set("g-valid", m.valid || "–"); set("g-members", m.members || 31); set("g-updated", "issue " + (m.issue || ""));
   var rec = m.ok && m.layout === "interleaved";
@@ -364,7 +365,6 @@ fetch("assets/sfs/data/sfs_sub.json", {cache: "no-cache"}).then(function (r) { r
       + " and the same-day link between rain and low pressure (" + r.precip_mslp_corr_lag0 + ", reforecast " + r.reforecast_precip_mslp_corr + ").";
     note.hidden = false;
   }
-  var ck = m.check || {};
   var lead = $("gate-lead");
   if (lead) lead.innerHTML = m.ok ? "<span class=\"ok\">The " + (m.issue || "") + " issue passed.</span>"
     : "<span class=\"bad\">The " + (m.issue || "") + " issue failed</span>, so its daily products are not drawn:";
@@ -373,7 +373,16 @@ fetch("assets/sfs/data/sfs_sub.json", {cache: "no-cache"}).then(function (r) { r
   if (box && m.ok) box.querySelector("h2").textContent = rec ? "This issue's daily file was mislabelled; its first " + m.days + " days were recovered"
                                                            : "This issue's daily forecasts passed the data check";
   if (window.STAGE && window.STAGE.refresh) window.STAGE.refresh();   // redraw with the check's result
-}).catch(function () {});
+}).catch(function () {
+  // no check result, no daily products: they stay behind the gate, which says why
+  SUB = {ok: false};
+  var g = $("g-gate"); if (g) { g.textContent = "unavailable"; g.className = "v bad"; }
+  var box = $("dom-status"); if (box) box.querySelector("h2").textContent = "This issue's data check could not be read";
+  var lead = $("gate-lead");
+  if (lead) lead.innerHTML = "<span class=\"bad\">The data check for this issue could not be read</span>, so its daily products are not drawn. Reload the page to try again.";
+  var ul = $("gate-why"); if (ul) ul.innerHTML = "";
+  if (window.STAGE && window.STAGE.refresh) window.STAGE.refresh();
+});
 window.STAGE = { groups: GROUPS.map(function (g) { return { label: g[0], ico: g[1], items: g[2] }; }), products: P };
 </script>
 <!-- sf:start -->
