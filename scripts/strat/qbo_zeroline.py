@@ -17,7 +17,11 @@ build_qbo_zeroline.py (made on robustness, before looking at any vortex relation
 
 Subcommands (live, in Actions):
   forecast --model aifs|ifs   per-member [u] at 50 and 10 hPa saved by qbo_duct.py (data/zmu_members_<model>.npz; the
-                              E-P flux loop's own fields, no extra download) -> assets/sst/data/qbo_zeroline_<model>.json
+                              E-P flux loop's own fields, no extra download) -> assets/sst/data/qbo_zeroline_<model>.json:
+                              the index's 10/50/90th percentiles over the members whose crossing lies on the scan's own
+                              side of the equator and, apart, over those whose crossing lies across it (in a westerly-QBO
+                              autumn the subtropical easterlies fade and members flip to the other hemisphere one by
+                              one: percentiles over both groups would draw a line through the equatorial westerlies)
   render                      MERRA-2 reference (reference/qbo_zeroline_ref.nc) + GEOS FP analysis tail (the BDC
                               product's daily 00Z zonal means, frames-branch cache assets/sst/anim/bdc_tail) + the
                               forecast JSONs -> assets/sst/qbo_zeroline_<lev>.webp, assets/sst/data/qbo_zeroline.json
@@ -30,6 +34,7 @@ import argparse
 import glob
 import json
 import textwrap
+import warnings
 from pathlib import Path
 
 import numpy as np
@@ -45,6 +50,7 @@ FC_LEVELS = (50, 10)
 LAT = np.arange(-50.0, 50.01, 1.0)  # common 1 deg grid for sections
 MODEL = {"aifs": "AIFS-ENS", "ifs": "IFS-ENS"}
 INK, MUTED, GRID = "#1c2430", "#6f6b64", "#d9dde2"
+GROUP_MIN = 0.2  # a side of the equator is drawn where it holds at least this share of the members with a crossing
 COL = {"ana": "#eb6834", "aifs": "#4a3aa7", "ifs": "#138a5e", "clim": "#8a8780"}
 
 
@@ -83,24 +89,26 @@ def forecast(model, npz=None, out_dir=REPO / "assets" / "sst" / "data"):
             "mean_u": np.round(to_grid(u.mean(axis=1), lat), 2).tolist(),
         }
         for tag, zz, ff in (("nh", z, fl), ("sh", zs, fls)):
-            q = np.where(ff == 1, np.nan, zz)
-            with np.errstate(all="ignore"):
-                pct = np.nanpercentile(q, [10, 50, 90], axis=1)
-            rec[tag] = {
-                "p10": _r(pct[0]),
-                "p50": _r(pct[1]),
-                "p90": _r(pct[2]),
-                "defined": (ff != 1).sum(axis=1).tolist(),
-                "censored": (ff == 2).sum(axis=1).tolist(),
-            }
+            q = np.where(ff == 0, zz, np.nan)  # a crossing found (undefined and censored members have none)
+            home = q > 0 if tag == "nh" else q < 0
+            rec[tag] = {"defined": (ff != 1).sum(axis=1).tolist(), "censored": (ff == 2).sum(axis=1).tolist()}
+            # members whose first easterlies lie on the scan's own side of the equator, and those whose lie across it:
+            # each group summarised on its own, since percentiles over both would draw a line through the westerlies
+            for side, m in (("home", home), ("across", np.isfinite(q) & ~home)):
+                with warnings.catch_warnings():  # a side with no members on a day is all-NaN there
+                    warnings.simplefilter("ignore", RuntimeWarning)
+                    pct = np.nanpercentile(np.where(m, q, np.nan), [10, 50, 90], axis=1)
+                rec[tag][side] = {"p10": _r(pct[0]), "p50": _r(pct[1]), "p90": _r(pct[2]), "n": m.sum(axis=1).tolist()}
         out["levels"][str(L)] = rec
     out_dir = Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
     (out_dir / f"qbo_zeroline_{model}.json").write_text(json.dumps(out, separators=(",", ":")))
-    l50 = out["levels"].get("50", {}).get("nh", {})
+    l50 = out["levels"].get("50", {}).get("nh", {}).get("home", {})
+    across = out["levels"].get("50", {}).get("nh", {}).get("across", {}).get("n", [0])
     print(
         f"  {MODEL[model]} {out['init']}: 50 hPa NH zero line day 0 {l50.get('p50', [None])[0]}, "
-        f"day 15 {l50.get('p50', [None])[-1]} ({out['levels'].get('50', {}).get('members')} members)",
+        f"day 15 {l50.get('p50', [None])[-1]}, {across[-1]} of {out['levels'].get('50', {}).get('members')} "
+        "members across the equator by day 15",
         flush=True,
     )
 
@@ -304,22 +312,32 @@ def render(out_dir=REPO / "assets" / "sst", data_dir=None, tail_dir=None, days_b
             for m in fc_models:
                 r = fc[m]["levels"][str(L)]
                 vv = mdates.date2num(pd.DatetimeIndex(r["valid"]).to_pydatetime())
-                p10, p50, p90 = (
-                    np.array([np.nan if v is None else v for v in r["nh"][k]]) for k in ("p10", "p50", "p90")
-                )
-                axA.fill_between(vv, p10, p90, color=COL[m], alpha=0.28, lw=0)
-                axA.plot(
-                    vv,
-                    p50,
-                    color=COL[m],
-                    lw=2.0,
-                    label=f"{MODEL[m]} zero line, median and 10–90 % of {r['members']} members",
-                )
+                n_def = np.maximum(np.array(r["nh"]["defined"]), 1)
+                share = r["nh"]["across"]["n"][-1] / n_def[-1]
+                across = f"; {100 * share:.0f} % south of the equator by day 15" if share > 0 else ""
+                for side in ("home", "across"):  # each side of the equator where it holds enough members
+                    g = r["nh"][side]
+                    keep = np.array(g["n"]) >= GROUP_MIN * n_def
+                    p10, p50, p90 = (
+                        np.where(keep, [np.nan if v is None else v for v in g[k]], np.nan)
+                        for k in ("p10", "p50", "p90")
+                    )
+                    axA.fill_between(vv, p10, p90, color=COL[m], alpha=0.28, lw=0)
+                    axA.plot(
+                        vv,
+                        p50,
+                        color=COL[m],
+                        lw=2.0,
+                        label=f"{MODEL[m]} zero line, median and 10–90 % of {r['members']} members{across}"
+                        if side == "home"
+                        else None,
+                    )
                 summary["forecasts"][f"{m}_{L}"] = {
                     "init": fc[m]["init"],
-                    "day15_p50": r["nh"]["p50"][-1],
-                    "day15_p10": r["nh"]["p10"][-1],
-                    "day15_p90": r["nh"]["p90"][-1],
+                    "day15_p50": r["nh"]["home"]["p50"][-1],
+                    "day15_p10": r["nh"]["home"]["p10"][-1],
+                    "day15_p90": r["nh"]["home"]["p90"][-1],
+                    "day15_across": round(share, 2),
                 }
         # climatology of the index over the whole window, by day of year
         allt = pd.date_range(times[0], pd.Timestamp(mdates.num2date(x_end)).tz_localize(None).normalize())
@@ -373,7 +391,7 @@ def render(out_dir=REPO / "assets" / "sst", data_dir=None, tail_dir=None, days_b
             bbox_to_anchor=(0.0, -0.075),
             fontsize=8.6,
             frameon=False,
-            ncol=3,
+            ncol=2,  # forecasts in the first column, the analysis and its climatology in the second
             handlelength=2.2,
             columnspacing=1.6,
         )
