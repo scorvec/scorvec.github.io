@@ -29,7 +29,9 @@ jobs:
         with:
           python-version: '3.11'
       - name: Install Python dependencies
-        run: pip install --quiet numpy scipy rasterio shapely
+        run: |
+          pip install --quiet numpy rasterio shapely
+          pip install --quiet "quantmet @ git+https://github.com/scorvec/quantmet-tools@v0.4.2"   # shared diagnostics (BH-FDR, QBO zero line, PV, ...), pinned to the tag
       # the dewpoint archive lives on the frames branch (a seed copy is in the repo for a cold start)
       - name: Seed the climate data set from the frames branch
         run: scripts/lib/fetch_frames_ci.sh assets/climate/anim/data || true

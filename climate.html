@@ -231,24 +231,23 @@
       <label>Month or season <select id="selCol"></select></label>
       <label>Trend since <select id="selStart"><option value="1970">1970</option><option value="1950">1950</option><option value="1895">1895</option></select></label>
       <span class="pills" id="viewPills"></span>
-      <label style="margin-left:auto"><input type="checkbox" id="chkSig" checked> fade where p &gt; 0.05</label>
     </div>
     <svg id="map" viewBox="0 0 975 610" preserveAspectRatio="xMidYMid meet"></svg>
     <div class="legend" id="legend"></div>
     <div class="tip" id="tip"></div>
     <p class="status" id="mapStatus">Loading counties and data&hellip;</p>
-    <p class="note" style="margin-top:0.6rem">Trend is the ordinary least-squares slope over the chosen period in units per decade (precipitation in percent of the 1991&ndash;2020 normal per decade), fitted to the calendar-month or seasonal series; the Theil&ndash;Sen slope and a Mann&ndash;Kendall p-value are computed alongside and shown in the tooltip. Counties fade where the trend is not significant at the 5% level; the Mann&ndash;Kendall p-value is computed on the raw annual series with no correction for serial correlation, so where a series is autocorrelated the significance is optimistic &mdash; read the fading as a rough screen, not a test. &ldquo;Normal shift&rdquo; is the trend-adjusted normal minus the 1991&ndash;2020 normal.</p>
+    <p class="note" style="margin-top:0.6rem">Trend is the Theil&ndash;Sen slope over the chosen period in units per decade (precipitation in percent of the 1991&ndash;2020 normal per decade), fitted to the calendar-month or seasonal series. Every trend on this page is tested, and only significant ones are shown; the rest are grey. The test is Mann&ndash;Kendall with its variance inflated for serial correlation by the effective sample size (Yue &amp; Wang 2004, from the bias-corrected lag-1 autocorrelation of the detrended series). A trend counts as significant when p&nbsp;&lt;&nbsp;0.05 and it survives Benjamini&ndash;Hochberg false-discovery-rate control at q&nbsp;=&nbsp;0.10 across all the counties of the map, so that among the thousands of counties tested at once no more than about one in ten of the coloured ones is expected to be a false alarm. &ldquo;Normal shift&rdquo; is the trend-adjusted normal minus the 1991&ndash;2020 normal, shown only where the 1970-start trend is significant; elsewhere the 1991&ndash;2020 normal stands.</p>
   </div>
 
   <div class="card">
     <h2>Where and when: trend by state and month</h2>
-    <p class="note">The chosen variable and start year, one row per state grouped by NOAA climate region, one column per calendar month plus the seasons. The colour is the state-mean trend per decade. Read across a row for the seasonality of a state&rsquo;s change, down a column for its geography.</p>
+    <p class="note">The chosen variable and start year, one row per state grouped by NOAA climate region, one column per calendar month plus the seasons. The colour is the Theil&ndash;Sen trend per decade of the state series, tested as on the map (the false-discovery control runs across the states of one column); grey cells are not significant. Read across a row for the seasonality of a state&rsquo;s change, down a column for its geography.</p>
     <div style="overflow-x:auto"><table class="hm" id="heat"></table></div>
   </div>
 
   <div class="card">
     <h2>One county over time</h2>
-    <p class="note">Click a county on the map, or choose one here. The monthly series for the chosen month or season with the fitted trend for each start year, the 1991&ndash;2020 normal band, and the latest value ranked against the full record.</p>
+    <p class="note">Click a county on the map, or choose one here. The monthly series for the chosen month or season with the Theil&ndash;Sen trend for each start year where that trend is significant (tested as on the map), the 1991&ndash;2020 normal band, and the latest value ranked against the full record.</p>
     <div class="controls">
       <label>State <select id="selState"></select></label>
       <label>County <select id="selCounty"></select></label>
@@ -259,7 +258,7 @@
 
   <div class="card">
     <h2>What normal is now: state degree days by month</h2>
-    <p class="note">Heating and cooling degree days by month for a state: the official 1991&ndash;2020 normal from the state series, the 1970-start trend-adjusted normal for this year, and the difference in percent. The energy-weather reading of the trend.</p>
+    <p class="note">Heating and cooling degree days by month for a state: the official 1991&ndash;2020 normal from the state series, the 1970-start trend-adjusted normal for this year (the state&rsquo;s Theil&ndash;Sen line evaluated at this year), and the difference in percent. The adjusted normal is given only where the state&rsquo;s 1970-start trend for that month is significant (tested as on the map); &ldquo;n.s.&rdquo; marks a month whose trend is not, where the 1991&ndash;2020 normal stands. The energy-weather reading of the trend.</p>
     <div class="controls"><label>State <select id="selDDState"></select></label></div>
     <div style="overflow-x:auto"><table class="dd" id="ddTable"></table></div>
   </div>
@@ -267,7 +266,7 @@
   <div class="card">
     <h2>Method and caveats</h2>
     <p class="note">County values in nClimDiv are area means of NOAA&rsquo;s 5&nbsp;km nClimGrid, itself interpolated from homogenised station data (COOP, RAWS, SNOTEL and neighbours), not raw station records; the network behind them thins before 1950, so the 1895-start trends carry more uncertainty than their p-values suggest. A linear trend is a description of the chosen period, not a projection, and the start year is a choice: the 1970 start is the period over which the forced warming is close to linear, the others are there so the sensitivity is visible. Precipitation trends are in percent of the normal so dry western counties do not read as large in inches. Degree days come from NOAA&rsquo;s own daily-based county series, not from monthly means. Dewpoint is not in nClimDiv: it comes from PRISM&rsquo;s station-based 4&nbsp;km monthly mean dewpoint grids, area-averaged over each county, so it covers the lower 48 only and its most recent eight months are provisional and are re-read on every run. Data are refreshed on about the 9th of each month, once NOAA&rsquo;s monthly update has landed.</p>
-    <div class="chart-card-footer"><span>NOAA NCEI nClimDiv county, division and state monthly files (climdiv-*cy/dv/st) &middot; PRISM Climate Group, Oregon State University, monthly tdmean 4 km &middot; county boundaries: US Atlas (TopoJSON) &middot; statistics: numpy/scipy, computed monthly</span><span id="genLabel">&mdash;</span></div>
+    <div class="chart-card-footer"><span>NOAA NCEI nClimDiv county, division and state monthly files (climdiv-*cy/dv/st) &middot; PRISM Climate Group, Oregon State University, monthly tdmean 4 km &middot; county boundaries: US Atlas (TopoJSON) &middot; statistics: numpy and quantmet, computed monthly</span><span id="genLabel">&mdash;</span></div>
   </div>
 </main>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"></script>
@@ -279,7 +278,9 @@
   var COLS = ["01","02","03","04","05","06","07","08","09","10","11","12","DJF","MAM","JJA","SON","ANN"];
   var COLNAME = {"01":"January","02":"February","03":"March","04":"April","05":"May","06":"June","07":"July","08":"August","09":"September","10":"October","11":"November","12":"December","DJF":"Winter (DJF)","MAM":"Spring (MAM)","JJA":"Summer (JJA)","SON":"Autumn (SON)","ANN":"Annual"};
   var UNITS = {tavg:"°F", tmin:"°F", tmax:"°F", tdew:"°F", pcpn:"in", hdd:"degree days", cdd:"degree days"};
-  var st = {v:"tavg", col: String(new Date().getMonth()+1).padStart(2,"0"), start:"1970", view:"trend", sig:true};
+  var st = {v:"tavg", col: String(new Date().getMonth()+1).padStart(2,"0"), start:"1970", view:"trend"};
+  var NODATA = "#efede8", NS_FILL = "#cfcbc2", NS_TEXT = "not significant (Mann–Kendall with serial-correlation correction, p < 0.05 and FDR q = 0.10)";
+  function sigAt(arr, k, ci) { return arr && arr[k] ? arr[k][ci] : undefined; }   // 1 significant, 0 not, null no test, undefined not in this data set
   var cache = {}, topo = null, names = {}, meta = null, regions = null, seriesIdx = null;
   var DATA_ROOT_LOCAL = "assets/climate/anim/data/", SERIES_ROOT_LOCAL = "assets/climate/anim/series/";
   function dataUrl(f, series) {
@@ -320,10 +321,12 @@
     }
     return {lim: null, f: null};
   }
-  function legend(sc, label) {
+  function legend(sc, label, tested) {
     var el = document.getElementById("legend"); if (!sc.f) { el.innerHTML = ""; return; }
     var bar = '<div class="bar">' + d3.range(-1, 1.001, 0.1).map(function (t) { return '<span style="background:' + sc.f(t * sc.lim) + '"></span>'; }).join("") + '</div>';
-    el.innerHTML = '<span>−' + sc.lim + '</span>' + bar + '<span>+' + sc.lim + '</span><span style="margin-left:0.6rem">' + label + '</span>';
+    var sw = function (c, t) { return '<span style="display:inline-flex;align-items:center;gap:0.3rem"><span style="width:14px;height:12px;background:' + c + '"></span>' + t + '</span>'; };
+    el.innerHTML = '<span>−' + sc.lim + '</span>' + bar + '<span>+' + sc.lim + '</span><span style="margin-left:0.6rem">' + label + '</span>' +
+      (tested ? sw(NS_FILL, "not significant") + sw(NODATA, "no data") : "");
   }
   var pathGen = d3.geoPath();     // replaced at boot: us-atlas ships pre-projected, other builds ship lon/lat
   function drawMap() {
@@ -333,33 +336,40 @@
       var T = res[0], N = res[1];
       var view = st.view, units = T.units;
       var sc = scaleFor(v, view === "normal" ? "trend" : view);
-      var vals = {};
       if (view === "normal") {
         var arr = Object.keys(N.normal).map(function (k) { return N.normal[k][ci]; }).filter(function (x) { return x != null; }).sort(d3.ascending);
         var q = [d3.quantile(arr, 0.02), d3.quantile(arr, 0.98)];
         var cmN = (v === "pcpn") ? d3.interpolateYlGnBu : (v === "hdd" ? d3.interpolateBlues : (v === "cdd" ? d3.interpolateOrRd : d3.interpolateTurbo));
         sc = {lim: null, f: function (x) { return cmN(Math.max(0, Math.min(1, (x - q[0]) / (q[1] - q[0])))); }, q: q};
       }
+      var tested = view === "trend" ? !!T.sig : view === "shift" ? !!N.sig_1970 : true, nsig = 0, ntest = 0;
       d3.select("#map").selectAll("path.county").each(function () {
-        var f = this.__data__, fips = f.id, val = null, p = null;
-        if (view === "trend") { val = T.ols[fips] ? T.ols[fips][ci] : null; p = T.p[fips] ? T.p[fips][ci] : null; }
-        else if (view === "shift") { var a = N.adjusted_1970[fips], n = N.normal[fips]; if (a && n && a[ci] != null && n[ci] != null) { val = a[ci] - n[ci]; if (v === "pcpn") val = n[ci] > 0.05 ? (a[ci] - n[ci]) : null; } }
+        var f = this.__data__, fips = f.id, val = null, g = null;
+        if (view === "trend") { g = sigAt(T.sig, fips, ci); if (g === 1) val = T.sen[fips][ci]; }
+        else if (view === "shift") {
+          g = sigAt(N.sig_1970, fips, ci);
+          var a = N.adjusted_1970[fips], n = N.normal[fips];
+          if (g === 1 && a && n && a[ci] != null && n[ci] != null && (v !== "pcpn" || n[ci] > 0.05)) val = a[ci] - n[ci];
+        }
         else { val = N.normal[fips] ? N.normal[fips][ci] : null; }
-        vals[fips] = {val: val, p: p};
-        var fill = (val == null || !isFinite(val)) ? "#e8e6e0" : sc.f(val);
-        var fade = (view === "trend" && st.sig && p != null && p > 0.05);
-        d3.select(this).attr("fill", fill).attr("fill-opacity", fade ? 0.28 : 1);
+        if (g === 0 || g === 1) { ntest++; if (g === 1) nsig++; }
+        d3.select(this).attr("fill", (val != null && isFinite(val)) ? sc.f(val) : (g === 0 ? NS_FILL : NODATA)).attr("fill-opacity", 1);
       });
-      var lab = view === "trend" ? (units + ", " + T.start + "–" + T.end) : view === "shift" ? ("trend-adjusted normal minus 1991–2020 normal (" + (v === "pcpn" ? "in" : UNITS[v]) + ")") : ("1991–2020 normal (" + UNITS[v] + "); colour spans the 2nd–98th percentile of counties, " + sc.q[0].toFixed(1) + " to " + sc.q[1].toFixed(1));
-      legend(sc, lab);
-      document.getElementById("mapStatus").textContent = COLNAME[st.col] + " · " + document.getElementById("selVar").selectedOptions[0].text + " · " + (view === "trend" ? "trend since " + st.start : view === "shift" ? "normal shift" : "1991–2020 normal");
+      var lab = view === "trend" ? (units + ", Theil–Sen, " + T.start + "–" + T.end) : view === "shift" ? ("trend-adjusted normal minus 1991–2020 normal (" + (v === "pcpn" ? "in" : UNITS[v]) + ")") : ("1991–2020 normal (" + UNITS[v] + "); colour spans the 2nd–98th percentile of counties, " + sc.q[0].toFixed(1) + " to " + sc.q[1].toFixed(1));
+      legend(sc, lab, view !== "normal");
+      document.getElementById("mapStatus").textContent = COLNAME[st.col] + " · " + document.getElementById("selVar").selectedOptions[0].text + " · " + (view === "trend" ? "trend since " + st.start : view === "shift" ? "normal shift (1970-start trend)" : "1991–2020 normal") +
+        (view === "normal" ? "" : !tested ? " · this data set carries no significance test, so no trend is shown" : " · significant in " + nsig.toLocaleString() + " of " + ntest.toLocaleString() + " counties tested");
       d3.select("#map").selectAll("path.county").on("mousemove", function (ev) {
-        var f = this.__data__, fips = f.id, r = vals[fips] || {}, tip = document.getElementById("tip");
-        var n = N.normal[fips], a = N.adjusted_1970[fips], sen = T.sen[fips];
+        var f = this.__data__, fips = f.id, tip = document.getElementById("tip");
+        var n = N.normal[fips], a = N.adjusted_1970[fips], g70 = sigAt(N.sig_1970, fips, ci), g = sigAt(T.sig, fips, ci), dig = v === "pcpn" ? 2 : 1;
         var html = "<b>" + (names[fips] || fips) + "</b><br>" + COLNAME[st.col] + "<br>";
-        if (n && n[ci] != null) html += "1991–2020 normal: " + n[ci].toFixed(v === "pcpn" ? 2 : 1) + " " + UNITS[v] + "<br>";
-        if (a && a[ci] != null) html += "trend-adjusted normal now: " + a[ci].toFixed(v === "pcpn" ? 2 : 1) + " " + UNITS[v] + "<br>";
-        if (T.ols[fips] && T.ols[fips][ci] != null) html += "trend since " + T.start + ": " + (T.ols[fips][ci] > 0 ? "+" : "") + T.ols[fips][ci].toFixed(2) + " " + units + (sen && sen[ci] != null ? " (Theil–Sen " + (sen[ci] > 0 ? "+" : "") + sen[ci].toFixed(2) + ")" : "") + "<br>p = " + (T.p[fips][ci] == null ? "—" : T.p[fips][ci].toFixed(3));
+        if (n && n[ci] != null) html += "1991–2020 normal: " + n[ci].toFixed(dig) + " " + UNITS[v] + "<br>";
+        if (g70 === 1 && a && a[ci] != null) html += "trend-adjusted normal now: " + a[ci].toFixed(dig) + " " + UNITS[v] + "<br>";
+        else if (g70 === 0) html += "trend-adjusted normal: the 1970-start trend is not significant, so the 1991–2020 normal stands<br>";
+        if (g === 1) { var x = T.sen[fips][ci]; html += "trend since " + T.start + ": " + (x > 0 ? "+" : "") + x.toFixed(2) + " " + units + " (Theil–Sen), p " + (T.p[fips][ci] < 0.001 ? "< 0.001" : "= " + T.p[fips][ci].toFixed(3)); }
+        else if (g === 0) html += "trend since " + T.start + ": " + NS_TEXT;
+        else if (g === null) html += "trend since " + T.start + ": too few years to test";
+        else html += "trend since " + T.start + ": not tested in this data set";
         tip.innerHTML = html; tip.style.display = "block";
         var card = tip.parentElement.getBoundingClientRect();
         tip.style.left = (ev.clientX - card.left + 14) + "px"; tip.style.top = (ev.clientY - card.top + 14) + "px";
@@ -374,14 +384,18 @@
   // heatmap
   function drawHeat() {
     if (!regions) return;
-    var v = st.v, key = v + "_" + st.start;
+    var v = st.v, key = v + "_" + st.start, skey = key + "_sig";
     var sc = scaleFor(v, "trend");
     var rows = ['<tr><th></th>' + COLS.map(function (c) { return "<th>" + (c.length === 2 ? COLNAME[c].slice(0, 3) : c) + "</th>"; }).join("") + "</tr>"];
     Object.keys(regions.regions).forEach(function (rg) {
       rows.push('<tr class="region"><td class="name">' + rg + '</td><td colspan="17"></td></tr>');
       regions.regions[rg].forEach(function (sf) {
         var s = regions.states[sf]; if (!s || !s[key]) return;
-        rows.push('<tr><td class="name">' + s.name + '</td>' + s[key].map(function (x) { return x == null ? "<td></td>" : '<td class="v" style="background:' + sc.f(x) + ';color:' + (Math.abs(x) > 0.6 * sc.lim ? '#fff' : '#222') + '">' + (x > 0 ? "+" : "") + x.toFixed(v === "pcpn" || v.startsWith("t") ? 1 : 0) + "</td>"; }).join("") + "</tr>");
+        rows.push('<tr><td class="name">' + s.name + '</td>' + s[key].map(function (x, i) {
+          var g = s[skey] ? s[skey][i] : undefined;
+          if (g === 1 && x != null) return '<td class="v" style="background:' + sc.f(x) + ';color:' + (Math.abs(x) > 0.6 * sc.lim ? '#fff' : '#222') + '">' + (x > 0 ? "+" : "") + x.toFixed(v === "pcpn" || v.startsWith("t") ? 1 : 0) + "</td>";
+          return '<td title="' + (g === 0 ? NS_TEXT : g === undefined ? "not tested in this data set" : "too few years to test") + '"' + (g === 0 ? ' style="background:' + NS_FILL + '"' : '') + '></td>';
+        }).join("") + "</tr>");
       });
     });
     document.getElementById("heat").innerHTML = rows.join("");
@@ -415,7 +429,8 @@
     var sf = fips.slice(0, 2), v = st.v, ci = COLS.indexOf(st.col), idx = seriesIdx[sf];
     if (!idx) return;
     document.getElementById("seriesStatus").textContent = "loading…";
-    getBin(sf + "_" + v + ".bin").then(function (arr) {
+    Promise.all([getBin(sf + "_" + v + ".bin")].concat(["1970", "1950", "1895"].map(function (y) { return getJSON("trends_" + v + "_" + y + ".json"); }))).then(function (res) {
+      var arr = res[0], TR = res.slice(1);
       var nY = idx.years[1] - idx.years[0] + 1, k = idx.fips.indexOf(fips), scale = idx["scale_" + v] || 100;
       if (k < 0) return;
       var years = [], vals = [];
@@ -437,28 +452,37 @@
       var nsel = good.filter(function (p) { return p[0] >= 1991 && p[0] <= 2020; }).map(function (p) { return p[1]; });
       var nm = d3.mean(nsel), nsd = d3.deviation(nsel);
       traces.push({x: [years[0], years[years.length - 1]], y: [nm, nm], mode: "lines", line: {color: "#888", dash: "dash", width: 1}, name: "1991–2020 normal"});
-      [["1970", "#b4453c"], ["1950", "#d0801a"], ["1895", "#2b7a3d"]].forEach(function (s) {
-        var pts = good.filter(function (p) { return p[0] >= +s[0]; }); if (pts.length < 20) return;
-        var xs = pts.map(function (p) { return p[0]; }), ys = pts.map(function (p) { return p[1]; }), mx = d3.mean(xs), my = d3.mean(ys);
-        var b = d3.sum(xs.map(function (x, i) { return (x - mx) * (ys[i] - my); })) / d3.sum(xs.map(function (x) { return (x - mx) * (x - mx); }));
-        traces.push({x: [xs[0], xs[xs.length - 1] + 1], y: [my + b * (xs[0] - mx), my + b * (xs[xs.length - 1] + 1 - mx)], mode: "lines", line: {color: s[1], width: 2}, name: "trend since " + s[0] + ": " + (b * 10 > 0 ? "+" : "") + (b * 10).toFixed(2) + " " + UNITS[v] + "/decade"});
+      var ns = [];
+      [["1970", "#b4453c"], ["1950", "#d0801a"], ["1895", "#2b7a3d"]].forEach(function (s, j) {
+        var T = TR[j], g = sigAt(T.sig, fips, ci);
+        if (g !== 1) { if (g === 0) ns.push(s[0]); return; }
+        var pts = good.filter(function (p) { return p[0] >= +s[0] && p[0] <= T.end; });
+        var xs = pts.map(function (p) { return p[0]; }), ys = pts.map(function (p) { return p[1]; }), sl = [];
+        for (var a = 0; a < xs.length; a++) for (var c = a + 1; c < xs.length; c++) sl.push((ys[c] - ys[a]) / (xs[c] - xs[a]));
+        var b = d3.median(sl), b0 = d3.median(ys) - b * d3.median(xs);   // the Theil–Sen line of the trend files
+        traces.push({x: [xs[0], T.end + 1], y: [b0 + b * xs[0], b0 + b * (T.end + 1)], mode: "lines", line: {color: s[1], width: 2}, name: "trend since " + s[0] + ": " + (b * 10 > 0 ? "+" : "") + (b * 10).toFixed(2) + " " + UNITS[v] + "/decade (Theil–Sen)"});
       });
       Plotly.react("series", traces, {margin: {l: 50, r: 16, t: 34, b: 40}, paper_bgcolor: "rgba(0,0,0,0)", plot_bgcolor: "#fff", font: {family: "Inter, sans-serif", size: 12},
         title: {text: (names[fips] || fips) + " — " + COLNAME[st.col] + " " + document.getElementById("selVar").selectedOptions[0].text.toLowerCase() + " (" + UNITS[v] + ")", x: 0, font: {size: 13}},
         xaxis: {gridcolor: "#eee"}, yaxis: {gridcolor: "#eee"}, legend: {orientation: "h", y: -0.15, font: {size: 11}}, shapes: [{type: "rect", xref: "paper", x0: 0, x1: 1, y0: nm - nsd, y1: nm + nsd, fillcolor: "rgba(0,0,0,0.05)", line: {width: 0}}]}, {displayModeBar: false, responsive: true});
-      document.getElementById("seriesStatus").textContent = "latest: " + last[0] + " = " + last[1].toFixed(v === "pcpn" ? 2 : 1) + " " + UNITS[v] + ", rank " + rank + " of " + good.length + " (1 = highest)";
+      document.getElementById("seriesStatus").textContent = "latest: " + last[0] + " = " + last[1].toFixed(v === "pcpn" ? 2 : 1) + " " + UNITS[v] + ", rank " + rank + " of " + good.length + " (1 = highest)" +
+        (ns.length ? "; no significant trend since " + ns.join(", ") : "") + (TR[0].sig ? "" : "; this data set carries no significance test, so no trend is drawn");
     });
   }
   function drawDD() {
     var sf = document.getElementById("selDDState").value, s = regions.states[sf]; if (!s) return;
     var rows = ['<tr><th>Month</th><th>HDD normal</th><th>HDD now</th><th>Δ%</th><th>CDD normal</th><th>CDD now</th><th>Δ%</th></tr>'];
-    var yrs = (meta.last_full_year_hdd || 2025) + 1;
+    // "now": the state's 1970-start Theil–Sen line at this year, only where that trend is significant
+    function now(k, i) {
+      var nrm = s[k + "_normal"] ? s[k + "_normal"][i] : null, g = s[k + "_1970_sig"] ? s[k + "_1970_sig"][i] : undefined, a = s[k + "_adjusted_1970"] ? s[k + "_adjusted_1970"][i] : null;
+      if (nrm == null) return ["—", "—"];
+      if (g === 1 && a != null) return [Math.round(a), nrm < 5 ? "—" : ((a - nrm) / nrm * 100 > 0 ? "+" : "") + ((a - nrm) / nrm * 100).toFixed(0) + "%"];
+      if (g === 0) return ['<span title="' + NS_TEXT + '">' + Math.round(nrm) + ' n.s.</span>', "—"];
+      return ['<span title="' + (g === undefined ? "not tested in this data set" : "too few years to test") + '">—</span>', "—"];
+    }
     COLS.forEach(function (c, i) {
-      var hn = s.hdd_normal ? s.hdd_normal[i] : null, cn = s.cdd_normal ? s.cdd_normal[i] : null;
-      var ht = s.hdd_1970 ? s.hdd_1970[i] : null, ct = s.cdd_1970 ? s.cdd_1970[i] : null;
-      var hnow = (hn != null && ht != null) ? hn + ht / 10 * (yrs - 2005.5) : null, cnow = (cn != null && ct != null) ? cn + ct / 10 * (yrs - 2005.5) : null;
-      var pct = function (a, b) { return (a == null || b == null || b < 5) ? "—" : ((a - b) / b * 100 > 0 ? "+" : "") + ((a - b) / b * 100).toFixed(0) + "%"; };
-      rows.push("<tr><td>" + (c.length === 2 ? COLNAME[c] : COLNAME[c]) + "</td><td>" + (hn == null ? "—" : Math.round(hn)) + "</td><td>" + (hnow == null ? "—" : Math.round(hnow)) + "</td><td>" + pct(hnow, hn) + "</td><td>" + (cn == null ? "—" : Math.round(cn)) + "</td><td>" + (cnow == null ? "—" : Math.round(cnow)) + "</td><td>" + pct(cnow, cn) + "</td></tr>");
+      var hn = s.hdd_normal ? s.hdd_normal[i] : null, cn = s.cdd_normal ? s.cdd_normal[i] : null, h = now("hdd", i), k = now("cdd", i);
+      rows.push("<tr><td>" + COLNAME[c] + "</td><td>" + (hn == null ? "—" : Math.round(hn)) + "</td><td>" + h[0] + "</td><td>" + h[1] + "</td><td>" + (cn == null ? "—" : Math.round(cn)) + "</td><td>" + k[0] + "</td><td>" + k[1] + "</td></tr>");
     });
     document.getElementById("ddTable").innerHTML = rows.join("");
   }
@@ -467,7 +491,6 @@
   document.getElementById("selCol").value = st.col;
   pills("viewPills", [{key: "trend", label: "Trend per decade"}, {key: "shift", label: "Normal shift"}, {key: "normal", label: "1991–2020 normal"}], st.view, function (k) { st.view = k; drawMap(); });
   ["selVar", "selCol", "selStart"].forEach(function (id) { document.getElementById(id).addEventListener("change", function () { st.v = document.getElementById("selVar").value; st.col = document.getElementById("selCol").value; st.start = document.getElementById("selStart").value; drawMap(); drawHeat(); var c = document.getElementById("selCounty").value; if (c) drawSeries(c); }); });
-  document.getElementById("chkSig").addEventListener("change", function () { st.sig = this.checked; drawMap(); });
   document.getElementById("selState").addEventListener("change", function () { fillCounties(this.value); var c = document.getElementById("selCounty").value; if (c) drawSeries(c, true); });
   document.getElementById("selCounty").addEventListener("change", function () { drawSeries(this.value, true); });
   document.getElementById("selDDState").addEventListener("change", drawDD);
