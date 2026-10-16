@@ -109,6 +109,7 @@ scripts/strat/*
 !scripts/strat/geos_pv.py
 !scripts/strat/momentum_budget.py
 !scripts/strat/build_vt100_clim.py
+!scripts/strat/heatflux100_bias.py
 !scripts/strat/build_strat_history.py
 !scripts/strat/strat_history.py
 !scripts/strat/build_cmip6_drip.py
@@ -143,6 +144,8 @@ scripts/strat/*
 !scripts/strat/reference/
 !scripts/strat/reference/m2_strat_daily.nc
 !scripts/strat/reference/vt100_clim.nc
+!scripts/strat/reference/vt100_era5.nc
+!scripts/strat/reference/heatflux100_archive.npz
 !scripts/strat/reference/heatflux100_history_seed.json
 !scripts/strat/reference/strat_obs_daily.nc
 !scripts/strat/reference/strat_history.nc
