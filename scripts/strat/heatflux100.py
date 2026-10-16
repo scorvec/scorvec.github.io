@@ -180,8 +180,8 @@ def render(hemi, north, valid, mem, ctrl, lat, hov, obs, clim, init, n_mem, out,
     H = "Northern" if north else "Southern"
     fig = plt.figure(figsize=(13.2, 8.6), dpi=130)
     gs = fig.add_gridspec(
-        2, 2, width_ratios=[1.55, 1], hspace=0.30, wspace=0.16, left=0.055, right=0.985, top=0.885, bottom=0.07
-    )
+        2, 2, width_ratios=[1.55, 1], hspace=0.30, wspace=0.16, left=0.055, right=0.955, top=0.885, bottom=0.07
+    )  # right margin: room for the colour bar's label (the figure is saved uncropped)
     fig.suptitle(
         f"{model} · 100 hPa eddy heat flux [v′T′], {int(BAND[0])}–{int(BAND[1])}°{'N' if north else 'S'} · {H} Hemisphere",
         x=0.055,
@@ -362,10 +362,16 @@ def render(hemi, north, valid, mem, ctrl, lat, hov, obs, clim, init, n_mem, out,
         ax.axhline(b, color=INK, lw=0.8, ls=(0, (4, 3)))
     cb = fig.colorbar(cs, ax=ax, pad=0.015, fraction=0.05, ticks=np.linspace(-vmax, vmax, 11))
     cb.ax.tick_params(labelsize=8)
-    cb.ax.set_yticklabels([f"{x:.0f}" for x in np.linspace(-vmax, vmax, 11)])
-    cb.set_label("K m s⁻¹", fontsize=9)
+    cb.ax.set_yticklabels([f"{x:.0f}".replace("-", "−") for x in np.linspace(-vmax, vmax, 11)])
+    cb.set_label("[v′T′], K m s⁻¹ (+ = poleward)", fontsize=9, color=INK)
     ax.set_ylabel(f"latitude, °{'N' if north else 'S'}", fontsize=10, color=INK)
-    ax.set_title("Ensemble-mean flux by latitude", loc="left", fontsize=11.5, fontweight="bold", color=INK)
+    ax.set_title(
+        f"Ensemble mean by latitude (dashed: {int(BAND[0])}–{int(BAND[1])}° band)",
+        loc="left",
+        fontsize=11.5,
+        fontweight="bold",
+        color=INK,
+    )
     for a_ in fig.axes[:4]:
         if a_ is not cb.ax:
             loc = matplotlib.dates.AutoDateLocator(minticks=4, maxticks=7)
