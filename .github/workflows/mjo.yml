@@ -390,6 +390,19 @@ jobs:
             --hov ../../assets/sst/kelvin_hov.webp --json ../../assets/sst/data/kelvin_tracker.json \
             || echo "::warning::Kelvin tracker failed; keeping the previous figures"
 
+      # Kelvin and equatorial Rossby trackers (tropical-waves.html): the GMGSI OLR proxy store olr-waves.yml extends
+      # daily (scripts/sst/metar/olr_rt.nc), with this cycle's AIFS-ENS ensemble-mean rain as the forecast strip, read
+      # from the pf tp the RMM pull above put in data/aifs (no new download). Without that file the figure says it
+      # shows the constant-phase-speed extrapolation only.
+      - name: Equatorial wave trackers (OLR proxy + AIFS-ENS rain forecast)
+        if: ${{ inputs.rmm_only != 'true' }}
+        timeout-minutes: 10
+        run: |
+          tp="scripts/mjo/data/aifs/aifs_${{ needs.check.outputs.compact }}.pf.tp.grib2"
+          if [ ! -s "$tp" ]; then echo "::warning::no AIFS-ENS tp for this cycle; the wave trackers show the extrapolation only"; fi
+          python scripts/sst/wave_trackers.py --out assets/sst/wave_tracker.webp \
+            || echo "::warning::wave trackers failed; keeping the previous figure"
+
       # The Gill (1980) model forced by the observed (IMERG Late) and forecast (AIFS-ENS) tropical rain, against the
       # observed chi200: reads the chi history walker.py just appended, the AIFS-ENS tp and u/v 200 the RMM pull and
       # wind200_vpot already put in the store cache (no new ECMWF download), and a 1-degree IMERG Late cache that rides
@@ -489,7 +502,7 @@ jobs:
                assets/sst/hadley_timeseries.webp assets/sst/data/hadley_timeseries.json \
                assets/sst/anim/kelvin_manifest.json assets/sst/kelvin_hov.webp assets/sst/data/kelvin_tracker.json \
                assets/sst/anim/okelvin_manifest.json assets/sst/ocean_kelvin.webp assets/sst/data/ocean_kelvin.json \
-               assets/sst/gill_rain.webp assets/sst/data/gill_rain.json \
+               assets/sst/gill_rain.webp assets/sst/data/gill_rain.json assets/sst/wave_tracker.webp \
                scripts/mjo/data/reference/eq_u10_analysis_history.nc"
           SNAP=$(mktemp -d)
           tar cf "$SNAP/outs.tar" --ignore-failed-read $OUT 2>/dev/null || true
