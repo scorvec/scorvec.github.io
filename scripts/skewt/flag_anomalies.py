@@ -24,10 +24,9 @@ import numpy as np
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
-from build_climo import synoptic_class
+from build_climo import PCTS, PHYS as CLIMO_PHYS, synoptic_class
 
 STATIONS = HERE.parents[1] / "skewt" / "stations.json"
-PCTS = [1, 5, 10, 25, 50, 75, 90, 95, 99]
 # Only the indices worth interrupting someone for. PWAT and K-index fire on any
 # humid day and would drown the signal; these four actually mark an unusual
 # airmass or an unusual amount of instability.
@@ -60,27 +59,13 @@ LABELS = {
     "850spd": "850mb wind",
     "250spd": "250mb wind",
 }
-# Physical plausibility (m / °C / mm): outside these bounds is a data error
-# anywhere on Earth, whatever the station's own envelope says. The 3-tail-span
-# station fence alone let Reno's corrupt 6224 m height through — heights have
-# fat summer tails, so 3 spans was 300 m of headroom against a variable whose
-# global ceiling is ~6080 m.
-PHYS = {
-    "h500": (4600, 6100),
-    "thick": (4700, 6100),
-    "850t": (-60, 45),
-    "700t": (-55, 35),
-    "500t": (-60, 15),
-    "850td": (-75, 35),
-    "700td": (-75, 30),
-    "pwat": (0, 135),
-    # the WASM helper can emit a missing-value sentinel (~1e8) — without a
-    # bound it gets flagged as an "ALL-TIME" ECAPE record (Athinai, 2026-07-26)
-    "ecape": (0, 12000),
-    "ship": (0, 15),
-    "850spd": (0, 110),
-    "250spd": (0, 165),
-}
+# Physical plausibility (m / °C / mm / m/s): outside these bounds is a data error
+# anywhere on Earth, whatever the station's own envelope says - the climatology
+# builder's bounds (the 3-tail-span station fence alone lets a corrupt height
+# through: heights have fat summer tails), plus the two convective indices the
+# builder does not fence. The WASM helper can emit a missing-value sentinel
+# (~1e8) for ECAPE; without a bound it would be flagged as an all-time record.
+PHYS = {**CLIMO_PHYS, "ecape": (0, 12000), "ship": (0, 15)}
 G = 9.80665
 
 
@@ -183,8 +168,8 @@ def slot366(dt) -> int:
 
 
 def pct_of(d, v):
-    # The climo sanitizer nulls physically-impossible record min/max entries
-    # (2026-07), so either end may be None: fall back to p1/p99 — percentile
+    # The climo sanitizer nulls physically-impossible record min/max entries,
+    # so either end may be None: fall back to p1/p99 — percentile
     # scoring still works, and the record-tier logic independently skips
     # slots whose record value is absent.
     lo = d["min"] if d["min"] is not None else d["p"][0]

@@ -200,6 +200,12 @@ jobs:
       - name: ENSO forecasts, observed E and C so far (OISST)
         run: python scripts/sst/enso_flavour_obs.py || "$GITHUB_WORKSPACE/scripts/lib/degraded.sh" "ENSO forecasts, observed E and C" "the previous observed E/C stays"
 
+      # ENSO forecasts page: whether the peak-strength odds show raw or calibrated for this issue's start month, from
+      # the committed hindcast test (scripts/sst/reference/enso_peak_calib_MM.json, built by c3s.yml). No Copernicus
+      # key, a few seconds. Best-effort: on failure the page keeps the previous verdict.
+      - name: ENSO forecasts, peak-odds calibration verdict
+        run: python scripts/sst/enso_peak_calib.py || "$GITHUB_WORKSPACE/scripts/lib/degraded.sh" "ENSO forecasts, peak-odds calibration" "the previous verdict stays"
+
       # Both Walker products need the ERSSTv6 month three months back (fetched above) and stop without writing
       # when it is missing, so a failure here means the page keeps the previous figure.
       - name: Walker circulation by ocean basin

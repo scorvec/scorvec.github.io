@@ -51,63 +51,81 @@ def as_da(arr):
     )
 
 
-def geps(date: str):
-    """(v, t, control index) from the cached GEPS allmbrs files; control = the cf member."""
+def geps_step(date: str, L: int):
+    """(v, t), each (member, lat, lon), of the GEPS 00Z run at lead L hours from the cached allmbrs files, control
+    first (member 0); None when either file is not on the Datamart."""
     import strat_maps as sm
 
+    per = {}
+    for var in ("VGRD", "TMP"):
+        f = sm.fetch(date, "00", var, 100, L)
+        if f is None:
+            return None
+        parts = []
+        for dt in ("cf", "pf"):  # control first, so it is member 0
+            ds = xr.open_dataset(f, engine="cfgrib", backend_kwargs=dict(filter_by_keys={"dataType": dt}, indexpath=""))
+            a = ds[next(iter(ds.data_vars))]
+            a = a.expand_dims("number") if "number" not in a.dims else a
+            a = a.transpose("number", "latitude", "longitude")
+            if a.latitude.values[0] < a.latitude.values[-1]:
+                a = a.isel(latitude=slice(None, None, -1))
+            a = a.assign_coords(longitude=a.longitude % 360).sortby("longitude")
+            parts.append(a.values)
+        per[var] = np.concatenate(parts, axis=0)
+    return per["VGRD"], per["TMP"]
+
+
+def geps(date: str):
+    """(v, t) from the cached GEPS allmbrs files; control = member 0."""
     V, T = [], []
     for L in LEADS:
-        per = {}
-        for var in ("VGRD", "TMP"):
-            f = sm.fetch(date, "00", var, 100, L)
-            if f is None:
-                raise SystemExit(f"GEPS {var} 100 hPa step {L} unavailable")
-            parts = []
-            for dt in ("cf", "pf"):  # control first, so it is member 0
-                ds = xr.open_dataset(
-                    f, engine="cfgrib", backend_kwargs=dict(filter_by_keys={"dataType": dt}, indexpath="")
-                )
-                a = ds[next(iter(ds.data_vars))]
-                a = a.expand_dims("number") if "number" not in a.dims else a
-                a = a.transpose("number", "latitude", "longitude")
-                if a.latitude.values[0] < a.latitude.values[-1]:
-                    a = a.isel(latitude=slice(None, None, -1))
-                a = a.assign_coords(longitude=a.longitude % 360).sortby("longitude")
-                parts.append(a.values)
-            per[var] = np.concatenate(parts, axis=0)
-        V.append(per["VGRD"])
-        T.append(per["TMP"])
+        got = geps_step(date, L)
+        if got is None:
+            raise SystemExit(f"GEPS 100 hPa step {L} unavailable")
+        V.append(got[0])
+        T.append(got[1])
     return np.stack(V, axis=1), np.stack(T, axis=1)  # (member, step, lat, lon)
 
 
-def gefs(date: str, workers: int = 32):
+def gefs_fields(date: str, mems, leads, workers: int = 32):
+    """(v, t), each (member, step, lat, lon) float32, of the GEFS 00Z run for the members named (gec00, gep01, ...) at
+    the leads given (hours; 0 is the analysis step), byte-ranged from NOAA's S3 bucket; NaN where a member-step is
+    missing."""
     sys.path.insert(0, str(REPO / "scripts" / "gefs"))
     import gefs_reforecast as R
 
     S3 = "https://noaa-gefs-pds.s3.amazonaws.com"
-    mems = ["gec00"] + [f"gep{i:02d}" for i in range(1, 31)]
     jobs = []
     for mi, m in enumerate(mems):
-        for li, L in enumerate(LEADS):
+        for li, L in enumerate(leads):
             jobs.append((mi, li, f"{S3}/gefs.{date}/00/atmos/pgrb2ap5/{m}.t00z.pgrb2a.0p50.f{L:03d}", L))
 
     def one(j):
         mi, li, url, L = j
-        idx = R.index(url)
+        try:
+            idx = R.index(url)
+        except Exception:  # noqa: BLE001  (not on S3: the member-step stays missing)
+            return mi, li, None
+        step = "anl" if L == 0 else f"{L} hour fcst"
         out = {}
         for name in ("VGRD", "TMP"):
-            hit = [e for e in idx if e[4] == name and e[2] == "100 mb" and e[3] == f"{L} hour fcst"]
+            hit = [e for e in idx if e[4] == name and e[2] == "100 mb" and e[3] == step]
             if not hit:
                 return mi, li, None
             out[name] = R.decode(R.get(url, (hit[0][0], hit[0][1])))
         return mi, li, out
 
-    V = np.full((len(mems), len(LEADS), len(LAT_H), len(LON_H)), np.nan, "float32")
+    V = np.full((len(mems), len(leads), len(LAT_H), len(LON_H)), np.nan, "float32")
     T = V.copy()
     with ThreadPoolExecutor(workers) as ex:
         for mi, li, o in ex.map(one, jobs):
             if o is not None:
                 V[mi, li], T[mi, li] = o["VGRD"], o["TMP"]
+    return V, T
+
+
+def gefs(date: str, workers: int = 32):
+    V, T = gefs_fields(date, ["gec00"] + [f"gep{i:02d}" for i in range(1, 31)], LEADS, workers)
     ok = np.isfinite(V).all(axis=(1, 2, 3)) & np.isfinite(T).all(axis=(1, 2, 3))
     if ok.sum() < 16 or not ok[0]:
         raise SystemExit(f"only {int(ok.sum())} complete GEFS members (control {'ok' if ok[0] else 'missing'})")

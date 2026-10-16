@@ -59,10 +59,21 @@ jobs:
           sparse-checkout-cone-mode: false
 
       - uses: actions/checkout@v7
+        id: prev
         with:
           ref: recon-data
           path: prev-data
-        continue-on-error: true      # first run: the branch does not exist yet
+        continue-on-error: true      # first run: the branch does not exist yet (checked below)
+
+      # Without prev-data the mirror would rebuild from scratch and the push would replace everything held
+      # (missions, backfilled storms). Only a branch that truly does not exist yet may start empty; a reset is explicit.
+      - name: Previous tip must be present when the branch exists
+        if: steps.prev.outcome == 'failure' && inputs.reset != true
+        run: |
+          if [ -n "$(git ls-remote --heads origin recon-data)" ]; then
+            echo "::error::recon-data exists but its checkout failed - not rebuilding the mirror from scratch (dispatch with reset to do that)"
+            exit 1
+          fi
 
       - name: Mirror
         id: m1

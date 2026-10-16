@@ -271,7 +271,12 @@ class Branch:
                 check=False,
             )
             if r.returncode:
-                log(f"  {BR} not cloned ({r.stderr.decode().strip()[:160]}) - starting a new branch")
+                # a fresh branch only when the remote truly has none: any other clone failure must not
+                # start a new history over the images already held
+                remote = subprocess.run(["git", "ls-remote", "--heads", url, BR], capture_output=True, check=False)
+                if remote.stdout.strip():
+                    raise RuntimeError(f"{BR} exists but could not be cloned: {r.stderr.decode().strip()[:160]}")
+                log(f"  {BR} not on the remote - starting a new branch")
                 self.path.mkdir(parents=True, exist_ok=True)
                 git(self.path, "init", "-q", "-b", BR)
                 git(self.path, "remote", "add", "origin", url)

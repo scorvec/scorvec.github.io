@@ -4,12 +4,11 @@ name: skewt-fog-verify
 # (checked against the real app.js under node), scores old/new/tuned rules with station-block bootstrap CIs.
 # stage=all     full rebuild (IEM pulls are sequential and backed off), dataset -> release skewt-fog-data-v1
 # stage=rescore re-score the dataset already on the release (no IGRA/IEM traffic)
-# stage=probe   source formats only
 on:
   workflow_dispatch:
     inputs:
       stage:
-        description: "all | rescore | probe"
+        description: "all | rescore"
         default: "all"
 
 permissions:
@@ -35,9 +34,6 @@ jobs:
           python-version: "3.12"
       - name: Install
         run: pip install --quiet numpy pandas pyarrow
-      - name: Probe sources
-        if: inputs.stage == 'probe'
-        run: python scripts/skewt/verify_fog.py probe out
       - name: Restore source cache (METAR pulls + IGRA files; keeps reruns off IEM)
         if: inputs.stage == 'all'
         uses: actions/cache/restore@v6

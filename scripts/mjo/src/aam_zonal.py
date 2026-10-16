@@ -34,7 +34,7 @@ import matplotlib.pyplot as plt
 from matplotlib.gridspec import GridSpec
 
 sys.path.insert(0, str(Path(__file__).parent))
-from aam import A, G, _vert_weights, fields
+from aam import A, G, _vert_weights, fields, member_mean
 from doycal import sel_doy
 
 DENS = 1e20  # plot density unit: 10²⁰ kg m² s⁻¹ per (° lat · hPa)
@@ -64,19 +64,8 @@ def zonal_aam_density(u, sp):
     steps_h = (u.step / np.timedelta64(1, "h")).values.astype(int)
     cos2 = np.cos(np.deg2rad(lat)) ** 2
 
-    # Sequential scheduler, not dask's default threaded one. The member mean is
-    # over 50 chunks of a (step, lev, lat, lon) field; threaded evaluation holds
-    # several in flight at once, and the 2026-08-29 Actions trial peaked at
-    # 14.5-14.7 GB on a 15 GB runner. Single-threaded costs a little wall time
-    # and bounds concurrent chunks to one. The result is identical - same
-    # reduction, just not computed in parallel.
-    ubar = (
-        u.mean("number")
-        .transpose("step", "isobaricInhPa", "latitude", "longitude")
-        .compute(scheduler="single-threaded")
-        .values
-    )
-    spbar = sp.mean("number").transpose("step", "latitude", "longitude").compute(scheduler="single-threaded").values
+    ubar = member_mean(u.transpose("number", "step", "isobaricInhPa", "latitude", "longitude"))
+    spbar = member_mean(sp.transpose("number", "step", "latitude", "longitude"))
     ubar_zm = ubar.mean(axis=3)  # (step,lev,lat) jet context
 
     nstep, nlev, nlat = ubar.shape[0], len(p_hpa), len(lat)

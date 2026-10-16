@@ -1,10 +1,10 @@
 name: ASOS5 overlay data
 
-# Refreshes data/asos5/asos5_latest.{js,json} (IEM HFMETAR per-hour records)
-# and force-pushes them as a single parentless commit to the asos5-data branch,
-# exactly as scripts/asos5/run_asos5.sh did every 30 min until
-# 2026-09-02 (scripts/lib/dispatch_workflows.sh now
-# fires this at :05 and :35). Settled hours are cached under scripts/asos5/cache
+# Refreshes data/asos5/asos5_latest.{js,json} with scripts/asos5/asos5_update.py - the 5-minute ASOS
+# observations from NOAA MADIS (HFMETAR hourly files), hourly METARs from api.weather.gov for the stations
+# outside that feed, and the 6-hour and daily max/min groups from the Aviation Weather Center - and
+# force-pushes them as a single parentless commit to the asos5-data branch every 30 min
+# (scripts/lib/dispatch_workflows.sh fires this at :05 and :35). Settled hours are cached under scripts/asos5/cache
 # (gitignored) so a run fetches only the hours that can still change; the
 # actions cache keeps that warm between runs (restored from the newest entry,
 # saved under a hash of the files when they changed, older entries deleted).

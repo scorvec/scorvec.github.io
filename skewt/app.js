@@ -9,7 +9,7 @@
 
 const MISSING = -9999.0;
 // ── data-branch fetching with host fallbacks ─────────────────────────────────
-// The mirror/climatology/archive live on git branches (kept off main so 6×/day
+// The mirror/climatology/archive live on git branches (kept off main so the hourly
 // force-pushes don't bloat the repo or churn Pages). Every branch fetch goes
 // to the site's own CDN first (many work networks block
 // raw.githubusercontent.com): frames.scorvec.com is a Bunny pull zone whose
@@ -62,10 +62,8 @@ async function ghFetch(branch, path, bust, staticish) {
   }
   return { ok: false, status: 0 };
 }
-// direct URLs on the data branches, CDN first (ghFetch walks the fallbacks)
-const CLIMO_BASE = [CDN + "skewt-climo/climo/", GH_RAW + "skewt-climo/climo/"];
 let climo = null, climoGid = null;                 // current station climatology
-let lastProf = null, lastRes = null, lastMonth = null, lastDoy = null;
+let lastProf = null, lastRes = null, lastDoy = null;
 let lastValidDt = null;                 // "YYYY-MM-DD HH:MM" of the plotted sounding
 let prev12 = null, prev12Key = "";      // the launch ~12 h earlier, for MSE trend
 let lastHourZ = 12;
@@ -74,7 +72,6 @@ let EXPORT_PX = null, BARB_GAP = 22;  // overrides during full-res export
 // design aspect (w/h) of each on-screen plot — fitCanvas() letterboxes to
 // these and fitLayout() sizes the dialog so the two together fill its width
 const PLOT_ASPECT = { skewt: 19 / 21, hodo: 14 / 15 };
-const SIDE_GAP = 12, TBL_MIN_W = 352, TBL_MAX_W = 660;   // side-by-side card: tables column bounds (352 = the 300px parcels table + panel padding + scrollbar)
 const MOBILE_MQ = matchMedia("(max-width: 1020px)");   // mirrors the stacked-layout CSS breakpoint
 const hourOf = s => { const m = /[T ](\d{2}):/.exec(String(s)); return m ? +m[1] : 12; };
 function doyOf(ymd) {                     // "YYYY-MM-DD" -> 1..366 on a 366-slot calendar (29 Feb = 60, 1 Mar = 61 every year)
@@ -85,7 +82,7 @@ function doyOf(ymd) {                     // "YYYY-MM-DD" -> 1..366 on a 366-slo
   return !leap && doy >= 60 ? doy + 1 : doy;
 }
 // climatology is anchored every 5 days; pick the nearest anchor (wrapping)
-function climoSlot(idxObj) {
+function climoSlot() {
   if (!climo || !climo.doy || lastDoy === null) return -1;
   let best = -1, bd = 1e9;
   climo.doy.forEach((a, i) => {
@@ -572,10 +569,10 @@ function cloudLayers(prof) {
 // conf = fraction of matched layers in that peak-RH bin that verified as BKN/OVC
 // ceilings in training.
 // Near the ground: a surface reading at 94-96 % RH is mist/haze, not fog, and
-// the ice-RH bar makes any cold surface layer look saturated. Of 618 live
-// soundings on 2026-10-06 the plain 94 % bar called 90 "obscured (fog)"; only 1
-// of them had a fog-model probability >= 50 %, 48 had T-Td > 0.5 C at the
-// surface and most were saturated at the surface level alone. So "obscured"
+// the ice-RH bar makes any cold surface layer look saturated. In a sample of
+// 618 live soundings the plain 94 % bar called 90 "obscured (fog)"; only 1 of
+// them had a fog-model probability >= 50 %, 48 had T-Td > 0.5 C at the surface
+// and most were saturated at the surface level alone. So "obscured"
 // needs water RH >= 97 % (T-Td <~ 0.4 C) continuously from the surface through
 // >= 30 m; otherwise, inside a surface-based moist layer below 300 m, a ceiling
 // base needs water RH >= 97 % held over >= 30 m (one wet level is not a deck).
@@ -743,7 +740,7 @@ function drawCloudChart(prof, res) {
     }
   }
   // DGZ edges + label AFTER the cloud boxes — a supercooled deck otherwise
-  // hides the band entirely (Goose Bay 2026-07-11 12Z)
+  // hides the band entirely
   for (const [zb, zt] of dgz) {
     if (zb > zTop) continue;
     const zt2 = Math.min(zt, zTop);
@@ -966,7 +963,7 @@ const CLIMO_FLOOR = { ecape: 100, ship: 0.5 };
 function climoPct(key, v) {                          // -> {pct, rec} or null
   if (!climo || !isFinite(v)) return null;
   const A = (climoTab() || {})[key];
-  const s = A ? climoSlot(A) : -1;
+  const s = A ? climoSlot() : -1;
   if (!A || s < 0 || !A.p[s] || A.p[s][0] === null || (A.n[s] || 0) < CLIMO_MIN_N)
     return null;
   const d = { p: A.p[s], min: A.min[s], max: A.max[s],
@@ -1074,7 +1071,7 @@ function openRecords() {
     const atHi = climoAllTime(k, "high");
     const atLo = lowMeaningful ? climoAllTime(k, "low") : null;
     if (!atHi) continue;
-    const s = A ? climoSlot(A) : -1;
+    const s = A ? climoSlot() : -1;
     const wOk = s >= 0 && A.max[s] !== null && (A.n[s] || 0) >= CLIMO_MIN_N;
     const wHi = wOk ? { v: A.max[s], y: A.maxY[s] } : null;
     const wLo = wOk && lowMeaningful ? { v: A.min[s], y: A.minY[s] } : null;
@@ -1117,7 +1114,6 @@ function openRecords() {
     `tying a mark counts as a record. Highlighted cells are marks this sounding takes over.`;
   document.getElementById("rec-modal").hidden = false;
 }
-const MIRROR = [CDN + "skewt-data/", GH_RAW + "skewt-data/"];   // CDN first; ghFetch("skewt-data", …) walks them
 const SPC = "https://www.spc.noaa.gov/exper/soundings";
 const IEM = "https://mesonet.agron.iastate.edu/json/raob.py";
 let iemMap = null;                                  // WMO -> ICAO (US/Canada)
@@ -1243,8 +1239,8 @@ function spcProfile(text) {
     `${tm[2].slice(0, 2)}:00` : "";
   return { prof: o, valid, src: "SPC real-time" };
 }
-// SPC files a few sites under an id that is not the ICAO minus its K (checked 2026-10-02: Albany is ALB at SPC,
-// KALY at IEM; Key West is KEY at SPC, KEYW at IEM). iem_raob.json holds the online IEM code for each WMO
+// SPC files a few sites under an id that is not the ICAO minus its K (Albany is ALB at SPC, KALY at IEM;
+// Key West is KEY at SPC, KEYW at IEM). iem_raob.json holds the online IEM code for each WMO
 // number, not whichever of several historical codes came last (Albany KRME, retired 1955).
 const SPC_ID = { "72518": "ALB", "72201": "KEY" };
 async function fetchSPCRaw(wmo) {
@@ -1325,7 +1321,7 @@ function noteLatest(id, valid) {
   rec.m.setStyle({ weight: 1.5, color: off ? MK.offRim : MK.liveRim, opacity: 1, fill: true,
                    fillColor: off ? MK.off : MK.live, fillOpacity: 0.95 });
   rec.m.setRadius(off ? RAD.live + 1 : RAD.live); rec.m.bringToFront();
-  rec.m.setTooltipContent(`${rec.n || id} (${id}) · latest ${valid}Z (${Math.round(ageHours(valid))} h ago)` +
+  rec.m.setTooltipContent(`${escH(rec.n || id)} (${escH(id)}) · latest ${valid}Z (${Math.round(ageHours(valid))} h ago)` +
     (off ? ` <b style="color:${MK.off}">· off-hour launch (${p2(launchHour(valid))}Z)</b>` : "") +
     " · found live; the map's own feed refreshes hourly");
 }
@@ -1414,7 +1410,7 @@ function redrawCharts() {
   if (modal.hidden || !lastProf || !lastRes) return;
   inRender = true;                          // we draw right below — no double draw
   try { fitLayout(); } finally { inRender = false; }
-  drawSkewT(lastProf, lastRes); drawHodo(lastProf, lastRes); drawMSE(lastProf);
+  drawSkewT(lastProf, lastRes); drawHodo(lastProf, lastRes);
 }
 addEventListener("resize", () => { clearTimeout(redrawTimer); redrawTimer = setTimeout(redrawCharts, 120); });
 if (window.ResizeObserver) new ResizeObserver(() => {
@@ -1540,8 +1536,7 @@ Promise.all([
   }
   // A station sits in the mirror manifest for up to 96 h (retention for the
   // per-launch archive), so "in the manifest" is NOT the same as "reported
-  // recently" — Glasgow showed as live on a launch 36 h old. Live means it
-  // reported at the last regular interval (00Z/12Z).
+  // recently". Live means it reported at the last regular interval (00Z/12Z).
   const isLive = id => id && entries[id] && entries[id].src !== "IGRA" &&
     ageHours(entries[id].dt) <= dueAgeH() + 1.2;
 
@@ -1593,9 +1588,9 @@ Promise.all([
     if (flag) {
       // record watch, in two voices: a station that SET a record today (for
       // the date or all-time) gets the loud red ring; one merely outside its
-      // 5th/95th percentile gets a thin warm ring. On 2026-09-02 222 stations
-      // carried a P95 flag and 34 set records — one ring for both made the
-      // whole map look like an emergency and hid the stations that mattered.
+      // 5th/95th percentile gets a thin warm ring. P95 flags outnumber records
+      // several-fold: one ring for both would make the whole map look like an
+      // emergency and hide the stations that matter.
       const isRec = flag.flags.some(f => f.rec);
       L.circleMarker([s.la, s.lo], isRec
         ? { radius: RAD.live + 4, weight: 3, color: MK.rec, opacity: 0.95, fill: false }
@@ -2024,7 +2019,7 @@ async function drawRecordMap() {
 
 document.getElementById("anom-toggle").addEventListener("click", async () => {
   document.getElementById("anom-modal").hidden = false;
-  // the record watch regenerates 6×/day — refetch when this tab's copy is
+  // the record watch regenerates hourly — refetch when this tab's copy is
   // older than 10 min, so a long-open page never shows yesterday's records
   if (Date.now() - feedsLoadedAt > 10 * 60e3) {
     try {
@@ -2164,8 +2159,7 @@ function buildExportCanvas(fscale = 1) {
 function buildFullCard() {
   const keep = lastProf;
   try {
-    EXPORT_PX = { skewt: { w: 1150, h: 1750, fs: 1.5 }, hodo: { w: 950, h: 950, fs: 1.5 },
-                  mse: { w: 950, h: 560, fs: 1.5 } };
+    EXPORT_PX = { skewt: { w: 1150, h: 1750, fs: 1.5 }, hodo: { w: 950, h: 950, fs: 1.5 } };
     BARB_GAP = 10;
     render(lastProfFull || keep);
     return buildExportCanvas(1.5);
@@ -2329,16 +2323,18 @@ function hoursOn(ymd) {
 function renderHours() {
   const known = hoursOn(archDate);
   // nothing known (station not loaded, or a date before the mirror window with
-  // no IGRA text yet): fall back to the synoptic pair and say so via title
-  const hours = known.length ? known : [0, 12];
-  if (!hours.includes(archHour)) {
-    // the chosen hour does not exist on this date — snap to the nearest one
-    archHour = hours.reduce((a, b) => Math.abs(b - archHour) < Math.abs(a - archHour) ? b : a);
+  // no IGRA text yet): show the synoptic pair plus the requested hour and say so
+  // via title. archHour is left alone - a deep link to an off-hour launch must
+  // still ask the sources for that hour; it snaps only once a real launch list
+  // says the hour does not exist on this date.
+  const hours = known.length ? known : [...new Set([0, 12, archHour])].sort((a, b) => a - b);
+  if (known.length && !known.includes(archHour)) {
+    archHour = known.reduce((a, b) => Math.abs(b - archHour) < Math.abs(a - archHour) ? b : a);
   }
   const html = hours.map(h =>
     `<button data-hour="${h}" class="${h % 6 ? "special" : ""}${h === archHour ? " on" : ""}" aria-pressed="${h === archHour}"` +
     ` title="${known.length ? (h % 6 ? "off-hour (special) release" : "synoptic launch")
-                             : "no launch list for this date yet — 00Z/12Z assumed"}">${hourZ(h)}</button>`).join("");
+                             : "no launch list for this date yet"}">${hourZ(h)}</button>`).join("");
   document.querySelectorAll(".hours").forEach(el => { el.innerHTML = html; });
 }
 const MON_S = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
@@ -2366,9 +2362,9 @@ function renderLaunchStrip() {
     }
     const on = lastValidDt === h;
     const [ls, lb] = (me.hours || []).includes(h) ? launchSrc(me, h) : [null, null];
-    const via = ls === "WIS2" ? ` — WMO WIS 2.0, ${centreName(lb)}` : ls === "IEM" ? " — IEM"
+    const via = ls === "WIS2" ? ` — WMO WIS 2.0, ${escH(centreName(lb))}` : ls === "IEM" ? " — IEM"
       : ls === "ECCC" ? " — Environment and Climate Change Canada (MSC Datamart)"
-      : ls === "TAC" ? ` — WMO GTS TEMP via WIS 2.0, ${centreName(lb)}` : "";
+      : ls === "TAC" ? ` — WMO GTS TEMP via WIS 2.0, ${escH(centreName(lb))}` : "";
     html += `<button data-launch="${h}" class="${hh % 6 ? "special" : ""}${on ? " on" : ""}" aria-pressed="${on}"` +
       ` title="${d} ${hourZ(hh)}${hh % 6 ? " — off-hour (special) release" : ""}${via}${on ? " — on screen" : ""}">${hourZ(hh)}</button>`;
   }
@@ -2421,7 +2417,7 @@ function stepDate(dir) {
     let i = known.findIndex(h => h >= cur);
     if (i < 0) i = known.length;                        // past the newest
     let j;
-    if (dir < 0) j = (known[i] === cur) ? i - 1 : i - 1;
+    if (dir < 0) j = i - 1;
     else j = (known[i] === cur) ? i + 1 : i;
     if (j >= 0 && j < known.length) {
       archDate = known[j].slice(0, 10); archHour = +known[j].slice(11, 13);
@@ -2645,8 +2641,8 @@ function parseIGRA(text, gid, ymd, wantHour, elev) {
   thermo.sort((a, b) => b.p - a.p);
   winds.sort((a, b) => b.p - a.p);
   // "wind-only" means genuinely no usable thermo — NOT "coarse". 1960s marine
-  // records (ships, buoy sites) carry 5-7 mandatory-level temperatures and the
-  // old <8 cutoff threw them away (Environm Buoy 44005, 1963-09-30 00Z).
+  // records (ships, buoy sites) carry 5-7 mandatory-level temperatures, which
+  // an 8-level cutoff would throw away.
   const windOnly = thermo.length < 3;
   if (windOnly && winds.length < 4) return null;
   const windAtP = p => {
@@ -2717,13 +2713,11 @@ async function loadSounding() {
       if (stale()) return;
       // SPC/IEM walk back up to 3 slots when the newest is missing on their
       // side — never let that beat a NEWER launch already on the mirror
-      // (Chanhassen 2026-07-12 00Z: SPC 404'd it, walked back to 12Z 07-11,
-      // and won over the mirror's 00Z).
       if (got && s && s.dt && s.dt > got.valid) got = null;
       if (got) {
         setStatus(`valid ${got.valid}Z · ${got.prof.P.length} levels (${got.src})`);
         plotTitle = `${current.n || ""} ${current.id}  ·  ${got.valid}Z`.trim();
-        plotNote = ""; lastMonth = got.valid.slice(5, 7); lastDoy = doyOf(got.valid); lastHourZ = hourOf(got.valid);
+        plotNote = ""; lastDoy = doyOf(got.valid); lastHourZ = hourOf(got.valid);
         lastValidDt = got.valid;
         noteLatest(current.id, got.valid);
         render(thin(lastProfFull = got.prof));
@@ -2740,7 +2734,7 @@ async function loadSounding() {
         if (!prof) throw 0;
         setStatus(`valid ${s.dt}Z · ${prof.P.length} levels (${srcLabel(s.src, s.by)})`);
         plotTitle = `${current.n || ""} ${current.id}  ·  ${s.dt}Z`.trim();
-        plotNote = ""; lastMonth = s.dt.slice(5, 7); lastDoy = doyOf(s.dt); lastHourZ = hourOf(s.dt);
+        plotNote = ""; lastDoy = doyOf(s.dt); lastHourZ = hourOf(s.dt);
         lastValidDt = s.dt;
         render(thin(lastProfFull = prof));
         return;
@@ -2772,7 +2766,7 @@ async function loadSounding() {
           const [hs, hb] = launchSrc(me, wantDt);
           setStatus(`valid ${wantDt}Z · ${prof.P.length} levels (${srcLabel(hs, hb)})`);
           plotTitle = `${current.n || ""} ${current.id}  ·  ${wantDt}Z`.trim();
-          plotNote = ""; lastMonth = wantDt.slice(5, 7); lastDoy = doyOf(wantDt); lastHourZ = hourOf(wantDt);
+          plotNote = ""; lastDoy = doyOf(wantDt); lastHourZ = hourOf(wantDt);
           lastValidDt = wantDt;
           render(thin(lastProfFull = prof));
           return;
@@ -2794,16 +2788,23 @@ async function loadSounding() {
     if (stale()) return;                  // user switched station mid-download
     const bundle = dayZipCache.get(dkey);
     if (bundle) {
-      const want = `${current.id}_${dkey}${String(archHour).padStart(2, "0")}.csv`;
-      const alt = Object.keys(bundle).find(k => k.startsWith(current.id + "_"));
-      const pick = bundle[want] ? want : alt;
+      const want = `${current.id}_${dkey}${p2(archHour)}.csv`;
+      let pick = bundle[want] ? want : null;
+      if (!pick) {
+        // the requested hour is not in the bundle: the station's launch nearest
+        // to it that day (the newest one in Latest mode)
+        const mine = Object.keys(bundle).filter(k => k.startsWith(current.id + "_") && k.endsWith(".csv")).sort();
+        const hhOf = k => +k.slice(-6, -4);
+        pick = mode === "latest" ? mine[mine.length - 1]
+          : mine.reduce((a, k) => !a || Math.abs(hhOf(k) - archHour) < Math.abs(hhOf(a) - archHour) ? k : a, null);
+      }
       if (pick) {
         const prof = parseCSV((await needFflate()).strFromU8(bundle[pick]));
         if (prof) {
           const hh = pick.slice(-6, -4);
           setStatus(`valid ${ymd} ${hh}Z · ${prof.P.length} levels (day archive)`);
           plotTitle = `${current.n || ""} ${current.id}  ·  ${ymd} ${hh}Z`.trim();
-          plotNote = ""; lastMonth = ymd.slice(5, 7); lastDoy = doyOf(ymd); lastHourZ = +hh;
+          plotNote = ""; lastDoy = doyOf(ymd); lastHourZ = +hh;
           lastValidDt = `${ymd} ${hh}:00`;
           render(thin(lastProfFull = prof));
           return;
@@ -2811,7 +2812,7 @@ async function loadSounding() {
       }
     }
   }
-  if (!current.gid) { setStatus("station not in the IGRA archive"); return; }
+  if (!current.gid) { clearPlot("station not in the IGRA archive"); return; }   // never leave the previous station's plot under this name
   const text = await igraText(current.gid, +ymd.slice(0, 4));
   if (stale()) return;
   if (!text) { clearPlot("IGRA archive file unavailable for this station"); return; }
@@ -2850,7 +2851,7 @@ async function loadSounding() {
     ? "⚠ WIND-ONLY DATA (pilot balloon) — no temperature; hodograph valid" : "";
   // shown is date-only — hourOf() would default every IGRA sounding to 12Z and
   // skew the fog model + same-hour climatology for 00Z launches; use the real hour
-  lastMonth = shown.slice(5, 7); lastDoy = doyOf(shown); lastHourZ = got.hh;
+  lastDoy = doyOf(shown); lastHourZ = got.hh;
   lastValidDt = `${shown} ${String(got.hh).padStart(2, "0")}:00`;
   render(thin(lastProfFull = got.prof));
 }
@@ -2875,15 +2876,15 @@ async function queuePrev12() {
     if (best) {
       const pr = copyProf(best.it.prof); sanitizeHeights(pr); fillDewpoints(pr);
       prev12 = { prof: pr, dt: best.it.valid, backH: Math.round(best.back), M: mseProfile(pr), forKey: key };
-      if (lastProf && lastRes) { fillTables(lastProf, lastRes); drawMSE(lastProf); }
+      if (lastProf && lastRes) fillTables(lastProf, lastRes);
     }
     return;
   }
   const me = current.id ? entries[current.id] : null;
   if (me && me.hours) {
     let best = null;
-    // ideal is 12 h, but a once-daily station (Green Bay flies only 18Z right
-    // now) can only offer ~24 h — take it and let the Δ label say so
+    // ideal is 12 h, but a once-daily station can only offer ~24 h — take it
+    // and let the Δ label say so
     for (const hstr of me.hours) {
       const back = (t0 - Date.parse(hstr.replace(" ", "T") + ":00Z")) / 3600e3;
       if (back >= 6 && back <= 30 &&
@@ -2956,7 +2957,7 @@ async function queuePrev12() {
     got.M = mseProfile(got.prof);
     got.forKey = key;
     prev12 = got;
-    if (lastProf && lastRes) { fillTables(lastProf, lastRes); drawMSE(lastProf); }
+    if (lastProf && lastRes) fillTables(lastProf, lastRes);
   }
 }
 // prev12 only if it belongs to the sounding on screen — a station switch renders
@@ -2970,7 +2971,7 @@ function prev12Live() {
 function compute(prof) {
   const N = prof.P.length;
   const ptrs = ["P", "H", "T", "D", "U", "V"].map(k => f32(prof[k]));
-  const nOut = M._out_size();          // ask the WASM; never hardcode (it drifted twice)
+  const nOut = M._out_size();          // ask the WASM; never hardcode the output size
   const out = M._malloc(nOut * 4);
   const tr = [M._malloc(N * 4), M._malloc(N * 4), M._malloc(N * 4)];
   const _rc = M._compute_sounding(...ptrs, N, out, tr[0], tr[1], tr[2]);
@@ -3289,9 +3290,9 @@ function sanitizeHeights(prof) {
   return fixed;
 }
 
-// A single missing dewpoint poisons any column integral — SPC's Albuquerque file
-// omits it on 4 stratospheric levels and PWAT came out NaN for the whole
-// sounding. Heights and winds were already gap-filled; dewpoint was not.
+// A single missing dewpoint poisons any column integral — SPC files omit it on
+// some stratospheric levels, which would make PWAT NaN for the whole sounding.
+// Heights and winds are gap-filled the same way.
 function fillDewpoints(prof) {
   const P = prof.P, T = prof.T, D = prof.D;
   const ok = [];
@@ -3390,8 +3391,8 @@ function drawSkewT(prof, res) {
   const yOf = p => SK.t + (1 - Math.log(SK.pBot / p) / Math.log(SK.pBot / SK.pTop)) * ph;
   // The 45° skew shifts a point right by (bottom − y) pixels, so a HOT surface
   // at a HIGH-ELEVATION station — whose surface already sits well up the diagram
-  // — can land past the right edge and be clipped (Albuquerque, 1619 m: 37.6 °C
-  // at 836 hPa overflowed by 12 px). Widen the temperature axis until the whole
+  // — can land past the right edge and be clipped (a 1600 m station at 37 °C
+  // overflows by several px). Widen the temperature axis until the whole
   // profile fits, rather than silently cropping the data.
   // The skew must scale with the plot's ASPECT, not 1 px right per 1 px up.
   // On the old 760×840 canvas those were nearly the same thing; on a tall
@@ -3726,111 +3727,6 @@ function drawBarbs(ctx, prof, x0, yOf) {
 }
 
 // ---------- hodograph ----------
-function drawMSE(prof) {
-  const cv = document.getElementById("mse");
-  if (!cv) return;                       // panel retired from the dialog; table remains
-  const { W, H, ctx } = fitCanvas(cv);
-  ctx.fillStyle = TH.bg; ctx.fillRect(0, 0, W, H);
-  const m = mseProfile(prof);
-  const L = 56, R = 12, T = 92, B = 40, zTop = 12000;
-  // Scale the axis to the levels we actually DRAW. Using the whole column would
-  // let stratospheric h* (~490 kJ/kg — the g·z term) set the range and crush the
-  // low-level structure that matters into a few pixels.
-  const vals = [];
-  for (let i = 0; i < m.z.length; i++) {
-    if (!isFinite(m.z[i]) || m.z[i] > zTop) continue;
-    if (isFinite(m.h[i])) vals.push(m.h[i]);
-    if (isFinite(m.hs[i])) vals.push(m.hs[i]);
-  }
-  if (isFinite(m.hbl)) vals.push(m.hbl);
-  const p12v = prev12Live();
-  const pv = p12v ? p12v.M : null;                     // ~12 h earlier, faded
-  if (pv) for (let i = 0; i < pv.z.length; i++) {
-    if (!isFinite(pv.z[i]) || pv.z[i] > zTop) continue;
-    if (isFinite(pv.h[i])) vals.push(pv.h[i]);
-    if (isFinite(pv.hs[i])) vals.push(pv.hs[i]);
-  }
-  if (vals.length < 2) return;
-  const pad = Math.max(1.5, (Math.max(...vals) - Math.min(...vals)) * 0.06);
-  let lo = Math.min(...vals) - pad, hi = Math.max(...vals) + pad;
-  const X = v => L + (W - L - R) * (v - lo) / (hi - lo);
-  const Y = z => T + (H - T - B) * (1 - Math.min(z, zTop) / zTop);
-
-  ctx.strokeStyle = "#22223a"; ctx.fillStyle = "#8b8ba3"; ctx.font = "14px Inter";
-  ctx.textAlign = "right";
-  for (let z = 0; z <= zTop; z += 3000) {                  // height grid
-    const y = Y(z);
-    ctx.beginPath(); ctx.moveTo(L, y); ctx.lineTo(W - R, y); ctx.stroke();
-    ctx.fillText(z / 1000 + "km", L - 3, y + 3);
-  }
-  // shade the layer where a boundary-layer parcel is buoyant (h_BL > h*)
-  if (isFinite(m.hbl)) {
-    ctx.fillStyle = "rgba(48,209,88,0.16)";
-    for (let i = 1; i < m.z.length; i++) {
-      if (!isFinite(m.hs[i]) || m.z[i] > zTop) continue;
-      if (m.hbl > m.hs[i]) {
-        const y1 = Y(m.z[i]), y0 = Y(m.z[i - 1]);
-        ctx.fillRect(X(m.hs[i]), y1, Math.max(1, X(m.hbl) - X(m.hs[i])), Math.abs(y0 - y1) + 1);
-      }
-    }
-  }
-  const line = (arr, col, wd, zs) => {
-    const Z = zs || m.z;
-    ctx.strokeStyle = col; ctx.lineWidth = wd; ctx.beginPath(); let st = false;
-    for (let i = 0; i < arr.length; i++) {
-      if (!isFinite(arr[i]) || Z[i] > zTop) continue;
-      const x = X(arr[i]), y = Y(Z[i]);
-      st ? ctx.lineTo(x, y) : ctx.moveTo(x, y); st = true;
-    }
-    ctx.stroke();
-  };
-  if (pv) {                                                // 12 h ago, underneath
-    line(pv.hs, "rgba(255,69,58,0.28)", 1.4, pv.z);
-    line(pv.h, "rgba(74,155,240,0.30)", 1.4, pv.z);
-  }
-  line(m.hs, "#ff453a", 2);                                // saturation MSE (h*)
-  line(m.h, "#4a9bf0", 2.2);                               // MSE (h)
-  if (isFinite(m.hbl)) {                                   // boundary-layer h
-    ctx.strokeStyle = "#ffd60a"; ctx.lineWidth = 1.4; ctx.setLineDash([5, 4]);
-    ctx.beginPath(); ctx.moveTo(X(m.hbl), T); ctx.lineTo(X(m.hbl), H - B); ctx.stroke();
-    ctx.setLineDash([]);
-  }
-  // legend — spell out what each curve actually is
-  ctx.textAlign = "left";
-  ctx.font = "600 13px Inter"; ctx.fillStyle = TH.ink;
-  ctx.fillText("Moist static energy", 6, 14);
-  const key = [
-    ["#4a9bf0", "solid", "environmental h"],
-    ["#ff453a", "solid", "h* — saturation"],
-    ["#ffd60a", "dash",  "boundary-layer h"],
-    ["rgba(48,209,88,0.55)", "fill", "buoyant: h(BL) > h*"],
-  ];
-  if (pv) key.push(["rgba(160,160,190,0.5)", "solid", `faded: ${p12v.backH} h earlier`]);
-  ctx.font = "11px Inter";
-  key.forEach(([col, kind, lab], i) => {
-    const y = 30 + i * 14;
-    if (kind === "fill") { ctx.fillStyle = col; ctx.fillRect(6, y - 6, 16, 7); }
-    else {
-      ctx.strokeStyle = col; ctx.lineWidth = 2.4;
-      ctx.setLineDash(kind === "dash" ? [4, 3] : []);
-      ctx.beginPath(); ctx.moveTo(6, y - 3); ctx.lineTo(22, y - 3); ctx.stroke();
-      ctx.setLineDash([]);
-    }
-    ctx.fillStyle = "#a8a8c2"; ctx.fillText(lab, 27, y);
-  });
-  // x ticks (the axis now spans only the plotted layer, so these are legible)
-  ctx.fillStyle = "#8b8ba3"; ctx.strokeStyle = "#22223a"; ctx.textAlign = "center";
-  ctx.font = "14px Inter";
-  const span = hi - lo;
-  const step = span > 140 ? 50 : span > 90 ? 30 : span > 60 ? 20
-    : span > 30 ? 10 : span > 15 ? 5 : 2;
-  for (let v = Math.ceil(lo / step) * step; v <= hi; v += step) {
-    ctx.beginPath(); ctx.moveTo(X(v), H - B); ctx.lineTo(X(v), H - B + 3); ctx.stroke();
-    ctx.fillText(String(Math.round(v)), X(v), H - B + 13);
-  }
-  ctx.fillText("kJ/kg", (L + W - R) / 2, H - 4);
-}
-
 function drawHodo(prof, res) {
   const cv = document.getElementById("hodo");
   const { W, H, ctx } = fitCanvas(cv);
@@ -4234,8 +4130,7 @@ function fillTables(prof, res) {
   const Cw = k => { const u = interpP(prof, "U", k * 100), v = interpP(prof, "V", k * 100);
     return (isFinite(u) && isFinite(v)) ? Math.hypot(u, v) : NaN; };
   const s850 = Cw(850), s250 = Cw(250);
-  // (K-index and Total Totals are deliberately NOT shown — legacy indices the
-  //  author has no use for; the climatology JSON still carries them)
+  // (K-index and Total Totals are not shown; the climatology JSON still carries them)
   const fzl = freezingLvlAgl(prof);
   const g = (v, u, dp = 1) => isFinite(v) ? v.toFixed(dp) + u : "—";
   const levels = [
@@ -4410,8 +4305,6 @@ function fillTables(prof, res) {
   fitLayout();
 }
 
-// The tables keep a readable font and scroll in the right column; nothing shrinks to fit.
-function fitTables() {}
 // Size the sounding card: the skew-T column is as wide as the card height allows at its aspect; the right column
 // (hodograph, key numbers, tables) gets 400-760 px; the card itself is no wider than the two need.
 let inRender = false;                 // render()/redrawCharts() draw right after fitLayout — no double draw
@@ -4454,9 +4347,8 @@ document.getElementById("dlg-footer").addEventListener("click",
 function clearPlot(msg) {
   setStatus(msg || "no data");
   sizePlots();
-  for (const id of ["skewt", "hodo", "mse"]) {
+  for (const id of ["skewt", "hodo"]) {
     const cv = document.getElementById(id);
-    if (!cv) continue;
     const ctx = cv.getContext("2d");
     ctx.fillStyle = "#0a0a14"; ctx.fillRect(0, 0, cv.width, cv.height);
     ctx.fillStyle = "#8b8ba3"; ctx.font = "600 16px Inter"; ctx.textAlign = "center";
@@ -4526,7 +4418,7 @@ function render(prof) {
   lastProf = prof; lastRes = res;
   // deep tropical soundings: the tropopause/cold point sits near 100 hPa and
   // was clipped at the old fixed plot top — extend to 70 hPa when the trop is
-  // high and the data reaches it (Majuro 2026-07-11 topped at 64 hPa)
+  // high and the data reaches it
   const tpTop = tropopause(prof);
   SK.pTop = (isFinite(tpTop.wmoP) && tpTop.wmoP < 12500 &&
              prof.P[prof.P.length - 1] < 9000) ? 7000 : 10000;
@@ -4540,11 +4432,8 @@ function render(prof) {
   } finally { inRender = false; }
   drawSkewT(prof, res);
   drawHodo(prof, res);
-  drawMSE(prof);
   plotLabels(prof, res);
   renderLaunchStrip(); renderHours();
-  if (false) for (const id of ["pcl-table", "kin-table", "kin-table-b", "kin-table2", "kin-table3", "mse-table", "winter-table"])
-    document.getElementById(id).innerHTML = "";
 }
 
 // text alternatives for the two plots: what each shows and its headline numbers (the tables carry the rest)
@@ -4750,7 +4639,7 @@ async function showModelHour(i) {
   MS.wait = -1; MS.shown = i;
   plotTitle = `${MS.title}  ·  ${it.label}  ·  ${it.valid.slice(5, 13)}Z`;
   plotCoords = MS.coords; plotNote = "";
-  lastMonth = it.valid.slice(5, 7); lastDoy = doyOf(it.valid); lastHourZ = hourOf(it.valid); lastValidDt = it.valid;
+  lastDoy = doyOf(it.valid); lastHourZ = hourOf(it.valid); lastValidDt = it.valid;
   setStatus(MS.kind === "drop" ? (it.status || `${MS.model} · ${it.label} · ${it.prof.P.length} levels`)
     : `${MS.model} forecast ${it.label} · valid ${it.valid}Z · ${it.prof.P.length} levels`);
   render(lastProfFull = copyProf(it.prof));         // render() sanitises in place: never hand it the stored profile
