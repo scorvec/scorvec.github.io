@@ -292,7 +292,9 @@ def main() -> int:
     for name in ("truth", "archive"):
         s = sub.add_parser(name)
         s.add_argument("--since", default=str(EPOCH.date()))
-        s.add_argument("--until", default=str((pd.Timestamp.utcnow().tz_localize(None) - pd.Timedelta(days=6)).date()))
+        s.add_argument(
+            "--until", default=str((pd.Timestamp.now("UTC").tz_localize(None) - pd.Timedelta(days=6)).date())
+        )
         s.add_argument("--part", default="0/1")
         s.add_argument("--out", required=True)
         if name == "archive":

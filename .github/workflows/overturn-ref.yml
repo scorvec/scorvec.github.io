@@ -90,6 +90,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          shopt -s nullglob   # no published reference yet: prev/*.npz expands to nothing
           mkdir -p prev
           gh release download overturn-ref-v1 -R "$GITHUB_REPOSITORY" -p overturn_ref.npz -D prev 2>/dev/null || echo "no published reference yet"
           ls -la parts prev
