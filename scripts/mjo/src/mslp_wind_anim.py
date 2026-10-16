@@ -113,11 +113,9 @@ def model_means(cyc, short):
 
 
 # Single (deterministic) runs. Each gets its own loop on the same map and scales; drawn on the AIFS-ENS 0.25-deg grid of
-# the subdomain.
-SINGLE = {"aifs0": "AIFS-ENS member 0", "aifs1": "AIFS single", "hres": "IFS HRES", "gdps": "GDPS"}
-GDPS_URL = (
-    "https://dd.weather.gc.ca/{d}/WXO-DD/model_gdps/15km/{c}/{L:03d}/{d}T{c}Z_MSC_GDPS_{v}_LatLon0.15_PT{L:03d}H.grib2"
-)
+# the subdomain. The GDPS loop on the page is scripts/sst/gdps_eq_charts.py's (gdps-charts.yml, posted as soon as the
+# run is out, hours before these).
+SINGLE = {"aifs0": "AIFS-ENS member 0", "aifs1": "AIFS single", "hres": "IFS HRES"}
 
 
 def _grib_field(blob):
@@ -139,8 +137,8 @@ def _grib_field(blob):
 
 
 def single_fields(key, cyc, lat, lon):
-    """{msl (Pa), 10u, 10v}: DataArray (step, latitude, longitude) on the target lat/lon, daily steps. ECMWF single runs
-    are byte-ranged from the Google Cloud mirror only (oper fc); GDPS (to day 10) comes from the ECCC Datamart."""
+    """{msl (Pa), 10u, 10v}: DataArray (step, latitude, longitude) on the target lat/lon, daily steps. AIFS-ENS member 0
+    comes from the cached cf batch; AIFS single and IFS HRES are byte-ranged from the Google Cloud mirror only (oper fc)."""
     if key == "aifs0":
 
         def sp(t, f):
@@ -149,59 +147,34 @@ def single_fields(key, cyc, lat, lon):
         return {
             f: _open([sp("cf", f)], f).isel(number=0).interp(latitude=lat, longitude=lon) for f in ("msl", "10u", "10v")
         }
+    import rangefetch as rf
+
     out = {f: [] for f in ("msl", "10u", "10v")}
     steps = []
-    if key in ("aifs1", "hres"):
-        import rangefetch as rf
-
-        model = "aifs-single" if key == "aifs1" else "ifs"
-        for st in DAILY_STEPS:
-            try:
-                idx = rf.fetch_index(cyc.date, cyc.time, model, st, "fc", stream="oper")
-            except Exception as e:  # noqa: BLE001
-                print(f"  {key} +{st}h: not on the Google mirror ({str(e)[:60]})", flush=True)
-                break
-            want = sorted(
-                [e for e in idx if e.get("levtype") == "sfc" and e.get("param") in out], key=lambda e: e["_offset"]
-            )
-            if len(want) < 3:
-                break
-            blob = rf.fetch_ranges(
-                rf.path_for(cyc.date, cyc.time, model, st, "fc", stream="oper") + ".grib2", rf.coalesce(want)
-            )
-            pos = 0
-            for e in want:
-                out[e["param"]].append(_grib_field(blob[pos : pos + e["_length"]]).interp(latitude=lat, longitude=lon))
-                pos += e["_length"]
-            steps.append(st)
-    elif key == "gdps":
-        import requests
-
-        names = {"msl": "Pressure_MSL", "10u": "WindU_AGL-10m", "10v": "WindV_AGL-10m"}
-        for st in [s for s in DAILY_STEPS if s <= 240]:
-            got = {}
-            for f, nm in names.items():
-                r = requests.get(
-                    GDPS_URL.format(d=cyc.date, c=cyc.time, L=st, v=nm),
-                    timeout=120,
-                    headers={"User-Agent": "scorvec-enso/1.0"},
-                )
-                if r.status_code != 200:
-                    break
-                got[f] = _grib_field(r.content).interp(latitude=lat, longitude=lon)
-            if len(got) < 3:
-                print(f"  gdps +{st}h: not on the Datamart", flush=True)
-                break
-            for f in out:
-                out[f].append(got[f])
-            steps.append(st)
+    model = "aifs-single" if key == "aifs1" else "ifs"
+    for st in DAILY_STEPS:
+        try:
+            idx = rf.fetch_index(cyc.date, cyc.time, model, st, "fc", stream="oper")
+        except Exception as e:  # noqa: BLE001
+            print(f"  {key} +{st}h: not on the Google mirror ({str(e)[:60]})", flush=True)
+            break
+        want = sorted(
+            [e for e in idx if e.get("levtype") == "sfc" and e.get("param") in out], key=lambda e: e["_offset"]
+        )
+        if len(want) < 3:
+            break
+        blob = rf.fetch_ranges(
+            rf.path_for(cyc.date, cyc.time, model, st, "fc", stream="oper") + ".grib2", rf.coalesce(want)
+        )
+        pos = 0
+        for e in want:
+            out[e["param"]].append(_grib_field(blob[pos : pos + e["_length"]]).interp(latitude=lat, longitude=lon))
+            pos += e["_length"]
+        steps.append(st)
     if not steps:
         raise RuntimeError(f"{key}: no fields")
     td = np.array(steps, "timedelta64[h]").astype("timedelta64[ns]")
-    res = {f: xr.concat(v, "step").assign_coords(step=td) for f, v in out.items()}
-    if float(res["msl"].median()) < 2000:  # GDPS publishes MSLP in hPa? keep Pa throughout
-        res["msl"] = res["msl"] * 100.0
-    return res
+    return {f: xr.concat(v, "step").assign_coords(step=td) for f, v in out.items()}
 
 
 def wait_for_ifs(cyc, minutes):
@@ -271,9 +244,7 @@ def main() -> int:
     ap.add_argument("--anim-dir", default="assets/sst/anim/mslp_wind")
     ap.add_argument("--manifest", default="assets/sst/anim/mslp_wind_manifest.json")
     ap.add_argument("--wait-ifs", type=float, default=0, help="minutes to wait for IFS-ENS day 15 on the Google mirror")
-    ap.add_argument(
-        "--single", default="aifs0,aifs1,hres,gdps", help="single runs to add as their own loops ('' = none)"
-    )
+    ap.add_argument("--single", default="aifs0,aifs1,hres", help="single runs to add as their own loops ('' = none)")
     args = ap.parse_args()
     cyc = ecmwf.Cycle(args.date, args.time)
     init = np.datetime64(f"{args.date[:4]}-{args.date[4:6]}-{args.date[6:8]}T{args.time}:00")

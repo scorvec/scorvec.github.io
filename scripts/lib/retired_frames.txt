@@ -24,3 +24,7 @@ assets/sst/anim/wave1_500
 # E-P flux loops, replaced by the GEFS loop (assets/sst/anim/epflux_gefs). strat.yml also prunes them directly.
 assets/sst/anim/epflux
 assets/sst/anim/epflux_ifs
+
+# Retired 2026-10-16: the GDPS single-run MSLP + 10 m wind loop drawn in mjo.yml. The page's GDPS choice is now
+# gdps-charts.yml's own loop (assets/sst/anim/gdps_wind), posted hours earlier, as soon as the run is out.
+assets/sst/anim/mslp_wind_gdps
