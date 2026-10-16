@@ -6,7 +6,6 @@ themselves so it never goes stale:
   stage pages (window.STAGE) and the GEPS/GEFS pages (var P / GROUPS)  ->  scripts/site/catalog_eval.js runs their
       inline scripts in node with the DOM stubbed out and calls the spec's own functions, so option lists, image
       URLs, loop manifests and captions are the real ones, not regex guesses;
-  rail pages (<main data-rail>)  ->  every .card with its data-label / data-group / id (rail.js makes the same ids);
   single-figure pages  ->  one entry each, described from the chrome's PRODUCTS table.
 Each product gets exactly ONE topic (the page's, with group-level overrides such as the ENSO page's CMIP6 impacts
 under Research), tags for the filters (model, range, region, variable), search keywords from its About text, deep
@@ -659,67 +658,6 @@ def stage_items(href: str, cfg: dict) -> list:
     return items
 
 
-def rail_items(href: str, cfg: dict) -> list:
-    """rail.js pages: every element the page's data-rail selector names (".card" on both rail pages)."""
-    path = REPO / cfg["file"]
-    html = path.read_text()
-    main = re.search(r"<main[^>]*data-rail[^>]*>(.*)</main>", html, re.S)
-    body = main.group(1) if main else html
-    starts = list(re.finditer(r'<(div|section|article)\s+class="card\b[^"]*"([^>]*)>', body))
-    used, items = set(), []
-    for i, m in enumerate(starts):
-        chunk = body[m.start() : starts[i + 1].start() if i + 1 < len(starts) else len(body)]
-        attrs = m.group(0)
-
-        def attr(n, attrs=attrs):
-            a = re.search(rf'{n}="([^"]*)"', attrs)
-            return H.unescape(a.group(1)) if a else ""
-
-        label = (
-            attr("data-label")
-            or text_of((re.search(r"<h[23][^>]*>(.*?)</h[23]>", chunk, re.S) or [None, ""])[1])
-            or "Figure"
-        )
-        if label == "About this page":
-            continue
-        pid = (
-            attr("id") or re.sub(r"^-|-$", "", re.sub(r"[^a-z0-9]+", "-", re.sub(r"&[a-z]+;", "", label.lower())))[:60]
-        )
-        while pid in used:
-            pid += "-2"
-        used.add(pid)
-        img = re.search(r'<img[^>]+(?:data-src|src)="([^"]+\.(?:webp|png|jpg))[^"]*"', chunk)
-        thumb = thumb_key(img.group(1), False) if img and not img.group(1).startswith("data:") else None
-        about = text_of(chunk)
-        head = text_of((re.search(r"<h[23][^>]*>(.*?)</h[23]>", chunk, re.S) or [None, ""])[1])
-        shows = " ".join([label, attr("data-group"), head])
-        items.append(
-            dict(
-                id=f"{href}#{pid}",
-                page=href,
-                page_title=cfg["title"],
-                group=attr("data-group") or "Figures",
-                label=label,
-                sub="",
-                url=f"{href}#{pid}",
-                topic=cfg["topic"],
-                horizon=cfg["horizon"],
-                models=tags(MODEL_RX, shows, cfg["models"]),
-                regions=regions_of(shows, cfg["region"]),
-                variables=tags(VAR_RX, label + " " + about[:1500]),
-                thumb=thumb,
-                cap="",
-                kw=public(about)[:600],
-                variants=[],
-                live=True,
-                tier=cfg["tier"],
-                prio=cfg["prio"],
-                kind="fig" if thumb else "chart",
-            )
-        )
-    return items
-
-
 def mjo_items() -> list:
     """mjo.html's two sections below the forecast: the ENSO-removed
     index, and the impacts composites with a deep link and a figure for every selector combination (field x data x
@@ -969,8 +907,6 @@ def build(index_path: str | None = None) -> dict:
             for it in got:
                 it["live"] = False  # GEPS/GEFS pages read the hash only on load
             items += got
-        elif cfg["kind"] == "rail":
-            items += rail_items(href, cfg)
     items += page_items()
     items += mjo_items()
     for it in items:

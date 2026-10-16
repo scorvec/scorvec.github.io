@@ -566,11 +566,7 @@ PAGES += [
     dict(path=f"topics/{p.name}", mode="after-body", footer=True) for p in sorted((REPO / "topics").glob("*.html"))
 ]
 
-HEAD_SNIPPET = (
-    '<link rel="stylesheet" href="/assets/site.css">\n'
-    '<script src="/assets/site.js" defer></script>\n'
-    '<script src="/assets/rail.js" defer></script>\n'
-)
+HEAD_SNIPPET = '<link rel="stylesheet" href="/assets/site.css">\n<script src="/assets/site.js" defer></script>\n'
 
 # ── web fonts: one Google Fonts request per page, for exactly the families it draws ─────────────────────────────
 # site.css sets the type on every page (Source Serif 4 for titles, Source Sans 3 for text), and its html-prefixed
@@ -615,7 +611,6 @@ def with_fonts(html: str, path: str) -> str:
 VERSIONED = (
     "site.css",
     "site.js",
-    "rail.js",
     "stage.css",
     "stage.js",
     "outlook.css",
@@ -999,14 +994,6 @@ def stamp(cfg: dict) -> tuple[str, str]:
         else:  # bare HTML5 document without <head> tags
             html = html.replace("<!-- sh:start -->", HEAD_SNIPPET + "<!-- sh:start -->", 1)
 
-    # rail.js (one-figure-at-a-time viewer) rides with the chrome; it does nothing unless the page
-    # carries data-rail, so every page gets the include and pages opt in by markup alone.
-    if "/assets/rail.js" not in html and '<script src="/assets/site.js" defer></script>' in html:
-        html = html.replace(
-            '<script src="/assets/site.js" defer></script>',
-            '<script src="/assets/site.js" defer></script>\n<script src="/assets/rail.js" defer></script>',
-            1,
-        )
     if not cfg.get("synced"):
         html = head_tags(html)
         html = version_assets(with_fonts(html, cfg["path"]))

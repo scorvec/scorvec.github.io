@@ -1266,7 +1266,7 @@ def main() -> int:
     out.write_text(page)
     print("wrote", out)
     sys.path.insert(0, str(site / "scripts" / "site"))
-    import apply_chrome  # (footer, rail.js, menus)
+    import apply_chrome  # (header, menus, footer)
 
     apply_chrome.stamp_all(only={"torque-enso.html"})
     return 0
