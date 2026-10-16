@@ -6,8 +6,8 @@ name: ASOS5 overlay data
 # 2026-09-02 (scripts/lib/dispatch_workflows.sh now
 # fires this at :05 and :35). Settled hours are cached under scripts/asos5/cache
 # (gitignored) so a run fetches only the hours that can still change; the
-# actions cache keeps that warm between runs (read-only pattern: run_id key,
-# restore-keys fall back to the newest).
+# actions cache keeps that warm between runs (restored from the newest entry,
+# saved under a hash of the files when they changed, older entries deleted).
 on:
   # Backstop crons at the dispatcher's slots, for when it is off. GitHub delivers them late when at all, so they set
   # no timing: a scheduled run that finds the branch pushed in the last 20 min stops after the first step.
@@ -17,6 +17,7 @@ on:
 
 permissions:
   contents: write
+  actions: write   # scripts/lib/cache_prune.sh deletes the superseded cache entries
 
 concurrency:
   group: asos5
@@ -43,11 +44,13 @@ jobs:
         if: steps.fresh.outputs.skip != 'true'
         with:
           python-version: '3.11'
-      - uses: actions/cache@v6
+      - name: Restore the settled hours
+        id: hours
         if: steps.fresh.outputs.skip != 'true'
+        uses: actions/cache/restore@v6
         with:
           path: scripts/asos5/cache
-          key: asos5-cache-${{ github.run_id }}
+          key: asos5-cache-
           restore-keys: |
             asos5-cache-
       - name: Install Python dependencies
@@ -56,6 +59,14 @@ jobs:
       - name: Update
         if: steps.fresh.outputs.skip != 'true'
         run: python scripts/asos5/asos5_update.py
+      - name: Save the settled hours (when they changed)
+        if: >-
+          steps.fresh.outputs.skip != 'true' && hashFiles('scripts/asos5/cache/**') != '' &&
+          steps.hours.outputs.cache-matched-key != format('asos5-cache-{0}', hashFiles('scripts/asos5/cache/**'))
+        uses: actions/cache/save@v6
+        with:
+          path: scripts/asos5/cache
+          key: asos5-cache-${{ hashFiles('scripts/asos5/cache/**') }}
       - name: Push the overlay branch
         if: steps.fresh.outputs.skip != 'true'
         run: |
@@ -69,3 +80,8 @@ jobs:
           COMMIT=$(git commit-tree "$TREE" -m "asos5 data $(date -u +%Y-%m-%dT%H:%M:%SZ)")
           git push --force -q origin "$COMMIT:refs/heads/asos5-data"
           echo "asos5 overlay pushed $(date -u +%FT%TZ)"
+      - name: Drop superseded caches
+        if: always() && steps.fresh.outputs.skip != 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: scripts/lib/cache_prune.sh asos5-cache-

@@ -22,6 +22,7 @@ on:
 
 permissions:
   contents: write
+  actions: write   # scripts/lib/cache_prune.sh deletes the superseded cache entries
 
 concurrency:
   group: soi-hourly
@@ -33,17 +34,32 @@ jobs:
     timeout-minutes: 20   # room for the bounded git-retry loop in Commit & push
     steps:
       - uses: actions/checkout@v7
-      # LongPaddock daily SOI copy + its ETag sidecar, kept between runs so it is fetched at most once a day
-      - uses: actions/cache@v6
+      # LongPaddock daily SOI copy + its ETag sidecar, kept between runs so it is fetched at most once a day: restored
+      # from the newest entry, saved under a hash of the files when they changed, older entries deleted
+      - name: Restore the LongPaddock copy
+        id: soi_cache
+        uses: actions/cache/restore@v6
         with:
           path: scripts/sst/data/soi
-          key: soi-longpaddock-${{ github.run_id }}
+          key: soi-longpaddock-
           restore-keys: soi-longpaddock-
       - uses: actions/setup-python@v7
         with:
           python-version: '3.11'
       - run: pip install --quiet numpy pandas matplotlib
       - run: python scripts/sst/hourly_soi.py --out assets/sst/soi_hourly.webp
+      - name: Save the LongPaddock copy (when it changed)
+        if: >-
+          hashFiles('scripts/sst/data/soi/**') != '' &&
+          steps.soi_cache.outputs.cache-matched-key != format('soi-longpaddock-{0}', hashFiles('scripts/sst/data/soi/**'))
+        uses: actions/cache/save@v6
+        with:
+          path: scripts/sst/data/soi
+          key: soi-longpaddock-${{ hashFiles('scripts/sst/data/soi/**') }}
+      - name: Drop superseded caches
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: scripts/lib/cache_prune.sh soi-longpaddock-
       - name: Commit & push
         run: |
           git config user.name "Shawn Corvec"

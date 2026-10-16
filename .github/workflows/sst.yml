@@ -81,21 +81,28 @@ jobs:
       # OISST cache: the 1.4 GB 1991-2020 climatology exists only on PSL, and
       # the yearly file is ~470 MB per run — cache both so a PSL outage rides
       # on the NCEI day-file fallback (oisst9120) instead of failing outright.
-      - uses: actions/cache@v6
+      # The data caches here are restored from the newest entry and saved under
+      # a hash of their files only when a step changed them (the save steps
+      # below); "Drop superseded caches" then deletes the older entries.
+      - name: Restore the OISST files
+        id: oisst_cache
+        uses: actions/cache/restore@v6
         with:
           path: |
             scripts/sst/data/sst.day.mean.ltm.1991-2020.nc
             scripts/sst/data/sst.day.mean.*.nc
-          key: oisst-data-${{ github.run_id }}
+          key: oisst-data-
           restore-keys: |
             oisst-data-
 
       # ASCAT daily-mean u/v archive: lets a plot-layout change re-render every
       # frame in the window from cached fields instead of refetching Copernicus.
-      - uses: actions/cache@v6
+      - name: Restore the ASCAT archive
+        id: ascat_cache
+        uses: actions/cache/restore@v6
         with:
           path: scripts/sst/data/ascat
-          key: ascat-data-${{ github.run_id }}
+          key: ascat-data-
           restore-keys: |
             ascat-data-
 
@@ -167,6 +174,17 @@ jobs:
           [ "${{ inputs.force }}" = "true" ] && FORCE="--force"
           python scripts/sst/sst-roni.py $FORCE
 
+      - name: Save the OISST files (when they changed)
+        if: >-
+          hashFiles('scripts/sst/data/sst.day.mean.*.nc') != '' &&
+          steps.oisst_cache.outputs.cache-matched-key != format('oisst-data-{0}', hashFiles('scripts/sst/data/sst.day.mean.*.nc'))
+        uses: actions/cache/save@v6
+        with:
+          path: |
+            scripts/sst/data/sst.day.mean.ltm.1991-2020.nc
+            scripts/sst/data/sst.day.mean.*.nc
+          key: oisst-data-${{ hashFiles('scripts/sst/data/sst.day.mean.*.nc') }}
+
       # Walker circulation by basin (Indian/Atlantic with ENSO removed): needs the OISST file the
       # step above just refreshed and walker_ud_history.nc that mjo.yml commits. Best-effort.
       # sst-roni.py regenerates sst.html and enso-*.html from partials; the shared header,
@@ -228,6 +246,15 @@ jobs:
           fi
           python sst_ascat_winds.py || echo "ASCAT wind map failed; continuing"
 
+      - name: Save the ASCAT archive (when it changed)
+        if: >-
+          hashFiles('scripts/sst/data/ascat/**') != '' &&
+          steps.ascat_cache.outputs.cache-matched-key != format('ascat-data-{0}', hashFiles('scripts/sst/data/ascat/**'))
+        uses: actions/cache/save@v6
+        with:
+          path: scripts/sst/data/ascat
+          key: ascat-data-${{ hashFiles('scripts/sst/data/ascat/**') }}
+
       # Copernicus Marine equatorial CURRENT products (zonal-current section
       # loop, surface-current map loop, current + wind Hovmollers). These ran
       # only in run_local_sst.sh and stopped when its schedule was retired on
@@ -268,13 +295,14 @@ jobs:
       # the ENTIRE record from ERDDAP every run. With the series restored it
       # fetches only the days it is missing, which is one or two.
       #
-      # run_id in the key so every run writes a fresh entry, restore-keys to fall
-      # back to the newest previous one - the read-only pattern, since a fixed key
-      # would save once and then never update as the series grows.
-      - uses: actions/cache@v6
+      # Restored from the newest entry and saved under a hash of the series after
+      # the step, only when it grew (a fixed key would save once and never update).
+      - name: Restore the MUR series
+        id: mur_cache
+        uses: actions/cache/restore@v6
         with:
           path: scripts/sst/data/mur
-          key: mur-nino34-series-${{ github.run_id }}
+          key: mur-nino34-series-
           restore-keys: |
             mur-nino34-series-
 
@@ -292,6 +320,14 @@ jobs:
           fi
       - name: MUR 1 km Nino-3.4 vs OISST
         run: python scripts/sst/mur_nino34.py || echo "MUR Nino-3.4 failed; keeping previous figure"
+      - name: Save the MUR series (when it grew)
+        if: >-
+          hashFiles('scripts/sst/data/mur/**') != '' &&
+          steps.mur_cache.outputs.cache-matched-key != format('mur-nino34-series-{0}', hashFiles('scripts/sst/data/mur/**'))
+        uses: actions/cache/save@v6
+        with:
+          path: scripts/sst/data/mur
+          key: mur-nino34-series-${{ hashFiles('scripts/sst/data/mur/**') }}
       - name: Publish the MUR series to the release
         env:
           GH_TOKEN: ${{ github.token }}
@@ -399,6 +435,12 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: echo "site deploy is batched - the dispatcher deploys within 15 min (pages.yml)"
+
+      - name: Drop superseded caches
+        if: always()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: scripts/lib/cache_prune.sh oisst-data- ascat-data- mur-nino34-series- ersst-v6-
 
       - name: Summary
         if: always()

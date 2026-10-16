@@ -20,6 +20,7 @@ on:
 
 permissions:
   contents: write
+  actions: write   # scripts/lib/cache_prune.sh deletes the superseded cache entries
 
 concurrency:
   group: sst-events
@@ -43,11 +44,14 @@ jobs:
           key: pip-sst-${{ runner.os }}-${{ hashFiles('scripts/sst/requirements-sst.txt') }}
           restore-keys: |
             pip-sst-${{ runner.os }}-
-      # GLORYS12 analysis (anfc) anomaly store for the heat-content fill: each run adds only new days
-      - uses: actions/cache@v6
+      # GLORYS12 analysis (anfc) anomaly store for the heat-content fill: each run adds only new days. Restored from the
+      # newest entry, saved under a hash of the store when it changed, older entries deleted.
+      - name: Restore the anfc store
+        id: anfc_cache
+        uses: actions/cache/restore@v6
         with:
           path: scripts/sst/data/cmems_hc/anfc_store.csv
-          key: hc-anfc-store-v1-${{ github.run_id }}
+          key: hc-anfc-store-v1-
           restore-keys: |
             hc-anfc-store-v1-
       - name: Install cartopy system libs
@@ -66,6 +70,18 @@ jobs:
           COPERNICUSMARINE_SERVICE_USERNAME: ${{ secrets.COPERNICUSMARINE_SERVICE_USERNAME }}
           COPERNICUSMARINE_SERVICE_PASSWORD: ${{ secrets.COPERNICUSMARINE_SERVICE_PASSWORD }}
         run: python sst_subsurface_events.py || echo "::warning::subsurface analog build failed; previous charts kept"
+      - name: Save the anfc store (when it changed)
+        if: >-
+          hashFiles('scripts/sst/data/cmems_hc/anfc_store.csv') != '' &&
+          steps.anfc_cache.outputs.cache-matched-key != format('hc-anfc-store-v1-{0}', hashFiles('scripts/sst/data/cmems_hc/anfc_store.csv'))
+        uses: actions/cache/save@v6
+        with:
+          path: scripts/sst/data/cmems_hc/anfc_store.csv
+          key: hc-anfc-store-v1-${{ hashFiles('scripts/sst/data/cmems_hc/anfc_store.csv') }}
+      - name: Drop superseded caches
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: scripts/lib/cache_prune.sh hc-anfc-store-v1-
 
       - name: Upload the charts (validation runs)
         if: inputs.commit == 'false'
