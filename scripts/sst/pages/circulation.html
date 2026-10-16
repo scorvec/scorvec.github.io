@@ -19,7 +19,7 @@
       <div class="stage" id="stage"></div>
       <p class="cap" id="cap"></p>
       <div id="about"></div>
-      <p class="hint"><span class="kbd">&larr;</span> <span class="kbd">&rarr;</span> step through the options &middot; <span class="kbd">&uarr;</span> <span class="kbd">&darr;</span> change figure &middot; click a still to enlarge</p>
+      <p class="hint">With the list of plots focused: <span class="kbd">&uarr;</span> <span class="kbd">&darr;</span> change figure, <span class="kbd">&larr;</span> <span class="kbd">&rarr;</span> step through the options &middot; click a still to enlarge</p>
       <div class="chart-card-footer"><span class="chart-sources">ECMWF AIFS-ENS, IFS-ENS, AIFS single and IFS HRES open data: &copy;&nbsp;2026 European Centre for Medium-Range Weather Forecasts (ECMWF), source <a href="https://www.ecmwf.int">www.ecmwf.int</a>, <a href="https://creativecommons.org/licenses/by/4.0/">CC&nbsp;BY&nbsp;4.0</a>, modified; ECMWF does not accept any liability for errors or omissions in the data, their availability, or any loss or damage arising from their use &middot; ECCC GDPS: Data Source: Environment and Climate Change Canada (MSC Datamart), under the <a href="https://eccc-msc.github.io/open-data/licence/readme_en/">ECCC Data Servers End-use Licence</a> &middot; ERA5: Copernicus Climate Change Service (C3S) / ECMWF, CC&nbsp;BY&nbsp;4.0; contains modified Copernicus Climate Change Service information 2026; neither the European Commission nor ECMWF is responsible for any use of this information &middot; AAM check: ESMGFZ effective angular momentum functions, GFZ Helmholtz Centre for Geosciences (Dobslaw and Dill 2018), via the IERS Global Geophysical Fluids Centre &middot; updated each 00/12Z cycle</span><span class="chart-updated" id="stage-stamp"></span></div>
     </section>
   </div>
@@ -280,7 +280,7 @@ References: Bister &amp; Emanuel 2002, <i>JGR</i> 107(D24), 4801 &middot; Chen, 
  <div id="tcs-body">
   <div class="tcs-bar" id="tcs-bar">
    <button type="button" id="tcs-prev" aria-label="Back 6 hours">◀</button>
-   <button type="button" id="tcs-play" class="play">▶ Play</button>
+   <button type="button" id="tcs-play" class="play" aria-label="Play the forecast"><span aria-hidden="true">▶</span> Play</button>
    <button type="button" id="tcs-next" aria-label="Forward 6 hours">▶︎|</button>
    <label for="tcs-h" class="mu">Forecast hour</label><input type="range" id="tcs-h" min="0" max="120" step="6" value="0"><b id="tcs-hlab"></b>
   </div>
@@ -306,7 +306,7 @@ References: Bister &amp; Emanuel 2002, <i>JGR</i> 107(D24), 4801 &middot; Chen, 
 </div>
 <div id="tcs-val" hidden></div>
 </div>
-<script src="/assets/tcshear/tcshear.js?v=20261012a" defer></script>
+<script src="/assets/tcshear/tcshear.js?v=20261016a" defer></script>
 <script>
 window.STAGE = {
   groups: [

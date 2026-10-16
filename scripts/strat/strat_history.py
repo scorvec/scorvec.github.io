@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Render the "Stratosphere history" items of circulation.html from the committed reference
+"""Render the "History and studies" items of stratosphere.html from the committed reference
 (scripts/strat/reference/strat_history.nc + strat_history_events.json, built once, offline, by
 build_strat_history.py). Static products: nothing here changes unless the reference is rebuilt, so the
 workflow (strat-history.yml) runs on a change to this script or the reference, or on dispatch.

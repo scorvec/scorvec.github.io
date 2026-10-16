@@ -37,7 +37,7 @@
       <div class="stage" id="stage"></div>
       <p class="cap" id="cap"></p>
       <div id="about"></div>
-      <p class="hint"><span class="kbd">&larr;</span> <span class="kbd">&rarr;</span> step through the options &middot; <span class="kbd">&uarr;</span> <span class="kbd">&darr;</span> change figure &middot; click a still to enlarge</p>
+      <p class="hint">With the list of plots focused: <span class="kbd">&uarr;</span> <span class="kbd">&darr;</span> change figure, <span class="kbd">&larr;</span> <span class="kbd">&rarr;</span> step through the options &middot; click a still to enlarge</p>
       <div class="chart-card-footer"><span class="chart-sources">NOAA OISST v2.1 &middot; NASA JPL MUR &middot; BoM SOI &middot; NOAA PSL MEI.v2 &middot; GMGSI infrared &middot; ECMWF open data: &copy;&nbsp;2026 European Centre for Medium-Range Weather Forecasts (ECMWF), source <a href="https://www.ecmwf.int">www.ecmwf.int</a>, <a href="https://creativecommons.org/licenses/by/4.0/">CC&nbsp;BY&nbsp;4.0</a>, modified; ECMWF does not accept any liability for errors or omissions in the data, their availability, or any loss or damage arising from their use &middot; ECCC GDPS: Data Source: Environment and Climate Change Canada (MSC Datamart), under the <a href="https://eccc-msc.github.io/open-data/licence/readme_en/">ECCC Data Servers End-use Licence</a> &middot; ERA5: Copernicus Climate Change Service (C3S) / ECMWF, CC&nbsp;BY&nbsp;4.0; contains modified Copernicus Climate Change Service information 2026; neither the European Commission nor ECMWF is responsible for any use of this information &middot; base 1991&ndash;2020 &middot; updated daily</span><span class="chart-updated">__SST_DAY__</span></div>
     </section>
   </div>
@@ -954,7 +954,7 @@ window.loadPlotly = function () {
       for (var i = t.y.length - 1; i >= 0; i--) {
         var v = t.y[i]; if (v == null || !isFinite(v)) continue;
         out.push({ x: t.x[i], y: v, xref: "x", yref: "y", text: sgn(v, state.mode === "abs").replace(" °C", ""), showarrow: false,
-                   xanchor: "left", yanchor: "middle", xshift: 7, font: { size: 12, color: t.line.color, weight: 700 },
+                   xanchor: "left", yanchor: "middle", xshift: 7, font: { size: 12, color: t.line.color, weight: 600 },
                    bgcolor: "rgba(255,255,255,0.85)", borderpad: 1 });
         break;
       }
@@ -981,7 +981,7 @@ window.loadPlotly = function () {
     var shown = traces.filter(function (t) { return t.showlegend !== false; }).length;
     var L = {
       paper_bgcolor: "rgba(0,0,0,0)", plot_bgcolor: "#fff", uirevision: state.mode + (monthly ? "m" : "d"),
-      font: { family: "Inter, sans-serif", size: 13, color: T.ink },
+      font: { family: '"Source Sans 3", system-ui, sans-serif', size: 13, color: T.ink },
       margin: { l: 58, r: 54, t: 8, b: 40 },
       xaxis: xaxis(x0, x1, monthly),
       yaxis: { title: { text: abs ? "SST (°C)" : "anomaly (°C, vs 1991–2020)", standoff: 8, font: { size: 12.5, color: T.ink2 } },
@@ -990,7 +990,7 @@ window.loadPlotly = function () {
       legend: { orientation: "h", x: 0, xanchor: "left", y: 1.02, yanchor: "bottom", font: { size: 12.5, color: T.ink2 },
                 bgcolor: "rgba(0,0,0,0)", traceorder: "normal", itemclick: "toggle", itemdoubleclick: "toggleothers" },
       hovermode: "x unified",
-      hoverlabel: { bgcolor: "#fff", bordercolor: T.edge, font: { family: "Inter, sans-serif", size: 12.5, color: T.ink }, align: "left" },
+      hoverlabel: { bgcolor: "#fff", bordercolor: T.edge, font: { family: '"Source Sans 3", system-ui, sans-serif', size: 12.5, color: T.ink }, align: "left" },
       shapes: (abs ? [] : thresholdShapes()).concat(extra.shapes || []),
       annotations: (extra.ann || []).concat(endLabels(traces))
     };

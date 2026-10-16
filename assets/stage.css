@@ -1,11 +1,11 @@
-/* stage.css — layout for the stage.js viewer pages (circulation.html, enso.html), the same look as the
-   GEPS page's rail (subseasonal.html keeps its own copy of these rules). Sits on /assets/outlook.css. */
+/* stage.css — layout for the stage.js viewer pages (a list of plots beside one figure: circulation.html,
+   enso.html, subseasonal.html and the others). Sits on /assets/outlook.css. */
 .ss-layout { display: grid; grid-template-columns: clamp(184px, 16vw, 240px) minmax(0, 1fr); gap: 1.1rem; align-items: start; }
 .ss-rail { position: sticky; top: 4.6rem; max-height: calc(100vh - 5.4rem); overflow: auto; background: var(--surface); border: 1.5px solid var(--edge); border-radius: 4px; padding: 0.7rem 0.6rem 0.4rem; }
-.rail-group { margin-bottom: 0.2rem; }
+.rail-group { margin-bottom: 0.75rem; }
 /* accordion: group titles are buttons; only .open groups list their figures (stage.js opens the
    group of the selected figure and collapses the rest, so the rail fits without scrolling) */
-.ss-rail .rail-title { display: flex; align-items: center; gap: 0.4rem; width: 100%; text-align: left; font: 600 0.82rem var(--sans); color: var(--ink2); background: transparent; border: 0; border-radius: 3px; padding: 0.4rem 0.45rem; cursor: pointer; }
+.ss-rail .rail-title { display: flex; align-items: center; gap: 0.4rem; width: 100%; text-align: left; font: 600 0.82rem var(--sans); color: var(--ink2); background: transparent; border: 0; border-radius: 3px; margin: 0.2rem 0.55rem 0.3rem; padding: 0.4rem 0.45rem; cursor: pointer; }
 .rail-title:hover { background: var(--accent-light); color: var(--accent); }
 .rail-group.has .rail-title { color: var(--accent); }
 .rail-title .car { width: 0.7rem; font-size: 0.7rem; color: var(--muted); }
@@ -20,7 +20,7 @@
 .rail-group button:hover { background: var(--accent-light); color: var(--accent); }
 .rail-group button.on { background: var(--accent-light); color: var(--accent); border-left-color: var(--accent); font-weight: 600; }
 .rail-group button .ico { width: 1.1rem; text-align: center; font-size: 0.9rem; opacity: 0.85; }
-.rail-group button small { display: block; font-weight: 400; font-size: 0.74rem; color: var(--muted); }
+.rail-group button small { display: block; font-weight: 400; font-size: 0.78rem; color: var(--muted); }
 .ss-main { background: var(--surface); border: 1.5px solid var(--edge); border-radius: 4px; overflow: hidden; overflow: clip; min-width: 0; }   /* clip, not hidden: hidden makes a scroll container and breaks position:sticky inside (the TC shear time bar, 2026-10-08) */
 .crumb { display: flex; align-items: center; justify-content: space-between; gap: 0.6rem; flex-wrap: wrap; padding: 0.7rem 1.2rem; border-bottom: 1px solid var(--rule); background: #fbfaf7; }
 .crumb .path { font-family: var(--serif); font-size: 1.1rem; color: var(--ink); }

@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Subseasonal Outlook &mdash; ECCC GEPS Weeks 1&ndash;5 &middot; Shawn Corvec</title>
-<meta name="description" content="Days 1–35 anomaly forecasts for the Americas from the ECCC GEPS extended ensemble, against a 2001–2020 GEPS hindcast at matching lead, plus the MJO and regimes.">
+<meta name="description" content="Days 1–35 anomaly forecasts for the Americas from the ECCC GEPS extended ensemble against the 1991–2020 normal, model drift removed, plus the MJO and regimes.">
 <link rel="canonical" href="https://scorvec.com/subseasonal.html">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <meta property="og:type" content="website">
@@ -22,7 +22,7 @@
  "@type": "WebPage",
  "name": "Subseasonal outlook: ECCC GEPS weeks 1–5 for the Americas",
  "url": "https://scorvec.com/subseasonal.html",
- "description": "Days 1–35 anomaly forecasts for the Americas from the ECCC GEPS extended ensemble, against a 2001–2020 GEPS hindcast at matching lead, plus the MJO and regimes.",
+ "description": "Days 1–35 anomaly forecasts for the Americas from the ECCC GEPS extended ensemble against the 1991–2020 normal, model drift removed, plus the MJO and regimes.",
  "image": "https://scorvec.com/assets/geps/geps_na_t2m_weekly.webp",
  "isPartOf": {
   "@type": "WebSite",
@@ -38,7 +38,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,500;0,8..60,600;1,8..60,400&family=Source+Sans+3:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/assets/outlook.css?v=7548d602a3">
-<link rel="stylesheet" href="/assets/stage.css?v=c5147546f0">
+<link rel="stylesheet" href="/assets/stage.css?v=a5475c5605">
 <style>
   /* subseasonal.html — page-specific rules on top of /assets/outlook.css (shared with seas5 and sfs). */
   table.tele { width: 100%; border-collapse: collapse; margin: 0.9rem 0 0.3rem; font-size: 0.78rem; }
@@ -60,9 +60,8 @@
   #tele-table, #mjo-table { padding: 0 1.2rem; overflow-x: auto; }   /* phones: the five-week table scrolls inside the card (it was clipped) */
   @media (max-width: 640px) { #tele-table, #mjo-table { padding: 0 0.5rem; } }
 </style>
-<link rel="stylesheet" href="/assets/site.css?v=3c589bef47">
+<link rel="stylesheet" href="/assets/site.css?v=03b67b2360">
 <script src="/assets/site.js?v=fe84a7e3e0" defer></script>
-<script src="/assets/rail.js?v=02a0d609bc" defer></script>
 <script>
 // The polar-vortex products live on the stratosphere page: forward old deep links (#vortex/nh, #vloop, #drip)
 (function () { var m = {vortex: "vortex35/geps", vloop: "vloop35/geps", drip: "fdrip/geps"};
@@ -266,7 +265,7 @@
       <div id="tele-table" hidden></div>
       <div id="mjo-table" hidden></div>
       <div id="about"></div>
-      <p class="hint"><span class="kbd">&larr;</span> <span class="kbd">&rarr;</span> step through the last option row &middot; <span class="kbd">&uarr;</span> <span class="kbd">&darr;</span> change product &middot; click a map to enlarge &middot; the address bar carries the selection, so a view can be linked.</p>
+      <p class="hint">With the list of products focused: <span class="kbd">&uarr;</span> <span class="kbd">&darr;</span> change product, <span class="kbd">&larr;</span> <span class="kbd">&rarr;</span> step through the last option row &middot; click a map to enlarge &middot; the address bar carries the selection, so a view can be linked.</p>
       <div class="chart-card-footer">
         <span class="chart-sources">Data Source: Environment and Climate Change Canada, GEPS extended ensemble (MSC Datamart), under the <a href="https://eccc-msc.github.io/open-data/licence/readme_en/">ECCC Data Servers End-use Licence</a> &middot; GEPS8 hindcast 2001&ndash;2020 (ECCC, via the IRI Data Library) &middot; ECMWF AIFS-ENS and IFS-ENS open data (multi-model regimes): &copy;&nbsp;2026 European Centre for Medium-Range Weather Forecasts (ECMWF), source <a href="https://www.ecmwf.int">www.ecmwf.int</a>, <a href="https://creativecommons.org/licenses/by/4.0/">CC&nbsp;BY&nbsp;4.0</a>, modified; ECMWF does not accept any liability for errors or omissions in the data, their availability, or any loss or damage arising from their use &middot; ERA5: Copernicus Climate Change Service (C3S) / ECMWF, CC&nbsp;BY&nbsp;4.0; contains modified Copernicus Climate Change Service information 2026; neither the European Commission nor ECMWF is responsible for any use of this information &middot; NCEP/NCAR Reanalysis 1, CPC teleconnection indices and CPC unified gauge precipitation (NOAA); PSL EPO/WPO; Long Paddock (Queensland Government) daily SOI &middot; NOAA GMGSI satellite OLR proxy &middot; BoM RMM</span>
         <span class="chart-updated" data-init>&ndash;</span>
@@ -412,8 +411,9 @@ function teleTable(show) {
   if (!show) return;
   if (TELE === null) {
     TELE = false;
-    fetch("assets/geps/telecon.json").then(function (r) { return r.json(); })
+    fetch("assets/geps/telecon.json").then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); })
       .then(function (j) {
+        if (!j || !j.indices || !Object.keys(j.indices).length) throw new Error("no indices");   // stays false
         TELE = j;
         // the index list may have shrunk (teleIds): redraw the options, which redraws this table too
         if (sel.p === "telecon" && sel.a === "series" && window.STAGE.refresh) window.STAGE.refresh();

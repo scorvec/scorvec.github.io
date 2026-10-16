@@ -648,4 +648,11 @@ def main() -> int:
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    rc = main()
+    # outputs are written; skip interpreter teardown. On the runner, once the χ inversion has imported cartopy and
+    # pyshtools, pyproj warns it is "unable to set PROJ database path" (a second libproj in the process, as in
+    # ocean_kelvin and kelvin_tracker) and teardown aborts with a double free: complete runs exited 134. The
+    # pyproj-first import above does not prevent it.
+    sys.stdout.flush()
+    sys.stderr.flush()
+    os._exit(rc or 0)

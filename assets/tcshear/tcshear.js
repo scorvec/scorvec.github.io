@@ -388,7 +388,11 @@
 
   // ── time controls (2026-10-08): play/step, frame prefetch, the sticky bar under the site header ──────────────
   var PLAY = null, PRE = {};
-  function stop() { if (PLAY) { clearTimeout(PLAY); PLAY = null; var b = $("tcs-play"); if (b) b.textContent = "▶ Play"; } }
+  function playLabel(b, on) {                          // the glyph is decoration: screen readers get the label alone
+    b.innerHTML = '<span aria-hidden="true">' + (on ? "❚❚" : "▶") + "</span> " + (on ? "Pause" : "Play");
+    b.setAttribute("aria-label", on ? "Pause the forecast" : "Play the forecast");
+  }
+  function stop() { if (PLAY) { clearTimeout(PLAY); PLAY = null; var b = $("tcs-play"); if (b) playLabel(b, false); } }
   // Play stops as soon as the product is left (2026-10-12 audit: with no storm in the hash the old check never fired and
   // the timer kept rewriting the URL to #tcshear//fc/36/deep while another product was showing).
   function mounted() { return !!root.offsetParent && state().prod === "tcshear" && (!document.getElementById("stage") || !!root.closest("#stage")); }
@@ -455,7 +459,7 @@
     $("tcs-prev").onclick = function () { stop(); st.h = Math.max(0, h - 6); go(st); };
     $("tcs-next").onclick = function () { stop(); st.h = Math.min(120, h + 6); go(st); };
     $("tcs-play").onclick = function () { if (PLAY) { stop(); return; } play(st, doc, s); };
-    $("tcs-play").textContent = PLAY ? "❚❚ Pause" : "▶ Play";
+    playLabel($("tcs-play"), !!PLAY);
     $("tcs-hlab").textContent = "+" + h + " h · " + fmtT(tm0 + h * 3600000, true, !s.live);
     $("tcs-hodo").innerHTML = hodograph(doc, h);
     $("tcs-tilt").innerHTML = tiltPlot(doc, h, tm0);

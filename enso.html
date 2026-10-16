@@ -17,7 +17,7 @@
 <meta name="twitter:title" content="El Ni&ntilde;o Monitor &mdash; Daily ONI, RONI &amp; Ni&ntilde;o Indices &middot; Shawn Corvec">
 <meta name="twitter:description" content="Daily ONI and RONI estimates, interactive Niño-index charts, OISST and MUR SST anomaly maps, the SOI, the MEI, and equatorial convection and waves.">
 <link rel="stylesheet" href="/assets/outlook.css?v=7548d602a3">
-<link rel="stylesheet" href="/assets/stage.css?v=c5147546f0">
+<link rel="stylesheet" href="/assets/stage.css?v=a5475c5605">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css" integrity="sha384-nB0miv6/jRmo5UMMR1wu3Gz6NLsoTkbqJghGIsx//Rlm+ZU03BU6SQNC66uf4l5+" crossorigin="anonymous">
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js" integrity="sha384-7zkQWkzuo3B5mTepMUcHkMB5jZaolc2xDwL6VFqjFALcbeS9Ggm/Yr2r3Dy4lfFg" crossorigin="anonymous"></script>
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
@@ -25,9 +25,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,500;0,8..60,600;1,8..60,400&family=Source+Sans+3:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/assets/site.css?v=3c589bef47">
+<link rel="stylesheet" href="/assets/site.css?v=03b67b2360">
 <script src="/assets/site.js?v=fe84a7e3e0" defer></script>
-<script src="/assets/rail.js?v=02a0d609bc" defer></script>
 <script data-goatcounter="https://scorvec.goatcounter.com/count" async src="https://gc.zgo.at/count.v4.js" integrity="sha384-nRw6qfbWyJha9LhsOtSb2YJDyZdKvvCFh0fJYlkquSFjUxp9FVNugbfy8q1jdxI+" crossorigin="anonymous"></script>
 </head>
 <body>
@@ -226,7 +225,7 @@
       <div class="stage" id="stage"></div>
       <p class="cap" id="cap"></p>
       <div id="about"></div>
-      <p class="hint"><span class="kbd">&larr;</span> <span class="kbd">&rarr;</span> step through the options &middot; <span class="kbd">&uarr;</span> <span class="kbd">&darr;</span> change figure &middot; click a still to enlarge</p>
+      <p class="hint">With the list of plots focused: <span class="kbd">&uarr;</span> <span class="kbd">&darr;</span> change figure, <span class="kbd">&larr;</span> <span class="kbd">&rarr;</span> step through the options &middot; click a still to enlarge</p>
 <!-- plots:start -->
 <details class="about" id="every-plot">
 <summary>Every plot on this page (37)</summary>
@@ -1237,7 +1236,7 @@ window.loadPlotly = function () {
       for (var i = t.y.length - 1; i >= 0; i--) {
         var v = t.y[i]; if (v == null || !isFinite(v)) continue;
         out.push({ x: t.x[i], y: v, xref: "x", yref: "y", text: sgn(v, state.mode === "abs").replace(" °C", ""), showarrow: false,
-                   xanchor: "left", yanchor: "middle", xshift: 7, font: { size: 12, color: t.line.color, weight: 700 },
+                   xanchor: "left", yanchor: "middle", xshift: 7, font: { size: 12, color: t.line.color, weight: 600 },
                    bgcolor: "rgba(255,255,255,0.85)", borderpad: 1 });
         break;
       }
@@ -1264,7 +1263,7 @@ window.loadPlotly = function () {
     var shown = traces.filter(function (t) { return t.showlegend !== false; }).length;
     var L = {
       paper_bgcolor: "rgba(0,0,0,0)", plot_bgcolor: "#fff", uirevision: state.mode + (monthly ? "m" : "d"),
-      font: { family: "Inter, sans-serif", size: 13, color: T.ink },
+      font: { family: '"Source Sans 3", system-ui, sans-serif', size: 13, color: T.ink },
       margin: { l: 58, r: 54, t: 8, b: 40 },
       xaxis: xaxis(x0, x1, monthly),
       yaxis: { title: { text: abs ? "SST (°C)" : "anomaly (°C, vs 1991–2020)", standoff: 8, font: { size: 12.5, color: T.ink2 } },
@@ -1273,7 +1272,7 @@ window.loadPlotly = function () {
       legend: { orientation: "h", x: 0, xanchor: "left", y: 1.02, yanchor: "bottom", font: { size: 12.5, color: T.ink2 },
                 bgcolor: "rgba(0,0,0,0)", traceorder: "normal", itemclick: "toggle", itemdoubleclick: "toggleothers" },
       hovermode: "x unified",
-      hoverlabel: { bgcolor: "#fff", bordercolor: T.edge, font: { family: "Inter, sans-serif", size: 12.5, color: T.ink }, align: "left" },
+      hoverlabel: { bgcolor: "#fff", bordercolor: T.edge, font: { family: '"Source Sans 3", system-ui, sans-serif', size: 12.5, color: T.ink }, align: "left" },
       shapes: (abs ? [] : thresholdShapes()).concat(extra.shapes || []),
       annotations: (extra.ann || []).concat(endLabels(traces))
     };
@@ -1425,7 +1424,7 @@ window.loadPlotly = function () {
     });
 })();
 </script>
-<script src="/assets/outlook-charts.js?v=940834f5d8"></script>
+<script src="/assets/outlook-charts.js?v=3bdf352ba7"></script>
 <script>
 (function () {
   var T = null, st = { index: "soi", view: "cal" };
