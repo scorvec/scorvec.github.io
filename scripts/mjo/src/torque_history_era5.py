@@ -29,7 +29,9 @@ carry their own ~1-2 degree orography).
   AAM mass term   M_m = Omega a^4/g sum p_s cos^3(phi) dlam dphi     (`aamm_*`)
 
 Units: torques in Hadley (1e18 N m); AAM in 1e25 kg m^2 s^-1. `--per-time` writes one row per sampled
-time (hourly 2026 for the high-fidelity budget) instead of daily means.
+time (hourly 2026 for the high-fidelity budget) instead of daily means. `--ranges5` reads surface pressure
+only and writes, per time, `mtn5_<R>` and the same 5-degree sum over the globe (`mtn5_glob`): sampled at 00 and
+12 UTC, the input of the live product's ERA5 reference (build_torque_range_sd.py).
 
     python scripts/mjo/src/torque_history_era5.py --start 1979-01-01 --end 1980-12-31 --out chunk.csv
 """
@@ -154,6 +156,12 @@ def _open():
     return xr.open_zarr(fs.get_mapper(STORE), chunks=None, decode_timedelta=False)
 
 
+def mtn5_blocks(G: Grid, dpd: np.ndarray) -> np.ndarray:
+    """(36, 72) mountain torque of each 5-degree block, Hadley, exactly as torque_map_anim: the density h dp_s/dlam
+    block-averaged (coarsen 20, boundary trim) times the block area; summed over a box it is box_net5."""
+    return (G.h * dpd)[:720].reshape(36, 20, 72, 20).mean((1, 3)) * G.dA5[:, None] / HU
+
+
 def one(t: pd.Timestamp, G: Grid, t0: pd.Timestamp):
     """All diagnostics for one hourly ERA5 time, or (t, None, reason)."""
     ds = _open()
@@ -194,8 +202,7 @@ def one(t: pd.Timestamp, G: Grid, t0: pd.Timestamp):
         if term not in ("aam", "aamm"):
             for r, (yi, xi) in G.box.items():
                 out[f"{term}_{r}"] = float(d[np.ix_(yi, xi)].sum())
-    # site-exact 5-degree box sums (torque_map_anim.box_net5)
-    m5 = (G.h * dpd)[:720].reshape(36, 20, 72, 20).mean((1, 3)) * G.dA5[:, None] / HU
+    m5 = mtn5_blocks(G, dpd)
     for r, (ym, xm) in G.m5.items():
         out[f"mtn5_{r}"] = float(m5[ym][:, xm].sum())
     # coarse-resolution mountain torque (h and p_s averaged together)
@@ -261,6 +268,26 @@ def one_bands5(t: pd.Timestamp, G: Grid, t0: pd.Timestamp):
     return t, out, None
 
 
+def one_ranges5(t: pd.Timestamp, G: Grid, t0: pd.Timestamp):
+    """The site-exact 5-degree mountain torque of every range and of the globe (torque_map_anim.box_net5; the globe is
+    the box 0-360E 90S-90N) at one time, from surface pressure alone - the ERA5 reference of the live by-range
+    product (build_torque_range_sd.py). Any non-finite surface pressure rejects the time."""
+    ds = _open()
+    i = int((t - t0) / pd.Timedelta(hours=1))
+    try:
+        sp = np.asarray(ds[FIELDS["sp"]].isel(time=i).values, dtype=np.float64)[::-1, :]
+    except Exception as e:  # noqa: BLE001
+        return t, None, f"{type(e).__name__}: {e}"[:160]
+    if not np.isfinite(sp).all():
+        return t, None, f"sp has {(~np.isfinite(sp)).sum()} non-finite cells"
+    if not (40000 < sp.min() and sp.max() < 110000):  # noqa: SIM300  interval test written low < x and x < high
+        return t, None, f"sp out of range {sp.min():.0f}..{sp.max():.0f}"
+    m5 = mtn5_blocks(G, (np.roll(sp, -1, axis=1) - np.roll(sp, 1, axis=1)) / (2 * G.dl))
+    out = {f"mtn5_{r}": float(m5[ym][:, xm].sum()) for r, (ym, xm) in G.m5.items()}
+    out["mtn5_glob"] = float(m5.sum())
+    return t, out, None
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--start", required=True)
@@ -278,9 +305,15 @@ def main() -> int:
         action="store_true",
         help="per time, 5-degree latitude-band integrals of AAM (motion, mass) and the torques (implies --per-time)",
     )
+    ap.add_argument(
+        "--ranges5",
+        action="store_true",
+        help="per time, the site-exact 5-degree mountain torque of each range and the globe, from surface pressure "
+        "alone (implies --per-time)",
+    )
     a = ap.parse_args()
-    fn = one_bands5 if a.bands5 else one
-    if a.bands5:
+    fn = one_bands5 if a.bands5 else one_ranges5 if a.ranges5 else one
+    if a.bands5 or a.ranges5:
         a.per_time = True
 
     G = Grid()

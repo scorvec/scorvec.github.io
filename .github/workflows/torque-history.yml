@@ -12,6 +12,9 @@ name: ERA5 torque history (one-off study input)
 #             budget -> scripts/mjo/data/reference/<out>
 #   bands5    per sampled time, 5-degree latitude-band integrals of motion/mass AAM and the three
 #             torques (the zonal-mean increment study: hours 08-11, 20-23 UTC) -> <out> (csv.gz)
+#   ranges5   per sampled time, surface pressure only: the site-exact 5-degree mountain torque of each
+#             range and the globe (y0=1991, y1=2020, hours=0,12: the live by-range product's ERA5 reference,
+#             scripts/mjo/src/build_torque_range_sd.py) -> <out> (csv.gz)
 #   u37       37-level u: relative-AAM density per pressure layer and 5-degree band at 08-11 and
 #             20-23 UTC every `step`-th day, reduced to the jumps at the 09->10 and 21->22 UTC
 #             4D-Var window starts (scripts/mjo/src/torque_increments_u37.py) -> <out> (.nc)
@@ -42,11 +45,11 @@ on:
         required: false
         default: '0'
       hours:
-        description: 'UTC hours sampled per day (daily / per_time / bands5)'
+        description: 'UTC hours sampled per day (daily / per_time / bands5 / ranges5)'
         required: false
         default: '0,6,12,18'
       mode:
-        description: 'daily | per_time | bands5 | u37 | u37maps'
+        description: 'daily | per_time | bands5 | ranges5 | u37 | u37maps'
         required: false
         default: 'daily'
       step:
@@ -137,6 +140,9 @@ jobs:
             bands5)
               python scripts/mjo/src/torque_history_era5.py --start ${{ matrix.start }} --end ${{ matrix.end }} \
                 --hours "${{ inputs.hours }}" --workers 24 --bands5 --out out/torque_${{ matrix.tag }}.csv ;;
+            ranges5)
+              python scripts/mjo/src/torque_history_era5.py --start ${{ matrix.start }} --end ${{ matrix.end }} \
+                --hours "${{ inputs.hours }}" --workers 24 --ranges5 --out out/torque_${{ matrix.tag }}.csv ;;
             per_time)
               python scripts/mjo/src/torque_history_era5.py --start ${{ matrix.start }} --end ${{ matrix.end }} \
                 --hours "${{ inputs.hours }}" --workers 24 --per-time --out out/torque_${{ matrix.tag }}.csv ;;
