@@ -550,7 +550,7 @@ References: Bister &amp; Emanuel 2002, <i>JGR</i> 107(D24), 4801 &middot; Chen, 
    <div class="tcs-panels">
     <figure class="tcs-map"><img id="tcs-map" alt="" hidden><div class="nomap" id="tcs-nomap" hidden>No map for this hour</div><figcaption>330 K PV (black: 2 PVU, the trough), total shear (grey), the storm's environmental shear (red); AIFS-ENS control.</figcaption></figure>
     <div class="tcs-side">
-     <figure><div id="tcs-hodo"></div><figcaption>Environmental hodograph, 1000→100 hPa. Red dashed: 200–850 hPa shear; black: storm motion.</figcaption></figure>
+     <figure><div class="tcs-row" id="tcs-frame" role="group" aria-label="Hodograph frame" style="margin:0 0 6px"></div><div id="tcs-hodo"></div><figcaption>Environmental hodograph, 1000→100 hPa. Red dashed: 200–850 hPa shear; black: storm motion (storm-relative: the storm at the centre, + where the ground-relative zero lies).</figcaption></figure>
      <figure><div id="tcs-tilt"></div><figcaption>Vortex tilt 850→500 hPa, downshear up. Red diamonds: radar-observed tilt, against the shear of its own time.</figcaption></figure>
     </div>
    </div>
@@ -560,7 +560,7 @@ References: Bister &amp; Emanuel 2002, <i>JGR</i> 107(D24), 4801 &middot; Chen, 
   <div class="tcs-tabw" id="tcs-tab"></div>
   <details class="tcs-read"><summary>How to read the panels</summary><ul>
    <li><b>Map</b>: potential vorticity on the 330 K isentrope; the black line is 2 PVU, so inside it is stratospheric air, the upper trough. Grey arrows: 200–850 hPa shear of the total wind; red: the storm's environmental shear (its own circulation removed). AIFS-ENS control, 6-hourly.</li>
-   <li><b>Hodograph</b>: the environmental wind (storm's own circulation removed) at every level from 1000 to 100 hPa. Bold: AIFS-ENS control, coloured from low levels (warm) to high (blue); thin: other models; grey: the 50 members. Red dashed: the 200–850 hPa shear vector; black: storm motion.</li>
+   <li><b>Hodograph</b>: the environmental wind (storm's own circulation removed) at every level from 1000 to 100 hPa. Bold: AIFS-ENS control, coloured from low levels (warm) to high (blue); thin: other models; grey: the 50 members. Red dashed: the 200–850 hPa shear vector; black: storm motion. <b>Storm-relative</b> subtracts each run's own storm motion at that hour from its winds, the frame in which the low-level inflow into the storm is read; the 200–850 hPa shear is a difference between two levels, so it is the same in either frame. Under the hodograph and in the summary: the shear's direction against the storm's track (along it, against it, or how many degrees to its left or right).</li>
    <li><b>Tilt</b>: the 850→500 hPa vorticity-centroid displacement in the shear's frame, downshear up. Lines: each run's path to day 5, the dot at the chosen hour; grey dots: members; red diamonds: the observed 2–6 km tilt from NOAA's tail Doppler radar, rotated by the control's shear within 3 hours of the radar time (radar analyses from before the run are left out here; the time series shows them).</li>
    <li><b>Time series</b>: the chosen measure along every run, with the AIFS-ENS member spread; the dark vertical line is the hour on the slider. Keyboard: the arrow keys step the slider once it has focus.</li>
   </ul></details>
@@ -568,7 +568,7 @@ References: Bister &amp; Emanuel 2002, <i>JGR</i> 107(D24), 4801 &middot; Chen, 
 </div>
 <div id="tcs-val" hidden></div>
 </div>
-<script src="/assets/tcshear/tcshear.js?v=20261016a" defer></script>
+<script src="/assets/tcshear/tcshear.js?v=20261016b" defer></script>
 <script>
 window.STAGE = {
   groups: [
