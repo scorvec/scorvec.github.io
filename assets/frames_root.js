@@ -123,13 +123,32 @@
     // the slower mirror is carrying this page: say so only when the CDN has failed in this tab (parked)
     if (isMirror(u) && cdnBad && !mirrorSaid) { mirrorSaid = true; emit({ mirror: true, why: "frames.scorvec.com and raw.githubusercontent.com failed" }); }
   }
-  function allFailed() {
+  // Why nothing has loaded yet, once every host has failed for a file: null (not asked), "asking", "missing" (a host
+  // answered 404: reachable, the file is just not published) or "network" (no answer, or a refusal).
+  var verdict = null;
+  function judged() {
+    if (servedAny) return;
+    if (verdict === "missing") emit({ unpublished: true, n: dead });
+    else if (verdict === "network" && dead >= 2 && !deadSaid) { deadSaid = true; emit({ dead: true }); }
+  }
+  // url: the file's first URL in the chain; notFound: a host already answered 404 for it (frameFetch sees statuses)
+  function allFailed(url, notFound) {
     // Every host failed FOR THIS FILE. That is only a network verdict if nothing has ever loaded: once a host has
     // served a frame, a failure means that particular file is missing (a half-published loop), and accusing the
     // network over a loop that is visibly playing is worse than saying nothing.
     dead++;
-    if (dead >= 2 && servedAny === 0) { if (!deadSaid) { deadSaid = true; emit({ dead: true }); } }
-    else if (servedAny) emit({ missing: true, n: dead });
+    if (servedAny) { emit({ missing: true, n: dead }); return; }
+    if (notFound) verdict = "missing";
+    if (verdict !== null) { if (verdict !== "asking") judged(); return; }
+    // Nothing has loaded in this tab. Before blaming the connection, ask the first host for this file's headers
+    // (one HEAD; every host here sends CORS headers): a 404 means the frame is not published, not that the link is down.
+    if (typeof fetch !== "function" || !url) { verdict = "network"; judged(); return; }
+    verdict = "asking";
+    var ctrl = typeof AbortController === "function" ? new AbortController() : null;
+    var t = setTimeout(function () { if (ctrl) ctrl.abort(); }, 8000);
+    fetch(url, { method: "HEAD", cache: "no-store", signal: ctrl ? ctrl.signal : undefined })
+      .then(function (r) { return r.status === 404 || r.status === 410; }, function () { return false; })
+      .then(function (nf) { clearTimeout(t); verdict = nf ? "missing" : "network"; judged(); });
   }
 
   // frameLoad(im, rel, query, local, onFail, sha): set im.src and walk the chain on error. `rel` is the repo path
@@ -181,7 +200,7 @@
       k++;
       if (k < tries.length) { go(); return; }
       done = true; clearTimeout(timer);
-      allFailed();
+      allFailed(tries[0], false);
       if (onFail) onFail(im);
     };
     im.addEventListener("load", function () {
@@ -197,9 +216,9 @@
   // branch). opts.query (GitHub hosts only), opts.local (copy on main), opts.init (fetch init).
   window.frameFetch = function (rel, sha, opts) {
     opts = opts || {};
-    var tries = frameUrls(rel, sha, opts.query, opts.local), k = 0, cdnErr = false, rawErr = false;
+    var tries = frameUrls(rel, sha, opts.query, opts.local), k = 0, cdnErr = false, rawErr = false, nf = false;
     function next() {
-      if (k >= tries.length) { allFailed(); return Promise.reject(new Error("unavailable: " + rel)); }
+      if (k >= tries.length) { allFailed(tries[0], nf); return Promise.reject(new Error("unavailable: " + rel)); }
       var u = tries[k++], ms = isCdn(u) ? 8000 : (isRaw(u) && !rawOk ? 7000 : 30000);
       var ctrl = typeof AbortController === "function" ? new AbortController() : null;
       var t = ctrl && setTimeout(function () { ctrl.abort(); }, ms);    // time to HEADERS: latency, not bandwidth
@@ -208,6 +227,7 @@
       return fetch(u, init).then(function (r) {
         if (t) clearTimeout(t);
         if (!r.ok) {
+          if (r.status === 404 && !(opts.local && k === tries.length)) nf = true;   // a frame host, not main's copy
           if (isCdn(u) && r.status !== 404) cdnErr = true;      // a 404 is the origin's answer, passed through
           if (isRaw(u)) rawErr = true;
           return next();

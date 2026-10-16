@@ -133,18 +133,6 @@
     padding: 0.35rem 0.55rem;
   }
 </style>
-<script>
-  // Count this page ONLY when it is opened directly, never when it is embedded.
-  // It is the animator: enso-atmosphere alone embeds it four times, so an
-  // unconditional beacon turned one visit into five pageviews and inflated
-  // every figure on stats.html.
-  if (!new URLSearchParams(location.search).has("embed")) {
-    var gc = document.createElement("script");
-    gc.async = true; gc.src = "//gc.zgo.at/count.js";
-    gc.setAttribute("data-goatcounter", "https://scorvec.goatcounter.com/count");
-    document.head.appendChild(gc);
-  }
-</script>
 <meta name="robots" content="noindex">
 </head>
 <body>
@@ -192,10 +180,11 @@ const ANIM_BASE = new URLSearchParams(location.search).get("base") || "assets/ss
 // honoured for both, so callers can still point the viewer anywhere.
 const FRAME_ROOT = window.FRAME_ROOT;   // assets/frames_root.js
 // Only the directories the frames publisher actually mirrors live on that branch, and they
-// are all `assets/<product>/anim`. mjo.html passes base=assets (its frames sit in
-// assets/mjo/ on main) — routing it to the branch 404s every frame. Anything that is not
-// an /anim directory, and any absolute base, is served from where it already lives.
-const ON_FRAMES_BRANCH = ANIM_BASE.indexOf("//") === -1 && /\/anim$/.test(ANIM_BASE);
+// are all `assets/<product>/anim` or one folder inside it (the SFS subseasonal loops sit in
+// assets/sfs/anim/sub). mjo.html passes base=assets (its frames sit in assets/mjo/ on
+// main) — routing it to the branch 404s every frame. Anything that is not an /anim
+// directory, and any absolute base, is served from where it already lives.
+const ON_FRAMES_BRANCH = ANIM_BASE.indexOf("//") === -1 && /\/anim(\/[\w-]+)?$/.test(ANIM_BASE);
 const FRAME_BASE = ON_FRAMES_BRANCH ? FRAME_ROOT + ANIM_BASE : ANIM_BASE;
 // If the branch is missing a frame (mid-migration, or a renderer that has not published
 // yet) fall back to the copy on main. The flag is per-FRAME, not per-element: imgEl is
@@ -226,6 +215,10 @@ document.addEventListener("framehost", ev => {
     loadingEl.classList.remove("hidden");
     loadingEl.innerHTML = "Frames could not be loaded from frames.scorvec.com or its fallbacks " +
       "(raw.githubusercontent.com, cdn.jsdelivr.net) &mdash; check the connection and reload.";
+  } else if (d.unpublished) {
+    // the frame host answered "not found": the connection is fine, this loop's frames are not out yet
+    loadingEl.classList.remove("hidden");
+    loadingEl.textContent = "This frame is not published yet; it appears after the next update of this product.";
   } else if (d.recovered) {
     loadingEl.classList.add("hidden");           // a host answered after all
     const n0 = document.getElementById("hostnote");
@@ -370,6 +363,29 @@ imgEl.style.cursor = "zoom-in";
 // fonts finish loading — observe it directly so the parent never miscounts
 if (window.ResizeObserver) new ResizeObserver(postHeight).observe(document.body);
 
+// A loop the manifest does not carry yet (a new product before its first run, or a manifest written before its
+// frames): a message instead of a picture, and no picker.
+function unpublished() {
+  loadingEl.textContent = "This loop has not been published yet; it appears after the next model run.";
+  imgEl.style.visibility = "hidden";
+  const bar = document.getElementById("regionBar"); if (bar) bar.style.display = "none";
+  if (new URLSearchParams(location.search).has("embed")) document.body.classList.add("embed");
+}
+// The loop's own run or render time, for the embedding page's footer (assets/stage.js): the run the producer names
+// (init), else its build time (generated), else the cycle in a YYYYMMDDHH `ver` or the render time in an epoch `ver`;
+// nothing when the manifest says none of these.
+function postStamp() {
+  if (window === parent) return;
+  const m = manifest, v = String(m.ver == null ? "" : m.ver);
+  let t = "";
+  if (typeof m.init === "string" && m.init) t = "init " + m.init.replace("T", " ").replace(/:00Z$/, "Z");
+  else if (typeof m.generated === "string" && m.generated) t = "updated " + m.generated;
+  else if (/^20\d\d(0[1-9]|1[0-2])(0[1-9]|[12]\d|3[01])([01]\d|2[0-3])$/.test(v))
+    t = "init " + v.slice(0, 4) + "-" + v.slice(4, 6) + "-" + v.slice(6, 8) + " " + v.slice(8) + "Z";
+  else if (/^1\d{9}$/.test(v)) t = "updated " + new Date(+v * 1000).toISOString().slice(0, 16).replace("T", " ") + "Z";
+  try { parent.postMessage({ type: "sstAnimStamp", text: t }, location.origin); } catch (e) {}
+}
+
 async function init() {
   try {
     const MF = new URLSearchParams(location.search).get("manifest") || "manifest.json";
@@ -386,6 +402,12 @@ async function init() {
     loadingEl.classList.add("hidden");
     return;
   }
+  // a manifest written before its first loop (no regions yet) has nothing to play: say so instead of hanging
+  if (!manifest || !manifest.regions || typeof manifest.regions !== "object" || !Object.keys(manifest.regions).length) {
+    unpublished();
+    return;
+  }
+  postStamp();
   // Populate the region buttons.
   // ?regions=a,b,c limits the picker to a subset, in the order given, so one
   // manifest can serve several pages: the SST page shows the surface products
@@ -424,10 +446,7 @@ async function init() {
   // before its first run) must say so - falling back to the first loop showed a DIFFERENT product under this one's
   // title (2026-10-03: the single-run MSLP loops showed the ensemble blend).
   if (params.get("region") && !manifest.regions[want] && regParam !== null && onlyIds.length === 0) {
-    $("loading").textContent = "This loop has not been published yet; it appears after the next model run.";
-    $("frame").style.visibility = "hidden";
-    const bar = document.getElementById("regionBar"); if (bar) bar.style.display = "none";
-    if (params.has("embed")) document.body.classList.add("embed");
+    unpublished();
     return;
   }
   region = (want && manifest.regions[want]) ? want : (regIds[0] || allRegIds[0]);
@@ -454,8 +473,19 @@ async function init() {
 }
 
 function setupRegion() {
-  frames = manifest.regions[region].frames;
-  slider.max = frames.length - 1;
+  frames = (manifest.regions[region] || {}).frames || [];
+  slider.max = Math.max(frames.length - 1, 0);
+  if (!frames.length) {                       // a loop listed before its first frame: say so (the picker stays)
+    imgEl.style.visibility = "hidden";
+    loadingEl.classList.remove("hidden");
+    loadingEl.textContent = "This loop has no frames yet; it appears after the next model run.";
+    dateEl.innerHTML = "&mdash;";
+    return;
+  }
+  if (imgEl.style.visibility === "hidden") {  // back from an empty loop
+    imgEl.style.visibility = "";
+    loadingEl.innerHTML = "Loading frames&hellip;";
+  }
   // forecast-style embeds can ask to open on a specific frame (?start=0) and
   // roll on load (?autoplay=1); observation loops keep the newest-frame default
   const P = new URLSearchParams(location.search);
@@ -521,6 +551,7 @@ function pump() {
 }
 
 function showFrame(i) {
+  if (!frames.length) return;
   idx = (i + frames.length) % frames.length;
   const f = frames[idx];
   try { imgEl.fetchPriority = "high"; } catch (e) {}
@@ -536,7 +567,7 @@ imgEl.addEventListener("load", () => {
 // Say what is happening on a slow link instead of a silent "Loading frames..." (2026-09-26).
 function slowNote() {
   setTimeout(() => {
-    if (loadingEl.classList.contains("hidden") || /could not be loaded/.test(loadingEl.textContent)) return;
+    if (loadingEl.classList.contains("hidden") || /could not be loaded|not published/.test(loadingEl.textContent)) return;
     loadingEl.innerHTML = "Still loading&hellip; the frame host is slow on this connection. Frames will appear as they arrive.";
   }, 5000);
 }
@@ -550,6 +581,7 @@ function framesReady() {
 
 function play() {
   if (playing) { stop(); return; }
+  if (!frames.length) return;
   engage();                    // they want the loop: fetch the rest now, in play order
   playing = true;
   $("play").innerHTML = "&#x23F8;";   // pause glyph
