@@ -4,7 +4,7 @@
 Each system's live members are counted against its own 1993-2016 hindcast distribution at
 each grid point, so model bias and spread drift are removed before anything is compared;
 that is the only way the eight systems can be shown on one page. Temperature is counted
-against the hindcast's linear trend extrapolated to the valid year -- against a flat
+against the hindcast's linear trend (over its start years) extrapolated to this start -- against a flat
 1993-2016 base the warming trend alone puts most of the tropics in the upper tercile and
 the map stops saying anything about the season.
 
@@ -240,7 +240,7 @@ def main() -> int:
                     f"against this system's own 1993–2016 hindcast ({meta['nsamp'][pid]} samples) at each grid point. "
                     f"Coloured where a category reaches 40 % {TERC_TEST_NOTE}; near-normal is not drawn."
                     + (
-                        "  Counted against the hindcast's linear trend extrapolated to the valid year."
+                        "  Counted against the hindcast's linear trend extrapolated to this start."
                         if var in DETREND
                         else ""
                     )
@@ -281,11 +281,7 @@ def main() -> int:
             f"{len(keep)} C3S systems, each weighted equally · {pname} ({lead}) · {MONTHS[mo - 1]} {y} issue · "
             "every system counted against its own 1993–2016 hindcast first. "
             f"Coloured where a category reaches 40 % {TERC_TEST_NOTE}; near-normal is not drawn."
-            + (
-                "  Counted against the hindcast's linear trend extrapolated to the valid year."
-                if var in DETREND
-                else ""
-            )
+            + ("  Counted against the hindcast's linear trend extrapolated to this start." if var in DETREND else "")
         )
         draw(
             pr,

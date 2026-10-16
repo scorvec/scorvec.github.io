@@ -63,7 +63,7 @@
       if (e.members) tr.push(oc.memberTrace(x, oc.memberRows(e.members, x.length)));
       tr.push(oc.meanTrace(x, e.mean, issueLabel(T.issue) + " issue mean", hv));
     }
-    if (e.obs_tail && e.obs_tail.length) tr.push(oc.obsTrace(e.obs_tail.map(function (r) { return monthDate(r[0]); }), e.obs_tail.map(function (r) { return r[1]; }), e.obs_source === "CPC" ? "observed (CPC index)" : "observed (ERA5, same projection)", hv));
+    if (e.obs_tail && e.obs_tail.length) tr.push(oc.obsTrace(e.obs_tail.map(function (r) { return monthDate(r[0]); }), e.obs_tail.map(function (r) { return r[1]; }), e.obs_source === "CPC" ? (hasCal(e) && IDX_MODE.cal ? "observed (CPC index)" : "observed (CPC index, its own scale)") : "observed (ERA5, same projection)", hv));
     if (e.cpc_tail && e.cpc_tail.length && e.obs_source !== "CPC") tr.push(oc.markerTrace(e.cpc_tail.map(function (r) { return monthDate(r[0]); }), e.cpc_tail.map(function (r) { return r[1]; }), "published index (CPC), its own scale", hv));
     if (key.indexOf("u60") === 0) tr.push({x: [x[0], x[x.length - 1]], y: [0, 0], mode: "lines", line: {color: "#c2185b", width: 1.4, dash: "dash"}, name: "easterly below", hoverinfo: "skip"});
     return tr;
@@ -112,7 +112,7 @@
   // the teleconnection figures (seasonal.html) and the stratosphere one (stratosphere.html)
   function teleFigs(T, hostId) {
     var f = figs(T), F = f.F, t = "";
-    if (F.tele_probs) t += fig(F.tele_probs, f.v, "SEAS5 teleconnection phase probabilities by month", "<b>Phase probabilities by month.</b> Upper bar: the share of the 51 members at or beyond ±" + (T.thr || 0.5) + "σ. Thin lower bar: the same after hindcast calibration. " + (T.skill_test ? "Hatched cells have no significant hindcast skill (one-sided " + Math.round(T.skill_test.alpha * 100) + " % test over the 24 hindcast years: r below " + T.skill_test.r_crit_n24 + "); their lower bar is climatology." : "Hatched cells have no usable hindcast skill (r below " + (T.skill_min || 0.25) + ")."));
+    if (F.tele_probs) t += fig(F.tele_probs, f.v, "SEAS5 teleconnection phase probabilities by month", "<b>Phase probabilities by month.</b> Upper bar: the share of the 51 members at or beyond ±" + (T.thr || 0.5) + "σ" + (T.skill_test && T.skill_test.fdr_q ? ", the threshold moved to the same climatological frequency in the model's own hindcast spread" : "") + ". Thin lower bar: the same after hindcast calibration. " + (T.skill_test ? "Hatched cells have no significant hindcast skill (one-sided " + Math.round(T.skill_test.alpha * 100) + " % test over the 24 hindcast years: r below " + T.skill_test.r_crit_n24 + (T.skill_test.fdr_q ? ", and a false discovery rate of " + Math.round(T.skill_test.fdr_q * 100) + " % over all " + T.skill_test.cells + " index × lead cells" : "") + "); their lower bar is climatology." : "Hatched cells have no usable hindcast skill (r below " + (T.skill_min || 0.25) + ")."));
     if (F.tele_series) t += fig(F.tele_series, f.v, "SEAS5 teleconnection indices with the observed ERA5 tail", "<b>Each index against its observed record.</b> Black: ERA5 through the latest month available; red crosses: CPC's published index; bands and navy line: this issue; dashed: last month's. Small r values are the hindcast skill for each month.");
     $(hostId).innerHTML = t;
   }
