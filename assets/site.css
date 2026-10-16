@@ -88,7 +88,7 @@
 .sh-item:hover > .sh-link::before, .sh-link[aria-current="page"]::before { transform: scaleX(1); }
 .sh-has-menu > .sh-menubtn::before { right: 1.9rem; }
 .sh-link:focus-visible, .sh-toggle:focus-visible, .sh-menu a:focus-visible, .st a:focus-visible, .sf a:focus-visible, .button:focus-visible {
-  outline: 2px solid var(--c-accent); outline-offset: 2px;
+  outline: 2px solid var(--c-accent, #274b7a); outline-offset: 2px;   /* a .button outside .sh/.st/.sf has no --c-accent */
 }
 .sh-link[aria-current="page"] { font-weight: 500; color: var(--c-accent); }
 .sh-menubtn::after {
