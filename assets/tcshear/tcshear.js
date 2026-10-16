@@ -49,6 +49,14 @@
     return a > -67.5 ? "downshear-right" : a >= -112.5 ? "right of shear" : "upshear-right";
   }
   function relOf(bearing, from) { var down = (from + 180) % 360; return (((down - bearing) + 540) % 360) - 180; }
+  // the shear's direction against the track: sh_mot = motion heading - shear heading (toward), + = shear to the LEFT of motion
+  function shMot(r) {
+    if (!r || r.sh_mot == null) return "";
+    var a = r.sh_mot;
+    if (Math.abs(a) <= 30) return "along the track";
+    if (Math.abs(a) >= 150) return "against the track";
+    return Math.abs(a) + "° " + (a > 0 ? "left" : "right") + " of the track";
+  }
 
   // ── state ─────────────────────────────────────────────────────────────────────────────────────────────────
   // A malformed deep link (#tcshear/NOPE/fc/500/xx) must still draw: an unknown measure falls back to the 200-850 hPa
@@ -60,10 +68,10 @@
     if (!MEAS.some(function (q) { return q[0] === m; })) m = "deep";
     if (!isFinite(hr)) hr = 0;
     hr = Math.max(0, Math.min(120, Math.round(hr / 6) * 6));
-    return { prod: h[0], sid: h[1] || null, view: h[2] === "val" ? "val" : "fc", h: hr, m: m };
+    return { prod: h[0], sid: h[1] || null, view: h[2] === "val" ? "val" : "fc", h: hr, m: m, sr: h[5] === "sr" };
   }
   function go(st) {
-    var h = "#tcshear/" + (st.sid || "") + "/" + st.view + "/" + st.h + "/" + st.m;
+    var h = "#tcshear/" + (st.sid || "") + "/" + st.view + "/" + st.h + "/" + st.m + (st.sr ? "/sr" : "");
     if (location.hash !== h) history.replaceState(null, "", h);
     render();
   }
@@ -111,42 +119,61 @@
   function txt(x, y, s, a, cls) { return '<text x="' + x.toFixed(1) + '" y="' + y.toFixed(1) + '"' + (a ? ' text-anchor="' + a + '"' : "") + ' class="' + (cls || "tl") + '">' + s + "</text>"; }
 
   // Hodograph: environmental (vortex-removed) wind at every level, kt.
-  function hodograph(doc, h) {
+  // sr: storm-relative - each run's winds less its own storm motion at that hour (the storm sits at the origin; the
+  // ground-relative origin is marked). The 200-850 hPa shear is a difference of two levels, so it is the same either way.
+  function hodograph(doc, h, sr) {
     var W = 420, H = 420, cx = W / 2, cy = H / 2, R = 180;
     var lev = doc.levels, rs = runs(doc), ctl = at(rs.length ? rs[0][1] : [], h);
+    function rel(r) {                                    // the record's hodograph points in the chosen frame
+      if (!r || !r.env) return null;
+      if (!sr) return r.env;
+      if (!r.mot) return null;                           // no motion for this record: not drawn storm-relative
+      var a = r.mot[1] * Math.PI / 180, mu = r.mot[0] * Math.sin(a), mv = r.mot[0] * Math.cos(a);
+      return r.env.map(function (q) { return q ? [q[0] - mu, q[1] - mv] : null; });
+    }
     var vmax = 10;
-    function upd(r) { (r && r.env || []).forEach(function (p) { if (p) vmax = Math.max(vmax, Math.hypot(p[0], p[1]) * KT); }); }
+    function upd(r) { (rel(r) || []).forEach(function (p) { if (p) vmax = Math.max(vmax, Math.hypot(p[0], p[1]) * KT); });
+      if (sr && r && r.mot) vmax = Math.max(vmax, r.mot[0] * KT); }
     rs.forEach(function (x) { upd(at(x[1], h)); });
     var ringStep = vmax > 60 ? 20 : vmax > 30 ? 10 : 5, top = Math.ceil(vmax / ringStep) * ringStep, sc = R / top;
     function X(u) { return cx + u * KT * sc; } function Y(v) { return cy - v * KT * sc; }
-    var s = svgOpen(W, H, "Environmental hodograph, " + doc.name + ", +" + h + " h");
+    var s = svgOpen(W, H, (sr ? "Storm-relative" : "Environmental") + " hodograph, " + doc.name + ", +" + h + " h");
     for (var k = ringStep; k <= top; k += ringStep) s += '<circle cx="' + cx + '" cy="' + cy + '" r="' + (k * sc).toFixed(1) + '" class="ring"/>';
     var placed = [], dots = [];                        // level labels and control points: the ring labels keep clear of them
     s += '<line x1="' + (cx - R) + '" y1="' + cy + '" x2="' + (cx + R) + '" y2="' + cy + '" class="axis"/><line x1="' + cx + '" y1="' + (cy - R) + '" x2="' + cx + '" y2="' + (cy + R) + '" class="axis"/>';
-    s += txt(cx + R - 2, cy - 5, "u east", "end", "tm") + txt(cx + 5, cy - R + 12, "v north", null, "tm");
+    s += txt(cx + R - 2, cy - 5, (sr ? "u − cx" : "u east"), "end", "tm") + txt(cx + 5, cy - R + 12, (sr ? "v − cy" : "v north"), null, "tm");
     // members: faint
-    members(doc).forEach(function (recs) { var r = at(recs, h); if (!r || !r.env) return;
-      s += line(r.env.filter(Boolean).map(function (p) { return [X(p[0]), Y(p[1])]; }), "#9aa5b4", 0.7, 'opacity="0.35"'); });
-    rs.slice(1).forEach(function (x) { var r = at(x[1], h); if (!r || !r.env) return;
-      s += line(r.env.filter(Boolean).map(function (p) { return [X(p[0]), Y(p[1])]; }), x[2], 1.6, 'opacity="0.9"'); });
-    if (ctl && ctl.env) {
+    members(doc).forEach(function (recs) { var e = rel(at(recs, h)); if (!e) return;
+      s += line(e.filter(Boolean).map(function (p) { return [X(p[0]), Y(p[1])]; }), "#9aa5b4", 0.7, 'opacity="0.35"'); });
+    rs.slice(1).forEach(function (x) { var e = rel(at(x[1], h)); if (!e) return;
+      s += line(e.filter(Boolean).map(function (p) { return [X(p[0]), Y(p[1])]; }), x[2], 1.6, 'opacity="0.9"'); });
+    var env = rel(ctl);
+    if (ctl && env) {
       // control: segments coloured from the boundary layer (warm) to the upper troposphere (blue)
       var cols = ["#b45309", "#c2410c", "#dc2626", "#be185d", "#9d174d", "#7e22ce", "#5b21b6", "#3730a3", "#1d4ed8", "#0369a1", "#0e7490", "#155e75"];
-      for (var i = 1; i < ctl.env.length; i++) { var a = ctl.env[i - 1], b = ctl.env[i]; if (!a || !b) continue;
+      for (var i = 1; i < env.length; i++) { var a = env[i - 1], b = env[i]; if (!a || !b) continue;
         s += '<line x1="' + X(a[0]).toFixed(1) + '" y1="' + Y(a[1]).toFixed(1) + '" x2="' + X(b[0]).toFixed(1) + '" y2="' + Y(b[1]).toFixed(1) + '" stroke="' + cols[i] + '" stroke-width="3.2" stroke-linecap="round"/>'; }
-      ctl.env.forEach(function (p, i) { if (!p) return; var L = lev[i]; dots.push([X(p[0]), Y(p[1])]);
+      env.forEach(function (p, i) { if (!p) return; var L = lev[i]; dots.push([X(p[0]), Y(p[1])]);
         s += '<circle cx="' + X(p[0]).toFixed(1) + '" cy="' + Y(p[1]).toFixed(1) + '" r="' + ([850, 500, 200].indexOf(L) >= 0 ? 4.5 : 2.6) + '" fill="#fff" stroke="' + cols[i] + '" stroke-width="1.6"/>'; });
       // level labels, 850/500/200 first; one that would overlap a label already drawn is left out (2026-10-08 sweep: with
       // a weak low-level flow 1000/850/700 sat on top of each other at the centre)
-      [850, 500, 200, 1000, 700, 300, 100].forEach(function (L) { var i = lev.indexOf(L), p = i >= 0 ? ctl.env[i] : null; if (!p) return;
+      [850, 500, 200, 1000, 700, 300, 100].forEach(function (L) { var i = lev.indexOf(L), p = i >= 0 ? env[i] : null; if (!p) return;
         var x = X(p[0]) + 6, y = Y(p[1]) - 5, w = 7 * String(L).length + 4;
         if (placed.some(function (q) { return x < q[0] + q[2] && q[0] < x + w && Math.abs(y - q[1]) < 13; })) return;
         placed.push([x, y, w]); s += txt(x, y, String(L), null, "tl lev"); });
       // 200-850 shear vector (850 -> 200), the storm motion from the origin
       var i8 = lev.indexOf(850), i2 = lev.indexOf(200);
-      if (ctl.env[i8] && ctl.env[i2]) s += '<line x1="' + X(ctl.env[i8][0]) + '" y1="' + Y(ctl.env[i8][1]) + '" x2="' + X(ctl.env[i2][0]) + '" y2="' + Y(ctl.env[i2][1]) + '" stroke="#d1352b" stroke-width="2" stroke-dasharray="5 3" marker-end="url(#tcsArr)"/>';
-      if (ctl.mot) { var ang = ctl.mot[1] * Math.PI / 180, mv = ctl.mot[0];
-        s += '<line x1="' + cx + '" y1="' + cy + '" x2="' + X(mv * Math.sin(ang)) + '" y2="' + Y(mv * Math.cos(ang)) + '" stroke="#1b1d22" stroke-width="2" marker-end="url(#tcsArrK)"/>'; }
+      if (env[i8] && env[i2]) s += '<line x1="' + X(env[i8][0]) + '" y1="' + Y(env[i8][1]) + '" x2="' + X(env[i2][0]) + '" y2="' + Y(env[i2][1]) + '" stroke="#d1352b" stroke-width="2" stroke-dasharray="5 3" marker-end="url(#tcsArr)"/>';
+      if (ctl.mot) { var ang = ctl.mot[1] * Math.PI / 180, mv = ctl.mot[0], mx = mv * Math.sin(ang), my = mv * Math.cos(ang);
+        if (!sr) s += '<line x1="' + cx + '" y1="' + cy + '" x2="' + X(mx) + '" y2="' + Y(my) + '" stroke="#1b1d22" stroke-width="2" marker-end="url(#tcsArrK)"/>';
+        else {                                           // the storm is the origin; the ground-relative zero sits at minus its motion
+          s += '<circle cx="' + cx + '" cy="' + cy + '" r="4" fill="#1b1d22"/>';
+          s += '<path d="M' + (X(-mx) - 5).toFixed(1) + "," + Y(-my).toFixed(1) + "h10M" + X(-mx).toFixed(1) + "," + (Y(-my) - 5).toFixed(1) + 'v10" stroke="#1b1d22" stroke-width="1.6"/>';
+          placed.push([X(-mx) + 6, Y(-my) + 14, 62]); s += txt(X(-mx) + 6, Y(-my) + 14, "ground 0", null, "tm");
+        }
+        var sm = shMot(ctl);
+        if (sm) s += txt(8, H - 8, "Shear " + sm + " (motion " + compass(ctl.mot[1]) + " " + Math.round(mv * KT) + " kt)", null, "tm");
+      }
     }
     // ring labels last, on the first diagonal that clears the level labels and the control's points (2026-10-12 audit:
     // the "10 kt" label sat on the "850" label); a ring whose label fits nowhere is left unlabelled
@@ -305,7 +332,7 @@
     var yr = !live || new Date(tm0).getUTCFullYear() !== new Date().getUTCFullYear();     // a hindcast case names its year
     var s = "<b>" + esc(doc.name) + "</b>, AIFS-ENS run of " + fmtT(tm0, true, yr) + (live ? "" : " (validation case)") + ": environmental 200–850 hPa shear <b>" + Math.round(c.deep[0] * KT) + " kt from " + compass(c.deep[1]) +
       "</b> (850–500 hPa " + Math.round(c.low[0] * KT) + " kt, 500–200 hPa " + Math.round(c.up[0] * KT) + " kt" + (c.gs != null ? "; generalized " + Math.round(c.gs * KT) + " kt" : "") + ")";
-    if (c.mot) s += ", storm moving toward " + compass(c.mot[1]) + " at " + Math.round(c.mot[0] * KT) + " kt";
+    if (c.mot) s += ", storm moving toward " + compass(c.mot[1]) + " at " + Math.round(c.mot[0] * KT) + " kt" + (shMot(c) ? " (the shear points " + shMot(c) + ")" : "");
     s += ". ";
     var mx = rs[0][1].reduce(function (b, r) { return r.deep && r.h <= 72 && (!b || r.deep[0] > b.deep[0]) ? r : b; }, null);
     if (mx && mx.h > 0) s += "The control's shear peaks at " + Math.round(mx.deep[0] * KT) + " kt at +" + mx.h + " h (" + fmtT(tm0 + mx.h * 3600000, true) + "). ";
@@ -461,7 +488,9 @@
     $("tcs-play").onclick = function () { if (PLAY) { stop(); return; } play(st, doc, s); };
     playLabel($("tcs-play"), !!PLAY);
     $("tcs-hlab").textContent = "+" + h + " h · " + fmtT(tm0 + h * 3600000, true, !s.live);
-    $("tcs-hodo").innerHTML = hodograph(doc, h);
+    $("tcs-frame").innerHTML = [[false, "Ground-relative"], [true, "Storm-relative"]].map(function (f) { return '<button type="button" data-sr="' + (f[0] ? 1 : 0) + '" aria-pressed="' + (!!st.sr === f[0]) + '">' + f[1] + "</button>"; }).join("");
+    root.querySelectorAll("#tcs-frame button").forEach(function (b) { b.onclick = function () { st.sr = b.getAttribute("data-sr") === "1"; go(st); }; });
+    $("tcs-hodo").innerHTML = hodograph(doc, h, st.sr);
     $("tcs-tilt").innerHTML = tiltPlot(doc, h, tm0);
     $("tcs-meas").innerHTML = MEAS.map(function (q) { return '<button type="button" data-m="' + q[0] + '" aria-pressed="' + (st.m === q[0]) + '">' + q[1] + "</button>"; }).join("");
     root.querySelectorAll("#tcs-meas button").forEach(function (b) { b.onclick = function () { st.m = b.getAttribute("data-m"); go(st); }; });
