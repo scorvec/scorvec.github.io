@@ -1,0 +1,81 @@
+name: Hadley cell metric climatology (ERA5 1991-2020 7-day means -> hadley_clim.nc)
+
+# One-off builder of scripts/mjo/data/reference/hadley_clim.nc (scripts/mjo/src/build_hadley_clim.py): the metrics of
+# each day's centred 7-day-mean ERA5 zonal-mean v, 1991-2020, from WeatherBench2 (6-hourly, 1.5 deg; anonymous GCS),
+# pooled by day of year. Each part reduces five years to daily zonal means; the build job forms the climatology and
+# commits it.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  PIP_CONSTRAINT: ${{ github.workspace }}/scripts/constraints.txt   # bounds every pip install (see the file)
+
+jobs:
+  part:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    strategy:
+      fail-fast: false
+      matrix:
+        years: [[1991, 1995], [1996, 2000], [2001, 2005], [2006, 2010], [2011, 2015], [2016, 2020]]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+      - name: System libraries
+        run: sudo apt-get update -qq && sudo apt-get install -y --no-install-recommends libeccodes0 libgeos-dev libproj-dev proj-bin
+      - name: Install Python dependencies
+        run: pip install -r scripts/mjo/requirements-mjo.txt
+      - name: Daily zonal-mean v
+        run: |
+          mkdir -p out
+          python scripts/mjo/src/build_hadley_clim.py fetch --years ${{ matrix.years[0] }} ${{ matrix.years[1] }} \
+            --out out/vbar_${{ matrix.years[0] }}.npz
+      - uses: actions/upload-artifact@v7
+        with:
+          name: hadclim-${{ matrix.years[0] }}
+          path: out/*.npz
+          retention-days: 5
+
+  build:
+    needs: part
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+      - name: Install Python dependencies
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y --no-install-recommends libeccodes0 libgeos-dev libproj-dev proj-bin
+          pip install -r scripts/mjo/requirements-mjo.txt
+      - uses: actions/download-artifact@v7
+        with:
+          pattern: hadclim-*
+          path: parts
+          merge-multiple: true
+      - name: Climatology
+        run: python scripts/mjo/src/build_hadley_clim.py build parts/*.npz
+      - name: Commit & push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          OUT=scripts/mjo/data/reference/hadley_clim.nc
+          SNAP=$(mktemp -d); cp "$OUT" "$SNAP/"
+          for i in 1 2 3 4 5; do
+            if ! timeout 120 git fetch origin main; then echo "fetch $i failed"; sleep 5; continue; fi
+            git reset --hard origin/main
+            cp "$SNAP/hadley_clim.nc" "$OUT"
+            git add "$OUT"
+            if git diff --staged --quiet; then echo "No changes; skipping commit."; exit 0; fi
+            git commit -m "Hadley cell metric climatology: ERA5 1991-2020 7-day means"
+            if timeout 180 git push; then echo "Pushed on attempt $i."; exit 0; fi
+            echo "Push $i rejected; resyncing and retrying…"
+            sleep 5
+          done
+          echo "ERROR: could not push after 5 attempts." >&2
+          exit 1
