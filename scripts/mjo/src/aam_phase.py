@@ -33,7 +33,7 @@ from matplotlib.gridspec import GridSpec
 sys.path.insert(0, str(Path(__file__).parent))
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "era5"))
 import era5_store
-from aam import A, G, CLIM_PATH, HIST_PATH, ARCHIVE_PATH, _vert_weights, eval_clim, fields
+from aam import A, G, CLIM_PATH, HIST_PATH, ARCHIVE_PATH, _vert_weights, eval_clim, fields, member_mean
 from doycal import noleap_doy, sel_doy
 
 REF = Path(__file__).resolve().parent.parent / "data" / "reference"
@@ -118,15 +118,8 @@ def forecast_latbands(date, time, latc):
     files (aam.fields: cache hits when the AAM products ran this cycle)."""
     u, sp = fields(date, time)
     u = u.sel(isobaricInhPa=LEVELS13)
-    # Sequential scheduler: see the note in aam_zonal.py. Threaded evaluation of a
-    # 50-member mean holds several full chunks at once.
-    um = (
-        u.mean("number")
-        .transpose("step", "isobaricInhPa", "latitude", "longitude")
-        .compute(scheduler="single-threaded")
-        .values
-    )
-    spm = sp.mean("number").transpose("step", "latitude", "longitude").compute(scheduler="single-threaded").values
+    um = member_mean(u.transpose("number", "step", "isobaricInhPa", "latitude", "longitude"))
+    spm = member_mean(sp.transpose("number", "step", "latitude", "longitude"))
     lat = u.latitude.values
     steps_h = (u.step / np.timedelta64(1, "h")).values.astype(int)
     dlon = np.deg2rad(0.25)

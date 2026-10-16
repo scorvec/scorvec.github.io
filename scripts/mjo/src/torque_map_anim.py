@@ -47,7 +47,7 @@ from cartopy.util import add_cyclic_point
 sys.path.insert(0, str(Path(__file__).parent))
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "ecmwf"))
 import store as ecmwf  # shared ECMWF download manager
-from aam import ARCHIVE_PATH as AAM_ARCHIVE, DAILY_STEPS, SP_STEPS
+from aam import ARCHIVE_PATH as AAM_ARCHIVE, DAILY_STEPS, SP_STEPS, member_mean
 from doycal import noleap_doy  # common-year day of year (29 Feb = 59.5)
 
 REF = Path(__file__).resolve().parent.parent / "data" / "reference"
@@ -184,10 +184,13 @@ def main() -> int:
     days = DAYS
     end_h = [24 * d for d in days]  # each day's window ends here
 
-    # Linear in every member field, so the means are taken first (dask, one member at a time).
-    spm = grid(sp.mean("number")).compute(scheduler="single-threaded")
-    ewm = grid(ewss.mean("number")).compute(scheduler="single-threaded")
-    mslm = grid(_at(msl, end_h).mean("number")).compute(scheduler="single-threaded")
+    # Linear in every member field, so the means are taken first, one member at a time (aam.member_mean).
+    def mean(da):
+        return grid(da.isel(number=0, drop=True).copy(data=member_mean(da)))
+
+    spm = mean(sp)
+    ewm = mean(ewss)
+    mslm = mean(_at(msl, end_h))
 
     # friction: the model's own surface stress, the window mean from the accumulated ewss (N m^-2 s)
     cosn = np.cos(np.deg2rad(lat))[:, None]

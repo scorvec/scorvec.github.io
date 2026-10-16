@@ -62,6 +62,16 @@ def fields(date: str, time: str):
     return u, sp
 
 
+def member_mean(da: xr.DataArray) -> np.ndarray:
+    """The members' mean of a lazy (number, ...) field, one member at a time: a dask mean over 50 chunks of a
+    (step, lev, lat, lon) field holds several at once and ran a 16 GB runner out of memory."""
+    acc = None
+    for m in da.number.values:
+        x = da.sel(number=m).values.astype(np.float64)
+        acc = x if acc is None else acc + x
+    return acc / da.sizes["number"]
+
+
 def _vert_weights(p_pa: np.ndarray, sp: np.ndarray) -> np.ndarray:
     """Mass-layer thickness Δp (Pa) per level, clipped to the surface pressure
     so sub-surface layers vanish. p ascending; sp (lat,lon). -> (lev,lat,lon)."""
