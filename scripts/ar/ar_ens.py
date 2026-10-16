@@ -491,7 +491,12 @@ _R: dict = {}
 
 def _lab(init, t):
     h = int((t - init) / pd.Timedelta(hours=1))
-    return f"+{h} h · {t:%a %d %b %HZ}"
+    return f"valid {t:%a %d %b %HZ} (+{h} h)"
+
+
+def clim_hour(t) -> int:
+    """The PWAT climatology is fitted at 00Z and 12Z only: the hour read for valid time t (06Z -> 12Z, 18Z -> 00Z)."""
+    return 12 if 6 <= t.hour < 18 else 0
 
 
 def _render(job):
@@ -558,7 +563,7 @@ def pwat_frame(out, R, k):
             LON_E, LAT_E, R["a"][k], levels=[10, 20], colors=["#111", "#000"], linewidths=[0.7, 1.2], transform=pc
         )
         cl = "total column water (mm) · black contours: anomaly +10 and +20 mm vs ERA5 1991–2020"
-        ttl = "Precipitable water, ensemble mean"
+        ttl = "Precipitable water (mm)"
     else:
         alev = [-30, -25, -20, -15, -10, -5, -2, 2, 5, 10, 15, 20, 25, 30]
         acm = LinearSegmentedColormap.from_list(
@@ -592,10 +597,13 @@ def pwat_frame(out, R, k):
             LON_E, LAT_E, R["w"][k], levels=[25, 40], colors=["#333", "#000"], linewidths=[0.6, 1.0], transform=pc
         )
         ax.clabel(cs, fmt="%d mm", fontsize=7)
-        cl = f"anomaly (mm) vs ERA5 1991–2020 at {t:%HZ} for the date · contours: precipitable water 25 and 40 mm"
-        ttl = "Precipitable-water anomaly, ensemble mean"
+        cl = (
+            f"anomaly (mm) vs the ERA5 1991–2020 {clim_hour(t):02d}Z climatology for the date · "
+            "contours: precipitable water 25 and 40 mm"
+        )
+        ttl = "PWAT anomaly (mm)"
     A.map_features(ax)
-    A.heading(fig, H, f"{ttl} — {R['label']} · init {R['init']:%d %b %HZ} · {_lab(R['init'], t)}", R["sub"])
+    A.heading(fig, H, f"{ttl} — {R['label']}, mean · init {R['init']:%Y-%m-%d %HZ} · {_lab(R['init'], t)}", R["sub"])
     cax = fig.add_axes([0.2, 0.36 / H, 0.6, 0.13 / H])
     cb = fig.colorbar(pm, cax=cax, orientation="horizontal")
     cb.ax.tick_params(labelsize=7.5)
@@ -612,7 +620,7 @@ def pwat_clim(valid):
     legacy = "365.25" in d.attrs.get("note", "")  # file fitted on w = 2 pi doy / 365.25
     out = []
     for t in valid:
-        c = d["coef"].sel(hour=12 if 6 <= t.hour < 18 else 0).values  # the climatology holds 00Z and 12Z
+        c = d["coef"].sel(hour=clim_hour(t)).values
         # build_pwat_clim.py fits on the 366-slot calendar; a file fitted on 2 pi doy / 365.25 (mostly common years)
         # is read at the common-year day (1 March = 60 in every year, 29 Feb = 59.5)
         s = int(doy366(t))
@@ -775,8 +783,8 @@ def combine(work: Path, procs: int):
                     valid=v,
                     label=f"{d['meta']['label']} {d['meta']['members']} members",
                     init=v[0],
-                    sub="ECMWF total column water (vapour + cloud), ensemble mean, 0.5° · "
-                    "anomaly vs ERA5 1991–2020 (3 harmonics, 1.5°) at the same hour",
+                    sub="ECMWF total column water (vapour + cloud), ensemble mean, 0.5° · anomaly vs ERA5 1991–2020 "
+                    "(3 harmonics, 1.5°, fitted at 00Z and 12Z: 06Z frames use 12Z, 18Z frames 00Z)",
                 )
     dirs = {}
     for key, L in loops.items():
