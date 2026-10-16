@@ -44,6 +44,12 @@ target month Nov–Mar reachable within 6 lead months, per centre + MMM.
 POWER: the correlation detectable with 80 % power at n = 24, one-sided α = 0.05 (Fisher z), and at the Holm
 threshold of the family's smallest p (α/36).
 
+AMENDMENT (2026-10-16, made AFTER the test above was run, so the re-run is a re-test and is reported as one): BoM 2 is
+removed at the owner's request for its poor ENSO skill (it is also left out of the ENSO forecasts page), not for its
+result here (December r 0.32, inside the other centres' range). The 8-centre result is kept in the release as
+c3s_u10_skill_8centres_20261016.json (December MMM r 0.66, Holm p 0.005). Each family is now 7 centres + MMM = 32
+tests, and the Holm threshold of the smallest p is α/32.
+
     python c3s_u10_skill.py fetch [--budget-min 300]   # Actions only: CDS → raw GRIB → table, uploaded per unit
     python c3s_u10_skill.py build                      # statistics, JSON, figure (needs every table)
 """
@@ -90,7 +96,6 @@ SYSTEMS = [
     ("eccc_4", "eccc", "4", "ECCC 4 (GEM5-NEMO)", STARTS),
     ("eccc_5", "eccc", "5", "ECCC 5 (CanESM5)", STARTS),
     ("jma_3", "jma", "3", "JMA 3", STARTS),
-    ("bom_2", "bom", "2", "BoM 2", STARTS),
 ]
 SYS = {s[0]: s for s in SYSTEMS}
 CENTRES = [
@@ -101,10 +106,10 @@ CENTRES = [
     ("CMCC", ["cmcc_35"]),
     ("ECCC", ["eccc_4", "eccc_5"]),
     ("JMA", ["jma_3"]),
-    ("BoM", ["bom_2"]),
 ]
 MMM = "Multi-model mean"
 PRIMARY_TARGETS = ("Dec", "Jan", "Feb", "DJF")
+N_FAMILY = len(PRIMARY_TARGETS) * (len(CENTRES) + 1)  # tests per Holm family (one level)
 MONTH_NAME = {11: "Nov", 12: "Dec", 1: "Jan", 2: "Feb", 3: "Mar"}
 
 
@@ -502,8 +507,8 @@ def build() -> dict:
         centres=dict(CENTRES),
         power=dict(
             r80_alpha05=round(power_r(N, 0.05), 3),
-            r80_holm36=round(power_r(N, 0.05 / 36), 3),
-            note="one-sided Fisher z; the smallest p of a 36-test Holm family must beat 0.05/36",
+            r80_holm=round(power_r(N, 0.05 / N_FAMILY), 3),
+            note=f"one-sided Fisher z; the smallest p of a {N_FAMILY}-test Holm family must beat 0.05/{N_FAMILY}",
         ),
     )
 
@@ -679,7 +684,7 @@ def render(res: dict) -> str:
                 )
         ax.axvline(0, color="#8a8680", lw=0.8)
         ax.axvline(res["power"]["r80_alpha05"], color="#8a8680", lw=0.8, ls=":")
-        ax.axvline(res["power"]["r80_holm36"], color="#8a8680", lw=0.8, ls="--")
+        ax.axvline(res["power"]["r80_holm"], color="#8a8680", lw=0.8, ls="--")
         ax.set_xlim(-0.8, 1.0)
         ax.set_yticks(ypos)
         ax.set_yticklabels(names)
@@ -690,7 +695,7 @@ def render(res: dict) -> str:
             fontsize=10.5,
         )
         ax.set_xlabel(
-            "r (filled = Holm-significant within the 36-test family; dotted / dashed = r at 80 % power, raw / Holm α)"
+            f"r (filled = Holm-significant within the {N_FAMILY}-test family; dotted / dashed = r at 80 % power, raw / Holm α)"
         )
         ax.legend(fontsize=8, frameon=False, loc="lower right", ncol=4, bbox_to_anchor=(1.0, 1.06))
         ax.spines[["top", "right"]].set_visible(False)

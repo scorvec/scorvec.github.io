@@ -9,7 +9,7 @@ WHAT IT DOES, per C3S issue (start month S = Aug ... Dec, December = lead month 
   1. FETCH the issue's monthly-mean u at 10 hPa on the 60°N ring (2° grid, the c3s_u10_skill request with the year set to
      the issue) for each centre's CURRENT system, one sequential CDS request each (cds_seq; c3s-vortex.yml, `seas5` group):
      ECMWF 51 (from seas5.yml's cached fc_strat_u when present - never fetched twice), UKMO 610, Météo-France 9, DWD 22,
-     CMCC 4, ECCC 4 + 5, JMA 4, BoM 2. CMCC and JMA changed system after the test's hindcast versions (CMCC 35 -> 4 from
+     CMCC 4, ECCC 4 + 5, JMA 4 (BoM left out since 2026-10-16). CMCC and JMA changed system after the test's hindcast versions (CMCC 35 -> 4 from
      the Aug 2025 start, JMA 3 -> 4 from Mar 2026), so their current systems' Aug-Dec hindcasts (1993-2016, leads 1-6) are
      fetched once (`fetch-hc`) into the same release, same request as the test.
   2. CALIBRATE: each centre's ensemble-mean anomaly against its own hindcast climatology (hindcast leave-one-year-out;
@@ -72,7 +72,6 @@ CURRENT = [
     ("eccc_4", "eccc", "4", "ECCC GEM5-NEMO", (8, 9, 10, 11, 12), "eccc_4"),
     ("eccc_5", "eccc", "5", "ECCC CanESM5", (8, 9, 10, 11, 12), "eccc_5"),
     ("jma_4", "jma", "4", "JMA CPS4", (8, 9, 10, 11, 12), "jma_3"),
-    ("bom_2", "bom", "2", "BoM ACCESS-S2", (8, 9, 10, 11, 12), "bom_2"),
 ]
 CUR = {c[0]: c for c in CURRENT}
 CENTRES = [
@@ -83,7 +82,6 @@ CENTRES = [
     ("CMCC", ["cmcc_4"]),
     ("ECCC", ["eccc_4", "eccc_5"]),
     ("JMA", ["jma_4"]),
-    ("BoM", ["bom_2"]),
 ]
 NEW_HC = ("cmcc_4", "jma_4")
 MMM = "Multi-model mean"
