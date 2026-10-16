@@ -457,6 +457,14 @@ html .img-wrap, html .table-wrap { max-width: 100%; overflow-x: auto; }
   .sh-find-t, .sh-find kbd { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
   .sh-find svg { width: 1.2em; height: 1.2em; }
 }
+/* phones: the row in px, the name scaled with the width, so it fits beside the finder and Menu from 320 px on every
+   page (in rem the two buttons grow with the ENSO, GEPS and sounding pages' larger root font) */
+@media (max-width: 420px) {
+  .sh-in { max-width: none; padding: 0 16px; gap: 8px; }
+  .sh-brand { font-size: min(25px, 6.4vw); }
+  .sh-find { font-size: 15px; padding: 9px; }
+  .sh-toggle { font-size: 16px; gap: 8px; padding: 9px 12px; }
+}
 
 html.fp-lock { overflow: hidden; }
 .fp {
