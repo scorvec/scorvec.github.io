@@ -2,14 +2,15 @@ name: SEAS5 figure redraw (no data access)
 
 # Redraws SEAS5 figures for layout fixes between monthly issues, with no CDS key and no model-data downloads, so it runs
 # outside the `seas5` concurrency group (2026-10-08: lead 7 (April) made the six-column layouts' labels overlap):
-#   seas5_tele_probs.webp   from the published assets/sst/data/seas5_tele.json       (seas5_tele.py --replot)
-#   seas5_tele_series.webp + seas5_tele.json: CPC's published indices re-attached (--refresh-obs; SOI/EqSOI observed
-#                           tail, skill and calibration against CPC, recomputed from the JSON's members and the
-#                           hc_tele_nh table exactly as the monthly build does; small CPC text files, no CDS)
+#   seas5_tele.json + seas5_tele_{probs,series}.webp + seas5_strat_series.webp: the skill test re-applied to the
+#                           published JSON's calibration cells (seas5_tele.py --replot), after CPC's published indices
+#                           are re-attached (--refresh-obs; SOI/EqSOI observed tail, skill and calibration against
+#                           CPC, recomputed from the JSON's members and the hc_tele_nh table exactly as the monthly
+#                           build does; small CPC text files, no CDS)
 #   seas5_popT_{us,br}.webp from the issue summaries in release seas5-ref-v1          (seas5_popT.py --replot)
 #   seas5_pme_br.webp       from the issue + hindcast region series in seas5-ref-v1   (seas5_pme_regions.py --replot)
-# The release tables are our own derived files (seas5_ref.py), only read here. The JSON summaries are rewritten
-# with identical numbers (only "generated" moves, which also busts the page's image cache key).
+# The release tables are our own derived files (seas5_ref.py), only read here. The popT / P-E JSON summaries are
+# rewritten with identical numbers (only "generated" moves, which also busts the page's image cache key).
 
 on:
   workflow_dispatch: {}
@@ -33,7 +34,8 @@ jobs:
       SST_SITE_ROOT: ${{ github.workspace }}
       SEAS5_REF_DIR: ${{ github.workspace }}/seas5_ref
       OUTS: >-
-        assets/sst/seas5_tele_probs.webp assets/sst/seas5_tele_series.webp assets/sst/data/seas5_tele.json
+        assets/sst/seas5_tele_probs.webp assets/sst/seas5_tele_series.webp assets/sst/seas5_strat_series.webp
+        assets/sst/data/seas5_tele.json
         assets/sst/seas5_popT_us.webp assets/sst/seas5_popT_br.webp
         assets/sst/seas5_pme_br.webp assets/sst/data/seas5_popT.json assets/sst/data/seas5_pme_regions.json
     steps:
