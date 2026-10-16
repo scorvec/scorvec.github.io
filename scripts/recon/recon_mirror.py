@@ -49,7 +49,7 @@ ATCF = "https://ftp.nhc.noaa.gov/atcf"
 PRODUCTS = ["AHONT1", "REPNT1", "REPNT2", "REPNT3", "REPRPD"]  # Atlantic (REPNT0 = non-tasked weather recon)
 HCOLS = ["t", "la", "lo", "p", "z", "x", "dv", "t_", "td", "wd", "ws", "wp", "sfmr", "rr", "qc"]
 NOW = datetime.now(UTC)
-CODE_V = 3  # bump when the manifest's derived fields or the storm assignment change
+CODE_V = 4  # bump when the manifest's derived fields or the storm assignment change
 PASS_V = 2  # bump when the per-pass (leg) summary or the eye-sonde estimate changes
 
 
@@ -247,6 +247,22 @@ def screen_track(rows):
 
 
 STORM_R_KM = 556  # 300 n mi: the storm-relative statistics (VDM-style "max FL wind" etc.)
+NEAR_KM = STORM_R_KM  # a low-level mission without a storm number: median position within 300 n mi of the centre
+NEAR_KM_SURV = 1500  # a synoptic-surveillance pattern (G-IV) samples the steering flow far from the centre
+BASIN_PREFIX = {"A": "AL", "E": "EP", "C": "CP", "W": "WP"}  # last letter of the mission number -> ATCF basin
+NUMBER_NAME = re.compile(
+    r"(?:ONE|TWO|THREE|FOUR|FIVE|SIX|SEVEN|EIGHT|NINE|TEN|ELEVEN|TWELVE|THIRTEEN|FOURTEEN|FIFTEEN|SIXTEEN"
+    r"|SEVENTEEN|EIGHTEEN|NINETEEN|TWENTY|THIRTY|FORTY)+"
+)
+GENERIC_NAMES = {"SURV", "SURVEY", "INVEST", "INV", "TRAIN", "TRAINING", "TEST", "NONAME", "PTC", "TD", "TS", "STORM"}
+
+
+def storm_word(name):
+    """A mission header's name field when it names a storm ('SIMON'); None for 'SURV', 'INVEST', 'NINE', 'AL92'..."""
+    n = (name or "").upper().replace("-", "")
+    if not re.fullmatch(r"[A-Z]{3,}", n) or n in GENERIC_NAMES or NUMBER_NAME.fullmatch(n):
+        return None
+    return n
 
 
 def mission_stats(m, track=None):
@@ -544,6 +560,7 @@ class Mirror:
         self.missions = {}  # key -> mission dict (loaded on demand)
         self.touched = set()
         self.storms = {}  # sid -> rows (best track)
+        self.names = {}  # sid -> storm name (storms/<SID>.json), read on demand
         self.changed = False
         self.newfiles = 0
 
@@ -648,6 +665,7 @@ class Mirror:
             s["btk"] = [r[:6] for r in rows]
             s["name"] = storm_name(rows) or s.get("name") or sid
             self.storms[sid] = s["btk"]
+            self.names[sid] = s["name"]
         if fst is not None:
             s["fcst"] = fst
         if radii is not None:
@@ -666,29 +684,49 @@ class Mirror:
         self.write_storm(sid, None, dict(t0=t0, pts=pts))
 
     # ─── storm assignment ───
+    def storm_word_of(self, sid):
+        """The storm's own name as a mission header writes it ('ISAIAS'); None while it is unnamed."""
+        if sid not in self.names:
+            self.names[sid] = jload(self.out / "storms" / f"{sid}.json", {}).get("name") or sid
+        n = self.names[sid]
+        return None if n == sid else storm_word(n)
+
     def assign(self, m, st):
-        """m: mission or its manifest entry (year, storm_no, mission); st: mission_stats()."""
+        """m: mission or its manifest entry (year, storm_no, mission, name, aircraft); st: mission_stats().
+        Only Atlantic storms are mirrored: a mission numbered for another basin (0220E) belongs to no storm here."""
         y = m.get("year") or int(st.get("key", "0000")[:4])
         mi = m.get("mission") or ""
         if mi in ("", "UNK") or mi.startswith("WX") or m.get("aircraft") in (None, "UNK"):
             return None, None  # weather recon (WXWXA) / unparsed: never a storm's mission
-        if m.get("storm_no") and (m.get("mission") or "")[-1:] == "A":
+        basin = BASIN_PREFIX.get(mi[-1:])
+        if basin != "AL":
+            sid = f"{basin}{m['storm_no']:02d}{y}" if basin and m.get("storm_no") else None
+            return (sid, "mission number") if sid in self.storms else (None, None)
+        if m.get("storm_no"):
             return f"AL{m['storm_no']:02d}{y}", "mission number"
         sid = st.get("vdm_sid")
         if sid:
             return sid, "vortex message"
+        word = storm_word(m.get("name"))
+        own = [s for s in self.storms if s.startswith("AL") and s.endswith(str(y))]
+        named = [s for s in own if self.storm_word_of(s) == word] if word else []
+        if word and len(named) == 1:
+            return named[0], "storm name in the mission header"
         if not st.get("med") or not st.get("first"):
             return None, None
+        surv = (m.get("name") or "").upper().startswith("SURV") or m.get("aircraft") == "NOAA9"
+        cap = NEAR_KM_SURV if surv else NEAR_KM
         tm = (st["first"] + st["last"]) / 2
         best = None
-        for sid, rows in self.storms.items():
-            if not sid.startswith("AL") or not sid.endswith(str(y)):
-                continue
-            p = track_at(rows, tm)
+        for sid in own:
+            other = self.storm_word_of(sid)
+            if word and other and other != word:
+                continue  # the header names another storm
+            p = track_at(self.storms[sid], tm)
             if p is None:
                 continue
             d = km(st["med"][0], st["med"][1], p[0], p[1])
-            if d < 2000 and (best is None or d < best[1]):
+            if d < cap and (best is None or d < best[1]):
                 best = (sid, d)
         if best:
             return best[0], f"nearest storm ({round(best[1])} km from the mission's median position)"
