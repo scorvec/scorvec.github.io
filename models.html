@@ -125,9 +125,10 @@
              padding: 0.2rem 0.5rem; font-size: 0.82rem; color: var(--ink2); pointer-events: none; }
   .mv-load:empty { display: none; }
   /* sounding prompt on the map: says how to get a sounding where it is seen (a hint in the Show row would be small, at
-     the far right, hidden on phones and absent while a run's soundings are still being computed). Dismissible; the
-     dismissal is remembered per browser. */
-  .mv-sndhint { position: absolute; left: 8px; bottom: 8px; z-index: 3; display: flex; align-items: center; gap: 0.5rem;
+     the far right, hidden on phones and absent while a run's soundings are still being computed). It sits just under the
+     title badge (placeSndHint sets the exact top as the badge wraps): at the map's foot it was below the fold on a
+     laptop. Dismissible; the dismissal is remembered per browser. */
+  .mv-sndhint { position: absolute; left: 8px; top: 52px; z-index: 3; display: flex; align-items: center; gap: 0.5rem;
     max-width: calc(100% - 16px); background: #1f3b5c; color: #fff; border-radius: 8px; padding: 0.42rem 0.45rem 0.42rem 0.75rem;
     font: 500 0.98rem/1.3 var(--sans); box-shadow: 0 2px 10px rgba(0,0,0,0.25); }
   .mv-sndhint[hidden] { display: none; }
@@ -203,7 +204,10 @@
   .mv-mg.full { top: 0; bottom: 0; width: 100vw; border: 0; border-radius: 0; }
   .mv-mg[hidden] { display: none; }
   .mv-mg:focus { outline: none; }
-  /* forecast sounding dock: the meteogram's frame around the sounding explorer in an iframe */
+  /* forecast sounding dock: the meteogram's frame around the sounding explorer in an iframe. On a wide screen it sits
+     at the right and leaves the map's left third visible, so another spot can be clicked without closing it (centred
+     at 94 vw it left a 3 vw sliver either side, and a click there opened an airport's meteogram over it instead). */
+  @media (min-width: 1300px) { .mv-snd { left: auto; right: 1.5vw; transform: none; width: min(2000px, 68vw); } }
   .mv-snd iframe { flex: 1 1 auto; min-height: 0; width: 100%; border: 0; display: block; background: #0b0b12; }
   .mv-snd .mv-mgtop { padding-bottom: 0.55rem; }
 
@@ -449,7 +453,7 @@
 <main id="main" class="mv">
   <p class="kicker">Newest run of each model &middot; updated four times a day</p>
   <h1>Short-range model maps</h1>
-  <p class="lede">Zoomable maps of the newest HRRR, RRFS and RDPS forecasts, out to two to three and a half days, for aviation, severe and winter weather (including snow-band diagnostics), and wind and solar power. Pick a map, scrub through the hours, and hover or tap anywhere for the model's value. <b>Click or tap an airport</b> for its forecast from all three models, and compare the HRRR and RRFS with <b>Minus</b>.</p>
+  <p class="lede">Zoomable maps of the newest HRRR, RRFS and RDPS forecasts, out to two to three and a half days, for aviation, severe and winter weather (including snow-band diagnostics), and wind and solar power. Pick a map, scrub through the hours, and hover or tap anywhere for the model's value. <b>Click or tap an airport</b> for its forecast from all three models, <b>double-click</b> the HRRR map (on a phone, double-tap or press and hold) for a forecast sounding there, and compare the HRRR and RRFS with <b>Minus</b>.</p>
   <p class="mv-data" role="note"><b>Heavy on data, especially on mobile.</b> Opening a map loads only the hour on screen (0.05&ndash;0.6&nbsp;MB). Once you play, step or drag the time slider, the viewer downloads every hour of that map so the loop never stalls: typically 5&ndash;30&nbsp;MB a map, twice that with <b>Minus</b>, and 100&nbsp;MB or more after a dozen maps. It holds back to the next few hours only on a slow connection, not on a good 4G or 5G signal. On a capped data plan, look at single hours or wait for Wi&#8209;Fi.</p>
 
   <div class="mv-panel">
@@ -3316,7 +3320,9 @@
         sndAt(lt.x, lt.y, true);
       } else SND.lastTap = { t: now, x: tx, y: ty };
     }
-    if (ptrs.has(e.pointerId) && isTap && ptrs.size === 1 && !dtap && !SND.pressFired) {   // a click or tap on an airport or city opens its meteogram
+    if (ptrs.has(e.pointerId) && isTap && ptrs.size === 1 && !dtap && !SND.pressFired && !$("snd").hidden && sndOn()) {
+      sndAt(e.clientX - r.left, e.clientY - r.top, e.pointerType !== "mouse");   // a sounding is open: move it to this spot
+    } else if (ptrs.has(e.pointerId) && isTap && ptrs.size === 1 && !dtap && !SND.pressFired) {   // a click or tap on an airport or city opens its meteogram
       var ap0 = nearestApt(e.clientX - r.left, e.clientY - r.top, e.pointerType === "mouse" ? 81 : 196);
       if (ap0) {
         var openIt = function () { openMg(ap0[2][2], ap0[2][3]); MG.openedAt = performance.now(); };
@@ -3714,8 +3720,15 @@
     $("sndHT").innerHTML = ok ? (touch ? "<b>Double-tap</b> (or press and hold) anywhere on the map for that spot's HRRR forecast sounding"
                                        : "<b>Double-click</b> anywhere on the map for that spot's HRRR forecast sounding")
       : "HRRR forecast soundings for the " + hr.init.slice(11, 13) + "Z run are still being computed (about an hour after its maps)";
-    el.hidden = false;
+    el.hidden = false; placeSndHint();
   }
+  // just under the title badge, whose height changes as its text wraps (phones: the hint is static, under the map)
+  function placeSndHint() {
+    var el = $("sndH"), b = $("badge");
+    if (el.hidden || !el.offsetParent || getComputedStyle(el).position !== "absolute") return;
+    el.style.top = Math.round(b.getBoundingClientRect().bottom - el.offsetParent.getBoundingClientRect().top + 6) + "px";
+  }
+  if (window.ResizeObserver) new ResizeObserver(placeSndHint).observe($("badge"));
   $("sndHX").addEventListener("click", function (e) { e.stopPropagation(); try { localStorage.setItem(SND_HINT_KEY, "1"); } catch (_) {} $("sndH").hidden = true; drawLabels(); });
   ["dblclick", "pointerdown", "wheel"].forEach(function (ev) { $("sndH").addEventListener(ev, function (e) { e.stopPropagation(); }); });
   // map gestures give soundings only while the HRRR is on screen (other models' maps must not show HRRR soundings)
@@ -3794,13 +3807,15 @@
     var ll = ijLL(m.g, i * s.D, j * s.D), ty = Math.floor(j / s.ts), tx = Math.floor(i / s.ts);
     var th = Math.min(s.ts, s.ny - ty * s.ts), tw = Math.min(s.ts, s.nx - tx * s.ts), jl = j - ty * s.ts, il = i - tx * s.ts;
     var lat = Math.abs(ll[1]).toFixed(2) + "°" + (ll[1] >= 0 ? "N" : "S"), lon = Math.abs(ll[0]).toFixed(2) + "°" + (ll[0] >= 0 ? "E" : "W");
+    var C0 = SND.col;
+    if (!$("snd").hidden && C0 && C0.seq === SND.seq && C0.m.c.cycle === m.c.cycle && C0.i === i && C0.j === j && C0.label === label) return;
     var seq = ++SND.seq, init = Date.parse(m.c.init);
-    SND.ll = ll; SND.xy = xy; SND.items = null; showSndDock(); render();
+    SND.ll = ll; SND.xy = xy; SND.items = null; showSndDock(); sndReveal(); render();
     $("sndT").textContent = label || (lat + " " + lon);
     $("sndS").textContent = "HRRR " + m.c.init.slice(11, 13) + "Z run · loading the column…";
     sndTile(m, ty, tx).then(function (T) {
       if (seq !== SND.seq) return;
-      SND.col = { m: m, T: T, seq: seq, np: 6 + 5 * (s.nlev - 1), th: th, tw: tw, jl: jl, il: il, lat: lat, lon: lon, label: label };
+      SND.col = { m: m, T: T, seq: seq, np: 6 + 5 * (s.nlev - 1), th: th, tw: tw, jl: jl, il: il, i: i, j: j, lat: lat, lon: lon, label: label };
       SND.items = T.off.slice(1).map(function (o, h) {
         var fxx = s.hours[h], t = new Date(init + fxx * 3600e3).toISOString();
         return { fxx: fxx, label: "+" + fxx + " h", valid: t.slice(0, 10) + " " + t.slice(11, 16), prof: null };
@@ -3838,7 +3853,8 @@
     }).then(function (ok) {
       if (!ok || seq !== SND.seq) return;
       var zs = SND.items[k].prof.H[0];
-      $("sndS").textContent = (C.label ? C.lat + " " + C.lon + " · " : "") + "HRRR " + m.c.init.slice(0, 10) + " " + m.c.init.slice(11, 13) + "Z run · 12 km column, " + Math.round(zs) + " m (" + Math.round(zs * 3.28084).toLocaleString("en-US") + " ft)";
+      var beside = $("snd").getBoundingClientRect().left - mapEl.getBoundingClientRect().left >= 160;   // map visible beside the dock
+      $("sndS").textContent = (C.label ? C.lat + " " + C.lon + " · " : "") + "HRRR " + m.c.init.slice(0, 10) + " " + m.c.init.slice(11, 13) + "Z run · 12 km column, " + Math.round(zs) + " m (" + Math.round(zs * 3.28084).toLocaleString("en-US") + " ft)" + (beside ? " · click the map for another spot" : "");
       SND.on = seq; SND.ptKey = null;
       sndSend({ type: "mv-sounding", sid: seq, model: "HRRR", title: "HRRR " + m.c.init.slice(11, 13) + "Z  " + (C.label ? C.label.split(" ")[0] : C.lat + " " + C.lon),
                 coords: C.lat + "  " + C.lon + "  " + Math.round(zs) + " m", idx: k,
@@ -3896,6 +3912,15 @@
       else pt = { code: Math.min(rf[1], 5), name: rf[1] ? PT_NAMES[Math.min(rf[1], 5)] : "precip, type not given", dbz: reflValue("refl2", rf[0]) };
       sndSend({ type: "mv-point", fxx: fxx, ceil: ceil, ptype: pt });
     });
+  }
+  // a spot that would sit under the dock is panned into the map strip left beside it (wide screens; elsewhere the dock
+  // covers the map and there is nothing to reveal)
+  function sndReveal() {
+    if (!view || !SND.ll) return;
+    var d = $("snd").getBoundingClientRect(), mr = mapEl.getBoundingClientRect(), free = d.left - mr.left;
+    if (free < 160 || d.left > mr.right) return;
+    var q = P.fwd(SND.ll[0], SND.ll[1]), x = toPx(q[0], q[1])[0];
+    if (x > free - 40) panBy((x - free / 2) / W, 0);
   }
   function showSndDock() {
     $("snd").hidden = false; $("sndH").hidden = true;

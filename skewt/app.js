@@ -2203,8 +2203,14 @@ document.getElementById("pin-btn").addEventListener("click", () => {
     pinned = { prof: lastProf, title: plotTitle };
     b.textContent = "Unpin";
     b.title = "comparing against " + pinned.title;
-    modal.hidden = true;                    // straight back to the map — no manual close
-    setStatus(`📌 pinned ${pinned.title} — click any station (or use the date arrows) to compare`);
+    if (current && current.model) {
+      // a host's sounding (models.html, recon.html): there is no station map behind the card - hiding it left a blank
+      // panel that said to click a station; the next sounding comes from the host's hours, sondes or map
+      setStatus(`📌 pinned ${pinned.title} — ${MS.kind === "drop" ? "pick another sonde" : "pick another hour, or click another spot on the map,"} to compare`);
+    } else {
+      modal.hidden = true;                    // straight back to the map — no manual close
+      setStatus(`📌 pinned ${pinned.title} — click any station (or use the date arrows) to compare`);
+    }
   }
   if (lastProf && lastRes) { drawSkewT(lastProf, lastRes); drawHodo(lastProf, lastRes); }
 });
