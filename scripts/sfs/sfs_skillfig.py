@@ -3,8 +3,9 @@
 correlation with ERA5 for Sep 1 / Oct 1 starts 2001-2019 (study tables in scripts/sfs/skill/).
 
 Every system as a 4-member mean against its own leave-one-year-out hindcast climatology; bars are year-block bootstrap
-95% intervals. A difference is marked only where its own interval excludes zero (the site's significance rule); the
-week-5 "SFS ahead" CRPS cases of the study are not drawn - with ~100 tests a few such hits are expected by chance.
+95% intervals. A difference is marked only where it is significant over the figure's comparisons (sfs_verdicts: its
+own interval excludes zero and it passes a false discovery rate of 10 %); the study's CRPS and MSSS differences are
+not drawn.
 
     python scripts/sfs/sfs_skillfig.py [--site .]   -> assets/sfs/sub/sfs_hindcast_skill.webp
 """
@@ -13,10 +14,10 @@ import argparse
 from pathlib import Path
 
 import numpy as np
-import pandas as pd
+
+from sfs_verdicts import table
 
 HERE = Path(__file__).resolve().parent
-CSV = HERE / "skill" / "hindcast_skill_sepoct_2001_2019.csv"
 SYS = [("sfs", "SFS beta2", "#b0562a"), ("gefs", "GEFSv12", "#1f5fbf"), ("geps", "GEPS8", "#2f7d4f")]
 WIN = [("wk1", "week 1"), ("wk2", "week 2"), ("wk34", "weeks 3–4"), ("wk5", "week 5")]
 VARS = [("t2m", "2 m temperature"), ("z500", "500 hPa height"), ("pr", "Precipitation")]
@@ -32,7 +33,7 @@ def main():
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
 
-    d = pd.read_csv(CSV)
+    d = table("gefs_geps")
     d = d[d.metric == "acc"]
     fig, axes = plt.subplots(2, 3, figsize=(13.6, 7.6), sharey=True)
     x = np.arange(len(WIN))
@@ -63,10 +64,10 @@ def main():
                 )
                 drawn += 1
                 if s != "sfs":
-                    # the SFS-minus-this-system difference, marked only where its interval excludes zero
+                    # the SFS-minus-this-system difference, marked only where significant (sfs_verdicts)
                     for k, (w, _) in enumerate(WIN):
                         dd = sub[(sub.system == f"sfs-{s}") & (sub.window == w)]
-                        if len(dd) and str(dd.sig.iloc[0]) == "yes":
+                        if len(dd) and bool(dd.fdr_sig.iloc[0]):
                             ax.annotate(
                                 "▲" if float(dd.value.iloc[0]) < 0 else "▼",
                                 (x[k] + off, hi[k]),
@@ -99,7 +100,8 @@ def main():
         0.005,
         "Ensemble-mean anomaly correlation, every system as a 4-member mean against its own leave-one-year-out "
         "hindcast climatology; bars: 95% year-block bootstrap. ▲ over GEFS or GEPS: that system beats SFS, the difference's own "
-        "interval excluding zero (▼: SFS ahead); no marker = no significant difference. "
+        "interval excluding zero and passing a false discovery rate of 10% over the figure (▼: SFS ahead); no marker = "
+        "no significant difference. "
         "GEFS: the Wednesday start within 3 days of the 1st, to day 35; no GEFS precipitation in this test. Only Sep/Oct "
         "starts exist for SFS beta2, so winter skill can differ.",
         ha="center",

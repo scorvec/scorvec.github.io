@@ -500,11 +500,12 @@ def main():
     r1.index = pd.DatetimeIndex(r1.index).normalize()
     for e in events:
         # a reversal under 0.5 m/s that a second reanalysis (NCEP R1) never shows is listed, not used:
-        # 2002-02-17 (MERRA-2 -0.1, R1 +1.8) and 2025-11-28 (-0.04, R1 +1.3). R1 confirms the other 28.
+        # 2002-02-17 (MERRA-2 -0.1, R1 +1.8) and 2025-11-28 (-0.04, R1 +1.3). R1 confirms the other 28. R1 stopped
+        # updating in March 2026, so a weak reversal after that has no second opinion and stays unconfirmed too.
         c = pd.Timestamp(e["date"])
         w = r1[c - pd.Timedelta(days=5) : c + pd.Timedelta(days=10)]
         e["r1_min"] = round(float(w.min()), 1) if len(w) else None
-        e["marginal"] = bool(e["u_min"] > -0.5 and len(w) and w.min() >= 0)
+        e["marginal"] = bool(e["u_min"] > -0.5 and (not len(w) or w.min() >= 0))
     med = float(np.median([e["lsz"] for e in events if not e["marginal"]]))
     for e in events:
         e["depth"] = "deep" if e["lsz"] >= med else "shallow"

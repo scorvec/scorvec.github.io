@@ -54,6 +54,7 @@ import gefs_reforecast as R  # (at_key: day-of-year lookups)
 
 SKILL_MIN = 0.25  # hindcast anomaly correlation below this = "no skill", hatched
 P_MAX = 0.05  # ... and so is a correlation not significant at this level
+FDR_Q = 0.10  # ... or one that fails Benjamini-Hochberg at this rate over every index x week cell of the init
 THR = 0.5  # +-0.5 seasonal sd = positive / negative phase
 TAIL_DAYS = GP.TAIL_DAYS
 FIT_COLS = ["n", "r", "a", "b", "s", "obs_sd", "fc_sd", "n_eff", "p"]
@@ -245,6 +246,13 @@ def calibration(ref: GP.Ref, base: dt.date):
                 )
             )
         out[sid] = rows
+    # one family: every index x week cell of this init is tested, so the gate also needs Benjamini-Hochberg
+    cells = [c for rows in out.values() for c in rows if c]
+    if cells:
+        from quantmet.stats import benjamini_hochberg
+
+        for c, k in zip(cells, benjamini_hochberg(np.array([c["p"] for c in cells]), FDR_Q)):
+            c["fdr_ok"] = bool(k)
     return out
 
 
@@ -292,7 +300,7 @@ def weekly_stats(t, M, base, prev=None, cal=None):
             row.update(
                 skill_r=c["r"],
                 skill_p=c["p"],
-                no_skill=bool(c["r"] < SKILL_MIN or c["p"] > P_MAX),
+                no_skill=bool(c["r"] < SKILL_MIN or c["p"] > P_MAX or not c.get("fdr_ok", True)),
                 cal_n=c["n"],
                 cal_neff=c["n_eff"],
                 cal_a=c["a"],
@@ -668,7 +676,7 @@ def plot_probs(ref, base, prev_date, weeks, n_members, out: Path):
             "forecast one over\n2000–2019 GEFSv12 reforecast starts within ±45 d of this date (Wednesday starts, 4-member "
             "mean); skill r = anomaly correlation of the hindcast mean;\n"
             f"hatched = r below {SKILL_MIN} or not significant at 5% (t-test on the effective sample size of "
-            "consecutive weekly starts): no usable skill"
+            f"consecutive weekly starts, false discovery rate {FDR_Q:.0%} over all cells): no usable skill"
             if has_cal
             else ""
         )
@@ -739,6 +747,7 @@ def main() -> int:
         "threshold": THR,
         "skill_min": SKILL_MIN,
         "skill_p_max": P_MAX,
+        "skill_fdr_q": FDR_Q,
         "units": "seasonal sd: std of the 1991-2020 daily index within +-15 d of the day of year",
         "n_members": n_members,
         "valid_convention": "day d valid on init + (d - 1)",

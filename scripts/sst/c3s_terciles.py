@@ -181,7 +181,8 @@ def derive_issue_table(centre: str, system: str, var: str, issue: str, fp: Path,
     import xarray as xr
 
     short, fac = VARS[var][1], VARS[var][2]
-    y, mo = int(issue[:4]), int(issue[4:6])
+    # the hindcast years are START years, so the trend is read at this issue's start year for every period
+    target = int(issue[:4]) if var in DETREND else None
     fcm, lat, lon, _ = period_means(fp, short, fac, PERIODS)
     if (
         not fcm
@@ -194,8 +195,6 @@ def derive_issue_table(centre: str, system: str, var: str, issue: str, fp: Path,
     for pid, f in fcm.items():
         if f"lo_{pid}" not in tb:
             continue
-        idx = PERIODS[pid]
-        target = y + (mo - 1 + idx[len(idx) // 2]) // 12 if var in DETREND else None
         b = {k: tb[f"{k}_{pid}"] for k in ("lo", "hi", "b", "ymean") if f"{k}_{pid}" in tb}
         pr = probs_from_bounds(f, b, target, min_spread=MIN_SPREAD.get(var, 0.0))
         for k in ("above", "below", "normal"):

@@ -11,10 +11,12 @@ For each of the last four weeks (7-day means of the AIFS-ENS 0-h analyses) and t
   Indian+Atl.   the regression's ENSO-independent Indian and Atlantic part (IOD, basin mean, ATL3,
                 TNA as residuals after ENSO) — the most those SST anomalies are expected to do;
 and for the 28-day SST the Gill (1980) responses (Pacific only; Indian + Atlantic with the ENSO
-pattern removed) converted to an upper-level velocity potential. Each departure panel carries the
-share of its variance (15°S–15°N) the Indian+Atlantic SST part explains and the pattern correlation,
-so a "but the IOD is negative" claim can be sized on the spot. What remains is internal variability
-(MJO, equatorial waves, transients), not a missing ocean.
+pattern removed) converted to an upper-level velocity potential. Each departure panel says whether
+the Indian+Atlantic SST part matches it (15°S–15°N), and how much of its variance that part explains,
+so a "but the IOD is negative" claim can be sized on the spot.
+Tests: a regression part is kept only where its predictors are significant at that grid point
+(r2_pvalues, BH over the strip) and is 0 (hatched) elsewhere; a pattern match is quoted only when it
+beats every circular longitude shift (shift_p, one-sided, BH over the figure's seven comparisons).
 
 Outputs: assets/sst/walker_chi_weekly.webp, assets/sst/data/walker_chi_weekly.json.
     SST_SITE_ROOT=/path/to/site python scripts/sst/walker_chi_weekly.py
@@ -32,6 +34,8 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 from quantmet.degdays import doy366
+from quantmet.stats import benjamini_hochberg
+from scipy import stats
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
@@ -58,6 +62,8 @@ NWEEKS = 4
 STAT_LAT = 15.0
 INK, MUTED, NAVY, RED, GREEN, ORANGE = "#1a1a1a", "#6f6b64", "#1b365d", "#b4453c", "#2b7a3d", "#d0801a"
 GROUPS = {"enso": ["n34", "n34_lag3"], "indian": ["dmi", "iob"], "atlantic": ["atl3", "tna"]}
+FDR_Q = 0.10  # Benjamini-Hochberg false discovery rate: over the strip's grid points, and over the panel matches
+N_EFF = 62  # independent samples among the 90 training months, for the R²-based F-test (r2_pvalues)
 
 
 def harmonic_day(t) -> np.ndarray:
@@ -202,8 +208,36 @@ def strip_stats(dep: np.ndarray, part: np.ndarray, lat: np.ndarray) -> dict:
     return {"rms_departure": rms(d), "rms_part": rms(p), "r": r, "share": float(share)}
 
 
+def shift_p(dep: np.ndarray, part: np.ndarray, lat: np.ndarray) -> float:
+    """One-sided p that `part` matches `dep` (pattern r over the statistics band) better than chance: its r against
+    `dep` circularly shifted by every other longitude step. When the two fields are unrelated every shift is
+    exchangeable with the true alignment, and each field keeps its own spatial autocorrelation; synthetic nulls of
+    smooth random strip fields held 4-5 % at the 5 % level."""
+    r0 = strip_stats(dep, part, lat)["r"]
+    rn = np.array([strip_stats(np.roll(dep, k, axis=1), part, lat)["r"] for k in range(1, dep.shape[1])])
+    return float((1 + (rn >= r0).sum()) / (1 + rn.size))
+
+
+def r2_pvalues(clim: xr.Dataset, month: int):
+    """Masks (ENSO part, Indian+Atlantic part) of the grid points where those predictors are significant in the
+    month's regression: nested F-tests from the reference's in-sample R² (ENSO only, full), Benjamini-Hochberg over
+    both maps. The 90 training months (±1 month x 30 years) are not independent - the months of a year share their
+    anomalies - so the residual degrees of freedom are N_EFF - 7: N_EFF = 62 is the smallest effective sample, over
+    months and predictor groups, for which this test reproduces the whole-year permutation test of the band-mean W
+    (walker_basins.perm_pvalues), with which it then agrees at 89-99 % of longitudes. The χ reference keeps no
+    training anomalies that could be permuted directly."""
+    r2e = clim.r2.sel(month=month, stage="enso").values.astype(float)
+    r2f = clim.r2.sel(month=month, stage="full").values.astype(float)
+    df2 = N_EFF - len(clim.pred) - 1
+    with np.errstate(invalid="ignore", divide="ignore"):
+        den = (1 - r2f) / df2
+        p = np.stack([stats.f.sf(r2e / 2 / den, 2, df2), stats.f.sf((r2f - r2e) / 4 / den, 4, df2)])
+    sig = benjamini_hochberg(p, FDR_Q)
+    return sig[0], sig[1]
+
+
 # ── figure ────────────────────────────────────────────────────────────────────
-def render(out: Path, weeks: list, month_sst: dict, gill: dict, lat, lon, clim_r2) -> None:
+def render(out: Path, weeks: list, month_sst: dict, gill: dict, lat, lon, sig_share) -> None:
     import matplotlib
 
     matplotlib.use("Agg")
@@ -214,7 +248,7 @@ def render(out: Path, weeks: list, month_sst: dict, gill: dict, lat, lon, clim_r
     import cartopy.feature as cfeature
 
     nrow = len(weeks) + 1
-    fig = plt.figure(figsize=(13.4, 0.98 * nrow + 2.0))
+    fig = plt.figure(figsize=(13.4, 0.98 * nrow + 2.15))
     gs = GridSpec(
         nrow,
         4,
@@ -222,7 +256,7 @@ def render(out: Path, weeks: list, month_sst: dict, gill: dict, lat, lon, clim_r
         wspace=0.05,
         left=0.03,
         right=0.99,
-        top=1 - 1.0 / fig.get_figheight(),
+        top=1 - 1.15 / fig.get_figheight(),
         bottom=0.72 / fig.get_figheight(),
     )
     pc = ccrs.PlateCarree(central_longitude=180)
@@ -248,6 +282,7 @@ def render(out: Path, weeks: list, month_sst: dict, gill: dict, lat, lon, clim_r
         levels=lev,
         nrm=norm,
         scale=1e6,
+        ns=None,
     ):
         ax = fig.add_subplot(gs[r, c], projection=pc)
         f = np.concatenate([field, field[:, :1]], 1)
@@ -255,6 +290,16 @@ def render(out: Path, weeks: list, month_sst: dict, gill: dict, lat, lon, clim_r
         cf = ax.contourf(
             gl_, glat, f / scale, levels=levels, cmap=cmap, norm=nrm, extend="both", transform=ccrs.PlateCarree()
         )
+        if ns is not None and ns.any():  # regression not significant there: the part is 0, hatched
+            ax.contourf(
+                gl_,
+                glat,
+                np.concatenate([ns, ns[:, :1]], 1).astype(float),
+                levels=[0.5, 1.5],
+                colors="none",
+                hatches=["////"],
+                transform=ccrs.PlateCarree(),
+            )
         ax.coastlines(lw=0.45, color="#444")
         ax.add_feature(cfeature.LAND, facecolor="#eeeae2", zorder=0)
         ax.set_extent([0, 359.99, -30, 30], crs=ccrs.PlateCarree())
@@ -302,6 +347,14 @@ def render(out: Path, weeks: list, month_sst: dict, gill: dict, lat, lon, clim_r
             ax.plot([0, 359.99], [y, y], color="#666", lw=0.4, ls=":", transform=ccrs.PlateCarree())
         return cf
 
+    plt.rcParams["hatch.color"] = "#a7a299"
+    plt.rcParams["hatch.linewidth"] = 0.4
+
+    def match_note(s):
+        if s["sig"]:
+            return f"pattern r {s['r']:+.2f} (p {s['p']:.3f}), explains {100 * s['share']:.0f}%"
+        return f"no significant match (p {s['p']:.2f})"
+
     for r, wk in enumerate(weeks):
         lab = f"{wk['start']:%d %b}–{wk['end']:%d %b}" + ("\n(28-day mean)" if wk["days"] > 8 else "")
         s = wk["stats_reg"]
@@ -313,13 +366,14 @@ def render(out: Path, weeks: list, month_sst: dict, gill: dict, lat, lon, clim_r
             wk["pac"],
             cols[1] if r == 0 else None,
             note=f"Niño-3.4 {ix['n34']:+.2f} °C ({sg['n34']:+.1f}σ), 3 months ago {ix['n34_lag3']:+.2f} °C",
+            ns=wk["ns_pac"],
         )
         panel(
             r,
             2,
             wk["dep"],
             cols[2] if r == 0 else None,
-            note=f"RMS {s['rms_departure'] / 1e6:.1f}  ·  Indian+Atlantic part explains {100 * s['share']:.0f}% of it, pattern r {s['r']:+.2f}",
+            note=f"RMS {s['rms_departure'] / 1e6:.1f}  ·  vs the Indian+Atlantic part: {match_note(s)}",
         )
         panel(
             r,
@@ -327,6 +381,7 @@ def render(out: Path, weeks: list, month_sst: dict, gill: dict, lat, lon, clim_r
             wk["ind_atl"],
             cols[3] if r == 0 else None,
             note=f"IOD {sg['dmi']:+.1f}σ · IO basin {sg['iob']:+.1f}σ · ATL3 {sg['atl3']:+.1f}σ · TNA {sg['tna']:+.1f}σ  ·  RMS {s['rms_part'] / 1e6:.1f}",
+            ns=wk["ns_ind_atl"],
         )
     # Gill row for the 28-day SST
     r = nrow - 1
@@ -351,7 +406,7 @@ def render(out: Path, weeks: list, month_sst: dict, gill: dict, lat, lon, clim_r
         1,
         g["pacific"],
         "Gill, Pacific SST only → upper-level χ",
-        note=f"vs observed 28-d χ200: pattern r {sp['r']:+.2f}, explains {100 * sp['share']:.0f}%",
+        note=f"vs observed 28-d χ200: {match_note(sp)}",
         glat=LAT2,
         glon=LON2,
     )
@@ -360,7 +415,7 @@ def render(out: Path, weeks: list, month_sst: dict, gill: dict, lat, lon, clim_r
         2,
         g["ind_atl"],
         "Gill, Indian + Atlantic SST (ENSO removed) → χ",
-        note=f"vs the 28-d departure: pattern r {sg['r']:+.2f}, explains {100 * sg['share']:.0f}%",
+        note=f"vs the 28-d departure: {match_note(sg)}",
         glat=LAT2,
         glon=LON2,
     )
@@ -369,7 +424,7 @@ def render(out: Path, weeks: list, month_sst: dict, gill: dict, lat, lon, clim_r
         3,
         weeks[-1]["remainder"],
         "28-d remainder: departure − Indian/Atlantic part",
-        note="no ocean basin accounts for this: MJO, equatorial waves, transients",
+        note="what neither regression part accounts for",
     )
     # colour bars + text
     H = fig.get_figheight()
@@ -401,10 +456,11 @@ def render(out: Path, weeks: list, month_sst: dict, gill: dict, lat, lon, clim_r
     import textwrap
 
     blurb = (
-        "7-day means of the AIFS-ENS 0-h analyses; anomalies against the ERA5 1991–2020 harmonic climatology with the 1991–2020 trend removed. Pacific part: the ERA5 + ERSST 1991–2020 regression of χ200 on Niño-3.4 "
-        "(now and 3 months ago), fed with each week's detrended OISST index. Indian + Atlantic part: the same regression's ENSO-independent terms (IOD, Indian Ocean basin, ATL3, tropical North Atlantic, entered as residuals after ENSO). "
-        f"Statistics over {STAT_LAT:.0f}°S–{STAT_LAT:.0f}°N (dotted): share = 1 − RMS(departure − part)² / RMS(departure)²; near zero or negative means the departure is not that ocean's doing. A linear regression under-predicts a strong El Niño, so part of the "
-        f"departure is Pacific nonlinearity — the Gill run with the total-SST convective mask (bottom row) shows how much. Regression skill this month, median R² over the strip: ENSO only {clim_r2[0]:.2f}, all basins {clim_r2[1]:.2f} (monthly means, 1991–2020)."
+        "7-day means of the AIFS-ENS 0-h analyses against the ERA5 1991–2020 harmonic climatology, 1991–2020 trend removed. Pacific part: the ERA5 + ERSSTv6 1991–2020 regression of χ200 on Niño-3.4 "
+        "(now and 3 months ago), fed with each week's detrended OISST index; Indian + Atlantic part: its ENSO-independent terms (IOD, Indian Ocean basin, ATL3, tropical North Atlantic as residuals after ENSO). "
+        f"Each part is 0 (hatched) where its predictors are not significant (F-test, false discovery rate 10 %): this month ENSO is significant over {100 * sig_share[0]:.0f}% and Indian+Atlantic over {100 * sig_share[1]:.0f}% of "
+        f"{STAT_LAT:.0f}°S–{STAT_LAT:.0f}°N (dotted). A pattern r over that band is quoted only when it beats the field shifted to every other longitude (one-sided, false discovery rate 10 % over the seven comparisons); "
+        "share = 1 − RMS(departure − part)² / RMS(departure)². A linear regression under-predicts a strong El Niño: the Gill row (total-SST convective mask) shows how much of the departure that can be."
     )
     fig.text(
         0.03, 1 - 0.32 / H, "\n".join(textwrap.wrap(blurb, 236)), fontsize=7.2, color=MUTED, va="top", linespacing=1.35
@@ -431,7 +487,7 @@ def main() -> int:
     t = pd.DatetimeIndex(an.time.values)
     tlast = t[-1]
     print(f"  χ history {h.time.size} analyses to {tlast:%Y-%m-%d %HZ}", flush=True)
-    weeks = []
+    weeks, masks = [], {}
     spans = [(tlast - pd.Timedelta(days=7 * (k + 1)), tlast - pd.Timedelta(days=7 * k)) for k in range(NWEEKS)][::-1]
     spans.append((tlast - pd.Timedelta(days=7 * NWEEKS), tlast))
     for a, b in spans:
@@ -460,8 +516,11 @@ def main() -> int:
             k: coef.sel(pred=k).values * (ensov[0] if k == "n34" else ensov[1] if k == "n34_lag3" else resid[k])
             for k in clim.pred.values
         }
-        pac = part["n34"] + part["n34_lag3"]
-        ind_atl = part["dmi"] + part["iob"] + part["atl3"] + part["tna"]
+        if month not in masks:
+            masks[month] = r2_pvalues(clim, month)
+        sig_e, sig_b = masks[month]  # a part is 0 where its predictors are not significant
+        pac = np.where(sig_e, part["n34"] + part["n34_lag3"], 0.0)
+        ind_atl = np.where(sig_b, part["dmi"] + part["iob"] + part["atl3"] + part["tna"], 0.0)
         obs = an.sel(time=sel).mean("time").values
         dep = obs - pac
         weeks.append(
@@ -478,6 +537,8 @@ def main() -> int:
                 "pac": pac,
                 "dep": dep,
                 "ind_atl": ind_atl,
+                "ns_pac": ~sig_e,
+                "ns_ind_atl": ~sig_b,
                 "remainder": dep - ind_atl,
                 "stats_reg": strip_stats(dep, ind_atl, lat),
             }
@@ -515,31 +576,36 @@ def main() -> int:
         .interp(lat=LAT2, lon=LON2, kwargs={"fill_value": None})
         .values
     )
+    obs_g = np.nan_to_num(
+        dep_g
+        + xr.DataArray(last["pac"], coords={"lat": lat, "lon": lon}, dims=("lat", "lon"))
+        .interp(lat=LAT2, lon=LON2, kwargs={"fill_value": None})
+        .values
+    )
+    dep_g = np.nan_to_num(dep_g)
     gill = {
         "pacific": gpac,
         "ind_atl": gia,
-        "stats": strip_stats(np.nan_to_num(dep_g), gia, LAT2),
-        "pac_stats": strip_stats(
-            np.nan_to_num(
-                dep_g
-                + xr.DataArray(last["pac"], coords={"lat": lat, "lon": lon}, dims=("lat", "lon"))
-                .interp(lat=LAT2, lon=LON2, kwargs={"fill_value": None})
-                .values
-            ),
-            gpac,
-            LAT2,
-        ),
+        "stats": strip_stats(dep_g, gia, LAT2),
+        "pac_stats": strip_stats(obs_g, gpac, LAT2),
     }
+    # one family: each week's basin part vs its departure, and the two Gill comparisons
+    pv = [shift_p(w["dep"], w["ind_atl"], lat) for w in weeks] + [
+        shift_p(dep_g, gia, LAT2),
+        shift_p(obs_g, gpac, LAT2),
+    ]
+    sig = benjamini_hochberg(np.array(pv), FDR_Q) & (np.array(pv) < 0.05)
+    for s, p, ok in zip([w["stats_reg"] for w in weeks] + [gill["stats"], gill["pac_stats"]], pv, sig):
+        s["p"], s["sig"] = p, bool(ok)
     print(
-        f"  Gill: Pacific-only explains {100 * gill['pac_stats']['share']:.0f}% of the observed 28-d χ200 (r {gill['pac_stats']['r']:+.2f}); Indian+Atlantic explain {100 * gill['stats']['share']:.0f}% of the departure (r {gill['stats']['r']:+.2f})",
+        f"  Gill: Pacific-only vs the observed 28-d χ200 r {gill['pac_stats']['r']:+.2f} (p {gill['pac_stats']['p']:.3f}); "
+        f"Indian+Atlantic vs the departure r {gill['stats']['r']:+.2f} (p {gill['stats']['p']:.3f})",
         flush=True,
     )
-    r2m = clim.r2.sel(month=month)
     m15 = np.abs(lat) <= STAT_LAT
-    clim_r2 = (
-        float(np.nanmedian(r2m.sel(stage="enso").values[m15])),
-        float(np.nanmedian(r2m.sel(stage="full").values[m15])),
-    )
+    wt = np.cos(np.deg2rad(lat))[:, None] * np.ones((1, lon.size))
+    sig_e, sig_b = masks[month]
+    sig_share = tuple(float((wt * s_)[m15].sum() / wt[m15].sum()) for s_ in (sig_e, sig_b))
     render(
         ASSETS / "walker_chi_weekly.webp",
         weeks,
@@ -547,8 +613,14 @@ def main() -> int:
         gill,
         lat,
         lon,
-        clim_r2,
+        sig_share,
     )
+
+    def match(s):  # a match statistic is published only when the match is significant
+        return {"p": round(s["p"], 4), "significant": s["sig"]} | (
+            {"r": round(s["r"], 3), "share": round(s["share"], 3)} if s["sig"] else {}
+        )
+
     doc = {
         "generated": time.strftime("%Y-%m-%d %H:%M UTC", time.gmtime()),
         "last_analysis": tlast.strftime("%Y-%m-%dT%HZ"),
@@ -563,18 +635,20 @@ def main() -> int:
                 "indices_sigma": {k: round(v, 2) for k, v in w["idx_sig"].items()},
                 "rms_departure_1e6": round(w["stats_reg"]["rms_departure"] / 1e6, 3),
                 "rms_indian_atlantic_1e6": round(w["stats_reg"]["rms_part"] / 1e6, 3),
-                "share_indian_atlantic": round(w["stats_reg"]["share"], 3),
-                "r_indian_atlantic": round(w["stats_reg"]["r"], 3),
+                "indian_atlantic_match": match(w["stats_reg"]),
             }
             for w in weeks
         ],
         "gill_28d": {
-            "share_pacific_of_observed": round(gill["pac_stats"]["share"], 3),
-            "r_pacific": round(gill["pac_stats"]["r"], 3),
-            "share_indian_atlantic_of_departure": round(gill["stats"]["share"], 3),
-            "r_indian_atlantic": round(gill["stats"]["r"], 3),
+            "pacific_vs_observed": match(gill["pac_stats"]),
+            "indian_atlantic_vs_departure": match(gill["stats"]),
         },
-        "regression_r2_median_strip": {"enso": round(clim_r2[0], 3), "full": round(clim_r2[1], 3)},
+        "significant_share_strip": {"enso": round(sig_share[0], 3), "indian_atlantic": round(sig_share[1], 3)},
+        "tests": {
+            "regression": f"nested F-test from the reference R², {N_EFF} effective samples, BH q {FDR_Q} over the strip",
+            "match": f"one-sided circular longitude-shift test of the pattern r, BH q {FDR_Q} and p < 0.05 over the "
+            f"{len(pv)} comparisons",
+        },
         "gill_chi_scale": scale,
     }
     (ASSETS / "data").mkdir(parents=True, exist_ok=True)

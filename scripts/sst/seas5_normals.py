@@ -448,17 +448,18 @@ def panels_for(ym: str, var: str, ref: str):
     vm = valid_months(ym)
     out = []
 
-    def one(members, p, refs_list, title, valid_year, w=None):
+    def one(members, p, refs_list, title, w=None):
         """members [sample, lat, lon] model values; p the period index into the hindcast table;
         refs_list: per-month reference dicts (1 or 3); w: the months' weights in the seasonal mean (their lengths in
         the valid year, as the table's seasonal statistics were built) or None for a plain mean."""
         hcm = H[f"{var}_hcm"][p]
         if ref == "hc":
             if var == "z500":
-                # heights carry the warming trend: the hindcast reference is its linear trend at the
-                # valid year (per grid point), and the spread is the residual spread — same as the caps
+                # heights carry the warming trend: the hindcast reference is its linear trend over the 24 START
+                # years read at this issue's start year (per grid point), and the spread is the residual spread —
+                # same as the caps
                 ny = 24
-                target = (valid_year - 1993) - (ny - 1) / 2
+                target = (int(ym[:4]) - 1993) - (ny - 1) / 2
                 hcm_ref = H["z500_ymean"][p] + H["z500_slope"][p] * target
                 lo, hi = H["z500_rlo"][p] + hcm_ref, H["z500_rhi"][p] + hcm_ref
                 a = np.nanmean(members, 0) - hcm_ref
@@ -528,7 +529,6 @@ def panels_for(ym: str, var: str, ref: str):
         p = tab_periods.index(tuple(leads))
         idx = [L - 1 for L in leads]
         months = [(int(vm[i][:4]), int(vm[i][5:])) for i in idx]
-        valid_year = months[len(months) // 2][0]
         rl = []
         if ref != "hc":
             # the trend reference is evaluated at each month's own year (seasons straddling New Year included)
@@ -552,7 +552,7 @@ def panels_for(ym: str, var: str, ref: str):
             y0s, y1s = vm[idx[0]][:4], vm[idx[-1]][:4]
             title = f"{season_label(ym, leads)} {y0s if y0s == y1s else y0s + '–' + y1s[2:]}"
             key = f"{season_label(ym, leads)}_{y0s}"
-        pnl = one(members, p, rl, title, valid_year, wt)
+        pnl = one(members, p, rl, title, wt)
         pnl["key"] = key
         out.append(pnl)
     return out, lat, lon

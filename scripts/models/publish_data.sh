@@ -68,7 +68,10 @@ publish_once() {
   local C; C=$(git -c user.name="Shawn Corvec" -c user.email="26825570+scorvec@users.noreply.github.com" \
                 commit-tree "$TREE" -m "animation frames $(date -u +%Y-%m-%dT%H:%MZ) (models)")
   if [ "${DRY_RUN:-0}" = "1" ]; then echo "dry run: would push $C over $BASE" >&2; echo "$C"; return 0; fi
-  git push -q --force-with-lease="refs/heads/$BRANCH:$BASE" origin "$C:refs/heads/$BRANCH" >&2 || return 75
+  # pack.window=0: the thin push looks up the old blob at each replaced path as a delta base, and in this blobless
+  # clone every one would be downloaded first; a zero delta window keeps the push thin and asks for none (the same
+  # reasoning as publish_frames_ci.sh).
+  git -c pack.window=0 push -q --force-with-lease="refs/heads/$BRANCH:$BASE" origin "$C:refs/heads/$BRANCH" >&2 || return 75
   echo "$C"
 }
 for attempt in 1 2 3 4 5 6; do

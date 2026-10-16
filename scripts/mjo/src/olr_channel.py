@@ -14,9 +14,10 @@ current. Two in-house sources close that gap, and they are complementary:
 
 So: ERA5 wherever it exists, GMGSI for the last few days only, offset-corrected
 onto the ERA5 scale per longitude. That splice is measured, not assumed — over
-their 220-day overlap the proxy runs -8.3 W/m2 cold in the mean, correlates
-r = 0.80 with ERA5 in the anomaly, and carries essentially the same anomaly
-spread (17.5 vs 17.0 W/m2). The per-longitude offset is the part worth removing;
+their 220-day overlap at set-up the proxy ran -8.3 W/m2 cold in the mean, correlated
+r = 0.80 with ERA5 in the anomaly, and carried essentially the same anomaly
+spread (17.5 vs 17.0 W/m2); the offset applied live is the mean over the last
+CAL_DAYS overlapping days. The per-longitude offset is the part worth removing;
 the residual scatter is the honest cost of a real-time tail, and it applies to
 a handful of days at the end of a 120-day window.
 

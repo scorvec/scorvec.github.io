@@ -472,7 +472,7 @@ def main():
       <div class="stage" id="stage"></div>
       <p class="cap" id="cap"></p>
       <div id="about"></div>
-      <p class="hint"><span class="kbd">&uarr;</span> <span class="kbd">&darr;</span> change figure &middot; the impacts keep their own selectors</p>
+      <p class="hint">With the list of plots focused: <span class="kbd">&uarr;</span> <span class="kbd">&darr;</span> change figure &middot; the impacts keep their own selectors</p>
     </section>
   </div>
   <div class="lightbox" id="lightbox"><img alt=""></div>

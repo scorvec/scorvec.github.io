@@ -92,9 +92,8 @@
          text-decoration: none; font-weight: 500; font-size: 0.92rem; }
   .cta:hover { border-color: var(--accent); color: var(--accent); }
 </style>
-<link rel="stylesheet" href="/assets/site.css?v=3c589bef47">
+<link rel="stylesheet" href="/assets/site.css?v=03b67b2360">
 <script src="/assets/site.js?v=fe84a7e3e0" defer></script>
-<script src="/assets/rail.js?v=02a0d609bc" defer></script>
 <script data-goatcounter="https://scorvec.goatcounter.com/count" async src="https://gc.zgo.at/count.v4.js" integrity="sha384-nRw6qfbWyJha9LhsOtSb2YJDyZdKvvCFh0fJYlkquSFjUxp9FVNugbfy8q1jdxI+" crossorigin="anonymous"></script>
 </head>
 <body>
@@ -367,10 +366,12 @@
   <h3 id="fog">Fog and cloud layers</h3>
   <p>The fog probabilities are empirical: three logistic models (fog, ceiling ≤ 1,000 ft, ceiling
   ≤ 3,000 ft) trained on 87,568 sounding–METAR pairs from 14 co-located stations (most in the US, plus Buenos Aires) over 2006–2025,
-  using features from the lowest 3 km (peak low-level RH is the dominant one). Cross-validated AUC
-  is ~0.9 both year-blocked and station-held-out, so the model is run at every station. AUC measures how well it ranks
-  fog against no fog, not whether the probabilities are calibrated, and in climates unlike the training stations'
-  (the deep tropics, for example) the probabilities are an extrapolation. The probabilities
+  using features from the lowest 3 km (peak low-level RH is the dominant one). When it was fitted, its cross-validated
+  AUC was about 0.9, year-blocked and station-held-out, which is why it is run at every station; that fit is not
+  reproduced by the explorer's own verification, which scores the 50&nbsp;% fog call with POD, FAR and CSI on other
+  stations and years. AUC measures how well the model ranks fog against no fog, not whether the probabilities are
+  calibrated, and their reliability has not been checked; in climates unlike the training stations&rsquo; (the deep
+  tropics, for example) the probabilities are an extrapolation. The probabilities
   describe conditions <em>at sounding time</em> — they are not a forecast. The panel also reports
   the classic FSI screen, the bulk Richardson number (is the surface layer decoupled?), and
   dew-vs-frost. The cloud-layer detector uses height-dependent RH thresholds (over ice below

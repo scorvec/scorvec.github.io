@@ -225,9 +225,11 @@ def main() -> int:
         "regions": {},
         "models": [],
         "note": (
-            "member-DAYS pooled per month: every member, every day, population-weighted. "
-            "Anomalies use each system's monthly hindcast mean at that lead; the daily "
-            "hindcast that would calibrate the tails has not been pulled."
+            "member-DAYS pooled per month: every member, every day, population-weighted; the multi-model "
+            "percentiles are the equal-weight mean of each system's. Raw spread, not calibrated probabilities: "
+            "days within a member are correlated, so the effective sample is far smaller than the member-day "
+            "count. Anomalies use each system's monthly hindcast mean at that lead; the daily hindcast that would "
+            "calibrate the tails has not been pulled."
         ),
     }
     seen = []

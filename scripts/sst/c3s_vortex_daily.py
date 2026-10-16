@@ -54,7 +54,10 @@ PUBLICATION: the daily charts are shown on stratosphere.html; a probability (T1,
 its test is Holm-significant, otherwise as "the models' view" under a no-track-record banner; no insignificant statistic
 is presented as a finding.
 
-    python c3s_vortex_daily.py units                  # list every CDS unit and whether its table is held
+AMENDMENT (2026-10-16, before any BoM daily data were fetched and before any test above was run): BoM 2 is left out, as
+it is on the ENSO forecasts page; the multi-model mean and every test above are over the remaining 7 centres.
+
+    python c3s_vortex_daily.py units                 # list every CDS unit and whether its table is held
     python c3s_vortex_daily.py fetch [--only KEY]     # sequential CDS → raw GRIB → QC'd table (+ release upload)
     python c3s_vortex_daily.py fetch-issue --issue 202610   # the issue's forecast units (Actions, c3s-vortex.yml)
     python c3s_vortex_daily.py test                   # the pre-registered family → data/c3s_vortex_daily_skill.json
@@ -103,7 +106,6 @@ SYSTEMS = [
     ("eccc_4", "eccc", "4", "ECCC 4 (GEM5-NEMO)", [("10", ["01"])], 4320),
     ("eccc_5", "eccc", "5", "ECCC 5 (CanESM5)", [("10", ["01"])], 4320),
     ("jma_4", "jma", "4", "JMA 4", [("09", ["13", "28"])], 5160),
-    ("bom_2", "bom", "2", "BoM 2", [("09", [f"{d:02d}" for d in range(23, 31)]), ("10", ["01"])], 5160),
 ]
 SYS = {s[0]: s for s in SYSTEMS}
 CENTRES = [
@@ -114,7 +116,6 @@ CENTRES = [
     ("CMCC", ["cmcc_4"]),
     ("ECCC", ["eccc_4", "eccc_5"]),
     ("JMA", ["jma_4"]),
-    ("BoM", ["bom_2"]),
 ]
 
 
@@ -1003,7 +1004,6 @@ CCOL = {
     "CMCC": "#b8860b",
     "ECCC": "#8c564b",
     "JMA": "#d6618f",
-    "BoM": "#17a2b8",
 }
 QUORUM = 5
 

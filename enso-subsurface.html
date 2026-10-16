@@ -5,5 +5,10 @@
 <link rel="canonical" href="https://scorvec.com/enso.html">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <meta http-equiv="refresh" content="0; url=/enso.html#subtemp">
-<script>location.replace("/enso.html#subtemp");</script>
+<script>
+  // a link to one of the El Niño monitor's subsurface products keeps its view; anything else opens the temperature section
+  (function () { var h = location.hash.replace(/^#/, ""), id = h.split("/")[0];
+    var SUB = ["subtemp", "hc", "okelvin", "xsec", "cur_map", "cur_sec", "cur_hov"];
+    location.replace("/enso.html#" + (SUB.indexOf(id) >= 0 ? h : "subtemp")); })();
+</script>
 </head><body><p>The subsurface products now live on the <a href="/enso.html#subtemp">El Niño monitor</a>.</p></body></html>

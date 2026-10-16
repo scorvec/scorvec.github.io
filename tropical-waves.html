@@ -17,7 +17,7 @@
 <meta name="twitter:title" content="Tropical Waves &mdash; Kelvin and Rossby Wave Trackers &middot; Shawn Corvec">
 <meta name="twitter:description" content="Convectively coupled equatorial waves: Kelvin, Rossby and MJO filtered OLR Hovmöllers, wave trackers with the AIFS-ENS forecast, and ocean Kelvin waves.">
 <link rel="stylesheet" href="/assets/outlook.css?v=7548d602a3">
-<link rel="stylesheet" href="/assets/stage.css?v=c5147546f0">
+<link rel="stylesheet" href="/assets/stage.css?v=a5475c5605">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css" integrity="sha384-nB0miv6/jRmo5UMMR1wu3Gz6NLsoTkbqJghGIsx//Rlm+ZU03BU6SQNC66uf4l5+" crossorigin="anonymous">
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js" integrity="sha384-7zkQWkzuo3B5mTepMUcHkMB5jZaolc2xDwL6VFqjFALcbeS9Ggm/Yr2r3Dy4lfFg" crossorigin="anonymous"></script>
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
@@ -25,9 +25,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,500;0,8..60,600;1,8..60,400&family=Source+Sans+3:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/assets/site.css?v=3c589bef47">
+<link rel="stylesheet" href="/assets/site.css?v=03b67b2360">
 <script src="/assets/site.js?v=fe84a7e3e0" defer></script>
-<script src="/assets/rail.js?v=02a0d609bc" defer></script>
 <script data-goatcounter="https://scorvec.goatcounter.com/count" async src="https://gc.zgo.at/count.v4.js" integrity="sha384-nRw6qfbWyJha9LhsOtSb2YJDyZdKvvCFh0fJYlkquSFjUxp9FVNugbfy8q1jdxI+" crossorigin="anonymous"></script>
 </head>
 <body>
@@ -205,7 +204,7 @@
       <div class="stage" id="stage"></div>
       <p class="cap" id="cap"></p>
       <div id="about"></div>
-      <p class="hint"><span class="kbd">&larr;</span> <span class="kbd">&rarr;</span> step through the options &middot; <span class="kbd">&uarr;</span> <span class="kbd">&darr;</span> change figure &middot; click a still to enlarge</p>
+      <p class="hint">With the list of plots focused: <span class="kbd">&uarr;</span> <span class="kbd">&darr;</span> change figure, <span class="kbd">&larr;</span> <span class="kbd">&rarr;</span> step through the options &middot; click a still to enlarge</p>
 <!-- plots:start -->
 <details class="about" id="every-plot">
 <summary>Every plot on this page (5)</summary>
@@ -240,7 +239,7 @@ Below the surface, El Ni&ntilde;o travels in <b>oceanic Kelvin waves</b>. A west
 </template>
 <template id="about-waves">
 <p>A longitude &times; time Hovm&ouml;ller of the equatorial outgoing-longwave-radiation (OLR) anomaly, averaged 5&deg;S&ndash;5&deg;N around the globe. OLR is derived in real time from the <b>GMGSI</b> longwave-IR mosaic (McIDAS brightness temperature to OLR), with the anomaly taken against NOAA's interpolated-OLR daily climatology (1979&ndash;2022). Each longitude's mean over the rolling 550-day record is then removed: that absorbs the proxy's offset from true OLR, but also part of any long-lasting anomaly such as an El&nbsp;Ni&ntilde;o's. The shaded field is that anomaly: <span style="color:#168050">green is low OLR (deep convection)</span>, <span style="color:#9a6a18">brown is high OLR (suppressed)</span>.</p>
-<p>Each overlaid component is isolated from that anomaly field and contoured at its convective (solid) and suppressed (dashed) phase. <b style="color:#1565c0">Kelvin</b>, <b>MJO</b> and <b style="color:#e6007e">equatorial&nbsp;Rossby</b> are Wheeler&ndash;Kiladis wavenumber&ndash;frequency bandpass filters of the anomaly (2-D FFT in longitude and time): Kelvin is eastward wavenumber&nbsp;1&ndash;14, period&nbsp;2.5&ndash;30&nbsp;d (wider than Wheeler and Kiladis&rsquo;s 2.5&ndash;20&nbsp;d), equivalent depth&nbsp;8&ndash;90&nbsp;m; MJO is eastward wavenumber&nbsp;1&ndash;5, period&nbsp;30&ndash;96&nbsp;d; ER is westward wavenumber&nbsp;1&ndash;10, period&nbsp;9.7&ndash;48&nbsp;d. <b style="color:#7b1fa2">Low-frequency</b> is a 120-day Lanczos low-pass in time with the zonal mean removed. The contours are drawn at &plusmn;13 (Kelvin), &plusmn;11 (ER), &plusmn;10 (MJO) and &plusmn;8&nbsp;W&nbsp;m<sup>&minus;2</sup> (low-frequency).</p>
+<p>Each overlaid component is isolated from that anomaly field and contoured at its convective (solid) and suppressed (dashed) phase. <b style="color:#1565c0">Kelvin</b>, <b>MJO</b> and <b style="color:#e6007e">equatorial&nbsp;Rossby</b> are Wheeler&ndash;Kiladis wavenumber&ndash;frequency bandpass filters of the anomaly (2-D FFT in longitude and time): Kelvin is eastward wavenumber&nbsp;1&ndash;14, period&nbsp;2.5&ndash;20&nbsp;d (Wheeler and Kiladis, as in the &chi;200 Kelvin tracker), equivalent depth&nbsp;8&ndash;90&nbsp;m; MJO is eastward wavenumber&nbsp;1&ndash;5, period&nbsp;30&ndash;96&nbsp;d; ER is westward wavenumber&nbsp;1&ndash;10, period&nbsp;9.7&ndash;48&nbsp;d. <b style="color:#7b1fa2">Low-frequency</b> is a 120-day Lanczos low-pass in time with the zonal mean removed. The contours are drawn at &plusmn;13 (Kelvin), &plusmn;11 (ER), &plusmn;10 (MJO) and &plusmn;8&nbsp;W&nbsp;m<sup>&minus;2</sup> (low-frequency).</p>
 <p class="chart-sources">GMGSI longwave-IR proxy &middot; Wheeler&ndash;Kiladis k&ndash;&omega; filtering (eq. depth 8&ndash;90&nbsp;m; Wheeler &amp; Kiladis 1999, <i>J. Atmos. Sci.</i> 56, 374&ndash;399) &middot; climatology NOAA interp-OLR 1979&ndash;2022</p>
 </template>
 <template id="about-trackers">
@@ -276,7 +275,7 @@ Below the surface, El Ni&ntilde;o travels in <b>oceanic Kelvin waves</b>. A west
         than being shown with false confidence. Filtering needs a record, so the forecast is joined to the analyses and the end
         of the record is padded with a ramp to zero; the last forecast days therefore read weaker than they may be.
         Poleward of 15&deg; the filtered field is faded out: Kelvin waves are trapped near the equator and what the filter
-        finds there is not one. The OLR-based trackers alongside it show the same waves in observed cloudiness; their Kelvin filter runs to 30-day periods rather than 20, so it also keeps slower signals that this one leaves out.</p>
+        finds there is not one. The OLR-based trackers alongside it show the same waves in observed cloudiness, with the same Kelvin wedge (wavenumbers 1&ndash;14, periods 2.5&ndash;20 days, equivalent depths 8&ndash;90 m).</p>
 <p class="chart-sources">ECMWF AIFS-ENS open data (CC&nbsp;BY&nbsp;4.0): 0-h analyses (00 and 12&nbsp;UTC, averaged per day) and the
         ensemble-mean u, v at 200&nbsp;hPa to day 15 &middot; velocity potential by spherical harmonics (lmax&nbsp;42) &middot; anomalies against
         ERA5 1991&ndash;2020 with its trend &middot; Kelvin band: eastward wavenumbers 1&ndash;14, periods 2.5&ndash;20 days, equivalent

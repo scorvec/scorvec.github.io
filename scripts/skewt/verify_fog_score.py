@@ -400,13 +400,16 @@ def score(out: Path) -> None:
         R.append(f"- {fn}: {fmt(d1)} / {fmt(d3)}")
     R.append("")
 
-    # ---- the page's "~X% of similar layers verify as ceilings"
-    R.append("## 'Verify as ceilings' confidence check (new rule, estimated base <= 3000 m AGL, not obscured)\n")
+    # ---- the page's "~X% of similar layers verify as ceilings", on the held-out years
+    R.append(
+        "## 'Verify as ceilings' confidence check (new rule, estimated base <= 3000 m AGL, not obscured, "
+        f"held-out {FIT_LAST + 1}-{int(C.year.max())})\n"
+    )
     zb = C[f"zb_{SHIP[0]}_{SHIP[1]}_{SHIP[2]}"].values
-    m = np.isfinite(zb) & (zb >= 50) & (zb <= 3000) & C.new_conf.notna().values
+    m = np.isfinite(zb) & (zb >= 50) & (zb <= 3000) & C.new_conf.notna().values & tec
     R.append("| page says | n | METAR BKN/OVC/VV <= 12 kft | METAR ceiling within x2 of the estimate |")
     R.append("|---|---|---|---|")
-    for conf in (62, 65, 69, 77):
+    for conf in sorted({int(c) for c in C.new_conf.dropna()}):
         mm = m & (C.new_conf.values == conf)
         if mm.sum() < 30:
             continue

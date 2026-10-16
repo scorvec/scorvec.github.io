@@ -41,15 +41,19 @@ When telecon/hindcast_indices.nc exists (telecon_hindcast.py), every weekly
 probability is also CALIBRATED: the hindcast starts within +-45 days of the
 init day-of-year give, per index and week, the anomaly correlation r (skill),
 the regression obs = a*fcst + b and its residual spread s, and the live
-ensemble-mean weekly index m becomes P(week >= +0.5) = 1 - Phi((0.5-a*m-b)/s).
-With no skill that collapses to climatology, which is the honest week-5
-answer. The hindcast mean is 4 members against 21 live, so a is a touch
-conservative. A week counts as skilful only when r >= SKILL_MIN AND r is
+ensemble-mean weekly index m becomes P(week >= +0.5) from the regression's
+predictive distribution (cal_cdf: Student t, widened for the fit's own
+uncertainty on the effective sample). With no skill that collapses to
+climatology, which is the honest week-5 answer. The hindcast mean is 4 members
+against 21 live, so a is a touch conservative. r itself involves no fit, but the
+de-drift climatology the hindcast anomalies are taken against includes the scored
+start's own year. A week counts as skilful only when r >= SKILL_MIN AND r is
 significant at P_MAX: a one-sided t-test on the effective sample size
 n (1 - r1 r2) / (1 + r1 r2), r1 r2 the lag-1 autocorrelations of the forecast
 and observed weekly series over consecutive hindcast starts (Bretherton et al.
 1999; the starts are 1-3 days apart, so their weeks overlap and n_eff is far
-below n) - the GEFS page's test (gefs_telecon.py).
+below n) - the GEFS page's test (gefs_telecon.py) - AND it passes
+Benjamini-Hochberg at FDR_Q over every index x week cell of the init.
 
 Everything is in standard deviations of the DAILY index over 1991-2020, so
 "+1" means a day at the 84th percentile of daily variability, and a WEEKLY
@@ -73,7 +77,6 @@ from __future__ import annotations
 
 import argparse
 import json
-from math import erf, sqrt
 import os
 import sys
 from pathlib import Path
@@ -82,6 +85,7 @@ import pyproj  # noqa: F401  before xarray/eccodes: eccodes preloads its own lib
 import numpy as np
 import pandas as pd
 import xarray as xr
+from quantmet.stats import benjamini_hochberg
 import matplotlib
 
 matplotlib.use("Agg")
@@ -136,6 +140,7 @@ ORDER = [
 ]
 SKILL_MIN = 0.25  # hindcast anomaly correlation below this = "no skill", shaded
 P_MAX = 0.05  # ... and so is a correlation not significant at this level (one-sided, on n_eff)
+FDR_Q = 0.10  # ... or one that fails Benjamini-Hochberg at this rate over every index x week cell of the init
 INK, MUTED = "#2f2c28", "#5a5650"  # annotation greys: the lighter ones were hard to read
 TAIL_DAYS = 45
 ANA = paths.ANA  # GEPS day-0 ensemble-mean fields at 2.5 deg, one npz per day
@@ -410,8 +415,18 @@ def observed(pat, end, days=TAIL_DAYS):
     return out
 
 
-def phi(x):
-    return 0.5 * (1.0 + erf(x / sqrt(2.0)))
+def cal_cdf(x: float, c: dict, m: float) -> float:
+    """P(observed weekly index <= x) for today's ensemble mean m under the hindcast regression c: Student t on
+    n_eff - 2 degrees of freedom centred on a*m + b, scale s * sqrt(1 + 1/n_eff + (m - xbar)^2 / (Sxx n_eff / n)) -
+    the fit's own uncertainty, counted on the effective sample because neighbouring starts share their weeks (the
+    SEAS5 calibration's form). A cell written before xbar/sxx were kept has scale s."""
+    from scipy.stats import t as tdist
+
+    df = max(c["n_eff"] - 2.0, 1.0)
+    w = 1.0
+    if c.get("sxx"):
+        w = np.sqrt(1.0 + 1.0 / c["n_eff"] + (m - c["xbar"]) ** 2 / (c["sxx"] * c["n_eff"] / c["n"]))
+    return float(tdist.cdf((x - (c["a"] * m + c["b"])) / (c["s"] * w), df))
 
 
 def lag1(x, nxt):
@@ -482,9 +497,17 @@ def calibration(pat, base):
                     s=round(s_, 2),
                     obs_sd=round(float(o.std()), 2),
                     fc_sd=round(float(f.std()), 2),
+                    xbar=round(float(f.mean()), 3),
+                    sxx=round(float(((f - f.mean()) ** 2).sum()), 3),
                 )
             )
         out[str(sid)] = rows
+    # one family: every index x week cell of this init is tested, so the gate also needs Benjamini-Hochberg
+    cells = [c for rows in out.values() for c in rows if c]
+    if cells:
+        ok = benjamini_hochberg(np.array([c["p"] for c in cells]), FDR_Q)
+        for c, k in zip(cells, ok):
+            c["fdr_ok"] = bool(k)
     return out
 
 
@@ -590,21 +613,21 @@ def weekly_stats(t, M, base, prev=None, cal=None):
                 row["prev_p_pos"] = round(float((pw >= THR).mean()), 3)
         if cal and k < len(cal) and cal[k]:
             c = cal[k]
-            mu = c["a"] * row["mean"] + c["b"]
+            m = row["mean"]
             row.update(
                 skill_r=c["r"],
-                no_skill=bool(c["r"] < SKILL_MIN or c["p"] > P_MAX),
+                no_skill=bool(c["r"] < SKILL_MIN or c["p"] > P_MAX or not c.get("fdr_ok", True)),
                 skill_p=c["p"],
                 cal_n_eff=c["n_eff"],
                 cal_n=c["n"],
                 cal_a=c["a"],
                 cal_b=c["b"],
                 cal_s=c["s"],
-                cal_mean=round(float(mu), 2),
-                cal_p_pos=round(1.0 - phi((THR - mu) / c["s"]), 3),
-                cal_p_neg=round(phi((-THR - mu) / c["s"]), 3),
-                cal_p_strong_pos=round(1.0 - phi((1.0 - mu) / c["s"]), 3),
-                cal_p_strong_neg=round(phi((-1.0 - mu) / c["s"]), 3),
+                cal_mean=round(float(c["a"] * m + c["b"]), 2),
+                cal_p_pos=round(1.0 - cal_cdf(THR, c, m), 3),
+                cal_p_neg=round(cal_cdf(-THR, c, m), 3),
+                cal_p_strong_pos=round(1.0 - cal_cdf(1.0, c, m), 3),
+                cal_p_strong_neg=round(cal_cdf(-1.0, c, m), 3),
             )
         else:  # no hindcast to test the week against: masked as a week without skill
             row["no_skill"] = True
@@ -959,7 +982,8 @@ def plot_probs(pat, cycle, prev_cycle, weeks):
     note = "upper bar: raw member fractions (21 members → 5% steps; 0% = no member, not certainty)" + (
         "; index in seasonal sd for the time of year\nthin lower bar: hindcast-calibrated probabilities — observed weekly index regressed on the forecast one over\n"
         f"2001–2020 GEPS8 starts within ±45 d of this date; skill r = anomaly correlation of the hindcast mean; "
-        f"hatched = r below {SKILL_MIN} or not significant (one-sided {P_MAX:.0%}, effective n), no usable skill"
+        f"hatched = r below {SKILL_MIN} or not significant (one-sided {P_MAX:.0%}, effective n, false discovery rate "
+        f"{FDR_Q:.0%} over all cells), no usable skill"
         if has_cal
         else ""
     )
@@ -1063,6 +1087,7 @@ def main() -> int:
         "threshold": THR,
         "skill_min": SKILL_MIN,
         "skill_p_max": P_MAX,
+        "skill_fdr_q": FDR_Q,
         "units": "seasonal sd: std of the 1991-2020 daily index within +-15 d of the day of year",
         "n_members": int(next(iter(fc.values()))[1].shape[1]),
         "indices": {},
