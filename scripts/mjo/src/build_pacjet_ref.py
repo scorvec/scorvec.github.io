@@ -21,8 +21,6 @@ Input: wb2_1p5_daily/{u250,v250}/ (WeatherBench-2 ERA5, daily means, 1.5 deg, 0-
   4. The climatological jet axis for every day of the year: the axis (pacjet_core.jet_axis) of the harmonic
      day-of-year mean of the daily wind SPEED.
   5. The monthly frequency of daily speed >= 50 m/s (context for the probability maps).
-  6. The Himalayan mountain-torque anomaly 1991-2020 (data/reference/him_torque_1991_2020.nc, from WeatherBench-2
-     surface pressure over 70-105E 25-45N: build_pacjet_torque.py --series) for the torque regression.
 
     python src/build_pacjet_ref.py        # ~2 min -> scripts/mjo/data/reference/pacjet_ref.nc
 """
@@ -45,7 +43,6 @@ from doycal import noleap_doy
 REF = HERE.parent / "data" / "reference"
 OUT = REF / "pacjet_ref.nc"
 STORE = Path.home() / "era5_store" / "wb2_1p5_daily"
-TORQUE = REF / "him_torque_1991_2020.nc"  # build_pacjet_torque.py --series (WB2 surface pressure)
 Y0, Y1 = 1991, 2020
 EXIT = dict(lat=(30.0, 40.0), lon=(170.0, 210.0))
 CANON = (11, 12, 1, 2, 3)
@@ -205,12 +202,6 @@ def main() -> int:
         "pc": (("time", "mode"), pcs),
         "phase": (("time",), ph.astype("int8")),
     }
-    if TORQUE.exists():
-        with xr.open_dataset(TORQUE) as old:
-            data["him_torque_anom"] = (
-                ("time",),
-                old.him_torque_anom.reindex(time=u.time.values).values.astype("float32"),
-            )
     ds = xr.Dataset(
         data,
         coords={
