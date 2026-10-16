@@ -23,6 +23,14 @@ on:
         description: 'First day to backfill the analysis archive from the archived analyses (YYYY-MM-DD; empty = none)'
         required: false
         default: ''
+      rebuild_frames:
+        description: 'Redraw every analysed frame (after a climatology or drift-reference change)'
+        required: false
+        default: 'false'
+      fresh_archive:
+        description: 'Backfill into an empty archive (after a change to what an archived day holds)'
+        required: false
+        default: 'false'
 
 permissions:
   contents: write
@@ -71,17 +79,23 @@ jobs:
           scripts/lib/fetch_frames_ci.sh assets/sst/anim/overturn_hist || echo "::warning::no analysis archive on the frames branch yet"
       - name: Backfill the analysis archive
         if: steps.run.outputs.skip != 'true' && inputs.backfill_since != ''
-        run: python scripts/mjo/src/overturn_hist.py backfill --since "${{ inputs.backfill_since }}"
+        run: python scripts/mjo/src/overturn_hist.py backfill --since "${{ inputs.backfill_since }}" $([ "${{ inputs.fresh_archive }}" = "true" ] && echo --fresh)
       - name: Analysed loops
         if: steps.run.outputs.skip != 'true'
         run: |
           python scripts/mjo/src/overturn_hist.py update
-          python scripts/mjo/src/overturn_hist.py render
+          python scripts/mjo/src/overturn_hist.py render $([ "${{ inputs.rebuild_frames }}" = "true" ] && echo --rebuild)
       - name: Forecast loops
         if: steps.run.outputs.skip != 'true'
         run: |
           python scripts/mjo/src/overturn_fc.py --date "${{ steps.run.outputs.date }}" \
             || echo "::warning::forecast loops not drawn this run; the analysed loops still publish"
+      - name: Strength and edges (series)
+        if: steps.run.outputs.skip != 'true'
+        run: python scripts/mjo/src/hadley_timeseries.py --out assets/sst/hadley_timeseries.webp || echo "::warning::Hadley series not drawn"
+      - name: This season against the El Nino events
+        if: steps.run.outputs.skip != 'true'
+        run: python scripts/mjo/src/hadley_enso.py plot --out assets/sst/hadley_enso.webp || echo "::warning::El Nino comparison not drawn (hadley_events.nc: hadley-events.yml)"
       - name: Publish the frames (frames branch)
         if: steps.run.outputs.skip != 'true'
         env:
@@ -97,7 +111,7 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           # snapshot the outputs, then commit them on a clean sync of origin/main each attempt (never a rebase)
           OUT="assets/sst/anim/mmsf_hist_manifest.json assets/sst/anim/walker_hist_manifest.json \
-               assets/sst/mmsf_anom.webp assets/sst/walker_anom.webp \
+               assets/sst/mmsf_anom.webp assets/sst/walker_anom.webp assets/sst/hadley_timeseries.webp assets/sst/hadley_enso.webp \
                assets/sst/anim/mmsf_fc_manifest.json assets/sst/anim/walker_fc_manifest.json assets/sst/data/overturn_fc.json"
           SNAP=$(mktemp -d)
           tar cf "$SNAP/outs.tar" --ignore-failed-read $OUT 2>/dev/null || true
@@ -105,6 +119,9 @@ jobs:
             if ! timeout 120 git fetch origin main; then echo "fetch $i failed"; sleep 5; continue; fi
             git reset --hard origin/main
             tar xf "$SNAP/outs.tar"
+            # the two figures are <img>s on circulation.html: re-stamp their cache keys on main's current page
+            perl -0pi -e "s/((?:hadley_timeseries|hadley_enso)\.webp)\?v=\w+/\${1}?v=$(date -u +%Y%m%d%H%M)/g" circulation.html
+            git add circulation.html
             for f in $OUT; do [ -e "$f" ] && git add "$f"; done
             if git diff --staged --quiet; then echo "No changes; skipping commit."; exit 0; fi
             git commit -m "Hadley/Walker loops: ${{ steps.run.outputs.date }}"

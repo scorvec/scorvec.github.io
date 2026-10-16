@@ -1,16 +1,14 @@
 #!/usr/bin/env python3
-"""Hadley cell INTENSITY and EDGE LATITUDE time series vs the ERA5 distribution.
+"""Hadley cell INTENSITY and POLEWARD EDGE, analysed and forecast, against the ERA5 1991-2020 distribution.
 
-Four panels — intensity and poleward-edge latitude for each cell — with the
-observed trailing-7-day-mean series (AIFS-ENS 0-h analysis, from the same v-bar
-history the Ψ animator uses) over the ERA5 1991-2020 p10-p90 / p25-p75 bands
-and median for the matching day of year.
-
-The bands come from hadley_clim.nc, whose spread is taken ACROSS YEARS of each
-year's ~weekly mean — the same kind of object as the plotted series. Scoring a
-7-day mean against a spread of instantaneous fields would flatter almost any
-week into "normal"; scoring it against a 30-year MEAN circulation (the harmonic
-Ψ climatology) does the opposite for edge-derived quantities.
+Four panels - intensity and poleward edge of each cell - with:
+  * the analysed 7-day means (overturn_hist.py's archive: daily means of the AIFS analysis, less its mean offset from
+    ERA5 at the season), one a day for the last DAYS days;
+  * the AIFS-ENS, IFS-ENS and GEFS forecasts to day 15 (overturn_fc.py: every member less its model's drift against
+    ERA5, the same trailing 7-day windows, the early ones holding analysed days): the members' median and 10-90 %;
+  * the ERA5 p10-p90 / p25-p75 bands and median of the same statistic (build_hadley_clim.py: the metrics of ERA5's
+    7-day-mean circulation), at each window's midpoint.
+Every value is read on the climatology's 1.5 deg latitude bands (build_hadley_clim.metrics).
 
     python src/hadley_timeseries.py --out assets/sst/hadley_timeseries.webp
 """
@@ -31,15 +29,17 @@ import pandas as pd
 import xarray as xr
 
 sys.path.insert(0, str(Path(__file__).parent))
-from mmsf import HIST, LEVELS, streamfunction
-from build_hadley_clim import OUT as CLIMFILE, sample_metrics
+import build_hadley_clim as B
+import overturn as O
+import overturn_hist as H
 from doycal import noleap_doy
 
-OBS_C = "#0b3d6b"  # observed series
+DAYS = 120  # analysed days shown
+OBS_C = "#0b3d6b"  # analysed series
 MED_C = "#8a5a00"  # climatological median
 B1 = "#c9d8e6"  # p10-p90
 B2 = "#9dbad3"  # p25-p75
-
+MODEL_C = {"aifs": "#b5482a", "ifs": "#5b3a8c", "gefs": "#2e7d32"}
 PANELS = (
     ("nh_psi", "Northern cell intensity", "|Ψ|max  (10¹⁰ kg s⁻¹)", True),
     ("nh_edge_pole", "Northern cell poleward edge", "latitude (°N)", False),
@@ -48,26 +48,24 @@ PANELS = (
 )
 
 
-def observed(hist: xr.DataArray) -> pd.DataFrame:
-    """Trailing 7-day-mean metrics per cycle — identical windowing to mmsf frames."""
-    lat = hist.latitude.values.astype(float)
-    p_hpa = np.asarray(LEVELS, float)
-    t = pd.to_datetime(hist.time.values)
+def analysed() -> pd.DataFrame:
+    """The metrics of every analysed 7-day mean in the last DAYS days (archive windows, less the analysis offset)."""
+    doc, ref = H.load(), O.load_ref()
+    days = pd.DatetimeIndex(doc["date"])
     rows, idx = [], []
-    for i in range(len(t)):
-        w = (t > t[i] - pd.Timedelta(days=7)) & (t <= t[i])
-        if t[i] - t[w][0] < pd.Timedelta(days=6):  # window not yet ~a week
+    for end in days[days > days.max() - pd.Timedelta(days=DAYS)]:
+        w = H.week(doc, end, ref)
+        if w is None:
             continue
-        psi = streamfunction(hist.values[w].mean(0), p_hpa * 100.0, lat)
-        rows.append(sample_metrics(psi, p_hpa, lat))
-        idx.append(t[i])
+        rows.append(B.metrics(w[0], O.LAT))
+        idx.append(end)
     return pd.DataFrame(rows, index=pd.DatetimeIndex(idx))
 
 
-def clim_at(cl: xr.Dataset, key: str, doys) -> dict:
-    """Climatological stats aligned to the observed dates; doys are common-year days (doycal.noleap_doy),
-    29 Feb (59.5) taking the mean of the 28 Feb and 1 March slots."""
-    x = np.asarray(doys, float)
+def clim_at(cl: xr.Dataset, key: str, ends) -> dict:
+    """The climatological stats for windows ending on `ends`, at each window's midpoint (common-year days,
+    doycal.noleap_doy; 29 Feb = 59.5 takes the mean of the 28 Feb and 1 March slots)."""
+    x = np.asarray(noleap_doy(pd.DatetimeIndex(ends) - pd.Timedelta(days=(B.WIN - 1) / 2)), float)
     d = 0.5 * (
         cl[key].sel(doy=xr.DataArray(np.floor(x).astype(int), dims="t"))
         + cl[key].sel(doy=xr.DataArray(np.ceil(x).astype(int), dims="t"))
@@ -78,46 +76,46 @@ def clim_at(cl: xr.Dataset, key: str, doys) -> dict:
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--out", default="assets/sst/hadley_timeseries.webp")
-    ap.add_argument("--json-out", default="assets/sst/data/hadley_timeseries.json")
+    ap.add_argument("--forecast", default="assets/sst/data/overturn_fc.json")
     a = ap.parse_args()
-
-    if not CLIMFILE.exists():
-        print(f"{CLIMFILE} missing — run build_hadley_clim.py first.", file=sys.stderr)
-        return 1
-    cl = xr.open_dataset(CLIMFILE)
-    obs = observed(xr.open_dataarray(HIST))
+    cl = xr.open_dataset(B.OUT)
+    obs = analysed()
     if obs.empty:
-        print("no 7-day-mean frames in the v-bar history yet", file=sys.stderr)
+        print("no analysed 7-day means in the archive", file=sys.stderr)
         return 1
-    # score each trailing-7-day mean at its window MIDPOINT, exactly as the Ψ
-    # animator evaluates its climatology — at the end date the seasonal cycle
-    # lags by half a window and the two products disagree by a few hundredths
-    doys = noleap_doy(obs.index - pd.Timedelta(days=3.5))
+    fc = json.loads(Path(a.forecast).read_text()) if Path(a.forecast).exists() else None
+    if fc is not None and pd.Timestamp(fc["init"][:10]) < obs.index[-1] - pd.Timedelta(days=2):
+        fc = None  # a stale forecast would sit behind the analysis
+    valid = pd.DatetimeIndex(fc["valid"]) if fc else pd.DatetimeIndex([])
+    span = obs.index.union(valid)
 
     fig, axes = plt.subplots(2, 2, figsize=(12.4, 7.0), sharex=True)
-    summary = {}
     for ax, (key, title, ylab, is_psi) in zip(axes.ravel(), PANELS):
-        c = clim_at(cl, key, doys)
-        o = obs[key].values.astype(float)
-        # the SH cell's Ψ is negative and its edge is in the south; plot both
-        # cells on a common "bigger = stronger / further poleward" axis
-        flip = -1.0 if (key.startswith("sh")) else 1.0
-        oo = o * flip
-        cc = {k: v * flip for k, v in c.items()}
-        lo10, hi90 = np.minimum(cc["p10"], cc["p90"]), np.maximum(cc["p10"], cc["p90"])
-        lo25, hi75 = np.minimum(cc["p25"], cc["p75"]), np.maximum(cc["p25"], cc["p75"])
-        ax.fill_between(obs.index, lo10, hi90, color=B1, lw=0, label="ERA5 p10–p90")
-        ax.fill_between(obs.index, lo25, hi75, color=B2, lw=0, label="p25–p75")
-        ax.plot(obs.index, cc["p50"], color=MED_C, lw=1.6, ls=(0, (5, 2)), label="ERA5 median 1991–2020")
-        ax.plot(obs.index, oo, color=OBS_C, lw=2.1, label="AIFS-ENS analysis (7-d mean)")
-
-        # z in the FLIPPED frame, so +ve always means stronger / further poleward
-        # for either cell rather than "more positive Ψ", which reverses in the SH
-        sd = abs(c["sd"][-1])
-        z = (oo[-1] - cc["mean"][-1]) / sd if np.isfinite(sd) and sd else np.nan
+        flip = -1.0 if key.startswith("sh") else 1.0  # both cells on "bigger = stronger / further poleward"
+        c = {k: v * flip for k, v in clim_at(cl, key, span).items()}
+        ax.fill_between(
+            span, np.minimum(c["p10"], c["p90"]), np.maximum(c["p10"], c["p90"]), color=B1, lw=0, label="ERA5 p10–p90"
+        )
+        ax.fill_between(
+            span, np.minimum(c["p25"], c["p75"]), np.maximum(c["p25"], c["p75"]), color=B2, lw=0, label="p25–p75"
+        )
+        ax.plot(span, c["p50"], color=MED_C, lw=1.6, ls=(0, (5, 2)), label="ERA5 median 1991–2020")
+        o = obs[key].values.astype(float) * flip
+        ax.plot(obs.index, o, color=OBS_C, lw=2.1, label="analysis (7-day mean)")
+        if fc:
+            for m, d in fc["models"].items():
+                x = np.array(d[key], float) * flip  # (member, lead)
+                ok = np.isfinite(x).sum(0) >= 0.5 * x.shape[0]  # a lead where most members resolve the cell
+                q10, q50, q90 = (np.where(ok, np.nanpercentile(x, q, axis=0), np.nan) for q in (10, 50, 90))
+                col = MODEL_C.get(m, "0.3")
+                ax.fill_between(valid, q10, q90, color=col, alpha=0.13, lw=0)
+                ax.plot(valid, q50, color=col, lw=1.9, label=f"{d['label']} median, 10–90 % ({d['members']} members)")
+            ax.axvline(valid[0], color="0.55", lw=0.8, ls=":")
+        sd = abs(clim_at(cl, key, obs.index[-1:])["sd"][0])
+        z = (o[-1] - clim_at(cl, key, obs.index[-1:])["mean"][0] * flip) / sd if np.isfinite(sd) and sd else np.nan
         unit = "" if is_psi else "°"
         ax.set_title(
-            f"{title}   ·   latest {abs(o[-1]):.1f}{unit}   (median {abs(c['p50'][-1]):.1f}{unit}, {z:+.1f}σ)",
+            f"{title} · latest {abs(o[-1]):.1f}{unit} ({z:+.1f}σ)",
             fontsize=10.5,
             fontweight="bold",
             loc="left",
@@ -127,22 +125,11 @@ def main() -> int:
         ax.tick_params(labelsize=8.5)
         if not is_psi:  # latitude axes read naturally as absolute degrees
             ax.yaxis.set_major_formatter(lambda v, _: f"{abs(v):.0f}°")
-        summary[key] = {
-            "latest": round(float(o[-1]), 2),
-            "median": round(float(c["p50"][-1]), 2),
-            "p10": round(float(c["p10"][-1]), 2),
-            "p90": round(float(c["p90"][-1]), 2),
-            "z": None if not np.isfinite(z) else round(float(z), 2),
-            "mean_4wk": round(float(np.nanmean(o[-28:])), 2),
-            "median_4wk": round(float(np.nanmean(c["p50"][-28:])), 2),
-        }
-
     hs, ls = axes[0, 0].get_legend_handles_labels()
-    fig.legend(hs, ls, fontsize=8.4, ncol=4, loc="upper left", bbox_to_anchor=(0.004, 0.962), frameon=False)
-    for ax in axes[1]:
-        ax.tick_params(axis="x", rotation=0, labelsize=8.5)
+    fig.legend(hs, ls, fontsize=8.2, ncol=4, loc="upper left", bbox_to_anchor=(0.004, 0.962), frameon=False)
+    run = f" + forecasts from {fc['init'][:10]} 00Z" if fc else ""
     fig.suptitle(
-        "Hadley cell intensity & poleward edge — AIFS-ENS analysis vs ERA5 1991–2020",
+        f"Hadley cell intensity & poleward edge — analysis{run} vs ERA5 1991–2020",
         fontsize=13,
         fontweight="bold",
         x=0.005,
@@ -152,45 +139,19 @@ def main() -> int:
     fig.text(
         0.005,
         0.005,
-        "trailing 7-day means · intensity = peak |Ψ| in the cell · edge = Ψ(300–700 hPa)=0 "
-        "crossing on the descending flank · bands = across-year spread of ERA5 weekly means",
+        "7-day means · intensity = peak |Ψ| in the cell · edge = Ψ(300–700 hPa)=0 on the descending flank · bands = ERA5's "
+        "7-day means across years\nanalysis less its mean offset from ERA5 · forecasts: members less their model's drift "
+        "against ERA5 (median and 10–90 %)",
         fontsize=8,
         color="0.35",
         ha="left",
     )
-    fig.tight_layout(rect=(0, 0.018, 1, 0.935))
+    fig.tight_layout(rect=(0, 0.035, 1, 0.92))
     out = Path(a.out)
     out.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(out, dpi=110)
     plt.close(fig)
     print(f"wrote {out}")
-
-    jp = Path(a.json_out)
-    jp.parent.mkdir(parents=True, exist_ok=True)
-    jp.write_text(
-        json.dumps(
-            {
-                "updated": f"{obs.index[-1]:%Y-%m-%dT%H:%MZ}",
-                "source": "AIFS-ENS 0-h analysis; climatology ERA5 1991-2020",
-                "latest": summary,
-                "series": {
-                    "date": [f"{d:%Y-%m-%d}" for d in obs.index],
-                    **{
-                        k: [None if not np.isfinite(v) else round(float(v), 2) for v in obs[k].values]
-                        for k, *_ in PANELS
-                    },
-                },
-            }
-        )
-    )
-    print(f"wrote {jp}")
-    for k, title, *_ in PANELS:
-        s = summary[k]
-        print(
-            f"  {title:32s} latest {s['latest']:+7.2f}  median {s['median']:+7.2f}"
-            f"  p10/p90 {s['p10']:+6.2f}/{s['p90']:+6.2f}  z {s['z']}"
-            f"   4-wk {s['mean_4wk']:+6.2f} vs {s['median_4wk']:+6.2f}"
-        )
     return 0
 
 

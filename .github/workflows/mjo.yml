@@ -380,18 +380,18 @@ jobs:
           scripts/lib/fetch_frames_ci.sh assets/sst/anim/walker assets/sst/anim/waf assets/sst/anim/gillrain \
             || "$GITHUB_WORKSPACE/scripts/lib/degraded.sh" "Frame seeds (Walker, WAF, Gill rain)" "the loops rebuild what they do not find"
 
-      - name: Walker + MMSF cross-sections
+      # The analysis histories only: the Hadley and Walker loops (analysed 7-day means since July 2025, and the
+      # forecasts) are drawn from them by overturn.yml (scripts/mjo/src/overturn_hist.py, overturn_fc.py).
+      - name: Walker + MMSF analysis histories
         if: ${{ inputs.rmm_only != 'true' }}
         timeout-minutes: 15
         working-directory: scripts/mjo
         run: |
-          mkdir -p ../../assets/sst/anim/walker ../../assets/sst/anim/mmsf
+          mkdir -p ../../assets/sst/anim/walker
           python src/walker.py --date "${{ needs.check.outputs.date }}" --time "${{ needs.check.outputs.time }}" \
-            --anim-dir ../../assets/sst/anim/walker --manifest ../../assets/sst/anim/walker_manifest.json \
-            --out ../../assets/sst/walker_anom.webp || "$GITHUB_WORKSPACE/scripts/lib/degraded.sh" "Walker cross-section"
+            --anim-dir ../../assets/sst/anim/walker || "$GITHUB_WORKSPACE/scripts/lib/degraded.sh" "Walker analysis history"
           python src/mmsf.py --date "${{ needs.check.outputs.date }}" --time "${{ needs.check.outputs.time }}" --data-dir data/mmsf \
-            --anim-dir ../../assets/sst/anim/mmsf --manifest ../../assets/sst/anim/mmsf_manifest.json \
-            --out ../../assets/sst/mmsf_anom.webp || "$GITHUB_WORKSPACE/scripts/lib/degraded.sh" "MMSF cross-section"
+            || "$GITHUB_WORKSPACE/scripts/lib/degraded.sh" "MMSF analysis history"
 
       # Kelvin wave tracker: reads the chi history walker.py just appended to and the ensemble-mean
       # u/v@200 wind200_vpot already fetched (store cache), so it downloads nothing new.
@@ -455,14 +455,6 @@ jobs:
             if [ "$rc" -ne 0 ]; then echo "::warning::gill_rain wrote its outputs but exited $rc"; fi
           fi
 
-      - name: Hadley intensity + edge series
-        if: ${{ inputs.rmm_only != 'true' }}
-        working-directory: scripts/mjo
-        run: |
-          mkdir -p ../../assets/sst/data
-          python src/hadley_timeseries.py --out ../../assets/sst/hadley_timeseries.webp \
-            --json-out ../../assets/sst/data/hadley_timeseries.json || "$GITHUB_WORKSPACE/scripts/lib/degraded.sh" "Hadley intensity and edge series"
-
       # RMM low-frequency filter map: ARCO-ERA5 band means, persistent cache
       # arco_uwind_cache.nc is tracked so only the new days are read.
       - name: Refresh the RMM 120-day filter map (ARCO-ERA5)
@@ -478,7 +470,7 @@ jobs:
         run: |
           CB=$(date -u +%Y%m%d%H%M)
           perl -0pi -e "s/((?:eq_wind_hovmoller_det|eq_wind_hovmoller|soi_forecast|eqsoi_forecast|soi_history)\.webp)\?v=\w+/\${1}?v=$CB/g" enso.html circulation.html
-          perl -0pi -e "s/((?:mmsf_anom|walker_anom|hadley_timeseries|gill_rain)\.webp)\?v=\w+/\${1}?v=$CB/g" circulation.html
+          perl -0pi -e "s/(gill_rain\.webp)\?v=\w+/\${1}?v=$CB/g" circulation.html
           perl -0pi -e "s/((?:kelvin_hov|ocean_kelvin)\.webp)\?v=\w+/\${1}?v=$CB/g" enso.html
 
       # The loop frames are gitignored on main; without this they never leave
@@ -491,7 +483,7 @@ jobs:
           scripts/lib/publish_frames_ci.sh assets/sst/anim/wind200 assets/sst/anim/waf assets/sst/anim/mslp_wind \
             assets/sst/anim/mslp_wind_aifs assets/sst/anim/mslp_wind_ifs \
             assets/sst/anim/mslp_wind_aifs0 assets/sst/anim/mslp_wind_aifs1 assets/sst/anim/mslp_wind_hres \
-            assets/sst/anim/walker assets/sst/anim/mmsf assets/sst/anim/kelvin assets/sst/anim/okelvin assets/sst/anim/gillrain
+            assets/sst/anim/walker assets/sst/anim/kelvin assets/sst/anim/okelvin assets/sst/anim/gillrain
 
       - name: Commit & push (generated outputs)
         if: ${{ inputs.rmm_only != 'true' }}
@@ -516,9 +508,6 @@ jobs:
                assets/sst/anim/wind200 assets/sst/anim/wind200_manifest.json assets/sst/wind200.webp \
                assets/sst/anim/waf assets/sst/anim/waf_manifest.json assets/sst/waf.webp \
                assets/sst/anim/mslp_wind_manifest.json \
-               assets/sst/anim/walker_manifest.json assets/sst/walker_anom.webp \
-               assets/sst/anim/mmsf_manifest.json assets/sst/mmsf_anom.webp \
-               assets/sst/hadley_timeseries.webp assets/sst/data/hadley_timeseries.json \
                assets/sst/anim/kelvin_manifest.json assets/sst/kelvin_hov.webp assets/sst/data/kelvin_tracker.json \
                assets/sst/anim/okelvin_manifest.json assets/sst/ocean_kelvin.webp assets/sst/data/ocean_kelvin.json \
                assets/sst/gill_rain.webp assets/sst/data/gill_rain.json assets/sst/wave_tracker.webp \
@@ -530,7 +519,7 @@ jobs:
             git reset --hard origin/main
             tar xf "$SNAP/outs.tar"
             perl -0pi -e "s/((?:eq_wind_hovmoller_det|eq_wind_hovmoller|soi_forecast|eqsoi_forecast|soi_history)\.webp)\?v=\w+/\${1}?v=$CB/g" enso.html circulation.html
-            perl -0pi -e "s/((?:mmsf_anom|walker_anom|hadley_timeseries|gill_rain)\.webp)\?v=\w+/\${1}?v=$CB/g" circulation.html
+            perl -0pi -e "s/(gill_rain\.webp)\?v=\w+/\${1}?v=$CB/g" circulation.html
             perl -0pi -e "s/((?:kelvin_hov|ocean_kelvin)\.webp)\?v=\w+/\${1}?v=$CB/g" enso.html
             git add enso.html circulation.html
             ls assets/mjo/rmm_*z.webp assets/mjo/rmm_*z.png 2>/dev/null | sort -r | tail -n +61 | xargs -r rm   # re-apply pruning

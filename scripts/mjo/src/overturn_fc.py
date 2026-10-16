@@ -6,7 +6,8 @@ analysis) at days 0..15, corrected by its model's drift against ERA5 at that lea
 reference in release overturn-ref-v1), then put through what the analysed loops go through (mmsf.py, walker.py):
 TRAILING 7-day means, so the window of an early lead still holds analysed days (less the analysis offset d(0), so
 analysis and forecast both stand on ERA5's footing); Psi and Psi_W against the ERA5 1991-2020 harmonic climatology at
-the window's midpoint; the cell intensities and edges (build_hadley_clim.sample_metrics) and the Pacific Walker index.
+the window's midpoint; the cell intensities and edges (build_hadley_clim.metrics, on the climatology's 1.5 deg bands) and
+the Pacific Walker index.
 
 The loops (assets/sst/anim/{mmsf,walker}_fc_<region>, one region per ensemble and one for all of them pooled) lead in
 with the last LEAD_IN analysed weeks (overturn_hist.py's frames, on the same fixed colour scale), then show the members'
@@ -35,7 +36,7 @@ import overturn as O
 import overturn_hist as H
 import mmsf
 import walker
-from build_hadley_clim import sample_metrics
+import build_hadley_clim as B
 from doycal import noleap_doy
 from mmsf import LEVELS
 
@@ -73,21 +74,22 @@ def fetch(model: str, init: pd.Timestamp):
 
 
 def analysed(init: pd.Timestamp, offset_v, offset_u):
-    """Daily means of the analysis histories (00 and 12 UTC) for the WIN-1 days before init, less the analysis offset:
-    (WIN-1, lev, lat) and (WIN-1, lev, lon), or None when a day is missing (no blended week can be formed)."""
+    """The 00 UTC analyses of the WIN-1 days before init (the cycle histories), less the analysis offset: (WIN-1, lev,
+    lat) and (WIN-1, lev, lon), or None when one is missing (no blended week can be formed). 00 UTC, as the forecast
+    steps and the climatologies (build_hadley_clim.py)."""
     days = pd.date_range(init - pd.Timedelta(days=WIN - 1), init - pd.Timedelta(days=1))
     out = []
     for path, off in ((mmsf.HIST, offset_v), (walker.HIST, offset_u)):
         if not Path(path).exists():
             return None
         h = xr.open_dataarray(path)
-        t = pd.DatetimeIndex(h.time.values).normalize()
+        t = pd.DatetimeIndex(h.time.values)
         rows = []
         for d in days:
-            m = t == d
+            m = t == d  # the day's 00 UTC cycle
             if not m.any():
                 return None
-            rows.append(h.values[m].mean(0) - off)
+            rows.append(h.values[m][0] - off)
         out.append(np.stack(rows))
     return out
 
@@ -97,7 +99,7 @@ class Sums:
 
     def __init__(self, nlon: int):
         self.n = 0
-        shape_m, shape_w = (len(LEADS), len(LEVELS), O.LAT.size), (len(LEADS), len(LEVELS), nlon)
+        shape_m, shape_w = (len(LEADS), len(LEVELS), B.LAT15.size), (len(LEADS), len(LEVELS), nlon)
         self.m, self.mpos, self.ma = np.zeros(shape_m), np.zeros(shape_m), np.zeros(shape_m)
         self.w, self.wpos, self.wa = np.zeros(shape_w), np.zeros(shape_w), np.zeros(shape_w)
 
@@ -123,8 +125,8 @@ def windows(vb, ud, hist_v, hist_u, init, cm, cw, lon):
         S.n += 1
         for j in LEADS:
             wv, wu = full_v[j + 1 : j + 1 + WIN].mean(0), full_u[j + 1 : j + 1 + WIN].mean(0)
-            psi = mmsf.streamfunction(wv, P_PA, O.LAT)
-            met = sample_metrics(psi, P_HPA, O.LAT)
+            psi = mmsf.streamfunction(B.band_v(wv, O.LAT), P_PA, B.LAT15)  # the climatology's bands
+            met = B.sample_metrics(psi, P_HPA, B.LAT15)
             for k in KEYS:
                 res[k][i, j] = met[k]
             pw = walker.streamfunction(wu, P_PA)
@@ -146,7 +148,7 @@ def agreed(mean, pos, n):
 
 def render(regions: dict, init, mids, clim_m, clim_w, lon, anim_root: Path, manifests: dict):
     """The two loops: per region, leads 0..15 of the agreed mean anomaly over the members' mean cells."""
-    lat = O.LAT
+    lat = B.LAT15
     vm, vw = H.VLIM["mmsf"], H.VLIM["walker"]  # the analysed weeks' scale: lead-in and forecast read as one loop
     for prod in ("mmsf", "walker"):
         hist_dir = H.PRODUCTS[prod]["dir"]
@@ -196,6 +198,7 @@ def render(regions: dict, init, mids, clim_m, clim_w, lon, anim_root: Path, mani
                         anom=True,
                         vlim=vm,
                         psi_abs=psa,
+                        # the cells against the climatology on its own 1.5 deg bands (build_hadley_clim)
                         texts=mmsf.strength_texts(mmsf.hadley_strength(psa, clim_m[j], P_HPA, lat, doy=mids[j])),
                         foot=f"colour = members' mean Ψ′ vs ERA5 1991–2020, {agree} · black = members' mean Ψ · arrows = vertical motion",
                     )

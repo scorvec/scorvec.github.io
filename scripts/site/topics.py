@@ -546,16 +546,19 @@ Nguyen et al., 2013).</li>
 <h2>The live analysis</h2>
 <p>$\Psi$ is computed from ECMWF's operational analysis, as carried at step 0 of the AIFS-ENS control in the open
 data, and shown as the anomaly from the ERA5 (Hersbach et al., 2020) 1991–2020 climatology for the
-same day of year, with the absolute cells contoured and vertical motion drawn as arrows. Each frame is a 7-day running
-mean, so the evolution of the cells is legible through the day-to-day noise.</p>
+same day of year, with the absolute cells contoured and vertical motion drawn as arrows. The analysis is first corrected
+by its mean offset from ERA5 at the same season (in autumn it reads the northern cell about 10% stronger than ERA5
+does), so the anomaly is against the reference it is measured on. Each frame is a 7-day mean of the 00 UTC analyses, one a day since July 2025
+and kept for good, so the evolution of the cells is legible through the day-to-day noise; the circulation viewer also
+carries the ensemble forecasts of the same quantity to day 15.</p>
 """,
         still="/assets/sst/mmsf_anom.webp",
         figures=[
             loop(
-                "mmsf_manifest.json",
-                "mmsf",
+                "mmsf_hist_manifest.json",
+                "mmsf_hist",
                 "Meridional mass streamfunction anomaly, 7-day mean, ECMWF analysis against ERA5 1991–2020",
-                "Use the controls to step through the 7-day means of the past weeks, one per analysis cycle.",
+                "Use the controls to step through the 7-day means since July 2025, one a day.",
             ),
         ],
         live=("/circulation.html#hadley", "Open the Hadley cell product in the circulation viewer"),

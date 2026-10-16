@@ -4,19 +4,15 @@
     Ψ(φ,p) = (2π a cosφ / g) ∫_0^p [v] dp'        [v] = zonal-mean meridional wind
     units 10^10 kg s^-1.  Ψ>0 ⇒ clockwise cell in the (φ,p) plane (northward aloft).
 
-Each cycle's zonal-mean v is appended to a small history file; the last N cycles
-are re-rendered as Ψ ANOMALY frames (Ψ − ERA5 harmonic climatology, build_mmsf_clim.py)
-into a sliding-window animator, so you can watch the Hadley/Ferrel cells respond to
-the current event. A fixed colour scale keeps the animation steady frame-to-frame.
+Each cycle's zonal-mean v is appended to a rolling history (HIST, the last MAXN cycles, gaps filled from ERA5). The
+loops are drawn elsewhere from it: overturn_hist.py keeps every day's mean for good and draws the analysed 7-day
+means, overturn_fc.py the forecasts; both use this module's streamfunction, climatology, cell finder and plot.
 
-    python src/mmsf.py --date 20260602 --time 00 \
-        --anim-dir assets/sst/anim/mmsf --manifest assets/sst/anim/mmsf_manifest.json \
-        --out assets/sst/mmsf_anom.webp
+    python src/mmsf.py --date 20260602 --time 00
 """
 
 from __future__ import annotations
 import argparse
-import json
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -33,7 +29,6 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "ecmwf"))
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "era5"))
 import store as ecmwf  # shared ECMWF download manager
 import era5_store  # ARCO-ERA5 gap-fill for outages
-from doycal import noleap_doy  # common-year day of year (29 Feb = 59.5)
 
 LEVELS = [50, 100, 150, 200, 250, 300, 400, 500, 600, 700, 850, 925, 1000]
 A = 6.371e6
@@ -444,141 +439,11 @@ def plot_psi(psi, p_hpa, lat, out: Path, title: str, anom=False, vlim=None, psi_
     plt.close(fig)
 
 
-def build_anim(hist: xr.DataArray, anim_dir: Path, manifest: Path, static_out: Path) -> int:
-    """Re-render the last MAXN cycles as Ψ′ frames with a common colour scale."""
-    if not CLIM.exists():
-        print(f"  clim coeffs {CLIM} missing — run build_mmsf_clim.py first; skipping anim.", file=sys.stderr)
-        return 1
-    coeffs = xr.open_dataarray(CLIM)
-    lat = hist.latitude.values
-    coeffs = coeffs.interp(latitude=lat)  # align clim grid to the analysis grid
-    assert list(hist.level.values) == LEVELS, (
-        f"history level axis {list(hist.level.values)} != LEVELS — stale mmsf_vbar_history.nc?"
-    )
-    p_pa = np.asarray(LEVELS, float) * 100.0
-    st_all = pd.to_datetime(hist.time.values)
-    vbar_all = hist.values  # (time, lev, lat)
-
-    # Weekly mean: each frame is the TRAILING 7-day mean of the zonal-mean v (Ψ is linear in
-    # v, so this equals the 7-day-mean Ψ). The day-to-day wobble is noise; smoothing it makes
-    # the Hadley/Ferrel cell-strength EVOLUTION legible. Only emit a frame once ≥6 days of
-    # history precede it, so every frame is a near-full weekly mean.
-    WIN, MINSPAN = pd.Timedelta(days=7), pd.Timedelta(days=6)
-    st, vbar_wk = [], []
-    for i in range(len(st_all)):
-        w = (st_all > st_all[i] - WIN) & (st_all <= st_all[i])
-        if st_all[i] - st_all[w][0] < MINSPAN:  # window not yet ~a week wide
-            continue
-        st.append(st_all[i])
-        vbar_wk.append(vbar_all[w].mean(axis=0))
-    if not st:  # <6 days of history: fall back to raw
-        st, vbar_wk = list(st_all), [vbar_all[i] for i in range(len(st_all))]
-    st = pd.DatetimeIndex(st)
-
-    # pass 1: absolute Ψ + anomaly per (weekly-mean) frame → common vlim (steady animation)
-    psia, psip, hstr = [], [], []
-    for i in range(len(st)):
-        psi = streamfunction(vbar_wk[i], p_pa, lat)
-        psia.append(psi)
-        # frames are TRAILING 7-day means, so evaluate the harmonic clim at the
-        # window MIDPOINT (end − 3.5 d) — at the end-day it lags the seasonal
-        # cycle by half a window and leaks a spurious anomaly in transitions.
-        xmid = float(noleap_doy(st[i] - pd.Timedelta(days=3.5)))
-        pc = clim_psi(coeffs, xmid)
-        psip.append(psi - pc)
-        hstr.append(hadley_strength(psi, pc, p_pa / 100, lat, doy=xmid))
-    mlat = (lat >= -45) & (lat <= 45)
-    vlim = nice_lim(float(np.nanpercentile(np.abs(np.stack(psip)[:, :, mlat]), 99.0)) or 1.0)
-
-    anim_dir = Path(anim_dir)
-    anim_dir.mkdir(parents=True, exist_ok=True)
-    for old in anim_dir.glob("F*.webp"):
-        old.unlink()
-
-    frames = []
-    for i in range(len(st)):
-        fp = anim_dir / f"F{i:02d}.webp"
-        plot_psi(
-            psip[i],
-            p_pa / 100,
-            lat,
-            fp,
-            f"Meridional mass streamfunction anomaly Ψ′ — 7-day mean ending {st[i]:%Y-%m-%d}",
-            anom=True,
-            vlim=vlim,
-            psi_abs=psia[i],
-            texts=strength_texts(hstr[i]),
-        )
-        frames.append(
-            {
-                "idx": i,
-                "file": fp.name,
-                "date": f"{st[i]:%Y-%m-%d}",
-                "label": f"week ending {st[i]:%a %b %d, %Y}",
-                "hadley": hstr[i],
-            }
-        )
-    mani = {
-        "ver": int(pd.Timestamp.now().timestamp()),
-        "days": len(frames),
-        "hadley_latest": hstr[-1],
-        "regions": {
-            "mmsf": {
-                "label": "Meridional mass streamfunction anomaly (7-day mean, Ψ′ vs ERA5 1991-2020)",
-                "n_frames": len(frames),
-                "frames": frames,
-            }
-        },
-    }
-    Path(manifest).parent.mkdir(parents=True, exist_ok=True)
-    Path(manifest).write_text(json.dumps(mani))
-    # static "latest" for the card thumbnail
-    plot_psi(
-        psip[-1],
-        p_pa / 100,
-        lat,
-        Path(static_out),
-        f"Meridional mass streamfunction anomaly Ψ′ — 7-day mean ending {st[-1]:%Y-%m-%d}",
-        anom=True,
-        vlim=vlim,
-        psi_abs=psia[-1],
-        texts=strength_texts(hstr[-1]),
-    )
-    print(
-        f"  Ψ′ range {np.nanmin(psip[-1]):.1f} … {np.nanmax(psip[-1]):.1f} ×10¹⁰ kg/s "
-        f"(vlim ±{vlim:.0f}); wrote {len(frames)} frames + manifest"
-    )
-    for k, nm in (("nh", "Northern"), ("sh", "Southern")):
-        d = hstr[-1].get(k)
-        if not d:
-            print(f"  {nm} Hadley cell: not resolved this frame")
-            continue
-        vs = (
-            f"{d['pct_of_normal']:.0f}% of normal"
-            if d.get("pct_of_normal") is not None
-            else f"anom {d['anom']:+.1f}"
-            if d.get("anom") is not None
-            else "no normal"
-        )
-        vs += "" if d.get("sigma") is None else f" ({d['sigma']:+.1f}σ)"
-        vs += f" [{d.get('normal_basis')}]"
-        print(
-            f"  {nm} Hadley cell: |Ψ|max {abs(d['psi']):.1f} vs normal "
-            f"{abs(d['normal']):.1f} ×10¹⁰ kg/s = {vs} "
-            f"(core {d['core_lat']:+.1f}°, {d['core_p']:.0f} hPa; "
-            f"edges {d['edges'][0]:+.0f}…{d['edges'][1]:+.0f}°)"
-        )
-    return 0
-
-
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--date", required=True)
     ap.add_argument("--time", default="00")
     ap.add_argument("--data-dir", default="data/mmsf")
-    ap.add_argument("--anim-dir", default="assets/sst/anim/mmsf")
-    ap.add_argument("--manifest", default="assets/sst/anim/mmsf_manifest.json")
-    ap.add_argument("--out", default="assets/sst/mmsf_anom.webp")
     args = ap.parse_args()
     dd = Path(args.data_dir)
     dd.mkdir(parents=True, exist_ok=True)
@@ -587,7 +452,7 @@ def main() -> int:
     hist = update_history(vbar, p_pa, lat, valid)
     hist = backfill_history_gaps(hist)
     print(f"  history: {hist.time.size} cycles ({pd.to_datetime(hist.time.values[0]):%Y-%m-%d} … {valid:%Y-%m-%d %HZ})")
-    return build_anim(hist, Path(args.anim_dir), Path(args.manifest), Path(args.out))
+    return 0
 
 
 if __name__ == "__main__":

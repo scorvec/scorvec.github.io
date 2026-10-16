@@ -14,20 +14,17 @@ The divergent wind comes from the velocity potential (∇²χ = δ solved in sph
 harmonics per pressure level — the same solver as the 200 hPa χ product), so the
 rotational flow (which dwarfs u_D near the equator) is cleanly removed.
 
-Each cycle's u_D(λ, p) is appended to a rolling history; the last N cycles render
-as Ψ_W anomaly frames (vs the ERA5 1991–2020 harmonic climatology from
-build_walker_clim.py) with the absolute cells as contours. A Pacific Walker cell
-index (mean Ψ_W over 140°E–160°W, 300–700 hPa) headlines each frame: positive =
-normal circulation; near zero or negative = collapsed/reversed (strong El Niño).
+Each cycle's u_D(λ, p) is appended to a rolling history (HIST), and the tropical χ strip to the weekly-departure
+history in the --anim-dir on the frames branch. The loops are drawn elsewhere from it (overturn_hist.py, the analysed
+7-day means kept since July 2025; overturn_fc.py, the forecasts) with this module's streamfunction, climatology, Pacific
+Walker cell index (mean Ψ_W over 140°E–160°W, 300–700 hPa: positive = normal circulation; near zero or negative =
+collapsed/reversed, as in a strong El Niño) and plot.
 
-    python src/walker.py --date 20260718 --time 00 \
-        --anim-dir assets/sst/anim/walker --manifest assets/sst/anim/walker_manifest.json \
-        --out assets/sst/walker_anom.webp
+    python src/walker.py --date 20260718 --time 00 --anim-dir assets/sst/anim/walker
 """
 
 from __future__ import annotations
 import argparse
-import json
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -44,7 +41,6 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "ecmwf"))
 import store as ecmwf
 from wind200_vpot import velocity_potential, irrotational_wind
 import walker_chi as wc
-from doycal import noleap_doy  # common-year day of year (29 Feb = 59.5)
 
 LEVELS = [50, 100, 150, 200, 250, 300, 400, 500, 600, 700, 850, 925, 1000]
 A = 6.371e6
@@ -152,18 +148,6 @@ def clim_psi(coeffs: xr.DataArray, doy: float) -> np.ndarray:
     return np.tensordot(basis, coeffs.values, axes=(0, 0))
 
 
-def nice_lim(x):
-    """Round a colour-scale half-range up to 10 x a round step, so the 21 levels and the colour-bar ticks (every
-    second level) are round numbers (2026-10-08 sweep: the raw percentile gave ticks like 0.222, 0.444, 0.666)."""
-    if not np.isfinite(x) or x <= 0:
-        return 1.0
-    k = 10.0 ** np.floor(np.log10(x / 10.0))
-    for m in (1.0, 1.5, 2.0, 2.5, 3.0, 4.0, 5.0, 7.5, 10.0):
-        if 10 * m * k >= x * (1 - 1e-9):
-            return float(10 * m * k)
-    return float(100 * k)
-
-
 def plot_psi(psi, p_hpa, lon, out: Path, title: str, vlim, psi_abs, pidx, pclim, psi_clim=None, foot=None):
     fig, ax = plt.subplots(figsize=(14.5, 5.1))
     levs = np.linspace(-vlim, vlim, 21)
@@ -263,110 +247,11 @@ def plot_psi(psi, p_hpa, lon, out: Path, title: str, vlim, psi_abs, pidx, pclim,
     plt.close(fig)
 
 
-def build_anim(hist: xr.DataArray, anim_dir: Path, manifest: Path, static_out: Path) -> int:
-    if not CLIM.exists():
-        print(f"  clim coeffs {CLIM} missing — run build_walker_clim.py first; skipping anim.", file=sys.stderr)
-        return 1
-    coeffs = xr.open_dataarray(CLIM)
-    lon = hist.longitude.values
-    coeffs = coeffs.interp(longitude=lon, kwargs={"fill_value": None})
-    assert list(hist.level.values) == LEVELS, (
-        f"history level axis {list(hist.level.values)} != LEVELS — stale walker_ud_history.nc?"
-    )
-    p_pa = np.asarray(LEVELS, float) * 100.0
-    st_all = pd.to_datetime(hist.time.values)
-    ud_all = hist.values
-
-    WIN, MINSPAN = pd.Timedelta(days=7), pd.Timedelta(days=6)
-    st, ud_wk = [], []
-    for i in range(len(st_all)):
-        w = (st_all > st_all[i] - WIN) & (st_all <= st_all[i])
-        if st_all[i] - st_all[w][0] < MINSPAN:
-            continue
-        st.append(st_all[i])
-        ud_wk.append(ud_all[w].mean(axis=0))
-    if not st:
-        st, ud_wk = list(st_all), [ud_all[i] for i in range(len(st_all))]
-    st = pd.DatetimeIndex(st)
-
-    psia, psip, pidx, pcl, pcls = [], [], [], [], []
-    for i in range(len(st)):
-        psi = streamfunction(ud_wk[i], p_pa)
-        cl = clim_psi(coeffs, float(noleap_doy(st[i] - pd.Timedelta(days=3.5))))  # window midpoint
-        psia.append(psi)
-        psip.append(psi - cl)
-        pcls.append(cl)
-        pidx.append(pac_index(psi, p_pa / 100, lon))
-        pcl.append(pac_index(cl, p_pa / 100, lon))
-    vlim = nice_lim(float(np.nanpercentile(np.abs(np.stack(psip)), 99.0)) or 1.0)
-
-    anim_dir = Path(anim_dir)
-    anim_dir.mkdir(parents=True, exist_ok=True)
-    for old in anim_dir.glob("F*.webp"):
-        old.unlink()
-
-    frames = []
-    for i in range(len(st)):
-        fp = anim_dir / f"F{i:02d}.webp"
-        plot_psi(
-            psip[i],
-            p_pa / 100,
-            lon,
-            fp,
-            f"Walker circulation anomaly Ψ_W′ (5°S–5°N) — 7-day mean ending {st[i]:%Y-%m-%d}",
-            vlim,
-            psia[i],
-            pidx[i],
-            pcl[i],
-            psi_clim=pcls[i],
-        )
-        frames.append(
-            {
-                "idx": i,
-                "file": fp.name,
-                "date": f"{st[i]:%Y-%m-%d}",
-                "label": f"week ending {st[i]:%a %b %d} · Pacific {pidx[i]:+.1f}",
-            }
-        )
-    mani = {
-        "ver": int(pd.Timestamp.now().timestamp()),
-        "days": len(frames),
-        "regions": {
-            "walker": {
-                "label": "Walker circulation anomaly (7-day mean, Ψ_W′ vs ERA5 1991-2020)",
-                "n_frames": len(frames),
-                "frames": frames,
-            }
-        },
-    }
-    Path(manifest).parent.mkdir(parents=True, exist_ok=True)
-    Path(manifest).write_text(json.dumps(mani))
-    plot_psi(
-        psip[-1],
-        p_pa / 100,
-        lon,
-        Path(static_out),
-        f"Walker circulation anomaly Ψ_W′ (5°S–5°N) — 7-day mean ending {st[-1]:%Y-%m-%d}",
-        vlim,
-        psia[-1],
-        pidx[-1],
-        pcl[-1],
-        psi_clim=pcls[-1],
-    )
-    print(
-        f"  Ψ_W′ range {np.nanmin(psip[-1]):.1f} … {np.nanmax(psip[-1]):.1f} ×10¹⁰ kg/s; "
-        f"Pacific cell {pidx[-1]:+.1f} (clim {pcl[-1]:+.1f}); wrote {len(frames)} frames"
-    )
-    return 0
-
-
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--date", required=True)
     ap.add_argument("--time", default="00")
-    ap.add_argument("--anim-dir", default="assets/sst/anim/walker")
-    ap.add_argument("--manifest", default="assets/sst/anim/walker_manifest.json")
-    ap.add_argument("--out", default="assets/sst/walker_anom.webp")
+    ap.add_argument("--anim-dir", default="assets/sst/anim/walker", help="where the chi history rides (frames branch)")
     args = ap.parse_args()
     up, vp = download_uv(args.date, args.time)
     chis: dict = {}
@@ -379,7 +264,7 @@ def main() -> int:
     except Exception as ex:  # noqa: BLE001
         print(f"  χ history not updated ({str(ex)[:80]})", flush=True)
     print(f"  history: {hist.time.size} cycles ({pd.to_datetime(hist.time.values[0]):%Y-%m-%d} … {valid:%Y-%m-%d %HZ})")
-    return build_anim(hist, Path(args.anim_dir), Path(args.manifest), Path(args.out))
+    return 0
 
 
 if __name__ == "__main__":

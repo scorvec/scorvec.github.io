@@ -32,3 +32,7 @@ assets/sst/anim/walker_fc
 # Retired 2026-10-16: the GDPS single-run MSLP + 10 m wind loop drawn in mjo.yml. The page's GDPS choice is now
 # gdps-charts.yml's own loop (assets/sst/anim/gdps_wind), posted hours earlier, as soon as the run is out.
 assets/sst/anim/mslp_wind_gdps
+
+# The rolling 60-day analysis loop (mjo.yml, mmsf.py) gave way on 2026-10-16 to the growing archive of analysed weeks
+# (overturn.yml: mmsf_hist); the Walker loop dir stays, it carries the chi history.
+assets/sst/anim/mmsf

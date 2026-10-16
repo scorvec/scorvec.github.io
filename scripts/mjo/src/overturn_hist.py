@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
 """The analysed Hadley and Walker 7-day means since July 2025: the growing archive behind the analysis loops.
 
-Daily means of the AIFS-ENS control's step-0 analysis (00 and 12 UTC) of the zonal-mean v and the 5S-5N divergent
-zonal wind, reduced exactly as the forecasts are (overturn.reduce_file), kept for good in ARCHIVE on the frames branch.
+The AIFS-ENS control's 00 UTC analysis (step 0 of the 00Z run) of the zonal-mean v and the 5S-5N divergent zonal wind,
+reduced exactly as the forecasts are (overturn.reduce_file), kept for good in ARCHIVE on the frames branch. 00 UTC only,
+as the forecasts, the drift and the climatologies: the zonal-mean circulation has a diurnal cycle large enough to bias a
+mix of times (build_hadley_clim.py).
 Each day's frame is the trailing 7-day mean ending that day, less the analysis's own offset from ERA5 (overturn.drift
 at lead 0 for AIFS-ENS, so the analysis stands on the footing the forecasts are corrected to), against the ERA5
 1991-2020 harmonic climatology at the window's midpoint. The colour scale is fixed (VLIM: the 99th percentile of the
@@ -30,6 +32,7 @@ import xarray as xr
 
 sys.path.insert(0, str(Path(__file__).parent))
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "ecmwf"))
+import build_hadley_clim as B
 import overturn as O
 import mmsf
 import walker
@@ -38,7 +41,7 @@ from mmsf import LEVELS
 
 REPO = Path(__file__).resolve().parents[3]
 ANIM = REPO / "assets" / "sst" / "anim"
-ARCHIVE = ANIM / "overturn_hist" / "analysis_daily.npz"
+ARCHIVE = ANIM / "overturn_hist" / "analysis_daily.npz"  # one 00 UTC analysis a day
 FIRST = pd.Timestamp("2025-07-01")  # the AIFS-ENS open data begins here
 WIN = 7
 VLIM = {"mmsf": 7.5, "walker": 1.0}  # fixed: p99 of |anomaly| over the analysed weeks (2026-10-16)
@@ -84,54 +87,42 @@ def save(doc: dict, add: dict):
     return out
 
 
-def backfill(since, until):
-    """Archived AIFS-ENS control analyses (step 0 of the 00 and 12 UTC runs) for every day not yet archived."""
+def backfill(since, until, fresh: bool = False):
+    """The archived AIFS-ENS control's 00 UTC analysis (step 0 of the 00Z run) for every day not yet archived; fresh
+    starts from an empty archive (after a change to what a day holds)."""
     import store as ecmwf
 
     doc = load()
+    if fresh:
+        doc = {k: v[:0] for k, v in doc.items()}
+        ARCHIVE.unlink(missing_ok=True)
     have = set(doc["date"].astype("datetime64[D]").tolist())
     days = [d for d in pd.date_range(max(pd.Timestamp(since), FIRST), until) if np.datetime64(d.date()) not in have]
     print(f"backfill: {len(days)} days", flush=True)
     for n, day in enumerate(days):
-        vb, ud = [], []
-        for hh in ("00", "12"):
-            try:
-                p = ecmwf.ensure(
-                    ecmwf.Cycle(f"{day:%Y%m%d}", hh),
-                    ecmwf.Spec("aifs-ens", "cf", ("u", "v"), "pl", tuple(LEVELS), (0,)),
-                )
-            except Exception as e:  # noqa: BLE001
-                print(f"  {day:%Y-%m-%d} {hh}Z: {type(e).__name__} {str(e)[:70]}", flush=True)
-                continue
-            v, u = O.reduce_file(p, [0], (0,))
-            p.unlink(missing_ok=True)
-            vb.append(v[0, 0])
-            ud.append(u[0, 0])
-        if len(vb) == 2:  # a day is both analyses, as the cycle histories' daily mean
-            doc = save(
-                doc,
-                {
-                    "date": np.array([day.date()], "datetime64[D]"),
-                    "vbar": np.mean(vb, 0)[None],
-                    "ud": np.mean(ud, 0)[None],
-                },
+        try:
+            p = ecmwf.ensure(
+                ecmwf.Cycle(f"{day:%Y%m%d}", "00"), ecmwf.Spec("aifs-ens", "cf", ("u", "v"), "pl", tuple(LEVELS), (0,))
             )
+        except Exception as e:  # noqa: BLE001
+            print(f"  {day:%Y-%m-%d}: {type(e).__name__} {str(e)[:70]}", flush=True)
+            continue
+        v, u = O.reduce_file(p, [0], (0,))
+        p.unlink(missing_ok=True)
+        doc = save(doc, {"date": np.array([day.date()], "datetime64[D]"), "vbar": v[0], "ud": u[0]})
         if n % 20 == 0:
             print(f"  {n}/{len(days)} days", flush=True)
 
 
 def update():
-    """Days the rolling cycle histories (mmsf.HIST, walker.HIST, kept by mjo.yml) hold at both 00 and 12 UTC."""
+    """The 00 UTC analyses the rolling cycle histories (mmsf.HIST, walker.HIST, kept by mjo.yml) hold."""
     hv, hu = xr.open_dataarray(mmsf.HIST), xr.open_dataarray(walker.HIST)
+    tv, tu = pd.DatetimeIndex(hv.time.values), pd.DatetimeIndex(hu.time.values)
     out = {"date": [], "vbar": [], "ud": []}
-    for day in sorted(set(pd.DatetimeIndex(hv.time.values).normalize())):
-        mv = pd.DatetimeIndex(hv.time.values).normalize() == day
-        mu = pd.DatetimeIndex(hu.time.values).normalize() == day
-        if mv.sum() < 2 or mu.sum() < 2:
-            continue
-        out["date"].append(np.datetime64(day.date()))
-        out["vbar"].append(hv.values[mv].mean(0))
-        out["ud"].append(hu.values[mu].mean(0))
+    for t in sorted(set(tv[tv.hour == 0]) & set(tu[tu.hour == 0])):
+        out["date"].append(np.datetime64(t.date()))
+        out["vbar"].append(hv.values[tv == t][0])
+        out["ud"].append(hu.values[tu == t][0])
     if out["date"]:
         save(load(), {k: np.asarray(v) for k, v in out.items()})
 
@@ -179,12 +170,13 @@ def render(rebuild: bool = False):
         if w is None:
             continue
         vb, ud, mid = w
-        psi, pc = mmsf.streamfunction(vb, P_PA, O.LAT), mmsf.clim_psi(cm, mid)
-        hs = mmsf.hadley_strength(psi, pc, P_HPA, O.LAT, doy=mid)
+        # on the climatology's 1.5 deg bands, map and labels alike (build_hadley_clim)
+        psi, pc = mmsf.streamfunction(B.band_v(vb, O.LAT), P_PA, B.LAT15), mmsf.clim_psi(cm, mid)
+        hs = mmsf.hadley_strength(psi, pc, P_HPA, B.LAT15, doy=mid)
         mmsf.plot_psi(
             psi - pc,
             P_HPA,
-            O.LAT,
+            B.LAT15,
             ANIM / "mmsf_hist" / frame_name(end),
             f"Meridional mass streamfunction anomaly Ψ′ — 7-day mean ending {end:%Y-%m-%d}",
             anom=True,
@@ -244,12 +236,13 @@ def main() -> int:
     b = sub.add_parser("backfill")
     b.add_argument("--since", default=str(FIRST.date()))
     b.add_argument("--until", default=str((pd.Timestamp.now("UTC").tz_localize(None) - pd.Timedelta(days=1)).date()))
+    b.add_argument("--fresh", action="store_true", help="start from an empty archive")
     sub.add_parser("update")
     r = sub.add_parser("render")
     r.add_argument("--rebuild", action="store_true")
     a = ap.parse_args()
     if a.cmd == "backfill":
-        backfill(a.since, a.until)
+        backfill(a.since, a.until, a.fresh)
     elif a.cmd == "update":
         update()
     else:
