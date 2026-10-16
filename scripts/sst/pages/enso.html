@@ -38,7 +38,7 @@
       <p class="cap" id="cap"></p>
       <div id="about"></div>
       <p class="hint"><span class="kbd">&larr;</span> <span class="kbd">&rarr;</span> step through the options &middot; <span class="kbd">&uarr;</span> <span class="kbd">&darr;</span> change figure &middot; click a still to enlarge</p>
-      <div class="chart-card-footer"><span class="chart-sources">NOAA OISST v2.1 &middot; NASA JPL MUR &middot; BoM SOI &middot; NOAA PSL MEI.v2 &middot; GMGSI infrared &middot; base 1991&ndash;2020 &middot; updated daily</span><span class="chart-updated">__SST_DAY__</span></div>
+      <div class="chart-card-footer"><span class="chart-sources">NOAA OISST v2.1 &middot; NASA JPL MUR &middot; BoM SOI &middot; NOAA PSL MEI.v2 &middot; GMGSI infrared &middot; ECMWF open data: &copy;&nbsp;2026 European Centre for Medium-Range Weather Forecasts (ECMWF), source <a href="https://www.ecmwf.int">www.ecmwf.int</a>, <a href="https://creativecommons.org/licenses/by/4.0/">CC&nbsp;BY&nbsp;4.0</a>, modified; ECMWF does not accept any liability for errors or omissions in the data, their availability, or any loss or damage arising from their use &middot; ECCC GDPS: Data Source: Environment and Climate Change Canada (MSC Datamart), under the <a href="https://eccc-msc.github.io/open-data/licence/readme_en/">ECCC Data Servers End-use Licence</a> &middot; ERA5: Copernicus Climate Change Service (C3S) / ECMWF, CC&nbsp;BY&nbsp;4.0; contains modified Copernicus Climate Change Service information 2026; neither the European Commission nor ECMWF is responsible for any use of this information &middot; base 1991&ndash;2020 &middot; updated daily</span><span class="chart-updated">__SST_DAY__</span></div>
     </section>
   </div>
   <div class="lightbox" id="lightbox"><img alt=""></div>
@@ -170,7 +170,7 @@
 <p class="chart-sources">Regression on NOAA OISST Ni&ntilde;o-3.4 &middot; SOI (BoM) &middot; ERA5 eq-u850 &middot; target: NOAA PSL MEI.v2</p>
 </template>
 <template id="about-olr">
-<p>A longitude &times; time Hovm&ouml;ller of deep convection along the equator. NOAA's interpolated-OLR product ended in 2022, so this derives an OLR proxy in real time from the <b>GMGSI</b> global longwave-IR satellite mosaic: the IR brightness temperature (cold cloud tops) is converted to outgoing longwave radiation, and the 5&deg;S&ndash;5&deg;N zonal mean is stacked over time. <span style="color:#e07b00">Yellow to red is low OLR (deep convection)</span>; blue is high OLR (suppressed or clear sky). An eastward (top to bottom-right) tilt is the MJO propagating east; convection parked at the dateline reflects the El&nbsp;Ni&ntilde;o-shifted warm pool. Newest day at the bottom.</p>
+<p>A longitude &times; time Hovm&ouml;ller of deep convection along the equator. NOAA's interpolated-OLR product ended in 2022, so this derives an OLR proxy in real time from the <b>GMGSI</b> global longwave-IR satellite mosaic: the IR brightness temperature (cold cloud tops) is converted to outgoing longwave radiation, and the 5&deg;S&ndash;5&deg;N average at each longitude is stacked over time. <span style="color:#e07b00">Yellow to red is low OLR (deep convection)</span>; blue is high OLR (suppressed or clear sky). An eastward (top to bottom-right) tilt is the MJO propagating east; convection parked at the dateline reflects the El&nbsp;Ni&ntilde;o-shifted warm pool. Newest day at the bottom.</p>
 <p class="chart-sources">NOAA GMGSI longwave-IR global mosaic &middot; McIDAS T_b + Ohring-Gruber OLR &middot; 5&deg;S&ndash;5&deg;N daily mean</p>
 </template>
 <template id="about-waves">
@@ -239,12 +239,12 @@
 </template>
 <template id="about-ascat">
 
-<p class="chart-sources">Copernicus Marine WIND_GLO_PHY_L4_NRT (scatterometer / ASCAT) &middot; ~1&ndash;2 day latency &middot; updated daily &middot; drag the slider for recent days</p>
+<p class="chart-sources">Copernicus Marine WIND_GLO_PHY_L4_NRT (scatterometer / ASCAT; generated using E.U. Copernicus Marine Service Information) &middot; ~1&ndash;2 day latency &middot; updated daily &middot; drag the slider for recent days</p>
 </template>
 
 <template id="about-eqwind">
 <p>Longitude &times; time strip of the daily-mean surface zonal wind averaged 5&deg;S&ndash;5&deg;N, 150&deg;E&ndash;90&deg;W, from the same gap-filled scatterometer (ASCAT) L4 product as the map above. <span style="color:#c0392b">Red is westerly</span> (El&nbsp;Ni&ntilde;o-favorable), <span style="color:#2471a3">blue is easterly</span> (the trade winds). Westerly-wind bursts (red) over the warm pool force the downwelling Kelvin waves and eastward surface-current surges seen on the subsurface page. Newest day at the bottom.</p>
-<p class="chart-sources">Copernicus Marine WIND_GLO_PHY_L4_NRT (scatterometer / ASCAT) &middot; 5&deg;S&ndash;5&deg;N daily mean &middot; rolling ~9 months &middot; updated daily</p>
+<p class="chart-sources">Copernicus Marine WIND_GLO_PHY_L4_NRT (scatterometer / ASCAT; generated using E.U. Copernicus Marine Service Information) &middot; 5&deg;S&ndash;5&deg;N daily mean &middot; rolling ~9 months &middot; updated daily</p>
 </template>
 
 <template id="about-soi_h">
@@ -275,7 +275,7 @@
 
 <template id="about-wind10">
 <p>Forecast 10 m zonal-wind anomaly (5&deg;S&ndash;5&deg;N), longitude &times; forecast day, from the AIFS-ENS (AI) and ECMWF IFS-ENS (physics) ensemble means versus the ERA5 1991&ndash;2020 climatology. Westerly (red) anomalies along the equator favor El Ni&ntilde;o development; easterly (blue) anomalies favor La Ni&ntilde;a. Agreement between the AI and physics ensembles raises confidence. The <b>single runs</b> view shows the same anomaly from AIFS-ENS member 0 (one draw of the AI ensemble, not a smoothed mean), the deterministic AIFS single and IFS HRES, and Environment Canada&rsquo;s GDPS, which stops at day 10; single runs keep sharp westerly bursts that an ensemble mean blurs as the members drift apart.</p>
-<p class="chart-sources">ECMWF AIFS-ENS, AIFS single, IFS-ENS &amp; IFS HRES (open data, CC BY 4.0) &middot; ECCC GDPS &middot; anomaly vs ERA5 1991&ndash;2020 &middot; updated each 00/12Z cycle</p>
+<p class="chart-sources">ECMWF AIFS-ENS, AIFS single, IFS-ENS &amp; IFS HRES (open data, CC BY 4.0) &middot; ECCC GDPS (Data Source: Environment and Climate Change Canada (MSC Datamart), under the <a href="https://eccc-msc.github.io/open-data/licence/readme_en/">ECCC Data Servers End-use Licence</a>) &middot; anomaly vs ERA5 1991&ndash;2020 &middot; updated each 00/12Z cycle</p>
 </template>
 
 <template id="about-subtemp">
@@ -295,15 +295,15 @@
 </template>
 <template id="about-cur_map">
 <p>Daily surface-current fields over the last month for the equatorial Pacific (15&deg;S&ndash;15&deg;N, 130&deg;E&ndash;80&deg;W) from the Copernicus Marine 1/12&deg; ocean model: speed shaded (blue slow to red fast) with streamlines tracing the flow. The westward South Equatorial Current straddles the equator, the eastward North Equatorial Counter Current sits near 5&ndash;10&deg;N, and Tropical Instability Wave eddies ripple along the cold tongue.</p>
-<p class="chart-sources">Copernicus Marine GLOBAL_ANALYSISFORECAST_PHY_001_024 (1/12&deg;) &middot; surface (~0.5&nbsp;m)</p>
+<p class="chart-sources">Copernicus Marine GLOBAL_ANALYSISFORECAST_PHY_001_024 (1/12&deg;; generated using E.U. Copernicus Marine Service Information, doi:10.48670/moi-00016) &middot; surface (~0.5&nbsp;m)</p>
 </template>
 <template id="about-cur_sec">
 <p>Depth&ndash;longitude slice along the equator (1.5&deg;S&ndash;1.5&deg;N), 160&deg;E&ndash;90&deg;W, from the Copernicus Marine 1/12&deg; global ocean model: zonal current (shaded, eastward in red) with the 20&deg;C isotherm (the thermocline) in black. It resolves the Equatorial Undercurrent, the eastward subsurface jet at about 50&ndash;200&nbsp;m, the surface-westward South Equatorial Current, and the east&ndash;west thermocline tilt. The loop is pinned to start 1&nbsp;March&nbsp;2026 and grows daily, so downwelling Kelvin waves (a deepening of the 20&deg;C isotherm with an eastward current pulse) can be followed across the basin.</p>
-<p class="chart-sources">Copernicus Marine GLOBAL_ANALYSISFORECAST_PHY_001_024 (1/12&deg; Mercator) &middot; equator 1.5&deg;S&ndash;1.5&deg;N mean &middot; since 1 Mar 2026</p>
+<p class="chart-sources">Copernicus Marine GLOBAL_ANALYSISFORECAST_PHY_001_024 (1/12&deg; Mercator; generated using E.U. Copernicus Marine Service Information, doi:10.48670/moi-00016) &middot; equator 1.5&deg;S&ndash;1.5&deg;N mean &middot; since 1 Mar 2026</p>
 </template>
 <template id="about-cur_hov">
 <p>Longitude &times; time strip of the daily surface zonal current averaged 2&deg;S&ndash;2&deg;N, 150&deg;E&ndash;90&deg;W (same Copernicus Marine model). <span style="color:#c0392b">Red is eastward</span>, <span style="color:#2471a3">blue is westward</span>. The equatorial surface normally flows westward (the trade-driven South Equatorial Current); as El&nbsp;Ni&ntilde;o matures, downwelling Kelvin waves drive eastward surges into the east Pacific. Newest day at the bottom.</p>
-<p class="chart-sources">Copernicus Marine GLOBAL_ANALYSISFORECAST_PHY_001_024 (1/12&deg;) &middot; 2&deg;S&ndash;2&deg;N surface mean &middot; rolling ~9 months</p>
+<p class="chart-sources">Copernicus Marine GLOBAL_ANALYSISFORECAST_PHY_001_024 (1/12&deg;; generated using E.U. Copernicus Marine Service Information, doi:10.48670/moi-00016) &middot; 2&deg;S&ndash;2&deg;N surface mean &middot; rolling ~9 months</p>
 </template>
 <template id="about-eqsoi">
 <p>The <b>Equatorial SOI</b> is CPC&rsquo;s zonal pressure index for the equatorial Pacific: the standardised anomaly of the area-mean sea-level pressure over the eastern equatorial Pacific (5&deg;N&ndash;5&deg;S, 130&ndash;80&deg;W) minus that over Indonesia (5&deg;N&ndash;5&deg;S, 90&ndash;140&deg;E). It measures the pressure gradient that drives the equatorial trades directly, on the equator, where the classic Tahiti&ndash;Darwin SOI samples two stations well off it; the two agree closely in the mean but the equatorial index is less noisy and more physically tied to the Walker circulation. Negative values go with El&nbsp;Ni&ntilde;o.</p>
@@ -336,6 +336,7 @@
         &minus;28&nbsp;gpm per K). See <i>Wave train position</i>.</p>
 <p class="chart-sources">CMIP6 historical runs (Eyring et al. 2016, <i>Geosci. Model Dev.</i> 9, 1937&ndash;1958; CC&nbsp;BY&nbsp;4.0), 1950&ndash;2014, via the Pangeo archive on Google Cloud: ACCESS-ESM1-5, CanESM5, CESM2, CNRM-CM6-1, CNRM-ESM2-1, EC-Earth3, GISS-E2-1-G, GISS-E2-1-H, INM-CM5-0, IPSL-CM6A-LR, MIROC6, MIROC-ES2L, MPI-ESM1-2-HR, MPI-ESM1-2-LR, MRI-ESM2-0, NorCPM1 (429 members) &middot; ERA5 2&nbsp;m temperature (Copernicus C3S, CC&nbsp;BY&nbsp;4.0; Hersbach et al. 2020, <i>Q. J. R. Meteorol. Soc.</i> 146, 1999&ndash;2049), 1960&ndash;2026 &middot; GPCP v2.3 monthly precipitation (NOAA NCEI; Adler et al. 2018, <i>Atmosphere</i> 9, 138), 1980&ndash;2026 &middot; CPC Oceanic Ni&ntilde;o Index &middot; all on a 2.5&deg; grid, 60&deg;S&ndash;75&deg;N, 170&ndash;30&deg;W &middot; FDR: Benjamini &amp; Hochberg 1995, <i>J. R. Stat. Soc. B</i> 57, 289&ndash;300 &middot; static reference, redrawn only when the analysis changes</p>
 <p class="chart-sources">We acknowledge the World Climate Research Programme, which, through its Working Group on Coupled Modelling, coordinated and promoted CMIP6. We thank the climate modeling groups for producing and making available their model output, the Earth System Grid Federation (ESGF) for archiving the data and providing access, and the multiple funding agencies who support CMIP6 and ESGF.</p>
+<p class="chart-sources">Written by Claude, Anthropic&rsquo;s AI model, at the direction of <a href="/about.html">Shawn Corvec</a>, meteorologist. Not peer reviewed.</p>
 </template>
 <template id="about-imp_comp">
 <p>The average season in each class of event minus the average neutral season, from CMIP6. The classes nest as the usual
@@ -352,6 +353,7 @@
         per model; see the regression item). In a super El Ni&ntilde;o winter the models deepen the Aleutian low by about
         80&nbsp;gpm near 147&deg;W and raise heights by about 50&nbsp;gpm over Hudson Bay.</p>
 <p class="chart-sources">CMIP6 historical runs (Eyring et al. 2016, <i>Geosci. Model Dev.</i> 9, 1937&ndash;1958; CC&nbsp;BY&nbsp;4.0), 1950&ndash;2014, via the Pangeo archive on Google Cloud: ACCESS-ESM1-5, CanESM5, CESM2, CNRM-CM6-1, CNRM-ESM2-1, EC-Earth3, GISS-E2-1-G, GISS-E2-1-H, INM-CM5-0, IPSL-CM6A-LR, MIROC6, MIROC-ES2L, MPI-ESM1-2-HR, MPI-ESM1-2-LR, MRI-ESM2-0, NorCPM1 (429 members) &middot; ERA5 2&nbsp;m temperature (Copernicus C3S, CC&nbsp;BY&nbsp;4.0; Hersbach et al. 2020, <i>Q. J. R. Meteorol. Soc.</i> 146, 1999&ndash;2049), 1960&ndash;2026 &middot; GPCP v2.3 monthly precipitation (NOAA NCEI; Adler et al. 2018, <i>Atmosphere</i> 9, 138), 1980&ndash;2026 &middot; CPC Oceanic Ni&ntilde;o Index &middot; all on a 2.5&deg; grid, 60&deg;S&ndash;75&deg;N, 170&ndash;30&deg;W &middot; FDR: Benjamini &amp; Hochberg 1995, <i>J. R. Stat. Soc. B</i> 57, 289&ndash;300 &middot; static reference, redrawn only when the analysis changes</p>
+<p class="chart-sources">Written by Claude, Anthropic&rsquo;s AI model, at the direction of <a href="/about.html">Shawn Corvec</a>, meteorologist. Not peer reviewed.</p>
 </template>
 <template id="about-imp_obs">
 <p>The same composite from observations: ERA5 temperature and GPCP rainfall in seasons with CPC&rsquo;s ONI at or beyond
@@ -364,6 +366,7 @@
         map says so and draws nothing.</p>
 <p>The 500 hPa option uses ERA5 500&nbsp;hPa height (1959&ndash;2026) with the same test.</p>
 <p class="chart-sources">CMIP6 historical runs (Eyring et al. 2016, <i>Geosci. Model Dev.</i> 9, 1937&ndash;1958; CC&nbsp;BY&nbsp;4.0), 1950&ndash;2014, via the Pangeo archive on Google Cloud: ACCESS-ESM1-5, CanESM5, CESM2, CNRM-CM6-1, CNRM-ESM2-1, EC-Earth3, GISS-E2-1-G, GISS-E2-1-H, INM-CM5-0, IPSL-CM6A-LR, MIROC6, MIROC-ES2L, MPI-ESM1-2-HR, MPI-ESM1-2-LR, MRI-ESM2-0, NorCPM1 (429 members) &middot; ERA5 2&nbsp;m temperature (Copernicus C3S, CC&nbsp;BY&nbsp;4.0; Hersbach et al. 2020, <i>Q. J. R. Meteorol. Soc.</i> 146, 1999&ndash;2049), 1960&ndash;2026 &middot; GPCP v2.3 monthly precipitation (NOAA NCEI; Adler et al. 2018, <i>Atmosphere</i> 9, 138), 1980&ndash;2026 &middot; CPC Oceanic Ni&ntilde;o Index &middot; all on a 2.5&deg; grid, 60&deg;S&ndash;75&deg;N, 170&ndash;30&deg;W &middot; FDR: Benjamini &amp; Hochberg 1995, <i>J. R. Stat. Soc. B</i> 57, 289&ndash;300 &middot; static reference, redrawn only when the analysis changes</p>
+<p class="chart-sources">Written by Claude, Anthropic&rsquo;s AI model, at the direction of <a href="/about.html">Shawn Corvec</a>, meteorologist. Not peer reviewed.</p>
 </template>
 <template id="about-imp_super">
 <p><b>Lifecycle:</b> CMIP6 winters whose December&ndash;February Ni&ntilde;o-3.4 reached +2.0&nbsp;K, followed from the June&ndash;August
@@ -380,6 +383,7 @@
         Great Lakes and Quebec in super winters. The models&rsquo; super El Ni&ntilde;o Aleutian low (150&deg;W on the mean map)
         sits where the three observed events put it (152&deg;W).</p>
 <p class="chart-sources">CMIP6 historical runs (Eyring et al. 2016, <i>Geosci. Model Dev.</i> 9, 1937&ndash;1958; CC&nbsp;BY&nbsp;4.0), 1950&ndash;2014, via the Pangeo archive on Google Cloud: ACCESS-ESM1-5, CanESM5, CESM2, CNRM-CM6-1, CNRM-ESM2-1, EC-Earth3, GISS-E2-1-G, GISS-E2-1-H, INM-CM5-0, IPSL-CM6A-LR, MIROC6, MIROC-ES2L, MPI-ESM1-2-HR, MPI-ESM1-2-LR, MRI-ESM2-0, NorCPM1 (429 members) &middot; ERA5 2&nbsp;m temperature (Copernicus C3S, CC&nbsp;BY&nbsp;4.0; Hersbach et al. 2020, <i>Q. J. R. Meteorol. Soc.</i> 146, 1999&ndash;2049), 1960&ndash;2026 &middot; GPCP v2.3 monthly precipitation (NOAA NCEI; Adler et al. 2018, <i>Atmosphere</i> 9, 138), 1980&ndash;2026 &middot; CPC Oceanic Ni&ntilde;o Index &middot; all on a 2.5&deg; grid, 60&deg;S&ndash;75&deg;N, 170&ndash;30&deg;W &middot; FDR: Benjamini &amp; Hochberg 1995, <i>J. R. Stat. Soc. B</i> 57, 289&ndash;300 &middot; static reference, redrawn only when the analysis changes</p>
+<p class="chart-sources">Written by Claude, Anthropic&rsquo;s AI model, at the direction of <a href="/about.html">Shawn Corvec</a>, meteorologist. Not peer reviewed.</p>
 </template>
 <template id="about-imp_asym">
 <p>Is La Ni&ntilde;a the mirror image of El Ni&ntilde;o? The two class composites are rescaled to the same index size and added:
@@ -391,6 +395,7 @@
 <p><b>Only significant results are drawn.</b> A CMIP6 map is shaded where it is <i>robust</i>: an across-model t-test (each of the 16 models counts once) passes a Benjamini&ndash;Hochberg false-discovery rate of 10&nbsp;% over the map <i>and</i> at least 80&nbsp;% of the models agree on the sign. Everything else is left blank. Precipitation is tested in mm/day and shown as a percentage of the normal; cells whose normal is under 0.3&nbsp;mm/day are hatched and not scored.</p>
 <p>The 500 hPa option shows the same sum for height on a flat Northern Hemisphere map.</p>
 <p class="chart-sources">CMIP6 historical runs (Eyring et al. 2016, <i>Geosci. Model Dev.</i> 9, 1937&ndash;1958; CC&nbsp;BY&nbsp;4.0), 1950&ndash;2014, via the Pangeo archive on Google Cloud: ACCESS-ESM1-5, CanESM5, CESM2, CNRM-CM6-1, CNRM-ESM2-1, EC-Earth3, GISS-E2-1-G, GISS-E2-1-H, INM-CM5-0, IPSL-CM6A-LR, MIROC6, MIROC-ES2L, MPI-ESM1-2-HR, MPI-ESM1-2-LR, MRI-ESM2-0, NorCPM1 (429 members) &middot; ERA5 2&nbsp;m temperature (Copernicus C3S, CC&nbsp;BY&nbsp;4.0; Hersbach et al. 2020, <i>Q. J. R. Meteorol. Soc.</i> 146, 1999&ndash;2049), 1960&ndash;2026 &middot; GPCP v2.3 monthly precipitation (NOAA NCEI; Adler et al. 2018, <i>Atmosphere</i> 9, 138), 1980&ndash;2026 &middot; CPC Oceanic Ni&ntilde;o Index &middot; all on a 2.5&deg; grid, 60&deg;S&ndash;75&deg;N, 170&ndash;30&deg;W &middot; FDR: Benjamini &amp; Hochberg 1995, <i>J. R. Stat. Soc. B</i> 57, 289&ndash;300 &middot; static reference, redrawn only when the analysis changes</p>
+<p class="chart-sources">Written by Claude, Anthropic&rsquo;s AI model, at the direction of <a href="/about.html">Shawn Corvec</a>, meteorologist. Not peer reviewed.</p>
 </template>
 <template id="about-imp_ovm">
 <p>Is the real world consistent with the models? The observed composite of <i>n</i> events is placed among composites of
@@ -405,6 +410,7 @@
         Rica and Caribbean Colombia fell short of the models at 6 grid points (and at one more in the open Atlantic). No region&rsquo;s rainfall passes the regional
         test, so there is no rainfall table.</p>
 <p class="chart-sources">CMIP6 historical runs (Eyring et al. 2016, <i>Geosci. Model Dev.</i> 9, 1937&ndash;1958; CC&nbsp;BY&nbsp;4.0), 1950&ndash;2014, via the Pangeo archive on Google Cloud: ACCESS-ESM1-5, CanESM5, CESM2, CNRM-CM6-1, CNRM-ESM2-1, EC-Earth3, GISS-E2-1-G, GISS-E2-1-H, INM-CM5-0, IPSL-CM6A-LR, MIROC6, MIROC-ES2L, MPI-ESM1-2-HR, MPI-ESM1-2-LR, MRI-ESM2-0, NorCPM1 (429 members) &middot; ERA5 2&nbsp;m temperature (Copernicus C3S, CC&nbsp;BY&nbsp;4.0; Hersbach et al. 2020, <i>Q. J. R. Meteorol. Soc.</i> 146, 1999&ndash;2049), 1960&ndash;2026 &middot; GPCP v2.3 monthly precipitation (NOAA NCEI; Adler et al. 2018, <i>Atmosphere</i> 9, 138), 1980&ndash;2026 &middot; CPC Oceanic Ni&ntilde;o Index &middot; all on a 2.5&deg; grid, 60&deg;S&ndash;75&deg;N, 170&ndash;30&deg;W &middot; FDR: Benjamini &amp; Hochberg 1995, <i>J. R. Stat. Soc. B</i> 57, 289&ndash;300 &middot; static reference, redrawn only when the analysis changes</p>
+<p class="chart-sources">Written by Claude, Anthropic&rsquo;s AI model, at the direction of <a href="/about.html">Shawn Corvec</a>, meteorologist. Not peer reviewed.</p>
 </template>
 <template id="about-imp_ec">
 <p><b>East-based and central-Pacific El Ni&ntilde;os are not the same event.</b> Takahashi et al. (2011) showed that the
@@ -440,6 +446,7 @@
         Labrador and &minus;14&nbsp;gpm over the southern US, robust over 20&nbsp;% of 20&ndash;90&deg;N in winter &mdash; the
         height pattern behind the warmer Quebec and cooler south of east-based events.</p>
 <p class="chart-sources">CMIP6 historical runs (Eyring et al. 2016, <i>Geosci. Model Dev.</i> 9, 1937&ndash;1958; CC&nbsp;BY&nbsp;4.0), 1950&ndash;2014, 16 models, 429 members, via the Pangeo archive on Google Cloud (Amon <code>ts</code>, <code>tas</code>, <code>pr</code>) &middot; ERSST v6 (NOAA NCEI; Huang et al. 2025, <i>J. Climate</i> 38, 1105&ndash;1121) &middot; ERA5 2&nbsp;m temperature (Copernicus C3S, CC&nbsp;BY&nbsp;4.0; Hersbach et al. 2020, <i>Q. J. R. Meteorol. Soc.</i> 146, 1999&ndash;2049), 1960&ndash;2026 &middot; GPCP v2.3 precipitation (NOAA NCEI; Adler et al. 2018, <i>Atmosphere</i> 9, 138), 1980&ndash;2026 &middot; CPC ONI &middot; FDR: Benjamini &amp; Hochberg 1995, <i>J. R. Stat. Soc. B</i> 57, 289&ndash;300 &middot; static reference, redrawn only when the analysis changes &middot; Takahashi et al. 2011, <i>Geophys. Res. Lett.</i> 38, L10704 &middot; Kug, Jin &amp; An 2009, <i>J. Climate</i> 22, 1499&ndash;1515</p>
+<p class="chart-sources">Written by Claude, Anthropic&rsquo;s AI model, at the direction of <a href="/about.html">Shawn Corvec</a>, meteorologist. Not peer reviewed.</p>
 </template>
 <template id="about-imp_wave">
 <p><b>Do the models put the ENSO wave train in the right place?</b> Two centres are tracked on the 500 hPa height maps: the
@@ -458,6 +465,7 @@
 <p class="chart-sources">CMIP6 historical (Eyring et al. 2016, <i>Geosci. Model Dev.</i> 9, 1937&ndash;1958; CC&nbsp;BY&nbsp;4.0), 16 models, 147 members (Amon <code>zg</code> 500&nbsp;hPa, up to 10 per model) via
         the Pangeo archive on Google Cloud &middot; ERA5 500&nbsp;hPa height (Copernicus C3S, CC&nbsp;BY&nbsp;4.0; Hersbach et al. 2020, <i>Q. J. R. Meteorol. Soc.</i> 146, 1999&ndash;2049) &middot; GPCP v2.3 (NOAA NCEI; Adler et al. 2018, <i>Atmosphere</i> 9, 138) and
         CMIP6 <code>pr</code> for the rain centroids &middot; CPC ONI</p>
+<p class="chart-sources">Written by Claude, Anthropic&rsquo;s AI model, at the direction of <a href="/about.html">Shawn Corvec</a>, meteorologist. Not peer reviewed.</p>
 </template>
 <template id="about-imp_pdocause">
 <p class="note" style="border-left:4px solid #9a3f14;padding:.55rem .8rem;background:#fbf4ef;color:#2b2622"><b>In short: the PDO mostly follows the atmosphere; it does not drive it.</b> The winds of the Aleutian low, and ENSO&rsquo;s reach into the North Pacific, build the PDO&rsquo;s sea-surface pattern within weeks. The familiar &ldquo;PDO impact&rdquo; maps are largely that weather, not the ocean&rsquo;s effect on it. When the ocean has to come first (lagged tests) or is imposed (AMIP), its effect on the winter atmosphere is a tenth of the familiar map or less and not statistically significant; the two pacemaker models are too noisy to rule out more, but neither shows a significant map. The one forced effect every method agrees on is a modest warming of the air along the Pacific coast. Once ENSO is known, the PDO phase says little about the coming winter.</p>
@@ -507,6 +515,7 @@
         et al. 2016, J.&nbsp;Climate 29, 4399&ndash;4427 &middot; Frankignoul &amp; Hasselmann 1977, Tellus 29, 289&ndash;305
         &middot; Frankignoul, Czaja &amp; L&rsquo;Heveder 1998, J.&nbsp;Climate 11, 2310&ndash;2324 &middot; Kushnir et al. 2002,
         J.&nbsp;Climate 15, 2233&ndash;2256 &middot; Boer et al. 2016, Geosci. Model Dev. 9, 3751&ndash;3777</p>
+<p class="chart-sources">Written by Claude, Anthropic&rsquo;s AI model, at the direction of <a href="/about.html">Shawn Corvec</a>, meteorologist. Not peer reviewed.</p>
 </template>
 <template id="about-imp_pdomonth">
 <p class="note" style="border-left:4px solid #9a3f14;padding:.55rem .8rem;background:#fbf4ef;color:#2b2622"><b>In short: month by month, the PDO&rsquo;s own effect on North American weather is a modest warming of the Pacific coast, about +0.1 to +0.3&nbsp;K per standard deviation.</b> The large PDO&ndash;weather relationships usually quoted (a warm Alaska, a cool Southeast, wetter or drier winters) are mostly the atmosphere driving the ocean, and shrink five- to tenfold or vanish once the ocean has to come first.</p>
@@ -550,6 +559,7 @@
         via the Pangeo archive on Google Cloud &middot; DCPP-C dcppC-ipv-NexTrop via ESGF (CEDA) &middot; ERA5 (Copernicus C3S, CC&nbsp;BY&nbsp;4.0; Hersbach et al. 2020, <i>Q. J. R. Meteorol. Soc.</i> 146, 1999&ndash;2049)
         &middot; GPCP v2.3 and ERSST v6 (NOAA NCEI; Adler et al. 2018, <i>Atmosphere</i> 9, 138; Huang et al. 2025, <i>J. Climate</i> 38, 1105&ndash;1121) &middot; NCEI PDO index (Mantua et al. 1997, <i>Bull. Amer. Meteor. Soc.</i> 78, 1069&ndash;1079) &middot; see <i>The PDO: mostly driven by the atmosphere</i> for the
         causal method and references</p>
+<p class="chart-sources">Written by Claude, Anthropic&rsquo;s AI model, at the direction of <a href="/about.html">Shawn Corvec</a>, meteorologist. Not peer reviewed.</p>
 </template>
 <template id="about-imp_regions">
 <p>Land-weighted means over 20 regions (land fraction from Natural Earth &times; cos&nbsp;latitude), for each class minus
@@ -559,6 +569,7 @@
         neutral seasons passes 10&nbsp;% within its column. <i>n.s.</i> = not significant; <i>n=</i> marks an observed class
         with too few seasons to test. Precipitation is in % of normal.</p>
 <p class="chart-sources">CMIP6 historical runs (Eyring et al. 2016, <i>Geosci. Model Dev.</i> 9, 1937&ndash;1958; CC&nbsp;BY&nbsp;4.0), 1950&ndash;2014, via the Pangeo archive on Google Cloud: ACCESS-ESM1-5, CanESM5, CESM2, CNRM-CM6-1, CNRM-ESM2-1, EC-Earth3, GISS-E2-1-G, GISS-E2-1-H, INM-CM5-0, IPSL-CM6A-LR, MIROC6, MIROC-ES2L, MPI-ESM1-2-HR, MPI-ESM1-2-LR, MRI-ESM2-0, NorCPM1 (429 members) &middot; ERA5 2&nbsp;m temperature (Copernicus C3S, CC&nbsp;BY&nbsp;4.0; Hersbach et al. 2020, <i>Q. J. R. Meteorol. Soc.</i> 146, 1999&ndash;2049), 1960&ndash;2026 &middot; GPCP v2.3 monthly precipitation (NOAA NCEI; Adler et al. 2018, <i>Atmosphere</i> 9, 138), 1980&ndash;2026 &middot; CPC Oceanic Ni&ntilde;o Index &middot; all on a 2.5&deg; grid, 60&deg;S&ndash;75&deg;N, 170&ndash;30&deg;W &middot; FDR: Benjamini &amp; Hochberg 1995, <i>J. R. Stat. Soc. B</i> 57, 289&ndash;300 &middot; static reference, redrawn only when the analysis changes</p>
+<p class="chart-sources">Written by Claude, Anthropic&rsquo;s AI model, at the direction of <a href="/about.html">Shawn Corvec</a>, meteorologist. Not peer reviewed.</p>
 </template>
 </main>
 
@@ -574,7 +585,7 @@ window.STAGE = {
   {label: "SST & indices", ico: "\u{1F321}", items: [["sstmaps","SST anomaly maps","global, tropics, relative"],["indices","Daily indices, interactive","Niño-3.4, RONI, ONI estimate"],["onironi","ONI vs RONI","3-month convention, OISST estimate"],["beyond","PDO, IOD, South Atlantic","daily, beyond ENSO"]]},
   {label: "Satellite & MUR", ico: "\u{1F6F0}", items: [["mur","MUR 1 km loop","cold tongue since onset"],["mur34","MUR Niño-3.4","1 km against OISST"],["ir","Infrared loops","Pacific · South & Central America"]]},
   {label: "Convection & waves", ico: "\u{1F30A}", items: [["olr","OLR Hovmöller","synthetic, equatorial"],["waves","Wave decomposition","Kelvin, Rossby, MJO bands"],["trackers","Kelvin and Rossby trackers","along the equator"],["kelvin","Kelvin wave tracker, AIFS-ENS","map + 15-day forecast"]]},
-  {label: "Atmospheric response", ico: "\u{1F32C}", items: [["soi","Southern Oscillation Index","hourly, forecast, equatorial"],["soirec","SOI against the record","daily, since 1887"],["soi_seas","Seasonal SOI outlook","SEAS5, SOI and Equatorial SOI"],["mei","MEI.v2 nowcast","daily, analogs, history"],["ascat","ASCAT wind map","scatterometer, daily"],["eqwind","Zonal wind Hovmöller","equatorial strip, 90 days"],["wwb","Westerly wind bursts","Tarawa monitor, past onsets"],["wind10","10 m wind forecast","ensembles and single runs, to day 15"]]},
+  {label: "Atmospheric response", ico: "\u{1F32C}", items: [["soi","Southern Oscillation Index","hourly, forecast, equatorial"],["soirec","SOI against the record","monthly and daily records"],["soi_seas","Seasonal SOI outlook","SEAS5, SOI and Equatorial SOI"],["mei","MEI.v2 nowcast","daily, analogs, history"],["ascat","ASCAT wind map","scatterometer, daily"],["eqwind","Zonal wind Hovmöller","equatorial strip, 90 days"],["wwb","Westerly wind bursts","Tarawa monitor, past onsets"],["wind10","10 m wind forecast","ensembles and single runs, to day 15"]]},
   {label: "Subsurface", ico: "\u{1F30A}", items: [["subtemp","Temperature section","TAO/TRITON, raw and detrended"],["hc","Heat content vs analogs","0–300 m, 1997 · 2015 · 2023"],["okelvin","Ocean Kelvin waves","sea level, arrival dates"],["xsec","Cross-section vs analogs","same week of each event"],["cur_map","Surface currents","tropical Pacific"],["cur_sec","Undercurrent section","zonal current with depth"],["cur_hov","Current Hovmöller","equatorial strip"]]},
   {label: "Impacts on the Americas", ico: "\u{1F30E}", items: [["imp_reg","Regression on Niño-3.4","CMIP6 and observed, per K"],["imp_comp","Composites by event class","CMIP6, El Niño to strong La Niña"],["imp_obs","Observed composites","ERA5 and GPCP"],["imp_super","Super El Niño","lifecycle, beyond linear, by month"],["imp_asym","Asymmetry","what does not flip sign"],["imp_ovm","Observed vs the models","where the real world differs"],["imp_regions","By region","20 regions, significant values only"],["imp_ec","East-based vs central","Takahashi E and C, 2026 placed"],["imp_wave","Wave train position","500 hPa, models vs observed"],["imp_pdocause","The PDO: driven by the atmosphere","its own effect is small"],["imp_pdomonth","PDO: small effects by month","only coastal warming is robust"]]}
 ],
@@ -598,10 +609,10 @@ window.STAGE = {
           ratio: function (a) { return a === "samsat" ? "1454/1587" : "1259/700"; }, about: "about-ir",
           cap: function (a) { return a === "samsat" ? "Hourly infrared composite over South and Central America: the Amazon convection, the SACZ and the Andes." : "Hourly infrared composite over the tropical Pacific: where the convection is."; }},
   soirec: {label: "SOI against the record", img: function () { return "assets/sst/soi_history.webp?v=__CACHE__"; }, about: "about-soirec", fit: false,
-          cap: function () { return "The daily Southern Oscillation Index of the current event against every event since 1887, BoM 1887–1989 base."; }},
+          cap: function () { return "The Southern Oscillation Index of the current event against the record: BoM's monthly SOI and, since June 1991, the daily SOI of LongPaddock (Queensland Government) on its 1887–1989 base."; }},
   mei: {label: "MEI.v2 daily nowcast", a: {label: "View", items: [["nowcast","Nowcast"],["analogs","Analogs"],["history","History"],["validation","Validation"]]},
           img: function (a) { return "assets/sst/mei/mei_" + a + ".webp?v=__CACHE__"; }, about: "about-mei", fit: false,
-          cap: function (a) { return {nowcast: "A daily estimate of NOAA's bi-monthly MEI.v2 from its five inputs, R = 0.94 against the published index, leave-one-year-out.", analogs: "Past events with the closest MEI trajectory.", history: "The nowcast against the full MEI record.", validation: "How the nowcast has verified against each published value."}[a]; }},
+          cap: function (a) { return {nowcast: "A daily estimate of NOAA's bi-monthly MEI.v2 by regression on three daily ENSO components (Niño-3.4, SOI, equatorial 850 hPa wind): in-sample R 0.94, cross-validated RMSE 0.30.", analogs: "Past events with the closest MEI trajectory.", history: "The nowcast against the full MEI record.", validation: "How the nowcast has verified against each published value."}[a]; }},
   olr: {label: "Synthetic OLR Hovmöller", img: function () { return "assets/sst/olr_hovmoller.webp"; }, bust: "hourly", about: "about-olr", fit: false,
           cap: function () { return "Equatorial convection against time from the infrared composite: low OLR (yellow to red) is deep convection, blue is suppressed or clear; eastward-moving bands are the MJO."; }},
   waves: {label: "Tropical wave decomposition", img: function () { return "assets/sst/olr_waves.webp"; }, bust: "hourly", about: "about-waves", fit: false,
@@ -627,7 +638,7 @@ window.STAGE = {
   soi: {label: "Southern Oscillation Index", a: {label: "View", items: [["hourly","SOI, hourly estimate"],["forecast","SOI, ensemble forecast"],["eqsoi","Equatorial SOI, observed and forecast"]]},
           img: function (a) { return a === "hourly" ? "assets/sst/soi_hourly.webp" : a === "forecast" ? "assets/sst/soi_forecast.webp?v=__CACHE__" : "assets/sst/eqsoi_forecast.webp?v=__CACHE__"; }, bust: "hourly",
           about: function (a) { return a === "eqsoi" ? "about-eqsoi" : a === "forecast" ? "about-soi_f" : "about-soi_h"; },
-          cap: function (a) { return a === "hourly" ? "Darwin minus Tahiti pressure from hourly METARs, on the BoM 1887–1989 base, so the index exists today rather than at month end." : a === "forecast" ? "The same index carried through the AIFS-ENS and IFS-ENS 15-day forecasts, member by member." : "CPC's Equatorial SOI — the east-minus-west equatorial Pacific box pressure difference, standardised — monthly to the last complete month, with the ensembles' daily 15-day forecast on the same scale; negative favours El Niño."; }},
+          cap: function (a) { return a === "hourly" ? "Tahiti minus Darwin pressure from hourly METARs, standardised on the LongPaddock (Queensland Government) 1887–1989 base, so the index exists today rather than at month end." : a === "forecast" ? "The same index carried through the AIFS-ENS and IFS-ENS 15-day forecasts, member by member." : "CPC's Equatorial SOI — the east-minus-west equatorial Pacific box pressure difference, standardised — monthly to the last complete month, with the ensembles' daily 15-day forecast on the same scale; negative favours El Niño."; }},
   soi_seas: {label: "Seasonal SOI outlook", dom: function () { return "dom-soi-seas"; }, about: "about-soi_seas",
           cap: function () { return "ECMWF SEAS5's monthly Southern Oscillation and Equatorial SOI for the coming six months, calibrated against CPC's published series on the 1993–2016 hindcast; the raw ensemble mean is dotted, the previous issue's mean is the thin line, and the last observed months are in black when the issue file carries them."; }},
   wwb: {label: "Westerly wind bursts", a: {label: "View", items: [["tarawa","Tarawa monitor"],["onsets","Against past onsets"]]},

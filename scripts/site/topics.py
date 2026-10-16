@@ -226,8 +226,9 @@ rotating with the Earth, and shifts only as air mass moves between latitudes.</p
 <h2>What moves it</h2>
 <ul>
 <li><b>The subtropical jets dominate the total.</b> The $\cos^2\phi$ weight is largest at the equator, but the deep
-tropics hold weak or easterly winds, so they add little to the total while dominating its variability: a small change
-in the trades acts over a huge area at the largest weight.</li>
+tropics hold weak or easterly winds, so they add little to the total. The variability is carried mostly by zonal-wind
+changes aloft in the tropics and subtropics, where the weight is large; the shallow trade-wind layer holds little mass,
+so the trades act through the friction torque rather than as a store of momentum.</li>
 <li><b>El Niño raises AAM.</b> It strengthens the subtropical jets and weakens the trades, so the atmosphere holds
 more westerly momentum. Conservation then requires the solid Earth to slow down: AAM anomalies appear as changes of a
 fraction of a millisecond in the length of day, and about 6×10<sup>25</sup> kg m<sup>2</sup> s<sup>−1</sup> of AAM
@@ -414,7 +415,7 @@ parts, the trailing 40-day mean standardized, and the flux by latitude through t
         ],
         title="Sudden stratospheric warmings (SSW): definition, every event since 1980, and a live polar vortex forecast",
         desc="What a sudden stratospheric warming is, split and displacement events, how SSWs reach the surface, a "
-        "catalogue of every major SSW since 1980 from MERRA-2, and a live AIFS-ENS polar vortex forecast.",
+        "catalogue of every major SSW since 1980 from MERRA-2, and a live multi-model polar vortex forecast.",
         body=r"""
 <p>A <b>sudden stratospheric warming (SSW)</b> is the collapse of the winter polar vortex: planetary waves rising from
 the troposphere decelerate the stratospheric westerlies until they reverse, and the polar stratosphere warms by tens of
@@ -442,15 +443,16 @@ days 1–30, and 0.69 below over days 31–60. Both differences are significant 
 After the 14 shallow events there was no significant change.</p>
 
 <h2>The live forecast</h2>
-<p>The vortex chart tracks the zonal-mean wind at 60°N at 10 and 100 hPa and the polar-cap height at 100 hPa for every
-AIFS ensemble member against the MERRA-2 percentile bands, so that the fraction of members reversing the wind (a
-forecast major warming) can be read directly.</p>
+<p>The vortex chart tracks the zonal-mean wind at 60°N at 10 and 100 hPa and the polar-cap height at 100 hPa against
+the MERRA-2 percentile bands in three ensembles, ECMWF's AIFS-ENS and IFS-ENS and ECCC's GEPS (each as its members'
+10–90 % range and mean), with the deterministic GDPS and NASA GEOS FP runs dashed. The fraction of members reversing
+the wind (a forecast major warming) is called out.</p>
 """,
         figures=[
             img(
                 "/assets/sst/nh_vortex.webp",
-                "Northern polar vortex forecast: zonal-mean wind at 60°N at 10 and 100 hPa and 100 hPa polar-cap height, AIFS-ENS members against MERRA-2 percentiles",
-                "The live vortex forecast: every AIFS-ENS member against the MERRA-2 1980–2026 range.",
+                "Northern polar vortex forecast: zonal-mean wind at 60°N at 10 and 100 hPa and 100 hPa polar-cap height, AIFS-ENS, IFS-ENS and GEPS ranges against MERRA-2 percentiles",
+                "The live vortex forecast: three ensembles and two deterministic runs against the MERRA-2 1980–2026 range.",
             ),
             img(
                 "/assets/sst/strat_hist_timeline.webp",
@@ -581,15 +583,17 @@ and subtropical jet.</li>
 
 <h2>The live forecast</h2>
 <p>Ertel PV is computed from the temperature and wind of AIFS ensemble member 0 on nine levels from 700 to 100 hPa,
-every 12 hours to day 10. A single member is used on purpose: potential vorticity does not survive ensemble averaging,
+every 6 hours to day 10. A single member is used on purpose: potential vorticity does not survive ensemble averaging,
 because the mean of fifty differently placed folds is a smear. The 2-PVU surface is found by searching upward from
-700 hPa, and isentropic PV by interpolation in θ.</p>
+700 hPa, and isentropic PV by interpolation in θ. Where PV is still below 2 PVU at 100 hPa (the deep tropics) the
+maps show the 100 hPa values. Besides the hemispheric map there are five regional views; the South America one is
+on the −2-PVU surface, because PV is negative in the Southern Hemisphere.</p>
 """,
         figures=[
             loop(
                 "dt_manifest.json",
                 "dt",
-                "Potential temperature on the 2-PVU dynamic tropopause, AIFS member 0, 12-hourly to day 10",
+                "Potential temperature on the 2-PVU dynamic tropopause, AIFS member 0, 6-hourly to day 10",
             ),
         ],
         live=("/circulation.html#dt", "Open the dynamic tropopause maps in the circulation viewer"),
@@ -786,6 +790,12 @@ DATA_CREDITS = [
     ("NCEP/NCAR", "NCEP/NCAR reanalysis: NOAA PSL, Boulder, Colorado, USA"),
     ("MERRA-2", "MERRA-2: NASA GMAO"),
     ("GFZ", "ESMGFZ effective angular momentum functions: GFZ Potsdam"),
+    (
+        "GEPS",
+        "ECCC GEPS and GDPS: Data Source: Environment and Climate Change Canada (MSC Datamart), under the "
+        '<a href="https://eccc-msc.github.io/open-data/licence/readme_en/">ECCC Data Servers End-use Licence</a>',
+    ),
+    ("GEOS FP", "GEOS FP: NASA GMAO"),
 ]
 
 

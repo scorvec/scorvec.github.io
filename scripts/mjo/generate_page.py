@@ -242,6 +242,7 @@ def impacts_section():
   model output, the Earth System Grid Federation (ESGF) for archiving the data and providing access, and the multiple
   funding agencies who support CMIP6 and ESGF.</p>
   </details>
+  <p class="chart-sources">Written by Claude, Anthropic&rsquo;s AI model, at the direction of <a href="/about.html">Shawn Corvec</a>, meteorologist. Not peer reviewed.</p>
   </section>
   <script>
   (function () {{
@@ -431,7 +432,6 @@ def main():
   .stage #mjo-clean {{ margin-top: 0 !important; }}
 </style>
 <link rel="stylesheet" href="/assets/stage.css">
-<script data-goatcounter="https://scorvec.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
 <link rel="stylesheet" href="/assets/lightbox.css">
 <script src="/assets/lightbox.js" defer></script>
 </head>
@@ -471,8 +471,8 @@ def main():
   Amplitude is the radial distance (rings at 1, 2, 3).
   Observed track is recent ERA5/AIFS analysis (wind-only, verified within a few
   degrees of the official BoM RMM phase).</p>
-  <p class="chart-sources">Updated {updated} · Auto-generated from the AIFS-ENS open-data
-  feed. Methodology: NOAA CPC / Wheeler &amp; Hendon (2004), EOFs from NOAA OLR +
+  <p class="chart-sources">Updated {updated} · Auto-generated from the AIFS-ENS and IFS-ENS open data, &copy;&nbsp;2026 European Centre for Medium-Range Weather Forecasts (ECMWF), source <a href="https://www.ecmwf.int">www.ecmwf.int</a>, <a href="https://creativecommons.org/licenses/by/4.0/">CC&nbsp;BY&nbsp;4.0</a>, modified; ECMWF does not accept any liability for errors or omissions in the data, their availability, or any loss or damage arising from their use.
+  Methodology: NOAA CPC / Wheeler &amp; Hendon (2004), EOFs from NOAA OLR +
   NCEP wind with the 120-day low-frequency filter removed; pseudo-OLR from
   &minus;standardized daily precip vs an ERA5 1991&ndash;2020 band climatology.</p>
   </template>

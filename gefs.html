@@ -286,7 +286,7 @@
     Because GEFS's reforecast reaches 10 hPa, the polar vortex is corrected the same way at every lead, against ERA5.
     Tercile probabilities, the teleconnection probabilities and the MJO score are calibrated on the same reforecasts, with
     each start verified against a climatology that leaves its own season out, and the skill masks hatch wherever the
-    reforecast's anomaly correlation falls below 0.25. <a href="/subseasonal-method.html">The GEPS page's full method</a>
+    reforecast's anomaly correlation is not significantly above zero (one-sided 5&nbsp;% test on the 20 reforecast years, false-discovery rate 10&nbsp;% across the map). <a href="/subseasonal-method.html">The GEPS page's full method</a>
     applies throughout.</p>
   </section>
 </main>
@@ -313,7 +313,7 @@ var P = {
         c: function (a,b) { return MASKABLE.indexOf(b) >= 0 ? {label:"Skill mask", items:[["off","Off"],["on","On"]]} : null; },
         img: function (a,b,c) { return "assets/gefs/gefs_" + a + "_" + b + "_weekly" + (c==="on" ? "_masked" : "") + ".webp"; },
         cap: function (a,b,c) { return "Five seven-day means, anomaly vs 1991–2020 through the lead-matched GEFSv12 reforecast."
-          + (c==="on" ? " Hatched where the 2000–2019 reforecast has anomaly correlation below 0.25 for this week and season; cross-hatched where there is no verification data." : ""); }},
+          + (c==="on" ? " Hatched where the 2000–2019 reforecast's anomaly correlation for this week and season is not significantly above zero (one-sided 5 % test, 20 years, false-discovery rate 10 % across the map); cross-hatched where there is no verification data." : ""); }},
   probs: {label: "Weekly terciles — temperature & precipitation", fit: false, a: DOMAINS,
         b: {label:"Field", items:[["t2m","2 m temp"],["pr","Precip"]]},
         c: {label:"Probability", items:[["raw","Raw members"],["cal","Hindcast-calibrated"]]},
@@ -321,7 +321,7 @@ var P = {
         cap: function (a,b,c) { return (c==="raw"
           ? "Most likely tercile by week: colour is the category (blue below, grey near, red above normal), intensity its probability, from the fraction of the 31 members in each tercile of the 2016–2025 weekly anomaly — a recent-decade normal, so the warming since 1991–2020 is not counted as a forecast."
           : "Most likely tercile by week, calibrated: the ensemble-mean departure scaled by the gridpoint regression fitted on 2000–2019 GEFS reforecasts for this month and week (each start verified against a climatology that leaves its own season out), the residual spread giving the three tercile probabilities — one third each where the model has no skill, amplitude restored where it has some.")
-          + " Hatched: reforecast skill below 0.25." + (b==="pr" ? " Cross-hatched: no gauge truth over the ocean, or a dry climatological week where terciles are undefined." : ""); }},
+          + " Hatched: reforecast skill not significantly above zero (one-sided 5 % test, false-discovery rate 10 %)." + (b==="pr" ? " Cross-hatched: no gauge truth over the ocean, or a dry climatological week where terciles are undefined." : ""); }},
   change: {label: "Change vs previous run, weeks 1–5", fit: false, a: DOMAINS, b: {label:"Field", items: FIELDS},
         img: function (a,b) { return "assets/gefs/gefs_" + a + "_" + b + "_change.webp"; },
         cap: function () { return "This run minus the previous daily run, weekly means over the valid days both forecast. Week 5 is a partial week and says so."; }},
@@ -332,7 +332,7 @@ var P = {
           : (a === "series" && b && b !== "board" ? "assets/gefs/gefs_telecon_plume_" + b + ".webp" : "assets/gefs/gefs_telecon_" + a + ".webp"); },
         cap: function (a) { return a==="series"
           ? "Every member projected on CPC-style loading patterns (EPO/WPO on PSL’s box definitions, NAM at 100 hPa as the annular EOF); the tail is GEFS’s own control analyses on the same projection, the published daily index as crosses, previous run dashed. Pick one index for a full-size plume. Units: seasonal standard deviations of the daily index, i.e. relative to this time of year."
-          : (a==="probs" ? "Upper bar: member fractions of the weekly-mean index at or beyond ±0.5 seasonal sd. Thin lower bar: the same probabilities calibrated on 20 years of GEFSv12 reforecasts, with the reforecast skill (anomaly correlation) for that index and week. Hatched cells: skill below 0.25 — the members’ opinion is shown but should not be trusted."
+          : (a==="probs" ? "Upper bar: member fractions of the weekly-mean index at or beyond ±0.5 seasonal sd. Thin lower bar: the same probabilities calibrated on 20 years of GEFSv12 reforecasts, with the reforecast skill (anomaly correlation) for that index and week. Hatched cells: skill not significantly above zero (one-sided 5 % test on the reforecast's effective sample) — the members’ opinion is shown but should not be trusted."
                          : "Regression of the monthly field on each index (m or hPa per +1 sd), NCEP/NCAR R1 1991–2020, with the correlation of this reproduction against CPC’s own index. The same patterns as the GEPS page."); }},
   regimes: {label: "Weather regimes — Euro-Atlantic & North America", fit: false,
         a: {label:"Sector", items:[["ea","Euro-Atlantic"],["na","North America / Pacific"]]},

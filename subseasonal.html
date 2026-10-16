@@ -248,7 +248,7 @@
       <div id="about"></div>
       <p class="hint"><span class="kbd">&larr;</span> <span class="kbd">&rarr;</span> step through the last option row &middot; <span class="kbd">&uarr;</span> <span class="kbd">&darr;</span> change product &middot; click a map to enlarge &middot; the address bar carries the selection, so a view can be linked.</p>
       <div class="chart-card-footer">
-        <span class="chart-sources">Data Source: Environment and Climate Change Canada, GEPS extended ensemble (MSC Datamart), under the <a href="https://eccc-msc.github.io/open-data/licence/readme_en/">ECCC Data Servers End-use Licence</a> &middot; GEPS8 hindcast 2001&ndash;2020 &middot; ERA5 1991&ndash;2020</span>
+        <span class="chart-sources">Data Source: Environment and Climate Change Canada, GEPS extended ensemble (MSC Datamart), under the <a href="https://eccc-msc.github.io/open-data/licence/readme_en/">ECCC Data Servers End-use Licence</a> &middot; GEPS8 hindcast 2001&ndash;2020 &middot; ECMWF AIFS-ENS and IFS-ENS open data (multi-model regimes): &copy;&nbsp;2026 European Centre for Medium-Range Weather Forecasts (ECMWF), source <a href="https://www.ecmwf.int">www.ecmwf.int</a>, <a href="https://creativecommons.org/licenses/by/4.0/">CC&nbsp;BY&nbsp;4.0</a>, modified; ECMWF does not accept any liability for errors or omissions in the data, their availability, or any loss or damage arising from their use &middot; ERA5: Copernicus Climate Change Service (C3S) / ECMWF, CC&nbsp;BY&nbsp;4.0; contains modified Copernicus Climate Change Service information 2026; neither the European Commission nor ECMWF is responsible for any use of this information</span>
         <span class="chart-updated" data-init>init 2026-10-08 00Z</span>
       </div>
     </section>
@@ -278,7 +278,7 @@
     The stratosphere, which that hindcast does not cover, is taken against ERA5 and de-drifted with
     the GEPS reforecasts in the ECMWF S2S archive. Teleconnection probabilities, tercile maps and the MJO score are
     calibrated on the same hindcast, and the skill masks hatch wherever its anomaly correlation
-    falls below 0.25. <a href="/subseasonal-method.html">Read the full method &rarr;</a></p>
+    is not significantly above zero (one-sided 5&nbsp;% test on the 20 hindcast years, false-discovery rate 10&nbsp;% across the map). <a href="/subseasonal-method.html">Read the full method &rarr;</a></p>
   </section>
 </main>
 
@@ -306,7 +306,7 @@ var P = {
         c: function (a,b) { return MASKABLE.indexOf(b) >= 0 ? {label:"Skill mask", items:[["off","Off"],["on","On"]]} : null; },
         img: function (a,b,c) { return "assets/geps/geps_" + a + "_" + b + "_weekly" + (c==="on" ? "_masked" : "") + ".webp"; },
         cap: function (a,b,c) { return "Five seven-day means, anomaly vs the lead-matched GEPS hindcast."
-          + (c==="on" ? " Hatched where the 2001\u20132020 hindcast has anomaly correlation below 0.25 for this week and season; cross-hatched where there is no verification data." : ""); }},
+          + (c==="on" ? " Hatched where the 2001\u20132020 hindcast's anomaly correlation for this week and season is not significantly above zero (one-sided 5 % test, 20 years, false-discovery rate 10 % across the map); cross-hatched where there is no verification data." : ""); }},
   probs: {label: "Weekly terciles \u2014 temperature & precipitation", fit: false,
         a: {label:"Domain", items:[["na","North America"],["sa","South America"],
                                    ["glb","Global (Mercator)"]]},
@@ -316,7 +316,7 @@ var P = {
         cap: function (a,b,c) { return (c==="raw"
           ? "Most likely tercile by week: colour is the category (blue below, grey near, red above normal), intensity its probability, from the fraction of the 21 members in each tercile of the 2016\u20132025 weekly anomaly \u2014 a recent-decade normal, so the warming since 1991\u20132020 is not counted as a forecast."
           : "Most likely tercile by week, calibrated: the ensemble-mean departure from the 2016\u20132025 mean, in units of the hindcast ensemble mean\u2019s spread, weighted by the gridpoint anomaly correlation fitted on 2001\u20132020 hindcasts for this month and week, with the residual spread giving the three tercile probabilities \u2014 exactly one third each where the model has no skill, amplitude restored where it has some.")
-          + " Hatched: hindcast skill below 0.25." + (b==="pr" ? " Cross-hatched: no gauge truth over the ocean, or a dry climatological week where terciles are undefined." : ""); }},
+          + " Hatched: hindcast skill not significantly above zero (one-sided 5 % test, false-discovery rate 10 %)." + (b==="pr" ? " Cross-hatched: no gauge truth over the ocean, or a dry climatological week where terciles are undefined." : ""); }},
   change: {label: "Change vs previous run, weeks 1\u20135", fit: false,
         a: {label:"Domain", items:[["na","North America"],["sa","South America"],
                                    ["glb","Global (Mercator)"]]},
@@ -330,7 +330,7 @@ var P = {
           ? "assets/geps/geps_telecon_plume_" + b + ".webp" : "assets/geps/geps_telecon_" + a + ".webp"; },
         cap: function (a) { return a==="series"
           ? "Every member projected on CPC-style loading patterns (EPO/WPO on PSL\u2019s box definitions, NAM at 100 hPa as the annular EOF); the tail is GEPS\u2019s own day-0 analyses on the same projection, the published daily index as crosses, previous run dashed. Pick one index for a full-size plume. Units: seasonal standard deviations of the daily index, i.e. relative to this time of year."
-          : (a==="probs" ? "Upper bar: member fractions of the weekly-mean index at or beyond \u00B10.5 seasonal sd. Thin lower bar: the same probabilities calibrated on 20 years of GEPS8 hindcasts, with the hindcast skill (anomaly correlation) for that index and week. Hatched cells: skill below 0.25 \u2014 the members\u2019 opinion is shown but should not be trusted."
+          : (a==="probs" ? "Upper bar: member fractions of the weekly-mean index at or beyond \u00B10.5 seasonal sd. Thin lower bar: the same probabilities calibrated on 20 years of GEPS8 hindcasts, with the hindcast skill (anomaly correlation) for that index and week. Hatched cells: skill not significantly above zero (one-sided 5 % test on the hindcast's effective sample) \u2014 the members\u2019 opinion is shown but should not be trusted."
                          : "Regression of the monthly field on each index (m or hPa per +1 sd), NCEP/NCAR R1 1991\u20132020, with the correlation of this reproduction against CPC\u2019s own index."); }},
   regimes: {label: "Weather regimes \u2014 Euro-Atlantic & North America", fit: false,
         a: {label:"Sector", items:[["ea","Euro-Atlantic"],["na","North America / Pacific"]]},

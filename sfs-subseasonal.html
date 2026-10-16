@@ -270,7 +270,7 @@
     because the reforecast spans the normal period itself, no further re-basing is needed. 500 hPa height has its global mean removed so
     the circulation shows. The tercile maps count the 31 members against the terciles of the reforecast's own weekly anomalies
     (330 per gridpoint and week). The skill masks hatch wherever the reforecast ensemble mean's anomaly correlation with ERA5, over the
-    1991&ndash;2025 starts of the same month with a leave-one-year-out climatology, is below 0.25 (temperature worldwide; precipitation over
+    1991&ndash;2025 starts of the same month with a leave-one-year-out climatology, is not significantly above zero (one-sided 5&nbsp;% test on the 35 years, false-discovery rate 10&nbsp;% across the map; temperature worldwide; precipitation over
     the Northern Hemisphere only). NOAA's own published climatology files are not used: the October one
     was found to be a copy of September's. The hindcast comparison scores SFS, GEFSv12 and GEPS on the same 38 start dates (1 September and
     1 October, 2001&ndash;2019) as four-member means against ERA5.</p>
@@ -300,7 +300,7 @@
     site's own processing, not NOAA's, and NOAA has not reviewed it. More about the system:
     <a href="https://epic.noaa.gov/?p=37688">NOAA EPIC: the SFS beta near-real-time launch</a> (2026).</p>
     <p><b>The other data on this page.</b> ERA5 reanalysis (Copernicus Climate Change Service, ECMWF), the truth for the skill masks and
-    the hindcast scores; the GEFSv12 reforecast (NOAA, NODD); the GEPS hindcast (Environment and Climate Change Canada); and CFSv2
+    the hindcast scores; the GEFSv12 reforecast (NOAA, NODD); the GEPS hindcast (Data Source: Environment and Climate Change Canada, under the <a href="https://eccc-msc.github.io/open-data/licence/readme_en/">ECCC Data Servers End-use Licence</a>); and CFSv2
     (NOAA NCEP) from the IRI Data Library's SubX and NMME archives and NOAA's operational CFSv2 files on AWS, for the comparison with the
     system SFS is meant to replace. Contains modified Copernicus Climate Change Service information 2026. Neither the European Commission
     nor ECMWF is responsible for any use of this information.</p>
@@ -325,12 +325,12 @@ var P = {
         dom: gated,
         img: function (a,b,c) { return "assets/sfs/sub/sfs_" + a + "_" + b + "_weekly" + (c==="on" ? "_masked" : "") + ".webp"; },
         cap: function (a,b,c) { if (gated()) return ""; return "Seven-day means of the 31-member ensemble mean, anomaly against SFS's own 1991–2020 reforecast at the same lead."
-          + (c==="on" ? " Hatched where the reforecast's anomaly correlation with ERA5 is below 0.25 for this week and start month; cross-hatched where there is no ERA5 truth." : ""); }},
+          + (c==="on" ? " Hatched where the reforecast's anomaly correlation with ERA5 for this week and start month is not significantly above zero (one-sided 5 % test, 35 years, false-discovery rate 10 % across the map); cross-hatched where there is no ERA5 truth." : ""); }},
   probs: {label: "Weekly terciles — temperature & precipitation", fit: false, a: DOMAINS,
         b: {label:"Field", items:[["t2m","2 m temp"],["pr","Precip"]]},
         dom: gated,
         img: function (a,b) { return "assets/sfs/sub/sfs_" + a + "_" + b + "_prob_raw.webp"; },
-        cap: function (a,b) { if (gated()) return ""; return "Most likely tercile by week: colour is the category (blue below, grey near, red above normal), intensity its probability, from the fraction of the 31 members in each tercile of the reforecast's own weekly anomalies. Hatched: reforecast skill below 0.25."
+        cap: function (a,b) { if (gated()) return ""; return "Most likely tercile by week: colour is the category (blue below, grey near, red above normal), intensity its probability, from the fraction of the 31 members in each tercile of the reforecast's own weekly anomalies. Hatched: reforecast skill not significantly above zero (one-sided 5 % test, 35 years, false-discovery rate 10 %)."
           + (b==="pr" ? " Cross-hatched: no ERA5 precipitation truth (Southern Hemisphere) or a dry climatological week." : ""); }},
   daily: {label: "Daily animation", a: DOMAINS,
         dom: gated,

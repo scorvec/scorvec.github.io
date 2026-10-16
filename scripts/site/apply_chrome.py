@@ -61,7 +61,7 @@ PRODUCTS = [
                     (
                         "/circulation.html#dt",
                         "Dynamic tropopause",
-                        "The 2-PVU surface and PV on the 330 and 350 K isentropes from the AIFS ensemble: the hemisphere and four regions, with tropical storms and their outflow marked.",
+                        "The 2-PVU surface and PV on the 330 and 350 K isentropes from the AIFS-ENS control run: the hemisphere and five regions.",
                         "Daily",
                     ),
                     (
