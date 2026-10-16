@@ -86,84 +86,80 @@ def fetch(key: str, centre: str, system: str, issue: str, force: bool = False) -
         return None
 
 
-# ── reading members: lead by lead, never the whole cube ─────────────────────────
-def nominal_years(starts: np.ndarray, month: int) -> np.ndarray:
-    """The nominal start year of each member: a lagged member started in an earlier month (UKMO, NCEP, BoM start
-    days to weeks before the nominal date) belongs to the next start month on or after it, which for a January
-    start is in the following year."""
-    m = np.asarray(starts).astype("datetime64[M]").astype(np.int64)
-    y, mo = m // 12 + 1970, m % 12 + 1
-    return (y + (mo > month)).astype(np.int64)
+# ── reading members: message by message (c3s_grib), never cfgrib's hypercube ────
+def lead_weight(year: int, month: int, idx: list[int], i: int) -> float:
+    """Weight of lead index i (0 = the start month) in the day-weighted mean of the leads idx of a run nominally
+    started in (year, month): the valid month's length over the period's, in that start's own calendar."""
 
+    def days(j: int) -> int:
+        return calendar.monthrange(year + (month - 1 + j) // 12, (month - 1 + j) % 12 + 1)[1]
 
-def period_weights(years: np.ndarray, month: int, idx: list[int]) -> np.ndarray:
-    """[sample, len(idx)] days of each valid month (lead index 0 = the start month) in each sample's own year,
-    normalised: the weights of a time mean of monthly means."""
-    out = np.empty((len(years), len(idx)))
-    for y in np.unique(years):
-        d = np.array([calendar.monthrange(int(y) + (month - 1 + i) // 12, (month - 1 + i) % 12 + 1)[1] for i in idx])
-        out[years == y] = d / d.sum()
-    return out
+    return days(i) / sum(days(j) for j in idx)
 
 
 def member_stats(path: Path, short: str | None, fac: float, month: int, periods: dict, ensemble_mean: bool) -> dict:
     """From a GRIB of members (a forecast) or of members x years (a hindcast), in display units:
       mean       [lead, lat, lon] ensemble mean (only with `ensemble_mean`)
       sd_{pid}   standard deviation over the samples of their day-weighted period mean
-      n, ny      real samples, distinct nominal start years
-    A lagged system comes as a (member x start date) hypercube padded with NaN where a combination never existed;
-    only the real samples count (an all-NaN sample at the first lead is not one)."""
-    import xarray as xr
+      n, ny      samples, distinct nominal start years
+    A sample is one member of one start (number, start date and time); only samples holding every lead of the file
+    count, and a period only where the file has all its leads. Read one message at a time (c3s_grib): a lagged system
+    (NCEP: 120 members, each its own start) costs one running period sum per sample, never the padded hypercube. A
+    sample is weighted by the calendar of its NOMINAL start (indexingDate), so a January member started in December
+    counts with the year it forecasts. `short` picks one variable of a multi-variable file (the SEAS5 page's own:
+    t2m, tprate, sst); None, or a name the file does not have, reads a single-variable file as its one variable."""
+    import c3s_grib
 
-    ds = xr.open_dataset(
-        path,
-        engine="cfgrib",
-        chunks={"forecastMonth": 1},
-        backend_kwargs={"indexpath": "", "time_dims": ("forecastMonth", "time")},
-    )
-    try:
-        name = short if short in ds.data_vars else next(iter(ds.data_vars))
-        da = ds[name]
-        dims = [d for d in da.dims if d not in ("forecastMonth", "latitude", "longitude")]
-        da = da.transpose(*dims, "forecastMonth", "latitude", "longitude")
-        lat, lon = da.latitude.values, da.longitude.values
-        shape = [da.sizes[d] for d in dims]
-        t = np.atleast_1d(ds["time"].values)
-        starts = (
-            t[np.indices(shape)[dims.index("time")].reshape(-1)]
-            if "time" in dims
-            else np.repeat(t[:1], int(np.prod(shape)))
-        )
-        nl = da.sizes["forecastMonth"]
+    keys = ("cfVarName", "number", "dataDate", "dataTime", "forecastMonth", "indexingDate")
 
-        def lead(k: int) -> np.ndarray:
-            return da.isel(forecastMonth=k).values.reshape(-1, lat.size, lon.size).astype(np.float32)
+    def read(name: str | None):
+        sums, lead, leads, year, names, grid = {}, {}, {}, {}, set(), None
+        for m, field, g in c3s_grib.messages(path, keys):
+            names.add(m["cfVarName"])
+            if (name is not None and m["cfVarName"] != name) or not np.isfinite(field).any():
+                continue
+            grid, i = g, m["forecastMonth"] - 1
+            k = (m["number"], m["dataDate"], m["dataTime"])
+            y = (m["indexingDate"] or m["dataDate"]) // 10000
+            leads.setdefault(k, set()).add(i)
+            year[k] = y
+            v = field.astype(np.float32)
+            if ensemble_mean:
+                lead.setdefault(i, {})[k] = v
+            for pid, ix in periods.items():
+                if i in ix:
+                    s = sums.setdefault(pid, {})
+                    w = np.float32(lead_weight(y, month, ix, i))
+                    s[k] = s[k] + w * v if k in s else w * v
+        return sums, lead, leads, year, names, grid
 
-        x = lead(0)
-        real = np.isfinite(x).any(axis=(1, 2))
-        years = nominal_years(starts, month)[real]
-        want = {pid: [k for k in ix if k < nl] for pid, ix in periods.items()}
-        want = {pid: ix for pid, ix in want.items() if ix}
-        wts = {pid: period_weights(years, month, ix) for pid, ix in want.items()}
-        acc = {pid: np.zeros((int(real.sum()), lat.size, lon.size), np.float32) for pid in want}
-        mean = np.full((nl, lat.size, lon.size), np.nan, np.float32) if ensemble_mean else None
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore", RuntimeWarning)  # all-NaN cells (land in SST) stay NaN
-            for k in range(nl):
-                x = (x if k == 0 else lead(k))[real] * np.float32(fac)
-                if mean is not None:
-                    mean[k] = np.nanmean(x, axis=0)
-                for pid, ix in want.items():
-                    if k in ix:
-                        acc[pid] += wts[pid][:, ix.index(k), None, None].astype(np.float32) * x
-                x = None
-            out = {f"sd_{pid}": np.nanstd(a, axis=0, ddof=1).astype(np.float32) for pid, a in acc.items()}
-        out.update(lat=lat, lon=lon, n=int(real.sum()), ny=int(np.unique(years).size), periods=list(want))
-        if mean is not None:
+    sums, lead, leads, year, names, grid = read(short)
+    if not leads and len(names) == 1:
+        sums, lead, leads, year, names, grid = read(next(iter(names)))
+    if not leads:
+        raise ValueError(f"{path.name}: no {short or 'field'} messages")
+    have = set().union(*leads.values())
+    samples = sorted(k for k, s in leads.items() if s == have)
+    lat_o, lon_o = np.argsort(grid.lat), np.argsort(grid.lon)  # latitude ascending, longitude 0..360 ascending
+
+    def stack(d: dict) -> np.ndarray:
+        return (np.stack([d.pop(k) for k in samples]) * np.float32(fac))[:, lat_o][:, :, lon_o]
+
+    out = {"lat": grid.lat[lat_o], "lon": grid.lon[lon_o], "n": len(samples), "periods": []}
+    out["ny"] = len({year[k] for k in samples})
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", RuntimeWarning)  # all-NaN cells (land in SST) stay NaN
+        for pid, ix in periods.items():
+            if set(ix) <= have:
+                out[f"sd_{pid}"] = np.nanstd(stack(sums.pop(pid)), axis=0, ddof=1).astype(np.float32)
+                out["periods"].append(pid)
+        if ensemble_mean:
+            nl = max(have) + 1
+            mean = np.full((nl, lat_o.size, lon_o.size), np.nan, np.float32)
+            for i in sorted(have):
+                mean[i] = np.nanmean(stack(lead.pop(i)), axis=0)
             out["mean"] = mean
-        return out
-    finally:
-        ds.close()
+    return out
 
 
 # ── the tables ───────────────────────────────────────────────────────────────
