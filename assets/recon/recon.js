@@ -520,7 +520,8 @@
     $("drops").innerHTML = ds.length ? `<table><thead><tr><th>Splash</th><th>Position</th><th>Sfc P</th><th>Sfc wind</th><th>Est. sfc (WL150 / MBL)</th><th>Note</th></tr></thead><tbody>` +
       ds.map((d, i) => {
         const sp = d.spg || d.spl || d.rel, e = d.sfc_est || {};
-        return `<tr class="click" data-i="${i}"><td><button type="button" class="rowb" aria-label="Skew-T of dropsonde ${d.obnum != null ? "OB " + esc(d.obnum) : i + 1}">${d.spl_t ? hm(d.spl_t) + "Z" : d.rel_t ? hm(d.rel_t) + "Z rel." : "—"}</button></td><td>${sp ? ll(sp.la, sp.lo) : "—"}</td>` +
+        const when = d.spl_t ? hm(d.spl_t) + "Z" : d.rel_t ? hm(d.rel_t) + "Z rel." : "—";
+        return `<tr class="click" data-i="${i}"><td><button type="button" class="rowb" aria-label="${when}: skew-T of dropsonde ${d.obnum != null ? "OB " + esc(d.obnum) : i + 1}">${when}</button></td><td>${sp ? ll(sp.la, sp.lo) : "—"}</td>` +
           `<td>${d.sfc_p ? d.sfc_p + " hPa" : '<span class="mu">no splash</span>'}</td><td>${d.sfc_wind ? dirTxt(d.sfc_wind.wd, d.sfc_wind.ws) : "—"}</td>` +
           `<td>${e.wl150 ?? "—"} / ${e.mbl ?? "—"} kt</td><td class="mu">${esc((d.tags || []).join(", "))}</td></tr>`;
       }).join("") + "</tbody></table>" : `<p class="empty">No dropsondes on this mission.</p>`;
