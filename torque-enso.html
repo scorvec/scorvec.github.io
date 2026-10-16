@@ -176,7 +176,7 @@
           <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g3">Weeks to seasons</button>
           <div class="sh-menu sh-menu--cols" id="sh-g3">
             <div>
-              <h3>Weeks 2–5</h3>
+              <h3>Extended range</h3>
               <ul>
                 <li><a href="/subseasonal.html">GEPS extended ensemble</a></li>
                 <li><a href="/gefs.html">GEFS extended ensemble</a></li>
@@ -201,7 +201,7 @@
                 <li><a href="/enso.html#imp_reg">ENSO impacts on the Americas</a></li>
                 <li><a href="/mjo.html#mi">MJO impacts</a></li>
                 <li><a href="/stratosphere.html#shwinters">Stratosphere history</a></li>
-                <li><a href="/aifs-aam-budget.html">AINWP and conservation</a></li>
+                <li><a href="/aifs-aam-budget.html">AI models and conservation laws</a></li>
                 <li><a href="/torque-enso.html" aria-current="page">El Niño and angular momentum</a></li>
                 <li><a href="/topics/">Explainers</a></li>
               </ul>
@@ -209,7 +209,7 @@
             <div>
               <h3>Verification</h3>
               <ul>
-                <li><a href="/aifs-verify.html">AIFS single versus member 0</a></li>
+                <li><a href="/aifs-verify.html">AIFS single versus ensemble control</a></li>
               </ul>
             </div>
           </div>
@@ -260,7 +260,7 @@
   <h2>The short answer</h2>
   <ul>
     <li><b>1. The Andes torque supplies it; friction brakes it.</b> As the eastern Pacific warms, the southeast Pacific high west of
-    the Andes weakens and pressure rises over South America. Pressure stays higher on the east side of the range for months, so the
+    the Andes weakens and pressure rises over eastern South America. Pressure stays higher on the east side of the range for months, so the
     mountain torque stays positive. In December–February the Andes torque is 2.9 Hadley higher than in neutral
     winters (p = 0.007; CMIP6 +1.46, all 19 models with daily data agreeing in sign). It is
     significantly positive from at least six months ahead of Niño-3.4 to seven months after it. Over the six months leading Niño-3.4, mountain torque supplies
@@ -269,8 +269,8 @@
     about 58% of the mountain torque in the models and more than all of it in ERA5. The
     individual east-side highs are no more frequent or stronger.</li>
     <li><b>2. ERA5's model loses westerly momentum, and the analysis puts it back.</b> ERA5's torques fall
-    11.3 Hadley short of the annual budget. At each of its twice-daily 4D-Var window starts the analysis adds angular momentum, about
-    8 Hadley on average, in every month of 2025–26. The physics ensemble IFS-ENS loses angular
+    11.3 Hadley short of the annual budget. At its two daily 4D-Var window starts the analysis adds angular momentum, together the
+    equivalent of a steady torque of about 8 Hadley, in every month of 2025–26. The physics ensemble IFS-ENS loses angular
     momentum in free forecasts through its own torques; the data-driven AIFS-ENS does not. Too much drag in ERA5's model (IFS cycle
     41r2, before the orographic-drag revision ECMWF made operational in cycle 48r1 in June 2023) is the leading candidate, not the only one. About 74% of the momentum
     the analysis adds goes into mid-latitude westerlies, 87% of that between 650 and 100 hPa; in the tropics the
@@ -282,8 +282,8 @@
     analysis slows the trades from the surface to about 875 hPa, more than it speeds them up at 850–700 hPa. In mid-latitudes the
     boundary layer is too slow and the air just above it too fast, and the column balances. Neither pattern sits over mountains, and
     only the mid-latitude one looks like too much drag.</li>
-    <li><b>Which comes first.</b> Day to day, mountain torque leads the rise in global angular momentum and the subtropical jet.
-    The 500 hPa pattern that sets up an east-side high (a ridge upstream, a trough downstream) is the same in El Niño and neutral
+    <li><b>Which comes first.</b> Day to day, mountain torque leads the rise in global angular momentum, as the budget requires,
+    and the subtropical jet follows only weakly (r ≈ 0.15). The 500 hPa pattern that sets up an east-side high (a ridge upstream, a trough downstream) is the same in El Niño and neutral
     years.</li>
   </ul>
   </section>
@@ -302,7 +302,7 @@
   <p><b>From warm ocean to faster winds.</b> The thermal wind says where the westerlies strengthen, not where their momentum comes
   from. Without a torque, stronger jets would have to be paid for by easterlies elsewhere. The momentum comes from the solid Earth,
   mostly across the Andes, in four steps. (1) The central and eastern Pacific warm. (2) The southeast Pacific high west of the Andes
-  weakens and pressure rises over South America; in northern winter the deeper Aleutian low does the same west of the Rockies
+  weakens and pressure rises over eastern South America; in northern winter the deeper Aleutian low does the same west of the Rockies
   (Figure 6). (3) Pressure stays higher on the east side of both ranges for months. (4) Their mountain torque therefore
   stays positive and moves westerly momentum into the atmosphere. Friction is the brake, because the weaker trades hand the
   atmosphere less westerly momentum. The rise is what the mountain torque supplies minus what friction holds back (section 3).</p>
@@ -317,7 +317,7 @@
   0.99. Intraseasonal swings, the MJO among them (Weickmann et al., 1997), still move it by a
   few tenths from month to month. In July–September 2026 it was 3.1 ×10²⁵ above normal,
   second only to early 1983
-  and about twice what an ONI of 2.2 K alone predicts
+  and about twice what an ONI of 2.2 K (provisional) alone predicts
   (section 6).</p>
   <figure id='fig1'><a href='/studies/torque-enso/gfz_aam_enso.webp' class='zoom'><img src='/studies/torque-enso/gfz_aam_enso.webp' alt="Top: monthly 3-month-mean global angular momentum anomalies from GFZ, 1979 to 2026, coloured red in El Niño seasons, blue in La Niña seasons and grey otherwise, with the ONI scaled by the regression overlaid. Bottom: the same anomalies against the ONI, with the regression line, the mean of each phase with its 95% interval, and the 2026 seasons marked" loading='lazy'></a><figcaption><b>Figure 1.</b> Global angular momentum (wind term) from GFZ's effective angular momentum functions, built from ECMWF's analyses: 3-month means of the monthly anomaly from 1991–2020, with the 1979–2025 trend removed, against CPC's ONI for the same season, 1979–2026 (572 overlapping seasons). Top: the anomaly, coloured by ENSO phase; the black line is the ONI times the fitted slope; the right axis gives the change in the length of the day. Bottom: each season against its ONI. Large dots: phase means with 95% intervals (24-month block bootstrap, 2,000 draws); open circles: 2026.</figcaption></figure>
   <p><b>How the momentum gets in.</b> All of it has to come through the surface:</p>
@@ -339,7 +339,7 @@
   <ul>
     <li><b>ERA5</b> (Hersbach et al., 2020) from the ARCO-ERA5 store on Google Cloud (Carver and Merose, 2023), read in GitHub Actions: surface pressure, the
     turbulent and gravity-wave surface stresses and the vertical integral of eastward mass flux (an exact full-column wind term).
-    Data are at 00, 06, 12 and 18 UTC from 1 January 1959 to 3 October 2026 (24,748 days, none missing). Four times a day rather than
+    Data are at 00, 06, 12 and 18 UTC from 1 January 1959 to 3 October 2026 (24,748 days, none missing); the last two to three months are ECMWF's preliminary ERA5T release. Four times a day rather than
     two, because at 00 and 12 UTC the semidiurnal pressure tide has the same phase and a twice-daily mean aliases it. The mass term
     of $M$ comes from surface pressure. For 2026 the fields were also read hourly from 1 March. The analysis period is 1979–2025,
     with 1959–2025 as a sensitivity test.</li>
@@ -408,7 +408,8 @@
   58% of the mountain torque, leaving +0.66, about
   1.6 times the models' tendency of +0.42. In ERA5 friction takes back more than
   all of it (−1.86 against +1.44). ERA5's torques therefore sum to nothing significant while angular
-  momentum rises significantly, and the gap sits in its residual, mostly the analysis increments (section 7). The monthly budget
+  momentum rises significantly. The gap sits in the budget residual, which is itself not significant; whether ERA5's analysis
+  increments (section 7) vary with ENSO was not tested. The monthly budget
   otherwise closes reasonably (correlation of tendency with summed torques 0.87, slope 0.74), but the
   residual is slow (lag-one autocorrelation 0.90), as an interannual imbalance would be.</p>
   <p>In ERA5's composites of El Niño onsets (13 onsets against 14 neutral years, April–December) only gravity-wave drag differs
@@ -446,17 +447,18 @@
   Rockies DJF +0.75, 84%) while the synoptic counts are not. Two cells go the other way, with fewer
   events than the shift alone gives: the Himalaya/Tibet in spring (−1.69 [−2.50, −0.78]) and
   Greenland in SON (−1.33), both significant after the FDR.</p>
-  <figure id='fig6'><a href='/studies/torque-enso/slp_on_oni.webp' class='zoom'><img src='/studies/torque-enso/slp_on_oni.webp' alt="Global maps of seasonal-mean sea-level pressure regressed on the ONI for DJF and MAM, with the Himalaya, Rockies and Andes boxes outlined" loading='lazy'></a><figcaption><b>Figure 6.</b> The mechanism. ERA5 1991–2020 seasonal-mean sea-level pressure regressed on the ONI, shaded only where significant (FDR 10%). In DJF the deeper Aleutian low lowers pressure west of the Rockies and the weaker southeast Pacific high lowers it west of the Andes, while pressure rises over South America: higher on the east side of both ranges, a positive torque. In MAM, pressure rises over India and the Philippine Sea.</figcaption></figure>
+  <figure id='fig6'><a href='/studies/torque-enso/slp_on_oni.webp' class='zoom'><img src='/studies/torque-enso/slp_on_oni.webp' alt="Global maps of seasonal-mean sea-level pressure regressed on the ONI for DJF and MAM, with the Himalaya, Rockies and Andes boxes outlined" loading='lazy'></a><figcaption><b>Figure 6.</b> The mechanism. ERA5 1991–2020 seasonal-mean sea-level pressure regressed on the ONI, shaded only where significant (FDR 10%). In DJF the deeper Aleutian low lowers pressure west of the Rockies and the weaker southeast Pacific high lowers it west of the Andes; over South America the rise is significant only in the east, over Brazil. Pressure ends up higher on the east side of both ranges, a positive torque. In MAM, pressure rises over India and the Philippine Sea. Contours (every 0.5 hPa per unit ONI, dashed where negative) show all values.</figcaption></figure>
 
   <h2>5. Which comes first</h2>
-  <figure id='fig7'><a href='/studies/torque-enso/q3_lead_lag.webp' class='zoom'><img src='/studies/torque-enso/q3_lead_lag.webp' alt="Four panels of lagged correlation between each range's synoptic mountain torque and the global angular momentum tendency, the global angular momentum and the zonal-mean subtropical 200 hPa wind" loading='lazy'></a><figcaption><b>Figure 7.</b> Lagged correlation of each range's synoptic torque with the global tendency of angular momentum, global angular momentum and the zonal-mean 200 hPa wind at 25–40° in the same hemisphere (all &lt;30-day parts). Dots: significant, with effective sample size after Bretherton et al. (1999) and the FDR over lags.</figcaption></figure>
+  <figure id='fig7'><a href='/studies/torque-enso/q3_lead_lag.webp' class='zoom'><img src='/studies/torque-enso/q3_lead_lag.webp' alt="Four panels of lagged correlation between each range's synoptic mountain torque and the global angular momentum tendency, the global angular momentum and the zonal-mean subtropical 200 hPa wind" loading='lazy'></a><figcaption><b>Figure 7.</b> Lagged correlation of each range's synoptic torque with the global tendency of angular momentum, global angular momentum and the zonal-mean 200 hPa wind at 25–40° in the same hemisphere (all &lt;30-day parts). Dots: significant, with effective sample size after Bretherton et al. (1999; here 1,070 to 2,330 days) and the FDR over lags.</figcaption></figure>
   <p>Day by day (Figure 7), high torque follows a few days of low global angular momentum (lowest correlation
   −0.30 at lags of −2 to
   −4 days) and comes before a rise (up to +0.45,
   2 days later). The zonal-mean subtropical jet follows weakly, peaking 1 day after
   Rockies torque (r = +0.15) and 5 days after Andes torque (r = +0.14) in DJF, while the Himalayan torque in
-  DJF shows almost nothing. Before Andes torque the jet is slightly weaker (r = −0.11, 1 day before). The torque
-  leads; it is not a response to a jet that is already stronger.</p>
+  DJF shows almost nothing. Before Andes torque the jet is slightly weaker (r = −0.11, 1 day before). That the torque
+  leads angular momentum follows from the budget itself; the jet result says the torque is not a response to a jet that is
+  already stronger, but the jet's response is small (about 2% of its day-to-day variance).</p>
   <figure id='fig8'><a href='/studies/torque-enso/q3_z500_precursors.webp' class='zoom'><img src='/studies/torque-enso/q3_z500_precursors.webp' alt="Maps of 500 hPa height one to three days before positive torque events over the Himalaya, Rockies and Andes in DJF, for all events and for El Niño minus neutral" loading='lazy'></a><figcaption><b>Figure 8.</b> The precursor. 500 hPa height (&lt;30-day part) averaged 3 to 1 days before positive events, all events (left) and El Niño minus neutral (right), shaded only where significant (FDR 10% over the map; contours every 10 m show all values).</figcaption></figure>
   <p>The precursor is the textbook one for a lee-side surge: a ridge upstream and poleward of the range and a trough downstream.
   It sits over the Urals and northern China for the Himalaya, Alaska and the central United States for the Rockies, and southern
@@ -468,7 +470,8 @@
   10 tests significant after the FDR).</p>
 
   <h2>6. The 2026 event</h2>
-  <p>By the CPC ONI, 2026's El Niño grew from +0.46 in MAM to +2.16 in JAS. In May the Andes torque was
+  <p>By the CPC ONI, 2026's El Niño grew from +0.46 in MAM to +2.16 in JAS (provisional: CPC
+  revises the latest seasons for about two months). In May the Andes torque was
   +13.3 Hadley above normal, the second-largest May
   since 1959 after May 1997 (+14.0), the start of that year's very strong El Niño. Over 15 April – 19 September
   the Andes torque anomaly added +5.6 ×10²⁵ kg m² s⁻¹ (the second-largest of 48 years,
@@ -667,7 +670,7 @@
   <p><b>Reanalysis budgets that do not close.</b> NCEP's torques fall about 10 Hadley short of its observed change (Huang et al.,
   1999), and ERA-20C's total torque has a strong negative bias (Veerman and van Heerwaarden, 2019). ERA5's fall 11.3
   Hadley short, the same sign and size. What is new is measuring the analysis increments directly from the jumps at ERA5's 4D-Var
-  window starts, about 8 Hadley, and mapping where they fall. Veerman and van Heerwaarden (2019) inferred the
+  window starts, together the equivalent of a steady 8 Hadley torque, and mapping where they fall. Veerman and van Heerwaarden (2019) inferred the
   same correction indirectly in ERA-20C, whose forecasts lose about 9 Hadley that the analyses restore; a literature search found
   no earlier direct estimate, which does not prove none exists.</p>
   <p><b>Surface winds over the oceans.</b> Extra mixing in stable boundary layers, although known to be wrong for those layers, has
@@ -770,7 +773,7 @@
   <h2>Data credits</h2>
   <p class="credits">ERA5 (Hersbach et al., 2020), Copernicus Climate Change Service (C3S) / ECMWF, via the ARCO-ERA5 store on
   Google Cloud (Carver and Merose, 2023), CC BY 4.0; contains modified Copernicus Climate Change Service information 2026. Neither ECMWF nor the European Commission is
-  responsible for any use of this information. CMIP6 output (CC BY 4.0) from the Pangeo CMIP6 mirror on Google
+  responsible for any use of this information. CMIP6 output (licensed per model as listed by the CMIP6 data citation service, CC BY 4.0 for most) from the Pangeo CMIP6 mirror on Google
   Cloud; models: ACCESS-CM2, ACCESS-ESM1-5, AWI-CM-1-1-MR, AWI-ESM-1-1-LR, BCC-ESM1, CESM2, CESM2-FV2, CESM2-WACCM, CESM2-WACCM-FV2, CMCC-CM2-HR4, CMCC-CM2-SR5, CMCC-ESM2, CNRM-CM6-1, CNRM-ESM2-1, CanESM5, E3SM-1-0, E3SM-1-1, FGOALS-f3-L, FGOALS-g3, GFDL-CM4, GFDL-ESM4, GISS-E2-1-G, GISS-E2-1-H, HadGEM3-GC31-LL, HadGEM3-GC31-MM, INM-CM4-8, INM-CM5-0, IPSL-CM6A-LR, MCM-UA-1-0, MIROC-ES2L, MIROC6, MPI-ESM-1-2-HAM, MPI-ESM1-2-HR, MPI-ESM1-2-LR, MRI-ESM2-0, NorCPM1, NorESM2-LM, NorESM2-MM, SAM0-UNICON, TaiESM1, UKESM1-0-LL. Each model's historical output can be cited through the
   <a href="https://www.wdc-climate.de/ui/project?acronym=CMIP6">CMIP6 data citation service</a>. We acknowledge the World Climate Research Programme,
   which, through its Working Group on Coupled Modelling, coordinated and promoted CMIP6. We thank the climate modeling groups for
@@ -807,7 +810,7 @@
         <li><a href="/topics/">Explainers</a></li>
         <li><a href="/stats.html">Visitor stats</a></li>
       </ul>
-      <p class="sf-disclaimer">This site is under constant development. Nothing here is checked before publication and there is no expectation of accuracy, completeness or availability; do not rely on it for decisions. Built from open data; sources are credited on each page.</p>
+      <p class="sf-disclaimer">This site is under constant development. Its products are generated automatically and published without review by a person; each page describes its automated checks and significance tests. There is no expectation of accuracy, completeness or availability; do not rely on it for decisions. Built from open data; sources are credited on each page.</p>
     </div>
     <div class="sf-group sf-group--me">
       <p class="sf-h" role="heading" aria-level="2">Shawn Corvec</p>
