@@ -1,55 +1,55 @@
 {
- "init": "2026-10-15",
+ "init": "2026-10-16",
  "members": {
   "ifs": 50,
   "aifs-ens": 50
  },
  "weeks": {
   "wk1": [
-   "2026-10-15",
-   "2026-10-21"
+   "2026-10-16",
+   "2026-10-22"
   ],
   "wk2": [
-   "2026-10-22",
-   "2026-10-28"
+   "2026-10-23",
+   "2026-10-29"
   ]
  },
  "stats": {
   "both_wk1": {
-   "tested_cells": 36252,
-   "sig_frac_tropics": 0.616,
-   "above_frac_tropics": 0.387,
-   "below_frac_tropics": 0.229
+   "tested_cells": 36295,
+   "sig_frac_tropics": 0.612,
+   "above_frac_tropics": 0.381,
+   "below_frac_tropics": 0.23
   },
   "both_wk2": {
-   "tested_cells": 36460,
-   "sig_frac_tropics": 0.617,
-   "above_frac_tropics": 0.355,
-   "below_frac_tropics": 0.262
+   "tested_cells": 36421,
+   "sig_frac_tropics": 0.635,
+   "above_frac_tropics": 0.366,
+   "below_frac_tropics": 0.269
   },
   "ifs_wk1": {
-   "tested_cells": 36252,
-   "sig_frac_tropics": 0.571,
-   "above_frac_tropics": 0.384,
-   "below_frac_tropics": 0.187
+   "tested_cells": 36295,
+   "sig_frac_tropics": 0.577,
+   "above_frac_tropics": 0.382,
+   "below_frac_tropics": 0.196
   },
   "ifs_wk2": {
-   "tested_cells": 36460,
-   "sig_frac_tropics": 0.542,
-   "above_frac_tropics": 0.341,
-   "below_frac_tropics": 0.201
+   "tested_cells": 36421,
+   "sig_frac_tropics": 0.565,
+   "above_frac_tropics": 0.356,
+   "below_frac_tropics": 0.209
   },
   "aifs_wk1": {
-   "tested_cells": 36252,
-   "sig_frac_tropics": 0.582,
-   "above_frac_tropics": 0.344,
-   "below_frac_tropics": 0.237
+   "tested_cells": 36295,
+   "sig_frac_tropics": 0.588,
+   "above_frac_tropics": 0.347,
+   "below_frac_tropics": 0.241
   },
   "aifs_wk2": {
-   "tested_cells": 36460,
-   "sig_frac_tropics": 0.577,
-   "above_frac_tropics": 0.299,
-   "below_frac_tropics": 0.278
+   "tested_cells": 36421,
+   "sig_frac_tropics": 0.583,
+   "above_frac_tropics": 0.301,
+   "below_frac_tropics": 0.282
   }
  },
  "bias": {
@@ -119,5 +119,5 @@
   }
  },
  "normal": "GPCP V3.2 daily 2001-2020, 7-day totals",
- "made": "2026-10-15T12:22Z"
+ "made": "2026-10-16T09:55Z"
 }
