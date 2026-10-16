@@ -273,7 +273,8 @@ def fig_enso(R, out):
         f"{N['n_winters']:,} winters and {N['n_events']:,} December–March warmings in 9 stratosphere-resolving CMIP6 models. Stronger "
         f"El Niños bring more warmings ({T['strong_vs_neutral']['a']:.0%} of strong El Niño winters against {T['strong_vs_neutral']['b']:.0%} "
         f"of neutral ones, {pfmt(T['strong_vs_neutral']['p'])}, all {T['strong_vs_neutral']['models']} models agree) and push them later "
-        f"into the winter. The observed winters since 1957 are too few to test this: their points are drawn for reference and are not significant.",
+        f"into the winter. The observed winters since 1957 are too few to test this (El Niño and La Niña against neutral: Fisher p "
+        f"{T['obs_en_vs_neutral_p']:.2f} and {T['obs_ln_vs_neutral_p']:.2f}), so they are not drawn.",
     )
     gs = fig.add_gridspec(1, 2, left=0.06, right=0.985, top=top - 0.09, bottom=0.2, wspace=0.2, width_ratios=[1.45, 1])
     ax = fig.add_subplot(gs[0])
@@ -287,19 +288,6 @@ def fig_enso(R, out):
         lo = np.array([r["ci"][0] if r["ci"] else np.nan for r in rows], float)
         hi = np.array([r["ci"][1] if r["ci"] else np.nan for r in rows], float)
         ax.errorbar(x + off, v, yerr=[v - lo, hi - v], fmt="o-", color=col, ms=4.5, lw=1.5, capsize=0, label=lab)
-    ob = N["obs_bins"]
-    ov = np.array([r["share"] if r["share"] is not None else np.nan for r in ob], float)
-    ax.scatter(
-        x,
-        ov,
-        marker="s",
-        s=[max(r["n"], 1) * 7 for r in ob],
-        facecolor="none",
-        edgecolor=MUTED,
-        lw=1.1,
-        zorder=4,
-        label="observed 1957–2025 (not significant; size = winters)",
-    )
     ax.set_xticks(x, bins, fontsize=8.5)
     ax.set_ylim(0, 0.95)
     ax.set_xlabel("December–February Niño-3.4 (K; model values rescaled to the observed spread)", fontsize=9)
@@ -328,7 +316,7 @@ def fig_enso(R, out):
     footer(
         fig,
         "CMIP6 piControl, historical, SSP and AMIP runs; each run's Niño-3.4 against its own 31-year running climatology. Test: "
-        "Cochran–Mantel–Haenszel across model × experiment strata. Bars: 95 % bootstrap intervals. Observed: CPC ONI; Fisher p 0.14–0.25.",
+        "Cochran–Mantel–Haenszel across model × experiment strata. Bars: 95 % bootstrap intervals. Observed: CPC ONI.",
     )
     save(fig, out)
 
@@ -444,16 +432,16 @@ def card(R, out, out_json, repo):
             "r": g["r"],
             "p": g["p"],
         }
-    fig = plt.figure(figsize=(13.4, 7.8), dpi=125)
+    fig = plt.figure(figsize=(13.4, 6.4), dpi=125)
     top = fig_header(
         fig,
         f"Seasonal odds for winter {wy}/{str(wy + 1)[2:]}: what the QBO and ENSO say",
         f"Model-based. The QBO at 50 hPa is {q:+.1f} m/s ({qlab}, {qsrc}) and ENSO's latest ONI is {en['oni']:+.1f} °C ({en['oni_season']}; "
         f"RONI {en['roni']:+.1f}). Left: the share of CMIP6 winters with a sudden warming in that state, and when in the winter. "
-        "Middle: the vortex the observed QBO relation expects. Right: the observed winters that looked like this, for reference, not a test.",
+        "Right: the vortex the observed QBO relation expects.",
     )
     gs = fig.add_gridspec(
-        1, 3, left=0.03, right=0.985, top=top - 0.07, bottom=0.14, wspace=0.16, width_ratios=[1.25, 0.85, 1.1]
+        1, 2, left=0.03, right=0.985, top=top - 0.07, bottom=0.17, wspace=0.12, width_ratios=[1.25, 0.85]
     )
     ax = fig.add_subplot(gs[0])
     for i, (lab, v, ci, n, dj, fm, col) in enumerate(rows):
@@ -508,38 +496,6 @@ def card(R, out, out_json, repo):
     ax.set_xlabel("u(60°N, 10 hPa) from the QBO alone (m/s)\nblue: 90 % range; black tick: normal", fontsize=9)
     ax.set_title("Observed QBO → vortex", loc="left", fontsize=10.5, color=INK)
     style(ax)
-    ax = fig.add_subplot(gs[2])
-    ax.axis("off")
-    ax.set_title("Observed strong El Niño winters (ONI ≥ 1.5)", loc="left", fontsize=10.5, color=INK)
-    yy = 0.95
-    mono = dict(fontsize=8.4, family="DejaVu Sans Mono", transform=ax.transAxes)
-    ax.text(0, yy, "winter   ONI   QBO50  QBO30  warming", color=MUTED, **mono)
-    for a in O["analogs"]:
-        yy -= 0.075
-        ssw = ", ".join(pd.Timestamp(d).strftime("%-d %b") for d in a["ssw"]) if a["ssw"] else "none"
-        like = (a["q50"] >= 0) == (q >= 0)
-        ax.text(
-            0,
-            yy,
-            f"{a['winter']:8s} {a['oni']:+4.1f}  {a['q50']:+5.1f}  {a['q30']:+5.1f}  {ssw}",
-            color=INK if like else MUTED,
-            **mono,
-        )
-    n_like = sum(1 for a in O["analogs"] if (a["q50"] >= 0) == (q >= 0))
-    k_like = sum(1 for a in O["analogs"] if (a["q50"] >= 0) == (q >= 0) and a["ssw"])
-    ax.text(
-        0,
-        yy - 0.1,
-        textwrap.fill(
-            f"Dark rows share this winter's QBO phase at 50 hPa (Oct–Nov): {k_like} of {n_like} had a warming. "
-            "A handful of winters cannot test a rate; the model shares at left are the tested numbers.",
-            55,
-        ),
-        fontsize=8.5,
-        color=MUTED,
-        transform=ax.transAxes,
-        va="top",
-    )
     footer(
         fig,
         "Models: UKESM1-0-LL, MRI-ESM2-0, CESM2-WACCM(-FV2), HadGEM3-GC31-LL; QBO = Oct–Nov wind at 50 hPa; Niño-3.4 = DJF, rescaled to the observed "

@@ -183,12 +183,6 @@ def main():
             x = (Wc[sel & (cat == k)].n_ssw > 0).values.astype(float)
             rows.append({"share": r3(x.mean()) if len(x) else None, "n": len(x), "ci": share_ci(x)})
         dose[name] = rows
-    obs = pd.read_csv(data / "winters_enso.csv")
-    oc = pd.cut(obs.oni, ENSO_EDGES, labels=range(8))
-    obs_bins = [
-        {"share": r3((obs[oc == k].n_ssw > 0).mean()) if (oc == k).any() else None, "n": int((oc == k).sum())}
-        for k in range(8)
-    ]
     Ec["cls"] = np.where(
         Ec.n34z >= 1.5, "strong", np.where(Ec.n34z >= 0.5, "en", np.where(Ec.n34z <= -0.5, "ln", "neutral"))
     )
@@ -202,7 +196,6 @@ def main():
     out["enso"] = {
         "bins": ENSO_LABELS,
         "dose": dose,
-        "obs_bins": obs_bins,
         "months": months,
         "months_n": months_n,
         "tests": {
@@ -279,10 +272,6 @@ def main():
         },
         "obs_base": r3(O["obs_base_rate"]),
         "obs_winters": 69,
-        "analogs": [
-            {"winter": a["winter"], "oni": r3(a["oni_djf"]), "q50": a["q50_ON"], "q30": a["q30_ON"], "ssw": a["ssw"]}
-            for a in O["obs_strong_el_nino"]
-        ],
         "models": QBO_MODELS,
         "note": "model Nino-3.4 (DJF, 31-year running climatology removed) rescaled to the observed DJF sd of 0.95 K; "
         "QBO = Oct-Nov mean equatorial wind at 50 hPa; Dec-Mar Charlton-Polvani warmings",
