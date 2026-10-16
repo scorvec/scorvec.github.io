@@ -1,8 +1,10 @@
-name: Hadley and Walker forecasts (AIFS-ENS, IFS-ENS, GEFS 00Z, days 0-15)
+name: Hadley and Walker loops (analysed 7-day means + AIFS-ENS, IFS-ENS, GEFS forecasts)
 
-# Every member of the 00Z AIFS-ENS, IFS-ENS and GEFS runs to day 15, less its model's drift against ERA5 (release
-# overturn-ref-v1, built by overturn-ref.yml), as the forecast loops of the Hadley-cell and Walker products
-# (scripts/mjo/src/overturn_fc.py -> assets/sst/anim/{mmsf,walker}_fc_<region> + assets/sst/data/overturn_fc.json).
+# The analysed loops: every day's 7-day mean since July 2025, the analysis less its offset from ERA5
+# (scripts/mjo/src/overturn_hist.py; the daily-mean archive rides on the frames branch in assets/sst/anim/overturn_hist,
+# topped up from the cycle histories mjo.yml keeps, frames drawn once and published additively). Then the forecast
+# loops: every member of the 00Z AIFS-ENS, IFS-ENS and GEFS runs to day 15, less its model's drift against ERA5
+# (release overturn-ref-v1, built by overturn-ref.yml), led in by the last analysed weeks (overturn_fc.py).
 # IFS-ENS day 15 reaches the Google mirror around 08:50 UTC: the dispatcher fires this at 09:40 (backstop 11:40).
 on:
   schedule:
@@ -17,6 +19,10 @@ on:
         description: 'Run even if this run is already drawn'
         required: false
         default: 'false'
+      backfill_since:
+        description: 'First day to backfill the analysis archive from the archived analyses (YYYY-MM-DD; empty = none)'
+        required: false
+        default: ''
 
 permissions:
   contents: write
@@ -30,9 +36,9 @@ env:
   ECMWF_SOURCES: google
 
 jobs:
-  forecast:
+  loops:
     runs-on: ubuntu-latest
-    timeout-minutes: 150
+    timeout-minutes: 300
     steps:
       - uses: actions/checkout@v7
       - name: Which run
@@ -40,11 +46,12 @@ jobs:
         env:
           DATE: ${{ inputs.date }}
           FORCE: ${{ inputs.force }}
+          BACKFILL: ${{ inputs.backfill_since }}
         run: |
           d="${DATE:-$(date -u +%Y%m%d)}"
           echo "date=$d" >> "$GITHUB_OUTPUT"
           have=$(python3 -c "import json; print(json.load(open('assets/sst/anim/mmsf_fc_manifest.json'))['ver'])" 2>/dev/null || echo none)
-          if [ "$have" = "${d}00" ] && [ "$FORCE" != "true" ]; then echo "skip=true" >> "$GITHUB_OUTPUT"; echo "run $d 00Z already drawn"; fi
+          if [ "$have" = "${d}00" ] && [ "$FORCE" != "true" ] && [ -z "$BACKFILL" ]; then echo "skip=true" >> "$GITHUB_OUTPUT"; echo "run $d 00Z already drawn"; fi
       - uses: actions/setup-python@v7
         if: steps.run.outputs.skip != 'true'
         with:
@@ -55,26 +62,43 @@ jobs:
       - name: Install Python dependencies
         if: steps.run.outputs.skip != 'true'
         run: pip install -r scripts/mjo/requirements-mjo.txt
-      - name: Drift reference
+      - name: Drift reference and the analysis archive
         if: steps.run.outputs.skip != 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh release download overturn-ref-v1 -R "$GITHUB_REPOSITORY" -p overturn_ref.npz -D scripts/mjo/data/reference --clobber
+        run: |
+          gh release download overturn-ref-v1 -R "$GITHUB_REPOSITORY" -p overturn_ref.npz -D scripts/mjo/data/reference --clobber
+          scripts/lib/fetch_frames_ci.sh assets/sst/anim/overturn_hist || echo "::warning::no analysis archive on the frames branch yet"
+      - name: Backfill the analysis archive
+        if: steps.run.outputs.skip != 'true' && inputs.backfill_since != ''
+        run: python scripts/mjo/src/overturn_hist.py backfill --since "${{ inputs.backfill_since }}"
+      - name: Analysed loops
+        if: steps.run.outputs.skip != 'true'
+        run: |
+          python scripts/mjo/src/overturn_hist.py update
+          python scripts/mjo/src/overturn_hist.py render
       - name: Forecast loops
         if: steps.run.outputs.skip != 'true'
-        run: python scripts/mjo/src/overturn_fc.py --date "${{ steps.run.outputs.date }}"
-      - name: Publish the loop frames (frames branch)
+        run: |
+          python scripts/mjo/src/overturn_fc.py --date "${{ steps.run.outputs.date }}" \
+            || echo "::warning::forecast loops not drawn this run; the analysed loops still publish"
+      - name: Publish the frames (frames branch)
         if: steps.run.outputs.skip != 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: scripts/lib/publish_frames_ci.sh $(ls -d assets/sst/anim/mmsf_fc_*/ assets/sst/anim/walker_fc_*/ | sed 's#/$##')
-      - name: Commit & push (manifests and series)
+        run: |
+          # the archive and its frames grow (+: add, never drop); each forecast loop is replaced whole
+          fc=$(ls -d assets/sst/anim/mmsf_fc_*/ assets/sst/anim/walker_fc_*/ 2>/dev/null | sed 's#/$##')
+          scripts/lib/publish_frames_ci.sh +assets/sst/anim/overturn_hist +assets/sst/anim/mmsf_hist +assets/sst/anim/walker_hist $fc
+      - name: Commit & push (manifests, stills, series)
         if: steps.run.outputs.skip != 'true'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           # snapshot the outputs, then commit them on a clean sync of origin/main each attempt (never a rebase)
-          OUT="assets/sst/anim/mmsf_fc_manifest.json assets/sst/anim/walker_fc_manifest.json assets/sst/data/overturn_fc.json"
+          OUT="assets/sst/anim/mmsf_hist_manifest.json assets/sst/anim/walker_hist_manifest.json \
+               assets/sst/mmsf_anom.webp assets/sst/walker_anom.webp \
+               assets/sst/anim/mmsf_fc_manifest.json assets/sst/anim/walker_fc_manifest.json assets/sst/data/overturn_fc.json"
           SNAP=$(mktemp -d)
           tar cf "$SNAP/outs.tar" --ignore-failed-read $OUT 2>/dev/null || true
           for i in 1 2 3 4 5; do
@@ -83,7 +107,7 @@ jobs:
             tar xf "$SNAP/outs.tar"
             for f in $OUT; do [ -e "$f" ] && git add "$f"; done
             if git diff --staged --quiet; then echo "No changes; skipping commit."; exit 0; fi
-            git commit -m "Hadley/Walker forecasts: ${{ steps.run.outputs.date }} 00Z"
+            git commit -m "Hadley/Walker loops: ${{ steps.run.outputs.date }}"
             if timeout 180 git push; then echo "Pushed on attempt $i."; exit 0; fi
             echo "Push $i rejected; resyncing and retrying…"
             sleep 5

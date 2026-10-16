@@ -8,7 +8,8 @@ TRAILING 7-day means, so the window of an early lead still holds analysed days (
 analysis and forecast both stand on ERA5's footing); Psi and Psi_W against the ERA5 1991-2020 harmonic climatology at
 the window's midpoint; the cell intensities and edges (build_hadley_clim.sample_metrics) and the Pacific Walker index.
 
-The loops (assets/sst/anim/{mmsf,walker}_fc_<region>, one region per ensemble and one for all of them pooled) show the members'
+The loops (assets/sst/anim/{mmsf,walker}_fc_<region>, one region per ensemble and one for all of them pooled) lead in
+with the last LEAD_IN analysed weeks (overturn_hist.py's frames, on the same fixed colour scale), then show the members'
 mean anomaly ONLY where at least AGREE of the members give it the same sign; elsewhere the ensemble does not say which
 way the cell departs, and the frame leaves it blank. A model without a drift reference is left out rather than drawn
 raw: its drift would read as an anomaly.
@@ -31,6 +32,7 @@ import xarray as xr
 sys.path.insert(0, str(Path(__file__).parent))
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "ecmwf"))
 import overturn as O
+import overturn_hist as H
 import mmsf
 import walker
 from build_hadley_clim import sample_metrics
@@ -40,6 +42,7 @@ from mmsf import LEVELS
 LEADS = list(range(16))  # days
 WIN = 7  # trailing window, days (as the analysed frames)
 AGREE = 0.8  # shade an anomaly only where this share of the members gives it one sign
+LEAD_IN = 14  # analysed weeks the forecast loops open with
 KEYS = ("nh_psi", "nh_edge_pole", "sh_psi", "sh_edge_pole")
 P_PA = np.asarray(LEVELS, float) * 100.0
 P_HPA = np.asarray(LEVELS, float)
@@ -144,17 +147,21 @@ def agreed(mean, pos, n):
 def render(regions: dict, init, mids, clim_m, clim_w, lon, anim_root: Path, manifests: dict):
     """The two loops: per region, leads 0..15 of the agreed mean anomaly over the members' mean cells."""
     lat = O.LAT
-    mlat = (lat >= -45) & (lat <= 45)
-    vm = mmsf.nice_lim(
-        float(np.nanpercentile(np.abs(np.stack([S.m / S.n for S in regions.values()])[..., mlat]), 99.0))
-    )
-    vw = walker.nice_lim(float(np.nanpercentile(np.abs(np.stack([S.w / S.n for S in regions.values()])), 99.0)))
+    vm, vw = H.VLIM["mmsf"], H.VLIM["walker"]  # the analysed weeks' scale: lead-in and forecast read as one loop
     for prod in ("mmsf", "walker"):
+        hist_dir = H.PRODUCTS[prod]["dir"]
+        hm = anim_root / f"{hist_dir}_manifest.json"
+        past = json.loads(hm.read_text())["regions"][hist_dir]["frames"] if hm.exists() else []
+        days = {f["date"]: f for f in past}
+        lead = [
+            days[k] for k in (f"{init - pd.Timedelta(days=n):%Y-%m-%d}" for n in range(LEAD_IN, 0, -1)) if k in days
+        ]
         doc = {
             "ver": f"{init:%Y%m%d}00",
             "init": f"{init:%Y-%m-%d}T00:00Z",
             "default": f"{prod}_fc_" + ("blend" if "blend" in regions else next(iter(regions))),
             "selectorLabel": "Forecast",
+            "start": len(lead),  # opens on +0 d (sst_anim ?start=manifest)
             "regions": {},
         }
         for rid, S in regions.items():
@@ -167,7 +174,11 @@ def render(regions: dict, init, mids, clim_m, clim_w, lon, anim_root: Path, mani
                 if rid == "blend"
                 else O.MODELS[rid]["label"]
             )
-            frames = []
+            # the analysed weeks are the archive's own frames, one directory over (the viewer resolves the path)
+            frames = [
+                {"file": f"../{hist_dir}/{f['file']}", "date": f["date"], "label": f"analysis · {f['label']}"}
+                for f in lead
+            ]
             for j in LEADS:
                 end = init + pd.Timedelta(days=j)
                 lab = f"+{j} d · 7-day mean ending {end:%a %b %-d}"
@@ -208,7 +219,8 @@ def render(regions: dict, init, mids, clim_m, clim_w, lon, anim_root: Path, mani
                         f"Pacific cell {pidx:+.1f} (clim {pcl:+.1f}) ×10¹⁰ kg/s — lower = weaker Walker",
                     )
                     lab += f" · Pacific {pidx:+.1f}"
-                frames.append({"idx": j, "file": fp.name, "date": f"{end:%Y-%m-%d}", "label": lab})
+                frames.append({"file": fp.name, "date": f"{end:%Y-%m-%d}", "label": lab})
+            frames = [dict(f, idx=i) for i, f in enumerate(frames)]
             doc["regions"][f"{prod}_fc_{rid}"] = {"label": name, "n_frames": len(frames), "frames": frames}
         manifests[prod].parent.mkdir(parents=True, exist_ok=True)
         manifests[prod].write_text(json.dumps(doc))

@@ -561,9 +561,12 @@ function pump() {
 // has loaded, and a step to a frame still downloading says so instead of showing its label over the previous picture.
 function frameOnScreen() {
   const f = frames[idx];
+  if (!f) return false;
   let u = (imgEl.currentSrc || imgEl.src || "").split("?")[0];
-  try { u = decodeURI(u); } catch (e) {}
-  return !!f && imgEl.complete && imgEl.naturalWidth > 0 && u.endsWith(`/${region}/${f.file}`);
+  // the path as the browser resolves it: a manifest may point one directory over ("../mmsf_hist/D20261015.webp")
+  let want = new URL(`${region}/${f.file}`, "https://x/").pathname;
+  try { u = decodeURI(u); want = decodeURI(want); } catch (e) {}
+  return imgEl.complete && imgEl.naturalWidth > 0 && u.endsWith(want);
 }
 let pendTimer = null;
 function notePending() {

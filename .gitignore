@@ -203,6 +203,7 @@ scripts/asos5/asos5.log
 
 # the tropical velocity-potential history rides on the frames branch, never on main
 assets/sst/anim/walker/*.nc
+assets/sst/anim/overturn_hist/
 assets/sst/anim/wk_olr/
 assets/sst/anim/gillrain/*.nc
 assets/sst/anim/waf/*.nc
