@@ -426,6 +426,8 @@ TABS = {
 #   after-body   no nav on the page: insert right after <body…>
 #   before       insert before the literal `anchor`; optionally delete `drop` (a regex) first
 # fixes: literal (old, new) substrings — the top padding that used to clear a fixed nav.
+# synced: the page's <head> belongs to the repository it is synced from (the midterms pages): header and footer
+#   only, no analytics tag or integrity attributes stamped (see head_tags).
 PAGES = [
     dict(path="index.html", mode="nav", skin="overlay", footer=False),
     dict(
@@ -526,17 +528,19 @@ PAGES = [
     dict(path="skewt/gaps.html", mode="nav", tabs="skewt"),
     # qbo/index.html: folded into stratosphere.html ("QBO from radiosondes"), now a redirect stub (no chrome)
     dict(
-        path="midterms/index.html", mode="after-body", footer=True
+        path="midterms/index.html", mode="after-body", footer=True, synced=True
     ),  # 2026 midterm forecast (synced daily from github.com/scorvec/midterms-2026 by midterms-sync.yml)
-    dict(path="midterms/about.html", mode="after-body", footer=True),  # how the midterm forecast works + sources
     dict(
-        path="midterms/polls.html", mode="after-body", footer=True
+        path="midterms/about.html", mode="after-body", footer=True, synced=True
+    ),  # how the midterm forecast works + sources
+    dict(
+        path="midterms/polls.html", mode="after-body", footer=True, synced=True
     ),  # every poll in the midterm forecast and its weight
     dict(
-        path="midterms/whatif.html", mode="after-body", footer=True
+        path="midterms/whatif.html", mode="after-body", footer=True, synced=True
     ),  # "What if?": the forecast re-simulated with the reader's assumptions
     dict(
-        path="midterms/legislatures.html", mode="after-body", footer=True
+        path="midterms/legislatures.html", mode="after-body", footer=True, synced=True
     ),  # state legislative chambers (experimental)
     # the 404 body is a centring flexbox: stack it so the header spans the top and the message centres below
     dict(
@@ -568,6 +572,52 @@ HEAD_SNIPPET = (
     '<script src="/assets/site.js" defer></script>\n'
     '<script src="/assets/rail.js" defer></script>\n'
 )
+
+# ── analytics and third-party integrity, stamped into every page's <head> ─────────────────────────────────────
+# ONE GoatCounter tag for the whole site: the versioned script, pinned by its hash. Every other GoatCounter script
+# tag on a stamped page (a generator's own, the old unversioned count.js) is replaced by it. Embeds and redirect
+# stubs are not in PAGES and never count.
+GOATCOUNTER = (
+    '<script data-goatcounter="https://scorvec.goatcounter.com/count" async src="https://gc.zgo.at/count.v4.js" '
+    'integrity="sha384-nRw6qfbWyJha9LhsOtSb2YJDyZdKvvCFh0fJYlkquSFjUxp9FVNugbfy8q1jdxI+" crossorigin="anonymous"></script>'
+)
+_GC_TAG = re.compile(r"[ \t]*<script\b[^>]*gc\.zgo\.at/count[^>]*>\s*</script>[ \t]*\n?")
+# Subresource Integrity (sha384 of the exact file) for the pinned CDN files the pages load as tags: a <script> or
+# <link> with one of these URLs and no integrity attribute gets one, plus crossorigin, so the browser refuses a
+# changed copy. Code that loads one of them itself sets the same hash (assets/seas5-cards.js,
+# assets/c3s-vortex-card.js, ar.html, the stratosphere page's loadPlotly). A new library version is a new URL:
+# add its hash here or it simply loads without one.
+SRI = {
+    "https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js": "sha384-7zkQWkzuo3B5mTepMUcHkMB5jZaolc2xDwL6VFqjFALcbeS9Ggm/Yr2r3Dy4lfFg",
+    "https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js": "sha384-43gviWU0YVjaDtb/GhzOouOXtZMP/7XUzwPTstBeZFe/+rCMvRwr4yROQP43s0Xk",
+    "https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css": "sha384-nB0miv6/jRmo5UMMR1wu3Gz6NLsoTkbqJghGIsx//Rlm+ZU03BU6SQNC66uf4l5+",
+    "https://cdn.jsdelivr.net/npm/plotly.js-cartesian-dist-min@2.35.2/plotly-cartesian.min.js": "sha384-gKF7EaMDoWW1zLWkouldmVWF5jqEKrAswAciW73iNzqlomabVVPO60XkJvL5q/Ie",
+    "https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js": "sha384-CjloA8y00+1SDAUkjs099PVfnY2KmDC2BZnws9kh8D/lX1s46w6EPhpXdqMfjK6i",
+    "https://cdnjs.cloudflare.com/ajax/libs/topojson/3.0.2/topojson.min.js": "sha384-9dCJK6nh7skY14HrcvlLYlFga9/MehJjL9ONWRflmiXNRuf8p2jiF4Y5PR881PTq",
+}
+_ATTRS = r"""(?:[^>"']|"[^"]*"|'[^']*')*?"""  # attributes, quoted values may hold ">"
+_CDN_TAG = re.compile(rf'<(?:script|link)\b{_ATTRS}\s(?:src|href)="({"|".join(map(re.escape, SRI))})"{_ATTRS}(/?)>')
+
+
+def _with_sri(m: re.Match) -> str:
+    tag = m.group(0)
+    if re.search(r"\sintegrity=", tag):
+        return tag
+    extra = f' integrity="{SRI[m.group(1)]}"'
+    if not re.search(r"\scrossorigin\b", tag):
+        extra += ' crossorigin="anonymous"'
+    end = len(tag) - 1 - len(m.group(2))
+    return tag[:end].rstrip() + extra + (" />" if m.group(2) else ">")
+
+
+def head_tags(html: str) -> str:
+    """The site's one analytics tag at the end of <head>, and integrity attributes on the pinned CDN tags."""
+    html = _GC_TAG.sub("", html)
+    if "</head>" in html:
+        html = html.replace("</head>", GOATCOUNTER + "\n</head>", 1)
+    else:  # bare HTML5 document without <head> tags
+        html = html.replace("<!-- sh:start -->", GOATCOUNTER + "\n<!-- sh:start -->", 1)
+    return _CDN_TAG.sub(_with_sri, html)
 
 
 def _current(href: str, page: str) -> str:
@@ -883,6 +933,8 @@ def stamp(cfg: dict) -> tuple[str, str]:
             '<script src="/assets/site.js" defer></script>\n<script src="/assets/rail.js" defer></script>',
             1,
         )
+    if not cfg.get("synced"):
+        html = head_tags(html)
 
     if cfg.get("footer", True):
         foot = footer_html(dark)

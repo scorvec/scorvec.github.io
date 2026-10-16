@@ -1040,7 +1040,13 @@ window.STAGE = {
     loadPlotly.q = [cb];
     var sc = document.createElement("script");
     sc.src = "https://cdn.jsdelivr.net/npm/plotly.js-cartesian-dist-min@2.35.2/plotly-cartesian.min.js";
+    sc.integrity = "sha384-gKF7EaMDoWW1zLWkouldmVWF5jqEKrAswAciW73iNzqlomabVVPO60XkJvL5q/Ie";   // apply_chrome.py SRI
+    sc.crossOrigin = "anonymous";
     sc.onload = function () { loadPlotly.q.forEach(function (f) { f(); }); };
+    sc.onerror = function () {   // blocked or refused: say so, and let the next draw try again
+      loadPlotly.q = null; sc.remove();
+      $("shw-note").textContent = "The chart library (cdn.jsdelivr.net) could not be loaded; reload the page to try again.";
+    };
     document.head.appendChild(sc);
   }
   function winter(w) { for (var i = 0; i < J.winters.length; i++) if (J.winters[i].winter === w) return J.winters[i]; return null; }

@@ -65,6 +65,7 @@
 <script src="/assets/site.js" defer></script>
 <script src="/assets/rail.js" defer></script>
 <script src="/assets/frames_root.js"></script>
+<script data-goatcounter="https://scorvec.goatcounter.com/count" async src="https://gc.zgo.at/count.v4.js" integrity="sha384-nRw6qfbWyJha9LhsOtSb2YJDyZdKvvCFh0fJYlkquSFjUxp9FVNugbfy8q1jdxI+" crossorigin="anonymous"></script>
 </head>
 <body>
 <!-- sh:start -->
@@ -416,7 +417,11 @@
   var PL = null, plotlyP = null;
   function loadPlotly() {
     if (window.Plotly) return Promise.resolve();
-    if (!plotlyP) plotlyP = new Promise(function (ok, no) { var s = document.createElement("script"); s.src = "https://cdn.jsdelivr.net/npm/plotly.js-cartesian-dist-min@2.35.2/plotly-cartesian.min.js"; s.onload = ok; s.onerror = no; document.head.appendChild(s); });
+    if (!plotlyP) plotlyP = new Promise(function (ok, no) {
+      var s = document.createElement("script"); s.src = "https://cdn.jsdelivr.net/npm/plotly.js-cartesian-dist-min@2.35.2/plotly-cartesian.min.js";
+      s.integrity = "sha384-gKF7EaMDoWW1zLWkouldmVWF5jqEKrAswAciW73iNzqlomabVVPO60XkJvL5q/Ie"; s.crossOrigin = "anonymous";   // apply_chrome.py SRI
+      s.onload = ok; s.onerror = no; document.head.appendChild(s);
+    });
     return plotlyP;
   }
   function plume(ip, s) {
