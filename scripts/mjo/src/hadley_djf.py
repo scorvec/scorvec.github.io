@@ -168,8 +168,12 @@ def plot(out: Path):
     ds = xr.open_dataset(OUT)
     year = ds.winter.values.astype(float)
     tests = {(k, xk): partial(ds[xk].values, ds[k].values, year) for k, *_ in PANELS for xk, _ in INDICES}
-    for t, p in zip(tests.values(), holm([t["p"] for t in tests.values()])):
+    for (k, xk), t, p in zip(tests, tests.values(), holm([t["p"] for t in tests.values()])):
         t["p_holm"] = p
+        # robustness: the test with each winter left out in turn; the winter whose removal weakens it most
+        x, y = ds[xk].values, ds[k].values
+        loo = [partial(np.delete(x, i), np.delete(y, i), np.delete(year, i))["p"] for i in range(len(year))]
+        t["loo_p"], t["loo_winter"] = max(loo), int(ds.winter.values[int(np.argmax(loo))])
     fig, axes = plt.subplots(len(PANELS), len(INDICES), figsize=(11.6, 8.4))
     for row, (k, title, ylab) in zip(axes, PANELS):
         X = np.column_stack([np.ones_like(year), year])
@@ -213,7 +217,11 @@ def plot(out: Path):
                 b1, b0 = np.polyfit(x[ok], y[ok], 1)
                 xs = np.array([x[ok].min(), x[ok].max()])
                 ax.plot(xs, b0 + b1 * xs, color="#111", lw=1.6)
-            stat = f"r = {t['r']:+.2f}, p = {t['p_holm']:.3f} (Holm), n = {t['n']} winters, effective {t['n_eff']:.0f}"
+            pv = "p < 0.001" if t["p_holm"] < 0.001 else f"p = {t['p_holm']:.3f}"
+            stat = f"r = {t['r']:+.2f}, {pv} (Holm), n = {t['n']} winters, effective {t['n_eff']:.0f}"
+            if sig and t["loo_p"] >= ALPHA:  # carried by one winter
+                w = t["loo_winter"]
+                stat += f"\nbut it rests on {w}/{str(w + 1)[2:]}: p = {t['loo_p']:.2f} without it"
             ax.text(
                 0.02,
                 0.97,
@@ -228,6 +236,8 @@ def plot(out: Path):
             )
             ax.axhline(0, color="0.75", lw=0.8)
             ax.axvline(0, color="0.75", lw=0.8)
+            lo, hi = np.nanmin(y), np.nanmax(y)
+            ax.set_ylim(lo - 0.06 * (hi - lo), hi + 0.24 * (hi - lo))  # headroom: the statistics sit above the points
             ax.set_title(title, fontsize=10.5, fontweight="bold", loc="left")
             ax.set_xlabel(xlab, fontsize=9)
             ax.set_ylabel(ylab, fontsize=9)
@@ -240,8 +250,9 @@ def plot(out: Path):
         f"Northern Hadley cell in winter against ENSO's strength and flavour, DJF {w0}/{str(w0 + 1)[2:]}–{w1}/{str(w1 + 1)[2:]} (ERA5)",
         "each point one winter: DJF mean of the 7-day-mean cells at 00 UTC, less ERA5's 1991–2020 climatology, with the "
         "linear trend over the winters removed · E index: Takahashi et al. (2011), ERSSTv6\npartial correlation on the "
-        "year, effective sample size from the lag-1 autocorrelation of both series, Holm-adjusted across the four panels; "
-        "a line is drawn only where significant (p < 0.05) · labelled: |RONI| ≥ 1.8",
+        "year, effective sample size from the lag-1 autocorrelation of both series, Holm-adjusted across the four panels\n"
+        "a line is drawn only where significant (p < 0.05); a result that one winter carries is flagged (each winter "
+        "left out in turn) · labelled: |RONI| ≥ 1.8",
         out,
     )
 

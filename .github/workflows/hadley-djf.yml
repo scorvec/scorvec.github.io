@@ -4,9 +4,14 @@ name: Northern Hadley cell each winter against ENSO (ERA5 DJF since 1959/60 -> h
 # hadley_djf.py): every winter's DJF-mean Hadley cell metrics from ERA5 at 00 UTC, the climatology's statistic, against
 # its DJF RONI and its E and C indices (ERSSTv6). Each part reduces its winters to daily zonal-mean v from WeatherBench2
 # or, after January 2023, ARCO-ERA5 (anonymous GCS); the build job forms the table, draws the figure and commits both.
-# Rerun once a new winter's March is three months past.
+# Rerun once a new winter's March is three months past; plot_only redraws the figure from the committed table.
 on:
   workflow_dispatch:
+    inputs:
+      plot_only:
+        description: redraw the figure from the committed hadley_djf.nc (no fetch)
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -16,6 +21,7 @@ env:
 
 jobs:
   plan:
+    if: ${{ !inputs.plot_only }}
     runs-on: ubuntu-latest
     outputs:
       parts: ${{ steps.list.outputs.parts }}
@@ -62,6 +68,7 @@ jobs:
 
   build:
     needs: part
+    if: ${{ always() && (needs.part.result == 'success' || inputs.plot_only) }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -73,13 +80,16 @@ jobs:
           sudo apt-get update -qq && sudo apt-get install -y --no-install-recommends libeccodes0 libgeos-dev libproj-dev proj-bin
           pip install -r scripts/mjo/requirements-mjo.txt
       - uses: actions/download-artifact@v7
+        if: ${{ !inputs.plot_only }}
         with:
           pattern: haddjf-*
           path: parts
           merge-multiple: true
       - name: The winters table and the figure
+        env:
+          PLOT_ONLY: ${{ inputs.plot_only }}
         run: |
-          python scripts/mjo/src/hadley_djf.py build parts/*.npz
+          [ "$PLOT_ONLY" = "true" ] || python scripts/mjo/src/hadley_djf.py build parts/*.npz
           python scripts/mjo/src/hadley_djf.py plot --out assets/sst/hadley_djf_enso.webp
       - name: Commit & push
         run: |
