@@ -11,7 +11,7 @@ One instant per day: the 00Z field at every 24-hour step (migrating tides cancel
   gefs  NOAA GEFS 00Z, gec00 + gep01-30, 0.5 deg, days 0-35. 1-7 and 20/30/70 hPa are in the pgrb2b files, 10/50/100
         in pgrb2a. Byte-ranged from NOAA's S3 bucket through the .idx files (the site rule for NOAA data: S3, never
         NOMADS). Maps from the control.
-  gfs   NOAA GFS 00Z, pgrb2.1p00 (the same inventory as the 0.25 deg file, a sixteenth of the bytes), days 0-16.
+  gfs   NOAA GFS 00Z, pgrb2.0p25 (~22 MB of messages a step), days 0-16.
   gdps  ECCC GDPS 00Z, 15 km lat-lon GRIB2 from the dated MSC Datamart tree (dd.weather.gc.ca/YYYYMMDD/WXO-DD/...),
         days 0-10. Pressure levels 1, 5, 10, 20, 30, 50, 100 hPa only (no 2, 3, 7 or 70).
   geos  NASA GMAO GEOS FP 00Z forecast (NCCS OPeNDAP fcast/inst3_3d_asm_Np), days 0-10, read SEQUENTIALLY and
@@ -206,7 +206,7 @@ def _pack(zon: dict, levels, maps: dict | None):
 
 def gfs_step(date: str, fh: int):
     levels = MODELS["gfs"]["levels"]
-    url = f"{S3_GFS}/gfs.{date}/00/atmos/gfs.t00z.pgrb2.1p00.f{fh:03d}"
+    url = f"{S3_GFS}/gfs.{date}/00/atmos/gfs.t00z.pgrb2.0p25.f{fh:03d}"
     want = [(v, mb(L)) for L in levels for v in ("TMP", "UGRD")]
     domap = fh <= 24 * (MAP_DAYS - 1)
     if domap:
@@ -584,11 +584,11 @@ def _write_tail(out: Path, have: dict, keep: int):
 
 
 def latest(a) -> int:
-    """Newest date whose GFS 00Z f384 (1 deg) is on S3 - printed as YYYYMMDD."""
+    """Newest date whose GFS 00Z f384 is on S3 - printed as YYYYMMDD."""
     now = pd.Timestamp.utcnow().tz_localize(None).normalize()
     for back in range(3):
         d = now - pd.Timedelta(days=back)
-        url = f"{S3_GFS}/gfs.{d:%Y%m%d}/00/atmos/gfs.t00z.pgrb2.1p00.f384.idx"
+        url = f"{S3_GFS}/gfs.{d:%Y%m%d}/00/atmos/gfs.t00z.pgrb2.0p25.f384.idx"
         try:
             urllib.request.urlopen(urllib.request.Request(url, headers=UA, method="HEAD"), timeout=30)
             print(f"{d:%Y%m%d}")

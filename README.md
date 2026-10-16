@@ -59,6 +59,7 @@ assets/              site JS/CSS, generated figures and data (written by the wor
 scripts/<product>/   the pipeline of each product (sst, mjo, strat, geps, gefs, sfs, models, skewt, …)
 scripts/lib/         shared helpers (frame store, locking, publishing)
 scripts/site/        site chrome, catalogue and topic-page generators
+scripts/watch/       upstream-change watches (GFS v17 upgrade notices; opens an issue when something is new)
 topics/  studies/    explainers and study pages
 skewt/   qbo/        self-contained apps
 .github/workflows/   the schedules
