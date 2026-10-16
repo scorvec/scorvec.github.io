@@ -4,24 +4,31 @@ name: GDPS tropical forecast products
 # 150 hPa wind+height loop, and the simulated-IR loop on the Atmosphere page.
 # Moved out of the serial run_local_sst.sh (2026-08-25) so a slow or
 # skipped run of it can't stall these; the script is idempotent and falls back
-# to yesterday's 00Z cycle when today's isn't complete yet.
+# to yesterday's cycle when today's isn't complete yet.
+#
+# WHEN. A GDPS run reaches day 10 on the Datamart ~4 h 50 min after its start
+# (00Z: 04:47-04:49 UTC, 12Z: 16:48-17:09, 10-16 Oct 2026). The laptop's
+# readiness dispatcher sends `date` + `cycle` the moment the day-10 file is up;
+# the main dispatcher's 06:20/18:20 slots and these crons are the backstop. A
+# run whose cycle (or a newer one) is already on the page ends in the check job.
 on:
   # backstop crons (2026-10-04: moved here from the per-hour caller files, which were deleted; the
   # dispatcher, scripts/lib/dispatch_workflows.sh, fires this on time - these only matter when it is off)
   schedule:
     - cron: '20 6 * * *'
     - cron: '20 18 * * *'
-  workflow_call:
-    inputs:
-      cycle:
-        description: 'GDPS cycle, 00 or 12'
-        type: string
-        default: ''
   workflow_dispatch:
     inputs:
       cycle:
         description: 'GDPS cycle, 00 or 12 (blank = derive from the schedule)'
         default: ''
+      date:
+        description: 'Init date YYYYMMDD (blank = today, else yesterday)'
+        default: ''
+      force:
+        description: 'Rebuild even when the page already shows this run or a newer one'
+        type: boolean
+        default: false
 
 # Frame store (Cloudflare R2, S3 API). Absent secrets leave these empty and the
 # publishers fall back to the orphan `frames` branch - see scripts/lib/frames_env.sh.
@@ -42,7 +49,49 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  # Which run, and is it already on the page? Light: main's CURRENT manifests through the API (a run queued behind
+  # another would check out an older commit), no checkout, no installs.
+  check:
+    runs-on: ubuntu-latest
+    outputs:
+      cycle: ${{ steps.c.outputs.cycle }}
+      shown: ${{ steps.c.outputs.shown }}
+      skip: ${{ steps.c.outputs.skip }}
+    steps:
+      - id: c
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          C: ${{ inputs.cycle }}
+          D: ${{ inputs.date }}
+          FORCE: ${{ inputs.force }}
+        run: |
+          # Which cycle this run is for is decided by WHICH cron fired, not by
+          # the clock. GitHub honours only a fraction of this repo's cron
+          # firings and delivers them hours late, so a 06:20 job routinely lands
+          # after 12:00 - deriving the cycle from the current time would then
+          # plot 12Z under the 00Z schedule and vice versa. github.event.schedule
+          # identifies the cron itself and is unaffected by the delay.
+          if [ -z "$C" ]; then
+            case "${{ github.event.schedule }}" in
+              '20 18 * * *') C=12 ;;
+              *)             C=00 ;;
+            esac
+          fi
+          SHOWN=""
+          for m in gdps_wind gdps_outflow gdps_ir; do
+            v=$(gh api -H "Accept: application/vnd.github.raw" "repos/$GITHUB_REPOSITORY/contents/assets/sst/anim/${m}_manifest.json?ref=main" -q .ver 2>/dev/null) || v=""
+            [ -n "$v" ] || { echo "::warning::no $m manifest readable on main: building"; SHOWN=""; break; }
+            if [ -z "$SHOWN" ] || [ "$v" -lt "$SHOWN" ]; then SHOWN=$v; fi
+          done
+          WANT="${D:-$(date -u +%Y%m%d)}$C"
+          SKIP=0; [ "$FORCE" != "true" ] && [ -n "$SHOWN" ] && [ "$WANT" -le "$SHOWN" ] && SKIP=1
+          echo "GDPS ${D:-(today, else yesterday)} ${C}Z; the page shows ${SHOWN:-nothing yet}; already on the page: $SKIP"
+          [ "$FORCE" = "true" ] && SHOWN=""                     # forced: no --newer-than either
+          { echo "cycle=$C"; echo "shown=$SHOWN"; echo "skip=$SKIP"; } >> "$GITHUB_OUTPUT"
+
   build:
+    needs: check
+    if: needs.check.outputs.skip != '1'
     runs-on: ubuntu-latest
     # Raised from 55 on 2026-08-29 with the wind maps going 6-hourly: that is
     # 40 leads instead of 10, so ~47% more field fetches on a job whose median
@@ -78,23 +127,17 @@ jobs:
         run: scripts/lib/fetch_frames_ci.sh assets/sst/anim/gdps_wind assets/sst/anim/gdps_outflow assets/sst/anim/gdps_ir
 
       - name: Build GDPS products
+        id: build
+        env:
+          C: ${{ needs.check.outputs.cycle }}
+          D: ${{ inputs.date }}
+          SHOWN: ${{ needs.check.outputs.shown }}
         run: |
-          # Which cycle this run is for is decided by WHICH cron fired, not by
-          # the clock. GitHub honours only a fraction of this repo's cron
-          # firings and delivers them hours late, so a 06:20 job routinely lands
-          # after 12:00 - deriving the cycle from the current time would then
-          # plot 12Z under the 00Z schedule and vice versa. github.event.schedule
-          # identifies the cron itself and is unaffected by the delay.
-          C="${{ inputs.cycle }}"
-          if [ -z "$C" ]; then
-            case "${{ github.event.schedule }}" in
-              '20 18 * * *') C=12 ;;
-              *)             C=00 ;;
-            esac
-          fi
           echo "GDPS cycle ${C}Z"
-          python scripts/sst/gdps_eq_charts.py --cycle "$C"
+          # --newer-than: the fallback to yesterday's run must not rebuild the run the page already shows
+          python scripts/sst/gdps_eq_charts.py --cycle "$C" ${D:+--date "$D"} ${SHOWN:+--newer-than "$SHOWN"}
       - name: Publish frames to the orphan branch
+        if: steps.build.outputs.built == '1'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -102,6 +145,7 @@ jobs:
             assets/sst/anim/gdps_outflow assets/sst/anim/gdps_ir
 
       - name: Commit & push
+        if: steps.build.outputs.built == '1'
         # Each run REPLACES the frame sets, so the frame count drifts between
         # builds and a rebase hits modify/delete conflicts that -X theirs
         # cannot resolve (bit the first run, 2026-08-25). Instead: move HEAD to

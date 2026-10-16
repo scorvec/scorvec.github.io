@@ -8,11 +8,12 @@ name: CanSIPS direct from ECCC (monthly, 12 months)
 #      Datamart publishes plus ECCC's own probability products, frames on the frames branch.
 # Data Source: Environment and Climate Change Canada (ECCC Data Servers End-use Licence).
 #
-# WHEN. ECCC posts an issue on the last day of the previous month (October 2026: 2026-09-30 15:22 UTC).
-# Actions honours only a fraction of cron firings, so this fires four times a day from the 28th to the
-# 12th and exits in a minute when nothing new is posted: cansips_dd.py compares the Datamart file
-# times with the ones the published JSON was built from. A late or half-posted issue (fewer than 12
-# WaterTemp leads) is simply not built yet; the page keeps the previous one.
+# WHEN. ECCC posts an issue on the last day of the previous month, the member fields last (July-October
+# 2026: 12:55-15:28 UTC). The laptop's readiness dispatcher sends `issue` as soon as the last WaterTemp
+# lead is up. The crons are the backstop: Actions honours only a fraction of them, so this fires four
+# times a day from the 28th to the 12th and exits in a minute when nothing new is posted: cansips_dd.py
+# compares the Datamart file times with the ones the published JSON was built from. A late or half-posted
+# issue (fewer than 12 WaterTemp leads) is simply not built yet; the page keeps the previous one.
 on:
   schedule:
   - cron: '35 2,8,14,20 28-31,1-12 * *'
