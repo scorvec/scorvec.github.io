@@ -10,7 +10,7 @@
      when drawn) with 8 % padding — the hindcast ±1σ band never sets the axis.
    - lines: sienna mean at width 4, members at 0.42 alpha / 1.0 px, observed black at 3,
      previous issues in a fixed navy → teal sequence with the dash telling the age.
-   - chrome: Inter 14, bold title top-left, legend above the plot, monthly ticks
+   - chrome: Source Sans 3 14, bold title top-left, legend above the plot, monthly ticks
      ("%b\n%Y"), firm zero line, light grid, unified hover with 2-decimal values, end
      labels on the current mean and on the last observed point.
 
@@ -26,6 +26,7 @@
 (function () {
   "use strict";
 
+  var SANS = '"Source Sans 3", system-ui, sans-serif';   // the site's text face (site.css loads it on every page)
   var C = {
     ink: "#1a1a1a", ink2: "#4a4744", muted: "#8a8680",
     grid: "#e8e6e0", rule: "#e2e0da", edge: "#c9c5bb", zero: "#666",
@@ -256,9 +257,9 @@
     }
     var L = {
       margin: { l: 62, r: 70, t: 84, b: 54 }, paper_bgcolor: "rgba(0,0,0,0)", plot_bgcolor: "#fff",
-      font: { family: "Inter, sans-serif", size: 14, color: C.ink }, showlegend: true,
+      font: { family: SANS, size: 14, color: C.ink }, showlegend: true,
       title: { text: o.title || "", x: 0, xanchor: "left", xref: "paper", y: 1, yref: "container", yanchor: "top",
-               pad: { t: 6 }, font: { family: "Inter, sans-serif", size: narrow ? 13 : 15, weight: 700, color: C.ink } },
+               pad: { t: 6 }, font: { family: SANS, size: narrow ? 13 : 15, weight: 600, color: C.ink } },
       legend: { orientation: "h", x: 0, xanchor: "left", y: 1.02, yanchor: "bottom", font: { size: narrow ? 11.5 : 12.5, color: C.ink2 },
                 itemwidth: 30, traceorder: "normal", bgcolor: "rgba(0,0,0,0)" },
       xaxis: xaxis,
@@ -266,7 +267,7 @@
                zeroline: true, zerolinecolor: C.zero, zerolinewidth: 1.6, tickfont: { size: 12.5, color: C.ink2 },
                range: o.yrange, fixedrange: false, automargin: true },
       hovermode: "x unified",
-      hoverlabel: { bgcolor: "#fff", bordercolor: C.edge, font: { family: "Inter, sans-serif", size: 12.5, color: C.ink }, align: "left" },
+      hoverlabel: { bgcolor: "#fff", bordercolor: C.edge, font: { family: SANS, size: 12.5, color: C.ink }, align: "left" },
       shapes: o.shapes || [], annotations: o.annotations || []
     };
     if (o.height) L.height = o.height;
@@ -284,7 +285,7 @@
         var color = (t.line && t.line.color) || C.ink;
         out.push({ x: t.x[i], y: v, xref: "x", yref: "y", text: fmt(v, t._labelDigits, t._labelSigned) + (t._labelUnits ? " " + t._labelUnits : ""),
                    showarrow: false, xanchor: "left", yanchor: "middle", xshift: 9,
-                   font: { family: "Inter, sans-serif", size: 12.5, color: color, weight: 700 },
+                   font: { family: SANS, size: 12.5, color: color, weight: 600 },
                    bgcolor: "rgba(255,255,255,0.85)", borderpad: 2 });
         break;
       }

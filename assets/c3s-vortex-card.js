@@ -48,7 +48,7 @@
     var narrow = el.offsetWidth < 620;
     return Object.assign({
       margin: { l: 56, r: 14, t: narrow ? 64 : 48, b: narrow ? 120 : 96 }, paper_bgcolor: "rgba(0,0,0,0)", plot_bgcolor: "rgba(0,0,0,0)",
-      font: { family: '"Source Sans 3", Inter, system-ui, sans-serif', size: 13, color: COL.ink },
+      font: { family: '"Source Sans 3", system-ui, sans-serif', size: 13, color: COL.ink },
       legend: { orientation: "h", x: 0, y: narrow ? -0.3 : -0.24, yanchor: "top", font: { size: 12 } },
       hovermode: "closest", hoverlabel: { bgcolor: "#fff", font: { size: 12 } }
     }, o, { title: { text: "<b>" + o.title + "</b>", x: 0.01, xanchor: "left", y: 0.98, yanchor: "top", font: { size: narrow ? 13 : 15 } } });

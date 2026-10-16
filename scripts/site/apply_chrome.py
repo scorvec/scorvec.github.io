@@ -580,7 +580,6 @@ FONT_BASE = (
 FONT_EXTRA = {
     "resume.html": ("DM+Mono:wght@400",),  # the dates and tags column (--mono)
     "skewt/index.html": ("Inter:wght@400;600;700", "Lora:wght@600"),  # the sounding canvas and its export (app.js)
-    "seasonal.html": ("Inter:wght@400;700",),  # the Plotly charts drawn by assets/outlook-charts.js
 }
 _FONT_TAG = re.compile(r'[ \t]*<link\b[^>]*\bhref="https://fonts\.(?:googleapis|gstatic)\.com[^"]*"[^>]*>[ \t]*\n?')
 
