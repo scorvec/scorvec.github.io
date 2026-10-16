@@ -5,6 +5,12 @@ name: AR deterministic IVT (AIFS, IFS, GFS, GDPS, days 1-7)
 # One job per model (sources: ECMWF open data from the Google Cloud mirror ONLY; GFS from AWS S3 byte ranges; GDPS
 # from the MSC Datamart), then one combine job publishes the frames and commits the manifest. A model whose cycle is
 # not out keeps its previous run on the page for up to 30 h (flagged). Fired by the dispatcher at 08:20/20:20.
+#
+# GDPS FIRST. The GDPS reaches +168 h on the Datamart ~4 h 30 min after its start (00Z: 04:30 UTC, 12Z: 16:31-17:06,
+# 10-16 Oct 2026), hours before the others, so the laptop's readiness dispatcher runs it alone (models=gdps) the moment
+# it is out: the page shows the new GDPS run beside the other models' previous one, flagged. The full run then skips
+# every model whose run of the cycle is already on the page (which also makes GitHub's late cron firings, repeating a
+# cycle the dispatcher ran, cost a minute instead of four model jobs).
 on:
   schedule:
     - cron: '20 8 * * *'
@@ -17,6 +23,13 @@ on:
       time:
         description: 'Cycle hour 00 or 12'
         default: ''
+      models:
+        description: 'Comma list of models (blank = aifs,ifs,gfs,gdps)'
+        default: ''
+      force:
+        description: 'Re-run models whose run of this cycle is already on the page'
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -35,24 +48,53 @@ jobs:
     outputs:
       date: ${{ steps.c.outputs.date }}
       time: ${{ steps.c.outputs.time }}
+      models: ${{ steps.c.outputs.models }}
     steps:
       - id: c
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          D: ${{ inputs.date }}
+          T: ${{ inputs.time }}
+          WANT: ${{ inputs.models }}
+          FORCE: ${{ inputs.force }}
         run: |
-          D="${{ github.event.inputs.date }}"; T="${{ github.event.inputs.time }}"
           if [ -z "$D" ] || [ -z "$T" ]; then
             H=$(date -u -d '-8 hours' +%H); D=$(date -u -d '-8 hours' +%Y%m%d)
             if [ "$H" -ge 12 ]; then T=12; else T=00; fi
           fi
           echo "date=$D" >> "$GITHUB_OUTPUT"; echo "time=$T" >> "$GITHUB_OUTPUT"; echo "cycle $D ${T}Z"
+          # main's CURRENT manifest (no checkout in this job): a model whose run of this cycle, or a newer one, is already
+          # on the page is not run again
+          gh api -H "Accept: application/vnd.github.raw" "repos/$GITHUB_REPOSITORY/contents/assets/ar/anim/ar_det_manifest.json?ref=main" \
+            > /tmp/man.json 2>/dev/null || { echo "::warning::main's manifest unreadable: running every model asked for"; echo '{}' > /tmp/man.json; }
+          python3 - "$D$T" "${WANT:-aifs,ifs,gfs,gdps}" "$FORCE" /tmp/man.json <<'PY' >> "$GITHUB_OUTPUT"
+          import json, sys
+          cyc, want, force, path = sys.argv[1:]
+          try:
+              have = json.load(open(path)).get("models", {})
+          except ValueError:
+              have = {}
+          init = f"{cyc[:4]}-{cyc[4:6]}-{cyc[6:8]}T{cyc[8:]}Z"
+          run = []
+          for m in want.split(","):
+              shown = have.get(m, {}).get("init", "")
+              if force != "true" and shown >= init:
+                  print(f"{m}: the page already shows its {shown} run", file=sys.stderr)
+              else:
+                  run.append(m)
+          print(f"models to run: {', '.join(run) or 'none'}", file=sys.stderr)
+          print("models=" + json.dumps(run))
+          PY
 
   model:
     needs: cycle
+    if: needs.cycle.outputs.models != '[]'
     runs-on: ubuntu-latest
     timeout-minutes: 75
     strategy:
       fail-fast: false
       matrix:
-        model: [aifs, ifs, gfs, gdps]
+        model: ${{ fromJSON(needs.cycle.outputs.models) }}
     env:
       MPLBACKEND: Agg
       SST_SITE_ROOT: ${{ github.workspace }}
@@ -88,7 +130,7 @@ jobs:
 
   publish:
     needs: [cycle, model]
-    if: ${{ !cancelled() }}
+    if: ${{ !cancelled() && needs.cycle.outputs.models != '[]' }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
     env:
@@ -109,6 +151,12 @@ jobs:
           set -euo pipefail
           [ -d art/work ] || { echo "::error::no model produced output"; exit 1; }
           cp -r art/assets/ar/. assets/ar/
+          # combine keeps the models this run did not make from main's CURRENT manifest, not the checkout's (a GDPS run
+          # published while this one was queued would otherwise be dropped)
+          M=assets/ar/anim/ar_det_manifest.json
+          if timeout 60 git fetch -q --depth 1 origin main && git show "FETCH_HEAD:$M" > /tmp/main_manifest.json 2>/dev/null; then
+            cp /tmp/main_manifest.json "$M"
+          else echo "::warning::could not read main's manifest; combining with the checkout's copy"; fi
           python - <<'PY'
           import sys; sys.path.insert(0, "scripts/ar")
           import ar_det, pathlib
@@ -125,7 +173,9 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          OUT="assets/ar/anim/ar_det_manifest.json $(ls assets/ar/det_coast_*.webp 2>/dev/null | tr '\n' ' ')"
+          # only the coast figures of the models this run made: this checkout's copies of the others may be older than main's
+          OUT="assets/ar/anim/ar_det_manifest.json"
+          for p in art/work/det_*.json; do m=$(basename "$p" .json); OUT="$OUT assets/ar/det_coast_${m#det_}.webp"; done
           SNAP=$(mktemp -d); tar cf "$SNAP/outs.tar" --ignore-failed-read $OUT 2>/dev/null || true
           for i in 1 2 3 4 5; do
             if ! timeout 120 git fetch origin main; then echo "fetch $i failed"; sleep 5; continue; fi
