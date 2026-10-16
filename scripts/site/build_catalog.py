@@ -58,7 +58,7 @@ TOPICS = [  # the theme-first menus (ids stable; labels = apply_chrome.PRODUCTS 
     (
         "drivers",
         "Global circulation and tropics",
-        "ENSO, the MJO, tropical cyclones, the jets and the atmosphere's angular momentum",
+        "ENSO, the MJO, tropical cyclones, the Walker and Hadley cells, the jets and the atmosphere's angular momentum",
     ),
     (
         "circulation",
@@ -142,16 +142,14 @@ PAGES = {
         horizon="Days 1–15",
         region=["Global"],
         groups={
+            "Tropical Pacific": dict(topic="drivers", region=["Pacific", "Tropics"]),
             "Mid-latitude weather": dict(topic="weather", region=["Pacific", "Northern Hemisphere"]),
             "Tropical cyclones": dict(topic="drivers", region=["Pacific", "North America"], prio=3),
             "Tropical circulation": dict(
-                topic="drivers", models=["AIFS-ENS", "IFS-ENS", "IMERG", "GPCP", "ERA5"], region=["Tropics"]
+                topic="drivers", models=["AIFS-ENS", "IFS-ENS", "GEFS", "IMERG", "GPCP", "ERA5"], region=["Tropics"]
             ),
-            "Angular momentum & torques": dict(topic="drivers", region=["Global"]),
+            "Jets & angular momentum": dict(topic="drivers", region=["Global"]),
         },
-        # per-product topic over the rail group's (the North Pacific jet sits in the page's
-        # "Mid-latitude weather" group but in the menus' "Global circulation and tropics")
-        products={"pacjet": dict(topic="drivers")},
     ),
     # "/snowbands.html" retired: its diagnostics are the "Winter: snow bands" maps of /models.html
     "/subseasonal.html": dict(
@@ -639,7 +637,6 @@ def stage_items(href: str, cfg: dict) -> list:
                     if thumb is None and fr:
                         src = frame_source(H.unescape(fr.group(1)), path.parent)
                         thumb = thumb_key(*src) if src else None
-            pcfg = {**gcfg, **cfg.get("products", {}).get(pid, {})}  # a product's own override, if any
             opts_text = " ".join(v[0] for v in variants)
             shows = " ".join([p["label"], g["label"], p.get("sub", ""), p.get("cap", ""), opts_text])
             blob = shows + " " + (about or elem)[:1500]
@@ -652,18 +649,18 @@ def stage_items(href: str, cfg: dict) -> list:
                     label=text_of(p["label"]),
                     sub=text_of(p.get("sub", "")),
                     url=f"{href}#{pid}",
-                    topic=pcfg.get("topic", cfg["topic"]),
-                    horizon=pcfg.get("horizon", cfg["horizon"]),
-                    models=tags(MODEL_RX, shows, pcfg.get("models", cfg["models"]), cfg.get("own_models", False)),
-                    regions=regions_of(shows, pcfg.get("region", cfg["region"])),
+                    topic=gcfg.get("topic", cfg["topic"]),
+                    horizon=gcfg.get("horizon", cfg["horizon"]),
+                    models=tags(MODEL_RX, shows, gcfg.get("models", cfg["models"]), cfg.get("own_models", False)),
+                    regions=regions_of(shows, gcfg.get("region", cfg["region"])),
                     variables=tags(VAR_RX, blob),
                     thumb=thumb,
                     cap=caption(text_of(p.get("cap", ""))),
                     kw=public(about or elem)[:600],
                     variants=variants,
                     live=True,
-                    tier=pcfg.get("tier", cfg["tier"]),
-                    prio=pcfg.get("prio", cfg["prio"]),
+                    tier=gcfg.get("tier", cfg["tier"]),
+                    prio=gcfg.get("prio", cfg["prio"]),
                     kind="chart" if p["kind"] == "dom" else "fig",
                 )
             )

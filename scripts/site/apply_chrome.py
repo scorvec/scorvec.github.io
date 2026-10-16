@@ -67,6 +67,12 @@ PRODUCTS = [
                         "Daily",
                     ),
                     (
+                        "/circulation.html#pacjet",
+                        "North Pacific jet",
+                        "250 hPa jet maps, the jet axis from every member, and the jet's extension and shift phases with what they usually bring downstream.",
+                        "Twice daily",
+                    ),
+                    (
                         "/circulation.html#waf",
                         "Wave activity flux",
                         "Takaya–Nakamura wave activity flux at 250 hPa, the ensemble's quasi-stationary wave trains.",
@@ -76,11 +82,11 @@ PRODUCTS = [
             ),
         ],
     ),
-    # the jets and angular momentum (the North Pacific jet, the subtropical jets, the AAM products) sit here with the
-    # tropics; the menu keeps a short label
+    # the subtropical jets and the angular-momentum products sit here with the tropics (the North Pacific jet is
+    # mid-latitude weather); the columns follow circulation.html's groups, and the menu keeps a short label
     (
         "Global circulation and tropics",
-        "ENSO, the MJO, tropical cyclones, the jets and the atmosphere's angular momentum",
+        "ENSO, the MJO, tropical cyclones, the Walker and Hadley cells, the jets and the atmosphere's angular momentum",
         [
             (
                 "ENSO and the MJO",
@@ -94,8 +100,14 @@ PRODUCTS = [
                     (
                         "/circulation.html#mslp",
                         "Pacific pressure and wind",
-                        "Sea-level pressure and 10 m wind over the Pacific from the AIFS and IFS ensembles, separately and blended, to day 15.",
+                        "Sea-level pressure and 10 m wind over the tropical and subtropical Pacific to day 15: the AIFS and IFS ensembles, separately and blended, and the AIFS, IFS and GDPS single runs.",
                         "Twice daily",
+                    ),
+                    (
+                        "/circulation.html#gdps_ir",
+                        "Simulated satellite (GDPS)",
+                        "Environment Canada's GDPS forecast drawn as an infrared satellite loop over the tropical Pacific, 3-hourly to day 10: the cold cloud tops are deep convection.",
+                        "Daily",
                     ),
                     (
                         "/mjo.html",
@@ -132,12 +144,6 @@ PRODUCTS = [
                 "Jets and momentum",
                 [
                     (
-                        "/circulation.html#pacjet",
-                        "North Pacific jet",
-                        "250 hPa jet maps, the jet axis from every member, and the jet's extension and shift phases with what they usually bring downstream.",
-                        "Twice daily",
-                    ),
-                    (
                         "/circulation.html#jets",
                         "Subtropical jets",
                         "Speed and latitude of each hemisphere's subtropical jet core in the AIFS ensemble against the normal, and the zonal-mean wind cross-section through the 15-day forecast.",
@@ -156,8 +162,14 @@ PRODUCTS = [
                 [
                     (
                         "/circulation.html#walker",
-                        "Walker and Hadley cells",
-                        "The tropical overturning circulation from the AIFS ensemble: the Walker circulation by ocean basin and the Hadley cells.",
+                        "Walker circulation",
+                        "The equatorial Walker circulation: every analysed week since July 2025 and the AIFS-ENS, IFS-ENS and GEFS forecasts to day 15 against ERA5, the circulation by ocean basin, and its weekly departure from Pacific forcing.",
+                        "Daily",
+                    ),
+                    (
+                        "/circulation.html#hadley",
+                        "Hadley cells",
+                        "The meridional overturning: every analysed week since July 2025 and three ensembles' forecasts to day 15 against ERA5, each cell's strength and poleward edge, and this season against every El Niño since 1963.",
                         "Daily",
                     ),
                     (
@@ -165,6 +177,12 @@ PRODUCTS = [
                         "Velocity potential",
                         "200 hPa velocity potential and the irrotational wind: where the tropics are venting and where they are subsiding.",
                         "Twice daily",
+                    ),
+                    (
+                        "/circulation.html#gdps150",
+                        "Upper-level outflow (GDPS)",
+                        "Environment Canada's GDPS 150 hPa wind and height to day 10: the outflow layer of the Hadley and Walker cells and the subtropical jets.",
+                        "Daily",
                     ),
                     (
                         "/circulation.html#gillrain",
@@ -195,19 +213,19 @@ PRODUCTS = [
                     (
                         "/stratosphere.html",
                         "Stratosphere and polar vortex",
-                        "Every stratosphere product in one place, by timescale: analyses and the QBO now; AIFS-ENS, IFS-ENS and GEFS vortex, heat flux and wave driving for the next two weeks; GEPS and GEFS to day 35; SEAS5's vortex and sudden-warming risk for the season; and every sudden warming since 1980 with what followed.",
+                        "Every stratosphere product in one place, by timescale: analyses and the QBO now; AIFS-ENS, IFS-ENS, GEFS and the Canadian models' vortex, heat flux and wave driving for the next two weeks; GEPS and GEFS to day 35; the C3S models and SEAS5 for the season; and every sudden warming since 1980 with what followed.",
                         "Twice daily",
                     ),
                     (
                         "/stratosphere.html#pv",
                         "Now: analyses and observations",
-                        "GEOS FP potential vorticity, the momentum budget and the Brewer–Dobson circulation, the water-vapour tape recorder, and the QBO from radiosondes.",
+                        "GEOS FP potential vorticity, the momentum budget and the Brewer–Dobson circulation, the water-vapour tape recorder and the QBO zero-wind line.",
                         "Daily",
                     ),
                     (
                         "/stratosphere.html#vortex",
                         "Next two weeks",
-                        "AIFS-ENS, IFS-ENS and GEFS: vortex winds, 100 hPa heat flux, E–P flux, wave-1, the upper stratosphere and the dripping paint to day 15.",
+                        "AIFS-ENS, IFS-ENS, GEFS and the Canadian models to day 15: vortex winds and polar-cap heights, 100 hPa heat flux, E–P flux, wave-1, the upper stratosphere and the dripping paint.",
                         "Twice daily",
                     ),
                     (
@@ -219,7 +237,7 @@ PRODUCTS = [
                     (
                         "/stratosphere.html#s5vortex",
                         "Season",
-                        "SEAS5's vortex, QBO and annular mode, sudden-warming risk against its own normal, and the polar-cap heights.",
+                        "The C3S multi-model December vortex, calibrated on its hindcasts; SEAS5's vortex, QBO and annular mode, sudden-warming risk and polar-cap heights; and this winter's odds from the QBO and ENSO.",
                         "Monthly",
                     ),
                     (
@@ -304,12 +322,6 @@ PRODUCTS = [
                         "/mjo.html#mi",
                         "MJO impacts",
                         "What each MJO phase has meant for temperature and rain, season by season, in CMIP6 models and the observed record. Significant results only.",
-                        "Static",
-                    ),
-                    (
-                        "/stratosphere.html#shwinters",
-                        "Stratosphere history",
-                        "Every northern winter and sudden warming since 1980 in MERRA-2, with 15,000 more from nine CMIP6 models: the dripping-paint composites and what usually follows at the surface.",
                         "Static",
                     ),
                     (
@@ -767,20 +779,20 @@ HOME = {
     "Mid-latitude weather": (
         "weather",
         "Storms, hazards and the flow aloft over the next two weeks",
-        ["/models.html", "/ar.html", "/circulation.html#dt", "/circulation.html#waf"],
+        ["/models.html", "/ar.html", "/circulation.html#dt", "/circulation.html#pacjet", "/circulation.html#waf"],
     ),
     "Global circulation and tropics": (
         "drivers",
-        "El Niño, the MJO, cyclones, the jets and the atmosphere's momentum",
+        "El Niño, the MJO, cyclones, the overturning cells, the jets and the atmosphere's momentum",
         [
             "/enso.html",
             "/mjo.html",
             "/tropical-waves.html",
             "/circulation.html#tcshear",
-            "/circulation.html#pacjet",
+            "/circulation.html#walker",
+            "/circulation.html#hadley",
             "/circulation.html#jets",
             "/circulation.html#aam",
-            "/circulation.html#walker",
         ],
     ),
     "Stratosphere": (
@@ -806,7 +818,6 @@ HOME = {
         [
             "/enso.html#imp_reg",
             "/mjo.html#mi",
-            "/stratosphere.html#shwinters",
             "/aifs-aam-budget.html",
             "/torque-enso.html",
             "/aifs-verify.html",
