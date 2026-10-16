@@ -93,7 +93,7 @@ def index_grib(path: Path) -> dict:
                     int(eccodes.codes_get(h, "level")),
                     int(eccodes.codes_get(h, "endStep")),
                 )
-                out[key] = eccodes.codes_get(h, "offset")
+                out[key] = int(eccodes.codes_get(h, "offset"))
             finally:
                 eccodes.codes_release(h)
     return out
