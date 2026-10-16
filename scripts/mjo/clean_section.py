@@ -28,6 +28,17 @@ def _label(d, h):
     return f"{d[:4]}-{d[4:6]}-{d[6:8]} {h}Z"
 
 
+def load_status() -> dict | None:
+    """The ENSO-removed forecast's diagnosis (run_rmm.py -> enso_rmm.diagnose), or None before the first one."""
+    return json.loads(STATUS.read_text()) if STATUS.exists() and _items() else None
+
+
+def _active_change(gr) -> str:
+    """'lowers' / 'raises' / 'changes' the share of active days, as the growth-phase validation cases say."""
+    d = [x["clean_f"]["active"] - x["raw"]["active"] for _, x in gr]
+    return "lowers" if all(v < 0 for v in d) else "raises" if all(v > 0 for v in d) else "changes"
+
+
 def clean_section() -> str:
     items = _items()
     if not items:
@@ -58,7 +69,8 @@ def clean_section() -> str:
     try:
         from enso_rmm import status_sentence
 
-        status = status_sentence(json.loads(STATUS.read_text())) if STATUS.exists() else ""
+        st = load_status()
+        status = status_sentence(st) if st else ""
     except Exception as e:  # noqa: BLE001
         print(f"clean_section: no status line ({type(e).__name__}: {e})", file=sys.stderr)
         status = ""
@@ -78,7 +90,7 @@ def clean_section() -> str:
         gr = [(k, x) for k, x in g.items() if "growth" in k]
         if gr:
             vtxt += (
-                " While an El Ni&ntilde;o grows, it lowers the share of &ldquo;active&rdquo; days: "
+                f" While an El Ni&ntilde;o grows, it {_active_change(gr)} the share of &ldquo;active&rdquo; days: "
                 + "; ".join(
                     f"{k.replace(' (growth)', '')} {x['raw']['active']:.2f} &rarr; {x['clean_f']['active']:.2f}"
                     for k, x in gr
@@ -89,11 +101,11 @@ def clean_section() -> str:
     return f"""
   <section id="mjo-clean" style="max-width:min(100%, calc((88vh - 70px) * 1259 / 1140));margin:2.5rem auto 0">
   <h2>MJO with the El Ni&ntilde;o signal removed</h2>
-  <p style="color:var(--muted);font-size:0.95rem;line-height:1.55;margin:0.4rem 0 0.8rem">Since 2014 the standard RMM no longer removes ENSO; in a strong El Ni&ntilde;o its standing
+  {f'<p style="font-size:0.95rem;line-height:1.55;margin:0.4rem 0 0.8rem">{status}</p>' if status else ""}
+  <p style="color:var(--muted);font-size:0.95rem;line-height:1.55;margin:0 0 1rem">Since 2014 the standard RMM no longer removes ENSO; in a strong El Ni&ntilde;o its standing
   convection projects onto phases 7&ndash;8 and masquerades as a stalled MJO. This is the same AIFS-ENS forecast
   (wind-only), observed track and IFS overlay with the part tied to the Ni&ntilde;o-3.4 change removed. Latest init:
   <strong>{_label(d, h)}</strong>.</p>
-  {f'<p style="font-size:0.95rem;line-height:1.55;margin:0 0 1rem">{status}</p>' if status else ""}
   <iframe class="anim-embed" src="sst_anim.html?embed=1&amp;base=assets&amp;manifest=mjo/rmmclean_manifest.json&amp;region=mjo"
     title="ENSO-removed wind-only RMM — successive runs animation" loading="lazy"></iframe>
   <details style="margin-top:1rem;font-size:0.92rem"><summary style="cursor:pointer;color:var(--accent)">How the El Ni&ntilde;o signal is removed</summary>
@@ -109,7 +121,7 @@ def clean_section() -> str:
   <p>The correction is linear, so it removes part of a growing El Ni&ntilde;o&rsquo;s projection, not all of it. The
   status line therefore also quotes NOAA&rsquo;s OLR-based real-time OMI (ROMI), which removes the previous 40 days and
   so is far less sensitive to slow signals: an independent check on whether a real MJO is present.
-  Wind-only (no precipitation channel), and no 12Z cycle offset correction, unlike the raw diagram above.</p>
+  Wind-only (no precipitation channel), and no 12Z cycle offset correction, unlike the RMM forecast view.</p>
   <p class="meta" style="margin-top:0.6rem;padding-top:0.6rem">Data: ECMWF AIFS-ENS and IFS-ENS open data (CC&nbsp;BY&nbsp;4.0);
   ERA5 (Copernicus C3S, ARCO); NOAA OISST v2.1 and ERSST v6 (NOAA NCEI / PSL); ROMI (NOAA PSL / CPC OLR);
   Bureau of Meteorology RMM for validation.</p>

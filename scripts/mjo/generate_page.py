@@ -15,8 +15,8 @@ from pathlib import Path
 
 import sys as _sys
 
-_sys.path.insert(0, str(Path(__file__).resolve().parent))
-from clean_section import clean_section  # the ENSO-removed RMM section
+_sys.path[:0] = [str(Path(__file__).resolve().parent), str(Path(__file__).resolve().parent / "src")]
+from clean_section import clean_section, load_status  # the ENSO-removed RMM section and its diagnosis
 
 ASSETS = Path("assets/mjo")
 OUT = Path("mjo.html")
@@ -291,30 +291,44 @@ def main():
     items = discover()
     updated = datetime.now(UTC).strftime("%Y-%m-%d %H:%MZ")
 
+    # One figure at a time on the shared stage viewer (assets/stage.js): the forecast animator is a frame product;
+    # the ENSO-removed and impacts sections mount whole, with their own controls (the impacts keep their
+    # #mi/f/d/m/l/v hash: ownHash). The section anchors #mjo-clean / #mjo-impacts are kept as aliases.
+    clean, impacts = clean_section(), impacts_section()
+    # The standard RMM keeps a changing ENSO in it. Its view always opens with the ENSO-removed verdict, and while
+    # the ENSO change over the filter window is large the ENSO-removed index is the page's first (default) figure.
+    st = load_status() if clean else None
+    verdict, clean_first = "", False
+    if st:
+        try:
+            from enso_rmm import ENSO_STRONG_DN34, raw_caption
+
+            verdict = raw_caption(st) + " "
+            clean_first = abs(st["dn34"]) >= ENSO_STRONG_DN34
+        except Exception as e:  # noqa: BLE001
+            print(f"  WARNING: no ENSO-removed verdict ({type(e).__name__}: {e})", flush=True)
+
     if items:
         d, h, _p = items[0]
         write_manifest(items)
         # Animator only (with the slider) — no separate static hero image. The iframe auto-sizes
         # to fit the plot + slider via the sstAnimHeight postMessage listener below.
-        body = (
-            f'  <p class="sub" style="margin-bottom:1rem">Latest init: <strong>{label(d, h)}</strong>.'
-            " Pick a figure from the rail: the AIFS-ENS forecast, the same forecast with the El Ni&ntilde;o"
+        body = f'  <p class="sub" style="margin-bottom:1rem">Latest init: <strong>{label(d, h)}</strong>.' + (
+            f" ENSO is changing fast (&Delta;Ni&ntilde;o-3.4 {st['dn34']:+.2f}&nbsp;K over the 120-day filter window),"
+            " which projects onto the standard RMM, so the forecast with the ENSO signal removed comes first. The rail"
+            " also has the standard AIFS-ENS forecast and what each phase has meant for temperature, rain and the"
+            " flow.</p>\n"
+            if clean_first
+            else " Pick a figure from the rail: the AIFS-ENS forecast, the same forecast with the El Ni&ntilde;o"
             " signal removed, and what each phase has meant for temperature, rain and the flow.</p>\n"
         )
     else:
         body = '<p class="empty">No forecasts yet — the first scheduled run will populate this page.</p>'
 
-    # One figure at a time on the shared stage viewer (assets/stage.js): the forecast animator is a frame product;
-    # the ENSO-removed and impacts sections mount whole, with their own controls (the impacts keep their
-    # #mi/f/d/m/l/v hash: ownHash). The section anchors #mjo-clean / #mjo-impacts are kept as aliases.
-    clean, impacts = clean_section(), impacts_section()
-    groups = [
-        {
-            "label": "Forecast",
-            "items": [["rmm", "RMM forecast", "AIFS-ENS against IFS-ENS, 15 days"]]
-            + ([["clean", "ENSO-removed index", "the El Ni\u00f1o signal taken out"]] if clean else []),
-        }
-    ]
+    fc_items = [["rmm", "RMM forecast", "standard index, ENSO not removed"]]
+    if clean:
+        fc_items.insert(0 if clean_first else 1, ["clean", "ENSO-removed index", "the ENSO signal taken out"])
+    groups = [{"label": "Forecast", "items": fc_items}]
     if impacts:
         groups.append(
             {"label": "Impacts", "items": [["mi", "Impacts by phase and season", "CMIP6 and observed composites"]]}
@@ -323,10 +337,16 @@ def main():
         "window.STAGE = { groups: " + json.dumps(groups) + ",\n"
         '  aliases: { "mjo-clean": "clean", "mjo-impacts": "mi" },\n'
         "  products: {\n"
-        '    rmm: { label: "AIFS-ENS RMM forecast, successive runs", about: "about-rmm",\n'
+        '    rmm: { label: "AIFS-ENS RMM forecast (ENSO not removed), successive runs", about: "about-rmm",\n'
         '           frame: function () { return "sst_anim.html?embed=1&base=assets&manifest=mjo/rmm_manifest.json&region=mjo"; },\n'
         '           ratio: function () { return "1259/1210"; },\n'
-        '           cap: function () { return "Drag the slider to step through successive forecast runs (oldest to latest) and watch the predicted MJO track evolve."; } },\n'
+        "           cap: function () { return "
+        + json.dumps(
+            verdict
+            + "Drag the slider to step through successive forecast runs (oldest to latest) and watch the predicted"
+            " MJO track evolve."
+        )
+        + "; } },\n"
         '    clean: { label: "MJO with the El Ni\u00f1o signal removed", dom: function () { return "mjo-clean"; } },\n'
         '    mi: { label: "MJO impacts by phase and season", ownHash: true, dom: function () { return "mjo-impacts"; } }\n'
         "  }\n};"

@@ -42,6 +42,16 @@ same frame the forecast is in.
 One property to read honestly: this projects the ENSEMBLE MEAN, so the
 amplitude damps with lead by construction as members decohere. A shrinking
 radius is loss of ensemble agreement, not a forecast that the MJO decays.
+A GROWING mean radius is the opposite case, a standing drift every member
+shares, so the live track is checked against the hindcast (track_check): a
+peak after day 10 beyond the 95th percentile of the hindcast's 4-member-mean
+peaks (2.8) is printed on the figure as model bias, with the hindcast's own
+verification of such peaks (240 starts: BoM averaged amplitude 1.9 on the same
+day against a forecast 3.1). It is state-dependent: in the strong El Nino
+autumn of 2015, 20 of 56 Sep-Nov starts went beyond it, their means drifting to
+negative RMM2 (day 35 -1.2 against BoM's -0.6) - a signal that grows after the
+init, which neither the unconditional hindcast climatology nor the 120-day
+filter can remove.
 
     python mjo_geps.py --cycle 20260827
 """
@@ -117,6 +127,12 @@ LIVE = paths.LIVE
 FIGS = paths.FIGS
 REF = _MJO / "data" / "reference"
 ANL_CACHE = paths.STATE / "mjo_analysis"  # band-mean U850/U200 of each day's GEPS lead-0 analysis
+HIND = paths.TC_REF / "mjo_hindcast.nc"  # mjo_hindcast.py: hindcast ensemble means projected as here, with BoM's RMM
+ENSO_DAILY = paths.REPO / "assets" / "sst" / "data" / "enso_daily.json"
+WARN = "#8b1a1a"
+TRACK_PCT = 95  # a mean-track peak after day 10 beyond this percentile of the hindcast's own peaks is flagged
+STRONG_NINO = 1.5  # deg C: from this Nino-3.4 the hindcast's one strong El Nino autumn is cited beside the flag
+NINO_AUTUMN = (2015, (9, 10, 11))  # Sep-Nov 2015, ONI +2.4: the strongest El Nino of the 2001-2020 hindcast
 
 LAT_MIN, LAT_MAX = -15.0, 15.0
 PHASE_LABEL = [
@@ -448,6 +464,61 @@ def rmm_members(cycle, base, clim, eofs, maps):
     return L, r1, r2
 
 
+def nino34_now() -> float | None:
+    """The latest daily OISST Nino-3.4 anomaly (assets/sst/data/enso_daily.json, deg C), or None without the file."""
+    import json
+
+    try:
+        v = [x for x in json.loads(ENSO_DAILY.read_text())["daily"]["nino34"] if x is not None]
+    except (OSError, KeyError, ValueError):
+        return None
+    return float(v[-1]) if v else None
+
+
+def track_check(L, r1, r2, nino34: float | None) -> list[str] | None:
+    """The live ensemble-mean track (days L) against the hindcast: when its peak amplitude after day 10 is beyond what
+    the hindcast's 4-member means reach on TRACK_PCT % of starts (a 21-member mean should reach less, as it damps
+    more), the figure says so with the hindcast's own verification of such peaks, and, from STRONG_NINO, how its
+    strong El Nino autumn behaved. Hindcast lead h (0.5, 1.5, ...) is day h + 0.5 here. -> footer lines, or None within range."""
+    if not HIND.exists():
+        print(f"  track check skipped: no {HIND.name}")
+        return None
+    d = xr.open_dataset(HIND)
+    hl = d.L.values.astype(float)
+    sel = np.where((hl >= 10.5) & (hl <= 34.5))[0]
+    f1, f2, o1, o2 = (d[v].values[:, sel].astype("float64") for v in ("f1", "f2", "o1", "o2"))
+    S = pd.DatetimeIndex(d.S.values)
+    d.close()
+    ok = np.isfinite(f1).all(1) & np.isfinite(o1).all(1)
+    a = np.hypot(f1, f2)
+    k = np.argmax(np.where(ok[:, None], a, -1.0), axis=1)
+    peak = a[np.arange(len(a)), k]
+    thr = float(np.percentile(peak[ok], TRACK_PCT))
+    days = np.asarray(L)
+    late = days > 10
+    amp = np.hypot(r1, r2)[late]
+    j = int(np.argmax(amp))
+    if amp[j] <= thr:
+        return None
+    hi = ok & (peak > thr)
+    seen = np.hypot(o1, o2)[np.arange(len(a)), k]
+    out = [
+        f"Model bias, not MJO strength: the mean track reaches amplitude {amp[j]:.1f} on day {int(days[late][j])}, "
+        f"beyond the {thr:.1f} that {TRACK_PCT} % of the hindcast's 4-member means stay within after day 10; on the "
+        f"{int(hi.sum())} hindcast starts that went beyond it, BoM's RMM averaged {seen[hi].mean():.1f} on the same day "
+        f"against a forecast {peak[hi].mean():.1f}."
+    ]
+    if nino34 is not None and nino34 >= STRONG_NINO:
+        y, mons = NINO_AUTUMN
+        en = ok & (S.year == y) & np.isin(S.month, mons)
+        out.append(
+            f"In its strong El Niño autumn (Sep–Nov {y}) {int((en & hi).sum())} of {int(en.sum())} starts went beyond "
+            f"it (against {100 - TRACK_PCT} % of all starts); their day-35 mean RMM2 was {f2[en, -1].mean():+.1f} "
+            f"against BoM's {o2[en, -1].mean():+.1f}."
+        )
+    return out
+
+
 def plot_phase(cycle: str, base: pd.Timestamp):
     clim = xr.open_dataset(REF / "climatology.nc")
     eofs = xr.open_dataset(REF / "eofs.nc")
@@ -457,12 +528,20 @@ def plot_phase(cycle: str, base: pd.Timestamp):
         print("  phase: missing a channel")
         return None
     L, r1, r2 = got
+    import textwrap
+
+    warn = track_check(L, r1, r2, nino34_now())
+    if warn:
+        print("  mean track flagged: " + " ".join(warn))
+    note = "\n".join(textwrap.fill(t, 108) for t in warn) if warn else ""
+    extra = 0.15 * (note.count("\n") + 1) + 0.05 if note else 0.0  # inches added below the wheel
+    H = 9.0 + extra
 
     # Same wheel the AIFS-ENS product draws (src/plot.py), so the two phase
     # diagrams on the site share one convention: phase 1 in the left sector,
     # numbering counterclockwise, West. Hem./Africa left and Indian Ocean bottom.
-    fig, ax = plt.subplots(figsize=(8.5, 9.0))
-    fig.subplots_adjust(left=0.082, right=0.978, top=0.938, bottom=0.145)
+    fig, ax = plt.subplots(figsize=(8.5, H))
+    fig.subplots_adjust(left=0.082, right=0.978, top=1 - 0.558 / H, bottom=(1.305 + extra) / H)
     plot.draw_phase_wheel(ax)
 
     # observed track: faint connector with points by month, as in plot.py
@@ -539,13 +618,15 @@ def plot_phase(cycle: str, base: pd.Timestamp):
     # the FIGURE width and happily ran this caption off both edges
     fig.text(
         0.5,
-        0.022,
+        (0.198 + extra) / H,
         "Three-field RMM (OLR + U850 + U200) · 21 members",
         ha="center",
         va="bottom",
         fontsize=9,
         color="#6f6b64",
     )
+    if note:
+        fig.text(0.5, 0.15 / H, note, ha="center", va="bottom", fontsize=8.6, color=WARN, linespacing=1.25)
     FIGS.mkdir(parents=True, exist_ok=True)
     p = FIGS / "geps_mjo_phase.webp"
     fig.savefig(p, dpi=110, facecolor="white", pil_kwargs={"quality": 90, "method": 6})
@@ -595,7 +676,7 @@ def plot_hovmoller(cycle: str, base: pd.Timestamp):
     filling the wind reads far better: the MJO's signature is the PHASE RELATION
     between the two — westerly anomalies trailing the convective envelope — and
     two filled panels side by side show that directly, where contours over a
-    filled field mostly just clutter it. Wind is in knots."""
+    filled field mostly just clutter it. Wind is in m/s, as on the maps."""
     olr, u850 = load("olr", cycle), load("u850", cycle)
     if olr is None or u850 is None:
         print("  hovmoller: missing olr or u850")
@@ -607,7 +688,7 @@ def plot_hovmoller(cycle: str, base: pd.Timestamp):
     # uniform offset moves the projection by <0.05 — but it dominates a plot.)
     olr = olr - xr.DataArray(olr.global_mean.values, dims="L", coords={"L": olr.L})
     O = band_mean(olr, lon)
-    U = band_mean(u850, lon) * 1.94384  # m/s -> knots
+    U = band_mean(u850, lon)  # m/s
     L = olr.L.values.astype(int)
 
     fig = plt.figure(figsize=(11.4, 9.2))
@@ -626,7 +707,7 @@ def plot_hovmoller(cycle: str, base: pd.Timestamp):
     axO.set_title("Convection — OLR anomaly", fontsize=11.5, fontweight="bold", pad=6)
     axU.set_title("850 hPa zonal wind anomaly", fontsize=11.5, fontweight="bold", pad=6)
 
-    for ax, m, lab in ((axO, mO, "OLR anomaly (W m⁻²)"), (axU, mU, "850 hPa u anomaly (knots)")):
+    for ax, m, lab in ((axO, mO, "OLR anomaly (W m⁻²)"), (axU, mU, "850 hPa u anomaly (m s⁻¹)")):
         bb = ax.get_position()
         cax = fig.add_axes([bb.x0 + 0.10 * bb.width, 0.042, 0.80 * bb.width, 0.015])
         cb = fig.colorbar(m, cax=cax, orientation="horizontal", extend="both")
@@ -643,7 +724,7 @@ def plot_hovmoller(cycle: str, base: pd.Timestamp):
     p = FIGS / "geps_mjo_hovmoller.webp"
     fig.savefig(p, dpi=110, facecolor="white", pil_kwargs={"quality": 90, "method": 6})
     plt.close(fig)
-    print(f"  {p.name}  OLR ±{limO:.0f} W/m², u850 ±{limU:.0f} kt")
+    print(f"  {p.name}  OLR ±{limO:.0f} W/m², u850 ±{limU:.1f} m/s")
     return p.name
 
 

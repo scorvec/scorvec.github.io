@@ -52,13 +52,21 @@ with the shift frozen at the init date (6-year subset), equal at day 1 and below
 GEFS's members are too active in RMM space: a member's RMM amplitude grows from 1.03x the observed at day 1 to 1.5x by
 day 20-35 (reforecast, 4 members), so a few-member mean still reads ~1.05-1.15x and the 31-member mean track can sit
 well outside the unit circle at long lead. The skill figure's amplitude panel shows it; nothing here rescales it.
+The live mean track is checked against the reforecast instead (track_check): a peak after day 10 beyond the 95th
+percentile of the reforecast's 4-member-mean peaks (3.4) is printed on the figure as model bias, with the verification
+of such peaks (on the 52 reforecast starts that went beyond it BoM averaged amplitude 2.0 on the same day against a
+forecast 3.8). The excess is state-dependent: in the strong El Nino autumn of 2015, 4 of 13 Sep-Nov starts went
+beyond it, their means drifting to negative RMM2 (day 35 -1.3 against BoM's -0.7) - a standing signal that grows
+after the init, which neither the unconditional reforecast climatology nor the 120-day filter of the analyses can
+remove.
 
 Model climatology: the band means of the reforecast climatology (gefs-clim-v1 `band`, or the 15S-15N rows of v2's
 daily fields), packed per 5-day centre into the reference file by build_gefs_mjo.py and read at the init day of
 year exactly as gefs_live.clim_at reads the maps (linear between the two centres around it).
 
 The ENSEMBLE MEAN is projected for the bold track; its amplitude damps with lead as members decohere - a shrinking
-radius is loss of agreement, not a forecast that the MJO decays. The plume is every member projected alike.
+radius is loss of agreement, not a forecast that the MJO decays. A GROWING mean radius is the opposite case: every
+member shares the same standing drift (track_check above). The plume is every member projected alike.
 
     python gefs_mjo.py --npz /tmp/gefs_work/gefs2_20260925.npz --date 20260925 --site . --cache /tmp/gefs_work/clim \
         [--ref DIR]      # DIR holds gefs_mjo_ref.npz + gefs_mjo_hindcast.npz (release gefs-ref-v1); default: cache
@@ -90,6 +98,10 @@ TRACK_DAYS = 40  # observed track shown
 MAP_DAYS = 120  # WH04 low-frequency filter
 MAP_MIN = 110  # days of the 120 that must exist (olr_channel's min_periods)
 MUTED = "#6f6b64"
+WARN = "#8b1a1a"
+TRACK_PCT = 95  # a mean-track peak after day 10 beyond this percentile of the reforecast's own peaks is flagged
+STRONG_NINO = 1.5  # deg C: from this Nino-3.4 the reforecast's one strong El Nino autumn is cited beside the flag
+NINO_AUTUMN = (2015, (9, 10, 11))  # Sep-Nov 2015, ONI +2.4: the strongest El Nino of the 2000-2019 reforecast
 # ECMWF extended range, for the reference marks - GEPS's values, drawn exactly as there (mjo_hindcast.py): published
 # bivariate-correlation skill of the ECMWF reforecasts (Vitart 2017, QJRMS 143:2210, Fig. 2, and the ECMWF annual
 # verification memoranda): COR 0.6 at about day 27 in the 2016 cycle and near day 30 by the 2020s; 0.5 around day 33.
@@ -331,6 +343,52 @@ def forecast_channels(band: np.ndarray, init: dt.date, ref: dict, map_now: np.nd
     return np.moveaxis(ch, 2, 1), anom
 
 
+def nino34_now(site: Path) -> float | None:
+    """The latest daily OISST Nino-3.4 anomaly (assets/sst/data/enso_daily.json, deg C), or None without the file."""
+    p = Path(site) / "assets" / "sst" / "data" / "enso_daily.json"
+    try:
+        v = [x for x in json.loads(p.read_text())["daily"]["nino34"] if x is not None]
+    except (OSError, KeyError, ValueError):
+        return None
+    return float(v[-1]) if v else None
+
+
+def track_check(hind_path: Path, r1: np.ndarray, r2: np.ndarray, nino34: float | None) -> list[str] | None:
+    """The live ensemble-mean track against the reforecast (the same projection, gefs_mjo_hindcast.npz): when its
+    peak amplitude after day 10 is beyond what the reforecast's 4-member means reach on TRACK_PCT % of starts (a
+    31-member mean should reach less, as it damps more), the figure says so with the reforecast's own verification of
+    such peaks, and, from STRONG_NINO, how its strong El Nino autumn behaved. -> footer lines, or None within range."""
+    z = np.load(hind_path)
+    fm1, fm2 = z["fm1"].astype("float64"), z["fm2"].astype("float64")
+    o1, o2 = z["o1"].astype("float64"), z["o2"].astype("float64")
+    ok = np.isfinite(fm1).all((1, 2)) & np.isfinite(o1).all(1)
+    a = np.hypot(fm1.mean(1), fm2.mean(1))[:, 10:]
+    k = np.argmax(np.where(ok[:, None], a, -1.0), axis=1)
+    peak = a[np.arange(len(a)), k]
+    thr = float(np.percentile(peak[ok], TRACK_PCT))
+    amp = np.hypot(r1, r2)[10:]
+    j = int(np.argmax(amp))
+    if amp[j] <= thr:
+        return None
+    hi = ok & (peak > thr)
+    seen = np.hypot(o1, o2)[:, 10:][np.arange(len(a)), k]
+    out = [
+        f"Model bias, not MJO strength: the mean track reaches amplitude {amp[j]:.1f} on day {j + 11}, beyond the "
+        f"{thr:.1f} that {TRACK_PCT} % of the reforecast's 4-member means stay within after day 10; on the {int(hi.sum())} "
+        f"reforecast starts that went beyond it, BoM's RMM averaged {seen[hi].mean():.1f} on the same day against a "
+        f"forecast {peak[hi].mean():.1f}."
+    ]
+    if nino34 is not None and nino34 >= STRONG_NINO:
+        y, mons = NINO_AUTUMN
+        en = ok & np.array([s[:4] == str(y) and int(s[5:7]) in mons for s in z["starts"]])
+        out.append(
+            f"In its strong El Niño autumn (Sep–Nov {y}) {int((en & hi).sum())} of {int(en.sum())} starts went beyond "
+            f"it (against {100 - TRACK_PCT} % of all starts); their day-35 mean RMM2 was {fm2.mean(1)[en, -1].mean():+.1f} "
+            f"against BoM's {o2[en, -1].mean():+.1f}."
+        )
+    return out
+
+
 # ── figures ───────────────────────────────────────────────────────────────────────────────────────────────────
 def _plt():
     import matplotlib
@@ -399,16 +457,20 @@ def draw_phase_wheel(ax, radius: float = 4.0, amp_rings=(1, 2, 3)):
     ax.set_ylabel("RMM2", fontsize=11)
 
 
-def plot_phase(init, odates, or1, or2, m1, m2, n_members, out: Path):
+def plot_phase(init, odates, or1, or2, m1, m2, n_members, out: Path, warn: list[str] | None = None):
     """m1, m2: (members, 35) RMM per member; the bold track is the ensemble mean's (= the mean of the members' RMM,
-    the projection being linear)."""
+    the projection being linear). warn: track_check's lines, printed under the footer (the figure grows to fit)."""
     plt = _plt()
+    import textwrap
     import matplotlib.colors as mcolors
 
     r1, r2 = m1.mean(0), m2.mean(0)
     L = np.arange(1, m1.shape[1] + 1)
-    fig, ax = plt.subplots(figsize=(8.5, 9.0))
-    fig.subplots_adjust(left=0.082, right=0.978, top=0.938, bottom=0.145)
+    note = "\n".join(textwrap.fill(t, 108) for t in warn) if warn else ""
+    extra = 0.15 * (note.count("\n") + 1) + 0.05 if note else 0.0  # inches added below the wheel
+    H = 9.0 + extra
+    fig, ax = plt.subplots(figsize=(8.5, H))
+    fig.subplots_adjust(left=0.082, right=0.978, top=1 - 0.558 / H, bottom=(1.305 + extra) / H)
     draw_phase_wheel(ax)
     ax.plot(or1, or2, color="0.55", lw=1.0, alpha=0.75, zorder=5)
     months = [d.strftime("%Y-%m") for d in odates]
@@ -457,7 +519,7 @@ def plot_phase(init, odates, or1, or2, m1, m2, n_members, out: Path):
     ax.set_title(f"GEFS Ensemble RMM  —  Init: {init:%Y-%m-%d} 00Z", fontsize=13, fontweight="bold")
     fig.text(
         0.5,
-        0.022,
+        (0.198 + extra) / H,
         f"Three-field RMM (OLR + U850 + U200) · {n_members} members\n"
         "observed track: GEFS's own analysis, each day filtered by the 120 days before it",
         ha="center",
@@ -465,6 +527,8 @@ def plot_phase(init, odates, or1, or2, m1, m2, n_members, out: Path):
         fontsize=9,
         color=MUTED,
     )
+    if note:
+        fig.text(0.5, 0.15 / H, note, ha="center", va="bottom", fontsize=8.6, color=WARN, linespacing=1.25)
     p = out / "gefs_mjo_phase.webp"
     fig.savefig(p, dpi=110, facecolor="white", pil_kwargs={"quality": 90, "method": 6})
     plt.close(fig)
@@ -516,7 +580,7 @@ def plot_hovmoller(init, anom_mean, olr_offset, out: Path):
     uniform OLR offset removed per lead (the live run's global-mean OLR anomaly), as GEPS does."""
     plt = _plt()
     O = anom_mean[0] - olr_offset[:, None]
-    U = anom_mean[2] * 1.94384  # m/s -> knots
+    U = anom_mean[2]  # m/s, as on every other figure of the site
     lon, L = R.LON, np.arange(1, O.shape[0] + 1)
     fig = plt.figure(figsize=(11.4, 9.2))
     left, right, bot, top = 0.062, 0.918, 0.108, 0.885
@@ -532,7 +596,7 @@ def plot_hovmoller(init, anom_mean, olr_offset, out: Path):
     axU.set_yticklabels([])
     axO.set_title("Convection — OLR anomaly", fontsize=11.5, fontweight="bold", pad=6)
     axU.set_title("850 hPa zonal wind anomaly", fontsize=11.5, fontweight="bold", pad=6)
-    for ax, m, lab in ((axO, mO, "OLR anomaly (W m⁻²)"), (axU, mU, "850 hPa u anomaly (knots)")):
+    for ax, m, lab in ((axO, mO, "OLR anomaly (W m⁻²)"), (axU, mU, "850 hPa u anomaly (m s⁻¹)")):
         bb = ax.get_position()
         cax = fig.add_axes([bb.x0 + 0.10 * bb.width, 0.042, 0.80 * bb.width, 0.015])
         cb = fig.colorbar(m, cax=cax, orientation="horizontal", extend="both")
@@ -548,7 +612,7 @@ def plot_hovmoller(init, anom_mean, olr_offset, out: Path):
     p = out / "gefs_mjo_hovmoller.webp"
     fig.savefig(p, dpi=110, facecolor="white", pil_kwargs={"quality": 90, "method": 6})
     plt.close(fig)
-    print(f"  {p.name}  OLR ±{limO:.0f} W/m², u850 ±{limU:.0f} kt", flush=True)
+    print(f"  {p.name}  OLR ±{limO:.0f} W/m², u850 ±{limU:.1f} m/s", flush=True)
     return p.name
 
 
@@ -855,7 +919,10 @@ def main() -> int:
     )
     ch, anom = forecast_channels(band, init, ref, map_now)
     m1, m2 = channels_rmm(ch, ref)  # (M, 35)
-    names = [plot_phase(init, odates, or1, or2, m1, m2, n, out)]
+    warn = track_check(ref_path(HIND_FILE, dirs), m1.mean(0), m2.mean(0), nino34_now(Path(a.site)))
+    if warn:
+        print("  mean track flagged: " + " ".join(warn), flush=True)
+    names = [plot_phase(init, odates, or1, or2, m1, m2, n, out, warn)]
     off = live_olr_offset(z, init, cache)
     print(f"  OLR offset vs reforecast (global mean, by week): {', '.join(f'{x:+.1f}' for x in off[::7])} W/m2")
     names.append(plot_hovmoller(init, anom.mean(0), off, out))

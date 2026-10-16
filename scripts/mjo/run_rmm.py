@@ -149,7 +149,14 @@ def main() -> None:
     # 4. Plot
     Path(args.out_dir).mkdir(parents=True, exist_ok=True)
     out_png = Path(args.out_dir) / f"rmm_{args.date}_{args.time}z.png"
-    plot_rmm(rmm, obs=obs, out_path=out_png, ifs=rmm_ifs)
+    d0 = f"{args.date[:4]}-{args.date[4:6]}-{args.date[6:8]} {args.time}Z"
+    plot_rmm(
+        rmm,
+        obs=obs,
+        out_path=out_png,
+        ifs=rmm_ifs,
+        title=f"ENSO not removed: RMM{' (AIFS vs IFS)' if rmm_ifs is not None else ' (AIFS)'}  —  Init: {d0}",
+    )
 
     # 4b. ENSO-removed wind-only RMM (src/enso_rmm.py): same members, observed tail and IFS overlay, minus the
     #     part linearly related to the Nino-3.4 change over the filter window. Best-effort: a failure here never
@@ -167,7 +174,6 @@ def main() -> None:
         rc = enso_rmm.clean_forecast(rmm, dn, c, "AIFS")
         ic = enso_rmm.clean_forecast(rmm_ifs, dn, c, "IFS") if rmm_ifs is not None else None
         oc = enso_rmm.clean_obs(obs, n34, c)
-        d0 = f"{args.date[:4]}-{args.date[4:6]}-{args.date[6:8]} {args.time}Z"
         plot_rmm(
             rc,
             obs=oc,
