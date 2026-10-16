@@ -760,7 +760,7 @@ def main() -> int:
     <li><b>ERA5</b> (Hersbach et al., 2020) from the ARCO-ERA5 store on Google Cloud (Carver and Merose, 2023), read in GitHub Actions: surface pressure, the
     turbulent and gravity-wave surface stresses and the vertical integral of eastward mass flux (an exact full-column wind term).
     Data are at 00, 06, 12 and 18 UTC from 1 January 1959 to 3 October 2026 (24,748 days, none missing); the last two to three months are ECMWF's preliminary ERA5T release. Four times a day rather than
-    two, because at 00 and 12 UTC the semidiurnal pressure tide has the same phase and a twice-daily mean aliases it. The mass term
+    two, for the reason in section 8. The mass term
     of $M$ comes from surface pressure. For 2026 the fields were also read hourly from 1 March. The analysis period is 1979–2025,
     with 1959–2025 as a sensitivity test.</li>
     <li><b>Torques</b> are the site's: friction $-a^3\\cos^2\\varphi\\,\\tau_\\lambda$, gravity-wave drag likewise from ERA5's own
@@ -1061,11 +1061,12 @@ def main() -> int:
   <p><b>The persistent residual, and the −4.5 Hadley figure.</b> Averaged over 1991–2020 at four times a day, ERA5's torques sum to
   {num(fsum, 1)} Hadley while angular momentum has no trend; hourly in 2026 the residual is {num(cl["1"]["mean_R"], 1)} Hadley. Until
   12 October 2026 the site's torque products (<code>build_torque_clim.py</code> and the
-  <a href="/topics/mountain-torque.html">mountain torque explainer</a>) quoted −4.5 ± 0.7 Hadley, from 12 UTC samples alone. At that
-  hour the semidiurnal tide adds about +4 Hadley to the mountain torque, and friction is far weaker than at 06 UTC, when the
-  daytime boundary layer over Asia is strongest:</p>
+  <a href="/topics/mountain-torque.html">mountain torque explainer</a>) quoted −4.5 ± 0.7 Hadley, from 12 UTC samples alone. At 00 and
+  12 UTC the semidiurnal pressure tide has the same phase, so samples at those hours alias it: at 12 UTC it adds about +4 Hadley
+  to the mountain torque, and friction is far weaker than at 06 UTC, when the daytime boundary layer over Asia is strongest:</p>
   {t_hours}
-  <p>ERA5's real imbalance is therefore about two and a half times the figure once quoted. It sits in the mean and cancels in
+  <p>Four times a day removes the tide, and hourly sampling the rest (the four-versus-24 offsets are below 0.2 Hadley).
+  ERA5's real imbalance is therefore about two and a half times the figure once quoted. It sits in the mean and cancels in
   anomalies, so the anomaly products were never affected.</p>
 
   <h2>9. How this fits with earlier work</h2>
@@ -1106,8 +1107,6 @@ def main() -> int:
     correlate at 0.96 or better with the 0.25° values, and their ENSO regressions barely change (global +1.00, +1.07 and +0.99
     Hadley per kelvin). Anomalies from CMIP6's 1–2.5° grids are therefore comparable with ERA5's; absolute values are not. The Andes
     DJF standing shift at 2.5° is +2.1 Hadley ({pval(0.009)}), short of the FDR.</li>
-    <li><b>Tide aliasing.</b> Sampling at 00 and 12 UTC keeps the semidiurnal tide; four times a day removes it, and hourly removes
-    the rest (the four-versus-24 offsets are below 0.2 Hadley).</li>
     <li><b>What CMIP6's <code>tauu</code> is.</b> It is the boundary-layer surface stress; the Met Office models state that it
     includes turbulent form drag from small hills. Orographic gravity-wave drag is reported separately (<code>utendogw</code>, in
     {n_gwd} models). ERA5's turbulent stress likewise includes turbulent orographic form drag. Gravity-wave drag's part in the El Niño
@@ -1220,7 +1219,7 @@ def main() -> int:
     }
     aam = site / "aifs-aam-budget.html"
     style = aam.read_text().split("<style>", 1)[1].split("</style>", 1)[0]
-    style += "\n  .study code { font-size: 0.9em; }\n"
+    style += "\n  .study code { font-size: 0.9em; }\n  .refs li { overflow-wrap: anywhere; }   /* long DOI links wrap on a phone */\n"
     lb = aam.read_text().split("</main>", 1)[1].split("<!-- sf:start -->", 1)[0].strip()
     page = f"""<!DOCTYPE html>
 <html lang="en">

@@ -79,7 +79,7 @@
   table.res tr.diff th, table.res tr.diff td { font-weight: 600; }
   .ns { color: #6f6b64; font-style: italic; font-weight: 400 !important; }
   .sig { color: #6f6b64; font-weight: 400; font-size: 0.85em; }
-  .refs { font-size: 0.95em; } .refs li { margin: 0.4rem 0; overflow-wrap: anywhere; }   /* long DOI links wrap on a phone */
+  .refs { font-size: 0.95em; } .refs li { margin: 0.4rem 0; }
   .credits { font-size: 0.92em; }
   .byline { color: #6f6b64; font-size: 0.92em; margin-top: 2.2rem; }
   #lb { position: fixed; inset: 0; background: rgba(20, 22, 18, 0.88); display: none; align-items: center; justify-content: center;
@@ -89,6 +89,7 @@
   @media (max-width: 600px) { .study { padding: 1.2rem 1rem 2.5rem; } table.res { font-size: 0.85em; } }
 
   .study code { font-size: 0.9em; }
+  .refs li { overflow-wrap: anywhere; }   /* long DOI links wrap on a phone */
 </style>
 <script data-goatcounter="https://scorvec.goatcounter.com/count" async src="https://gc.zgo.at/count.v4.js" integrity="sha384-nRw6qfbWyJha9LhsOtSb2YJDyZdKvvCFh0fJYlkquSFjUxp9FVNugbfy8q1jdxI+" crossorigin="anonymous"></script>
 </head>
@@ -344,7 +345,7 @@
     <li><b>ERA5</b> (Hersbach et al., 2020) from the ARCO-ERA5 store on Google Cloud (Carver and Merose, 2023), read in GitHub Actions: surface pressure, the
     turbulent and gravity-wave surface stresses and the vertical integral of eastward mass flux (an exact full-column wind term).
     Data are at 00, 06, 12 and 18 UTC from 1 January 1959 to 3 October 2026 (24,748 days, none missing); the last two to three months are ECMWF's preliminary ERA5T release. Four times a day rather than
-    two, because at 00 and 12 UTC the semidiurnal pressure tide has the same phase and a twice-daily mean aliases it. The mass term
+    two, for the reason in section 8. The mass term
     of $M$ comes from surface pressure. For 2026 the fields were also read hourly from 1 March. The analysis period is 1979–2025,
     with 1959–2025 as a sensitivity test.</li>
     <li><b>Torques</b> are the site's: friction $-a^3\cos^2\varphi\,\tau_\lambda$, gravity-wave drag likewise from ERA5's own
@@ -451,10 +452,10 @@
   Rockies DJF +0.75, 84%) while the synoptic counts are not. Two cells go the other way, with fewer
   events than the shift alone gives: the Himalaya/Tibet in spring (−1.69 [−2.50, −0.78]) and
   Greenland in SON (−1.33), both significant after the FDR.</p>
-  <figure id='fig6'><a href='/studies/torque-enso/slp_on_oni.webp' class='zoom'><img src='/studies/torque-enso/slp_on_oni.webp' width='774' height='818' alt="Global maps of seasonal-mean sea-level pressure regressed on the ONI for DJF and MAM, with the Himalaya, Rockies and Andes boxes outlined" loading='lazy'></a><figcaption><b>Figure 6.</b> The mechanism. ERA5 1991–2020 seasonal-mean sea-level pressure regressed on the ONI, shaded only where significant (FDR 10%). In DJF the deeper Aleutian low lowers pressure west of the Rockies and the weaker southeast Pacific high lowers it west of the Andes; over South America the rise is significant only in the east, over Brazil. Pressure ends up higher on the east side of both ranges, a positive torque. In MAM, pressure rises over India and the Philippine Sea. Contours (every 0.5 hPa per unit ONI, dashed where negative) show all values.</figcaption></figure>
+  <figure id='fig6'><a href='/studies/torque-enso/slp_on_oni.webp' class='zoom'><img src='/studies/torque-enso/slp_on_oni.webp' alt="Global maps of seasonal-mean sea-level pressure regressed on the ONI for DJF and MAM, with the Himalaya, Rockies and Andes boxes outlined" width='774' height='818' loading='lazy'></a><figcaption><b>Figure 6.</b> The mechanism. ERA5 1991–2020 seasonal-mean sea-level pressure regressed on the ONI, shaded only where significant (FDR 10%). In DJF the deeper Aleutian low lowers pressure west of the Rockies and the weaker southeast Pacific high lowers it west of the Andes; over South America the rise is significant only in the east, over Brazil. Pressure ends up higher on the east side of both ranges, a positive torque. In MAM, pressure rises over India and the Philippine Sea. Contours (every 0.5 hPa per unit ONI, dashed where negative) show all values.</figcaption></figure>
 
   <h2>5. Which comes first</h2>
-  <figure id='fig7'><a href='/studies/torque-enso/q3_lead_lag.webp' class='zoom'><img src='/studies/torque-enso/q3_lead_lag.webp' width='752' height='705' alt="Four panels of lagged correlation between each range's synoptic mountain torque and the global angular momentum tendency, the global angular momentum and the zonal-mean subtropical 200 hPa wind" loading='lazy'></a><figcaption><b>Figure 7.</b> Lagged correlation of each range's synoptic torque with the global tendency of angular momentum, global angular momentum and the zonal-mean 200 hPa wind at 25–40° in the same hemisphere (all &lt;30-day parts). Dots: significant, with effective sample size after Bretherton et al. (1999; here 1,070 to 2,330 days) and the FDR over lags.</figcaption></figure>
+  <figure id='fig7'><a href='/studies/torque-enso/q3_lead_lag.webp' class='zoom'><img src='/studies/torque-enso/q3_lead_lag.webp' alt="Four panels of lagged correlation between each range's synoptic mountain torque and the global angular momentum tendency, the global angular momentum and the zonal-mean subtropical 200 hPa wind" width='752' height='705' loading='lazy'></a><figcaption><b>Figure 7.</b> Lagged correlation of each range's synoptic torque with the global tendency of angular momentum, global angular momentum and the zonal-mean 200 hPa wind at 25–40° in the same hemisphere (all &lt;30-day parts). Dots: significant, with effective sample size after Bretherton et al. (1999; here 1,070 to 2,330 days) and the FDR over lags.</figcaption></figure>
   <p>Day by day (Figure 7), high torque follows a few days of low global angular momentum (lowest correlation
   −0.30 at lags of −2 to
   −4 days) and comes before a rise (up to +0.45,
@@ -463,7 +464,7 @@
   DJF shows almost nothing. Before Andes torque the jet is slightly weaker (r = −0.11, 1 day before). That the torque
   leads angular momentum follows from the budget itself; the jet result says the torque is not a response to a jet that is
   already stronger, but the jet's response is small (about 2% of its day-to-day variance).</p>
-  <figure id='fig8'><a href='/studies/torque-enso/q3_z500_precursors.webp' class='zoom'><img src='/studies/torque-enso/q3_z500_precursors.webp' width='755' height='886' alt="Maps of 500 hPa height one to three days before positive torque events over the Himalaya, Rockies and Andes in DJF, for all events and for El Niño minus neutral" loading='lazy'></a><figcaption><b>Figure 8.</b> The precursor. 500 hPa height (&lt;30-day part) averaged 3 to 1 days before positive events, all events (left) and El Niño minus neutral (right), shaded only where significant (FDR 10% over the map; contours every 10 m show all values).</figcaption></figure>
+  <figure id='fig8'><a href='/studies/torque-enso/q3_z500_precursors.webp' class='zoom'><img src='/studies/torque-enso/q3_z500_precursors.webp' alt="Maps of 500 hPa height one to three days before positive torque events over the Himalaya, Rockies and Andes in DJF, for all events and for El Niño minus neutral" width='755' height='886' loading='lazy'></a><figcaption><b>Figure 8.</b> The precursor. 500 hPa height (&lt;30-day part) averaged 3 to 1 days before positive events, all events (left) and El Niño minus neutral (right), shaded only where significant (FDR 10% over the map; contours every 10 m show all values).</figcaption></figure>
   <p>The precursor is the textbook one for a lee-side surge: a ridge upstream and poleward of the range and a trough downstream.
   It sits over the Urals and northern China for the Himalaya, Alaska and the central United States for the Rockies, and southern
   Chile and the southwest Atlantic for the Andes (57%, 50% and
@@ -645,11 +646,12 @@
   <p><b>The persistent residual, and the −4.5 Hadley figure.</b> Averaged over 1991–2020 at four times a day, ERA5's torques sum to
   −11.3 Hadley while angular momentum has no trend; hourly in 2026 the residual is +15.6 Hadley. Until
   12 October 2026 the site's torque products (<code>build_torque_clim.py</code> and the
-  <a href="/topics/mountain-torque.html">mountain torque explainer</a>) quoted −4.5 ± 0.7 Hadley, from 12 UTC samples alone. At that
-  hour the semidiurnal tide adds about +4 Hadley to the mountain torque, and friction is far weaker than at 06 UTC, when the
-  daytime boundary layer over Asia is strongest:</p>
+  <a href="/topics/mountain-torque.html">mountain torque explainer</a>) quoted −4.5 ± 0.7 Hadley, from 12 UTC samples alone. At 00 and
+  12 UTC the semidiurnal pressure tide has the same phase, so samples at those hours alias it: at 12 UTC it adds about +4 Hadley
+  to the mountain torque, and friction is far weaker than at 06 UTC, when the daytime boundary layer over Asia is strongest:</p>
   <div class='tw'><table class='res'><thead><tr><th>ERA5 1991–2020 mean (Hadley)</th><th>00Z</th><th>06Z</th><th>12Z</th><th>18Z</th><th>mean of the four</th></tr></thead><tbody><tr><th scope='row'>mountain</th><td>−1.3</td><td>+1.0</td><td>+5.0</td><td>−0.5</td><td>+1.1</td></tr><tr><th scope='row'>friction</th><td>−9.6</td><td>−14.0</td><td>−5.9</td><td>−8.7</td><td>−9.6</td></tr><tr><th scope='row'>gravity-wave drag</th><td>−2.8</td><td>−2.0</td><td>−3.2</td><td>−3.1</td><td>−2.8</td></tr><tr class='diff'><th scope='row'>sum (should be ≈ 0)</th><td>−13.7</td><td>−15.0</td><td>−4.1</td><td>−12.3</td><td>−11.3</td></tr></tbody></table></div>
-  <p>ERA5's real imbalance is therefore about two and a half times the figure once quoted. It sits in the mean and cancels in
+  <p>Four times a day removes the tide, and hourly sampling the rest (the four-versus-24 offsets are below 0.2 Hadley).
+  ERA5's real imbalance is therefore about two and a half times the figure once quoted. It sits in the mean and cancels in
   anomalies, so the anomaly products were never affected.</p>
 
   <h2>9. How this fits with earlier work</h2>
@@ -690,8 +692,6 @@
     correlate at 0.96 or better with the 0.25° values, and their ENSO regressions barely change (global +1.00, +1.07 and +0.99
     Hadley per kelvin). Anomalies from CMIP6's 1–2.5° grids are therefore comparable with ERA5's; absolute values are not. The Andes
     DJF standing shift at 2.5° is +2.1 Hadley (p = 0.009), short of the FDR.</li>
-    <li><b>Tide aliasing.</b> Sampling at 00 and 12 UTC keeps the semidiurnal tide; four times a day removes it, and hourly removes
-    the rest (the four-versus-24 offsets are below 0.2 Hadley).</li>
     <li><b>What CMIP6's <code>tauu</code> is.</b> It is the boundary-layer surface stress; the Met Office models state that it
     includes turbulent form drag from small hills. Orographic gravity-wave drag is reported separately (<code>utendogw</code>, in
     13 models). ERA5's turbulent stress likewise includes turbulent orographic form drag. Gravity-wave drag's part in the El Niño
