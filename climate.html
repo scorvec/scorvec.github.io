@@ -62,6 +62,7 @@
 <link rel="stylesheet" href="/assets/site.css">
 <script src="/assets/site.js" defer></script>
 <script src="/assets/rail.js" defer></script>
+<script data-goatcounter="https://scorvec.goatcounter.com/count" async src="https://gc.zgo.at/count.v4.js" integrity="sha384-nRw6qfbWyJha9LhsOtSb2YJDyZdKvvCFh0fJYlkquSFjUxp9FVNugbfy8q1jdxI+" crossorigin="anonymous"></script>
 </head>
 <body>
 <!-- sh:start -->
@@ -270,9 +271,9 @@
     <div class="chart-card-footer"><span>NOAA NCEI nClimDiv county, division and state monthly files (climdiv-*cy/dv/st) &middot; PRISM Climate Group, Oregon State University, monthly tdmean 4 km &middot; county boundaries: US Atlas (TopoJSON) &middot; statistics: numpy/scipy, computed monthly</span><span id="genLabel">&mdash;</span></div>
   </div>
 </main>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/topojson/3.0.2/topojson.min.js"></script>
-<script src="https://cdn.plot.ly/plotly-2.35.2.min.js" charset="utf-8"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js" integrity="sha384-CjloA8y00+1SDAUkjs099PVfnY2KmDC2BZnws9kh8D/lX1s46w6EPhpXdqMfjK6i" crossorigin="anonymous"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/topojson/3.0.2/topojson.min.js" integrity="sha384-9dCJK6nh7skY14HrcvlLYlFga9/MehJjL9ONWRflmiXNRuf8p2jiF4Y5PR881PTq" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/plotly.js-cartesian-dist-min@2.35.2/plotly-cartesian.min.js" integrity="sha384-gKF7EaMDoWW1zLWkouldmVWF5jqEKrAswAciW73iNzqlomabVVPO60XkJvL5q/Ie" crossorigin="anonymous"></script>
 <script src="/assets/frames_root.js"></script>
 <script>
 (function () {
@@ -281,6 +282,8 @@
   var UNITS = {tavg:"°F", tmin:"°F", tmax:"°F", tdew:"°F", pcpn:"in", hdd:"degree days", cdd:"degree days"};
   var st = {v:"tavg", col: String(new Date().getMonth()+1).padStart(2,"0"), start:"1970", view:"trend", sig:true};
   var cache = {}, topo = null, names = {}, meta = null, regions = null, seriesIdx = null;
+  // county names come from the third-party US Atlas file: escaped wherever they go into markup
+  function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return {"&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;"}[c]; }); }
   var DATA_ROOT_LOCAL = "assets/climate/anim/data/", SERIES_ROOT_LOCAL = "assets/climate/anim/series/";
   function dataUrl(f, series) {
     var rel = (series ? "assets/climate/anim/series/" : "assets/climate/anim/data/") + f;
@@ -356,7 +359,7 @@
       d3.select("#map").selectAll("path.county").on("mousemove", function (ev) {
         var f = this.__data__, fips = f.id, r = vals[fips] || {}, tip = document.getElementById("tip");
         var n = N.normal[fips], a = N.adjusted_1970[fips], sen = T.sen[fips];
-        var html = "<b>" + (names[fips] || fips) + "</b><br>" + COLNAME[st.col] + "<br>";
+        var html = "<b>" + esc(names[fips] || fips) + "</b><br>" + COLNAME[st.col] + "<br>";
         if (n && n[ci] != null) html += "1991–2020 normal: " + n[ci].toFixed(v === "pcpn" ? 2 : 1) + " " + UNITS[v] + "<br>";
         if (a && a[ci] != null) html += "trend-adjusted normal now: " + a[ci].toFixed(v === "pcpn" ? 2 : 1) + " " + UNITS[v] + "<br>";
         if (T.ols[fips] && T.ols[fips][ci] != null) html += "trend since " + T.start + ": " + (T.ols[fips][ci] > 0 ? "+" : "") + T.ols[fips][ci].toFixed(2) + " " + units + (sen && sen[ci] != null ? " (Theil–Sen " + (sen[ci] > 0 ? "+" : "") + sen[ci].toFixed(2) + ")" : "") + "<br>p = " + (T.p[fips][ci] == null ? "—" : T.p[fips][ci].toFixed(3));
@@ -395,7 +398,7 @@
   }
   function fillCounties(sf, pick) {
     var sel = document.getElementById("selCounty"); var fl = (seriesIdx[sf] || {}).fips || [];
-    sel.innerHTML = fl.map(function (f) { return '<option value="' + f + '">' + (names[f] || f) + "</option>"; }).join("");
+    sel.innerHTML = fl.map(function (f) { return '<option value="' + esc(f) + '">' + esc(names[f] || f) + "</option>"; }).join("");
     if (pick) sel.value = pick;
   }
   // The county series (a state's whole binary, ~0.8 MB from the frames host) is fetched once its card is on screen or
@@ -472,7 +475,7 @@
   document.getElementById("selCounty").addEventListener("change", function () { drawSeries(this.value, true); });
   document.getElementById("selDDState").addEventListener("change", drawDD);
   Promise.all([
-    fetch("https://cdn.jsdelivr.net/npm/us-atlas@3/counties-10m.json").then(function (r) { return r.json(); }),
+    fetch("https://cdn.jsdelivr.net/npm/us-atlas@3.0.1/counties-10m.json").then(function (r) { return r.json(); }),
     getJSON("meta.json"), getJSON("regions.json"), getJSON("series_index.json")
   ]).then(function (res) {
     topo = res[0]; meta = res[1]; regions = res[2]; seriesIdx = res[3];

@@ -39,6 +39,8 @@
     plotlyQ = [cb];
     var s = document.createElement("script");
     s.src = "https://cdn.jsdelivr.net/npm/plotly.js-cartesian-dist-min@2.35.2/plotly-cartesian.min.js";
+    s.integrity = "sha384-gKF7EaMDoWW1zLWkouldmVWF5jqEKrAswAciW73iNzqlomabVVPO60XkJvL5q/Ie";   // apply_chrome.py SRI
+    s.crossOrigin = "anonymous";
     s.onload = s.onerror = function () { var q = plotlyQ; plotlyQ = null; q.forEach(function (f) { f(); }); };
     document.head.appendChild(s);
   }

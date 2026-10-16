@@ -237,8 +237,6 @@
                    border-bottom:1px solid var(--rule); padding-bottom:0.4rem; margin:0.4rem 0 -0.6rem; }
   @media (max-width:600px){ .hero-top{justify-content:center;} .hero-chart{height:270px;} .hero{padding:1.3rem 1.1rem 1rem;} }
 </style>
-<script src="https://cdn.plot.ly/plotly-2.35.2.min.js" charset="utf-8"></script>
-<script data-goatcounter="https://scorvec.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
 <link rel="stylesheet" href="/assets/lightbox.css">
 <script src="/assets/lightbox.js" defer></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -247,6 +245,7 @@
 <link rel="stylesheet" href="/assets/site.css">
 <script src="/assets/site.js" defer></script>
 <script src="/assets/rail.js" defer></script>
+<script data-goatcounter="https://scorvec.goatcounter.com/count" async src="https://gc.zgo.at/count.v4.js" integrity="sha384-nRw6qfbWyJha9LhsOtSb2YJDyZdKvvCFh0fJYlkquSFjUxp9FVNugbfy8q1jdxI+" crossorigin="anonymous"></script>
 </head>
 <body>
 
@@ -458,8 +457,15 @@
   fetch('assets/site_stats/visitor_stats.json')
     .then(r => r.json()).then(d => {
       document.getElementById('stats-updated').textContent = 'updated ' + d.updated;
-      document.getElementById('top-pages').innerHTML = d.top_pages_30d
-        .map(p => p.path + ' &mdash; <b>' + p.count.toLocaleString() + '</b>').join('<br>');
+      // page paths come from GoatCounter, i.e. from whoever requested them: text nodes only, never markup
+      const host = document.getElementById('top-pages');
+      host.textContent = '';
+      d.top_pages_30d.forEach((p, i) => {
+        if (i) host.appendChild(document.createElement('br'));
+        const b = document.createElement('b');
+        b.textContent = Number(p.count).toLocaleString();
+        host.append(String(p.path) + ' — ', b);
+      });
     }).catch(() => {});
   fetch('assets/site_stats/github_traffic.json')
     .then(r => r.json()).then(d => {

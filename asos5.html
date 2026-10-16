@@ -14,7 +14,6 @@
 <link rel="stylesheet" href="/assets/site.css">
 <script src="/assets/site.js" defer></script>
 <script src="/assets/rail.js" defer></script>
-<script data-goatcounter="https://scorvec.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
 <style>
   :root {
     --bg: #f7f7f4; --panel: #ffffff; --ink: #1d211b; --muted: #5f6660; --rule: #dfe2dc;
@@ -105,6 +104,7 @@
     .ao-panel { height: 52vh; }
   }
 </style>
+<script data-goatcounter="https://scorvec.goatcounter.com/count" async src="https://gc.zgo.at/count.v4.js" integrity="sha384-nRw6qfbWyJha9LhsOtSb2YJDyZdKvvCFh0fJYlkquSFjUxp9FVNugbfy8q1jdxI+" crossorigin="anonymous"></script>
 </head>
 <body>
 
@@ -345,8 +345,9 @@
     ["KSEA","Seattle-Tacoma Intl","America/Los_Angeles","WA_ASOS"], ["KPDX","Portland Intl","America/Los_Angeles","OR_ASOS"]
   ].map(function (a, i) { return { id: a[0], name: a[1], tz: a[2], net: a[3], i: i, color: COLORS[i % COLORS.length] }; });
 
-  // obs record = array: [epoch, tC, dC, dir, spdKt, visMi, ceilFt, wx, gustKt, isReport, varLo, varHi, isVRB]
-  var E = 0, T = 1, D = 2, DIR = 3, SPD = 4, VIS = 5, CIG = 6, WX = 7, GST = 8, REP = 9, VLO = 10, VHI = 11, VRB = 12;
+  // obs record = array: [epoch, tC, dC, dir, spdKt, visMi, ceilFt, wx, gustKt, isReport, varLo, varHi, isVRB, visBelow]
+  // (visBelow: the visibility was a "less than" report, M1/4SM)
+  var E = 0, T = 1, D = 2, DIR = 3, SPD = 4, VIS = 5, CIG = 6, WX = 7, GST = 8, REP = 9, VLO = 10, VHI = 11, VRB = 12, VLT = 13;
   var WINDOW_MAX_H = 36;
   var state = { unit: "F", vr: "t", wu: "kt", iso: null, spanH: 36, zoom: null, live: {}, branch: null, src: {}, data: null, failed: 0, cached: false };
 
@@ -375,8 +376,17 @@
 
   // ---------------------------------------------------------------- METAR parsing
   function sgn(s) { return (s[0] === "1" ? -1 : 1) * (+s.slice(1)) / 10; }
+  // Prevailing visibility group, statute miles: "10SM", "3SM", "1/2SM", "1 1/2SM", "P6SM" (more than 6: kept as 10,
+  // what ASOS reports in the clear) and "M1/4SM" (less than 1/4: kept as 1/4 with lt set, shown "<1/4").
+  function visSM(body) {
+    var m = body.match(/(?:^|\s)(?:(\d{1,2}) )?([MP])?(\d{1,2})(?:\/(\d{1,2}))?SM(?=\s|$)/);
+    if (!m) return null;
+    if (m[2] === "P") return { mi: 10, lt: false };
+    var mi = m[4] ? (+(m[1] || 0)) + (+m[3]) / (+m[4]) : +m[3];
+    return isFinite(mi) ? { mi: mi, lt: m[2] === "M" } : null;
+  }
   function metarVals(raw) {
-    var o = { t: null, d: null, dir: null, spd: null, gst: null, vis: null, cig: null, wx: null, vlo: null, vhi: null, vrb: false };
+    var o = { t: null, d: null, dir: null, spd: null, gst: null, vis: null, vlt: false, cig: null, wx: null, vlo: null, vhi: null, vrb: false };
     if (!raw) return o;
     var cut = raw.indexOf(" RMK "), body = cut >= 0 ? raw.slice(0, cut) : raw, m;
     if ((m = raw.match(/\bT([01]\d{3})([01]\d{3})?\b/))) { o.t = sgn(m[1]); if (m[2]) o.d = sgn(m[2]); }   // 'T0180' alone happens (KORD)
@@ -391,9 +401,7 @@
       if (o.spd === 0 && o.dir === 0) o.dir = null;          // 00000KT = calm
     } else if ((m = body.match(/\/{5}G(\d{2,3})KT/))) o.gst = +m[1];
     if ((m = body.match(/\b(\d{3})V(\d{3})\b/))) { o.vlo = +m[1]; o.vhi = +m[2]; }
-    if (/\bP6SM\b/.test(body)) o.vis = 10;
-    else if ((m = body.match(/\b(?:(\d{1,2}) )?(\d)\/(\d{1,2})SM\b/))) o.vis = (+(m[1] || 0)) + (+m[2]) / (+m[3]);
-    else if ((m = body.match(/\b(\d{1,2})SM\b/))) o.vis = +m[1];
+    var v = visSM(body); if (v) { o.vis = v.mi; o.vlt = v.lt; }
     body.replace(/\b(BKN|OVC|VV)(\d{3})/g, function (_, c, h) { var ft = +h * 100; if (o.cig == null || ft < o.cig) o.cig = ft; return _; });
     var wx = body.split(/\s+/).filter(function (tk) { return /^(\+|-|VC)?(TS|SH|FZ|RA|SN|DZ|BR|FG|HZ|FU|SQ|GR|GS|PL|IC|UP|SA|DU|PO|VA)+$/.test(tk); });
     o.wx = wx.length ? wx.join(" ") : null;
@@ -434,7 +442,7 @@
     var gst = mv.gst != null ? mv.gst : (d.gust != null ? Math.round(d.gust) : null);
     var vis = mv.vis != null ? mv.vis : (d.vsby != null ? d.vsby : null);
     if (t == null && spd == null && vis == null && gst == null) return null;
-    return [e, t, dw, dir, spd, vis, mv.cig, mv.wx, gst, isRep ? 1 : 0, mv.vlo, mv.vhi, mv.vrb ? 1 : 0];
+    return [e, t, dw, dir, spd, vis, mv.cig, mv.wx, gst, isRep ? 1 : 0, mv.vlo, mv.vhi, mv.vrb ? 1 : 0, mv.vis != null && mv.vlt ? 1 : 0];
   }
   function packDay(rows) {
     var obs = [], reports = [], six = {}, day = null, wr = [], nAuto = 0, seen = {};
@@ -458,12 +466,13 @@
   }
 
   // ---------------------------------------------------------------- fetching
-  var LS_KEY = "asos5.v3.";
+  var LS_KEY = "asos5.v4.";            // v4: M1/4SM is 1/4 mile (v3 packs read it as 4)
   function lsGet(k) { try { var s = localStorage.getItem(LS_KEY + k); return s ? JSON.parse(s) : null; } catch (e) { return null; } }
   function lsSet(k, v) { try { localStorage.setItem(LS_KEY + k, JSON.stringify(v)); } catch (e) { /* quota or blocked: fine */ } }
   function lsPrune(keep) {
     try { for (var i = localStorage.length - 1; i >= 0; i--) { var k = localStorage.key(i);
-      if (k && k.indexOf(LS_KEY) === 0 && keep.indexOf(k.slice(LS_KEY.length)) < 0) localStorage.removeItem(k); } } catch (e) {}
+      if (k && /^asos5\.v\d+\./.test(k) && (k.indexOf(LS_KEY) !== 0 || keep.indexOf(k.slice(LS_KEY.length)) < 0))
+        localStorage.removeItem(k); } } catch (e) {}           // older versions' packs too
   }
   var dayPacks = {};                                   // id -> {date: pack}
   function iemURL(s, date) {
@@ -572,7 +581,7 @@
     if (live) live.obs.forEach(function (o) { if (o[E] >= w0) byMin[Math.round(o[E] / 60)] = o; });
     if (br && br.obs) br.obs.forEach(function (o) {           // MADIS precision where IEM has no sample that minute
       if (o[0] < w0) return; var k = Math.round(o[0] / 60), cur = byMin[k];
-      if (!cur) byMin[k] = o.slice(0, 9).concat([0, null, null, 0]);
+      if (!cur) byMin[k] = o.slice(0, 9).concat([0, null, null, 0, 0]);
       else if (cur[T] == null && o[1] != null) cur[T] = o[1];
     });
     var obs = qcObs(Object.keys(byMin).map(function (k) { return byMin[k]; }).sort(function (a, b) { return a[E] - b[E]; }));   // the merged series too
@@ -633,7 +642,11 @@
   function wU(k) { return k * WUF[state.wu]; }
   function fW(k) { return k == null ? "–" : Math.round(wU(k)) + " " + WUL[state.wu]; }
   function vU(mi) { return state.unit === "F" ? mi : mi * 1.609344; }
-  function fV(mi) { return mi == null ? "–" : (vU(mi) >= 10 ? Math.round(vU(mi)) : vU(mi).toFixed(1)) + (state.unit === "F" ? " mi" : " km"); }
+  function fV(mi, lt) {                  // lt: a "less than" report (M1/4SM)
+    if (mi == null) return "–";
+    if (lt) return "&lt;" + (state.unit === "F" ? (mi === 0.25 ? "1/4" : mi) + " mi" : vU(mi).toFixed(1) + " km");
+    return (vU(mi) >= 10 ? Math.round(vU(mi)) : vU(mi).toFixed(1)) + (state.unit === "F" ? " mi" : " km");
+  }
   function gU(ft) { return state.unit === "F" ? ft : ft * 0.3048; }
   function fG(ft) { return ft == null ? "none" : Math.round(gU(ft)).toLocaleString() + (state.unit === "F" ? " ft" : " m"); }
   var LANES = ["Haze/smoke", "Mist", "Fog", "Drizzle", "Rain", "Snow/ice", "Freezing", "T-storm"];
@@ -699,9 +712,9 @@
     } else if (vr === "v" || vr === "c") {
       var ix = vr === "v" ? VIS : CIG, f = vr === "v" ? fV : fG, o2 = null;
       for (var k = st.obs.length - 1; k >= 0; k--) { if (vr === "c" || st.obs[k][VIS] != null) { o2 = st.obs[k]; if (!o2[REP] || vr === "c") break; } }
-      if (o2) now = f(o2[ix]) + "<small>" + hm(lx(o2[E], tz)) + "</small>";
-      var low = null; st.obs.forEach(function (q) { if (q[E] >= st.m0 && q[ix] != null && (!low || q[ix] < low.v)) low = { v: q[ix], e: q[E] }; });
-      mm = '<div class="ln one"><span class="lo">▼ lowest today ' + (low ? f(low.v) + '</span> <span class="mu">' + hm(lx(low.e, tz)) : "–") + "</span></div>";
+      if (o2) now = f(o2[ix], vr === "v" && o2[VLT]) + "<small>" + hm(lx(o2[E], tz)) + "</small>";
+      var low = null; st.obs.forEach(function (q) { if (q[E] >= st.m0 && q[ix] != null && (!low || q[ix] < low.v)) low = { v: q[ix], e: q[E], lt: vr === "v" && q[VLT] }; });
+      mm = '<div class="ln one"><span class="lo">▼ lowest today ' + (low ? f(low.v, low.lt) + '</span> <span class="mu">' + hm(lx(low.e, tz)) : "–") + "</span></div>";
     } else {
       var o3 = st.obs[st.obs.length - 1];
       now = '<span style="font-size:.7em">' + (o3 && o3[WX] ? o3[WX] : "none") + "</span>" + (o3 ? "<small>" + hm(lx(o3[E], tz)) + "</small>" : "");
@@ -939,7 +952,7 @@
     var wind = o[SPD] == null ? "" : (o[SPD] === 0 ? "calm" : (o[DIR] != null ? Math.round(o[DIR]) + "° " + dirName(o[DIR]) + " " : (o[VRB] ? "variable " : "")) + fW(o[SPD]) +
       (o[GST] != null ? " gusting " + fW(o[GST]) : "") + (o[VLO] != null ? " (varying " + o[VLO] + "°–" + o[VHI] + "°)" : ""));
     var t = o[T] != null ? fT(o[T]) + state.unit : "", d = o[D] != null ? " / dew " + fT(o[D]) + state.unit : "";
-    var extra = [wind, o[VIS] != null ? "vis " + fV(o[VIS]) : "", o[CIG] != null ? "ceiling " + fG(o[CIG]) : "", o[WX] || ""].filter(Boolean).join(" · ");
+    var extra = [wind, o[VIS] != null ? "vis " + fV(o[VIS], o[VLT]) : "", o[CIG] != null ? "ceiling " + fG(o[CIG]) : "", o[WX] || ""].filter(Boolean).join(" · ");
     return head + (t + d ? t + d + "<br>" : "") + extra;
   }
   function attach(P) {

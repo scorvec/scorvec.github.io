@@ -24,14 +24,20 @@
 
   // Plotly (cartesian bundle, the one the outlook pages use) and the outlook chart theme, loaded once on demand
   var waiting = null;
-  function loadScript(src, cb) { var s = document.createElement("script"); s.src = src; s.onload = cb; s.onerror = cb; document.head.appendChild(s); }
+  function loadScript(src, cb, sri) {   // sri: the CDN file's Subresource Integrity hash (scripts/site/apply_chrome.py SRI)
+    var s = document.createElement("script"); s.src = src; s.onload = cb; s.onerror = cb;
+    if (sri) { s.integrity = sri; s.crossOrigin = "anonymous"; }
+    document.head.appendChild(s);
+  }
   function ensure(cb) {
     if (window.Plotly && window.OutlookCharts) return cb();
     if (waiting) { waiting.push(cb); return; }
     waiting = [cb];
     var done = function () { var q = waiting; waiting = null; q.forEach(function (f) { f(); }); };
     var oc = function () { if (window.OutlookCharts) done(); else loadScript("/assets/outlook-charts.js", done); };
-    if (window.Plotly) oc(); else loadScript("https://cdn.jsdelivr.net/npm/plotly.js-cartesian-dist-min@2.35.2/plotly-cartesian.min.js", oc);
+    if (window.Plotly) oc();
+    else loadScript("https://cdn.jsdelivr.net/npm/plotly.js-cartesian-dist-min@2.35.2/plotly-cartesian.min.js", oc,
+                    "sha384-gKF7EaMDoWW1zLWkouldmVWF5jqEKrAswAciW73iNzqlomabVVPO60XkJvL5q/Ie");
   }
 
   // generic member-index plume for the teleconnection / stratosphere JSON

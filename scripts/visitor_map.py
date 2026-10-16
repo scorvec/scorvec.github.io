@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import sys
 import time
 from datetime import date, datetime, timedelta, UTC
@@ -36,6 +37,9 @@ HERE = Path(__file__).resolve().parent
 OUTDIR = HERE.parent / "assets" / "site_stats"
 SITE = "https://scorvec.goatcounter.com"
 TOKEN = os.environ.get("GOATCOUNTER_TOKEN", "")
+# GoatCounter records whatever path a client sends, so the published top-pages list keeps only paths that look like
+# the site's own: a leading slash, then letters, digits and _ - . / (no "..").
+SAFE_PATH = re.compile(r"/[A-Za-z0-9_\-./]*")
 
 
 def api(path: str, **params) -> dict:
@@ -105,8 +109,12 @@ def main() -> int:
     start30 = (date.today() - timedelta(days=30)).isoformat()
     loc30 = locations(start30)
     loc_all = locations("2026-07-18")  # site epoch: GoatCounter install date
-    pages = api("stats/hits", start=_ts(start30), end=_end_ts(), limit=10)
-    top_pages = [{"path": p["path"], "count": int(p["count"])} for p in pages.get("hits", [])][:10]
+    pages = api("stats/hits", start=_ts(start30), end=_end_ts(), limit=25)  # headroom for paths dropped below
+    top_pages = [
+        {"path": p["path"], "count": int(p["count"])}
+        for p in pages.get("hits", [])
+        if isinstance(p.get("path"), str) and SAFE_PATH.fullmatch(p["path"]) and ".." not in p["path"]
+    ][:10]
 
     # Fixed axes boxes sized to the Robinson map's ~2:1 aspect: with add_subplot the maps float in the middle of
     # a taller figure and leave a wide empty band under the title

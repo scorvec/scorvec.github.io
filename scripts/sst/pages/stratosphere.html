@@ -15,7 +15,7 @@
       <p class="cap" id="cap"></p>
       <div id="about"></div>
       <p class="hint"><span class="kbd">&larr;</span> <span class="kbd">&rarr;</span> step through the options &middot; <span class="kbd">&uarr;</span> <span class="kbd">&darr;</span> change figure &middot; click a still to enlarge</p>
-      <div class="chart-card-footer"><span class="chart-sources">ECMWF AIFS-ENS and IFS-ENS open data: &copy;&nbsp;2026 European Centre for Medium-Range Weather Forecasts (ECMWF), source <a href="https://www.ecmwf.int">www.ecmwf.int</a>, <a href="https://creativecommons.org/licenses/by/4.0/">CC&nbsp;BY&nbsp;4.0</a>, modified; ECMWF does not accept any liability for errors or omissions in the data, their availability, or any loss or damage arising from their use &middot; ECCC GEPS and GDPS: Data Source: Environment and Climate Change Canada (MSC Datamart), under the <a href="https://eccc-msc.github.io/open-data/licence/readme_en/">ECCC Data Servers End-use Licence</a> &middot; NOAA GEFS and GFS &middot; NASA GMAO GEOS FP and MERRA-2 &middot; NCEP/NCAR Reanalysis 1 (NOAA PSL) &middot; ERA5: Copernicus Climate Change Service (C3S) / ECMWF, CC&nbsp;BY&nbsp;4.0; contains modified Copernicus Climate Change Service information 2026; neither the European Commission nor ECMWF is responsible for any use of this information &middot; updated each 00/12Z cycle</span><span class="chart-updated">__SST_DAY__</span></div>
+      <div class="chart-card-footer"><span class="chart-sources">ECMWF AIFS-ENS and IFS-ENS open data: &copy;&nbsp;2026 European Centre for Medium-Range Weather Forecasts (ECMWF), source <a href="https://www.ecmwf.int">www.ecmwf.int</a>, <a href="https://creativecommons.org/licenses/by/4.0/">CC&nbsp;BY&nbsp;4.0</a>, modified; ECMWF does not accept any liability for errors or omissions in the data, their availability, or any loss or damage arising from their use &middot; ECCC GEPS and GDPS: Data Source: Environment and Climate Change Canada (MSC Datamart), under the <a href="https://eccc-msc.github.io/open-data/licence/readme_en/">ECCC Data Servers End-use Licence</a> &middot; NOAA GEFS and GFS &middot; NASA GMAO GEOS FP and MERRA-2 &middot; NCEP/NCAR Reanalysis 1 (NOAA PSL) &middot; ERA5: Copernicus Climate Change Service (C3S) / ECMWF, CC&nbsp;BY&nbsp;4.0; contains modified Copernicus Climate Change Service information 2026; neither the European Commission nor ECMWF is responsible for any use of this information &middot; updated each 00/12Z cycle</span><span class="chart-updated" id="stage-stamp"></span></div>
     </section>
   </div>
   <div class="lightbox" id="lightbox"><img alt=""></div>
@@ -712,7 +712,7 @@ $$\frac{\partial\bar u}{\partial t} \;=\; \hat f\,\bar v^{*} \;-\; \bar w^{*}\fr
       "about": [
         {"@type": "Thing", "name": "Sudden stratospheric warming", "sameAs": "https://en.wikipedia.org/wiki/Sudden_stratospheric_warming"},
         {"@type": "Thing", "name": "Polar vortex", "sameAs": "https://en.wikipedia.org/wiki/Polar_vortex"},
-        {"@type": "Thing", "name": "Eliassen-Palm flux", "sameAs": "https://en.wikipedia.org/wiki/Eliassen%E2%80%93Palm_flux"}
+        {"@type": "Thing", "name": "Eliassen-Palm flux"}
       ]
     }
     </script>
@@ -1049,7 +1049,13 @@ window.STAGE = {
     loadPlotly.q = [cb];
     var sc = document.createElement("script");
     sc.src = "https://cdn.jsdelivr.net/npm/plotly.js-cartesian-dist-min@2.35.2/plotly-cartesian.min.js";
+    sc.integrity = "sha384-gKF7EaMDoWW1zLWkouldmVWF5jqEKrAswAciW73iNzqlomabVVPO60XkJvL5q/Ie";   // apply_chrome.py SRI
+    sc.crossOrigin = "anonymous";
     sc.onload = function () { loadPlotly.q.forEach(function (f) { f(); }); };
+    sc.onerror = function () {   // blocked or refused: say so, and let the next draw try again
+      loadPlotly.q = null; sc.remove();
+      $("shw-note").textContent = "The chart library (cdn.jsdelivr.net) could not be loaded; reload the page to try again.";
+    };
     document.head.appendChild(sc);
   }
   function winter(w) { for (var i = 0; i < J.winters.length; i++) if (J.winters[i].winter === w) return J.winters[i]; return null; }
