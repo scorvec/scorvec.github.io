@@ -2,7 +2,7 @@ name: C3S polar-vortex wind skill (monthly u 60N, 10 + 100 hPa; analysis only)
 
 # Do the C3S seasonal systems have skill for the monthly-mean zonal wind at 10 hPa, and at 100 hPa?
 # scripts/sst/c3s_u10_skill.py (pre-registered design in its docstring): CDS seasonal-monthly-pressure-levels
-# hindcasts 1993-2016 of u at 10/100 hPa on the 60N ring for 8 C3S centres (ECCC 4+5 as one), ERA5 monthly means as
+# hindcasts 1993-2016 of u at 10/100 hPa on the 60N ring for 7 C3S centres (ECCC 4+5 as one; BoM left out since 2026-10-16), ERA5 monthly means as
 # the 100 hPa truth, MERRA-2 (committed) as the 10 hPa truth.
 # NOTHING goes to the site: raw GRIBs, per-unit tables and the results go to the release `c3s-u10-v1` and an artifact.
 #
