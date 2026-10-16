@@ -97,6 +97,7 @@ scripts/verify/data/
 # here writes to the untracked assets/strat/.
 scripts/strat/*
 !scripts/strat/nh_vortex.py
+!scripts/strat/vortex_runs.py
 !scripts/strat/qbo_duct.py
 !scripts/strat/vortex_winds.py
 !scripts/strat/wave1_maps.py

@@ -84,6 +84,7 @@ import matplotlib.pyplot as plt
 from quantmet.degdays import doy366
 
 import geosfp_cap
+import vortex_runs
 
 HERE = Path(__file__).resolve().parent
 REPO = HERE.parent.parent
@@ -301,11 +302,12 @@ def load_gdps(date, cyc, leads):
     )
 
 
-def load_ifs(date, cyc, leads, members):
+def load_ifs(date, cyc, leads, members, light=False):
     """IFS-ENS, all 50 perturbed members (or the first `members`), from the shared IFS-ENS files.
 
     ifs_ens.py stocks u/v at 10/100 hPa (12-hourly) and gh at the 11 drip levels (daily) ONCE a cycle for every
-    stratosphere product; this reads u at 10/100 and gh at 100 hPa out of them at the daily steps. Google Cloud
+    stratosphere product; this reads u at 10/100 and gh at 100 hPa out of them at the daily steps. `light` (a past run
+    recorded on its own, --record-only) pulls just those fields, ~2 GB instead of the bundle's ~7.5. Google Cloud
     mirror only: a cycle not yet on Google is dropped rather than pulled slowly from another mirror.
     """
     import sys
@@ -323,8 +325,12 @@ def load_ifs(date, cyc, leads, members):
         return None
     cycle = IE.E.Cycle(date, cyc)
     try:
-        uv = IE.ensure(cycle, IE.spec_uv())
-        gh = IE.ensure(cycle, IE.spec_gh())
+        if light:
+            uv = IE.ensure(cycle, IE.E.Spec("ifs", "pf", "u", "pl", (10, 100), IE.STEPS))
+            gh = IE.ensure(cycle, IE.E.Spec("ifs", "pf", "gh", "pl", (100,), IE.STEPS))
+        else:
+            uv = IE.ensure(cycle, IE.spec_uv())
+            gh = IE.ensure(cycle, IE.spec_gh())
     except Exception as e:  # noqa: BLE001
         print(
             f"::warning::IFS-ENS shared files unavailable ({type(e).__name__}: {str(e)[:100]}); skipping IFS",
@@ -674,6 +680,11 @@ def main() -> int:
     )
     ap.add_argument("--cycle")
     ap.add_argument("--out", default=str(OUT))
+    ap.add_argument(
+        "--record-only",
+        action="store_true",
+        help="add this run to the run-to-run record (vortex_runs.py) and draw nothing: a past run, IFS pulled light",
+    )
     a = ap.parse_args()
     want = [m.strip() for m in a.models.split(",") if m.strip()]
 
@@ -722,7 +733,7 @@ def main() -> int:
     if "gdps" in want:
         fc["gdps"] = load_gdps(date, cyc, list(range(0, 241, 24)))
     if "ifs" in want:
-        fc["ifs"] = load_ifs(date, cyc, list(range(0, 361, 24)), a.ifs_members)
+        fc["ifs"] = load_ifs(date, cyc, list(range(0, 361, 24)), a.ifs_members, light=a.record_only)
     if "geosfp" in want:
         fc["geosfp"] = load_geosfp(base)
     fc = {k: v for k, v in fc.items() if v}
@@ -734,6 +745,22 @@ def main() -> int:
             f"  {STYLE[k][1]}: " + ", ".join(f"{p}={v[p].shape[1]}m x{len(v[p])}" for p in v if v[p] is not None),
             flush=True,
         )
+
+    zmed = clim_doy(clim["zcap"])[1]
+    vortex_runs.record(
+        base,
+        {
+            k: {
+                "u10": d.get("u10"),
+                "zcap": None
+                if d.get("zcap") is None
+                else d["zcap"].sub(zmed.reindex(_cday(d["zcap"].index)).values, axis=0),
+            }
+            for k, d in fc.items()
+        },
+    )
+    if a.record_only:
+        return 0
 
     tmax = max(d[p].index[-1] for d in fc.values() for p in d if d[p] is not None)
     t0 = base - pd.Timedelta(days=TAIL_DAYS)
@@ -777,19 +804,18 @@ def main() -> int:
         ax.legend(loc="upper left", fontsize=7.4, ncol=3, framealpha=0.9)
         if key == "u10":
             ax.axhline(0, color="#a33", lw=1.5, zorder=4)
-            # models run to different lead counts, so pool the FRACTION per model
-            # rather than concatenating rows of unequal length
+            # per ensemble: the share of MEMBERS easterly on at least one day to day 15 (vortex_runs.ssw_chance)
             msg = "easterly at 10 hPa / 60°N = SSW (WMO)"
             hits = {
-                k: float((d["u10"].values < 0).mean())
+                k: vortex_runs.ssw_chance(d["u10"], base)
                 for k, d in fc.items()
                 if d.get("u10") is not None and d["u10"].shape[1] >= 5
             }
             if hits and max(hits.values()) > 0:
                 worst = max(hits, key=hits.get)
                 msg = (
-                    f"{100 * hits[worst]:.1f}% of {STYLE[worst][1]} members easterly at "
-                    "some lead — easterly here = SSW (WMO)"
+                    f"{100 * hits[worst]:.0f}% of {STYLE[worst][1]} members easterly on some day to day "
+                    f"{vortex_runs.SSW_DAYS} — easterly here = SSW (WMO)"
                 )
             ax.text(0.005, 0.05, msg, transform=ax.transAxes, fontsize=8, color="#a33", style="italic")
         if key == "zcap":
@@ -840,6 +866,7 @@ def main() -> int:
     fig.savefig(a.out, dpi=112, facecolor="white", bbox_inches="tight", pil_kwargs={"quality": 88, "method": 6})
     plt.close(fig)
     print(f"wrote {a.out}")
+    vortex_runs.render(out=Path(a.out).with_name(vortex_runs.OUT.name))
     return 0
 
 

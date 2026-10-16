@@ -4,6 +4,7 @@ name: Stratosphere, IFS-ENS (vortex, heat flux, wave-1, winds, drip, zero line, 
 # every stratosphere product that its open data can feed:
 #
 #   nh_vortex.py          -> assets/sst/nh_vortex.webp                  all four models
+#                         + nh_vortex_runs.webp, data/vortex_runs.json  the run-to-run record (vortex_runs.py)
 #   heatflux100_ext.py    -> assets/sst/ifs_heatflux100_{nh,sh}.webp   + data/ifs_heatflux100.json
 #   forecast_drip.py      -> assets/sst/ifs_drip.webp                  + data/ifs_drip.json (drift: reference/ifs_capdrift.json)
 #   wave1_maps.py         -> assets/sst/anim/wave1_ifs_{nh,sh}/         + wave1_maps_ifs_manifest.json
@@ -218,7 +219,7 @@ jobs:
         if: always()
         run: |
           bad=0
-          want="assets/sst/nh_vortex.webp"
+          want="assets/sst/nh_vortex.webp assets/sst/nh_vortex_runs.webp"
           [ "$READY" = "true" ] && want="$want assets/sst/ifs_heatflux100_nh.webp assets/sst/ifs_heatflux100_sh.webp assets/sst/ifs_drip.webp"
           for f in $want; do
             if [ -f "$f" ] && [ "$f" -nt /tmp/t0 ]; then printf '  %-40s %s\n' "$f" "$(du -h "$f" | cut -f1)"
@@ -237,7 +238,7 @@ jobs:
         run: |
           set -euo pipefail
           : > /tmp/maps.list
-          for p in assets/sst/nh_vortex.webp \
+          for p in assets/sst/nh_vortex.webp assets/sst/nh_vortex_runs.webp assets/sst/data/vortex_runs.json \
                    assets/sst/ifs_heatflux100_nh.webp assets/sst/ifs_heatflux100_sh.webp assets/sst/data/ifs_heatflux100.json \
                    assets/sst/ifs_drip.webp assets/sst/data/ifs_drip.json \
                    assets/regimes/data/regimes_members_ifs.json assets/regimes/data/regimes_drift_ifs.json \
@@ -389,7 +390,7 @@ jobs:
         run: |
           git config user.name "Shawn Corvec"
           git config user.email "26825570+scorvec@users.noreply.github.com"
-          for f in assets/sst/nh_vortex.webp \
+          for f in assets/sst/nh_vortex.webp assets/sst/nh_vortex_runs.webp assets/sst/data/vortex_runs.json \
                    assets/sst/ifs_heatflux100_nh.webp assets/sst/ifs_heatflux100_sh.webp assets/sst/data/ifs_heatflux100.json \
                    assets/sst/ifs_drip.webp assets/sst/data/ifs_drip.json \
                    assets/sst/anim/wave1_maps_ifs_manifest.json assets/sst/anim/vortex_winds_ifs_manifest.json \
