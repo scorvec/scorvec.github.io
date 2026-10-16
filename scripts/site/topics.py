@@ -37,7 +37,8 @@ def img(path: str, alt: str, cap: str = "") -> dict:
 
 
 # Each topic: slug, the term (h1), alternate names people search for, title/description, the body (HTML with TeX in
-# $...$ / $$...$$), the live figures, where the interactive product lives, related topics and references.
+# $...$ / $$...$$), the live figures (and `still`: a loop-only page's product as a still, for link previews), where the
+# interactive product lives, related topics and references.
 TOPICS = [
     dict(
         slug="ep-flux",
@@ -52,9 +53,9 @@ TOPICS = [
             "wave driving",
             "transformed Eulerian mean",
         ],
-        title="E–P flux and E–P flux divergence: explainer and live forecast",
-        desc="What the Eliassen–Palm (E–P) flux and its divergence measure, how to read an E–P cross-section, and a live "
-        "15-day GEFS ensemble forecast of E–P flux and wave driving of the zonal-mean flow, up to 1 hPa.",
+        title="E–P flux and its divergence, with a live forecast",
+        desc="What the Eliassen–Palm (E–P) flux and its divergence measure, how to read an "
+        "E–P cross-section, and a live 15-day GEFS forecast of the wave driving up to 1 hPa.",
         body=r"""
 <p>The <b>Eliassen–Palm (E–P) flux</b> is a vector in the latitude–height plane that shows where atmospheric waves
 carry their activity, and its <b>divergence</b> is the force those waves exert on the zonal-mean westerlies. It is the
@@ -128,9 +129,9 @@ where the derivative is one-sided, is hatched, and latitudes poleward of 82° ar
             "atmospheric angular momentum budget",
             "gravity wave drag torque",
         ],
-        title="Mountain torque and friction torque: the atmosphere's angular momentum budget, with a live forecast",
-        desc="How mountain and friction torques exchange angular momentum between the solid Earth and the atmosphere, "
-        "the equations, how to read torque maps, and live AIFS-ENS forecasts of both torques by mountain range.",
+        title="Mountain and friction torque, with a live forecast",
+        desc="How mountain and friction torques trade angular momentum between the Earth "
+        "and the atmosphere, how to read torque maps, and live AIFS-ENS forecasts by range.",
         body=r"""
 <p>The atmosphere's angular momentum about the Earth's axis changes only through <b>torques</b> exerted at the
 surface. Three act: <b>friction torque</b>, the drag of the surface on the wind; <b>mountain torque</b>, the pressure
@@ -212,9 +213,9 @@ its budget at every lead.</p>
             "length of day",
             "AAM tendency",
         ],
-        title="Atmospheric angular momentum (AAM): explainer and live forecast",
-        desc="What atmospheric angular momentum measures, why it tracks El Niño and the length of day, the Global Wind "
-        "Oscillation phase space, and a live AIFS-ENS forecast of relative AAM for the globe and each hemisphere.",
+        title="Atmospheric angular momentum (AAM), live forecast",
+        desc="What atmospheric angular momentum measures, why it tracks El Niño and the "
+        "length of day, the GWO phase space, and a live AIFS-ENS forecast by hemisphere.",
         body=r"""
 <p><b>Atmospheric angular momentum (AAM)</b> is the atmosphere's total spin about the Earth's axis. Its <i>relative</i>
 part, the one carried by the winds, is</p>
@@ -286,9 +287,9 @@ tendency: the hemispheric version of the Global Wind Oscillation.</p>
             "Rossby wave propagation",
             "WAF",
         ],
-        title="Takaya–Nakamura wave activity flux: explainer and live 250 hPa forecast",
-        desc="What the Takaya–Nakamura wave activity flux shows about Rossby wave packets, downstream development and "
-        "blocking, the equation, and a live member-averaged AIFS-ENS forecast at 250 hPa.",
+        title="Takaya–Nakamura wave activity flux, live forecast",
+        desc="What the Takaya–Nakamura wave activity flux shows about Rossby wave packets, "
+        "downstream development and blocking, and a live AIFS-ENS forecast at 250 hPa.",
         body=r"""
 <p>The <b>wave activity flux</b> of Takaya and Nakamura (2001) is a vector that points along the group velocity of
 quasi-stationary Rossby waves: where wave energy is travelling, rather than where the ridges and troughs are. Its
@@ -321,6 +322,7 @@ because the theory is for quasi-stationary waves. The basic state is the ERA5 (H
 mean anomaly of the AIFS analyses, and shading is hatched where fewer than 60 % of members agree on the sign of the
 divergence.</p>
 """,
+        still="/assets/sst/waf.webp",
         figures=[
             loop(
                 "waf_manifest.json",
@@ -350,9 +352,9 @@ divergence.</p>
             "vertical E-P flux",
             "wave-1 heat flux",
         ],
-        title="100 hPa eddy heat flux: the upward wave activity into the stratosphere, with a live forecast",
-        desc="Why the zonal-mean poleward eddy heat flux at 100 hPa measures planetary waves entering the stratosphere, "
-        "how its 40-day mean leads the polar vortex, and a live member-by-member AIFS-ENS forecast for both hemispheres.",
+        title="100 hPa eddy heat flux, with a live forecast",
+        desc="Why the 100 hPa poleward eddy heat flux measures planetary waves entering the "
+        "stratosphere, how its 40-day mean leads the vortex, and a live AIFS-ENS forecast.",
         body=r"""
 <p>The zonal-mean poleward <b>eddy heat flux</b> $[v'T']$ at 100 hPa is the most direct measure of how much
 planetary-wave activity is leaving the troposphere for the stratosphere. It is proportional to the vertical component
@@ -413,9 +415,9 @@ parts, the trailing 40-day mean standardized, and the flux by latitude through t
             "stratosphere-troposphere coupling",
             "dripping paint",
         ],
-        title="Sudden stratospheric warmings (SSW): definition, every event since 1980, and a live polar vortex forecast",
-        desc="What a sudden stratospheric warming is, split and displacement events, how SSWs reach the surface, a "
-        "catalogue of every major SSW since 1980 from MERRA-2, and a live multi-model polar vortex forecast.",
+        title="Sudden stratospheric warming: every SSW since 1980",
+        desc="What a sudden stratospheric warming is, splits and displacements, how SSWs "
+        "reach the surface, every major SSW since 1980, and a live polar vortex forecast.",
         body=r"""
 <p>A <b>sudden stratospheric warming (SSW)</b> is the collapse of the winter polar vortex: planetary waves rising from
 the troposphere decelerate the stratospheric westerlies until they reverse, and the polar stratosphere warms by tens of
@@ -494,9 +496,9 @@ the wind (a forecast major warming) is called out.</p>
             "Hadley cell strength",
             "Hadley cell edge",
         ],
-        title="Hadley cell and the mean meridional mass streamfunction: explainer and live analysis",
-        desc="How the zonal-mean meridional mass streamfunction describes the Hadley, Ferrel and polar cells, how cell "
-        "strength and edges are measured, and a live AIFS analysis of the overturning against ERA5 1991–2020.",
+        title="Hadley cell and mass streamfunction, live analysis",
+        desc="How the mean meridional mass streamfunction describes the Hadley, Ferrel and "
+        "polar cells, how their strength and edges are measured, and a live AIFS analysis.",
         body=r"""
 <p>The <b>Hadley cell</b> is the tropical overturning circulation: air rises near the equator, flows poleward aloft,
 sinks in the subtropics and returns toward the equator in the trade winds. It and the weaker Ferrel and polar cells
@@ -524,6 +526,7 @@ Nguyen et al., 2013).</li>
 same day of year, with the absolute cells contoured and vertical motion drawn as arrows. Each frame is a 7-day running
 mean, so the evolution of the cells is legible through the day-to-day noise.</p>
 """,
+        still="/assets/sst/mmsf_anom.webp",
         figures=[
             loop(
                 "mmsf_manifest.json",
@@ -558,9 +561,9 @@ mean, so the evolution of the cells is legible through the day-to-day noise.</p>
             "PV thinking",
             "Rossby wave breaking",
         ],
-        title="Dynamic tropopause (2 PVU) maps: potential vorticity explainer and live forecast",
-        desc="What the dynamic tropopause is, how to read potential temperature on the 2-PVU surface, isentropic potential "
-        "vorticity on 330 and 350 K, and live AIFS forecast maps to day 10.",
+        title="Dynamic tropopause (2 PVU) maps, live forecast",
+        desc="What the dynamic tropopause is, how to read θ on the 2-PVU surface and "
+        "potential vorticity on 330 and 350 K, and live AIFS forecast maps to day 10.",
         body=r"""
 <p>The <b>dynamic tropopause</b> is the surface of constant <b>potential vorticity (PV)</b> that separates
 stratospheric air (high PV) from tropospheric air (low PV), conventionally the 2-PVU surface, where
@@ -667,7 +670,13 @@ addEventListener("message", function (e) {
 </script>"""
 
 
-def head(title: str, desc: str, url: str, ld: dict, math: bool) -> str:
+def share_image(t: dict | None) -> str:
+    """The page's sharing image: its first still figure, else the still of its loop's product, else the site photo."""
+    figs = [f["src"] for f in (t or {}).get("figures", []) if f["kind"] == "img"]
+    return SITE + (figs[0] if figs else (t or {}).get("still", "/hero-supercell-1280.webp"))
+
+
+def head(title: str, desc: str, url: str, ld: dict, math: bool, image: str) -> str:
     e = html.escape
     return f"""<!DOCTYPE html>
 <html lang="en">
@@ -683,7 +692,7 @@ def head(title: str, desc: str, url: str, ld: dict, math: bool) -> str:
 <meta property="og:title" content="{e(title)}">
 <meta property="og:description" content="{e(desc)}">
 <meta property="og:url" content="{url}">
-<meta property="og:image" content="{SITE}/hero-supercell-1280.webp">
+<meta property="og:image" content="{image}">
 <meta property="og:site_name" content="Shawn Corvec">
 <meta name="twitter:card" content="summary_large_image">
 <script type="application/ld+json">
@@ -700,11 +709,11 @@ def head(title: str, desc: str, url: str, ld: dict, math: bool) -> str:
 def figure_html(f: dict) -> str:
     if f["kind"] == "loop":
         return (
-            f'<figure><iframe data-src="{f["src"]}" title="{html.escape(f["title"])}"></iframe>'
+            f'<figure><iframe data-src="{html.escape(f["src"])}" title="{html.escape(f["title"])}"></iframe>'
             f"<figcaption>{html.escape(f['title'])}. Use the controls to step through the forecast.</figcaption></figure>"
         )
     cap = f"<figcaption>{html.escape(f['cap'])}</figcaption>" if f.get("cap") else ""
-    return f'<figure><img src="{f["src"]}" alt="{html.escape(f["alt"])}" loading="lazy">{cap}</figure>'
+    return f'<figure><img src="{html.escape(f["src"])}" alt="{html.escape(f["alt"])}" loading="lazy">{cap}</figure>'
 
 
 def topic_page(t: dict, today: str) -> str:
@@ -726,8 +735,7 @@ def topic_page(t: dict, today: str) -> str:
                 "dateModified": today,
                 "about": {"@type": "DefinedTerm", "name": t["short"], "alternateName": t["alt"]},
                 "keywords": ", ".join([t["short"]] + t["alt"]),
-                "image": [f"{SITE}{f['src']}" for f in t["figures"] if f["kind"] == "img"]
-                or f"{SITE}/hero-supercell-1280.webp",
+                "image": [f"{SITE}{f['src']}" for f in t["figures"] if f["kind"] == "img"] or share_image(t),
                 "citation": [re.sub(r"<[^>]+>", "", r) for r in t["refs"]],
             },
             {
@@ -748,7 +756,7 @@ def topic_page(t: dict, today: str) -> str:
     )
     refs = "".join(f"<li>{r}</li>" for r in t["refs"])
     return (
-        head(t["title"], t["desc"], url, ld, math=True)
+        head(t["title"], t["desc"], url, ld, math=True, image=share_image(t))
         + f"""<main>
 <article class="topic">
   <p class="crumbs"><a href="/">Home</a> › <a href="/topics/">Explainers</a> › {html.escape(t["short"])}</p>
@@ -808,10 +816,10 @@ def data_credits(t):
 
 def hub_page(today: str) -> str:
     url = f"{SITE}/topics/"
-    title = "Atmospheric dynamics explainers, with live forecasts"
+    title = "Atmospheric dynamics explainers and live forecasts"
     desc = (
-        "Plain explanations of E–P flux, mountain torque, atmospheric angular momentum, wave activity flux, eddy heat "
-        "flux, sudden stratospheric warmings, the Hadley cell and the dynamic tropopause, each with a live forecast or analysis."
+        "E–P flux, mountain torque, angular momentum, wave activity flux, eddy heat flux, SSWs, the Hadley cell and "
+        "the dynamic tropopause, explained with live data."
     )
     ld = {
         "@context": "https://schema.org",
@@ -833,12 +841,12 @@ def hub_page(today: str) -> str:
         for t in TOPICS
     )
     return (
-        head(title, desc, url, ld, math=False)
+        head(title, desc, url, ld, math=False, image=share_image(None))
         + f"""<main>
 <article class="topic">
   <p class="crumbs"><a href="/">Home</a> › Explainers</p>
   <p class="ai-note"><b>Made with Claude Code.</b> This explainer is a just-for-fun project: researched, coded and written entirely by Claude, Anthropic's AI model, working in Claude Code, to show what today's AI models can do with open meteorological data. It has not been peer reviewed.</p>
-  <h1>{title}</h1>
+  <h1>Atmospheric dynamics explainers, with live forecasts</h1>
   <p>The diagnostics behind this site's circulation and stratosphere products, each explained with its equations and
   shown with its current forecast. They are written for meteorologists and students who want to know what a chart is
   measuring before trusting it.</p>
