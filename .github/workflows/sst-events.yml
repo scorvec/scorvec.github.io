@@ -20,10 +20,14 @@ on:
 
 permissions:
   contents: write
+  actions: write   # scripts/lib/cache_prune.sh deletes the superseded cache entries
 
 concurrency:
   group: sst-events
   cancel-in-progress: false
+
+env:
+  PIP_CONSTRAINT: ${{ github.workspace }}/scripts/constraints.txt   # bounds every pip install (see the file)
 
 jobs:
   build:
@@ -43,27 +47,14 @@ jobs:
           key: pip-sst-${{ runner.os }}-${{ hashFiles('scripts/sst/requirements-sst.txt') }}
           restore-keys: |
             pip-sst-${{ runner.os }}-
-      # The analog-year OISST files and the 1991-2020 climatology are STATIC —
-      # cache them (~4.3 GB) so each weekly run only pulls the current-year file
-      # (~260 MB) from PSL. Cuts the PSL transfer ~95%: repeated runner kills /
-      # corrupt downloads all happened inside these long bulk pulls (2026-07-17).
-      # download() probe-opens every cached .nc, so a bad cache self-heals.
-      - uses: actions/cache@v6
-        with:
-          path: |
-            scripts/sst/data/sst.day.mean.1997.nc
-            scripts/sst/data/sst.day.mean.1998.nc
-            scripts/sst/data/sst.day.mean.2015.nc
-            scripts/sst/data/sst.day.mean.2016.nc
-            scripts/sst/data/sst.day.mean.2023.nc
-            scripts/sst/data/sst.day.mean.2024.nc
-            scripts/sst/data/sst.day.mean.ltm.1991-2020.nc
-          key: oisst-static-event-years-v1
-      # GLORYS12 analysis (anfc) anomaly store for the heat-content fill: each run adds only new days
-      - uses: actions/cache@v6
+      # GLORYS12 analysis (anfc) anomaly store for the heat-content fill: each run adds only new days. Restored from the
+      # newest entry, saved under a hash of the store when it changed, older entries deleted.
+      - name: Restore the anfc store
+        id: anfc_cache
+        uses: actions/cache/restore@v6
         with:
           path: scripts/sst/data/cmems_hc/anfc_store.csv
-          key: hc-anfc-store-v1-${{ github.run_id }}
+          key: hc-anfc-store-v1-
           restore-keys: |
             hc-anfc-store-v1-
       - name: Install cartopy system libs
@@ -72,12 +63,6 @@ jobs:
           sudo apt-get install -y --no-install-recommends libgeos-dev libproj-dev proj-bin
       - name: Install Python dependencies
         run: pip install -r scripts/sst/requirements-sst.txt
-
-      - name: Build event-comparison products (downloads OISST daily-anom event years)
-        # sst_events.py retired 2026-08-28 with the analogs page — events_bars/maps/nino34 had no consumer left.
-        # sst_subsurface_events.py below is STILL required: its four panels moved
-        # to enso-subsurface.html rather than being retired.
-        run: 'true'
 
       # 1982-83 (pre-TAO) is drawn from scripts/sst/reference/reanalysis_hc_monthly.csv (ORAS5 + GODAS, built once
       # offline by reanalysis_hc.py) - nothing is fetched for it here.
@@ -88,10 +73,22 @@ jobs:
           COPERNICUSMARINE_SERVICE_USERNAME: ${{ secrets.COPERNICUSMARINE_SERVICE_USERNAME }}
           COPERNICUSMARINE_SERVICE_PASSWORD: ${{ secrets.COPERNICUSMARINE_SERVICE_PASSWORD }}
         run: python sst_subsurface_events.py || echo "::warning::subsurface analog build failed; previous charts kept"
+      - name: Save the anfc store (when it changed)
+        if: >-
+          hashFiles('scripts/sst/data/cmems_hc/anfc_store.csv') != '' &&
+          steps.anfc_cache.outputs.cache-matched-key != format('hc-anfc-store-v1-{0}', hashFiles('scripts/sst/data/cmems_hc/anfc_store.csv'))
+        uses: actions/cache/save@v6
+        with:
+          path: scripts/sst/data/cmems_hc/anfc_store.csv
+          key: hc-anfc-store-v1-${{ hashFiles('scripts/sst/data/cmems_hc/anfc_store.csv') }}
+      - name: Drop superseded caches
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: scripts/lib/cache_prune.sh hc-anfc-store-v1-
 
       - name: Upload the charts (validation runs)
         if: inputs.commit == 'false'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: subsurface-hc
           path: |

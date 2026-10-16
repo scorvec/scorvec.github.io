@@ -34,6 +34,9 @@ concurrency:
   group: bdc
   cancel-in-progress: false
 
+env:
+  PIP_CONSTRAINT: ${{ github.workspace }}/scripts/constraints.txt   # bounds every pip install (see the file)
+
 jobs:
   bdc:
     runs-on: ubuntu-latest
@@ -58,6 +61,7 @@ jobs:
             assets/sst/bdc_dc_upwelling.webp
             assets/sst/bdc_dc_section.webp
             assets/sst/mbudget_*.webp
+            scripts/constraints.txt
           sparse-checkout-cone-mode: false
       - uses: actions/setup-python@v7
         with:

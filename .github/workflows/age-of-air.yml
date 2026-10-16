@@ -17,6 +17,7 @@ on:
 
 env:
   MPLBACKEND: Agg
+  PIP_CONSTRAINT: ${{ github.workspace }}/scripts/constraints.txt   # bounds every pip install (see the file)
 
 permissions:
   contents: write
@@ -38,6 +39,7 @@ jobs:
             scripts/strat/reference/age_of_air.nc
             assets/sst/data/age_of_air.json
             assets/sst/aoa_*.webp
+            scripts/constraints.txt
           sparse-checkout-cone-mode: false
       - uses: actions/setup-python@v7
         with:

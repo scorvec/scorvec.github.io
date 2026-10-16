@@ -35,6 +35,9 @@ concurrency:
   group: regimes
   cancel-in-progress: false
 
+env:
+  PIP_CONSTRAINT: ${{ github.workspace }}/scripts/constraints.txt   # bounds every pip install (see the file)
+
 jobs:
   combined:
     runs-on: ubuntu-latest
@@ -47,6 +50,7 @@ jobs:
             assets/regimes
             assets/geps/regimes_members.json
             assets/gefs/data/gefs_regimes_members.json
+            scripts/constraints.txt
           sparse-checkout-cone-mode: false
       - uses: actions/setup-python@v7
         with:

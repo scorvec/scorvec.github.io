@@ -35,6 +35,7 @@ concurrency:
 # any other mirror name; pinning it here is belt and braces.
 env:
   ECMWF_SOURCES: google
+  PIP_CONSTRAINT: ${{ github.workspace }}/scripts/constraints.txt   # bounds every pip install (see the file)
 
 jobs:
   check:
@@ -132,16 +133,16 @@ jobs:
         timeout-minutes: 75
         run: |
           MJO_HEAVY_ATMOS= python src/ens_cycle.py --date "${{ steps.cyc.outputs.date }}" --time "${{ steps.cyc.outputs.time }}" \
-            || echo "ens_cycle (light) had issues; continuing"
+            || "$GITHUB_WORKSPACE/scripts/lib/degraded.sh" "ENS cycle fetch (light pass)" "the builders use whatever is cached"
           python src/ens_cycle.py --date "${{ steps.cyc.outputs.date }}" --time "${{ steps.cyc.outputs.time }}" \
-            || echo "ens_cycle (heavy) had issues; continuing"
+            || "$GITHUB_WORKSPACE/scripts/lib/degraded.sh" "ENS cycle fetch (AAM levels)" "the builders use whatever is cached"
           du -sh data 2>/dev/null || true
 
       - name: AAM main figure + trend
         working-directory: scripts/mjo
         run: |
           python src/aam.py --date "${{ steps.cyc.outputs.date }}" --time "${{ steps.cyc.outputs.time }}" \
-            --data-dir data/aam --out ../../assets/sst/aam.webp || echo "AAM failed; continuing"
+            --data-dir data/aam --out ../../assets/sst/aam.webp || "$GITHUB_WORKSPACE/scripts/lib/degraded.sh" "AAM main figure + trend"
 
       - name: AAM zonal loop
         working-directory: scripts/mjo
@@ -149,13 +150,13 @@ jobs:
           mkdir -p ../../assets/sst/anim/aam_zonal
           python src/aam_zonal.py --date "${{ steps.cyc.outputs.date }}" --time "${{ steps.cyc.outputs.time }}" \
             --anim-dir ../../assets/sst/anim/aam_zonal --manifest ../../assets/sst/anim/aam_zonal_manifest.json \
-            || echo "AAM zonal failed; continuing"
+            || "$GITHUB_WORKSPACE/scripts/lib/degraded.sh" "AAM zonal loop"
 
       - name: AAM phase figure
         working-directory: scripts/mjo
         run: |
           python src/aam_phase.py --date "${{ steps.cyc.outputs.date }}" --time "${{ steps.cyc.outputs.time }}" \
-            --out ../../assets/sst/aam_phase.webp || echo "AAM phase failed; continuing"
+            --out ../../assets/sst/aam_phase.webp || "$GITHUB_WORKSPACE/scripts/lib/degraded.sh" "AAM phase figure"
 
       - name: Torque budget (loop, time series, ranges)
         working-directory: scripts/mjo
@@ -166,7 +167,7 @@ jobs:
             --anim-dir ../../assets/sst/anim/torque --manifest ../../assets/sst/anim/torque_manifest.json \
             --ts-out ../../assets/sst/torque_timeseries.webp --ranges-out ../../assets/sst/torque_ranges.webp \
             --series-out ../../assets/sst/data/torque_ranges.json \
-            || echo "torque budget failed; continuing"
+            || "$GITHUB_WORKSPACE/scripts/lib/degraded.sh" "Torque budget"
 
       - name: Jets
         working-directory: scripts/mjo
@@ -175,7 +176,7 @@ jobs:
           python src/jets.py --date "${{ steps.cyc.outputs.date }}" --time "${{ steps.cyc.outputs.time }}" \
             --out ../../assets/sst/jets.webp \
             --anim-dir ../../assets/sst/anim/jets --manifest ../../assets/sst/anim/jets_manifest.json \
-            || echo "jets failed; continuing"
+            || "$GITHUB_WORKSPACE/scripts/lib/degraded.sh" "Jets"
 
       - name: Dynamic tropopause (member 0)
         working-directory: scripts/mjo
@@ -183,7 +184,7 @@ jobs:
           mkdir -p ../../assets/sst/anim/dt ../../assets/sst/anim/dt_npac ../../assets/sst/anim/dt_na ../../assets/sst/anim/dt_atl ../../assets/sst/anim/dt_asia ../../assets/sst/anim/dt_pv330 ../../assets/sst/anim/dt_pv330_npac ../../assets/sst/anim/dt_pv330_na ../../assets/sst/anim/dt_pv330_atl ../../assets/sst/anim/dt_pv330_asia ../../assets/sst/anim/dt_pv350 ../../assets/sst/anim/dt_pv350_npac ../../assets/sst/anim/dt_pv350_na ../../assets/sst/anim/dt_pv350_atl ../../assets/sst/anim/dt_pv350_asia ../../assets/sst/anim/dt_sam ../../assets/sst/anim/dt_pv330_sam ../../assets/sst/anim/dt_pv350_sam
           python src/dt_charts.py --date "${{ steps.cyc.outputs.date }}" --time "${{ steps.cyc.outputs.time }}" \
             --anim-dir ../../assets/sst/anim --manifest ../../assets/sst/anim/dt_manifest.json \
-            || echo "dynamic tropopause failed; continuing"
+            || "$GITHUB_WORKSPACE/scripts/lib/degraded.sh" "Dynamic tropopause"
 
       # The TC steps never stop the job (the rest of the atmosphere page still publishes), but a failure is an error
       # annotation and a line in the job summary. Missing input data (a tracker file ECMWF has not published) is recorded
@@ -274,3 +275,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: echo "site deploy is batched - the dispatcher deploys within 15 min (pages.yml)"
+
+      - name: Summary
+        if: always()
+        run: scripts/lib/degraded.sh --summary

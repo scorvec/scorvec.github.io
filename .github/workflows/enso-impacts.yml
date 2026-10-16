@@ -29,6 +29,7 @@ on:
 
 env:
   MPLBACKEND: Agg
+  PIP_CONSTRAINT: ${{ github.workspace }}/scripts/constraints.txt   # bounds every pip install (see the file)
 
 permissions:
   contents: write

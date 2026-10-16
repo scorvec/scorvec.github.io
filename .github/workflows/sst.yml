@@ -43,6 +43,7 @@ env:
   FRAMES_S3_ACL: ${{ secrets.FRAMES_S3_ACL }}
   AWS_ACCESS_KEY_ID: ${{ secrets.FRAMES_S3_ACCESS_KEY_ID }}
   AWS_SECRET_ACCESS_KEY: ${{ secrets.FRAMES_S3_SECRET_ACCESS_KEY }}
+  PIP_CONSTRAINT: ${{ github.workspace }}/scripts/constraints.txt   # bounds every pip install (see the file)
 
 permissions:
   contents: write
@@ -81,21 +82,28 @@ jobs:
       # OISST cache: the 1.4 GB 1991-2020 climatology exists only on PSL, and
       # the yearly file is ~470 MB per run — cache both so a PSL outage rides
       # on the NCEI day-file fallback (oisst9120) instead of failing outright.
-      - uses: actions/cache@v6
+      # The data caches here are restored from the newest entry and saved under
+      # a hash of their files only when a step changed them (the save steps
+      # below); "Drop superseded caches" then deletes the older entries.
+      - name: Restore the OISST files
+        id: oisst_cache
+        uses: actions/cache/restore@v6
         with:
           path: |
             scripts/sst/data/sst.day.mean.ltm.1991-2020.nc
             scripts/sst/data/sst.day.mean.*.nc
-          key: oisst-data-${{ github.run_id }}
+          key: oisst-data-
           restore-keys: |
             oisst-data-
 
       # ASCAT daily-mean u/v archive: lets a plot-layout change re-render every
       # frame in the window from cached fields instead of refetching Copernicus.
-      - uses: actions/cache@v6
+      - name: Restore the ASCAT archive
+        id: ascat_cache
+        uses: actions/cache/restore@v6
         with:
           path: scripts/sst/data/ascat
-          key: ascat-data-${{ github.run_id }}
+          key: ascat-data-
           restore-keys: |
             ascat-data-
 
@@ -159,13 +167,24 @@ jobs:
       # series. Best-effort: without it the card falls back to drawing the OISST
       # estimate alone, which is what it did before this existed.
       - name: CPC official ONI/RONI
-        run: python scripts/sst/cpc_official_enso.py || echo "::warning::CPC official fetch failed; RONI card will show estimates only"
+        run: python scripts/sst/cpc_official_enso.py || "$GITHUB_WORKSPACE/scripts/lib/degraded.sh" "CPC official ONI/RONI" "the RONI card shows estimates only"
 
       - name: Build SST maps, RONI, and animation (OISST)
         run: |
           FORCE=""
           [ "${{ inputs.force }}" = "true" ] && FORCE="--force"
           python scripts/sst/sst-roni.py $FORCE
+
+      - name: Save the OISST files (when they changed)
+        if: >-
+          hashFiles('scripts/sst/data/sst.day.mean.*.nc') != '' &&
+          steps.oisst_cache.outputs.cache-matched-key != format('oisst-data-{0}', hashFiles('scripts/sst/data/sst.day.mean.*.nc'))
+        uses: actions/cache/save@v6
+        with:
+          path: |
+            scripts/sst/data/sst.day.mean.ltm.1991-2020.nc
+            scripts/sst/data/sst.day.mean.*.nc
+          key: oisst-data-${{ hashFiles('scripts/sst/data/sst.day.mean.*.nc') }}
 
       # Walker circulation by basin (Indian/Atlantic with ENSO removed): needs the OISST file the
       # step above just refreshed and walker_ud_history.nc that mjo.yml commits. Best-effort.
@@ -179,17 +198,17 @@ jobs:
       # offline-built enso_flavour.json; needs no Copernicus key. Best-effort: on failure the page keeps
       # the previous day's file.
       - name: ENSO forecasts, observed E and C so far (OISST)
-        run: python scripts/sst/enso_flavour_obs.py || echo "::warning::enso_flavour_obs failed; keeping the previous observed E/C"
+        run: python scripts/sst/enso_flavour_obs.py || "$GITHUB_WORKSPACE/scripts/lib/degraded.sh" "ENSO forecasts, observed E and C" "the previous observed E/C stays"
 
       # Both Walker products need the ERSSTv6 month three months back (fetched above) and stop without writing
       # when it is missing, so a failure here means the page keeps the previous figure.
       - name: Walker circulation by ocean basin
-        run: python scripts/sst/walker_basins.py || echo "::warning::walker_basins failed; keeping the previous figure"
+        run: python scripts/sst/walker_basins.py || "$GITHUB_WORKSPACE/scripts/lib/degraded.sh" "Walker circulation by basin"
 
       # Weekly departure of the tropical velocity potential from the Pacific-forced part (reads the
       # χ history mjo.yml keeps in assets/sst/anim/walker on the frames branch, seeded above).
       - name: Walker departure from Pacific forcing, weekly
-        run: python scripts/sst/walker_chi_weekly.py || echo "::warning::walker_chi_weekly failed; keeping the previous figure"
+        run: python scripts/sst/walker_chi_weekly.py || "$GITHUB_WORKSPACE/scripts/lib/degraded.sh" "Walker departure from Pacific forcing"
 
       # The subsurface page is owned by tao-subsurface.yml (3x a day). Here it is a courtesy refresh, so a PMEL DISDEL
       # hiccup must not take the SST anomalies / RONI run down with it (2026-09-22 17:45Z did exactly that).
@@ -210,7 +229,7 @@ jobs:
       - name: Note skipped subsurface refresh
         if: steps.tao.outcome != 'success' || steps.tao.outputs.skip == 'true'
         run: |
-          echo "::warning::TAO DISDEL fetch failed or PMEL in maintenance; subsurface left to tao-subsurface.yml"
+          scripts/lib/degraded.sh "Equatorial subsurface refresh (TAO DISDEL)" "left to tao-subsurface.yml"
           # sst-roni re-rendered the pages with a __TAO_DAY__ placeholder that only sst_subsurface.py fills: keep the
           # committed subsurface page (tao-subsurface.yml's) rather than ship the raw token
           for f in $(grep -l "__TAO_DAY__" enso*.html sst.html circulation.html 2>/dev/null); do
@@ -226,7 +245,16 @@ jobs:
           if [ -z "$COPERNICUSMARINE_SERVICE_USERNAME" ]; then
             echo "Copernicus Marine credentials not set; skipping wind map."; exit 0
           fi
-          python sst_ascat_winds.py || echo "ASCAT wind map failed; continuing"
+          python sst_ascat_winds.py || "$GITHUB_WORKSPACE/scripts/lib/degraded.sh" "ASCAT wind map"
+
+      - name: Save the ASCAT archive (when it changed)
+        if: >-
+          hashFiles('scripts/sst/data/ascat/**') != '' &&
+          steps.ascat_cache.outputs.cache-matched-key != format('ascat-data-{0}', hashFiles('scripts/sst/data/ascat/**'))
+        uses: actions/cache/save@v6
+        with:
+          path: scripts/sst/data/ascat
+          key: ascat-data-${{ hashFiles('scripts/sst/data/ascat/**') }}
 
       # Copernicus Marine equatorial CURRENT products (zonal-current section
       # loop, surface-current map loop, current + wind Hovmollers). These ran
@@ -248,10 +276,10 @@ jobs:
           if [ -z "$COPERNICUSMARINE_SERVICE_USERNAME" ]; then
             echo "Copernicus Marine credentials not set; skipping current products."; exit 0
           fi
-          python eq_current_section.py || echo "eq current section failed; continuing"
-          python eq_current_hovmoller.py || echo "eq current hovmoller failed; continuing"
-          python eq_uwind_hovmoller.py || echo "eq uwind hovmoller failed; continuing"
-          python eq_current_map.py || echo "eq current map failed; continuing"
+          python eq_current_section.py || "$GITHUB_WORKSPACE/scripts/lib/degraded.sh" "Equatorial current section"
+          python eq_current_hovmoller.py || "$GITHUB_WORKSPACE/scripts/lib/degraded.sh" "Equatorial current Hovmoller"
+          python eq_uwind_hovmoller.py || "$GITHUB_WORKSPACE/scripts/lib/degraded.sh" "Equatorial u-wind Hovmoller"
+          python eq_current_map.py || "$GITHUB_WORKSPACE/scripts/lib/degraded.sh" "Equatorial surface-current map"
           rm -f data/cmems/*_chunk.nc data/cmems/map_block.nc   # transient subsets; only the stores go back to the branch
 
       # Products that only run_local_sst.sh was building, moved here 2026-08-29 so the
@@ -259,7 +287,7 @@ jobs:
       # single upstream outage should not take the whole cycle down, and the
       # previous figure/JSON stays on the site until the next run succeeds.
       - name: Warm-water volume orbit
-        run: python scripts/sst/wwv_orbit.py || echo "WWV orbit failed; continuing"
+        run: python scripts/sst/wwv_orbit.py || "$GITHUB_WORKSPACE/scripts/lib/degraded.sh" "Warm-water volume orbit"
 
       # THE MUR SERIES CACHE. Without this the step costs 40 min - 72% of the
       # whole job - and it is not MUR being slow. scripts/sst/data/ is gitignored
@@ -268,13 +296,14 @@ jobs:
       # the ENTIRE record from ERDDAP every run. With the series restored it
       # fetches only the days it is missing, which is one or two.
       #
-      # run_id in the key so every run writes a fresh entry, restore-keys to fall
-      # back to the newest previous one - the read-only pattern, since a fixed key
-      # would save once and then never update as the series grows.
-      - uses: actions/cache@v6
+      # Restored from the newest entry and saved under a hash of the series after
+      # the step, only when it grew (a fixed key would save once and never update).
+      - name: Restore the MUR series
+        id: mur_cache
+        uses: actions/cache/restore@v6
         with:
           path: scripts/sst/data/mur
-          key: mur-nino34-series-${{ github.run_id }}
+          key: mur-nino34-series-
           restore-keys: |
             mur-nino34-series-
 
@@ -291,7 +320,15 @@ jobs:
               || echo "::warning::no MUR series in release mur-series-v1 yet"
           fi
       - name: MUR 1 km Nino-3.4 vs OISST
-        run: python scripts/sst/mur_nino34.py || echo "MUR Nino-3.4 failed; keeping previous figure"
+        run: python scripts/sst/mur_nino34.py || "$GITHUB_WORKSPACE/scripts/lib/degraded.sh" "MUR 1 km Nino-3.4"
+      - name: Save the MUR series (when it grew)
+        if: >-
+          hashFiles('scripts/sst/data/mur/**') != '' &&
+          steps.mur_cache.outputs.cache-matched-key != format('mur-nino34-series-{0}', hashFiles('scripts/sst/data/mur/**'))
+        uses: actions/cache/save@v6
+        with:
+          path: scripts/sst/data/mur
+          key: mur-nino34-series-${{ hashFiles('scripts/sst/data/mur/**') }}
       - name: Publish the MUR series to the release
         env:
           GH_TOKEN: ${{ github.token }}
@@ -306,7 +343,7 @@ jobs:
       - name: Nino-region history JSON
         env:
           SST_SITE_ROOT: ${{ github.workspace }}
-        run: python scripts/sst/build_nino_history.py || echo "nino history failed; keeping previous JSON"
+        run: python scripts/sst/build_nino_history.py || "$GITHUB_WORKSPACE/scripts/lib/degraded.sh" "Nino-region history JSON"
 
       # ── MEI.v2 daily nowcast (moved here 2026-09-02) ─────────────
       # Regression of the bimonthly MEI.v2 on daily Niño-3.4 (the OISST means
@@ -329,10 +366,10 @@ jobs:
           mkdir -p data/soi
           curl -sSf --max-time 120 -o data/soi/DailySOI.txt \
             "https://data.longpaddock.qld.gov.au/SeasonalClimateOutlook/SouthernOscillationIndex/SOIDataFiles/DailySOI1887-1989Base.txt" \
-            || echo "daily SOI download failed; nowcast will use whatever is cached"
-          python src/refresh_u850_tail.py || echo "u850 tail refresh failed; nowcast uses the seeded tail"
+            || "$GITHUB_WORKSPACE/scripts/lib/degraded.sh" "LongPaddock daily SOI" "the MEI nowcast uses the cached copy"
+          python src/refresh_u850_tail.py || "$GITHUB_WORKSPACE/scripts/lib/degraded.sh" "ERA5 u850 tail" "the MEI nowcast uses the seeded tail"
           if [ -f data/reference/eq_u850_bandseries.nc ]; then
-            python src/build_mei_nowcast.py --apply "$(date -u +%Y)" || echo "MEI nowcast failed; keeping previous figures"
+            python src/build_mei_nowcast.py --apply "$(date -u +%Y)" || "$GITHUB_WORKSPACE/scripts/lib/degraded.sh" "MEI nowcast"
             cp -f data/reference/eq_u850_*_arco.nc data/reference_big/ 2>/dev/null || true
           else
             echo "no u850 band series on this runner - skipping the MEI nowcast"
@@ -400,6 +437,12 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: echo "site deploy is batched - the dispatcher deploys within 15 min (pages.yml)"
 
+      - name: Drop superseded caches
+        if: always()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: scripts/lib/cache_prune.sh oisst-data- ascat-data- mur-nino34-series- ersst-v6-
+
       - name: Summary
         if: always()
         run: |
@@ -407,3 +450,4 @@ jobs:
           echo "- Page: [/enso.html](https://scorvec.com/enso.html)" >> "$GITHUB_STEP_SUMMARY"
           [ -f assets/sst/manifest.json ] && \
             echo "- $(python -c "import json;m=json.load(open('assets/sst/manifest.json'));print('OISST',m['sst_valid_day'],'· RONI',m['roni_latest_value'],'°C')" )" >> "$GITHUB_STEP_SUMMARY" || true
+          scripts/lib/degraded.sh --summary

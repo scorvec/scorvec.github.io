@@ -28,8 +28,9 @@ name: Stratosphere (vortex, wave-1, E-P flux from GEFS)
 #
 # So the light pair no longer waits on a fetch it never touches, and the two
 # render jobs run concurrently. A failure in one no longer hides or blocks the
-# other, which matters because every render is wrapped in `|| echo ::warning::`
-# so that one upstream outage cannot sink the rest.
+# other, which matters because every render is wrapped in a `|| degraded.sh`
+# guard (a warning plus a line in the run summary) so that one upstream outage
+# cannot sink the rest.
 #
 # The cycle is resolved once, in its own job, and passed to both. Resolving it
 # per-job would let a cycle published between them put the two halves of the
@@ -78,6 +79,7 @@ env:
   FRAMES_S3_ACL: ${{ secrets.FRAMES_S3_ACL }}
   AWS_ACCESS_KEY_ID: ${{ secrets.FRAMES_S3_ACCESS_KEY_ID }}
   AWS_SECRET_ACCESS_KEY: ${{ secrets.FRAMES_S3_SECRET_ACCESS_KEY }}
+  PIP_CONSTRAINT: ${{ github.workspace }}/scripts/constraints.txt   # bounds every pip install (see the file)
 
 permissions:
   contents: write
@@ -168,7 +170,7 @@ jobs:
             --date "${{ needs.cycle.outputs.date }}" --time "${{ needs.cycle.outputs.time }}" \
             --anim-dir assets/sst/anim \
             --manifest assets/sst/anim/wave1_maps_manifest.json \
-            || echo "::warning::wave1_maps failed; keeping the previous loop"
+            || "$GITHUB_WORKSPACE/scripts/lib/degraded.sh" "wave1_maps" "keeping the previous loop"
 
       # 100 hPa eddy heat flux: v and T for 25 members, daily steps, ~0.5 GB. Google mirror only.
       - name: Eddy heat flux, 100 hPa
@@ -179,7 +181,7 @@ jobs:
           python scripts/strat/heatflux100.py \
             --date "${{ needs.cycle.outputs.date }}" --time "${{ needs.cycle.outputs.time }}" \
             --out-dir assets/sst \
-            || echo "::warning::heatflux100 failed; keeping the previous figure"
+            || "$GITHUB_WORKSPACE/scripts/lib/degraded.sh" "heatflux100" "keeping the previous figure"
 
       # Forecast dripping paint: polar-cap height 1000-10 hPa, GEOS FP tail (bdc.yml keeps
       # assets/sst/data/geosfp_cap_history.json) + AIFS-ENS control and 10 members to day 15,
@@ -192,7 +194,7 @@ jobs:
           python scripts/strat/forecast_drip.py --model aifs \
             --date "${{ needs.cycle.outputs.date }}" --time "${{ needs.cycle.outputs.time }}" \
             --out-dir assets/sst \
-            || echo "::warning::forecast_drip failed; keeping the previous figure"
+            || "$GITHUB_WORKSPACE/scripts/lib/degraded.sh" "forecast_drip" "keeping the previous figure"
 
       # Weather regimes from the AIFS-ENS 500 hPa members the two steps above already cached (wave1_maps' 25 perturbed
       # members + forecast_drip's control): no fetch of its own. 00Z cycles only (a 12Z cycle is a no-op). ->
@@ -201,7 +203,7 @@ jobs:
         run: |
           python scripts/regimes/regimes_ecmwf.py --model aifs \
             --date "${{ needs.cycle.outputs.date }}" --time "${{ needs.cycle.outputs.time }}" \
-            || echo "::warning::AIFS-ENS regimes failed"
+            || "$GITHUB_WORKSPACE/scripts/lib/degraded.sh" "AIFS-ENS regimes"
 
       # 25 perturbed members of u and v at 10/100 hPa every 12 h (~1.9 GB) for the
       # ensemble-mean maps. Google mirror only.
@@ -215,10 +217,10 @@ jobs:
             --out-dir assets/sst \
             --anim-dir assets/sst/anim \
             --manifest assets/sst/anim/vortex_winds_manifest.json \
-            || echo "::warning::vortex_winds failed; keeping the previous figure"
+            || "$GITHUB_WORKSPACE/scripts/lib/degraded.sh" "vortex_winds" "keeping the previous figure"
 
       # Fails the job when a product rendered nothing. Every render is wrapped in
-      # `|| echo ::warning::` so one upstream outage cannot sink the others - but
+      # a `|| degraded.sh` guard so one upstream outage cannot sink the others - but
       # that also turns a render that dies at once (an argparse error, say) into
       # a green step. Publishing still happens: the publish job runs under
       # always(), so the products that did render reach the site and the run
@@ -226,6 +228,7 @@ jobs:
       - name: What was produced
         if: always()
         run: |
+          scripts/lib/degraded.sh --summary
           bad=0
           for f in assets/sst/vortex_10.webp; do
             if [ -f "$f" ]; then
@@ -326,7 +329,7 @@ jobs:
           python src/ens_cycle.py --only strat \
                                   --date "${{ needs.cycle.outputs.date }}" \
                                   --time "${{ needs.cycle.outputs.time }}" \
-            || echo "::warning::ens_cycle had issues; downstream uses whatever cached"
+            || "$GITHUB_WORKSPACE/scripts/lib/degraded.sh" "ens_cycle" "downstream uses whatever cached"
           du -sh ../ecmwf/cache 2>/dev/null || true
 
       # Per-member zonal-mean u at 10/50/100 hPa from the cached u files -> data/zmu_members_aifs.npz, and v at
@@ -335,7 +338,7 @@ jobs:
         run: |
           python scripts/strat/qbo_duct.py --model aifs \
             --date "${{ needs.cycle.outputs.date }}" --time "${{ needs.cycle.outputs.time }}" \
-            || echo "::warning::AIFS-ENS zonal-mean u failed; the zero line keeps the analysis"
+            || "$GITHUB_WORKSPACE/scripts/lib/degraded.sh" "AIFS-ENS zonal-mean u" "the zero line keeps the analysis"
 
       # QBO zero-wind line: the per-member zonal-mean u at 50/10 hPa that qbo_duct just computed
       # (data/zmu_members_aifs.npz - no extra download), the GEOS FP analysis tail from the BDC product's cache on the
@@ -345,9 +348,9 @@ jobs:
         run: |
           scripts/lib/fetch_frames_ci.sh assets/sst/anim/bdc_tail || true
           python scripts/strat/qbo_zeroline.py forecast --model aifs \
-            || echo "::warning::zero-line AIFS-ENS forecast failed; the figure keeps the analysis"
+            || "$GITHUB_WORKSPACE/scripts/lib/degraded.sh" "zero-line AIFS-ENS forecast" "the figure keeps the analysis"
           python scripts/strat/qbo_zeroline.py render \
-            || echo "::warning::zero-line render failed; keeping the previous figures"
+            || "$GITHUB_WORKSPACE/scripts/lib/degraded.sh" "zero-line render" "keeping the previous figures"
 
       # North Pacific jet: 250 hPa u from the AAM pull above and v from the zonal-mean
       # u step's 250 hPa fetch (control + 25 members). Maps, loop, jet axis, phase diagram, the torque
@@ -357,11 +360,12 @@ jobs:
         run: |
           python scripts/mjo/src/pacjet.py --model aifs \
             --date "${{ needs.cycle.outputs.date }}" --time "${{ needs.cycle.outputs.time }}" \
-            || echo "::warning::North Pacific jet (AIFS-ENS) failed; keeping the previous figures"
+            || "$GITHUB_WORKSPACE/scripts/lib/degraded.sh" "North Pacific jet (AIFS-ENS)" "keeping the previous figures"
 
       - name: What was produced
         if: always()
         run: |
+          scripts/lib/degraded.sh --summary
           bad=0
           for f in scripts/strat/data/zmu_members_aifs.npz assets/sst/data/pacjet_aifs.json; do
             if [ -f "$f" ]; then printf '  %-38s %s\n' "$f" "$(du -h "$f" | cut -f1)"
@@ -436,12 +440,13 @@ jobs:
           start=$(date +%s)
           python scripts/strat/qbo_duct.py --model gefs \
             --date "${{ needs.cycle.outputs.date }}" --time "${{ needs.cycle.outputs.time }}" \
-            || echo "::warning::GEFS E-P flux loop failed; keeping the previous frames"
+            || "$GITHUB_WORKSPACE/scripts/lib/degraded.sh" "GEFS E-P flux loop" "keeping the previous frames"
           echo "  wall time $(( $(date +%s) - start )) s"
 
       - name: What was produced
         if: always()
         run: |
+          scripts/lib/degraded.sh --summary
           n=$(ls assets/sst/anim/epflux_gefs/*.webp 2>/dev/null | wc -l | tr -d ' ')
           printf '  %-38s %s frames\n' assets/sst/anim/epflux_gefs "$n"
           [ "$n" -eq 0 ] && { echo "::error::the GEFS E-P flux loop produced nothing"; exit 1; } || true
