@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Render the warming-study items of the "Stratosphere history" group on stratosphere.html from the committed reference
+"""Render the warming-study items of the "History and studies" group on stratosphere.html from the committed reference
 scripts/strat/reference/ssw_precursors.json (built offline by build_ssw_precursors.py). Runs in Actions
 (ssw-precursors.yml): the static figures when the reference or this script change, the seasonal-odds card also on a
 light schedule, because its inputs change monthly.
