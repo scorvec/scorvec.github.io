@@ -269,8 +269,7 @@ ORDER = [
 PV_FIELDS = ("pvu", "pvl", *tuple(f"{k}{int(t)}" for k in ("pv", "w") for t in UPR.THETAS))
 UA_FIELDS = ("ua925", "ua250", "dt", "z500", "w500", *PV_FIELDS)
 UA_ON = os.environ.get("MV_UA", "0") == "1"  # models.yml sets MV_UA=1 (the switch for the upper-air fetch)
-# models with upper air (MV_UA_MODELS); the RRFS prslev path (prs_url, UA_GRID, upper.UA_LEVS_RRFS) is off by default
-UA_MODELS = set(os.environ.get("MV_UA_MODELS", "hrrr,rdps").split(","))
+UA_MODELS = set(os.environ.get("MV_UA_MODELS", "hrrr,rrfs,rdps").split(","))  # models with upper air
 
 
 def ua_on(model):
@@ -294,9 +293,11 @@ SMOKE_SEASON = (4, 1, 9, 30)
 
 # Snow-band diagnostics: a season gate on the run's UTC date, inclusive (month, day, month, day): 1 October to
 # 30 April. MV_SB_SEASON="MM-DD:MM-DD" overrides; MV_SB=force computes them out of season (testing,
-# models.yml input "snowband"), MV_SB=off never. HRRR and RDPS only.
-SB_MODELS = ("hrrr", "rdps")
-SB_GRID = {"hrrr": "sub", "rdps": "main"}  # the 12 km "sub" grid = snowband.py's evaluation grid; RDPS 10 km as is
+# models.yml input "snowband"), MV_SB=off never.
+SB_MODELS = ("hrrr", "rrfs", "rdps")
+# the 12 km "sub" grid = snowband.py's evaluation grid; RDPS 10 km as is
+SB_GRID = {"hrrr": "sub", "rrfs": "sub", "rdps": "main"}
+SB_SRC = {"hrrr": "hrrr", "rrfs": "rrfs3", "rdps": "rdps"}  # snowband.py's name for each viewer grid (RRFS: 3 km CONUS)
 
 
 def sb_season():
@@ -686,11 +687,11 @@ def prs_url(model, date, cyc, lead):
     return f"{sb.rrfs_base(date, cyc)}.prslev.3km.f{lead:03d}.conus.grib2"
 
 
-def ua_want(model="hrrr"):
-    """.idx regexes of the upper-air messages (HRRR wrfprs / RRFS prslev share the names): T, u, v on UA_LEVS for the
-    dynamic tropopause and 500 hPa vorticity, and the 925 / 250 / 500 hPa heights and 925 hPa wind."""
+def ua_want():
+    """.idx regexes of the upper-air messages (HRRR wrfprs / RRFS prslev share the names): T, u, v on UA_LEVS_LCC for
+    the dynamic tropopause, PV and 500 hPa vorticity, and the 925 / 250 / 500 hPa heights and 925 hPa wind."""
     w = {}
-    for p in UPR.levs_of(model):
+    for p in UPR.UA_LEVS_LCC:
         for v in ("TMP", "UGRD", "VGRD"):
             w[f"ua:{v}:{p}"] = rf"^{v}:{p} mb:(anl|\d+ hour fcst):?$"
     for v, p in (("UGRD", 925), ("VGRD", 925), ("HGT", 925), ("HGT", 250), ("HGT", 500)):
@@ -713,17 +714,18 @@ def rdps_ua_jobs(date, cyc, lead):
     return j
 
 
-def sb_want_lcc():
-    """.idx regexes of the snow-band columns in HRRR wrfprs (snowband.py read_levels): T, u, v, omega, q on sb.LEVS
-    (950-450 hPa every 25) and the 700 hPa height. Keys shared with the upper-air (ua:) and Cobb (cb:VVEL) sets, so a
-    message wanted by two is fetched once."""
+def sb_want_lcc(model):
+    """.idx regexes of the snow-band columns in HRRR wrfprs / RRFS prslev (snowband.py read_levels): T, u, v, vertical
+    motion (HRRR omega VVEL, RRFS geometric DZDT) and q on sb.LEVS (950-450 hPa every 25) and the 700 hPa height. Keys
+    shared with the upper-air (ua:) and Cobb (cb:VVEL) sets, so a message wanted by two is fetched once."""
     w = {}
+    vert = ("VVEL", "cb:VVEL") if model == "hrrr" else ("DZDT", "sb:DZDT")
     for p in sb.LEVS:
         for v, k in (
             ("TMP", "ua:TMP"),
             ("UGRD", "ua:UGRD"),
             ("VGRD", "ua:VGRD"),
-            ("VVEL", "cb:VVEL"),
+            vert,
             ("SPFH", "sb:SPFH"),
         ):
             w[f"{k}:{p}"] = rf"^{v}:{p} mb:(anl|\d+ hour fcst):?$"
@@ -1115,7 +1117,7 @@ def sb_grid(model):
     if "_sbgrid" not in _CTX:
         _CTX["_sbgrid"] = sb.Grid(
             dict(lat=_CTX["sb_lat"], lon=_CTX["sb_lon"], grid_rel=bool(_CTX.get("grid_rel"))),
-            sb.SRC_DX[model],
+            sb.SRC_DX[SB_SRC[model]],
             box=None,
         )
     return _CTX["_sbgrid"]
@@ -1152,7 +1154,8 @@ def sb_fields(model, blobs, crop):
         ps = ps if np.nanmean(ps) > 5000 else ps * 100.0
     else:
         levs = list(sb.LEVS)
-        need = [f"{k}:{p}" for k in ("ua:TMP", "ua:UGRD", "ua:VGRD", "cb:VVEL", "sb:SPFH") for p in levs] + [
+        wkey = "cb:VVEL" if model == "hrrr" else "sb:DZDT"
+        need = [f"{k}:{p}" for k in ("ua:TMP", "ua:UGRD", "ua:VGRD", wkey, "sb:SPFH") for p in levs] + [
             "ua:HGT:700",
             "psfc",
         ]
@@ -1160,10 +1163,14 @@ def sb_fields(model, blobs, crop):
         if miss:
             print(f"  snow-band: missing {miss[:6]}", flush=True)
             return {}
-        key = dict(T="ua:TMP", u="ua:UGRD", v="ua:VGRD", w="cb:VVEL", q="sb:SPFH")
+        key = dict(T="ua:TMP", u="ua:UGRD", v="ua:VGRD", w=wkey, q="sb:SPFH")
 
         def level(name, k):
-            return dec(blobs[f"{key[name]}:{levs[k]}"])
+            a = dec(blobs[f"{key[name]}:{levs[k]}"])
+            if name == "w" and model == "rrfs":  # DZDT (m/s) -> omega (Pa/s), hydrostatic, as snowband.read_levels
+                t, q = level("T", k), level("q", k)
+                a = -levs[k] * 100.0 / (sb.RD * t * (1 + 0.608 * q)) * sb.G * a
+            return a
 
         z7 = height_m(blobs["ua:HGT:700"], None, 700)
         ps = dec(blobs["psfc"])
@@ -1505,7 +1512,7 @@ def fetch_hour(model, date, cyc, lead, cyc_dt, skip=()):
             and (smoke or k != "smoke")
         }
         out = fetch_idx_fields(model, file_url(model, date, cyc, lead), want)
-        pw = dict(ua_want(model)) if (UPR.ua_hour(lead) and ua_on(model)) else {}
+        pw = ua_want() if (UPR.ua_hour(lead) and ua_on(model)) else {}
         # the Cobb snow ratio (HRRR): T, RH and omega every 25 hPa 925-300 hPa, fetched only for hours with snow somewhere
         if model == "hrrr" and UA_ON and "csnow" in out and np.nanmax(sb.decode(out["csnow"])) > 0.5:
             for p in WIN.COBB_LEVS:
@@ -1513,7 +1520,7 @@ def fetch_hour(model, date, cyc, lead, cyc_dt, skip=()):
                 pw[f"cb:RH:{p}"] = rf"^RH:{p} mb:(anl|\d+ hour fcst):?$"
                 pw[f"cb:VVEL:{p}"] = rf"^VVEL:{p} mb:(anl|\d+ hour fcst):?$"
         if sb_on(model, cyc_dt) and sb_hour(lead):
-            pw.update(sb_want_lcc())
+            pw.update(sb_want_lcc(model))
             try:  # composite reflectivity for the model-snow outline
                 out.update(
                     fetch_idx_fields(model, file_url(model, date, cyc, lead), {"sb:REFC": r"^REFC:entire atmosphere"})
@@ -1654,7 +1661,7 @@ def cmd_run(a):
         ctx.update(zsfc=sb.decode(z), grid_rel=grel, alpha=alpha_of(lat, lon) if grel else None)
         grids["main"] = grid_desc(z)
         ctx.update(
-            ua_levs=UPR.levs_of(model),
+            ua_levs=UPR.UA_LEVS_LCC,
             lat_sub=lat[:: SUB[model], :: SUB[model]].astype(np.float64),
             lat1=grids["main"]["lat1"],
             lat2=grids["main"]["lat2"],

@@ -33,15 +33,6 @@ import numpy as np
 
 UA_EVERY = 3
 UA_LEVS = [100, 125, 150, 175, 200, 225, 250, 275, 300, 325, 350, 375, 400, 450, 500, 550, 600, 650, 700]
-# RRFS: 11 levels, 38 messages per 3 h instead of 62 (its 3 km prslev messages are ~0.7 MB each; the 19-level set added
-# ~1.9 GB per cycle, measured 2026-10-07)
-UA_LEVS_RRFS = [100, 150, 200, 250, 300, 350, 400, 450, 500, 600, 700]
-
-
-def levs_of(model):
-    return UA_LEVS_RRFS if model == "rrfs" else UA_LEVS_HRRR
-
-
 RDPS_T_LEVS = [100, 150, 175, 200, 225, 250, 275, 300, 350, 400, 450, 500, 550, 600, 650, 700]
 RDPS_UV_LEVS = [100, 150, 200, 250, 300, 400, 500, 600, 700]
 G0, OMEGA, KAPPA, THR = 9.80665, 7.2921e-5, 0.2857, 2.0
@@ -164,11 +155,11 @@ def q_auto(z, steps=(1.0, 2.0, 3.0, 4.0, 5.0, 10.0, 15.0, 20.0, 30.0)):
 
 
 # ── potential-vorticity charts: upper-level layer mean 300-250 hPa, PV on isentropes (315/320/330/340 K), low-level
-# layer mean 850-700 hPa, all from the same Ertel PV on pressure levels as the dynamic tropopause. HRRR: UA_LEVS +
-# 750/800/850 (the DT search still uses 100-700 hPa only); RDPS: computed here the same way on its rotated lat-lon grid
-# from RDPS_PV_LEVS.
+# layer mean 850-700 hPa, all from the same Ertel PV on pressure levels as the dynamic tropopause. HRRR and RRFS:
+# UA_LEVS + 750/800/850 (the DT search still uses 100-700 hPa only); RDPS: computed here the same way on its rotated
+# lat-lon grid from RDPS_PV_LEVS.
 PV_LOW = [750, 800, 850]
-UA_LEVS_HRRR = UA_LEVS + PV_LOW
+UA_LEVS_LCC = UA_LEVS + PV_LOW
 RDPS_PV_LEVS = [100, 150, 175, 200, 225, 250, 275, 300, 350, 400, 450, 500, 550, 600, 650, 700, 750, 800, 850]
 THETAS = (315.0, 320.0, 330.0, 340.0)
 PV_UP = (250, 275, 300)
