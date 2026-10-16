@@ -292,8 +292,10 @@ jobs:
           B="${{ inputs.budget_min || '150' }}"; [ "$LEFT" -lt "$B" ] && B=$LEFT
           TL=$(( 340 - ( $(date +%s) - JOB_T0 ) / 60 - 45 ))
           echo "tercile download budget ${B} min, hard stop ${TL} min"
+          # a forced run re-derives the issue tables (and re-fetches the raw forecast the tables were made from)
+          FORCE=""; [ "${{ inputs.force }}" = "true" ] && FORCE="--force"
           if [ "$B" -gt 5 ]; then
-            timeout --signal=INT "${TL}m" python scripts/sst/c3s_terciles.py --issue "$I" --budget-min "$B" \
+            timeout --signal=INT "${TL}m" python scripts/sst/c3s_terciles.py --issue "$I" --budget-min "$B" $FORCE \
               || echo "::warning::tercile tables incomplete (the next run continues)"
           fi
           n=$(ls "$C3S_REF_DIR"/is_terc_*_"$I".npz 2>/dev/null | wc -l)
