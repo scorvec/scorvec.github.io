@@ -12,6 +12,10 @@
 # tried to rebuild ~150 frames from April onward and was killed by its 25 min
 # timeout. Same trap for any other product that appends.
 #
+# ONLY THE ASKED-FOR DIRECTORIES TRAVEL (2026-10-16): a blobless clone of the branch's trees, then a sparse checkout of
+# just these paths, which fetches their files in one batch. The full clone it replaces moved the whole branch (3.2 GB)
+# to seed a single loop.
+#
 # Read-only and best-effort: a missing branch, or a directory not on it, is not
 # an error - the renderer simply builds what it does not find, which is the old
 # behaviour rather than a failure.
@@ -25,13 +29,19 @@ if frames_store_ready; then
   "$FRAMES_PY" "$FRAMES_LIB/frames_store.py" seed ${EXCLUDE:+--exclude "$EXCLUDE"} "$@"
   exit 0
 fi
-REPO_URL="https://github.com/${GITHUB_REPOSITORY:?GITHUB_REPOSITORY is required}.git"
+REPO_URL="${FRAMES_URL:-https://github.com/${GITHUB_REPOSITORY:?GITHUB_REPOSITORY is required}.git}"
 
 TMP=$(mktemp -d)
 trap 'rm -rf "$TMP"' EXIT
 
-if ! git clone --depth 1 --branch "$BRANCH" --single-branch -q "$REPO_URL" "$TMP/f" 2>/dev/null; then
-  echo "  no $BRANCH branch to seed from - rendering everything from scratch"
+if ! git clone -q --depth 1 --filter=blob:none --no-checkout --single-branch --branch "$BRANCH" "$REPO_URL" "$TMP/f" 2>/dev/null; then
+  echo "::warning::could not read the $BRANCH branch to seed from - rendering everything from scratch"
+  exit 0
+fi
+pats=()
+for d in "$@"; do pats+=("/${d%/}"); done
+if ! git -C "$TMP/f" sparse-checkout set --no-cone -- "${pats[@]}" 2>/dev/null || ! git -C "$TMP/f" checkout -q "$BRANCH"; then
+  echo "::warning::could not check out ${*} from $BRANCH - rendering what is missing from scratch"
   exit 0
 fi
 

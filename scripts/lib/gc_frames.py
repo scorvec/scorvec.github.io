@@ -31,6 +31,7 @@ import os
 import re
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
@@ -86,10 +87,21 @@ def on_branch() -> dict[str, int]:
             if k.endswith(".webp"):
                 counts[os.path.dirname(k)] = counts.get(os.path.dirname(k), 0) + 1
         return counts
-    for p in sh("git", "ls-tree", "-r", "--name-only", f"origin/{BRANCH}").split():
+    for p in branch_paths():
         if p.endswith(".webp"):
             counts[os.path.dirname(p)] = counts.get(os.path.dirname(p), 0) + 1
     return counts
+
+
+def branch_paths() -> list[str]:
+    """Every path on the branch, from a blobless shallow clone: its trees are a few MB, its files 3+ GB."""
+    url = sh("git", "remote", "get-url", "origin").strip()
+    with tempfile.TemporaryDirectory() as td:
+        clone = ["git", "clone", "-q", "--depth", "1", "--filter=blob:none", "--no-checkout", "--single-branch"]
+        subprocess.run([*clone, "--branch", BRANCH, url, td], check=True)
+        return subprocess.run(
+            ["git", "-C", td, "ls-tree", "-r", "--name-only", "HEAD"], capture_output=True, text=True, check=True
+        ).stdout.split()
 
 
 def retired_list() -> list[str]:
@@ -103,7 +115,6 @@ def main() -> int:
     ap.add_argument("--prune", action="store_true", help="actually delete the retired paths (default: report only)")
     a = ap.parse_args()
 
-    sh("git", "fetch", "-q", "origin", BRANCH)
     sh("git", "fetch", "-q", "origin", "main")
     ref, br = referenced(), on_branch()
     retired = retired_list()

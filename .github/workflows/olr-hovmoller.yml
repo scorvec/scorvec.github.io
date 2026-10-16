@@ -21,6 +21,9 @@ concurrency:
   group: olr-hovmoller
   cancel-in-progress: false
 
+env:
+  PIP_CONSTRAINT: ${{ github.workspace }}/scripts/constraints.txt   # bounds every pip install (see the file)
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -36,12 +39,19 @@ jobs:
         run: |
           git config user.name "Shawn Corvec"
           git config user.email "26825570+scorvec@users.noreply.github.com"
-          git add assets/sst/olr_hovmoller.webp scripts/sst/metar/olr_hov.nc
-          if git diff --staged --quiet; then echo "no changes"; exit 0; fi
-          git commit -m "data update: $(date -u +%Y-%m-%dT%H:%MZ)"
+          # Snapshot the outputs, then commit on a clean sync of origin/main each attempt (the mjo.yml pattern), never
+          # a rebase: a collided rebase can drop the build.
+          OUT="assets/sst/olr_hovmoller.webp scripts/sst/metar/olr_hov.nc"
+          SNAP=$(mktemp -d)
+          tar cf "$SNAP/outs.tar" --ignore-failed-read $OUT 2>/dev/null || true
           for i in 1 2 3 4 5; do
-            if timeout 120 git pull --rebase --autostash -X theirs origin main && timeout 180 git push; then echo "pushed (attempt $i)"; exit 0; fi
-            git rebase --abort 2>/dev/null || true   # a timed-out pull can strand a half-done rebase
+            if ! timeout 120 git fetch origin main; then echo "fetch $i failed"; sleep 5; continue; fi
+            git reset --hard origin/main
+            tar xf "$SNAP/outs.tar"
+            git add $OUT
+            if git diff --staged --quiet; then echo "no changes"; exit 0; fi
+            git commit -m "data update: $(date -u +%Y-%m-%dT%H:%MZ)"
+            if timeout 180 git push; then echo "pushed (attempt $i)"; exit 0; fi
             sleep 5
           done
           echo "push failed after retries"; exit 1

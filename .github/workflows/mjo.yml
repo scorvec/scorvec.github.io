@@ -70,6 +70,7 @@ concurrency:
 # any other mirror name; pinning it here is belt and braces.
 env:
   ECMWF_SOURCES: google
+  PIP_CONSTRAINT: ${{ github.workspace }}/scripts/constraints.txt   # bounds every pip install (see the file)
 
 jobs:
   check:
@@ -154,11 +155,15 @@ jobs:
           key: pip-mjo-${{ runner.os }}-${{ hashFiles('scripts/mjo/requirements-mjo.txt') }}
           restore-keys: |
             pip-mjo-${{ runner.os }}-
-      # SOI inputs (LongPaddock daily, BoM monthly) + ETag sidecars, kept between runs: fetched only when new
-      - uses: actions/cache@v6
+      # SOI inputs (LongPaddock daily, BoM monthly) + ETag sidecars, kept between runs: fetched only when new. Restored
+      # from the newest entry, saved under a hash of the files after "SOI history" when they changed, older entries
+      # deleted at the end of the job.
+      - name: Restore the SOI inputs
+        id: soi_cache
+        uses: actions/cache/restore@v6
         with:
           path: scripts/mjo/data/soi
-          key: soi-inputs-${{ github.run_id }}
+          key: soi-inputs-
           restore-keys: soi-inputs-
       - name: Install eccodes (GRIB decoder)
         run: |
@@ -356,6 +361,15 @@ jobs:
         working-directory: scripts/mjo
         run: python src/soi_history.py --out ../../assets/sst/soi_history.webp || echo "SOI history failed; continuing"
 
+      - name: Save the SOI inputs (when they changed)
+        if: >-
+          hashFiles('scripts/mjo/data/soi/**') != '' &&
+          steps.soi_cache.outputs.cache-matched-key != format('soi-inputs-{0}', hashFiles('scripts/mjo/data/soi/**'))
+        uses: actions/cache/save@v6
+        with:
+          path: scripts/mjo/data/soi
+          key: soi-inputs-${{ hashFiles('scripts/mjo/data/soi/**') }}
+
       # The Walker loop dir carries walker_chi_history.nc (tropical velocity potential per analysis)
       # and the WAF dir waf_basic_history.nc (0-h control u/v/ψ for the low-passed basic state);
       # seed both so the appends have a past.
@@ -535,6 +549,12 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: echo "site deploy is batched - the dispatcher deploys within 15 min (pages.yml)"
+
+      - name: Drop superseded caches
+        if: always()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: scripts/lib/cache_prune.sh soi-inputs-
 
       - name: Summary
         if: always()

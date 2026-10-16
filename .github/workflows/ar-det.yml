@@ -27,6 +27,7 @@ concurrency:
 
 env:
   ECMWF_SOURCES: google
+  PIP_CONSTRAINT: ${{ github.workspace }}/scripts/constraints.txt   # bounds every pip install (see the file)
 
 jobs:
   cycle:
@@ -79,7 +80,7 @@ jobs:
           mkdir -p out/assets/ar/anim
           cp -r assets/ar/anim/det_${{ matrix.model }}_* out/assets/ar/anim/
           cp assets/ar/det_coast_${{ matrix.model }}.webp out/assets/ar/
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: det-${{ matrix.model }}
           path: out/
@@ -98,7 +99,7 @@ jobs:
         with:
           python-version: '3.11'
       - run: pip install --quiet numpy pandas
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v7
         with:
           pattern: det-*
           path: art

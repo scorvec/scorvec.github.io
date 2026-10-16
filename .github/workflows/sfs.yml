@@ -40,6 +40,7 @@ env:
   # 2026-09 and 2026-10 issues they hold 24 consecutive days written into every other slot of a 47-day axis (their seasonal
   # cooling runs at half the reforecast's rate; the "November" half matches late October).
   SFS_EXP: beta2
+  PIP_CONSTRAINT: ${{ github.workspace }}/scripts/constraints.txt   # bounds every pip install (see the file)
 
 jobs:
   build:
@@ -80,7 +81,7 @@ jobs:
 
       # The hindcast pool is per calendar month and costs ~20 min to build; keep it between runs.
       - name: Cache the SFS hindcast climatology
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: scripts/sfs/data
           key: sfs-clim-${{ env.SFS_EXP }}-${{ steps.iss.outputs.month }}-v2

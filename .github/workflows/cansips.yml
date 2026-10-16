@@ -42,6 +42,9 @@ concurrency:
   group: cansips
   cancel-in-progress: false
 
+env:
+  PIP_CONSTRAINT: ${{ github.workspace }}/scripts/constraints.txt   # bounds every pip install (see the file)
+
 jobs:
   build:
     runs-on: ubuntu-latest

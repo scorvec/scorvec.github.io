@@ -31,6 +31,7 @@ concurrency:
 # any other mirror name; pinning it here is belt and braces.
 env:
   ECMWF_SOURCES: google
+  PIP_CONSTRAINT: ${{ github.workspace }}/scripts/constraints.txt   # bounds every pip install (see the file)
 
 jobs:
   gefs:
@@ -56,11 +57,14 @@ jobs:
       - name: Seed the run archive
         run: scripts/lib/fetch_frames_ci.sh assets/gefs/anim/runs || true
       # the reforecast climatology centres, the GEFS control-analysis caches (vortex tail, MJO observed track) and
-      # the reference files carry over between runs; a cold cache only costs downloads
-      - uses: actions/cache@v6
+      # the reference files carry over between runs; a cold cache only costs downloads. Restored from the newest entry,
+      # saved under a hash of its files only when the run changed them, older entries deleted (end of the job).
+      - name: Restore the run cache
+        id: gefs_cache
+        uses: actions/cache/restore@v6
         with:
           path: /tmp/gefs_work/clim
-          key: gefs-cache-${{ github.run_id }}
+          key: gefs-cache-
           restore-keys: gefs-cache-
       - name: Reference files (release gefs-ref-v1)
         env:
@@ -116,6 +120,22 @@ jobs:
             python scripts/gefs/gefs_$p.py --npz "${{ steps.run.outputs.npz }}" --date "${{ steps.run.outputs.date }}" --site . \
               --cache /tmp/gefs_work/clim || echo "::warning::GEFS $p failed"
           done
+      # the cache lives outside the workspace, where hashFiles() cannot see it
+      - name: Fingerprint the run cache
+        id: gefs_fp
+        run: |
+          h=""
+          if [ -d /tmp/gefs_work/clim ] && [ -n "$(ls -A /tmp/gefs_work/clim)" ]; then
+            h=$(cd /tmp/gefs_work/clim && find . -type f -print0 | sort -z | xargs -0 sha256sum | sha256sum | cut -c1-40)
+          fi
+          echo "key=gefs-cache-$h" >> "$GITHUB_OUTPUT"
+          echo "hash=$h" >> "$GITHUB_OUTPUT"
+      - name: Save the run cache (when it changed)
+        if: steps.gefs_fp.outputs.hash != '' && steps.gefs_fp.outputs.key != steps.gefs_cache.outputs.cache-matched-key
+        uses: actions/cache/save@v6
+        with:
+          path: /tmp/gefs_work/clim
+          key: ${{ steps.gefs_fp.outputs.key }}
       - name: Publish the loops and the run archive (frames branch)
         if: steps.run.outputs.new == '1'
         env:
@@ -154,4 +174,9 @@ jobs:
           echo "site deploy is batched - the dispatcher deploys within 15 min (pages.yml)"
           # the multi-model regime view reads gefs_regimes_members.json
           gh workflow run regimes.yml --repo "$GITHUB_REPOSITORY" || echo "::warning::regimes dispatch failed"
+      - name: Drop superseded caches
+        if: always()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: scripts/lib/cache_prune.sh gefs-cache-
 

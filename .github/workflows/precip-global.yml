@@ -29,6 +29,7 @@ concurrency:
 env:
   ARCH: precip-global-arch-v1
   REF: precip-global-ref-v1
+  PIP_CONSTRAINT: ${{ github.workspace }}/scripts/constraints.txt   # bounds every pip install (see the file)
 
 jobs:
   archive:
@@ -57,6 +58,7 @@ jobs:
           sparse-checkout: |
             scripts/precip_bias
             scripts/ecmwf
+            scripts/constraints.txt
           sparse-checkout-cone-mode: false
       - uses: actions/setup-python@v7
         if: steps.gate.outputs.run == '1'
@@ -129,6 +131,7 @@ jobs:
           fetch-depth: 1
           sparse-checkout: |
             scripts/precip_bias
+            scripts/constraints.txt
           sparse-checkout-cone-mode: false
       - uses: actions/setup-python@v7
         with:

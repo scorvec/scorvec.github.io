@@ -34,12 +34,19 @@ jobs:
         run: |
           git config user.name "qbo-bot"
           git config user.email "actions@github.com"
-          git add qbo/qbo.json assets/qbo
-          git diff --cached --quiet && echo "no change" && exit 0
-          git commit -m "data update (weekly)"
+          # Snapshot the outputs, then commit on a clean sync of origin/main each attempt (the mjo.yml pattern), never
+          # a rebase: a collided rebase can drop the build.
+          OUT="qbo/qbo.json assets/qbo"
+          SNAP=$(mktemp -d)
+          tar cf "$SNAP/outs.tar" --ignore-failed-read $OUT 2>/dev/null || true
           for i in 1 2 3; do
-            if timeout 120 git pull --rebase origin main && timeout 180 git push origin main; then echo "pushed (attempt $i)"; exit 0; fi
-            git rebase --abort 2>/dev/null || true   # a timed-out pull can strand a half-done rebase
+            if ! timeout 120 git fetch origin main; then echo "fetch $i failed"; sleep 5; continue; fi
+            git reset --hard origin/main
+            tar xf "$SNAP/outs.tar"
+            git add $OUT
+            if git diff --cached --quiet; then echo "no change"; exit 0; fi
+            git commit -m "data update (weekly)"
+            if timeout 180 git push origin main; then echo "pushed (attempt $i)"; exit 0; fi
             sleep 5
           done
           echo "push failed after retries"; exit 1

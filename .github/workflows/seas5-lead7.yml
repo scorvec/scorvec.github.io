@@ -110,7 +110,7 @@ jobs:
 
       - name: Restore the issue's forecast GRIBs (grids; the lead-6 forecast test)
         if: inputs.mode != 'probe'
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v6
         with:
           path: |
             scripts/sst/data/seas5/forecast/*_${{ steps.gate.outputs.issue }}.grib
