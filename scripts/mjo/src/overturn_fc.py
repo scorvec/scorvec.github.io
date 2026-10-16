@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Hadley and Walker forecasts, member by member, from the AIFS-ENS and IFS-ENS 00Z runs.
+"""Hadley and Walker forecasts, member by member, from the AIFS-ENS, IFS-ENS and GEFS 00Z runs.
 
 Every member's zonal-mean v and equatorial divergent zonal wind (overturn.reduce_file, the same reductions as the
 analysis) at days 0..15, corrected by its model's drift against ERA5 at that lead and season (overturn.drift, the
@@ -49,6 +49,8 @@ def fetch(model: str, init: pd.Timestamp):
     """vbar (member, lead, lev, 721) and ud (member, lead, lev, 173) for every member, one step file at a time."""
     import store as ecmwf
 
+    if model == "gefs":
+        return O.gefs_run(f"{init:%Y%m%d}", list(range(O.GEFS_PF + 1)), [24 * L for L in LEADS], workers=16)
     cfg = O.MODELS[model]
     cyc = ecmwf.Cycle(f"{init:%Y%m%d}", "00")
     members = ([0] if cfg["cf"] else []) + list(range(1, 51))
@@ -160,7 +162,11 @@ def render(regions: dict, init, mids, clim_m, clim_w, lon, anim_root: Path, mani
             d.mkdir(parents=True, exist_ok=True)
             for old in d.glob("F*.webp"):
                 old.unlink()
-            name = "AIFS-ENS + IFS-ENS" if rid == "blend" else O.MODELS[rid]["label"]
+            name = (
+                " + ".join(O.MODELS[m]["label"] for m in regions if m != "blend")
+                if rid == "blend"
+                else O.MODELS[rid]["label"]
+            )
             frames = []
             for j in LEADS:
                 end = init + pd.Timedelta(days=j)
@@ -217,7 +223,7 @@ def _json(a):
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--date", required=True, help="00Z run, YYYYMMDD")
-    ap.add_argument("--models", default="aifs,ifs")
+    ap.add_argument("--models", default="aifs,ifs,gefs")
     ap.add_argument("--out", default="assets/sst/data/overturn_fc.json")
     ap.add_argument("--anim-root", default="assets/sst/anim")
     a = ap.parse_args()

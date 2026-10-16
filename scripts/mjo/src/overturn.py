@@ -14,7 +14,8 @@ divergent zonal wind (ud, walker.band_ud, on the chi solver's longitudes). Both 
 taken out of them is taken out of the streamfunctions; cell intensities and edges are then read per member.
 
 ECMWF publishes no reforecast in its open data, so the archive is its own past runs on the Google mirror (IFS-ENS
-from 2024-03, AIFS-ENS from 2025-07). d is measured at leads 0, 5, 10 and 15 days on a 5-day lattice of 00Z starts,
+from 2024-03, AIFS-ENS from 2025-07); GEFS is treated the same way, from its operational runs on NOAA's S3 bucket
+(byte-ranged from pgrb2a/pgrb2b), so all three models are corrected by the same method against the same truth. d is measured at leads 0, 5, 10 and 15 days on a 5-day lattice of 00Z starts,
 so every verifying time is a lattice day and ERA5 is read on the lattice only (one ARCO chunk holds all 37 levels:
 ~120 MB per field). Four members per start: d is the mean error, not the spread, and four members raise its standard
 error by ~14 % over fifty. Between the measured leads d is interpolated linearly. d(0) is the model's analysis
@@ -43,6 +44,7 @@ import xarray as xr
 sys.path.insert(0, str(Path(__file__).parent))
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "ecmwf"))
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "era5"))
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "strat"))
 from mmsf import LEVELS
 from walker import band_ud
 from doycal import noleap_doy
@@ -57,8 +59,14 @@ WINDOW = 45  # +- days of the season pooled into one drift estimate (triangular 
 MODELS = {
     "aifs": {"label": "AIFS-ENS", "store": "aifs-ens", "first": "2025-07-01", "cf": True},
     "ifs": {"label": "IFS-ENS", "store": "ifs", "first": "2024-03-01", "cf": False},
+    "gefs": {"label": "GEFS", "store": None, "first": "2024-03-01", "cf": True},
 }
-ARCHIVE_PF = {"aifs": 3, "ifs": 4}  # control + 3 for AIFS-ENS, 4 perturbed for IFS-ENS (no control at pl)
+ARCHIVE_PF = {
+    "aifs": 3,
+    "ifs": 4,
+    "gefs": 3,
+}  # control + 3 (AIFS-ENS, GEFS); 4 perturbed for IFS-ENS (no control at pl)
+GEFS_PF = 30
 
 
 # ── reductions shared by every dataset ──────────────────────────────────────────────────────────────────────────────
@@ -137,6 +145,57 @@ def reduce_file(path: Path, members, steps_h, levels=LEVELS):
     return vb, ud
 
 
+def gefs_member(date: str, member: int, step_h: int):
+    """One GEFS member (0 = control) at one step of the 00Z run: vbar (lev, 721), ud (lev, 173), byte-ranged from
+    NOAA's S3 bucket (the 13 levels are split between pgrb2a and pgrb2b)."""
+    import eccodes
+    from qbo_duct import _gefs_index, _get, gefs_url
+
+    mem = "gec00" if member == 0 else f"gep{member:02d}"
+    want, fields, lat = set(LEVELS), {}, None
+    for kind in ("a", "b"):
+        url = gefs_url(date, "00", mem, kind, step_h)
+        for s0, e0, var, lev in _gefs_index(url):
+            if var not in ("UGRD", "VGRD") or lev == "sfc" or int(lev) not in want or float(lev) != int(lev):
+                continue
+            gid = eccodes.codes_new_from_message(bytes(_get(url, (s0, e0))))
+            try:
+                nj, ni = eccodes.codes_get(gid, "Nj"), eccodes.codes_get(gid, "Ni")
+                f = eccodes.codes_get_values(gid).reshape(nj, ni)
+                j0 = eccodes.codes_get(gid, "latitudeOfFirstGridPointInDegrees")
+            finally:
+                eccodes.codes_release(gid)
+            fields.setdefault(int(lev), {})[var] = f[::-1] if j0 < 0 else f
+            lat = np.linspace(90.0, -90.0, nj)
+    vb = np.full((len(LEVELS), LAT.size), np.nan, np.float32)
+    ud = np.full((len(LEVELS), NLON_UD), np.nan, np.float32)
+    for k, lev in enumerate(LEVELS):
+        d = fields.get(lev, {})
+        if "UGRD" in d and "VGRD" in d:
+            lon = np.arange(d["UGRD"].shape[1]) * 360.0 / d["UGRD"].shape[1]
+            vb[k] = zonal_v(d["VGRD"], lat)
+            ud[k] = eq_ud(d["UGRD"], d["VGRD"], lat, lon)
+    return vb, ud
+
+
+def gefs_run(date: str, members, steps_h, workers: int = 8):
+    """vbar (member, step, lev, 721), ud (member, step, lev, 173) of the GEFS 00Z run, member-steps in parallel."""
+    from concurrent.futures import ThreadPoolExecutor
+
+    vb = np.full((len(members), len(steps_h), len(LEVELS), LAT.size), np.nan, np.float32)
+    ud = np.full((len(members), len(steps_h), len(LEVELS), NLON_UD), np.nan, np.float32)
+    jobs = [(i, j) for i in range(len(members)) for j in range(len(steps_h))]
+
+    def one(job):
+        i, j = job
+        return i, j, gefs_member(date, members[i], steps_h[j])
+
+    with ThreadPoolExecutor(workers) as ex:
+        for i, j, (v, u) in ex.map(one, jobs):
+            vb[i, j], ud[i, j] = v, u
+    return vb, ud
+
+
 # ── the lattice ─────────────────────────────────────────────────────────────────────────────────────────────────────
 def lattice(since, until, part=(0, 1)) -> pd.DatetimeIndex:
     """00Z lattice days in [since, until], every n-th from the k-th for --part k/n."""
@@ -184,15 +243,18 @@ def archive(model: str, days) -> dict:
         cyc = ecmwf.Cycle(f"{d:%Y%m%d}", "00")
         parts = []
         try:
-            if cfg["cf"]:
+            if model == "gefs":
+                parts.append(gefs_run(f"{d:%Y%m%d}", list(range(ARCHIVE_PF[model] + 1)), steps))
+            elif cfg["cf"]:
                 p = ecmwf.ensure(cyc, ecmwf.Spec(cfg["store"], "cf", ("u", "v"), "pl", tuple(LEVELS), steps))
                 parts.append(reduce_file(p, [0], steps))
                 p.unlink(missing_ok=True)
-            p = ecmwf.ensure(
-                cyc, ecmwf.Spec(cfg["store"], "pf", ("u", "v"), "pl", tuple(LEVELS), steps, ARCHIVE_PF[model])
-            )
-            parts.append(reduce_file(p, list(range(1, ARCHIVE_PF[model] + 1)), steps))
-            p.unlink(missing_ok=True)
+            if model != "gefs":
+                p = ecmwf.ensure(
+                    cyc, ecmwf.Spec(cfg["store"], "pf", ("u", "v"), "pl", tuple(LEVELS), steps, ARCHIVE_PF[model])
+                )
+                parts.append(reduce_file(p, list(range(1, ARCHIVE_PF[model] + 1)), steps))
+                p.unlink(missing_ok=True)
         except Exception as e:  # noqa: BLE001
             print(f"  {cfg['label']} {d:%Y-%m-%d}: {type(e).__name__} {str(e)[:80]}", flush=True)
             continue

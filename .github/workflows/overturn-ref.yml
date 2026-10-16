@@ -1,7 +1,7 @@
 name: Overturning forecasts - drift reference (ERA5 + archived ECMWF ensembles -> release overturn-ref-v1)
 
-# Builder for the Hadley/Walker forecast drift (scripts/mjo/src/overturn.py): ERA5 from ARCO and the archived AIFS-ENS
-# and IFS-ENS 00Z runs on the 5-day lattice since 2024-03-01, at leads 0/5/10/15 days, four members a start, reduced to
+# Builder for the Hadley/Walker forecast drift (scripts/mjo/src/overturn.py): ERA5 from ARCO and the archived AIFS-ENS,
+# IFS-ENS (Google mirror) and GEFS (NOAA S3) 00Z runs on the 5-day lattice since 2024-03-01, at leads 0/5/10/15 days, four members a start, reduced to
 # the zonal-mean v and the equatorial divergent zonal wind. Each part is one slice of the lattice; the release job
 # merges the parts with the reference already published, so a later run over new days only tops it up.
 on:
@@ -19,6 +19,9 @@ on:
       parts:
         description: 'JSON list of the part indices to run'
         default: '[0,1,2,3]'
+      what:
+        description: 'JSON list of the streams to build (era5 truth and the models)'
+        default: '["era5","aifs","ifs","gefs"]'
 
 permissions:
   contents: write
@@ -35,7 +38,7 @@ jobs:
       fail-fast: false
       max-parallel: 6
       matrix:
-        what: [era5, aifs, ifs]
+        what: ${{ fromJSON(inputs.what) }}
         part: ${{ fromJSON(inputs.parts) }}
     steps:
       - uses: actions/checkout@v7
@@ -72,6 +75,9 @@ jobs:
     needs: part
     if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
+    concurrency:   # each merge reads the reference the previous one published: never two at once
+      group: overturn-ref-release
+      cancel-in-progress: false
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
