@@ -1,7 +1,13 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>State Legislature Forecast</title>
-<meta name="description" content="Chances of Democratic and Republican control of 14 competitive state legislative chambers in 2026, seat by seat.">
+<meta name="description" content="Chances of Democratic and Republican control of 22 state legislative chambers in 2026, seat by seat.">
+<link rel="canonical" href="https://scorvec.com/midterms/legislatures.html">
+<meta property="og:type" content="website">
+<meta property="og:title" content="State Legislature Forecast">
+<meta property="og:description" content="Chances of Democratic and Republican control of 22 state legislative chambers in 2026, seat by seat.">
+<meta property="og:url" content="https://scorvec.com/midterms/legislatures.html">
+<meta name="twitter:card" content="summary">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;600;700&family=Source+Serif+4:opsz,wght@8..60,500;8..60,600&display=swap">
 <style>
@@ -15,7 +21,7 @@ body{margin:0;background:var(--bg);color:var(--ink);font:17px/1.55 "Source Sans 
 .lede{max-width:820px;margin:6px 0 18px;font-size:18px}
 a{color:var(--d)} a:focus-visible,button:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
 .note{color:var(--muted);font-size:15.5px;max-width:860px}
-.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:14px;margin-top:14px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(340px,100%),1fr));gap:14px;margin-top:14px}
 .card{background:var(--card);border:1px solid var(--rule);border-radius:10px;padding:14px 16px 12px}
 .card h2{font:600 20px/1.25 "Source Serif 4",Georgia,serif;margin:0 0 2px}
 .card .sub{color:var(--muted);font-size:15px;margin:0 0 8px}
@@ -62,7 +68,8 @@ path.so{fill:none;stroke:#5c5a55;stroke-width:.8;vector-effect:non-scaling-strok
 .lg svg{width:30px;height:14px;flex:none;border-radius:2px}
 .tip{position:fixed;pointer-events:none;background:#1b1d22;color:#fff;font-size:14.5px;line-height:1.4;padding:7px 10px;border-radius:6px;display:none;max-width:min(340px,calc(100vw - 24px));z-index:9}
 .tip b{font-weight:600}.tip .tm{color:#d6d3cc}
-</style><link rel="stylesheet" href="/assets/site.css">
+</style><script data-goatcounter="https://scorvec.goatcounter.com/count" async src="https://gc.zgo.at/count.v4.js" integrity="sha384-nRw6qfbWyJha9LhsOtSb2YJDyZdKvvCFh0fJYlkquSFjUxp9FVNugbfy8q1jdxI+" crossorigin="anonymous"></script>
+<link rel="stylesheet" href="/assets/site.css">
 <script src="/assets/site.js" defer></script>
 <script src="/assets/rail.js" defer></script>
 </head><body>
@@ -269,8 +276,9 @@ signal; they did not improve the backtest and are not used.) Multi-member distri
 <a href="about.html#legislatures">about the forecast</a>.</p>
 </main>
 <script>
+const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));   // data into markup: names arrive from scraped pages
 const pct=x=>x==null?"–":(x<0.005?"<1":x>0.995?">99":Math.min(99,Math.max(1,Math.round(100*x))))+"%";   // 0.995 read "100%" beside "1%" (Texas Senate)
-fetch("data/model.json?"+Date.now()).then(r=>r.json()).then(M=>{
+fetch("data/model.json?"+Date.now()).then(r=>{if(!r.ok)throw new Error("model.json: HTTP "+r.status);return r.json()}).then(M=>{
   const L=M.state_legislatures; const g=document.getElementById("grid");
   if(!L){g.innerHTML="<p class='note'>The state-legislature forecast is not published yet.</p>";return;}
   document.getElementById("note").textContent=`Updated ${M.asof}. National environment ${L.E>=0?"D+":"R+"}${Math.abs(L.E).toFixed(1)}.`;
@@ -282,21 +290,21 @@ fetch("data/model.json?"+Date.now()).then(r=>r.json()).then(M=>{
       return `<rect x="${((k-lo)*bw).toFixed(1)}" y="${(H-H*v/mx).toFixed(1)}" width="${Math.max(bw-0.6,0.6).toFixed(1)}" height="${(H*v/mx).toFixed(1)}" fill="${col}"><title>${k} D seats: ${(100*v/hist.reduce((a,b)=>a+b[1],0)).toFixed(1)}%</title></rect>`}).join("");
     const mxl=((maj-lo)*bw).toFixed(1);
     const sup=c.p_r_super!=null?` · R veto-proof majority ${pct(c.p_r_super)}`:"";
-    const tip=(c.tipping||[]).slice(0,10).map(t=>`<tr><td>${t.district}${t.k>1?` (${t.k} seats)`:""}</td><td class="mb">${t.members||""}</td><td class="n">${t.lean>=0?"D+":"R+"}${Math.abs(t.lean).toFixed(0)}</td><td class="n">${pct(t.p_d)}</td>${t.p_tip!=null?`<td class="n">${pct(t.p_tip)}</td>`:""}</tr>`).join("");
-    d.innerHTML=`<h2>${c.name}</h2><p class="sub">${c.up} of ${c.seats} seats up${c.held_d+c.held_r?` · held over: ${c.held_d} D, ${c.held_r} R`:""} · now ${c.now_d} D, ${c.now_r} R</p>
+    const tip=(c.tipping||[]).slice(0,10).map(t=>`<tr><td>${esc(t.district)}${t.k>1?` (${esc(t.k)} seats)`:""}</td><td class="mb">${esc(t.members)}</td><td class="n">${t.lean>=0?"D+":"R+"}${Math.abs(t.lean).toFixed(0)}</td><td class="n">${pct(t.p_d)}</td>${t.p_tip!=null?`<td class="n">${pct(t.p_tip)}</td>`:""}</tr>`).join("");
+    d.innerHTML=`<h2>${esc(c.name)}</h2><p class="sub">${esc(c.up)} of ${esc(c.seats)} seats up${c.held_d+c.held_r?` · held over: ${esc(c.held_d)} D, ${esc(c.held_r)} R`:""} · now ${esc(c.now_d)} D, ${esc(c.now_r)} R</p>
       <div class="ol"><span class="dcol"><b>${pct(c.p_d)}</b> Democratic</span>${c.p_shared>0.005?`<span style="color:var(--muted)">${pct(c.p_shared)} tied</span>`:""}<span class="rcol" style="text-align:right"><b>${pct(c.p_r)}</b> Republican</span></div>
       <div class="odds" role="img" aria-label="Control: Democratic ${pct(c.p_d)}, Republican ${pct(c.p_r)}"><span style="width:${100*c.p_d}%;background:var(--d)"></span><span style="width:${100*c.p_shared}%;background:var(--sh)"></span><span style="width:${100*c.p_r}%;background:var(--r)"></span></div>
-      <p class="sub">Democratic seats: ${c.mean_d.toFixed(0)} on average, 80% range ${c.p10}–${c.p90}; majority ${maj}${sup}</p>
+      <p class="sub">Democratic seats: ${c.mean_d.toFixed(0)} on average, 80% range ${esc(c.p10)}–${esc(c.p90)}; majority ${maj}${sup}</p>
       <svg viewBox="0 0 ${W} ${H+19}" aria-label="Distribution of Democratic seats">${bars}<line x1="${mxl}" x2="${mxl}" y1="0" y2="${H}" stroke="#1b1d22" stroke-dasharray="3 2"/><text x="${Math.min(W-12,Math.max(12,+mxl))}" y="${H+16}" font-size="14" text-anchor="middle" fill="#6f6b64">${maj}</text></svg>
-      ${c.experimental?`<p class="exp">Experimental: ${c.experimental}.</p>`:""}
+      ${c.experimental?`<p class="exp">Experimental: ${esc(c.experimental)}.</p>`:""}
       <details><summary>${(c.tipping||[]).length&&c.tipping[0].p_tip!=null?"Tipping-point seats":"Closest seats"}</summary><table><thead><tr><th>District</th><th>Member</th><th class="n">2024 lean</th><th class="n">D win</th>${(c.tipping||[]).length&&c.tipping[0].p_tip!=null?"<th class='n'>Decides control</th>":""}</tr></thead><tbody>${tip}</tbody></table></details>
-      <p class="ml"><a href="#maps" data-map="${c.state}_${c.chamber}">District map</a></p>`;
+      <p class="ml"><a href="#maps" data-map="${esc(c.state+"_"+c.chamber)}">District map</a></p>`;
     g.appendChild(d);
   }
-});
+}).catch(e=>{console.error(e);document.getElementById("grid").innerHTML="<p class='note'>The forecast could not be loaded. Reload the page to try again.</p>"});
 </script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/topojson/3.0.2/topojson.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js" integrity="sha384-CjloA8y00+1SDAUkjs099PVfnY2KmDC2BZnws9kh8D/lX1s46w6EPhpXdqMfjK6i" crossorigin="anonymous"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/topojson/3.0.2/topojson.min.js" integrity="sha384-9dCJK6nh7skY14HrcvlLYlFga9/MehJjL9ONWRflmiXNRuf8p2jiF4Y5PR881PTq" crossorigin="anonymous"></script>
 <script>
 /* District maps (data-driven): every chamber in data/stateleg_seats.json that data/stateleg_geo/index.json maps to a state file
    (data/stateleg_geo/{ST}.topo.json, loaded when first shown) gets a map; chambers added later appear once both files carry them. */
@@ -308,7 +316,6 @@ const CLS=[{lo:.95,lab:"Safe D",c:DC,t:"≥95"},{lo:.85,lab:"Likely D",c:mix(NEU
 const cls=p=>CLS.find(c=>p>=c.lo&&(c.lo!==.35||p<=.65))||CLS[6];
 const pct=x=>x==null?"–":(x<0.005?"<1":x>0.995?">99":Math.min(99,Math.max(1,Math.round(100*x))))+"%";
 const mg=(v,d=1)=>Math.abs(v)<0.05?"even":(v>0?"D+":"R+")+Math.abs(v).toFixed(d);
-const esc=t=>String(t).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const who=t=>esc(t).replace(/\((O)\)/g,"(independent)");
 let S=null,I=null,KEY=null,FL=0,loading=null,zoom=null;const TOPO={},DONE={};
 function load(){return loading||(loading=Promise.all([fetch("data/stateleg_seats.json?"+Date.now()).then(r=>r.ok?r.json():null),
@@ -318,7 +325,7 @@ function msg(t){svg.selectAll("*").remove();svg.attr("viewBox","0 0 960 120");sv
 const geo=k=>I&&I.chambers&&I.chambers[k]&&I.chambers[k].file&&(I.files||[]).includes(I.chambers[k].file)?I.chambers[k]:null;
 function init(){
   if(!S||!S.chambers){msg("District maps appear after the next daily forecast run.");return}
-  const sel=$("#chsel");sel.innerHTML=S.chambers.map(c=>{const k=c.state+"_"+c.chamber;return `<option value="${k}">${esc(c.name)}${geo(k)?"":" (no map yet)"}</option>`}).join("");
+  const sel=$("#chsel");sel.innerHTML=S.chambers.map(c=>{const k=c.state+"_"+c.chamber;return `<option value="${esc(k)}">${esc(c.name)}${geo(k)?"":" (no map yet)"}</option>`}).join("");
   const h=location.hash.startsWith("#map-")?location.hash.slice(5):null;
   show(h&&S.chambers.some(c=>c.state+"_"+c.chamber===h)?h:sel.value);
   sel.addEventListener("change",()=>{show(sel.value);history.replaceState(null,"","#map-"+sel.value)});
@@ -368,16 +375,16 @@ function html(C,id,by,held,G){
   const dn=/^\d/.test(id)?`District ${id}`:id,h=held.get(id),s=by.get(id),L=[`<b>${esc(C.name)}, ${esc(dn)}</b>`];
   if(h){L.push("Not up in 2026 (next election in 2028)");if(h.member)L.push(`Held by ${who(h.member)} (${h.party==="D"?"Democrat":h.party==="R"?"Republican":"other"})`);return L.join("<br>")}
   if(!s)return L.concat(["No forecast for this district"]).join("<br>");
-  const k=s.k||1;if(k>1)L.push(`${k} seats`+(FL&&G.floterials?" (floterial)":""));
+  const k=s.k||1;if(k>1)L.push(`${esc(k)} seats`+(FL&&G.floterials?" (floterial)":""));
   if(k===1)L.push(s.run?`Incumbent: ${who(s.inc)}`:s.inc?`Open seat <span class="tm">(now ${who(s.inc)})</span>`:"Open seat");
-  else L.push(s.inc?`Now: ${who(s.inc)}<br><span class="tm">${s.run||0} of them on the 2026 ballot${C.state==="NH"&&C.chamber==="lower"?" (assumed)":""}</span>`:"No sitting members");
+  else L.push(s.inc?`Now: ${who(s.inc)}<br><span class="tm">${esc(s.run||0)} of them on the 2026 ballot${C.state==="NH"&&C.chamber==="lower"?" (assumed)":""}</span>`:"No sitting members");
   if(s.dem||s.rep)L.push(`Candidates: ${s.dem?"D "+esc(s.dem):"no Democrat"} · ${s.rep?"R "+esc(s.rep):"no Republican"}`);
   else if(!s.fx)L.push(`<span class="tm">Candidates not listed</span>`);
-  if(s.fx)L.push(`<b>Uncontested</b>: only ${s.fx==="D"?"Democrats":"Republicans"} on the ballot`+(k>1?` (${s.fx==="D"?s.ed.toFixed(0):(k-s.ed).toFixed(0)} of ${k} seats)`:""));
-  else{L.push(k>1?`Expected Democratic seats: <b>${s.ed.toFixed(1)} of ${k}</b>`:`Democrat wins: <b>${pct(s.p)}</b> · ${cls(s.p).lab}`);
+  if(s.fx)L.push(`<b>Uncontested</b>: only ${s.fx==="D"?"Democrats":"Republicans"} on the ballot`+(k>1?` (${s.fx==="D"?s.ed.toFixed(0):(k-s.ed).toFixed(0)} of ${esc(k)} seats)`:""));
+  else{L.push(k>1?`Expected Democratic seats: <b>${s.ed.toFixed(1)} of ${esc(k)}</b>`:`Democrat wins: <b>${pct(s.p)}</b> · ${cls(s.p).lab}`);
     L.push(`Expected margin: ${mg(s.m)}`)}
   L.push(`Lean: ${mg(s.l,0)} <span class="tm">(2024 president, v the nation)</span>`);
-  if(!FL&&G.floterial_of&&G.floterial_of[id])for(const f of G.floterial_of[id]){const q=by.get(f);if(q)L.push(`<span class="tm">Also votes in floterial ${esc(f)} (${q.k} seat${q.k>1?"s":""}): ${q.fx?"uncontested":q.k>1?`${q.ed.toFixed(1)} D expected`:`D ${pct(q.p)}`}</span>`)}
+  if(!FL&&G.floterial_of&&G.floterial_of[id])for(const f of G.floterial_of[id]){const q=by.get(f);if(q)L.push(`<span class="tm">Also votes in floterial ${esc(f)} (${esc(q.k)} seat${q.k>1?"s":""}): ${q.fx?"uncontested":q.k>1?`${q.ed.toFixed(1)} D expected`:`D ${pct(q.p)}`}</span>`)}
   return L.join("<br>")}
 function showTip(e,f,C,by,held,G){tip.innerHTML=html(C,f.properties.id,by,held,G);tip.style.display="block";
   const w=tip.offsetWidth,h=tip.offsetHeight;let x=e.clientX+14,y=e.clientY+14;if(x+w>innerWidth-8)x=Math.max(8,e.clientX-w-14);if(y+h>innerHeight-8)y=Math.max(8,e.clientY-h-14);

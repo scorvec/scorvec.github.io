@@ -2,6 +2,12 @@
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>What If? Midterm Assumptions</title>
 <meta name="description" content="Change the assumptions behind the 2026 midterm forecast - how polls miss, how big errors are, whether races move together - and watch the chances change.">
+<link rel="canonical" href="https://scorvec.com/midterms/whatif.html">
+<meta property="og:type" content="website">
+<meta property="og:title" content="What If? Midterm Assumptions">
+<meta property="og:description" content="Change the assumptions behind the 2026 midterm forecast - how polls miss, how big errors are, whether races move together - and watch the chances change.">
+<meta property="og:url" content="https://scorvec.com/midterms/whatif.html">
+<meta name="twitter:card" content="summary">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;600;700&family=Source+Serif+4:opsz,wght@8..60,500;8..60,600&display=swap">
 <style>
@@ -69,7 +75,8 @@ td.nm{min-width:180px}td.nm small{display:block;color:var(--muted);font-size:14p
 .note{margin-top:28px;padding-top:12px;border-top:1px solid var(--rule);color:var(--muted);font-size:15.5px;max-width:900px}
 @media(max-width:640px){td.pbc,th.pbc{display:none}.wi-head h1{font-size:26px}td.nm{min-width:0}th,td{padding-left:5px;padding-right:5px}}
 #tbl{max-width:100%;overflow-x:auto}
-</style><link rel="stylesheet" href="/assets/site.css">
+</style><script data-goatcounter="https://scorvec.goatcounter.com/count" async src="https://gc.zgo.at/count.v4.js" integrity="sha384-nRw6qfbWyJha9LhsOtSb2YJDyZdKvvCFh0fJYlkquSFjUxp9FVNugbfy8q1jdxI+" crossorigin="anonymous"></script>
+<link rel="stylesheet" href="/assets/site.css">
 <script src="/assets/site.js" defer></script>
 <script src="/assets/rail.js" defer></script>
 </head><body>
@@ -287,6 +294,7 @@ td.nm{min-width:180px}td.nm small{display:block;color:var(--muted);font-size:14p
 <script src="whatif_engine.js"></script>
 <script>
 (function(){
+  const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));   // data into markup: names arrive from scraped pages
   const $ = (i) => document.getElementById(i), pct = (x) => x == null ? "–" : (x < 0.01 ? "<1%" : x > 0.99 ? ">99%" : Math.round(100 * x) + "%");
   const mg = (x) => (x > 0 ? "D+" : x < 0 ? "R+" : "") + Math.abs(x).toFixed(1).replace(/\.0$/, "");
   let D, A, E, base, st = {}, tab = "S", all = false, picks = {};
@@ -349,10 +357,10 @@ td.nm{min-width:180px}td.nm small{display:block;color:var(--muted);font-size:14p
     let h = `<table><thead><tr><th>Race</th><th>Democratic chance</th><th class="pbc"></th><th>Your call</th></tr></thead><tbody>`;
     for (const x of show) {
       const d = x.p == null ? null : Math.round(100 * (x.p - x.b)), c = picks[x.key] || "";
-      h += `<tr><td class="nm">${x.nm}${x.sub ? `<small>${x.sub}</small>` : ""}</td>
+      h += `<tr><td class="nm">${esc(x.nm)}${x.sub ? `<small>${esc(x.sub)}</small>` : ""}</td>
         <td>${pct(x.p)} ${d ? `<span class="chg ${d > 0 ? "up" : "dn"}">${d > 0 ? "+" : "−"}${Math.abs(d)}</span>` : ""}</td>
         <td class="pbc"><div class="pb"><i style="width:${x.p == null ? 0 : 100 * x.p}%"></i><b style="left:${100 * x.b}%"></b></div></td>
-        <td><span class="call" data-k="${x.key}"><button class="d${c === "D" ? " on" : ""}" data-v="D" type="button" aria-pressed="${c === "D"}">D</button><button class="n${!c ? " on" : ""}" data-v="" type="button" aria-pressed="${!c}">–</button><button class="r${c === "R" ? " on" : ""}" data-v="R" type="button" aria-pressed="${c === "R"}">R</button></span></td></tr>`;
+        <td><span class="call" data-k="${esc(x.key)}"><button class="d${c === "D" ? " on" : ""}" data-v="D" type="button" aria-pressed="${c === "D"}">D</button><button class="n${!c ? " on" : ""}" data-v="" type="button" aria-pressed="${!c}">–</button><button class="r${c === "R" ? " on" : ""}" data-v="R" type="button" aria-pressed="${c === "R"}">R</button></span></td></tr>`;
     }
     $("tbl").innerHTML = h + "</tbody></table>";
   }
@@ -362,7 +370,7 @@ td.nm{min-width:180px}td.nm small{display:block;color:var(--muted);font-size:14p
     document.querySelectorAll(".tabs button").forEach(x => x.setAttribute("aria-selected", x === b)); update(); }));
   $("more").addEventListener("click", () => { all = true; update(); });
   $("reset").addEventListener("click", () => { st = def(); picks = {}; for (const k of Object.keys(st)) $(k).value = st[k]; update(); });
-  Promise.all([fetch("data/whatif.json").then(r => r.json())]).then(([d]) => {
+  Promise.all([fetch("data/whatif.json").then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })]).then(([d]) => {
     D = d; E = new WhatIf.Engine(D, 5000); base = E.run({ E: D.E0 });
     st = readHash();
     for (const k of Object.keys(st)) { const el = $(k); el.value = st[k]; el.addEventListener("input", () => { st[k] = +el.value; update(); }); }
@@ -375,7 +383,7 @@ td.nm{min-width:180px}td.nm small{display:block;color:var(--muted);font-size:14p
     tick($("tkZ"), $("Z"), 1, "model", "m"); tick($("tkC"), $("C"), 1, "model (measured)", "m"); tick($("tkW"), $("W"), 1, "model", "m"); tick($("tkT"), $("T"), 0, "model", "m");
     $("gen").textContent = `Data as of ${D.generated.slice(0, 10)}.`;
     update();
-  }).catch(e => { $("rH").textContent = "–"; document.querySelector(".lede").insertAdjacentHTML("afterend", `<p class="kept on warn">Could not load the simulation data (${e.message}). Reload the page to try again.</p>`); });
+  }).catch(e => { $("rH").textContent = "–"; document.querySelector(".lede").insertAdjacentHTML("afterend", `<p class="kept on warn">Could not load the simulation data (${esc(e.message)}). Reload the page to try again.</p>`); });
 })();
 </script>
 <!-- sf:start -->

@@ -1,6 +1,14 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>2026 Midterm Forecast: Polls and Weights</title><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;600;700&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap">
+<title>2026 Midterm Forecast: Polls and Weights</title>
+<meta name="description" content="Every Senate, governor, House and national poll in the 2026 midterm forecast, with the corrections for pollster lean and state polling misses and the weight each poll carries.">
+<link rel="canonical" href="https://scorvec.com/midterms/polls.html">
+<meta property="og:type" content="website">
+<meta property="og:title" content="2026 Midterm Forecast: Polls and Weights">
+<meta property="og:description" content="Every Senate, governor, House and national poll in the 2026 midterm forecast, with the corrections for pollster lean and state polling misses and the weight each poll carries.">
+<meta property="og:url" content="https://scorvec.com/midterms/polls.html">
+<meta name="twitter:card" content="summary">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;600;700&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap">
 <style>
 :root{--ink:#1b1d22;--muted:#6f6b64;--rule:#e3e1db;--bg:#fcfcfa;--d:#1f5fbf;--dd:#0b3d91;--rd:#a32215}
 *{box-sizing:border-box}
@@ -45,7 +53,8 @@ td.pol{white-space:normal;min-width:160px}
 .key b{color:var(--ink);font-weight:600}
 a:focus-visible,button:focus-visible,summary:focus-visible,input:focus-visible{outline:2px solid var(--d);outline-offset:2px}
 @media(max-width:640px){.pw{padding:12px 14px 40px}.pw h1{font-size:25px}}
-</style><link rel="stylesheet" href="/assets/site.css">
+</style><script data-goatcounter="https://scorvec.goatcounter.com/count" async src="https://gc.zgo.at/count.v4.js" integrity="sha384-nRw6qfbWyJha9LhsOtSb2YJDyZdKvvCFh0fJYlkquSFjUxp9FVNugbfy8q1jdxI+" crossorigin="anonymous"></script>
+<link rel="stylesheet" href="/assets/site.css">
 <script src="/assets/site.js" defer></script>
 <script src="/assets/rail.js" defer></script>
 </head><body>
@@ -228,18 +237,20 @@ a:focus-visible,button:focus-visible,summary:focus-visible,input:focus-visible{o
 </main>
 <script>
 const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
+const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));   // data into markup: names arrive from scraped pages
+const getJSON=u=>fetch(u).then(r=>{if(!r.ok)throw new Error(`${u}: HTTP ${r.status}`);return r.json()});
 const NAMES={AL:'Alabama',AK:'Alaska',AZ:'Arizona',AR:'Arkansas',CA:'California',CO:'Colorado',CT:'Connecticut',DE:'Delaware',FL:'Florida',GA:'Georgia',HI:'Hawaii',ID:'Idaho',IL:'Illinois',IN:'Indiana',IA:'Iowa',KS:'Kansas',KY:'Kentucky',LA:'Louisiana',ME:'Maine',MD:'Maryland',MA:'Massachusetts',MI:'Michigan',MN:'Minnesota',MS:'Mississippi',MO:'Missouri',MT:'Montana',NE:'Nebraska',NV:'Nevada',NH:'New Hampshire',NJ:'New Jersey',NM:'New Mexico',NY:'New York',NC:'North Carolina',ND:'North Dakota',OH:'Ohio',OK:'Oklahoma',OR:'Oregon',PA:'Pennsylvania',RI:'Rhode Island',SC:'South Carolina',SD:'South Dakota',TN:'Tennessee',TX:'Texas',UT:'Utah',VT:'Vermont',VA:'Virginia',WA:'Washington',WV:'West Virginia',WI:'Wisconsin',WY:'Wyoming'};
 const mg=(v,ind)=>v==null?'–':(v>=0?(ind?'I+':'D+'):'R+')+Math.abs(v).toFixed(1);   // ind: independent challenger -> I+
 const sg=v=>v==null||Math.abs(v)<0.05?'–':(v>0?'+':'−')+Math.abs(v).toFixed(1);
 const pc=v=>(100*v).toFixed(0)+'%';
 const PN={yougov:'YouGov','yougov/cbs':'CBS News/YouGov','yougov/yahoo':'Yahoo News/YouGov','ft/yougov':'Financial Times/YouGov','cnn/ssrs':'CNN/SSRS',nbc:'NBC News',rmg:'RMG Research',ppp:'Public Policy Polling',harrisx:'HarrisX','ipsos/wapo':'Washington Post/Ipsos',tipp:'TIPP',siena:'New York Times/Siena','jl partners':'J.L. Partners',atlasintel:'AtlasIntel',quantus:'Quantus Insights',echelon:'Echelon Insights',bullfinch:'The Bullfinch Group',marquette:'Marquette Law School',verasight:'Strength in Numbers/Verasight','big data poll':'Big Data Poll','morning consult':'Morning Consult','fox news':'Fox News'};
 const pname=k=>PN[k]||String(k).replace(/\b([a-z])/g,c=>c.toUpperCase());
-fetch('data/polls.json').then(r=>r.json()).then(D=>{
+getJSON('data/polls.json').then(D=>{
  const d=new Date(D.asof+'T12:00:00');
  const n={senate:0,governor:0,house:0};D.races.forEach(r=>n[r.office]=(n[r.office]||0)+r.polls.length);
  $('#lede').textContent=`Updated ${d.toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'})}. ${n.senate} Senate, ${n.governor} governor and ${n.house} House polls are in the forecast, plus ${D.national.generic.polls.length} national generic-ballot polls from the last 150 days.`;
  $('#kspon').textContent=D.constants.sponsor_weight;
- $('#key-race').innerHTML=`<b>Published</b>: the poll's Democratic (or independent) minus Republican margin. <b>Lean fix</b> and <b>state fix</b>: the change made for the pollster's or sponsor's measured lean, and for the state's persistent polling miss; <b>Adjusted</b> is the published margin after both. <b>Precision</b>: the poll's quality and freshness together (1 = a fresh, clean poll; it halves every ${D.constants.half_life_days} days). <b>Outlier discount</b>: below 1 when the poll sits far from the others and the fundamentals. <b>Share</b>: the poll's part of the race's poll weight. On each race line, <b>polls carry</b> is how much of the final estimate comes from the polls rather than the fundamentals; the rest of the uncertainty is a polling miss every poll in the race shares.`;
+ $('#key-race').innerHTML=`<b>Published</b>: the poll's Democratic (or independent) minus Republican margin. <b>Lean fix</b> and <b>state fix</b>: the change made for the pollster's or sponsor's measured lean, and for the state's persistent polling miss; <b>Adjusted</b> is the published margin after both. <b>Precision</b>: the poll's quality and freshness together (1 = a fresh, clean poll; it halves every ${esc(D.constants.half_life_days)} days). <b>Outlier discount</b>: below 1 when the poll sits far from the others and the fundamentals. <b>Share</b>: the poll's part of the race's poll weight. On each race line, <b>polls carry</b> is how much of the final estimate comes from the polls rather than the fundamentals; the rest of the uncertainty is a polling miss every poll in the race shares.`;
  for(const off of ['senate','governor','house']){
   const rs=D.races.filter(r=>r.office===off).sort((a,b)=>Math.abs(a.posterior)-Math.abs(b.posterior));
   $('#l-'+off).innerHTML=rs.map(r=>raceHTML(r,off)).join('');
@@ -253,24 +264,24 @@ fetch('data/polls.json').then(r=>r.json()).then(D=>{
  $$('.tabs button').forEach(b=>b.addEventListener('click',()=>tab(b.dataset.p)));
  const h=decodeURIComponent(location.hash.slice(1)), [ho,hs]=h.split(':');
  if(['senate','governor','house','national'].includes(ho)){tab(ho); if(hs){const el=document.getElementById(ho+':'+hs); if(el){el.open=true; setTimeout(()=>el.scrollIntoView({block:'start'}),50);}}}
-});
+}).catch(e=>{console.error(e);$('#lede').textContent='The poll data could not be loaded. Reload the page to try again.'});
 function tab(p){$$('.tabs button').forEach(b=>b.setAttribute('aria-selected',b.dataset.p===p));$$('.pane').forEach(x=>x.classList.toggle('on',x.id==='p-'+p));if(!location.hash.startsWith('#'+p+':'))history.replaceState(null,'','#'+p)}
-function title(r,off){if(off==='house')return `${r.seat} <small>${r.label||''}</small>`;return `${NAMES[r.seat]||r.seat} <small>${r.label||''}</small>`}
+function title(r,off){return `${esc(off==='house'?r.seat:NAMES[r.seat]||r.seat)} <small>${esc(r.label)}</small>`}
 function raceHTML(r,off){
  const P=r.polls.slice().sort((a,b)=>b.share-a.share), mx=Math.max(...P.map(p=>p.share),0.01), ind=/\(I\) v /.test(r.label||'');
  const s=(r.seat+' '+(NAMES[r.seat]||'')+' '+(r.label||'')).toLowerCase();
- const rows=P.map(p=>`<tr><td class="pol">${p.pollster}${p.sponsor?` <span class="dim">(${ind&&p.sponsor==='D'?'independent\'s side':p.sponsor+'-sponsored'})</span>`:''}</td><td>${p.end}</td>
+ const rows=P.map(p=>`<tr><td class="pol">${esc(p.pollster)}${p.sponsor?` <span class="dim">(${ind&&p.sponsor==='D'?'independent\'s side':esc(p.sponsor)+'-sponsored'})</span>`:''}</td><td>${esc(p.end)}</td>
   <td class="n">${mg(p.published,ind)}</td><td class="n">${sg(-p.lean)}</td><td class="n">${sg(-p.state_corr)}</td><td class="n"><b>${mg(p.adjusted,ind)}</b></td>
-  <td class="n">${p.und==null?'–':p.und.toFixed(0)+'%'}</td><td class="n">${p.age} d</td><td class="n">${p.precision.toFixed(2)}</td>
+  <td class="n">${p.und==null?'–':p.und.toFixed(0)+'%'}</td><td class="n">${esc(p.age)} d</td><td class="n">${p.precision.toFixed(2)}</td>
   <td class="n ${p.discount<0.8?'hi':''}">${p.discount.toFixed(2)}</td><td class="n">${pc(p.share)}<span class="wbar" style="width:${Math.round(46*p.share/mx)}px"></span></td></tr>`).join('');
- return `<details class="race" id="${off}:${r.seat}" data-s="${s}"><summary><span class="t">${title(r,off)}</span><span class="r">${r.polls.length} poll${r.polls.length>1?'s':''} · polls carry ${pc(r.polls_share)} · ${mg(r.posterior,ind)}</span></summary>
+ return `<details class="race" id="${off}:${esc(r.seat)}" data-s="${esc(s)}"><summary><span class="t">${title(r,off)}</span><span class="r">${r.polls.length} poll${r.polls.length>1?'s':''} · polls carry ${pc(r.polls_share)} · ${mg(r.posterior,ind)}</span></summary>
  <div class="inner"><p class="flow">Fundamentals alone: <b>${mg(r.prior,ind)}</b> (±${r.prior_sd.toFixed(1)}). With the polls: <b>${mg(r.posterior,ind)}</b> (±${r.posterior_sd.toFixed(1)}). The polls carry ${pc(r.polls_share)} of the estimate${Math.abs(r.shared_miss)>=0.5?`; together they read ${sg(r.shared_miss)} away from where the blend lands, treated as a polling miss they share`:''}.</p>
  <table><thead><tr><th>Pollster</th><th>Field ended</th><th class="n">Published</th><th class="n">Lean fix</th><th class="n">State fix</th><th class="n">Adjusted</th><th class="n">Undecided</th><th class="n">Age</th><th class="n">Precision</th><th class="n">Outlier discount</th><th class="n">Share</th></tr></thead><tbody>${rows}</tbody></table></div></details>`;
 }
 function natTable(sel,P,what){
  const mx=Math.max(...P.map(p=>Math.abs(p.influence)),0.001);
  $(sel).innerHTML=`<thead><tr><th>Pollster</th><th>Field (mid)</th><th>Population</th><th class="n">Sample</th><th class="n">Result (${what})</th><th class="n">Pollster lean</th><th class="n">Weight</th><th class="n">Influence on today</th></tr></thead><tbody>`+
- P.map(p=>`<tr><td class="pol">${pname(p.pollster)}${p.partisan?' <span class="dim">(partisan)</span>':''}</td><td>${p.date}</td><td>${({lv:'likely voters',rv:'registered voters',a:'adults',v:'voters'})[p.pop]||p.pop}</td><td class="n">${p.n==null?'–':p.n.toLocaleString()}</td>
+ P.map(p=>`<tr><td class="pol">${esc(pname(p.pollster))}${p.partisan?' <span class="dim">(partisan)</span>':''}</td><td>${esc(p.date)}</td><td>${esc(({lv:'likely voters',rv:'registered voters',a:'adults',v:'voters'})[p.pop]||p.pop)}</td><td class="n">${p.n==null?'–':esc(p.n.toLocaleString())}</td>
   <td class="n">${sg(p.value)}</td><td class="n">${sg(p.house)}</td><td class="n">${p.w.toFixed(2)}${p.overlap_w<0.999||p.variant_w<0.999?' <span class="dim">*</span>':''}</td>
   <td class="n">${(100*p.influence).toFixed(1)}%<span class="wbar" style="width:${Math.round(46*Math.max(0,p.influence)/mx)}px"></span></td></tr>`).join('')+
  `</tbody>`+(P.some(p=>p.overlap_w<0.999||p.variant_w<0.999)?`<caption style="caption-side:bottom;text-align:left" class="dim">* reduced: a tracking release overlapping the previous one, or one of several versions of the same survey.</caption>`:'');
