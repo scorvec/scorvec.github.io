@@ -239,6 +239,8 @@ def corrected(fl: dict, chk: dict) -> tuple[dict, dict]:
         seas = {}
         offs["season"][k], offs["lead"][k] = {}, []
         for s, v in m["season"].items():
+            if w and s not in w["season"]:  # a season the hindcast test does not cover: no weighted correction
+                continue
             bE = w["season"][s]["beta_E"] if w else 1.0
             bC = w["season"][s]["beta_C"] if w else 1.0
             oE, oC = round(bE * d["dE"], 3), round(bC * d["dC"], 3)
@@ -303,6 +305,8 @@ def _res(fl: dict, shift=None, drop=None) -> dict:
             continue
         seas = {}
         for s, v in m["season"].items():
+            if shift is not None and s not in shift.get(k, {}):  # not corrected: kept out of the corrected view
+                continue
             o = (shift or {}).get(k, {}).get(s, {"E": 0.0, "C": 0.0})
             seas[s] = {
                 "E": np.asarray(v["E"], float) + o["E"],

@@ -96,6 +96,14 @@ SMOOTH_DEG = 10.0
 SEASONS = {"SON": (9, 10, 11), "OND": (10, 11, 12), "NDJ": (11, 12, 1), "DJF": (12, 1, 2)}
 
 
+def issue_seasons(start: int) -> list[str]:
+    """The seasons, in SEASONS order, whose three months all fall within the leads of an issue starting in
+    calendar month `start`: the only ones a forecast or hindcast of that start has (an October start has OND,
+    NDJ and DJF but no SON)."""
+    vmon = {(start - 1 + L) % 12 + 1 for L in range(len(LEADS))}
+    return [s for s, mons in SEASONS.items() if vmon.issuperset(mons)]
+
+
 # ─────────────────────────────────────────────────────────────────────────── C3S strip
 def strip_path(centre: str, system: str, issue: str) -> Path:
     return CACHE / issue / f"{centre}_{system}.grib"
@@ -501,10 +509,8 @@ def model_indices(da: xr.DataArray, issue: str, obs: dict, eof: dict) -> dict:
 
     by_lead = pack(x1, x2)  # each (mem, lead)
     seas = {}
-    for s, mons in SEASONS.items():
-        li = [vmon.index(m) for m in mons if m in vmon]
-        if len(li) < 3:
-            continue
+    for s in issue_seasons(start):
+        li = [vmon.index(m) for m in SEASONS[s]]
         wd = [calendar.monthrange(int(issue[:4]) + (start - 1 + i) // 12, vmon[i])[1] for i in li]  # days per month
         seas[s] = pack(
             np.average(x1[:, li], axis=1, weights=wd), np.average(x2[:, li], axis=1, weights=wd)
@@ -671,6 +677,9 @@ def hindcast_test(month: int, obs: dict, eof: dict, mon: pd.DataFrame, seas: dic
     forecast out of sample? Verification: ERSSTv6 E and C (same patterns, same base)."""
     from scipy import stats
 
+    ss = issue_seasons(month)  # the seasons this start month's leads cover
+    if not ss:
+        return {}
     res = {}
     for centre, system, label, _c in MODELS:
         h = hindcast_indices(centre, system, month, obs, eof)
@@ -694,8 +703,8 @@ def hindcast_test(month: int, obs: dict, eof: dict, mon: pd.DataFrame, seas: dic
             years=years,
             E=comb(lambda d: d["lead"]["E"]),
             C=comb(lambda d: d["lead"]["C"]),
-            sE={s: comb(lambda d, s=s: d["season"][s]["E"]) for s in SEASONS},
-            sC={s: comb(lambda d, s=s: d["season"][s]["C"]) for s in SEASONS},
+            sE={s: comb(lambda d, s=s: d["season"][s]["E"]) for s in ss},
+            sC={s: comb(lambda d, s=s: d["season"][s]["C"]) for s in ss},
             n=[sum(h[y]["n"] for h in hs) for y in years],
         )
     if not models:
@@ -707,8 +716,8 @@ def hindcast_test(month: int, obs: dict, eof: dict, mon: pd.DataFrame, seas: dic
 
     oE = np.array([[mon.loc[vm(y, L), "E"] for L in range(len(LEADS))] for y in years])
     oC = np.array([[mon.loc[vm(y, L), "C"] for L in range(len(LEADS))] for y in years])
-    soE = {s: np.array([seas[s].loc[y, "E"] for y in years]) for s in SEASONS}
-    soC = {s: np.array([seas[s].loc[y, "C"] for y in years]) for s in SEASONS}
+    soE = {s: np.array([seas[s].loc[y, "E"] for y in years]) for s in ss}
+    soC = {s: np.array([seas[s].loc[y, "C"] for y in years]) for s in ss}
 
     def rmse(a):
         return float(np.sqrt(np.nanmean(np.asarray(a) ** 2)))
@@ -738,7 +747,7 @@ def hindcast_test(month: int, obs: dict, eof: dict, mon: pd.DataFrame, seas: dic
                 d["fm_rmse_E"] = round(rmse(eE - e1E), 3)  # model_L + first-month error
                 d["fm_rmse_C"] = round(rmse(eC - e1C), 3)
             row["lead"][L + 1] = d
-        for s in SEASONS:
+        for s in ss:
             sE, sC = m["sE"][s][ix], m["sC"][s][ix]
             eE, eC = soE[s] - sE, soC[s] - sC
             B, oB = sE - sC, soE[s] - soC[s]
@@ -771,8 +780,8 @@ def hindcast_test(month: int, obs: dict, eof: dict, mon: pd.DataFrame, seas: dic
         keep[label] = dict(
             e1E=e1E,
             e1C=e1C,
-            sE={q: m["sE"][q][ix] for q in SEASONS},
-            sC={q: m["sC"][q][ix] for q in SEASONS},
+            sE={q: m["sE"][q][ix] for q in ss},
+            sC={q: m["sC"][q][ix] for q in ss},
             eE=oE - E,
             eC=oC - C,
         )
@@ -784,13 +793,13 @@ def hindcast_test(month: int, obs: dict, eof: dict, mon: pd.DataFrame, seas: dic
                 str(y): dict(E=round(float(m["sE"][s][ix][i]), 2), C=round(float(m["sC"][s][ix][i]), 2))
                 for i, y in enumerate(years)
             }
-            for s in SEASONS
+            for s in ss
         }
         out["models"][label] = row
     # the DAMPED first-month correction: model + beta * first-month error, with beta for E and for C
     # fitted through the origin on all models pooled, leaving the verified year out (LOYO)
     damp = {}
-    for s in SEASONS:
+    for s in ss:
         betas = {"E": [], "C": []}
         sq = {k: np.zeros(len(years)) for k in keep}
         for i in range(len(years)):
@@ -835,7 +844,7 @@ def hindcast_test(month: int, obs: dict, eof: dict, mon: pd.DataFrame, seas: dic
     # by averaging over models first so each YEAR is one sample (Wilcoxon signed-rank)
     out["multi_model"] = {}
     labs = list(out["models"])
-    for s in SEASONS:
+    for s in ss:
         raw = np.mean([out["models"][k]["season"][s]["sq_raw_B"] for k in labs], 0)
         fm = np.mean([out["models"][k]["season"][s]["sq_fm_B"] for k in labs], 0)
         reg = np.mean([out["models"][k]["season"][s]["sq_reg_B"] for k in labs], 0)
@@ -857,7 +866,7 @@ def hindcast_test(month: int, obs: dict, eof: dict, mon: pd.DataFrame, seas: dic
             n_years=len(years),
         )
     # robustness: the same test with each model left out in turn (is one model carrying the result?)
-    for s in SEASONS:
+    for s in ss:
         worst, rows_ = None, []
         for drop in labs:
             rest = [k for k in labs if k != drop]
@@ -876,7 +885,7 @@ def hindcast_test(month: int, obs: dict, eof: dict, mon: pd.DataFrame, seas: dic
         out["multi_model"][s]["leave_one_model_out_worst"] = worst
         out["multi_model"][s]["leave_one_model_out"] = rows_
     for k in labs:
-        for s in SEASONS:
+        for s in ss:
             for q in ("sq_raw_B", "sq_fm_B", "sq_reg_B"):
                 out["models"][k]["season"][s].pop(q)
     # state dependence: is the models' C error (multi-model mean) larger when the ocean is east-based?
@@ -885,7 +894,7 @@ def hindcast_test(month: int, obs: dict, eof: dict, mon: pd.DataFrame, seas: dic
     oB1 = oE[:, 0] - oC[:, 0]
     r1 = stats.pearsonr(e1C_mm, oB1)
     out["state_dependence"] = {"lead1": dict(r=round(float(r1.statistic), 3), p=float(f"{r1.pvalue:.2g}"))}
-    for s in SEASONS:
+    for s in ss:
         eC_mm = np.mean([soC[s] - keep[k]["sC"][s] for k in keep], 0)
         rs = stats.pearsonr(eC_mm, soE[s] - soC[s])
         out["state_dependence"][s] = dict(r=round(float(rs.statistic), 3), p=float(f"{rs.pvalue:.2g}"))
@@ -895,7 +904,7 @@ def hindcast_test(month: int, obs: dict, eof: dict, mon: pd.DataFrame, seas: dic
     }
     out["observed"] = {
         s: {str(y): dict(E=round(float(soE[s][i]), 2), C=round(float(soC[s][i]), 2)) for i, y in enumerate(years)}
-        for s in SEASONS
+        for s in ss
     }
     out["observed_first_month"] = {
         str(y): dict(E=round(float(oE[i, 0]), 2), C=round(float(oC[i, 0]), 2)) for i, y in enumerate(years)
@@ -916,9 +925,11 @@ def hindcast_block(hc: dict, peak: str | None) -> dict:
     The rule was fixed before looking at the September numbers: the first-month-corrected view (the
     first-month error weighted by its pooled, leave-one-year-out persistence) leads only if, in the
     1993–2016 hindcasts, it lowers the multi-model error in E − C at the season of the forecast peak
-    with p < 0.05 (Wilcoxon signed-rank over years) and does not raise it in any of the four seasons.
-    The regression calibration is reported but leads only on the same terms."""
+    with p < 0.05 (Wilcoxon signed-rank over years) and does not raise it in any season the start month's
+    leads cover. The regression calibration is reported but leads only on the same terms."""
     mm, dmp = hc["multi_model"], hc["damped"]
+    if peak not in mm:  # a peak season the test does not cover: no peak test
+        peak = None
     labs = list(hc["models"])
     pers = {
         L: dict(
@@ -938,8 +949,8 @@ def hindcast_block(hc: dict, peak: str | None) -> dict:
     rule_met = bool(ok_peak and no_worse)
     headline = None  # the page leads with the observations; both views are equal toggles
     y97 = {}
-    if "1997" in hc["observed"]["OND"]:
-        for s in ("OND", "DJF"):
+    if "1997" in hc["observed"].get("OND", {}):
+        for s in [q for q in ("OND", "DJF") if q in hc["observed"]]:
             y97[s] = dict(
                 obs=hc["observed"][s]["1997"],
                 models=dict(
@@ -955,9 +966,9 @@ def hindcast_block(hc: dict, peak: str | None) -> dict:
     def fmt_p(v):
         return "< 0.001" if v < 0.001 else f"= {v:.2g}"
 
-    sp = peak or "OND"
+    seas_order = [q for q in SEASONS if q in dmp]
+    sp = peak or ("OND" if "OND" in mm else seas_order[0])
     mname = pd.Timestamp(2000, int(hc["month"]), 1).strftime("%B")
-    seas_order = [q for q in ("SON", "OND", "NDJ", "DJF") if q in dmp]
     persist = ", ".join(f"{dmp[q]['beta_C']:.2f} in {SEASON_WORDS[q]}" for q in seas_order)
     persistE = ", ".join(f"{dmp[q]['beta_E']:.2f}" for q in seas_order)
     sig = mm[sp]["p_damped"] < 0.05
@@ -1222,12 +1233,13 @@ def build(issue: str, prev_issue: str | None) -> dict:
     else:
         print(f"  hindcast strips for start month {month:02d} incomplete: run --fetch-hindcast", flush=True)
 
-    per_season = {}
+    per_season = {}  # observed, every season (the past-events table)
     for s in SEASONS:
         sd = seas[s].reindex(ev.index)
         e2 = ev.join(sd)
         per_season[s] = e2
-    summaries = {s: season_summary(res, s, per_season[s]) for s in SEASONS}
+    covered = issue_seasons(month)  # the forecast seasons this issue's leads hold
+    summaries = {s: season_summary(res, s, per_season[s]) for s in covered}
 
     prev = None
     if prev_issue:
@@ -1236,7 +1248,7 @@ def build(issue: str, prev_issue: str | None) -> dict:
             if len(pr) >= 3:
                 prev = {
                     "issue": f"{prev_issue[:4]}-{prev_issue[4:]}",
-                    "seasons": {s: season_summary(pr, s, per_season[s]) for s in SEASONS},
+                    "seasons": {s: season_summary(pr, s, per_season[s]) for s in issue_seasons(int(prev_issue[4:6]))},
                 }
         except SystemExit:
             prev = None
@@ -1278,7 +1290,7 @@ def build(issue: str, prev_issue: str | None) -> dict:
         return [r2(v) for v in arr]
 
     profiles = {"lon": [float(v) for v in obs["lon"]], "forecast": {}, "events": {}, "obs": {}}
-    for s in SEASONS:
+    for s in covered:
         labs = [k for k in res if s in res[k][0]["season"]]
         if not labs:
             continue
@@ -1339,7 +1351,7 @@ def build(issue: str, prev_issue: str | None) -> dict:
         "generated": pd.Timestamp.now("UTC").strftime("%Y-%m-%d %H:%M UTC"),
         "issue": f"{issue[:4]}-{issue[4:]}",
         "valid_months": first["valid_months"],
-        "seasons": {s: list(m) for s, m in SEASONS.items()},
+        "seasons": {s: list(SEASONS[s]) for s in covered},
         "method": {
             "indices": "Takahashi et al. (2011) E and C: EOF1/EOF2 of monthly SST anomalies, here 10°S–10°N, "
             "140°E–80°W (Takahashi et al. used HadISST from coast to coast); E = (PC1 − PC2)/√2, "

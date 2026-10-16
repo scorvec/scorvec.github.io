@@ -1775,15 +1775,22 @@ window.STAGE = {
       el("flavour-empty").hidden = false; el("flavour-body").hidden = true; return;
     }
     el("flavour-empty").hidden = true; el("flavour-body").hidden = false;
-    var fl = D.fl, s = state.season;
-    if (!viewOK(state.view)) state.view = "raw";
-    el("viewSeg").hidden = !(fmOK() || calOK());
+    var fl = D.fl;
+    // only the seasons this issue's six leads cover (an October start has no Sep–Nov), in calendar order
+    var avail = ["SON", "OND", "NDJ", "DJF"].filter(function (q) { return !!fl.summary[q]; });
+    if (!avail.length) { el("flavour-empty").hidden = false; el("flavour-body").hidden = true; return; }
+    if (avail.indexOf(state.season) < 0) state.season = avail[avail.length - 1];
+    var s = state.season;
+    var has = { raw: true, fm: !!(fmOK() && D.flo.corrected.summary[s]), cal: !!(calOK() && D.fl.calibrated.summary[s]) };
+    if (!has[state.view]) state.view = "raw";
+    el("viewSeg").hidden = !(has.fm || has.cal);
     document.querySelectorAll("#viewGrp button").forEach(function (b) {
-      b.hidden = !viewOK(b.dataset.v);
+      b.hidden = !has[b.dataset.v];
       b.setAttribute("aria-pressed", b.dataset.v === state.view ? "true" : "false");
     });
     document.querySelectorAll("#seasonGrp button").forEach(function (b) {
-      var ok = !!fl.summary[b.dataset.v]; b.hidden = !ok;
+      b.hidden = avail.indexOf(b.dataset.v) < 0;
+      b.setAttribute("aria-pressed", b.dataset.v === s ? "true" : "false");
     });
     var S = summaryFor(s);
     if (!S) return;
