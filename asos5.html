@@ -298,7 +298,7 @@
   </section>
 
   <footer class="ao-note">
-    <p><b>Sources.</b> Live: Iowa State&rsquo;s <a href="https://mesonet.agron.iastate.edu/request/asos/1min.phtml">IEM</a>
+    <p><b>Sources.</b> Live: Iowa State&rsquo;s <a href="https://mesonet.agron.iastate.edu/api/1/docs">IEM</a>
     observation history, fetched in your browser every 2 minutes &mdash; every 5-minute ASOS row the station transmitted
     plus every METAR and SPECI. The 5-minute rows carry temperature and dewpoint in <b>whole degrees Celsius</b> (hence the
     1.8&nbsp;&deg;F steps in the &deg;F traces); the hourly METARs and SPECIs carry tenths, and the cards use them whenever one
@@ -309,7 +309,9 @@
     Yesterday&rsquo;s data are kept in your browser, so a return visit only fetches today.</p>
     <p><b>Max/min.</b> Today&rsquo;s are the extremes since local midnight: the samples merged with the official METAR
     6-hour groups (<code>1sTTT</code>/<code>2sTTT</code>) where those are more extreme. Yesterday&rsquo;s row is the
-    official 24-hour climate day (<code>4snTxTxTxsnTnTnTn</code>).</p>
+    official 24-hour climate day (<code>4snTxTxTxsnTnTnTn</code>), which runs midnight to midnight local <i>standard</i>
+    time (1&nbsp;a.m. to 1&nbsp;a.m. during daylight time), so in summer today&rsquo;s extremes can differ from the next
+    day&rsquo;s official row.</p>
     <p><b>Wind.</b> Direction is where the wind blows <i>from</i>, in degrees true. Arrows on the cards point the way the air
     is moving; barbs follow the usual convention (pennant 50&nbsp;kt, full barb 10, half barb 5, always in knots).
     <i>Veering</i> = turning clockwise (e.g. south to west), <i>backing</i> = counter-clockwise; the change is measured
