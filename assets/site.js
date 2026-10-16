@@ -13,6 +13,7 @@
   // the page content lines up with it, so a menu that spilled past its padding (the longer "Circulation/tropics" label,
   // 22-49 px at 1440-1920 px) still "fitted" the window while the About menu stuck out past the content edge.
   var inner = header.querySelector('.sh-in');
+  var wide = function () { return window.matchMedia('(min-width: 861px)').matches && !header.classList.contains('sh--compact'); };
   function overflows() {
     var items = header.querySelectorAll('.sh-brand, .sh-find, .sh-list > li');
     var right = 0, lim = document.documentElement.clientWidth - 4;
@@ -20,7 +21,7 @@
     if (inner) lim = Math.min(lim, inner.getBoundingClientRect().right - (parseFloat(getComputedStyle(inner).paddingRight) || 0) + 1);
     return right > lim;
   }
-  function fitHeader() {
+  function fitMenu() {
     header.classList.remove('sh--compact', 'sh--tight', 'sh--tighter');
     if (window.innerWidth <= 860 || !nav || !overflows()) return;
     header.classList.add('sh--tight');
@@ -30,11 +31,29 @@
     header.classList.remove('sh--tight', 'sh--tighter');
     header.classList.add('sh--compact');
   }
+  // Collapsed (phones and the compact header) every group is listed open and its button is only its title (site.css
+  // turns its pointer events off): it leaves the tab order and the accessibility tree and the group carries its name.
+  // On a wide header it is the menu's button again.
+  function syncHeads() {
+    var collapsed = !wide();
+    header.querySelectorAll('.sh-has-menu').forEach(function (item) {
+      var btn = item.querySelector('.sh-menubtn'), menu = item.querySelector('.sh-menu');
+      if (!btn) return;
+      if (collapsed) {
+        btn.setAttribute('tabindex', '-1'); btn.setAttribute('aria-hidden', 'true'); btn.removeAttribute('aria-expanded');
+        if (menu) { menu.setAttribute('role', 'group'); menu.setAttribute('aria-label', (btn.querySelector('.sh-lf') || btn).textContent.trim()); }   // the full label shows here
+      } else if (btn.hasAttribute('aria-hidden')) {
+        btn.removeAttribute('tabindex'); btn.removeAttribute('aria-hidden');
+        btn.setAttribute('aria-expanded', item.classList.contains('is-open') ? 'true' : 'false');
+        if (menu) { menu.removeAttribute('role'); menu.removeAttribute('aria-label'); }
+      }
+    });
+  }
+  function fitHeader() { fitMenu(); syncHeads(); }
   var fitT; window.addEventListener('resize', function () { clearTimeout(fitT); fitT = setTimeout(fitHeader, 80); });
   fitHeader();
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(fitHeader);
   window.addEventListener('load', fitHeader);
-  var wide = function () { return window.matchMedia('(min-width: 861px)').matches && !header.classList.contains('sh--compact'); };
   // the stacked menu scrolls inside what is left of the window below the header (2026-10-08 sweep: a fixed
   // calc(100vh - 64px) ran past the bottom of the screen under the taller homepage header and on iOS, whose 100vh
   // is the toolbar-less height, so the last links could not be reached)
@@ -78,7 +97,7 @@
         }
       });
       item.classList.toggle('is-open', open);
-      btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+      if (wide()) btn.setAttribute('aria-expanded', open ? 'true' : 'false');
       if (!open) byHover = false;
       if (open) keepOnScreen(item.querySelector('.sh-menu'));
     }
@@ -132,11 +151,11 @@
   window.addEventListener('pageshow', function (e) { if (e.persisted) closeAll(); });
 })();
 
-// The finder (2026-09-27, the topic redesign): Ctrl/Cmd-K, "/" or the header's "Find a plot" opens a search
-// palette over every plot on the site. The index is assets/site/catalog.json (scripts/site/build_catalog.py, rebuilt
-// by catalog.yml whenever a page changes), fetched on first use. ARIA combobox + listbox; a preview pane on wide
-// screens, a full-screen sheet on phones. window.SiteFind exposes the loader and the scorer to catalog.html so the
-// catalogue page filters with exactly the same matching.
+// The finder (2026-09-27, the topic redesign): Ctrl/Cmd-K or the header's "Find a plot" opens a search palette over
+// every plot on the site (no single-key shortcut: one fires by accident, from speech input or a stray key). The index is
+// assets/site/catalog.json (scripts/site/build_catalog.py, rebuilt by catalog.yml whenever a page changes), fetched on
+// first use. ARIA combobox + listbox; a preview pane on wide screens, a full-screen sheet on phones. window.SiteFind
+// exposes the loader and the scorer to catalog.html so the catalogue page filters with exactly the same matching.
 (function () {
   var CAT_URL = '/assets/site/catalog.json';
   // frames-branch hosts: the Bunny CDN first (frames.scorvec.com, 60 s edge TTL on /frames/*, see assets/frames_root.js),
@@ -316,7 +335,9 @@
   }
   // Figures. An item's `thumb` and each option view's third element are keys into cat.thumbs, one entry per distinct
   // figure: s = the source (a file on main, or with f=1 a loop frame on the frames branch), t = its ~360 px thumbnail
-  // on the frames branch (build_thumbs.py) once one exists. Loaders walk thumbnail -> figure, CDN -> RAW -> jsDelivr.
+  // on the frames branch (build_thumbs.py) once one exists. Loaders walk CDN -> RAW -> jsDelivr. A tile only ever gets
+  // the thumbnail: a figure with none stays a text tile (a full-size figure is 0.2-2 MB, a phone's whole budget for a
+  // strip of six tiles); only the finder's preview pane asks for the figure itself.
   function figRec(key) {
     if (!key) return null;
     if (typeof key === 'object') return key.src ? { s: key.src } : key.frame ? { s: key.frame, f: 1 } : null;   // older index
@@ -328,8 +349,10 @@
     var gh = window.frameHostIsMirror && window.frameHostIsMirror() ? [MIRROR, RAW] : [RAW, MIRROR];
     var hosts = cdnOk ? [CDN].concat(gh) : gh;
     var out = [];
-    var t = rec.t ? 'assets/site/thumbs/' + rec.t + '.webp' : null;
-    if (t && !full) hosts.forEach(function (h) { out.push(h + t); });
+    if (!full) {
+      if (rec.t) hosts.forEach(function (h) { out.push(h + 'assets/site/thumbs/' + rec.t + '.webp'); });
+      return out;
+    }
     if (rec.f) hosts.forEach(function (h) { out.push(h + rec.s); });
     else out.push('/' + rec.s);
     return out;
@@ -337,8 +360,9 @@
   // thumbInto(im, key, onFail, full): the thumbnail (or, with full, the figure itself) into <img> im
   function thumbInto(im, key, onFail, full) {
     var rec = figRec(key);
-    if (!rec) { if (onFail) onFail(); return; }
-    var tries = figUrls(rec, full), k = 0, tm = null, tok = im._thumbTok = {};
+    var tries = rec ? figUrls(rec, full) : [];
+    if (!tries.length) { if (onFail) onFail(); return; }
+    var k = 0, tm = null, tok = im._thumbTok = {};
     // a CDN that a filter silently drops would hold the thumbnail until the browser gives up: move on after 6 s
     function go() {
       clearTimeout(tm); im.src = tries[k];
@@ -553,6 +577,7 @@
     var box = prev.querySelector('.fp-th'), im = new Image(), big = new Image();
     im.alt = ''; big.alt = '';
     var current = function () { return rows[active] === r; };
+    var none = function () { if (current()) box.innerHTML = tileHTML(it, 'Opens on the page'); };
     im.onload = function () {
       if (!current()) return;
       box.innerHTML = ''; box.appendChild(im);
@@ -560,7 +585,12 @@
       big.onload = function () { if (current() && im.parentNode === box) box.replaceChild(big, im); };
       thumbInto(big, key, null, true);
     };
-    thumbInto(im, key, function () { if (current()) box.innerHTML = tileHTML(it, 'Opens on the page'); });
+    // no thumbnail: the pane (wide screens only) shows the figure itself
+    thumbInto(im, key, function () {
+      if (!current()) return;
+      big.onload = function () { if (current()) { box.innerHTML = ''; box.appendChild(big); } };
+      thumbInto(big, key, none, true);
+    });
   }
 
   function open() {
@@ -590,13 +620,6 @@
     if (k === 'k' && (e.metaKey || e.ctrlKey) && !e.altKey && !e.shiftKey) {
       e.preventDefault();
       if (root && !root.hidden) close(true); else open();
-      return;
-    }
-    if (e.key === '/' && !e.metaKey && !e.ctrlKey && !e.altKey) {
-      var t = e.target, tag = t && t.tagName;
-      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || (t && t.isContentEditable)) return;
-      if (root && !root.hidden) return;
-      e.preventDefault(); open();
     }
   });
   window.SiteFind.open = open;

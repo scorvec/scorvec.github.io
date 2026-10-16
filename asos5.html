@@ -326,7 +326,7 @@
 
   <footer class="ao-note">
     <p><b>Sources.</b> Live: Iowa State&rsquo;s <a href="https://mesonet.agron.iastate.edu/api/1/docs">IEM</a>
-    observation history, fetched in your browser every 2 minutes &mdash; every 5-minute ASOS row the station transmitted
+    observation history, fetched in your browser (each station again 5 minutes after its last read, hourly stations 10) &mdash; every 5-minute ASOS row the station transmitted
     plus every METAR and SPECI. The 5-minute rows carry temperature and dewpoint in <b>whole degrees Celsius</b> (hence the
     1.8&nbsp;&deg;F steps in the &deg;F traces); the hourly METARs and SPECIs carry tenths, and the cards use them whenever one
     is as recent as the latest 5-minute row. The
@@ -504,13 +504,28 @@
         localStorage.removeItem(k); } } catch (e) {}           // older versions' packs too
   }
   var dayPacks = {};                                   // id -> {date: pack}
+  // Every request to IEM and the NWS API goes through one queue, at most QMAX at a time, today's before yesterday's:
+  // 22 stations at once (44 requests on a first visit) flooded both services and a phone's connection.
+  // A slot is held until the body has been read, so QMAX caps the downloads, not just the waits for headers.
+  var QMAX = 4, qRun = 0, qHi = [], qLo = [];
+  function qjson(url, opts, low) {                      // -> Promise(parsed JSON); rejects on a network error or HTTP error
+    return new Promise(function (res, rej) { (low ? qLo : qHi).push([url, opts || {}, res, rej]); qPump(); });
+  }
+  function qPump() {
+    while (qRun < QMAX && (qHi.length || qLo.length)) {
+      var j = qHi.length ? qHi.shift() : qLo.shift(); qRun++;
+      (function (j) {
+        fetch(j[0], j[1]).then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); })
+          .then(function (d) { qRun--; qPump(); j[2](d); }, function (e) { qRun--; qPump(); j[3](e); });
+      })(j);
+    }
+  }
   function iemURL(s, date) {
     return "https://mesonet.agron.iastate.edu/api/1/obhistory.json?network=" + s.net + "&station=" +
       (s.id === "KNYC" ? "NYC" : s.id.slice(1)) + "&date=" + date;
   }
-  function fetchDay(s, date, fresh) {
-    return fetch(iemURL(s, date), fresh ? { cache: "no-store" } : {})
-      .then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); })
+  function fetchDay(s, date, fresh) {                    // today (fresh) ahead of yesterday in the queue
+    return qjson(iemURL(s, date), fresh ? { cache: "no-store" } : {}, !fresh)
       .then(function (j) { return packDay(j.data || []); });
   }
   // QC of the plotted temperature / dewpoint (2026-10-08 sweep: KRDU's 12:30Z 5-minute row on 7 Oct carried M61/M61, a
@@ -547,21 +562,21 @@
     var n = nowS(), today = ymd(lx(n, s.tz)), yday = ymd(lx(n - 86400, s.tz));
     var mem = dayPacks[s.id] = dayPacks[s.id] || {};
     Object.keys(mem).forEach(function (k) { if (k !== today && k !== yday) delete mem[k]; });
+    var pT = fetchDay(s, today, true).then(function (p) { mem[today] = p; return p; });
     var pY = mem[yday] ? Promise.resolve(mem[yday])
       : (function () { var c = lsGet(s.id + "." + yday); if (c) { mem[yday] = c; return Promise.resolve(c); }
           return fetchDay(s, yday, false).then(function (p) { mem[yday] = p; lsSet(s.id + "." + yday, p); return p; }); })();
-    var pT = fetchDay(s, today, true).then(function (p) { mem[today] = p; return p; });
     return Promise.all([pY.catch(function () { return null; }), pT.catch(function () { return null; })]).then(function (r) {
       if (!r[0] && !r[1]) throw new Error("iem");
       var p = combine(r[0], r[1]); p.src = "iem"; p.cad = p.nAuto >= 6 ? 5 : 60;
       state.live[s.id] = p; state.src[s.id] = "iem";
       if (r[1]) lsSet("today." + s.id, { d: today, p: r[1] });
+      return true;
     }).catch(function () { return fetchNWS(s); });
   }
-  function fetchNWS(s) {
+  function fetchNWS(s) {                                 // -> Promise(true when it served the station, false when not)
     var w0 = nowS() - WINDOW_MAX_H * 3600;
-    return fetch("https://api.weather.gov/stations/" + s.id + "/observations?start=" + encodeURIComponent(new Date(w0 * 1000).toISOString()) + "&limit=500", { cache: "no-store" })
-      .then(function (r) { if (!r.ok) throw 0; return r.json(); })
+    return qjson("https://api.weather.gov/stations/" + s.id + "/observations?start=" + encodeURIComponent(new Date(w0 * 1000).toISOString()) + "&limit=500", { cache: "no-store" })
       .then(function (j) {
         var rows = (j.features || []).map(function (f) { var p = f.properties;
           return { utc_valid: p.timestamp, raw: p.rawMessage || "", tmpf: p.temperature && p.temperature.value != null ? p.temperature.value * 1.8 + 32 : null,
@@ -573,8 +588,9 @@
         rows.forEach(function (r) { if (!r.raw) r.raw = s.id + " AUTO MADISHF"; });
         var p = packDay(rows); qcObs(p.obs); p.src = "nws"; p.cad = p.nAuto >= 6 ? 5 : 60;
         state.live[s.id] = p; state.src[s.id] = "nws";
+        return true;
       })
-      .catch(function () { state.failed++; });
+      .catch(function () { return false; });
   }
   // The asos5-data branch, CDN first (2026-10-07): frames.scorvec.com is the site's Bunny pull zone in front of
   // raw.githubusercontent.com (blocked on many work networks). The edge ignores query strings and an Edge Rule holds
@@ -591,15 +607,36 @@
         .then(function (r) { if (t) clearTimeout(t); if (!r.ok) throw 0; return r.json(); })
         .catch(function () { if (t) clearTimeout(t); return next(); });
     }
-    next().then(function (j) { if (j && j.stations) { state.branch = {}; j.stations.forEach(function (s) { state.branch[s.id] = s; }); schedule(); } })
-      .catch(function () {});
+    // the file is rebuilt every 30 minutes: a copy less than 28 minutes old is not asked for again, nor any copy within
+    // 5 minutes of the last try (a late rebuild would otherwise be polled every minute)
+    var t = Date.now();
+    if ((state.branchGen && t - state.branchGen < 28 * 60000) || t - (state.branchTry || 0) < 5 * 60000) return;
+    state.branchTry = t;
+    next().then(function (j) {
+      if (!j || !j.stations) return;
+      state.branch = {}; j.stations.forEach(function (s) { state.branch[s.id] = s; });
+      state.branchGen = Date.parse(j.generated_utc) || 0; schedule();
+    }).catch(function () {});
   }
-  function refreshAll() {
-    state.failed = 0;
-    var keep = [];
+  // Each station is read again only once something new can have arrived: 5 minutes after its last good read (a
+  // 5-minute station), 10 for an hourly one; a failure is retried after 2, 4, 8 minutes, up to 15. A check every
+  // minute, and one when the tab comes back, asks only for the stations that are due, so returning to the tab
+  // again and again costs nothing.
+  var dueAt = {}, fails = {};
+  function refreshDue() {
+    var t = Date.now(), keep = [];
     STATIONS.forEach(function (s) { var n = nowS(); keep.push(s.id + "." + ymd(lx(n - 86400, s.tz))); keep.push("today." + s.id); });
     lsPrune(keep);
-    STATIONS.forEach(function (s) { loadStation(s).then(function () { state.cached = false; schedule(); }); });
+    STATIONS.forEach(function (s) {
+      if (t < (dueAt[s.id] || 0)) return;
+      dueAt[s.id] = Infinity;                            // in flight
+      loadStation(s).then(function (ok) {
+        var live = state.live[s.id];
+        if (ok) { delete fails[s.id]; dueAt[s.id] = Date.now() + (live && live.cad > 5 ? 600000 : 300000); }
+        else { fails[s.id] = (fails[s.id] || 0) + 1; dueAt[s.id] = Date.now() + Math.min(900000, 120000 * Math.pow(2, fails[s.id] - 1)); }
+        state.failed = Object.keys(fails).length; state.cached = false; schedule();
+      });
+    });
   }
 
   // ---------------------------------------------------------------- merge per station
@@ -915,6 +952,9 @@
     }
     if (isoSt) over = overlays(isoSt, vr);
     P1.draw({ xr: xr, yr: yr, yticks: yticks, ylabel: ylabel, left: left, series: series, over: over, labels: vr !== "w" });
+    var lbl = document.getElementById("ctitle").textContent + ": " + data.length + (data.length === 1 ? " station" : " stations, one line each") + (isoSt ? ", " + isoSt.s.id + " highlighted" : "") +
+      ". The cards above give each station's latest reading and today's extremes.";
+    if (P1.cv.getAttribute("aria-label") !== lbl) P1.cv.setAttribute("aria-label", lbl);
     // direction panel
     if (vr === "k") {
       P2.el.hidden = false;
@@ -1050,7 +1090,7 @@
     if (tot) li.push("Calm or under 3 kt " + Math.round(calm / tot * 100) + "% of the last 24 h");
     if (pk) li.push("Peak wind today (METAR remark): <b>" + pk.dir + "° " + dirName(pk.dir) + " " + fW(pk.kt) + "</b> at " + hm(lx(pk.e, tz)));
     if (ws.length) li.push("Wind shift reported at " + ws.map(function (x) { return hm(lx(x.e, tz)) + (x.fropa ? " (frontal passage)" : ""); }).join(", "));
-    box.innerHTML = '<canvas width="220" height="220" style="width:220px;height:220px" role="img" aria-label="Wind rose, last 24 hours"></canvas><div class="tx"><h2>' + st.s.id +
+    box.innerHTML = '<canvas width="220" height="220" style="width:220px;height:220px" role="img" aria-label="Wind rose, last 24 hours (summarised in the list beside it)"></canvas><div class="tx"><h2>' + st.s.id +
       " wind, last 24 hours</h2><ul><li>" + li.join("</li><li>") + "</li></ul><p class=\"mu\" style=\"margin-top:.4rem;font-size:.88rem\">Rose: share of observations by the direction the wind came from (16 sectors), " +
       "shaded by speed (light under 10 kt, mid 10–20, dark over 20).</p></div>";
     drawRose(box.querySelector("canvas"), st, e1 - 86400, e1);
@@ -1082,9 +1122,9 @@
     var asof = newest ? new Date(newest * 1000).toLocaleTimeString([], { hour: "numeric", minute: "2-digit", timeZoneName: "short" }) : "–";
     document.getElementById("subline").innerHTML = "Live five-minute ASOS observations from <b>22 major US airports</b>, plotted on each station&rsquo;s " +
       "local clock so today lines up against yesterday. Cards show the latest reading, today&rsquo;s extremes and, for wind, the direction and how it has turned. " +
-      "Latest observation <b>" + asof + "</b>" + (state.cached ? " (from your last visit; updating&hellip;)" : "") + " &middot; " + data.length + " of 22 stations loaded &middot; refreshes every 2 minutes.";
+      "Latest observation <b>" + asof + "</b>" + (state.cached ? " (from your last visit; updating&hellip;)" : "") + " &middot; " + data.length + " of 22 stations loaded &middot; each station refreshes every 5 minutes.";
     var stale = document.getElementById("stale");
-    if (state.failed >= 6) { stale.hidden = false; stale.textContent = state.failed + " stations could not be reached just now; they will be retried in two minutes."; }
+    if (state.failed >= 6) { stale.hidden = false; stale.textContent = state.failed + " stations could not be reached just now; they are tried again within a few minutes."; }
     else stale.hidden = true;
     var vr = state.vr, iso = state.iso != null && state.iso >= 0;
     document.getElementById("ctitle").textContent = { t: "Temperature", d: "Dewpoint", k: "Wind speed, gusts and direction", v: "Visibility", c: "Cloud ceiling", w: "Present weather" }[vr] +
@@ -1127,11 +1167,11 @@
     if (y || tp) { var p = combine(y, tp); p.src = "cache"; p.cad = p.nAuto >= 6 ? 5 : 60; state.live[s.id] = p; state.cached = true; }
   });
   if (state.cached) render(); else { state.data = STATIONS.map(function () { return null; }); renderText(); renderCards(); }
-  refreshAll();
-  setTimeout(fetchBranch, 1500);
-  setInterval(function () { if (!document.hidden) refreshAll(); }, 120000);
-  setInterval(function () { if (!document.hidden) fetchBranch(); }, 300000);
-  document.addEventListener("visibilitychange", function () { if (!document.hidden) refreshAll(); });
+  // the site's own half-hourly file of all 22 stations (one request) paints first; IEM then tops each station up
+  fetchBranch();
+  refreshDue();
+  setInterval(function () { if (!document.hidden) { refreshDue(); fetchBranch(); } }, 60000);
+  document.addEventListener("visibilitychange", function () { if (!document.hidden) { refreshDue(); fetchBranch(); } });
 })();
 </script>
 <!-- sf:start -->
