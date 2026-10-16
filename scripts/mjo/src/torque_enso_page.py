@@ -31,8 +31,8 @@ GH = "https://github.com/scorvec/scorvec.github.io/blob/main/"
 TITLE = "El Niño and angular momentum"
 H1 = "Why the atmosphere spins up in El Niño"
 DESC = (
-    "Where El Niño's extra atmospheric angular momentum comes from: a standing shift in the Andes mountain torque, "
-    "and why ERA5's budget only closes with its analysis increments. ERA5 1959–2026, 41 CMIP6 models, an hourly 2026 budget."
+    "Where El Niño's extra angular momentum comes from: a standing shift in the Andes mountain torque, "
+    "and why ERA5's budget needs its analysis increments to close."
 )
 
 
