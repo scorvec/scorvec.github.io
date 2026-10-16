@@ -186,7 +186,7 @@
 <!-- sh:end -->
 <main>
   <div class="page-header">
-    <p class="eyebrow">Daily from satellite OLR and the ECMWF ensembles</p>
+    <p class="eyebrow">Daily from satellite OLR, altimetry and the ECMWF AIFS ensemble</p>
     <h1>Tropical waves</h1>
     <p class="sub">The waves that organise tropical rain: Kelvin waves, equatorial Rossby waves, mixed Rossby&ndash;gravity
       waves and the MJO. The Hovm&ouml;llers and trackers
@@ -209,12 +209,12 @@
   <div class="lightbox" id="lightbox"><img alt=""></div>
   <div class="dom-holder" id="dom-holder"></div>
 <template id="about-olr">
-<p>A longitude &times; time Hovm&ouml;ller of deep convection along the equator. NOAA's interpolated-OLR product ended in 2022, so this derives an OLR proxy in real time from the <b>GMGSI</b> global longwave-IR satellite mosaic: the IR brightness temperature (cold cloud tops) is converted to outgoing longwave radiation, and the 5&deg;S&ndash;5&deg;N average at each longitude is stacked over time. <span style="color:#e07b00">Yellow to red is low OLR (deep convection)</span>; blue is high OLR (suppressed or clear sky). An eastward (top to bottom-right) tilt is the MJO propagating east; convection parked at the dateline reflects the El&nbsp;Ni&ntilde;o-shifted warm pool. Newest day at the bottom.</p>
+<p>A longitude &times; time Hovm&ouml;ller of deep convection along the equator. NOAA's interpolated-OLR product ended in 2022, so this derives an OLR proxy in real time from the <b>GMGSI</b> global longwave-IR satellite mosaic: the IR brightness temperature (cold cloud tops) is converted to outgoing longwave radiation, and the 5&deg;S&ndash;5&deg;N average at each longitude is stacked over time. <span style="color:#e07b00">Yellow to red is low OLR (deep convection)</span>; blue is high OLR (suppressed or clear sky). A slow eastward tilt (top to bottom-right, about 5&nbsp;m/s) is the MJO; faster eastward streaks (10&ndash;20&nbsp;m/s) are convectively coupled Kelvin waves. During an El&nbsp;Ni&ntilde;o the convection shifts east toward the dateline with the warm water. The strip covers 40&deg;E&ndash;60&deg;W, and the thin black contours mark 180 and 220&nbsp;W&nbsp;m<sup>&minus;2</sup>. Newest day at the bottom.</p>
 <p class="chart-sources">NOAA GMGSI longwave-IR global mosaic &middot; McIDAS T_b + Ohring-Gruber OLR &middot; 5&deg;S&ndash;5&deg;N daily mean</p>
 </template>
 <template id="about-waves">
-<p>A longitude &times; time Hovm&ouml;ller of the equatorial outgoing-longwave-radiation (OLR) anomaly, averaged 5&deg;S&ndash;5&deg;N around the globe. OLR is derived in real time from the <b>GMGSI</b> longwave-IR mosaic (McIDAS brightness temperature to OLR), with the anomaly taken against NOAA's interpolated-OLR daily climatology (1979&ndash;2022). The shaded field is the total anomaly: <span style="color:#19975a">green is low OLR (deep convection)</span>, <span style="color:#9a6a18">brown is high OLR (suppressed)</span>.</p>
-<p>Each overlaid component is isolated from that anomaly field and contoured at its convective (solid) and suppressed (dashed) phase. <b style="color:#1565c0">Kelvin</b>, <b>MJO</b> and <b style="color:#e6007e">equatorial&nbsp;Rossby</b> are Wheeler&ndash;Kiladis wavenumber&ndash;frequency bandpass filters of the anomaly (2-D FFT in longitude and time): Kelvin is eastward wavenumber&nbsp;1&ndash;14, period&nbsp;2.5&ndash;30&nbsp;d (wider than Wheeler and Kiladis&rsquo;s 2.5&ndash;20&nbsp;d), equivalent depth&nbsp;8&ndash;90&nbsp;m; MJO is eastward wavenumber&nbsp;1&ndash;5, period&nbsp;30&ndash;96&nbsp;d; ER is westward wavenumber&nbsp;1&ndash;10, period&nbsp;9.7&ndash;48&nbsp;d. <b style="color:#7b1fa2">Low-frequency</b> is a 120-day Lanczos low-pass in time with the zonal mean removed.</p>
+<p>A longitude &times; time Hovm&ouml;ller of the equatorial outgoing-longwave-radiation (OLR) anomaly, averaged 5&deg;S&ndash;5&deg;N around the globe. OLR is derived in real time from the <b>GMGSI</b> longwave-IR mosaic (McIDAS brightness temperature to OLR), with the anomaly taken against NOAA's interpolated-OLR daily climatology (1979&ndash;2022). Each longitude's mean over the rolling 550-day record is then removed: that absorbs the proxy's offset from true OLR, but also part of any long-lasting anomaly such as an El&nbsp;Ni&ntilde;o's. The shaded field is that anomaly: <span style="color:#19975a">green is low OLR (deep convection)</span>, <span style="color:#9a6a18">brown is high OLR (suppressed)</span>.</p>
+<p>Each overlaid component is isolated from that anomaly field and contoured at its convective (solid) and suppressed (dashed) phase. <b style="color:#1565c0">Kelvin</b>, <b>MJO</b> and <b style="color:#e6007e">equatorial&nbsp;Rossby</b> are Wheeler&ndash;Kiladis wavenumber&ndash;frequency bandpass filters of the anomaly (2-D FFT in longitude and time): Kelvin is eastward wavenumber&nbsp;1&ndash;14, period&nbsp;2.5&ndash;30&nbsp;d (wider than Wheeler and Kiladis&rsquo;s 2.5&ndash;20&nbsp;d), equivalent depth&nbsp;8&ndash;90&nbsp;m; MJO is eastward wavenumber&nbsp;1&ndash;5, period&nbsp;30&ndash;96&nbsp;d; ER is westward wavenumber&nbsp;1&ndash;10, period&nbsp;9.7&ndash;48&nbsp;d. <b style="color:#7b1fa2">Low-frequency</b> is a 120-day Lanczos low-pass in time with the zonal mean removed. The contours are drawn at &plusmn;13 (Kelvin), &plusmn;11 (ER), &plusmn;10 (MJO) and &plusmn;8&nbsp;W&nbsp;m<sup>&minus;2</sup> (low-frequency).</p>
 <p class="chart-sources">GMGSI longwave-IR proxy &middot; Wheeler&ndash;Kiladis k&ndash;&omega; filtering (eq. depth 8&ndash;90&nbsp;m; Wheeler &amp; Kiladis 1999, <i>J. Atmos. Sci.</i> 56, 374&ndash;399) &middot; climatology NOAA interp-OLR 1979&ndash;2022</p>
 </template>
 <template id="about-trackers">
@@ -228,8 +228,8 @@
       AIFS-ENS ensemble-mean precipitation (as a pseudo-OLR, standardized against an
       ERA5 1991&ndash;2020 band climatology) is appended to the record and run through
       the <em>same</em> Wheeler&ndash;Kiladis filter, so the wave field continues with
-      the model's dynamics &mdash; where the dotted constant-speed line and the model
-      streaks agree, confidence in the arrival time is high.</p>
+      the model's dynamics. The dotted constant-speed line and the model streaks are two separate
+      estimates of where each packet goes; neither has been verified here.</p>
 <p class="chart-sources">Same GMGSI OLR proxy + Wheeler&ndash;Kiladis filters as above
       &middot; phase speed from lag-1-day circular cross-correlation (last 15 days)
       &middot; forecast strip: AIFS-ENS ens-mean precip pseudo-OLR, identically filtered
@@ -237,7 +237,7 @@
 </template>
 <template id="about-kelvin">
 <p>A <b>convectively coupled Kelvin wave</b> is an eastward-moving pulse of tropical convection, 10&ndash;20&nbsp;m/s
-        (roughly 1,000&ndash;1,700&nbsp;km a day), that crosses a basin in about a week. Its clearest large-scale footprint is in
+        (roughly 860&ndash;1,700&nbsp;km a day), that takes about two weeks to cross the Pacific. Its clearest large-scale footprint is in
         <b>200&nbsp;hPa velocity potential</b>: upper-level divergence (green) over the active, rainy phase and convergence
         (brown) over the suppressed phase. This tracker filters that field to the Kelvin band and draws where the waves are,
         through the analysis and the AIFS-ENS forecast.</p>
@@ -246,11 +246,11 @@
         background) for context. <b>Along the equator</b>: the same field averaged 5&deg;S&ndash;5&deg;N as a Hovm&ouml;ller, time running
         down; a Kelvin wave is a green streak tilting down to the right, and the forecast carries each streak across the
         analysis line.</p>
-<p>The forecast is the <b>50-member ensemble mean</b>, so a wave the members place differently fades with lead rather
+<p>The forecast is the mean of the <b>50 perturbed members</b> (the control is not included), so a wave the members place differently fades with lead rather
         than being shown with false confidence. Filtering needs a record, so the forecast is joined to the analyses and the end
         of the record is padded with a ramp to zero; the last forecast days therefore read weaker than they may be.
         Poleward of 15&deg; the filtered field is faded out: Kelvin waves are trapped near the equator and what the filter
-        finds there is not one. The OLR-based trackers alongside it show the same waves in observed cloudiness.</p>
+        finds there is not one. The OLR-based trackers alongside it show the same waves in observed cloudiness; their Kelvin filter runs to 30-day periods rather than 20, so it also keeps slower signals that this one leaves out.</p>
 <p class="chart-sources">ECMWF AIFS-ENS open data (CC&nbsp;BY&nbsp;4.0): 0-h analyses (00 and 12&nbsp;UTC, averaged per day) and the
         ensemble-mean u, v at 200&nbsp;hPa to day 15 &middot; velocity potential by spherical harmonics (lmax&nbsp;42) &middot; anomalies against
         ERA5 1991&ndash;2020 with its trend &middot; Kelvin band: eastward wavenumbers 1&ndash;14, periods 2.5&ndash;20 days, equivalent
@@ -266,13 +266,13 @@
         (eastward, 1.5&ndash;3.5&nbsp;m/s, 15&ndash;150 days); waves are streaks sloping down to the right. Each crest in the basin
         today is followed back through the record to measure its own speed, then projected east (dashed) to Ni&ntilde;o-3
         (120&deg;W) and the coast (90&deg;W), with the arrival dates listed underneath. <b>Right panel</b>: the 10&nbsp;m zonal
-        wind anomaly along the equator that launches them, observed then forecast. The broad red field is the El Ni&ntilde;o
+        wind anomaly along the equator that launches them, observed then forecast. During an El Ni&ntilde;o the broad red field is the event
         itself, which the filter removes; the Kelvin part is a few centimetres riding on it.</p>
 <p><b>Map</b>: the same sea level over 15&deg;S&ndash;15&deg;N every second day for the last 200 days, with each crest marked on the
         equator. The arrival dates assume a wave keeps its speed and strength; a new wind burst, or the wave reflecting and
         dispersing near the coast, changes them.</p>
 <p class="chart-sources">Sea level: NOAA CoastWatch blended altimetry (Sentinel-3A/B, CryoSat-2, Jason-3, SARAL), daily, sampled at
-        0.5&deg;, anomaly against its own 2017&ndash;2025 mean, trend and seasonal cycle &middot; wind: NCEI Blended Sea Winds v2, then
+        0.5&deg;, anomaly against its own 2017&ndash;2025 mean, trend and seasonal cycle (the blended product is continuous only from February 2017) &middot; wind: NCEI Blended Sea Winds v2, then
         AIFS-ENS 0-h analyses, then the AIFS-ENS 50-member mean forecast (ECMWF open data, CC&nbsp;BY&nbsp;4.0); anomalies against
         ERA5 1991&ndash;2020 &middot; updated each 00/12Z cycle; altimetry runs one to two days behind</p>
 </template>
@@ -295,12 +295,12 @@
 <script>
 window.STAGE = {
   groups: [
-  {label: "Along the equator", ico: "\u{1F30A}", items: [["waves","Wave decomposition","Kelvin, Rossby, MJO bands"],["trackers","Kelvin and Rossby trackers","with the forecast"],["kelvin","Kelvin wave tracker, AIFS-ENS","map + 15-day forecast"],["olr","OLR Hovm\u00f6ller","synthetic, equatorial"]]},
+  {label: "Along the equator", ico: "\u{1F30A}", items: [["waves","Wave decomposition","Kelvin, Rossby, MJO bands"],["trackers","Kelvin and Rossby trackers","with the forecast"],["kelvin","Kelvin wave tracker, AIFS-ENS","map + 15-day forecast"],["olr","OLR Hovm\u00f6ller","satellite proxy, equatorial"]]},
   {label: "Ocean", ico: "\u{1F30A}", items: [["okelvin","Ocean Kelvin waves","sea level, arrival dates"]]}
 ],
   products: {
-  olr: {label: "Synthetic OLR Hovmöller", img: function () { return "assets/sst/olr_hovmoller.webp"; }, bust: "hourly", about: "about-olr", fit: false,
-          cap: function () { return "Equatorial convection against time from the infrared composite: low OLR (yellow to red) is deep convection, blue is suppressed or clear; eastward-moving bands are the MJO."; }},
+  olr: {label: "OLR Hovmöller (satellite proxy)", img: function () { return "assets/sst/olr_hovmoller.webp"; }, bust: "hourly", about: "about-olr", fit: false,
+          cap: function () { return "Equatorial convection against time from the infrared composite: low OLR (yellow to red) is deep convection, blue is suppressed or clear; slow eastward bands (about 5 m/s) are the MJO, faster ones Kelvin waves."; }},
   waves: {label: "Tropical wave decomposition", img: function () { return "assets/sst/olr_waves.webp"; }, bust: "hourly", about: "about-waves", fit: false,
           cap: function () { return "The OLR anomaly filtered into the Wheeler–Kiladis bands: MJO, Kelvin, equatorial Rossby and the rest."; }},
   trackers: {label: "Kelvin and Rossby wave trackers", img: function () { return "assets/sst/wave_tracker.webp"; }, bust: "hourly", about: "about-trackers", fit: false,
