@@ -1,12 +1,14 @@
 /* lightbox.js — dependency-free responsive image lightbox.
    Auto-attaches to: img[data-zoom], .zoomable img, figure img, main img  (override: window.LB_SELECTOR)
    Skips: images with data-nozoom, or natural width < 500 px.
-   Interactions: click = open · wheel = zoom at cursor · drag = pan · double-click = fit/200 %
-                 ← → = prev/next image on the page · Esc or backdrop or × = close · pinch on touch. */
+   Interactions: click, or Enter / Space on a focused image = open · wheel = zoom at cursor · drag = pan ·
+                 double-click = fit/200 % · ← → = prev/next image on the page · Esc or backdrop or × = close ·
+                 pinch on touch. The overlay is a modal dialog: it takes the focus, keeps Tab inside and gives the
+                 focus back to the image that opened it. */
 (function(){
 'use strict';
 var SEL=window.LB_SELECTOR||'img[data-zoom], .zoomable img, figure img, main img';
-var imgs=[],ov,pic,cap,idx=0,scale=1,tx=0,ty=0,fitScale=1,drag=null,pinch=null;
+var imgs=[],ov,pic,cap,idx=0,scale=1,tx=0,ty=0,fitScale=1,drag=null,pinch=null,back=null;
 
 function collect(){
   imgs=Array.prototype.slice.call(document.querySelectorAll(SEL))
@@ -14,16 +16,23 @@ function collect(){
   imgs.forEach(function(im){
     function arm(){ if((im.naturalWidth||0)<500) return;
       im.classList.add('lb-target');
-      if(!im._lb){ im._lb=1; im.addEventListener('click',function(e){e.preventDefault();open(imgs.indexOf(im));}); } }
+      if(!im._lb){ im._lb=1; im.addEventListener('click',function(e){e.preventDefault();open(imgs.indexOf(im));});
+        // keyboard: the image is a button (unless it already sits in a link or button, which opens it on its own)
+        if(!im.closest('a[href], button')){
+          im.tabIndex=0; im.setAttribute('role','button');
+          im.setAttribute('aria-label','Enlarge'+(caption(im)?': '+caption(im).replace(/\s+/g,' ').trim().slice(0,160):' the image'));
+          im.addEventListener('keydown',function(e){ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); open(imgs.indexOf(im)); } });
+        } } }
     if(im.complete) arm(); else im.addEventListener('load',arm);
   });
 }
 function build(){
   ov=document.createElement('div'); ov.className='lb-overlay';
-  ov.innerHTML='<button class="lb-x" aria-label="close">&times;</button>'+
-    '<button class="lb-nav lb-prev" aria-label="previous">&#8249;</button>'+
-    '<button class="lb-nav lb-next" aria-label="next">&#8250;</button>'+
-    '<div class="lb-hint">scroll to zoom &#183; drag to pan &#183; double-click to toggle</div>'+
+  ov.setAttribute('role','dialog'); ov.setAttribute('aria-modal','true'); ov.setAttribute('aria-label','Enlarged image');
+  ov.innerHTML='<button type="button" class="lb-x" aria-label="Close">&times;</button>'+
+    '<button type="button" class="lb-nav lb-prev" aria-label="Previous image">&#8249;</button>'+
+    '<button type="button" class="lb-nav lb-next" aria-label="Next image">&#8250;</button>'+
+    '<div class="lb-hint" aria-hidden="true">scroll to zoom &#183; drag to pan &#183; double-click to toggle</div>'+
     '<img alt=""><div class="lb-cap"></div>';
   document.body.appendChild(ov);
   pic=ov.querySelector('img'); cap=ov.querySelector('.lb-cap');
@@ -66,9 +75,14 @@ function build(){
   });
   document.addEventListener('keydown',function(e){
     if(!ov.classList.contains('lb-open')) return;
-    if(e.key==='Escape') close();
-    else if(e.key==='ArrowLeft') nav(-1);
-    else if(e.key==='ArrowRight') nav(1);
+    if(e.key==='Escape'){ e.preventDefault(); close(); }
+    else if(e.key==='ArrowLeft' && !ov.classList.contains('lb-single')){ e.preventDefault(); nav(-1); }
+    else if(e.key==='ArrowRight' && !ov.classList.contains('lb-single')){ e.preventDefault(); nav(1); }
+    else if(e.key==='Tab'){                                    // keep the focus on the dialog's own buttons
+      var f=Array.prototype.filter.call(ov.querySelectorAll('button'),function(b){return b.offsetParent!==null;});
+      var i=f.indexOf(document.activeElement); e.preventDefault();
+      if(f.length) f[(i+(e.shiftKey?-1:1)+f.length)%f.length].focus();
+    }
   });
   addEventListener('resize',function(){ if(ov.classList.contains('lb-open')) fit(); });
 }
@@ -85,26 +99,32 @@ function caption(im){
   var f=im.closest('figure'),c=f&&f.querySelector('figcaption');
   return (c&&c.textContent)||im.getAttribute('alt')||'';
 }
-function show(src,text,single){
+function show(src,text,single,alt){
   if(!ov) build();
-  pic.src=src;
+  var was=ov.classList.contains('lb-open');
+  if(!was){ var a=document.activeElement; back=a && a!==document.body ? a : null; }
+  pic.src=src; pic.alt=alt||text||'';
   cap.textContent=text||'';
   ov.classList.toggle('lb-single',!!single);   // hide prev/next for one-offs
   document.body.style.overflow='hidden';
   ov.style.display='flex'; void ov.offsetHeight; ov.classList.add('lb-open');
   if(pic.complete) fit(); else pic.onload=fit;
+  if(!was) ov.querySelector('.lb-x').focus({preventScroll:true});
 }
 function open(i){
   idx=i; var im=imgs[i];
-  show(im.currentSrc||im.src, caption(im), false);
+  show(im.currentSrc||im.src, caption(im), false, im.getAttribute('alt'));
 }
 function nav(d){
   var n=(idx+d+imgs.length)%imgs.length;
   open(n);
 }
 function close(){
+  if(!ov.classList.contains('lb-open')) return;
   ov.classList.remove('lb-open'); document.body.style.overflow='';
-  setTimeout(function(){ov.style.display='none';},180);
+  setTimeout(function(){ if(!ov.classList.contains('lb-open')) ov.style.display='none';},180);
+  if(back && document.contains(back)) back.focus({preventScroll:true});
+  back=null;
 }
 if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',collect); else collect();
 window.LB_rescan=collect;   // call after injecting images dynamically

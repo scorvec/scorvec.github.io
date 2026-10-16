@@ -373,17 +373,23 @@ function unpublished() {
 }
 // The loop's own run or render time, for the embedding page's footer (assets/stage.js): the run the producer names
 // (init), else its build time (generated), else the cycle in a YYYYMMDDHH `ver` or the render time in an epoch `ver`;
-// nothing when the manifest says none of these.
+// nothing when the manifest says none of these. `at` is that time in ms (the page's age check), 0 when unreadable.
+function utcMs(s) {                       // "2026-10-16 00Z", "2026-10-16T00:00Z", "2026-10-16 08:49 UTC" -> ms, or 0
+  const m = /^(\d{4})-(\d\d)-(\d\d)[T ](\d\d)(?::?(\d\d))?/.exec(s);
+  return m ? Date.UTC(+m[1], +m[2] - 1, +m[3], +m[4], +(m[5] || 0)) : 0;
+}
 function postStamp() {
   if (window === parent) return;
   const m = manifest, v = String(m.ver == null ? "" : m.ver);
-  let t = "";
-  if (typeof m.init === "string" && m.init) t = "init " + m.init.replace("T", " ").replace(/:00Z$/, "Z");
-  else if (typeof m.generated === "string" && m.generated) t = "updated " + m.generated;
-  else if (/^20\d\d(0[1-9]|1[0-2])(0[1-9]|[12]\d|3[01])([01]\d|2[0-3])$/.test(v))
+  let t = "", at = 0;
+  if (typeof m.init === "string" && m.init) { t = "init " + m.init.replace("T", " ").replace(/:00Z$/, "Z"); at = utcMs(m.init); }
+  else if (typeof m.generated === "string" && m.generated) { t = "updated " + m.generated; at = utcMs(m.generated); }
+  else if (/^20\d\d(0[1-9]|1[0-2])(0[1-9]|[12]\d|3[01])([01]\d|2[0-3])$/.test(v)) {
     t = "init " + v.slice(0, 4) + "-" + v.slice(4, 6) + "-" + v.slice(6, 8) + " " + v.slice(8) + "Z";
-  else if (/^1\d{9}$/.test(v)) t = "updated " + new Date(+v * 1000).toISOString().slice(0, 16).replace("T", " ") + "Z";
-  try { parent.postMessage({ type: "sstAnimStamp", text: t }, location.origin); } catch (e) {}
+    at = Date.UTC(+v.slice(0, 4), +v.slice(4, 6) - 1, +v.slice(6, 8), +v.slice(8));
+  }
+  else if (/^1\d{9}$/.test(v)) { at = +v * 1000; t = "updated " + new Date(at).toISOString().slice(0, 16).replace("T", " ") + "Z"; }
+  try { parent.postMessage({ type: "sstAnimStamp", text: t, at: at }, location.origin); } catch (e) {}
 }
 
 async function init() {
