@@ -17,9 +17,10 @@ Data   the bias archive (members 1-6 of every 00Z run, current model cycles: bui
        run is scored with a correction its own block of observations shaped.
 Fit    per lead week, one weight per model on the simplex in steps of STEP, minimising the summed score. A model joins the
        fit once the archive it shares with the models already in holds FIT_BLOCKS 21-day blocks of verified runs (one
-       more than global_bias.MIN_BLOCKS, so its bias can still be estimated with any block left out); until then it keeps
-       the equal share 1/M of the M models and the fitted ones split the rest. With fewer than two fitted models there is
-       nothing to fit and the weights are equal.
+       more than global_bias.MIN_BLOCKS, so its bias can still be estimated with any block left out); until then it stays
+       out of the blend (weight 0; it is still shown on its own), so a model whose rain has not been verified never
+       carries weight, and the fitted models split the whole blend. With fewer than two fitted models there is nothing to
+       fit: the blend is the equal mix of the fitted one, or of every model while none is.
 Test   leave-one-block-out cross-validation: weights fitted without block k and without the runs within BUFFER_DAYS of
        it (their verifying weeks overlap or adjoin block k's) score block k, and equal weights score the same runs.
        Skill = 1 - score(fitted) / score(equal), summed over blocks, with a 90 % interval from resampling whole blocks.
@@ -191,7 +192,8 @@ def week(wk, data, arch, obs1, obs2, C, rng) -> dict:
     fitted, runs = fit_set(ver)
     out = {"models": list(GB.MODELS), "fitted": fitted, "optimised": False}
     if len(fitted) < 2:
-        out["weights"] = {m: round(1 / len(GB.MODELS), 4) for m in GB.MODELS}
+        pool = fitted or list(GB.MODELS)
+        out["weights"] = {m: round(1 / len(pool), 4) if m in pool else 0.0 for m in GB.MODELS}
         out["note"] = "fewer than two models share a long enough verified archive: equal weights"
         return out
     days = np.array(runs, dtype="datetime64[D]")
@@ -242,7 +244,6 @@ def week(wk, data, arch, obs1, obs2, C, rng) -> dict:
     cand = simplex(len(fitted))
     cv = cross_validate(A, B, Cc, S0, runs, cand, rng, fitted)
     x = fit(A.sum(0), B.sum(0), cand)
-    share = len(fitted) / len(GB.MODELS)  # the fitted models' share; the others keep 1/M each
     out.update(
         runs=len(runs),
         first=f"{runs[0]}",
@@ -250,13 +251,13 @@ def week(wk, data, arch, obs1, obs2, C, rng) -> dict:
         blocks=cv["blocks"],
         cv_skill=cv["skill"],
         blend_rpss=cv["blend_rpss"],
-        fitted_weights={m: round(share * float(v), 4) for m, v in zip(fitted, x)},
+        fitted_weights={m: round(float(v), 4) for m, v in zip(fitted, x)},
         blend_vs_single=cv["blend_vs_single"],
         bias={"raw": bias_summary(RAW, T, G.LAT[cells[0]]), "corrected": bias_summary(X, T, G.LAT[cells[0]])},
     )
     out["optimised"] = cv["skill"][1] > 0
-    use = out["fitted_weights"] if out["optimised"] else {m: share / len(fitted) for m in fitted}
-    out["weights"] = {m: round(use.get(m, 1 / len(GB.MODELS)), 4) for m in GB.MODELS}
+    use = out["fitted_weights"] if out["optimised"] else {m: 1 / len(fitted) for m in fitted}
+    out["weights"] = {m: round(use.get(m, 0.0), 4) for m in GB.MODELS}  # a model not yet fitted stays out
     s, lo_, hi_ = (100 * v for v in cv["skill"])
     print(
         f"{wk}: fitted {fitted} on {len(runs)} runs {runs[0]}..{runs[-1]} ({cv['blocks']} blocks); fitted weights "

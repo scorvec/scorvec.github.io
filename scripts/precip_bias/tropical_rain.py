@@ -285,7 +285,8 @@ def pct(x: float) -> str:
 
 def blend_note(W: dict | None, wts: dict) -> str:
     """The blend's weights and how they were chosen (blend.py), for the blend maps' subtitle."""
-    names = " · ".join(f"{MODELS[m]} {'/'.join(str(round(100 * w[m])) for w in wts.values())} %" for m in wts["wk1"])
+    inb = [m for m in wts["wk1"] if any(w[m] > 0 for w in wts.values())]
+    names = " · ".join(f"{MODELS[m]} {'/'.join(str(round(100 * w[m])) for w in wts.values())} %" for m in inb)
     if not W:
         return f"Weights (week 1/2): {names}, equal: the out-of-sample weight test has not run yet."
     opt = [wk[-1] for wk, w in W["weeks"].items() if w.get("optimised")]
@@ -305,7 +306,7 @@ def blend_note(W: dict | None, wts: dict) -> str:
             tests.append(f"week {wk[-1]} not fitted: {w.get('note', 'too little shared archive')}")
     fits = [w for w in W["weeks"].values() if "cv_skill" in w]
     unfit = [MODELS[m] for m in MODELS if fits and any(m not in w["fitted"] for w in fits)]
-    tail = f" {', '.join(unfit)}: a fixed equal share until the archive is long enough to fit." if unfit else ""
+    tail = f" Not in the blend until its archive is long enough to verify: {', '.join(unfit)}." if unfit else ""
     return (
         f"Weights (week 1/2): {names}, {how}. RPS skill of fitted over equal weights in cross-validation: "
         f"{'; '.join(tests)}; fitted weights are used only where the whole interval is above zero.{tail}"
