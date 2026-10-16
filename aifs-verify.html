@@ -116,10 +116,10 @@
   table.sc td.rl small { color: var(--muted); font-size: 0.74rem; margin-left: 0.35rem; }
   table.sc td.c { height: 2.6rem; min-width: 3.6rem; border-radius: 5px; text-align: center; font-size: 0.86rem;
     color: #1c1c1a; cursor: default; position: relative; }
-  table.sc td.c.ns { color: #6f6b64; font-weight: 400; }
+  table.sc td.c.ns { color: #4a4744; font-weight: 400; }   /* the page muted is under 4.5:1 on the pale fills */
   table.sc td.c.sig { font-weight: 600; }
   table.sc td.c.sig::after { content: ""; position: absolute; top: 4px; right: 5px; width: 5px; height: 5px; border-radius: 50%; background: currentColor; opacity: 0.55; }
-  table.sc td.c.na { background: #f3f2ee; color: #b5b1a8; }
+  table.sc td.c.na { background: #f3f2ee; color: var(--muted); }
   table.sc td.c:hover { outline: 2px solid var(--ink); outline-offset: -1px; }
   .sc-key { display: flex; flex-wrap: wrap; align-items: center; gap: 0.6rem 1.4rem; padding: 0.6rem 1.4rem 1rem; font-size: 0.76rem; color: var(--muted); }
   .sc-bar { display: inline-flex; align-items: center; gap: 0.45rem; }
@@ -141,6 +141,7 @@
 </head>
 <body>
 <!-- sh:start -->
+<a class="skip-link" href="#main">Skip to main content</a>
 <header class="sh" id="site-header">
   <div class="sh-in">
     <a class="sh-brand" href="/">Shawn Corvec</a>
@@ -295,7 +296,7 @@
   </div>
 </header>
 <!-- sh:end -->
-<main>
+<main id="main">
   <h1>AIFS single versus AIFS-ENS member 0, spectrally matched</h1>
   <p class="lede"><b>The question:</b> as deterministic forecasts, how does ECMWF's AIFS single compare with
   member&nbsp;0 of AIFS-ENS? The two are trained differently. The single is trained to minimise squared error, which
@@ -444,14 +445,15 @@ window.STAGE = { groups: [{"label": "Scores", "items": [["scorecard", "Scorecard
   var D = null, cur = { a: "matched", b: "rmse" };
   var NAME = { matched: "member 0, spectrally matched", control: "member 0 as published", ensmean: "the ensemble mean" };
   var SHORT = { matched: "member 0 (matched)", control: "member 0 (as published)", ensmean: "ensemble mean" };
-  // full colour at |RMSE change| 20 % or |ACC difference| 0.05; green = the comparison model beats the single
-  var SAT = { rmse: 20, acc: 5 };
+  // full colour at |RMSE change| 20 % or |ACC difference| 0.05; green = the comparison model beats the single.
+  // SOLID caps the significant fills where the dark cell text still reads at 4.5:1 on the red
+  var SAT = { rmse: 20, acc: 5 }, SOLID = 0.78, PALE = 0.32;
   var GOOD = [26, 133, 102], BAD = [196, 64, 52], WHITE = [255, 255, 255];
   function mix(c, t) { return "rgb(" + c.map(function (x, i) { return Math.round(WHITE[i] + (x - WHITE[i]) * t); }).join(",") + ")"; }
   function better(metric, v) { return metric === "rmse" ? v < 0 : v > 0; }
   function colour(metric, cell) {
     var t = Math.min(1, Math.abs(cell.v) / SAT[metric]);
-    t = Math.sqrt(t) * (cell.sig ? 0.85 : 0.32);
+    t = Math.sqrt(t) * (cell.sig ? SOLID : PALE);
     return mix(better(metric, cell.v) ? GOOD : BAD, t);
   }
   function fmt(metric, v) { var s = metric === "rmse" ? Math.abs(v).toFixed(Math.abs(v) < 10 ? 1 : 0) + "%" : Math.abs(v / 100).toFixed(3).replace(/^0/, "");
@@ -489,14 +491,14 @@ window.STAGE = { groups: [{"label": "Scores", "items": [["scorecard", "Scorecard
       html += "<tr><td class='rl'>" + esc(r.label) + (r.truth === "radiosondes" ? "<small>" + esc(r.region) + "</small>" : "") + "</td>";
       D.leads.forEach(function (_, li) {
         var x = cells[li];
-        if (!x || x.v == null) { html += "<td class='c na'>&ndash;</td>"; return; }
+        if (!x || x.v == null) { html += "<td class='c na' aria-label='no score'>&ndash;</td>"; return; }
         html += "<td class='c " + (x.sig ? "sig" : "ns") + "' style='background:" + colour(m, x) + "' data-r='" + ri + "' data-l='" + li + "'>" + fmt(m, x.v) + "</td>";
       });
       html += "</tr>";
     });
     tb.innerHTML = html;
     var g = function (rgb) { return "rgb(" + rgb.join(",") + ")"; };
-    $("scKey").innerHTML = "<span class='sc-bar'>single better <span class='g' style='background:linear-gradient(to right," + mix(BAD, .85) + "," + mix(BAD, .3) + ",#fff," + mix(GOOD, .3) + "," + mix(GOOD, .85) + ")'></span> " + esc(SHORT[c]) + " better</span>"
+    $("scKey").innerHTML = "<span class='sc-bar'>single better <span class='g' style='background:linear-gradient(to right," + mix(BAD, SOLID) + "," + mix(BAD, PALE) + ",#fff," + mix(GOOD, PALE) + "," + mix(GOOD, SOLID) + ")'></span> " + esc(SHORT[c]) + " better</span>"
       + "<span>full colour at " + (m === "rmse" ? "&plusmn;20 %" : "&plusmn;0.05") + "</span><span>&bull; = significant (95 %)</span><span>hover a cell for the values</span>";
     $("scNote").innerHTML = "AIFS single and AIFS-ENS member 0, 00Z + 12Z runs, every series truncated at T" + (D.lmax_t || 120) + " before scoring &middot; " + esc(D.diff_test || "") + " &middot; updated " + esc(D.generated || "");
   }

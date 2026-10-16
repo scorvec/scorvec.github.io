@@ -32,6 +32,17 @@
 }
 .sh *, .st *, .sf * { box-sizing: border-box; }
 
+/* ── Skip link: the first tab stop on every page, out of sight until focused ── */
+.skip-link {
+  position: fixed; left: 0.75rem; top: 0.6rem; z-index: 3100; transform: translateY(-200%);
+  padding: 0.6rem 1rem; border-radius: 6px;
+  font-family: 'Source Sans 3', 'Helvetica Neue', Arial, sans-serif; font-size: 1rem; font-weight: 600; line-height: 1.2;
+  background: #274b7a; color: #fff; text-decoration: none;
+}
+.skip-link:focus { transform: none; outline: 2px solid #274b7a; outline-offset: 2px; box-shadow: 0 0 0 2px #fff; }
+#main { scroll-margin-top: 5rem; }   /* the sticky header must not cover where the skip link lands */
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto !important; } }
+
 /* ── Header ──────────────────────────────────────────────────────────── */
 .sh {
   position: sticky; top: 0; z-index: 1000;
@@ -546,12 +557,14 @@ html.fp-lock { overflow: hidden; }
   background-color: var(--tint, #ecebe6);
   background-image: repeating-linear-gradient(135deg, rgba(40, 50, 30, 0.045) 0 1px, transparent 1px 10px);
 }
-.fp-tile em { font-style: normal; font-size: 0.9rem; color: var(--c-muted); }
+/* the muted grey is darker on the tints: the page muted falls under 4.5:1 there */
+.fp-tile { --c-muted-tint: #4f5d65; }
+.fp-tile em { font-style: normal; font-size: 0.9rem; color: var(--c-muted-tint); }
 .fp-tile span { display: block; font-family: var(--f-serif); font-size: 1.5rem; line-height: 1.2; }
-.fp-tile small { display: block; font-size: 0.9rem; color: var(--c-muted); }
+.fp-tile small { display: block; font-size: 0.9rem; color: var(--c-muted-tint); }
 .fp-tile.t-weather { --tint: #e3ebf3; } .fp-tile.t-drivers { --tint: #f1e9dc; } .fp-tile.t-outlooks { --tint: #e2ede4; }
 .fp-tile.t-research { --tint: #ebe5ef; } .fp-tile.t-tools { --tint: #eae9e3; }
-.fp--dark .fp-tile { --tint: #20202f; background-image: repeating-linear-gradient(135deg, rgba(255, 255, 255, 0.04) 0 1px, transparent 1px 10px); }
+.fp--dark .fp-tile { --tint: #20202f; --c-muted-tint: #9a9ab0; background-image: repeating-linear-gradient(135deg, rgba(255, 255, 255, 0.04) 0 1px, transparent 1px 10px); }
 .fp-pt { margin: 0.95rem 0 0.15rem; font-family: var(--f-serif); font-size: 1.32rem; font-weight: 500; line-height: 1.25; color: var(--c-ink); text-align: left; }
 .fp-pt span { color: var(--c-accent); }
 .fp-pm { margin: 0; font-size: 0.92rem; color: var(--c-muted); }

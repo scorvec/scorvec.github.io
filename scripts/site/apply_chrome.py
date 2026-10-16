@@ -624,10 +624,12 @@ def _current(href: str, page: str) -> str:
     return ' aria-current="page"' if href == page else ""
 
 
-def header_html(page: str, skin: str) -> str:
+def header_html(page: str, skin: str, skip: bool = False) -> str:
     cls = "sh" + (f" sh--{skin}" if skin else "")
+    # the first tab stop: past the header menus to the page's main region (only where the page has one)
+    skip_link = '<a class="skip-link" href="#main">Skip to main content</a>\n' if skip else ""
     out = [
-        f'<!-- sh:start -->\n<header class="{cls}" id="site-header">\n  <div class="sh-in">',
+        f'<!-- sh:start -->\n{skip_link}<header class="{cls}" id="site-header">\n  <div class="sh-in">',
         '    <a class="sh-brand" href="/">Shawn Corvec</a>',
         # the finder: a search palette over every plot on the site, opened here or with Ctrl/Cmd-K;
         # the behaviour is in assets/site.js, the index in assets/site/catalog.json (scripts/site/build_catalog.py)
@@ -882,7 +884,11 @@ def stamp(cfg: dict) -> tuple[str, str]:
     dark = cfg.get("skin") == "dark" or (is_dark(html) and cfg.get("skin") != "overlay")
     skin = cfg.get("skin") or ("dark" if dark else "")
 
-    block = header_html(page, skin)
+    # the skip link's target is the page's <main>; a synced page brings its own markup, so it only gets the
+    # link once its <main> carries id="main" upstream
+    if not cfg.get("synced"):
+        html = re.sub(r"<main\b(?![^>]*\sid=)", '<main id="main"', html, count=1)
+    block = header_html(page, skin, skip=re.search(r'<main\b[^>]*\sid="main"', html) is not None)
     # Section tab strips (a second banner under the header) are off: two top menus confuse, and the
     # dropdown menu already reaches every page.
     # The `tabs` keys stay in PAGES so the strips can come back with one flag.

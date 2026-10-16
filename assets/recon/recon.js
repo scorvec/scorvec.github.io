@@ -458,7 +458,7 @@
       L.marker([a.la, a.lo], { interactive: true, icon: L.divIcon({ className: "", iconSize: [26, 26], iconAnchor: [13, 13],
         html: `<svg width="26" height="26" viewBox="-13 -13 26 26"><g fill="none" stroke="${lineCol}" stroke-width="2.2"><circle r="4.5"/>` +
           `<path d="M0 -4.5 C -2 -10, -7 -11, -11 -9 M0 4.5 C 2 10, 7 11, 11 9"/></g></svg>` }) })
-        .bindTooltip(`NHC advisory ${a.adv || ""} · ${a.name} · ${a.vmax} kt · ${a.mslp} hPa`).addTo(lyr.btk);
+        .bindTooltip(`NHC advisory ${esc(a.adv || "")} · ${esc(a.name)} · ${a.vmax} kt · ${a.mslp} hPa`).addTo(lyr.btk);
     }
   }
 
@@ -479,7 +479,7 @@
   function stat(label, o, unit, fmt) {
     if (!o) return `<dt>${label}</dt><dd>—</dd>`;
     return `<dt>${label}</dt><dd><b>${fmt ? fmt(o.v) : o.v} ${unit}</b> <small>${hm(o.t)}Z · ${ll(o.la, o.lo)}</small> ` +
-      `<a data-go="${o.t}" title="show on the map">map</a></dd>`;
+      `<button type="button" class="lnk" data-go="${o.t}" aria-label="${label}: show on the map">map</button></dd>`;
   }
   function side() {
     const m = S.man.missions[S.key], s = S.man.storms[S.sid] || {};
@@ -505,7 +505,7 @@
       </dl>
       <p class="qcnote">Quality control: ${m.n_qc ? m.n_qc.toLocaleString("en-US") : 0} of ${m.n_hdob.toLocaleString("en-US")} observations carry an aircraft QC flag;
         ${(m.flagged || 0).toLocaleString("en-US")} flagged values were removed${m.screened ? `, and ${m.screened} more failed a range or position check` : ""}.${qcBreak()}</p>`;
-    $("side").querySelectorAll("a[data-go]").forEach(a => a.onclick = () => goTime(+a.dataset.go, true));
+    $("side").querySelectorAll("button[data-go]").forEach(a => a.onclick = () => goTime(+a.dataset.go, true));
   }
   // what the flags said, in words (second digit = meteorological fields, NHC table)
   function qcBreak() {
@@ -520,23 +520,42 @@
     $("drops").innerHTML = ds.length ? `<table><thead><tr><th>Splash</th><th>Position</th><th>Sfc P</th><th>Sfc wind</th><th>Est. sfc (WL150 / MBL)</th><th>Note</th></tr></thead><tbody>` +
       ds.map((d, i) => {
         const sp = d.spg || d.spl || d.rel, e = d.sfc_est || {};
-        return `<tr class="click" data-i="${i}"><td>${d.spl_t ? hm(d.spl_t) + "Z" : d.rel_t ? hm(d.rel_t) + "Z rel." : "—"}</td><td>${sp ? ll(sp.la, sp.lo) : "—"}</td>` +
+        const when = d.spl_t ? hm(d.spl_t) + "Z" : d.rel_t ? hm(d.rel_t) + "Z rel." : "—";
+        return `<tr class="click" data-i="${i}"><td><button type="button" class="rowb" aria-label="${when}: skew-T of dropsonde ${d.obnum != null ? "OB " + esc(d.obnum) : i + 1}">${when}</button></td><td>${sp ? ll(sp.la, sp.lo) : "—"}</td>` +
           `<td>${d.sfc_p ? d.sfc_p + " hPa" : '<span class="mu">no splash</span>'}</td><td>${d.sfc_wind ? dirTxt(d.sfc_wind.wd, d.sfc_wind.ws) : "—"}</td>` +
           `<td>${e.wl150 ?? "—"} / ${e.mbl ?? "—"} kt</td><td class="mu">${esc((d.tags || []).join(", "))}</td></tr>`;
       }).join("") + "</tbody></table>" : `<p class="empty">No dropsondes on this mission.</p>`;
     $("drops").querySelectorAll("tr[data-i]").forEach(tr => {
       tr.onclick = () => openSkewT(+tr.dataset.i);
-      tr.onmouseenter = () => { const d = ds[+tr.dataset.i]; if (d._mk) d._mk.openTooltip(); };
-      tr.onmouseleave = () => { const d = ds[+tr.dataset.i]; if (d._mk) d._mk.closeTooltip(); };
+      const tip = on => () => { const d = ds[+tr.dataset.i]; if (d._mk) d._mk[on ? "openTooltip" : "closeTooltip"](); };
+      tr.onmouseenter = tip(true); tr.onmouseleave = tip(false);
+      tr.addEventListener("focusin", tip(true)); tr.addEventListener("focusout", tip(false));
     });
     const vs = S.mis.vdms;
     $("vdms").innerHTML = vs.length ? `<table><thead><tr><th>Fix</th><th>Position</th><th>Min P</th><th>Max FL wind in / out</th><th>Eye</th></tr></thead><tbody>` +
-      vs.map((v, i) => `<tr class="click" data-i="${i}"><td>${hm(v.t)}Z</td><td>${ll(v.la, v.lo)}</td><td>${v.mslp ? v.mslp + " hPa" : "—"}</td>` +
+      vs.map((v, i) => `<tr class="click" data-i="${i}"><td><button type="button" class="rowb" aria-label="Show the ${hm(v.t)}Z fix on the map">${hm(v.t)}Z</button></td><td>${ll(v.la, v.lo)}</td><td>${v.mslp ? v.mslp + " hPa" : "—"}</td>` +
         `<td>${v.in_fl ? v.in_fl.ws : "—"} / ${v.out_fl ? v.out_fl.ws : "—"} kt</td><td class="mu">${esc(v.eye || "")}${v.eye_shape ? " " + esc(v.eye_shape) : ""}</td></tr>`).join("") +
       "</tbody></table>" : `<p class="empty">No vortex data messages on this mission${S.man.missions[S.key].how && S.man.missions[S.key].how.startsWith("nearest") ? " (a surveillance flight does not fix the centre)" : ""}.</p>`;
-    $("vdms").querySelectorAll("tr[data-i]").forEach(tr => tr.onclick = () => {
+    $("vdms").querySelectorAll("tr[data-i]").forEach(tr => tr.onclick = e => {
       const v = vs[+tr.dataset.i]; map.setView([v.la, v.lo], Math.max(map.getZoom(), 7));
-      lyr.vdm.eachLayer(l => { if (l.getLatLng && l.getPopup && l.getPopup() && l.getLatLng().lat === v.la && l.getLatLng().lng === v.lo) l.openPopup(); });
+      lyr.vdm.eachLayer(l => {
+        if (!(l.getLatLng && l.getPopup && l.getPopup() && l.getLatLng().lat === v.la && l.getLatLng().lng === v.lo)) return;
+        l.openPopup();
+        if (e.detail === 0) popFocus(l.getPopup(), tr.querySelector("button"));   // opened from the keyboard
+      });
+    });
+  }
+  // a popup opened from the keyboard takes the focus; Escape closes it and the focus goes back to the control that opened it
+  function popFocus(pp, back) {
+    const el = pp.getElement && pp.getElement(), c = el && el.querySelector(".leaflet-popup-content");
+    if (!c) return;
+    c.tabIndex = -1; c.focus();
+    const key = e => { if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); map.closePopup(pp); } };
+    c.addEventListener("keydown", key);
+    pp.once("remove", () => {
+      c.removeEventListener("keydown", key);
+      const a = document.activeElement;
+      if (back && (!a || a === document.body || el.contains(a))) back.focus();
     });
   }
   function pod() {
@@ -739,7 +758,7 @@
     }
     return o.P.length >= 3 ? o : null;
   }
-  const SND = { ready: false, pend: null };
+  const SND = { ready: false, pend: null }, DOCK = { back: null, i: -1 };
   function openSkewT(i) {
     const ds = S.mis.drops, items = [];
     let idx = 0;
@@ -754,7 +773,10 @@
     });
     if (!items.length) { alert("This dropsonde has too few temperature levels for a skew-T."); return; }
     const d = ds[i], sp = d.spg || d.spl || d.rel;
-    $("dock").hidden = false;
+    if ($("dock").hidden) {   // a modal dialog: the focus moves in, and back to the opener on close
+      DOCK.back = document.activeElement; DOCK.i = i;
+      $("dock").hidden = false; $("dockX").focus();
+    }
     $("dockT").textContent = `Dropsonde OB ${d.obnum ?? ""} · ${S.mis.aircraft} ${S.mis.mission}`;
     $("dockS").textContent = `${sp ? ll(sp.la, sp.lo) : ""}${d.sfc_p ? " · splash " + d.sfc_p + " hPa" : ""}`;
     if (!$("dockF").getAttribute("src")) $("dockF").src = "/skewt/?embed=model";
@@ -780,9 +802,17 @@
                 $("dockS").textContent = `${sp ? ll(sp.la, sp.lo) : ""}${dd.sfc_p ? " · splash " + dd.sfc_p + " hPa" : ""}`; }
     }
   });
-  function closeDock() { $("dock").hidden = true; }
+  function closeDock() {
+    if ($("dock").hidden) return;
+    $("dock").hidden = true;
+    // the opener may have been redrawn by a refresh meanwhile: then its row's button in the redrawn table
+    const b = DOCK.back && DOCK.back.isConnected ? DOCK.back : document.querySelector(`#drops tr[data-i="${DOCK.i}"] button`);
+    DOCK.back = null;
+    if (b && b.focus) b.focus();
+  }
   $("dockX").onclick = closeDock;
   document.addEventListener("keydown", e => { if (e.key === "Escape" && !$("dock").hidden) { closeDock(); e.preventDefault(); } });
+  document.addEventListener("focusin", e => { if (!$("dock").hidden && !$("dock").contains(e.target)) $("dockX").focus(); });
 
   // ── tail Doppler radar (NOAA AOML HRD real-time graphics, mirrored to the tdr-data branch) ──
   const TDRC = "#0f8b8d";
@@ -866,7 +896,7 @@
         html: `<svg width="${sz}" height="${sz}" viewBox="0 0 20 20"><path d="M10 1 L19 10 L10 19 L1 10 Z" fill="${on ? TDRC : "#fff"}" stroke="${TDRC}" stroke-width="2.5"/></svg>` }) })
         .bindTooltip(`<b>TDR centre ${hm(c.t)}Z</b><br>${lv}${c.tilt ? `<br>2–6 km tilt ${c.tilt[0]} km toward ${c.tilt[1]}°` : ""}` +
           `${c.ref ? `<br><span style="color:#5d5a54">${c.ref[1]} km from the ${esc(c.ref[0])}</span>` : ""}<br><i>click: show this analysis</i>`)
-        .on("click", () => { const i = PRODS.sw.times(d).findIndex(x => Math.abs(x.k - c.t) < 60); if (i >= 0) { T.prod = "sw"; T.ti = i; tdrUI(); $("tdr").scrollIntoView({ behavior: "smooth", block: "start" }); } })
+        .on("click", () => { const i = PRODS.sw.times(d).findIndex(x => Math.abs(x.k - c.t) < 60); if (i >= 0) { T.prod = "sw"; T.ti = i; tdrUI(); $("tdr").scrollIntoView({ behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "start" }); } })
         .addTo(lyr.tdr);
     }
   }
@@ -1148,7 +1178,7 @@
     $("radVar").innerHTML = segHTML(RVARS.filter(([k]) => R.legs.some(g => g[k])), R.v);
     $("radLegs").innerHTML = R.legs.map((g, i) => `<button type="button" data-i="${i}" aria-pressed="true"><i style="background:${legCol(i)}${g.dir > 0 ? ";background:repeating-linear-gradient(90deg," + legCol(i) + " 0 4px,transparent 4px 7px)" : ""}"></i>${hm(g.tc)}Z ${g.dir < 0 ? "in" : "out"}</button>`).join("");
     $("radTbl").innerHTML = R.legs.length ? `<table><thead><tr><th>Centre pass</th><th>Leg</th><th>To (n mi)</th><th>Max FL wind (RMW)</th><th>Max SFMR (radius)</th><th>Secondary FL maximum</th></tr></thead><tbody>` +
-      R.legs.map((g, i) => `<tr class="click" data-i="${i}"><td><i style="display:inline-block;width:0.8em;height:0.8em;border-radius:2px;background:${legCol(i)};margin-right:0.35em"></i>${hm(g.tc)}Z</td><td>${g.dir < 0 ? "inbound" : "outbound"}</td><td>${Math.round(g.rmax)}</td>` +
+      R.legs.map((g, i) => `<tr class="click" data-i="${i}"><td><i style="display:inline-block;width:0.8em;height:0.8em;border-radius:2px;background:${legCol(i)};margin-right:0.35em"></i>${g.ws ? `<button type="button" class="rowb" aria-label="Show the ${hm(g.tc)}Z ${g.dir < 0 ? "inbound" : "outbound"} maximum on the map">${hm(g.tc)}Z</button>` : hm(g.tc) + "Z"}</td><td>${g.dir < 0 ? "inbound" : "outbound"}</td><td>${Math.round(g.rmax)}</td>` +
         `<td>${g.ws ? `${g.ws[0]} kt (${g.ws[1].toFixed(0)} n mi)` : "—"}</td><td>${g.sfmr ? `${g.sfmr[0]} kt (${g.sfmr[1].toFixed(0)} n mi)` : "—"}</td>` +
         `<td${g.sec ? ' class="flag"' : ""}>${g.sec ? `${Math.round(g.sec[1])} kt at ${g.sec[0].toFixed(0)} n mi (dip ${g.sec[2].toFixed(0)} kt inside)` : `<span class="mu">${g.ws && g.ws[0] < SEC_MIN_VMAX ? `not looked for (leg below ${SEC_MIN_VMAX} kt)` : "none"}</span>`}</td></tr>`).join("") + "</tbody></table>" : "";
     $("radTbl").querySelectorAll("tr[data-i]").forEach(tr => tr.onclick = () => { const g = R.legs[+tr.dataset.i]; if (g.ws) goTime(g.ws[2], true); });
@@ -1505,7 +1535,7 @@
       ed.map(e => `<tr><td>${hm(e[0])}Z</td><td>OB ${e[5] ?? "—"}</td><td>${e[1]} hPa</td><td>${e[2] != null ? e[2] + " kt" : "—"}</td><td><b>${e[3] != null ? e[3] + " hPa" : "—"}</b></td><td class="mu">${esc(e[4])}</td></tr>`).join("") + "</tbody></table>"
       : `<p class="empty">No eye or centre dropsonde with a splash pressure on this flight.</p>`;
     $("eyeProf").hidden = !ew.length;
-    $("eyeKey").innerHTML = ew.map(([d, i], k) => `<button type="button" aria-pressed="true" data-i="${i}"><i style="background:${legCol(k)}"></i>OB ${d.obnum ?? i + 1} ${d.spl_t ? hm(d.spl_t) + "Z" : ""}</button>`).join("");
+    $("eyeKey").innerHTML = ew.map(([d, i], k) => `<button type="button" data-i="${i}"><i style="background:${legCol(k)}"></i>OB ${d.obnum ?? i + 1} ${d.spl_t ? hm(d.spl_t) + "Z" : ""}</button>`).join("");
     $("eyeKey").querySelectorAll("button").forEach(b => b.onclick = () => openSkewT(+b.dataset.i));
     $("eyeNote").innerHTML = `Central pressure estimate from an eye or centre sonde (remark EYE or CENTER, or a splash within 5 n mi of the interpolated centre): the splash pressure less 1 hPa for every 10 kt of surface wind, the rule NHC applies because a sonde in a moving wind field rarely lands at the pressure minimum. ` +
       (ew.length ? `Eyewall sondes are those the operator remarked EYEWALL. θe after Bolton (1980). Click a sonde above for its skew-T.` : "");
@@ -1572,11 +1602,12 @@
   $("selStorm").onchange = e => pickStorm(e.target.value, null);
   $("selMission").onchange = e => openMission(e.target.value);
   const seg = $("segVar");
-  seg.querySelectorAll("button").forEach(b => b.classList.toggle("on", b.dataset.v === S.v));
+  const segOn = b => seg.querySelectorAll("button").forEach(x => { x.classList.toggle("on", x === b); x.setAttribute("aria-pressed", x === b); });
+  segOn(seg.querySelector(`button[data-v="${S.v}"]`));
   seg.addEventListener("click", e => {
     const b = e.target.closest("button[data-v]"); if (!b) return;
     S.v = b.dataset.v;
-    seg.querySelectorAll("button").forEach(x => x.classList.toggle("on", x === b));
+    segOn(b);
     try { localStorage.setItem("recon.var", S.v); } catch (err) { /* storage blocked */ }
     if (S.mis) { drawTrack(); legend(); }
   });

@@ -86,7 +86,8 @@
     min-height: 38px; cursor: pointer; }
   .seg button + button { border-left: 1px solid var(--rule); }
   .seg button.on { background: var(--accent); color: var(--accent-ink); }
-  .seg button:focus-visible, .rc-bar select:focus-visible { outline: 3px solid #7aa7e0; outline-offset: -2px; }
+  /* the ring sits inside the clipped segment; the inset band keeps it visible on a selected (accent) button */
+  .seg button:focus-visible, .rc-bar select:focus-visible { outline: 3px solid var(--accent); outline-offset: -3px; box-shadow: inset 0 0 0 5px var(--panel); }
   .rc-status { display: flex; flex-wrap: wrap; gap: 0.3rem 0.9rem; align-items: center; font-size: 0.95rem; margin: 0 0 0.6rem; }
   .rc-status .pill { display: inline-flex; align-items: center; gap: 0.35em; font-weight: 600; padding: 0.1rem 0.55rem; border-radius: 999px;
     border: 1px solid var(--rule); background: var(--panel); }
@@ -114,6 +115,7 @@
   .satbar[hidden] { display: none; }
   .satbar .seg button { padding: 0.3rem 0.55rem; min-height: 32px; font-size: 0.85rem; font-variant-numeric: tabular-nums; }
   .leaflet-container { font-family: var(--f-sans, sans-serif); }
+  .leaflet-container .leaflet-control-attribution a { color: #274b7a; }   /* Leaflet's #0078a8 is 3.3:1 on the translucent box */
   .leaflet-tooltip.fixlab { background: transparent; border: 0; box-shadow: none; color: var(--ink); font: 600 11px var(--f-sans, sans-serif);
     text-shadow: 0 0 3px var(--panel), 0 0 3px var(--panel), 0 0 2px var(--panel); padding: 0; }
   .leaflet-tooltip.fixlab::before { display: none; }
@@ -135,7 +137,12 @@
   .stats dd { margin: 0; font-variant-numeric: tabular-nums; }
   .stats dd b { font-weight: 600; }
   .stats dd small { color: var(--muted); font-size: 0.82rem; }
-  .stats a { color: var(--accent); cursor: pointer; text-decoration: underline; text-underline-offset: 0.14em; }
+  .stats .lnk, .tbl .rowb { font: inherit; color: var(--accent); background: none; border: 0; padding: 0; cursor: pointer;
+    text-decoration: underline; text-underline-offset: 0.14em; }
+  .tbl .rowb { color: inherit; text-decoration-color: color-mix(in srgb, currentColor 45%, transparent); }
+  .stats .lnk:focus-visible, .tbl .rowb:focus-visible, .chips button:focus-visible, .alertbtn:focus-visible, .dock .top button:focus-visible,
+  .leaflet-popup-content button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .leaflet-popup-content:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
   .qcnote { font-size: 0.84rem; color: var(--muted); margin: 0.55rem 0 0; line-height: 1.4; }
 
   .tscard { margin-top: 0.8rem; padding: 0.6rem 0.6rem 0.4rem; position: relative; }
@@ -236,6 +243,7 @@
 </head>
 <body>
 <!-- sh:start -->
+<a class="skip-link" href="#main">Skip to main content</a>
 <header class="sh" id="site-header">
   <div class="sh-in">
     <a class="sh-brand" href="/">Shawn Corvec</a>
@@ -390,7 +398,7 @@
   </div>
 </header>
 <!-- sh:end -->
-<main class="rc">
+<main id="main" class="rc">
   <h1>Hurricane reconnaissance</h1>
   <p class="rc-lede">Hurricane hunter data from the Atlantic, decoded and mapped: the flight track coloured by the SFMR surface wind
     or the flight-level wind, dropsondes as skew-Ts, the vortex fixes, and the National Hurricane Center's best track and forecast.
@@ -406,7 +414,7 @@
     <button type="button" class="alertbtn" id="alertBtn" aria-pressed="false">Alert me to new fixes</button>
     <span class="alertnote" id="alertNote" hidden></span>
   </div>
-  <div class="rc-status" id="status" aria-live="polite"><span class="mu">Loading the mirror…</span></div>
+  <div class="rc-status" id="status"><span class="mu">Loading the mirror…</span></div>
   <div class="rc-warn" id="warn" hidden></div>
 
   <div class="rc-grid">
@@ -428,7 +436,7 @@
   <div class="card tscard">
     <h2>Along the flight</h2>
     <div class="key" id="tskey"></div>
-    <canvas id="ts" aria-label="Time series of flight-level wind, SFMR surface wind, extrapolated surface pressure and altitude"></canvas>
+    <canvas id="ts" role="img" aria-label="Time series of flight-level wind, SFMR surface wind, extrapolated surface pressure and altitude"></canvas>
     <div id="tsread"></div>
   </div>
 
@@ -457,7 +465,7 @@
     <p class="sub" id="radSub"></p>
     <div class="tdr-ctl"><label>Wind <span class="seg" id="radVar" role="group" aria-label="Wind shown"></span></label></div>
     <div class="chips" id="radLegs" role="group" aria-label="Legs shown"></div>
-    <canvas id="radCv" aria-label="Wind against radius from the centre, one line per leg"></canvas>
+    <canvas id="radCv" role="img" aria-label="Wind against radius from the centre, one line per leg"></canvas>
     <div class="read" id="radRead"></div>
     <div class="tbl" id="radTbl"></div>
     <p class="note" id="radNote"></p>
@@ -466,7 +474,7 @@
   <section class="card an" id="hist" hidden aria-labelledby="histH">
     <h2 id="histH">Intensity from the reconnaissance</h2>
     <p class="sub" id="histSub"></p>
-    <canvas id="histCv" aria-label="Minimum pressure, maximum winds and pressure tendency against time, all missions of the storm"></canvas>
+    <canvas id="histCv" role="img" aria-label="Minimum pressure, maximum winds and pressure tendency against time, all missions of the storm"></canvas>
     <div class="read" id="histRead"></div>
     <div id="histFlags" class="note"></div>
     <p class="note" id="histNote"></p>
@@ -480,7 +488,7 @@
       <label>Wind <span class="seg" id="srVar" role="group" aria-label="Wind used"></span></label>
     </div>
     <div class="srgrid">
-      <canvas id="srCv" aria-label="Observations around the centre"></canvas>
+      <canvas id="srCv" role="img" aria-label="Observations around the centre"></canvas>
       <div><div class="tbl" id="srTbl"></div><p class="note" id="srNote"></p></div>
     </div>
   </section>
@@ -494,8 +502,8 @@
     <h2 id="eyeH">Eye and eyewall dropsondes</h2>
     <div class="tbl" id="eyeTbl"></div>
     <div class="an2" id="eyeProf">
-      <div><p class="sub" style="margin:0.5rem 0 0.2rem">Wind speed against height, eyewall sondes</p><canvas id="eyeWs" aria-label="Eyewall dropsonde wind speed against height"></canvas></div>
-      <div><p class="sub" style="margin:0.5rem 0 0.2rem">Equivalent potential temperature against height</p><canvas id="eyeTe" aria-label="Eyewall dropsonde equivalent potential temperature against height"></canvas></div>
+      <div><p class="sub" style="margin:0.5rem 0 0.2rem">Wind speed against height, eyewall sondes</p><canvas id="eyeWs" role="img" aria-label="Eyewall dropsonde wind speed against height"></canvas></div>
+      <div><p class="sub" style="margin:0.5rem 0 0.2rem">Equivalent potential temperature against height</p><canvas id="eyeTe" role="img" aria-label="Eyewall dropsonde equivalent potential temperature against height"></canvas></div>
     </div>
     <div class="chips" id="eyeKey"></div>
     <p class="note" id="eyeNote"></p>
@@ -563,12 +571,12 @@
     NOAA Open Data Dissemination on AWS. Decoded here, not an official product; for operational use see the NHC.</p>
 </main>
 
-<section class="dock" id="dock" hidden role="dialog" aria-label="Dropsonde sounding">
+<section class="dock" id="dock" hidden role="dialog" aria-modal="true" aria-labelledby="dockT">
   <div class="top"><h2 id="dockT">Dropsonde</h2><span class="sub" id="dockS"></span><button type="button" id="dockX">Close</button></div>
   <iframe id="dockF" title="Dropsonde skew-T, hodograph and parameters"></iframe>
 </section>
 
-<script src="/assets/recon/recon.js?v=20261008b" defer></script>
+<script src="/assets/recon/recon.js?v=20261016a" defer></script>
 <!-- sf:start -->
 <footer class="sf">
   <div class="sf-in">

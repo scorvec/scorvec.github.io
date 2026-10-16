@@ -76,7 +76,7 @@
   table.res tr.diff th, table.res tr.diff td { font-weight: 600; }
   .ns { color: #6f6b64; font-style: italic; font-weight: 400 !important; }
   .sig { color: #6f6b64; font-weight: 400; font-size: 0.85em; }
-  .refs { font-size: 0.95em; } .refs li { margin: 0.4rem 0; }
+  .refs { font-size: 0.95em; } .refs li { margin: 0.4rem 0; overflow-wrap: anywhere; }   /* long DOI links wrap on a phone */
   .credits { font-size: 0.92em; }
   .byline { color: #6f6b64; font-size: 0.92em; margin-top: 2.2rem; }
   #lb { position: fixed; inset: 0; background: rgba(20, 22, 18, 0.88); display: none; align-items: center; justify-content: center;
@@ -91,6 +91,7 @@
 </head>
 <body>
 <!-- sh:start -->
+<a class="skip-link" href="#main">Skip to main content</a>
 <header class="sh" id="site-header">
   <div class="sh-in">
     <a class="sh-brand" href="/">Shawn Corvec</a>
@@ -245,7 +246,7 @@
   </div>
 </header>
 <!-- sh:end -->
-<main>
+<main id="main">
 
 <article class="study">
   <p class="crumbs"><a href="/">Home</a> › Studies › El Niño and angular momentum</p>

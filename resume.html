@@ -166,12 +166,13 @@
     border-top: 1px solid rgba(255,255,255,0.08);
   }
   .sidebar-footer a {
-    display: flex; align-items: center; gap: 0.5rem;
+    display: flex; align-items: center; gap: 0.5rem; min-height: 24px;   /* WCAG 2.2 target size */
     font-size: 0.82rem; color: rgba(255,255,255,0.66);
-    text-decoration: none; margin-bottom: 0.6rem;
+    text-decoration: none; margin-bottom: 0.35rem;
     transition: color 0.2s; letter-spacing: 0.03em;
   }
   .sidebar-footer a:hover { color: #fff; }
+  .sidebar-footer a:focus-visible { color: #fff; outline: 2px solid #fff; outline-offset: 2px; }
   .sidebar-footer svg { flex-shrink: 0; }
 
   /* MAIN CONTENT */
@@ -309,6 +310,7 @@
 <body>
 
 <!-- sh:start -->
+<a class="skip-link" href="#main">Skip to main content</a>
 <header class="sh" id="site-header">
   <div class="sh-in">
     <a class="sh-brand" href="/">Shawn Corvec</a>
@@ -468,13 +470,13 @@
 
   <!-- SIDEBAR -->
   <aside class="sidebar">
-    <div class="sidebar-name">Shawn<br>Corvec</div>
+    <h1 class="sidebar-name">Shawn<br>Corvec</h1>
     <div class="sidebar-title">Meteorologist &amp;<br>Atmospheric Scientist</div>
 
     <div class="sidebar-section">
       <div class="sidebar-section-label">Location</div>
       <div class="sidebar-location">
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/><circle cx="12" cy="9" r="2.5"/></svg>
+        <svg aria-hidden="true" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/><circle cx="12" cy="9" r="2.5"/></svg>
         USA
       </div>
     </div>
@@ -530,22 +532,22 @@
 
     <div class="sidebar-footer">
       <a href="https://www.linkedin.com/in/shawn-corvec-35895b231/" target="_blank" rel="noopener">
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M20.45 20.45h-3.55v-5.57c0-1.33-.03-3.04-1.85-3.04-1.85 0-2.13 1.45-2.13 2.94v5.67H9.37V9h3.41v1.56h.05c.48-.9 1.64-1.85 3.37-1.85 3.6 0 4.27 2.37 4.27 5.45v6.29zM5.34 7.43a2.06 2.06 0 1 1 0-4.12 2.06 2.06 0 0 1 0 4.12zM7.12 20.45H3.56V9h3.56v11.45zM22.22 0H1.77C.79 0 0 .77 0 1.72v20.56C0 23.23.79 24 1.77 24h20.45C23.2 24 24 23.23 24 22.28V1.72C24 .77 23.2 0 22.22 0z"/></svg>
+        <svg aria-hidden="true" width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M20.45 20.45h-3.55v-5.57c0-1.33-.03-3.04-1.85-3.04-1.85 0-2.13 1.45-2.13 2.94v5.67H9.37V9h3.41v1.56h.05c.48-.9 1.64-1.85 3.37-1.85 3.6 0 4.27 2.37 4.27 5.45v6.29zM5.34 7.43a2.06 2.06 0 1 1 0-4.12 2.06 2.06 0 0 1 0 4.12zM7.12 20.45H3.56V9h3.56v11.45zM22.22 0H1.77C.79 0 0 .77 0 1.72v20.56C0 23.23.79 24 1.77 24h20.45C23.2 24 24 23.23 24 22.28V1.72C24 .77 23.2 0 22.22 0z"/></svg>
         linkedin.com/in/shawn-corvec-35895b231
       </a>
       <a href="https://scholar.google.com/citations?user=EYLRCJIAAAAJ&hl=en" target="_blank" rel="noopener">
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M12 3L1 9l4 2.18v6L12 21l7-3.82v-6l2-1.09V17h2V9L12 3zm6.82 6L12 12.72 5.18 9 12 5.28 18.82 9zM17 15.99l-5 2.73-5-2.73v-3.72L12 15l5-2.73v3.72z"/></svg>
+        <svg aria-hidden="true" width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M12 3L1 9l4 2.18v6L12 21l7-3.82v-6l2-1.09V17h2V9L12 3zm6.82 6L12 12.72 5.18 9 12 5.28 18.82 9zM17 15.99l-5 2.73-5-2.73v-3.72L12 15l5-2.73v3.72z"/></svg>
         Google Scholar
       </a>
       <a href="https://www.researchgate.net/profile/Shawn-Corvec" target="_blank" rel="noopener">
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M19.586 0c-.818 0-1.508.19-2.073.565-.563.377-.97.936-1.213 1.68A5.63 5.63 0 0 0 16 3.875c0 .669.12 1.24.358 1.713.24.473.552.71.938.71.312 0 .568-.14.766-.422.197-.28.296-.66.296-1.14 0-.303-.034-.566-.103-.79a1.52 1.52 0 0 0-.285-.565.596.596 0 0 0-.45-.222c-.234 0-.427.108-.577.324v-.11c0-.537.1-.963.302-1.278.2-.315.508-.472.921-.472.43 0 .769.188 1.017.563.248.375.373.9.373 1.575 0 .75-.153 1.346-.459 1.788-.306.44-.718.66-1.234.66-.356 0-.65-.11-.883-.33a2.1 2.1 0 0 1-.517-.915 4.45 4.45 0 0 1-.172-1.272H14.5c0 .72.126 1.364.377 1.933.251.569.615 1.013 1.09 1.333.476.32 1.034.48 1.676.48.745 0 1.38-.2 1.904-.6a3.72 3.72 0 0 0 1.167-1.636c.263-.69.394-1.443.394-2.258C21.108 1.388 20.6 0 19.586 0zM9.337 5.49H6.5L3 14.51h2.27l.868-2.472h3.323l.858 2.472H12.6L9.337 5.49zm-.622 5.076H6.782l.966-2.85.967 2.85z"/></svg>
+        <svg aria-hidden="true" width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M19.586 0c-.818 0-1.508.19-2.073.565-.563.377-.97.936-1.213 1.68A5.63 5.63 0 0 0 16 3.875c0 .669.12 1.24.358 1.713.24.473.552.71.938.71.312 0 .568-.14.766-.422.197-.28.296-.66.296-1.14 0-.303-.034-.566-.103-.79a1.52 1.52 0 0 0-.285-.565.596.596 0 0 0-.45-.222c-.234 0-.427.108-.577.324v-.11c0-.537.1-.963.302-1.278.2-.315.508-.472.921-.472.43 0 .769.188 1.017.563.248.375.373.9.373 1.575 0 .75-.153 1.346-.459 1.788-.306.44-.718.66-1.234.66-.356 0-.65-.11-.883-.33a2.1 2.1 0 0 1-.517-.915 4.45 4.45 0 0 1-.172-1.272H14.5c0 .72.126 1.364.377 1.933.251.569.615 1.013 1.09 1.333.476.32 1.034.48 1.676.48.745 0 1.38-.2 1.904-.6a3.72 3.72 0 0 0 1.167-1.636c.263-.69.394-1.443.394-2.258C21.108 1.388 20.6 0 19.586 0zM9.337 5.49H6.5L3 14.51h2.27l.868-2.472h3.323l.858 2.472H12.6L9.337 5.49zm-.622 5.076H6.782l.966-2.85.967 2.85z"/></svg>
         ResearchGate
       </a>
     </div>
   </aside>
 
   <!-- MAIN CONTENT -->
-  <main class="content">
+  <main id="main" class="content">
 
     <section class="content-section">
       <h2 class="content-section-title">Experience</h2>
@@ -558,9 +560,9 @@
             <div class="timeline-role">Meteorologist (Energy)</div>
             <div class="timeline-meta">
               <span class="timeline-company">bp</span>
-              <span class="timeline-sep">·</span>
+              <span class="timeline-sep" aria-hidden="true">·</span>
               <span class="timeline-period">Apr 2025 – Present</span>
-              <span class="timeline-sep">·</span>
+              <span class="timeline-sep" aria-hidden="true">·</span>
               <span class="timeline-location">USA</span>
             </div>
           </div>
@@ -583,9 +585,9 @@
             <div class="timeline-role">Meteorologist</div>
             <div class="timeline-meta">
               <span class="timeline-company">Tomorrow.io</span>
-              <span class="timeline-sep">·</span>
+              <span class="timeline-sep" aria-hidden="true">·</span>
               <span class="timeline-period">Jun 2023 – Oct 2024</span>
-              <span class="timeline-sep">·</span>
+              <span class="timeline-sep" aria-hidden="true">·</span>
               <span class="timeline-location">New York, NY</span>
             </div>
           </div>
@@ -606,9 +608,9 @@
             <div class="timeline-role">Research Meteorologist — NWP Model Research</div>
             <div class="timeline-meta">
               <span class="timeline-company">Environment and Climate Change Canada</span>
-              <span class="timeline-sep">·</span>
+              <span class="timeline-sep" aria-hidden="true">·</span>
               <span class="timeline-period">Aug 2021 – May 2023</span>
-              <span class="timeline-sep">·</span>
+              <span class="timeline-sep" aria-hidden="true">·</span>
               <span class="timeline-location">Montréal, QC</span>
             </div>
           </div>
@@ -632,9 +634,9 @@
             <div class="timeline-role">Senior Aviation Meteorologist</div>
             <div class="timeline-meta">
               <span class="timeline-company">The Weather Company (IBM)</span>
-              <span class="timeline-sep">·</span>
+              <span class="timeline-sep" aria-hidden="true">·</span>
               <span class="timeline-period">Aug 2020 – Aug 2021</span>
-              <span class="timeline-sep">·</span>
+              <span class="timeline-sep" aria-hidden="true">·</span>
               <span class="timeline-location">New York, NY</span>
             </div>
           </div>
@@ -655,9 +657,9 @@
             <div class="timeline-role">Research Meteorologist — NWP Model Development</div>
             <div class="timeline-meta">
               <span class="timeline-company">Environment and Climate Change Canada</span>
-              <span class="timeline-sep">·</span>
+              <span class="timeline-sep" aria-hidden="true">·</span>
               <span class="timeline-period">Jul 2017 – Aug 2021</span>
-              <span class="timeline-sep">·</span>
+              <span class="timeline-sep" aria-hidden="true">·</span>
               <span class="timeline-location">Montréal, QC</span>
             </div>
           </div>
@@ -681,9 +683,9 @@
             <div class="timeline-role">Operational Meteorologist</div>
             <div class="timeline-meta">
               <span class="timeline-company">Environment and Climate Change Canada</span>
-              <span class="timeline-sep">·</span>
+              <span class="timeline-sep" aria-hidden="true">·</span>
               <span class="timeline-period">Sep 2012 – Aug 2015</span>
-              <span class="timeline-sep">·</span>
+              <span class="timeline-sep" aria-hidden="true">·</span>
               <span class="timeline-location">Edmonton, AB</span>
             </div>
           </div>
@@ -705,9 +707,9 @@
             <div class="timeline-role">Meteorologist (Energy)</div>
             <div class="timeline-meta">
               <span class="timeline-company">Dynasty Power Inc.</span>
-              <span class="timeline-sep">·</span>
+              <span class="timeline-sep" aria-hidden="true">·</span>
               <span class="timeline-period">Sep 2011 – Sep 2012</span>
-              <span class="timeline-sep">·</span>
+              <span class="timeline-sep" aria-hidden="true">·</span>
               <span class="timeline-location">Calgary, AB</span>
             </div>
           </div>
