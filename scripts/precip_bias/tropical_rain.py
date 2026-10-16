@@ -387,7 +387,9 @@ def main() -> int:
 
     wl = {wk: f"Week {wk[-1]} · {span(d, d + timedelta(days=6))}" for wk, d in weeks.items()}
     gone = f" Not in this run: {', '.join(MODELS[m] for m in missing)} (not available yet)." if missing else ""
-    srcs = {"blend": list(X), **{SHORT[m]: [m] if m in X else [] for m in MODELS}}
+    # the blend holds the models with weight in it (one not yet verified is shown only on its own)
+    inblend = [m for m in X if any(wts[wk].get(m, 0.0) > 0 for wk in weeks)]
+    srcs = {"blend": inblend, **{SHORT[m]: [m] if m in X else [] for m in MODELS}}
     label = {"blend": "Blend", **{SHORT[m]: MODELS[m] for m in MODELS}}
     stats = {}
     for sk, ms in srcs.items():
