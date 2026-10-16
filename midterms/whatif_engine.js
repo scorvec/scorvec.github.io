@@ -1,8 +1,8 @@
-/* What-if engine (2026-10-03): re-runs the forecast's simulation in the browser with the reader's assumptions.
-   Data: data/whatif.json (midterms/whatif.py). The draws are generated ONCE from a fixed seed, so moving a slider changes the
+/* What-if engine: re-runs the forecast's simulation in the browser with the reader's assumptions.
+   Data: data/whatif.json (midterms/whatif.py). The draws are generated once from a fixed seed, so moving a slider changes the
    answer only through the assumption, never through new random noise. Error structure as the model's:
      House    margin = mu + nat*s_nat + state[s]*s_state + urban*u + groups + res*own      (model.simulate; group and urban sds are the
-              POSTERIOR sds of run2026's factor update, incl. the regional Hispanic factors)
+              posterior sds of run2026's factor update, incl. the regional Hispanic factors)
      Senate/  margin = mu + shared*state_miss*el + groups + wnc*z + res*sd                  (senate2026.simulate_senate)
      governor
    The House national draw and the statewide draw are correlated rho (0.3).
@@ -54,7 +54,7 @@
     for (let i = 0; i < this.sRes.length; i++) this.sRes[i] = t();
     // per-race error components at the model's settings (sd of each piece)
     const hs = H.sd;
-    // regional Hispanic factors (Texas / Florida / West; whatif.json from 2026-10-09 on - older files lack them and read as 0)
+    // regional Hispanic factors (Texas / Florida / West; a whatif.json without them reads as 0)
     this.hPart = H.seats.map(s => ({ shared: [hs.nat, hs.state, hs.urban * s.u, hs.hisp * s.h, hs.cuban * s.c, hs.asian * s.a, hs.wnc * s.w,
                                               (hs.htx || 0) * (s.htx || 0), (hs.hfl || 0) * (s.hfl || 0), (hs.hwest || 0) * (s.hwe || 0)], own: s.res }));
     const sh = D.shared, gs = sh.group_sd;
