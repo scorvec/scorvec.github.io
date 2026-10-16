@@ -9,6 +9,11 @@ name: AAM, torque and jets (ECMWF ENS heavy levels)
 # A run takes ~30 min on a 16 GB runner and relies on the ERA5 history cache
 # being current.
 on:
+  # Backstop crons at the dispatcher's slots, for when it is off. GitHub delivers them hours late when at all, so
+  # they set no timing: a scheduled run whose cycle main already carries stops in the check job.
+  schedule:
+    - cron: '20 9 * * *'
+    - cron: '20 21 * * *'
   workflow_dispatch:
     inputs:
       date:
@@ -32,7 +37,63 @@ env:
   ECMWF_SOURCES: google
 
 jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      date: ${{ steps.cyc.outputs.date }}
+      time: ${{ steps.cyc.outputs.time }}
+      build: ${{ steps.done.outputs.build }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          sparse-checkout: scripts/ecmwf
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+      - name: Install the resolver's HTTP client
+        run: pip install --quiet requests
+
+      - name: Resolve cycle
+        id: cyc
+        working-directory: scripts/ecmwf
+        run: |
+          set -euo pipefail
+          D="${{ github.event.inputs.date }}"; T="${{ github.event.inputs.time }}"
+          if [ -z "$D" ] || [ -z "$T" ]; then
+            # Availability, not the clock: the shared resolver takes the newest cycle whose every step
+            # is on the Google mirror (scripts/ecmwf/cycles.py) and logs why it passed over a newer one.
+            python cycles.py --profile aifs-ens --out /tmp/cyc || true
+            D=$(awk '{print $1}' /tmp/cyc 2>/dev/null || true)
+            T=$(awk '{print $2}' /tmp/cyc 2>/dev/null || true)
+          fi
+          if ! echo "$D" | grep -qE '^[0-9]{8}$' || ! echo "$T" | grep -qE '^(00|12)$'; then
+            echo "ERROR: no ready cycle (D='$D' T='$T') - see the resolver's lines above" >&2; exit 1
+          fi
+          echo "date=$D" >> "$GITHUB_OUTPUT"; echo "time=$T" >> "$GITHUB_OUTPUT"
+          echo "cycle: $D ${T}Z"
+
+      # Dispatches always build. A scheduled run builds only when main's torque_ranges.json (written for every
+      # cycle this job publishes) is not already this cycle's: the dispatcher got there first.
+      - name: Already published?
+        id: done
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [ "${{ github.event_name }}" != "schedule" ]; then echo "build=true" >> "$GITHUB_OUTPUT"; exit 0; fi
+          D="${{ steps.cyc.outputs.date }}"; want="${D:0:4}-${D:4:2}-${D:6:2}T${{ steps.cyc.outputs.time }}Z"
+          have=$(gh api "repos/$GITHUB_REPOSITORY/contents/assets/sst/data/torque_ranges.json?ref=main" \
+                   -H "Accept: application/vnd.github.raw+json" 2>/dev/null \
+                 | python -c "import json, sys; print(json.load(sys.stdin).get('init', ''))" 2>/dev/null || true)
+          if [ "$have" = "$want" ]; then
+            echo "main already carries the $want cycle; nothing to do"; echo "build=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "main has ${have:-no torque_ranges.json}; building $want"; echo "build=true" >> "$GITHUB_OUTPUT"
+          fi
+
   build:
+    needs: check
+    if: needs.check.outputs.build == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 120
     env:
@@ -58,24 +119,11 @@ jobs:
       - name: Install Python dependencies
         run: pip install -r scripts/mjo/requirements-mjo.txt
 
-      - name: Resolve cycle
+      - name: Cycle (resolved in the check job)
         id: cyc
-        working-directory: scripts/mjo/src
         run: |
-          set -euo pipefail
-          D="${{ github.event.inputs.date }}"; T="${{ github.event.inputs.time }}"
-          if [ -z "$D" ] || [ -z "$T" ]; then
-            # Availability, not the clock: the shared resolver takes the newest cycle whose every step
-            # is on the Google mirror (scripts/ecmwf/cycles.py) and logs why it passed over a newer one.
-            python ../../ecmwf/cycles.py --profile aifs-ens --out /tmp/cyc || true
-            D=$(awk '{print $1}' /tmp/cyc 2>/dev/null || true)
-            T=$(awk '{print $2}' /tmp/cyc 2>/dev/null || true)
-          fi
-          if ! echo "$D" | grep -qE '^[0-9]{8}$' || ! echo "$T" | grep -qE '^(00|12)$'; then
-            echo "ERROR: no ready cycle (D='$D' T='$T') - see the resolver's lines above" >&2; exit 1
-          fi
-          echo "date=$D" >> "$GITHUB_OUTPUT"; echo "time=$T" >> "$GITHUB_OUTPUT"
-          echo "cycle: $D ${T}Z"
+          echo "date=${{ needs.check.outputs.date }}" >> "$GITHUB_OUTPUT"; echo "time=${{ needs.check.outputs.time }}" >> "$GITHUB_OUTPUT"
+          echo "cycle: ${{ needs.check.outputs.date }} ${{ needs.check.outputs.time }}Z"
 
       # The light pass first (sfc 10u/msl series the torque budget reads), then
       # the 14-level pull. Non-fatal: the builders use whatever is cached.
