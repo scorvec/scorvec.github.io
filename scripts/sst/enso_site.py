@@ -52,7 +52,7 @@ PAGES = [
         out="enso-forecasts.html",
         active="A_FORECASTS",
         title="ENSO Forecasts &mdash; How Strong, When, How East-Based &middot; Shawn Corvec",
-        desc="The C3S multi-model El Niño outlook in plain language: every model and member, the odds of each peak "
+        desc="The El Niño outlook of five C3S seasonal systems in plain language: every member, the odds of each peak "
         "strength on ONI and RONI, and how east-based it will be.",
         canonical="https://scorvec.com/enso-forecasts.html",
         image="https://scorvec.com/assets/sst/c3s_nino34.webp",
