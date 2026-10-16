@@ -14,7 +14,7 @@ divergent zonal wind (ud, walker.band_ud, on the chi solver's longitudes). Both 
 taken out of them is taken out of the streamfunctions; cell intensities and edges are then read per member.
 
 ECMWF publishes no reforecast in its open data, so the archive is its own past runs on the Google mirror (IFS-ENS
-from 2024-03, AIFS-ENS from 2025-07); GEFS is treated the same way, from its operational runs on NOAA's S3 bucket
+from 2025-01, when its open data reached all 13 levels - the 2024 files hold 9 of them; AIFS-ENS from 2025-07); GEFS is treated the same way, from its operational runs on NOAA's S3 bucket
 (byte-ranged from pgrb2a/pgrb2b), so all three models are corrected by the same method against the same truth. d is measured at leads 0, 5, 10 and 15 days on a 5-day lattice of 00Z starts,
 so every verifying time is a lattice day and ERA5 is read on the lattice only (one ARCO chunk holds all 37 levels:
 ~120 MB per field). Four members per start: d is the mean error, not the spread, and four members raise its standard
@@ -58,7 +58,7 @@ DRIFT_LEADS = (0, 5, 10, 15)  # days; every verifying time is a lattice day
 WINDOW = 45  # +- days of the season pooled into one drift estimate (triangular weights)
 MODELS = {
     "aifs": {"label": "AIFS-ENS", "store": "aifs-ens", "first": "2025-07-01", "cf": True},
-    "ifs": {"label": "IFS-ENS", "store": "ifs", "first": "2024-03-01", "cf": False},
+    "ifs": {"label": "IFS-ENS", "store": "ifs", "first": "2025-01-10", "cf": False},  # 9 of the 13 levels before
     "gefs": {"label": "GEFS", "store": None, "first": "2024-03-01", "cf": True},
 }
 ARCHIVE_PF = {
