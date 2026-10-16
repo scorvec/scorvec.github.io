@@ -540,19 +540,14 @@ def render_product_anim(field_full, la, lo, product_id, n_days=ANIM_DAYS, annota
     pfx = _KIND_TITLE[cfg["kind"]]
     lat_vals, lon_vals = sel[la].values, sel[lo].values
     tasks, frames = [], []
-    sc = load_roni_scale()  # so the frames' "Daily RONI" matches the maps (scaled)
+    sc = load_roni_scale()  # so the frames' relative Niño-3.4 is σ-scaled like the maps'
     for i in range(n):
         ann = None
         title = f"{pfx} — {st[i]:%Y-%m-%d}"
         if cfg["kind"] == "anom":
-            # Each frame carries that day's readout with the full index names.
+            # Each frame carries that day's readout.
             n34, trop, rel = daily_nino_readout(sel.isel(time=i), la, lo)
-            roni_d = rel * sc.get(int(st[i].month), 1.0)
-            ann = (
-                f"Daily Ocean Niño Index: {n34:+.2f} °C\n"
-                f"Daily Tropical Mean SST: {trop:+.2f} °C\n"
-                f"Daily Relative Oceanic Niño Index: {roni_d:+.2f} °C"
-            )
+            ann = daily_readout(n34, trop, rel * sc.get(int(st[i].month), 1.0))
         elif annotator is not None:
             ann = annotator(st[i])
         tasks.append(
@@ -610,6 +605,18 @@ def tropical_mean_removed(full, la, lo, lat_rng=TROP_MEAN_LAT):
 # ----------------------------------------------------------------------
 # ONI / RONI
 # ----------------------------------------------------------------------
+def daily_readout(n34, trop, rel_scaled):
+    """The anomaly maps' single-day readout box. ONI and RONI are 3-month means, so one day's numbers are named for
+    the daily quantities they are built from, not as the indices themselves."""
+    rows = (
+        ("Niño-3.4 anomaly", n34),
+        ("Tropical mean, 20°S–20°N", trop),
+        ("Relative Niño-3.4, σ-scaled", rel_scaled),
+    )
+    w = max(len(name) for name, _ in rows) + 2
+    return "\n".join(f"{name:<{w}}{v:+.2f} °C".replace("-", "−") for name, v in rows)
+
+
 def _box_anomaly_series(anom, la, lo, lat_rng, lon_rng):
     """Cosine-lat-weighted mean anomaly over an ocean box, as a time series.
 
@@ -1562,16 +1569,12 @@ def main(argv=None) -> int:
     latest_month = idx["month"].iloc[-1]
     print(f"  latest monthly ONI {latest_oni:+.2f} degC, RONI {latest_roni:+.2f} degC ({latest_month:%Y-%m})")
 
-    # Daily RONI for the map label: single-day relative \u00d7 this month's CPC/ECMWF scale s.
+    # Relative Ni\u00f1o-3.4 for the map label: single-day relative \u00d7 this month's CPC/ECMWF scale s.
     _sc = load_roni_scale()
     day_roni = day_rel * _sc.get(int(valid.month), 1.0)
 
     # Daily current-conditions label for the maps (single-day values).
-    annotation = (
-        f"Current Daily Ocean Ni\u00f1o Index: {day_n34:+.2f} \u00b0C\n"
-        f"Current Daily Tropical Mean SST: {day_trop:+.2f} \u00b0C\n"
-        f"Current Daily Relative Oceanic Ni\u00f1o Index: {day_roni:+.2f} \u00b0C"
-    )
+    annotation = daily_readout(day_n34, day_trop, day_roni)
 
     # --- Maps (dateline-centered; asinh +/-7 degC scale, shared with the frames) ---
     render_sst_map(

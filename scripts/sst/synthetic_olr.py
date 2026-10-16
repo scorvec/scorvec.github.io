@@ -116,22 +116,25 @@ def render(da, out: Path):
     fig, ax = plt.subplots(figsize=(8.6, 9))
     pm = ax.contourf(lon, t, daily.values, levels=OLR_LEV, cmap=cmap, norm=BoundaryNorm(OLR_LEV, cmap.N), extend="both")
     ax.contour(lon, t, daily.values, levels=[180, 220], colors="k", linewidths=0.5, alpha=0.5)
-    for L, _nm in ((100, "Mar. Cont."), (180, "Dateline"), (240, "E. Pac.")):
+    for L, nm in ((100, "Maritime Cont."), (180, "dateline"), (240, "E. Pacific")):
         ax.axvline(L, color="0.5", lw=0.5, ls=":")
+        ax.text(L, 1.005, nm, transform=ax.get_xaxis_transform(), ha="center", va="bottom", fontsize=8, color="#6f6b64")
     ax.set_xlim(LON0, LON1)
-    ax.set_xlabel("longitude (°E)")
+    ax.set_xlabel("longitude")
     ax.set_ylabel("date")
     ax.invert_yaxis()
     ax.set_xticks([60, 90, 120, 150, 180, 210, 240, 270])
-    ax.set_xticklabels(["60E", "90E", "120E", "150E", "180", "150W", "120W", "90W"])
+    ax.set_xticklabels(["60°E", "90°E", "120°E", "150°E", "180°", "150°W", "120°W", "90°W"])
     ax.yaxis.set_major_formatter(mdates.DateFormatter("%b %-d"))
     ax.set_title(
-        "Synthetic equatorial OLR (5°S–5°N) — GMGSI longwave IR\n"
-        "low OLR (yellow/red) = deep convection · eastward tilt = MJO",
-        fontsize=10,
+        f"Synthetic OLR from GMGSI longwave IR (W m⁻²), 5°S–5°N — {t[0]:%-d %b} to {t[-1]:%-d %b %Y}\n"
+        f"daily mean of the {'/'.join(f'{h:02d}' for h in HOURS)} UTC images · black contours: 180 and 220 W m⁻²\n"
+        "low OLR (yellow to red) = deep convection · slow eastward tilt = MJO",
+        fontsize=9.5,
+        pad=16,
     )
-    cb = fig.colorbar(pm, ax=ax, orientation="horizontal", pad=0.06, aspect=40, extend="both")
-    cb.set_label("OLR (W m⁻²)")
+    cb = fig.colorbar(pm, ax=ax, orientation="horizontal", pad=0.06, aspect=40, extend="both", ticks=OLR_LEV[::2])
+    cb.set_label("synthetic OLR (W m⁻²)")
     cb.ax.invert_xaxis()
     fig.tight_layout()
     out.parent.mkdir(parents=True, exist_ok=True)

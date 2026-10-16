@@ -51,7 +51,7 @@ WAVES = {
     "ER": dict(k=(-10, -1), p=(9.7, 48), h=(8, 90), n=1, color="#e6007e", lw=1.6, clev=11),
     "MJO": dict(k=(1, 5), p=(30, 96), h=None, n=None, color="#111111", lw=1.9, clev=10),
     "LF": dict(
-        k=(-3, 3), p=(120, 1e9), h=None, n=None, color="#7b1fa2", lw=2.2, clev=8, label="Low"
+        k=(-3, 3), p=(120, 1e9), h=None, n=None, color="#7b1fa2", lw=2.2, clev=8, label="Low-frequency"
     ),  # 120-day low-pass standing envelope (purple; see _lf_lowpass)
 }
 
@@ -327,15 +327,30 @@ def render(
     )
     secax.tick_params(length=0)
     ax.yaxis.set_major_formatter(DateFormatter("%d %b"))
+    t0, t1 = pd.Timestamp(tt.min()), pd.Timestamp(tt.max())
     ax.set_title(
-        "OLR anomaly + convectively-coupled waves  ·  5°S–5°N" + (f"\n{subtitle}" if subtitle else ""),
+        f"OLR anomaly (W m⁻²) and convectively coupled waves, 5°S–5°N · {t0:%-d %b %Y} – {t1:%-d %b %Y}"
+        + (f"\n{subtitle}" if subtitle else ""),
         fontsize=12.5,
         fontweight="bold",
     )
     handles = [
-        plt.Line2D([], [], color=WAVES[w]["color"], lw=WAVES[w]["lw"], label=WAVES[w].get("label", w)) for w in waves
+        plt.Line2D(
+            [],
+            [],
+            color=WAVES[w]["color"],
+            lw=WAVES[w]["lw"],
+            label=f"{WAVES[w].get('label', w)}, ±{WAVES[w].get('clev', 13)} W m⁻²",
+        )
+        for w in waves
     ]
-    leg = ax.legend(handles=handles, loc="upper right", fontsize=9.5, framealpha=0.92, title="solid = convection")
+    leg = ax.legend(
+        handles=handles,
+        loc="upper right",
+        fontsize=9.5,
+        framealpha=0.92,
+        title="solid: convection (anomaly −)\ndashed: suppressed (+)",
+    )
     leg.get_title().set_fontsize(8.5)
     cb = fig.colorbar(pm, ax=ax, orientation="horizontal", pad=0.055, aspect=42)
     cb.set_label("OLR anomaly (W m⁻²)   ·   green = convection, brown = suppressed", fontsize=10.5)
@@ -366,7 +381,7 @@ def main(argv=None) -> int:
             min(args.days, 360),
             Path(args.out),
             prelim_days=7,
-            subtitle="GMGSI longwave-IR proxy · deseasonalised vs interp-OLR 1979-2022",
+            subtitle="GMGSI longwave-IR proxy · deseasonalised vs interp-OLR 1979–2022",
         )
     else:
         clim = xr.open_dataset(HIST)
@@ -375,7 +390,7 @@ def main(argv=None) -> int:
             if args.hist
             else datetime.utcfromtimestamp(clim["time"].values[-1].astype("datetime64[s]").astype(int))
         )
-        render(_anomaly(clim, "05"), end, args.days, Path(args.out), subtitle="NOAA interpolated OLR 1979-2022")
+        render(_anomaly(clim, "05"), end, args.days, Path(args.out), subtitle="NOAA interpolated OLR 1979–2022")
     return 0
 
 

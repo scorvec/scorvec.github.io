@@ -16,6 +16,7 @@ import argparse
 import sys
 from pathlib import Path
 
+import pyproj  # noqa: F401  before eccodes/xarray: eckit's bundled libproj otherwise clashes with cartopy's
 import numpy as np
 import pandas as pd
 import xarray as xr
@@ -37,6 +38,7 @@ DAILY_STEPS = list(range(24, 361, 24))  # forecast days 1..15
 LON_GRID = np.arange(0.0, 360.0, 1.0)
 LON_VIEW = (40.0, 290.0)  # Indian Ocean → eastern Pacific
 LAT_BAND = 5.0
+BAND_TEXT = f"{LAT_BAND:g}°S–{LAT_BAND:g}°N, {LON_VIEW[0]:g}°E–{360 - LON_VIEW[1]:g}°W"
 CLIM_PATH = Path(__file__).resolve().parent.parent / "data" / "reference" / "eq_u10_clim.nc"
 
 MODELS = {
@@ -181,8 +183,8 @@ def plot_det(data: dict, init: pd.Timestamp, out: Path):
         2, ncol, height_ratios=[0.85, 6.5], hspace=0.05, wspace=0.10, left=0.06, right=0.9, top=0.9, bottom=0.07
     )
     fig.suptitle(
-        f"Equatorial Pacific 10 m zonal wind forecast, single runs — init {init:%Y-%m-%d %HZ}\n"
-        f"5°S–5°N · anomaly vs ERA5 1991–2020",
+        f"Equatorial 10 m zonal wind anomaly forecast (m s⁻¹), single runs — init {init:%Y-%m-%d %HZ}\n"
+        f"{BAND_TEXT} · 24-hourly steps · anomaly vs ERA5 1991–2020",
         fontsize=12,
         fontweight="bold",
     )
@@ -221,7 +223,7 @@ def plot_det(data: dict, init: pd.Timestamp, out: Path):
         if j > 0:
             ax.set_yticklabels([])
     c = fig.colorbar(im, cax=fig.add_axes([0.915, 0.2, 0.013, 0.56]), extend="both")
-    c.set_label("u anomaly (m s⁻¹)", fontsize=8)
+    c.set_label("10 m u anomaly (m s⁻¹)", fontsize=8)
     c.ax.tick_params(labelsize=7)
     out.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(out, dpi=120, bbox_inches="tight")
@@ -239,8 +241,9 @@ def anomalize(ens: xr.DataArray, init: pd.Timestamp) -> tuple[np.ndarray, np.nda
 
 
 def _lon_ticks():
-    ticks = [60, 120, 180, 240, 300]
-    labs = [f"{t}°E" if t <= 180 else f"{360 - t}°W" for t in ticks]
+    # inside LON_VIEW only: a tick past its end widens the axis and the column no longer lines up with its map
+    ticks = [60, 120, 180, 240]
+    labs = [f"{t}°E" if t < 180 else "180°" if t == 180 else f"{360 - t}°W" for t in ticks]
     return ticks, labs
 
 
@@ -288,9 +291,10 @@ def plot(data: dict, valid: np.ndarray, init: pd.Timestamp, out: Path):
     gs = fig.add_gridspec(
         2, ncol, height_ratios=[0.85, 6.5], hspace=0.05, wspace=0.10, left=0.06, right=0.9, top=0.9, bottom=0.07
     )
+    names = " and ".join(MODELS[k]["label"].split(" (")[0] for k in data)
     fig.suptitle(
-        f"Equatorial Pacific 10 m zonal wind forecast — init {init:%Y-%m-%d %HZ}\n"
-        f"ensemble mean · 5°S–5°N · anomaly vs ERA5 1991–2020",
+        f"Equatorial 10 m zonal wind forecast (m s⁻¹), {names} ensemble means — init {init:%Y-%m-%d %HZ}\n"
+        f"{BAND_TEXT} · 24-hourly steps · anomaly vs ERA5 1991–2020, and absolute u10",
         fontsize=12,
         fontweight="bold",
     )
@@ -335,11 +339,11 @@ def plot(data: dict, valid: np.ndarray, init: pd.Timestamp, out: Path):
             ax.set_yticklabels([])
     if imA is not None:
         c = fig.colorbar(imA, cax=fig.add_axes([0.915, 0.52, 0.013, 0.34]), extend="both")
-        c.set_label("u anomaly (m s⁻¹)", fontsize=8)
+        c.set_label("10 m u anomaly (m s⁻¹)", fontsize=8)
         c.ax.tick_params(labelsize=7)
     if imB is not None:
         c = fig.colorbar(imB, cax=fig.add_axes([0.915, 0.09, 0.013, 0.34]), extend="both")
-        c.set_label("u10 (m s⁻¹)", fontsize=8)
+        c.set_label("10 m u, absolute (m s⁻¹)", fontsize=8)
         c.ax.tick_params(labelsize=7)
     out.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(out, dpi=120, bbox_inches="tight")

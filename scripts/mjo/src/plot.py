@@ -146,13 +146,13 @@ def plot_rmm(
     # ── Phase-space diagram (amplitude = radial distance) ────────────────────
     draw_phase_wheel(ax)
 
-    # Colour by lead time
+    # Colour by lead time: segment i takes the colour of its starting lead day, on the colour bar's own scale
     cmap = plt.get_cmap("plasma_r")
-    norm = mcolors.Normalize(vmin=0, vmax=n_leads - 1)
+    norm = mcolors.Normalize(vmin=lead_days[0], vmax=lead_days[-1])
 
     for m in range(rmm1.shape[0]):
         for i in range(n_leads - 1):
-            color = cmap(norm(i))
+            color = cmap(norm(lead_days[i]))
             ax.plot(rmm1[m, i : i + 2], rmm2[m, i : i + 2], color=color, alpha=0.25, lw=0.7, zorder=2)
 
     # Ensemble mean
@@ -168,12 +168,12 @@ def plot_rmm(
     mean_rmm1[0] = rmm1[cf_idx, 0]
     mean_rmm2[0] = rmm2[cf_idx, 0]
     for i in range(n_leads - 1):
-        color = cmap(norm(i))
+        color = cmap(norm(lead_days[i]))
         ax.plot(mean_rmm1[i : i + 2], mean_rmm2[i : i + 2], color=color, lw=2.2, zorder=4)
-    # Legend handles for the lead-coloured members and mean (the segments above are unlabelled
-    # because each one carries its own colour): one proxy line each, in the mid-lead colour.
+    # Legend handles for the lead-coloured members, mean and spread ellipses (the artists themselves are unlabelled
+    # because each one carries its own colour): one proxy each, in the mid-lead colour.
     ens = name if name.upper().endswith("ENS") else f"{name}-ENS"
-    mid = cmap(norm((n_leads - 1) / 2))
+    mid = cmap(0.5)
     ax.plot([], [], color=mid, lw=2.2, label=f"{ens} mean (colour = lead day)")
     ax.plot([], [], color=mid, alpha=0.45, lw=0.9, label=f"{ens} members ({rmm1.shape[0]})")
 
@@ -187,13 +187,24 @@ def plot_rmm(
             xy=(mean_rmm1[i], mean_rmm2[i]),
             width=2 * std1,
             height=2 * std2,
-            edgecolor=cmap(norm(i)),
+            edgecolor=cmap(norm(lead_days[i])),
             facecolor="none",
             alpha=0.5,
             lw=1,
             zorder=3,
         )
         ax.add_patch(ell)
+    ax.plot(
+        [],
+        [],
+        ls="none",
+        marker="o",
+        ms=9,
+        mfc="none",
+        mec=mid,
+        alpha=0.5,
+        label=f"±1σ of the {ens} members, every 5 days",
+    )
 
     # IFS-ENS overlay: the SAME machinery applied to the physics model —
     # members as a faint blue haze, ensemble mean as one bold blue line
@@ -260,8 +271,8 @@ def plot_rmm(
     ax.scatter(mean_rmm1[0], mean_rmm2[0], c="green", s=60, zorder=7, label="Day 0 (analysis)")
     ax.scatter(mean_rmm1[-1], mean_rmm2[-1], c="red", s=60, zorder=7, label=f"Day {int(lead_days[-1])} ({ens} mean)")
 
-    sm = plt.cm.ScalarMappable(cmap=cmap, norm=mcolors.Normalize(vmin=0, vmax=int(lead_days[-1])))
-    plt.colorbar(sm, ax=ax, label="Forecast lead day", fraction=0.046, pad=0.02)
+    sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
+    plt.colorbar(sm, ax=ax, label="Forecast lead (days)", fraction=0.046, pad=0.02)
     # under the wheel: inside, upper right, it would cover the phase-6 label and the Western Pacific octant
     ax.legend(
         fontsize=8,

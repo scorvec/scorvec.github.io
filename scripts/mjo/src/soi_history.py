@@ -137,12 +137,32 @@ def main() -> int:
                     bbox=dict(boxstyle="round,pad=0.12", fc="white", ec="none", alpha=0.8),
                 )
 
+    def troup_lines(ax):
+        """The dashed ±8 lines, labelled in every panel: the classic Troup threshold for a sustained event (the
+        Bureau of Meteorology now uses ±7, as the forecast view does)."""
+        for y, lab in (
+            (8, "+8, classic Troup threshold: sustained above ⇒ La Niña"),
+            (-8, "−8, classic Troup threshold: sustained below ⇒ El Niño"),
+        ):
+            ax.axhline(y, color="0.65", lw=0.8, ls="--")
+            ax.annotate(
+                lab,
+                xy=(0.0, y),
+                xycoords=("axes fraction", "data"),
+                xytext=(4, 2 if y > 0 else -2),
+                textcoords="offset points",
+                fontsize=6.8,
+                color="0.4",
+                va="bottom" if y > 0 else "top",
+                zorder=6,
+                bbox=dict(boxstyle="round,pad=0.12", fc="white", ec="none", alpha=0.8),
+            )
+
     # ── monthly record since 1893 ──
     aM.plot(mon.index, mon.values, color=CM, lw=0.55, alpha=0.8, label="monthly SOI")
     aM.plot(mon3.index, mon3.values, color=CM3, lw=1.3, label="3-month mean")
     aM.axhline(0, color="0.4", lw=0.8)
-    aM.axhline(8, color="0.65", lw=0.8, ls="--")
-    aM.axhline(-8, color="0.65", lw=0.8, ls="--")
+    troup_lines(aM)
     rec_lines(aM, ("mon", "mon3"))
     aM.set_ylim(recs["mon"]["lo"] - 6, recs["mon"]["hi"] + 6)  # room for record labels
     aM.set_xlim(mon.index[0], mon.index[-1] + pd.Timedelta(days=700))
@@ -160,18 +180,7 @@ def main() -> int:
     a0.plot(m30.index, m30.values, color=C30, lw=0.7, alpha=0.85, label="30-day mean")
     a0.plot(m90.index, m90.values, color=C90, lw=1.5, label="90-day mean")
     a0.axhline(0, color="0.4", lw=0.8)
-    for y, lab in ((8, "sustained > +8 ⇒ La Niña"), (-8, "sustained < −8 ⇒ El Niño")):
-        a0.axhline(y, color="0.65", lw=0.8, ls="--")
-        a0.text(
-            m30.index[0],
-            y,
-            " " + lab,
-            fontsize=6.8,
-            color="0.4",
-            zorder=6,
-            va="bottom" if y > 0 else "top",
-            bbox=dict(boxstyle="round,pad=0.12", fc="white", ec="none", alpha=0.8),
-        )
+    troup_lines(a0)
     rec_lines(a0, ("30", "90"))
     a0.set_ylim(recs["30"]["lo"] - 6, recs["30"]["hi"] + 6)  # room for record labels
     a0.set_xlim(m30.index[0], m30.index[-1] + pd.Timedelta(days=120))
@@ -193,8 +202,7 @@ def main() -> int:
     a1.plot(m30[m30.index >= t0].index, m30[m30.index >= t0].values, color=C30, lw=1.6)
     a1.plot(m90[m90.index >= t0].index, m90[m90.index >= t0].values, color=C90, lw=2.2)
     a1.axhline(0, color="0.4", lw=0.8)
-    a1.axhline(8, color="0.65", lw=0.8, ls="--")
-    a1.axhline(-8, color="0.65", lw=0.8, ls="--")
+    troup_lines(a1)
     rec_lines(a1, ("30", "90"))
     a1.set_xlim(t0, soi.index[-1] + pd.Timedelta(days=10))
     a1.grid(True, alpha=0.2)

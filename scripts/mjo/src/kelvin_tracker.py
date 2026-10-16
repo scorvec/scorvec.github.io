@@ -233,7 +233,8 @@ def render_map(kf, anom, lat, lon, day, tag, levels, init, out: Path, thresh):
     MS.save(fig, out, dpi=118)
 
 
-def render_hov(kf_eq, anom_eq, lon, days, init_day, levels, out: Path):
+def render_hov(kf_eq, anom_eq, lon, days, init, levels, out: Path):
+    init_day = init.normalize()
     fig = plt.figure(figsize=(11.5, 10.5))
     ax = fig.add_axes([0.075, 0.12, 0.83, 0.74])
     lon_p = np.r_[lon, lon[0] + 360]
@@ -295,7 +296,8 @@ def render_hov(kf_eq, anom_eq, lon, days, init_day, levels, out: Path):
     fig.text(
         0.075,
         0.975,
-        "AIFS-ENS · Kelvin waves along the equator (5°S–5°N), analysis and 15-day forecast",
+        f"AIFS-ENS · Kelvin waves along the equator (5°S–5°N), {days[0]:%-d %b} – {days[-1]:%-d %b %Y} · "
+        f"init {init:%Y-%m-%d %H} UTC",
         fontsize=13,
         fontweight="bold",
         va="top",
@@ -304,10 +306,10 @@ def render_hov(kf_eq, anom_eq, lon, days, init_day, levels, out: Path):
         0.075,
         0.948,
         textwrap.fill(
-            "Shading: Kelvin-filtered 200 hPa velocity potential anomaly; green is upper-level divergence over the "
-            "active, rainy phase. A coupled Kelvin wave is a green streak tilting down to the right, moving east at 10–20 m/s "
-            "(about 1,000–1,700 km a day). Grey contours: the unfiltered anomaly, whose broad slow pattern is the MJO and the ENSO "
-            "background.",
+            "Shading: Kelvin-filtered 200 hPa velocity potential anomaly (10⁶ m² s⁻¹); green is upper-level divergence over "
+            "the active, rainy phase. A coupled Kelvin wave is a green streak tilting down to the right, moving east at "
+            "10–20 m/s (about 1,000–1,700 km a day). Grey contours: the unfiltered anomaly every "
+            f"{st:g}×10⁶ m² s⁻¹, whose broad slow pattern is the MJO and the ENSO background.",
             150,
         ),
         fontsize=8.6,
@@ -437,7 +439,7 @@ def main() -> int:
     Path(a.manifest).write_text(json.dumps(mani))
     eq = np.abs(lat) <= 5.5
     hs = [i for i, d in enumerate(days) if d >= init_day - pd.Timedelta(days=HOV_DAYS_BACK)]
-    render_hov(kf[hs][:, eq].mean(1), anom[hs][:, eq].mean(1), lon, days[hs], init_day, levels, Path(a.hov))
+    render_hov(kf[hs][:, eq].mean(1), anom[hs][:, eq].mean(1), lon, days[hs], init, levels, Path(a.hov))
     Path(a.json).parent.mkdir(parents=True, exist_ok=True)
     Path(a.json).write_text(
         json.dumps(

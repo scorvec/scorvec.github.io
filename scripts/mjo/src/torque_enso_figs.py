@@ -556,6 +556,17 @@ def site_slp(data: Path, dest: Path):
             )
             ax.coastlines(lw=0.5, color=INK2)
             ax.set_extent([60, 345, -70, 75], crs=ccrs.PlateCarree())
+            gl = ax.gridlines(
+                crs=ccrs.PlateCarree(),
+                draw_labels=True,
+                xlocs=range(-180, 181, 60),
+                ylocs=range(-60, 61, 30),
+                color=MUTED,
+                linewidth=0.4,
+                alpha=0.5,
+            )
+            gl.top_labels = gl.right_labels = False
+            gl.xlabel_style = gl.ylabel_style = {"size": 8.5, "color": INK2}
             for r, (lo0, lo1, la0, la1) in {
                 "HIM": (70, 105, 25, 45),
                 "ROC": (230, 260, 30, 60),

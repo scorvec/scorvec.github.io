@@ -309,12 +309,15 @@ def plot(data, steps_h, init, hist, out: Path, gfz=None):
                 lab.set_rotation(45)
                 lab.set_ha("right")
                 lab.set_fontsize(7)
-            base = float(np.nanmean(cbase))  # anomaly as % of clim mean
+            # right axis: the anomaly as % of the normal averaged over the FORECAST days. One fixed scale, so it does
+            # not apply to the observed months to the left (the normal swings through the year, and through zero in
+            # the NH summer); |normal| keeps the axis's sign the anomaly's.
+            base = float(np.nanmean(cbase))
             if abs(base) > 0.1:
                 ax2 = a1.twinx()
                 lo_, hi_ = a1.get_ylim()
-                ax2.set_ylim(lo_ / base * 100, hi_ / base * 100)
-                ax2.set_ylabel("anomaly, % of clim mean", fontsize=8)
+                ax2.set_ylim(lo_ / abs(base) * 100, hi_ / abs(base) * 100)
+                ax2.set_ylabel(f"% of the {valid[0]:%-d %b}–{valid[-1]:%-d %b} normal (forecast days)", fontsize=8)
                 ax2.tick_params(labelsize=7)
     axes[0, 0].set_ylabel("Absolute AAM (10²⁵ kg m² s⁻¹)")
     axes[1, 0].set_ylabel("AAM anomaly (10²⁵ kg m² s⁻¹)")
