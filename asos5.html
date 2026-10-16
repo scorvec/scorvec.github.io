@@ -72,7 +72,7 @@
   .ao-detail[hidden] { display: none; }
   .ao-detail canvas { flex: none; }
   .ao-detail .tx { flex: 1 1 320px; font-size: 0.98rem; line-height: 1.55; }
-  .ao-detail h3 { font-family: var(--f-serif, serif); font-weight: 500; font-size: 1.2rem; margin: 0 0 0.3rem; }
+  .ao-detail h2 { font-family: var(--f-serif, serif); font-weight: 500; font-size: 1.2rem; margin: 0 0 0.3rem; }
   .ao-detail ul { margin: 0.2rem 0 0; padding-left: 1.1rem; }
 
   .ao-chart { position: relative; margin-top: 1rem; background: var(--panel); border: 1px solid var(--rule); border-radius: 10px; padding: 0.7rem 0.6rem 0.4rem; }
@@ -1025,8 +1025,8 @@
     if (tot) li.push("Calm or under 3 kt " + Math.round(calm / tot * 100) + "% of the last 24 h");
     if (pk) li.push("Peak wind today (METAR remark): <b>" + pk.dir + "° " + dirName(pk.dir) + " " + fW(pk.kt) + "</b> at " + hm(lx(pk.e, tz)));
     if (ws.length) li.push("Wind shift reported at " + ws.map(function (x) { return hm(lx(x.e, tz)) + (x.fropa ? " (frontal passage)" : ""); }).join(", "));
-    box.innerHTML = '<canvas width="220" height="220" style="width:220px;height:220px" role="img" aria-label="Wind rose, last 24 hours"></canvas><div class="tx"><h3>' + st.s.id +
-      " wind, last 24 hours</h3><ul><li>" + li.join("</li><li>") + "</li></ul><p class=\"mu\" style=\"margin-top:.4rem;font-size:.88rem\">Rose: share of observations by the direction the wind came from (16 sectors), " +
+    box.innerHTML = '<canvas width="220" height="220" style="width:220px;height:220px" role="img" aria-label="Wind rose, last 24 hours"></canvas><div class="tx"><h2>' + st.s.id +
+      " wind, last 24 hours</h2><ul><li>" + li.join("</li><li>") + "</li></ul><p class=\"mu\" style=\"margin-top:.4rem;font-size:.88rem\">Rose: share of observations by the direction the wind came from (16 sectors), " +
       "shaded by speed (light under 10 kt, mid 10–20, dark over 20).</p></div>";
     drawRose(box.querySelector("canvas"), st, e1 - 86400, e1);
   }
