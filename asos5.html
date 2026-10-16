@@ -109,6 +109,8 @@
     padding: 0.4rem 0.6rem; font-size: 0.9rem; line-height: 1.4; box-shadow: 0 2px 10px rgba(0,0,0,0.08); max-width: 340px; }
   .ao-tip[hidden] { display: none; }
   .ao-tip code { font-size: 0.8rem; white-space: pre-wrap; word-break: break-all; }
+  /* the station's series colour as a dot, as on the cards: most of the 22 colours are below 4.5:1 as text */
+  .ao-tip b i { width: 0.62em; height: 0.62em; border-radius: 50%; display: inline-block; margin-right: 0.3em; }
 
   .ao-note { max-width: 96ch; margin: 1.4rem auto 0; font-size: 0.9rem; color: var(--muted); line-height: 1.6; }
   .ao-note p + p { margin-top: 0.6rem; }
@@ -413,6 +415,9 @@
     var mi = m[4] ? (+(m[1] || 0)) + (+m[3]) / (+m[4]) : +m[3];
     return isFinite(mi) ? { mi: mi, lt: m[2] === "M" } : null;
   }
+  // A present-weather group: intensity or proximity, then a descriptor (shallow, partial, patches, low drifting,
+  // blowing, showers, thunderstorm, freezing) and/or phenomena; a descriptor alone stands for itself (TS, VCSH).
+  var WX = /^(?:\+|-|VC)?(?:(?:MI|PR|BC|DR|BL|SH|TS|FZ)(?:DZ|RA|SN|SG|IC|PL|GR|GS|UP|BR|FG|FU|VA|DU|SA|HZ|PY|PO|SQ|FC|SS|DS)*|(?:DZ|RA|SN|SG|IC|PL|GR|GS|UP|BR|FG|FU|VA|DU|SA|HZ|PY|PO|SQ|FC|SS|DS)+)$/;
   function metarVals(raw) {
     var o = { t: null, d: null, dir: null, spd: null, gst: null, vis: null, vlt: false, cig: null, wx: null, vlo: null, vhi: null, vrb: false };
     if (!raw) return o;
@@ -431,7 +436,7 @@
     if ((m = body.match(/\b(\d{3})V(\d{3})\b/))) { o.vlo = +m[1]; o.vhi = +m[2]; }
     var v = visSM(body); if (v) { o.vis = v.mi; o.vlt = v.lt; }
     body.replace(/\b(BKN|OVC|VV)(\d{3})/g, function (_, c, h) { var ft = +h * 100; if (o.cig == null || ft < o.cig) o.cig = ft; return _; });
-    var wx = body.split(/\s+/).filter(function (tk) { return /^(\+|-|VC)?(TS|SH|FZ|RA|SN|DZ|BR|FG|HZ|FU|SQ|GR|GS|PL|IC|UP|SA|DU|PO|VA)+$/.test(tk); });
+    var wx = body.split(/\s+/).filter(function (tk) { return WX.test(tk); });
     o.wx = wx.length ? wx.join(" ") : null;
     return o;
   }
@@ -718,7 +723,7 @@
   function lane(s) {
     if (!s) return -1; if (/TS/.test(s)) return 7; if (/FZ/.test(s)) return 6; if (/SN|SG|IC|PL|GS|GR/.test(s)) return 5;
     if (/RA|SH|UP/.test(s)) return 4; if (/DZ/.test(s)) return 3; if (/FG/.test(s)) return 2; if (/BR/.test(s)) return 1;
-    if (/HZ|FU|DU|SA|VA|PO|SQ/.test(s)) return 0; return -1;
+    if (/HZ|FU|DU|SA|VA|PO|SQ|SS|DS|PY/.test(s)) return 0; return -1;
   }
 
   // ---------------------------------------------------------------- cards
@@ -1034,7 +1039,7 @@
     if (S.rep) { var r = S.rep; return "<b>" + S.st.s.id + " " + r.type + "</b> · " + hm(lx(r.e, S.st.s.tz)) + "<br><code>" + r.raw.replace(/</g, "&lt;") + "</code>"; }
     if (S.ext) { var x = S.x; return "<b>Today's " + (S.ext === "hi" ? "high" : "low") + "</b> " + fT(x.v) + state.unit + (x.e != null ? " (sampled)" : " (official 6-hour group)"); }
     var st = S.st, o = S.o[q], tz = st.s.tz, when = hm(lx(o[E], tz)) + " " + md(lx(o[E], tz));
-    var head = "<b style=\"color:" + st.s.color + "\">" + st.s.id + "</b> " + when + (o[REP] ? " <span style=\"color:#5f6660\">(report)</span>" : "") + "<br>";
+    var head = "<b><i style=\"background:" + st.s.color + "\"></i>" + st.s.id + "</b> " + when + (o[REP] ? " <span style=\"color:#5f6660\">(report)</span>" : "") + "<br>";
     var wind = o[SPD] == null ? "" : (o[SPD] === 0 ? "calm" : (o[DIR] != null ? Math.round(o[DIR]) + "° " + dirName(o[DIR]) + " " : (o[VRB] ? "variable " : "")) + fW(o[SPD]) +
       (o[GST] != null ? " gusting " + fW(o[GST]) : "") + (o[VLO] != null ? " (varying " + o[VLO] + "°–" + o[VHI] + "°)" : ""));
     var t = o[T] != null ? fT(o[T]) + state.unit : "", d = o[D] != null ? " / dew " + fT(o[D]) + state.unit : "";
