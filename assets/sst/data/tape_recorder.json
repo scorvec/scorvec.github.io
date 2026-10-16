@@ -1,5 +1,5 @@
 {
- "made": "2026-10-15T21:55Z",
+ "made": "2026-10-16T12:47Z",
  "last_mls_day": "2026-09-17",
  "last_geosfp_day": "2026-10-15",
  "band": "10S-10N",
@@ -40,7 +40,7 @@
     "n_days": 475,
     "fp_minus_mls_ppmv": 0.211,
     "fp_minus_mls_pct": 5.8,
-    "r_monthly_anom": 0.48,
+    "r_monthly_anom": 0.49,
     "mls_anom_mean": -0.004,
     "fp_anom_mean": -0.001
    },
@@ -48,7 +48,7 @@
     "n_days": 327,
     "fp_minus_mls_ppmv": -0.082,
     "fp_minus_mls_pct": -2.1,
-    "r_monthly_anom": -0.03,
+    "r_monthly_anom": -0.02,
     "mls_anom_mean": 0.336,
     "fp_anom_mean": -0.073
    },
@@ -56,7 +56,7 @@
     "n_days": 174,
     "fp_minus_mls_ppmv": -0.04,
     "fp_minus_mls_pct": -1.1,
-    "r_monthly_anom": 0.31,
+    "r_monthly_anom": 0.3,
     "mls_anom_mean": 0.11,
     "fp_anom_mean": -0.084
    }
@@ -108,7 +108,7 @@
     "n_days": 174,
     "fp_minus_mls_ppmv": -0.369,
     "fp_minus_mls_pct": -8.8,
-    "r_monthly_anom": -0.35,
+    "r_monthly_anom": -0.36,
     "mls_anom_mean": 0.242,
     "fp_anom_mean": -0.083
    }
@@ -134,8 +134,8 @@
     "n_days": 174,
     "fp_minus_mls_ppmv": -0.392,
     "fp_minus_mls_pct": -9.2,
-    "r_monthly_anom": -0.04,
-    "mls_anom_mean": 0.288,
+    "r_monthly_anom": -0.05,
+    "mls_anom_mean": 0.287,
     "fp_anom_mean": -0.057
    }
   },
@@ -144,7 +144,7 @@
     "n_days": 475,
     "fp_minus_mls_ppmv": -0.016,
     "fp_minus_mls_pct": -0.4,
-    "r_monthly_anom": -0.28,
+    "r_monthly_anom": -0.29,
     "mls_anom_mean": 0.003,
     "fp_anom_mean": 0.0
    },
@@ -152,7 +152,7 @@
     "n_days": 327,
     "fp_minus_mls_ppmv": -1.166,
     "fp_minus_mls_pct": -22.7,
-    "r_monthly_anom": 0.55,
+    "r_monthly_anom": 0.54,
     "mls_anom_mean": 1.363,
     "fp_anom_mean": -0.079
    },
@@ -160,7 +160,7 @@
     "n_days": 174,
     "fp_minus_mls_ppmv": -0.374,
     "fp_minus_mls_pct": -8.6,
-    "r_monthly_anom": 0.29,
+    "r_monthly_anom": 0.28,
     "mls_anom_mean": 0.328,
     "fp_anom_mean": -0.042
    }
@@ -170,7 +170,7 @@
     "n_days": 475,
     "fp_minus_mls_ppmv": -0.063,
     "fp_minus_mls_pct": -1.4,
-    "r_monthly_anom": -0.04,
+    "r_monthly_anom": -0.05,
     "mls_anom_mean": 0.0,
     "fp_anom_mean": 0.001
    },
@@ -196,7 +196,7 @@
     "n_days": 475,
     "fp_minus_mls_ppmv": -0.119,
     "fp_minus_mls_pct": -2.5,
-    "r_monthly_anom": 0.22,
+    "r_monthly_anom": 0.21,
     "mls_anom_mean": 0.0,
     "fp_anom_mean": 0.001
    },
@@ -212,7 +212,7 @@
     "n_days": 174,
     "fp_minus_mls_ppmv": -0.517,
     "fp_minus_mls_pct": -10.3,
-    "r_monthly_anom": -0.14,
+    "r_monthly_anom": -0.13,
     "mls_anom_mean": 0.348,
     "fp_anom_mean": -0.049
    }
@@ -238,7 +238,7 @@
     "n_days": 174,
     "fp_minus_mls_ppmv": -0.665,
     "fp_minus_mls_pct": -12.1,
-    "r_monthly_anom": -0.07,
+    "r_monthly_anom": -0.06,
     "mls_anom_mean": 0.357,
     "fp_anom_mean": -0.054
    }
@@ -256,7 +256,7 @@
     "n_days": 327,
     "fp_minus_mls_ppmv": -1.618,
     "fp_minus_mls_pct": -24.3,
-    "r_monthly_anom": -0.78,
+    "r_monthly_anom": -0.79,
     "mls_anom_mean": 1.123,
     "fp_anom_mean": -0.097
    },
@@ -284,13 +284,13 @@
     "fp_minus_mls_pct": -22.5,
     "r_monthly_anom": -0.76,
     "mls_anom_mean": 1.058,
-    "fp_anom_mean": -0.106
+    "fp_anom_mean": -0.107
    },
    "2024-now": {
     "n_days": 174,
     "fp_minus_mls_ppmv": -0.582,
     "fp_minus_mls_pct": -9.9,
-    "r_monthly_anom": -0.09,
+    "r_monthly_anom": -0.1,
     "mls_anom_mean": 0.367,
     "fp_anom_mean": -0.06
    }
@@ -301,7 +301,7 @@
     "fp_minus_mls_ppmv": -0.361,
     "fp_minus_mls_pct": -5.9,
     "r_monthly_anom": 0.25,
-    "mls_anom_mean": 0.0,
+    "mls_anom_mean": 0.001,
     "fp_anom_mean": 0.001
    },
    "2022-2023": {
@@ -326,7 +326,7 @@
     "n_days": 475,
     "fp_minus_mls_ppmv": -0.393,
     "fp_minus_mls_pct": -5.9,
-    "r_monthly_anom": 0.33,
+    "r_monthly_anom": 0.34,
     "mls_anom_mean": 0.002,
     "fp_anom_mean": 0.001
    },
@@ -466,13 +466,13 @@
     56.23,
     46.42
    ],
-   "clim_mean": 0.2605660229306503,
-   "clim_sd": 0.04630525494330189,
+   "clim_mean": 0.2605660229306504,
+   "clim_sd": 0.04630525494330182,
    "n_years": 17,
-   "current": 0.28512916730551424,
-   "current_se": 0.015940321123428913,
-   "z": 0.5015738437031775,
-   "p": 0.6159673222296687,
+   "current": 0.28512916730551463,
+   "current_se": 0.015940321123428886,
+   "z": 0.501573843703184,
+   "p": 0.615967322229664,
    "n_days": 84
   },
   "high": {
@@ -482,13 +482,13 @@
     31.62,
     26.1
    ],
-   "clim_mean": 0.2724090607881447,
-   "clim_sd": 0.027112817774012893,
+   "clim_mean": 0.27240906078814453,
+   "clim_sd": 0.027112817774012886,
    "n_years": 17,
-   "current": 0.22320317157905442,
-   "current_se": 0.008705852697649952,
-   "z": -1.7279624558909121,
-   "p": 0.08399495565933052,
+   "current": 0.22320317157905345,
+   "current_se": 0.008705852697650077,
+   "z": -1.7279624558909386,
+   "p": 0.08399495565932578,
    "n_days": 84
   }
  },
@@ -503,7 +503,7 @@
  "w_star": {
   "merra2_dc_100": {
    "annual": 0.272,
-   "djf": 0.35,
+   "djf": 0.349,
    "jja": 0.258,
    "years": "1991-2009 (15 years)"
   },
@@ -514,15 +514,15 @@
    "years": "1991-2009 (15 years)"
   },
   "merra2_dc_50": {
-   "annual": 0.231,
-   "djf": 0.266,
+   "annual": 0.23,
+   "djf": 0.265,
    "jja": 0.24,
    "years": "1991-2009 (15 years)"
   },
   "bdc_dc_100": {
    "geosfp_30d": 0.204,
    "merra2_normal_same_days": 0.195,
-   "p": 0.734,
+   "p": 0.735,
    "window": [
     "2026-09-16",
     "2026-10-15"
@@ -554,14 +554,14 @@
    ],
    "source": "MLS 2 d + GEOS FP 28 d",
    "value": 4.876079134114582,
-   "normal": 4.7114230951705,
-   "anom": 0.16465603894408254,
-   "anom_pct": 3.4948259924451524,
-   "sd_iav_30d": 0.36298879560597663,
+   "normal": 4.706879074737446,
+   "anom": 0.16920005937713611,
+   "anom_pct": 3.5947398837004165,
+   "sd_iav_30d": 0.36472398483178525,
    "sd_offset": 0.1603560739005864,
-   "z": 0.41492723603756004,
-   "p": 0.6781951709255378,
-   "sd30": 0.36298879560597663,
+   "z": 0.42467874984345005,
+   "p": 0.6710708768642968,
+   "sd30": 0.36472398483178525,
    "n_years": 17
   },
   "70": {
@@ -571,22 +571,22 @@
    ],
    "source": "MLS 2 d + GEOS FP 28 d",
    "value": 4.071503814353415,
-   "normal": 4.049417178640282,
-   "anom": 0.02208663571313263,
-   "anom_pct": 0.54542752052405,
-   "sd_iav_30d": 0.23255907097594877,
+   "normal": 4.052078629431978,
+   "anom": 0.01942518492143641,
+   "anom_pct": 0.4793881535353977,
+   "sd_iav_30d": 0.2308319053929362,
    "sd_offset": 0.3697026568634312,
-   "z": 0.05056867949865309,
-   "p": 0.9596692210197675,
-   "sd30": 0.23255907097594877,
+   "z": 0.04456872071905501,
+   "p": 0.9644510751244032,
+   "sd30": 0.2308319053929362,
    "n_years": 17
   }
  },
  "t100": {
   "r_monthly": 0.85,
-  "slope_ppmv_per_K": 0.357,
+  "slope_ppmv_per_K": 0.356,
   "p": 0.0,
-  "n_eff": 45.7,
+  "n_eff": 45.8,
   "last30_K": 0.29
  }
 }
