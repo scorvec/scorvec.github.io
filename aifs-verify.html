@@ -279,7 +279,7 @@
   comparison would partly measure blur rather than forecast quality. Here member&nbsp;0 is first passed through a
   <b>spectral filter that gives it the single's power spectrum</b> at each lead, then both are truncated at T120 and
   scored against <b>independent radiosondes</b> from the <a href="skewt/">sounding explorer</a>, with ERA5 alongside.
-  Member&nbsp;0 as published and the <b>ensemble mean</b> are shown as references; the ensemble mean averages 26 runs,
+  Member&nbsp;0 as published and the <b>ensemble mean</b> are shown as references; the ensemble mean averages 26 of the 51 members (the control and 25 perturbed),
   so it is not a single model run.</p>
   <div class="verdict" id="verdict"></div>
   <!-- One card at a time on the shared stage viewer (assets/stage.js), 2026-09-27 (navigation phase 2). The cards
@@ -296,8 +296,10 @@
       <p class="hint"><span class="kbd">&uarr;</span> <span class="kbd">&darr;</span> change figure &middot; each card keeps its own controls</p>
     </section>
   </div>
-  <template id="about-lead"><p>Each line is the mean over the <b>same</b> verified runs at every lead (a run enters a
-  lead only when all four models have it), so the lines are comparable point by point. Station anomalies are against
+  <template id="about-lead"><p>Each point is the mean over the <b>same</b> verified runs for all four models (a run enters a
+  lead only when all four have it), so the lines are comparable point by point. The set of runs differs from lead to
+  lead and between the two truths: the newest runs cannot yet be verified at long leads, and ERA5 arrives later than the
+  radiosondes. Station anomalies are against
   each radiosonde station's own day-of-year median; ERA5 anomalies against the ERA5 1991&ndash;2020 climatology. The
   <b>activity ratio</b> is std(forecast anomaly) / std(observed anomaly): a model can buy RMSE by damping variance, and
   this ratio shows the purchase. Whether two lines differ significantly is in the scorecard.</p>
@@ -388,21 +390,22 @@ window.STAGE = { groups: [{"label": "Scores", "items": [["scorecard", "Scorecard
     better-placed forecast.</p>
     <p><b>Same scale.</b> Every 0.25&deg; global field is expanded in spherical harmonics (pyshtools) and all series
     are truncated at T120 (about 1.5&deg;) before scoring, so no model is judged at scales it does not share with
-    the others. A 1.5&deg; block mean, which this page used until September 2026, still passed much of the
+    the others. A 1.5&deg; block mean would still pass much of the
     300&ndash;600 km power.</p>
     <p><b>Independent truth.</b> ERA5 is an IFS analysis that both models were trained on. The primary truth is the
     radiosonde network the <a href="skewt/">sounding explorer</a> mirrors every hour: 500 hPa height and 850 hPa
     temperature are interpolated in log-pressure from each station's sounding, and the forecasts are sampled at the
     stations by bilinear interpolation. ERA5 scores (NH 20&ndash;80&deg;N, cosine-weighted, 1.5&deg;) come from the
     same truncated fields and are the only truth for MSLP and 2 m temperature. Radiosonde scores arrive within
-    hours; ERA5 lags about 6 days.</p>
+    hours; ERA5 lags about 6 days, and its latest 2&ndash;3 months are the preliminary ERA5T release.</p>
     <p><b>Scores and tests.</b> RMSE, bias, anomaly correlation and activity ratio at leads 24&ndash;240 h, per run.
     Station anomalies use each station's own day-of-year median from its full IGRA record; ERA5 anomalies use the
     ERA5 1991&ndash;2020 &plusmn;7-day climatology (WeatherBench2), including 850 hPa temperature since
     September&nbsp;2026. Differences from the single are tested with a paired moving-block bootstrap: runs are
     paired by start time and resampled in blocks of four consecutive runs (two days) to allow for serial
     correlation, 2,000 times; the 95&nbsp;% percentile interval is shown and a difference is called significant only
-    when it excludes zero.</p>
+    when it excludes zero. Each cell is tested on its own, with no correction for the many cells in the table, so even
+    with no real difference about one cell in twenty would pass.</p>
     <p><b>The ensemble mean.</b> The mean of the control and 25 perturbed AIFS-ENS members is shown for reference.
     Averaging removes the unpredictable part of the forecast, so it usually wins on RMSE at longer leads while
     having much less variance than the atmosphere; it is not a single model run and is not the page's question.</p>
