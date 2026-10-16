@@ -363,7 +363,7 @@ def nice_lim(x):
     return float(100 * k)
 
 
-def plot_psi(psi, p_hpa, lat, out: Path, title: str, anom=False, vlim=None, psi_abs=None, texts=None):
+def plot_psi(psi, p_hpa, lat, out: Path, title: str, anom=False, vlim=None, psi_abs=None, texts=None, foot=None):
     fig, ax = plt.subplots(figsize=(10, 5.2))
     mlat = (lat >= -45) & (lat <= 45)  # tropics/subtropics focus
     lim = vlim if vlim is not None else nice_lim(float(np.nanpercentile(np.abs(psi[:, mlat]), 99.5)))
@@ -432,7 +432,8 @@ def plot_psi(psi, p_hpa, lat, out: Path, title: str, anom=False, vlim=None, psi_
         fig.text(
             0.5,
             0.005,
-            "colour = Ψ′ anomaly (vs ERA5 clim)   ·   black contours = absolute Ψ (10¹⁰ kg s⁻¹)   ·   arrows = vertical motion (up = ascent; length ∝ strength)",
+            foot
+            or "colour = Ψ′ anomaly (vs ERA5 clim)   ·   black contours = absolute Ψ (10¹⁰ kg s⁻¹)   ·   arrows = vertical motion (up = ascent; length ∝ strength)",
             ha="center",
             fontsize=8,
             color="0.35",

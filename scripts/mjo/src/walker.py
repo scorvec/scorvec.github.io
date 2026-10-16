@@ -164,7 +164,7 @@ def nice_lim(x):
     return float(100 * k)
 
 
-def plot_psi(psi, p_hpa, lon, out: Path, title: str, vlim, psi_abs, pidx, pclim, psi_clim=None):
+def plot_psi(psi, p_hpa, lon, out: Path, title: str, vlim, psi_abs, pidx, pclim, psi_clim=None, foot=None):
     fig, ax = plt.subplots(figsize=(14.5, 5.1))
     levs = np.linspace(-vlim, vlim, 21)
     cf = ax.contourf(lon, p_hpa, psi, levels=levs, cmap="RdBu_r", extend="both")
@@ -247,7 +247,8 @@ def plot_psi(psi, p_hpa, lon, out: Path, title: str, vlim, psi_abs, pidx, pclim,
     fig.text(
         0.5,
         0.005,
-        f"5°S–5°N divergent wind (χ, spherical harmonics) · colour = Ψ_W′ vs ERA5 1991–2020 · "
+        foot
+        or f"5°S–5°N divergent wind (χ, spherical harmonics) · colour = Ψ_W′ vs ERA5 1991–2020 · "
         f"black = today\u2019s cells · green = climatological cells\n"
         f"dashed = negative (reversed) cell · arrows = vertical motion · "
         f"Pacific cell {pidx:+.1f} (clim {pclim:+.1f}) ×10¹⁰ kg/s — lower = weaker Walker",
