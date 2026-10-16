@@ -438,6 +438,18 @@ def text_of(fragment: str) -> str:
     return re.sub(r"\s+", " ", H.unescape(t)).strip()
 
 
+# a sentence that reports the pipeline rather than describing the figure ("Updated daily.", "Built 2026-09-27.")
+_STATUS = re.compile(
+    r"(?:^|(?<=[.;!?]) )(?:last )?(?:updated|built|rebuilt|refreshed|redrawn|generated|static reference)\b[^.;!?]*[.;!?]?",
+    re.I,
+)
+
+
+def caption(text: str, n: int | None = 240) -> str:
+    """A card's caption: the figure's description without status sentences, cut to n characters (None: whole)."""
+    return re.sub(r"\s{2,}", " ", _STATUS.sub("", text)).strip()[:n]
+
+
 def templates(html: str) -> dict:
     return {
         m.group(1): text_of(m.group(2)) for m in re.finditer(r'<template id="([^"]+)">(.*?)</template>', html, re.S)
@@ -646,7 +658,7 @@ def stage_items(href: str, cfg: dict) -> list:
                     regions=regions_of(shows, pcfg.get("region", cfg["region"])),
                     variables=tags(VAR_RX, blob),
                     thumb=thumb,
-                    cap=text_of(p.get("cap", ""))[:240],
+                    cap=caption(text_of(p.get("cap", ""))),
                     kw=public(about or elem)[:600],
                     variants=variants,
                     live=True,
@@ -695,7 +707,7 @@ def mjo_items() -> list:
                 regions=["Tropics"],
                 variables=["Convection", "Wind"],
                 thumb=thumb,
-                cap=lead[:240],
+                cap=caption(lead),
                 kw=public(text_of(body))[:600],
                 variants=[],
                 live=True,
@@ -786,7 +798,7 @@ def mjo_items() -> list:
                 regions=regions_of(shows, ["North America"]),
                 variables=tags(VAR_RX, shows + " convection MJO"),
                 thumb=default[2] if default else "",
-                cap=lead[:240],
+                cap=caption(lead),
                 kw=public("MJO composites by phase. " + text_of(body))[:600],
                 variants=variants,
                 live=True,
@@ -833,7 +845,7 @@ def page_items() -> list:
                     regions=list(cfg["region"]),
                     variables=tags(VAR_RX, blob, cfg.get("variable", [])),
                     thumb=thumb,
-                    cap=what,
+                    cap=caption(what, None),
                     kw=public(what),
                     variants=[],
                     live=False,
