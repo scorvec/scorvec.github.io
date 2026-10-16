@@ -7,7 +7,7 @@ Two independent legs share one reference file:
   A. Statistical (ERA5 + ERSST, 1991–2020). The Walker circulation is measured as the two-level
      baroclinic proxy W(λ) = u_D(200 hPa) − u_D(850 hPa), the 5°S–5°N mean DIVERGENT zonal wind
      (velocity potential in spherical harmonics, the walker.py solver) — the upper minus lower
-     branch of Ψ_W. Monthly W and the ERSSTv5 basin indices (Niño-3.4, the IOD dipole, the Indian
+     branch of Ψ_W. Monthly W and the ERSSTv6 basin indices (Niño-3.4, the IOD dipole, the Indian
      Ocean basin mean, Atlantic Niño ATL3, tropical North Atlantic) are detrended per calendar
      month, then W is regressed, per calendar month (±1 month window, 90 samples), on Niño-3.4
      and its 3-month lag first; the Indian and Atlantic indices enter only as the RESIDUALS after

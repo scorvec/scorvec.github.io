@@ -332,8 +332,8 @@ def tercile_probs(fc: np.ndarray, hc: np.ndarray, leads, detrend_ym: str | None 
     """Model-climatology terciles: thresholds from the 600 hindcast seasonal means
     per grid point, probabilities from the 51 forecast members. With `detrend_ym` the
     hindcast's linear trend (per grid point) is removed and the members are counted against
-    it extrapolated to the season's valid year — for temperature and heights, where a
-    1993–2016 base alone puts the whole tropics in the upper tercile. With the issue known (`ym` or
+    it extrapolated to the issue's start year (the hindcast years are start years) — for temperature
+    and heights, where a 1993–2016 base alone puts the whole tropics in the upper tercile. With the issue known (`ym` or
     `detrend_ym`) the seasonal means weight each month by its length (lead_weights)."""
     iss = ym or detrend_ym
     f = _season_means(fc, leads, lead_weights(iss, leads) if iss else None)
@@ -343,7 +343,7 @@ def tercile_probs(fc: np.ndarray, hc: np.ndarray, leads, detrend_ym: str | None 
         x = (yrs - yrs.mean())[:, None, None]
         hm = np.nanmean(h, axis=0, keepdims=True)
         b = np.nansum(x * (h - hm), axis=0) / float((x[:, 0, 0] ** 2).sum())
-        target = int(valid_months(detrend_ym)[leads[len(leads) // 2] - 1][:4]) - yrs.mean()
+        target = int(detrend_ym[:4]) - yrs.mean()  # read at the issue's start year (the hindcast years are start years)
         h = h - b[None] * x
         f = f - b[None] * target
     lo, hi = np.nanpercentile(h, [100 / 3, 200 / 3], axis=0)
@@ -373,11 +373,11 @@ def tercile_bounds(hc: np.ndarray, leads, detrend: bool, month=None) -> dict:
 
 def tercile_probs_ref(fc: np.ndarray, tb: dict, leads, ym: str, weighted: bool = False) -> dict:
     """tercile_probs against stored bounds (tercile_bounds): the forecast members are moved by the trend
-    extrapolated to the season's valid year when the bounds are detrended. `weighted`: the bounds are day-weighted
+    extrapolated to the issue's start year when the bounds are detrended. `weighted`: the bounds are day-weighted
     seasonal means (day_weighted), so the members are averaged the same way."""
     f = _season_means(fc, leads, lead_weights(ym, leads) if weighted else None)
     if "b" in tb:
-        target = int(valid_months(ym)[leads[len(leads) // 2] - 1][:4]) - float(tb["ymean"])
+        target = int(ym[:4]) - float(tb["ymean"])  # read at the issue's start year (the hindcast years are start years)
         f = f - tb["b"][None] * target
     below = (f < tb["lo"][None]).mean(0)
     above = (f > tb["hi"][None]).mean(0)
@@ -596,7 +596,7 @@ def render_terciles(ym: str, fields: dict, out_dir: Path) -> dict:
                 "Terciles from SEAS5's own 1993–2016 hindcast at each grid point (24 years × 25 members); the 51 members are counted against them, so bias and spread drift are removed first. "
                 f"Coloured where a category reaches 40 % {TERC_TEST_NOTE}; near-normal is not drawn."
                 + (
-                    "  Counted against the hindcast's linear trend extrapolated to the valid year, so the warming trend itself does not tilt the map."
+                    "  Counted against the hindcast's linear trend extrapolated to this start, so the warming trend itself does not tilt the map."
                     if var in ("t2m", "z500")
                     else ""
                 ),
@@ -1121,8 +1121,8 @@ def render_global_maps(ym: str, prev: str | None, out_dir: Path, only=None) -> d
     the change against the previous issue (each anomalised against its own start-month hindcast), each shaded only
     where it is significant (shift_signal, FDR over the cells the map shows):
       anomaly  the 51 members' spread and the hindcast mean's, one member's spread over 24 independent years
-               (welch_terms, conservative); heights against the extrapolated trend, whose error at the valid year is
-               the fitted line's own, from its 24 yearly means (trend_term);
+               (welch_terms, conservative); heights against the trend extrapolated to the issue's start year,
+               whose error there is the fitted line's own, from its 24 yearly means (trend_term);
       change   both issues' member spreads plus the year-to-year spread of the difference between the two start
                months' yearly hindcast means (hc_spread yd). The two hindcasts share their 24 years, so their
                difference is far better known than either mean: counted as independent, the hindcast terms come to
@@ -1195,12 +1195,12 @@ def render_global_maps(ym: str, prev: str | None, out_dir: Path, only=None) -> d
             if ztr is not None:
                 # heights carry the warming trend (+40–60 m over the tropics against a 1993–2016 mean, which is
                 # many σ where the year-to-year spread is small): the reference is the hindcast's linear trend
-                # evaluated at the valid year, the σ its residual spread — the same construction as the normals.
-                # Trend mean / slope / σ per lead set come from the table (_global_hc_table).
+                # over its 24 start years read at this issue's start year, the σ its residual spread — the same
+                # construction as the normals. Trend mean / slope / σ per lead set come from the table
+                # (_global_hc_table).
                 k = _ls_key(ln)
                 ny = 24
-                vyear = int(valid_months(ym)[idx[len(idx) // 2]][:4])
-                target = (vyear - 1993) - (ny - 1) / 2
+                target = (int(ym[:4]) - 1993) - (ny - 1) / 2
                 ref = ztr[f"ztr_mean_{k}"] + ztr[f"ztr_slope_{k}"] * target
                 sd = ztr[f"ztr_sd_{k}"]
                 wz = (
@@ -1239,7 +1239,7 @@ def render_global_maps(ym: str, prev: str | None, out_dir: Path, only=None) -> d
                     if var == "sd"
                     else "Ensemble mean of 51 members minus the 1993–2016 start-month hindcast mean (25 members × 24 years), 1° grid."
                     + (
-                        " Heights: departure from the hindcast's linear trend at the valid year, in σ of the residual year-to-year spread; the trend's error at the valid year is part of the test."
+                        " Heights: departure from the hindcast's linear trend extrapolated to this start, in σ of the residual year-to-year spread; the trend's error there is part of the test."
                         if ztr is not None
                         else ""
                     )
@@ -1262,7 +1262,7 @@ def render_global_maps(ym: str, prev: str | None, out_dir: Path, only=None) -> d
             if ztr is not None:  # previous issue: its own trend reference, this σ
                 kp = _ls_key(lp)
                 nyp = 24
-                refp = ztrp[f"ztr_mean_{kp}"] + ztrp[f"ztr_slope_{kp}"] * ((vyear - 1993) - (nyp - 1) / 2)
+                refp = ztrp[f"ztr_mean_{kp}"] + ztrp[f"ztr_slope_{kp}"] * ((int(prev[:4]) - 1993) - (nyp - 1) / 2)
                 wzp = w if day_weighted(ztrp.get("meta"), lp) else np.full(len(lp), 1.0 / len(lp))
                 nump = mw(fcmp, ip, wzp) - refp
                 ap = nump / np.where(sd > 0, sd, np.nan)
@@ -1282,7 +1282,7 @@ def render_global_maps(ym: str, prev: str | None, out_dir: Path, only=None) -> d
                     vn, vp = vn * (100.0 / hm) ** 2, vp * (100.0 / hmp) ** 2
                 else:
                     diff, g = num - nump, yn - yp
-            # the two trend references, read at the same valid year, or the two flat hindcast means
+            # the two trend references, each read at its issue's start year, or the two flat hindcast means
             hterm = (
                 trend_term(g, target) if ztr is not None else (np.var(g, axis=0, ddof=1) / g.shape[0], g.shape[0] - 1)
             )
@@ -1328,10 +1328,12 @@ def hindcast_years(n_samples: int, n_years: int = 24):
 
 def detrend_pair(f: np.ndarray, h: np.ndarray, ym: str):
     """f [members, lead], h [samples, lead] hindcast (member-major) → (forecast anomaly vs the
-    hindcast's linear trend extrapolated to each lead's valid year, hindcast residuals)."""
-    vm = valid_months(ym)
+    hindcast's linear trend extrapolated to the issue, hindcast residuals). The trend is fitted on the hindcast's
+    START years, so it is read at the issue's start year at every lead: reading it at the valid year
+    added a year of trend to every lead past December."""
     yrs = 1993 + hindcast_years(h.shape[0])
     x = yrs - yrs.mean()
+    target = int(ym[:4]) - yrs.mean()
     fa = np.empty_like(f)
     hr = np.empty_like(h)
     for L in range(h.shape[1]):
@@ -1339,7 +1341,6 @@ def detrend_pair(f: np.ndarray, h: np.ndarray, ym: str):
         ok = np.isfinite(y)
         b = (x[ok] * (y[ok] - y[ok].mean())).sum() / (x[ok] ** 2).sum()
         a0 = y[ok].mean()
-        target = int(vm[L][:4]) - yrs.mean()
         fa[:, L] = f[:, L] - (a0 + b * target)
         hr[:, L] = y - (a0 + b * x)
     return fa, hr
@@ -1394,8 +1395,8 @@ def polar_caps(ym: str, members: bool = True) -> dict:
             f, h = f[:, :n], h[:, :n]
             # DETRENDED: geopotential carries the warming trend (thickness), so an anomaly vs the
             # 1993–2016 mean reads high by construction in 2026. Fit the hindcast's linear trend
-            # per lead across its 24 years and take the anomaly against that line extrapolated to
-            # the valid year; the hindcast spread is the spread of the residuals.
+            # per lead across its 24 start years and take the anomaly against that line extrapolated to
+            # this issue's start year; the hindcast spread is the spread of the residuals.
             a, hr = detrend_pair(f, h, ym)
             e = dict(
                 **_summ(a),
@@ -1439,8 +1440,8 @@ def observed_indices() -> dict:
 LEAD7_NOTE = (
     "Lead month 7 is not in the CDS monthly product (leads 1–6). Forecast: the same SEAS5 run's sub-daily fields "
     "(seasonal-original), averaged over the month the way the monthly product is (instantaneous fields: every step "
-    "from 00 UTC on the 1st to the last step before the next month; accumulations: the month's total over its "
-    "seconds). Hindcast reference: the same 1993–2016 hindcast, 25 members, from the daily copy of the C3S archive "
+    "after 00 UTC on the 1st up to and including 00 UTC on the 1st of the next month, as a lead-6 test against the "
+    "monthly product fixed it; accumulations: the month's total over its seconds). Hindcast reference: the same 1993–2016 hindcast, 25 members, from the daily copy of the C3S archive "
     "on AWS (instantaneous fields, interpolated to the CDS grid) and the CDS sub-daily hindcast (accumulations, "
     "50 hPa height, 30/50 hPa wind). Skill is lower at lead 7; it goes through the same calibration and trend handling as "
     "leads 1–6, and the same tests where a product has one (the teleconnection skill test, the tercile maps' signal "

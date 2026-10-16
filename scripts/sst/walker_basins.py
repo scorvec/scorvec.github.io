@@ -14,6 +14,10 @@ zonal overturning right now, with ENSO taken out — two independent estimates s
   Leg B      the Gill (1980) linear response to the SST anomaly of each basin, with the ENSO
              regression pattern removed from the Indian and Atlantic fields; one amplitude,
              calibrated on ENSO in the builder, applies to every basin.
+  Tests      every regression part is drawn only where it is significant: a Freedman-Lane
+             permutation of whole training years (perm_pvalues), Benjamini-Hochberg q = FDR_Q
+             over each figure element's tests (the profile's 4 groups x 180 longitudes, the
+             table's 12 sector cells, the R² panel's 48 bars).
 
 Outputs: assets/sst/walker_basins.webp, assets/sst/data/walker_basins.json.
     SST_SITE_ROOT=/path/to/site python scripts/sst/walker_basins.py
@@ -31,6 +35,7 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 from quantmet.degdays import doy366
+from quantmet.stats import benjamini_hochberg
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
@@ -46,6 +51,18 @@ ERSST = HERE / "data" / "ersst_v6_mnmean.nc"  # fetched by sst.yml before the Wa
 PAC_BOX = (140.0, 200.0)  # the walker.py Pacific-cell box, in longitude
 INK, MUTED, NAVY, RED, GREEN, ORANGE = "#1a1a1a", "#6f6b64", "#1b365d", "#b4453c", "#2b7a3d", "#d0801a"
 GROUPS = {"enso": ["n34", "n34_lag3"], "indian": ["dmi", "iob"], "atlantic": ["atl3", "tna"]}
+BASIN_PREDS = ("dmi", "iob", "atl3", "tna")  # entered as residuals after ENSO, in this order
+# columns of the training design [Niño-3.4, its lag, dmi, iob, atl3, tna residuals] each part is tested on
+PART_COLS = {"enso": [0, 1], "indian": [2, 3], "atlantic": [4, 5], "total": [0, 1, 2, 3, 4, 5]}
+FDR_Q = 0.10  # Benjamini-Hochberg false discovery rate over each figure element's tests
+NPERM = 999  # whole-year permutations per test
+SEED = 20261016
+SECTORS = [
+    ("Indian Ocean, 50–100°E", 50, 100),
+    ("Maritime Continent, 100–150°E", 100, 150),
+    ("Pacific Walker box, 140°E–160°W", 140, 200),
+    ("East Pacific, 160–90°W", 200, 270),
+]
 LABEL = {
     "n34": "Niño-3.4",
     "n34_lag3": "Niño-3.4, 3 months ago",
@@ -127,6 +144,108 @@ def n34_lag3(ref: xr.Dataset, end) -> float:
     return float((np.nan_to_num(an3) * w).sum() / w.sum())
 
 
+# ── significance of the regression ───────────────────────────────────────────
+def training_design(ref: xr.Dataset, month: int):
+    """The builder's regression for `month`, rebuilt from the reference's training series (idx_train, w_train): the
+    design [Niño-3.4, Niño-3.4 three months ago, then the four basin indices as residuals after those two], centred,
+    the centred W anomalies (rows x longitudes), and each row's calendar year. Rows = the ±1-month window, 1991-2020."""
+    t = pd.DatetimeIndex(ref.time.values)
+    preds = list(ref.pred.values)
+    X = ref.idx_train.values.astype(float)
+    win = np.isin(t.month, [(month - 2) % 12 + 1, month, month % 12 + 1]) & np.isfinite(X).all(1)
+    X = X[win]
+    E = X[:, [preds.index("n34"), preds.index("n34_lag3")]]
+    Ec = E - E.mean(0)
+    cols = [Ec]
+    for k in BASIN_PREDS:
+        xk = X[:, preds.index(k)] - X[:, preds.index(k)].mean()
+        g, *_ = np.linalg.lstsq(Ec, xk, rcond=None)
+        cols.append((xk - Ec @ g)[:, None])
+    Y = ref.w_train.values.astype(float)[win]
+    return np.hstack(cols), Y - Y.mean(0), t.year.values[win]
+
+
+def _extra_ss(X, Y, cols):
+    """(extra sum of squares of columns `cols` of X over the rest, the full model's residual sum of squares), per
+    column of Y; their ratio is a pseudo-F, monotone in F for fixed degrees of freedom."""
+    keep = [c for c in range(X.shape[1]) if c not in cols]
+
+    def rss(A):
+        if A.shape[1] == 0:
+            return (Y**2).sum(0)
+        b, *_ = np.linalg.lstsq(A, Y, rcond=None)
+        return ((Y - A @ b) ** 2).sum(0)
+
+    full = rss(X)
+    return rss(X[:, keep]) - full, full
+
+
+def perm_pvalues(X, Y, years, cols, nperm=NPERM, rng=None):
+    """Freedman-Lane permutation p, per column of Y and pooled over all columns, for adding columns `cols` of X: the
+    reduced model's residuals are permuted between whole years - the three months of a year share most of their ENSO,
+    basin and Walker anomalies, so they must not be counted as independent samples - and the extra sum of squares
+    recomputed. In synthetic nulls built on the training indices (W within-year correlated up to 0.8) this held
+    4-6 % at the 5 % level; an F-test counting the 30 years instead held under 1 %, a year-clustered Wald test 10-24 %."""
+    rng = np.random.default_rng(SEED) if rng is None else rng
+    keep = [c for c in range(X.shape[1]) if c not in cols]
+    if keep:
+        b, *_ = np.linalg.lstsq(X[:, keep], Y, rcond=None)
+        fit = X[:, keep] @ b
+    else:
+        fit = np.zeros_like(Y)
+    res = Y - fit
+    _, inv = np.unique(years, return_inverse=True)
+    blocks = [np.flatnonzero(inv == g) for g in range(inv.max() + 1)]
+    if len({len(b_) for b_ in blocks}) != 1:
+        raise ValueError("training years with unequal month counts cannot be permuted whole")
+    blocks = np.array(blocks)
+
+    def stat(Yp):
+        extra, full = _extra_ss(X, Yp, cols)
+        return extra / full, float(extra.sum() / full.sum())
+
+    s0, p0 = stat(Y)
+    cnt = np.zeros(Y.shape[1])
+    cntp = 0
+    idx = np.empty(len(years), int)
+    for _ in range(nperm):
+        idx[blocks.ravel()] = blocks[rng.permutation(len(blocks))].ravel()
+        s, p = stat(fit + res[idx])
+        cnt += s >= s0
+        cntp += p >= p0
+    return (cnt + 1) / (nperm + 1), (cntp + 1) / (nperm + 1)
+
+
+def sector_mean(a, lo, hi):
+    m = (LON2 >= lo) & (LON2 <= hi)  # noqa: SIM300  coordinate array LON2, not a constant
+    return np.nanmean(np.asarray(a)[..., m], axis=-1)
+
+
+def regression_tests(ref: xr.Dataset, month: int) -> dict:
+    """Which regression parts the figure may show: for `month`, each part (ENSO, Indian, Atlantic, total) per longitude
+    and the three basin parts per sector, each set under BH q = FDR_Q; and, for every month, the R² panel's ENSO-only
+    R² and its gains from adding the Indian, the Atlantic and all four basin indices (permutation of the pooled extra
+    sum of squares, all 48 under one BH)."""
+    rng = np.random.default_rng(SEED)
+    X, Y, years = training_design(ref, month)
+    p_lon = {g: perm_pvalues(X, Y, years, c, rng=rng)[0] for g, c in PART_COLS.items()}
+    flat = benjamini_hochberg(np.concatenate(list(p_lon.values())), FDR_Q)
+    sig_lon = dict(zip(p_lon, np.split(flat, len(p_lon))))
+    Ys = np.stack([sector_mean(Y, lo, hi) for _, lo, hi in SECTORS], 1)
+    p_sec = {g: perm_pvalues(X, Ys, years, PART_COLS[g], rng=rng)[0] for g in ("enso", "indian", "atlantic")}
+    flat = benjamini_hochberg(np.concatenate(list(p_sec.values())), FDR_Q)
+    sig_sec = dict(zip(p_sec, np.split(flat, len(p_sec))))
+    # R² panel: ENSO alone, + Indian, + Atlantic, + all basins (the stages of ref.r2), each against what it adds
+    stages = (([0, 1], [0, 1]), ([0, 1, 2, 3], [2, 3]), ([0, 1, 4, 5], [2, 3]), ([0, 1, 2, 3, 4, 5], [2, 3, 4, 5]))
+    p_r2 = np.ones((12, 4))
+    for m in range(1, 13):
+        Xm, Ym, ym = (X, Y, years) if m == month else training_design(ref, m)
+        for s, (use, cols) in enumerate(stages):
+            p_r2[m - 1, s] = perm_pvalues(Xm[:, use], Ym, ym, cols, rng=rng)[1]
+    sig_r2 = benjamini_hochberg(p_r2, FDR_Q)
+    return {"p_lon": p_lon, "sig_lon": sig_lon, "p_sec": p_sec, "sig_sec": sig_sec, "p_r2": p_r2, "sig_r2": sig_r2}
+
+
 # ── observed Walker ──────────────────────────────────────────────────────────
 def observed_w(ref: xr.Dataset):
     """W anomaly (7-day and 30-day trailing means) on LON2 from the AIFS analyses, and the dates."""
@@ -160,7 +279,7 @@ def observed_w(ref: xr.Dataset):
 
 # ── figure ───────────────────────────────────────────────────────────────────
 def render(
-    out: Path, ref, ssta, ssta_res, window, month, idx, idx_sig, w7, w30, n7, n30, tlast, reg, gill, gmaps, r2
+    out: Path, ref, ssta, ssta_res, window, month, idx, idx_sig, w7, w30, n7, n30, tlast, reg, gill, gmaps, r2, tests
 ) -> None:
     import matplotlib
 
@@ -169,6 +288,8 @@ def render(
     from matplotlib.gridspec import GridSpec
     import cartopy.crs as ccrs
     import textwrap
+
+    shown = {g: np.where(tests["sig_lon"][g], reg[g], np.nan) for g in PART_COLS}  # parts only where significant
 
     fig = plt.figure(figsize=(13.4, 11.8))
     gs = GridSpec(
@@ -250,10 +371,10 @@ def render(
     ax.axhline(0, color="#555", lw=0.8)
     ax.plot(LON2, w7, color="#222", lw=1.1, alpha=0.8, label=f"observed, last {n7} analyses (7 d)")
     ax.plot(LON2, w30, color="#000", lw=2.4, label=f"observed, last {n30} analyses (30 d)")
-    ax.plot(LON2, reg["total"], color=NAVY, lw=2.0, ls="--", label="regression total")
-    ax.plot(LON2, reg["enso"], color=RED, lw=1.8, label="ENSO part (Niño-3.4 now and 3 months ago)")
-    ax.plot(LON2, reg["indian"], color=GREEN, lw=1.8, label="Indian Ocean part, ENSO removed")
-    ax.plot(LON2, reg["atlantic"], color=ORANGE, lw=1.8, label="Atlantic part, ENSO removed")
+    ax.plot(LON2, shown["total"], color=NAVY, lw=2.0, ls="--", label="regression total")
+    ax.plot(LON2, shown["enso"], color=RED, lw=1.8, label="ENSO part (Niño-3.4 now and 3 months ago)")
+    ax.plot(LON2, shown["indian"], color=GREEN, lw=1.8, label="Indian Ocean part, ENSO removed")
+    ax.plot(LON2, shown["atlantic"], color=ORANGE, lw=1.8, label="Atlantic part, ENSO removed")
     ax.set_xlim(0, 360)
     ax.set_xticks(range(0, 361, 30))
     ax.set_xticklabels([f"{x}°E" if x <= 180 else f"{360 - x}°W" for x in range(0, 361, 30)], fontsize=7.5)
@@ -261,7 +382,8 @@ def render(
     ax.tick_params(labelsize=7.5)
     ax.grid(True, alpha=0.2)
     ax.set_title(
-        "Zonal overturning anomaly along the equator: observed vs the ENSO-first regression (+ = upper-level eastward, lower-level westward divergent flow)",
+        "Zonal overturning anomaly along the equator: observed vs the ENSO-first regression, parts drawn where significant "
+        "(+ = upper-level eastward flow)",
         fontsize=9.2,
         loc="left",
         fontweight="bold",
@@ -281,8 +403,8 @@ def render(
     ):
         ax.plot(LON2, gill[key], color=colr, lw=1.9, label=f"Gill: {lab}")
     ax.plot(LON2, gill["total"], color=NAVY, lw=1.4, ls="--", label="Gill: all three")
-    ax.plot(LON2, reg["indian"], color=GREEN, lw=1.0, ls=":", label="regression Indian (for comparison)")
-    ax.plot(LON2, reg["atlantic"], color=ORANGE, lw=1.0, ls=":", label="regression Atlantic")
+    ax.plot(LON2, shown["indian"], color=GREEN, lw=1.0, ls=":", label="regression Indian (for comparison)")
+    ax.plot(LON2, shown["atlantic"], color=ORANGE, lw=1.0, ls=":", label="regression Atlantic")
     ax.set_xlim(0, 360)
     ax.set_xticks(range(0, 361, 60))
     ax.set_xticklabels([f"{x}°E" if x <= 180 else f"{360 - x}°W" for x in range(0, 361, 60)], fontsize=7.5)
@@ -305,7 +427,8 @@ def render(
     for k, (col, lab, c) in enumerate(
         ((0, "ENSO only", RED), (1, "+ Indian", GREEN), (2, "+ Atlantic", ORANGE), (3, "all", NAVY))
     ):
-        ax.bar(mm + (k - 1.5) * wdt, r2[:, col], width=wdt, color=c, alpha=0.85, label=lab)
+        ok = tests["sig_r2"][:, col]  # a gain over ENSO alone is drawn only where it is significant
+        ax.bar(mm[ok] + (k - 1.5) * wdt, r2[ok, col], width=wdt, color=c, alpha=0.85, label=lab)
     ax.axvspan(month - 0.5, month + 0.5, color="#000", alpha=0.06, lw=0)
     ax.set_xticks(mm)
     ax.set_xticklabels(["J", "F", "M", "A", "M", "J", "J", "A", "S", "O", "N", "D"], fontsize=7.5)
@@ -313,6 +436,15 @@ def render(
     ax.set_ylabel("R² of monthly W, all longitudes", fontsize=8)
     ax.set_ylim(0, 1)
     ax.grid(axis="y", alpha=0.2)
+    ax.text(
+        0.99,
+        0.80,
+        "a gain over ENSO alone is drawn only where significant",
+        transform=ax.transAxes,
+        ha="right",
+        fontsize=6.8,
+        color=MUTED,
+    )
     ax.set_title(
         "Variance of monthly W explained, ERA5 1991–2020 (this month shaded)",
         fontsize=9.2,
@@ -356,17 +488,6 @@ def render(
     # summary: sector table (what each basin does where) + the index line
     ax = fig.add_subplot(gs[5, :])
     ax.axis("off")
-    sectors = [
-        ("Indian Ocean, 50–100°E", 50, 100),
-        ("Maritime Continent, 100–150°E", 100, 150),
-        ("Pacific Walker box, 140°E–160°W", 140, 200),
-        ("East Pacific, 160–90°W", 200, 270),
-    ]
-
-    def sm(a, lo, hi):
-        m = (LON2 >= lo) & (LON2 <= hi)  # noqa: SIM300  coordinate array LON2, not a constant
-        return float(np.nanmean(np.asarray(a)[m]))
-
     cols = [
         "Sector",
         "Observed (30 d)",
@@ -375,26 +496,31 @@ def render(
         "Atlantic, ENSO removed\nregression / Gill",
         "Residual",
     ]
-    rows = []
-    for name, lo, hi in sectors:
-        o, e, i_r, i_g, a_r, a_g = (
-            sm(w30, lo, hi),
-            sm(reg["enso"], lo, hi),
-            sm(reg["indian"], lo, hi),
-            sm(gill["indian"], lo, hi),
-            sm(reg["atlantic"], lo, hi),
-            sm(gill["atlantic"], lo, hi),
-        )
+
+    def part(g, i, v):
+        return f"{v:+.1f}" if tests["sig_sec"][g][i] else "n.s."
+
+    rows, tint = [], {}
+    for i, (name, lo, hi) in enumerate(SECTORS):
+        o = float(sector_mean(w30, lo, hi))
+        e, i_r, a_r = (float(sector_mean(reg[g], lo, hi)) for g in ("enso", "indian", "atlantic"))
+        i_g, a_g = (float(sector_mean(gill[g], lo, hi)) for g in ("indian", "atlantic"))
+        sig = {g: bool(tests["sig_sec"][g][i]) for g in ("enso", "indian", "atlantic")}
+        resid = o - sum(v for g, v in (("enso", e), ("indian", i_r), ("atlantic", a_r)) if sig[g])
         rows.append(
             [
                 name,
                 f"{o:+.1f}",
-                f"{e:+.1f}",
-                f"{i_r:+.1f} / {i_g:+.1f}",
-                f"{a_r:+.1f} / {a_g:+.1f}",
-                f"{o - e - i_r - a_r:+.1f}",
+                part("enso", i, e),
+                f"{part('indian', i, i_r)} / {i_g:+.1f}",
+                f"{part('atlantic', i, a_r)} / {a_g:+.1f}",
+                f"{resid:+.1f}",
             ]
         )
+        # basin cells: same sign as a significant ENSO part = reinforcing (red), opposite = damping (green)
+        for c, g, v in ((3, "indian", i_r), (4, "atlantic", a_r)):
+            if sig[g] and sig["enso"] and abs(v) >= 0.05:  # a significant link with a part that rounds to 0 is untinted
+                tint[(i + 1, c)] = "#fbe9e7" if np.sign(v) == np.sign(e) else "#e8f3ea"
     tb = ax.table(
         cellText=rows,
         colLabels=cols,
@@ -417,21 +543,18 @@ def render(
             cell.set_text_props(ha="left", color=INK)
             cell._loc = "left"
             cell.PAD = 0.03
-        # colour the sign of the basin parts: same sign as ENSO = reinforcing, opposite = damping
-        if r > 0 and c in (3, 4):
-            e = float(rows[r - 1][2])
-            v = float(rows[r - 1][c].split(" / ")[0])
-            if abs(v) >= 0.15:
-                cell.set_facecolor("#fbe9e7" if np.sign(v) == np.sign(e) else "#e8f3ea")
+        if (r, c) in tint:
+            cell.set_facecolor(tint[(r, c)])
     ax.text(
         0.775,
         0.99,
         "\n".join(
             textwrap.wrap(
-                "Units m/s of W; negative = overturning weakened. Basin cells are tinted where the part is at least 0.15 m/s: "
-                "red = same sign as the ENSO part (reinforcing), green = opposite (damping). Where regression and Gill agree in sign the attribution is robust. "
-                "Regression: ERA5 + ERSST 1991–2020, Niño-3.4 (now and 3 months ago) first, the Indian and Atlantic indices as residuals after ENSO. "
-                "Gill: linear equatorial response to heating ∝ SST anomaly over water warmer than 27 °C, the ENSO pattern removed from the Indian and Atlantic fields, one amplitude calibrated on ENSO.",
+                "Units m/s of W; negative = overturning weakened. A regression part (ERA5 + ERSSTv6 1991–2020, ENSO "
+                "first, the basins as residuals) is shown only where its link to W is significant: whole-year "
+                "permutation, false discovery rate 10 % over the table; n.s. otherwise. Tint: a significant basin part "
+                "with the sign of the ENSO part (red, reinforcing) or against it (green, damping). Residual = observed "
+                "minus the significant parts. Gill is a model run, not a test, and is shown in full.",
                 54,
             )
         ),
@@ -441,12 +564,15 @@ def render(
         color=MUTED,
         linespacing=1.3,
     )
+    sig_r2 = tests["sig_r2"][month - 1]
     ax.text(
         0.0,
         0.08,
         "Indices, last 30 days, detrended, σ of the month:  "
         + "   ".join(f"{LABEL[k]} {idx_sig[k]:+.1f}σ" for k in ("n34", "dmi", "iob", "atl3", "tna"))
-        + f"      R² this month: ENSO alone {r2[month - 1, 0]:.2f}, all basins {r2[month - 1, 3]:.2f}",
+        + "      R² this month: "
+        + (f"ENSO alone {r2[month - 1, 0]:.2f}" if sig_r2[0] else "ENSO alone not significant")
+        + (f", all basins {r2[month - 1, 3]:.2f}" if sig_r2[3] else ", the other basins add nothing significant"),
         transform=ax.transAxes,
         fontsize=7.8,
         va="top",
@@ -519,6 +645,7 @@ def main() -> int:
 
     w7, w30, n7, n30, tlast = observed_w(ref)
     r2 = ref.r2.values
+    tests = regression_tests(ref, month)
     render(
         ASSETS / "walker_basins.webp",
         ref,
@@ -537,8 +664,13 @@ def main() -> int:
         gill,
         gmaps,
         r2,
+        tests,
     )
     pac = (LON2 >= PAC_BOX[0]) & (LON2 <= PAC_BOX[1])  # noqa: SIM300  coordinate array LON2, not a constant
+    ipac = next(i for i, s in enumerate(SECTORS) if (s[1], s[2]) == PAC_BOX)
+    box = {g: float(np.nanmean(reg[g][pac])) for g in ("enso", "indian", "atlantic")}
+    box_sig = {g: bool(tests["sig_sec"][g][ipac]) for g in box}
+    sig_r2 = tests["sig_r2"][month - 1]
     doc = {
         "generated": time.strftime("%Y-%m-%d %H:%M UTC", time.gmtime()),
         "sst_window": [window[0].strftime("%Y-%m-%d"), window[1].strftime("%Y-%m-%d")],
@@ -549,15 +681,30 @@ def main() -> int:
         "lon": LON2.tolist(),
         "observed_w7": np.round(w7, 3).tolist(),
         "observed_w30": np.round(w30, 3).tolist(),
-        "regression": {k: np.round(v, 3).tolist() for k, v in reg.items()},
+        # null where the part is not significant (whole-year permutation, BH over the profile)
+        "regression": {
+            k: [round(float(v), 3) if s else None for v, s in zip(reg[k], tests["sig_lon"][k])] for k in PART_COLS
+        },
+        "regression_p": {k: [float(f"{p:.3g}") for p in v] for k, v in tests["p_lon"].items()},
         "gill": {k: np.round(v, 3).tolist() for k, v in gill.items()},
         "pacific_box": {
             "observed_30d": round(float(np.nanmean(w30[pac])), 3),
             "observed_7d": round(float(np.nanmean(w7[pac])), 3),
-            **{f"reg_{k}": round(float(np.nanmean(v[pac])), 3) for k, v in reg.items()},
+            **{f"reg_{k}": round(v, 3) if box_sig[k] else None for k, v in box.items()},
+            "reg_significant_sum": round(sum(v for k, v in box.items() if box_sig[k]), 3),
             **{f"gill_{k}": round(float(np.nanmean(v[pac])), 3) for k, v in gill.items()},
         },
-        "r2_this_month": {"enso": round(float(r2[month - 1, 0]), 3), "full": round(float(r2[month - 1, 3]), 3)},
+        "r2_this_month": {
+            "enso": round(float(r2[month - 1, 0]), 3) if sig_r2[0] else None,
+            "full": round(float(r2[month - 1, 3]), 3) if sig_r2[3] else None,
+        },
+        "tests": {
+            "method": "Freedman-Lane permutation of whole training years (1991-2020, ±1-month window), "
+            f"{NPERM} permutations; Benjamini-Hochberg q {FDR_Q} over the profile (4 parts x {LON2.size} longitudes), "
+            "the sector table (12 cells) and the R² panel (12 months x 4 bars)",
+            "r2_p": np.round(tests["p_r2"], 4).tolist(),
+            "r2_significant": tests["sig_r2"].tolist(),
+        },
         "gill_alpha": alpha,
     }
     (ASSETS / "data").mkdir(parents=True, exist_ok=True)

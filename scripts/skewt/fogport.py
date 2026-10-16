@@ -288,7 +288,8 @@ def cloud_layers(prof):
 
 
 def p_ceil(rh):
-    return 77 if rh >= 100 else 69 if rh >= 98 else 65 if rh >= 96 else 62 if rh >= 94 else 54
+    """app.js estCeiling's pCeil (kept identical: fogport_jstest checks the port against the app)."""
+    return 85 if rh >= 100 else 74 if rh >= 98 else 65 if rh >= 96 else 56 if rh >= 94 else 54
 
 
 def est_ceiling_old(res):

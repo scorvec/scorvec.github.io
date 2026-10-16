@@ -326,7 +326,7 @@ window.afterPlotly = function (fn) {
     significantly from one third each (chi-square, p&nbsp;&lt;&nbsp;0.05 and a false-discovery rate of 0.10 over the map:
     from 51 members a 40&nbsp;% category is well within chance); near-normal is never drawn, because it is
     the category a model lands on when it has nothing to say. <b>Temperature is counted against the hindcast&rsquo;s
-    linear trend extrapolated to the valid year</b> &mdash; against a flat 1993&ndash;2016 base the warming alone puts most
+    linear trend extrapolated to this start</b> (the trend runs over the hindcast&rsquo;s start years) &mdash; against a flat 1993&ndash;2016 base the warming alone puts most
     of the tropics in the upper tercile every month. The multi-model map averages the per-system probabilities with equal
     weight per system.</p>
     <div class="controls" id="c3sTercModel" style="margin-top:0.8rem"></div>
@@ -381,7 +381,11 @@ window.afterPlotly = function (fn) {
     <p class="note">Every member, <b>every day</b>, population-weighted into one national number and pooled by month:
     1,500 member-days in a 30-day month for a 50-member system, about 3,600 for NCEP&rsquo;s 120-odd. This is the distribution a cold snap lives in
     &mdash; the monthly card above shows the spread of monthly MEANS, which is a different and much narrower thing.
-    Bands are P1&ndash;P99, P5&ndash;P95 and P25&ndash;P75 of the pooled member-days, with the median in sienna.</p>
+    Bands are P1&ndash;P99, P5&ndash;P95 and P25&ndash;P75 of the pooled member-days, with the median in sienna; the
+    multi-model view averages each system&rsquo;s own percentiles with equal weight per system. These are the
+    models&rsquo; <b>raw</b> spread, not calibrated probabilities: days within a member are strongly correlated, so a
+    month&rsquo;s 1,500 member-days carry far fewer independent cases than their count, and the
+    tails also carry the month&rsquo;s own seasonal cycle, because the anomalies subtract one monthly mean.</p>
     <p class="note">The black line is <b>observed</b>: CPC Global Unified daily Tmax/Tmin, population-weighted on the
     same cells and pooled the same way, with anomalies against the observed <b>1993&ndash;2016</b> mean &mdash; the models&rsquo;
     hindcast period, not CPC&rsquo;s 1991&ndash;2020 normal &mdash; so history and forecast share one base. Its P10&ndash;P90 band is
@@ -463,7 +467,7 @@ window.afterPlotly = function (fn) {
     difference is a real shift in the forecast rather than drift; periods the earlier issue does not
     cover have no change map. Both are <b>shaded only where significant</b> (Welch t-test, false-discovery rate 0.10
     over the map; blank = no significant shift): the anomaly against the 51 members&rsquo; spread and the hindcast
-    mean&rsquo;s, one member&rsquo;s spread over 24 years (heights: the error of the hindcast trend at the valid year); the
+    mean&rsquo;s, one member&rsquo;s spread over 24 years (heights: the error of the hindcast trend extrapolated to this start); the
     change against both issues&rsquo; member spreads and the year-to-year spread of the difference between the two start
     months&rsquo; hindcasts, which share their 24 years and are compared year by year.
     SST is drawn at 0.2&nbsp;&deg;C steps with labelled isolines.
@@ -510,7 +514,7 @@ window.afterPlotly = function (fn) {
     overlapping seasons follow the start month (three before the October 2026 issue; the fourth ends at lead month 7,
     FMA for an October start); pick the variable and the season. Temperature and
     500&nbsp;hPa height are counted against the hindcast&rsquo;s <b>linear trend</b> extrapolated to
-    the valid year rather than its flat 1993&ndash;2016 mean (a straight line fitted point by point to the 24 hindcast
+    this issue&rsquo;s start year rather than its flat 1993&ndash;2016 mean (a straight line fitted point by point to the 24 hindcast
     years and carried about ten years past their end; its error is not estimated here): two decades of warming (and the
     thickness rise that goes with it) would otherwise sit inside &ldquo;above normal&rdquo; before
     any El&nbsp;Ni&ntilde;o signal is added, and the whole tropical belt read 90&ndash;100&nbsp;% warm by
@@ -535,7 +539,9 @@ window.afterPlotly = function (fn) {
     CPC&rsquo;s published monthly index, an independent check on sign and size. Second, skill: for every index
     and month the 24 hindcast years&rsquo; ensemble mean is correlated with ERA5, and the observed index is
     regressed on the forecast to give a calibrated probability of each phase. Where the correlation is not
-    significantly above zero (one-sided 5&nbsp;% test over the 24 years: r below 0.34) the cell is hatched &mdash;
+    significantly above zero (one-sided 5&nbsp;% test over the 24 years, r below 0.34, and a false discovery rate of
+    10&nbsp;% over every index and lead, so the roughly seven cells a bare 5&nbsp;% test passes by chance among
+    140 do not count as skill) the cell is hatched &mdash;
     the members still say something, but the hindcast says not to trust it, and the calibrated bar is set to
     climatology, at lead month 7 exactly as at the other leads. The
     board reads the seven months at a glance;
@@ -812,8 +818,10 @@ window.afterPlotly = function (fn) {
     and October 1991&ndash;2025, the only start months NOAA has published. CFSv2: the NMME archive at IRI (hindcast 1991&ndash;2010,
     real-time 2011&ndash;2025), 24 members from lagged starts before the 1st, scored as random 11-member draws so both ensembles are the
     same size. Each system and the observations are anomalies against their own leave-one-year-out climatology; intervals are 95%
-    year-block bootstrap, and a difference is marked only where its own interval excludes zero. The weekly comparison (CFSv2 better in
-    weeks 1&ndash;2, no difference after) is on the <a href="sfs-subseasonal.html#skill">SFS extended page</a>.</p>
+    year-block bootstrap, and a difference is marked only where its own interval excludes zero and it passes a false
+    discovery rate of 10&nbsp;% over the figure&rsquo;s comparisons; the captions are written from the same study tables
+    (<code>scripts/sfs/sfs_verdicts.py</code>). The weekly comparison is on the <a href="sfs-subseasonal.html#skill">SFS
+    extended page</a>.</p>
     <div class="chart-card-footer"><span class="chart-sources">SFS beta2 reforecast (NOAA/OAR, NODD) &middot; CFSv2 via the NMME archive
       (IRI Data Library) &middot; ERA5 (Copernicus C3S) &middot; OISST v2.1 (NOAA NCEI)</span><span class="chart-updated">built by
       scripts/sfs/sfs_cfsfig.py from scripts/sfs/skill/cfs/</span></div></template>
@@ -847,7 +855,7 @@ window.afterPlotly = function (fn) {
     <p>Forecast: ECMWF SEAS5 (C3S <code>originating_centre=ecmwf</code>, <code>system=51</code>), 51 members, monthly means for lead months 1&ndash;6 and the 6-hourly 2 m temperature, from the Copernicus Climate Data Store, and from the October 2026 issue a <b>seventh lead month</b> (April for an October start) rebuilt from the same run&rsquo;s sub-daily fields (see <i>Lead month 7</i> below); hindcast: the same system&rsquo;s 1993&ndash;2016 re-forecasts, 25 members, for the same start month, and likewise for the previous issue. Sea-surface temperature, 500 and 1000 hPa height, sea-level pressure and stratospheric winds on a 2&deg; grid; 2 m temperature, precipitation, evaporation, 10 m wind, solar radiation and 500 hPa height on a 1&deg; grid over the Americas; geopotential at 10, 50 and 100 hPa poleward of 60&deg; in each hemisphere.</p>
     <p><b>Lead month 7</b> (from the October 2026 issue). The CDS monthly product stops at lead month 6, but SEAS5 runs 215 days, so the seventh month (April for an October start) is rebuilt from the same run&rsquo;s sub-daily fields: instantaneous fields averaged over every step from 06&nbsp;UTC on the 1st (12&nbsp;UTC for pressure levels) to 00&nbsp;UTC on the 1st of the next month, accumulations as the month&rsquo;s total over its seconds. Applied to month 6 of the same issue, that rule reproduces the monthly product to its packing precision (largest difference 0.002&nbsp;K in 2&nbsp;m temperature, 0.3&nbsp;m&sup2;/s&sup2; in 500&nbsp;hPa geopotential, 1e-11&nbsp;m/s in precipitation). The 1993&ndash;2016 hindcast reference for month 7 comes from the daily copy of the C3S SEAS5 archive on AWS (Planette, Copernicus licence) for the instantaneous fields and from the CDS sub-daily hindcast for the accumulations and the 50/100/1000&nbsp;hPa heights and 30/50&nbsp;hPa winds. Checked at months 5 and 6 against the CDS monthly hindcast, the AWS copy is identical for smooth fields (polar-cap and Ni&ntilde;o-box means, 500&nbsp;hPa height, 60&deg;N wind) but differs on the grid for 2&nbsp;m temperature (rms 0.2&nbsp;K, up to 3&nbsp;K on coasts and mountains), coastal SST box means (up to 0.18&nbsp;K) and snow depth; those offsets do not change between months 5 and 6, so each such field is moved onto the CDS hindcast mean using its month-6 offset. Not extended, so shown to month 6: 10&nbsp;m wind speed and solar radiation (the monthly wind speed is not reproducible from the sub-daily winds), and the 100&nbsp;hPa vortex wind. The seventh month has less skill; it goes through the same calibration and trend handling as the others and the same tests where a product has one (the teleconnection skill test, the tercile maps&rsquo; signal test, the anomaly and change maps&rsquo; Welch test); the change maps have nothing to compare it with in the previous issue.</p>
     <p>Observations: ERA5 (daily 1.5&deg; fields, 1959 or 1991 to the present depending on the field), monthly-meaned for normals, trends, records and skill; CPC&rsquo;s Ni&ntilde;o indices (the ERSSTv5 table, RONI on ERSSTv6) for the observed Ni&ntilde;o lead-in, continued past CPC&rsquo;s last published month by the site&rsquo;s OISST v2.1 estimate, drawn dashed; NOAA CPC Global Unified daily maximum and minimum temperature (0.5&deg;, 1991&ndash;2020, via NOAA PSL) for the threshold-day normals. Teleconnection projectors are the CPC-style regression patterns built for the GEPS page on NCEP/NCAR R1 (1991&ndash;2020). Population weights: GeoNames (CC BY 4.0) places of 15,000 or more people. The hindcast and observed references are reduced once to compact tables, so each monthly run in GitHub Actions downloads only the new forecast.</p>
-    <p>Method: indices are cosine-weighted box means; anomalies are member minus hindcast mean at the same lead (member minus the hindcast&rsquo;s linear trend for geopotential heights, which carry the warming signal). Relative Ni&ntilde;o-3.4 follows the CPC/ECMWF construction used elsewhere on this site; the Trans-Ni&ntilde;o index is Trenberth &amp; Stepaniak (2001), standardised by the hindcast spread. Terciles against the hindcast use the 33.3rd and 66.7th percentiles of the 600 hindcast samples per grid point; against observed references the members are first bias-corrected (member &minus; hindcast mean + ERA5 1993&ndash;2016 mean, multiplicatively for rain and sunshine) and the bounds are &plusmn;0.43&sigma; of the observed 1991&ndash;2020 spread around the reference (detrended for the trend reference; empirical percentiles for rain and sunshine). Standardised anomalies divide the ensemble-mean anomaly by the reference&rsquo;s year-to-year standard deviation. The anomaly and change maps (this group and every C3S system) are shaded only where the ensemble-mean shift passes a Welch t-test (Welch&ndash;Satterthwaite degrees of freedom) against the sum of the sampling variances of the means it is made of &mdash; the members&rsquo;, the hindcast mean&rsquo;s (one member&rsquo;s spread over 24 independent years, conservative; for heights the fitted trend&rsquo;s own error at the valid year, s&sup2;(1/24&nbsp;+&nbsp;x&#8320;&sup2;/&Sigma;(x&nbsp;&minus;&nbsp;x&#772;)&sup2;) from its 24 yearly means), and for a change the previous issue&rsquo;s members and the year-to-year spread of the difference between the two start months&rsquo; yearly hindcast means &mdash; with a Benjamini&ndash;Hochberg false-discovery rate of 0.10 over the cells each map shows (land for temperature, precipitation and snow, ocean for SST). Counted as independent, a change&rsquo;s two hindcast means would weigh 4&ndash;11 times its forecast terms and almost nothing could pass; year by year they weigh 0.1&ndash;1.2 times. Skill is the correlation of the 24 hindcast years&rsquo; ensemble mean with ERA5 at the valid month. Teleconnection phase probabilities are calibrated by regressing the observed monthly index (ERA5, same projection) on the hindcast ensemble mean over those 24 years for each calendar month and lead, and reading the ±0.5&sigma; tail areas of the regression&rsquo;s predictive distribution &mdash; Student&nbsp;t on 22 degrees of freedom, its spread widened by &radic;(1&nbsp;+&nbsp;1/n&nbsp;+&nbsp;(x&nbsp;&minus;&nbsp;x&#772;)&sup2;/S<sub>xx</sub>) because the fit is in-sample on the same 24 years. Skill is tested with a one-sided t-test of r&nbsp;&gt;&nbsp;0 on n&nbsp;&minus;&nbsp;2 degrees of freedom (one start a year, so the years are independent): at n&nbsp;=&nbsp;24 a cell needs r&nbsp;&ge;&nbsp;0.344 for p&nbsp;&le;&nbsp;0.05; below that the probabilities are climatology (the observed mean and spread of the 24 years). The AO, EPO, WPO and SOI, which have no built-in standardisation, are expressed in ERA5&rsquo;s 1991&ndash;2020 standard deviation for the calendar month, applied identically to model and observations. Built by <code>scripts/sst/seas5_outlook.py</code> and its companions; the JSON behind the charts: <a href="assets/sst/data/seas5_outlook.json">seas5_outlook.json</a>, <a href="assets/sst/data/seas5_tele.json">seas5_tele.json</a>, <a href="assets/sst/data/seas5_popT.json">seas5_popT.json</a>, <a href="assets/sst/data/seas5_normals.json">seas5_normals.json</a>, <a href="assets/sst/data/seas5_regimes.json">seas5_regimes.json</a>.</p>
+    <p>Method: indices are cosine-weighted box means; anomalies are member minus hindcast mean at the same lead (member minus the hindcast&rsquo;s linear trend for geopotential heights, which carry the warming signal). Relative Ni&ntilde;o-3.4 follows the CPC/ECMWF construction used elsewhere on this site; the Trans-Ni&ntilde;o index is Trenberth &amp; Stepaniak (2001), standardised by the hindcast spread. Terciles against the hindcast use the 33.3rd and 66.7th percentiles of the 600 hindcast samples per grid point; against observed references the members are first bias-corrected (member &minus; hindcast mean + ERA5 1993&ndash;2016 mean, multiplicatively for rain and sunshine) and the bounds are &plusmn;0.43&sigma; of the observed 1991&ndash;2020 spread around the reference (detrended for the trend reference; empirical percentiles for rain and sunshine). Standardised anomalies divide the ensemble-mean anomaly by the reference&rsquo;s year-to-year standard deviation. The anomaly and change maps (this group and every C3S system) are shaded only where the ensemble-mean shift passes a Welch t-test (Welch&ndash;Satterthwaite degrees of freedom) against the sum of the sampling variances of the means it is made of &mdash; the members&rsquo;, the hindcast mean&rsquo;s (one member&rsquo;s spread over 24 independent years, conservative; for heights the fitted trend&rsquo;s own error at the issue&rsquo;s start year, s&sup2;(1/24&nbsp;+&nbsp;x&#8320;&sup2;/&Sigma;(x&nbsp;&minus;&nbsp;x&#772;)&sup2;) from its 24 yearly means), and for a change the previous issue&rsquo;s members and the year-to-year spread of the difference between the two start months&rsquo; yearly hindcast means &mdash; with a Benjamini&ndash;Hochberg false-discovery rate of 0.10 over the cells each map shows (land for temperature, precipitation and snow, ocean for SST). Counted as independent, a change&rsquo;s two hindcast means would weigh 4&ndash;11 times its forecast terms and almost nothing could pass; year by year they weigh 0.1&ndash;1.2 times. Skill is the correlation of the 24 hindcast years&rsquo; ensemble mean with ERA5 at the valid month. Teleconnection phase probabilities are calibrated by regressing the observed monthly index (ERA5, same projection; CPC&rsquo;s published index for the SOI and equatorial SOI) on the hindcast ensemble mean over those 24 years for each calendar month and lead, and reading the ±0.5&sigma; tail areas of the regression&rsquo;s predictive distribution &mdash; Student&nbsp;t on 22 degrees of freedom, its spread widened by &radic;(1&nbsp;+&nbsp;1/n&nbsp;+&nbsp;(x&nbsp;&minus;&nbsp;x&#772;)&sup2;/S<sub>xx</sub>) because the fit is in-sample on the same 24 years. Skill is tested with a one-sided t-test of r&nbsp;&gt;&nbsp;0 on n&nbsp;&minus;&nbsp;2 degrees of freedom (one start a year, so the years are independent): at n&nbsp;=&nbsp;24 a cell needs r&nbsp;&ge;&nbsp;0.344 for p&nbsp;&le;&nbsp;0.05, and it must also pass a Benjamini&ndash;Hochberg false-discovery rate of 0.10 over all the index &times; lead cells of the issue; otherwise the probabilities are climatology (the observed mean and spread of the 24 years). The fit&rsquo;s predictor is the 25-member hindcast mean while the forecast is a 51-member mean, which is less noisy, so the fitted slope is slightly too small and the calibrated forecast leans to climatology (conservative). The raw member odds count members beyond &plusmn;0.5 of the observed index after moving that threshold to the same climatological frequency in the model&rsquo;s own hindcast spread (SEAS5&rsquo;s members spread more widely than the observed index for some patterns, and a fixed threshold would read that as odds). The AO, EPO, WPO, SOI and equatorial SOI, which have no built-in standardisation, are expressed in ERA5&rsquo;s 1991&ndash;2020 standard deviation for the calendar month, applied identically to model and observations. Built by <code>scripts/sst/seas5_outlook.py</code> and its companions; the JSON behind the charts: <a href="assets/sst/data/seas5_outlook.json">seas5_outlook.json</a>, <a href="assets/sst/data/seas5_tele.json">seas5_tele.json</a>, <a href="assets/sst/data/seas5_popT.json">seas5_popT.json</a>, <a href="assets/sst/data/seas5_normals.json">seas5_normals.json</a>, <a href="assets/sst/data/seas5_regimes.json">seas5_regimes.json</a>.</p>
     <p><b>NOAA SFS beta</b> (the NOAA SFS group): NOAA&rsquo;s next-generation
     Seasonal Forecast System, the UFS-based replacement for CFSv2, running in near-real-time beta since March 2026. NOAA
     publishes the raw ensemble output openly but few graphical products; the Ni&ntilde;o-3.4/RONI plumes, the
@@ -905,8 +913,8 @@ window.STAGE = {
                    a: { label: "Show", items: [["nino34", "Niño-3.4 by month"], ["fields", "3-month temperature and precipitation"]] },
                    img: function (a) { return a === "fields" ? "assets/sfs/sfs_cfs_seasonal_skill.webp" : "assets/sfs/sfs_cfs_nino34_skill.webp"; },
                    cap: function (a) { return a === "fields"
-                     ? "SFS beta2 against CFSv2, the system it is meant to replace, for the 3-month mean after each start, 1991\u20132025, verified against ERA5. As forecast, SFS\u2019s temperature is significantly better globally and across 20\u201390\u00b0N from both start months, and over US land for October\u2013December from 1 September; US winter from 1 October is a tie. With each series\u2019 trend removed the edge shrinks and stays significant only globally from 1 September starts, for 20\u201390\u00b0N November\u2013January and US land October\u2013December: from 1 October starts it is the warming trend. Precipitation: SFS is significantly better only for December\u2013February from 1 October, over 20\u201390\u00b0N and US land, with or without the trend. Only September and October starts exist for SFS beta2."
-                     : "SFS beta2 against CFSv2 for Ni\u00f1o-3.4, monthly means 1991\u20132025 against OISST, CFSv2 with CPC\u2019s separate climatologies before and after 1999. From 1 October starts SFS is significantly better for November\u2013February (higher correlation, RMSE 0.13\u20130.22 \u00b0C lower) and CFSv2 for April\u2013May, so SFS loses skill faster into spring. From 1 September starts the two are close: SFS significantly better in September (correlation) and November (RMSE), CFSv2 in April."; },
+                     ? /*sfs-verdict:cfs_seasonal*/"SFS beta2 against CFSv2, the system it is meant to replace, for the 3-month mean after each start, 1991\u20132025, verified against ERA5 (Sep \u2192 OND: started 1 September, scored over October\u2013December). As forecast, SFS's anomaly correlation is significantly higher for temperature globally (Sep \u2192 OND), temperature over 20\u201390\u00b0N (Sep \u2192 OND), temperature over US land (Sep \u2192 OND), temperature globally (Sep \u2192 NDJ), temperature over 20\u201390\u00b0N (Sep \u2192 NDJ), temperature globally (Oct \u2192 NDJ), temperature over 20\u201390\u00b0N (Oct \u2192 NDJ), temperature globally (Oct \u2192 DJF), temperature over 20\u201390\u00b0N (Oct \u2192 DJF), precipitation over 20\u201390\u00b0N (Oct \u2192 DJF) and precipitation over US land (Oct \u2192 DJF). With each series' trend removed, SFS's anomaly correlation is significantly higher for temperature globally (Sep \u2192 OND), temperature over US land (Sep \u2192 OND), temperature globally (Sep \u2192 NDJ), temperature over 20\u201390\u00b0N (Sep \u2192 NDJ), precipitation over 20\u201390\u00b0N (Oct \u2192 DJF) and precipitation over US land (Oct \u2192 DJF). (Significant means p < 0.05 and a false discovery rate of 10% over the figure's 40 comparisons.) Only September and October starts exist for SFS beta2."/*end*/
+                     : /*sfs-verdict:cfs_nino34*/"SFS beta2 against CFSv2 for Ni\u00f1o-3.4, monthly means 1991\u20132025 against OISST, CFSv2 with CPC\u2019s separate climatologies before and after 1999. From 1 October starts SFS is significantly better in Nov, Dec, Jan and Feb (correlation) and Nov, Dec, Jan and Feb (RMSE); CFSv2 is significantly better in May (correlation). From 1 September starts SFS is significantly better in Sep (correlation) and Nov (RMSE); CFSv2 is significantly better in Apr (correlation). (Significant means p < 0.05 and a false discovery rate of 10% over the figure's 36 comparisons.)"/*end*/; },
                    about: "about-sfs-skill" },
     "cs-plume": { label: "CanSIPS Niño-3.4 — 40 members, 12 months", dom: function () { return "dom-cs-plume"; }, about: "about-cansips",
                   cap: function () { return ""; } },
@@ -1027,8 +1035,12 @@ afterPlotly(function () {
   }
   function seriesFor(entry, key) {
     var e = entry[key]; if (!e) return null;
-    var f = smoother(entry, key);
-    return { x: entry.valid.map(monthDate), mean: f(e.mean), p10: f(e.p10), p25: f(e.p25), p75: f(e.p75), p90: f(e.p90), sd: e.clim_sd, members: e.members, f: f };
+    var f = smoother(entry, key), out = { x: entry.valid.map(monthDate), sd: e.clim_sd, members: e.members, f: f };
+    if (state.sm && e.members) {  // the fan of the 3-month means is the members' smoothed quantiles, not smoothed quantiles
+      var q = OC.quantiles(OC.memberRows(e.members, entry.valid.length).map(f), [10, 25, 75, 90]);
+      return Object.assign(out, { mean: q.mean, p10: q.p10, p25: q.p25, p75: q.p75, p90: q.p90 });
+    }
+    return Object.assign(out, { mean: f(e.mean), p10: f(e.p10), p25: f(e.p25), p75: f(e.p75), p90: f(e.p90) });
   }
 
   function obsFor(key) {
@@ -1092,36 +1104,44 @@ afterPlotly(function () {
     });
   }
 
-  function seasonMean(e, leads) { // ensemble-mean seasonal mean and member fractions
-    var rows = e.members, nm = rows[0].length, vals = [];
-    for (var m = 0; m < nm; m++) { var s = 0; leads.forEach(function (L) { s += rows[L - 1][m]; }); vals.push(s / leads.length); }
-    var mean = vals.reduce(function (a, b) { return a + b; }, 0) / nm;
-    return { mean: mean, pWarm: vals.filter(function (v) { return v >= 0.5; }).length / nm, pCold: vals.filter(function (v) { return v <= -0.5; }).length / nm };
-  }
-
   function seasonName(v, leads) { // e.g. DJF 2026–27 from the valid months of the leads
     var M = "JFMAMJJASOND", lab = leads.map(function (L) { return M[parseInt(v[L - 1].slice(5), 10) - 1]; }).join("");
     var y0 = v[leads[0] - 1].slice(0, 4), y1 = v[leads[leads.length - 1] - 1].slice(0, 4);
     return lab + " " + (y0 === y1 ? y0 : y0 + "–" + y1.slice(2));
   }
-  function seasonStats(e, leads) {
-    var rows = e.members, nm = rows[0].length, vals = [];
-    for (var m = 0; m < nm; m++) { var s = 0; leads.forEach(function (L) { s += rows[L - 1][m]; }); vals.push(s / leads.length); }
-    vals.sort(function (a, b) { return a - b; });
-    var q = function (f) { return vals[Math.min(nm - 1, Math.floor(f * nm))]; };
-    return { mean: vals.reduce(function (a, b) { return a + b; }, 0) / nm, p10: q(0.10), p90: q(0.90) };
+  function seasonStats(e, leads, valid) { // each member's day-weighted mean over the leads; ensemble mean, P10, P90
+    var w = leads.map(function (L) { var ym = valid[L - 1]; return new Date(Date.UTC(+ym.slice(0, 4), +ym.slice(5, 7), 0)).getUTCDate(); });
+    var W = w.reduce(function (a, b) { return a + b; }, 0);
+    var rows = OC.memberRows(e.members, valid.length).map(function (r) {
+      return [leads.reduce(function (s, L, i) { return s + w[i] * r[L - 1]; }, 0) / W];
+    });
+    var q = OC.quantiles(rows, [10, 90]), vals = rows.map(function (r) { return r[0]; }).filter(OC.isNum);
+    var sd = Math.sqrt(vals.reduce(function (s, x) { return s + (x - q.mean[0]) * (x - q.mean[0]); }, 0) / (vals.length - 1));
+    return { mean: q.mean[0], p10: q.p10[0], p90: q.p90[0], sd: sd, n: vals.length };
+  }
+  // Is a season's ensemble-mean anomaly significant? Welch t against the sampling variance of the means it is made of,
+  // as on the maps: the members', the hindcast mean's (one member's spread over 24 independent years) and, for a
+  // detrended field, the fitted 1993-2016 trend's error at this start (x0 = start year - the hindcast's mid-year).
+  function shiftSig(st, startYear, detrended) {
+    var a = st.sd * st.sd / st.n, b = st.sd * st.sd * (1 / 24 + (detrended ? Math.pow(startYear - 2004.5, 2) / 1150 : 0));
+    var nu = (a + b) * (a + b) / (a * a / (st.n - 1) + b * b / 23), z = 1.959964;
+    var tc = z + (z * z * z + z) / (4 * nu) + (5 * Math.pow(z, 5) + 16 * z * z * z + 3 * z) / (96 * nu * nu);  // t quantile, 97.5 %
+    return Math.abs(st.mean) / Math.sqrt(a + b) > tc;
   }
   function chips() {
     var cur = J.indices[J.issue], v = cur.valid, out = [], late = [4, 5, 6], early = [2, 3, 4];
     function chip(l, val, s, cls) { out.push('<div class="chip"><div class="l">' + l + '</div><div class="v ' + (cls || "neut") + '">' + val + '</div><div class="s">' + s + '</div></div>'); }
     function tone(x, t) { return x <= -t ? "cool" : x >= t ? "warm" : "neut"; }
     function rng(a, d) { return "P10 " + fmt(a.p10, d) + " · P90 " + fmt(a.p90, d); }
-    if (cur.nino34) { var a = seasonStats(cur.nino34, late); chip("Niño-3.4 · " + seasonName(v, late), fmt(a.mean) + " °C", rng(a), tone(a.mean, 0.5)); }
-    if (cur.rnino34) { var r = seasonStats(cur.rnino34, late); chip("Relative Niño-3.4 · " + seasonName(v, late), fmt(r.mean) + " °C", rng(r), tone(r.mean, 0.5)); }
-    if (cur.nino12) { var e = seasonStats(cur.nino12, early); chip("Niño-1+2 · " + seasonName(v, early), fmt(e.mean) + " °C", rng(e), tone(e.mean, 0.5)); }
-    if (cur.tni) { var t = seasonStats(cur.tni, late); chip("Trans-Niño · " + seasonName(v, late), fmt(t.mean, 1) + " σ", t.mean > 0.3 ? "east-loaded event" : t.mean < -0.3 ? "west-loaded event" : "no zonal tilt", "neut"); }
-    if (cur.pdo) { var pd = seasonStats(cur.pdo, late); chip("PDO · " + seasonName(v, late), fmt(pd.mean), rng(pd), tone(pd.mean, 0.5)); }
-    if (J.polar && J.polar.nh_z100) { var z = J.polar.nh_z100, zm = (z.mean[3] + z.mean[4] + z.mean[5]) / 3; chip("NH cap z100 · " + seasonName(v, late), fmt(zm, 0) + " m", zm > 0 ? "weaker-vortex side" : "stronger-vortex side", zm > 0 ? "warm" : "cool"); }
+    if (cur.nino34) { var a = seasonStats(cur.nino34, late, v); chip("Niño-3.4 · " + seasonName(v, late), fmt(a.mean) + " °C", rng(a), tone(a.mean, 0.5)); }
+    if (cur.rnino34) { var r = seasonStats(cur.rnino34, late, v); chip("Relative Niño-3.4 · " + seasonName(v, late), fmt(r.mean) + " °C", rng(r), tone(r.mean, 0.5)); }
+    if (cur.nino12) { var e = seasonStats(cur.nino12, early, v); chip("Niño-1+2 · " + seasonName(v, early), fmt(e.mean) + " °C", rng(e), tone(e.mean, 0.5)); }
+    if (cur.tni) { var t = seasonStats(cur.tni, late, v), ts = shiftSig(t, +J.issue.slice(0, 4), false);
+      chip("Trans-Niño · " + seasonName(v, late), fmt(t.mean, 1) + " σ", !ts || Math.abs(t.mean) < 0.3 ? "no significant zonal tilt" : t.mean > 0 ? "east-loaded event" : "west-loaded event", "neut"); }
+    if (cur.pdo) { var pd = seasonStats(cur.pdo, late, v); chip("PDO · " + seasonName(v, late), fmt(pd.mean), rng(pd), tone(pd.mean, 0.5)); }
+    if (J.polar && J.polar.nh_z100 && J.polar.nh_z100.members) { var z = J.polar.nh_z100, zv = z.valid || v, zs = seasonStats(z, late, zv);
+      var zsig = shiftSig(zs, +J.issue.slice(0, 4), !!z.detrended), zm = zs.mean;
+      chip("NH cap z100 · " + seasonName(zv, late), fmt(zm, 0) + " m", !zsig ? "no significant shift" : zm > 0 ? "weaker-vortex side" : "stronger-vortex side", !zsig ? "neut" : zm > 0 ? "warm" : "cool"); }
     document.getElementById("chips").innerHTML = out.join("");
   }
 

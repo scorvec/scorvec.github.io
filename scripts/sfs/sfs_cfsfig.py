@@ -7,19 +7,19 @@ scripts/sfs/skill/cfs/ (offline study, see its README); draws only.
          assets/sfs/sfs_cfs_nino34_skill.webp        (seasonal.html, NOAA SFS group, SFS against CFSv2)
          assets/sfs/sfs_cfs_seasonal_skill.webp      (the same product, 3-month temperature and precipitation)
 
-Every system's skill is drawn with its 95% year-block bootstrap interval; a DIFFERENCE is marked only where its own
-interval excludes zero (the site's significance rule), and an unmarked point means no significant difference.
+Every system's skill is drawn with its 95% year-block bootstrap interval; a DIFFERENCE is marked only where it is
+significant over the figure's comparisons (sfs_verdicts: its own interval excludes zero and it passes a false discovery
+rate of 10 %), and an unmarked point means no significant difference.
 """
 
 import argparse
 from pathlib import Path
 
 import numpy as np
-import pandas as pd
+
+from sfs_verdicts import table
 
 HERE = Path(__file__).resolve().parent
-CSV_W = HERE / "skill" / "cfs" / "partA_sfs_vs_cfs_weekly.csv"
-CSV_S = HERE / "skill" / "cfs" / "partB_sfs_vs_cfs_seasonal.csv"
 SFS_C, CFS_C = "#b0562a", "#5b4a9e"
 NOTE_C = "#5c6b73"
 MON = ["Sep", "Oct", "Nov", "Dec", "Jan", "Feb", "Mar", "Apr", "May", "Jun"]
@@ -39,7 +39,7 @@ def _save(fig, p):
 
 def weekly(plt, site):
     """Weekly anomaly correlation, the layout of sfs_skillfig.py with CFSv2 in place of GEFS and GEPS."""
-    d = pd.read_csv(CSV_W)
+    d = table("cfs_weekly")
     d = d[(d.metric == "acc") & (d.years == "all")]
     WIN = [("wk1", "week 1"), ("wk2", "week 2"), ("wk34", "weeks 3–4"), ("wk5", "week 5")]
     VARS = [("t2m", "2 m temperature"), ("z500", "500 hPa height"), ("pr", "Precipitation")]
@@ -71,7 +71,7 @@ def weekly(plt, site):
                 if s == "cfs":
                     for k, (w, _) in enumerate(WIN):
                         dd = _row(sub, system="sfs-cfs", window=w)
-                        if dd is not None and str(dd.sig) == "yes":
+                        if dd is not None and bool(dd.fdr_sig):
                             ax.annotate(
                                 "▲" if dd.value < 0 else "▼",
                                 (x[k] + off, hi[k]),
@@ -103,8 +103,8 @@ def weekly(plt, site):
         0.5,
         0.005,
         "Ensemble-mean anomaly correlation, each system against its own leave-one-year-out climatology; bars: 95% "
-        "year-block bootstrap. ▲ over CFSv2: CFSv2 beats SFS, the difference's own interval excluding zero (▼: SFS ahead); no "
-        "marker = no significant difference. SFS: four-member means of its reforecast. CFSv2: the 00, 06, 12 and 18Z runs of the "
+        "year-block bootstrap. ▲ over CFSv2: CFSv2 beats SFS, the difference's own interval excluding zero and passing a "
+        "false discovery rate of 10% over the figure (▼: SFS ahead); no marker = no significant difference. SFS: four-member means of its reforecast. CFSv2: the 00, 06, 12 and 18Z runs of the "
         "1st, one member each (IRI SubX hindcast 1999–2016 and real-time 2018–2025, no 2017; 500 hPa height 2019–2025 from NOAA's "
         "operational CFSv2 on AWS). ERA5 precipitation ends Jan 2023. Only Sep/Oct starts exist for SFS beta2.",
         ha="center",
@@ -121,7 +121,7 @@ def weekly(plt, site):
 def _winner_marks(ax, xs, diffs, better_low):
     """Squares along the top edge where the SFS-minus-CFSv2 difference is significant, in the better system's colour."""
     for x, dd in zip(xs, diffs):
-        if dd is None or str(dd.sig) != "yes":
+        if dd is None or not bool(dd.fdr_sig):
             continue
         sfs_better = (dd.value < 0) if better_low else (dd.value > 0)
         ax.plot(
@@ -136,7 +136,7 @@ def _winner_marks(ax, xs, diffs, better_low):
 
 
 def nino34(plt, site):
-    d = pd.read_csv(CSV_S)
+    d = table("cfs_seasonal")
     d = d[d.part == "nino34"]
     fig, axes = plt.subplots(2, 2, figsize=(13.6, 7.8), sharex="col")
     for ci, start in enumerate(("Sep", "Oct")):
@@ -194,7 +194,8 @@ def nino34(plt, site):
         "before the 1st, hindcast 1991–2010 and real-time 2011–2025), scored as random 11-member draws with separate "
         "climatologies before and after 1999 as CPC uses for its hindcast. Each system against its own leave-one-year-out "
         "climatology; shading: 95% year-block bootstrap. A square: the SFS-minus-CFSv2 difference's own interval excludes "
-        "zero, in the better system's colour; no square = no significant difference.",
+        "zero and it passes a false discovery rate of 10% over the figure, in the better system's colour; no square = no "
+        "significant difference.",
         ha="center",
         va="bottom",
         fontsize=8.4,
@@ -207,7 +208,7 @@ def nino34(plt, site):
 
 
 def seasonal(plt, site):
-    d = pd.read_csv(CSV_S)
+    d = table("cfs_seasonal")
     d = d[(d.part == "seasonal") & (d.metric == "acc")]
     COMBO = [("Sep", "OND"), ("Sep", "NDJ"), ("Oct", "NDJ"), ("Oct", "DJF")]
     COLS = [
@@ -271,8 +272,9 @@ def seasonal(plt, site):
         "scored over October–December). SFS: 11 reforecast members started on the 1st;\nCFSv2: the NMME archive, random "
         "11-member draws of its 24 lagged members. Each system and ERA5 against its own leave-one-year-out climatology; "
         "bottom row: each series' linear trend removed first\n(fitted leaving the year out), so skill from the warming trend "
-        "alone drops out. Bars: 95% year-block bootstrap; a square: the difference's own interval excludes zero, in the "
-        "better system's colour;\nno square = no significant difference. ERA5 precipitation: Northern Hemisphere only, to Jan 2023.",
+        "alone drops out. Bars: 95% year-block bootstrap; a square: the difference's own interval excludes zero and it "
+        "passes a false discovery rate of 10% over the figure, in the better system's colour;\nno square = no significant "
+        "difference. ERA5 precipitation: Northern Hemisphere only, to Jan 2023.",
         ha="center",
         va="bottom",
         fontsize=8.4,
