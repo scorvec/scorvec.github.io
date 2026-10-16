@@ -425,8 +425,7 @@ function trend(el,sec,key,dn,big){if(!RH||!RH[sec])return;const nat=sec==='nat',
   tipAt(e,`<b>${fmtD(p.d)}</b> <span style="opacity:.8">${p.src==='r'?'reconstructed':'as issued'}</span><br>${dn} ${pct(p.p)}<br>Republican ${pct(1-p.p)}${p.m!=null?`<br>Expected ${mg(p.m,dn==='Independent'?'I':'D')}`:''}${q&&p.src==='r'?`<br><span style="opacity:.8">As issued that day: ${dn} ${pct(q.p)}</span>`:''}`)},
   out=()=>{g.style('display','none');$('#tip').style.display='none'};
  svg.append('rect').attr('x',m.l).attr('y',m.t).attr('width',W-m.l-m.r+30).attr('height',Hh-m.t-m.b).attr('fill','transparent').on('pointermove',mv).on('pointerdown',mv).on('pointerleave',out)}
-// Enlarged chart (2026-09-30, user: "click on the graphs of the model changes over time and see a much larger version"): the
-// same drawing at the dialog's width, so every line, dot and tooltip is the same as the small chart.
+// Enlarged chart: the same drawing at the dialog's width, so every line, dot and tooltip is the same as the small chart.
 function bigChart(sec,key,dn,title){let o=$('#bigc');if(!o){o=document.createElement('div');o.id='bigc';o.setAttribute('role','dialog');o.setAttribute('aria-modal','true');
   o.innerHTML='<div class="bigc-box"><div class="bigc-head"><h3></h3><button type="button" class="bigc-x" aria-label="Close">×</button></div><div class="bigc-body"></div></div>';document.body.appendChild(o);
   o.addEventListener('click',e=>{if(e.target===o)closeBig()});o.querySelector('.bigc-x').onclick=closeBig;addEventListener('keydown',e=>{if(e.key==='Escape'&&o.classList.contains('on'))closeBig()})}
@@ -472,9 +471,8 @@ function buildMaps(){fetch('data/districts_2026.topo.json').then(r=>r.json()).th
    .on('mousemove',(e,d)=>{const r=races[d.st];if(r)tipAt(e,`<b>${NAMES[d.st]||d.st}</b><br>${r.dem||'?'} v ${r.rep||'?'}<br>${r.dem_party&&r.dem_party!=='D'?'Independent':'Democrat'} ${pct(r.p[gi])}`)})
    .on('mouseleave',()=>{$('#tip').style.display='none'}).on('click',(e,d)=>{if(races[d.st])pick(key,d.st)})}
  render();for(const k of ['house','senate','gov'])if(SEL[k])pick(k,SEL[k])})}
-// The national House vote on Election Day (user 2026-10-12: "a big distribution ... for the national generic ballot this
-// election", "may not be perfectly gaussian (fat tails?)"): the model's own 20,000 draws (build_web.national_vote), smoothed,
-// with a normal of the same spread dashed for comparison. Hover for the chance of at least that margin.
+// The national House vote on Election Day: the model's own 20,000 draws (build_web.national_vote), smoothed, with a normal
+// of the same spread dashed for comparison (the draws need not be Gaussian). Hover for the chance of at least that margin.
 function genDist(N){const svg=d3.select('#gdist');svg.selectAll('*').remove();if(!N||!N.grid)return;
  const mg=v=>Math.abs(v)<.05?'Even':(v>0?'D+':'R+')+Math.abs(v).toFixed(1),q=N.q;
  // drawn at the card's own width so text stays readable on a phone (a 960-wide viewBox shrank it to ~5 px); redrawn when the tab opens
