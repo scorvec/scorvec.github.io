@@ -411,8 +411,9 @@ function teleTable(show) {
   if (!show) return;
   if (TELE === null) {
     TELE = false;
-    fetch("assets/geps/telecon.json").then(function (r) { return r.json(); })
+    fetch("assets/geps/telecon.json").then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); })
       .then(function (j) {
+        if (!j || !j.indices || !Object.keys(j.indices).length) throw new Error("no indices");   // stays false
         TELE = j;
         // the index list may have shrunk (teleIds): redraw the options, which redraws this table too
         if (sel.p === "telecon" && sel.a === "series" && window.STAGE.refresh) window.STAGE.refresh();

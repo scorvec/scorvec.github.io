@@ -837,7 +837,7 @@ def homepage_rows() -> str:
         rest = [h for h, *_ in allit if h not in feat]
 
         def li(h, by=by):
-            return f'          <li data-href="{h}"><a href="{h}" title="{esc(by[h][1])}">{by[h][0]}</a></li>'
+            return f'          <li><a href="{h}" title="{esc(by[h][1])}">{by[h][0]}</a></li>'
 
         out.append(f'      <section class="sg" data-topic="{topic or ""}">')
         out.append(f"        <h3>{title}</h3>\n        <p>{short}</p>\n        <ul>")
