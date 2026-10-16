@@ -1610,13 +1610,21 @@ def retain(cycles, model):
 # ── commands ────────────────────────────────────────────────────────────────────────────────────────────────────────
 def cmd_plan(a):
     """Print one line per model cycle to process: the newest COMPLETE cycle not already in that model's manifest, and
-    for HRRR also the newest complete 48-h cycle if it is newer than the published one."""
+    for HRRR also the newest complete 48-h cycle if it is newer than the published one.
+    With --cycle (a run dispatched the moment that cycle's last file is up): that cycle, unless the manifest already
+    holds it or a newer one (--force plans it regardless)."""
     now = dt.datetime.utcnow().replace(minute=0, second=0, microsecond=0)
     todo = []
     for model in a.models.split(","):
         m = MODELS[model]
         man = load_manifest(Path(a.manifests) / f"{model}.json", model)
         have = {c["cycle"] for c in man.get("cycles", [])}
+        if a.cycle:
+            if have and max(have) >= a.cycle and not a.force:
+                print(f"{model} {a.cycle}: the page already has {max(have)}", file=sys.stderr)
+            else:
+                todo.append((model, a.cycle))
+            continue
         cands = []
         for h in range(m["lag_h"][0], m["lag_h"][1] + 1):
             c = now - dt.timedelta(hours=h)
@@ -2098,6 +2106,8 @@ def main():
     p = sub.add_parser("plan")
     p.add_argument("--models", default="hrrr,rrfs,rdps")
     p.add_argument("--manifests", default="assets/models")
+    p.add_argument("--cycle", default="", help="YYYYMMDDHH: plan this cycle (skipped when already published)")
+    p.add_argument("--force", action="store_true", help="with --cycle: plan it even when already published")
     p = sub.add_parser("run")
     p.add_argument("--model", required=True, choices=list(MODELS))
     p.add_argument("--cycle", required=True)

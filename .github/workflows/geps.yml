@@ -11,9 +11,10 @@ name: GEPS days 1-35 (subseasonal)
 # products use, each file once (the ledger in the step summary says exactly what) - plus small incremental refreshes
 # (ARCO ERA5 band means, CPC/PSL index files).
 #
-# SCHEDULE. The day-35 step lands ~06:45-06:52 UTC on Mondays and Thursdays. 07:20 is the main slot (the script
-# waits up to 2 h for a late cycle); 10:20 and the next day's 07:20 are backstops that exit in about a minute once the
-# cycle is built (state/last_cycle.json on the frames branch). The dispatcher fires the same slots.
+# SCHEDULE. The day-35 step lands ~06:40-06:51 UTC on Mondays and Thursdays (5-15 Oct 2026). The laptop's readiness
+# dispatcher sends `cycle` as soon as the last five days' steps are all up. 07:20 (the script waits up to 2 h for a
+# late cycle), 10:20 and the next day's 07:20 are the backstops; once the cycle is built they exit in about a minute
+# (state/last_cycle.json on the frames branch). The main dispatcher fires the same slots.
 #
 # Data: ECCC GEPS via the MSC Datamart. Data Source: Environment and Climate Change Canada, under the ECCC Data Servers End-use Licence.
 

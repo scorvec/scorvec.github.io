@@ -29,3 +29,6 @@ assets/sst/anim/epflux_ifs
 # <anim>/<region id>/, so the loops moved to flat mmsf_fc_<region> / walker_fc_<region> directories.
 assets/sst/anim/mmsf_fc
 assets/sst/anim/walker_fc
+# Retired 2026-10-16: the GDPS single-run MSLP + 10 m wind loop drawn in mjo.yml. The page's GDPS choice is now
+# gdps-charts.yml's own loop (assets/sst/anim/gdps_wind), posted hours earlier, as soon as the run is out.
+assets/sst/anim/mslp_wind_gdps

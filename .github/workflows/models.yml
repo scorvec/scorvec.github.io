@@ -11,7 +11,8 @@ name: Short-range models (data)
 # the same commit), stamp the frames commit into the manifest, THEN commit the manifest to main - never the other
 # way round, or the page would point at data that is not there yet. A cycle that lost hours is not published.
 # Actions honours a fraction of cron firings and late, so the dispatcher fires the same slots; a firing with
-# nothing new exits in about a minute.
+# nothing new exits in about a minute. A run given a cycle (the RDPS caller's, dispatched by the laptop the moment the
+# cycle's last file is on the Datamart) builds that cycle unless it, or a newer one, is already published.
 
 on:
   workflow_call:
@@ -19,6 +20,9 @@ on:
       model:
         type: string
         required: true
+      cycle:
+        type: string
+        default: ""
       snowband:
         type: boolean
         default: false
@@ -29,9 +33,13 @@ on:
         required: true
         default: hrrr
       cycle:
-        description: "Cycle YYYYMMDDHH (blank = plan the newest unpublished)"
+        description: "Cycle YYYYMMDDHH (blank = plan the newest unpublished; skipped when it or a newer one is published)"
         required: false
         default: ""
+      force:
+        description: "Rebuild the given cycle even when it is already published"
+        type: boolean
+        default: false
       snowband:
         description: "Compute the snow-band maps even outside their season (1 Oct - 30 Apr): testing"
         type: boolean
@@ -83,6 +91,7 @@ jobs:
         id: plan
         env:
           CYCLE: ${{ inputs.cycle }}
+          FORCE: ${{ inputs.force && '--force' || '' }}
         run: |
           set -euo pipefail
           case "$MODEL" in hrrr|rrfs|rdps) ;; *) echo "::error::unknown model $MODEL"; exit 1 ;; esac
@@ -91,8 +100,7 @@ jobs:
           if timeout 60 git fetch -q --depth 1 origin main && git show "FETCH_HEAD:assets/models/$MODEL.json" > "/tmp/$MODEL.json" 2>/dev/null; then
             cp "/tmp/$MODEL.json" "assets/models/$MODEL.json"
           else echo "no manifest on main yet for $MODEL"; rm -f "assets/models/$MODEL.json"; fi
-          if [ -n "${CYCLE:-}" ]; then echo "$MODEL $CYCLE" > "$RUNNER_TEMP/plan.txt"
-          else python scripts/models/models.py plan --models "$MODEL" --manifests assets/models > "$RUNNER_TEMP/plan.txt"; fi
+          python scripts/models/models.py plan --models "$MODEL" --manifests assets/models ${CYCLE:+--cycle "$CYCLE"} $FORCE > "$RUNNER_TEMP/plan.txt"
           cat "$RUNNER_TEMP/plan.txt"
           echo "n=$(wc -l < "$RUNNER_TEMP/plan.txt" | tr -d ' ')" >> "$GITHUB_OUTPUT"
       - name: Boundaries (once)

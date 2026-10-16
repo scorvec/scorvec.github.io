@@ -285,13 +285,19 @@ def run_model(model, date, hh, work: Path, procs: int, wait_min: float):
 
 
 def combine(work: Path):
-    """Merge the per-model parts into ar_det_manifest.json. A model that did not run this cycle keeps its previous
-    entry (its frames stay on the branch) for up to MAX_AGE_H hours, flagged with its own init time."""
+    """Merge the per-model parts into ar_det_manifest.json. A model that did not run keeps its entry (its frames stay
+    on the branch) while its run is at most MAX_AGE_H hours older than this run's newest. Every model whose run is
+    older than the newest on the page is flagged stale (a GDPS run published first leaves the others flagged until
+    their runs of that cycle arrive)."""
     old = json.loads(MANIFEST.read_text()) if MANIFEST.exists() else {}
     parts = {p.stem.split("_", 1)[1]: json.loads(p.read_text()) for p in sorted(work.glob("det_*.json"))}
     if not parts:
         raise SystemExit("no model parts to combine")
-    newest = max(pd.Timestamp(p["init"].replace("Z", "")) for p in parts.values())
+
+    def init_of(e):
+        return pd.Timestamp(e["init"].replace("Z", ""))
+
+    newest = max(init_of(p) for p in parts.values())
     regions, models = {}, {}
     for model in A.MODELS:
         if model in parts:
@@ -299,24 +305,23 @@ def combine(work: Path):
             models[model] = {
                 k: p[k] for k in ("label", "short", "init", "levels", "res", "src", "level_bias", "max_ivt", "points")
             }
-            models[model]["stale"] = False
             for dk, fr in p["frames"].items():
                 regions[f"det_{model}_{dk}"] = {"label": f"{p['short']} · {A.DOMAINS[dk]['label']}", "frames": fr}
         elif model in old.get("models", {}):
             om = old["models"][model]
-            age = (newest - pd.Timestamp(om["init"].replace("Z", ""))) / pd.Timedelta(hours=1)
+            age = (newest - init_of(om)) / pd.Timedelta(hours=1)
             if age <= MAX_AGE_H:
-                models[model] = dict(om, stale=True)
+                models[model] = dict(om)
                 for dk in A.DOMAINS:
                     r = old["regions"].get(f"det_{model}_{dk}")
                     if r:
                         regions[f"det_{model}_{dk}"] = r
-                print(f"  {model}: not in this cycle; keeping the {om['init']} run ({age:.0f} h older)", flush=True)
+                print(f"  {model}: not run here; keeping its {om['init']} run", flush=True)
             else:
-                print(
-                    f"  {model}: not in this cycle and the last run is {age:.0f} h old: dropped from the page",
-                    flush=True,
-                )
+                print(f"  {model}: not run here and its last run is {age:.0f} h old: dropped from the page", flush=True)
+    newest = max(init_of(m) for m in models.values())
+    for m in models.values():
+        m["stale"] = bool(init_of(m) < newest)
     doc = {
         "ver": int(time.time()),
         "default": "det_aifs_pac",

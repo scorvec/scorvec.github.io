@@ -5,10 +5,11 @@ The Canadian Global Deterministic Prediction System (15 km, open Datamart)
 as an independent physics model beside the AIFS-ENS / IFS-ENS products on
 the Atmosphere page:
 
-  assets/sst/anim/gdps_wind/     — daily MSLP + 10 m wind maps, forecast
-  + gdps_wind_manifest.json        days 1..10, same domain, shading and
-                                   grammar as the super-ensemble animator
-                                   (scripts/mjo/src/mslp_wind_anim.py)
+  assets/sst/anim/gdps_wind/     — MSLP + 10 m wind maps, 6-hourly to
+  + gdps_wind_manifest.json        day 10, same domain, shading and grammar
+                                   as the super-ensemble animator
+                                   (scripts/mjo/src/mslp_wind_anim.py): the
+                                   GDPS choice of that product on the page
   assets/sst/anim/gdps_ir/       — SIMULATED IR satellite loop: forecast
   + gdps_ir_manifest.json          top-of-atmosphere OLR converted to IR
                                    brightness temperature (inverse of the
@@ -20,9 +21,10 @@ the Atmosphere page:
                                    3-hourly frames to day 10
 
 GDPS is deterministic (one run, no spread) and Datamart serves whole-globe
-GRIBs only, but the files are small (~1–2 MB) and the 00Z cycle is up by
-~06 UTC. Model OLR is smoother than real pixel IR — 15 km fields resolve
-the convective envelopes, not individual overshooting tops.
+GRIBs only, but the files are small (~1–2 MB) and a run reaches day 10
+~4 h 50 min after its start, hours before the ECMWF runs. Model OLR is
+smoother than real pixel IR — 15 km fields resolve the convective
+envelopes, not individual overshooting tops.
 
     python scripts/sst/gdps_eq_charts.py             # latest complete 00Z
     python scripts/sst/gdps_eq_charts.py --date 20260824
@@ -690,7 +692,11 @@ def main(argv=None) -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--date", help="init date YYYYMMDD (default: latest complete)")
     ap.add_argument("--cycle", default="00")
+    ap.add_argument(
+        "--newer-than", default="", metavar="YYYYMMDDHH", help="build only a run newer than this (the one on the page)"
+    )
     args = ap.parse_args(argv)
+    shown = pd.to_datetime(args.newer_than, format="%Y%m%d%H") if args.newer_than else None
 
     now = datetime.now(UTC)
     today = now.strftime("%Y%m%d")
@@ -700,8 +706,9 @@ def main(argv=None) -> int:
     # hours in the FUTURE: 40 leads x 3 fields = 120 requests that cannot
     # succeed, before the fallback to yesterday even starts. The completeness
     # check still handles a cycle that is late; this only skips ones that are
-    # impossible. GDPS is fully published ~5h45m after init, so 4 h is a
-    # permissive floor rather than a guess at readiness.
+    # impossible. GDPS reaches day 10 ~4 h 50 min after init (+4:47 to +5:09,
+    # 10-16 Oct 2026), so 4 h is a permissive floor rather than a guess at
+    # readiness.
     MIN_AGE_H = 4
 
     def _too_early(d: str) -> bool:
@@ -717,6 +724,10 @@ def main(argv=None) -> int:
     tries = usable
     data, init, date_ok = None, None, None
     for date in tries:
+        # newest first, so once a candidate is not newer than the page's run, none after it is either
+        if shown is not None and pd.Timestamp(f"{date}T{args.cycle}:00") <= shown:
+            print(f"GDPS {date} {args.cycle}Z: the page already shows the {shown:%Y-%m-%d %H}Z run", flush=True)
+            return 0
         print(f"GDPS {date} {args.cycle}Z:", flush=True)
         data = collect_maps(date, args.cycle)
         if data is not None:
@@ -730,6 +741,10 @@ def main(argv=None) -> int:
     render_wind_maps(data["maps"], data["leads"], init)
     build_outflow_loop(date_ok, args.cycle, init)
     build_ir_loop(date_ok, args.cycle, init)
+    gh = os.environ.get("GITHUB_OUTPUT")
+    if gh:  # the workflow publishes only a run that was built
+        with open(gh, "a") as f:
+            f.write("built=1\n")
     return 0
 
 
