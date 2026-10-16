@@ -346,7 +346,7 @@
     color: var(--accent);
     transition: background 0.15s, color 0.15s, border-color 0.15s;
   }
-  .plot-deck .deck-tabs button:hover { background: #ecdfd4; border-color: var(--accent-hi); color: var(--accent-hi); }
+  .plot-deck .deck-tabs button:hover { background: #ecdfd4; border-color: var(--accent-hi); color: var(--accent); }   /* --accent-hi text is 3.8:1 on the hover fill */
   .plot-deck .deck-tabs button.on {
     background: var(--accent); border-color: var(--accent); color: #fff;
     box-shadow: 0 1px 5px rgba(138,75,42,0.38);
@@ -451,6 +451,7 @@
 <body>
 
 <!-- sh:start -->
+<a class="skip-link" href="#main">Skip to main content</a>
 <header class="sh" id="site-header">
   <div class="sh-in">
     <a class="sh-brand" href="/">Shawn Corvec</a>
@@ -734,7 +735,7 @@
   .ef .stage > .ef-sec > h2, .ef .stage > .ef-brief > h2 { margin-top: 0; }
   .ef .ss-main .hint a { color: var(--accent); }
 </style>
-<main class="ef">
+<main id="main" class="ef">
   <header>
     <h1>ENSO forecasts</h1>
     <p class="sub" id="ef-sub">What five seasonal forecast systems expect from El Ni&ntilde;o and La Ni&ntilde;a over the next six months, member by member. Updated each month.</p>

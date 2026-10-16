@@ -601,3 +601,14 @@
   });
   window.SiteFind.open = open;
 })();
+
+// The skip link moves focus to <main> without touching the URL: on the stage pages the hash names the product on show,
+// and following "#main" would drop it from the address a reader bookmarks or shares.
+document.addEventListener('click', function (e) {
+  var link = e.target.closest && e.target.closest('a.skip-link');
+  var main = link && document.getElementById('main');
+  if (!main) return;
+  e.preventDefault();
+  if (!main.hasAttribute('tabindex')) main.setAttribute('tabindex', '-1');
+  main.focus();
+});
