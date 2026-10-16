@@ -418,7 +418,6 @@ def draw_field(key, ym, idx, A, sig, comps, out: Path, nsig: float):
 
 def draw_terciles(key, ym, idx, above, below, normal, out: Path):
     from matplotlib.colors import ListedColormap, BoundaryNorm
-    from matplotlib.patches import Patch
 
     _var, _lev, title, (pu, pl), extent = PROBS[key]
     fig, ax, H, pc = MS.open_map(kind="atm", extent=extent, central=-100.0 if extent else None)
@@ -440,33 +439,7 @@ def draw_terciles(key, ym, idx, above, below, normal, out: Path):
         "precip": ("Wetter than normal most likely", "Drier than normal most likely"),
         "swe": ("More snow than normal most likely", "Less snow than normal most likely"),
     }[key]
-
-    def patches(cols):
-        return [
-            Patch(color=c, label=f"{int(TERC_BINS[k] * 100)}–{int(min(TERC_BINS[k + 1], 1) * 100)}%")
-            for k, c in enumerate(cols)
-        ]
-
-    fig.legend(
-        handles=patches(PAL[pu]),
-        loc="lower left",
-        bbox_to_anchor=(0.04, 0.004),
-        ncol=6,
-        frameon=False,
-        title=labs[0],
-        fontsize=8,
-        title_fontsize=8.5,
-    )
-    fig.legend(
-        handles=patches(PAL[pl]),
-        loc="lower right",
-        bbox_to_anchor=(0.96, 0.004),
-        ncol=6,
-        frameon=False,
-        title=labs[1],
-        fontsize=8,
-        title_fontsize=8.5,
-    )
+    MS.tercile_legends(fig, PAL[pu], PAL[pl], *labs, TERC_BINS)
     MS.heading(
         fig,
         H,

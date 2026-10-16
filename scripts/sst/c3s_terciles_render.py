@@ -154,7 +154,6 @@ def draw(pr: dict, lat, lon, var: str, title: str, sub: str, out: Path, n_eff) -
     """The most likely tercile where it reaches the first colour bin and the split passes tercile_signal (n_eff
     members)."""
     from matplotlib.colors import ListedColormap, BoundaryNorm
-    from matplotlib.patches import Patch
     from cartopy.util import add_cyclic_point
 
     above_c, below_c = (TERC_PALETTES[k] for k in PALETTES[var])
@@ -175,34 +174,7 @@ def draw(pr: dict, lat, lon, var: str, title: str, sub: str, out: Path, n_eff) -
             zorder=1,
         )
     MS.features(ax, land_only=True)
-    top_lab, bot_lab = SIDES[var]
-
-    def patches(cols):
-        return [
-            Patch(color=c, label=f"{int(TERC_BINS[k] * 100)}–{int(min(TERC_BINS[k + 1], 1) * 100)}%")
-            for k, c in enumerate(cols)
-        ]
-
-    fig.legend(
-        handles=patches(above_c),
-        loc="lower left",
-        bbox_to_anchor=(0.04, 0.004),
-        ncol=6,
-        frameon=False,
-        title=top_lab,
-        fontsize=8,
-        title_fontsize=8.5,
-    )
-    fig.legend(
-        handles=patches(below_c),
-        loc="lower right",
-        bbox_to_anchor=(0.96, 0.004),
-        ncol=6,
-        frameon=False,
-        title=bot_lab,
-        fontsize=8,
-        title_fontsize=8.5,
-    )
+    MS.tercile_legends(fig, above_c, below_c, *SIDES[var], TERC_BINS)
     MS.heading(fig, H, title, sub, wrap=190)
     MS.save(fig, out, dpi=110)
 

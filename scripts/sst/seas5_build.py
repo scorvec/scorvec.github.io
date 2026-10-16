@@ -504,7 +504,6 @@ def render_terciles(ym: str, fields: dict, out_dir: Path) -> dict:
 
     matplotlib.use("Agg")
     from matplotlib.colors import ListedColormap, BoundaryNorm
-    from matplotlib.patches import Patch
     from cartopy.util import add_cyclic_point
     import mapstyle as MS
 
@@ -589,34 +588,7 @@ def render_terciles(ym: str, fields: dict, out_dir: Path) -> dict:
                 )
             MS.features(ax, land_only=(var in ("t2m", "tp")))
             top_lab, bot_lab = sides.get(var, ("Above normal most likely", "Below normal most likely"))
-            h1 = [
-                Patch(color=c, label=f"{int(bins[k] * 100)}–{int(min(bins[k + 1], 1) * 100)}%")
-                for k, c in enumerate(above_c)
-            ]
-            h2 = [
-                Patch(color=c, label=f"{int(bins[k] * 100)}–{int(min(bins[k + 1], 1) * 100)}%")
-                for k, c in enumerate(below_c)
-            ]
-            fig.legend(
-                handles=h1,
-                loc="lower left",
-                bbox_to_anchor=(0.04, 0.004),
-                ncol=6,
-                frameon=False,
-                title=top_lab,
-                fontsize=8,
-                title_fontsize=8.5,
-            )
-            fig.legend(
-                handles=h2,
-                loc="lower right",
-                bbox_to_anchor=(0.96, 0.004),
-                ncol=6,
-                frameon=False,
-                title=bot_lab,
-                fontsize=8,
-                title_fontsize=8.5,
-            )
+            MS.tercile_legends(fig, above_c, below_c, top_lab, bot_lab, bins)
             MS.heading(
                 fig,
                 H,

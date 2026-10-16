@@ -13,6 +13,8 @@ seas5_build._global_map draws exactly this; sfs_maps / sfs_daily import it.
 """
 
 from __future__ import annotations
+from itertools import pairwise
+
 import numpy as np
 
 CENTRAL = {"sst": -160.0, "atm": -140.0}
@@ -100,6 +102,34 @@ def colorbar(fig, H: float, mappable, label: str, levels=None, extend: str = "bo
     if levels is not None and len(levels) > 16:
         cb.set_ticks([x for x in levels if abs(x - round(x)) < 1e-6])
     return cb
+
+
+def tercile_bin_labels(bins) -> list[str]:
+    """Key text for tercile-probability classes [b_k, b_k+1): whole percents that never share an edge (40–49%, …,
+    the top class closed at 100%), so a 50% cell has one class, not two."""
+    return [f"{round(lo * 100)}–{100 if hi >= 1 else round(hi * 100) - 1}%" for lo, hi in pairwise(bins)]
+
+
+def tercile_legends(fig, upper_cols, lower_cols, upper_title: str, lower_title: str, bins):
+    """The tercile maps' key: one row of colour classes per side under the map, each titled with what its
+    percentages are (the chance of the tercile drawn there)."""
+    from matplotlib.patches import Patch
+
+    labs = tercile_bin_labels(bins)
+    for cols, title, loc, x in (
+        (upper_cols, upper_title, "lower left", 0.04),
+        (lower_cols, lower_title, "lower right", 0.96),
+    ):
+        fig.legend(
+            handles=[Patch(color=c, label=lab) for c, lab in zip(cols, labs)],
+            loc=loc,
+            bbox_to_anchor=(x, 0.004),
+            ncol=len(cols),
+            frameon=False,
+            title=f"{title} — chance of that tercile",
+            fontsize=8,
+            title_fontsize=8.5,
+        )
 
 
 def symmetric_levels(vmax: float, n: int = 6, gap: float | None = None) -> list[float]:
