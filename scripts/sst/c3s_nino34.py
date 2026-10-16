@@ -147,12 +147,13 @@ def _retrieve(centre, system, years, month, dest: Path, area, grid) -> bool:
     return False
 
 
-def _box_series(path: Path, lat_rng, lon_rng) -> dict:
+def _box_series(path: Path, lat_rng, lon_rng, keys=("number", "dataDate", "dataTime", "forecastMonth")) -> dict:
     """{(number, start date, start time, lead): cosine-weighted box mean in °C} for one GRIB, NaN
-    where the box has no finite point. Read message by message (c3s_grib: NCEP's lagged ensemble
-    is a ~6 GB hypercube per file through cfgrib); lead = `forecastMonth`, 1 = the issue month."""
+    where the box has no finite point (the key is the message's values of `keys`). Read message by
+    message (c3s_grib: NCEP's lagged ensemble is a ~6 GB hypercube per file through cfgrib); lead =
+    `forecastMonth`, 1 = the issue month."""
     out, box = {}, None
-    for m, v, g in c3s_grib.messages(path, ("number", "dataDate", "dataTime", "forecastMonth")):
+    for m, v, g in c3s_grib.messages(path, keys):
         if box is None:  # one grid per request
             lat, lon = np.meshgrid(g.lat, (g.lon + 180.0) % 360.0 - 180.0, indexing="ij")
             box = (lat >= lat_rng[0]) & (lat <= lat_rng[1])
@@ -160,7 +161,7 @@ def _box_series(path: Path, lat_rng, lon_rng) -> dict:
                 box &= (lon >= lon_rng[0]) & (lon <= lon_rng[1])
             w = np.cos(np.deg2rad(lat))
         ok = box & np.isfinite(v)
-        key = (m["number"], m["dataDate"], m["dataTime"], m["forecastMonth"])
+        key = tuple(m[k] for k in keys)
         out[key] = float(w[ok] @ v[ok] / w[ok].sum()) - 273.15 if ok.any() else np.nan
     return out
 

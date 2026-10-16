@@ -13,7 +13,8 @@ name: C3S multi-system seasonal (monthly)
 #     `c3s-ref-v1`;
 #   * the static references (geonames places, the CPC 1993-2016 base) were built once offline from existing data stores;
 #   * the ENSO plume's hindcast climatology stays the committed c3s_nino34_clim.csv (a new start month adds rows);
-#     the flavour's hindcast test result is committed per start month (reference/enso_flavour_hindcast_MM.json).
+#     the flavour's hindcast test result is committed per start month (reference/enso_flavour_hindcast_MM.json), and
+#     so is the peak-odds calibration test (reference/enso_peak_calib_MM.json; sst.yml writes the page's verdict).
 #
 # WHEN. The C3S centres publish around the 10th-13th. Cron 9th-16th twice a day + the dispatcher (window=true);
 # each part is gated on assets/sst/data/c3s_status.json, so a run after the issue is complete exits in ~30 s, and an
@@ -243,6 +244,10 @@ jobs:
             python scripts/sst/c3s_enso_flavour.py --issue "$I" --fetch-hindcast || echo "::warning::hindcast strips incomplete; the test waits for them"
           fi
           python scripts/sst/c3s_enso_flavour.py --issue "$I" || echo "::warning::east/central build failed; keeping the previous issue"
+          # the peak-odds calibration test runs once per start month on the plume's own hindcast files (any the
+          # climatology step did not just fetch are fetched one at a time); its result is committed, then the verdict
+          # for this issue is written
+          python scripts/sst/enso_peak_calib.py --fetch || echo "::warning::peak-odds calibration step failed; the page keeps the previous verdict"
           # the strips are reduced to the committed JSON; never kept
           rm -rf scripts/sst/data/c3s/strip/hindcast
 
@@ -361,6 +366,8 @@ jobs:
             scripts/sst/c3s_nino34_clim.csv
             scripts/sst/reference/oisst_box_monthly.json
             scripts/sst/reference/enso_flavour_hindcast_*.json
+            scripts/sst/reference/enso_peak_calib_*.json
+            assets/sst/data/enso_peak_calib.json
             c3s_ref/is_*.npz
           retention-days: 14
 
@@ -372,7 +379,8 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           OUTS="assets/sst/c3s_nino34.webp scripts/sst/c3s_nino34_clim.csv assets/sst/data/enso_forecast.json
                 assets/sst/data/c3s_evolution.json assets/sst/data/enso_flavour.json scripts/sst/reference/enso_flavour_eof.npz
-                scripts/sst/reference/enso_flavour_hindcast_*.json scripts/sst/reference/oisst_box_monthly.json assets/sst/c3s
+                scripts/sst/reference/enso_flavour_hindcast_*.json scripts/sst/reference/enso_peak_calib_*.json
+                assets/sst/data/enso_peak_calib.json scripts/sst/reference/oisst_box_monthly.json assets/sst/c3s
                 assets/sst/data/c3s_maps.json assets/sst/data/c3s_indices.json assets/sst/data/c3s_popt.json
                 assets/sst/data/c3s_popt_daily.json assets/sst/data/c3s_status.json"
           # snapshot + clean resync each attempt (the mjo.yml pattern); merges, never rebases
