@@ -8,7 +8,7 @@ name: Stratosphere, IFS-ENS (vortex, heat flux, wave-1, winds, drip, zero line, 
 #   heatflux100_ext.py    -> assets/sst/ifs_heatflux100_{nh,sh}.webp   + data/ifs_heatflux100.json
 #   forecast_drip.py      -> assets/sst/ifs_drip.webp                  + data/ifs_drip.json (drift: reference/ifs_capdrift.json)
 #   wave1_maps.py         -> assets/sst/anim/wave1_ifs_{nh,sh}/         + wave1_maps_ifs_manifest.json
-#   vortex_winds.py       -> assets/sst/anim/vortex_ifs_{10,100}/       + vortex_winds_ifs_manifest.json
+#   vortex_winds.py       -> assets/sst/anim/vortex_ifs_{10,100}_{nh,sh}/ + vortex_winds_ifs_manifest.json
 #   qbo_duct.py --model ifs -> scripts/strat/data/zmu_members_ifs.npz (zero line) + the 250 hPa jet sector (pacjet)
 #   qbo_zeroline.py       -> assets/sst/qbo_zeroline_*.webp re-rendered with IFS-ENS + data/qbo_zeroline_ifs.json
 # The upper-stratosphere item cannot have IFS: its open data stops at 10 hPa.
@@ -226,7 +226,7 @@ jobs:
             else printf '  %-40s MISSING\n' "$f"; bad=$((bad + 1)); fi
           done
           if [ "$READY" = "true" ]; then
-            for d in assets/sst/anim/wave1_ifs_nh assets/sst/anim/wave1_ifs_sh assets/sst/anim/vortex_ifs_10 assets/sst/anim/vortex_ifs_100; do
+            for d in assets/sst/anim/wave1_ifs_nh assets/sst/anim/wave1_ifs_sh assets/sst/anim/vortex_ifs_10_nh assets/sst/anim/vortex_ifs_10_sh assets/sst/anim/vortex_ifs_100_nh assets/sst/anim/vortex_ifs_100_sh; do
               n=$(ls "$d"/*.webp 2>/dev/null | wc -l | tr -d ' ')
               printf '  %-40s %s frames\n' "$d" "$n"; [ "$n" -eq 0 ] && bad=$((bad + 1))
             done
@@ -243,7 +243,7 @@ jobs:
                    assets/sst/ifs_drip.webp assets/sst/data/ifs_drip.json \
                    assets/regimes/data/regimes_members_ifs.json assets/regimes/data/regimes_drift_ifs.json \
                    assets/sst/anim/wave1_ifs_nh assets/sst/anim/wave1_ifs_sh assets/sst/anim/wave1_maps_ifs_manifest.json \
-                   assets/sst/anim/vortex_ifs_10 assets/sst/anim/vortex_ifs_100 assets/sst/anim/vortex_winds_ifs_manifest.json; do
+                   assets/sst/anim/vortex_ifs_10_nh assets/sst/anim/vortex_ifs_10_sh assets/sst/anim/vortex_ifs_100_nh assets/sst/anim/vortex_ifs_100_sh assets/sst/anim/vortex_winds_ifs_manifest.json; do
             [ -e "$p" ] && echo "$p" >> /tmp/maps.list
           done
           if [ ! -s /tmp/maps.list ]; then : > /tmp/strat-ifs-maps.tgz; exit 0; fi
@@ -377,12 +377,14 @@ jobs:
           done
 
       # Frames to the frame store / frames branch (lease-guarded; only the directories that rendered are swapped).
+      # PRUNE: the two-hemisphere vortex-wind loops (idempotent; also in retired_frames.txt).
       - name: Publish loop frames
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PRUNE: assets/sst/anim/vortex_ifs_10 assets/sst/anim/vortex_ifs_100
         run: |
           scripts/lib/publish_frames_ci.sh assets/sst/anim/wave1_ifs_nh assets/sst/anim/wave1_ifs_sh \
-            assets/sst/anim/vortex_ifs_10 assets/sst/anim/vortex_ifs_100 assets/sst/anim/pacjet_ifs
+            assets/sst/anim/vortex_ifs_10_nh assets/sst/anim/vortex_ifs_10_sh assets/sst/anim/vortex_ifs_100_nh assets/sst/anim/vortex_ifs_100_sh assets/sst/anim/pacjet_ifs
 
       # Stills, data and manifests to main. Never rebase: snapshot, reset to a fresh
       # origin/main each attempt, lay the snapshot back on, commit, push.

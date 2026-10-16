@@ -4,8 +4,7 @@ name: Stratosphere (vortex, wave-1, E-P flux from GEFS)
 # parallel jobs:
 #
 #   wave1_maps.py     -> assets/sst/anim/wave1_{nh,sh}/    loop only, no still
-#   vortex_winds.py   -> assets/sst/vortex_10.webp         still (loop covers 100)
-#                     -> assets/sst/anim/vortex_{10,100}/  31-step 12-hourly loop
+#   vortex_winds.py   -> assets/sst/anim/vortex_{10,100}_{nh,sh}/  31-step 12-hourly loops, one hemisphere each
 #   qbo_duct.py --model gefs -> assets/sst/anim/epflux_gefs/   E-P flux loop from the NOAA GEFS ensemble (epflux job)
 #   qbo_duct.py --model aifs -> scripts/strat/data/zmu_members_aifs.npz (zero line) + v250 for pacjet (heavy job)
 #   qbo_zeroline.py   -> assets/sst/qbo_zeroline_{70,50,30,10}.webp + data/qbo_zeroline{,_aifs}.json   (heavy job)
@@ -214,7 +213,6 @@ jobs:
         run: |
           python scripts/strat/vortex_winds.py \
             --date "${{ needs.cycle.outputs.date }}" --time "${{ needs.cycle.outputs.time }}" \
-            --out-dir assets/sst \
             --anim-dir assets/sst/anim \
             --manifest assets/sst/anim/vortex_winds_manifest.json \
             || "$GITHUB_WORKSPACE/scripts/lib/degraded.sh" "vortex_winds" "keeping the previous figure"
@@ -230,14 +228,7 @@ jobs:
         run: |
           scripts/lib/degraded.sh --summary
           bad=0
-          for f in assets/sst/vortex_10.webp; do
-            if [ -f "$f" ]; then
-              printf '  %-38s %s  (mtime %s)\n' "$f" "$(du -h "$f" | cut -f1)" "$(date -r "$f" -u +%H:%MZ)"
-            else
-              printf '  %-38s MISSING\n' "$f"; bad=$((bad + 1))
-            fi
-          done
-          for d in assets/sst/anim/wave1_nh assets/sst/anim/wave1_sh assets/sst/anim/vortex_10 assets/sst/anim/vortex_100; do
+          for d in assets/sst/anim/wave1_nh assets/sst/anim/wave1_sh assets/sst/anim/vortex_10_nh assets/sst/anim/vortex_10_sh assets/sst/anim/vortex_100_nh assets/sst/anim/vortex_100_sh; do
             n=$(ls "$d"/*.webp 2>/dev/null | wc -l | tr -d ' ')
             printf '  %-38s %s frames\n' "$d" "$n"
             [ "$n" -eq 0 ] && bad=$((bad + 1))
@@ -263,11 +254,11 @@ jobs:
         run: |
           set -euo pipefail
           : > /tmp/light.list
-          for p in assets/sst/vortex_10.webp assets/sst/heatflux100_nh.webp assets/sst/heatflux100_sh.webp assets/sst/data/heatflux100.json assets/sst/data/heatflux100_history.json \
+          for p in assets/sst/heatflux100_nh.webp assets/sst/heatflux100_sh.webp assets/sst/data/heatflux100.json assets/sst/data/heatflux100_history.json \
                    assets/sst/aifs_drip.webp assets/sst/data/aifs_drip.json \
                    assets/regimes/data/regimes_members_aifs.json assets/regimes/data/regimes_drift_aifs.json \
                    assets/sst/anim/wave1_nh assets/sst/anim/wave1_sh \
-                   assets/sst/anim/vortex_10 assets/sst/anim/vortex_100 \
+                   assets/sst/anim/vortex_10_nh assets/sst/anim/vortex_10_sh assets/sst/anim/vortex_100_nh assets/sst/anim/vortex_100_sh \
                    assets/sst/anim/wave1_maps_manifest.json \
                    assets/sst/anim/vortex_winds_manifest.json; do
             [ -e "$p" ] && echo "$p" >> /tmp/light.list
@@ -507,11 +498,11 @@ jobs:
 
       - name: What arrived
         run: |
-          for f in assets/sst/vortex_10.webp assets/sst/heatflux100_nh.webp assets/sst/heatflux100_sh.webp; do
+          for f in assets/sst/heatflux100_nh.webp assets/sst/heatflux100_sh.webp; do
             if [ -f "$f" ]; then printf '  %-38s %s\n' "$f" "$(du -h "$f" | cut -f1)"
             else printf '  %-38s (not produced this run)\n' "$f"; fi
           done
-          for d in assets/sst/anim/epflux_gefs assets/sst/anim/wave1_nh assets/sst/anim/wave1_sh assets/sst/anim/vortex_10 assets/sst/anim/vortex_100; do
+          for d in assets/sst/anim/epflux_gefs assets/sst/anim/wave1_nh assets/sst/anim/wave1_sh assets/sst/anim/vortex_10_nh assets/sst/anim/vortex_10_sh assets/sst/anim/vortex_100_nh assets/sst/anim/vortex_100_sh; do
             printf '  %-38s %s frames\n' "$d" "$(ls "$d"/*.webp 2>/dev/null | wc -l | tr -d ' ')"
           done
 
@@ -519,14 +510,16 @@ jobs:
       # store or the manifests committed below point at images that exist only
       # on the runner. The shared publisher swaps in only the directories that
       # rendered; an empty one is left alone rather than blanked.
-      # PRUNE: the retired AIFS-ENS / IFS-ENS E-P flux loops (idempotent; also in retired_frames.txt).
+      # PRUNE: the retired AIFS-ENS / IFS-ENS E-P flux loops and the two-hemisphere vortex-wind loops (idempotent; also
+      # in retired_frames.txt).
       - name: Publish loop frames
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PRUNE: assets/sst/anim/epflux assets/sst/anim/epflux_ifs
+          PRUNE: assets/sst/anim/epflux assets/sst/anim/epflux_ifs assets/sst/anim/vortex_10 assets/sst/anim/vortex_100
         run: |
           scripts/lib/publish_frames_ci.sh assets/sst/anim/epflux_gefs assets/sst/anim/wave1_nh \
-            assets/sst/anim/wave1_sh assets/sst/anim/vortex_10 assets/sst/anim/vortex_100 assets/sst/anim/pacjet_aifs
+            assets/sst/anim/wave1_sh assets/sst/anim/vortex_10_nh assets/sst/anim/vortex_10_sh assets/sst/anim/vortex_100_nh assets/sst/anim/vortex_100_sh \
+            assets/sst/anim/pacjet_aifs
 
       # Only the static figures and the manifests are committed to main.
       - name: Commit & push
@@ -534,8 +527,7 @@ jobs:
           git config user.name "Shawn Corvec"
           git config user.email "26825570+scorvec@users.noreply.github.com"
           # one path at a time: `git add a b c` adds NOTHING when any one of them is missing (a product that failed)
-          for f in assets/sst/vortex_10.webp \
-                   assets/sst/heatflux100_nh.webp assets/sst/heatflux100_sh.webp assets/sst/data/heatflux100.json assets/sst/data/heatflux100_history.json \
+          for f in assets/sst/heatflux100_nh.webp assets/sst/heatflux100_sh.webp assets/sst/data/heatflux100.json assets/sst/data/heatflux100_history.json \
                    assets/sst/aifs_drip.webp assets/sst/data/aifs_drip.json assets/sst/anim/*_manifest.json \
                    assets/regimes/data/regimes_members_aifs.json assets/regimes/data/regimes_drift_aifs.json \
                    assets/sst/qbo_zeroline_*.webp assets/sst/data/qbo_zeroline.json assets/sst/data/qbo_zeroline_aifs.json \

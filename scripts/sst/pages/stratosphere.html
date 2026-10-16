@@ -127,7 +127,7 @@
 </template>
 <template id="about-vwinds">
 <p>The vortex as it actually looks, rather than as an index. Wind <b>speed</b> is
-        shaded with <b>streamlines</b> over it at <b>10&nbsp;hPa</b>. This is where the vortex lives and where an SSW is declared &mdash; the level the WMO diagnostic is evaluated on. The red contour
+        shaded with <b>wind barbs</b> over it (in m&nbsp;s<sup>&minus;1</sup>: half barb 5, full barb 10, pennant 50), one hemisphere at a time, at <b>10&nbsp;hPa</b>. This is where the vortex lives and where an SSW is declared &mdash; the level the WMO diagnostic is evaluated on. The red contour
         is <b>u&nbsp;=&nbsp;0</b>: where the westerlies end in the zonal sense (not the PV-gradient
         vortex edge), and the outer bound of the corridor $0&lt;\bar{u}&lt;U_c$ in which planetary waves can propagate vertically; outside it they cannot. The dashed ring is
         60&deg;, the latitude the SSW diagnostic is evaluated at. Speeds below the first contour
@@ -136,7 +136,7 @@
         comparable.</p>
 <p>Every forecast frame is the <b>ensemble mean</b> of 25 AIFS-ENS members (the analysis frame is the control, which is the analysis). The mean shows the part of the flow the members agree on. It is also smoother and weaker than any one member wherever they disagree, so a split that only a few members carry appears here as a stretched, slackened vortex rather than two centres. The eddy heat flux chart shows how far the members spread in wave-2, the component that splits the vortex.</p>
 <p>The <b>IFS-ENS</b> version is the mean of all <b>50</b> of its perturbed members, on the same fixed colour scales. Its open data has no ensemble control at these levels, so its analysis frame is the IFS HRES analysis, the state the ensemble is started from.</p>
-<p class="chart-sources">ECMWF AIFS-ENS, mean of 25 perturbed members; analysis frame from the control (open data, CC&nbsp;BY&nbsp;4.0) &middot; ECMWF IFS-ENS, all 50 perturbed members, 0.25&deg; (open data, CC&nbsp;BY&nbsp;4.0, from the Google Cloud mirror), mean of the 50; analysis frame from IFS HRES &middot; 10&nbsp;hPa speed of the mean wind shaded, streamlines overlaid, red contour u&nbsp;=&nbsp;0 &middot; fixed colour scale &middot; analysis plus 12-hourly steps to day&nbsp;15 &middot; updated each 00/12Z cycle</p>
+<p class="chart-sources">ECMWF AIFS-ENS, mean of 25 perturbed members; analysis frame from the control (open data, CC&nbsp;BY&nbsp;4.0) &middot; ECMWF IFS-ENS, all 50 perturbed members, 0.25&deg; (open data, CC&nbsp;BY&nbsp;4.0, from the Google Cloud mirror), mean of the 50; analysis frame from IFS HRES &middot; 10 and 100&nbsp;hPa speed of the mean wind shaded, barbs of the mean wind overlaid, red contour u&nbsp;=&nbsp;0 &middot; fixed colour scale &middot; analysis plus 12-hourly steps to day&nbsp;15 &middot; updated each 00/12Z cycle</p>
 </template>
 <template id="about-epflux">
 <p><a href="/topics/ep-flux.html">The explainer</a>: what the E–P flux and its divergence measures, the equations and how to read the chart.</p>
@@ -783,10 +783,11 @@ window.STAGE = {
             return "Zonal-mean wind at 60°" + h + " and polar-cap temperature at 1, 5 and 10 hPa: GEOS FP analyses, then " + (a === "all" ? "every model overlaid" : m) + ", against the MERRA-2 range. Raw output; each panel prints the day-0 offset from the GEOS FP analysis."; }},
   vwinds: {label: "Vortex winds", a: {label: "Level", items: [["vortex_10","10 hPa"],["vortex_100","100 hPa"]]},
           b: {label: "Model", items: [["aifs","AIFS-ENS"],["ifs","IFS-ENS"]]},
-          frame: function (a, b) { var lev = a === "vortex_100" ? "100" : "10";
-                                   var r = (b === "ifs" ? "vortex_ifs_" : "vortex_") + lev;      // &regions=: the stage's own rows pick the loop (no second picker)
-                                   return "sst_anim.html?embed=1&manifest=vortex_winds" + (b === "ifs" ? "_ifs" : "") + "_manifest.json&region=" + r + "&regions=" + r; }, about: "about-vwinds",
-          cap: function (a, b) { return (b === "ifs" ? "IFS-ENS (50 members)" : "AIFS-ENS (25 members)") + " ensemble-mean wind speed and streamlines at " + (a === "vortex_100" ? "100" : "10") + " hPa, both hemispheres; the red contour is u = 0, drawn to 80&deg; (nearer the pole the east&ndash;west component has no fixed direction)."; }},
+          c: {label: "Hemisphere", items: [["nh","Northern"],["sh","Southern"]]},
+          frame: function (a, b, c) { var lev = a === "vortex_100" ? "100" : "10";
+                                      var r = (b === "ifs" ? "vortex_ifs_" : "vortex_") + lev + "_" + (c === "sh" ? "sh" : "nh");  // &regions=: the stage's own rows pick the loop (no second picker)
+                                      return "sst_anim.html?embed=1&manifest=vortex_winds" + (b === "ifs" ? "_ifs" : "") + "_manifest.json&region=" + r + "&regions=" + r; }, about: "about-vwinds",
+          cap: function (a, b, c) { return (b === "ifs" ? "IFS-ENS (50 members)" : "AIFS-ENS (25 members)") + " ensemble-mean wind speed and barbs at " + (a === "vortex_100" ? "100" : "10") + " hPa, " + (c === "sh" ? "southern" : "northern") + " hemisphere; the red contour is u = 0, drawn to 80&deg; (nearer the pole the east&ndash;west component has no fixed direction)."; }},
   pv: {label: "Potential vorticity (GEOS FP)", a: {label: "Hemisphere", items: [["geos_pv_nh","Northern"],["geos_pv_sh","Southern"]]},
           frame: function (a) { return "sst_anim.html?embed=1&manifest=geos_pv_manifest.json&region=" + a + "&regions=" + a; }, ratio: function () { return "924/572"; }, about: "about-pv",
           cap: function (a) { return "Ertel potential vorticity on the 475 K (lower stratosphere) and 850 K (about 10 hPa) surfaces, GEOS FP analysis and 10-day forecast; the red line is the vortex edge." + (a === "geos_pv_sh" ? " Southern values are sign-flipped so the vortex reads positive." : ""); }},
