@@ -36,6 +36,11 @@
   .profiles h2 { font-size: 1.15rem; margin: 0 0 0.6rem; }
   .profiles ul { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 0.5rem 1.6rem; }
   .profiles a { color: var(--accent); }
+  .notes { margin: 2.4rem 0 0; padding-top: 1.2rem; border-top: 1px solid var(--rule); max-width: 82ch; }
+  .notes h2 { font-size: 1.15rem; margin: 0 0 0.6rem; }
+  .notes ul { margin: 0.4rem 0 0.8rem; padding-left: 1.2rem; }
+  .notes li { margin: 0.25rem 0; }
+  .notes a { color: var(--accent); }
   @media (max-width: 600px) {
     .me { grid-template-columns: 1fr; gap: 1rem; }
     .me img { width: 6rem; height: 6rem; }
@@ -228,6 +233,24 @@
       <li><a href="https://www.researchgate.net/profile/Shawn-Corvec" rel="noopener">ResearchGate</a></li>
       <li><a href="https://github.com/scorvec" rel="noopener">GitHub</a></li>
     </ul>
+  </section>
+  <section class="notes" id="data">
+    <h2>Data and licences</h2>
+    <p>Every product page names the data it uses. The licences that ask for a standard statement:</p>
+    <ul>
+      <li><b>ECMWF open data</b> (IFS, AIFS and their ensembles): &copy;&nbsp;2026 European Centre for Medium-Range Weather Forecasts (ECMWF), source <a href="https://www.ecmwf.int">www.ecmwf.int</a>, <a href="https://creativecommons.org/licenses/by/4.0/">CC&nbsp;BY&nbsp;4.0</a>, modified; ECMWF does not accept any liability for errors or omissions in the data, their availability, or any loss or damage arising from their use. The GEPS reforecasts from the ECMWF S2S archive are used under its non-commercial research licence.</li>
+      <li><b>Copernicus Climate Change Service</b> (ERA5 and the C3S seasonal forecasts): contains modified Copernicus Climate Change Service information 2026; neither the European Commission nor ECMWF is responsible for any use of this information.</li>
+      <li><b>Copernicus Marine Service</b> (ocean currents, heat content and scatterometer winds): generated using E.U. Copernicus Marine Service Information.</li>
+      <li><b>Environment and Climate Change Canada</b> (GDPS, GEPS, RDPS, RAQDPS-FireWork, CanSIPS and Canadian soundings): Data Source: Environment and Climate Change Canada (MSC Datamart), under the <a href="https://eccc-msc.github.io/open-data/licence/readme_en/">ECCC Data Servers End-use Licence</a>.</li>
+      <li><b>Radiosondes</b> from the WMO WIS&nbsp;2.0 Global Cache: core data under the <a href="https://wmo.int/wmo-unified-data-policy-resolution-res1">WMO Unified Data Policy</a>.</li>
+      <li><b>NOAA and NASA</b> data (GFS, GEFS, HRRR, RRFS, SFS, OISST, ERSST, CPC indices, NHC reconnaissance, IGRA, nClimDiv, MERRA-2, GEOS FP, IMERG, GPCP and others) are US government works.</li>
+      <li><b>Climate models</b>: CMIP6 output under each model's own licence, as listed by the <a href="https://wdc-climate.de/ui/cmip6">CMIP6 data citation service</a> (CC&nbsp;BY&nbsp;4.0 for most).</li>
+      <li><b>Other sources</b> are credited where they are used: the Iowa Environmental Mesonet, the PRISM Climate Group (Oregon State University), FU Berlin and KIT (QBO), GFZ (ESMGFZ angular momentum), the Bureau of Meteorology and the Queensland Government's LongPaddock (SOI and RMM), the IRI Data Library, WeatherBench2 and ARCO-ERA5 on Google Cloud, SILSO, GeoNames, Natural Earth, and map tiles &copy;&nbsp;Esri and OpenStreetMap contributors. The election pages use Wikipedia tables (CC&nbsp;BY-SA&nbsp;4.0), the 538 / ABC News data archive, VoteHub and the University of Florida Election Lab (CC&nbsp;BY-NC-ND&nbsp;4.0); the credit index uses FRED series, with the copyrighted ones noted on its page.</li>
+    </ul>
+  </section>
+  <section class="notes" id="privacy">
+    <h2>Privacy</h2>
+    <p>Visits are counted with <a href="https://www.goatcounter.com/">GoatCounter</a>, which sets no cookies and does not store IP addresses; the totals are public on the <a href="/stats.html">stats page</a>. There are no adverts and no other trackers. Pages load fonts from Google Fonts, scripts from jsDelivr and cdnjs, map tiles from Esri and some live data straight from its providers (the Iowa Environmental Mesonet and the National Weather Service, for example). Like the hosts that serve the site and its figures, those services see a visitor's IP address when the browser fetches from them.</p>
   </section>
 </main>
 <!-- sf:start -->

@@ -34,7 +34,7 @@
    "publisher": {
     "@id": "https://scorvec.com/#person"
    },
-   "dateModified": "2026-10-15",
+   "dateModified": "2026-10-16",
    "about": {
     "@type": "DefinedTerm",
     "name": "Dynamic tropopause",
@@ -307,19 +307,21 @@ and subtropical jet.</li>
 
 <h2>The live forecast</h2>
 <p>Ertel PV is computed from the temperature and wind of AIFS ensemble member 0 on nine levels from 700 to 100 hPa,
-every 12 hours to day 10. A single member is used on purpose: potential vorticity does not survive ensemble averaging,
+every 6 hours to day 10. A single member is used on purpose: potential vorticity does not survive ensemble averaging,
 because the mean of fifty differently placed folds is a smear. The 2-PVU surface is found by searching upward from
-700 hPa, and isentropic PV by interpolation in θ.</p>
+700 hPa, and isentropic PV by interpolation in θ. Where PV is still below 2 PVU at 100 hPa (the deep tropics) the
+maps show the 100 hPa values. Besides the hemispheric map there are five regional views; the South America one is
+on the −2-PVU surface, because PV is negative in the Southern Hemisphere.</p>
   <a class="live" href="/circulation.html#dt">Open the dynamic tropopause maps in the circulation viewer</a>
 </article>
 <div class="figs">
-<figure><iframe data-src="/sst_anim.html?embed=1&manifest=dt_manifest.json&region=dt" title="Potential temperature on the 2-PVU dynamic tropopause, AIFS member 0, 12-hourly to day 10"></iframe><figcaption>Potential temperature on the 2-PVU dynamic tropopause, AIFS member 0, 12-hourly to day 10. Use the controls to step through the forecast.</figcaption></figure>
+<figure><iframe data-src="/sst_anim.html?embed=1&manifest=dt_manifest.json&region=dt" title="Potential temperature on the 2-PVU dynamic tropopause, AIFS member 0, 6-hourly to day 10"></iframe><figcaption>Potential temperature on the 2-PVU dynamic tropopause, AIFS member 0, 6-hourly to day 10. Use the controls to step through the forecast.</figcaption></figure>
 </div>
 <div class="topic" style="padding-top:0">
   <section class="related"><h2>Related</h2><ul><li><a href="/topics/wave-activity-flux.html">Wave activity flux</a></li><li><a href="/topics/ep-flux.html">E–P flux</a></li><li><a href="/topics/">All explainers</a></li></ul></section>
   <section><h2>References and further reading</h2><ol class="refs"><li>Hoskins, B. J., M. E. McIntyre, and A. W. Robertson, 1985: On the use and significance of isentropic potential vorticity maps. <i>Q. J. R. Meteorol. Soc.</i>, 111, 877–946.</li><li>Morgan, M. C., and J. W. Nielsen-Gammon, 1998: Using tropopause maps to diagnose midlatitude weather systems. <i>Mon. Wea. Rev.</i>, 126, 2555–2579.</li></ol></section>
   <p class="byline">Data: ECMWF open data (AIFS, AIFS-ENS): © 2026 European Centre for Medium-Range Weather Forecasts (ECMWF), source <a href="https://www.ecmwf.int">www.ecmwf.int</a>, CC BY 4.0, modified; ECMWF does not accept any liability for errors or omissions in the data, their availability, or any loss or damage arising from their use.</p>
-  <p class="byline">Written by Claude, Anthropic's AI model, at the direction of <a href="/">Shawn Corvec</a>, meteorologist. The figures on this page are live and update with each forecast cycle; the text was last revised 2026-10-15.</p>
+  <p class="byline">Written by Claude, Anthropic's AI model, at the direction of <a href="/">Shawn Corvec</a>, meteorologist. The figures on this page are live and update with each forecast cycle; the text was last revised 2026-10-16.</p>
 </div>
 </main>
 <script>
