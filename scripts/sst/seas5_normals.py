@@ -49,6 +49,8 @@ from seas5_build import (
     seasons_for,
     TERC_BINS,
     TERC_PALETTES,
+    TERC_TEST_NOTE,
+    tercile_signal,
     _open,
     load_field,
     season_label,
@@ -463,14 +465,18 @@ def panels_for(ym: str, var: str, ref: str):
                 below = (members < lo[None]).mean(0)
                 above = (members > hi[None]).mean(0)
                 sd = H["z500_sd"][p]
-                return dict(title=title, anom=a, below=below, above=above, std=a / np.where(sd > 0, sd, np.nan))
+                return dict(
+                    title=title, anom=a, below=below, above=above, std=a / np.where(sd > 0, sd, np.nan), n=len(members)
+                )
             a = np.nanmean(members, 0) - hcm
             lo, hi = H[f"{var}_lo"][p], H[f"{var}_hi"][p]
             anom = (np.nanmean(members, 0) / hcm * 100.0) if mult else a
             below = (members < lo[None]).mean(0)
             above = (members > hi[None]).mean(0)
             sd = H[f"{var}_sd"][p]  # interannual spread, not member noise
-            return dict(title=title, anom=anom, below=below, above=above, std=a / np.where(sd > 0, sd, np.nan))
+            return dict(
+                title=title, anom=anom, below=below, above=above, std=a / np.where(sd > 0, sd, np.nan), n=len(members)
+            )
 
         # observed space: average the per-month references over the season
         def rg(a, r):
@@ -511,7 +517,7 @@ def panels_for(ym: str, var: str, ref: str):
             std = (np.nanmean(corr, 0) - rmean) / np.where(samp_sd > 0, samp_sd, np.nan)
         else:
             std = (np.nanmean(corr, 0) - rmean) / np.where(sd > 0, sd, np.nan)
-        return dict(title=title, anom=anom, below=below, above=above, std=std)
+        return dict(title=title, anom=anom, below=below, above=above, std=std, n=len(members))
 
     refs_cache = {}
     panels_for.last_span = None
@@ -591,7 +597,7 @@ def render(ym: str, var: str, ref: str, kind: str, panels, lat, lon, out_dir: Pa
             + "."
         )
     if kind == "terc":
-        sub += "  White: no category reaches 40 %; near-normal not drawn."
+        sub += f"  Coloured where a category reaches 40 % {TERC_TEST_NOTE}; near-normal not drawn."
     if kind == "std":
         sub += "  Ensemble-mean anomaly divided by the reference's year-to-year standard deviation (±1σ is a typical year's swing)."
     sub = "\n".join(textwrap.wrap(sub, 190))
@@ -644,8 +650,9 @@ def render(ym: str, var: str, ref: str, kind: str, panels, lat, lon, out_dir: Pa
             )
         else:
             normal = 1.0 - pnl["above"] - pnl["below"]
+            sig = tercile_signal(pnl, pnl["n"])
             for arr, other, cols in ((pnl["above"], pnl["below"], warm), (pnl["below"], pnl["above"], cool)):
-                show = np.where((arr >= 0.40) & (arr >= np.maximum(other, normal)), arr, np.nan)
+                show = np.where(sig & (arr >= 0.40) & (arr >= np.maximum(other, normal)), arr, np.nan)
                 a, lo = prep(show)
                 mesh = ax.pcolormesh(
                     lo,

@@ -284,7 +284,9 @@
     <h2>Tercile probabilities &mdash; how firmly, not just which way</h2>
     <p class="note">Each system&rsquo;s live members counted against <b>its own 1993&ndash;2016 hindcast distribution at
     every grid point</b> &mdash; the 33rd and 67th percentiles of that model&rsquo;s own climate. Colour is the probability
-    of whichever category is most likely, and only where it reaches 40&nbsp;%; near-normal is never drawn, because it is
+    of whichever category is most likely, only where it reaches 40&nbsp;% <b>and</b> the members&rsquo; split differs
+    significantly from one third each (chi-square, p&nbsp;&lt;&nbsp;0.05 and a false-discovery rate of 0.10 over the map:
+    from 51 members a 40&nbsp;% category is well within chance); near-normal is never drawn, because it is
     the category a model lands on when it has nothing to say. <b>Temperature is counted against the hindcast&rsquo;s
     linear trend extrapolated to the valid year</b> &mdash; against a flat 1993&ndash;2016 base the warming alone puts most
     of the tropics in the upper tercile every month. The multi-model map averages the per-system probabilities with equal
@@ -365,11 +367,12 @@
     <p class="note">The same feed the <a href="enso-forecasts.html">ENSO forecasts page</a> draws, kept here so the maps
     and the index sit together: the Ni&ntilde;o-3.4 box is small enough that the full ensemble is cheap to hold, which is
     why this plume has hundreds of members while the maps above are ensemble means. Anomalies are against each
-    model&rsquo;s own 1993&ndash;2016 hindcast; the observed lead-in is ERSSTv5 on the fixed 1991&ndash;2020 base, so the two
-    can differ by a tenth or two of a degree.</p>
+    model&rsquo;s own 1993&ndash;2016 hindcast; the observed lead-in is CPC&rsquo;s monthly Ni&ntilde;o-3.4 and ONI re-based to
+    the observed 1993&ndash;2016 mean, the models&rsquo; base, and CPC&rsquo;s RONI as published. Months CPC has not published
+    yet are the site&rsquo;s own OISST v2.1 estimate, not CPC&rsquo;s numbers, and are drawn dashed.</p>
     <div class="map-grid"><img src="/assets/sst/c3s_nino34.webp" alt="Nino-3.4 plume, every member of every C3S system" loading="lazy"></div>
     <div class="chart-card-footer">
-      <span class="chart-sources">C3S seasonal multi-system, <code>seasonal-monthly-single-levels</code>, every member &middot; observed: NOAA ERSSTv5</span>
+      <span class="chart-sources">C3S seasonal multi-system, <code>seasonal-monthly-single-levels</code>, every member &middot; observed: NOAA CPC (Ni&ntilde;o-3.4 ERSSTv5, RONI ERSSTv6), then the site&rsquo;s OISST v2.1 estimate</span>
       <span class="chart-updated" id="c3sPlumeUpdated">&mdash;</span>
     </div>
   </div>
@@ -379,8 +382,9 @@
     mean in sienna; the coloured lines are the ensemble means of the <b>previous issues</b>, oldest
     darkest and dotted, newest solid, each drawn over its own valid months, so the run-to-run shift is read directly.
     The grey band is the hindcast&rsquo;s year-to-year spread (&plusmn;1&sigma;), the model&rsquo;s own
-    &ldquo;normal range&rdquo;. Black is observed (CPC ERSSTv5, 1991&ndash;2020 base) where an
-    observed series exists. East-based indices matter this year: a warm Ni&ntilde;o-1+2 with a
+    &ldquo;normal range&rdquo;. Black is observed where a series exists: CPC&rsquo;s ERSSTv5 Ni&ntilde;o table
+    (1991&ndash;2020 base) and CPC&rsquo;s RONI, solid; the months CPC has not published are the site&rsquo;s OISST v2.1
+    estimate, dashed. East-based indices matter this year: a warm Ni&ntilde;o-1+2 with a
     cooler Ni&ntilde;o-4 is a different event from the reverse, and the Trans-Ni&ntilde;o index
     puts that gradient on one axis.</p>
     <div class="controls" id="ensoPills"></div>
@@ -419,7 +423,8 @@
     issue&rsquo;s ensemble mean against its own 1993&ndash;2016 start-month hindcast. <b>Change</b> is the
     same anomaly minus the previous issue&rsquo;s, each anomalised against its own hindcast, so a
     difference is a real shift in the forecast rather than drift; periods the earlier issue does not
-    cover have no change map. SST is drawn at 0.2&nbsp;&deg;C steps with labelled isolines.
+    cover have no change map. Neither map is significance-tested: they are an ensemble mean and the difference of two.
+    SST is drawn at 0.2&nbsp;&deg;C steps with labelled isolines.
     The table averages the index ensemble means over the months both issues cover.</p>
     <div class="idx-note" id="changeMonths"></div>
     <div style="overflow-x:auto">
@@ -456,7 +461,8 @@
     forecast members are counted against them. That removes the model&rsquo;s mean bias and its
     spread bias point by point, which is the calibration that matters most for a
     single-system tercile map. Shading is the most likely category and its probability; white
-    means no category reaches 40&nbsp;%. Near-normal is not drawn: with a realistic spread it is
+    means no category reaches 40&nbsp;%, or the 51 members&rsquo; split is not significantly different from one third each
+    (chi-square, p&nbsp;&lt;&nbsp;0.05 and a false-discovery rate of 0.10 over the map). Near-normal is not drawn: with a realistic spread it is
     almost never the most likely tercile, and where it is, the signal is weak anyway. Four
     overlapping seasons follow the start month (three before the October 2026 issue; the fourth ends at lead month 7,
     FMA for an October start); pick the variable and the season. Temperature and
@@ -634,7 +640,9 @@
     forecast month &mdash; what normal is expected to be now. Tercile bounds are &plusmn;0.43&sigma; of the
     observed 1991&ndash;2020 spread around each reference (detrended for the trend reference;
     empirical percentiles for rain and sunshine). Seven months and four seasons per figure (six and three before the
-    October 2026 issue).</p>
+    October 2026 issue). The tercile maps colour a category only where the members&rsquo; split differs significantly from
+    one third each (the chi-square test above); the anomaly and standardised maps are ensemble means with no
+    significance test.</p>
     <div class="controls" id="normVar"></div>
     <div class="controls" id="normRef"></div>
     <div class="controls" id="normKind"></div>
@@ -686,7 +694,7 @@
     <div class="chips" id="sfsChips">
       <div class="chip"><div class="l">NOAA SFS beta</div><div class="v neut">&mdash;</div><div class="s">loading the feed&hellip;</div></div>
     </div>
-    <p class="note">31 members against the model&rsquo;s own reforecast: fan = member 10&ndash;90% and 25&ndash;75%, sienna = ensemble mean, black = observed (ERSSTv5), blue dashes = the C3S multi-model mean for the same issue.</p>
+    <p class="note">31 members against the model&rsquo;s own reforecast: fan = member 10&ndash;90% and 25&ndash;75%, sienna = ensemble mean, black = observed (CPC&rsquo;s monthly Ni&ntilde;o-3.4, ERSSTv5, or its 3-month RONI; dashed = the site&rsquo;s OISST v2.1 estimate for months CPC has not published), blue dashes = the C3S multi-model mean for the same issue.</p>
     <div class="controls">
       <button class="pill on" data-idx="n34">Ni&ntilde;o-3.4 (&rarr; ONI)</button>
       <button class="pill" data-idx="roni">RONI</button>
@@ -702,7 +710,7 @@
       &middot; Ni&ntilde;o-3.4 (5&deg;S&ndash;5&deg;N, 170&ndash;120&deg;W), cos-weighted
       &middot; anomalies vs own reforecast 1991&ndash;2020 per init month &amp; lead
       &middot; C3S overlay: anomalies vs each model's own 1993&ndash;2016 hindcast
-      &middot; observed: ERSSTv5, 1991&ndash;2020</span>
+      &middot; observed: CPC (ERSSTv5 Ni&ntilde;o-3.4 on 1991&ndash;2020, ERSSTv6 RONI), then the site&rsquo;s OISST v2.1 estimate</span>
       <span class="chart-updated" id="sfsPlumeUpdated">&mdash;</span>
     </div>
   </div>
@@ -725,7 +733,7 @@
     <div class="chips" id="csChips">
       <div class="chip"><div class="l">CanSIPS (ECCC)</div><div class="v neut">&mdash;</div><div class="s">loading the feed&hellip;</div></div>
     </div>
-    <p class="note">40 members (GEM5.2-NEMO + CanESM5), each model against its own 1993&ndash;2016 hindcast: fan = member 10&ndash;90% and 25&ndash;75%, sienna = ensemble mean, black = observed, blue dashes = the C3S multi-model mean when it is the same issue. <b>Months 7&ndash;12 (pink) are CanSIPS alone</b>, past the six months the C3S systems reach.</p>
+    <p class="note">40 members (GEM5.2-NEMO + CanESM5), each model against its own 1993&ndash;2016 hindcast: fan = member 10&ndash;90% and 25&ndash;75%, sienna = ensemble mean, black = observed (CPC&rsquo;s monthly Ni&ntilde;o-3.4 re-based to 1993&ndash;2016, or its 3-month RONI; dashed = the site&rsquo;s OISST v2.1 estimate for months CPC has not published), blue dashes = the C3S multi-model mean when it is the same issue. <b>Months 7&ndash;12 (pink) are CanSIPS alone</b>, past the six months the C3S systems reach.</p>
     <div class="controls">
       <button class="pill on" data-idx="n34">Ni&ntilde;o-3.4 (&rarr; ONI)</button>
       <button class="pill" data-idx="roni">RONI</button>
@@ -765,12 +773,12 @@
 <template id="about-sfs"><p class="note" style="max-width:80ch;font-size:0.9rem;line-height:1.65">NOAA's next-generation Seasonal Forecast System &mdash; the UFS-based successor to CFSv2, running in near-real-time beta since March 2026 with open zarr output. Every month: 31 members, 12 monthly leads. Anomalies are computed against the <b>model's own 1991&ndash;2020 reforecast</b> for the same init month and lead (11 members &times; 30 years), so drift and bias are removed the same way the C3S models are handled in the other groups on this page and on the <a href="enso-forecasts.html">ENSO forecasts page</a>.</p>
     <h3 class="method-head">Method</h3>
     <ul class="method-list">
-      <li><b>Ni&ntilde;o-3.4.</b> Monthly index from all 31 members; fan = member 10&ndash;90% and 25&ndash;75%, sienna line = ensemble mean, observed ERSSTv5 leads in, <b style="color:var(--cool)">blue dashes</b> = the C3S multi-model mean from the same issue month. The 3-month toggle gives the ONI convention.</li>
+      <li><b>Ni&ntilde;o-3.4.</b> Monthly index from all 31 members; fan = member 10&ndash;90% and 25&ndash;75%, sienna line = ensemble mean, CPC&rsquo;s observed Ni&ntilde;o-3.4 (ERSSTv5) or RONI leads in (the site&rsquo;s OISST v2.1 estimate, dashed, for months CPC has not published), <b style="color:var(--cool)">blue dashes</b> = the C3S multi-model mean from the same issue month. The 3-month toggle gives the ONI convention.</li>
       <li><b>Derived indices.</b> IOD (Saji DMI), the South Atlantic Subtropical Dipole (SW&nbsp;&minus;&nbsp;NE), the Ni&ntilde;o flavors, and a PDO from North Pacific SST anomalies (global mean removed) projected onto the model's own reforecast EOF1, in reforecast-&sigma; units; same fan and mean.</li>
       <li><b>Monthly anomaly maps.</b> One frame per forecast month against the reforecast for the same init month and lead; fixed color scale across leads.</li>
     </ul>
     <p class="note" style="max-width:80ch;font-size:0.9rem;line-height:1.65"><b>About the system.</b> SFS beta is a NOAA research prototype (published by the 6th of each month), not yet an operational product &mdash; ensemble size, physics and post-processing are still evolving, and months may occasionally be late or revised. NOAA publishes the raw ensemble openly but few graphical products; everything in this group is computed directly from the full 31-member zarr output and refreshed with each monthly issue.</p>
-    <div class="chart-card-footer"><span class="chart-sources">NOAA SFS beta (NOAA NWS/EMC and OAR/PSL; NODD open data on AWS, bucket noaa-oar-sfsdev-pds) &middot; own 1991&ndash;2020 reforecast &middot; ERSSTv5, C3S &middot; <a href="/sfs-subseasonal.html#credits">where the SFS data come from</a></span><span class="chart-updated">built by scripts/sfs/*.py</span></div></template>
+    <div class="chart-card-footer"><span class="chart-sources">NOAA SFS beta (NOAA NWS/EMC and OAR/PSL; NODD open data on AWS, bucket noaa-oar-sfsdev-pds) &middot; own 1991&ndash;2020 reforecast &middot; observed: CPC, then OISST v2.1 estimate &middot; C3S &middot; <a href="/sfs-subseasonal.html#credits">where the SFS data come from</a></span><span class="chart-updated">built by scripts/sfs/*.py</span></div></template>
 <template id="about-sfs-skill"><p class="note" style="max-width:80ch;font-size:0.9rem;line-height:1.65">A hindcast study of SFS beta2 against
     CFSv2, the NOAA system it is meant to replace (October 2026). SFS: its 11-member reforecast, started on the 1st of September
     and October 1991&ndash;2025, the only start months NOAA has published. CFSv2: the NMME archive at IRI (hindcast 1991&ndash;2010,
@@ -788,11 +796,11 @@
     </div><p class="note" style="max-width:80ch;font-size:0.9rem;line-height:1.65">NOAA's next-generation Seasonal Forecast System &mdash; the UFS-based successor to CFSv2, running in near-real-time beta since March 2026 with open zarr output. Every month: 31 members, 12 monthly leads. Anomalies are computed against the <b>model's own 1991&ndash;2020 reforecast</b> for the same init month and lead (11 members &times; 30 years), so drift and bias are removed the same way the C3S models are handled in the other groups on this page and on the <a href="enso-forecasts.html">ENSO forecasts page</a>.</p>
     <h3 class="method-head">Method</h3>
     <ul class="method-list">
-      <li><b>Ni&ntilde;o-3.4.</b> Monthly index from all 31 members; fan = member 10&ndash;90% and 25&ndash;75%, sienna line = ensemble mean, observed ERSSTv5 leads in, <b style="color:var(--cool)">blue dashes</b> = the C3S multi-model mean from the same issue month. The 3-month toggle gives the ONI convention.</li>
+      <li><b>Ni&ntilde;o-3.4.</b> Monthly index from all 31 members; fan = member 10&ndash;90% and 25&ndash;75%, sienna line = ensemble mean, CPC&rsquo;s observed Ni&ntilde;o-3.4 (ERSSTv5) or RONI leads in (the site&rsquo;s OISST v2.1 estimate, dashed, for months CPC has not published), <b style="color:var(--cool)">blue dashes</b> = the C3S multi-model mean from the same issue month. The 3-month toggle gives the ONI convention.</li>
       <li><b>Derived indices.</b> IOD (Saji DMI), the South Atlantic Subtropical Dipole (SW&nbsp;&minus;&nbsp;NE), the Ni&ntilde;o flavors, and a PDO from North Pacific SST anomalies (global mean removed) projected onto the model's own reforecast EOF1, in reforecast-&sigma; units; same fan and mean.</li>
       <li><b>Monthly anomaly maps.</b> One frame per forecast month against the reforecast for the same init month and lead; fixed color scale across leads.</li>
     </ul>
-    <div class="chart-card-footer"><span class="chart-sources">NOAA SFS beta (NOAA NWS/EMC and OAR/PSL; NODD open data on AWS, bucket noaa-oar-sfsdev-pds) &middot; own 1991&ndash;2020 reforecast &middot; ERSSTv5, C3S &middot; <a href="/sfs-subseasonal.html#credits">where the SFS data come from</a></span><span class="chart-updated">built by scripts/sfs/*.py</span></div></template>
+    <div class="chart-card-footer"><span class="chart-sources">NOAA SFS beta (NOAA NWS/EMC and OAR/PSL; NODD open data on AWS, bucket noaa-oar-sfsdev-pds) &middot; own 1991&ndash;2020 reforecast &middot; observed: CPC, then OISST v2.1 estimate &middot; C3S &middot; <a href="/sfs-subseasonal.html#credits">where the SFS data come from</a></span><span class="chart-updated">built by scripts/sfs/*.py</span></div></template>
 
   <div class="colophon">
     <h3>Data and method</h3>
@@ -805,8 +813,8 @@
     Ni&ntilde;o-3.4 plume is the full ensemble of every system, which is affordable because the box is small. Multi-model
     means weight every SYSTEM equally, never every member, so a 124-member ensemble does not speak for the group.</p>
     <p>Forecast: ECMWF SEAS5 (C3S <code>originating_centre=ecmwf</code>, <code>system=51</code>), 51 members, monthly means for lead months 1&ndash;6 and the 6-hourly 2 m temperature, from the Copernicus Climate Data Store, and from the October 2026 issue a <b>seventh lead month</b> (April for an October start) rebuilt from the same run&rsquo;s sub-daily fields (see <i>Lead month 7</i> below); hindcast: the same system&rsquo;s 1993&ndash;2016 re-forecasts, 25 members, for the same start month, and likewise for the previous issue. Sea-surface temperature, 500 and 1000 hPa height, sea-level pressure and stratospheric winds on a 2&deg; grid; 2 m temperature, precipitation, evaporation, 10 m wind, solar radiation and 500 hPa height on a 1&deg; grid over the Americas; geopotential at 10, 50 and 100 hPa poleward of 60&deg; in each hemisphere.</p>
-    <p><b>Lead month 7</b> (from the October 2026 issue). The CDS monthly product stops at lead month 6, but SEAS5 runs 215 days, so the seventh month (April for an October start) is rebuilt from the same run&rsquo;s sub-daily fields: instantaneous fields averaged over every step from 06&nbsp;UTC on the 1st (12&nbsp;UTC for pressure levels) to 00&nbsp;UTC on the 1st of the next month, accumulations as the month&rsquo;s total over its seconds. Applied to month 6 of the same issue, that rule reproduces the monthly product to its packing precision (largest difference 0.002&nbsp;K in 2&nbsp;m temperature, 0.3&nbsp;m&sup2;/s&sup2; in 500&nbsp;hPa geopotential, 1e-11&nbsp;m/s in precipitation). The 1993&ndash;2016 hindcast reference for month 7 comes from the daily copy of the C3S SEAS5 archive on AWS (Planette, Copernicus licence) for the instantaneous fields and from the CDS sub-daily hindcast for the accumulations and the 50/100/1000&nbsp;hPa heights and 30/50&nbsp;hPa winds. Checked at months 5 and 6 against the CDS monthly hindcast, the AWS copy is identical for smooth fields (polar-cap and N&iacute;&ntilde;o-box means, 500&nbsp;hPa height, 60&deg;N wind) but differs on the grid for 2&nbsp;m temperature (rms 0.2&nbsp;K, up to 3&nbsp;K on coasts and mountains), coastal SST box means (up to 0.18&nbsp;K) and snow depth; those offsets do not change between months 5 and 6, so each such field is moved onto the CDS hindcast mean using its month-6 offset. Not extended, so shown to month 6: 10&nbsp;m wind speed and solar radiation (the monthly wind speed is not reproducible from the sub-daily winds), and the 100&nbsp;hPa vortex wind. The seventh month has less skill; it goes through exactly the same calibration, trend handling and significance tests as the others, and the change maps have nothing to compare it with in the previous issue.</p>
-    <p>Observations: ERA5 (daily 1.5&deg; fields, 1959 or 1991 to the present depending on the field), monthly-meaned for normals, trends, records and skill; CPC ERSSTv5 for the observed Ni&ntilde;o indices; NOAA CPC Global Unified daily maximum and minimum temperature (0.5&deg;, 1991&ndash;2020, via NOAA PSL) for the threshold-day normals. Teleconnection projectors are the CPC-style regression patterns built for the GEPS page on NCEP/NCAR R1 (1991&ndash;2020). Population weights: GeoNames (CC BY 4.0) places of 15,000 or more people. The hindcast and observed references are reduced once to compact tables, so each monthly run in GitHub Actions downloads only the new forecast.</p>
+    <p><b>Lead month 7</b> (from the October 2026 issue). The CDS monthly product stops at lead month 6, but SEAS5 runs 215 days, so the seventh month (April for an October start) is rebuilt from the same run&rsquo;s sub-daily fields: instantaneous fields averaged over every step from 06&nbsp;UTC on the 1st (12&nbsp;UTC for pressure levels) to 00&nbsp;UTC on the 1st of the next month, accumulations as the month&rsquo;s total over its seconds. Applied to month 6 of the same issue, that rule reproduces the monthly product to its packing precision (largest difference 0.002&nbsp;K in 2&nbsp;m temperature, 0.3&nbsp;m&sup2;/s&sup2; in 500&nbsp;hPa geopotential, 1e-11&nbsp;m/s in precipitation). The 1993&ndash;2016 hindcast reference for month 7 comes from the daily copy of the C3S SEAS5 archive on AWS (Planette, Copernicus licence) for the instantaneous fields and from the CDS sub-daily hindcast for the accumulations and the 50/100/1000&nbsp;hPa heights and 30/50&nbsp;hPa winds. Checked at months 5 and 6 against the CDS monthly hindcast, the AWS copy is identical for smooth fields (polar-cap and N&iacute;&ntilde;o-box means, 500&nbsp;hPa height, 60&deg;N wind) but differs on the grid for 2&nbsp;m temperature (rms 0.2&nbsp;K, up to 3&nbsp;K on coasts and mountains), coastal SST box means (up to 0.18&nbsp;K) and snow depth; those offsets do not change between months 5 and 6, so each such field is moved onto the CDS hindcast mean using its month-6 offset. Not extended, so shown to month 6: 10&nbsp;m wind speed and solar radiation (the monthly wind speed is not reproducible from the sub-daily winds), and the 100&nbsp;hPa vortex wind. The seventh month has less skill; it goes through the same calibration and trend handling as the others and the same tests where a product has one (the teleconnection skill test, the tercile maps&rsquo; signal test); the anomaly and change maps are untested ensemble means at every lead, and the change maps have nothing to compare it with in the previous issue.</p>
+    <p>Observations: ERA5 (daily 1.5&deg; fields, 1959 or 1991 to the present depending on the field), monthly-meaned for normals, trends, records and skill; CPC&rsquo;s Ni&ntilde;o indices (the ERSSTv5 table, RONI on ERSSTv6) for the observed Ni&ntilde;o lead-in, continued past CPC&rsquo;s last published month by the site&rsquo;s OISST v2.1 estimate, drawn dashed; NOAA CPC Global Unified daily maximum and minimum temperature (0.5&deg;, 1991&ndash;2020, via NOAA PSL) for the threshold-day normals. Teleconnection projectors are the CPC-style regression patterns built for the GEPS page on NCEP/NCAR R1 (1991&ndash;2020). Population weights: GeoNames (CC BY 4.0) places of 15,000 or more people. The hindcast and observed references are reduced once to compact tables, so each monthly run in GitHub Actions downloads only the new forecast.</p>
     <p>Method: indices are cosine-weighted box means; anomalies are member minus hindcast mean at the same lead (member minus the hindcast&rsquo;s linear trend for geopotential heights, which carry the warming signal). Relative Ni&ntilde;o-3.4 follows the CPC/ECMWF construction used elsewhere on this site; the Trans-Ni&ntilde;o index is Trenberth &amp; Stepaniak (2001), standardised by the hindcast spread. Terciles against the hindcast use the 33.3rd and 66.7th percentiles of the 600 hindcast samples per grid point; against observed references the members are first bias-corrected (member &minus; hindcast mean + ERA5 1993&ndash;2016 mean, multiplicatively for rain and sunshine) and the bounds are &plusmn;0.43&sigma; of the observed 1991&ndash;2020 spread around the reference (detrended for the trend reference; empirical percentiles for rain and sunshine). Standardised anomalies divide the ensemble-mean anomaly by the reference&rsquo;s year-to-year standard deviation. Skill is the correlation of the 24 hindcast years&rsquo; ensemble mean with ERA5 at the valid month. Teleconnection phase probabilities are calibrated by regressing the observed monthly index (ERA5, same projection) on the hindcast ensemble mean over those 24 years for each calendar month and lead, and reading the ±0.5&sigma; tail areas of the regression&rsquo;s predictive distribution &mdash; Student&nbsp;t on 22 degrees of freedom, its spread widened by &radic;(1&nbsp;+&nbsp;1/n&nbsp;+&nbsp;(x&nbsp;&minus;&nbsp;x&#772;)&sup2;/S<sub>xx</sub>) because the fit is in-sample on the same 24 years. Skill is tested with a one-sided t-test of r&nbsp;&gt;&nbsp;0 on n&nbsp;&minus;&nbsp;2 degrees of freedom (one start a year, so the years are independent): at n&nbsp;=&nbsp;24 a cell needs r&nbsp;&ge;&nbsp;0.344 for p&nbsp;&le;&nbsp;0.05; below that the probabilities are climatology (the observed mean and spread of the 24 years). The AO, EPO, WPO and SOI, which have no built-in standardisation, are expressed in ERA5&rsquo;s 1991&ndash;2020 standard deviation for the calendar month, applied identically to model and observations. Built by <code>scripts/sst/seas5_outlook.py</code> and its companions; the JSON behind the charts: <a href="assets/sst/data/seas5_outlook.json">seas5_outlook.json</a>, <a href="assets/sst/data/seas5_tele.json">seas5_tele.json</a>, <a href="assets/sst/data/seas5_popT.json">seas5_popT.json</a>, <a href="assets/sst/data/seas5_pme_regions.json">seas5_pme_regions.json</a>, <a href="assets/sst/data/seas5_normals.json">seas5_normals.json</a>, <a href="assets/sst/data/seas5_regimes.json">seas5_regimes.json</a>.</p>
     <p><b>NOAA SFS beta</b> (the NOAA SFS group, moved here from its own page in October 2026): NOAA&rsquo;s next-generation
     Seasonal Forecast System, the UFS-based replacement for CFSv2, running in near-real-time beta since March 2026. NOAA
@@ -824,7 +832,7 @@
     <code>scripts/sst/cansips_dd.py</code> and <code>cansips_maps.py</code> in <code>cansips.yml</code>. Data Source:
     Environment and Climate Change Canada (ECCC Data Servers End-use Licence).</p>
     <p>SFS beta data: NOAA/OAR via NODD (public domain) &middot; C3S overlay on the SFS plume: Copernicus Climate Change
-    Service &middot; observed indices: NOAA CPC ERSSTv5.</p>
+    Service &middot; observed indices: NOAA CPC (ERSSTv5, ERSSTv6) and, for the months CPC has not published, NOAA OISST v2.1.</p>
     <p>Contains modified Copernicus Climate Change Service information 2026. Neither the European Commission nor ECMWF is responsible for any use of this information.</p>
   </div>
 <script>
@@ -904,6 +912,56 @@ window.STAGE.onRender = function (sel) {
 </main>
 
 <script>
+/* The observed Nino lead-in of the plumes (nino_history.json, written by the ENSO monitor): CPC's own values where
+   CPC has published them, the site's OISST v2.1 estimate after, drawn dashed with open markers and named as such.
+   Monthly Nino-3.4 is CPC's ERSSTv5 table (1991-2020 base) to regional_provisional_after; RONI is CPC's 3-month
+   ERSSTv6 index to provisional_after. base93: Nino-3.4 re-based onto the observed 1993-2016 mean, the base of a
+   forecast taken against a 1993-2016 hindcast (RONI, a difference of two anomalies, is drawn as published).
+   smooth3: the centred 3-month mean of the monthly index, the way the forecast's 3-month view is built. */
+window.NinoObs = {
+  get: function (H, rel, valid, opt) {
+    var o = opt || {}, s = H && H.series && H.series[rel ? "roni" : "nino34"];
+    if (!s) return null;
+    var OC = window.OutlookCharts, m = H.months, a = (s.anom || s).slice();
+    var fin = function (v) { return v != null && isFinite(v); };
+    if (o.base93 && !rel && s.abs) {
+      var clim = function (y0, y1) {
+        var sum = {}, n = {}, out = {};
+        m.forEach(function (ym, i) { var y = +ym.slice(0, 4), k = +ym.slice(5, 7); if (y >= y0 && y <= y1 && fin(s.abs[i])) { sum[k] = (sum[k] || 0) + s.abs[i]; n[k] = (n[k] || 0) + 1; } });
+        Object.keys(n).forEach(function (k) { out[k] = sum[k] / n[k]; });
+        return out;
+      };
+      var c91 = clim(1991, 2020), c93 = clim(1993, 2016);
+      a = a.map(function (v, i) { var k = +m[i].slice(5, 7); return fin(v) && c91[k] != null && c93[k] != null ? v + c91[k] - c93[k] : v; });
+    }
+    var shown = o.smooth3 && !rel ? a.map(function (_, i) {
+      var w = a.slice(Math.max(0, i - 1), i + 2).filter(fin);
+      return w.length ? w.reduce(function (p, q) { return p + q; }) / w.length : null;
+    }) : a;
+    var idx = OC.obsWindow(valid, m);
+    return {
+      x: idx.map(function (i) { return m[i]; }), y: idx.map(function (i) { return a[i]; }), shown: idx.map(function (i) { return shown[i]; }),
+      cut: rel ? H.provisional_after : H.regional_provisional_after,
+      label: rel ? "RONI, 3-month (CPC, ERSSTv6)" : "Niño-3.4" + (o.smooth3 ? ", 3-month" : "") + " (CPC, ERSSTv5" + (o.base93 ? ", on 1993–2016" : "") + ")"
+    };
+  },
+  // CPC's part solid; the estimate dashed with open markers, joined to CPC's last month
+  traces: function (ob, hv) {
+    var OC = window.OutlookCharts, xo = [], yo = [], xe = [], ye = [], tr = [];
+    ob.x.forEach(function (ym, i) { if (ob.cut && ym > ob.cut) { xe.push(ym); ye.push(ob.shown[i]); } else { xo.push(ym); yo.push(ob.shown[i]); } });
+    if (xo.length) { var t0 = OC.obsTrace(xo.map(OC.monthDate), yo, "observed " + ob.label, hv); if (xe.length) t0._endLabel = false; tr.push(t0); }
+    if (xe.length) {
+      var bx = xo.length ? [xo[xo.length - 1]] : [], by = xo.length ? [yo[yo.length - 1]] : [];
+      var t = OC.obsTrace(bx.concat(xe).map(OC.monthDate), by.concat(ye), "our OISST v2.1 estimate (not CPC, provisional)", hv);
+      t.line.dash = "dash";
+      t.marker = { size: 6, color: "#ffffff", line: { color: t.line.color, width: 1.6 } };
+      tr.push(t);
+    }
+    return tr;
+  }
+};
+</script>
+<script>
 (function () {
   var J = null, OC = window.OutlookCharts;
   var state = { enso: "nino34", other: "pdo", members: false, sm: 0, hemi: "nh", lev: "100" };
@@ -966,7 +1024,12 @@ window.STAGE.onRender = function (sel) {
     }
     tr.push(OC.meanTrace(s.x, s.mean, issueLabel(J.issue) + " issue (this)", hv));
     var obs = withObs ? obsFor(key) : null;
-    if (obs) tr.push(OC.obsTrace(obs.months.map(monthDate), obs.y, "observed" + (key === "rnino34" ? " RONI (3-month)" : ""), hv));
+    if (obs) {
+      // CPC's months solid, the site's OISST estimate dashed (an older file without the boundaries says so in the name)
+      var rel = key === "rnino34", O = J.observed, cut = rel ? O.provisional_after : O.regional_provisional_after;
+      tr = tr.concat(window.NinoObs.traces({ x: obs.months, shown: obs.y, cut: cut,
+        label: (rel ? "RONI, 3-month (CPC, ERSSTv6" : "(CPC, ERSSTv5") + (cut ? ")" : "; latest months our OISST estimate)") }, hv));
+    }
     return tr;
   }
 
@@ -1458,7 +1521,7 @@ window.STAGE.onRender = function (sel) {
       var src = "assets/sst/" + e.file + "?v=" + encodeURIComponent(J.generated);
       var read = st.v === "tp" ? "Green: above-normal precipitation most likely; brown: below." : st.v === "u850" ? "Warm colours: westerly anomaly most likely (weaker trades, a stronger subtropical jet); cool: easterly." : st.v === "z500" ? "Warm colours: heights above normal most likely; cool: below. With a 1993–2016 base the thickness rise alone tilts heights up, so read the pattern and the below-normal exceptions." : "Warm colours: above normal most likely; cool: below.";
       g.innerHTML = '<figure><a href="' + src + '" target="_blank" rel="noopener"><img loading="lazy" src="' + src + '" alt="SEAS5 ' + (t.label || names[st.v]) + ' most likely tercile, ' + e.label + '"></a>' +
-        '<figcaption><b>' + (t.label || names[st.v]) + '</b>, ' + e.label + '. ' + Math.round(e.frac_above * 100) + '% of the map shows above normal at 40% or better, ' + Math.round(e.frac_below * 100) + '% below. ' + read + (t.extent === "global" ? " Global view, cut at 40°E." : " Americas view.") + "</figcaption></figure>";
+        '<figcaption><b>' + (t.label || names[st.v]) + '</b>, ' + e.label + '. ' + Math.round(e.frac_above * 100) + '% of the map shows above normal at 40% or better with a significant split, ' + Math.round(e.frac_below * 100) + '% below. ' + read + (t.extent === "global" ? " Global view, cut at 40°E." : " Americas view.") + "</figcaption></figure>";
     }
     vb.addEventListener("click", function (ev) { var b = ev.target.closest("button"); if (!b) return; st.v = b.dataset.v; draw(); });
     sb.addEventListener("click", function (ev) { var b = ev.target.closest("button"); if (!b) return; st.s = b.dataset.s; draw(); });
@@ -1511,6 +1574,13 @@ window.STAGE.onRender = function (sel) {
       return [k, typeof fields[k] === "string" ? fields[k] : fields[k].label];
     });
     var periodItems = Object.keys(periods).map(function (k) { return [k, periods[k]]; });
+    // the tercile maps are built in a later step than the anomaly maps, so a block carries its own issue; a file
+    // without one is dated by its first lead month, which is the issue month
+    var own = block.issue_label || periods.m1 || CJ.issue_label, stale = own !== CJ.issue_label;
+    if (stale) {
+      periodItems = periodItems.filter(function (it) { return it[0] !== "m1"; });  // its first lead month has passed
+      flagStale(cardId, own, CJ.issue_label);
+    }
     var sel = { m: block.models[0].id, f: fieldItems[0][0], p: periodItems[0][0] };
     function draw() {
       var mod = block.models.filter(function (x) { return x.id === sel.m; })[0] || block.models[0];
@@ -1522,11 +1592,26 @@ window.STAGE.onRender = function (sel) {
       img.innerHTML = '<img loading="lazy" src="/assets/sst/c3s/' + prefix + sel.m + "_" + sel.f + "_" + sel.p +
         '.webp?v=' + (CJ.issue || "") + '" alt="' + mod.label + '" loading="lazy">';
       var u = document.getElementById(state.updated);
-      if (u) u.textContent = CJ.issue_label || CJ.issue || "";
+      if (u) u.textContent = own + " issue" + (stale ? " (previous)" : "");
     }
     draw();
   }
-  fetch("/assets/sst/data/c3s_maps.json?t=" + Date.now()).then(function (r) { return r.json(); }).then(function (j) {
+  function flagStale(cardId, own, cur) {
+    var host = document.getElementById(cardId);
+    if (!host || host.querySelector(".stale-note")) return;
+    var p = document.createElement("p");
+    p.className = "note stale-note";
+    p.innerHTML = "<b>Previous issue.</b> This card still shows the " + own + " issue: the " + cur + " issue&rsquo;s " +
+      "version has not been built yet. Its lead months that have already passed are not forecasts any more.";
+    var h = host.querySelector("h2");
+    if (h) h.insertAdjacentElement("afterend", p); else host.insertBefore(p, host.firstChild);
+  }
+  var ready = fetch("/assets/sst/data/c3s_maps.json?t=" + Date.now()).then(function (r) { return r.json(); });
+  // the other C3S cards (own JSON, own issue) are flagged the same way when they lag the maps' issue
+  window.C3S_FLAG_STALE = function (cardId, issue, label) {
+    ready.then(function (j) { if (issue && j.issue && issue !== j.issue) flagStale(cardId, label || issue, j.issue_label || j.issue); }).catch(function () {});
+  };
+  ready.then(function (j) {
     CJ = j;
     wire("c3sMapCard", { models: j.models, fields: j.fields, periods: j.periods }, "c3s_",
          { model: "c3sMapModel", field: "c3sMapField", period: "c3sMapPeriod", img: "c3sMapImg", updated: "c3sMapUpdated" });
@@ -1674,6 +1759,7 @@ window.C3S_LEGEND = function (host, size) {
       pills("c3sPopKind", [["anom", "Anomaly vs own hindcast"], ["raw", "Raw temperature"]], sel.k, function (v) { sel.k = v; });
       var u = document.getElementById("c3sPopUpdated");
       if (u) u.textContent = J.issue_label + " issue";
+      if (window.C3S_FLAG_STALE) window.C3S_FLAG_STALE("c3sPopCard", J.issue, J.issue_label);
     }
     draw();
   }).catch(function () { var c = document.getElementById("c3sPopCard"); if (c) c.hidden = true; });
@@ -1779,6 +1865,7 @@ window.C3S_LEGEND = function (host, size) {
       pills("c3sDayKind", [["anom", "Anomaly vs own hindcast"], ["raw", "Raw temperature"]], sel.k, function (v) { sel.k = v; });
       var u = document.getElementById("c3sDayUpdated");
       if (u) u.textContent = J.issue_label + " issue";
+      if (window.C3S_FLAG_STALE) window.C3S_FLAG_STALE("c3sDayCard", J.issue, J.issue_label);
     }
     draw();
   }).catch(function () { var c = document.getElementById("c3sDayCard"); if (c) c.hidden = true; });
@@ -1878,13 +1965,10 @@ window.C3S_LEGEND = function (host, size) {
     var members = useR ? S.members_rnino : S.members;
     var nM = members.length;
 
-    // observed: at most six months before the first forecast month (the shared x-range rule)
-    var obsX = [], obsY = [];
-    if (state.hist) {
-      var src = useR ? (state.hist.series.roni || state.hist.series.oni) : state.hist.series.oni;
-      var arr = src.anom || src, idx = OC.obsWindow(valid, state.hist.months);
-      idx.forEach(function (i) { obsX.push(state.hist.months[i]); obsY.push(arr[i]); });
-    }
+    // observed: at most six months before the first forecast month (the shared x-range rule): monthly Nino-3.4 on
+    // the 1991-2020 base the SFS reforecast shares, or CPC's 3-month RONI
+    var ob = state.hist ? window.NinoObs.get(state.hist, !!useR, valid, { smooth3: state.smooth }) : null;
+    var obsX = ob ? ob.x : [], obsY = ob ? ob.y : [];
     function smooth(fcArr) {
       if (!state.smooth) return fcArr;
       var bridge = obsY.slice(-2).concat(fcArr);
@@ -1910,9 +1994,9 @@ window.C3S_LEGEND = function (host, size) {
     }
     // ensemble mean, anchored on the last observed month so there is no seam
     var mx = fx.slice(), my = mmm.slice();
-    if (obsX.length && obsX[obsX.length - 1] < valid[0]) { mx.unshift(md(obsX[obsX.length - 1])); my.unshift(obsY[obsY.length - 1]); }
+    if (obsX.length && obsX[obsX.length - 1] < valid[0]) { mx.unshift(md(obsX[obsX.length - 1])); my.unshift(ob.shown[ob.shown.length - 1]); }
     traces.push(OC.meanTrace(mx, my, "SFS ensemble mean (" + nM + " members)", hv));
-    if (obsX.length) traces.push(OC.obsTrace(obsX.map(md), obsY, "observed (ERSSTv5)", hv));
+    if (obsX.length) traces = traces.concat(window.NinoObs.traces(ob, hv));
 
     var shapes = [];
     [0.5, 1.0, 1.5, 2.0, -0.5, -1.0, -1.5, -2.0].forEach(function (yv) {
@@ -2046,12 +2130,9 @@ window.C3S_LEGEND = function (host, size) {
     var E = st.cd.issues[st.cd.latest], valid = E.valid_months, useR = st.idx === "roni";
     var byLead = useR ? E.rnino : E.n34, nM = byLead[0].length;
     var members = []; for (var i = 0; i < nM; i++) members.push(byLead.map(function (r) { return r[i]; }));
-    var obsX = [], obsY = [];
-    if (st.hist) {
-      var src = useR ? (st.hist.series.roni || st.hist.series.oni) : st.hist.series.oni;
-      var arr = src.anom || src, idx = OC.obsWindow(valid, st.hist.months);
-      idx.forEach(function (k) { obsX.push(st.hist.months[k]); obsY.push(arr[k]); });
-    }
+    // observed: monthly Nino-3.4 re-based to 1993-2016 (CanSIPS's hindcast base), or CPC's 3-month RONI
+    var ob = st.hist ? window.NinoObs.get(st.hist, useR, valid, { smooth3: st.smooth, base93: true }) : null;
+    var obsX = ob ? ob.x : [], obsY = ob ? ob.y : [];
     function smooth(a) { if (!st.smooth) return a; return roll3(obsY.slice(-2).concat(a)).slice(Math.min(2, obsY.length)); }
     var q = OC.quantiles(members, [10, 25, 75, 90]);
     var fan = { p10: smooth(q.p10), p25: smooth(q.p25), p75: smooth(q.p75), p90: smooth(q.p90) }, mm = smooth(q.mean);
@@ -2065,9 +2146,9 @@ window.C3S_LEGEND = function (host, size) {
                               "C3S multi-model mean (" + labs.length + " systems, months 1–6)", { markers: true, units: "°C" }));
     }
     var mx = fx.slice(), my = mm.slice();
-    if (obsX.length && obsX[obsX.length - 1] < valid[0]) { mx.unshift(OC.monthDate(obsX[obsX.length - 1])); my.unshift(obsY[obsY.length - 1]); }
+    if (obsX.length && obsX[obsX.length - 1] < valid[0]) { mx.unshift(OC.monthDate(obsX[obsX.length - 1])); my.unshift(ob.shown[ob.shown.length - 1]); }
     traces.push(OC.meanTrace(mx, my, "CanSIPS ensemble mean (" + nM + " members)", hv));
-    if (obsX.length) traces.push(OC.obsTrace(obsX.map(OC.monthDate), obsY, "observed (CPC)", hv));
+    if (obsX.length) traces = traces.concat(window.NinoObs.traces(ob, hv));
     var shapes = [];
     [0.5, 1.0, 1.5, 2.0, -0.5, -1.0, -1.5, -2.0].forEach(function (y) { shapes.push(OC.hline(y, y > 0 ? "rgba(180,84,31,0.35)" : "rgba(63,111,143,0.35)", "dot", 1)); });
     var last = valid[valid.length - 1];
