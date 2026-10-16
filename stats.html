@@ -472,7 +472,7 @@
         '<th>Views, 14 d (unique)</th><th>Clones, 14 d (unique)</th><th>Views since ' + since + '</th><th>Clones since ' + since + '</th></tr></thead><tbody>' +
         rows.join('') + '</tbody></table>';
       document.getElementById('gh-updated').textContent = 'updated ' + d.updated;
-    }).catch(() => {});
+    }).catch(() => { document.getElementById('gh-traffic').innerHTML = '<p>The table appears after the first daily stats run.</p>'; });
 </script>
 <!-- sf:start -->
 <footer class="sf">
