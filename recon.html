@@ -504,8 +504,10 @@
         profile&rsquo;s ratio for a layer centred near 100 m). The skew-T is the <a href="/skewt/">sounding explorer</a> itself, with the same analysis.</li>
       <li><b>Vortex fixes</b> (vortex data messages): the centre position and minimum pressure at the fix time, with the inbound and outbound
         maximum flight-level winds placed at their bearing and range from the centre.</li>
-      <li><b>Storm</b>: a mission belongs to the storm in its mission number (e.g. 0209A = storm 09); a surveillance mission without one
-        (the NOAA G-IV) is put with the nearest storm and says so. Best track and official forecast: NHC ATCF b-deck and forecast file.</li>
+      <li><b>Storm</b>: a mission belongs to the storm in its mission number (e.g. 0209A = Atlantic storm 09); missions numbered for
+        the eastern or central Pacific (0220E) are not shown. A mission without a number goes with the Atlantic storm its header names,
+        else with the nearest one (within 300 n mi of the centre, or 1,500 km for a NOAA G-IV surveillance flight), and says so; never
+        with a storm whose name differs from the header&rsquo;s. Best track and official forecast: NHC ATCF b-deck and forecast file.</li>
       <li><b>Tail Doppler radar</b> (NOAA WP-3D and G-IV only): the real-time graphics of NOAA AOML's Hurricane Research
         Division, mirrored about every 15 minutes. They appear about 70 minutes after each centre fix (analysis about 50 minutes,
         transmission, graphics). Each <i>swath</i> is one analysis from one pass through the storm (2 km by 2 km by 0.5 km grid); the

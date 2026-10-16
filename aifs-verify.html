@@ -301,8 +301,9 @@
   each radiosonde station's own day-of-year median; ERA5 anomalies against the ERA5 1991&ndash;2020 climatology. The
   <b>activity ratio</b> is std(forecast anomaly) / std(observed anomaly): a model can buy RMSE by damping variance, and
   this ratio shows the purchase. Whether two lines differ significantly is in the scorecard.</p>
-  <p>Data: ECMWF AIFS and AIFS-ENS open data (CC BY 4.0), radiosondes from the <a href="skewt/">sounding explorer</a>
-  mirror, ERA5 via WeatherBench2.</p></template>
+  <p>Data: ECMWF AIFS and AIFS-ENS open data (CC BY 4.0); radiosondes from the <a href="skewt/">sounding explorer</a>
+  mirror; ERA5 truth from the ARCO-ERA5 store on Google Cloud, ERA5 1991&ndash;2020 climatology from WeatherBench2.
+  Full credits at the foot of the page.</p></template>
   <template id="about-spec"><p>Spherical-harmonic power of each model's global field against total wavenumber, averaged
   over the archived runs and shown as a ratio to the AIFS single at the same lead. Member&nbsp;0 as published sits
   above 1 wherever the single has smoothed small scales away; the matched member&nbsp;0 should lie on 1 &mdash; that
@@ -405,6 +406,7 @@ window.STAGE = { groups: [{"label": "Scores", "items": [["scorecard", "Scorecard
     <p><b>The ensemble mean.</b> The mean of the control and 25 perturbed AIFS-ENS members is shown for reference.
     Averaging removes the unpredictable part of the forecast, so it usually wins on RMSE at longer leads while
     having much less variance than the atmosphere; it is not a single model run and is not the page's question.</p>
+    <p><b>Data and licences.</b> ECMWF AIFS and AIFS-ENS open data: &copy;&nbsp;2026 European Centre for Medium-Range Weather Forecasts (ECMWF), source <a href="https://www.ecmwf.int">www.ecmwf.int</a>, <a href="https://creativecommons.org/licenses/by/4.0/">CC&nbsp;BY&nbsp;4.0</a>, modified; ECMWF does not accept any liability for errors or omissions in the data, their availability, or any loss or damage arising from their use. ERA5: Copernicus Climate Change Service (C3S) / ECMWF, CC&nbsp;BY&nbsp;4.0; contains modified Copernicus Climate Change Service information 2026; neither the European Commission nor ECMWF is responsible for any use of this information; ERA5 truth from the ARCO-ERA5 store on Google Cloud, the 1991&ndash;2020 climatology from WeatherBench2. Radiosondes from the sounding explorer's mirror: NOAA/NWS SPC and the Iowa Environmental Mesonet (United States); ECCC soundings, Data Source: Environment and Climate Change Canada (MSC Datamart), under the <a href="https://eccc-msc.github.io/open-data/licence/readme_en/">ECCC Data Servers End-use Licence</a>; the WMO WIS&nbsp;2.0 Global Cache (core data under the WMO Unified Data Policy); station climatologies from NOAA NCEI's Integrated Global Radiosonde Archive v2.</p>
   </div>
 </main>
 <div class="sc-tip" id="scTip"></div>

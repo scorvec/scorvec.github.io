@@ -123,6 +123,43 @@ with tempfile.TemporaryDirectory() as tmp:
             indent=1,
         )
     )
+
+# ── storm assignment: basin letter, distance cap, header name (synthetic tracks) ──
+check(M.storm_word("SIMON") == "SIMON" and M.storm_word("ISAIAS") == "ISAIAS", "storm names")
+for _w in ("SURV", "INVEST", "NINE", "TWENTYONE", "TWENTY-ONE", "AL92", ""):
+    check(M.storm_word(_w) is None, _w)
+with tempfile.TemporaryDirectory() as tmp:
+    mx = M.Mirror(tmp, None)
+    _t = ts("2026-10-10 12:00:00")
+    mx.storms["AL092026"] = [[_t - 86400, 28.7, -85.5, 0, 0, 0], [_t + 86400, 28.7, -85.5, 0, 0, 0]]
+    mx.names["AL092026"] = "Isaias"
+
+    def at(lat, lon):
+        return dict(med=[lat, lon], first=_t - 3600, last=_t + 3600)
+
+    def flight(mission, name, aircraft="AF302"):
+        return dict(
+            year=2026,
+            mission=mission,
+            storm_no=D.mission_of(f"{aircraft} {mission} {name}")["storm_no"],
+            aircraft=aircraft,
+            name=name,
+        )
+
+    _tx = at(28.7, -98.8)  # inland Texas, ~1,290 km from the storm: the old 2,000 km rule filed it under Isaias
+    check(1250 < M.km(28.7, -98.8, 28.7, -85.5) < 1350, "test geometry")
+    check(mx.assign(flight("0220E", "SIMON"), _tx) == (None, None), "East Pacific mission, Atlantic storm only")
+    mx.storms["EP202026"] = [[_t - 86400, 18.0, -104.0, 0, 0, 0]]
+    check(mx.assign(flight("0220E", "SIMON"), _tx) == ("EP202026", "mission number"), "EP storm mirrored")
+    mx.storms.pop("EP202026")
+    check(mx.assign(flight("01BBE", "SURV", "NOAA9"), at(28.7, -88.0))[0] is None, "EP surveillance")
+    check(mx.assign(flight("0209A", "NINE"), _tx) == ("AL092026", "mission number"), "Atlantic mission number")
+    _near, _far = at(28.7, -82.5), at(28.7, -77.0)  # ~290 km and ~1,140 km east of the centre
+    check(mx.assign(flight("01AAA", "INVEST"), _near)[0] == "AL092026", "low-level, within 300 n mi")
+    check(mx.assign(flight("01AAA", "INVEST"), _far) == (None, None), "low-level, beyond the cap")
+    check(mx.assign(flight("01BBA", "SURV", "NOAA9"), _far)[0] == "AL092026", "G-IV surveillance, 1,140 km")
+    check(mx.assign(flight("01AAA", "SIMON"), _near) == (None, None), "header names another storm")
+    check(mx.assign(flight("01AAA", "ISAIAS"), _tx)[1] == "storm name in the mission header", "header name")
 # ── TDR mirror: time resolution, file classes, centre screen (names as listed on AOML 2026-10-07) ──
 import tdr_mirror as TM
 

@@ -8,12 +8,12 @@
 <link rel="canonical" href="https://scorvec.com/gefs.html">
 <meta property="og:type" content="website">
 <meta property="og:title" content="GEFS subseasonal outlook, weeks 1–5">
-<meta property="og:description" content="Days 1-35 anomalies for the Americas from the GEPS extended ensemble, expressed against the 1991-2020 normal, with model drift removed using a 2001-2020 GEPS hindcast.">
+<meta property="og:description" content="Days 1-35 anomalies for the Americas and the globe from the NOAA GEFS extended ensemble, expressed against the 1991-2020 normal, with model drift removed using the 2000-2019 GEFSv12 reforecast.">
 <meta property="og:url" content="https://scorvec.com/gefs.html">
 <meta property="og:site_name" content="Shawn Corvec &mdash; Weather &amp; Climate Monitors">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="Subseasonal Outlook &mdash; GEPS Weeks 1&ndash;5 for the Americas">
-<meta name="twitter:description" content="Days 1-35 anomalies for the Americas from the GEPS extended ensemble, expressed against the 1991-2020 normal, with model drift removed using a 2001-2020 GEPS hindcast.">
+<meta name="twitter:title" content="GEFS Subseasonal Outlook &mdash; Weeks 1&ndash;5">
+<meta name="twitter:description" content="Days 1-35 anomalies for the Americas and the globe from the NOAA GEFS extended ensemble, expressed against the 1991-2020 normal, with model drift removed using the 2000-2019 GEFSv12 reforecast.">
 <link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;1,400&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/assets/outlook.css">
 <link rel="stylesheet" href="/assets/stage.css">
@@ -248,7 +248,7 @@
       <div id="about"></div>
       <p class="hint"><span class="kbd">&larr;</span> <span class="kbd">&rarr;</span> step through the last option row &middot; <span class="kbd">&uarr;</span> <span class="kbd">&darr;</span> change product &middot; click a map to enlarge &middot; the address bar carries the selection, so a view can be linked.</p>
       <div class="chart-card-footer">
-        <span class="chart-sources">NOAA GEFS extended ensemble and GEFSv12 reforecast (AWS open data) &middot; ERA5 (Copernicus C3S) &middot; NCEP/NCAR Reanalysis 1 and CPC indices and gauge precipitation (NOAA) &middot; BoM RMM</span>
+        <span class="chart-sources">NOAA GEFS extended ensemble and GEFSv12 reforecast (AWS open data) &middot; ERA5: Copernicus Climate Change Service (C3S) / ECMWF, CC&nbsp;BY&nbsp;4.0; contains modified Copernicus Climate Change Service information 2026; neither the European Commission nor ECMWF is responsible for any use of this information &middot; NCEP/NCAR Reanalysis 1 and CPC indices and gauge precipitation (NOAA) &middot; BoM RMM</span>
         <span class="chart-updated" id="g-updated">&ndash;</span>
       </div>
     </section>
@@ -306,7 +306,7 @@ var P = {
         img: function (a) { return a==="skill" ? "assets/gefs/gefs_mjo_skill.webp"
                                   : "assets/gefs/gefs_mjo_" + (a==="phase"?"phase":"hovmoller") + ".webp"; },
         cap: function (a) { return a==="phase"
-          ? "Three-field RMM (OLR + U850 + U200), member plume and ensemble mean, days 1–35; the observed track is GEFS’s own control analysis, each day filtered by the 120 days before it."
+          ? "Three-field RMM (OLR + U850 + U200), member plume and ensemble mean, days 1–35; the observed track is GEFS’s own control analysis, each day filtered by the 120 days before it. In the 2000–2019 reforecasts the ensemble-mean amplitude stays within about 1.1 times the observed (Hindcast skill view), so a mean track that keeps growing past that without moving eastward is a standing pattern in the model, such as El Niño or drift, not a propagating MJO."
           : (a==="hov" ? "OLR and 850 hPa zonal wind anomaly, 15°S–15°N, lead × longitude."
                        : "Bivariate RMM correlation, RMSE and amplitude ratio of the 2000–2019 GEFSv12 reforecasts (weekly starts, 4-member mean) against BoM’s RMM, by lead: all starts, by season, strong initial MJO, and the starts within ±45 days of today, with 90% intervals from resampling whole years; dotted: the estimate for the full 31-member mean. Red marks: ECMWF’s published extended-range values for reference."); }},
   weekly: {label: "Weekly means, weeks 1–5", fit: false, a: DOMAINS, b: {label:"Field", items: FIELDS},

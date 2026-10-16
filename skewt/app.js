@@ -94,6 +94,32 @@ function climoSlot(idxObj) {
   });
   return best;
 }
+// The climatology is split by synoptic hour (climo.hr["00"], climo.hr["12"]): a
+// launch within climo.tol hours of 00Z or 12Z ranks against that hour's launches
+// only, and any other launch has no same-hour climatology. Older files pool
+// every hour in climo.idx.
+function synClass(h, tol = 3) {
+  if (!isFinite(h)) return null;
+  h = ((h % 24) + 24) % 24;
+  for (const s of [0, 12]) { const d = Math.abs(h - s); if (Math.min(d, 24 - d) <= tol) return s; }
+  return null;
+}
+const hzLabel = c => String(c).padStart(2, "0") + "Z";
+function climoTab() {                    // per-index tables for the plotted launch's hour, or null
+  if (!climo) return null;
+  if (!climo.hr) return climo.idx || null;
+  const c = synClass(lastHourZ, climo.tol);
+  return c === null ? null : climo.hr[String(c).padStart(2, "0")] || null;
+}
+const climoTabs = () => !climo ? [] : climo.hr ? Object.values(climo.hr) : [climo.idx || {}];
+// what the annual chart shows: the launch's own hour, else (no same-hour
+// climatology) the station's first hour, without the dot for this launch
+function climoView() {
+  const same = climoTab();
+  if (same || !climo || !climo.hr) return { T: same || {}, same: !!same, hz: null };
+  const hz = Object.keys(climo.hr).sort()[0];
+  return { T: hz ? climo.hr[hz] : {}, same: false, hz };
+}
 const climoCache = new Map();
 async function loadClimo(gid) {
   if (!gid) { climo = null; return; }
@@ -125,8 +151,9 @@ const climoModal = document.getElementById("climo-modal");
 function openClimo() {
   if (!climo) return;
   const sel = document.getElementById("climo-var");
+  const T = climoView().T;
   sel.innerHTML = CLIMO_VARS.filter(([k]) =>
-    (climo.idx || {})[k] && (climo.idx[k].n || []).some(x => x >= 30))
+    T[k] && (T[k].n || []).some(x => x >= 30))
     .map(([k, lab]) => `<option value="${k}">${lab}</option>`).join("");
   document.getElementById("climo-title").textContent =
     `${current.n || current.gid} · climatology`;
@@ -139,7 +166,8 @@ function drawClimo(key) {
   const cv = document.getElementById("climo-canvas"), x = cv.getContext("2d");
   const W = cv.width, H = cv.height, L = 66, R = 22, T = 26, B = 46;
   x.clearRect(0, 0, W, H);
-  const A = climo.idx && climo.idx[key];
+  const view = climoView();
+  const A = view.T[key];
   if (!A) return;
   const D = climo.doy;
 
@@ -197,7 +225,7 @@ function drawClimo(key) {
 
   // the sounding on display
   const cur = climoNow[key];
-  if (isFinite(cur) && lastDoy !== null) {
+  if (view.same && isFinite(cur) && lastDoy !== null) {
     x.fillStyle = "#ffd60a"; x.beginPath(); x.arc(px(lastDoy), py(cur), 8, 0, 7); x.fill();
     x.strokeStyle = "#000"; x.lineWidth = 1.2; x.stroke();
   }
@@ -212,8 +240,12 @@ function drawClimo(key) {
     x.fillStyle = "#a8a8c2"; x.fillText(lab, lx + 19, T - 11);
     lx += 22 + x.measureText(lab).width + 14;
   });
+  const c = synClass(lastHourZ, climo.tol);
+  const hrs = !climo.hr ? ""
+    : view.same ? ` · ${hzLabel(c)} launches (±${climo.tol} h)`
+    : ` · ${view.hz}Z launches; this ${hzLabel(lastHourZ)} launch has no same-hour climatology`;
   document.getElementById("climo-sub").textContent =
-    `${meta[1]}${meta[2] ? " (" + meta[2] + ")" : ""} · record ${climo.yr0}–${climo.yr1}`;
+    `${meta[1]}${meta[2] ? " (" + meta[2] + ")" : ""} · record ${climo.yr0}–${climo.yr1}${hrs}`;
 }
 
 // ---- fog diagnostics (BUFKIT-style radiation-fog screening) ----
@@ -789,9 +821,8 @@ document.getElementById("climo-var").addEventListener("change", e => {
 });
 
 // ---- distribution on this date, same synoptic hour ----
-// The shipped climo pools 00Z and 12Z; for a histogram you compare ONE
-// sounding against, mixing hours smears diurnal signal. Extract the same-hour
-// +/-10-day sample from the period-of-record text (cached once per station).
+// The same-hour +/-10-day sample behind the shipped climatology, read from the
+// period-of-record text (cached once per station).
 function igraKeyVal(get, key) {
   const sl = pa => get(pa);
   const t85 = sl(85000), t70 = sl(70000), t50 = sl(50000);
@@ -813,7 +844,7 @@ function igraKeyVal(get, key) {
     default: return null;
   }
 }
-function climoDistSamples(text, key, doyC, hour) {
+function climoDistSamples(text, key, doyC, cls) {
   const out = [];
   let keep = false, levs = null;
   const flush = () => {
@@ -826,8 +857,13 @@ function climoDistSamples(text, key, doyC, hour) {
     if (line[0] === "#") {
       if (keep) flush();
       keep = false; levs = null;
-      const mo = +line.slice(18, 20), dy = +line.slice(21, 23), hr = +line.slice(24, 26);
-      if (hr !== hour || !mo) continue;
+      const mo = +line.slice(18, 20), dy = +line.slice(21, 23);
+      let hr = +line.slice(24, 26);
+      if (!(hr >= 0 && hr <= 23)) {           // no nominal hour: the release time (HHMM)
+        const rt = +line.slice(27, 31), hh = Math.floor(rt / 100), mm = rt % 100;
+        hr = hh >= 0 && hh <= 23 ? hh + (mm <= 59 ? mm / 60 : 0) : NaN;
+      }
+      if (synClass(hr) !== cls || !mo) continue;
       let d = Math.abs(doyOf(`2000-${String(mo).padStart(2, "0")}-${String(dy).padStart(2, "0")}`) - doyC);
       d = Math.min(d, 366 - d);
       if (d <= 10) { keep = true; levs = new Map(); }
@@ -865,8 +901,13 @@ async function drawClimoDist(key) {
     return;
   }
   const text = igraCache.get(current.gid + ":por");
-  const hour = lastHourZ === 0 ? 0 : 12;
-  const vals = climoDistSamples(text, key, lastDoy, hour);
+  const cls = synClass(lastHourZ);
+  if (cls === null) {
+    cv.hidden = true;
+    note.textContent = `no same-hour sample: this ${hzLabel(lastHourZ)} launch is more than 3 h from 00Z and 12Z`;
+    return;
+  }
+  const vals = climoDistSamples(text, key, lastDoy, cls);
   if (vals.length < 30) { note.textContent = `only ${vals.length} same-hour soundings in the window`; return; }
   const cur = (() => {
     if (!lastProf) return NaN;
@@ -901,11 +942,11 @@ async function drawClimoDist(key) {
     x.strokeStyle = "#ffd60a"; x.lineWidth = 3;
     x.beginPath(); x.moveTo(cx, T); x.lineTo(cx, H - B); x.stroke();
     const below = vals.filter(v => v < cur).length;
-    note.textContent = `distribution of ${vals.length} soundings at ${String(hour).padStart(2, "0")}Z ` +
+    note.textContent = `distribution of ${vals.length} soundings launched within 3 h of ${hzLabel(cls)} ` +
       `within ±10 days of this date · current value (yellow) sits at P${Math.round(100 * below / vals.length)} ` +
       `of the same-hour sample`;
   } else {
-    note.textContent = `distribution of ${vals.length} soundings at ${String(hour).padStart(2, "0")}Z within ±10 days of this date`;
+    note.textContent = `distribution of ${vals.length} soundings launched within 3 h of ${hzLabel(cls)} within ±10 days of this date`;
   }
 }
 document.getElementById("climo-close").addEventListener("click", () => climoModal.hidden = true);
@@ -923,7 +964,7 @@ const CLIMO_HIGH_ONLY = new Set(["ecape", "ship"]);
 const CLIMO_FLOOR = { ecape: 100, ship: 0.5 };
 function climoPct(key, v) {                          // -> {pct, rec} or null
   if (!climo || !isFinite(v)) return null;
-  const A = climo.idx && climo.idx[key];
+  const A = (climoTab() || {})[key];
   const s = A ? climoSlot(A) : -1;
   if (!A || s < 0 || !A.p[s] || A.p[s][0] === null || (A.n[s] || 0) < CLIMO_MIN_N)
     return null;
@@ -946,10 +987,11 @@ function climoPct(key, v) {                          // -> {pct, rec} or null
   if (CLIMO_FLOOR[key] !== undefined && v < CLIMO_FLOOR[key]) return null;
   // no meaningful upper tail (the whole distribution is a spike): nothing to rank
   if (pct >= CLIMO_HI && !(d.p[6] > d.p[4])) return null;
-  // A record carries WHAT it broke: the ±10-day mark by default, escalating to
-  // the station's all-time extreme when it clears that too. All-time is exact —
-  // every sounding lands inside some anchor window, so the envelope's max over
-  // anchors is the true period-of-record extreme.
+  // A record carries WHAT it broke: the same-hour ±10-day mark by default,
+  // escalating to the station's all-time extreme when it clears that too.
+  // All-time is exact — every sounding lands inside some anchor window of its
+  // hour, so the envelope's max over anchors and hours is the true
+  // period-of-record extreme.
   let rec = null;
   if (v >= d.max && v > d.p[5]) {
     rec = { t: "high", y: d.maxY, prev: d.max };
@@ -962,16 +1004,18 @@ function climoPct(key, v) {                          // -> {pct, rec} or null
   }
   return { pct: Math.max(0, Math.min(100, pct)), rec };
 }
-// station all-time extreme for one index: scan every anchor's envelope
+// station all-time extreme for one index: scan every anchor's envelope, every hour
 function climoAllTime(key, sense) {
-  const A = climo && climo.idx && climo.idx[key];
-  if (!A) return null;
   let best = null;
-  for (let i = 0; i < A.max.length; i++) {
-    const v = sense === "high" ? A.max[i] : A.min[i];
-    const y = sense === "high" ? A.maxY[i] : A.minY[i];
-    if (v === null || v === undefined) continue;
-    if (!best || (sense === "high" ? v > best.v : v < best.v)) best = { v, y };
+  for (const T of climoTabs()) {
+    const A = T[key];
+    if (!A) continue;
+    for (let i = 0; i < A.max.length; i++) {
+      const v = sense === "high" ? A.max[i] : A.min[i];
+      const y = sense === "high" ? A.maxY[i] : A.minY[i];
+      if (v === null || v === undefined) continue;
+      if (!best || (sense === "high" ? v > best.v : v < best.v)) best = { v, y };
+    }
   }
   return best;
 }
@@ -1020,15 +1064,16 @@ function openRecords() {
            ` <span class="pctlab">${r.y}</span></td>`;
   };
   const rows = [], broke = [];
+  const tab = climoTab() || {};
   for (const [k, name, unit] of CLIMO_VARS) {
-    const A = climo.idx && climo.idx[k];
-    if (!A) continue;
+    if (!climoTabs().some(T => T[k])) continue;
+    const A = tab[k];
     // ECAPE/SHIP lows are quiet days, not records — blank their low columns
     const lowMeaningful = !CLIMO_HIGH_ONLY.has(k);
     const atHi = climoAllTime(k, "high");
     const atLo = lowMeaningful ? climoAllTime(k, "low") : null;
     if (!atHi) continue;
-    const s = climoSlot(A);
+    const s = A ? climoSlot(A) : -1;
     const wOk = s >= 0 && A.max[s] !== null && (A.n[s] || 0) >= CLIMO_MIN_N;
     const wHi = wOk ? { v: A.max[s], y: A.maxY[s] } : null;
     const wLo = wOk && lowMeaningful ? { v: A.min[s], y: A.minY[s] } : null;
@@ -1048,19 +1093,26 @@ function openRecords() {
       (rec.tier === "all" ? "ALL-TIME station record" : "record for this time of year") +
       ` ${rec.t} (previous ${fmtV(rec.prev)}, ${rec.y})`);
   }
+  const hc = climo.hr ? synClass(lastHourZ, climo.tol) : null;
+  const hourHead = climo.hr ? (hc === null ? ", no same-hour climatology" : `, ${hzLabel(hc)}`) : "";
   document.getElementById("rec-title").textContent =
     `${(current && current.n) || "Station"} records`;
   document.getElementById("rec-table").innerHTML =
     `<tr><th></th><th colspan="2">all-time ${climo.yr0}–${climo.yr1}</th>` +
-    `<th colspan="2">this time of year (±10 d)</th><th>this sounding</th></tr>` +
+    `<th colspan="2">this time of year${hourHead} (±10 d)</th><th>this sounding</th></tr>` +
     `<tr><th></th><th>low</th><th>high</th><th>low</th><th>high</th><th></th></tr>` +
     rows.join("");
   document.getElementById("rec-note").innerHTML =
     (broke.length ? `<span style="color:#ff9f95">⚡ This sounding sets: ` +
       broke.join("; ") + `.</span><br>` : "") +
-    `Records from this station's ${climo.yr0}–${climo.yr1} radiosonde archive (00Z and 12Z ` +
-    `pooled). "This time of year" pools soundings within ±10 days of the plotted date; ` +
-    `all-time spans the whole period of record. The year shown is when the mark was set; ` +
+    `Records from this station's ${climo.yr0}–${climo.yr1} radiosonde archive` +
+    (climo.hr
+      ? `. "This time of year" pools launches at the same synoptic hour as this one (00Z or 12Z, ` +
+        `within ${climo.tol} h) within ±10 days of the plotted date; all-time spans every 00Z and 12Z ` +
+        `launch on record`
+      : ` (00Z and 12Z pooled). "This time of year" pools soundings within ±10 days of the plotted ` +
+        `date; all-time spans the whole period of record`) +
+    `. The year shown is when the mark was set; ` +
     `tying a mark counts as a record. Highlighted cells are marks this sounding takes over.`;
   document.getElementById("rec-modal").hidden = false;
 }

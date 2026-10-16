@@ -15,7 +15,7 @@ Model drift - never shown as signal:
            control + 3 members, start dates within 8 days of the init's day of year), as (reforecast cap - MERRA-2
            reference) - so it includes GEPS's analysis offset. Levels whose reforecast part has not arrived are drawn
            but HATCHED as uncorrected.
-  GEFS     from the GEFS v2 reforecast daily climatology (gefs-clim-v2, 2000-2019): (model climate cap at that lead -
+  GEFS     from the GEFSv12 reforecast daily climatology (gefs-clim-v2, 2000-2019): (model climate cap at that lead -
            MERRA-2 reference at the reforecast epoch). It holds 10, 100 and 500 hPa; the other levels are hatched.
   AIFS-ENS no reforecast exists, so the control's cap forecasts from recent 00Z cycles are verified against the GEOS FP
            analyses (plus the GEOS FP - MERRA-2 offset) and the mean error per level and lead is removed
@@ -319,7 +319,7 @@ def drift_gefs(init: pd.Timestamp, leads, ref: Ref):
             vref = vd - pd.DateOffset(years=vd.year - 2009)  # the 2000-2019 reforecast epoch
             dr.append(caps[k] - float(ref.mean(pd.DatetimeIndex([vref]), L)[0]))
         out[L] = np.array(dr)
-    return out, "GEFS v2 reforecast daily climatology (2000-2019)"
+    return out, "GEFSv12 reforecast daily climatology (2000-2019)"
 
 
 AIFS_DRIFT = HERE / "reference" / "aifs_capdrift.json"
@@ -548,7 +548,7 @@ def render(
         "Sources: "
         + {
             "geps": "ECCC GEPS (MSC Datamart); drift: ECMWF S2S GEPS reforecasts (non-commercial research licence)",
-            "gefs": "NOAA GEFS (AWS Open Data); drift: GEFS v2 reforecast climatology",
+            "gefs": "NOAA GEFS (AWS Open Data); drift: GEFSv12 reforecast climatology",
             "aifs": "ECMWF AIFS-ENS open data (CC BY 4.0)",
             "ifs": "ECMWF IFS-ENS open data (CC BY 4.0), 50 perturbed members, 0.25°, Google Cloud mirror",
         }[model]

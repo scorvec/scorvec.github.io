@@ -2,8 +2,9 @@
 """Flag near-record soundings for the Skew-T map's "record watch".
 
 For each just-mirrored latest sounding, compute the level indices and compare
-them to that station's climatology (climo/{gid}.json). Any index below the 5th
-or above the 95th monthly percentile is flagged. Writes anomalies.json
+them to that station's climatology (climo/{gid}.json) for the same day of year
+and synoptic hour (00Z or 12Z). Any index below the 5th or above the 95th
+percentile is flagged. Writes anomalies.json
 {wmo: {dt, flags: [{k, v, pct, sense}]}} into the mirror output, which the map
 fetches to color and annotate the anomalous stations.
 
@@ -22,6 +23,9 @@ from pathlib import Path
 import numpy as np
 
 HERE = Path(__file__).resolve().parent
+sys.path.insert(0, str(HERE))
+from build_climo import synoptic_class
+
 STATIONS = HERE.parents[1] / "skewt" / "stations.json"
 PCTS = [1, 5, 10, 25, 50, 75, 90, 95, 99]
 # Only the indices worth interrupting someone for. PWAT and K-index fire on any
@@ -200,6 +204,32 @@ def pct_of(d, v):
     return 0.0
 
 
+def climo_tables(climo: dict, dt: str):
+    """(table for the sounding's synoptic hour, every hour's table) of a station climatology.
+
+    Format-2 files hold one table per synoptic hour; a launch more than the builder's tolerance from 00Z
+    and 12Z, or at an hour the station has no climatology for, gets no table. Older files pool every hour
+    in "idx" and are used as they are."""
+    hours = climo.get("hr")
+    if hours is None:
+        t = climo.get("idx") or {}
+        return t, [t]
+    try:
+        cls = synoptic_class(int(dt[11:13]))
+    except ValueError:
+        cls = None
+    return (hours.get(f"{cls:02d}") if cls is not None else None), list(hours.values())
+
+
+def all_time(tables: list, k: str, sense: str):
+    """(value, year) of the station's all-time extreme of index k across every hour's anchors, or None."""
+    v, y = ("max", "maxY") if sense == "high" else ("min", "minY")
+    marks = [(m, yr) for t in tables if k in t for m, yr in zip(t[k][v], t[k][y]) if m is not None]
+    if not marks:
+        return None
+    return max(marks) if sense == "high" else min(marks)
+
+
 def ecape_for(sdir: Path) -> dict:
     """ECAPE per station, from the SAME WebAssembly build the browser runs — so
     the live value and its climatological percentile share identical physics."""
@@ -254,19 +284,20 @@ def main() -> int:
         if wmo in ecape:
             idx["ecape"] = ecape[wmo]
         idx = {k: v for k, v in idx.items() if k in WATCH or k in RECORD_ONLY}
-        # day-of-year climatology: nearest 5-day anchor to the sounding's date
+        # day-of-year climatology: nearest 5-day anchor to the sounding's date, same synoptic hour
         try:
             dt = datetime.strptime(e.get("dt", "")[:10], "%Y-%m-%d")
             doy = slot366(dt)
         except ValueError:
             continue
         anchors = climo.get("doy") or []
-        if not anchors:
+        table, tables = climo_tables(climo, e.get("dt") or "")
+        if not anchors or not table:
             continue
         s = min(range(len(anchors)), key=lambda i: min(abs(anchors[i] - doy), 366 - abs(anchors[i] - doy)))
         flags = []
         for k, v in idx.items():
-            A = climo.get("idx", {}).get(k)
+            A = table.get(k)
             if not A or not A["p"][s] or A["p"][s][0] is None or A["n"][s] < 30:
                 continue
             d = {"p": A["p"][s], "min": A["min"][s], "max": A["max"][s]}
@@ -296,8 +327,9 @@ def main() -> int:
                 # to "P100 high", which reads as a record when the value was
                 # 15 m short of one. Non-records now cap at P99; records carry
                 # the mark they broke. The all-time envelope is exact — every
-                # sounding lands inside some ±10-day anchor window, so the max
-                # over anchors IS the station's all-time extreme.
+                # sounding lands inside some ±10-day anchor window of its hour,
+                # so the max over anchors and hours IS the station's all-time
+                # extreme.
                 # A "record" that beats the station's ALL-HISTORY extreme by
                 # several tail-widths is almost certainly corrupt source data,
                 # not weather (Reno published a 6224 m 500-hPa height — 230 m
@@ -317,12 +349,12 @@ def main() -> int:
                 mx, mn = A["max"][s], A["min"][s]
                 if high_ok and mx is not None and v >= mx:
                     rec = {"t": "high", "prev": mx, "y": A["maxY"][s]}
-                    at = max((m, y) for m, y in zip(A["max"], A["maxY"]) if m is not None)
+                    at = all_time(tables, k, "high")
                     if v >= at[0]:
                         rec.update(tier="all", prev=at[0], y=at[1])
                 elif low_ok and mn is not None and v <= mn:
                     rec = {"t": "low", "prev": mn, "y": A["minY"][s]}
-                    at = min((m, y) for m, y in zip(A["min"], A["minY"]) if m is not None)
+                    at = all_time(tables, k, "low")
                     if v <= at[0]:
                         rec.update(tier="all", prev=at[0], y=at[1])
                 if k in RECORD_ONLY and not rec:

@@ -2,10 +2,19 @@
 """Per-station sounding climatology for the Skew-T Explorer.
 
 For each IGRA station we download the full period-of-record file, compute a set
-of indices for every historical sounding, and reduce them to monthly percentile
-breakpoints + record extremes. The browser then fetches one small JSON per
-station (climo/{gid}.json on the skewt-climo branch) and reports where the
-live/archived sounding's values rank against that station's own history.
+of indices for every historical sounding, and reduce them to day-of-year
+percentile breakpoints + record extremes, separately for each synoptic hour
+(00Z and 12Z). The browser then fetches one small JSON per station
+(climo/{gid}.json on the skewt-climo branch) and reports where the
+live/archived sounding's values rank against that station's own history at the
+same hour.
+
+Output (version 2): "hr" holds one table per synoptic hour ("00", "12"), each
+{index: {n, p, min, max, minY, maxY}} over the anchors in "doy"; "nh" counts
+the soundings behind each hour. "idx" is the same reduction over both hours
+pooled, kept for readers that want an all-hours baseline; ranking and records
+use "hr". Launches more than HOUR_TOL hours from 00Z or 12Z (mostly event-driven
+specials) and launches with no hour are left out of every table.
 
 Indices: pwat 850t 700t 500t h500 thick fzl kidx tott (exact from levels) plus
   ecape ship (via the native SHARPlib helper CLIMO_CAPE_BIN, identical physics
@@ -26,7 +35,7 @@ import subprocess
 import sys
 import urllib.request
 import zipfile
-from datetime import datetime, timedelta
+from datetime import datetime
 from pathlib import Path
 
 import numpy as np
@@ -43,6 +52,17 @@ PCTS = [1, 5, 10, 25, 50, 75, 90, 95, 99]
 # and common years; skewt/app.js and flag_anomalies.py look up the same way.
 DOY_STEP, DOY_WIN = 5, 10
 DOY = list(range(1, 366, DOY_STEP))
+FORMAT = 2
+# Synoptic hours the climatology is split by, and how far (hours) a launch may
+# sit from one to count for it. +/-3 h keeps routine launches filed at their
+# actual hour (23Z, 11Z) and the 03Z/15Z schedule of the 1940s-50s US network;
+# launches further out (04-08Z, 16-20Z) are mostly specials released ahead of
+# severe weather or a landfalling storm, a sample conditional on the weather.
+SYN_HOURS = (0, 12)
+HOUR_TOL = 3.0
+# Readers rank only against anchors with at least this many samples; an hour
+# with no such anchor is not written.
+MIN_N = 30
 KEYS = [
     "pwat",
     "850t",
@@ -102,6 +122,24 @@ def _doy366(dates) -> np.ndarray:
 def _f(s):
     v = int(s)
     return np.nan if v <= -8888 else v
+
+
+def launch_hour(header: str) -> float:
+    """Hour of day (UTC) of an IGRA v2 header: the nominal HOUR, else the release time (HHMM), else NaN."""
+    try:
+        h = int(header[24:26])
+    except ValueError:
+        h = 99
+    if 0 <= h <= 23:
+        return float(h)
+    try:
+        rt = int(header[27:31])
+    except ValueError:
+        return np.nan
+    hh, mm = divmod(rt, 100)
+    if not 0 <= hh <= 23:
+        return np.nan
+    return hh + (mm / 60.0 if 0 <= mm <= 59 else 0.0)
 
 
 def sounding_indices(block: list[str], elev: float = 0.0) -> dict | None:
@@ -219,15 +257,15 @@ def station_elev(gid: str) -> float:
 
 
 def _samples(gid: str) -> dict | None:
-    """Per-sounding index values for a station: {key: (values, doys, years)}."""
+    """Per-sounding index values for a station: {"doy", "yr", "hod", "v": {key: values}}."""
     CACHE.mkdir(parents=True, exist_ok=True)
     cf = CACHE / f"{gid}.npz"
     if cf.exists():
         try:
             z = np.load(cf)
-            if all(k in z for k in KEYS if k not in ("ecape", "ship")):
-                return {"doy": z["doy"], "yr": z["yr"], "v": {k: z[k] for k in KEYS if k in z}}
-            # cache predates a newly added index — refetch to fill it
+            if "hod" in z and all(k in z for k in KEYS if k not in ("ecape", "ship")):
+                return {"doy": z["doy"], "yr": z["yr"], "hod": z["hod"], "v": {k: z[k] for k in KEYS if k in z}}
+            # cache predates the launch hour or a newly added index — refetch to fill it
         except Exception:  # noqa: BLE001
             pass  # corrupt cache: refetch
 
@@ -241,8 +279,18 @@ def _samples(gid: str) -> dict | None:
         print(f"  {gid}: fetch failed ({repr(e)[:50]})", flush=True)
         return None
 
-    elev = station_elev(gid)
-    rows: list = []  # (doy, year, {key: val})
+    rows, cape = parse_por(text, gid, station_elev(gid))
+    if not rows:
+        return None
+    s = reduce_rows(rows, cape)
+    np.savez_compressed(CACHE / f"{gid}.npz", doy=s["doy"], yr=s["yr"], hod=s["hod"], **s["v"])
+    return s
+
+
+def parse_por(text: str, gid: str, elev: float) -> tuple[list, dict]:
+    """Rows (doy, year, month, day, raw header hour, launch hour, {key: val}) of an IGRA period-of-record
+    text, and the ECAPE/SHIP values of the native helper keyed by (year, month, day, raw hour)."""
+    rows: list = []
     lines = text.split("\n")
     i, n = 0, len(lines)
     while i < n:
@@ -258,7 +306,8 @@ def _samples(gid: str) -> dict | None:
                     doy = datetime(year, month, max(1, day)).timetuple().tm_yday
                 except ValueError:
                     continue
-                rows.append((doy, year, vals))
+                hraw = int(L[24:26]) if L[24:26].strip().isdigit() else 99
+                rows.append((doy, year, month, max(1, day), hraw, launch_hour(L), vals))
             continue
         i += 1
 
@@ -271,26 +320,31 @@ def _samples(gid: str) -> dict | None:
             )
             for ln in r.stdout.splitlines():
                 q = ln.split()
-                if len(q) != 5:
+                if len(q) not in (5, 6):
                     continue
-                cape.setdefault((int(q[0]), int(q[1]), int(q[2])), []).append(
-                    (float(q[3]) if q[3] != "nan" else np.nan, float(q[4]) if q[4] != "nan" else np.nan)
+                # "Y M D H ecape ship"; an older helper prints no hour and is matched by date only
+                key = (int(q[0]), int(q[1]), int(q[2]), int(q[3]) if len(q) == 6 else None)
+                cape.setdefault(key, []).append(
+                    (float(q[-2]) if q[-2] != "nan" else np.nan, float(q[-1]) if q[-1] != "nan" else np.nan)
                 )
         except Exception as e:  # noqa: BLE001
             print(f"  {gid}: cape helper failed ({repr(e)[:40]})", flush=True)
+    return rows, cape
 
-    if not rows:
-        return None
+
+def reduce_rows(rows: list, cape: dict) -> dict:
+    """Per-sounding arrays from parse_por's rows; ECAPE/SHIP attached by date and launch hour, in file order."""
     doy = np.array([r[0] for r in rows], dtype="int16")
     yr = np.array([r[1] for r in rows], dtype="int16")
-    v = {k: np.array([r[2].get(k, np.nan) for r in rows], dtype="float32") for k in KEYS if k not in ("ecape", "ship")}
-    # cape values are keyed by (year, month) — attach by month, in order
+    hod = np.array([r[5] for r in rows], dtype="float32")
+    v = {k: np.array([r[6].get(k, np.nan) for r in rows], dtype="float32") for k in KEYS if k not in ("ecape", "ship")}
     for k, j in (("ecape", 0), ("ship", 1)):
         out = np.full(len(rows), np.nan, dtype="float32")
         seen: dict = {}
-        for idx, (d, y, _) in enumerate(rows):
-            date = datetime(int(y), 1, 1) + timedelta(days=int(d) - 1)
-            key = (int(y), date.month, date.day)
+        for idx, (_, y, mo, dy, hraw, _, _) in enumerate(rows):
+            key = (int(y), int(mo), int(dy), int(hraw))
+            if key not in cape:
+                key = (int(y), int(mo), int(dy), None)
             lst = cape.get(key)
             if not lst:
                 continue
@@ -299,25 +353,92 @@ def _samples(gid: str) -> dict | None:
                 out[idx] = lst[c][j]
                 seen[key] = c + 1
         v[k] = out
-    np.savez_compressed(CACHE / f"{gid}.npz", doy=doy, yr=yr, **v)
-    return {"doy": doy, "yr": yr, "v": v}
+    return {"doy": doy, "yr": yr, "hod": hod, "v": v}
 
 
-def build_station(gid: str, outdir: Path) -> bool:
-    s = _samples(gid)
-    if not s:
-        return False
+def hour_classes(hod) -> np.ndarray:
+    """Synoptic class (0 or 12) per launch hour, -1 where the hour is unknown or beyond HOUR_TOL of both."""
+    h = np.mod(np.asarray(hod, dtype="float64"), 24.0)
+    cls = np.full(h.shape, -1, dtype="int8")
+    for s in SYN_HOURS:
+        d = np.abs(h - s)
+        cls[np.isfinite(h) & (np.minimum(d, 24.0 - d) <= HOUR_TOL)] = s
+    return cls
+
+
+def synoptic_class(hour) -> int | None:
+    """00Z or 12Z class of one launch hour (UTC), or None; the same rule as hour_classes."""
+    try:
+        c = int(hour_classes([float(hour)])[0])
+    except (TypeError, ValueError):
+        return None
+    return None if c < 0 else c
+
+
+def _anchor_table(vals: np.ndarray, ok: np.ndarray, slot: np.ndarray, yr: np.ndarray, fence: bool) -> dict:
+    """Percentiles and records at every DOY anchor from the samples where `ok`, each pooling +/-DOY_WIN days."""
+    n_l, p_l, mn_l, mx_l, mnY_l, mxY_l = [], [], [], [], [], []
+
+    def empty(c):
+        n_l.append(c)
+        p_l.append([None] * len(PCTS))
+        mn_l.append(None)
+        mx_l.append(None)
+        mnY_l.append(None)
+        mxY_l.append(None)
+
+    for a in DOY:
+        d = np.abs(slot - a)
+        d = np.minimum(d, 366 - d)  # wrap the year
+        m = ok & (d <= DOY_WIN)
+        c = int(m.sum())
+        if c < 5:
+            empty(c)
+            continue
+        vv, yy = vals[m], yr[m]
+        # Window-local fence: the global fence is scaled to the full annual
+        # cycle, so it can't see seasonally-impossible values (a winter-grade
+        # thickness in an August window). Same 3-tail-span rule, but against
+        # THIS window's distribution.
+        if fence and c >= 20:
+            q1, q50, q99 = np.percentile(vv, [1, 50, 99])
+            w_lo = q1 - 3.0 * max(q50 - q1, 1.0)
+            w_hi = q99 + 3.0 * max(q99 - q50, 1.0)
+            keep = (vv >= w_lo) & (vv <= w_hi)
+            if not keep.all():
+                vv, yy = vv[keep], yy[keep]
+                c = len(vv)
+                if c < 5:
+                    empty(c)
+                    continue
+        n_l.append(c)
+        p_l.append([round(float(x), 1) for x in np.percentile(vv, PCTS)])
+        i0, i1 = int(np.argmin(vv)), int(np.argmax(vv))
+        mn_l.append(round(float(vv[i0]), 1))
+        mnY_l.append(int(yy[i0]))
+        mx_l.append(round(float(vv[i1]), 1))
+        mxY_l.append(int(yy[i1]))
+    return {"n": n_l, "p": p_l, "min": mn_l, "max": mx_l, "minY": mnY_l, "maxY": mxY_l}
+
+
+def station_tables(gid: str, s: dict) -> dict | None:
+    """The station's climatology JSON (format 2) from its per-sounding samples, or None."""
     doy, yr, V = s["doy"], s["yr"], s["v"]
     # the cache keeps the true day of year (tm_yday); pool on the 366-slot calendar
     dates = (yr.astype("int64") - 1970).astype("datetime64[Y]").astype("datetime64[D]") + (doy.astype("int64") - 1)
     slot = _doy366(dates) + 1
+    cls = hour_classes(s["hod"])
+    syn = cls >= 0
+    if not syn.any():
+        return None
 
-    out: dict = {"gid": gid, "doy": DOY, "idx": {}}
+    pooled: dict = {}
+    hours: dict = {f"{h:02d}": {} for h in SYN_HOURS}
     for k in KEYS:
         vals = V.get(k)
         if vals is None:
             continue
-        ok = np.isfinite(vals)
+        ok = np.isfinite(vals) & syn
         if ok.sum() < 20:
             continue
         # Robust QC: one corrupt sounding must not set a record envelope
@@ -334,7 +455,8 @@ def build_station(gid: str, outdir: Path) -> bool:
                 ok = ok & ~bad
                 if ok.sum() < 20:
                     continue
-        if k not in ("ecape", "ship"):
+        fence = k not in ("ecape", "ship")
+        if fence:
             p1, p50, p99 = np.percentile(vals[ok], [1, 50, 99])
             lo = p1 - 3.0 * max(p50 - p1, 1.0)
             hi = p99 + 3.0 * max(p99 - p50, 1.0)
@@ -344,55 +466,38 @@ def build_station(gid: str, outdir: Path) -> bool:
                 ok = ok & ~bad
                 if ok.sum() < 20:
                     continue
-        n_l, p_l, mn_l, mx_l, mnY_l, mxY_l = [], [], [], [], [], []
-        for a in DOY:
-            d = np.abs(slot - a)
-            d = np.minimum(d, 366 - d)  # wrap the year
-            m = ok & (d <= DOY_WIN)
-            c = int(m.sum())
-            n_l.append(c)
-            if c < 5:
-                p_l.append([None] * len(PCTS))
-                mn_l.append(None)
-                mx_l.append(None)
-                mnY_l.append(None)
-                mxY_l.append(None)
-                continue
-            vv, yy = vals[m], yr[m]
-            # Window-local fence: the global fence above is scaled to the
-            # full annual cycle, so it can't see seasonally-impossible
-            # values (a winter-grade thickness in an August window). Same
-            # 3-tail-span rule, but against THIS window's distribution.
-            if k not in ("ecape", "ship") and c >= 20:
-                q1, q50, q99 = np.percentile(vv, [1, 50, 99])
-                w_lo = q1 - 3.0 * max(q50 - q1, 1.0)
-                w_hi = q99 + 3.0 * max(q99 - q50, 1.0)
-                keep = (vv >= w_lo) & (vv <= w_hi)
-                if not keep.all():
-                    vv, yy = vv[keep], yy[keep]
-                    c = len(vv)
-                    n_l[-1] = c
-                    if c < 5:
-                        p_l.append([None] * len(PCTS))
-                        mn_l.append(None)
-                        mx_l.append(None)
-                        mnY_l.append(None)
-                        mxY_l.append(None)
-                        continue
-            p_l.append([round(float(x), 1) for x in np.percentile(vv, PCTS)])
-            i0, i1 = int(np.argmin(vv)), int(np.argmax(vv))
-            mn_l.append(round(float(vv[i0]), 1))
-            mnY_l.append(int(yy[i0]))
-            mx_l.append(round(float(vv[i1]), 1))
-            mxY_l.append(int(yy[i1]))
-        out["idx"][k] = {"n": n_l, "p": p_l, "min": mn_l, "max": mx_l, "minY": mnY_l, "maxY": mxY_l}
-    if not out["idx"]:
+        pooled[k] = _anchor_table(vals, ok, slot, yr, fence)
+        for h in SYN_HOURS:
+            t = _anchor_table(vals, ok & (cls == h), slot, yr, fence)
+            if max(t["n"]) >= MIN_N:
+                hours[f"{h:02d}"][k] = t
+    hours = {h: t for h, t in hours.items() if t}
+    if not hours:
+        return None
+    return {
+        "gid": gid,
+        "v": FORMAT,
+        "tol": HOUR_TOL,
+        "doy": DOY,
+        "hr": hours,
+        "nh": {h: int((cls == int(h)).sum()) for h in hours},
+        "idx": pooled,
+        "yr0": int(yr[syn].min()),
+        "yr1": int(yr[syn].max()),
+    }
+
+
+def build_station(gid: str, outdir: Path) -> bool:
+    s = _samples(gid)
+    if not s:
         return False
-    out["yr0"] = int(yr.min())
-    out["yr1"] = int(yr.max())
+    out = station_tables(gid, s)
+    if not out:
+        return False
     outdir.mkdir(parents=True, exist_ok=True)
     (outdir / f"{gid}.json").write_text(json.dumps(out, separators=(",", ":")))
-    print(f"  {gid}: {len(out['idx'])} indices, {len(doy)} soundings ({out['yr0']}-{out['yr1']})", flush=True)
+    hrs = ", ".join(f"{h}Z {n}" for h, n in out["nh"].items())
+    print(f"  {gid}: {len(out['idx'])} indices, soundings {hrs} ({out['yr0']}-{out['yr1']})", flush=True)
     return True
 
 
@@ -414,9 +519,9 @@ def main() -> int:
         if fp.exists():
             try:
                 have = json.loads(fp.read_text())
-                if have.get("doy") and "850td" in have.get("idx", {}):
+                if have.get("v") == FORMAT:
                     ok += 1
-                    continue  # already has the split T/Td keys
+                    continue  # already split by synoptic hour
             except Exception:  # noqa: BLE001
                 pass  # rebuild on parse error
         todo.append(gid)

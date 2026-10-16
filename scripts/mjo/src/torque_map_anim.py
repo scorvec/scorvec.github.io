@@ -623,8 +623,9 @@ def main() -> int:
         -0.02,
         "Anomalies against the ERA5 1991–2020 climatology, everything on the same footing: the forecast tendency has its own "
         "climatological tendency removed too. Shaded = ±1σ and ±2σ of the net anomaly over 1991–2020.\n"
-        "Each hemisphere's gap between net surface torque (black) and d(AAM)/dt (dashed) is cross-equatorial momentum transport "
-        "plus gravity-wave drag — an internal flux, not a torque.",
+        "Each hemisphere's gap between net surface torque (black) and d(AAM)/dt (dashed) is the unresolved gravity-wave-drag "
+        "torque, cross-equatorial momentum transport (an internal flux, not a torque) and any non-closure of the forecast's "
+        "own budget.",
         ha="center",
         va="top",
         fontsize=8.5,
