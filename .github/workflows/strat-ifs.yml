@@ -105,10 +105,13 @@ jobs:
 
   # ----------------------------------------------------------------- maps ---
   # One shared fetch (~8 GB), then every product that reads it. ~35 min: fetch ~5, vortex winds ~15, the rest ~10.
+  # Each heavy step has its own cap (2-3x its measured time) and continues on error: the job ran into its 90-min limit
+  # twice on 2026-10-03 (21-38 min otherwise) and nothing was packed or published. A stuck step now costs only its cap,
+  # the rest still render and publish, and "What was produced" still turns the run red for whatever is missing.
   maps:
     needs: cycle
     runs-on: ubuntu-latest
-    timeout-minutes: 90
+    timeout-minutes: 120
     env:
       MPLBACKEND: Agg
       D: ${{ needs.cycle.outputs.date }}
@@ -146,6 +149,8 @@ jobs:
 
       - name: Shared IFS-ENS fetch (Google mirror only)
         if: env.READY == 'true'
+        timeout-minutes: 25
+        continue-on-error: true
         run: |
           start=$(date +%s)
           python scripts/strat/ifs_ens.py fetch --date "$D" --time "$T" \
@@ -156,6 +161,8 @@ jobs:
 
       # All four models in one figure. Without IFS (not on the mirror) it still renders the other three.
       - name: NH polar vortex
+        timeout-minutes: 25
+        continue-on-error: true
         run: |
           M=aifs,geps,gdps,geosfp; [ "$READY" = "true" ] && M=aifs,geps,gdps,geosfp,ifs
           python scripts/strat/nh_vortex.py --models "$M" --cycle "$D$T" --out assets/sst/nh_vortex.webp \
@@ -163,12 +170,16 @@ jobs:
 
       - name: Eddy heat flux, 100 hPa (IFS-ENS)
         if: env.READY == 'true'
+        timeout-minutes: 10
+        continue-on-error: true
         run: |
           python scripts/strat/heatflux100_ext.py --model ifs --date "$D" --time "$T" --out-dir assets/sst \
             || echo "::warning::IFS heat flux failed; keeping the previous figure"
 
       - name: Forecast dripping paint (IFS-ENS)
         if: env.READY == 'true'
+        timeout-minutes: 15
+        continue-on-error: true
         run: |
           python scripts/strat/forecast_drip.py --model ifs --date "$D" --time "$T" --out-dir assets/sst \
             || echo "::warning::IFS drip failed; keeping the previous figure"
@@ -176,6 +187,8 @@ jobs:
       # The two loops are independent and CPU-bound: render them side by side.
       - name: Wave-1 and vortex-wind loops (IFS-ENS)
         if: env.READY == 'true'
+        timeout-minutes: 30
+        continue-on-error: true
         run: |
           python scripts/strat/wave1_maps.py --model ifs --date "$D" --time "$T" \
             --anim-dir assets/sst/anim --manifest assets/sst/anim/wave1_maps_ifs_manifest.json > /tmp/wave1.log 2>&1 &
@@ -192,6 +205,8 @@ jobs:
       # assets/regimes/data, read by the multi-model regime view (regimes.yml).
       - name: Weather regimes (IFS-ENS members)
         if: env.READY == 'true'
+        timeout-minutes: 10
+        continue-on-error: true
         run: |
           python scripts/regimes/regimes_ecmwf.py --model ifs --date "$D" --time "$T" \
             || echo "::warning::IFS-ENS regimes failed"

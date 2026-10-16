@@ -53,7 +53,7 @@ jobs:
         run: pip install -r scripts/mjo/requirements-mjo.txt
       - name: Members of ${{ matrix.sys }}
         run: python scripts/ar/ar_ens.py system --sys ${{ matrix.sys }} --work out
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: ens-${{ matrix.sys }}
           path: out/ens_${{ matrix.sys }}.npz
@@ -84,7 +84,7 @@ jobs:
           sudo apt-get install -y --no-install-recommends libeccodes0 libgeos-dev libproj-dev proj-bin
       - name: Python dependencies
         run: pip install -r scripts/mjo/requirements-mjo.txt
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v7
         with:
           pattern: ens-*
           path: out

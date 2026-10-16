@@ -29,7 +29,7 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 40   # 3-20 min measured (2026-10), 22 at the worst: a day ERDDAP is slow must not cost the frame
     env:
       MPLBACKEND: Agg
       SST_SITE_ROOT: ${{ github.workspace }}
