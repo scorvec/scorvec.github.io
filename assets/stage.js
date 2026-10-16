@@ -10,7 +10,7 @@
      gated:true (dom) -> the block's own script shows/hides it and a hidden one leaves the rail;
      ownHash:true (dom) -> the block keeps its own state after "#id/" in the hash and the stage leaves it.
    STAGE.aliases maps old ids to products; STAGE.related = false drops the related-plots strip; STAGE.onRender(sel)
-   runs after each render.
+   runs after each render. An optional #stage-stamp element shows the stamp the figure on stage reports for itself.
    Selection lives in the hash (#product/a/b/c); ← → step the deepest option row, ↑ ↓ the product. */
 (function () {
   "use strict";
@@ -283,6 +283,9 @@
     var gb = typeof p.b === "function" ? p.b(sel.a) : (p.b || null); buttons($("opts-b"), gb, "b");
     var gc = typeof p.c === "function" ? p.c(sel.a, sel.b) : (p.c || null); buttons($("opts-c"), gc, "c");
     var st = $("stage"); unmount(); st.innerHTML = ""; pinMax = 0;
+    // A page's stage footer stamp (#stage-stamp) belongs to the figure on stage: blank until that figure says when it
+    // was made (a loop embed posts its manifest's run or build time), never a date that belongs to another product.
+    var stamp = $("stage-stamp"); if (stamp) stamp.textContent = "";
     var domId = p.dom && p.dom(sel.a, sel.b, sel.c);   // dom() may return null for an option that is a still
     if (domId) {
       var el = $(domId);
@@ -327,7 +330,7 @@
     updatePicker(g);
     if (pushNext && live) live.textContent = g[1];
     fitStage();
-    var h = "#" + [sel.p, sel.a, sel.b, sel.c].filter(function (x) { return x; }).join("/");
+    var h = hashOf(sel);
     if (wanted && Date.now() > wanted.until) wanted = null;
     // ownHash: a mounted block that keeps its own state in the hash after the product id (mjo.html's #mi/f/d/m/l/v)
     var own = p.ownHash && location.hash.indexOf("#" + sel.p + "/") === 0;
@@ -455,8 +458,14 @@
   });
   $("lightbox").onclick = function () { this.classList.remove("on"); };
   addEventListener("message", function (e) {
-    var x = e.data; if (!x || x.type !== "sstAnimHeight") return;
+    var x = e.data; if (!x) return;
     var f = document.querySelector("#stage iframe");
+    if (x.type === "sstAnimStamp") {               // the loop on stage names its own run (sst_anim.html postStamp)
+      var ss = $("stage-stamp");
+      if (ss && f && f.contentWindow === e.source && e.origin === location.origin) ss.textContent = String(x.text || "");
+      return;
+    }
+    if (x.type !== "sstAnimHeight") return;
     if (f && f.contentWindow === e.source) {
       f.style.height = x.h + "px"; f.style.aspectRatio = "auto";
       // pin the iframe to the picture's width only when that is close to the stage width (a portrait
@@ -476,10 +485,33 @@
       f.style.maxWidth = (!wide && sw >= 700 && pinMax > sw * 0.5 && pinMax < sw * 0.98) ? pinMax + "px" : "";
     }
   });
+  // The hash is positional, #product/a/b/c. An option row a product does not have is written as an empty slot when a
+  // later one follows (#pacjet/axis//ifs) and trailing empty slots are dropped. Dropping middle ones too (the writer
+  // before 2026-10-16, and the catalogue's variant links) shifted the next value into the wrong row, so #pacjet/axis/ifs
+  // reloaded as AIFS. The reader takes both forms: a slot is consumed only by a row the product has (an empty slot
+  // where it has none is skipped), so the earlier links still land on their view.
+  function hashOf(s) {
+    var parts = [s.p, s.a, s.b, s.c].map(function (x) { return x == null ? "" : String(x); });
+    while (parts.length > 1 && parts[parts.length - 1] === "") parts.pop();
+    return "#" + parts.join("/");
+  }
+  function row(p, key, n) {           // the product's option group for a / b / c given the earlier choices, or null
+    var g = p[key];
+    try { return typeof g === "function" ? (key === "a" ? g() : key === "b" ? g(n.a) : g(n.a, n.b)) : (g || null); }
+    catch (e) { return null; }
+  }
+  function fromHash(h) {
+    var p = P[h[0]], n = { p: h[0], a: null, b: null, c: null }, k = 1;
+    ["a", "b", "c"].forEach(function (key) {
+      if (row(p, key, n)) n[key] = h[k++] || null;
+      else if (h[k] === "") k++;
+    });
+    return n;
+  }
   function hashParts() { var h = location.hash.replace(/^#/, "").split("/"); return (h[0] && !P[h[0]] && AL[h[0]]) ? [AL[h[0]]] : h; }
   function follow() {
     var h = hashParts(); if (!(h[0] && P[h[0]])) return;
-    var n = { p: h[0], a: h[1] || null, b: h[2] || null, c: h[3] || null };
+    var n = fromHash(h);
     if (n.p === sel.p && n.a === sel.a && n.b === sel.b && n.c === sel.c) return;
     // a block that keeps its own state in the hash handles its own changes; rebuilding the stage on each of them
     // would remount it twice per click and close an open "About"
@@ -507,7 +539,7 @@
   syncRail();
   var h = hashParts();
   if (h[0] && P[h[0]]) {
-    sel = { p: h[0], a: h[1] || null, b: h[2] || null, c: h[3] || null };
+    sel = fromHash(h);
     if (!available(h[0])) wanted = { p: h[0], a: sel.a, b: sel.b, c: sel.c, until: Date.now() + 12000 };
   }
   render();
