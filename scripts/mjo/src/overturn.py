@@ -145,54 +145,66 @@ def reduce_file(path: Path, members, steps_h, levels=LEVELS):
     return vb, ud
 
 
-def gefs_member(date: str, member: int, step_h: int):
-    """One GEFS member (0 = control) at one step of the 00Z run: vbar (lev, 721), ud (lev, 173), byte-ranged from
-    NOAA's S3 bucket (the 13 levels are split between pgrb2a and pgrb2b)."""
-    import eccodes
+def gefs_fetch(date: str, member: int, step_h: int) -> list[bytes]:
+    """The u and v messages at the 13 levels of one GEFS member (0 = control) at one step of the 00Z run, byte-ranged
+    from NOAA's S3 bucket (the levels are split between pgrb2a and pgrb2b). Network only, so it runs in threads."""
     from qbo_duct import _gefs_index, _get, gefs_url
 
     mem = "gec00" if member == 0 else f"gep{member:02d}"
-    want, fields, lat = set(LEVELS), {}, None
+    want, out = set(LEVELS), []
     for kind in ("a", "b"):
         url = gefs_url(date, "00", mem, kind, step_h)
         for s0, e0, var, lev in _gefs_index(url):
-            if var not in ("UGRD", "VGRD") or lev == "sfc" or int(lev) not in want or float(lev) != int(lev):
-                continue
-            gid = eccodes.codes_new_from_message(bytes(_get(url, (s0, e0))))
-            try:
-                nj, ni = eccodes.codes_get(gid, "Nj"), eccodes.codes_get(gid, "Ni")
-                f = eccodes.codes_get_values(gid).reshape(nj, ni)
-                j0 = eccodes.codes_get(gid, "latitudeOfFirstGridPointInDegrees")
-            finally:
-                eccodes.codes_release(gid)
-            fields.setdefault(int(lev), {})[var] = f[::-1] if j0 < 0 else f
-            lat = np.linspace(90.0, -90.0, nj)
+            if var in ("UGRD", "VGRD") and lev != "sfc" and float(lev) == int(lev) and int(lev) in want:
+                out.append(bytes(_get(url, (s0, e0))))
+    return out
+
+
+def gefs_reduce(msgs: list[bytes]):
+    """vbar (lev, 721), ud (lev, 173) from one member-step's messages. eccodes and the chi solver run here, in the
+    calling thread only: decoding and solving inside the fetch threads crashed the interpreter (exit 139)."""
+    import eccodes
+
+    fields, lat = {}, None
+    for m in msgs:
+        gid = eccodes.codes_new_from_message(m)
+        try:
+            nj, ni = eccodes.codes_get(gid, "Nj"), eccodes.codes_get(gid, "Ni")
+            f = eccodes.codes_get_values(gid).reshape(nj, ni)
+            j0 = eccodes.codes_get(gid, "latitudeOfFirstGridPointInDegrees")
+            var, lev = eccodes.codes_get(gid, "shortName"), int(eccodes.codes_get(gid, "level"))
+        finally:
+            eccodes.codes_release(gid)
+        fields.setdefault(lev, {})[var] = f[::-1] if j0 < 0 else f
+        lat = np.linspace(90.0, -90.0, nj)
     vb = np.full((len(LEVELS), LAT.size), np.nan, np.float32)
     ud = np.full((len(LEVELS), NLON_UD), np.nan, np.float32)
     for k, lev in enumerate(LEVELS):
         d = fields.get(lev, {})
-        if "UGRD" in d and "VGRD" in d:
-            lon = np.arange(d["UGRD"].shape[1]) * 360.0 / d["UGRD"].shape[1]
-            vb[k] = zonal_v(d["VGRD"], lat)
-            ud[k] = eq_ud(d["UGRD"], d["VGRD"], lat, lon)
+        if "u" in d and "v" in d:
+            lon = np.arange(d["u"].shape[1]) * 360.0 / d["u"].shape[1]
+            vb[k] = zonal_v(d["v"], lat)
+            ud[k] = eq_ud(d["u"], d["v"], lat, lon)
     return vb, ud
 
 
 def gefs_run(date: str, members, steps_h, workers: int = 8):
-    """vbar (member, step, lev, 721), ud (member, step, lev, 173) of the GEFS 00Z run, member-steps in parallel."""
+    """vbar (member, step, lev, 721), ud (member, step, lev, 173) of the GEFS 00Z run: member-steps fetched in
+    threads, at most 2 x workers ahead of the reduction, which runs in this thread."""
+    from collections import deque
     from concurrent.futures import ThreadPoolExecutor
 
     vb = np.full((len(members), len(steps_h), len(LEVELS), LAT.size), np.nan, np.float32)
     ud = np.full((len(members), len(steps_h), len(LEVELS), NLON_UD), np.nan, np.float32)
-    jobs = [(i, j) for i in range(len(members)) for j in range(len(steps_h))]
-
-    def one(job):
-        i, j = job
-        return i, j, gefs_member(date, members[i], steps_h[j])
-
+    jobs = deque((i, j) for i in range(len(members)) for j in range(len(steps_h)))
     with ThreadPoolExecutor(workers) as ex:
-        for i, j, (v, u) in ex.map(one, jobs):
-            vb[i, j], ud[i, j] = v, u
+        live = deque()
+        while jobs or live:
+            while jobs and len(live) < 2 * workers:
+                i, j = jobs.popleft()
+                live.append((i, j, ex.submit(gefs_fetch, date, members[i], steps_h[j])))
+            i, j, fut = live.popleft()
+            vb[i, j], ud[i, j] = gefs_reduce(fut.result())
     return vb, ud
 
 
