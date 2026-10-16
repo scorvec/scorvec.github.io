@@ -331,7 +331,8 @@ document.addEventListener('DOMContentLoaded', function () {
     var p = status[page]; if (!p) return null;
     var h = (Date.now() - Date.parse(p.updated)) / 3.6e6;
     if (!(h >= 0)) return null;
-    return { h: h, late: p.every_h ? h > 2 * p.every_h + 6 : false,
+    var lateH = p.late_h || (p.every_h ? 2 * p.every_h + 6 : 0);   // late_h: status.py's rule for the cadence
+    return { h: h, late: lateH ? h > lateH : false,
              text: 'updated ' + (h < 1.5 ? Math.max(1, Math.round(h * 60)) + ' min ago' : h < 48 ? Math.round(h) + ' h ago' : Math.round(h / 24) + ' days ago') };
   }
 
