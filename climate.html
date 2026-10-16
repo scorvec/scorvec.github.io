@@ -472,7 +472,7 @@ window.loadPlotly = function () {
       var traces = [{x: good.map(function (p) { return p[0]; }), y: good.map(function (p) { return p[1]; }), mode: "lines+markers", line: {color: "#1b365d", width: 1.4}, marker: {size: 3}, name: names[fips] || fips}];
       var nsel = good.filter(function (p) { return p[0] >= 1991 && p[0] <= 2020; }).map(function (p) { return p[1]; });
       var nm = d3.mean(nsel), nsd = d3.deviation(nsel);
-      traces.push({x: [years[0], years[years.length - 1]], y: [nm, nm], mode: "lines", line: {color: "#888", dash: "dash", width: 1}, name: "1991–2020 normal"});
+      traces.push({x: [years[0], years[years.length - 1]], y: [nm, nm], mode: "lines", line: {color: "#888", dash: "dash", width: 1}, name: "1991–2020 normal (shaded: ±1 standard deviation of those years)"});
       var ns = [];
       [["1970", "#b4453c"], ["1950", "#d0801a"], ["1895", "#2b7a3d"]].forEach(function (s, j) {
         var T = TR[j], g = sigAt(T.sig, fips, ci);
@@ -481,7 +481,8 @@ window.loadPlotly = function () {
         var xs = pts.map(function (p) { return p[0]; }), ys = pts.map(function (p) { return p[1]; }), sl = [];
         for (var a = 0; a < xs.length; a++) for (var c = a + 1; c < xs.length; c++) sl.push((ys[c] - ys[a]) / (xs[c] - xs[a]));
         var b = d3.median(sl), b0 = d3.median(ys) - b * d3.median(xs);   // the Theil–Sen line of the trend files
-        traces.push({x: [xs[0], T.end + 1], y: [b0 + b * xs[0], b0 + b * (T.end + 1)], mode: "lines", line: {color: s[1], width: 2}, name: "trend since " + s[0] + ": " + (b * 10 > 0 ? "+" : "") + (b * 10).toFixed(2) + " " + UNITS[v] + "/decade (Theil–Sen)"});
+        var pct = v === "pcpn" && nm > 0 ? ", " + (b > 0 ? "+" : "") + (1000 * b / nm).toFixed(1) + "% of the normal" : "";  // the map's unit
+        traces.push({x: [xs[0], T.end + 1], y: [b0 + b * xs[0], b0 + b * (T.end + 1)], mode: "lines", line: {color: s[1], width: 2}, name: "trend since " + s[0] + ": " + (b * 10 > 0 ? "+" : "") + (b * 10).toFixed(2) + " " + UNITS[v] + "/decade" + pct + " (Theil–Sen)"});
       });
       Plotly.react("series", traces, {margin: {l: 50, r: 16, t: 34, b: 40}, paper_bgcolor: "rgba(0,0,0,0)", plot_bgcolor: "#fff", font: {family: "Inter, sans-serif", size: 12},
         title: {text: (names[fips] || fips) + " — " + COLNAME[st.col] + " " + document.getElementById("selVar").selectedOptions[0].text.toLowerCase() + " (" + UNITS[v] + ")", x: 0, font: {size: 13}},
