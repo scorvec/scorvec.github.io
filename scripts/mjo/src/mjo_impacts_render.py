@@ -128,6 +128,14 @@ def lag_label(meta, lag):
     return f"days {f(a)} to {f(b)}" if a != b else f"day {f(a)}"
 
 
+def cbar_label(spec):
+    """Colour-bar label: the quantity and its units. The % fields are anomalies as a share of the months' normal
+    (−20 % = a fifth below normal), not a percentage of normal."""
+    if spec["unit"] == "%":
+        return f"{spec['var'].split(',')[0]} anomaly (% of the months' normal)"
+    return f"{spec['var']} anomaly ({spec['unit']})"
+
+
 def _agree_text(meta):
     a = meta.get("tests", {}).get("agree", 0.8)
     return "2/3" if abs(a - 2 / 3) < 0.01 else f"{100 * a:.0f} %"
@@ -257,7 +265,7 @@ def render_one(job):
         )
         cax = fig.add_axes([0.2, 0.3 / H, 0.6, 0.14 / H])
         cb = fig.colorbar(mesh, cax=cax, orientation="horizontal", ticks=spec["lv"])
-        cb.set_label(f"{spec['unit']}" if spec["unit"] != "%" else "% of the months' normal", fontsize=8.5, labelpad=1)
+        cb.set_label(cbar_label(spec), fontsize=8.5, labelpad=1)
         cb.ax.tick_params(labelsize=7.5, pad=1)
         fp = out / f"F{p + 1:02d}.webp"
         # loop frames: WebP q65 method 6 (2026-10-05 encode study: ~30-35 % fewer bytes than q82, text/contours/colour bars unchanged at 1x)
@@ -312,7 +320,7 @@ def render_one(job):
     fig.text(0.1 / SW, 1 - 0.4 / SH, note, fontsize=8.2, color=MUTED, va="top")
     cax = fig.add_axes([0.3, 0.42 / SH, 0.4, 0.13 / SH])
     cb = fig.colorbar(mesh, cax=cax, orientation="horizontal", ticks=spec["lv"])
-    cb.set_label(spec["unit"] if spec["unit"] != "%" else "% of the months' normal", fontsize=8.5, labelpad=1)
+    cb.set_label(cbar_label(spec), fontsize=8.5, labelpad=1)
     cb.ax.tick_params(labelsize=7.5, pad=1)
     for f in so.glob("F*.webp"):
         f.unlink()
