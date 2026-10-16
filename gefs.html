@@ -220,8 +220,8 @@
     <b>GEFS's 2000&ndash;2019 reforecast</b> at the same lead and time of year, so drift is not read as a forecast. Weekly
     maps and terciles, the change since the previous run, the daily animation, teleconnections, regimes and the MJO
     &mdash; one figure at a time, picked from the menu; its polar vortex is on the <a href="/stratosphere.html#vortex35/gefs">stratosphere page</a>. The same products as the
-    <a href="/subseasonal.html">GEPS subseasonal outlook</a>, for comparing the two models, and of the experimental
-    <a href="/sfs-subseasonal.html">SFS outlook</a> once a month.</p>
+    <a href="/subseasonal.html">GEPS subseasonal outlook</a> and, once a month, the experimental
+    <a href="/sfs-subseasonal.html">SFS outlook</a>, so the models can be compared.</p>
     <div class="chips">
       <div class="chip"><div class="l">cycle</div><div class="v" id="g-cycle">&ndash;</div><div class="s">extended run</div></div>
       <div class="chip"><div class="l">valid</div><div class="v"><b id="g-valid">&ndash;</b></div><div class="s">days 1&ndash;35</div></div>
@@ -279,15 +279,16 @@
     mean at the same lead, which removes the model's drift and its mean bias together. Today's GEFS does not drift
     quite as its reforecast did &mdash; checked against its own analyses it runs cooler at long lead in the northern
     mid-latitudes and in the stratosphere &mdash; so the difference, measured daily from the 45 most recent runs whose 35
-    days have been observed (zonal mean, by lead and latitude), is removed as well; the <i>Drift correction</i> figure shows
-    it. The reference is then moved to
+    days have been observed (zonal mean, by lead and latitude), is removed as well (control member only; those runs started 36 to 80 days earlier, so the estimate reflects the
+    season of one to two months before); the <i>Drift correction</i> figure shows it. The reference is then moved to
     <b>1991&ndash;2020</b> by the observed ERA5 shift between the periods (ERA5 2001&ndash;2020 standing in for
     2000&ndash;2019), with no model in that step. 500 hPa height has its global mean removed so the circulation shows.
     Because GEFS's reforecast reaches 10 hPa, the polar vortex is corrected the same way at every lead, against ERA5.
-    Tercile probabilities, the teleconnection probabilities and the MJO score are calibrated on the same reforecasts, with
-    each start verified against a climatology that leaves its own season out, and the skill masks hatch wherever the
-    reforecast's anomaly correlation is not significantly above zero (one-sided 5&nbsp;% test on the 20 reforecast years, false-discovery rate 10&nbsp;% across the map). <a href="/subseasonal-method.html">The GEPS page's full method</a>
-    applies throughout.</p>
+    Tercile and teleconnection probabilities are calibrated on the same reforecasts, each start verified against a
+    climatology that leaves its own season out, and the MJO is scored on them; the skill masks hatch wherever the
+    reforecast's anomaly correlation is not significantly above zero (one-sided 5&nbsp;% test on the 20 reforecast years, false-discovery rate 10&nbsp;% across the map). The <a href="/subseasonal-method.html">GEPS page's method</a>
+    gives the rest in full; where the two differ (reforecast years and members, start days, the day convention, the
+    season left out, the drift correction), this note describes GEFS.</p>
   </section>
 </main>
 
@@ -319,8 +320,8 @@ var P = {
         c: {label:"Probability", items:[["raw","Raw members"],["cal","Hindcast-calibrated"]]},
         img: function (a,b,c) { return "assets/gefs/gefs_" + a + "_" + b + "_prob_" + c + ".webp"; },
         cap: function (a,b,c) { return (c==="raw"
-          ? "Most likely tercile by week: colour is the category (blue below, grey near, red above normal), intensity its probability, from the fraction of the 31 members in each tercile of the 2016–2025 weekly anomaly — a recent-decade normal, so the warming since 1991–2020 is not counted as a forecast."
-          : "Most likely tercile by week, calibrated: the ensemble-mean departure scaled by the gridpoint regression fitted on 2000–2019 GEFS reforecasts for this month and week (each start verified against a climatology that leaves its own season out), the residual spread giving the three tercile probabilities — one third each where the model has no skill, amplitude restored where it has some.")
+          ? "Most likely tercile by week: colour is the category (blue below, grey near, red above normal), intensity its probability, from the fraction of the 31 members in each tercile of the 2016–2025 weekly anomaly — a recent-decade normal, not the maps’ 1991–2020, so the warming since then is not counted as a forecast."
+          : "Most likely tercile by week, calibrated: the ensemble-mean departure scaled by the gridpoint regression fitted on 2000–2019 GEFS reforecasts for this month and week (each start verified against a climatology that leaves its own season out), the residual spread giving the three tercile probabilities — one third each where the model has no skill, amplitude restored where it has some. Out of sample (every 2000–2019 reforecast start scored with its own season left out, 4-member means), the calibrated probabilities beat one third each by an RPSS of 0.46 in week 1 and 0.08 in week 5 for temperature, and 0.18 in week 1 and about zero from week 3 for precipitation.")
           + " Hatched: reforecast skill not significantly above zero (one-sided 5 % test, false-discovery rate 10 %)." + (b==="pr" ? " Cross-hatched: no gauge truth over the ocean, or a dry climatological week where terciles are undefined." : ""); }},
   change: {label: "Change vs previous run, weeks 1–5", fit: false, a: DOMAINS, b: {label:"Field", items: FIELDS},
         img: function (a,b) { return "assets/gefs/gefs_" + a + "_" + b + "_change.webp"; },
@@ -356,7 +357,7 @@ var P = {
   drift: {label: "Drift correction — operational GEFS vs its reforecast",
         a: {label:"", items:[["zm","Zonal mean by lead"]]},
         img: function () { return "assets/gefs/gefs_drift.webp"; },
-        cap: function () { return "Today’s GEFS does not drift the way its 2000–2019 reforecast did: verified against its own analyses it runs cooler at long lead in the northern mid-latitudes and at 10 hPa. This is the difference, from the 45 most recent runs whose 35 days have been observed, and every product on this page has it removed. Updated daily."; }},
+        cap: function () { return "Today’s GEFS does not drift the way its 2000–2019 reforecast did: verified against its own analyses it runs cooler at long lead in the northern mid-latitudes and at 10 hPa. This is the difference, from the 45 most recent runs whose 35 days have been observed (control member; runs started 36 to 80 days earlier, so it reflects the season of one to two months before), and every product on this page has it removed. The largest terms can be polar: 500 hPa height and sea-level pressure near the poles (about +100 m and +10 hPa at days 20–35 in the mid-October 2026 estimate); the figure gives the current values. Updated daily."; }},
   stratlink: {label: "Stratosphere: moved to the stratosphere page", dom: function () { return "dom-stratlink"; }}
 };
 var MASKABLE = ["t2m","pr","zg500","mslp"];   // fields with a reforecast skill file
