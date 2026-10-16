@@ -65,7 +65,6 @@ MODULES = [
     "seas5_build",
     "seas5_normals",
     "seas5_tele",
-    "seas5_pme_regions",
     "seas5_popT",
     "seas5_extremes_build",
     "seas5_runs",
