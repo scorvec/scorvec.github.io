@@ -923,7 +923,8 @@ def render_torque(init, pcs_mean, valid, out, torque_json):
         axt.set_ylabel("σ", fontsize=10)
         axt.tick_params(labelsize=9, labelbottom=False)
         axt.set_title(
-            f"Himalaya/Tibet torque forecast, AIFS-ENS mean (init {pd.Timestamp(tq['init'][:10]):%-d %b} {tq['init'][-3:]})",
+            f"Himalaya/Tibet torque forecast, {tq.get('model', 'AIFS-ENS')} mean "
+            f"(init {pd.Timestamp(tq['init'][:10]):%-d %b} {tq['init'][-3:]})",
             fontsize=11,
             loc="left",
             fontweight="bold",
@@ -1017,7 +1018,9 @@ def main() -> int:
     ap.add_argument("--anim-dir", default=None, help="default: <out-dir>/anim/pacjet_<model>")
     ap.add_argument("--no-loop", action="store_true")
     ap.add_argument(
-        "--torque", default=str(SITE / "data" / "torque_ranges.json"), help="AIFS only: the torque forecast"
+        "--torque",
+        default=str(SITE / "data" / "torque_ranges.json"),
+        help="the torque forecast (torque_map_anim.py), drawn on the AIFS-ENS figures only",
     )
     a = ap.parse_args()
     t0 = time.time()

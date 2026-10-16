@@ -4,13 +4,13 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Atmospheric angular momentum (AAM), live forecast · Shawn Corvec</title>
-<meta name="description" content="What atmospheric angular momentum measures, why it tracks El Niño and the length of day, the GWO phase space, and a live AIFS-ENS forecast by hemisphere.">
+<meta name="description" content="What atmospheric angular momentum measures, why it tracks El Niño and the length of day, the GWO phase space, and a live IFS-ENS forecast by hemisphere.">
 <link rel="canonical" href="https://scorvec.com/topics/atmospheric-angular-momentum.html">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <meta name="author" content="Shawn Corvec">
 <meta property="og:type" content="article">
 <meta property="og:title" content="Atmospheric angular momentum (AAM), live forecast">
-<meta property="og:description" content="What atmospheric angular momentum measures, why it tracks El Niño and the length of day, the GWO phase space, and a live AIFS-ENS forecast by hemisphere.">
+<meta property="og:description" content="What atmospheric angular momentum measures, why it tracks El Niño and the length of day, the GWO phase space, and a live IFS-ENS forecast by hemisphere.">
 <meta property="og:url" content="https://scorvec.com/topics/atmospheric-angular-momentum.html">
 <meta property="og:image" content="https://scorvec.com/assets/sst/aam.webp">
 <meta property="og:site_name" content="Shawn Corvec">
@@ -24,7 +24,7 @@
    "@id": "https://scorvec.com/topics/atmospheric-angular-momentum.html#article",
    "headline": "Atmospheric angular momentum (AAM)",
    "name": "Atmospheric angular momentum (AAM), live forecast",
-   "description": "What atmospheric angular momentum measures, why it tracks El Niño and the length of day, the GWO phase space, and a live AIFS-ENS forecast by hemisphere.",
+   "description": "What atmospheric angular momentum measures, why it tracks El Niño and the length of day, the GWO phase space, and a live IFS-ENS forecast by hemisphere.",
    "url": "https://scorvec.com/topics/atmospheric-angular-momentum.html",
    "mainEntityOfPage": "https://scorvec.com/topics/atmospheric-angular-momentum.html",
    "inLanguage": "en",
@@ -340,23 +340,24 @@ regular oscillation.</li>
 </ul>
 
 <h2>The live forecast</h2>
-<p>Relative AAM is integrated for the globe and each hemisphere from the ECMWF AIFS ensemble's winds on 14 pressure
-levels from 10 to 1000 hPa, which is effectively the whole column. It is shown on the ERA5 (Hersbach et al., 2020) 1991–2020 annual cycle
+<p>Relative AAM is integrated for the globe and each hemisphere from the winds of the 50 members of ECMWF's IFS
+ensemble on 14 pressure levels from 10 to 1000 hPa, which is effectively the whole column. It is shown on the ERA5 (Hersbach et al., 2020) 1991–2020 annual cycle
 together with the 15-day forecast. GFZ's ESMGFZ series (Dobslaw and Dill, 2018), computed from ECMWF analyses for the Earth-rotation community,
 is drawn alongside as an independent check. The phase plot follows each hemisphere through AAM anomaly against
 tendency: the hemispheric version of the Global Wind Oscillation.</p>
-<p>Whether the AI forecast's angular momentum changes for the right reasons is tested in a separate study,
+<p>The forecast is the physics-based IFS ensemble's because its angular momentum changes for the right reasons, which
+the AI ensemble's does not after about day 10:
 <a href="/aifs-aam-budget.html">does an AI weather model conserve angular momentum?</a></p>
   <a class="live" href="/circulation.html#aam">Open the AAM product in the circulation viewer</a>
 </article>
 <div class="figs">
-<figure><img src="/assets/sst/aam.webp" alt="Global and hemispheric relative atmospheric angular momentum: observed and AIFS-ENS 15-day forecast, absolute and anomaly" loading="lazy"><figcaption>Relative AAM for the globe and each hemisphere on its 1991–2020 annual cycle, with the 15-day forecast. The observed line is ERA5 at 12 UTC every third day; it ends 5–14 days before the forecast starts because ERA5 is published late.</figcaption></figure>
-<figure><img src="/assets/sst/aam_phase.webp" alt="Atmospheric angular momentum anomaly against its tendency: hemispheric Global Wind Oscillation phase space with the AIFS-ENS forecast" loading="lazy"><figcaption>Each hemisphere&#x27;s path through AAM anomaly and tendency, the last 75 days and the forecast. The headline (days 12–15 against days 0–2) includes the model&#x27;s own drift: in July–October 2026 forecasts AIFS-ENS gained about 0.1 ×10²⁵ kg m² s⁻¹ in the Northern Hemisphere by day 15 and lost about 0.1 in the Southern by day 12, against the verifying analyses.</figcaption></figure>
+<figure><img src="/assets/sst/aam.webp" alt="Global and hemispheric relative atmospheric angular momentum: observed and IFS-ENS 15-day forecast, absolute and anomaly" loading="lazy"><figcaption>Relative AAM for the globe and each hemisphere on its 1991–2020 annual cycle, with the 15-day forecast. The observed line is ERA5 at 12 UTC every third day; it ends 5–14 days before the forecast starts because ERA5 is published late.</figcaption></figure>
+<figure><img src="/assets/sst/aam_phase.webp" alt="Atmospheric angular momentum anomaly against its tendency: hemispheric Global Wind Oscillation phase space with the IFS-ENS forecast" loading="lazy"><figcaption>Each hemisphere&#x27;s path through AAM anomaly and tendency, the last 75 days and the forecast. The headline (days 12–15 against days 0–2) includes the model&#x27;s own drift, which is not removed.</figcaption></figure>
 </div>
 <div class="topic" style="padding-top:0">
   <section class="related"><h2>Related</h2><ul><li><a href="/topics/mountain-torque.html">Mountain torque</a></li><li><a href="/topics/hadley-cell.html">Hadley cell</a></li><li><a href="/topics/wave-activity-flux.html">Wave activity flux</a></li><li><a href="/topics/">All explainers</a></li></ul></section>
   <section><h2>References and further reading</h2><ol class="refs"><li>Rosen, R. D., and D. A. Salstein, 1983: Variations in atmospheric angular momentum on global and regional scales and the length of day. <i>J. Geophys. Res.</i>, 88, 5451–5470.</li><li>Weickmann, K. M., and P. D. Sardeshmukh, 1994: The atmospheric angular momentum cycle associated with a Madden–Julian oscillation. <i>J. Atmos. Sci.</i>, 51, 3194–3208.</li><li>Egger, J., K. Weickmann, and K.-P. Hoinka, 2007: Angular momentum in the global atmospheric circulation. <i>Rev. Geophys.</i>, 45, RG4007.</li><li>Weickmann, K., and E. Berry, 2009: The tropical Madden–Julian oscillation and the global wind oscillation. <i>Mon. Wea. Rev.</i>, 137, 1601–1614.</li><li>Dobslaw, H., and R. Dill, 2018: Predicting Earth orientation changes from global forecasts of atmosphere–hydrosphere dynamics. <i>Adv. Space Res.</i>, 61, 1047–1054.</li><li>Hersbach, H., and co-authors, 2020: The ERA5 global reanalysis. <i>Q. J. R. Meteorol. Soc.</i>, 146, 1999–2049.</li></ol></section>
-  <p class="byline">Data: ECMWF open data (AIFS, AIFS-ENS): © 2026 European Centre for Medium-Range Weather Forecasts (ECMWF), source <a href="https://www.ecmwf.int">www.ecmwf.int</a>, CC BY 4.0, modified; ECMWF does not accept any liability for errors or omissions in the data, their availability, or any loss or damage arising from their use; ERA5: Copernicus Climate Change Service (C3S) / ECMWF, CC BY 4.0; contains modified Copernicus Climate Change Service information 2026; neither the European Commission nor ECMWF is responsible for any use of this information; ESMGFZ effective angular momentum functions: GFZ Potsdam.</p>
+  <p class="byline">Data: ECMWF open data: © 2026 European Centre for Medium-Range Weather Forecasts (ECMWF), source <a href="https://www.ecmwf.int">www.ecmwf.int</a>, CC BY 4.0, modified; ECMWF does not accept any liability for errors or omissions in the data, their availability, or any loss or damage arising from their use; ERA5: Copernicus Climate Change Service (C3S) / ECMWF, CC BY 4.0; contains modified Copernicus Climate Change Service information 2026; neither the European Commission nor ECMWF is responsible for any use of this information; ESMGFZ effective angular momentum functions: GFZ Potsdam.</p>
   <p class="byline">Written by Claude, Anthropic's AI model, at the direction of <a href="/">Shawn Corvec</a>, meteorologist. The figures on this page are live and update with each forecast cycle; the text was last revised 2026-10-16.</p>
 </div>
 </main>

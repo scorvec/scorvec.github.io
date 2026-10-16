@@ -1,13 +1,9 @@
-name: AAM, torque and jets (ECMWF ENS heavy levels)
+name: Jets, dynamic tropopause and tropical cyclones (AIFS-ENS heavy levels)
 
-# The heavy leg of the atmosphere page: atmospheric angular momentum (main
-# figure + trend, zonal loop, phase), the torque budget (loop + time series +
-# ranges) and the jets figure/loop. They need the ~3 GB 14-level ENS pull, so
-# they live apart from mjo.yml (RMM + the light products) and are fired by the
-# dispatcher ~40 min after it (scripts/lib/dispatch_workflows.sh).
-#
-# A run takes ~30 min on a 16 GB runner and relies on the ERA5 history cache
-# being current.
+# The heavy leg of the atmosphere page on AIFS-ENS: the jets figure/loop, the dynamic tropopause and the
+# tropical-cyclone products. The jets need the ~3 GB 14-level ENS pull, so they live apart from mjo.yml (RMM + the
+# light products) and are fired by the dispatcher ~40 min after it (scripts/lib/dispatch_workflows.sh). Angular
+# momentum and its torque budget moved to IFS-ENS (aam-ifs.yml).
 on:
   # Backstop crons at the dispatcher's slots, for when it is off. GitHub delivers them hours late when at all, so
   # they set no timing: a scheduled run whose cycle main already carries stops in the check job.
@@ -74,22 +70,22 @@ jobs:
           echo "date=$D" >> "$GITHUB_OUTPUT"; echo "time=$T" >> "$GITHUB_OUTPUT"
           echo "cycle: $D ${T}Z"
 
-      # Dispatches always build. A scheduled run builds only when main's torque_ranges.json (written for every
-      # cycle this job publishes) is not already this cycle's: the dispatcher got there first.
+      # Dispatches always build. A scheduled run builds only when main's tc_alert.json (written for every cycle this
+      # job publishes) is not already this cycle's: the dispatcher got there first.
       - name: Already published?
         id: done
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           if [ "${{ github.event_name }}" != "schedule" ]; then echo "build=true" >> "$GITHUB_OUTPUT"; exit 0; fi
-          D="${{ steps.cyc.outputs.date }}"; want="${D:0:4}-${D:4:2}-${D:6:2}T${{ steps.cyc.outputs.time }}Z"
-          have=$(gh api "repos/$GITHUB_REPOSITORY/contents/assets/sst/data/torque_ranges.json?ref=main" \
+          D="${{ steps.cyc.outputs.date }}"; want="${D:0:4}-${D:4:2}-${D:6:2}T${{ steps.cyc.outputs.time }}:00Z"
+          have=$(gh api "repos/$GITHUB_REPOSITORY/contents/assets/sst/data/tc_alert.json?ref=main" \
                    -H "Accept: application/vnd.github.raw+json" 2>/dev/null \
                  | python -c "import json, sys; print(json.load(sys.stdin).get('init', ''))" 2>/dev/null || true)
           if [ "$have" = "$want" ]; then
             echo "main already carries the $want cycle; nothing to do"; echo "build=false" >> "$GITHUB_OUTPUT"
           else
-            echo "main has ${have:-no torque_ranges.json}; building $want"; echo "build=true" >> "$GITHUB_OUTPUT"
+            echo "main has ${have:-no tc_alert.json}; building $want"; echo "build=true" >> "$GITHUB_OUTPUT"
           fi
 
   build:
@@ -126,48 +122,17 @@ jobs:
           echo "date=${{ needs.check.outputs.date }}" >> "$GITHUB_OUTPUT"; echo "time=${{ needs.check.outputs.time }}" >> "$GITHUB_OUTPUT"
           echo "cycle: ${{ needs.check.outputs.date }} ${{ needs.check.outputs.time }}Z"
 
-      # The light pass first (sfc 10u/msl series the torque budget reads), then
-      # the 14-level pull. Non-fatal: the builders use whatever is cached.
-      - name: Fetch the ENS cycle (light sfc + the ~3 GB AAM levels)
+      # The light pass first (the surface fields), then the 14-level pull the jets read. Non-fatal: the builders use
+      # whatever is cached.
+      - name: Fetch the ENS cycle (light sfc + the ~3 GB 14-level u)
         working-directory: scripts/mjo
         timeout-minutes: 75
         run: |
           MJO_HEAVY_ATMOS= python src/ens_cycle.py --date "${{ steps.cyc.outputs.date }}" --time "${{ steps.cyc.outputs.time }}" \
             || "$GITHUB_WORKSPACE/scripts/lib/degraded.sh" "ENS cycle fetch (light pass)" "the builders use whatever is cached"
           python src/ens_cycle.py --date "${{ steps.cyc.outputs.date }}" --time "${{ steps.cyc.outputs.time }}" \
-            || "$GITHUB_WORKSPACE/scripts/lib/degraded.sh" "ENS cycle fetch (AAM levels)" "the builders use whatever is cached"
+            || "$GITHUB_WORKSPACE/scripts/lib/degraded.sh" "ENS cycle fetch (14-level u)" "the builders use whatever is cached"
           du -sh data 2>/dev/null || true
-
-      - name: AAM main figure + trend
-        working-directory: scripts/mjo
-        run: |
-          python src/aam.py --date "${{ steps.cyc.outputs.date }}" --time "${{ steps.cyc.outputs.time }}" \
-            --data-dir data/aam --out ../../assets/sst/aam.webp || "$GITHUB_WORKSPACE/scripts/lib/degraded.sh" "AAM main figure + trend"
-
-      - name: AAM zonal loop
-        working-directory: scripts/mjo
-        run: |
-          mkdir -p ../../assets/sst/anim/aam_zonal
-          python src/aam_zonal.py --date "${{ steps.cyc.outputs.date }}" --time "${{ steps.cyc.outputs.time }}" \
-            --anim-dir ../../assets/sst/anim/aam_zonal --manifest ../../assets/sst/anim/aam_zonal_manifest.json \
-            || "$GITHUB_WORKSPACE/scripts/lib/degraded.sh" "AAM zonal loop"
-
-      - name: AAM phase figure
-        working-directory: scripts/mjo
-        run: |
-          python src/aam_phase.py --date "${{ steps.cyc.outputs.date }}" --time "${{ steps.cyc.outputs.time }}" \
-            --out ../../assets/sst/aam_phase.webp || "$GITHUB_WORKSPACE/scripts/lib/degraded.sh" "AAM phase figure"
-
-      - name: Torque budget (loop, time series, ranges)
-        working-directory: scripts/mjo
-        run: |
-          mkdir -p ../../assets/sst/anim/torque
-          python src/torque_map_anim.py --date "${{ steps.cyc.outputs.date }}" --time "${{ steps.cyc.outputs.time }}" \
-            --data-dir data/torque --sp-dir data/aam --u10-dir data/u10 --msl-dir data/msl \
-            --anim-dir ../../assets/sst/anim/torque --manifest ../../assets/sst/anim/torque_manifest.json \
-            --ts-out ../../assets/sst/torque_timeseries.webp --ranges-out ../../assets/sst/torque_ranges.webp \
-            --series-out ../../assets/sst/data/torque_ranges.json \
-            || "$GITHUB_WORKSPACE/scripts/lib/degraded.sh" "Torque budget"
 
       - name: Jets
         working-directory: scripts/mjo
@@ -215,17 +180,17 @@ jobs:
                  echo "- TC error: tc_alert.py failed; tc_alert.json not updated this cycle" >> "$GITHUB_STEP_SUMMARY"; }
 
       # The North Pacific jet is built in strat.yml / strat-ifs.yml (it needs 250 hPa v, which only the stratosphere
-      # jobs fetch); it reads the torque_ranges.json written above, from main.
+      # jobs fetch); it reads the torque_ranges.json that aam-ifs.yml writes, from main.
 
       - name: Cache-bust the rebuilt figures
         run: |
           CB=$(date -u +%Y%m%d%H%M)
-          perl -0pi -e "s/((?:aam|aam_trend|aam_phase|jets|torque_timeseries|torque_ranges)\.webp)\?v=\w+/\${1}?v=$CB/g" circulation.html
+          perl -0pi -e "s/(jets\.webp)\?v=\w+/\${1}?v=$CB/g" circulation.html
 
       - name: Publish loop frames to the frames branch
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: scripts/lib/publish_frames_ci.sh assets/sst/anim/aam_zonal assets/sst/anim/torque assets/sst/anim/jets assets/sst/anim/dt assets/sst/anim/dt_npac assets/sst/anim/dt_na assets/sst/anim/dt_atl assets/sst/anim/dt_asia assets/sst/anim/dt_pv330 assets/sst/anim/dt_pv330_npac assets/sst/anim/dt_pv330_na assets/sst/anim/dt_pv330_atl assets/sst/anim/dt_pv330_asia assets/sst/anim/dt_pv350 assets/sst/anim/dt_pv350_npac assets/sst/anim/dt_pv350_na assets/sst/anim/dt_pv350_atl assets/sst/anim/dt_pv350_asia assets/sst/anim/dt_sam assets/sst/anim/dt_pv330_sam assets/sst/anim/dt_pv350_sam
+        run: scripts/lib/publish_frames_ci.sh assets/sst/anim/jets assets/sst/anim/dt assets/sst/anim/dt_npac assets/sst/anim/dt_na assets/sst/anim/dt_atl assets/sst/anim/dt_asia assets/sst/anim/dt_pv330 assets/sst/anim/dt_pv330_npac assets/sst/anim/dt_pv330_na assets/sst/anim/dt_pv330_atl assets/sst/anim/dt_pv330_asia assets/sst/anim/dt_pv350 assets/sst/anim/dt_pv350_npac assets/sst/anim/dt_pv350_na assets/sst/anim/dt_pv350_atl assets/sst/anim/dt_pv350_asia assets/sst/anim/dt_sam assets/sst/anim/dt_pv330_sam assets/sst/anim/dt_pv350_sam
 
       - name: Commit & push
         run: |
@@ -236,16 +201,11 @@ jobs:
           # circulation.html is not snapshotted: a run that started before a page push would restore its stale copy
           # over it. The cache-bust is re-applied to main's current page on every attempt instead.
           CB=$(date -u +%Y%m%d%H%M)
-          OUT="assets/sst/aam.webp assets/sst/aam_trend.webp assets/sst/aam_phase.webp \
-               assets/sst/anim/aam_zonal_manifest.json assets/sst/anim/torque_manifest.json assets/sst/anim/jets_manifest.json \
-               assets/sst/torque_timeseries.webp assets/sst/torque_ranges.webp assets/sst/jets.webp \
-               assets/sst/data/torque_ranges.json \
+          OUT="assets/sst/anim/jets_manifest.json assets/sst/jets.webp \
                assets/sst/anim/dt_manifest.json assets/sst/tcjet.webp assets/sst/data/tcjet.json \
                assets/sst/tcens_tracks.webp assets/sst/tcens_depth.webp assets/sst/tcens_depth_2.webp assets/sst/data/tcens.json \
                assets/sst/tcphase.webp assets/sst/data/tcphase.json assets/sst/tc \
-               assets/sst/data/tc_alert.json \
-               scripts/mjo/data/reference/aam_history.nc scripts/mjo/data/reference/aam_forecast_archive.nc \
-               scripts/mjo/data/reference/aam_latband_history.nc"
+               assets/sst/data/tc_alert.json"
           SNAP=$(mktemp -d)
           tar cf "$SNAP/outs.tar" --ignore-failed-read $OUT 2>/dev/null || true
           for i in 1 2 3 4 5; do
@@ -255,7 +215,7 @@ jobs:
             # when this run produced one (a failed TC step must not empty it)
             if tar tf "$SNAP/outs.tar" 2>/dev/null | grep -q '^assets/sst/tc/'; then rm -rf assets/sst/tc; fi
             tar xf "$SNAP/outs.tar"
-            perl -0pi -e "s/((?:aam|aam_trend|aam_phase|jets|torque_timeseries|torque_ranges)\.webp)\?v=\w+/\${1}?v=$CB/g" circulation.html
+            perl -0pi -e "s/(jets\.webp)\?v=\w+/\${1}?v=$CB/g" circulation.html
             git add circulation.html
             for f in $OUT; do [ -e "$f" ] && git add "$f"; done
             git add -A assets/sst/tc 2>/dev/null || true

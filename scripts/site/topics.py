@@ -138,7 +138,7 @@ exact, but lengths grow with height, so compare them along a level. It is recomp
         ],
         title="Mountain and friction torque, with a live forecast",
         desc="How mountain and friction torques trade angular momentum between the Earth "
-        "and the atmosphere, how to read torque maps, and live AIFS-ENS forecasts by range.",
+        "and the atmosphere, how to read torque maps, and live IFS-ENS forecasts by range.",
         body=r"""
 <p>The atmosphere's angular momentum about the Earth's axis changes only through <b>torques</b> exerted at the
 surface. Three act: <b>friction torque</b>, the drag of the surface on the wind; <b>mountain torque</b>, the pressure
@@ -171,34 +171,33 @@ about 0.2, significant at a 10% false discovery rate).</li>
 </ul>
 
 <h2>The live forecast</h2>
-<p>The friction and mountain torques are computed from the ECMWF AIFS ensemble for days 0–15 as anomalies from the
-ERA5 1991–2020 climatology for the same time of year. The AIFS open data carry no surface stress, so friction is a bulk
-formula on the forecast's 10 m wind and surface pressure, with drag coefficients fitted cell by cell and month by month
-to ERA5's own surface stress. Anomalies are used on purpose: the absolute budget cannot be
+<p>The friction and mountain torques are computed from the 50 members of ECMWF's physics-based IFS ensemble for days
+1–15, each day's mean, as anomalies from the ERA5 1991–2020 climatology for the same time of year. Friction is the
+model's own surface stress, which its open data carry; the climatology is ERA5's stress through drag coefficients
+fitted cell by cell and month by month to it. Anomalies are used on purpose: the absolute budget cannot be
 closed. ERA5's own terms sum to −11 ± 0.6 Hadleys in the annual mean (sampled four times a day, 1991–2020) where the answer must be
 zero; the reanalysis adds angular momentum at every assimilation cycle, and the resolved
 mountain torque changes with grid spacing. Both errors sit in the mean and cancel in an anomaly. The open forecast
 data carry no gravity-wave stress, so that term stays in the residual between the net torque and the actual change in
 angular momentum.</p>
-<p>A separate study tests whether the forecast's own torques actually account for its change in angular momentum:
+<p>The forecast is IFS-ENS's rather than the AI ensemble's because its budget closes. A separate study tests whether a
+forecast's own torques account for its change in angular momentum:
 <a href="/aifs-aam-budget.html">does an AI weather model conserve angular momentum?</a> In winter 2025–26 (lead by lead, without correction for the 15 leads tested) the AIFS
 ensemble's own torques explained 72% of its day-to-day change in angular momentum on days 1–10 and 11% on days 11–15;
-the physics-based IFS ensemble's explained 89% at every lead.</p>
+the IFS ensemble's explained 89% at every lead.</p>
 """,
         figures=[
-            loop(
-                "torque_manifest.json", "torque", "Friction and mountain torque-density anomalies, AIFS-ENS days 0–15"
-            ),
+            loop("torque_manifest.json", "torque", "Friction and mountain torque-density anomalies, IFS-ENS days 1–15"),
             img(
                 "/assets/sst/torque_timeseries.webp",
-                "Global and hemispheric friction and mountain torque anomalies against the change in atmospheric angular momentum, AIFS-ENS forecast",
+                "Global and hemispheric friction and mountain torque anomalies against the change in atmospheric angular momentum, IFS-ENS forecast",
                 "The torques integrated over the globe and each hemisphere, against the actual change in angular momentum. Shading: "
-                "±1σ and ±2σ of the net anomaly in 1991–2020. The gap is not only gravity-wave drag: past about day 10 "
-                "AIFS-ENS does not close its own budget.",
+                "±1σ and ±2σ of the net anomaly in 1991–2020. The gap is the gravity-wave-drag torque, which the open data "
+                "do not carry, and, hemisphere by hemisphere, transport across the equator.",
             ),
             img(
                 "/assets/sst/torque_ranges.webp",
-                "Mountain torque by mountain range: Rockies, Andes, Tibetan Plateau and others, AIFS-ENS forecast",
+                "Mountain torque by mountain range: Rockies, Andes, Tibetan Plateau and others, IFS-ENS forecast",
                 "Which mountain ranges are doing the work.",
             ),
         ],
@@ -226,7 +225,7 @@ the physics-based IFS ensemble's explained 89% at every lead.</p>
         ],
         title="Atmospheric angular momentum (AAM), live forecast",
         desc="What atmospheric angular momentum measures, why it tracks El Niño and the "
-        "length of day, the GWO phase space, and a live AIFS-ENS forecast by hemisphere.",
+        "length of day, the GWO phase space, and a live IFS-ENS forecast by hemisphere.",
         body=r"""
 <p><b>Atmospheric angular momentum (AAM)</b> is the atmosphere's total spin about the Earth's axis. Its <i>relative</i>
 part, the one carried by the winds, is</p>
@@ -254,29 +253,28 @@ regular oscillation.</li>
 </ul>
 
 <h2>The live forecast</h2>
-<p>Relative AAM is integrated for the globe and each hemisphere from the ECMWF AIFS ensemble's winds on 14 pressure
-levels from 10 to 1000 hPa, which is effectively the whole column. It is shown on the ERA5 (Hersbach et al., 2020) 1991–2020 annual cycle
+<p>Relative AAM is integrated for the globe and each hemisphere from the winds of the 50 members of ECMWF's IFS
+ensemble on 14 pressure levels from 10 to 1000 hPa, which is effectively the whole column. It is shown on the ERA5 (Hersbach et al., 2020) 1991–2020 annual cycle
 together with the 15-day forecast. GFZ's ESMGFZ series (Dobslaw and Dill, 2018), computed from ECMWF analyses for the Earth-rotation community,
 is drawn alongside as an independent check. The phase plot follows each hemisphere through AAM anomaly against
 tendency: the hemispheric version of the Global Wind Oscillation.</p>
-<p>Whether the AI forecast's angular momentum changes for the right reasons is tested in a separate study,
+<p>The forecast is the physics-based IFS ensemble's because its angular momentum changes for the right reasons, which
+the AI ensemble's does not after about day 10:
 <a href="/aifs-aam-budget.html">does an AI weather model conserve angular momentum?</a></p>
 """,
         figures=[
             img(
                 "/assets/sst/aam.webp",
-                "Global and hemispheric relative atmospheric angular momentum: observed and AIFS-ENS 15-day forecast, absolute and anomaly",
+                "Global and hemispheric relative atmospheric angular momentum: observed and IFS-ENS 15-day forecast, absolute and anomaly",
                 "Relative AAM for the globe and each hemisphere on its 1991–2020 annual cycle, with the 15-day forecast. The "
                 "observed line is ERA5 at 12 UTC every third day; it ends 5–14 days before the forecast starts because "
                 "ERA5 is published late.",
             ),
             img(
                 "/assets/sst/aam_phase.webp",
-                "Atmospheric angular momentum anomaly against its tendency: hemispheric Global Wind Oscillation phase space with the AIFS-ENS forecast",
+                "Atmospheric angular momentum anomaly against its tendency: hemispheric Global Wind Oscillation phase space with the IFS-ENS forecast",
                 "Each hemisphere's path through AAM anomaly and tendency, the last 75 days and the forecast. The headline "
-                "(days 12–15 against days 0–2) includes the model's own drift: in July–October 2026 forecasts AIFS-ENS "
-                "gained about 0.1 ×10²⁵ kg m² s⁻¹ in the Northern Hemisphere by day 15 and lost about 0.1 in the "
-                "Southern by day 12, against the verifying analyses.",
+                "(days 12–15 against days 0–2) includes the model's own drift, which is not removed.",
             ),
         ],
         live=("/circulation.html#aam", "Open the AAM product in the circulation viewer"),
@@ -812,8 +810,8 @@ def topic_page(t: dict, today: str) -> str:
 
 DATA_CREDITS = [
     (
-        "AIFS",
-        "ECMWF open data (AIFS, AIFS-ENS): © 2026 European Centre for Medium-Range Weather Forecasts (ECMWF), source "
+        "IFS",  # AIFS, AIFS-ENS, IFS-ENS, IFS HRES
+        "ECMWF open data: © 2026 European Centre for Medium-Range Weather Forecasts (ECMWF), source "
         '<a href="https://www.ecmwf.int">www.ecmwf.int</a>, CC BY 4.0, modified; ECMWF does not accept any liability for errors or '
         "omissions in the data, their availability, or any loss or damage arising from their use",
     ),
