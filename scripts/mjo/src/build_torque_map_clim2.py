@@ -20,8 +20,8 @@ bulk kernel best reproduces ERA5's own boundary-layer stress. Median fit r2 is
 0.95, and C_d runs 1.3e-3 over ocean to 1.8e-2 over rough land -- the physics the
 single constant was missing. This script applies that same field to the stored
 basis, so the climatology the anomalies are taken against is built from exactly
-the drag the live forecast uses. It also writes torque_hemi_sd.nc, the 1-sigma
-spread of the net torque anomaly per hemisphere, for the time-series bands.
+the drag the live forecast uses. (The time-series bands' spread, torque_hemi_sd.nc, is
+build_torque_hemi_sd.py's: daily means, ERA5's own stress.)
 
     python src/build_torque_map_clim2.py
 """
@@ -39,7 +39,6 @@ from doycal import noleap_doy
 REF = Path(__file__).resolve().parent.parent / "data" / "reference"
 BASIS = Path.home() / "mjo" / "era5_cache" / "torque_basis_1991-2020_s5.nc"
 DRAG = REF / "drag_cd_field.nc"  # per-cell, per-month C_d — same object the live product uses
-A = 6.371e6
 OUT = REF / "torque_map_clim_coeffs.nc"
 
 
@@ -78,28 +77,6 @@ def main() -> int:
             y = arr[sel].reshape(sel.sum(), -1)
             out[j] = np.linalg.lstsq(X, y, rcond=None)[0].reshape(5, nlat, nlon)
         print(f"  fitted hour {h:02d}Z on {int(sel.sum())} samples", flush=True)
-
-    # hemispheric 1-sigma of the NET torque anomaly, for the time-series bands —
-    # built from the same friction the product uses, so band and line are the same thing
-    dA = (A**2) * np.cos(np.deg2rad(clat)) * np.deg2rad(abs(clon[1] - clon[0])) * np.deg2rad(abs(clat[1] - clat[0]))
-    tot = (fric + mtn) * dA[None, :, None]
-    masks = {"G": np.ones_like(clat, bool), "NH": clat > 0, "SH": clat < 0}
-    sds = {}
-    for nm, m in masks.items():
-        ts = tot[:, m, :].sum((1, 2)) / 1e18
-        w = 2 * np.pi * noleap_doy(t) / 365.25
-        X = np.column_stack([np.ones_like(w), np.cos(w), np.sin(w), np.cos(2 * w), np.sin(2 * w)])
-        sds[nm] = float((ts - X @ np.linalg.lstsq(X, ts, rcond=None)[0]).std())
-        print(f"  {nm}: net-torque anomaly 1-sigma = {sds[nm]:.1f} Hadley", flush=True)
-    xr.Dataset(
-        {"sd": ("region", [sds[k] for k in ("G", "NH", "SH")])},
-        coords={"region": ["G", "NH", "SH"]},
-        attrs={
-            "note": "1-sigma of the (friction + mountain) torque anomaly, "
-            "seasonal cycle removed, ERA5 1991-2020, using the same "
-            "per-cell drag field as the live product."
-        },
-    ).to_netcdf(REF / "torque_hemi_sd.nc")
 
     xr.Dataset(
         {
