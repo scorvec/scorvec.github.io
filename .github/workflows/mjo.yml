@@ -394,7 +394,8 @@ jobs:
       # observed chi200: reads the chi history walker.py just appended, the AIFS-ENS tp and u/v 200 the RMM pull and
       # wind200_vpot already put in the store cache (no new ECMWF download), and a 1-degree IMERG Late cache that rides
       # the frames branch in assets/sst/anim/gillrain (seeded above; a cold cache costs ~2 min of GES DISC OPeNDAP).
-      # Best-effort: without Earthdata, or on any failure, the previous figure stays up.
+      # Best-effort: without Earthdata, or on any failure, the previous figure stays up. Success is judged by the
+      # product itself: a new gill_rain.json whose last analysis is this cycle's (walker.py appended it above).
       - name: Rain-forced circulation (Gill model vs observed chi200)
         if: ${{ inputs.rmm_only != 'true' }}
         timeout-minutes: 15
@@ -406,8 +407,21 @@ jobs:
           EARTHDATA_PASSWORD: ${{ secrets.EARTHDATA_PASSWORD }}
         run: |
           pip install --quiet earthaccess || true
-          python scripts/sst/gill_rain.py --date "${{ needs.check.outputs.date }}" --time "${{ needs.check.outputs.time }}" \
-            || echo "::warning::gill_rain failed; keeping the previous figure"
+          J=assets/sst/data/gill_rain.json
+          stamp() { python -c "import json, sys; d = json.load(open(sys.argv[1])); print(d['generated'].replace(' ', '_'), d['last_analysis'])" "$J" 2>/dev/null || echo "none none"; }
+          read -r gen0 _ <<< "$(stamp)"
+          rc=0
+          python scripts/sst/gill_rain.py --date "${{ needs.check.outputs.date }}" --time "${{ needs.check.outputs.time }}" || rc=$?
+          read -r gen1 last <<< "$(stamp)"
+          D="${{ needs.check.outputs.date }}"; want="${D:0:4}-${D:4:2}-${D:6:2}T${{ needs.check.outputs.time }}Z"
+          if [ "$gen1" = "$gen0" ] || [ "$gen1" = "none" ]; then
+            echo "::warning::gill_rain failed (exit $rc), nothing written; keeping the previous figure"
+          elif [ "$last" != "$want" ]; then
+            echo "::warning::gill_rain rebuilt, but its last analysis is $last, not this cycle's $want (chi history not appended)"
+          else
+            echo "gill_rain updated through the $last analysis"
+            if [ "$rc" -ne 0 ]; then echo "::warning::gill_rain wrote its outputs but exited $rc"; fi
+          fi
 
       - name: Hadley intensity + edge series
         if: ${{ inputs.rmm_only != 'true' }}

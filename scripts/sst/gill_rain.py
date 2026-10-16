@@ -35,6 +35,7 @@ import time
 from datetime import date, timedelta
 from pathlib import Path
 
+import pyproj  # noqa: F401  (load pyproj's libproj before xarray/eccodes)
 import numpy as np
 import pandas as pd
 import xarray as xr
