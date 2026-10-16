@@ -556,6 +556,28 @@ function pump() {
   }
 }
 
+// Is the picture on screen the current frame (idx)? Matched on the frame's path, since the host chain (frames_root.js)
+// may have served it from any mirror. The play loop and held arrow keys wait on it, so no frame is replaced before it
+// has loaded, and a step to a frame still downloading says so instead of showing its label over the previous picture.
+function frameOnScreen() {
+  const f = frames[idx];
+  let u = (imgEl.currentSrc || imgEl.src || "").split("?")[0];
+  try { u = decodeURI(u); } catch (e) {}
+  return !!f && imgEl.complete && imgEl.naturalWidth > 0 && u.endsWith(`/${region}/${f.file}`);
+}
+let pendTimer = null;
+function notePending() {
+  clearTimeout(pendTimer);
+  let n = 0;
+  pendTimer = setTimeout(function check() {
+    if (playing) return;                              // the play loop keeps its own note
+    if (frameOnScreen() || ++n > 40) { bufEl.classList.add("hidden"); return; }   // give up quietly after ~10 s
+    bufEl.textContent = `Loading ${frames[idx].label}\u2026`;
+    bufEl.classList.remove("hidden");
+    pendTimer = setTimeout(check, 250);
+  }, 300);
+}
+
 function showFrame(i) {
   if (!frames.length) return;
   idx = (i + frames.length) % frames.length;
@@ -568,6 +590,7 @@ function showFrame(i) {
 }
 imgEl.addEventListener("load", () => {
   if (!/could not be loaded/.test(loadingEl.textContent)) loadingEl.classList.add("hidden");
+  if (!playing && frameOnScreen()) bufEl.classList.add("hidden");
 });
 
 // Say what is happening on a slow link instead of a silent "Loading frames..." (2026-09-26).
@@ -591,19 +614,23 @@ function play() {
   engage();                    // they want the loop: fetch the rest now, in play order
   playing = true;
   $("play").innerHTML = "&#x23F8;";   // pause glyph
-  let waited = 0;
+  let waited = 0;                // ms held on the current frame
   const tick = () => {
     if (!playing) return;
     // loop back to start at the end
     const nx = idx + 1 >= frames.length ? 0 : idx + 1;
     const pre = loader && loader.imgs[nx];
-    // on a slow link, hold the current frame until the next one has arrived rather than showing a
-    // half-drawn or blank image (up to 10 s, then move on so one missing file cannot stall the loop)
-    if (frames.length > 1 && !(pre && pre.complete && pre.naturalWidth) && waited < 40) {
-      waited++;
-      bufEl.textContent = `Loading frames: ${framesReady()} of ${frames.length}`;
-      bufEl.classList.remove("hidden");
-      timer = setTimeout(tick, 250);
+    // Advance only once the frame on screen has loaded AND the next one has arrived: at 2x/4x a frame still loading
+    // was replaced before it was ever drawn (the loop seemed to skip frames), and on a slow link the next frame would
+    // show half-drawn. After 10 s move on anyway, so one missing file cannot stall the loop.
+    const ready = frameOnScreen() && (frames.length < 2 || (pre && pre.complete && pre.naturalWidth > 0));
+    if (!ready && waited < 10000) {
+      waited += 50;
+      if (waited >= 300) {                    // a brief wait is not worth a flicker of the note
+        bufEl.textContent = `Loading frames: ${framesReady()} of ${frames.length}`;
+        bufEl.classList.remove("hidden");
+      }
+      timer = setTimeout(tick, 50);
       return;
     }
     waited = 0; bufEl.classList.add("hidden");
@@ -622,7 +649,7 @@ function stop() {
 
 // Controls. Every step, jump and scrub also engage() the loader: a reader who moves through the loop gets the
 // rest of it, in order from where they are; one who only looks at the opening frame downloads nothing more.
-const goTo = i => { stop(); showFrame(i); engage(); };
+const goTo = i => { stop(); showFrame(i); engage(); notePending(); };
 $("play").addEventListener("click", play);
 $("next").addEventListener("click", () => goTo(idx + 1));
 $("prev").addEventListener("click", () => goTo(idx - 1));
@@ -634,13 +661,21 @@ $("speed").addEventListener("change", e => {
   if (playing) { stop(); play(); }
 });
 
+const KEYS = [" ", "ArrowLeft", "ArrowRight", "Home", "End"];
 document.addEventListener("keydown", e => {
-  if (!frames.length) return;
-  if (e.key === " ") { e.preventDefault(); play(); }
-  else if (e.key === "ArrowRight") goTo(idx + 1);
+  if (!frames.length || !KEYS.includes(e.key) || e.altKey || e.ctrlKey || e.metaKey) return;   // Alt+Left stays "back"
+  const tag = e.target && e.target.tagName;
+  if (tag === "SELECT") return;                                            // the speed menu keeps its native keys
+  if (e.key === " " && tag === "BUTTON") return;                           // Space presses the focused button, once
+  // preventDefault throughout: when the slider has focus its NATIVE arrow/Home/End handling also moves the value, and
+  // its input event stepped again - every arrow press skipped a frame (loop.html guards the same way)
+  e.preventDefault();
+  if (e.key === " ") { play(); return; }
+  if (e.repeat && !frameOnScreen()) return;          // a held arrow steps as fast as frames arrive, never past one loading
+  if (e.key === "ArrowRight") goTo(idx + 1);
   else if (e.key === "ArrowLeft") goTo(idx - 1);
   else if (e.key === "Home") goTo(0);
-  else if (e.key === "End") goTo(frames.length - 1);
+  else goTo(frames.length - 1);
 });
 
 init();
