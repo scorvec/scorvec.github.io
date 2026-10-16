@@ -5,10 +5,10 @@
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>US Sounding Gap Report &mdash; Missed 00Z/12Z Launches &middot; Shawn Corvec</title>
-<meta name="description" content="Which US radiosonde stations are missing their routine 00Z/12Z launches? Slot-by-slot compliance since January 2026 from the IGRA archive, updated weekly.">
+<meta name="description" content="Which US radiosonde stations are missing their routine 00Z/12Z launches? Slot-by-slot compliance for the current year from the IGRA archive, updated weekly.">
 <meta property="og:type" content="website">
 <meta property="og:title" content="US sounding gap report: missed 00Z/12Z radiosonde launches">
-<meta property="og:description" content="Which US radiosonde stations are missing their routine 00Z/12Z launches? Slot-by-slot compliance since January 2026 from the IGRA archive, updated weekly.">
+<meta property="og:description" content="Which US radiosonde stations are missing their routine 00Z/12Z launches? Slot-by-slot compliance for the current year from the IGRA archive, updated weekly.">
 <meta property="og:url" content="https://scorvec.com/skewt/gaps.html">
 <meta property="og:image" content="https://scorvec.com/skewt/og-card.png">
 <meta property="og:site_name" content="Shawn Corvec">
@@ -20,7 +20,7 @@
  "@type": "WebPage",
  "name": "US sounding gap report: missed 00Z/12Z radiosonde launches",
  "url": "https://scorvec.com/skewt/gaps.html",
- "description": "Which US radiosonde stations are missing their routine 00Z/12Z launches? Slot-by-slot compliance since January 2026 from the IGRA archive, updated weekly.",
+ "description": "Which US radiosonde stations are missing their routine 00Z/12Z launches? Slot-by-slot compliance for the current year from the IGRA archive, updated weekly.",
  "image": "https://scorvec.com/skewt/og-card.png",
  "isPartOf": {
   "@type": "WebSite",
@@ -44,8 +44,6 @@
          -webkit-font-smoothing:antialiased; }
   nav { display:flex; justify-content:space-between; align-items:center; gap:1.5rem;
         padding:0.7rem 1.4rem; border-bottom:1px solid var(--rule); }
-  .nav-name { font-family:var(--serif); font-size:1rem; text-decoration:none; color:var(--ink); }
-  nav a.back { font-size:0.85rem; letter-spacing:0.05em; color:var(--muted); text-decoration:none; }
   .wrap { max-width:1050px; margin:0 auto; padding:1.8rem 1.2rem 3rem; }
   .eyebrow { font-size:0.74rem; letter-spacing:0.16em; text-transform:uppercase; color:var(--accent); }
   h1 { font-family:var(--serif); font-weight:600; font-size:clamp(1.5rem,3.4vw,2.2rem);
@@ -256,7 +254,7 @@
   <h1>US sounding gap report</h1>
   <p class="lede">Every US radiosonde site is supposed to launch at 00Z and 12Z, every day. Of
   late, many haven't — releases skipped outright or shifted to off-hours. This page grades
-  <b>every routine slot since January 2026</b> for every active US station:
+  <b>every routine slot since <span id="since">the start of the year</span></b> for every active US station:
   <span class="okc">■ on time</span> · <span class="warn">■ off-hour launch instead</span> ·
   <span class="bad">■ missed</span> (no sounding in IGRA: not launched, or launched but not archived). Stations
   with a clean 60-day record are collapsed at the bottom.</p>
@@ -276,9 +274,16 @@ const esc = x => String(x == null ? "" : x).replace(/[&<>"]/g, c => ({ "&": "&am
 fetch("gaps.json").then(r => { if (!r.ok) throw new Error(r.status); return r.json(); }).then(d => {
   let st = Object.entries(d.stations);
   const dayN = Math.floor(st[0][1].g.length / 2);
-  const strip = g => {
-    const cells = g.slice(-120).split("").map(c =>
-      `<i style="background:${c === "1" ? "#1f7a5e" : c === "2" ? "#b58a00" : "#c0392b"}"></i>`);
+  const MON = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+  document.getElementById("since").textContent = `${MON[+d.start.slice(5, 7) - 1]} ${d.start.slice(0, 4)}`;
+  const STATE = { "1": ["#1f7a5e", "on time"], "2": ["#b58a00", "off-hour launch instead"], "0": ["#c0392b", "missed"] };
+  const endMs = Date.parse(d.end + "T00:00:00Z");
+  const strip = g => {                    // the last 60 days, two cells per day; each cell says its slot and state
+    const cells = g.slice(-120).split("").map((c, i) => {
+      const day = new Date(endMs - (59 - Math.floor(i / 2)) * 864e5).toISOString().slice(0, 10);
+      const [col, lab] = STATE[c] || STATE["0"];
+      return `<i style="background:${col}" title="${day} ${i % 2 ? "12" : "00"}Z: ${lab}"></i>`;
+    });
     return `<span class="strip">${cells.join("")}</span>`;
   };
   const special = st.filter(([, v]) => !v.routine);

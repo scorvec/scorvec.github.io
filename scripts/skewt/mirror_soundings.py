@@ -35,7 +35,7 @@ Five public sources, all credited on the page:
     station's y2d zip on demand when opened.
 
 Outputs (the layout the client reads from the `skewt-data` branch):
-  manifest.json             {pipeline, generated, sources, centres, entries: {id: {id,n,la,lo,src,dt,hours}}}
+  manifest.json             {generated, sources, centres, entries: {id: {id,n,la,lo,src,dt,hours}}}
                             id = WMO number (the client's byWmo key); src = "IEM" | "ECCC" | "WIS2"
                             | "IGRA" of the newest launch. Stations with any WIS2/ECCC launch also
                             carry "by" (originating centre code of the newest launch, "IEM" for an
@@ -90,7 +90,6 @@ UA = "scorvec.com skew-t explorer (+https://scorvec.com/skewt/)"
 IEM_RAOB = "https://mesonet.agron.iastate.edu/json/raob.py"
 IEM_NET = "https://mesonet.agron.iastate.edu/geojson/network.py?network=RAOB"
 IGRA_Y2D = "https://www.ncei.noaa.gov/pub/data/igra/data/data-y2d/"
-PIPELINE = 2  # manifests without this were made by the retired feed
 MAX_LEVELS = 260
 RETAIN_H = 96
 IEM_DELAY = float(os.environ.get("SKEWT_IEM_DELAY", "121"))  # robots.txt Crawl-delay: 120
@@ -255,11 +254,15 @@ def iem_slots_due(state: dict) -> list:
     return [s for _, s in due[:MAX_IEM_REQ]]
 
 
-def iem_station_table(state: dict) -> dict:
-    """IEM RAOB network table (id -> name/lat/lon), refreshed at most weekly."""
+def iem_station_table(state: dict, after_request: bool) -> dict:
+    """IEM RAOB network table (id -> name/lat/lon), refreshed at most weekly.
+
+    after_request: a raob.py request was made this run, so the crawl delay is honoured before this GET."""
     net = state.get("iemnet") or {}
     if net.get("t") and (NOW - datetime.fromisoformat(net["t"])).days < 7:
         return net.get("st", {})
+    if after_request:
+        time.sleep(IEM_DELAY)
     try:
         feats = json.loads(get(IEM_NET, tries=2))["features"]
         st = {
@@ -272,7 +275,6 @@ def iem_station_table(state: dict) -> dict:
             for f in feats
         }
         state["iemnet"] = {"t": NOW.isoformat(), "st": st}
-        time.sleep(IEM_DELAY)
         return st
     except Exception as e:  # noqa: BLE001
         print(f"  IEM station table failed: {repr(e)[:80]}", flush=True)
@@ -311,7 +313,7 @@ def run_iem(outdir: Path, state: dict, by_wmo: dict, icao2wmo: dict, meta: dict)
             n += write_iem(outdir, pr, sid, la, lo, el, name, meta, got)
         print(f"  IEM {slot:%Y-%m-%d %H}Z: {len(profs)} profiles, {n} written ({len(raw) // 1024} KB)", flush=True)
     if unmapped:  # stations iem_raob.json does not know: IEM's own table
-        tbl = iem_station_table(state)
+        tbl = iem_station_table(state, after_request=nreq > 0)
         for pr in unmapped:
             icao = str(pr.get("station", ""))
             s = tbl.get(icao)
@@ -358,7 +360,7 @@ def write_iem(outdir, pr, sid, la, lo, el, name, meta, got) -> int:
 
 
 # ---------------------------------------------------------------- IGRA (global, daily)
-# NO IGRA DATA IS DOWNLOADED HERE (since 2026-10-04). The y2d zips are whole-year
+# NO IGRA DATA IS DOWNLOADED HERE. The y2d zips are whole-year
 # files that NCEI rewrites every day, so mirroring them meant ~0.5 GB/day of mostly
 # unchanged data. Instead the mirror reads only the directory LISTING (one request,
 # at most every IGRA_CHECK_H hours) and remembers each file's size: a file that GREW
@@ -387,11 +389,9 @@ def run_igra(state: dict, by_gid: dict, prev_manifest: dict, meta: dict) -> dict
     The recent set ("grew") lives in state.json and is re-emitted on every run. The
     listing is re-read when the throttle allows OR whenever there is nothing to compare
     against (no sizes) or nothing to show (empty set) - an empty set must never wait
-    out the throttle (2026-10-04: a stale "checked" stamp from the old bulk pipeline
-    skipped the listing and the map lost every IGRA station for a run).
+    out the throttle, or the map loses every IGRA station for a run.
     """
     ig = state.setdefault("igra", {})
-    ig.pop("files", None)  # bookkeeping of the old bulk download
     size, grew = ig.setdefault("size", {}), ig.setdefault("grew", {})
     last = ig.get("checked")
     fresh = last and (NOW - datetime.fromisoformat(last)).total_seconds() < IGRA_CHECK_H * 3600
@@ -462,7 +462,7 @@ def run_igra(state: dict, by_gid: dict, prev_manifest: dict, meta: dict) -> dict
 # ---------------------------------------------------------------- WIS2 (global, real time)
 # The WMO WIS 2.0 Global Cache on AWS Open Data: anonymous S3, ~72 h retention, core data
 # free and unrestricted under the WMO Unified Data Policy (credit the originating service).
-# A 2026-10-06 survey found radiosondes in three places, each filling gaps for the others
+# Radiosondes sit in three places, each filling gaps for the others
 # (132 station-launches only native, 129 only via JMA, 54 only via DWD), so all are polled:
 #   data/{de-dwd,jp-jma}-gts-to-wis2/data/core/I/U/{S,K}/...   GTS bulletins re-published by
 #        the two gateways (IUS = entire high-resolution sounding, IUK = TEMP parts; both
@@ -474,7 +474,7 @@ WIS2_BASE = "https://wis2globalcache.s3.amazonaws.com/"
 WIS2_S3NS = {"s": "http://s3.amazonaws.com/doc/2006-03-01/"}
 WIS2_GATEWAYS = ("de-dwd-gts-to-wis2", "jp-jma-gts-to-wis2")
 WIS2_TEMP = "data/core/weather/surface-based-observations/temp/"
-# national centres with a temp/ topic (2026-10-06 survey) -> display name for attribution
+# national centres with a temp/ topic -> display name for attribution
 WIS2_NATIVE = {
     "bb-barbadosmetservices": "Barbados Meteorological Services",
     "be-rmib": "Royal Meteorological Institute of Belgium",
@@ -574,7 +574,7 @@ WIS2_CCCC = {
     "WSSS": "Meteorological Service Singapore",
     "YRBK": "National Meteorological Administration (Romania)",
 }
-# compiling centres seen only in the TAC TEMP trees (2026-10-07 survey of the DWD gateway's U/ trees)
+# compiling centres seen only in the TAC TEMP trees (the DWD gateway's U/ trees)
 WIS2_CCCC.update(
     {
         "DFFD": "ANAM (Burkina Faso)",
@@ -612,10 +612,9 @@ WIS2_CCCC.update(
         "WBSB": "Brunei Darussalam Meteorological Department",
         "WIIX": "BMKG (Indonesia)",
         "WMKK": "MetMalaysia",
-        "DTTA": "INM (Tunisia)",
     }
 )
-# Canadian upper-air stations bulletin under their own indicator (MSC Datamart IU/ tree, 2026-10-06);
+# Canadian upper-air stations bulletin under their own indicator (MSC Datamart IU/ tree);
 # a WIS2 relay of one (e.g. CAYT, St John's) is credited to ECCC
 for _c in [
     "CAYT",
@@ -652,7 +651,7 @@ for _c in [
 NA_CCCC = {"KWBC", "CWAO", "CWUL"}  # North America: IEM's ground, fetched last
 # GTS hubs that compile other countries' soundings into their bulletins: a station outside the
 # hub's home (IGRA/FIPS country prefixes) is credited to its own national service, "relayed by" the
-# hub (2026-10-06: Bogota's IDEAM sounding arrives in a KWBC bulletin)
+# hub (Bogota's IDEAM sounding arrives in a KWBC bulletin)
 RELAY_HOME = {
     "KWBC": {"US", "RQ", "GQ", "AQ", "VQ", "CQ", "RM", "FM", "PS", "AY", "WQ", "JQ"},
     "AMMC": {"AS", "AY", "CK", "KT", "NF", "AT", "HM"},
@@ -989,9 +988,9 @@ def qc_levels(levels: list, stats: Counter, upper_part: bool = False, who: str =
     if psfc:
         levels = [L for L in levels if L["p"] <= psfc + 0.5]
     # physically impossible levels: warmer than +15 C above 600 hPa (the global 500 hPa maximum is
-    # near 0 C), or a reported height below one reported at a higher pressure (2026-10-06 Kolpasevo:
-    # two trailing levels at 493 hPa / 575 m / +47 C)
-    zmax, keep = -1e9, []
+    # near 0 C), or a reported height below one reported at a higher pressure (trailing levels such as
+    # 493 hPa / 575 m / +47 C)
+    zmax, keep = -1e9, set()
     for L in sorted(levels, key=lambda L: -L["p"]):
         if L["t"] is not None and L["p"] < 600 and L["t"] > 15:
             stats["qc_hot_aloft"] += 1
@@ -1001,8 +1000,8 @@ def qc_levels(levels: list, stats: Counter, upper_part: bool = False, who: str =
                 stats["qc_height_order"] += 1
                 continue
             zmax = max(zmax, L["h"])
-        keep.append(id(L))
-    levels = [L for L in levels if id(L) in set(keep)]
+        keep.add(id(L))
+    levels = [L for L in levels if id(L) in keep]
     th = [L for L in levels if L["t"] is not None]
     if len(th) < (3 if upper_part else WIS2_MIN_LEVELS):
         stats["qc_few"] += 1
@@ -1042,7 +1041,7 @@ def deep_superadiabatic(levels: list, depth: float = 300.0, lapse: float = 0.015
     """(p bottom, p top, K/km) of the first offending layer, else False: when the troposphere (above the lowest 200 m) cools faster than 15 K/km over a layer >= 300 m
     deep (dry adiabatic
     is 9.8 K/km; nature never sustains that). Catches mis-coded temperatures that pass every
-    per-level check - e.g. PAGASA BUFR 2026-10-06 with Davao at -4.3 C at 850 hPa."""
+    per-level check - e.g. a tropical station at -4.3 C at 850 hPa."""
     th = sorted((L for L in levels if L["t"] is not None and L["p"] >= 100), key=lambda L: -L["p"])
     if len(th) < 3:
         return False
@@ -1100,7 +1099,8 @@ def thin_levels(levels: list, cap: int) -> list:
 
 
 def merge_levels(*sets) -> list:
-    """Union of several level lists (TEMP parts) keyed on pressure; the fuller record wins."""
+    """Union of several level lists (TEMP parts) keyed on pressure; the fuller record wins a
+    duplicate pressure, and on equal fill the list given first - so pass the newest first."""
     best = {}
     for levels in sets:
         for L in levels:
@@ -1159,7 +1159,7 @@ def wis2_centres(state: dict, ctr: Counter) -> list:
 
 
 # Active stations missing from stations.json (no IGRA history yet), named from their BUFR position
-EXTRA_NAMES = {"73140": "Chibougamau Ua; Que"}  # 49.78 N 74.53 W, ECCC CGCB (2026-10-06)
+EXTRA_NAMES = {"73140": "Chibougamau Ua; Que"}  # 49.78 N 74.53 W, ECCC CGCB
 
 
 def bbb_rank(bbb) -> int:
@@ -1168,10 +1168,8 @@ def bbb_rank(bbb) -> int:
 
 
 def shared_score(state: dict) -> dict:
-    """fn -> [complete, n, kind, cc] of the held WIS2/ECCC launch files (was state.wis2.score)."""
-    if "score" not in state:
-        state["score"] = (state.get("wis2") or {}).pop("score", {})
-    return state["score"]
+    """fn -> [complete, n, kind, cc] of the held WIS2/ECCC/TAC launch files."""
+    return state.setdefault("score", {})
 
 
 def take_subset(s: dict, c: dict, hints: list, by_wmo: dict, by_fn: dict, stats: Counter, oldest: datetime) -> bool:
@@ -1304,8 +1302,12 @@ def commit_launches(
             except Exception:  # noqa: BLE001
                 base = []
         if parts and (len(parts) > 1 or base or any(x["upper"] for x in parts)):
+            # a correction's values win duplicate pressures, the held file's go last; the merged
+            # launch carries the highest correction rank so a CCA/CCB outranks the original held
+            parts.sort(key=lambda x: -x["cc"])
             m = dict(next((x for x in parts if not x["upper"]), parts[0]))
-            m["levels"] = merge_levels(base, *(x["levels"] for x in parts))
+            m["levels"] = merge_levels(*(x["levels"] for x in parts), base)
+            m["cc"] = max(x["cc"] for x in parts)
             m["upper"] = False
             if standalone(m["levels"]):
                 m["rich"] = richness(m["levels"])
@@ -1339,9 +1341,6 @@ def run_wis2(outdir: Path, state: dict, by_wmo: dict, meta: dict) -> dict:
     t0 = time.time()
     ctr, stats = Counter(), Counter()
     w = state.setdefault("wis2", {})
-    if w.get("v") != 2:  # v1 (first day) marked keys seen, then a bug aborted: start over
-        w.pop("seen", None)
-        w["v"] = 2
     seen = w.setdefault("seen", {})  # dedupe id -> LastModified (epoch h)
     newseen = {}  # merged into `seen` only after this run's files are written
     score = shared_score(state)  # fn -> [complete, n, kind, cc]
@@ -1470,7 +1469,7 @@ def run_wis2(outdir: Path, state: dict, by_wmo: dict, meta: dict) -> dict:
 # ---------------------------------------------------------------- ECCC (Canada, real time)
 # Environment and Climate Change Canada's MSC Datamart publishes every Canadian upper-air
 # station's own BUFR bulletins within minutes of reception (ECCC Data Servers End-use Licence;
-# attribution "Data Source: Environment and Climate Change Canada"). Layout (2026-10-06 probe):
+# attribution "Data Source: Environment and Climate Change Canada"). Layout:
 #   https://dd.weather.gc.ca/YYYYMMDD/WXO-DD/bulletins/alphanumeric/YYYYMMDD/IU/<CCCC>/<HH>/
 #   YYYYMMDD and HH are the RECEPTION date and hour (not the nominal time): one directory per
 #   station (CCCC = the station's own indicator, e.g. CWSE = Stony Plain 71119), so a 12Z launch
@@ -1718,7 +1717,7 @@ def run_eccc(outdir: Path, state: dict, by_wmo: dict, meta: dict) -> dict:
 # Many services - most of Africa among them - still send their soundings to the GTS only as
 # alphanumeric FM-35 TEMP, never as BUFR. DWD's WIS2 gateway republishes those bulletins under
 # data/de-dwd-gts-to-wis2/data/core/U/{S,K,L,E}/<A1>/<A2>/<ii>/<CCCC>/ (US = part A TTAA, UK = part
-# B TTBB, UL = part C TTCC, UE = part D TTDD; 2026-10-07 survey: 74 compiling centres, ~4400 files
+# B TTBB, UL = part C TTCC, UE = part D TTDD; 74 compiling centres, ~4400 files
 # per 72 h, ~3 MB). Decoded here and used ONLY for a station-hour no BUFR source (IEM, ECCC, WIS2
 # BUFR) holds; a BUFR launch that arrives later replaces it when richer, as everywhere else.
 # Parts A-D (and corrections / delayed copies) of one launch are merged, across runs too.
@@ -2083,11 +2082,15 @@ def run_tac(outdir: Path, state: dict, by_wmo: dict, meta: dict) -> dict:
             k = x["r"]["part"]
             if k not in newest or (x["cc"], x["lm"]) >= (newest[k]["cc"], newest[k]["lm"]):
                 newest[k] = x
-        sets = [x["r"]["levels"] for x in newest.values()]
+        # newest correction first so its values win duplicate pressures; the file held from an earlier
+        # run last. The candidate carries the highest correction rank, so a CCA/CCB outranks the held
+        # original in commit_launches while a plain re-send never replaces a richer file.
+        sets = [x["r"]["levels"] for x in sorted(newest.values(), key=lambda x: (-x["cc"], -x["lm"].timestamp()))]
+        cc = max(x["cc"] for x in newest.values())
         dest = outdir / "soundings" / fn
         if cur == "TAC" and dest.exists():
             with contextlib.suppress(Exception):
-                sets.insert(0, levels_from_csv(dest.read_text()))
+                sets.append(levels_from_csv(dest.read_text()))
         levels = merge_levels(*[[dict(L) for L in s] for s in sets])
         levels = qc_levels(levels, stats, who=f"TAC {fn[:-4]} {ps[0]['cccc']}")
         if not levels:
@@ -2102,7 +2105,7 @@ def run_tac(outdir: Path, state: dict, by_wmo: dict, meta: dict) -> dict:
                 "kind": "T",
                 "by": x0["cccc"],
                 "src": "TAC",
-                "cc": 0,
+                "cc": cc,
                 "la": st["la"],
                 "lo": st["lo"],
                 "elev": st.get("e") or 0,
@@ -2170,12 +2173,10 @@ def main() -> int:
     state, prev_manifest = {}, {}
     if prevdir and (prevdir / "manifest.json").exists():
         prev_manifest = json.loads((prevdir / "manifest.json").read_text())
-    if prev_manifest.get("pipeline") == PIPELINE and (prevdir / "state.json").exists():
+    if prevdir and (prevdir / "state.json").exists():
         state = json.loads((prevdir / "state.json").read_text())
     meta = {"filesrc": {}, "fileby": {}, "names": state.get("names", {}), "score": shared_score(state)}
-    # Carry forward this pipeline's own per-launch files inside the retention window.
-    # Files from a manifest without the pipeline mark came from the retired feed and
-    # are deliberately NOT carried.
+    # Carry forward the per-launch files inside the retention window.
     if state:
         carried = Counter()
         oldby = state.get("fileby") or {}
@@ -2216,7 +2217,7 @@ def main() -> int:
             flush=True,
         )
     else:
-        print("  no previous state from this pipeline — starting fresh", flush=True)
+        print("  no previous state — starting fresh", flush=True)
 
     run_iem(outdir, state, by_wmo, icao2wmo, meta)
     # ECCC and WIS2 must never take the IEM/IGRA publication down with them
@@ -2296,7 +2297,6 @@ def main() -> int:
     (outdir / "manifest.json").write_text(
         json.dumps(
             {
-                "pipeline": PIPELINE,
                 "generated": NOW.strftime("%Y-%m-%d %H:%M UTC"),
                 "sources": {
                     "IEM": n_rt["IEM"],

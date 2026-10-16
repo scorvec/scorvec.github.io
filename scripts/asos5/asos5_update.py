@@ -252,9 +252,7 @@ def fetch_sixhr():
     try:
         metars = json.loads(http_get(url))
     except Exception as e:
-        # the caller unpacks two values: returning one crashed the whole job on an upstream hiccup
-        # (2026-09-20: aviationweather.gov served an EXPIRED certificate on some hosts, 4 runs failed;
-        # the MADIS path below supplies the 5-minute data, so this degrades to no 6-hour groups)
+        # an API failure degrades to no 6-hour groups (the caller unpacks two values; MADIS still supplies the 5-minute data)
         print(f"  AWC METAR API: failed ({e})", file=sys.stderr)
         return out, {}
     seen = set()
@@ -266,6 +264,7 @@ def fetch_sixhr():
             end = int(datetime.fromisoformat(o["reportTime"].replace("Z", "+00:00")).timestamp())
         except (KeyError, ValueError):
             continue
+        end = round(end / 21600) * 21600  # the group ends at the synoptic hour; the report is minutes early or late
 
         def ok(v):
             return v is not None and -60.0 <= float(v) <= 60.0
@@ -402,12 +401,8 @@ def main():
             recs = merged.get(sid, {})
             label, cadence = "NWS/MADIS 5-min ASOS", 5
             if not recs:
-                # MADIS drops a station from the HFMETAR feed for days at a
-                # time — KCLT did exactly that, 0 obs across a whole 36-h
-                # window while every other station carried ~430. With no
-                # fallback the card rendered completely empty, which reads as
-                # a broken site rather than an upstream gap. Hourly METAR is a
-                # poor substitute for the 5-min feed but it is not nothing.
+                # MADIS can drop a station from the HFMETAR feed for days: the hourly METAR is a poor substitute
+                # for the 5-minute feed, but an empty card would read as a broken page
                 recs = fetch_nws_hourly(sid, win_start)
                 label, cadence = "NWS API hourly METAR (MADIS gap)", 60
                 print(f"  {sid}: no MADIS 5-min obs — fell back to hourly API", flush=True)

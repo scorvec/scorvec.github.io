@@ -73,10 +73,9 @@ int main(int argc, char** argv) {
 
         // --- quality gate: never fabricate data ------------------------------
         // Many stations (much of South America) report dewpoint on only a
-        // fraction of levels. The old code invented D = T-30 and heights in
-        // arbitrary +100 m steps, which produced garbage CAPE. Instead we
-        // require real moisture through the lower/mid troposphere and
-        // interpolate only across genuine gaps.
+        // fraction of levels. Inventing D = T-30 or heights in fixed +100 m
+        // steps produces garbage CAPE, so real moisture is required through
+        // the lower/mid troposphere and only genuine gaps are interpolated.
         int ndew = 0, ndew_low = 0, nlow = 0;
         for (int i = 0; i < N; ++i) {
             if (!std::isnan(D[i])) ++ndew;

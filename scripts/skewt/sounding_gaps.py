@@ -9,7 +9,10 @@ For every active US radiosonde site, read the IGRA year-to-date file
 Writes skewt/gaps.json: per-station day strings (2 chars/day) plus
 rollups for the last 14/60 days.
 
-    python scripts/skewt/sounding_gaps.py [START]   # default 2025-01-01
+    python scripts/skewt/sounding_gaps.py [START]   # default: 1 January of the current year
+
+The year-to-date files roll on 1 January, so the default record starts with
+them; a station counts as active when it reported this year or last.
 """
 
 from __future__ import annotations
@@ -26,7 +29,7 @@ ROOT = Path(__file__).resolve().parents[2]
 # /pub/data/igra/ mirrors the same files; ncei.noaa.gov/robots.txt disallows /data*
 IGRA = "https://www.ncei.noaa.gov/pub/data/igra/data/data-y2d/"
 UA = "scorvec.com skew-t explorer (+https://scorvec.com/skewt/)"
-START = date(2026, 1, 1)
+START = date(datetime.now(UTC).year, 1, 1)
 
 
 def station_days(gid: str, y0: int):
@@ -81,7 +84,7 @@ def main() -> int:
     # y2d files lag ~2 days
     end = datetime.now(UTC).date() - timedelta(days=2)
     stns = json.loads((ROOT / "skewt" / "stations.json").read_text())["stations"]
-    us = [s for s in stns if s["gid"].startswith("USM") and s.get("y1", 0) >= 2025]
+    us = [s for s in stns if s["gid"].startswith("USM") and s.get("y1", 0) >= start.year - 1]
     print(f"{len(us)} active US stations, {start} .. {end}", flush=True)
     out = {
         "start": str(start),

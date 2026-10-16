@@ -78,7 +78,7 @@ import numpy as np
 
 HERE = Path(__file__).resolve().parent
 REPO = HERE.parents[1]
-UA = {"User-Agent": "scorvec-snowband/1.0 (+https://scorvec.com/snowbands.html)"}
+UA = {"User-Agent": "scorvec-snowband/1.0 (+https://scorvec.com/models.html)"}
 G, RD, OMEGA_E, R_E = 9.80665, 287.04, 7.2921e-5, 6371229.0
 SIGMA_KM = 18.0
 TARGET_KM = 12.0
