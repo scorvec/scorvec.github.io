@@ -24,3 +24,8 @@ assets/sst/anim/wave1_500
 # E-P flux loops, replaced by the GEFS loop (assets/sst/anim/epflux_gefs). strat.yml also prunes them directly.
 assets/sst/anim/epflux
 assets/sst/anim/epflux_ifs
+
+# The first Hadley/Walker forecast run (2026-10-16) nested its regions (mmsf_fc/blend ...); the viewer reads
+# <anim>/<region id>/, so the loops moved to flat mmsf_fc_<region> / walker_fc_<region> directories.
+assets/sst/anim/mmsf_fc
+assets/sst/anim/walker_fc

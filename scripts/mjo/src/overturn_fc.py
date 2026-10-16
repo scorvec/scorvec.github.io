@@ -8,7 +8,7 @@ TRAILING 7-day means, so the window of an early lead still holds analysed days (
 analysis and forecast both stand on ERA5's footing); Psi and Psi_W against the ERA5 1991-2020 harmonic climatology at
 the window's midpoint; the cell intensities and edges (build_hadley_clim.sample_metrics) and the Pacific Walker index.
 
-The loops (assets/sst/anim/{mmsf_fc,walker_fc}, one region per ensemble and one for both pooled) show the members'
+The loops (assets/sst/anim/{mmsf,walker}_fc_<region>, one region per ensemble and one for all of them pooled) show the members'
 mean anomaly ONLY where at least AGREE of the members give it the same sign; elsewhere the ensemble does not say which
 way the cell departs, and the frame leaves it blank. A model without a drift reference is left out rather than drawn
 raw: its drift would read as an anomaly.
@@ -153,12 +153,12 @@ def render(regions: dict, init, mids, clim_m, clim_w, lon, anim_root: Path, mani
         doc = {
             "ver": f"{init:%Y%m%d}00",
             "init": f"{init:%Y-%m-%d}T00:00Z",
-            "default": "blend" if "blend" in regions else next(iter(regions)),
+            "default": f"{prod}_fc_" + ("blend" if "blend" in regions else next(iter(regions))),
             "selectorLabel": "Forecast",
             "regions": {},
         }
         for rid, S in regions.items():
-            d = anim_root / f"{prod}_fc" / rid
+            d = anim_root / f"{prod}_fc_{rid}"  # the viewer reads <anim>/<region id>/<file>
             d.mkdir(parents=True, exist_ok=True)
             for old in d.glob("F*.webp"):
                 old.unlink()
@@ -209,7 +209,7 @@ def render(regions: dict, init, mids, clim_m, clim_w, lon, anim_root: Path, mani
                     )
                     lab += f" · Pacific {pidx:+.1f}"
                 frames.append({"idx": j, "file": fp.name, "date": f"{end:%Y-%m-%d}", "label": lab})
-            doc["regions"][rid] = {"label": name, "n_frames": len(frames), "frames": frames}
+            doc["regions"][f"{prod}_fc_{rid}"] = {"label": name, "n_frames": len(frames), "frames": frames}
         manifests[prod].parent.mkdir(parents=True, exist_ok=True)
         manifests[prod].write_text(json.dumps(doc))
         print(f"  {prod}_fc: {len(regions)} regions x {len(LEADS)} frames", flush=True)

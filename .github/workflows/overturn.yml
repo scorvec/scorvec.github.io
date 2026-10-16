@@ -2,7 +2,7 @@ name: Hadley and Walker forecasts (AIFS-ENS, IFS-ENS, GEFS 00Z, days 0-15)
 
 # Every member of the 00Z AIFS-ENS, IFS-ENS and GEFS runs to day 15, less its model's drift against ERA5 (release
 # overturn-ref-v1, built by overturn-ref.yml), as the forecast loops of the Hadley-cell and Walker products
-# (scripts/mjo/src/overturn_fc.py -> assets/sst/anim/{mmsf_fc,walker_fc} + assets/sst/data/overturn_fc.json).
+# (scripts/mjo/src/overturn_fc.py -> assets/sst/anim/{mmsf,walker}_fc_<region> + assets/sst/data/overturn_fc.json).
 # IFS-ENS day 15 reaches the Google mirror around 08:50 UTC: the dispatcher fires this at 09:40 (backstop 11:40).
 on:
   schedule:
@@ -67,7 +67,7 @@ jobs:
         if: steps.run.outputs.skip != 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: scripts/lib/publish_frames_ci.sh assets/sst/anim/mmsf_fc assets/sst/anim/walker_fc
+        run: scripts/lib/publish_frames_ci.sh $(ls -d assets/sst/anim/mmsf_fc_*/ assets/sst/anim/walker_fc_*/ | sed 's#/$##')
       - name: Commit & push (manifests and series)
         if: steps.run.outputs.skip != 'true'
         run: |
