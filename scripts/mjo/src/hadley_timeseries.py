@@ -23,6 +23,7 @@ from pathlib import Path
 import matplotlib
 
 matplotlib.use("Agg")
+import matplotlib.dates as mdates
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -30,6 +31,7 @@ import xarray as xr
 
 sys.path.insert(0, str(Path(__file__).parent))
 import build_hadley_clim as B
+import hadley_enso as E
 import overturn as O
 import overturn_hist as H
 from doycal import noleap_doy
@@ -125,33 +127,17 @@ def main() -> int:
         ax.tick_params(labelsize=8.5)
         if not is_psi:  # latitude axes read naturally as absolute degrees
             ax.yaxis.set_major_formatter(lambda v, _: f"{abs(v):.0f}°")
-    hs, ls = axes[0, 0].get_legend_handles_labels()
-    fig.legend(hs, ls, fontsize=8.2, ncol=4, loc="upper left", bbox_to_anchor=(0.004, 0.962), frameon=False)
+        ax.xaxis.set_major_formatter(mdates.DateFormatter("%-d %b"))
     run = f" + forecasts from {fc['init'][:10]} 00Z" if fc else ""
-    fig.suptitle(
+    E.finish(
+        fig,
+        axes,
         f"Hadley cell intensity & poleward edge — analysis{run} vs ERA5 1991–2020",
-        fontsize=13,
-        fontweight="bold",
-        x=0.005,
-        y=0.988,
-        ha="left",
+        "7-day means at 00 UTC · intensity = peak |Ψ| in the cell · edge = Ψ(300–700 hPa)=0 on the descending flank · "
+        "bands = ERA5's 7-day means across years\nanalysis less its mean offset from ERA5 · forecasts: members less their "
+        "model's drift against ERA5 (median and 10–90 %)",
+        Path(a.out),
     )
-    fig.text(
-        0.005,
-        0.005,
-        "7-day means · intensity = peak |Ψ| in the cell · edge = Ψ(300–700 hPa)=0 on the descending flank · bands = ERA5's "
-        "7-day means across years\nanalysis less its mean offset from ERA5 · forecasts: members less their model's drift "
-        "against ERA5 (median and 10–90 %)",
-        fontsize=8,
-        color="0.35",
-        ha="left",
-    )
-    fig.tight_layout(rect=(0, 0.035, 1, 0.92))
-    out = Path(a.out)
-    out.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(out, dpi=110)
-    plt.close(fig)
-    print(f"wrote {out}")
     return 0
 
 
