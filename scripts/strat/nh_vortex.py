@@ -50,10 +50,15 @@ their own variability, and pretending to correct that would be false precision.
 
 Reference: MERRA-2 (scripts/telecon/data/m2_strat), 1980-2026 day-of-year
 10th-90th percentiles. The polar cap is rebuilt from zbar with the same
-cos-weighted 65-90N definition used on every forecast. The analysis tail is ERA5;
-_consistency() verifies on every run that mixing the two reanalyses is legitimate
-(measured 2026-08-28 over 94 overlapping days: u60 at 10 hPa -0.17 m/s r 0.997,
-cap height +0.30 m r 1.000 -- negligible, so no offset is applied).
+cos-weighted 65-90N definition used on every forecast.
+
+ANALYSIS TAIL: GEOS FP, MERRA-2's operational sibling -- the daily mean of its 00/06/12/18Z analyses, read from
+the files the upper-stratosphere and BDC jobs commit every day (u60 at 10 and 100 hPa in upperstrat_tail.json, the
+65-90N cap height in geosfp_cap_history.json). Its heights, and those of the GEOS FP forecast, are put on the
+MERRA-2 scale by the measured GEOS FP - MERRA-2 offset (geosfp_cap.offset_at, -14 m at 100 hPa); the winds need
+none. ERA5 is used instead only where the rolling ERA5 store is at hand (measured 2026-08-28 over 94 days against
+MERRA-2: u60 at 10 hPa -0.17 m/s r 0.997, cap height +0.30 m r 1.000, so no offset). _consistency() checks the
+tail against MERRA-2 wherever the two overlap.
 
     python scripts/strat/nh_vortex.py                     # all four models, IFS at 50 members
     python scripts/strat/nh_vortex.py --models aifs,geps  # no downloads beyond GEPS
@@ -64,6 +69,7 @@ from __future__ import annotations
 
 import argparse
 import glob
+import json
 import urllib.error
 import urllib.request
 from pathlib import Path
@@ -77,6 +83,8 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from quantmet.degdays import doy366
 
+import geosfp_cap
+
 HERE = Path(__file__).resolve().parent
 REPO = HERE.parent.parent
 DATA = HERE / "data"
@@ -84,6 +92,13 @@ M2 = REPO / "scripts" / "telecon" / "data" / "m2_strat"
 # Committed fallback when the raw archive is absent (any runner).
 M2_CACHE = REPO / "scripts" / "strat" / "reference" / "m2_strat_daily.nc"
 OBS_CACHE = REPO / "scripts" / "strat" / "reference" / "strat_obs_daily.nc"
+# GEOS FP analyses, daily: u60 by level (reference seed + the rolling file) and the 65-90N cap height
+FP_U_TAIL = (
+    REPO / "scripts" / "strat" / "reference" / "upperstrat_tail_seed.json",
+    REPO / "assets" / "sst" / "data" / "upperstrat_tail.json",
+)
+FP_CAP_TAIL = REPO / "assets" / "sst" / "data" / "geosfp_cap_history.json"
+TAIL_NOTE = {"GEOS FP": " Black: GEOS FP analyses (daily mean of 00/06/12/18Z).", "ERA5": " Black: ERA5."}
 CACHE = REPO / "scripts" / "ecmwf" / "cache"
 DL = DATA / "vortex_dl"  # downloaded GRIB, reused within a cycle
 OUT = REPO / "assets" / "sst" / "nh_vortex.webp"
@@ -335,6 +350,11 @@ def load_ifs(date, cyc, leads, members):
 GEOSFP_FC = "https://opendap.nccs.nasa.gov/dods/GEOS-5/fp/0.25_deg/fcast/inst3_3d_asm_Np/inst3_3d_asm_Np.{c}"
 
 
+def _fp_offset100(days) -> np.ndarray:
+    """GEOS FP minus MERRA-2 65-90N cap height at 100 hPa (m) on these days: subtract it from a GEOS FP cap series."""
+    return geosfp_cap.offset_at(pd.DatetimeIndex(days))[:, geosfp_cap.LEVELS.index(100.0)]
+
+
 def load_geosfp(base):
     """NASA GMAO GEOS FP, deterministic, from the NCCS OPeNDAP forecast collection. Only the 00Z run
     goes to day 10 (the 06/12/18Z runs stop at day 5), so this takes the newest 00Z run at or before the figure's cycle,
@@ -375,8 +395,8 @@ def load_geosfp(base):
             )
             return None
         w = np.cos(np.deg2rad(z.lat))
-        zc = (z.mean("lon") * w).sum("lat") / w.sum()
         idx = tt[ti]
+        zc = (z.mean("lon") * w).sum("lat") / w.sum() - _fp_offset100(idx)  # on the MERRA-2 scale, like the tail
         print(
             f"    GEOS FP {init:%Y-%m-%d} 00Z: {len(idx)} days, u10(0) {float(u.isel(time=0, lev=0)):.1f} m/s, "
             f"cap z100(0) {float(zc.isel(time=0)):.0f} m",
@@ -508,30 +528,59 @@ def load_clim(epoch):
 
 
 def analysis():
-    """Observed ERA5 tail: the raw rolling archive, else the committed cache.
+    """(observed tail, its source): ERA5 from the raw rolling archive, else GEOS FP, else the committed ERA5 cache.
 
-    strat_obs.nc is 237 MB of 3-D fields on a rolling 150-day window and is
-    gitignored, so on a runner this used to return {} - silently dropping the
-    observed history the figure is supposed to start from, with no error. The
-    cache holds the same two reduced series (u10, zcap) that _analysis_raw
-    derives, and is refreshed by build_m2_reference.py.
+    strat_obs.nc is 237 MB of 3-D fields on a rolling 150-day window and is gitignored, so on a runner the tail
+    is GEOS FP's (see the module docstring). The ERA5 cache holds the reduced u10 and zcap that _analysis_raw
+    derives; it is refreshed only where the raw file is (build_m2_reference.py), so it is the last resort.
     """
     out = _analysis_raw()
     if out:
         _refresh_obs_cache(out)
-        return out
+        return out, "ERA5"
+    now = pd.Timestamp.now("UTC").tz_localize(None)
+    fp = _analysis_geosfp()
+    if fp:
+        for k, s in fp.items():
+            print(f"  observed tail {k}: GEOS FP {s.index[0]:%Y-%m-%d}..{s.index[-1]:%Y-%m-%d}", flush=True)
+        last = max(s.index[-1] for s in fp.values())
+        if (now - last).days > 5:
+            print(f"::warning::the GEOS FP analysis tail ends {last:%Y-%m-%d}", flush=True)
+        return fp, "GEOS FP"
     if OBS_CACHE.exists():
         c = xr.open_dataset(OBS_CACHE)
         ci = pd.DatetimeIndex(c.time.values)
-        age = (pd.Timestamp.utcnow().tz_localize(None) - ci[-1]).days
+        age = (now - ci[-1]).days
         print(
-            f"  observed tail from cache {ci[0]:%Y-%m-%d}..{ci[-1]:%Y-%m-%d} "
+            f"  observed tail from the ERA5 cache {ci[0]:%Y-%m-%d}..{ci[-1]:%Y-%m-%d} "
             f"({age} d old)" + ("  [STALE - rerun build_m2_reference.py]" if age > 10 else ""),
             flush=True,
         )
-        return {k: pd.Series(np.asarray(c[k].values), index=ci).dropna() for k in ("u10", "zcap")}
-    print("  no observed tail available (no strat_obs.nc, no cache)", flush=True)
-    return {}
+        return {k: pd.Series(np.asarray(c[k].values), index=ci).dropna() for k in ("u10", "zcap")}, "ERA5"
+    print("  no observed tail available (no strat_obs.nc, no GEOS FP tail, no cache)", flush=True)
+    return {}, None
+
+
+def _analysis_geosfp():
+    """GEOS FP analyses (daily mean of 00/06/12/18Z): u60 at 10 and 100 hPa, and the 100 hPa 65-90N cap height
+    moved to the MERRA-2 scale. Empty when neither committed file is present."""
+    days = {}
+    for p in FP_U_TAIL:
+        if p.exists():
+            d = json.loads(p.read_text())
+            lev = [float(v) for v in d["levels"]]
+            for k, v in d["days"].items():
+                days[k] = dict(zip(lev, v["nh"]["u60"]))
+    out = {}
+    if days:
+        ks = sorted(days)
+        idx = pd.DatetimeIndex(ks)
+        for key, lev in (("u10", 10.0), ("u100", 100.0)):
+            out[key] = pd.Series([days[k].get(lev) for k in ks], index=idx, dtype=float).dropna()
+    cap = geosfp_cap.load_history(FP_CAP_TAIL)
+    if len(cap):
+        out["zcap"] = (cap[100.0].astype(float) - _fp_offset100(cap.index)).dropna()
+    return {k: s for k, s in out.items() if len(s)}
 
 
 def _refresh_obs_cache(out):
@@ -573,7 +622,7 @@ def _analysis_raw():
     return {"u10": pd.Series(zonal_at(ren("u10")).values, index=idx), "zcap": z}
 
 
-def _consistency(obs, clim, name, unit, tol):
+def _consistency(obs, clim, name, unit, tol, src):
     if obs is None or clim is None:
         return
     ix = obs.index.intersection(clim.index)
@@ -583,7 +632,7 @@ def _consistency(obs, clim, name, unit, tol):
     dd = (obs.loc[ix] - clim.loc[ix]).dropna()
     flag = "  <-- EXCEEDS TOLERANCE" if abs(dd.mean()) > tol else ""
     print(
-        f"  {name}: ERA5-MERRA2 {dd.mean():+.2f} {unit} (sd {dd.std():.2f}, "
+        f"  {name}: {src} - MERRA-2 {dd.mean():+.2f} {unit} (sd {dd.std():.2f}, "
         f"r {obs.loc[ix].corr(clim.loc[ix]):.3f}, n={len(dd)}){flag}",
         flush=True,
     )
@@ -661,9 +710,9 @@ def main() -> int:
             f.unlink(missing_ok=True)
 
     clim = load_clim(epoch)
-    obs = analysis()
-    _consistency(obs.get("u10"), clim["u10"], "u60 @10 hPa", "m/s", 1.0)
-    _consistency(obs.get("zcap"), clim["zcap"], "z100 cap", "m", 60.0)
+    obs, obs_src = analysis()
+    _consistency(obs.get("u10"), clim["u10"], "u60 @10 hPa", "m/s", 1.0, obs_src)
+    _consistency(obs.get("zcap"), clim["zcap"], "z100 cap", "m", 60.0, obs_src)
 
     fc = {}
     if "aifs" in want:
@@ -715,7 +764,7 @@ def main() -> int:
             o = o[(o.index >= t0) & (o.index <= base)]
             if len(o):
                 ob = q50.reindex(_cday(o.index)).values if anom else 0
-                ax.plot(o.index, o.values - ob, color="#1a1a1a", lw=2.4, zorder=7, label="ERA5 analysis")
+                ax.plot(o.index, o.values - ob, color="#1a1a1a", lw=2.4, zorder=7, label=f"{obs_src} analysis")
         for k, d in fc.items():
             df = d.get(key)
             if df is None or not len(df):
@@ -758,7 +807,8 @@ def main() -> int:
             ax.text(
                 0.5,
                 0.05,
-                "no analysis tail at this level — the rolling ERA5 store carries u only at 10 hPa",
+                "no analysis tail at this level"
+                + (" — the rolling ERA5 store carries u only at 10 hPa" if obs_src == "ERA5" else ""),
                 transform=ax.transAxes,
                 ha="center",
                 fontsize=8,
@@ -775,7 +825,9 @@ def main() -> int:
         "AIFS-ENS (25 members + control) and IFS-ENS (all 50 perturbed members; open data has no IFS control at these "
         "levels) to day 15, GEPS to day 16, GDPS and GEOS FP (00Z run, NASA GMAO) to day 10.\n"
         "Reference: MERRA-2 1980–2026 day-of-year percentiles; the height climatology is detrended to the current "
-        "year (+18.7 m/decade), the winds are not (<0.25 m/s/decade). Vertical line = analysis time.",
+        "year (+18.7 m/decade), the winds are not (<0.25 m/s/decade).\n"
+        "Vertical line = analysis time." + TAIL_NOTE.get(obs_src, "") + " GEOS FP heights are on the MERRA-2 scale "
+        "(measured offset removed).",
         ha="center",
         va="bottom",
         fontsize=8,
@@ -783,7 +835,7 @@ def main() -> int:
         linespacing=1.5,
     )
     fig.autofmt_xdate()
-    fig.tight_layout(rect=(0, 0.05, 1, 0.985))  # three footer lines under rotated dates
+    fig.tight_layout(rect=(0, 0.064, 1, 0.985))  # four footer lines under rotated dates
     Path(a.out).parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(a.out, dpi=112, facecolor="white", bbox_inches="tight", pil_kwargs={"quality": 88, "method": 6})
     plt.close(fig)

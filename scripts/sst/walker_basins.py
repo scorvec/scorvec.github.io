@@ -42,6 +42,7 @@ ASSETS = SITE / "assets" / "sst"
 REF = HERE.parents[1] / "scripts" / "mjo" / "data" / "reference"
 CLIM = REF / "walker_basins_clim.nc"
 HIST = REF / "walker_ud_history.nc"
+ERSST = HERE / "data" / "ersst_v6_mnmean.nc"  # fetched by sst.yml before the Walker steps
 PAC_BOX = (140.0, 200.0)  # the walker.py Pacific-cell box, in longitude
 INK, MUTED, NAVY, RED, GREEN, ORANGE = "#1a1a1a", "#6f6b64", "#1b365d", "#b4453c", "#2b7a3d", "#d0801a"
 GROUPS = {"enso": ["n34", "n34_lag3"], "indian": ["dmi", "iob"], "atlantic": ["atl3", "tna"]}
@@ -99,6 +100,31 @@ def indices_from(field, ref, month):
     out = {k: box_mean(field, LAT2, LON2, boxes[k]) for k in ("n34", "iob", "atl3", "tna")}
     out["dmi"] = box_mean(field, LAT2, LON2, boxes["dmi_w"]) - box_mean(field, LAT2, LON2, boxes["dmi_e"])
     return out
+
+
+def n34_lag3(ref: xr.Dataset, end) -> float:
+    """Niño-3.4 three months before `end`, from ERSST (the training source), detrended the same way.
+
+    Raises when ERSST does not have that month: the regression's lag term has no stand-in, and the current value is
+    not one (with Niño-3.4 still rising it overstates the lagged ENSO forcing)."""
+    tm = pd.Timestamp(end) - pd.DateOffset(months=3)
+    with xr.open_dataset(ERSST) as ds:
+        e = ds["sst"].sel(time=f"{tm.year}-{tm.month:02d}")
+        if e.time.size == 0:
+            raise LookupError(f"{ERSST.name} has no {tm:%Y-%m}")
+        fld = e.isel(time=0).values.astype(float)
+        lat, lon = ds.lat.values, ds.lon.values
+    an3 = (
+        fld
+        - ref.sst_clim.sel(month=tm.month).values
+        - ref.sst_slope.sel(month=tm.month).values * (tm.year + (tm.month - 0.5) / 12 - 2005.5)
+    )
+    (la0, la1), (lo0, lo1) = json.loads(ref.attrs["boxes"])["n34"]
+    msk = ((lat >= la0) & (lat <= la1))[:, None] & ((lon >= lo0) & (lon <= lo1))[None]
+    w = np.cos(np.deg2rad(lat))[:, None] * np.ones((1, lon.size)) * msk * np.isfinite(an3)
+    if w.sum() == 0:
+        raise ValueError(f"no ERSST values in the Niño-3.4 box for {tm:%Y-%m}")
+    return float((np.nan_to_num(an3) * w).sum() / w.sum())
 
 
 # ── observed Walker ──────────────────────────────────────────────────────────
@@ -458,30 +484,11 @@ def main() -> int:
     idx = indices_from(ssta, ref, month)
     sd = {k: float(ref.pred_sd.sel(month=month, pred=k)) for k in ref.pred.values}
     idx_sig = {k: idx[k] / sd[k] for k in idx}
-    # the 3-month-lag Niño-3.4 from ERSST (the training source), detrended the same way
-    n34_lag = None
     try:
-        e = xr.open_dataset(HERE / "data" / "ersst_v6_mnmean.nc")["sst"]
-        tm = pd.Timestamp(window[1]) - pd.DateOffset(months=3)
-        fld = e.sel(time=f"{tm.year}-{tm.month:02d}").isel(time=0).values.astype(float)
-        m3 = tm.month
-        an3 = (
-            fld
-            - ref.sst_clim.sel(month=m3).values
-            - ref.sst_slope.sel(month=m3).values * (tm.year + (tm.month - 0.5) / 12 - 2005.5)
-        )
-        boxes = json.loads(ref.attrs["boxes"])
-        (la0, la1), (lo0, lo1) = boxes["n34"]
-        lat, lon = e.lat.values, e.lon.values
-        msk = ((lat >= la0) & (lat <= la1))[:, None] & ((lon >= lo0) & (lon <= lo1))[None]
-        w = np.cos(np.deg2rad(lat))[:, None] * np.ones((1, lon.size)) * msk * np.isfinite(an3)
-        n34_lag = float((np.nan_to_num(an3) * w).sum() / w.sum())
+        idx["n34_lag3"] = n34_lag3(ref, window[1])
     except Exception as ex:  # noqa: BLE001
-        print(f"  lagged Niño-3.4 unavailable ({str(ex)[:60]}); using the current value", flush=True)
-    if n34_lag is None:
-        n34_lag = idx["n34"]
-    idx["n34_lag3"] = n34_lag
-    idx_sig["n34_lag3"] = n34_lag / sd["n34_lag3"]
+        raise SystemExit(f"lagged Niño-3.4 unavailable ({ex}); nothing written") from ex
+    idx_sig["n34_lag3"] = idx["n34_lag3"] / sd["n34_lag3"]
 
     # leg A: regression contributions (basin indices as residuals after ENSO, as trained)
     ensov = np.array([idx["n34"], idx["n34_lag3"]])

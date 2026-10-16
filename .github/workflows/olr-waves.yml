@@ -28,7 +28,8 @@ jobs:
       - run: pip install --quiet numpy pandas xarray netcdf4 scipy matplotlib "quantmet @ git+https://github.com/scorvec/quantmet-tools@v0.4.2"
       - run: python scripts/sst/build_olr_realtime.py
       - run: python scripts/sst/olr_waves.py --realtime --out assets/sst/olr_waves.webp
-      - run: python scripts/sst/wave_trackers.py --out assets/sst/wave_tracker.webp
+      # The Kelvin/Rossby trackers (wave_tracker.webp) are drawn in mjo.yml, which has the AIFS-ENS rain for their
+      # forecast strip; they read the olr_rt.nc this job commits.
       # Wheeler-Kiladis spectrum for tropical-waves.html: last 96 days of observed OLR (NASA CERES FLASHFlux, NOAA-20,
       # ~4 days behind; Earthdata login) divided by a background from the whole CERES record (committed
       # scripts/mjo/data/reference/wk_bg_ceres.nc), only bins significant at BH FDR 10 % shaded.
@@ -71,15 +72,19 @@ jobs:
         run: |
           git config user.name "Shawn Corvec"
           git config user.email "26825570+scorvec@users.noreply.github.com"
-          git add assets/sst/olr_waves.webp assets/sst/wave_tracker.webp scripts/sst/metar/olr_rt.nc
-          # figures from earlier versions of the spectrum product (normalised, then raw power)
-          git rm -q --ignore-unmatch assets/sst/wk_raw.webp assets/sst/wk_now.webp assets/sst/wk_gmgsi.webp assets/sst/wk_clim.webp
-          git rm -q --ignore-unmatch assets/sst/wk_spectrum.webp assets/sst/data/wk_spectrum.json   # the spectrum product is retired
-          if git diff --staged --quiet; then echo "no changes"; exit 0; fi
-          git commit -m "data update: $(date -u +%Y-%m-%dT%H:%MZ)"
+          # Snapshot the outputs, then commit on a clean sync of origin/main each attempt (the mjo.yml pattern), never
+          # a rebase: a collided rebase can drop the build.
+          OUT="assets/sst/olr_waves.webp scripts/sst/metar/olr_rt.nc"
+          SNAP=$(mktemp -d)
+          tar cf "$SNAP/outs.tar" --ignore-failed-read $OUT 2>/dev/null || true
           for i in 1 2 3 4 5; do
-            if timeout 120 git pull --rebase --autostash -X theirs origin main && timeout 180 git push; then echo "pushed (attempt $i)"; exit 0; fi
-            git rebase --abort 2>/dev/null || true   # a timed-out pull can strand a half-done rebase
+            if ! timeout 120 git fetch origin main; then echo "fetch $i failed"; sleep 5; continue; fi
+            git reset --hard origin/main
+            tar xf "$SNAP/outs.tar"
+            git add $OUT
+            if git diff --staged --quiet; then echo "no changes"; exit 0; fi
+            git commit -m "data update: $(date -u +%Y-%m-%dT%H:%MZ)"
+            if timeout 180 git push; then echo "pushed (attempt $i)"; exit 0; fi
             sleep 5
           done
           echo "push failed after retries"; exit 1

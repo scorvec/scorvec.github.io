@@ -9,6 +9,10 @@ name: ASOS5 overlay data
 # actions cache keeps that warm between runs (read-only pattern: run_id key,
 # restore-keys fall back to the newest).
 on:
+  # Backstop crons at the dispatcher's slots, for when it is off. GitHub delivers them late when at all, so they set
+  # no timing: a scheduled run that finds the branch pushed in the last 20 min stops after the first step.
+  schedule:
+    - cron: '5,35 * * * *'
   workflow_dispatch:
 
 permissions:
@@ -24,20 +28,36 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v7
+      - name: Already fresh?
+        id: fresh
+        run: |
+          if [ "${{ github.event_name }}" != "schedule" ]; then echo "skip=false" >> "$GITHUB_OUTPUT"; exit 0; fi
+          age=999999
+          if timeout 60 git fetch -q --depth 1 origin asos5-data; then age=$(( $(date -u +%s) - $(git log -1 --format=%ct FETCH_HEAD) )); fi
+          if [ "$age" -lt 1200 ]; then
+            echo "asos5-data was pushed $((age / 60)) min ago; nothing to do"; echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
       - uses: actions/setup-python@v7
+        if: steps.fresh.outputs.skip != 'true'
         with:
           python-version: '3.11'
       - uses: actions/cache@v6
+        if: steps.fresh.outputs.skip != 'true'
         with:
           path: scripts/asos5/cache
           key: asos5-cache-${{ github.run_id }}
           restore-keys: |
             asos5-cache-
       - name: Install Python dependencies
+        if: steps.fresh.outputs.skip != 'true'
         run: pip install numpy netCDF4
       - name: Update
+        if: steps.fresh.outputs.skip != 'true'
         run: python scripts/asos5/asos5_update.py
       - name: Push the overlay branch
+        if: steps.fresh.outputs.skip != 'true'
         run: |
           set -euo pipefail
           JS="data/asos5/asos5_latest.js"; JSON="data/asos5/asos5_latest.json"

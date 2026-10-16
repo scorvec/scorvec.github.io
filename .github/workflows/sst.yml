@@ -99,6 +99,17 @@ jobs:
           restore-keys: |
             ascat-data-
 
+      # ERSSTv6 monthly grid, one cache entry a month; the fetch step below refreshes it when PSL's copy is newer.
+      - name: Month key for the ERSST cache
+        id: ym
+        run: echo "ym=$(date -u +%Y-%m)" >> "$GITHUB_OUTPUT"
+      - uses: actions/cache@v6
+        with:
+          path: scripts/sst/data/ersst_v6_mnmean.nc
+          key: ersst-v6-${{ steps.ym.outputs.ym }}
+          restore-keys: |
+            ersst-v6-
+
       - name: Install cartopy system libs
         run: |
           # Bounded + retried: an apt mirror hang here once ate the full 60-min job budget
@@ -113,6 +124,30 @@ jobs:
 
       - name: Install Python dependencies
         run: pip install -r scripts/sst/requirements-sst.txt
+
+      # ERSSTv6 (NOAA PSL, ~60 MB): the 3-month-lag Niño-3.4 of the two Walker products and the historical RONI of
+      # build_nino_history.py read it. Downloaded only when PSL's copy is newer than the cached one (-z, with -R keeping
+      # the server's time on the file). Without any copy the Walker products fail and keep their previous figures.
+      - name: ERSSTv6 monthly grid
+        run: |
+          f=scripts/sst/data/ersst_v6_mnmean.nc
+          url=https://downloads.psl.noaa.gov/Datasets/noaa.ersst.v6/sst.mnmean.nc
+          mkdir -p scripts/sst/data
+          tmp=$(mktemp)
+          if [ -s "$f" ]; then since=(-z "$f"); else since=(); fi
+          if curl -sSfLR --retry 3 --max-time 300 "${since[@]}" -o "$tmp" "$url"; then
+            if [ ! -s "$tmp" ]; then
+              echo "cached ERSSTv6 is current"
+            elif python -c "import sys, xarray as xr; xr.open_dataset(sys.argv[1])['sst']" "$tmp"; then
+              mv "$tmp" "$f"; echo "fetched ERSSTv6 ($(du -h "$f" | cut -f1))"
+            else
+              echo "::warning::downloaded ERSSTv6 does not open; keeping the cached copy"
+            fi
+          else
+            echo "::warning::ERSSTv6 fetch failed; using the cached copy if there is one"
+          fi
+          rm -f "$tmp"
+          if [ ! -s "$f" ]; then echo "::warning::no ERSSTv6 grid on this runner; the Walker products will not update"; fi
 
       # Seed from the frames branch before rendering: ascat appends only what
       # is missing, and frames stopped arriving with the checkout when they
@@ -146,13 +181,15 @@ jobs:
       - name: ENSO forecasts, observed E and C so far (OISST)
         run: python scripts/sst/enso_flavour_obs.py || echo "::warning::enso_flavour_obs failed; keeping the previous observed E/C"
 
+      # Both Walker products need the ERSSTv6 month three months back (fetched above) and stop without writing
+      # when it is missing, so a failure here means the page keeps the previous figure.
       - name: Walker circulation by ocean basin
-        run: python scripts/sst/walker_basins.py || echo "walker_basins failed; continuing"
+        run: python scripts/sst/walker_basins.py || echo "::warning::walker_basins failed; keeping the previous figure"
 
       # Weekly departure of the tropical velocity potential from the Pacific-forced part (reads the
       # χ history mjo.yml keeps in assets/sst/anim/walker on the frames branch, seeded above).
       - name: Walker departure from Pacific forcing, weekly
-        run: python scripts/sst/walker_chi_weekly.py || echo "walker_chi_weekly failed; continuing"
+        run: python scripts/sst/walker_chi_weekly.py || echo "::warning::walker_chi_weekly failed; keeping the previous figure"
 
       # The subsurface page is owned by tao-subsurface.yml (3x a day). Here it is a courtesy refresh, so a PMEL DISDEL
       # hiccup must not take the SST anomalies / RONI run down with it (2026-09-22 17:45Z did exactly that).
