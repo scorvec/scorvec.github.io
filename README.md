@@ -71,6 +71,10 @@ Each product's workflow is the reference for how it runs: it lists the Python ve
 (`scripts/*/requirements*.txt` or inline `pip install`), the environment variables and the exact commands. To run
 one outside Actions, install the same requirements and run the same commands from the repository root.
 
+## Security
+
+Report security problems privately; see [SECURITY.md](SECURITY.md).
+
 ## License
 
 Code: [MIT](LICENSE). Site text and figures © Shawn Corvec unless noted; third-party data remain under their

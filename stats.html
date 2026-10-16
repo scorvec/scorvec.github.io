@@ -109,6 +109,12 @@
     padding: 0;
     background: #0f0f0d;
   }
+  /* GitHub repositories table */
+  .gh-wrap { overflow-x: auto; }
+  table.gh { width: 100%; border-collapse: collapse; font-size: 0.85rem; font-variant-numeric: tabular-nums; }
+  table.gh th { font-weight: 500; color: var(--muted); text-align: right; padding: 0.35rem 0.6rem; border-bottom: 1px solid var(--rule); white-space: nowrap; }
+  table.gh td { text-align: right; padding: 0.35rem 0.6rem; border-bottom: 1px solid var(--rule); white-space: nowrap; }
+  table.gh th:first-child, table.gh td:first-child { text-align: left; padding-left: 0; }
   .chart-img-wrap img {
     display: block; width: 100%; height: auto;
   }
@@ -427,6 +433,18 @@
       </div>
       <div class="chart-card-header"><p id="top-pages">&mdash;</p></div>
     </div>
+
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <h2>Code on GitHub</h2>
+        <p>Page views, clones, stars and forks of this site's public repositories, from GitHub's traffic data (kept here beyond GitHub's 14-day window). Clones include GitHub Actions checkouts and installs straight from git, so they mostly count automation; page views, stars and forks are the human signal.</p>
+      </div>
+      <div class="chart-card-header gh-wrap"><div id="gh-traffic"><p>&mdash;</p></div></div>
+      <div class="chart-card-footer">
+        <span class="chart-sources">GitHub REST API (repository traffic) &middot; daily</span>
+        <span class="chart-updated" id="gh-updated"></span>
+      </div>
+    </div>
   </div>
 </main>
 
@@ -442,6 +460,18 @@
       document.getElementById('stats-updated').textContent = 'updated ' + d.updated;
       document.getElementById('top-pages').innerHTML = d.top_pages_30d
         .map(p => p.path + ' &mdash; <b>' + p.count.toLocaleString() + '</b>').join('<br>');
+    }).catch(() => {});
+  fetch('assets/site_stats/github_traffic.json')
+    .then(r => r.json()).then(d => {
+      const n = v => v.toLocaleString();
+      const rows = Object.entries(d.repos).map(([name, r]) => '<tr><td><a href="https://github.com/scorvec/' + name + '">' + name +
+        '</a></td><td>' + n(r.stars) + '</td><td>' + n(r.forks) + '</td><td>' + n(r.last_14d.views) + ' (' + n(r.last_14d.views_unique) +
+        ')</td><td>' + n(r.last_14d.clones) + ' (' + n(r.last_14d.clones_unique) + ')</td><td>' + n(r.total.views) + '</td><td>' + n(r.total.clones) + '</td></tr>');
+      const since = Object.values(d.repos).map(r => r.since).filter(Boolean).sort()[0];
+      document.getElementById('gh-traffic').innerHTML = '<table class="gh"><thead><tr><th>Repository</th><th>Stars</th><th>Forks</th>' +
+        '<th>Views, 14 d (unique)</th><th>Clones, 14 d (unique)</th><th>Views since ' + since + '</th><th>Clones since ' + since + '</th></tr></thead><tbody>' +
+        rows.join('') + '</tbody></table>';
+      document.getElementById('gh-updated').textContent = 'updated ' + d.updated;
     }).catch(() => {});
 </script>
 <!-- sf:start -->

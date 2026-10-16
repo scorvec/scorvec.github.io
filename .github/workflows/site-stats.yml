@@ -3,6 +3,9 @@ name: Site visitor stats & map
 # Daily visitor-location map + stats JSON from the GoatCounter API for the
 # stats dashboard (stats.html). No-ops gracefully until the GOATCOUNTER_TOKEN
 # repo secret exists (GoatCounter → Settings → API tokens, "read statistics").
+# Also keeps the GitHub traffic of the public repositories past GitHub's 14-day
+# window (scripts/site/github_traffic.py); that step no-ops until the
+# GH_TRAFFIC_TOKEN secret exists (fine-grained token, "Administration: read").
 on:
   schedule:
   - cron: '17 5 * * *'      # daily ~05:17 UTC
@@ -33,16 +36,26 @@ jobs:
         env:
           GOATCOUNTER_TOKEN: ${{ secrets.GOATCOUNTER_TOKEN }}
         run: python scripts/visitor_map.py
+      - name: GitHub traffic
+        env:
+          GH_TRAFFIC_TOKEN: ${{ secrets.GH_TRAFFIC_TOKEN }}
+        run: python scripts/site/github_traffic.py || echo "::warning::GitHub traffic not updated"
       - name: Commit & push
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add assets/site_stats/ 2>/dev/null || exit 0
-          if git diff --staged --quiet; then echo "no changes"; exit 0; fi
-          git commit -m "data update: $(date -u +%Y-%m-%d)"
-          for i in 1 2 3; do
-            timeout 120 git pull --rebase --autostash -X theirs origin main && timeout 180 git push && exit 0
-            git rebase --abort 2>/dev/null || true   # a timed-out pull can strand a half-done rebase
+          # snapshot the outputs, then commit on a clean sync of origin/main each attempt (never a rebase)
+          [ -d assets/site_stats ] || { echo "no outputs"; exit 0; }
+          SNAP=$(mktemp -d)
+          tar cf "$SNAP/outs.tar" assets/site_stats
+          for i in 1 2 3 4 5; do
+            if ! timeout 120 git fetch origin main; then echo "fetch $i failed"; sleep 5; continue; fi
+            git reset --hard origin/main
+            tar xf "$SNAP/outs.tar"
+            git add assets/site_stats
+            if git diff --staged --quiet; then echo "no changes"; exit 0; fi
+            git commit -m "data update: $(date -u +%Y-%m-%d)"
+            if timeout 180 git push; then echo "pushed (attempt $i)"; exit 0; fi
             sleep 5
           done
-          exit 1
+          echo "push failed after 5 attempts"; exit 1
