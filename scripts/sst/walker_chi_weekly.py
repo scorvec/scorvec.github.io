@@ -38,6 +38,7 @@ sys.path.insert(0, str(HERE))
 sys.path.insert(0, str(HERE.parents[1] / "scripts" / "mjo" / "src"))
 import oisst9120
 from gill_model import LAT2, LON2, A_EARTH, basin_mask, gill_response, heating_from_ssta
+from walker_basins import n34_lag3
 import walker_chi as wc
 from matplotlib.colors import LinearSegmentedColormap
 
@@ -101,27 +102,6 @@ def indices_from(field, wref):
     out = {k: box_mean(field, LAT2, LON2, boxes[k]) for k in ("n34", "iob", "atl3", "tna")}
     out["dmi"] = box_mean(field, LAT2, LON2, boxes["dmi_w"]) - box_mean(field, LAT2, LON2, boxes["dmi_e"])
     return out
-
-
-def n34_lag3(wref: xr.Dataset, end: pd.Timestamp) -> float | None:
-    """Niño-3.4 three months before the window end, from ERSST (the training source), detrended."""
-    try:
-        e = xr.open_dataset(HERE / "data" / "ersst_v6_mnmean.nc")["sst"]
-        tm = pd.Timestamp(end) - pd.DateOffset(months=3)
-        fld = e.sel(time=f"{tm.year}-{tm.month:02d}").isel(time=0).values.astype(float)
-        an3 = (
-            fld
-            - wref.sst_clim.sel(month=tm.month).values
-            - wref.sst_slope.sel(month=tm.month).values * (tm.year + (tm.month - 0.5) / 12 - 2005.5)
-        )
-        (la0, la1), (lo0, lo1) = json.loads(wref.attrs["boxes"])["n34"]
-        lat, lon = e.lat.values, e.lon.values
-        msk = ((lat >= la0) & (lat <= la1))[:, None] & ((lon >= lo0) & (lon <= lo1))[None]
-        w = np.cos(np.deg2rad(lat))[:, None] * np.ones((1, lon.size)) * msk * np.isfinite(an3)
-        return float((np.nan_to_num(an3) * w).sum() / w.sum())
-    except Exception as ex:  # noqa: BLE001
-        print(f"  lagged Niño-3.4 unavailable ({str(ex)[:60]})", flush=True)
-        return None
 
 
 # ── observed χ ────────────────────────────────────────────────────────────────
@@ -466,8 +446,10 @@ def main() -> int:
             continue
         month = int(mid.month)
         idx = indices_from(ssta, wref)
-        lag = n34_lag3(wref, end)
-        idx["n34_lag3"] = idx["n34"] if lag is None else lag
+        try:
+            idx["n34_lag3"] = n34_lag3(wref, end)
+        except Exception as ex:  # noqa: BLE001
+            raise SystemExit(f"lagged Niño-3.4 unavailable ({ex}); nothing written") from ex
         sd = {k: float(wref.pred_sd.sel(month=month, pred=k)) for k in wref.pred.values}
         idx_sig = {k: idx[k] / sd[k] for k in idx}
         ensov = np.array([idx["n34"], idx["n34_lag3"]])
