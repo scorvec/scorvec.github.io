@@ -76,7 +76,9 @@ def local_seas5(kind: str, issue: str) -> Path:
 
 
 def path_for(kind: str, centre: str, system: str, var: str, issue: str) -> Path:
-    if centre == "ecmwf" and var in SEAS5_GL and local_seas5(kind, issue).exists():
+    # the SEAS5 page's files only as a pair: its global file is on whole degrees with the poles, the CDS request on the
+    # cell-centred 1° grid, so a forecast from one and a hindcast from the other never match (and the system drops out)
+    if centre == "ecmwf" and var in SEAS5_GL and all(local_seas5(k, issue).exists() for k in ("hc", "fc")):
         return local_seas5(kind, issue)
     stem = f"{kind}_{centre}_{system}_{var}_" + (issue[4:6] if kind == "hc" else issue)
     return STORE / f"{stem}.grib"
@@ -222,8 +224,9 @@ def derive_issue_table(centre: str, system: str, var: str, issue: str, fp: Path,
     return CR.load(CR.is_terc(centre, system, var, issue))
 
 
-def issue_table(centre: str, system: str, var: str, issue: str) -> dict | None:
-    t = CR.load(CR.is_terc(centre, system, var, issue))
+def issue_table(centre: str, system: str, var: str, issue: str, rederive: bool = False) -> dict | None:
+    """The issue's is_terc table: the stored one, or (none stored, or `rederive`) derived from the raw forecast."""
+    t = None if rederive else CR.load(CR.is_terc(centre, system, var, issue))
     if t is not None:
         return t
     fp = path_for("fc", centre, system, var, issue)
@@ -328,7 +331,7 @@ def main() -> int:
                         continue
                     if not fetch("fc", centre, system, var, a.issue, a.force):
                         continue
-                if issue_table(centre, system, var, a.issue) is not None:
+                if issue_table(centre, system, var, a.issue, rederive=a.force) is not None:
                     got += 1
                 _drop_raw(path_for("fc", centre, system, var, a.issue))
     print(f"{got}/{need} issue table(s) ready under {CR.REF}")

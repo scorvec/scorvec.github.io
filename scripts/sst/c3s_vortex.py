@@ -2,8 +2,9 @@
 """December polar vortex outlook from the C3S multi-model mean (monthly u at 60°N, 10 hPa), calibrated on the hindcast.
 
 The pre-registered monthly test (c3s_u10_skill.py, release c3s-u10-v1) found only December significant from the
-October start (multi-model mean r 0.66, 95 % CI 0.37-0.85, Holm p 0.005; UKMO 0.73, DWD 0.61; every other target and
-all of 100 hPa insignificant), so the outlook is for December, from the multi-model mean.
+October start (multi-model mean r 0.67, 95 % CI 0.36-0.86, Holm p 0.003 over the 7 centres since BoM left on
+2026-10-16; with BoM r 0.66, p 0.005; UKMO 0.73, DWD 0.61; every other target and all of 100 hPa insignificant),
+so the outlook is for December, from the multi-model mean.
 
 WHAT IT DOES, per C3S issue (start month S = Aug ... Dec, December = lead month 12 - S + 1):
   1. FETCH the issue's monthly-mean u at 10 hPa on the 60°N ring (2° grid, the c3s_u10_skill request with the year set to
@@ -496,7 +497,7 @@ def prereg(sm: int) -> dict:
         }
         return dict(
             kind="pre-registered",
-            family=f"Holm over {J['families']['10']['n_tests']} tests (8 centres + MMM × Dec/Jan/Feb/DJF)",
+            family=f"Holm over {J['families']['10']['n_tests']} tests ({len(CENTRES)} centres + MMM × Dec/Jan/Feb/DJF)",
             scores=out,
             generated=J.get("generated"),
             power=J.get("power"),

@@ -52,7 +52,8 @@ td.n{text-align:right}
 .mflag{max-width:860px;border-left:4px solid var(--rd);background:#fbf3f1;padding:6px 10px;border-radius:6px;font-size:15.5px;margin:6px 0}
 .mwrap{position:relative;margin-top:6px}
 .mwrap svg{width:100%;height:auto;max-height:min(78vh,760px);touch-action:none;cursor:grab}
-.mwrap .mz{position:absolute;right:4px;top:4px;border:1px solid var(--rule);background:#fff;border-radius:6px;padding:3px 9px;font:inherit;font-size:14.5px;cursor:pointer}
+.mwrap .mz{display:block;margin:6px 0 0 auto;border:1px solid var(--rule);background:#fff;border-radius:6px;padding:3px 9px;font:inherit;font-size:14.5px;cursor:pointer}
+.mwrap .mz[hidden]{display:none}
 .mmsg{color:var(--muted);font-size:16px;padding:30px 0;text-align:center}
 path.sd{stroke:#fff;stroke-width:.5;vector-effect:non-scaling-stroke;cursor:pointer}
 path.sd.fl{stroke:#1b1d22;stroke-width:1}
@@ -260,7 +261,7 @@ is decided before the general election.</li>
 <p class="note" id="msub" style="margin:2px 0 0"></p>
 <p class="mflag" id="mflag" hidden></p>
 <div id="mfl" hidden style="margin-top:6px"><span class="note" style="margin-right:6px">Shade</span><span class="mtabs"><button type="button" data-fl="0" aria-pressed="true">Base districts</button><button type="button" data-fl="1" aria-pressed="false">Floterials</button></span></div>
-<div class="mwrap"><svg id="lmap" viewBox="0 0 960 600" role="img" aria-label="District map"></svg><button class="mz" id="mzr" type="button">Reset zoom</button></div>
+<div class="mwrap"><svg id="lmap" viewBox="0 0 960 600" role="img" aria-label="District map"></svg><button class="mz" id="mzr" type="button" hidden>Reset zoom</button></div>
 <div class="lg" id="mleg"></div>
 <p class="note" id="mnote"></p>
 <p class="note" style="font-size:14.5px">Hover or tap a district for its forecast; scroll or pinch to zoom. Shading is the chance a Democrat wins the seat (for
@@ -366,7 +367,7 @@ function show(key){
   g.append("path").attr("class","so").attr("d",path(topojson.mesh(T,obj,(a,b)=>a===b)));
   const ids=new Set(fc.features.map(f=>f.properties.id).concat(flo.map(f=>f.properties.id)));
   const miss=C.seats.filter(s=>!ids.has(s.d)).map(s=>s.d);if(miss.length)console.warn(C.name,"districts without a shape:",miss);
-  zoom=d3.zoom().scaleExtent([1,24]).translateExtent([[vb[0],vb[1]],[vb[0]+vb[2],vb[1]+vb[3]]]).on("zoom",e=>{g.attr("transform",e.transform);
+  zoom=d3.zoom().scaleExtent([1,24]).translateExtent([[vb[0],vb[1]],[vb[0]+vb[2],vb[1]+vb[3]]]).on("zoom",e=>{g.attr("transform",e.transform);$("#mzr").hidden=e.transform.k<1.001;
     svg.selectAll("pattern.pz").each(function(){const r=this.querySelector("line")?" rotate(45)":"";this.setAttribute("patternTransform",`scale(${1/e.transform.k})${r}`)});hideTip()});
   svg.property("__zoom",d3.zoomIdentity).call(zoom);legend(C,G,held.size);
 }
