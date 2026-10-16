@@ -28,8 +28,13 @@ SITE = "https://scorvec.com"
 PERSON = {"@id": f"{SITE}/#person"}
 
 
-def loop(manifest: str, region: str, title: str) -> dict:
-    return {"kind": "loop", "src": f"/sst_anim.html?embed=1&manifest={manifest}&region={region}", "title": title}
+def loop(manifest: str, region: str, title: str, how: str = "Use the controls to step through the forecast.") -> dict:
+    return {
+        "kind": "loop",
+        "src": f"/sst_anim.html?embed=1&manifest={manifest}&region={region}",
+        "title": title,
+        "how": how,
+    }
 
 
 def img(path: str, alt: str, cap: str = "") -> dict:
@@ -37,7 +42,8 @@ def img(path: str, alt: str, cap: str = "") -> dict:
 
 
 # Each topic: slug, the term (h1), alternate names people search for, title/description, the body (HTML with TeX in
-# $...$ / $$...$$), the live figures, where the interactive product lives, related topics and references.
+# $...$ / $$...$$), the live figures (and `still`: a loop-only page's product as a still, for link previews), where the
+# interactive product lives, related topics and references.
 TOPICS = [
     dict(
         slug="ep-flux",
@@ -52,9 +58,9 @@ TOPICS = [
             "wave driving",
             "transformed Eulerian mean",
         ],
-        title="E–P flux and E–P flux divergence: explainer and live forecast",
-        desc="What the Eliassen–Palm (E–P) flux and its divergence measure, how to read an E–P cross-section, and a live "
-        "15-day GEFS ensemble forecast of E–P flux and wave driving of the zonal-mean flow, up to 1 hPa.",
+        title="E–P flux and its divergence, with a live forecast",
+        desc="What the Eliassen–Palm (E–P) flux and its divergence measure, how to read an "
+        "E–P cross-section, and a live 15-day GEFS forecast of the wave driving up to 1 hPa.",
         body=r"""
 <p>The <b>Eliassen–Palm (E–P) flux</b> is a vector in the latitude–height plane that shows where atmospheric waves
 carry their activity, and its <b>divergence</b> is the force those waves exert on the zonal-mean westerlies. It is the
@@ -66,7 +72,8 @@ planetary waves rising out of the troposphere decelerate the stratospheric polar
 divergence of the E–P flux $\mathbf{F}$:</p>
 <p>$$\frac{\partial \bar u}{\partial t} - f\,\bar v^{*} = \frac{\nabla\cdot\mathbf{F}}{\rho_0\,a\cos\phi} + \bar X$$</p>
 <p>$$\nabla\cdot\mathbf{F} = \frac{1}{a\cos\phi}\frac{\partial}{\partial\phi}\!\left(F^{(\phi)}\cos\phi\right) + \frac{\partial F^{(z)}}{\partial z}$$</p>
-<p>where $\bar v^{*}$ is the residual meridional circulation and $\bar X$ is any other force, such as gravity-wave drag.
+<p>where $z=-H\ln(p/p_0)$ is log-pressure height with scale height $H$, $\rho_0=\rho_s e^{-z/H}$ the basic-state density,
+$\bar v^{*}$ the residual meridional circulation and $\bar X$ any other force, such as gravity-wave drag.
 In the quasi-geostrophic approximation the two components are</p>
 <p>$$F^{(\phi)} = -\rho_0\,a\cos\phi\;\overline{u'v'}$$</p>
 <p>$$F^{(z)} = \rho_0\,a\cos\phi\;f\,\frac{\overline{v'\theta'}}{\partial\bar\theta/\partial z}$$</p>
@@ -94,8 +101,9 @@ the 15-day forecast. The flux is quadratic in the wave amplitude, so it is compu
 the flux of the ensemble-mean fields would fade with lead time as the members' wave phases drift apart. The
 quasi-geostrophic form is used with the zonal-mean static stability and vertical derivatives in ln p; levels below
 the ground on more than 10% of a latitude circle are masked (grey); the 1–2 hPa layer,
-where the derivative is one-sided, is hatched, and latitudes poleward of 82° are masked. It is recomputed every 00 and
-12 UTC cycle.</p>
+where the derivative is one-sided, is hatched, and latitudes poleward of 82° are masked. The arrows use the Edmon et al.
+(1980) display scaling for a log-pressure axis, multiplied by 1000 hPa/p so the stratosphere is legible: directions are
+exact, but lengths grow with height, so compare them along a level. It is recomputed every 00 and 12 UTC cycle.</p>
 """,
         figures=[
             loop(
@@ -128,9 +136,9 @@ where the derivative is one-sided, is hatched, and latitudes poleward of 82° ar
             "atmospheric angular momentum budget",
             "gravity wave drag torque",
         ],
-        title="Mountain torque and friction torque: the atmosphere's angular momentum budget, with a live forecast",
-        desc="How mountain and friction torques exchange angular momentum between the solid Earth and the atmosphere, "
-        "the equations, how to read torque maps, and live AIFS-ENS forecasts of both torques by mountain range.",
+        title="Mountain and friction torque, with a live forecast",
+        desc="How mountain and friction torques trade angular momentum between the Earth "
+        "and the atmosphere, how to read torque maps, and live AIFS-ENS forecasts by range.",
         body=r"""
 <p>The atmosphere's angular momentum about the Earth's axis changes only through <b>torques</b> exerted at the
 surface. Three act: <b>friction torque</b>, the drag of the surface on the wind; <b>mountain torque</b>, the pressure
@@ -157,23 +165,25 @@ Andes carry most of it.</li>
 <li><b>Friction torque</b> follows the surface winds: the easterly trade winds gain westerly momentum from the
 surface, and the mid-latitude westerlies lose it. It changes more slowly, over weeks, as the wind belts shift.</li>
 <li>Large mountain-torque events tend to come before changes in the jet downstream and in the global angular
-momentum. On this site's own test (ERA5, Hersbach et al., 2020; 1991–2020), strong Himalayan torque days are followed about five days later
-by a stronger jet exit over the North Pacific.</li>
+momentum. On this site's own test (ERA5, Hersbach et al., 2020; December–February 1991–2020), a positive Himalayan torque
+anomaly is followed 3 to 12 days later by a more extended North Pacific jet, most strongly after about six days (correlation
+about 0.2, significant at a 10% false discovery rate). The zonal-mean subtropical jet barely responds.</li>
 </ul>
 
 <h2>The live forecast</h2>
 <p>The friction and mountain torques are computed from the ECMWF AIFS ensemble for days 0–15 as anomalies from the
-ERA5 1991–2020 climatology for the same time of year. Anomalies are used on purpose: the absolute budget cannot be
+ERA5 1991–2020 climatology for the same time of year. The AIFS open data carry no surface stress, so friction is a bulk
+formula on the forecast's 10 m wind and surface pressure, with drag coefficients fitted cell by cell and month by month
+to ERA5's own surface stress. Anomalies are used on purpose: the absolute budget cannot be
 closed. ERA5's own terms sum to −11 ± 0.6 Hadleys in the annual mean (sampled four times a day, 1991–2020) where the answer must be
-zero — an earlier figure of −4.5 came from sampling only at 12Z, which lets the twice-daily pressure tide leak into the mountain
-term — the reanalysis adds angular momentum at every assimilation cycle, and the resolved
+zero; the reanalysis adds angular momentum at every assimilation cycle, and the resolved
 mountain torque changes with grid spacing. Both errors sit in the mean and cancel in an anomaly. The open forecast
 data carry no gravity-wave stress, so that term stays in the residual between the net torque and the actual change in
 angular momentum.</p>
 <p>A separate study tests whether the forecast's own torques actually account for its change in angular momentum:
 <a href="/aifs-aam-budget.html">does an AI weather model conserve angular momentum?</a> In winter 2025–26 the AIFS
-ensemble's budget held reasonably well to about day 10 and then came apart, while the physics-based IFS ensemble closed
-its budget at every lead.</p>
+ensemble's own torques explained 72% of its day-to-day change in angular momentum on days 1–10 and 11% on days 11–15;
+the physics-based IFS ensemble's explained 89% at every lead.</p>
 """,
         figures=[
             loop(
@@ -182,7 +192,9 @@ its budget at every lead.</p>
             img(
                 "/assets/sst/torque_timeseries.webp",
                 "Global and hemispheric friction and mountain torque anomalies against the change in atmospheric angular momentum, AIFS-ENS forecast",
-                "The torques integrated over the globe and each hemisphere, against the actual change in angular momentum.",
+                "The torques integrated over the globe and each hemisphere, against the actual change in angular momentum. Shading: "
+                "±1σ and ±2σ of the net anomaly in 1991–2020. The gap is not only gravity-wave drag: past about day 10 "
+                "AIFS-ENS does not close its own budget.",
             ),
             img(
                 "/assets/sst/torque_ranges.webp",
@@ -212,9 +224,9 @@ its budget at every lead.</p>
             "length of day",
             "AAM tendency",
         ],
-        title="Atmospheric angular momentum (AAM): explainer and live forecast",
-        desc="What atmospheric angular momentum measures, why it tracks El Niño and the length of day, the Global Wind "
-        "Oscillation phase space, and a live AIFS-ENS forecast of relative AAM for the globe and each hemisphere.",
+        title="Atmospheric angular momentum (AAM), live forecast",
+        desc="What atmospheric angular momentum measures, why it tracks El Niño and the "
+        "length of day, the GWO phase space, and a live AIFS-ENS forecast by hemisphere.",
         body=r"""
 <p><b>Atmospheric angular momentum (AAM)</b> is the atmosphere's total spin about the Earth's axis. Its <i>relative</i>
 part, the one carried by the winds, is</p>
@@ -254,12 +266,17 @@ tendency: the hemispheric version of the Global Wind Oscillation.</p>
             img(
                 "/assets/sst/aam.webp",
                 "Global and hemispheric relative atmospheric angular momentum: observed and AIFS-ENS 15-day forecast, absolute and anomaly",
-                "Relative AAM for the globe and each hemisphere on its 1991–2020 annual cycle, with the 15-day forecast.",
+                "Relative AAM for the globe and each hemisphere on its 1991–2020 annual cycle, with the 15-day forecast. The "
+                "observed line is ERA5 at 12 UTC every third day; it ends 5–14 days before the forecast starts because "
+                "ERA5 is published late.",
             ),
             img(
                 "/assets/sst/aam_phase.webp",
                 "Atmospheric angular momentum anomaly against its tendency: hemispheric Global Wind Oscillation phase space with the AIFS-ENS forecast",
-                "Each hemisphere's path through AAM anomaly and tendency, the last 75 days and the forecast.",
+                "Each hemisphere's path through AAM anomaly and tendency, the last 75 days and the forecast. The headline "
+                "(days 12–15 against days 0–2) includes the model's own drift: in July–October 2026 forecasts AIFS-ENS "
+                "gained about 0.1 ×10²⁵ kg m² s⁻¹ in the Northern Hemisphere by day 15 and lost about 0.1 in the "
+                "Southern by day 12, against the verifying analyses.",
             ),
         ],
         live=("/circulation.html#aam", "Open the AAM product in the circulation viewer"),
@@ -286,9 +303,9 @@ tendency: the hemispheric version of the Global Wind Oscillation.</p>
             "Rossby wave propagation",
             "WAF",
         ],
-        title="Takaya–Nakamura wave activity flux: explainer and live 250 hPa forecast",
-        desc="What the Takaya–Nakamura wave activity flux shows about Rossby wave packets, downstream development and "
-        "blocking, the equation, and a live member-averaged AIFS-ENS forecast at 250 hPa.",
+        title="Takaya–Nakamura wave activity flux, live forecast",
+        desc="What the Takaya–Nakamura wave activity flux shows about Rossby wave packets, "
+        "downstream development and blocking, and a live AIFS-ENS forecast at 250 hPa.",
         body=r"""
 <p>The <b>wave activity flux</b> of Takaya and Nakamura (2001) is a vector that points along the group velocity of
 quasi-stationary Rossby waves: where wave energy is travelling, rather than where the ridges and troughs are. Its
@@ -301,7 +318,7 @@ Niño–PNA pathway.</p>
 <p>For a basic state with horizontal wind $\mathbf{U}=(U,V)$ and a streamfunction anomaly $\psi'$, the horizontal
 flux on a pressure surface is</p>
 <p>$$\mathbf{W}=\frac{p\cos\phi}{2\,|\mathbf{U}|}\begin{pmatrix}U(\psi_x'^2-\psi'\psi_{xx}')+V(\psi_x'\psi_y'-\psi'\psi_{xy}')\\[2pt]U(\psi_x'\psi_y'-\psi'\psi_{xy}')+V(\psi_y'^2-\psi'\psi_{yy}')\end{pmatrix}$$</p>
-<p>It generalizes Plumb's (1985) flux for stationary waves on a zonal flow to a zonally varying basic state and to
+<p>Here $p$ is pressure divided by 1000 hPa (0.25 at 250 hPa). It generalizes Plumb's (1985) flux for stationary waves on a zonal flow to a zonally varying basic state and to
 slowly migrating waves. It is <i>phase-independent</i>: it does not oscillate between ridge and trough, so packets
 can be followed without averaging over a wavelength.</p>
 
@@ -309,7 +326,8 @@ can be followed without averaging over a wavelength.</p>
 <ul>
 <li>Arrows arcing along the jet are a wave train; follow them to see where a disturbance will be felt next.</li>
 <li>Where the arrows converge and slow down, the wave amplifies: that is where ridges build and blocks form.</li>
-<li>A packet leaving the tropical Pacific toward North America is the tropical heating reaching the extratropics.</li>
+<li>A packet arcing from the subtropical Pacific toward North America is often tropical heating reaching the
+extratropics; the live map starts at 20° latitude.</li>
 </ul>
 
 <h2>The live forecast</h2>
@@ -318,9 +336,11 @@ ensemble members at every day to day 15, and then averaged. Because the flux is 
 ensemble mean would fade with lead time as the members decorrelate, while the mean of the members' fluxes keeps the
 packets that are actually forecast. Each member's $\psi'$ is smoothed with a 5-day running mean along the forecast,
 because the theory is for quasi-stationary waves. The basic state is the ERA5 (Hersbach et al., 2020) 1991–2020 climatology plus the 30-day
-mean anomaly of the AIFS analyses, and shading is hatched where fewer than 60 % of members agree on the sign of the
-divergence.</p>
+mean anomaly of the AIFS analyses. The flux is masked equatorward of 20° and where the basic-state wind is below
+3 m/s, since the theory needs a westerly waveguide, and shading is hatched where fewer than 60 % of members agree on the
+sign of the divergence.</p>
 """,
+        still="/assets/sst/waf.webp",
         figures=[
             loop(
                 "waf_manifest.json",
@@ -350,9 +370,9 @@ divergence.</p>
             "vertical E-P flux",
             "wave-1 heat flux",
         ],
-        title="100 hPa eddy heat flux: the upward wave activity into the stratosphere, with a live forecast",
-        desc="Why the zonal-mean poleward eddy heat flux at 100 hPa measures planetary waves entering the stratosphere, "
-        "how its 40-day mean leads the polar vortex, and a live member-by-member AIFS-ENS forecast for both hemispheres.",
+        title="100 hPa eddy heat flux, with a live forecast",
+        desc="Why the 100 hPa poleward eddy heat flux measures planetary waves entering the "
+        "stratosphere, how its 40-day mean leads the vortex, and a live AIFS-ENS forecast.",
         body=r"""
 <p>The zonal-mean poleward <b>eddy heat flux</b> $[v'T']$ at 100 hPa is the most direct measure of how much
 planetary-wave activity is leaving the troposphere for the stratosphere. It is proportional to the vertical component
@@ -379,8 +399,11 @@ rather than reversing it.</li>
 <p>The flux is averaged over 45–75° in each hemisphere (positive is poleward in both), computed for the AIFS control
 and 25 perturbed members and then averaged: like every quadratic diagnostic, the flux of the ensemble-mean fields
 would fade with lead time. Zonal wavenumbers 1–72 are kept so that the forecast resolves the same eddies as the
-1991–2020 NCEP/NCAR reanalysis (Kalnay et al., 1996) climatology it is compared with. The panels show the daily flux, its wave-1 and wave-2
-parts, the trailing 40-day mean standardized, and the flux by latitude through the forecast.</p>
+1991–2020 NCEP/NCAR reanalysis (Kalnay et al., 1996) climatology it is compared with. That reanalysis stopped updating in
+March 2026, so the analysed part of each panel is the AIFS control's initial state, ECMWF's operational analysis; the
+offset between the two has not been measured. The panels show the daily flux, its wave-1 and wave-2
+parts, the trailing 40-day mean standardized, and the flux by latitude through the forecast. The stratosphere page also
+carries an IFS-ENS version and GEPS and GEFS versions to day 35.</p>
 """,
         figures=[
             img(
@@ -413,15 +436,16 @@ parts, the trailing 40-day mean standardized, and the flux by latitude through t
             "stratosphere-troposphere coupling",
             "dripping paint",
         ],
-        title="Sudden stratospheric warmings (SSW): definition, every event since 1980, and a live polar vortex forecast",
-        desc="What a sudden stratospheric warming is, split and displacement events, how SSWs reach the surface, a "
-        "catalogue of every major SSW since 1980 from MERRA-2, and a live multi-model polar vortex forecast.",
+        title="Sudden stratospheric warming: every SSW since 1980",
+        desc="What a sudden stratospheric warming is, splits and displacements, how SSWs "
+        "reach the surface, every major SSW since 1980, and a live polar vortex forecast.",
         body=r"""
 <p>A <b>sudden stratospheric warming (SSW)</b> is the collapse of the winter polar vortex: planetary waves rising from
 the troposphere decelerate the stratospheric westerlies until they reverse, and the polar stratosphere warms by tens of
 degrees within days. The usual definition (Charlton and Polvani, 2007) is the first day in November–March on which the
 zonal-mean zonal wind at 60°N and 10 hPa turns easterly. A second event in the same winter must be separated by 20
-consecutive westerly days, and a reversal that never recovers before spring is the final warming, not an SSW.</p>
+consecutive westerly days, and a reversal after which the wind does not return westerly for 10 consecutive days before
+30 April is the final warming, not an SSW.</p>
 
 <h2>Splits and displacements</h2>
 <p>Seen from above, the vortex either shifts off the pole (a <b>displacement</b>, driven mostly by zonal wavenumber 1)
@@ -494,9 +518,9 @@ the wind (a forecast major warming) is called out.</p>
             "Hadley cell strength",
             "Hadley cell edge",
         ],
-        title="Hadley cell and the mean meridional mass streamfunction: explainer and live analysis",
-        desc="How the zonal-mean meridional mass streamfunction describes the Hadley, Ferrel and polar cells, how cell "
-        "strength and edges are measured, and a live AIFS analysis of the overturning against ERA5 1991–2020.",
+        title="Hadley cell and mass streamfunction, live analysis",
+        desc="How the mean meridional mass streamfunction describes the Hadley, Ferrel and polar cells, how their "
+        "edges are measured, and a live ECMWF analysis.",
         body=r"""
 <p>The <b>Hadley cell</b> is the tropical overturning circulation: air rises near the equator, flows poleward aloft,
 sinks in the subtropics and returns toward the equator in the trade winds. It and the weaker Ferrel and polar cells
@@ -513,22 +537,25 @@ cell.</p>
 the winter hemisphere's cell.</li>
 <li><b>The edge</b> is the latitude where $\Psi$ at 500 hPa crosses zero on the poleward side of the cell. It marks
 the subtropical dry zones, and its poleward drift in a warming climate is one of the most studied circulation trends (Seidel et al., 2008).</li>
-<li>The cells follow the sun: the winter hemisphere's cell dominates and extends across the equator, while the summer
+<li>The cells follow the sun (Dima and Wallace, 2003): the winter hemisphere's cell dominates and extends across the equator, while the summer
 cell nearly vanishes.</li>
 <li>El Niño strengthens the Hadley circulation (Oort and Yienger, 1996) and pulls its edges equatorward (Lu et al., 2008;
 Nguyen et al., 2013).</li>
 </ul>
 
 <h2>The live analysis</h2>
-<p>$\Psi$ is computed from the ECMWF AIFS analysis and shown as the anomaly from the ERA5 (Hersbach et al., 2020) 1991–2020 climatology for the
+<p>$\Psi$ is computed from ECMWF's operational analysis, as carried at step 0 of the AIFS-ENS control in the open
+data, and shown as the anomaly from the ERA5 (Hersbach et al., 2020) 1991–2020 climatology for the
 same day of year, with the absolute cells contoured and vertical motion drawn as arrows. Each frame is a 7-day running
 mean, so the evolution of the cells is legible through the day-to-day noise.</p>
 """,
+        still="/assets/sst/mmsf_anom.webp",
         figures=[
             loop(
                 "mmsf_manifest.json",
                 "mmsf",
-                "Meridional mass streamfunction anomaly, 7-day mean, AIFS analysis against ERA5 1991–2020",
+                "Meridional mass streamfunction anomaly, 7-day mean, ECMWF analysis against ERA5 1991–2020",
+                "Use the controls to step through the 7-day means of the past weeks, one per analysis cycle.",
             ),
         ],
         live=("/circulation.html#hadley", "Open the Hadley cell product in the circulation viewer"),
@@ -558,9 +585,9 @@ mean, so the evolution of the cells is legible through the day-to-day noise.</p>
             "PV thinking",
             "Rossby wave breaking",
         ],
-        title="Dynamic tropopause (2 PVU) maps: potential vorticity explainer and live forecast",
-        desc="What the dynamic tropopause is, how to read potential temperature on the 2-PVU surface, isentropic potential "
-        "vorticity on 330 and 350 K, and live AIFS forecast maps to day 10.",
+        title="Dynamic tropopause (2 PVU) maps, live forecast",
+        desc="What the dynamic tropopause is, how to read θ on the 2-PVU surface and "
+        "potential vorticity on 330 and 350 K, and live AIFS forecast maps to day 10.",
         body=r"""
 <p>The <b>dynamic tropopause</b> is the surface of constant <b>potential vorticity (PV)</b> that separates
 stratospheric air (high PV) from tropospheric air (low PV), conventionally the 2-PVU surface, where
@@ -582,7 +609,8 @@ and subtropical jet.</li>
 </ul>
 
 <h2>The live forecast</h2>
-<p>Ertel PV is computed from the temperature and wind of AIFS ensemble member 0 on nine levels from 700 to 100 hPa,
+<p>Ertel PV is computed in pressure coordinates, keeping the tilting terms that the isentropic form above folds into
+$\zeta_\theta$, from the temperature and wind of AIFS ensemble member 0 on nine levels from 700 to 100 hPa,
 every 6 hours to day 10. A single member is used on purpose: potential vorticity does not survive ensemble averaging,
 because the mean of fifty differently placed folds is a smear. The 2-PVU surface is found by searching upward from
 700 hPa, and isentropic PV by interpolation in θ. Where PV is still below 2 PVU at 100 hPa (the deep tropics) the
@@ -667,7 +695,13 @@ addEventListener("message", function (e) {
 </script>"""
 
 
-def head(title: str, desc: str, url: str, ld: dict, math: bool) -> str:
+def share_image(t: dict | None) -> str:
+    """The page's sharing image: its first still figure, else the still of its loop's product, else the site photo."""
+    figs = [f["src"] for f in (t or {}).get("figures", []) if f["kind"] == "img"]
+    return SITE + (figs[0] if figs else (t or {}).get("still", "/hero-supercell-1280.webp"))
+
+
+def head(title: str, desc: str, url: str, ld: dict, math: bool, image: str) -> str:
     e = html.escape
     return f"""<!DOCTYPE html>
 <html lang="en">
@@ -683,7 +717,7 @@ def head(title: str, desc: str, url: str, ld: dict, math: bool) -> str:
 <meta property="og:title" content="{e(title)}">
 <meta property="og:description" content="{e(desc)}">
 <meta property="og:url" content="{url}">
-<meta property="og:image" content="{SITE}/hero-supercell-1280.webp">
+<meta property="og:image" content="{image}">
 <meta property="og:site_name" content="Shawn Corvec">
 <meta name="twitter:card" content="summary_large_image">
 <script type="application/ld+json">
@@ -700,11 +734,11 @@ def head(title: str, desc: str, url: str, ld: dict, math: bool) -> str:
 def figure_html(f: dict) -> str:
     if f["kind"] == "loop":
         return (
-            f'<figure><iframe data-src="{f["src"]}" title="{html.escape(f["title"])}"></iframe>'
-            f"<figcaption>{html.escape(f['title'])}. Use the controls to step through the forecast.</figcaption></figure>"
+            f'<figure><iframe data-src="{html.escape(f["src"])}" title="{html.escape(f["title"])}"></iframe>'
+            f"<figcaption>{html.escape(f['title'])}. {html.escape(f['how'])}</figcaption></figure>"
         )
     cap = f"<figcaption>{html.escape(f['cap'])}</figcaption>" if f.get("cap") else ""
-    return f'<figure><img src="{f["src"]}" alt="{html.escape(f["alt"])}" loading="lazy">{cap}</figure>'
+    return f'<figure><img src="{html.escape(f["src"])}" alt="{html.escape(f["alt"])}" loading="lazy">{cap}</figure>'
 
 
 def topic_page(t: dict, today: str) -> str:
@@ -726,8 +760,7 @@ def topic_page(t: dict, today: str) -> str:
                 "dateModified": today,
                 "about": {"@type": "DefinedTerm", "name": t["short"], "alternateName": t["alt"]},
                 "keywords": ", ".join([t["short"]] + t["alt"]),
-                "image": [f"{SITE}{f['src']}" for f in t["figures"] if f["kind"] == "img"]
-                or f"{SITE}/hero-supercell-1280.webp",
+                "image": [f"{SITE}{f['src']}" for f in t["figures"] if f["kind"] == "img"] or share_image(t),
                 "citation": [re.sub(r"<[^>]+>", "", r) for r in t["refs"]],
             },
             {
@@ -748,7 +781,7 @@ def topic_page(t: dict, today: str) -> str:
     )
     refs = "".join(f"<li>{r}</li>" for r in t["refs"])
     return (
-        head(t["title"], t["desc"], url, ld, math=True)
+        head(t["title"], t["desc"], url, ld, math=True, image=share_image(t))
         + f"""<main>
 <article class="topic">
   <p class="crumbs"><a href="/">Home</a> › <a href="/topics/">Explainers</a> › {html.escape(t["short"])}</p>
@@ -808,10 +841,10 @@ def data_credits(t):
 
 def hub_page(today: str) -> str:
     url = f"{SITE}/topics/"
-    title = "Atmospheric dynamics explainers, with live forecasts"
+    title = "Atmospheric dynamics explainers and live forecasts"
     desc = (
-        "Plain explanations of E–P flux, mountain torque, atmospheric angular momentum, wave activity flux, eddy heat "
-        "flux, sudden stratospheric warmings, the Hadley cell and the dynamic tropopause, each with a live forecast or analysis."
+        "E–P flux, mountain torque, angular momentum, wave activity flux, eddy heat flux, SSWs, the Hadley cell and "
+        "the dynamic tropopause, explained with live data."
     )
     ld = {
         "@context": "https://schema.org",
@@ -833,12 +866,12 @@ def hub_page(today: str) -> str:
         for t in TOPICS
     )
     return (
-        head(title, desc, url, ld, math=False)
+        head(title, desc, url, ld, math=False, image=share_image(None))
         + f"""<main>
 <article class="topic">
   <p class="crumbs"><a href="/">Home</a> › Explainers</p>
   <p class="ai-note"><b>Made with Claude Code.</b> This explainer is a just-for-fun project: researched, coded and written entirely by Claude, Anthropic's AI model, working in Claude Code, to show what today's AI models can do with open meteorological data. It has not been peer reviewed.</p>
-  <h1>{title}</h1>
+  <h1>Atmospheric dynamics explainers, with live forecasts</h1>
   <p>The diagnostics behind this site's circulation and stratosphere products, each explained with its equations and
   shown with its current forecast. They are written for meteorologists and students who want to know what a chart is
   measuring before trusting it.</p>

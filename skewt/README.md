@@ -13,7 +13,7 @@ precompute climatologies.
 
 ## 1. Data sources
 
-A sounding can come from six places. The app walks them in order of *freshness*, and the status line
+A sounding can come from seven places. The app walks them in order of *freshness*, and the status line
 always names the one you're looking at, so you're never guessing.
 
 | Source | Coverage | Latency | Resolution | CORS |
@@ -22,6 +22,7 @@ always names the one you're looking at, so you're never guessing.
 | **IEM RAOB** (`mesonet.agron.iastate.edu`) | US + Canada | ~1 h behind SPC | ~180–250 levels | ✅ |
 | **ECCC MSC Datamart** (`dd.weather.gc.ca`, Environment and Climate Change Canada) | Canada, ~29 stations | ~1 h after launch to 100 hPa, ~2 h entire | Native ~1-s BUFR (3–7k levels) | — (via the mirror) |
 | **WMO WIS 2.0 Global Cache** (`s3://wis2globalcache`, AWS Open Data) | Global, ~550 stations/day | ~2 h after launch | Mostly high-res BUFR | — (via the mirror) |
+| **WMO GTS TEMP** (text) via WIS 2.0 | Services sending no BUFR (most of Africa, parts of Asia) | ~2 h after launch | Standard + significant levels (~30–80) | — (via the mirror) |
 | **Mirror** (IEM + ECCC + WIS 2.0 real time, on `skewt-data`) | Global | hourly | As received, thinned to 260 | ✅ (raw.githubusercontent) |
 | **NOAA IGRA v2** (`ncei.noaa.gov`) | Global, 1905–present | ~1–2 day lag | Mandatory + significant levels | ✅ |
 

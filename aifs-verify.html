@@ -4,8 +4,33 @@
 <meta charset="UTF-8">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>AIFS single vs AIFS-ENS member 0, spectrally matched — Live Verification · Shawn Corvec</title>
-<meta name="description" content="Live deterministic verification of ECMWF's AIFS single against AIFS-ENS member 0 with member 0 filtered to the single's power spectrum, so neither model gains from smoothing: scored against radiosondes and ERA5, with bootstrap confidence intervals, the ensemble mean as a reference and the power spectra by lead.">
+<title>AIFS vs AIFS-ENS member 0, live verification · Shawn Corvec</title>
+<meta name="description" content="Live verification of ECMWF's AIFS single against AIFS-ENS member 0, spectrally matched so neither gains from smoothing, against radiosondes and ERA5.">
+<meta property="og:type" content="website">
+<meta property="og:title" content="AIFS single vs AIFS-ENS member 0, spectrally matched: live verification">
+<meta property="og:description" content="Live verification of ECMWF's AIFS single against AIFS-ENS member 0, spectrally matched so neither gains from smoothing, against radiosondes and ERA5.">
+<meta property="og:url" content="https://scorvec.com/aifs-verify.html">
+<meta property="og:image" content="https://scorvec.com/assets/verify/aifs_lead_raob_z500_nh.webp">
+<meta property="og:site_name" content="Shawn Corvec">
+<meta name="twitter:card" content="summary_large_image">
+<script type="application/ld+json">
+{
+ "@context": "https://schema.org",
+ "@type": "WebPage",
+ "name": "AIFS single vs AIFS-ENS member 0, spectrally matched: live verification",
+ "url": "https://scorvec.com/aifs-verify.html",
+ "description": "Live verification of ECMWF's AIFS single against AIFS-ENS member 0, spectrally matched so neither gains from smoothing, against radiosondes and ERA5.",
+ "image": "https://scorvec.com/assets/verify/aifs_lead_raob_z500_nh.webp",
+ "isPartOf": {
+  "@type": "WebSite",
+  "name": "Shawn Corvec",
+  "url": "https://scorvec.com/"
+ },
+ "author": {
+  "@id": "https://scorvec.com/#person"
+ }
+}
+</script>
 <link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;1,400&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -91,10 +116,10 @@
   table.sc td.rl small { color: var(--muted); font-size: 0.74rem; margin-left: 0.35rem; }
   table.sc td.c { height: 2.6rem; min-width: 3.6rem; border-radius: 5px; text-align: center; font-size: 0.86rem;
     color: #1c1c1a; cursor: default; position: relative; }
-  table.sc td.c.ns { color: #6f6b64; font-weight: 400; }
+  table.sc td.c.ns { color: #4a4744; font-weight: 400; }   /* the page muted is under 4.5:1 on the pale fills */
   table.sc td.c.sig { font-weight: 600; }
   table.sc td.c.sig::after { content: ""; position: absolute; top: 4px; right: 5px; width: 5px; height: 5px; border-radius: 50%; background: currentColor; opacity: 0.55; }
-  table.sc td.c.na { background: #f3f2ee; color: #b5b1a8; }
+  table.sc td.c.na { background: #f3f2ee; color: var(--muted); }
   table.sc td.c:hover { outline: 2px solid var(--ink); outline-offset: -1px; }
   .sc-key { display: flex; flex-wrap: wrap; align-items: center; gap: 0.6rem 1.4rem; padding: 0.6rem 1.4rem 1rem; font-size: 0.76rem; color: var(--muted); }
   .sc-bar { display: inline-flex; align-items: center; gap: 0.45rem; }
@@ -116,6 +141,7 @@
 </head>
 <body>
 <!-- sh:start -->
+<a class="skip-link" href="#main">Skip to main content</a>
 <header class="sh" id="site-header">
   <div class="sh-in">
     <a class="sh-brand" href="/">Shawn Corvec</a>
@@ -201,7 +227,7 @@
           <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g3">Weeks to seasons</button>
           <div class="sh-menu sh-menu--cols" id="sh-g3">
             <div>
-              <h3>Weeks 2–5</h3>
+              <h3>Extended range</h3>
               <ul>
                 <li><a href="/subseasonal.html">GEPS extended ensemble</a></li>
                 <li><a href="/gefs.html">GEFS extended ensemble</a></li>
@@ -226,7 +252,7 @@
                 <li><a href="/enso.html#imp_reg">ENSO impacts on the Americas</a></li>
                 <li><a href="/mjo.html#mi">MJO impacts</a></li>
                 <li><a href="/stratosphere.html#shwinters">Stratosphere history</a></li>
-                <li><a href="/aifs-aam-budget.html">AINWP and conservation</a></li>
+                <li><a href="/aifs-aam-budget.html">AI models and conservation laws</a></li>
                 <li><a href="/torque-enso.html">El Niño and angular momentum</a></li>
                 <li><a href="/topics/">Explainers</a></li>
               </ul>
@@ -234,7 +260,7 @@
             <div>
               <h3>Verification</h3>
               <ul>
-                <li><a href="/aifs-verify.html" aria-current="page">AIFS single versus member 0</a></li>
+                <li><a href="/aifs-verify.html" aria-current="page">AIFS single versus ensemble control</a></li>
               </ul>
             </div>
           </div>
@@ -270,7 +296,7 @@
   </div>
 </header>
 <!-- sh:end -->
-<main>
+<main id="main">
   <h1>AIFS single versus AIFS-ENS member 0, spectrally matched</h1>
   <p class="lede"><b>The question:</b> as deterministic forecasts, how does ECMWF's AIFS single compare with
   member&nbsp;0 of AIFS-ENS? The two are trained differently. The single is trained to minimise squared error, which
@@ -279,7 +305,7 @@
   comparison would partly measure blur rather than forecast quality. Here member&nbsp;0 is first passed through a
   <b>spectral filter that gives it the single's power spectrum</b> at each lead, then both are truncated at T120 and
   scored against <b>independent radiosondes</b> from the <a href="skewt/">sounding explorer</a>, with ERA5 alongside.
-  Member&nbsp;0 as published and the <b>ensemble mean</b> are shown as references; the ensemble mean averages 26 runs,
+  Member&nbsp;0 as published and the <b>ensemble mean</b> are shown as references; the ensemble mean averages 26 of the 51 members (the control and 25 perturbed),
   so it is not a single model run.</p>
   <div class="verdict" id="verdict"></div>
   <!-- One card at a time on the shared stage viewer (assets/stage.js), 2026-09-27 (navigation phase 2). The cards
@@ -296,8 +322,10 @@
       <p class="hint"><span class="kbd">&uarr;</span> <span class="kbd">&darr;</span> change figure &middot; each card keeps its own controls</p>
     </section>
   </div>
-  <template id="about-lead"><p>Each line is the mean over the <b>same</b> verified runs at every lead (a run enters a
-  lead only when all four models have it), so the lines are comparable point by point. Station anomalies are against
+  <template id="about-lead"><p>Each point is the mean over the <b>same</b> verified runs for all four models (a run enters a
+  lead only when all four have it), so the lines are comparable point by point. The set of runs differs from lead to
+  lead and between the two truths: the newest runs cannot yet be verified at long leads, and ERA5 arrives later than the
+  radiosondes. Station anomalies are against
   each radiosonde station's own day-of-year median; ERA5 anomalies against the ERA5 1991&ndash;2020 climatology. The
   <b>activity ratio</b> is std(forecast anomaly) / std(observed anomaly): a model can buy RMSE by damping variance, and
   this ratio shows the purchase. Whether two lines differ significantly is in the scorecard.</p>
@@ -388,21 +416,22 @@ window.STAGE = { groups: [{"label": "Scores", "items": [["scorecard", "Scorecard
     better-placed forecast.</p>
     <p><b>Same scale.</b> Every 0.25&deg; global field is expanded in spherical harmonics (pyshtools) and all series
     are truncated at T120 (about 1.5&deg;) before scoring, so no model is judged at scales it does not share with
-    the others. A 1.5&deg; block mean, which this page used until September 2026, still passed much of the
+    the others. A 1.5&deg; block mean would still pass much of the
     300&ndash;600 km power.</p>
     <p><b>Independent truth.</b> ERA5 is an IFS analysis that both models were trained on. The primary truth is the
     radiosonde network the <a href="skewt/">sounding explorer</a> mirrors every hour: 500 hPa height and 850 hPa
     temperature are interpolated in log-pressure from each station's sounding, and the forecasts are sampled at the
     stations by bilinear interpolation. ERA5 scores (NH 20&ndash;80&deg;N, cosine-weighted, 1.5&deg;) come from the
     same truncated fields and are the only truth for MSLP and 2 m temperature. Radiosonde scores arrive within
-    hours; ERA5 lags about 6 days.</p>
+    hours; ERA5 lags about 6 days, and its latest 2&ndash;3 months are the preliminary ERA5T release.</p>
     <p><b>Scores and tests.</b> RMSE, bias, anomaly correlation and activity ratio at leads 24&ndash;240 h, per run.
     Station anomalies use each station's own day-of-year median from its full IGRA record; ERA5 anomalies use the
     ERA5 1991&ndash;2020 &plusmn;7-day climatology (WeatherBench2), including 850 hPa temperature since
     September&nbsp;2026. Differences from the single are tested with a paired moving-block bootstrap: runs are
     paired by start time and resampled in blocks of four consecutive runs (two days) to allow for serial
     correlation, 2,000 times; the 95&nbsp;% percentile interval is shown and a difference is called significant only
-    when it excludes zero.</p>
+    when it excludes zero. Each cell is tested on its own, with no correction for the many cells in the table, so even
+    with no real difference about one cell in twenty would pass.</p>
     <p><b>The ensemble mean.</b> The mean of the control and 25 perturbed AIFS-ENS members is shown for reference.
     Averaging removes the unpredictable part of the forecast, so it usually wins on RMSE at longer leads while
     having much less variance than the atmosphere; it is not a single model run and is not the page's question.</p>
@@ -416,14 +445,15 @@ window.STAGE = { groups: [{"label": "Scores", "items": [["scorecard", "Scorecard
   var D = null, cur = { a: "matched", b: "rmse" };
   var NAME = { matched: "member 0, spectrally matched", control: "member 0 as published", ensmean: "the ensemble mean" };
   var SHORT = { matched: "member 0 (matched)", control: "member 0 (as published)", ensmean: "ensemble mean" };
-  // full colour at |RMSE change| 20 % or |ACC difference| 0.05; green = the comparison model beats the single
-  var SAT = { rmse: 20, acc: 5 };
+  // full colour at |RMSE change| 20 % or |ACC difference| 0.05; green = the comparison model beats the single.
+  // SOLID caps the significant fills where the dark cell text still reads at 4.5:1 on the red
+  var SAT = { rmse: 20, acc: 5 }, SOLID = 0.78, PALE = 0.32;
   var GOOD = [26, 133, 102], BAD = [196, 64, 52], WHITE = [255, 255, 255];
   function mix(c, t) { return "rgb(" + c.map(function (x, i) { return Math.round(WHITE[i] + (x - WHITE[i]) * t); }).join(",") + ")"; }
   function better(metric, v) { return metric === "rmse" ? v < 0 : v > 0; }
   function colour(metric, cell) {
     var t = Math.min(1, Math.abs(cell.v) / SAT[metric]);
-    t = Math.sqrt(t) * (cell.sig ? 0.85 : 0.32);
+    t = Math.sqrt(t) * (cell.sig ? SOLID : PALE);
     return mix(better(metric, cell.v) ? GOOD : BAD, t);
   }
   function fmt(metric, v) { var s = metric === "rmse" ? Math.abs(v).toFixed(Math.abs(v) < 10 ? 1 : 0) + "%" : Math.abs(v / 100).toFixed(3).replace(/^0/, "");
@@ -461,14 +491,14 @@ window.STAGE = { groups: [{"label": "Scores", "items": [["scorecard", "Scorecard
       html += "<tr><td class='rl'>" + esc(r.label) + (r.truth === "radiosondes" ? "<small>" + esc(r.region) + "</small>" : "") + "</td>";
       D.leads.forEach(function (_, li) {
         var x = cells[li];
-        if (!x || x.v == null) { html += "<td class='c na'>&ndash;</td>"; return; }
+        if (!x || x.v == null) { html += "<td class='c na' aria-label='no score'>&ndash;</td>"; return; }
         html += "<td class='c " + (x.sig ? "sig" : "ns") + "' style='background:" + colour(m, x) + "' data-r='" + ri + "' data-l='" + li + "'>" + fmt(m, x.v) + "</td>";
       });
       html += "</tr>";
     });
     tb.innerHTML = html;
     var g = function (rgb) { return "rgb(" + rgb.join(",") + ")"; };
-    $("scKey").innerHTML = "<span class='sc-bar'>single better <span class='g' style='background:linear-gradient(to right," + mix(BAD, .85) + "," + mix(BAD, .3) + ",#fff," + mix(GOOD, .3) + "," + mix(GOOD, .85) + ")'></span> " + esc(SHORT[c]) + " better</span>"
+    $("scKey").innerHTML = "<span class='sc-bar'>single better <span class='g' style='background:linear-gradient(to right," + mix(BAD, SOLID) + "," + mix(BAD, PALE) + ",#fff," + mix(GOOD, PALE) + "," + mix(GOOD, SOLID) + ")'></span> " + esc(SHORT[c]) + " better</span>"
       + "<span>full colour at " + (m === "rmse" ? "&plusmn;20 %" : "&plusmn;0.05") + "</span><span>&bull; = significant (95 %)</span><span>hover a cell for the values</span>";
     $("scNote").innerHTML = "AIFS single and AIFS-ENS member 0, 00Z + 12Z runs, every series truncated at T" + (D.lmax_t || 120) + " before scoring &middot; " + esc(D.diff_test || "") + " &middot; updated " + esc(D.generated || "");
   }
@@ -529,7 +559,7 @@ addEventListener("message", function (e) {
         <li><a href="/topics/">Explainers</a></li>
         <li><a href="/stats.html">Visitor stats</a></li>
       </ul>
-      <p class="sf-disclaimer">This site is under constant development. Nothing here is checked before publication and there is no expectation of accuracy, completeness or availability; do not rely on it for decisions. Built from open data; sources are credited on each page.</p>
+      <p class="sf-disclaimer">This site is under constant development. Its products are generated automatically and published without review by a person; each page describes its automated checks and significance tests. There is no expectation of accuracy, completeness or availability; do not rely on it for decisions. Built from open data; sources are credited on each page.</p>
     </div>
     <div class="sf-group sf-group--me">
       <p class="sf-h" role="heading" aria-level="2">Shawn Corvec</p>

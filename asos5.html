@@ -6,7 +6,30 @@
 <link rel="canonical" href="https://scorvec.com/asos5.html">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>US Airport 5-Minute Observations &middot; Shawn Corvec</title>
-<meta name="description" content="Live 5-minute ASOS observations for 22 major US airports: temperature, dewpoint, wind speed and direction, visibility, ceiling and weather, with running daily max/min and official METAR remarks.">
+<meta name="description" content="Live 5-minute ASOS observations at 22 major US airports: temperature, dewpoint, wind, visibility, ceiling and weather, with running daily highs and lows.">
+<meta property="og:type" content="website">
+<meta property="og:title" content="US airport 5-minute observations">
+<meta property="og:description" content="Live 5-minute ASOS observations at 22 major US airports: temperature, dewpoint, wind, visibility, ceiling and weather, with running daily highs and lows.">
+<meta property="og:url" content="https://scorvec.com/asos5.html">
+<meta property="og:site_name" content="Shawn Corvec">
+<meta name="twitter:card" content="summary">
+<script type="application/ld+json">
+{
+ "@context": "https://schema.org",
+ "@type": "WebPage",
+ "name": "US airport 5-minute observations",
+ "url": "https://scorvec.com/asos5.html",
+ "description": "Live 5-minute ASOS observations at 22 major US airports: temperature, dewpoint, wind, visibility, ceiling and weather, with running daily highs and lows.",
+ "isPartOf": {
+  "@type": "WebSite",
+  "name": "Shawn Corvec",
+  "url": "https://scorvec.com/"
+ },
+ "author": {
+  "@id": "https://scorvec.com/#person"
+ }
+}
+</script>
 <link rel="preconnect" href="https://mesonet.agron.iastate.edu" crossorigin>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -35,16 +58,19 @@
     color: #3d4540; cursor: pointer; white-space: nowrap; }
   .ao-seg button + button { border-left: 1px solid #e3e6e0; }
   .ao-seg button.on { background: var(--accent); color: #fff; }
-  .ao-seg button:focus-visible { outline: 3px solid #7aa7e0; outline-offset: -3px; }
+  .ao-seg button:focus-visible { outline: 3px solid var(--accent); outline-offset: -3px; box-shadow: inset 0 0 0 5px var(--panel); }
   .ao-hint { text-align: center; font-size: 0.92rem; color: var(--muted); margin: 0.3rem 0 1rem; }
 
   .ao-cards { display: grid; gap: 0.6rem; grid-template-columns: repeat(auto-fill, minmax(176px, 1fr)); }
   .ao-card { text-align: left; font: inherit; color: inherit; background: var(--panel); border: 1px solid var(--rule); border-radius: 10px;
     padding: 0.65rem 0.75rem 0.6rem; cursor: pointer; transition: border-color .12s, opacity .12s; min-width: 0; }
   .ao-card:hover { border-color: var(--accent); }
-  .ao-card:focus-visible { outline: 3px solid #7aa7e0; outline-offset: 1px; }
+  .ao-card:focus-visible { outline: 3px solid var(--accent); outline-offset: 1px; }
   .ao-card.sel { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-soft); }
-  .ao-card.dim { opacity: 0.42; }
+  /* dimmed (another station isolated): the card recedes by its fill and graphics; its text keeps 4.5:1 */
+  .ao-card.dim { background: var(--bg); border-color: var(--rule); }
+  .ao-card.dim .now { color: var(--muted); }
+  .ao-card.dim svg, .ao-card.dim .sid i { opacity: 0.45; }
   .ao-card .r1 { display: flex; justify-content: space-between; align-items: center; gap: 0.3rem; }
   .ao-card .sid { font-weight: 700; font-size: 1.02rem; display: inline-flex; align-items: center; gap: 0.4em; }
   .ao-card .sid i { width: 0.62em; height: 0.62em; border-radius: 50%; background: var(--dot); display: inline-block; }
@@ -69,7 +95,7 @@
   .ao-detail[hidden] { display: none; }
   .ao-detail canvas { flex: none; }
   .ao-detail .tx { flex: 1 1 320px; font-size: 0.98rem; line-height: 1.55; }
-  .ao-detail h3 { font-family: var(--f-serif, serif); font-weight: 500; font-size: 1.2rem; margin: 0 0 0.3rem; }
+  .ao-detail h2 { font-family: var(--f-serif, serif); font-weight: 500; font-size: 1.2rem; margin: 0 0 0.3rem; }
   .ao-detail ul { margin: 0.2rem 0 0; padding-left: 1.1rem; }
 
   .ao-chart { position: relative; margin-top: 1rem; background: var(--panel); border: 1px solid var(--rule); border-radius: 10px; padding: 0.7rem 0.6rem 0.4rem; }
@@ -109,6 +135,7 @@
 <body>
 
 <!-- sh:start -->
+<a class="skip-link" href="#main">Skip to main content</a>
 <header class="sh" id="site-header">
   <div class="sh-in">
     <a class="sh-brand" href="/">Shawn Corvec</a>
@@ -194,7 +221,7 @@
           <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g3">Weeks to seasons</button>
           <div class="sh-menu sh-menu--cols" id="sh-g3">
             <div>
-              <h3>Weeks 2–5</h3>
+              <h3>Extended range</h3>
               <ul>
                 <li><a href="/subseasonal.html">GEPS extended ensemble</a></li>
                 <li><a href="/gefs.html">GEFS extended ensemble</a></li>
@@ -219,7 +246,7 @@
                 <li><a href="/enso.html#imp_reg">ENSO impacts on the Americas</a></li>
                 <li><a href="/mjo.html#mi">MJO impacts</a></li>
                 <li><a href="/stratosphere.html#shwinters">Stratosphere history</a></li>
-                <li><a href="/aifs-aam-budget.html">AINWP and conservation</a></li>
+                <li><a href="/aifs-aam-budget.html">AI models and conservation laws</a></li>
                 <li><a href="/torque-enso.html">El Niño and angular momentum</a></li>
                 <li><a href="/topics/">Explainers</a></li>
               </ul>
@@ -227,7 +254,7 @@
             <div>
               <h3>Verification</h3>
               <ul>
-                <li><a href="/aifs-verify.html">AIFS single versus member 0</a></li>
+                <li><a href="/aifs-verify.html">AIFS single versus ensemble control</a></li>
               </ul>
             </div>
           </div>
@@ -264,7 +291,7 @@
 </header>
 <!-- sh:end -->
 
-<main class="ao">
+<main id="main" class="ao">
   <h1>US airport five-minute observations</h1>
   <p class="ao-lede" id="subline">Loading live observations&hellip;</p>
   <div id="stale" class="ao-stale" hidden></div>
@@ -292,14 +319,14 @@
   <section class="ao-chart">
     <h2 class="ao-ctitle" id="ctitle"></h2>
     <p class="ao-ckey" id="ckey"></p>
-    <div class="ao-panel" id="p1"><canvas class="ao-cv"></canvas><canvas class="ao-ov"></canvas></div>
-    <div class="ao-panel ao-panel--dir" id="p2" hidden><canvas class="ao-cv"></canvas><canvas class="ao-ov"></canvas></div>
+    <div class="ao-panel" id="p1"><canvas class="ao-cv" role="img" aria-label="Chart of the chosen variable at every station, each trace labelled with its station; the cards above give each station's latest value and today's extremes"></canvas><canvas class="ao-ov" aria-hidden="true"></canvas></div>
+    <div class="ao-panel ao-panel--dir" id="p2" hidden><canvas class="ao-cv" role="img" aria-label="Wind direction at every station, one dot per observation"></canvas><canvas class="ao-ov" aria-hidden="true"></canvas></div>
     <div class="ao-tip" id="tip" hidden></div>
   </section>
 
   <footer class="ao-note">
-    <p><b>Sources.</b> Live: Iowa State&rsquo;s <a href="https://mesonet.agron.iastate.edu/request/asos/1min.phtml">IEM</a>
-    observation history, fetched in your browser every 2 minutes &mdash; every 5-minute ASOS row the station transmitted
+    <p><b>Sources.</b> Live: Iowa State&rsquo;s <a href="https://mesonet.agron.iastate.edu/api/1/docs">IEM</a>
+    observation history, fetched in your browser (each station again 5 minutes after its last read, hourly stations 10) &mdash; every 5-minute ASOS row the station transmitted
     plus every METAR and SPECI. The 5-minute rows carry temperature and dewpoint in <b>whole degrees Celsius</b> (hence the
     1.8&nbsp;&deg;F steps in the &deg;F traces); the hourly METARs and SPECIs carry tenths, and the cards use them whenever one
     is as recent as the latest 5-minute row. The
@@ -309,7 +336,9 @@
     Yesterday&rsquo;s data are kept in your browser, so a return visit only fetches today.</p>
     <p><b>Max/min.</b> Today&rsquo;s are the extremes since local midnight: the samples merged with the official METAR
     6-hour groups (<code>1sTTT</code>/<code>2sTTT</code>) where those are more extreme. Yesterday&rsquo;s row is the
-    official 24-hour climate day (<code>4snTxTxTxsnTnTnTn</code>).</p>
+    official 24-hour climate day (<code>4snTxTxTxsnTnTnTn</code>), which runs midnight to midnight local <i>standard</i>
+    time (1&nbsp;a.m. to 1&nbsp;a.m. during daylight time), so in summer today&rsquo;s extremes can differ from the next
+    day&rsquo;s official row.</p>
     <p><b>Wind.</b> Direction is where the wind blows <i>from</i>, in degrees true. Arrows on the cards point the way the air
     is moving; barbs follow the usual convention (pennant 50&nbsp;kt, full barb 10, half barb 5, always in knots).
     <i>Veering</i> = turning clockwise (e.g. south to west), <i>backing</i> = counter-clockwise; the change is measured
@@ -475,13 +504,28 @@
         localStorage.removeItem(k); } } catch (e) {}           // older versions' packs too
   }
   var dayPacks = {};                                   // id -> {date: pack}
+  // Every request to IEM and the NWS API goes through one queue, at most QMAX at a time, today's before yesterday's:
+  // 22 stations at once (44 requests on a first visit) flooded both services and a phone's connection.
+  // A slot is held until the body has been read, so QMAX caps the downloads, not just the waits for headers.
+  var QMAX = 4, qRun = 0, qHi = [], qLo = [];
+  function qjson(url, opts, low) {                      // -> Promise(parsed JSON); rejects on a network error or HTTP error
+    return new Promise(function (res, rej) { (low ? qLo : qHi).push([url, opts || {}, res, rej]); qPump(); });
+  }
+  function qPump() {
+    while (qRun < QMAX && (qHi.length || qLo.length)) {
+      var j = qHi.length ? qHi.shift() : qLo.shift(); qRun++;
+      (function (j) {
+        fetch(j[0], j[1]).then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); })
+          .then(function (d) { qRun--; qPump(); j[2](d); }, function (e) { qRun--; qPump(); j[3](e); });
+      })(j);
+    }
+  }
   function iemURL(s, date) {
     return "https://mesonet.agron.iastate.edu/api/1/obhistory.json?network=" + s.net + "&station=" +
       (s.id === "KNYC" ? "NYC" : s.id.slice(1)) + "&date=" + date;
   }
-  function fetchDay(s, date, fresh) {
-    return fetch(iemURL(s, date), fresh ? { cache: "no-store" } : {})
-      .then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); })
+  function fetchDay(s, date, fresh) {                    // today (fresh) ahead of yesterday in the queue
+    return qjson(iemURL(s, date), fresh ? { cache: "no-store" } : {}, !fresh)
       .then(function (j) { return packDay(j.data || []); });
   }
   // QC of the plotted temperature / dewpoint (2026-10-08 sweep: KRDU's 12:30Z 5-minute row on 7 Oct carried M61/M61, a
@@ -518,21 +562,21 @@
     var n = nowS(), today = ymd(lx(n, s.tz)), yday = ymd(lx(n - 86400, s.tz));
     var mem = dayPacks[s.id] = dayPacks[s.id] || {};
     Object.keys(mem).forEach(function (k) { if (k !== today && k !== yday) delete mem[k]; });
+    var pT = fetchDay(s, today, true).then(function (p) { mem[today] = p; return p; });
     var pY = mem[yday] ? Promise.resolve(mem[yday])
       : (function () { var c = lsGet(s.id + "." + yday); if (c) { mem[yday] = c; return Promise.resolve(c); }
           return fetchDay(s, yday, false).then(function (p) { mem[yday] = p; lsSet(s.id + "." + yday, p); return p; }); })();
-    var pT = fetchDay(s, today, true).then(function (p) { mem[today] = p; return p; });
     return Promise.all([pY.catch(function () { return null; }), pT.catch(function () { return null; })]).then(function (r) {
       if (!r[0] && !r[1]) throw new Error("iem");
       var p = combine(r[0], r[1]); p.src = "iem"; p.cad = p.nAuto >= 6 ? 5 : 60;
       state.live[s.id] = p; state.src[s.id] = "iem";
       if (r[1]) lsSet("today." + s.id, { d: today, p: r[1] });
+      return true;
     }).catch(function () { return fetchNWS(s); });
   }
-  function fetchNWS(s) {
+  function fetchNWS(s) {                                 // -> Promise(true when it served the station, false when not)
     var w0 = nowS() - WINDOW_MAX_H * 3600;
-    return fetch("https://api.weather.gov/stations/" + s.id + "/observations?start=" + encodeURIComponent(new Date(w0 * 1000).toISOString()) + "&limit=500", { cache: "no-store" })
-      .then(function (r) { if (!r.ok) throw 0; return r.json(); })
+    return qjson("https://api.weather.gov/stations/" + s.id + "/observations?start=" + encodeURIComponent(new Date(w0 * 1000).toISOString()) + "&limit=500", { cache: "no-store" })
       .then(function (j) {
         var rows = (j.features || []).map(function (f) { var p = f.properties;
           return { utc_valid: p.timestamp, raw: p.rawMessage || "", tmpf: p.temperature && p.temperature.value != null ? p.temperature.value * 1.8 + 32 : null,
@@ -544,8 +588,9 @@
         rows.forEach(function (r) { if (!r.raw) r.raw = s.id + " AUTO MADISHF"; });
         var p = packDay(rows); qcObs(p.obs); p.src = "nws"; p.cad = p.nAuto >= 6 ? 5 : 60;
         state.live[s.id] = p; state.src[s.id] = "nws";
+        return true;
       })
-      .catch(function () { state.failed++; });
+      .catch(function () { return false; });
   }
   // The asos5-data branch, CDN first (2026-10-07): frames.scorvec.com is the site's Bunny pull zone in front of
   // raw.githubusercontent.com (blocked on many work networks). The edge ignores query strings and an Edge Rule holds
@@ -562,15 +607,36 @@
         .then(function (r) { if (t) clearTimeout(t); if (!r.ok) throw 0; return r.json(); })
         .catch(function () { if (t) clearTimeout(t); return next(); });
     }
-    next().then(function (j) { if (j && j.stations) { state.branch = {}; j.stations.forEach(function (s) { state.branch[s.id] = s; }); schedule(); } })
-      .catch(function () {});
+    // the file is rebuilt every 30 minutes: a copy less than 28 minutes old is not asked for again, nor any copy within
+    // 5 minutes of the last try (a late rebuild would otherwise be polled every minute)
+    var t = Date.now();
+    if ((state.branchGen && t - state.branchGen < 28 * 60000) || t - (state.branchTry || 0) < 5 * 60000) return;
+    state.branchTry = t;
+    next().then(function (j) {
+      if (!j || !j.stations) return;
+      state.branch = {}; j.stations.forEach(function (s) { state.branch[s.id] = s; });
+      state.branchGen = Date.parse(j.generated_utc) || 0; schedule();
+    }).catch(function () {});
   }
-  function refreshAll() {
-    state.failed = 0;
-    var keep = [];
+  // Each station is read again only once something new can have arrived: 5 minutes after its last good read (a
+  // 5-minute station), 10 for an hourly one; a failure is retried after 2, 4, 8 minutes, up to 15. A check every
+  // minute, and one when the tab comes back, asks only for the stations that are due, so returning to the tab
+  // again and again costs nothing.
+  var dueAt = {}, fails = {};
+  function refreshDue() {
+    var t = Date.now(), keep = [];
     STATIONS.forEach(function (s) { var n = nowS(); keep.push(s.id + "." + ymd(lx(n - 86400, s.tz))); keep.push("today." + s.id); });
     lsPrune(keep);
-    STATIONS.forEach(function (s) { loadStation(s).then(function () { state.cached = false; schedule(); }); });
+    STATIONS.forEach(function (s) {
+      if (t < (dueAt[s.id] || 0)) return;
+      dueAt[s.id] = Infinity;                            // in flight
+      loadStation(s).then(function (ok) {
+        var live = state.live[s.id];
+        if (ok) { delete fails[s.id]; dueAt[s.id] = Date.now() + (live && live.cad > 5 ? 600000 : 300000); }
+        else { fails[s.id] = (fails[s.id] || 0) + 1; dueAt[s.id] = Date.now() + Math.min(900000, 120000 * Math.pow(2, fails[s.id] - 1)); }
+        state.failed = Object.keys(fails).length; state.cached = false; schedule();
+      });
+    });
   }
 
   // ---------------------------------------------------------------- merge per station
@@ -754,7 +820,7 @@
     this.spec = spec; this.size();
     var c = this.ctx, W = this.w, H = this.h, dpr = this.dpr;
     c.setTransform(dpr, 0, 0, dpr, 0, 0); c.clearRect(0, 0, W, H);
-    var L = spec.left || 54, R = 12, Tp = 10, B = spec.bottom == null ? 34 : spec.bottom, pw = W - L - R, ph = H - Tp - B;
+    var L = spec.left || 54, R = spec.labels ? 48 : 12, Tp = 10, B = spec.bottom == null ? 34 : spec.bottom, pw = W - L - R, ph = H - Tp - B;
     var x0 = spec.xr[0], x1 = spec.xr[1], y0 = spec.yr[0], y1 = spec.yr[1];
     var sx = function (x) { return L + (x - x0) / (x1 - x0) * pw; }, sy = function (y) { return Tp + (1 - (y - y0) / (y1 - y0)) * ph; };
     this.sx = sx; this.sy = sy; this.box = [L, Tp, pw, ph]; this.ix = function (px) { return x0 + (px - L) / pw * (x1 - x0); };
@@ -798,6 +864,24 @@
     (spec.over || []).forEach(function (f) { f(c, sx, sy, pts); });
     c.restore();
     c.strokeStyle = "#cfd3cc"; c.strokeRect(L + 0.5, Tp + 0.5, pw, ph);
+    if (spec.labels) {                     // station ids in the right margin, nudged 13 px apart, a leader to each trace end
+      var labs = [];
+      spec.series.forEach(function (S) {
+        if (!S.label || S.mode === "points" || S.hover === false) return;
+        for (var k = S.x.length - 1; k >= 0; k--) { var yl = S.y[k];
+          if (yl == null || isNaN(yl) || S.x[k] < x0 || S.x[k] > x1) continue;
+          labs.push({ t: S.label, col: S.color, x: Math.min(sx(S.x[k]), L + pw), y: Math.max(Tp, Math.min(Tp + ph, sy(yl))) }); break; }
+      });
+      var gapY = Math.min(13, ph / Math.max(1, labs.length - 1));
+      labs.sort(function (a, b) { return a.y - b.y; });
+      labs.forEach(function (a, i) { a.ly = i ? Math.max(a.y, labs[i - 1].ly + gapY) : a.y; });
+      for (var j = labs.length - 1; j >= 0; j--) labs[j].ly = Math.min(labs[j].ly, j === labs.length - 1 ? Tp + ph : labs[j + 1].ly - gapY);
+      c.font = "600 11px " + getComputedStyle(document.body).fontFamily; c.textAlign = "left"; c.textBaseline = "middle"; c.lineWidth = 1;
+      labs.forEach(function (a) {
+        c.strokeStyle = a.col; c.globalAlpha = 0.6; c.beginPath(); c.moveTo(a.x, a.y); c.lineTo(L + pw + 4, a.ly); c.stroke(); c.globalAlpha = 1;
+        c.fillStyle = a.col; c.fillText(a.t, L + pw + 6, a.ly);
+      });
+    }
     if (spec.ylabel) { c.save(); c.translate(13, Tp + ph / 2); c.rotate(-Math.PI / 2); c.textAlign = "center"; c.fillStyle = "#5f6660"; c.fillText(spec.ylabel, 0, 0); c.restore(); }
     pts.sort(function (a, b) { return a[0] - b[0]; });
     this.clearOverlay();
@@ -843,7 +927,7 @@
       kinds.forEach(function (kd) {
         var S = seriesFor(st, kd);
         S.color = faint ? "#9aa19c" : st.s.color; S.alpha = faint ? 0.28 : 1; S.width = me ? 2.6 : (faint ? 1 : 1.5); S.st = st; S.kind = kd;
-        S.hover = !faint; S.gap = kd === "v" || kd === "c" ? 3 * 3600 : 2.2 * 3600;
+        S.hover = !faint; S.label = st.s.id; S.gap = kd === "v" || kd === "c" ? 3 * 3600 : 2.2 * 3600;
         if (vr === "v" || vr === "c") S.mode = "step";
         if (vr === "w") { S.mode = "points"; S.marker = me ? 6 : 4.5; }
         else S.marker = me ? 2.6 : 0;
@@ -867,7 +951,10 @@
         v: "Visibility " + (state.unit === "F" ? "mi" : "km"), c: "Ceiling " + (state.unit === "F" ? "ft" : "m") + " AGL (gaps = none)" }[vr];
     }
     if (isoSt) over = overlays(isoSt, vr);
-    P1.draw({ xr: xr, yr: yr, yticks: yticks, ylabel: ylabel, left: left, series: series, over: over });
+    P1.draw({ xr: xr, yr: yr, yticks: yticks, ylabel: ylabel, left: left, series: series, over: over, labels: vr !== "w" });
+    var lbl = document.getElementById("ctitle").textContent + ": " + data.length + (data.length === 1 ? " station" : " stations, one line each") + (isoSt ? ", " + isoSt.s.id + " highlighted" : "") +
+      ". The cards above give each station's latest reading and today's extremes.";
+    if (P1.cv.getAttribute("aria-label") !== lbl) P1.cv.setAttribute("aria-label", lbl);
     // direction panel
     if (vr === "k") {
       P2.el.hidden = false;
@@ -948,7 +1035,7 @@
     if (S.rep) { var r = S.rep; return "<b>" + S.st.s.id + " " + r.type + "</b> · " + hm(lx(r.e, S.st.s.tz)) + "<br><code>" + r.raw.replace(/</g, "&lt;") + "</code>"; }
     if (S.ext) { var x = S.x; return "<b>Today's " + (S.ext === "hi" ? "high" : "low") + "</b> " + fT(x.v) + state.unit + (x.e != null ? " (sampled)" : " (official 6-hour group)"); }
     var st = S.st, o = S.o[q], tz = st.s.tz, when = hm(lx(o[E], tz)) + " " + md(lx(o[E], tz));
-    var head = "<b style=\"color:" + st.s.color + "\">" + st.s.id + "</b> " + when + (o[REP] ? " <span style=\"color:#7d8079\">(report)</span>" : "") + "<br>";
+    var head = "<b style=\"color:" + st.s.color + "\">" + st.s.id + "</b> " + when + (o[REP] ? " <span style=\"color:#5f6660\">(report)</span>" : "") + "<br>";
     var wind = o[SPD] == null ? "" : (o[SPD] === 0 ? "calm" : (o[DIR] != null ? Math.round(o[DIR]) + "° " + dirName(o[DIR]) + " " : (o[VRB] ? "variable " : "")) + fW(o[SPD]) +
       (o[GST] != null ? " gusting " + fW(o[GST]) : "") + (o[VLO] != null ? " (varying " + o[VLO] + "°–" + o[VHI] + "°)" : ""));
     var t = o[T] != null ? fT(o[T]) + state.unit : "", d = o[D] != null ? " / dew " + fT(o[D]) + state.unit : "";
@@ -1003,8 +1090,8 @@
     if (tot) li.push("Calm or under 3 kt " + Math.round(calm / tot * 100) + "% of the last 24 h");
     if (pk) li.push("Peak wind today (METAR remark): <b>" + pk.dir + "° " + dirName(pk.dir) + " " + fW(pk.kt) + "</b> at " + hm(lx(pk.e, tz)));
     if (ws.length) li.push("Wind shift reported at " + ws.map(function (x) { return hm(lx(x.e, tz)) + (x.fropa ? " (frontal passage)" : ""); }).join(", "));
-    box.innerHTML = '<canvas width="220" height="220" style="width:220px;height:220px" aria-label="Wind rose, last 24 hours"></canvas><div class="tx"><h3>' + st.s.id +
-      " wind, last 24 hours</h3><ul><li>" + li.join("</li><li>") + "</li></ul><p class=\"mu\" style=\"margin-top:.4rem;font-size:.88rem\">Rose: share of observations by the direction the wind came from (16 sectors), " +
+    box.innerHTML = '<canvas width="220" height="220" style="width:220px;height:220px" role="img" aria-label="Wind rose, last 24 hours (summarised in the list beside it)"></canvas><div class="tx"><h2>' + st.s.id +
+      " wind, last 24 hours</h2><ul><li>" + li.join("</li><li>") + "</li></ul><p class=\"mu\" style=\"margin-top:.4rem;font-size:.88rem\">Rose: share of observations by the direction the wind came from (16 sectors), " +
       "shaded by speed (light under 10 kt, mid 10–20, dark over 20).</p></div>";
     drawRose(box.querySelector("canvas"), st, e1 - 86400, e1);
   }
@@ -1035,9 +1122,9 @@
     var asof = newest ? new Date(newest * 1000).toLocaleTimeString([], { hour: "numeric", minute: "2-digit", timeZoneName: "short" }) : "–";
     document.getElementById("subline").innerHTML = "Live five-minute ASOS observations from <b>22 major US airports</b>, plotted on each station&rsquo;s " +
       "local clock so today lines up against yesterday. Cards show the latest reading, today&rsquo;s extremes and, for wind, the direction and how it has turned. " +
-      "Latest observation <b>" + asof + "</b>" + (state.cached ? " (from your last visit; updating&hellip;)" : "") + " &middot; " + data.length + " of 22 stations loaded &middot; refreshes every 2 minutes.";
+      "Latest observation <b>" + asof + "</b>" + (state.cached ? " (from your last visit; updating&hellip;)" : "") + " &middot; " + data.length + " of 22 stations loaded &middot; each station refreshes every 5 minutes.";
     var stale = document.getElementById("stale");
-    if (state.failed >= 6) { stale.hidden = false; stale.textContent = state.failed + " stations could not be reached just now; they will be retried in two minutes."; }
+    if (state.failed >= 6) { stale.hidden = false; stale.textContent = state.failed + " stations could not be reached just now; they are tried again within a few minutes."; }
     else stale.hidden = true;
     var vr = state.vr, iso = state.iso != null && state.iso >= 0;
     document.getElementById("ctitle").textContent = { t: "Temperature", d: "Dewpoint", k: "Wind speed, gusts and direction", v: "Visibility", c: "Cloud ceiling", w: "Present weather" }[vr] +
@@ -1058,6 +1145,7 @@
   }
   function seg(id, key, cb) {
     var el = document.getElementById(id);
+    el.querySelectorAll("button").forEach(function (x) { x.setAttribute("aria-pressed", x.classList.contains("on") ? "true" : "false"); });
     el.addEventListener("click", function (ev) { var b = ev.target.closest("button"); if (!b) return;
       el.querySelectorAll("button").forEach(function (x) { x.classList.toggle("on", x === b); x.setAttribute("aria-pressed", x === b ? "true" : "false"); });
       cb(b.dataset[key]); });
@@ -1079,11 +1167,11 @@
     if (y || tp) { var p = combine(y, tp); p.src = "cache"; p.cad = p.nAuto >= 6 ? 5 : 60; state.live[s.id] = p; state.cached = true; }
   });
   if (state.cached) render(); else { state.data = STATIONS.map(function () { return null; }); renderText(); renderCards(); }
-  refreshAll();
-  setTimeout(fetchBranch, 1500);
-  setInterval(function () { if (!document.hidden) refreshAll(); }, 120000);
-  setInterval(function () { if (!document.hidden) fetchBranch(); }, 300000);
-  document.addEventListener("visibilitychange", function () { if (!document.hidden) refreshAll(); });
+  // the site's own half-hourly file of all 22 stations (one request) paints first; IEM then tops each station up
+  fetchBranch();
+  refreshDue();
+  setInterval(function () { if (!document.hidden) { refreshDue(); fetchBranch(); } }, 60000);
+  document.addEventListener("visibilitychange", function () { if (!document.hidden) { refreshDue(); fetchBranch(); } });
 })();
 </script>
 <!-- sf:start -->
@@ -1097,7 +1185,7 @@
         <li><a href="/topics/">Explainers</a></li>
         <li><a href="/stats.html">Visitor stats</a></li>
       </ul>
-      <p class="sf-disclaimer">This site is under constant development. Nothing here is checked before publication and there is no expectation of accuracy, completeness or availability; do not rely on it for decisions. Built from open data; sources are credited on each page.</p>
+      <p class="sf-disclaimer">This site is under constant development. Its products are generated automatically and published without review by a person; each page describes its automated checks and significance tests. There is no expectation of accuracy, completeness or availability; do not rely on it for decisions. Built from open data; sources are credited on each page.</p>
     </div>
     <div class="sf-group sf-group--me">
       <p class="sf-h" role="heading" aria-level="2">Shawn Corvec</p>

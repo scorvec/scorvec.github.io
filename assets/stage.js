@@ -11,7 +11,8 @@
      ownHash:true (dom) -> the block keeps its own state after "#id/" in the hash and the stage leaves it.
    STAGE.aliases maps old ids to products; STAGE.related = false drops the related-plots strip; STAGE.onRender(sel)
    runs after each render. An optional #stage-stamp element shows the stamp the figure on stage reports for itself.
-   Selection lives in the hash (#product/a/b/c); ← → step the deepest option row, ↑ ↓ the product. */
+   Selection lives in the hash (#product/a/b/c); with the focus in the viewer ← → step the deepest option row and,
+   in the list of plots, ↑ ↓ the product. */
 (function () {
   "use strict";
   var S = window.STAGE; if (!S) return;
@@ -32,12 +33,12 @@
     // title and count, so the rail fits without scrolling
     GROUPS.forEach(function (g) {
       var d = document.createElement("div"); d.className = "rail-group"; d.dataset.g = g.label;
-      var t = document.createElement("button"); t.type = "button"; t.className = "rail-title";
-      t.innerHTML = '<span class="car"></span>' + (g.ico ? '<span class="ico">' + g.ico + '</span>' : "") + '<span class="lbl">' + g.label + '</span><span class="n">' + g.items.length + '</span>';
-      t.onclick = function () { d.classList.toggle("open"); }; d.appendChild(t);
+      var t = document.createElement("button"); t.type = "button"; t.className = "rail-title"; t.setAttribute("aria-expanded", "false");
+      t.innerHTML = '<span class="car" aria-hidden="true"></span>' + (g.ico ? '<span class="ico" aria-hidden="true">' + g.ico + '</span>' : "") + '<span class="lbl">' + g.label + '</span><span class="n">' + g.items.length + '</span>';
+      t.onclick = function () { t.setAttribute("aria-expanded", d.classList.toggle("open") ? "true" : "false"); }; d.appendChild(t);
       g.items.forEach(function (p) {
         var b = document.createElement("button"); b.type = "button"; b.dataset.p = p[0];
-        b.innerHTML = (g.ico ? '<span class="ico">' + g.ico + '</span>' : "") + '<span>' + p[1] + (p[2] ? '<small>' + p[2] + '</small>' : "") + '</span>';
+        b.innerHTML = (g.ico ? '<span class="ico" aria-hidden="true">' + g.ico + '</span>' : "") + '<span>' + p[1] + (p[2] ? '<small>' + p[2] + '</small>' : "") + '</span>';
         b.onclick = function () { choose(p[0]); };
         d.appendChild(b);
       });
@@ -197,13 +198,16 @@
     host.classList.toggle("more-r", more && host.scrollLeft + host.clientWidth < host.scrollWidth - 2);
   }
   function buttons(host, group, key) {
-    host.innerHTML = "";
+    host.innerHTML = ""; host.removeAttribute("role"); host.removeAttribute("aria-labelledby");
     if (!group) { sel[key] = null; return null; }
-    if (group.label) { var l = document.createElement("span"); l.className = "seg-label"; l.textContent = group.label; host.appendChild(l); }
+    host.setAttribute("role", "group");                  // a row of pills, one pressed: its label names the group
+    if (group.label) { var l = document.createElement("span"); l.className = "seg-label"; l.textContent = group.label; l.id = host.id + "-l"; host.appendChild(l); host.setAttribute("aria-labelledby", l.id); }
     var valid = group.items.some(function (it) { return it[0] === sel[key]; });
     group.items.forEach(function (it, i) {
       var b = document.createElement("button"); b.className = "pill"; b.type = "button"; b.textContent = it[1]; b.dataset.v = it[0];
-      if ((valid && sel[key] === it[0]) || (!valid && i === 0)) { b.classList.add("on"); sel[key] = it[0]; }
+      var on = (valid && sel[key] === it[0]) || (!valid && i === 0);
+      if (on) { b.classList.add("on"); sel[key] = it[0]; }
+      b.setAttribute("aria-pressed", on ? "true" : "false");
       b.onclick = function () { sel[key] = it[0]; render(); };
       host.appendChild(b);
     });
@@ -272,12 +276,33 @@
   // (seasonal.html) marks them gated; a hidden one drops out of the rail and is never put on the stage
   function available(id) { var q = P[id]; if (!q || !q.gated || !q.dom) return !!q; var el = $(q.dom()); return !!el && !el.hidden; }
   function firstAvailable() { for (var i = 0; i < ORDER.length; i++) if (available(ORDER[i])) return ORDER[i]; return ORDER[0]; }
+  // The control that had the focus is rebuilt by a render (the option pills, the figure); the focus goes to its
+  // successor (the pressed pill of the same row, the selected plot in the list, the new figure), so a keyboard user
+  // keeps their place and the next arrow key still reaches the viewer.
+  function focusSpot() {
+    var a = document.activeElement; if (!a || !a.closest) return null;
+    if (a.closest("#rail button[data-p], #rail .rail-title")) return "rail";
+    var row = a.closest("#opts-a, #opts-b, #opts-c"); if (row) return row.id;
+    if (a.closest("#stage > .ss-zoom")) return "zoom";
+    return null;
+  }
+  function refocus(spot) {
+    var el = spot === "rail" ? document.querySelector('#rail button[data-p="' + sel.p + '"]')
+      : spot === "zoom" ? document.querySelector("#stage > .ss-zoom")
+      : spot ? (document.querySelector("#" + spot + " .pill.on") || document.querySelector("#" + spot + " .pill")) : null;
+    if (el && el.offsetParent !== null) el.focus({ preventScroll: true });
+  }
   function render() {
+    var spot = focusSpot();
     if (!available(sel.p)) sel = { p: firstAvailable(), a: null, b: null, c: null };
     var p = P[sel.p];
-    Array.prototype.forEach.call(document.querySelectorAll("#rail button[data-p]"), function (b) { b.classList.toggle("on", b.dataset.p === sel.p); });
+    Array.prototype.forEach.call(document.querySelectorAll("#rail button[data-p]"), function (b) {
+      var on = b.dataset.p === sel.p; b.classList.toggle("on", on);
+      if (on) b.setAttribute("aria-current", "true"); else b.removeAttribute("aria-current");
+    });
     Array.prototype.forEach.call(document.querySelectorAll("#rail .rail-group"), function (d) {
       var mine = !!d.querySelector('button[data-p="' + sel.p + '"]'); d.classList.toggle("has", mine); if (mine) d.classList.add("open"); else d.classList.remove("open");
+      var t = d.querySelector(".rail-title"); if (t) t.setAttribute("aria-expanded", mine ? "true" : "false");
     });
     var ga = typeof p.a === "function" ? p.a() : (p.a || null); buttons($("opts-a"), ga, "a");
     var gb = typeof p.b === "function" ? p.b(sel.a) : (p.b || null); buttons($("opts-b"), gb, "b");
@@ -299,15 +324,18 @@
     } else {
       var src = p.img(sel.a, sel.b, sel.c); if (p.bust === "hourly") src += (src.indexOf("?") < 0 ? "?" : "&") + "v=" + hourKey();
       var im = document.createElement("img"); im.alt = p.label;
+      // the still is a button that enlarges it (keyboard and screen readers reach it like any control)
+      var zb = document.createElement("button"); zb.type = "button"; zb.className = "ss-zoom"; zb.setAttribute("aria-label", "Enlarge: " + p.label);
+      zb.style.cssText = "display:block;width:100%;padding:0;margin:0;border:0;background:none;font:inherit;color:inherit;cursor:zoom-in";
       // a figure whose first build has not been published yet (new product) 404s: say so instead of a broken icon
       im.onerror = function () {
         var m = document.createElement("p"); m.className = "stage-missing";
         m.textContent = "This chart has not been published yet - it appears after the next update of this product (usually within a few hours).";
         m.style.cssText = "padding:2.5rem 1rem;text-align:center;color:#6f6b64;font-size:1.05rem;border:1px dashed #cfcac2;border-radius:8px;margin:0.5rem 0";
-        if (im.parentNode) im.parentNode.replaceChild(m, im);
+        if (zb.parentNode) zb.parentNode.replaceChild(m, zb);
       };
-      im.src = src; st.appendChild(im);
-      im.onload = fitStage; im.onclick = function () { var lb = $("lightbox"); lb.querySelector("img").src = im.src; lb.classList.add("on"); };
+      im.src = src; zb.appendChild(im); st.appendChild(zb);
+      im.onload = fitStage; zb.onclick = function () { lbOpen(im.src, im.alt, zb); };
     }
     $("cap").innerHTML = p.cap ? p.cap(sel.a, sel.b, sel.c) : "";
     // a page's own extras that follow the selection (the GEPS/GEFS number tables)
@@ -344,7 +372,38 @@
     }
     pushNext = false;
     related();
+    refocus(spot);
     window.dispatchEvent(new Event("resize"));
+  }
+
+  // The enlarged still: the page's #lightbox, made a modal dialog here. It takes the focus (its Close button), closes
+  // on Esc, a click anywhere or Close, keeps Tab inside, and gives the focus back to the figure that opened it.
+  var lb = $("lightbox"), lbReturn = null;
+  function lbIsOpen() { return !!lb && lb.classList.contains("on"); }
+  function lbOpen(src, alt, from) {
+    if (!lb) return;
+    if (!lb._dialog) {
+      lb._dialog = true;
+      lb.setAttribute("role", "dialog"); lb.setAttribute("aria-modal", "true"); lb.setAttribute("aria-label", "Enlarged figure");
+      var x = document.createElement("button"); x.type = "button"; x.className = "lb-close"; x.textContent = "Close";
+      x.style.cssText = "position:absolute;top:12px;right:14px;font-family:inherit;font-weight:600;font-size:1rem;line-height:1;color:#fff;background:rgba(0,0,0,0.55);border:1px solid rgba(255,255,255,0.7);border-radius:6px;padding:0.55rem 0.95rem;cursor:pointer";
+      lb.appendChild(x);
+      lb.addEventListener("click", lbClose);
+      lb.addEventListener("keydown", function (e) {
+        if (e.key === "Escape") { e.preventDefault(); lbClose(); }
+        else if (e.key === "Tab") { e.preventDefault(); x.focus(); }         // the one control in the dialog
+      });
+    }
+    var pic = lb.querySelector("img"); pic.src = src; pic.alt = alt || "";
+    lbReturn = from || null;
+    lb.classList.add("on");
+    lb.querySelector(".lb-close").focus({ preventScroll: true });
+  }
+  function lbClose() {
+    if (!lbIsOpen()) return;
+    lb.classList.remove("on");
+    if (lbReturn && document.contains(lbReturn)) lbReturn.focus({ preventScroll: true });
+    lbReturn = null;
   }
 
   // "Related plots": a strip under the figure of products elsewhere on the site
@@ -365,7 +424,7 @@
           if (!es.some(function (e) { return e.isIntersecting; })) return;
           var tries = 0, check = function () {
             if (relWanted) return;
-            var fr = document.querySelector("#stage iframe"), im = document.querySelector("#stage > img");
+            var fr = document.querySelector("#stage iframe"), im = document.querySelector("#stage > .ss-zoom img");
             // an embed not sized yet, or a figure still downloading: the box above the strip will still grow
             if (((fr && fr.style.aspectRatio !== "auto") || (im && !im.complete)) && ++tries < 20) { setTimeout(check, 800); return; }
             var r = relBox.getBoundingClientRect();
@@ -449,20 +508,43 @@
     if (saved === "1") set(true);
     else { b.textContent = "Larger"; b.title = "Hide the list of plots and use the full width"; b.setAttribute("aria-pressed", "false"); }
   })();
+  // Keys work the viewer only where the reader is working it: ← → step the deepest option row while the focus is on
+  // the list of plots, the option pills, the prev/next bar or the figure; ↑ ↓ move through the list while the focus is
+  // in it, and otherwise scroll the page as usual. Never with a modifier (Alt+← is Back) or from a form control.
   addEventListener("keydown", function (e) {
-    if (e.target && /INPUT|SELECT|TEXTAREA/.test(e.target.tagName)) return;
+    if (lbIsOpen()) { if (e.key === "Escape") { e.preventDefault(); lbClose(); } return; }
+    if (e.defaultPrevented || e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return;
     if (sheet && !sheet.hidden) return;
-    if (e.key === "ArrowRight") { step(1); e.preventDefault(); } else if (e.key === "ArrowLeft") { step(-1); e.preventDefault(); }
-    else if (e.key === "ArrowDown") { stepProduct(1); e.preventDefault(); } else if (e.key === "ArrowUp") { stepProduct(-1); e.preventDefault(); }
-    else if (e.key === "Escape") { $("lightbox").classList.remove("on"); }
+    var t = e.target; if (!t || !t.closest || /INPUT|SELECT|TEXTAREA/.test(t.tagName) || t.isContentEditable) return;
+    var inList = !!t.closest("#rail") && !t.closest(".ss-pick"), inBar = !!t.closest(".ss-layout .crumb, .ss-layout .opts, #stage > .ss-zoom, .ss-pick");
+    if ((e.key === "ArrowRight" || e.key === "ArrowLeft") && (inList || inBar)) { step(e.key === "ArrowRight" ? 1 : -1); e.preventDefault(); }
+    else if ((e.key === "ArrowDown" || e.key === "ArrowUp") && inList) { stepProduct(e.key === "ArrowDown" ? 1 : -1); e.preventDefault(); }
   });
-  $("lightbox").onclick = function () { this.classList.remove("on"); };
+  // A stamp more than STALE_K update intervals old says so. The loops with a footer stamp (the circulation and
+  // stratosphere pages) are rebuilt each 00/12Z cycle, 12 h, except those listed by manifest: GEOS FP makes one
+  // forecast a day.
+  var STALE_K = 3, CADENCE_H = { _: 12, "geos_pv_manifest.json": 24 };
+  function stampText(x, f) {
+    var t = String(x.text || ""), at = +x.at, mf = "";
+    try { mf = new URL(f.src, location.href).searchParams.get("manifest") || ""; } catch (e) {}
+    var cad = CADENCE_H[mf] || CADENCE_H._, age = Date.now() - at;
+    if (!t || !(at > 0) || age <= STALE_K * cad * 3600e3) return t;
+    var h = Math.floor(age / 3600e3);
+    return t + " · " + (h >= 48 ? Math.floor(h / 24) + " days" : h + " h") + " old; this product normally updates every " + cad + " h";
+  }
   addEventListener("message", function (e) {
     var x = e.data; if (!x) return;
     var f = document.querySelector("#stage iframe");
     if (x.type === "sstAnimStamp") {               // the loop on stage names its own run (sst_anim.html postStamp)
       var ss = $("stage-stamp");
-      if (ss && f && f.contentWindow === e.source && e.origin === location.origin) ss.textContent = String(x.text || "");
+      if (ss && f && f.contentWindow === e.source && e.origin === location.origin) ss.textContent = stampText(x, f);
+      return;
+    }
+    // the loop on stage asks for its frame enlarged (sst_anim.html): the stage's own lightbox, unless the page runs
+    // lightbox.js, which answers the same message
+    if (x.type === "lb-show") {
+      if (!window.LB_show && f && f.contentWindow === e.source && e.origin === location.origin && typeof x.src === "string")
+        lbOpen(x.src, P[sel.p].label + (typeof x.caption === "string" && x.caption ? ", " + x.caption : ""), f);
       return;
     }
     if (x.type !== "sstAnimHeight") return;

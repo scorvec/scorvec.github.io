@@ -6,10 +6,12 @@
 <title>{{TITLE}}</title>
 <meta name="description" content="{{DESC}}">
 <link rel="canonical" href="{{CANONICAL}}">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <meta property="og:type" content="website">
 <meta property="og:title" content="{{TITLE}}">
 <meta property="og:description" content="{{DESC}}">
 <meta property="og:url" content="{{CANONICAL}}">
+<meta property="og:image" content="{{IMAGE}}">
 <meta property="og:site_name" content="Shawn Corvec &mdash; Weather &amp; Climate Monitors">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="{{TITLE}}">
@@ -344,7 +346,7 @@
     color: var(--accent);
     transition: background 0.15s, color 0.15s, border-color 0.15s;
   }
-  .plot-deck .deck-tabs button:hover { background: #ecdfd4; border-color: var(--accent-hi); color: var(--accent-hi); }
+  .plot-deck .deck-tabs button:hover { background: #ecdfd4; border-color: var(--accent-hi); color: var(--accent); }   /* --accent-hi text is 3.8:1 on the hover fill */
   .plot-deck .deck-tabs button.on {
     background: var(--accent); border-color: var(--accent); color: #fff;
     box-shadow: 0 1px 5px rgba(138,75,42,0.38);

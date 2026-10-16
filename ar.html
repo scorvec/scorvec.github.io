@@ -3,9 +3,10 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Atmospheric Rivers &mdash; IVT from AIFS, IFS, GFS and GDPS, ensemble AR probabilities, weeks 3&ndash;5 &middot; Shawn Corvec</title>
-<meta name="description" content="Atmospheric river forecasts: integrated vapour transport maps 6-hourly to day 7 from ECMWF AIFS and IFS, NCEP GFS and ECCC GDPS, coastline IVT and AR-scale ranks along the West Coast, AR probabilities to day 15 from four ensembles (AIFS-ENS, IFS-ENS, GEFS, GEPS) and their equal-weight blend, and weeks 3–5 AR-frequency anomalies from the GEFS extended run against its reforecast climate.">
+<title>Atmospheric Rivers &mdash; IVT Maps and AR Probabilities &middot; Shawn Corvec</title>
+<meta name="description" content="Atmospheric river forecasts: IVT maps to day 7 from AIFS, IFS, GFS and GDPS, West Coast landfall and AR-scale ranks, ensemble AR odds to day 15, and weeks 3–5.">
 <link rel="canonical" href="https://scorvec.com/ar.html">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <meta property="og:type" content="website">
 <meta property="og:title" content="Atmospheric rivers — IVT maps, West Coast landfall and AR probabilities">
 <meta property="og:description" content="Deterministic IVT from four models to day 7, ensemble AR probabilities to day 15, and GEFS weeks 3–5 AR-frequency anomalies.">
@@ -69,6 +70,7 @@
 </head>
 <body>
 <!-- sh:start -->
+<a class="skip-link" href="#main">Skip to main content</a>
 <header class="sh" id="site-header">
   <div class="sh-in">
     <a class="sh-brand" href="/">Shawn Corvec</a>
@@ -154,7 +156,7 @@
           <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g3">Weeks to seasons</button>
           <div class="sh-menu sh-menu--cols" id="sh-g3">
             <div>
-              <h3>Weeks 2–5</h3>
+              <h3>Extended range</h3>
               <ul>
                 <li><a href="/subseasonal.html">GEPS extended ensemble</a></li>
                 <li><a href="/gefs.html">GEFS extended ensemble</a></li>
@@ -179,7 +181,7 @@
                 <li><a href="/enso.html#imp_reg">ENSO impacts on the Americas</a></li>
                 <li><a href="/mjo.html#mi">MJO impacts</a></li>
                 <li><a href="/stratosphere.html#shwinters">Stratosphere history</a></li>
-                <li><a href="/aifs-aam-budget.html">AINWP and conservation</a></li>
+                <li><a href="/aifs-aam-budget.html">AI models and conservation laws</a></li>
                 <li><a href="/torque-enso.html">El Niño and angular momentum</a></li>
                 <li><a href="/topics/">Explainers</a></li>
               </ul>
@@ -187,7 +189,7 @@
             <div>
               <h3>Verification</h3>
               <ul>
-                <li><a href="/aifs-verify.html">AIFS single versus member 0</a></li>
+                <li><a href="/aifs-verify.html">AIFS single versus ensemble control</a></li>
               </ul>
             </div>
           </div>
@@ -223,7 +225,7 @@
   </div>
 </header>
 <!-- sh:end -->
-<main>
+<main id="main">
   <p class="kicker">Four models to day 7, four ensembles to day 15, GEFS weeks 3&ndash;5</p>
   <h1>Atmospheric rivers</h1>
   <p class="lede">Integrated vapour transport (IVT), the moisture carried sideways through the column, is the variable atmospheric rivers are defined by. It is computed here for each model from its humidity and wind levels. The page runs from the four deterministic models to day 7, through four ensembles to day 15, to the GEFS extended run in weeks 3&ndash;5, where only differences from the model&rsquo;s own climate that pass a significance test are drawn.</p>
@@ -239,8 +241,42 @@
       <p class="cap" id="cap"></p>
       <div id="about"></div>
       <p class="hint"><span class="kbd">&larr;</span> <span class="kbd">&rarr;</span> step through the options &middot; <span class="kbd">&uarr;</span> <span class="kbd">&darr;</span> change figure &middot; click a still to enlarge</p>
+<!-- plots:start -->
+<details class="about" id="every-plot">
+<summary>Every plot on this page (9)</summary>
+<h2>IVT maps, days 1–7</h2>
+<p><a href="#det"><b>Integrated vapour transport</b></a> &middot; AIFS · IFS · GFS · GDPS<br>
+Each map is the model&rsquo;s own IVT, (1/g)&thinsp;|&int;&thinsp;q&thinsp;<b>V</b>&thinsp;dp| from 1000 to 300&nbsp;hPa, integrated with the trapezoid rule over the pressure levels the model publishes. Where the ground is higher than a level, that level is left out and the lowest layer starts at the surface pressure. Without this step, the extrapolated values that pressure-level files carry below the Sierra Nevada, the Cascades and the Rockies would add transport that is not there. The 1000&nbsp;hPa cap is the same for every model, so over the ocean the thin layer below 1000&nbsp;hPa is left out by all four alike.</p>
+<h2>West Coast landfall, days 1–7</h2>
+<p><a href="#detcoast"><b>Coastline IVT</b></a> &middot; latitude against time<br>
+The landfall view of the same IVT: latitude along the coast against time, read at the first ocean point west of the coastline on every 0.25&deg; of latitude from Baja California to southeast Alaska. This is the same transect the ensemble charts use. Black contours mark 250, 500, 750 and 1000. A river that stalls shows as a horizontal band; one sweeping down the coast shows as a diagonal.</p>
+<p><a href="#detscale"><b>AR scale at the coast</b></a> &middot; Ralph rank by point<br>
+The AR scale of Ralph et&nbsp;al. (2019, <i>Bull. Amer. Meteor. Soc.</i> 100, 269&ndash;289) at eleven points 2.5&deg; apart from 30 to 55&deg;N on the coastal transect, from the chosen model&rsquo;s 6-hourly IVT. The table gives the strongest spell in the 7 days, its peak IVT, how long it stays at or above 250, when it starts, and the rank of the spell under way on each day. A spell still going at +168&nbsp;h is cut off there, so its duration, and possibly its rank, can rise in later runs. The rank comes from the computed IVT, not from CW3E&rsquo;s own landfall tool, so values can differ from theirs. Moisture around a tropical cyclone or its remnants also reaches these values (the San Diego and Baja points in early October 2026); the scale was designed for atmospheric rivers, so read such a rank as transport strength, not as an AR category.</p>
+<h2>AR probabilities, days 1–15</h2>
+<p><a href="#ens"><b>Chance of AR conditions</b></a> &middot; four ensembles and the blend<br>
+The share of members with IVT at or above 250 (AR conditions) or 500 (AR2 or stronger), 6-hourly to day 15, for each ensemble and for their equal-weight blend. The blend averages each system&rsquo;s own member share, so a 21-member ensemble counts the same as a 51-member one. It uses the valid times every system covers and leaves out any system whose run is more than 24&nbsp;hours older than the newest.</p>
+<p><a href="#enscoast"><b>Landfall odds along the coast</b></a> &middot; latitude against time<br>
+The share of members at or above 250 along the coastal transect, with the ensemble-mean IVT contoured at 250 and 500. A dashed line marks where half the members reach 500. Read the shading as the odds of AR conditions at landfall and the contours as the typical strength; individual members are in the plume view.</p>
+<p><a href="#plume"><b>Member plumes at the coast</b></a> &middot; IVT at eleven points<br>
+Every member&rsquo;s estimated IVT at the chosen coastal point, 6-hourly to day 15, with the ensemble median and the 10&ndash;90&nbsp;% band. Reference lines mark the AR-scale steps at 250, 500, 750 and 1000. The estimate is calibrated per system per run; see the ensemble maps for how.</p>
+<p><a href="#ensscale"><b>AR-scale odds by day</b></a> &middot; P(≥ AR1), P(≥ AR3)<br>
+For each member, every AR spell at the point is rated on the Ralph scale over its whole length within the forecast, and its rank is credited to every UTC day the spell touches. The table shows the share of members with an AR1-or-stronger (or AR3-or-stronger) spell on each day. The blend averages the systems equally, on the days every system covers in full. Spells cut off by the start or end of a forecast are rated on the part inside it.</p>
+<h2>Weeks 3–5</h2>
+<p><a href="#ext"><b>AR frequency against the model's climate</b></a> &middot; GEFS extended, significant only<br>
+<b>What is shown.</b> AR frequency is the share of a week&rsquo;s 28 six-hourly times with estimated IVT&nbsp;&ge;&nbsp;250. Here it comes from the 31-member GEFS 00&nbsp;UTC extended run and is shown as the difference from GEFS&rsquo;s own reforecast climate at the same lead. That climate is the GEFSv12 reforecast 2000&ndash;2019: Wednesday 35-day starts within &plusmn;15 days of this run&rsquo;s date, the control and four perturbed members. Comparing against the model&rsquo;s own reforecast removes its moisture bias and its drift with lead. The estimate uses one fixed k for the live run and the reforecast alike, so the threshold means the same on both sides. Grey contours give the climatological frequency for context. Only 20&deg;N and north is tested and shown: in the deep tropics IVT reaches 250 most of the time in the trade-wind moisture flux, which is not an atmospheric river.</p>
+<h2>Moisture</h2>
+<p><a href="#pwat"><b>Precipitable water</b></a> &middot; AIFS-ENS and IFS-ENS means<br>
+Ensemble-mean total column water (vapour plus cloud) and its anomaly against ERA5 1991&ndash;2020 at the same date and hour (three annual harmonics on a 1.5&deg; grid), 6-hourly to day 15, for AIFS-ENS and IFS-ENS. Precipitable water shows where the moisture is; IVT shows where it is moving. An ensemble mean blurs individual plumes in week 2.</p>
+</details>
+<script>document.getElementById("every-plot").addEventListener("click", function (e) {
+  var a = e.target.closest('a[href^="#"]'), st = document.querySelector(".ss-layout");
+  if (a && st) setTimeout(function () {
+    st.style.scrollMarginTop = "5rem"; st.scrollIntoView({ block: "start" });
+  }, 0);
+});</script>
+<!-- plots:end -->
       <div class="chart-card-footer">
-        <span>ECMWF AIFS, IFS, AIFS-ENS and IFS-ENS open data (CC BY 4.0, Google Cloud mirror) &middot; NOAA GFS, GEFS and GEFSv12 reforecast (AWS Open Data) &middot; ECCC GDPS and GEPS (MSC Datamart; Data Source: Environment and Climate Change Canada, <a href="https://eccc-msc.github.io/open-data/licence/readme_en/">ECCC Data Servers End-use Licence</a>) &middot; ERA5 (Copernicus C3S/ECMWF) for the precipitable-water climate &middot; coast from Natural Earth</span>
+        <span>ECMWF AIFS, IFS, AIFS-ENS and IFS-ENS open data (CC BY 4.0, Google Cloud mirror) &middot; NOAA GFS, GEFS and GEFSv12 reforecast (AWS Open Data) &middot; ECCC GDPS and GEPS (MSC Datamart; Data Source: Environment and Climate Change Canada, <a href="https://eccc-msc.github.io/open-data/licence/readme_en/">ECCC Data Servers End-use Licence</a>) &middot; ERA5 (Copernicus C3S, via WeatherBench2) for the precipitable-water climate: contains modified Copernicus Climate Change Service information 2026; neither the European Commission nor ECMWF is responsible for any use of this information &middot; coast from Natural Earth</span>
         <span id="genLabel">&nbsp;</span>
       </div>
     </section>
@@ -270,14 +306,14 @@
 <template id="about-detscale"><p>The AR scale of Ralph et&nbsp;al. (2019, <i>Bull. Amer. Meteor. Soc.</i> 100, 269&ndash;289) at eleven points 2.5&deg; apart from 30 to 55&deg;N on the coastal transect, from the chosen model&rsquo;s 6-hourly IVT. The table gives the strongest spell in the 7 days, its peak IVT, how long it stays at or above 250, when it starts, and the rank of the spell under way on each day. A spell still going at +168&nbsp;h is cut off there, so its duration, and possibly its rank, can rise in later runs. The rank comes from the computed IVT, not from CW3E&rsquo;s own landfall tool, so values can differ from theirs. Moisture around a tropical cyclone or its remnants also reaches these values (the San Diego and Baja points in early October 2026); the scale was designed for atmospheric rivers, so read such a rank as transport strength, not as an AR category.</p></template>
 <template id="about-ens"><p>The share of members with IVT at or above 250 (AR conditions) or 500 (AR2 or stronger), 6-hourly to day 15, for each ensemble and for their equal-weight blend. The blend averages each system&rsquo;s own member share, so a 21-member ensemble counts the same as a 51-member one. It uses the valid times every system covers and leaves out any system whose run is more than 24&nbsp;hours older than the newest.</p>
 <p><b>Why IVT is estimated, not computed, for the members.</b> Exact IVT needs humidity and wind on every level for every member: 6&ndash;50&nbsp;GB per ensemble per run. Each system therefore uses the estimate IVT&nbsp;&asymp;&nbsp;k&middot;W&middot;|V<sub>850</sub>|, where W is total column water (ECMWF) or precipitable water (GEFS, GEPS) and V<sub>850</sub> is the 850&nbsp;hPa wind. k is refitted every run, through the origin, against that system&rsquo;s own exact IVT for one member: the AIFS-ENS control on the 8 open-data levels; IFS-ENS member 1 (the open data have no IFS-ENS control at these steps); the GEFS control from relative humidity, temperature and wind on every level from 1000 to 300 in its two file sets; and the GEPS control, which has humidity only at 1000, 925, 850, 700, 500 and 250&nbsp;hPa, so q at 600, 400 and 300 is interpolated log-linearly in pressure (fitted every 48&nbsp;h of the run). The fit, its correlation, its error and how well the estimate hits the 250 threshold are listed under the AR-scale table. The estimate puts the vector along the 850&nbsp;hPa wind, and it misses rivers whose moisture rides above 700&nbsp;hPa.</p>
-<p>Steps are 6-hourly everywhere: every system publishes 6-hourly or finer out to 360&nbsp;h, and the finer early steps are not used, so the systems share one time axis and no step is interpolated. The earlier version of this page used the same estimate for AIFS-ENS only, at 12-hourly steps.</p></template>
-<template id="about-enscoast"><p>The share of members at or above 250 along the coastal transect, with the ensemble-mean IVT contoured at 250 and 500. A dashed line marks where half the members reach 500. Read the shading as the odds of AR conditions at landfall and the contours as the typical strength; individual members are in the plume view.</p></template>
+<p>Steps are 6-hourly everywhere: every system publishes 6-hourly or finer out to 360&nbsp;h, and the finer early steps are not used, so the systems share one time axis and no step is interpolated.</p></template>
+<template id="about-enscoast"><p>The share of members at or above 250 along the coastal transect, with the ensemble-mean IVT contoured at 250 and 500. A dashed line marks where half the members reach 500. The shading is the raw share of members (uncalibrated, not a verified probability) and the contours give the typical strength; individual members are in the plume view.</p></template>
 <template id="about-plume"><p>Every member&rsquo;s estimated IVT at the chosen coastal point, 6-hourly to day 15, with the ensemble median and the 10&ndash;90&nbsp;% band. Reference lines mark the AR-scale steps at 250, 500, 750 and 1000. The estimate is calibrated per system per run; see the ensemble maps for how.</p></template>
 <template id="about-ensscale"><p>For each member, every AR spell at the point is rated on the Ralph scale over its whole length within the forecast, and its rank is credited to every UTC day the spell touches. The table shows the share of members with an AR1-or-stronger (or AR3-or-stronger) spell on each day. The blend averages the systems equally, on the days every system covers in full. Spells cut off by the start or end of a forecast are rated on the part inside it.</p></template>
 <template id="about-ext"><p><b>What is shown.</b> AR frequency is the share of a week&rsquo;s 28 six-hourly times with estimated IVT&nbsp;&ge;&nbsp;250. Here it comes from the 31-member GEFS 00&nbsp;UTC extended run and is shown as the difference from GEFS&rsquo;s own reforecast climate at the same lead. That climate is the GEFSv12 reforecast 2000&ndash;2019: Wednesday 35-day starts within &plusmn;15 days of this run&rsquo;s date, the control and four perturbed members. Comparing against the model&rsquo;s own reforecast removes its moisture bias and its drift with lead. The estimate uses one fixed k for the live run and the reforecast alike, so the threshold means the same on both sides. Grey contours give the climatological frequency for context. Only 20&deg;N and north is tested and shown: in the deep tropics IVT reaches 250 most of the time in the trade-wind moisture flux, which is not an atmospheric river.</p>
-<p><b>Significance.</b> Each 1&deg; cell compares the 31 member frequencies with the reforecast&rsquo;s member frequencies using a two-sided Mann&ndash;Whitney U test. The Benjamini&ndash;Hochberg false-discovery rate is then held at 10&nbsp;% across the map (Wilks 2016, <i>Bull. Amer. Meteor. Soc.</i> 97, 2263&ndash;2273). Cells that fail are left blank, and a week where nothing passes says so. Passing means the forecast differs from the model&rsquo;s climate. It is <i>not</i> evidence of skill: AR occurrence forecasts beyond two weeks have low skill over the western US (DeFlorio et&nbsp;al. 2019, <i>J. Geophys. Res. Atmos.</i> 124, 11242&ndash;11265), with occasional windows tied to the MJO and QBO. Two biases are uncorrected: the reforecast base period (2000&ndash;2019) is drier than today&rsquo;s climate, and GEFS operations drift differently from the reforecast at long lead (see the GEFS page).</p>
+<p><b>Significance.</b> Each 1&deg; cell compares the 31 member frequencies with the reforecast&rsquo;s member frequencies using a two-sided Mann&ndash;Whitney U test. The Benjamini&ndash;Hochberg false-discovery rate is then held at 10&nbsp;% across the map (Wilks 2016, <i>Bull. Amer. Meteor. Soc.</i> 97, 2263&ndash;2273). Cells that fail are left blank, and a week where nothing passes says so. The test treats the reforecast samples (about 85 starts &times; 5 members) as independent; members of one start, and starts a week apart, are correlated, so the p-values run slightly low. Passing means the forecast differs from the model&rsquo;s climate. It is <i>not</i> evidence of skill: AR occurrence forecasts beyond two weeks have low skill over the western US (DeFlorio et&nbsp;al. 2019, <i>J. Geophys. Res. Atmos.</i> 124, 11242&ndash;11265), with occasional windows tied to the MJO and QBO. Two biases are uncorrected: the reforecast base period (2000&ndash;2019) is drier than today&rsquo;s climate, and GEFS operations drift differently from the reforecast at long lead (see the GEFS page).</p>
 <p>GEPS is not shown here: the GEPS reforecast the site holds has no moisture fields, so its weeks 3&ndash;5 cannot be tested against its own climate.</p></template>
-<template id="about-pwat"><p>Ensemble-mean total column water (vapour plus cloud) and its anomaly against ERA5 1991&ndash;2020 at the same date and hour (three annual harmonics on a 1.5&deg; grid), 6-hourly to day 15, for AIFS-ENS and IFS-ENS. Precipitable water shows where the moisture is; IVT shows where it is moving. An ensemble mean blurs individual plumes in week 2.</p></template>
+<template id="about-pwat"><p>Ensemble-mean total column water (vapour plus cloud) and its anomaly against ERA5 1991&ndash;2020 at the same date and hour (three annual harmonics on a 1.5&deg; grid), 6-hourly to day 15, for AIFS-ENS and IFS-ENS. Precipitable water shows where the moisture is; IVT shows where it is moving. An ensemble mean blurs individual plumes in week 2. The anomaly is taken against ERA5, not the model&rsquo;s own climate, so it also carries each model&rsquo;s moist or dry bias, which can grow with lead.</p></template>
 
 <script>
 (function () {
@@ -470,7 +506,7 @@
         <li><a href="/topics/">Explainers</a></li>
         <li><a href="/stats.html">Visitor stats</a></li>
       </ul>
-      <p class="sf-disclaimer">This site is under constant development. Nothing here is checked before publication and there is no expectation of accuracy, completeness or availability; do not rely on it for decisions. Built from open data; sources are credited on each page.</p>
+      <p class="sf-disclaimer">This site is under constant development. Its products are generated automatically and published without review by a person; each page describes its automated checks and significance tests. There is no expectation of accuracy, completeness or availability; do not rely on it for decisions. Built from open data; sources are credited on each page.</p>
     </div>
     <div class="sf-group sf-group--me">
       <p class="sf-h" role="heading" aria-level="2">Shawn Corvec</p>

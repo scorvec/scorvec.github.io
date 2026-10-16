@@ -51,12 +51,13 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
-import xarray as xr
 import matplotlib
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
+
+import c3s_grib
 
 HERE = Path(__file__).resolve().parent
 SITE_ROOT = Path(os.environ["SST_SITE_ROOT"]).resolve() if os.environ.get("SST_SITE_ROOT") else HERE.parents[1]
@@ -146,50 +147,40 @@ def _retrieve(centre, system, years, month, dest: Path, area, grid) -> bool:
     return False
 
 
-def _wmean(da, lat_rng, lon_rng=None):
-    """Cosine-latitude-weighted mean over a lat (and optional lon) box, skipna."""
-    m = (da["latitude"] >= lat_rng[0]) & (da["latitude"] <= lat_rng[1])
-    sub = da.where(m)
-    if lon_rng is not None:
-        ml = (da["longitude"] >= lon_rng[0]) & (da["longitude"] <= lon_rng[1])
-        sub = sub.where(ml)
-    w = np.cos(np.deg2rad(da["latitude"]))
-    return sub.weighted(w).mean(("latitude", "longitude"), skipna=True)
+def _box_series(path: Path, lat_rng, lon_rng) -> dict:
+    """{(number, start date, start time, lead): cosine-weighted box mean in °C} for one GRIB, NaN
+    where the box has no finite point. Read message by message (c3s_grib: NCEP's lagged ensemble
+    is a ~6 GB hypercube per file through cfgrib); lead = `forecastMonth`, 1 = the issue month."""
+    out, box = {}, None
+    for m, v, g in c3s_grib.messages(path, ("number", "dataDate", "dataTime", "forecastMonth")):
+        if box is None:  # one grid per request
+            lat, lon = np.meshgrid(g.lat, (g.lon + 180.0) % 360.0 - 180.0, indexing="ij")
+            box = (lat >= lat_rng[0]) & (lat <= lat_rng[1])
+            if lon_rng is not None:
+                box &= (lon >= lon_rng[0]) & (lon <= lon_rng[1])
+            w = np.cos(np.deg2rad(lat))
+        ok = box & np.isfinite(v)
+        key = (m["number"], m["dataDate"], m["dataTime"], m["forecastMonth"])
+        out[key] = float(w[ok] @ v[ok] / w[ok].sum()) - 273.15 if ok.any() else np.nan
+    return out
 
 
-def _box_series(path: Path, lat_rng, lon_rng):
-    """(box_mean_flat, valid_month_flat) for one GRIB — every (member × init × step)
-    cell of a cosine-weighted box mean, raveled. Model-agnostic: clean monthly-mean
-    files and lagged burst ensembles reduce identically."""
-    ds = xr.open_dataset(path, engine="cfgrib", backend_kwargs={"indexpath": ""})
-    da = ds["sst"] - 273.15
-    box = _wmean(da, lat_rng, lon_rng)
-    box_b, vt_b = xr.broadcast(box, da["valid_time"])
-    vals = np.asarray(box_b.values).ravel()
-    vtm = pd.to_datetime(np.asarray(vt_b.values).ravel()).month
-    ds.close()
-    return vals, vtm
-
-
-def _members_by_lead(n34_path: Path, trop_path: Path, start_month: int):
+def _members_by_lead(n34_path: Path, trop_path: Path):
     """{lead(1..MAXLEAD) → (n34_arr, trop_arr)} in °C — PAIRED, element-aligned.
 
-    Niño-3.4 comes from the FINE (1°) box file, the tropical mean from the COARSE
-    (5°) band file. Both requests share an identical (member × init × step)
-    structure, so their raveled series align cell-for-cell (asserted). Pool every
-    finite cell by the calendar month of its valid_time; one shared finite mask
-    keeps n34/trop paired (needed for the per-member relative index). lead = months
-    after start_month (mod-12)."""
-    n34_f, vtm = _box_series(n34_path, N34_LAT, N34_LON)
-    trop_f, vtm_t = _box_series(trop_path, TROP_LAT, None)
-    if n34_f.shape != trop_f.shape or not np.array_equal(vtm, vtm_t):
-        raise ValueError(f"N34 (1°) and tropical (5°) member grids misaligned: {n34_f.shape} vs {trop_f.shape}")
+    Niño-3.4 comes from the FINE (1°) box file, the tropical mean from the COARSE (5°) band file.
+    Both requests hold the same (member, start, lead) messages and pair by that key; a member
+    counts at a lead only where both means are finite (needed for the per-member relative index).
+    Members are ordered by (number, start) at every lead."""
+    n34 = _box_series(n34_path, N34_LAT, N34_LON)
+    trop = _box_series(trop_path, TROP_LAT, None)
+    if n34.keys() != trop.keys():
+        raise ValueError(f"N34 (1°) and tropical (5°) files hold different messages: {len(n34)} vs {len(trop)}")
     out = {}
     for L in range(1, MAXLEAD + 1):
-        want = ((vtm - start_month) % 12) == L
-        good = want & np.isfinite(n34_f) & np.isfinite(trop_f)
-        if good.any():
-            out[L] = (n34_f[good], trop_f[good])
+        keys = sorted(k for k in n34 if k[3] == L and np.isfinite(n34[k]) and np.isfinite(trop[k]))
+        if keys:
+            out[L] = (np.array([n34[k] for k in keys]), np.array([trop[k] for k in keys]))
     return out
 
 
@@ -242,7 +233,7 @@ def climatology(model, centre, system, month):
         return None
     if not _retrieve(centre, system, CLIM_YEARS, f"{month:02d}", trop_dest, AREA_TROP, GRID_TROP):
         return None
-    by_lead = _members_by_lead(n34_dest, trop_dest, month)
+    by_lead = _members_by_lead(n34_dest, trop_dest)
     if len(by_lead) < MAXLEAD:
         return None
     cn = np.array([by_lead[L][0].mean() for L in range(1, MAXLEAD + 1)])
@@ -290,7 +281,7 @@ def model_members(centre, system, ym):
     if clim is None:
         return None
     cn, ct = clim
-    by = _members_by_lead(n34_dest, trop_dest, month)
+    by = _members_by_lead(n34_dest, trop_dest)
     if len(by) < MAXLEAD:
         return None
     tab = _roni_scale_table()

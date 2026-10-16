@@ -3,8 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Do AI weather models conserve angular momentum, mass, water and energy? · Shawn Corvec</title>
-<meta name="description" content="Budget tests of ECMWF's AIFS-ENS against the physics-based IFS-ENS: does each forecast's change in atmospheric angular momentum match its own torques, and does it keep the atmosphere's dry mass, water and energy? Winter 2025–26, 30 cycles, days 1–15.">
+<title>Do AI weather models obey the conservation laws? · Shawn Corvec</title>
+<meta name="description" content="Budget tests of ECMWF's AIFS-ENS against the physics-based IFS-ENS: angular momentum against its torques, dry mass, water and energy. Winter 2025–26, days 1–15.">
 <link rel="canonical" href="https://scorvec.com/aifs-aam-budget.html">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <meta name="author" content="Shawn Corvec">
@@ -89,6 +89,7 @@
 </head>
 <body>
 <!-- sh:start -->
+<a class="skip-link" href="#main">Skip to main content</a>
 <header class="sh" id="site-header">
   <div class="sh-in">
     <a class="sh-brand" href="/">Shawn Corvec</a>
@@ -174,7 +175,7 @@
           <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g3">Weeks to seasons</button>
           <div class="sh-menu sh-menu--cols" id="sh-g3">
             <div>
-              <h3>Weeks 2–5</h3>
+              <h3>Extended range</h3>
               <ul>
                 <li><a href="/subseasonal.html">GEPS extended ensemble</a></li>
                 <li><a href="/gefs.html">GEFS extended ensemble</a></li>
@@ -199,7 +200,7 @@
                 <li><a href="/enso.html#imp_reg">ENSO impacts on the Americas</a></li>
                 <li><a href="/mjo.html#mi">MJO impacts</a></li>
                 <li><a href="/stratosphere.html#shwinters">Stratosphere history</a></li>
-                <li><a href="/aifs-aam-budget.html" aria-current="page">AINWP and conservation</a></li>
+                <li><a href="/aifs-aam-budget.html" aria-current="page">AI models and conservation laws</a></li>
                 <li><a href="/torque-enso.html">El Niño and angular momentum</a></li>
                 <li><a href="/topics/">Explainers</a></li>
               </ul>
@@ -207,7 +208,7 @@
             <div>
               <h3>Verification</h3>
               <ul>
-                <li><a href="/aifs-verify.html">AIFS single versus member 0</a></li>
+                <li><a href="/aifs-verify.html">AIFS single versus ensemble control</a></li>
               </ul>
             </div>
           </div>
@@ -243,10 +244,10 @@
   </div>
 </header>
 <!-- sh:end -->
-<main>
+<main id="main">
 
 <article class="study">
-  <p class="crumbs"><a href="/">Home</a> › Studies › AINWP and conservation</p>
+  <p class="crumbs"><a href="/">Home</a> › Studies › AI models and conservation laws</p>
   <p class="ai-note"><b>Made with Claude Code.</b> This study is a just-for-fun project: researched, coded and written entirely by Claude, Anthropic's AI model, working in Claude Code, to show what today's AI models can do with open meteorological data. It has not been peer reviewed.</p>
   <h1>Do AI weather models conserve angular momentum, mass, water and energy?</h1>
   <p class="dek">Budget tests of ECMWF's data-driven ensemble (AIFS-ENS) against its physics-based ensemble (IFS-ENS), with ERA5
@@ -261,14 +262,14 @@
     72% on days 1–10 and only 11% on days 11–15. The gap is statistically
     significant on 14 of the 15 lead days.</li>
     <li><b>Three things cause it.</b> AIFS does not conserve the total mass of the atmosphere, which is the largest
-    source of day-to-day scatter. It carries a steady excess of a few Hadley on days 1–8, a value close to the reanalysis it
-    learned from. And in week 2 it develops a pressure pattern across the Andes that should brake the winds, while its
+    source of day-to-day scatter. It carries a steady excess of a few Hadley on days 1–8, the same sign as the reanalysis it
+    learned from and about half its size. And in week 2 it develops a pressure pattern across the Andes that should brake the winds, while its
     winds do not respond.</li>
     <li><b>It does not make the forecasts worse where we could measure.</b> AIFS-ENS's angular momentum is at least
     as close to ERA5 as IFS-ENS's, and its 500 hPa height error is statistically the same. The
     inconsistency matters for anything that reads the <i>mechanism</i>: torque-based angular momentum forecasts and
     attributing a jet change to a mountain torque. It matters most past day 10.</li>
-    <li><b>Mass, water and energy</b> (AIFS-ENS gains dry air (+18 Pa of global-mean pressure by day 15, IFS-ENS +1 Pa), with runs scattering 24 Pa against IFS's 3; it rains 0.26 mm a day (9%) less than IFS-ENS at every lead; and both models lose column energy against their own analyses, AIFS-ENS slightly faster. AIFS publishes no evaporation or net fluxes, so the water and energy budgets cannot be closed directly.) <a href="#conservation">Details below</a>.</li>
+    <li><b>Mass, water and energy</b> (AIFS-ENS gains dry air (+18 Pa of global-mean pressure by day 15, IFS-ENS +1 Pa), with runs scattering 24 Pa against IFS's 3; it rains 0.26 mm a day (9%) less than IFS-ENS at every lead; and both models lose column energy against their own analyses. AIFS publishes no evaporation or net fluxes, so the water and energy budgets cannot be closed directly.) <a href="#conservation">Details below</a>.</li>
   </ul>
   </section>
 
@@ -304,8 +305,9 @@
     stress for this winter (cross-validated r = 0.94, RMSE 4.7 Hadley). Gravity-wave drag is not
     published for any forecast and stays in the residual. 1 Hadley = 10<sup>18</sup> N m.</li>
     <li><b>Statistics</b>: moving-block bootstrap over cycles (blocks of three consecutive cycles, 2,000 resamples), with
-    model differences paired on the same cycles. "Significant" means two-sided p &lt; 0.05 at that lead day. Every
-    comparison below says which lead days pass, and those that do not are marked n.s.</li>
+    model differences paired on the same cycles. "Significant" means two-sided p &lt; 0.05 at that lead day, with no correction for testing 15 lead days, so
+    a count such as "4 of 5 days" shows how consistent a difference is. Every comparison below says which lead days pass,
+    and those that do not are marked n.s.</li>
   </ul>
 
   <h2>Results</h2>
@@ -356,21 +358,21 @@
   test IFS-ENS, which closes its own budget, loses angular momentum steadily (below): its torques take out what the analysis
   puts back. Both fit the hypothesis. Where the momentum goes does not: 83% of ERA5's increment goes into the Southern
   Hemisphere, mostly over the oceans at 30–60°S, but AIFS-ENS loses Southern Hemisphere angular momentum against the analysis
-  (significant at days 3, 7 and 10) and gains it in the north. The hypothesis is better supported than before, not proven.</p>
+  (significant at 8 of the 13 leads from day 3) and gains it in the north. The hypothesis is better supported than before, not proven.</p>
 
   <h3>Cause 3: the Andes in week 2</h3>
   <p>On days 13–15 AIFS-ENS's global mountain torque is -19 Hadley below ERA5's on the same days
   (95% interval -27 to -11, significant). In the Southern Hemisphere it is
   -16 (95% interval -22 to -11, significant). For IFS-ENS
-  (-3) and AIFS single (-0) the difference is not significant. Split
-  by mountain range, -20 of the -20 Hadley sits over the Andes. AIFS-ENS builds
+  (-3) and AIFS single (0) the difference is not significant. Split
+  by mountain range, nearly all of it (about -20 Hadley) sits over the Andes. AIFS-ENS builds
   too strong a high-to-the-west, low-to-the-east pressure contrast across the range, a pattern that should brake the
   westerlies. Its angular momentum change meanwhile stays unbiased against ERA5, so the torque has no effect on its own
   winds. The per-range split is descriptive; only the global and hemispheric values were tested. For scale, the El Niño
   shift in the December–February Andes torque found in the <a href="/torque-enso.html">later study</a> is +2.9 Hadley, about
   a seventh of this week-2 bias, so an AIFS-ENS week-2 Andes torque cannot show it. This winter had weak La Niña to neutral
   conditions; how the bias behaves in an El Niño has not been tested.</p>
-  <figure id="fig6"><a href="/studies/aifs-aam-budget/mountain_ranges.webp" class="zoom"><img src="/studies/aifs-aam-budget/mountain_ranges.webp" alt="Mountain torque minus ERA5 by mountain range for days 1 to 3 and 13 to 15, AIFS-ENS, IFS-ENS and AIFS single" loading="lazy"></a><figcaption><b>Figure 6.</b> Mountain torque minus ERA5 at the same valid times, summed over each range: days 1–3 (left) and 13–15 (right). Descriptive.</figcaption></figure>
+  <figure id="fig6"><a href="/studies/aifs-aam-budget/mountain_ranges.webp" class="zoom"><img src="/studies/aifs-aam-budget/mountain_ranges.webp" alt="Mountain torque minus ERA5 by mountain range for days 1 to 3 and 13 to 15, AIFS-ENS, IFS-ENS and AIFS single" loading="lazy"></a><figcaption><b>Figure 6.</b> Mountain torque minus ERA5 at the same valid times, summed over each range: days 1–3 (left) and 13–15 (right). Descriptive. IFS-ENS's "rest" bar sits near −9 Hadley in both windows, a standing offset from day 1 rather than a drift.</figcaption></figure>
 
   <h2>Does it matter for accuracy?</h2>
   <ul>
@@ -549,7 +551,7 @@
         <li><a href="/topics/">Explainers</a></li>
         <li><a href="/stats.html">Visitor stats</a></li>
       </ul>
-      <p class="sf-disclaimer">This site is under constant development. Nothing here is checked before publication and there is no expectation of accuracy, completeness or availability; do not rely on it for decisions. Built from open data; sources are credited on each page.</p>
+      <p class="sf-disclaimer">This site is under constant development. Its products are generated automatically and published without review by a person; each page describes its automated checks and significance tests. There is no expectation of accuracy, completeness or availability; do not rely on it for decisions. Built from open data; sources are credited on each page.</p>
     </div>
     <div class="sf-group sf-group--me">
       <p class="sf-h" role="heading" aria-level="2">Shawn Corvec</p>

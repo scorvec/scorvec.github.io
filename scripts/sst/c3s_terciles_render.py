@@ -29,6 +29,7 @@ import numpy as np
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
+import c3s_grib
 import mapstyle as MS
 from c3s_nino34 import MODELS
 from c3s_terciles import VARS, issue_table
@@ -60,66 +61,51 @@ def to_ref(a: np.ndarray, lat: np.ndarray, lon: np.ndarray) -> np.ndarray:
 def period_means(path: Path, short: str, fac: float, periods: dict):
     """{period: values[sample, lat, lon]}, lat, lon, year_of_sample.
 
-    Never materialises the whole (sample, lead, lat, lon) cube: NCEP's hindcast alone is
-    ~3,000 samples x 6 leads x 180 x 360, and holding a forecast and a hindcast cube at once
-    is what the first version of this script died of (exit 137). Each lead group is averaged
-    straight out of the file instead, which is all the terciles ever need."""
-    import xarray as xr
+    A sample is one member of one start (number, start date and time), its period value the mean
+    of the period's leads (`periods` holds lead indices, 0 = the issue month). Only members holding
+    every lead of the file count, and a period only where the file has all of its leads. Read
+    message by message (c3s_grib), one period sum per sample: averaged out of cfgrib's hypercube,
+    a lagged system is mostly padding, and one NCEP period alone peaked near 25 GB. A sample's year
+    is that of its nominal start, so a January member started in December counts with the
+    hindcast year it forecasts.
 
-    ds = xr.open_dataset(
-        path,
-        engine="cfgrib",
-        chunks={"forecastMonth": 1},
-        backend_kwargs={"indexpath": "", "time_dims": ("forecastMonth", "time")},
-    )
-    name = short if short in ds.data_vars else next(iter(ds.data_vars))
-    da = ds[name]
-    dims = [d for d in ("number", "time") if d in da.dims]
-    da = da.transpose(*dims, "forecastMonth", "latitude", "longitude")
-    lat, lon = da.latitude.values, da.longitude.values
-    years = None
-    if "time" in dims:
-        yr = np.asarray([int(str(t)[:4]) for t in ds["time"].values])
-        # sample index = the flattened leading dims in THIS order, so the repeat follows it
-        years = (
-            np.tile(yr, len(ds["number"]))
-            if dims == ["number", "time"]
-            else np.repeat(yr, len(ds["number"]))
-            if "number" in dims
-            else yr
-        )
+    A file can hold several variables (the SEAS5 page's own file: t2m, tprate, sst); `short` picks
+    one, and a file of a single other variable is read as that one."""
+    keys = ("cfVarName", "number", "dataDate", "dataTime", "forecastMonth", "indexingDate")
 
-    def flat(a: np.ndarray) -> np.ndarray:
-        return a.reshape((-1, *a.shape[-2:])) if dims else a[None]
+    def read(name: str | None):
+        sums, leads, year, names, grid = {}, {}, {}, set(), None
+        for m, v, g in c3s_grib.messages(path, keys):
+            names.add(m["cfVarName"])
+            if m["cfVarName"] != name or not np.isfinite(v).any():
+                continue
+            grid, i = g, m["forecastMonth"] - 1
+            k = (m["number"], m["dataDate"], m["dataTime"])
+            leads.setdefault(k, set()).add(i)
+            year[k] = (m["indexingDate"] or m["dataDate"]) // 10000
+            for pid, want in periods.items():
+                if i in want:
+                    s = sums.setdefault(pid, {})
+                    s[k] = s[k] + v.astype(np.float32) if k in s else v.astype(np.float32)
+        return sums, leads, year, names, grid
 
-    # a lagged system (UKMO: 62 members x 31 start dates) does not fill its own hypercube, and
-    # cfgrib pads the combinations that never existed with NaN. Left in, they would count as
-    # members that are never above the tercile and quietly deflate every probability.
-    real = np.isfinite(flat(da.isel(forecastMonth=0).values)).any(axis=(1, 2))
+    sums, leads, year, names, grid = read(short)
+    if not leads and len(names) == 1:
+        sums, leads, year, names, grid = read(next(iter(names)))
+    if not leads:
+        return {}, None, None, None
+    have = set().union(*leads.values())
+    samples = sorted(k for k, s in leads.items() if s == have)
+    # one convention for every system: latitude ascending, longitude 0..360 ascending
+    lat_o, lon_o = np.argsort(grid.lat), np.argsort(grid.lon)
     out = {}
     for pid, want in periods.items():
-        idx = [i for i in want if i < da.sizes["forecastMonth"]]
-        if not idx:
+        if not set(want) <= have:
             continue
-        m = flat(da.isel(forecastMonth=idx).mean("forecastMonth").values.astype(np.float32))[real]
-        if fac != 1.0:
-            m *= fac
-        out[pid] = m
-    ds.close()
-    if years is not None:
-        years = years[real]
-    # one convention for every system: latitude ascending, longitude 0..360 ascending
-    lon = np.where(lon < 0, lon + 360, lon)
-    o = np.argsort(lon)
-    lon = lon[o]
-    flip = lat[0] > lat[-1]
-    for pid in out:
-        out[pid] = out[pid][..., o]
-        if flip:
-            out[pid] = out[pid][..., ::-1, :]
-    if flip:
-        lat = lat[::-1]
-    return out, lat, lon, years
+        m = np.stack([sums[pid].pop(k) for k in samples]) * np.float32(fac / len(want))
+        out[pid] = m[:, lat_o][:, :, lon_o]
+    sums.clear()
+    return out, grid.lat[lat_o], grid.lon[lon_o], np.array([year[k] for k in samples])
 
 
 def bounds(h: np.ndarray, years: np.ndarray | None, detrend: bool) -> dict:

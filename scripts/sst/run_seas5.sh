@@ -81,7 +81,6 @@ build)
   step "outlook (indices, terciles, maps, polar caps)" "$PY" seas5_outlook.py build --issue "$ISSUE" --previous 3
   step "normals"                    "$PY" seas5_normals.py --issue "$ISSUE"
   step "teleconnections"            "$PY" seas5_tele.py --issue "$ISSUE"
-  step "pme regions"                "$PY" seas5_pme_regions.py --issue "$ISSUE"
   step "regimes"                    "$PY" seas5_regimes.py --issue "$ISSUE"      # after the outlook: quotes its DJF rel. Niño-3.4
   step "popT"                       "$PY" seas5_popT.py build --issue "$ISSUE"
   step "threshold days"             "$PY" seas5_extremes_build.py "$ISSUE"

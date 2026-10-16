@@ -110,7 +110,9 @@
     }
     stage.appendChild(it.el); if (it.el.classList.contains("deck-panel")) it.el.hidden = false; reveal(it.el); cur = it;
     if (window.Plotly) Array.prototype.forEach.call(it.el.querySelectorAll(".js-plotly-plot"), function (g) { try { window.Plotly.Plots.resize(g); } catch (e) {} });
-    items.forEach(function (x) { x.btn.classList.toggle("on", x === it); });
+    var back = document.activeElement && document.activeElement.closest && document.activeElement.closest(".rail button");
+    items.forEach(function (x) { x.btn.classList.toggle("on", x === it); if (x === it) x.btn.setAttribute("aria-current", "true"); else x.btn.removeAttribute("aria-current"); });
+    if (back && !it.btn.hidden) it.btn.focus({ preventScroll: true });            // the keyboard stays on the list
     path.innerHTML = '<span class="g">' + it.group + '</span> <span class="sep">&rsaquo;</span> <span class="i">' + it.label + "</span>";
     if (push && history.replaceState) history.replaceState(null, "", "#" + it.id);
     window.dispatchEvent(new Event("resize"));
@@ -118,8 +120,11 @@
   function step(k) { var i = items.indexOf(cur); show(items[(i + k + items.length) % items.length].id, true); }
   layout.querySelector(".rail-prev").addEventListener("click", function () { step(-1); });
   layout.querySelector(".rail-next").addEventListener("click", function () { step(1); });
+  // ← → step only while the focus is on the list of figures or the prev / next bar, never with a modifier (Alt+← is
+  // Back); everywhere else the keys are the page's
   document.addEventListener("keydown", function (e) {
-    if (e.target && /INPUT|SELECT|TEXTAREA/.test(e.target.tagName)) return;
+    if (e.defaultPrevented || e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return;
+    var t = e.target; if (!t || !t.closest || !t.closest(".rail, .rail-crumb")) return;
     if (e.key === "ArrowLeft") { step(-1); e.preventDefault(); } else if (e.key === "ArrowRight") { step(1); e.preventDefault(); }
   });
   window.addEventListener("hashchange", function () { var h = location.hash.slice(1); if (h && items.some(function (x) { return x.id === h; })) show(h, false); });

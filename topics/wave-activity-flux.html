@@ -3,16 +3,16 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Takaya–Nakamura wave activity flux: explainer and live 250 hPa forecast · Shawn Corvec</title>
-<meta name="description" content="What the Takaya–Nakamura wave activity flux shows about Rossby wave packets, downstream development and blocking, the equation, and a live member-averaged AIFS-ENS forecast at 250 hPa.">
+<title>Takaya–Nakamura wave activity flux, live forecast · Shawn Corvec</title>
+<meta name="description" content="What the Takaya–Nakamura wave activity flux shows about Rossby wave packets, downstream development and blocking, and a live AIFS-ENS forecast at 250 hPa.">
 <link rel="canonical" href="https://scorvec.com/topics/wave-activity-flux.html">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <meta name="author" content="Shawn Corvec">
 <meta property="og:type" content="article">
-<meta property="og:title" content="Takaya–Nakamura wave activity flux: explainer and live 250 hPa forecast">
-<meta property="og:description" content="What the Takaya–Nakamura wave activity flux shows about Rossby wave packets, downstream development and blocking, the equation, and a live member-averaged AIFS-ENS forecast at 250 hPa.">
+<meta property="og:title" content="Takaya–Nakamura wave activity flux, live forecast">
+<meta property="og:description" content="What the Takaya–Nakamura wave activity flux shows about Rossby wave packets, downstream development and blocking, and a live AIFS-ENS forecast at 250 hPa.">
 <meta property="og:url" content="https://scorvec.com/topics/wave-activity-flux.html">
-<meta property="og:image" content="https://scorvec.com/hero-supercell-1280.webp">
+<meta property="og:image" content="https://scorvec.com/assets/sst/waf.webp">
 <meta property="og:site_name" content="Shawn Corvec">
 <meta name="twitter:card" content="summary_large_image">
 <script type="application/ld+json">
@@ -23,8 +23,8 @@
    "@type": "TechArticle",
    "@id": "https://scorvec.com/topics/wave-activity-flux.html#article",
    "headline": "Wave activity flux (Takaya–Nakamura)",
-   "name": "Takaya–Nakamura wave activity flux: explainer and live 250 hPa forecast",
-   "description": "What the Takaya–Nakamura wave activity flux shows about Rossby wave packets, downstream development and blocking, the equation, and a live member-averaged AIFS-ENS forecast at 250 hPa.",
+   "name": "Takaya–Nakamura wave activity flux, live forecast",
+   "description": "What the Takaya–Nakamura wave activity flux shows about Rossby wave packets, downstream development and blocking, and a live AIFS-ENS forecast at 250 hPa.",
    "url": "https://scorvec.com/topics/wave-activity-flux.html",
    "mainEntityOfPage": "https://scorvec.com/topics/wave-activity-flux.html",
    "inLanguage": "en",
@@ -34,7 +34,7 @@
    "publisher": {
     "@id": "https://scorvec.com/#person"
    },
-   "dateModified": "2026-10-15",
+   "dateModified": "2026-10-16",
    "about": {
     "@type": "DefinedTerm",
     "name": "Wave activity flux",
@@ -49,7 +49,7 @@
     ]
    },
    "keywords": "Wave activity flux, Takaya-Nakamura flux, Takaya-Nakamura wave activity flux, TN01, Plumb flux, Rossby wave packet, Rossby wave propagation, WAF",
-   "image": "https://scorvec.com/hero-supercell-1280.webp",
+   "image": "https://scorvec.com/assets/sst/waf.webp",
    "citation": [
     "Hoskins, B. J., and D. J. Karoly, 1981: The steady linear response of a spherical atmosphere to thermal and orographic forcing. J. Atmos. Sci., 38, 1179–1196.",
     "Plumb, R. A., 1985: On the three-dimensional propagation of stationary waves. J. Atmos. Sci., 42, 217–229.",
@@ -126,6 +126,7 @@
 </head>
 <body>
 <!-- sh:start -->
+<a class="skip-link" href="#main">Skip to main content</a>
 <header class="sh" id="site-header">
   <div class="sh-in">
     <a class="sh-brand" href="/">Shawn Corvec</a>
@@ -211,7 +212,7 @@
           <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g3">Weeks to seasons</button>
           <div class="sh-menu sh-menu--cols" id="sh-g3">
             <div>
-              <h3>Weeks 2–5</h3>
+              <h3>Extended range</h3>
               <ul>
                 <li><a href="/subseasonal.html">GEPS extended ensemble</a></li>
                 <li><a href="/gefs.html">GEFS extended ensemble</a></li>
@@ -236,7 +237,7 @@
                 <li><a href="/enso.html#imp_reg">ENSO impacts on the Americas</a></li>
                 <li><a href="/mjo.html#mi">MJO impacts</a></li>
                 <li><a href="/stratosphere.html#shwinters">Stratosphere history</a></li>
-                <li><a href="/aifs-aam-budget.html">AINWP and conservation</a></li>
+                <li><a href="/aifs-aam-budget.html">AI models and conservation laws</a></li>
                 <li><a href="/torque-enso.html">El Niño and angular momentum</a></li>
                 <li><a href="/topics/">Explainers</a></li>
               </ul>
@@ -244,7 +245,7 @@
             <div>
               <h3>Verification</h3>
               <ul>
-                <li><a href="/aifs-verify.html">AIFS single versus member 0</a></li>
+                <li><a href="/aifs-verify.html">AIFS single versus ensemble control</a></li>
               </ul>
             </div>
           </div>
@@ -280,7 +281,7 @@
   </div>
 </header>
 <!-- sh:end -->
-<main>
+<main id="main">
 <article class="topic">
   <p class="crumbs"><a href="/">Home</a> › <a href="/topics/">Explainers</a> › Wave activity flux</p>
   <p class="ai-note"><b>Made with Claude Code.</b> This explainer is a just-for-fun project: researched, coded and written entirely by Claude, Anthropic's AI model, working in Claude Code, to show what today's AI models can do with open meteorological data. It has not been peer reviewed.</p>
@@ -297,7 +298,7 @@ Niño–PNA pathway.</p>
 <p>For a basic state with horizontal wind $\mathbf{U}=(U,V)$ and a streamfunction anomaly $\psi'$, the horizontal
 flux on a pressure surface is</p>
 <p>$$\mathbf{W}=\frac{p\cos\phi}{2\,|\mathbf{U}|}\begin{pmatrix}U(\psi_x'^2-\psi'\psi_{xx}')+V(\psi_x'\psi_y'-\psi'\psi_{xy}')\\[2pt]U(\psi_x'\psi_y'-\psi'\psi_{xy}')+V(\psi_y'^2-\psi'\psi_{yy}')\end{pmatrix}$$</p>
-<p>It generalizes Plumb's (1985) flux for stationary waves on a zonal flow to a zonally varying basic state and to
+<p>Here $p$ is pressure divided by 1000 hPa (0.25 at 250 hPa). It generalizes Plumb's (1985) flux for stationary waves on a zonal flow to a zonally varying basic state and to
 slowly migrating waves. It is <i>phase-independent</i>: it does not oscillate between ridge and trough, so packets
 can be followed without averaging over a wavelength.</p>
 
@@ -305,7 +306,8 @@ can be followed without averaging over a wavelength.</p>
 <ul>
 <li>Arrows arcing along the jet are a wave train; follow them to see where a disturbance will be felt next.</li>
 <li>Where the arrows converge and slow down, the wave amplifies: that is where ridges build and blocks form.</li>
-<li>A packet leaving the tropical Pacific toward North America is the tropical heating reaching the extratropics.</li>
+<li>A packet arcing from the subtropical Pacific toward North America is often tropical heating reaching the
+extratropics; the live map starts at 20° latitude.</li>
 </ul>
 
 <h2>The live forecast</h2>
@@ -314,18 +316,19 @@ ensemble members at every day to day 15, and then averaged. Because the flux is 
 ensemble mean would fade with lead time as the members decorrelate, while the mean of the members' fluxes keeps the
 packets that are actually forecast. Each member's $\psi'$ is smoothed with a 5-day running mean along the forecast,
 because the theory is for quasi-stationary waves. The basic state is the ERA5 (Hersbach et al., 2020) 1991–2020 climatology plus the 30-day
-mean anomaly of the AIFS analyses, and shading is hatched where fewer than 60 % of members agree on the sign of the
-divergence.</p>
+mean anomaly of the AIFS analyses. The flux is masked equatorward of 20° and where the basic-state wind is below
+3 m/s, since the theory needs a westerly waveguide, and shading is hatched where fewer than 60 % of members agree on the
+sign of the divergence.</p>
   <a class="live" href="/circulation.html#waf">Open the wave activity flux in the circulation viewer</a>
 </article>
 <div class="figs">
-<figure><iframe data-src="/sst_anim.html?embed=1&manifest=waf_manifest.json&region=waf" title="Takaya–Nakamura wave activity flux at 250 hPa, AIFS-ENS member mean, days 0–15"></iframe><figcaption>Takaya–Nakamura wave activity flux at 250 hPa, AIFS-ENS member mean, days 0–15. Use the controls to step through the forecast.</figcaption></figure>
+<figure><iframe data-src="/sst_anim.html?embed=1&amp;manifest=waf_manifest.json&amp;region=waf" title="Takaya–Nakamura wave activity flux at 250 hPa, AIFS-ENS member mean, days 0–15"></iframe><figcaption>Takaya–Nakamura wave activity flux at 250 hPa, AIFS-ENS member mean, days 0–15. Use the controls to step through the forecast.</figcaption></figure>
 </div>
 <div class="topic" style="padding-top:0">
   <section class="related"><h2>Related</h2><ul><li><a href="/topics/ep-flux.html">E–P flux</a></li><li><a href="/topics/mountain-torque.html">Mountain torque</a></li><li><a href="/topics/dynamic-tropopause.html">Dynamic tropopause</a></li><li><a href="/topics/">All explainers</a></li></ul></section>
   <section><h2>References and further reading</h2><ol class="refs"><li>Hoskins, B. J., and D. J. Karoly, 1981: The steady linear response of a spherical atmosphere to thermal and orographic forcing. <i>J. Atmos. Sci.</i>, 38, 1179–1196.</li><li>Plumb, R. A., 1985: On the three-dimensional propagation of stationary waves. <i>J. Atmos. Sci.</i>, 42, 217–229.</li><li>Takaya, K., and H. Nakamura, 2001: A formulation of a phase-independent wave-activity flux for stationary and migratory quasigeostrophic eddies on a zonally varying basic flow. <i>J. Atmos. Sci.</i>, 58, 608–627.</li><li>Hersbach, H., and co-authors, 2020: The ERA5 global reanalysis. <i>Q. J. R. Meteorol. Soc.</i>, 146, 1999–2049.</li></ol></section>
   <p class="byline">Data: ECMWF open data (AIFS, AIFS-ENS): © 2026 European Centre for Medium-Range Weather Forecasts (ECMWF), source <a href="https://www.ecmwf.int">www.ecmwf.int</a>, CC BY 4.0, modified; ECMWF does not accept any liability for errors or omissions in the data, their availability, or any loss or damage arising from their use; ERA5: Copernicus Climate Change Service (C3S) / ECMWF, CC BY 4.0; contains modified Copernicus Climate Change Service information 2026; neither the European Commission nor ECMWF is responsible for any use of this information.</p>
-  <p class="byline">Written by Claude, Anthropic's AI model, at the direction of <a href="/">Shawn Corvec</a>, meteorologist. The figures on this page are live and update with each forecast cycle; the text was last revised 2026-10-15.</p>
+  <p class="byline">Written by Claude, Anthropic's AI model, at the direction of <a href="/">Shawn Corvec</a>, meteorologist. The figures on this page are live and update with each forecast cycle; the text was last revised 2026-10-16.</p>
 </div>
 </main>
 <script>
@@ -358,7 +361,7 @@ addEventListener("message", function (e) {
         <li><a href="/topics/">Explainers</a></li>
         <li><a href="/stats.html">Visitor stats</a></li>
       </ul>
-      <p class="sf-disclaimer">This site is under constant development. Nothing here is checked before publication and there is no expectation of accuracy, completeness or availability; do not rely on it for decisions. Built from open data; sources are credited on each page.</p>
+      <p class="sf-disclaimer">This site is under constant development. Its products are generated automatically and published without review by a person; each page describes its automated checks and significance tests. There is no expectation of accuracy, completeness or availability; do not rely on it for decisions. Built from open data; sources are credited on each page.</p>
     </div>
     <div class="sf-group sf-group--me">
       <p class="sf-h" role="heading" aria-level="2">Shawn Corvec</p>

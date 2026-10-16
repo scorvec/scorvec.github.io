@@ -56,6 +56,7 @@ import xarray as xr
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
+import c3s_grib
 from c3s_nino34 import MODELS as _ALL_MODELS, MERGE, _client  # one model registry, one CDS client
 from enso_models import EXCLUDE_SYSTEMS, EXCLUDE_NOTE
 
@@ -214,52 +215,27 @@ def fetch_all(issue: str) -> dict:
 def load_strip(path: Path) -> xr.DataArray:
     """Member anomalies (member, lead, lat, lon) in °C, lat ascending, lon 120..290 °E.
 
-    Read message by message with eccodes rather than through cfgrib's hypercube: a lagged
+    Read message by message (c3s_grib) rather than through cfgrib's hypercube: a lagged
     ensemble (UKMO, NCEP: 31 start dates, steps in days) becomes a mostly-empty
     number × start × step cube that way. Each GRIB message carries its own `forecastMonth`
-    (lead 1 = the issue month) and start date, so a member is one (number, start date) pair."""
-    import eccodes
-
+    (lead 1 = the issue month) and start, so a member is one (start, number) pair."""
     fields, grid = {}, None
-    with open(path, "rb") as fh:
-        while True:
-            h = eccodes.codes_grib_new_from_file(fh)
-            if h is None:
-                break
-            try:
-                if grid is None:
-                    grid = dict(
-                        ni=eccodes.codes_get(h, "Ni"),
-                        nj=eccodes.codes_get(h, "Nj"),
-                        la1=eccodes.codes_get(h, "latitudeOfFirstGridPointInDegrees"),
-                        la2=eccodes.codes_get(h, "latitudeOfLastGridPointInDegrees"),
-                        lo1=eccodes.codes_get(h, "longitudeOfFirstGridPointInDegrees"),
-                        lo2=eccodes.codes_get(h, "longitudeOfLastGridPointInDegrees"),
-                        miss=eccodes.codes_get(h, "missingValue"),
-                    )
-                key = (int(eccodes.codes_get(h, "dataDate")), int(eccodes.codes_get(h, "number")))
-                lead = int(eccodes.codes_get(h, "forecastMonth"))
-                v = eccodes.codes_get_values(h).astype("float64")
-                v[v == grid["miss"]] = np.nan
-                fields.setdefault(key, {})[lead] = v.reshape(grid["nj"], grid["ni"])
-            finally:
-                eccodes.codes_release(h)
+    for m, v, g in c3s_grib.messages(path, ("dataDate", "dataTime", "number", "forecastMonth")):
+        fields.setdefault((m["dataDate"], m["dataTime"], m["number"]), {})[m["forecastMonth"]] = v
+        grid = g
     nl = len(LEADS)
     keys = sorted(k for k, d in fields.items() if all(L in d for L in range(1, nl + 1)))
     if not keys:
         raise ValueError(f"{path.name}: no member has all {nl} leads")
     x = np.stack([np.stack([fields[k][L] for L in range(1, nl + 1)]) for k in keys])
-    lat = np.linspace(grid["la1"], grid["la2"], grid["nj"])
-    lo2 = grid["lo2"] if grid["lo2"] > grid["lo1"] else grid["lo2"] + 360
-    lon = np.linspace(grid["lo1"], lo2, grid["ni"]) % 360
     da = xr.DataArray(
         x,
         dims=("member", "lead", "latitude", "longitude"),
         coords=dict(
             member=np.arange(len(keys)),
             lead=np.arange(1, nl + 1),
-            latitude=np.round(lat, 3),
-            longitude=np.round(lon, 3),
+            latitude=np.round(grid.lat, 3),
+            longitude=np.round(grid.lon, 3),
         ),
     )
     return da.sortby("latitude")
@@ -579,46 +555,22 @@ def collect(issue: str, obs: dict, eof: dict) -> dict:
 
 # ─────────────────────────────────────────────────────────────────────────── hindcast test
 def load_hindcast(path: Path) -> tuple[dict, np.ndarray, np.ndarray]:
-    """{year: (member, lead, lat, lon) raw SST in °C}, lat, lon — members are (start date, number)
-    pairs, grouped by the year of the start (September starts: lagged dates fall in Aug/Sep)."""
-    import eccodes
-
-    fields, grid = {}, None
-    with open(path, "rb") as fh:
-        while True:
-            h = eccodes.codes_grib_new_from_file(fh)
-            if h is None:
-                break
-            try:
-                if grid is None:
-                    grid = dict(
-                        ni=eccodes.codes_get(h, "Ni"),
-                        nj=eccodes.codes_get(h, "Nj"),
-                        la1=eccodes.codes_get(h, "latitudeOfFirstGridPointInDegrees"),
-                        la2=eccodes.codes_get(h, "latitudeOfLastGridPointInDegrees"),
-                        lo1=eccodes.codes_get(h, "longitudeOfFirstGridPointInDegrees"),
-                        lo2=eccodes.codes_get(h, "longitudeOfLastGridPointInDegrees"),
-                        miss=eccodes.codes_get(h, "missingValue"),
-                    )
-                dd = int(eccodes.codes_get(h, "dataDate"))
-                key = (dd, int(eccodes.codes_get(h, "number")))
-                v = eccodes.codes_get_values(h).astype("float64")
-                v[v == grid["miss"]] = np.nan
-                fields.setdefault(key, {})[int(eccodes.codes_get(h, "forecastMonth"))] = (
-                    v.reshape(grid["nj"], grid["ni"]) - 273.15
-                )
-            finally:
-                eccodes.codes_release(h)
+    """{year: (member, lead, lat, lon) raw SST in °C}, lat, lon — members are (start, number)
+    pairs, grouped by the year of their NOMINAL start (indexingDate): a lagged January member
+    started in December forecasts the next year's season."""
+    fields, year, grid = {}, {}, None
+    keys = ("dataDate", "dataTime", "number", "forecastMonth", "indexingDate")
+    for m, v, g in c3s_grib.messages(path, keys):
+        grid, k = g, (m["dataDate"], m["dataTime"], m["number"])
+        fields.setdefault(k, {})[m["forecastMonth"]] = v - 273.15
+        year[k] = (m["indexingDate"] or m["dataDate"]) // 10000
     nl = len(LEADS)
     by_year = {}
     for k in sorted(fields):
         if all(L in fields[k] for L in range(1, nl + 1)):
-            by_year.setdefault(k[0] // 10000, []).append(np.stack([fields[k][L] for L in range(1, nl + 1)]))
-    lat = np.linspace(grid["la1"], grid["la2"], grid["nj"])
-    lo2 = grid["lo2"] if grid["lo2"] > grid["lo1"] else grid["lo2"] + 360
-    lon = np.linspace(grid["lo1"], lo2, grid["ni"]) % 360
-    order = np.argsort(lat)
-    return ({y: np.stack(v)[:, :, order] for y, v in by_year.items()}, lat[order], lon)
+            by_year.setdefault(year[k], []).append(np.stack([fields[k][L] for L in range(1, nl + 1)]))
+    order = np.argsort(grid.lat)
+    return ({y: np.stack(v)[:, :, order] for y, v in by_year.items()}, grid.lat[order], grid.lon)
 
 
 def hindcast_indices(centre: str, system: str, month: int, obs: dict, eof: dict) -> dict | None:

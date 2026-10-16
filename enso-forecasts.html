@@ -3,17 +3,19 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ENSO Forecasts &mdash; Peak Strength, Timing and How East-Based &middot; El Ni&ntilde;o Monitor</title>
-<meta name="description" content="The C3S multi-model El Niño outlook in plain language: seven seasonal models and every ensemble member, the chance of each peak strength on ONI and RONI, how east-based the event will be (Takahashi E and C indices), how the forecast has changed issue to issue, and how it compares with every El Niño since 1950.">
+<title>ENSO Forecasts &mdash; How Strong, When, How East-Based &middot; Shawn Corvec</title>
+<meta name="description" content="The C3S multi-model El Niño outlook in plain language: every model and member, the odds of each peak strength on ONI and RONI, and how east-based it will be.">
 <link rel="canonical" href="https://scorvec.com/enso-forecasts.html">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <meta property="og:type" content="website">
-<meta property="og:title" content="ENSO Forecasts &mdash; Peak Strength, Timing and How East-Based &middot; El Ni&ntilde;o Monitor">
-<meta property="og:description" content="The C3S multi-model El Niño outlook in plain language: seven seasonal models and every ensemble member, the chance of each peak strength on ONI and RONI, how east-based the event will be (Takahashi E and C indices), how the forecast has changed issue to issue, and how it compares with every El Niño since 1950.">
+<meta property="og:title" content="ENSO Forecasts &mdash; How Strong, When, How East-Based &middot; Shawn Corvec">
+<meta property="og:description" content="The C3S multi-model El Niño outlook in plain language: every model and member, the odds of each peak strength on ONI and RONI, and how east-based it will be.">
 <meta property="og:url" content="https://scorvec.com/enso-forecasts.html">
+<meta property="og:image" content="https://scorvec.com/assets/sst/c3s_nino34.webp">
 <meta property="og:site_name" content="Shawn Corvec &mdash; Weather &amp; Climate Monitors">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="ENSO Forecasts &mdash; Peak Strength, Timing and How East-Based &middot; El Ni&ntilde;o Monitor">
-<meta name="twitter:description" content="The C3S multi-model El Niño outlook in plain language: seven seasonal models and every ensemble member, the chance of each peak strength on ONI and RONI, how east-based the event will be (Takahashi E and C indices), how the forecast has changed issue to issue, and how it compares with every El Niño since 1950.">
+<meta name="twitter:title" content="ENSO Forecasts &mdash; How Strong, When, How East-Based &middot; Shawn Corvec">
+<meta name="twitter:description" content="The C3S multi-model El Niño outlook in plain language: every model and member, the odds of each peak strength on ONI and RONI, and how east-based it will be.">
 <link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;1,400&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css" integrity="sha384-nB0miv6/jRmo5UMMR1wu3Gz6NLsoTkbqJghGIsx//Rlm+ZU03BU6SQNC66uf4l5+" crossorigin="anonymous">
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js" integrity="sha384-7zkQWkzuo3B5mTepMUcHkMB5jZaolc2xDwL6VFqjFALcbeS9Ggm/Yr2r3Dy4lfFg" crossorigin="anonymous"></script>
@@ -344,7 +346,7 @@
     color: var(--accent);
     transition: background 0.15s, color 0.15s, border-color 0.15s;
   }
-  .plot-deck .deck-tabs button:hover { background: #ecdfd4; border-color: var(--accent-hi); color: var(--accent-hi); }
+  .plot-deck .deck-tabs button:hover { background: #ecdfd4; border-color: var(--accent-hi); color: var(--accent); }   /* --accent-hi text is 3.8:1 on the hover fill */
   .plot-deck .deck-tabs button.on {
     background: var(--accent); border-color: var(--accent); color: #fff;
     box-shadow: 0 1px 5px rgba(138,75,42,0.38);
@@ -449,6 +451,7 @@
 <body>
 
 <!-- sh:start -->
+<a class="skip-link" href="#main">Skip to main content</a>
 <header class="sh" id="site-header">
   <div class="sh-in">
     <a class="sh-brand" href="/">Shawn Corvec</a>
@@ -534,7 +537,7 @@
           <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g3" aria-current="page">Weeks to seasons</button>
           <div class="sh-menu sh-menu--cols" id="sh-g3">
             <div>
-              <h3>Weeks 2–5</h3>
+              <h3>Extended range</h3>
               <ul>
                 <li><a href="/subseasonal.html">GEPS extended ensemble</a></li>
                 <li><a href="/gefs.html">GEFS extended ensemble</a></li>
@@ -559,7 +562,7 @@
                 <li><a href="/enso.html#imp_reg">ENSO impacts on the Americas</a></li>
                 <li><a href="/mjo.html#mi">MJO impacts</a></li>
                 <li><a href="/stratosphere.html#shwinters">Stratosphere history</a></li>
-                <li><a href="/aifs-aam-budget.html">AINWP and conservation</a></li>
+                <li><a href="/aifs-aam-budget.html">AI models and conservation laws</a></li>
                 <li><a href="/torque-enso.html">El Niño and angular momentum</a></li>
                 <li><a href="/topics/">Explainers</a></li>
               </ul>
@@ -567,7 +570,7 @@
             <div>
               <h3>Verification</h3>
               <ul>
-                <li><a href="/aifs-verify.html">AIFS single versus member 0</a></li>
+                <li><a href="/aifs-verify.html">AIFS single versus ensemble control</a></li>
               </ul>
             </div>
           </div>
@@ -732,10 +735,10 @@
   .ef .stage > .ef-sec > h2, .ef .stage > .ef-brief > h2 { margin-top: 0; }
   .ef .ss-main .hint a { color: var(--accent); }
 </style>
-<main class="ef">
+<main id="main" class="ef">
   <header>
     <h1>ENSO forecasts</h1>
-    <p class="sub" id="ef-sub">What seven seasonal forecast systems expect from El Ni&ntilde;o and La Ni&ntilde;a over the next six months, member by member. Updated each month.</p>
+    <p class="sub" id="ef-sub">What five seasonal forecast systems expect from El Ni&ntilde;o and La Ni&ntilde;a over the next six months, member by member. Updated each month.</p>
   </header>
 
   <!-- One question at a time on the shared stage viewer (assets/stage.js): the brief
@@ -763,7 +766,7 @@
     <div class="ef-brief-grid">
       <div class="ef-odds">
         <table id="ef-odds">
-          <caption>Chance the peak 3-month value reaches each level</caption>
+          <caption>Share of members whose peak 3-month value reaches each level (each model weighted equally; raw, not calibrated)</caption>
           <thead><tr><th scope="col">Level</th><th scope="col">ONI</th><th scope="col">RONI</th></tr></thead>
           <tbody><tr><td colspan="3">&hellip;</td></tr></tbody>
         </table>
@@ -782,8 +785,8 @@
   <section class="ef-sec" id="plume" aria-labelledby="plume-h">
     <h2 id="plume-h">How strong will it get?</h2>
     <p class="ef-intro">Every model&rsquo;s average forecast, their combined average in bold, and the spread of all
-    members as a shaded fan, with the observed index leading in from the left. Each model counts equally, so the
-    two models with 120-member ensembles do not outvote the rest.</p>
+    members as a shaded fan, with the observed index leading in from the left. Each model counts equally, so NCEP&rsquo;s CFSv2,
+    with about 120 members, does not outvote CanSIPS with 40.</p>
     <div class="ef-controls">
       <div class="ef-seg" role="group" aria-label="Index">
         <span>Index</span>
@@ -803,7 +806,7 @@
     </div>
     <div class="ef-panel"><div id="plumeChart" class="ef-chart" role="img" aria-label="Multi-model ENSO forecast plume"></div></div>
     <p class="ef-cap" id="plume-cap"></p>
-    <div class="ef-foot"><span>Copernicus C3S seasonal forecasts; each model&rsquo;s anomaly is taken against its own 1993&ndash;2016 hindcast. <span id="plume-cd-src" hidden>Months 7&ndash;12: CanSIPS from ECCC&rsquo;s Datamart, Data Source: Environment and Climate Change Canada.</span> Observed: NOAA CPC.</span><span id="plume-updated"></span></div>
+    <div class="ef-foot"><span>Copernicus C3S seasonal forecasts; each model&rsquo;s anomaly is taken against its own 1993&ndash;2016 hindcast. <span id="plume-cd-src" hidden>Months 7&ndash;12: CanSIPS from ECCC&rsquo;s Datamart, Data Source: Environment and Climate Change Canada.</span> Observed: NOAA CPC; open circles are this site&rsquo;s OISST v2.1 estimate for months CPC has not published.</span><span id="plume-updated"></span></div>
   </section>
 
   <!-- ── 1b. TWELVE MONTHS: CanSIPS ALONE (ECCC Datamart, scripts/sst/cansips_dd.py) ── -->
@@ -847,7 +850,7 @@
     2009&ndash;10, keep the warmth near the date line. The two index numbers below, <b>E</b> for the eastern Pacific and
     <b>C</b> for the central Pacific (Takahashi and others, 2011), measure each in standard deviations of their normal
     variability, so the same scale places this forecast among every El Ni&ntilde;o since 1950.</p>
-    <div id="flavour-empty" class="ef-empty" hidden>The east&ndash;central breakdown for this issue has not been processed yet. It appears here once this month&rsquo;s model fields are in.</div>
+    <div id="flavour-empty" class="ef-empty" hidden>The east&ndash;central breakdown for this issue has not been processed yet. It appears here once this month&rsquo;s model fields are in, usually by the middle of the month.</div>
     <div id="flavour-body">
       <p class="ef-obslead" id="ef-obslead"></p>
       <div class="ef-controls">
@@ -974,9 +977,10 @@ window.STAGE = {
     <summary>Method and sources</summary>
     <div class="body">
       <h3>The forecasts</h3>
-      <p>The Copernicus Climate Change Service (C3S) collects seasonal forecasts from ECMWF (SEAS5), the UK Met Office
-      (GloSea6), M&eacute;t&eacute;o-France (System 9), DWD (GCFS2), NCEP (CFSv2), ECCC (CanSIPS, whose two component
-      models are pooled into one) and the Australian Bureau of Meteorology (ACCESS-S2). <span id="m-excluded"></span> Each model&rsquo;s anomaly is its
+      <p>The page uses five of the seasonal forecast systems that the Copernicus Climate Change Service (C3S) collects:
+      ECMWF (SEAS5), the UK Met Office (GloSea6), M&eacute;t&eacute;o-France (System 9), NCEP (CFSv2) and ECCC (CanSIPS,
+      whose two component models are pooled into one). <span id="m-excluded">DWD (GCFS2) and the Australian Bureau of
+      Meteorology (ACCESS-S2) are left out of everything on this page (excluded for poor ENSO skill and drift).</span> Each model&rsquo;s anomaly is its
       forecast minus its own 1993&ndash;2016 hindcast average for the same start month and lead, which removes each
       model&rsquo;s drift and bias before anything is compared. The issue shown is the newest month for which at least four of the
       systems shown have published.</p>
@@ -989,15 +993,17 @@ window.STAGE = {
       continues past month six, drawn dashed over a shaded band, and the multi-model average and fan stop where the other
       systems stop. <span id="m-cdcheck"></span></p>
       <p>The multi-model average weights each model equally, and so do the shaded spreads and every probability on this
-      page: a model with 124 members counts the same as one with 40.</p>
+      page: NCEP&rsquo;s CFSv2, with about 120 members, counts the same as CanSIPS with 40.</p>
       <h3>ONI and RONI</h3>
       <p>ONI is the three-month running mean of the Ni&ntilde;o-3.4 anomaly (5&deg;N&ndash;5&deg;S, 170&ndash;120&deg;W).
       RONI is the Ni&ntilde;o-3.4 anomaly minus the 20&deg;S&ndash;20&deg;N average anomaly, rescaled month by month so
       it keeps ONI&rsquo;s thresholds. NOAA CPC made RONI its official ENSO index in February 2026. The observed values
       are CPC&rsquo;s published tables; CPC revises them for up to two months, and months after its latest value are
       estimated from NOAA OISST daily data, which is itself preliminary for about two weeks. Those months are drawn with
-      open markers. The models&rsquo; anomalies are on a 1993&ndash;2016 base and CPC&rsquo;s on 1991&ndash;2020 (ONI
-      uses shifting 30-year bases), so the two can differ by a tenth of a degree.</p>
+      open markers. The models&rsquo; anomalies are on a 1993&ndash;2016 base; CPC&rsquo;s RONI is on 1991&ndash;2020 and its ONI on
+      shifting 30-year bases. A fixed-base ONI can run well above CPC&rsquo;s: from April&ndash;June to July&ndash;September
+      2026, this site&rsquo;s fixed-base OISST estimate ran 0.06&ndash;0.39&nbsp;&deg;C above CPC&rsquo;s ONI, while the two
+      RONIs agreed to within 0.08&nbsp;&deg;C. RONI is the fairer comparison with what CPC publishes.</p>
       <h3>East or central: the E and C indices</h3>
       <p>Following Takahashi, Montecinos, Goubanova and Dewitte (2011, <i>Geophysical Research Letters</i> 38, L10704):
       the two leading patterns (EOFs) of monthly sea-surface temperature anomalies over 10&deg;S&ndash;10&deg;N,
@@ -1010,7 +1016,9 @@ window.STAGE = {
       hundredths of a degree) and projected on the observed patterns. On this page an event or a member is
       <b>east-based</b> when E exceeds C by at least 1, <b>central</b> when C exceeds E by at least 1, and <b>basin-wide</b>
       in between. With that rule 1982&ndash;83 and 1997&ndash;98 are east-based; 1972&ndash;73, 1991&ndash;92,
-      2015&ndash;16 and 2023&ndash;24 basin-wide; 2002&ndash;03, 2004&ndash;05 and 2009&ndash;10 central.</p>
+      2015&ndash;16 and 2023&ndash;24 basin-wide; 2002&ndash;03, 2004&ndash;05 and 2009&ndash;10 central. The impacts study on the
+      <a href="/enso.html#imp_ec">El Ni&ntilde;o monitor</a> splits events two ways instead (E &gt; C or not) and removes the
+      1950&ndash;2025 linear trend, so its labels and numbers for the same season differ from these.</p>
       <p>The <b>centre of the warming</b> is the anomaly-weighted mean longitude of the stretch of the equator
       (2&deg;S&ndash;2&deg;N, smoothed over 10&deg; of longitude) that is within 30% of the warmest point. A bare
       maximum jumps between two near-equal humps: December&ndash;February 2023&ndash;24 reads 102&deg;W by its
@@ -1056,11 +1064,27 @@ window.STAGE = {
         <li>NOAA CPC official ONI and RONI tables.</li>
         <li>NOAA OISST v2.1 daily, for the latest observations.</li>
       </ul>
-      <p>See also <a href="seasonal.html#sfs-plume">NOAA&rsquo;s new SFS seasonal model</a>, an independent 31-member outlook, and
+      <p>See also <a href="seasonal.html#sfs-plume">NOAA&rsquo;s experimental SFS seasonal model (beta)</a>, an independent 31-member outlook, and
       <a href="seasonal.html">anomaly maps from the same C3S systems</a>.</p>
     </div>
   </details>
 </main>
+<script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebPage",
+      "name": "ENSO forecasts: how strong, when and how east-based the El Niño will be",
+      "url": "https://scorvec.com/enso-forecasts.html",
+      "description": "The C3S multi-model El Niño outlook: every seasonal model and ensemble member, the chance of each peak strength on ONI and RONI, how east-based the event will be (Takahashi E and C indices), how the forecast has changed issue to issue, and how it compares with past El Niños.",
+      "image": "https://scorvec.com/assets/sst/c3s_nino34.webp",
+      "isPartOf": {"@type": "WebSite", "name": "Shawn Corvec", "url": "https://scorvec.com/"},
+      "author": {"@id": "https://scorvec.com/#person"},
+      "about": [
+        {"@type": "Thing", "name": "El Niño–Southern Oscillation", "sameAs": "https://en.wikipedia.org/wiki/El_Ni%C3%B1o%E2%80%93Southern_Oscillation"},
+        {"@type": "Thing", "name": "Seasonal forecast"}
+      ]
+    }
+    </script>
 <link rel="stylesheet" href="/assets/stage.css">
 <script src="/assets/stage.js" defer></script>
 
@@ -2348,7 +2372,7 @@ window.STAGE = {
     var lastM = null; for (var i = H.months.length - 1; i >= 0; i--) if (fin(arr[i])) { lastM = H.months[i]; break; }
     el("hist-updated").textContent = (key === "roni" ? "RONI" : "ONI") + " through " + (lastM ? seasonCode(lastM) + " " + lastM.slice(0, 4) : "—");
     el("hist-cap").innerHTML = "Each point is a centred 3-month average, labelled by its middle month (the value at August is July–September). " +
-      "Open circles are provisional. All years use CPC&rsquo;s published values" + (key === "oni" ? ", whose base period shifts every five years" : ", on a fixed 1991–2020 base") + ".";
+      "Open circles are provisional. All years use CPC&rsquo;s published values" + (key === "oni" ? ", whose base period shifts every five years" : ", on a fixed 1991–2020 base") + ". Event strengths in the legend are graded on the ONI peak, whichever index is shown.";
   }
 
   // ── controls ──────────────────────────────────────────────────────────────
@@ -2565,7 +2589,7 @@ window.STAGE = {
         <li><a href="/topics/">Explainers</a></li>
         <li><a href="/stats.html">Visitor stats</a></li>
       </ul>
-      <p class="sf-disclaimer">This site is under constant development. Nothing here is checked before publication and there is no expectation of accuracy, completeness or availability; do not rely on it for decisions. Built from open data; sources are credited on each page.</p>
+      <p class="sf-disclaimer">This site is under constant development. Its products are generated automatically and published without review by a person; each page describes its automated checks and significance tests. There is no expectation of accuracy, completeness or availability; do not rely on it for decisions. Built from open data; sources are credited on each page.</p>
     </div>
     <div class="sf-group sf-group--me">
       <p class="sf-h" role="heading" aria-level="2">Shawn Corvec</p>

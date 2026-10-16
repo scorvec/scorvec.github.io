@@ -3,14 +3,14 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Dynamic tropopause (2 PVU) maps: potential vorticity explainer and live forecast · Shawn Corvec</title>
-<meta name="description" content="What the dynamic tropopause is, how to read potential temperature on the 2-PVU surface, isentropic potential vorticity on 330 and 350 K, and live AIFS forecast maps to day 10.">
+<title>Dynamic tropopause (2 PVU) maps, live forecast · Shawn Corvec</title>
+<meta name="description" content="What the dynamic tropopause is, how to read θ on the 2-PVU surface and potential vorticity on 330 and 350 K, and live AIFS forecast maps to day 10.">
 <link rel="canonical" href="https://scorvec.com/topics/dynamic-tropopause.html">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <meta name="author" content="Shawn Corvec">
 <meta property="og:type" content="article">
-<meta property="og:title" content="Dynamic tropopause (2 PVU) maps: potential vorticity explainer and live forecast">
-<meta property="og:description" content="What the dynamic tropopause is, how to read potential temperature on the 2-PVU surface, isentropic potential vorticity on 330 and 350 K, and live AIFS forecast maps to day 10.">
+<meta property="og:title" content="Dynamic tropopause (2 PVU) maps, live forecast">
+<meta property="og:description" content="What the dynamic tropopause is, how to read θ on the 2-PVU surface and potential vorticity on 330 and 350 K, and live AIFS forecast maps to day 10.">
 <meta property="og:url" content="https://scorvec.com/topics/dynamic-tropopause.html">
 <meta property="og:image" content="https://scorvec.com/hero-supercell-1280.webp">
 <meta property="og:site_name" content="Shawn Corvec">
@@ -23,8 +23,8 @@
    "@type": "TechArticle",
    "@id": "https://scorvec.com/topics/dynamic-tropopause.html#article",
    "headline": "Dynamic tropopause and potential vorticity (2 PVU)",
-   "name": "Dynamic tropopause (2 PVU) maps: potential vorticity explainer and live forecast",
-   "description": "What the dynamic tropopause is, how to read potential temperature on the 2-PVU surface, isentropic potential vorticity on 330 and 350 K, and live AIFS forecast maps to day 10.",
+   "name": "Dynamic tropopause (2 PVU) maps, live forecast",
+   "description": "What the dynamic tropopause is, how to read θ on the 2-PVU surface and potential vorticity on 330 and 350 K, and live AIFS forecast maps to day 10.",
    "url": "https://scorvec.com/topics/dynamic-tropopause.html",
    "mainEntityOfPage": "https://scorvec.com/topics/dynamic-tropopause.html",
    "inLanguage": "en",
@@ -126,6 +126,7 @@
 </head>
 <body>
 <!-- sh:start -->
+<a class="skip-link" href="#main">Skip to main content</a>
 <header class="sh" id="site-header">
   <div class="sh-in">
     <a class="sh-brand" href="/">Shawn Corvec</a>
@@ -211,7 +212,7 @@
           <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g3">Weeks to seasons</button>
           <div class="sh-menu sh-menu--cols" id="sh-g3">
             <div>
-              <h3>Weeks 2–5</h3>
+              <h3>Extended range</h3>
               <ul>
                 <li><a href="/subseasonal.html">GEPS extended ensemble</a></li>
                 <li><a href="/gefs.html">GEFS extended ensemble</a></li>
@@ -236,7 +237,7 @@
                 <li><a href="/enso.html#imp_reg">ENSO impacts on the Americas</a></li>
                 <li><a href="/mjo.html#mi">MJO impacts</a></li>
                 <li><a href="/stratosphere.html#shwinters">Stratosphere history</a></li>
-                <li><a href="/aifs-aam-budget.html">AINWP and conservation</a></li>
+                <li><a href="/aifs-aam-budget.html">AI models and conservation laws</a></li>
                 <li><a href="/torque-enso.html">El Niño and angular momentum</a></li>
                 <li><a href="/topics/">Explainers</a></li>
               </ul>
@@ -244,7 +245,7 @@
             <div>
               <h3>Verification</h3>
               <ul>
-                <li><a href="/aifs-verify.html">AIFS single versus member 0</a></li>
+                <li><a href="/aifs-verify.html">AIFS single versus ensemble control</a></li>
               </ul>
             </div>
           </div>
@@ -280,7 +281,7 @@
   </div>
 </header>
 <!-- sh:end -->
-<main>
+<main id="main">
 <article class="topic">
   <p class="crumbs"><a href="/">Home</a> › <a href="/topics/">Explainers</a> › Dynamic tropopause</p>
   <p class="ai-note"><b>Made with Claude Code.</b> This explainer is a just-for-fun project: researched, coded and written entirely by Claude, Anthropic's AI model, working in Claude Code, to show what today's AI models can do with open meteorological data. It has not been peer reviewed.</p>
@@ -306,7 +307,8 @@ and subtropical jet.</li>
 </ul>
 
 <h2>The live forecast</h2>
-<p>Ertel PV is computed from the temperature and wind of AIFS ensemble member 0 on nine levels from 700 to 100 hPa,
+<p>Ertel PV is computed in pressure coordinates, keeping the tilting terms that the isentropic form above folds into
+$\zeta_\theta$, from the temperature and wind of AIFS ensemble member 0 on nine levels from 700 to 100 hPa,
 every 6 hours to day 10. A single member is used on purpose: potential vorticity does not survive ensemble averaging,
 because the mean of fifty differently placed folds is a smear. The 2-PVU surface is found by searching upward from
 700 hPa, and isentropic PV by interpolation in θ. Where PV is still below 2 PVU at 100 hPa (the deep tropics) the
@@ -315,7 +317,7 @@ on the −2-PVU surface, because PV is negative in the Southern Hemisphere.</p>
   <a class="live" href="/circulation.html#dt">Open the dynamic tropopause maps in the circulation viewer</a>
 </article>
 <div class="figs">
-<figure><iframe data-src="/sst_anim.html?embed=1&manifest=dt_manifest.json&region=dt" title="Potential temperature on the 2-PVU dynamic tropopause, AIFS member 0, 6-hourly to day 10"></iframe><figcaption>Potential temperature on the 2-PVU dynamic tropopause, AIFS member 0, 6-hourly to day 10. Use the controls to step through the forecast.</figcaption></figure>
+<figure><iframe data-src="/sst_anim.html?embed=1&amp;manifest=dt_manifest.json&amp;region=dt" title="Potential temperature on the 2-PVU dynamic tropopause, AIFS member 0, 6-hourly to day 10"></iframe><figcaption>Potential temperature on the 2-PVU dynamic tropopause, AIFS member 0, 6-hourly to day 10. Use the controls to step through the forecast.</figcaption></figure>
 </div>
 <div class="topic" style="padding-top:0">
   <section class="related"><h2>Related</h2><ul><li><a href="/topics/wave-activity-flux.html">Wave activity flux</a></li><li><a href="/topics/ep-flux.html">E–P flux</a></li><li><a href="/topics/">All explainers</a></li></ul></section>
@@ -354,7 +356,7 @@ addEventListener("message", function (e) {
         <li><a href="/topics/">Explainers</a></li>
         <li><a href="/stats.html">Visitor stats</a></li>
       </ul>
-      <p class="sf-disclaimer">This site is under constant development. Nothing here is checked before publication and there is no expectation of accuracy, completeness or availability; do not rely on it for decisions. Built from open data; sources are credited on each page.</p>
+      <p class="sf-disclaimer">This site is under constant development. Its products are generated automatically and published without review by a person; each page describes its automated checks and significance tests. There is no expectation of accuracy, completeness or availability; do not rely on it for decisions. Built from open data; sources are credited on each page.</p>
     </div>
     <div class="sf-group sf-group--me">
       <p class="sf-h" role="heading" aria-level="2">Shawn Corvec</p>

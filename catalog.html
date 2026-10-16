@@ -6,17 +6,39 @@
 <title>Every plot on the site &middot; Shawn Corvec</title>
 <meta name="description" content="A searchable contact sheet of every figure and animation on scorvec.com: filter by topic, model, forecast range and region, and jump straight to the exact view.">
 <link rel="canonical" href="https://scorvec.com/catalog.html">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <meta property="og:type" content="website">
 <meta property="og:title" content="Every plot on the site">
 <meta property="og:description" content="Every figure and animation on scorvec.com in one searchable sheet, each linked to its exact view.">
 <meta property="og:url" content="https://scorvec.com/catalog.html">
+<meta property="og:image" content="https://scorvec.com/hero-supercell-1280.webp">
+<meta name="twitter:card" content="summary_large_image">
 <!-- The catalogue page (2026-09-27, the topic redesign). The index is assets/site/catalog.json, built from the pages
      themselves by scripts/site/build_catalog.py (catalog.yml); the search is the header finder's own (window.SiteFind in
      assets/site.js), so this page and Ctrl/Cmd-K always agree. -->
+<script type="application/ld+json">
+{
+ "@context": "https://schema.org",
+ "@type": "CollectionPage",
+ "name": "Every plot on the site",
+ "url": "https://scorvec.com/catalog.html",
+ "description": "A searchable contact sheet of every figure and animation on scorvec.com: filter by topic, model, forecast range and region, and jump straight to the exact view.",
+ "image": "https://scorvec.com/hero-supercell-1280.webp",
+ "isPartOf": {
+  "@type": "WebSite",
+  "name": "Shawn Corvec",
+  "url": "https://scorvec.com/"
+ },
+ "author": {
+  "@id": "https://scorvec.com/#person"
+ }
+}
+</script>
 <script src="/assets/frames_root.js"></script>
 <style>
   :root {
     --bg: #fcfcfa; --ink: #29321f; --muted: #6f6b64; --rule: #e3e1da; --panel: #ffffff; --accent: #274b7a;
+    --muted-tint: #625e58;   /* muted text on the topic tints below: #6f6b64 falls under 4.5:1 there */
     --accent-soft: rgba(39, 75, 122, 0.08);
     --t-weather: #e3ebf3; --t-drivers: #f1e9dc; --t-outlooks: #e2ede4; --t-research: #ebe5ef; --t-tools: #eae9e3;
   }
@@ -75,10 +97,10 @@
   .ct-tile { position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: space-between; gap: 0.5rem;
              padding: 0.9rem 1rem 1rem; text-align: left; background-color: var(--tint, var(--t-tools));
              background-image: repeating-linear-gradient(135deg, rgba(40, 50, 30, 0.045) 0 1px, transparent 1px 10px); }
-  .ct-tile i { font-style: normal; font-size: 0.9rem; color: var(--muted); }
+  .ct-tile i { font-style: normal; font-size: 0.9rem; color: var(--muted-tint); }
   .ct-tile b { font-family: var(--f-serif); font-weight: 500; font-size: 1.3rem; line-height: 1.2; color: var(--ink);
                display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
-  .ct-tile span { font-size: 0.9rem; line-height: 1.4; color: var(--muted); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .ct-tile span { font-size: 0.9rem; line-height: 1.4; color: var(--muted-tint); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
   .t-weather { --tint: var(--t-weather); } .t-drivers { --tint: var(--t-drivers); } .t-outlooks { --tint: var(--t-outlooks); }
   .t-research { --tint: var(--t-research); } .t-tools { --tint: var(--t-tools); }
   .ct-l { display: block; margin-top: 0.55rem; font-size: 1.02rem; font-weight: 600; line-height: 1.3; }
@@ -117,6 +139,7 @@
 </head>
 <body>
 <!-- sh:start -->
+<a class="skip-link" href="#main">Skip to main content</a>
 <header class="sh" id="site-header">
   <div class="sh-in">
     <a class="sh-brand" href="/">Shawn Corvec</a>
@@ -202,7 +225,7 @@
           <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g3">Weeks to seasons</button>
           <div class="sh-menu sh-menu--cols" id="sh-g3">
             <div>
-              <h3>Weeks 2–5</h3>
+              <h3>Extended range</h3>
               <ul>
                 <li><a href="/subseasonal.html">GEPS extended ensemble</a></li>
                 <li><a href="/gefs.html">GEFS extended ensemble</a></li>
@@ -227,7 +250,7 @@
                 <li><a href="/enso.html#imp_reg">ENSO impacts on the Americas</a></li>
                 <li><a href="/mjo.html#mi">MJO impacts</a></li>
                 <li><a href="/stratosphere.html#shwinters">Stratosphere history</a></li>
-                <li><a href="/aifs-aam-budget.html">AINWP and conservation</a></li>
+                <li><a href="/aifs-aam-budget.html">AI models and conservation laws</a></li>
                 <li><a href="/torque-enso.html">El Niño and angular momentum</a></li>
                 <li><a href="/topics/">Explainers</a></li>
               </ul>
@@ -235,7 +258,7 @@
             <div>
               <h3>Verification</h3>
               <ul>
-                <li><a href="/aifs-verify.html">AIFS single versus member 0</a></li>
+                <li><a href="/aifs-verify.html">AIFS single versus ensemble control</a></li>
               </ul>
             </div>
           </div>
@@ -271,9 +294,9 @@
   </div>
 </header>
 <!-- sh:end -->
-<main>
+<main id="main">
   <h1>Every plot on the site</h1>
-  <p class="lede" id="lede">Every figure and animation on the site in one sheet, gathered from the pages themselves and rebuilt whenever one changes. Each card opens the exact view. Filter below, or press <kbd>Ctrl K</kbd> on any page to search from anywhere.</p>
+  <p class="lede" id="lede">The figures and animations of the site&rsquo;s forecast and analysis pages in one sheet, gathered from the pages themselves and rebuilt whenever one changes. Each card opens the exact view. Filter below, or press <kbd>Ctrl K</kbd> on any page to search from anywhere.</p>
 
   <form class="cf" id="cf" role="search" onsubmit="return false">
     <label class="cf-q"><svg viewBox="0 0 20 20" width="18" height="18" fill="none" stroke="#274b7a" stroke-width="1.8" stroke-linecap="round" aria-hidden="true" focusable="false"><circle cx="8.5" cy="8.5" r="5.5" style="fill:none"/><path d="M12.6 12.6 17 17" style="fill:none"/></svg>
@@ -537,7 +560,7 @@ document.addEventListener('DOMContentLoaded', function () {
         <li><a href="/topics/">Explainers</a></li>
         <li><a href="/stats.html">Visitor stats</a></li>
       </ul>
-      <p class="sf-disclaimer">This site is under constant development. Nothing here is checked before publication and there is no expectation of accuracy, completeness or availability; do not rely on it for decisions. Built from open data; sources are credited on each page.</p>
+      <p class="sf-disclaimer">This site is under constant development. Its products are generated automatically and published without review by a person; each page describes its automated checks and significance tests. There is no expectation of accuracy, completeness or availability; do not rely on it for decisions. Built from open data; sources are credited on each page.</p>
     </div>
     <div class="sf-group sf-group--me">
       <p class="sf-h" role="heading" aria-level="2">Shawn Corvec</p>

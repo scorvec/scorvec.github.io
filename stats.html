@@ -5,7 +5,33 @@
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Visitor Stats &amp; Map · Shawn Corvec</title>
-<meta name="description" content="Where scorvec.com's visitors come from: a daily-updated world map and site statistics from privacy-friendly, cookie-free GoatCounter analytics."><link rel="canonical" href="https://scorvec.com/stats.html">
+<meta name="description" content="Where scorvec.com's visitors come from: a daily-updated world map and site statistics from privacy-friendly, cookie-free GoatCounter analytics.">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Visitor stats and map">
+<meta property="og:description" content="Where scorvec.com's visitors come from: a daily-updated world map and site statistics from privacy-friendly, cookie-free GoatCounter analytics.">
+<meta property="og:url" content="https://scorvec.com/stats.html">
+<meta property="og:image" content="https://scorvec.com/assets/site_stats/visitor_map.webp">
+<meta property="og:site_name" content="Shawn Corvec">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="canonical" href="https://scorvec.com/stats.html">
+<script type="application/ld+json">
+{
+ "@context": "https://schema.org",
+ "@type": "WebPage",
+ "name": "Visitor stats and map",
+ "url": "https://scorvec.com/stats.html",
+ "description": "Where scorvec.com's visitors come from: a daily-updated world map and site statistics from privacy-friendly, cookie-free GoatCounter analytics.",
+ "image": "https://scorvec.com/assets/site_stats/visitor_map.webp",
+ "isPartOf": {
+  "@type": "WebSite",
+  "name": "Shawn Corvec",
+  "url": "https://scorvec.com/"
+ },
+ "author": {
+  "@id": "https://scorvec.com/#person"
+ }
+}
+</script>
 <link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;1,400&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -250,6 +276,7 @@
 <body>
 
 <!-- sh:start -->
+<a class="skip-link" href="#main">Skip to main content</a>
 <header class="sh" id="site-header">
   <div class="sh-in">
     <a class="sh-brand" href="/">Shawn Corvec</a>
@@ -335,7 +362,7 @@
           <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g3">Weeks to seasons</button>
           <div class="sh-menu sh-menu--cols" id="sh-g3">
             <div>
-              <h3>Weeks 2–5</h3>
+              <h3>Extended range</h3>
               <ul>
                 <li><a href="/subseasonal.html">GEPS extended ensemble</a></li>
                 <li><a href="/gefs.html">GEFS extended ensemble</a></li>
@@ -360,7 +387,7 @@
                 <li><a href="/enso.html#imp_reg">ENSO impacts on the Americas</a></li>
                 <li><a href="/mjo.html#mi">MJO impacts</a></li>
                 <li><a href="/stratosphere.html#shwinters">Stratosphere history</a></li>
-                <li><a href="/aifs-aam-budget.html">AINWP and conservation</a></li>
+                <li><a href="/aifs-aam-budget.html">AI models and conservation laws</a></li>
                 <li><a href="/torque-enso.html">El Niño and angular momentum</a></li>
                 <li><a href="/topics/">Explainers</a></li>
               </ul>
@@ -368,7 +395,7 @@
             <div>
               <h3>Verification</h3>
               <ul>
-                <li><a href="/aifs-verify.html">AIFS single versus member 0</a></li>
+                <li><a href="/aifs-verify.html">AIFS single versus ensemble control</a></li>
               </ul>
             </div>
           </div>
@@ -405,7 +432,7 @@
 </header>
 <!-- sh:end -->
 
-<main>
+<main id="main">
   <div class="content">
     <header class="page-header" style="margin:0.5rem 0 0.5rem;">
       <h1 style="font-family:var(--serif);font-size:1.9rem;margin:2rem 0 0.6rem;">Visitor statistics</h1>
@@ -429,6 +456,7 @@
     <div class="chart-card">
       <div class="chart-card-header">
         <h2>Most-Visited Pages (30 days)</h2>
+        <p>Until 15 November 2026 this list under-counts the pages that gained the counter only on 16 October: the homepage, the El Ni&ntilde;o, circulation, stratosphere, tropical-waves, seasonal, atmospheric-river, climate-trends and midterm pages, the catalogue, the credit-conditions index and About.</p>
       </div>
       <div class="chart-card-header"><p id="top-pages">&mdash;</p></div>
     </div>
@@ -491,7 +519,7 @@
         <li><a href="/topics/">Explainers</a></li>
         <li><a href="/stats.html">Visitor stats</a></li>
       </ul>
-      <p class="sf-disclaimer">This site is under constant development. Nothing here is checked before publication and there is no expectation of accuracy, completeness or availability; do not rely on it for decisions. Built from open data; sources are credited on each page.</p>
+      <p class="sf-disclaimer">This site is under constant development. Its products are generated automatically and published without review by a person; each page describes its automated checks and significance tests. There is no expectation of accuracy, completeness or availability; do not rely on it for decisions. Built from open data; sources are credited on each page.</p>
     </div>
     <div class="sf-group sf-group--me">
       <p class="sf-h" role="heading" aria-level="2">Shawn Corvec</p>

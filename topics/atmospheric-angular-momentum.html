@@ -3,16 +3,16 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Atmospheric angular momentum (AAM): explainer and live forecast · Shawn Corvec</title>
-<meta name="description" content="What atmospheric angular momentum measures, why it tracks El Niño and the length of day, the Global Wind Oscillation phase space, and a live AIFS-ENS forecast of relative AAM for the globe and each hemisphere.">
+<title>Atmospheric angular momentum (AAM), live forecast · Shawn Corvec</title>
+<meta name="description" content="What atmospheric angular momentum measures, why it tracks El Niño and the length of day, the GWO phase space, and a live AIFS-ENS forecast by hemisphere.">
 <link rel="canonical" href="https://scorvec.com/topics/atmospheric-angular-momentum.html">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <meta name="author" content="Shawn Corvec">
 <meta property="og:type" content="article">
-<meta property="og:title" content="Atmospheric angular momentum (AAM): explainer and live forecast">
-<meta property="og:description" content="What atmospheric angular momentum measures, why it tracks El Niño and the length of day, the Global Wind Oscillation phase space, and a live AIFS-ENS forecast of relative AAM for the globe and each hemisphere.">
+<meta property="og:title" content="Atmospheric angular momentum (AAM), live forecast">
+<meta property="og:description" content="What atmospheric angular momentum measures, why it tracks El Niño and the length of day, the GWO phase space, and a live AIFS-ENS forecast by hemisphere.">
 <meta property="og:url" content="https://scorvec.com/topics/atmospheric-angular-momentum.html">
-<meta property="og:image" content="https://scorvec.com/hero-supercell-1280.webp">
+<meta property="og:image" content="https://scorvec.com/assets/sst/aam.webp">
 <meta property="og:site_name" content="Shawn Corvec">
 <meta name="twitter:card" content="summary_large_image">
 <script type="application/ld+json">
@@ -23,8 +23,8 @@
    "@type": "TechArticle",
    "@id": "https://scorvec.com/topics/atmospheric-angular-momentum.html#article",
    "headline": "Atmospheric angular momentum (AAM)",
-   "name": "Atmospheric angular momentum (AAM): explainer and live forecast",
-   "description": "What atmospheric angular momentum measures, why it tracks El Niño and the length of day, the Global Wind Oscillation phase space, and a live AIFS-ENS forecast of relative AAM for the globe and each hemisphere.",
+   "name": "Atmospheric angular momentum (AAM), live forecast",
+   "description": "What atmospheric angular momentum measures, why it tracks El Niño and the length of day, the GWO phase space, and a live AIFS-ENS forecast by hemisphere.",
    "url": "https://scorvec.com/topics/atmospheric-angular-momentum.html",
    "mainEntityOfPage": "https://scorvec.com/topics/atmospheric-angular-momentum.html",
    "inLanguage": "en",
@@ -131,6 +131,7 @@
 </head>
 <body>
 <!-- sh:start -->
+<a class="skip-link" href="#main">Skip to main content</a>
 <header class="sh" id="site-header">
   <div class="sh-in">
     <a class="sh-brand" href="/">Shawn Corvec</a>
@@ -216,7 +217,7 @@
           <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g3">Weeks to seasons</button>
           <div class="sh-menu sh-menu--cols" id="sh-g3">
             <div>
-              <h3>Weeks 2–5</h3>
+              <h3>Extended range</h3>
               <ul>
                 <li><a href="/subseasonal.html">GEPS extended ensemble</a></li>
                 <li><a href="/gefs.html">GEFS extended ensemble</a></li>
@@ -241,7 +242,7 @@
                 <li><a href="/enso.html#imp_reg">ENSO impacts on the Americas</a></li>
                 <li><a href="/mjo.html#mi">MJO impacts</a></li>
                 <li><a href="/stratosphere.html#shwinters">Stratosphere history</a></li>
-                <li><a href="/aifs-aam-budget.html">AINWP and conservation</a></li>
+                <li><a href="/aifs-aam-budget.html">AI models and conservation laws</a></li>
                 <li><a href="/torque-enso.html">El Niño and angular momentum</a></li>
                 <li><a href="/topics/">Explainers</a></li>
               </ul>
@@ -249,7 +250,7 @@
             <div>
               <h3>Verification</h3>
               <ul>
-                <li><a href="/aifs-verify.html">AIFS single versus member 0</a></li>
+                <li><a href="/aifs-verify.html">AIFS single versus ensemble control</a></li>
               </ul>
             </div>
           </div>
@@ -285,7 +286,7 @@
   </div>
 </header>
 <!-- sh:end -->
-<main>
+<main id="main">
 <article class="topic">
   <p class="crumbs"><a href="/">Home</a> › <a href="/topics/">Explainers</a> › Atmospheric angular momentum</p>
   <p class="ai-note"><b>Made with Claude Code.</b> This explainer is a just-for-fun project: researched, coded and written entirely by Claude, Anthropic's AI model, working in Claude Code, to show what today's AI models can do with open meteorological data. It has not been peer reviewed.</p>
@@ -327,8 +328,8 @@ tendency: the hemispheric version of the Global Wind Oscillation.</p>
   <a class="live" href="/circulation.html#aam">Open the AAM product in the circulation viewer</a>
 </article>
 <div class="figs">
-<figure><img src="/assets/sst/aam.webp" alt="Global and hemispheric relative atmospheric angular momentum: observed and AIFS-ENS 15-day forecast, absolute and anomaly" loading="lazy"><figcaption>Relative AAM for the globe and each hemisphere on its 1991–2020 annual cycle, with the 15-day forecast.</figcaption></figure>
-<figure><img src="/assets/sst/aam_phase.webp" alt="Atmospheric angular momentum anomaly against its tendency: hemispheric Global Wind Oscillation phase space with the AIFS-ENS forecast" loading="lazy"><figcaption>Each hemisphere&#x27;s path through AAM anomaly and tendency, the last 75 days and the forecast.</figcaption></figure>
+<figure><img src="/assets/sst/aam.webp" alt="Global and hemispheric relative atmospheric angular momentum: observed and AIFS-ENS 15-day forecast, absolute and anomaly" loading="lazy"><figcaption>Relative AAM for the globe and each hemisphere on its 1991–2020 annual cycle, with the 15-day forecast. The observed line is ERA5 at 12 UTC every third day; it ends 5–14 days before the forecast starts because ERA5 is published late.</figcaption></figure>
+<figure><img src="/assets/sst/aam_phase.webp" alt="Atmospheric angular momentum anomaly against its tendency: hemispheric Global Wind Oscillation phase space with the AIFS-ENS forecast" loading="lazy"><figcaption>Each hemisphere&#x27;s path through AAM anomaly and tendency, the last 75 days and the forecast. The headline (days 12–15 against days 0–2) includes the model&#x27;s own drift: in July–October 2026 forecasts AIFS-ENS gained about 0.1 ×10²⁵ kg m² s⁻¹ in the Northern Hemisphere by day 15 and lost about 0.1 in the Southern by day 12, against the verifying analyses.</figcaption></figure>
 </div>
 <div class="topic" style="padding-top:0">
   <section class="related"><h2>Related</h2><ul><li><a href="/topics/mountain-torque.html">Mountain torque</a></li><li><a href="/topics/hadley-cell.html">Hadley cell</a></li><li><a href="/topics/wave-activity-flux.html">Wave activity flux</a></li><li><a href="/topics/">All explainers</a></li></ul></section>
@@ -367,7 +368,7 @@ addEventListener("message", function (e) {
         <li><a href="/topics/">Explainers</a></li>
         <li><a href="/stats.html">Visitor stats</a></li>
       </ul>
-      <p class="sf-disclaimer">This site is under constant development. Nothing here is checked before publication and there is no expectation of accuracy, completeness or availability; do not rely on it for decisions. Built from open data; sources are credited on each page.</p>
+      <p class="sf-disclaimer">This site is under constant development. Its products are generated automatically and published without review by a person; each page describes its automated checks and significance tests. There is no expectation of accuracy, completeness or availability; do not rely on it for decisions. Built from open data; sources are credited on each page.</p>
     </div>
     <div class="sf-group sf-group--me">
       <p class="sf-h" role="heading" aria-level="2">Shawn Corvec</p>

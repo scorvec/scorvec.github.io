@@ -3,17 +3,37 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>SFS Subseasonal Outlook &mdash; NOAA SFS beta2 Weeks 1&ndash;6, Against Its Own Reforecast &middot; Shawn Corvec</title>
-<meta name="description" content="NOAA's experimental Seasonal Forecast System (SFS beta2), up to six weeks: weekly anomaly maps, tercile probabilities and a daily animation for North America, South America and the globe, against its own 1991-2020 reforecast, with hindcast comparisons against GEFS, GEPS and CFSv2.">
+<title>SFS Subseasonal Outlook &mdash; NOAA SFS beta2 Weeks 1&ndash;6 &middot; Shawn Corvec</title>
+<meta name="description" content="NOAA's experimental SFS beta2 to six weeks: weekly anomaly maps, tercile probabilities and a daily loop for the Americas and the globe, against its reforecast.">
 <link rel="canonical" href="https://scorvec.com/sfs-subseasonal.html">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <meta property="og:type" content="website">
 <meta property="og:title" content="SFS subseasonal outlook, weeks 1–6">
 <meta property="og:description" content="NOAA SFS beta2 for up to six weeks against its own 1991-2020 reforecast, with its hindcast skill against GEFS, GEPS and CFSv2.">
 <meta property="og:url" content="https://scorvec.com/sfs-subseasonal.html">
+<meta property="og:image" content="https://scorvec.com/assets/sfs/sub/sfs_na_t2m_weekly.webp">
 <meta property="og:site_name" content="Shawn Corvec &mdash; Weather &amp; Climate Monitors">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="SFS subseasonal outlook, weeks 1–6">
 <meta name="twitter:description" content="NOAA SFS beta2 for up to six weeks against its own 1991-2020 reforecast, with its hindcast skill against GEFS, GEPS and CFSv2.">
+<script type="application/ld+json">
+{
+ "@context": "https://schema.org",
+ "@type": "WebPage",
+ "name": "SFS subseasonal outlook, weeks 1–6",
+ "url": "https://scorvec.com/sfs-subseasonal.html",
+ "description": "NOAA's experimental SFS beta2 to six weeks: weekly anomaly maps, tercile probabilities and a daily loop for the Americas and the globe, against its reforecast.",
+ "image": "https://scorvec.com/assets/sfs/sub/sfs_na_t2m_weekly.webp",
+ "isPartOf": {
+  "@type": "WebSite",
+  "name": "Shawn Corvec",
+  "url": "https://scorvec.com/"
+ },
+ "author": {
+  "@id": "https://scorvec.com/#person"
+ }
+}
+</script>
 <link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;1,400&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/assets/outlook.css">
 <link rel="stylesheet" href="/assets/stage.css">
@@ -55,6 +75,7 @@
 <body>
 
 <!-- sh:start -->
+<a class="skip-link" href="#main">Skip to main content</a>
 <header class="sh" id="site-header">
   <div class="sh-in">
     <a class="sh-brand" href="/">Shawn Corvec</a>
@@ -140,7 +161,7 @@
           <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g3" aria-current="page">Weeks to seasons</button>
           <div class="sh-menu sh-menu--cols" id="sh-g3">
             <div>
-              <h3>Weeks 2–5</h3>
+              <h3>Extended range</h3>
               <ul>
                 <li><a href="/subseasonal.html">GEPS extended ensemble</a></li>
                 <li><a href="/gefs.html">GEFS extended ensemble</a></li>
@@ -165,7 +186,7 @@
                 <li><a href="/enso.html#imp_reg">ENSO impacts on the Americas</a></li>
                 <li><a href="/mjo.html#mi">MJO impacts</a></li>
                 <li><a href="/stratosphere.html#shwinters">Stratosphere history</a></li>
-                <li><a href="/aifs-aam-budget.html">AINWP and conservation</a></li>
+                <li><a href="/aifs-aam-budget.html">AI models and conservation laws</a></li>
                 <li><a href="/torque-enso.html">El Niño and angular momentum</a></li>
                 <li><a href="/topics/">Explainers</a></li>
               </ul>
@@ -173,7 +194,7 @@
             <div>
               <h3>Verification</h3>
               <ul>
-                <li><a href="/aifs-verify.html">AIFS single versus member 0</a></li>
+                <li><a href="/aifs-verify.html">AIFS single versus ensemble control</a></li>
               </ul>
             </div>
           </div>
@@ -210,7 +231,7 @@
 </header>
 <!-- sh:end -->
 
-<main>
+<main id="main">
   <div class="page-header">
     <p class="eyebrow">Days 1 to 42, from NOAA's experimental SFS beta2, once a month</p>
     <h1>SFS subseasonal outlook</h1>
@@ -218,7 +239,8 @@
     runs 31 members from the first of each month. Anomalies are against <b>its own 1991&ndash;2020 reforecast</b> for the same
     start month and lead, so the model's drift is not read as a forecast. Weekly maps and terciles for weeks 1&ndash;6 and the daily
     animation, in the same layout as the <a href="/gefs.html">GEFS</a> and <a href="/subseasonal.html">GEPS</a> pages, and how its
-    hindcasts score against those two. Its monthly and seasonal forecast is on the <a href="/seasonal.html#sfs">seasonal page</a>.</p>
+    hindcasts score against those two. An issue appears about five days after the 1st, so by mid-month its first one or two weeks
+    are already past. Its monthly and seasonal forecast is on the <a href="/seasonal.html#sfs">seasonal page</a>.</p>
     <p class="gate" id="g-note" hidden style="margin:0.8rem auto 0.4rem;max-width:62rem;text-align:left"></p>
     <div class="chips">
       <div class="chip"><div class="l">issue</div><div class="v" id="g-cycle">&ndash;</div><div class="s">first of the month, 00Z</div></div>
@@ -269,11 +291,13 @@
     &mdash; 11 members from the same start date of every year 1991&ndash;2020, which removes the model's drift and its mean bias together;
     because the reforecast spans the normal period itself, no further re-basing is needed. 500 hPa height has its global mean removed so
     the circulation shows. The tercile maps count the 31 members against the terciles of the reforecast's own weekly anomalies
-    (330 per gridpoint and week). The skill masks hatch wherever the reforecast ensemble mean's anomaly correlation with ERA5, over the
-    1991&ndash;2025 starts of the same month with a leave-one-year-out climatology, is not significantly above zero (one-sided 5&nbsp;% test on the 35 years, false-discovery rate 10&nbsp;% across the map; temperature worldwide; precipitation over
-    the Northern Hemisphere only). NOAA's own published climatology files are not used: the October one
-    was found to be a copy of September's. The hindcast comparison scores SFS, GEFSv12 and GEPS on the same 38 start dates (1 September and
-    1 October, 2001&ndash;2019) as four-member means against ERA5.</p>
+    (330 per gridpoint and week), so their normal is 1991&ndash;2020, not the 2016&ndash;2025 terciles of the GEFS and GEPS pages:
+    part of any &ldquo;above normal&rdquo; here is the warming since then. The skill masks hatch wherever the reforecast ensemble mean's anomaly correlation with ERA5, over the
+    starts of the same month with a leave-one-year-out climatology, is not significantly above zero (one-sided 5&nbsp;% test, false-discovery
+    rate 10&nbsp;% across the map): temperature worldwide on the 1991&ndash;2025 starts, precipitation over the Northern Hemisphere on
+    1991&ndash;2023, the extent of the site's ERA5 precipitation store. NOAA's own published climatology files are not used: the October one
+    was found to be a copy of September's. The hindcast comparison scores SFS, GEFSv12 and GEPS on 38 starts (1 September and 1 October,
+    2001&ndash;2019; for GEFSv12 the Wednesday start within 3 days of the 1st) as four-member means against ERA5.</p>
   </section>
   <style>#credits a, #credits code { white-space: normal; overflow-wrap: anywhere; }</style>
   <section class="method-note" id="credits">
@@ -325,13 +349,13 @@ var P = {
         dom: gated,
         img: function (a,b,c) { return "assets/sfs/sub/sfs_" + a + "_" + b + "_weekly" + (c==="on" ? "_masked" : "") + ".webp"; },
         cap: function (a,b,c) { if (gated()) return ""; return "Seven-day means of the 31-member ensemble mean, anomaly against SFS's own 1991–2020 reforecast at the same lead."
-          + (c==="on" ? " Hatched where the reforecast's anomaly correlation with ERA5 for this week and start month is not significantly above zero (one-sided 5 % test, 35 years, false-discovery rate 10 % across the map); cross-hatched where there is no ERA5 truth." : ""); }},
+          + (c==="on" ? " Hatched where the reforecast's anomaly correlation with ERA5 for this week and start month is not significantly above zero (one-sided 5 % test on 35 years for temperature, 33 for precipitation; false-discovery rate 10 % across the map); cross-hatched where there is no ERA5 truth." : ""); }},
   probs: {label: "Weekly terciles — temperature & precipitation", fit: false, a: DOMAINS,
         b: {label:"Field", items:[["t2m","2 m temp"],["pr","Precip"]]},
         dom: gated,
         img: function (a,b) { return "assets/sfs/sub/sfs_" + a + "_" + b + "_prob_raw.webp"; },
-        cap: function (a,b) { if (gated()) return ""; return "Most likely tercile by week: colour is the category (blue below, grey near, red above normal), intensity its probability, from the fraction of the 31 members in each tercile of the reforecast's own weekly anomalies. Hatched: reforecast skill not significantly above zero (one-sided 5 % test, 35 years, false-discovery rate 10 %)."
-          + (b==="pr" ? " Cross-hatched: no ERA5 precipitation truth (Southern Hemisphere) or a dry climatological week." : ""); }},
+        cap: function (a,b) { if (gated()) return ""; return "Most likely tercile by week: colour is the category (blue below, grey near, red above normal), intensity its probability, from the fraction of the 31 members in each tercile of the reforecast's own 1991–2020 weekly anomalies (the GEFS and GEPS pages use 2016–2025 terciles, so part of any ‘above’ here is the warming since then). Hatched: reforecast skill not significantly above zero (one-sided 5 % test on 35 years for temperature, 33 for precipitation; false-discovery rate 10 %)."
+          + (b==="pr" ? " Cross-hatched: no precipitation truth (the site's ERA5 store holds Northern Hemisphere precipitation only, to 2023) or a dry climatological week." : ""); }},
   daily: {label: "Daily animation", a: DOMAINS,
         dom: gated,
         frame: function (a) { return "sst_anim.html?base=assets/sfs/anim/sub&manifest=sfs_sub_" + a + "_manifest.json&embed=1"; },
@@ -340,7 +364,7 @@ var P = {
   skill: {label: "Hindcast skill", fit: false,
         a: {label:"Against", items:[["acc","GEFS and GEPS"],["cfs","CFSv2"]]},
         img: function (a) { return a === "cfs" ? "assets/sfs/sub/sfs_cfs_weekly_skill.webp" : "assets/sfs/sub/sfs_hindcast_skill.webp"; },
-        cap: function (a) { if (a === "cfs") return "SFS beta2 against CFSv2, the system it is meant to replace, on 1 September and 1 October starts 1999–2025 (no 2017), each against its own hindcast climatology, verified against ERA5. CFSv2 is significantly better in weeks 1–2 for temperature, 500 hPa height and precipitation (▲); from week 3 there is no significant difference. The seasonal comparison (Niño-3.4, 3-month temperature and precipitation) is on the seasonal page, NOAA SFS group."; return "SFS beta2, GEFSv12 and GEPS hindcasts on the same 38 starts (1 September and 1 October, 2001–2019), each a four-member mean against its own hindcast climatology, verified against ERA5. SFS is clearly behind both in weeks 1–2; from week 3 the three are statistically indistinguishable and all near the limit of skill for these start months."; }},
+        cap: function (a) { if (a === "cfs") return "SFS beta2 against CFSv2, the system it is meant to replace, on 1 September and 1 October starts 1999–2025 (no 2017), each against its own hindcast climatology, verified against ERA5. CFSv2's anomaly correlation is significantly higher in weeks 1–2 for temperature, 500 hPa height and precipitation in nearly every region (▲); from week 3 there is no significant difference. The seasonal comparison (Niño-3.4, 3-month temperature and precipitation) is on the seasonal page, NOAA SFS group."; return "SFS beta2, GEFSv12 and GEPS hindcasts on 38 starts (1 September and 1 October, 2001–2019; for GEFSv12 the Wednesday start within 3 days of the 1st), each a four-member mean against its own hindcast climatology, verified against ERA5. SFS's anomaly correlation is significantly below the others' in weeks 1–2 nearly everywhere (▲); from week 3 no difference is significant and all three are near the limit of skill for these start months."; }},
   status: {label: "Daily data check", dom: function () { return "dom-status"; },
         cap: function () { return ""; }}
 };
@@ -396,7 +420,7 @@ window.STAGE = { groups: GROUPS.map(function (g) { return { label: g[0], ico: g[
         <li><a href="/topics/">Explainers</a></li>
         <li><a href="/stats.html">Visitor stats</a></li>
       </ul>
-      <p class="sf-disclaimer">This site is under constant development. Nothing here is checked before publication and there is no expectation of accuracy, completeness or availability; do not rely on it for decisions. Built from open data; sources are credited on each page.</p>
+      <p class="sf-disclaimer">This site is under constant development. Its products are generated automatically and published without review by a person; each page describes its automated checks and significance tests. There is no expectation of accuracy, completeness or availability; do not rely on it for decisions. Built from open data; sources are credited on each page.</p>
     </div>
     <div class="sf-group sf-group--me">
       <p class="sf-h" role="heading" aria-level="2">Shawn Corvec</p>

@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>MJO Forecast — AIFS-ENS RMM | Shawn Corvec</title>
-<meta name="description" content="Real-time Multivariate MJO (RMM) phase-space forecast from the ECMWF AIFS-ENS ensemble — winds plus a precipitation-based pseudo-OLR channel, following Wheeler & Hendon (2004).">
+<meta name="description" content="Real-time Multivariate MJO (RMM) forecast from the ECMWF AIFS-ENS ensemble: winds plus a precipitation-based pseudo-OLR, after Wheeler &amp; Hendon (2004).">
 <meta name="robots" content="index, follow">
 <meta property="og:title" content="MJO Forecast — AIFS-ENS RMM">
 <meta property="og:description" content="Real-time MJO (RMM) phase-space forecast from the ECMWF AIFS-ENS ensemble.">
@@ -12,6 +12,24 @@
 <link rel="canonical" href="https://scorvec.com/mjo.html">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <meta property="og:url" content="https://scorvec.com/mjo.html">
+<meta name="twitter:card" content="summary">
+<script type="application/ld+json">
+{
+ "@context": "https://schema.org",
+ "@type": "WebPage",
+ "name": "MJO forecast: AIFS-ENS RMM",
+ "url": "https://scorvec.com/mjo.html",
+ "description": "Real-time Multivariate MJO (RMM) forecast from the ECMWF AIFS-ENS ensemble: winds plus a precipitation-based pseudo-OLR, after Wheeler & Hendon (2004).",
+ "isPartOf": {
+  "@type": "WebSite",
+  "name": "Shawn Corvec",
+  "url": "https://scorvec.com/"
+ },
+ "author": {
+  "@id": "https://scorvec.com/#person"
+ }
+}
+</script>
 <link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;1,400&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -91,6 +109,7 @@
 </head>
 <body>
 <!-- sh:start -->
+<a class="skip-link" href="#main">Skip to main content</a>
 <header class="sh" id="site-header">
   <div class="sh-in">
     <a class="sh-brand" href="/">Shawn Corvec</a>
@@ -176,7 +195,7 @@
           <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g3">Weeks to seasons</button>
           <div class="sh-menu sh-menu--cols" id="sh-g3">
             <div>
-              <h3>Weeks 2–5</h3>
+              <h3>Extended range</h3>
               <ul>
                 <li><a href="/subseasonal.html">GEPS extended ensemble</a></li>
                 <li><a href="/gefs.html">GEFS extended ensemble</a></li>
@@ -201,7 +220,7 @@
                 <li><a href="/enso.html#imp_reg">ENSO impacts on the Americas</a></li>
                 <li><a href="/mjo.html#mi">MJO impacts</a></li>
                 <li><a href="/stratosphere.html#shwinters">Stratosphere history</a></li>
-                <li><a href="/aifs-aam-budget.html">AINWP and conservation</a></li>
+                <li><a href="/aifs-aam-budget.html">AI models and conservation laws</a></li>
                 <li><a href="/torque-enso.html">El Niño and angular momentum</a></li>
                 <li><a href="/topics/">Explainers</a></li>
               </ul>
@@ -209,7 +228,7 @@
             <div>
               <h3>Verification</h3>
               <ul>
-                <li><a href="/aifs-verify.html">AIFS single versus member 0</a></li>
+                <li><a href="/aifs-verify.html">AIFS single versus ensemble control</a></li>
               </ul>
             </div>
           </div>
@@ -245,10 +264,10 @@
   </div>
 </header>
 <!-- sh:end -->
-<main>
+<main id="main">
   <div class="page-header">
   <h1>MJO forecast from the AIFS ensemble</h1>
-    <p class="sub" style="margin-bottom:1rem">Latest init: <strong>2026-10-16 00Z</strong>. ENSO is changing fast (&Delta;Ni&ntilde;o-3.4 +0.98&nbsp;K over the 120-day filter window), which projects onto the standard RMM, so the forecast with the ENSO signal removed comes first. The rail also has the standard AIFS-ENS forecast and what each phase has meant for temperature, rain and the flow.</p>
+    <p class="sub" style="margin-bottom:1rem">Latest init: <strong>2026-10-16 00Z</strong>. ENSO is changing fast (&Delta;Ni&ntilde;o-3.4 +0.98&nbsp;&deg;C over the 120-day filter window), which projects onto the standard RMM, so the forecast with the ENSO signal removed comes first. The rail also has the standard AIFS-ENS forecast and what each phase has meant for temperature, rain and the flow.</p>
 
   </div>
   <div class="ss-layout">
@@ -268,7 +287,7 @@
 
   <section id="mjo-clean" style="max-width:min(100%, calc((88vh - 70px) * 1259 / 1140));margin:2.5rem auto 0">
   <h2>MJO with the El Ni&ntilde;o signal removed</h2>
-  <p style="font-size:0.95rem;line-height:1.55;margin:0.4rem 0 0.8rem"><b>No coherent MJO in the ENSO-removed forecast:</b> ensemble-mean amplitude 0.6 (max 1.2) and a phase speed of +3.8&deg;/day, where a real MJO moves at about +7&deg;/day. NOAA&rsquo;s OLR-based ROMI on 2026-10-11: amplitude 1.18, phase 2; over the last 60 days 25&nbsp;% of days reached amplitude 1. Correction applied: &Delta;Ni&ntilde;o-3.4 = +0.98&nbsp;K.</p>
+  <p style="font-size:0.95rem;line-height:1.55;margin:0.4rem 0 0.8rem"><b>No coherent MJO in the ENSO-removed forecast:</b> ensemble-mean amplitude 0.6 (max 1.2) and a phase speed of +3.8&deg;/day, where a real MJO moves at about +7&deg;/day. NOAA&rsquo;s OLR-based ROMI on 2026-10-11: amplitude 1.18, phase 2; over the last 60 days 25&nbsp;% of days reached amplitude 1. Correction applied: &Delta;Ni&ntilde;o-3.4 = +0.98&nbsp;&deg;C.</p>
   <p style="color:var(--muted);font-size:0.95rem;line-height:1.55;margin:0 0 1rem">Since 2014 the standard RMM no longer removes ENSO; in a strong El Ni&ntilde;o its standing
   convection projects onto phases 7&ndash;8 and masquerades as a stalled MJO. This is the same AIFS-ENS forecast
   (wind-only), observed track and IFS overlay with the part tied to the Ni&ntilde;o-3.4 change removed. Latest init:
@@ -284,14 +303,18 @@
   Ni&ntilde;o-3.4 (NOAA OISST, 31-day mean) minus its mean over the same 120-day window, and c is the regression of the
   120-day-filtered 850 and 200&nbsp;hPa equatorial winds on &Delta;N34, longitude by longitude, projected onto the MJO
   patterns. It is fitted on ERA5 (ARCO) 2003&ndash;2024 with ERSST&nbsp;v6 Ni&ntilde;o-3.4 (BoM used its own SST index,
-  SST1). Against BoM&rsquo;s ENSO-removed RMM (2003&ndash;2013, 3,899 days) the cleaned wind-only index correlates 0.96/0.96 (RMM1/RMM2), against 0.94/0.96 before, and its correlation with the Ni&ntilde;o-3.4 change falls from -0.21 to -0.01. While an El Ni&ntilde;o grows, it changes the share of &ldquo;active&rdquo; days: JAS 2015 0.33 &rarr; 0.29; JAS 2023 0.38 &rarr; 0.29; JAS 2009 0.42 &rarr; 0.49. The forecast holds Ni&ntilde;o-3.4 at its latest value, since ENSO changes little in 15 days.</p>
+  SST1). Against BoM&rsquo;s ENSO-removed RMM (2003&ndash;2013, 3,899 days) the cleaned wind-only index correlates 0.96/0.96 (RMM1/RMM2), against 0.94/0.96 before, and its correlation with the Ni&ntilde;o-3.4 change falls from -0.21 to -0.01. While an El Ni&ntilde;o grows, the correction changes the share of &ldquo;active&rdquo; days: JAS 2015 0.33 &rarr; 0.29; JAS 2023 0.38 &rarr; 0.29; JAS 2009 0.42 &rarr; 0.49. The forecast holds Ni&ntilde;o-3.4 at its latest value, since ENSO changes little in 15 days.</p>
   <p>The correction is linear, so it removes part of a growing El Ni&ntilde;o&rsquo;s projection, not all of it. The
   status line therefore also quotes NOAA&rsquo;s OLR-based real-time OMI (ROMI), which removes the previous 40 days and
   so is far less sensitive to slow signals: an independent check on whether a real MJO is present.
-  Wind-only (no precipitation channel), and no 12Z cycle offset correction, unlike the RMM forecast view.</p>
-  <p class="meta" style="margin-top:0.6rem;padding-top:0.6rem">Data: ECMWF AIFS-ENS and IFS-ENS open data (CC&nbsp;BY&nbsp;4.0);
-  ERA5 (Copernicus C3S, ARCO); NOAA OISST v2.1 and ERSST v6 (NOAA NCEI / PSL); ROMI (NOAA PSL / CPC OLR);
-  Bureau of Meteorology RMM for validation.</p>
+  Wind-only (no precipitation channel). Its 12Z runs are offset-corrected as in the RMM forecast view, with
+  the offset measured on the wind-only index.</p>
+  <p class="meta" style="margin-top:0.6rem;padding-top:0.6rem">Data: ECMWF AIFS-ENS and IFS-ENS open data, &copy;&nbsp;2026
+  ECMWF, source <a href="https://www.ecmwf.int">www.ecmwf.int</a>, <a href="https://creativecommons.org/licenses/by/4.0/">CC&nbsp;BY&nbsp;4.0</a>,
+  modified; ECMWF does not accept any liability for errors or omissions in the data, their availability, or any loss or
+  damage arising from their use. ERA5 (ARCO), contains modified Copernicus Climate Change Service information 2026;
+  NOAA OISST v2.1 and ERSST v6 (NOAA NCEI / PSL); ROMI (NOAA PSL / CPC OLR); Bureau of Meteorology RMM for
+  validation.</p>
   </details>
   </section>
 
@@ -317,10 +340,10 @@
   OLR and 850/250&nbsp;hPa zonal wind (the CMIP6 daily archive has no 200&nbsp;hPa), 15&deg;S&ndash;15&deg;N means, the
   run&rsquo;s own seasonal cycle and previous 120-day mean removed, projected on the observed W&amp;H EOFs. Observed,
   for comparison: the Bureau of Meteorology&rsquo;s RMM, 1979&ndash;2024. <b>Both indices are then band-passed to
-  20&ndash;100&nbsp;days and renormalised.</b> BoM removes the ENSO signal only up to 2013; after that a strong El
-  Ni&ntilde;o&rsquo;s standing pattern projects on RMM as slow &ldquo;phase 6&ndash;8&rdquo; days (DJF 2015/16 was
-  &ldquo;active&rdquo; on 89&nbsp;% of days), and the CMIP6 index would carry the same artefact. A linear Ni&ntilde;o-3.4
-  regression removed almost none of it, so the band-pass is used for both datasets alike. Check, DJF share of active days after the filter: strong El Ni&ntilde;o winters 0.69 (n&nbsp;4; 0.70 before), neutral 0.62 (n&nbsp;13); the difference is not significant (Mann&ndash;Whitney p&nbsp;0.69). Checks: the same machinery on ERA5 winds reproduces BoM&rsquo;s RMM1/RMM2 at r&nbsp;0.94/0.96 (wind-only, 1991-2020); substituting 250 for 200&nbsp;hPa keeps the phase on 90&nbsp;% of active days (r&nbsp;0.99/0.99).</p>
+  20&ndash;100&nbsp;days and renormalised</b>, so nothing slower than 100&nbsp;days enters either one. BoM removes the
+  ENSO signal only up to 2013; after that a strong El Ni&ntilde;o&rsquo;s standing pattern can project on RMM as slow
+  &ldquo;phase 6&ndash;8&rdquo; days, and the CMIP6 index would carry the same artefact. A linear Ni&ntilde;o-3.4
+  regression removed almost none of it, so the band-pass is used for both datasets alike. Check: the filter changes the DJF share of active days little (strong El Ni&ntilde;o winters 0.70 before, 0.69 after, n&nbsp;4; DJF 2015/16 0.89 before, 0.87 after), so here it is a safeguard rather than a large correction. After it, strong El Ni&ntilde;o winters do not differ significantly from neutral ones (0.62, n&nbsp;13; Mann&ndash;Whitney p&nbsp;0.69). Checks: the same machinery on ERA5 winds reproduces BoM&rsquo;s RMM1/RMM2 at r&nbsp;0.94/0.96 (wind-only, 1991-2020); substituting 250 for 200&nbsp;hPa keeps the phase on 90&nbsp;% of active days (r&nbsp;0.99/0.99).</p>
   <p><b>Impact fields</b> (2&nbsp;m temperature, precipitation, 500&nbsp;hPa height), per grid cell and per dataset, in
   three steps. (1) A seasonal cycle that is allowed to change: the mean and three annual harmonics, each with a
   coefficient that varies smoothly in time (a natural cubic spline with knots about every 12
@@ -364,6 +387,7 @@
   model output, the Earth System Grid Federation (ESGF) for archiving the data and providing access, and the multiple
   funding agencies who support CMIP6 and ESGF.</p>
   </details>
+  <p class="chart-sources">Written by Claude, Anthropic&rsquo;s AI model, at the direction of <a href="/about.html">Shawn Corvec</a>, meteorologist. Not peer reviewed.</p>
   </section>
   <script>
   (function () {
@@ -415,13 +439,19 @@
   pseudo-OLR channel built from &minus;standardized tropical precipitation (tropical
   rain and OLR anticorrelate closely); falls back to wind-only if precip is
   unavailable for a cycle. The physics-based <strong>IFS-ENS</strong> (50 members)
-  is overlaid in blue through the <em>identical</em> machinery whenever its data
-  has landed — a direct AI-vs-physics comparison in the same coordinates.
-  Amplitude is the radial distance (rings at 1, 2, 3).
-  Observed track is recent ERA5/AIFS analysis (wind-only, verified within a few
+  from the same init is overlaid in blue through the <em>identical</em> machinery
+  once its data has landed (about 1&ndash;2&nbsp;h after AIFS-ENS) — a direct
+  AI-vs-physics comparison in the same coordinates.
+  Amplitude is the radial distance (rings at 1, 2, 3); the ellipses, every 5 days,
+  span &plusmn;1 standard deviation of the members in RMM1 and RMM2.
+  At the same valid time, AIFS-ENS 12Z runs sit systematically off the 00Z runs, by
+  an amount that grows with lead, so each 12Z run has the mean 12Z-minus-00Z
+  ensemble-mean difference of the last seven 00Z/12Z pairs removed, lead by lead.
+  The observed track is ERA5 up to mid-July 2026 and, since then, the AIFS-ENS
+  control at step 0 of each 00Z and 12Z run (wind-only, verified within a few
   degrees of the official BoM RMM phase).</p>
-  <p class="chart-sources">Updated 2026-10-16 09:41Z · Auto-generated from the AIFS-ENS open-data
-  feed. Methodology: NOAA CPC / Wheeler &amp; Hendon (2004), EOFs from NOAA OLR +
+  <p class="chart-sources">Updated 2026-10-16 09:41Z · Auto-generated from the AIFS-ENS and IFS-ENS open data, &copy;&nbsp;2026 European Centre for Medium-Range Weather Forecasts (ECMWF), source <a href="https://www.ecmwf.int">www.ecmwf.int</a>, <a href="https://creativecommons.org/licenses/by/4.0/">CC&nbsp;BY&nbsp;4.0</a>, modified; ECMWF does not accept any liability for errors or omissions in the data, their availability, or any loss or damage arising from their use.
+  Methodology: NOAA CPC / Wheeler &amp; Hendon (2004), EOFs from NOAA OLR +
   NCEP wind with the 120-day low-frequency filter removed; pseudo-OLR from
   &minus;standardized daily precip vs an ERA5 1991&ndash;2020 band climatology.</p>
   </template>
@@ -434,7 +464,7 @@ window.STAGE = { groups: [{"label": "Forecast", "items": [["clean", "ENSO-remove
     rmm: { label: "AIFS-ENS RMM forecast (ENSO not removed), successive runs", about: "about-rmm",
            frame: function () { return "sst_anim.html?embed=1&base=assets&manifest=mjo/rmm_manifest.json&region=mjo"; },
            ratio: function () { return "1259/1210"; },
-           cap: function () { return "<b>ENSO not removed.</b> With the ENSO signal taken out (&Delta;Ni&ntilde;o-3.4 +0.98&nbsp;K) there is no coherent MJO in this forecast: ensemble-mean amplitude 0.6 and a phase speed of +3.8&deg;/day, where a real MJO moves at about +7&deg;/day. A large or slow track in this diagram is most likely the ENSO change projecting onto the index, not an MJO. Drag the slider to step through successive forecast runs (oldest to latest) and watch the predicted MJO track evolve."; } },
+           cap: function () { return "<b>ENSO not removed.</b> With the ENSO signal taken out (&Delta;Ni&ntilde;o-3.4 +0.98&nbsp;&deg;C) there is no coherent MJO in this forecast: ensemble-mean amplitude 0.6 and a phase speed of +3.8&deg;/day, where a real MJO moves at about +7&deg;/day. A large or slow track in this diagram is most likely the ENSO change projecting onto the index, not an MJO. Drag the slider to step through successive forecast runs (oldest to latest) and watch the predicted MJO track evolve."; } },
     clean: { label: "MJO with the El Niño signal removed", dom: function () { return "mjo-clean"; } },
     mi: { label: "MJO impacts by phase and season", ownHash: true, dom: function () { return "mjo-impacts"; } }
   }
@@ -470,7 +500,7 @@ window.STAGE = { groups: [{"label": "Forecast", "items": [["clean", "ENSO-remove
         <li><a href="/topics/">Explainers</a></li>
         <li><a href="/stats.html">Visitor stats</a></li>
       </ul>
-      <p class="sf-disclaimer">This site is under constant development. Nothing here is checked before publication and there is no expectation of accuracy, completeness or availability; do not rely on it for decisions. Built from open data; sources are credited on each page.</p>
+      <p class="sf-disclaimer">This site is under constant development. Its products are generated automatically and published without review by a person; each page describes its automated checks and significance tests. There is no expectation of accuracy, completeness or availability; do not rely on it for decisions. Built from open data; sources are credited on each page.</p>
     </div>
     <div class="sf-group sf-group--me">
       <p class="sf-h" role="heading" aria-level="2">Shawn Corvec</p>

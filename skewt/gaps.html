@@ -4,9 +4,34 @@
 <meta charset="UTF-8">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>US Sounding Gap Report — missed 00Z/12Z radiosonde launches — Shawn Corvec</title>
+<title>US Sounding Gap Report — missed 00Z/12Z launches — Shawn Corvec</title>
 <meta name="description" content="Which US radiosonde stations are missing their routine 00Z/12Z launches? Slot-by-slot compliance since January 2026 from the IGRA archive, updated weekly.">
+<meta property="og:type" content="website">
+<meta property="og:title" content="US sounding gap report: missed 00Z/12Z radiosonde launches">
+<meta property="og:description" content="Which US radiosonde stations are missing their routine 00Z/12Z launches? Slot-by-slot compliance since January 2026 from the IGRA archive, updated weekly.">
+<meta property="og:url" content="https://scorvec.com/skewt/gaps.html">
+<meta property="og:image" content="https://scorvec.com/skewt/og-card.png">
+<meta property="og:site_name" content="Shawn Corvec">
+<meta name="twitter:card" content="summary_large_image">
 <link rel="canonical" href="https://scorvec.com/skewt/gaps.html">
+<script type="application/ld+json">
+{
+ "@context": "https://schema.org",
+ "@type": "WebPage",
+ "name": "US sounding gap report: missed 00Z/12Z radiosonde launches",
+ "url": "https://scorvec.com/skewt/gaps.html",
+ "description": "Which US radiosonde stations are missing their routine 00Z/12Z launches? Slot-by-slot compliance since January 2026 from the IGRA archive, updated weekly.",
+ "image": "https://scorvec.com/skewt/og-card.png",
+ "isPartOf": {
+  "@type": "WebSite",
+  "name": "Shawn Corvec",
+  "url": "https://scorvec.com/"
+ },
+ "author": {
+  "@id": "https://scorvec.com/#person"
+ }
+}
+</script>
 <link href="https://fonts.googleapis.com/css2?family=Lora:wght@400;500;600&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -53,6 +78,7 @@
 </head>
 <body>
 <!-- sh:start -->
+<a class="skip-link" href="#main">Skip to main content</a>
 <header class="sh sh--dark" id="site-header">
   <div class="sh-in">
     <a class="sh-brand" href="/">Shawn Corvec</a>
@@ -138,7 +164,7 @@
           <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g3">Weeks to seasons</button>
           <div class="sh-menu sh-menu--cols" id="sh-g3">
             <div>
-              <h3>Weeks 2–5</h3>
+              <h3>Extended range</h3>
               <ul>
                 <li><a href="/subseasonal.html">GEPS extended ensemble</a></li>
                 <li><a href="/gefs.html">GEFS extended ensemble</a></li>
@@ -163,7 +189,7 @@
                 <li><a href="/enso.html#imp_reg">ENSO impacts on the Americas</a></li>
                 <li><a href="/mjo.html#mi">MJO impacts</a></li>
                 <li><a href="/stratosphere.html#shwinters">Stratosphere history</a></li>
-                <li><a href="/aifs-aam-budget.html">AINWP and conservation</a></li>
+                <li><a href="/aifs-aam-budget.html">AI models and conservation laws</a></li>
                 <li><a href="/torque-enso.html">El Niño and angular momentum</a></li>
                 <li><a href="/topics/">Explainers</a></li>
               </ul>
@@ -171,7 +197,7 @@
             <div>
               <h3>Verification</h3>
               <ul>
-                <li><a href="/aifs-verify.html">AIFS single versus member 0</a></li>
+                <li><a href="/aifs-verify.html">AIFS single versus ensemble control</a></li>
               </ul>
             </div>
           </div>
@@ -207,19 +233,19 @@
   </div>
 </header>
 <!-- sh:end -->
-<div class="wrap">
+<main class="wrap" id="main">
   <div class="eyebrow">Updated weekly from the IGRA archive</div>
   <h1>US sounding gap report</h1>
   <p class="lede">Every US radiosonde site is supposed to launch at 00Z and 12Z, every day. Of
   late, many haven't — releases skipped outright or shifted to off-hours. This page grades
   <b>every routine slot since January 2026</b> for every active US station:
   <span class="okc">■ on time</span> · <span class="warn">■ off-hour launch instead</span> ·
-  <span class="bad">■ missed</span>. Stations with a clean 60-day record are collapsed at the
-  bottom.</p>
+  <span class="bad">■ missed</span> (no sounding in IGRA: not launched, or launched but not archived). Stations
+  with a clean 60-day record are collapsed at the bottom.</p>
   <div class="cards" id="cards"></div>
   <div class="panel"><table id="tbl"></table></div>
   <p class="note" id="foot-note"></p>
-</div>
+</main>
 <footer>
   Data: NOAA <a href="https://www.ncei.noaa.gov/products/weather-balloon/integrated-global-radiosonde-archive">IGRA v2</a>
   year-to-date files (≈2-day lag) · a slot counts as "off-hour instead" when no 00Z/12Z launch
@@ -227,7 +253,9 @@
   (Anthropic's Claude Fable 5), directed by Shawn Corvec.
 </footer>
 <script>
-fetch("gaps.json").then(r => r.json()).then(d => {
+// station names come from the IGRA station list: escaped before they go into HTML
+const esc = x => String(x == null ? "" : x).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+fetch("gaps.json").then(r => { if (!r.ok) throw new Error(r.status); return r.json(); }).then(d => {
   let st = Object.entries(d.stations);
   const dayN = Math.floor(st[0][1].g.length / 2);
   const strip = g => {
@@ -252,8 +280,8 @@ fetch("gaps.json").then(r => r.json()).then(d => {
       <div class="v okc">${clean}</div></div>`;
   const rows = offenders.map(([id, v]) => {
     const pct = (100 * (1 - v.miss60 / 120)).toFixed(0);
-    return `<tr><td><a href="./#${id}" style="color:var(--accent); text-decoration:none">${v.n}</a>
-      <span style="color:var(--muted)">${id}</span></td>
+    return `<tr><td><a href="./#${encodeURIComponent(id)}" style="color:var(--accent); text-decoration:none">${esc(v.n)}</a>
+      <span style="color:var(--muted)">${esc(id)}</span></td>
       <td class="${v.miss60 >= 12 ? "bad" : v.miss60 ? "warn" : ""}">${v.miss60}</td>
       <td class="${v.off60 ? "warn" : ""}">${v.off60}</td>
       <td class="${v.miss14 >= 6 ? "bad" : v.miss14 ? "warn" : ""}">${v.miss14}</td>
@@ -270,6 +298,8 @@ fetch("gaps.json").then(r => r.json()).then(d => {
     `Excluded as non-routine sites (research/range, never on the 00Z/12Z schedule): ` +
     special.map(([id, v]) => `${v.n} ${id}`).join(", ") + ". " +
     `Station links open the live sounding explorer.`;
+}).catch(() => {
+  document.getElementById("cards").innerHTML = "<p class='note'>The gap report could not be loaded. Reload the page to try again.</p>";
 });
 </script>
 <!-- sf:start -->
@@ -283,7 +313,7 @@ fetch("gaps.json").then(r => r.json()).then(d => {
         <li><a href="/topics/">Explainers</a></li>
         <li><a href="/stats.html">Visitor stats</a></li>
       </ul>
-      <p class="sf-disclaimer">This site is under constant development. Nothing here is checked before publication and there is no expectation of accuracy, completeness or availability; do not rely on it for decisions. Built from open data; sources are credited on each page.</p>
+      <p class="sf-disclaimer">This site is under constant development. Its products are generated automatically and published without review by a person; each page describes its automated checks and significance tests. There is no expectation of accuracy, completeness or availability; do not rely on it for decisions. Built from open data; sources are credited on each page.</p>
     </div>
     <div class="sf-group sf-group--me">
       <p class="sf-h" role="heading" aria-level="2">Shawn Corvec</p>
