@@ -60,7 +60,8 @@ a:focus-visible,button:focus-visible,input:focus-visible{outline:2px solid var(-
 .mt-note{color:var(--muted);font-size:15px;margin:6px 0 0}
 .mt-map{position:relative}
 .mt-map svg{width:100%;height:auto;display:block;touch-action:none}
-.mt-zoom{position:absolute;right:6px;top:6px;border:1px solid var(--rule);background:#fff;border-radius:6px;padding:3px 9px;font:inherit;font-size:14.5px;cursor:pointer}
+.mt-zoom{display:block;margin:6px 0 0 auto;border:1px solid var(--rule);background:#fff;border-radius:6px;padding:3px 9px;font:inherit;font-size:14.5px;cursor:pointer}
+.mt-zoom[hidden]{display:none}
 .mt-leg{display:flex;align-items:center;gap:6px;font-size:14.5px;color:var(--muted);margin-top:8px;flex-wrap:wrap}
 .mt-leg i{display:inline-block;width:34px;height:10px;border-radius:2px}
 path.t{stroke:#fff;stroke-width:.35;vector-effect:non-scaling-stroke;cursor:pointer}
@@ -97,7 +98,7 @@ tbody tr{cursor:pointer}tbody tr:hover{background:#f3f2ee}
 .charts2{display:grid;grid-template-columns:1fr 1fr;gap:22px}@media(max-width:900px){.charts2{grid-template-columns:1fr}}
 .ci{font-size:16px;margin:0 0 4px}.ci b{font-size:19px}
 .tsc{width:100%;height:auto;display:block;overflow:visible}.gdist text{font-size:13px}.gdist .lab{fill:#1b1d22;font-weight:600}#toDist{color:var(--d)}.tsc text{font-size:12px;fill:#6f6b64}.tsc .ax line,.tsc .ax path{stroke:#d8d6cf}.tsc .grid line{stroke:#eeece6}
-.tip{position:fixed;pointer-events:none;background:#1b1d22;color:#fff;font-size:14.5px;padding:6px 9px;border-radius:6px;display:none;max-width:320px;z-index:9}
+.tip{position:fixed;pointer-events:none;background:#1b1d22;color:#fff;font-size:14.5px;padding:6px 9px;border-radius:6px;display:none;max-width:min(320px,calc(100vw - 16px));z-index:9}
 .mt-foot{margin-top:26px;padding-top:14px;border-top:1px solid var(--rule);font-size:17px}
 .mt-foot a{color:var(--d)}
 @media(max-width:640px){.mt-wrap{padding:12px 14px 36px}.mt-head h1{font-size:25px}.mt-out b{font-size:28px}.mt-find input{width:100%}.mt-find{width:100%}}
@@ -302,7 +303,7 @@ tbody tr{cursor:pointer}tbody tr:hover{background:#f3f2ee}
 
 <section class="mt-pane on" id="p-house" role="tabpanel">
  <div class="mt-grid">
-  <div class="mt-card"><div class="mt-map"><svg id="hmapsvg" viewBox="0 0 960 600" aria-label="House districts by chance of a Democratic win"></svg><button class="mt-zoom" id="zreset" type="button">Reset zoom</button></div>
+  <div class="mt-card"><div class="mt-map"><svg id="hmapsvg" viewBox="0 0 960 600" aria-label="House districts by chance of a Democratic win"></svg><button class="mt-zoom" id="zreset" type="button" hidden>Reset zoom</button></div>
    <div class="mt-leg"><span>Republican</span><i style="background:linear-gradient(90deg,#a32215,#e6e6e6,#0b3d91)"></i><span>Democratic</span>&nbsp;·&nbsp;outlined: open seat &nbsp;·&nbsp;scroll or pinch to zoom, click a district for details</div></div>
   <div>
    <div class="mt-card mt-race" id="race-house"><p class="empty">Click a district on the map, or search above.</p></div>
@@ -475,7 +476,7 @@ function buildMaps(){getJSON('data/districts_2026.topo.json').then(topo=>{
   .on('click',(e,f)=>pick('house',f.properties.seat));
  const st=f=>f.properties.seat.split('-')[0];
  g.append('path').attr('class','stb').attr('d',path(topojson.mesh(topo,obj,(a,b)=>a===b||st(a)!==st(b))));
- const zoom=d3.zoom().scaleExtent([1,24]).translateExtent([[0,0],[960,600]]).on('zoom',e=>g.attr('transform',e.transform));
+ const zoom=d3.zoom().scaleExtent([1,24]).translateExtent([[0,0],[960,600]]).on('zoom',e=>{g.attr('transform',e.transform);$('#zreset').hidden=e.transform.k<1.001});
  svg.call(zoom);$('#zreset').addEventListener('click',()=>svg.transition().duration(400).call(zoom.transform,d3.zoomIdentity));
  const states={};obj.geometries.forEach(gm=>{const k=gm.properties.seat.split('-')[0];(states[k]=states[k]||[]).push(gm)});
  STATES=Object.entries(states).map(([k,gs])=>({st:k,f:topojson.merge(topo,gs)}));
@@ -531,7 +532,8 @@ function genDist(N){const svg=d3.select('#gdist');svg.selectAll('*').remove();if
  $('#gdnote').innerHTML=`Each of the ${esc(N.n.toLocaleString())} simulated elections draws the national vote around today's poll trend (${mg(N.center)}) with the size of past generic-ballot misses at this distance, ${esc(N.lead)} days out (sd ${N.sd.toFixed(1)} points), in either direction: no direction is assumed for the miss`
   +(N.early_vote?', and the part of it that is late movement is narrowed by the votes already banked':'')+`. The draws are Student-t with ${esc(N.t_df)} degrees of freedom, so the tails are fatter than a normal curve with the same spread (dashed): a miss beyond 3 sd happens in ${(100*N.p.beyond3sd).toFixed(1)}% of draws, against ${(100*N.p.beyond3sd_normal).toFixed(1)}% under the normal. `
   +`Shading: <span style="color:var(--d)">middle 50% and 80%</span>; <span style="color:var(--r)">red</span> where Republicans win the vote. Triangles: the national House vote in past midterms. Hover for the chance of at least a given margin.`}
-function tipAt(e,h){const t=$('#tip');t.style.display='block';t.style.left=(e.clientX+14)+'px';t.style.top=(e.clientY+14)+'px';t.innerHTML=h}
+// beside the pointer, flipped to its other side where it would run off the screen (a district near the right edge on a phone)
+function tipAt(e,h){const t=$('#tip');t.innerHTML=h;t.style.display='block';const w=t.offsetWidth,ht=t.offsetHeight;let x=e.clientX+14,y=e.clientY+14;if(x+w>innerWidth-8)x=Math.max(8,e.clientX-w-14);if(y+ht>innerHeight-8)y=Math.max(8,e.clientY-ht-14);t.style.left=x+'px';t.style.top=y+'px'}
 
 function render(){const H=D.house;E=+$('#E').value;gi=H.grid.reduce((b,x,i)=>Math.abs(x-E)<Math.abs(H.grid[b]-E)?i:b,0);E=H.grid[gi];
  $('#Ev').textContent=Math.abs(E)<0.05?'Even':(E>0?`Democrats +${E.toFixed(1)}`:`Republicans +${Math.abs(E).toFixed(1)}`);
