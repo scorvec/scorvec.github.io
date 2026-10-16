@@ -7,6 +7,7 @@ scripts/mjo/data/aifs/
 scripts/mjo/plots/
 scripts/mjo/data/reference/era5_recent/
 scripts/mjo/data/reference/ncep_recent/
+scripts/mjo/data/reference/overturn_ref.npz
 
 # SST pipeline data cache (large OISST netCDFs, re-downloaded each run)
 scripts/sst/data/

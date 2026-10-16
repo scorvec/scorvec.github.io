@@ -83,20 +83,26 @@ def equatorial_ud(upath: Path, vpath: Path, chis: dict | None = None):
     v = xr.open_dataset(vpath, **ku)["v"].sortby("isobaricInhPa")
     rows, lon_out = [], None
     for lev in u.isobaricInhPa.values:
-        chi, dlat, dlon = velocity_potential(u.sel(isobaricInhPa=lev), v.sel(isobaricInhPa=lev), lmax=LMAX)
+        row, lon_out, chi, dlat = band_ud(u.sel(isobaricInhPa=lev), v.sel(isobaricInhPa=lev))
         if chis is not None and int(lev) in wc.LEVELS:  # tropical χ strip for the weekly departure maps
             m = np.abs(dlat) <= wc.STRIP
             chis[int(lev)] = chi[m].astype("float32")
             chis["lat"] = dlat[m]
-            chis["lon"] = dlon
-        uchi, _ = irrotational_wind(chi, dlat, dlon)
-        band = np.abs(dlat) <= BAND
-        # cosφ-weighted band mean (≈ unweighted at ±5°, but exact costs nothing)
-        w = np.cos(np.deg2rad(dlat[band]))
-        rows.append((uchi[band] * w[:, None]).sum(0) / w.sum())
-        lon_out = dlon
+            chis["lon"] = lon_out
+        rows.append(row)
     p_pa = u.isobaricInhPa.values * 100.0
     return np.stack(rows), p_pa, lon_out  # (lev, lon), Pa, °E
+
+
+def band_ud(u2d: xr.DataArray, v2d: xr.DataArray):
+    """One level: the 5°S–5°N mean divergent zonal wind (lon,) on the χ solver's DH2 longitudes, with those
+    longitudes, χ and its latitudes. Every u_D here (analysis, ERA5, forecast members) comes through this."""
+    chi, dlat, dlon = velocity_potential(u2d, v2d, lmax=LMAX)
+    uchi, _ = irrotational_wind(chi, dlat, dlon)
+    band = np.abs(dlat) <= BAND
+    # cosφ-weighted band mean (≈ unweighted at ±5°, but exact costs nothing)
+    w = np.cos(np.deg2rad(dlat[band]))
+    return (uchi[band] * w[:, None]).sum(0) / w.sum(), dlon, chi, dlat
 
 
 def streamfunction(ud: np.ndarray, p_pa: np.ndarray) -> np.ndarray:
