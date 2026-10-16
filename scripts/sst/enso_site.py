@@ -42,7 +42,7 @@ PAGES = [
         layout="stage",
         index=True,
         title="El Ni&ntilde;o Monitor &mdash; Daily ONI, RONI &amp; Ni&ntilde;o Indices &middot; Shawn Corvec",
-        desc="Daily ONI and RONI estimates, interactive Niño-index charts, OISST and MUR SST anomaly maps, the SOI, "
+        desc="Daily ONI and RONI estimates, interactive Niño-index charts, OISST and 1 km satellite SST maps, the SOI, "
         "the MEI, and equatorial convection and waves.",
         canonical="https://scorvec.com/enso.html",
         image="https://scorvec.com/assets/sst/roni.webp",

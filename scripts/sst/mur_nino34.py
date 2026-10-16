@@ -234,7 +234,7 @@ def render(s: pd.Series, clim) -> None:
         c90 = clim["p90"].reindex(doy).values
         ax.fill_between(cur.index, c10, c90, color="#cfe0ee", lw=0, label=f"MUR p10–p90 ({CLIM_Y0}–{CLIM_Y1})")
         ax.plot(cur.index, cm, color="#8a5a00", lw=1.5, ls=(0, (5, 2)), label=f"MUR climatology ({CLIM_Y0}–{CLIM_Y1})")
-    ax.plot(cur.index, cur.values, color="#0b3d6b", lw=2.0, label="MUR v4.1 (1 km, foundation SST)")
+    ax.plot(cur.index, cur.values, color="#0b3d6b", lw=2.0, label="1 km satellite SST (MUR v4.1, foundation)")
     if oi is not None:
         oo = oi[oi.index >= t0]
         ax.plot(oo.index, oo.values, color="#c0392b", lw=1.3, alpha=0.85, label="NOAA OISST v2.1 (0.25°, bulk SST)")
@@ -243,7 +243,7 @@ def render(s: pd.Series, clim) -> None:
     ax.legend(fontsize=8.4, loc="upper left", ncol=2, framealpha=0.9)
     lat_txt = f"{abs(LAT[0]):.0f}°S–{LAT[1]:.0f}°N, {abs(LON[0]):.0f}°W–{abs(LON[1]):.0f}°W"
     ax.set_title(
-        f"Niño-3.4 absolute sea-surface temperature — MUR 1 km vs OISST   ·   {lat_txt}",
+        f"Niño-3.4 absolute sea-surface temperature — 1 km satellite SST vs OISST   ·   {lat_txt}",
         fontsize=13.5,
         fontweight="bold",
         loc="left",
@@ -256,7 +256,7 @@ def render(s: pd.Series, clim) -> None:
         bx.axhline(0, color="0.6", lw=0.8)
         bx.plot(both.index, diff.values, color="#5b2c8d", lw=1.4)
         bx.fill_between(both.index, 0, diff.values, color="#5b2c8d", alpha=0.16)
-        bx.set_ylabel("MUR − OISST (°C)", fontsize=9.5)
+        bx.set_ylabel("1 km satellite − OISST (°C)", fontsize=9.5)
         bx.grid(alpha=0.25, lw=0.6)
         bx.set_title(
             f"definition offset — mean {diff.mean():+.2f} °C, sd {diff.std():.2f} "

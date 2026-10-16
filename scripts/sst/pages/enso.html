@@ -142,21 +142,21 @@
 <p class="chart-sources">NOAA OISST v2.1 daily &middot; base 1991&ndash;2020 &middot; PDO pattern: ERSST v5 North Pacific EOF, calibrated to NCEI over 1950&ndash;present (r&thinsp;=&thinsp;0.96) &middot; DMI: Saji boxes &middot; SASD: Morioka poles</p>
 </template>
 <template id="about-mur">
-<p class="note">NASA JPL's <b>MUR</b> analysis blends infrared, microwave and in-situ SST
+<p class="note">An <b>ultra-high-resolution (1 km) satellite SST</b>: NASA JPL's MUR analysis blends infrared, microwave and in-situ SST
     onto a ~1&nbsp;km grid &mdash; fine enough to resolve the <b style="color:var(--aqua)">tropical
     instability wave</b> cusps rolling along the cold-tongue front, the Gal&aacute;pagos wake, and
     the Peruvian coastal upwelling that the 0.25&deg; OISST maps above smooth over. One frame per
     day from <b>1 April 2026</b> &mdash; just before this event's onset (sustained
     RONI&nbsp;&ge;&nbsp;+0.5 from 21 May) &mdash; with a colour range fixed across the whole
     sequence, so the eastern Pacific visibly warms while the instability waves ripple the front.
-    Click a frame to enlarge it. MUR interpolates under persistent cloud: treat the finest
+    Click a frame to enlarge it. The analysis interpolates under persistent cloud: treat the finest
     structure as analysis, not direct observation.</p>
 <p class="chart-sources">NASA JPL MUR SST v4.1 (GHRSST L4) &middot; via NOAA CoastWatch ERDDAP &middot; ~1&ndash;2 day latency &middot; daily</p>
 </template>
 <template id="about-mur34">
-<p>The Ni&ntilde;o-3.4 box temperature itself, not its anomaly, from NASA JPL's <b>MUR v4.1</b> analysis, against MUR's own day-of-year climatology (band = p10&ndash;p90) and against NOAA OISST v2.1. Absolute rather than anomaly because the Ni&ntilde;o-3.4 seasonal cycle is ~2&nbsp;&deg;C peak-to-peak and an anomaly plot throws it away; here you can read "how warm is it" and "how unusual is that" at once.</p>
-<p>This is an <b>independent</b> check, not a second copy of the OISST index: MUR is a GHRSST <b>foundation</b> SST (below the diurnal thermocline) built from a different sensor mix, while OISST v2.1 is a <b>bulk</b> SST anchored to drifting buoys. A steady offset between them is a property of those definitions; the lower panel exists so you can see when the offset <i>moves</i>, which would mean the analyses are disagreeing about the ocean rather than about their own conventions. The offset is small &mdash; a few hundredths of a degree with a spread under 0.1&nbsp;&deg;C; the figure subtitle carries the current value &mdash; and they agree closely.</p>
-<p><b>Note:</b> MUR starts in June 2002, so its climatology is 2003&ndash;2022. MUR departures are therefore <i>not</i> comparable with the OISST anomalies elsewhere on this site, which use 1991&ndash;2020.</p>
+<p>The Ni&ntilde;o-3.4 box temperature itself, not its anomaly, from the <b>1 km satellite SST</b> (NASA JPL's MUR v4.1 analysis), against its own day-of-year climatology (band = p10&ndash;p90) and against NOAA OISST v2.1. Absolute rather than anomaly because the Ni&ntilde;o-3.4 seasonal cycle is ~2&nbsp;&deg;C peak-to-peak and an anomaly plot throws it away; here you can read "how warm is it" and "how unusual is that" at once.</p>
+<p>This is an <b>independent</b> check, not a second copy of the OISST index: the 1 km analysis is a GHRSST <b>foundation</b> SST (below the diurnal thermocline) built from a different sensor mix, while OISST v2.1 is a <b>bulk</b> SST anchored to drifting buoys. A steady offset between them is a property of those definitions; the lower panel exists so you can see when the offset <i>moves</i>, which would mean the analyses are disagreeing about the ocean rather than about their own conventions. The offset is small &mdash; a few hundredths of a degree with a spread under 0.1&nbsp;&deg;C; the figure subtitle carries the current value &mdash; and they agree closely.</p>
+<p><b>Note:</b> the 1 km record starts in June 2002, so its climatology is 2003&ndash;2022. Its departures are therefore <i>not</i> comparable with the OISST anomalies elsewhere on this site, which use 1991&ndash;2020.</p>
 <p class="chart-sources">NASA JPL MUR v4.1 (GHRSST L4) via NOAA CoastWatch ERDDAP &middot; 5&deg;S&ndash;5&deg;N, 170&deg;W&ndash;120&deg;W, cos-lat weighted &middot; ~2-day latency</p>
 </template>
 <template id="about-ir">
@@ -583,7 +583,7 @@
       "@type": "WebPage",
       "name": "El Niño monitor: daily ONI and RONI estimates, Niño indices, SST maps, the SOI and the subsurface",
       "url": "https://scorvec.com/enso.html",
-      "description": "Daily estimates of ONI and RONI with interactive Niño-region SST index charts, global and tropical Pacific anomaly maps from NOAA OISST v2.1 and MUR 1 km SST, the SOI and MEI, equatorial convection and waves, westerly wind bursts, the TAO/TRITON subsurface, and the impacts of El Niño on the Americas.",
+      "description": "Daily estimates of ONI and RONI with interactive Niño-region SST index charts, global and tropical Pacific anomaly maps from NOAA OISST v2.1 and 1 km satellite SST, the SOI and MEI, equatorial convection and waves, westerly wind bursts, the TAO/TRITON subsurface, and the impacts of El Niño on the Americas.",
       "image": "https://scorvec.com/assets/sst/roni.webp",
       "isPartOf": {"@type": "WebSite", "name": "Shawn Corvec", "url": "https://scorvec.com/"},
       "author": {"@id": "https://scorvec.com/#person"},
@@ -606,7 +606,7 @@ window.STAGE = {
   aliases: {imp_pdo: "imp_pdocause", imp_pdoph: "imp_pdocause"},     // old same-season PDO views: the causal view replaces them
   groups: [
   {label: "SST & indices", ico: "\u{1F321}", items: [["sstmaps","SST anomaly maps","global, tropics, relative"],["indices","Daily indices, interactive","Niño-3.4, RONI, ONI estimate"],["onironi","ONI vs RONI","3-month convention, OISST estimate"],["beyond","PDO, IOD, South Atlantic","daily, beyond ENSO"]]},
-  {label: "Satellite & MUR", ico: "\u{1F6F0}", items: [["mur","MUR 1 km loop","cold tongue since onset"],["mur34","MUR Niño-3.4","1 km against OISST"],["ir","Infrared loops","Pacific · South & Central America"]]},
+  {label: "Satellite views", ico: "\u{1F6F0}", items: [["mur","1 km satellite SST loop","cold tongue since onset"],["mur34","1 km satellite Niño-3.4","against OISST"],["ir","Infrared loops","Pacific · South & Central America"]]},
   {label: "Convection & waves", ico: "\u{1F30A}", items: [["olr","OLR Hovmöller","satellite proxy, equatorial"],["waves","Wave decomposition","Kelvin, Rossby, MJO bands"],["trackers","Kelvin and Rossby trackers","along the equator"],["kelvin","Kelvin wave tracker, AIFS-ENS","map + 15-day forecast"]]},
   {label: "Atmospheric response", ico: "\u{1F32C}", items: [["soi","Southern Oscillation Index","hourly, forecast, equatorial"],["soirec","SOI against the record","monthly and daily records"],["soi_seas","Seasonal SOI outlook","SEAS5, SOI and Equatorial SOI"],["mei","MEI.v2 nowcast","daily, analogs, history"],["ascat","ASCAT wind map","scatterometer, daily"],["eqwind","Zonal wind Hovmöller","equatorial strip, since 1 March"],["wwb","Westerly wind bursts","Tarawa monitor, past onsets"],["wind10","10 m wind forecast","ensembles and single runs, to day 15"]]},
   {label: "Subsurface", ico: "\u{1F30A}", items: [["subtemp","Temperature section","TAO/TRITON, raw and detrended"],["hc","Heat content vs analogs","0–300 m, 1997 · 2015 · 2023"],["okelvin","Ocean Kelvin waves","sea level, arrival dates"],["xsec","Cross-section vs analogs","same week of each event"],["cur_map","Surface currents","tropical Pacific"],["cur_sec","Undercurrent section","zonal current with depth"],["cur_hov","Current Hovmöller","equatorial strip"]]},
@@ -623,9 +623,9 @@ window.STAGE = {
   beyond: {label: "Beyond ENSO", a: {label: "Index", items: [["pdo","PDO"],["iod","Indian Ocean Dipole"],["satl","Atlantic indices"]]},
           img: function (a) { return "assets/sst/" + a + "_daily.webp?v=__CACHE__"; }, about: "about-beyond",
           cap: function (a) { return {pdo: "Daily PDO from the ERSST North Pacific EOF pattern projected on OISST, calibrated to NCEI over 1950–present.", iod: "Daily Dipole Mode Index, Saji boxes.", satl: "Daily Atlantic indices: the Atlantic Niño (ATL3), the tropical South and North Atlantic (TSA, TNA) and the South Atlantic subtropical dipole (Morioka poles)."}[a]; }},
-  mur: {label: "MUR 1 km cold tongue", frame: function () { return "sst_anim.html?embed=1&manifest=mur_manifest.json&region=mur_ct"; }, about: "about-mur",
-          cap: function () { return "NASA JPL MUR 1 km SST, 160°E–79°W and 10°S–10°N, one frame a day since the event's onset, fixed colour range; the Niño boxes are drawn on each frame."; }},
-  mur34: {label: "MUR Niño-3.4 against OISST", img: function () { return "assets/sst/mur_nino34.webp?v=__CACHE__"; }, about: "about-mur34", fit: false,
+  mur: {label: "1 km satellite SST: cold tongue", frame: function () { return "sst_anim.html?embed=1&manifest=mur_manifest.json&region=mur_ct"; }, about: "about-mur",
+          cap: function () { return "Ultra-high-resolution (1 km) satellite SST from NASA JPL's MUR analysis, 160°E–79°W and 10°S–10°N, one frame a day since the event's onset, fixed colour range; the Niño boxes are drawn on each frame."; }},
+  mur34: {label: "1 km satellite Niño-3.4 against OISST", img: function () { return "assets/sst/mur_nino34.webp?v=__CACHE__"; }, about: "about-mur34", fit: false,
           cap: function () { return "Absolute Niño-3.4 from the 1 km analysis against OISST, and the offset between the two."; }},
   ir: {label: "Infrared satellite loop", a: {label: "Region", items: [["pacsat","Tropical Pacific"],["samsat","South & Central America"]]},
           frame: function (a) { return "sst_anim.html?embed=1&manifest=" + a + "_manifest.json&region=" + a; },

@@ -326,7 +326,7 @@ def main() -> int:
     print(f"MUR latest analysis: {t:%Y-%m-%d}", flush=True)
     note = (
         "NASA JPL MUR SST v4.1 (GHRSST L4, ~1 km analysis) via NOAA CoastWatch "
-        "ERDDAP · MUR interpolates under cloud — fine structure is analysis, "
+        "ERDDAP · the analysis interpolates under cloud — fine structure is analysis, "
         "not direct observation."
     )
 
@@ -461,7 +461,7 @@ def anim(argv_start: str | None = None) -> int:
     man = {
         "ver": pd.Timestamp.now(tz="UTC").strftime("%Y%m%d%H"),
         "vrange": vrange,
-        "regions": {ANIM_DIR: {"label": "MUR 1 km — cold tongue since event onset", "frames": entries}},
+        "regions": {ANIM_DIR: {"label": "1 km satellite SST — cold tongue since event onset", "frames": entries}},
     }
     man_path.write_text(json.dumps(man))
     print(f"  animation: {len(entries)} frames ({made} new) → {man_path.name}", flush=True)
