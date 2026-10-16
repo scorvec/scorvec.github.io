@@ -132,6 +132,14 @@
     <changefreq>weekly</changefreq>
   </url>
   <url>
+    <loc>https://scorvec.com/midterms/legislatures.html</loc>
+    <changefreq>weekly</changefreq>
+  </url>
+  <url>
+    <loc>https://scorvec.com/midterms/whatif.html</loc>
+    <changefreq>weekly</changefreq>
+  </url>
+  <url>
     <loc>https://scorvec.com/topics/</loc>
     <lastmod>2026-10-15</lastmod>
     <priority>0.6</priority>
