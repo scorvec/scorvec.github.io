@@ -32,6 +32,7 @@ import numpy as np
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
+import c3s_grib
 from c3s_nino34 import MODELS
 from c3s_sixh import path_for as sixh_path
 from c3s_terciles import hc_pop_means
@@ -60,43 +61,33 @@ def daily_members(path: Path, region: str):
     """(values [sample, day], days) population-weighted daily means, K, for one chunk.
 
     `sample` folds member × start date: a lagged system's starts are separate ensembles of
-    the same forecast, and for a distribution of days they pool.
+    the same forecast, and for a distribution of days they pool. Days are VALID days; one
+    counts only where every sample has at least three of its 6-hourly steps in it (a partial
+    day is not a daily mean), and stays a NaN column otherwise. Read message by message
+    (c3s_grib): a lagged chunk opened through cfgrib is a mostly empty member × start × step cube.
     """
-    import xarray as xr
     import pandas as pd
 
-    ds = xr.open_dataset(path, engine="cfgrib", backend_kwargs={"indexpath": ""})
-    da = ds[next(iter(ds.data_vars))]
-    lat, lon = da.latitude.values, da.longitude.values
-    w = pop_grid(region, lat, np.where(lon > 180.0, lon - 360.0, lon))
-    if w.sum() <= 0:
-        ds.close()
+    w, steps = None, {}  # (start date, start time, member) -> {valid day: [weighted values]}
+    for m, v, g in c3s_grib.messages(path, ("number", "dataDate", "dataTime", "validityDate")):
+        if w is None:
+            w = pop_grid(region, g.lat, np.where(g.lon > 180.0, g.lon - 360.0, g.lon))
+            if w.sum() <= 0:
+                return None, None
+            w = w / w.sum()
+        k = (m["dataDate"], m["dataTime"], m["number"] or 0)
+        steps.setdefault(k, {}).setdefault(m["validityDate"], []).append(float((v * w).sum()))
+    if not steps:
         return None, None
-    w = w / w.sum()
-    # valid time for every (start, step) pair. Both `number` and `time` are optional in a
-    # grib: a single-start system has no time dimension, and a system whose chunk holds one
-    # member per start has no number dimension. Give the array both, then transpose once.
-    for d in ("number", "time"):
-        if d not in da.dims:
-            da = da.expand_dims(d)
-    da = da.transpose("number", "time", "step", "latitude", "longitude")
-    t0 = np.atleast_1d(da["time"].values)[:, None]
-    valid = t0 + da["step"].values[None, :]
-    v = (da.values * w[None, None, None]).sum(axis=(3, 4))  # [member, start, step]
-    ds.close()
-    days = pd.to_datetime(valid.ravel()).normalize().values.reshape(valid.shape)
-    uniq = np.unique(days)
-    out = np.full((v.shape[0] * v.shape[1], uniq.size), np.nan, dtype="float32")
+    samples = sorted(steps)
+    uniq = sorted(set().union(*steps.values()))
+    out = np.full((len(samples), len(uniq)), np.nan, dtype="float32")
     for j, d in enumerate(uniq):
-        m = days == d  # [start, step]
-        if m.sum(axis=1).min() < 3:  # a partial day is not a daily mean
+        if min(len(steps[k].get(d, ())) for k in samples) < 3:
             continue
-        for s in range(v.shape[1]):
-            sel = m[s]
-            if sel.sum() >= 3:
-                out[s * v.shape[0] : (s + 1) * v.shape[0], j] = v[:, s, sel].mean(axis=1)
+        out[:, j] = [np.mean(steps[k][d]) for k in samples]
     keep = np.isfinite(out).any(axis=1)
-    return out[keep], uniq
+    return out[keep], pd.to_datetime([str(d) for d in uniq], format="%Y%m%d").values
 
 
 def daily_for(centre: str, system: str, region: str, issue: str, k: int):
