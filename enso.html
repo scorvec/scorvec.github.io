@@ -232,7 +232,7 @@
 <summary>Every plot on this page (37)</summary>
 <h2>SST &amp; indices</h2>
 <p><a href="#sstmaps"><b>SST anomaly maps</b></a> &middot; global, tropics, relative<br>
-The latest NOAA OISST v2.1 daily field, as anomalies vs 1991&ndash;2020 &mdash; the raw material behind every index on this page &mdash; animated over the last 90 days. Global on top, the tropical Pacific below with the Ni&ntilde;o regions outlined; each frame is stamped with that day's ONI / tropical-mean / RONI readout. The panel's buttons also offer two mean-removed variants: the <b>global-mean-removed</b> field, which strips the uniform background warming and isolates the ENSO pattern, and <b>tropics, tropical-mean removed</b> &mdash; the whole 30&deg;S&ndash;30&deg;N belt with its own 20&deg;S&ndash;20&deg;N mean subtracted. That last one is RONI's arithmetic drawn as a map: the same subtraction the index makes at Ni&ntilde;o-3.4, applied everywhere, so you can see which basins the Pacific is warm or cool <i>against</i>.</p>
+The latest NOAA OISST v2.1 daily field, as anomalies vs 1991&ndash;2020 &mdash; the raw material behind every index on this page &mdash; animated over the last 90 days. Global on top, the tropical Pacific below with the Ni&ntilde;o regions outlined; each frame is stamped with that day's Ni&ntilde;o-3.4 anomaly, tropical mean and &sigma;-scaled relative Ni&ntilde;o-3.4 &mdash; single days, so not ONI or RONI, which are 3-month means. The panel's buttons also offer two mean-removed variants: the <b>global-mean-removed</b> field, which strips the uniform background warming and isolates the ENSO pattern, and <b>tropics, tropical-mean removed</b> &mdash; the whole 30&deg;S&ndash;30&deg;N belt with its own 20&deg;S&ndash;20&deg;N mean subtracted. That last one is RONI's arithmetic drawn as a map: the same subtraction the index makes at Ni&ntilde;o-3.4, applied everywhere, so you can see which basins the Pacific is warm or cool <i>against</i>.</p>
 <p><a href="#indices"><b>Daily indices, interactive</b></a> &middot; Niño-3.4, RONI, ONI estimate<br>
 Every index is a daily area-weighted SST average, so today's value exists today &mdash; no waiting for the month to close. <b style="color:#1a1a1a">Ni&ntilde;o-3.4</b> is the raw material of ONI; the <b style="color:#8a4b2a">daily relative Ni&ntilde;o-3.4</b> (brown) subtracts the same day's 20&deg;S&ndash;20&deg;N tropical mean and rescales by the CPC/ECMWF &sigma;-factor, so it reads on ONI's &plusmn;0.5&thinsp;&deg;C thresholds. <b>There is no official daily RONI</b>: RONI is a 3-month index, and what is drawn here is the daily quantity it is built from &mdash; useful because it moves today, not a published number. The <b style="color:#7a6210">90-day mean</b> (gold) is likewise an estimate of ONI, not ONI itself. Click legend entries to add Ni&ntilde;o-1+2 / 3 / 4 and the tropical mean; drag to zoom, double-click to reset.</p>
 <p><a href="#onironi"><b>ONI vs RONI</b></a> &middot; 3-month convention, OISST estimate<br>
@@ -363,8 +363,10 @@ Land-weighted means over 20 regions (land fraction from Natural Earth &times; co
 <p>The latest NOAA OISST v2.1 daily field, as anomalies vs 1991&ndash;2020 &mdash;
       the raw material behind every index on this page &mdash; animated over the last
       90 days. Global on top, the tropical Pacific below with the Ni&ntilde;o regions
-      outlined; each frame is stamped with that day's ONI / tropical-mean / RONI
-      readout. The panel's buttons also offer two mean-removed variants: the
+      outlined; each frame is stamped with that day's Ni&ntilde;o-3.4 anomaly, tropical mean
+      and &sigma;-scaled relative Ni&ntilde;o-3.4 &mdash; single days, so not ONI or RONI,
+      which are 3-month means. The panel's buttons also offer two mean-removed
+      variants: the
       <b>global-mean-removed</b> field, which strips the uniform background warming
       and isolates the ENSO pattern, and <b>tropics, tropical-mean removed</b> &mdash;
       the whole 30&deg;S&ndash;30&deg;N belt with its own 20&deg;S&ndash;20&deg;N mean
@@ -896,7 +898,7 @@ window.STAGE = {
   products: {
   sstmaps: {label: "SST anomaly maps", a: {label: "Field", items: [["anomaly","Anomaly"],["absolute","Absolute SST"],["relative","Global mean removed"],["tropical_rel","Tropics, tropical mean removed"]]},
           frame: function (a) { return "sst_anim.html?embed=1&region=" + a + "&regions=" + a; }, about: "about-sstmaps",
-          cap: function (a) { return {anomaly: "NOAA OISST v2.1 daily anomaly against 1991–2020, global and tropical Pacific, animated over the last 90 days with each day's ONI, tropical-mean and RONI readout.", absolute: "The raw sea-surface temperature over the last 90 days.", relative: "The anomaly with the global mean removed: the ENSO pattern without the background warming.", tropical_rel: "30°S–30°N with the 20°S–20°N mean subtracted — RONI's arithmetic drawn as a map."}[a]; }},
+          cap: function (a) { return {anomaly: "NOAA OISST v2.1 daily anomaly against 1991–2020, global and tropical Pacific, animated over the last 90 days with each day's Niño-3.4, tropical-mean and relative Niño-3.4 readout (single days, not the 3-month ONI or RONI).", absolute: "The raw sea-surface temperature over the last 90 days.", relative: "The anomaly with the global mean removed: the ENSO pattern without the background warming.", tropical_rel: "30°S–30°N with the 20°S–20°N mean subtracted — RONI's arithmetic drawn as a map."}[a]; }},
   indices: {label: "Daily ENSO indices", dom: function () { return "dom-indices"; }, about: "about-indices",
           cap: function () { return "Daily area-weighted SST indices: Niño-3.4, the daily relative Niño-3.4 (the quantity RONI is built from — there is no official daily RONI) and the 90-day running ONI estimate. Switch to absolute SST, or to the monthly record over ten years or since 1970; click legend entries for the other regions."; }},
   onironi: {label: "ONI vs RONI", img: function () { return "assets/sst/roni.webp?v=476ed2f96421"; }, about: "about-onironi", fit: false,

@@ -80,8 +80,10 @@
 <p>The latest NOAA OISST v2.1 daily field, as anomalies vs 1991&ndash;2020 &mdash;
       the raw material behind every index on this page &mdash; animated over the last
       90 days. Global on top, the tropical Pacific below with the Ni&ntilde;o regions
-      outlined; each frame is stamped with that day's ONI / tropical-mean / RONI
-      readout. The panel's buttons also offer two mean-removed variants: the
+      outlined; each frame is stamped with that day's Ni&ntilde;o-3.4 anomaly, tropical mean
+      and &sigma;-scaled relative Ni&ntilde;o-3.4 &mdash; single days, so not ONI or RONI,
+      which are 3-month means. The panel's buttons also offer two mean-removed
+      variants: the
       <b>global-mean-removed</b> field, which strips the uniform background warming
       and isolates the ENSO pattern, and <b>tropics, tropical-mean removed</b> &mdash;
       the whole 30&deg;S&ndash;30&deg;N belt with its own 20&deg;S&ndash;20&deg;N mean
@@ -613,7 +615,7 @@ window.STAGE = {
   products: {
   sstmaps: {label: "SST anomaly maps", a: {label: "Field", items: [["anomaly","Anomaly"],["absolute","Absolute SST"],["relative","Global mean removed"],["tropical_rel","Tropics, tropical mean removed"]]},
           frame: function (a) { return "sst_anim.html?embed=1&region=" + a + "&regions=" + a; }, about: "about-sstmaps",
-          cap: function (a) { return {anomaly: "NOAA OISST v2.1 daily anomaly against 1991–2020, global and tropical Pacific, animated over the last 90 days with each day's ONI, tropical-mean and RONI readout.", absolute: "The raw sea-surface temperature over the last 90 days.", relative: "The anomaly with the global mean removed: the ENSO pattern without the background warming.", tropical_rel: "30°S–30°N with the 20°S–20°N mean subtracted — RONI's arithmetic drawn as a map."}[a]; }},
+          cap: function (a) { return {anomaly: "NOAA OISST v2.1 daily anomaly against 1991–2020, global and tropical Pacific, animated over the last 90 days with each day's Niño-3.4, tropical-mean and relative Niño-3.4 readout (single days, not the 3-month ONI or RONI).", absolute: "The raw sea-surface temperature over the last 90 days.", relative: "The anomaly with the global mean removed: the ENSO pattern without the background warming.", tropical_rel: "30°S–30°N with the 20°S–20°N mean subtracted — RONI's arithmetic drawn as a map."}[a]; }},
   indices: {label: "Daily ENSO indices", dom: function () { return "dom-indices"; }, about: "about-indices",
           cap: function () { return "Daily area-weighted SST indices: Niño-3.4, the daily relative Niño-3.4 (the quantity RONI is built from — there is no official daily RONI) and the 90-day running ONI estimate. Switch to absolute SST, or to the monthly record over ten years or since 1970; click legend entries for the other regions."; }},
   onironi: {label: "ONI vs RONI", img: function () { return "assets/sst/roni.webp?v=__CACHE__"; }, about: "about-onironi", fit: false,
