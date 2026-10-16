@@ -1,8 +1,9 @@
 name: OLR wave decomposition (Wheeler-Kiladis)
 
 # Real-time Wheeler-Kiladis decomposition of equatorial OLR (MJO / Kelvin / ER / low-freq).
-# Daily: append the latest GMGSI day to the rolling store, then re-filter + render. The
-# committed climatology (metar/olr_clim.nc, from NOAA interp-OLR 1979-2022) and rolling store
+# Daily: add the days the rolling store still lacks (to yesterday, once all four synoptic GMGSI
+# images are posted; the whole window when the store was sampled at other hours), then re-filter
+# + render. The committed climatology (metar/olr_clim.nc, from NOAA interp-OLR 1979-2022) and rolling store
 # (metar/olr_rt.nc) travel with the repo, so CI never needs the 19 MB historical backbone.
 on:
   schedule:

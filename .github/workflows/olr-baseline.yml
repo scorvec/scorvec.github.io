@@ -1,0 +1,117 @@
+name: OLR proxy baseline (ERA5 1991-2020 climatology + GMGSI offset)
+
+# Builder of scripts/sst/metar/olr_baseline.nc, the baseline the GMGSI OLR proxy's anomaly is taken against
+# (scripts/sst/build_olr_baseline.py): the ERA5 1991-2020 daily OLR climatology of the proxy's 5S-5N and 15S-15N bands
+# and the proxy's per-longitude offset from ERA5 over the days ERA5 and the proxy store (scripts/sst/metar/olr_rt.nc)
+# both cover. ERA5 comes from the ARCO store (anonymous GCS). Each part reduces five years to daily band means,
+# "recent" the store's days; the build job fits both and commits the file. With climatology=false only the offset is
+# re-fitted (the committed climatology is kept): re-run that way to follow the proxy when its satellites change.
+# The build job shares olr-waves.yml's concurrency group and reads the store from the newest main, so it never fits a
+# store that is being rewritten; it refuses a store sampled at other hours than build_olr_realtime.py's.
+on:
+  workflow_dispatch:
+    inputs:
+      climatology:
+        description: 'Rebuild the 1991-2020 climatology too (false = re-fit the offset only)'
+        type: boolean
+        default: true
+
+permissions:
+  contents: write
+
+env:
+  PIP_CONSTRAINT: ${{ github.workspace }}/scripts/constraints.txt   # bounds every pip install (see the file)
+
+jobs:
+  part:
+    if: ${{ inputs.climatology }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    strategy:
+      fail-fast: false
+      matrix:
+        years: [[1991, 1995], [1996, 2000], [2001, 2005], [2006, 2010], [2011, 2015], [2016, 2020]]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+      - run: pip install --quiet numpy pandas xarray zarr gcsfs "quantmet @ git+https://github.com/scorvec/quantmet-tools@v0.4.2"
+      - name: Daily band means
+        run: |
+          mkdir -p out
+          python scripts/sst/build_olr_baseline.py fetch --start ${{ matrix.years[0] }}-01-01 \
+            --end ${{ matrix.years[1] }}-12-31 --out out/era5_olr_${{ matrix.years[0] }}.npz
+      - uses: actions/upload-artifact@v7
+        with:
+          name: olrbase-${{ matrix.years[0] }}
+          path: out/*.npz
+          retention-days: 5
+
+  recent:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: main
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+      - run: pip install --quiet numpy pandas xarray netcdf4 zarr gcsfs "quantmet @ git+https://github.com/scorvec/quantmet-tools@v0.4.2"
+      - name: Daily band means over the proxy store's days
+        run: |
+          mkdir -p out
+          python scripts/sst/build_olr_baseline.py fetch --out out/era5_olr_recent.npz
+      - uses: actions/upload-artifact@v7
+        with:
+          name: olrbase-recent
+          path: out/*.npz
+          retention-days: 5
+
+  build:
+    needs: [part, recent]
+    if: ${{ !cancelled() && needs.recent.result == 'success' && (needs.part.result == 'success' || needs.part.result == 'skipped') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    concurrency:
+      group: olr-waves
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: main
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+      - run: pip install --quiet numpy pandas xarray netcdf4 "quantmet @ git+https://github.com/scorvec/quantmet-tools@v0.4.2"
+      - uses: actions/download-artifact@v7
+        with:
+          pattern: olrbase-*
+          path: parts
+          merge-multiple: true
+      - name: Climatology and offset
+        run: |
+          clim=""
+          if [ "${{ inputs.climatology }}" = "true" ]; then clim="--clim $(ls parts/era5_olr_[0-9]*.npz | tr '\n' ' ')"; fi
+          python scripts/sst/build_olr_baseline.py build --recent parts/era5_olr_recent.npz $clim
+      - name: Commit & push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          OUT=scripts/sst/metar/olr_baseline.nc
+          SNAP=$(mktemp -d)
+          cp "$OUT" "$SNAP/"
+          for i in 1 2 3 4 5; do
+            if ! timeout 120 git fetch origin main; then echo "fetch $i failed"; sleep 5; continue; fi
+            git reset --hard origin/main
+            cp "$SNAP/olr_baseline.nc" "$OUT"
+            git add "$OUT"
+            if git diff --staged --quiet; then echo "No changes; skipping commit."; exit 0; fi
+            git commit -m "OLR proxy baseline: ERA5 1991-2020 climatology and GMGSI offset"
+            if timeout 180 git push; then echo "Pushed on attempt $i."; exit 0; fi
+            echo "Push $i rejected; resyncing and retrying…"
+            sleep 5
+          done
+          echo "ERROR: could not push after 5 attempts." >&2
+          exit 1
