@@ -10,7 +10,7 @@ companion ocean-current strip.
 
 Keeps a rolling band-mean store (local, gitignored — the webp is the committed artifact); each run
 pulls only the new days (the first build backfills the window in monthly chunks). The hourly product
-is resampled to daily means. Runs locally in run_local_sst.sh (CMEMS creds).
+is resampled to daily means. Runs in sst.yml (Copernicus Marine credentials from the repository secrets).
 
     python scripts/sst/eq_uwind_hovmoller.py --out assets/sst/eq_uwind_hov.webp
 """
@@ -136,14 +136,17 @@ def render(ds: xr.Dataset, out: Path) -> None:
     ax.invert_yaxis()
     ax.set_xticks([150, 180, 210, 240, 270])
     ax.set_xticklabels(["150E", "180", "150W", "120W", "90W"])
-    ax.axvline(190, color="0.5", lw=0.3, ls=":")
-    ax.axvline(240, color="0.5", lw=0.3, ls=":")
+    for x in (190, 240):  # the Niño-3.4 box's edges
+        ax.axvline(x, color="0.5", lw=0.3, ls=":")
+    ax.text(215, 1.004, "Niño-3.4", transform=ax.get_xaxis_transform(), ha="center", va="bottom", fontsize=9)
     ax.yaxis.set_major_formatter(DateFormatter("%d %b"))
     ax.tick_params(labelsize=11)
+    t0, t1 = pd.Timestamp(tt[0]), pd.Timestamp(tt[-1])
     ax.set_title(
-        "Equatorial Pacific surface zonal wind (5°S–5°N)\n"
-        "red = westerly (El Niño-favorable / WWB) · blue = easterly (trade winds)",
+        f"Equatorial Pacific surface zonal wind (m s⁻¹), 5°S–5°N · daily mean, {t0:%-d %b} – {t1:%-d %b %Y}\n"
+        "Copernicus Marine L4 scatterometer (ASCAT) winds · red = westerly (El Niño-favorable / WWB) · blue = easterly (trades)",
         fontsize=12,
+        pad=16,
     )
     ax.margins(0)
     cb = fig.colorbar(pm, ax=ax, orientation="horizontal", pad=0.045, aspect=55, fraction=0.05)
