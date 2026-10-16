@@ -29,7 +29,8 @@ Test   leave-one-block-out cross-validation: weights fitted without block k and 
 
     python scripts/precip_bias/blend.py --data DIR --ref DIR --out DIR
 -> DIR/blend_weights_global.json: per week the weights used, the fitted ones, the cross-validated skill with its interval,
-   the equal-weight blend's skill against the climatological tercile forecast, runs, blocks and period.
+   the equal-weight blend's skill against the climatological tercile forecast and against each fitted model alone,
+   runs, blocks and period, and a descriptive bias summary (bias_summary) of each model and the blend, raw and corrected.
 """
 
 from __future__ import annotations
@@ -51,6 +52,7 @@ import global_bias as GB
 STEP, NBOOT, BUFFER_DAYS, SUB = 0.025, 2000, 14, 2
 FIT_BLOCKS = GB.MIN_BLOCKS + 1
 CLIM_CUM = (1 / 3, 2 / 3)  # the climatological forecast's cumulative chances
+BAND, WET_MM = 30.0, 7.0  # the bias summary: 30°S-30N; local bias only where the verifying weeks average >= 1 mm/day
 
 
 # ── the score ────────────────────────────────────────────────────────────────────────────────────────────────────────
@@ -84,16 +86,17 @@ def fit(A, b, cand) -> np.ndarray:
     return cand[np.argmin(np.einsum("km,ml,kl->k", cand, A, cand) - 2 * cand @ b)]
 
 
-def cross_validate(A, b, c, s_clim, days, cand, rng) -> dict:
+def cross_validate(A, b, c, s_clim, days, cand, rng, names=()) -> dict:
     """Leave-one-block-out test of fitted against equal weights. A (run, M, M), b (run, M), c, s_clim (run): per-run
-    statistics; days: run dates (sorted). -> per-block scores, the skill of the fitted weights over equal ones and of the
-    equal-weight blend over climatology, each with a 90 % block-bootstrap interval."""
+    statistics; days: run dates (sorted). -> per-block scores, the skill of the fitted weights over equal ones, of the
+    equal-weight blend over climatology and over each model alone (`names`, in A's order; a single model needs no fit, so
+    its score is out of sample as it stands), each with a 90 % block-bootstrap interval."""
     days = np.array(days, dtype="datetime64[D]")
     blk = (days - days[0]).astype(int) // BB.BLOCK_DAYS
     ub = np.unique(blk)
     eq = np.full(A.shape[1], 1.0 / A.shape[1])
     buf = np.timedelta64(BUFFER_DAYS, "D")
-    s_fit, s_eq, s_cl = [], [], []
+    s_fit, s_eq, s_cl, s_one = [], [], [], []
     for k in ub:
         test = blk == k
         near = (days >= days[test][0] - buf) & (days <= days[test][-1] + buf)
@@ -102,10 +105,18 @@ def cross_validate(A, b, c, s_clim, days, cand, rng) -> dict:
         s_fit.append(score(At, bt, ct, x))
         s_eq.append(score(At, bt, ct, eq))
         s_cl.append(s_clim[test].sum())
-    s_fit, s_eq, s_cl = map(np.array, (s_fit, s_eq, s_cl))
+        s_one.append([score(At, bt, ct, e) for e in np.eye(A.shape[1])])
+    s_fit, s_eq, s_cl, s_one = map(np.array, (s_fit, s_eq, s_cl, s_one))
     W = rng.multinomial(len(ub), np.full(len(ub), 1.0 / len(ub)), size=NBOOT).astype("float64")
     gain = 1 - (W @ s_fit) / (W @ s_eq)
     rpss = 1 - (W @ s_eq) / (W @ s_cl)
+    vs_one = {}
+    for j, m in enumerate(names):
+        g = 1 - (W @ s_eq) / (W @ s_one[:, j])
+        vs_one[m] = [
+            round(float(1 - s_eq.sum() / s_one[:, j].sum()), 4),
+            *np.round(np.percentile(g, [5, 95]), 4).tolist(),
+        ]
     return {
         "blocks": len(ub),
         "skill": [round(float(1 - s_fit.sum() / s_eq.sum()), 4), *np.round(np.percentile(gain, [5, 95]), 4).tolist()],
@@ -113,7 +124,32 @@ def cross_validate(A, b, c, s_clim, days, cand, rng) -> dict:
             round(float(1 - s_eq.sum() / s_cl.sum()), 4),
             *np.round(np.percentile(rpss, [5, 95]), 4).tolist(),
         ],
+        "blend_vs_single": vs_one,
     }
+
+
+def bias_summary(F: dict, T: np.ndarray, lat: np.ndarray) -> dict:
+    """Descriptive bias of each model's weekly rain and of their equal-weight blend over the verified runs. F: model ->
+    members (run, member, NY, NX) mm; T: the verifying weeks (run, NY, NX) mm; lat: the rows' latitudes. Per entry: the
+    30°S-30°N area-weighted forecast/observed ratio, and the area-weighted mean of |forecast/observed - 1| over the cells
+    whose verifying weeks average >= WET_MM (local biases of opposite sign cancel in the ratio, not here)."""
+    ok = np.isfinite(T).all(0)
+    for x in F.values():
+        ok &= np.isfinite(x).all((0, 1))
+    tbar = np.where(ok, np.nanmean(T, 0), np.nan)
+    w = np.cos(np.deg2rad(lat))[:, None] * np.ones_like(tbar)
+    band = ok & (np.abs(lat)[:, None] <= BAND)
+    wet = band & (tbar >= WET_MM)
+    means = {m: np.nanmean(x, (0, 1)) for m, x in F.items()}
+    means["blend"] = np.mean(list(means.values()), 0)
+    out = {}
+    for m, f in means.items():
+        out[m] = {
+            "band_ratio": round(float((w * f)[band].sum() / (w * tbar)[band].sum()), 3),
+            "local_abs_bias": round(float((w * np.abs(f / tbar - 1))[wet].sum() / w[wet].sum()), 3),
+        }
+    out["wet_cells"] = int(wet.sum())
+    return out
 
 
 # ── data ─────────────────────────────────────────────────────────────────────────────────────────────────────────────
@@ -169,11 +205,12 @@ def week(wk, data, arch, obs1, obs2, C, rng) -> dict:
     T = T[(slice(None), *cells)] * 7.0
     area = np.cos(np.deg2rad(G.LAT[cells[0]]))[:, None] * np.ones((1, len(G.LON[cells[1]])))
     # members of each fitted model, corrected block by block with ratios estimated without that block
-    X = {}
+    X, RAW = {}, {}
     for m in fitted:
         ini, F, Tm, se = ver[m]
         cyc = BB.VERSIONS[m][-1][0]
         raw = members_at(data, m, runs, wk)
+        RAW[m] = raw[(slice(None), slice(None), *cells)]
         xm = np.full((len(runs), raw.shape[1], *T.shape[1:]), np.nan, "float32")
         idays = np.array(ini, dtype="datetime64[D]")
         for k in np.unique(blk):
@@ -203,7 +240,7 @@ def week(wk, data, arch, obs1, obs2, C, rng) -> dict:
         S0.append(float(sum(((q - O[k]) ** 2 * w).sum() for k, q in enumerate(CLIM_CUM))))
     A, B, Cc, S0 = map(np.array, (A, B, Cc, S0))
     cand = simplex(len(fitted))
-    cv = cross_validate(A, B, Cc, S0, runs, cand, rng)
+    cv = cross_validate(A, B, Cc, S0, runs, cand, rng, fitted)
     x = fit(A.sum(0), B.sum(0), cand)
     share = len(fitted) / len(GB.MODELS)  # the fitted models' share; the others keep 1/M each
     out.update(
@@ -214,6 +251,8 @@ def week(wk, data, arch, obs1, obs2, C, rng) -> dict:
         cv_skill=cv["skill"],
         blend_rpss=cv["blend_rpss"],
         fitted_weights={m: round(share * float(v), 4) for m, v in zip(fitted, x)},
+        blend_vs_single=cv["blend_vs_single"],
+        bias={"raw": bias_summary(RAW, T, G.LAT[cells[0]]), "corrected": bias_summary(X, T, G.LAT[cells[0]])},
     )
     out["optimised"] = cv["skill"][1] > 0
     use = out["fitted_weights"] if out["optimised"] else {m: share / len(fitted) for m in fitted}
@@ -226,6 +265,16 @@ def week(wk, data, arch, obs1, obs2, C, rng) -> dict:
         f"{100 * cv['blend_rpss'][0]:.1f} % [{100 * cv['blend_rpss'][1]:.1f}, {100 * cv['blend_rpss'][2]:.1f}]",
         flush=True,
     )
+    for kind in ("raw", "corrected"):
+        bs = out["bias"][kind]
+        print(
+            f"{wk} bias ({kind}): "
+            + ", ".join(
+                f"{m} ratio {v['band_ratio']} local {v['local_abs_bias']}" for m, v in bs.items() if m != "wet_cells"
+            ),
+            flush=True,
+        )
+    print(f"{wk} equal blend over each model alone (fair RPS): {out['blend_vs_single']}", flush=True)
     return out
 
 
