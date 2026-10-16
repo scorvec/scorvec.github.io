@@ -1,12 +1,11 @@
 #!/usr/bin/env python3
-"""6-hourly members for every C3S system: the fetch the daily impact products need.
+"""6-hourly 2 m temperature members for every C3S system: the fetch behind the
+population-weighted daily card (c3s_popt_daily).
 
-The monthly members already on disk answer "how warm is the month". They cannot answer
-"how many days below freezing", "how long is the cold run", "how many windy days" -- those
-are daily questions and need the sub-daily fields. `seasonal-original-single-levels`
-carries them for all nine centres, but only inside a box: a global 6-hourly pull for eight
-systems is not a thing anyone should do, and the products that use it are regional anyway
-(the United States and Brazil).
+The monthly members already on disk answer "how warm is the month"; a daily series needs
+the sub-daily field. `seasonal-original-single-levels` carries it for all nine centres, but
+only inside a box: a global 6-hourly pull for eight systems is not a thing anyone should do,
+and the card is regional anyway (the United States and Brazil).
 
 Sizes measured on the ECMWF card this mirrors: ~120 MB per country per issue for 51
 members. Systems with 120+ members cost proportionally more, so a full issue across seven
@@ -40,26 +39,15 @@ from seas5_popT import chunk_path as seas5_chunk_path
 STORE = HERE / "data" / "c3s" / "sixh"
 DATASET = "seasonal-original-single-levels"
 MONTHS = 6
-# variable set per product family; t2m alone unlocks the daily temperature products, which
-# is where this starts. Winds and snowfall are their own (equally large) pulls.
-VARS = {
-    "t2m": ["2m_temperature"],
-    "wind": ["10m_u_component_of_wind", "10m_v_component_of_wind"],
-    "snow": ["snowfall"],
-    # the threshold-day pair: daily extremes, which is what a "cold day" is counted on
-    "x": ["maximum_2m_temperature_in_the_last_24_hours", "minimum_2m_temperature_in_the_last_24_hours"],
-}
-CLIM_YEARS = [str(y) for y in range(1993, 2017)]  # the C3S common hindcast period
 
 
-def path_for(centre: str, system: str, region: str, issue: str, k: int, var: str = "t2m") -> Path:
-    if centre == "ecmwf" and var == "t2m":
+def path_for(centre: str, system: str, region: str, issue: str, k: int) -> Path:
+    if centre == "ecmwf":
         # the SEAS5 card already holds exactly this chunk; never fetch it twice
         p = seas5_chunk_path(region, issue, k)
         if p.exists():
             return p
-    stem = f"{centre}_{system}_{region}_{issue}_m{k}" + ("" if var == "t2m" else f"_{var}")
-    return STORE / f"{stem}.grib"
+    return STORE / f"{centre}_{system}_{region}_{issue}_m{k}.grib"
 
 
 def start_dates(centre: str, system: str, issue: str):
@@ -92,73 +80,9 @@ def start_dates(centre: str, system: str, issue: str):
     return out
 
 
-def hc_path(centre: str, system: str, region: str, month: str, k: int) -> Path:
-    """Hindcast extremes are a function of the START MONTH, not the year: one pull serves
-    every September issue there will ever be."""
-    return STORE / f"hc_{centre}_{system}_{region}_{month}_m{k}_x.grib"
-
-
-def fetch_hindcast(centre: str, system: str, region: str, issue: str, k: int) -> bool:
-    """24 years of daily max/min for forecast month k — the model's own extremes climatology.
-
-    The threshold-day products quantile-map against this: a mean-bias correction is not
-    enough, because a seasonal model's diurnal range is too small and its Tmin bias is the
-    larger of the two. Unlike the real-time pull, day 01 is right for every system here:
-    a lagged system's HINDCAST is published as many members on one start per year, not as
-    members spread over start days.
-    """
-    from seas5_extremes import day_hours
-
-    # NCEP CFSv2 publishes no daily max/min to this collection: every hindcast request for
-    # its extremes comes back MarsNoDataError (checked 2026-09-13). Its threshold days would
-    # have to be derived from 6-hourly instantaneous temperature, which is a far larger pull,
-    # so the product leaves NCEP out and says so rather than fetching 12 chunks of nothing.
-    if centre == "ncep":
-        return False
-    month = issue[4:6]
-    dest = hc_path(centre, system, region, month, k)
+def fetch_chunk(centre: str, system: str, region: str, issue: str, k: int) -> bool:
+    dest = path_for(centre, system, region, issue, k)
     if dest.exists() and dest.stat().st_size > 0:
-        return True
-    STORE.mkdir(parents=True, exist_ok=True)
-    req = {
-        "originating_centre": centre,
-        "system": str(system),
-        "variable": VARS["x"],
-        "year": CLIM_YEARS,
-        "month": [month],
-        "day": ["01"],
-        "leadtime_hour": day_hours(issue, k),
-        "area": REGIONS[region][2],
-        "grid": [1.0, 1.0],
-        "data_format": "grib",
-    }
-    tmp = dest.with_suffix(".part")
-    t0 = time.time()
-    try:
-        _client().retrieve(DATASET, req, str(tmp))
-    except Exception as e:  # noqa: BLE001
-        print(f"  {centre}/{system} {region} m{k} hindcast: FAILED {str(e)[:110]}", flush=True)
-        tmp.unlink(missing_ok=True)
-        return False
-    if not (tmp.exists() and tmp.stat().st_size > 0):
-        return False
-    os.replace(tmp, dest)
-    print(
-        f"  {centre}/{system} {region} m{k} hindcast: {dest.stat().st_size / 1e6:.0f} MB "
-        f"in {(time.time() - t0) / 60:.1f} min",
-        flush=True,
-    )
-    return True
-
-
-def fetch_chunk(centre: str, system: str, region: str, issue: str, k: int, var: str = "t2m") -> bool:
-    if var == "x" and centre == "ncep":
-        return False  # no daily extremes in this collection (see fetch_hindcast)
-    dest = path_for(centre, system, region, issue, k, var)
-    if dest.exists() and dest.stat().st_size > 0:
-        return True
-    parts = sorted(dest.parent.glob(dest.stem + "_p*" + dest.suffix))
-    if parts and all(f.stat().st_size > 0 for f in parts):
         return True
     STORE.mkdir(parents=True, exist_ok=True)
     hours = month_hours(issue, k)
@@ -179,15 +103,10 @@ def fetch_chunk(centre: str, system: str, region: str, issue: str, k: int, var: 
         hours = [str(h) for h in range(max(lo - 744, 6), hi + 1, 6)]
     else:
         ym, days = issue, ["01"]
-    if var == "x":
-        # the extremes are 24-hour quantities and exist only at daily steps; asking for the
-        # 6-hourly grid quadruples the request for nothing and is part of what tipped the
-        # lagged systems over the size the collection will serve
-        hours = [h for h in hours if int(h) % 24 == 0]
     req = {
         "originating_centre": centre,
         "system": str(system),
-        "variable": VARS[var],
+        "variable": ["2m_temperature"],
         "year": [ym[:4]],
         "month": [ym[4:6]],
         "day": days,
@@ -196,43 +115,23 @@ def fetch_chunk(centre: str, system: str, region: str, issue: str, k: int, var: 
         "grid": [1.0, 1.0],
         "data_format": "grib",
     }
-    # Two daily-extremes variables across 31 start days is more than this collection will
-    # serve in one request -- it answers 403 Forbidden, not a size error -- so a lagged
-    # system's extremes are fetched in groups of start days and read back as a set.
-    groups = [days]
-    if var == "x" and len(days) > 8:
-        groups = [days[i : i + 8] for i in range(0, len(days), 8)]
-    ok_all = True
-    for gi, grp in enumerate(groups):
-        out = dest if len(groups) == 1 else dest.with_name(dest.stem + f"_p{gi}" + dest.suffix)
-        if out.exists() and out.stat().st_size > 0:
-            continue
-        rq = dict(req, day=grp)
-        tmp = out.with_suffix(".part")
-        t0 = time.time()
-        try:
-            _client().retrieve(DATASET, rq, str(tmp))
-        except Exception as e:  # noqa: BLE001
-            msg = str(e).replace("\n", " ")
-            print(
-                f"  {centre}/{system} {region} m{k} {var}"
-                f"{'' if len(groups) == 1 else f' part {gi + 1}/{len(groups)}'}: FAILED {msg[:100]}",
-                flush=True,
-            )
-            tmp.unlink(missing_ok=True)
-            ok_all = False
-            continue
-        if not (tmp.exists() and tmp.stat().st_size > 0):
-            ok_all = False
-            continue
-        os.replace(tmp, out)
-        print(
-            f"  {centre}/{system} {region} m{k} {var}"
-            f"{'' if len(groups) == 1 else f' part {gi + 1}/{len(groups)}'}: "
-            f"{out.stat().st_size / 1e6:.0f} MB in {(time.time() - t0) / 60:.1f} min",
-            flush=True,
-        )
-    return ok_all
+    tmp = dest.with_suffix(".part")
+    t0 = time.time()
+    try:
+        _client().retrieve(DATASET, req, str(tmp))
+    except Exception as e:  # noqa: BLE001
+        msg = str(e).replace("\n", " ")
+        print(f"  {centre}/{system} {region} m{k}: FAILED {msg[:100]}", flush=True)
+        tmp.unlink(missing_ok=True)
+        return False
+    if not (tmp.exists() and tmp.stat().st_size > 0):
+        return False
+    os.replace(tmp, dest)
+    print(
+        f"  {centre}/{system} {region} m{k}: {dest.stat().st_size / 1e6:.0f} MB in {(time.time() - t0) / 60:.1f} min",
+        flush=True,
+    )
+    return True
 
 
 def main() -> int:
@@ -240,14 +139,8 @@ def main() -> int:
     ap.add_argument("--issue", default=time.strftime("%Y%m", time.gmtime()))
     ap.add_argument("--regions", default="us,br")
     ap.add_argument("--only", default="", help="centre_system")
-    ap.add_argument("--var", default="t2m", choices=sorted(VARS))
     ap.add_argument("--months", type=int, default=MONTHS)
     ap.add_argument("--probe", action="store_true", help="one chunk only, to measure the cost")
-    ap.add_argument(
-        "--hindcast",
-        action="store_true",
-        help="fetch the 24-year daily extremes instead (threshold days); keyed on start month",
-    )
     ap.add_argument("--order", default="", help="comma list of centre_system, fetched in this order")
     ap.add_argument(
         "--budget-min", type=float, default=0.0, help="stop STARTING new chunks after this many minutes (0 = no limit)"
@@ -267,19 +160,15 @@ def main() -> int:
         for region in regions:
             for k in range(1, a.months + 1):
                 need += 1
-                if not a.hindcast and a.var == "t2m" and CR.is_sixh(centre, system, region, a.issue, k).exists():
+                if CR.is_sixh(centre, system, region, a.issue, k).exists():
                     got += 1  # already reduced to its table (c3s_popt_daily.daily_for)
                     continue
                 if a.budget_min > 0 and (time.time() - t0) / 60 >= a.budget_min:
                     print(f"  budget of {a.budget_min:.0f} min spent; the rest is left for the next run", flush=True)
                     print(f"{got}/{need} chunk(s) ready (budget stop)")
                     return 0 if got >= 0.75 * need else 1
-                ok = bool(
-                    fetch_hindcast(centre, system, region, a.issue, k)
-                    if a.hindcast
-                    else fetch_chunk(centre, system, region, a.issue, k, a.var)
-                )
-                if ok and not a.hindcast and a.var == "t2m":
+                ok = fetch_chunk(centre, system, region, a.issue, k)
+                if ok:
                     # reduce at once to the daily card's table and drop the raw chunk (Actions)
                     from c3s_popt_daily import daily_for
 

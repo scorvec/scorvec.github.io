@@ -100,12 +100,6 @@ def hchunk_path(region: str, month: str, k: int) -> Path:
     return SIXH / f"hc_{region}_{month}_m{k}_x.grib"
 
 
-def day_hours(ym: str, k: int) -> list[str]:
-    """The 24-hour extremes exist at daily steps only: one step per day of forecast month k."""
-    hrs = [int(h) for h in month_hours(ym, k) if int(h) <= 5160]
-    return [str(h) for h in hrs if h % 24 == 0]
-
-
 def fetch_hindcast(region: str, ym: str, k: int) -> bool:
     """SEAS5 hindcast (1993–2016, 25 members) daily max/min for forecast month k of this start
     month — the model's own Tmin/Tmax climatology, so thresholds can be quantile-mapped per cell
