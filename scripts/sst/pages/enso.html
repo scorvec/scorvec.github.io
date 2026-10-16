@@ -744,7 +744,22 @@ window.STAGE = {
 }
 };
 </script>
-<script src="https://cdn.jsdelivr.net/npm/plotly.js-cartesian-dist-min@2.35.2/plotly-cartesian.min.js"></script>
+<script>
+// Plotly (the cartesian bundle) is fetched the first time one of this page's two charts is on stage, not with the
+// page: both are stage products and the page opens on the SST maps. Integrity as in scripts/site/apply_chrome.py SRI.
+window.loadPlotly = function () {
+  if (window.Plotly) return Promise.resolve(window.Plotly);
+  if (!loadPlotly.p) loadPlotly.p = new Promise(function (ok, no) {
+    var s = document.createElement("script");
+    s.src = "https://cdn.jsdelivr.net/npm/plotly.js-cartesian-dist-min@2.35.2/plotly-cartesian.min.js";
+    s.integrity = "sha384-gKF7EaMDoWW1zLWkouldmVWF5jqEKrAswAciW73iNzqlomabVVPO60XkJvL5q/Ie"; s.crossOrigin = "anonymous";
+    s.onload = function () { ok(window.Plotly); };
+    s.onerror = function () { loadPlotly.p = null; s.remove(); no(new Error("Plotly not loaded")); };   // the next draw retries
+    document.head.appendChild(s);
+  });
+  return loadPlotly.p;
+};
+</script>
 <script>
 (function () {
   "use strict";
@@ -958,6 +973,9 @@ window.STAGE = {
   }
   function render(traces, x0, x1, monthly, extra) {
     var nar = narrowChart(), abs = state.mode === "abs", el = document.getElementById("dailyChart");
+    // off stage (hidden): drawn when the stage mounts the card and fires its resize, and only then is Plotly fetched
+    if (!el.offsetWidth) { state.pending = true; return; }
+    state.pending = false;
     var shown = traces.filter(function (t) { return t.showlegend !== false; }).length;
     var L = {
       paper_bgcolor: "rgba(0,0,0,0)", plot_bgcolor: "#fff", uirevision: state.mode + (monthly ? "m" : "d"),
@@ -989,7 +1007,8 @@ window.STAGE = {
     el.style.height = h + "px";
     state.narrow = nar;
     traces.forEach(function (t) { delete t.endLabel; });
-    Plotly.react("dailyChart", traces, L, CONFIG).then(spreadLabels);
+    loadPlotly().then(function (P) { return P.react("dailyChart", traces, L, CONFIG); })
+      .then(spreadLabels, function () { note("The chart library (cdn.jsdelivr.net) could not be loaded; reload the page to try again."); });
   }
   // end labels of lines that finish close together (RONI and the ONI estimate, ~0.07 apart) were printed on top of
   // each other: once Plotly has the y scale, push them apart to at least 15 px
@@ -1072,7 +1091,7 @@ window.STAGE = {
   }
   function OCmmm(ym) { var MO = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"]; return MO[+ym.slice(5, 7) - 1] + " " + ym.slice(0, 4); }
   window.addEventListener("resize", function () {
-    if (state.data && narrowChart() !== !!state.narrow) drawDaily();
+    if (state.data && document.getElementById("dailyChart").offsetWidth && (state.pending || narrowChart() !== !!state.narrow)) drawDaily();
   });
 
   // pills
@@ -1126,7 +1145,9 @@ window.STAGE = {
 (function () {
   var T = null, st = { index: "soi", view: "cal" };
   function draw() {
-    if (!T || !window.OutlookCharts || !window.Plotly) return;
+    if (!T || !window.OutlookCharts) return;
+    if (!document.getElementById("soiSeasChart").offsetWidth) return;   // off stage: the resize on mount draws it
+    if (!window.Plotly) { loadPlotly().then(draw, function () { document.getElementById("soiSeasNote").textContent = "The chart library (cdn.jsdelivr.net) could not be loaded; reload the page to try again."; }); return; }
     var OC = window.OutlookCharts, s = T.indices[st.index]; if (!s) return;
     var x = s.valid.map(function (m) { return m + "-15"; });
     var tr = [];

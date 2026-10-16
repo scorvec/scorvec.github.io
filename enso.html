@@ -16,8 +16,8 @@
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="El Ni&ntilde;o Monitor &mdash; Daily ONI, RONI &amp; Ni&ntilde;o Indices &middot; Shawn Corvec">
 <meta name="twitter:description" content="Daily ONI and RONI estimates, interactive Niño-index charts, OISST and MUR SST anomaly maps, the SOI, the MEI, and equatorial convection and waves.">
-<link rel="stylesheet" href="/assets/outlook.css">
-<link rel="stylesheet" href="/assets/stage.css">
+<link rel="stylesheet" href="/assets/outlook.css?v=7548d602a3">
+<link rel="stylesheet" href="/assets/stage.css?v=c5147546f0">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css" integrity="sha384-nB0miv6/jRmo5UMMR1wu3Gz6NLsoTkbqJghGIsx//Rlm+ZU03BU6SQNC66uf4l5+" crossorigin="anonymous">
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js" integrity="sha384-7zkQWkzuo3B5mTepMUcHkMB5jZaolc2xDwL6VFqjFALcbeS9Ggm/Yr2r3Dy4lfFg" crossorigin="anonymous"></script>
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
@@ -25,9 +25,9 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,500;0,8..60,600;1,8..60,400&family=Source+Sans+3:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/assets/site.css">
-<script src="/assets/site.js" defer></script>
-<script src="/assets/rail.js" defer></script>
+<link rel="stylesheet" href="/assets/site.css?v=3c589bef47">
+<script src="/assets/site.js?v=fe84a7e3e0" defer></script>
+<script src="/assets/rail.js?v=02a0d609bc" defer></script>
 <script data-goatcounter="https://scorvec.goatcounter.com/count" async src="https://gc.zgo.at/count.v4.js" integrity="sha384-nRw6qfbWyJha9LhsOtSb2YJDyZdKvvCFh0fJYlkquSFjUxp9FVNugbfy8q1jdxI+" crossorigin="anonymous"></script>
 </head>
 <body>
@@ -1027,7 +1027,22 @@ window.STAGE = {
 }
 };
 </script>
-<script src="https://cdn.jsdelivr.net/npm/plotly.js-cartesian-dist-min@2.35.2/plotly-cartesian.min.js" integrity="sha384-gKF7EaMDoWW1zLWkouldmVWF5jqEKrAswAciW73iNzqlomabVVPO60XkJvL5q/Ie" crossorigin="anonymous"></script>
+<script>
+// Plotly (the cartesian bundle) is fetched the first time one of this page's two charts is on stage, not with the
+// page: both are stage products and the page opens on the SST maps. Integrity as in scripts/site/apply_chrome.py SRI.
+window.loadPlotly = function () {
+  if (window.Plotly) return Promise.resolve(window.Plotly);
+  if (!loadPlotly.p) loadPlotly.p = new Promise(function (ok, no) {
+    var s = document.createElement("script");
+    s.src = "https://cdn.jsdelivr.net/npm/plotly.js-cartesian-dist-min@2.35.2/plotly-cartesian.min.js";
+    s.integrity = "sha384-gKF7EaMDoWW1zLWkouldmVWF5jqEKrAswAciW73iNzqlomabVVPO60XkJvL5q/Ie"; s.crossOrigin = "anonymous";
+    s.onload = function () { ok(window.Plotly); };
+    s.onerror = function () { loadPlotly.p = null; s.remove(); no(new Error("Plotly not loaded")); };   // the next draw retries
+    document.head.appendChild(s);
+  });
+  return loadPlotly.p;
+};
+</script>
 <script>
 (function () {
   "use strict";
@@ -1241,6 +1256,9 @@ window.STAGE = {
   }
   function render(traces, x0, x1, monthly, extra) {
     var nar = narrowChart(), abs = state.mode === "abs", el = document.getElementById("dailyChart");
+    // off stage (hidden): drawn when the stage mounts the card and fires its resize, and only then is Plotly fetched
+    if (!el.offsetWidth) { state.pending = true; return; }
+    state.pending = false;
     var shown = traces.filter(function (t) { return t.showlegend !== false; }).length;
     var L = {
       paper_bgcolor: "rgba(0,0,0,0)", plot_bgcolor: "#fff", uirevision: state.mode + (monthly ? "m" : "d"),
@@ -1272,7 +1290,8 @@ window.STAGE = {
     el.style.height = h + "px";
     state.narrow = nar;
     traces.forEach(function (t) { delete t.endLabel; });
-    Plotly.react("dailyChart", traces, L, CONFIG).then(spreadLabels);
+    loadPlotly().then(function (P) { return P.react("dailyChart", traces, L, CONFIG); })
+      .then(spreadLabels, function () { note("The chart library (cdn.jsdelivr.net) could not be loaded; reload the page to try again."); });
   }
   // end labels of lines that finish close together (RONI and the ONI estimate, ~0.07 apart) were printed on top of
   // each other: once Plotly has the y scale, push them apart to at least 15 px
@@ -1355,7 +1374,7 @@ window.STAGE = {
   }
   function OCmmm(ym) { var MO = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"]; return MO[+ym.slice(5, 7) - 1] + " " + ym.slice(0, 4); }
   window.addEventListener("resize", function () {
-    if (state.data && narrowChart() !== !!state.narrow) drawDaily();
+    if (state.data && document.getElementById("dailyChart").offsetWidth && (state.pending || narrowChart() !== !!state.narrow)) drawDaily();
   });
 
   // pills
@@ -1404,12 +1423,14 @@ window.STAGE = {
     });
 })();
 </script>
-<script src="/assets/outlook-charts.js"></script>
+<script src="/assets/outlook-charts.js?v=940834f5d8"></script>
 <script>
 (function () {
   var T = null, st = { index: "soi", view: "cal" };
   function draw() {
-    if (!T || !window.OutlookCharts || !window.Plotly) return;
+    if (!T || !window.OutlookCharts) return;
+    if (!document.getElementById("soiSeasChart").offsetWidth) return;   // off stage: the resize on mount draws it
+    if (!window.Plotly) { loadPlotly().then(draw, function () { document.getElementById("soiSeasNote").textContent = "The chart library (cdn.jsdelivr.net) could not be loaded; reload the page to try again."; }); return; }
     var OC = window.OutlookCharts, s = T.indices[st.index]; if (!s) return;
     var x = s.valid.map(function (m) { return m + "-15"; });
     var tr = [];
@@ -1471,7 +1492,7 @@ window.STAGE = {
       }).catch(function () {});
   })();
 </script>
-<script src="/assets/stage.js" defer></script>
+<script src="/assets/stage.js?v=fe521cb543" defer></script>
 <!-- sf:start -->
 <footer class="sf">
   <div class="sf-in">

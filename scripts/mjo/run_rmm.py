@@ -148,7 +148,7 @@ def main() -> None:
 
     # 4. Plot
     Path(args.out_dir).mkdir(parents=True, exist_ok=True)
-    out_png = Path(args.out_dir) / f"rmm_{args.date}_{args.time}z.png"
+    out_png = Path(args.out_dir) / f"rmm_{args.date}_{args.time}z.webp"
     d0 = f"{args.date[:4]}-{args.date[4:6]}-{args.date[6:8]} {args.time}Z"
     plot_rmm(
         rmm,
@@ -178,7 +178,7 @@ def main() -> None:
             rc,
             obs=oc,
             ifs=ic,
-            out_path=Path(args.out_dir) / f"rmmclean_{args.date}_{args.time}z.png",
+            out_path=Path(args.out_dir) / f"rmmclean_{args.date}_{args.time}z.webp",
             title=f"ENSO removed: wind-only RMM{' (AIFS vs IFS)' if ic is not None else ' (AIFS)'}  —  Init: {d0}",
         )
         st = enso_rmm.diagnose(rc, oc, dn, enso_rmm.romi_status())

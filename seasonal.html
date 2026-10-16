@@ -35,9 +35,11 @@
  }
 }
 </script>
-<link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;1,400&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/assets/outlook.css">
-<link rel="stylesheet" href="/assets/stage.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,500;0,8..60,600;1,8..60,400&family=Source+Sans+3:ital,wght@0,400;0,500;0,600;1,400&family=Inter:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/outlook.css?v=7548d602a3">
+<link rel="stylesheet" href="/assets/stage.css?v=c5147546f0">
 <script>
 // SEAS5 stratosphere cards moved to the stratosphere page (2026-10-08): forward old deep links before the stage reads the hash
 (function () { var m = {"stratCard": "s5vortex", "sswCard": "s5ssw", "polar-stratosphere": "s5cap"};
@@ -84,12 +86,9 @@
   table.chg td.flat { color: var(--muted); }
 </style>
 
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400&family=Schibsted+Grotesk:wght@400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/assets/site.css">
-<script src="/assets/site.js" defer></script>
-<script src="/assets/rail.js" defer></script>
+<link rel="stylesheet" href="/assets/site.css?v=3c589bef47">
+<script src="/assets/site.js?v=fe84a7e3e0" defer></script>
+<script src="/assets/rail.js?v=02a0d609bc" defer></script>
 <script data-goatcounter="https://scorvec.goatcounter.com/count" async src="https://gc.zgo.at/count.v4.js" integrity="sha384-nRw6qfbWyJha9LhsOtSb2YJDyZdKvvCFh0fJYlkquSFjUxp9FVNugbfy8q1jdxI+" crossorigin="anonymous"></script>
 </head>
 <body>
@@ -249,9 +248,23 @@
   </div>
 </header>
 <!-- sh:end -->
-<script src="https://cdn.jsdelivr.net/npm/plotly.js-cartesian-dist-min@2.35.2/plotly-cartesian.min.js" integrity="sha384-gKF7EaMDoWW1zLWkouldmVWF5jqEKrAswAciW73iNzqlomabVVPO60XkJvL5q/Ie" crossorigin="anonymous"></script>
-<script src="/assets/outlook-charts.js"></script>
-<script src="/assets/seas5-cards.js"></script>
+<script>
+// Plotly (the cartesian bundle) loads alongside the page instead of blocking it: the page opens on the C3S maps,
+// which need no chart library. The scripts that draw charts run through afterPlotly(), once it has loaded (or failed
+// to: their cards then hide or say so). Integrity as in scripts/site/apply_chrome.py SRI.
+window.plotlyP = new Promise(function (ok, no) {
+  var s = document.createElement("script");
+  s.src = "https://cdn.jsdelivr.net/npm/plotly.js-cartesian-dist-min@2.35.2/plotly-cartesian.min.js";
+  s.integrity = "sha384-gKF7EaMDoWW1zLWkouldmVWF5jqEKrAswAciW73iNzqlomabVVPO60XkJvL5q/Ie"; s.crossOrigin = "anonymous";
+  s.onload = ok; s.onerror = no;
+  document.head.appendChild(s);
+});
+window.afterPlotly = function (fn) {
+  return function () { var self = this, args = arguments, run = function () { fn.apply(self, args); }; window.plotlyP.then(run, run); };
+};
+</script>
+<script src="/assets/outlook-charts.js?v=940834f5d8"></script>
+<script src="/assets/seas5-cards.js?v=cf020e0c95"></script>
 <main id="main">
   <header>
     <div class="eyebrow">Monthly, from the Copernicus C3S multi-system seasonal ensemble, the NOAA SFS beta and ECCC CanSIPS, <span id="issueLabel">latest issue</span></div>
@@ -973,7 +986,7 @@ window.NinoObs = {
 };
 </script>
 <script>
-(function () {
+afterPlotly(function () {
   var J = null, OC = window.OutlookCharts;
   var state = { enso: "nino34", other: "pdo", members: false, sm: 0, hemi: "nh", lev: "100" };
   var OBS_KEY = { nino12: "nino12", nino3: "nino3", nino34: "nino34", nino4: "nino4", rnino34: "roni" };
@@ -1515,10 +1528,10 @@ window.NinoObs = {
     draw();
   }
 
-  var popP = fetch("assets/sst/data/seas5_popT.json?v=" + Date.now()).then(function (r) { return r.ok ? r.json() : null; }).catch(function () { return null; });
-  var teleP = fetch("assets/sst/data/seas5_tele.json?v=" + Date.now()).then(function (r) { return r.ok ? r.json() : null; }).catch(function () { return null; });
-  var normP = fetch("assets/sst/data/seas5_normals.json?v=" + Date.now()).then(function (r) { return r.ok ? r.json() : null; }).catch(function () { return null; });
-  fetch("assets/sst/data/seas5_outlook.json?v=" + Date.now()).then(function (r) { return r.json(); }).then(function (d) {
+  var popP = fetch("assets/sst/data/seas5_popT.json").then(function (r) { return r.ok ? r.json() : null; }).catch(function () { return null; });
+  var teleP = fetch("assets/sst/data/seas5_tele.json").then(function (r) { return r.ok ? r.json() : null; }).catch(function () { return null; });
+  var normP = fetch("assets/sst/data/seas5_normals.json").then(function (r) { return r.ok ? r.json() : null; }).catch(function () { return null; });
+  fetch("assets/sst/data/seas5_outlook.json").then(function (r) { return r.json(); }).then(function (d) {
     J = d;
     popP.then(popView); teleP.then(teleView); normP.then(normView);
     document.getElementById("issueLabel").textContent = issueLabel(J.issue) + " issue";
@@ -1592,7 +1605,7 @@ window.NinoObs = {
     var h = host.querySelector("h2");
     if (h) h.insertAdjacentElement("afterend", p); else host.insertBefore(p, host.firstChild);
   }
-  var ready = fetch("/assets/sst/data/c3s_maps.json?t=" + Date.now()).then(function (r) { return r.json(); });
+  var ready = fetch("/assets/sst/data/c3s_maps.json").then(function (r) { return r.json(); });
   // the other C3S cards (own JSON, own issue) are flagged the same way when they lag the maps' issue
   window.C3S_FLAG_STALE = function (cardId, issue, label) {
     ready.then(function (j) { if (issue && j.issue && issue !== j.issue) flagStale(cardId, label || issue, j.issue_label || j.issue); }).catch(function () {});
@@ -1626,11 +1639,11 @@ window.C3S_LEGEND = function (host, size) {
                 : { legend: { orientation: "h", y: 1.16, x: 0, font: { size: size } }, extra: 0, r: 12, b: 38 };
 };
 /* Ocean indices for every system (assets/sst/data/c3s_indices.json). One line per model,
-   the multi-model mean in black and thicker; the picker chooses the index. Plotly is
-   already on the page for the member-level cards. */
-(function () {
+   the multi-model mean in black and thicker; the picker chooses the index. Drawn once
+   Plotly has loaded (afterPlotly). */
+afterPlotly(function () {
   var PAL = ["#d62728", "#1f77b4", "#2ca02c", "#9467bd", "#ff7f0e", "#8c564b", "#c49b3b", "#17becf"];
-  fetch("/assets/sst/data/c3s_indices.json?t=" + Date.now()).then(function (r) { return r.json(); }).then(function (J) {
+  fetch("/assets/sst/data/c3s_indices.json").then(function (r) { return r.json(); }).then(function (J) {
     var pick = document.getElementById("c3sIdxPick"), plot = document.getElementById("c3sIdxPlot");
     if (!pick || !plot || !window.Plotly) { var c = document.getElementById("c3sIdxCard"); if (c) c.hidden = true; return; }
     var cur = "nino34";
@@ -1678,8 +1691,8 @@ window.C3S_LEGEND = function (host, size) {
    One system at a time as a fan, because eight overlapping fans read as nothing; the
    multi-model pool is the default and the per-system means are drawn behind it as thin
    lines so the disagreement is still visible. */
-(function () {
-  fetch("/assets/sst/data/c3s_popt.json?t=" + Date.now()).then(function (r) { return r.json(); }).then(function (J) {
+afterPlotly(function () {
+  fetch("/assets/sst/data/c3s_popt.json").then(function (r) { return r.json(); }).then(function (J) {
     var host = document.getElementById("c3sPopPlot");
     if (!host || !window.Plotly || !J.regions) { var c = document.getElementById("c3sPopCard"); if (c) c.hidden = true; return; }
     var regions = Object.keys(J.regions);
@@ -1753,9 +1766,10 @@ window.C3S_LEGEND = function (host, size) {
 </script>
 
 <script>
-/* Plotly measures its container when it draws, and the rail keeps every card but one
-   hidden, so a chart built off-screen comes back a few hundred pixels wide when its card
-   is finally shown. Resize on the first reveal, once per plot. */
+/* Plotly measures its container when it draws, and the stage parks every card but one
+   off-screen, so a chart built there comes back a few hundred pixels wide when its card is
+   mounted. The stage fires a resize after every mount (assets/stage.js): resize then, once
+   per new width. */
 (function () {
   var ids = ["c3sIdxPlot", "c3sPopPlot", "c3sDayPlot"];
   function fix() {
@@ -1769,17 +1783,15 @@ window.C3S_LEGEND = function (host, size) {
       }
     });
   }
-  new MutationObserver(fix).observe(document.body, { attributes: true, subtree: true, attributeFilter: ["hidden", "style", "class"] });
   addEventListener("resize", fix);
-  setInterval(fix, 1200);
 })();
 </script>
 
 <script>
 /* The daily distribution (assets/sst/data/c3s_popt_daily.json). Same controls as the
    monthly card; three nested bands because the point of a daily pool is its tails. */
-(function () {
-  fetch("/assets/sst/data/c3s_popt_daily.json?t=" + Date.now()).then(function (r) { return r.json(); }).then(function (J) {
+afterPlotly(function () {
+  fetch("/assets/sst/data/c3s_popt_daily.json").then(function (r) { return r.json(); }).then(function (J) {
     var host = document.getElementById("c3sDayPlot");
     if (!host || !window.Plotly || !J.regions) { var c = document.getElementById("c3sDayCard"); if (c) c.hidden = true; return; }
     var regions = Object.keys(J.regions);
@@ -1862,7 +1874,7 @@ window.C3S_LEGEND = function (host, size) {
 /* SEAS5 weather-regime frequencies vs SEAS5's own climate (scripts/sst/seas5_regimes.py, 2026-09-28). */
 (function () {
   var sel = "na";
-  fetch("assets/sst/data/seas5_regimes.json?v=" + Date.now()).then(function (r) { return r.ok ? r.json() : null; }).then(function (J) {
+  fetch("assets/sst/data/seas5_regimes.json").then(function (r) { return r.ok ? r.json() : null; }).then(function (J) {
     if (!J || !J.sectors) return;
     var card = document.getElementById("regimeCard");
     function esc(t) { return String(t).replace(/&/g, "&amp;").replace(/</g, "&lt;"); }
@@ -2054,7 +2066,7 @@ window.C3S_LEGEND = function (host, size) {
     setTimeout(stampMaps, 0);                // the stage fills #about after onRender: stamp the copied template then
     if (started) return;
     started = true;
-    fetch("assets/sfs/data/sfs_indices.json?v=" + Date.now())
+    fetch("assets/sfs/data/sfs_indices.json")
       .then(function (r) { if (!r.ok) throw 0; return r.json(); })
       .then(function (D) {
         idxState.data = D;
@@ -2080,9 +2092,9 @@ window.C3S_LEGEND = function (host, size) {
       });
 
     Promise.all([
-      fetch("assets/sfs/data/sfs_nino34.json?v=" + Date.now()).then(function (r) { if (!r.ok) throw 0; return r.json(); }),
-      fetch("assets/sst/data/enso_forecast.json?v=" + Date.now()).then(function (r) { return r.ok ? r.json() : null; }).catch(function () { return null; }),
-      fetch("assets/sst/data/nino_history.json?v=" + Date.now()).then(function (r) { return r.ok ? r.json() : null; }).catch(function () { return null; }),
+      fetch("assets/sfs/data/sfs_nino34.json").then(function (r) { if (!r.ok) throw 0; return r.json(); }),
+      fetch("assets/sst/data/enso_forecast.json").then(function (r) { return r.ok ? r.json() : null; }).catch(function () { return null; }),
+      fetch("assets/sst/data/nino_history.json").then(function (r) { return r.ok ? r.json() : null; }).catch(function () { return null; }),
     ]).then(function (res) {
       state.sfs = res[0]; state.c3s = res[1]; state.hist = res[2];
       draw();
@@ -2093,7 +2105,7 @@ window.C3S_LEGEND = function (host, size) {
         '<div class="s">check back after the monthly build (~6th)</div></div>';
     });
   }
-  window.SFS = { start: start };
+  window.SFS = { start: afterPlotly(start) };
 })();
 
 /* CanSIPS group (2026-10-07): the 12-month plume from cansips_dd.json (written monthly by cansips.yml). Loads on the
@@ -2185,7 +2197,7 @@ window.C3S_LEGEND = function (host, size) {
         $("csChips").innerHTML = '<div class="chip"><div class="l">CanSIPS feed</div><div class="v neut">unavailable</div><div class="s">check back after the monthly build (last day of the month)</div></div>';
       });
   }
-  window.CSP = { start: start };
+  window.CSP = { start: afterPlotly(start) };
 })();
 </script>
 
@@ -2216,6 +2228,6 @@ window.C3S_LEGEND = function (host, size) {
   </div>
 </footer>
 <!-- sf:end -->
-<script src="/assets/stage.js" defer></script>
+<script src="/assets/stage.js?v=fe521cb543" defer></script>
 </body>
 </html>

@@ -21,7 +21,7 @@ from clean_section import clean_section, load_status  # the ENSO-removed RMM sec
 ASSETS = Path("assets/mjo")
 OUT = Path("mjo.html")
 MANIFEST = ASSETS / "rmm_manifest.json"
-RE = re.compile(r"rmm_(\d{8})_(\d{2})z\.png$")
+RE = re.compile(r"rmm_(\d{8})_(\d{2})z\.(webp|png)$")
 
 NAV = """<nav>
   <a href="index.html" class="nav-name">Shawn Corvec</a>
@@ -35,15 +35,14 @@ NAV = """<nav>
 
 
 def discover():
-    items = []
-    for p in ASSETS.glob("rmm_*z.png"):
+    """(date, hour, path) per cycle, newest first. Frames are WebP since 2026-10-16; a cycle still held as PNG is
+    shown from that until it ages out, and the WebP wins where a re-plot left both."""
+    by = {}
+    for p in sorted(ASSETS.glob("rmm_*z.*"), key=lambda q: q.suffix != ".webp"):
         m = RE.search(p.name)
-        if not m:
-            continue
-        date, hh = m.group(1), m.group(2)
-        items.append((date, hh, p))
-    items.sort(key=lambda x: (x[0], x[1]), reverse=True)
-    return items
+        if m:
+            by.setdefault((m.group(1), m.group(2)), p)
+    return [(d, h, p) for (d, h), p in sorted(by.items(), reverse=True)]
 
 
 def label(date, hh):
@@ -388,7 +387,6 @@ def main():
  }}
 }}
 </script>
-<link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;1,400&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
 <style>
   *, *::before, *::after {{ box-sizing: border-box; margin: 0; padding: 0; }}
   :root {{

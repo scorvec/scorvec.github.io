@@ -4,7 +4,7 @@ Plot RMM phase-space diagram and amplitude time series for an AIFS ensemble.
 Usage:
     python src/plot.py --rmm data/aifs/rmm_20240601_00z.nc \
                        --obs-rmm data/era5/obs_rmm.nc \
-                       --out plots/rmm_20240601_00z.png
+                       --out plots/rmm_20240601_00z.webp
 """
 
 import argparse
@@ -277,7 +277,9 @@ def plot_rmm(
 
     if out_path:
         out_path.parent.mkdir(parents=True, exist_ok=True)
-        fig.savefig(out_path, dpi=150, bbox_inches="tight")
+        # the site's loop frames are WebP (about a third of the PNG); another suffix saves in that format
+        kw = {"pil_kwargs": {"quality": 90, "method": 6}} if out_path.suffix == ".webp" else {}
+        fig.savefig(out_path, dpi=150, bbox_inches="tight", **kw)
         print(f"Figure saved to {out_path}")
 
     return fig

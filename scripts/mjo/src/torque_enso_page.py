@@ -20,6 +20,7 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
+from PIL import Image
 
 sys.path.insert(0, str(Path(__file__).parent))
 import torque_enso_study as S
@@ -34,6 +35,12 @@ DESC = (
     "Where El Niño's extra angular momentum comes from: a standing shift in the Andes mountain torque, "
     "and why ERA5's budget needs its analysis increments to close."
 )
+
+
+def img_size(p: Path) -> tuple[int, int]:
+    """A figure file's pixel size, for the width and height that reserve its space before it loads."""
+    with Image.open(p) as im:
+        return im.size
 
 
 def num(x, d=1, sign=True):
@@ -391,8 +398,10 @@ def main() -> int:
 
     def fig(key, f, alt, cap):
         n = FN[key]
+        w, h = img_size(site / IMG.lstrip("/") / f)
         return (
-            f"<figure id='fig{n}'><a href='{IMG}/{f}' class='zoom'><img src='{IMG}/{f}' alt=\"{alt}\" loading='lazy'></a>"
+            f"<figure id='fig{n}'><a href='{IMG}/{f}' class='zoom'><img src='{IMG}/{f}' alt=\"{alt}\" width='{w}' height='{h}' "
+            "loading='lazy'></a>"
             f"<figcaption><b>Figure {n}.</b> {cap}</figcaption></figure>"
         )
 
