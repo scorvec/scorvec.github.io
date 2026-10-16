@@ -1,5 +1,5 @@
 """The 'ENSO removed' block of mjo.html (2026-09-27): an animator of the ENSO-removed wind-only RMM runs
-(assets/mjo/rmmclean_*z.png, written by run_rmm.py via src/enso_rmm.py), its status line and the method notes.
+(assets/mjo/rmmclean_*z.webp, written by run_rmm.py via src/enso_rmm.py; PNG before 2026-10-16), its status line and the method notes.
 Called by generate_page.py; returns "" until the first cleaned plot exists, so the page never shows an empty block."""
 
 import json
@@ -11,17 +11,17 @@ ASSETS = Path("assets/mjo")
 MANIFEST = ASSETS / "rmmclean_manifest.json"
 STATUS = ASSETS / "rmm_clean_status.json"
 CORR = Path("scripts/mjo/data/reference/enso_rmm_correction.json")
-RE = re.compile(r"rmmclean_(\d{8})_(\d{2})z\.png$")
+RE = re.compile(r"rmmclean_(\d{8})_(\d{2})z\.(webp|png)$")
 
 
 def _items():
-    out = []
-    for p in ASSETS.glob("rmmclean_*z.png"):
+    """(date, hour, path) per cycle, oldest first; the WebP wins where a cycle is held in both formats."""
+    by = {}
+    for p in sorted(ASSETS.glob("rmmclean_*z.*"), key=lambda q: q.suffix != ".webp"):
         m = RE.search(p.name)
         if m:
-            out.append((m.group(1), m.group(2), p))
-    out.sort(key=lambda x: (x[0], x[1]))
-    return out
+            by.setdefault((m.group(1), m.group(2)), p)
+    return [(d, h, p) for (d, h), p in sorted(by.items())]
 
 
 def _label(d, h):
