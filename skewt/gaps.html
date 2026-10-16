@@ -207,7 +207,7 @@
   </div>
 </header>
 <!-- sh:end -->
-<div class="wrap">
+<main class="wrap" id="main">
   <div class="eyebrow">Updated weekly from the IGRA archive</div>
   <h1>US sounding gap report</h1>
   <p class="lede">Every US radiosonde site is supposed to launch at 00Z and 12Z, every day. Of
@@ -219,7 +219,7 @@
   <div class="cards" id="cards"></div>
   <div class="panel"><table id="tbl"></table></div>
   <p class="note" id="foot-note"></p>
-</div>
+</main>
 <footer>
   Data: NOAA <a href="https://www.ncei.noaa.gov/products/weather-balloon/integrated-global-radiosonde-archive">IGRA v2</a>
   year-to-date files (≈2-day lag) · a slot counts as "off-hour instead" when no 00Z/12Z launch
@@ -227,7 +227,9 @@
   (Anthropic's Claude Fable 5), directed by Shawn Corvec.
 </footer>
 <script>
-fetch("gaps.json").then(r => r.json()).then(d => {
+// station names come from the IGRA station list: escaped before they go into HTML
+const esc = x => String(x == null ? "" : x).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+fetch("gaps.json").then(r => { if (!r.ok) throw new Error(r.status); return r.json(); }).then(d => {
   let st = Object.entries(d.stations);
   const dayN = Math.floor(st[0][1].g.length / 2);
   const strip = g => {
@@ -252,8 +254,8 @@ fetch("gaps.json").then(r => r.json()).then(d => {
       <div class="v okc">${clean}</div></div>`;
   const rows = offenders.map(([id, v]) => {
     const pct = (100 * (1 - v.miss60 / 120)).toFixed(0);
-    return `<tr><td><a href="./#${id}" style="color:var(--accent); text-decoration:none">${v.n}</a>
-      <span style="color:var(--muted)">${id}</span></td>
+    return `<tr><td><a href="./#${encodeURIComponent(id)}" style="color:var(--accent); text-decoration:none">${esc(v.n)}</a>
+      <span style="color:var(--muted)">${esc(id)}</span></td>
       <td class="${v.miss60 >= 12 ? "bad" : v.miss60 ? "warn" : ""}">${v.miss60}</td>
       <td class="${v.off60 ? "warn" : ""}">${v.off60}</td>
       <td class="${v.miss14 >= 6 ? "bad" : v.miss14 ? "warn" : ""}">${v.miss14}</td>
@@ -270,6 +272,8 @@ fetch("gaps.json").then(r => r.json()).then(d => {
     `Excluded as non-routine sites (research/range, never on the 00Z/12Z schedule): ` +
     special.map(([id, v]) => `${v.n} ${id}`).join(", ") + ". " +
     `Station links open the live sounding explorer.`;
+}).catch(() => {
+  document.getElementById("cards").innerHTML = "<p class='note'>The gap report could not be loaded. Reload the page to try again.</p>";
 });
 </script>
 <!-- sf:start -->

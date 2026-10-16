@@ -1174,6 +1174,8 @@ const p2 = n => String(n).padStart(2, "0");
 // IGRA v2 update — about a day behind, so never shown as live)
 let centres = {};                // manifest: originating-centre code -> service name
 const centreName = code => centres[code] || code || "unknown";
+// station and centre names come from the data feeds: escaped wherever they go into HTML
+const escH = x => String(x == null ? "" : x).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 const srcLabel = (src, by) => src === "IGRA" ? "NOAA IGRA v2 daily update, about a day behind"
   : src === "WIS2" ? `WMO WIS 2.0 real-time (originating service: ${centreName(by)})`
   : src === "ECCC" ? "MSC Datamart real-time · Data Source: Environment and Climate Change Canada"
@@ -1187,9 +1189,9 @@ function launchSrc(me, h) {
   return code === "IEM" ? ["IEM", null] : code === "ECCC" ? ["ECCC", null]
     : code.startsWith("TAC:") ? ["TAC", code] : ["WIS2", code];
 }
-const viaTip = (src, by) => src === "WIS2" ? ` · via WMO WIS 2.0, from ${centreName(by)}`
+const viaTip = (src, by) => src === "WIS2" ? ` · via WMO WIS 2.0, from ${escH(centreName(by))}`
   : src === "ECCC" ? " · from Environment and Climate Change Canada (MSC Datamart)"
-  : src === "TAC" ? ` · WMO GTS TEMP via WIS 2.0, from ${centreName(by)}` : "";
+  : src === "TAC" ? ` · WMO GTS TEMP via WIS 2.0, from ${escH(centreName(by))}` : "";
 
 // SPC/IEM report wind on only some levels; zero-filling the rest would drag the
 // hodograph to the origin, so interpolate U/V across the gaps in log-p.
@@ -1356,6 +1358,16 @@ let mode = "latest";
 let archHour = 12;
 let archDate = new Date(Date.now() - 3 * 864e5).toISOString().slice(0, 10);
 const igraCache = new Map();     // gid -> decompressed text
+// fflate unzips the archive downloads only: it loads with the first one, not with the page
+let fflateP = null;
+const needFflate = () => fflateP || (fflateP = new Promise((ok, no) => {
+  if (window.fflate) { ok(window.fflate); return; }
+  const sc = document.createElement("script");
+  sc.src = "vendor/fflate.js";
+  sc.onload = () => ok(window.fflate);
+  sc.onerror = () => { fflateP = null; no(new Error("fflate did not load")); };
+  document.head.appendChild(sc);
+}));
 
 // ---------- wasm ----------
 // Version the .wasm URL as well: sharplib.js resolves it itself, so without
@@ -1385,6 +1397,8 @@ const COARSE = window.matchMedia && matchMedia("(pointer:coarse)").matches;
 const MK = { live: "#5a8fd8", liveRim: "#dbe8ff", off: "#bf5af2", offRim: "#f0dcff", recent: "#33c495",
              recentRim: "#1f7a5e", stale: "#a3a9b2", closed: "#e0533f", closedRim: "#7a1f1f",
              rec: "#ff2d2d", p95: "#ff9a6e", sel: "#ffd60a" };
+// the same states as TEXT in a tooltip (Leaflet's tooltips are white): the marker colours fall under 4.5:1 there
+const TIP = { off: "#7d22b3", rec: "#b3001b" };
 const RAD = COARSE ? { closed: 5, active: 7, live: 10 } : { closed: 2.5, active: 4, live: 6 };
 const map = L.map("map", { worldCopyJump: true, preferCanvas: true }).setView([30, -10], 3);
 // mobile nav wraps after fonts/layout settle, resizing the map container —
@@ -1422,6 +1436,37 @@ function closeModal() {
 }
 document.getElementById("close").onclick = closeModal;
 modal.addEventListener("click", e => { if (e.target === modal) closeModal(); });
+// Dialogs (the card and the overlays above it): on open the dialog takes the focus, Tab stays inside the topmost
+// one, and on close the focus goes back to whatever opened it. Watching the hidden attribute covers every way an
+// overlay opens or closes. Embedded (models.html, recon.html) the host's dock does this for the card.
+const DLG = [];                                    // open overlays, newest last: {el, back}
+const FOCUSABLE = 'button, [href], input, select, textarea, summary, [tabindex]:not([tabindex="-1"])';
+if (EMBED) { const box = modal.querySelector('[role="dialog"]'); if (box) { box.removeAttribute("role"); box.removeAttribute("aria-modal"); } }
+for (const id of ["modal", "png-view", "cloud-modal", "fog-modal", "rec-modal", "anom-modal", "climo-modal"]) {
+  const el = document.getElementById(id);
+  if (!el) continue;
+  new MutationObserver(() => {
+    const i = DLG.findIndex(d => d.el === el);
+    if (!el.hidden && i < 0) {
+      DLG.push({ el, back: document.activeElement });
+      const box = el.querySelector('[role="dialog"]') || el;
+      if (!(EMBED && el === modal) && !box.contains(document.activeElement)) box.focus({ preventScroll: true });
+    } else if (el.hidden && i >= 0) {
+      const [d] = DLG.splice(i, 1), a = document.activeElement;
+      if (d.back && d.back !== document.body && d.back.isConnected && (!a || a === document.body || el.contains(a)))
+        d.back.focus({ preventScroll: true });
+    }
+  }).observe(el, { attributes: true, attributeFilter: ["hidden"] });
+}
+addEventListener("keydown", e => {
+  if (e.key !== "Tab" || !DLG.length) return;
+  const top = DLG[DLG.length - 1].el;
+  if (EMBED && top === modal) return;
+  const f = [...top.querySelectorAll(FOCUSABLE)].filter(x => !x.disabled && x.getClientRects().length);
+  if (!f.length) return;
+  const i = f.indexOf(document.activeElement);
+  if (e.shiftKey ? i <= 0 : (i < 0 || i === f.length - 1)) { e.preventDefault(); f[e.shiftKey ? f.length - 1 : 0].focus(); }
+});
 addEventListener("keydown", e => {
   if (e.key !== "Escape") return;
   // close only the TOPMOST visible overlay per keystroke — stacked dialogs
@@ -1508,7 +1553,7 @@ Promise.all([
     const m = L.circleMarker([s.la, s.lo], {
       radius: RAD.closed, weight: 0.5, color: MK.closedRim, fillColor: MK.closed, fillOpacity: 0.85,
     }).addTo(closedLayer);
-    m.bindTooltip(`${s.n} (${s.gid}) · closed ${s.y0}–${s.y1} — click for archive`);
+    m.bindTooltip(`${escH(s.n)} (${escH(s.gid)}) · closed ${s.y0}–${s.y1} — click for archive`);
     m.on("click", () => { setMode("archive"); highlight(m); selectStation(s); });
   }
   // Not live. Teal = a RECENT sounding that is not from the last regular slot: a real-time (IEM / WIS2) station
@@ -1529,12 +1574,12 @@ Promise.all([
       : { radius: RAD.active - 0.5, weight: 1.6, color: MK.stale, opacity: 0.9, fill: true, fillOpacity: 0 }
     ).addTo(map);
     m.bindTooltip(viaIgra
-      ? `${s.n} (${s.gid}) · new launches in NOAA IGRA v2's daily update (${me.upd || "?"}Z) — ` +
+      ? `${escH(s.n)} (${escH(s.gid)}) · new launches in NOAA IGRA v2's daily update (${escH(me.upd || "?")}Z) — ` +
         `about a day behind; click to open the newest`
       : stale
-      ? `${s.n} (${s.gid}) · last sounding ${stale}Z (${Math.round(ageHours(stale))} h ago), not at the last 00Z/12Z` +
+      ? `${escH(s.n)} (${escH(s.gid)}) · last sounding ${escH(stale)}Z (${Math.round(ageHours(stale))} h ago), not at the last 00Z/12Z` +
         `${viaTip(me.src, me.by)} — click to open`
-      : `${s.n} (${s.gid}) · no sounding in the last ~4 days — click for the archive (${s.y0}–${s.y1})`);
+      : `${escH(s.n)} (${escH(s.gid)}) · no sounding in the last ~4 days — click for the archive (${s.y0}–${s.y1})`);
     m.on("click", () => { highlight(m); selectStation(s); });
     if (s.id) markerById[s.id] = { m, n: s.n };
   }
@@ -1563,14 +1608,14 @@ Promise.all([
       fillColor: off ? MK.off : MK.live, fillOpacity: 0.95,
     }).addTo(map);
     const arch = ig ? ` · archive ${ig.y0}–${ig.y1}` : "";
-    const anomTip = flag ? `<br><b style="color:#ff2d2d">⚡ record watch:</b> ` +
+    const anomTip = flag ? `<br><b style="color:${TIP.rec}">⚡ record watch:</b> ` +
       flag.flags.map(f => f.rec
-        ? `${f.lab} ${f.v} — <b>${f.rec.tier === "all" ? "ALL-TIME RECORD" : "RECORD for the date"} ${f.rec.t}</b> (prev ${f.rec.prev}, ${f.rec.y})`
-        : `${f.lab} ${f.v} (P${f.pct} ${f.sense})`).join(", ") : "";
+        ? `${escH(f.lab)} ${escH(f.v)} — <b>${f.rec.tier === "all" ? "ALL-TIME RECORD" : "RECORD for the date"} ${escH(f.rec.t)}</b> (prev ${escH(f.rec.prev)}, ${escH(f.rec.y)})`
+        : `${escH(f.lab)} ${escH(f.v)} (P${escH(f.pct)} ${escH(f.sense)})`).join(", ") : "";
     const offTip = off
-      ? ` <b style="color:${MK.off}">· off-hour launch (${String(launchHour(s.dt)).padStart(2, "0")}Z)</b>`
+      ? ` <b style="color:${TIP.off}">· off-hour launch (${String(launchHour(s.dt)).padStart(2, "0")}Z)</b>`
       : "";
-    m.bindTooltip(`${s.n || id} (${id}) · latest ${s.dt}Z ` +
+    m.bindTooltip(`${escH(s.n || id)} (${escH(id)}) · latest ${escH(s.dt)}Z ` +
       `(${Math.round(ageHours(s.dt))} h ago)${offTip}${viaTip(s.src, s.by)}${arch}${anomTip}`);
     markerById[id] = { m, n: s.n || id };
     if (!COARSE) m.on("mouseover", () => prefetchLatest(id));
@@ -1596,6 +1641,10 @@ Promise.all([
                     n: (entries[want] || {}).n || (igraStations[byWmo[want]] || {}).n,
                     e: (igraStations[byWmo[want]] || {}).e || 0 });
   }
+}).catch(e => {
+  console.error(e);
+  setStatus("the station list could not be loaded — reload the page to try again");
+  feedBanner("⚠ The station list could not be loaded. Click to retry.");
 });
 
 // mint a shareable link for whatever is on screen
@@ -1700,7 +1749,7 @@ function buildAnomPanel() {
         `<span>${rwBadge(f)}${f.rec ? `<span class="prev">prev ${f.rec.prev}${RW_UNIT[f.k] ? " " + RW_UNIT[f.k] : ""} (${f.rec.y})</span>` : ""}</span>` +
         `<span class="bar" title="${f.pct}th percentile for the date"><i style="left:${pos}%"></i></span>`;
     }).join("");
-    return `<li class="st" tabindex="0" data-wmo="${r.wmo}"><div><span class="nm">${r.name}${r.country ? " · " + r.country : ""}</span>` +
+    return `<li class="st" tabindex="0" data-wmo="${escH(r.wmo)}"><div><span class="nm">${escH(r.name)}${r.country ? " · " + escH(r.country) : ""}</span>` +
       `<span class="when">${rwWhen(r)}</span></div><div class="fl">${fl}</div></li>`;
   }).join("") + (rows.length > RW.limit ? `<li class="more"><button type="button" id="rw-more">Show all ${rows.length} stations</button></li>` : "")
     : `<li style="color:var(--muted);padding:8px">Nothing matches these filters — try "Any" launch time or "All flagged".</li>`;
@@ -1722,7 +1771,7 @@ function rwDrawMap(rows) {
   // dots first, stars on top
   for (const r of rows.slice().reverse()) {
     const f = r.flags[0], hi = f.sense === "high";
-    const tip = `<b>${r.name}</b>${r.country ? " · " + r.country : ""}<br><span style="opacity:.8">${rwWhen(r)}</span><br>` +
+    const tip = `<b>${escH(r.name)}</b>${r.country ? " · " + escH(r.country) : ""}<br><span style="opacity:.8">${rwWhen(r)}</span><br>` +
       r.flags.slice(0, 4).map(g => `${g.lab} <b>${rwFmt(g)}</b> — ${g.rec ? (g.rec.tier === "all" ? "ALL-TIME RECORD" : "record for the date") +
         ` (prev ${g.rec.prev}, ${g.rec.y})` : (g.sense === "high" ? "top " : "bottom ") + Math.max(1, 100 - (g.sense === "high" ? g.pct : 100 - g.pct)) + "%"}`).join("<br>");
     let m;
@@ -1750,9 +1799,10 @@ function rwDrawMap(rows) {
   const segs = [["rw-grp", "grp"], ["rw-dir", "dir"], ["rw-kind", "kind"], ["rw-age", "age"]];
   for (const [id, key] of segs) {
     const el = document.getElementById(id); if (!el) continue;
+    el.querySelectorAll("button").forEach(x => x.setAttribute("aria-pressed", x.classList.contains("on")));
     el.addEventListener("click", e => {
       const b = e.target.closest("button"); if (!b) return;
-      el.querySelectorAll("button").forEach(x => x.classList.toggle("on", x === b));
+      el.querySelectorAll("button").forEach(x => { x.classList.toggle("on", x === b); x.setAttribute("aria-pressed", x === b); });
       RW[key] = key === "age" ? +b.dataset.v : b.dataset.v; RW.limit = 60;
       buildAnomPanel();
     });
@@ -2214,10 +2264,10 @@ function highlight(marker) {
 }
 
 function syncControls() {
-  document.querySelectorAll('[data-act="latest"]').forEach(b =>
-    b.classList.toggle("on", mode === "latest"));
-  document.querySelectorAll('[data-act="archive"]').forEach(b =>
-    b.classList.toggle("on", mode === "archive"));
+  document.querySelectorAll('[data-act="latest"], [data-act="archive"]').forEach(b => {
+    const on = b.dataset.act === mode;
+    b.classList.toggle("on", on); b.setAttribute("aria-pressed", on);
+  });
   document.querySelectorAll(".arch-controls").forEach(el =>
     el.style.display = mode === "archive" ? "inline-flex" : "none");
   document.querySelectorAll(".datectl").forEach(el => { el.value = archDate; });
@@ -2279,7 +2329,7 @@ function renderHours() {
     archHour = hours.reduce((a, b) => Math.abs(b - archHour) < Math.abs(a - archHour) ? b : a);
   }
   const html = hours.map(h =>
-    `<button data-hour="${h}" class="${h % 6 ? "special" : ""}${h === archHour ? " on" : ""}"` +
+    `<button data-hour="${h}" class="${h % 6 ? "special" : ""}${h === archHour ? " on" : ""}" aria-pressed="${h === archHour}"` +
     ` title="${known.length ? (h % 6 ? "off-hour (special) release" : "synoptic launch")
                              : "no launch list for this date yet — 00Z/12Z assumed"}">${hourZ(h)}</button>`).join("");
   document.querySelectorAll(".hours").forEach(el => { el.innerHTML = html; });
@@ -2312,7 +2362,7 @@ function renderLaunchStrip() {
     const via = ls === "WIS2" ? ` — WMO WIS 2.0, ${centreName(lb)}` : ls === "IEM" ? " — IEM"
       : ls === "ECCC" ? " — Environment and Climate Change Canada (MSC Datamart)"
       : ls === "TAC" ? ` — WMO GTS TEMP via WIS 2.0, ${centreName(lb)}` : "";
-    html += `<button data-launch="${h}" class="${hh % 6 ? "special" : ""}${on ? " on" : ""}"` +
+    html += `<button data-launch="${h}" class="${hh % 6 ? "special" : ""}${on ? " on" : ""}" aria-pressed="${on}"` +
       ` title="${d} ${hourZ(hh)}${hh % 6 ? " — off-hour (special) release" : ""}${via}${on ? " — on screen" : ""}">${hourZ(hh)}</button>`;
   }
   if (specials) html += `<span class="day" style="margin-left:8px; color:#d9a8ff">` +
@@ -2514,8 +2564,9 @@ async function igraText(gid, year) {
                     : "downloading IGRA archive…", true);
       const buf = new Uint8Array(await r.arrayBuffer());
       setStatus("decompressing…", true);
-      const files = fflate.unzipSync(buf);
-      const text = fflate.strFromU8(files[Object.keys(files)[0]]);
+      const fz = await needFflate();
+      const files = fz.unzipSync(buf);
+      const text = fz.strFromU8(files[Object.keys(files)[0]]);
       // decompressed POR texts run 50–150+ MB; unbounded caching OOMs mobile
       // tabs after a few archive stations — keep only the most recent two
       while (igraCache.size >= 2) igraCache.delete(igraCache.keys().next().value);
@@ -2730,7 +2781,7 @@ async function loadSounding() {
       try {
         const r = await ghFetch("skewt-archive", "day-" + dkey + ".zip", null, true);
         dayZipCache.set(dkey, r.ok
-          ? fflate.unzipSync(new Uint8Array(await r.arrayBuffer())) : null);
+          ? (await needFflate()).unzipSync(new Uint8Array(await r.arrayBuffer())) : null);
       } catch (e) { /* transient network failure — don't cache, retry next time */ }
     }
     if (stale()) return;                  // user switched station mid-download
@@ -2740,7 +2791,7 @@ async function loadSounding() {
       const alt = Object.keys(bundle).find(k => k.startsWith(current.id + "_"));
       const pick = bundle[want] ? want : alt;
       if (pick) {
-        const prof = parseCSV(fflate.strFromU8(bundle[pick]));
+        const prof = parseCSV((await needFflate()).strFromU8(bundle[pick]));
         if (prof) {
           const hh = pick.slice(-6, -4);
           setStatus(`valid ${ymd} ${hh}Z · ${prof.P.length} levels (day archive)`);
@@ -4483,9 +4534,26 @@ function render(prof) {
   drawSkewT(prof, res);
   drawHodo(prof, res);
   drawMSE(prof);
+  plotLabels(prof, res);
   renderLaunchStrip(); renderHours();
   if (false) for (const id of ["pcl-table", "kin-table", "kin-table-b", "kin-table2", "kin-table3", "mse-table", "winter-table"])
     document.getElementById(id).innerHTML = "";
+}
+
+// text alternatives for the two plots: what each shows and its headline numbers (the tables carry the rest)
+function plotLabels(prof, res) {
+  const o = res.o, ok = v => v !== MISSING && isFinite(v);
+  const val = (v, unit, d = 0) => ok(v) ? `${v.toFixed(d)} ${unit}` : "missing";
+  const degC = v => isFinite(v) ? `${(v - 273.15).toFixed(1)} °C` : "missing";
+  const what = (plotTitle || "this sounding").replace(/\s*·\s*/g, ", ");
+  document.getElementById("skewt").setAttribute("aria-label",
+    `Skew-T log-P diagram, ${what}: temperature and dewpoint against pressure, with the parcel paths. ` +
+    `Lowest level ${degC(prof.T.find(isFinite))}, dewpoint ${degC(prof.D.find(isFinite))}; MLCAPE ${val(o[5], "J/kg")}, ` +
+    `MUCAPE ${val(o[10], "J/kg")}, precipitable water ${val(o[15], "mm", 1)}. The tables beside the plot hold every value.`);
+  const sh6 = ok(o[18]) && ok(o[19]) ? Math.hypot(o[18], o[19]) * KT : NaN;
+  document.getElementById("hodo").setAttribute("aria-label",
+    `Hodograph, ${what}: the wind vector by height, with the storm motions. 0–6 km shear ${val(sh6, "kt")}; ` +
+    `storm-relative helicity ${val(o[26], "m²/s²")} over 0–1 km and ${val(o[27], "m²/s²")} over 0–3 km. The kinematics table has the rest.`);
 }
 
 // ---------- station finder + recents ----------
@@ -4534,14 +4602,15 @@ function render(prof) {
     return r.slice(0, 12).map(z => z[1]);
   }
   function show() {
-    list.innerHTML = hits.map((x, i) => `<li role="option" data-i="${i}" class="${i === cur ? "on" : ""}">${x.n}` +
-      (x.c && !x.n.includes(x.c) ? ` <small>· ${x.c}</small>` : "") +
-      ` <small>· ${[x.id, x.icao].filter(Boolean).join(" / ") || x.s.gid}</small>` +
+    list.innerHTML = hits.map((x, i) => `<li role="option" id="stn-opt-${i}" aria-selected="${i === cur}" data-i="${i}" class="${i === cur ? "on" : ""}">${escH(x.n)}` +
+      (x.c && !x.n.includes(x.c) ? ` <small>· ${escH(x.c)}</small>` : "") +
+      ` <small>· ${escH([x.id, x.icao].filter(Boolean).join(" / ") || x.s.gid)}</small>` +
       (x.live ? `<span class="lv">live</span>` : (x.s.y0 ? ` <small>· ${x.s.y0}–${x.s.y1}</small>` : "")) + "</li>").join("") ||
       `<li aria-disabled="true"><small>no station matches</small></li>`;
     list.hidden = false; inp.setAttribute("aria-expanded", "true");
+    if (cur >= 0 && hits[cur]) inp.setAttribute("aria-activedescendant", "stn-opt-" + cur); else inp.removeAttribute("aria-activedescendant");
   }
-  function hide() { list.hidden = true; inp.setAttribute("aria-expanded", "false"); cur = -1; }
+  function hide() { list.hidden = true; inp.setAttribute("aria-expanded", "false"); inp.removeAttribute("aria-activedescendant"); cur = -1; }
   function open(x) {
     hide(); inp.value = ""; inp.blur();
     const s = x.s, ig = s.gid ? igraStations[s.gid] : null;
@@ -4570,7 +4639,7 @@ function render(prof) {
   function drawRecents() {
     const r = getR();
     recEl.innerHTML = r.length ? `<span class="lbl">Recent</span>` + r.map((x, i) =>
-      `<button type="button" data-i="${i}" title="${(x.n || "").replace(/"/g, "&quot;")}">${(x.n || x.id || x.gid).split(/[(,]/)[0].trim().slice(0, 18)}</button>`).join("") : "";
+      `<button type="button" data-i="${i}" title="${escH(x.n || "")}">${escH((x.n || x.id || x.gid).split(/[(,]/)[0].trim().slice(0, 18))}</button>`).join("") : "";
   }
   recEl.addEventListener("click", e => {
     const b = e.target.closest("button[data-i]"); if (!b) return;
@@ -4685,7 +4754,7 @@ function renderModelStrip(el) {
   MS.items.forEach((it, i) => {
     const d = it.valid.slice(0, 10);
     if (d !== day) { day = d; html += `<span class="day">${MON_S[+d.slice(5, 7) - 1]} ${+d.slice(8, 10)}</span>`; }
-    html += `<button data-mhour="${i}" class="${i === MS.idx ? "on" : ""}" title="${it.label} · valid ${it.valid}Z">${it.chip || it.valid.slice(11, 13) + "Z"}</button>`;
+    html += `<button data-mhour="${i}" class="${i === MS.idx ? "on" : ""}" aria-pressed="${i === MS.idx}" title="${escH(it.label)} · valid ${escH(it.valid)}Z">${it.chip || it.valid.slice(11, 13) + "Z"}</button>`;
   });
   el.innerHTML = html;
 }
