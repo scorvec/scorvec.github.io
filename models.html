@@ -51,26 +51,44 @@
   .mv-grp > span { font-size: 0.86rem; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; color: var(--muted); padding-left: 2px; }
   .seg button small { font-size: 0.78em; opacity: 0.8; margin-left: 0.25em; }
   .runsel.mv-fsel { display: none; }
-  .mv-row { display: flex; flex-wrap: wrap; align-items: center; gap: 0.45rem 0.9rem; flex: 1 1 100%; }
+  /* min-width 0: a wrapping row is as wide as the bar, never as wide as its longest line (it ran 100 px past a 320 px phone) */
+  .mv-row { display: flex; flex-wrap: wrap; align-items: center; gap: 0.45rem 0.9rem; flex: 1 1 100%; min-width: 0; }
   .mv-show { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem 1.3rem; margin: 0.45rem 0 0; font-size: 1.12rem; color: var(--ink); }
   .mv-show > b { font-weight: 600; color: var(--ink); }
   .mv-keys { margin-left: auto; font-size: 0.92rem; color: var(--muted); }
   .mv-keys kbd { font: inherit; font-size: 0.78rem; border: 1px solid var(--rule); border-bottom-width: 2px; border-radius: 4px; padding: 0 0.3em; background: var(--panel); }
   .mv-legT { margin: 0.1rem 0 0; font-size: 0.97rem; color: var(--muted); }
-  .mv-acc { display: flex; flex-wrap: wrap; gap: 0.45rem 0.9rem; align-items: center; flex: 1 1 100%; }
+  .mv-acc { display: flex; flex-wrap: wrap; gap: 0.45rem 0.9rem; align-items: center; flex: 1 1 100%; min-width: 0; }
   .mv-acc[hidden] { display: none; }
-  .runsel { display: inline-flex; align-items: center; gap: 0.45rem; font-size: 1.12rem; font-weight: 600; color: var(--ink); }
-  .runsel select { font: inherit; font-size: 1.12rem; font-weight: 600; padding: 0.55rem 0.6rem; min-height: 46px; border: 1px solid var(--rule); border-radius: 6px; background: var(--panel); color: var(--ink); }
+  /* a picker never runs past the window: its select shrinks (the longest option names are wider than a 320 px phone) */
+  .runsel { display: inline-flex; align-items: center; gap: 0.45rem; font-size: 1.12rem; font-weight: 600; color: var(--ink); min-width: 0; max-width: 100%; }
+  .runsel select { font: inherit; font-size: 1.12rem; font-weight: 600; padding: 0.55rem 0.6rem; min-height: 46px; border: 1px solid var(--rule); border-radius: 6px; background: var(--panel); color: var(--ink);
+                   flex: 0 1 auto; min-width: 0; max-width: 100%; text-overflow: ellipsis; }
+  /* the meteogram's keyboard way in: an airport or city by code or name */
+  .mv-find { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem 0.6rem; margin: 0.45rem 0 0; font-size: 1.04rem; color: var(--ink); }
+  .mv-find label { font-weight: 600; }
+  .mv-find input { font: inherit; padding: 0.45rem 0.6rem; min-height: 44px; width: 17rem; max-width: 100%; border: 1px solid var(--rule); border-radius: 6px; background: var(--panel); color: var(--ink); }
+  .mv-find button { font: inherit; font-weight: 600; padding: 0.45rem 0.95rem; min-height: 44px; border: 1px solid var(--rule); border-radius: 6px; background: var(--panel); color: var(--ink); cursor: pointer; }
+  .mv-find output { color: var(--ink2); }
   .chk[hidden] { display: none; }
   .chk { display: inline-flex; align-items: center; gap: 0.5rem; font-size: 1.12rem; font-weight: 600; color: var(--ink); cursor: pointer; user-select: none; min-height: 40px; }
   .chk input { width: 1.25rem; height: 1.25rem; accent-color: var(--accent); margin: 0; }
 
   /* time bar + map + colour legend fit in the window together once scrolled to (sticky header ~64 px, time bar ~62,
      legend ~70): no 880 px cap */
+  /* touch: one finger scrolls the page, two move and zoom the map (the map is most of a phone's screen; a one-finger
+     pan there left no way to scroll past it) */
   .mv-map { position: relative; width: 100%; height: max(340px, calc(100vh - 225px)); background: var(--map); border: 1px solid var(--rule);
-            border-radius: 8px; overflow: hidden; touch-action: none; cursor: grab;
+            border-radius: 8px; overflow: hidden; touch-action: pan-x pan-y; cursor: grab;
             -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; }
   .mv-map.drag { cursor: grabbing; }
+  .mv-map:focus { outline: none; }
+  .mv-map:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+  /* how to zoom or pan when a gesture went to the page instead (scroll without Ctrl, one finger on a touch screen) */
+  .mv-coop { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 5; pointer-events: none; max-width: min(26rem, 90%);
+             background: rgba(20, 24, 22, 0.85); color: #fff; border-radius: 8px; padding: 0.6rem 0.95rem; font-size: 1.04rem; text-align: center;
+             opacity: 0; transition: opacity 0.2s; }
+  .mv-coop.on { opacity: 1; }
   .mv-map canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
   /* the line overlay is moved by the compositor during a gesture (CSS transform, no canvas redraw); the label canvas is
      hidden while the map moves and redrawn once it settles */
@@ -164,6 +182,7 @@
            box-shadow: 0 18px 60px rgba(20, 24, 22, 0.28); overflow: hidden; display: flex; flex-direction: column; }
   .mv-mg.full { top: 0; bottom: 0; width: 100vw; border: 0; border-radius: 0; }
   .mv-mg[hidden] { display: none; }
+  .mv-mg:focus { outline: none; }
   /* forecast sounding dock: the meteogram's frame around the sounding explorer in an iframe */
   .mv-snd iframe { flex: 1 1 auto; min-height: 0; width: 100%; border: 0; display: block; background: #0b0b12; }
   .mv-snd .mv-mgtop { padding-bottom: 0.55rem; }
@@ -437,17 +456,18 @@
   </div>
   </div>
   <div class="mv-mapwrap">
-  <div class="mv-map" id="map" aria-label="Model map. Scroll or pinch to zoom, drag to pan.">
-    <canvas id="gl"></canvas>
-    <canvas id="ov"></canvas>
-    <canvas id="lab"></canvas>
+  <div class="mv-map" id="map" tabindex="0" role="application" aria-roledescription="map" aria-label="Model map" aria-describedby="badge mapKeys">
+    <canvas id="gl" aria-hidden="true"></canvas>
+    <canvas id="ov" aria-hidden="true"></canvas>
+    <canvas id="lab" aria-hidden="true"></canvas>
+    <div class="mv-coop" id="coop" aria-hidden="true"></div>
     <div class="mv-badge" id="badge"></div>
     <div class="mv-zoom"><button type="button" id="zin" aria-label="Zoom in">+</button><button type="button" id="zout" aria-label="Zoom out">&minus;</button><button type="button" class="txt" id="zfit" aria-label="Reset view">fit</button></div>
-    <div class="mv-msg" id="msg"></div>
+    <div class="mv-msg" id="msg" role="status"></div>
     <div class="mv-load" id="load"></div>
     <div class="mv-tip" id="tip"></div>
   </div>
-  <div class="mv-legend"><canvas id="leg" aria-label="Colour scale"></canvas></div>
+  <div class="mv-legend"><canvas id="leg" role="img" aria-label="Colour scale" aria-describedby="legT"></canvas></div>
     <div class="mv-sndhint" id="sndH" hidden role="note"><span id="sndHT"></span><button type="button" id="sndHX" aria-label="Hide this tip" title="Hide this tip">&times;</button></div>
   </div>
   <p class="mv-legT" id="legT"></p>
@@ -458,11 +478,18 @@
     <label class="chk" id="diffL" hidden title="The other 3 km model's value subtracted at the same valid time, on the shared grid (HRRR and RRFS use the identical grid)"><input type="checkbox" id="diff"> <span id="diffT">Difference</span></label>
     <label class="chk" id="farmsL" hidden title="US wind projects (USGS Wind Turbine Database) or large-scale solar plants (USGS Solar PV Database), sized by capacity"><input type="checkbox" id="farms" checked> <span id="farmsT">Wind farms</span></label>
     <span class="mv-keys" id="sndL" hidden><b>Sounding:</b> double-click the map (on a phone, double-tap or press and hold) for that spot's HRRR forecast sounding</span>
-    <span class="mv-keys">Keys: <kbd>&larr;</kbd> <kbd>&rarr;</kbd> change hour &middot; <kbd>Space</kbd> play or pause &middot; scroll to zoom, drag to pan</span>
+    <span class="mv-keys" id="mapKeys">Click the map, then: arrows pan &middot; <kbd>+</kbd> <kbd>&minus;</kbd> zoom &middot; <kbd>0</kbd> reset &middot; <kbd>,</kbd> <kbd>.</kbd> hour &middot; <kbd>Space</kbd> play &middot; <kbd>Ctrl</kbd> + scroll zooms</span>
   </div>
+  <form class="mv-find" id="mgFind" role="search">
+    <label for="mgQ">Forecast for an airport or city</label>
+    <input id="mgQ" type="text" list="mgList" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="ICAO code or name, e.g. KORD">
+    <datalist id="mgList"></datalist>
+    <button type="submit">Open the meteogram</button>
+    <output id="mgFindMsg" aria-live="polite"></output>
+  </form>
   <p class="mv-note" id="note"></p>
 
-  <section class="mv-mg" id="mg" hidden role="dialog" aria-label="Forecast meteogram">
+  <section class="mv-mg" id="mg" hidden role="dialog" aria-label="Forecast meteogram" tabindex="-1">
     <div class="mv-mgtop">
       <div class="mv-mgh"><h2 id="mgT"></h2><span class="sub" id="mgS"></span><span class="mv-key" id="mgK"></span>
         <span class="mv-mgbtns"><button type="button" class="x" id="mgSnd" hidden title="The HRRR forecast sounding at this station">Sounding</button><button type="button" class="x" id="mgW" title="Use the whole window (the map stays underneath)">Full window</button><button type="button" class="x" id="mgX">Close<kbd>Esc</kbd></button></span></div>
@@ -1012,6 +1039,7 @@
   var st = { model: "hrrr", ci: 0, field: "ir", hour: 0, playing: false, acc: { type: "apcp", win: 0 }, ec: "ecape_mu" };
   var view = null;                                // {cx, cy, s: metres per CSS px}
   var $ = function (id) { return document.getElementById(id); };
+  function escH(s) { return String(s == null ? "" : s).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); }
   var mapEl = $("map"), glc = $("gl"), ovc = $("ov"), labc = $("lab"), tip = $("tip");
 
   function cycleObj(model, ci) { var m = man[model]; return m && m.cycles && m.cycles[ci]; }
@@ -1124,12 +1152,13 @@
   function workerMain() {
     function decodeMsg(d) {
       return createImageBitmap(new Blob([d.buf], { type: "image/webp" }), { colorSpaceConversion: "none", premultiplyAlpha: "none" }).then(function (b) {
-        var c = new OffscreenCanvas(b.width, b.height), g = c.getContext("2d", { willReadFrequently: true }); g.drawImage(b, 0, 0);
-        var px = g.getImageData(0, 0, b.width, b.height).data, n = b.width * b.height, o = new Uint8Array(n * d.ch), k;
+        var bw = b.width, bh = b.height, c = new OffscreenCanvas(bw, bh), g = c.getContext("2d", { willReadFrequently: true }); g.drawImage(b, 0, 0);
+        var px = g.getImageData(0, 0, bw, bh).data, n = bw * bh, o = new Uint8Array(n * d.ch), k;
+        b.close(); c.width = c.height = 0;               // the pixels are copied out: free the bitmap and canvas now, not at GC
         if (d.ch === 1) for (k = 0; k < n; k++) o[k] = px[4 * k];
         else if (d.ch === 3) for (k = 0; k < n; k++) { o[3 * k] = px[4 * k]; o[3 * k + 1] = px[4 * k + 1]; o[3 * k + 2] = px[4 * k + 2]; }
         else for (k = 0; k < n; k++) { o[2 * k] = px[4 * k]; o[2 * k + 1] = px[4 * k + 1]; }
-        self.postMessage({ id: d.id, w: b.width, h: b.height, data: o }, [o.buffer]);
+        self.postMessage({ id: d.id, w: bw, h: bh, data: o }, [o.buffer]);
       });
     }
     function blur(f, W, H, r) {                       // box blur, radius r, separable running sums, edges clamped
@@ -1363,13 +1392,15 @@
   } catch (e) { workers = []; }
   function decodeMain(buf, ch) {
     return createImageBitmap(new Blob([buf], { type: "image/webp" }), { colorSpaceConversion: "none", premultiplyAlpha: "none" }).then(function (b) {
-      var c = document.createElement("canvas"); c.width = b.width; c.height = b.height;
+      var bw = b.width, bh = b.height, c = document.createElement("canvas"); c.width = bw; c.height = bh;
       var g = c.getContext("2d", { willReadFrequently: true }); g.drawImage(b, 0, 0);
-      var px = g.getImageData(0, 0, b.width, b.height).data, n = b.width * b.height, o = new Uint8Array(n * ch);
+      var px = g.getImageData(0, 0, bw, bh).data, n = bw * bh, o = new Uint8Array(n * ch);
+      if (b.close) b.close();
+      c.width = c.height = 0;
       if (ch === 1) for (var k = 0; k < n; k++) o[k] = px[4 * k];
       else if (ch === 3) for (var k3 = 0; k3 < n; k3++) { o[3 * k3] = px[4 * k3]; o[3 * k3 + 1] = px[4 * k3 + 1]; o[3 * k3 + 2] = px[4 * k3 + 2]; }
       else for (var k2 = 0; k2 < n; k2++) { o[2 * k2] = px[4 * k2]; o[2 * k2 + 1] = px[4 * k2 + 1]; }
-      return { w: b.width, h: b.height, data: o };
+      return { w: bw, h: bh, data: o };
     });
   }
   function decode(buf, ch) {
@@ -1392,8 +1423,21 @@
   // ── frame cache: bytes (all fetched), decoded frames (LRU) ───────────────────────────────────────────────────────
   // Requests are queued; the frame on screen is "urgent" and goes first. While it is loading (and always on a slow
   // connection) at most one or two other files are in flight, so a slow line is not split six ways before the first map.
-  var frames = new Map();           // key -> {bytes, bytesP, dec, decP, tex, used, lo}
-  var DEC_MAX = 18, TEX_MAX = 8, BYTES_MAX = 400;
+  var frames = new Map();           // key -> {k, bytes, bytesP, dec, decP, tex, used, lo}
+  // Memory budgets in BYTES, scaled to the device (navigator.deviceMemory in GB, 4 where the browser does not say): a
+  // count cap let ten HRRR accumulation windows (9.5 MB each) or six model differences (25 MB each) pile up on a phone.
+  // Least recently used goes first; the few newest always stay (the frame on screen and what is drawn over it).
+  var DEVMEM = Math.max(0.5, Math.min(8, navigator.deviceMemory || 4)), MB = 1048576;
+  var MEM = { bytes: Math.round(Math.min(240, Math.max(40, 40 * DEVMEM)) * MB),   // downloaded files (Cache Storage has them too)
+              dec: Math.round(Math.min(96, Math.max(24, 16 * DEVMEM)) * MB),      // decoded frames
+              tex: Math.round(Math.min(64, Math.max(16, 10 * DEVMEM)) * MB),      // GPU textures: frames and their smoothed contour fields
+              der: Math.round(Math.min(96, Math.max(24, 16 * DEVMEM)) * MB) };   // accumulation windows, ECAPE ratios, model differences
+  function lru(list, size, budget, keep, drop) {
+    var tot = 0; list.forEach(function (x) { tot += size(x); });
+    if (tot <= budget) return;
+    list.sort(function (a, b) { return a.used - b.used; });
+    for (var i = 0; i < list.length - keep && tot > budget; i++) { tot -= size(list[i]); drop(list[i]); }
+  }
   var inflight = 0, urgentIn = 0, queue = [];
   // network estimate: bytes per ms over the files that came from the network (EMA), scaled by how many were in flight
   var NET = { bw: 0, n: 0 };
@@ -1404,7 +1448,7 @@
     return !!(cn && cn.downlink && cn.downlink < 8);
   }
   function fkey(model, c, field, h, lo) { return model + "/" + c.cycle + "/" + field + "/" + h + (lo ? "~lo" : ""); }
-  function entry(k) { var e = frames.get(k); if (!e) { e = { used: 0 }; frames.set(k, e); } return e; }
+  function entry(k) { var e = frames.get(k); if (!e) { e = { k: k, used: 0 }; frames.set(k, e); } return e; }
   function want(list, nUrgent) {                            // list of [model, cycle, field, hour, lo], highest priority first
     // Files still downloading that the new list no longer asks for (another model, field or run was picked) are
     // cancelled, not finished "for later": nothing is loaded in the background.
@@ -1446,9 +1490,8 @@
     updLoad();
   }
   function trimBytes() {
-    if (frames.size <= BYTES_MAX) return;
-    var arr = Array.from(frames.entries()).filter(function (x) { return x[1].bytes; }).sort(function (a, b) { return a[1].used - b[1].used; });
-    for (var i = 0; i < arr.length - BYTES_MAX; i++) { var e = arr[i][1]; dropTex(e); frames.delete(arr[i][0]); }
+    var es = []; frames.forEach(function (e) { if (e.bytes) es.push(e); });
+    lru(es, function (e) { return e.bytes.byteLength; }, MEM.bytes, 6, function (e) { dropTex(e); frames.delete(e.k); });
   }
   var useClock = 0;
   function peek(model, c, field, h, lo) { var e = frames.get(fkey(model, c, field, h, lo)); return e && e.dec ? e : null; }
@@ -1466,8 +1509,8 @@
     e.wantDec = false;
     e.decP = decode(e.bytes, e.ch).then(function (d) {
       e.dec = d; e.decP = null;
-      var ds = Array.from(frames.values()).filter(function (x) { return x.dec; }).sort(function (a, b) { return a.used - b.used; });
-      for (var i = 0; i < ds.length - DEC_MAX; i++) { ds[i].dec = null; dropTex(ds[i]); }
+      var ds = []; frames.forEach(function (x) { if (x.dec) ds.push(x); });
+      lru(ds, function (x) { return x.dec.data.byteLength; }, MEM.dec, 4, function (x) { x.dec = null; dropTex(x); });
       render();
       if (e.lo === false && drawn && drawn.e && drawn.e.lo && tip.style.display === "block" && lastHover) hover(lastHover[0], lastHover[1]);   // the native value has arrived
     }, function () { e.decP = null; e.fail = true; render(); });
@@ -1621,6 +1664,23 @@
     gl.useProgram(prog);
     return true;
   }
+  // The GPU can take the context away (a driver reset, a phone reclaiming memory, too many WebGL pages open): every
+  // texture and program is gone. The decoded frames are kept; their textures are forgotten and the GL state is built
+  // again once the browser hands the context back.
+  var glLost = false;
+  glc.addEventListener("webglcontextlost", function (e) {
+    e.preventDefault(); glLost = true;                   // preventDefault asks for the context back
+    $("msg").textContent = "The graphics card dropped the map for a moment; it is redrawn as soon as it is back.";
+  });
+  glc.addEventListener("webglcontextrestored", function () {
+    var forget = function (x) { x.tex = null; x.cmap = null; };
+    frames.forEach(forget); ACCF.forEach(forget); ECF.forEach(forget); DIFF.forEach(forget);
+    drawn = null; lutKey = ""; pre = null; GPUC = false;
+    try { glOk = initGL(); } catch (err) { console.error(err); glOk = false; }
+    glLost = false;
+    $("msg").textContent = glOk ? "" : "The map could not be drawn again after the graphics card reset; reload the page.";
+    if (glOk) render();
+  });
   function newTex() {
     var t = gl.createTexture(); gl.activeTexture(gl.TEXTURE4); gl.bindTexture(gl.TEXTURE_2D, t);
     [gl.TEXTURE_MIN_FILTER, gl.TEXTURE_MAG_FILTER].forEach(function (p) { gl.texParameteri(gl.TEXTURE_2D, p, gl.NEAREST); });
@@ -1641,9 +1701,15 @@
     else if (ch === 3) gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB8, e.dec.w, e.dec.h, 0, gl.RGB, gl.UNSIGNED_BYTE, e.dec.data);
     else gl.texImage2D(gl.TEXTURE_2D, 0, gl.RG8, e.dec.w, e.dec.h, 0, gl.RG, gl.UNSIGNED_BYTE, e.dec.data);
     e.tex = t;
-    var ts = Array.from(frames.values()).filter(function (x) { return x.tex; }).sort(function (a, b) { return a.used - b.used; });
-    for (var i = 0; i < ts.length - TEX_MAX; i++) { if (ts[i] !== e) dropTex(ts[i]); }
+    var ts = [], add = function (x) { if (x.tex || x.cmap) ts.push(x); };
+    frames.forEach(add); ACCF.forEach(add); ECF.forEach(add); DIFF.forEach(add);
+    lru(ts, texBytes, MEM.tex, 3, function (x) { if (x !== e) dropTex(x); });
     return t;
+  }
+  function texBytes(x) {                                        // the frame's texture and its smoothed contour fields (RG32F)
+    var b = x.tex && x.dec ? x.dec.data.byteLength : 0;
+    if (x.cmap) Object.keys(x.cmap).forEach(function (k) { b += x.cmap[k].W2 * x.cmap[k].H2 * 8; });
+    return b;
   }
   // The smoothed field of a frame for the GPU contours, made once per frame (and contour spec): RG32F (value, mask) on the
   // D x D block lattice, rows in IMAGE order (row 0 = north) exactly as the worker's lattice. -> {tex, D, ctr, W2, H2}
@@ -1878,8 +1944,7 @@
       var cd = Math.round(254 * Math.sqrt(vi / vm)); out[k] = cd < 1 ? 1 : cd > 254 ? 254 : cd;
     }
     var ent = { dec: { w: e1.dec.w, h: e1.dec.h, data: out }, exact: exact, used: ++useClock, lo: lo };
-    ACCF.set(key + (lo ? "~lo" : ""), ent);
-    if (ACCF.size > 10) { var old = ACCF.keys().next().value, oe = ACCF.get(old); dropTex(oe); ACCF.delete(old); }
+    ACCF.set(key + (lo ? "~lo" : ""), ent); trimDerived();
     return { e: ent, fm: fm, label: label, start: start, key: key };
   }
   // ECAPE: the CAPE-type fields are drawn straight from their file; the ratio is divided here into a 1-byte code (0 = masked,
@@ -1907,8 +1972,7 @@
       var cd = 1 + Math.round(r * 100); out[k] = cd > 254 ? 254 : cd;
     }
     var ent = { dec: { w: ea.dec.w, h: ea.dec.h, data: out }, a: a, b: b, used: ++useClock };
-    ECF.set(key, ent);
-    if (ECF.size > 8) { var old = ECF.keys().next().value, oe = ECF.get(old); dropTex(oe); ECF.delete(old); }
+    ECF.set(key, ent); trimDerived();
     return { e: ent, fm: fm, key: key };
   }
   // the frame of a plain field: the resolution the zoom wants, else the other one if it is already decoded (the native
@@ -1922,7 +1986,7 @@
   var lastFast = 0;
   function fastFrame() {
     var e = drawn && drawn.e;
-    if (!gl || !view || !e || !e.tex || drawn.msg) return false;
+    if (!gl || glLost || !view || !e || !e.tex || drawn.msg) return false;
     var t0 = performance.now();
     gl.viewport(0, 0, glc.width, glc.height); gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT);
     gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, e.tex);
@@ -1938,6 +2002,7 @@
     return true;
   }
   function draw() {
+    if (glLost) return;                                   // the context is being reset: nothing to draw on until it is back
     if (interacting) gestDraws++;
     if (interacting && fastFrame()) return;
     var cc = currentCycle(), c = cc.c, fd = FIELDS[st.field];
@@ -2085,11 +2150,17 @@
   // Turbine Database (turbines grouped into projects) and the USGS US Large-Scale Solar PV Database, both public domain.
   // Circles scale with capacity.
   var FARMS = null, farmsP = null, farmsQ = false;
+  // A static file that failed to load is asked for again only after a pause that doubles each time (20 s to 10 min):
+  // every redraw of the labels asks for the markers, and retrying at once made a request per frame while offline.
+  function backoff(b) { b.n = (b.n || 0) + 1; b.at = Date.now() + Math.min(600000, 20000 * Math.pow(2, b.n - 1)); }
+  function waiting(b) { return Date.now() < (b.at || 0); }
+  var farmsB = {}, aptsB = {};
   function farmKind() { return st.field === "wind80" ? "wind" : st.field === "sw" ? "solar" : null; }
   function loadFarms() {
-    if (farmsP) return; farmsP = fetch("data/models_farms.json").then(function (r) { return r.json(); }).then(function (d) {
+    if (farmsP || waiting(farmsB)) return;
+    farmsP = fetch("data/models_farms.json").then(function (r) { if (!r.ok) throw new Error("http " + r.status); return r.json(); }).then(function (d) {
       ["wind", "solar"].forEach(function (k) { d[k].forEach(function (a) { var q = P.fwd(a[0], a[1]); a.x = q[0]; a.y = q[1]; }); });
-      FARMS = d; render(); }).catch(function () { farmsP = null; farmsQ = false; });
+      FARMS = d; render(); }).catch(function () { farmsP = null; farmsQ = false; backoff(farmsB); });
   }
   function farmsOn() { var k = farmKind(); return k && $("farms").checked ? k : null; }
   // declutter: at national scale only the larger plants (6,600 solar sites would bury the map); all of them from ~1.2 km/px
@@ -2098,7 +2169,7 @@
   function drawFarms(ctx) {
     var k = farmsOn(); if (!k) return;
     if (!FARMS) {                                          // asked for once the first map is up (and still wanted then)
-      if (!farmsQ) { farmsQ = true; whenShown(function () { if (farmsOn()) loadFarms(); else farmsQ = false; }); }
+      if (!farmsQ && !waiting(farmsB)) { farmsQ = true; whenShown(function () { if (farmsOn()) loadFarms(); else farmsQ = false; }); }
       return;
     }
     var L = FARMS[k], x0 = view.cx - W / 2 * view.s, x1 = view.cx + W / 2 * view.s, y0 = view.cy - H / 2 * view.s, y1 = view.cy + H / 2 * view.s;
@@ -2476,13 +2547,14 @@
   // greedily right/left/above/below and dropped (marker kept) where they would collide.
   var APTS = null, aptsP = null, aptShown = [];
   function loadApts() {
-    if (aptsP) return;
-    aptsP = fetch("data/models_airports.json").then(function (r) { return r.json(); }).then(function (d) {
-      d.airports.forEach(function (a) { var q = P.fwd(a[0], a[1]); a.x = q[0]; a.y = q[1]; }); APTS = d.airports; render();
+    if (aptsP || waiting(aptsB)) return aptsP;
+    aptsP = fetch("data/models_airports.json").then(function (r) { if (!r.ok) throw new Error("http " + r.status); return r.json(); }).then(function (d) {
+      d.airports.forEach(function (a) { var q = P.fwd(a[0], a[1]); a.x = q[0]; a.y = q[1]; }); APTS = d.airports; render(); fillFind();
       // a few city centres that are not airports (Central Park, downtown Los Angeles, ...): meteogram points too
-      return fetch("data/models_cities.json").then(function (r) { return r.ok ? r.json() : null; }).then(function (cd) {
-        if (!cd) return; cd.cities.forEach(function (a) { var q = P.fwd(a[0], a[1]); a.x = q[0]; a.y = q[1]; a.city = true; APTS.push(a); }); render(); });
-    }).catch(function () { aptsP = null; });
+      return fetch("data/models_cities.json").then(function (r) { return r.ok ? r.json() : null; }).catch(function () { return null; }).then(function (cd) {
+        if (!cd) return; cd.cities.forEach(function (a) { var q = P.fwd(a[0], a[1]); a.x = q[0]; a.y = q[1]; a.city = true; APTS.push(a); }); render(); fillFind(); });
+    }).catch(function () { aptsP = null; backoff(aptsB); });
+    return aptsP;
   }
   // labels: collision boxes in a 48 px hash grid; text widths cached. Lower quality levels label the hubs only at
   // national scale and the medium airports only closer in (markers stay).
@@ -2861,15 +2933,24 @@
     var loc2 = d.toLocaleString("en-US", { weekday: "short", hour: "numeric", minute: "2-digit", timeZoneName: "short" });
     return [utc, loc2];
   }
+  // The badge and the valid time are rewritten only when they change (this runs on every redraw). The valid time is a
+  // live region for the hour buttons and keys; it stays quiet while the loop plays and while the slider has the focus,
+  // which announces its own value (aria-valuetext).
+  var badgeH = null, validH = null;
+  function setHTML(id, html, last) { if (html !== last) $(id).innerHTML = html; return html; }
   function updateBadge(cc) {
-    var c = cycleObj(st.model, st.ci);
-    if (!c) { $("badge").innerHTML = "<b>" + MODELS[st.model] + "</b> · no run published yet"; $("valid").textContent = ""; return; }
+    var c = cycleObj(st.model, st.ci), vEl = $("valid");
+    if (!c) { badgeH = setHTML("badge", "<b>" + MODELS[st.model] + "</b> · no run published yet", badgeH); validH = setHTML("valid", "", validH); return; }
     var src = cc.c || c, h = cc.hour;
     var vt = Date.parse(c.init) + st.hour * 3600e3, t = fmtTime(vt);
-    var init = src.init.replace(/T(\d\d):00Z/, " $1Z").slice(5).replace("-", "/");
-    $("badge").innerHTML = "<b>" + MODELS[st.model] + "</b> " + (st.model === "rdps" && st.field === "ir" ? "OLR-derived brightness temperature (proxy for IR)" : labelOf(st.model, st.field)) + " · run " + init + " +" + h + " h" + (st.field === "acc" ? " · " + ACC_TYPES[st.acc.type].label.replace(/^./, function (c) { return c.toLowerCase(); }) + (drawn && drawn.accLabel ? ", " + drawn.accLabel : "") : "") +
-      (st.field === "ecape" ? " · " + EC_SUBS[st.ec].long : "") + (FIELDS[st.field].sub && labelOf(st.model, st.field).toLowerCase().indexOf(FIELDS[st.field].sub.toLowerCase()) < 0 ? " · " + FIELDS[st.field].sub : "") + (diffOn() ? " · <b>minus " + MODELS[diffOther(st.model)] + "</b> at the same valid time" : "");
-    $("valid").innerHTML = "<span class=\"vt\">" + t[0] + "</span> <span class=\"loc\">· " + t[1] + " your time</span><span class=\"fh\">+" + h + " h</span>";
+    var init = escH(src.init.replace(/T(\d\d):00Z/, " $1Z").slice(5).replace("-", "/"));
+    badgeH = setHTML("badge", "<b>" + MODELS[st.model] + "</b> " + (st.model === "rdps" && st.field === "ir" ? "OLR-derived brightness temperature (proxy for IR)" : labelOf(st.model, st.field)) + " · run " + init + " +" + h + " h" + (st.field === "acc" ? " · " + ACC_TYPES[st.acc.type].label.replace(/^./, function (c) { return c.toLowerCase(); }) + (drawn && drawn.accLabel ? ", " + drawn.accLabel : "") : "") +
+      (st.field === "ecape" ? " · " + EC_SUBS[st.ec].long : "") + (FIELDS[st.field].sub && labelOf(st.model, st.field).toLowerCase().indexOf(FIELDS[st.field].sub.toLowerCase()) < 0 ? " · " + FIELDS[st.field].sub : "") + (diffOn() ? " · <b>minus " + MODELS[diffOther(st.model)] + "</b> at the same valid time" : ""), badgeH);
+    var live = st.playing || document.activeElement === $("hour") ? "off" : "polite";
+    if (vEl.getAttribute("aria-live") !== live) vEl.setAttribute("aria-live", live);
+    validH = setHTML("valid", "<span class=\"vt\">" + t[0] + "</span> <span class=\"loc\">· " + t[1] + " your time</span><span class=\"fh\">+" + h + " h</span>", validH);
+    var vtx = t[0] + ", +" + h + " h";
+    if ($("hour").getAttribute("aria-valuetext") !== vtx) $("hour").setAttribute("aria-valuetext", vtx);
   }
   function setButtons() {
     var mb = $("models"); mb.innerHTML = "";
@@ -2962,8 +3043,9 @@
     $("sndL").hidden = !sndOn(); sndHint(); sndFollowMap();
     var n = (NOTES[st.model] && NOTES[st.model][st.field]) || "";
     var fm = cycleObj(st.model, st.ci) && cycleObj(st.model, st.ci).fields[st.field === "acc" ? st.acc.type : st.field];
-    if (st.field === "acc" && fm && fm.method) n = "<b>" + ACC_TYPES[st.acc.type].label + "</b>: " + fm.method + ". Pick a window to see the amount that falls in it; " + (ACC_TYPES[st.acc.type].derived ? "computed here from the model's own fields" : "the accumulation is the model's own") + ", not a radar estimate.";
-    if (fm && fm.from) n += (n ? " " : "") + "This run's smoke: " + fm.from + ".";
+    // the manifest's own words (method, smoke source, season window) go in as text, not markup
+    if (st.field === "acc" && fm && fm.method) n = "<b>" + ACC_TYPES[st.acc.type].label + "</b>: " + escH(fm.method) + ". Pick a window to see the amount that falls in it; " + (ACC_TYPES[st.acc.type].derived ? "computed here from the model's own fields" : "the accumulation is the model's own") + ", not a radar estimate.";
+    if (fm && fm.from) n += (n ? " " : "") + "This run's smoke: " + escH(fm.from) + ".";
     if (st.field === "ecape" && st.model === "hrrr") {
       var e1 = cycleObj("hrrr", st.ci), sub1 = EC_SUBS[st.ec];
       n = "<b>" + sub1.label + "</b>: " + sub1.long + ". " + (sub1.kind === "ratio"
@@ -2972,7 +3054,7 @@
         "Computed with SHARPlib on every column of the HRRR's native levels (1.9 million soundings per hour), hourly to +18 h and 3-hourly to +48 h; stored to within ±√(J/kg)/2.8 (±4 J/kg at 100, ±11 at 1,000, ±20 at 3,000).";
     }
     var cN = cycleObj(st.model, st.ci);
-    if (FIELDS[st.field] && FIELDS[st.field].sb && cN && cN.snowband && cN.snowband.forced && fm) n = "<b>Test run outside the season (" + cN.snowband.window + ").</b> " + n;
+    if (FIELDS[st.field] && FIELDS[st.field].sb && cN && cN.snowband && cN.snowband.forced && fm) n = "<b>Test run outside the season (" + escH(cN.snowband.window) + ").</b> " + n;
     $("note").innerHTML = n;
     drawLegend();
     prefetch();
@@ -3068,11 +3150,35 @@
   $("tdn").onchange = function () { render(); };
   $("farms").onchange = function () { render(); };
   $("diff").onchange = function () { prefetch(); onChange(); };
+  // Keys belong to the viewer only where the reader is working it, never with Alt / Ctrl / Cmd (Alt+← is Back), and
+  // nothing starts a download from a key pressed elsewhere on the page. The map, once selected (click or Tab): arrows
+  // pan (Shift: further), + and − zoom, 0 resets the view, comma / period and Page Up / Page Down step the hour, Space
+  // plays. The time bar's buttons: ← → step the hour (the slider moves itself).
+  function panBy(fx, fy) {
+    if (!view) return;
+    beginInteract(); view.cx += fx * W * view.s; view.cy -= fy * H * view.s; render(); settleSoon(160);
+  }
   document.addEventListener("keydown", function (e) {
-    if (e.target && /INPUT|SELECT|TEXTAREA/.test(e.target.tagName) && e.target.type !== "range") return;
-    if (e.key === "ArrowRight") { step(1); e.preventDefault(); } else if (e.key === "ArrowLeft") { step(-1); e.preventDefault(); }
-    else if ((e.key === " " || e.key === "Spacebar") && !(e.target && /^(BUTTON|A|SUMMARY)$/.test(e.target.tagName)) && !e.ctrlKey && !e.metaKey) { togglePlay(); e.preventDefault(); }
+    if (e.defaultPrevented || e.altKey || e.ctrlKey || e.metaKey) return;
+    var t = e.target, k = e.key;
+    if (t === mapEl) {
+      var f = e.shiftKey ? 0.4 : 0.12;
+      if (k === "ArrowLeft") panBy(-f, 0); else if (k === "ArrowRight") panBy(f, 0);
+      else if (k === "ArrowUp") panBy(0, -f); else if (k === "ArrowDown") panBy(0, f);
+      else if (k === "+" || k === "=") zoomBy(W / 2, H / 2, 0.6, 45);
+      else if (k === "-" || k === "_") zoomBy(W / 2, H / 2, 1 / 0.6, 45);
+      else if (k === "0") $("zfit").click();
+      else if (k === "," || k === "PageUp") step(-1);
+      else if (k === "." || k === "PageDown") step(1);
+      else if (k === " " || k === "Spacebar") togglePlay();
+      else return;
+      e.preventDefault(); return;
+    }
+    if (e.shiftKey || !t || !t.closest || !t.closest(".mv-time") || t.tagName === "INPUT") return;
+    if (k === "ArrowRight") { step(1); e.preventDefault(); } else if (k === "ArrowLeft") { step(-1); e.preventDefault(); }
   });
+  // a tab in the background does not play on: the loop stops (and its downloads with it) when the page is hidden
+  document.addEventListener("visibilitychange", function () { if (document.hidden && st.playing) togglePlay(); });
 
   // zoom / pan / hover
   // Smooth zoom: wheel notches, trackpad pinches (ctrlKey wheel), the buttons and double-click all set a
@@ -3100,13 +3206,29 @@
     var a = toXY(px, py); view.s *= f; clampView();
     var b = toXY(px, py); view.cx += a[0] - b[0]; view.cy += a[1] - b[1]; render();
   }
+  // The wheel zooms the map only when asked to: with Ctrl or Cmd held (a trackpad pinch arrives as Ctrl + wheel), or once
+  // the map is selected (a click or Tab on it). Otherwise it scrolls the page past the map, which says how to zoom.
+  var coopT = 0;
+  function coop(text) {
+    var el = $("coop"); if (el.textContent !== text) el.textContent = text;
+    el.classList.add("on"); clearTimeout(coopT); coopT = setTimeout(function () { el.classList.remove("on"); }, 1400);
+  }
   mapEl.addEventListener("wheel", function (e) {
-    if (!view) return; e.preventDefault(); var r = mapEl.getBoundingClientRect();
+    if (!view) return;
+    if (!e.ctrlKey && !e.metaKey && document.activeElement !== mapEl) {
+      if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) coop("To zoom, hold " + (/Mac|iPhone|iPad/.test(navigator.platform || "") ? "⌘" : "Ctrl") + " while you scroll, or click the map first");
+      return;
+    }
+    e.preventDefault(); var r = mapEl.getBoundingClientRect();
     var dy = e.deltaY * (e.deltaMode === 1 ? 33 : e.deltaMode === 2 ? 400 : 1);       // lines / pages -> pixels
-    var k = e.ctrlKey ? 0.01 : 0.0016;                                                 // trackpad pinch arrives as ctrl+wheel with small deltas
+    var k = e.ctrlKey && Math.abs(dy) < 40 ? 0.01 : 0.0016;                            // a trackpad pinch: Ctrl + small deltas; a held key + wheel: notches
     dy = Math.max(-300, Math.min(300, dy));
     zoomBy(e.clientX - r.left, e.clientY - r.top, Math.exp(dy * k), Math.abs(dy) >= 40 ? 45 : 30);
   }, { passive: false });
+  // touch: one finger scrolls the page (the map's touch-action), two fingers pan and pinch it; a two-finger move must not
+  // also scroll the page, and a one-finger drag that went to the page says how to move the map
+  mapEl.addEventListener("touchmove", function (e) { if (e.touches.length > 1) e.preventDefault(); }, { passive: false });
+  mapEl.addEventListener("pointercancel", function (e) { if (e.pointerType === "touch" && ptrs.size <= 1) coop("Use two fingers to move or zoom the map"); });
   // Safari's trackpad pinch (gesture events, no ctrl+wheel)
   var gS = 0;
   mapEl.addEventListener("gesturestart", function (e) { e.preventDefault(); gS = view ? view.s : 0; beginInteract(); });
@@ -3147,6 +3269,7 @@
         if (Math.hypot(e.clientX - gest.start[0], e.clientY - gest.start[1]) < (e.pointerType === "mouse" ? SLOP_MOUSE : SLOP_TOUCH)) { ptrs.set(e.pointerId, old); return; }
         moved = true; clearTimeout(SND.press);
       }
+      if (ptrs.size === 1 && e.pointerType !== "mouse") return;        // one finger scrolls the page (touch-action); two pan the map
       if (Math.abs(e.clientX - old[0]) + Math.abs(e.clientY - old[1]) > 0) {
         view.cx -= (e.clientX - old[0]) * view.s; view.cy += (e.clientY - old[1]) * view.s; moved = true;
         var now = performance.now(), dt = Math.max(now - vel[2], 1), a8 = Math.min(dt / 40, 1);   // smoothed px/ms for the glide
@@ -3383,6 +3506,14 @@
   function diffAvail() { var o = diffOther(st.model); return !!(o && DIFF_FIELDS[st.field] && cycleObj(o, 0) && cycleObj(st.model, st.ci)); }
   function diffOn() { return diffAvail() && $("diff").checked; }
   var DIFF = new Map();
+  // the frames computed here (accumulation windows, ECAPE ratios, model differences) share one budget; the ratio's
+  // source grids belong to their frames and are not counted twice
+  function trimDerived() {
+    var es = [];
+    [ACCF, ECF, DIFF].forEach(function (m) { m.forEach(function (x, k) { x._m = m; x._k = k; es.push(x); }); });
+    lru(es, function (x) { return (x.dec ? x.dec.data.byteLength : 0) + (x.exact ? x.exact.byteLength : 0) + (x.v1 ? x.v1.byteLength + x.v2.byteLength : 0); },
+        MEM.der, 2, function (x) { dropTex(x); x._m.delete(x._k); });
+  }
   function diffHour(c, c2, hour) { return hour + Math.round((Date.parse(c.init) - Date.parse(c2.init)) / 3600e3); }
   function fieldVals(fd, field, e, q) {                         // decoded frame -> Float32 values in display units (NaN = none)
     var a = e.dec.data, n = e.dec.w * e.dec.h, out = new Float32Array(n), L = new Float32Array(256);
@@ -3409,8 +3540,7 @@
     for (var k = 0; k < n; k++) { var d = v1[k] - v2[k]; ex[k] = d; if (d !== d) continue;
       var cd = 127 + Math.round(d / spec.step); out[k] = cd < 1 ? 1 : cd > 253 ? 253 : cd; }
     var ent = { dec: { w: e1.dec.w, h: e1.dec.h, data: out }, exact: ex, v1: v1, v2: v2, used: ++useClock, lo: lo };
-    DIFF.set(key, ent);
-    if (DIFF.size > 6) { var old = DIFF.keys().next().value, oe = DIFF.get(old); dropTex(oe); DIFF.delete(old); }
+    DIFF.set(key, ent); trimDerived();
     return { e: ent, fm: fm, key: key, h2: h2, o: o };
   }
   function diffColour(d, range) {                               // diverging: blue = this model lower, red = higher
@@ -3497,6 +3627,8 @@
   var MG = { id: null, name: "", docs: {}, ec: null, loading: null, on: { hrrr: true, rrfs: true, rdps: true }, hov: null };
   var CITY_EXTRA = null;
   function openMg(id, name) {
+    var a0 = document.activeElement, wasOpen = !$("mg").hidden;
+    if (!wasOpen) MG.ret = a0 && a0 !== document.body && !(a0.closest && a0.closest("#mg")) ? a0 : null;   // the focus goes back there on close
     MG.id = id; MG.name = name || id; MG.hov = null;
     var aS = (APTS || []).filter(function (x) { return x[2] === id; })[0];
     $("mgSnd").hidden = !(aS && sndMeta()); $("mgSnd").onclick = aS ? function () { openSndLL(aS[0], aS[1], aS[2] + " " + aS[3]); } : null;
@@ -3508,8 +3640,36 @@
     var ch = cycleObj("hrrr", 0); if (ch && ch.ecape) jobs.push(mgStation("hrrr", ch, id, true).then(function (d) { if (MG.id === id) MG.ec = d; }));
     Promise.all(jobs).then(function () { if (MG.id === id) { MG.loading = null; drawMg(true); } });
     $("mgB").scrollTop = 0; $("mg").scrollTop = 0;
+    if (!wasOpen) $("mg").focus({ preventScroll: true });
   }
-  function closeMg() { $("mg").hidden = true; MG.id = null; writeHash(); }
+  function closeMg() {
+    $("mg").hidden = true; MG.id = null; writeHash();
+    var r = MG.ret; MG.ret = null;
+    if (r && document.contains(r) && r.focus) r.focus({ preventScroll: true });
+  }
+  // The meteogram without a pointer: an airport or city by ICAO code or name (the list is the map's own airports)
+  function fillFind() {
+    var dl = $("mgList"); if (!APTS) return;
+    dl.innerHTML = APTS.map(function (a) { return "<option value=\"" + escH(a[2]) + "\">" + escH(a[3]) + "</option>"; }).join("");
+  }
+  function findApt(q) {
+    q = String(q || "").trim(); if (!q || !APTS) return null;
+    var u = q.toUpperCase(), low = q.toLowerCase();
+    return APTS.filter(function (a) { return String(a[2]).toUpperCase() === u; })[0] ||
+      APTS.filter(function (a) { return String(a[3]).toLowerCase() === low; })[0] ||
+      APTS.filter(function (a) { return String(a[3]).toLowerCase().indexOf(low) >= 0; })[0] || null;
+  }
+  $("mgQ").addEventListener("focus", function () { if (!APTS) loadApts(); });
+  $("mgFind").addEventListener("submit", function (e) {
+    e.preventDefault();
+    var q = $("mgQ").value, msg = $("mgFindMsg");
+    var go = function () {
+      var a = findApt(q);
+      if (!a) { msg.textContent = APTS ? "No airport or city on these maps matches “" + q.trim() + "”." : "The list of airports could not be loaded; try again in a minute."; return; }
+      msg.textContent = ""; openMg(a[2], a[3]); MG.openedAt = performance.now();
+    };
+    if (APTS) go(); else { var p = loadApts(); if (p) p.then(go); else go(); }
+  });
 
   // ── forecast soundings (click anywhere on the HRRR map; drawn by the site's sounding explorer). Data: scripts/ecape/to_soundings.py in the ECAPE job -> assets/models/data/hrrr/<cycle>/snd/
   // {ty}_{tx}.bin, every 4th HRRR column (12 km) in 24 x 24-column tiles, all forecast hours per tile, one zlib stream per
@@ -3765,11 +3925,13 @@
   $("mgX").onclick = closeMg;
   $("mgW").onclick = function () { var f = $("mg").classList.toggle("full"); this.textContent = f ? "Standard size" : "Full window";
     this.title = f ? "Back to the centred panel" : "Use the whole window (the map stays underneath)"; drawMg(); };
-  // while the meteogram is open the keys drive IT: Esc closes, arrows walk the cursor an hour (Shift: 6 hours)
+  // while the meteogram is open and has the focus (it takes it on opening) the keys drive IT: Esc closes, arrows walk
+  // the cursor an hour (Shift: 6 hours); a focus moved back to the map gives the map its keys again
   document.addEventListener("keydown", function (e) {
-    if ($("mg").hidden || !MG.id || (e.target && /INPUT|SELECT|TEXTAREA/.test(e.target.tagName))) return;
+    if ($("mg").hidden || !MG.id || (e.target && /INPUT|SELECT|TEXTAREA/.test(e.target.tagName)) || e.altKey || e.ctrlKey || e.metaKey) return;
     if (e.key === "Escape") { closeMg(); e.preventDefault(); e.stopImmediatePropagation(); return; }
-    if ((e.key === "ArrowRight" || e.key === "ArrowLeft") && MG.x) {
+    var inMg = e.target === document.body || (e.target && e.target.closest && !!e.target.closest("#mg"));
+    if ((e.key === "ArrowRight" || e.key === "ArrowLeft") && MG.x && inMg) {
       var dt = (e.shiftKey ? 6 : 1) * 3600e3 * (e.key === "ArrowRight" ? 1 : -1), base = MG.hov !== null ? MG.hov : Math.max(MG.x.t0, Math.min(MG.x.t1, Date.now()));
       MG.hov = Math.max(MG.x.t0, Math.min(MG.x.t1, Math.round((base + dt) / 3600e3) * 3600e3)); drawMg();
       e.preventDefault(); e.stopImmediatePropagation();
@@ -3840,6 +4002,8 @@
       cv0.addEventListener("pointercancel", function () { tap = null; }); }
     wrap.querySelector("p").innerHTML = spec.title + "<small>" + spec.note + "</small>";
     var cv = wrap.querySelector("canvas"), dpr = Math.min(window.devicePixelRatio || 1, 2), w = $("mgC").clientWidth;
+    if (spec.title && !cv.hasAttribute("role")) { cv.setAttribute("role", "img"); cv.setAttribute("aria-label", spec.title + " chart (" + spec.note + "); the values at the time chosen are in the readout above the charts"); }
+    if (!spec.title) cv.setAttribute("aria-hidden", "true");                   // the shared time axis
     var W = Math.round(w * dpr), H = Math.round(h * dpr);
     if (cv.width !== W || cv.height !== H) { cv.style.height = h + "px"; cv.width = W; cv.height = H; }   // reallocating every
     var ctx = cv.getContext("2d"); ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, w, h);    // hover redraw was jank
