@@ -92,10 +92,13 @@ jobs:
             || echo "::warning::forecast loops not drawn this run; the analysed loops still publish"
       - name: Strength and edges (series)
         if: steps.run.outputs.skip != 'true'
-        run: python scripts/mjo/src/hadley_timeseries.py --out assets/sst/hadley_timeseries.webp || echo "::warning::Hadley series not drawn"
+        run: |
+          python scripts/mjo/src/hadley_timeseries.py --out assets/sst/hadley_timeseries.webp || echo "::warning::Hadley series not drawn"
       - name: This season against the El Nino events
         if: steps.run.outputs.skip != 'true'
-        run: python scripts/mjo/src/hadley_enso.py plot --out assets/sst/hadley_enso.webp || echo "::warning::El Nino comparison not drawn (hadley_events.nc: hadley-events.yml)"
+        run: |
+          python scripts/mjo/src/hadley_enso.py plot --out assets/sst/hadley_enso.webp \
+            || echo "::warning::El Nino comparison not drawn (needs hadley_events.nc from hadley-events.yml)"
       - name: Publish the frames (frames branch)
         if: steps.run.outputs.skip != 'true'
         env:
