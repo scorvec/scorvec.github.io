@@ -36,3 +36,9 @@ assets/sst/anim/mslp_wind_gdps
 # The rolling 60-day analysis loop (mjo.yml, mmsf.py) gave way on 2026-10-16 to the growing archive of analysed weeks
 # (overturn.yml: mmsf_hist); the Walker loop dir stays, it carries the chi history.
 assets/sst/anim/mmsf
+
+# 2026-10-16: the vortex-wind loops show one hemisphere per frame (vortex[_ifs]_<level>_<nh|sh>), with barbs.
+assets/sst/anim/vortex_10
+assets/sst/anim/vortex_100
+assets/sst/anim/vortex_ifs_10
+assets/sst/anim/vortex_ifs_100

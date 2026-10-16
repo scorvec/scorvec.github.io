@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 """
-Stratospheric vortex winds: 10 and 100 hPa, both hemispheres.
+Stratospheric vortex winds: 10 and 100 hPa, each hemisphere on its own.
 
-Four polar panels — 10 hPa NH / SH on the top row, 100 hPa NH / SH on the
-bottom — showing wind SPEED (shaded) with STREAMLINES over it, from the
-AIFS-ENS ENSEMBLE MEAN (25 perturbed members; the analysis frame is the control).
+One polar map per frame - a level and a hemisphere - showing wind SPEED (shaded) with WIND BARBS over it, from the
+AIFS-ENS ENSEMBLE MEAN (25 perturbed members; the analysis frame is the control). Barbs, not streamlines: a
+streamline through the pole is integrated across a point where the grid's u and v have no fixed direction, and it
+tangled there; a barb is one vector, regridded onto the map with its direction rotated into the projection.
 
 Why the mean and not member 0. Member 0 is one
 realisation, and by the second week its vortex shape is largely its own: on the
@@ -15,7 +16,7 @@ the flow the members agree on. It is also SMOOTHER and WEAKER than any single
 member wherever they disagree, so a split carried by a few members appears as a
 stretched, slackened vortex rather than two centres - that is the honest
 reading of such an ensemble. u and v are averaged (linear), and the speed shaded
-is the speed of the mean wind, the same field the streamlines follow.
+is the speed of the mean wind, the same field the barbs show.
 
 Why these two levels, in this pairing:
 
@@ -23,7 +24,7 @@ Why these two levels, in this pairing:
            WMO diagnostic is a reversal of the zonal-mean zonal wind at 10 hPa,
            60 deg). A coherent ring of fast westerlies here is a strong,
            undisturbed vortex; a displaced or split circulation is visible
-           directly as the streamlines stop encircling the pole.
+           directly as the barbs stop circling the pole.
   100 hPa  is the level that decides whether any of that reaches the surface.
            Anomalies confined to 10 hPa routinely go nowhere; the ones that
            show at 100 hPa are the ones with a path to the troposphere. Putting
@@ -31,10 +32,8 @@ Why these two levels, in this pairing:
            "what is the vortex doing" but "is it doing it deep enough to
            matter".
 
-Both hemispheres because the SH vortex is the cleaner laboratory (stronger,
-less wave-disturbed, and its spring breakdown is a scheduled event), and
-because the reader should be able to see at a glance which hemisphere is in
-its active season.
+Both hemispheres, as separate loops: the SH vortex is the cleaner laboratory (stronger, less wave-disturbed, and its
+spring breakdown is a scheduled event); the loop opens on the hemisphere in its winter.
 
 The speed scales are per-level and fixed, NOT per-panel: 10 hPa winds run far
 stronger than 100 hPa, so a shared scale would flatten the lower level into a
@@ -49,10 +48,10 @@ one step's members in memory.
 IFS-ENS: --model ifs draws the mean of ALL 50
 IFS-ENS perturbed members from the shared IFS-ENS u/v file (ifs_ens.py: 10 and 100 hPa, 12-hourly, Google Cloud mirror
 only) into vortex_ifs_10/ and vortex_ifs_100/, same scales. Open data has no IFS control at pressure levels, so its
-analysis frame is the IFS HRES step 0, the analysis the ensemble starts from. No still for IFS: the page shows the loop.
+analysis frame is the IFS HRES step 0, the analysis the ensemble starts from.
 
 Usage:
-  python vortex_winds.py --date 20260829 --time 12 --out-dir assets/sst --anim-dir assets/sst/anim \
+  python vortex_winds.py --date 20260829 --time 12 --anim-dir assets/sst/anim \
       --manifest assets/sst/anim/vortex_winds_manifest.json
   python vortex_winds.py --model ifs --date 20260927 --time 00 --anim-dir assets/sst/anim \
       --manifest assets/sst/anim/vortex_winds_ifs_manifest.json
@@ -92,14 +91,15 @@ STEPS_12H = tuple(range(0, 361, 12))
 # flank in view, which is what you want for judging whether the 100 hPa flow is
 # connected to the troposphere rather than sitting on top of it.
 LAT_EDGE = 20.0
-# Streamline input is coarsened to this stride (lat, lon) - see panel().
-STREAM_STRIDE = (3, 4)
+# Barb input is coarsened to this stride (lat, lon) before cartopy regrids it onto the map - see panel().
+BARB_STRIDE = (4, 4)
+BARB_GRID = 26  # barbs across the map, each way
+# barbs in m/s, as the shading: half barb 5, full 10, pennant 50
+BARBS = dict(half=5, full=10, flag=50)
+HEMIS = ("nh", "sh")
 # The u = 0 vortex edge stops at this latitude. u is the eastward component, which has no fixed direction at the pole:
 # a flow across the pole changes the sign of u from one side of it to the other and draws a false ring around it.
 EDGE_LAT_MAX = 80.0
-# The still shows where the vortex lives and where an SSW is declared.
-STILL_LEVEL = 10
-
 # Per-level speed scales (m/s). Chosen from the climatological range at each
 # level rather than from one cycle, so the colour of a given wind speed means
 # the same thing every day - the figure is meant to be compared against itself
@@ -112,7 +112,7 @@ SPEED = {
     10: dict(levels=[20, 30, 40, 50, 60, 70, 80, 90, 100, 110, 120], label="10 hPa wind speed (m s$^{-1}$)"),
     100: dict(levels=[10, 15, 20, 25, 30, 35, 40, 45, 50, 60], label="100 hPa wind speed (m s$^{-1}$)"),
 }
-# Sequential, perceptually ordered, and light at the bottom so the streamlines
+# Sequential, perceptually ordered, and light at the bottom so the barbs
 # (dark) stay legible over weak flow where they matter most.
 CMAP = "YlGnBu"
 
@@ -238,7 +238,7 @@ def circular_boundary(ax):
 
 
 def panel(ax, u, v, lev, hemi):
-    """One hemisphere at one level: speed shaded, streamlines over."""
+    """One hemisphere at one level: speed shaded, barbs over."""
     lat = u.latitude.values
     lon = u.longitude.values
     north = hemi == "NH"
@@ -262,35 +262,27 @@ def panel(ax, u, v, lev, hemi):
     # cartopy cuts the fill at 180 deg; stroking each piece in its own colour hides the hairline there
     cf.set_edgecolor("face")
 
-    # Streamlines need a monotonically increasing latitude axis; the GRIB comes
-    # north-to-south, and for the SH selection that leaves it descending.
-    #
-    # Coarsened first, and this is the whole cost of the figure. Measured on the
-    # SH 10 hPa panel: streamplot at the native 0.25 deg takes 94.5 s while
-    # every other element of the panel together takes 0.2 s - cartopy has to
-    # transform ~400k wind vectors into projection space before matplotlib
-    # integrates a single streamline. At density 2.2 the integrator cannot
-    # resolve anything near 0.25 deg, so that work is discarded: dropping to
-    # 0.75 x 1.0 deg gives a visually identical panel in 8.0 s (12x). Shading
-    # keeps the full grid - contourf costs 0.1 s and the crisp speed field is
-    # what the eye actually reads.
+    # Barbs from a coarsened grid. cartopy regrids the vectors onto a regular grid in map space (regrid_shape),
+    # rotating each into the projection, and that transform of every input point is the figure's cost: from the
+    # native 0.25 deg it is ~400k points, from 1 deg ~26k, and the regridded barbs look the same.
     #
     # The pole row is left out: it is one point repeated at every longitude, each copy with its own u, v, so its
     # vectors land on a single spot of the map pointing in different directions.
-    ys, xs = STREAM_STRIDE
+    ys, xs = BARB_STRIDE
     rows = np.flatnonzero(np.abs(la) < 90.0)[::ys]
-    las, lons = la[rows], lon[::xs]
-    order = np.argsort(las)
-    ax.streamplot(
-        lons,
-        las[order],
-        U[rows, ::xs][order, :],
-        V[rows, ::xs][order, :],
+    ax.barbs(
+        lon[::xs],
+        la[rows],
+        U[rows, ::xs],
+        V[rows, ::xs],
         transform=PC,
-        density=2.2,
-        linewidth=0.55,
-        arrowsize=0.65,
+        regrid_shape=BARB_GRID,
+        barb_increments=BARBS,
+        length=5.4,
+        linewidth=0.6,
         color="#22303a",
+        flip_barb=not north,  # southern-hemisphere convention: the feathers on the other side
+        sizes=dict(emptybarb=0.0),  # calm points draw nothing: a summer hemisphere would be a field of circles
         zorder=3,
     )
 
@@ -306,9 +298,8 @@ def panel(ax, u, v, lev, hemi):
     Us[np.abs(la) > EDGE_LAT_MAX, :] = np.nan
     ax.contour(lon_c, la, add_cyclic_point(Us), levels=[0], colors="#b3122b", linewidths=1.4, transform=PC, zorder=4)
 
-    # Geography reads FIRST: darker and heavier than the streamlines (0.55) so
-    # the eye locates the vortex over the map rather than hunting for the
-    # coast among the flow lines.
+    # Geography reads FIRST: darker and heavier than the barbs (0.6) so the eye
+    # locates the vortex over the map rather than hunting for the coast among them.
     ax.add_feature(cfeature.COASTLINE.with_scale("110m"), edgecolor="#0d0d0d", linewidth=1.05, zorder=6)
     gl = ax.gridlines(linewidth=0.35, color="#8a8a8a", alpha=0.5, zorder=6)
     gl.ylocator = plt.FixedLocator([20, 40, 60, 80] if north else [-80, -60, -40, -20])
@@ -327,29 +318,21 @@ def panel(ax, u, v, lev, hemi):
     )
 
     peak = float(np.nanmax(spd))
-    ax.set_title(f"{hemi} · {lev} hPa    max {peak:.0f} m s$^{{-1}}$", fontsize=10.5, pad=6)
+    ax.set_title(f"max {peak:.0f} m s$^{{-1}}$", fontsize=10, loc="right", pad=4)
     return cf
 
 
-def render(uv, lev, date, time, step_h, out_path: Path, source: str = "control", model: str = "aifs"):
-    """ONE level, both hemispheres, side by side.
-
-    Unstacked for the same reason wave1_maps was: 10 and 100 hPa shared a 2x2
-    figure, which made the animation nearly square and very tall, pushing the
-    scrubber below the fold and making the loop awkward to control. One level
-    per frame halves the height, and the animator's selector switches levels.
-    """
-    fig = plt.figure(figsize=(11.4, 6.3), dpi=125)
-    gs = fig.add_gridspec(1, 3, width_ratios=[1, 1, 0.045], left=0.02, right=0.93, top=0.82, bottom=0.095, wspace=0.06)
-    cf = None
-    for c, hemi in enumerate(("NH", "SH")):
-        proj = (
-            ccrs.NorthPolarStereo(central_longitude=0) if hemi == "NH" else ccrs.SouthPolarStereo(central_longitude=0)
-        )
-        ax = fig.add_subplot(gs[0, c], projection=proj)
-        u, v = uv
-        cf = panel(ax, u, v, lev, hemi)
-    cax = fig.add_subplot(gs[0, 2])
+def render(uv, lev, hemi, date, time, step_h, out_path: Path, source: str = "control", model: str = "aifs"):
+    """ONE level, ONE hemisphere: a single polar map and its colour bar (the animator's selector switches between the
+    level-and-hemisphere loops)."""
+    fig = plt.figure(figsize=(8.4, 8.0), dpi=125)
+    gs = fig.add_gridspec(1, 2, width_ratios=[1, 0.04], left=0.03, right=0.9, top=0.83, bottom=0.075, wspace=0.05)
+    north = hemi == "NH"
+    proj = ccrs.NorthPolarStereo(central_longitude=0) if north else ccrs.SouthPolarStereo(central_longitude=0)
+    ax = fig.add_subplot(gs[0, 0], projection=proj)
+    u, v = uv
+    cf = panel(ax, u, v, lev, hemi)
+    cax = fig.add_subplot(gs[0, 1])
     cb = fig.colorbar(cf, cax=cax, extend="max")
     cb.set_label(SPEED[lev]["label"], fontsize=9)
     cb.ax.tick_params(labelsize=8)
@@ -357,19 +340,26 @@ def render(uv, lev, date, time, step_h, out_path: Path, source: str = "control",
     init = pd.Timestamp(f"{date}T{time}:00")
     valid = init + pd.Timedelta(hours=step_h)
     tag = f"F{step_h:03d}" if step_h else "analysis"
-    fig.suptitle(f"Stratospheric vortex winds — {lev} hPa", fontsize=15, fontweight="bold", x=0.02, ha="left", y=0.975)
+    fig.suptitle(
+        f"Stratospheric vortex winds — {lev} hPa, {'northern' if north else 'southern'} hemisphere",
+        fontsize=14,
+        fontweight="bold",
+        x=0.03,
+        ha="left",
+        y=0.975,
+    )
     if step_h == 0 and model == "ifs":
         what = "ECMWF IFS HRES analysis, the state IFS-ENS starts from (open data has no IFS-ENS control)"
     else:
         what = f"ECMWF {MODEL[model]} " + ("control (the analysis)" if step_h == 0 else source)
     fig.text(
-        0.02,
-        0.925,
+        0.03,
+        0.935,
         f"{what} · {date[:4]}-{date[4:6]}-{date[6:]} {time}Z {tag} · "
         f"valid {valid:%a %d %b %HZ}\n"
         f"{'speed' if step_h == 0 else 'speed of the mean wind'} shaded, "
-        f"{'streamlines' if step_h == 0 else 'its streamlines'} over · red: u = 0 (vortex edge, to 80°) · "
-        f"dashed ring: 60°",
+        f"{'barbs' if step_h == 0 else 'its barbs'} in m s$^{{-1}}$ (half 5, full 10, pennant 50)\n"
+        "red: u = 0 (vortex edge, to 80°) · dashed ring: 60°",
         fontsize=9,
         color="#555",
         ha="left",
@@ -377,11 +367,11 @@ def render(uv, lev, date, time, step_h, out_path: Path, source: str = "control",
         linespacing=1.45,
     )
     fig.text(
-        0.02,
+        0.03,
         0.012,
-        "Where the members disagree the mean is weaker and smoother than any one of them: a split "
-        "carried by a few members\nshows as a stretched, slackened vortex, not two centres. "
-        "Colour scales are fixed per level; NH and SH share the scale.",
+        "Where the members disagree the mean is weaker and smoother than any one of them: a split carried by a few\n"
+        "members shows as a stretched, slackened vortex, not two centres. Colour scales are fixed per level, the same "
+        "in both hemispheres.",
         fontsize=8,
         color="#6f6b64",
         ha="left",
@@ -397,47 +387,58 @@ def render(uv, lev, date, time, step_h, out_path: Path, source: str = "control",
 
 
 def build_loop(full, date, time, anim_root: Path, manifest: Path, source: str = "control", model: str = "aifs") -> int:
-    """One frame per 12 h step PER LEVEL, and a manifest with a level selector.
+    """One frame per 12 h step per level and hemisphere, and a manifest with a selector over the four.
 
-    anim_root is the animation ROOT (assets/sst/anim); this writes
-    vortex_10/ and vortex_100/ under it, one region each.
+    anim_root is the animation ROOT (assets/sst/anim); this writes <prefix>_<level>_<nh|sh>/ under it, one region
+    each. The manifest opens on 10 hPa in the hemisphere that is in its winter half (October-March: the north).
     """
     import json
 
     init = pd.Timestamp(f"{date}T{time}:00")
     regions = {}
     for lev in LEVELS:
-        d = anim_root / f"{PREFIX[model]}_{lev}"
-        d.mkdir(parents=True, exist_ok=True)
-        for old in d.glob("F*.webp"):
-            old.unlink()
-        frames = []
-        for i, step_h in enumerate(STEPS_12H):
-            u, v = full[lev]
-            render(
-                (at_step(u, step_h), at_step(v, step_h)), lev, date, time, step_h, d / f"F{i:02d}.webp", source, model
-            )
-            valid = init + pd.Timedelta(hours=step_h)
-            frames.append(
-                {
-                    "idx": i,
-                    "file": f"F{i:02d}.webp",
-                    "date": f"{valid:%Y-%m-%d}",
-                    "label": f"F{step_h:03d} · valid {valid:%a %d %b %HZ}",
-                }
-            )
-            print(f"    {lev} hPa  F{step_h:03d}", flush=True)
-        regions[f"{PREFIX[model]}_{lev}"] = {
-            "label": f"Vortex winds — {lev} hPa, both hemispheres, {MODEL[model]} ensemble mean",
-            "n_frames": len(frames),
-            "frames": frames,
-        }
-        print(f"  {lev} hPa: {len(frames)} frames -> {d}")
+        for h in HEMIS:
+            d = anim_root / f"{PREFIX[model]}_{lev}_{h}"
+            d.mkdir(parents=True, exist_ok=True)
+            for old in d.glob("F*.webp"):
+                old.unlink()
+            frames = []
+            for i, step_h in enumerate(STEPS_12H):
+                u, v = full[lev]
+                render(
+                    (at_step(u, step_h), at_step(v, step_h)),
+                    lev,
+                    h.upper(),
+                    date,
+                    time,
+                    step_h,
+                    d / f"F{i:02d}.webp",
+                    source,
+                    model,
+                )
+                valid = init + pd.Timedelta(hours=step_h)
+                frames.append(
+                    {
+                        "idx": i,
+                        "file": f"F{i:02d}.webp",
+                        "date": f"{valid:%Y-%m-%d}",
+                        "label": f"F{step_h:03d} · valid {valid:%a %d %b %HZ}",
+                    }
+                )
+                print(f"    {lev} hPa {h.upper()}  F{step_h:03d}", flush=True)
+            regions[f"{PREFIX[model]}_{lev}_{h}"] = {
+                "label": f"Vortex winds — {lev} hPa, {'northern' if h == 'nh' else 'southern'} hemisphere, "
+                f"{MODEL[model]} ensemble mean",
+                "n_frames": len(frames),
+                "frames": frames,
+            }
+            print(f"  {lev} hPa {h.upper()}: {len(frames)} frames -> {d}")
+    winter = "nh" if init.month in (10, 11, 12, 1, 2, 3) else "sh"
     man = {
         "ver": f"{date}{time}",
         "days": len(STEPS_12H),
-        "selectorLabel": "Level",
-        "default": f"{PREFIX[model]}_10",
+        "selectorLabel": "Level and hemisphere",
+        "default": f"{PREFIX[model]}_10_{winter}",
         "regions": regions,
     }
     manifest.parent.mkdir(parents=True, exist_ok=True)
@@ -450,30 +451,16 @@ def main(argv=None) -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--date", required=True, help="cycle date YYYYMMDD")
     ap.add_argument("--time", required=True, help="cycle hour, 00 or 12")
-    ap.add_argument("--step", type=int, default=0, help="forecast hour (default 0)")
-    ap.add_argument("--out-dir", default="assets/sst", help="the still is written here as vortex_10.webp")
-    ap.add_argument("--anim-dir", help="frames ROOT; vortex_10/ and vortex_100/ go under it")
-    ap.add_argument("--manifest", help="animator manifest path")
+    ap.add_argument("--anim-dir", required=True, help="frames ROOT; <prefix>_<level>_<nh|sh>/ go under it")
+    ap.add_argument("--manifest", required=True, help="animator manifest path")
     ap.add_argument("--model", choices=("aifs", "ifs"), default="aifs")
     a = ap.parse_args(argv)
 
     if a.model == "ifs":
-        if not (a.anim_dir and a.manifest):
-            ap.error("--model ifs needs --anim-dir and --manifest (the loop is the IFS product; there is no still)")
         full, source = fetch_ifs(a.date, a.time)
-        return build_loop(full, a.date, a.time, Path(a.anim_dir), Path(a.manifest), source, "ifs")
-    full, source = fetch(a.date, a.time)
-    # ONE still, at STILL_LEVEL - the loop carries both levels as regions and
-    # the animator switches between them, so a second still would just be an
-    # unused file committed every cycle.
-    outd = Path(a.out_dir)
-    u, v = full[STILL_LEVEL]
-    print(
-        f"  wrote {render((at_step(u, a.step), at_step(v, a.step)), STILL_LEVEL, a.date, a.time, a.step, outd / f'vortex_{STILL_LEVEL}.webp', source)}"
-    )
-    if a.anim_dir and a.manifest:
-        build_loop(full, a.date, a.time, Path(a.anim_dir), Path(a.manifest), source)
-    return 0
+    else:
+        full, source = fetch(a.date, a.time)
+    return build_loop(full, a.date, a.time, Path(a.anim_dir), Path(a.manifest), source, a.model)
 
 
 if __name__ == "__main__":
