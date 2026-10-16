@@ -250,7 +250,7 @@ def u_forecast(date: str, hh: str):
 
 # ---- rendering ------------------------------------------------------------------------------- #
 def render_hov(
-    days, lon, sla_eq, filt, wdays, wlon, uanom, u_src_edges, today, waves, out: Path, sla_last: pd.Timestamp
+    days, lon, sla_eq, filt, wdays, wlon, uanom, u_src_edges, today, waves, out: Path, sla_last: pd.Timestamp, init
 ):
     fig = plt.figure(figsize=(14.0, 11.6))
     axL = fig.add_axes([0.06, 0.235, 0.52, 0.63])
@@ -356,7 +356,8 @@ def render_hov(
     fig.text(
         0.06,
         0.975,
-        "Ocean Kelvin waves in the equatorial Pacific: where they are and when they arrive",
+        f"Ocean Kelvin waves, equatorial Pacific · sea level to {sla_last:%-d %b %Y} · "
+        f"AIFS-ENS winds init {init:%Y-%m-%d %H} UTC",
         fontsize=13.5,
         fontweight="bold",
         va="top",
@@ -593,6 +594,7 @@ def main() -> int:
         waves,
         out,
         sla_last,
+        pd.Timestamp(f"{a.date[:4]}-{a.date[4:6]}-{a.date[6:]}T{int(a.time):02d}:00"),
     )
     anim = Path(a.anim_dir)
     anim.mkdir(parents=True, exist_ok=True)
