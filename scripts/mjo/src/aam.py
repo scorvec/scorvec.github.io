@@ -295,7 +295,7 @@ def plot(data, steps_h, init, hist, out: Path, gfz=None):
             anom = arr - cbase[None, :]
             a1.plot(valid, anom.T, color="#c62828", lw=0.4, alpha=0.10)
             lo, hi = np.percentile(anom, [10, 90], axis=0)
-            a1.fill_between(valid, lo, hi, color="#c62828", alpha=0.15)
+            a1.fill_between(valid, lo, hi, color="#c62828", alpha=0.15, label="members 10–90 % (raw spread)")
             a1.plot(valid, anom.mean(0), color="#b71c1c", lw=2.4)
             if hist is not None and len(hist):
                 ha = hist[key].values - eval_clim(coef, noleap_doy(hist.index))
@@ -319,6 +319,8 @@ def plot(data, steps_h, init, hist, out: Path, gfz=None):
     axes[0, 0].set_ylabel("Absolute AAM (10²⁵ kg m² s⁻¹)")
     axes[1, 0].set_ylabel("AAM anomaly (10²⁵ kg m² s⁻¹)")
     axes[0, 0].legend(fontsize=7, loc="lower left", ncol=2, framealpha=0.9)
+    if axes[1, 0].get_legend_handles_labels()[0]:
+        axes[1, 0].legend(fontsize=7, loc="lower left", framealpha=0.9)
     fig.suptitle(
         f"Atmospheric angular momentum (relative/wind term) — AIFS-ENS init {init:%Y-%m-%d %HZ}\n"
         f"top: {init.year} observed + forecast on the seasonal cycle (mean, ±1σ, record range)   ·   "
