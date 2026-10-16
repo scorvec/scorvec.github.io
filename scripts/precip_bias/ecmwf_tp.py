@@ -38,6 +38,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "ecmwf"))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import rangefetch as R
 import grid as G
+import ens_tp as ET
 
 STEPS = (24, 72, 168, 240, 336, 360)
 STEPS_GLOBAL = (168, 336)
@@ -109,17 +110,7 @@ def one_run(model: str, d: date, tries: int = 4):
                 if k == tries - 1:
                     return None, f"step {step}: {repr(ex)[:80]}"
             time.sleep(3 * (k + 1))
-    # plausibility: domain mean of the first accumulation 0.3-15 mm per day, accumulations never fall (a packing wobble
-    # of 0.05 mm is clipped)
-    w = G.area_weights()
-    d1 = float(np.nansum(acc[0].mean(0) * w) / w.sum()) / (STEPS[0] / 24)
-    if not (0.3 < d1 < 15.0):
-        return None, f"implausible first-step domain mean {d1:.2f} mm/day"
-    drop = np.diff(acc, axis=0)
-    if np.nanmin(drop) < -0.5:
-        return None, f"accumulation falls by {-np.nanmin(drop):.2f} mm"
-    acc = np.maximum.accumulate(acc, axis=0)
-    return acc, None
+    return ET.plausible(acc, STEPS)
 
 
 def month(model: str, ym: str, out: Path, threads: int = 2, last: date | None = None) -> Path | None:
