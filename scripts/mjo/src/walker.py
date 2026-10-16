@@ -111,6 +111,20 @@ def streamfunction(ud: np.ndarray, p_pa: np.ndarray) -> np.ndarray:
     return psi * (DY / G) / SCALE
 
 
+# Indo-Pacific ascent: the centroid of rising motion (where Ψ_W increases eastward) in the mid-troposphere between the
+# eastern Indian Ocean and the eastern Pacific - the warm-pool branch of the Pacific cell, which El Niño carries east.
+ASC = dict(lon=(90.0, 240.0), p=(300.0, 700.0))
+
+
+def ascent_lon(psi: np.ndarray, p_hpa: np.ndarray, lon: np.ndarray) -> float:
+    """Longitude (°E) of the Indo-Pacific ascent: the dΨ_W/dλ > 0 weighted centroid in the ASC box. NaN if no ascent."""
+    prof = psi[(p_hpa >= ASC["p"][0]) & (p_hpa <= ASC["p"][1])].mean(0)
+    d = np.gradient(prof, lon)
+    m = (lon >= ASC["lon"][0]) & (lon <= ASC["lon"][1])
+    w = np.clip(d[m], 0.0, None)
+    return float((lon[m] * w).sum() / w.sum()) if w.sum() > 0 else float("nan")
+
+
 def pac_index(psi: np.ndarray, p_hpa: np.ndarray, lon: np.ndarray) -> float:
     """Pacific Walker cell index: mean Ψ_W in the PAC box (10^10 kg/s). Positive
     in climatology; collapses toward zero — and goes NEGATIVE (reversed cell)

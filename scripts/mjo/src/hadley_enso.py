@@ -7,8 +7,8 @@ off ERA5's centred 7-day-mean zonal-mean v - the statistic, the 1.5 deg bands an
 (build_hadley_clim; WeatherBench2 to January 2023, ARCO-ERA5 after) - and drawn beside this season's analysed 7-day means
 (overturn_hist's archive, less the analysis offset) and the forecasts (overturn_fc, all ensembles' members pooled).
 Every series sits at its window's MIDPOINT, so the centred event windows, the trailing analysed weeks and the forecast
-windows line up. Each event is drawn on its own: with about fifteen events no composite clears the site's significance
-bar, so none is formed and nothing is claimed about El Niño's average effect.
+windows line up. Each event is drawn on its own and no composite is formed: the figure places this season among the
+events and claims nothing about El Niño's average effect.
 
     python src/hadley_enso.py list                      # the events and their fetch windows (JSON, for the workflow)
     python src/hadley_enso.py events part*.npz          # -> data/reference/hadley_events.nc
@@ -39,6 +39,7 @@ from doycal import noleap_doy
 REPO = Path(__file__).resolve().parents[3]
 CPC = REPO / "assets" / "sst" / "data" / "cpc_official.json"
 OUT = B.REF / "hadley_events.nc"
+FC = REPO / "assets" / "sst" / "data" / "overturn_fc.json"  # overturn_fc.py
 EVENT_MIN, STRONG = 1.0, 2.0  # RONI peak, July-March
 WB2_END = pd.Timestamp("2023-01-06")  # WeatherBench2 ends 2023-01-10 18Z; windows reach 3 days past their day
 HALF = B.WIN // 2
@@ -117,8 +118,9 @@ def build_events(paths) -> xr.Dataset:
     )
 
 
-def this_season(today: pd.Timestamp):
-    """(midpoint dates, metrics) of the analysed weeks since 1 July, and the pooled forecast (midpoints, {key: members})."""
+def this_season(today: pd.Timestamp, metrics=lambda w: B.metrics(w[0], O.LAT), keys=KEYS):
+    """(midpoint dates, metrics) of the analysed weeks since 1 July, and the pooled forecast (midpoints, {key: members}).
+    `metrics` reads one overturn_hist.week; the default is the Hadley cells'."""
     doc, ref = H.load(), O.load_ref()
     y = today.year if today.month >= 7 else today.year - 1
     days = pd.DatetimeIndex(doc["date"])
@@ -126,16 +128,34 @@ def this_season(today: pd.Timestamp):
     for end in days[days >= pd.Timestamp(f"{y}-07-01") + pd.Timedelta(days=HALF)]:
         w = H.week(doc, end, ref)
         if w is not None:
-            rows.append(B.metrics(w[0], O.LAT))
+            rows.append(metrics(w))
             mids.append(end - pd.Timedelta(days=HALF))
     obs = pd.DataFrame(rows, index=pd.DatetimeIndex(mids))
-    fp = REPO / "assets" / "sst" / "data" / "overturn_fc.json"
-    fc = json.loads(fp.read_text()) if fp.exists() else None
+    fc = json.loads(FC.read_text()) if FC.exists() else None
+    if fc and any(k not in d for d in fc["models"].values() for k in keys):
+        fc = None  # written before these metrics were
     if fc and len(obs) and pd.Timestamp(fc["init"][:10]) >= obs.index[-1]:
         fmid = pd.DatetimeIndex(fc["valid"]) - pd.Timedelta(days=HALF)
-        members = {k: np.concatenate([np.array(d[k], float) for d in fc["models"].values()]) for k in KEYS}
+        members = {k: np.concatenate([np.array(d[k], float) for d in fc["models"].values()]) for k in keys}
         return y, obs, (fmid, members, fc["init"][:10])
     return y, obs, None
+
+
+def plume(v: np.ndarray) -> dict:
+    """The 10th, 50th and 90th percentiles over members at each lead where most members give a value."""
+    ok = np.isfinite(v).sum(0) >= 0.5 * v.shape[0]
+    return {p: np.where(ok, np.nanpercentile(v, p, axis=0), np.nan) for p in (10, 50, 90)}
+
+
+def limits(ax, events: np.ndarray, *shown):
+    """Robust limits from the events - a day whose edge the cell finder misplaces (a cell too weak to bound) must not
+    squash the rest - widened to hold this season's analysis and forecast in full."""
+    lo, hi = np.nanpercentile(events, [0.5, 99.5])
+    s = np.concatenate([np.ravel(v) for v in shown]) if shown else np.array([])
+    if np.isfinite(s).any():
+        lo, hi = min(lo, np.nanmin(s)), max(hi, np.nanmax(s))
+    pad = 0.08 * (hi - lo)
+    ax.set_ylim(lo - pad, hi + pad)
 
 
 def clim_at(cl: xr.Dataset, key: str, doy, stat: str) -> np.ndarray:
@@ -143,6 +163,24 @@ def clim_at(cl: xr.Dataset, key: str, doy, stat: str) -> np.ndarray:
     lo = cl[key].sel(stat=stat, doy=xr.DataArray(np.floor(doy).astype(int)))
     hi = cl[key].sel(stat=stat, doy=xr.DataArray(np.ceil(doy).astype(int)))
     return (0.5 * (lo + hi)).values
+
+
+def finish(fig, axes, title: str, foot: str, out: Path):
+    """Title, the shared legend and the footnote at their measured heights (no dead space), then save."""
+    inv, r = fig.transFigure.inverted(), fig.canvas.get_renderer()
+    st = fig.suptitle(title, fontsize=13, fontweight="bold", x=0.005, y=0.995, ha="left", va="top")
+    st.set_in_layout(False)  # placed by hand above the legend
+    hs, ls = np.ravel(axes)[0].get_legend_handles_labels()
+    below = inv.transform(st.get_window_extent(r))[0, 1] - 0.01
+    leg = fig.legend(hs, ls, fontsize=8, ncol=4, loc="upper left", bbox_to_anchor=(0.004, below), frameon=False)
+    ft = fig.text(0.005, 0.005, foot, fontsize=7.8, color="0.35", ha="left", va="bottom")
+    top = inv.transform(leg.get_window_extent(r))[0, 1]
+    bottom = inv.transform(ft.get_window_extent(r))[1, 1]
+    fig.tight_layout(pad=0.4, rect=(0, bottom + 0.005, 1, top - 0.005))
+    out.parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(out, dpi=110)
+    plt.close(fig)
+    print(f"wrote {out}")
 
 
 def plot(out: Path):
@@ -171,7 +209,7 @@ def plot(out: Path):
                     ev[key].sel(event=e).values * flip,
                     color="#9aa3ad",
                     lw=0.7,
-                    alpha=0.6,
+                    alpha=0.45,
                     label="moderate El Niño (RONI +1.0 to +2.0)" if e == ev.event.values[0] else None,
                 )
         for c, e in zip(STRONG_C, strong):
@@ -184,11 +222,11 @@ def plot(out: Path):
             )
         if len(obs):
             ax.plot(obs.index, obs[key].values * flip, color="#111", lw=2.6, label=f"{y}/{str(y + 1)[2:]} analysis")
+        shown = [obs[key].values * flip] if len(obs) else []
         if fc:
             fmid, mem, init = fc
-            v = mem[key] * flip
-            ok = np.isfinite(v).sum(0) >= 0.5 * v.shape[0]
-            q = {p: np.where(ok, np.nanpercentile(v, p, axis=0), np.nan) for p in (10, 50, 90)}
+            q = plume(mem[key] * flip)
+            shown += [q[10], q[90]]
             ax.fill_between(fmid, q[10], q[90], color="#111", alpha=0.12, lw=0)
             ax.plot(
                 fmid,
@@ -198,6 +236,7 @@ def plot(out: Path):
                 ls=(0, (3, 1.5)),
                 label=f"forecast {init} (3 ensembles, median and 10–90 %)",
             )
+        limits(ax, ev[key].values * flip, *shown)
         ax.set_title(title, fontsize=11, fontweight="bold", loc="left")
         ax.set_ylabel(ylab, fontsize=9)
         ax.grid(alpha=0.25, lw=0.6)
@@ -205,31 +244,16 @@ def plot(out: Path):
         if key.endswith("edge_pole"):
             ax.yaxis.set_major_formatter(lambda v_, _: f"{abs(v_):.0f}°")
         ax.xaxis.set_major_formatter(matplotlib.dates.DateFormatter("%b"))
-    hs, ls = axes[0, 0].get_legend_handles_labels()
-    fig.legend(hs, ls, fontsize=8, ncol=4, loc="upper left", bbox_to_anchor=(0.004, 0.955), frameon=False)
-    fig.suptitle(
+    finish(
+        fig,
+        axes,
         "Hadley cells through El Niño: this season against every El Niño since 1963 (ERA5)",
-        fontsize=13,
-        fontweight="bold",
-        x=0.005,
-        y=0.99,
-        ha="left",
+        "7-day means at 00 UTC, at their midpoint · events: July–March RONI peak ≥ +1.0 (CPC) · intensity = peak |Ψ| in "
+        "the cell, edge = Ψ(300–700 hPa)=0 on the descending flank, all on 1.5° bands\nthis season: analysis less its mean "
+        "offset from ERA5; forecasts: members less their model's drift against ERA5 · each event on its own "
+        "(no composite) · 1991/92 also carries Pinatubo",
+        out,
     )
-    fig.text(
-        0.005,
-        0.005,
-        "7-day means at their midpoint · events: July–March RONI peak ≥ +1.0 (CPC) · intensity = peak |Ψ| in the cell, edge = Ψ(300–700 hPa)=0 "
-        "on the descending flank, all on 1.5° bands\nthis season: analysis less its mean offset from ERA5; forecasts: members less their model's drift "
-        "against ERA5 · each event on its own, no composite (too few events for one) · 1991/92 also carries Pinatubo",
-        fontsize=7.8,
-        color="0.35",
-        ha="left",
-    )
-    fig.tight_layout(rect=(0, 0.04, 1, 0.86))
-    out.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(out, dpi=110)
-    plt.close(fig)
-    print(f"wrote {out}")
 
 
 def main() -> int:

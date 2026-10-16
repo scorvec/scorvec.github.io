@@ -6,8 +6,8 @@ analysis) at days 0..15, corrected by its model's drift against ERA5 at that lea
 reference in release overturn-ref-v1), then put through what the analysed loops go through (mmsf.py, walker.py):
 TRAILING 7-day means, so the window of an early lead still holds analysed days (less the analysis offset d(0), so
 analysis and forecast both stand on ERA5's footing); Psi and Psi_W against the ERA5 1991-2020 harmonic climatology at
-the window's midpoint; the cell intensities and edges (build_hadley_clim.metrics, on the climatology's 1.5 deg bands) and
-the Pacific Walker index.
+the window's midpoint; the cell intensities and edges (build_hadley_clim.metrics, on the climatology's 1.5 deg bands), the
+Pacific Walker cell index and the Indo-Pacific ascent longitude (walker.pac_index, walker.ascent_lon).
 
 The loops (assets/sst/anim/{mmsf,walker}_fc_<region>, one region per ensemble and one for all of them pooled) lead in
 with the last LEAD_IN analysed weeks (overturn_hist.py's frames, on the same fixed colour scale), then show the members'
@@ -113,7 +113,7 @@ def windows(vb, ud, hist_v, hist_u, init, cm, cw, lon):
     """Trailing-WIN-day means of every member's corrected fields -> metrics {key: (member, lead)}, the Sums, and the
     climatology at each window's midpoint."""
     n_m = vb.shape[0]
-    res = {k: np.full((n_m, len(LEADS)), np.nan) for k in (*KEYS, "pac")}
+    res = {k: np.full((n_m, len(LEADS)), np.nan) for k in (*KEYS, "pac", "asc_lon")}
     S = Sums(lon.size)
     mids = [float(noleap_doy(pd.DatetimeIndex([init + pd.Timedelta(days=j - (WIN - 1) / 2)]))[0]) for j in LEADS]
     clim_m = [mmsf.clim_psi(cm, x) for x in mids]
@@ -131,6 +131,7 @@ def windows(vb, ud, hist_v, hist_u, init, cm, cw, lon):
                 res[k][i, j] = met[k]
             pw = walker.streamfunction(wu, P_PA)
             res["pac"][i, j] = walker.pac_index(pw, P_HPA, lon)
+            res["asc_lon"][i, j] = walker.ascent_lon(pw, P_HPA, lon)
             S.m[j] += psi - clim_m[j]
             S.mpos[j] += psi > clim_m[j]
             S.ma[j] += psi
