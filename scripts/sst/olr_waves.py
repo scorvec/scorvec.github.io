@@ -47,7 +47,8 @@ DAY = 86400.0
 # our own contour palette (distinct from Schreck's blue/red/black/purple), chosen to read on the
 # green-brown-white base. clev = ± W/m² contour level (LF/ER are broad, lower-amplitude → lower).
 WAVES = {
-    "Kelvin": dict(k=(1, 14), p=(2.5, 30), h=(8, 90), n=None, color="#1565c0", lw=1.6, clev=13),
+    # Kelvin: Wheeler & Kiladis (1999), the same wedge as the χ200 Kelvin tracker and the CERES spectrum test
+    "Kelvin": dict(k=(1, 14), p=(2.5, 20), h=(8, 90), n=None, color="#1565c0", lw=1.6, clev=13),
     "ER": dict(k=(-10, -1), p=(9.7, 48), h=(8, 90), n=1, color="#e6007e", lw=1.6, clev=11),
     "MJO": dict(k=(1, 5), p=(30, 96), h=None, n=None, color="#111111", lw=1.9, clev=10),
     "LF": dict(
@@ -243,7 +244,9 @@ def _anomaly_rt(rt: xr.Dataset, clim_ds: xr.Dataset, band: str = "15") -> xr.Dat
     clim = clim_ds[f"clim_{band}"]
     base = clim_at(clim, olr["time"].values)
     a = olr.values - base
-    a = a - a.mean(0, keepdims=True)  # remove offset only; keep low-freq (ENSO) evolution
+    # the proxy's offset from true OLR is not measured here (no 5S-5N reference): the record mean per longitude is
+    # removed instead, which also takes out the part of a long-lasting anomaly (an El Niño's) that fills the record
+    a = a - a.mean(0, keepdims=True)
     return xr.DataArray(a, coords={"time": olr["time"], "lon": olr["lon"]}, dims=("time", "lon"))
 
 
