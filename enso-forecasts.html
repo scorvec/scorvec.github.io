@@ -1066,7 +1066,7 @@ window.STAGE = {
       <h3>The static figure</h3>
       <p>The same forecast as a four-panel image (Ni&ntilde;o-3.4 and relative Ni&ntilde;o-3.4, monthly and
       three-month), for saving or sharing:</p>
-      <a href="assets/sst/c3s_nino34.webp?v=ef6ee8186ebc"><img src="assets/sst/c3s_nino34.webp?v=ef6ee8186ebc" loading="lazy" alt="Static four-panel C3S multi-model ENSO forecast figure" width="1512" height="1164"></a>
+      <a href="assets/sst/c3s_nino34.webp?v=a53e8e4acb65"><img src="assets/sst/c3s_nino34.webp?v=a53e8e4acb65" loading="lazy" alt="Static four-panel C3S multi-model ENSO forecast figure" width="1512" height="1164"></a>
       <h3>Sources</h3>
       <ul>
         <li>Copernicus Climate Change Service (C3S) seasonal forecast single-level data, monthly means and anomalies. Contains modified Copernicus Climate Change Service information 2026.</li>
@@ -2456,13 +2456,13 @@ window.STAGE = {
     return optional ? p.catch(function () { return null; }) : p;
   }
   Promise.all([
-    get("assets/sst/data/enso_forecast.json?v=ef6ee8186ebc"),
-    get("assets/sst/data/nino_history.json?v=ef6ee8186ebc", true),
-    get("assets/sst/data/enso_daily.json?v=ef6ee8186ebc", true),
-    get("assets/sst/data/c3s_evolution.json?v=ef6ee8186ebc", true),
-    get("assets/sst/data/enso_flavour.json?v=ef6ee8186ebc", true),
-    get("assets/sst/data/cpc_official.json?v=ef6ee8186ebc", true),
-    get("assets/sst/data/enso_flavour_obs.json?v=ef6ee8186ebc", true),
+    get("assets/sst/data/enso_forecast.json?v=a53e8e4acb65"),
+    get("assets/sst/data/nino_history.json?v=a53e8e4acb65", true),
+    get("assets/sst/data/enso_daily.json?v=a53e8e4acb65", true),
+    get("assets/sst/data/c3s_evolution.json?v=a53e8e4acb65", true),
+    get("assets/sst/data/enso_flavour.json?v=a53e8e4acb65", true),
+    get("assets/sst/data/cpc_official.json?v=a53e8e4acb65", true),
+    get("assets/sst/data/enso_flavour_obs.json?v=a53e8e4acb65", true),
     get("assets/sst/data/cansips_dd.json?h=" + Math.floor(Date.now() / 3.6e6), true),   // written monthly by cansips.yml, not by the page build
     window.plotlyP   // the chart library, loading since the top of the page
   ]).then(function (res) {
