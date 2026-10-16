@@ -239,6 +239,40 @@
       <p class="cap" id="cap"></p>
       <div id="about"></div>
       <p class="hint"><span class="kbd">&larr;</span> <span class="kbd">&rarr;</span> step through the options &middot; <span class="kbd">&uarr;</span> <span class="kbd">&darr;</span> change figure &middot; click a still to enlarge</p>
+<!-- plots:start -->
+<details class="about" id="every-plot">
+<summary>Every plot on this page (9)</summary>
+<h2>IVT maps, days 1–7</h2>
+<p><a href="#det"><b>Integrated vapour transport</b></a> &middot; AIFS · IFS · GFS · GDPS<br>
+Each map is the model&rsquo;s own IVT, (1/g)&thinsp;|&int;&thinsp;q&thinsp;<b>V</b>&thinsp;dp| from 1000 to 300&nbsp;hPa, integrated with the trapezoid rule over the pressure levels the model publishes. Where the ground is higher than a level, that level is left out and the lowest layer starts at the surface pressure. Without this step, the extrapolated values that pressure-level files carry below the Sierra Nevada, the Cascades and the Rockies would add transport that is not there. The 1000&nbsp;hPa cap is the same for every model, so over the ocean the thin layer below 1000&nbsp;hPa is left out by all four alike.</p>
+<h2>West Coast landfall, days 1–7</h2>
+<p><a href="#detcoast"><b>Coastline IVT</b></a> &middot; latitude against time<br>
+The landfall view of the same IVT: latitude along the coast against time, read at the first ocean point west of the coastline on every 0.25&deg; of latitude from Baja California to southeast Alaska. This is the same transect the ensemble charts use. Black contours mark 250, 500, 750 and 1000. A river that stalls shows as a horizontal band; one sweeping down the coast shows as a diagonal.</p>
+<p><a href="#detscale"><b>AR scale at the coast</b></a> &middot; Ralph rank by point<br>
+The AR scale of Ralph et&nbsp;al. (2019, <i>Bull. Amer. Meteor. Soc.</i> 100, 269&ndash;289) at eleven points 2.5&deg; apart from 30 to 55&deg;N on the coastal transect, from the chosen model&rsquo;s 6-hourly IVT. The table gives the strongest spell in the 7 days, its peak IVT, how long it stays at or above 250, when it starts, and the rank of the spell under way on each day. A spell still going at +168&nbsp;h is cut off there, so its duration, and possibly its rank, can rise in later runs. The rank comes from the computed IVT, not from CW3E&rsquo;s own landfall tool, so values can differ from theirs. Moisture around a tropical cyclone or its remnants also reaches these values (the San Diego and Baja points in early October 2026); the scale was designed for atmospheric rivers, so read such a rank as transport strength, not as an AR category.</p>
+<h2>AR probabilities, days 1–15</h2>
+<p><a href="#ens"><b>Chance of AR conditions</b></a> &middot; four ensembles and the blend<br>
+The share of members with IVT at or above 250 (AR conditions) or 500 (AR2 or stronger), 6-hourly to day 15, for each ensemble and for their equal-weight blend. The blend averages each system&rsquo;s own member share, so a 21-member ensemble counts the same as a 51-member one. It uses the valid times every system covers and leaves out any system whose run is more than 24&nbsp;hours older than the newest.</p>
+<p><a href="#enscoast"><b>Landfall odds along the coast</b></a> &middot; latitude against time<br>
+The share of members at or above 250 along the coastal transect, with the ensemble-mean IVT contoured at 250 and 500. A dashed line marks where half the members reach 500. Read the shading as the odds of AR conditions at landfall and the contours as the typical strength; individual members are in the plume view.</p>
+<p><a href="#plume"><b>Member plumes at the coast</b></a> &middot; IVT at eleven points<br>
+Every member&rsquo;s estimated IVT at the chosen coastal point, 6-hourly to day 15, with the ensemble median and the 10&ndash;90&nbsp;% band. Reference lines mark the AR-scale steps at 250, 500, 750 and 1000. The estimate is calibrated per system per run; see the ensemble maps for how.</p>
+<p><a href="#ensscale"><b>AR-scale odds by day</b></a> &middot; P(≥ AR1), P(≥ AR3)<br>
+For each member, every AR spell at the point is rated on the Ralph scale over its whole length within the forecast, and its rank is credited to every UTC day the spell touches. The table shows the share of members with an AR1-or-stronger (or AR3-or-stronger) spell on each day. The blend averages the systems equally, on the days every system covers in full. Spells cut off by the start or end of a forecast are rated on the part inside it.</p>
+<h2>Weeks 3–5</h2>
+<p><a href="#ext"><b>AR frequency against the model's climate</b></a> &middot; GEFS extended, significant only<br>
+<b>What is shown.</b> AR frequency is the share of a week&rsquo;s 28 six-hourly times with estimated IVT&nbsp;&ge;&nbsp;250. Here it comes from the 31-member GEFS 00&nbsp;UTC extended run and is shown as the difference from GEFS&rsquo;s own reforecast climate at the same lead. That climate is the GEFSv12 reforecast 2000&ndash;2019: Wednesday 35-day starts within &plusmn;15 days of this run&rsquo;s date, the control and four perturbed members. Comparing against the model&rsquo;s own reforecast removes its moisture bias and its drift with lead. The estimate uses one fixed k for the live run and the reforecast alike, so the threshold means the same on both sides. Grey contours give the climatological frequency for context. Only 20&deg;N and north is tested and shown: in the deep tropics IVT reaches 250 most of the time in the trade-wind moisture flux, which is not an atmospheric river.</p>
+<h2>Moisture</h2>
+<p><a href="#pwat"><b>Precipitable water</b></a> &middot; AIFS-ENS and IFS-ENS means<br>
+Ensemble-mean total column water (vapour plus cloud) and its anomaly against ERA5 1991&ndash;2020 at the same date and hour (three annual harmonics on a 1.5&deg; grid), 6-hourly to day 15, for AIFS-ENS and IFS-ENS. Precipitable water shows where the moisture is; IVT shows where it is moving. An ensemble mean blurs individual plumes in week 2.</p>
+</details>
+<script>document.getElementById("every-plot").addEventListener("click", function (e) {
+  var a = e.target.closest('a[href^="#"]'), st = document.querySelector(".ss-layout");
+  if (a && st) setTimeout(function () {
+    st.style.scrollMarginTop = "5rem"; st.scrollIntoView({ block: "start" });
+  }, 0);
+});</script>
+<!-- plots:end -->
       <div class="chart-card-footer">
         <span>ECMWF AIFS, IFS, AIFS-ENS and IFS-ENS open data (CC BY 4.0, Google Cloud mirror) &middot; NOAA GFS, GEFS and GEFSv12 reforecast (AWS Open Data) &middot; ECCC GDPS and GEPS (MSC Datamart; Data Source: Environment and Climate Change Canada, <a href="https://eccc-msc.github.io/open-data/licence/readme_en/">ECCC Data Servers End-use Licence</a>) &middot; ERA5 (Copernicus C3S/ECMWF) for the precipitable-water climate &middot; coast from Natural Earth</span>
         <span id="genLabel">&nbsp;</span>

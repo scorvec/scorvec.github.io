@@ -3,17 +3,19 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Tropical Waves &mdash; Kelvin and Rossby Wave Trackers, OLR Wave Decomposition &middot; Shawn Corvec</title>
-<meta name="description" content="Where the convectively coupled equatorial waves are: Kelvin, equatorial Rossby and MJO filtered Hovmollers of satellite OLR, wave trackers with the AIFS-ENS forecast, and ocean Kelvin waves.">
+<title>Tropical Waves &mdash; Kelvin and Rossby Wave Trackers &middot; Shawn Corvec</title>
+<meta name="description" content="Convectively coupled equatorial waves: Kelvin, Rossby and MJO filtered OLR Hovmöllers, wave trackers with the AIFS-ENS forecast, and ocean Kelvin waves.">
 <link rel="canonical" href="https://scorvec.com/tropical-waves.html">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <meta property="og:type" content="website">
-<meta property="og:title" content="Tropical Waves &mdash; Kelvin and Rossby Wave Trackers, OLR Wave Decomposition &middot; Shawn Corvec">
-<meta property="og:description" content="Where the convectively coupled equatorial waves are: Kelvin, equatorial Rossby and MJO filtered Hovmollers of satellite OLR, wave trackers with the AIFS-ENS forecast, and ocean Kelvin waves.">
+<meta property="og:title" content="Tropical Waves &mdash; Kelvin and Rossby Wave Trackers &middot; Shawn Corvec">
+<meta property="og:description" content="Convectively coupled equatorial waves: Kelvin, Rossby and MJO filtered OLR Hovmöllers, wave trackers with the AIFS-ENS forecast, and ocean Kelvin waves.">
 <meta property="og:url" content="https://scorvec.com/tropical-waves.html">
+<meta property="og:image" content="https://scorvec.com/assets/sst/wave_tracker.webp">
 <meta property="og:site_name" content="Shawn Corvec &mdash; Weather &amp; Climate Monitors">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="Tropical Waves &mdash; Kelvin and Rossby Wave Trackers, OLR Wave Decomposition &middot; Shawn Corvec">
-<meta name="twitter:description" content="Where the convectively coupled equatorial waves are: Kelvin, equatorial Rossby and MJO filtered Hovmollers of satellite OLR, wave trackers with the AIFS-ENS forecast, and ocean Kelvin waves.">
+<meta name="twitter:title" content="Tropical Waves &mdash; Kelvin and Rossby Wave Trackers &middot; Shawn Corvec">
+<meta name="twitter:description" content="Convectively coupled equatorial waves: Kelvin, Rossby and MJO filtered OLR Hovmöllers, wave trackers with the AIFS-ENS forecast, and ocean Kelvin waves.">
 <link rel="stylesheet" href="/assets/outlook.css">
 <link rel="stylesheet" href="/assets/stage.css">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css" integrity="sha384-nB0miv6/jRmo5UMMR1wu3Gz6NLsoTkbqJghGIsx//Rlm+ZU03BU6SQNC66uf4l5+" crossorigin="anonymous">
@@ -203,6 +205,29 @@
       <p class="cap" id="cap"></p>
       <div id="about"></div>
       <p class="hint"><span class="kbd">&larr;</span> <span class="kbd">&rarr;</span> step through the options &middot; <span class="kbd">&uarr;</span> <span class="kbd">&darr;</span> change figure &middot; click a still to enlarge</p>
+<!-- plots:start -->
+<details class="about" id="every-plot">
+<summary>Every plot on this page (5)</summary>
+<h2>Along the equator</h2>
+<p><a href="#waves"><b>Wave decomposition</b></a> &middot; Kelvin, Rossby, MJO bands<br>
+A longitude &times; time Hovm&ouml;ller of the equatorial outgoing-longwave-radiation (OLR) anomaly, averaged 5&deg;S&ndash;5&deg;N around the globe. OLR is derived in real time from the <b>GMGSI</b> longwave-IR mosaic (McIDAS brightness temperature to OLR), with the anomaly taken against NOAA's interpolated-OLR daily climatology (1979&ndash;2022). The shaded field is the total anomaly: <span style="color:#19975a">green is low OLR (deep convection)</span>, <span style="color:#9a6a18">brown is high OLR (suppressed)</span>.</p>
+<p><a href="#trackers"><b>Kelvin and Rossby trackers</b></a> &middot; with the forecast<br>
+Each wave isolated in its own panel &mdash; the <b style="color:#1565c0">Kelvin</b>-filtered (5&deg;S&ndash;5&deg;N) and <b style="color:#e6007e">equatorial-Rossby</b>-filtered (15&deg;S&ndash;15&deg;N, n=1) OLR anomaly as shading &mdash; with the active enhanced-convection packets <b>tracked</b>: the band's recent phase speed is fitted by day-to-day lag correlation of the filtered field, today's packet centres are located, and each characteristic is extrapolated ahead at that speed (dotted line). Below the dashed today-line the shading is a true <b>forecast</b>: the AIFS-ENS ensemble-mean precipitation (as a pseudo-OLR, standardized against an ERA5 1991&ndash;2020 band climatology) is appended to the record and run through the <em>same</em> Wheeler&ndash;Kiladis filter, so the wave field continues with the model's dynamics &mdash; where the dotted constant-speed line and the model streaks agree, confidence in the arrival time is high.</p>
+<p><a href="#kelvin"><b>Kelvin wave tracker, AIFS-ENS</b></a> &middot; map + 15-day forecast<br>
+A <b>convectively coupled Kelvin wave</b> is an eastward-moving pulse of tropical convection, 10&ndash;20&nbsp;m/s (roughly 1,000&ndash;1,700&nbsp;km a day), that crosses a basin in about a week. Its clearest large-scale footprint is in <b>200&nbsp;hPa velocity potential</b>: upper-level divergence (green) over the active, rainy phase and convergence (brown) over the suppressed phase. This tracker filters that field to the Kelvin band and draws where the waves are, through the analysis and the AIFS-ENS forecast.</p>
+<p><a href="#olr"><b>OLR Hovmöller</b></a> &middot; synthetic, equatorial<br>
+A longitude &times; time Hovm&ouml;ller of deep convection along the equator. NOAA's interpolated-OLR product ended in 2022, so this derives an OLR proxy in real time from the <b>GMGSI</b> global longwave-IR satellite mosaic: the IR brightness temperature (cold cloud tops) is converted to outgoing longwave radiation, and the 5&deg;S&ndash;5&deg;N average at each longitude is stacked over time. <span style="color:#e07b00">Yellow to red is low OLR (deep convection)</span>; blue is high OLR (suppressed or clear sky). An eastward (top to bottom-right) tilt is the MJO propagating east; convection parked at the dateline reflects the El&nbsp;Ni&ntilde;o-shifted warm pool. Newest day at the bottom.</p>
+<h2>Ocean</h2>
+<p><a href="#okelvin"><b>Ocean Kelvin waves</b></a> &middot; sea level, arrival dates<br>
+Below the surface, El Ni&ntilde;o travels in <b>oceanic Kelvin waves</b>. A westerly wind burst in the western Pacific launches a <b>downwelling</b> wave: a bulge of warm water, a few centimetres of sea level and tens of metres of thermocline, that runs east along the equator at about <b>2.5&nbsp;m/s</b>, crossing the basin in roughly two months, and warms Ni&ntilde;o-3 and the South American coast when it arrives. Easterly surges launch the cold, <b>upwelling</b> mirror image. Satellite altimetry sees each wave as a sea-level bump moving east.</p>
+</details>
+<script>document.getElementById("every-plot").addEventListener("click", function (e) {
+  var a = e.target.closest('a[href^="#"]'), st = document.querySelector(".ss-layout");
+  if (a && st) setTimeout(function () {
+    st.style.scrollMarginTop = "5rem"; st.scrollIntoView({ block: "start" });
+  }, 0);
+});</script>
+<!-- plots:end -->
       <div class="chart-card-footer"><span class="chart-sources">NOAA GMGSI infrared mosaic &middot; ECMWF AIFS-ENS open data: &copy;&nbsp;2026 European Centre for Medium-Range Weather Forecasts (ECMWF), source <a href="https://www.ecmwf.int">www.ecmwf.int</a>, <a href="https://creativecommons.org/licenses/by/4.0/">CC&nbsp;BY&nbsp;4.0</a>, modified; ECMWF does not accept any liability for errors or omissions in the data, their availability, or any loss or damage arising from their use &middot; ERA5: Copernicus Climate Change Service (C3S) / ECMWF, CC&nbsp;BY&nbsp;4.0; contains modified Copernicus Climate Change Service information 2026; neither the European Commission nor ECMWF is responsible for any use of this information &middot; NOAA CoastWatch altimetry</span></div>
     </section>
   </div>
