@@ -2,17 +2,18 @@
 """Monthly Niño-region history + El Niño event table → JSON for the interactive explorer.
 
 Sources, and which one wins:
-  REGIONAL series — NOAA CPC ERSSTv5 monthly Niño indices (1950–, 1991–2020 base),
-  https://www.cpc.ncep.noaa.gov/data/indices/ersst5.nino.mth.91-20.ascii
-  columns: YR MON NINO1+2 ANOM NINO3 ANOM NINO4 ANOM NINO3.4 ANOM.
-  ERSSTv5 (not OISST) so the record reaches back past 1970.
+  REGIONAL series — the four Niño boxes from the NOAA ERSSTv6 monthly grid (PSL
+  noaa.ersst.v6 sst.mnmean.nc, the file sst.yml keeps current): cosine-weighted
+  means of the grid points inside each box, anomalies against the FIXED 1991–2020
+  calendar-month mean (nino_boxes). ERSST (not OISST) so the record reaches back
+  past 1970; v6 because CPC moved its operational indices to it, and its v5 table
+  (ersst5.nino.mth.91-20.ascii) froze on 5 Aug 2026 with content through 2026-06.
 
-  ONI and RONI — CPC's OWN PUBLISHED values (cpc_official_enso.py), because the
-  file above FROZE on 5 Aug 2026 with content through 2026-06 when CPC moved its
-  operational indices to ERSSTv6. Until this was noticed, every month after June
-  came from the OISST provisional bridge and was presented as ERSST: 2026-07 read
-  +2.10 where CPC had published +1.80. The official values are applied across the
-  whole record rather than spliced onto the end, so no step appears mid-series.
+  ONI and RONI — CPC's OWN PUBLISHED values (cpc_official_enso.py). Until that
+  freeze was noticed, every month after June came from the OISST provisional
+  bridge and was presented as ERSST: 2026-07 read +2.10 where CPC had published
+  +1.80. The official values are applied across the whole record rather than
+  spliced onto the end, so no step appears mid-series.
 
   Anything CPC has not published yet is still bridged from the OISST daily feed
   and flagged by `provisional_after`.
@@ -37,15 +38,18 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-sys.path.insert(0, str(next(p for p in Path(__file__).resolve().parents if p.name == "scripts") / "lib"))
-from webget import get_text
-
 HERE = Path(__file__).resolve().parent
 SITE_ROOT = Path(os.environ["SST_SITE_ROOT"]).resolve() if os.environ.get("SST_SITE_ROOT") else HERE
 OUT = SITE_ROOT / "assets" / "sst" / "data" / "nino_history.json"
 
-SRC = "https://www.cpc.ncep.noaa.gov/data/indices/ersst5.nino.mth.91-20.ascii"
 START_YEAR = 1970  # history floor for the explorer
+# CPC's Niño boxes: (lat south, lat north), (lon west, lon east) in degrees east
+NINO_BOXES = {
+    "n12": ((-10, 0), (270, 280)),
+    "n3": ((-5, 5), (210, 270)),
+    "n4": ((-5, 5), (160, 210)),
+    "n34": ((-5, 5), (190, 240)),
+}
 
 # El Niño onset years since 1970 (year0 of the DJF event), per the CPC ONI record.
 # Strength + exact peak month are computed from the data, not hard-coded.
@@ -73,22 +77,45 @@ ELNINO_ONSETS = [
 DEFAULT_ON = {1982, 1997, 2015, 2023}
 
 
-def fetch(url: str) -> str:
-    return get_text(url, ua="scorvec-enso/1.0")
+ERSST_GRID = "https://downloads.psl.noaa.gov/Datasets/noaa.ersst.v6/sst.mnmean.nc"
 
 
-def parse(txt: str) -> pd.DataFrame:
-    rows = []
-    for ln in txt.splitlines():
-        p = ln.split()
-        if len(p) == 10 and p[0].isdigit():
-            yr, mon = int(p[0]), int(p[1])
-            vals = [float(x) for x in p[2:]]
-            rows.append([yr, mon, *vals])
-    cols = ["yr", "mon", "n12", "n12a", "n3", "n3a", "n4", "n4a", "n34", "n34a"]
-    df = pd.DataFrame(rows, columns=cols)
-    df["date"] = pd.to_datetime(dict(year=df.yr, month=df.mon, day=1))
-    return df.set_index("date").sort_index()
+def ersst_grid():
+    """The ERSSTv6 monthly SST grid (sst.yml keeps scripts/sst/data/ersst_v6_mnmean.nc current; fetched once if absent)."""
+    import urllib.request
+    import xarray as xr
+
+    cache = HERE / "data" / "ersst_v6_mnmean.nc"
+    cache.parent.mkdir(parents=True, exist_ok=True)
+    if not cache.exists() or cache.stat().st_size < 1e6:
+        print(f"fetching {ERSST_GRID} (~60 MB, cached once)")
+        urllib.request.urlretrieve(ERSST_GRID, cache)
+    return xr.open_dataset(cache)
+
+
+def _box_series(sst, box) -> pd.Series:
+    """Cosine-weighted mean of the grid points inside a (lat, lon) box, monthly (month-start index)."""
+    (la0, la1), (lo0, lo1) = box
+    b = sst.sel(lat=slice(la1, la0), lon=slice(lo0, lo1))  # ERSST lat runs N→S
+    ser = b.weighted(np.cos(np.deg2rad(b["lat"]))).mean(dim=("lat", "lon"), skipna=True).to_series()
+    ser.index = pd.DatetimeIndex(ser.index).to_period("M").to_timestamp()
+    return ser
+
+
+def _anom_9120(ser: pd.Series) -> pd.Series:
+    """Anomaly against the fixed 1991–2020 mean of each calendar month."""
+    clim = ser[(ser.index.year >= 1991) & (ser.index.year <= 2020)].groupby(lambda t: t.month).mean()
+    return ser - clim.reindex(ser.index.month).to_numpy()
+
+
+def nino_boxes(ds) -> pd.DataFrame:
+    """Monthly Niño-region SST (n12 n3 n4 n34, °C) and their anomalies (…a) from the ERSSTv6 grid, the columns of
+    CPC's former ERSSTv5 table; months before every box has data are dropped."""
+    cols = {}
+    for k, box in NINO_BOXES.items():
+        s = _box_series(ds["sst"], box)
+        cols[k], cols[f"{k}a"] = s, _anom_9120(s)
+    return pd.DataFrame(cols).dropna().sort_index()
 
 
 def strength(peak_oni: float) -> str:
@@ -125,35 +152,11 @@ def build_events(oni: pd.Series) -> list[dict]:
     return events
 
 
-ERSST_GRID = "https://downloads.psl.noaa.gov/Datasets/noaa.ersst.v6/sst.mnmean.nc"
-
-
-def tropical_anom(index: pd.DatetimeIndex) -> pd.Series:
-    """20°S–20°N ERSST **v6** SST anomaly vs the FIXED 1991–2020 base, monthly.
-
-    CPC's tabulated indices carry the Niño boxes but not the tropical mean, so
-    the historical RONI needs the gridded field. Using the same dataset
-    (ERSSTv5) and the same fixed base as the table keeps every year of RONI on
-    one consistent footing — CPC's own historical ONI/RONI use sliding 30-year
-    bases, which is exactly the apples-to-oranges problem this avoids.
-    """
-    import urllib.request
-    import xarray as xr
-
-    cache = HERE / "data" / "ersst_v6_mnmean.nc"
-    cache.parent.mkdir(parents=True, exist_ok=True)
-    if not cache.exists() or cache.stat().st_size < 1e6:
-        print(f"fetching {ERSST_GRID} (~60 MB, cached once)")
-        urllib.request.urlretrieve(ERSST_GRID, cache)
-    ds = xr.open_dataset(cache)
-    sst = ds["sst"].sel(lat=slice(20, -20))  # ERSST lat runs N→S
-    w = np.cos(np.deg2rad(sst["lat"]))
-    band = sst.weighted(w).mean(dim=("lat", "lon"), skipna=True)
-    ser = band.to_series()
-    clim = ser[(ser.index.year >= 1991) & (ser.index.year <= 2020)].groupby(lambda t: t.month).mean()
-    anom = ser - pd.Series([clim[t.month] for t in ser.index], index=ser.index)
-    anom.index = anom.index.to_period("M").to_timestamp()
-    return anom.reindex(index)
+def tropical_anom(ds, index: pd.DatetimeIndex) -> pd.Series:
+    """20°S–20°N ERSSTv6 SST anomaly vs the FIXED 1991–2020 base, monthly: the tropical mean of the fallback RONI,
+    from the same grid and base as the Niño boxes, so every year of it stands on one footing (CPC's own historical
+    ONI/RONI use sliding 30-year bases, which is exactly the apples-to-oranges problem this avoids)."""
+    return _anom_9120(_box_series(ds["sst"], ((-20, 20), (0, 360)))).reindex(index)
 
 
 def roni_scale() -> dict:
@@ -167,25 +170,20 @@ def roni_scale() -> dict:
 
 
 def main() -> int:
-    print(f"fetching {SRC}")
-    df = parse(fetch(SRC))
+    ds = ersst_grid()
+    df = nino_boxes(ds)
     df = df.loc[df.index.year >= START_YEAR]
     if df.empty:
-        print("no rows parsed", file=sys.stderr)
+        print("no Niño-box months in the ERSSTv6 grid", file=sys.stderr)
         return 1
 
     oni = df["n34a"].rolling(3, center=True, min_periods=2).mean()  # ONI = 3-mo running Niño-3.4 anom
 
-    # Historical RONI on the same fixed footing: table Niño-3.4 anomaly minus
-    # the gridded tropical-mean anomaly, σ-scaled per calendar month, 3-month
-    # running mean. NOTE the two sides are now different ERSST versions — the
-    # table is v5 (frozen) and the grid is v6 — so this pair is a FALLBACK only:
-    # the official CPC values below overwrite it wherever CPC has published,
-    # which since 1950 is everywhere. Over 1991–2020 the version difference is
-    # +0.04 C on Niño-3.4 and +0.02 C on the tropical mean, so the residual
-    # fallback is not distorted by the mix either.
+    # Historical RONI on the same fixed footing: the grid's Niño-3.4 anomaly minus its tropical-mean anomaly,
+    # σ-scaled per calendar month, 3-month running mean. A FALLBACK only: the official CPC values below overwrite it
+    # wherever CPC has published, which since 1950 is everywhere.
     try:
-        trop = tropical_anom(df.index)
+        trop = tropical_anom(ds, df.index)
         sc = roni_scale()
         rel = (df["n34a"] - trop) * pd.Series([sc.get(t.month, 1.0) for t in df.index], index=df.index)
         roni = rel.rolling(3, center=True, min_periods=2).mean()
@@ -200,18 +198,11 @@ def main() -> int:
         )
         roni = pd.Series(np.nan, index=df.index)
 
-    # ── CPC's OWN published values take precedence over the table-derived pair ──
-    # ersst5.nino.mth.91-20.ascii FROZE on 5 Aug 2026 with content through
-    # 2026-06 (CPC moved its operational indices to ERSSTv6), so everything
-    # after June was being supplied by the OISST bridge below and presented as
-    # ERSST. CPC's oni.ascii.txt and the RONI product table are still current.
-    #
-    # Applied across the WHOLE record, not just the tail: the two differ by
-    # base period (official ONI uses 30-year bases that shift every five years,
-    # this table a fixed 1991-2020), so splicing only the recent end would put a
-    # step in the middle of the series. Measured over 1990+: ONI mean -0.06,
-    # sd 0.11; RONI mean +0.01, sd 0.08 -- smaller than the error being fixed
-    # (2026-07 read +2.10 against CPC's +1.80).
+    # ── CPC's OWN published values take precedence over the grid-derived pair ──
+    # Applied across the WHOLE record, not just the tail: the two differ by base
+    # period (official ONI uses 30-year bases that shift every five years, the
+    # grid pair a fixed 1991-2020), so splicing only the recent end would put a
+    # step in the middle of the series.
     official_months = set()
     try:
         sys.path.insert(0, str(HERE))
@@ -251,7 +242,7 @@ def main() -> int:
     }
     series["roni"] = {"anom": [round(float(v), 2) if pd.notna(v) else None for v in roni.values]}
 
-    # Months CPC has published that the frozen table cannot reach. The regional
+    # Months CPC has published that the grid does not reach yet. The regional
     # series have no official counterpart, so they stay null there.
     for m in sorted(official_months - set(months)):
         if m <= months[-1]:
@@ -292,7 +283,7 @@ def main() -> int:
     )
 
     # ── provisional bridge months from our OISST daily feed ────────────────
-    # CPC's ERSSTv5 monthly file lags (July still absent on Aug 10) and the
+    # The ERSST month lags (a month appears in the first week of the next) and the
     # forecast chart then jumps last-ERSST-month → first-forecast-month. Our
     # OISST daily anomalies use the SAME 1991-2020 base (oisst9120 rebase), so
     # completed calendar months missing from ERSST are appended provisionally.
@@ -304,10 +295,9 @@ def main() -> int:
         ddates = [d[:7] for d in daily["dates"]]
         import calendar as _cal
 
-        # The bridge starts after the last month of the FROZEN ERSST TABLE, not after months[-1]: the CPC-official
-        # ONI/RONI months appended above (2026-07, -08) carry null regional values, and starting after them left the
-        # four Niño boxes blank for July and August 2026 (observed lines stopped in June on the forecasts page).
-        # Those months now get their regional values from the bridge; CPC's ONI/RONI stay where CPC published.
+        # The bridge starts after the last ERSST month, not after months[-1]: CPC-official ONI/RONI months appended
+        # above carry null regional values, and starting after them would leave the four Niño boxes blank there.
+        # Those months get their regional values from the bridge; CPC's ONI/RONI stay where CPC published.
         last_table = f"{df.index[-1]:%Y-%m}"
         DMAP = {
             ("nino34", "anom"): "nino34",
@@ -358,9 +348,9 @@ def main() -> int:
         "source": (
             "ONI/RONI: CPC's published tables (official; RONI is ERSSTv6 and has "
             "been CPC's official ENSO index since Feb 2026); months past provisional_after "
-            "are our OISST v2.1 estimate. Regional Niño series: CPC ERSSTv5 monthly table, "
-            "1991–2020 base, which froze on 2026-08-05; months past regional_provisional_after "
-            "are OISST v2.1 monthly means on the same 1991–2020 base."
+            "are our OISST v2.1 estimate. Regional Niño series: box means of the NOAA ERSSTv6 "
+            "grid, fixed 1991–2020 base; months past regional_provisional_after are OISST v2.1 "
+            "monthly means on the same 1991–2020 base."
         ),
         "latest_month": months[-1],
         "metrics": {
