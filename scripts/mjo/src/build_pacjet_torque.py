@@ -14,13 +14,13 @@ interval and a two-sided percentile p-value, and the p-values of all lags and bo
 false discovery rate of 10% (Benjamini-Hochberg; Wilks 2016). The effective sample size from the lag-1
 autocorrelations is reported as a cross-check.
 
-    python src/build_pacjet_torque.py --series   (once, ~10 min: WB2 surface pressure -> him_torque_1991_2020.nc)
-    python src/build_pacjet_torque.py            -> scripts/mjo/data/reference/pacjet_torque.json
+The torque is the live product's own (torque_map_anim.py, read by pacjet.py from torque_ranges.json): the
+Himalaya/Tibet day-mean mountain-torque anomaly, 5-degree h dp_s/dlam over 70-105E 25-45N, from ERA5 1991-2020
+(build_torque_range_sd.day_anomalies; high pressure west of the range and low east = braking, negative). Each month's
+window mean and sigma of it go into the output (torque_scale), and pacjet.py standardises the forecast with exactly
+those, so forecast and predictor are one quantity on one scale.
 
-The torque series (unchanged from the 2026-09-06 product): -integral of p_s' dh/dx a cos(phi) dA over 70-105E 25-45N on the
-WeatherBench-2 1.5 deg grid, 00Z+12Z daily mean, anomaly against a harmonic day-of-year climatology (same sign
-convention as the torque product: high pressure west of the range and low east = braking, negative). Anomalies only:
-the absolute mean at 1.5 deg is resolution junk.
+    python src/build_pacjet_torque.py            -> scripts/mjo/data/reference/pacjet_torque.json
 """
 
 from __future__ import annotations
@@ -36,73 +36,11 @@ from quantmet.stats import benjamini_hochberg
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
+import build_torque_range_sd as BRS
+
 REF = HERE.parent / "data" / "reference"
 LAGS = list(range(-10, 21))
 BLOCK, NBOOT, ALPHA = 30, 1000, 0.10
-
-
-WB2 = "gs://weatherbench2/datasets/era5/1959-2023_01_10-6h-240x121_equiangular_with_poles_conservative.zarr"
-HIM = dict(lat=(25.0, 45.0), lon=(70.0, 105.0))
-A_EARTH, G0, HADLEY = 6.371e6, 9.80665, 1e18
-
-
-def build_series():
-    """Stream WB2 surface pressure over the Himalaya/Tibet box 1991-2020 -> data/reference/him_torque_1991_2020.nc."""
-    import time
-    import gcsfs
-
-    t0 = time.time()
-    fs = gcsfs.GCSFileSystem(token="anon")
-    z = xr.open_zarr(fs.get_mapper(WB2), chunks=None)
-    box = dict(
-        latitude=slice(HIM["lat"][0] - 1.5, HIM["lat"][1] + 1.5),
-        longitude=slice(HIM["lon"][0] - 1.5, HIM["lon"][1] + 1.5),
-    )
-    zs = z["geopotential_at_surface"]
-    zs = zs.isel(time=0) if "time" in zs.dims else zs
-    if not np.all(np.diff(z.latitude.values) > 0):
-        z = z.sortby("latitude")
-        zs = zs.sortby("latitude")
-    sp = z["surface_pressure"].sel(time=slice("1991-01-01", "2020-12-31")).sel(**box)
-    sp = sp.sel(time=sp.time.dt.hour.isin([0, 12]))
-    parts = []
-    for y in range(1991, 2021):
-        parts.append(sp.sel(time=str(y)).load().resample(time="1D").mean())
-        print(f"    {y} ({time.time() - t0:.0f}s)", flush=True)
-    sp = xr.concat(parts, "time").transpose("time", "latitude", "longitude")
-    h = (zs.sel(**box).load() / G0).transpose("latitude", "longitude")
-    lat, lon = sp.latitude.values, sp.longitude.values
-    dlon, dlat = np.deg2rad(float(lon[1] - lon[0])), np.deg2rad(float(lat[1] - lat[0]))
-    dx = dlon * A_EARTH * np.cos(np.deg2rad(lat))[:, None]
-    dhdx = np.gradient(h.values, axis=1) / dx
-    dA = (dlon * A_EARTH) * (dlat * A_EARTH) * np.cos(np.deg2rad(lat))[:, None]
-    lever = A_EARTH * np.cos(np.deg2rad(lat))[:, None]
-    ii = (lat >= HIM["lat"][0]) & (lat <= HIM["lat"][1])
-    jj = (lon >= HIM["lon"][0]) & (lon <= HIM["lon"][1])
-    kern = (-dhdx * dA * lever)[ii][:, jj]
-    tq = np.einsum("tij,ij->t", sp.values[:, ii][:, :, jj], kern) / HADLEY
-    import pacjet_core as PC
-    from doycal import noleap_doy
-
-    doy = noleap_doy(sp.time.values)  # common-year day: 1 March = 60 every year
-    B = PC.harm_basis(doy, 2)
-    coef, *_ = np.linalg.lstsq(B, tq, rcond=None)
-    anom = (tq - B @ coef).astype("float32")
-    da = xr.DataArray(
-        anom,
-        coords={"time": sp.time.values},
-        dims=("time",),
-        name="him_torque_anom",
-        attrs={
-            "units": "Hadley (1e18 N m)",
-            "note": "-int p_s' dh/dx a cos(phi) dA over 70-105E 25-45N, WB2 1.5 deg, "
-            "00Z+12Z mean, anomaly vs harmonic doy clim",
-        },
-    )
-    da.to_dataset().to_netcdf(
-        REF / "him_torque_1991_2020.nc", encoding={"him_torque_anom": {"zlib": True, "complevel": 4}}
-    )
-    print(f"  torque anomaly sigma {anom.std():.2f} Hadley -> him_torque_1991_2020.nc", flush=True)
 
 
 def bh(p, alpha=ALPHA):
@@ -110,12 +48,10 @@ def bh(p, alpha=ALPHA):
 
 
 def main() -> int:
-    if "--series" in sys.argv:
-        build_series()
-        return 0
-    ref = xr.open_dataset(REF / "pacjet_ref.nc").load()
+    with xr.open_dataset(REF / "pacjet_ref.nc") as ds:
+        ref = ds.load()
     t = pd.DatetimeIndex(ref.time.values)
-    tq = ref.him_torque_anom.values.astype(float)
+    tq = BRS.day_anomalies()["HIM"].reindex(t).to_numpy(float)  # the last day has no ERA5 window: NaN, dropped
     pc = ref.pc.values.astype(float)
     mon = t.month.values
     n = len(t)
@@ -125,18 +61,21 @@ def main() -> int:
         "block_days": BLOCK,
         "n_boot": NBOOT,
         "alpha_fdr": ALPHA,
-        "note": "beta = regression of the standardised jet index at t+lag on the standardised Himalayan torque at t "
-        "(ERA5/WB2 1991-2020), torque days in each month's 3-month window; 90% moving-block bootstrap CI; "
-        "significance: bootstrap p, BH FDR 10% over lags x indices",
+        "note": "beta = regression of the standardised jet index at t+lag on the standardised Himalaya/Tibet "
+        "day-mean mountain torque at t (the live product's form: 5-degree h dp_s/dlam, ERA5 1991-2020), torque days "
+        "in each month's 3-month window; 90% moving-block bootstrap CI; significance: bootstrap p, BH FDR 10% over "
+        "lags x indices. torque_scale: each window's torque mean and sigma (Hadley), the forecast's standardisation",
+        "torque_scale": {},
         "windows": {},
     }
     for m in range(1, 13):
-        if not bool(ref.in_season.sel(month=m)):
-            continue
         months = [((m - 2) % 12) + 1, m, (m % 12) + 1]
         days = np.flatnonzero(np.isin(mon, months) & np.isfinite(tq))
         days = days[(days + min(LAGS) >= 0) & (days + max(LAGS) < n)]
         x = tq[days]
+        out["torque_scale"][str(m)] = {"mean": round(float(x.mean()), 3), "sd": round(float(x.std()), 3)}
+        if not bool(ref.in_season.sel(month=m)):
+            continue
         x = (x - x.mean()) / x.std()
         Y = np.stack([pc[days + L] for L in LAGS], 1)  # (n, lag, 2)
         Y = (Y - Y.mean(0)) / Y.std(0)
