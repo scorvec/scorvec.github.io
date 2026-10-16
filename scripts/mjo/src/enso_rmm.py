@@ -180,12 +180,12 @@ def raw_caption(st: dict) -> str:
     head = "<b>ENSO not removed.</b> "
     if st["coherent_mjo_forecast"]:
         return head + (
-            f"With the ENSO signal taken out (&Delta;Ni&ntilde;o-3.4 {dn:+.2f}&nbsp;K) the forecast still shows an MJO: "
+            f"With the ENSO signal taken out (&Delta;Ni&ntilde;o-3.4 {dn:+.2f}&nbsp;&deg;C) the forecast still shows an MJO: "
             f"ensemble-mean amplitude {fc['amp_mean']:.1f}, moving east at about {fc['speed']:+.0f}&deg;/day (see the "
             "ENSO-removed index)."
         )
     s = head + (
-        f"With the ENSO signal taken out (&Delta;Ni&ntilde;o-3.4 {dn:+.2f}&nbsp;K) there is no coherent MJO in this "
+        f"With the ENSO signal taken out (&Delta;Ni&ntilde;o-3.4 {dn:+.2f}&nbsp;&deg;C) there is no coherent MJO in this "
         f"forecast: ensemble-mean amplitude {fc['amp_mean']:.1f} and a phase speed of {fc['speed']:+.1f}&deg;/day, where "
         "a real MJO moves at about +7&deg;/day."
     )
@@ -219,5 +219,5 @@ def status_sentence(st: dict) -> str:
             f" NOAA&rsquo;s OLR-based ROMI on {r['date']}: {now}; over the last "
             f"60 days {round(100 * r['active_60d'])}&nbsp;% of days reached amplitude 1."
         )
-    s += f" Correction applied: &Delta;Ni&ntilde;o-3.4 = {st['dn34']:+.2f}&nbsp;K."
+    s += f" Correction applied: &Delta;Ni&ntilde;o-3.4 = {st['dn34']:+.2f}&nbsp;&deg;C."
     return s

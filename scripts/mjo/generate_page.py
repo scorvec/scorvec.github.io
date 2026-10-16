@@ -104,16 +104,21 @@ def impacts_section():
     if ec.get("strong El Nino") and ec.get("neutral"):
         se, ne = ec["strong El Nino"], ec["neutral"]
         pv = m.get("ensocheck", {}).get("obs_mwu_strong_vs_neutral_fixed_p")
+        s15 = m.get("ensocheck", {}).get("obs_by_season", {}).get("2015/16")
+        small = abs(se["active_fixed"] - se["active_raw"]) < 0.05 and (not s15 or abs(s15["fixed"] - s15["raw"]) < 0.05)
         ens = (
-            f" Check, DJF share of active days after the filter: strong El Ni&ntilde;o winters {se['active_fixed']:.2f} "
-            f"(n&nbsp;{se['n']}; {se['active_raw']:.2f} before), neutral {ne['active_fixed']:.2f} (n&nbsp;{ne['n']})"
+            f" Check: the filter changes the DJF share of active days{' little' if small else ''} (strong El "
+            f"Ni&ntilde;o winters {se['active_raw']:.2f} before, {se['active_fixed']:.2f} after, n&nbsp;{se['n']}"
+            + (f"; DJF 2015/16 {s15['raw']:.2f} before, {s15['fixed']:.2f} after" if s15 else "")
+            + ("), so here it is a safeguard rather than a large correction." if small else ").")
+            + " After it, strong El Ni&ntilde;o winters "
             + (
-                f"; the difference is not significant (Mann&ndash;Whitney p&nbsp;{pv:.2f})."
+                "do not differ significantly from neutral ones"
                 if pv is not None and pv >= 0.05
-                else f" (Mann&ndash;Whitney p&nbsp;{pv:.2f})."
-                if pv is not None
-                else "."
+                else "compare with neutral ones"
             )
+            + f" ({ne['active_fixed']:.2f}, n&nbsp;{ne['n']}"
+            + (f"; Mann&ndash;Whitney p&nbsp;{pv:.2f})." if pv is not None else ").")
         )
     opts_f = "".join(
         f'<option value="{k}">{lab}</option>'
@@ -195,9 +200,9 @@ def impacts_section():
   OLR and 850/250&nbsp;hPa zonal wind (the CMIP6 daily archive has no 200&nbsp;hPa), 15&deg;S&ndash;15&deg;N means, the
   run&rsquo;s own seasonal cycle and previous 120-day mean removed, projected on the observed W&amp;H EOFs. Observed,
   for comparison: the Bureau of Meteorology&rsquo;s RMM, 1979&ndash;2024. <b>Both indices are then band-passed to
-  20&ndash;100&nbsp;days and renormalised.</b> BoM removes the ENSO signal only up to 2013; after that a strong El
-  Ni&ntilde;o&rsquo;s standing pattern projects on RMM as slow &ldquo;phase 6&ndash;8&rdquo; days (DJF 2015/16 was
-  &ldquo;active&rdquo; on 89&nbsp;% of days), and the CMIP6 index would carry the same artefact. A linear Ni&ntilde;o-3.4
+  20&ndash;100&nbsp;days and renormalised</b>, so nothing slower than 100&nbsp;days enters either one. BoM removes the
+  ENSO signal only up to 2013; after that a strong El Ni&ntilde;o&rsquo;s standing pattern can project on RMM as slow
+  &ldquo;phase 6&ndash;8&rdquo; days, and the CMIP6 index would carry the same artefact. A linear Ni&ntilde;o-3.4
   regression removed almost none of it, so the band-pass is used for both datasets alike.{ens}{val}</p>
   <p><b>Impact fields</b> (2&nbsp;m temperature, precipitation, 500&nbsp;hPa height), per grid cell and per dataset, in
   three steps. (1) A seasonal cycle that is allowed to change: the mean and three annual harmonics, each with a
@@ -315,7 +320,7 @@ def main():
         # Animator only (with the slider) — no separate static hero image. The iframe auto-sizes
         # to fit the plot + slider via the sstAnimHeight postMessage listener below.
         body = f'  <p class="sub" style="margin-bottom:1rem">Latest init: <strong>{label(d, h)}</strong>.' + (
-            f" ENSO is changing fast (&Delta;Ni&ntilde;o-3.4 {st['dn34']:+.2f}&nbsp;K over the 120-day filter window),"
+            f" ENSO is changing fast (&Delta;Ni&ntilde;o-3.4 {st['dn34']:+.2f}&nbsp;&deg;C over the 120-day filter window),"
             " which projects onto the standard RMM, so the forecast with the ENSO signal removed comes first. The rail"
             " also has the standard AIFS-ENS forecast and what each phase has meant for temperature, rain and the"
             " flow.</p>\n"
@@ -466,10 +471,16 @@ def main():
   pseudo-OLR channel built from &minus;standardized tropical precipitation (tropical
   rain and OLR anticorrelate closely); falls back to wind-only if precip is
   unavailable for a cycle. The physics-based <strong>IFS-ENS</strong> (50 members)
-  is overlaid in blue through the <em>identical</em> machinery whenever its data
-  has landed — a direct AI-vs-physics comparison in the same coordinates.
-  Amplitude is the radial distance (rings at 1, 2, 3).
-  Observed track is recent ERA5/AIFS analysis (wind-only, verified within a few
+  from the same init is overlaid in blue through the <em>identical</em> machinery
+  once its data has landed (about 1&ndash;2&nbsp;h after AIFS-ENS) — a direct
+  AI-vs-physics comparison in the same coordinates.
+  Amplitude is the radial distance (rings at 1, 2, 3); the ellipses, every 5 days,
+  span &plusmn;1 standard deviation of the members in RMM1 and RMM2.
+  At the same valid time, AIFS-ENS 12Z runs sit systematically off the 00Z runs, by
+  an amount that grows with lead, so each 12Z run has the mean 12Z-minus-00Z
+  ensemble-mean difference of the last seven 00Z/12Z pairs removed, lead by lead.
+  The observed track is ERA5 up to mid-July 2026 and, since then, the AIFS-ENS
+  control at step 0 of each 00Z and 12Z run (wind-only, verified within a few
   degrees of the official BoM RMM phase).</p>
   <p class="chart-sources">Updated {updated} · Auto-generated from the AIFS-ENS and IFS-ENS open data, &copy;&nbsp;2026 European Centre for Medium-Range Weather Forecasts (ECMWF), source <a href="https://www.ecmwf.int">www.ecmwf.int</a>, <a href="https://creativecommons.org/licenses/by/4.0/">CC&nbsp;BY&nbsp;4.0</a>, modified; ECMWF does not accept any liability for errors or omissions in the data, their availability, or any loss or damage arising from their use.
   Methodology: NOAA CPC / Wheeler &amp; Hendon (2004), EOFs from NOAA OLR +
