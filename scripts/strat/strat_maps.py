@@ -123,6 +123,9 @@ mpl.rcParams["hatch.color"] = "#5a5a5a"
 # 10 hPa runs past 170 kt, so stopping at 150 turned the whole vortex core into
 # one flat magenta blob and threw away exactly the structure the panel is for.
 WLEV = [25, 35, 45, 55, 65, 80, 95, 110, 130, 150, 170, 190]  # knots
+# The easterly hatching and its u = 0 boundary stop at this latitude. u is the eastward component, which has no fixed
+# direction at the pole: a flow across the pole flips its sign from one side to the other and draws a false ring.
+EDGE_LAT_MAX = 80.0
 WCOLS = [
     "#dbeef8",
     "#a9d4ec",
@@ -395,16 +398,19 @@ def main() -> int:
                     fc_, lo_ = cyc(fld, clon)
                     gz_, _ = cyc(gz, clon)
                     uu_, _ = cyc(uu, clon)
+                    uu_ = np.where(np.abs(np.asarray(clat))[:, None] > EDGE_LAT_MAX, np.nan, uu_)
                     msh = ax.contourf(
                         lo_, clat, fc_, levels=WLEV, cmap=WCMAP, norm=WNORM, extend="both", transform=ccrs.PlateCarree()
                     )
+                    msh.set_edgecolor("face")  # no hairline where cartopy cuts the fill at 180 deg
                     ax.contour(
                         lo_, clat, gz_, levels=10, colors="#1a1a1a", linewidths=0.6, transform=ccrs.PlateCarree()
                     )
                     # Total wind is a MAGNITUDE and cannot be negative, so the sign
                     # of the flow has to be drawn separately: hatching marks where
-                    # the zonal wind is EASTERLY, and its boundary (u = 0) is the
-                    # WMO sudden-warming criterion.
+                    # the zonal wind is EASTERLY, and its boundary (u = 0) shows where
+                    # the westerly vortex ends (the WMO sudden-warming criterion is
+                    # the zonal MEAN at 60 deg, printed under the panel).
                     ax.contourf(
                         lo_, clat, uu_, levels=[-1e9, 0.0], colors="none", hatches=["//"], transform=ccrs.PlateCarree()
                     )
@@ -426,6 +432,7 @@ def main() -> int:
                         extend="both",
                         transform=ccrs.PlateCarree(),
                     )
+                    msh.set_edgecolor("face")  # no hairline where cartopy cuts the fill at 180 deg
                     if key == "Z":
                         gz_, _ = cyc(gz, clon)
                         ax.contour(

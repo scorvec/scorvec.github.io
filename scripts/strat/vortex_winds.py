@@ -73,6 +73,7 @@ import matplotlib.pyplot as plt
 import matplotlib.path as mpath
 import cartopy.crs as ccrs
 import cartopy.feature as cfeature
+from cartopy.util import add_cyclic_point
 import xarray as xr
 from scipy.ndimage import gaussian_filter
 
@@ -93,6 +94,9 @@ STEPS_12H = tuple(range(0, 361, 12))
 LAT_EDGE = 20.0
 # Streamline input is coarsened to this stride (lat, lon) - see panel().
 STREAM_STRIDE = (3, 4)
+# The u = 0 vortex edge stops at this latitude. u is the eastward component, which has no fixed direction at the pole:
+# a flow across the pole changes the sign of u from one side of it to the other and draws a false ring around it.
+EDGE_LAT_MAX = 80.0
 # The still shows where the vortex lives and where an SSW is declared.
 STILL_LEVEL = 10
 
@@ -251,7 +255,12 @@ def panel(ax, u, v, lev, hemi):
     # "min" extend would colour the sub-threshold band; leaving it unset means
     # anything below levels[0] is simply not drawn, so the white page shows
     # through - which is the point.
-    cf = ax.contourf(lon, la, spd, levels=cfg["levels"], cmap=CMAP, extend="max", transform=PC, zorder=1)
+    # the shading and the u = 0 line get a cyclic column: without it the last longitude and 360 deg are not joined,
+    # and a white seam runs from the edge to the pole
+    spd_c, lon_c = add_cyclic_point(spd, coord=lon)
+    cf = ax.contourf(lon_c, la, spd_c, levels=cfg["levels"], cmap=CMAP, extend="max", transform=PC, zorder=1)
+    # cartopy cuts the fill at 180 deg; stroking each piece in its own colour hides the hairline there
+    cf.set_edgecolor("face")
 
     # Streamlines need a monotonically increasing latitude axis; the GRIB comes
     # north-to-south, and for the SH selection that leaves it descending.
@@ -265,14 +274,18 @@ def panel(ax, u, v, lev, hemi):
     # 0.75 x 1.0 deg gives a visually identical panel in 8.0 s (12x). Shading
     # keeps the full grid - contourf costs 0.1 s and the crisp speed field is
     # what the eye actually reads.
+    #
+    # The pole row is left out: it is one point repeated at every longitude, each copy with its own u, v, so its
+    # vectors land on a single spot of the map pointing in different directions.
     ys, xs = STREAM_STRIDE
-    las, lons = la[::ys], lon[::xs]
+    rows = np.flatnonzero(np.abs(la) < 90.0)[::ys]
+    las, lons = la[rows], lon[::xs]
     order = np.argsort(las)
     ax.streamplot(
         lons,
         las[order],
-        U[::ys, ::xs][order, :],
-        V[::ys, ::xs][order, :],
+        U[rows, ::xs][order, :],
+        V[rows, ::xs][order, :],
         transform=PC,
         density=2.2,
         linewidth=0.55,
@@ -290,7 +303,8 @@ def panel(ax, u, v, lev, hemi):
     # information and bury the flow underneath. sigma is small (~1 deg) and
     # wraps in longitude so the dateline is not a seam.
     Us = gaussian_filter(U, sigma=(2, 4), mode=("nearest", "wrap"))
-    ax.contour(lon, la, Us, levels=[0], colors="#b3122b", linewidths=1.4, transform=PC, zorder=4)
+    Us[np.abs(la) > EDGE_LAT_MAX, :] = np.nan
+    ax.contour(lon_c, la, add_cyclic_point(Us), levels=[0], colors="#b3122b", linewidths=1.4, transform=PC, zorder=4)
 
     # Geography reads FIRST: darker and heavier than the streamlines (0.55) so
     # the eye locates the vortex over the map rather than hunting for the
@@ -354,7 +368,7 @@ def render(uv, lev, date, time, step_h, out_path: Path, source: str = "control",
         f"{what} · {date[:4]}-{date[4:6]}-{date[6:]} {time}Z {tag} · "
         f"valid {valid:%a %d %b %HZ}\n"
         f"{'speed' if step_h == 0 else 'speed of the mean wind'} shaded, "
-        f"{'streamlines' if step_h == 0 else 'its streamlines'} over · red: u = 0 (vortex edge) · "
+        f"{'streamlines' if step_h == 0 else 'its streamlines'} over · red: u = 0 (vortex edge, to 80°) · "
         f"dashed ring: 60°",
         fontsize=9,
         color="#555",

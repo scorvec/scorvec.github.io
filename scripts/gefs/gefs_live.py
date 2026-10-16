@@ -792,6 +792,7 @@ def analysis_tail(base: dt.date, cache: Path, n=14):
 
 MS2KT = 1.94384
 WLEV = [25, 35, 45, 55, 65, 80, 95, 110, 130, 150, 170, 190]  # strat_maps.WLEV (knots)
+EDGE_LAT_MAX = 80.0  # easterly hatching and u = 0 stop here: u has no fixed direction at the pole (strat_maps)
 WCOLS = [
     "#dbeef8",
     "#a9d4ec",
@@ -857,9 +858,11 @@ def _vloop_job(spec):
             if key == "W":
                 f_, _ = add_cyclic_point(spd[i], coord=lon)
                 u_, _ = add_cyclic_point(U[i], coord=lon)
+                u_ = np.where(np.abs(lat)[:, None] > EDGE_LAT_MAX, np.nan, u_)
                 msh = ax.contourf(
                     lo_, lat, f_, levels=WLEV, cmap=cm, norm=nm, extend="both", transform=ccrs.PlateCarree()
                 )
+                msh.set_edgecolor("face")  # no hairline where cartopy cuts the fill at 180 deg
                 ax.contour(lo_, lat, gz_, levels=10, colors="#1a1a1a", linewidths=0.55, transform=ccrs.PlateCarree())
                 ax.contourf(
                     lo_, lat, u_, levels=[-1e9, 0.0], colors="none", hatches=["//"], transform=ccrs.PlateCarree()
@@ -872,6 +875,7 @@ def _vloop_job(spec):
                 f_, _ = add_cyclic_point(A, coord=lon)
                 lv = _nice(limT if key == "T" else limZ)
                 msh = ax.contourf(lo_, lat, f_, levels=lv, cmap="RdBu_r", extend="both", transform=ccrs.PlateCarree())
+                msh.set_edgecolor("face")
                 if key == "Z":
                     ax.contour(lo_, lat, gz_, levels=8, colors="#333", linewidths=0.45, transform=ccrs.PlateCarree())
                 cav = float((A[capm].mean(1) * wc).sum() / wc.sum())
