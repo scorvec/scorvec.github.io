@@ -31,7 +31,7 @@ std(forecast anomaly)/std(observed anomaly) are computed across stations.
     python aifs_station_verify.py --verify
     python aifs_station_verify.py            # both, latest cycle
 
-Data layout (all under scripts/verify/data, carried on the frames branch):
+Data layout (all under scripts/verify/data, carried on the orphan verify-data branch):
     st_archive/{date}{hh}.npz   per cycle: station samples, 1.5° fields, spectra
     truth_st/{valid}.npz        radiosonde truth per valid time
     truth/{valid}.npz           ERA5 truth per valid time (1.5°)
@@ -44,6 +44,7 @@ from __future__ import annotations
 import argparse
 import contextlib
 import json
+import math
 import os
 import sys
 import time
@@ -56,6 +57,7 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 from quantmet.degdays import doy366
+from scipy import stats
 
 HERE = Path(__file__).resolve().parent
 REPO = HERE.parent.parent
@@ -91,6 +93,7 @@ CLIMO_ST = DATA / "clim" / "station_climo.npz"
 CLIMO_URL = "https://raw.githubusercontent.com/scorvec/scorvec.github.io/skewt-climo/climo/{gid}.json"
 KEEP_CYCLES = 400  # archive retention on the branch (~200 days of 2 cycles)
 GRID_DAYS = 12  # keep the 1.5° grids this long (ERA5 lags ~6 d), then strip them
+MIN_BLOCK = 4  # shortest bootstrap block, in runs (2 days of 00Z + 12Z)
 
 
 # ─────────────────────────────────────────────────────────── grids & helpers
@@ -676,10 +679,65 @@ def match_check(stems):
     return out
 
 
-def paired_diffs(recs, B=2000, block=4, seed=20260927):
+def block_length(d, floor=MIN_BLOCK):
+    """Circular-block bootstrap length for the mean of series d: Politis & White (2004) with the correction of
+    Patton, Politis & White (2009) - flat-top lag window up to twice the first lag after which Kn autocorrelations
+    in a row are insignificant - kept between `floor` runs and min(3 sqrt(n), n / 3)."""
+    x = np.asarray(d, float) - np.mean(d)
+    n = x.size
+    kn = max(5, int(np.ceil(np.sqrt(np.log10(n)))))
+    mmax = int(np.ceil(np.sqrt(n))) + kn
+    acv = np.array([np.dot(x[: n - k], x[k:]) / n for k in range(mmax + 1)])
+    if acv[0] <= 0:
+        return floor
+    small = np.abs(acv / acv[0]) < 2 * np.sqrt(np.log10(n) / n)
+    mhat = next((m for m in range(1, mmax - kn + 1) if small[m : m + kn].all()), mmax - kn)
+    big_m = min(2 * mhat, mmax)
+    k = np.arange(-big_m, big_m + 1)
+    lam = np.clip(2 * (1 - np.abs(k) / big_m), 0, 1)
+    r = acv[np.abs(k)]
+    g = np.sum(lam * np.abs(k) * r)
+    d_cb = 4 / 3 * np.sum(lam * r) ** 2
+    b = (2 * g**2 / d_cb) ** (1 / 3) * n ** (1 / 3)
+    return int(np.clip(np.ceil(b), floor, max(floor, int(np.ceil(min(3 * np.sqrt(n), n / 3))))))
+
+
+def mean_test(d, rng, B=2000):
+    """Is the mean of the serially correlated series d different from 0? The standard error is the LARGER of a
+    circular-block bootstrap's (block_length) and the AR(1) effective-sample-size one, n_eff = n (1 - r1) / (1 + r1)
+    with Kendall's small-sample correction of the lag-1 autocorrelation r1 (clipped to [0, 0.95]), and the reference
+    is Student's t on min(n / block, n_eff) - 1 degrees of freedom. Either estimate alone undersizes a short series
+    with persistent errors: in synthetic AR(1) nulls of 130-195 runs the bootstrap alone passed 14-29 % at the 5 %
+    level for r1 0.85-0.95; the combination held 4-8 %. Returns the 95 % interval (mean +- t se, so it excludes 0
+    exactly when p < 0.05), p, the block length and n_eff."""
+    n = d.size
+    m = float(d.mean())
+    block = block_length(d)
+    starts = rng.integers(0, n, size=(B, int(np.ceil(n / block))))
+    idx = (starts[:, :, None] + np.arange(block)[None, None, :]) % n
+    se_boot = float(d[idx.reshape(B, -1)[:, :n]].mean(axis=1).std(ddof=1))
+    x = d - m
+    ss = float(np.dot(x, x))
+    r1 = float(np.dot(x[:-1], x[1:]) / ss) if ss > 0 else 0.0
+    r1 = min(max(r1 + (1 + 4 * r1) / n, 0.0), 0.95)
+    neff = n * (1 - r1) / (1 + r1)
+    se = max(se_boot, float(d.std(ddof=1)) / math.sqrt(neff))
+    dof = max(1.0, min(n / block, neff) - 1)
+    if se > 0:
+        p = float(2 * stats.t.sf(abs(m) / se, dof))
+        half = float(stats.t.ppf(0.975, dof)) * se
+    else:
+        p, half = float(m == 0), 0.0
+    return dict(lo=m - half, hi=m + half, p=p, block=block, neff=neff)
+
+
+def paired_diffs(recs, B=2000, seed=20260927):
     """Per truth:var:region, comparison model and metric: the mean over runs of (other - single) at each lead,
-    with a 95 % moving-block bootstrap interval. Runs are paired (same init) and taken in time order; blocks of
-    4 consecutive runs (2 days of 00Z + 12Z) carry the serial correlation between neighbouring runs.
+    with its 95 % interval and two-sided p (mean_test). Runs are paired (same init) and taken in time order;
+    the bootstrap block is chosen per cell from its own difference series (never under 4 runs = 2 days of 00Z +
+    12Z): differences in anomaly correlation drift with the season and stay correlated for a week or more, RMSE
+    differences for a day or two. The p-values are for the cell alone; the page controls the false discovery rate
+    across its scorecard (aifs_verify_figs.py).
     All three comparisons at a lead use the SAME runs - those where the single, the matched and the published
     member 0 all verified (and the ensemble mean, wherever it exists) - so the curves can be compared with each
     other; the raw member 0 has a longer history than the matched series, and mixing samples would not."""
@@ -707,19 +765,17 @@ def paired_diffs(recs, B=2000, block=4, seed=20260927):
                     if n < 20:
                         continue
                     d = np.array([b[i][metric] - a[i][metric] for i in inits], float)
-                    nb = int(np.ceil(n / block))
-                    starts = rng.integers(0, n, size=(B, nb))
-                    idx = (starts[:, :, None] + np.arange(block)[None, None, :]) % n
-                    bm = d[idx.reshape(B, -1)[:, :n]].mean(axis=1)
-                    lo, hi = np.percentile(bm, [2.5, 97.5])
+                    t = mean_test(d, rng, B)
                     rows.append(
                         {
                             "lead": L,
                             "n": n,
+                            "n_eff": round(t["neff"], 1),
+                            "block": t["block"],
                             "mean": round(float(d.mean()), 4),
-                            "lo": round(float(lo), 4),
-                            "hi": round(float(hi), 4),
-                            "sig": bool(lo > 0 or hi < 0),
+                            "lo": round(t["lo"], 4),
+                            "hi": round(t["hi"], 4),
+                            "p": float(f"{t['p']:.3g}"),
                         }
                     )
                 if rows:
@@ -946,8 +1002,9 @@ def verify(merge_from=()) -> int:
                         f"{FILT_WINDOW} runs at the same lead, 5-degree running mean of the ratio, f(0) = 1",
                     },
                     "diff_test": {
-                        "method": "paired moving-block bootstrap over runs, 4-run (2-day) blocks, 2000 resamples, "
-                        "95 % percentile interval; significant = interval excludes 0",
+                        "method": "paired t-test over runs with the larger of two standard errors: circular-block "
+                        "bootstrap (2000 resamples, Politis-White block of at least 4 runs = 2 days) and AR(1) "
+                        "effective sample size; 95 % interval and two-sided p",
                         "sign": "other minus single",
                     },
                     "lmax_t": LMAX_T,

@@ -7,8 +7,10 @@ Reads assets/verify/aifs_scores_v2.json (scripts/verify/aifs_station_verify.py) 
   assets/verify/aifs_lead_<truth>_<var>_<region>.webp   RMSE / ACC / bias / activity vs lead, the four series
   assets/verify/aifs_spectra.webp          each series' power as a ratio to the single, days 1, 5, 10
 
-Scores by lead average over the SAME runs for every series (the runs every series has at that lead). Differences and
-their 95 % intervals come from the file's paired moving-block bootstrap ("diffs"); nothing is re-tested here.
+Scores by lead average over the SAME runs for every series (the runs every series has at that lead). Differences, their
+95 % intervals and p-values come from the file's paired test ("diffs", aifs_station_verify.mean_test); here a cell is
+called significant only when it survives the Benjamini-Hochberg false discovery rate (q = FDR_Q) across every cell of
+the scorecard and has p < ALPHA.
     python scripts/verify/aifs_verify_figs.py [--scores assets/verify/aifs_scores_v2.json] [--out assets/verify]
 """
 
@@ -21,6 +23,7 @@ from pathlib import Path
 import numpy as np
 from matplotlib.ticker import NullFormatter
 import pandas as pd
+from quantmet.stats import benjamini_hochberg
 
 ROWS = [
     ("raob", "z500", "nh", "500 hPa height", "radiosondes", "NH 20–80°N"),
@@ -43,6 +46,8 @@ NAME = {
 }
 COL = {"single": "#b3372f", "matched": "#2c5f8a", "control": "#8fb0cc", "ensmean": "#5c5a55"}
 STY = {"single": "-", "matched": "-", "control": "--", "ensmean": ":"}
+FDR_Q = 0.10  # false discovery rate over all scorecard cells (3 comparisons x RMSE/ACC x rows x leads)
+ALPHA = 0.05  # and each cell's own two-sided p
 
 
 def paired_means(R, truth, var, region):
@@ -99,30 +104,27 @@ def scorecard(D, R):
                         cells.append(None)
                         continue
                     if metric == "rmse":  # % change in RMSE (negative = better)
-                        base = sgl.at[l, "rmse"]
-                        cells.append(
-                            dict(
-                                v=round(100 * x["mean"] / base, 1),
-                                lo=round(100 * x["lo"] / base, 1),
-                                hi=round(100 * x["hi"] / base, 1),
-                                sig=bool(x["sig"]),
-                                n=int(x["n"]),
-                                d=round(x["mean"], 3),
-                            )
-                        )
+                        scale, nd = 100 / sgl.at[l, "rmse"], 3
                     else:  # change in ACC, hundredths (positive = better)
-                        cells.append(
-                            dict(
-                                v=round(100 * x["mean"], 1),
-                                lo=round(100 * x["lo"], 1),
-                                hi=round(100 * x["hi"], 1),
-                                sig=bool(x["sig"]),
-                                n=int(x["n"]),
-                                d=round(x["mean"], 4),
-                            )
+                        scale, nd = 100, 4
+                    cells.append(
+                        dict(
+                            v=round(scale * x["mean"], 1),
+                            lo=round(scale * x["lo"], 1),
+                            hi=round(scale * x["hi"], 1),
+                            p=x["p"],
+                            n=int(x["n"]),
+                            d=round(x["mean"], nd),
                         )
+                    )
                 row["cmp"][m][metric] = cells
         rows.append(row)
+    # one family: every cell the page can show, whichever comparison and metric are selected
+    family = [c for r in rows for cm in r["cmp"].values() for cells in cm.values() for c in cells if c]
+    pv = np.array([c["p"] for c in family], float)
+    sig = benjamini_hochberg(pv, FDR_Q) & (pv < ALPHA)
+    for c, ok in zip(family, sig):
+        c["sig"] = bool(ok)
     inits = sorted(set(R.init))
     k = {}
     P = paired_means(R, "raob", "z500", "nh")
@@ -136,6 +138,11 @@ def scorecard(D, R):
         ),
         None,
     )
+    r5 = next((r for r in rows if r["key"] == "raob:z500:nh"), None)
+    c5 = r5["cmp"]["matched"]["rmse"][leads.index(120)] if r5 and 120 in leads else None
+    if d5:
+        d5 = {k_: (round(v, 2) if isinstance(v, float) else v) for k_, v in d5.items() if k_ != "p"}
+        d5["sig"] = bool(c5 and c5["sig"])
     return dict(
         generated=D.get("generated"),
         leads=leads,
@@ -144,9 +151,10 @@ def scorecard(D, R):
         first=inits[0] if inits else None,
         last=inits[-1] if inits else None,
         day5_z500_rmse=k,
-        day5_diff=None if not d5 else {k_: (round(v, 2) if isinstance(v, float) else v) for k_, v in d5.items()},
+        day5_diff=d5,
         lmax_t=D.get("lmax_t"),
         diff_test=D.get("diff_test", {}).get("method"),
+        fdr=dict(q=FDR_Q, alpha=ALPHA, cells=len(family), significant=int(sig.sum())),
     )
 
 
