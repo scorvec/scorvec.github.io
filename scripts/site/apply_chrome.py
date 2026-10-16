@@ -229,7 +229,7 @@ PRODUCTS = [
                     (
                         "/stratosphere.html#qbo",
                         "QBO tracker",
-                        "Equatorial stratospheric winds at 10 to 100 hPa from radiosondes, 1950 to the present.",
+                        "Equatorial stratospheric winds at 10 to 100 hPa from radiosondes, from the 1950s to the present.",
                         "Weekly",
                     ),
                 ],
@@ -241,7 +241,7 @@ PRODUCTS = [
         "From weeks two to five out to the coming seasons",
         [
             (
-                "Weeks 2–5",
+                "Extended range",
                 [
                     (
                         "/subseasonal.html",
@@ -278,7 +278,7 @@ PRODUCTS = [
                     (
                         "/enso-forecasts.html",
                         "ENSO forecasts",
-                        "Every member of seven centres' seasonal models for Niño-3.4, with percentile fans and a record of how past forecasts did.",
+                        "Every member of five centres' seasonal models for Niño-3.4, with percentile fans and a record of how past forecasts did.",
                         "Monthly",
                     ),
                 ],
@@ -312,7 +312,7 @@ PRODUCTS = [
                     ),
                     (
                         "/aifs-aam-budget.html",
-                        "AINWP and conservation",
+                        "AI models and conservation laws",
                         "Do AI weather models obey the conservation laws? ECMWF's AI ensemble (AIFS-ENS), the single AIFS and the physics ensemble against angular momentum and its torques, dry-air mass, water and energy. Winter 2025–26, days 1–15.",
                         "Static",
                     ),
@@ -335,7 +335,7 @@ PRODUCTS = [
                 [
                     (
                         "/aifs-verify.html",
-                        "AIFS single versus member\u00a00",  # no-break space: no lone "0" on its own line
+                        "AIFS single versus ensemble control",
                         "The two ECMWF AIFS configurations compared as deterministic models against radiosondes and ERA5, with the ensemble member spectrally matched to the single model and the ensemble mean for reference.",
                         "Every 00Z and 12Z run",
                     ),
@@ -363,7 +363,7 @@ PRODUCTS = [
             (
                 "/asos5.html",
                 "Five-minute airport observations",
-                "Temperature at major US airports every five minutes from ASOS, with running daily highs and lows.",
+                "Five-minute ASOS observations at 22 major US airports: temperature, dewpoint, wind, visibility, ceiling and weather, with running daily highs and lows.",
                 "Live",
             ),
             (
@@ -850,7 +850,7 @@ def footer_html(dark: bool) -> str:
         '    <div class="sf-group">\n      <p class="sf-h" role="heading" aria-level="2">This site</p>\n      <ul>\n'
         + li(site)
         + "\n      </ul>\n"
-        '      <p class="sf-disclaimer">This site is under constant development. Nothing here is checked before publication and there is no expectation of accuracy, completeness or availability; do not rely on it for decisions. Built from open data; sources are credited on each page.</p>\n'
+        '      <p class="sf-disclaimer">This site is under constant development. Its products are generated automatically and published without review by a person; each page describes its automated checks and significance tests. There is no expectation of accuracy, completeness or availability; do not rely on it for decisions. Built from open data; sources are credited on each page.</p>\n'
         "    </div>\n"
         '    <div class="sf-group sf-group--me">\n      <p class="sf-h" role="heading" aria-level="2">Shawn Corvec</p>\n      <ul>\n'
         + li(me)

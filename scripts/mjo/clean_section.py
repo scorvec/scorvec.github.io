@@ -90,7 +90,7 @@ def clean_section() -> str:
         gr = [(k, x) for k, x in g.items() if "growth" in k]
         if gr:
             vtxt += (
-                f" While an El Ni&ntilde;o grows, it {_active_change(gr)} the share of &ldquo;active&rdquo; days: "
+                f" While an El Ni&ntilde;o grows, the correction {_active_change(gr)} the share of &ldquo;active&rdquo; days: "
                 + "; ".join(
                     f"{k.replace(' (growth)', '')} {x['raw']['active']:.2f} &rarr; {x['clean_f']['active']:.2f}"
                     for k, x in gr
@@ -121,10 +121,14 @@ def clean_section() -> str:
   <p>The correction is linear, so it removes part of a growing El Ni&ntilde;o&rsquo;s projection, not all of it. The
   status line therefore also quotes NOAA&rsquo;s OLR-based real-time OMI (ROMI), which removes the previous 40 days and
   so is far less sensitive to slow signals: an independent check on whether a real MJO is present.
-  Wind-only (no precipitation channel), and no 12Z cycle offset correction, unlike the RMM forecast view.</p>
-  <p class="meta" style="margin-top:0.6rem;padding-top:0.6rem">Data: ECMWF AIFS-ENS and IFS-ENS open data (CC&nbsp;BY&nbsp;4.0);
-  ERA5 (Copernicus C3S, ARCO); NOAA OISST v2.1 and ERSST v6 (NOAA NCEI / PSL); ROMI (NOAA PSL / CPC OLR);
-  Bureau of Meteorology RMM for validation.</p>
+  Wind-only (no precipitation channel). Its 12Z runs are offset-corrected as in the RMM forecast view, with
+  the offset measured on the wind-only index.</p>
+  <p class="meta" style="margin-top:0.6rem;padding-top:0.6rem">Data: ECMWF AIFS-ENS and IFS-ENS open data, &copy;&nbsp;2026
+  ECMWF, source <a href="https://www.ecmwf.int">www.ecmwf.int</a>, <a href="https://creativecommons.org/licenses/by/4.0/">CC&nbsp;BY&nbsp;4.0</a>,
+  modified; ECMWF does not accept any liability for errors or omissions in the data, their availability, or any loss or
+  damage arising from their use. ERA5 (ARCO), contains modified Copernicus Climate Change Service information 2026;
+  NOAA OISST v2.1 and ERSST v6 (NOAA NCEI / PSL); ROMI (NOAA PSL / CPC OLR); Bureau of Meteorology RMM for
+  validation.</p>
   </details>
   </section>
 """

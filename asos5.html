@@ -194,7 +194,7 @@
           <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g3">Weeks to seasons</button>
           <div class="sh-menu sh-menu--cols" id="sh-g3">
             <div>
-              <h3>Weeks 2–5</h3>
+              <h3>Extended range</h3>
               <ul>
                 <li><a href="/subseasonal.html">GEPS extended ensemble</a></li>
                 <li><a href="/gefs.html">GEFS extended ensemble</a></li>
@@ -219,7 +219,7 @@
                 <li><a href="/enso.html#imp_reg">ENSO impacts on the Americas</a></li>
                 <li><a href="/mjo.html#mi">MJO impacts</a></li>
                 <li><a href="/stratosphere.html#shwinters">Stratosphere history</a></li>
-                <li><a href="/aifs-aam-budget.html">AINWP and conservation</a></li>
+                <li><a href="/aifs-aam-budget.html">AI models and conservation laws</a></li>
                 <li><a href="/torque-enso.html">El Niño and angular momentum</a></li>
                 <li><a href="/topics/">Explainers</a></li>
               </ul>
@@ -227,7 +227,7 @@
             <div>
               <h3>Verification</h3>
               <ul>
-                <li><a href="/aifs-verify.html">AIFS single versus member 0</a></li>
+                <li><a href="/aifs-verify.html">AIFS single versus ensemble control</a></li>
               </ul>
             </div>
           </div>
@@ -298,7 +298,7 @@
   </section>
 
   <footer class="ao-note">
-    <p><b>Sources.</b> Live: Iowa State&rsquo;s <a href="https://mesonet.agron.iastate.edu/request/asos/1min.phtml">IEM</a>
+    <p><b>Sources.</b> Live: Iowa State&rsquo;s <a href="https://mesonet.agron.iastate.edu/api/1/docs">IEM</a>
     observation history, fetched in your browser every 2 minutes &mdash; every 5-minute ASOS row the station transmitted
     plus every METAR and SPECI. The 5-minute rows carry temperature and dewpoint in <b>whole degrees Celsius</b> (hence the
     1.8&nbsp;&deg;F steps in the &deg;F traces); the hourly METARs and SPECIs carry tenths, and the cards use them whenever one
@@ -309,7 +309,9 @@
     Yesterday&rsquo;s data are kept in your browser, so a return visit only fetches today.</p>
     <p><b>Max/min.</b> Today&rsquo;s are the extremes since local midnight: the samples merged with the official METAR
     6-hour groups (<code>1sTTT</code>/<code>2sTTT</code>) where those are more extreme. Yesterday&rsquo;s row is the
-    official 24-hour climate day (<code>4snTxTxTxsnTnTnTn</code>).</p>
+    official 24-hour climate day (<code>4snTxTxTxsnTnTnTn</code>), which runs midnight to midnight local <i>standard</i>
+    time (1&nbsp;a.m. to 1&nbsp;a.m. during daylight time), so in summer today&rsquo;s extremes can differ from the next
+    day&rsquo;s official row.</p>
     <p><b>Wind.</b> Direction is where the wind blows <i>from</i>, in degrees true. Arrows on the cards point the way the air
     is moving; barbs follow the usual convention (pennant 50&nbsp;kt, full barb 10, half barb 5, always in knots).
     <i>Veering</i> = turning clockwise (e.g. south to west), <i>backing</i> = counter-clockwise; the change is measured
@@ -1097,7 +1099,7 @@
         <li><a href="/topics/">Explainers</a></li>
         <li><a href="/stats.html">Visitor stats</a></li>
       </ul>
-      <p class="sf-disclaimer">This site is under constant development. Nothing here is checked before publication and there is no expectation of accuracy, completeness or availability; do not rely on it for decisions. Built from open data; sources are credited on each page.</p>
+      <p class="sf-disclaimer">This site is under constant development. Its products are generated automatically and published without review by a person; each page describes its automated checks and significance tests. There is no expectation of accuracy, completeness or availability; do not rely on it for decisions. Built from open data; sources are credited on each page.</p>
     </div>
     <div class="sf-group sf-group--me">
       <p class="sf-h" role="heading" aria-level="2">Shawn Corvec</p>

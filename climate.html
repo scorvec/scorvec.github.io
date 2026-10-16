@@ -151,7 +151,7 @@
           <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g3">Weeks to seasons</button>
           <div class="sh-menu sh-menu--cols" id="sh-g3">
             <div>
-              <h3>Weeks 2–5</h3>
+              <h3>Extended range</h3>
               <ul>
                 <li><a href="/subseasonal.html">GEPS extended ensemble</a></li>
                 <li><a href="/gefs.html">GEFS extended ensemble</a></li>
@@ -176,7 +176,7 @@
                 <li><a href="/enso.html#imp_reg">ENSO impacts on the Americas</a></li>
                 <li><a href="/mjo.html#mi">MJO impacts</a></li>
                 <li><a href="/stratosphere.html#shwinters">Stratosphere history</a></li>
-                <li><a href="/aifs-aam-budget.html">AINWP and conservation</a></li>
+                <li><a href="/aifs-aam-budget.html">AI models and conservation laws</a></li>
                 <li><a href="/torque-enso.html">El Niño and angular momentum</a></li>
                 <li><a href="/topics/">Explainers</a></li>
               </ul>
@@ -184,7 +184,7 @@
             <div>
               <h3>Verification</h3>
               <ul>
-                <li><a href="/aifs-verify.html">AIFS single versus member 0</a></li>
+                <li><a href="/aifs-verify.html">AIFS single versus ensemble control</a></li>
               </ul>
             </div>
           </div>
@@ -267,7 +267,7 @@
   <div class="card">
     <h2>Method and caveats</h2>
     <p class="note">County values in nClimDiv are area means of NOAA&rsquo;s 5&nbsp;km nClimGrid, itself interpolated from homogenised station data (COOP, RAWS, SNOTEL and neighbours), not raw station records; the network behind them thins before 1950, so the 1895-start trends carry more uncertainty than their p-values suggest. A linear trend is a description of the chosen period, not a projection, and the start year is a choice: the 1970 start is the period over which the forced warming is close to linear, the others are there so the sensitivity is visible. Precipitation trends are in percent of the normal so dry western counties do not read as large in inches. Degree days come from NOAA&rsquo;s own daily-based county series, not from monthly means. Dewpoint is not in nClimDiv: it comes from PRISM&rsquo;s station-based 4&nbsp;km monthly mean dewpoint grids, area-averaged over each county, so it covers the lower 48 only and its most recent eight months are provisional and are re-read on every run. Data are refreshed on about the 9th of each month, once NOAA&rsquo;s monthly update has landed.</p>
-    <div class="chart-card-footer"><span>NOAA NCEI nClimDiv county, division and state monthly files (climdiv-*cy/dv/st) &middot; PRISM Climate Group, Oregon State University, monthly tdmean 4 km &middot; county boundaries: US Atlas (TopoJSON) &middot; statistics: numpy and quantmet, computed monthly</span><span id="genLabel">&mdash;</span></div>
+    <div class="chart-card-footer"><span>NOAA NCEI nClimDiv county, division and state monthly files (climdiv-*cy/dv/st) &middot; PRISM Climate Group, Oregon State University, <a href="https://prism.oregonstate.edu">prism.oregonstate.edu</a>, monthly tdmean 4 km, accessed at each monthly build (date at right) &middot; county boundaries: US Atlas (TopoJSON) &middot; statistics: numpy and quantmet, computed monthly</span><span id="genLabel">&mdash;</span></div>
   </div>
 </main>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js" integrity="sha384-CjloA8y00+1SDAUkjs099PVfnY2KmDC2BZnws9kh8D/lX1s46w6EPhpXdqMfjK6i" crossorigin="anonymous"></script>
@@ -530,7 +530,7 @@
         <li><a href="/topics/">Explainers</a></li>
         <li><a href="/stats.html">Visitor stats</a></li>
       </ul>
-      <p class="sf-disclaimer">This site is under constant development. Nothing here is checked before publication and there is no expectation of accuracy, completeness or availability; do not rely on it for decisions. Built from open data; sources are credited on each page.</p>
+      <p class="sf-disclaimer">This site is under constant development. Its products are generated automatically and published without review by a person; each page describes its automated checks and significance tests. There is no expectation of accuracy, completeness or availability; do not rely on it for decisions. Built from open data; sources are credited on each page.</p>
     </div>
     <div class="sf-group sf-group--me">
       <p class="sf-h" role="heading" aria-level="2">Shawn Corvec</p>

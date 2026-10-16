@@ -168,7 +168,7 @@
           <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g3">Weeks to seasons</button>
           <div class="sh-menu sh-menu--cols" id="sh-g3">
             <div>
-              <h3>Weeks 2–5</h3>
+              <h3>Extended range</h3>
               <ul>
                 <li><a href="/subseasonal.html">GEPS extended ensemble</a></li>
                 <li><a href="/gefs.html">GEFS extended ensemble</a></li>
@@ -193,7 +193,7 @@
                 <li><a href="/enso.html#imp_reg">ENSO impacts on the Americas</a></li>
                 <li><a href="/mjo.html#mi">MJO impacts</a></li>
                 <li><a href="/stratosphere.html#shwinters">Stratosphere history</a></li>
-                <li><a href="/aifs-aam-budget.html">AINWP and conservation</a></li>
+                <li><a href="/aifs-aam-budget.html">AI models and conservation laws</a></li>
                 <li><a href="/torque-enso.html">El Niño and angular momentum</a></li>
                 <li><a href="/topics/">Explainers</a></li>
               </ul>
@@ -201,7 +201,7 @@
             <div>
               <h3>Verification</h3>
               <ul>
-                <li><a href="/aifs-verify.html">AIFS single versus member 0</a></li>
+                <li><a href="/aifs-verify.html">AIFS single versus ensemble control</a></li>
               </ul>
             </div>
           </div>
@@ -246,7 +246,7 @@
   <a href="./" class="cta">← Open the explorer</a>
 
   <h2>1. Data sources</h2>
-  <p>A sounding can arrive from six places. The app tries them in order of freshness, and the
+  <p>A sounding can arrive from seven places. The app tries them in order of freshness, and the
   status line names the source you're looking at — for WMO WIS 2.0 soundings, including the national
   meteorological service that sent it.</p>
 
@@ -254,7 +254,7 @@
   <table>
     <tr><th>Source</th><th>Coverage</th><th>Latency</th><th>Resolution</th></tr>
     <tr><td><b>SPC observed</b></td><td>US</td><td>Fastest — ~1 h post-synoptic</td><td>~110–200 levels</td></tr>
-    <tr><td><b>IEM RAOB</b></td><td>US</td><td>~1 h behind SPC</td><td>~180–250 levels</td></tr>
+    <tr><td><b>IEM RAOB</b></td><td>US and Canada</td><td>~1 h behind SPC</td><td>~180–250 levels</td></tr>
     <tr><td><b>ECCC MSC Datamart</b></td><td>Canada (~29 stations)</td><td>~1 h after launch to 100 hPa, ~2 h entire</td><td>Native ~1-s ascent (3–7k levels), thinned to 260</td></tr>
     <tr><td><b>WMO WIS 2.0</b> Global Cache</td><td>Global (~550 stations a day)</td><td>~2 h after launch (90 % within ~3.3 h)</td><td>Mostly high resolution (median ~590 levels), thinned to 260</td></tr>
     <tr><td><b>WMO GTS TEMP</b> (text) via WIS 2.0</td><td>Services sending no BUFR (most of Africa, parts of Asia)</td><td>~2 h after launch</td><td>Standard + significant levels (~30–80), parts A–D merged</td></tr>
@@ -348,9 +348,11 @@
 
   <h3 id="fog">Fog and cloud layers</h3>
   <p>The fog probabilities are empirical: three logistic models (fog, ceiling ≤ 1,000 ft, ceiling
-  ≤ 3,000 ft) trained on 87,568 sounding–METAR pairs from 14 co-located stations over 2006–2025,
+  ≤ 3,000 ft) trained on 87,568 sounding–METAR pairs from 14 co-located stations (most in the US, plus Buenos Aires) over 2006–2025,
   using features from the lowest 3 km (peak low-level RH is the dominant one). Cross-validated AUC
-  is ~0.9 both year-blocked and station-held-out, which is why it runs globally. The probabilities
+  is ~0.9 both year-blocked and station-held-out, so the model is run at every station. AUC measures how well it ranks
+  fog against no fog, not whether the probabilities are calibrated, and in climates unlike the training stations'
+  (the deep tropics, for example) the probabilities are an extrapolation. The probabilities
   describe conditions <em>at sounding time</em> — they are not a forecast. The panel also reports
   the classic FSI screen, the bulk Richardson number (is the surface layer decoupled?), and
   dew-vs-frost. The cloud-layer detector uses height-dependent RH thresholds (over ice below
@@ -386,12 +388,14 @@
   sounding on display.</p>
 
   <h2>5. The record watch</h2>
-  <p>Six times a day, every station's newest sounding is compared against its climatology. The 🏆
+  <p>Every hour, with each update of the mirror, every station's newest sounding is compared against its climatology. The 🏆
   map features stations whose latest launch broke a station record (all-time or for the time of
   year), with near-record (P95+) stations as context dots. Each label carries its sounding's launch
   time — records persist until the station launches again, so labels older than 48 h fade to
   unlabeled stars rather than pinning stale text to the map. The drill-down table under a station
-  lists what stands and what this sounding broke.</p>
+  lists what stands and what this sounding broke. Humidity is the least homogeneous part of the archive: older
+  humidity sensors, and the limits on the dew-point depression the old TEMP code could report, make the dry tail of early
+  decades unreliable, so treat a low-dewpoint record set against an early year with care.</p>
 
   <h2>6. The code</h2>
   <p>The repository is a plain GitHub Pages site — what you're reading and what runs in your browser
@@ -459,7 +463,7 @@
         <li><a href="/topics/">Explainers</a></li>
         <li><a href="/stats.html">Visitor stats</a></li>
       </ul>
-      <p class="sf-disclaimer">This site is under constant development. Nothing here is checked before publication and there is no expectation of accuracy, completeness or availability; do not rely on it for decisions. Built from open data; sources are credited on each page.</p>
+      <p class="sf-disclaimer">This site is under constant development. Its products are generated automatically and published without review by a person; each page describes its automated checks and significance tests. There is no expectation of accuracy, completeness or availability; do not rely on it for decisions. Built from open data; sources are credited on each page.</p>
     </div>
     <div class="sf-group sf-group--me">
       <p class="sf-h" role="heading" aria-level="2">Shawn Corvec</p>

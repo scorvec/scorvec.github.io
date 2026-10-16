@@ -34,7 +34,7 @@
    "publisher": {
     "@id": "https://scorvec.com/#person"
    },
-   "dateModified": "2026-10-15",
+   "dateModified": "2026-10-16",
    "about": {
     "@type": "DefinedTerm",
     "name": "E–P flux",
@@ -213,7 +213,7 @@
           <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g3">Weeks to seasons</button>
           <div class="sh-menu sh-menu--cols" id="sh-g3">
             <div>
-              <h3>Weeks 2–5</h3>
+              <h3>Extended range</h3>
               <ul>
                 <li><a href="/subseasonal.html">GEPS extended ensemble</a></li>
                 <li><a href="/gefs.html">GEFS extended ensemble</a></li>
@@ -238,7 +238,7 @@
                 <li><a href="/enso.html#imp_reg">ENSO impacts on the Americas</a></li>
                 <li><a href="/mjo.html#mi">MJO impacts</a></li>
                 <li><a href="/stratosphere.html#shwinters">Stratosphere history</a></li>
-                <li><a href="/aifs-aam-budget.html">AINWP and conservation</a></li>
+                <li><a href="/aifs-aam-budget.html">AI models and conservation laws</a></li>
                 <li><a href="/torque-enso.html">El Niño and angular momentum</a></li>
                 <li><a href="/topics/">Explainers</a></li>
               </ul>
@@ -246,7 +246,7 @@
             <div>
               <h3>Verification</h3>
               <ul>
-                <li><a href="/aifs-verify.html">AIFS single versus member 0</a></li>
+                <li><a href="/aifs-verify.html">AIFS single versus ensemble control</a></li>
               </ul>
             </div>
           </div>
@@ -298,7 +298,8 @@ planetary waves rising out of the troposphere decelerate the stratospheric polar
 divergence of the E–P flux $\mathbf{F}$:</p>
 <p>$$\frac{\partial \bar u}{\partial t} - f\,\bar v^{*} = \frac{\nabla\cdot\mathbf{F}}{\rho_0\,a\cos\phi} + \bar X$$</p>
 <p>$$\nabla\cdot\mathbf{F} = \frac{1}{a\cos\phi}\frac{\partial}{\partial\phi}\!\left(F^{(\phi)}\cos\phi\right) + \frac{\partial F^{(z)}}{\partial z}$$</p>
-<p>where $\bar v^{*}$ is the residual meridional circulation and $\bar X$ is any other force, such as gravity-wave drag.
+<p>where $z=-H\ln(p/p_0)$ is log-pressure height with scale height $H$, $\rho_0=\rho_s e^{-z/H}$ the basic-state density,
+$\bar v^{*}$ the residual meridional circulation and $\bar X$ any other force, such as gravity-wave drag.
 In the quasi-geostrophic approximation the two components are</p>
 <p>$$F^{(\phi)} = -\rho_0\,a\cos\phi\;\overline{u'v'}$$</p>
 <p>$$F^{(z)} = \rho_0\,a\cos\phi\;f\,\frac{\overline{v'\theta'}}{\partial\bar\theta/\partial z}$$</p>
@@ -326,8 +327,9 @@ the 15-day forecast. The flux is quadratic in the wave amplitude, so it is compu
 the flux of the ensemble-mean fields would fade with lead time as the members' wave phases drift apart. The
 quasi-geostrophic form is used with the zonal-mean static stability and vertical derivatives in ln p; levels below
 the ground on more than 10% of a latitude circle are masked (grey); the 1–2 hPa layer,
-where the derivative is one-sided, is hatched, and latitudes poleward of 82° are masked. It is recomputed every 00 and
-12 UTC cycle.</p>
+where the derivative is one-sided, is hatched, and latitudes poleward of 82° are masked. The arrows use the Edmon et al.
+(1980) display scaling for a log-pressure axis, multiplied by 1000 hPa/p so the stratosphere is legible: directions are
+exact, but lengths grow with height, so compare them along a level. It is recomputed every 00 and 12 UTC cycle.</p>
   <a class="live" href="/stratosphere.html#epflux">Open the E–P flux product on the stratosphere page</a>
 </article>
 <div class="figs">
@@ -337,7 +339,7 @@ where the derivative is one-sided, is hatched, and latitudes poleward of 82° ar
   <section class="related"><h2>Related</h2><ul><li><a href="/topics/eddy-heat-flux.html">Eddy heat flux</a></li><li><a href="/topics/sudden-stratospheric-warming.html">Sudden stratospheric warmings</a></li><li><a href="/topics/wave-activity-flux.html">Wave activity flux</a></li><li><a href="/topics/mountain-torque.html">Mountain torque</a></li><li><a href="/topics/">All explainers</a></li></ul></section>
   <section><h2>References and further reading</h2><ol class="refs"><li>Eliassen, A., and E. Palm, 1961: On the transfer of energy in stationary mountain waves. <i>Geofysiske Publikasjoner</i>, 22(3), 1–23.</li><li>Charney, J. G., and P. G. Drazin, 1961: Propagation of planetary-scale disturbances from the lower into the upper atmosphere. <i>J. Geophys. Res.</i>, 66, 83–109.</li><li>Andrews, D. G., and M. E. McIntyre, 1976: Planetary waves in horizontal and vertical shear: the generalized Eliassen–Palm relation and the mean zonal acceleration. <i>J. Atmos. Sci.</i>, 33, 2031–2048.</li><li>Edmon, H. J., B. J. Hoskins, and M. E. McIntyre, 1980: Eliassen–Palm cross sections for the troposphere. <i>J. Atmos. Sci.</i>, 37, 2600–2616.</li><li>Andrews, D. G., J. R. Holton, and C. B. Leovy, 1987: <i>Middle Atmosphere Dynamics</i>. Academic Press.</li><li>Haynes, P. H., M. E. McIntyre, T. G. Shepherd, C. J. Marks, and K. P. Shine, 1991: On the “downward control” of extratropical diabatic circulations by eddy-induced mean zonal forces. <i>J. Atmos. Sci.</i>, 48, 651–678.</li></ol></section>
   <p class="byline">Data: NOAA GEFS, NOAA Open Data Dissemination (AWS).</p>
-  <p class="byline">Written by Claude, Anthropic's AI model, at the direction of <a href="/">Shawn Corvec</a>, meteorologist. The figures on this page are live and update with each forecast cycle; the text was last revised 2026-10-15.</p>
+  <p class="byline">Written by Claude, Anthropic's AI model, at the direction of <a href="/">Shawn Corvec</a>, meteorologist. The figures on this page are live and update with each forecast cycle; the text was last revised 2026-10-16.</p>
 </div>
 </main>
 <script>
@@ -370,7 +372,7 @@ addEventListener("message", function (e) {
         <li><a href="/topics/">Explainers</a></li>
         <li><a href="/stats.html">Visitor stats</a></li>
       </ul>
-      <p class="sf-disclaimer">This site is under constant development. Nothing here is checked before publication and there is no expectation of accuracy, completeness or availability; do not rely on it for decisions. Built from open data; sources are credited on each page.</p>
+      <p class="sf-disclaimer">This site is under constant development. Its products are generated automatically and published without review by a person; each page describes its automated checks and significance tests. There is no expectation of accuracy, completeness or availability; do not rely on it for decisions. Built from open data; sources are credited on each page.</p>
     </div>
     <div class="sf-group sf-group--me">
       <p class="sf-h" role="heading" aria-level="2">Shawn Corvec</p>

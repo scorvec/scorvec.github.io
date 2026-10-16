@@ -115,7 +115,7 @@
           <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g3">Weeks to seasons</button>
           <div class="sh-menu sh-menu--cols" id="sh-g3">
             <div>
-              <h3>Weeks 2–5</h3>
+              <h3>Extended range</h3>
               <ul>
                 <li><a href="/subseasonal.html">GEPS extended ensemble</a></li>
                 <li><a href="/gefs.html">GEFS extended ensemble</a></li>
@@ -140,7 +140,7 @@
                 <li><a href="/enso.html#imp_reg">ENSO impacts on the Americas</a></li>
                 <li><a href="/mjo.html#mi">MJO impacts</a></li>
                 <li><a href="/stratosphere.html#shwinters">Stratosphere history</a></li>
-                <li><a href="/aifs-aam-budget.html">AINWP and conservation</a></li>
+                <li><a href="/aifs-aam-budget.html">AI models and conservation laws</a></li>
                 <li><a href="/torque-enso.html">El Niño and angular momentum</a></li>
                 <li><a href="/topics/">Explainers</a></li>
               </ul>
@@ -148,7 +148,7 @@
             <div>
               <h3>Verification</h3>
               <ul>
-                <li><a href="/aifs-verify.html">AIFS single versus member 0</a></li>
+                <li><a href="/aifs-verify.html">AIFS single versus ensemble control</a></li>
               </ul>
             </div>
           </div>
@@ -288,7 +288,7 @@
     Ni&ntilde;o-1+2 / 3 / 4 and the tropical mean; drag to zoom, double-click to reset.</p>
 <p class="note"><b>10 years</b> and <b>Since 1970</b> switch to the monthly record: CPC&rsquo;s ERSSTv5 Ni&ntilde;o table on the
     same 1991&ndash;2020 base (OISST monthly means after the table stops), with CPC&rsquo;s official ONI and RONI, which are
-    3-month values drawn at their centre month. The daily feed itself begins in January 2025.</p>
+    3-month values drawn at their centre month. The note under the chart gives the month where each line switches to OISST. The daily feed itself begins in January 2025.</p>
 <p class="chart-sources">NOAA OISST v2.1 daily &middot; cosine-weighted box means &middot; base 1991&ndash;2020 &middot; RONI scale: per-month &sigma;(ONI)/&sigma;(relative), CPC/ECMWF method &middot; monthly: NOAA CPC ERSSTv5 Ni&ntilde;o indices, CPC ONI and RONI</p>
 </template>
 <template id="about-onironi">
@@ -348,20 +348,20 @@
 <p class="chart-sources">NOAA GMGSI longwave-IR global mosaic (GOES-E/W + Himawari + Meteosat) &middot; McIDAS brightness-temperature calibration &middot; hourly, rolling 72&nbsp;h</p>
 </template>
 <template id="about-soirec">
-<p><b>150 years of the Southern Oscillation, with today marked against the records.</b> <b>Top</b>: the Bureau of Meteorology's monthly Troup SOI computed one way from <b>1876 to the present</b> &mdash; monthly (light) and 3-month mean (bold), with dotted record lines: the all-time monthly extremes were set in Apr&nbsp;1905 (&minus;42.6) and Aug&nbsp;1917 (+34.8). <b>Middle</b>: the consistent <b>daily</b> record &mdash; LongPaddock's daily Troup index (10&middot;(&Delta;P&nbsp;&minus;&nbsp;m)/&sigma;, &Delta;P = Tahiti&nbsp;&minus;&nbsp;Darwin MSLP, fixed 1887&ndash;1989 base), June&nbsp;1991&ndash;present, as 30-day and 90-day running means with their own record max/min lines (1997&ndash;98 holds the 30-day minimum; 2010&ndash;11 the positive records). <b>Bottom</b>: the last 24 months with raw daily values as bars. Sustained values below &minus;8 are the classic Troup El&nbsp;Ni&ntilde;o threshold; the record lines show at a glance how the current excursion ranks in a century and a half of data.</p>
+<p><b>150 years of the Southern Oscillation, with today marked against the records.</b> <b>Top</b>: the Bureau of Meteorology's monthly Troup SOI computed one way from <b>1876 to the present</b> &mdash; monthly (light) and 3-month mean (bold), with dotted record lines: the all-time monthly extremes were set in Apr&nbsp;1905 (&minus;42.6) and Aug&nbsp;1917 (+34.8). <b>Middle</b>: the consistent <b>daily</b> record &mdash; LongPaddock's daily Troup index (10&middot;(&Delta;P&nbsp;&minus;&nbsp;m)/&sigma;, &Delta;P = Tahiti&nbsp;&minus;&nbsp;Darwin MSLP, fixed 1887&ndash;1989 base), June&nbsp;1991&ndash;present, as 30-day and 90-day running means with their own record max/min lines (1997&ndash;98 holds both negative records; the positive ones are December&nbsp;2000 for the 30-day mean and March&nbsp;2011 for the 90-day mean). <b>Bottom</b>: the last 24 months with raw daily values as bars. The dashed lines at &plusmn;8 are the classic Troup threshold for a sustained event; the Bureau of Meteorology now uses &plusmn;7, as the forecast view does. The record lines show at a glance how the current excursion ranks in a century and a half of data.</p>
 <p class="chart-sources">Queensland Govt LongPaddock / BoM daily Troup SOI &middot; fixed 1887&ndash;1989 base &middot; updated each cycle</p>
 </template>
 <template id="about-mei">
-<p>NOAA PSL's Multivariate ENSO Index v2 is the leading combined-EOF of five tropical-Pacific fields (sea-level pressure, SST, surface zonal and meridional wind, and OLR), but it is published only as an overlapping bimonthly value with a roughly five-week lag. This is a daily nowcast of it: a regression of the published MEI.v2 onto freely-available daily ENSO components (the Ni&ntilde;o-3.4 SST anomaly, the Southern Oscillation Index, and the equatorial 850-hPa zonal wind), driven forward each day. The grey steps are the official bimonthly MEI.v2; the red line is the daily estimate, with a &plusmn;0.30 leave-one-year-out cross-validation band (the fit reproduces MEI.v2 at R&nbsp;=&nbsp;0.94). The model is SST-weighted, so during a fast SST-led transition it can lead MEI's slower atmospheric components.</p>
+<p>NOAA PSL's Multivariate ENSO Index v2 is the leading combined-EOF of five tropical-Pacific fields (sea-level pressure, SST, surface zonal and meridional wind, and OLR), but it is published only as an overlapping bimonthly value with a roughly five-week lag. This is a daily nowcast of it: a regression of the published MEI.v2 onto freely-available daily ENSO components (the Ni&ntilde;o-3.4 SST anomaly, the Southern Oscillation Index, and the equatorial 850-hPa zonal wind), driven forward each day. The grey steps are the official bimonthly MEI.v2; the red line is the daily estimate, with a &plusmn;0.30 band: the leave-one-year-out cross-validated error of the 1999&ndash;2022 fit, a historical error, not this year's (the <b>Validation</b> view shows how the nowcast has verified against each published value). In sample the fit reproduces MEI.v2 at R&nbsp;=&nbsp;0.94. The wind predictor is ERA5, which runs about 5&ndash;7 days behind real time, so the daily line ends that far back. The model is SST-weighted, so during a fast SST-led transition it can lead MEI's slower atmospheric components.</p>
 <p class="chart-sources">Regression on NOAA OISST Ni&ntilde;o-3.4 &middot; SOI (BoM) &middot; ERA5 eq-u850 &middot; target: NOAA PSL MEI.v2</p>
 </template>
 <template id="about-olr">
-<p>A longitude &times; time Hovm&ouml;ller of deep convection along the equator. NOAA's interpolated-OLR product ended in 2022, so this derives an OLR proxy in real time from the <b>GMGSI</b> global longwave-IR satellite mosaic: the IR brightness temperature (cold cloud tops) is converted to outgoing longwave radiation, and the 5&deg;S&ndash;5&deg;N average at each longitude is stacked over time. <span style="color:#e07b00">Yellow to red is low OLR (deep convection)</span>; blue is high OLR (suppressed or clear sky). An eastward (top to bottom-right) tilt is the MJO propagating east; convection parked at the dateline reflects the El&nbsp;Ni&ntilde;o-shifted warm pool. Newest day at the bottom.</p>
+<p>A longitude &times; time Hovm&ouml;ller of deep convection along the equator. NOAA's interpolated-OLR product ended in 2022, so this derives an OLR proxy in real time from the <b>GMGSI</b> global longwave-IR satellite mosaic: the IR brightness temperature (cold cloud tops) is converted to outgoing longwave radiation, and the 5&deg;S&ndash;5&deg;N average at each longitude is stacked over time. <span style="color:#e07b00">Yellow to red is low OLR (deep convection)</span>; blue is high OLR (suppressed or clear sky). A slow eastward tilt (top to bottom-right, about 5&nbsp;m/s) is the MJO; faster eastward streaks (10&ndash;20&nbsp;m/s) are convectively coupled Kelvin waves. During an El&nbsp;Ni&ntilde;o the convection shifts east toward the dateline with the warm water. The strip covers 40&deg;E&ndash;60&deg;W, and the thin black contours mark 180 and 220&nbsp;W&nbsp;m<sup>&minus;2</sup>. Newest day at the bottom.</p>
 <p class="chart-sources">NOAA GMGSI longwave-IR global mosaic &middot; McIDAS T_b + Ohring-Gruber OLR &middot; 5&deg;S&ndash;5&deg;N daily mean</p>
 </template>
 <template id="about-waves">
-<p>A longitude &times; time Hovm&ouml;ller of the equatorial outgoing-longwave-radiation (OLR) anomaly, averaged 5&deg;S&ndash;5&deg;N around the globe. OLR is derived in real time from the <b>GMGSI</b> longwave-IR mosaic (McIDAS brightness temperature to OLR), with the anomaly taken against NOAA's interpolated-OLR daily climatology (1979&ndash;2022). The shaded field is the total anomaly: <span style="color:#19975a">green is low OLR (deep convection)</span>, <span style="color:#9a6a18">brown is high OLR (suppressed)</span>.</p>
-<p>Each overlaid component is isolated from that anomaly field and contoured at its convective (solid) and suppressed (dashed) phase. <b style="color:#1565c0">Kelvin</b>, <b>MJO</b> and <b style="color:#e6007e">equatorial&nbsp;Rossby</b> are Wheeler&ndash;Kiladis wavenumber&ndash;frequency bandpass filters of the anomaly (2-D FFT in longitude and time): Kelvin is eastward wavenumber&nbsp;1&ndash;14, period&nbsp;2.5&ndash;30&nbsp;d (wider than Wheeler and Kiladis&rsquo;s 2.5&ndash;20&nbsp;d), equivalent depth&nbsp;8&ndash;90&nbsp;m; MJO is eastward wavenumber&nbsp;1&ndash;5, period&nbsp;30&ndash;96&nbsp;d; ER is westward wavenumber&nbsp;1&ndash;10, period&nbsp;9.7&ndash;48&nbsp;d. <b style="color:#7b1fa2">Low-frequency</b> is a 120-day Lanczos low-pass in time with the zonal mean removed.</p>
+<p>A longitude &times; time Hovm&ouml;ller of the equatorial outgoing-longwave-radiation (OLR) anomaly, averaged 5&deg;S&ndash;5&deg;N around the globe. OLR is derived in real time from the <b>GMGSI</b> longwave-IR mosaic (McIDAS brightness temperature to OLR), with the anomaly taken against NOAA's interpolated-OLR daily climatology (1979&ndash;2022). Each longitude's mean over the rolling 550-day record is then removed: that absorbs the proxy's offset from true OLR, but also part of any long-lasting anomaly such as an El&nbsp;Ni&ntilde;o's. The shaded field is that anomaly: <span style="color:#19975a">green is low OLR (deep convection)</span>, <span style="color:#9a6a18">brown is high OLR (suppressed)</span>.</p>
+<p>Each overlaid component is isolated from that anomaly field and contoured at its convective (solid) and suppressed (dashed) phase. <b style="color:#1565c0">Kelvin</b>, <b>MJO</b> and <b style="color:#e6007e">equatorial&nbsp;Rossby</b> are Wheeler&ndash;Kiladis wavenumber&ndash;frequency bandpass filters of the anomaly (2-D FFT in longitude and time): Kelvin is eastward wavenumber&nbsp;1&ndash;14, period&nbsp;2.5&ndash;30&nbsp;d (wider than Wheeler and Kiladis&rsquo;s 2.5&ndash;20&nbsp;d), equivalent depth&nbsp;8&ndash;90&nbsp;m; MJO is eastward wavenumber&nbsp;1&ndash;5, period&nbsp;30&ndash;96&nbsp;d; ER is westward wavenumber&nbsp;1&ndash;10, period&nbsp;9.7&ndash;48&nbsp;d. <b style="color:#7b1fa2">Low-frequency</b> is a 120-day Lanczos low-pass in time with the zonal mean removed. The contours are drawn at &plusmn;13 (Kelvin), &plusmn;11 (ER), &plusmn;10 (MJO) and &plusmn;8&nbsp;W&nbsp;m<sup>&minus;2</sup> (low-frequency).</p>
 <p class="chart-sources">GMGSI longwave-IR proxy &middot; Wheeler&ndash;Kiladis k&ndash;&omega; filtering (eq. depth 8&ndash;90&nbsp;m; Wheeler &amp; Kiladis 1999, <i>J. Atmos. Sci.</i> 56, 374&ndash;399) &middot; climatology NOAA interp-OLR 1979&ndash;2022</p>
 </template>
 <template id="about-okelvin">
@@ -374,19 +374,19 @@
         (eastward, 1.5&ndash;3.5&nbsp;m/s, 15&ndash;150 days); waves are streaks sloping down to the right. Each crest in the basin
         today is followed back through the record to measure its own speed, then projected east (dashed) to Ni&ntilde;o-3
         (120&deg;W) and the coast (90&deg;W), with the arrival dates listed underneath. <b>Right panel</b>: the 10&nbsp;m zonal
-        wind anomaly along the equator that launches them, observed then forecast. The broad red field is the El Ni&ntilde;o
+        wind anomaly along the equator that launches them, observed then forecast. During an El Ni&ntilde;o the broad red field is the event
         itself, which the filter removes; the Kelvin part is a few centimetres riding on it.</p>
 <p><b>Map</b>: the same sea level over 15&deg;S&ndash;15&deg;N every second day for the last 200 days, with each crest marked on the
         equator. The arrival dates assume a wave keeps its speed and strength; a new wind burst, or the wave reflecting and
         dispersing near the coast, changes them.</p>
 <p class="chart-sources">Sea level: NOAA CoastWatch blended altimetry (Sentinel-3A/B, CryoSat-2, Jason-3, SARAL), daily, sampled at
-        0.5&deg;, anomaly against its own 2017&ndash;2025 mean, trend and seasonal cycle &middot; wind: NCEI Blended Sea Winds v2, then
+        0.5&deg;, anomaly against its own 2017&ndash;2025 mean, trend and seasonal cycle (the blended product is continuous only from February 2017) &middot; wind: NCEI Blended Sea Winds v2, then
         AIFS-ENS 0-h analyses, then the AIFS-ENS 50-member mean forecast (ECMWF open data, CC&nbsp;BY&nbsp;4.0); anomalies against
         ERA5 1991&ndash;2020 &middot; updated each 00/12Z cycle; altimetry runs one to two days behind</p>
 </template>
 <template id="about-kelvin">
 <p>A <b>convectively coupled Kelvin wave</b> is an eastward-moving pulse of tropical convection, 10&ndash;20&nbsp;m/s
-        (roughly 1,000&ndash;1,700&nbsp;km a day), that crosses a basin in about a week. Its clearest large-scale footprint is in
+        (roughly 860&ndash;1,700&nbsp;km a day), that takes about two weeks to cross the Pacific. Its clearest large-scale footprint is in
         <b>200&nbsp;hPa velocity potential</b>: upper-level divergence (green) over the active, rainy phase and convergence
         (brown) over the suppressed phase. This tracker filters that field to the Kelvin band and draws where the waves are,
         through the analysis and the AIFS-ENS forecast.</p>
@@ -395,11 +395,11 @@
         background) for context. <b>Along the equator</b>: the same field averaged 5&deg;S&ndash;5&deg;N as a Hovm&ouml;ller, time running
         down; a Kelvin wave is a green streak tilting down to the right, and the forecast carries each streak across the
         analysis line.</p>
-<p>The forecast is the <b>50-member ensemble mean</b>, so a wave the members place differently fades with lead rather
+<p>The forecast is the mean of the <b>50 perturbed members</b> (the control is not included), so a wave the members place differently fades with lead rather
         than being shown with false confidence. Filtering needs a record, so the forecast is joined to the analyses and the end
         of the record is padded with a ramp to zero; the last forecast days therefore read weaker than they may be.
         Poleward of 15&deg; the filtered field is faded out: Kelvin waves are trapped near the equator and what the filter
-        finds there is not one. The OLR-based trackers alongside it show the same waves in observed cloudiness.</p>
+        finds there is not one. The OLR-based trackers alongside it show the same waves in observed cloudiness; their Kelvin filter runs to 30-day periods rather than 20, so it also keeps slower signals that this one leaves out.</p>
 <p class="chart-sources">ECMWF AIFS-ENS open data (CC&nbsp;BY&nbsp;4.0): 0-h analyses (00 and 12&nbsp;UTC, averaged per day) and the
         ensemble-mean u, v at 200&nbsp;hPa to day 15 &middot; velocity potential by spherical harmonics (lmax&nbsp;42) &middot; anomalies against
         ERA5 1991&ndash;2020 with its trend &middot; Kelvin band: eastward wavenumbers 1&ndash;14, periods 2.5&ndash;20 days, equivalent
@@ -416,8 +416,8 @@
       AIFS-ENS ensemble-mean precipitation (as a pseudo-OLR, standardized against an
       ERA5 1991&ndash;2020 band climatology) is appended to the record and run through
       the <em>same</em> Wheeler&ndash;Kiladis filter, so the wave field continues with
-      the model's dynamics &mdash; where the dotted constant-speed line and the model
-      streaks agree, confidence in the arrival time is high.</p>
+      the model's dynamics. The dotted constant-speed line and the model streaks are two separate
+      estimates of where each packet goes; neither has been verified here.</p>
 <p class="chart-sources">Same GMGSI OLR proxy + Wheeler&ndash;Kiladis filters as above
       &middot; phase speed from lag-1-day circular cross-correlation (last 15 days)
       &middot; forecast strip: AIFS-ENS ens-mean precip pseudo-OLR, identically filtered
@@ -429,8 +429,8 @@
 </template>
 
 <template id="about-eqwind">
-<p>Longitude &times; time strip of the daily-mean surface zonal wind averaged 5&deg;S&ndash;5&deg;N, 150&deg;E&ndash;90&deg;W, from the same gap-filled scatterometer (ASCAT) L4 product as the map above. <span style="color:#c0392b">Red is westerly</span> (El&nbsp;Ni&ntilde;o-favorable), <span style="color:#2471a3">blue is easterly</span> (the trade winds). Westerly-wind bursts (red) over the warm pool force the downwelling Kelvin waves and eastward surface-current surges seen on the subsurface page. Newest day at the bottom.</p>
-<p class="chart-sources">Copernicus Marine WIND_GLO_PHY_L4_NRT (scatterometer / ASCAT; generated using E.U. Copernicus Marine Service Information) &middot; 5&deg;S&ndash;5&deg;N daily mean &middot; rolling ~9 months &middot; updated daily</p>
+<p>Longitude &times; time strip of the daily-mean surface zonal wind averaged 5&deg;S&ndash;5&deg;N, 150&deg;E&ndash;90&deg;W, from the same gap-filled scatterometer (ASCAT) L4 product as the map above. <span style="color:#c0392b">Red is westerly</span> (El&nbsp;Ni&ntilde;o-favorable), <span style="color:#2471a3">blue is easterly</span> (the trade winds). Westerly-wind bursts (red) over the warm pool force the downwelling Kelvin waves and eastward surface-current surges seen on the subsurface page. The strip starts on 1 March, as the ENSO development season begins, and runs to the latest day, newest at the bottom.</p>
+<p class="chart-sources">Copernicus Marine WIND_GLO_PHY_L4_NRT (scatterometer / ASCAT; generated using E.U. Copernicus Marine Service Information) &middot; 5&deg;S&ndash;5&deg;N daily mean &middot; from 1 March &middot; updated daily</p>
 </template>
 
 <template id="about-soi_h">
@@ -445,7 +445,7 @@
 </template>
 
 <template id="about-soi_f">
-<p>Extending the observed SOI forward: the same Troup SOI (the standardized Tahiti&minus;Darwin sea-level-pressure difference), here forecast from the combined AIFS-ENS + IFS-ENS ensemble (about 100 members). Observed values are from LongPaddock (Queensland Govt / BoM); the forecast is the Tahiti&minus;Darwin MSL from the ensembles, bias-corrected to the recent observed level. Bold lines are the 30-day running SOI; the faint daily series and shaded 10&ndash;90% band show the day-to-day spread. Sustained negative SOI (below &minus;7) is El Ni&ntilde;o-favorable; sustained positive (above +7) is La Ni&ntilde;a-favorable.</p>
+<p>Extending the observed SOI forward: the same Troup SOI (the standardized Tahiti&minus;Darwin sea-level-pressure difference), here forecast from the combined AIFS-ENS + IFS-ENS ensemble (about 100 members). Observed values are from LongPaddock (Queensland Govt / BoM); the forecast is the Tahiti&minus;Darwin MSL from the ensembles, mapped to the station difference by a fixed per-month calibration against ERA5 1991&ndash;2020 with the cycle-hour pressure tide removed; there is no per-run offset, so the level is comparable from cycle to cycle. Bold lines are the 30-day running SOI; the faint daily series and shaded 10&ndash;90% band show the day-to-day spread. Sustained negative SOI (below &minus;7) is El Ni&ntilde;o-favorable; sustained positive (above +7) is La Ni&ntilde;a-favorable.</p>
 <p class="chart-sources">LongPaddock daily SOI (Queensland Government, 1887&ndash;1989 base) &middot; forecast: ECMWF AIFS-ENS + IFS-ENS MSL &middot; updated each 00/12Z cycle</p>
 </template>
 
@@ -456,7 +456,7 @@
 
 <template id="about-wwb_o">
 <p>Tarawa&rsquo;s daily airport wind from <b>1&nbsp;April</b> onward through recent El&nbsp;Ni&ntilde;o onset years, <span style="color:#4daf4a"><b>2015&ndash;16</b></span> (very strong) and <span style="color:#984ea3"><b>2023&ndash;24</b></span> (weaker), against the current year, from the Iowa Environmental Mesonet METAR archive. Both panels are a 7-day running mean of the hourly obs: top is zonal wind (westerly positive); bottom is the fraction of each day with westerly winds. In a developing El&nbsp;Ni&ntilde;o the easterly trades weaken and westerly bursts become more frequent, so both climb from the cold-state baseline.</p>
-<p class="chart-sources">Tarawa (NGTT/NGTA) METAR &middot; Iowa Environmental Mesonet ASOS archive &middot; monthly zonal wind &amp; westerly fraction &middot; refreshed daily</p>
+<p class="chart-sources">Tarawa (NGTT/NGTA) METAR &middot; Iowa Environmental Mesonet ASOS archive &middot; 7-day running means of hourly zonal wind &amp; westerly fraction &middot; refreshed daily</p>
 </template>
 
 <template id="about-wind10">
@@ -590,8 +590,8 @@
         10&nbsp;% within each season &times; class row of 20 regions; the maps use it over the whole map.</p>
 <p>What passes: in the six observed strong El Ni&ntilde;o winters the Ohio Valley averaged +2.1&nbsp;K against a model mean of
         &minus;0.4&nbsp;K (99.9th percentile of the models&rsquo; 6-event draws) and the Great Lakes +3.1&nbsp;K against +0.4&nbsp;K
-        (99.8th). Neither survives a false-discovery rate taken over the whole table of 20 regions &times; 4 seasons &times; 5
-        classes, so read them as the strongest candidates, not settled differences. Before the three super El Ni&ntilde;os
+        (99.8th). Both pass the test declared above (10&nbsp;% within their row); neither would pass a rate taken over the whole table
+        of 20 regions &times; 4 seasons &times; 5 classes. Before the three super El Ni&ntilde;os
         (September&ndash;November) the coast of Ecuador warmed beyond every model draw; at their peak, rainfall over Panama, Costa
         Rica and Caribbean Colombia fell short of the models at 6 grid points (and at one more in the open Atlantic). No region&rsquo;s rainfall passes the regional
         test, so there is no rainfall table.</p>
@@ -611,7 +611,10 @@
         with C &ge; E, matched in Ni&ntilde;o-3.4 strength (bins 0.5&ndash;1, 1&ndash;1.5, 1.5&ndash;2 and &ge; 2&nbsp;K, each
         weighted by its smaller class), so the difference is the kind of event, not its size. Kug et al.&rsquo;s (2009) test
         (standardised Ni&ntilde;o-3 against Ni&ntilde;o-4) gives the same difference maps to a pattern correlation of 0.96&ndash;0.99.
-        <i>Where events fall</i>: the models&rsquo; El Ni&ntilde;os and the observed ones on E and C.</p>
+        <i>Where events fall</i>: the models&rsquo; El Ni&ntilde;os and the observed ones on E and C. The
+        <a href="/enso-forecasts.html#flavour">ENSO forecasts page</a> uses a three-way rule instead (east-based or central only
+        when E and C differ by at least 1, basin-wide in between) on a fixed 1991&ndash;2020 base without detrending, so its
+        labels and numbers for the same season can differ from these.</p>
 <p><b>What the models agree on</b> (December&ndash;February, matched strength, regional means robust by the same test):
         an east-based El Ni&ntilde;o is <b>cooler over the southern and eastern US</b> than a central one of the same size
         (US Southwest &minus;0.23&nbsp;K, Gulf Coast &minus;0.24, Southeast &minus;0.25, Ohio Valley &minus;0.28), <b>colder
@@ -621,10 +624,10 @@
         In the models 70&nbsp;% of super El Ni&ntilde;os (Ni&ntilde;o-3.4 &ge; 2&nbsp;K in winter) are east-based, against
         38&nbsp;% of all El Ni&ntilde;os.</p>
 <p><b>Observed.</b> 1982/83 and 1997/98 were strongly east-based (E +3.6 and +3.8, C about +0.5); 2015/16 was mixed
-        (E and C both +1.8); 2009/10 was central. <b>Summer 2026 is east-based</b>: June&ndash;August E +2.3, C +1.2, the
+        (E and C both +1.8); 2009/10 was central. <b>Summer 2026 was east-based</b>: June&ndash;August E +2.3, C +1.2, the
         largest summer E since 1997 (+3.3), and August alone E +3.1. With no detrending (a 1991&ndash;2020 base) the numbers
         move to E +2.5, C +1.6: the placement does not depend on the trend. The observed record has 5 east-based and 17
-        central El Ni&ntilde;o winters since 1960 &mdash; too few east-based ones to test the difference directly, so the
+        central El Ni&ntilde;o winters since 1960 (C &ge; E counts as central here, basin-wide events included) &mdash; too few east-based ones to test the difference directly, so the
         observed side is the E/C regression. A CMIP6 map is shaded only where it is <i>robust</i>: an across-model t-test (each of the 16 models counts once) passes a Benjamini&ndash;Hochberg false-discovery rate of 10&nbsp;% over the map <i>and</i> at least 80&nbsp;% of the models agree on the sign. Observed maps are shaded where the regression coefficient&rsquo;s t-test passes the same false-discovery rate. Blank = not significant.</p>
 <p><b>500 hPa.</b> The two indices place the ridge differently. East-based warming (E) puts the Canadian ridge over
         eastern Canada (78&deg;W in the models, 82&deg;W observed); central-Pacific warming (C) puts it over western Canada
@@ -655,7 +658,7 @@
 </template>
 <template id="about-imp_pdocause">
 <p class="note" style="border-left:4px solid #9a3f14;padding:.55rem .8rem;background:#fbf4ef;color:#2b2622"><b>In short: the PDO mostly follows the atmosphere; it does not drive it.</b> The winds of the Aleutian low, and ENSO&rsquo;s reach into the North Pacific, build the PDO&rsquo;s sea-surface pattern within weeks. The familiar &ldquo;PDO impact&rdquo; maps are largely that weather, not the ocean&rsquo;s effect on it. When the ocean has to come first (lagged tests) or is imposed (AMIP), its effect on the winter atmosphere is a tenth of the familiar map or less and not statistically significant; the two pacemaker models are too noisy to rule out more, but neither shows a significant map. The one forced effect every method agrees on is a modest warming of the air along the Pacific coast. Once ENSO is known, the PDO phase says little about the coming winter.</p>
-<p><b>Verdict: no significant forced response in the lagged or AMIP analyses; the pacemaker runs bound it at about 20&nbsp;gpm per
+<p><b>Verdict: no significant forced response in the lagged or AMIP analyses; the pacemaker runs bound it at about 25&nbsp;gpm per
         standard deviation or less. The familiar PDO impact maps are mostly the atmosphere driving the ocean.</b></p>
 <p><b>Why the usual maps mislead.</b> Put a winter&rsquo;s weather next to the same winter&rsquo;s North Pacific sea-surface
         temperature and a strong pattern appears: a deep Aleutian low, a warm Alaska, a cool Southeast. But the arrow mostly points
@@ -770,8 +773,8 @@ window.STAGE = {
   groups: [
   {label: "SST & indices", ico: "\u{1F321}", items: [["sstmaps","SST anomaly maps","global, tropics, relative"],["indices","Daily indices, interactive","Niño-3.4, RONI, ONI estimate"],["onironi","ONI vs RONI","3-month convention, OISST estimate"],["beyond","PDO, IOD, South Atlantic","daily, beyond ENSO"]]},
   {label: "Satellite & MUR", ico: "\u{1F6F0}", items: [["mur","MUR 1 km loop","cold tongue since onset"],["mur34","MUR Niño-3.4","1 km against OISST"],["ir","Infrared loops","Pacific · South & Central America"]]},
-  {label: "Convection & waves", ico: "\u{1F30A}", items: [["olr","OLR Hovmöller","synthetic, equatorial"],["waves","Wave decomposition","Kelvin, Rossby, MJO bands"],["trackers","Kelvin and Rossby trackers","along the equator"],["kelvin","Kelvin wave tracker, AIFS-ENS","map + 15-day forecast"]]},
-  {label: "Atmospheric response", ico: "\u{1F32C}", items: [["soi","Southern Oscillation Index","hourly, forecast, equatorial"],["soirec","SOI against the record","monthly and daily records"],["soi_seas","Seasonal SOI outlook","SEAS5, SOI and Equatorial SOI"],["mei","MEI.v2 nowcast","daily, analogs, history"],["ascat","ASCAT wind map","scatterometer, daily"],["eqwind","Zonal wind Hovmöller","equatorial strip, 90 days"],["wwb","Westerly wind bursts","Tarawa monitor, past onsets"],["wind10","10 m wind forecast","ensembles and single runs, to day 15"]]},
+  {label: "Convection & waves", ico: "\u{1F30A}", items: [["olr","OLR Hovmöller","satellite proxy, equatorial"],["waves","Wave decomposition","Kelvin, Rossby, MJO bands"],["trackers","Kelvin and Rossby trackers","along the equator"],["kelvin","Kelvin wave tracker, AIFS-ENS","map + 15-day forecast"]]},
+  {label: "Atmospheric response", ico: "\u{1F32C}", items: [["soi","Southern Oscillation Index","hourly, forecast, equatorial"],["soirec","SOI against the record","monthly and daily records"],["soi_seas","Seasonal SOI outlook","SEAS5, SOI and Equatorial SOI"],["mei","MEI.v2 nowcast","daily, analogs, history"],["ascat","ASCAT wind map","scatterometer, daily"],["eqwind","Zonal wind Hovmöller","equatorial strip, since 1 March"],["wwb","Westerly wind bursts","Tarawa monitor, past onsets"],["wind10","10 m wind forecast","ensembles and single runs, to day 15"]]},
   {label: "Subsurface", ico: "\u{1F30A}", items: [["subtemp","Temperature section","TAO/TRITON, raw and detrended"],["hc","Heat content vs analogs","0–300 m, 1997 · 2015 · 2023"],["okelvin","Ocean Kelvin waves","sea level, arrival dates"],["xsec","Cross-section vs analogs","same week of each event"],["cur_map","Surface currents","tropical Pacific"],["cur_sec","Undercurrent section","zonal current with depth"],["cur_hov","Current Hovmöller","equatorial strip"]]},
   {label: "Impacts on the Americas", ico: "\u{1F30E}", items: [["imp_reg","Regression on Niño-3.4","CMIP6 and observed, per K"],["imp_comp","Composites by event class","CMIP6, El Niño to strong La Niña"],["imp_obs","Observed composites","ERA5 and GPCP"],["imp_super","Super El Niño","lifecycle, beyond linear, by month"],["imp_asym","Asymmetry","what does not flip sign"],["imp_ovm","Observed vs the models","where the real world differs"],["imp_regions","By region","20 regions, significant values only"],["imp_ec","East-based vs central","Takahashi E and C, 2026 placed"],["imp_wave","Wave train position","500 hPa, models vs observed"],["imp_pdocause","The PDO: driven by the atmosphere","its own effect is small"],["imp_pdomonth","PDO: small effects by month","only coastal warming is robust"]]}
 ],
@@ -799,8 +802,8 @@ window.STAGE = {
   mei: {label: "MEI.v2 daily nowcast", a: {label: "View", items: [["nowcast","Nowcast"],["analogs","Analogs"],["history","History"],["validation","Validation"]]},
           img: function (a) { return "assets/sst/mei/mei_" + a + ".webp?v=2e00951f6f0f"; }, about: "about-mei", fit: false,
           cap: function (a) { return {nowcast: "A daily estimate of NOAA's bi-monthly MEI.v2 by regression on three daily ENSO components (Niño-3.4, SOI, equatorial 850 hPa wind): in-sample R 0.94, cross-validated RMSE 0.30.", analogs: "Past events with the closest MEI trajectory.", history: "The nowcast against the full MEI record.", validation: "How the nowcast has verified against each published value."}[a]; }},
-  olr: {label: "Synthetic OLR Hovmöller", img: function () { return "assets/sst/olr_hovmoller.webp"; }, bust: "hourly", about: "about-olr", fit: false,
-          cap: function () { return "Equatorial convection against time from the infrared composite: low OLR (yellow to red) is deep convection, blue is suppressed or clear; eastward-moving bands are the MJO."; }},
+  olr: {label: "OLR Hovmöller (satellite proxy)", img: function () { return "assets/sst/olr_hovmoller.webp"; }, bust: "hourly", about: "about-olr", fit: false,
+          cap: function () { return "Equatorial convection against time from the infrared composite: low OLR (yellow to red) is deep convection, blue is suppressed or clear; slow eastward bands (about 5 m/s) are the MJO, faster ones Kelvin waves."; }},
   waves: {label: "Tropical wave decomposition", img: function () { return "assets/sst/olr_waves.webp"; }, bust: "hourly", about: "about-waves", fit: false,
           cap: function () { return "The OLR anomaly filtered into the Wheeler–Kiladis bands: MJO, Kelvin, equatorial Rossby and the rest."; }},
   okelvin: {label: "Ocean Kelvin waves", a: {label: "View", items: [["hov","Along the equator, with arrivals"],["map","Map, since March"]]},
@@ -1365,7 +1368,7 @@ window.STAGE = {
         <li><a href="/topics/">Explainers</a></li>
         <li><a href="/stats.html">Visitor stats</a></li>
       </ul>
-      <p class="sf-disclaimer">This site is under constant development. Nothing here is checked before publication and there is no expectation of accuracy, completeness or availability; do not rely on it for decisions. Built from open data; sources are credited on each page.</p>
+      <p class="sf-disclaimer">This site is under constant development. Its products are generated automatically and published without review by a person; each page describes its automated checks and significance tests. There is no expectation of accuracy, completeness or availability; do not rely on it for decisions. Built from open data; sources are credited on each page.</p>
     </div>
     <div class="sf-group sf-group--me">
       <p class="sf-h" role="heading" aria-level="2">Shawn Corvec</p>

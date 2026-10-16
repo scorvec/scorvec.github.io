@@ -115,7 +115,7 @@
           <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g3">Weeks to seasons</button>
           <div class="sh-menu sh-menu--cols" id="sh-g3">
             <div>
-              <h3>Weeks 2–5</h3>
+              <h3>Extended range</h3>
               <ul>
                 <li><a href="/subseasonal.html">GEPS extended ensemble</a></li>
                 <li><a href="/gefs.html">GEFS extended ensemble</a></li>
@@ -140,7 +140,7 @@
                 <li><a href="/enso.html#imp_reg">ENSO impacts on the Americas</a></li>
                 <li><a href="/mjo.html#mi">MJO impacts</a></li>
                 <li><a href="/stratosphere.html#shwinters">Stratosphere history</a></li>
-                <li><a href="/aifs-aam-budget.html">AINWP and conservation</a></li>
+                <li><a href="/aifs-aam-budget.html">AI models and conservation laws</a></li>
                 <li><a href="/torque-enso.html">El Niño and angular momentum</a></li>
                 <li><a href="/topics/">Explainers</a></li>
               </ul>
@@ -148,7 +148,7 @@
             <div>
               <h3>Verification</h3>
               <ul>
-                <li><a href="/aifs-verify.html">AIFS single versus member 0</a></li>
+                <li><a href="/aifs-verify.html">AIFS single versus ensemble control</a></li>
               </ul>
             </div>
           </div>
@@ -270,7 +270,7 @@
       <h3 class="method-head">Reliability of the calibration, 24 winters left out one at a time</h3>
       <div style="overflow-x:auto"><table class="chg vx-table" id="vxRel"></table></div>
       <div class="chart-card-footer">
-        <span class="chart-sources">Copernicus Climate Change Service (C3S) seasonal multi-system, monthly u at 10&nbsp;hPa on the 60&deg;N ring (2&deg;): ECMWF, Met Office, M&eacute;t&eacute;o-France, DWD, CMCC, ECCC, JMA, BoM &mdash; contains modified Copernicus Climate Change Service information 2026; neither the European Commission nor ECMWF is responsible for any use of it &middot; truth: MERRA-2 (NASA GMAO) &middot; skill test: scripts/sst/c3s_u10_skill.py</span>
+        <span class="chart-sources">Copernicus Climate Change Service (C3S) seasonal multi-system, monthly u at 10&nbsp;hPa on the 60&deg;N ring (2&deg;): ECMWF, Met Office, M&eacute;t&eacute;o-France, DWD, CMCC, ECCC, JMA, BoM &mdash; contains modified Copernicus Climate Change Service information 2026; neither the European Commission nor ECMWF is responsible for any use of it &middot; truth: MERRA-2 (NASA GMAO) &middot; skill test: <a href="https://github.com/scorvec/scorvec.github.io/blob/main/scripts/sst/c3s_u10_skill.py">code</a></span>
         <span class="chart-updated" id="vxUpdated">&mdash;</span>
       </div>
     </div>
@@ -278,7 +278,7 @@
       <div id="vdVerdict">Loading the daily follow-up&hellip;</div>
       <div class="map-grid" id="vdFigs"></div>
       <div class="chart-card-footer">
-        <span class="chart-sources">Copernicus Climate Change Service (C3S) seasonal multi-system, daily (00&nbsp;UTC) u at 10&nbsp;hPa, 30&ndash;90&deg;N on 2&deg; rows (CDS seasonal-original-pressure-levels; ECMWF SEAS5 hindcast from the AWS daily copy): ECMWF, Met Office, M&eacute;t&eacute;o-France, DWD, CMCC, ECCC, JMA, BoM &mdash; contains modified Copernicus Climate Change Service information 2026 &middot; truth: MERRA-2 (NASA GMAO) &middot; tests: scripts/sst/c3s_vortex_daily.py</span>
+        <span class="chart-sources">Copernicus Climate Change Service (C3S) seasonal multi-system, daily (00&nbsp;UTC) u at 10&nbsp;hPa, 30&ndash;90&deg;N on 2&deg; rows (CDS seasonal-original-pressure-levels; ECMWF SEAS5 hindcast from the AWS daily copy): ECMWF, Met Office, M&eacute;t&eacute;o-France, DWD, CMCC, ECCC, JMA, BoM &mdash; contains modified Copernicus Climate Change Service information 2026 &middot; truth: MERRA-2 (NASA GMAO) &middot; tests: <a href="https://github.com/scorvec/scorvec.github.io/blob/main/scripts/sst/c3s_vortex_daily.py">code</a></span>
         <span class="chart-updated" id="vdUpdated">&mdash;</span>
       </div>
     </div>
@@ -345,17 +345,17 @@
         (2.5&deg;), never across levels. The shading is the divergence as a force on the zonal-mean wind
         (purple: waves decelerating the westerlies). At the top level, 1&nbsp;hPa, the derivative is one-sided, so
         the 1&ndash;2&nbsp;hPa layer is hatched. Latitudes poleward of 82&deg; are masked.</p>
-<p><b>Checked 1 October 2026.</b> Grey marks levels that lie <b>below the ground</b> on more than 10&nbsp;% of a
+<p><b>Checks.</b> Grey marks levels that lie <b>below the ground</b> on more than 10&nbsp;% of a
         latitude circle (Antarctica, Greenland, the Andes, Tibet), from each member&rsquo;s surface pressure: the model
-        fills those levels by extrapolation, and the fluxes there were producing saturated bands near the surface.
-        Since the same day the static stability is the zonal mean rather than one global profile, which had
-        under-stated the stability above the polar tropopause. On 26 September the stratospheric pattern
+        fills those levels by extrapolation, and fluxes computed there would form spurious saturated bands near the surface.
+        The static stability is the zonal mean at each latitude, because one global profile under-states the
+        stability above the polar tropopause. On 26 September 2026 the stratospheric pattern
         (100&ndash;2&nbsp;hPa, 40&ndash;80&deg;) matched the GEOS-FP analysis momentum budget at a pattern correlation
         of 0.87 in the south and 0.81 in the north. The many purple areas are real: in southern spring the planetary
         waves drag on the westerlies over most of the extratropical stratosphere. In the MERRA-2 climatology for late
         September, 80&nbsp;% of that region is convergent; in the GEOS-FP analysis of 26 September, 47&nbsp;%;
         in the GEFS loop, 50&nbsp;%. Single frames near the poles can be large because a strong high-latitude trough
-        is a real wave-1 eddy: on 1 October the AIFS-ENS analysis has the same [u&prime;v&prime;], about
+        is a real wave-1 eddy: on 1 October 2026 the AIFS-ENS analysis had the same [u&prime;v&prime;], about
         &minus;160&nbsp;m&sup2;/s&sup2; at 75&ndash;78&deg;N and 250&nbsp;hPa.</p>
 <p><b>The arrows</b> use the Edmon, Hoskins and McIntyre (1980) display scaling written for a logarithmic pressure
         axis (Jucker 2021), multiplied by 1000&nbsp;hPa/p so the stratosphere is legible. The factor leaves every
@@ -501,7 +501,7 @@ The tropical upward mass flux is &Psi;* at the two subtropical turnaround latitu
 MERRA-2 mean circulation). Estimating it from the analysed mean meridional wind or vertical velocity directly does not
 work: in both GEOS FP and MERRA-2 that version shows no northern-winter maximum at all, because the tropical upwelling
 (~0.3&nbsp;mm/s) is buried in the noise of a daily zonal mean.</p>
-<p>The reference is MERRA-2 (15 years, 1991&ndash;2009): at 70&nbsp;hPa the annual mean is 6.4&times;10<sup>9</sup>&nbsp;kg/s
+<p>The reference is the MERRA-2 GMI replay on 15 years (1991&ndash;94, 1996&ndash;2001, 2004 and 2006&ndash;09), sampled at 00Z every 10th day, 552 days in all: at 70&nbsp;hPa the annual mean is 6.4&times;10<sup>9</sup>&nbsp;kg/s
 with a December&ndash;January maximum 1.5&times; the July minimum, as in the published reanalysis estimates. GEOS FP is put on the
 MERRA-2 scale by the same-day difference measured on 38 days of 2018&ndash;19 (&minus;0.9 at 70&nbsp;hPa, most of it GEOS FP's
 weaker gravity-wave drag). The forecast holds the last five days' drag fixed, because GEOS FP publishes no forecast wind
@@ -613,7 +613,7 @@ and of the GEOS FP offset; section shaded only where the false-discovery rate is
         a z-test with a bootstrap over calendar months (the duty-cycled data come in monthly bursts).</p>
 <p><b>Against w*.</b> The tape moves with the residual vertical velocity plus vertical mixing into the tropical pipe,
         so it runs a little faster than w*. The site's Brewer&ndash;Dobson product gives, by downward control, a
-        MERRA-2 w* of 0.22&nbsp;mm/s at 70&nbsp;hPa and 0.23 at 50&nbsp;hPa (annual means 1991&ndash;2009, averaged between
+        MERRA-2 w* of 0.22&nbsp;mm/s at 70&nbsp;hPa and 0.23 at 50&nbsp;hPa (annual means over the 15 reference years between 1991 and 2009, averaged between
         the turnaround latitudes, about &plusmn;25&ndash;35&deg;): the MLS tape is about 20&nbsp;% faster at 70&nbsp;hPa and within
         10&nbsp;% at 50&nbsp;hPa. The figure also marks GEOS FP's w* over the last 30 days, by downward control (on the MERRA-2
         scale) and from its analysed &omega;*. GEOS FP's own tape recorder (2018&ndash;2025) rises at 0.29&ndash;0.35&nbsp;mm/s
@@ -757,6 +757,10 @@ $$\frac{\partial\bar u}{\partial t} \;=\; \hat f\,\bar v^{*} \;-\; \bar w^{*}\fr
         the vortex, weeks below &minus;1&sigma; let it strengthen (Polvani and Waugh 2004). In early autumn radiative cooling
         dominates, so a burst slows the vortex&rsquo;s seasonal spin-up rather than reversing it.
         Bottom right: the ensemble-mean flux by latitude through the forecast.</p>
+<p><b>Climatology and analysed record.</b> The 10&ndash;90&nbsp;% range and the standardisation come from NCEP/NCAR
+        Reanalysis&nbsp;1 (R1), 1991&ndash;2020. R1 stopped updating in March 2026, so the analysed record is the AIFS
+        control&rsquo;s 0-h field instead; the offset between the two has not been measured, so a small standardised
+        departure may partly be that offset rather than the atmosphere.</p>
 <p>The <b>GEPS</b> and <b>GEFS</b> versions carry the same calculation to day 35 (one 00Z field a day, as for
         AIFS-ENS), against the same climatology and the same analysed record, so the three read on one scale. The
         flux is the models&rsquo; own, <b>not bias-corrected</b>: GEPS&rsquo;s reforecasts run the 10&nbsp;hPa vortex
@@ -851,23 +855,23 @@ $$\frac{\partial\bar u}{\partial t} \;=\; \hat f\,\bar v^{*} \;-\; \bar w^{*}\fr
 </template>
 </main>
 <template id="about-qbo">
-<p>The Quasi-Biennial Oscillation &mdash; the ~28-month heartbeat of the equatorial stratosphere &mdash; read directly from balloons. Within ~10&deg; of the equator the annual cycle in stratospheric zonal wind nearly vanishes, so a monthly multi-station mean of radiosonde winds at 10&ndash;100&nbsp;hPa <i>is</i> the QBO: westerly and easterly regimes descending about 1&nbsp;km/month. Built from 13 stations (Singapore, Kuala Lumpur, Bintulu, the Micronesia chain, six Amazon stations, Nairobi) &mdash; the same raw archive behind the <a href="/skewt/">Sounding Explorer</a>. The former QBO tracker page (/qbo/) redirects here.</p>
+<p>The Quasi-Biennial Oscillation &mdash; the ~28-month heartbeat of the equatorial stratosphere &mdash; read directly from balloons. Within ~10&deg; of the equator the annual cycle in stratospheric zonal wind nearly vanishes, so a monthly multi-station mean of radiosonde winds at 10&ndash;100&nbsp;hPa <i>is</i> the QBO: westerly and easterly regimes descending about 1&nbsp;km/month. Built from 13 stations (Singapore, Kuala Lumpur, Bintulu, the Micronesia chain, six Amazon stations, Nairobi) &mdash; the same raw archive behind the <a href="/skewt/">Sounding Explorer</a>.</p>
 <p class="chart-sources">Data: NOAA <a href="https://www.ncei.noaa.gov/products/weather-balloon/integrated-global-radiosonde-archive">IGRA v2</a> period-of-record + year-to-date files &middot; monthly station means need &ge;3 soundings per level; the plotted value is the unweighted mean across reporting stations. Built the same way from the same radiosonde network as the CPC/FU-Berlin indices, but not the official index &middot; updated weekly (<a href="/skewt/methodology.html">sounding methodology</a>)</p>
 </template>
 <template id="about-vortex35">
-<p>The 35-day extended ensembles&rsquo; own view of the vortex: u(60&deg;) at 10 and 100&nbsp;hPa, polar-cap temperature and height for each hemisphere, with the ensemble spread, a 14-day analysis tail and the previous run&rsquo;s mean dashed on the common days. These were formerly the &ldquo;Polar vortex&rdquo; items of the <a href="/gefs.html">GEFS</a> and <a href="/subseasonal.html">GEPS</a> subseasonal pages; the figures are the same files, updated by the same runs.</p>
+<p>The 35-day extended ensembles&rsquo; own view of the vortex: u(60&deg;) at 10 and 100&nbsp;hPa, polar-cap temperature and height for each hemisphere, with the ensemble spread, a 14-day analysis tail and the previous run&rsquo;s mean dashed on the common days. The same runs drive the <a href="/gefs.html">GEFS</a> and <a href="/subseasonal.html">GEPS</a> subseasonal pages.</p>
 <p><b>GEFS</b> (daily 00Z, 31 members): because GEFS&rsquo;s reforecast reaches 10&nbsp;hPa, every member is corrected for the model&rsquo;s drift with lead against its own 2000&ndash;2019 reforecast, then referenced to ERA5 1991&ndash;2020. <b>GEPS</b> (Mondays and Thursdays, 21 members): the stratosphere, which the GEPS8 hindcast does not cover, is taken against ERA5 and de-drifted with the GEPS reforecasts in the ECMWF S2S archive.</p>
 <p class="chart-sources">NOAA GEFS extended ensemble and GEFSv12 reforecast (AWS open data) &middot; Environment and Climate Change Canada, GEPS extended ensemble (MSC Datamart; Data Source: Environment and Climate Change Canada, <a href="https://eccc-msc.github.io/open-data/licence/readme_en/">ECCC Data Servers End-use Licence</a>) and the ECMWF S2S GEPS reforecasts &middot; ERA5 (Copernicus C3S) &middot; ERA5: Hersbach et al. 2020, <i>Q. J. R. Meteorol. Soc.</i> 146, 1999&ndash;2049 (C3S, CC&nbsp;BY&nbsp;4.0; contains modified Copernicus Climate Change Service information 2026)</p>
 </template>
 <template id="about-vloop35">
-<p>The extended ensembles&rsquo; daily maps of the stratosphere at 10 and 100&nbsp;hPa, both hemispheres, from the analysis to day 35: temperature anomaly, total wind and height anomaly. <b>GEFS</b>: anomalies against the lead-matched GEFSv12 reforecast (height relative to the hemisphere poleward of 20&deg;). <b>GEPS</b>: anomalies against ERA5 1991&ndash;2020 with the model&rsquo;s drift removed using the GEPS reforecasts in the ECMWF S2S archive (zonal mean, by latitude and lead; the 10&nbsp;hPa cap-temperature drift reaches about +7&nbsp;K by day 35). These loops were formerly on the <a href="/gefs.html">GEFS</a> and <a href="/subseasonal.html">GEPS</a> pages.</p>
+<p>The extended ensembles&rsquo; daily maps of the stratosphere at 10 and 100&nbsp;hPa, both hemispheres, from the analysis to day 35: temperature anomaly, total wind and height anomaly. <b>GEFS</b>: anomalies against the lead-matched GEFSv12 reforecast (height relative to the hemisphere poleward of 20&deg;). <b>GEPS</b>: anomalies against ERA5 1991&ndash;2020 with the model&rsquo;s drift removed using the GEPS reforecasts in the ECMWF S2S archive (zonal mean, by latitude and lead; the 10&nbsp;hPa cap-temperature drift reaches about +7&nbsp;K by day 35).</p>
 <p class="chart-sources">NOAA GEFS extended ensemble and GEFSv12 reforecast (AWS open data) &middot; Environment and Climate Change Canada, GEPS extended ensemble (MSC Datamart; Data Source: Environment and Climate Change Canada, <a href="https://eccc-msc.github.io/open-data/licence/readme_en/">ECCC Data Servers End-use Licence</a>) and the ECMWF S2S GEPS reforecasts &middot; ERA5 (Copernicus C3S) &middot; ERA5: Hersbach et al. 2020, <i>Q. J. R. Meteorol. Soc.</i> 146, 1999&ndash;2049 (C3S, CC&nbsp;BY&nbsp;4.0; contains modified Copernicus Climate Change Service information 2026)</p>
 </template>
 <template id="about-c3svortex">
 <p>Monthly seasonal forecasts of the stratospheric polar vortex were tested before this card was built: every C3S centre&rsquo;s 1993&ndash;2016 hindcast of the monthly-mean wind at 60&deg;N, 10&nbsp;hPa (and 100&nbsp;hPa) against MERRA-2, with the tests and the multiple-comparison correction fixed in advance. From the <b>October</b> start, only <b>December</b> passed: the equal-weight mean of the eight centres&rsquo; ensemble-mean anomalies correlated with the observed December at r&nbsp;0.66 (95&nbsp;% interval 0.37&ndash;0.85, Holm-corrected p&nbsp;0.005), the Met Office (r&nbsp;0.73) and DWD (0.61) individually; January, February, the DJF mean and every 100&nbsp;hPa target did not. The skill is robust to dropping any single winter and is not October persistence. This card is that one significant result, made into a forecast.</p>
 <p><b>Why calibrated.</b> Each model&rsquo;s ensemble mean moves only a fifth to two-fifths as much from year to year as the observed vortex does, so a raw ensemble mean or member count would put almost every December near normal. The card therefore regresses the observed December mean on the multi-model anomaly over the 24 hindcast winters and uses that regression&rsquo;s predictive distribution (Student-t, which carries the uncertainty of a fit to 24 points) for the forecast. The weak / near-normal / strong categories are the thirds of the 1993&ndash;2016 MERRA-2 Decembers. The calibration is checked by refitting it with each winter left out in turn and scoring the left-out winter: the ranked probability skill, the share of winters inside the 80&nbsp;% range and the tercile reliability counts are printed with their tests.</p>
 <p><b>What it does not say.</b> A December-mean wind is not a sudden-warming forecast: the same tests found no skill for SEAS5&rsquo;s sudden-warming risk (the <a href="#s5ssw">SEAS5 item</a> carries a no-track-record banner), and January&ndash;February are not predictable this way. The card updates with each C3S issue from August to December (December is then 5 months ahead to 1 month ahead; only the October start was in the pre-registered test, the others are reported with the study&rsquo;s descriptive false-discovery-rate grid). From January to July there is no December ahead and the card keeps its last issue.</p>
-<p class="chart-sources">C3S seasonal multi-system (CDS seasonal-monthly-pressure-levels): ECMWF SEAS5, Met Office GloSea (610), M&eacute;t&eacute;o-France 9, DWD GCFS 2.2, CMCC SPS4, ECCC CanSIPS (GEM5-NEMO + CanESM5 as one centre), JMA CPS4, BoM ACCESS-S2; NCEP CFSv2 publishes no 10&nbsp;hPa wind there &middot; Copernicus licence &middot; MERRA-2 (NASA GMAO) &middot; built in GitHub Actions with each C3S issue (c3s-vortex.yml) &middot; Benjamini &amp; Hochberg 1995, <i>J. R. Stat. Soc. B</i> 57, 289&ndash;300 &middot; MERRA-2: Gelaro et al. 2017, <i>J. Climate</i> 30, 5419&ndash;5454</p>
+<p class="chart-sources">C3S seasonal multi-system (CDS seasonal-monthly-pressure-levels): ECMWF SEAS5, Met Office GloSea (610), M&eacute;t&eacute;o-France 9, DWD GCFS 2.2, CMCC SPS4, ECCC CanSIPS (GEM5-NEMO + CanESM5 as one centre), JMA CPS4, BoM ACCESS-S2; NCEP CFSv2 publishes no 10&nbsp;hPa wind there &middot; Copernicus licence &middot; MERRA-2 (NASA GMAO) &middot; built in GitHub Actions with each C3S issue &middot; Benjamini &amp; Hochberg 1995, <i>J. R. Stat. Soc. B</i> 57, 289&ndash;300 &middot; MERRA-2: Gelaro et al. 2017, <i>J. Climate</i> 30, 5419&ndash;5454</p>
 </template>
 <template id="about-c3svdaily">
 <p>The daily follow-up to the December card: the same eight C3S centres from their October starts, but day by day, so the charts can show what a monthly mean hides &mdash; spells of weak vortex, sudden warmings and when they fall. Each centre&rsquo;s members are measured against that model&rsquo;s own 1993&ndash;2016 daily hindcast normal (models disagree by up to 12&nbsp;m/s on the strength of the vortex), and the multi-model numbers weight every centre equally.</p>
@@ -1406,7 +1410,7 @@ window.STAGE = {
         <li><a href="/topics/">Explainers</a></li>
         <li><a href="/stats.html">Visitor stats</a></li>
       </ul>
-      <p class="sf-disclaimer">This site is under constant development. Nothing here is checked before publication and there is no expectation of accuracy, completeness or availability; do not rely on it for decisions. Built from open data; sources are credited on each page.</p>
+      <p class="sf-disclaimer">This site is under constant development. Its products are generated automatically and published without review by a person; each page describes its automated checks and significance tests. There is no expectation of accuracy, completeness or availability; do not rely on it for decisions. Built from open data; sources are credited on each page.</p>
     </div>
     <div class="sf-group sf-group--me">
       <p class="sf-h" role="heading" aria-level="2">Shawn Corvec</p>
