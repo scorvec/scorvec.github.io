@@ -202,17 +202,18 @@ PRODUCTS = [
         "Circulation/tropics",
     ),
     # one hub: stratosphere.html holds every stratosphere product by timescale (including the GEPS/GEFS/SEAS5 vortex
-    # products and the QBO tracker), and this menu lists its sections
+    # products and the QBO tracker), and this menu lists its sections; the one group heading must not repeat the
+    # menu button or the hub link
     (
         "Stratosphere",
         "The polar vortex and the waves going up into it, from today's analysis to the season, and the QBO",
         [
             (
-                "Polar vortex and QBO",
+                "By timescale",
                 [
                     (
                         "/stratosphere.html",
-                        "Stratosphere and polar vortex",
+                        "Every stratosphere product",
                         "Every stratosphere product in one place, by timescale: analyses and the QBO now; AIFS-ENS, IFS-ENS, GEFS and the Canadian models' vortex, heat flux and wave driving for the next two weeks; GEPS and GEFS to day 35; the C3S models and SEAS5 for the season; and every sudden warming since 1980 with what followed.",
                         "Twice daily",
                     ),
