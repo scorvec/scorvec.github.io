@@ -1011,7 +1011,9 @@ window.STAGE = {
       are CPC&rsquo;s published tables; CPC revises them for up to two months, and months after its latest value are
       estimated from NOAA OISST daily data, which is itself preliminary for about two weeks. Those months are drawn with
       open markers. The models&rsquo; anomalies are on a 1993&ndash;2016 base; CPC&rsquo;s RONI is on 1991&ndash;2020 and its ONI on
-      shifting 30-year bases. A fixed-base ONI can run well above CPC&rsquo;s: from April&ndash;June to July&ndash;September
+      shifting 30-year bases. On Ni&ntilde;o-3.4 the 1991&ndash;2020 and 1993&ndash;2016 climatologies differ by under
+      0.1&nbsp;&deg;C in every calendar month (most in late winter and spring); the observed month that starts each smoothed
+      model line is moved onto the models&rsquo; base by that difference. A fixed-base ONI can run well above CPC&rsquo;s: from April&ndash;June to July&ndash;September
       2026, this site&rsquo;s fixed-base OISST estimate ran 0.06&ndash;0.39&nbsp;&deg;C above CPC&rsquo;s ONI, while the two
       RONIs agreed to within 0.08&nbsp;&deg;C. RONI is the fairer comparison with what CPC publishes.</p>
       <h3>East or central: the E and C indices</h3>
@@ -1300,10 +1302,31 @@ window.STAGE = {
     _n34m = out;
     return out;
   }
+  // The observed month that starts a smoothed model line is on the 1991–2020 base, the models' anomalies on their
+  // 1993–2016 hindcasts: move it onto 1993–2016 with the difference of the two climatologies of the observed Niño-3.4
+  // record, per calendar month, as the static plume figure does (c3s_nino34.py).
+  var _baseShift = null;
+  function baseShift(month) {
+    if (!_baseShift) {
+      _baseShift = {};
+      var ab = D.hist && D.hist.series.nino34 && D.hist.series.nino34.abs;
+      for (var m = 1; ab && m <= 12; m++) {
+        var a = [], b = [];
+        D.hist.months.forEach(function (k, i) {
+          var y = +k.slice(0, 4);
+          if (+k.slice(5, 7) !== m || !fin(ab[i])) return;
+          if (y >= 1991 && y <= 2020) a.push(ab[i]);
+          if (y >= 1993 && y <= 2016) b.push(ab[i]);
+        });
+        if (a.length && b.length) _baseShift[m] = mean(a) - mean(b);
+      }
+    }
+    return _baseShift[month];
+  }
   function bridgeFor(key, firstValid) {
     if (key !== "n34") return [];
-    var v = n34Monthly()[addMonths(firstValid || D.fc.valid_months[0], -1)];
-    return fin(v) ? [v] : [];
+    var mPrev = addMonths(firstValid || D.fc.valid_months[0], -1), v = n34Monthly()[mPrev], sh = baseShift(+mPrev.slice(5, 7));
+    return fin(v) && fin(sh) ? [v + sh] : [];
   }
   function smooth3(key) {
     var b = bridgeFor(key);
@@ -1384,7 +1407,10 @@ window.STAGE = {
       lead = "The models do not expect El Niño conditions over the next six months: the average peaks at " +
              sgn(pk.v, 1) + " °C on the ONI.";
     } else {
-      lead = "The models expect " + (w === "moderate" ? "a " : "a ") + w + " El Niño, peaking around " +
+      // each index graded on its own peak: RONI (CPC's official index) can sit a class below the ONI
+      var wr = strengthWord(pr.v);
+      lead = "The models expect " + (wr === w ? "a " + w + " El Niño" : "an El Niño graded " + w + " on the ONI and " +
+             (wr || "below the El Niño threshold") + " on RONI, CPC's official index,") + " peaking around " +
              seasonWords(pk.ym) + " at " + sgn(pk.v, 1) + " °C on the ONI (" + sgn(pr.v, 1) + " °C on RONI)";
       if (rec && rec.m && pk.v > rec.v + 0.05) lead += ", above any ONI since " + rec.since + " (" + sgn(rec.v, 1) + " °C in " + eventOf(rec.m) + ")";
       lead += ".";
@@ -1770,7 +1796,7 @@ window.STAGE = {
   function obsLead(s) {
     var w = latestWeek(), parts = [];
     if (w) {
-      var B = w.E - w.C, word = B >= 2 ? "strongly east-based" : B >= 1 ? "east-based" : B > -1 ? "basin-wide" : "central-Pacific";
+      var B = w.E - w.C, word = B >= 1 ? "east-based" : B > -1 ? "basin-wide" : "central-Pacific";
       parts.push("The ocean is <b>" + word + "</b> now: over " + dayRange(w.first, w.last) + " (NOAA OISST" + (w.preliminary ? ", preliminary" : "") +
                  ") E is " + sgn(w.E, 1) + " and C " + sgn(w.C, 1) + ", with the warming centred near " + lonLab(w.lon) + ".");
     }
@@ -2338,12 +2364,19 @@ window.STAGE = {
     traces.push({ x: gx, y: gy, type: "scatter", mode: "lines", line: { color: "rgba(74,71,68,0.22)", width: 1 },
                   name: "Other years", hoverinfo: "skip" });
     var pi = 0;
+    // each event graded on the index shown: its peak over July of the onset year to the next March (the window of
+    // the event table, build_nino_history.py)
+    function gradeOn(e) {
+      var pk = null, a = e.onset + "-07", b = (e.onset + 1) + "-03";
+      H.months.forEach(function (m, i) { if (m >= a && m <= b && fin(arr[i]) && (pk == null || arr[i] > pk)) pk = arr[i]; });
+      return strengthWord(pk) || "weak";
+    }
     (H.events || []).forEach(function (e) {
       if (!byYear[e.onset] || e.current) return;
-      var col = EVENT_FIXED[e.label] || EVENT_PALETTE[(pi++) % EVENT_PALETTE.length];
-      traces.push({ x: MONS, y: byYear[e.onset], type: "scatter", mode: "lines", name: e.label + " (" + e.strength + ")",
-                    visible: (e.strength === "very strong" || e.strength === "strong") ? true : "legendonly",
-                    line: { color: col, width: STRENGTH_W[e.strength] || 1.5 },
+      var col = EVENT_FIXED[e.label] || EVENT_PALETTE[(pi++) % EVENT_PALETTE.length], st = gradeOn(e);
+      traces.push({ x: MONS, y: byYear[e.onset], type: "scatter", mode: "lines", name: e.label + " (" + st + ")",
+                    visible: (st === "very strong" || st === "strong") ? true : "legendonly",
+                    line: { color: col, width: STRENGTH_W[st] || 1.5 },
                     hovertemplate: "%{y:+.2f}<extra>" + e.label + "</extra>" });
     });
     var cur = byYear[curYear];
@@ -2382,7 +2415,7 @@ window.STAGE = {
     var lastM = null; for (var i = H.months.length - 1; i >= 0; i--) if (fin(arr[i])) { lastM = H.months[i]; break; }
     el("hist-updated").textContent = (key === "roni" ? "RONI" : "ONI") + " through " + (lastM ? seasonCode(lastM) + " " + lastM.slice(0, 4) : "—");
     el("hist-cap").innerHTML = "Each point is a centred 3-month average, labelled by its middle month (the value at August is July–September). " +
-      "Open circles are provisional. All years use CPC&rsquo;s published values" + (key === "oni" ? ", whose base period shifts every five years" : ", on a fixed 1991–2020 base") + ". Event strengths in the legend are graded on the ONI peak, whichever index is shown.";
+      "Open circles are provisional. All years use CPC&rsquo;s published values" + (key === "oni" ? ", whose base period shifts every five years" : ", on a fixed 1991–2020 base") + ". Event strengths in the legend are graded on the peak of the index shown (July to March), with ONI&rsquo;s thresholds.";
   }
 
   // ── controls ──────────────────────────────────────────────────────────────

@@ -1157,9 +1157,12 @@ window.loadPlotly = function () {
       { l: "Tropical mean 20S–20N", v: fmt(L.trop) + " °C", s: "the warming background" + arrow(L.trop_d7),
         cls: "neut" },
     ]);
-    if (L.tni != null) chips.push(
-      { l: "Trans-Niño index", v: fmt(L.tni) + " σ", s: (L.tni >= 0 ? "east-loaded" : "west-loaded") + " · σ(1+2) − σ(4)" + arrow(L.tni_d7),
-        cls: "neut" });
+    // east or central: the one definition the site uses (Takahashi et al. 2011 E and C, classes as on the forecasts page)
+    var FW = window.FLOBS && window.FLOBS.weeks && window.FLOBS.weeks[window.FLOBS.weeks.length - 1];
+    if (FW && FW.E != null && FW.C != null) { var EC = FW.E - FW.C; chips.push(
+      { l: "East or central · week to " + FW.last.slice(8) + " " + ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][+FW.last.slice(5, 7) - 1],
+        v: "E − C " + fmt(EC), s: (EC >= 1 ? "east-based" : EC > -1 ? "basin-wide" : "central-Pacific") + " · E " + fmt(FW.E) + ", C " + fmt(FW.C) + (FW.preliminary_days ? " · preliminary" : ""),
+        cls: "neut", prelim: !!FW.preliminary_days }); }
     window.ENSO_EST_OFF = offSentence(EO, false);
     var eo = document.getElementById("estOff"); if (eo) eo.innerHTML = offSentence(EO, true);
     document.querySelectorAll(".estoff").forEach(function (el) { el.innerHTML = window.ENSO_EST_OFF; });
@@ -1401,6 +1404,13 @@ window.loadPlotly = function () {
     .catch(function () { return null; })
     .then(function (o) {
       window.CPCOFF = o;
+      // the forecasts page's east/central measure (Takahashi E and C, latest OISST week); best-effort as well
+      return fetch("assets/sst/data/enso_flavour_obs.json?v=476ed2f96421")
+        .then(function (r) { return r.ok ? r.json() : null; })
+        .catch(function () { return null; });
+    })
+    .then(function (fo) {
+      window.FLOBS = fo;
       return fetch("assets/sst/data/enso_daily.json?v=476ed2f96421")
         .then(function (r) { if (!r.ok) throw 0; return r.json(); })
         .then(function (d) {
