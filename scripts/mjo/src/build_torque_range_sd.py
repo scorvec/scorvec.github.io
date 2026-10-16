@@ -91,7 +91,7 @@ def main() -> int:
         with xr.open_dataset(OUT) as o:
             old = dict(zip(o["range"].values.tolist(), o["sd"].values.tolist()))
     for k, nm in NAMES.items():
-        was = f" (was {old[nm]:.2f}, single instants)" if nm in old else ""
+        was = f" (file had {old[nm]:.2f})" if nm in old else ""
         print(f"  {nm:22s} mean {an[k].mean():+6.2f}  sigma {sd[k]:6.2f} Hadley{was}", flush=True)
     xr.Dataset(
         {"sd": ("range", [float(sd[k]) for k in NAMES])},
