@@ -246,7 +246,8 @@
       "For the continuous vortex (T3, T4) the literature reports modest seasonal skill in some systems (Scaife et al. 2016, Atmos. Sci. Lett.; Portal et al. 2022, Clim. Dyn.); in SEAS5's October starts it is not significant here.</figcaption></figure></div>";
   }
 
-  function getJSON(url) { return fetch(url + "?v=" + Date.now()).then(function (r) { return r.ok ? r.json() : null; }).catch(function () { return null; }); }
+  // a plain URL: the browser revalidates it (ETag) rather than downloading it again on every visit
+  function getJSON(url) { return fetch(url).then(function (r) { return r.ok ? r.json() : null; }).catch(function () { return null; }); }
 
   window.SEAS5Cards = { ensure: ensure, indexCard: indexCard, teleFigs: teleFigs, stratFigs: stratFigs,
                         polarCard: polarCard, sswCard: sswCard, getJSON: getJSON, issueLabel: issueLabel };

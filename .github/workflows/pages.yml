@@ -53,6 +53,9 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v7
+        with:
+          fetch-depth: 0          # every commit: build_site.py dates each file by the last commit that changed it ...
+          filter: blob:none       # ... from commits and trees only; the checkout itself fetches the current files
       - name: Configure Pages
         uses: actions/configure-pages@v6
       # Product freshness for the catalogue (scripts/site/status.py): how old each product's data is, from the
@@ -62,10 +65,15 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ github.token }}
         run: python3 scripts/site/status.py --out status.json || echo "::warning::status.json not built"
+      # Only what the site serves goes out (no scripts, workflows, notes or pipeline state), each file dated by its
+      # last commit so an unchanged file keeps its ETag and Last-Modified across deploys, with sitemap.xml dated from
+      # the same stamps. Fails when a page names a checkout file the artifact leaves out (the previous deploy stays).
+      - name: Assemble the site (_site)
+        run: python3 scripts/site/build_site.py --out _site --status status.json --check
       - name: Upload site artifact
         uses: actions/upload-pages-artifact@v5
         with:
-          path: '.'
+          path: _site
       # GitHub's Pages CDN sync ("syncing_files") intermittently returns
       # "Deployment failed, try again later" even for a single serialized deploy
       # (~10% of runs). The artifact is already uploaded, so just retry the

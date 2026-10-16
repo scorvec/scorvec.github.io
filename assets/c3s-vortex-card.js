@@ -204,7 +204,7 @@
   }
 
   function draw(ids) {
-    fetch("assets/sst/data/c3s_vortex.json?v=" + Date.now()).then(function (r) { return r.ok ? r.json() : null; }).catch(function () { return null; }).then(function (J) {
+    fetch("assets/sst/data/c3s_vortex.json").then(function (r) { return r.ok ? r.json() : null; }).catch(function () { return null; }).then(function (J) {
       if (!J) { $(ids.verdict).innerHTML = "The December vortex outlook has not been built yet: its first build runs with the next C3S issue (the 9th–20th of each month)."; var c = $(ids.dist).parentNode; c.style.display = "none"; Array.prototype.forEach.call(c.parentNode.querySelectorAll(".method-head, .vx-note, .vx-table"), function (e) { e.style.display = "none"; }); return; }
       $(ids.verdict).innerHTML = verdict(J);
       $(ids.table).innerHTML = sysTable(J);
@@ -221,7 +221,7 @@
   /* the daily follow-up (scripts/sst/c3s_vortex_daily.py): member plumes, section, risk/timing and the hindcast, with the
      pre-registered daily tests. A probability is a forecast only when its test passed; otherwise the models' view. */
   function drawDaily(ids) {
-    fetch("assets/sst/data/c3s_vortex_daily.json?v=" + Date.now()).then(function (r) { return r.ok ? r.json() : null; }).catch(function () { return null; }).then(function (J) {
+    fetch("assets/sst/data/c3s_vortex_daily.json").then(function (r) { return r.ok ? r.json() : null; }).catch(function () { return null; }).then(function (J) {
       var V = $(ids.verdict);
       if (!J) { V.innerHTML = "The daily follow-up has not been built yet: its daily hindcast (one Copernicus data-store request per centre and winter) is still being fetched."; return; }
       $(ids.updated).textContent = "built " + J.generated;

@@ -1,7 +1,8 @@
 name: MJO restore loop frames (maintenance)
 
-# Dispatch-only. Puts back RMM loop frames (assets/mjo/rmm_*z.png, rmmclean_*z.png) that the old mtime-based pruning
-# deleted, from their last committed version, keeps the newest 60 cycles by name, and rebuilds mjo.html + manifests.
+# Dispatch-only. Puts back RMM loop frames (assets/mjo/rmm_*z.webp, rmmclean_*z.webp; PNG before 2026-10-16) that
+# the old mtime-based pruning deleted, from their last committed version, keeps the newest 60 cycles by name, and
+# rebuilds mjo.html + manifests.
 # Added 2026-10-03: `ls -t` pruning had kept August runs and dropped most of late September, and re-plotting past
 # cycles dropped the latest frame. Manual asset pushes are (rightly) refused, so the restore runs here.
 on:
@@ -48,8 +49,8 @@ jobs:
             if ! timeout 120 git fetch origin main; then echo "fetch $i failed"; sleep 5; continue; fi
             git reset --hard origin/main
             tar xf "$SNAP/outs.tar"
-            ls assets/mjo/rmm_*z.png 2>/dev/null | sort -r | tail -n +61 | xargs -r rm
-            ls assets/mjo/rmmclean_*z.png 2>/dev/null | sort -r | tail -n +61 | xargs -r rm
+            ls assets/mjo/rmm_*z.webp assets/mjo/rmm_*z.png 2>/dev/null | sort -r | tail -n +61 | xargs -r rm
+            ls assets/mjo/rmmclean_*z.webp assets/mjo/rmmclean_*z.png 2>/dev/null | sort -r | tail -n +61 | xargs -r rm
             scripts/lib/mjo_page_at_tip.sh "$GITHUB_SHA"   # never restore a page built from a stale generator
             git add -A $OUT
             if git diff --staged --quiet; then echo "No changes."; exit 0; fi

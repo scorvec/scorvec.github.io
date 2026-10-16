@@ -60,10 +60,10 @@
 </style>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400&family=Schibsted+Grotesk:wght@400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/assets/site.css">
-<script src="/assets/site.js" defer></script>
-<script src="/assets/rail.js" defer></script>
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,500;0,8..60,600;1,8..60,400&family=Source+Sans+3:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/site.css?v=3c589bef47">
+<script src="/assets/site.js?v=fe84a7e3e0" defer></script>
+<script src="/assets/rail.js?v=02a0d609bc" defer></script>
 <script data-goatcounter="https://scorvec.goatcounter.com/count" async src="https://gc.zgo.at/count.v4.js" integrity="sha384-nRw6qfbWyJha9LhsOtSb2YJDyZdKvvCFh0fJYlkquSFjUxp9FVNugbfy8q1jdxI+" crossorigin="anonymous"></script>
 </head>
 <body>
@@ -275,8 +275,23 @@
 </main>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js" integrity="sha384-CjloA8y00+1SDAUkjs099PVfnY2KmDC2BZnws9kh8D/lX1s46w6EPhpXdqMfjK6i" crossorigin="anonymous"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/topojson/3.0.2/topojson.min.js" integrity="sha384-9dCJK6nh7skY14HrcvlLYlFga9/MehJjL9ONWRflmiXNRuf8p2jiF4Y5PR881PTq" crossorigin="anonymous"></script>
-<script src="https://cdn.jsdelivr.net/npm/plotly.js-cartesian-dist-min@2.35.2/plotly-cartesian.min.js" integrity="sha384-gKF7EaMDoWW1zLWkouldmVWF5jqEKrAswAciW73iNzqlomabVVPO60XkJvL5q/Ie" crossorigin="anonymous"></script>
-<script src="/assets/frames_root.js"></script>
+<script>
+// Plotly (the cartesian bundle) is fetched when the county series is first drawn, not with the page: the series card
+// sits below the map and draws only once it is on screen. Integrity as in scripts/site/apply_chrome.py SRI.
+window.loadPlotly = function () {
+  if (window.Plotly) return Promise.resolve(window.Plotly);
+  if (!loadPlotly.p) loadPlotly.p = new Promise(function (ok, no) {
+    var s = document.createElement("script");
+    s.src = "https://cdn.jsdelivr.net/npm/plotly.js-cartesian-dist-min@2.35.2/plotly-cartesian.min.js";
+    s.integrity = "sha384-gKF7EaMDoWW1zLWkouldmVWF5jqEKrAswAciW73iNzqlomabVVPO60XkJvL5q/Ie"; s.crossOrigin = "anonymous";
+    s.onload = function () { ok(window.Plotly); };
+    s.onerror = function () { loadPlotly.p = null; s.remove(); no(new Error("Plotly not loaded")); };   // the next draw retries
+    document.head.appendChild(s);
+  });
+  return loadPlotly.p;
+};
+</script>
+<script src="/assets/frames_root.js?v=9d2de66ccd"></script>
 <script>
 (function () {
   var COLS = ["01","02","03","04","05","06","07","08","09","10","11","12","DJF","MAM","JJA","SON","ANN"];
@@ -435,8 +450,8 @@
     var sf = fips.slice(0, 2), v = st.v, ci = COLS.indexOf(st.col), idx = seriesIdx[sf];
     if (!idx) return;
     document.getElementById("seriesStatus").textContent = "loading…";
-    Promise.all([getBin(sf + "_" + v + ".bin")].concat(["1970", "1950", "1895"].map(function (y) { return getJSON("trends_" + v + "_" + y + ".json"); }))).then(function (res) {
-      var arr = res[0], TR = res.slice(1);
+    Promise.all([getBin(sf + "_" + v + ".bin"), loadPlotly()].concat(["1970", "1950", "1895"].map(function (y) { return getJSON("trends_" + v + "_" + y + ".json"); }))).then(function (res) {
+      var arr = res[0], TR = res.slice(2);
       var nY = idx.years[1] - idx.years[0] + 1, k = idx.fips.indexOf(fips), scale = idx["scale_" + v] || 100;
       if (k < 0) return;
       var years = [], vals = [];
@@ -473,7 +488,7 @@
         xaxis: {gridcolor: "#eee"}, yaxis: {gridcolor: "#eee"}, legend: {orientation: "h", y: -0.15, font: {size: 11}}, shapes: [{type: "rect", xref: "paper", x0: 0, x1: 1, y0: nm - nsd, y1: nm + nsd, fillcolor: "rgba(0,0,0,0.05)", line: {width: 0}}]}, {displayModeBar: false, responsive: true});
       document.getElementById("seriesStatus").textContent = "latest: " + last[0] + " = " + last[1].toFixed(v === "pcpn" ? 2 : 1) + " " + UNITS[v] + ", rank " + rank + " of " + good.length + " (1 = highest)" +
         (ns.length ? "; no significant trend since " + ns.join(", ") : "") + (TR[0].sig ? "" : "; this data set carries no significance test, so no trend is drawn");
-    });
+    }).catch(function () { document.getElementById("seriesStatus").textContent = "the series could not be loaded just now"; });
   }
   function drawDD() {
     var sf = document.getElementById("selDDState").value, s = regions.states[sf]; if (!s) return;

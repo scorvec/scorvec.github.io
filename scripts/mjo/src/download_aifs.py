@@ -119,7 +119,7 @@ def download_ifs(date: str, time: str, out_dir: Path) -> bool:
     IFS-ENS is disseminated ~1-2 h AFTER AIFS-ENS, so this is best-effort:
     returns True only when both wind files landed (tp stays optional — the
     RMM falls back to wind-only per model). The caller re-tries on later
-    polls via the plots/<stem>.png.missing sidecar."""
+    polls via the plots/<stem>.webp.missing sidecar."""
     out_dir.mkdir(parents=True, exist_ok=True)
     stem = f"ifs_{date}_{time}z"
     cyc = ecmwf.Cycle(date, time)
