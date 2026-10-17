@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Draw the MJO impact composites (mjo.html, "MJO impacts by phase and season") from the committed reference
-scripts/mjo/data/reference/mjo_impacts_site.npz (built offline by mjo_impacts.py). Runs in Actions
+scripts/mjo/data/reference/mjo_impacts_site.npz (built by mjo_impacts.py in mjo-impacts-ref.yml). Runs in Actions
 (.github/workflows/mjo-impacts.yml); frames go to the frames branch, the manifest to main.
 
 One animator region per (field, data, period, lag): 8 frames = RMM phases 1-8; plus a one-frame "all eight phases"

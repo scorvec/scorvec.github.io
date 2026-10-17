@@ -211,9 +211,9 @@ def impacts_section():
   years: 4 over the 36 model years, {kn.get("tas_na", 5)} over ERA5 1979&ndash;2024, {kn.get("pr_na", 3)} over GPCP
   1997&ndash;2024), so, for example, the Arctic&rsquo;s faster winter warming is not left in the anomalies. (2) The same
   regression&rsquo;s time-varying mean is the forced trend, smooth and nonlinear rather than a straight line. A model
-  with two members is fitted on both together, that is on its ensemble mean, so the forced part is the model&rsquo;s and
-  not one member&rsquo;s decade of weather; the daily ensemble mean is not subtracted, because with two members it holds
-  half of each member&rsquo;s own MJO. (3) A high-pass at {ff.get("highpass_days", 120)}&nbsp;days: every Fourier
+  with several members is fitted on all of them together, that is on its ensemble mean, so the forced part is the
+  model&rsquo;s and not one member&rsquo;s decade of weather; the daily ensemble mean is not subtracted, because with few
+  members it holds much of each member&rsquo;s own MJO (half of it with two). (3) A high-pass at {ff.get("highpass_days", 120)}&nbsp;days: every Fourier
   component with a longer period is removed from what is left, which takes out ENSO and the rest of the interannual
   variability the same way the index filter does; the first and last {ff.get("edge_days_dropped", 60)} days of each
   record are dropped. (A 121-day running mean was tried first and left too much: a running mean cuts off gradually and
@@ -229,8 +229,9 @@ def impacts_section():
   GPCP itself gives E/W&nbsp;{obs.get("ew", float("nan")):.1f}. Used: {", ".join(row(r) for r in passed) or "none"}.
   {("Passed but left out as a near-duplicate of a family member: " + ", ".join(r["model"] for r in fam) + ". ") if fam else ""}
   Failed: {", ".join(row(r) for r in failed) or "none"}. {m.get("members_note", "")}</p>
-  <p><b>Tests.</b> CMIP6: each model&rsquo;s composite (members pooled; at least 30 active days), across-model
-  one-sample t-test with a Benjamini&ndash;Hochberg false-discovery rate of 10&nbsp;% over the map, and at least
+  <p><b>Tests.</b> CMIP6: each model&rsquo;s composite (members pooled, so a model counts once however many members it
+  has; at least 30 active days), across-model one-sample t-test with a Benjamini&ndash;Hochberg false-discovery rate
+  of 10&nbsp;% over the map, and at least
   {agree} of the models agreeing on the sign. Observed: an MJO passage lasts days and daily anomalies are
   correlated, so the unit is the event (a run of consecutive active days in one phase), resampled with the whole lag
   window of every one of its days: an event-block bootstrap (2,000 resamples), the same 10&nbsp;% false-discovery rate,
