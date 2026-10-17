@@ -1,0 +1,104 @@
+name: GEFS tercile-map skill (reforecast -> gefs_mapskill_*.npz, release gefs-ref-v1)
+
+# The skill tables behind the GEFS page's skill masks and calibrated tercile maps (scripts/gefs/build_gefs_mapskill.py,
+# see its docstring): every GEFSv12 reforecast start 2000-2019 scored against NCEP/NCAR R1 and CPC weekly anomalies,
+# de-drifted with a climatology and re-based with an ERA5 2001-2020 normal that both leave the start's own season out;
+# then the out-of-sample calibration test (assess) and the 2016-2025 tercile step test (step) on the new tables.
+# Inputs: release gefs-clim-v3 (gefs_hindw_MM.npz, gefs_clim_DDD.npz; gefs-reforecast.yml), release gefs-truth-v1 (the
+# observed weekly anomalies and the zg500 / surface ERA5 normal files, built offline from the stores: truth, era5-loso,
+# era5-normal), release gefs-ref-v1 (era5_shift.npz, gefs_terciles_*), and ERA5 from ARCO (anonymous GCS) for the
+# surface normal's own days. `publish` replaces gefs_mapskill_*.npz in gefs-ref-v1, which gefs.yml downloads every
+# run; without it the result is only an artifact.
+on:
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: "Replace gefs_mapskill_*.npz in release gefs-ref-v1"
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+concurrency:
+  group: gefs-mapskill
+  cancel-in-progress: false
+
+env:
+  PIP_CONSTRAINT: ${{ github.workspace }}/scripts/constraints.txt   # bounds every pip install (see the file)
+
+jobs:
+  era5:
+    runs-on: ubuntu-latest
+    timeout-minutes: 240
+    strategy:
+      fail-fast: true
+      matrix:
+        years: ["2001,2005", "2006,2010", "2011,2015", "2016,2020"]
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          sparse-checkout: scripts/gefs
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+      - run: pip install --quiet numpy pandas xarray zarr gcsfs
+      - name: ERA5 surface days of the 2001-2020 normal, ${{ matrix.years }}
+        run: python scripts/gefs/build_gefs_mapskill.py era5-days --years ${{ matrix.years }} --out days --workers 16
+      - uses: actions/upload-artifact@v7
+        with:
+          name: era5days-${{ strategy.job-index }}
+          path: days/*.npz
+          retention-days: 5
+
+  score:
+    needs: era5
+    runs-on: ubuntu-latest
+    timeout-minutes: 240
+    steps:
+      - name: Room for the reforecast bundles
+        run: sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL; df -h / | tail -1
+      - uses: actions/checkout@v7
+        with:
+          sparse-checkout: scripts/gefs
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+      - run: |
+          pip install --quiet numpy scipy
+          pip install --quiet "quantmet @ git+https://github.com/scorvec/quantmet-tools@v0.4.2"   # BH-FDR, pinned to the tag
+      - uses: actions/download-artifact@v7
+        with:
+          pattern: era5days-*
+          path: days
+          merge-multiple: true
+      - name: Inputs (releases gefs-clim-v3, gefs-truth-v1, gefs-ref-v1)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release download gefs-clim-v3 --repo "$GITHUB_REPOSITORY" -p 'gefs_hindw_*.npz' -p 'gefs_clim_*.npz' -D clim
+          gh release download gefs-truth-v1 --repo "$GITHUB_REPOSITORY" -D work
+          gh release download gefs-ref-v1 --repo "$GITHUB_REPOSITORY" -p era5_shift.npz -p 'gefs_terciles_*.npz' -D ref
+          echo "$(ls clim | wc -l) climatology files"; ls -la work ref days; df -h / | tail -1
+      - name: Skill, calibration test, tercile step test
+        run: |
+          set -o pipefail
+          mkdir -p out
+          B="python scripts/gefs/build_gefs_mapskill.py"
+          $B era5-loso --tags t2m,mslp,pr --days days --work work | tee out/era5.log
+          $B skill --rf clim --clim clim --shift ref/era5_shift.npz --ref ref --work work | tee out/skill.log
+          $B assess --ref ref --work work | tee out/assess.log
+          $B step --rf clim --clim clim --shift ref/era5_shift.npz --ref ref --work work \
+            --out out/gefs_tercile_step.json | tee out/step.log
+          cp ref/gefs_mapskill_*.npz work/assess_*.npz out/
+          { echo '```'; cat out/*.log; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: gefs-mapskill
+          path: out/
+          retention-days: 30
+      - name: Publish (release gefs-ref-v1)
+        if: ${{ inputs.publish }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release upload gefs-ref-v1 out/gefs_mapskill_*.npz --repo "$GITHUB_REPOSITORY" --clobber
