@@ -47,6 +47,8 @@ from localdirs import env_dir
 OUT = env_dir("DATA_ARCHIVE", "cmip6_mjo", "red")
 CAT = Path(__file__).resolve().parents[2] / "strat" / "data" / "cmip6" / "pangeo_cmip6.csv"
 MEMBERS = Path(__file__).resolve().parents[1] / "data" / "reference" / "cmip6_mjo_members.csv"
+# catalogue members whose stores do not cover Y0-Y1 (found by the extraction), left out of MEMBERS
+SHORT = {("CESM2", "r9i1p1f1"): "its ua store ends in 1889"}
 DIGEST = MEMBERS.with_name("cmip6_mjo_red_digest.json")
 NEED = ["rlut", "pr", "ua", "tas"]  # daily variables a member must have to be used (zg is optional: z500 only)
 Y0, Y1 = 1979, 2014
@@ -112,6 +114,7 @@ def write_members(models):
         {"model": m, "member": mem, **{v: zstore(m, mem, v) for v in NEED}, "zg": zstore(m, mem, "zg") or ""}
         for m in models
         for mem in members(m, NEED)
+        if (m, mem) not in SHORT
     ]
     df = pd.DataFrame(rows)
     df.to_csv(MEMBERS, index=False)
