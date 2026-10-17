@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
 """MJO impact composites by RMM phase and calendar month, CMIP6 against observed.
 
-Offline analysis on the reductions written by cmip6_mjo_extract.py and mjo_obs_prepare.py; writes the compact site
-reference scripts/mjo/data/reference/mjo_impacts_site.npz (+ .json) that the Actions renderer (mjo_impacts_render.py)
-draws.
+Analysis on the reductions written by cmip6_mjo_extract.py and mjo_obs_prepare.py; writes the compact site reference
+scripts/mjo/data/reference/mjo_impacts_site.npz (+ .json) that the Actions renderer (mjo_impacts_render.py) draws. The
+model screen, the validation, the observed composites and the checks ran once offline; compose and reference run in
+Actions (.github/workflows/mjo-impacts-ref.yml) on every member of the screened models (cmip6_mjo_members.csv in
+data/reference), reading the observed composites and the checks from the release that keeps the CMIP6 reductions.
 
 RMM for a CMIP6 run (Wheeler & Hendon 2004, projected onto the observed W&H EOFs in data/reference/eofs.nc):
   15S-15N cos-weighted means of OLR (rlut), u850 and u250 (the `day` table has no 200 hPa: 250 hPa stands in) ->
@@ -19,7 +21,8 @@ Impact fields (v2), per grid cell:
        4 knots, ERA5 1979-2024 5, GPCP 1997-2024 3), so a seasonal cycle that changes (Arctic DJF warming) and a forced
        response that is not a straight line are both removed. A model with several members is fitted on all of them
        together (= on its ensemble mean), so the forced part is the model's, not one member's decade of internal weather;
-       the daily ensemble mean is not subtracted (with two members it holds half of each member's own MJO).
+       the daily ensemble mean is not subtracted (with two members it holds half of each member's own MJO). The fit is
+       solved a block of cells at a time (smooth_fit()), so a model with dozens of members fits in memory.
   3.   a spectral HIGH-PASS at 120 days (highpass(): every Fourier component with a period over 120 days removed, the same
        FFT method as the index's 20-100-day band-pass): removes ENSO and the rest of the interannual variability. The
        first and last 60 days of each run are dropped. A centred 121-day running mean fails this check: a boxcar cuts
@@ -34,9 +37,11 @@ agreement) is kept in the archive's cmip6_mjo/comp_v1; its January/April/July/Oc
 Precipitation also as % of the period's normal (cells with a normal under 0.5 mm/day are not scored).
 
 Tests (the site rule: only significant cells are drawn):
-  CMIP6  each model's composite (members pooled; a model needs >= 30 active days in the phase-month); across-model
-         one-sample t-test, Benjamini-Hochberg FDR 10 % over the map AND >= 2/3 of the models agreeing on the sign
-         (v1 required 80 %).
+  CMIP6  each model's composite (members pooled and day-weighted, so a model counts once whatever its number of
+         members; a model needs >= 30 active days in the phase-month); across-model one-sample t-test,
+         Benjamini-Hochberg FDR 10 % over the map AND >= 60 % of the models agreeing on the sign (7 of 11; the first
+         v2 reference, on up to two members a model, used two-thirds and v1 80 %). The reference reports the robust
+         area under 60 % and under two-thirds (robust_area).
   obs    days are autocorrelated and an MJO passage lasts days, so the unit is the EVENT: a run of consecutive active
          days in one phase, each day carrying its whole lag window. Event-block bootstrap (2,000 resamples) of the
          day-weighted composite -> z -> two-sided p, BH-FDR 10 % over the map; a phase-month needs >= 8 events to be
@@ -47,7 +52,7 @@ Tests (the site rule: only significant cells are drawn):
     python mjo_impacts.py compose M1 M2 ... # per-model composites for the screened models -> archive
     python mjo_impacts.py obs               # observed composites + event bootstrap -> archive
     python mjo_impacts.py detrendcheck      # low-frequency power and seasonal-mean trends left in the anomalies
-    python mjo_impacts.py reference         # multi-model statistics + masks -> the committed site reference
+    python mjo_impacts.py reference M1 M2 ...  # multi-model statistics + masks -> the committed site reference
 """
 
 from __future__ import annotations
@@ -73,7 +78,8 @@ LAGWIN = {0: (-2, 2), 10: (8, 12)}  # days averaged for each site lag (v2; v1 us
 HP_CUT = 120  # fields: every Fourier component with a period over HP_CUT days removed
 HP_HALF = 60  # ... and the first / last HP_HALF days of each record dropped (filter edges)
 FIELDS = ("tas_na", "tas_sa", "pr_na", "pr_sa", "z500_nh")
-MIN_DAYS, MIN_EVENTS, AGREE, ALPHA = 30, 8, 2 / 3, 0.10
+MIN_DAYS, MIN_EVENTS, AGREE, ALPHA = 30, 8, 0.6, 0.10
+AGREE_ALT = 2 / 3  # a stricter sign-agreement rule, whose robust area the reference reports alongside (robust_area)
 # Model screen, FIXED before any composite is looked at (Ahn et al. 2020, Le et al. 2021 find good-MJO CMIP6 models at an
 # east/west ratio of ~2 and a propagation pattern r of ~0.8 against observations). Fallback if fewer than 6 pass: 1.8 / 0.75.
 EW_MIN, PROP_MIN = 2.0, 0.80
@@ -210,27 +216,38 @@ def smooth_design(frac, x, K, harm=3):
     return np.column_stack([h[:, None] * B for h in H])
 
 
-def smooth_anomalies(Ys, fracs, K):
+def smooth_fit(Ys, fracs, K, block=512):
     """Ys: list of (n_i, cells) daily fields (a model's members, or one observed series) on a common time axis (index
     day i of each maps to x = i / (n_i - 1)). ONE fit of the time-varying seasonal cycle + smooth trend to all of them
-    (= to their ensemble mean); returns each member's anomalies and each member's fitted climatology."""
-    Xs = [smooth_design(f, np.linspace(0.0, 1.0, len(f)), K) for f in fracs]
-    X = np.vstack(Xs)
-    Y = np.vstack([np.asarray(y, np.float64).reshape(len(y), -1) for y in Ys])
-    ok = np.isfinite(Y)
-    B = np.linalg.lstsq(X, np.where(ok, Y, 0.0), rcond=None)[0]
-    bad = np.flatnonzero(~ok.all(axis=0))
-    for c in bad:  # cells with gaps: fit on their finite days only
-        r = ok[:, c]
-        B[:, c] = np.linalg.lstsq(X[r], Y[r, c], rcond=None)[0] if r.sum() > 3 * X.shape[1] else np.nan
-    anoms, clims, i0 = [], [], 0
-    for y, Xi in zip(Ys, Xs):
-        n = len(y)
-        fit = Xi @ B
-        anoms.append(np.where(ok[i0 : i0 + n], Y[i0 : i0 + n] - fit, np.nan).astype(np.float32))
-        clims.append(fit.astype(np.float32))
-        i0 += n
-    return anoms, clims
+    (= to their ensemble mean) -> coefficients (terms, cells). Solved `block` cells at a time, so a model with many
+    members is never held whole in float64."""
+    X = np.vstack([smooth_design(f, np.linspace(0.0, 1.0, len(f)), K) for f in fracs])
+    Ys = [np.asarray(y).reshape(len(y), -1) for y in Ys]
+    nc = Ys[0].shape[1]
+    B = np.empty((X.shape[1], nc))
+    for c0 in range(0, nc, block):
+        Y = np.vstack([y[:, c0 : c0 + block] for y in Ys]).astype(np.float64)
+        ok = np.isfinite(Y)
+        Bb = np.linalg.lstsq(X, np.where(ok, Y, 0.0), rcond=None)[0]
+        for c in np.flatnonzero(~ok.all(axis=0)):  # cells with gaps: fit on their finite days only
+            r = ok[:, c]
+            Bb[:, c] = np.linalg.lstsq(X[r], Y[r, c], rcond=None)[0] if r.sum() > 3 * X.shape[1] else np.nan
+        B[:, c0 : c0 + block] = Bb
+    return B
+
+
+def smooth_apply(y, frac, K, B):
+    """One series' anomalies from the joint fit B (smooth_fit) and its fitted climatology, both (n, cells) float32."""
+    Y = np.asarray(y, np.float64).reshape(len(y), -1)
+    fit = smooth_design(frac, np.linspace(0.0, 1.0, len(frac)), K) @ B
+    return np.where(np.isfinite(Y), Y - fit, np.nan).astype(np.float32), fit.astype(np.float32)
+
+
+def smooth_anomalies(Ys, fracs, K):
+    """smooth_fit on all of Ys, then each member's anomalies and each member's fitted climatology."""
+    B = smooth_fit(Ys, fracs, K)
+    out = [smooth_apply(y, f, K, B) for y, f in zip(Ys, fracs)]
+    return [a for a, _ in out], [c for _, c in out]
 
 
 def _runmean(A, a, b, min_frac=0.5):
@@ -471,6 +488,16 @@ def composite(anom, ph, active, months, lags=LAGS, ev=None, boot=0, rng=None):
                     bm = (W @ S) / np.where((W @ C) > 0, W @ C, np.nan)
                     SE[li, p - 1, mo - 1] = np.nanstd(bm, axis=0)
     return M, D, NE, SE
+
+
+def area_share(mask, lat):
+    """cos(latitude)-weighted share of the map inside `mask` (lag, phase, period, cells on a lat x lon grid), averaged
+    over the eight phases -> {lag: {period: share}}."""
+    w = np.repeat(np.cos(np.deg2rad(lat)), mask.shape[-1] // len(lat))
+    s = (mask * w).sum(axis=-1).mean(axis=1) / w.sum()
+    return {
+        str(L): {k: round(float(s[i, j]), 3) for j, (k, _, _) in enumerate(PERIODS)} for i, L in enumerate(SITE_LAGS)
+    }
 
 
 def month_normal(clim, months):
@@ -722,6 +749,7 @@ def compose(models):
                 f"  {model} {mem}: active {stats[-1]['active_frac']:.2f}, eastward steps {stats[-1]['east_steps']:.2f}",
                 flush=True,
             )
+        fields = {}
         for fld in FIELDS:
             var, grid = fld.split("_")
             Ys, used = [], []
@@ -736,17 +764,19 @@ def compose(models):
                     if (j < 0).any():
                         print(f"  {model} {mem} {fld}: dates misaligned, skipped")
                         continue
-                    Y = d[f"{var}_{grid}"][j].astype(np.float32)
+                    Y = d[f"{var}_{grid}"][j]
                 else:
-                    Y = d[f"{var}_{grid}"].astype(np.float32)
-                Ys.append(Y.reshape(len(Y), -1))
+                    Y = d[f"{var}_{grid}"]
+                Ys.append(Y.reshape(len(Y), -1))  # kept float16 as stored: a model may have dozens of members
                 used.append(mem)
             if not Ys:
                 continue
+            fields[fld] = used
             K = n_knots(len(Ys[0]))
-            As, Cs = smooth_anomalies(Ys, [run[mem][2] for mem in used], K)
-            for mem, A, C in zip(used, As, Cs):
-                _, months, _, ph, active = run[mem]
+            B = smooth_fit(Ys, [run[mem][2] for mem in used], K)
+            for mem, Y in zip(used, Ys):
+                _, months, frac, ph, active = run[mem]
+                A, C = smooth_apply(Y, frac, K, B)
                 M, D, _, _ = composite(highpass(A), ph, active, months)
                 acc.setdefault(fld, [np.zeros_like(np.nan_to_num(M)), np.zeros((*M.shape[:3], 1))])
                 acc[fld][0] += np.nan_to_num(M) * D[None, :, :, None]
@@ -768,7 +798,7 @@ def compose(models):
                 out[k][np.broadcast_to(n, out[k].shape) == 0] = np.nan
         np.savez_compressed(COMP / f"{model}.npz", **out)
         (COMP / f"{model}.json").write_text(
-            json.dumps({"members": mems, "stats": stats, "periods": [k for k, _, _ in PERIODS]})
+            json.dumps({"members": mems, "fields": fields, "stats": stats, "periods": [k for k, _, _ in PERIODS]})
         )
         print(f"{model}: {len(mems)} members, fields {sorted(k for k in out if k != 'days')}", flush=True)
 
@@ -819,6 +849,7 @@ def obs():
 
 def reference(models):
     """Multi-model means + robust masks, observed composites + FDR masks, for SITE_LAGS -> the committed reference."""
+    from cmip6_mjo_extract import GRIDS
     from scipy import stats as st
 
     li = [LAGS.index(L) for L in SITE_LAGS]
@@ -831,7 +862,7 @@ def reference(models):
         "robust_frac": {},
         "obs_sig_frac": {},
         "robust_frac_seasons": {},
-        "robust_frac_seasons_agree80": {},
+        "robust_area": {},
         "obs_sig_frac_seasons": {},
         "periods": [[k, lab] for k, lab, _ in PERIODS],
     }
@@ -869,7 +900,10 @@ def reference(models):
                         for c in range(p.shape[2]):
                             fdr[a, b, c] = bh(p[a, b, c])
                 sig = fdr & (agree >= AGREE - 1e-9)
-                summ["robust_frac_seasons_agree80"][name] = round(float(np.mean((fdr & (agree >= 0.8))[:, :, SEAS])), 3)
+                lat = GRIDS[name.split("_")[-1]][0]
+                summ["robust_area"][name] = {
+                    f"{a:.3g}": area_share(fdr & (agree >= a - 1e-9), lat) for a in (AGREE, AGREE_ALT)
+                }
                 summ["robust_frac_seasons"][name] = round(float(np.mean(sig[:, :, SEAS])), 3)
                 R[f"cmip6_{name}"] = np.where(sig, mm, np.nan).astype(np.float16)
                 R[f"cmip6_{name}_raw"] = mm.astype(np.float16)
@@ -897,7 +931,6 @@ def reference(models):
             R[f"obs_{name}_events"] = NE.astype(np.int16)
             summ["obs_sig_frac"][name] = round(float(np.mean(sig)), 3)
             summ["obs_sig_frac_seasons"][name] = round(float(np.mean(sig[:, :, SEAS])), 3)
-    from cmip6_mjo_extract import GRIDS
 
     # teleconnection realism and CMIP6-vs-observed agreement (raw composites, lag +10 d)
     def wpat(a, b, lat):
@@ -951,11 +984,13 @@ def reference(models):
     summ["screen"] = selj.get("screen", [])
     summ["thresholds"] = selj.get("thresholds", {})
     summ["validation"] = json.loads((ARC / "validate.json").read_text()) if (ARC / "validate.json").exists() else {}
-    mem = {m: json.loads((COMP / f"{m}.json").read_text())["members"] for m in models if (COMP / f"{m}.json").exists()}
-    summ["members"] = mem
+    cj = {m: json.loads((COMP / f"{m}.json").read_text()) for m in models if (COMP / f"{m}.json").exists()}
+    summ["members"] = {m: j["members"] for m, j in cj.items()}
+    nm = [len(j["members"]) for j in cj.values()]
+    nz = [len(j["fields"].get("z500_nh", [])) for j in cj.values()]
     summ["members_note"] = (
-        f"{sum(len(v) for v in mem.values())} historical members in all (up to two per model), "
-        f"1979&ndash;2014; the 500&nbsp;hPa composites use each model&rsquo;s first member."
+        f"{sum(nm)} historical members in all ({min(nm)} to {max(nm)} per model), 1979&ndash;2014; the 500&nbsp;hPa "
+        f"composites use the {sum(nz)} members of {sum(n > 0 for n in nz)} models with daily 500&nbsp;hPa height."
     )
     summ["period_note"] = "seasons DJF/MAM/JJA/SON, extended winter NDJFM, and single calendar months"
     summ["index_note"] = "RMM1/RMM2 band-passed 20-100 d and renormalised, observed (BoM, 1979-2024) and CMIP6 alike"
