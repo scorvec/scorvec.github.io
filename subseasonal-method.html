@@ -293,21 +293,23 @@
     mountain range and shoreline &mdash; mean state masquerading as anomaly, and worst
     in precipitation. The forecast is therefore band-limited to the coarse grid first and the
     difference taken there. An anomaly cannot carry more resolution than its reference.</p>
-    <p><b>Outgoing longwave carries a model-version offset, and it is removed.</b>
-    The live operational GEPS radiates about 7.6&nbsp;W&nbsp;m<sup>&minus;2</sup>
-    differently from the GEPS8 reforecast the climatology was built on &mdash; flat
-    across all 35 leads (spread 0.53), so it is not a forecast signal; a global-mean OLR
-    anomaly that size is not physically possible. Left in, it tinted every map green and
-    put spurious widespread negative anomalies over North America. The per-lead global
-    mean is removed for OLR, as it is for height. It is irrelevant to the RMM, where a
-    uniform offset moves the projection by less than 0.05.</p>
+    <p><b>Outgoing longwave carries a model-version offset, which the maps remove.</b>
+    The live operational GEPS radiates 7.6&ndash;8.4&nbsp;W&nbsp;m<sup>&minus;2</sup>
+    less than the GEPS8 reforecast the climatology was built on (global mean, eleven cycles from
+    27 August to 1 October 2026) &mdash; flat across the 35 leads (spread under 1&nbsp;W&nbsp;m<sup>&minus;2</sup>
+    within a cycle), so it is not a forecast signal; a global-mean OLR anomaly that size is not
+    physically possible. Left in, it tinted every map green and put spurious widespread negative
+    anomalies over North America. The per-lead global mean is removed for OLR on the maps and the
+    Hovm&ouml;ller, as it is for height. The RMM projection keeps it: a uniform
+    1&nbsp;W&nbsp;m<sup>&minus;2</sup> moves the RMM by 0.0095, so this offset moves the forecast track
+    by about 0.08.</p>
     <p><b>Height is treated differently from the rest.</b> Between the 2001&ndash;2020 hindcast
     epoch and today there is a real climate offset in geopotential height &mdash; a flat
     +16&nbsp;m at every lead, measured &mdash; which would otherwise sit over every 500&nbsp;hPa map
     as a uniform ridge. For z500 the per-lead global mean is removed so the circulation shows. For
     temperature and precipitation the raw anomaly is kept, because there the departure from the
     2001&ndash;2020 climate is part of what you want to see. Each figure says which it is.</p>
-    <p><b>The OLR channel.</b> ERA5's top-of-atmosphere longwave runs about 12&nbsp;W&nbsp;m<sup>&minus;2</sup>
+    <p><b>The OLR channel.</b> ERA5's top-of-atmosphere longwave runs about 13&nbsp;W&nbsp;m<sup>&minus;2</sup>
     above the NOAA interpolated OLR that the RMM reference climatology and EOFs were built on (1979&ndash;2001), so
     ERA5 is moved into that frame before anything is projected, by a fixed offset: ERA5's own 1979&ndash;2001
     climatology minus NOAA's, by longitude and day of year. An offset taken as the mean over the recent ERA5 record

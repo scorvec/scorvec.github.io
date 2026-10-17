@@ -684,9 +684,9 @@ def plot_hovmoller(cycle: str, base: pd.Timestamp):
         return None
     lon = np.arange(0, 360, 2.5)
     # Same offset removal the OLR maps use: the live operational GEPS radiates
-    # ~7.6 W/m2 differently from the GEPS8 reforecast at EVERY lead, so without
-    # this the whole panel is tinted green. (It is irrelevant to the RMM — a
-    # uniform offset moves the projection by <0.05 — but it dominates a plot.)
+    # 7.6-8.4 W/m2 less than the GEPS8 reforecast at EVERY lead, so without this
+    # the whole panel is tinted green. rmm() and rmm_members() keep it: a uniform
+    # 1 W/m2 moves the RMM by 0.0095, so it shifts the forecast track by ~0.08.
     olr = olr - xr.DataArray(olr.global_mean.values, dims="L", coords={"L": olr.L})
     O = band_mean(olr, lon)
     U = band_mean(u850, lon)  # m/s
