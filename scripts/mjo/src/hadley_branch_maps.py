@@ -34,6 +34,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import xarray as xr
+from scipy.ndimage import gaussian_filter1d
 
 sys.path.insert(0, str(Path(__file__).parent))
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "ecmwf"))
@@ -52,6 +53,9 @@ MIN_PAIRS = 6
 DIR = "hbranch_hist"
 FIRST = pd.Timestamp("2025-07-01")  # the AIFS-ENS open data begins here
 WIN, DAYS = 7, 120
+SMOOTH_DEG = (
+    3.0  # Gaussian sigma of the mapped omega (a week of 1.5 deg omega is mostly convective and mountain-wave noise)
+)
 PC = ccrs.PlateCarree()
 EXTENT = (-50.0, 50.0)
 SECTOR_NAME = {
@@ -65,7 +69,7 @@ SECTOR_NAME = {
 }
 LEV = {
     "out": [-4, -3, -2, -1.5, -1, -0.5, 0.5, 1, 1.5, 2, 3, 4],
-    "desc": [-60, -45, -30, -20, -10, -5, 5, 10, 20, 30, 45, 60],
+    "desc": [-40, -30, -20, -15, -10, -5, 5, 10, 15, 20, 30, 40],
     "msl": [-12, -8, -6, -4, -2, -1, 1, 2, 4, 6, 8, 12],
 }
 
@@ -247,6 +251,13 @@ def _native(f: np.ndarray) -> np.ndarray:
     return np.concatenate([g, g[:, :1]], axis=1)
 
 
+def _smooth(f: np.ndarray) -> np.ndarray:
+    """f with a Gaussian of SMOOTH_DEG on the sphere: latitude, then longitude (periodic) widened by 1/cos(latitude)."""
+    g = gaussian_filter1d(f, SMOOTH_DEG / 1.5, axis=0, mode="nearest")
+    sig = SMOOTH_DEG / 1.5 / np.maximum(np.cos(np.deg2rad(HB.LAT)), 0.2)
+    return np.stack([gaussian_filter1d(row, sd, mode="wrap") for row, sd in zip(g, sig, strict=True)])
+
+
 def _poleward(v: np.ndarray) -> np.ndarray:
     return v * np.sign(HB.LAT)[:, None]
 
@@ -288,13 +299,13 @@ def draw_map(F: dict, cl: xr.Dataset, mid: float, idx: dict, end: pd.Timestamp, 
         "Outflow · 200 hPa poleward divergent wind",
         "anomaly (m s⁻¹, + = more poleward)",
     )
-    s = 4
+    s = 5
     ax.quiver(
         XN[:-1:s],
         HB.LAT[::s],
         _native(F["uchi200"])[::s, :-1:s],
         _native(F["vchi200"])[::s, :-1:s],
-        scale=90,
+        scale=160,
         width=0.0012,
         color="#222",
     )
@@ -302,12 +313,12 @@ def draw_map(F: dict, cl: xr.Dataset, mid: float, idx: dict, end: pd.Timestamp, 
     ax = _panel(
         fig,
         *rects[1],
-        w - HB.PA_S_TO_HPA_DAY * clim_map(cl, "w500", mid),
+        _smooth(w - HB.PA_S_TO_HPA_DAY * clim_map(cl, "w500", mid)),
         LEV["desc"],
         "Descent · 500 hPa vertical motion",
         "anomaly (hPa day⁻¹, + = more descent)",
     )
-    ax.contour(XN, HB.LAT, _native(w), levels=[20.0], colors="#111", linewidths=0.6)
+    ax.contour(XN, HB.LAT, _native(_smooth(w)), levels=[20.0], colors="#111", linewidths=0.7)
     ax = _panel(
         fig,
         *rects[2],
@@ -341,9 +352,10 @@ def draw_map(F: dict, cl: xr.Dataset, mid: float, idx: dict, end: pd.Timestamp, 
     fig.text(
         left / W,
         0.12 / H,
-        "colour = anomaly against ERA5 1991–2020 at the week's midpoint · arrows = 200 hPa divergent wind · middle: black "
-        "line = descent of 20 hPa/day\nbottom: solid = this week's 588-dam z500 line, dashed = the normal's (at the "
-        f"{int(C.EPOCH)} level of the 1991–2020 trend) · H = the subtropical highs' central pressure (hPa)",
+        "colour = anomaly against ERA5 1991–2020 at the week's midpoint · arrows = 200 hPa divergent wind · middle: "
+        f"smoothed ({SMOOTH_DEG:.0f}° Gaussian), black line = descent of 20 hPa/day\nbottom: solid = this week's 588-dam "
+        f"z500 line, dashed = the normal's (at the {int(C.EPOCH)} level of the 1991–2020 trend) · H = the subtropical "
+        "highs' central pressure (hPa)",
         fontsize=8.2,
         color="#555",
     )
@@ -454,6 +466,10 @@ def render(rebuild: bool = False):
             name = f"D{end:%Y%m%d}.webp"
             draw_map(F, cl, mid, idx, end, frame_dir / name)
             drawn[key] = {"file": name, "date": key, "label": f"week ending {end:%a %b %d, %Y}"}
+    off = offset(pairs, mid)  # what the correction does to the latest week (corrected less raw)
+    raw = HB.indices({f: F[f] + off[f] for f in HB.FIELDS})
+    keys = ("out_nh", "out_sh", "desc_nh", "desc_sh", "r588_npac", "r588_spac", "high_npac", "high_spac")
+    print("  offset effect, latest week: " + ", ".join(f"{k} {idx[k] - raw[k]:+.2f}" for k in keys), flush=True)
     keep = {k: drawn[k] for k in (f"{e:%Y-%m-%d}" for e in ends)}
     for old in {p.name for p in frame_dir.glob("*.webp")} - {f["file"] for f in keep.values()}:
         (frame_dir / old).unlink()
