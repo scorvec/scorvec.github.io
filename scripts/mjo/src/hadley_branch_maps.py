@@ -41,7 +41,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import xarray as xr
-from matplotlib.collections import LineCollection
 
 sys.path.insert(0, str(Path(__file__).parent))
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "ecmwf"))
@@ -81,7 +80,7 @@ SECTOR_NAME = {
 }
 LEV = {
     "out": [-4, -3, -2, -1.5, -1, -0.5, 0.5, 1, 1.5, 2, 3, 4],
-    "desc": [-30, -20, -15, -10, -5, -2.5, 2.5, 5, 10, 15, 20, 30],
+    "desc": [-60, -45, -30, -20, -10, -5, 5, 10, 20, 30, 45, 60],
     "msl": [-12, -8, -6, -4, -2, -1, 1, 2, 4, 6, 8, 12],
 }
 
@@ -219,15 +218,15 @@ def truth(until: pd.Timestamp, part=(0, 1), out: Path = OFFSETS):
     days = [d for d in O.lattice(OFFSET_FIRST, until, part) if d not in done]
     print(f"truth: {len(days)} lattice days to pair", flush=True)
     for day in days:
-        E = [era5_time(day + pd.Timedelta(hours=h)) for h in HOURS]
-        if any(e is None for e in E):
-            print(f"  ERA5 not published for {day:%Y-%m-%d}: stopping", flush=True)
-            break
-        try:
+        try:  # HRES first: a day the mirror lacks costs a few index requests, not sixteen ERA5 reads
             H = [hres_time(day + pd.Timedelta(hours=h)) for h in HOURS]
         except Exception as e:  # noqa: BLE001
             print(f"  {day:%Y-%m-%d}: HRES {type(e).__name__} {str(e)[:80]}", flush=True)
             continue
+        E = [era5_time(day + pd.Timedelta(hours=h)) for h in HOURS]
+        if any(e is None for e in E):
+            print(f"  ERA5 not published for {day:%Y-%m-%d}: stopping", flush=True)
+            break
         mh, me = day_mean(H), day_mean(E)
         dh, de = derived(mh), derived(me)
         x = _harm(_doy(day))
@@ -237,6 +236,8 @@ def truth(until: pd.Timestamp, part=(0, 1), out: Path = OFFSETS):
         S["date"] = np.r_[S["date"], np.datetime64(day.date())].astype("datetime64[D]")
         _save_sums(out, S)
         print(f"  {day:%Y-%m-%d} paired ({S['date'].size} in the file)", flush=True)
+    if out != OFFSETS and not out.exists():  # a part with nothing to pair still hands the merge a file
+        _save_sums(out, S)
 
 
 def merge(paths):
@@ -349,9 +350,20 @@ def _covered(store: set, d: pd.Timestamp) -> bool:
     return all(x in store for x in pd.date_range(d - pd.Timedelta(days=T.DAYS_BACK), d))
 
 
+def _released() -> set:
+    """The releases in traj.npz; a table of another release layout (levels, bins) is dropped, to be traced again."""
+    if not TRAJ.exists():
+        return set()
+    t = np.load(TRAJ)
+    if t["hist"].shape[1:] != (len(HB.SUBS), len(T.RELEASE_P), T.NBIN + 1):
+        TRAJ.unlink()
+        return set()
+    return set(pd.DatetimeIndex(t["date"]))
+
+
 def releases(off: Offsets, upto: pd.Timestamp):
     """Trace every 00 UTC release to `upto` that the 3-D store covers and traj.npz lacks, twenty at a time."""
-    done = set(pd.DatetimeIndex(np.load(TRAJ)["date"])) if TRAJ.exists() else set()
+    done = _released()
     store = {pd.Timestamp(p.stem[3:]) for p in ARCH.glob("w3_*.npz")}
     todo = [d for d in sorted(store) if d <= upto and d not in done and _covered(store, d)]
     print(f"trajectories: {len(todo)} releases", flush=True)
@@ -365,10 +377,11 @@ def releases(off: Offsets, upto: pd.Timestamp):
 
 def update(until: pd.Timestamp):
     """Archive the days from FIRST to `until` not yet held whose four analyses are on the mirror, keeping the 3-D fields
-    of every day a frame's release reaches back to; release the trajectories the store now covers; prune the store to
-    STORE_DAYS."""
-    have = set(held())
-    oldest3 = until - pd.Timedelta(days=DAYS + WIN + T.DAYS_BACK)
+    of every day a frame's release still to be traced reaches back to; release the trajectories the store now covers;
+    prune the store to STORE_DAYS."""
+    have, done = set(held()), _released()
+    todo = [d for d in pd.date_range(until - pd.Timedelta(days=DAYS + WIN), until) if d not in done]
+    oldest3 = (todo[0] if todo else until) - pd.Timedelta(days=T.DAYS_BACK)  # the store reaches back for these only
     want = [d for d in pd.date_range(FIRST, until) if d not in have or (d >= oldest3 and not _w3(d).exists())]
     print(f"update: {len(want)} days to fetch", flush=True)
     ARCH.mkdir(parents=True, exist_ok=True)
@@ -555,7 +568,7 @@ def draw_map(F: dict, cl: xr.Dataset, mid: float, idx: dict, end: pd.Timestamp, 
         0.12 / H,
         "colour = anomaly against ERA5 1991–2020 at the week's midpoint, the analysis less its mean offset from ERA5 · "
         f"winds and vertical motion to spherical-harmonic degree {HB.KEEP} (~500 km)\ntop: arrows = the outflow layer's "
-        "divergent wind · middle: black line = descent of 20 hPa/day · bottom: solid = this week's 588-dam z500 line, "
+        "divergent wind · middle: black line = descent of 20 hPa/day\nbottom: solid = this week's 588-dam z500 line, "
         f"dashed = the normal's (at the {int(C.EPOCH)} level of its trend), H = the highs' central pressure (hPa)",
         fontsize=8.2,
         color="#555",
@@ -565,43 +578,53 @@ def draw_map(F: dict, cl: xr.Dataset, mid: float, idx: dict, end: pd.Timestamp, 
     plt.close(fig)
 
 
-def draw_tracks(W: T.Winds, t_release: pd.Timestamp, out: Path):
-    """Where the latest release's 500 hPa air came from: each parcel traced to the outflow layer, back to the point it
-    left it, coloured by pressure; the parcels not traced to it in DAYS_BACK days are left out."""
-    tau, slat, slon, tracks = T.trace(W, t_release.timestamp(), keep_tracks=True)
-    lat, lon, p, _ = T.release_points()
-    use = (p == 500.0) & np.isfinite(tau)
-    segs, cols = [], []
-    for n in np.flatnonzero(use)[::2]:
-        la = np.r_[lat[n], tracks[:, 0, n]]
-        lo = np.r_[lon[n], tracks[:, 1, n]]
-        pp = np.r_[p[n], tracks[:, 2, n]]
-        ok = np.isfinite(la)
-        x, y, pp = _xn(lo[ok]), la[ok], pp[ok]
-        for i in range(len(x) - 1):
-            if abs(x[i + 1] - x[i]) < 180.0:
-                segs.append([(x[i], y[i]), (x[i + 1], y[i + 1])])
-                cols.append(0.5 * (pp[i] + pp[i + 1]))
+def draw_transit(off: Offsets, latest: pd.Timestamp, out: Path):
+    """The week's releases ending `latest`: at each release point the median transit time of the seven (where at least
+    four were traced to the outflow layer, else grey), and a sample of the latest release's parcels traced back to
+    where they left it."""
+    days = pd.date_range(latest - pd.Timedelta(days=WIN - 1), latest)
+    W = winds(pd.date_range(days[0] - pd.Timedelta(days=T.DAYS_BACK), latest), off)
+    taus = []
+    for d in days:
+        tau, slat, slon, tracks = T.trace(W, d.timestamp(), keep_tracks=d == latest)
+        taus.append(tau)
+    taus = np.stack(taus)
+    med = np.full(taus.shape[1], np.nan)
+    enough = np.isfinite(taus).sum(0) >= 4
+    med[enough] = np.nanmedian(taus[:, enough], axis=0)
+    lat, lon, _, _ = T.release_points()
+    nlo = T.RELEASE_LON.size
+    order = np.argsort(_xn(T.RELEASE_LON))
+    xe = np.r_[_xn(T.RELEASE_LON)[order] - T.RES / 2, _xn(T.RELEASE_LON)[order][-1] + T.RES / 2]
+    grid = med.reshape(-1, nlo)[:, order]
     size, rects, left = _layout(1)
     fig = plt.figure(figsize=size)
     ax = fig.add_axes(rects[0][0], projection=PROJ)
-    lc = LineCollection(segs, cmap="viridis", norm=plt.Normalize(150, 500), linewidths=0.6, alpha=0.75)
-    lc.set_array(np.array(cols))
-    ax.add_collection(lc)
-    ax.scatter(_xn(slon[use]), slat[use], s=3, c="#c0392b", zorder=3, label="where the air left the outflow layer")
-    for sgn in (1, -1):
-        ax.axhspan(sgn * T.RELEASE_LAT[0], sgn * T.RELEASE_LAT[-1], color="#999", alpha=0.12, lw=0)
-    _geo(ax, "Back-trajectories from 500 hPa over 15–33° · coloured by pressure (hPa)")
-    cb = fig.colorbar(lc, cax=fig.add_axes(rects[0][1]), orientation="vertical")
-    cb.set_label("pressure (hPa)", fontsize=8)
-    cb.ax.invert_yaxis()
-    ax.legend(loc="lower left", fontsize=7.5, framealpha=0.85)
+    cmap = plt.get_cmap("viridis")
+    norm = matplotlib.colors.BoundaryNorm(np.arange(6.0, 25.0, 2.0), cmap.N, extend="both")
+    rows = lat.reshape(-1, nlo)[:, 0]
+    for h in (rows > 0, rows < 0):  # each hemisphere's band of cells, edges half a cell either side of the rows
+        la = np.sort(rows[h])
+        ye = np.r_[la - T.RES / 2, la[-1] + T.RES / 2]
+        g = grid[h][np.argsort(rows[h])]
+        ax.axhspan(ye[0], ye[-1], color="#d9d9d9", lw=0, zorder=0)  # grey shows through the cells left empty
+        pm = ax.pcolormesh(xe, ye, np.ma.masked_invalid(g), cmap=cmap, norm=norm, shading="flat")
+    for n in np.flatnonzero(np.isfinite(taus[-1]))[::12]:
+        ok = np.isfinite(tracks[:, 0, n])
+        x, y = np.r_[_xn(lon[n]), _xn(tracks[ok, 1, n])], np.r_[lat[n], tracks[ok, 0, n]]
+        brk = np.flatnonzero(np.abs(np.diff(x)) > 180.0) + 1  # across the seam: a break, not a line round the world
+        for xs, ys in zip(np.split(x, brk), np.split(y, brk), strict=True):
+            ax.plot(xs, ys, color="#333", lw=0.5, alpha=0.7)
+        ax.plot(_xn(slon[n]), slat[n], "o", color="#c0392b", ms=2.2)
+    _geo(ax, f"Transit time to 500 hPa · median of the week's releases ending {latest:%Y-%m-%d} (days)")
+    cb = fig.colorbar(pm, cax=fig.add_axes(rects[0][1]), orientation="vertical")
+    cb.set_label("days since it left the outflow layer", fontsize=8)
+    cb.ax.tick_params(labelsize=7.5)
     Wi, H = size
-    share = 100.0 * np.isfinite(tau[p == 500.0]).mean()
     fig.text(
         left / Wi,
         1 - 0.3 / H,
-        f"Where the subtropical air sinking through 500 hPa on {t_release:%Y-%m-%d} came from (IFS HRES winds)",
+        "How long ago the subtropical air sinking through 500 hPa left the tropical outflow layer (IFS HRES winds)",
         fontsize=13,
         fontweight="bold",
         va="center",
@@ -609,9 +632,10 @@ def draw_tracks(W: T.Winds, t_release: pd.Timestamp, out: Path):
     fig.text(
         left / Wi,
         0.12 / H,
-        f"release band shaded grey · every second parcel traced back (up to {T.DAYS_BACK} days) to where it last left\n"
-        f"the tropical outflow layer (equatorward of {T.OUTFLOW_LAT:.0f}°, within {HB.OUT_DEPTH:.0f} hPa below the "
-        f"tropopause): {share:.0f} % of the parcels; the rest, not traced to it, are not drawn",
+        f"each {T.RES:.0f}° cell: the median of its seven daily releases traced back {T.DAYS_BACK} days, grey where fewer "
+        f"than four were traced to the outflow layer (equatorward of {T.OUTFLOW_LAT:.0f}°, within "
+        f"{HB.OUT_DEPTH:.0f} hPa below the tropopause)\nlines: one in twelve of the latest release's traced parcels, back "
+        "to where it left the layer (dot)",
         fontsize=8.2,
         color="#555",
     )
@@ -649,11 +673,12 @@ TRACKERS = (
     (
         "hbranch_turnover.webp",
         "How fast the Hadley cells turn over",
-        tuple((f"transit_{{}}_{int(p)}", f"Transit to {int(p)} hPa", "days") for p in T.RELEASE_P),
+        (("transit_{}_500", "Transit to 500 hPa", "days"), ("share_{}_500", "Air from the outflow", "%")),
         ROWS,
-        f"transit = median time since the sinking air (released daily at 00 UTC on a {T.RES:.0f}° grid over 15–33°) "
-        f"last left the tropical outflow layer,\nof the share traced to it within {T.DAYS_BACK} days (in the titles; "
-        "ERA5's median in brackets) · shorter = faster overturning",
+        f"the air at 500 hPa over 15–33°, released daily at 00 UTC on a {T.RES:.0f}° grid and traced back {T.DAYS_BACK} "
+        "days: transit = median time since it last left the tropical outflow layer (equatorward of "
+        f"{T.OUTFLOW_LAT:.0f}°,\nwithin {HB.OUT_DEPTH:.0f} hPa below the tropopause), of the share traced to it; "
+        "shorter = a faster-turning cell",
     ),
 )
 
@@ -670,11 +695,12 @@ def draw_trackers(series: pd.DataFrame, cl: xr.Dataset):
                 ax.plot(x, series[key], color="#0b3d6b", lw=1.8)
                 now = series[key].iloc[-1]
                 mu, sd = (clim_index(cl, key, doy[-1:], st)[0] for st in ("mean", "sd"))
-                head = f"{SECTOR_NAME[s]} · {label} · latest {now:.1f} ({(now - mu) / sd:+.1f}σ)"
-                if key.startswith("transit_"):
-                    sk = key.replace("transit_", "share_")
-                    head += f" · {series[sk].iloc[-1]:.0f}% ({clim_index(cl, sk, doy[-1:], 'p50')[0]:.0f}%)"
-                ax.set_title(head, fontsize=9, loc="left", fontweight="bold")
+                ax.set_title(
+                    f"{SECTOR_NAME[s]} · {label} · latest {now:.1f} ({(now - mu) / sd:+.1f}σ)",
+                    fontsize=9,
+                    loc="left",
+                    fontweight="bold",
+                )
                 ax.set_ylabel(unit, fontsize=8)
                 ax.grid(alpha=0.25, lw=0.5)
                 ax.tick_params(labelsize=7.5)
@@ -759,10 +785,7 @@ def render(rebuild: bool = False):
     shutil.copyfile(frame_dir / frames[-1]["file"], OUT / "hbranch_map.webp")
     print(f"  {len(frames)} frames, through {frames[-1]['date']}", flush=True)
     draw_trackers(pd.DataFrame(rows, index=pd.DatetimeIndex(ends)), cl)
-    latest = tdate.max()
-    draw_tracks(
-        winds(pd.date_range(latest - pd.Timedelta(days=T.DAYS_BACK), latest), off), latest, OUT / "hbranch_traj.webp"
-    )
+    draw_transit(off, tdate.max(), OUT / "hbranch_traj.webp")
 
 
 def main() -> int:

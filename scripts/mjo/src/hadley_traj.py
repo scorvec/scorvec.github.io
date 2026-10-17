@@ -26,7 +26,8 @@ import numpy as np
 sys.path.insert(0, str(Path(__file__).parent))
 import hadley_branches as HB
 
-RELEASE_P = (500.0, 700.0)  # hPa
+RELEASE_P = (500.0,)  # hPa (at 700 hPa most of the air is not traced to the outflow within DAYS_BACK, and the median
+# of the rest sits against the horizon: a statistic the 30-day cap decides)
 RES = 3.0  # deg, release grid
 RELEASE_LAT = np.arange(15.0, 35.0, RES)  # 15 ... 33
 RELEASE_LON = np.arange(0.0, 360.0, RES)
