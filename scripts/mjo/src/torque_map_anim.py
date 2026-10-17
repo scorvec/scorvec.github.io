@@ -55,7 +55,7 @@ OROG = REF / "era5_orography.nc"
 AAM_CLIM = REF / "aam_clim.nc"  # ERA5 AAM seasonal cycle -> climatological dM/dt
 MAP_CLIM = REF / "torque_map_clim_coeffs.nc"
 RANGE_SD = REF / "torque_range_sd.nc"  # per-barrier 1-sigma, for scale context
-HEMI_SD = REF / "torque_hemi_sd.nc"  # net-torque anomaly 1-sigma, G/NH/SH    # ERA5 per-gridcell torque-density clim
+HEMI_SD = REF / "torque_hemi_sd.nc"  # net-torque anomaly 1-sigma, G/NH/SH, by day of year (build_torque_hemi_sd.py)
 DAYS = list(range(1, 16))  # forecast days: the windows ending 24, 48 ... 360 h
 COARSEN = 20  # ~5°
 
@@ -550,12 +550,17 @@ def main() -> int:
     # cancels in the difference.
     fig, axes = plt.subplots(1, 3, figsize=(14.5, 5.4), sharex=True, sharey=True)
     hsd = {}
-    if HEMI_SD.exists():
-        _h = xr.open_dataset(HEMI_SD)
-        hsd = {str(k): float(v) for k, v in zip(_h["region"].values, _h["sd"].values)}
+    if HEMI_SD.exists():  # each day's sigma at its window's midpoint (common-year day; 29 Feb takes its neighbours')
+        _h = xr.open_dataset(HEMI_SD)["sd"]
+        x = noleap_doy(valid)
+        hsd = {
+            str(k): 0.5
+            * (_h.sel(region=k, doy=np.floor(x).astype(int)) + _h.sel(region=k, doy=np.ceil(x).astype(int))).values
+            for k in _h.region.values
+        }
     for c, hemi in enumerate(cols):
         ax = axes[c]
-        # climatological spread of the NET anomaly, built from the same drag field —
+        # climatological spread of the NET anomaly: ERA5's daily means at this time of year, the same quantity —
         # without it there is no way to tell a routine swing from a real event
         if hemi in hsd:
             for k, al in ((2, 0.09), (1, 0.16)):
@@ -595,7 +600,7 @@ def main() -> int:
         0.5,
         -0.07,
         "Anomalies against the ERA5 1991–2020 climatology, everything on the same footing: the forecast tendency has its own "
-        "climatological tendency removed too. Shaded = ±1σ and ±2σ of the net anomaly over 1991–2020.\n"
+        "climatological tendency removed too. Shaded = ±1σ and ±2σ of ERA5's daily net anomaly at this time of year, 1991–2020.\n"
         "Each day is its 24 h mean: friction from the model's own surface stress, mountain torque from its surface "
         "pressure, d(AAM)/dt from its winds.\nEach hemisphere's gap between net surface torque (black) and d(AAM)/dt "
         "(dashed) is the gravity-wave-drag torque (not in ECMWF open data), cross-equatorial momentum transport (an "

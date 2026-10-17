@@ -10,7 +10,7 @@ current. Two in-house sources close that gap, and they are complementary:
                 (2026-08-23 when this was written). fetch_arco_olr_band.py.
   GMGSI proxy   scripts/sst/build_olr_realtime.py — GMGSI longwave-IR brightness
                 temperature through the Ohring-Gruber flux relation, on the same
-                144-point 2.5 deg band grid, current to TODAY.
+                144-point 2.5 deg band grid, current to yesterday.
 
 So: ERA5 wherever it exists, GMGSI for the last few days only, offset-corrected
 onto the ERA5 scale per longitude. That splice is measured, not assumed — over
