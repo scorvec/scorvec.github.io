@@ -29,7 +29,7 @@ a phase diagram should do.
 The anomaly is then taken in the frame of the Wheeler & Hendon reference
 climatology, clim_olr in climatology.nc (NOAA interpolated OLR, 1979-2001, three
 harmonics), which ERA5 does not share: its top-of-atmosphere longwave runs about
-12 W/m2 above NOAA's in the band mean. The shift is fixed: ERA5's own
+13 W/m2 above NOAA's in the band mean. The shift is fixed: ERA5's own
 climatology over the same 1979-2001, in the same band and fitted the same way
 (era5_olr_clim.nc, from scripts/sst/build_olr_baseline.py via olr-baseline.yml),
 minus clim_olr, by longitude and day of year (frame_offset).
@@ -140,7 +140,7 @@ def anomaly_and_map120(clim: xr.Dataset):
     """OLR anomaly vs the WH04 reference clim, and its trailing 120-day mean map.
 
     clim_olr is NOAA interpolated OLR, and ERA5's top-of-atmosphere longwave runs
-    about 12 W/m2 above it in the band mean, so a raw difference gives an
+    about 13 W/m2 above it in the band mean, so a raw difference gives an
     "anomaly" that is mostly source offset (the first version of this produced a
     120-day map of +0.8 to +27 W/m2, all of it bias, which subtracted into a
     forecast is a spurious basin-wide OLR shift). frame_offset takes it out. It is
