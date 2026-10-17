@@ -8,7 +8,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>SST Anomaly Animation · Shawn Corvec</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Source+Sans+3:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
 <style>
   /* one player chrome everywhere, standalone or embedded */
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -16,7 +16,7 @@
     --page: #fcfcfa; --surface: #ffffff; --border: #e2e0da;
     --ink: #1a1a1a; --ink2: #4a4744; --muted: #6f6b64;
     --aqua: #8a4b2a; --aqua-deep: #a85c33;
-    --sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    --sans: 'Source Sans 3', 'Helvetica Neue', Arial, sans-serif;
   }
   body {
     background: var(--page);
@@ -43,10 +43,10 @@
     background: rgba(255,255,255,0.75);
   }
   .frame-loading.hidden { display: none; }
-  .buffering { position: absolute; top: 6px; right: 6px; font-size: 0.72rem; color: var(--muted);
+  .buffering { position: absolute; top: 6px; right: 6px; font-size: 0.8rem; color: var(--muted);
                background: rgba(255,255,255,0.85); border-radius: 4px; padding: 2px 7px; pointer-events: none; }
   .buffering.hidden { display: none; }
-  .hostnote { font-size: 0.72rem; color: var(--muted); padding: 2px 6px; }
+  .hostnote { font-size: 0.8rem; color: var(--muted); padding: 2px 6px; }
 
   /* ONE slim row: transport · slider · pickers · date. It wraps on narrow
      screens (slider takes its own line); the old two-row + separate date
@@ -98,7 +98,7 @@
     font-size: 0.74rem; color: var(--muted); font-variant-numeric: tabular-nums;
     margin-left: auto; white-space: nowrap;
   }
-  .hint { display: none; font-size: 0.7rem; color: var(--muted); width: 100%; }
+  .hint { display: none; font-size: 0.8rem; color: var(--muted); width: 100%; }
   body:not(.embed) .hint { display: block; text-align: center; }
   .speed { display: flex; align-items: center; gap: 0.3rem; }
   a.back {
@@ -108,7 +108,7 @@
   @media (max-width: 600px) {
     select, .btn { font-size: 16px; }
     .slider { flex-basis: 100%; order: 10; }
-    .frame-date { font-size: 0.7rem; }
+    .frame-date { font-size: 0.8rem; }
     .controls { gap: 0.45rem; }
   }
   /* embedded in a card iframe: the parent sizes the iframe to image + controls
