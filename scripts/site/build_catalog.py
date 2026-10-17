@@ -213,6 +213,17 @@ PAGES = {
         thumb_manifest=("assets/mjo", "rmm_manifest.json", "mjo", "last"),
         variable=["Convection"],
     ),
+    "/monthly-outlook.html": dict(
+        kind="page",
+        topic="outlooks",
+        tier=1,
+        prio=5,
+        models=["ERA5"],
+        horizon="Weeks 1–5",  # the target month runs from week 3 to week 7 after the issue
+        region=["Northern Hemisphere", "North America", "Europe"],
+        thumb="assets/monthly/latest_t2m_nh_anom.webp",
+        variable=["Temperature", "Precipitation"],
+    ),
     "/models.html": dict(
         kind="page",
         topic="weather",
