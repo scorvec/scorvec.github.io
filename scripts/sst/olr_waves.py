@@ -33,7 +33,7 @@ from matplotlib.dates import DateFormatter
 
 HERE = Path(__file__).resolve().parent
 HIST = HERE / "data" / "olr_history.nc"  # full 1979-2022 backbone (gitignored, local)
-CLIM = HERE / "metar" / "olr_clim.nc"  # committed daily climatology (for real-time)
+BASELINE = HERE / "metar" / "olr_baseline.nc"  # committed ERA5 climatology + proxy offset (build_olr_baseline.py)
 STORE_RT = HERE / "metar" / "olr_rt.nc"  # committed rolling GMGSI store
 
 # physical constants (equatorial beta-plane shallow water)
@@ -189,10 +189,7 @@ def clim_at(clim: xr.DataArray, times) -> np.ndarray:
 def _anomaly(ds: xr.Dataset, band: str = "15") -> xr.DataArray:
     """OLR anomaly = OLR − smooth daily climatology (by common-year day of year)."""
     olr = ds[f"olr_{band}"]
-    clim = ds[f"clim_{band}"]
-    base = clim_at(clim, olr["time"].values)
-    a = olr.values - base
-    a = a - a.mean(0, keepdims=True)  # remove time-mean per lon (keep low-freq fluctuations)
+    a = olr.values - clim_at(ds[f"clim_{band}"], olr["time"].values)
     return xr.DataArray(a, coords={"time": olr["time"], "lon": olr["lon"]}, dims=("time", "lon"))
 
 
@@ -233,21 +230,18 @@ def selftest() -> int:
 # ----------------------------------------------------------------------
 # render
 # ----------------------------------------------------------------------
-def _anomaly_rt(rt: xr.Dataset, clim_ds: xr.Dataset, band: str = "15") -> xr.DataArray:
-    """Real-time anomaly from the GMGSI store, deseasonalised with the interp_OLR climatology.
-    Reindexes to a gap-free daily axis (the filter needs evenly-spaced samples) and removes the
-    window-mean per longitude — which also absorbs any constant GMGSI-vs-true-OLR offset."""
+def _anomaly_rt(rt: xr.Dataset, base: xr.Dataset, band: str = "15") -> xr.DataArray:
+    """Real-time anomaly of the GMGSI proxy = proxy − its offset from ERA5 − the ERA5 1991-2020 climatology, both
+    read on the 366-slot calendar from the baseline file. Reindexes to a gap-free daily axis (the filter needs
+    evenly-spaced samples)."""
     olr = rt[f"olr_{band}"]
+    if rt.attrs.get("sampling") != base.attrs["proxy_sampling"] or not np.array_equal(olr["lon"], base["lon"]):
+        raise SystemExit(f"{BASELINE.name} was fitted to another proxy sampling or grid: rebuild it (olr-baseline.yml)")
     full = pd.date_range(pd.Timestamp(olr["time"].values[0]), pd.Timestamp(olr["time"].values[-1]), freq="D")
     df = olr.reindex(time=full).to_pandas().interpolate(axis=0, limit_direction="both")  # fill day gaps
-    olr = xr.DataArray(df.values, coords={"time": full, "lon": olr["lon"].values}, dims=("time", "lon"))
-    clim = clim_ds[f"clim_{band}"]
-    base = clim_at(clim, olr["time"].values)
-    a = olr.values - base
-    # the proxy's offset from true OLR is not measured here (no 5S-5N reference): the record mean per longitude is
-    # removed instead, which also takes out the part of a long-lasting anomaly (an El Niño's) that fills the record
-    a = a - a.mean(0, keepdims=True)
-    return xr.DataArray(a, coords={"time": olr["time"], "lon": olr["lon"]}, dims=("time", "lon"))
+    slot = doy366(full.values)
+    a = df.values - base[f"offset_{band}"].values[slot] - base[f"clim_{band}"].values[slot]
+    return xr.DataArray(a, coords={"time": full, "lon": olr["lon"].values}, dims=("time", "lon"))
 
 
 def _lf_lowpass(anom: np.ndarray, cutoff_days: float = 120.0, half: int = 60) -> np.ndarray:
@@ -281,11 +275,16 @@ def render(
 
     # Reflect-pad both ends of the time axis before filtering so the FFT taper/edge effect falls
     # on padding rather than real data — this carries the wave bandpass right up to the present
-    # (the recent end is "preliminary" but no longer damped to zero). Crop back after.
+    # (the recent end is "preliminary" but no longer damped to zero). Crop back after. The wave
+    # bands exclude f = 0, so they filter the record less each longitude's mean (the taper then has
+    # no standing anomaly to ramp into them); the low-frequency envelope keeps it.
     PAD = 30
     av = anom.values
-    ext = np.concatenate([av[1 : PAD + 1][::-1], av, av[-PAD - 1 : -1][::-1]], axis=0)
-    filt = {w: (_lf_lowpass(ext) if w == "LF" else wk_filter(ext, w))[PAD : PAD + len(av)] for w in waves}
+    ext = {
+        k: np.concatenate([x[1 : PAD + 1][::-1], x, x[-PAD - 1 : -1][::-1]])
+        for k, x in (("lf", av), ("wk", av - av.mean(0)))
+    }
+    filt = {w: (_lf_lowpass(ext["lf"]) if w == "LF" else wk_filter(ext["wk"], w))[PAD : PAD + len(av)] for w in waves}
     lon = anom["lon"].values  # full globe 0-360
     time = anom["time"].values
     sel = (time <= np.datetime64(end)) & (time > np.datetime64(end) - np.timedelta64(days, "D"))
@@ -374,9 +373,9 @@ def main(argv=None) -> int:
     if args.selftest:
         return selftest()
     if args.realtime:
-        clim = xr.open_dataset(CLIM)
+        base = xr.open_dataset(BASELINE)
         rt = xr.open_dataset(STORE_RT)
-        anom = _anomaly_rt(rt, clim, "05")
+        anom = _anomaly_rt(rt, base, "05")
         end = pd.Timestamp(anom["time"].values[-1]).to_pydatetime()
         render(
             anom,
@@ -384,7 +383,7 @@ def main(argv=None) -> int:
             min(args.days, 360),
             Path(args.out),
             prelim_days=7,
-            subtitle="GMGSI longwave-IR proxy · deseasonalised vs interp-OLR 1979–2022",
+            subtitle="GMGSI longwave-IR proxy, offset to ERA5 · anomaly vs ERA5 1991–2020",
         )
     else:
         clim = xr.open_dataset(HIST)

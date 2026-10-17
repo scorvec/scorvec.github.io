@@ -12,9 +12,9 @@ back to 2021. So this builds the long historical backbone the wave filter needs:
   * fits a smooth daily climatology (annual mean + 3 harmonics) for the anomaly baseline.
 
 Output (gitignored cache, ~10 MB): scripts/sst/data/olr_history.nc with olr_15/olr_05
-(time × lon), their clim_15/clim_05 (dayofyear × lon), and lon (2.5° global). The GMGSI
-real-time tail is not bias-corrected onto this scale: olr_waves removes each longitude's
-mean over the real-time record instead (olr_waves._anomaly_rt).
+(time × lon), their clim_15/clim_05 (dayofyear × lon), and lon (2.5° global). It serves the
+historical renders (olr_waves.py --hist); the real-time GMGSI products take their anomaly
+against an ERA5 baseline instead (build_olr_baseline.py).
 
     python scripts/sst/build_olr_history.py            # 1979-2022, both bands
     python scripts/sst/build_olr_history.py --y0 2000  # shorter window
