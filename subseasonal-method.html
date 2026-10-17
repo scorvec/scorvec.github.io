@@ -307,9 +307,12 @@
     as a uniform ridge. For z500 the per-lead global mean is removed so the circulation shows. For
     temperature and precipitation the raw anomaly is kept, because there the departure from the
     2001&ndash;2020 climate is part of what you want to see. Each figure says which it is.</p>
-    <p><b>The OLR channel.</b> ERA5's top-of-atmosphere longwave runs about 13&nbsp;W&nbsp;m<sup>&minus;2</sup>
-    above the NOAA-based reference climatology the RMM EOFs were built on, so a per-longitude offset
-    measured over the whole years of the ERA5 record (at least one, so it cannot absorb a seasonal mismatch) is removed before anything is projected. The GMGSI proxy that
+    <p><b>The OLR channel.</b> ERA5's top-of-atmosphere longwave runs about 12&nbsp;W&nbsp;m<sup>&minus;2</sup>
+    above the NOAA interpolated OLR that the RMM reference climatology and EOFs were built on (1979&ndash;2001), so
+    ERA5 is moved into that frame before anything is projected, by a fixed offset: ERA5's own 1979&ndash;2001
+    climatology minus NOAA's, by longitude and day of year. An offset taken as the mean over the recent ERA5 record
+    would also remove that record's mean anomaly, part of a long El Ni&ntilde;o's or La Ni&ntilde;a's convection
+    signal; on the observed track that cancels against the 120-day map, but in the forecast it would not. The GMGSI proxy that
     covers the final few days is offset-corrected onto ERA5 per longitude over their last 90 overlapping days (over the 220-day overlap available when this was set up: r&nbsp;=&nbsp;0.80
     in the anomaly, spread within 3% of ERA5's) and screened day by day &mdash; the mosaic
     occasionally publishes a day with missing passes, and one such day at the end of the record
