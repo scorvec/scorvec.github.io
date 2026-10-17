@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Rebuild the torque-density map climatology from the stored ERA5 basis.
 
-Supersedes build_torque_map_clim.py, which streamed ERA5 and hard-coded a single
-constant drag coefficient. This reads the pre-computed basis
+An earlier builder streamed ERA5 and hard-coded a single constant drag
+coefficient. This one reads the pre-computed basis
 (build_torque_basis.py -> torque_basis_1991-2020_s5.nc, 00Z+12Z, 5-day stride,
 1991-2020) and applies the ERA5-derived drag FIELD, so no ERA5 is re-streamed and the
 climatology matches exactly the drag the live product uses.

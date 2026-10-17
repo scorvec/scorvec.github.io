@@ -264,7 +264,14 @@
     .mv-fields { display: none; }
     .runsel.mv-fsel { display: inline-flex; flex: 1 1 12rem; }
     .mv-fsel select { flex: 1 1 auto; min-width: 0; }
-    .mv-map { height: clamp(300px, calc(100svh - 215px), 640px); }
+    /* phones: the map first (the introduction and the data note move under it), a taller map, smaller map buttons */
+    main.mv { display: flex; flex-direction: column; }
+    main.mv > .lede, main.mv > .mv-data { order: 1; }
+    main.mv > .mv-mapwrap ~ * { order: 2; }
+    main.mv > .lede { margin-top: 0.9rem; }
+    .mv-map { height: clamp(340px, calc(100svh - 180px), 700px); }
+    .mv-zoom button { width: 36px; height: 36px; font-size: 1.15rem; }
+    .mv-zoom button.txt { font-size: 0.82rem; }
     .mv-time { margin: 0 0 0.35rem; padding: 0.2rem 0 0.25rem; }
     .mv-panel { padding: 0.5rem 0.55rem 0.05rem; }
     .mv-mapwrap { flex-direction: column; gap: 0.3rem; }
@@ -1933,13 +1940,14 @@
   }
   // the map box takes the domain's shape when that is shorter than the CSS height, so the map fits the window on open
   // (a portrait phone would show the wide HRRR domain in a band across a tall box). Applied on open, on "fit" and when
-  // the window's width changes; never taller than CSS.
+  // the window's width changes; never taller than CSS. Phones keep a 280 px floor: the floating badge and buttons sit
+  // in the margins above and below the domain instead of over it.
   function fitBox(g) {
     mapEl.style.height = "";
     var r = mapEl.getBoundingClientRect(), bw, bh;
     if (st.model === "rdps") { bw = 7600000; bh = 5200000; } else { var bb = g._bb; bw = bb[1] - bb[0]; bh = bb[3] - bb[2]; }
     var need = Math.ceil(r.width * bh / bw * 1.03);
-    if (need < r.height) mapEl.style.height = Math.max(220, need) + "px";
+    if (need < r.height) mapEl.style.height = Math.max(window.innerWidth <= 640 ? 280 : 220, need) + "px";
   }
   var fitBoxW = 0;
   window.addEventListener("resize", function () {
