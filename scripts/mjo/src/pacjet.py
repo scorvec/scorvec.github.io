@@ -915,8 +915,8 @@ def render_torque(init, pcs_mean, valid, out, torque_json):
     tz = None
     if tq and "Himalaya/Tibet" in tq.get("ranges", {}):
         tv = pd.to_datetime(tq["valid"])
-        s1 = tq.get("sd", {}).get("Himalaya/Tibet") or np.nan
-        tz = np.array(tq["ranges"]["Himalaya/Tibet"], float) / s1
+        sc = tr["torque_scale"][str(month)]  # the regression predictor's own ERA5 window mean and sigma
+        tz = (np.array(tq["ranges"]["Himalaya/Tibet"], float) - sc["mean"]) / sc["sd"]
         axt.axhspan(-1, 1, color="#000", alpha=0.05)
         axt.axhline(0, color="#777", lw=0.7)
         axt.plot(tv, tz, color="#8d5524", lw=2.2, marker="o", ms=3)
@@ -993,8 +993,9 @@ def render_torque(init, pcs_mean, valid, out, torque_json):
         textwrap.fill(
             "A burst of mountain torque over the Himalaya and Tibet changes the atmosphere's angular momentum and has been linked to "
             "the East Asian jet downstream. Left: the ERA5 answer, as a signed regression of each jet index on the torque at every lag "
-            "(both standardised, so the slope is also the correlation). Right: this cycle's torque forecast and, only where the regression "
-            "is significant, the jet anomaly it would imply on its own.",
+            "(both standardised, so the slope is also the correlation). Right: this cycle's torque forecast, standardised exactly as the "
+            "ERA5 predictor (the same day-mean torque, that window's mean and σ), and, only where the regression is significant, the jet "
+            "anomaly it would imply on its own.",
             170,
         ),
         fontsize=9.5,

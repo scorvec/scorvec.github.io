@@ -624,9 +624,9 @@ def main() -> int:
     # Was seven lines on one axis, which answered "what is the total" but not the
     # question the panel exists for: is THIS barrier doing something unusual? Each
     # range now gets its own small panel scaled to its own climatological spread
-    # (torque_range_sd.nc, 1-sigma of the seasonally-detrended anomaly over ERA5
-    # 1991-2020), so a 2-sigma Andes event reads as one at a glance instead of
-    # being lost next to Antarctica.
+    # (torque_range_sd.nc from build_torque_range_sd.py: 1-sigma of this day-mean
+    # anomaly, computed the same way from ERA5 1991-2020), so a 2-sigma Andes event
+    # reads as one at a glance instead of being lost next to Antarctica.
     def box_net5(field, b):
         lo0, lo1, la0, la1 = b
         ym = (clat >= la0) & (clat <= la1)
