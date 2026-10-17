@@ -305,7 +305,7 @@
 <main id="main">
   <div class="page-header">
   <h1>MJO forecasts from the global ensembles</h1>
-    <p class="sub" style="margin-bottom:1rem">Latest ECMWF init: <strong>2026-10-17 00Z</strong>. The ensembles&rsquo; MJO forecasts on one phase diagram (AIFS-ENS, IFS-ENS, GEFS and GEPS, each switchable, standard or ENSO-removed index), the ECMWF runs one after another, and what each phase has meant for temperature, rain and the flow.</p>
+    <p class="sub" style="margin-bottom:1rem">Latest ECMWF init: <strong>2026-10-17 12Z</strong>. The ensembles&rsquo; MJO forecasts on one phase diagram (AIFS-ENS, IFS-ENS, GEFS and GEPS, each switchable, standard or ENSO-removed index), the ECMWF runs one after another, and what each phase has meant for temperature, rain and the flow.</p>
 
   </div>
   <div class="ss-layout">
@@ -325,11 +325,11 @@
 
   <section id="mjo-models">
   <h2>MJO forecasts from the global ensembles</h2>
-  <p style="font-size:0.95rem;line-height:1.55;margin:0.4rem 0 0.6rem"><b>No coherent MJO in the ENSO-removed forecast:</b> ensemble-mean amplitude 0.7 (max 1.4) and a phase speed of -1.5&deg;/day, where a real MJO moves at about +7&deg;/day. NOAA&rsquo;s OLR-based ROMI on 2026-10-12: amplitude 1.27, phase 2; over the last 60 days 26&nbsp;% of days reached amplitude 1. Correction applied: &Delta;Ni&ntilde;o-3.4 = +0.97&nbsp;&deg;C.</p>
+  <p style="font-size:0.95rem;line-height:1.55;margin:0.4rem 0 0.6rem"><b>No coherent MJO in the ENSO-removed forecast:</b> ensemble-mean amplitude 0.6 (max 1.5) and a phase speed of -1.0&deg;/day, where a real MJO moves at about +7&deg;/day. NOAA&rsquo;s OLR-based ROMI on 2026-10-13: amplitude 1.33, phase 2; over the last 60 days 30&nbsp;% of days reached amplitude 1. Correction applied: &Delta;Ni&ntilde;o-3.4 = +0.98&nbsp;&deg;C.</p>
   <p style="color:var(--muted);font-size:0.95rem;line-height:1.55;margin:0 0 0.6rem">The Wheeler&ndash;Hendon phase diagram with the
   observed track of the last 40 days and the ensemble-mean forecast of each model, one marker every five days and a square at the
   horizon. Members are off by default and faint when on. ECMWF&rsquo;s ensembles reach day 15; GEFS and GEPS reach day 35.
-  Latest inits: AIFS-ENS 2026-10-17 00Z, IFS-ENS 2026-10-17 00Z.</p>
+  Latest inits: AIFS-ENS 2026-10-17 12Z.</p>
   <div class="mm-legend" id="mm-legend"></div>
   <div class="mm-ctl">
     <span>Index <span class="mm-seg" id="mm-index"><button type="button" data-v="0">standard</button><button type="button" data-v="1">ENSO removed</button></span></span>
@@ -529,10 +529,10 @@
 
 
   <section class="mi" id="mjo-impacts">
-  <h2>MJO impacts by phase and season: 11 CMIP6 models (18 members, 1979&ndash;2014), with the observed record for comparison</h2>
+  <h2>MJO impacts by phase and season: 11 CMIP6 models (63 members, 1979&ndash;2014), with the observed record for comparison</h2>
   <p class="lede lede--wide">What each MJO phase does to temperature, rainfall and the 500&nbsp;hPa flow, season by
   season, in 11 CMIP6 models whose MJO passes a realism screen: a cell is coloured only where the models agree
-  (significant across models and at least two-thirds on the same sign). The observed record (1979&ndash;2024) is there
+  (significant across models and at least 60&nbsp;% on the same sign). The observed record (1979&ndash;2024) is there
   for comparison; &ldquo;CMIP6 above observed&rdquo; stacks the two for the same field, season and lag. ENSO and the
   forced trend are removed from the index and from the fields. Blank means no significant signal.</p>
   <div class="mi-ctl">
@@ -559,9 +559,9 @@
   years: 4 over the 36 model years, 5 over ERA5 1979&ndash;2024, 3 over GPCP
   1997&ndash;2024), so, for example, the Arctic&rsquo;s faster winter warming is not left in the anomalies. (2) The same
   regression&rsquo;s time-varying mean is the forced trend, smooth and nonlinear rather than a straight line. A model
-  with two members is fitted on both together, that is on its ensemble mean, so the forced part is the model&rsquo;s and
-  not one member&rsquo;s decade of weather; the daily ensemble mean is not subtracted, because with two members it holds
-  half of each member&rsquo;s own MJO. (3) A high-pass at 120&nbsp;days: every Fourier
+  with several members is fitted on all of them together, that is on its ensemble mean, so the forced part is the
+  model&rsquo;s and not one member&rsquo;s decade of weather; the daily ensemble mean is not subtracted, because with few
+  members it holds much of each member&rsquo;s own MJO (half of it with two). (3) A high-pass at 120&nbsp;days: every Fourier
   component with a longer period is removed from what is left, which takes out ENSO and the rest of the interannual
   variability the same way the index filter does; the first and last 60 days of each
   record are dropped. (A 121-day running mean was tried first and left too much: a running mean cuts off gradually and
@@ -576,10 +576,11 @@
   and eastward propagation (lag-regression pattern against GPCP) r&nbsp;&ge;&nbsp;0.8;
   GPCP itself gives E/W&nbsp;2.5. Used: CNRM-ESM2-1 (E/W 3.2, r 0.85), CNRM-CM6-1 (E/W 3.2, r 0.85), CAMS-CSM1-0 (E/W 2.7, r 0.91), CESM2 (E/W 2.5, r 0.91), MPI-ESM1-2-HR (E/W 2.8, r 0.81), GFDL-CM4 (E/W 2.3, r 0.95), EC-Earth3-CC (E/W 2.3, r 0.95), CESM2-FV2 (E/W 2.2, r 0.93), EC-Earth3 (E/W 2.1, r 0.95), IITM-ESM (E/W 2.3, r 0.84), BCC-ESM1 (E/W 2.2, r 0.82).
   Passed but left out as a near-duplicate of a family member: CNRM-CM6-1-HR, EC-Earth3-Veg, EC-Earth3-Veg-LR, CESM2-WACCM. 
-  Failed: EC-Earth3-AerChem (E/W 1.9, r 0.94), MPI-ESM1-2-LR (E/W 2.3, r 0.75), MPI-ESM-1-2-HAM (E/W 2.3, r 0.69), TaiESM1 (E/W 1.7, r 0.90), KACE-1-0-G (E/W 1.6, r 0.85), CMCC-ESM2 (E/W 1.5, r 0.90), AWI-ESM-1-1-LR (E/W 1.8, r 0.78), HadGEM3-GC31-MM (E/W 1.6, r 0.87), IPSL-CM5A2-INCA (E/W 1.7, r 0.76), ACCESS-ESM1-5 (E/W 1.4, r 0.84), CMCC-CM2-HR4 (E/W 1.4, r 0.87), CMCC-CM2-SR5 (E/W 1.4, r 0.89), IPSL-CM6A-LR (E/W 1.4, r 0.85), ACCESS-CM2 (E/W 1.3, r 0.86), BCC-CSM2-MR (E/W 1.5, r 0.74), HadGEM3-GC31-LL (E/W 1.2, r 0.88), UKESM1-0-LL (E/W 1.1, r 0.85), CanESM5 (E/W 0.9, r 0.76), INM-CM5-0 (E/W 1.0, r 0.67), INM-CM4-8 (E/W 0.8, r 0.68). 18 historical members in all (up to two per model), 1979&ndash;2014; the 500&nbsp;hPa composites use each model&rsquo;s first member.</p>
-  <p><b>Tests.</b> CMIP6: each model&rsquo;s composite (members pooled; at least 30 active days), across-model
-  one-sample t-test with a Benjamini&ndash;Hochberg false-discovery rate of 10&nbsp;% over the map, and at least
-  two-thirds of the models agreeing on the sign. Observed: an MJO passage lasts days and daily anomalies are
+  Failed: EC-Earth3-AerChem (E/W 1.9, r 0.94), MPI-ESM1-2-LR (E/W 2.3, r 0.75), MPI-ESM-1-2-HAM (E/W 2.3, r 0.69), TaiESM1 (E/W 1.7, r 0.90), KACE-1-0-G (E/W 1.6, r 0.85), CMCC-ESM2 (E/W 1.5, r 0.90), AWI-ESM-1-1-LR (E/W 1.8, r 0.78), HadGEM3-GC31-MM (E/W 1.6, r 0.87), IPSL-CM5A2-INCA (E/W 1.7, r 0.76), ACCESS-ESM1-5 (E/W 1.4, r 0.84), CMCC-CM2-HR4 (E/W 1.4, r 0.87), CMCC-CM2-SR5 (E/W 1.4, r 0.89), IPSL-CM6A-LR (E/W 1.4, r 0.85), ACCESS-CM2 (E/W 1.3, r 0.86), BCC-CSM2-MR (E/W 1.5, r 0.74), HadGEM3-GC31-LL (E/W 1.2, r 0.88), UKESM1-0-LL (E/W 1.1, r 0.85), CanESM5 (E/W 0.9, r 0.76), INM-CM5-0 (E/W 1.0, r 0.67), INM-CM4-8 (E/W 0.8, r 0.68). 63 historical members in all (1 to 28 per model), 1979&ndash;2014; the 500&nbsp;hPa composites use the 51 members of 9 models with daily 500&nbsp;hPa height.</p>
+  <p><b>Tests.</b> CMIP6: each model&rsquo;s composite (members pooled, so a model counts once however many members it
+  has; at least 30 active days), across-model one-sample t-test with a Benjamini&ndash;Hochberg false-discovery rate
+  of 10&nbsp;% over the map, and at least
+  60&nbsp;% of the models agreeing on the sign. Observed: an MJO passage lasts days and daily anomalies are
   correlated, so the unit is the event (a run of consecutive active days in one phase), resampled with the whole lag
   window of every one of its days: an event-block bootstrap (2,000 resamples), the same 10&nbsp;% false-discovery rate,
   and only phase-seasons with at least 8 events are tested.</p>
@@ -659,12 +660,12 @@
   The observed track is ERA5 up to mid-July 2026 and, since then, the AIFS-ENS
   control at step 0 of each 00Z and 12Z run (wind-only, verified within a few
   degrees of the official BoM RMM phase).</p>
-  <p class="chart-sources">Updated 2026-10-17 14:14Z · Auto-generated from the AIFS-ENS and IFS-ENS open data, &copy;&nbsp;2026 European Centre for Medium-Range Weather Forecasts (ECMWF), source <a href="https://www.ecmwf.int">www.ecmwf.int</a>, <a href="https://creativecommons.org/licenses/by/4.0/">CC&nbsp;BY&nbsp;4.0</a>, modified; ECMWF does not accept any liability for errors or omissions in the data, their availability, or any loss or damage arising from their use.
+  <p class="chart-sources">Updated 2026-10-17 20:50Z · Auto-generated from the AIFS-ENS and IFS-ENS open data, &copy;&nbsp;2026 European Centre for Medium-Range Weather Forecasts (ECMWF), source <a href="https://www.ecmwf.int">www.ecmwf.int</a>, <a href="https://creativecommons.org/licenses/by/4.0/">CC&nbsp;BY&nbsp;4.0</a>, modified; ECMWF does not accept any liability for errors or omissions in the data, their availability, or any loss or damage arising from their use.
   Methodology: NOAA CPC / Wheeler &amp; Hendon (2004), EOFs from NOAA OLR +
   NCEP wind with the 120-day low-frequency filter removed; pseudo-OLR from
   &minus;standardized daily precip vs an ERA5 1991&ndash;2020 band climatology.</p>
   </template>
-  <p class="meta">Updated 2026-10-17 14:14Z · Auto-generated from the ECMWF, NOAA and ECCC open-data feeds.</p>
+  <p class="meta">Updated 2026-10-17 20:50Z · Auto-generated from the ECMWF, NOAA and ECCC open-data feeds.</p>
 </main>
 <script>
 window.STAGE = { groups: [{"label": "Forecast", "items": [["models", "All ensembles", "AIFS-ENS, IFS-ENS, GEFS, GEPS on one diagram"], ["rmm", "ECMWF successive runs", "AIFS-ENS and IFS-ENS, run by run"]]}, {"label": "Impacts", "items": [["mi", "Impacts by phase and season", "CMIP6 and observed composites"]]}],
@@ -673,7 +674,7 @@ window.STAGE = { groups: [{"label": "Forecast", "items": [["models", "All ensemb
     rmm: { label: "AIFS-ENS and IFS-ENS RMM forecast (ENSO not removed), successive runs", about: "about-rmm",
            frame: function () { return "sst_anim.html?embed=1&base=assets&manifest=mjo/rmm_manifest.json&region=mjo"; },
            ratio: function () { return "1259/1210"; },
-           cap: function () { return "<b>ENSO not removed.</b> With the ENSO signal taken out (&Delta;Ni&ntilde;o-3.4 +0.97&nbsp;&deg;C) there is no coherent MJO in this forecast: ensemble-mean amplitude 0.7 and a phase speed of -1.5&deg;/day, where a real MJO moves at about +7&deg;/day. A large or slow track in this diagram is most likely the ENSO change projecting onto the index, not an MJO. Drag the slider to step through successive forecast runs (oldest to latest) and watch the predicted MJO track evolve."; } },
+           cap: function () { return "<b>ENSO not removed.</b> With the ENSO signal taken out (&Delta;Ni&ntilde;o-3.4 +0.98&nbsp;&deg;C) there is no coherent MJO in this forecast: ensemble-mean amplitude 0.6 and a phase speed of -1.0&deg;/day, where a real MJO moves at about +7&deg;/day. A large or slow track in this diagram is most likely the ENSO change projecting onto the index, not an MJO. Drag the slider to step through successive forecast runs (oldest to latest) and watch the predicted MJO track evolve."; } },
     models: { label: "MJO forecasts from the global ensembles", dom: function () { return "mjo-models"; } },
     mi: { label: "MJO impacts by phase and season", ownHash: true, dom: function () { return "mjo-impacts"; } }
   }
