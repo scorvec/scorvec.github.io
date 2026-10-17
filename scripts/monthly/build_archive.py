@@ -63,6 +63,7 @@ def wb2_year(y: int, only: list[str] | None = None) -> dict:
         "u50": ds["u_component_of_wind"].sel(level=50, time=sl),
         "snow": ds["snow_depth"].sel(time=sl),
         "swvl": ds["volumetric_soil_water_layer_1"].sel(time=sl),
+        "prcp": ds["total_precipitation_6hr"].sel(time=sl) * 4000.0,  # m per 6 h -> mm/day
     }
     if only:
         raw = {k: v for k, v in raw.items() if k in only}
@@ -83,7 +84,7 @@ def wb2_year(y: int, only: list[str] | None = None) -> dict:
             out["u50eq"] = G.band_mean(blocks, lat, -5, 5).reshape(12, 2)
             out["u50v"] = G.band_mean(blocks, lat, 57, 63).reshape(12, 2)
         else:
-            grid = "sst" if k == "sst" else "nh"
+            grid = {"sst": "sst", "prcp": "all"}.get(k, "nh")
             c = co(blocks, grid, min_frac=0.5 if k in ("sst", "sic") else 0.0)
             out[k] = c.reshape(12, 2, *c.shape[1:]).astype(np.float32)
         print(f"    {y} {k}: {time.time() - t0:.0f}s", flush=True)
@@ -149,6 +150,7 @@ class Arco:
                 si = sub["sea_ice_cover"].values[:, self.inh]
                 sn = self.ds["snow_depth"].sel(time=ts).values[:, self.inh]
                 sw = self.ds["volumetric_soil_water_layer_1"].sel(time=ts).values[:, self.inh]
+                pr = self._prcp(d)
                 break
             except Exception as e:  # noqa: BLE001  transient GCS errors; retried, then raised
                 if attempt == 3:
@@ -167,6 +169,7 @@ class Arco:
                 "sst": np.nanmean(self.co_sst(ss, "sst", 0.5), 0) * len(HOURS),
                 "snow": self.co_nh(sn, "nh").sum(0),
                 "swvl": self.co_nh(sw, "nh").sum(0),
+                "prcp": self.co_sst(pr, "all").mean(0) * len(HOURS),
             }
         out["u50eq"] = float((u[:, self.ieq].mean((0, 2)) * wq[self.ieq]).sum() / wq[self.ieq].sum())
         out["u50v"] = float((u[:, self.iv].mean((0, 2)) * wq[self.iv]).sum() / wq[self.iv].sum())
@@ -174,15 +177,30 @@ class Arco:
 
 
 SURF = {"snow": "snow_depth", "swvl": "volumetric_soil_water_layer_1"}
+PRCP_HOURS = tuple(range(0, 24, 3))  # ARCO precipitation is hourly: sampled every 3 h (the WB2 years are 6-h totals)
+
+
+def _prcp(self: Arco, d: date) -> np.ndarray:
+    """(8, lat >= -32, lon) precipitation rate in mm/day from the hourly accumulations every 3 hours."""
+    ts = [pd.Timestamp(datetime(d.year, d.month, d.day, h)) for h in PRCP_HOURS]
+    return self.ds["total_precipitation"].sel(time=ts).values[:, self.isst] * 24000.0
+
+
+Arco._prcp = _prcp
 
 
 def _day_surface(self: Arco, d: date, only: list[str]) -> dict | None:
     """Only the listed land-surface fields of one day (a field added to the archive later)."""
     ts = [pd.Timestamp(datetime(d.year, d.month, d.day, h)) for h in HOURS]
+    surf = [k for k in only if k in SURF]
     for attempt in range(4):
         try:
-            sub = self.ds[[SURF[k] for k in only]].sel(time=ts)
-            vals = {k: sub[SURF[k]].values[:, self.inh] for k in only}
+            vals = {}
+            if surf:
+                sub = self.ds[[SURF[k] for k in surf]].sel(time=ts)
+                vals = {k: sub[SURF[k]].values[:, self.inh] for k in surf}
+            if "prcp" in only:
+                vals["prcp"] = self._prcp(d)
             break
         except Exception as e:  # noqa: BLE001  transient GCS errors; retried, then raised
             if attempt == 3:
@@ -191,7 +209,10 @@ def _day_surface(self: Arco, d: date, only: list[str]) -> dict | None:
             time.sleep(5 * (attempt + 1))
     if not all(np.isfinite(v).any(axis=(1, 2)).all() for v in vals.values()):
         return None
-    return {k: self.co_nh(v, "nh").sum(0) for k, v in vals.items()}
+    out = {k: self.co_nh(v, "nh").sum(0) for k, v in vals.items() if k != "prcp"}
+    if "prcp" in vals:
+        out["prcp"] = self.co_sst(vals["prcp"], "all").mean(0) * len(HOURS)
+    return out
 
 
 Arco.day_surface = _day_surface

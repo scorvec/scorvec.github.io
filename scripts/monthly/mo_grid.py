@@ -15,6 +15,7 @@ Fields (int16-packed, PACK gives scale/offset/fill):
     sst   sea-surface temperature (°C)             SST grid, 30S-66N, NaN over land
     snow  snow depth (m of water equivalent)       NH grid
     swvl  volumetric soil water, 0-7 cm (m³/m³)    NH grid (ERA5 holds it fixed over the ocean)
+    prcp  precipitation rate (mm/day)              30S-90N (the tropical heating predictor and a forecast variable)
 Indices (float32): u50eq zonal-mean u at 50 hPa, 5S-5N (QBO); u50v the same at 57-63N (lower polar vortex).
 `n` counts the 6-hourly samples in each block (0 = not yet in the archive).
 """
@@ -32,7 +33,16 @@ RES = 3.0
 LON = np.arange(0.0, 360.0, RES)  # 120
 LAT_NH = np.arange(0.0, 90.0 + RES / 2, RES)  # 31, 0..90
 LAT_SST = np.arange(-30.0, 66.0 + RES / 2, RES)  # 33, -30..66
-FIELDS = {"z500": LAT_NH, "t2m": LAT_NH, "sic": LAT_NH, "sst": LAT_SST, "snow": LAT_NH, "swvl": LAT_NH}
+LAT_ALL = np.arange(-30.0, 90.0 + RES / 2, RES)  # 41, -30..90
+FIELDS = {
+    "z500": LAT_NH,
+    "t2m": LAT_NH,
+    "sic": LAT_NH,
+    "sst": LAT_SST,
+    "snow": LAT_NH,
+    "swvl": LAT_NH,
+    "prcp": LAT_ALL,
+}
 INDICES = ("u50eq", "u50v")
 SPLIT_DAY = 8  # block 1 starts on this day
 
@@ -44,6 +54,7 @@ PACK = {
     "sst": (0.01, 0.0),
     "snow": (1e-3, 0.0),
     "swvl": (1e-4, 0.0),
+    "prcp": (0.01, 0.0),
 }
 FILL = np.int16(-32768)
 
@@ -67,7 +78,9 @@ class Coarsener:
 
     def __init__(self, src_lat: np.ndarray, src_lon: np.ndarray):
         self.wlon = lon_weights(src_lon, LON, RES / 2)
-        self.wlat = {k: lat_weights(src_lat, v, RES / 2) for k, v in (("nh", LAT_NH), ("sst", LAT_SST))}
+        self.wlat = {
+            k: lat_weights(src_lat, v, RES / 2) for k, v in (("nh", LAT_NH), ("sst", LAT_SST), ("all", LAT_ALL))
+        }
 
     def __call__(self, x: np.ndarray, grid: str, min_frac: float = 0.0) -> np.ndarray:
         wl = self.wlat[grid]

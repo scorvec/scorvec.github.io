@@ -1,15 +1,16 @@
 name: Month-ahead outlook (statistical, monthly on the 15th)
 
-# monthly-outlook.html: the next calendar month's mean 500 hPa height and 2 m temperature anomalies over the Northern
-# Hemisphere, issued on the 15th of the month before, from ERA5 alone - trend, ENSO/QBO/vortex regression, an SST
-# constructed analogue, local persistence and analogue years, consolidated with weights from a cross-validated
-# 1981-onward hindcast (scripts/monthly/mo_method.py). No dynamical model is read.
+# monthly-outlook.html (Claude's month-ahead forecast): the next calendar month's mean 2 m temperature, precipitation
+# and 500 hPa height over the Northern Hemisphere, as anomalies and tercile probabilities, issued on the 15th of the
+# month before from ERA5 alone - trend, RONI/QBO/vortex regression, a tropical constructed analogue, local persistence
+# and analogue years, consolidated with weights from a cross-validated 1981-onward hindcast
+# (scripts/monthly/mo_method.py). No dynamical model is read; the C3S multi-system mean is only scored beside it.
 #
 # ORDER. build_archive --tail appends the newest ERA5T half-month blocks (ARCO, anonymous Google Cloud reads) to
 # scripts/monthly/data/era5_<YYYY>.npz; forecast.py issues the outlook for next month once (an issued outlook is never
-# overwritten unless dispatched with force); verify.py scores every outlook whose target month is now complete;
-# render.py draws the figures. The predictors end on the 7th of this month, so the run does not depend on the hour
-# ERA5T lands (ARCO trails real time by about six days).
+# overwritten unless dispatched with force); verify.py scores every outlook whose target month is now complete, and
+# the C3S benchmark from the c3s-ref-v1 release (public downloads); render.py draws the figures. The predictors end
+# on the 7th of this month, so the run does not depend on the hour ERA5T lands (ARCO trails real time by ~six days).
 
 on:
   schedule:
@@ -38,13 +39,14 @@ env:
 jobs:
   outlook:
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 90
     steps:
       - uses: actions/checkout@v7
         with:
           sparse-checkout: |
             scripts/monthly
             assets/monthly
+            assets/sst/data/c3s_maps.json
             scripts/constraints.txt
           sparse-checkout-cone-mode: false
       - uses: actions/setup-python@v7

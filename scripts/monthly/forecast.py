@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
-"""Issue the month-ahead outlook (the target month's mean 500 hPa height and 2 m temperature anomalies, Northern
-Hemisphere) from the ERA5 archive, with its cross-validated hindcast. Method in mo_method.py.
+"""Issue the month-ahead outlook (the target month's mean 500 hPa height, 2 m temperature and precipitation
+anomalies and tercile probabilities, Northern Hemisphere) from the ERA5 archive, with its cross-validated hindcast.
+Method in mo_method.py.
 
     python scripts/monthly/forecast.py                       # target = the month after today's
     python scripts/monthly/forecast.py --target 2026-11
@@ -49,8 +50,7 @@ def run(target_year: int, month: int, A: M.Archive, realtime: bool = True) -> di
     years = P.years
     hind = [int(y) for y in years if y >= HIND0 and y != target_year and P.available(y)]
     k = len(M.COMPONENTS)
-    nP = P.obs["t2m"].shape[1]
-    F = {v: np.zeros((len(hind), k, nP), np.float32) for v in M.TARGETS}
+    F = {v: np.zeros((len(hind), k, P.obs[v].shape[1]), np.float32) for v in M.TARGETS}
     analog_log = {}
     for j, y in enumerate(hind):
         comp = P.forecast(y, CV_GAP, target_year)
@@ -93,21 +93,39 @@ def run(target_year: int, month: int, A: M.Archive, realtime: bool = True) -> di
             b_j = M.consolidation_weights(F[v][keep], Y[keep], K)
             cv[j] = np.einsum("pk,kp->p", b_j, F[v][j])
 
-        # skill: per point correlation, MSSS, and hemispheric ACC by year
-        def corr(a, b):
-            a = a - a.mean(0)
-            b = b - b.mean(0)
-            return (a * b).sum(0) / np.sqrt((a * a).sum(0) * (b * b).sum(0) + 1e-30)
-
         r = corr(cv, Y)
         msss = 1 - ((cv - Y) ** 2).sum(0) / ((Y**2).sum(0) + 1e-30)
         n = len(hind)
         tstat = r * np.sqrt((n - 2) / np.maximum(1 - r * r, 1e-9))
-        p = stats.t.sf(tstat, n - 2)  # one-sided: skill > 0
-        sig = bh_mask(p, 0.10)
+        sig = bh_mask(stats.t.sf(tstat, n - 2), 0.10)  # one-sided: skill > 0
         comp_r = {c: corr(F[v][:, i], Y) for i, c in enumerate(M.COMPONENTS)}
         acc_y = [acc(cv[j], Y[j], w) for j in range(n)]
         rmse = np.sqrt(((cv - Y) ** 2).mean(0))
+        # skill beyond the trend: the trend component alone (unweighted) as the reference forecast
+        TRf = F[v][:, M.COMPONENTS.index("TR")]
+        msss_tr = 1 - ((cv - Y) ** 2).sum(0) / (((TRf - Y) ** 2).sum(0) + 1e-30)
+        r_beyond = corr(cv - TRf, Y - TRf)
+        acc_tr = [acc(TRf[j], Y[j], w) for j in range(n)]
+        # tercile probabilities against the 1991-2020 terciles of each point (terciles()), set to equal chances
+        # where the hindcast has no significant skill (CPC's "EC"); each hindcast year's probabilities leave that
+        # year out of the error spread, the climatology and the skill test
+        clim = (years >= M.CLIM[0]) & (years <= M.CLIM[1]) & np.isfinite(P.obs[v]).all(1)
+        lo, hi_t = np.percentile(P.obs[v][clim], [100 / 3, 200 / 3], axis=0)
+        e2 = (cv - Y) ** 2
+        err = Y - cv
+        cy = np.where(clim)[0]
+        pb, pa = np.zeros_like(cv), np.zeros_like(cv)
+        for j, yj in enumerate(hi):
+            keep = np.arange(n) != j
+            rj = corr(cv[keep], Y[keep])
+            tj = rj * np.sqrt((n - 3) / np.maximum(1 - rj * rj, 1e-9))
+            skj = bh_mask(stats.t.sf(tj, n - 3), 0.10)
+            b_, a_ = terciles(cv[j], err[keep], lo, hi_t, P.obs[v][cy[cy != yj]])
+            pb[j], pa[j] = np.where(skj, b_, 1 / 3), np.where(skj, a_, 1 / 3)
+        cat = np.greater_equal(Y, lo).astype(int) + np.greater(Y, hi_t)  # 0 below, 1 near, 2 above normal
+        rps_fc = (pb - (cat == 0)) ** 2 + ((1 - pa) - (cat <= 1)) ** 2
+        rps_cl = (1 / 3 - (cat == 0)) ** 2 + (2 / 3 - (cat <= 1)) ** 2
+        rpss = 1 - rps_fc.sum(0) / rps_cl.sum(0)
         out = {
             "beta": beta,
             "r": r,
@@ -116,6 +134,12 @@ def run(target_year: int, month: int, A: M.Archive, realtime: bool = True) -> di
             "rmse": rmse,
             "comp_r": comp_r,
             "acc_by_year": acc_y,
+            "acc_trend_by_year": acc_tr,
+            "msss_trend": msss_tr,
+            "r_beyond": r_beyond,
+            "rpss": rpss,
+            "rpss_nh": float(1 - (w * rps_fc.sum(0)).sum() / (w * rps_cl.sum(0)).sum()),
+            "msss_trend_nh": float(1 - (w * e2.sum(0)).sum() / (w * ((TRf - Y) ** 2).sum(0)).sum()),
             "hind_cv": cv,
             "hind_obs": Y,
         }
@@ -124,10 +148,37 @@ def run(target_year: int, month: int, A: M.Archive, realtime: bool = True) -> di
             out["comp"] = Frt
             out["fc"] = np.einsum("pk,kp->p", beta, Frt)
             out["contrib"] = beta.T * Frt  # (k, P)
-            # probability of an above-normal month (above the 1991-2020 mean), Gaussian CV errors
-            out["p_above"] = stats.norm.cdf(out["fc"] / np.maximum(rmse, 1e-6))
+            b_, a_ = terciles(out["fc"], err, lo, hi_t, P.obs[v][clim])
+            out["p_below_raw"], out["p_above_raw"] = b_, a_
+            out["p_below"], out["p_above"] = np.where(sig, b_, 1 / 3), np.where(sig, a_, 1 / 3)
+            out["tlo"], out["thi"] = lo, hi_t
         res["vars"][v] = out
     return res
+
+
+def corr(a: np.ndarray, b: np.ndarray) -> np.ndarray:
+    """Correlation along axis 0, per point."""
+    a = a - a.mean(0)
+    b = b - b.mean(0)
+    return (a * b).sum(0) / np.sqrt((a * a).sum(0) * (b * b).sum(0) + 1e-30)
+
+
+def terciles(
+    mu: np.ndarray, err: np.ndarray, lo: np.ndarray, hi: np.ndarray, clim: np.ndarray
+) -> tuple[np.ndarray, np.ndarray]:
+    """P(below the lower tercile) and P(above the upper) for the forecast mu (P,), given the hindcast's errors
+    err (n, P) (observed minus forecast) and the 1991-2020 anomalies clim (m, P): the point's own climatology,
+    shifted by the forecast and narrowed by the hindcast's error relative to the climatological spread
+    (x_k = mu + s c_k, s = rms error / climatological sd, at most 1.5), kernel-smoothed. A forecast of zero from a
+    skill-less hindcast is then exactly climatology (1/3 each), and a skewed variable such as precipitation keeps
+    its skew (a normal distribution around the forecast scored the same for temperature and height)."""
+    sd = np.maximum(np.sqrt((err**2).mean(0)), 1e-6)
+    c = clim - clim.mean(0)
+    sc = np.maximum(c.std(0), 1e-6)
+    s = np.minimum(sd / sc, 1.5)
+    x = mu + s * c  # (m, P)
+    h = np.maximum(0.25 * s * sc, 1e-6)
+    return stats.norm.cdf((lo - x) / h).mean(0), stats.norm.sf((hi - x) / h).mean(0)
 
 
 def bh_mask(p: np.ndarray, q: float) -> np.ndarray:
@@ -164,6 +215,13 @@ def summarise(res: dict, issued: str) -> dict:
             "nh_acc_mean": round(float(np.mean(o["acc_by_year"])), 3),
             "nh_acc_by_year": dict(zip(map(str, res["hindcast_years"]), np.round(o["acc_by_year"], 3).tolist())),
             "skill_r_nh": round(float((w * o["r"]).sum() / w.sum()), 3),
+            "acc_trend_mean": round(float(np.mean(o["acc_trend_by_year"])), 3),
+            "acc_trend_by_year": dict(
+                zip(map(str, res["hindcast_years"]), np.round(o["acc_trend_by_year"], 3).tolist())
+            ),
+            "msss_trend_nh": round(o["msss_trend_nh"], 3),
+            "r_beyond_nh": round(float((w * o["r_beyond"]).sum() / w.sum()), 3),
+            "rpss_nh": round(o["rpss_nh"], 3),
             "skill_area_sig": round(float((w * o["sig"]).sum() / w.sum()), 3),
             "comp_r_nh": {c: round(float((w * r).sum() / w.sum()), 3) for c, r in o["comp_r"].items()},
             "weight_nh": {
@@ -194,7 +252,9 @@ def save(res: dict, summary: dict) -> None:
     tag = res["target"].replace("-", "")
     arrs = {}
     for v, o in res["vars"].items():
-        for key in ("fc", "p_above", "r", "sig", "rmse", "comp", "contrib", "beta"):
+        keys = ("fc", "p_below", "p_above", "p_below_raw", "p_above_raw", "tlo", "thi", "r", "sig", "rmse", "rpss")
+        keys = (*keys, "msss_trend", "comp", "contrib")
+        for key in (*keys, "beta"):
             if key in o:
                 arrs[f"{v}_{key}"] = np.asarray(o[key]).astype(np.float32 if key != "sig" else np.bool_)
     arrs["z500_clim"] = res["z500_clim"].astype(np.float32)
@@ -206,19 +266,20 @@ def save(res: dict, summary: dict) -> None:
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--target", help="YYYY-MM (default: the month after today's)")
-    ap.add_argument("--skill-all", action="store_true")
+    ap.add_argument("--skill-all", nargs="?", const="1,2,3,4,5,6,7,8,9,10,11,12", help="hindcast skill of months")
     ap.add_argument("--force", action="store_true", help="re-issue an outlook that already exists")
     a = ap.parse_args()
     A = M.load_archive()
     if a.skill_all:
-        for m in range(1, 13):
+        for m in map(int, a.skill_all.split(",")):
             res = run(9999, m, A, realtime=False)
             line = [f"{m:2d}"]
             for v in M.TARGETS:
                 s = summarise(res, "")["vars"][v]
                 line.append(
-                    f"{v}: acc {s['nh_acc_mean']:+.2f} r {s['skill_r_nh']:+.2f} sig {s['skill_area_sig']:.2f} "
-                    + " ".join(f"{c}{s['comp_r_nh'][c]:+.2f}/{s['weight_nh'][c]:.2f}" for c in M.COMPONENTS)
+                    f"{v}: acc {s['nh_acc_mean']:+.3f} (trend {s['acc_trend_mean']:+.3f}) r {s['skill_r_nh']:+.3f} "
+                    f"sig {s['skill_area_sig']:.2f} rpss {s['rpss_nh']:+.3f} msss_tr {s['msss_trend_nh']:+.3f} "
+                    + " ".join(f"{c}{s['comp_r_nh'][c]:+.2f}" for c in M.COMPONENTS)
                 )
             print(" | ".join(line), flush=True)
         return 0

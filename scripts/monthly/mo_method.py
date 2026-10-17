@@ -1,5 +1,7 @@
 """The month-ahead outlook's statistical method: five empirical components and their cross-validated consolidation.
 
+Targets: 500 hPa height, 2 m temperature and precipitation, monthly means over 0-90N on the archive's 3° grid.
+
 Nothing here reads a dynamical forecast. The outlook for target month T of year Y is issued on the 15th of month
 T-1, and its predictors are the ERA5 means of the ~30-day window ending on the 7th of T-1 (mo_grid: block 1 of T-2
 plus block 0 of T-1). The predictand is the calendar-month anomaly against 1991-2020.
@@ -11,12 +13,14 @@ Components (each a map of the target month's anomaly):
     IX   index regression: the detrended target anomaly regressed on four indices of the window - relative
          Niño-3.4 (the RONI quantity) split into its El Niño and La Niña halves, equatorial u50 (QBO) and 57-63N u50
          (the lower polar vortex)
-    CA   constructed analogue on tropical SST (Van den Dool 1994): the window's detrended SST anomaly 20S-20N is
-         written as a ridge-regularised combination of the library years' SST anomalies, and the same weights
-         combine those years' detrended target-month anomalies. Extratropical SST is left out on purpose: there it
-         is mostly the footprint of the atmospheric circulation, not a forcing of it
+    CA   constructed analogue on the tropics (Van den Dool 1994): the window's detrended SST and rainfall anomalies
+         20S-20N (each scaled to unit total variance) are written as a ridge-regularised combination of the library
+         years', and the same weights combine those years' detrended target-month anomalies. Rainfall is the
+         heating that actually forces the teleconnections; extratropical SST is left out on purpose, being mostly
+         the footprint of the atmospheric circulation rather than a forcing of it
     PE   damped local persistence: per grid point, the detrended target anomaly regressed on the window's anomaly
-         of the same field (for 2 m temperature also on the window's sea ice, snow depth and topsoil moisture)
+         of the same field (for 2 m temperature also on the window's sea ice, snow depth and topsoil moisture, for
+         precipitation on topsoil moisture)
     AN   analogue years: the eight library years closest to the window's state (tropical SST pattern, ENSO, QBO,
          vortex and the hemispheric 500 hPa pattern); their mean detrended target anomaly
 
@@ -46,18 +50,20 @@ COMPONENTS = ("TR", "IX", "CA", "PE", "AN")
 NAMES = {
     "TR": "Trend",
     "IX": "RONI (El Niño, La Niña) / QBO / vortex regression",
-    "CA": "Tropical SST constructed analogue",
+    "CA": "Tropical SST and rainfall constructed analogue",
     "PE": "Local persistence",
     "AN": "Analogue years",
 }
-TARGETS = ("z500", "t2m")
+TARGETS = ("z500", "t2m", "prcp")
 TREND_YEARS = 30
 TREND_ENSO_ADJUST = True
 POOL = (-1, 0, 1)  # calendar-month offsets pooled into the training library
 POOLED = ("IX", "PE")  # the components trained on the pooled library (the rest use the target month alone)
-PE_EXTRA = ("sic", "snow", "swvl")  # local land/ice-surface predictors of 2 m temperature beside its own window
+PE_EXTRA = {"t2m": ("sic", "snow", "swvl"), "prcp": ("swvl",)}  # local surface predictors beside a field's own window
 PE_FLOOR = {"win_sic": 0.01, "win_snow": 0.003, "win_swvl": 0.003}  # rms anomaly below which a predictor is dropped
 SST_LAT = (20, 20)  # the constructed analogue's SST domain: 20S-20N
+CA_VARS = ("sst", "prcp_t")  # the constructed analogue's state: tropical SST and tropical rainfall (the heating)
+WIN_FIELDS = ("z500", "t2m", "sic", "sst", "snow", "swvl", "prcp")
 ENSO_SPLIT = True
 LOESS_HALF = 20  # half-width (years) of the tricube local-linear detrending
 N_ANALOGS = 8
@@ -181,25 +187,29 @@ def local_regress(xtr: np.ndarray, ytr: np.ndarray, xnew: np.ndarray) -> np.ndar
 
 
 # ----------------------------------------------------------------------------------------------- the predictors
+def nh_rows(v: str) -> slice:
+    """Rows of a field's archive grid that make up the 0-90N predictand grid (precipitation is stored 30S-90N)."""
+    return slice(int(np.searchsorted(G.LAT_ALL, 0.0)), None) if G.FIELDS.get(v) is G.LAT_ALL else slice(None)
+
+
 class MonthBlock:
     """One target calendar month's library: per year, the predictor window's state and the target month's anomalies."""
 
     def __init__(self, A: Archive, month: int):
         self.month = month
         self.years = A.years
+        nY = len(self.years)
         y0 = int(A.years[0])
         im = month - 1 if month > 1 else 12  # the issue month
         yi = self.years + (0 if month > 1 else -1)
-        # predictands: anomalies vs 1991-2020, flattened (nY, P)
+        # predictands: anomalies vs 1991-2020, flattened (nY, P), 0-90N
         self.obs, self.det, self.seas, self.dseas = {}, {}, {}, {}
         for v in TARGETS:
-            x = month_series(A.cal[v], self.years, month, y0).reshape(len(self.years), -1)
-            self.obs[v] = clim_anom(x, self.years)
+            r = nh_rows(v)
+            self.obs[v] = clim_anom(month_series(A.cal[v], self.years, month, y0)[:, r].reshape(nY, -1), self.years)
             s3 = np.stack(
                 [
-                    clim_anom(
-                        month_series(A.cal[v], self.years, month + d, y0).reshape(len(self.years), -1), self.years
-                    )
+                    clim_anom(month_series(A.cal[v], self.years, month + d, y0)[:, r].reshape(nY, -1), self.years)
                     for d in (-1, 0, 1)
                 ]
             )
@@ -208,11 +218,18 @@ class MonthBlock:
             slow = loess(self.seas[v], self.years)
             self.det[v] = self.obs[v] - slow
             self.dseas[v] = self.seas[v] - slow
-        # predictor window (issued in month im of year yi), detrended like the predictands
+        # predictor window (issued in month im of year yi), detrended like the predictands; precipitation also as
+        # its tropical band (prcp_t, 20S-20N) for the constructed analogue
         self.win = {}
-        for v in ("z500", "t2m", "sic", "sst", "snow", "swvl", "u50eq", "u50v"):
-            x = month_series(A.win[v], yi, im, y0).reshape(len(self.years), -1)
-            a = clim_anom(x, self.years)
+        for v in (*WIN_FIELDS, "u50eq", "u50v"):
+            x = month_series(A.win[v], yi, im, y0)
+            if v == "prcp":
+                lat = G.LAT_ALL
+                xt = x[:, (lat >= -20) & (lat <= 20)].reshape(nY, -1)
+                a = clim_anom(xt, self.years)
+                self.win["prcp_t"] = a - loess(a, self.years)
+                x = x[:, nh_rows(v)]
+            a = clim_anom(x.reshape(nY, -1), self.years)
             self.win[v] = a - loess(a, self.years) if v not in ("u50eq", "u50v") else a
         sst = clim_anom(month_series(A.win["sst"], yi, im, y0), self.years)  # (nY, lat, lon), not detrended
         lat_s = G.LAT_SST
@@ -232,12 +249,9 @@ class MonthBlock:
         # El Niño and La Niña enter as separate predictors (their teleconnections are not mirror images)
         enso = [np.maximum(self.n34r, 0), np.minimum(self.n34r, 0)] if ENSO_SPLIT else [self.n34r, 0 * self.n34r]
         self.idx = np.stack([*enso, self.win["u50eq"][:, 0], self.win["u50v"][:, 0]], 1)
-        self.valid = (
-            np.isfinite(self.obs["t2m"]).all(1)
-            & np.isfinite(self.obs["z500"]).all(1)
-            & np.isfinite(self.idx).all(1)
-            & np.isfinite(self.win["z500"]).all(1)
-        )
+        self.valid = np.isfinite(self.idx).all(1) & np.isfinite(self.win["z500"]).all(1)
+        for v in TARGETS:
+            self.valid &= np.isfinite(self.obs[v]).all(1)
         self.ready = np.isfinite(self.idx).all(1) & np.isfinite(self.win["z500"]).all(1)  # predictors only
         self.time = self.years + (month - 1) / 12.0
 
@@ -260,7 +274,7 @@ class Problem:
             "valid": cat(lambda b: b.valid),
             "idx": cat(lambda b: b.idx),
             **{f"det_{v}": cat(lambda b, v=v: b.det[v]) for v in TARGETS},
-            **{f"win_{v}": cat(lambda b, v=v: b.win[v]) for v in ("z500", "t2m", "sic", "sst", "snow", "swvl")},
+            **{f"win_{v}": cat(lambda b, v=v: b.win[v]) for v in (*WIN_FIELDS, "prcp_t")},
         }
         self.n34r, self.n34, self.roni = self.c.n34r, self.c.n34, self.c.roni
         self.obs, self.idx = self.c.obs, self.c.idx
@@ -313,7 +327,7 @@ class Problem:
         for v in TARGETS:
             out["IX"][v] = regress(X / sd, L[f"det_{v}"][m], c.idx[i] / sd, ridge=0.05)
         # CA: constructed analogue on tropical SST, pooled library
-        S = np.nan_to_num(L["win_sst"][:, self.sst_ok] * self.sst_w[self.sst_ok])
+        S = self.ca_state()
         m = lib["CA"]
         Str, s0 = S[m], S[self.off + i]
         Gm = Str @ Str.T
@@ -322,11 +336,12 @@ class Problem:
         for v in TARGETS:
             out["CA"][v] = alpha @ L[f"det_{v}"][m]
         self.last_alpha = (L["time"][m], alpha)
-        # PE: local persistence; 2 m temperature also on the window's sea ice, snow depth and topsoil moisture (a
-        # surface predictor whose anomalies are negligible at a point, e.g. snow in the subtropics, is left out there)
+        # PE: local persistence; 2 m temperature also on the window's sea ice, snow depth and topsoil moisture,
+        # precipitation on topsoil moisture (a surface predictor whose anomalies are negligible at a point, e.g. snow
+        # in the subtropics, is left out there)
         m = lib["PE"]
         for v in TARGETS:
-            keys = [f"win_{v}"] + ([f"win_{k}" for k in PE_EXTRA] if v == "t2m" else [])
+            keys = [f"win_{v}"] + [f"win_{k}" for k in PE_EXTRA.get(v, ())]
             xtr = np.stack([np.nan_to_num(L[k][m]) for k in keys], 1)
             xnew = np.stack([np.nan_to_num(L[k][self.off + i]) for k in keys], 0)
             live = np.sqrt((xtr**2).mean(0)) > np.array([PE_FLOOR.get(k, 0.0) for k in keys])[:, None]
@@ -339,6 +354,19 @@ class Problem:
         for v in TARGETS:
             out["AN"][v] = c.det[v][pick].mean(0)
         return out
+
+    def ca_state(self) -> np.ndarray:
+        """The constructed analogue's state vector per library sample: tropical SST (sqrt-cos weighted ocean cells),
+        and with "prcp_t" in CA_VARS also tropical rainfall, each block scaled to unit total variance."""
+        parts = []
+        for v in CA_VARS:
+            if v == "sst":
+                x = np.nan_to_num(self.L["win_sst"][:, self.sst_ok] * self.sst_w[self.sst_ok])
+            else:
+                lat = np.repeat(G.LAT_ALL[(G.LAT_ALL >= -20) & (G.LAT_ALL <= 20)], len(G.LON))
+                x = np.nan_to_num(self.L["win_prcp_t"] * np.sqrt(np.cos(np.deg2rad(lat))))
+            parts.append(x / np.sqrt((x**2).sum(1).mean() + 1e-12))
+        return np.concatenate(parts, 1)
 
     def state_distance(self, i: int, tr: np.ndarray) -> np.ndarray:
         """Distance of year i's window state from each training year's (target month only): the standardised

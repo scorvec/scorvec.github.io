@@ -21,9 +21,6 @@
   /* monthly-outlook.html: the statistical month-ahead outlook (scripts/monthly/, monthly-outlook.yml); page rules on
      top of /assets/outlook.css. Everything that changes month to month is filled from assets/monthly/data/. */
   main { max-width: min(94vw, 1500px); }
-  .pair { display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem; padding: 0.5rem 0.7rem; background: #fff; }
-  .pair img { width: 100%; height: auto; display: block; }
-  @media (max-width: 900px) { .pair { grid-template-columns: 1fr; } }
   .chart-stack a, .method-note a, .page-header a { color: var(--accent); text-decoration: none; border-bottom: 1px solid var(--accent-light); }
   .disc { padding: 0.9rem 1.4rem 0.4rem; }
   .disc p { font-size: 0.9rem; color: var(--ink2); line-height: 1.75; margin: 0 0 0.85rem; max-width: 110ch; }
@@ -35,6 +32,12 @@
   table.rec th { font-weight: 600; color: var(--ink); background: #faf9f6; }
   .tblwrap { overflow-x: auto; padding: 0 1.4rem 0.6rem; }
   .method-note { margin-top: 1.6rem; }
+  .ctl { display: flex; flex-wrap: wrap; gap: 0.2rem 0.6rem; padding: 0.7rem 0 0; }
+  .ctl .fig-toggle { padding: 0 0.6rem 0.5rem 1.4rem; }
+  #outlook .img-wrap img { max-height: 92vh; }
+  table.rec td small { color: var(--muted); }
+  #img_main { cursor: zoom-in; }
+  @media (max-width: 600px) { .chips .chip .v { font-size: 1.2rem; } }
   .method-note h2 { font-family: var(--serif); font-weight: 500; font-size: 1.2rem; margin: 1.4rem 0 0.5rem; }
   .method-note p { font-size: 0.88rem; color: var(--ink2); line-height: 1.75; margin: 0 0 0.85rem; max-width: 120ch; }
   .method-note b { color: var(--ink); font-weight: 600; }
@@ -227,20 +230,22 @@
   <div class="page-header">
     <p class="eyebrow">Next month, issued on the 15th, from ERA5 alone</p>
     <h1>Claude&rsquo;s month-ahead forecast</h1>
-    <p class="sub">The coming calendar month's mean <b>500&nbsp;hPa height</b> and <b>2&nbsp;m temperature</b> anomalies over
-    the Northern Hemisphere, against the <b>1991&ndash;2020 normal</b>. The method was designed and built by Claude
-    (Anthropic's AI model) and runs unattended on the 15th of every month. It is a statistical forecast and reads no
-    dynamical model: five empirical components &mdash; the trend, an ENSO, QBO and polar-vortex regression, a
-    constructed analogue on tropical sea-surface temperature, local persistence of temperature, sea ice, snow and soil
-    moisture, and the closest analogue years &mdash; are blended with weights learned from a cross-validated
-    hindcast back to 1981; the optional skill mask hatches where that hindcast shows no significant skill. For what the dynamical models say, see the
-    <a href="/subseasonal.html">GEPS</a> and <a href="/gefs.html">GEFS</a> outlooks and the
-    <a href="/seasonal.html">seasonal models</a>.</p>
+    <p class="sub">The coming calendar month's mean <b>2&nbsp;m temperature</b>, <b>precipitation</b> and
+    <b>500&nbsp;hPa height</b> over the Northern Hemisphere, as expected anomalies against the <b>1991&ndash;2020
+    normal</b> and as tercile probabilities. The method was designed and built by Claude (Anthropic's AI model) and
+    runs unattended on the 15th of every month. It is a statistical forecast and reads no dynamical model: five
+    empirical components &mdash; the trend, a RONI, QBO and polar-vortex regression, a constructed analogue on the
+    tropical oceans, local persistence of temperature, sea ice, snow and soil moisture, and the closest analogue
+    years &mdash; are blended with weights learned from a cross-validated hindcast back to 1981, and each forecast
+    is scored against ERA5 and against the C3S multi-system seasonal forecast once its month is over. For what the
+    dynamical models say, see the <a href="/subseasonal.html">GEPS</a> and <a href="/gefs.html">GEFS</a> outlooks
+    and the <a href="/seasonal.html">seasonal models</a>.</p>
     <div class="chips">
       <div class="chip"><div class="l">target</div><div class="v" data-k="target">&ndash;</div><div class="s">calendar-month mean</div></div>
       <div class="chip"><div class="l">issued</div><div class="v" data-k="issued">&ndash;</div><div class="s" data-k="window">predictors</div></div>
-      <div class="chip"><div class="l">hindcast ACC, 500&nbsp;hPa</div><div class="v" data-k="acc_z">&ndash;</div><div class="s">20&ndash;90N, cross-validated</div></div>
-      <div class="chip"><div class="l">hindcast ACC, 2&nbsp;m temp</div><div class="v" data-k="acc_t">&ndash;</div><div class="s">20&ndash;90N, cross-validated</div></div>
+      <div class="chip"><div class="l">hindcast ACC, 2&nbsp;m temp</div><div class="v" data-k="acc_t2m">&ndash;</div><div class="s" data-k="sub_t2m">20&ndash;90N, cross-validated</div></div>
+      <div class="chip"><div class="l">hindcast ACC, precip</div><div class="v" data-k="acc_prcp">&ndash;</div><div class="s" data-k="sub_prcp">20&ndash;90N, cross-validated</div></div>
+      <div class="chip"><div class="l">hindcast ACC, 500&nbsp;hPa</div><div class="v" data-k="acc_z500">&ndash;</div><div class="s" data-k="sub_z500">20&ndash;90N, cross-validated</div></div>
     </div>
   </div>
 
@@ -248,19 +253,26 @@
     <section class="chart-card" id="outlook">
       <div class="chart-card-header">
         <h2>The forecast: <span data-k="target_label">&ndash;</span></h2>
-        <p>Shading: the expected monthly-mean anomaly. On the height map the contours are the outlook's total
-        monthly-mean 500&nbsp;hPa height (normal plus anomaly, every 6&nbsp;dam). With the skill mask on, the forecast
-        is faded and hatched where the hindcast of this calendar month has no significant skill (one-sided test,
-        false-discovery rate 10&nbsp;% across the map): read those areas as &ldquo;no better than the normal&rdquo;.
-        The amplitudes are those of an expected value, which is always smaller than any single month's anomaly.</p>
+        <p><b>Expected anomaly</b>: the forecast monthly-mean anomaly; on the height map the contours are the total
+        monthly-mean 500&nbsp;hPa height (normal plus anomaly, every 6&nbsp;dam). Its amplitudes are those of an
+        expected value, always smaller than any single month's anomaly. <b>Tercile probabilities</b>: the chance that
+        the month falls in the upper or lower third of its 1991&ndash;2020 record at each point, from that point's own
+        climatology shifted by the forecast and narrowed by the hindcast's error; shaded where one of the two is the
+        most likely category and reaches 40&nbsp;% (CPC's convention), and equal chances where the hindcast has no
+        significant skill. With the <b>skill mask</b> on, the map is faded and hatched where the hindcast of this
+        calendar month has no significant skill (one-sided test, false-discovery rate 10&nbsp;% across the map): read
+        those areas as &ldquo;no better than the normal&rdquo;; with it off, the probabilities are shown raw. Click a
+        map to open it full size.</p>
       </div>
-      <div class="fig-toggle" data-fig="mask"><button type="button" class="on" data-v="on">Skill mask on</button><button type="button" data-v="off">Skill mask off</button></div>
-      <div class="pair">
-        <img id="img_z" alt="Outlook of the monthly-mean 500 hPa height anomaly, Northern Hemisphere" width="836" height="924">
-        <img id="img_t" alt="Outlook of the monthly-mean 2 m temperature anomaly, Northern Hemisphere" width="836" height="924">
+      <div class="ctl">
+        <div class="fig-toggle" data-sel="var"><button type="button" class="on" data-v="t2m">2 m temperature</button><button type="button" data-v="prcp">Precipitation</button><button type="button" data-v="z500">500 hPa height</button></div>
+        <div class="fig-toggle" data-sel="reg"><button type="button" class="on" data-v="nh">Hemisphere</button><button type="button" data-v="na">North America</button><button type="button" data-v="eu">Europe</button></div>
+        <div class="fig-toggle" data-sel="kind"><button type="button" class="on" data-v="anom">Expected anomaly</button><button type="button" data-v="prob">Tercile probabilities</button></div>
+        <div class="fig-toggle" data-sel="mask"><button type="button" class="on" data-v="on">Skill mask on</button><button type="button" data-v="off">Skill mask off</button></div>
       </div>
+      <div class="img-wrap"><img id="img_main" alt="Claude's month-ahead forecast map"></div>
       <div class="chart-card-footer">
-        <span class="chart-sources">Data: ERA5 (Copernicus Climate Change Service, ECMWF) via the WeatherBench&nbsp;2 and ARCO-ERA5 copies on Google Cloud &middot; method and code: scripts/monthly/</span>
+        <span class="chart-sources">Data: ERA5 (Copernicus Climate Change Service, ECMWF) via the WeatherBench&nbsp;2 and ARCO-ERA5 copies on Google Cloud; MERRA-2 (NASA GMAO) for the 10&nbsp;hPa vortex history &middot; method and code: scripts/monthly/</span>
         <span class="chart-updated" data-k="stamp">&ndash;</span>
       </div>
     </section>
@@ -277,26 +289,31 @@
         before the skill mask). The weights come from a non-negative regression of the observed anomalies on the five
         components' cross-validated hindcasts, smoothed over about 2500&nbsp;km; a component that never helped in a
         region gets no weight there.</p></div>
-      <div class="fig-toggle" data-fig="comp"><button type="button" class="on" data-v="t2m">2 m temperature</button><button type="button" data-v="z500">500 hPa height</button></div>
+      <div class="fig-toggle" data-fig="comp"><button type="button" class="on" data-v="t2m">2 m temperature</button><button type="button" data-v="prcp">Precipitation</button><button type="button" data-v="z500">500 hPa height</button></div>
       <div class="img-wrap"><img id="img_comp" alt="Weighted contribution of each component to the outlook"></div>
     </section>
 
     <section class="chart-card" id="skill">
       <div class="chart-card-header"><h2>Hindcast skill for this calendar month</h2>
-        <p>Left: the correlation between the cross-validated outlook and ERA5 at each point over the hindcast years;
-        the black line encloses the skill that is significant. Right: the hemispheric anomaly correlation (20&ndash;90N)
-        of each year's outlook. Every hindcast year is forecast as it would have been on the 15th, with that year and
-        its neighbours withheld from every training step.</p></div>
-      <div class="fig-toggle" data-fig="skill"><button type="button" class="on" data-v="t2m">2 m temperature</button><button type="button" data-v="z500">500 hPa height</button></div>
+        <p>Left: the correlation between the cross-validated forecast and ERA5 at each point over the hindcast years;
+        the black line encloses the skill that is significant. Middle: <b>skill beyond the trend</b>, the mean-square
+        skill score of the forecast against the trend component used alone, so positive values are what the other
+        four components add to &ldquo;it will be as warm as the trend says&rdquo;. Right: the hemispheric anomaly
+        correlation (20&ndash;90N) of each year's forecast, with the trend alone as a line, and the ranked probability
+        skill score (RPSS) of the tercile probabilities against climatology. Every hindcast year is forecast as it
+        would have been on the 15th, with that year and its neighbours withheld from every training step.</p></div>
+      <div class="fig-toggle" data-fig="skill"><button type="button" class="on" data-v="t2m">2 m temperature</button><button type="button" data-v="prcp">Precipitation</button><button type="button" data-v="z500">500 hPa height</button></div>
       <div class="img-wrap"><img id="img_skill" alt="Cross-validated hindcast skill of the outlook"></div>
     </section>
 
     <section class="chart-card" id="record">
       <div class="chart-card-header"><h2>Record</h2>
-        <p>Every issued outlook, scored once its month is over against ERA5: the hemispheric anomaly correlation and
-        RMSE of the outlook, the same for the trend component alone (what &ldquo;it will be warmer than
-        1991&ndash;2020&rdquo; scores by itself), and the share of the hemisphere where the outlook had the sign
-        right.</p></div>
+        <p>Every issued forecast, scored once its month is over against ERA5 over 20&ndash;90N: the anomaly
+        correlation (ACC) of the forecast; the same for the trend component alone (what &ldquo;it will be warmer than
+        1991&ndash;2020&rdquo; scores by itself) and for the <b>C3S multi-system mean</b>, the eight dynamical seasonal
+        models issued two days earlier, at the same target month (2&nbsp;m temperature and precipitation; C3S
+        publishes no 500&nbsp;hPa height anomalies); and the RPSS of the tercile probabilities. The benchmarks are
+        yardsticks only: nothing from them enters the forecast.</p></div>
       <div class="tblwrap" id="rec"><p class="chart-sources">Loading&hellip;</p></div>
     </section>
   </div>
@@ -308,8 +325,9 @@
     preliminary release (ERA5T) trails real time by about six days, so on the 15th that window is always complete.
     The lead from the end of the predictors to the middle of the target month is about five and a half weeks. The
     hindcast reproduces exactly this timing for every year.</p>
-    <p><b>Data.</b> ERA5 500&nbsp;hPa height, 2&nbsp;m temperature, SST, sea ice, snow depth, topsoil moisture and
-    50&nbsp;hPa wind at 00, 06, 12 and 18&nbsp;UTC, 1959 onward: the WeatherBench&nbsp;2 1.5&deg; copy to 2022 and
+    <p><b>Data.</b> ERA5 500&nbsp;hPa height, 2&nbsp;m temperature, precipitation, SST, sea ice, snow depth, topsoil
+    moisture and 50&nbsp;hPa wind at 00, 06, 12 and 18&nbsp;UTC (precipitation as 6-hour totals, and from 2023 as
+    hourly totals every 3 hours, which match the full totals to a correlation of 0.997), 1959 onward: the WeatherBench&nbsp;2 1.5&deg; copy to 2022 and
     the ARCO-ERA5 0.25&deg; store from 2023 (ERA5, then ERA5T), both box-averaged onto 3&deg; cells and kept as
     half-month means (days 1&ndash;7 and 8 to the month's end). The two sources were compared over 2022, which both
     hold: the hemispheric differences are 0.6&nbsp;m in 500&nbsp;hPa height and 0.3&nbsp;K in 2&nbsp;m temperature
@@ -326,16 +344,20 @@
     quantity behind CPC's RONI; van Oldenborgh et&nbsp;al. 2021) split into its El Ni&ntilde;o and La Ni&ntilde;a
     halves, because the two teleconnections are not mirror images; the equatorial zonal-mean wind at 50&nbsp;hPa
     (the QBO); and the 57&ndash;63N zonal-mean wind at 50&nbsp;hPa (the lower polar vortex).
-    <b>Tropical SST constructed analogue</b> (Van den Dool 1994): the window's detrended SST anomaly between 20S and
-    20N is written as a ridge-regularised combination of every library year's anomaly, and the same weights combine
-    those years' detrended target-month anomalies. It carries ENSO's flavour, the Indian Ocean and the tropical
-    Atlantic together. Only tropical SST is used: there the ocean drives the atmosphere through convection, while
-    poleward of about 20&deg; most of an SST anomaly is the footprint of the circulation that made it (the PDO
-    follows the Aleutian low, the Atlantic tripole the NAO), so it would mostly re-encode atmospheric persistence.
+    <b>Tropical constructed analogue</b> (Van den Dool 1994): the window's detrended SST and rainfall anomalies
+    between 20S and 20N (each scaled to the same total variance) are written as a ridge-regularised combination of
+    every library year's, and the same weights combine those years' detrended target-month anomalies. It carries
+    ENSO's flavour, the Indian Ocean and the tropical Atlantic together, and the rainfall is the heating that
+    actually drives the teleconnections: adding it raised the 500&nbsp;hPa hindcast correlation in all four months
+    tested (on average from 0.13 to 0.15) and precipitation's from 0.13 to 0.15. Only the tropics are used: there the
+    ocean drives the atmosphere through convection, while poleward of about 20&deg; most of an SST anomaly is the
+    footprint of the circulation that made it (the PDO follows the Aleutian low, the Atlantic tripole the NAO), so it
+    would mostly re-encode atmospheric persistence.
     <b>Local persistence</b>: at each point, the detrended target anomaly regressed on the window's anomaly of the
     same field; for 2&nbsp;m temperature also on the window's sea-ice concentration, snow depth and topsoil
     moisture, the surface memory that lets a warm Arctic sea, an early snowpack or a dry spring carry into the next
-    month (a surface predictor with negligible anomalies at a point is left out there).
+    month, and for precipitation on topsoil moisture (a surface predictor with negligible anomalies at a point is
+    left out there).
     <b>Analogue years</b>: the eight library years whose window state is closest &mdash; relative Ni&ntilde;o-3.4,
     the QBO, the vortex, the leading tropical SST patterns and the leading hemispheric 500&nbsp;hPa patterns &mdash;
     and the mean of their detrended target-month anomalies.</p>
@@ -353,11 +375,44 @@
     the components and the weights are fitted on the hindcast, the skill shown is cross-validated twice over: each
     hindcast year's components leave out that year and its neighbours, and its consolidation weights leave out that
     year.</p>
-    <p><b>What it is not.</b> No MJO term (its signal decays within the five-week lead), no extratropical SST
-    predictor (see above), and no dynamical-model input: the forecast is meant as an independent, model-free
-    baseline to set beside the ensembles. Anomalies are against 1991&ndash;2020; skill is
-    reported for the calendar month being forecast, so it changes from issue to issue (winter months score better
-    for 500&nbsp;hPa height, summer months worse).</p>
+    <p><b>Probabilities.</b> Each point's tercile boundaries are the 33rd and 67th percentiles of its 1991&ndash;2020
+    monthly anomalies. The forecast distribution is that point's own 1991&ndash;2020 climatology, shifted by the
+    forecast anomaly and narrowed by the hindcast's error relative to the climatological spread, so a skill-less
+    forecast of zero is exactly climatology (a third each) and a skewed variable such as precipitation keeps its
+    skew. Where the hindcast has no significant skill the probabilities are set to equal chances, as CPC does; without
+    that, precipitation's probabilities scored below climatology (RPSS &minus;0.03), and with it they do no harm
+    (about 0.00) while temperature keeps nearly all of its +0.06 to +0.16. The hindcast RPSS is computed the same
+    way, each year's equal-chances mask and error spread fitted without that year. With the skill mask off, the
+    probability maps show the raw probabilities.</p>
+    <p><b>Skill beyond the trend.</b> Much of any monthly forecast's correlation now comes from warming alone, so the
+    skill figures also score the forecast against the trend component used by itself: a mean-square skill score
+    above zero is what the other four components add.</p>
+    <p><b>Benchmark.</b> Once its month is over, each forecast is scored beside the C3S multi-system seasonal
+    forecast issued in the same month (the eight systems' ensemble means at lead month 2, which is the same target
+    month, from the tables the <a href="/seasonal.html">seasonal page</a> keeps), moved to the 1991&ndash;2020 base
+    with ERA5. C3S publishes no 500&nbsp;hPa height anomalies, so it is compared on temperature and precipitation.
+    Nothing from it enters the forecast.</p>
+    <p><b>Tested and left out.</b> Every candidate was run through the same cross-validated hindcast and kept only if
+    it helped.
+    <i>The MJO</i>: an RMM index built from ERA5 1979&ndash;2022 on the site's own Wheeler&ndash;Hendon EOFs
+    (correlation 0.97 with the reference RMM). Its state in the week before issue lowered the skill slightly, and even
+    a <i>perfect</i> 15-day MJO forecast (the observed index over days 15&ndash;29) added only about +0.01 to the
+    500&nbsp;hPa correlation in December to February and nothing to temperature: its teleconnections reach only the
+    first week or two of the target month and wash out of the monthly mean, and the slower part of the tropical
+    heating is already in the constructed analogue's rainfall.
+    <i>The 10&nbsp;hPa vortex</i>: the 60N wind from MERRA-2 (1980 onward), added to or in place of the 50&nbsp;hPa
+    index, changed the December to March skill by &plusmn;0.007; a stratospheric warming that matters mostly happens
+    after the issue date.
+    <i>A warming-index trend</i> (linear in the trailing 3-year hemispheric temperature instead of in time): better in
+    January, worse in November and July, no better overall.
+    <i>90-day windows</i> for SST, soil moisture and sea ice: no better, and worse for April.
+    <i>Extratropical SST</i> in the analogue (left out for the reason above), <i>weighting the blend toward ENSO-like
+    years</i> (slightly worse, strong El Ni&ntilde;o years included), and <i>dressing the probabilities with the
+    hindcast's own errors</i> (worse than either way above).</p>
+    <p><b>What it is not.</b> No dynamical-model input: the forecast is meant as an independent, model-free baseline
+    to set beside the ensembles. Anomalies are against 1991&ndash;2020; skill is reported for the calendar month being
+    forecast, so it changes from issue to issue (summer temperature scores best, late-autumn 500&nbsp;hPa height
+    worst).</p>
   </section>
 </main>
 
@@ -365,12 +420,29 @@
 (function () {
   "use strict";
   var D = "/assets/monthly/data/", A = "/assets/monthly/";
+  var VARS = { t2m: ["2&nbsp;m temperature", "&deg;C", 2], prcp: ["precipitation", "mm/day", 2], z500: ["500&nbsp;hPa height", "m", 1] };
+  var NAME = { TR: "the trend", IX: "the RONI/QBO/vortex regression", CA: "the tropical constructed analogue",
+               PE: "local persistence", AN: "the analogue years" };
   function $(id) { return document.getElementById(id); }
   function set(k, html) { document.querySelectorAll('[data-k="' + k + '"]').forEach(function (e) { e.innerHTML = html; }); }
   function sgn(x, d) { return (x >= 0 ? "+" : "&minus;") + Math.abs(x).toFixed(d); }
   function get(u) { return fetch(u, { cache: "no-cache" }).then(function (r) { if (!r.ok) throw new Error(u); return r.json(); }); }
-  var NAME = { TR: "the trend", IX: "the RONI/QBO/vortex regression", CA: "the tropical SST constructed analogue",
-               PE: "local persistence", AN: "the analogue years" };
+  function store(k, v) { try { localStorage.setItem(k, v); } catch (e) { /* storage unavailable */ } }
+  function recall(k, d) { try { return localStorage.getItem(k) || d; } catch (e) { return d; } }
+
+  // the main map: variable x region x view x skill mask, kept in the URL hash (#t2m/nh/anom) and the mask in storage
+  var st = { var: "t2m", reg: "nh", kind: "anom", mask: recall("mo-mask", "on") };
+  var h = location.hash.replace("#", "").split("/");
+  if (VARS[h[0]]) st.var = h[0];
+  if (["nh", "na", "eu"].indexOf(h[1]) >= 0) st.reg = h[1];
+  if (["anom", "prob"].indexOf(h[2]) >= 0) st.kind = h[2];
+  function draw(ver) {
+    $("img_main").src = A + "latest_" + st.var + "_" + st.reg + "_" + st.kind + (st.mask === "off" ? "_nomask" : "") + ".webp?v=" + ver;
+    document.querySelectorAll(".ctl .fig-toggle").forEach(function (box) {
+      box.querySelectorAll("button").forEach(function (b) { b.classList.toggle("on", b.dataset.v === st[box.dataset.sel]); });
+    });
+    history.replaceState(null, "", "#" + st.var + "/" + st.reg + "/" + st.kind);
+  }
 
   function toggles(fig, imgId, ver) {
     var box = document.querySelector('.fig-toggle[data-fig="' + fig + '"]');
@@ -387,43 +459,55 @@
   }
 
   function discussion(s, notes) {
-    var p = [], ix = s.indices || {}, zt = s.vars.t2m, zz = s.vars.z500;
+    var p = [], ix = s.indices || {};
     if (notes && notes[s.target]) p.push('<div class="note">' + notes[s.target] + "</div>");
     var n = ix.roni, enso = n <= -0.5 ? "La Ni&ntilde;a-like" : n >= 0.5 ? "El Ni&ntilde;o-like" : "near neutral";
     var qbo = ix.u50eq_raw <= -3 ? "easterly" : ix.u50eq_raw >= 3 ? "westerly" : "in transition";
     var vtx = ix.u50v >= 3 ? "stronger than normal" : ix.u50v <= -3 ? "weaker than normal" : "near normal";
+    var v10 = ix.u10v_raw !== undefined ? " At 10&nbsp;hPa the 60N wind was " + sgn(ix.u10v_raw, 1) + "&nbsp;m/s, " +
+      sgn(ix.u10v, 1) + "&nbsp;m/s from normal." : "";
     p.push("<p><b>The state on the 7th.</b> Over " + s.window + " the tropical Pacific was <b>" + enso +
       "</b>: relative Ni&ntilde;o-3.4 " + sgn(n, 2) + "&nbsp;&deg;C on the RONI scale (the " + Math.round(100 * ix.n34r_pct) +
       "th percentile of this window since 1959; plain Ni&ntilde;o-3.4 " + sgn(ix.n34, 2) + "&nbsp;&deg;C). The equatorial 50&nbsp;hPa wind was " + sgn(ix.u50eq_raw, 1) +
       "&nbsp;m/s (QBO <b>" + qbo + "</b>), and the 50&nbsp;hPa westerlies at 60N were " + sgn(ix.u50v_raw, 1) +
-      "&nbsp;m/s, " + sgn(ix.u50v, 1) + "&nbsp;m/s from normal for the time of year (lower vortex <b>" + vtx + "</b>).</p>");
+      "&nbsp;m/s, " + sgn(ix.u50v, 1) + "&nbsp;m/s from normal for the time of year (lower vortex <b>" + vtx + "</b>)." + v10 + "</p>");
     var an = (s.analogs || []).map(function (a) { return a[0]; });
     var ca = (s.ca_top || []).filter(function (a) { return a[1] > 0; }).slice(0, 5).map(function (a) { return String(a[0]).slice(0, 4); });
     var cn = (s.ca_top || []).filter(function (a) { return a[1] < 0; }).slice(0, 4).map(function (a) { return String(a[0]).slice(0, 4); });
     p.push("<p><b>Analogues.</b> The closest years by the window's state are <b>" + an.join(", ") +
-      "</b>. The tropical SST constructed analogue leans most on " + ca.join(", ") +
+      "</b>. The tropical constructed analogue leans most on " + ca.join(", ") +
       (cn.length ? ", and on " + cn.join(", ") + " with negative weight (their mirror image)" : "") + ".</p>");
-    [["t2m", "2&nbsp;m temperature", "&deg;C"], ["z500", "500&nbsp;hPa height", "m"]].forEach(function (x) {
-      var v = s.vars[x[0]], r = ranked(v.contrib_rms);
-      p.push("<p><b>" + x[1][0].toUpperCase() + x[1].slice(1) + ".</b> The hemispheric (20&ndash;90N) mean of the outlook is " +
-        sgn(v.fc_nh_mean, x[0] === "t2m" ? 2 : 1) + "&nbsp;" + x[2] + ". The pattern comes mostly from " + NAME[r[0]] +
+    ["t2m", "prcp", "z500"].forEach(function (k) {
+      var v = s.vars[k];
+      if (!v) return;
+      var r = ranked(v.contrib_rms), lab = VARS[k][0];
+      p.push("<p><b>" + lab.charAt(0).toUpperCase() + lab.slice(1) + ".</b> The hemispheric (20&ndash;90N) mean of the forecast is " +
+        sgn(v.fc_nh_mean, VARS[k][2]) + "&nbsp;" + VARS[k][1] + ". The pattern comes mostly from " + NAME[r[0]] +
         (v.contrib_rms[r[1]] > 0.5 * v.contrib_rms[r[0]] ? " and " + NAME[r[1]] : "") +
-        ". For this calendar month the cross-validated hindcast scores a mean hemispheric anomaly correlation of " +
-        sgn(v.nh_acc_mean, 2) + ", with significant point skill over " + Math.round(100 * v.skill_area_sig) +
+        ". For this calendar month the cross-validated hindcast scores a hemispheric anomaly correlation of " +
+        sgn(v.nh_acc_mean, 2) + " (the trend alone " + sgn(v.acc_trend_mean, 2) + "), an RPSS of " + sgn(v.rpss_nh, 2) +
+        " for the tercile probabilities, and a skill score of " + sgn(v.msss_trend_nh, 2) +
+        " against the trend alone; its skill is significant over " + Math.round(100 * v.skill_area_sig) +
         "&nbsp;% of the hemisphere north of 20N.</p>");
     });
     return p.join("");
   }
 
+  function cell(x) {
+    if (!x) return "&ndash;";
+    var t = "ACC <b>" + sgn(x.acc, 2) + "</b><br><small>trend " + sgn(x.acc_trend, 2);
+    if (x.c3s_acc !== undefined) t += " &middot; C3S " + sgn(x.c3s_acc, 2);
+    if (x.rpss !== undefined) t += " &middot; RPSS " + sgn(x.rpss, 2);
+    return t + "</small>";
+  }
+
   function record(rows) {
-    if (!rows.length) return '<p class="chart-sources">No outlook has been scored yet: the first is scored on the 15th of the month after its target month.</p>';
-    var h = '<table class="rec"><thead><tr><th>Target</th><th>Issued</th><th>500 hPa ACC</th><th>trend alone</th>' +
-      "<th>RMSE (m)</th><th>2 m temp ACC</th><th>trend alone</th><th>RMSE (&deg;C)</th><th>sign right, T2m</th><th></th></tr></thead><tbody>";
+    if (!rows.length) return '<p class="chart-sources">No forecast has been scored yet: the first is scored on the 15th of the month after its target month.</p>';
+    var h = '<table class="rec"><thead><tr><th>Target</th><th>Issued</th><th>2 m temperature</th><th>Precipitation</th>' +
+      "<th>500 hPa height</th><th></th></tr></thead><tbody>";
     rows.forEach(function (r) {
-      h += "<tr><td>" + r.label + "</td><td>" + r.issued + "</td><td>" + sgn(r.z500.acc, 2) + "</td><td>" + sgn(r.z500.acc_trend, 2) +
-        "</td><td>" + r.z500.rmse.toFixed(1) + "</td><td>" + sgn(r.t2m.acc, 2) + "</td><td>" + sgn(r.t2m.acc_trend, 2) +
-        "</td><td>" + r.t2m.rmse.toFixed(2) + "</td><td>" + Math.round(100 * r.t2m.sign) + "%</td><td><a href=\"" + A +
-        "verify_" + r.target.replace("-", "") + '.webp">maps</a></td></tr>';
+      h += "<tr><td>" + r.label + "</td><td>" + r.issued + "</td><td>" + cell(r.t2m) + "</td><td>" + cell(r.prcp) +
+        "</td><td>" + cell(r.z500) + "</td><td><a href=\"" + A + "verify_" + r.target.replace("-", "") + '.webp">maps</a></td></tr>';
     });
     return h + "</tbody></table>";
   }
@@ -433,31 +517,34 @@
                         get(D + "verification.json").catch(function () { return []; })]);
   }).then(function (r) {
     var s = r[0], ver = s.target + "-" + s.issued;
-    set("target", s.target_label.replace(/ (\d{4})$/, "&nbsp;$1"));
+    set("target", s.target_label);
     set("target_label", s.target_label);
     set("issued", s.issued);
     set("window", "ERA5 " + s.window);
-    set("acc_z", sgn(s.vars.z500.nh_acc_mean, 2));
-    set("acc_t", sgn(s.vars.t2m.nh_acc_mean, 2));
+    Object.keys(VARS).forEach(function (k) {
+      var v = s.vars[k];
+      if (!v) return;
+      set("acc_" + k, sgn(v.nh_acc_mean, 2));
+      set("sub_" + k, "trend alone " + sgn(v.acc_trend_mean, 2) + " &middot; RPSS " + sgn(v.rpss_nh, 2));
+    });
     set("stamp", "issued " + s.issued + " &middot; hindcast " + s.hindcast[0] + "&ndash;" + s.hindcast[1]);
-    var mbox = document.querySelector('.fig-toggle[data-fig="mask"]');
-    function mask(v) {
-      var suf = v === "off" ? "_nomask" : "";
-      $("img_z").src = A + "latest_z500" + suf + ".webp?v=" + ver;
-      $("img_t").src = A + "latest_t2m" + suf + ".webp?v=" + ver;
-      mbox.querySelectorAll("button").forEach(function (b) { b.classList.toggle("on", b.dataset.v === v); });
-      try { localStorage.setItem("mo-mask", v); } catch (e) { /* storage unavailable */ }
-    }
-    mbox.addEventListener("click", function (e) { var b = e.target.closest("button"); if (b) mask(b.dataset.v); });
-    var saved = "on";
-    try { saved = localStorage.getItem("mo-mask") || "on"; } catch (e) { /* storage unavailable */ }
-    mask(saved);
+    document.querySelectorAll(".ctl .fig-toggle").forEach(function (box) {
+      box.addEventListener("click", function (e) {
+        var b = e.target.closest("button");
+        if (!b) return;
+        st[box.dataset.sel] = b.dataset.v;
+        if (box.dataset.sel === "mask") store("mo-mask", b.dataset.v);
+        draw(ver);
+      });
+    });
+    draw(ver);
+    $("img_main").addEventListener("click", function () { window.open($("img_main").src, "_blank", "noopener"); });
     toggles("comp", "img_comp", ver);
     toggles("skill", "img_skill", ver);
     $("disc").innerHTML = discussion(s, r[1]);
     $("rec").innerHTML = record(r[2]);
   }).catch(function (e) {
-    $("disc").innerHTML = "<p>The outlook data could not be loaded (" + e.message + ").</p>";
+    $("disc").innerHTML = "<p>The forecast data could not be loaded (" + e.message + ").</p>";
   });
 })();
 </script>
