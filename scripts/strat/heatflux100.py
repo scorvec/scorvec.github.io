@@ -12,19 +12,24 @@ This product computes the flux itself from the AIFS-ENS forecast.
   * PER MEMBER, then averaged. The flux is quadratic, so the flux of the ensemble
     mean fades with lead as the members' phases decorrelate (the WAF lesson); the
     mean of the members' fluxes does not.
-  * Wavenumbers 1..K_MAX only (K_MAX = 72, the resolution of the 2.5 deg NCEP R1
-    climatology), so forecast and climatology resolve the same eddies. The k-th
-    contribution is 2 Re(V_k conj(T_k)) / N^2; wave-1 and wave-2 are kept apart.
+  * Wavenumbers 1..K_MAX only (K_MAX = 72, which the climatology's 1.5 deg ERA5 grid
+    and every forecast grid resolve), so forecast and climatology resolve the same
+    eddies. The k-th contribution is 2 Re(V_k conj(T_k)) / N^2; wave-1 and wave-2
+    are kept apart.
   * Positive = POLEWARD in both hemispheres (the SH flux is sign-flipped).
-  * Against the 1991-2020 R1 climatology (build_vt100_clim.py): day-of-year mean,
-    sd, p10-p90, and the mean/sd of the trailing 40-day mean, which is the
-    quantity the vortex responds to (Polvani & Waugh 2004): a few strong days do
-    little, six weeks of above-normal flux weakens the vortex.
+  * Against the ERA5 1991-2020 climatology (build_vt100_clim.py, the same flux from
+    single 00 and 12 UTC fields): day-of-year mean, sd, p10-p90, and the mean/sd of
+    the trailing 40-day mean, which is the quantity the vortex responds to (Polvani &
+    Waugh 2004): a few strong days do little, six weeks of above-normal flux weakens
+    the vortex.
+  * Model error: every member, and the analysed tail, has the model's mean error
+    against ERA5 removed where heatflux100_bias.py found it significant (by season
+    and lead, measured on the model's archived runs; reference/heatflux100_bias.json),
+    and nothing elsewhere.
   * Observed tail: the AIFS control's step-0 fields, which are the analysis, appended
     every cycle to assets/sst/data/heatflux100_history.json (a committed seed,
     reference/heatflux100_history_seed.json, carries the months before the product
-    existed; --backfill N rebuilds it). NOT a reanalysis: PSL's R1 and R2 both stopped
-    updating in March 2026 (checked 2026-09-18).
+    existed; --backfill N rebuilds it). ERA5 itself arrives about five days late.
 
 Outputs  assets/sst/heatflux100_{nh,sh}.webp  +  assets/sst/data/heatflux100.json
 
@@ -55,6 +60,7 @@ except Exception:  # noqa: BLE001
     ecmwf = None
 
 CLIM = Path(__file__).resolve().parent / "reference" / "vt100_clim.nc"
+BIAS = Path(__file__).resolve().parent / "reference" / "heatflux100_bias.json"
 MEMBERS = 25
 K_MAX = 72
 BAND = (45.0, 75.0)
@@ -144,12 +150,15 @@ def load_history(path: Path | None) -> dict:
 
 
 def history_frame(h: dict, hemi: str):
-    """Daily means of the analyses on hand (00 and 12 UTC where both exist)."""
+    """Daily means of the analyses on hand (00 and 12 UTC where both exist), less the analysis's significant mean
+    error against ERA5."""
     if not h:
         return None
     df = pd.DataFrame({k: v[hemi] for k, v in h.items() if hemi in v}).T
     df.index = pd.to_datetime(df.index, format="%Y-%m-%d %H")
-    return df.astype(float).groupby(df.index.normalize()).mean().sort_index()
+    df = df.astype(float).groupby(df.index.normalize()).mean().sort_index()
+    an = load_bias("analysis")
+    return df.apply(lambda col: col - bias_at(an, hemi, col.name, df.index, 0.0))
 
 
 def _doy366(dates) -> np.ndarray:
@@ -160,10 +169,41 @@ def _doy366(dates) -> np.ndarray:
 
 
 def clim_at(clim, hemi: str, key: str, stat: str, dates):
-    s = _doy366(dates)
-    if "366-slot" not in clim.attrs.get("doy", ""):  # older file: rows by raw day of year, mostly common-year days,
-        s = np.where(s > 59, s - 1, s)  # so 1 March reads row 59 in every year
-    return clim[f"{hemi}_{key}_{stat}"].values[s]
+    return clim[f"{hemi}_{key}_{stat}"].values[_doy366(dates)]
+
+
+def load_bias(model: str) -> dict | None:
+    """One row of heatflux100_bias.json ('analysis' = the analysed record): the model's mean errors against ERA5 by
+    season and lead block, or None when the model was not tested."""
+    if not BIAS.exists():
+        return None
+    doc = json.loads(BIAS.read_text())
+    tab = doc["models"].get(model)
+    return None if tab is None or "untested" in tab else tab | {"season_mid": doc["season_mid"]}
+
+
+def bias_at(tab, hemi: str, key: str, valid, lead_days) -> np.ndarray:
+    """The model's significant mean error (K m/s, forecast minus ERA5) at each valid time and lead in days. Within a
+    season it runs linearly in lead through the significant lead blocks only (from zero at the analysis when that block
+    is not significant) and holds its last significant value at longer leads, the drift persisting; a season without
+    one is zero. Between the seasons' middles it is linear in day of year."""
+    valid = pd.DatetimeIndex(valid)
+    if tab is None:
+        return np.zeros(len(valid))
+    c = tab[f"{hemi}_{key}"]
+    lead = np.broadcast_to(np.asarray(lead_days, float), (len(valid),))
+    per = []  # (season, time)
+    for bias, sig in zip(c["bias"], c["significant"]):
+        x = [L for L, s in zip(tab["lead_centres"], sig) if s]
+        y = [b for b, s in zip(bias, sig) if s]
+        if x and x[0] > 0:
+            x, y = [0.0, *x], [0.0, *y]
+        per.append(np.interp(lead, x, y) if x else np.zeros(len(valid)))
+    mid = _doy366(pd.to_datetime([f"2000-{md}" for md in tab["season_mid"]]))
+    xs = np.r_[mid[-1] - 366, mid, mid[0] + 366]  # periodic over the year
+    per = np.array(per)
+    per = np.vstack([per[-1:], per, per[:1]])
+    return np.array([np.interp(s, xs, per[:, j]) for j, s in enumerate(_doy366(valid))])
 
 
 def style(ax):
@@ -176,11 +216,20 @@ def style(ax):
     ax.tick_params(colors=INK, labelsize=9)
 
 
-def render(hemi, north, valid, mem, ctrl, lat, hov, obs, clim, init, n_mem, out, model="AIFS-ENS"):
+def bias_note(tab, corrected: bool) -> str:
+    """The subtitle's account of the model-error correction."""
+    if tab is None:
+        return "not tested against ERA5 (too few archived runs), uncorrected"
+    if corrected:
+        return "members less the model's significant mean error against ERA5"
+    return "no significant mean error against ERA5 at these dates and leads"
+
+
+def render(hemi, north, valid, mem, ctrl, lat, hov, obs, clim, init, n_mem, out, note, model="AIFS-ENS"):
     H = "Northern" if north else "Southern"
     fig = plt.figure(figsize=(13.2, 8.6), dpi=130)
     gs = fig.add_gridspec(
-        2, 2, width_ratios=[1.55, 1], hspace=0.30, wspace=0.16, left=0.055, right=0.955, top=0.885, bottom=0.07
+        2, 2, width_ratios=[1.55, 1], hspace=0.30, wspace=0.16, left=0.055, right=0.955, top=0.865, bottom=0.07
     )  # right margin: room for the colour bar's label (the figure is saved uncropped)
     fig.suptitle(
         f"{model} · 100 hPa eddy heat flux [v′T′], {int(BAND[0])}–{int(BAND[1])}°{'N' if north else 'S'} · {H} Hemisphere",
@@ -195,10 +244,12 @@ def render(hemi, north, valid, mem, ctrl, lat, hov, obs, clim, init, n_mem, out,
     fig.text(
         0.055,
         0.938,
-        f"init {init:%Y-%m-%d %H} UTC · {n_mem} members, flux per member then averaged · positive = poleward = wave activity going up · "
-        f"climatology NCEP R1 1991–2020, waves 1–{K_MAX}{sub_obs}",
+        f"init {init:%Y-%m-%d %H} UTC · {n_mem} members, flux per member then averaged · positive = poleward = wave activity going up\n"
+        f"climatology ERA5 1991–2020, waves 1–{K_MAX} · {note}{sub_obs}",
         fontsize=10,
         color=MUTED,
+        va="top",
+        linespacing=1.45,
     )
     x_all = (obs.index.tolist() if obs is not None else []) + list(valid)
     span = pd.date_range(min(x_all), max(x_all))
@@ -446,9 +497,12 @@ def main() -> int:
         "sign": "positive = poleward",
         "hemispheres": {},
     }
+    tab = load_bias("aifs")
+    lead = (valid - init) / pd.Timedelta(days=1)
     for hemi, north in (("nh", True), ("sh", False)):
-        mem = {k: band_mean(lat, fm[k], north) for k in fm}
-        ctrl = {k: band_mean(lat, fc[k], north)[0] for k in fc}
+        err = {k: bias_at(tab, hemi, k, valid, lead) for k in fm}  # zero where no significant error was found
+        mem = {k: band_mean(lat, fm[k], north) - err[k] for k in fm}
+        ctrl = {k: band_mean(lat, fc[k], north)[0] - err[k] for k in fc}
         obs = history_frame(hist, hemi)
         if obs is not None:
             obs = obs[obs.index <= init.normalize()]
@@ -473,6 +527,7 @@ def main() -> int:
             init,
             int(v.sizes["number"]),
             out_dir / f"heatflux100_{hemi}.webp",
+            bias_note(tab, any(np.any(e != 0) for e in err.values())),
         )
         h = {
             k: {
@@ -480,6 +535,7 @@ def main() -> int:
                 "p10": np.round(np.percentile(mem[k], 10, 0), 2).tolist(),
                 "p90": np.round(np.percentile(mem[k], 90, 0), 2).tolist(),
                 "control": np.round(ctrl[k], 2).tolist(),
+                "model_error_removed": np.round(err[k], 2).tolist(),
             }
             for k in mem
         }

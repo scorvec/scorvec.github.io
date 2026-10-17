@@ -396,12 +396,14 @@ rather than reversing it.</li>
 <h2>The live forecast</h2>
 <p>The flux is averaged over 45–75° in each hemisphere (positive is poleward in both), computed for the AIFS control
 and 25 perturbed members and then averaged: like every quadratic diagnostic, the flux of the ensemble-mean fields
-would fade with lead time. Zonal wavenumbers 1–72 are kept so that the forecast resolves the same eddies as the
-1991–2020 NCEP/NCAR reanalysis (Kalnay et al., 1996) climatology it is compared with. That reanalysis stopped updating in
-March 2026, so the analysed part of each panel is the AIFS control's initial state, ECMWF's operational analysis; the
-offset between the two has not been measured. The panels show the daily flux, its wave-1 and wave-2
-parts, the trailing 40-day mean standardized, and the flux by latitude through the forecast. The stratosphere page also
-carries an IFS-ENS version and GEPS and GEFS versions to day 35.</p>
+would fade with lead time. Zonal wavenumbers 1–72 are kept, and the climatology is the same flux from ERA5
+(Hersbach et al., 2020), 1991–2020, taken like the forecasts from single fields. ERA5 arrives about five days late, so the
+analysed part of each panel is the AIFS control's initial state, ECMWF's operational analysis. Each model's own mean error
+against ERA5, measured on a year or more of its archived runs by season and lead, is removed where it is statistically
+significant: AIFS-ENS, for one, runs about a quarter low in the northern winter by its second week (95 % interval
+8–34 %). The panels show the daily flux, its wave-1 and wave-2 parts, the trailing 40-day mean standardized, and the
+flux by latitude through the forecast. The stratosphere page also carries an IFS-ENS version and GEPS and GEFS versions
+to day 35.</p>
 """,
         figures=[
             img(
@@ -416,7 +418,7 @@ carries an IFS-ENS version and GEPS and GEFS versions to day 35.</p>
             "Newman, P. A., E. R. Nash, and J. E. Rosenfield, 2001: What controls the temperature of the Arctic stratosphere during the spring? <i>J. Geophys. Res.</i>, 106, 19999–20010.",
             "Polvani, L. M., and D. W. Waugh, 2004: Upward wave activity flux as a precursor to extreme stratospheric events and subsequent anomalous surface weather regimes. <i>J. Climate</i>, 17, 3548–3554.",
             "Andrews, D. G., J. R. Holton, and C. B. Leovy, 1987: <i>Middle Atmosphere Dynamics</i>. Academic Press.",
-            "Kalnay, E., and co-authors, 1996: The NCEP/NCAR 40-Year Reanalysis Project. <i>Bull. Amer. Meteor. Soc.</i>, 77, 437–471.",
+            "Hersbach, H., and co-authors, 2020: The ERA5 global reanalysis. <i>Q. J. R. Meteorol. Soc.</i>, 146, 1999–2049.",
         ],
     ),
     dict(

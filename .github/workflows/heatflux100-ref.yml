@@ -6,9 +6,11 @@ name: 100 hPa eddy heat flux references (ERA5 series and climatology, archived e
 #                        to ~6 days ago) and vt100_clim.nc (its 1991-2020 day-of-year climatology)
 #   heatflux100_bias.py  the same flux from archived 00Z runs at daily leads: AIFS-ENS and IFS-ENS (Google Cloud
 #                        mirror of ECMWF open data only), GEFS (NOAA S3), GEPS (MSC Datamart, recent runs only)
-#                        -> scripts/strat/reference/heatflux100_archive.npz
+#                        -> scripts/strat/reference/heatflux100_archive.npz, and each model's mean error against the
+#                        ERA5 series, tested -> heatflux100_bias.json (the corrections the products apply)
 # Each part reduces a slice; the pack job merges the parts with the committed references (so a later run over new
-# days only tops them up), prints the resolution and definition checks and commits the three small files.
+# days only tops them up), prints the resolution and definition checks, reruns the bias test and commits the four
+# small files.
 on:
   workflow_dispatch:
     inputs:
@@ -104,8 +106,8 @@ jobs:
           pattern: hf100-*
           path: parts
           merge-multiple: true
-      # Three steps: a failed part leaves a gap that the climatology step refuses, while the archive and the series
-      # (whatever arrived) are still committed, and a rerun of the failed part tops them up.
+      # Separate steps: a failed part leaves a gap that the climatology step refuses, while the archive, the series
+      # (whatever arrived) and the bias test on them are still committed, and a rerun of the failed part tops them up.
       - name: Archived runs
         run: |
           shopt -s nullglob
@@ -129,6 +131,9 @@ jobs:
             python scripts/strat/build_vt100_clim.py clim
             python scripts/strat/build_vt100_clim.py check "${era5[@]}"
           fi
+      - name: Bias test
+        if: ${{ !cancelled() }}
+        run: python scripts/strat/heatflux100_bias.py test
       - name: Commit & push
         if: ${{ !cancelled() }}
         run: |
@@ -136,7 +141,7 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           R=scripts/strat/reference
           mkdir -p new
-          for f in vt100_era5.nc vt100_clim.nc heatflux100_archive.npz; do
+          for f in vt100_era5.nc vt100_clim.nc heatflux100_archive.npz heatflux100_bias.json; do
             if [ -f "$R/$f" ]; then cp "$R/$f" new/; fi
           done
           for i in 1 2 3 4 5; do
