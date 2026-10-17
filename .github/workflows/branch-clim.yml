@@ -1,9 +1,10 @@
-name: Hadley outflow and subtropical descent climatology (ERA5 1991-2020 at 00 UTC)
+name: Hadley outflow and subtropical descent climatology (ERA5 1991-2020, 6-hourly, with trajectories)
 
 # Builder of scripts/mjo/data/reference/branch_clim.nc (scripts/mjo/src/build_branch_clim.py): the harmonic normals of the
-# tracker's five fields and the day-of-year distribution of its indices, from WeatherBench2's ERA5 (1.5 deg; anonymous
-# GCS). Each part reduces five years to the harmonic sums and the indices of every day's centred 7-day mean; the build job
-# forms the file and commits it.
+# tracker's six fields and the day-of-year distribution of its indices and trajectory numbers, from WeatherBench2's
+# 6-hourly ERA5 (1.5 deg, 13 levels; anonymous GCS). Each part reduces three years to the harmonic sums and the numbers of
+# every day's centred 7-day window (a day's 00 UTC releases the back-trajectories); the build job forms the file and
+# commits it.
 on:
   workflow_dispatch:
 
@@ -16,11 +17,12 @@ env:
 jobs:
   part:
     runs-on: ubuntu-latest
-    timeout-minutes: 180
+    timeout-minutes: 300
     strategy:
       fail-fast: false
       matrix:
-        years: [[1991, 1995], [1996, 2000], [2001, 2005], [2006, 2010], [2011, 2015], [2016, 2020]]
+        years: [[1991, 1993], [1994, 1996], [1997, 1999], [2000, 2002], [2003, 2005], [2006, 2008], [2009, 2011],
+                [2012, 2014], [2015, 2017], [2018, 2020]]
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
@@ -30,7 +32,7 @@ jobs:
         run: |
           sudo apt-get update -qq && sudo apt-get install -y --no-install-recommends libeccodes0 libgeos-dev libproj-dev proj-bin
           pip install -r scripts/mjo/requirements-mjo.txt
-      - name: Five years of fields and indices
+      - name: Three years of fields, indices and trajectories
         run: |
           mkdir -p out
           python scripts/mjo/src/build_branch_clim.py fetch --years ${{ matrix.years[0] }} ${{ matrix.years[1] }} \
@@ -72,7 +74,7 @@ jobs:
             cp "$SNAP/branch_clim.nc" "$OUT"
             git add "$OUT"
             if git diff --staged --quiet; then echo "No changes; skipping commit."; exit 0; fi
-            git commit -m "Hadley outflow and subtropical descent climatology: ERA5 1991-2020 at 00 UTC"
+            git commit -m "Hadley outflow and subtropical descent climatology: ERA5 1991-2020, 6-hourly, with trajectories"
             if timeout 180 git push; then echo "Pushed on attempt $i."; exit 0; fi
             echo "Push $i rejected; resyncing and retrying…"
             sleep 5

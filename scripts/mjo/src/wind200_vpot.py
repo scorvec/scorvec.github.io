@@ -124,9 +124,10 @@ def _ddlon(f: np.ndarray, lon_deg) -> np.ndarray:
     return np.gradient(f, np.deg2rad(lon), axis=-1)
 
 
-def velocity_potential(u2d: xr.DataArray, v2d: xr.DataArray, lmax: int = LMAX):
+def velocity_potential(u2d: xr.DataArray, v2d: xr.DataArray, lmax: int = LMAX, keep: int | None = None):
     """χ (m² s⁻¹) on a regular DH2 grid from 2-D u, v, by inverting ∇²χ = δ with spherical
-    harmonics on a pole-free Gauss-Legendre grid. Returns (chi, dlat, dlon)."""
+    harmonics on a pole-free Gauss-Legendre grid. keep < lmax drops the degrees above it (the divergence is still
+    taken on the lmax grid, so nothing finer aliases into what is kept). Returns (chi, dlat, dlon)."""
     u2d = _padded(_to_0360(u2d))
     v2d = _padded(_to_0360(v2d))
     glat, glon = pysh.expand.GLQGridCoord(lmax)  # Gauss-Legendre latitudes exclude the poles
@@ -141,7 +142,19 @@ def velocity_potential(u2d: xr.DataArray, v2d: xr.DataArray, lmax: int = LMAX):
     fac[1:] = -(A**2) / (l[1:] * (l[1:] + 1))  # χ_lm = -a²/(l(l+1)) δ_lm
     chi_clm = clm.copy()
     chi_clm.coeffs *= fac[None, :, None]
-    g = chi_clm.expand(grid="DH2")
+    if keep is not None:
+        chi_clm = chi_clm.pad(keep)
+    g = chi_clm.expand(grid="DH2", lmax=lmax)
+    return g.data, np.array(g.lats()), np.array(g.lons())
+
+
+def truncated(f2d: xr.DataArray, keep: int, lmax: int = LMAX):
+    """A 2-D scalar with the spherical harmonics above degree `keep` removed, expanded on the Gauss-Legendre grid of
+    lmax (fine enough for the input, so nothing aliases). Returns (field, dlat, dlon) on the DH2 grid, as χ."""
+    f2d = _padded(_to_0360(f2d))
+    glat, glon = pysh.expand.GLQGridCoord(lmax)
+    clm = pysh.SHGrid.from_array(f2d.interp(latitude=glat, longitude=glon).values, grid="GLQ").expand()
+    g = clm.pad(keep).expand(grid="DH2", lmax=lmax)
     return g.data, np.array(g.lats()), np.array(g.lons())
 
 

@@ -1,17 +1,20 @@
 #!/usr/bin/env python3
-"""ERA5 1991-2020 at 00 UTC for the Hadley outflow and subtropical descent tracker (hadley_branches.py).
+"""ERA5 1991-2020 for the Hadley outflow and subtropical descent tracker (hadley_branches.py, hadley_traj.py).
 
-From WeatherBench2's ERA5 (1.5 deg, the tracker's grid), each day's 00 UTC u, v at 200 hPa, omega and z at 500 hPa and
-mean sea-level pressure become the five fields (hadley_branches.fields). Two references come out of them:
+From WeatherBench2's 6-hourly ERA5 (1.5 deg, the tracker's grid): u, v, omega and temperature on the 13 levels, the
+500 hPa height and the sea-level pressure. Each day's four times are averaged and become the six fields
+(hadley_branches.fields); each day's 00 UTC also releases the trajectories (hadley_traj.trace, through the 6-hourly
+winds of the DAYS_BACK days before it). Two references come out:
   maps     per grid point, mean + annual + semiannual harmonics by common-year day (doycal.noleap_doy), fitted on the
            daily fields; z500 also carries a linear trend, evaluated at EPOCH: the 500 hPa surface rises with the
            warming troposphere, and against a 1991-2020 level every recent day would read as a stronger ridge
-  indices  the tracker's numbers of every day's CENTRED 7-day-mean fields (the statistic of the analysed and forecast
-           weeks), their mean, sd and percentiles by day of year pooled over the 30 years and +-POOL days. The ridge
-           numbers are read at EPOCH's level: each sector's trend in its band-mean z500 raises a day's peak height and
-           lowers the threshold its 588-dam area is read at (interpolated on the THR ladder)
+  indices  the tracker's numbers of every day's CENTRED 7-day window (the statistic of the analysed weeks): the field
+           indices of the 7-day-mean fields, and the share and median transit time of the 7 days' releases; their
+           mean, sd and percentiles by day of year pooled over the 30 years and +-POOL days. The ridge numbers are
+           read at EPOCH's level: each sector's trend in its band-mean z500 raises a day's peak height and lowers the
+           threshold its 588-dam area is read at (interpolated on the THR ladder)
 
-    python src/build_branch_clim.py fetch --years 1991 1995 --out part.npz
+    python src/build_branch_clim.py fetch --years 1991 1993 --out part.npz
     python src/build_branch_clim.py build part*.npz          # -> data/reference/branch_clim.nc
 """
 
@@ -28,15 +31,17 @@ import xarray as xr
 sys.path.insert(0, str(Path(__file__).parent))
 import build_hadley_clim as B
 import hadley_branches as HB
+import hadley_traj as T
 from doycal import noleap_doy
 
 OUT = B.REF / "branch_clim.nc"
 G = 9.80665
 HALF, POOL = 3, 3
 PCTS = (10, 25, 50, 75, 90)
-EPOCH = 2026.75  # the ridge numbers' reference level (decimal year); the trend in z500 is ~1-2 m a year
+EPOCH = 2026.75  # the ridge numbers' reference level (decimal year); the trend in z500 is ~0.5-0.7 m a year
 T_REF = 2005.5  # the trend term's origin
 THR = np.arange(5800.0, 5961.0, 10.0)  # z500 thresholds of the 588-dam area ladder (m)
+VARS = {"u": "u_component_of_wind", "v": "v_component_of_wind", "w": "vertical_velocity", "t": "temperature"}
 
 
 def _year(t: pd.DatetimeIndex) -> np.ndarray:
@@ -48,42 +53,79 @@ def _design(t: pd.DatetimeIndex) -> np.ndarray:
     return np.column_stack([np.ones(len(t)), np.cos(w), np.sin(w), np.cos(2 * w), np.sin(2 * w), _year(t) - T_REF])
 
 
+def traj_keys() -> list[str]:
+    return [f"{q}_{s}_{int(p)}" for s in HB.SUBS for p in T.RELEASE_P for q in ("share", "transit")]
+
+
+def traj_row(h: np.ndarray) -> dict:
+    """The trajectory numbers of a window's summed (sector, level, bin) histograms."""
+    share, med = T.stats(h)
+    out = {}
+    for i, s in enumerate(HB.SUBS):
+        for j, p in enumerate(T.RELEASE_P):
+            out[f"share_{s}_{int(p)}"], out[f"transit_{s}_{int(p)}"] = 100.0 * share[i, j], med[i, j]
+    return out
+
+
+def winds(block: dict) -> tuple:
+    """The trajectory arrays of a 6-hourly block: u, v, w on P_ASC (time, level, lat, lon) and ptrop (time, lat, lon)."""
+    asc = [list(HB.LEVELS).index(int(p)) for p in T.P_ASC]
+    ptrop = np.stack([HB.tropopause(t) for t in block["t"]]).astype(np.float32)
+    return (*(block[k][:, asc].astype(np.float32) for k in ("u", "v", "w")), ptrop)
+
+
 def fetch(y0: int, y1: int) -> dict:
-    """Years y0..y1 with the margins the centred windows reach into: the harmonic sums of the daily fields and the
-    indices (with the ridge ladder) of every day's centred 7-day mean."""
-    half = pd.Timedelta(days=HALF)
-    return reduce_days(pd.Timestamp(f"{y0}-01-01") - half, pd.Timestamp(f"{y1}-12-31") + half, y0, y1)
+    """Years y0..y1 with the margins the centred windows and the back-trajectories reach into."""
+    first = pd.Timestamp(f"{y0}-01-01") - pd.Timedelta(days=HALF)
+    return reduce_days(
+        first - pd.Timedelta(days=T.DAYS_BACK), first, pd.Timestamp(f"{y1}-12-31") + pd.Timedelta(days=HALF), y0, y1
+    )
 
 
-def reduce_days(t0: pd.Timestamp, t1: pd.Timestamp, y0: int, y1: int) -> dict:
-    """fetch() for the days t0..t1, of which the years y0..y1 are the core."""
+def reduce_days(t_load: pd.Timestamp, t_rel: pd.Timestamp, t1: pd.Timestamp, y0: int, y1: int) -> dict:
+    """fetch() for data from t_load, releases and days from t_rel to t1, of which the years y0..y1 are the core."""
     ds = xr.open_zarr(B.WB2, storage_options={"token": "anon"})
-    sel = dict(time=slice(t0, t1 + pd.Timedelta(hours=18)))
-    var = {
-        "u": ds["u_component_of_wind"].sel(level=200, **sel),
-        "v": ds["v_component_of_wind"].sel(level=200, **sel),
-        "w": ds["vertical_velocity"].sel(level=500, **sel),
-        "z": ds["geopotential"].sel(level=500, **sel),
-        "msl": ds["mean_sea_level_pressure"].sel(**sel),
-    }
-    t = pd.DatetimeIndex(var["u"].time.values)
-    keep = np.flatnonzero(t.hour == 0)
+    lev = list(HB.LEVELS)
+
+    def prep(da):
+        dims = [d for d in ("time", "level", "latitude", "longitude") if d in da.dims]
+        return da.transpose(*dims).sortby("latitude", ascending=False)
+
+    var = {k: prep(ds[n].sel(level=lev)) for k, n in VARS.items()}
+    var["z"] = prep(ds["geopotential"].sel(level=500))
+    var["msl"] = prep(ds["mean_sea_level_pressure"])
+    times = pd.DatetimeIndex(var["u"].time.values)
     days, D = [], {f: [] for f in HB.FIELDS}
-    for m0 in pd.date_range(t0.normalize().replace(day=1), t1, freq="MS"):
-        idx = [i for i in keep if m0 <= t[i] < m0 + pd.offsets.MonthBegin(1)]
-        if not idx:
+    roll: list[tuple] = []  # (time, u, v, w, ptrop) from DAYS_BACK + 1 days before the block in hand
+    hist = {}
+    for m0 in pd.date_range(t_load.normalize().replace(day=1), t1, freq="MS"):
+        sel = np.flatnonzero(
+            (times >= max(m0, t_load)) & (times < min(m0 + pd.offsets.MonthBegin(1), t1 + pd.Timedelta(days=1)))
+        )
+        if not sel.size:
             continue
-        blk = {k: v.isel(time=idx).load() for k, v in var.items()}
-        for k in range(len(idx)):
-            two = {
-                n: da.isel(time=k).transpose("latitude", "longitude").sortby("latitude", ascending=False)
-                for n, da in blk.items()
-            }
-            F = HB.fields(two["u"], two["v"], two["w"], two["z"] / G, two["msl"])
+        blk = {k: v.isel(time=sel).values for k, v in var.items()}
+        bt = times[sel]
+        u, v, w, pt = winds(blk)
+        keep_from = bt[0] - pd.Timedelta(days=T.DAYS_BACK + 1)  # the block's first release reaches back this far
+        roll = [r for r in roll if r[0] >= keep_from] + [(bt[i], u[i], v[i], w[i], pt[i]) for i in range(len(bt))]
+        for day in pd.DatetimeIndex(sorted(set(bt.normalize()))):
+            k = np.flatnonzero(bt.normalize() == day)
+            if day < t_rel or len(k) != 4:
+                continue
+            mean = {n: blk[n][k].mean(0) for n in blk}
+            F = HB.fields(mean["u"], mean["v"], mean["w"], mean["t"], mean["z"] / G, mean["msl"])
             for f in HB.FIELDS:
                 D[f].append(F[f].astype(np.float32))
-            days.append(pd.Timestamp(blk["u"].time.values[k]).normalize())
-        print(f"  {m0:%Y-%m}: {len(idx)} days", flush=True)
+            days.append(day)
+        rel = [d for d in bt[bt.hour == 0] if t_rel <= d <= t1]
+        if rel and roll[0][0] <= rel[0] - pd.Timedelta(days=T.DAYS_BACK):
+            W = T.Winds(
+                roll[0][0].timestamp(),
+                *(np.stack([r[i] for r in roll]) for i in range(1, 5)),
+            )
+            hist.update(zip(rel, T.trace_many(W, [d.timestamp() for d in rel]), strict=True))
+        print(f"  {m0:%Y-%m}: {len(bt)} times, {len(rel)} releases", flush=True)
     days = pd.DatetimeIndex(days)
     D = {f: np.stack(v) for f, v in D.items()}
     core = np.flatnonzero((days.year >= y0) & (days.year <= y1))
@@ -95,8 +137,11 @@ def reduce_days(t0: pd.Timestamp, t1: pd.Timestamp, y0: int, y1: int) -> dict:
     for i in core:
         if i - HALF < 0 or i + HALF >= len(days) or (days[i + HALF] - days[i - HALF]).days != 2 * HALF:
             continue
+        win = [days[i] + pd.Timedelta(days=d) for d in range(-HALF, HALF + 1)]
+        if any(d not in hist for d in win):
+            continue
         W = {f: D[f][i - HALF : i + HALF + 1].mean(0) for f in HB.FIELDS}
-        rows.append(HB.indices(W))
+        rows.append(HB.indices(W) | traj_row(sum(hist[d] for d in win)))
         L = HB.ridge_ladder(W["z500"], THR)
         lad.append([L[s][0] for s in HB.RIDGE])
         zbox.append([L[s][1] for s in HB.RIDGE])
@@ -126,11 +171,10 @@ def build(paths) -> xr.Dataset:
         maps[f] = c.reshape(5, HB.LAT.size, HB.LON.size)
     date = pd.DatetimeIndex(np.concatenate([p["date"] for p in parts]))
     keys = [str(k) for k in parts[0]["keys"]]
-    df = pd.DataFrame(np.concatenate([p["idx"] for p in parts]), index=date, columns=keys).sort_index()
-    ladder = np.concatenate([p["ladder"] for p in parts])
-    zbox = np.concatenate([p["zbox"] for p in parts])
     order = np.argsort(date.values)
-    ladder, zbox = ladder[order], zbox[order]
+    df = pd.DataFrame(np.concatenate([p["idx"] for p in parts])[order], index=date[order], columns=keys)
+    ladder = np.concatenate([p["ladder"] for p in parts])[order]
+    zbox = np.concatenate([p["zbox"] for p in parts])[order]
     yr = _year(df.index)
     trends = {}
     Xh = _design(df.index)
@@ -165,9 +209,9 @@ def build(paths) -> xr.Dataset:
             "doy": np.arange(1, 367),
         },
         attrs={
-            "source": "ERA5 1991-2020 at 00 UTC, WeatherBench2 1.5 deg",
-            "maps": "harmonic normal by common-year day; z500 at the EPOCH level (linear trend 1991-2020 per grid point)",
-            "indices": f"of each day's centred 7-day mean, pooled +-{POOL} days of year; ridge numbers at the EPOCH level",
+            "source": "ERA5 1991-2020, 6-hourly, WeatherBench2 1.5 deg",
+            "maps": "harmonic normal by common-year day of the daily-mean fields; z500 at the EPOCH level (linear trend)",
+            "indices": f"of each day's centred 7-day window, pooled +-{POOL} days of year; ridge numbers at the EPOCH level",
             "epoch": EPOCH,
             "z500_trend_m_per_yr": str({k: round(v, 3) for k, v in trends.items()}),
         },
@@ -189,7 +233,8 @@ def main() -> int:
     ds = build(a.parts)
     ds.to_netcdf(OUT)
     print(f"wrote {OUT}; z500 trends {ds.attrs['z500_trend_m_per_yr']}")
-    for k in ("out_nh", "desc_nh", "r588_npac", "high_npac", "out_sh", "desc_sh", "r588_spac", "high_spac"):
+    keys = ("out_nh", "desc_nh", "r588_npac", "out_sh", "desc_sh", "share_nh_500", "transit_nh_500", "transit_sh_700")
+    for k in keys:
         r = ds["index"].sel(key=k)
         print(f"  {k}: 1 Feb p50 {float(r.sel(stat='p50', doy=32)):.2f}  1 Aug {float(r.sel(stat='p50', doy=213)):.2f}")
     return 0
