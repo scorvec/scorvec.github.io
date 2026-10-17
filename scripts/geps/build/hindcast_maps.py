@@ -4,10 +4,15 @@ GEPS8 hindcast — the basis of the skill mask and the calibrated probability
 maps.
 
 For each field, every hindcast start of 2001-2020 (ensemble mean, 39 daily
-leads) is de-drifted against the lead-matched GEPS8 climatology and re-based
-to 1991-2020 exactly as the live maps are, coarsened to 2.5 deg, and averaged
-into weeks 1-5. The observed weekly-mean anomaly on the same valid days comes
-from an independent analysis on the same grid:
+leads, each start once) is de-drifted against the lead-matched GEPS8
+climatology and re-based to 1991-2020 as the live maps are (precipitation, which
+the tercile probabilities read un-re-based, is not re-based here either), on the
+2.5 deg grid, LEAVE-ONE-YEAR-OUT: the climatology and the ERA5 2001-2020
+normal of the re-basing without the scored start's own season, exactly as the
+teleconnection hindcast scores its indices (telecon_hindcast.anomalies, whose
+docstring has the why) - a live forecast never sees its own year in either.
+The anomalies are averaged into weeks 1-5. The observed weekly-mean anomaly on
+the same valid days comes from an independent analysis on the same grid:
 
   t2m    NCEP/NCAR R1 2 m air temperature (daily, Gaussian grid, interpolated)
   pr     CPC unified gauge analysis (daily, 0.5 deg, LAND ONLY — over the
@@ -24,8 +29,10 @@ for "above normal" is the climatological MEDIAN of the weekly-mean anomaly
 for that day of year (zero for temperature to within noise, negative for
 precipitation, whose weekly means are skewed).
 
-Single pass with running sums, so memory is one field's daily truth (~0.5 GB)
-plus one hindcast file. About 3 s per file; run two fields in parallel.
+Single pass with running sums, so memory is one field's daily truth (~1.5 GB
+with its running sums) plus what telecon_hindcast.anomalies holds (~1 GB);
+run two fields in parallel. Needs the reference set being built in GEPS_REF
+(telecon_hindcast.py says which files).
 
     python hindcast_maps.py --tags t2m,pr
     python hindcast_maps.py --tags zg500,mslp
@@ -46,8 +53,7 @@ import xarray as xr
 HERE = Path(__file__).resolve().parent
 
 _sys.path[:0] = [str(HERE), str(HERE.parent)]
-from telecon_hindcast import CLIM, LAT25, LON25, STORE, TC
-from telecon_io import period_shift
+from telecon_hindcast import LAT25, LON25, TC, anomalies
 from build_telecon_patterns import doy_clim
 from refpack import noleap_doy, at_doy  # day-of-year key
 
@@ -57,19 +63,7 @@ Y0, Y1 = 2001, 2020
 CY0, CY1 = 1991, 2020
 WIN = 45
 SCALE = {"t2m": 1.0, "pr": 86400.0, "zg500": 1.0, "mslp": 0.01}
-
-
-def clim_wrapped25(tag):
-    """Lead-dependent model climatology on the 2.5 deg grid, day-of-year axis wrapped for interpolation (coarsened once:
-    subtracting on the 1 deg grid and coarsening the difference cost 30-40 s per file)."""
-    c = xr.open_dataset(CLIM / f"geps8_clim_{tag}.nc")
-    cv = c[next(v for v in c.data_vars if v != "n_starts")].load()
-    cv = xr.concat([cv, cv.isel(X=0).assign_coords(X=360.0)], dim="X")
-    cv = cv.interp(Y=LAT25, X=LON25).rename({"Y": "lat", "X": "lon"})
-    return xr.concat(
-        [cv.isel(doy=-1).assign_coords(doy=cv.doy[-1] - 366), cv, cv.isel(doy=0).assign_coords(doy=cv.doy[0] + 366)],
-        dim="doy",
-    )
+REBASED = ("t2m", "zg500", "mslp")  # re-based to 1991-2020 here (precipitation is not: the tercile maps' form)
 
 
 def to25(a, nearest=False):
@@ -123,6 +117,7 @@ def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--tags", default="t2m,pr")
     ap.add_argument("--limit", type=int, default=0, help="only the first N hindcast files (smoke test)")
+    ap.add_argument("--workers", type=int, default=2, help="processes reading the hindcast files")
     a = ap.parse_args()
     for tag in [t.strip() for t in a.tags.split(",") if t.strip()]:
         t0 = time.time()
@@ -161,8 +156,6 @@ def main() -> int:
         print(f"  {tag}: truth ready ({nday} days), {time.time() - t0:.0f} s", flush=True)
 
         # ---- hindcast pass with running sums per calendar month ---------------
-        cw = clim_wrapped25(tag)
-        shift = period_shift(tag) if tag != "pr" else None
         nW = len(WEEKS)
 
         def Z(nW=nW):
@@ -170,52 +163,29 @@ def main() -> int:
 
         n_, sf, so, sff, soo, sfo = Z(), Z(), Z(), Z(), Z(), Z()
         mid_doy = np.array([pd.Timestamp(2001, m, 15).dayofyear for m in range(1, 13)])
-        files = sorted(STORE.glob(f"geps8_{tag}_*.nc"))
-        if a.limit:
-            files = files[: a.limit]
-        for k, f in enumerate(files, 1):
-            ds = xr.open_dataset(f)
-            v = ds[next(iter(ds.data_vars))]
-            if "P" in v.dims:
-                v = v.isel(P=0)
-            v = v.load().astype("float32")
-            ds.close()
-            S = pd.DatetimeIndex(v.S.values)
-            L = v.L.values
+        for s0, L, _, _, loyo in anomalies(tag, a.workers, rebase=tag in REBASED, limit=a.limit):
             day = np.ceil(L).astype(int)
-            v25 = to25(v.rename({"Y": "lat", "X": "lon"})).values  # (S, L, 73, 144)
-            del v
-            for si, s0 in enumerate(S):
-                if s0.year < Y0 or s0.year > Y1:
+            anom = loyo * SCALE[tag]
+            x0 = float(noleap_doy(s0))  # start's day-of-year key
+            months = np.where(np.abs(((x0 - mid_doy + 182.5) % 365) - 182.5) <= WIN)[0]
+            for wi, (w0, w1) in enumerate(WEEKS):
+                sel = (day >= w0) & (day <= w1)
+                fw = anom[sel].mean(0)
+                d0 = (s0 + pd.Timedelta(days=w0 - 1)).to_datetime64().astype("datetime64[D]")
+                i0 = pos.get(d0)
+                if i0 is None or i0 + 7 > nday:
                     continue
-                x0 = float(noleap_doy(s0))  # start's day-of-year key
-                ref = cw.interp(doy=x0).sel(L=L, method="nearest").values
-                anom = v25[si] - ref
-                if shift is not None:
-                    valid = s0 + pd.to_timedelta(day - 1, unit="D")  # L = 0.5 is the start date itself
-                    anom = anom + at_doy(shift, valid)
-                anom = anom * SCALE[tag]
-                months = np.where(np.abs(((x0 - mid_doy + 182.5) % 365) - 182.5) <= WIN)[0]
-                for wi, (w0, w1) in enumerate(WEEKS):
-                    sel = (day >= w0) & (day <= w1)
-                    fw = anom[sel].mean(0)
-                    d0 = (s0 + pd.Timedelta(days=w0 - 1)).to_datetime64().astype("datetime64[D]")
-                    i0 = pos.get(d0)
-                    if i0 is None or i0 + 7 > nday:
-                        continue
-                    ow = week_mean(i0, i0 + 7)
-                    good = np.isfinite(fw) & np.isfinite(ow)
-                    fw = np.where(good, fw, 0.0)
-                    ow = np.where(good, ow, 0.0)
-                    for m in months:
-                        n_[m, wi] += good
-                        sf[m, wi] += fw
-                        so[m, wi] += ow
-                        sff[m, wi] += fw * fw
-                        soo[m, wi] += ow * ow
-                        sfo[m, wi] += fw * ow
-            if k % 40 == 0 or k == len(files):
-                print(f"  {tag}: {k}/{len(files)} files, {(time.time() - t0) / 60:.1f} min", flush=True)
+                ow = week_mean(i0, i0 + 7)
+                good = np.isfinite(fw) & np.isfinite(ow)
+                fw = np.where(good, fw, 0.0)
+                ow = np.where(good, ow, 0.0)
+                for m in months:
+                    n_[m, wi] += good
+                    sf[m, wi] += fw
+                    so[m, wi] += ow
+                    sff[m, wi] += fw * fw
+                    soo[m, wi] += ow * ow
+                    sfo[m, wi] += fw * ow
         with np.errstate(invalid="ignore", divide="ignore"):
             mf, mo = sf / n_, so / n_
             vf = sff / n_ - mf**2
@@ -262,6 +232,7 @@ def main() -> int:
             window_days=WIN,
             base=f"{CY0}-{CY1}",
             hindcast=f"{Y0}-{Y1}",
+            dedrift="leave-one-year-out",
         )
         out.to_netcdf(
             TC / (f"map_skill_{tag}.nc" if not a.limit else f"map_skill_{tag}_test.nc"),

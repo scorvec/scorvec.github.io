@@ -2,7 +2,7 @@
 
 The pipeline runs in Actions. Its 150 GB of hindcast and reanalysis inputs stay offline (LOCAL_STORE); in Actions
 it has only the compact DERIVED reference files (scripts/geps/make_reference.py, built once offline from those
-stores and published as the release asset geps-ref-v2) plus whatever it fetches for the new cycle.
+stores and published as the release asset geps-ref-v3) plus whatever it fetches for the new cycle.
 
   REF    read-only reference: lead-dependent GEPS8 model climatology packs, the ERA5 1991-2020 minus 2001-2020 shift,
          teleconnection patterns, hindcast skill/calibration tables, regime centroids          (GEPS_REF)

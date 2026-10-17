@@ -486,6 +486,9 @@ def skill_mask(tag, base):
     if not q.exists():
         return None
     ds = xr.open_dataset(q)
+    if ds.attrs.get("dedrift") != "leave-one-year-out":
+        print(f"::warning::{q.name} is scored in sample - no skill mask (rebuild hindcast_maps.py)")
+        return None
     r = ds["r"].sel(month=base.month).values  # (week, lat, lon)
     return ds.lat.values, ds.lon.values, r, noskill(r)
 

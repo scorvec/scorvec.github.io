@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
 """Regime labels of every hindcast start, SEASON-AWARE (offline, once per model; rerun if the regimes change).
 
-  --model geps   GEPS8 hindcast 2001-2020 (4 starts a week, 4-member ensemble means, from IRI; zg500 monthly files in
-                 geps_subx/geps8_hindcast). Anomalies exactly as the live GEPS product and
-                 telecon_hindcast.py: minus the lead-dependent GEPS8 climatology at the start's day of year, plus the
-                 ERA5 1991-2020 minus 2001-2020 shift at the valid date, on the 2.5 deg grid.
+  --model geps   GEPS8 hindcast 2001-2020 (4 starts a week, 4-member ensemble means, from IRI; zg500 monthly files of
+                 the offline store, each start once). Anomalies as the live GEPS product forms them, out of sample:
+                 scripts/geps/build/telecon_hindcast.anomalies - minus the lead-dependent GEPS8 climatology at the
+                 start's day of year, re-based with the ERA5 1991-2020 minus 2001-2020 shift at the valid date, on the
+                 2.5 deg grid, the climatology and the ERA5 2001-2020 normal both WITHOUT the start's own season (a
+                 live forecast never sees its own year in either). Needs the reference set being built in GEPS_REF.
   --model gefs   GEFSv12 reforecast 2000-2019 (Wednesday starts, 4 members; the per-member daily 2.5 deg 500 hPa
                  height of release gefs-clim-v2, gefs_hind2_MM.npz). Anomalies exactly as the live GEFS product:
                  member mean minus the lead-matched reforecast climatology at the start's day of year (recomputed from
@@ -17,7 +19,7 @@ season. Observed (data/r1_labels.npz, NCEP/NCAR R1): the centred 5-day-mean regi
 persistence: the regime of the 3-day mean ending the day before day 1, classified with the valid day's set.
 Day d is valid on start + (d - 1) for both models (GEPS8 lead L = d - 0.5).
 
-    python scripts/regimes/build_regime_hindcast.py --model geps [--workers 2]
+    GEPS_REF=<reference set> python scripts/regimes/build_regime_hindcast.py --model geps [--workers 2]
     python scripts/regimes/build_regime_hindcast.py --model gefs --hind <gefs_hind2 dir>
     -> scripts/regimes/data/regime_hindcast_{model}.npz  S (yyyymmdd), fc_<sector> / ob_<sector> / pers_<sector>
        (start, day) int8 in the valid day's set (0-3, 4 = no regime, -1 missing), fc_<sector>_<season> both sets
@@ -30,7 +32,6 @@ import datetime as dt
 import functools
 import sys
 import time
-from concurrent.futures import ProcessPoolExecutor
 from pathlib import Path
 
 import numpy as np
@@ -40,7 +41,6 @@ REPO = HERE.parents[1]
 sys.path.insert(0, str(HERE))
 import regime_core as RC
 
-GEPS = Path.home() / "data_archive" / "geps_subx"
 NDAYS = 35
 
 
@@ -60,46 +60,18 @@ def classify_both(an, dates):
 
 
 # ── GEPS8 ─────────────────────────────────────────────────────────────────────────────────────────────────────────
-def geps_file(path):
-    """Labels of every start in one monthly GEPS8 zg500 file (telecon_hindcast.one_file's anomaly arithmetic)."""
-    sys.path.insert(0, str(GEPS))
-    import pandas as pd
-    import xarray as xr
-    import telecon_hindcast as th
-
-    cw = th.clim_wrapped25("zg500")
-    shift = th.period_shift("zg500")
-    ds = xr.open_dataset(path)
-    a = ds["zg"].isel(P=0).load().astype("float32")
-    ds.close()
-    S = pd.DatetimeIndex(a.S.values)
-    L = a.L.values
-    a = xr.concat([a, a.isel(X=0).assign_coords(X=360.0)], dim="X")
-    a25 = a.interp(Y=RC.LAT25, X=RC.LON25).values.astype("float32")  # (S, L, 73, 144)
-    del a
-    out = []
-    for si, s0 in enumerate(S):
-        refc = cw.interp(doy=s0.dayofyear).sel(L=L, method="nearest").values
-        an = a25[si] - refc
-        valid = s0 + pd.to_timedelta(np.floor(L).astype(int), unit="D")  # L = 0.5 is the start date itself
-        if shift is not None:
-            an = an + shift[valid.dayofyear.values - 1]
-        an = an[:NDAYS]
-        if not np.isfinite(an).all():
-            continue
-        out.append((s0.strftime("%Y%m%d"), classify_both(an, None)))
-    return out
-
-
 def geps_starts(workers):
-    files = sorted((GEPS / "geps8_hindcast").glob("geps8_zg500_*.nc"))
-    res, t0 = [], time.time()
-    with ProcessPoolExecutor(workers) as ex:
-        for i, r in enumerate(ex.map(geps_file, files), 1):
-            res += r
-            if i % 20 == 0 or i == len(files):
-                print(f"  {i}/{len(files)} files, {len(res)} starts, {time.time() - t0:.0f} s", flush=True)
-    return sorted(dict(res).items(), key=lambda x: x[0])
+    """Labels of every GEPS8 hindcast start, from its leave-one-year-out ensemble-mean 500 hPa anomaly (m)."""
+    sys.path[:0] = [str(REPO / "scripts" / "geps" / "build"), str(REPO / "scripts" / "geps")]
+    import telecon_hindcast as TH
+
+    assert np.allclose(TH.LAT25, RC.LAT25) and np.allclose(TH.LON25, RC.LON25), "grid differs from the regimes'"
+    out = []
+    for s0, _, _, _, loyo in TH.anomalies("zg500", workers):
+        an = loyo[:NDAYS]  # L = 0.5 .. 34.5: days 1-35
+        if np.isfinite(an).all():
+            out.append((s0.strftime("%Y%m%d"), classify_both(an, None)))
+    return out
 
 
 # ── GEFSv12 reforecast ────────────────────────────────────────────────────────────────────────────────────────────
