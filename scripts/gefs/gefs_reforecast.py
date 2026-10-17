@@ -16,6 +16,7 @@ Everything is box-averaged to 1.5 deg and reduced to weekly means (days 1-7 ... 
 zonal mean (the vortex panel), and OLR/u200/u850 daily as 15S-15N means by longitude (the MJO index).
 
     python gefs_reforecast.py year 2019 --out out/            # one year of starts -> out/rf_YYYYMMDD.npz
+    python gefs_reforecast.py year 2019 --tags t2m,pr ...     # those weekly fields only (no vortex or MJO band)
     python gefs_reforecast.py combine --inp out/ --out clim/  # every year -> clim/gefs_clim_DDD.npz per 5-day doy centre
 """
 
@@ -181,12 +182,15 @@ def wanted(tag: str):
     return out
 
 
-def one_member(start: str, mem: str):
-    """Everything one member of one start contributes, or None if its files are incomplete."""
+def one_member(start: str, mem: str, tags=tuple(FIELDS)):
+    """Everything one member of one start contributes for `tags` - weekly means, and the 60N 10 hPa wind and the
+    15S-15N band when all their fields are among the tags - or None if its files are incomplete."""
     y = start[:4]
     base = f"{S3}/{y}/{start}00/{mem}"
     idx_cache, jobs = {}, []
     for tag, (f1, f2, lev, _kind) in FIELDS.items():
+        if tag not in tags:
+            continue
         for d, which, stext in wanted(tag):
             f = f"{base}/Days:{'1-10' if which == 1 else '10-35'}/{f1 if which == 1 else f2}_{start}00_{mem}.grib2"
             if f not in idx_cache:
@@ -200,7 +204,7 @@ def one_member(start: str, mem: str):
             jobs.append((tag, d, f, hit[0][0], hit[0][1]))
     with ThreadPoolExecutor(24) as ex:
         bufs = list(ex.map(lambda j: get(j[2], (j[3], j[4])), jobs))
-    daily = {t: np.zeros((35, len(LAT), len(LON)), "float64") for t in FIELDS if t != "u10"}
+    daily = {t: np.zeros((35, len(LAT), len(LON)), "float64") for t in tags if t != "u10"}
     cnt = {t: np.zeros(35) for t in daily}
     u60 = np.zeros(35)
     u60n = np.zeros(35)
@@ -217,9 +221,9 @@ def one_member(start: str, mem: str):
             daily[t] = daily[t]  # four 6-h accumulations summed: mm/day
         else:
             daily[t] /= np.maximum(cnt[t], 1)[:, None, None]
-    weekly = {t: pack(t, np.stack([daily[t][a - 1 : b].mean(0) for a, b in WEEKS])) for t in WEEKLY}
-    band = np.stack([pack(t, daily[t][:, BAND, :].mean(1)) for t in BANDF])  # (3, 35, 240) int16
-    return weekly, (u60 / np.maximum(u60n, 1)).astype("float32"), band
+    weekly = {t: pack(t, np.stack([daily[t][a - 1 : b].mean(0) for a, b in WEEKS])) for t in WEEKLY if t in tags}
+    band = np.stack([pack(t, daily[t][:, BAND, :].mean(1)) for t in BANDF]) if set(BANDF) <= set(tags) else None
+    return weekly, (u60 / np.maximum(u60n, 1)).astype("float32") if "u10" in tags else None, band  # band (3, 35, 240)
 
 
 def wednesdays(year: int):
@@ -232,7 +236,7 @@ def wednesdays(year: int):
 
 
 def run_start(args):
-    start, out = args
+    start, out, tags = args
     dest = Path(out) / f"rf_{start}.npz"
     if dest.exists():
         return f"{start}: exists"
@@ -240,7 +244,7 @@ def run_start(args):
     res = {}
     for m in MEMBERS:
         try:
-            r = one_member(start, m)
+            r = one_member(start, m, tags)
         except Exception as e:  # noqa: BLE001
             r = None
             print(f"  {start} {m}: {str(e)[:120]}", flush=True)
@@ -249,12 +253,9 @@ def run_start(args):
     if not res:
         return f"{start}: no complete member"
     ms = list(res)
+    extra = {k: np.stack([res[m][i] for m in ms]) for i, k in ((1, "u60"), (2, "band")) if res[ms[0]][i] is not None}
     np.savez_compressed(
-        dest,
-        members=np.array(ms),
-        **{f"w_{t}": np.stack([res[m][0][t] for m in ms]) for t in WEEKLY},
-        u60=np.stack([res[m][1] for m in ms]),
-        band=np.stack([res[m][2] for m in ms]),
+        dest, members=np.array(ms), **{f"w_{t}": np.stack([res[m][0][t] for m in ms]) for t in res[ms[0]][0]}, **extra
     )
     return f"{start}: {len(ms)} members in {time.time() - t0:.0f} s"
 
@@ -263,7 +264,7 @@ def cmd_year(a) -> int:
     Path(a.out).mkdir(parents=True, exist_ok=True)
     starts = list(wednesdays(a.year))
     with ProcessPoolExecutor(a.procs) as ex:
-        for msg in ex.map(run_start, [(s, a.out) for s in starts]):
+        for msg in ex.map(run_start, [(s, a.out, tuple(a.tags.split(","))) for s in starts]):
             print(msg, flush=True)
     return 0
 
@@ -312,6 +313,7 @@ def main() -> int:
     y.add_argument("year", type=int)
     y.add_argument("--out", default="out")
     y.add_argument("--procs", type=int, default=4)
+    y.add_argument("--tags", default=",".join(FIELDS), help="fields to fetch (default all)")
     c = sp.add_parser("combine")
     c.add_argument("--inp", default="out")
     c.add_argument("--out", default="clim")

@@ -6,7 +6,7 @@ name: GEPS days 1-35 (subseasonal)
 # and commits.
 #
 # IN ACTIONS SINCE 2026-10-04. The ~150 GB of hindcast and reanalysis stores are not downloaded here: everything the
-# build reads from them was reduced ONCE, offline, to the release asset geps-ref-v1 (scripts/geps/make_reference.py,
+# build reads from them was reduced ONCE, offline, to the release asset geps-ref-v2 (scripts/geps/make_reference.py,
 # 0.48 GB). A run downloads only the new cycle's fields from the MSC Datamart - the variables, levels and steps the
 # products use, each file once (the ledger in the step summary says exactly what) - plus small incremental refreshes
 # (ARCO ERA5 band means, CPC/PSL index files).
@@ -88,20 +88,20 @@ jobs:
           path: ~/.local/share/cartopy
           key: cartopy-naturalearth-v1
 
-      # The reference set (release geps-ref-v1, 0.48 GB) changes only when make_reference.py is rerun - and then the
+      # The reference set (release geps-ref-v2, 0.48 GB) changes only when make_reference.py is rerun - and then the
       # release TAG changes, which is this cache key, so a run downloads it once per version, not once per run.
       - uses: actions/cache@v6
         id: refcache
         with:
           path: scripts/geps/ref
-          key: geps-ref-v1
-      - name: Reference set (release geps-ref-v1)
+          key: geps-ref-v2
+      - name: Reference set (release geps-ref-v2)
         if: steps.refcache.outputs.cache-hit != 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh release download geps-ref-v1 --repo "$GITHUB_REPOSITORY" -p geps_ref_v1.tar -D /tmp --clobber
-          mkdir -p scripts/geps/ref && tar xf /tmp/geps_ref_v1.tar -C scripts/geps/ref && rm /tmp/geps_ref_v1.tar
+          gh release download geps-ref-v2 --repo "$GITHUB_REPOSITORY" -p geps_ref_v2.tar -D /tmp --clobber
+          mkdir -p scripts/geps/ref && tar xf /tmp/geps_ref_v2.tar -C scripts/geps/ref && rm /tmp/geps_ref_v2.tar
       - name: Place the vortex reference (strat clim, S2S reforecast drift)
         run: |
           mkdir -p scripts/strat/data && cp -r scripts/geps/ref/strat/. scripts/strat/data/
@@ -117,7 +117,7 @@ jobs:
           scripts/lib/fetch_frames_ci.sh assets/geps/anim scripts/geps/state || true
           if [ ! -f scripts/geps/state/last_cycle.json ]; then
             echo "no GEPS state on the frames branch yet - unpacking the offline seed"
-            gh release download geps-ref-v1 --repo "$GITHUB_REPOSITORY" -p geps_state_seed.tar -D /tmp --clobber \
+            gh release download geps-ref-v2 --repo "$GITHUB_REPOSITORY" -p geps_state_seed.tar -D /tmp --clobber \
               && mkdir -p scripts/geps/state && tar xf /tmp/geps_state_seed.tar -C scripts/geps/state \
               || echo "::warning::no state seed - observed tails start from what the Datamart still holds"
           fi

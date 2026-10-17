@@ -51,10 +51,27 @@ mm/day, zg500 -0.5 m, mslp +3 Pa); the 2-member -> 4-member skill predicted from
 measured 4-member skill to 0.01 (t2m week 3: 0.400 vs 0.406), so a 31-member mean would score higher still
 (t2m week 3 r ~0.47 vs 0.41) - not applied, the per-cell estimate amplifies sampling noise where skill is small.
 
+TERCILE STEP TEST (step) - the live maps do not use the fit years' terciles that `assess` scores against: their
+categories are the 2016-2025 terciles and their calibration is centred on the 2016-2025 mean anomaly. The four
+reforecast years inside that decade (starts 2016-2019, STEP_Y0-STEP_Y1) are scored exactly as the live maps score a
+forecast - gefs_probs' standardised form with the published r and forecast sd of the init month and week, the
+2016-2025 terciles and recent mean at each week's centre, the dry-week mask - from a leave-season-out climatology,
+against the observed category of each week (step-truth, offline: the `truth` weekly anomalies against the same
+terciles, committed as data/gefs_tercile_obs.npz). Reported per field and week, area-weighted over the cells with
+truth: the observed frequency of each 2016-2025 tercile, the mean calibrated probability of each, their difference
+(the step's bias; per-start area means, t on the effective number of weekly starts from their lag-1
+autocorrelation, Benjamini-Hochberg at FDR 10 % over every field, week and category), the RPSS against one third each
+with its one-sided p, and the reliability of P(below) and P(above). The published r and forecast sd were fitted on all
+20 reforecast years, the four scored ones included, and the ERA5 2001-2020 re-basing normal holds them too: the
+sharpness and RPSS are therefore not fully out of sample, while the bias test of the step (categories and centring)
+does not depend on either to first order.
+
     python build_gefs_mapskill.py truth  --tags t2m,pr,zg500,mslp     # ~1-2 min a tag; work/obs*_{tag}.np*
     python build_gefs_mapskill.py recent --tags t2m,pr                # -> REF/gefs_terciles_{tag}.npz
     python build_gefs_mapskill.py skill  --tags t2m,pr,zg500,mslp     # ~1.5 min -> REF/gefs_mapskill_{tag}.npz
     python build_gefs_mapskill.py assess --tags t2m,pr                # ~4 min; adds the test to the skill files' meta
+    python build_gefs_mapskill.py step-truth                          # after truth -> data/gefs_tercile_obs.npz
+    python build_gefs_mapskill.py step --rf RF --clim CLIM --ref REF --out step.json   # Actions: gefs-tercile-step.yml
 Memory: one year of CPC (0.4 GB) or the recent decade of one field (~1.5 GB); the skill pass ~3.8 GB (four fields).
 """
 
@@ -93,6 +110,9 @@ MIN_PAIRS = 30
 LAND_MIN = 0.25  # CPC land cover needed in a 1.5 deg box
 B0 = dt.date(2000, 1, 5)  # first reforecast start = first observed week block
 Z3 = 0.4307272992954576  # standard normal upper tercile (gefs_probs.Z3)
+STEP_Y0, STEP_Y1 = 2016, 2019  # the reforecast years inside the 2016-2025 tercile decade
+STEP_OBS = HERE / "data" / "gefs_tercile_obs.npz"
+CATS = ("below", "near", "above")
 NY, NX = len(R.LAT), len(R.LON)
 UNITS = {"t2m": "K", "pr": "mm/day", "zg500": "m", "mslp": "Pa"}
 TRUTH = {
@@ -748,15 +768,230 @@ def cmd_assess(a) -> int:
     return 0
 
 
+def step_blocks():
+    """(first, end) observed week blocks the starts of STEP_Y0..STEP_Y1 verify on (weeks 1-5 of every start)."""
+    first = dt.date(STEP_Y0, 1, 1)
+    while first.weekday() != 2:
+        first += dt.timedelta(days=1)
+    last = dt.date(STEP_Y1, 12, 31)
+    while last.weekday() != 2:
+        last -= dt.timedelta(days=1)
+    return (first - B0).days // 7, (last - B0).days // 7 + len(SK.WEEKS)
+
+
+def cmd_step_truth(a) -> int:
+    """The observed tercile of every week the overlap's starts verify on, against the live maps' 2016-2025 terciles at
+    the week's centre (0 below, 1 near, 2 above; -1 no truth, or a dry precipitation week) -> STEP_OBS."""
+    from gefs_probs import DRY_MM
+
+    b0, b1 = step_blocks()
+    out = {}
+    for tag in a.tags.split(","):
+        wk = np.load(WORK / f"obsweek_{tag}.npz")["wk"][b0:b1]
+        terc = np.load(REF / f"gefs_terciles_{tag}.npz")
+        cat = np.full(wk.shape, -1, "int8")
+        for i in range(len(wk)):
+            doy = SK.noleap_doy(B0 + dt.timedelta(days=7 * (b0 + i) + 3))  # the week's centre, as gefs_probs reads
+            q33, q67 = (SK.at_doy(terc[n].astype("float64"), doy) for n in ("q33", "q67"))
+            ok = np.isfinite(wk[i]) & np.isfinite(q33) & np.isfinite(q67)
+            if tag == "pr":
+                ok &= SK.at_doy(terc["clim_weekly"].astype("float64"), doy) >= DRY_MM
+            cat[i] = np.where(ok, np.where(wk[i] < q33, 0, np.where(wk[i] > q67, 2, 1)), -1)
+        out[f"cat_{tag}"] = cat
+        f = [np.mean(cat[cat >= 0] == k) for k in range(3)]
+        print(f"  {tag}: {len(wk)} weeks, observed below/near/above {f[0]:.3f}/{f[1]:.3f}/{f[2]:.3f}", flush=True)
+    meta = dict(
+        first_week=(B0 + dt.timedelta(days=7 * b0)).isoformat(),
+        categories="0 below, 1 near, 2 above the 2016-2025 terciles of the 7-day-mean anomaly (gefs_terciles_<tag>) at "
+        "the week's centre; -1 no truth or a dry week (precipitation)",
+        truth={t: TRUTH[t] for t in a.tags.split(",")},
+    )
+    np.savez_compressed(STEP_OBS, meta=np.array(json.dumps(meta)), **out)
+    print(f"{STEP_OBS}  {STEP_OBS.stat().st_size / 1e6:.2f} MB")
+    return 0
+
+
+def mean_test(x):
+    """Mean of a series of consecutive weekly starts with its 95% interval and two-sided p: t on the effective sample
+    size n (1 - r1) / (1 + r1), r1 the lag-1 autocorrelation (>= 0)."""
+    from scipy.stats import t as tdist
+
+    x = np.asarray(x, dtype="float64")
+    n = len(x)
+    r1 = float(np.clip(np.corrcoef(x[:-1], x[1:])[0, 1], 0.0, 0.99)) if x.std() > 0 else 0.0
+    neff = max(n * (1 - r1) / (1 + r1), 3.0)
+    se = x.std(ddof=1) / np.sqrt(neff)
+    m = float(x.mean())
+    half = float(tdist.ppf(0.975, neff - 1) * se)
+    p = float(2 * tdist.sf(abs(m) / se, neff - 1)) if se > 0 else 1.0
+    return dict(mean=round(m, 4), ci=[round(m - half, 4), round(m + half, 4)], p=round(p, 4), n_eff=round(neff, 1))
+
+
+def cmd_step(a) -> int:
+    """The tercile step test (docstring) on the reforecast starts of STEP_Y0..STEP_Y1 -> a.out (json)."""
+    from quantmet.stats import benjamini_hochberg
+
+    tags = a.tags.split(",")
+    files = {dt.date(int(f.stem[3:7]), int(f.stem[7:9]), int(f.stem[9:11])): f for f in Path(a.rf).glob("rf_*.npz")}
+    dates = sorted(files)
+    pools = {d: [ci for ci, c in enumerate(SK.CENTRES) if circ(SK.noleap_doy(d), c) <= 15] for d in dates}
+    scored = [d for d in dates if STEP_Y0 <= d.year <= STEP_Y1]
+    print(f"{len(scored)} scored starts {scored[0]} .. {scored[-1]}, {len(dates)} fetched", flush=True)
+    ref = Path(a.ref)
+    shift = {t: np.load(ref / "era5_shift.npz")[f"s15_{t}"].astype("float64") for t in tags}
+    terc = {t: np.load(ref / f"gefs_terciles_{t}.npz") for t in tags}
+    sk = {t: SK.load(t, ref) for t in tags}
+    obs = np.load(a.obs)
+    b_first = dt.date.fromisoformat(json.loads(str(obs["meta"]))["first_week"])
+    clim, sums = {}, {}
+
+    def centre(ci):  # gefs-clim-v1: member-runs and the member-run mean weekly fields of a 5-day centre
+        if ci not in clim:
+            with np.load(Path(a.clim) / f"gefs_clim_{int(SK.CENTRES[ci]):03d}.npz") as z:
+                clim[ci] = (float(z["n"]), {t: z[f"w_{t}"].astype("float64") for t in tags})
+        return clim[ci]
+
+    def member_sum(d):
+        if d not in sums:
+            n, F = member_sums(files[d], tags)
+            sums[d] = (n, {t: F[t].sum(0, dtype="float64") for t in tags})
+        return sums[d]
+
+    wt = np.repeat(np.cos(np.deg2rad(R.LAT))[:, None], NX, 1)
+    keys = ("w", "p0", "p1", "p2", "i0", "i1", "i2", "rps", "rpsc")
+    per = {(t, k): [] for t in tags for k in range(5)}  # per start: area sums of keys (all cells, then unhatched)
+    rel = {(t, k, c): np.zeros((3, 10)) for t in tags for k in range(5) for c in (0, 2)}  # w, w p, w I per bin
+    mask = {}
+    for s in scored:
+        for old in [d for d in sums if abs((d - s).days) > LOSO]:
+            sums.pop(old)
+        mates = [d for d in dates if abs((d - s).days) <= LOSO]
+        i_lo, w_lo, i_hi, w_hi = SK.bracket(SK.noleap_doy(s))
+        _, F = member_sums(files[s], tags)
+        mi = s.month - 1
+        for t in tags:
+            C = 0.0
+            for ci, wgt in ((i_lo, w_lo), (i_hi, w_hi)):
+                if wgt == 0:
+                    continue
+                n_c, w_c = centre(ci)
+                own = [member_sum(d) for d in mates if ci in pools[d]]
+                C = C + wgt * (n_c * w_c[t] - sum(v[1][t] for v in own)) / (n_c - sum(v[0] for v in own))
+            an = F[t].mean(0) - C - SK.weekly_shift(shift[t], s)  # (5, lat, lon) ensemble-mean anomaly vs 1991-2020
+            for k in range(5):
+                doy = SK.noleap_doy(s + dt.timedelta(days=7 * k + 3))  # the week's centre (gefs_probs)
+                r, fsd = (sk[t][n][mi, k].astype("float64") for n in ("r", "fsd"))
+                if (t, mi, k) not in mask:
+                    mask[(t, mi, k)] = ~SK.noskill(r)
+                rr = np.clip(r, 0.0, 0.99)
+                with np.errstate(invalid="ignore", divide="ignore"):
+                    pb, pa = _probs((an[k] - SK.at_doy(terc[t]["mean"].astype("float64"), doy)) / fsd, rr)
+                cat = obs[f"cat_{t}"][(s - b_first).days // 7 + k]
+                ok = (cat >= 0) & np.isfinite(pb) & np.isfinite(pa)
+                P = (pb, 1.0 - pb - pa, pa)
+                I = [(cat == c).astype("float64") for c in range(3)]
+                rps = (pb - I[0]) ** 2 + (pa - I[2]) ** 2
+                rpsc = (1 / 3 - I[0]) ** 2 + (1 / 3 - I[2]) ** 2
+                row = []
+                for sel in (ok, ok & mask[(t, mi, k)]):
+                    w = np.where(sel, wt, 0.0)
+                    row += [w.sum(), *[(w * np.nan_to_num(p)).sum() for p in P], *[(w * i).sum() for i in I]]
+                    row += [(w * np.nan_to_num(rps)).sum(), (w * rpsc).sum()]
+                per[(t, k)].append(row)
+                for c in (0, 2):
+                    b = np.clip((np.nan_to_num(P[c]) * 10).astype(int), 0, 9)[ok]
+                    w = wt[ok]
+                    rel[(t, k, c)] += [np.bincount(b, x, 10) for x in (w, w * P[c][ok], w * I[c][ok])]
+    out = {
+        "test": "the live tercile maps' calibrated probabilities (gefs_probs: published r and forecast sd, 2016-2025 "
+        f"terciles and recent mean) on every reforecast start of {STEP_Y0}-{STEP_Y1} from a leave-season-out "
+        "climatology, against the observed tercile of each week (scripts/gefs/data/gefs_tercile_obs.npz); "
+        "area-weighted over cells with truth; per-start area means tested with t on the effective number of weekly "
+        "starts (lag-1 autocorrelation), bias flagged by Benjamini-Hochberg at FDR 10 % over fields, weeks and "
+        "categories; r, sd and the ERA5 re-basing normal include the scored years",
+        "starts": len(scored),
+        "fields": {},
+    }
+    flags = []
+    for t in tags:
+        rows = []
+        for k in range(5):
+            A = np.array(per[(t, k)])
+            res = {"week": k + 1}
+            for part, j in (("all", 0), ("unhatched", len(keys))):
+                X = dict(zip(keys, A[:, j : j + len(keys)].T))
+                g = X["w"] > 0
+                tot = {n: float(v[g].sum()) for n, v in X.items()}
+                cell = {"share": round(tot["w"] / A[:, 0].sum(), 3)}
+                res[part] = cell
+                if not tot["w"]:  # no unhatched cell in this month and week
+                    continue
+                cell.update(
+                    observed={c: round(tot[f"i{i}"] / tot["w"], 4) for i, c in enumerate(CATS)},
+                    forecast={c: round(tot[f"p{i}"] / tot["w"], 4) for i, c in enumerate(CATS)},
+                    rpss=round(1.0 - tot["rps"] / tot["rpsc"], 4),
+                )
+                if part == "all":
+                    for i, c in enumerate(CATS):
+                        cell[f"bias_{c}"] = mean_test((X[f"p{i}"][g] - X[f"i{i}"][g]) / X["w"][g])
+                        cell[f"freq_{c}_minus_third"] = mean_test(X[f"i{i}"][g] / X["w"][g] - 1 / 3)
+                    gain = mean_test((X["rpsc"][g] - X["rps"][g]) / X["w"][g])  # > 0: better than a third each
+                    gain["p_one_sided"] = round(gain["p"] / 2 if gain["mean"] > 0 else 1 - gain["p"] / 2, 4)
+                    cell["rps_gain"] = gain
+                    cell["reliability"] = {
+                        c: {
+                            "w": rel[(t, k, i)][0].round(1).tolist(),
+                            "p": [round(float(x / w), 3) if w else None for x, w in zip(*rel[(t, k, i)][[1, 0]])],
+                            "o": [round(float(x / w), 3) if w else None for x, w in zip(*rel[(t, k, i)][[2, 0]])],
+                        }
+                        for i, c in ((0, "below"), (2, "above"))
+                    }
+            rows.append(res)
+            flags += [(t, k, c, res["all"][f"bias_{c}"]["p"]) for c in CATS]
+        out["fields"][t] = rows
+    sig = benjamini_hochberg(np.array([f[3] for f in flags]), 0.10)
+    for (t, k, c, _), s_ in zip(flags, sig):
+        out["fields"][t][k]["all"][f"bias_{c}"]["significant"] = bool(s_)
+    Path(a.out).write_text(json.dumps(out, indent=1))
+    for t in tags:
+        print(f"  {t}: week  observed b/n/a      forecast b/n/a      bias b / a (95% CI, FDR)       RPSS  (unhatched)")
+        for res in out["fields"][t]:
+            x = res["all"]
+            o, f = x["observed"], x["forecast"]
+
+            def b(c, x=x):
+                y = x[f"bias_{c}"]
+                return f"{y['mean']:+.3f} [{y['ci'][0]:+.3f},{y['ci'][1]:+.3f}]{'*' if y['significant'] else ''}"
+
+            u = res["unhatched"]
+            print(
+                f"     {res['week']}  {o['below']:.3f}/{o['near']:.3f}/{o['above']:.3f}  "
+                f"{f['below']:.3f}/{f['near']:.3f}/{f['above']:.3f}  {b('below')} / {b('above')}  {x['rpss']:+.3f} "
+                + (f"({u['rpss']:+.3f}, {u['share'] * 100:.0f}% cells)" if "rpss" in u else "(no unhatched cell)"),
+                flush=True,
+            )
+    print(f"{a.out}")
+    return 0
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     sp = ap.add_subparsers(dest="cmd", required=True)
-    for name in ("truth", "recent", "skill", "assess"):
+    for name in ("truth", "recent", "skill", "assess", "step-truth", "step"):
         p = sp.add_parser(name)
         p.add_argument("--tags", default="t2m,pr,zg500,mslp" if name in ("truth", "skill") else "t2m,pr")
         p.add_argument("--partial", action="store_true", help="skill: run on the reforecast years present")
+        if name == "step":
+            p.add_argument("--rf", required=True, help="rf_YYYYMMDD.npz of the scored years and their season mates")
+            p.add_argument("--clim", required=True, help="gefs_clim_DDD.npz (release gefs-clim-v1)")
+            p.add_argument(
+                "--ref", required=True, help="era5_shift.npz, gefs_mapskill_*, gefs_terciles_* (gefs-ref-v1)"
+            )
+            p.add_argument("--obs", default=str(STEP_OBS))
+            p.add_argument("--out", required=True)
     a = ap.parse_args()
-    return {"truth": cmd_truth, "recent": cmd_recent, "skill": cmd_skill, "assess": cmd_assess}[a.cmd](a)
+    cmds = {"truth": cmd_truth, "recent": cmd_recent, "skill": cmd_skill, "assess": cmd_assess}
+    return {**cmds, "step-truth": cmd_step_truth, "step": cmd_step}[a.cmd](a)
 
 
 if __name__ == "__main__":
