@@ -14,6 +14,10 @@ from -0.21 to -0.01. The forecast holds Nino-3.4 at its latest value (ENSO chang
 
 The linear correction removes part of a growing El Nino's projection, not all of it, so the page also shows NOAA's
 OLR-based real-time OMI (ROMI; 40-day mean removed, which suppresses slow signals) as an independent check.
+
+The three-field RMM of the GEPS and GEFS pages (OLR + U850 + U200) has its own c, fitted the same way with the OLR
+channel included (build_enso_rmm3.py -> data/reference/enso_rmm3_correction.json). It is kept as two parts, the OLR
+channel's and the winds', because a product may filter the two with 120-day windows that end on different days.
 """
 
 from __future__ import annotations
@@ -29,15 +33,63 @@ import xarray as xr
 HERE = Path(__file__).resolve().parent
 REF = HERE.parent / "data" / "reference"
 CORR = REF / "enso_rmm_correction.json"
+CORR3 = REF / "enso_rmm3_correction.json"
+ERSST_N34 = REF / "nina34.anom.data"
 REPO = HERE.parents[2]
 ENSO_DAILY = REPO / "assets" / "sst" / "data" / "enso_daily.json"
 ROMI_URL = "https://psl.noaa.gov/mjo/mjoindex/romi.cpcolr.1x.txt"
 LAG_DAYS = 7  # the wind filter map's window typically ends about a week before init (ARCO lag + refresh cadence)
+WINDOW = 120  # days of the RMM's low-frequency filter, over which dN34 takes its mean
+BOM_ENSO_REMOVED_TO = pd.Timestamp("2013-12-31")  # BoM's RMM had its ENSO (SST1) part removed up to this day
 
 
 def load_c():
     d = json.loads(CORR.read_text())
     return np.array([d["c"]["rmm1"], d["c"]["rmm2"]], float)
+
+
+def load_c3() -> dict[str, np.ndarray]:
+    """The three-field RMM's correction as applied, {"olr": c, "wind": c}: each the (RMM1, RMM2) part per kelvin of
+    dN34 that channel group carries. A component whose fit is not significant is 0 there (enso_rmm3_correction.json)."""
+    d = json.loads(CORR3.read_text())["applied"]
+    return {k: np.array([d[k]["rmm1"], d[k]["rmm2"]], float) for k in ("olr", "wind")}
+
+
+def ersst_n34() -> pd.Series:
+    """ERSST v6 Nino-3.4 anomaly (PSL nina34.anom.data, monthly) interpolated to daily between mid-months: the index
+    both corrections were fitted on, and the one the hindcast scores use."""
+    rows = []
+    for ln in ERSST_N34.read_text().splitlines()[1:]:
+        p = ln.split()
+        if len(p) != 13 or not p[0].isdigit():
+            continue
+        for m, v in enumerate(p[1:], 1):
+            if float(v) > -99:
+                t0 = pd.Timestamp(int(p[0]), m, 1)
+                rows.append((t0 + pd.Timedelta(days=(t0.days_in_month - 1) / 2), float(v)))
+    s = pd.Series(dict(rows), dtype=float)
+    days = pd.date_range(s.index[0].normalize() + pd.Timedelta(days=1), s.index[-1].normalize())
+    return s.reindex(s.index.union(days)).interpolate("time").reindex(days)
+
+
+def window_dn34(n34: pd.Series, days, ends) -> np.ndarray:
+    """dN34 for a daily series: n34 on each of `days` minus its mean over the WINDOW days ending on the matching `ends`
+    (inclusive). NaN where either is missing."""
+    m = n34.rolling(WINDOW, min_periods=WINDOW).mean()
+    return n34.reindex(pd.DatetimeIndex(days)).values - m.reindex(pd.DatetimeIndex(ends)).values
+
+
+def hindcast_dn34(starts, valid) -> tuple[np.ndarray, np.ndarray]:
+    """The ENSO terms of an RMM hindcast scored against BoM's RMM, from ERSST: the forecast's dN34 (S,), the
+    Nino-3.4 at the start minus its mean over the WINDOW days before it (the hindcast's filter window), held at every
+    lead as in the live forecast; and the truth's (S, L), the Nino-3.4 on each valid date minus its mean over the WINDOW
+    days ending there, 0 up to BOM_ENSO_REMOVED_TO, where BoM had removed ENSO itself. valid: (S, L) dates."""
+    n34 = ersst_n34()
+    s = pd.DatetimeIndex(starts).normalize()
+    v = pd.DatetimeIndex(np.asarray(valid, dtype="datetime64[D]").ravel())
+    dn_f = window_dn34(n34, s, s - pd.Timedelta(days=1))
+    dn_o = np.where(v > BOM_ENSO_REMOVED_TO, window_dn34(n34, v, v), 0.0).reshape(np.shape(valid))
+    return dn_f, dn_o
 
 
 def n34_smoothed() -> pd.Series | None:

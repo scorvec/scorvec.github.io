@@ -338,9 +338,9 @@ var P = {
         img: function (a) { return a==="skill" ? "assets/geps/geps_mjo_skill.webp"
                                   : "assets/geps/geps_mjo_" + (a==="phase"?"phase":"hovmoller") + ".webp"; },
         cap: function (a) { return a==="phase"
-          ? "Three-field RMM (OLR + U850 + U200), 21-member plume, days 1\u201335; the observed track is the last 30 days, winds from GEPS\u2019s own day-0 analyses and OLR from ERA5 spliced with the offset-corrected GMGSI satellite proxy. In the 2001\u20132020 hindcasts the ensemble-mean amplitude shrinks with lead, to about 0.85 of the observed by day 35 (Hindcast skill view), so a mean track that keeps growing without moving eastward is a standing pattern in the model, such as El Ni\u00F1o or drift, not a propagating MJO; the figure says so when the peak is beyond the hindcast\u2019s range."
+          ? "Three-field RMM (OLR + U850 + U200), 21-member plume, days 1\u201335; the observed track is the last 30 days, winds from GEPS\u2019s own day-0 analyses and OLR from ERA5 spliced with the offset-corrected GMGSI satellite proxy. ENSO is removed from every track, as the Bureau of Meteorology did before 2014: the part that follows the change of Ni\u00F1o-3.4 over the 120-day filter window, which a growing El Ni\u00F1o otherwise leaves in the index (the forecast holds the latest Ni\u00F1o-3.4; the footer gives the shift). In the 2001\u20132020 hindcasts the ensemble-mean amplitude shrinks with lead, to about 0.83 of the observed by day 35 (Hindcast skill view), so a mean track that keeps growing without moving eastward is a standing pattern in the model, such as drift, not a propagating MJO; the figure says so when the peak is beyond the hindcast\u2019s range."
           : (a==="hov" ? "OLR and 850 hPa zonal wind anomaly, 15\u00B0S\u201315\u00B0N, lead \u00D7 longitude."
-                       : "Bivariate RMM correlation, RMSE and amplitude ratio of the 2001\u20132020 GEPS8 hindcasts against BoM\u2019s RMM, by lead: all starts, by season, strong initial MJO, and the starts within \u00B145 days of today. Red marks: ECMWF\u2019s published extended-range values for reference."); }},
+                       : "Bivariate RMM correlation, RMSE and amplitude ratio of the 2001\u20132020 GEPS8 hindcasts against BoM\u2019s RMM, by lead, with ENSO removed from both as from the live tracks: all starts, by season, strong initial MJO, and the starts within \u00B145 days of today. Red marks: ECMWF\u2019s published extended-range values for reference."); }},
   weekly: {label: "Weekly means, weeks 1\u20135", fit: false,
         a: {label:"Domain", items:[["na","North America"],["sa","South America"],
                                    ["glb","Global (Mercator)"]]},
@@ -503,7 +503,7 @@ function mjoTable(show) {
   });
   var e = MJOS.ecmwf_reference;
   h += '<tr><th>ECMWF extended range, published</th><td>\u2014</td><td><b>' + e["COR 0.6"][0] + "\u2013" + e["COR 0.6"][1] + '</b></td><td><b>' + e["COR 0.5"][0] + "\u2013" + e["COR 0.5"][1] + "</b></td><td colspan=\"6\"><span>Vitart (2017, QJRMS) and ECMWF verification memoranda; 11-member reforecast mean, own analysis as truth \u2014 a reference, not a like-for-like score</span></td></tr>";
-  h += "</tbody></table><p class=\"cap\">GEPS8 hindcast, 2001\u20132020, four-member ensemble mean, verified against BoM\u2019s RMM on the valid date. \u201Cnow\u201D is the starts within \u00B145 days of day-of-year " + MJOS.doy_now + ". The operational 21-member mean should reach each threshold two to three days later than these hindcast numbers.</p>";
+  h += "</tbody></table><p class=\"cap\">GEPS8 hindcast, 2001\u20132020, four-member ensemble mean, verified against BoM\u2019s RMM on the valid date, ENSO removed from both. \u201Cnow\u201D is the starts within \u00B145 days of day-of-year " + MJOS.doy_now + ". The operational 21-member mean should reach each threshold two to three days later than these hindcast numbers.</p>";
   host.innerHTML = h;
 }
 

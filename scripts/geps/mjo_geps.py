@@ -60,12 +60,26 @@ A GROWING mean radius is the opposite case, a standing drift every member
 shares, so the live track is checked against the hindcast (track_check): a
 peak after day 10 beyond the 95th percentile of the hindcast's 4-member-mean
 peaks (2.8) is printed on the figure as model bias, with the hindcast's own
-verification of such peaks (240 starts: BoM averaged amplitude 1.9 on the same
+verification of such peaks (232 starts: BoM averaged amplitude 2.0 on the same
 day against a forecast 3.1). It is state-dependent: in the strong El Nino
-autumn of 2015, 20 of 56 Sep-Nov starts went beyond it, their means drifting to
+autumn of 2015, 21 of 55 Sep-Nov starts went beyond it, their means drifting to
 negative RMM2 (day 35 -1.2 against BoM's -0.6) - a signal that grows after the
-init, which neither the unconditional hindcast climatology nor the 120-day
-filter can remove.
+init, which neither the unconditional hindcast climatology, the 120-day filter
+nor the ENSO removal below (fixed at the init) can remove.
+
+ENSO. BoM's RMM stopped removing ENSO in 2014, and while an El Nino grows the
+120-day mean lags the warming, so the standing anomaly projects onto RMM1 here
+as on the MJO page's wind-only index. Every track has it removed with the
+three-field correction (scripts/mjo/src/enso_rmm.py, build_enso_rmm3.py):
+RMM - dN34 * c, dN34 the OISST Nino-3.4 minus its mean over the 120 days of a
+filter map - the wind map's and the OLR map's, which end on different days, so
+each channel group takes its own - and c -0.59 per kelvin on RMM1 (2003-2022,
+95 % -0.79..-0.45; the RMM2 part is not significant and is 0). The forecast
+holds the init's Nino-3.4: in the hindcast, the observed Nino-3.4 of each valid
+date, an upper bound on any SST forecast, scored no better. GEPS's own forecast
+RMM1 depends on the start's dN34 by -0.53 at day 1 and -0.58 to -0.62 out to day
+35, so the observed c takes out the model's ENSO part too. The hindcast is
+scored with ENSO removed on both sides (hindcast_enso_removed).
 
     python mjo_geps.py --cycle 20260827
 """
@@ -96,6 +110,7 @@ import datamart
 _MJO = paths.REPO / "scripts" / "mjo"
 sys.path[:0] = [str(_MJO), str(_MJO / "src")]
 import olr_channel
+import enso_rmm
 from doycal import sel_doy  # climatology.nc's leap-aware day-of-year lookup
 import plot
 
@@ -369,7 +384,7 @@ def observed(base: pd.Timestamp, clim, eofs, days: int = 30):
     ERA5-grade analysis — a 120-day mean tolerates a few days of latency, unlike
     the track. The forecast shares the wind maps; its OLR map is GEPS's own
     (forecast_olr_map), which also takes the observed anomalies.
-    -> (times, rmm1, rmm2, maps, (OLR times, OLR anomalies))"""
+    -> (times, rmm1, rmm2, maps, (OLR times, OLR anomalies), last day of each map's window {"wind", "olr"})"""
     lon = eofs.longitude.values.astype(float)
     t, lm850, lm200 = geps_analysis_winds(base, days, lon)
     a850 = lm850 - sel_doy(clim["clim_u850"], t)
@@ -411,7 +426,12 @@ def observed(base: pd.Timestamp, clim, eofs, days: int = 30):
         f"  observed 3-field: {t[sel][0]:%Y-%m-%d} -> {t[sel][-1]:%Y-%m-%d} "
         f"({len(sel)} d), amp now {np.hypot(r1[sel][-1], r2[sel][-1]):.2f}"
     )
-    return t[sel], r1[sel], r2[sel], maps, (to, ao)
+    wend = m.attrs.get("window_end")  # absent on a map written before it was recorded: about a week before the init
+    ends = {
+        "wind": pd.Timestamp(wend) if wend else base - pd.Timedelta(days=enso_rmm.LAG_DAYS),
+        "olr": pd.Timestamp(to[-1]).normalize(),
+    }
+    return t[sel], r1[sel], r2[sel], maps, (to, ao), ends
 
 
 def _reref(tag: str, lon, valid: pd.DatetimeIndex, clim, cvar: str) -> np.ndarray:
@@ -618,20 +638,44 @@ def nino34_now() -> float | None:
     return float(v[-1]) if v else None
 
 
-def track_check(L, r1, r2, nino34: float | None) -> list[str] | None:
+def enso_shift(n34: pd.Series, c: dict[str, np.ndarray], days, ends: dict) -> np.ndarray:
+    """The ENSO part of the three-field RMM on each of `days` (enso_rmm): dN34, the OISST Nino-3.4 on the day (its
+    latest value at or before it, so a forecast holds the init's) minus its mean over the 120 days ending ends[group],
+    times that channel group's c, summed over the OLR and wind groups. -> (n, 2), subtracted from RMM1/RMM2."""
+    out = np.zeros((len(days), 2))
+    for g, cg in c.items():
+        dn = np.array([enso_rmm.delta_n34(n34, t, ends[g]) for t in days])
+        if not np.isfinite(dn).all():
+            print(f"::warning::no Nino-3.4 change for {int((~np.isfinite(dn)).sum())} day(s): ENSO left in there")
+        out += np.where(np.isfinite(dn), dn, 0.0)[:, None] * cg
+    return out
+
+
+def hindcast_enso_removed(S: pd.DatetimeIndex, L, f1, f2, o1, o2, c: np.ndarray):
+    """Hindcast RMM pairs with ENSO removed as the live track is (enso_rmm.hindcast_dn34): the forecast by the start's
+    dN34 at every lead, BoM's RMM by the valid date's where BoM left ENSO in (from 2014); c = the applied (RMM1, RMM2)
+    c, zeros for the pairs as they are. Lead L is valid on the start + ceil(L) - 1 days. -> f1, f2, o1, o2"""
+    valid = S.values.astype("datetime64[D]")[:, None] + (np.ceil(L).astype(int) - 1).astype("timedelta64[D]")
+    dn_f, dn_o = enso_rmm.hindcast_dn34(S, valid)
+    return f1 - dn_f[:, None] * c[0], f2 - dn_f[:, None] * c[1], o1 - dn_o * c[0], o2 - dn_o * c[1]
+
+
+def track_check(L, r1, r2, nino34: float | None, c: np.ndarray) -> list[str] | None:
     """The live ensemble-mean track (days L) against the hindcast: when its peak amplitude after day 10 is beyond what
     the hindcast's 4-member means reach on TRACK_PCT % of starts (a 21-member mean should reach less, as it damps
     more), the figure says so with the hindcast's own verification of such peaks, and, from STRONG_NINO, how its
-    strong El Nino autumn behaved. Hindcast lead h (0.5, 1.5, ...) is day h + 0.5 here. -> footer lines, or None within range."""
+    strong El Nino autumn behaved. The hindcast has ENSO removed by c as the live track has (hindcast_enso_removed).
+    Hindcast lead h (0.5, 1.5, ...) is day h + 0.5 here. -> footer lines, or None within range."""
     if not HIND.exists():
         print(f"  track check skipped: no {HIND.name}")
         return None
     d = xr.open_dataset(HIND)
     hl = d.L.values.astype(float)
-    sel = np.where((hl >= 10.5) & (hl <= 34.5))[0]
-    f1, f2, o1, o2 = (d[v].values[:, sel].astype("float64") for v in ("f1", "f2", "o1", "o2"))
     S = pd.DatetimeIndex(d.S.values)
+    pairs = hindcast_enso_removed(S, hl, *(d[v].values.astype("float64") for v in ("f1", "f2", "o1", "o2")), c)
     d.close()
+    sel = np.where((hl >= 10.5) & (hl <= 34.5))[0]
+    f1, f2, o1, o2 = (p[:, sel] for p in pairs)
     ok = np.isfinite(f1).all(1) & np.isfinite(o1).all(1)
     a = np.hypot(f1, f2)
     k = np.argmax(np.where(ok[:, None], a, -1.0), axis=1)
@@ -665,7 +709,7 @@ def track_check(L, r1, r2, nino34: float | None) -> list[str] | None:
 def plot_phase(cycle: str, base: pd.Timestamp):
     clim = xr.open_dataset(REF / "climatology.nc")
     eofs = xr.open_dataset(REF / "eofs.nc")
-    ot, or1, or2, maps, obs_olr = observed(base, clim, eofs)
+    ot, or1, or2, maps, obs_olr, ends = observed(base, clim, eofs)
     lon = eofs.longitude.values.astype(float)
     fmaps = {**maps, "olr": forecast_olr_map(cycle, base, clim, lon, obs_olr, maps["olr"])}
     got = rmm(cycle, base, clim, eofs, fmaps)
@@ -675,7 +719,36 @@ def plot_phase(cycle: str, base: pd.Timestamp):
     L, r1, r2 = got
     import textwrap
 
-    warn = track_check(L, r1, r2, nino34_now())
+    # ENSO removed from every track (enso_rmm, three-field c): the observed days against the observed maps' windows,
+    # the forecast with the init's Nino-3.4 held, against the forecast's maps (its OLR map: the 120 days before the init)
+    c = enso_rmm.load_c3()
+    n34 = enso_rmm.n34_smoothed()
+    fends = {"wind": ends["wind"], "olr": base - pd.Timedelta(days=1)}
+    if n34 is None:
+        print(f"::warning::{enso_rmm.ENSO_DAILY.name} missing: ENSO not removed")
+        c = {g: np.zeros(2) for g in c}
+        shift, so, dn = np.zeros(2), np.zeros((len(ot), 2)), float("nan")
+    else:
+        shift, so = enso_shift(n34, c, [base], fends)[0], enso_shift(n34, c, ot, ends)
+        dn = enso_rmm.delta_n34(n34, base, fends["wind"])
+    raw = np.hypot(r1, r2), np.hypot(or1[-1], or2[-1])
+    or1, or2 = or1 - so[:, 0], or2 - so[:, 1]
+    r1, r2 = r1 - shift[0], r2 - shift[1]
+    a = np.hypot(r1, r2)
+    print(
+        f"  ENSO removed: dN34 {dn:+.2f} K at the init (wind window), forecast moved {0 - shift[0]:+.2f}/{0 - shift[1]:+.2f} "
+        "(RMM1/RMM2); mean-track amplitude raw -> ENSO removed, days 1/10/35: "
+        + ", ".join(f"{raw[0][k]:.2f} -> {a[k]:.2f}" for k in (0, 9, len(L) - 1))
+        + f"; observed {ot[-1]:%m-%d} {raw[1]:.2f} -> {np.hypot(or1[-1], or2[-1]):.2f}"
+    )
+    enso_note = (
+        f"ENSO removed: Niño-3.4 {dn:+.2f} °C against its mean over the 120-day filter, every forecast point moved "
+        f"{np.hypot(*shift):.2f}"
+        if np.any(shift)
+        else "ENSO not removed"
+    )
+
+    warn = track_check(L, r1, r2, nino34_now(), c["olr"] + c["wind"])
     if warn:
         print("  mean track flagged: " + " ".join(warn))
     note = "\n".join(textwrap.fill(t, 108) for t in warn) if warn else ""
@@ -710,7 +783,8 @@ def plot_phase(cycle: str, base: pd.Timestamp):
     # ensemble plume: every member, faint, under the mean
     try:
         Lm, m1, m2, w1, w2 = rmm_members(cycle, base, clim, eofs, fmaps)
-        write_wind_track(Lm, w1, w2, base)
+        write_wind_track(Lm, w1, w2, base)  # the MJO page removes ENSO from the wind-only tracks itself
+        m1, m2 = m1 - shift[0], m2 - shift[1]
         for k in range(m1.shape[1]):
             ax.plot(np.r_[or1[-1], m1[:, k]], np.r_[or2[-1], m2[:, k]], color="#4a7bb5", alpha=0.42, lw=0.9, zorder=3)
         amp = np.hypot(m1, m2)
@@ -765,7 +839,7 @@ def plot_phase(cycle: str, base: pd.Timestamp):
     fig.text(
         0.5,
         (0.198 + extra) / H,
-        "Three-field RMM (OLR + U850 + U200) · 21 members",
+        f"Three-field RMM (OLR + U850 + U200) · 21 members\n{enso_note}",
         ha="center",
         va="bottom",
         fontsize=9,

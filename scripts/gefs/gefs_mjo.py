@@ -58,12 +58,21 @@ percentile of the reforecast's 4-member-mean peaks (3.4) is printed on the figur
 of such peaks (on the 52 reforecast starts that went beyond it BoM averaged amplitude 2.0 on the same day against a
 forecast 3.8). The excess is state-dependent: in the strong El Nino autumn of 2015, 4 of 13 Sep-Nov starts went
 beyond it, their means drifting to negative RMM2 (day 35 -1.3 against BoM's -0.7) - a standing signal that grows
-after the init, which neither the unconditional reforecast climatology nor the 120-day filter of the analyses can
-remove.
+after the init, which neither the unconditional reforecast climatology, the 120-day filter of the analyses nor the
+ENSO removal below (fixed at the init) can remove.
 
-Model climatology: the band means of the reforecast climatology (gefs-clim-v1 `band`, or the 15S-15N rows of v2's
-daily fields), packed per 5-day centre into the reference file by build_gefs_mjo.py and read at the init day of
-year exactly as gefs_live.clim_at reads the maps (linear between the two centres around it).
+ENSO. BoM's RMM stopped removing ENSO in 2014, and while an El Nino grows the 120-day mean lags the warming, so the
+standing anomaly projects onto RMM1. Every track has it removed (enso_removal): RMM - dN34 * c, dN34 the OISST
+Nino-3.4 on the day minus its mean over the 120 days of the day's filter (the forecast holds the init's), c the
+three-field correction of scripts/mjo/src/enso_rmm.py (enso_rmm3_correction.json, carried in the reference file as
+enso_c: -0.59 per kelvin on RMM1, 2003-2022 fit; the RMM2 part is not significant and is 0). GEFS's own reforecast
+RMM1 depends on the start's dN34 by -0.52 at day 1 and -0.46 to -0.57 out to day 35, close to c, and in the
+reforecast the observed Nino-3.4 of each valid date (an upper bound on any SST forecast) scored no better than the
+init's held. The skill and track_check pairs have ENSO removed on both sides (hindcast_pairs).
+
+Model climatology: the band means of the reforecast climatology (the weekly files' `band` of release gefs-clim-v3,
+pooled on the common-year day of year), packed per 5-day centre into the reference file by build_gefs_mjo.py and read
+at the init day of year exactly as gefs_live.clim_at reads the maps (linear between the two centres around it).
 
 The ENSEMBLE MEAN is projected for the bold track; its amplitude damps with lead as members decohere - a shrinking
 radius is loss of agreement, not a forecast that the MJO decays. A GROWING mean radius is the opposite case: every
@@ -390,14 +399,59 @@ def nino34_now(site: Path) -> float | None:
     return float(v[-1]) if v else None
 
 
-def track_check(hind_path: Path, r1: np.ndarray, r2: np.ndarray, nino34: float | None) -> list[str] | None:
-    """The live ensemble-mean track against the reforecast (the same projection, gefs_mjo_hindcast.npz): when its
-    peak amplitude after day 10 is beyond what the reforecast's 4-member means reach on TRACK_PCT % of starts (a
-    31-member mean should reach less, as it damps more), the figure says so with the reforecast's own verification of
-    such peaks, and, from STRONG_NINO, how its strong El Nino autumn behaved. -> footer lines, or None within range."""
+def n34_smoothed(site: Path):
+    """The OISST Nino-3.4 anomaly as the ENSO correction reads it (scripts/mjo/src/enso_rmm.n34_smoothed): daily from
+    assets/sst/data/enso_daily.json, gaps interpolated, 31-day trailing mean of at least 20 days.
+    -> (days datetime64[D], values), or None without the file"""
+    p = Path(site) / "assets" / "sst" / "data" / "enso_daily.json"
+    try:
+        d = json.loads(p.read_text())["daily"]
+    except (OSError, KeyError, ValueError):
+        return None
+    t = np.array(d["dates"], dtype="datetime64[D]")
+    v = np.array([np.nan if x is None else x for x in d["nino34"]], dtype="float64")
+    days = np.arange(t[0], t[-1] + 1)
+    x = np.interp(days.astype("int64"), t[np.isfinite(v)].astype("int64"), v[np.isfinite(v)])
+    k = np.arange(len(x))
+    lo = np.maximum(k - 30, 0)
+    cs = np.r_[0.0, np.cumsum(x)]
+    keep = k + 1 - lo >= 20
+    return days[keep], ((cs[k + 1] - cs[lo]) / (k + 1 - lo))[keep]
+
+
+def delta_n34(n34, t, end) -> float:
+    """enso_rmm.delta_n34: the Nino-3.4 at t (its latest value at or before t, so a forecast holds the init's) minus
+    its mean over the MAP_DAYS days ending on `end`; NaN with fewer than 90 of them or nothing at t."""
+    days, v = n34
+    t, end = np.datetime64(t, "D"), np.datetime64(end, "D")
+    win = (days > end - MAP_DAYS) & (days <= end)
+    now = days <= t
+    if win.sum() < 90 or not now.any():
+        return np.nan
+    return float(v[now][-1] - v[win].mean())
+
+
+def hindcast_pairs(hind_path: Path, c: np.ndarray):
+    """The reforecast pairs of gefs_mjo_hindcast.npz with ENSO removed as from the live track: every member by its
+    start's dN34 (dn_f) at every lead, BoM's RMM by the valid date's (dn_o: 0 up to 2013, while BoM removed ENSO
+    itself); c = the applied (RMM1, RMM2) correction, zeros for the pairs as they are (so too a file without dn_f).
+    -> starts (str), fm1, fm2 (S, members, L), o1, o2 (S, L), amp0 (S,) BoM's amplitude on the start date, note"""
     z = np.load(hind_path)
     fm1, fm2 = z["fm1"].astype("float64"), z["fm2"].astype("float64")
     o1, o2 = z["o1"].astype("float64"), z["o2"].astype("float64")
+    if "dn_f" in z.files:
+        f, o = z["dn_f"].astype("float64")[:, None, None], z["dn_o"].astype("float64")
+        fm1, fm2, o1, o2 = fm1 - f * c[0], fm2 - f * c[1], o1 - o * c[0], o2 - o * c[1]
+    return z["starts"], fm1, fm2, o1, o2, np.hypot(o1[:, 0], o2[:, 0]), str(z["note"])
+
+
+def track_check(hind_path: Path, r1: np.ndarray, r2: np.ndarray, nino34: float | None, c) -> list[str] | None:
+    """The live ensemble-mean track against the reforecast (the same projection, gefs_mjo_hindcast.npz, ENSO removed
+    by c as the track is): when its peak amplitude after day 10 is beyond what the reforecast's 4-member means reach on
+    TRACK_PCT % of starts (a 31-member mean should reach less, as it damps more), the figure says so with the
+    reforecast's own verification of such peaks, and, from STRONG_NINO, how its strong El Nino autumn behaved.
+    -> footer lines, or None within range."""
+    starts, fm1, fm2, o1, o2, _, _ = hindcast_pairs(hind_path, c)
     ok = np.isfinite(fm1).all((1, 2)) & np.isfinite(o1).all(1)
     a = np.hypot(fm1.mean(1), fm2.mean(1))[:, 10:]
     k = np.argmax(np.where(ok[:, None], a, -1.0), axis=1)
@@ -417,7 +471,7 @@ def track_check(hind_path: Path, r1: np.ndarray, r2: np.ndarray, nino34: float |
     ]
     if nino34 is not None and nino34 >= STRONG_NINO:
         y, mons = NINO_AUTUMN
-        en = ok & np.array([s[:4] == str(y) and int(s[5:7]) in mons for s in z["starts"]])
+        en = ok & np.array([s[:4] == str(y) and int(s[5:7]) in mons for s in starts])
         out.append(
             f"In its strong El Niño autumn (Sep–Nov {y}) {int((en & hi).sum())} of {int(en.sum())} starts went beyond "
             f"it (against {100 - TRACK_PCT} % of all starts); their day-35 mean RMM2 was {fm2.mean(1)[en, -1].mean():+.1f} "
@@ -494,9 +548,10 @@ def draw_phase_wheel(ax, radius: float = 4.0, amp_rings=(1, 2, 3)):
     ax.set_ylabel("RMM2", fontsize=11)
 
 
-def plot_phase(init, odates, or1, or2, m1, m2, n_members, out: Path, warn: list[str] | None = None):
+def plot_phase(init, odates, or1, or2, m1, m2, n_members, out: Path, enso_note: str, warn: list[str] | None = None):
     """m1, m2: (members, 35) RMM per member; the bold track is the ensemble mean's (= the mean of the members' RMM,
-    the projection being linear). warn: track_check's lines, printed under the footer (the figure grows to fit)."""
+    the projection being linear). enso_note: the footer's line on the ENSO removal. warn: track_check's lines, printed
+    under the footer (the figure grows to fit)."""
     plt = _plt()
     import textwrap
     import matplotlib.colors as mcolors
@@ -558,7 +613,7 @@ def plot_phase(init, odates, or1, or2, m1, m2, n_members, out: Path, warn: list[
         0.5,
         (0.198 + extra) / H,
         f"Three-field RMM (OLR + U850 + U200) · {n_members} members\n"
-        "observed track: GEFS's own analysis, each day filtered by the 120 days before it",
+        f"observed track: GEFS's own analysis, each day filtered by the 120 days before it\n{enso_note}",
         ha="center",
         va="bottom",
         fontsize=9,
@@ -734,19 +789,17 @@ def _scaled_members(fm1, fm2, O1, O2, M):
     return cor, rmse
 
 
-def skill(hind_path: Path, doy_now: int, out: Path, data: Path, n_live: int = 31):
-    """Score the reforecast pairs for every subset, write data/gefs_mjo_skill.json and gefs_mjo_skill.webp."""
+def skill(hind_path: Path, doy_now: int, out: Path, data: Path, c, n_live: int = 31):
+    """Score the reforecast pairs (ENSO removed by c, hindcast_pairs) for every subset, write data/gefs_mjo_skill.json
+    and gefs_mjo_skill.webp."""
     plt = _plt()
     t0 = time.time()
-    z = np.load(hind_path)
-    starts = [dt.date.fromisoformat(s) for s in z["starts"]]
-    fm1, fm2 = z["fm1"].astype("float64"), z["fm2"].astype("float64")  # (S, members, L)
+    starts, fm1, fm2, o1, o2, amp0, note = hindcast_pairs(hind_path, c)  # fm: (S, members, L)
+    starts = [dt.date.fromisoformat(s) for s in starts]
     have = np.isfinite(fm1).any(1)  # (S, L): any member
     with np.errstate(invalid="ignore"):
         f1 = np.where(have, np.nansum(fm1, 1) / np.maximum(np.isfinite(fm1).sum(1), 1), np.nan)  # ensemble mean
         f2 = np.where(have, np.nansum(fm2, 1) / np.maximum(np.isfinite(fm2).sum(1), 1), np.nan)  # (projection linear)
-    o1, o2 = z["o1"].astype("float64"), z["o2"].astype("float64")
-    amp0 = z["amp0"].astype("float64")
     ok = np.isfinite(f1).all(1)
     L = np.arange(1, f1.shape[1] + 1)
     mon = np.array([s.month for s in starts])
@@ -769,7 +822,7 @@ def skill(hind_path: Path, doy_now: int, out: Path, data: Path, n_live: int = 31
         "valid_date": "day d is valid on init + (d - 1) days (day 1 = the init date)",
         "doy_now": int(doy_now),
         "ecmwf_reference": ECMWF_REF,
-        "hindcast": str(z["note"]),
+        "hindcast": note,
         "n_members_hindcast": int(fm1.shape[1]),
         "subsets": {},
         f"cor_{n_live}_members_estimate": {
@@ -883,8 +936,13 @@ def skill(hind_path: Path, doy_now: int, out: Path, data: Path, n_live: int = 31
         0.5,
         0.012,
         "same projection as the live RMM (three-field WH04, lead-matched de-drift, 120-day mean "
-        "removed), verified against BoM RMM on the valid date (day 1 = the start date);\n"
-        f"weekly starts, hindcast mean of {fm1.shape[1]} members; the title's bracket is the 90% interval with "
+        + (
+            "and ENSO removed), verified against BoM RMM on the valid date (day 1 = the start date; ENSO removed from "
+            "it after 2013, as from the forecasts);\n"
+            if np.any(c)
+            else "removed), verified against BoM RMM on the valid date (day 1 = the start date);\n"
+        )
+        + f"weekly starts, hindcast mean of {fm1.shape[1]} members; the title's bracket is the 90% interval with "
         f"whole years resampled; dotted: the same starts scaled to the {n_live}-member operational mean\n"
         f"(members taken as exchangeable), COR 0.6 at day {_fd(cross(live, 0.6), 0)}; ECMWF marks are published "
         "reforecast values (Vitart 2017, ECMWF verification memoranda), not a like-for-like computation",
@@ -901,6 +959,28 @@ def skill(hind_path: Path, doy_now: int, out: Path, data: Path, n_live: int = 31
 
 
 # ── driver ────────────────────────────────────────────────────────────────────────────────────────────────────
+def enso_removal(ref: dict, site: Path, init: dt.date, odates):
+    """The ENSO correction of the live tracks (enso_c of the reference, from scripts/mjo enso_rmm3_correction.json):
+    dN34, the OISST Nino-3.4 on a day minus its mean over the 120 days of that day's filter (the 120 days before it,
+    for the forecast the init's, its Nino-3.4 held), times c. Without the reference's c or the Nino-3.4 file nothing is
+    removed. -> c, the observed days' shifts (n, 2), the forecast's (2,), its dN34, the figure's footer line"""
+    one = dt.timedelta(days=1)
+    c, n34 = ref.get("enso_c"), n34_smoothed(site)
+    if c is None or n34 is None:
+        print(f"::warning::ENSO not removed ({'no enso_c in the reference' if c is None else 'no Nino-3.4 file'})")
+        return np.zeros(2), np.zeros((len(odates), 2)), np.zeros(2), np.nan, "ENSO not removed"
+    dn_o = np.array([delta_n34(n34, d, d - one) for d in odates])
+    dn = delta_n34(n34, init, init - one)
+    if not np.isfinite([*dn_o, dn]).all():
+        print("::warning::no Nino-3.4 change on some day(s): ENSO left in there", flush=True)
+    so, sf = np.nan_to_num(dn_o)[:, None] * c, np.nan_to_num(dn) * c
+    note = (
+        f"ENSO removed: Niño-3.4 {dn:+.2f} °C against its mean over the 120-day filter, every forecast point moved "
+        f"{np.hypot(*sf):.2f}"
+    )
+    return c, so, sf, dn, note
+
+
 def live_olr_offset(z, init, cache: Path) -> np.ndarray:
     """The live run's uniform OLR offset against the reforecast, per lead, for the Hovmoller only (GEPS removes its
     ~7.6 W/m2): the global-mean weekly OLR anomaly of the ensemble mean against the weekly reforecast climatology
@@ -956,6 +1036,17 @@ def main() -> int:
     )
     ch, anom = forecast_channels(band, init, ref, map_now)
     m1, m2 = channels_rmm(ch, ref)  # (M, 35)
+    c, so, sf, dn, enso_note = enso_removal(ref, Path(a.site), init, odates)
+    raw = np.hypot(m1.mean(0), m2.mean(0)), np.hypot(or1[-1], or2[-1])
+    or1, or2, m1, m2 = or1 - so[:, 0], or2 - so[:, 1], m1 - sf[0], m2 - sf[1]
+    amp = np.hypot(m1.mean(0), m2.mean(0))
+    print(
+        f"  ENSO removed: dN34 {dn:+.2f} K at the init, forecast moved {0 - sf[0]:+.2f}/{0 - sf[1]:+.2f} (RMM1/RMM2); "
+        "mean-track amplitude raw -> ENSO removed, days 1/10/35: "
+        + ", ".join(f"{raw[0][k]:.2f} -> {amp[k]:.2f}" for k in (0, 9, 34))
+        + f"; observed {odates[-1]:%m-%d} {raw[1]:.2f} -> {np.hypot(or1[-1], or2[-1]):.2f}",
+        flush=True,
+    )
     norm = HERE / "data" / "mjo_wind_norm.json"
     if norm.exists():
         data.mkdir(parents=True, exist_ok=True)
@@ -963,14 +1054,14 @@ def main() -> int:
         write_wind_track(w1, w2, init, data / "gefs_rmm_wind.json")
     else:
         print("::warning::data/mjo_wind_norm.json missing: no wind-only track for the MJO page", flush=True)
-    warn = track_check(ref_path(HIND_FILE, dirs), m1.mean(0), m2.mean(0), nino34_now(Path(a.site)))
+    warn = track_check(ref_path(HIND_FILE, dirs), m1.mean(0), m2.mean(0), nino34_now(Path(a.site)), c)
     if warn:
         print("  mean track flagged: " + " ".join(warn), flush=True)
-    names = [plot_phase(init, odates, or1, or2, m1, m2, n, out, warn)]
+    names = [plot_phase(init, odates, or1, or2, m1, m2, n, out, enso_note, warn)]
     off = live_olr_offset(z, init, cache)
     print(f"  OLR offset vs reforecast (global mean, by week): {', '.join(f'{x:+.1f}' for x in off[::7])} W/m2")
     names.append(plot_hovmoller(init, anom.mean(0), off, out))
-    names.append(skill(ref_path(HIND_FILE, dirs), yday(init), out, data, n_live=n))
+    names.append(skill(ref_path(HIND_FILE, dirs), yday(init), out, data, c, n_live=n))
     print(f"{len(names)} MJO figures in {time.time() - t0:.0f} s", flush=True)
     return 0
 

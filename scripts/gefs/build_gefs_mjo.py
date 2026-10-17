@@ -1,16 +1,21 @@
 #!/usr/bin/env python3
-"""Reference files for gefs_mjo.py - built offline, once (rebuild `ref` when the reforecast climatology changes).
+"""Reference files for gefs_mjo.py (release gefs-ref-v1) - rebuilt in Actions by gefs-mjo-ref.yml whenever the
+reforecast climatology or the ENSO correction changes.
 
   ref       -> gefs_mjo_ref.npz: the WH04 observed climatology, normalisers and EOFs (from the site's
                scripts/mjo/data/reference climatology.nc and eofs.nc - read here with xarray, so the daily job needs
-               neither xarray nor those files), and the GEFS reforecast band climatology (3 fields x 35 days x 240
-               longitudes per 5-day centre, int16 as gefs_reforecast.pack) from the weekly climatology's `band`
-               (gefs_clim_DDD.npz, --clim v1), or from the 15S-15N rows of the daily one (gefs_clim2_DDD.npz, --clim
-               v2). With both on disk it prints how far they differ. The reference in use was built from release
-               gefs-clim-v1, whose pools were on the raw day of year (gefs_reforecast.py); rebuild from gefs-clim-v3.
-  hindcast  -> gefs_mjo_hindcast.npz: every GEFSv12 reforecast start 2000-2019 (Wednesdays, 4 members; the per-start
-               files RF/rf-YYYY/rf_YYYYMMDD.npz) projected with EXACTLY gefs_mjo.py's arithmetic,
-               per member, and BoM's RMM on each valid date. The daily job only rescores these (seconds).
+               neither xarray nor those files), the GEFS reforecast band climatology (3 fields x 35 days x 240
+               longitudes per 5-day centre, int16 as gefs_reforecast.pack) from the weekly climatology's `band` of
+               release gefs_reforecast.CLIM_TAG (gefs_clim_DDD.npz, pooled on the common-year day of year), and the
+               three-field RMM's ENSO correction as applied (enso_c, the total of enso_rmm3_correction.json: GEFS
+               filters all three channels with one window). --old prints how far the band climatology moved.
+  slim      the per-start files of a gefs-reforecast.yml run (rf_YYYYMMDD.npz, weekly fields and band) cut to the
+               band, all the hindcast reads.
+  hindcast  -> gefs_mjo_hindcast.npz: every GEFSv12 reforecast start 2000-2019 (Wednesdays, 4 members) projected with
+               EXACTLY gefs_mjo.py's arithmetic, per member, BoM's RMM on each valid date and the ENSO terms of both
+               (enso_rmm.hindcast_dn34: dn_f the start's dN34, dn_o the valid date's, 0 up to 2013 while BoM removed
+               ENSO itself), so the daily job scores them with ENSO removed as from the live track (seconds).
+  plot      the skill figure + json from a hindcast and a reference file, for a look or a comparison.
 
 The hindcast, step by step (gefs_mjo.forecast_channels for one start):
   model climatology  per start, the reforecast band climatology at the start's day of year (linear between 5-day
@@ -25,11 +30,14 @@ The hindcast, step by step (gefs_mjo.forecast_channels for one start):
                      a 120-day mean: noise ~ sigma/sqrt(17) of the non-MJO part; the day-to-day score barely feels a
                      slowly varying term.
   truth              BoM RMM (WH04 method with NCEP winds to 2013, Gottschalck 2010 with ACCESS winds from 2014; BoM
-                     also removed the ENSO-SST regression to 2013), on the valid date init + (d - 1).
+                     also removed the ENSO-SST regression to 2013), on the valid date init + (d - 1): from BoM's text
+                     file (--bom, read from a copy downloaded by hand), or, where it is not at hand, the BoM values a
+                     previous hindcast file carries for the same days (--truth).
 
-    python build_gefs_mjo.py ref [--clim v1|v2] [--clim-dir DIR]
-    python build_gefs_mjo.py hindcast [--rf DIR [DIR ...]]    # default RF
-    python build_gefs_mjo.py plot --doy-now 268       # the skill figure + json into --site, for a look
+    python build_gefs_mjo.py ref --out DIR [--cache DIR] [--old OLD/gefs_mjo_ref.npz]
+    python build_gefs_mjo.py slim --inp ARTIFACTS --out RF
+    python build_gefs_mjo.py hindcast --out DIR --rf RF [RF ...] (--bom FILE | --truth OLD/gefs_mjo_hindcast.npz)
+    python build_gefs_mjo.py plot --hind FILE --ref FILE --doy-now 268 --site DIR [--raw]
 """
 
 from __future__ import annotations
@@ -43,30 +51,22 @@ from pathlib import Path
 import numpy as np
 
 HERE = Path(__file__).resolve().parent
-sys.path.insert(0, str(HERE))
+sys.path[:0] = [str(HERE), str(HERE.parent / "lib"), str(HERE.parent / "mjo" / "src")]
 import gefs_reforecast as R
-import gefs_daily as G
 import gefs_mjo as GM
+import enso_rmm  # the ENSO correction and its ERSST Nino-3.4
+from localdirs import env_dir_if_set
 
 MJOREF = HERE.parent / "mjo" / "data" / "reference"
-sys.path.insert(0, str(HERE.parent / "lib"))
-from localdirs import env_dir
-
-BOM = env_dir("DATA_ARCHIVE", "geps_subx", "telecon", "bom", "rmm.74toRealtime.txt")
-RF = env_dir("DATA_ARCHIVE", "gefs_rf")
-OUT = env_dir("DATA_ARCHIVE", "gefs_ref", "mjo")
 TAGS = GM.TAGS
 CENTRES = list(range(1, 366, 5))
 EXCLUDE_DAYS = 60
 
 
-def band_v1(clim_dir: Path, c: int):
-    return np.load(clim_dir / f"gefs_clim_{c:03d}.npz")["band"].astype("float64")
-
-
-def band_v2(clim_dir: Path, c: int):
-    z = np.load(clim_dir / f"gefs_clim2_{c:03d}.npz")
-    return np.stack([G.unpack(t, z[f"d_{t}"])[:, R.BAND, :].mean(1) for t in TAGS])
+def _default(*parts: str) -> str | None:
+    """A default path under $DATA_ARCHIVE (the offline layout), None where it is not set (a runner passes paths)."""
+    p = env_dir_if_set("DATA_ARCHIVE", *parts)
+    return str(p) if p else None
 
 
 def cmd_ref(a) -> int:
@@ -80,25 +80,23 @@ def cmd_ref(a) -> int:
     O = np.stack([cl[f"clim_{t}"].transpose("dayofyear", "longitude").values for t in TAGS]).astype("float32")
     if O.shape != (3, 366, 144):
         raise SystemExit(f"unexpected climatology shape {O.shape}")
-    clim_dir = Path(a.clim_dir)
-    load = band_v1 if a.clim == "v1" else band_v2
-    mc = np.stack([load(clim_dir, c) for c in CENTRES])  # (73, 3, 35, 240)
-    other = band_v2 if a.clim == "v1" else band_v1
-    try:
-        oc = np.stack([other(clim_dir, c) for c in CENTRES])
-        d = mc - oc
-        for i, t in enumerate(TAGS):
-            print(
-                f"  v1 vs v2 {t}: mean {d[:, i].mean():+.3f}, rms days 1-10 {np.sqrt((d[:, i, :10] ** 2).mean()):.3f}, "
-                f"days 11-35 {np.sqrt((d[:, i, 10:] ** 2).mean()):.3f}"
-            )
-    except FileNotFoundError:
-        print(f"  (no {'v2' if a.clim == 'v1' else 'v1'} files in {clim_dir}: no comparison)")
+    mc = np.stack([np.load(R.clim_file(f"gefs_clim_{c:03d}.npz", Path(a.cache)))["band"] for c in CENTRES])
+    mc = mc.astype("float64")  # (73, 3, 35, 240)
     q = np.stack([R.pack(t, mc[:, i]) for i, t in enumerate(TAGS)], 1)  # (73, 3, 35, 240) int16
     back = np.stack([R.unpack(t, q[:, i]) for i, t in enumerate(TAGS)], 1)
     print(f"  packing error max {np.abs(back - mc).max():.4f}")
-    OUT.mkdir(parents=True, exist_ok=True)
-    p = OUT / GM.REF_FILE
+    if a.old:
+        z = np.load(a.old)
+        d = back - np.stack([np.stack([R.unpack(t, z["mclim"][k, i]) for i, t in enumerate(TAGS)]) for k in range(73)])
+        for i, t in enumerate(TAGS):
+            print(
+                f"  {R.CLIM_TAG} minus {z['mclim_source']!s:.12} {t}: mean {d[:, i].mean():+.3f}, "
+                f"rms days 1-10 {np.sqrt((d[:, i, :10] ** 2).mean()):.3f}, days 11-35 {np.sqrt((d[:, i, 10:] ** 2).mean()):.3f}"
+            )
+    c = enso_rmm.load_c3()
+    out = Path(a.out)
+    out.mkdir(parents=True, exist_ok=True)
+    p = out / GM.REF_FILE
     np.savez_compressed(
         p,
         O=O,
@@ -110,21 +108,35 @@ def cmd_ref(a) -> int:
         centres=np.array(CENTRES),
         mclim=q,
         tags=np.array(TAGS),
-        mclim_source=np.array(f"gefs-clim-{a.clim} band (15S-15N rows, 1.5 deg), int16 as gefs_reforecast.pack"),
+        mclim_source=np.array(f"{R.CLIM_TAG} band (15S-15N rows, 1.5 deg), int16 as gefs_reforecast.pack"),
         wh04_source=np.array(
             f"scripts/mjo/data/reference climatology.nc ({cl.attrs.get('base_period', '?')}, "
             f"{cl.attrs.get('n_harmonics', '?')} harmonics) and eofs.nc"
         ),
+        enso_c=c["olr"] + c["wind"],
+        enso_source=np.array(f"scripts/mjo/data/reference/{enso_rmm.CORR3.name} (applied: OLR + wind parts)"),
     )
-    print(f"wrote {p} ({p.stat().st_size / 1e6:.2f} MB), climatology {a.clim}")
+    print(f"wrote {p} ({p.stat().st_size / 1e6:.2f} MB), {R.CLIM_TAG}, ENSO c {c['olr'] + c['wind']}")
+    return 0
+
+
+def cmd_slim(a) -> int:
+    out = Path(a.out)
+    out.mkdir(parents=True, exist_ok=True)
+    n = 0
+    for f in sorted(Path(a.inp).rglob("rf_*.npz")):
+        with np.load(f) as z:
+            np.savez_compressed(out / f.name, band=z["band"])
+        n += 1
+    print(f"  {n} starts -> {out}")
     return 0
 
 
 # ── hindcast ──────────────────────────────────────────────────────────────────────────────────────────────────
-def bom_rmm():
-    """BoM RMM1/RMM2 by date (missing values skipped)."""
+def bom_rmm(path: Path) -> dict:
+    """BoM RMM1/RMM2 by date from BoM's text file (missing values skipped)."""
     out = {}
-    for ln in BOM.read_text().splitlines():
+    for ln in Path(path).read_text().splitlines():
         p = ln.split()
         if len(p) < 7 or not p[0].isdigit():
             continue
@@ -132,6 +144,19 @@ def bom_rmm():
         if abs(r1) > 900 or abs(r2) > 900:
             continue
         out[dt.date(int(p[0]), int(p[1]), int(p[2]))] = (r1, r2)
+    return out
+
+
+def truth_rmm(path: Path) -> dict:
+    """BoM RMM1/RMM2 by date from a previous hindcast file: its pairs hold BoM's values on every valid date of every
+    start (day d of a start on start + d - 1), which together cover the reforecast years day by day."""
+    z = np.load(path)
+    out = {}
+    for s, r1, r2 in zip(z["starts"], z["o1"], z["o2"]):
+        s0 = dt.date.fromisoformat(str(s))
+        for k in range(len(r1)):
+            if np.isfinite(r1[k]) and np.isfinite(r2[k]):
+                out[s0 + dt.timedelta(days=k)] = (float(r1[k]), float(r2[k]))
     return out
 
 
@@ -157,7 +182,8 @@ def load_rf(roots):
 
 def cmd_hindcast(a) -> int:
     t0 = time.time()
-    ref = GM.load_ref([str(OUT)])
+    out = Path(a.out)
+    ref = GM.load_ref([str(out)])
     starts, B, nm = load_rf(a.rf)
     S = len(starts)
     years = sorted({s.year for s in starts})
@@ -231,7 +257,7 @@ def cmd_hindcast(a) -> int:
     fch = (CH - maps[:, None, None, :, :]) / std.reshape(1, 1, 1, 3, 1)
     fm1, fm2 = GM.channels_rmm(fch, ref)  # (S, 4, 35)
     ns1, ns2 = GM.channels_rmm((CH_noshift - maps_ns[:, None]) / ref["std"][None, None, :, None], ref)
-    obs = bom_rmm()
+    obs = truth_rmm(a.truth) if a.truth else bom_rmm(a.bom)
     o1 = np.full((S, 35), np.nan)
     o2 = np.full_like(o1, np.nan)
     o1p = np.full_like(o1, np.nan)
@@ -244,7 +270,8 @@ def cmd_hindcast(a) -> int:
                 o1[i, k], o2[i, k] = v
             if w:
                 o1p[i, k], o2p[i, k] = w
-    a0 = np.array([np.hypot(*obs[s]) if s in obs else np.nan for s in starts])
+    valid = np.array(starts, dtype="datetime64[D]")[:, None] + np.arange(35).astype("timedelta64[D]")
+    dn_f, dn_o = enso_rmm.hindcast_dn34(np.array(starts, dtype="datetime64[D]"), valid)
     with np.errstate(invalid="ignore"):  # starts with no filter map are all-NaN
         n_ok = np.isfinite(fm1).sum(1)
         f1 = np.where(n_ok > 0, np.nansum(fm1, 1) / np.maximum(n_ok, 1), np.nan)
@@ -266,7 +293,11 @@ def cmd_hindcast(a) -> int:
         + " ".join(f"{c_ns['cor'][d]:.3f}/{c_ns['rmse'][d]:.3f}" for d in (0, 4, 9, 19)),
         flush=True,
     )
-    p = OUT / GM.HIND_FILE
+    for li in (0, 9, 19, 34):
+        g = ok & np.isfinite(dn_f)
+        k1, k2 = (np.polyfit(dn_f[g], f[g, li], 1)[0] for f in (f1, f2))
+        print(f"  day {li + 1}: forecast RMM1/RMM2 per kelvin of the start's dN34 {k1:+.3f}/{k2:+.3f}", flush=True)
+    p = out / GM.HIND_FILE
     np.savez_compressed(
         p,
         starts=np.array([s.isoformat() for s in starts]),
@@ -274,13 +305,14 @@ def cmd_hindcast(a) -> int:
         fm2=fm2.astype("float32"),
         o1=o1.astype("float32"),
         o2=o2.astype("float32"),
-        amp0=a0.astype("float32"),
+        dn_f=dn_f.astype("float32"),
+        dn_o=dn_o.astype("float32"),
         n_members=nm,
         note=np.array(
             f"GEFSv12 reforecast {years[0]}-{years[-1]}, Wednesday starts, members "
-            "c00+p01-p03, projected as gefs_mjo.py (leave-60-day-out model climatology, "
+            f"c00+p01-p03, projected as gefs_mjo.py on {R.CLIM_TAG} (leave-60-day-out model climatology, "
             "120-day filter from the day-1 channels of the preceding starts); obs = BoM RMM "
-            "on init + (d - 1)"
+            "on init + (d - 1); dn_f / dn_o: the ENSO terms (ERSST dN34) of forecast and obs"
         ),
     )
     print(f"wrote {p} ({p.stat().st_size / 1e6:.2f} MB), {int(ok.sum())} scored starts ({time.time() - t0:.0f} s)")
@@ -289,24 +321,41 @@ def cmd_hindcast(a) -> int:
 
 def cmd_plot(a) -> int:
     site = Path(a.site)
-    GM.skill(OUT / GM.HIND_FILE, a.doy_now, site / "assets" / "gefs", site / "assets" / "gefs" / "data", a.members)
+    c = np.zeros(2) if a.raw else np.load(a.ref)["enso_c"]
+    print(f"  {a.hind}: ENSO c {c}", flush=True)
+    GM.skill(Path(a.hind), a.doy_now, site / "assets" / "gefs", site / "assets" / "gefs" / "data", c, a.members)
     return 0
 
 
 def main() -> int:
     ap = argparse.ArgumentParser()
     sp = ap.add_subparsers(dest="cmd", required=True)
+    out = _default("gefs_ref", "mjo")
     r = sp.add_parser("ref")
-    r.add_argument("--clim", choices=("v1", "v2"), default="v1")
-    r.add_argument("--clim-dir", default=str(env_dir("DATA_ARCHIVE", "gefs_port_test", "mjo", "cache")))
+    r.add_argument("--out", default=out, required=out is None)
+    r.add_argument("--cache", default="/tmp/gefs_work/clim", help="gefs_reforecast.clim_file's cache")
+    r.add_argument("--old", help="a previous gefs_mjo_ref.npz: print how far the band climatology moved")
+    s = sp.add_parser("slim")
+    s.add_argument("--inp", required=True)
+    s.add_argument("--out", required=True)
     h = sp.add_parser("hindcast")
-    h.add_argument("--rf", nargs="+", default=[str(RF)])
+    h.add_argument("--out", default=out, required=out is None, help="holds gefs_mjo_ref.npz; the hindcast goes here")
+    rf = _default("gefs_rf")
+    h.add_argument("--rf", nargs="+", default=[rf] if rf else None, required=rf is None)
+    t = h.add_mutually_exclusive_group()
+    t.add_argument("--bom", default=_default("geps_subx", "telecon", "bom", "rmm.74toRealtime.txt"))
+    t.add_argument("--truth", help="a previous gefs_mjo_hindcast.npz whose BoM pairs serve as the truth")
     p = sp.add_parser("plot")
+    p.add_argument("--hind", required=True)
+    p.add_argument("--ref", required=True)
     p.add_argument("--doy-now", type=int, required=True)
-    p.add_argument("--site", default=str(env_dir("DATA_ARCHIVE", "gefs_port_test", "mjo", "site")))
+    p.add_argument("--site", required=True)
     p.add_argument("--members", type=int, default=31)
+    p.add_argument("--raw", action="store_true", help="score with ENSO left in")
     a = ap.parse_args()
-    return {"ref": cmd_ref, "hindcast": cmd_hindcast, "plot": cmd_plot}[a.cmd](a)
+    if a.cmd == "hindcast" and not (a.bom or a.truth):
+        ap.error("hindcast needs --bom or --truth")
+    return {"ref": cmd_ref, "slim": cmd_slim, "hindcast": cmd_hindcast, "plot": cmd_plot}[a.cmd](a)
 
 
 if __name__ == "__main__":

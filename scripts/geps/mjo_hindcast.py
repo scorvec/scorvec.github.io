@@ -23,6 +23,11 @@ winds match to 0.03 in RMM; observed winds for 2001-2020 are not in this
 archive, and the term is slowly varying, so it barely touches the day-to-day
 score.
 
+ENSO is removed from both sides as from the live track (mjo_geps.hindcast_enso_removed): each forecast by its start's
+Nino-3.4 change over the filter window (ERSST), BoM's RMM by the valid date's from 2014, when BoM stopped removing
+ENSO itself. It is applied when scoring, so the stored pairs stay as projected. Over all starts it moves COR 0.6
+from day 14.9 to 15.1 and 0.5 from 18.9 to 19.1 (paired year-block bootstrap of the difference, 90 %: -0.0..+0.5 days).
+
     python mjo_hindcast.py --doy-now 246
     -> telecon/mjo_hindcast.nc, telecon/mjo_skill.json, figs/geps_mjo_skill.webp
 """
@@ -49,6 +54,7 @@ import paths
 
 sys.path.insert(0, str(paths.REPO / "scripts" / "mjo"))
 import mjo_geps as mg
+import enso_rmm
 import refpack  # (the day-of-year key)
 
 # the full pass (no --replot) reads the offline hindcast store; --replot needs only REF/telecon/mjo_hindcast.nc
@@ -199,15 +205,12 @@ def main() -> int:
         vd = s0 + pd.to_timedelta(valid_day - 1, unit="D")
         o = obs.reindex(vd)
         o1[i], o2[i] = o.r1.values, o.r2.values
-    o_init = obs.reindex(starts)
-    amp0 = np.hypot(o_init.r1.values, o_init.r2.values)
     ds = xr.Dataset(
         {
             "f1": (("S", "L"), f1.astype("float32")),
             "f2": (("S", "L"), f2.astype("float32")),
             "o1": (("S", "L"), o1.astype("float32")),
             "o2": (("S", "L"), o2.astype("float32")),
-            "amp0": (("S",), amp0.astype("float32")),
         },
         coords={"S": starts.values, "L": Lref},
     )
@@ -217,8 +220,7 @@ def main() -> int:
     )
     ds.to_netcdf(paths.local_store("telecon", "mjo_hindcast.nc"))  # then make_reference.py
 
-    return score_and_plot(a, f1, f2, o1, o2, amp0, starts, Lref, ok, t0)
-    return 0
+    return score_and_plot(a, f1, f2, o1, o2, starts, Lref, ok, t0)
 
 
 def replot(a):
@@ -231,10 +233,13 @@ def replot(a):
         ds.o2.values.astype(float),
     )
     ok = np.isfinite(f1).all(1)
-    return score_and_plot(a, f1, f2, o1, o2, ds.amp0.values.astype(float), starts, ds.L.values, ok, time.time())
+    return score_and_plot(a, f1, f2, o1, o2, starts, ds.L.values, ok, time.time())
 
 
-def score_and_plot(a, f1, f2, o1, o2, amp0, starts, Lref, ok, t0):
+def score_and_plot(a, f1, f2, o1, o2, starts, Lref, ok, t0):
+    # ENSO removed on both sides, as from the live track; the initial amplitude is BoM's on the start date (lead 0.5)
+    f1, f2, o1, o2 = mg.hindcast_enso_removed(starts, Lref, f1, f2, o1, o2, sum(enso_rmm.load_c3().values()))
+    amp0 = np.hypot(o1[:, 0], o2[:, 0])
     nL = len(Lref)
     valid_day = np.ceil(Lref).astype(int)
 
@@ -364,9 +369,10 @@ def score_and_plot(a, f1, f2, o1, o2, amp0, starts, Lref, ok, t0):
     fig.text(
         0.5,
         0.012,
-        "same projection as the live RMM (three-field WH04, lead-matched de-drift, 120-day mean removed), "
-        "verified against BoM RMM on the valid date; the hindcast mean is 4 members — the 21-member\n"
-        "operational mean should score a few days better; ECMWF marks are published reforecast values "
+        "same projection as the live RMM (three-field WH04, lead-matched de-drift, 120-day mean and ENSO removed), "
+        "verified against BoM RMM on the valid date (ENSO removed from it after 2013, as from the forecasts);\n"
+        "the hindcast mean is 4 members — the 21-member operational mean should score a few days better; ECMWF marks "
+        "are published reforecast values "
         "(Vitart 2017, ECMWF verification memoranda), not a like-for-like computation",
         ha="center",
         va="bottom",

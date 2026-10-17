@@ -342,6 +342,26 @@
     are held, the filter is GEPS&rsquo;s own throughout. The winds need none of this: their observed track is
     GEPS&rsquo;s own analysis, which agrees with ERA5&rsquo;s band-mean winds to within 0.03 in RMM, so
     ERA5&rsquo;s 120-day map serves the forecast and the observed track alike.</p>
+    <p><b>ENSO is removed from the RMM.</b> The 120-day filter is meant to take out slow signals, but while an
+    El Ni&ntilde;o grows its 120-day mean lags the warming, and the standing convection and winds over the central
+    Pacific project onto the index as if they were an MJO. The Bureau of Meteorology removed an ENSO component from
+    its RMM until 2013 and has not since. Here every track, observed and forecast, has the part that follows the
+    change of Ni&ntilde;o-3.4 over the filter window removed: the RMM minus that change times a fixed vector, fitted
+    by regressing the filtered OLR and wind anomalies on it, longitude by longitude, over 2003&ndash;2022 (ERA5 winds,
+    NOAA interpolated OLR, ERSST Ni&ntilde;o-3.4) and projecting the result onto the RMM patterns. It is
+    &minus;0.59 on RMM1 per degree of change (95&nbsp;% interval &minus;0.79 to &minus;0.45, resampling whole years);
+    the RMM2 part is not significantly different from zero, so none is applied. Against the Bureau&rsquo;s own
+    ENSO-removed RMM of 2003&ndash;2013 the correlation of RMM1 rises from 0.951 to 0.970 (0.969 when fitted on
+    2014&ndash;2022 alone) and RMM2 stays at 0.972, and the index&rsquo;s correlation with the Ni&ntilde;o-3.4 change
+    falls from &minus;0.21 to &minus;0.01, the Bureau&rsquo;s own value. The real-time Ni&ntilde;o-3.4 is NOAA&rsquo;s
+    daily OISST, a 31-day running mean; the winds and the OLR each take the change over their own filter window,
+    which end on different days. The forecast holds the latest Ni&ntilde;o-3.4 throughout: in the hindcast, even the
+    observed Ni&ntilde;o-3.4 of each valid date scored no better. GEPS&rsquo;s own forecast RMM1 follows the change by
+    &minus;0.53 at day 1 and &minus;0.58 to &minus;0.62 out to day 35, so the same vector takes out the model&rsquo;s
+    share as well. What it cannot remove is a drift that grows after the start: in the strong El Ni&ntilde;o autumn
+    of 2015, 21 of the 55 hindcast starts ran beyond the range that 95&nbsp;% of starts keep to, their mean drifting
+    along RMM2 to &minus;1.2 by day 35 against the Bureau&rsquo;s &minus;0.6, with ENSO removed or not. The phase
+    diagram says so in red whenever a forecast track leaves that range.</p>
     <h2>The stratosphere</h2>
     <p><b>The stratosphere is de-drifted with a second reforecast.</b> Everything else on this
     page is de-drifted against the GEPS8 hindcast, and that archive cannot serve the vortex: it
@@ -553,8 +573,9 @@
     <h2>MJO skill</h2>
     <p><b>MJO skill.</b> Every hindcast start is projected onto the same Wheeler&ndash;Hendon EOFs
     with the same arithmetic as the live RMM &mdash; band means, lead-matched de-drift, frame shift,
-    120-day mean removed &mdash; and verified against the Bureau of Meteorology&rsquo;s RMM on the
-    valid date, giving the bivariate correlation, RMSE and amplitude ratio by lead, for all starts,
+    120-day mean and ENSO removed &mdash; and verified against the Bureau of Meteorology&rsquo;s RMM on the
+    valid date, with ENSO removed from it the same way after 2013 (the Bureau removed its own before), giving the
+    bivariate correlation, RMSE and amplitude ratio by lead, for all starts,
     by season, for strong initial MJO, and for the starts within &plusmn;45 days of today. The WH04
     120-day mean before each start is taken from the hindcast&rsquo;s own day-1 channels of the
     preceding 120 days, which is how the live forecast&rsquo;s OLR is filtered too (above). The one
@@ -566,15 +587,16 @@
     comparison beyond that is possible either.</p>
     <p><b>Reading the MJO score honestly.</b> Over all 4,640 starts the bivariate correlation falls
     through 0.6 at day 15 and 0.5 at day 19; winter (DJF) starts hold on longest (0.6 at day 17) and
-    autumn (SON) starts are the weakest (0.6 at day 14). Against the published
+    autumn (SON) starts are the weakest (0.6 at day 14). Removing ENSO from both sides moves these by a
+    fifth of a day (0.6 at day 14.9 before, 15.1 after), within the noise of the sample. Against the published
     ECMWF figures of day 27&ndash;30 that is about two weeks of skill less, and the following
     caveats move it a few days, not two weeks. <i>Ensemble size:</i> the hindcast mean is four
     members and the operational GEPS runs 21; a larger mean removes unpredictable noise and is
     typically worth two to three days at the 0.6 level, while ECMWF&rsquo;s published numbers come
     from an eleven-member mean, closer to their operational system. <i>Model vintage:</i> GEPS8 is
     the version this reforecast belongs to, not the current cycle, and ECMWF&rsquo;s quoted range
-    spans 2016 to the early 2020s. <i>Verification target:</i> BoM&rsquo;s RMM removed an ENSO
-    component before 2014 and not after, and ECMWF scores against its own analysis; a day at most.
+    spans 2016 to the early 2020s. <i>Verification target:</i> BoM&rsquo;s RMM, with ENSO removed after
+    2013 as it was before, where ECMWF scores against its own analysis; a day at most.
     <i>The 120-day mean:</i> the hindcast&rsquo;s own day-1 channels, as for the live OLR; the live
     winds use ERA5&rsquo;s map, a slowly varying difference. <i>What the scores describe:</i> the ensemble mean
     only &mdash; the plume&rsquo;s spread is not scored here, and an ensemble mean is damped by
