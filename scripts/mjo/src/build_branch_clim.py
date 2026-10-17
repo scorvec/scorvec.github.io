@@ -2,7 +2,7 @@
 """ERA5 1991-2020 for the Hadley outflow and subtropical descent tracker (hadley_branches.py, hadley_traj.py).
 
 From WeatherBench2's 6-hourly ERA5 (1.5 deg, the tracker's grid): u, v, omega and temperature on the 13 levels, the
-500 hPa height and the sea-level pressure. Each day's four times are averaged and become the six fields
+500 hPa height and the sea-level pressure. Each day's four times are averaged and become the fields
 (hadley_branches.fields); each day's 00 UTC also releases the trajectories (hadley_traj.trace, through the 6-hourly
 winds of the DAYS_BACK days before it). Two references come out:
   maps     per grid point, mean + annual + semiannual harmonics by common-year day (doycal.noleap_doy), fitted on the
@@ -70,7 +70,8 @@ def traj_row(h: np.ndarray) -> dict:
 def winds(block: dict) -> tuple:
     """The trajectory arrays of a 6-hourly block: u, v, w on P_ASC (time, level, lat, lon) and ptrop (time, lat, lon)."""
     asc = [list(HB.LEVELS).index(int(p)) for p in T.P_ASC]
-    ptrop = np.stack([HB.tropopause(t) for t in block["t"]]).astype(np.float32)
+    ptrop = np.stack([HB.tropopause_surface(*(block[k][i] for k in "uvt"))["p"] for i in range(len(block["t"]))])
+    ptrop = ptrop.astype(np.float32)
     return (*(block[k][:, asc].astype(np.float32) for k in ("u", "v", "w")), ptrop)
 
 

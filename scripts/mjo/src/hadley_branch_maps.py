@@ -7,20 +7,21 @@ The source is the IFS HRES analysis (step 0) at 00, 06, 12 and 18 UTC, byte-rang
   w3_YYYY-MM-DD.npz  the day's four times of u, v, omega and temperature on the 13 levels (half precision, temperature
                      less T_OFF) with the 500 hPa height and sea-level pressure: the last STORE_DAYS days, what the
                      back-trajectories need
-  hb_YYYY-MM.npz     the six daily fields (hadley_branches.fields of the four times' mean) since FIRST
+  hb_YYYY-MM.npz     the daily fields (hadley_branches.fields of the four times' mean) since FIRST
   traj.npz           each day's 00 UTC release: the transit-time histograms (hadley_traj)
   offset_era5.npz    the analysis less ERA5 on the overturn lattice days from OFFSET_FIRST that ARCO has published: the
-                     four times' mean difference of the 3-D fields and of the six fields, as harmonic sums (mean,
+                     four times' mean difference of the 3-D fields and of the daily fields, as harmonic sums (mean,
                      annual, semiannual), so that parts add
 Every frame and tracker value is a trailing 7-day window ending on its day, against the ERA5 normal at the window's
 midpoint: the maps against the harmonic normal, the tracker against the distribution of ERA5's own 7-day windows. The
-analysis is first corrected by its mean offset from ERA5 at the same season - the six fields by theirs, the
+analysis is first corrected by its mean offset from ERA5 at the same season - the daily fields by theirs, the
 trajectories' winds and temperatures by theirs - and nothing is drawn while fewer than MIN_PAIRS lattice days are paired.
 
     python src/hadley_branch_maps.py truth [--part k/n --out f]  # pair lattice days with ERA5 (into OFFSETS, or f)
     python src/hadley_branch_maps.py merge f1 f2 ...             # add part files into OFFSETS
-    python src/hadley_branch_maps.py update                      # archive the new days, release their trajectories
+    python src/hadley_branch_maps.py update [--fresh]            # archive the new days, release their trajectories
     python src/hadley_branch_maps.py render [--rebuild]          # frames, manifest, still and trackers
+    python src/hadley_branch_maps.py forecast                    # the interactive map's paths on the newest HRES run
 """
 
 from __future__ import annotations
@@ -29,7 +30,7 @@ import argparse
 import json
 import shutil
 import sys
-from functools import lru_cache
+from functools import lru_cache, partial
 from pathlib import Path
 
 import matplotlib
@@ -57,8 +58,8 @@ OUT = REPO / "assets" / "sst"
 ARCH = REPO / "scripts" / "mjo" / "data" / "hbranch"
 WRITTEN, REMOVED = ARCH / "written.txt", ARCH / "removed.txt"  # the release's files to upload / to delete
 OFFSETS, TRAJ = ARCH / "offset_era5.npz", ARCH / "traj.npz"
-DIR = "hbranch_hist"
-FIRST = pd.Timestamp("2026-05-01")  # the six fields' archive begins here (the maps reach back DAYS + WIN days)
+DIR, DT_DIR = "hbranch_hist", "hbranch_dt"  # the weekly descent and ridge loop; the daily outflow loop
+FIRST = pd.Timestamp("2026-05-01")  # the daily fields' archive begins here (the maps reach back DAYS + WIN days)
 OFFSET_FIRST = pd.Timestamp("2025-01-01")  # HRES carries omega and all 13 levels from late 2024
 WIN, DAYS = 7, 120
 STORE_DAYS = T.DAYS_BACK + WIN + 3
@@ -69,7 +70,8 @@ HOURS = (0, 6, 12, 18)
 PC = ccrs.PlateCarree()
 EXTENT = (-50.0, 50.0)
 ROWS = ("nh", "npac", "natl", "sh", "spac", "satl", "sind")
-EQ_MASK = 5.0  # deg: "poleward" changes sign across the equator, so the outflow map leaves this band blank
+DT_KM = np.arange(13.0, 17.51, 0.5)  # the daily map's colours: the dynamic tropopause's height (km)
+EDGE_LAT = 20.0  # the deep-tropical ascent the Hadley cell edges are looked for from lies within this of the equator
 W_EFOLD = 12.0  # spherical-harmonic degree damped by 1/e in the mapped vertical motion (a strong Gaussian filter)
 # the interactive map's forward paths: seeds over the deep tropics at DROP_P, released DROP_BACK days before the last
 # analysis and followed for up to DAYS_BACK days (or to the last analysis), 6-hourly, as int16 files per release and level
@@ -78,6 +80,7 @@ DROP_LAT = np.arange(-20.0, 20.1, 2.5)
 DROP_LON = np.arange(0.0, 360.0, 3.0)
 DROP_P = (150.0, 250.0, 400.0)
 DROP_BACK = (35, 28, 21, 14)
+FC_DIR, FC_HOURS = "hbranch_dropfc", 240  # the forecast release: the 00 and 12 UTC HRES runs reach day 10
 BASE_EXTENT, BASE_PX = (-60.0, 60.0), 4  # the interactive map's basemap: latitudes, pixels per degree
 POOL_LON = 2  # release points pooled along longitude in the transit-time map
 SECTOR_NAME = {
@@ -90,7 +93,6 @@ SECTOR_NAME = {
     "sind": "South Indian",
 }
 LEV = {
-    "out": [-4, -3, -2, -1.5, -1, -0.5, 0.5, 1, 1.5, 2, 3, 4],
     "desc": [-45, -30, -20, -15, -10, -5, 5, 10, 15, 20, 30, 45],
     "msl": [-12, -8, -6, -4, -2, -1, 1, 2, 4, 6, 8, 12],
 }
@@ -105,29 +107,31 @@ def _messages(blob: bytes):
         i = j + n
 
 
-def hres_time(t: pd.Timestamp) -> dict:
-    """The IFS HRES analysis at t on the 1.5 deg grid: u, v, w, t on LEVELS (level, lat, lon), z500 (m), msl (Pa). The
-    06 and 18 UTC runs were stream scda until ECMWF moved them to oper."""
+def hres(t: pd.Timestamp, step: int = 0, params=VARS3, extras: bool = True) -> dict:
+    """IFS HRES from the run at t, `step` hours on (0 = the analysis), on the 1.5 deg grid: `params` on LEVELS (level,
+    lat, lon) and, with extras, z500 (m) and msl (Pa). The 06 and 18 UTC runs were stream scda until ECMWF moved them
+    to oper."""
     import eccodes
     import rangefetch as rf
 
     date, hh = f"{t:%Y%m%d}", f"{t:%H}"
     for stream in ("oper", "scda"):
         try:
-            idx = rf.fetch_index(date, hh, "ifs", 0, "fc", stream=stream)
+            idx = rf.fetch_index(date, hh, "ifs", step, "fc", stream=stream)
             break
         except rf.IndexUnavailable as e:
             if not e.not_found:
                 raise
     else:
         raise RuntimeError(f"HRES {date} {hh}Z: not on the Google mirror")
-    want = [e for e in rf.select(idx, param=list(VARS3), levelist=list(HB.LEVELS)) if e.get("levtype") == "pl"]
-    want += [e for e in rf.select(idx, param="gh", levelist=[500]) if e.get("levtype") == "pl"]
-    want += [e for e in rf.select(idx, param="msl") if e.get("levtype") == "sfc"]
-    if len(want) != len(VARS3) * len(HB.LEVELS) + 2:
-        raise RuntimeError(f"HRES {date} {hh}Z: {len(want)} of the messages in the index")
-    blob = rf.fetch_ranges(rf.path_for(date, hh, "ifs", 0, "fc", stream=stream) + ".grib2", rf.coalesce(want))
-    out = {k: np.full((len(HB.LEVELS), HB.LAT.size, HB.LON.size), np.nan, np.float32) for k in VARS3}
+    want = [e for e in rf.select(idx, param=list(params), levelist=list(HB.LEVELS)) if e.get("levtype") == "pl"]
+    if extras:
+        want += [e for e in rf.select(idx, param="gh", levelist=[500]) if e.get("levtype") == "pl"]
+        want += [e for e in rf.select(idx, param="msl") if e.get("levtype") == "sfc"]
+    if len(want) != len(params) * len(HB.LEVELS) + 2 * extras:
+        raise RuntimeError(f"HRES {date} {hh}Z +{step}h: {len(want)} of the messages in the index")
+    blob = rf.fetch_ranges(rf.path_for(date, hh, "ifs", step, "fc", stream=stream) + ".grib2", rf.coalesce(want))
+    out = {k: np.full((len(HB.LEVELS), HB.LAT.size, HB.LON.size), np.nan, np.float32) for k in params}
     for m in _messages(blob):
         h = eccodes.codes_new_from_message(m)
         try:
@@ -141,14 +145,14 @@ def hres_time(t: pd.Timestamp) -> dict:
             eccodes.codes_release(h)
         lat = la0 + (dj if g["jScansPositively"] else -dj) * np.arange(g["Nj"])
         f = HB.coarse15(vals, lat, lo0 + di * np.arange(g["Ni"])).astype(np.float32)
-        if g["shortName"] in VARS3:
+        if g["shortName"] in params:
             out[g["shortName"]][list(HB.LEVELS).index(int(g["level"]))] = f
         elif g["shortName"] == "gh":
             out["z500"] = f
         else:
             out["msl"] = f
-    if any(np.isnan(out[k]).any() for k in VARS3) or "z500" not in out or "msl" not in out:
-        raise RuntimeError(f"HRES {date} {hh}Z: a field was missing from the messages")
+    if any(np.isnan(out[k]).any() for k in params) or (extras and ("z500" not in out or "msl" not in out)):
+        raise RuntimeError(f"HRES {date} {hh}Z +{step}h: a field was missing from the messages")
     return out
 
 
@@ -160,7 +164,7 @@ def _arco() -> xr.Dataset:
 
 
 def era5_time(t: pd.Timestamp) -> dict | None:
-    """ERA5 at t from ARCO, as hres_time; None while ARCO has not published it (it pads with NaN)."""
+    """ERA5 at t from ARCO, as hres; None while ARCO has not published it (it pads with NaN)."""
     ds = _arco()
     names = {"u": "u_component_of_wind", "v": "v_component_of_wind", "w": "vertical_velocity", "t": "temperature"}
 
@@ -230,7 +234,7 @@ def truth(until: pd.Timestamp, part=(0, 1), out: Path = OFFSETS):
     print(f"truth: {len(days)} lattice days to pair", flush=True)
     for day in days:
         try:  # HRES first: a day the mirror lacks costs a few index requests, not sixteen ERA5 reads
-            H = [hres_time(day + pd.Timedelta(hours=h)) for h in HOURS]
+            H = [hres(day + pd.Timedelta(hours=h)) for h in HOURS]
         except Exception as e:  # noqa: BLE001
             print(f"  {day:%Y-%m-%d}: HRES {type(e).__name__} {str(e)[:80]}", flush=True)
             continue
@@ -270,6 +274,8 @@ class Offsets:
         self.n = S["date"].size
         if self.n < MIN_PAIRS:
             raise SystemExit(f"{self.n} lattice days paired with ERA5, {MIN_PAIRS} needed: run truth first")
+        if S["XtY2"].shape[1] != len(HB.FIELDS):
+            raise SystemExit("the offsets were paired for another set of fields: run hbranch-offsets.yml with fresh")
         inv = np.linalg.inv(S["XtX"])
         self.c3 = np.tensordot(inv, S["XtY3"], axes=(1, 0)).astype(np.float32)
         self.c2 = np.tensordot(inv, S["XtY2"], axes=(1, 0)).astype(np.float32)
@@ -323,7 +329,7 @@ def _files(since: pd.Timestamp | None = None) -> list[Path]:
 
 
 def held() -> pd.DatetimeIndex:
-    """The days in the six fields' archive (an npz loads its arrays one by one, so this reads no fields)."""
+    """The days in the daily fields' archive (an npz loads its arrays one by one, so this reads no fields)."""
     return pd.DatetimeIndex(np.concatenate([np.load(p)["date"] for p in _files()] or [np.array([], "datetime64[D]")]))
 
 
@@ -353,7 +359,7 @@ def winds(days, off: Offsets) -> T.Winds:
             u.append(c["u"][asc])
             v.append(c["v"][asc])
             w.append(c["w"][asc])
-            pt.append(HB.tropopause(c["t"]).astype(np.float32))
+            pt.append(HB.tropopause_surface(c["u"], c["v"], c["t"])["p"].astype(np.float32))
     return T.Winds(days[0].timestamp(), *(np.stack(x) for x in (u, v, w, pt)))
 
 
@@ -386,25 +392,33 @@ def releases(off: Offsets, upto: pd.Timestamp):
         print(f"  released {batch[0]:%Y-%m-%d} .. {batch[-1]:%Y-%m-%d}", flush=True)
 
 
-def update(until: pd.Timestamp):
+def update(until: pd.Timestamp, fresh: bool = False):
     """Archive the days from FIRST to `until` not yet held whose four analyses are on the mirror, keeping the 3-D fields
     of every day a frame's release still to be traced reaches back to; release the trajectories the store now covers;
-    prune the store to STORE_DAYS."""
+    prune the store to STORE_DAYS. fresh (after a change to what a day holds) archives and releases every day again,
+    from the store where it still holds the day."""
+    if fresh:
+        for f in [*_files(), TRAJ]:
+            f.unlink(missing_ok=True)
     have, done = set(held()), _released()
     todo = [d for d in pd.date_range(until - pd.Timedelta(days=DAYS + WIN), until) if d not in done]
     oldest3 = (todo[0] if todo else until) - pd.Timedelta(days=T.DAYS_BACK)  # the store reaches back for these only
     want = [d for d in pd.date_range(FIRST, until) if d not in have or (d >= oldest3 and not _w3(d).exists())]
-    print(f"update: {len(want)} days to fetch", flush=True)
+    print(f"update: {len(want)} days to archive", flush=True)
     ARCH.mkdir(parents=True, exist_ok=True)
     new = {}
     for day in want:
-        try:
-            times = [hres_time(day + pd.Timedelta(hours=h)) for h in HOURS]
-        except Exception as e:  # noqa: BLE001
-            print(f"  {day:%Y-%m-%d}: {type(e).__name__} {str(e)[:80]}", flush=True)
-            continue
-        if day >= oldest3:
-            save_w3(day, times)
+        if _w3(day).exists():
+            S = load_w3(day)
+            times = [{k: S[k][i] for k in S} for i in range(len(HOURS))]
+        else:
+            try:
+                times = [hres(day + pd.Timedelta(hours=h)) for h in HOURS]
+            except Exception as e:  # noqa: BLE001
+                print(f"  {day:%Y-%m-%d}: {type(e).__name__} {str(e)[:80]}", flush=True)
+                continue
+            if day >= oldest3:
+                save_w3(day, times)
         if day not in have:
             new[day] = derived(day_mean(times))
         if len(new) == 10:
@@ -413,10 +427,10 @@ def update(until: pd.Timestamp):
     if new:
         _flush(new)
     releases(Offsets(), until)
-    for p in ARCH.glob("w3_*.npz"):
-        if pd.Timestamp(p.stem[3:]) < until - pd.Timedelta(days=STORE_DAYS):
-            _note(p, removed=True)
-            p.unlink()
+    for f in ARCH.glob("w3_*.npz"):
+        if pd.Timestamp(f.stem[3:]) < until - pd.Timedelta(days=STORE_DAYS):
+            _note(f, removed=True)
+            f.unlink()
 
 
 # ── windows and the climatology ───────────────────────────────────────────────────────────────────────────────────────
@@ -472,10 +486,6 @@ def _xn(lon: np.ndarray) -> np.ndarray:
     return (np.asarray(lon) - CENTRE + 180.0) % 360.0 - 180.0
 
 
-def _poleward(v: np.ndarray) -> np.ndarray:
-    return v * np.sign(HB.LAT)[:, None]
-
-
 def _geo(ax, title: str):
     ax.coastlines(linewidth=1.0, color="#111", zorder=5)
     ax.set_extent([-180.0, 180.0, *EXTENT], crs=PROJ)
@@ -512,33 +522,92 @@ def _layout(n: int, W: float = 13.0):
     return (W, H), rects, left
 
 
-def draw_map(F: dict, cl: xr.Dataset, mid: float, idx: dict, end: pd.Timestamp, out: Path):
-    size, rects, left = _layout(3)
+def height_km(p: np.ndarray) -> np.ndarray:
+    """The standard atmosphere's height (km) of pressure p (hPa): its lapse rate below 226.32 hPa, isothermal above."""
+    p = np.asarray(p, float)
+    return np.where(p >= 226.32, 44.3308 * (1.0 - (p / 1013.25) ** 0.190263), 11.0 + 6.34162 * np.log(226.32 / p))
+
+
+def hc_edges(wmid: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+    """Per longitude, the latitudes (north, south) where descent starts either side of the deep-tropical ascent: from
+    the strongest ascent within EDGE_LAT of the equator, the first latitude each way where the 700-300 hPa omega,
+    strongly filtered (W_EFOLD), turns to descent, interpolated to the zero; NaN where there is no ascent there."""
+    w = HB.large_scale(wmid, efold=W_EFOLD)
+    band = np.flatnonzero(np.abs(HB.LAT) <= EDGE_LAT)
+    north, south = np.full(HB.LON.size, np.nan), np.full(HB.LON.size, np.nan)
+    for j in range(HB.LON.size):
+        i0 = band[np.argmin(w[band, j])]
+        if w[i0, j] >= 0.0:
+            continue
+        for step, out in ((-1, north), (1, south)):  # rows run north to south
+            i = i0
+            while 0 < i < HB.LAT.size - 1 and w[i + step, j] < 0.0:
+                i += step
+            a, b = w[i, j], w[i + step, j]
+            out[j] = HB.LAT[i] + (HB.LAT[i + step] - HB.LAT[i]) * a / (a - b)
+    return north, south
+
+
+def draw_dt(F: dict, day: pd.Timestamp, out: Path):
+    """The day's outflow on the dynamic tropopause: the surface's height inside the Hadley cells (between the latitudes
+    where descent starts either side of the deep-tropical ascent), the divergent wind on it as arrows."""
+    north, south = hc_edges(F["wmid"])
+    inside = (HB.LAT[:, None] <= north[None, :]) & (HB.LAT[:, None] >= south[None, :])
+    size, rects, left = _layout(1)
     fig = plt.figure(figsize=size)
-    out_a = _poleward(F["vout"]) - _poleward(clim_map(cl, "vout", mid))
-    ax = _panel(
-        fig,
-        *rects[0],
-        np.where(np.abs(HB.LAT)[:, None] < EQ_MASK, np.nan, out_a),
-        LEV["out"],
-        f"Outflow · poleward divergent wind in the {HB.OUT_DEPTH:.0f} hPa below the tropopause",
-        "anomaly (m s⁻¹, + = more poleward)",
+    ax = fig.add_axes(rects[0][0], projection=PROJ)
+    cf = ax.contourf(
+        XN, HB.LAT, _native(np.where(inside, height_km(F["pdt"]), np.nan)), levels=DT_KM, cmap="viridis", extend="both"
     )
+    order = np.argsort(_xn(HB.LON))
+    for edge in (north, south):
+        ax.plot(_xn(HB.LON)[order], edge[order], color="#111", lw=1.1)
     s = 5
     ax.quiver(
         XN[:-1:s],
         HB.LAT[::s],
         _native(F["uout"])[::s, :-1:s],
         _native(F["vout"])[::s, :-1:s],
-        scale=160,
+        scale=200,
         width=0.0012,
         color="#222",
     )
-    ax.axhspan(-EQ_MASK, EQ_MASK, color="#e6e6e6", lw=0, zorder=0)
+    _geo(ax, "Divergent wind on the dynamic tropopause · its height inside the Hadley cells")
+    cb = fig.colorbar(cf, cax=fig.add_axes(rects[0][1]), orientation="vertical")
+    cb.set_label("height of the dynamic tropopause (km)", fontsize=8)
+    cb.ax.tick_params(labelsize=7.5)
+    W, H = size
+    fig.text(
+        left / W,
+        1 - 0.3 / H,
+        f"Hadley outflow on the dynamic tropopause — {day:%Y-%m-%d}, daily mean (IFS HRES analyses)",
+        fontsize=13,
+        fontweight="bold",
+        va="center",
+    )
+    fig.text(
+        left / W,
+        0.12 / H,
+        f"dynamic tropopause = the {HB.DT_PVU:.0f}-PVU surface, or the {HB.DT_THETA:.0f} K isentrope where that lies lower "
+        "(the deep tropics); height from its pressure in the standard atmosphere · arrows = the divergent wind on it\n"
+        "black lines = the Hadley cell edges: where 700-300 hPa motion turns to descent either side of the deep-tropical "
+        "ascent (strongly smoothed); colour only between them\nthe analysis less its mean offset from ERA5",
+        fontsize=8.2,
+        color="#555",
+    )
+    out.parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(out, dpi=100, facecolor="white", pil_kwargs={"quality": 80, "method": 6})
+    plt.close(fig)
+
+
+def draw_map(F: dict, cl: xr.Dataset, mid: float, idx: dict, end: pd.Timestamp, out: Path):
+    """The week's descent and subtropical ridges against ERA5."""
+    size, rects, left = _layout(2)
+    fig = plt.figure(figsize=size)
     w = HB.PA_S_TO_HPA_DAY * F["wmid"]
     ax = _panel(
         fig,
-        *rects[1],
+        *rects[0],
         HB.large_scale(w - HB.PA_S_TO_HPA_DAY * clim_map(cl, "wmid", mid), efold=W_EFOLD),
         LEV["desc"],
         f"Descent · {HB.DESC_LAYER[0]:.0f}–{HB.DESC_LAYER[1]:.0f} hPa vertical motion",
@@ -547,7 +616,7 @@ def draw_map(F: dict, cl: xr.Dataset, mid: float, idx: dict, end: pd.Timestamp, 
     ax.contour(XN, HB.LAT, _native(HB.large_scale(w, efold=W_EFOLD)), levels=[20.0], colors="#111", linewidths=0.8)
     ax = _panel(
         fig,
-        *rects[2],
+        *rects[1],
         F["msl"] - clim_map(cl, "msl", mid),
         LEV["msl"],
         "Subtropical ridges · sea-level pressure and the 588-dam line",
@@ -571,7 +640,7 @@ def draw_map(F: dict, cl: xr.Dataset, mid: float, idx: dict, end: pd.Timestamp, 
     fig.text(
         left / W,
         1 - 0.3 / H,
-        f"Hadley outflow and subtropical descent — 7-day mean ending {end:%Y-%m-%d} (IFS HRES analyses)",
+        f"Subtropical descent and ridges — 7-day mean ending {end:%Y-%m-%d} (IFS HRES analyses)",
         fontsize=13,
         fontweight="bold",
         va="center",
@@ -580,10 +649,9 @@ def draw_map(F: dict, cl: xr.Dataset, mid: float, idx: dict, end: pd.Timestamp, 
         left / W,
         0.12 / H,
         "colour = anomaly against ERA5 1991–2020 at the week's midpoint, the analysis less its mean offset from ERA5 · "
-        f"winds to spherical-harmonic degree {HB.KEEP} (~500 km)\ntop: arrows = the outflow layer's divergent wind, grey = "
-        f"within {EQ_MASK:.0f}° of the equator (no poleward there) · middle: vertical motion strongly smoothed (degree "
-        f"{W_EFOLD:.0f} damped by 1/e), black line = descent of 20 hPa/day\nbottom: solid = this week's 588-dam z500 line, "
-        f"dashed = the normal's (at the {int(C.EPOCH)} level of its trend), H = the highs' central pressure (hPa)",
+        f"top: vertical motion strongly smoothed (degree {W_EFOLD:.0f} damped by 1/e), black line = descent of 20 hPa/day"
+        "\nbottom: solid = this week's 588-dam z500 line, dashed = the normal's (at the "
+        f"{int(C.EPOCH)} level of its trend), H = the highs' central pressure (hPa)",
         fontsize=8.2,
         color="#555",
     )
@@ -651,7 +719,7 @@ def draw_transit(off: Offsets, latest: pd.Timestamp, out: Path):
         f"each {POOL_LON * T.RES:.0f}° × {T.RES:.0f}° cell: the median of its {POOL_LON * WIN} parcels of the week "
         f"({POOL_LON} release points, {WIN} days) traced back {T.DAYS_BACK} days, grey where fewer than four were traced "
         "to the outflow layer (equatorward of {T.OUTFLOW_LAT:.0f}°, within "
-        f"{HB.OUT_DEPTH:.0f} hPa below the tropopause)\nlines: one in twelve of the latest release's traced parcels, back "
+        f"{HB.OUT_DEPTH:.0f} hPa below the dynamic tropopause)\nlines: one in twelve of the latest release's traced parcels, back "
         "to where it left the layer (dot)",
         fontsize=8.2,
         color="#555",
@@ -661,40 +729,90 @@ def draw_transit(off: Offsets, latest: pd.Timestamp, out: Path):
     print(f"wrote {out}", flush=True)
 
 
-def drop(off: Offsets, last: pd.Timestamp):
-    """The interactive map's data: forward paths from every seed (DROP_LAT x DROP_LON) at each DROP_P, released at
-    00 UTC DROP_BACK days before `last` and followed to DAYS_BACK days or to the last analysis; per release and level
-    an int16 file of (seed, record, [lat x 100, (lon - 180) x 100, p x 10]), and the manifest."""
-    W = winds(pd.date_range(last - pd.Timedelta(days=max(DROP_BACK)), last), off)
-    t_end = W.t0 + (W.u.shape[0] - 1) * T.DT_DATA
+def _write_paths(d: Path, stem: str, W: T.Winds, t_start: float, hours: float) -> tuple[dict, int]:
+    """Forward paths of every seed (DROP_LAT x DROP_LON) at each DROP_P from t_start (s) for `hours`, one int16 file a
+    level in d of (seed, record, [lat x 100, (lon - 180) x 100, p x 10]); the files by level and the records a path."""
     la, lo = (x.ravel() for x in np.meshgrid(DROP_LAT, DROP_LON, indexing="ij"))
-    d = ANIM / DROP_DIR
+    files = {}
+    for p in DROP_P:
+        P = T.paths(W, t_start, la, lo, np.full(la.size, p), hours)
+        q = np.stack([P[:, 0] * 100.0, (P[:, 1] - 180.0) * 100.0, P[:, 2] * 10.0], -1).transpose(1, 0, 2)
+        files[str(int(p))] = name = f"{stem}_{int(p)}.bin"
+        (d / name).write_bytes(np.round(q).astype("<i2").tobytes())
+    return files, int(P.shape[0])
+
+
+def _drop_dir(name: str) -> Path:
+    d = ANIM / name
     d.mkdir(parents=True, exist_ok=True)
     for old in d.glob("*.bin"):  # the directory is swapped onto the frames branch whole
         old.unlink()
-    rel = []
-    for back in DROP_BACK:
-        r = last - pd.Timedelta(days=back)
-        hours = min(T.DAYS_BACK * 24.0, (t_end - r.timestamp()) / 3600.0)
-        files = {}
-        for p in DROP_P:
-            P = T.paths(W, r.timestamp(), la, lo, np.full(la.size, p), hours)
-            q = np.stack([P[:, 0] * 100.0, (P[:, 1] - 180.0) * 100.0, P[:, 2] * 10.0], -1).transpose(1, 0, 2)
-            files[str(int(p))] = name = f"R{r:%Y%m%d}_{int(p)}.bin"
-            (d / name).write_bytes(np.round(q).astype("<i2").tobytes())
-        rel.append({"date": f"{r:%Y-%m-%d}", "records": int(P.shape[0]), "files": files})
+    return d
+
+
+def _drop_manifest(name: str, releases: list):
     doc = {
         "ver": int(pd.Timestamp.now("UTC").timestamp()),
-        "dir": DROP_DIR,
-        "last": f"{last:%Y-%m-%d}",
+        "dir": name,
         "step_h": int(T.DT_DATA // 3600),
         "seeds": {"lat": DROP_LAT.tolist(), "lon": DROP_LON.tolist()},
         "levels": [int(p) for p in DROP_P],
-        "releases": rel,
+        "releases": releases,
         "basemap": {"src": "assets/sst/hbranch_basemap.webp", "centre": CENTRE, "lat": list(BASE_EXTENT)},
     }
-    (ANIM / f"{DROP_DIR}_manifest.json").write_text(json.dumps(doc))
-    print(f"  drop: {len(rel)} releases x {len(DROP_P)} levels x {la.size} seeds", flush=True)
+    (ANIM / f"{name}_manifest.json").write_text(json.dumps(doc))
+
+
+def drop(off: Offsets, last: pd.Timestamp):
+    """The interactive map's analysed releases: forward paths released at 00 UTC DROP_BACK days before `last` and
+    followed to DAYS_BACK days or to the last analysis, on the analyses less their offset from ERA5."""
+    W = winds(pd.date_range(last - pd.Timedelta(days=max(DROP_BACK)), last), off)
+    t_end = W.t0 + (W.u.shape[0] - 1) * T.DT_DATA
+    d, rel = _drop_dir(DROP_DIR), []
+    for back in DROP_BACK:
+        r = last - pd.Timedelta(days=back)
+        hours = min(T.DAYS_BACK * 24.0, (t_end - r.timestamp()) / 3600.0)
+        files, n = _write_paths(d, f"R{r:%Y%m%d}", W, r.timestamp(), hours)
+        rel.append({"date": f"{r:%Y-%m-%d}", "records": n, "files": files})
+    _drop_manifest(DROP_DIR, rel)
+    print(f"  drop: {len(rel)} releases x {len(DROP_P)} levels x {DROP_LAT.size * DROP_LON.size} seeds", flush=True)
+
+
+def latest_run(now: pd.Timestamp) -> pd.Timestamp:
+    """The newest 00 or 12 UTC HRES run whose last step (FC_HOURS) is on the mirror."""
+    import rangefetch as rf
+
+    t = now.floor("12h")
+    for _ in range(4):
+        try:
+            rf.fetch_index(f"{t:%Y%m%d}", f"{t:%H}", "ifs", FC_HOURS, "fc", stream="oper")
+            return t
+        except rf.IndexUnavailable as e:
+            if not e.not_found:
+                raise
+        t -= pd.Timedelta(hours=12)
+    raise SystemExit(f"no HRES run with step {FC_HOURS} on the mirror in the last two days")
+
+
+def forecast(now: pd.Timestamp):
+    """The interactive map's forecast release: forward paths from the newest HRES run reaching FC_HOURS, on its u, v,
+    omega every 6 hours, as forecast (the model's drift is not removed: it is measured for the ensembles only)."""
+    init = latest_run(now)
+    mp = ANIM / f"{FC_DIR}_manifest.json"
+    if mp.exists() and json.loads(mp.read_text())["releases"][0]["init"] == f"{init:%Y-%m-%dT%H}":
+        print(f"forecast: the {init:%Y-%m-%d %H}Z run is drawn already", flush=True)
+        return
+    asc = [list(HB.LEVELS).index(int(p)) for p in T.P_ASC]
+    u, v, w = [], [], []
+    for step in range(0, FC_HOURS + 1, int(T.DT_DATA // 3600)):
+        F = hres(init, step, params=("u", "v", "w"), extras=False)
+        u.append(F["u"][asc])
+        v.append(F["v"][asc])
+        w.append(F["w"][asc])
+    W = T.Winds(init.timestamp(), np.stack(u), np.stack(v), np.stack(w))
+    files, n = _write_paths(_drop_dir(FC_DIR), f"F{init:%Y%m%d%H}", W, init.timestamp(), FC_HOURS)
+    _drop_manifest(FC_DIR, [{"date": f"{init:%Y-%m-%d}", "init": f"{init:%Y-%m-%dT%H}", "records": n, "files": files}])
+    print(f"forecast: the {init:%Y-%m-%d %H}Z run, {n} records a path", flush=True)
 
 
 def basemap(out: Path):
@@ -730,7 +848,7 @@ TRACKERS = (
         "Hadley outflow and subtropical descent",
         (("out_{}", "Outflow", "m s⁻¹"), ("desc_{}", "Descent", "hPa day⁻¹")),
         ROWS,
-        f"outflow = poleward divergent wind in the {HB.OUT_DEPTH:.0f} hPa below the tropopause over 10–30°, descent = "
+        "outflow = poleward divergent wind on the dynamic tropopause over 10–30°, descent = "
         f"{HB.DESC_LAYER[0]:.0f}–{HB.DESC_LAYER[1]:.0f} hPa ω over 15–35°, in each basin's eastern subsidence region "
         "(hemispheres: all longitudes)",
     ),
@@ -749,7 +867,7 @@ TRACKERS = (
         ROWS,
         f"the air at 500 hPa over 15–33°, released daily at 00 UTC on a {T.RES:.0f}° grid and traced back {T.DAYS_BACK} "
         "days: transit = median time since it last left the tropical outflow layer (equatorward of "
-        f"{T.OUTFLOW_LAT:.0f}°,\nwithin {HB.OUT_DEPTH:.0f} hPa below the tropopause), of the share traced to it; "
+        f"{T.OUTFLOW_LAT:.0f}°,\nwithin {HB.OUT_DEPTH:.0f} hPa below the dynamic tropopause), of the share traced to it; "
         "shorter = a faster-turning cell",
     ),
 )
@@ -800,23 +918,37 @@ def draw_trackers(series: pd.DataFrame, cl: xr.Dataset):
         print(f"wrote {OUT / name}", flush=True)
 
 
+def _loop(name: str, label: str, frames: dict, rebuild: bool) -> list:
+    """The loop `name` made exactly the frames in `frames` ({date key: (file, label, draw)}): the ones the runner does
+    not hold are drawn (all of them with rebuild), the rest of the directory is deleted (it is swapped onto the frames
+    branch whole), and the manifest written; its frames."""
+    d, mp = ANIM / name, ANIM / f"{name}_manifest.json"
+    d.mkdir(parents=True, exist_ok=True)
+    drawn = set()
+    if not rebuild and mp.exists():  # a frame counts as drawn only if the runner holds it (fetched from the branch)
+        drawn = {f["date"] for f in json.loads(mp.read_text())["regions"][name]["frames"] if (d / f["file"]).exists()}
+    for key, (file, _, draw) in frames.items():
+        if key not in drawn:
+            draw(d / file)
+    for old in {q.name for q in d.glob("*.webp")} - {f for f, _, _ in frames.values()}:
+        (d / old).unlink()
+    out = [{"file": f, "date": k, "label": lab, "idx": i} for i, (k, (f, lab, _)) in enumerate(sorted(frames.items()))]
+    regions = {name: {"label": label, "n_frames": len(out), "frames": out}}
+    mp.write_text(json.dumps({"ver": int(pd.Timestamp.now("UTC").timestamp()), "days": len(out), "regions": regions}))
+    print(f"  {name}: {len(out)} frames, through {out[-1]['date']}", flush=True)
+    return out
+
+
 def render(rebuild: bool = False):
-    """A frame per day of the last DAYS with a full window (only those not yet drawn, unless rebuild; older frames are
-    deleted, and the directory is swapped onto the frames branch whole), the manifest, the still, the trackers and the
-    latest release's trajectories."""
+    """The weekly loop (a frame per day of the last DAYS with a full window), the daily loop, the stills, the trackers,
+    the latest week's trajectories and the interactive map's paths."""
     off = Offsets()
     last = held().max()
     date, D = load(last - pd.Timedelta(days=DAYS + WIN))
     T_ = np.load(TRAJ)
     tdate, hist = pd.DatetimeIndex(T_["date"]), T_["hist"]
     cl = xr.open_dataset(C.OUT)
-    frame_dir, mp = ANIM / DIR, ANIM / f"{DIR}_manifest.json"
-    frame_dir.mkdir(parents=True, exist_ok=True)
-    drawn = {}
-    if not rebuild and mp.exists():  # a frame counts as drawn only if the runner holds it (fetched from the branch)
-        drawn = {f["date"]: f for f in json.loads(mp.read_text())["regions"][DIR]["frames"]}
-        drawn = {k: f for k, f in drawn.items() if (frame_dir / f["file"]).exists()}
-    rows, ends = [], []
+    weekly, rows, ends = {}, [], []
     for end in date[date > last - pd.Timedelta(days=DAYS)]:
         w = week(date, D, end, off)
         tr = traj_week(tdate, hist, end)
@@ -827,11 +959,11 @@ def render(rebuild: bool = False):
         idx = HB.indices(F)
         rows.append(idx | tr)
         ends.append(end)
-        key = f"{end:%Y-%m-%d}"
-        if key not in drawn:
-            name = f"D{end:%Y%m%d}.webp"
-            draw_map(F, cl, mid, idx, end, frame_dir / name)
-            drawn[key] = {"file": name, "date": key, "label": f"week ending {end:%a %b %d, %Y}"}
+        weekly[f"{end:%Y-%m-%d}"] = (
+            f"D{end:%Y%m%d}.webp",
+            f"week ending {end:%a %b %d, %Y}",
+            partial(draw_map, F, cl, mid, idx, end),
+        )
     if not ends:
         raise SystemExit("no complete week to draw")
     o = off.off2(mid)  # what the correction does to the latest week (corrected less raw)
@@ -840,22 +972,16 @@ def render(rebuild: bool = False):
     print(
         f"  offset ({off.n} pairs), latest week: " + ", ".join(f"{k} {idx[k] - raw[k]:+.2f}" for k in keys), flush=True
     )
-    keep = {k: drawn[k] for k in (f"{e:%Y-%m-%d}" for e in ends)}
-    for old in {p.name for p in frame_dir.glob("*.webp")} - {f["file"] for f in keep.values()}:
-        (frame_dir / old).unlink()
-    frames = [dict(f, idx=i) for i, (_, f) in enumerate(sorted(keep.items()))]
-    regions = {
-        DIR: {
-            "label": "Hadley outflow and subtropical descent, analysed weeks",
-            "n_frames": len(frames),
-            "frames": frames,
-        }
-    }
-    mp.write_text(
-        json.dumps({"ver": int(pd.Timestamp.now("UTC").timestamp()), "days": len(frames), "regions": regions})
-    )
-    shutil.copyfile(frame_dir / frames[-1]["file"], OUT / "hbranch_map.webp")
-    print(f"  {len(frames)} frames, through {frames[-1]['date']}", flush=True)
+    frames = _loop(DIR, "Subtropical descent and ridges, analysed weeks", weekly, rebuild)
+    shutil.copyfile(ANIM / DIR / frames[-1]["file"], OUT / "hbranch_map.webp")
+    daily = {}
+    for i, day in enumerate(date):
+        if day > last - pd.Timedelta(days=DAYS):
+            o = off.off2(_doy(day))
+            Fd = {f: D[f][i] - o[f] for f in HB.FIELDS}
+            daily[f"{day:%Y-%m-%d}"] = (f"D{day:%Y%m%d}.webp", f"{day:%a %b %d, %Y}", partial(draw_dt, Fd, day))
+    frames = _loop(DT_DIR, "Hadley outflow on the dynamic tropopause, daily", daily, rebuild)
+    shutil.copyfile(ANIM / DT_DIR / frames[-1]["file"], OUT / "hbranch_dt.webp")
     draw_trackers(pd.DataFrame(rows, index=pd.DatetimeIndex(ends)), cl)
     draw_transit(off, tdate.max(), OUT / "hbranch_traj.webp")
     drop(off, last)
@@ -870,7 +996,9 @@ def main() -> int:
     t.add_argument("--out", default=None, help="a part's own file (default: OFFSETS)")
     m = sub.add_parser("merge")
     m.add_argument("parts", nargs="+")
-    sub.add_parser("update")
+    u = sub.add_parser("update")
+    u.add_argument("--fresh", action="store_true", help="archive and release every day again")
+    sub.add_parser("forecast")
     r = sub.add_parser("render")
     r.add_argument("--rebuild", action="store_true")
     a = ap.parse_args()
@@ -881,7 +1009,9 @@ def main() -> int:
     elif a.cmd == "merge":
         merge(a.parts)
     elif a.cmd == "update":
-        update(until)
+        update(until, a.fresh)
+    elif a.cmd == "forecast":
+        forecast(pd.Timestamp.now("UTC").tz_localize(None))
     else:
         render(a.rebuild)
     return 0

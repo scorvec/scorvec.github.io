@@ -5,13 +5,14 @@ the analysis pipeline and its maps and tracker (hadley_branch_maps.py) and the t
 
 Every source is first put on WeatherBench2's 1.5 deg grid (the ERA5 climatology's own) on the 13 standard levels
 LEVELS that ERA5 and the ECMWF open data share, and the fields of a day are those of its four synoptic times' mean:
-  ptrop             the lapse-rate tropopause (WMO: the lowest level above 550 hPa where the lapse rate falls below
-                    2 K/km and stays below it on average for 2 km), found on the standard levels as Reichler et al.
-                    (2003, GRL 30, 2042) do: half-level lapse rates in p^kappa, the crossing interpolated (hPa)
-  vout, uout        the irrotational (divergent) wind averaged by mass over the OUT_DEPTH below the local tropopause:
-                    the layer the Hadley outflow fills, at ~100-250 hPa in the deep tropics and lower where the
-                    tropopause descends poleward. The divergent wind is solved at OUT_LEVELS through the site's
-                    velocity-potential solver and kept to spherical-harmonic degree KEEP (large scales only)
+  pdt               the dynamic tropopause (hPa): the DT_PVU surface of |PV| (Ertel PV on DT_LEVELS from quantmet.pv,
+                    the first crossing searching upward from 700 hPa, as the site's dynamic-tropopause charts find it),
+                    and where the DT_THETA isentrope lies lower - the deep tropics, where |PV| stays small with f - that
+                    isentrope: the usual combined definition
+  vout, uout        the irrotational (divergent) wind on the dynamic tropopause, interpolated onto it in PV (in theta on
+                    the isentrope): the outflow as it leaves the tropics and the level it follows as the tropopause
+                    descends poleward. Solved on each of DT_LEVELS through the site's velocity-potential solver and
+                    kept to spherical-harmonic degree KEEP (large scales only)
   wmid              omega averaged by mass over DESC_LAYER (Pa/s, positive = descent), to degree KEEP
   z500              geopotential height at 500 hPa (m): the 588-dam line is the subtropical ridge as forecasters draw it
   msl               mean sea-level pressure (hPa): the surface subtropical highs
@@ -33,21 +34,20 @@ import numpy as np
 import xarray as xr
 
 sys.path.insert(0, str(Path(__file__).parent))
+from quantmet.pv import dynamic_tropopause, ertel_pv
 from wind200_vpot import irrotational_wind, truncated, velocity_potential
 
 LAT = np.linspace(90.0, -90.0, 121)  # WeatherBench2's rows, north to south
 LON = np.arange(0.0, 360.0, 1.5)
 LEVELS = (1000, 925, 850, 700, 600, 500, 400, 300, 250, 200, 150, 100, 50)  # hPa, surface upward
-OUT_LEVELS = (100, 150, 200, 250, 300, 400)  # every outflow layer lies inside these
-OUT_DEPTH = 150.0  # hPa below the tropopause
+DT_LEVELS = (700, 600, 500, 400, 300, 250, 200, 150, 100, 50)
+DT_PVU, DT_THETA = 2.0, 380.0
+OUT_DEPTH = 150.0  # hPa below the dynamic tropopause: the outflow layer of the trajectories' test
 DESC_LAYER = (300.0, 700.0)  # hPa
 KEEP = 42  # spherical-harmonic degree kept in the divergent wind and omega (~500 km)
 LMAX15 = 106  # the solver's grid for 1.5 deg input (the site's default)
-FIELDS = ("vout", "uout", "ptrop", "wmid", "z500", "msl")
+FIELDS = ("vout", "uout", "pdt", "wmid", "z500", "msl")
 A = 6.371e6
-G, CP, KAPPA = 9.80665, 1004.64, 287.04 / 1004.64
-LAPSE_C = 2.0e-3  # K/m, the WMO criterion
-TROP_RANGE = (75.0, 550.0)  # hPa, where a tropopause is looked for
 Z588 = 5880.0
 PA_S_TO_HPA_DAY = 864.0  # 1 Pa/s = 864 hPa/day
 # (hemisphere, west, east) on 0..360 (east < west wraps through 0). SUBS: the eastern-basin subsidence regions under each
@@ -133,8 +133,7 @@ def _on_grid(fields: np.ndarray, dlat: np.ndarray, dlon: np.ndarray) -> np.ndarr
 def divergent_wind(u: np.ndarray, v: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
     """(uchi, vchi) on the 1.5 deg grid from 1.5 deg u, v, to degree KEEP."""
     chi, dlat, dlon = velocity_potential(_da(u), _da(v), lmax=LMAX15, keep=KEEP)
-    uchi, vchi = irrotational_wind(chi, dlat, dlon)
-    out = _on_grid(np.stack([uchi, vchi]), dlat, dlon)
+    out = _on_grid(np.stack(irrotational_wind(chi, dlat, dlon)), dlat, dlon)
     return out[0], out[1]
 
 
@@ -144,46 +143,17 @@ def large_scale(f: np.ndarray, efold: float | None = None) -> np.ndarray:
     return _on_grid(g[None], dlat, dlon)[0]
 
 
-PK = (np.asarray(LEVELS, float) * 100.0) ** KAPPA  # p^kappa of the levels (Pa^kappa), decreasing upward
-
-
-def _at_pk(t: np.ndarray, pkx: np.ndarray) -> np.ndarray:
-    """(LEVELS, n) profiles at p^kappa = pkx (n), linear in p^kappa, clipped to the profile's ends."""
-    x = -PK
-    k = np.clip(np.searchsorted(x, -pkx), 1, x.size - 1)
-    w = np.clip((-pkx - x[k - 1]) / (x[k] - x[k - 1]), 0.0, 1.0)
-    cols = np.arange(t.shape[1])
-    return t[k - 1, cols] * (1.0 - w) + t[k, cols] * w
-
-
-def tropopause(t: np.ndarray) -> np.ndarray:
-    """The lapse-rate tropopause (hPa) of (LEVELS, ...) temperatures (K), as Reichler et al. (2003): the lapse rate at
-    each half level in p^kappa, each upward crossing of LAPSE_C interpolated in p^kappa, the lowest one inside
-    TROP_RANGE whose mean lapse rate over the 2 km above stays below LAPSE_C. NaN where there is none."""
-    shape = t.shape[1:]
-    t = t.reshape(len(LEVELS), -1)
-    pk = PK[:, None]
-    phk, th = 0.5 * (pk[1:] + pk[:-1]), 0.5 * (t[1:] + t[:-1])
-    gam = (t[1:] - t[:-1]) / (pk[1:] - pk[:-1]) * phk / th * G / CP  # -dT/dz at the half levels (K/m)
-    out = np.full(t.shape[1], np.nan)
-    for j in range(1, gam.shape[0]):
-        c = np.flatnonzero(np.isnan(out) & (gam[j - 1] >= LAPSE_C) & (gam[j] < LAPSE_C))
-        if not c.size:
-            continue
-        f = (LAPSE_C - gam[j - 1, c]) / (gam[j, c] - gam[j - 1, c])
-        pk_tp = phk[j - 1, 0] + f * (phk[j, 0] - phk[j - 1, 0])
-        t_tp = _at_pk(t[:, c], pk_tp)
-        p_tp = pk_tp ** (1.0 / KAPPA)
-        p_2km = p_tp * np.exp(-2000.0 * G / (287.04 * t_tp))  # hypsometric, at the tropopause temperature
-        ok = (t_tp - _at_pk(t[:, c], p_2km**KAPPA)) / 2000.0 < LAPSE_C
-        ok &= (p_tp >= TROP_RANGE[0] * 100.0) & (p_tp <= TROP_RANGE[1] * 100.0)
-        out[c[ok]] = p_tp[ok] / 100.0
-    return out.reshape(shape)
-
-
-def _fill_rows(f: np.ndarray) -> np.ndarray:
-    """NaN points of a (lat, lon) field set to their latitude row's median (rare: no tropopause in range)."""
-    return np.where(np.isnan(f), np.nanmedian(f, axis=1, keepdims=True), f)
+def tropopause_surface(u, v, t, cu=None, cv=None) -> dict:
+    """The dynamic tropopause of (LEVELS, lat, lon) u, v (m/s) and t (K) on the 1.5 deg grid: 'p' (hPa), and 'u', 'v'
+    the (DT_LEVELS, lat, lon) cu, cv (by default the wind itself) interpolated onto it."""
+    p_pa = np.asarray(DT_LEVELS, float) * 100.0
+    u, v, t = (np.asarray(x)[[LEVELS.index(L) for L in DT_LEVELS]] for x in (u, v, t))
+    pv, th = ertel_pv(t, u, v, p_pa, LAT, LON)
+    cu, cv = (u, v) if cu is None else (cu, cv)
+    on_pv = dynamic_tropopause(np.abs(pv), th, cu, cv, p_pa, thr=DT_PVU)
+    on_th = dynamic_tropopause(th, th, cu, cv, p_pa, thr=DT_THETA)  # the isentrope, found the same way
+    lower = on_th["p"] > on_pv["p"]
+    return {k: np.where(lower, on_th[k], on_pv[k]) for k in ("p", "u", "v")}
 
 
 def layer_mean(f: np.ndarray, plev, top, bottom, n: int = 31) -> np.ndarray:
@@ -204,16 +174,14 @@ def layer_mean(f: np.ndarray, plev, top, bottom, n: int = 31) -> np.ndarray:
 
 
 def fields(u: np.ndarray, v: np.ndarray, w: np.ndarray, t: np.ndarray, z500: np.ndarray, msl: np.ndarray) -> dict:
-    """The six fields from (LEVELS, lat, lon) u, v (m/s), omega (Pa/s) and temperature (K) on the 1.5 deg grid, the
-    500 hPa height (m) and the sea-level pressure (Pa)."""
+    """The fields from (LEVELS, lat, lon) u, v (m/s), omega (Pa/s) and temperature (K) on the 1.5 deg grid, the 500 hPa
+    height (m) and the sea-level pressure (Pa)."""
     lev = list(LEVELS)
-    ptrop = _fill_rows(tropopause(t))
-    chi = [divergent_wind(u[lev.index(L)], v[lev.index(L)]) for L in OUT_LEVELS]
-    vout = layer_mean(np.stack([c[1] for c in chi]), OUT_LEVELS, ptrop, ptrop + OUT_DEPTH)
-    uout = layer_mean(np.stack([c[0] for c in chi]), OUT_LEVELS, ptrop, ptrop + OUT_DEPTH)
+    chi = [divergent_wind(u[lev.index(L)], v[lev.index(L)]) for L in DT_LEVELS]
+    dt = tropopause_surface(u, v, t, np.stack([c[0] for c in chi]), np.stack([c[1] for c in chi]))
     desc = [L for L in sorted(LEVELS) if DESC_LAYER[0] <= L <= DESC_LAYER[1]]
     wmid = large_scale(layer_mean(w[[lev.index(L) for L in desc]], desc, *DESC_LAYER))
-    return {"vout": vout, "uout": uout, "ptrop": ptrop, "wmid": wmid, "z500": z500, "msl": msl / 100.0}
+    return {"vout": dt["v"], "uout": dt["u"], "pdt": dt["p"], "wmid": wmid, "z500": z500, "msl": msl / 100.0}
 
 
 def _area_mean(f: np.ndarray, mlat: np.ndarray, mlon: np.ndarray) -> float:

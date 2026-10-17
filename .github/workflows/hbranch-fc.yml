@@ -1,0 +1,61 @@
+name: Hadley particle map - forward paths on the newest IFS HRES forecast
+
+# The interactive map's forecast release (scripts/mjo/src/hadley_branch_maps.py forecast): from the newest 00 or 12 UTC
+# IFS HRES run whose day 10 is on the Google mirror, every seed of the map carried forward 10 days on that run's u, v and
+# omega every 6 hours, as forecast. The paths go to the frames branch (hbranch_dropfc), the manifest to main; a run the
+# manifest already names is skipped.
+on:
+  schedule:
+    - cron: '20 8 * * *'
+    - cron: '20 20 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: hbranch-fc
+  cancel-in-progress: false
+
+env:
+  PIP_CONSTRAINT: ${{ github.workspace }}/scripts/constraints.txt   # bounds every pip install (see the file)
+  ECMWF_SOURCES: google
+
+jobs:
+  paths:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+      - name: Install Python dependencies
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y --no-install-recommends libeccodes0 libgeos-dev libproj-dev proj-bin
+          pip install -r scripts/mjo/requirements-mjo.txt
+      - name: Forward paths on the newest run
+        run: python scripts/mjo/src/hadley_branch_maps.py forecast
+      - name: Publish the paths (frames branch)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: scripts/lib/publish_frames_ci.sh assets/sst/anim/hbranch_dropfc
+      - name: Commit & push (manifest)
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          OUT=assets/sst/anim/hbranch_dropfc_manifest.json
+          SNAP=$(mktemp -d); cp "$OUT" "$SNAP/"
+          for i in 1 2 3 4 5; do
+            if ! timeout 120 git fetch origin main; then echo "fetch $i failed"; sleep 5; continue; fi
+            git reset --hard origin/main
+            cp "$SNAP/hbranch_dropfc_manifest.json" "$OUT"
+            git add "$OUT"
+            if git diff --staged --quiet; then echo "No changes; skipping commit."; exit 0; fi
+            git commit -m "Hadley particle map: forward paths on the newest HRES forecast"
+            if timeout 180 git push; then echo "Pushed on attempt $i."; exit 0; fi
+            echo "Push $i rejected; resyncing and retrying…"
+            sleep 5
+          done
+          echo "ERROR: could not push after 5 attempts." >&2
+          exit 1

@@ -2,10 +2,15 @@ name: Hadley outflow and subtropical descent - the analysis's offset from ERA5 (
 
 # Fills offset_era5.npz in the release hbranch-hres (scripts/mjo/src/hadley_branch_maps.py truth): IFS HRES less ERA5
 # (ARCO) at 00, 06, 12 and 18 UTC on every overturn lattice day since January 2025 that ARCO has published. Each part
-# pairs every 4th day into its own harmonic sums; the merge job adds them (with whatever the release already holds) and
-# uploads the file. hbranch.yml then pairs each newly published day itself.
+# pairs every 4th day into its own harmonic sums; the merge job adds them (with whatever the release already holds, unless
+# fresh) and uploads the file. hbranch.yml then pairs each newly published day itself.
 on:
   workflow_dispatch:
+    inputs:
+      fresh:
+        description: 'Pair every lattice day again into new sums (after a change to the fields)'
+        required: false
+        default: 'false'
 
 permissions:
   contents: write
@@ -41,6 +46,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           mkdir -p "$ARCH"
+          if [ "${{ inputs.fresh }}" = "true" ]; then echo "fresh: pairing every lattice day"; exit 0; fi
           gh release download hbranch-hres -R "$GITHUB_REPOSITORY" -p offset_era5.npz -D "$ARCH" --clobber \
             || echo "::warning::no offsets in the release yet; pairing from the start"
       - name: Every 4th lattice day
@@ -78,9 +84,11 @@ jobs:
           mkdir -p "$ARCH"
           if ! gh release view hbranch-hres -R "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
             gh release create hbranch-hres -R "$GITHUB_REPOSITORY" --title "Hadley outflow and subtropical descent: IFS HRES archive" \
-              --notes "IFS HRES analyses on the 1.5 deg grid (rolling 3-D store w3_*, monthly six fields hb_*), the daily trajectory histograms (traj.npz) and the offset from ERA5 (offset_era5.npz), for scripts/mjo/src/hadley_branch_maps.py."
+              --notes "IFS HRES analyses on the 1.5 deg grid (rolling 3-D store w3_*, monthly daily fields hb_*), the daily trajectory histograms (traj.npz) and the offset from ERA5 (offset_era5.npz), for scripts/mjo/src/hadley_branch_maps.py."
           fi
-          gh release download hbranch-hres -R "$GITHUB_REPOSITORY" -p offset_era5.npz -D "$ARCH" --clobber \
-            || echo "::warning::no offsets in the release yet"
+          if [ "${{ inputs.fresh }}" != "true" ]; then
+            gh release download hbranch-hres -R "$GITHUB_REPOSITORY" -p offset_era5.npz -D "$ARCH" --clobber \
+              || echo "::warning::no offsets in the release yet"
+          fi
           python scripts/mjo/src/hadley_branch_maps.py merge parts/*.npz
           gh release upload hbranch-hres -R "$GITHUB_REPOSITORY" "$ARCH/offset_era5.npz" --clobber

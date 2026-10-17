@@ -2,19 +2,20 @@
 // 20°S and 20°N picks the nearest seed of hadley_branch_maps.drop(), and that seed's forward path from the chosen
 // release and height is drawn on the map, with its pressure and latitude against time below; a click on a path picks
 // that particle for the time-height plot (heights from the standard atmosphere: the files hold pressure). Data:
-// assets/sst/anim/hbranch_drop_manifest.json (same origin) -> int16 files on the frames branch (seed, record,
-// [lat x 100, (lon - 180) x 100, p x 10]), fetched through frames_root.js pinned to the manifest's frames_sha.
+// assets/sst/anim/hbranch_drop_manifest.json (the analysed releases) and hbranch_dropfc_manifest.json (the newest HRES
+// forecast, when there is one), both same origin -> int16 files on the frames branch (seed, record, [lat x 100,
+// (lon - 180) x 100, p x 10]), fetched through frames_root.js pinned to each manifest's frames_sha.
 (function () {
   "use strict";
   var root = document.getElementById("hbd-view");
   if (!root) return;
-  var MAN = "/assets/sst/anim/hbranch_drop_manifest.json";
+  var MAN = "/assets/sst/anim/hbranch_drop_manifest.json", MANFC = "/assets/sst/anim/hbranch_dropfc_manifest.json";
   var COLORS = ["#c0392b", "#1f6fb4", "#2a9d3a", "#8e44ad", "#d97706", "#0e9aa7", "#7c4a2d", "#d63384"];
   var MAX = 8, DAYS_PER_S = 5;
   var EXAMPLES = [[0, 150], [5, 195], [-5, 330]];   // first view: the warm pool, the central Pacific, the Atlantic
   var HIT_PX = 8;   // a click this close to a drawn path picks it instead of dropping a particle
   var VIRIDIS = [[68, 1, 84], [59, 82, 139], [33, 145, 140], [94, 201, 98], [253, 231, 37]];
-  var man = null, rel = 0, lev = 0, day = null, cache = {}, parts = [], used = 0, playing = null, ready = false, pick = null;
+  var man = null, rels = [], rel = 0, lev = 0, day = null, cache = {}, parts = [], used = 0, playing = null, ready = false, pick = null;
   var $ = function (id) { return document.getElementById(id); };
   var base = $("hbd-base"), map = $("hbd-map"), pch = $("hbd-p"), lch = $("hbd-lat"), slider = $("hbd-day");
   var zbox = $("hbd-zbox"), zch = $("hbd-z");
@@ -26,19 +27,23 @@
     if (!FR) FR = new Promise(function (ok) { var s = document.createElement("script"); s.src = "/assets/frames_root.js"; s.onload = ok; s.onerror = ok; document.head.appendChild(s); });
     return FR;
   }
-  function file() { var r = man.releases[rel]; return r.files[String(man.levels[lev])]; }
-  function load(name) {
-    if (!cache[name]) {
-      var path = "assets/sst/anim/" + man.dir + "/" + name;
-      cache[name] = frameRoot().then(function () {
-        return window.frameFetch ? window.frameFetch(path, man.frames_sha) : fetch("/" + path);
+  function file() { var r = rels[rel]; return "assets/sst/anim/" + r.dir + "/" + r.files[String(man.levels[lev])]; }
+  function load(path) {
+    if (!cache[path]) {
+      var sha = rels[rel].sha;
+      cache[path] = frameRoot().then(function () {
+        return window.frameFetch ? window.frameFetch(path, sha) : fetch("/" + path);
       }).then(function (r) { if (!r.ok) throw new Error(r.status); return r.arrayBuffer(); })
         .then(function (b) { return new Int16Array(b); });
-      cache[name].catch(function () { delete cache[name]; });
+      cache[path].catch(function () { delete cache[path]; });
     }
-    return cache[name];
+    return cache[path];
   }
-  function records() { return man.releases[rel].records; }
+  function records() { return rels[rel].records; }
+  function label(r) { return r.init ? "Forecast " + fmtDate(r.date) + " " + r.init.slice(11, 13) + "Z" : fmtDate(r.date); }
+  function releases(m) {   // a manifest's releases, each carrying where its files live
+    return m ? m.releases.map(function (r) { return { date: r.date, init: r.init, records: r.records, files: r.files, dir: m.dir, sha: m.frames_sha }; }) : [];
+  }
   function track(arr, seed) {   // [[lat, lon, p], ...] of one seed, every step_h hours
     var R = records(), out = [];
     for (var k = 0; k < R; k++) {
@@ -133,7 +138,7 @@
     var q = pick, t = upto(q.path), s = stats(t), font = getComputedStyle(root).fontFamily;
     c.font = "13px " + font; c.fillStyle = "#1b1d22"; c.textAlign = "left"; c.textBaseline = "alphabetic";
     c.fillText("Time–height of the particle from " + fmtLat(q.path[0][0]) + " " + fmtLon(q.path[0][1]) + ", released " +
-      fmtDate(man.releases[rel].date) + " at " + Math.round(q.path[0][2]) + " hPa", 4, 15);
+      (rels[rel].init ? "the " + label(rels[rel]) : fmtDate(rels[rel].date)) + " at " + Math.round(q.path[0][2]) + " hPa", 4, 15);
     c.font = "12px " + font; c.lineWidth = 1; c.strokeStyle = "#e3e1db"; c.fillStyle = "#6f6b64";
     c.textAlign = "right"; c.textBaseline = "middle";
     for (var z = 0; z <= ZMAX; z += 4) { c.beginPath(); c.moveTo(m.l, Y(z)); c.lineTo(m.l + pw, Y(z)); c.stroke(); c.fillText(z + " km", m.l - 5, Y(z)); }
@@ -205,9 +210,10 @@
     });
   }
   function info() {
-    var r = man.releases[rel], D = (r.records - 1) * man.step_h / 24;
-    $("hbd-info").textContent = "Released " + fmtDate(r.date) + " 00 UTC at " + man.levels[lev] + " hPa, followed " + D + " days to " +
-      fmtDate(r.date, D) + " (IFS HRES analyses, less their offset from ERA5) · day " + (day == null ? D : Math.round(day * 4) / 4);
+    var r = rels[rel], D = (r.records - 1) * man.step_h / 24, hh = r.init ? r.init.slice(11, 13) : "00";
+    $("hbd-info").textContent = "Released " + fmtDate(r.date) + " " + hh + " UTC at " + man.levels[lev] + " hPa, followed " + D + " days to " +
+      fmtDate(r.date, D + (+hh) / 24) + (r.init ? " on that IFS HRES forecast (as forecast: the model's drift is not removed)" :
+      " (IFS HRES analyses, less their offset from ERA5)") + " · day " + (day == null ? D : Math.round(day * 4) / 4);
     slider.max = String(D); if (day == null) slider.value = String(D);
   }
   function draw() { if (!ready) return; drawMap(); drawHeight(); drawCharts(); list(); info(); }
@@ -238,7 +244,7 @@
     });
   }
   function controls() {
-    pills($("hbd-rel"), man.releases.map(function (r) { return fmtDate(r.date); }), rel, function (i) { rel = i; day = null; stop(); controls(); refresh(); });
+    pills($("hbd-rel"), rels.map(label), rel, function (i) { rel = i; day = null; stop(); controls(); refresh(); });
     pills($("hbd-lev"), man.levels.map(function (p) { return p + " hPa"; }), lev, function (i) { lev = i; controls(); refresh(); });
   }
   function stop() { if (playing) cancelAnimationFrame(playing); playing = null; $("hbd-play").textContent = "Play"; }
@@ -273,8 +279,9 @@
   function start() {
     if (man || !root.offsetParent) return;
     man = {};
-    fetch(MAN, { cache: "no-cache" }).then(function (r) { return r.json(); }).then(function (m) {
-      man = m; rel = 0; controls();
+    var get = function (u) { return fetch(u, { cache: "no-cache" }).then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); }); };
+    Promise.all([get(MAN), get(MANFC).catch(function () { return null; })]).then(function (ms) {
+      var m = ms[0]; man = m; rels = releases(m).concat(releases(ms[1])); rel = 0; controls();
       base.src = "/" + m.basemap.src + "?v=" + m.ver;
       EXAMPLES.forEach(function (e) { var s = seedAt(e[0], e[1]); parts.push({ seed: s, color: COLORS[used++ % COLORS.length], path: [] }); });
       pick = parts[0];   // so the time-height plot shows from the start

@@ -5,7 +5,7 @@ Each day at 00 UTC, parcels are released on a RES grid over 15-35 deg of each he
 DAYS_BACK days through the 6-hourly winds (u, v, omega on hadley_branches.LEVELS, 1.5 deg grid), with a STEP_S
 midpoint (second-order Runge-Kutta) step and the winds linear in time, longitude, latitude and pressure. A parcel's
 transit time is how long before its release it was last in the tropical outflow layer: equatorward of OUTFLOW_LAT and
-within hadley_branches.OUT_DEPTH below the local tropopause (from that time's temperatures). Per release, sector
+within hadley_branches.OUT_DEPTH below the dynamic tropopause (from that time's wind and temperatures). Per release, sector
 (hadley_branches.SUBS, read over 15-35 deg) and release level, the area-weighted histogram of transit times in BIN_D
 days, and the weight of the parcels that were not in the outflow layer at any time in the DAYS_BACK days.
 
@@ -44,13 +44,13 @@ DEG = 180.0 / np.pi
 @dataclass
 class Winds:
     """6-hourly winds on the 1.5 deg grid: t0 (s, the first time), u, v (m/s), w (Pa/s) as (time, P_ASC, lat, lon)
-    and the tropopause pressure ptrop (hPa) as (time, lat, lon)."""
+    and the dynamic tropopause's pressure ptrop (hPa) as (time, lat, lon), which only the back-trajectories need."""
 
     t0: float
     u: np.ndarray
     v: np.ndarray
     w: np.ndarray
-    ptrop: np.ndarray
+    ptrop: np.ndarray | None = None
 
 
 def release_points():

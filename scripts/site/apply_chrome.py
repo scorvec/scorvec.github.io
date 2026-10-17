@@ -175,7 +175,7 @@ PRODUCTS = [
                     (
                         "/circulation.html#hbranch",
                         "Hadley outflow and descent",
-                        "The Hadley cells' outflow beneath the tropopause, their descent and the subtropical ridges and highs it builds, mapped every analysed week and tracked basin by basin against ERA5, with back-trajectories timing how fast the cells turn over and a map to drop a particle in the tropics and follow it.",
+                        "The Hadley cells' outflow on the dynamic tropopause, their descent and the subtropical ridges and highs it builds, mapped every analysed week and tracked basin by basin against ERA5, with back-trajectories timing how fast the cells turn over and a map to drop a particle in the tropics and follow it.",
                         "Daily",
                     ),
                     (
