@@ -6,7 +6,8 @@
 For each assets/monthly/data/outlook_<YYYYMM>.npz with a complete target month, per variable over 20-90N
 (area-weighted): the anomaly correlation (uncentred) and RMSE of the outlook, the same for the trend component
 alone (the no-skill-beyond-warming reference), the share of the area where the outlook had the sign right, and the
-ranked probability skill score of its tercile probabilities against climatology (1/3 each).
+ranked probability skill score of its tercile probabilities against climatology (1/3 each). Where the issued
+forecast was the blend with the dynamical models (blend.py), its two inputs are scored too (stat_acc, models_acc).
 
 Benchmark: the C3S multi-system seasonal forecast issued in the same month (published around the 13th, two days
 before this outlook), at its lead month 2, which is the same target month. Its ensemble-mean anomalies per system
@@ -181,6 +182,9 @@ def main() -> int:
             s["acc_trend"], s["rmse_trend"] = tr["acc"], tr["rmse"]
             if f"{v}_p_below" in o and f"{v}_tlo" in o:
                 s["rpss"] = rpss(o[f"{v}_p_below"], o[f"{v}_p_above"], obs[v], o[f"{v}_tlo"], o[f"{v}_thi"], w)
+            for key, lab in (("stat_fc", "stat"), ("models_fc", "models")):  # the blend's two inputs, when blended
+                if f"{v}_{key}" in o:
+                    s[f"{lab}_acc"] = scores(o[f"{v}_{key}"], obs[v], w)["acc"]
             if bench is not None and v in bench:
                 b = scores(bench[v], obs[v], w)
                 s["c3s_acc"], s["c3s_rmse"], s["c3s_n"] = b["acc"], b["rmse"], int(bench[f"{v}_n"])
