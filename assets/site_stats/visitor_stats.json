@@ -1,49 +1,49 @@
 {
- "updated": "2026-10-16",
- "total_30d": 412,
+ "updated": "2026-10-17",
+ "total_30d": 449,
  "countries_30d": 22,
- "total_all": 1179,
+ "total_all": 1223,
  "countries_all": 25,
  "top_pages_30d": [
   {
-   "path": "/aifs-aam-budget.html",
-   "count": 54
+   "path": "/models.html",
+   "count": 57
   },
   {
-   "path": "/models.html",
-   "count": 53
+   "path": "/aifs-aam-budget.html",
+   "count": 56
   },
   {
    "path": "/mjo.html",
-   "count": 40
+   "count": 42
+  },
+  {
+   "path": "/recon.html",
+   "count": 22
+  },
+  {
+   "path": "/gefs.html",
+   "count": 22
   },
   {
    "path": "/asos5.html",
    "count": 22
   },
   {
-   "path": "/recon.html",
-   "count": 20
+   "path": "/subseasonal.html",
+   "count": 21
   },
   {
-   "path": "/gefs.html",
+   "path": "/torque-enso.html",
    "count": 20
   },
   {
    "path": "/skewt",
-   "count": 19
+   "count": 20
   },
   {
    "path": "/aifs-verify.html",
-   "count": 19
-  },
-  {
-   "path": "/torque-enso.html",
-   "count": 18
-  },
-  {
-   "path": "/subseasonal.html",
-   "count": 18
+   "count": 20
   }
  ]
 }
