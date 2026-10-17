@@ -2,10 +2,16 @@
 """
 Stratospheric vortex winds: 10 and 100 hPa, each hemisphere on its own.
 
-One polar map per frame - a level and a hemisphere - showing wind SPEED (shaded) with WIND BARBS over it, from the
-AIFS-ENS ENSEMBLE MEAN (25 perturbed members; the analysis frame is the control). Barbs, not streamlines: a
-streamline through the pole is integrated across a point where the grid's u and v have no fixed direction, and it
-tangled there; a barb is one vector, regridded onto the map with its direction rotated into the projection.
+One polar map per frame - a level and a hemisphere - showing wind SPEED (shaded, with thin speed contours) with
+WIND BARBS over it and the GEOPOTENTIAL HEIGHT contoured in black, from the AIFS-ENS ENSEMBLE MEAN (25 perturbed
+members; the analysis frame is the control). Barbs, not streamlines: a streamline through the pole is integrated
+across a point where the grid's u and v have no fixed direction, and it tangled there; a barb is one vector, regridded
+onto the map with its direction rotated into the projection. The height lines are the flow's own contours (the wind
+runs along them), so a displaced or stretched vortex reads from them at a glance; the shading says how fast.
+
+The pole itself is left blank poleward of POLE_MASK_LAT: a lat-lon grid's pole row is one point repeated at every
+longitude, the regridding gives the shading a seam there and the barbs a knot, and nothing about the vortex is read
+within four degrees of the pole.
 
 Why the mean and not member 0. Member 0 is one
 realisation, and by the second week its vortex shape is largely its own: on the
@@ -40,14 +46,14 @@ stronger than 100 hPa, so a shared scale would flatten the lower level into a
 single colour, while a per-panel scale would make NH and SH incomparable at a
 glance - which is exactly the comparison the figure exists to support.
 
-Data: u and v at 10 and 100 hPa for 25 perturbed members every 12 h (~1.9 GB a
+Data: u, v and z at 10 and 100 hPa for 25 perturbed members every 12 h (~2.8 GB a
 cycle through the shared ECMWF store, Google mirror), plus the control at step 0.
 Opened with dask one step at a time so the 25-member mean never holds more than
 one step's members in memory.
 
 IFS-ENS: --model ifs draws the mean of ALL 50
 IFS-ENS perturbed members from the shared IFS-ENS u/v file (ifs_ens.py: 10 and 100 hPa, 12-hourly, Google Cloud mirror
-only) into vortex_ifs_10/ and vortex_ifs_100/, same scales. Open data has no IFS control at pressure levels, so its
+only) and a 12-hourly geopotential-height pull of the same members into vortex_ifs_10/ and vortex_ifs_100/, same scales. Open data has no IFS control at pressure levels, so its
 analysis frame is the IFS HRES step 0, the analysis the ensemble starts from.
 
 Usage:
@@ -97,6 +103,10 @@ BARB_GRID = 26  # barbs across the map, each way
 # barbs in m/s, as the shading: half barb 5, full 10, pennant 50
 BARBS = dict(half=5, full=10, flag=50)
 HEMIS = ("nh", "sh")
+# Speed shading, speed contours and barbs stop here: the grid's pole row has no direction (see the docstring).
+POLE_MASK_LAT = 86.0
+# Geopotential height contours (dam): the interval per level, chosen for about ten lines across a winter cap.
+HEIGHT_STEP = {10: 24, 100: 12}
 # The u = 0 vortex edge stops at this latitude. u is the eastward component, which has no fixed direction at the pole:
 # a flow across the pole changes the sign of u from one side of it to the other and draws a false ring around it.
 EDGE_LAT_MAX = 80.0
@@ -175,26 +185,24 @@ def fetch(date: str, time: str, members: int = MEMBERS):
     """
     cyc = ecmwf.Cycle(date, time)
     fc_steps = tuple(s for s in STEPS_12H if s)
-    ana = {sh: ecmwf.ensure(cyc, ecmwf.Spec("aifs-ens", "cf", sh, "pl", LEVELS, (0,))) for sh in ("u", "v")}
+    ana = {sh: ecmwf.ensure(cyc, ecmwf.Spec("aifs-ens", "cf", sh, "pl", LEVELS, (0,))) for sh in FIELDS}
     try:
-        pf = {
-            sh: ecmwf.ensure(cyc, ecmwf.Spec("aifs-ens", "pf", sh, "pl", LEVELS, fc_steps, members))
-            for sh in ("u", "v")
-        }
+        pf = {sh: ecmwf.ensure(cyc, ecmwf.Spec("aifs-ens", "pf", sh, "pl", LEVELS, fc_steps, members)) for sh in FIELDS}
         source = f"ensemble mean of {members} members"
     except Exception as e:  # noqa: BLE001
         print(f"  perturbed pull failed ({type(e).__name__}: {e}); falling back to the control", flush=True)
-        pf = {sh: ecmwf.ensure(cyc, ecmwf.Spec("aifs-ens", "cf", sh, "pl", LEVELS, fc_steps)) for sh in ("u", "v")}
+        pf = {sh: ecmwf.ensure(cyc, ecmwf.Spec("aifs-ens", "cf", sh, "pl", LEVELS, fc_steps)) for sh in FIELDS}
         source = "control (member 0) - the perturbed pull failed"
     out = {}
     for lev in LEVELS:
-        pair = []
-        for sh in ("u", "v"):
+        trio = []
+        for sh in FIELDS:
             a = _with_step(_mean_field(ana[sh], sh, lev), 0)
             f = _mean_field(pf[sh], sh, lev)
             f = f.drop_vars([c for c in f.coords if c not in ("step", "latitude", "longitude")])
-            pair.append(xr.concat([a, f], dim="step"))
-        out[lev] = tuple(pair)
+            trio.append(xr.concat([a, f], dim="step"))
+        trio[2] = trio[2] / (G0 * 10.0)  # geopotential (m2 s-2) -> height in dam
+        out[lev] = tuple(trio)
     return out, source
 
 
@@ -207,20 +215,24 @@ def fetch_ifs(date: str, time: str):
         raise SystemExit(f"IFS-ENS {date} {time}Z is not on the Google mirror yet")
     cyc = IE.E.Cycle(date, time)
     uv = IE.ensure(cyc, IE.spec_uv())
-    ana = IE.hres_analysis(cyc, ("u", "v"), LEVELS)
+    gh = IE.ensure(cyc, IE.E.Spec("ifs", "pf", "gh", "pl", LEVELS, STEPS_12H))  # geopotential height, gpm, 12-hourly
+    ana = IE.hres_analysis(cyc, ("u", "v", "gh"), LEVELS)
     out = {}
     for lev in LEVELS:
-        pair = []
-        for sh in ("u", "v"):
+        trio = []
+        for sh, path in (("u", uv), ("v", uv), ("gh", gh)):
             a = _with_step(_mean_field(ana, sh, lev), 0)
-            f = _mean_field(uv, sh, lev)
+            f = _mean_field(path, sh, lev)
             f = f.isel(step=np.flatnonzero(IE.step_hours(f) > 0))
             f = f.drop_vars([c for c in f.coords if c not in ("step", "latitude", "longitude")])
-            pair.append(xr.concat([a, f], dim="step"))
-        out[lev] = tuple(pair)
+            trio.append(xr.concat([a, f], dim="step"))
+        trio[2] = trio[2] / 10.0  # gpm -> dam
+        out[lev] = tuple(trio)
     return out, f"ensemble mean of {IE.MEMBERS} members"
 
 
+FIELDS = ("u", "v", "z")  # the AIFS-ENS fields (z = geopotential, m2 s-2)
+G0 = 9.80665
 MODEL = {"aifs": "AIFS-ENS", "ifs": "IFS-ENS"}
 PREFIX = {"aifs": "vortex", "ifs": "vortex_ifs"}  # frame directories / manifest regions
 
@@ -237,8 +249,8 @@ def circular_boundary(ax):
     ax.set_boundary(mpath.Path(verts * 0.5 + 0.5), transform=ax.transAxes)
 
 
-def panel(ax, u, v, lev, hemi):
-    """One hemisphere at one level: speed shaded, barbs over."""
+def panel(ax, u, v, z, lev, hemi):
+    """One hemisphere at one level: speed shaded and contoured, barbs over, geopotential height in black."""
     lat = u.latitude.values
     lon = u.longitude.values
     north = hemi == "NH"
@@ -246,7 +258,9 @@ def panel(ax, u, v, lev, hemi):
     la = lat[sel]
     U = u.values[sel, :]
     V = v.values[sel, :]
+    Z = z.values[sel, :]
     spd = np.hypot(U, V)
+    spd[np.abs(la) > POLE_MASK_LAT, :] = np.nan  # the pole left blank (docstring)
 
     ax.set_extent([-180, 180, LAT_EDGE if north else -90, 90 if north else -LAT_EDGE], crs=PC)
     circular_boundary(ax)
@@ -261,15 +275,26 @@ def panel(ax, u, v, lev, hemi):
     cf = ax.contourf(lon_c, la, spd_c, levels=cfg["levels"], cmap=CMAP, extend="max", transform=PC, zorder=1)
     # cartopy cuts the fill at 180 deg; stroking each piece in its own colour hides the hairline there
     cf.set_edgecolor("face")
+    # the same speed levels as thin lines, so a core and its gradient read without comparing shades
+    ax.contour(
+        lon_c, la, spd_c, levels=cfg["levels"], colors="#1b3a4d", linewidths=0.45, alpha=0.55, transform=PC, zorder=2
+    )
+    # geopotential height: the flow follows these, so the vortex's shape and centre read from them directly
+    step = HEIGHT_STEP[lev]
+    Zc, _ = add_cyclic_point(Z, coord=lon)
+    zlev = np.arange(np.floor(np.nanmin(Zc) / step) * step, np.nanmax(Zc) + step, step)
+    cz = ax.contour(lon_c, la, Zc, levels=zlev, colors="#111111", linewidths=0.9, transform=PC, zorder=5)
+    ax.clabel(cz, fontsize=7, fmt="%d", inline=True, inline_spacing=2)
 
     # Barbs from a coarsened grid. cartopy regrids the vectors onto a regular grid in map space (regrid_shape),
     # rotating each into the projection, and that transform of every input point is the figure's cost: from the
     # native 0.25 deg it is ~400k points, from 1 deg ~26k, and the regridded barbs look the same.
     #
-    # The pole row is left out: it is one point repeated at every longitude, each copy with its own u, v, so its
-    # vectors land on a single spot of the map pointing in different directions.
+    # Rows poleward of POLE_MASK_LAT are left out, as the shading is: the pole row is one point repeated at every
+    # longitude, each copy with its own u, v, so its vectors land on a single spot of the map pointing in different
+    # directions.
     ys, xs = BARB_STRIDE
-    rows = np.flatnonzero(np.abs(la) < 90.0)[::ys]
+    rows = np.flatnonzero(np.abs(la) <= POLE_MASK_LAT)[::ys]
     ax.barbs(
         lon[::xs],
         la[rows],
@@ -330,8 +355,8 @@ def render(uv, lev, hemi, date, time, step_h, out_path: Path, source: str = "con
     north = hemi == "NH"
     proj = ccrs.NorthPolarStereo(central_longitude=0) if north else ccrs.SouthPolarStereo(central_longitude=0)
     ax = fig.add_subplot(gs[0, 0], projection=proj)
-    u, v = uv
-    cf = panel(ax, u, v, lev, hemi)
+    u, v, z = uv
+    cf = panel(ax, u, v, z, lev, hemi)
     cax = fig.add_subplot(gs[0, 1])
     cb = fig.colorbar(cf, cax=cax, extend="max")
     cb.set_label(SPEED[lev]["label"], fontsize=9)
@@ -359,7 +384,8 @@ def render(uv, lev, hemi, date, time, step_h, out_path: Path, source: str = "con
         f"valid {valid:%a %d %b %HZ}\n"
         f"{'speed' if step_h == 0 else 'speed of the mean wind'} shaded, "
         f"{'barbs' if step_h == 0 else 'its barbs'} in m s$^{{-1}}$ (half 5, full 10, pennant 50)\n"
-        "red: u = 0 (vortex edge, to 80°) · dashed ring: 60°",
+        f"black: geopotential height, dam, every {HEIGHT_STEP[lev]} dam · thin lines: the speed levels · red: u = 0 (vortex edge, to 80°)\n"
+        f"dashed ring: 60° · the disc at the pole: left blank poleward of {POLE_MASK_LAT:.0f}°",
         fontsize=9,
         color="#555",
         ha="left",
@@ -404,9 +430,9 @@ def build_loop(full, date, time, anim_root: Path, manifest: Path, source: str = 
                 old.unlink()
             frames = []
             for i, step_h in enumerate(STEPS_12H):
-                u, v = full[lev]
+                u, v, z = full[lev]
                 render(
-                    (at_step(u, step_h), at_step(v, step_h)),
+                    (at_step(u, step_h), at_step(v, step_h), at_step(z, step_h)),
                     lev,
                     h.upper(),
                     date,
