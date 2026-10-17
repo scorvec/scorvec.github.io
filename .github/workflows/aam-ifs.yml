@@ -120,6 +120,15 @@ jobs:
           fi
           df -h / | tail -1
 
+      # A run checks out the commit it was triggered at; the archive and the two histories accumulate, so they are read
+      # from main as it is now, or a run queued behind another would lay a stale copy over its additions.
+      - name: The accumulating files as main has them now
+        run: |
+          git fetch -q --depth 1 origin main
+          for f in aam_forecast_archive_ifs.nc aam_history.nc aam_latband_history.nc; do
+            git checkout origin/main -- "scripts/mjo/data/reference/$f" 2>/dev/null || echo "  $f: not on main yet"
+          done
+
       - name: AAM main figure + trend
         working-directory: scripts/mjo
         timeout-minutes: 60
