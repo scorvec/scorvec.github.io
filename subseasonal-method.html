@@ -402,16 +402,26 @@
     climatology and gets no calibration. Raw probabilities are member fractions, so they resolve to about 5% and 0% means
     &ldquo;no member&rdquo;, not certainty.</p>
     <p><b>Calibrated on the hindcast.</b> The same projectors are applied to every GEPS8 hindcast
-    start of 2001&ndash;2020 &mdash; four a week, 39 daily leads, de-drifted and re-based exactly
-    as the live product &mdash; and scored against the observed index on the valid date from
+    start of 2001&ndash;2020 &mdash; four a week, 39 daily leads, de-drifted and re-based as the live
+    product but <b>leave-one-year-out</b> &mdash; and scored against the observed index on the valid date from
     NCEP/NCAR R1. For each index and week, the starts within &plusmn;45 days of the current init
     day-of-year (about a thousand) give the anomaly correlation of the hindcast ensemble mean
     (the <b>skill</b> quoted in the table) and a regression of the observed weekly index on the
     forecast one; today&rsquo;s ensemble-mean weekly index passed through that regression, with the
     regression&rsquo;s predictive distribution (Student&nbsp;t, the residual spread widened for the uncertainty of the fit
-    itself, both counted on the effective number of independent starts), is the <b>calibrated probability</b>. The
-    correlation involves no fit; what is in-sample is that each hindcast start is de-drifted against a climatology
-    that includes its own year (about 5&nbsp;% of the pool). A week counts as skilful only when its correlation is at
+    itself, both counted on the effective number of independent starts), is the <b>calibrated probability</b>.
+    Everything here is <b>out of sample</b>: a live forecast is de-drifted with a climatology and re-based with an
+    ERA5 2001&ndash;2020 normal that never saw its own year, so each hindcast start is de-drifted against the
+    climatology without its own season and re-based with the ERA5 normal without that season&rsquo;s days. The normal
+    is the same for every year, but its day-to-day shape across a season holds a twentieth of each year&rsquo;s
+    observed weather, which a correlation pooled over the season then credits to the forecast: left in, it raised the
+    week-3 to week-5 correlations by about 0.04 and passed about a quarter of the week-3 and week-4 cells that fail out
+    of sample. The
+    calibration is itself tested by <b>cross-validation</b>: each hindcast year is forecast with the regression
+    refitted on the other nineteen, and the position of every observed weekly index in its predictive distribution
+    (its PIT) should be uniform. The Calibration check view shows the reliability diagrams and PIT histograms, and a
+    cell whose mean or spread of the PIT is significantly off (bootstrap over hindcast years, false discovery rate
+    10&nbsp;% over every test of the run) is marked in the table. A week counts as skilful only when its correlation is at
     least 0.25 and significant (one-sided 5&nbsp;% on the effective sample size) and also survives a false discovery
     rate of 10&nbsp;% over every index and week of the run. Where the model has
     no skill the regression slope goes to zero and the calibrated probability collapses to

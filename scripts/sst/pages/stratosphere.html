@@ -572,15 +572,32 @@ $$\frac{\partial\bar u}{\partial t} \;=\; \hat f\,\bar v^{*} \;-\; \bar w^{*}\fr
         the vortex, weeks below &minus;1&sigma; let it strengthen (Polvani and Waugh 2004). In early autumn radiative cooling
         dominates, so a burst slows the vortex&rsquo;s seasonal spin-up rather than reversing it.
         Bottom right: the ensemble-mean flux by latitude through the forecast.</p>
-<p><b>Climatology and analysed record.</b> The 10&ndash;90&nbsp;% range and the standardisation come from NCEP/NCAR
-        Reanalysis&nbsp;1 (R1), 1991&ndash;2020. R1 stopped updating in March 2026, so the analysed record is the AIFS
-        control&rsquo;s 0-h field instead; the offset between the two has not been measured, so a small standardised
-        departure may partly be that offset rather than the atmosphere.</p>
+<p><b>Climatology and analysed record.</b> The 10&ndash;90&nbsp;% range and the standardisation come from
+        <b>ERA5, 1991&ndash;2020</b>: the same flux, wavenumbers 1&ndash;72, from single 00 and 12&nbsp;UTC fields as the
+        forecasts are single fields. It replaces NCEP/NCAR Reanalysis&nbsp;1 (R1), which stopped updating in March 2026
+        and whose flux ran 6&nbsp;% below ERA5&rsquo;s in the north and 12&nbsp;% in the south over 1991&ndash;2020
+        (6&ndash;8 and 25&ndash;30&nbsp;% in December&ndash;January): a third of that gap in the north and half in the
+        south is R1&rsquo;s use of daily-mean fields, the rest the older, coarser reanalysis. ERA5 arrives about five days late, so the analysed record is the AIFS
+        control&rsquo;s 0-h field, ECMWF&rsquo;s operational analysis.</p>
+<p><b>Model error.</b> Each model&rsquo;s flux was compared with ERA5 on its own archived 00Z runs, every third
+        day: AIFS-ENS since July 2025 (155 runs), IFS-ENS and GEFS since January 2025 (210 and 214), by season of the
+        valid day and by lead (day 0, days 1&ndash;3, 4&ndash;7, 8&ndash;15, and 16&ndash;35 for GEFS). Each mean error
+        was tested with a block bootstrap over the runs (15-day blocks); only those passing a false discovery rate of
+        10&nbsp;% over all 336 tests are removed from every member. A lead block or season whose error is not
+        significant counts as zero, and the correction runs linearly in lead and in season between the blocks, so it
+        tapers rather than jumps; beyond the last block it keeps that block&rsquo;s value only if significant. The largest: <b>AIFS-ENS runs low in the northern winter</b>, by 0.3&nbsp;K&nbsp;m/s at the
+        analysis, 1.1 at days 1&ndash;3, 2.3 at days 4&ndash;7 and 4.1 at days 8&ndash;15 (95&nbsp;% interval
+        1.5&ndash;6.0), a quarter of the December&ndash;February flux by week two; 0.1&ndash;0.8 in autumn, with no
+        significant error in spring. In the south it runs 0.3&ndash;0.9&nbsp;K&nbsp;m/s high at days 1&ndash;7 in winter
+        and spring. IFS-ENS and GEFS err less, mostly 0.2&ndash;1.2&nbsp;K&nbsp;m/s low in the northern autumn and
+        winter and the southern summer (GEFS reads 0.4&ndash;0.7 high in the northern summer beyond day 8). The analysed
+        record reads 0.3&nbsp;K&nbsp;m/s low against ERA5 in the northern winter and 0.2 in the southern summer, and
+        that is removed from it too. The latitude panel shows the models&rsquo; own flux.</p>
 <p>The <b>GEPS</b> and <b>GEFS</b> versions carry the same calculation to day 35 (one 00Z field a day, as for
-        AIFS-ENS), against the same climatology and the same analysed record, so the three read on one scale. The
-        flux is the models&rsquo; own, <b>not bias-corrected</b>: GEPS&rsquo;s reforecasts run the 10&nbsp;hPa vortex
-        progressively too weak with lead (about 4&ndash;6&nbsp;m/s by day 35), GEFS drifts with lead as well (the drift
-        the GEFS page removes from its own products), and a systematic flux error could sit behind either. Read week 3 onward as the model&rsquo;s tendency, not a calibrated
+        AIFS-ENS), against the same climatology and the same analysed record, so the models read on one scale. GEPS
+        is <b>not corrected</b>: the Datamart keeps only its last month of runs, too few to test, and its reforecasts
+        run the 10&nbsp;hPa vortex progressively too weak with lead (about 4&ndash;6&nbsp;m/s by day 35), so a
+        systematic flux error could sit behind it. Read week 3 onward as the model&rsquo;s tendency, not a calibrated
         probability. The 40-day mean at the end of a 35-day forecast is almost all forecast.</p>
 <p>The <b>IFS-ENS</b> version uses all <b>50</b> of its perturbed members to day 15, taken to 0.5&deg; like GEPS and
         GEFS (wavenumbers 1&ndash;72 need nothing finer). Its open data has no control at 100&nbsp;hPa, so there is no
@@ -588,7 +605,7 @@ $$\frac{\partial\bar u}{\partial t} \;=\; \hat f\,\bar v^{*} \;-\; \bar w^{*}\fr
 <p class="chart-sources">ECMWF AIFS-ENS, 25 perturbed members + control, v and T at 100&nbsp;hPa, daily to day 15 (open data, CC&nbsp;BY&nbsp;4.0)
         &middot; ECMWF IFS-ENS, all 50 perturbed members, 0.25&deg; (open data, CC&nbsp;BY&nbsp;4.0, from the Google Cloud mirror), v and T at 100&nbsp;hPa, daily to day 15
         &middot; ECCC GEPS 00Z extended run, 20 perturbed members + control, 0.5&deg;, days 1&ndash;35 (MSC Datamart)
-        &middot; NOAA GEFS 00Z, 30 perturbed members + control, 0.5&deg;, days 1&ndash;35 (NOAA Open Data Dissemination, AWS) &middot; zonal wavenumbers 1&ndash;72 to match the climatology&rsquo;s resolution &middot; climatology: NCEP/NCAR Reanalysis&nbsp;1 (NOAA PSL), 1991&ndash;2020, &plusmn;15-day window &middot; analysed tail: the AIFS control&rsquo;s step-0 fields, 00 and 12&nbsp;UTC averaged (PSL&rsquo;s R1 stopped in March 2026) &middot; updated each AIFS-ENS 00/12Z cycle, each GEPS extended run and each GEFS 00Z run &middot; Polvani &amp; Waugh 2004, <i>J. Climate</i> 17, 3548&ndash;3554</p>
+        &middot; NOAA GEFS 00Z, 30 perturbed members + control, 0.5&deg;, days 1&ndash;35 (NOAA Open Data Dissemination, AWS) &middot; zonal wavenumbers 1&ndash;72 &middot; climatology: ERA5 1991&ndash;2020, 00 and 12&nbsp;UTC, &plusmn;15-day window (WeatherBench2 1.5&deg; to 2022, ARCO-ERA5 0.25&deg; after; Copernicus Climate Change Service, CC&nbsp;BY&nbsp;4.0; contains modified Copernicus Climate Change Service information 2026) &middot; model errors: each model&rsquo;s archived runs against ERA5, block bootstrap, Benjamini&ndash;Hochberg FDR 10&nbsp;% &middot; analysed tail: the AIFS control&rsquo;s step-0 fields, 00 and 12&nbsp;UTC averaged &middot; updated each AIFS-ENS 00/12Z cycle, each GEPS extended run and each GEFS 00Z run &middot; Polvani &amp; Waugh 2004, <i>J. Climate</i> 17, 3548&ndash;3554 &middot; ERA5: Hersbach et al. 2020, <i>Q. J. R. Meteorol. Soc.</i> 146, 1999&ndash;2049 &middot; Benjamini &amp; Hochberg 1995, <i>J. R. Stat. Soc. B</i> 57, 289&ndash;300</p>
 </template>
 <template id="about-shwinters">
 <p>Each grey line is one northern winter, 1980/81 to 2025/26, October to May, from NASA&rsquo;s MERRA-2 reanalysis; the band is the 10&ndash;90&nbsp;% range of those 46 winters and the dashed line the median winter. Three views:</p>
@@ -859,14 +876,15 @@ window.STAGE = {
                                  return b === "ifs" ? "assets/sst/ifs_heatflux100_" + h + ".webp" : "assets/sst/heatflux100_" + h + ".webp"; }, bust: "hourly", about: "about-heatflux", fit: false,
           cap: function (a, b) { return "Poleward eddy heat flux at 100 hPa, 45–75°" + (a === "sh" ? "S" : "N") + ", total and its wave-1 and wave-2 parts: the upward wave-activity flux into the stratosphere, "
                                         + (b === "ifs" ? "IFS-ENS (50 members) to day 15" : "AIFS-ENS (25 members + control) to day 15")
-                                        + ", members against the 1991–2020 climatology."; }},
+                                        + ", members less the model’s significant mean error, against the ERA5 1991–2020 climatology."; }},
   heatflux35: {label: "100 hPa eddy heat flux, days 1–35", a: {label: "Hemisphere", items: [["nh","Northern"],["sh","Southern"]]},
           b: {label: "Model", items: [["geps","GEPS"],["gefs","GEFS"]]},
           img: function (a, b) { var h = a === "sh" ? "sh" : "nh";
                                  return b === "gefs" ? "assets/gefs/gefs_heatflux100_" + h + ".webp" : "assets/geps/geps_heatflux100_" + h + ".webp"; }, bust: "hourly", about: "about-heatflux", fit: false,
           cap: function (a, b) { return "Poleward eddy heat flux at 100 hPa, 45–75°" + (a === "sh" ? "S" : "N") + ", total and its wave-1 and wave-2 parts: the upward wave-activity flux into the stratosphere, "
-                                        + (b === "gefs" ? "GEFS (31 members) to day 35" : "GEPS extended run (Mon/Thu, 21 members) to day 35")
-                                        + ", members against the 1991–2020 climatology."; }},
+                                        + (b === "gefs" ? "GEFS (31 members) to day 35, members less the model’s significant mean error"
+                                                        : "GEPS extended run (Mon/Thu, 21 members) to day 35, uncorrected (too few archived runs to test)")
+                                        + ", against the ERA5 1991–2020 climatology."; }},
   shwinters: {label: "Every winter since 1980", dom: function () { return "dom-shwinters"; }, about: "about-shwinters",
           cap: function () { return "Every northern winter in MERRA-2, October to May, against the 1980–2026 range. Hover a line to name the winter; pick one to draw it in black."; }},
   shssw: {label: "Sudden warmings since 1980", a: {label: "View", items: [["timeline","Timeline"],["table","Catalogue"],["gallery","Vortex at each warming"]]},

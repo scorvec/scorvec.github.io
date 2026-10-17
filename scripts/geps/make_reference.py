@@ -20,11 +20,12 @@ disk:
   strat/geps_s2s/*.json       GEPS reforecast drift tables (bias_nh, mapbias_{nh,sh}, capdrift_nh)
 
 Packed fields (int16 + scale, zlib) are exact to half their stated step. The archive is published as the release asset
-geps-ref-v1 (.github/workflows/geps.yml downloads it); bump the tag when anything here is rebuilt.
+TAG (.github/workflows/geps.yml downloads it); bump the tag when anything here is rebuilt. v2 (2026-10): the
+teleconnection hindcast de-drifted leave-one-year-out (build/telecon_hindcast.py).
 
     python scripts/geps/make_reference.py --out /tmp/geps_ref          # ~30 min (lzma), 4 processes
     python scripts/geps/make_reference.py --out /tmp/geps_ref --check  # max decode error per climatology field
-    python scripts/geps/make_reference.py --out /tmp/geps_ref --tar    # + geps_ref_v1.tar beside it
+    python scripts/geps/make_reference.py --out /tmp/geps_ref --tar    # + geps_ref_v2.tar beside it
 """
 
 from __future__ import annotations
@@ -47,6 +48,7 @@ import paths
 import refpack
 
 SRC = paths.LOCAL_STORE
+TAG = "geps-ref-v2"  # the release the archive is published as
 
 # scripts/strat/data is gitignored: its copy lives outside this tree (STRAT_LOCAL_DATA)
 STRAT_SRC = Path(os.environ.get("STRAT_LOCAL_DATA", paths.REPO / "scripts" / "strat" / "data"))
@@ -276,7 +278,7 @@ def main() -> int:
                 tf.add(p, arcname=str(p.relative_to(sd)))
         print(f"  {tp}  {tp.stat().st_size / 1e6:.1f} MB")
     if a.tar:
-        tp = out.parent / "geps_ref_v1.tar"
+        tp = out.parent / f"{TAG.replace('-', '_')}.tar"
         with tarfile.open(tp, "w") as tf:
             for p in [*files, out / "MANIFEST.json"]:
                 tf.add(p, arcname=str(p.relative_to(out)))

@@ -46,16 +46,30 @@ import xarray as xr
 HERE = Path(__file__).resolve().parent
 
 _sys.path[:0] = [str(HERE), str(HERE.parent)]
-from telecon_hindcast import clim_wrapped25, period_shift, LAT25, LON25, STORE, TC, NCEP
+from telecon_hindcast import CLIM, LAT25, LON25, STORE, TC
+from telecon_io import period_shift
 from build_telecon_patterns import doy_clim
 from refpack import noleap_doy, at_doy  # day-of-year key
 
-CPCP = TC / "cpc_precip"
+NCEP, CPCP = TC / "ncep", TC / "cpc_precip"
 WEEKS = [(1, 7), (8, 14), (15, 21), (22, 28), (29, 35)]
 Y0, Y1 = 2001, 2020
 CY0, CY1 = 1991, 2020
 WIN = 45
 SCALE = {"t2m": 1.0, "pr": 86400.0, "zg500": 1.0, "mslp": 0.01}
+
+
+def clim_wrapped25(tag):
+    """Lead-dependent model climatology on the 2.5 deg grid, day-of-year axis wrapped for interpolation (coarsened once:
+    subtracting on the 1 deg grid and coarsening the difference cost 30-40 s per file)."""
+    c = xr.open_dataset(CLIM / f"geps8_clim_{tag}.nc")
+    cv = c[next(v for v in c.data_vars if v != "n_starts")].load()
+    cv = xr.concat([cv, cv.isel(X=0).assign_coords(X=360.0)], dim="X")
+    cv = cv.interp(Y=LAT25, X=LON25).rename({"Y": "lat", "X": "lon"})
+    return xr.concat(
+        [cv.isel(doy=-1).assign_coords(doy=cv.doy[-1] - 366), cv, cv.isel(doy=0).assign_coords(doy=cv.doy[0] + 366)],
+        dim="doy",
+    )
 
 
 def to25(a, nearest=False):

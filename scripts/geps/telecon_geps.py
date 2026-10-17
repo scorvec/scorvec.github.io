@@ -45,15 +45,26 @@ ensemble-mean weekly index m becomes P(week >= +0.5) from the regression's
 predictive distribution (cal_cdf: Student t, widened for the fit's own
 uncertainty on the effective sample). With no skill that collapses to
 climatology, which is the honest week-5 answer. The hindcast mean is 4 members
-against 21 live, so a is a touch conservative. r itself involves no fit, but the
-de-drift climatology the hindcast anomalies are taken against includes the scored
-start's own year. A week counts as skilful only when r >= SKILL_MIN AND r is
-significant at P_MAX: a one-sided t-test on the effective sample size
-n (1 - r1 r2) / (1 + r1 r2), r1 r2 the lag-1 autocorrelations of the forecast
-and observed weekly series over consecutive hindcast starts (Bretherton et al.
-1999; the starts are 1-3 days apart, so their weeks overlap and n_eff is far
-below n) - the GEFS page's test (gefs_telecon.py) - AND it passes
-Benjamini-Hochberg at FDR_Q over every index x week cell of the init.
+against 21 live, so a is a touch conservative. The hindcast is de-drifted
+leave-one-year-out (each start against a climatology and an ERA5 re-basing
+normal without its own season), so r is out of sample and the regression is
+fitted on forecasts made the way the live one is. A week counts as skilful only
+when r >= SKILL_MIN AND r is significant at P_MAX: a one-sided t-test on the
+effective sample size n (1 - r1 r2) / (1 + r1 r2), r1 r2 the lag-1
+autocorrelations of the forecast and observed weekly series over consecutive
+hindcast starts (Bretherton et al. 1999; the starts are 1-3 days apart, so their
+weeks overlap and n_eff is far below n) - the GEFS page's test (gefs_telecon.py)
+- AND it passes Benjamini-Hochberg at FDR_Q over every index x week cell of the
+init.
+
+The calibration itself is tested by CROSS-VALIDATION on the same pool: each
+year's season is scored with the regression refitted on the other years
+(cross_validate), giving the PIT of the observed weekly index (its probit z
+should be N(0, 1)) and reliability counts of P(>= +0.5) and P(<= -0.5). A cell
+is flagged miscalibrated when the mean of z (bias) or its standard deviation
+(over- or under-confidence) departs from 0 or 1 under a bootstrap over hindcast
+years (a season's starts share weather; years are close to independent) and the
+departure survives Benjamini-Hochberg at FDR_Q over every test of the init.
 
 Everything is in standard deviations of the DAILY index over 1991-2020, so
 "+1" means a day at the 84th percentile of daily variability, and a WEEKLY
@@ -68,6 +79,9 @@ Outputs (figs/ and the site's assets/geps/)
   geps_telecon_probs.webp    weeks 1-5 x indices: P(<= -0.5), neutral,
                              P(>= +0.5) as stacked bars, weekly mean and its
                              change vs the previous run
+  geps_telecon_reliability.webp  the cross-validated test of the calibration:
+                             reliability diagrams and PIT histograms by week,
+                             and the cells flagged miscalibrated
   telecon.json               all of the above as numbers, for the page table
 
     python telecon_geps.py --cycle 20260903
@@ -146,6 +160,8 @@ TAIL_DAYS = 45
 ANA = paths.ANA  # GEPS day-0 ensemble-mean fields at 2.5 deg, one npz per day
 WINDOW_DOY = 45  # hindcast starts pooled for skill/calibration
 THR = 0.5  # +-0.5 sd of the daily index = "positive"/"negative" phase
+CV_BINS = 10  # PIT and reliability-diagram bins of the cross-validated test
+BOOT = 2000  # bootstrap draws over hindcast years for the PIT tests
 PSL = "https://downloads.psl.noaa.gov/Datasets/ncep.reanalysis"
 CPC_URL = {
     "ao": "cwlinks/norm.daily.ao.cdas.z1000.19500101_current.csv",
@@ -415,18 +431,16 @@ def observed(pat, end, days=TAIL_DAYS):
     return out
 
 
-def cal_cdf(x: float, c: dict, m: float) -> float:
-    """P(observed weekly index <= x) for today's ensemble mean m under the hindcast regression c: Student t on
+def cal_cdf(x, c: dict, m):
+    """P(observed weekly index <= x) for the ensemble mean m under the hindcast regression c: Student t on
     n_eff - 2 degrees of freedom centred on a*m + b, scale s * sqrt(1 + 1/n_eff + (m - xbar)^2 / (Sxx n_eff / n)) -
     the fit's own uncertainty, counted on the effective sample because neighbouring starts share their weeks (the
-    SEAS5 calibration's form). A cell written before xbar/sxx were kept has scale s."""
+    SEAS5 calibration's form). x and m broadcast."""
     from scipy.stats import t as tdist
 
-    df = max(c["n_eff"] - 2.0, 1.0)
-    w = 1.0
-    if c.get("sxx"):
-        w = np.sqrt(1.0 + 1.0 / c["n_eff"] + (m - c["xbar"]) ** 2 / (c["sxx"] * c["n_eff"] / c["n"]))
-    return float(tdist.cdf((x - (c["a"] * m + c["b"])) / (c["s"] * w), df))
+    m = np.asarray(m, dtype="float64")
+    w = np.sqrt(1.0 + 1.0 / c["n_eff"] + (m - c["xbar"]) ** 2 / (c["sxx"] * c["n_eff"] / c["n"]))
+    return tdist.cdf((np.asarray(x) - (c["a"] * m + c["b"])) / (c["s"] * w), max(c["n_eff"] - 2.0, 1.0))
 
 
 def lag1(x, nxt):
@@ -441,73 +455,160 @@ def lag1(x, nxt):
     return float(np.corrcoef(a[good], b_[good])[0, 1])
 
 
-def calibration(pat, base):
-    """Per index and week: skill and a regression calibration from the
-    hindcast starts within +-WINDOW_DOY days of the init day-of-year, with the
-    effective sample size and one-sided p of r (the skill test)."""
+def fit(f, o, nxt):
+    """The regression obs = a*fcst + b of paired weekly means (NaN = no pair; nxt as lag1 takes it), its residual
+    spread s, the anomaly correlation r and its one-sided p on the effective sample size; None below 30 pairs."""
     from scipy.stats import t as tdist
 
+    ok = np.isfinite(f) & np.isfinite(o)
+    if ok.sum() < 30:
+        return None
+    r1, r2 = lag1(np.where(ok, f, np.nan), nxt), lag1(np.where(ok, o, np.nan), nxt)
+    f, o = f[ok], o[ok]
+    r = float(np.corrcoef(f, o)[0, 1])
+    a, b = np.polyfit(f, o, 1)
+    n = int(ok.sum())
+    neff = float(np.clip(n * (1 - r1 * r2) / (1 + r1 * r2), 3, n))
+    tt = r * np.sqrt(max(neff - 2, 1) / max(1 - r * r, 1e-9))
+    return dict(
+        n=n,
+        n_eff=neff,
+        p=float(tdist.sf(tt, max(neff - 2, 1))),
+        r=r,
+        a=float(a),
+        b=float(b),
+        s=float(np.std(o - (a * f + b), ddof=2)),
+        obs_sd=float(o.std()),
+        fc_sd=float(f.std()),
+        xbar=float(f.mean()),
+        sxx=float(((f - f.mean()) ** 2).sum()),
+    )
+
+
+def cross_validate(f, o, nxt, year):
+    """Each hindcast year's season scored with the regression refitted on the other years: the probit of the PIT of
+    the observed weekly index (N(0, 1) if the calibration is right), P(>= +THR) and P(<= -THR); NaN where unscored."""
+    from scipy.stats import norm
+
+    z, pp, pn = (np.full(f.shape, np.nan) for _ in range(3))
+    for y in np.unique(year):
+        own = year == y
+        c = fit(np.where(own, np.nan, f), np.where(own, np.nan, o), nxt)
+        sc = own & np.isfinite(f) & np.isfinite(o)
+        if c is None or not sc.any():
+            continue
+        z[sc] = norm.ppf(np.clip(cal_cdf(o[sc], c, f[sc]), 1e-6, 1 - 1e-6))
+        pp[sc] = 1.0 - cal_cdf(THR, c, f[sc])
+        pn[sc] = cal_cdf(-THR, c, f[sc])
+    return z, pp, pn
+
+
+def reliability(z, pp, pn, o, year, rng):
+    """The cross-validated test of one index x week: PIT histogram and reliability-diagram counts, the mean and
+    standard deviation of z with 95% intervals and two-sided p from a bootstrap over hindcast years."""
+    from scipy.stats import norm
+
+    ok = np.isfinite(z)
+    edges = np.linspace(0.0, 1.0, CV_BINS + 1)
+
+    def rel(p, event):
+        k = np.clip(np.digitize(p, edges) - 1, 0, CV_BINS - 1)
+        n = np.bincount(k, minlength=CV_BINS)
+        with np.errstate(invalid="ignore"):
+            mp = np.bincount(k, p, CV_BINS) / n
+            fo = np.bincount(k, event.astype(float), CV_BINS) / n
+        return dict(
+            n=n.tolist(),
+            p=[round(float(v), 3) if c else None for v, c in zip(mp, n)],
+            o=[round(float(v), 3) if c else None for v, c in zip(fo, n)],
+        )
+
+    yrs = np.unique(year[ok])
+    nb = np.array([(year[ok] == y).sum() for y in yrs], dtype="float64")
+    s1 = np.array([z[ok][year[ok] == y].sum() for y in yrs])
+    s2 = np.array([(z[ok][year[ok] == y] ** 2).sum() for y in yrs])
+    W = rng.multinomial(len(yrs), np.full(len(yrs), 1.0 / len(yrs)), size=BOOT)
+    N = W @ nb
+    mb = (W @ s1) / N
+    sb = np.sqrt(np.clip((W @ s2) / N - mb**2, 0, None) * N / (N - 1))
+    m, sd = float(z[ok].mean()), float(z[ok].std(ddof=1))
+
+    def p2(x, null):
+        return float(max(2.0 * min(np.mean(x <= null), np.mean(x >= null)), 1.0 / BOOT))
+
+    return dict(
+        n=int(ok.sum()),
+        years=len(yrs),
+        pit=np.histogram(norm.cdf(z[ok]), edges)[0].tolist(),
+        z_mean=round(m, 3),
+        z_mean_ci=[round(float(v), 3) for v in np.percentile(mb, [2.5, 97.5])],
+        p_bias=round(p2(mb, 0.0), 4),
+        z_sd=round(sd, 3),
+        z_sd_ci=[round(float(v), 3) for v in np.percentile(sb, [2.5, 97.5])],
+        p_spread=round(p2(sb, 1.0), 4),
+        rel_pos=rel(pp[ok], o[ok] >= THR),
+        rel_neg=rel(pn[ok], o[ok] <= -THR),
+    )
+
+
+def calibration(base):
+    """Per index and week: skill and a regression calibration from the
+    hindcast starts within +-WINDOW_DOY days of the init day-of-year, with the
+    effective sample size and one-sided p of r (the skill test), and the
+    cross-validated reliability of that calibration."""
     q = TCR / "hindcast_indices.nc"
     if not q.exists():
         return {}
     ds = xr.open_dataset(q)
+    if ds.attrs.get("dedrift") != "leave-one-year-out":
+        print("::warning::hindcast_indices.nc is de-drifted in sample - no calibration (rebuild telecon_hindcast.py)")
+        return {}
     S = pd.DatetimeIndex(ds.S.values)
     d = ((refpack.noleap_doy(S) - refpack.noleap_doy(base) + 182.5) % 365) - 182.5
     win = np.abs(d) <= WINDOW_DOY
+    year = (S[win] - pd.to_timedelta(d[win], unit="D")).year.values  # the season each start belongs to
     day = ds.L.values + 0.5
-    annual = ds.attrs.get("units", "annual") == "annual"  # older file: annual sd
-    vdoy = (S[win].values[:, None] + pd.to_timedelta(np.ceil(ds.L.values), unit="D").values[None]).astype(
-        "datetime64[D]"
-    )
-    vdoy = refpack.noleap_doy(vdoy)
     gap = np.diff(S[win].values).astype("timedelta64[D]").astype(int)
     nxt = np.r_[np.where(gap <= 7, np.arange(1, len(gap) + 1), -1), -1]  # the next start of the same season
+    rng = np.random.default_rng(0)
     out = {}
     for sid in ds.index.values:
         F = ds.fcst.sel(index=sid).values[win]
         O = ds.obs.sel(index=sid).values[win]
-        if annual:
-            k = pat.to_seasonal(str(sid), vdoy)
-            F, O = F * k, O * k
         rows = []
         for w0, w1 in WEEKS:
             sel = (day >= w0) & (day <= w1)
             f = np.nanmean(F[:, sel], 1)
             o = np.nanmean(O[:, sel], 1)
-            ok = np.isfinite(f) & np.isfinite(o)
-            if ok.sum() < 30:
+            c = fit(f, o, nxt)
+            if c is None:
                 rows.append(None)
                 continue
-            r1, r2 = lag1(np.where(ok, f, np.nan), nxt), lag1(np.where(ok, o, np.nan), nxt)
-            f, o = f[ok], o[ok]
-            r = float(np.corrcoef(f, o)[0, 1])
-            a, b = np.polyfit(f, o, 1)
-            s_ = float(np.std(o - (a * f + b), ddof=2))
-            n = int(ok.sum())
-            neff = float(np.clip(n * (1 - r1 * r2) / (1 + r1 * r2), 3, n))
-            tt = r * np.sqrt(max(neff - 2, 1) / max(1 - r * r, 1e-9))
             rows.append(
                 dict(
-                    n=n,
-                    n_eff=round(neff, 1),
-                    p=float(f"{tdist.sf(tt, max(neff - 2, 1)):.3g}"),
-                    r=round(r, 2),
-                    a=round(float(a), 2),
-                    b=round(float(b), 2),
-                    s=round(s_, 2),
-                    obs_sd=round(float(o.std()), 2),
-                    fc_sd=round(float(f.std()), 2),
-                    xbar=round(float(f.mean()), 3),
-                    sxx=round(float(((f - f.mean()) ** 2).sum()), 3),
+                    n=c["n"],
+                    n_eff=round(c["n_eff"], 1),
+                    p=float(f"{c['p']:.3g}"),
+                    r=round(c["r"], 2),
+                    a=round(c["a"], 2),
+                    b=round(c["b"], 2),
+                    s=round(c["s"], 2),
+                    obs_sd=round(c["obs_sd"], 2),
+                    fc_sd=round(c["fc_sd"], 2),
+                    xbar=round(c["xbar"], 3),
+                    sxx=round(c["sxx"], 3),
+                    cv=reliability(*cross_validate(f, o, nxt, year), o, year, rng),
                 )
             )
         out[str(sid)] = rows
-    # one family: every index x week cell of this init is tested, so the gate also needs Benjamini-Hochberg
+    # one family per gate: every index x week cell of this init is tested, so both also need Benjamini-Hochberg
     cells = [c for rows in out.values() for c in rows if c]
     if cells:
-        ok = benjamini_hochberg(np.array([c["p"] for c in cells]), FDR_Q)
-        for c, k in zip(cells, ok):
+        for c, k in zip(cells, benjamini_hochberg(np.array([c["p"] for c in cells]), FDR_Q)):
             c["fdr_ok"] = bool(k)
+        flag = benjamini_hochberg(np.array([c["cv"][k] for c in cells for k in ("p_bias", "p_spread")]), FDR_Q)
+        for i, c in enumerate(cells):
+            c["cv"]["miscal_bias"], c["cv"]["miscal_spread"] = bool(flag[2 * i]), bool(flag[2 * i + 1])
     return out
 
 
@@ -628,6 +729,7 @@ def weekly_stats(t, M, base, prev=None, cal=None):
                 cal_p_neg=round(cal_cdf(-THR, c, m), 3),
                 cal_p_strong_pos=round(1.0 - cal_cdf(1.0, c, m), 3),
                 cal_p_strong_neg=round(cal_cdf(-1.0, c, m), 3),
+                cal_cv=c["cv"],
             )
         else:  # no hindcast to test the week against: masked as a week without skill
             row["no_skill"] = True
@@ -981,7 +1083,8 @@ def plot_probs(pat, cycle, prev_cycle, weeks):
     )
     note = "upper bar: raw member fractions (21 members → 5% steps; 0% = no member, not certainty)" + (
         "; index in seasonal sd for the time of year\nthin lower bar: hindcast-calibrated probabilities — observed weekly index regressed on the forecast one over\n"
-        f"2001–2020 GEPS8 starts within ±45 d of this date; skill r = anomaly correlation of the hindcast mean; "
+        f"2001–2020 GEPS8 starts within ±45 d of this date, each de-drifted without its own year; skill r = anomaly "
+        "correlation of the hindcast mean, out of sample;\n"
         f"hatched = r below {SKILL_MIN} or not significant (one-sided {P_MAX:.0%}, effective n, false discovery rate "
         f"{FDR_Q:.0%} over all cells), no usable skill"
         if has_cal
@@ -992,6 +1095,114 @@ def plot_probs(pat, cycle, prev_cycle, weeks):
         fig.savefig(d / "geps_telecon_probs.webp", dpi=105, facecolor="white", pil_kwargs={"quality": 88, "method": 6})
     plt.close(fig)
     print("  geps_telecon_probs.webp")
+
+
+def miscalibrated(cv):
+    """What the cross-validated test flags in one cell, in words; '' when nothing is significant."""
+    out = []
+    if cv["miscal_bias"]:
+        out.append(f"observed {'above' if cv['z_mean'] > 0 else 'below'} the calibrated forecast")
+    if cv["miscal_spread"]:
+        out.append("over-confident" if cv["z_sd"] > 1 else "under-confident")
+    return ", ".join(out)
+
+
+def plot_reliability(pat, cycle, weeks):
+    """The cross-validated test of the calibrated probabilities, pooled over the indices: reliability diagrams of
+    P(>= +THR) and P(<= -THR) and PIT histograms by week, and every cell the bootstrap flags."""
+    base = pd.Timestamp(cycle)
+    cells = [(sid, r) for sid in pat.ids if sid in weeks for r in weeks[sid] if "cal_cv" in r]
+    if not cells:
+        return
+    import textwrap
+
+    fig = plt.figure(figsize=(13.6, 7.0))
+    W = len(WEEKS)
+    flags = []
+    for k in range(W):
+        rows = [(sid, r["cal_cv"]) for sid, r in cells if r["week"] == k + 1]
+        if not rows:
+            continue
+        ax = fig.add_axes([0.055 + k * 0.188, 0.5, 0.15, 0.29])  # square: 0.15 x 13.6 = 0.29 x 7.0
+        ax.plot([0, 1], [0, 1], color="#8a8680", lw=0.9, ls=(0, (3, 2)))
+        for key, col, lab in (("rel_pos", "#b4453c", f"P(≥ +{THR})"), ("rel_neg", "#2c5fa8", f"P(≤ −{THR})")):
+            n = np.sum([cv[key]["n"] for _, cv in rows], 0).astype(float)
+            sp = np.sum([[c * (v or 0.0) for c, v in zip(cv[key]["n"], cv[key]["p"])] for _, cv in rows], 0)
+            so = np.sum([[c * (v or 0.0) for c, v in zip(cv[key]["n"], cv[key]["o"])] for _, cv in rows], 0)
+            keep = n >= 30
+            ax.plot(sp[keep] / n[keep], so[keep] / n[keep], "-o", color=col, lw=2.0, ms=4.5, label=lab)
+        ax.set_xlim(0, 1)
+        ax.set_ylim(0, 1)
+        ax.set_aspect("equal")
+        ax.tick_params(labelsize=7.8)
+        ax.grid(alpha=0.25, lw=0.5)
+        ax.set_title(
+            f"Week {k + 1}  {base + pd.Timedelta(days=WEEKS[k][0] - 1):%b %d} – "
+            f"{base + pd.Timedelta(days=WEEKS[k][1] - 1):%b %d}",
+            fontsize=9.6,
+            fontweight="bold",
+            loc="left",
+            pad=4,
+        )
+        ax.set_xlabel("forecast probability", fontsize=8.2)
+        if k == 0:
+            ax.set_ylabel("observed frequency", fontsize=8.2)
+            ax.legend(fontsize=7.6, loc="upper left", frameon=False, handlelength=1.6)
+        bx = fig.add_axes([0.055 + k * 0.188, 0.13, 0.15, 0.25])
+        pit = np.sum([cv["pit"] for _, cv in rows], 0).astype(float)
+        bx.bar(
+            (np.arange(CV_BINS) + 0.5) / CV_BINS,
+            pit / pit.sum() * CV_BINS,
+            width=1.0 / CV_BINS - 0.012,
+            color="#6f6b64",
+            lw=0,
+        )
+        bx.axhline(1.0, color=INK, lw=0.9, ls=(0, (3, 2)))
+        bx.set_xlim(0, 1)
+        bx.set_ylim(0, max(2.0, float((pit / pit.sum() * CV_BINS).max()) * 1.12))
+        bx.tick_params(labelsize=7.8)
+        bx.set_xlabel("PIT of the observed weekly index", fontsize=8.2)
+        if k == 0:
+            bx.set_ylabel("density (1 = calibrated)", fontsize=8.2)
+        flags += [f"{sid.upper()} wk{k + 1} {miscalibrated(cv)}" for sid, cv in rows if miscalibrated(cv)]
+    fig.suptitle(
+        f"Calibration check — cross-validated on the 2001–2020 GEPS8 hindcast · starts within ±{WINDOW_DOY} d of "
+        f"{base:%b %d}",
+        fontsize=11.5,
+        fontweight="bold",
+        y=0.975,
+        va="top",
+        color=INK,
+    )
+    sub = (
+        "each hindcast year scored with the regression refitted on the other years, pooled over the "
+        f"{len({sid for sid, _ in cells})} calibrated indices · upper: reliability of the calibrated phase "
+        "probabilities (bins with ≥ 30 forecasts; on the diagonal = reliable) · lower: PIT histogram of the observed "
+        "weekly index (flat = calibrated; U = over-confident, dome = under-confident)"
+    )
+    fig.text(
+        0.5,
+        0.925,
+        "\n".join(textwrap.wrap(sub, 200)),
+        ha="center",
+        va="top",
+        fontsize=8.4,
+        color=MUTED,
+    )
+    verdict = (
+        "Significantly miscalibrated (bootstrap over hindcast years, false discovery rate "
+        f"{FDR_Q:.0%} over every index, week and test): " + "; ".join(flags)
+        if flags
+        else "No index and week is significantly miscalibrated: the mean and spread of the probit PIT are consistent "
+        f"with N(0, 1) under a bootstrap over hindcast years at a false discovery rate of {FDR_Q:.0%}."
+    )
+    fig.text(0.5, 0.012, "\n".join(textwrap.wrap(verdict, 190)), ha="center", va="bottom", fontsize=8.2, color=INK)
+    for d in (FIGS, SITE):
+        fig.savefig(
+            d / "geps_telecon_reliability.webp", dpi=105, facecolor="white", pil_kwargs={"quality": 88, "method": 6}
+        )
+    plt.close(fig)
+    print(f"  geps_telecon_reliability.webp ({len(flags)} cells flagged)")
 
 
 def previous_cycle(cycle):
@@ -1052,7 +1263,7 @@ def main() -> int:
         if lp is not None:
             lp = lp / lp.loc["1991":"2020"].std()
             cpc["soi"] = lp * pat.to_seasonal("soi", refpack.noleap_doy(lp.index))
-    cal = calibration(pat, base)
+    cal = calibration(base)
     print(
         f"  hindcast calibration: {'yes, ' + str(len(cal)) + ' indices' if cal else 'none (run telecon_hindcast.py)'}"
     )
@@ -1079,6 +1290,7 @@ def main() -> int:
     plot_series(pat, a.cycle, prev_cycle, fc, pfc, obs, cpc)
     plot_plumes(pat, a.cycle, prev_cycle, fc, pfc, obs, cpc)
     plot_probs(pat, a.cycle, prev_cycle, weeks)
+    plot_reliability(pat, a.cycle, weeks)
     # numbers for the page
     js = {
         "cycle": a.cycle,
@@ -1088,6 +1300,16 @@ def main() -> int:
         "skill_min": SKILL_MIN,
         "skill_p_max": P_MAX,
         "skill_fdr_q": FDR_Q,
+        "hindcast": "GEPS8 2001-2020, 4-member mean, de-drifted leave-one-year-out, vs NCEP/NCAR R1" if cal else None,
+        "calibration_test": (
+            "cal_cv per week: every hindcast year's season scored with the regression refitted on the other years; "
+            "pit = PIT histogram counts, rel_pos / rel_neg = reliability-diagram bins (n, mean forecast, observed "
+            "frequency) of P(>= +threshold) / P(<= -threshold); z = probit PIT, mean and sd with 95% intervals and "
+            f"p from {BOOT} bootstrap draws over hindcast years; miscal_* = significant after Benjamini-Hochberg at "
+            "skill_fdr_q over every test of the run"
+        )
+        if cal
+        else None,
         "units": "seasonal sd: std of the 1991-2020 daily index within +-15 d of the day of year",
         "n_members": int(next(iter(fc.values()))[1].shape[1]),
         "indices": {},

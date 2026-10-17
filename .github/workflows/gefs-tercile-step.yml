@@ -1,0 +1,90 @@
+name: GEFS tercile step test (2016-2019 reforecast vs the live 2016-2025 terciles)
+
+# The test of the GEFS tercile maps' 2016-2025 categories (scripts/gefs/build_gefs_mapskill.py step, see its
+# docstring): the reforecast starts of 2016-2019 scored exactly as the live maps score a forecast, from a
+# leave-season-out climatology, against the observed tercile of each week (scripts/gefs/data/gefs_tercile_obs.npz,
+# built offline). Fetches only 2 m temperature and precipitation of the GEFSv12 reforecast (NOAA S3, byte-ranged), one
+# job a year; 2015 supplies the season mates of the first 2016 starts. The result is an artifact (json + log).
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: gefs-tercile-step
+  cancel-in-progress: false
+
+env:
+  PIP_CONSTRAINT: ${{ github.workspace }}/scripts/constraints.txt   # bounds every pip install (see the file)
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 240
+    strategy:
+      fail-fast: true
+      matrix:
+        year: [2015, 2016, 2017, 2018, 2019]
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          sparse-checkout: |
+            scripts/gefs
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+      - run: pip install --quiet numpy scipy eccodes
+      - name: Reforecast ${{ matrix.year }} (t2m, pr)
+        run: |
+          set -o pipefail
+          python scripts/gefs/gefs_reforecast.py year ${{ matrix.year }} --tags t2m,pr --out rf --procs 4 | tee rf.log
+          n=$(ls rf/rf_*.npz | wc -l)
+          echo "$n starts"
+          [ "$n" -ge 52 ] || { echo "::error::only $n starts of ${{ matrix.year }}"; exit 1; }
+      - uses: actions/upload-artifact@v7
+        with:
+          name: rf-${{ matrix.year }}
+          path: rf/rf_*.npz
+          retention-days: 7
+
+  score:
+    needs: fetch
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          sparse-checkout: |
+            scripts/gefs
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+      - run: |
+          pip install --quiet numpy scipy
+          pip install --quiet "quantmet @ git+https://github.com/scorvec/quantmet-tools@v0.4.2"   # BH-FDR, pinned to the tag
+      - uses: actions/download-artifact@v7
+        with:
+          pattern: rf-*
+          path: rf
+          merge-multiple: true
+      - name: Reference files (releases gefs-clim-v1, gefs-ref-v1)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release download gefs-clim-v1 --repo "$GITHUB_REPOSITORY" -p 'gefs_clim_*.npz' -D clim
+          gh release download gefs-ref-v1 --repo "$GITHUB_REPOSITORY" -p era5_shift.npz -p 'gefs_mapskill_*.npz' \
+            -p 'gefs_terciles_*.npz' -D ref
+          ls rf | wc -l; ls clim | wc -l; ls ref
+      - name: Score
+        run: |
+          set -o pipefail
+          mkdir -p out
+          python scripts/gefs/build_gefs_mapskill.py step --rf rf --clim clim --ref ref --out out/gefs_tercile_step.json \
+            | tee out/step.log
+          { echo '```'; cat out/step.log; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: gefs-tercile-step
+          path: out/
+          retention-days: 30
