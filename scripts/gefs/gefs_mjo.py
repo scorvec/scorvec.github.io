@@ -32,8 +32,9 @@ Checked against BoM's official RMM over 150 days (2023-09-28 .. 2024-02-24, the 
 correlation 0.993, RMSE 0.22, amplitude ratio 0.95 (0.990 / 0.957 with BoM shifted a day later / earlier). So the
 observed track, its filter and the forecast are one model's one frame, and nothing leaves the S3 bucket the
 forecast comes from (~2,000 small byte-ranged requests on a cold cache, a handful a day on a warm one: per-cycle band
-means are kept in CACHE/mjo_anl/). GEPS takes its OLR track and both filter maps from ERA5 / the GMGSI proxy
-(olr_channel.py, wind_map120.nc); here that would join a satellite-scale OLR track to a model-scale forecast.
+means are kept in CACHE/mjo_anl/). GEPS takes its OLR track from ERA5 / the GMGSI proxy (olr_channel.py) and its wind
+filter map from ERA5 (wind_map120.nc), and filters only its forecast OLR with its own day-1 OLR
+(mjo_geps.forecast_olr_map): the Datamart keeps a month of GEPS runs, too few for a track filtered by its own 120 days.
 
 Reference frames (GEPS's fix, A(L) = [F(L) - M(L)] + [M(L=0) - O]). F is the forecast, M the GEFS reforecast model
 climatology at the INIT day of year and the same lead, O the WH04 observed climatology (scripts/mjo climatology.nc,

@@ -13,12 +13,15 @@ for all starts, by season of the start, for starts with observed initial
 amplitude >= 1, and for the starts within +-45 days of a chosen day of year
 (the season now).
 
-One approximation, and it is the only one: the WH04 120-day mean of the
-observed channels before each start is not available for 2001-2020 in this
-archive, so it is taken from the hindcast's own de-drifted day-1 channels of
-the starts in the preceding 120 days (four a week, ~68 samples). Day-1
-skill is ~0.95, so this stands in well for the observed 120-day mean and,
-being a slowly varying term, it barely touches the day-to-day score.
+The WH04 120-day mean before each start is taken from the hindcast's own
+de-drifted day-1 channels of the starts in the preceding 120 days (four a week,
+~68 samples, at least 20), so the model's bias is in the channels and in the
+map and cancels. The live OLR channel is filtered the same way, with GEPS's own
+day-1 OLR (mjo_geps.forecast_olr_map). One approximation is left: the live winds
+are filtered with ERA5's 120-day map (wind_map120.nc), which GEPS's own analysed
+winds match to 0.03 in RMM; observed winds for 2001-2020 are not in this
+archive, and the term is slowly varying, so it barely touches the day-to-day
+score.
 
     python mjo_hindcast.py --doy-now 246
     -> telecon/mjo_hindcast.nc, telecon/mjo_skill.json, figs/geps_mjo_skill.webp
@@ -59,7 +62,7 @@ FIGS = paths.FIGS
 SITE = paths.SITE_ASSETS
 TAGS = {"olr": "clim_olr", "u850": "clim_u850", "u200": "clim_u200"}
 Y0, Y1 = 2001, 2020
-FILTER_DAYS = 120
+FILTER_DAYS = mg.FILTER_DAYS  # the WH04 window, as the live forecast's
 
 # ECMWF extended range, for the reference line. Published bivariate-correlation
 # skill of the ECMWF reforecasts (Vitart 2017, QJRMS 143:2210, Fig. 2 and the

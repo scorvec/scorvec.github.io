@@ -304,25 +304,42 @@
     within a cycle), so it is not a forecast signal; a global-mean OLR anomaly that size is not
     physically possible. Left in, it tinted every map green and put spurious widespread negative
     anomalies over North America. The per-lead global mean is removed for OLR on the maps and the
-    Hovm&ouml;ller, as it is for height. The RMM projection keeps it: a uniform
-    1&nbsp;W&nbsp;m<sup>&minus;2</sup> moves the RMM by 0.0095, so this offset moves the forecast track
-    by about 0.08.</p>
+    Hovm&ouml;ller, as it is for height. The RMM needs no such step: its forecast OLR is filtered with GEPS&rsquo;s
+    own first-day OLR (below), which carries the same offset, so there it cancels.</p>
     <p><b>Height is treated differently from the rest.</b> Between the 2001&ndash;2020 hindcast
     epoch and today there is a real climate offset in geopotential height &mdash; a flat
     +16&nbsp;m at every lead, measured &mdash; which would otherwise sit over every 500&nbsp;hPa map
     as a uniform ridge. For z500 the per-lead global mean is removed so the circulation shows. For
     temperature and precipitation the raw anomaly is kept, because there the departure from the
     2001&ndash;2020 climate is part of what you want to see. Each figure says which it is.</p>
-    <p><b>The OLR channel.</b> ERA5's top-of-atmosphere longwave runs about 13&nbsp;W&nbsp;m<sup>&minus;2</sup>
-    above the NOAA interpolated OLR that the RMM reference climatology and EOFs were built on (1979&ndash;2001), so
-    ERA5 is moved into that frame before anything is projected, by a fixed offset: ERA5's own 1979&ndash;2001
-    climatology minus NOAA's, by longitude and day of year. An offset taken as the mean over the recent ERA5 record
-    would also remove that record's mean anomaly, part of a long El Ni&ntilde;o's or La Ni&ntilde;a's convection
-    signal; on the observed track that cancels against the 120-day map, but in the forecast it would not. The GMGSI proxy that
+    <p><b>The OLR channel.</b> The observed track&rsquo;s OLR is ERA5, whose top-of-atmosphere longwave runs about
+    13&nbsp;W&nbsp;m<sup>&minus;2</sup> above the NOAA interpolated OLR that the RMM reference climatology and EOFs
+    were built on (1979&ndash;2001), so ERA5 is moved into that frame before anything is projected, by a fixed
+    offset: ERA5's own 1979&ndash;2001 climatology minus NOAA's, by longitude and day of year. Being climatological,
+    it follows the offset&rsquo;s seasonal cycle and keeps what a mean over the recent ERA5 record would also have
+    removed, part of a long El Ni&ntilde;o's or La Ni&ntilde;a's convection signal. The GMGSI proxy that
     covers the final few days is offset-corrected onto ERA5 per longitude over their last 90 overlapping days (over the 220-day overlap available when this was set up: r&nbsp;=&nbsp;0.80
     in the anomaly, spread within 3% of ERA5's) and screened day by day &mdash; the mosaic
     occasionally publishes a day with missing passes, and one such day at the end of the record
     would otherwise become the observed MJO's latest point.</p>
+    <p><b>The forecast&rsquo;s OLR is filtered with GEPS&rsquo;s own.</b> Each RMM channel loses the mean of the
+    120 days before it, and that mean has to come from the same source as the channel. The forecast&rsquo;s OLR
+    anomaly, put into the reference frame with the reforecast&rsquo;s first-day climatology, carries GEPS&rsquo;s
+    own OLR bias: its first day runs 12.6&nbsp;W&nbsp;m<sup>&minus;2</sup> above the observed OLR of the same day
+    in the band mean (13 cycles, 27 August to 15 October 2026). Filtered with the observed 120-day mean, the bias
+    stayed in: the first three forecast days sat 11.6&nbsp;W&nbsp;m<sup>&minus;2</sup> above the observed OLR,
+    0.13 in RMM amplitude (0.06&ndash;0.21 a cycle). So the forecast&rsquo;s OLR is filtered with the mean of
+    GEPS&rsquo;s own first-day OLR (each day&rsquo;s 00&nbsp;UTC run, its first 24 hours) over the 120 days before
+    the init, the way the hindcasts behind the skill scores below are filtered, and the bias cancels. Tested on the
+    same cycles, the mismatch falls to &minus;0.7&nbsp;W&nbsp;m<sup>&minus;2</sup> and 0.07, the cycle-to-cycle
+    scatter of GEPS&rsquo;s first-day error, which no filter removes; the forecast track moves by 0.08, nearly all
+    along RMM1 and the same at every lead. The Datamart keeps only about 30 days of runs, so this history began in
+    September 2026. A day it does not hold contributes the observed OLR moved into GEPS&rsquo;s frame: the
+    forecast&rsquo;s own frame shift, plus the mean difference between GEPS&rsquo;s first-day anomaly and the
+    observed one over the days held (at least 20, enough to fix it to 0.02&ndash;0.03 in RMM). Once all 120 days
+    are held, the filter is GEPS&rsquo;s own throughout. The winds need none of this: their observed track is
+    GEPS&rsquo;s own analysis, which agrees with ERA5&rsquo;s band-mean winds to within 0.03 in RMM, so
+    ERA5&rsquo;s 120-day map serves the forecast and the observed track alike.</p>
     <h2>The stratosphere</h2>
     <p><b>The stratosphere is de-drifted with a second reforecast.</b> Everything else on this
     page is de-drifted against the GEPS8 hindcast, and that archive cannot serve the vortex: it
@@ -536,10 +553,11 @@
     with the same arithmetic as the live RMM &mdash; band means, lead-matched de-drift, frame shift,
     120-day mean removed &mdash; and verified against the Bureau of Meteorology&rsquo;s RMM on the
     valid date, giving the bivariate correlation, RMSE and amplitude ratio by lead, for all starts,
-    by season, for strong initial MJO, and for the starts within &plusmn;45 days of today. The one
-    approximation: the WH04 120-day mean before each start is taken from the hindcast&rsquo;s own
-    day-1 channels of the preceding 120 days rather than from observations, which are not in this
-    archive for 2001&ndash;2020; day-1 skill is ~0.95 and the term is slowly varying. The ECMWF
+    by season, for strong initial MJO, and for the starts within &plusmn;45 days of today. The WH04
+    120-day mean before each start is taken from the hindcast&rsquo;s own day-1 channels of the
+    preceding 120 days, which is how the live forecast&rsquo;s OLR is filtered too (above). The one
+    approximation is the winds: the live forecast filters them with ERA5&rsquo;s map, observations
+    for 2001&ndash;2020 are not in this archive, and the term is slowly varying. The ECMWF
     marks are the published extended-range reforecast values (Vitart 2017 and the ECMWF verification
     memoranda), not a like-for-like computation &mdash; the S2S reforecasts sit behind a research
     licence and are not on this site, and ECMWF&rsquo;s open data stops at day 15, so no live
@@ -555,8 +573,8 @@
     the version this reforecast belongs to, not the current cycle, and ECMWF&rsquo;s quoted range
     spans 2016 to the early 2020s. <i>Verification target:</i> BoM&rsquo;s RMM removed an ENSO
     component before 2014 and not after, and ECMWF scores against its own analysis; a day at most.
-    <i>The 120-day mean:</i> approximated from the hindcast&rsquo;s own day-1 channels, a slowly
-    varying term with day-1 skill near 0.95. <i>What the scores describe:</i> the ensemble mean
+    <i>The 120-day mean:</i> the hindcast&rsquo;s own day-1 channels, as for the live OLR; the live
+    winds use ERA5&rsquo;s map, a slowly varying difference. <i>What the scores describe:</i> the ensemble mean
     only &mdash; the plume&rsquo;s spread is not scored here, and an ensemble mean is damped by
     construction, which is what the amplitude panel shows. The practical reading is that the MJO
     phase diagram on this page is reliable to about two weeks, useful with care to about three, and

@@ -112,15 +112,17 @@ step "archive this cycle for the next run's comparisons" "$PY" archive.py --cycl
 import json, os, sys, datetime as dt
 from pathlib import Path
 st = Path(os.environ["GEPS_STATE"]); ana = st / "telecon" / "analysis"; mj = st / "mjo_analysis"
-cut = (dt.date.today() - dt.timedelta(days=70)).strftime("%Y%m%d")
+today = dt.date.today()
+cut = (today - dt.timedelta(days=70)).strftime("%Y%m%d")     # observed-tail caches: the products show 45 days at most
+cut1 = (today - dt.timedelta(days=150)).strftime("%Y%m%d")   # GEPS day-1 OLR (olr1_*): mjo_geps's 120-day filter + a month
 n = 0
-for d in (ana, mj):                          # observed-tail caches: the products show 45 days at most
+for d in (ana, mj):
     for q in d.glob("*.npz") if d.exists() else []:
         tag = q.stem.rsplit("_", 1)[-1]
-        if tag.isdigit() and tag < cut:
+        if tag.isdigit() and tag < (cut1 if q.name.startswith("olr1_") else cut):
             q.unlink(); n += 1
 (st / "last_cycle.json").write_text(json.dumps({"cycle": sys.argv[1], "built": dt.datetime.utcnow().isoformat(timespec="minutes") + "Z"}))
-print(f"  state: last cycle {sys.argv[1]}, pruned {n} cache files older than {cut}")
+print(f"  state: last cycle {sys.argv[1]}, pruned {n} cache files older than {cut} (day-1 OLR: {cut1})")
 PYEOF
 "$PY" datamart.py
 out "new=1"; out "cycle=$CYCLE"
