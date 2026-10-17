@@ -53,7 +53,7 @@
   .map-grid img { display: block; width: 100%; height: auto; }
   .map-grid figcaption { font-size: 0.8rem; color: var(--ink2); padding: 0.5rem 0.3rem 0.2rem; line-height: 1.5; }
   /* clickable cities over the threshold-day maps (positions are image fractions from the builder) */
-  .xd-map { position: relative; display: block; }
+  .xd-map { position: relative; display: block; width: fit-content; max-width: 100%; margin: 0 auto; }   /* hugs the image, so the city markers' percentages stay on the map when the stage caps its height */
   .xd-city { position: absolute; transform: translate(-50%, -50%); width: 22px; height: 22px; padding: 0; border: 0; background: transparent; cursor: pointer; }
   .xd-city .dot { position: absolute; left: 50%; top: 50%; width: 11px; height: 11px; margin: -5.5px 0 0 -5.5px; border-radius: 50%; background: #111; border: 2px solid #fff; box-shadow: 0 0 0 1px #111; transition: transform .12s; }
   .xd-city:hover .dot, .xd-city.on .dot { background: var(--accent); box-shadow: 0 0 0 2px var(--accent); transform: scale(1.25); }
