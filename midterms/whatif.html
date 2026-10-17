@@ -333,7 +333,7 @@ td.nm{min-width:180px}td.nm small{display:block;color:var(--muted);font-size:14p
       if (row) p.e.classList.add(row === 1 ? "hi" : "hi2"); end[row] = p.r; }
   }
   function readHash() { try { const h = new URLSearchParams(location.hash.slice(1)); const s = def();
-    for (const k of Object.keys(s)) if (h.has(k)) s[k] = +h.get(k);
+    for (const k of Object.keys(s)) if (h.has(k)) { const el = $(k), v = +h.get(k); if (Number.isFinite(v)) s[k] = Math.min(+el.max, Math.max(+el.min, v)); }  // a hand-edited hash stays on the slider's range
     if (h.has("p")) h.get("p").split(",").filter(Boolean).forEach(x => { const [k, v] = x.split("="); if (v === "D" || v === "R") picks[k] = v; });
     return s; } catch (e) { return def(); } }
   function writeHash() { const d = def(), h = new URLSearchParams();
