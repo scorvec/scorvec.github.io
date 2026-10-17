@@ -11,7 +11,7 @@ ahead at that speed in a marked extension strip. Kelvin uses the 5°S-5°N
 band; ER (n=1) the broader 15°S-15°N band where its off-equator OLR
 signal lives.
 
-Reuses olr_waves' filter, stores and climatology verbatim.
+Reuses olr_waves' filter, store and baseline verbatim.
 
     python scripts/sst/wave_trackers.py                       # real-time
     python scripts/sst/wave_trackers.py --out /tmp/test.webp
@@ -36,7 +36,7 @@ from scipy.ndimage import gaussian_filter1d
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
-from olr_waves import CLIM, STORE_RT, _anomaly_rt, clim_days, wk_filter
+from olr_waves import BASELINE, STORE_RT, _anomaly_rt, clim_days, wk_filter
 
 
 def wk_filter_padded(anom: np.ndarray, wave: str, pad: int = 48) -> np.ndarray:
@@ -44,7 +44,10 @@ def wk_filter_padded(anom: np.ndarray, wave: str, pad: int = 48) -> np.ndarray:
     taper (5% of the record ≈ 4 weeks) attenuates the PADDING, not the most
     recent — operationally crucial — days: the field ramps from the last
     observed row to zero over 10 days, then stays zero. The padded rows are
-    discarded after filtering."""
+    discarded after filtering. The record is filtered less each longitude's
+    mean: the bands exclude f = 0, and a standing anomaly left in would ramp
+    into them at the landing."""
+    anom = anom - anom.mean(0)
     n = anom.shape[0]
     ramp_n = 10
     ramp = anom[-1][None, :] * (1 - (np.arange(1, ramp_n + 1) / (ramp_n + 1)))[:, None]
@@ -169,7 +172,7 @@ def main(argv=None) -> int:
     ap.add_argument("--out", default=str(OUT))
     args = ap.parse_args(argv)
 
-    clim = xr.open_dataset(CLIM)
+    base = xr.open_dataset(BASELINE)
     rt = xr.open_dataset(STORE_RT)
 
     fc = aifs_pseudo_olr()
@@ -178,7 +181,7 @@ def main(argv=None) -> int:
     now = None
     any_fc = False
     for ax, (wave, cfg) in zip(axes, PANELS.items()):
-        anom = _anomaly_rt(rt, clim, cfg["band"])
+        anom = _anomaly_rt(rt, base, cfg["band"])
         lons = anom["lon"].values
         dlon = float(lons[1] - lons[0])
         times = pd.to_datetime(anom["time"].values)
