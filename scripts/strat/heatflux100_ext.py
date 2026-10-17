@@ -3,9 +3,11 @@
 wave-1 and wave-2 parts.
 
 The same product as heatflux100.py (AIFS-ENS, days 1-15) - the same flux (per member, then averaged; waves 1..72; wave-1
-and wave-2 kept apart; positive = poleward), the same 45-75 deg band, the same NCEP R1 1991-2020 climatology and the same
-analysed tail (the AIFS control's step-0 history, assets/sst/data/heatflux100_history.json) - so the three models read
-against one reference. One instant per day, the 00Z field at every 24 h step, as the AIFS product uses.
+and wave-2 kept apart; positive = poleward), the same 45-75 deg band, the same ERA5 1991-2020 climatology and the same
+analysed tail (the AIFS control's step-0 history, assets/sst/data/heatflux100_history.json) - so the models read against
+one reference. One instant per day, the 00Z field at every 24 h step, as the AIFS product uses. Each model's members
+have its own significant mean error against ERA5 removed (heatflux100_bias.py, measured on its archived runs); GEPS's
+Datamart keeps too few runs for that test, so GEPS is uncorrected.
 
   geps  ECCC GEPS 00Z extended run (Mon/Thu), 20 perturbed + control, 0.5 deg, the `allmbrs` VGRD/TMP 100 hPa files
         the GEPS vortex products already cache (strat_maps.fetch). Actions, in run_geps.sh (geps.yml).
@@ -196,9 +198,12 @@ def main() -> int:
         "sign": "positive = poleward",
         "hemispheres": {},
     }
+    tab = HF.load_bias(a.model)
+    lead = (valid - init) / pd.Timedelta(days=1)
     for hemi, north in (("nh", True), ("sh", False)):
-        mem = {k: HF.band_mean(lat, fall[k], north) for k in fall}
-        ctrl = {k: HF.band_mean(lat, fc[k], north)[0] for k in fc} if fc is not None else None
+        err = {k: HF.bias_at(tab, hemi, k, valid, lead) for k in fall}  # zero where no significant error was found
+        mem = {k: HF.band_mean(lat, fall[k], north) - err[k] for k in fall}
+        ctrl = {k: HF.band_mean(lat, fc[k], north)[0] - err[k] for k in fc} if fc is not None else None
         obs = HF.history_frame(hist, hemi)
         if obs is not None:
             obs = obs[obs.index <= init.normalize()]
@@ -221,6 +226,7 @@ def main() -> int:
             init,
             n,
             out / f"{a.model}_heatflux100_{hemi}.webp",
+            HF.bias_note(tab, any(np.any(e != 0) for e in err.values())),
             model=name if a.model == "ifs" else f"{name} extended",
         )
         h = {
@@ -229,6 +235,7 @@ def main() -> int:
                 "p10": np.round(np.percentile(mem[k], 10, 0), 2).tolist(),
                 "p90": np.round(np.percentile(mem[k], 90, 0), 2).tolist(),
                 "control": None if ctrl is None else np.round(ctrl[k], 2).tolist(),
+                "model_error_removed": np.round(err[k], 2).tolist(),
             }
             for k in mem
         }
