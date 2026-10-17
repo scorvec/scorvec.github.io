@@ -112,7 +112,7 @@ PRODUCTS = [
                     (
                         "/mjo.html",
                         "MJO forecast",
-                        "Real-time multivariate MJO index from the ECMWF AIFS ensemble, with the observed phase-space track, an ENSO-removed version, and what each phase has meant for temperature and rain.",
+                        "Real-time multivariate MJO index from the AIFS-ENS, IFS-ENS, GEFS and GEPS ensembles on one phase diagram, standard or ENSO-removed, with the observed track and what each phase has meant for temperature and rain.",
                         "Twice daily",
                     ),
                     (

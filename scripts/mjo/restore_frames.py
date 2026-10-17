@@ -1,6 +1,6 @@
 """Restore missing RMM loop frames from git history (maintenance; run by mjo-restore-frames.yml).
 
-The loop on mjo.html shows the newest KEEP cycles of assets/mjo/rmm_YYYYMMDD_HHz.webp (and rmmclean_*): one file per
+The loop on mjo.html shows the newest KEEP cycles of assets/mjo/rmm_YYYYMMDD_HHz.webp: one file per
 cycle, PNG before 2026-10-16, the WebP where a cycle has both. Until 2026-10-03 mjo.yml pruned with `ls -t`, whose
 name tie-break on equal checkout mtimes deleted the NEWEST cycles, so the loop kept August runs and lost most of late
 September (and re-plotting a past cycle dropped the latest frame). This puts back,
@@ -20,7 +20,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 ASSETS = ROOT / "assets" / "mjo"
-PREFIXES = ("rmm", "rmmclean")
+PREFIXES = ("rmm",)
 
 
 def git(*args, binary=False):

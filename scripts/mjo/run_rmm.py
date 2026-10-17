@@ -158,9 +158,13 @@ def main() -> None:
         title=f"ENSO not removed: RMM{' (AIFS vs IFS)' if rmm_ifs is not None else ' (AIFS)'}  —  Init: {d0}",
     )
 
-    # 4b. ENSO-removed wind-only RMM (src/enso_rmm.py): same members, observed tail and IFS overlay, minus the
-    #     part linearly related to the Nino-3.4 change over the filter window. Best-effort: a failure here never
-    #     touches the raw product above.
+    # 4b. The multi-model phase diagram's data (src/rmm_export.py) and the ENSO-removed diagnosis (src/enso_rmm.py):
+    #     the wind-only RMM of both ensembles, the observed tail and the correction for the Nino-3.4 change over the
+    #     filter window, which the page applies in the browser. Best-effort: a failure here never touches the raw
+    #     product above; without the Nino-3.4 series the file carries the raw tracks alone.
+    import rmm_export
+
+    dn = c = n34 = None
     try:
         import enso_rmm
 
@@ -172,15 +176,7 @@ def main() -> None:
         if not np.isfinite(dn):
             raise ValueError("Nino-3.4 series too short for the 120-day window")
         rc = enso_rmm.clean_forecast(rmm, dn, c, "AIFS")
-        ic = enso_rmm.clean_forecast(rmm_ifs, dn, c, "IFS") if rmm_ifs is not None else None
         oc = enso_rmm.clean_obs(obs, n34, c)
-        plot_rmm(
-            rc,
-            obs=oc,
-            ifs=ic,
-            out_path=Path(args.out_dir) / f"rmmclean_{args.date}_{args.time}z.webp",
-            title=f"ENSO removed: wind-only RMM{' (AIFS vs IFS)' if ic is not None else ' (AIFS)'}  —  Init: {d0}",
-        )
         st = enso_rmm.diagnose(rc, oc, dn, enso_rmm.romi_status())
         st.update(init=d0, updated=pd.Timestamp.utcnow().strftime("%Y-%m-%d %H:%MZ"))
         (Path(args.out_dir) / "rmm_clean_status.json").write_text(__import__("json").dumps(st))
@@ -189,7 +185,12 @@ def main() -> None:
             f"speed {st['forecast']['speed']} deg/day, coherent={st['coherent_mjo_forecast']}"
         )
     except Exception as e:  # noqa: BLE001
-        print(f"::warning::ENSO-removed RMM skipped ({repr(e)[:120]})")
+        print(f"::warning::ENSO-removed RMM diagnosis skipped ({repr(e)[:120]})")
+        dn = c = n34 = None
+    try:
+        rmm_export.write(Path(args.out_dir) / "rmm_models.json", init, rmm, rmm_ifs, obs, dn, c, n34)
+    except Exception as e:  # noqa: BLE001
+        print(f"::warning::rmm_models.json not written ({repr(e)[:120]})")
 
     miss = Path(str(out_png) + ".missing")
     if rmm_ifs is None:

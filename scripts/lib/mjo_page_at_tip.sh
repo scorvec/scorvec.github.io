@@ -11,7 +11,7 @@
 #   scripts/lib/mjo_page_at_tip.sh <checkout sha>
 set -u
 BASE="${1:?checkout sha}"
-SRC="scripts/mjo/generate_page.py scripts/mjo/clean_section.py scripts/mjo/src/enso_rmm.py scripts/site/apply_chrome.py mjo.html"
+SRC="scripts/mjo/generate_page.py scripts/mjo/models_section.py scripts/mjo/src/enso_rmm.py scripts/site/apply_chrome.py mjo.html"
 # shellcheck disable=SC2086
 if git diff --quiet "$BASE" origin/main -- $SRC; then
   exit 0

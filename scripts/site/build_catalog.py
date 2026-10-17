@@ -668,39 +668,41 @@ def stage_items(href: str, cfg: dict) -> list:
 
 
 def mjo_items() -> list:
-    """mjo.html's two sections below the forecast: the ENSO-removed
-    index, and the impacts composites with a deep link and a figure for every selector combination (field x data x
-    month x lag x view, the page's own #mi/f/d/mm/l/v hash), the current month first as on the page."""
+    """mjo.html's two sections below the forecast: the multi-model phase diagram, and the impacts composites with a
+    deep link and a figure for every selector combination (field x data x month x lag x view, the page's own
+    #mi/f/d/mm/l/v hash), the current month first as on the page."""
     path = REPO / "mjo.html"
     try:
         html = path.read_text()
     except OSError:
         return []
     items = []
-    sec = re.search(r'<section id="mjo-clean".*?</section>', html, re.S)
+    sec = re.search(r'<section id="mjo-models".*?</section>', html, re.S)
     if sec:
         body = sec.group(0)
-        head = text_of((re.search(r"<h2>(.*?)</h2>", body, re.S) or [None, "MJO with the El Niño signal removed"])[1])
+        head = text_of(
+            (re.search(r"<h2>(.*?)</h2>", body, re.S) or [None, "MJO forecasts from the global ensembles"])[1]
+        )
         lead = text_of((re.search(r"</h2>\s*<p[^>]*>(.*?)</p>", body, re.S) or [None, ""])[1])
         thumb = None
         try:
-            M = json.loads((REPO / "assets/mjo/rmmclean_manifest.json").read_text())
+            M = json.loads((REPO / "assets/mjo/rmm_manifest.json").read_text())
             thumb = thumb_key(f"assets/mjo/{M['regions']['mjo']['frames'][-1]['file']}", False) or ""
         except Exception:
             pass
         shows = " ".join([head, lead])
         items.append(
             dict(
-                id="/mjo.html#mjo-clean",
+                id="/mjo.html#models",
                 page="/mjo.html",
                 page_title="MJO forecast",
-                group="ENSO-removed index",
+                group="All ensembles",
                 label=head,
-                sub="ENSO-removed RMM, wind-only",
-                url="/mjo.html#mjo-clean",
+                sub="AIFS-ENS, IFS-ENS, GEFS, GEPS; standard or ENSO-removed RMM",
+                url="/mjo.html#models",
                 topic="drivers",
-                horizon="Days 1–15",
-                models=tags(MODEL_RX, shows, ["AIFS-ENS"]),
+                horizon="Days 1–35",
+                models=tags(MODEL_RX, shows, ["AIFS-ENS", "IFS-ENS", "GEFS", "GEPS"]),
                 regions=["Tropics"],
                 variables=["Convection", "Wind"],
                 thumb=thumb,
