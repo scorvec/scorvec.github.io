@@ -1,0 +1,137 @@
+name: Polar and subtropical jets and their superposition (ERA5 1991-2020 reference)
+
+# Dispatch-only builder of the ERA5 reference of the jet-branch product (scripts/mjo/src/jet_branches.py): the polar
+# jet, the subtropical jet and their vertical superposition, identified column by column on the 0.5 deg grid at 00 and
+# 12 UTC over the cold seasons (November-March) of 1991-2020 (scripts/mjo/src/build_jet_branches_ref.py). ERA5 comes
+# from WeatherBench 2's 0.25 deg 13-level store (anonymous GCS), ~35 GB a season. One part per season; the combine
+# job runs only when every part succeeded, and writes
+#   release jet-branches-ref-v1   jet_branches_clim.nc (per-slot counts of each branch, analyses per slot, monthly
+#                                 counts and mean 400-100 hPa wind) and jet_branches_calib.nc (the sensitivity variants)
+#   scripts/mjo/data/reference    jet_branches_ref.json, jet_branches_events.csv, jet_branches_regions.nc
+# and the validation maps as an artifact. With check=true it combines whatever seasons ran, uploads every output as
+# an artifact and releases and commits nothing (a trial run: e.g. winters=[2010]).
+on:
+  workflow_dispatch:
+    inputs:
+      winters:
+        description: 'JSON list of cold seasons (by the year of January)'
+        default: '[1991,1992,1993,1994,1995,1996,1997,1998,1999,2000,2001,2002,2003,2004,2005,2006,2007,2008,2009,2010,2011,2012,2013,2014,2015,2016,2017,2018,2019,2020]'
+      days:
+        description: 'Only the first N days of each season (empty = all of November-March)'
+        default: ''
+      check:
+        description: 'Trial run: outputs as an artifact only, nothing released or committed'
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+env:
+  PIP_CONSTRAINT: ${{ github.workspace }}/scripts/constraints.txt   # bounds every pip install (see the file)
+
+jobs:
+  part:
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    strategy:
+      fail-fast: false
+      max-parallel: 6   # leaves runners for the scheduled pipelines
+      matrix:
+        winter: ${{ fromJSON(inputs.winters) }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+      - name: Install Python dependencies
+        run: pip install --quiet numpy scipy pandas xarray zarr gcsfs pyproj "quantmet @ git+https://github.com/scorvec/quantmet-tools@v0.4.2"
+      - name: Unit tests
+        run: python scripts/mjo/src/test_jet_branches.py
+      - name: Identify the jets over this season
+        env:
+          DAYS: ${{ inputs.days }}
+        run: |
+          mkdir -p out
+          args=(--winter ${{ matrix.winter }} --out out/jb_${{ matrix.winter }}.npz)
+          if [ -n "$DAYS" ]; then args+=(--days "$DAYS"); fi
+          python scripts/mjo/src/build_jet_branches_ref.py fetch "${args[@]}"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: jb-${{ matrix.winter }}
+          path: out/*.npz
+          retention-days: 7
+
+  combine:
+    needs: part
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    concurrency:
+      group: jet-branches-ref
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+      - name: Install Python dependencies
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y --no-install-recommends libeccodes0 libgeos-dev libproj-dev proj-bin
+          pip install -r scripts/mjo/requirements-mjo.txt
+      - uses: actions/download-artifact@v7
+        with:
+          pattern: jb-*
+          path: parts
+          merge-multiple: true
+      - name: Combine
+        env:
+          CHECK: ${{ inputs.check }}
+        run: |
+          mkdir -p out
+          args=(--release-dir out --figure out/jet_branches_check.png)
+          if [ "$CHECK" = true ]; then args+=(--allow-partial); fi
+          python scripts/mjo/src/build_jet_branches_ref.py combine parts/jb_*.npz "${args[@]}"
+          ls -la out scripts/mjo/data/reference/jet_branches_*
+      - uses: actions/upload-artifact@v7
+        with:
+          name: jet-branches-check
+          path: out/jet_branches_check.png
+          retention-days: 14
+      - uses: actions/upload-artifact@v7
+        if: ${{ inputs.check }}
+        with:
+          name: jet-branches-outputs
+          path: |
+            out/*.nc
+            scripts/mjo/data/reference/jet_branches_*
+          retention-days: 14
+      - name: Release
+        if: ${{ !inputs.check }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release view jet-branches-ref-v1 -R "$GITHUB_REPOSITORY" >/dev/null 2>&1 || \
+            gh release create jet-branches-ref-v1 -R "$GITHUB_REPOSITORY" --title "Jet branches ERA5 reference v1" \
+              --notes "Polar jet, subtropical jet and superposition, ERA5 November-March 1991-2020 at 00/12 UTC on the 0.5 deg grid (scripts/mjo/src/build_jet_branches_ref.py)."
+          gh release upload jet-branches-ref-v1 out/jet_branches_clim.nc out/jet_branches_calib.nc -R "$GITHUB_REPOSITORY" --clobber
+      - name: Commit & push
+        if: ${{ !inputs.check }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          R=scripts/mjo/data/reference
+          SNAP=$(mktemp -d)
+          cp "$R"/jet_branches_ref.json "$R"/jet_branches_events.csv "$R"/jet_branches_regions.nc "$SNAP/"
+          for i in 1 2 3 4 5; do
+            if ! timeout 120 git fetch origin main; then echo "fetch $i failed"; sleep 5; continue; fi
+            git reset --hard origin/main
+            cp "$SNAP"/* "$R/"
+            git add "$R"/jet_branches_ref.json "$R"/jet_branches_events.csv "$R"/jet_branches_regions.nc
+            if git diff --staged --quiet; then echo "No changes; skipping commit."; exit 0; fi
+            git commit -m "Jet branches: ERA5 1991-2020 reference (regions, events, thresholds)"
+            if timeout 180 git push; then echo "Pushed on attempt $i."; exit 0; fi
+            echo "Push $i rejected; resyncing and retrying…"
+            sleep 5
+          done
+          echo "ERROR: could not push after 5 attempts." >&2
+          exit 1
