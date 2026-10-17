@@ -341,8 +341,9 @@ def observed(base: pd.Timestamp, clim, eofs, days: int = 30):
     """Three-field observed RMM track, and the fixed 120-day filter maps.
 
     Winds: GEPS lead-0 analysis (see above). OLR: olr_channel.py. Filter maps:
-    the site's wind_map120.nc plus the new olr_map120.nc, both from ERA5-grade
-    analysis — a 120-day mean tolerates a few days of latency, unlike the track."""
+    the site's wind_map120.nc plus the OLR channel's own 120-day mean, both from
+    ERA5-grade analysis — a 120-day mean tolerates a few days of latency, unlike
+    the track."""
     lon = eofs.longitude.values.astype(float)
     t, lm850, lm200 = geps_analysis_winds(base, days, lon)
     a850 = lm850 - sel_doy(clim["clim_u850"], t)

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""ERA5 baseline of the GMGSI OLR proxy: the 1991-2020 daily climatology and the proxy's offset from ERA5.
+"""ERA5 baselines of equatorial OLR: the GMGSI proxy's 1991-2020 climatology and offset, and the RMM OLR channel's frame.
 
 The equatorial wave products take their OLR from the GMGSI longwave-IR proxy (build_olr_realtime.py) and its anomaly
 as proxy − offset − climatology, both looked up on the 366-slot calendar (quantmet doy366: 29 February is slot 59 and
@@ -13,10 +13,22 @@ as proxy − offset − climatology, both looked up on the 366-slot calendar (qu
                longitude's mean over the proxy record instead also takes out much of a long-lasting anomaly such as
                an El Niño's.
 
+The RMM's OLR channel (scripts/mjo/src/olr_channel.py) is ERA5 OLR put into the frame of the Wheeler & Hendon
+reference climatology, NOAA interpolated OLR over 1979-2001 (scripts/mjo/data/reference/climatology.nc), and that
+frame is built here too:
+
+  frame        ERA5's own climatology over the reference's base period, in the RMM's band and fitted exactly as the
+               reference was (a mean and three annual harmonics in the common-year day of doycal.noleap_doy, every
+               day of the 23 years). ERA5 minus NOAA over the same years is then a fixed offset by longitude and day
+               of year. Taking ERA5 − NOAA as its mean over the recent record instead also takes out that record's
+               mean anomaly.
+
 ERA5 OLR is −mean_top_net_long_wave_radiation_flux (net top-of-atmosphere longwave, negative upward) from the ARCO
 store on Google Cloud; a day is the mean of the hourly means ending 00, 06, 12 and 18 UTC, four phases of the diurnal
-cycle like the proxy's four images. A band mean is unweighted over the 0.25° rows with |lat| at most the band's
-half-width, averaged over 2.5° cells centred on the proxy's longitudes: the proxy's own footprint.
+cycle like the proxy's four images. A proxy band mean is unweighted over the 0.25° rows with |lat| at most the band's
+half-width, averaged over 2.5° cells centred on the proxy's longitudes: the proxy's own footprint. The RMM band is the
+reduction of the live ERA5 days (scripts/mjo/src/fetch_arco_olr_band.py): cos-weighted over the rows within 15° of the
+equator, then the mean of the ten 0.25° columns from each 2.5° longitude eastward.
 
 The offset's uncertainty is a moving-block bootstrap of the fit (blocks of BLOCK days); a forward test fits the first
 365 days of the overlap and scores the rest, the way the static offset is used on days after it was estimated.
@@ -25,11 +37,13 @@ The offset's uncertainty is a moving-block bootstrap of the fit (blocks of BLOCK
     python scripts/sst/build_olr_baseline.py fetch --out era5_olr_recent.npz   # the proxy store's days, to ERA5's last
     python scripts/sst/build_olr_baseline.py build --recent era5_olr_recent.npz --clim era5_olr_1991.npz ...
     python scripts/sst/build_olr_baseline.py build --recent era5_olr_recent.npz   # re-fit the offset, keep the clim
+    python scripts/sst/build_olr_baseline.py frame --clim era5_olr_1979.npz ...   # fetch outputs covering 1979-2001
 """
 
 from __future__ import annotations
 
 import argparse
+import sys
 import time
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
@@ -42,7 +56,15 @@ from quantmet.degdays import doy366
 from build_olr_realtime import BANDS, GRID, SAMPLING, STORE
 
 HERE = Path(__file__).resolve().parent
+MJO_REF = HERE.parent / "mjo" / "data" / "reference"
+sys.path.insert(0, str(HERE.parent / "mjo" / "src"))
+from doycal import noleap_doy  # the calendar of the RMM reference climatology
+
 OUT = HERE / "metar" / "olr_baseline.nc"
+WH04_CLIM = MJO_REF / "climatology.nc"  # the RMM reference: clim_olr, NOAA interpolated OLR over its base_period
+FRAME_OUT = MJO_REF / "era5_olr_clim.nc"
+RMM_HALF = 15.0  # the RMM band: 15°S-15°N
+KEYS = (*BANDS, "rmm")  # the band means each fetched day holds
 ARCO = "gs://gcp-public-data-arco-era5/ar/full_37-1h-0p25deg-chunk-1.zarr-v3"
 VAR = "mean_top_net_long_wave_radiation_flux"
 HOURS = (0, 6, 12, 18)  # each day is the mean of the hourly means ending at these UTC hours
@@ -66,13 +88,14 @@ def open_flux() -> xr.DataArray:
         raise SystemExit(f"{VAR} is not a flux in W m-2")
     if not np.allclose(a.longitude.values, np.arange(1440) * 0.25):
         raise SystemExit("unexpected ERA5 longitudes")
-    half = max(BANDS.values())
+    half = max(*BANDS.values(), RMM_HALF)
     lat = a.latitude.values
     return a.sel(latitude=slice(half, -half) if lat[0] > lat[-1] else slice(-half, half))
 
 
 def day_bands(flux: xr.DataArray, day: pd.Timestamp) -> dict[str, np.ndarray] | None:
-    """Daily-mean OLR of each band on the 2.5° cells, or None for a day ERA5 does not reach yet."""
+    """Daily-mean OLR of each proxy band on the 2.5° cells and of the RMM band (KEYS), or None for a day ERA5 does not
+    reach yet."""
     times = [day + pd.Timedelta(hours=h) for h in HOURS]
     if times[-1] > flux["time"].values[-1]:  # the store's time axis runs ahead of its data, but not without end
         return None
@@ -91,6 +114,9 @@ def day_bands(flux: xr.DataArray, day: pd.Timestamp) -> dict[str, np.ndarray] | 
     olr = -v.mean(0)  # net longwave is −OLR
     lat = flux.latitude.values
     out = {b: (olr[np.abs(lat) <= half + 1e-6].mean(0)[CELL] * CELL_W).sum(-1) for b, half in BANDS.items()}
+    rows = np.abs(lat) <= RMM_HALF + 1e-6
+    w = np.cos(np.deg2rad(lat[rows]))
+    out["rmm"] = (w @ olr[rows] / w.sum()).reshape(len(GRID), 10).mean(-1)
     if not all(((x > 90) & (x < 340)).all() for x in out.values()):
         raise ValueError(f"{day:%Y-%m-%d}: band OLR outside 90-340 W m-2")
     return out
@@ -121,13 +147,13 @@ def fetch(start: str | None, end: str | None, out: Path, workers: int) -> None:
         out,
         time=days[:n].values.astype("datetime64[D]"),
         lon=GRID,
-        **{f"olr_{b}": np.stack([r[b] for r in got[:n]]).astype("float32") for b in BANDS},
+        **{f"olr_{b}": np.stack([r[b] for r in got[:n]]).astype("float32") for b in KEYS},
     )
     print(f"wrote {out}: {n} days to {days[n - 1]:%Y-%m-%d} in {(time.time() - t0) / 60:.1f} min", flush=True)
 
 
-def load_parts(paths) -> tuple[pd.DatetimeIndex, dict[str, np.ndarray]]:
-    """fetch outputs joined in time order."""
+def load_parts(paths, keys=tuple(BANDS)) -> tuple[pd.DatetimeIndex, dict[str, np.ndarray]]:
+    """fetch outputs joined in time order: the band means `keys`."""
     parts = [np.load(p) for p in paths]
     if not all(np.array_equal(z["lon"], GRID) for z in parts):
         raise SystemExit("a part is not on the proxy's longitudes")
@@ -136,17 +162,18 @@ def load_parts(paths) -> tuple[pd.DatetimeIndex, dict[str, np.ndarray]]:
     t = t[order]
     if t.has_duplicates:
         raise SystemExit("the parts overlap")
-    return t, {b: np.concatenate([z[f"olr_{b}"] for z in parts])[order].astype(float) for b in BANDS}
+    return t, {b: np.concatenate([z[f"olr_{b}"] for z in parts])[order].astype(float) for b in keys}
 
 
-def design(slot: np.ndarray, nh: int) -> np.ndarray:
-    """Least-squares columns of a mean and nh annual harmonics on the 366-slot calendar."""
-    ang = 2 * np.pi * np.outer(slot, np.arange(1, nh + 1)) / 366.0
+def design(slot: np.ndarray, nh: int, year: float = 366.0) -> np.ndarray:
+    """Least-squares columns of a mean and nh annual harmonics of a 0-based day on a calendar of `year` days: the
+    366-slot calendar, or (year=365) the common-year day of the RMM reference, doycal.noleap_doy - 1."""
+    ang = 2 * np.pi * np.outer(slot, np.arange(1, nh + 1)) / year
     return np.hstack([np.ones((len(slot), 1)), np.cos(ang), np.sin(ang)])
 
 
-def fit(slot: np.ndarray, y: np.ndarray, nh: int) -> np.ndarray:
-    return np.linalg.lstsq(design(slot, nh), y, rcond=None)[0]
+def fit(slot: np.ndarray, y: np.ndarray, nh: int, year: float = 366.0) -> np.ndarray:
+    return np.linalg.lstsq(design(slot, nh, year), y, rcond=None)[0]
 
 
 def fit_offset(days: pd.DatetimeIndex, d: np.ndarray, n4: np.ndarray, band: str) -> tuple[np.ndarray, dict]:
@@ -321,8 +348,63 @@ def build(clim_paths: list[Path], recent_path: Path) -> None:
     print(f"wrote {OUT.name} ({OUT.stat().st_size / 1e3:.0f} kB)", flush=True)
 
 
+def frame(clim_paths: list[Path]) -> None:
+    """ERA5's climatology of the RMM band over the reference climatology's base period -> FRAME_OUT, and its offset
+    from the reference: the fixed ERA5-to-NOAA frame shift olr_channel.py takes out."""
+    with xr.open_dataset(WH04_CLIM) as ref:
+        noaa = ref["clim_olr"].transpose("dayofyear", "longitude").values
+        days, lon = ref["dayofyear"].values, ref["longitude"].values
+        period, nh = str(ref.attrs["base_period"]), int(ref.attrs["n_harmonics"])
+    if not (np.array_equal(days, np.arange(1, 367)) and np.allclose(lon, GRID)):
+        raise SystemExit(f"{WH04_CLIM.name} is not on the 366-day x 2.5° grid")
+    y0, y1 = (int(y) for y in period.split("–"))
+    t, c = load_parts(clim_paths, ("rmm",))
+    span = pd.date_range(f"{y0}-01-01", f"{y1}-12-31")
+    if not t.equals(span):
+        raise SystemExit(f"the parts hold {len(t)} of the {len(span)} days of the reference period {period}")
+    # the reference's fit (setup_reference.smooth_annual_cycle): every day, harmonics of the common-year day, 366
+    # output days of which the last repeats the first
+    clim = design(days - 1, nh, 365.0) @ fit(noleap_doy(t.values) - 1, c["rmm"], nh, 365.0)
+    off = clim - noaa
+    ann = off.mean(0)
+    n4 = (lon >= NINO4[0]) & (lon <= NINO4[1])
+    stats = {
+        "frame_mean": round(float(off.mean()), 2),
+        "frame_nino4": round(float(off[:, n4].mean()), 2),
+        "frame_lon_min": round(float(ann.min()), 2),
+        "frame_lon_max": round(float(ann.max()), 2),
+        "frame_seasonal_range_max": round(float(np.ptp(off, axis=0).max()), 2),
+    }
+    print(
+        f"frame: ERA5 {period} ({len(t)} days, annual mean {clim.mean():.1f} W m-2) minus the NOAA reference:"
+        f" mean {off.mean():+.2f}, by longitude {ann.min():+.1f}..{ann.max():+.1f}, Nino-4 {off[:, n4].mean():+.2f},"
+        f" seasonal range up to {np.ptp(off, axis=0).max():.1f} W m-2",
+        flush=True,
+    )
+    ds = xr.Dataset(
+        {"clim_olr": (("dayofyear", "longitude"), clim.astype("float32"))},
+        coords={"dayofyear": days, "longitude": GRID},
+        attrs={
+            "title": "ERA5 15S-15N OLR climatology in the RMM band over the RMM reference period",
+            "source": f"ERA5 (ARCO) -{VAR}, daily mean of the hourly means ending "
+            + "/".join(f"{h:02d}" for h in HOURS)
+            + " UTC",
+            "band": "cos-weighted 0.25 deg rows with |lat| <= 15, then the mean of the ten 0.25 deg columns from each"
+            " longitude eastward (the reduction of fetch_arco_olr_band.py)",
+            "base_period": period,
+            "n_harmonics": nh,
+            "calendar": "dayofyear = common-year day (doycal.noleap_doy); 366 repeats 1, as in climatology.nc",
+            "frame": "clim_olr minus climatology.nc clim_olr = ERA5 minus NOAA interpolated OLR over the same years",
+            **stats,
+            "units": "W m-2",
+        },
+    )
+    ds.to_netcdf(FRAME_OUT, encoding={"clim_olr": {"zlib": True, "complevel": 5}})
+    print(f"wrote {FRAME_OUT.name} ({FRAME_OUT.stat().st_size / 1e3:.0f} kB)", flush=True)
+
+
 def main(argv=None) -> int:
-    ap = argparse.ArgumentParser(description="ERA5 climatology and offset for the GMGSI OLR proxy")
+    ap = argparse.ArgumentParser(description="ERA5 climatology and offset for the GMGSI OLR proxy, and the RMM frame")
     sub = ap.add_subparsers(dest="cmd", required=True)
     f = sub.add_parser("fetch", help="ERA5 daily band means for a span of days")
     f.add_argument("--start", help="first day, YYYY-MM-DD (default: the proxy store's first day)")
@@ -338,9 +420,17 @@ def main(argv=None) -> int:
         default=[],
         help=f"fetch outputs covering {CLIM_YEARS[0]}-{CLIM_YEARS[1]} (without them the existing climatology is kept)",
     )
+    r = sub.add_parser(
+        "frame", help=f"ERA5 climatology of the RMM band over the RMM reference period -> {FRAME_OUT.name}"
+    )
+    r.add_argument(
+        "--clim", type=Path, nargs="+", required=True, help=f"fetch outputs covering {WH04_CLIM.name}'s period"
+    )
     args = ap.parse_args(argv)
     if args.cmd == "fetch":
         fetch(args.start, args.end, args.out, args.workers)
+    elif args.cmd == "frame":
+        frame(args.clim)
     else:
         build(args.clim, args.recent)
     return 0

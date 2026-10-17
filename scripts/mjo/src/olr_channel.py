@@ -26,7 +26,15 @@ Only the offset is corrected, deliberately. Regressing the proxy onto ERA5
 noise, and a damped OLR channel biases RMM amplitude low — the opposite of what
 a phase diagram should do.
 
-    python src/olr_channel.py            # report the splice and cache the map
+The anomaly is then taken in the frame of the Wheeler & Hendon reference
+climatology, clim_olr in climatology.nc (NOAA interpolated OLR, 1979-2001, three
+harmonics), which ERA5 does not share: its top-of-atmosphere longwave runs about
+12 W/m2 above NOAA's in the band mean. The shift is fixed: ERA5's own
+climatology over the same 1979-2001, in the same band and fitted the same way
+(era5_olr_clim.nc, from scripts/sst/build_olr_baseline.py via olr-baseline.yml),
+minus clim_olr, by longitude and day of year (frame_offset).
+
+    python src/olr_channel.py            # report the splice, the frame and the 120-day map
 """
 
 from __future__ import annotations
@@ -41,9 +49,10 @@ from doycal import sel_doy
 
 REF = Path(__file__).resolve().parents[1] / "data" / "reference"
 ERA5 = REF / "era5_olr_band.nc"
+FRAME = REF / "era5_olr_clim.nc"  # ERA5 climatology of the band over the reference period (frame_offset)
 GMGSI = Path(__file__).resolve().parents[2] / "sst" / "metar" / "olr_rt.nc"
-OUT = REF / "olr_map120.nc"
 CAL_DAYS = 90  # recent overlap used for the per-longitude offset
+NINO4 = (160.0, 210.0)  # 160°E-150°W, for the report
 
 
 def band_series() -> tuple[pd.DatetimeIndex, np.ndarray, pd.Timestamp]:
@@ -106,35 +115,50 @@ def _qc(t: pd.DatetimeIndex, a: np.ndarray, k: float = 5.0) -> np.ndarray:
     return a
 
 
+def frame_offset(clim: xr.Dataset) -> xr.DataArray:
+    """ERA5 minus NOAA interpolated OLR over the reference's base period, (dayofyear, longitude): the fixed shift that
+    puts ERA5 OLR into the frame of clim_olr, looked up like it (doycal.sel_doy).
+
+    Both climatologies are a mean and three annual harmonics fitted to every day of the same years in the same band,
+    so their difference is the two sources' systematic difference alone, its seasonal cycle included. It holds no
+    weather and no climate anomaly: an El Niño's months of suppressed or enhanced convection stay in the anomaly."""
+    if not FRAME.exists():
+        raise SystemExit(f"{FRAME.name} missing: build it with olr-baseline.yml (rmm_frame=true)")
+    with xr.open_dataset(FRAME) as f:
+        era5 = f["clim_olr"].transpose("dayofyear", "longitude").load()
+        attrs = dict(f.attrs)
+    ref = clim["clim_olr"].transpose("dayofyear", "longitude")
+    for k in ("base_period", "n_harmonics"):
+        if str(attrs.get(k)) != str(clim.attrs.get(k)):
+            raise SystemExit(f"{FRAME.name}: {k} {attrs.get(k)!r}, climatology.nc: {clim.attrs.get(k)!r}")
+    if not (np.array_equal(era5["dayofyear"], ref["dayofyear"]) and np.allclose(era5["longitude"], ref["longitude"])):
+        raise SystemExit(f"{FRAME.name} is not on climatology.nc's day-of-year and longitude grid")
+    return ref.copy(data=era5.values - ref.values)
+
+
 def anomaly_and_map120(clim: xr.Dataset):
     """OLR anomaly vs the WH04 reference clim, and its trailing 120-day mean map.
 
-    One correction is essential here. clim_olr comes from NOAA interpolated OLR;
-    ERA5's top-of-atmosphere longwave sits about 13 W/m2 above it in the mean, so
-    a raw difference gives an "anomaly" that is almost entirely source offset —
-    the first version of this produced a 120-day map running +0.8 to +27 W/m2,
-    all of it bias. Subtracting that into a forecast would inject a spurious
-    basin-wide OLR shift. So a per-longitude offset, measured over at least a full
-    annual cycle (so it cannot absorb a seasonal mismatch), is removed first.
+    clim_olr is NOAA interpolated OLR, and ERA5's top-of-atmosphere longwave runs
+    about 12 W/m2 above it in the band mean, so a raw difference gives an
+    "anomaly" that is mostly source offset (the first version of this produced a
+    120-day map of +0.8 to +27 W/m2, all of it bias, which subtracted into a
+    forecast is a spurious basin-wide OLR shift). frame_offset takes it out. It is
+    a climatological offset on purpose: an ERA5-minus-NOAA mean over the recent
+    record would also take out that record's mean anomaly, a few W/m2 at some
+    longitudes over a multi-year El Nino or La Nina. That cancels on the observed
+    track, which subtracts the same map from the same anomalies, but not in the
+    forecast, whose OLR anomaly comes from the model and keeps it.
 
     Returns (times, anom[time, lon], mean120[lon])."""
     t, olr, _ = band_series()
-    a = olr - sel_doy(clim["clim_olr"], t)  # leap-aware day-of-year lookup
-    span = (t[-1] - t[0]).days
-    if span < 365:
-        raise SystemExit(
-            f"only {span} d of OLR: need >=1 year to measure the ERA5-vs-NOAA offset (widen fetch_arco_olr_band.py)"
-        )
-    nyr = span // 365
-    while t[-1] - pd.DateOffset(years=nyr) < t[0] - pd.Timedelta(days=1):
-        nyr -= 1
-    whole = t > t[-1] - pd.DateOffset(years=nyr)  # whole calendar years only
-    off = a[whole].mean(0)
-    a = a - off
+    off = frame_offset(clim)
+    a = olr - sel_doy(clim["clim_olr"], t) - sel_doy(off, t)  # leap-aware day-of-year lookup
+    ann = off.mean("dayofyear")
+    n4 = (off.longitude >= NINO4[0]) & (off.longitude <= NINO4[1])
     print(
-        f"  ERA5-vs-NOAA offset removed over {int(whole.sum())} d "
-        f"({nyr} yr): mean {off.mean():+.1f}, "
-        f"range {off.min():+.1f}..{off.max():+.1f} W/m2"
+        f"  ERA5-to-NOAA frame ({clim.attrs['base_period']} climatologies): mean {float(ann.mean()):+.1f}, "
+        f"by longitude {float(ann.min()):+.1f}..{float(ann.max()):+.1f}, Nino-4 {float(ann[n4].mean()):+.1f} W/m2"
     )
     a = _qc(t, a)
     df = pd.DataFrame(a, index=t).reindex(pd.date_range(t[0], t[-1], freq="D"))
@@ -147,22 +171,13 @@ def anomaly_and_map120(clim: xr.Dataset):
 
 def main() -> int:
     clim = xr.open_dataset(REF / "climatology.nc")
-    t, a, m120 = anomaly_and_map120(clim)
-    xr.Dataset(
-        {"olr": ("longitude", m120), "anom": (("time", "longitude"), a)},
-        coords={"time": t, "longitude": clim.longitude.values},
-        attrs={
-            "title": "Trailing 120-day-mean equatorial OLR anomaly (WH04 filter map)",
-            "window_end": f"{t[-1]:%Y-%m-%d}",
-            "sources": "ERA5 ARCO (true OLR) spliced with offset-corrected GMGSI proxy",
-            "note": (
-                "Companion to wind_map120.nc. Subtract from an OLR anomaly "
-                "before the RMM projection to remove interannual variability."
-            ),
-            "units": "W m-2",
-        },
-    ).to_netcdf(OUT)
-    print(f"wrote {OUT.name}: window ends {t[-1]:%Y-%m-%d}, 120-d mean map {m120.min():+.1f}..{m120.max():+.1f} W/m2")
+    t, _a, m120 = anomaly_and_map120(clim)
+    lon = clim.longitude.values
+    n4 = (lon >= NINO4[0]) & (lon <= NINO4[1])
+    print(
+        f"120-day mean map to {t[-1]:%Y-%m-%d}: {m120.min():+.1f}..{m120.max():+.1f} W/m2, "
+        f"Nino-4 {m120[n4].mean():+.1f}"
+    )
     return 0
 
 

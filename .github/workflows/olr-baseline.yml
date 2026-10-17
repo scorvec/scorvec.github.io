@@ -1,4 +1,4 @@
-name: OLR proxy baseline (ERA5 1991-2020 climatology + GMGSI offset)
+name: OLR baselines (proxy ERA5 1991-2020 climatology + GMGSI offset; RMM ERA5 1979-2001 frame)
 
 # Builder of scripts/sst/metar/olr_baseline.nc, the baseline the GMGSI OLR proxy's anomaly is taken against
 # (scripts/sst/build_olr_baseline.py): the ERA5 1991-2020 daily OLR climatology of the proxy's 5S-5N and 15S-15N bands
@@ -8,6 +8,9 @@ name: OLR proxy baseline (ERA5 1991-2020 climatology + GMGSI offset)
 # re-fitted (the committed climatology is kept): re-run that way to follow the proxy when its satellites change.
 # The build job shares olr-waves.yml's concurrency group and reads the store from the newest main, so it never fits a
 # store that is being rewritten; it refuses a store sampled at other hours than build_olr_realtime.py's.
+# With rmm_frame=true it builds only scripts/mjo/data/reference/era5_olr_clim.nc instead: ERA5's climatology of the
+# RMM's OLR band over the base period of the RMM reference climatology (NOAA interpolated OLR 1979-2001), from which
+# scripts/mjo/src/olr_channel.py takes the fixed ERA5-to-NOAA frame offset. The proxy baseline is left untouched.
 on:
   workflow_dispatch:
     inputs:
@@ -15,6 +18,10 @@ on:
         description: 'Rebuild the 1991-2020 climatology too (false = re-fit the offset only)'
         type: boolean
         default: true
+      rmm_frame:
+        description: 'Build only the RMM OLR frame (ERA5 1979-2001 climatology of the RMM band); proxy baseline untouched'
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -24,7 +31,7 @@ env:
 
 jobs:
   part:
-    if: ${{ inputs.climatology }}
+    if: ${{ inputs.climatology && !inputs.rmm_frame }}
     runs-on: ubuntu-latest
     timeout-minutes: 300
     strategy:
@@ -49,6 +56,7 @@ jobs:
           retention-days: 5
 
   recent:
+    if: ${{ !inputs.rmm_frame }}
     runs-on: ubuntu-latest
     timeout-minutes: 120
     steps:
@@ -71,7 +79,7 @@ jobs:
 
   build:
     needs: [part, recent]
-    if: ${{ !cancelled() && needs.recent.result == 'success' && (needs.part.result == 'success' || needs.part.result == 'skipped') }}
+    if: ${{ !cancelled() && !inputs.rmm_frame && needs.recent.result == 'success' && (needs.part.result == 'success' || needs.part.result == 'skipped') }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     concurrency:
@@ -109,6 +117,72 @@ jobs:
             git add "$OUT"
             if git diff --staged --quiet; then echo "No changes; skipping commit."; exit 0; fi
             git commit -m "OLR proxy baseline: ERA5 1991-2020 climatology and GMGSI offset"
+            if timeout 180 git push; then echo "Pushed on attempt $i."; exit 0; fi
+            echo "Push $i rejected; resyncing and retrying…"
+            sleep 5
+          done
+          echo "ERROR: could not push after 5 attempts." >&2
+          exit 1
+
+  frame-part:
+    if: ${{ inputs.rmm_frame }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    strategy:
+      fail-fast: false
+      matrix:
+        years: [[1979, 1983], [1984, 1988], [1989, 1993], [1994, 1998], [1999, 2001]]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+      - run: pip install --quiet numpy pandas xarray zarr gcsfs "quantmet @ git+https://github.com/scorvec/quantmet-tools@v0.4.2"
+      - name: Daily band means
+        run: |
+          mkdir -p out
+          python scripts/sst/build_olr_baseline.py fetch --start ${{ matrix.years[0] }}-01-01 \
+            --end ${{ matrix.years[1] }}-12-31 --out out/era5_olr_${{ matrix.years[0] }}.npz
+      - uses: actions/upload-artifact@v7
+        with:
+          name: olrframe-${{ matrix.years[0] }}
+          path: out/*.npz
+          retention-days: 5
+
+  frame-build:
+    needs: frame-part
+    if: ${{ !cancelled() && inputs.rmm_frame && needs.frame-part.result == 'success' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: main
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+      - run: pip install --quiet numpy pandas xarray netcdf4 "quantmet @ git+https://github.com/scorvec/quantmet-tools@v0.4.2"
+      - uses: actions/download-artifact@v7
+        with:
+          pattern: olrframe-*
+          path: parts
+          merge-multiple: true
+      - name: Frame climatology
+        run: python scripts/sst/build_olr_baseline.py frame --clim parts/era5_olr_*.npz
+      - name: Commit & push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          OUT=scripts/mjo/data/reference/era5_olr_clim.nc
+          SNAP=$(mktemp -d)
+          cp "$OUT" "$SNAP/"
+          for i in 1 2 3 4 5; do
+            if ! timeout 120 git fetch origin main; then echo "fetch $i failed"; sleep 5; continue; fi
+            git reset --hard origin/main
+            cp "$SNAP/era5_olr_clim.nc" "$OUT"
+            git add "$OUT"
+            if git diff --staged --quiet; then echo "No changes; skipping commit."; exit 0; fi
+            git commit -m "RMM OLR frame: ERA5 1979-2001 climatology of the RMM band"
             if timeout 180 git push; then echo "Pushed on attempt $i."; exit 0; fi
             echo "Push $i rejected; resyncing and retrying…"
             sleep 5
