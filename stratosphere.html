@@ -869,8 +869,9 @@ $$\frac{\partial\bar u}{\partial t} \;=\; \hat f\,\bar v^{*} \;-\; \bar w^{*}\fr
         day: AIFS-ENS since July 2025 (155 runs), IFS-ENS and GEFS since January 2025 (210 and 214), by season of the
         valid day and by lead (day 0, days 1&ndash;3, 4&ndash;7, 8&ndash;15, and 16&ndash;35 for GEFS). Each mean error
         was tested with a block bootstrap over the runs (15-day blocks); only those passing a false discovery rate of
-        10&nbsp;% over all 336 tests are removed from every member, carried linearly between leads and seasons, and
-        nothing else is. The largest: <b>AIFS-ENS runs low in the northern winter</b>, by 0.3&nbsp;K&nbsp;m/s at the
+        10&nbsp;% over all 336 tests are removed from every member. A lead block or season whose error is not
+        significant counts as zero, and the correction runs linearly in lead and in season between the blocks, so it
+        tapers rather than jumps; beyond the last block it keeps that block&rsquo;s value only if significant. The largest: <b>AIFS-ENS runs low in the northern winter</b>, by 0.3&nbsp;K&nbsp;m/s at the
         analysis, 1.1 at days 1&ndash;3, 2.3 at days 4&ndash;7 and 4.1 at days 8&ndash;15 (95&nbsp;% interval
         1.5&ndash;6.0), a quarter of the December&ndash;February flux by week two; 0.1&ndash;0.8 in autumn, with no
         significant error in spring. In the south it runs 0.3&ndash;0.9&nbsp;K&nbsp;m/s high at days 1&ndash;7 in winter

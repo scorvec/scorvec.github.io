@@ -19,13 +19,14 @@ the expected flux of a perturbed member does not depend on which members are dra
 
 THE TEST (`test`). The error is the products' ensemble-mean flux minus ERA5 at 00 UTC on the valid day, for the total
 and the wave-1 and wave-2 parts, in cells of season (of the valid day: DJF, MAM, JJA, SON) x lead block (day 0, 1-3,
-4-7, 8-11, 12-15, and 16-21, 22-28, 29-35 for the 35-day models); the analysed record (the AIFS control's 0-h field) is
-one more row. Each cell's mean error is tested by a block bootstrap over starts (calendar blocks of 15 days, resampled
-whole, so a start's leads and neighbouring starts' overlapping valid days move together; NBOOT draws, the null-centred
-two-sided p), and only cells with at least MIN_BLOCKS blocks are tested. Discoveries are taken by Benjamini-Hochberg at a
-false discovery rate of 10 % over every cell of every model. The products subtract the significant cells' mean errors,
-interpolated linearly in lead between the blocks' centres and in day of year between the seasons' middles (a cell that
-is not significant counts as zero), from every member and from the analysed record: reference/heatflux100_bias.json.
+4-7, 8-15, and 16-35 for the 35-day models); the analysed record (the AIFS control's 0-h field) is one more row. Each
+cell's mean error is tested by a block bootstrap over starts (calendar blocks of 15 days, resampled whole, so a start's
+leads and neighbouring starts' overlapping valid days move together; NBOOT draws, the null-centred two-sided p), and only
+cells with at least MIN_BLOCKS blocks are tested. Discoveries are taken by Benjamini-Hochberg at a false discovery rate
+of 10 % over every cell of every model. The products subtract the significant cells' mean errors from every member and
+from the analysed record (heatflux100.bias_at): a cell that is not significant counts as zero at its block's centre, the
+correction is linear in lead between the centres (tapering, not dropping) and keeps the last block's value beyond it, and
+linear in day of year between the seasons' middles: reference/heatflux100_bias.json.
 
     python heatflux100_bias.py archive --model aifs --part 0/8 --out aifs_0.npz
     python heatflux100_bias.py pack parts/*.npz      # -> reference/heatflux100_archive.npz, merged with the committed one

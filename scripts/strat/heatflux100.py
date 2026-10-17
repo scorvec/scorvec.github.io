@@ -183,25 +183,19 @@ def load_bias(model: str) -> dict | None:
 
 
 def bias_at(tab, hemi: str, key: str, valid, lead_days) -> np.ndarray:
-    """The model's significant mean error (K m/s, forecast minus ERA5) at each valid time and lead in days. Within a
-    season it runs linearly in lead through the significant lead blocks only (from zero at the analysis when that block
-    is not significant) and holds its last significant value at longer leads, the drift persisting; a season without
-    one is zero. Between the seasons' middles it is linear in day of year."""
+    """The model's significant mean error (K m/s, forecast minus ERA5) at each valid time and lead in days. At each
+    measured lead block's centre it is the block's mean error if that is significant and zero if not (or untested);
+    between the centres it is linear in lead, so it tapers to zero rather than dropping, and beyond the last block it
+    keeps that block's value (zero unless significant). Between the seasons' middles it is linear in day of year."""
     valid = pd.DatetimeIndex(valid)
     if tab is None:
         return np.zeros(len(valid))
     c = tab[f"{hemi}_{key}"]
     lead = np.broadcast_to(np.asarray(lead_days, float), (len(valid),))
-    per = []  # (season, time)
-    for bias, sig in zip(c["bias"], c["significant"]):
-        x = [L for L, s in zip(tab["lead_centres"], sig) if s]
-        y = [b for b, s in zip(bias, sig) if s]
-        if x and x[0] > 0:
-            x, y = [0.0, *x], [0.0, *y]
-        per.append(np.interp(lead, x, y) if x else np.zeros(len(valid)))
+    b = np.where(np.array(c["significant"], dtype=bool), np.array(c["bias"], dtype=float), 0.0)  # (season, block)
+    per = np.array([np.interp(lead, tab["lead_centres"], row) for row in b])  # (season, time)
     mid = _doy366(pd.to_datetime([f"2000-{md}" for md in tab["season_mid"]]))
     xs = np.r_[mid[-1] - 366, mid, mid[0] + 366]  # periodic over the year
-    per = np.array(per)
     per = np.vstack([per[-1:], per, per[:1]])
     return np.array([np.interp(s, xs, per[:, j]) for j, s in enumerate(_doy366(valid))])
 
@@ -221,7 +215,7 @@ def bias_note(tab, corrected: bool) -> str:
     if tab is None:
         return "not tested against ERA5 (too few archived runs), uncorrected"
     if corrected:
-        return "members less the model's significant mean error against ERA5"
+        return "members less the model's mean error against ERA5 where significant"
     return "no significant mean error against ERA5 at these dates and leads"
 
 
