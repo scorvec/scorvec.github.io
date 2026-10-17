@@ -64,7 +64,13 @@ autocorrelation, Benjamini-Hochberg at FDR 10 % over every field, week and categ
 with its one-sided p, and the reliability of P(below) and P(above). The published r and forecast sd were fitted on all
 20 reforecast years, the four scored ones included, and the ERA5 2001-2020 re-basing normal holds them too: the
 sharpness and RPSS are therefore not fully out of sample, while the bias test of the step (categories and centring)
-does not depend on either to first order.
+does not depend on either to first order. The observed frequencies are also tested against a third (same t, their own
+Benjamini-Hochberg family). Result (gefs-tercile-step.yml, 208 starts 2016-01-06 .. 2019-12-25):
+    t2m  observed below/near/above 0.325/0.331/0.345 (none off a third); calibrated 0.319-0.324/0.333-0.336/
+         0.342-0.345; bias within 0.005 in every week, none significant; RPSS +0.42/+0.20/+0.10/+0.08/+0.06
+    pr   the four years were drier than the decade: observed 0.351/0.328/0.321, all three off a third (FDR 10 %), so
+         the calibrated maps, a third each from week 3, give "below" 0.011-0.019 too little (weeks 1-5) and "above"
+         0.011-0.014 too much (weeks 2-5), all significant; RPSS +0.20/+0.04/+0.01/0.00/-0.00
 
     python build_gefs_mapskill.py truth  --tags t2m,pr,zg500,mslp     # ~1-2 min a tag; work/obs*_{tag}.np*
     python build_gefs_mapskill.py recent --tags t2m,pr                # -> REF/gefs_terciles_{tag}.npz
@@ -947,14 +953,19 @@ def cmd_step(a) -> int:
                         for i, c in ((0, "below"), (2, "above"))
                     }
             rows.append(res)
-            flags += [(t, k, c, res["all"][f"bias_{c}"]["p"]) for c in CATS]
+            flags += [(t, k, f"{test}_{c}") for c in CATS for test in ("bias", "freq")]
         out["fields"][t] = rows
-    sig = benjamini_hochberg(np.array([f[3] for f in flags]), 0.10)
-    for (t, k, c, _), s_ in zip(flags, sig):
-        out["fields"][t][k]["all"][f"bias_{c}"]["significant"] = bool(s_)
+    for test in ("bias", "freq"):  # one family per question: is the step biased, is the overlap a typical third
+        fam = [f for f in flags if f[2].startswith(test)]
+        cells = [out["fields"][t][k]["all"][name + ("_minus_third" if test == "freq" else "")] for t, k, name in fam]
+        for c, s_ in zip(cells, benjamini_hochberg(np.array([c["p"] for c in cells]), 0.10)):
+            c["significant"] = bool(s_)
     Path(a.out).write_text(json.dumps(out, indent=1))
     for t in tags:
-        print(f"  {t}: week  observed b/n/a      forecast b/n/a      bias b / a (95% CI, FDR)       RPSS  (unhatched)")
+        print(
+            f"  {t}: week  observed b/n/a (*: off a third, FDR)  forecast b/n/a      bias b / a (95% CI, FDR)       "
+            "RPSS  (unhatched)"
+        )
         for res in out["fields"][t]:
             x = res["all"]
             o, f = x["observed"], x["forecast"]
@@ -963,9 +974,12 @@ def cmd_step(a) -> int:
                 y = x[f"bias_{c}"]
                 return f"{y['mean']:+.3f} [{y['ci'][0]:+.3f},{y['ci'][1]:+.3f}]{'*' if y['significant'] else ''}"
 
+            def q(c, x=x, o=o):
+                return f"{o[c]:.3f}{'*' if x[f'freq_{c}_minus_third']['significant'] else ' '}"
+
             u = res["unhatched"]
             print(
-                f"     {res['week']}  {o['below']:.3f}/{o['near']:.3f}/{o['above']:.3f}  "
+                f"     {res['week']}  {q('below')}/{q('near')}/{q('above')}               "
                 f"{f['below']:.3f}/{f['near']:.3f}/{f['above']:.3f}  {b('below')} / {b('above')}  {x['rpss']:+.3f} "
                 + (f"({u['rpss']:+.3f}, {u['share'] * 100:.0f}% cells)" if "rpss" in u else "(no unhatched cell)"),
                 flush=True,
