@@ -233,7 +233,7 @@ def main() -> int:
     ds = build(a.parts)
     ds.to_netcdf(OUT)
     print(f"wrote {OUT}; z500 trends {ds.attrs['z500_trend_m_per_yr']}")
-    keys = ("out_nh", "desc_nh", "r588_npac", "out_sh", "desc_sh", "share_nh_500", "transit_nh_500", "transit_sh_700")
+    keys = ("out_nh", "desc_nh", "r588_npac", "out_sh", "desc_sh", "share_nh_500", "transit_nh_500", "transit_sh_500")
     for k in keys:
         r = ds["index"].sel(key=k)
         print(f"  {k}: 1 Feb p50 {float(r.sel(stat='p50', doy=32)):.2f}  1 Aug {float(r.sel(stat='p50', doy=213)):.2f}")

@@ -148,13 +148,16 @@ def velocity_potential(u2d: xr.DataArray, v2d: xr.DataArray, lmax: int = LMAX, k
     return g.data, np.array(g.lats()), np.array(g.lons())
 
 
-def truncated(f2d: xr.DataArray, keep: int, lmax: int = LMAX):
+def truncated(f2d: xr.DataArray, keep: int, lmax: int = LMAX, efold: float | None = None):
     """A 2-D scalar with the spherical harmonics above degree `keep` removed, expanded on the Gauss-Legendre grid of
-    lmax (fine enough for the input, so nothing aliases). Returns (field, dlat, dlon) on the DH2 grid, as χ."""
+    lmax (fine enough for the input, so nothing aliases); efold also damps degree l by exp(-(l/efold)^2), a Gaussian
+    in l that smooths without the ringing of a hard cut. Returns (field, dlat, dlon) on the DH2 grid, as χ."""
     f2d = _padded(_to_0360(f2d))
     glat, glon = pysh.expand.GLQGridCoord(lmax)
-    clm = pysh.SHGrid.from_array(f2d.interp(latitude=glat, longitude=glon).values, grid="GLQ").expand()
-    g = clm.pad(keep).expand(grid="DH2", lmax=lmax)
+    clm = pysh.SHGrid.from_array(f2d.interp(latitude=glat, longitude=glon).values, grid="GLQ").expand().pad(keep)
+    if efold is not None:
+        clm.coeffs *= np.exp(-((np.arange(keep + 1) / efold) ** 2))[None, :, None]
+    g = clm.expand(grid="DH2", lmax=lmax)
     return g.data, np.array(g.lats()), np.array(g.lons())
 
 

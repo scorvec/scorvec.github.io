@@ -138,9 +138,9 @@ def divergent_wind(u: np.ndarray, v: np.ndarray) -> tuple[np.ndarray, np.ndarray
     return out[0], out[1]
 
 
-def large_scale(f: np.ndarray) -> np.ndarray:
-    """A 1.5 deg scalar kept to degree KEEP."""
-    g, dlat, dlon = truncated(_da(f), KEEP, lmax=LMAX15)
+def large_scale(f: np.ndarray, efold: float | None = None) -> np.ndarray:
+    """A 1.5 deg scalar kept to degree KEEP (and, with efold, damped by a Gaussian in degree)."""
+    g, dlat, dlon = truncated(_da(f), KEEP, lmax=LMAX15, efold=efold)
     return _on_grid(g[None], dlat, dlon)[0]
 
 

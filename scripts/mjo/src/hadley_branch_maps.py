@@ -69,6 +69,17 @@ HOURS = (0, 6, 12, 18)
 PC = ccrs.PlateCarree()
 EXTENT = (-50.0, 50.0)
 ROWS = ("nh", "npac", "natl", "sh", "spac", "satl", "sind")
+EQ_MASK = 5.0  # deg: "poleward" changes sign across the equator, so the outflow map leaves this band blank
+W_EFOLD = 12.0  # spherical-harmonic degree damped by 1/e in the mapped vertical motion (a strong Gaussian filter)
+# the interactive map's forward paths: seeds over the deep tropics at DROP_P, released DROP_BACK days before the last
+# analysis and followed for up to DAYS_BACK days (or to the last analysis), 6-hourly, as int16 files per release and level
+DROP_DIR = "hbranch_drop"
+DROP_LAT = np.arange(-20.0, 20.1, 2.5)
+DROP_LON = np.arange(0.0, 360.0, 3.0)
+DROP_P = (150.0, 250.0, 400.0)
+DROP_BACK = (35, 28, 21, 14)
+BASE_EXTENT, BASE_PX = (-60.0, 60.0), 4  # the interactive map's basemap: latitudes, pixels per degree
+POOL_LON = 2  # release points pooled along longitude in the transit-time map
 SECTOR_NAME = {
     "nh": "Northern Hemisphere",
     "sh": "Southern Hemisphere",
@@ -80,7 +91,7 @@ SECTOR_NAME = {
 }
 LEV = {
     "out": [-4, -3, -2, -1.5, -1, -0.5, 0.5, 1, 1.5, 2, 3, 4],
-    "desc": [-60, -45, -30, -20, -10, -5, 5, 10, 20, 30, 45, 60],
+    "desc": [-45, -30, -20, -15, -10, -5, 5, 10, 15, 20, 30, 45],
     "msl": [-12, -8, -6, -4, -2, -1, 1, 2, 4, 6, 8, 12],
 }
 
@@ -466,10 +477,10 @@ def _poleward(v: np.ndarray) -> np.ndarray:
 
 
 def _geo(ax, title: str):
-    ax.coastlines(linewidth=0.5, color="0.3")
+    ax.coastlines(linewidth=1.0, color="#111", zorder=5)
     ax.set_extent([-180.0, 180.0, *EXTENT], crs=PROJ)
     gl = ax.gridlines(
-        draw_labels=True, linewidth=0.3, color="0.6", alpha=0.6, xlocs=range(-180, 181, 60), ylocs=[-30, 0, 30]
+        draw_labels=True, linewidth=0.3, color="0.6", alpha=0.5, xlocs=range(-180, 181, 60), ylocs=[-30, 0, 30]
     )
     gl.top_labels = gl.right_labels = False
     gl.xlabel_style = gl.ylabel_style = {"size": 7.5}
@@ -504,10 +515,11 @@ def _layout(n: int, W: float = 13.0):
 def draw_map(F: dict, cl: xr.Dataset, mid: float, idx: dict, end: pd.Timestamp, out: Path):
     size, rects, left = _layout(3)
     fig = plt.figure(figsize=size)
+    out_a = _poleward(F["vout"]) - _poleward(clim_map(cl, "vout", mid))
     ax = _panel(
         fig,
         *rects[0],
-        _poleward(F["vout"]) - _poleward(clim_map(cl, "vout", mid)),
+        np.where(np.abs(HB.LAT)[:, None] < EQ_MASK, np.nan, out_a),
         LEV["out"],
         f"Outflow · poleward divergent wind in the {HB.OUT_DEPTH:.0f} hPa below the tropopause",
         "anomaly (m s⁻¹, + = more poleward)",
@@ -522,16 +534,17 @@ def draw_map(F: dict, cl: xr.Dataset, mid: float, idx: dict, end: pd.Timestamp, 
         width=0.0012,
         color="#222",
     )
+    ax.axhspan(-EQ_MASK, EQ_MASK, color="#e6e6e6", lw=0, zorder=0)
     w = HB.PA_S_TO_HPA_DAY * F["wmid"]
     ax = _panel(
         fig,
         *rects[1],
-        w - HB.PA_S_TO_HPA_DAY * clim_map(cl, "wmid", mid),
+        HB.large_scale(w - HB.PA_S_TO_HPA_DAY * clim_map(cl, "wmid", mid), efold=W_EFOLD),
         LEV["desc"],
         f"Descent · {HB.DESC_LAYER[0]:.0f}–{HB.DESC_LAYER[1]:.0f} hPa vertical motion",
         "anomaly (hPa day⁻¹, + = more descent)",
     )
-    ax.contour(XN, HB.LAT, _native(w), levels=[20.0], colors="#111", linewidths=0.7)
+    ax.contour(XN, HB.LAT, _native(HB.large_scale(w, efold=W_EFOLD)), levels=[20.0], colors="#111", linewidths=0.8)
     ax = _panel(
         fig,
         *rects[2],
@@ -567,8 +580,9 @@ def draw_map(F: dict, cl: xr.Dataset, mid: float, idx: dict, end: pd.Timestamp, 
         left / W,
         0.12 / H,
         "colour = anomaly against ERA5 1991–2020 at the week's midpoint, the analysis less its mean offset from ERA5 · "
-        f"winds and vertical motion to spherical-harmonic degree {HB.KEEP} (~500 km)\ntop: arrows = the outflow layer's "
-        "divergent wind · middle: black line = descent of 20 hPa/day\nbottom: solid = this week's 588-dam z500 line, "
+        f"winds to spherical-harmonic degree {HB.KEEP} (~500 km)\ntop: arrows = the outflow layer's divergent wind, grey = "
+        f"within {EQ_MASK:.0f}° of the equator (no poleward there) · middle: vertical motion strongly smoothed (degree "
+        f"{W_EFOLD:.0f} damped by 1/e), black line = descent of 20 hPa/day\nbottom: solid = this week's 588-dam z500 line, "
         f"dashed = the normal's (at the {int(C.EPOCH)} level of its trend), H = the highs' central pressure (hPa)",
         fontsize=8.2,
         color="#555",
@@ -579,9 +593,9 @@ def draw_map(F: dict, cl: xr.Dataset, mid: float, idx: dict, end: pd.Timestamp, 
 
 
 def draw_transit(off: Offsets, latest: pd.Timestamp, out: Path):
-    """The week's releases ending `latest`: at each release point the median transit time of the seven (where at least
-    four were traced to the outflow layer, else grey), and a sample of the latest release's parcels traced back to
-    where they left it."""
+    """The week's releases ending `latest`: in cells of POOL_LON release points, the median transit time of the cell's
+    parcels over the seven days (where at least four were traced to the outflow layer, else grey), and a sample of the
+    latest release's parcels traced back to where they left it."""
     days = pd.date_range(latest - pd.Timedelta(days=WIN - 1), latest)
     W = winds(pd.date_range(days[0] - pd.Timedelta(days=T.DAYS_BACK), latest), off)
     taus = []
@@ -589,20 +603,22 @@ def draw_transit(off: Offsets, latest: pd.Timestamp, out: Path):
         tau, slat, slon, tracks = T.trace(W, d.timestamp(), keep_tracks=d == latest)
         taus.append(tau)
     taus = np.stack(taus)
-    med = np.full(taus.shape[1], np.nan)
-    enough = np.isfinite(taus).sum(0) >= 4
-    med[enough] = np.nanmedian(taus[:, enough], axis=0)
     lat, lon, _, _ = T.release_points()
-    nlo = T.RELEASE_LON.size
-    order = np.argsort(_xn(T.RELEASE_LON))
-    xe = np.r_[_xn(T.RELEASE_LON)[order] - T.RES / 2, _xn(T.RELEASE_LON)[order][-1] + T.RES / 2]
-    grid = med.reshape(-1, nlo)[:, order]
+    nla, nlo, k = 2 * T.RELEASE_LAT.size, T.RELEASE_LON.size, POOL_LON
+    pool = taus.reshape(len(days), nla, nlo // k, k).transpose(1, 2, 0, 3).reshape(nla, nlo // k, -1)
+    med = np.full(pool.shape[:2], np.nan)
+    enough = np.isfinite(pool).sum(-1) >= 4
+    med[enough] = np.nanmedian(pool[enough], axis=-1)
+    xc = _xn(T.RELEASE_LON[::k] + T.RES * (k - 1) / 2)
+    order = np.argsort(xc)
+    xe = np.r_[xc[order] - k * T.RES / 2, xc[order][-1] + k * T.RES / 2]
+    grid = med[:, order]
     size, rects, left = _layout(1)
     fig = plt.figure(figsize=size)
     ax = fig.add_axes(rects[0][0], projection=PROJ)
     cmap = plt.get_cmap("viridis")
     norm = matplotlib.colors.BoundaryNorm(np.arange(6.0, 25.0, 2.0), cmap.N, extend="both")
-    rows = lat.reshape(-1, nlo)[:, 0]
+    rows = lat.reshape(nla, nlo)[:, 0]
     for h in (rows > 0, rows < 0):  # each hemisphere's band of cells, edges half a cell either side of the rows
         la = np.sort(rows[h])
         ye = np.r_[la - T.RES / 2, la[-1] + T.RES / 2]
@@ -632,8 +648,9 @@ def draw_transit(off: Offsets, latest: pd.Timestamp, out: Path):
     fig.text(
         left / Wi,
         0.12 / H,
-        f"each {T.RES:.0f}° cell: the median of its seven daily releases traced back {T.DAYS_BACK} days, grey where fewer "
-        f"than four were traced to the outflow layer (equatorward of {T.OUTFLOW_LAT:.0f}°, within "
+        f"each {POOL_LON * T.RES:.0f}° × {T.RES:.0f}° cell: the median of its {POOL_LON * WIN} parcels of the week "
+        f"({POOL_LON} release points, {WIN} days) traced back {T.DAYS_BACK} days, grey where fewer than four were traced "
+        "to the outflow layer (equatorward of {T.OUTFLOW_LAT:.0f}°, within "
         f"{HB.OUT_DEPTH:.0f} hPa below the tropopause)\nlines: one in twelve of the latest release's traced parcels, back "
         "to where it left the layer (dot)",
         fontsize=8.2,
@@ -642,6 +659,61 @@ def draw_transit(off: Offsets, latest: pd.Timestamp, out: Path):
     fig.savefig(out, dpi=100, facecolor="white", pil_kwargs={"quality": 82, "method": 6})
     plt.close(fig)
     print(f"wrote {out}", flush=True)
+
+
+def drop(off: Offsets, last: pd.Timestamp):
+    """The interactive map's data: forward paths from every seed (DROP_LAT x DROP_LON) at each DROP_P, released at
+    00 UTC DROP_BACK days before `last` and followed to DAYS_BACK days or to the last analysis; per release and level
+    an int16 file of (seed, record, [lat x 100, (lon - 180) x 100, p x 10]), and the manifest."""
+    W = winds(pd.date_range(last - pd.Timedelta(days=max(DROP_BACK)), last), off)
+    t_end = W.t0 + (W.u.shape[0] - 1) * T.DT_DATA
+    la, lo = (x.ravel() for x in np.meshgrid(DROP_LAT, DROP_LON, indexing="ij"))
+    d = ANIM / DROP_DIR
+    d.mkdir(parents=True, exist_ok=True)
+    for old in d.glob("*.bin"):  # the directory is swapped onto the frames branch whole
+        old.unlink()
+    rel = []
+    for back in DROP_BACK:
+        r = last - pd.Timedelta(days=back)
+        hours = min(T.DAYS_BACK * 24.0, (t_end - r.timestamp()) / 3600.0)
+        files = {}
+        for p in DROP_P:
+            P = T.paths(W, r.timestamp(), la, lo, np.full(la.size, p), hours)
+            q = np.stack([P[:, 0] * 100.0, (P[:, 1] - 180.0) * 100.0, P[:, 2] * 10.0], -1).transpose(1, 0, 2)
+            files[str(int(p))] = name = f"R{r:%Y%m%d}_{int(p)}.bin"
+            (d / name).write_bytes(np.round(q).astype("<i2").tobytes())
+        rel.append({"date": f"{r:%Y-%m-%d}", "records": int(P.shape[0]), "files": files})
+    doc = {
+        "ver": int(pd.Timestamp.now("UTC").timestamp()),
+        "dir": DROP_DIR,
+        "last": f"{last:%Y-%m-%d}",
+        "step_h": int(T.DT_DATA // 3600),
+        "seeds": {"lat": DROP_LAT.tolist(), "lon": DROP_LON.tolist()},
+        "levels": [int(p) for p in DROP_P],
+        "releases": rel,
+        "basemap": {"src": "assets/sst/hbranch_basemap.webp", "centre": CENTRE, "lat": list(BASE_EXTENT)},
+    }
+    (ANIM / f"{DROP_DIR}_manifest.json").write_text(json.dumps(doc))
+    print(f"  drop: {len(rel)} releases x {len(DROP_P)} levels x {la.size} seeds", flush=True)
+
+
+def basemap(out: Path):
+    """The interactive map's background: Pacific-centred, BASE_EXTENT, BASE_PX pixels a degree, nothing outside the
+    map (the page puts a point at x = (lon - CENTRE + 180 mod 360) / 360, y = (lat_max - lat) / span)."""
+    import cartopy.feature as cfeature
+
+    span = BASE_EXTENT[1] - BASE_EXTENT[0]
+    fig = plt.figure(figsize=(360 * BASE_PX / 100, span * BASE_PX / 100), dpi=100)
+    ax = fig.add_axes((0, 0, 1, 1), projection=PROJ)
+    ax.set_extent([-180.0, 180.0, *BASE_EXTENT], crs=PROJ)
+    ax.add_feature(cfeature.LAND, facecolor="#ece9e2", edgecolor="none")
+    ax.coastlines(linewidth=0.9, color="#222")
+    ax.gridlines(xlocs=range(-180, 181, 30), ylocs=range(-60, 61, 20), linewidth=0.4, color="#999", alpha=0.6)
+    ax.axhspan(DROP_LAT[0], DROP_LAT[-1], color="#2b6cb0", alpha=0.06, lw=0)  # where a particle can be dropped
+    ax.axhline(0.0, color="#777", lw=0.6)
+    ax.spines["geo"].set_visible(False)
+    fig.savefig(out, dpi=100, facecolor="white", pil_kwargs={"quality": 88, "method": 6})
+    plt.close(fig)
 
 
 # ── tracker ───────────────────────────────────────────────────────────────────────────────────────────────────────────
@@ -786,6 +858,8 @@ def render(rebuild: bool = False):
     print(f"  {len(frames)} frames, through {frames[-1]['date']}", flush=True)
     draw_trackers(pd.DataFrame(rows, index=pd.DatetimeIndex(ends)), cl)
     draw_transit(off, tdate.max(), OUT / "hbranch_traj.webp")
+    drop(off, last)
+    basemap(OUT / "hbranch_basemap.webp")
 
 
 def main() -> int:

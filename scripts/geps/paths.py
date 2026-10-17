@@ -7,8 +7,9 @@ stores and published as the release asset geps-ref-v3) plus whatever it fetches 
   REF    read-only reference: lead-dependent GEPS8 model climatology packs, the ERA5 1991-2020 minus 2001-2020 shift,
          teleconnection patterns, hindcast skill/calibration tables, regime centroids          (GEPS_REF)
   STATE  small persistent state carried between runs on the frames branch: GEPS day-0 analysis caches (the observed
-         tails), refreshed CPC/PSL/Long Paddock index files, the previous cycle's compact anomalies and members (the
-         change panels and previous-run overlays), the vortex series                            (GEPS_STATE)
+         tails), GEPS's day-1 OLR of each day (the forecast MJO's 120-day filter), refreshed CPC/PSL/Long Paddock index
+         files, the previous cycle's compact anomalies and members (the change panels and previous-run overlays), the
+         vortex series                                                                          (GEPS_STATE)
   WORK   per-run scratch: full-resolution live files, rendered figures and frames, the GRIB cache (GEPS_WORK)
 
 Every directory is gitignored; the defaults sit inside the repo so the frames-branch seed/publish helpers, which take

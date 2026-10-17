@@ -12,9 +12,9 @@ Two products, both built from the de-drifted anomalies forecast.py writes
 This is the FULL three-field Wheeler & Hendon projection (OLR + U850 + U200),
 not the wind-only version the site's AIFS product is limited to. AIFS does not
 output OLR at all; GEPS does, and olr_channel.py supplies the observed OLR side
-in real time (ERA5 spliced with the offset-corrected GMGSI proxy), so the
-120-day filter map the third channel needs is available. Both the forecast track
-and the observed track here are three-field, so they are like-for-like.
+in real time (ERA5 spliced with the offset-corrected GMGSI proxy). Both the
+forecast track and the observed track here are three-field, so they are
+like-for-like.
 
 Reference frames, which are easy to get wrong.
 Anomalising the forecast against the GEPS model climatology removes drift, but
@@ -36,8 +36,22 @@ at long lead it still removes the lead-dependent drift the hindcast archive exis
 to measure. What it deliberately does not remove is the model's stationary bias,
 because that bias is common to the analysis and would otherwise be double-counted.
 
-The 120-day filter maps then come from analysis in the observed frame, the
-same frame the forecast is in.
+That bias goes with the 120-day filter instead, the mean each channel loses, which
+has to come from the same source as the channel. The winds: the observed track is
+GEPS's own day-0 analysis, which agrees with ERA5's band-mean winds to 0.03 in RMM
+(28 days to 11 Oct 2026), so the site's ERA5 map (wind_map120.nc) serves the
+forecast and the observed track alike. OLR: the observed track is ERA5/GMGSI, but
+GEPS's day-1 OLR in this frame runs 12.6 W/m2 above the observed OLR of the same
+day in the band mean (13 cycles, 27 Aug - 15 Oct 2026). Against the observed map
+that bias stayed in the forecast - days 1-3 sat 11.6 W/m2 above the observed OLR,
+0.13 in RMM amplitude (0.06-0.21 a cycle) - so the forecast's OLR map is GEPS's
+own: the mean of its day-1 channel over the 120 days before the init
+(forecast_olr_map), which is how mjo_hindcast.py filters the hindcast it scores.
+The bias is then in the channel and in the map and cancels; tested on the same
+cycles the mismatch falls to -0.7 W/m2 and 0.07 (the cycle-to-cycle scatter of
+GEPS's day-1 error, which no map removes), and the forecast tracks move by about
+0.08, almost all of it along RMM1, the same at every lead. The observed track
+keeps its own map.
 
 One property to read honestly: this projects the ENSEMBLE MEAN, so the
 amplitude damps with lead by construction as members decohere. A shrinking
@@ -127,7 +141,16 @@ HERE = Path(__file__).resolve().parent
 LIVE = paths.LIVE
 FIGS = paths.FIGS
 REF = _MJO / "data" / "reference"
-ANL_CACHE = paths.STATE / "mjo_analysis"  # band-mean U850/U200 of each day's GEPS lead-0 analysis
+# band-mean U850/U200 of each day's GEPS lead-0 analysis (uv_*), and its day-1 OLR (olr1_*, forecast_olr_map)
+ANL_CACHE = paths.STATE / "mjo_analysis"
+FILTER_DAYS = 120  # WH04 low-frequency filter: the days before the init whose mean each channel loses
+FILTER_MIN = 110  # of those days that must have a value (olr_channel's min_periods)
+# days with both GEPS's day-1 OLR and the observed OLR before the gap-filled forecast map replaces the observed one: the
+# GEPS-minus-observed day-1 difference scatters by 0.04 in RMM from day to day (13 cycles) and persists a few days
+# (correlation 0.3-0.5 across 3-4 days), so a 20-day mean is good to 0.02-0.03 against the 0.08 it moves the track
+FILTER_BRIDGE_MIN = 20
+DATAMART_DAYS = 30  # the Datamart keeps about this many days of runs
+OLR_DAY1 = ("OLR_NTAT_0", 24)  # the 00Z run's OLR accumulated over its first 24 h: day 1, as forecast.py builds it
 HIND = paths.TC_REF / "mjo_hindcast.nc"  # mjo_hindcast.py: hindcast ensemble means projected as here, with BoM's RMM
 ENSO_DAILY = paths.REPO / "assets" / "sst" / "data" / "enso_daily.json"
 WARN = "#8b1a1a"
@@ -339,12 +362,14 @@ def geps_analysis_winds(base: pd.Timestamp, days: int, lon):
 
 
 def observed(base: pd.Timestamp, clim, eofs, days: int = 30):
-    """Three-field observed RMM track, and the fixed 120-day filter maps.
+    """Three-field observed RMM track, its fixed 120-day filter maps, and the observed OLR anomalies.
 
     Winds: GEPS lead-0 analysis (see above). OLR: olr_channel.py. Filter maps:
     the site's wind_map120.nc plus the OLR channel's own 120-day mean, both from
     ERA5-grade analysis — a 120-day mean tolerates a few days of latency, unlike
-    the track."""
+    the track. The forecast shares the wind maps; its OLR map is GEPS's own
+    (forecast_olr_map), which also takes the observed anomalies.
+    -> (times, rmm1, rmm2, maps, (OLR times, OLR anomalies))"""
     lon = eofs.longitude.values.astype(float)
     t, lm850, lm200 = geps_analysis_winds(base, days, lon)
     a850 = lm850 - sel_doy(clim["clim_u850"], t)
@@ -386,7 +411,7 @@ def observed(base: pd.Timestamp, clim, eofs, days: int = 30):
         f"  observed 3-field: {t[sel][0]:%Y-%m-%d} -> {t[sel][-1]:%Y-%m-%d} "
         f"({len(sel)} d), amp now {np.hypot(r1[sel][-1], r2[sel][-1]):.2f}"
     )
-    return t[sel], r1[sel], r2[sel], maps
+    return t[sel], r1[sel], r2[sel], maps, (to, ao)
 
 
 def _reref(tag: str, lon, valid: pd.DatetimeIndex, clim, cvar: str) -> np.ndarray:
@@ -411,8 +436,100 @@ def _reref(tag: str, lon, valid: pd.DatetimeIndex, clim, cvar: str) -> np.ndarra
     return np.stack(out)
 
 
+def geps_day1_olr(cycle: str, base: pd.Timestamp, lon) -> tuple[pd.DatetimeIndex, np.ndarray]:
+    """GEPS's own day-1 OLR on each of the FILTER_DAYS days before the init: the 15S-15N band of that day's 00Z run over
+    its first 24 h, 21-member mean, W/m2, reduced exactly as forecast.py reduces a forecast day; NaN where not held.
+
+    Every day's 00Z run has the first day an extended run has (only the Monday and Thursday runs go on to day 35), so
+    the history is daily. It is one small npz per day in ANL_CACHE, carried between runs: this cycle's own day 1 is
+    filed from forecast.py's member bands, which already hold it, and a day not cached yet is read from the Datamart
+    while it still keeps that run (DATAMART_DAYS); a day it no longer keeps stays missing.
+    -> (days, olr[day, lon])"""
+    import forecast as fx
+
+    own, filed = LIVE / f"geps_rmm_members_{cycle}.npz", ANL_CACHE / f"olr1_{base:%Y%m%d}.npz"
+    if own.exists() and not filed.exists():
+        z = np.load(own)
+        k = np.where(z["L"] == 1)[0]
+        if len(k):
+            ANL_CACHE.mkdir(parents=True, exist_ok=True)
+            np.savez_compressed(filed, lon=lon, olr=z["olr"][k[0]].mean(0))
+
+    days = pd.date_range(base - pd.Timedelta(days=FILTER_DAYS), periods=FILTER_DAYS)
+    oldest = pd.Timestamp.now("UTC").tz_localize(None).normalize() - pd.Timedelta(days=DATAMART_DAYS)
+
+    def one(d):
+        cf = ANL_CACHE / f"olr1_{d:%Y%m%d}.npz"
+        if cf.exists():
+            z = np.load(cf)
+            if np.allclose(z["lon"], lon):
+                return z["olr"]
+        if d < oldest:
+            return None
+        _, b = fx._grab(d.strftime("%Y%m%d"), *OLR_DAY1, band=True)  # (member, lon), J m-2 over the first 24 h
+        if b is None:
+            return None
+        v = b.mean(0) / 86400.0
+        ANL_CACHE.mkdir(parents=True, exist_ok=True)
+        np.savez_compressed(cf, lon=lon, olr=v)
+        return v
+
+    from concurrent.futures import ThreadPoolExecutor
+
+    out = np.full((len(days), len(lon)), np.nan)
+    with ThreadPoolExecutor(max_workers=datamart.WORKERS) as ex:
+        for i, v in enumerate(ex.map(one, days)):
+            if v is not None:
+                out[i] = v
+    return days, out
+
+
+def forecast_olr_map(cycle: str, base: pd.Timestamp, clim, lon, obs_olr, m_obs) -> np.ndarray:
+    """The forecast's OLR filter map: the mean of GEPS's OWN day-1 OLR channel over the FILTER_DAYS days before the
+    init, which is how mjo_hindcast.py filters every hindcast start it scores.
+
+    A day's channel is A(1) = [B(1) - M(0.5)] + [M(0.5) - O] = B(1) - O, B the day-1 band and O the WH04 climatology
+    at that day of year: the model climatology cancels at day 1. GEPS's OLR bias is in it as in every forecast day,
+    so the bias cancels against the map, where the observed map (ERA5/GMGSI) left it in the forecast.
+
+    The history starts with the ~30 days the Datamart still holds, so for the first months most of the window is not
+    held. Such a day contributes its observed anomaly o moved into GEPS's frame, o + [M(0.5) - O] + d: the forecast's
+    own frame shift at that day of year, plus d, the mean of GEPS's day-1 anomaly B(1) - M(0.5) minus o over the days
+    that have both. That makes the map the observed one in GEPS's frame, and GEPS's own mean once every day is held.
+    With fewer than FILTER_BRIDGE_MIN days that have both, d is not known well enough and the observed map m_obs is
+    kept; a day with neither is left out. obs_olr = (times, anomalies) from olr_channel."""
+    days, b1 = geps_day1_olr(cycle, base, lon)
+    h = b1 - sel_doy(clim["clim_olr"], days)
+    t_obs, a_obs = obs_olr
+    i = pd.Index(pd.DatetimeIndex(t_obs).normalize()).get_indexer(days)
+    o = np.full_like(h, np.nan)
+    o[i >= 0] = a_obs[i[i >= 0]]
+    held = np.isfinite(h).all(1)
+    both = held & np.isfinite(o).all(1)
+    if both.sum() < FILTER_BRIDGE_MIN:
+        print(
+            f"::warning::GEPS day-1 OLR on {both.sum()} of the {FILTER_DAYS} days before the init (with the observed "
+            f"OLR; {FILTER_BRIDGE_MIN} needed): the forecast keeps the observed OLR filter map"
+        )
+        return m_obs
+    rr = _reref("olr", lon, days, clim, "clim_olr")
+    d = (h - rr - o)[both].mean(0)
+    v = np.where(held[:, None], h, o + rr + d)
+    ok = np.isfinite(v).all(1)
+    if ok.sum() < FILTER_MIN:
+        print(f"::warning::OLR on {ok.sum()} of the {FILTER_DAYS} filter days: the forecast keeps the observed OLR map")
+        return m_obs
+    m = v[ok].mean(0)
+    print(
+        f"  forecast OLR filter map: GEPS day 1 on {held.sum()} of {FILTER_DAYS} days, the rest observed in GEPS's "
+        f"frame (GEPS day-1 minus observed anomaly {d.mean():+.1f} W/m2 over {both.sum()} d); "
+        f"{(m - m_obs).mean():+.1f} W/m2 against the observed map"
+    )
+    return m
+
+
 def rmm(cycle: str, base: pd.Timestamp, clim, eofs, maps):
-    """Three-field RMM for the GEPS ensemble-mean forecast, days 1-35."""
+    """Three-field RMM for the GEPS ensemble-mean forecast, days 1-35; `maps` are the forecast's 120-day filter maps."""
     lon = eofs.longitude.values.astype(float)
     u850, u200, olr = load("u850", cycle), load("u200", cycle), load("olr", cycle)
     if u850 is None or u200 is None or olr is None:
@@ -548,8 +665,10 @@ def track_check(L, r1, r2, nino34: float | None) -> list[str] | None:
 def plot_phase(cycle: str, base: pd.Timestamp):
     clim = xr.open_dataset(REF / "climatology.nc")
     eofs = xr.open_dataset(REF / "eofs.nc")
-    ot, or1, or2, maps = observed(base, clim, eofs)
-    got = rmm(cycle, base, clim, eofs, maps)
+    ot, or1, or2, maps, obs_olr = observed(base, clim, eofs)
+    lon = eofs.longitude.values.astype(float)
+    fmaps = {**maps, "olr": forecast_olr_map(cycle, base, clim, lon, obs_olr, maps["olr"])}
+    got = rmm(cycle, base, clim, eofs, fmaps)
     if got is None:
         print("  phase: missing a channel")
         return None
@@ -590,7 +709,7 @@ def plot_phase(cycle: str, base: pd.Timestamp):
 
     # ensemble plume: every member, faint, under the mean
     try:
-        Lm, m1, m2, w1, w2 = rmm_members(cycle, base, clim, eofs, maps)
+        Lm, m1, m2, w1, w2 = rmm_members(cycle, base, clim, eofs, fmaps)
         write_wind_track(Lm, w1, w2, base)
         for k in range(m1.shape[1]):
             ax.plot(np.r_[or1[-1], m1[:, k]], np.r_[or2[-1], m2[:, k]], color="#4a7bb5", alpha=0.42, lw=0.9, zorder=3)
@@ -711,8 +830,9 @@ def plot_hovmoller(cycle: str, base: pd.Timestamp):
     lon = np.arange(0, 360, 2.5)
     # Same offset removal the OLR maps use: the live operational GEPS radiates
     # 7.6-8.4 W/m2 less than the GEPS8 reforecast at EVERY lead, so without this
-    # the whole panel is tinted green. rmm() and rmm_members() keep it: a uniform
-    # 1 W/m2 moves the RMM by 0.0095, so it shifts the forecast track by ~0.08.
+    # the whole panel is tinted green. rmm() and rmm_members() need no such step:
+    # GEPS's own day-1 OLR, their filter map (forecast_olr_map), carries the same
+    # offset, so it cancels there.
     olr = olr - xr.DataArray(olr.global_mean.values, dims="L", coords={"L": olr.L})
     O = band_mean(olr, lon)
     U = band_mean(u850, lon)  # m/s
