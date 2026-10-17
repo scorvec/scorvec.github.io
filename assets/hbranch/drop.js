@@ -111,7 +111,7 @@
     if (day != null) { c.strokeStyle = "#1b1d22"; c.beginPath(); c.moveTo(X(day), m.t); c.lineTo(X(day), m.t + ph); c.stroke(); }
   }
   function drawCharts() {
-    var w = Math.max(240, (root.clientWidth - 16) / (root.clientWidth > 760 ? 2 : 1));
+    var two = root.clientWidth > 760, w = Math.max(240, Math.floor((root.clientWidth - (two ? 24 : 0)) / (two ? 2 : 1)));   // the 16 px gap and some slack
     chart(pch, "Pressure (hPa)", 2, function (p) { return Math.log(p / 50) / Math.log(20); }, [50, 100, 200, 300, 500, 700, 1000], w);
     chart(lch, "Latitude (°)", 0, function (v) { return (50 - v) / 100; }, [40, 20, 0, -20, -40], w);
   }
